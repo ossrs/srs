@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <string.h>
 
+// the context for multiple clients.
 class ILogContext
 {
 public:

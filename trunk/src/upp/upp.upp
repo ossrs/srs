@@ -3,6 +3,7 @@ file
     ..\main\srs_main_server.cpp,
 	core readonly separator,
     ..\core\srs_core.hpp,
+    ..\core\srs_core.cpp,
     ..\core\srs_core_log.hpp,
     ..\core\srs_core_log.cpp;
 mainconfig
