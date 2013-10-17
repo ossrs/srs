@@ -1,7 +1,7 @@
 simple-rtmp-server
 ==================
 
-simple rtmp origin/edge live server over state-threads.
+simple rtmp origin/edge live server over state-threads.<br/>
 can be used as origin server, or rtmp-server for encoder.
 
 1. simple: also stable enough.
