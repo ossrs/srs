@@ -1,0 +1,110 @@
+#!/bin/bash
+
+GLOBAL_FILE_MAKEFILE="Makefile"
+GLOBAL_DIR_OBJS="objs"
+
+mkdir -p ${GLOBAL_DIR_OBJS}
+
+#####################################################################################
+# prepare the depends tools
+#####################################################################################
+# st-1.9
+if [[ -f ${GLOBAL_DIR_OBJS}/st-1.9/obj/libst.a && -f ${GLOBAL_DIR_OBJS}/st-1.9/obj/libst.so ]]; then
+    echo "st-1.9t is ok.";
+else
+    echo "build st-1.9t"; 
+    (rm -rf ${GLOBAL_DIR_OBJS}/st-1.9 && cd ${GLOBAL_DIR_OBJS} && unzip ../3rdparty/st-1.9.zip && cd st-1.9 && make linux-debug)
+fi
+# check status
+ret=$?; if [[ $ret -ne 0 ]]; then echo "build st-1.9 failed, ret=$ret"; exit $ret; fi
+if [ ! -f ${GLOBAL_DIR_OBJS}/st-1.9/obj/libst.a ]; then echo "build st-1.9 failed."; exit -1; fi
+if [ ! -f ${GLOBAL_DIR_OBJS}/st-1.9/obj/libst.so ]; then echo "build st-1.9 failed."; exit -1; fi
+
+#####################################################################################
+# generate Makefile.
+#####################################################################################
+echo "generate Makefile"
+
+cat << END > ${GLOBAL_FILE_MAKEFILE}
+.PHONY: default help clean server _prepare_dir
+default: server
+
+help:
+	@echo "Usage: make <help>|<clean>|<server>"
+	@echo "  help       display this help menu"
+	@echo "  clean      cleanup project"
+	@echo "  server     build the srs(simple rtmp server) over st(state-threads)"
+
+clean: 
+	(cd ${GLOBAL_DIR_OBJS}; rm -rf src st_*_load)
+
+server: _prepare_dir
+	@echo "build the srs(simple rtmp server) over st(state-threads)"
+	\$(MAKE) -f ${GLOBAL_DIR_OBJS}/${GLOBAL_FILE_MAKEFILE} server
+
+# the ./configure will generate it.
+_prepare_dir:
+	@mkdir -p ${GLOBAL_DIR_OBJS}
+END
+
+echo 'generate Makefile ok!'
+
+# the performance analysis, uncomments the following when use gperf to analysis the performance. see third-party/readme.txt
+#Performance="-pg"
+#PerformanceLink="-pg"
+# enable gdb debug
+GDBDebug="-g -O0"
+# the warning level.
+WarnLevel="-Wall -Wextra"
+# the compile standard.
+CppStd="-std=c++98"
+# other macros defined
+UserMacros=""
+# the cxx flag generated.
+CXXFLAGS="${CppStd} ${WarnLevel} ${GDBDebug} ${Performance} ${UserMacros}"
+cat << END > ${GLOBAL_DIR_OBJS}/${GLOBAL_FILE_MAKEFILE}
+CXXFLAGS = ${CXXFLAGS}
+GCC = g++
+LINK = \$(GCC)
+AR = ar
+
+.PHONY: default server
+
+default:
+
+END
+
+# Libraries
+LibSTRoot="${GLOBAL_DIR_OBJS}/st-1.9/obj"
+LibSTfile="${LibSTRoot}/libst.a"
+
+#Core Module
+MODULE_ID="CORE" 
+MODULE_DEPENDS=() 
+ModuleLibIncs=()
+MODULE_FILES=("srs_core_log")
+MODULE_DIR="src/core" . auto/modules.sh
+CORE_OBJS="${MODULE_OBJS[@]}"
+
+#Main Module
+MODULE_ID="MAIN" 
+MODULE_DEPENDS=("CORE")
+ModuleLibIncs=(${LibSTRoot})
+MODULE_FILES=("srs_main_server")
+MODULE_DIR="src/main" . auto/modules.sh
+MAIN_OBJS="${MODULE_OBJS[@].o}"
+
+# all main entrances
+MAIN_ENTRANCES=("srs_main_server")
+
+# srs(simple rtmp server) over st(state-threads)
+ModuleLibFiles=(${LibSTfile})
+MODULE_OBJS="${CORE_OBJS[@]} ${CONFIG_OBJS[@]} ${PROTOCOL_OBJS[@]} ${MAIN_OBJS[@]}"
+BUILD_KEY="server" APP_MAIN="srs_main_server" APP_NAME="server" LINK_OPTIONS="-ldl" SO_PATH="" . auto/apps.sh
+
+echo 'configure ok! '
+
+# next step.
+echo "you can:"
+echo "\" make \" to build the srs(simple rtmp server)."
+echo "\" make help \" to get the usage of make"
