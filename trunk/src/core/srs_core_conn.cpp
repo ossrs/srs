@@ -51,12 +51,6 @@ int SrsConnection::start()
 	return ret;
 }
 
-int SrsConnection::do_cycle()
-{
-	int ret = ERROR_SUCCESS;
-	return ret;
-}
-
 void SrsConnection::cycle()
 {
 	int ret = ERROR_SUCCESS;

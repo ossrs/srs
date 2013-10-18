@@ -33,7 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core_log.hpp>
 #include <srs_core_error.hpp>
-#include <srs_core_conn.hpp>
+#include <srs_core_conn_rtmp.hpp>
 
 #define SERVER_LISTEN_BACKLOG 10
 
@@ -135,6 +135,7 @@ int SrsServer::start(int port)
 int SrsServer::cycle()
 {
 	int ret = ERROR_SUCCESS;
+	// TODO: canbe a api thread.
 	st_thread_exit(NULL);
 	return ret;
 }
@@ -156,7 +157,7 @@ int SrsServer::accept_client(st_netfd_t client_stfd)
 {
 	int ret = ERROR_SUCCESS;
 	
-	SrsConnection* conn = new SrsConnection(this, client_stfd);
+	SrsConnection* conn = new SrsRtmpConnection(this, client_stfd);
 	
 	// directly enqueue, the cycle thread will remove the client.
 	conns.push_back(conn);

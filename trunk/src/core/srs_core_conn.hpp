@@ -43,8 +43,9 @@ public:
 	virtual ~SrsConnection();
 public:
 	virtual int start();
+protected:
+	virtual int do_cycle() = 0;
 private:
-	virtual int do_cycle();
 	virtual void cycle();
 	static void* cycle_thread(void* arg);
 };
