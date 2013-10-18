@@ -31,10 +31,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <st.h>
 
-ILogContext::ILogContext(){
+ILogContext::ILogContext()
+{
 }
 
-ILogContext::~ILogContext(){
+ILogContext::~ILogContext()
+{
 }
 
 class LogContext : public ILogContext
@@ -67,22 +69,25 @@ public:
 
 ILogContext* log_context = new LogContext();
 
-LogContext::DateTime::DateTime(){
+LogContext::DateTime::DateTime()
+{
     memset(time_data, 0, DATE_LEN);
 }
 
-LogContext::DateTime::~DateTime(){
+LogContext::DateTime::~DateTime()
+{
 }
 
-const char* LogContext::DateTime::FormatTime(){
+const char* LogContext::DateTime::FormatTime()
+{
     // clock time
     timeval tv;
-    if(gettimeofday(&tv, NULL) == -1){
+    if (gettimeofday(&tv, NULL) == -1) {
         return "";
     }
     // to calendar time
     struct tm* tm;
-    if((tm = localtime(&tv.tv_sec)) == NULL){
+    if ((tm = localtime(&tv.tv_sec)) == NULL) {
         return "";
     }
     
@@ -95,22 +100,27 @@ const char* LogContext::DateTime::FormatTime(){
     return time_data;
 }
 
-LogContext::LogContext(){
+LogContext::LogContext()
+{
 }
 
-LogContext::~LogContext(){
+LogContext::~LogContext()
+{
 }
 
-void LogContext::SetId(){
-	static int id = 0;
+void LogContext::SetId()
+{
+	static int id = 1;
     cache[st_thread_self()] = id++;
 }
 
-int LogContext::GetId(){
+int LogContext::GetId()
+{
     return cache[st_thread_self()];
 }
 
-const char* LogContext::FormatTime(){
+const char* LogContext::FormatTime()
+{
     return time.FormatTime();
 }
 

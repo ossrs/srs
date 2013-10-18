@@ -21,20 +21,20 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <unistd.h>
+#ifndef SRS_CORE_SERVER_HPP
+#define SRS_CORE_SERVER_HPP
 
-#include <srs_core_log.hpp>
-#include <srs_core_error.hpp>
+/*
 #include <srs_core_server.hpp>
+*/
 
-int main(int /*argc*/, char** /*argv*/){
-	int ret = ERROR_SUCCESS;
-	
-	SrsServer server;
-	
-	if ((ret = server.initialize()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-    return 0;
-}
+class SrsServer
+{
+public:
+	SrsServer();
+	virtual ~SrsServer();
+public:
+	virtual int initialize();
+};
+
+#endif

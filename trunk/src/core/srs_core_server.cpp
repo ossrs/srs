@@ -21,20 +21,43 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <unistd.h>
+#include <st.h>
 
 #include <srs_core_log.hpp>
 #include <srs_core_error.hpp>
+
 #include <srs_core_server.hpp>
 
-int main(int /*argc*/, char** /*argv*/){
+SrsServer::SrsServer()
+{
+}
+
+SrsServer::~SrsServer()
+{
+}
+
+int SrsServer::initialize()
+{
 	int ret = ERROR_SUCCESS;
+    
+    // use linux epoll.
+    if (st_set_eventsys(ST_EVENTSYS_ALT) == -1) {
+        ret = ERROR_ST_SET_EPOLL;
+        SrsError("st_set_eventsys use linux epoll failed. ret=%d", ret);
+        return ret;
+    }
+    SrsInfo("st_set_eventsys use linux epoll success");
+    
+    if(st_init() != 0){
+        ret = ERROR_ST_INITIALIZE;
+        SrsError("st_init failed. ret=%d", ret);
+        return ret;
+    }
+    SrsTrace("st_init success");
 	
-	SrsServer server;
+	// set current log id.
+	log_context->SetId();
+	SrsInfo("log set id success");
 	
-	if ((ret = server.initialize()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-    return 0;
+	return ret;
 }
