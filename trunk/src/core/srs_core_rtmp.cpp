@@ -25,8 +25,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core_log.hpp>
 #include <srs_core_error.hpp>
-#include <srs_core_socket.hpp>
 #include <srs_core_buffer.hpp>
+#include <srs_core_socket.hpp>
+#include <srs_core_auto_free.hpp>
 
 SrsRtmp::SrsRtmp(st_netfd_t client_stfd)
 {
@@ -44,14 +45,19 @@ int SrsRtmp::handshake()
     ssize_t nsize;
     Socket skt(stfd);
     
-    char buf[1537];
-    buf[0] = 0x03; // plain text.
-    
-    char* c0c1 = buf;
+    char* c0c1 = new char[1537];
+    SrsAutoFree(char, c0c1, true);
     if ((ret = skt.read_fully(c0c1, 1537, &nsize)) != ERROR_SUCCESS) {
-        srs_error("read c0c1 failed. ret=%d", ret);
+        srs_warn("read c0c1 failed. ret=%d", ret);
         return ret;
     }
+
+	// plain text required.
+	if (c0c1[0] != 0x03) {
+		ret = ERROR_RTMP_PLAIN_REQUIRED;
+		srs_warn("only support rtmp plain text. ret=%d", ret);
+		return ret;
+	}
     
 	return ret;
 }

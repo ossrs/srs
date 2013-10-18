@@ -54,13 +54,13 @@ int SrsClient::do_cycle()
 	int ret = ERROR_SUCCESS;
 	
 	if ((ret = get_peer_ip()) != ERROR_SUCCESS) {
-		srs_error("get peer ip failed. ret=%d", ret);
+		srs_warn("get peer ip failed. ret=%d", ret);
 		return ret;
 	}
 	srs_verbose("get peer ip success. ip=%s", ip);
 	
 	if ((ret = rtmp->handshake()) != ERROR_SUCCESS) {
-		srs_error("rtmp handshake failed. ret=%d", ret);
+		srs_warn("rtmp handshake failed. ret=%d", ret);
 		return ret;
 	}
 	srs_verbose("rtmp handshake success");

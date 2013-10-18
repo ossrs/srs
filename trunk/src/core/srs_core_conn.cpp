@@ -61,6 +61,11 @@ void SrsConnection::cycle()
 	
 	log_context->generate_id();
 	ret = do_cycle();
+	
+	// if socket io error, set to closed.
+	if (ret == ERROR_SOCKET_READ || ret == ERROR_SOCKET_READ_FULLY || ret == ERROR_SOCKET_WRITE) {
+		ret = ERROR_SOCKET_CLOSED;
+	}
     
 	// success.
 	if (ret == ERROR_SUCCESS) {

@@ -21,34 +21,53 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_CORE_ERROR_HPP
-#define SRS_CORE_ERROR_HPP
+#ifndef SRS_CORE_AUTO_FREE_HPP
+#define SRS_CORE_AUTO_FREE_HPP
 
 /*
-#include <srs_core_error.hpp>
+#include <srs_core_auto_free.hpp>
 */
 
 #include <srs_core.hpp>
 
-#define ERROR_SUCCESS 					0
+#include <stddef.h>
 
-#define ERROR_ST_SET_EPOLL 				100
-#define ERROR_ST_INITIALIZE 			101
-#define ERROR_ST_OPEN_SOCKET			102
-#define ERROR_ST_CREATE_LISTEN_THREAD	103
-#define ERROR_ST_CREATE_CYCLE_THREAD	104
+/**
+* auto free the instance in the current scope.
+*/
+#define SrsAutoFree(className, instance, is_array) \
+	c__SrsAutoFree<className> _auto_free_##instance(&instance, is_array)
+    
+template<class T>
+class c__SrsAutoFree
+{
+private:
+    T** ptr;
+    bool is_array;
+public:
+    /**
+    * auto delete the ptr.
+    * @is_array a bool value indicates whether the ptr is a array.
+    */
+    c__SrsAutoFree(T** _ptr, bool _is_array){
+        ptr = _ptr;
+        is_array = _is_array;
+    }
+    
+    virtual ~c__SrsAutoFree(){
+        if (ptr == NULL || *ptr == NULL) {
+            return;
+        }
+        
+        if (is_array) {
+            delete[] *ptr;
+        } else {
+            delete *ptr;
+        }
+        
+        *ptr = NULL;
+    }
+};
 
-#define ERROR_SOCKET_CREATE 			200
-#define ERROR_SOCKET_SETREUSE 			201
-#define ERROR_SOCKET_BIND 				202
-#define ERROR_SOCKET_LISTEN 			203
-#define ERROR_SOCKET_CLOSED 			204
-#define ERROR_SOCKET_GET_PEER_NAME		205
-#define ERROR_SOCKET_GET_PEER_IP		206
-#define ERROR_SOCKET_READ				207
-#define ERROR_SOCKET_READ_FULLY			208
-#define ERROR_SOCKET_WRITE				209
-
-#define ERROR_RTMP_PLAIN_REQUIRED		300
 
 #endif
