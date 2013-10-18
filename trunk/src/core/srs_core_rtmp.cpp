@@ -51,6 +51,7 @@ int SrsRtmp::handshake()
         srs_warn("read c0c1 failed. ret=%d", ret);
         return ret;
     }
+    srs_verbose("read c0c1 success.");
 
 	// plain text required.
 	if (c0c1[0] != 0x03) {
@@ -58,6 +59,26 @@ int SrsRtmp::handshake()
 		srs_warn("only support rtmp plain text. ret=%d", ret);
 		return ret;
 	}
+    srs_verbose("check c0 success, required plain text.");
+	
+	char* s0s1s2 = new char[3073];
+    SrsAutoFree(char, s0s1s2, true);
+    s0s1s2[0] = 0x03; // plain text.
+    if ((ret = skt.write(s0s1s2, 3073, &nsize)) != ERROR_SUCCESS) {
+        srs_warn("send s0s1s2 failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("send s0s1s2 success.");
+    
+    char* c2 = new char[1536];
+    SrsAutoFree(char, c2, true);
+    if ((ret = skt.read_fully(c2, 1536, &nsize)) != ERROR_SUCCESS) {
+        srs_warn("read c2 failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("read c2 success.");
+    
+    srs_trace("handshake success.");
     
 	return ret;
 }
