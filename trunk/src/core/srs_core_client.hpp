@@ -21,33 +21,30 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_CORE_CONN_HPP
-#define SRS_CORE_CONN_HPP
+#ifndef SRS_CORE_CLIENT_HPP
+#define SRS_CORE_CLIENT_HPP
 
 /*
-#include <srs_core_conn.hpp>
+#include <srs_core_client.hpp>
 */
 
 #include <srs_core.hpp>
 
-#include <st.h>
+#include <srs_core_conn.hpp>
 
-class SrsServer;
-class SrsConnection
+class SrsRtmp;
+class SrsClient : public SrsConnection
 {
-protected:
-	SrsServer* server;
-	st_netfd_t stfd;
-public:
-	SrsConnection(SrsServer* srs_server, st_netfd_t client_stfd);
-	virtual ~SrsConnection();
-public:
-	virtual int start();
-protected:
-	virtual int do_cycle() = 0;
 private:
-	virtual void cycle();
-	static void* cycle_thread(void* arg);
+	char* ip;
+	SrsRtmp* rtmp;
+public:
+	SrsClient(SrsServer* srs_server, st_netfd_t client_stfd);
+	virtual ~SrsClient();
+protected:
+	virtual int do_cycle();
+private:
+	virtual int get_peer_ip();
 };
 
 #endif

@@ -33,7 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core_log.hpp>
 #include <srs_core_error.hpp>
-#include <srs_core_conn_rtmp.hpp>
+#include <srs_core_client.hpp>
 
 #define SERVER_LISTEN_BACKLOG 10
 
@@ -76,7 +76,7 @@ int SrsServer::initialize()
 	return ret;
 }
 
-int SrsServer::start(int port)
+int SrsServer::listen(int port)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -106,7 +106,7 @@ int SrsServer::start(int port)
     }
     SrsVerbose("bind socket success. fd=%d", fd);
     
-    if (listen(fd, SERVER_LISTEN_BACKLOG) == -1) {
+    if (::listen(fd, SERVER_LISTEN_BACKLOG) == -1) {
         ret = ERROR_SOCKET_LISTEN;
         SrsError("listen socket error. ret=%d", ret);
         return ret;
@@ -159,7 +159,7 @@ int SrsServer::accept_client(st_netfd_t client_stfd)
 {
 	int ret = ERROR_SUCCESS;
 	
-	SrsConnection* conn = new SrsRtmpConnection(this, client_stfd);
+	SrsConnection* conn = new SrsClient(this, client_stfd);
 	
 	// directly enqueue, the cycle thread will remove the client.
 	conns.push_back(conn);

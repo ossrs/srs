@@ -46,7 +46,7 @@ public:
 	virtual ~SrsServer();
 public:
 	virtual int initialize();
-	virtual int start(int port);
+	virtual int listen(int port);
 	virtual int cycle();
 	virtual void remove(SrsConnection* conn);
 private:

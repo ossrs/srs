@@ -21,22 +21,13 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_CORE_CONN_RTMP_HPP
-#define SRS_CORE_CONN_RTMP_HPP
+#include <srs_core_rtmp.hpp>
 
-/*
-#include <srs_core_conn_rtmp.hpp>
-*/
-
-#include <srs_core_conn.hpp>
-
-class SrsRtmpConnection : public SrsConnection
+SrsRtmp::SrsRtmp(st_netfd_t client_stfd)
 {
-public:
-	SrsRtmpConnection(SrsServer* srs_server, st_netfd_t client_stfd);
-	virtual ~SrsRtmpConnection();
-protected:
-	virtual int do_cycle();
-};
+	stfd = client_stfd;
+}
 
-#endif
+SrsRtmp::~SrsRtmp()
+{
+}

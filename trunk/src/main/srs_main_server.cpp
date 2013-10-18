@@ -25,8 +25,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_error.hpp>
 #include <srs_core_server.hpp>
 
-#include <unistd.h>
-
 int main(int /*argc*/, char** /*argv*/){
 	int ret = ERROR_SUCCESS;
 	
@@ -36,7 +34,7 @@ int main(int /*argc*/, char** /*argv*/){
 		return ret;
 	}
 	
-	if ((ret = server.start(19350)) != ERROR_SUCCESS) {
+	if ((ret = server.listen(19350)) != ERROR_SUCCESS) {
 		return ret;
 	}
 	

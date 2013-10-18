@@ -82,7 +82,9 @@ LibSTfile="${LibSTRoot}/libst.a"
 MODULE_ID="CORE" 
 MODULE_DEPENDS=() 
 ModuleLibIncs=(${LibSTRoot})
-MODULE_FILES=("srs_core" "srs_core_log" "srs_core_server" "srs_core_error" "srs_core_conn" "srs_core_conn_rtmp")
+MODULE_FILES=("srs_core" "srs_core_log" "srs_core_server" 
+        "srs_core_error" "srs_core_conn" "srs_core_client" 
+        "srs_core_rtmp")
 MODULE_DIR="src/core" . auto/modules.sh
 CORE_OBJS="${MODULE_OBJS[@]}"
 
