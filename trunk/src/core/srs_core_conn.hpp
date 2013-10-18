@@ -21,28 +21,32 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <unistd.h>
+#ifndef SRS_CORE_CONN_HPP
+#define SRS_CORE_CONN_HPP
 
-#include <srs_core_log.hpp>
-#include <srs_core_error.hpp>
-#include <srs_core_server.hpp>
+/*
+#include <srs_core_conn.hpp>
+*/
 
-int main(int /*argc*/, char** /*argv*/){
-	int ret = ERROR_SUCCESS;
-	
-	SrsServer server;
-	
-	if ((ret = server.initialize()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	if ((ret = server.start(19350)) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	if ((ret = server.cycle()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-    return 0;
-}
+#include <srs_core.hpp>
+
+#include <st.h>
+
+class SrsServer;
+class SrsConnection
+{
+private:
+	SrsServer* server;
+	st_netfd_t stfd;
+public:
+	SrsConnection(SrsServer* srs_server, st_netfd_t client_stfd);
+	virtual ~SrsConnection();
+public:
+	virtual int start();
+private:
+	virtual int do_cycle();
+	virtual void cycle();
+	static void* cycle_thread(void* arg);
+};
+
+#endif

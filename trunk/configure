@@ -40,7 +40,7 @@ clean:
 
 server: _prepare_dir
 	@echo "build the srs(simple rtmp server) over st(state-threads)"
-	\$(MAKE) -f ${GLOBAL_DIR_OBJS}/${GLOBAL_FILE_MAKEFILE} server
+	\$(MAKE) -f ${GLOBAL_DIR_OBJS}/${GLOBAL_FILE_MAKEFILE} simple_rtmp_server
 
 # the ./configure will generate it.
 _prepare_dir:
@@ -68,7 +68,7 @@ GCC = g++
 LINK = \$(GCC)
 AR = ar
 
-.PHONY: default server
+.PHONY: default simple_rtmp_server 
 
 default:
 
@@ -82,7 +82,7 @@ LibSTfile="${LibSTRoot}/libst.a"
 MODULE_ID="CORE" 
 MODULE_DEPENDS=() 
 ModuleLibIncs=(${LibSTRoot})
-MODULE_FILES=("srs_core" "srs_core_log" "srs_core_server" "srs_core_error")
+MODULE_FILES=("srs_core" "srs_core_log" "srs_core_server" "srs_core_error" "srs_core_conn")
 MODULE_DIR="src/core" . auto/modules.sh
 CORE_OBJS="${MODULE_OBJS[@]}"
 
@@ -100,7 +100,7 @@ MAIN_ENTRANCES=("srs_main_server")
 # srs(simple rtmp server) over st(state-threads)
 ModuleLibFiles=(${LibSTfile})
 MODULE_OBJS="${CORE_OBJS[@]} ${CONFIG_OBJS[@]} ${PROTOCOL_OBJS[@]} ${MAIN_OBJS[@]}"
-BUILD_KEY="server" APP_MAIN="srs_main_server" APP_NAME="server" LINK_OPTIONS="-ldl" SO_PATH="" . auto/apps.sh
+BUILD_KEY="simple_rtmp_server" APP_MAIN="srs_main_server" APP_NAME="simple_rtmp_server" LINK_OPTIONS="-ldl" SO_PATH="" . auto/apps.sh
 
 echo 'configure ok! '
 

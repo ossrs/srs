@@ -35,4 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     #define __STDC_FORMAT_MACROS
 #endif
 
+#include <assert.h>
+#define SrsAssert(expression) assert(expression)
+
 #endif

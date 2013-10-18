@@ -28,13 +28,31 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_server.hpp>
 */
 
+#include <srs_core.hpp>
+
+#include <vector>
+
+#include <st.h>
+
+class SrsConnection;
 class SrsServer
 {
+private:
+	int fd;
+	st_netfd_t stfd;
+	std::vector<SrsConnection*> conns;
 public:
 	SrsServer();
 	virtual ~SrsServer();
 public:
 	virtual int initialize();
+	virtual int start(int port);
+	virtual int cycle();
+	virtual void remove(SrsConnection* conn);
+private:
+	virtual int accept_client(st_netfd_t client_stfd);
+	virtual void listen_cycle();
+	static void* listen_thread(void* arg);
 };
 
 #endif
