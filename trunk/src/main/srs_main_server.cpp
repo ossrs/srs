@@ -28,7 +28,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 int main(int /*argc*/, char** /*argv*/){
 	log_context->SetId();
 	
-	SrsWarn("server start");
+	SrsWarn("server start.");
+	SrsInfo("listen at 1935");
 	
     return 0;
 }
