@@ -39,6 +39,8 @@ private:
 public:
 	SrsRtmp(st_netfd_t client_stfd);
 	virtual ~SrsRtmp();
+public:
+	virtual int handshake();
 };
 
 #endif

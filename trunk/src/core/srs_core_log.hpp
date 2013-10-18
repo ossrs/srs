@@ -42,27 +42,27 @@ public:
     ILogContext();
     virtual ~ILogContext();
 public:
-    virtual void SetId() = 0;
-    virtual int GetId() = 0;
+    virtual void generate_id() = 0;
+    virtual int get_id() = 0;
 public:
-    virtual const char* FormatTime() = 0;
+    virtual const char* format_time() = 0;
 };
 
 // user must implements the LogContext and define a global instance.
 extern ILogContext* log_context;
 
 #if 0
-    #define SrsVerbose(msg, ...) printf("[%s][%d][verbs] ", log_context->FormatTime(), log_context->GetId());printf(msg, ##__VA_ARGS__);printf("\n")
-    #define SrsInfo(msg, ...)    printf("[%s][%d][infos] ", log_context->FormatTime(), log_context->GetId());printf(msg, ##__VA_ARGS__);printf("\n")
-    #define SrsTrace(msg, ...)   printf("[%s][%d][trace] ", log_context->FormatTime(), log_context->GetId());printf(msg, ##__VA_ARGS__);printf("\n")
-    #define SrsWarn(msg, ...)    printf("[%s][%d][warns] ", log_context->FormatTime(), log_context->GetId());printf(msg, ##__VA_ARGS__);printf(" errno=%d(%s)", errno, strerror(errno));printf("\n")
-    #define SrsError(msg, ...)   printf("[%s][%d][error] ", log_context->FormatTime(), log_context->GetId());printf(msg, ##__VA_ARGS__);printf(" errno=%d(%s)", errno, strerror(errno));printf("\n")
+    #define srs_verbose(msg, ...) printf("[%s][%d][verbs] ", log_context->format_time(), log_context->get_id());printf(msg, ##__VA_ARGS__);printf("\n")
+    #define srs_info(msg, ...)    printf("[%s][%d][infos] ", log_context->format_time(), log_context->get_id());printf(msg, ##__VA_ARGS__);printf("\n")
+    #define srs_trace(msg, ...)   printf("[%s][%d][trace] ", log_context->format_time(), log_context->get_id());printf(msg, ##__VA_ARGS__);printf("\n")
+    #define srs_warn(msg, ...)    printf("[%s][%d][warns] ", log_context->format_time(), log_context->get_id());printf(msg, ##__VA_ARGS__);printf(" errno=%d(%s)", errno, strerror(errno));printf("\n")
+    #define srs_error(msg, ...)   printf("[%s][%d][error] ", log_context->format_time(), log_context->get_id());printf(msg, ##__VA_ARGS__);printf(" errno=%d(%s)", errno, strerror(errno));printf("\n")
 #else
-    #define SrsVerbose(msg, ...) printf("[%s][%d][verbs][%s] ", log_context->FormatTime(), log_context->GetId(), __FUNCTION__);printf(msg, ##__VA_ARGS__);printf("\n")
-    #define SrsInfo(msg, ...)    printf("[%s][%d][infos][%s] ", log_context->FormatTime(), log_context->GetId(), __FUNCTION__);printf(msg, ##__VA_ARGS__);printf("\n")
-    #define SrsTrace(msg, ...)   printf("[%s][%d][trace][%s] ", log_context->FormatTime(), log_context->GetId(), __FUNCTION__);printf(msg, ##__VA_ARGS__);printf("\n")
-    #define SrsWarn(msg, ...)    printf("[%s][%d][warns][%s] ", log_context->FormatTime(), log_context->GetId(), __FUNCTION__);printf(msg, ##__VA_ARGS__);printf(" errno=%d(%s)", errno, strerror(errno));printf("\n")
-    #define SrsError(msg, ...)   printf("[%s][%d][error][%s] ", log_context->FormatTime(), log_context->GetId(), __FUNCTION__);printf(msg, ##__VA_ARGS__);printf(" errno=%d(%s)", errno, strerror(errno));printf("\n")
+    #define srs_verbose(msg, ...) printf("[%s][%d][verbs][%s] ", log_context->format_time(), log_context->get_id(), __FUNCTION__);printf(msg, ##__VA_ARGS__);printf("\n")
+    #define srs_info(msg, ...)    printf("[%s][%d][infos][%s] ", log_context->format_time(), log_context->get_id(), __FUNCTION__);printf(msg, ##__VA_ARGS__);printf("\n")
+    #define srs_trace(msg, ...)   printf("[%s][%d][trace][%s] ", log_context->format_time(), log_context->get_id(), __FUNCTION__);printf(msg, ##__VA_ARGS__);printf("\n")
+    #define srs_warn(msg, ...)    printf("[%s][%d][warns][%s] ", log_context->format_time(), log_context->get_id(), __FUNCTION__);printf(msg, ##__VA_ARGS__);printf(" errno=%d(%s)", errno, strerror(errno));printf("\n")
+    #define srs_error(msg, ...)   printf("[%s][%d][error][%s] ", log_context->format_time(), log_context->get_id(), __FUNCTION__);printf(msg, ##__VA_ARGS__);printf(" errno=%d(%s)", errno, strerror(errno));printf("\n")
 #endif
 
 #endif

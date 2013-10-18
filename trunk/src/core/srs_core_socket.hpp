@@ -21,32 +21,29 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_CORE_ERROR_HPP
-#define SRS_CORE_ERROR_HPP
+#ifndef SRS_CORE_SOCKET_HPP
+#define SRS_CORE_SOCKET_HPP
 
 /*
-#include <srs_core_error.hpp>
+#include <srs_core_socket.hpp>
 */
 
 #include <srs_core.hpp>
 
-#define ERROR_SUCCESS 					0
+#include <st.h>
 
-#define ERROR_ST_SET_EPOLL 				100
-#define ERROR_ST_INITIALIZE 			101
-#define ERROR_ST_OPEN_SOCKET			102
-#define ERROR_ST_CREATE_LISTEN_THREAD	103
-#define ERROR_ST_CREATE_CYCLE_THREAD	104
-
-#define ERROR_SOCKET_CREATE 			200
-#define ERROR_SOCKET_SETREUSE 			201
-#define ERROR_SOCKET_BIND 				202
-#define ERROR_SOCKET_LISTEN 			203
-#define ERROR_SOCKET_CLOSED 			204
-#define ERROR_SOCKET_GET_PEER_NAME		205
-#define ERROR_SOCKET_GET_PEER_IP		206
-#define ERROR_SOCKET_READ				207
-#define ERROR_SOCKET_READ_FULLY			208
-#define ERROR_SOCKET_WRITE				209
+// the socket base on st.
+class Socket
+{
+private:
+    st_netfd_t stfd;
+public:
+    Socket(st_netfd_t client_stfd);
+    virtual ~Socket();
+public:
+    virtual int read(const void* buf, size_t size, ssize_t* nread);
+    virtual int read_fully(const void* buf, size_t size, ssize_t* nread);
+    virtual int write(const void* buf, size_t size, ssize_t* nwrite);
+};
 
 #endif

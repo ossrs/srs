@@ -47,10 +47,10 @@ int SrsConnection::start()
     
     if (st_thread_create(cycle_thread, this, 0, 0) == NULL) {
         ret = ERROR_ST_CREATE_CYCLE_THREAD;
-        SrsError("st_thread_create conn cycle thread error. ret=%d", ret);
+        srs_error("st_thread_create conn cycle thread error. ret=%d", ret);
         return ret;
     }
-    SrsVerbose("create st conn cycle thread success.");
+    srs_verbose("create st conn cycle thread success.");
 	
 	return ret;
 }
@@ -59,16 +59,17 @@ void SrsConnection::cycle()
 {
 	int ret = ERROR_SUCCESS;
 	
+	log_context->generate_id();
 	ret = do_cycle();
     
 	// success.
 	if (ret == ERROR_SUCCESS) {
-		SrsTrace("client process normally finished. ret=%d", ret);
+		srs_trace("client process normally finished. ret=%d", ret);
 	}
 	
 	// client close peer.
 	if (ret == ERROR_SOCKET_CLOSED) {
-		SrsTrace("client disconnect peer. ret=%d", ret);
+		srs_trace("client disconnect peer. ret=%d", ret);
 	}
 	
 	server->remove(this);

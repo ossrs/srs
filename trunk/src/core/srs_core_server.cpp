@@ -57,21 +57,21 @@ int SrsServer::initialize()
     // use linux epoll.
     if (st_set_eventsys(ST_EVENTSYS_ALT) == -1) {
         ret = ERROR_ST_SET_EPOLL;
-        SrsError("st_set_eventsys use linux epoll failed. ret=%d", ret);
+        srs_error("st_set_eventsys use linux epoll failed. ret=%d", ret);
         return ret;
     }
-    SrsVerbose("st_set_eventsys use linux epoll success");
+    srs_verbose("st_set_eventsys use linux epoll success");
     
     if(st_init() != 0){
         ret = ERROR_ST_INITIALIZE;
-        SrsError("st_init failed. ret=%d", ret);
+        srs_error("st_init failed. ret=%d", ret);
         return ret;
     }
-    SrsVerbose("st_init success");
+    srs_verbose("st_init success");
 	
 	// set current log id.
-	log_context->SetId();
-	SrsInfo("log set id success");
+	log_context->generate_id();
+	srs_info("log set id success");
 	
 	return ret;
 }
@@ -82,18 +82,18 @@ int SrsServer::listen(int port)
 	
 	if ((fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         ret = ERROR_SOCKET_CREATE;
-        SrsError("create linux socket error. ret=%d", ret);
+        srs_error("create linux socket error. ret=%d", ret);
         return ret;
 	}
-	SrsVerbose("create linux socket success. fd=%d", fd);
+	srs_verbose("create linux socket success. fd=%d", fd);
     
     int reuse_socket = 1;
     if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse_socket, sizeof(int)) == -1) {
         ret = ERROR_SOCKET_SETREUSE;
-        SrsError("setsockopt reuse-addr error. ret=%d", ret);
+        srs_error("setsockopt reuse-addr error. ret=%d", ret);
         return ret;
     }
-    SrsVerbose("setsockopt reuse-addr success. fd=%d", fd);
+    srs_verbose("setsockopt reuse-addr success. fd=%d", fd);
     
     sockaddr_in addr;
     addr.sin_family = AF_INET;
@@ -101,33 +101,33 @@ int SrsServer::listen(int port)
     addr.sin_addr.s_addr = INADDR_ANY;
     if (bind(fd, (const sockaddr*)&addr, sizeof(sockaddr_in)) == -1) {
         ret = ERROR_SOCKET_BIND;
-        SrsError("bind socket error. ret=%d", ret);
+        srs_error("bind socket error. ret=%d", ret);
         return ret;
     }
-    SrsVerbose("bind socket success. fd=%d", fd);
+    srs_verbose("bind socket success. fd=%d", fd);
     
     if (::listen(fd, SERVER_LISTEN_BACKLOG) == -1) {
         ret = ERROR_SOCKET_LISTEN;
-        SrsError("listen socket error. ret=%d", ret);
+        srs_error("listen socket error. ret=%d", ret);
         return ret;
     }
-    SrsVerbose("listen socket success. fd=%d", fd);
+    srs_verbose("listen socket success. fd=%d", fd);
     
     if ((stfd = st_netfd_open_socket(fd)) == NULL){
         ret = ERROR_ST_OPEN_SOCKET;
-        SrsError("st_netfd_open_socket open socket failed. ret=%d", ret);
+        srs_error("st_netfd_open_socket open socket failed. ret=%d", ret);
         return ret;
     }
-    SrsVerbose("st open socket success. fd=%d", fd);
+    srs_verbose("st open socket success. fd=%d", fd);
     
     if (st_thread_create(listen_thread, this, 0, 0) == NULL) {
         ret = ERROR_ST_CREATE_LISTEN_THREAD;
-        SrsError("st_thread_create listen thread error. ret=%d", ret);
+        srs_error("st_thread_create listen thread error. ret=%d", ret);
         return ret;
     }
-    SrsVerbose("create st listen thread success.");
+    srs_verbose("create st listen thread success.");
     
-    SrsTrace("server started, listen at port=%d, fd=%d", port, fd);
+    srs_trace("server started, listen at port=%d, fd=%d", port, fd);
 	
 	return ret;
 }
@@ -148,7 +148,7 @@ void SrsServer::remove(SrsConnection* conn)
 		conns.erase(it);
 	}
 	
-	SrsInfo("conn removed. conns=%d", (int)conns.size());
+	srs_info("conn removed. conns=%d", (int)conns.size());
 	
 	// all connections are created by server,
 	// so we delete it here.
@@ -163,13 +163,13 @@ int SrsServer::accept_client(st_netfd_t client_stfd)
 	
 	// directly enqueue, the cycle thread will remove the client.
 	conns.push_back(conn);
-	SrsVerbose("add conn to vector. conns=%d", (int)conns.size());
+	srs_verbose("add conn to vector. conns=%d", (int)conns.size());
 	
 	// cycle will start process thread and when finished remove the client.
 	if ((ret = conn->start()) != ERROR_SUCCESS) {
 		return ret;
 	}
-	SrsVerbose("conn start finished. ret=%d", ret);
+	srs_verbose("conn start finished. ret=%d", ret);
     
 	return ret;
 }
@@ -178,22 +178,25 @@ void SrsServer::listen_cycle()
 {
 	int ret = ERROR_SUCCESS;
 	
+	log_context->generate_id();
+	srs_trace("listen cycle start.");
+	
 	while (true) {
 	    st_netfd_t client_stfd = st_accept(stfd, NULL, NULL, ST_UTIME_NO_TIMEOUT);
 	    
 	    if(client_stfd == NULL){
 	        // ignore error.
-	        SrsWarn("ignore accept thread stoppped for accept client error");
+	        srs_warn("ignore accept thread stoppped for accept client error");
 	        continue;
 	    }
-	    SrsVerbose("get a client. fd=%d", st_netfd_fileno(client_stfd));
+	    srs_verbose("get a client. fd=%d", st_netfd_fileno(client_stfd));
     	
     	if ((ret = accept_client(client_stfd)) != ERROR_SUCCESS) {
-    		SrsWarn("accept client error. ret=%d", ret);
+    		srs_warn("accept client error. ret=%d", ret);
 			continue;
     	}
     	
-    	SrsVerbose("accept client finished. conns=%d, ret=%d", (int)conns.size(), ret);
+    	srs_verbose("accept client finished. conns=%d, ret=%d", (int)conns.size(), ret);
 	}
 }
 

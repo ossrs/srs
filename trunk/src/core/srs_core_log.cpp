@@ -52,7 +52,7 @@ private:
 	    DateTime();
 	    virtual ~DateTime();
 	public:
-	    virtual const char* FormatTime();
+	    virtual const char* format_time();
 	};
 private:
     DateTime time;
@@ -61,10 +61,10 @@ public:
     LogContext();
     virtual ~LogContext();
 public:
-    virtual void SetId();
-    virtual int GetId();
+    virtual void generate_id();
+    virtual int get_id();
 public:
-    virtual const char* FormatTime();
+    virtual const char* format_time();
 };
 
 ILogContext* log_context = new LogContext();
@@ -78,7 +78,7 @@ LogContext::DateTime::~DateTime()
 {
 }
 
-const char* LogContext::DateTime::FormatTime()
+const char* LogContext::DateTime::format_time()
 {
     // clock time
     timeval tv;
@@ -108,19 +108,19 @@ LogContext::~LogContext()
 {
 }
 
-void LogContext::SetId()
+void LogContext::generate_id()
 {
 	static int id = 1;
     cache[st_thread_self()] = id++;
 }
 
-int LogContext::GetId()
+int LogContext::get_id()
 {
     return cache[st_thread_self()];
 }
 
-const char* LogContext::FormatTime()
+const char* LogContext::format_time()
 {
-    return time.FormatTime();
+    return time.format_time();
 }
 

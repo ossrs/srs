@@ -23,6 +23,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core_rtmp.hpp>
 
+#include <srs_core_log.hpp>
+#include <srs_core_error.hpp>
+#include <srs_core_socket.hpp>
+#include <srs_core_buffer.hpp>
+
 SrsRtmp::SrsRtmp(st_netfd_t client_stfd)
 {
 	stfd = client_stfd;
@@ -31,3 +36,23 @@ SrsRtmp::SrsRtmp(st_netfd_t client_stfd)
 SrsRtmp::~SrsRtmp()
 {
 }
+
+int SrsRtmp::handshake()
+{
+	int ret = ERROR_SUCCESS;
+	
+    ssize_t nsize;
+    Socket skt(stfd);
+    
+    char buf[1537];
+    buf[0] = 0x03; // plain text.
+    
+    char* c0c1 = buf;
+    if ((ret = skt.read_fully(c0c1, 1537, &nsize)) != ERROR_SUCCESS) {
+        srs_error("read c0c1 failed. ret=%d", ret);
+        return ret;
+    }
+    
+	return ret;
+}
+

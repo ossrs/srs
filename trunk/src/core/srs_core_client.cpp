@@ -54,8 +54,16 @@ int SrsClient::do_cycle()
 	int ret = ERROR_SUCCESS;
 	
 	if ((ret = get_peer_ip()) != ERROR_SUCCESS) {
+		srs_error("get peer ip failed. ret=%d", ret);
 		return ret;
 	}
+	srs_verbose("get peer ip success. ip=%s", ip);
+	
+	if ((ret = rtmp->handshake()) != ERROR_SUCCESS) {
+		srs_error("rtmp handshake failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("rtmp handshake success");
 	
 	return ret;
 }
@@ -71,10 +79,10 @@ int SrsClient::get_peer_ip()
     socklen_t addrlen = sizeof(addr);
     if (getpeername(fd, (sockaddr*)&addr, &addrlen) == -1) {
         ret = ERROR_SOCKET_GET_PEER_NAME;
-        SrsError("discovery client information failed. ret=%d", ret);
+        srs_error("discovery client information failed. ret=%d", ret);
         return ret;
     }
-    SrsVerbose("get peer name success.");
+    srs_verbose("get peer name success.");
 
     // ip v4 or v6
     char buf[INET6_ADDRSTRLEN];
@@ -82,15 +90,15 @@ int SrsClient::get_peer_ip()
     
     if ((inet_ntop(addr.sin_family, &addr.sin_addr, buf, sizeof(buf))) == NULL) {
         ret = ERROR_SOCKET_GET_PEER_IP;
-        SrsError("convert client information failed. ret=%d", ret);
+        srs_error("convert client information failed. ret=%d", ret);
         return ret;
     }
-    SrsVerbose("get peer ip of client ip=%s, fd=%d", buf, fd);
+    srs_verbose("get peer ip of client ip=%s, fd=%d", buf, fd);
     
     ip = new char[strlen(buf) + 1];
     strcpy(ip, buf);
     
-    SrsInfo("get peer ip success. ip=%s, fd=%d", ip, fd);
+    srs_info("get peer ip success. ip=%s, fd=%d", ip, fd);
     
     return ret;
 }
