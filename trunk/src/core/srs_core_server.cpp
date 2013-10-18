@@ -148,6 +148,8 @@ void SrsServer::remove(SrsConnection* conn)
 		conns.erase(it);
 	}
 	
+	SrsInfo("conn removed. conns=%d", (int)conns.size());
+	
 	// all connections are created by server,
 	// so we delete it here.
 	delete conn;
@@ -161,11 +163,13 @@ int SrsServer::accept_client(st_netfd_t client_stfd)
 	
 	// directly enqueue, the cycle thread will remove the client.
 	conns.push_back(conn);
+	SrsVerbose("add conn to vector. conns=%d", (int)conns.size());
 	
 	// cycle will start process thread and when finished remove the client.
 	if ((ret = conn->start()) != ERROR_SUCCESS) {
 		return ret;
 	}
+	SrsVerbose("conn start finished. ret=%d", ret);
     
 	return ret;
 }
@@ -182,13 +186,14 @@ void SrsServer::listen_cycle()
 	        SrsWarn("ignore accept thread stoppped for accept client error");
 	        continue;
 	    }
+	    SrsVerbose("get a client. fd=%d", st_netfd_fileno(client_stfd));
     	
     	if ((ret = accept_client(client_stfd)) != ERROR_SUCCESS) {
     		SrsWarn("accept client error. ret=%d", ret);
 			continue;
     	}
     	
-    	SrsVerbose("accept client finished. ret=%d", ret);
+    	SrsVerbose("accept client finished. conns=%d, ret=%d", (int)conns.size(), ret);
 	}
 }
 

@@ -35,6 +35,10 @@ SrsConnection::SrsConnection(SrsServer* srs_server, st_netfd_t client_stfd)
 
 SrsConnection::~SrsConnection()
 {
+	if (stfd) {
+		st_netfd_close(stfd);
+		stfd = NULL;
+	}
 }
 
 int SrsConnection::start()
@@ -59,7 +63,7 @@ void SrsConnection::cycle()
     
 	// success.
 	if (ret == ERROR_SUCCESS) {
-		SrsInfo("client process normally finished. ret=%d", ret);
+		SrsTrace("client process normally finished. ret=%d", ret);
 	}
 	
 	// client close peer.
