@@ -32,6 +32,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <st.h>
 
+class SrsMessage;
+
 /**
 * the protocol provides the rtmp-message-protocol services,
 * to recv RTMP message from RTMP chunk stream,
@@ -44,6 +46,15 @@ private:
 public:
 	SrsProtocol(st_netfd_t client_stfd);
 	virtual ~SrsProtocol();
+public:
+	virtual int recv_message(SrsMessage** pmsg);
+};
+
+class SrsMessage
+{
+public:
+	SrsMessage();
+	virtual ~SrsMessage();
 public:
 };
 

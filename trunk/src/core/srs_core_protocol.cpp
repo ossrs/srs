@@ -37,3 +37,17 @@ SrsProtocol::~SrsProtocol()
 {
 }
 
+int SrsProtocol::recv_message(SrsMessage** pmsg)
+{
+	int ret = ERROR_SUCCESS;
+	return ret;
+}
+
+SrsMessage::SrsMessage()
+{
+}
+
+SrsMessage::~SrsMessage()
+{
+}
+
