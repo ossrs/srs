@@ -68,7 +68,8 @@ int SrsRtmp::handshake()
 	
 	char* s0s1s2 = new char[3073];
     SrsAutoFree(char, s0s1s2, true);
-    s0s1s2[0] = 0x03; // plain text.
+	// plain text required.
+    s0s1s2[0] = 0x03;
     if ((ret = skt.write(s0s1s2, 3073, &nsize)) != ERROR_SUCCESS) {
         srs_warn("send s0s1s2 failed. ret=%d", ret);
         return ret;
