@@ -100,6 +100,7 @@ int SrsRtmp::connect_app(SrsApp** papp)
 		return ret;
 	}
 	SrsAutoFree(SrsMessage, msg, false);
+	srs_info("get connect app message");
 	
 	return ret;
 }
