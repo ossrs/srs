@@ -51,14 +51,18 @@ private:
 	st_netfd_t stfd;
 	SrsBuffer* buffer;
 	SrsSocket* skt;
+	int32_t in_chunk_size;
+	int32_t out_chunk_size;
 public:
 	SrsProtocol(st_netfd_t client_stfd);
 	virtual ~SrsProtocol();
 public:
 	virtual int recv_message(SrsMessage** pmsg);
 private:
+	virtual int recv_interlaced_message(SrsMessage** pmsg);
 	virtual int read_basic_header(char& fmt, int& cid, int& size);
 	virtual int read_message_header(SrsChunkStream* chunk, char fmt, int bh_size, int& mh_size);
+	virtual int read_message_payload(SrsChunkStream* chunk, int bh_size, int mh_size, int& payload_size, SrsMessage** pmsg);
 };
 
 /**
@@ -142,6 +146,7 @@ public:
 	* or compressed video data. The payload format and interpretation are
 	* beyond the scope of this document.
 	*/
+	int32_t size;
 	int8_t* payload;
 public:
 	SrsMessage();

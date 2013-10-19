@@ -46,6 +46,11 @@ char* SrsBuffer::bytes()
 	return &data.at(0);
 }
 
+void SrsBuffer::erase(int size)
+{
+	data.erase(data.begin(), data.begin() + size);
+}
+
 void SrsBuffer::append(char* bytes, int size)
 {
 	std::vector<char> vec(bytes, bytes + size);

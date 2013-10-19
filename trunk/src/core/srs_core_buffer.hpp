@@ -47,9 +47,10 @@ public:
 	SrsBuffer();
 	virtual ~SrsBuffer();
 public:
-	virtual char* bytes();
-private:
 	virtual int size();
+	virtual char* bytes();
+	virtual void erase(int size);
+private:
 	virtual void append(char* bytes, int size);
 public:
 	virtual int ensure_buffer_bytes(SrsSocket* skt, int required_size);
