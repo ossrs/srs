@@ -94,7 +94,12 @@ int SrsRtmp::connect_app(SrsApp** papp)
 	int ret = ERROR_SUCCESS;
 	
 	SrsMessage* msg = NULL;
-	protocol->recv_message(&msg);
+	SrsConnectAppPacket* pkt = NULL;
+	if ((ret = protocol->expect_message<SrsConnectAppPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
+		srs_error("expect connect app message failed. ret=%d", ret);
+		return ret;
+	}
+	SrsAutoFree(SrsMessage, msg, false);
 	
 	return ret;
 }

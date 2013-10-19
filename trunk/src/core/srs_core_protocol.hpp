@@ -34,36 +34,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <st.h>
 
+#include <srs_core_log.hpp>
+#include <srs_core_error.hpp>
+
 class SrsSocket;
 class SrsBuffer;
+class SrsPacket;
 class SrsMessage;
 class SrsChunkStream;
-
-/**
-* the protocol provides the rtmp-message-protocol services,
-* to recv RTMP message from RTMP chunk stream,
-* and to send out RTMP message over RTMP chunk stream.
-*/
-class SrsProtocol
-{
-private:
-	std::map<int, SrsChunkStream*> chunk_streams;
-	st_netfd_t stfd;
-	SrsBuffer* buffer;
-	SrsSocket* skt;
-	int32_t in_chunk_size;
-	int32_t out_chunk_size;
-public:
-	SrsProtocol(st_netfd_t client_stfd);
-	virtual ~SrsProtocol();
-public:
-	virtual int recv_message(SrsMessage** pmsg);
-private:
-	virtual int recv_interlaced_message(SrsMessage** pmsg);
-	virtual int read_basic_header(char& fmt, int& cid, int& size);
-	virtual int read_message_header(SrsChunkStream* chunk, char fmt, int bh_size, int& mh_size);
-	virtual int read_message_payload(SrsChunkStream* chunk, int bh_size, int mh_size, int& payload_size, SrsMessage** pmsg);
-};
 
 /**
 * 4.1. Message Header
@@ -127,7 +105,6 @@ public:
 public:
 	SrsChunkStream(int _cid);
 	virtual ~SrsChunkStream();
-public:
 };
 
 /**
@@ -148,10 +125,114 @@ public:
 	*/
 	int32_t size;
 	int8_t* payload;
+// decoded message payload.
+private:
+	SrsPacket* decoded_payload;
+public:
+	/**
+	* get the decoded packet,
+	* not all packets need to decode, for video/audio packet,
+	* passthrough to peer are ok.
+	* @remark, user must invoke decode_packet first.
+	*/
+	virtual SrsPacket* get_packet();
+	virtual int decode_packet();
 public:
 	SrsMessage();
 	virtual ~SrsMessage();
+};
+
+/**
+* the decoded message payload.
+*/
+class SrsPacket
+{
 public:
+	SrsPacket();
+	virtual ~SrsPacket();
+};
+
+class SrsConnectAppPacket : public SrsPacket
+{
+public:
+	SrsConnectAppPacket();
+	virtual ~SrsConnectAppPacket();
+};
+
+/**
+* the protocol provides the rtmp-message-protocol services,
+* to recv RTMP message from RTMP chunk stream,
+* and to send out RTMP message over RTMP chunk stream.
+*/
+class SrsProtocol
+{
+private:
+	std::map<int, SrsChunkStream*> chunk_streams;
+	st_netfd_t stfd;
+	SrsBuffer* buffer;
+	SrsSocket* skt;
+	int32_t in_chunk_size;
+	int32_t out_chunk_size;
+public:
+	SrsProtocol(st_netfd_t client_stfd);
+	virtual ~SrsProtocol();
+public:
+	/**
+	* recv a message with raw/undecoded payload from peer.
+	* the payload is not decoded, use expect_message<T> if requires specifies message.
+	* @pmsg, user must free it. NULL if not success.
+	* @remark, only when success, user can use and must free the pmsg.
+	*/
+	virtual int recv_message(SrsMessage** pmsg);
+public:
+	/**
+	* expect a specified message, drop others util got specified one.
+	* @pmsg, user must free it. NULL if not success.
+	* @ppacket, store in the pmsg, user must never free it. NULL if not success.
+	* @remark, only when success, user can use and must free the pmsg/ppacket.
+	*/
+	template<class T>
+	int expect_message(SrsMessage** pmsg, T** ppacket)
+	{
+		*pmsg = NULL;
+		*ppacket = NULL;
+		
+		int ret = ERROR_SUCCESS;
+		
+		while (true) {
+			SrsMessage* msg = NULL;
+			if ((ret = recv_message(&msg)) != ERROR_SUCCESS) {
+				srs_error("recv message failed. ret=%d", ret);
+				return ret;
+			}
+			srs_verbose("recv message success.");
+			
+			if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
+				delete msg;
+				srs_error("decode message failed. ret=%d", ret);
+				return ret;
+			}
+			
+			T* pkt = dynamic_cast<T*>(msg->get_packet());
+			if (!pkt) {
+				delete msg;
+				srs_trace("drop message(type=%d, size=%d, time=%d, sid=%d).", 
+					msg->header.message_type, msg->header.payload_length,
+					msg->header.timestamp, msg->header.stream_id);
+				continue;
+			}
+			
+			*pmsg = msg;
+			*ppacket = pkt;
+		}
+		
+		return ret;
+	}
+private:
+	virtual int recv_interlaced_message(SrsMessage** pmsg);
+	virtual int read_basic_header(char& fmt, int& cid, int& size);
+	virtual int read_message_header(SrsChunkStream* chunk, char fmt, int bh_size, int& mh_size);
+	virtual int read_message_payload(SrsChunkStream* chunk, int bh_size, int mh_size, int& payload_size, SrsMessage** pmsg);
 };
 
 #endif
