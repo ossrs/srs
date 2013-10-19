@@ -65,6 +65,11 @@ public:
 	* @return true if stream can read/write specified required_size bytes.
 	*/
 	virtual bool require(int required_size);
+	/**
+	* to skip some size.
+	* @size can be any value. positive to forward; nagetive to backward.
+	*/
+	virtual void skip(int size);
 public:
 	/**
 	* get 1bytes char from stream.

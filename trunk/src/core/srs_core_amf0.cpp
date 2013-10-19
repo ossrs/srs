@@ -24,6 +24,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_amf0.hpp>
 
 #include <srs_core_log.hpp>
+#include <srs_core_error.hpp>
 #include <srs_core_stream.hpp>
 
 // AMF0 marker
@@ -49,30 +50,34 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // origin array whos data takes the same form as LengthValueBytes
 #define RTMP_AMF0_OriginStrictArray 		0x20
 
-std::string srs_amf0_read_utf8(SrsStream* stream)
+int srs_amf0_read_object_eof(SrsStream* stream, SrsAmf0ObjectEOF*&);
+
+int srs_amf0_read_utf8(SrsStream* stream, std::string& value)
 {
-	std::string str;
+	int ret = ERROR_SUCCESS;
 	
 	// len
 	if (!stream->require(2)) {
-		srs_warn("amf0 read string length failed");
-		return str;
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 read string length failed. ret=%d", ret);
+		return ret;
 	}
 	int16_t len = stream->read_2bytes();
 	srs_verbose("amf0 read string length success. len=%d", len);
 	
 	// empty string
 	if (len <= 0) {
-		srs_verbose("amf0 read empty string.");
-		return str;
+		srs_verbose("amf0 read empty string. ret=%d", ret);
+		return ret;
 	}
 	
 	// data
 	if (!stream->require(len)) {
-		srs_warn("amf0 read string data failed");
-		return str;
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 read string data failed. ret=%d", ret);
+		return ret;
 	}
-	str = stream->read_string(len);
+	std::string str = stream->read_string(len);
 	
 	// support utf8-1 only
 	// 1.3.1 Strings and UTF-8
@@ -80,54 +85,104 @@ std::string srs_amf0_read_utf8(SrsStream* stream)
 	for (int i = 0; i < len; i++) {
 		char ch = *(str.data() + i);
 		if ((ch & 0x80) != 0) {
-			srs_warn("only support utf8-1, 0x00-0x7F, actual is %#x", (int)ch);
-			return "";
+			ret = ERROR_RTMP_AMF0_DECODE;
+			srs_error("only support utf8-1, 0x00-0x7F, actual is %#x. ret=%d", (int)ch, ret);
+			return ret;
 		}
 	}
+	
+	value = str;
 	srs_verbose("amf0 read string data success. str=%s", str.c_str());
 	
-	return str;
+	return ret;
 }
 
-std::string srs_amf0_read_string(SrsStream* stream)
+int srs_amf0_read_string(SrsStream* stream, std::string& value)
 {
+	int ret = ERROR_SUCCESS;
+	
 	// marker
 	if (!stream->require(1)) {
-		srs_warn("amf0 read string marker failed");
-		return "";
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 read string marker failed. ret=%d", ret);
+		return ret;
 	}
 	
 	char marker = stream->read_char();
 	if (marker != RTMP_AMF0_String) {
-		srs_warn("amf0 check string marker failed. marker=%#x, required=%#x", marker, RTMP_AMF0_String);
-		return "";
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 check string marker failed. "
+			"marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_String, ret);
+		return ret;
 	}
 	srs_verbose("amf0 read string marker success");
 	
-	return srs_amf0_read_utf8(stream);
+	return srs_amf0_read_utf8(stream, value);
 }
 
-double srs_amf0_read_number(SrsStream* stream)
+int srs_amf0_read_boolean(SrsStream* stream, bool& value)
 {
-	double value = 0;
+	int ret = ERROR_SUCCESS;
 	
 	// marker
 	if (!stream->require(1)) {
-		srs_warn("amf0 read number marker failed");
-		return value;
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 read bool marker failed. ret=%d", ret);
+		return ret;
+	}
+	
+	char marker = stream->read_char();
+	if (marker != RTMP_AMF0_Boolean) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 check bool marker failed. "
+			"marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Boolean, ret);
+		return ret;
+	}
+	srs_verbose("amf0 read bool marker success");
+
+	// value
+	if (!stream->require(1)) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 read bool value failed. ret=%d", ret);
+		return ret;
+	}
+
+	if (stream->read_char() == 0) {
+		value = false;
+	} else {
+		value = true;
+	}
+	
+	srs_verbose("amf0 read bool value success. value=%d", value);
+	
+	return ret;
+}
+
+int srs_amf0_read_number(SrsStream* stream, double& value)
+{
+	int ret = ERROR_SUCCESS;
+	
+	// marker
+	if (!stream->require(1)) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 read number marker failed. ret=%d", ret);
+		return ret;
 	}
 	
 	char marker = stream->read_char();
 	if (marker != RTMP_AMF0_Number) {
-		srs_warn("amf0 check number marker failed. marker=%#x, required=%#x", marker, RTMP_AMF0_Number);
-		return value;
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 check number marker failed. "
+			"marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Number, ret);
+		return ret;
 	}
 	srs_verbose("amf0 read number marker success");
 
 	// value
 	if (!stream->require(8)) {
-		srs_warn("amf0 read number value failed");
-		return value;
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 read number value failed. ret=%d", ret);
+		return ret;
 	}
 
 	int64_t temp = stream->read_8bytes();
@@ -135,13 +190,158 @@ double srs_amf0_read_number(SrsStream* stream)
 	
 	srs_verbose("amf0 read number value success. value=%.2f", value);
 	
-	return value;
+	return ret;
 }
 
-SrsAmf0Object* srs_amf0_read_object(SrsStream* stream)
+int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any*& value)
 {
-	SrsAmf0Object* value = NULL;
-	return value;
+	int ret = ERROR_SUCCESS;
+	
+	// marker
+	if (!stream->require(1)) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 read any marker failed. ret=%d", ret);
+		return ret;
+	}
+	
+	char marker = stream->read_char();
+	srs_verbose("amf0 any marker success");
+	
+	// backward the 1byte marker.
+	stream->skip(-1);
+	
+	switch (marker) {
+		case RTMP_AMF0_String: {
+			std::string data;
+			if ((ret = srs_amf0_read_string(stream, data)) != ERROR_SUCCESS) {
+				return ret;
+			}
+			value = new SrsAmf0String();
+			srs_amf0_convert<SrsAmf0String>(value)->value = data;
+			return ret;
+		}
+		case RTMP_AMF0_Boolean: {
+			bool data;
+			if ((ret = srs_amf0_read_boolean(stream, data)) != ERROR_SUCCESS) {
+				return ret;
+			}
+			value = new SrsAmf0Boolean();
+			srs_amf0_convert<SrsAmf0Boolean>(value)->value = data;
+			return ret;
+		}
+		case RTMP_AMF0_Number: {
+			double data;
+			if ((ret = srs_amf0_read_number(stream, data)) != ERROR_SUCCESS) {
+				return ret;
+			}
+			value = new SrsAmf0Number();
+			srs_amf0_convert<SrsAmf0Number>(value)->value = data;
+			return ret;
+		}
+		case RTMP_AMF0_ObjectEnd: {
+			SrsAmf0ObjectEOF* p = NULL;
+			if ((ret = srs_amf0_read_object_eof(stream, p)) != ERROR_SUCCESS) {
+				return ret;
+			}
+			value = p;
+			return ret;
+		}
+		case RTMP_AMF0_Object: {
+			SrsAmf0Object* p = NULL;
+			if ((ret = srs_amf0_read_object(stream, p)) != ERROR_SUCCESS) {
+				return ret;
+			}
+			value = p;
+			return ret;
+		}
+		default:
+			value = new SrsAmf0Any();
+			value->marker = stream->read_char();
+			return ret;
+	}
+	
+	return ret;
+}
+
+int srs_amf0_read_object_eof(SrsStream* stream, SrsAmf0ObjectEOF*& value)
+{
+	int ret = ERROR_SUCCESS;
+	
+	// marker
+	if (!stream->require(1)) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 read object eof marker failed. ret=%d", ret);
+		return ret;
+	}
+	
+	char marker = stream->read_char();
+	if (marker != RTMP_AMF0_ObjectEnd) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 check object eof marker failed. "
+			"marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_ObjectEnd, ret);
+		return ret;
+	}
+	srs_verbose("amf0 read object eof marker success");
+	
+	// value
+	value = new SrsAmf0ObjectEOF();
+	srs_verbose("amf0 read object eof marker success");
+	
+	return ret;
+}
+
+int srs_amf0_read_object(SrsStream* stream, SrsAmf0Object*& value)
+{
+	int ret = ERROR_SUCCESS;
+	
+	// marker
+	if (!stream->require(1)) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 read object marker failed. ret=%d", ret);
+		return ret;
+	}
+	
+	char marker = stream->read_char();
+	if (marker != RTMP_AMF0_Object) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 check object marker failed. "
+			"marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Object, ret);
+		return ret;
+	}
+	srs_verbose("amf0 read object marker success");
+	
+	// value
+	value = new SrsAmf0Object();
+
+	while (!stream->empty()) {
+		// property-name: utf8 string
+		std::string property_name;
+		if ((ret =srs_amf0_read_utf8(stream, property_name)) != ERROR_SUCCESS) {
+			srs_error("amf0 object read property name failed. ret=%d", ret);
+			return ret;
+		}
+		// property-value: any
+		SrsAmf0Any* property_value = NULL;
+		if ((ret = srs_amf0_read_any(stream, property_value)) != ERROR_SUCCESS) {
+			srs_error("amf0 object read property_value failed. "
+				"name=%s, ret=%d", property_name.c_str(), ret);
+			return ret;
+		}
+		
+		// AMF0 Object EOF.
+		if (property_name.empty() || !property_value || property_value->is_object_eof()) {
+			if (property_value) {
+				delete property_value;
+			}
+			srs_info("amf0 read object EOF.");
+			break;
+		}
+		
+		// add property
+		value->properties[property_name] = property_value;
+	}
+	
+	return ret;
 }
 
 SrsAmf0Any::SrsAmf0Any()
@@ -158,6 +358,11 @@ bool SrsAmf0Any::is_string()
 	return marker == RTMP_AMF0_String;
 }
 
+bool SrsAmf0Any::is_boolean()
+{
+	return marker == RTMP_AMF0_Boolean;
+}
+
 bool SrsAmf0Any::is_number()
 {
 	return marker == RTMP_AMF0_Number;
@@ -166,6 +371,11 @@ bool SrsAmf0Any::is_number()
 bool SrsAmf0Any::is_object()
 {
 	return marker == RTMP_AMF0_Object;
+}
+
+bool SrsAmf0Any::is_object_eof()
+{
+	return marker == RTMP_AMF0_ObjectEnd;
 }
 
 SrsAmf0String::SrsAmf0String()
@@ -177,6 +387,16 @@ SrsAmf0String::~SrsAmf0String()
 {
 }
 
+SrsAmf0Boolean::SrsAmf0Boolean()
+{
+	marker = RTMP_AMF0_Boolean;
+	value = false;
+}
+
+SrsAmf0Boolean::~SrsAmf0Boolean()
+{
+}
+
 SrsAmf0Number::SrsAmf0Number()
 {
 	marker = RTMP_AMF0_Number;
@@ -185,12 +405,12 @@ SrsAmf0Number::SrsAmf0Number()
 
 SrsAmf0Number::~SrsAmf0Number()
 {
+	marker = RTMP_AMF0_ObjectEnd;
 }
 
 SrsAmf0ObjectEOF::SrsAmf0ObjectEOF()
 {
 	utf8_empty = 0x00;
-	object_end_marker = RTMP_AMF0_ObjectEnd;
 }
 
 SrsAmf0ObjectEOF::~SrsAmf0ObjectEOF()

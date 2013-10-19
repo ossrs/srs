@@ -238,6 +238,7 @@ public:
 			
 			*pmsg = msg;
 			*ppacket = pkt;
+			break;
 		}
 		
 		return ret;

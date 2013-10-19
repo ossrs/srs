@@ -70,7 +70,12 @@ bool SrsStream::empty()
 
 bool SrsStream::require(int required_size)
 {
-	return !empty() && (required_size < bytes + size - p);
+	return !empty() && (required_size <= bytes + size - p);
+}
+
+void SrsStream::skip(int size)
+{
+	p += size;
 }
 
 char SrsStream::read_char()
