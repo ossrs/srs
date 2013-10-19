@@ -30,4 +30,16 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+/**
+* the buffer provices bytes cache for protocol. generally, 
+* protocol recv data from socket, put into buffer, decode to RTMP message.
+* protocol encode RTMP message to bytes, put into buffer, send to socket.
+*/
+class SrsBuffer
+{
+public:
+	SrsBuffer();
+	virtual ~SrsBuffer();
+};
+
 #endif

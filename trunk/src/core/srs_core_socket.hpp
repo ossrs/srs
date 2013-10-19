@@ -32,7 +32,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <st.h>
 
-// the socket base on st.
+/**
+* the socket provides TCP socket over st,
+* that is, the sync socket mechanism.
+*/
 class Socket
 {
 private:

@@ -83,7 +83,7 @@ void SrsConnection::cycle()
 void* SrsConnection::cycle_thread(void* arg)
 {
 	SrsConnection* conn = (SrsConnection*)arg;
-	SrsAssert(conn != NULL);
+	srs_assert(conn != NULL);
 	
 	conn->cycle();
 	

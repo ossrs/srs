@@ -28,7 +28,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 */
 
-// user must include the srs_core.hpp before any header.
+/**
+* the core provides the common defined macros, utilities,
+* user must include the srs_core.hpp before any header, or maybe 
+* build failed.
+*/
 
 // for int64_t print using PRId64 format.
 #ifndef __STDC_FORMAT_MACROS
@@ -36,6 +40,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #include <assert.h>
-#define SrsAssert(expression) assert(expression)
+#define srs_assert(expression) assert(expression)
 
 #endif

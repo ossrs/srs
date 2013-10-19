@@ -36,10 +36,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * auto free the instance in the current scope.
 */
 #define SrsAutoFree(className, instance, is_array) \
-	c__SrsAutoFree<className> _auto_free_##instance(&instance, is_array)
+	__SrsAutoFree<className> _auto_free_##instance(&instance, is_array)
     
 template<class T>
-class c__SrsAutoFree
+class __SrsAutoFree
 {
 private:
     T** ptr;
@@ -49,12 +49,12 @@ public:
     * auto delete the ptr.
     * @is_array a bool value indicates whether the ptr is a array.
     */
-    c__SrsAutoFree(T** _ptr, bool _is_array){
+    __SrsAutoFree(T** _ptr, bool _is_array){
         ptr = _ptr;
         is_array = _is_array;
     }
     
-    virtual ~c__SrsAutoFree(){
+    virtual ~__SrsAutoFree(){
         if (ptr == NULL || *ptr == NULL) {
             return;
         }

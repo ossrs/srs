@@ -203,7 +203,7 @@ void SrsServer::listen_cycle()
 void* SrsServer::listen_thread(void* arg)
 {
 	SrsServer* server = (SrsServer*)arg;
-	SrsAssert(server != NULL);
+	srs_assert(server != NULL);
 	
 	server->listen_cycle();
 	

@@ -33,6 +33,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_conn.hpp>
 
 class SrsRtmp;
+
+/**
+* the client provides the main logic control for RTMP clients.
+*/
 class SrsClient : public SrsConnection
 {
 private:

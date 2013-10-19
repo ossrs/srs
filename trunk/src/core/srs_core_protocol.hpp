@@ -32,6 +32,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <st.h>
 
+/**
+* the protocol provides the rtmp-message-protocol services,
+* to recv RTMP message from RTMP chunk stream,
+* and to send out RTMP message over RTMP chunk stream.
+*/
 class SrsProtocol
 {
 private:

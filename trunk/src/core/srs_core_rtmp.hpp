@@ -34,13 +34,19 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <st.h>
 
+class SrsProtocol;
+
 struct SrsApp
 {
 	std::string vhost;
 	std::string app;
 };
 
-class SrsProtocol;
+/**
+* the rtmp provices rtmp-command-protocol services,
+* a high level protocol, media stream oriented services,
+* such as connect to vhost/app, play stream, get audio/video data.
+*/
 class SrsRtmp
 {
 private:
