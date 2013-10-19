@@ -48,7 +48,7 @@ int SrsRtmp::handshake()
 	int ret = ERROR_SUCCESS;
 	
     ssize_t nsize;
-    Socket skt(stfd);
+    SrsSocket skt(stfd);
     
     char* c0c1 = new char[1537];
     SrsAutoFree(char, c0c1, true);
@@ -92,6 +92,10 @@ int SrsRtmp::handshake()
 int SrsRtmp::connect_app(SrsApp** papp)
 {
 	int ret = ERROR_SUCCESS;
+	
+	SrsMessage* msg = NULL;
+	protocol->recv_message(&msg);
+	
 	return ret;
 }
 

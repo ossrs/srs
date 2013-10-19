@@ -25,16 +25,16 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core_error.hpp>
 
-Socket::Socket(st_netfd_t client_stfd)
+SrsSocket::SrsSocket(st_netfd_t client_stfd)
 {
     stfd = client_stfd;
 }
 
-Socket::~Socket()
+SrsSocket::~SrsSocket()
 {
 }
 
-int Socket::read(const void* buf, size_t size, ssize_t* nread)
+int SrsSocket::read(const void* buf, size_t size, ssize_t* nread)
 {
     int ret = ERROR_SUCCESS;
     
@@ -53,7 +53,7 @@ int Socket::read(const void* buf, size_t size, ssize_t* nread)
     return ret;
 }
 
-int Socket::read_fully(const void* buf, size_t size, ssize_t* nread)
+int SrsSocket::read_fully(const void* buf, size_t size, ssize_t* nread)
 {
     int ret = ERROR_SUCCESS;
     
@@ -72,7 +72,7 @@ int Socket::read_fully(const void* buf, size_t size, ssize_t* nread)
     return ret;
 }
 
-int Socket::write(const void* buf, size_t size, ssize_t* nwrite)
+int SrsSocket::write(const void* buf, size_t size, ssize_t* nwrite)
 {
     int ret = ERROR_SUCCESS;
     

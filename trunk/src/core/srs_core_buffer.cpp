@@ -23,11 +23,52 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core_buffer.hpp>
 
+#include <srs_core_error.hpp>
+#include <srs_core_socket.hpp>
+
+#define SOCKET_READ_SIZE 4096
+
 SrsBuffer::SrsBuffer()
 {
 }
 
 SrsBuffer::~SrsBuffer()
 {
+}
+
+int SrsBuffer::size()
+{
+	return (int)data.size();
+}
+
+char* SrsBuffer::bytes()
+{
+	return &data.at(0);
+}
+
+void SrsBuffer::append(char* bytes, int size)
+{
+	std::vector<char> vec(bytes, bytes + size);
+	
+	data.insert(data.begin(), vec.begin(), vec.end());
+}
+
+int SrsBuffer::ensure_buffer_bytes(SrsSocket* skt, int required_size)
+{
+	int ret = ERROR_SUCCESS;
+
+	ssize_t nread;
+	while (size() < required_size) {
+		char buffer[SOCKET_READ_SIZE];
+		
+		if ((ret = skt->read(buffer, SOCKET_READ_SIZE, &nread)) != ERROR_SUCCESS) {
+			return ret;
+		}
+		
+		srs_assert((int)nread > 0);
+		append(buffer, (int)nread);
+	}
+	
+	return ret;
 }
 

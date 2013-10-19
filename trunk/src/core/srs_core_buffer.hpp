@@ -30,6 +30,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+#include <vector>
+
+class SrsSocket;
+
 /**
 * the buffer provices bytes cache for protocol. generally, 
 * protocol recv data from socket, put into buffer, decode to RTMP message.
@@ -37,9 +41,18 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 class SrsBuffer
 {
+private:
+	std::vector<char> data;
 public:
 	SrsBuffer();
 	virtual ~SrsBuffer();
+public:
+	virtual char* bytes();
+private:
+	virtual int size();
+	virtual void append(char* bytes, int size);
+public:
+	virtual int ensure_buffer_bytes(SrsSocket* skt, int required_size);
 };
 
 #endif

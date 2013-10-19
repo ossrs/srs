@@ -36,13 +36,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * the socket provides TCP socket over st,
 * that is, the sync socket mechanism.
 */
-class Socket
+class SrsSocket
 {
 private:
     st_netfd_t stfd;
 public:
-    Socket(st_netfd_t client_stfd);
-    virtual ~Socket();
+    SrsSocket(st_netfd_t client_stfd);
+    virtual ~SrsSocket();
 public:
     virtual int read(const void* buf, size_t size, ssize_t* nread);
     virtual int read_fully(const void* buf, size_t size, ssize_t* nread);
