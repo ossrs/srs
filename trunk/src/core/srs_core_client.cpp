@@ -105,7 +105,7 @@ int SrsClient::get_peer_ip()
     ip = new char[strlen(buf) + 1];
     strcpy(ip, buf);
     
-    srs_info("get peer ip success. ip=%s, fd=%d", ip, fd);
+    srs_trace("get peer ip success. ip=%s, fd=%d", ip, fd);
     
     return ret;
 }
