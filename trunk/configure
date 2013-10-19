@@ -85,7 +85,7 @@ ModuleLibIncs=(${LibSTRoot})
 MODULE_FILES=("srs_core" "srs_core_log" "srs_core_server" 
         "srs_core_error" "srs_core_conn" "srs_core_client" 
         "srs_core_rtmp" "srs_core_socket" "srs_core_buffer"
-        "srs_core_auto_free")
+        "srs_core_auto_free" "srs_core_protocol")
 MODULE_DIR="src/core" . auto/modules.sh
 CORE_OBJS="${MODULE_OBJS[@]}"
 

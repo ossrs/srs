@@ -65,6 +65,13 @@ int SrsClient::do_cycle()
 	}
 	srs_verbose("rtmp handshake success");
 	
+	SrsApp* app = NULL;
+	if ((ret = rtmp->connect_app(&app)) != ERROR_SUCCESS) {
+		srs_warn("rtmp connect vhost/app failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("rtmp connect vhost/app success");
+	
 	return ret;
 }
 

@@ -25,17 +25,22 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core_log.hpp>
 #include <srs_core_error.hpp>
-#include <srs_core_buffer.hpp>
 #include <srs_core_socket.hpp>
+#include <srs_core_protocol.hpp>
 #include <srs_core_auto_free.hpp>
 
 SrsRtmp::SrsRtmp(st_netfd_t client_stfd)
 {
+	protocol = new SrsProtocol(client_stfd);
 	stfd = client_stfd;
 }
 
 SrsRtmp::~SrsRtmp()
 {
+	if (protocol) {
+		delete protocol;
+		protocol = NULL;
+	}
 }
 
 int SrsRtmp::handshake()
@@ -80,6 +85,12 @@ int SrsRtmp::handshake()
     
     srs_trace("handshake success.");
     
+	return ret;
+}
+
+int SrsRtmp::connect_app(SrsApp** papp)
+{
+	int ret = ERROR_SUCCESS;
 	return ret;
 }
 

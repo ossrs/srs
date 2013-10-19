@@ -21,37 +21,25 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_CORE_RTMP_HPP
-#define SRS_CORE_RTMP_HPP
+#ifndef SRS_CORE_PROTOCOL_HPP
+#define SRS_CORE_PROTOCOL_HPP
 
 /*
-#include <srs_core_rtmp.hpp>
+#include <srs_core_protocol.hpp>
 */
 
 #include <srs_core.hpp>
 
-#include <string>
-
 #include <st.h>
 
-struct SrsApp
-{
-	std::string vhost;
-	std::string app;
-};
-
-class SrsProtocol;
-class SrsRtmp
+class SrsProtocol
 {
 private:
-	SrsProtocol* protocol;
 	st_netfd_t stfd;
 public:
-	SrsRtmp(st_netfd_t client_stfd);
-	virtual ~SrsRtmp();
+	SrsProtocol(st_netfd_t client_stfd);
+	virtual ~SrsProtocol();
 public:
-	virtual int handshake();
-	virtual int connect_app(SrsApp** papp);
 };
 
 #endif
