@@ -55,22 +55,28 @@ std::string srs_amf0_read_string(SrsStream* stream)
 	
 	// marker
 	if (!stream->require(1)) {
+		srs_warn("amf0 read string marker failed");
 		return str;
 	}
 	
 	char marker = stream->read_char();
 	if (marker != RTMP_AMF0_String) {
+		srs_warn("amf0 check string marker failed. marker=%#x, required=%#x", marker, RTMP_AMF0_String);
 		return str;
 	}
+	srs_verbose("amf0 read string marker success");
 	
 	// len
 	if (!stream->require(2)) {
+		srs_warn("amf0 read string length failed");
 		return str;
 	}
 	int16_t len = stream->read_2bytes();
+	srs_verbose("amf0 read string length success. len=%d", len);
 	
 	// data
 	if (!stream->require(len)) {
+		srs_warn("amf0 read string data failed");
 		return str;
 	}
 	str = stream->read_string(len);
@@ -85,6 +91,7 @@ std::string srs_amf0_read_string(SrsStream* stream)
 			return "";
 		}
 	}
+	srs_verbose("amf0 read string data success. str=%s", str.c_str());
 	
 	return str;
 }

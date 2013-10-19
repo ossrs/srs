@@ -66,8 +66,17 @@ public:
 	*/
 	virtual bool require(int required_size);
 public:
+	/**
+	* get 1bytes char from stream.
+	*/
 	virtual char read_char();
+	/**
+	* get 2bytes int from stream.
+	*/
 	virtual int16_t read_2bytes();
+	/**
+	* get string from stream, length specifies by param len.
+	*/
 	virtual std::string read_string(int len);
 };
 
