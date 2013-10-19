@@ -28,7 +28,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 SrsStream::SrsStream()
 {
-	bytes = NULL;
+	p = bytes = NULL;
 	size = 0;
 }
 
@@ -53,8 +53,54 @@ int SrsStream::initialize(char* _bytes, int _size)
 	}
 
 	size = _size;
-	bytes = _bytes;
+	p = bytes = _bytes;
 
 	return ret;
+}
+
+void SrsStream::reset()
+{
+	p = bytes;
+}
+
+bool SrsStream::empty()
+{
+	return !p || !bytes || (p >= bytes + size);
+}
+
+bool SrsStream::require(int required_size)
+{
+	return !empty() && (required_size < bytes + size - p);
+}
+
+char SrsStream::read_char()
+{
+	srs_assert(require(1));
+	
+	return *p++;
+}
+
+int16_t SrsStream::read_2bytes()
+{
+	srs_assert(require(2));
+	
+	int16_t value;
+	pp = (char*)&value;
+	pp[1] = *p++;
+	pp[0] = *p++;
+	
+	return value;
+}
+
+std::string SrsStream::read_string(int len)
+{
+	srs_assert(require(len));
+	
+	std::string value;
+	value.append(p, len);
+	
+	p += len;
+	
+	return value;
 }
 

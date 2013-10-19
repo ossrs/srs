@@ -31,6 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <map>
+#include <string>
 
 #include <st.h>
 
@@ -40,6 +41,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsSocket;
 class SrsBuffer;
 class SrsPacket;
+class SrsStream;
 class SrsMessage;
 class SrsChunkStream;
 
@@ -127,6 +129,7 @@ public:
 	int8_t* payload;
 // decoded message payload.
 private:
+	SrsStream* stream;
 	SrsPacket* decoded_payload;
 public:
 	/**
@@ -150,13 +153,21 @@ class SrsPacket
 public:
 	SrsPacket();
 	virtual ~SrsPacket();
+public:
+	virtual int decode(SrsStream* stream);
 };
 
 class SrsConnectAppPacket : public SrsPacket
 {
+private:
+	typedef SrsPacket super;
+private:
+	std::string command_name;
 public:
 	SrsConnectAppPacket();
 	virtual ~SrsConnectAppPacket();
+public:
+	virtual int decode(SrsStream* stream);
 };
 
 /**

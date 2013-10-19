@@ -24,9 +24,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_protocol.hpp>
 
 #include <srs_core_log.hpp>
+#include <srs_core_amf0.hpp>
 #include <srs_core_error.hpp>
 #include <srs_core_socket.hpp>
 #include <srs_core_buffer.hpp>
+#include <srs_core_stream.hpp>
 
 /**
 5. Protocol Control Messages
@@ -37,12 +39,12 @@ reserved for usage with RTM Chunk Stream protocol. Protocol messages
 with IDs 3-6 are reserved for usage of RTMP. Protocol message with ID
 7 is used between edge server and origin server.
 */
-#define RTMP_MSG_SetChunkSize 0x01
-#define RTMP_MSG_AbortMessage 0x02
-#define RTMP_MSG_Acknowledgement 0x03
-#define RTMP_MSG_UserControlMessage 0x04
-#define RTMP_MSG_WindowAcknowledgementSize 0x05
-#define RTMP_MSG_SetPeerBandwidth 0x06
+#define RTMP_MSG_SetChunkSize 				0x01
+#define RTMP_MSG_AbortMessage 				0x02
+#define RTMP_MSG_Acknowledgement 			0x03
+#define RTMP_MSG_UserControlMessage 		0x04
+#define RTMP_MSG_WindowAcknowledgementSize 	0x05
+#define RTMP_MSG_SetPeerBandwidth 			0x06
 #define RTMP_MSG_EdgeAndOriginServerCommand 0x07
 /**
 * The server sends this event to test whether the client is reachable. 
@@ -50,14 +52,14 @@ with IDs 3-6 are reserved for usage of RTMP. Protocol message with ID
 * Event data is a 4-byte timestamp, representing the local server time when the server dispatched the command. 
 * The client responds with PingResponse on receiving PingRequest.
 */
-#define RTMP_MSG_PCUC_PingRequest 0x06
+#define RTMP_MSG_PCUC_PingRequest 			0x06
 
 /**
 * The client sends this event to the server in response to the ping request. 
 * 
 * The event data is a 4-byte timestamp, which was received with the PingRequest request.
 */
-#define RTMP_MSG_PCUC_PingResponse 0x07
+#define RTMP_MSG_PCUC_PingResponse 			0x07
 /**
 3. Types of messages
 The server and the client send messages over the network to
@@ -77,8 +79,8 @@ contains related parameters. A client or a server can request Remote
 Procedure Calls (RPC) over streams that are communicated using the
 command messages to the peer.
 */
-#define RTMP_MSG_AMF3CommandMessage 17 // 0x11
-#define RTMP_MSG_AMF0CommandMessage 20 // 0x14
+#define RTMP_MSG_AMF3CommandMessage 		17 // 0x11
+#define RTMP_MSG_AMF0CommandMessage 		20 // 0x14
 /**
 3.2. Data message
 The client or the server sends this message to send Metadata or any
@@ -87,8 +89,8 @@ data(audio, video etc.) like creation time, duration, theme and so
 on. These messages have been assigned message type value of 18 for
 AMF0 and message type value of 15 for AMF3.        
 */
-#define RTMP_MSG_AMF0DataMessage 18 // 0x12
-#define RTMP_MSG_AMF3DataMessage 15 // 0x0F
+#define RTMP_MSG_AMF0DataMessage 			18 // 0x12
+#define RTMP_MSG_AMF3DataMessage 			15 // 0x0F
 /**
 3.3. Shared object message
 A shared object is a Flash object (a collection of name value pairs)
@@ -97,14 +99,14 @@ so on. The message types kMsgContainer=19 for AMF0 and
 kMsgContainerEx=16 for AMF3 are reserved for shared object events.
 Each message can contain multiple events.
 */
-#define RTMP_MSG_AMF3SharedObject 16 // 0x10
-#define RTMP_MSG_AMF0SharedObject 19 // 0x13
+#define RTMP_MSG_AMF3SharedObject 			16 // 0x10
+#define RTMP_MSG_AMF0SharedObject 			19 // 0x13
 /**
 3.4. Audio message
 The client or the server sends this message to send audio data to the
 peer. The message type value of 8 is reserved for audio messages.
 */
-#define RTMP_MSG_AudioMessage 8 // 0x08
+#define RTMP_MSG_AudioMessage 				8 // 0x08
 /* *
 3.5. Video message
 The client or the server sends this message to send video data to the
@@ -113,14 +115,14 @@ These messages are large and can delay the sending of other type of
 messages. To avoid such a situation, the video message is assigned
 the lowest priority.
 */
-#define RTMP_MSG_VideoMessage 9 // 0x09
+#define RTMP_MSG_VideoMessage 				9 // 0x09
 /**
 3.6. Aggregate message
 An aggregate message is a single message that contains a list of submessages.
 The message type value of 22 is reserved for aggregate
 messages.
 */
-#define RTMP_MSG_AggregateMessage 22 // 0x16
+#define RTMP_MSG_AggregateMessage 			22 // 0x16
 
 /**
 * 6.1.2. Chunk Message Header
@@ -131,21 +133,21 @@ messages.
 // Chunks of Type 0 are 11 bytes long. This type MUST be used at the
 // start of a chunk stream, and whenever the stream timestamp goes
 // backward (e.g., because of a backward seek).
-#define RTMP_FMT_TYPE0 0
+#define RTMP_FMT_TYPE0 						0
 // 6.1.2.2. Type 1
 // Chunks of Type 1 are 7 bytes long. The message stream ID is not
 // included; this chunk takes the same stream ID as the preceding chunk.
 // Streams with variable-sized messages (for example, many video
 // formats) SHOULD use this format for the first chunk of each new
 // message after the first.
-#define RTMP_FMT_TYPE1 1
+#define RTMP_FMT_TYPE1 						1
 // 6.1.2.3. Type 2
 // Chunks of Type 2 are 3 bytes long. Neither the stream ID nor the
 // message length is included; this chunk has the same stream ID and
 // message length as the preceding chunk. Streams with constant-sized
 // messages (for example, some audio and data formats) SHOULD use this
 // format for the first chunk of each message after the first.
-#define RTMP_FMT_TYPE2 2
+#define RTMP_FMT_TYPE2 						2
 // 6.1.2.4. Type 3
 // Chunks of Type 3 have no header. Stream ID, message length and
 // timestamp delta are not present; chunks of this type take values from
@@ -160,7 +162,7 @@ messages.
 // need for a chunk of type 2 to register the delta. If Type 3 chunk
 // follows a Type 0 chunk, then timestamp delta for this Type 3 chunk is
 // the same as the timestamp of Type 0 chunk.
-#define RTMP_FMT_TYPE3 3
+#define RTMP_FMT_TYPE3 						3
 
 /**
 * 6. Chunking
@@ -172,7 +174,7 @@ messages.
 * good for high-bit rate streaming. Chunk size is maintained
 * independently for each direction.
 */
-#define RTMP_DEFAULT_CHUNK_SIZE 128
+#define RTMP_DEFAULT_CHUNK_SIZE 			128
 
 /**
 * 6.1. Chunk Format
@@ -185,7 +187,12 @@ messages.
 * the normal timestamp field MUST NOT be used and MUST be set to
 * 0xffffff and the extended timestamp MUST be sent.
 */
-#define RTMP_EXTENDED_TIMESTAMP 0xFFFFFF
+#define RTMP_EXTENDED_TIMESTAMP 			0xFFFFFF
+
+/**
+* amf0 command message, command name: "connect"
+*/
+#define RTMP_AMF0_COMMAND_CONNECT			"connect"
 
 SrsMessageHeader::SrsMessageHeader()
 {
@@ -218,6 +225,7 @@ SrsChunkStream::~SrsChunkStream()
 SrsMessage::SrsMessage()
 {
 	size = 0;
+	stream = NULL;
 	payload = NULL;
 	decoded_payload = NULL;
 }
@@ -232,6 +240,11 @@ SrsMessage::~SrsMessage()
 	if (decoded_payload) {
 		delete decoded_payload;
 		decoded_payload = NULL;
+	}
+	
+	if (stream) {
+		delete stream;
+		stream = NULL;
 	}
 }
 
@@ -249,7 +262,44 @@ int SrsMessage::decode_packet()
 {
 	int ret = ERROR_SUCCESS;
 	
-	// TODO: decode packet.
+	srs_assert(payload != NULL);
+	srs_assert(size > 0);
+	
+	if (!stream) {
+		srs_verbose("create decode stream for message.");
+		stream = new SrsStream();
+	}
+	
+	if (header.message_type == RTMP_MSG_AMF0CommandMessage) {
+		srs_verbose("start to decode AMF0 command message.");
+		
+		// amf0 command message.
+		// need to read the command name.
+		if ((ret = stream->initialize((char*)payload, size)) != ERROR_SUCCESS) {
+			srs_error("initialize stream failed. ret=%d", ret);
+			return ret;
+		}
+		srs_verbose("decode stream initialized success");
+		
+		std::string command = srs_amf0_read_string(stream);
+		srs_verbose("AMF0 command message, command_name=%s", command.c_str());
+		
+		stream->reset();
+		if (command == RTMP_AMF0_COMMAND_CONNECT) {
+			srs_info("decode the AMF0 command(connect vhost/app message).");
+			decoded_payload = new SrsConnectAppPacket();
+			return decoded_payload->decode(stream);
+		}
+		
+		// default packet to drop message.
+		srs_trace("drop the AMF0 command message, command_name=%s", command.c_str());
+		decoded_payload = new SrsPacket();
+		return ret;
+	}
+	
+	// default packet to drop message.
+	srs_trace("drop the unknown message, type=%d", header.message_type);
+	decoded_payload = new SrsPacket();
 	
 	return ret;
 }
@@ -262,12 +312,36 @@ SrsPacket::~SrsPacket()
 {
 }
 
+int SrsPacket::decode(SrsStream* /*stream*/)
+{
+	int ret = ERROR_SUCCESS;
+	return ret;
+}
+
 SrsConnectAppPacket::SrsConnectAppPacket()
 {
 }
 
 SrsConnectAppPacket::~SrsConnectAppPacket()
 {
+}
+
+int SrsConnectAppPacket::decode(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if ((ret = super::decode(stream)) != ERROR_SUCCESS) {
+		return ret;
+	}
+
+	command_name = srs_amf0_read_string(stream);
+	if (command_name.empty()) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 decode connect command_name failed. ret=%d", ret);
+		return ret;
+	}
+	
+	return ret;
 }
 
 SrsProtocol::SrsProtocol(st_netfd_t client_stfd)
@@ -317,12 +391,21 @@ int SrsProtocol::recv_message(SrsMessage** pmsg)
 			srs_error("recv interlaced message failed. ret=%d", ret);
 			return ret;
 		}
+		srs_verbose("entire msg received");
 		
 		if (!msg) {
 			continue;
 		}
 		
-		// return the msg with raw/undecoded payload
+		if (msg->size <= 0 || msg->header.payload_length <= 0) {
+			srs_trace("ignore empty message(type=%d, size=%d, time=%d, sid=%d).",
+				msg->header.message_type, msg->header.payload_length,
+				msg->header.timestamp, msg->header.stream_id);
+			delete msg;
+			continue;
+		}
+		
+		srs_verbose("get a msg with raw/undecoded payload");
 		*pmsg = msg;
 		break;
 	}
@@ -598,9 +681,12 @@ int SrsProtocol::read_message_payload(SrsChunkStream* chunk, int bh_size, int mh
 		// need erase the header in buffer.
 		buffer->erase(bh_size + mh_size);
 		
-		srs_warn("get an empty RTMP "
+		srs_trace("get an empty RTMP "
 				"message(type=%d, size=%d, time=%d, sid=%d)", chunk->header.message_type, 
 				chunk->header.payload_length, chunk->header.timestamp, chunk->header.stream_id);
+		
+		*pmsg = chunk->msg;
+		chunk->msg = NULL;
 				
 		return ret;
 	}

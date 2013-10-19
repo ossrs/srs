@@ -30,4 +30,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+#include <string>
+
+class SrsStream;
+
+/**
+* read amf0 string from stream.
+*/
+extern std::string srs_amf0_read_string(SrsStream* stream);
+
 #endif

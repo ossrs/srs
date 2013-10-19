@@ -22,3 +22,69 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
 #include <srs_core_amf0.hpp>
+
+#include <srs_core_log.hpp>
+#include <srs_core_stream.hpp>
+
+// AMF0 marker
+#define RTMP_AMF0_Number 					0x00
+#define RTMP_AMF0_Boolean 					0x01
+#define RTMP_AMF0_String 					0x02
+#define RTMP_AMF0_Object 					0x03
+#define RTMP_AMF0_MovieClip 				0x04 // reserved, not supported
+#define RTMP_AMF0_Null 						0x05
+#define RTMP_AMF0_Undefined 				0x06
+#define RTMP_AMF0_Reference 				0x07
+#define RTMP_AMF0_EcmaArray 				0x08
+#define RTMP_AMF0_ObjectEnd 				0x09
+#define RTMP_AMF0_StrictArray 				0x0A
+#define RTMP_AMF0_Date 						0x0B
+#define RTMP_AMF0_LongString 				0x0C
+#define RTMP_AMF0_UnSupported 				0x0D
+#define RTMP_AMF0_RecordSet 				0x0E // reserved, not supported
+#define RTMP_AMF0_XmlDocument 				0x0F
+#define RTMP_AMF0_TypedObject 				0x10
+// AVM+ object is the AMF3 object.
+#define RTMP_AMF0_AVMplusObject 			0x11
+// origin array whos data takes the same form as LengthValueBytes
+#define RTMP_AMF0_OriginStrictArray 		0x20
+
+std::string srs_amf0_read_string(SrsStream* stream)
+{
+	std::string str;
+	
+	// marker
+	if (!stream->require(1)) {
+		return str;
+	}
+	
+	char marker = stream->read_char();
+	if (marker != RTMP_AMF0_String) {
+		return str;
+	}
+	
+	// len
+	if (!stream->require(2)) {
+		return str;
+	}
+	int16_t len = stream->read_2bytes();
+	
+	// data
+	if (!stream->require(len)) {
+		return str;
+	}
+	str = stream->read_string(len);
+	
+	// support utf8-1 only
+	// 1.3.1 Strings and UTF-8
+	// UTF8-1 = %x00-7F
+	for (int i = 0; i < len; i++) {
+		char ch = *(str.data() + i);
+		if ((ch & 0x80) != 0) {
+			srs_warn("only support utf8-1, 0x00-0x7F, actual is %#x", (int)ch);
+			return "";
+		}
+	}
+	
+	return str;
+}

@@ -30,9 +30,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+#include <sys/types.h>
+#include <string>
+
 class SrsStream
 {
 protected:
+	char* p;
+	char* pp;
 	char* bytes;
 	int size;
 public:
@@ -46,6 +51,24 @@ public:
 	* @remark, stream never free the _bytes, user must free it.
 	*/
 	virtual int initialize(char* _bytes, int _size);
+	/**
+	* reset the position to beginning.
+	*/
+	virtual void reset();
+	/**
+	* whether stream is empty.
+	* if empty, never read or write.
+	*/
+	virtual bool empty();
+	/**
+	* whether required size is ok.
+	* @return true if stream can read/write specified required_size bytes.
+	*/
+	virtual bool require(int required_size);
+public:
+	virtual char read_char();
+	virtual int16_t read_2bytes();
+	virtual std::string read_string(int len);
 };
 
 #endif

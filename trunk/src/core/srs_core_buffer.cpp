@@ -62,6 +62,8 @@ int SrsBuffer::ensure_buffer_bytes(SrsSocket* skt, int required_size)
 {
 	int ret = ERROR_SUCCESS;
 
+	srs_assert(required_size >= 0);
+
 	while (size() < required_size) {
 		char buffer[SOCKET_READ_SIZE];
 		
