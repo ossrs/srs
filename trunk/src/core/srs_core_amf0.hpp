@@ -31,13 +31,27 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <string>
+#include <map>
 
 class SrsStream;
+class SrsAmf0Object;
+
+/**
+* read amf0 utf8 string from stream.
+* 1.3.1 Strings and UTF-8
+* UTF-8 = U16 *(UTF8-char)
+* UTF8-char = UTF8-1 | UTF8-2 | UTF8-3 | UTF8-4
+* UTF8-1 = %x00-7F
+* @remark only support UTF8-1 char.
+* @return default value is empty string.
+*/
+extern std::string srs_amf0_read_utf8(SrsStream* stream);
 
 /**
 * read amf0 string from stream.
 * 2.4 String Type
 * string-type = string-marker UTF-8
+* @return default value is empty string.
 */
 extern std::string srs_amf0_read_string(SrsStream* stream);
 
@@ -45,7 +59,106 @@ extern std::string srs_amf0_read_string(SrsStream* stream);
 * read amf0 number from stream.
 * 2.2 Number Type
 * number-type = number-marker DOUBLE
+* @return default value is 0.
 */
 extern double srs_amf0_read_number(SrsStream* stream);
+
+/**
+* read amf0 object from stream.
+* 2.5 Object Type
+* anonymous-object-type = object-marker *(object-property)
+* object-property = (UTF-8 value-type) | (UTF-8-empty object-end-marker)
+*/
+extern SrsAmf0Object* srs_amf0_read_object(SrsStream* stream);
+
+/**
+* any amf0 value.
+* 2.1 Types Overview
+* value-type = number-type | boolean-type | string-type | object-type 
+* 		| null-marker | undefined-marker | reference-type | ecma-array-type 
+* 		| strict-array-type | date-type | long-string-type | xml-document-type 
+* 		| typed-object-type
+*/
+struct SrsAmf0Any
+{
+	char marker;
+
+	SrsAmf0Any();
+	virtual ~SrsAmf0Any();
+	
+	virtual bool is_string();
+	virtual bool is_number();
+	virtual bool is_object();
+	
+	/**
+	* convert the any to specified object.
+	* @return T*, the converted object. never NULL.
+	* @remark, user must ensure the current object type, 
+	* 		or the covert will cause assert failed.
+	*/
+	template<class T>
+	T* convert()
+	{
+		T* p = dynamic_cast<T>(this);
+		srs_assert(p != NULL);
+		return p;
+	}
+};
+
+/**
+* read amf0 string from stream.
+* 2.4 String Type
+* string-type = string-marker UTF-8
+* @return default value is empty string.
+*/
+struct SrsAmf0String : public SrsAmf0Any
+{
+	std::string value;
+
+	SrsAmf0String();
+	virtual ~SrsAmf0String();
+};
+
+/**
+* read amf0 number from stream.
+* 2.2 Number Type
+* number-type = number-marker DOUBLE
+* @return default value is 0.
+*/
+struct SrsAmf0Number : public SrsAmf0Any
+{
+	double value;
+
+	SrsAmf0Number();
+	virtual ~SrsAmf0Number();
+};
+
+/**
+* 2.11 Object End Type
+* object-end-type = UTF-8-empty object-end-marker
+* 0x00 0x00 0x09
+*/
+struct SrsAmf0ObjectEOF
+{
+	int16_t utf8_empty;
+	char object_end_marker;
+
+	SrsAmf0ObjectEOF();
+	virtual ~SrsAmf0ObjectEOF();
+};
+
+/**
+* 2.5 Object Type
+* anonymous-object-type = object-marker *(object-property)
+* object-property = (UTF-8 value-type) | (UTF-8-empty object-end-marker)
+*/
+struct SrsAmf0Object : public SrsAmf0Any
+{
+	std::map<std::string, SrsAmf0Any*> properties;
+	SrsAmf0ObjectEOF eof;
+
+	SrsAmf0Object();
+	virtual ~SrsAmf0Object();
+};
 
 #endif

@@ -44,6 +44,7 @@ class SrsPacket;
 class SrsStream;
 class SrsMessage;
 class SrsChunkStream;
+class SrsAmf0Object;
 
 /**
 * 4.1. Message Header
@@ -164,6 +165,7 @@ private:
 private:
 	std::string command_name;
 	double transaction_id;
+	SrsAmf0Object* command_object;
 public:
 	SrsConnectAppPacket();
 	virtual ~SrsConnectAppPacket();

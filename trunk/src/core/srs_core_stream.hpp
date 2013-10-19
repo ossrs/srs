@@ -75,6 +75,10 @@ public:
 	*/
 	virtual int16_t read_2bytes();
 	/**
+	* get 8bytes int from stream.
+	*/
+	virtual int64_t read_8bytes();
+	/**
 	* get string from stream, length specifies by param len.
 	*/
 	virtual std::string read_string(int len);

@@ -92,6 +92,24 @@ int16_t SrsStream::read_2bytes()
 	return value;
 }
 
+int64_t SrsStream::read_8bytes()
+{
+	srs_assert(require(8));
+	
+	int64_t value;
+	pp = (char*)&value;
+    pp[7] = *p++;
+    pp[6] = *p++;
+    pp[5] = *p++;
+    pp[4] = *p++;
+    pp[3] = *p++;
+    pp[2] = *p++;
+    pp[1] = *p++;
+    pp[0] = *p++;
+	
+	return value;
+}
+
 std::string SrsStream::read_string(int len)
 {
 	srs_assert(require(len));

@@ -320,6 +320,9 @@ int SrsPacket::decode(SrsStream* /*stream*/)
 
 SrsConnectAppPacket::SrsConnectAppPacket()
 {
+	command_name = RTMP_AMF0_COMMAND_CONNECT;
+	transaction_id = 1;
+	command_object = NULL;
 }
 
 SrsConnectAppPacket::~SrsConnectAppPacket()
@@ -335,9 +338,10 @@ int SrsConnectAppPacket::decode(SrsStream* stream)
 	}
 
 	command_name = srs_amf0_read_string(stream);
-	if (command_name.empty()) {
+	if (command_name.empty() || command_name != RTMP_AMF0_COMMAND_CONNECT) {
 		ret = ERROR_RTMP_AMF0_DECODE;
-		srs_error("amf0 decode connect command_name failed. ret=%d", ret);
+		srs_error("amf0 decode connect command_name failed. "
+			"command_name=%s, ret=%d", command_name.c_str(), ret);
 		return ret;
 	}
 	
@@ -348,6 +352,15 @@ int SrsConnectAppPacket::decode(SrsStream* stream)
 			"required=%.1f, actual=%.1f, ret=%d", 1.0, transaction_id, ret);
 		return ret;
 	}
+	
+	command_object = srs_amf0_read_object(stream);
+	if (command_object == NULL) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 decode connect command_object failed. ret=%d", ret);
+		return ret;
+	}
+	
+	srs_info("amf0 decode connect packet success");
 	
 	return ret;
 }
