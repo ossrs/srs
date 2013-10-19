@@ -53,6 +53,9 @@ public:
 class SrsMessage
 {
 public:
+	int8_t message_type;
+	int24_t payload_length;
+public:
 	SrsMessage();
 	virtual ~SrsMessage();
 public:
