@@ -36,7 +36,16 @@ class SrsStream;
 
 /**
 * read amf0 string from stream.
+* 2.4 String Type
+* string-type = string-marker UTF-8
 */
 extern std::string srs_amf0_read_string(SrsStream* stream);
+
+/**
+* read amf0 number from stream.
+* 2.2 Number Type
+* number-type = number-marker DOUBLE
+*/
+extern double srs_amf0_read_number(SrsStream* stream);
 
 #endif

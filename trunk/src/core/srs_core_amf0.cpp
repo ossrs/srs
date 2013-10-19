@@ -95,3 +95,9 @@ std::string srs_amf0_read_string(SrsStream* stream)
 	
 	return str;
 }
+
+double srs_amf0_read_number(SrsStream* stream)
+{
+	return 0;
+}
+

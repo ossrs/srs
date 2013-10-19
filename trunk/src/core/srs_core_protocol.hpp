@@ -163,6 +163,7 @@ private:
 	typedef SrsPacket super;
 private:
 	std::string command_name;
+	double transaction_id;
 public:
 	SrsConnectAppPacket();
 	virtual ~SrsConnectAppPacket();

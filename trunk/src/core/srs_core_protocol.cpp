@@ -341,6 +341,14 @@ int SrsConnectAppPacket::decode(SrsStream* stream)
 		return ret;
 	}
 	
+	transaction_id = srs_amf0_read_number(stream);
+	if (transaction_id != 1.0) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 decode connect transaction_id failed. "
+			"required=%.1f, actual=%.1f, ret=%d", 1.0, transaction_id, ret);
+		return ret;
+	}
+	
 	return ret;
 }
 
