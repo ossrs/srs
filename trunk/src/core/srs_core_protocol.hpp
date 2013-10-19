@@ -58,7 +58,7 @@ public:
 	virtual int recv_message(SrsMessage** pmsg);
 private:
 	virtual int read_basic_header(char& fmt, int& cid, int& size);
-	virtual int read_message_header(SrsChunkStream* chunk, char fmt, SrsMessage** pmsg);
+	virtual int read_message_header(SrsChunkStream* chunk, char fmt, int bh_size, int& mh_size);
 };
 
 /**
@@ -112,6 +112,10 @@ public:
 	* cached message header
 	*/
 	SrsMessageHeader header;
+	/**
+	* whether the chunk message header has extended timestamp.
+	*/
+	bool extended_timestamp;
 	/**
 	* partially read message.
 	*/
