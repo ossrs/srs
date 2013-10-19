@@ -21,27 +21,40 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_CORE_HPP
-#define SRS_CORE_HPP
+#include <srs_core_stream.hpp>
 
-/*
-#include <srs_core.hpp>
-*/
+#include <srs_core_log.hpp>
+#include <srs_core_error.hpp>
 
-/**
-* the core provides the common defined macros, utilities,
-* user must include the srs_core.hpp before any header, or maybe 
-* build failed.
-*/
+SrsStream::SrsStream()
+{
+	bytes = NULL;
+	size = 0;
+}
 
-// for int64_t print using PRId64 format.
-#ifndef __STDC_FORMAT_MACROS
-    #define __STDC_FORMAT_MACROS
-#endif
+SrsStream::~SrsStream()
+{
+}
 
-#include <assert.h>
-#define srs_assert(expression) assert(expression)
+int SrsStream::initialize(char* _bytes, int _size)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if (!_bytes) {
+		ret = ERROR_SYSTEM_STREAM_INIT;
+		srs_error("stream param bytes must not be NULL. ret=%d", ret);
+		return ret;
+	}
+	
+	if (_size <= 0) {
+		ret = ERROR_SYSTEM_STREAM_INIT;
+		srs_error("stream param size must be positive. ret=%d", ret);
+		return ret;
+	}
 
-#include <stddef.h>
+	size = _size;
+	bytes = _bytes;
 
-#endif
+	return ret;
+}
+

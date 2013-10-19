@@ -21,27 +21,31 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_CORE_HPP
-#define SRS_CORE_HPP
+#ifndef SRS_CORE_STREAM_HPP
+#define SRS_CORE_STREAM_HPP
 
 /*
+#include <srs_core_stream.hpp>
+*/
+
 #include <srs_core.hpp>
-*/
 
-/**
-* the core provides the common defined macros, utilities,
-* user must include the srs_core.hpp before any header, or maybe 
-* build failed.
-*/
-
-// for int64_t print using PRId64 format.
-#ifndef __STDC_FORMAT_MACROS
-    #define __STDC_FORMAT_MACROS
-#endif
-
-#include <assert.h>
-#define srs_assert(expression) assert(expression)
-
-#include <stddef.h>
+class SrsStream
+{
+protected:
+	char* bytes;
+	int size;
+public:
+	SrsStream();
+	virtual ~SrsStream();
+public:
+	/**
+	* initialize the stream from bytes.
+	* @_bytes, must not be NULL, or return error.
+	* @_size, must be positive, or return error.
+	* @remark, stream never free the _bytes, user must free it.
+	*/
+	virtual int initialize(char* _bytes, int _size);
+};
 
 #endif

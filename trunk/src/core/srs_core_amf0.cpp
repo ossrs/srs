@@ -21,27 +21,4 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_CORE_HPP
-#define SRS_CORE_HPP
-
-/*
-#include <srs_core.hpp>
-*/
-
-/**
-* the core provides the common defined macros, utilities,
-* user must include the srs_core.hpp before any header, or maybe 
-* build failed.
-*/
-
-// for int64_t print using PRId64 format.
-#ifndef __STDC_FORMAT_MACROS
-    #define __STDC_FORMAT_MACROS
-#endif
-
-#include <assert.h>
-#define srs_assert(expression) assert(expression)
-
-#include <stddef.h>
-
-#endif
+#include <srs_core_amf0.hpp>
