@@ -884,12 +884,17 @@ int SrsMessage::get_perfer_cid()
 	return packet->get_perfer_cid();
 }
 
-void SrsMessage::set_packet(SrsPacket* pkt)
+void SrsMessage::set_packet(SrsPacket* pkt, int stream_id)
 {
 	if (packet) {
 		delete packet;
 	}
+
 	packet = pkt;
+	
+	header.message_type = packet->get_message_type();
+	header.payload_length = packet->get_payload_length();
+	header.stream_id = stream_id;
 }
 
 int SrsMessage::encode_packet()
@@ -900,8 +905,14 @@ int SrsMessage::encode_packet()
 		srs_warn("packet is empty, send out empty message.");
 		return ret;
 	}
+	// realloc the payload.
+	size = 0;
+	if (payload) {
+		delete[] payload;
+		payload = NULL;
+	}
 	
-	return ret;
+	return packet->encode(size, (char*&)payload);
 }
 
 SrsPacket::SrsPacket()
@@ -921,6 +932,66 @@ int SrsPacket::decode(SrsStream* /*stream*/)
 int SrsPacket::get_perfer_cid()
 {
 	return 0;
+}
+
+int SrsPacket::get_message_type()
+{
+	return 0;
+}
+
+int SrsPacket::get_payload_length()
+{
+	return get_size();
+}
+
+int SrsPacket::encode(int& psize, char*& ppayload)
+{
+	int ret = ERROR_SUCCESS;
+	
+	int size = get_size();
+	char* payload = NULL;
+	
+	SrsStream stream;
+	
+	if (size > 0) {
+		payload = new char[size];
+		
+		if ((ret = stream.initialize(payload, size)) != ERROR_SUCCESS) {
+			srs_error("initialize the stream failed. ret=%d", ret);
+			delete[] payload;
+			return ret;
+		}
+	}
+	
+	if ((ret = encode_packet(&stream)) != ERROR_SUCCESS) {
+		srs_error("encode the packet failed. ret=%d", ret);
+		delete[] payload;
+		return ret;
+	}
+	
+	psize = size;
+	ppayload = payload;
+	srs_verbose("encode the packet success. size=%d", size);
+	
+	return ret;
+}
+
+int SrsPacket::get_size()
+{
+	return 0;
+}
+
+int SrsPacket::encode_packet(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	srs_assert(stream != NULL);
+
+	ret = ERROR_SYSTEM_PACKET_INVALID;
+	srs_error("current packet is not support to sendout. "
+		"paket=%s, ret=%d", get_class_name(), ret);
+	
+	return ret;
 }
 
 SrsConnectAppPacket::SrsConnectAppPacket()
@@ -1011,5 +1082,33 @@ int SrsSetWindowAckSizePacket::decode(SrsStream* stream)
 int SrsSetWindowAckSizePacket::get_perfer_cid()
 {
 	return RTMP_CID_ProtocolControl;
+}
+
+int SrsSetWindowAckSizePacket::get_message_type()
+{
+	return RTMP_MSG_WindowAcknowledgementSize;
+}
+
+int SrsSetWindowAckSizePacket::get_size()
+{
+	return 4;
+}
+
+int SrsSetWindowAckSizePacket::encode_packet(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if (!stream->require(4)) {
+		ret = ERROR_RTMP_MESSAGE_ENCODE;
+		srs_error("encode ack size packet failed. ret=%d", ret);
+		return ret;
+	}
+	
+	stream->write_4bytes(ackowledgement_window_size);
+	
+	srs_verbose("encode ack size packet "
+		"success. ack_size=%d", ackowledgement_window_size);
+	
+	return ret;
 }
 

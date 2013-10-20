@@ -91,6 +91,11 @@ public:
 	* get string from stream, length specifies by param len.
 	*/
 	virtual std::string read_string(int len);
+public:
+	/**
+	* write 4bytes int to stream.
+	*/
+	virtual void write_4bytes(int32_t value);
 };
 
 #endif

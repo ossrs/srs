@@ -46,6 +46,9 @@ class SrsMessage;
 class SrsChunkStream;
 class SrsAmf0Object;
 
+// convert class name to string.
+#define CLASS_NAME_STRING(className) #className
+
 /**
 * max rtmp header size:
 * 	1bytes basic header,
@@ -237,9 +240,10 @@ public:
 	virtual int get_perfer_cid();
 	/**
 	* set the encoded packet to encode_packet() to payload.
+	* @stream_id, the id of stream which is created by createStream.
 	* @remark, user never free the pkt, the message will auto free it.
 	*/
-	virtual void set_packet(SrsPacket* pkt);
+	virtual void set_packet(SrsPacket* pkt, int stream_id = 0);
 	/**
 	* encode the packet to message payload bytes.
 	* @remark there exists empty packet, so maybe the payload is NULL.
@@ -259,6 +263,36 @@ public:
 	virtual int decode(SrsStream* stream);
 public:
 	virtual int get_perfer_cid();
+	virtual int get_payload_length();
+public:
+	/**
+	* subpacket must override to provide the right message type.
+	*/
+	virtual int get_message_type();
+	/**
+	* the subpacket can override this encode,
+	* for example, video and audio will directly set the payload withou memory copy,
+	* other packet which need to serialize/encode to bytes by override the 
+	* get_size and encode_packet.
+	*/
+	virtual int encode(int& size, char*& payload);
+protected:
+	/**
+	* subpacket can override to calc the packet size.
+	*/
+	virtual int get_size();
+	/**
+	* subpacket can override to encode the payload to stream.
+	*/
+	virtual int encode_packet(SrsStream* stream);
+protected:
+	/**
+	* subpacket must override to provide the right class name.
+	*/
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsPacket);
+	}
 };
 
 /**
@@ -279,6 +313,11 @@ public:
 	virtual ~SrsConnectAppPacket();
 public:
 	virtual int decode(SrsStream* stream);
+protected:
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsConnectAppPacket);
+	}
 };
 
 /**
@@ -299,6 +338,16 @@ public:
 	virtual int decode(SrsStream* stream);
 public:
 	virtual int get_perfer_cid();
+public:
+	virtual int get_message_type();
+protected:
+	virtual int get_size();
+	virtual int encode_packet(SrsStream* stream);
+protected:
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsSetWindowAckSizePacket);
+	}
 };
 
 /**

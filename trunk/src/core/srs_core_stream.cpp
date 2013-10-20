@@ -141,3 +141,14 @@ std::string SrsStream::read_string(int len)
 	return value;
 }
 
+void SrsStream::write_4bytes(int32_t value)
+{
+	srs_assert(require(4));
+	
+	pp = (char*)&value;
+	*p++ = pp[3];
+	*p++ = pp[2];
+	*p++ = pp[1];
+	*p++ = pp[0];
+}
+
