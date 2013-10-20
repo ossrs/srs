@@ -86,6 +86,12 @@ int SrsClient::do_cycle()
 		return ret;
 	}
 	srs_verbose("set window acknowledgement size success");
+		
+	if ((ret = rtmp->set_peer_bandwidth(2.5 * 1000 * 1000, 2)) != ERROR_SUCCESS) {
+		srs_error("set peer bandwidth failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("set peer bandwidth success");
 	
 	return ret;
 }

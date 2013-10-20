@@ -923,9 +923,16 @@ SrsPacket::~SrsPacket()
 {
 }
 
-int SrsPacket::decode(SrsStream* /*stream*/)
+int SrsPacket::decode(SrsStream* stream)
 {
 	int ret = ERROR_SUCCESS;
+	
+	srs_assert(stream != NULL);
+
+	ret = ERROR_SYSTEM_PACKET_INVALID;
+	srs_error("current packet is not support to decode. "
+		"paket=%s, ret=%d", get_class_name(), ret);
+	
 	return ret;
 }
 
@@ -988,7 +995,7 @@ int SrsPacket::encode_packet(SrsStream* stream)
 	srs_assert(stream != NULL);
 
 	ret = ERROR_SYSTEM_PACKET_INVALID;
-	srs_error("current packet is not support to sendout. "
+	srs_error("current packet is not support to encode. "
 		"paket=%s, ret=%d", get_class_name(), ret);
 	
 	return ret;
@@ -1008,10 +1015,6 @@ SrsConnectAppPacket::~SrsConnectAppPacket()
 int SrsConnectAppPacket::decode(SrsStream* stream)
 {
 	int ret = ERROR_SUCCESS;
-	
-	if ((ret = super::decode(stream)) != ERROR_SUCCESS) {
-		return ret;
-	}
 
 	if ((ret = srs_amf0_read_string(stream, command_name)) != ERROR_SUCCESS) {
 		srs_error("amf0 decode connect command_name failed. ret=%d", ret);
@@ -1059,26 +1062,6 @@ SrsSetWindowAckSizePacket::~SrsSetWindowAckSizePacket()
 {
 }
 
-int SrsSetWindowAckSizePacket::decode(SrsStream* stream)
-{
-	int ret = ERROR_SUCCESS;
-	
-	if ((ret = super::decode(stream)) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	if (!stream->require(4)) {
-		ret = ERROR_RTMP_MESSAGE_DECODE;
-		srs_error("set window ack size failed. ret=%d", ret);
-		return ret;
-	}
-	
-	ackowledgement_window_size = stream->read_4bytes();
-	srs_info("decode window ack size success. ack_size=%d", ackowledgement_window_size);
-	
-	return ret;
-}
-
 int SrsSetWindowAckSizePacket::get_perfer_cid()
 {
 	return RTMP_CID_ProtocolControl;
@@ -1108,6 +1091,50 @@ int SrsSetWindowAckSizePacket::encode_packet(SrsStream* stream)
 	
 	srs_verbose("encode ack size packet "
 		"success. ack_size=%d", ackowledgement_window_size);
+	
+	return ret;
+}
+
+SrsSetPeerBandwidthPacket::SrsSetPeerBandwidthPacket()
+{
+	bandwidth = 0;
+	type = 2;
+}
+
+SrsSetPeerBandwidthPacket::~SrsSetPeerBandwidthPacket()
+{
+}
+
+int SrsSetPeerBandwidthPacket::get_perfer_cid()
+{
+	return RTMP_CID_ProtocolControl;
+}
+
+int SrsSetPeerBandwidthPacket::get_message_type()
+{
+	return RTMP_MSG_SetPeerBandwidth;
+}
+
+int SrsSetPeerBandwidthPacket::get_size()
+{
+	return 5;
+}
+
+int SrsSetPeerBandwidthPacket::encode_packet(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if (!stream->require(5)) {
+		ret = ERROR_RTMP_MESSAGE_ENCODE;
+		srs_error("encode set bandwidth packet failed. ret=%d", ret);
+		return ret;
+	}
+	
+	stream->write_4bytes(bandwidth);
+	stream->write_1bytes(type);
+	
+	srs_verbose("encode set bandwidth packet "
+		"success. bandwidth=%d, type=%d", bandwidth, type);
 	
 	return ret;
 }

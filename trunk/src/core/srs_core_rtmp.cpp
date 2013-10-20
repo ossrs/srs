@@ -184,3 +184,24 @@ int SrsRtmp::set_window_ack_size(int ack_size)
 	return ret;
 }
 
+int SrsRtmp::set_peer_bandwidth(int bandwidth, int type)
+{
+	int ret = ERROR_SUCCESS;
+	
+	SrsMessage* msg = new SrsMessage();
+	SrsSetPeerBandwidthPacket* pkt = new SrsSetPeerBandwidthPacket();
+	
+	pkt->bandwidth = bandwidth;
+	pkt->type = type;
+	msg->set_packet(pkt);
+	
+	if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+		srs_error("send set bandwidth message failed. ret=%d", ret);
+		return ret;
+	}
+	srs_info("send set bandwidth message "
+		"success. bandwidth=%d, type=%d", bandwidth, type);
+	
+	return ret;
+}
+

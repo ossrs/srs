@@ -256,10 +256,22 @@ public:
 */
 class SrsPacket
 {
+protected:
+	/**
+	* subpacket must override to provide the right class name.
+	*/
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsPacket);
+	}
 public:
 	SrsPacket();
 	virtual ~SrsPacket();
 public:
+	/**
+	* subpacket must override to decode packet from stream.
+	* @remark never invoke the super.decode, it always failed.
+	*/
 	virtual int decode(SrsStream* stream);
 public:
 	virtual int get_perfer_cid();
@@ -283,16 +295,9 @@ protected:
 	virtual int get_size();
 	/**
 	* subpacket can override to encode the payload to stream.
+	* @remark never invoke the super.encode_packet, it always failed.
 	*/
 	virtual int encode_packet(SrsStream* stream);
-protected:
-	/**
-	* subpacket must override to provide the right class name.
-	*/
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsPacket);
-	}
 };
 
 /**
@@ -304,6 +309,11 @@ class SrsConnectAppPacket : public SrsPacket
 {
 private:
 	typedef SrsPacket super;
+protected:
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsConnectAppPacket);
+	}
 public:
 	std::string command_name;
 	double transaction_id;
@@ -313,11 +323,6 @@ public:
 	virtual ~SrsConnectAppPacket();
 public:
 	virtual int decode(SrsStream* stream);
-protected:
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsConnectAppPacket);
-	}
 };
 
 /**
@@ -329,13 +334,16 @@ class SrsSetWindowAckSizePacket : public SrsPacket
 {
 private:
 	typedef SrsPacket super;
+protected:
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsSetWindowAckSizePacket);
+	}
 public:
 	int32_t ackowledgement_window_size;
 public:
 	SrsSetWindowAckSizePacket();
 	virtual ~SrsSetWindowAckSizePacket();
-public:
-	virtual int decode(SrsStream* stream);
 public:
 	virtual int get_perfer_cid();
 public:
@@ -343,11 +351,35 @@ public:
 protected:
 	virtual int get_size();
 	virtual int encode_packet(SrsStream* stream);
+};
+
+/**
+* 5.6. Set Peer Bandwidth (6)
+* The client or the server sends this message to update the output
+* bandwidth of the peer.
+*/
+class SrsSetPeerBandwidthPacket : public SrsPacket
+{
+private:
+	typedef SrsPacket super;
 protected:
 	virtual const char* get_class_name()
 	{
-		return CLASS_NAME_STRING(SrsSetWindowAckSizePacket);
+		return CLASS_NAME_STRING(SrsSetPeerBandwidthPacket);
 	}
+public:
+	int32_t bandwidth;
+	int8_t type;
+public:
+	SrsSetPeerBandwidthPacket();
+	virtual ~SrsSetPeerBandwidthPacket();
+public:
+	virtual int get_perfer_cid();
+public:
+	virtual int get_message_type();
+protected:
+	virtual int get_size();
+	virtual int encode_packet(SrsStream* stream);
 };
 
 /**

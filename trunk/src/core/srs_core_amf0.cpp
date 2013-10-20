@@ -225,7 +225,7 @@ int srs_amf0_read_string(SrsStream* stream, std::string& value)
 		return ret;
 	}
 	
-	char marker = stream->read_char();
+	char marker = stream->read_1bytes();
 	if (marker != RTMP_AMF0_String) {
 		ret = ERROR_RTMP_AMF0_DECODE;
 		srs_error("amf0 check string marker failed. "
@@ -248,7 +248,7 @@ int srs_amf0_read_boolean(SrsStream* stream, bool& value)
 		return ret;
 	}
 	
-	char marker = stream->read_char();
+	char marker = stream->read_1bytes();
 	if (marker != RTMP_AMF0_Boolean) {
 		ret = ERROR_RTMP_AMF0_DECODE;
 		srs_error("amf0 check bool marker failed. "
@@ -264,7 +264,7 @@ int srs_amf0_read_boolean(SrsStream* stream, bool& value)
 		return ret;
 	}
 
-	if (stream->read_char() == 0) {
+	if (stream->read_1bytes() == 0) {
 		value = false;
 	} else {
 		value = true;
@@ -286,7 +286,7 @@ int srs_amf0_read_number(SrsStream* stream, double& value)
 		return ret;
 	}
 	
-	char marker = stream->read_char();
+	char marker = stream->read_1bytes();
 	if (marker != RTMP_AMF0_Number) {
 		ret = ERROR_RTMP_AMF0_DECODE;
 		srs_error("amf0 check number marker failed. "
@@ -321,7 +321,7 @@ int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any*& value)
 		return ret;
 	}
 	
-	char marker = stream->read_char();
+	char marker = stream->read_1bytes();
 	srs_verbose("amf0 any marker success");
 	
 	// backward the 1byte marker.
@@ -393,7 +393,7 @@ int srs_amf0_read_object_eof(SrsStream* stream, SrsAmf0ObjectEOF*& value)
 		return ret;
 	}
 	
-	char marker = stream->read_char();
+	char marker = stream->read_1bytes();
 	if (marker != RTMP_AMF0_ObjectEnd) {
 		ret = ERROR_RTMP_AMF0_DECODE;
 		srs_error("amf0 check object eof marker failed. "
@@ -420,7 +420,7 @@ int srs_amf0_read_object(SrsStream* stream, SrsAmf0Object*& value)
 		return ret;
 	}
 	
-	char marker = stream->read_char();
+	char marker = stream->read_1bytes();
 	if (marker != RTMP_AMF0_Object) {
 		ret = ERROR_RTMP_AMF0_DECODE;
 		srs_error("amf0 check object marker failed. "

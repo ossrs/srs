@@ -78,11 +78,11 @@ void SrsStream::skip(int size)
 	p += size;
 }
 
-char SrsStream::read_char()
+int8_t SrsStream::read_1bytes()
 {
 	srs_assert(require(1));
 	
-	return *p++;
+	return (int8_t)*p++;
 }
 
 int16_t SrsStream::read_2bytes()
@@ -150,5 +150,12 @@ void SrsStream::write_4bytes(int32_t value)
 	*p++ = pp[2];
 	*p++ = pp[1];
 	*p++ = pp[0];
+}
+
+void SrsStream::write_1bytes(int8_t value)
+{
+	srs_assert(require(1));
+	
+	*p++ = value;
 }
 

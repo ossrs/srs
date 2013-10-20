@@ -74,6 +74,11 @@ public:
 	virtual int handshake();
 	virtual int connect_app(SrsRequest* req);
 	virtual int set_window_ack_size(int ack_size);
+	/**
+	* @type: The sender can mark this message hard (0), soft (1), or dynamic (2)
+	* using the Limit type field.
+	*/
+	virtual int set_peer_bandwidth(int bandwidth, int type);
 };
 
 #endif

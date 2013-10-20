@@ -34,7 +34,7 @@ int main(int /*argc*/, char** /*argv*/){
 		return ret;
 	}
 	
-	if ((ret = server.listen(19350)) != ERROR_SUCCESS) {
+	if ((ret = server.listen(1935)) != ERROR_SUCCESS) {
 		return ret;
 	}
 	

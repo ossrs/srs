@@ -74,7 +74,7 @@ public:
 	/**
 	* get 1bytes char from stream.
 	*/
-	virtual char read_char();
+	virtual int8_t read_1bytes();
 	/**
 	* get 2bytes int from stream.
 	*/
@@ -96,6 +96,10 @@ public:
 	* write 4bytes int to stream.
 	*/
 	virtual void write_4bytes(int32_t value);
+	/**
+	* write 1bytes char to stream.
+	*/
+	virtual void write_1bytes(int8_t value);
 };
 
 #endif
