@@ -79,6 +79,7 @@ public:
 	* using the Limit type field.
 	*/
 	virtual int set_peer_bandwidth(int bandwidth, int type);
+	virtual int response_connect_app();
 };
 
 #endif

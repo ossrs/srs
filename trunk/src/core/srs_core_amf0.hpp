@@ -56,6 +56,7 @@ struct SrsAmf0Any
 	virtual bool is_number();
 	virtual bool is_object();
 	virtual bool is_object_eof();
+	virtual bool is_ecma_array();
 };
 
 /**
@@ -68,7 +69,7 @@ struct SrsAmf0String : public SrsAmf0Any
 {
 	std::string value;
 
-	SrsAmf0String();
+	SrsAmf0String(const char* _value = NULL);
 	virtual ~SrsAmf0String();
 };
 
@@ -83,7 +84,7 @@ struct SrsAmf0Boolean : public SrsAmf0Any
 {
 	bool value;
 
-	SrsAmf0Boolean();
+	SrsAmf0Boolean(bool _value = false);
 	virtual ~SrsAmf0Boolean();
 };
 
@@ -97,7 +98,7 @@ struct SrsAmf0Number : public SrsAmf0Any
 {
 	double value;
 
-	SrsAmf0Number();
+	SrsAmf0Number(double _value = 0.0);
 	virtual ~SrsAmf0Number();
 };
 
@@ -126,6 +127,25 @@ struct SrsAmf0Object : public SrsAmf0Any
 
 	SrsAmf0Object();
 	virtual ~SrsAmf0Object();
+
+	virtual SrsAmf0Any* get_property(std::string name);
+	virtual SrsAmf0Any* ensure_property_string(std::string name);
+};
+
+/**
+* 2.10 ECMA Array Type
+* ecma-array-type = associative-count *(object-property)
+* associative-count = U32
+* object-property = (UTF-8 value-type) | (UTF-8-empty object-end-marker)
+*/
+struct SrsASrsAmf0EcmaArray : public SrsAmf0Any
+{
+	int32_t count;
+	std::map<std::string, SrsAmf0Any*> properties;
+	SrsAmf0ObjectEOF eof;
+
+	SrsASrsAmf0EcmaArray();
+	virtual ~SrsASrsAmf0EcmaArray();
 
 	virtual SrsAmf0Any* get_property(std::string name);
 	virtual SrsAmf0Any* ensure_property_string(std::string name);
@@ -177,6 +197,16 @@ extern int srs_amf0_read_object(SrsStream* stream, SrsAmf0Object*& value);
 extern int srs_amf0_write_object(SrsStream* stream, SrsAmf0Object* value);
 
 /**
+* read amf0 object from stream.
+* 2.10 ECMA Array Type
+* ecma-array-type = associative-count *(object-property)
+* associative-count = U32
+* object-property = (UTF-8 value-type) | (UTF-8-empty object-end-marker)
+*/
+extern int srs_amf0_read_ecma_array(SrsStream* stream, SrsASrsAmf0EcmaArray*& value);
+extern int srs_amf0_write_ecma_array(SrsStream* stream, SrsASrsAmf0EcmaArray* value);
+
+/**
 * get amf0 objects size.
 */
 extern int srs_amf0_get_utf8_size(std::string value);
@@ -184,7 +214,8 @@ extern int srs_amf0_get_string_size(std::string value);
 extern int srs_amf0_get_number_size();
 extern int srs_amf0_get_boolean_size();
 extern int srs_amf0_get_object_size(SrsAmf0Object* obj);
-	
+extern int srs_amf0_get_ecma_array_size(SrsASrsAmf0EcmaArray* arr);
+
 /**
 * convert the any to specified object.
 * @return T*, the converted object. never NULL.

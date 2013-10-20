@@ -1061,8 +1061,8 @@ SrsConnectAppResPacket::SrsConnectAppResPacket()
 {
 	command_name = RTMP_AMF0_COMMAND_CONNECT;
 	transaction_id = 1;
-	props = NULL;
-	info = NULL;
+	props = new SrsAmf0Object();
+	info = new SrsAmf0Object();
 }
 
 SrsConnectAppResPacket::~SrsConnectAppResPacket()

@@ -92,6 +92,12 @@ int SrsClient::do_cycle()
 		return ret;
 	}
 	srs_verbose("set peer bandwidth success");
+		
+	if ((ret = rtmp->response_connect_app()) != ERROR_SUCCESS) {
+		srs_error("response connect app failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("response connect app success");
 	
 	return ret;
 }

@@ -30,6 +30,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_auto_free.hpp>
 #include <srs_core_amf0.hpp>
 
+/**
+* the signature for packets to client.
+*/
+#define RTMP_SIG_FMS_VER "3,5,3,888"
+#define RTMP_SIG_AMF0_VER 3
+#define RTMP_SIG_SRS_NAME "srs(simple rtmp server)"
+#define RTMP_SIG_SRS_URL "https://github.com/winlinvip/simple-rtmp-server"
+#define RTMP_SIG_SRS_VERSION "0.1"
+
 int SrsRequest::discovery_app()
 {
 	int ret = ERROR_SUCCESS;
@@ -201,6 +210,42 @@ int SrsRtmp::set_peer_bandwidth(int bandwidth, int type)
 	}
 	srs_info("send set bandwidth message "
 		"success. bandwidth=%d, type=%d", bandwidth, type);
+	
+	return ret;
+}
+
+int SrsRtmp::response_connect_app()
+{
+	int ret = ERROR_SUCCESS;
+	
+	SrsMessage* msg = new SrsMessage();
+	SrsConnectAppResPacket* pkt = new SrsConnectAppResPacket();
+	
+	pkt->command_name = "_result";
+	
+	pkt->props->properties["fmsVer"] = new SrsAmf0String("FMS/"RTMP_SIG_FMS_VER);
+	pkt->props->properties["capabilities"] = new SrsAmf0Number(123);
+	pkt->props->properties["mode"] = new SrsAmf0Number(1);
+	
+	pkt->info->properties["level"] = new SrsAmf0String("status");
+	pkt->info->properties["code"] = new SrsAmf0String("NetConnection.Connect.Success");
+	pkt->info->properties["description"] = new SrsAmf0String("Connection succeeded");
+	pkt->info->properties["objectEncoding"] = new SrsAmf0Number(RTMP_SIG_AMF0_VER);
+	SrsASrsAmf0EcmaArray* data = new SrsASrsAmf0EcmaArray();
+	pkt->info->properties["data"] = data;
+	
+	data->properties["version"] = new SrsAmf0String(RTMP_SIG_FMS_VER);
+	data->properties["server"] = new SrsAmf0String(RTMP_SIG_SRS_NAME);
+	data->properties["srs_url"] = new SrsAmf0String(RTMP_SIG_SRS_URL);
+	data->properties["srs_version"] = new SrsAmf0String(RTMP_SIG_SRS_VERSION);
+	
+	msg->set_packet(pkt);
+	
+	if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+		srs_error("send connect app response message failed. ret=%d", ret);
+		return ret;
+	}
+	srs_info("send connect app response message success.");
 	
 	return ret;
 }
