@@ -108,6 +108,10 @@ public:
 	virtual int send_message(SrsMessage* msg);
 private:
 	/**
+	* when recv message, update the context.
+	*/
+	virtual int on_recv_message(SrsMessage* msg);
+	/**
 	* try to recv interlaced message from peer,
 	* return error if error occur and nerver set the pmsg,
 	* return success and pmsg set to NULL if no entire message got,
@@ -372,6 +376,8 @@ public:
 public:
 	SrsSetWindowAckSizePacket();
 	virtual ~SrsSetWindowAckSizePacket();
+public:
+	virtual int decode(SrsStream* stream);
 public:
 	virtual int get_perfer_cid();
 public:
