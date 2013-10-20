@@ -50,6 +50,11 @@ struct SrsRequest
 	std::string port;
 	std::string app;
 	std::string stream;
+	
+	/**
+	* disconvery vhost/app from tcUrl.
+	*/
+	virtual int discovery_app();
 };
 
 /**
@@ -68,6 +73,7 @@ public:
 public:
 	virtual int handshake();
 	virtual int connect_app(SrsRequest* req);
+	virtual int set_window_ack_size(int ack_size);
 };
 
 #endif

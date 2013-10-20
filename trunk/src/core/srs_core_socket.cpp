@@ -85,3 +85,16 @@ int SrsSocket::write(const void* buf, size_t size, ssize_t* nwrite)
     return ret;
 }
 
+int SrsSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
+{
+    int ret = ERROR_SUCCESS;
+    
+    *nwrite = st_writev(stfd, iov, iov_size, ST_UTIME_NO_TIMEOUT);
+    
+    if (*nwrite <= 0) {
+        ret = ERROR_SOCKET_WRITE;
+    }
+    
+    return ret;
+}
+

@@ -47,18 +47,42 @@ class SrsChunkStream;
 class SrsAmf0Object;
 
 /**
+* max rtmp header size:
+* 	1bytes basic header,
+* 	11bytes message header,
+* 	4bytes timestamp header,
+* that is, 1+11+4=16bytes.
+*/
+#define RTMP_MAX_FMT0_HEADER_SIZE 16
+/**
+* max rtmp header size:
+* 	1bytes basic header,
+* 	4bytes timestamp header,
+* that is, 1+4=5bytes.
+*/
+#define RTMP_MAX_FMT3_HEADER_SIZE 5
+
+/**
 * the protocol provides the rtmp-message-protocol services,
 * to recv RTMP message from RTMP chunk stream,
 * and to send out RTMP message over RTMP chunk stream.
 */
 class SrsProtocol
 {
+// peer in/out
+private:
+	st_netfd_t stfd;
+	SrsSocket* skt;
+	char* pp;
+// peer in
 private:
 	std::map<int, SrsChunkStream*> chunk_streams;
-	st_netfd_t stfd;
 	SrsBuffer* buffer;
-	SrsSocket* skt;
 	int32_t in_chunk_size;
+// peer out
+private:
+	char out_header_fmt0[RTMP_MAX_FMT0_HEADER_SIZE];
+	char out_header_fmt3[RTMP_MAX_FMT3_HEADER_SIZE];
 	int32_t out_chunk_size;
 public:
 	SrsProtocol(st_netfd_t client_stfd);
@@ -72,10 +96,38 @@ public:
 	* @remark, only when success, user can use and must free the pmsg.
 	*/
 	virtual int recv_message(SrsMessage** pmsg);
+	/**
+	* send out message with encoded payload to peer.
+	* use the message encode method to encode to payload,
+	* then sendout over socket.
+	* @msg this method will free it whatever return value.
+	*/
+	virtual int send_message(SrsMessage* msg);
 private:
+	/**
+	* try to recv interlaced message from peer,
+	* return error if error occur and nerver set the pmsg,
+	* return success and pmsg set to NULL if no entire message got,
+	* return success and pmsg set to entire message if got one.
+	*/
 	virtual int recv_interlaced_message(SrsMessage** pmsg);
-	virtual int read_basic_header(char& fmt, int& cid, int& size);
+	/**
+	* read the chunk basic header(fmt, cid) from chunk stream.
+	* user can discovery a SrsChunkStream by cid.
+	* @bh_size return the chunk basic header size, to remove the used bytes when finished.
+	*/
+	virtual int read_basic_header(char& fmt, int& cid, int& bh_size);
+	/**
+	* read the chunk message header(timestamp, payload_length, message_type, stream_id) 
+	* from chunk stream and save to SrsChunkStream.
+	* @mh_size return the chunk message header size, to remove the used bytes when finished.
+	*/
 	virtual int read_message_header(SrsChunkStream* chunk, char fmt, int bh_size, int& mh_size);
+	/**
+	* read the chunk payload, remove the used bytes in buffer,
+	* if got entire message, set the pmsg.
+	* @payload_size read size in this roundtrip, generally a chunk size or left message size.
+	*/
 	virtual int read_message_payload(SrsChunkStream* chunk, int bh_size, int mh_size, int& payload_size, SrsMessage** pmsg);
 };
 
@@ -164,19 +216,35 @@ public:
 // decoded message payload.
 private:
 	SrsStream* stream;
-	SrsPacket* decoded_payload;
-public:
-	/**
-	* get the decoded packet,
-	* not all packets need to decode, for video/audio packet,
-	* passthrough to peer are ok.
-	* @remark, user must invoke decode_packet first.
-	*/
-	virtual SrsPacket* get_packet();
-	virtual int decode_packet();
+	SrsPacket* packet;
 public:
 	SrsMessage();
 	virtual ~SrsMessage();
+public:
+	/**
+	* decode packet from message payload.
+	*/
+	virtual int decode_packet();
+	/**
+	* get the decoded packet which decoded by decode_packet().
+	* @remark, user never free the pkt, the message will auto free it.
+	*/
+	virtual SrsPacket* get_packet();
+public:
+	/**
+	* get the perfered cid(chunk stream id) which sendout over.
+	*/
+	virtual int get_perfer_cid();
+	/**
+	* set the encoded packet to encode_packet() to payload.
+	* @remark, user never free the pkt, the message will auto free it.
+	*/
+	virtual void set_packet(SrsPacket* pkt);
+	/**
+	* encode the packet to message payload bytes.
+	* @remark there exists empty packet, so maybe the payload is NULL.
+	*/
+	virtual int encode_packet();
 };
 
 /**
@@ -189,8 +257,15 @@ public:
 	virtual ~SrsPacket();
 public:
 	virtual int decode(SrsStream* stream);
+public:
+	virtual int get_perfer_cid();
 };
 
+/**
+* 4.1.1. connect
+* The client sends the connect command to the server to request
+* connection to a server application instance.
+*/
 class SrsConnectAppPacket : public SrsPacket
 {
 private:
@@ -204,6 +279,26 @@ public:
 	virtual ~SrsConnectAppPacket();
 public:
 	virtual int decode(SrsStream* stream);
+};
+
+/**
+* 5.5. Window Acknowledgement Size (5)
+* The client or the server sends this message to inform the peer which
+* window size to use when sending acknowledgment.
+*/
+class SrsSetWindowAckSizePacket : public SrsPacket
+{
+private:
+	typedef SrsPacket super;
+public:
+	int32_t ackowledgement_window_size;
+public:
+	SrsSetWindowAckSizePacket();
+	virtual ~SrsSetWindowAckSizePacket();
+public:
+	virtual int decode(SrsStream* stream);
+public:
+	virtual int get_perfer_cid();
 };
 
 /**

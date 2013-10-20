@@ -60,29 +60,32 @@ int SrsClient::do_cycle()
 	int ret = ERROR_SUCCESS;
 	
 	if ((ret = get_peer_ip()) != ERROR_SUCCESS) {
-		srs_warn("get peer ip failed. ret=%d", ret);
+		srs_error("get peer ip failed. ret=%d", ret);
 		return ret;
 	}
 	srs_verbose("get peer ip success. ip=%s", ip);
 	
 	if ((ret = rtmp->handshake()) != ERROR_SUCCESS) {
-		srs_warn("rtmp handshake failed. ret=%d", ret);
+		srs_error("rtmp handshake failed. ret=%d", ret);
 		return ret;
 	}
 	srs_verbose("rtmp handshake success");
 	
 	if ((ret = rtmp->connect_app(req)) != ERROR_SUCCESS) {
-		srs_warn("rtmp connect vhost/app failed. ret=%d", ret);
+		srs_error("rtmp connect vhost/app failed. ret=%d", ret);
 		return ret;
 	}
-	srs_info("rtmp connect success. tcUrl=%s, pageUrl=%s, swfUrl=%s", 
-		req->tcUrl.c_str(), req->pageUrl.c_str(), req->swfUrl.c_str());
-		
-	srs_trace("rtmp connect success. "
+	srs_trace("rtmp connect app success. "
 		"tcUrl=%s, pageUrl=%s, swfUrl=%s, schema=%s, vhost=%s, port=%s, app=%s", 
 		req->tcUrl.c_str(), req->pageUrl.c_str(), req->swfUrl.c_str(), 
 		req->schema.c_str(), req->vhost.c_str(), req->port.c_str(),
 		req->app.c_str());
+		
+	if ((ret = rtmp->set_window_ack_size(2.5 * 1000 * 1000)) != ERROR_SUCCESS) {
+		srs_error("set window acknowledgement size failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("set window acknowledgement size success");
 	
 	return ret;
 }

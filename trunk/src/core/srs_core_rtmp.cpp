@@ -30,6 +30,47 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_auto_free.hpp>
 #include <srs_core_amf0.hpp>
 
+int SrsRequest::discovery_app()
+{
+	int ret = ERROR_SUCCESS;
+	
+	size_t pos = std::string::npos;
+	std::string url = tcUrl;
+	
+	if ((pos = url.find("://")) != std::string::npos) {
+		schema = url.substr(0, pos);
+		url = url.substr(schema.length() + 3);
+		srs_verbose("discovery schema=%s", schema.c_str());
+	}
+	
+	if ((pos = url.find("/")) != std::string::npos) {
+		vhost = url.substr(0, pos);
+		url = url.substr(vhost.length() + 1);
+		srs_verbose("discovery vhost=%s", vhost.c_str());
+	}
+
+	port = "1935";
+	if ((pos = vhost.find(":")) != std::string::npos) {
+		port = vhost.substr(pos + 1);
+		vhost = vhost.substr(0, pos);
+		srs_verbose("discovery vhost=%s, port=%s", vhost.c_str(), port.c_str());
+	}
+	
+	app = url;
+	srs_info("discovery app success. schema=%s, vhost=%s, port=%s, app=%s",
+		schema.c_str(), vhost.c_str(), port.c_str(), app.c_str());
+	
+	if (schema.empty() || vhost.empty() || port.empty() || app.empty()) {
+		ret = ERROR_RTMP_REQ_TCURL;
+		srs_error("discovery tcUrl failed. "
+			"tcUrl=%s, schema=%s, vhost=%s, port=%s, app=%s, ret=%d",
+			tcUrl.c_str(), schema.c_str(), vhost.c_str(), port.c_str(), app.c_str(), ret);
+		return ret;
+	}
+	
+	return ret;
+}
+
 SrsRtmp::SrsRtmp(st_netfd_t client_stfd)
 {
 	protocol = new SrsProtocol(client_stfd);
@@ -119,6 +160,26 @@ int SrsRtmp::connect_app(SrsRequest* req)
 	if ((prop = pkt->command_object->ensure_property_string("swfUrl")) != NULL) {
 		req->swfUrl = srs_amf0_convert<SrsAmf0String>(prop)->value;
 	}
+	srs_info("get connect app message params success.");
+	
+	return req->discovery_app();
+}
+
+int SrsRtmp::set_window_ack_size(int ack_size)
+{
+	int ret = ERROR_SUCCESS;
+	
+	SrsMessage* msg = new SrsMessage();
+	SrsSetWindowAckSizePacket* pkt = new SrsSetWindowAckSizePacket();
+	
+	pkt->ackowledgement_window_size = ack_size;
+	msg->set_packet(pkt);
+	
+	if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+		srs_error("send ack size message failed. ret=%d", ret);
+		return ret;
+	}
+	srs_info("send ack size message success. ack_size=%d", ack_size);
 	
 	return ret;
 }

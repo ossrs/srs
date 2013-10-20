@@ -80,6 +80,10 @@ public:
 	*/
 	virtual int16_t read_2bytes();
 	/**
+	* get 4bytes int from stream.
+	*/
+	virtual int32_t read_4bytes();
+	/**
 	* get 8bytes int from stream.
 	*/
 	virtual int64_t read_8bytes();

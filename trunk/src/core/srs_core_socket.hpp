@@ -47,6 +47,7 @@ public:
     virtual int read(const void* buf, size_t size, ssize_t* nread);
     virtual int read_fully(const void* buf, size_t size, ssize_t* nread);
     virtual int write(const void* buf, size_t size, ssize_t* nwrite);
+    virtual int writev(const iovec *iov, int iov_size, ssize_t* nwrite);
 };
 
 #endif
