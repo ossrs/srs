@@ -404,7 +404,7 @@ int SrsProtocol::send_message(SrsMessage* msg)
 		
 		// sendout header and payload by writev.
 		// decrease the sys invoke count to get higher performance.
-		int payload_size = msg->size - ((char*)msg->payload - p);
+		int payload_size = msg->size - (p - (char*)msg->payload);
 		if (payload_size > out_chunk_size) {
 			payload_size = out_chunk_size;
 		}
