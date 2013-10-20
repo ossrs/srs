@@ -140,6 +140,7 @@ struct SrsAmf0Object : public SrsAmf0Any
 * @remark only support UTF8-1 char.
 */
 extern int srs_amf0_read_utf8(SrsStream* stream, std::string& value);
+extern int srs_amf0_write_utf8(SrsStream* stream, std::string value);
 
 /**
 * read amf0 string from stream.
@@ -147,6 +148,7 @@ extern int srs_amf0_read_utf8(SrsStream* stream, std::string& value);
 * string-type = string-marker UTF-8
 */
 extern int srs_amf0_read_string(SrsStream* stream, std::string& value);
+extern int srs_amf0_write_string(SrsStream* stream, std::string value);
 
 /**
 * read amf0 boolean from stream.
@@ -155,6 +157,7 @@ extern int srs_amf0_read_string(SrsStream* stream, std::string& value);
 * 		0 is false, <> 0 is true
 */
 extern int srs_amf0_read_boolean(SrsStream* stream, bool& value);
+extern int srs_amf0_write_boolean(SrsStream* stream, bool value);
 
 /**
 * read amf0 number from stream.
@@ -162,6 +165,7 @@ extern int srs_amf0_read_boolean(SrsStream* stream, bool& value);
 * number-type = number-marker DOUBLE
 */
 extern int srs_amf0_read_number(SrsStream* stream, double& value);
+extern int srs_amf0_write_number(SrsStream* stream, double value);
 
 /**
 * read amf0 object from stream.
@@ -170,6 +174,16 @@ extern int srs_amf0_read_number(SrsStream* stream, double& value);
 * object-property = (UTF-8 value-type) | (UTF-8-empty object-end-marker)
 */
 extern int srs_amf0_read_object(SrsStream* stream, SrsAmf0Object*& value);
+extern int srs_amf0_write_object(SrsStream* stream, SrsAmf0Object* value);
+
+/**
+* get amf0 objects size.
+*/
+extern int srs_amf0_get_utf8_size(std::string value);
+extern int srs_amf0_get_string_size(std::string value);
+extern int srs_amf0_get_number_size();
+extern int srs_amf0_get_boolean_size();
+extern int srs_amf0_get_object_size(SrsAmf0Object* obj);
 	
 /**
 * convert the any to specified object.

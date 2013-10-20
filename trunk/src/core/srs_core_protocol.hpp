@@ -324,6 +324,34 @@ public:
 public:
 	virtual int decode(SrsStream* stream);
 };
+/**
+* response for SrsConnectAppPacket.
+*/
+class SrsConnectAppResPacket : public SrsPacket
+{
+private:
+	typedef SrsPacket super;
+protected:
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsConnectAppResPacket);
+	}
+public:
+	std::string command_name;
+	double transaction_id;
+	SrsAmf0Object* props;
+	SrsAmf0Object* info;
+public:
+	SrsConnectAppResPacket();
+	virtual ~SrsConnectAppResPacket();
+public:
+	virtual int get_perfer_cid();
+public:
+	virtual int get_message_type();
+protected:
+	virtual int get_size();
+	virtual int encode_packet(SrsStream* stream);
+};
 
 /**
 * 5.5. Window Acknowledgement Size (5)

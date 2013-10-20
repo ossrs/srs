@@ -35,7 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsStream
 {
-protected:
+private:
 	char* p;
 	char* pp;
 	char* bytes;
@@ -70,6 +70,10 @@ public:
 	* @size can be any value. positive to forward; nagetive to backward.
 	*/
 	virtual void skip(int size);
+	/**
+	* tell the current pos.
+	*/
+	virtual int pos();
 public:
 	/**
 	* get 1bytes char from stream.
@@ -93,13 +97,25 @@ public:
 	virtual std::string read_string(int len);
 public:
 	/**
+	* write 1bytes char to stream.
+	*/
+	virtual void write_1bytes(int8_t value);
+	/**
+	* write 2bytes int to stream.
+	*/
+	virtual void write_2bytes(int16_t value);
+	/**
 	* write 4bytes int to stream.
 	*/
 	virtual void write_4bytes(int32_t value);
 	/**
-	* write 1bytes char to stream.
+	* write 8bytes int to stream.
 	*/
-	virtual void write_1bytes(int8_t value);
+	virtual void write_8bytes(int64_t value);
+	/**
+	* write string to stream
+	*/
+	virtual void write_string(std::string value);
 };
 
 #endif

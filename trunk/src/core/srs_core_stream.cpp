@@ -78,6 +78,15 @@ void SrsStream::skip(int size)
 	p += size;
 }
 
+int SrsStream::pos()
+{
+	if (empty()) {
+		return 0;
+	}
+	
+	return p - bytes;
+}
+
 int8_t SrsStream::read_1bytes()
 {
 	srs_assert(require(1));
@@ -141,6 +150,22 @@ std::string SrsStream::read_string(int len)
 	return value;
 }
 
+void SrsStream::write_1bytes(int8_t value)
+{
+	srs_assert(require(1));
+	
+	*p++ = value;
+}
+
+void SrsStream::write_2bytes(int16_t value)
+{
+	srs_assert(require(2));
+	
+	pp = (char*)&value;
+	*p++ = pp[1];
+	*p++ = pp[0];
+}
+
 void SrsStream::write_4bytes(int32_t value)
 {
 	srs_assert(require(4));
@@ -152,10 +177,26 @@ void SrsStream::write_4bytes(int32_t value)
 	*p++ = pp[0];
 }
 
-void SrsStream::write_1bytes(int8_t value)
+void SrsStream::write_8bytes(int64_t value)
 {
-	srs_assert(require(1));
+	srs_assert(require(8));
 	
-	*p++ = value;
+	pp = (char*)&value;
+	*p++ = pp[7];
+	*p++ = pp[6];
+	*p++ = pp[5];
+	*p++ = pp[4];
+	*p++ = pp[3];
+	*p++ = pp[2];
+	*p++ = pp[1];
+	*p++ = pp[0];
+}
+
+void SrsStream::write_string(std::string value)
+{
+	srs_assert(require(value.length()));
+	
+	memcpy(p, value.data(), value.length());
+	p += value.length();
 }
 

@@ -1010,6 +1010,10 @@ SrsConnectAppPacket::SrsConnectAppPacket()
 
 SrsConnectAppPacket::~SrsConnectAppPacket()
 {
+	if (command_object) {
+		delete command_object;
+		command_object = NULL;
+	}
 }
 
 int SrsConnectAppPacket::decode(SrsStream* stream)
@@ -1049,6 +1053,77 @@ int SrsConnectAppPacket::decode(SrsStream* stream)
 	}
 	
 	srs_info("amf0 decode connect packet success");
+	
+	return ret;
+}
+
+SrsConnectAppResPacket::SrsConnectAppResPacket()
+{
+	command_name = RTMP_AMF0_COMMAND_CONNECT;
+	transaction_id = 1;
+	props = NULL;
+	info = NULL;
+}
+
+SrsConnectAppResPacket::~SrsConnectAppResPacket()
+{
+	if (props) {
+		delete props;
+		props = NULL;
+	}
+	
+	if (info) {
+		delete info;
+		info = NULL;
+	}
+}
+
+int SrsConnectAppResPacket::get_perfer_cid()
+{
+	return RTMP_CID_OverConnection;
+}
+
+int SrsConnectAppResPacket::get_message_type()
+{
+	return RTMP_MSG_AMF0CommandMessage;
+}
+
+int SrsConnectAppResPacket::get_size()
+{
+	return srs_amf0_get_string_size(command_name) + srs_amf0_get_number_size()
+		+ srs_amf0_get_object_size(props)+ srs_amf0_get_object_size(info);
+}
+
+int SrsConnectAppResPacket::encode_packet(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if ((ret = srs_amf0_write_string(stream, command_name)) != ERROR_SUCCESS) {
+		srs_error("encode command_name failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode command_name success.");
+	
+	if ((ret = srs_amf0_write_number(stream, transaction_id)) != ERROR_SUCCESS) {
+		srs_error("encode transaction_id failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode transaction_id success.");
+	
+	if ((ret = srs_amf0_write_object(stream, props)) != ERROR_SUCCESS) {
+		srs_error("encode props failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode props success.");
+	
+	if ((ret = srs_amf0_write_object(stream, info)) != ERROR_SUCCESS) {
+		srs_error("encode info failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode info success.");
+	
+	
+	srs_info("encode connect app response packet success.");
 	
 	return ret;
 }

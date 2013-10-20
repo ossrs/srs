@@ -53,6 +53,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // User defined
 #define RTMP_AMF0_Invalid 					0x3F
 
+int srs_amf0_get_object_eof_size();
+int srs_amf0_read_object_eof(SrsStream* stream, SrsAmf0ObjectEOF*&);
+int srs_amf0_write_object_eof(SrsStream* stream, SrsAmf0ObjectEOF*);
+int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any*& value);
+int srs_amf0_write_any(SrsStream* stream, SrsAmf0Any* value);
+
 SrsAmf0Any::SrsAmf0Any()
 {
 	marker = RTMP_AMF0_Invalid;
@@ -167,8 +173,6 @@ SrsAmf0Any* SrsAmf0Object::ensure_property_string(std::string name)
 	return prop;
 }
 
-int srs_amf0_read_object_eof(SrsStream* stream, SrsAmf0ObjectEOF*&);
-
 int srs_amf0_read_utf8(SrsStream* stream, std::string& value)
 {
 	int ret = ERROR_SUCCESS;
@@ -213,6 +217,36 @@ int srs_amf0_read_utf8(SrsStream* stream, std::string& value)
 	
 	return ret;
 }
+int srs_amf0_write_utf8(SrsStream* stream, std::string value)
+{
+	int ret = ERROR_SUCCESS;
+	
+	// len
+	if (!stream->require(2)) {
+		ret = ERROR_RTMP_AMF0_ENCODE;
+		srs_error("amf0 write string length failed. ret=%d", ret);
+		return ret;
+	}
+	stream->write_2bytes(value.length());
+	srs_verbose("amf0 write string length success. len=%d", (int)value.length());
+	
+	// empty string
+	if (value.length() <= 0) {
+		srs_verbose("amf0 write empty string. ret=%d", ret);
+		return ret;
+	}
+	
+	// data
+	if (!stream->require(value.length())) {
+		ret = ERROR_RTMP_AMF0_ENCODE;
+		srs_error("amf0 write string data failed. ret=%d", ret);
+		return ret;
+	}
+	stream->write_string(value);
+	srs_verbose("amf0 write string data success. str=%s", value.c_str());
+	
+	return ret;
+}
 
 int srs_amf0_read_string(SrsStream* stream, std::string& value)
 {
@@ -235,6 +269,23 @@ int srs_amf0_read_string(SrsStream* stream, std::string& value)
 	srs_verbose("amf0 read string marker success");
 	
 	return srs_amf0_read_utf8(stream, value);
+}
+
+int srs_amf0_write_string(SrsStream* stream, std::string value)
+{
+	int ret = ERROR_SUCCESS;
+	
+	// marker
+	if (!stream->require(1)) {
+		ret = ERROR_RTMP_AMF0_ENCODE;
+		srs_error("amf0 write string marker failed. ret=%d", ret);
+		return ret;
+	}
+	
+	stream->write_1bytes(RTMP_AMF0_String);
+	srs_verbose("amf0 write string marker success");
+	
+	return srs_amf0_write_utf8(stream, value);
 }
 
 int srs_amf0_read_boolean(SrsStream* stream, bool& value)
@@ -274,6 +325,36 @@ int srs_amf0_read_boolean(SrsStream* stream, bool& value)
 	
 	return ret;
 }
+int srs_amf0_write_boolean(SrsStream* stream, bool value)
+{
+	int ret = ERROR_SUCCESS;
+	
+	// marker
+	if (!stream->require(1)) {
+		ret = ERROR_RTMP_AMF0_ENCODE;
+		srs_error("amf0 write bool marker failed. ret=%d", ret);
+		return ret;
+	}
+	stream->write_1bytes(RTMP_AMF0_Boolean);
+	srs_verbose("amf0 write bool marker success");
+
+	// value
+	if (!stream->require(1)) {
+		ret = ERROR_RTMP_AMF0_ENCODE;
+		srs_error("amf0 write bool value failed. ret=%d", ret);
+		return ret;
+	}
+
+	if (value) {
+		stream->write_1bytes(0x01);
+	} else {
+		stream->write_1bytes(0x00);
+	}
+	
+	srs_verbose("amf0 write bool value success. value=%d", value);
+	
+	return ret;
+}
 
 int srs_amf0_read_number(SrsStream* stream, double& value)
 {
@@ -306,6 +387,35 @@ int srs_amf0_read_number(SrsStream* stream, double& value)
 	memcpy(&value, &temp, 8);
 	
 	srs_verbose("amf0 read number value success. value=%.2f", value);
+	
+	return ret;
+}
+int srs_amf0_write_number(SrsStream* stream, double value)
+{
+	int ret = ERROR_SUCCESS;
+	
+	// marker
+	if (!stream->require(1)) {
+		ret = ERROR_RTMP_AMF0_ENCODE;
+		srs_error("amf0 write number marker failed. ret=%d", ret);
+		return ret;
+	}
+	
+	stream->write_1bytes(RTMP_AMF0_Number);
+	srs_verbose("amf0 write number marker success");
+
+	// value
+	if (!stream->require(8)) {
+		ret = ERROR_RTMP_AMF0_ENCODE;
+		srs_error("amf0 write number value failed. ret=%d", ret);
+		return ret;
+	}
+
+	int64_t temp = 0x00;
+	memcpy(&temp, &value, 8);
+	stream->write_8bytes(temp);
+	
+	srs_verbose("amf0 write number value success. value=%.2f", value);
 	
 	return ret;
 }
@@ -381,10 +491,65 @@ int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any*& value)
 	
 	return ret;
 }
+int srs_amf0_write_any(SrsStream* stream, SrsAmf0Any* value)
+{
+	int ret = ERROR_SUCCESS;
+	
+	srs_assert(value != NULL);
+	
+	switch (value->marker) {
+		case RTMP_AMF0_String: {
+			std::string data = srs_amf0_convert<SrsAmf0String>(value)->value;
+			return srs_amf0_write_string(stream, data);
+		}
+		case RTMP_AMF0_Boolean: {
+			bool data = srs_amf0_convert<SrsAmf0Boolean>(value)->value;
+			return srs_amf0_write_boolean(stream, data);
+		}
+		case RTMP_AMF0_Number: {
+			double data = srs_amf0_convert<SrsAmf0Number>(value)->value;
+			return srs_amf0_write_number(stream, data);
+		}
+		case RTMP_AMF0_ObjectEnd: {
+			SrsAmf0ObjectEOF* p = srs_amf0_convert<SrsAmf0ObjectEOF>(value);
+			return srs_amf0_write_object_eof(stream, p);
+		}
+		case RTMP_AMF0_Object: {
+			SrsAmf0Object* p = srs_amf0_convert<SrsAmf0Object>(value);
+			return srs_amf0_write_object(stream, p);
+		}
+		case RTMP_AMF0_Invalid:
+		default: {
+			ret = ERROR_RTMP_AMF0_INVALID;
+			srs_error("invalid amf0 message type. marker=%#x, ret=%d", value->marker, ret);
+			return ret;
+		}
+	}
+	
+	return ret;
+}
 
 int srs_amf0_read_object_eof(SrsStream* stream, SrsAmf0ObjectEOF*& value)
 {
 	int ret = ERROR_SUCCESS;
+	
+	// auto skip -2 to read the object eof.
+	srs_assert(stream->pos() >= 2);
+	stream->skip(-2);
+	
+	// value
+	if (!stream->require(2)) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 read object eof value failed. ret=%d", ret);
+		return ret;
+	}
+	int16_t temp = stream->read_2bytes();
+	if (temp != 0x00) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 read object eof value check failed. "
+			"must be 0x00, actual is %#x, ret=%d", temp, ret);
+		return ret;
+	}
 	
 	// marker
 	if (!stream->require(1)) {
@@ -402,9 +567,36 @@ int srs_amf0_read_object_eof(SrsStream* stream, SrsAmf0ObjectEOF*& value)
 	}
 	srs_verbose("amf0 read object eof marker success");
 	
-	// value
 	value = new SrsAmf0ObjectEOF();
-	srs_verbose("amf0 read object eof marker success");
+	srs_verbose("amf0 read object eof success");
+	
+	return ret;
+}
+int srs_amf0_write_object_eof(SrsStream* stream, SrsAmf0ObjectEOF* value)
+{
+	int ret = ERROR_SUCCESS;
+	
+	srs_assert(value != NULL);
+	
+	// value
+	if (!stream->require(2)) {
+		ret = ERROR_RTMP_AMF0_ENCODE;
+		srs_error("amf0 write object eof value failed. ret=%d", ret);
+		return ret;
+	}
+	stream->write_2bytes(0x00);
+	srs_verbose("amf0 write object eof value success");
+	
+	// marker
+	if (!stream->require(1)) {
+		ret = ERROR_RTMP_AMF0_ENCODE;
+		srs_error("amf0 write object eof marker failed. ret=%d", ret);
+		return ret;
+	}
+	
+	stream->write_1bytes(RTMP_AMF0_ObjectEnd);
+	
+	srs_verbose("amf0 read object eof success");
 	
 	return ret;
 }
@@ -461,4 +653,109 @@ int srs_amf0_read_object(SrsStream* stream, SrsAmf0Object*& value)
 	}
 	
 	return ret;
+}
+int srs_amf0_write_object(SrsStream* stream, SrsAmf0Object* value)
+{
+	int ret = ERROR_SUCCESS;
+
+	srs_assert(value != NULL);
+	
+	// marker
+	if (!stream->require(1)) {
+		ret = ERROR_RTMP_AMF0_ENCODE;
+		srs_error("amf0 write object marker failed. ret=%d", ret);
+		return ret;
+	}
+	
+	stream->write_1bytes(RTMP_AMF0_Object);
+	srs_verbose("amf0 write object marker success");
+	
+	// value
+	std::map<std::string, SrsAmf0Any*>::iterator it;
+	for (it = value->properties.begin(); it != value->properties.end(); ++it) {
+		std::string name = it->first;
+		SrsAmf0Any* any = it->second;
+		
+		if ((ret = srs_amf0_write_utf8(stream, name)) != ERROR_SUCCESS) {
+			srs_error("write object property name failed. ret=%d", ret);
+			return ret;
+		}
+		
+		if ((ret = srs_amf0_write_any(stream, any)) != ERROR_SUCCESS) {
+			srs_error("write object property value failed. ret=%d", ret);
+			return ret;
+		}
+		
+		srs_verbose("write amf0 property success. name=%s", name.c_str());
+	}
+	
+	if ((ret = srs_amf0_write_object_eof(stream, &value->eof)) != ERROR_SUCCESS) {
+		srs_error("write object eof failed. ret=%d", ret);
+		return ret;
+	}
+	
+	srs_verbose("write amf0 object success.");
+	
+	return ret;
+}
+
+int srs_amf0_get_utf8_size(std::string value)
+{
+	return 2 + value.length();
+}
+
+int srs_amf0_get_string_size(std::string value)
+{
+	return 1 + srs_amf0_get_utf8_size(value);
+}
+
+int srs_amf0_get_number_size()
+{
+	return 1 + 8;
+}
+
+int srs_amf0_get_boolean_size()
+{
+	return 1 + 1;
+}
+
+int srs_amf0_get_object_size(SrsAmf0Object* obj)
+{
+	if (!obj) {
+		return 0;
+	}
+	
+	int size = 1;
+	
+	std::map<std::string, SrsAmf0Any*>::iterator it;
+	for (it = obj->properties.begin(); it != obj->properties.end(); ++it) {
+		std::string name = it->first;
+		SrsAmf0Any* value = it->second;
+		
+		size += srs_amf0_get_utf8_size(name);
+		
+		if (value->is_boolean()) {
+			size += srs_amf0_get_boolean_size();
+		} else if (value->is_number()) {
+			size += srs_amf0_get_number_size();
+		} else if (value->is_string()) {
+			SrsAmf0String* p = srs_amf0_convert<SrsAmf0String>(value);
+			size += srs_amf0_get_string_size(p->value);
+		} else if (value->is_object()) {
+			SrsAmf0Object* p = srs_amf0_convert<SrsAmf0Object>(value);
+			size += srs_amf0_get_object_size(p);
+		} else {
+			// TOOD: other AMF0 types.
+			srs_warn("ignore unkown AMF0 type size.");
+		}
+	}
+	
+	size += srs_amf0_get_object_eof_size();
+	
+	return size;
+}
+
+int srs_amf0_get_object_eof_size()
+{
+	return 2 + 1;
 }
