@@ -28,6 +28,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_socket.hpp>
 #include <srs_core_protocol.hpp>
 #include <srs_core_auto_free.hpp>
+#include <srs_core_amf0.hpp>
 
 SrsRtmp::SrsRtmp(st_netfd_t client_stfd)
 {
@@ -89,18 +90,27 @@ int SrsRtmp::handshake()
 	return ret;
 }
 
-int SrsRtmp::connect_app(SrsApp** papp)
+int SrsRtmp::connect_app(SrsRequest* req)
 {
 	int ret = ERROR_SUCCESS;
 	
 	SrsMessage* msg = NULL;
 	SrsConnectAppPacket* pkt = NULL;
-	if ((ret = protocol->expect_message<SrsConnectAppPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
+	if ((ret = srs_rtmp_expect_message<SrsConnectAppPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
 		srs_error("expect connect app message failed. ret=%d", ret);
 		return ret;
 	}
 	SrsAutoFree(SrsMessage, msg, false);
 	srs_info("get connect app message");
+	
+	SrsAmf0Any* prop = NULL;
+	
+	if ((prop = pkt->command_object->ensure_property_string("tcUrl")) == NULL) {
+		ret = ERROR_RTMP_REQ_CONNECT;
+		srs_error("invalid request, must specifies the tcUrl. ret=%d", ret);
+		return ret;
+	}
+	req->tcUrl = srs_amf0_convert<SrsAmf0String>(prop)->value;
 	
 	return ret;
 }

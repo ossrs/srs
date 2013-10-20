@@ -50,6 +50,123 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // origin array whos data takes the same form as LengthValueBytes
 #define RTMP_AMF0_OriginStrictArray 		0x20
 
+// User defined
+#define RTMP_AMF0_Invalid 					0x3F
+
+SrsAmf0Any::SrsAmf0Any()
+{
+	marker = RTMP_AMF0_Invalid;
+}
+
+SrsAmf0Any::~SrsAmf0Any()
+{
+}
+
+bool SrsAmf0Any::is_string()
+{
+	return marker == RTMP_AMF0_String;
+}
+
+bool SrsAmf0Any::is_boolean()
+{
+	return marker == RTMP_AMF0_Boolean;
+}
+
+bool SrsAmf0Any::is_number()
+{
+	return marker == RTMP_AMF0_Number;
+}
+
+bool SrsAmf0Any::is_object()
+{
+	return marker == RTMP_AMF0_Object;
+}
+
+bool SrsAmf0Any::is_object_eof()
+{
+	return marker == RTMP_AMF0_ObjectEnd;
+}
+
+SrsAmf0String::SrsAmf0String()
+{
+	marker = RTMP_AMF0_String;
+}
+
+SrsAmf0String::~SrsAmf0String()
+{
+}
+
+SrsAmf0Boolean::SrsAmf0Boolean()
+{
+	marker = RTMP_AMF0_Boolean;
+	value = false;
+}
+
+SrsAmf0Boolean::~SrsAmf0Boolean()
+{
+}
+
+SrsAmf0Number::SrsAmf0Number()
+{
+	marker = RTMP_AMF0_Number;
+	value = 0;
+}
+
+SrsAmf0Number::~SrsAmf0Number()
+{
+	marker = RTMP_AMF0_ObjectEnd;
+}
+
+SrsAmf0ObjectEOF::SrsAmf0ObjectEOF()
+{
+	utf8_empty = 0x00;
+}
+
+SrsAmf0ObjectEOF::~SrsAmf0ObjectEOF()
+{
+}
+
+SrsAmf0Object::SrsAmf0Object()
+{
+	marker = RTMP_AMF0_Object;
+}
+
+SrsAmf0Object::~SrsAmf0Object()
+{
+	std::map<std::string, SrsAmf0Any*>::iterator it;
+	for (it = properties.begin(); it != properties.end(); ++it) {
+		SrsAmf0Any* any = it->second;
+		delete any;
+	}
+	properties.clear();
+}
+
+SrsAmf0Any* SrsAmf0Object::get_property(std::string name)
+{
+	std::map<std::string, SrsAmf0Any*>::iterator it;
+	
+	if ((it = properties.find(name)) == properties.end()) {
+		return NULL;
+	}
+	
+	return it->second;
+}
+
+SrsAmf0Any* SrsAmf0Object::ensure_property_string(std::string name)
+{
+	SrsAmf0Any* prop = get_property(name);
+	
+	if (!prop) {
+		return NULL;
+	}
+	
+	if (!prop->is_string()) {
+		return NULL;
+	}
+	
+	return prop;
+}
+
 int srs_amf0_read_object_eof(SrsStream* stream, SrsAmf0ObjectEOF*&);
 
 int srs_amf0_read_utf8(SrsStream* stream, std::string& value)
@@ -254,10 +371,12 @@ int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any*& value)
 			value = p;
 			return ret;
 		}
-		default:
-			value = new SrsAmf0Any();
-			value->marker = stream->read_char();
+		case RTMP_AMF0_Invalid:
+		default: {
+			ret = ERROR_RTMP_AMF0_INVALID;
+			srs_error("invalid amf0 message type. marker=%#x, ret=%d", marker, ret);
 			return ret;
+		}
 	}
 	
 	return ret;
@@ -342,92 +461,4 @@ int srs_amf0_read_object(SrsStream* stream, SrsAmf0Object*& value)
 	}
 	
 	return ret;
-}
-
-SrsAmf0Any::SrsAmf0Any()
-{
-	marker = RTMP_AMF0_Null;
-}
-
-SrsAmf0Any::~SrsAmf0Any()
-{
-}
-
-bool SrsAmf0Any::is_string()
-{
-	return marker == RTMP_AMF0_String;
-}
-
-bool SrsAmf0Any::is_boolean()
-{
-	return marker == RTMP_AMF0_Boolean;
-}
-
-bool SrsAmf0Any::is_number()
-{
-	return marker == RTMP_AMF0_Number;
-}
-
-bool SrsAmf0Any::is_object()
-{
-	return marker == RTMP_AMF0_Object;
-}
-
-bool SrsAmf0Any::is_object_eof()
-{
-	return marker == RTMP_AMF0_ObjectEnd;
-}
-
-SrsAmf0String::SrsAmf0String()
-{
-	marker = RTMP_AMF0_String;
-}
-
-SrsAmf0String::~SrsAmf0String()
-{
-}
-
-SrsAmf0Boolean::SrsAmf0Boolean()
-{
-	marker = RTMP_AMF0_Boolean;
-	value = false;
-}
-
-SrsAmf0Boolean::~SrsAmf0Boolean()
-{
-}
-
-SrsAmf0Number::SrsAmf0Number()
-{
-	marker = RTMP_AMF0_Number;
-	value = 0;
-}
-
-SrsAmf0Number::~SrsAmf0Number()
-{
-	marker = RTMP_AMF0_ObjectEnd;
-}
-
-SrsAmf0ObjectEOF::SrsAmf0ObjectEOF()
-{
-	utf8_empty = 0x00;
-}
-
-SrsAmf0ObjectEOF::~SrsAmf0ObjectEOF()
-{
-}
-
-SrsAmf0Object::SrsAmf0Object()
-{
-	marker = RTMP_AMF0_Object;
-}
-
-SrsAmf0Object::~SrsAmf0Object()
-{
-	std::map<std::string, SrsAmf0Any*>::iterator it;
-	for (it = properties.begin(); it != properties.end(); ++it) {
-		SrsAmf0Any* any = it->second;
-		delete any;
-	}
-	properties.clear();
 }

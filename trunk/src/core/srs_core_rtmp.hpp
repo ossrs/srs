@@ -36,10 +36,18 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsProtocol;
 
-struct SrsApp
+/**
+* the original request from client.
+*/
+struct SrsRequest
 {
+	std::string tcUrl;
+	
+	std::string schema;
 	std::string vhost;
+	std::string port;
 	std::string app;
+	std::string stream;
 };
 
 /**
@@ -57,7 +65,7 @@ public:
 	virtual ~SrsRtmp();
 public:
 	virtual int handshake();
-	virtual int connect_app(SrsApp** papp);
+	virtual int connect_app(SrsRequest* req);
 };
 
 #endif

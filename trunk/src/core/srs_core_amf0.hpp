@@ -37,46 +37,6 @@ class SrsStream;
 class SrsAmf0Object;
 
 /**
-* read amf0 utf8 string from stream.
-* 1.3.1 Strings and UTF-8
-* UTF-8 = U16 *(UTF8-char)
-* UTF8-char = UTF8-1 | UTF8-2 | UTF8-3 | UTF8-4
-* UTF8-1 = %x00-7F
-* @remark only support UTF8-1 char.
-*/
-extern int srs_amf0_read_utf8(SrsStream* stream, std::string& value);
-
-/**
-* read amf0 string from stream.
-* 2.4 String Type
-* string-type = string-marker UTF-8
-*/
-extern int srs_amf0_read_string(SrsStream* stream, std::string& value);
-
-/**
-* read amf0 boolean from stream.
-* 2.4 String Type
-* boolean-type = boolean-marker U8
-* 		0 is false, <> 0 is true
-*/
-extern int srs_amf0_read_boolean(SrsStream* stream, bool& value);
-
-/**
-* read amf0 number from stream.
-* 2.2 Number Type
-* number-type = number-marker DOUBLE
-*/
-extern int srs_amf0_read_number(SrsStream* stream, double& value);
-
-/**
-* read amf0 object from stream.
-* 2.5 Object Type
-* anonymous-object-type = object-marker *(object-property)
-* object-property = (UTF-8 value-type) | (UTF-8-empty object-end-marker)
-*/
-extern int srs_amf0_read_object(SrsStream* stream, SrsAmf0Object*& value);
-
-/**
 * any amf0 value.
 * 2.1 Types Overview
 * value-type = number-type | boolean-type | string-type | object-type 
@@ -166,7 +126,50 @@ struct SrsAmf0Object : public SrsAmf0Any
 
 	SrsAmf0Object();
 	virtual ~SrsAmf0Object();
+
+	virtual SrsAmf0Any* get_property(std::string name);
+	virtual SrsAmf0Any* ensure_property_string(std::string name);
 };
+
+/**
+* read amf0 utf8 string from stream.
+* 1.3.1 Strings and UTF-8
+* UTF-8 = U16 *(UTF8-char)
+* UTF8-char = UTF8-1 | UTF8-2 | UTF8-3 | UTF8-4
+* UTF8-1 = %x00-7F
+* @remark only support UTF8-1 char.
+*/
+extern int srs_amf0_read_utf8(SrsStream* stream, std::string& value);
+
+/**
+* read amf0 string from stream.
+* 2.4 String Type
+* string-type = string-marker UTF-8
+*/
+extern int srs_amf0_read_string(SrsStream* stream, std::string& value);
+
+/**
+* read amf0 boolean from stream.
+* 2.4 String Type
+* boolean-type = boolean-marker U8
+* 		0 is false, <> 0 is true
+*/
+extern int srs_amf0_read_boolean(SrsStream* stream, bool& value);
+
+/**
+* read amf0 number from stream.
+* 2.2 Number Type
+* number-type = number-marker DOUBLE
+*/
+extern int srs_amf0_read_number(SrsStream* stream, double& value);
+
+/**
+* read amf0 object from stream.
+* 2.5 Object Type
+* anonymous-object-type = object-marker *(object-property)
+* object-property = (UTF-8 value-type) | (UTF-8-empty object-end-marker)
+*/
+extern int srs_amf0_read_object(SrsStream* stream, SrsAmf0Object*& value);
 	
 /**
 * convert the any to specified object.

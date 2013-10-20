@@ -194,190 +194,6 @@ messages.
 */
 #define RTMP_AMF0_COMMAND_CONNECT			"connect"
 
-SrsMessageHeader::SrsMessageHeader()
-{
-	message_type = 0;
-	payload_length = 0;
-	timestamp = 0;
-	stream_id = 0;
-}
-
-SrsMessageHeader::~SrsMessageHeader()
-{
-}
-
-SrsChunkStream::SrsChunkStream(int _cid)
-{
-	fmt = 0;
-	cid = _cid;
-	extended_timestamp = false;
-	msg = NULL;
-}
-
-SrsChunkStream::~SrsChunkStream()
-{
-	if (msg) {
-		delete msg;
-		msg = NULL;
-	}
-}
-
-SrsMessage::SrsMessage()
-{
-	size = 0;
-	stream = NULL;
-	payload = NULL;
-	decoded_payload = NULL;
-}
-
-SrsMessage::~SrsMessage()
-{	
-	if (payload) {
-		delete[] payload;
-		payload = NULL;
-	}
-	
-	if (decoded_payload) {
-		delete decoded_payload;
-		decoded_payload = NULL;
-	}
-	
-	if (stream) {
-		delete stream;
-		stream = NULL;
-	}
-}
-
-SrsPacket* SrsMessage::get_packet()
-{
-	if (!decoded_payload) {
-		srs_error("the payload is raw/undecoded, invoke decode_packet to decode it.");
-	}
-	srs_assert(decoded_payload != NULL);
-	
-	return decoded_payload;
-}
-
-int SrsMessage::decode_packet()
-{
-	int ret = ERROR_SUCCESS;
-	
-	srs_assert(payload != NULL);
-	srs_assert(size > 0);
-	
-	if (!stream) {
-		srs_verbose("create decode stream for message.");
-		stream = new SrsStream();
-	}
-	
-	if (header.message_type == RTMP_MSG_AMF0CommandMessage) {
-		srs_verbose("start to decode AMF0 command message.");
-		
-		// amf0 command message.
-		// need to read the command name.
-		if ((ret = stream->initialize((char*)payload, size)) != ERROR_SUCCESS) {
-			srs_error("initialize stream failed. ret=%d", ret);
-			return ret;
-		}
-		srs_verbose("decode stream initialized success");
-		
-		std::string command;
-		if ((ret = srs_amf0_read_string(stream, command)) != ERROR_SUCCESS) {
-			srs_error("decode AMF0 command name failed. ret=%d", ret);
-			return ret;
-		}
-		srs_verbose("AMF0 command message, command_name=%s", command.c_str());
-		
-		stream->reset();
-		if (command == RTMP_AMF0_COMMAND_CONNECT) {
-			srs_info("decode the AMF0 command(connect vhost/app message).");
-			decoded_payload = new SrsConnectAppPacket();
-			return decoded_payload->decode(stream);
-		}
-		
-		// default packet to drop message.
-		srs_trace("drop the AMF0 command message, command_name=%s", command.c_str());
-		decoded_payload = new SrsPacket();
-		return ret;
-	}
-	
-	// default packet to drop message.
-	srs_trace("drop the unknown message, type=%d", header.message_type);
-	decoded_payload = new SrsPacket();
-	
-	return ret;
-}
-
-SrsPacket::SrsPacket()
-{
-}
-
-SrsPacket::~SrsPacket()
-{
-}
-
-int SrsPacket::decode(SrsStream* /*stream*/)
-{
-	int ret = ERROR_SUCCESS;
-	return ret;
-}
-
-SrsConnectAppPacket::SrsConnectAppPacket()
-{
-	command_name = RTMP_AMF0_COMMAND_CONNECT;
-	transaction_id = 1;
-	command_object = NULL;
-}
-
-SrsConnectAppPacket::~SrsConnectAppPacket()
-{
-}
-
-int SrsConnectAppPacket::decode(SrsStream* stream)
-{
-	int ret = ERROR_SUCCESS;
-	
-	if ((ret = super::decode(stream)) != ERROR_SUCCESS) {
-		return ret;
-	}
-
-	if ((ret = srs_amf0_read_string(stream, command_name)) != ERROR_SUCCESS) {
-		srs_error("amf0 decode connect command_name failed. ret=%d", ret);
-		return ret;
-	}
-	if (command_name.empty() || command_name != RTMP_AMF0_COMMAND_CONNECT) {
-		ret = ERROR_RTMP_AMF0_DECODE;
-		srs_error("amf0 decode connect command_name failed. "
-			"command_name=%s, ret=%d", command_name.c_str(), ret);
-		return ret;
-	}
-	
-	if ((ret = srs_amf0_read_number(stream, transaction_id)) != ERROR_SUCCESS) {
-		srs_error("amf0 decode connect transaction_id failed. ret=%d", ret);
-		return ret;
-	}
-	if (transaction_id != 1.0) {
-		ret = ERROR_RTMP_AMF0_DECODE;
-		srs_error("amf0 decode connect transaction_id failed. "
-			"required=%.1f, actual=%.1f, ret=%d", 1.0, transaction_id, ret);
-		return ret;
-	}
-	
-	if ((ret = srs_amf0_read_object(stream, command_object)) != ERROR_SUCCESS) {
-		srs_error("amf0 decode connect command_object failed. ret=%d", ret);
-		return ret;
-	}
-	if (command_object == NULL) {
-		ret = ERROR_RTMP_AMF0_DECODE;
-		srs_error("amf0 decode connect command_object failed. ret=%d", ret);
-		return ret;
-	}
-	
-	srs_info("amf0 decode connect packet success");
-	
-	return ret;
-}
-
 SrsProtocol::SrsProtocol(st_netfd_t client_stfd)
 {
 	stfd = client_stfd;
@@ -767,6 +583,190 @@ int SrsProtocol::read_message_payload(SrsChunkStream* chunk, int bh_size, int mh
 			chunk->header.message_type, chunk->header.payload_length, 
 			chunk->header.timestamp, chunk->header.stream_id,
 			chunk->msg->size);
+	
+	return ret;
+}
+
+SrsMessageHeader::SrsMessageHeader()
+{
+	message_type = 0;
+	payload_length = 0;
+	timestamp = 0;
+	stream_id = 0;
+}
+
+SrsMessageHeader::~SrsMessageHeader()
+{
+}
+
+SrsChunkStream::SrsChunkStream(int _cid)
+{
+	fmt = 0;
+	cid = _cid;
+	extended_timestamp = false;
+	msg = NULL;
+}
+
+SrsChunkStream::~SrsChunkStream()
+{
+	if (msg) {
+		delete msg;
+		msg = NULL;
+	}
+}
+
+SrsMessage::SrsMessage()
+{
+	size = 0;
+	stream = NULL;
+	payload = NULL;
+	decoded_payload = NULL;
+}
+
+SrsMessage::~SrsMessage()
+{	
+	if (payload) {
+		delete[] payload;
+		payload = NULL;
+	}
+	
+	if (decoded_payload) {
+		delete decoded_payload;
+		decoded_payload = NULL;
+	}
+	
+	if (stream) {
+		delete stream;
+		stream = NULL;
+	}
+}
+
+SrsPacket* SrsMessage::get_packet()
+{
+	if (!decoded_payload) {
+		srs_error("the payload is raw/undecoded, invoke decode_packet to decode it.");
+	}
+	srs_assert(decoded_payload != NULL);
+	
+	return decoded_payload;
+}
+
+int SrsMessage::decode_packet()
+{
+	int ret = ERROR_SUCCESS;
+	
+	srs_assert(payload != NULL);
+	srs_assert(size > 0);
+	
+	if (!stream) {
+		srs_verbose("create decode stream for message.");
+		stream = new SrsStream();
+	}
+	
+	if (header.message_type == RTMP_MSG_AMF0CommandMessage) {
+		srs_verbose("start to decode AMF0 command message.");
+		
+		// amf0 command message.
+		// need to read the command name.
+		if ((ret = stream->initialize((char*)payload, size)) != ERROR_SUCCESS) {
+			srs_error("initialize stream failed. ret=%d", ret);
+			return ret;
+		}
+		srs_verbose("decode stream initialized success");
+		
+		std::string command;
+		if ((ret = srs_amf0_read_string(stream, command)) != ERROR_SUCCESS) {
+			srs_error("decode AMF0 command name failed. ret=%d", ret);
+			return ret;
+		}
+		srs_verbose("AMF0 command message, command_name=%s", command.c_str());
+		
+		stream->reset();
+		if (command == RTMP_AMF0_COMMAND_CONNECT) {
+			srs_info("decode the AMF0 command(connect vhost/app message).");
+			decoded_payload = new SrsConnectAppPacket();
+			return decoded_payload->decode(stream);
+		}
+		
+		// default packet to drop message.
+		srs_trace("drop the AMF0 command message, command_name=%s", command.c_str());
+		decoded_payload = new SrsPacket();
+		return ret;
+	}
+	
+	// default packet to drop message.
+	srs_trace("drop the unknown message, type=%d", header.message_type);
+	decoded_payload = new SrsPacket();
+	
+	return ret;
+}
+
+SrsPacket::SrsPacket()
+{
+}
+
+SrsPacket::~SrsPacket()
+{
+}
+
+int SrsPacket::decode(SrsStream* /*stream*/)
+{
+	int ret = ERROR_SUCCESS;
+	return ret;
+}
+
+SrsConnectAppPacket::SrsConnectAppPacket()
+{
+	command_name = RTMP_AMF0_COMMAND_CONNECT;
+	transaction_id = 1;
+	command_object = NULL;
+}
+
+SrsConnectAppPacket::~SrsConnectAppPacket()
+{
+}
+
+int SrsConnectAppPacket::decode(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if ((ret = super::decode(stream)) != ERROR_SUCCESS) {
+		return ret;
+	}
+
+	if ((ret = srs_amf0_read_string(stream, command_name)) != ERROR_SUCCESS) {
+		srs_error("amf0 decode connect command_name failed. ret=%d", ret);
+		return ret;
+	}
+	if (command_name.empty() || command_name != RTMP_AMF0_COMMAND_CONNECT) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 decode connect command_name failed. "
+			"command_name=%s, ret=%d", command_name.c_str(), ret);
+		return ret;
+	}
+	
+	if ((ret = srs_amf0_read_number(stream, transaction_id)) != ERROR_SUCCESS) {
+		srs_error("amf0 decode connect transaction_id failed. ret=%d", ret);
+		return ret;
+	}
+	if (transaction_id != 1.0) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 decode connect transaction_id failed. "
+			"required=%.1f, actual=%.1f, ret=%d", 1.0, transaction_id, ret);
+		return ret;
+	}
+	
+	if ((ret = srs_amf0_read_object(stream, command_object)) != ERROR_SUCCESS) {
+		srs_error("amf0 decode connect command_object failed. ret=%d", ret);
+		return ret;
+	}
+	if (command_object == NULL) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 decode connect command_object failed. ret=%d", ret);
+		return ret;
+	}
+	
+	srs_info("amf0 decode connect packet success");
 	
 	return ret;
 }

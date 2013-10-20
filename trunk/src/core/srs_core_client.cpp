@@ -33,6 +33,7 @@ SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
 	: SrsConnection(srs_server, client_stfd)
 {
 	ip = NULL;
+	req = new SrsRequest();
 	rtmp = new SrsRtmp(client_stfd);
 }
 
@@ -41,6 +42,11 @@ SrsClient::~SrsClient()
 	if (ip) {
 		delete[] ip;
 		ip = NULL;
+	}
+	
+	if (req) {
+		delete req;
+		req = NULL;
 	}
 	
 	if (rtmp) {
@@ -65,12 +71,13 @@ int SrsClient::do_cycle()
 	}
 	srs_verbose("rtmp handshake success");
 	
-	SrsApp* app = NULL;
-	if ((ret = rtmp->connect_app(&app)) != ERROR_SUCCESS) {
+	if ((ret = rtmp->connect_app(req)) != ERROR_SUCCESS) {
 		srs_warn("rtmp connect vhost/app failed. ret=%d", ret);
 		return ret;
 	}
-	srs_verbose("rtmp connect vhost/app success");
+	srs_info("rtmp connect success. tcUrl=%s, schema=%s, vhost=%s, port=%s, app=%s", 
+		req->tcUrl.c_str(), req->schema.c_str(), req->vhost.c_str(), req->port.c_str(),
+		req->app.c_str());
 	
 	return ret;
 }

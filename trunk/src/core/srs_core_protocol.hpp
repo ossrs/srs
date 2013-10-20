@@ -47,6 +47,39 @@ class SrsChunkStream;
 class SrsAmf0Object;
 
 /**
+* the protocol provides the rtmp-message-protocol services,
+* to recv RTMP message from RTMP chunk stream,
+* and to send out RTMP message over RTMP chunk stream.
+*/
+class SrsProtocol
+{
+private:
+	std::map<int, SrsChunkStream*> chunk_streams;
+	st_netfd_t stfd;
+	SrsBuffer* buffer;
+	SrsSocket* skt;
+	int32_t in_chunk_size;
+	int32_t out_chunk_size;
+public:
+	SrsProtocol(st_netfd_t client_stfd);
+	virtual ~SrsProtocol();
+public:
+	/**
+	* recv a message with raw/undecoded payload from peer.
+	* the payload is not decoded, use srs_rtmp_expect_message<T> if requires 
+	* specifies message.
+	* @pmsg, user must free it. NULL if not success.
+	* @remark, only when success, user can use and must free the pmsg.
+	*/
+	virtual int recv_message(SrsMessage** pmsg);
+private:
+	virtual int recv_interlaced_message(SrsMessage** pmsg);
+	virtual int read_basic_header(char& fmt, int& cid, int& size);
+	virtual int read_message_header(SrsChunkStream* chunk, char fmt, int bh_size, int& mh_size);
+	virtual int read_message_payload(SrsChunkStream* chunk, int bh_size, int mh_size, int& payload_size, SrsMessage** pmsg);
+};
+
+/**
 * 4.1. Message Header
 */
 struct SrsMessageHeader
@@ -162,7 +195,7 @@ class SrsConnectAppPacket : public SrsPacket
 {
 private:
 	typedef SrsPacket super;
-private:
+public:
 	std::string command_name;
 	double transaction_id;
 	SrsAmf0Object* command_object;
@@ -174,80 +207,48 @@ public:
 };
 
 /**
-* the protocol provides the rtmp-message-protocol services,
-* to recv RTMP message from RTMP chunk stream,
-* and to send out RTMP message over RTMP chunk stream.
+* expect a specified message, drop others util got specified one.
+* @pmsg, user must free it. NULL if not success.
+* @ppacket, store in the pmsg, user must never free it. NULL if not success.
+* @remark, only when success, user can use and must free the pmsg/ppacket.
 */
-class SrsProtocol
+template<class T>
+int srs_rtmp_expect_message(SrsProtocol* protocol, SrsMessage** pmsg, T** ppacket)
 {
-private:
-	std::map<int, SrsChunkStream*> chunk_streams;
-	st_netfd_t stfd;
-	SrsBuffer* buffer;
-	SrsSocket* skt;
-	int32_t in_chunk_size;
-	int32_t out_chunk_size;
-public:
-	SrsProtocol(st_netfd_t client_stfd);
-	virtual ~SrsProtocol();
-public:
-	/**
-	* recv a message with raw/undecoded payload from peer.
-	* the payload is not decoded, use expect_message<T> if requires specifies message.
-	* @pmsg, user must free it. NULL if not success.
-	* @remark, only when success, user can use and must free the pmsg.
-	*/
-	virtual int recv_message(SrsMessage** pmsg);
-public:
-	/**
-	* expect a specified message, drop others util got specified one.
-	* @pmsg, user must free it. NULL if not success.
-	* @ppacket, store in the pmsg, user must never free it. NULL if not success.
-	* @remark, only when success, user can use and must free the pmsg/ppacket.
-	*/
-	template<class T>
-	int expect_message(SrsMessage** pmsg, T** ppacket)
-	{
-		*pmsg = NULL;
-		*ppacket = NULL;
+	*pmsg = NULL;
+	*ppacket = NULL;
+	
+	int ret = ERROR_SUCCESS;
+	
+	while (true) {
+		SrsMessage* msg = NULL;
+		if ((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS) {
+			srs_error("recv message failed. ret=%d", ret);
+			return ret;
+		}
+		srs_verbose("recv message success.");
 		
-		int ret = ERROR_SUCCESS;
-		
-		while (true) {
-			SrsMessage* msg = NULL;
-			if ((ret = recv_message(&msg)) != ERROR_SUCCESS) {
-				srs_error("recv message failed. ret=%d", ret);
-				return ret;
-			}
-			srs_verbose("recv message success.");
-			
-			if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
-				delete msg;
-				srs_error("decode message failed. ret=%d", ret);
-				return ret;
-			}
-			
-			T* pkt = dynamic_cast<T*>(msg->get_packet());
-			if (!pkt) {
-				delete msg;
-				srs_trace("drop message(type=%d, size=%d, time=%d, sid=%d).", 
-					msg->header.message_type, msg->header.payload_length,
-					msg->header.timestamp, msg->header.stream_id);
-				continue;
-			}
-			
-			*pmsg = msg;
-			*ppacket = pkt;
-			break;
+		if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
+			delete msg;
+			srs_error("decode message failed. ret=%d", ret);
+			return ret;
 		}
 		
-		return ret;
+		T* pkt = dynamic_cast<T*>(msg->get_packet());
+		if (!pkt) {
+			delete msg;
+			srs_trace("drop message(type=%d, size=%d, time=%d, sid=%d).", 
+				msg->header.message_type, msg->header.payload_length,
+				msg->header.timestamp, msg->header.stream_id);
+			continue;
+		}
+		
+		*pmsg = msg;
+		*ppacket = pkt;
+		break;
 	}
-private:
-	virtual int recv_interlaced_message(SrsMessage** pmsg);
-	virtual int read_basic_header(char& fmt, int& cid, int& size);
-	virtual int read_message_header(SrsChunkStream* chunk, char fmt, int bh_size, int& mh_size);
-	virtual int read_message_payload(SrsChunkStream* chunk, int bh_size, int mh_size, int& payload_size, SrsMessage** pmsg);
-};
+	
+	return ret;
+}
 
 #endif
