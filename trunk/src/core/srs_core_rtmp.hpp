@@ -42,6 +42,8 @@ class SrsProtocol;
 struct SrsRequest
 {
 	std::string tcUrl;
+	std::string pageUrl;
+	std::string swfUrl;
 	
 	std::string schema;
 	std::string vhost;

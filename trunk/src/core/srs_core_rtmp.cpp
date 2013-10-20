@@ -112,6 +112,14 @@ int SrsRtmp::connect_app(SrsRequest* req)
 	}
 	req->tcUrl = srs_amf0_convert<SrsAmf0String>(prop)->value;
 	
+	if ((prop = pkt->command_object->ensure_property_string("pageUrl")) != NULL) {
+		req->pageUrl = srs_amf0_convert<SrsAmf0String>(prop)->value;
+	}
+	
+	if ((prop = pkt->command_object->ensure_property_string("swfUrl")) != NULL) {
+		req->swfUrl = srs_amf0_convert<SrsAmf0String>(prop)->value;
+	}
+	
 	return ret;
 }
 

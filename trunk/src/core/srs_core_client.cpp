@@ -75,8 +75,13 @@ int SrsClient::do_cycle()
 		srs_warn("rtmp connect vhost/app failed. ret=%d", ret);
 		return ret;
 	}
-	srs_info("rtmp connect success. tcUrl=%s, schema=%s, vhost=%s, port=%s, app=%s", 
-		req->tcUrl.c_str(), req->schema.c_str(), req->vhost.c_str(), req->port.c_str(),
+	srs_info("rtmp connect success. tcUrl=%s, pageUrl=%s, swfUrl=%s", 
+		req->tcUrl.c_str(), req->pageUrl.c_str(), req->swfUrl.c_str());
+		
+	srs_trace("rtmp connect success. "
+		"tcUrl=%s, pageUrl=%s, swfUrl=%s, schema=%s, vhost=%s, port=%s, app=%s", 
+		req->tcUrl.c_str(), req->pageUrl.c_str(), req->swfUrl.c_str(), 
+		req->schema.c_str(), req->vhost.c_str(), req->port.c_str(),
 		req->app.c_str());
 	
 	return ret;
