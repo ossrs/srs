@@ -29,6 +29,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_log.hpp>
 #include <srs_core_rtmp.hpp>
 
+// default stream id for response the createStream request.
+#define SRS_DEFAULT_SID 1
+
 SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
 	: SrsConnection(srs_server, client_stfd)
 {
@@ -98,6 +101,20 @@ int SrsClient::do_cycle()
 		return ret;
 	}
 	srs_verbose("response connect app success");
+		
+	if ((ret = rtmp->on_bw_done()) != ERROR_SUCCESS) {
+		srs_error("on_bw_done failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("on_bw_done success");
+	
+	SrsClientType type;
+	std::string stream_name;
+	if ((ret = rtmp->identify_client(SRS_DEFAULT_SID, type, stream_name)) != ERROR_SUCCESS) {
+		srs_error("identify client failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("identify client success. type=%d", type);
 	
 	return ret;
 }

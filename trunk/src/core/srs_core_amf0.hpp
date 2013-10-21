@@ -54,6 +54,7 @@ struct SrsAmf0Any
 	virtual bool is_string();
 	virtual bool is_boolean();
 	virtual bool is_number();
+	virtual bool is_null();
 	virtual bool is_object();
 	virtual bool is_object_eof();
 	virtual bool is_ecma_array();
@@ -100,6 +101,17 @@ struct SrsAmf0Number : public SrsAmf0Any
 
 	SrsAmf0Number(double _value = 0.0);
 	virtual ~SrsAmf0Number();
+};
+
+/**
+* read amf0 null from stream.
+* 2.7 null Type
+* null-type = null-marker
+*/
+struct SrsAmf0Null : public SrsAmf0Any
+{
+	SrsAmf0Null();
+	virtual ~SrsAmf0Null();
 };
 
 /**
@@ -188,6 +200,14 @@ extern int srs_amf0_read_number(SrsStream* stream, double& value);
 extern int srs_amf0_write_number(SrsStream* stream, double value);
 
 /**
+* read amf0 null from stream.
+* 2.7 null Type
+* null-type = null-marker
+*/
+extern int srs_amf0_read_null(SrsStream* stream);
+extern int srs_amf0_write_null(SrsStream* stream);
+
+/**
 * read amf0 object from stream.
 * 2.5 Object Type
 * anonymous-object-type = object-marker *(object-property)
@@ -212,6 +232,7 @@ extern int srs_amf0_write_ecma_array(SrsStream* stream, SrsASrsAmf0EcmaArray* va
 extern int srs_amf0_get_utf8_size(std::string value);
 extern int srs_amf0_get_string_size(std::string value);
 extern int srs_amf0_get_number_size();
+extern int srs_amf0_get_null_size();
 extern int srs_amf0_get_boolean_size();
 extern int srs_amf0_get_object_size(SrsAmf0Object* obj);
 extern int srs_amf0_get_ecma_array_size(SrsASrsAmf0EcmaArray* arr);

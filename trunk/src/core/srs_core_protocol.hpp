@@ -45,6 +45,7 @@ class SrsStream;
 class SrsMessage;
 class SrsChunkStream;
 class SrsAmf0Object;
+class SrsAmf0Null;
 
 // convert class name to string.
 #define CLASS_NAME_STRING(className) #className
@@ -166,6 +167,10 @@ struct SrsMessageHeader
 	
 	SrsMessageHeader();
 	virtual ~SrsMessageHeader();
+
+	bool is_amf0_command();
+	bool is_amf3_command();
+	bool is_window_ackledgement_size();
 };
 
 /**
@@ -348,6 +353,146 @@ public:
 public:
 	SrsConnectAppResPacket();
 	virtual ~SrsConnectAppResPacket();
+public:
+	virtual int get_perfer_cid();
+public:
+	virtual int get_message_type();
+protected:
+	virtual int get_size();
+	virtual int encode_packet(SrsStream* stream);
+};
+
+/**
+* 4.1.3. createStream
+* The client sends this command to the server to create a logical
+* channel for message communication The publishing of audio, video, and
+* metadata is carried out over stream channel created using the
+* createStream command.
+*/
+class SrsCreateStreamPacket : public SrsPacket
+{
+private:
+	typedef SrsPacket super;
+protected:
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsCreateStreamPacket);
+	}
+public:
+	std::string command_name;
+	double transaction_id;
+	SrsAmf0Null* command_object;
+public:
+	SrsCreateStreamPacket();
+	virtual ~SrsCreateStreamPacket();
+public:
+	virtual int decode(SrsStream* stream);
+};
+/**
+* response for SrsCreateStreamPacket.
+*/
+class SrsCreateStreamResPacket : public SrsPacket
+{
+private:
+	typedef SrsPacket super;
+protected:
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsCreateStreamResPacket);
+	}
+public:
+	std::string command_name;
+	double transaction_id;
+	SrsAmf0Null* command_object;
+	double stream_id;
+public:
+	SrsCreateStreamResPacket(double _transaction_id, double _stream_id);
+	virtual ~SrsCreateStreamResPacket();
+public:
+	virtual int get_perfer_cid();
+public:
+	virtual int get_message_type();
+protected:
+	virtual int get_size();
+	virtual int encode_packet(SrsStream* stream);
+};
+
+/**
+* 4.2.1. play
+* The client sends this command to the server to play a stream.
+*/
+class SrsPlayPacket : public SrsPacket
+{
+private:
+	typedef SrsPacket super;
+protected:
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsPlayPacket);
+	}
+public:
+	std::string command_name;
+	double transaction_id;
+	SrsAmf0Null* command_object;
+	std::string stream_name;
+	double start;
+	double duration;
+	bool reset;
+public:
+	SrsPlayPacket();
+	virtual ~SrsPlayPacket();
+public:
+	virtual int decode(SrsStream* stream);
+};
+/**
+* response for SrsPlayPacket.
+* @remark, user must set the stream_id in header.
+*/
+class SrsPlayResPacket : public SrsPacket
+{
+private:
+	typedef SrsPacket super;
+protected:
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsPlayResPacket);
+	}
+public:
+	std::string command_name;
+	double transaction_id;
+	SrsAmf0Null* command_object;
+	SrsAmf0Object* desc;
+public:
+	SrsPlayResPacket();
+	virtual ~SrsPlayResPacket();
+public:
+	virtual int get_perfer_cid();
+public:
+	virtual int get_message_type();
+protected:
+	virtual int get_size();
+	virtual int encode_packet(SrsStream* stream);
+};
+
+/**
+* when bandwidth test done, notice client.
+*/
+class SrsOnBWDonePacket : public SrsPacket
+{
+private:
+	typedef SrsPacket super;
+protected:
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsOnBWDonePacket);
+	}
+public:
+	std::string command_name;
+	double transaction_id;
+	SrsAmf0Null* args;
+public:
+	SrsOnBWDonePacket();
+	virtual ~SrsOnBWDonePacket();
 public:
 	virtual int get_perfer_cid();
 public:

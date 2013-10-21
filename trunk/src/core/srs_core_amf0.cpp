@@ -84,6 +84,11 @@ bool SrsAmf0Any::is_number()
 	return marker == RTMP_AMF0_Number;
 }
 
+bool SrsAmf0Any::is_null()
+{
+	return marker == RTMP_AMF0_Null;
+}
+
 bool SrsAmf0Any::is_object()
 {
 	return marker == RTMP_AMF0_Object;
@@ -128,6 +133,15 @@ SrsAmf0Number::SrsAmf0Number(double _value)
 }
 
 SrsAmf0Number::~SrsAmf0Number()
+{
+}
+
+SrsAmf0Null::SrsAmf0Null()
+{
+	marker = RTMP_AMF0_Null;
+}
+
+SrsAmf0Null::~SrsAmf0Null()
 {
 }
 
@@ -470,6 +484,45 @@ int srs_amf0_write_number(SrsStream* stream, double value)
 	return ret;
 }
 
+int srs_amf0_read_null(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	// marker
+	if (!stream->require(1)) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 read null marker failed. ret=%d", ret);
+		return ret;
+	}
+	
+	char marker = stream->read_1bytes();
+	if (marker != RTMP_AMF0_Null) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 check null marker failed. "
+			"marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Null, ret);
+		return ret;
+	}
+	srs_verbose("amf0 read null success");
+	
+	return ret;
+}
+int srs_amf0_write_null(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	// marker
+	if (!stream->require(1)) {
+		ret = ERROR_RTMP_AMF0_ENCODE;
+		srs_error("amf0 write null marker failed. ret=%d", ret);
+		return ret;
+	}
+	
+	stream->write_1bytes(RTMP_AMF0_Null);
+	srs_verbose("amf0 write null marker success");
+	
+	return ret;
+}
+
 int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any*& value)
 {
 	int ret = ERROR_SUCCESS;
@@ -513,6 +566,10 @@ int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any*& value)
 			}
 			value = new SrsAmf0Number();
 			srs_amf0_convert<SrsAmf0Number>(value)->value = data;
+			return ret;
+		}
+		case RTMP_AMF0_Null: {
+			value = new SrsAmf0Null();
 			return ret;
 		}
 		case RTMP_AMF0_ObjectEnd: {
@@ -568,6 +625,9 @@ int srs_amf0_write_any(SrsStream* stream, SrsAmf0Any* value)
 			double data = srs_amf0_convert<SrsAmf0Number>(value)->value;
 			return srs_amf0_write_number(stream, data);
 		}
+		case RTMP_AMF0_Null: {
+			return srs_amf0_write_null(stream);
+		}
 		case RTMP_AMF0_ObjectEnd: {
 			SrsAmf0ObjectEOF* p = srs_amf0_convert<SrsAmf0ObjectEOF>(value);
 			return srs_amf0_write_object_eof(stream, p);
@@ -590,7 +650,6 @@ int srs_amf0_write_any(SrsStream* stream, SrsAmf0Any* value)
 	
 	return ret;
 }
-
 int srs_amf0_get_any_size(SrsAmf0Any* value)
 {
 	if (!value) {
@@ -611,6 +670,10 @@ int srs_amf0_get_any_size(SrsAmf0Any* value)
 		}
 		case RTMP_AMF0_Number: {
 			size += srs_amf0_get_number_size();
+			break;
+		}
+		case RTMP_AMF0_Null: {
+			size += srs_amf0_get_null_size();
 			break;
 		}
 		case RTMP_AMF0_ObjectEnd: {
@@ -939,6 +1002,11 @@ int srs_amf0_get_string_size(std::string value)
 int srs_amf0_get_number_size()
 {
 	return 1 + 8;
+}
+
+int srs_amf0_get_null_size()
+{
+	return 1;
 }
 
 int srs_amf0_get_boolean_size()

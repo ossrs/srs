@@ -35,6 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <st.h>
 
 class SrsProtocol;
+class SrsCreateStreamPacket;
 
 /**
 * the original request from client.
@@ -55,6 +56,16 @@ struct SrsRequest
 	* disconvery vhost/app from tcUrl.
 	*/
 	virtual int discovery_app();
+};
+
+/**
+* the rtmp client type.
+*/
+enum SrsClientType
+{
+	SrsClientUnknown,
+	SrsClientPlay,
+	SrsClientPublish,
 };
 
 /**
@@ -80,6 +91,16 @@ public:
 	*/
 	virtual int set_peer_bandwidth(int bandwidth, int type);
 	virtual int response_connect_app();
+	virtual int on_bw_done();
+	/**
+	* recv some message to identify the client.
+	* @stream_id, client will createStream to play or publish by flash, 
+	* 		the stream_id used to response the createStream request.
+	* @type, output the client type.
+	*/
+	virtual int identify_client(int stream_id, SrsClientType& type, std::string& stream_name);
+private:
+	virtual int identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, std::string& stream_name);
 };
 
 #endif

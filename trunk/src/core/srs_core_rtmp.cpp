@@ -221,8 +221,6 @@ int SrsRtmp::response_connect_app()
 	SrsMessage* msg = new SrsMessage();
 	SrsConnectAppResPacket* pkt = new SrsConnectAppResPacket();
 	
-	pkt->command_name = "_result";
-	
 	pkt->props->properties["fmsVer"] = new SrsAmf0String("FMS/"RTMP_SIG_FMS_VER);
 	pkt->props->properties["capabilities"] = new SrsAmf0Number(123);
 	pkt->props->properties["mode"] = new SrsAmf0Number(1);
@@ -246,6 +244,113 @@ int SrsRtmp::response_connect_app()
 		return ret;
 	}
 	srs_info("send connect app response message success.");
+	
+	return ret;
+}
+
+int SrsRtmp::on_bw_done()
+{
+	int ret = ERROR_SUCCESS;
+	
+	SrsMessage* msg = new SrsMessage();
+	SrsOnBWDonePacket* pkt = new SrsOnBWDonePacket();
+	
+	msg->set_packet(pkt);
+	
+	if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+		srs_error("send onBWDone message failed. ret=%d", ret);
+		return ret;
+	}
+	srs_info("send onBWDone message success.");
+	
+	return ret;
+}
+
+int SrsRtmp::identify_client(int stream_id, SrsClientType& type, std::string& stream_name)
+{
+	type = SrsClientUnknown;
+	int ret = ERROR_SUCCESS;
+	
+	while (true) {
+		SrsMessage* msg = NULL;
+		if ((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS) {
+			srs_error("recv identify client message failed. ret=%d", ret);
+			return ret;
+		}
+
+		SrsAutoFree(SrsMessage, msg, false);
+
+		if (!msg->header.is_amf0_command() && !msg->header.is_amf3_command()) {
+			srs_trace("identify ignore messages except "
+				"AMF0/AMF3 command message. type=%#x", msg->header.message_type);
+			continue;
+		}
+		
+		if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
+			srs_error("identify decode message failed. ret=%d", ret);
+			return ret;
+		}
+		
+		SrsPacket* pkt = msg->get_packet();
+		if (dynamic_cast<SrsCreateStreamPacket*>(pkt)) {
+			return identify_create_stream_client(
+				dynamic_cast<SrsCreateStreamPacket*>(pkt), stream_id, type, stream_name);
+		}
+		
+		srs_trace("ignore AMF0/AMF3 command message.");
+	}
+	
+	return ret;
+}
+
+int SrsRtmp::identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, std::string& stream_name)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if (true) {
+		SrsMessage* msg = new SrsMessage();
+		SrsCreateStreamResPacket* pkt = new SrsCreateStreamResPacket(req->transaction_id, stream_id);
+		
+		msg->set_packet(pkt);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			srs_error("send createStream response message failed. ret=%d", ret);
+			return ret;
+		}
+		srs_info("send createStream response message success.");
+	}
+	
+	while (true) {
+		SrsMessage* msg = NULL;
+		if ((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS) {
+			srs_error("recv identify client message failed. ret=%d", ret);
+			return ret;
+		}
+
+		SrsAutoFree(SrsMessage, msg, false);
+
+		if (!msg->header.is_amf0_command() && !msg->header.is_amf3_command()) {
+			srs_trace("identify ignore messages except "
+				"AMF0/AMF3 command message. type=%#x", msg->header.message_type);
+			continue;
+		}
+		
+		if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
+			srs_error("identify decode message failed. ret=%d", ret);
+			return ret;
+		}
+		
+		SrsPacket* pkt = msg->get_packet();
+		if (dynamic_cast<SrsPlayPacket*>(pkt)) {
+			SrsPlayPacket* play = dynamic_cast<SrsPlayPacket*>(pkt);
+			type = SrsClientPublish;
+			stream_name = play->stream_name;
+			srs_trace("identity client type=play, stream_name=%s", stream_name.c_str());
+			return ret;
+		}
+		
+		srs_trace("ignore AMF0/AMF3 command message.");
+	}
 	
 	return ret;
 }
