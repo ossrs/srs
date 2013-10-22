@@ -31,10 +31,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <map>
+#include <vector>
 #include <string>
 
 class SrsCommonMessage;
 class SrsOnMetaDataPacket;
+class SrsSharedPtrMessage;
 
 /**
 * the consumer for SrsSource, that is a play client.
@@ -45,6 +47,10 @@ public:
 	SrsConsumer();
 	virtual ~SrsConsumer();
 public:
+	/**
+	* enqueue an shared ptr message.
+	*/
+	virtual int enqueue(SrsSharedPtrMessage* msg);
 	/**
 	* get packets in consumer queue.
 	* @msgs SrsMessages*[], output the prt array.
@@ -72,6 +78,8 @@ public:
 private:
 	std::string stream_url;
 	std::vector<SrsConsumer*> consumers;
+private:
+	SrsSharedPtrMessage* cache_metadata;
 public:
 	SrsSource(std::string _stream_url);
 	virtual ~SrsSource();
