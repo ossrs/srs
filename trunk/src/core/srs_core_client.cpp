@@ -108,14 +108,46 @@ int SrsClient::do_cycle()
 	}
 	srs_verbose("on_bw_done success");
 	
+	int stream_id = SRS_DEFAULT_SID;
 	SrsClientType type;
-	std::string stream_name;
-	if ((ret = rtmp->identify_client(SRS_DEFAULT_SID, type, stream_name)) != ERROR_SUCCESS) {
+	if ((ret = rtmp->identify_client(stream_id, type, req->stream)) != ERROR_SUCCESS) {
 		srs_error("identify client failed. ret=%d", ret);
 		return ret;
 	}
-	srs_verbose("identify client success. type=%d", type);
+	srs_verbose("identify client success. type=%d, stream_name=%s", type, req->stream.c_str());
+		
+	// TODO: read from config.
+	int chunk_size = 4096;
+	if ((ret = rtmp->set_chunk_size(chunk_size)) != ERROR_SUCCESS) {
+		srs_error("set chunk size failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("set chunk size success");
 	
+	switch (type) {
+		case SrsClientPlay: {
+			srs_verbose("start to play stream %s.", req->stream.c_str());
+			
+			if ((ret = rtmp->start_play(stream_id)) != ERROR_SUCCESS) {
+				srs_error("start to play stream failed. ret=%d", ret);
+				return ret;
+			}
+			srs_info("start to play stream %s success", req->stream.c_str());
+			return streaming_play();
+		}
+		default: {
+			ret = ERROR_SYSTEM_CLIENT_INVALID;
+			srs_info("invalid client type=%d. ret=%d", type, ret);
+			return ret;
+		}
+	}
+	
+	return ret;
+}
+
+int SrsClient::streaming_play()
+{
+	int ret = ERROR_SUCCESS;
 	return ret;
 }
 

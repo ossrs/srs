@@ -50,20 +50,6 @@ with IDs 3-6 are reserved for usage of RTMP. Protocol message with ID
 #define RTMP_MSG_SetPeerBandwidth 			0x06
 #define RTMP_MSG_EdgeAndOriginServerCommand 0x07
 /**
-* The server sends this event to test whether the client is reachable. 
-* 
-* Event data is a 4-byte timestamp, representing the local server time when the server dispatched the command. 
-* The client responds with PingResponse on receiving PingRequest.
-*/
-#define RTMP_MSG_PCUC_PingRequest 			0x06
-
-/**
-* The client sends this event to the server in response to the ping request. 
-* 
-* The event data is a 4-byte timestamp, which was received with the PingRequest request.
-*/
-#define RTMP_MSG_PCUC_PingResponse 			0x07
-/**
 3. Types of messages
 The server and the client send messages over the network to
 communicate with each other. The messages can be of any type which
@@ -184,6 +170,7 @@ messages.
 * independently for each direction.
 */
 #define RTMP_DEFAULT_CHUNK_SIZE 			128
+#define RTMP_MIN_CHUNK_SIZE 				2
 
 /**
 * 6.1. Chunk Format
@@ -316,7 +303,7 @@ int SrsProtocol::recv_message(SrsMessage** pmsg)
 		}
 		
 		if ((ret = on_recv_message(msg)) != ERROR_SUCCESS) {
-			srs_error("update context when received msg. ret=%d", ret);
+			srs_error("hook the received msg failed. ret=%d", ret);
 			delete msg;
 			return ret;
 		}
@@ -438,6 +425,11 @@ int SrsProtocol::send_message(SrsMessage* msg)
 		}
 	} while (p < (char*)msg->payload + msg->size);
 	
+	if ((ret = on_send_message(msg)) != ERROR_SUCCESS) {
+		srs_error("hook the send message failed. ret=%d", ret);
+		return ret;
+	}
+	
 	return ret;
 }
 
@@ -448,6 +440,7 @@ int SrsProtocol::on_recv_message(SrsMessage* msg)
 	srs_assert(msg != NULL);
 	
 	switch (msg->header.message_type) {
+		case RTMP_MSG_SetChunkSize:
 		case RTMP_MSG_WindowAcknowledgementSize:
 			if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
 				srs_error("decode packet from message payload failed. ret=%d", ret);
@@ -463,6 +456,36 @@ int SrsProtocol::on_recv_message(SrsMessage* msg)
 			srs_assert(pkt != NULL);
 			// TODO: take effect.
 			srs_trace("set ack window size to %d", pkt->ackowledgement_window_size);
+			break;
+		}
+		case RTMP_MSG_SetChunkSize: {
+			SrsSetChunkSizePacket* pkt = dynamic_cast<SrsSetChunkSizePacket*>(msg->get_packet());
+			srs_assert(pkt != NULL);
+			
+			in_chunk_size = pkt->chunk_size;
+			
+			srs_trace("set input chunk size to %d", pkt->chunk_size);
+			break;
+		}
+	}
+	
+	return ret;
+}
+
+int SrsProtocol::on_send_message(SrsMessage* msg)
+{
+	int ret = ERROR_SUCCESS;
+	
+	srs_assert(msg != NULL);
+	
+	switch (msg->header.message_type) {
+		case RTMP_MSG_SetChunkSize: {
+			SrsSetChunkSizePacket* pkt = dynamic_cast<SrsSetChunkSizePacket*>(msg->get_packet());
+			srs_assert(pkt != NULL);
+			
+			in_chunk_size = pkt->chunk_size;
+			
+			srs_trace("set output chunk size to %d", pkt->chunk_size);
 			break;
 		}
 	}
@@ -1580,6 +1603,70 @@ int SrsSetWindowAckSizePacket::encode_packet(SrsStream* stream)
 	return ret;
 }
 
+SrsSetChunkSizePacket::SrsSetChunkSizePacket()
+{
+	chunk_size = RTMP_DEFAULT_CHUNK_SIZE;
+}
+
+SrsSetChunkSizePacket::~SrsSetChunkSizePacket()
+{
+}
+
+int SrsSetChunkSizePacket::decode(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if (!stream->require(4)) {
+		ret = ERROR_RTMP_MESSAGE_DECODE;
+		srs_error("decode chunk size failed. ret=%d", ret);
+		return ret;
+	}
+	
+	chunk_size = stream->read_4bytes();
+	srs_info("decode chunk size success. chunk_size=%d", chunk_size);
+	
+	if (chunk_size < RTMP_MIN_CHUNK_SIZE) {
+		ret = ERROR_RTMP_CHUNK_SIZE;
+		srs_error("invalid chunk size. min=%d, actual=%d, ret=%d", 
+			ERROR_RTMP_CHUNK_SIZE, chunk_size, ret);
+		return ret;
+	}
+	
+	return ret;
+}
+
+int SrsSetChunkSizePacket::get_perfer_cid()
+{
+	return RTMP_CID_ProtocolControl;
+}
+
+int SrsSetChunkSizePacket::get_message_type()
+{
+	return RTMP_MSG_SetChunkSize;
+}
+
+int SrsSetChunkSizePacket::get_size()
+{
+	return 4;
+}
+
+int SrsSetChunkSizePacket::encode_packet(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if (!stream->require(4)) {
+		ret = ERROR_RTMP_MESSAGE_ENCODE;
+		srs_error("encode chunk packet failed. ret=%d", ret);
+		return ret;
+	}
+	
+	stream->write_4bytes(chunk_size);
+	
+	srs_verbose("encode chunk packet success. ack_size=%d", chunk_size);
+	
+	return ret;
+}
+
 SrsSetPeerBandwidthPacket::SrsSetPeerBandwidthPacket()
 {
 	bandwidth = 0;
@@ -1620,6 +1707,50 @@ int SrsSetPeerBandwidthPacket::encode_packet(SrsStream* stream)
 	
 	srs_verbose("encode set bandwidth packet "
 		"success. bandwidth=%d, type=%d", bandwidth, type);
+	
+	return ret;
+}
+
+SrsPCUC4BytesPacket::SrsPCUC4BytesPacket()
+{
+	event_type = 0;
+	event_data = 0;
+}
+
+SrsPCUC4BytesPacket::~SrsPCUC4BytesPacket()
+{
+}
+
+int SrsPCUC4BytesPacket::get_perfer_cid()
+{
+	return RTMP_CID_ProtocolControl;
+}
+
+int SrsPCUC4BytesPacket::get_message_type()
+{
+	return RTMP_MSG_UserControlMessage;
+}
+
+int SrsPCUC4BytesPacket::get_size()
+{
+	return 2 + 4;
+}
+
+int SrsPCUC4BytesPacket::encode_packet(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if (!stream->require(6)) {
+		ret = ERROR_RTMP_MESSAGE_ENCODE;
+		srs_error("encode set bandwidth packet failed. ret=%d", ret);
+		return ret;
+	}
+	
+	stream->write_2bytes(event_type);
+	stream->write_4bytes(event_data);
+	
+	srs_verbose("encode PCUC packet success. "
+		"event_type=%d, event_data=%d", event_type, event_data);
 	
 	return ret;
 }

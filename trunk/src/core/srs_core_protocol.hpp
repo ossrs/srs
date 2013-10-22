@@ -113,6 +113,10 @@ private:
 	*/
 	virtual int on_recv_message(SrsMessage* msg);
 	/**
+	* when message sentout, update the context.
+	*/
+	virtual int on_send_message(SrsMessage* msg);
+	/**
 	* try to recv interlaced message from peer,
 	* return error if error occur and nerver set the pmsg,
 	* return success and pmsg set to NULL if no entire message got,
@@ -533,6 +537,36 @@ protected:
 };
 
 /**
+* 7.1. Set Chunk Size
+* Protocol control message 1, Set Chunk Size, is used to notify the
+* peer about the new maximum chunk size.
+*/
+class SrsSetChunkSizePacket : public SrsPacket
+{
+private:
+	typedef SrsPacket super;
+protected:
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsSetChunkSizePacket);
+	}
+public:
+	int32_t chunk_size;
+public:
+	SrsSetChunkSizePacket();
+	virtual ~SrsSetChunkSizePacket();
+public:
+	virtual int decode(SrsStream* stream);
+public:
+	virtual int get_perfer_cid();
+public:
+	virtual int get_message_type();
+protected:
+	virtual int get_size();
+	virtual int encode_packet(SrsStream* stream);
+};
+
+/**
 * 5.6. Set Peer Bandwidth (6)
 * The client or the server sends this message to update the output
 * bandwidth of the peer.
@@ -552,6 +586,57 @@ public:
 public:
 	SrsSetPeerBandwidthPacket();
 	virtual ~SrsSetPeerBandwidthPacket();
+public:
+	virtual int get_perfer_cid();
+public:
+	virtual int get_message_type();
+protected:
+	virtual int get_size();
+	virtual int encode_packet(SrsStream* stream);
+};
+
+enum SrcPCUCEventType
+{
+	 // generally, 4bytes event-data
+	SrcPCUCStreamBegin 		= 0x00,
+	SrcPCUCStreamEOF 			= 0x01,
+	SrcPCUCStreamDry 			= 0x02,
+	SrcPCUCSetBufferLength 	= 0x03, // 8bytes event-data
+	SrcPCUCStreamIsRecorded 	= 0x04,
+	SrcPCUCPingRequest 		= 0x06,
+	SrcPCUCPingResponse 		= 0x07,
+};
+
+/**
+* for the EventData is 4bytes.
+* Stream Begin(=0)			4-bytes stream ID
+* Stream EOF(=1)			4-bytes stream ID
+* StreamDry(=2)				4-bytes stream ID
+* StreamIsRecorded(=4)		4-bytes stream ID
+* PingRequest(=6)			4-bytes timestamp local server time
+* PingResponse(=7)			4-bytes timestamp received ping request.
+* 
+* 3.7. User Control message
+* +------------------------------+-------------------------
+* | Event Type ( 2- bytes ) | Event Data
+* +------------------------------+-------------------------
+* Figure 5 Pay load for the ‘User Control Message’.
+*/
+class SrsPCUC4BytesPacket : public SrsPacket
+{
+private:
+	typedef SrsPacket super;
+protected:
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsPCUC4BytesPacket);
+	}
+public:
+	int16_t event_type;
+	int32_t event_data;
+public:
+	SrsPCUC4BytesPacket();
+	virtual ~SrsPCUC4BytesPacket();
 public:
 	virtual int get_perfer_cid();
 public:

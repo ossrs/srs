@@ -50,6 +50,7 @@ public:
 protected:
 	virtual int do_cycle();
 private:
+	virtual int streaming_play();
 	virtual int get_peer_ip();
 };
 

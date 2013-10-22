@@ -99,6 +99,15 @@ public:
 	* @type, output the client type.
 	*/
 	virtual int identify_client(int stream_id, SrsClientType& type, std::string& stream_name);
+	/**
+	* set the chunk size when client type identified.
+	*/
+	virtual int set_chunk_size(int chunk_size);
+	/**
+	* when client type is play, response with 
+	* StreamBegin, onStatus(NetStream.Play.Reset), onStatus(NetStream.Play.Start).
+	*/
+	virtual int start_play(int stream_id);
 private:
 	virtual int identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, std::string& stream_name);
 };

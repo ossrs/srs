@@ -303,6 +303,50 @@ int SrsRtmp::identify_client(int stream_id, SrsClientType& type, std::string& st
 	return ret;
 }
 
+int SrsRtmp::set_chunk_size(int chunk_size)
+{
+	int ret = ERROR_SUCCESS;
+	
+	SrsMessage* msg = new SrsMessage();
+	SrsSetChunkSizePacket* pkt = new SrsSetChunkSizePacket();
+	
+	pkt->chunk_size = chunk_size;
+	msg->set_packet(pkt);
+	
+	if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+		srs_error("send set chunk size message failed. ret=%d", ret);
+		return ret;
+	}
+	srs_info("send set chunk size message success. chunk_size=%d", chunk_size);
+	
+	return ret;
+}
+
+int SrsRtmp::start_play(int stream_id)
+{
+	int ret = ERROR_SUCCESS;
+	
+	// StreamBegin
+	if (true) {
+		SrsMessage* msg = new SrsMessage();
+		SrsPCUC4BytesPacket* pkt = new SrsPCUC4BytesPacket();
+		
+		pkt->event_type = SrcPCUCStreamBegin;
+		pkt->event_data = stream_id;
+		msg->set_packet(pkt);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			srs_error("send PCUC(StreamBegin) message failed. ret=%d", ret);
+			return ret;
+		}
+		srs_info("send PCUC(StreamBegin) message success.");
+	}
+	
+	srs_info("start play success.");
+	
+	return ret;
+}
+
 int SrsRtmp::identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, std::string& stream_name)
 {
 	int ret = ERROR_SUCCESS;
@@ -343,7 +387,7 @@ int SrsRtmp::identify_create_stream_client(SrsCreateStreamPacket* req, int strea
 		SrsPacket* pkt = msg->get_packet();
 		if (dynamic_cast<SrsPlayPacket*>(pkt)) {
 			SrsPlayPacket* play = dynamic_cast<SrsPlayPacket*>(pkt);
-			type = SrsClientPublish;
+			type = SrsClientPlay;
 			stream_name = play->stream_name;
 			srs_trace("identity client type=play, stream_name=%s", stream_name.c_str());
 			return ret;
