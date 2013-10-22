@@ -75,7 +75,7 @@ public:
 	SrsSource(std::string _stream_url);
 	virtual ~SrsSource();
 public:
-	virtual int on_meta_data(SrsOnMetaDataPacket* metadata);
+	virtual int on_meta_data(SrsMessage* msg, SrsOnMetaDataPacket* metadata);
 	virtual int on_audio(SrsMessage* audio);
 	virtual int on_video(SrsMessage* video);
 public:

@@ -285,6 +285,17 @@ public:
 };
 
 /**
+* shared ptr message.
+* for audio/video/data message that need less memory copy.
+*/
+class SrsSharedMessage : public SrsMessage
+{
+public:
+	SrsSharedMessage();
+	virtual ~SrsSharedMessage();
+};
+
+/**
 * the decoded message payload.
 */
 class SrsPacket

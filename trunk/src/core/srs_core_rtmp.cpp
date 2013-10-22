@@ -35,11 +35,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #define RTMP_SIG_FMS_VER "3,5,3,888"
 #define RTMP_SIG_AMF0_VER 0
-#define RTMP_SIG_SRS_NAME "srs(simple rtmp server)"
-#define RTMP_SIG_SRS_URL "https://github.com/winlinvip/simple-rtmp-server"
-#define RTMP_SIG_SRS_VERSION "0.1"
 #define RTMP_SIG_CLIENT_ID "ASAICiss"
 
+/**
+* onStatus consts.
+*/
 #define StatusLevel "level"
 #define StatusCode "code"
 #define StatusDescription "description"

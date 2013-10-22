@@ -238,7 +238,7 @@ int SrsClient::streaming_publish(SrsSource* source)
 			SrsPacket* pkt = msg->get_packet();
 			if (dynamic_cast<SrsOnMetaDataPacket*>(pkt)) {
 				SrsOnMetaDataPacket* metadata = dynamic_cast<SrsOnMetaDataPacket*>(pkt);
-				if ((ret = source->on_meta_data(metadata)) != ERROR_SUCCESS) {
+				if ((ret = source->on_meta_data(msg, metadata)) != ERROR_SUCCESS) {
 					srs_error("process onMetaData message failed. ret=%d", ret);
 					return ret;
 				}

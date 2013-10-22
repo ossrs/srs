@@ -1089,6 +1089,14 @@ int SrsMessage::encode_packet()
 	return packet->encode(size, (char*&)payload);
 }
 
+SrsSharedMessage::SrsSharedMessage()
+{
+}
+
+SrsSharedMessage::~SrsSharedMessage()
+{
+}
+
 SrsPacket::SrsPacket()
 {
 }

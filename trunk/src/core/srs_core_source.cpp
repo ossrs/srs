@@ -25,6 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core_log.hpp>
 #include <srs_core_protocol.hpp>
+#include <srs_core_amf0.hpp>
 
 std::map<std::string, SrsSource*> SrsSource::pool;
 
@@ -64,9 +65,13 @@ SrsSource::~SrsSource()
 {
 }
 
-int SrsSource::on_meta_data(SrsOnMetaDataPacket* metadata)
+int SrsSource::on_meta_data(SrsMessage* msg, SrsOnMetaDataPacket* metadata)
 {
 	int ret = ERROR_SUCCESS;
+	
+	metadata->metadata->set("server", 
+		new SrsAmf0String(RTMP_SIG_SRS_NAME""RTMP_SIG_SRS_VERSION));
+	
 	return ret;
 }
 

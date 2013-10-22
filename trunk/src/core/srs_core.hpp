@@ -61,4 +61,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	} \
 	(void)0
 
+// server info.
+#define RTMP_SIG_SRS_NAME "srs(simple rtmp server)"
+#define RTMP_SIG_SRS_URL "https://github.com/winlinvip/simple-rtmp-server"
+#define RTMP_SIG_SRS_VERSION "0.1"
+
 #endif
