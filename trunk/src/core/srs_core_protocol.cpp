@@ -197,6 +197,8 @@ messages.
 #define RTMP_AMF0_COMMAND_ON_BW_DONE		"onBWDone"
 #define RTMP_AMF0_COMMAND_ON_STATUS			"onStatus"
 #define RTMP_AMF0_COMMAND_RESULT			"_result"
+#define RTMP_AMF0_COMMAND_RELEASE_STREAM	"releaseStream"
+#define RTMP_AMF0_COMMAND_FC_PUBLISH		"FCPublish"
 #define RTMP_AMF0_DATA_SAMPLE_ACCESS		"|RtmpSampleAccess"
 
 /****************************************************************************
@@ -952,6 +954,14 @@ int SrsMessage::decode_packet()
 			srs_info("decode the AMF0/AMF3 command(paly message).");
 			packet = new SrsPlayPacket();
 			return packet->decode(stream);
+		} else if(command == RTMP_AMF0_COMMAND_RELEASE_STREAM) {
+			srs_info("decode the AMF0/AMF3 command(FMLE releaseStream message).");
+			packet = new SrsFMLEStartPacket();
+			return packet->decode(stream);
+		} else if(command == RTMP_AMF0_COMMAND_FC_PUBLISH) {
+			srs_info("decode the AMF0/AMF3 command(FMLE FCPublish message).");
+			packet = new SrsFMLEStartPacket();
+			return packet->decode(stream);
 		}
 		
 		// default packet to drop message.
@@ -1347,6 +1357,119 @@ int SrsCreateStreamResPacket::encode_packet(SrsStream* stream)
 	
 	
 	srs_info("encode createStream response packet success.");
+	
+	return ret;
+}
+
+SrsFMLEStartPacket::SrsFMLEStartPacket()
+{
+	command_name = RTMP_AMF0_COMMAND_CREATE_STREAM;
+	transaction_id = 0;
+}
+
+SrsFMLEStartPacket::~SrsFMLEStartPacket()
+{
+}
+
+int SrsFMLEStartPacket::decode(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+
+	if ((ret = srs_amf0_read_string(stream, command_name)) != ERROR_SUCCESS) {
+		srs_error("amf0 decode FMLE start command_name failed. ret=%d", ret);
+		return ret;
+	}
+	if (command_name.empty() 
+		|| command_name != RTMP_AMF0_COMMAND_RELEASE_STREAM 
+		|| command_name != RTMP_AMF0_COMMAND_FC_PUBLISH
+	) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 decode FMLE start command_name failed. "
+			"command_name=%s, ret=%d", command_name.c_str(), ret);
+		return ret;
+	}
+	
+	if ((ret = srs_amf0_read_number(stream, transaction_id)) != ERROR_SUCCESS) {
+		srs_error("amf0 decode FMLE start transaction_id failed. ret=%d", ret);
+		return ret;
+	}
+	
+	if ((ret = srs_amf0_read_string(stream, stream_name)) != ERROR_SUCCESS) {
+		srs_error("amf0 decode FMLE start stream_name failed. ret=%d", ret);
+		return ret;
+	}
+	
+	srs_info("amf0 decode FMLE start packet success");
+	
+	return ret;
+}
+
+SrsFMLEStartResPacket::SrsFMLEStartResPacket(double _transaction_id)
+{
+	command_name = RTMP_AMF0_COMMAND_RESULT;
+	transaction_id = _transaction_id;
+	command_object = new SrsAmf0Null();
+	args = new SrsAmf0Undefined();
+}
+
+SrsFMLEStartResPacket::~SrsFMLEStartResPacket()
+{
+	if (command_object) {
+		delete command_object;
+		command_object = NULL;
+	}
+	if (args) {
+		delete args;
+		args = NULL;
+	}
+}
+
+int SrsFMLEStartResPacket::get_perfer_cid()
+{
+	return RTMP_CID_OverConnection;
+}
+
+int SrsFMLEStartResPacket::get_message_type()
+{
+	return RTMP_MSG_AMF0CommandMessage;
+}
+
+int SrsFMLEStartResPacket::get_size()
+{
+	return srs_amf0_get_string_size(command_name) + srs_amf0_get_number_size()
+		+ srs_amf0_get_null_size() + srs_amf0_get_undefined_size();
+}
+
+int SrsFMLEStartResPacket::encode_packet(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if ((ret = srs_amf0_write_string(stream, command_name)) != ERROR_SUCCESS) {
+		srs_error("encode command_name failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode command_name success.");
+	
+	if ((ret = srs_amf0_write_number(stream, transaction_id)) != ERROR_SUCCESS) {
+		srs_error("encode transaction_id failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode transaction_id success.");
+	
+	if ((ret = srs_amf0_write_null(stream)) != ERROR_SUCCESS) {
+		srs_error("encode command_object failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode command_object success.");
+	
+	if ((ret = srs_amf0_write_undefined(stream)) != ERROR_SUCCESS) {
+		srs_error("encode args failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode args success.");
+	
+	
+	srs_info("encode FMLE start response packet success.");
 	
 	return ret;
 }

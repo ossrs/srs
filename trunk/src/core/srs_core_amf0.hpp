@@ -55,6 +55,7 @@ struct SrsAmf0Any
 	virtual bool is_boolean();
 	virtual bool is_number();
 	virtual bool is_null();
+	virtual bool is_undefined();
 	virtual bool is_object();
 	virtual bool is_object_eof();
 	virtual bool is_ecma_array();
@@ -112,6 +113,17 @@ struct SrsAmf0Null : public SrsAmf0Any
 {
 	SrsAmf0Null();
 	virtual ~SrsAmf0Null();
+};
+
+/**
+* read amf0 undefined from stream.
+* 2.8 undefined Type
+* undefined-type = undefined-marker
+*/
+struct SrsAmf0Undefined : public SrsAmf0Any
+{
+	SrsAmf0Undefined();
+	virtual ~SrsAmf0Undefined();
 };
 
 /**
@@ -208,6 +220,14 @@ extern int srs_amf0_read_null(SrsStream* stream);
 extern int srs_amf0_write_null(SrsStream* stream);
 
 /**
+* read amf0 undefined from stream.
+* 2.8 undefined Type
+* undefined-type = undefined-marker
+*/
+extern int srs_amf0_read_undefined(SrsStream* stream);
+extern int srs_amf0_write_undefined(SrsStream* stream);
+
+/**
 * read amf0 object from stream.
 * 2.5 Object Type
 * anonymous-object-type = object-marker *(object-property)
@@ -233,6 +253,7 @@ extern int srs_amf0_get_utf8_size(std::string value);
 extern int srs_amf0_get_string_size(std::string value);
 extern int srs_amf0_get_number_size();
 extern int srs_amf0_get_null_size();
+extern int srs_amf0_get_undefined_size();
 extern int srs_amf0_get_boolean_size();
 extern int srs_amf0_get_object_size(SrsAmf0Object* obj);
 extern int srs_amf0_get_ecma_array_size(SrsASrsAmf0EcmaArray* arr);

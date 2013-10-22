@@ -36,6 +36,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsProtocol;
 class SrsCreateStreamPacket;
+class SrsFMLEStartPacket;
 
 /**
 * the original request from client.
@@ -113,6 +114,7 @@ public:
 	virtual int start_play(int stream_id);
 private:
 	virtual int identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, std::string& stream_name);
+	virtual int identify_fmle_publish_client(SrsFMLEStartPacket* req, int stream_id, SrsClientType& type, std::string& stream_name);
 };
 
 #endif

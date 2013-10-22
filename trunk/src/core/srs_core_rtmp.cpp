@@ -307,8 +307,14 @@ int SrsRtmp::identify_client(int stream_id, SrsClientType& type, std::string& st
 		
 		SrsPacket* pkt = msg->get_packet();
 		if (dynamic_cast<SrsCreateStreamPacket*>(pkt)) {
+			srs_info("identify client by create stream, play or flash publish.");
 			return identify_create_stream_client(
 				dynamic_cast<SrsCreateStreamPacket*>(pkt), stream_id, type, stream_name);
+		}
+		if (dynamic_cast<SrsFMLEStartPacket*>(pkt)) {
+			srs_info("identify client by releaseStream, fmle publish.");
+			return identify_fmle_publish_client(
+				dynamic_cast<SrsFMLEStartPacket*>(pkt), stream_id, type, stream_name);
 		}
 		
 		srs_trace("ignore AMF0/AMF3 command message.");
@@ -482,6 +488,86 @@ int SrsRtmp::identify_create_stream_client(SrsCreateStreamPacket* req, int strea
 		}
 		
 		srs_trace("ignore AMF0/AMF3 command message.");
+	}
+	
+	return ret;
+}
+
+int SrsRtmp::identify_fmle_publish_client(SrsFMLEStartPacket* req, int stream_id, SrsClientType& type, std::string& stream_name)
+{
+	int ret = ERROR_SUCCESS;
+	
+	type = SrsClientPublish;
+	stream_name = req->stream_name;
+	
+	// createStream response
+	if (true) {
+		SrsMessage* msg = new SrsMessage();
+		SrsFMLEStartResPacket* pkt = new SrsFMLEStartResPacket(req->transaction_id);
+		
+		msg->set_packet(pkt);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			srs_error("send releaseStream response message failed. ret=%d", ret);
+			return ret;
+		}
+		srs_info("send releaseStream response message success.");
+	}
+	
+	// FCPublish
+	double fc_publish_tid = 0;
+	if (true) {
+		SrsMessage* msg = NULL;
+		SrsFMLEStartPacket* pkt = NULL;
+		if ((ret = srs_rtmp_expect_message<SrsFMLEStartPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+			srs_error("recv FCPublish message failed. ret=%d", ret);
+			return ret;
+		}
+		srs_info("recv FCPublish request message success.");
+		
+		SrsAutoFree(SrsMessage, msg, false);
+		fc_publish_tid = pkt->transaction_id;
+	}
+	// FCPublish response
+	if (true) {
+		SrsMessage* msg = new SrsMessage();
+		SrsFMLEStartResPacket* pkt = new SrsFMLEStartResPacket(fc_publish_tid);
+		
+		msg->set_packet(pkt);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			srs_error("send FCPublish response message failed. ret=%d", ret);
+			return ret;
+		}
+		srs_info("send FCPublish response message success.");
+	}
+	
+	// createStream
+	double create_stream_tid = 0;
+	if (true) {
+		SrsMessage* msg = NULL;
+		SrsCreateStreamPacket* pkt = NULL;
+		if ((ret = srs_rtmp_expect_message<SrsCreateStreamPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+			srs_error("recv createStream message failed. ret=%d", ret);
+			return ret;
+		}
+		srs_info("recv createStream request message success.");
+		
+		SrsAutoFree(SrsMessage, msg, false);
+		create_stream_tid = pkt->transaction_id;
+	}
+	// createStream response
+	if (true) {
+		SrsMessage* msg = new SrsMessage();
+		SrsCreateStreamResPacket* pkt = new SrsCreateStreamResPacket(create_stream_tid, stream_id);
+		
+		msg->set_packet(pkt);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			srs_error("send createStream response message failed. ret=%d", ret);
+			return ret;
+		}
+		srs_info("send createStream response message success.");
 	}
 	
 	return ret;

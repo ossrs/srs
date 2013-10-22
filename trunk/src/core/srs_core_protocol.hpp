@@ -46,6 +46,7 @@ class SrsMessage;
 class SrsChunkStream;
 class SrsAmf0Object;
 class SrsAmf0Null;
+class SrsAmf0Undefined;
 
 // convert class name to string.
 #define CLASS_NAME_STRING(className) #className
@@ -418,6 +419,57 @@ public:
 public:
 	SrsCreateStreamResPacket(double _transaction_id, double _stream_id);
 	virtual ~SrsCreateStreamResPacket();
+public:
+	virtual int get_perfer_cid();
+public:
+	virtual int get_message_type();
+protected:
+	virtual int get_size();
+	virtual int encode_packet(SrsStream* stream);
+};
+
+/**
+* FMLE start publish: ReleaseStream/PublishStream
+*/
+class SrsFMLEStartPacket : public SrsPacket
+{
+private:
+	typedef SrsPacket super;
+protected:
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsFMLEStartPacket);
+	}
+public:
+	std::string command_name;
+	double transaction_id;
+	std::string stream_name;
+public:
+	SrsFMLEStartPacket();
+	virtual ~SrsFMLEStartPacket();
+public:
+	virtual int decode(SrsStream* stream);
+};
+/**
+* response for SrsFMLEStartPacket.
+*/
+class SrsFMLEStartResPacket : public SrsPacket
+{
+private:
+	typedef SrsPacket super;
+protected:
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsFMLEStartResPacket);
+	}
+public:
+	std::string command_name;
+	double transaction_id;
+	SrsAmf0Null* command_object;
+	SrsAmf0Undefined* args;
+public:
+	SrsFMLEStartResPacket(double _transaction_id);
+	virtual ~SrsFMLEStartResPacket();
 public:
 	virtual int get_perfer_cid();
 public:
