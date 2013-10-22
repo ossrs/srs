@@ -42,7 +42,7 @@ class SrsSocket;
 class SrsBuffer;
 class SrsPacket;
 class SrsStream;
-class SrsMessage;
+class SrsCommonMessage;
 class SrsChunkStream;
 class SrsAmf0Object;
 class SrsAmf0Null;
@@ -105,7 +105,7 @@ public:
 	* @pmsg, user must free it. NULL if not success.
 	* @remark, only when success, user can use and must free the pmsg.
 	*/
-	virtual int recv_message(SrsMessage** pmsg);
+	virtual int recv_message(SrsCommonMessage** pmsg);
 	/**
 	* send out message with encoded payload to peer.
 	* use the message encode method to encode to payload,
@@ -117,7 +117,7 @@ private:
 	/**
 	* when recv message, update the context.
 	*/
-	virtual int on_recv_message(SrsMessage* msg);
+	virtual int on_recv_message(SrsCommonMessage* msg);
 	/**
 	* when message sentout, update the context.
 	*/
@@ -128,7 +128,7 @@ private:
 	* return success and pmsg set to NULL if no entire message got,
 	* return success and pmsg set to entire message if got one.
 	*/
-	virtual int recv_interlaced_message(SrsMessage** pmsg);
+	virtual int recv_interlaced_message(SrsCommonMessage** pmsg);
 	/**
 	* read the chunk basic header(fmt, cid) from chunk stream.
 	* user can discovery a SrsChunkStream by cid.
@@ -146,7 +146,7 @@ private:
 	* if got entire message, set the pmsg.
 	* @payload_size read size in this roundtrip, generally a chunk size or left message size.
 	*/
-	virtual int read_message_payload(SrsChunkStream* chunk, int bh_size, int mh_size, int& payload_size, SrsMessage** pmsg);
+	virtual int read_message_payload(SrsChunkStream* chunk, int bh_size, int mh_size, int& payload_size, SrsCommonMessage** pmsg);
 };
 
 /**
@@ -222,7 +222,7 @@ public:
 	/**
 	* partially read message.
 	*/
-	SrsMessage* msg;
+	SrsCommonMessage* msg;
 	/**
 	* decoded msg count, to identify whether the chunk stream is fresh.
 	*/
@@ -274,7 +274,7 @@ public:
 * common RTMP message defines in rtmp.part2.Message-Formats.pdf.
 * cannbe parse and decode.
 */
-class SrsMessage : public SrsOutputableMessage
+class SrsCommonMessage : public SrsOutputableMessage
 {
 private:
 	typedef SrsOutputableMessage super;
@@ -283,8 +283,8 @@ private:
 	SrsStream* stream;
 	SrsPacket* packet;
 public:
-	SrsMessage();
-	virtual ~SrsMessage();
+	SrsCommonMessage();
+	virtual ~SrsCommonMessage();
 /**
 * decode functions.
 */
@@ -959,7 +959,7 @@ protected:
 * @remark, only when success, user can use and must free the pmsg/ppacket.
 */
 template<class T>
-int srs_rtmp_expect_message(SrsProtocol* protocol, SrsMessage** pmsg, T** ppacket)
+int srs_rtmp_expect_message(SrsProtocol* protocol, SrsCommonMessage** pmsg, T** ppacket)
 {
 	*pmsg = NULL;
 	*ppacket = NULL;
@@ -967,7 +967,7 @@ int srs_rtmp_expect_message(SrsProtocol* protocol, SrsMessage** pmsg, T** ppacke
 	int ret = ERROR_SUCCESS;
 	
 	while (true) {
-		SrsMessage* msg = NULL;
+		SrsCommonMessage* msg = NULL;
 		if ((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS) {
 			srs_error("recv message failed. ret=%d", ret);
 			return ret;

@@ -33,7 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <map>
 #include <string>
 
-class SrsMessage;
+class SrsCommonMessage;
 class SrsOnMetaDataPacket;
 
 /**
@@ -51,7 +51,7 @@ public:
 	* @count the count in array.
 	* @max_count the max count to dequeue, 0 to dequeue all.
 	*/
-	virtual int get_packets(int max_count, SrsMessage**& msgs, int& count);
+	virtual int get_packets(int max_count, SrsCommonMessage**& msgs, int& count);
 };
 
 /**
@@ -75,9 +75,9 @@ public:
 	SrsSource(std::string _stream_url);
 	virtual ~SrsSource();
 public:
-	virtual int on_meta_data(SrsMessage* msg, SrsOnMetaDataPacket* metadata);
-	virtual int on_audio(SrsMessage* audio);
-	virtual int on_video(SrsMessage* video);
+	virtual int on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);
+	virtual int on_audio(SrsCommonMessage* audio);
+	virtual int on_video(SrsCommonMessage* video);
 public:
 	virtual SrsConsumer* create_consumer();
 };

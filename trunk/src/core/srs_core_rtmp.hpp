@@ -35,7 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <st.h>
 
 class SrsProtocol;
-class SrsMessage;
+class SrsCommonMessage;
 class SrsCreateStreamPacket;
 class SrsFMLEStartPacket;
 
@@ -100,9 +100,9 @@ public:
 	SrsRtmp(st_netfd_t client_stfd);
 	virtual ~SrsRtmp();
 public:
-	virtual int recv_message(SrsMessage** pmsg);
+	virtual int recv_message(SrsCommonMessage** pmsg);
 	virtual int can_read(int timeout_ms, bool& ready);
-	virtual int send_message(SrsMessage* msg);
+	virtual int send_message(SrsCommonMessage* msg);
 public:
 	virtual int handshake();
 	virtual int connect_app(SrsRequest* req);

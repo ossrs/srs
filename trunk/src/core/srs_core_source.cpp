@@ -47,7 +47,7 @@ SrsConsumer::~SrsConsumer()
 {
 }
 
-int SrsConsumer::get_packets(int max_count, SrsMessage**& msgs, int& count)
+int SrsConsumer::get_packets(int max_count, SrsCommonMessage**& msgs, int& count)
 {
 	msgs = NULL;
 	count = 0;
@@ -65,7 +65,7 @@ SrsSource::~SrsSource()
 {
 }
 
-int SrsSource::on_meta_data(SrsMessage* msg, SrsOnMetaDataPacket* metadata)
+int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -75,13 +75,13 @@ int SrsSource::on_meta_data(SrsMessage* msg, SrsOnMetaDataPacket* metadata)
 	return ret;
 }
 
-int SrsSource::on_audio(SrsMessage* audio)
+int SrsSource::on_audio(SrsCommonMessage* audio)
 {
 	int ret = ERROR_SUCCESS;
 	return ret;
 }
 
-int SrsSource::on_video(SrsMessage* audio)
+int SrsSource::on_video(SrsCommonMessage* audio)
 {
 	int ret = ERROR_SUCCESS;
 	return ret;

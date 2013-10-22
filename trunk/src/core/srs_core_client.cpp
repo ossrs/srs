@@ -172,28 +172,28 @@ int SrsClient::streaming_play(SrsSource* source)
 
 		// read from client.
 		if (ready) {
-			SrsMessage* msg = NULL;
+			SrsCommonMessage* msg = NULL;
 			if ((ret = rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
 				srs_error("recv client control message failed. ret=%d", ret);
 				return ret;
 			}
 	
-			SrsAutoFree(SrsMessage, msg, false);
+			SrsAutoFree(SrsCommonMessage, msg, false);
 			// TODO: process it.
 		}
 		
 		// get messages from consumer.
-		SrsMessage** msgs = NULL;
+		SrsCommonMessage** msgs = NULL;
 		int count = 0;
 		if ((ret = consumer->get_packets(0, msgs, count)) != ERROR_SUCCESS) {
 			srs_error("get messages from consumer failed. ret=%d", ret);
 			return ret;
 		}
-		SrsAutoFree(SrsMessage*, msgs, true);
+		SrsAutoFree(SrsCommonMessage*, msgs, true);
 		
 		// sendout messages
 		for (int i = 0; i < count; i++) {
-			SrsMessage* msg = msgs[i];
+			SrsCommonMessage* msg = msgs[i];
 			if ((ret = rtmp->send_message(msg)) != ERROR_SUCCESS) {
 				srs_error("send message to client failed. ret=%d", ret);
 				return ret;
@@ -209,13 +209,13 @@ int SrsClient::streaming_publish(SrsSource* source)
 	int ret = ERROR_SUCCESS;
 	
 	while (true) {
-		SrsMessage* msg = NULL;
+		SrsCommonMessage* msg = NULL;
 		if ((ret = rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
 			srs_error("recv identify client message failed. ret=%d", ret);
 			return ret;
 		}
 
-		SrsAutoFree(SrsMessage, msg, false);
+		SrsAutoFree(SrsCommonMessage, msg, false);
 		
 		// process audio packet
 		if (msg->header.is_audio() && ((ret = source->on_audio(msg)) != ERROR_SUCCESS)) {
