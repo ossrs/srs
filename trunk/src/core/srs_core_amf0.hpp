@@ -31,7 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <string>
-#include <map>
+#include <vector>
 
 class SrsStream;
 class SrsAmf0Object;
@@ -140,17 +140,48 @@ struct SrsAmf0ObjectEOF : public SrsAmf0Any
 };
 
 /**
+* to ensure in inserted order.
+* for the FMLE will crash when AMF0Object is not ordered by inserted,
+* if ordered in map, the string compare order, the FMLE will creash when
+* get the response of connect app.
+*/
+struct SrsUnSortedHashtable
+{
+private:
+	typedef std::pair<std::string, SrsAmf0Any*> SrsObjectPropertyType;
+	std::vector<SrsObjectPropertyType> properties;
+public:
+	SrsUnSortedHashtable();
+	virtual ~SrsUnSortedHashtable();
+	
+	virtual int size();
+	virtual std::string key_at(int index);
+	virtual SrsAmf0Any* value_at(int index);
+	virtual void set(std::string key, SrsAmf0Any* value);
+	
+	virtual SrsAmf0Any* get_property(std::string name);
+	virtual SrsAmf0Any* ensure_property_string(std::string name);
+};
+
+/**
 * 2.5 Object Type
 * anonymous-object-type = object-marker *(object-property)
 * object-property = (UTF-8 value-type) | (UTF-8-empty object-end-marker)
 */
 struct SrsAmf0Object : public SrsAmf0Any
 {
-	std::map<std::string, SrsAmf0Any*> properties;
+private:
+	SrsUnSortedHashtable properties;
+public:
 	SrsAmf0ObjectEOF eof;
 
 	SrsAmf0Object();
 	virtual ~SrsAmf0Object();
+	
+	virtual int size();
+	virtual std::string key_at(int index);
+	virtual SrsAmf0Any* value_at(int index);
+	virtual void set(std::string key, SrsAmf0Any* value);
 
 	virtual SrsAmf0Any* get_property(std::string name);
 	virtual SrsAmf0Any* ensure_property_string(std::string name);
@@ -164,12 +195,19 @@ struct SrsAmf0Object : public SrsAmf0Any
 */
 struct SrsASrsAmf0EcmaArray : public SrsAmf0Any
 {
+private:
+	SrsUnSortedHashtable properties;
+public:
 	int32_t count;
-	std::map<std::string, SrsAmf0Any*> properties;
 	SrsAmf0ObjectEOF eof;
 
 	SrsASrsAmf0EcmaArray();
 	virtual ~SrsASrsAmf0EcmaArray();
+	
+	virtual int size();
+	virtual std::string key_at(int index);
+	virtual SrsAmf0Any* value_at(int index);
+	virtual void set(std::string key, SrsAmf0Any* value);
 
 	virtual SrsAmf0Any* get_property(std::string name);
 	virtual SrsAmf0Any* ensure_property_string(std::string name);

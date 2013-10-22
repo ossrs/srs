@@ -42,20 +42,9 @@ SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
 
 SrsClient::~SrsClient()
 {
-	if (ip) {
-		delete[] ip;
-		ip = NULL;
-	}
-	
-	if (req) {
-		delete req;
-		req = NULL;
-	}
-	
-	if (rtmp) {
-		delete rtmp;
-		rtmp = NULL;
-	}
+	srs_freepa(ip);
+	srs_freep(req);
+	srs_freep(rtmp);
 }
 
 int SrsClient::do_cycle()

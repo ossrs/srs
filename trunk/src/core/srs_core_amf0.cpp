@@ -23,6 +23,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core_amf0.hpp>
 
+#include <utility>
+
 #include <srs_core_log.hpp>
 #include <srs_core_error.hpp>
 #include <srs_core_stream.hpp>
@@ -169,33 +171,76 @@ SrsAmf0ObjectEOF::~SrsAmf0ObjectEOF()
 {
 }
 
-SrsAmf0Object::SrsAmf0Object()
+SrsUnSortedHashtable::SrsUnSortedHashtable()
 {
-	marker = RTMP_AMF0_Object;
 }
 
-SrsAmf0Object::~SrsAmf0Object()
+SrsUnSortedHashtable::~SrsUnSortedHashtable()
 {
-	std::map<std::string, SrsAmf0Any*>::iterator it;
+	std::vector<SrsObjectPropertyType>::iterator it;
 	for (it = properties.begin(); it != properties.end(); ++it) {
-		SrsAmf0Any* any = it->second;
-		delete any;
+		SrsObjectPropertyType& elem = *it;
+		SrsAmf0Any* any = elem.second;
+		srs_freep(any);
 	}
 	properties.clear();
 }
 
-SrsAmf0Any* SrsAmf0Object::get_property(std::string name)
+int SrsUnSortedHashtable::size()
 {
-	std::map<std::string, SrsAmf0Any*>::iterator it;
-	
-	if ((it = properties.find(name)) == properties.end()) {
-		return NULL;
-	}
-	
-	return it->second;
+	return (int)properties.size();
 }
 
-SrsAmf0Any* SrsAmf0Object::ensure_property_string(std::string name)
+std::string SrsUnSortedHashtable::key_at(int index)
+{
+	srs_assert(index < size());
+	SrsObjectPropertyType& elem = properties[index];
+	return elem.first;
+}
+
+SrsAmf0Any* SrsUnSortedHashtable::value_at(int index)
+{
+	srs_assert(index < size());
+	SrsObjectPropertyType& elem = properties[index];
+	return elem.second;
+}
+
+void SrsUnSortedHashtable::set(std::string key, SrsAmf0Any* value)
+{
+	std::vector<SrsObjectPropertyType>::iterator it;
+	
+	for (it = properties.begin(); it != properties.end(); ++it) {
+		SrsObjectPropertyType& elem = *it;
+		std::string name = elem.first;
+		SrsAmf0Any* any = elem.second;
+		
+		if (key == name) {
+			srs_freep(any);
+			properties.erase(it);
+			break;
+		}
+	}
+	
+	properties.push_back(std::make_pair(key, value));
+}
+
+SrsAmf0Any* SrsUnSortedHashtable::get_property(std::string name)
+{
+	std::vector<SrsObjectPropertyType>::iterator it;
+	
+	for (it = properties.begin(); it != properties.end(); ++it) {
+		SrsObjectPropertyType& elem = *it;
+		std::string key = elem.first;
+		SrsAmf0Any* any = elem.second;
+		if (key == name) {
+			return any;
+		}
+	}
+	
+	return NULL;
+}
+
+SrsAmf0Any* SrsUnSortedHashtable::ensure_property_string(std::string name)
 {
 	SrsAmf0Any* prop = get_property(name);
 	
@@ -208,6 +253,45 @@ SrsAmf0Any* SrsAmf0Object::ensure_property_string(std::string name)
 	}
 	
 	return prop;
+}
+
+SrsAmf0Object::SrsAmf0Object()
+{
+	marker = RTMP_AMF0_Object;
+}
+
+SrsAmf0Object::~SrsAmf0Object()
+{
+}
+
+int SrsAmf0Object::size()
+{
+	return properties.size();
+}
+
+std::string SrsAmf0Object::key_at(int index)
+{
+	return properties.key_at(index);
+}
+
+SrsAmf0Any* SrsAmf0Object::value_at(int index)
+{
+	return properties.value_at(index);
+}
+
+void SrsAmf0Object::set(std::string key, SrsAmf0Any* value)
+{
+	properties.set(key, value);
+}
+
+SrsAmf0Any* SrsAmf0Object::get_property(std::string name)
+{
+	return properties.get_property(name);
+}
+
+SrsAmf0Any* SrsAmf0Object::ensure_property_string(std::string name)
+{
+	return properties.ensure_property_string(name);
 }
 
 SrsASrsAmf0EcmaArray::SrsASrsAmf0EcmaArray()
@@ -217,38 +301,36 @@ SrsASrsAmf0EcmaArray::SrsASrsAmf0EcmaArray()
 
 SrsASrsAmf0EcmaArray::~SrsASrsAmf0EcmaArray()
 {
-	std::map<std::string, SrsAmf0Any*>::iterator it;
-	for (it = properties.begin(); it != properties.end(); ++it) {
-		SrsAmf0Any* any = it->second;
-		delete any;
-	}
-	properties.clear();
+}
+
+int SrsASrsAmf0EcmaArray::size()
+{
+	return properties.size();
+}
+
+std::string SrsASrsAmf0EcmaArray::key_at(int index)
+{
+	return properties.key_at(index);
+}
+
+SrsAmf0Any* SrsASrsAmf0EcmaArray::value_at(int index)
+{
+	return properties.value_at(index);
+}
+
+void SrsASrsAmf0EcmaArray::set(std::string key, SrsAmf0Any* value)
+{
+	properties.set(key, value);
 }
 
 SrsAmf0Any* SrsASrsAmf0EcmaArray::get_property(std::string name)
 {
-	std::map<std::string, SrsAmf0Any*>::iterator it;
-	
-	if ((it = properties.find(name)) == properties.end()) {
-		return NULL;
-	}
-	
-	return it->second;
+	return properties.get_property(name);
 }
 
 SrsAmf0Any* SrsASrsAmf0EcmaArray::ensure_property_string(std::string name)
 {
-	SrsAmf0Any* prop = get_property(name);
-	
-	if (!prop) {
-		return NULL;
-	}
-	
-	if (!prop->is_string()) {
-		return NULL;
-	}
-	
-	return prop;
+	return properties.ensure_property_string(name);
 }
 
 int srs_amf0_read_utf8(SrsStream* stream, std::string& value)
@@ -877,14 +959,14 @@ int srs_amf0_read_object(SrsStream* stream, SrsAmf0Object*& value)
 		// AMF0 Object EOF.
 		if (property_name.empty() || !property_value || property_value->is_object_eof()) {
 			if (property_value) {
-				delete property_value;
+				srs_freep(property_value);
 			}
 			srs_info("amf0 read object EOF.");
 			break;
 		}
 		
 		// add property
-		value->properties[property_name] = property_value;
+		value->set(property_name, property_value);
 	}
 	
 	return ret;
@@ -906,10 +988,9 @@ int srs_amf0_write_object(SrsStream* stream, SrsAmf0Object* value)
 	srs_verbose("amf0 write object marker success");
 	
 	// value
-	std::map<std::string, SrsAmf0Any*>::iterator it;
-	for (it = value->properties.begin(); it != value->properties.end(); ++it) {
-		std::string name = it->first;
-		SrsAmf0Any* any = it->second;
+	for (int i = 0; i < value->size(); i++) {
+		std::string name = value->key_at(i);
+		SrsAmf0Any* any = value->value_at(i);
 		
 		if ((ret = srs_amf0_write_utf8(stream, name)) != ERROR_SUCCESS) {
 			srs_error("write object property name failed. ret=%d", ret);
@@ -986,14 +1067,14 @@ int srs_amf0_read_ecma_array(SrsStream* stream, SrsASrsAmf0EcmaArray*& value)
 		// AMF0 Object EOF.
 		if (property_name.empty() || !property_value || property_value->is_object_eof()) {
 			if (property_value) {
-				delete property_value;
+				srs_freep(property_value);
 			}
 			srs_info("amf0 read ecma_array EOF.");
 			break;
 		}
 		
 		// add property
-		value->properties[property_name] = property_value;
+		value->set(property_name, property_value);
 	}
 	
 	return ret;
@@ -1025,10 +1106,9 @@ int srs_amf0_write_ecma_array(SrsStream* stream, SrsASrsAmf0EcmaArray* value)
 	srs_verbose("amf0 write ecma_array count success. count=%d", value->count);
 	
 	// value
-	std::map<std::string, SrsAmf0Any*>::iterator it;
-	for (it = value->properties.begin(); it != value->properties.end(); ++it) {
-		std::string name = it->first;
-		SrsAmf0Any* any = it->second;
+	for (int i = 0; i < value->size(); i++) {
+		std::string name = value->key_at(i);
+		SrsAmf0Any* any = value->value_at(i);
 		
 		if ((ret = srs_amf0_write_utf8(stream, name)) != ERROR_SUCCESS) {
 			srs_error("write ecma_array property name failed. ret=%d", ret);
@@ -1091,10 +1171,9 @@ int srs_amf0_get_object_size(SrsAmf0Object* obj)
 	
 	int size = 1;
 	
-	std::map<std::string, SrsAmf0Any*>::iterator it;
-	for (it = obj->properties.begin(); it != obj->properties.end(); ++it) {
-		std::string name = it->first;
-		SrsAmf0Any* value = it->second;
+	for (int i = 0; i < obj->size(); i++){
+		std::string name = obj->key_at(i);
+		SrsAmf0Any* value = obj->value_at(i);
 		
 		size += srs_amf0_get_utf8_size(name);
 		size += srs_amf0_get_any_size(value);
@@ -1113,10 +1192,9 @@ int srs_amf0_get_ecma_array_size(SrsASrsAmf0EcmaArray* arr)
 	
 	int size = 1 + 4;
 	
-	std::map<std::string, SrsAmf0Any*>::iterator it;
-	for (it = arr->properties.begin(); it != arr->properties.end(); ++it) {
-		std::string name = it->first;
-		SrsAmf0Any* value = it->second;
+	for (int i = 0; i < arr->size(); i++){
+		std::string name = arr->key_at(i);
+		SrsAmf0Any* value = arr->value_at(i);
 		
 		size += srs_amf0_get_utf8_size(name);
 		size += srs_amf0_get_any_size(value);

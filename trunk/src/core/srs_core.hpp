@@ -45,4 +45,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stddef.h>
 #include <sys/types.h>
 
+// free the p and set to NULL.
+// p must be a T*.
+#define srs_freep(p) \
+	if (p) { \
+		delete p; \
+		p = NULL; \
+	} \
+	(void)0
+// free the p which represents a array
+#define srs_freepa(p) \
+	if (p) { \
+		delete[] p; \
+		p = NULL; \
+	} \
+	(void)0
+
 #endif

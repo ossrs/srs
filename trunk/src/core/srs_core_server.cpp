@@ -45,7 +45,7 @@ SrsServer::~SrsServer()
 {
 	for (std::vector<SrsConnection*>::iterator it = conns.begin(); it != conns.end(); ++it) {
 		SrsConnection* conn = *it;
-		delete conn;
+		srs_freep(conn);
 	}
 	conns.clear();
 }
@@ -151,8 +151,8 @@ void SrsServer::remove(SrsConnection* conn)
 	srs_info("conn removed. conns=%d", (int)conns.size());
 	
 	// all connections are created by server,
-	// so we delete it here.
-	delete conn;
+	// so we free it here.
+	srs_freep(conn);
 }
 
 int SrsServer::accept_client(st_netfd_t client_stfd)

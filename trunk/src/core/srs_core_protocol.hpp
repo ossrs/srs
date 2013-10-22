@@ -160,15 +160,21 @@ struct SrsMessageHeader
 	*/
 	int32_t payload_length;
 	/**
-	* Four-byte field that contains a timestamp of the message.
+	* Three-byte field that contains a timestamp delta of the message.
 	* The 4 bytes are packed in the big-endian order.
 	*/
-	int32_t timestamp;
+	int32_t timestamp_delta;
 	/**
 	* Three-byte field that identifies the stream of the message. These
 	* bytes are set in big-endian format.
 	*/
 	int32_t stream_id;
+	
+	/**
+	* Four-byte field that contains a timestamp of the message.
+	* The 4 bytes are packed in the big-endian order.
+	*/
+	int32_t timestamp;
 	
 	SrsMessageHeader();
 	virtual ~SrsMessageHeader();
@@ -176,6 +182,7 @@ struct SrsMessageHeader
 	bool is_amf0_command();
 	bool is_amf3_command();
 	bool is_window_ackledgement_size();
+	bool is_set_chunk_size();
 };
 
 /**
@@ -207,6 +214,10 @@ public:
 	* partially read message.
 	*/
 	SrsMessage* msg;
+	/**
+	* decoded msg count, to identify whether the chunk stream is fresh.
+	*/
+	int64_t msg_count;
 public:
 	SrsChunkStream(int _cid);
 	virtual ~SrsChunkStream();
@@ -257,7 +268,7 @@ public:
 	* @stream_id, the id of stream which is created by createStream.
 	* @remark, user never free the pkt, the message will auto free it.
 	*/
-	virtual void set_packet(SrsPacket* pkt, int stream_id = 0);
+	virtual void set_packet(SrsPacket* pkt, int stream_id);
 	/**
 	* encode the packet to message payload bytes.
 	* @remark there exists empty packet, so maybe the payload is NULL.
@@ -443,6 +454,7 @@ protected:
 public:
 	std::string command_name;
 	double transaction_id;
+	SrsAmf0Null* command_object;
 	std::string stream_name;
 public:
 	SrsFMLEStartPacket();
@@ -477,6 +489,35 @@ public:
 protected:
 	virtual int get_size();
 	virtual int encode_packet(SrsStream* stream);
+};
+
+/**
+* FMLE/flash publish
+* 4.2.6. Publish
+* The client sends the publish command to publish a named stream to the
+* server. Using this name, any client can play this stream and receive
+* the published audio, video, and data messages.
+*/
+class SrsPublishPacket : public SrsPacket
+{
+private:
+	typedef SrsPacket super;
+protected:
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsPublishPacket);
+	}
+public:
+	std::string command_name;
+	double transaction_id;
+	SrsAmf0Null* command_object;
+	std::string stream_name;
+	std::string type;
+public:
+	SrsPublishPacket();
+	virtual ~SrsPublishPacket();
+public:
+	virtual int decode(SrsStream* stream);
 };
 
 /**
@@ -566,7 +607,7 @@ protected:
 
 /**
 * onStatus command, AMF0 Call
-* @remark, user must set the stream_id in header.
+* @remark, user must set the stream_id by SrsMessage.set_packet().
 */
 class SrsOnStatusCallPacket : public SrsPacket
 {
@@ -596,7 +637,7 @@ protected:
 
 /**
 * onStatus data, AMF0 Data
-* @remark, user must set the stream_id in header.
+* @remark, user must set the stream_id by SrsMessage.set_packet().
 */
 class SrsOnStatusDataPacket : public SrsPacket
 {
@@ -624,7 +665,7 @@ protected:
 
 /**
 * AMF0Data RtmpSampleAccess
-* @remark, user must set the stream_id in header.
+* @remark, user must set the stream_id by SrsMessage.set_packet().
 */
 class SrsSampleAccessPacket : public SrsPacket
 {
