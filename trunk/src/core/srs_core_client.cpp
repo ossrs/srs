@@ -157,12 +157,20 @@ int SrsClient::streaming_play(SrsSource* source)
 {
 	int ret = ERROR_SUCCESS;
 	
-	SrsConsumer* consumer = source->create_consumer();
+	SrsConsumer* consumer = NULL;
+	if ((ret = source->create_consumer(consumer)) != ERROR_SUCCESS) {
+		srs_error("create consumer failed. ret=%d", ret);
+		return ret;
+	}
+	
 	srs_assert(consumer != NULL);
 	SrsAutoFree(SrsConsumer, consumer, false);
-	srs_verbose("consumer created.");
+	srs_verbose("consumer created success.");
 	
 	while (true) {
+		// switch to other st-threads.
+		st_usleep(0);
+		
 		bool ready = false;
 		if ((ret = rtmp->can_read(SRS_PULSE_TIME_MS, ready)) != ERROR_SUCCESS) {
 			srs_error("wait client control message failed. ret=%d", ret);
@@ -183,17 +191,27 @@ int SrsClient::streaming_play(SrsSource* source)
 		}
 		
 		// get messages from consumer.
-		SrsCommonMessage** msgs = NULL;
+		SrsSharedPtrMessage** msgs = NULL;
 		int count = 0;
 		if ((ret = consumer->get_packets(0, msgs, count)) != ERROR_SUCCESS) {
 			srs_error("get messages from consumer failed. ret=%d", ret);
 			return ret;
 		}
-		SrsAutoFree(SrsCommonMessage*, msgs, true);
+		
+		if (count <= 0) {
+			srs_verbose("no packets in queue.");
+			continue;
+		}
+		SrsAutoFree(SrsSharedPtrMessage*, msgs, true);
 		
 		// sendout messages
 		for (int i = 0; i < count; i++) {
-			SrsCommonMessage* msg = msgs[i];
+			SrsSharedPtrMessage* msg = msgs[i];
+			
+			// the send_message will free the msg, 
+			// so set the msgs[i] to NULL.
+			msgs[i] = NULL;
+			
 			if ((ret = rtmp->send_message(msg)) != ERROR_SUCCESS) {
 				srs_error("send message to client failed. ret=%d", ret);
 				return ret;
@@ -209,6 +227,9 @@ int SrsClient::streaming_publish(SrsSource* source)
 	int ret = ERROR_SUCCESS;
 	
 	while (true) {
+		// switch to other st-threads.
+		st_usleep(0);
+		
 		SrsCommonMessage* msg = NULL;
 		if ((ret = rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
 			srs_error("recv identify client message failed. ret=%d", ret);

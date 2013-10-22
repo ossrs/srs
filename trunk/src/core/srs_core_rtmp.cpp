@@ -114,9 +114,13 @@ int SrsRequest::discovery_app()
 
 std::string SrsRequest::get_stream_url()
 {
-	std::string url = vhost;
+	std::string url = "";
 	
+	//url += vhost;
+	
+	url += "/";
 	url += app;
+	url += "/";
 	url += stream;
 
 	return url;
@@ -152,7 +156,7 @@ int SrsRtmp::can_read(int timeout_ms, bool& ready)
 	return protocol->can_read(timeout_ms, ready);
 }
 
-int SrsRtmp::send_message(SrsCommonMessage* msg)
+int SrsRtmp::send_message(ISrsMessage* msg)
 {
 	return protocol->send_message(msg);
 }
@@ -233,7 +237,7 @@ int SrsRtmp::connect_app(SrsRequest* req)
 		req->swfUrl = srs_amf0_convert<SrsAmf0String>(prop)->value;
 	}
 	
-	if ((prop = pkt->command_object->ensure_property_string("objectEncoding")) != NULL) {
+	if ((prop = pkt->command_object->ensure_property_number("objectEncoding")) != NULL) {
 		req->objectEncoding = srs_amf0_convert<SrsAmf0Number>(prop)->value;
 	}
 	

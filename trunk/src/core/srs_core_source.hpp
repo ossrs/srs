@@ -43,6 +43,8 @@ class SrsSharedPtrMessage;
 */
 class SrsConsumer
 {
+private:
+	std::vector<SrsSharedPtrMessage*> msgs;
 public:
 	SrsConsumer();
 	virtual ~SrsConsumer();
@@ -53,11 +55,11 @@ public:
 	virtual int enqueue(SrsSharedPtrMessage* msg);
 	/**
 	* get packets in consumer queue.
-	* @msgs SrsMessages*[], output the prt array.
+	* @pmsgs SrsMessages*[], output the prt array.
 	* @count the count in array.
 	* @max_count the max count to dequeue, 0 to dequeue all.
 	*/
-	virtual int get_packets(int max_count, SrsCommonMessage**& msgs, int& count);
+	virtual int get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& count);
 };
 
 /**
@@ -88,7 +90,7 @@ public:
 	virtual int on_audio(SrsCommonMessage* audio);
 	virtual int on_video(SrsCommonMessage* video);
 public:
-	virtual SrsConsumer* create_consumer();
+	virtual int create_consumer(SrsConsumer*& consumer);
 };
 
 #endif

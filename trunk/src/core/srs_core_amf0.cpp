@@ -191,6 +191,11 @@ int SrsUnSortedHashtable::size()
 	return (int)properties.size();
 }
 
+void SrsUnSortedHashtable::clear()
+{
+	properties.clear();
+}
+
 std::string SrsUnSortedHashtable::key_at(int index)
 {
 	srs_assert(index < size());
@@ -255,6 +260,21 @@ SrsAmf0Any* SrsUnSortedHashtable::ensure_property_string(std::string name)
 	return prop;
 }
 
+SrsAmf0Any* SrsUnSortedHashtable::ensure_property_number(std::string name)
+{
+	SrsAmf0Any* prop = get_property(name);
+	
+	if (!prop) {
+		return NULL;
+	}
+	
+	if (!prop->is_number()) {
+		return NULL;
+	}
+	
+	return prop;
+}
+
 SrsAmf0Object::SrsAmf0Object()
 {
 	marker = RTMP_AMF0_Object;
@@ -294,6 +314,11 @@ SrsAmf0Any* SrsAmf0Object::ensure_property_string(std::string name)
 	return properties.ensure_property_string(name);
 }
 
+SrsAmf0Any* SrsAmf0Object::ensure_property_number(std::string name)
+{
+	return properties.ensure_property_number(name);
+}
+
 SrsASrsAmf0EcmaArray::SrsASrsAmf0EcmaArray()
 {
 	marker = RTMP_AMF0_EcmaArray;
@@ -306,6 +331,11 @@ SrsASrsAmf0EcmaArray::~SrsASrsAmf0EcmaArray()
 int SrsASrsAmf0EcmaArray::size()
 {
 	return properties.size();
+}
+
+void SrsASrsAmf0EcmaArray::clear()
+{
+	properties.clear();
 }
 
 std::string SrsASrsAmf0EcmaArray::key_at(int index)

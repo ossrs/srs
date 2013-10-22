@@ -253,8 +253,6 @@ public:
 public:
 	ISrsMessage();
 	virtual ~ISrsMessage();
-protected:
-	virtual void free_payload();
 public:
 	/**
 	* whether message canbe decoded.
@@ -351,15 +349,13 @@ private:
 public:
 	SrsSharedPtrMessage();
 	virtual ~SrsSharedPtrMessage();
-protected:
-	virtual void free_payload();
 public:
 	virtual bool can_decode();
 public:
 	/**
 	* set the shared payload.
 	*/
-	virtual int initialize(SrsMessageHeader* header, char* payload, int size, int perfer_cid);
+	virtual int initialize(ISrsMessage* msg, char* payload, int size);
 	virtual SrsSharedPtrMessage* copy();
 public:
 	/**

@@ -155,12 +155,14 @@ public:
 	virtual ~SrsUnSortedHashtable();
 	
 	virtual int size();
+	virtual void clear();
 	virtual std::string key_at(int index);
 	virtual SrsAmf0Any* value_at(int index);
 	virtual void set(std::string key, SrsAmf0Any* value);
 	
 	virtual SrsAmf0Any* get_property(std::string name);
 	virtual SrsAmf0Any* ensure_property_string(std::string name);
+	virtual SrsAmf0Any* ensure_property_number(std::string name);
 };
 
 /**
@@ -185,6 +187,7 @@ public:
 
 	virtual SrsAmf0Any* get_property(std::string name);
 	virtual SrsAmf0Any* ensure_property_string(std::string name);
+	virtual SrsAmf0Any* ensure_property_number(std::string name);
 };
 
 /**
@@ -205,6 +208,7 @@ public:
 	virtual ~SrsASrsAmf0EcmaArray();
 	
 	virtual int size();
+	virtual void clear();
 	virtual std::string key_at(int index);
 	virtual SrsAmf0Any* value_at(int index);
 	virtual void set(std::string key, SrsAmf0Any* value);
@@ -264,6 +268,8 @@ extern int srs_amf0_write_null(SrsStream* stream);
 */
 extern int srs_amf0_read_undefined(SrsStream* stream);
 extern int srs_amf0_write_undefined(SrsStream* stream);
+
+extern int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any*& value);
 
 /**
 * read amf0 object from stream.

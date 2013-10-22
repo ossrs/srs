@@ -46,27 +46,54 @@ SrsConsumer::SrsConsumer()
 
 SrsConsumer::~SrsConsumer()
 {
+	std::vector<SrsSharedPtrMessage*>::iterator it;
+	for (it = msgs.begin(); it != msgs.end(); ++it) {
+		SrsSharedPtrMessage* msg = *it;
+		srs_freep(msg);
+	}
+	msgs.clear();
 }
 
 int SrsConsumer::enqueue(SrsSharedPtrMessage* msg)
 {
 	int ret = ERROR_SUCCESS;
+	msgs.push_back(msg);
 	return ret;
 }
 
-int SrsConsumer::get_packets(int max_count, SrsCommonMessage**& msgs, int& count)
+int SrsConsumer::get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& count)
 {
-	msgs = NULL;
-	count = 0;
-	
 	int ret = ERROR_SUCCESS;
+	
+	if (msgs.empty()) {
+		return ret;
+	}
+	
+	if (max_count == 0) {
+		count = (int)msgs.size();
+	} else {
+		count = srs_min(max_count, (int)msgs.size());
+	}
+	
+	pmsgs = new SrsSharedPtrMessage*[count];
+	
+	for (int i = 0; i < count; i++) {
+		pmsgs[i] = msgs[i];
+	}
+	
+	if (count == (int)msgs.size()) {
+		msgs.clear();
+	} else {
+		msgs.erase(msgs.begin(), msgs.begin() + count);
+	}
+	
 	return ret;
 }
 
 SrsSource::SrsSource(std::string _stream_url)
 {
 	stream_url = _stream_url;
-	cache_metadata = new SrsSharedPtrMessage();
+	cache_metadata = NULL;
 }
 
 SrsSource::~SrsSource()
@@ -110,7 +137,7 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
 	cache_metadata = new SrsSharedPtrMessage();
 	
 	// dump message to shared ptr message.
-	if ((ret = cache_metadata->initialize(&msg->header, payload, size, msg->get_perfer_cid())) != ERROR_SUCCESS) {
+	if ((ret = cache_metadata->initialize(msg, payload, size)) != ERROR_SUCCESS) {
 		srs_error("initialize the cache metadata failed. ret=%d", ret);
 		return ret;
 	}
@@ -136,7 +163,7 @@ int SrsSource::on_audio(SrsCommonMessage* audio)
 	
 	SrsSharedPtrMessage* msg = new SrsSharedPtrMessage();
 	SrsAutoFree(SrsSharedPtrMessage, msg, false);
-	if ((ret = msg->initialize(&audio->header, (char*)audio->payload, audio->size, audio->get_perfer_cid())) != ERROR_SUCCESS) {
+	if ((ret = msg->initialize(audio, (char*)audio->payload, audio->size)) != ERROR_SUCCESS) {
 		srs_error("initialize the audio failed. ret=%d", ret);
 		return ret;
 	}
@@ -166,7 +193,7 @@ int SrsSource::on_video(SrsCommonMessage* video)
 	
 	SrsSharedPtrMessage* msg = new SrsSharedPtrMessage();
 	SrsAutoFree(SrsSharedPtrMessage, msg, false);
-	if ((ret = msg->initialize(&video->header, (char*)video->payload, video->size, video->get_perfer_cid())) != ERROR_SUCCESS) {
+	if ((ret = msg->initialize(video, (char*)video->payload, video->size)) != ERROR_SUCCESS) {
 		srs_error("initialize the video failed. ret=%d", ret);
 		return ret;
 	}
@@ -190,10 +217,16 @@ int SrsSource::on_video(SrsCommonMessage* video)
 	return ret;
 }
 
-SrsConsumer* SrsSource::create_consumer()
+ int SrsSource::create_consumer(SrsConsumer*& consumer)
 {
-	SrsConsumer* consumer = new SrsConsumer();
+	consumer = new SrsConsumer();
 	consumers.push_back(consumer);
-	return consumer;
+
+	if (!cache_metadata) {
+		srs_info("no metadata found.");
+		return ERROR_SUCCESS;
+	}
+	
+	return consumer->enqueue(cache_metadata->copy());
 }
 

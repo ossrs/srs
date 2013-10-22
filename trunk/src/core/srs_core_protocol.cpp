@@ -409,9 +409,7 @@ int SrsProtocol::send_message(ISrsMessage* msg)
 		// sendout header and payload by writev.
 		// decrease the sys invoke count to get higher performance.
 		int payload_size = msg->size - (p - (char*)msg->payload);
-		if (payload_size > out_chunk_size) {
-			payload_size = out_chunk_size;
-		}
+		payload_size = srs_min(payload_size, out_chunk_size);
 		
 		// send by writev
 		iovec iov[2];
@@ -821,9 +819,7 @@ int SrsProtocol::read_message_payload(SrsChunkStream* chunk, int bh_size, int mh
 	
 	// the chunk payload size.
 	payload_size = chunk->header.payload_length - chunk->msg->size;
-	if (payload_size > in_chunk_size) {
-		payload_size = in_chunk_size;
-	}
+	payload_size = srs_min(payload_size, in_chunk_size);
 	srs_verbose("chunk payload size is %d, message_size=%d, received_size=%d, in_chunk_size=%d", 
 		payload_size, chunk->header.payload_length, chunk->msg->size, in_chunk_size);
 
@@ -940,12 +936,6 @@ ISrsMessage::ISrsMessage()
 
 ISrsMessage::~ISrsMessage()
 {	
-	free_payload();
-}
-
-void ISrsMessage::free_payload()
-{
-	srs_freepa(payload);
 }
 
 SrsCommonMessage::SrsCommonMessage()
@@ -956,6 +946,11 @@ SrsCommonMessage::SrsCommonMessage()
 
 SrsCommonMessage::~SrsCommonMessage()
 {	
+	// we must directly free the ptrs,
+	// nevery use the virtual functions to delete,
+	// for in the destructor, the virtual functions is disabled.
+	
+	srs_freepa(payload);
 	srs_freep(packet);
 	srs_freep(stream);
 }
@@ -1142,10 +1137,6 @@ SrsSharedPtrMessage::SrsSharedPtrMessage()
 
 SrsSharedPtrMessage::~SrsSharedPtrMessage()
 {
-}
-
-void SrsSharedPtrMessage::free_payload()
-{
 	if (ptr) {
 		if (ptr->shared_count == 0) {
 			srs_freep(ptr);
@@ -1157,15 +1148,14 @@ void SrsSharedPtrMessage::free_payload()
 
 bool SrsSharedPtrMessage::can_decode()
 {
-	return true;
+	return false;
 }
 
-int SrsSharedPtrMessage::initialize(SrsMessageHeader* header, char* payload, int size, int perfer_cid)
+int SrsSharedPtrMessage::initialize(ISrsMessage* msg, char* payload, int size)
 {
 	int ret = ERROR_SUCCESS;
 	
-	super::header = *header;
-	
+	srs_assert(msg != NULL);
 	if (ptr) {
 		ret = ERROR_SYSTEM_ASSERT_FAILED;
 		srs_error("should not set the payload twice. ret=%d", ret);
@@ -1174,10 +1164,13 @@ int SrsSharedPtrMessage::initialize(SrsMessageHeader* header, char* payload, int
 		return ret;
 	}
 	
+	header = msg->header;
+	header.payload_length = size;
+	
 	ptr = new SrsSharedPtr();
 	ptr->payload = payload;
 	ptr->size = size;
-	ptr->perfer_cid = perfer_cid;
+	ptr->perfer_cid = msg->get_perfer_cid();
 	
 	super::payload = (int8_t*)ptr->payload;
 	super::size = ptr->size;
@@ -1194,6 +1187,9 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
 	}
 	
 	SrsSharedPtrMessage* copy = new SrsSharedPtrMessage();
+	
+	copy->header = header;
+	
 	copy->ptr = ptr;
 	ptr->shared_count++;
 	
@@ -2070,12 +2066,33 @@ int SrsOnMetaDataPacket::decode(SrsStream* stream)
 	
 	srs_verbose("decode metadata name success. name=%s", name.c_str());
 	
-	if ((ret = srs_amf0_read_object(stream, metadata)) != ERROR_SUCCESS) {
+	// the metadata maybe object or ecma array
+	SrsAmf0Any* any = NULL;
+	if ((ret = srs_amf0_read_any(stream, any)) != ERROR_SUCCESS) {
 		srs_error("decode metadata metadata failed. ret=%d", ret);
 		return ret;
 	}
 	
-	srs_info("decode metadata success");
+	if (any->is_object()) {
+		srs_freep(metadata);
+		metadata = srs_amf0_convert<SrsAmf0Object>(any);
+		srs_info("decode metadata object success");
+		return ret;
+	}
+	
+	SrsASrsAmf0EcmaArray* arr = dynamic_cast<SrsASrsAmf0EcmaArray*>(any);
+	if (!arr) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("decode metadata array failed. ret=%d", ret);
+		srs_freep(any);
+		return ret;
+	}
+	
+	for (int i = 0; i < arr->size(); i++) {
+		metadata->set(arr->key_at(i), arr->value_at(i));
+	}
+	arr->clear();
+	srs_info("decode metadata array success");
 	
 	return ret;
 }

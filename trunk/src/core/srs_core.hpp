@@ -66,4 +66,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RTMP_SIG_SRS_URL "https://github.com/winlinvip/simple-rtmp-server"
 #define RTMP_SIG_SRS_VERSION "0.1"
 
+// compare
+#define srs_min(a, b) ((a < b)? a : b)
+
 #endif
