@@ -195,7 +195,9 @@ messages.
 #define RTMP_AMF0_COMMAND_CREATE_STREAM		"createStream"
 #define RTMP_AMF0_COMMAND_PLAY				"play"
 #define RTMP_AMF0_COMMAND_ON_BW_DONE		"onBWDone"
+#define RTMP_AMF0_COMMAND_ON_STATUS			"onStatus"
 #define RTMP_AMF0_COMMAND_RESULT			"_result"
+#define RTMP_AMF0_DATA_SAMPLE_ACCESS		"|RtmpSampleAccess"
 
 /****************************************************************************
 *****************************************************************************
@@ -483,7 +485,7 @@ int SrsProtocol::on_send_message(SrsMessage* msg)
 			SrsSetChunkSizePacket* pkt = dynamic_cast<SrsSetChunkSizePacket*>(msg->get_packet());
 			srs_assert(pkt != NULL);
 			
-			in_chunk_size = pkt->chunk_size;
+			out_chunk_size = pkt->chunk_size;
 			
 			srs_trace("set output chunk size to %d", pkt->chunk_size);
 			break;
@@ -1541,6 +1543,180 @@ int SrsOnBWDonePacket::encode_packet(SrsStream* stream)
 	srs_verbose("encode args success.");
 	
 	srs_info("encode onBWDone packet success.");
+	
+	return ret;
+}
+
+SrsOnStatusCallPacket::SrsOnStatusCallPacket()
+{
+	command_name = RTMP_AMF0_COMMAND_ON_STATUS;
+	transaction_id = 0;
+	args = new SrsAmf0Null();
+	data = new SrsAmf0Object();
+}
+
+SrsOnStatusCallPacket::~SrsOnStatusCallPacket()
+{
+	if (args) {
+		delete args;
+		args = NULL;
+	}
+	
+	if (data) {
+		delete data;
+		data = NULL;
+	}
+}
+
+int SrsOnStatusCallPacket::get_perfer_cid()
+{
+	return RTMP_CID_OverStream;
+}
+
+int SrsOnStatusCallPacket::get_message_type()
+{
+	return RTMP_MSG_AMF0CommandMessage;
+}
+
+int SrsOnStatusCallPacket::get_size()
+{
+	return srs_amf0_get_string_size(command_name) + srs_amf0_get_number_size()
+		+ srs_amf0_get_null_size() + srs_amf0_get_object_size(data);
+}
+
+int SrsOnStatusCallPacket::encode_packet(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if ((ret = srs_amf0_write_string(stream, command_name)) != ERROR_SUCCESS) {
+		srs_error("encode command_name failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode command_name success.");
+	
+	if ((ret = srs_amf0_write_number(stream, transaction_id)) != ERROR_SUCCESS) {
+		srs_error("encode transaction_id failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode transaction_id success.");
+	
+	if ((ret = srs_amf0_write_null(stream)) != ERROR_SUCCESS) {
+		srs_error("encode args failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode args success.");;
+	
+	if ((ret = srs_amf0_write_object(stream, data)) != ERROR_SUCCESS) {
+		srs_error("encode data failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode data success.");
+	
+	srs_info("encode onStatus(Call) packet success.");
+	
+	return ret;
+}
+
+SrsOnStatusDataPacket::SrsOnStatusDataPacket()
+{
+	command_name = RTMP_AMF0_COMMAND_ON_STATUS;
+	data = new SrsAmf0Object();
+}
+
+SrsOnStatusDataPacket::~SrsOnStatusDataPacket()
+{
+	if (data) {
+		delete data;
+		data = NULL;
+	}
+}
+
+int SrsOnStatusDataPacket::get_perfer_cid()
+{
+	return RTMP_CID_OverStream;
+}
+
+int SrsOnStatusDataPacket::get_message_type()
+{
+	return RTMP_MSG_AMF0DataMessage;
+}
+
+int SrsOnStatusDataPacket::get_size()
+{
+	return srs_amf0_get_string_size(command_name) + srs_amf0_get_object_size(data);
+}
+
+int SrsOnStatusDataPacket::encode_packet(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if ((ret = srs_amf0_write_string(stream, command_name)) != ERROR_SUCCESS) {
+		srs_error("encode command_name failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode command_name success.");
+	
+	if ((ret = srs_amf0_write_object(stream, data)) != ERROR_SUCCESS) {
+		srs_error("encode data failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode data success.");
+	
+	srs_info("encode onStatus(Data) packet success.");
+	
+	return ret;
+}
+
+SrsSampleAccessPacket::SrsSampleAccessPacket()
+{
+	command_name = RTMP_AMF0_DATA_SAMPLE_ACCESS;
+	video_sample_access = false;
+	audio_sample_access = false;
+}
+
+SrsSampleAccessPacket::~SrsSampleAccessPacket()
+{
+}
+
+int SrsSampleAccessPacket::get_perfer_cid()
+{
+	return RTMP_CID_OverStream;
+}
+
+int SrsSampleAccessPacket::get_message_type()
+{
+	return RTMP_MSG_AMF0DataMessage;
+}
+
+int SrsSampleAccessPacket::get_size()
+{
+	return srs_amf0_get_string_size(command_name)
+		+ srs_amf0_get_boolean_size() + srs_amf0_get_boolean_size();
+}
+
+int SrsSampleAccessPacket::encode_packet(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if ((ret = srs_amf0_write_string(stream, command_name)) != ERROR_SUCCESS) {
+		srs_error("encode command_name failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode command_name success.");
+	
+	if ((ret = srs_amf0_write_boolean(stream, video_sample_access)) != ERROR_SUCCESS) {
+		srs_error("encode video_sample_access failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode video_sample_access success.");
+	
+	if ((ret = srs_amf0_write_boolean(stream, audio_sample_access)) != ERROR_SUCCESS) {
+		srs_error("encode audio_sample_access failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode audio_sample_access success.");;
+	
+	srs_info("encode |RtmpSampleAccess packet success.");
 	
 	return ret;
 }

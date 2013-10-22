@@ -104,8 +104,11 @@ public:
 	*/
 	virtual int set_chunk_size(int chunk_size);
 	/**
-	* when client type is play, response with 
-	* StreamBegin, onStatus(NetStream.Play.Reset), onStatus(NetStream.Play.Start).
+	* when client type is play, response with packets:
+	* StreamBegin, 
+	* onStatus(NetStream.Play.Reset), onStatus(NetStream.Play.Start).,
+	* |RtmpSampleAccess(false, false),
+	* onStatus(NetStream.Data.Start).
 	*/
 	virtual int start_play(int stream_id);
 private:

@@ -280,12 +280,18 @@ protected:
 public:
 	SrsPacket();
 	virtual ~SrsPacket();
+/**
+* decode functions.
+*/
 public:
 	/**
 	* subpacket must override to decode packet from stream.
 	* @remark never invoke the super.decode, it always failed.
 	*/
 	virtual int decode(SrsStream* stream);
+/**
+* encode functions.
+*/
 public:
 	virtual int get_perfer_cid();
 	virtual int get_payload_length();
@@ -507,6 +513,93 @@ protected:
 };
 
 /**
+* onStatus command, AMF0 Call
+* @remark, user must set the stream_id in header.
+*/
+class SrsOnStatusCallPacket : public SrsPacket
+{
+private:
+	typedef SrsPacket super;
+protected:
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsOnStatusCallPacket);
+	}
+public:
+	std::string command_name;
+	double transaction_id;
+	SrsAmf0Null* args;
+	SrsAmf0Object* data;
+public:
+	SrsOnStatusCallPacket();
+	virtual ~SrsOnStatusCallPacket();
+public:
+	virtual int get_perfer_cid();
+public:
+	virtual int get_message_type();
+protected:
+	virtual int get_size();
+	virtual int encode_packet(SrsStream* stream);
+};
+
+/**
+* onStatus data, AMF0 Data
+* @remark, user must set the stream_id in header.
+*/
+class SrsOnStatusDataPacket : public SrsPacket
+{
+private:
+	typedef SrsPacket super;
+protected:
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsOnStatusDataPacket);
+	}
+public:
+	std::string command_name;
+	SrsAmf0Object* data;
+public:
+	SrsOnStatusDataPacket();
+	virtual ~SrsOnStatusDataPacket();
+public:
+	virtual int get_perfer_cid();
+public:
+	virtual int get_message_type();
+protected:
+	virtual int get_size();
+	virtual int encode_packet(SrsStream* stream);
+};
+
+/**
+* AMF0Data RtmpSampleAccess
+* @remark, user must set the stream_id in header.
+*/
+class SrsSampleAccessPacket : public SrsPacket
+{
+private:
+	typedef SrsPacket super;
+protected:
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsSampleAccessPacket);
+	}
+public:
+	std::string command_name;
+	bool video_sample_access;
+	bool audio_sample_access;
+public:
+	SrsSampleAccessPacket();
+	virtual ~SrsSampleAccessPacket();
+public:
+	virtual int get_perfer_cid();
+public:
+	virtual int get_message_type();
+protected:
+	virtual int get_size();
+	virtual int encode_packet(SrsStream* stream);
+};
+
+/**
 * 5.5. Window Acknowledgement Size (5)
 * The client or the server sends this message to inform the peer which
 * window size to use when sending acknowledgment.
@@ -595,6 +688,7 @@ protected:
 	virtual int encode_packet(SrsStream* stream);
 };
 
+// 3.7. User Control message
 enum SrcPCUCEventType
 {
 	 // generally, 4bytes event-data

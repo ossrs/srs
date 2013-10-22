@@ -38,6 +38,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RTMP_SIG_SRS_NAME "srs(simple rtmp server)"
 #define RTMP_SIG_SRS_URL "https://github.com/winlinvip/simple-rtmp-server"
 #define RTMP_SIG_SRS_VERSION "0.1"
+#define RTMP_SIG_CLIENT_ID "ASAICiss"
+
+#define StatusLevel "level"
+#define StatusCode "code"
+#define StatusDescription "description"
+#define StatusDetails "details"
+#define StatusClientId "clientid"
+// status value
+#define StatusLevelStatus "status"
+// code value
+#define StatusCodeConnectSuccess "NetConnection.Connect.Success"
+#define StatusCodeStreamReset "NetStream.Play.Reset"
+#define StatusCodeStreamStart "NetStream.Play.Start"
+#define StatusCodeDataStart "NetStream.Data.Start"
 
 int SrsRequest::discovery_app()
 {
@@ -225,9 +239,9 @@ int SrsRtmp::response_connect_app()
 	pkt->props->properties["capabilities"] = new SrsAmf0Number(123);
 	pkt->props->properties["mode"] = new SrsAmf0Number(1);
 	
-	pkt->info->properties["level"] = new SrsAmf0String("status");
-	pkt->info->properties["code"] = new SrsAmf0String("NetConnection.Connect.Success");
-	pkt->info->properties["description"] = new SrsAmf0String("Connection succeeded");
+	pkt->info->properties[StatusLevel] = new SrsAmf0String(StatusLevelStatus);
+	pkt->info->properties[StatusCode] = new SrsAmf0String(StatusCodeConnectSuccess);
+	pkt->info->properties[StatusDescription] = new SrsAmf0String("Connection succeeded");
 	pkt->info->properties["objectEncoding"] = new SrsAmf0Number(RTMP_SIG_AMF0_VER);
 	SrsASrsAmf0EcmaArray* data = new SrsASrsAmf0EcmaArray();
 	pkt->info->properties["data"] = data;
@@ -340,6 +354,80 @@ int SrsRtmp::start_play(int stream_id)
 			return ret;
 		}
 		srs_info("send PCUC(StreamBegin) message success.");
+	}
+	
+	// onStatus(NetStream.Play.Reset)
+	if (true) {
+		SrsMessage* msg = new SrsMessage();
+		SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
+		
+		pkt->data->properties[StatusLevel] = new SrsAmf0String(StatusLevelStatus);
+		pkt->data->properties[StatusCode] = new SrsAmf0String(StatusCodeStreamReset);
+		pkt->data->properties[StatusDescription] = new SrsAmf0String("Playing and resetting stream.");
+		pkt->data->properties[StatusDetails] = new SrsAmf0String("stream");
+		pkt->data->properties[StatusClientId] = new SrsAmf0String(RTMP_SIG_CLIENT_ID);
+		
+		msg->header.stream_id = stream_id;
+		msg->set_packet(pkt);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			srs_error("send onStatus(NetStream.Play.Reset) message failed. ret=%d", ret);
+			return ret;
+		}
+		srs_info("send onStatus(NetStream.Play.Reset) message success.");
+	}
+	
+	// onStatus(NetStream.Play.Start)
+	if (true) {
+		SrsMessage* msg = new SrsMessage();
+		SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
+		
+		pkt->data->properties[StatusLevel] = new SrsAmf0String(StatusLevelStatus);
+		pkt->data->properties[StatusCode] = new SrsAmf0String(StatusCodeStreamStart);
+		pkt->data->properties[StatusDescription] = new SrsAmf0String("Started playing stream.");
+		pkt->data->properties[StatusDetails] = new SrsAmf0String("stream");
+		pkt->data->properties[StatusClientId] = new SrsAmf0String(RTMP_SIG_CLIENT_ID);
+		
+		msg->header.stream_id = stream_id;
+		msg->set_packet(pkt);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			srs_error("send onStatus(NetStream.Play.Reset) message failed. ret=%d", ret);
+			return ret;
+		}
+		srs_info("send onStatus(NetStream.Play.Reset) message success.");
+	}
+	
+	// |RtmpSampleAccess(false, false)
+	if (true) {
+		SrsMessage* msg = new SrsMessage();
+		SrsSampleAccessPacket* pkt = new SrsSampleAccessPacket();
+		
+		msg->header.stream_id = stream_id;
+		msg->set_packet(pkt);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			srs_error("send |RtmpSampleAccess(false, false) message failed. ret=%d", ret);
+			return ret;
+		}
+		srs_info("send |RtmpSampleAccess(false, false) message success.");
+	}
+	
+	// onStatus(NetStream.Data.Start)
+	if (true) {
+		SrsMessage* msg = new SrsMessage();
+		SrsOnStatusDataPacket* pkt = new SrsOnStatusDataPacket();
+		
+		pkt->data->properties[StatusCode] = new SrsAmf0String(StatusCodeDataStart);
+		
+		msg->header.stream_id = stream_id;
+		msg->set_packet(pkt);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			srs_error("send onStatus(NetStream.Data.Start) message failed. ret=%d", ret);
+			return ret;
+		}
+		srs_info("send onStatus(NetStream.Data.Start) message success.");
 	}
 	
 	srs_info("start play success.");
