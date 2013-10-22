@@ -62,6 +62,7 @@ struct SrsRequest
 	* disconvery vhost/app from tcUrl.
 	*/
 	virtual int discovery_app();
+	virtual std::string get_stream_url();
 };
 
 /**
@@ -99,8 +100,11 @@ public:
 	SrsRtmp(st_netfd_t client_stfd);
 	virtual ~SrsRtmp();
 public:
-	virtual int handshake();
 	virtual int recv_message(SrsMessage** pmsg);
+	virtual int can_read(int timeout_ms, bool& ready);
+	virtual int send_message(SrsMessage* msg);
+public:
+	virtual int handshake();
 	virtual int connect_app(SrsRequest* req);
 	virtual int set_window_ack_size(int ack_size);
 	/**

@@ -273,6 +273,11 @@ SrsProtocol::~SrsProtocol()
 	srs_freep(skt);
 }
 
+int SrsProtocol::can_read(int timeout_ms, bool& ready)
+{
+	return skt->can_read(timeout_ms, ready);
+}
+
 int SrsProtocol::recv_message(SrsMessage** pmsg)
 {
 	*pmsg = NULL;
@@ -856,6 +861,16 @@ SrsMessageHeader::SrsMessageHeader()
 
 SrsMessageHeader::~SrsMessageHeader()
 {
+}
+
+bool SrsMessageHeader::is_audio()
+{
+	return message_type == RTMP_MSG_AudioMessage;
+}
+
+bool SrsMessageHeader::is_video()
+{
+	return message_type == RTMP_MSG_VideoMessage;
 }
 
 bool SrsMessageHeader::is_amf0_command()

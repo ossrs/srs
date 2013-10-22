@@ -112,6 +112,16 @@ int SrsRequest::discovery_app()
 	return ret;
 }
 
+std::string SrsRequest::get_stream_url()
+{
+	std::string url = vhost;
+	
+	url += app;
+	url += stream;
+
+	return url;
+}
+
 SrsResponse::SrsResponse()
 {
 	stream_id = SRS_DEFAULT_SID;
@@ -130,6 +140,21 @@ SrsRtmp::SrsRtmp(st_netfd_t client_stfd)
 SrsRtmp::~SrsRtmp()
 {
 	srs_freep(protocol);
+}
+
+int SrsRtmp::recv_message(SrsMessage** pmsg)
+{
+	return protocol->recv_message(pmsg);
+}
+
+int SrsRtmp::can_read(int timeout_ms, bool& ready)
+{
+	return protocol->can_read(timeout_ms, ready);
+}
+
+int SrsRtmp::send_message(SrsMessage* msg)
+{
+	return protocol->send_message(msg);
 }
 
 int SrsRtmp::handshake()
@@ -176,11 +201,6 @@ int SrsRtmp::handshake()
     srs_trace("handshake success.");
     
 	return ret;
-}
-
-int SrsRtmp::recv_message(SrsMessage** pmsg)
-{
-	return protocol->recv_message(pmsg);
 }
 
 int SrsRtmp::connect_app(SrsRequest* req)

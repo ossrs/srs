@@ -30,6 +30,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_rtmp.hpp>
 #include <srs_core_protocol.hpp>
 #include <srs_core_auto_free.hpp>
+#include <srs_core_source.hpp>
+
+// wait for client message.
+#define SRS_PULSE_TIME_MS 100
 
 SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
 	: SrsConnection(srs_server, client_stfd)
@@ -113,6 +117,11 @@ int SrsClient::do_cycle()
 	}
 	srs_verbose("set chunk size success");
 	
+	// find a source to publish.
+	SrsSource* source = SrsSource::find(req->get_stream_url());
+	srs_assert(source != NULL);
+	srs_info("source found, url=%s", req->get_stream_url().c_str());
+	
 	switch (type) {
 		case SrsClientPlay: {
 			srs_verbose("start to play stream %s.", req->stream.c_str());
@@ -122,7 +131,7 @@ int SrsClient::do_cycle()
 				return ret;
 			}
 			srs_info("start to play stream %s success", req->stream.c_str());
-			return streaming_play();
+			return streaming_play(source);
 		}
 		case SrsClientPublish: {
 			srs_verbose("start to publish stream %s.", req->stream.c_str());
@@ -132,7 +141,7 @@ int SrsClient::do_cycle()
 				return ret;
 			}
 			srs_info("start to publish stream %s success", req->stream.c_str());
-			return streaming_publish();
+			return streaming_publish(source);
 		}
 		default: {
 			ret = ERROR_SYSTEM_CLIENT_INVALID;
@@ -144,13 +153,58 @@ int SrsClient::do_cycle()
 	return ret;
 }
 
-int SrsClient::streaming_play()
+int SrsClient::streaming_play(SrsSource* source)
 {
 	int ret = ERROR_SUCCESS;
+	
+	SrsConsumer* consumer = source->create_consumer();
+	srs_assert(consumer != NULL);
+	SrsAutoFree(SrsConsumer, consumer, false);
+	srs_verbose("consumer created.");
+	
+	while (true) {
+		bool ready = false;
+		if ((ret = rtmp->can_read(SRS_PULSE_TIME_MS, ready)) != ERROR_SUCCESS) {
+			srs_error("wait client control message failed. ret=%d", ret);
+			return ret;
+		}
+		srs_verbose("client pulse %dms, ready=%d", SRS_PULSE_TIME_MS, ready);
+
+		// read from client.
+		if (ready) {
+			SrsMessage* msg = NULL;
+			if ((ret = rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
+				srs_error("recv client control message failed. ret=%d", ret);
+				return ret;
+			}
+	
+			SrsAutoFree(SrsMessage, msg, false);
+			// TODO: process it.
+		}
+		
+		// get messages from consumer.
+		SrsMessage** msgs = NULL;
+		int count = 0;
+		if ((ret = consumer->get_packets(0, msgs, count)) != ERROR_SUCCESS) {
+			srs_error("get messages from consumer failed. ret=%d", ret);
+			return ret;
+		}
+		SrsAutoFree(SrsMessage*, msgs, true);
+		
+		// sendout messages
+		for (int i = 0; i < count; i++) {
+			SrsMessage* msg = msgs[i];
+			if ((ret = rtmp->send_message(msg)) != ERROR_SUCCESS) {
+				srs_error("send message to client failed. ret=%d", ret);
+				return ret;
+			}
+		}
+	}
+	
 	return ret;
 }
 
-int SrsClient::streaming_publish()
+int SrsClient::streaming_publish(SrsSource* source)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -163,6 +217,17 @@ int SrsClient::streaming_publish()
 
 		SrsAutoFree(SrsMessage, msg, false);
 		
+		// process audio packet
+		if (msg->header.is_audio() && ((ret = source->on_audio(msg)) != ERROR_SUCCESS)) {
+			srs_error("process audio message failed. ret=%d", ret);
+			return ret;
+		}
+		// process video packet
+		if (msg->header.is_video() && ((ret = source->on_video(msg)) != ERROR_SUCCESS)) {
+			srs_error("process video message failed. ret=%d", ret);
+			return ret;
+		}
+		
 		// process onMetaData
 		if (msg->header.is_amf0_data() || msg->header.is_amf3_data()) {
 			if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
@@ -173,6 +238,12 @@ int SrsClient::streaming_publish()
 			SrsPacket* pkt = msg->get_packet();
 			if (dynamic_cast<SrsOnMetaDataPacket*>(pkt)) {
 				SrsOnMetaDataPacket* metadata = dynamic_cast<SrsOnMetaDataPacket*>(pkt);
+				if ((ret = source->on_meta_data(metadata)) != ERROR_SUCCESS) {
+					srs_error("process onMetaData message failed. ret=%d", ret);
+					return ret;
+				}
+				srs_trace("process onMetaData message success.");
+				continue;
 			}
 			
 			srs_trace("ignore AMF0/AMF3 data message.");

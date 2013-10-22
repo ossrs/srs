@@ -35,6 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsRtmp;
 class SrsRequest;
 class SrsResponse;
+class SrsSource;
 
 /**
 * the client provides the main logic control for RTMP clients.
@@ -52,8 +53,8 @@ public:
 protected:
 	virtual int do_cycle();
 private:
-	virtual int streaming_play();
-	virtual int streaming_publish();
+	virtual int streaming_play(SrsSource* source);
+	virtual int streaming_publish(SrsSource* source);
 	virtual int get_peer_ip();
 };
 

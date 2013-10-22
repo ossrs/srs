@@ -94,6 +94,10 @@ public:
 	virtual ~SrsProtocol();
 public:
 	/**
+	* whether the peer can read.
+	*/
+	virtual int can_read(int timeout_ms, bool& ready);
+	/**
 	* recv a message with raw/undecoded payload from peer.
 	* the payload is not decoded, use srs_rtmp_expect_message<T> if requires 
 	* specifies message.
@@ -179,6 +183,8 @@ struct SrsMessageHeader
 	SrsMessageHeader();
 	virtual ~SrsMessageHeader();
 
+	bool is_audio();
+	bool is_video();
 	bool is_amf0_command();
 	bool is_amf0_data();
 	bool is_amf3_command();

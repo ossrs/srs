@@ -34,6 +34,26 @@ SrsSocket::~SrsSocket()
 {
 }
 
+int SrsSocket::can_read(int timeout_ms, bool& ready)
+{
+    ready = false;
+    int ret = ERROR_SUCCESS;
+    
+    // If the named file descriptor object is ready for I/O within the specified amount of time, 
+    // a value of 0 is returned. Otherwise, a value of -1 is returned and errno is set to 
+    // indicate the error
+    if(st_netfd_poll(stfd, POLLIN, timeout_ms * 1000) == -1){
+        if(errno == ETIME){
+            return ret;
+        }
+        
+        return ERROR_SOCKET_WAIT;
+    }
+    
+    ready = true;
+    return ret;
+}
+
 int SrsSocket::read(const void* buf, size_t size, ssize_t* nread)
 {
     int ret = ERROR_SUCCESS;
