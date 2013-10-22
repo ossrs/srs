@@ -47,6 +47,7 @@ class SrsChunkStream;
 class SrsAmf0Object;
 class SrsAmf0Null;
 class SrsAmf0Undefined;
+class SrsOutputableMessage;
 
 // convert class name to string.
 #define CLASS_NAME_STRING(className) #className
@@ -111,7 +112,7 @@ public:
 	* then sendout over socket.
 	* @msg this method will free it whatever return value.
 	*/
-	virtual int send_message(SrsMessage* msg);
+	virtual int send_message(SrsOutputableMessage* msg);
 private:
 	/**
 	* when recv message, update the context.
@@ -120,7 +121,7 @@ private:
 	/**
 	* when message sentout, update the context.
 	*/
-	virtual int on_send_message(SrsMessage* msg);
+	virtual int on_send_message(SrsOutputableMessage* msg);
 	/**
 	* try to recv interlaced message from peer,
 	* return error if error occur and nerver set the pmsg,
@@ -232,9 +233,9 @@ public:
 };
 
 /**
-* common RTMP message defines in rtmp.part2.Message-Formats.pdf.
+* message to output.
 */
-class SrsMessage
+class SrsOutputableMessage
 {
 // 4.1. Message Header
 public:
@@ -249,6 +250,34 @@ public:
 	*/
 	int32_t size;
 	int8_t* payload;
+public:
+	SrsOutputableMessage();
+	virtual ~SrsOutputableMessage();
+protected:
+	virtual void free_payload();
+/**
+* encode functions.
+*/
+public:
+	/**
+	* get the perfered cid(chunk stream id) which sendout over.
+	*/
+	virtual int get_perfer_cid() = 0;
+	/**
+	* encode the packet to message payload bytes.
+	* @remark there exists empty packet, so maybe the payload is NULL.
+	*/
+	virtual int encode_packet() = 0;
+};
+
+/**
+* common RTMP message defines in rtmp.part2.Message-Formats.pdf.
+* cannbe parse and decode.
+*/
+class SrsMessage : public SrsOutputableMessage
+{
+private:
+	typedef SrsOutputableMessage super;
 // decoded message payload.
 private:
 	SrsStream* stream;
@@ -256,6 +285,9 @@ private:
 public:
 	SrsMessage();
 	virtual ~SrsMessage();
+/**
+* decode functions.
+*/
 public:
 	/**
 	* decode packet from message payload.
@@ -266,6 +298,9 @@ public:
 	* @remark, user never free the pkt, the message will auto free it.
 	*/
 	virtual SrsPacket* get_packet();
+/**
+* encode functions.
+*/
 public:
 	/**
 	* get the perfered cid(chunk stream id) which sendout over.
@@ -287,12 +322,46 @@ public:
 /**
 * shared ptr message.
 * for audio/video/data message that need less memory copy.
+* and only for output.
 */
-class SrsSharedMessage : public SrsMessage
+class SrsSharedMessage : public SrsOutputableMessage
 {
+private:
+	typedef SrsOutputableMessage super;
+private:
+	struct SrsSharedPtr
+	{
+		char* payload;
+		int size;
+		int perfer_cid;
+		int shared_count;
+		
+		SrsSharedPtr();
+		virtual ~SrsSharedPtr();
+	};
+	SrsSharedPtr* ptr;
 public:
 	SrsSharedMessage();
 	virtual ~SrsSharedMessage();
+protected:
+	virtual void free_payload();
+public:
+	/**
+	* set the shared payload.
+	*/
+	virtual int initialize(SrsMessageHeader* header, char* payload, int size, int perfer_cid);
+	virtual SrsSharedMessage* copy();
+public:
+	/**
+	* get the perfered cid(chunk stream id) which sendout over.
+	*/
+	virtual int get_perfer_cid();
+	/**
+	* ignored.
+	* for shared message, nothing should be done.
+	* use initialize() to set the data.
+	*/
+	virtual int encode_packet();
 };
 
 /**

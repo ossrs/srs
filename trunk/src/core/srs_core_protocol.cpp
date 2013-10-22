@@ -29,6 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_socket.hpp>
 #include <srs_core_buffer.hpp>
 #include <srs_core_stream.hpp>
+#include <srs_core_auto_free.hpp>
 
 /****************************************************************************
 *****************************************************************************
@@ -319,9 +320,12 @@ int SrsProtocol::recv_message(SrsMessage** pmsg)
 	return ret;
 }
 
-int SrsProtocol::send_message(SrsMessage* msg)
+int SrsProtocol::send_message(SrsOutputableMessage* msg)
 {
 	int ret = ERROR_SUCCESS;
+	
+	// free msg whatever return value.
+	SrsAutoFree(SrsOutputableMessage, msg, false);
 	
 	if ((ret = msg->encode_packet()) != ERROR_SUCCESS) {
 		srs_error("encode packet to message payload failed. ret=%d", ret);
@@ -475,15 +479,21 @@ int SrsProtocol::on_recv_message(SrsMessage* msg)
 	return ret;
 }
 
-int SrsProtocol::on_send_message(SrsMessage* msg)
+int SrsProtocol::on_send_message(SrsOutputableMessage* msg)
 {
 	int ret = ERROR_SUCCESS;
 	
-	srs_assert(msg != NULL);
+	SrsMessage* common_msg = dynamic_cast<SrsMessage*>(msg);
+	if (!msg) {
+		srs_verbose("ignore the shared ptr message.");
+		return ret;
+	}
 	
-	switch (msg->header.message_type) {
+	srs_assert(common_msg != NULL);
+	
+	switch (common_msg->header.message_type) {
 		case RTMP_MSG_SetChunkSize: {
-			SrsSetChunkSizePacket* pkt = dynamic_cast<SrsSetChunkSizePacket*>(msg->get_packet());
+			SrsSetChunkSizePacket* pkt = dynamic_cast<SrsSetChunkSizePacket*>(common_msg->get_packet());
 			srs_assert(pkt != NULL);
 			
 			out_chunk_size = pkt->chunk_size;
@@ -917,17 +927,30 @@ SrsChunkStream::~SrsChunkStream()
 	srs_freep(msg);
 }
 
+SrsOutputableMessage::SrsOutputableMessage()
+{
+	payload = NULL;
+	size = 0;
+}
+
+SrsOutputableMessage::~SrsOutputableMessage()
+{	
+	free_payload();
+}
+
+void SrsOutputableMessage::free_payload()
+{
+	srs_freepa(payload);
+}
+
 SrsMessage::SrsMessage()
 {
-	size = 0;
 	stream = NULL;
-	payload = NULL;
 	packet = NULL;
 }
 
 SrsMessage::~SrsMessage()
 {	
-	srs_freep(payload);
 	srs_freep(packet);
 	srs_freep(stream);
 }
@@ -1089,12 +1112,95 @@ int SrsMessage::encode_packet()
 	return packet->encode(size, (char*&)payload);
 }
 
+SrsSharedMessage::SrsSharedPtr::SrsSharedPtr()
+{
+	payload = NULL;
+	size = 0;
+	perfer_cid = 0;
+	shared_count = 0;
+}
+
+SrsSharedMessage::SrsSharedPtr::~SrsSharedPtr()
+{
+	srs_freepa(payload);
+}
+
 SrsSharedMessage::SrsSharedMessage()
 {
+	ptr = NULL;
 }
 
 SrsSharedMessage::~SrsSharedMessage()
 {
+}
+
+void SrsSharedMessage::free_payload()
+{
+	if (ptr) {
+		if (ptr->shared_count == 0) {
+			srs_freep(ptr);
+		} else {
+			ptr->shared_count--;
+		}
+	}
+}
+
+int SrsSharedMessage::initialize(SrsMessageHeader* header, char* payload, int size, int perfer_cid)
+{
+	int ret = ERROR_SUCCESS;
+	
+	super::header = *header;
+	
+	if (ptr) {
+		ret = ERROR_SYSTEM_ASSERT_FAILED;
+		srs_error("should not set the payload twice. ret=%d", ret);
+		srs_assert(false);
+		
+		return ret;
+	}
+	
+	ptr = new SrsSharedPtr();
+	ptr->payload = payload;
+	ptr->size = size;
+	ptr->perfer_cid = perfer_cid;
+	
+	super::payload = (int8_t*)ptr->payload;
+	super::size = ptr->size;
+	
+	return ret;
+}
+
+SrsSharedMessage* SrsSharedMessage::copy()
+{
+	if (!ptr) {
+		srs_error("invoke initialize to initialize the ptr.");
+		srs_assert(false);
+		return NULL;
+	}
+	
+	SrsSharedMessage* copy = new SrsSharedMessage();
+	copy->ptr = ptr;
+	ptr->shared_count++;
+	
+	copy->payload = (int8_t*)ptr->payload;
+	copy->size = ptr->size;
+	
+	return copy;
+}
+
+int SrsSharedMessage::get_perfer_cid()
+{
+	if (!ptr) {
+		return 0;
+	}
+	
+	return ptr->perfer_cid;
+}
+
+int SrsSharedMessage::encode_packet()
+{
+	srs_verbose("shared message ignore the encode method.");
+	return ERROR_SUCCESS;
 }
 
 SrsPacket::SrsPacket()
