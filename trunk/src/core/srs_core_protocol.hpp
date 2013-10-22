@@ -47,7 +47,7 @@ class SrsChunkStream;
 class SrsAmf0Object;
 class SrsAmf0Null;
 class SrsAmf0Undefined;
-class SrsOutputableMessage;
+class ISrsMessage;
 
 // convert class name to string.
 #define CLASS_NAME_STRING(className) #className
@@ -112,7 +112,7 @@ public:
 	* then sendout over socket.
 	* @msg this method will free it whatever return value.
 	*/
-	virtual int send_message(SrsOutputableMessage* msg);
+	virtual int send_message(ISrsMessage* msg);
 private:
 	/**
 	* when recv message, update the context.
@@ -121,7 +121,7 @@ private:
 	/**
 	* when message sentout, update the context.
 	*/
-	virtual int on_send_message(SrsOutputableMessage* msg);
+	virtual int on_send_message(ISrsMessage* msg);
 	/**
 	* try to recv interlaced message from peer,
 	* return error if error occur and nerver set the pmsg,
@@ -235,7 +235,7 @@ public:
 /**
 * message to output.
 */
-class SrsOutputableMessage
+class ISrsMessage
 {
 // 4.1. Message Header
 public:
@@ -251,10 +251,16 @@ public:
 	int32_t size;
 	int8_t* payload;
 public:
-	SrsOutputableMessage();
-	virtual ~SrsOutputableMessage();
+	ISrsMessage();
+	virtual ~ISrsMessage();
 protected:
 	virtual void free_payload();
+public:
+	/**
+	* whether message canbe decoded.
+	* only update the context when message canbe decoded.
+	*/
+	virtual bool can_decode() = 0;
 /**
 * encode functions.
 */
@@ -274,10 +280,10 @@ public:
 * common RTMP message defines in rtmp.part2.Message-Formats.pdf.
 * cannbe parse and decode.
 */
-class SrsCommonMessage : public SrsOutputableMessage
+class SrsCommonMessage : public ISrsMessage
 {
 private:
-	typedef SrsOutputableMessage super;
+	typedef ISrsMessage super;
 // decoded message payload.
 private:
 	SrsStream* stream;
@@ -285,6 +291,8 @@ private:
 public:
 	SrsCommonMessage();
 	virtual ~SrsCommonMessage();
+public:
+	virtual bool can_decode();
 /**
 * decode functions.
 */
@@ -324,10 +332,10 @@ public:
 * for audio/video/data message that need less memory copy.
 * and only for output.
 */
-class SrsSharedPtrMessage : public SrsOutputableMessage
+class SrsSharedPtrMessage : public ISrsMessage
 {
 private:
-	typedef SrsOutputableMessage super;
+	typedef ISrsMessage super;
 private:
 	struct SrsSharedPtr
 	{
@@ -345,6 +353,8 @@ public:
 	virtual ~SrsSharedPtrMessage();
 protected:
 	virtual void free_payload();
+public:
+	virtual bool can_decode();
 public:
 	/**
 	* set the shared payload.

@@ -320,12 +320,12 @@ int SrsProtocol::recv_message(SrsCommonMessage** pmsg)
 	return ret;
 }
 
-int SrsProtocol::send_message(SrsOutputableMessage* msg)
+int SrsProtocol::send_message(ISrsMessage* msg)
 {
 	int ret = ERROR_SUCCESS;
 	
 	// free msg whatever return value.
-	SrsAutoFree(SrsOutputableMessage, msg, false);
+	SrsAutoFree(ISrsMessage, msg, false);
 	
 	if ((ret = msg->encode_packet()) != ERROR_SUCCESS) {
 		srs_error("encode packet to message payload failed. ret=%d", ret);
@@ -479,9 +479,14 @@ int SrsProtocol::on_recv_message(SrsCommonMessage* msg)
 	return ret;
 }
 
-int SrsProtocol::on_send_message(SrsOutputableMessage* msg)
+int SrsProtocol::on_send_message(ISrsMessage* msg)
 {
 	int ret = ERROR_SUCCESS;
+	
+	if (!msg->can_decode()) {
+		srs_verbose("ignore the un-decodable message.");
+		return ret;
+	}
 	
 	SrsCommonMessage* common_msg = dynamic_cast<SrsCommonMessage*>(msg);
 	if (!msg) {
@@ -927,18 +932,18 @@ SrsChunkStream::~SrsChunkStream()
 	srs_freep(msg);
 }
 
-SrsOutputableMessage::SrsOutputableMessage()
+ISrsMessage::ISrsMessage()
 {
 	payload = NULL;
 	size = 0;
 }
 
-SrsOutputableMessage::~SrsOutputableMessage()
+ISrsMessage::~ISrsMessage()
 {	
 	free_payload();
 }
 
-void SrsOutputableMessage::free_payload()
+void ISrsMessage::free_payload()
 {
 	srs_freepa(payload);
 }
@@ -953,6 +958,11 @@ SrsCommonMessage::~SrsCommonMessage()
 {	
 	srs_freep(packet);
 	srs_freep(stream);
+}
+
+bool SrsCommonMessage::can_decode()
+{
+	return true;
 }
 
 int SrsCommonMessage::decode_packet()
@@ -1143,6 +1153,11 @@ void SrsSharedPtrMessage::free_payload()
 			ptr->shared_count--;
 		}
 	}
+}
+
+bool SrsSharedPtrMessage::can_decode()
+{
+	return true;
 }
 
 int SrsSharedPtrMessage::initialize(SrsMessageHeader* header, char* payload, int size, int perfer_cid)
