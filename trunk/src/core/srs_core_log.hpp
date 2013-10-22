@@ -74,9 +74,11 @@ extern ILogContext* log_context;
     #define srs_error(msg, ...)   printf("[%s][%d][error][%s] ", log_context->format_time(), log_context->get_id(), __PRETTY_FUNCTION__);printf(msg, ##__VA_ARGS__);printf(" errno=%d(%s)", errno, strerror(errno));printf("\n")
 #endif
 
-#if 0
+#if 1
 	#undef srs_verbose
 	#define srs_verbose(msg, ...) (void)0
+#endif
+#if 1
 	#undef srs_info
 	#define srs_info(msg, ...) (void)0
 #endif

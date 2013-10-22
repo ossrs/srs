@@ -94,6 +94,8 @@ SrsSource::SrsSource(std::string _stream_url)
 {
 	stream_url = _stream_url;
 	cache_metadata = NULL;
+	cache_sh_video = NULL;
+	cache_sh_audio = NULL;
 }
 
 SrsSource::~SrsSource()
@@ -106,6 +108,8 @@ SrsSource::~SrsSource()
 	consumers.clear();
 	
 	srs_freep(cache_metadata);
+	srs_freep(cache_sh_video);
+	srs_freep(cache_sh_audio);
 }
 
 int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata)
@@ -183,6 +187,11 @@ int SrsSource::on_audio(SrsCommonMessage* audio)
 		}
 	}
 	srs_info("dispatch audio success.");
+
+	if (!cache_sh_audio) {
+		srs_freep(cache_sh_audio);
+		cache_sh_audio = msg->copy();
+	}
 	
 	return ret;
 }
@@ -213,20 +222,40 @@ int SrsSource::on_video(SrsCommonMessage* video)
 		}
 	}
 	srs_info("dispatch video success.");
+
+	if (!cache_sh_video) {
+		srs_freep(cache_sh_video);
+		cache_sh_video = msg->copy();
+	}
 	
 	return ret;
 }
 
  int SrsSource::create_consumer(SrsConsumer*& consumer)
 {
+	int ret = ERROR_SUCCESS;
+	
 	consumer = new SrsConsumer();
 	consumers.push_back(consumer);
 
-	if (!cache_metadata) {
-		srs_info("no metadata found.");
-		return ERROR_SUCCESS;
+	if (cache_metadata && (ret = consumer->enqueue(cache_metadata->copy())) != ERROR_SUCCESS) {
+		srs_error("dispatch metadata failed. ret=%d", ret);
+		return ret;
 	}
+	srs_info("dispatch metadata success");
 	
-	return consumer->enqueue(cache_metadata->copy());
+	if (cache_sh_video && (ret = consumer->enqueue(cache_sh_video->copy())) != ERROR_SUCCESS) {
+		srs_error("dispatch video sequence header failed. ret=%d", ret);
+		return ret;
+	}
+	srs_info("dispatch video sequence header success");
+	
+	if (cache_sh_audio && (ret = consumer->enqueue(cache_sh_audio->copy())) != ERROR_SUCCESS) {
+		srs_error("dispatch audio sequence header failed. ret=%d", ret);
+		return ret;
+	}
+	srs_info("dispatch audio sequence header success");
+	
+	return ret;
 }
 

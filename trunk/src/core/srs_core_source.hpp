@@ -82,6 +82,10 @@ private:
 	std::vector<SrsConsumer*> consumers;
 private:
 	SrsSharedPtrMessage* cache_metadata;
+	// the cached video sequence header.
+	SrsSharedPtrMessage* cache_sh_video;
+	// the cached audio sequence header.
+	SrsSharedPtrMessage* cache_sh_audio;
 public:
 	SrsSource(std::string _stream_url);
 	virtual ~SrsSource();
