@@ -1170,7 +1170,14 @@ int SrsSharedPtrMessage::initialize(ISrsMessage* msg, char* payload, int size)
 	ptr = new SrsSharedPtr();
 	ptr->payload = payload;
 	ptr->size = size;
-	ptr->perfer_cid = msg->get_perfer_cid();
+	
+	if (msg->header.is_video()) {
+		ptr->perfer_cid = RTMP_CID_Video;
+	} else if (msg->header.is_audio()) {
+		ptr->perfer_cid = RTMP_CID_Audio;
+	} else {
+		ptr->perfer_cid = RTMP_CID_OverConnection2;
+	}
 	
 	super::payload = (int8_t*)ptr->payload;
 	super::size = ptr->size;
