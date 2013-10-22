@@ -324,7 +324,7 @@ public:
 * for audio/video/data message that need less memory copy.
 * and only for output.
 */
-class SrsSharedMessage : public SrsOutputableMessage
+class SrsSharedPtrMessage : public SrsOutputableMessage
 {
 private:
 	typedef SrsOutputableMessage super;
@@ -341,8 +341,8 @@ private:
 	};
 	SrsSharedPtr* ptr;
 public:
-	SrsSharedMessage();
-	virtual ~SrsSharedMessage();
+	SrsSharedPtrMessage();
+	virtual ~SrsSharedPtrMessage();
 protected:
 	virtual void free_payload();
 public:
@@ -350,7 +350,7 @@ public:
 	* set the shared payload.
 	*/
 	virtual int initialize(SrsMessageHeader* header, char* payload, int size, int perfer_cid);
-	virtual SrsSharedMessage* copy();
+	virtual SrsSharedPtrMessage* copy();
 public:
 	/**
 	* get the perfered cid(chunk stream id) which sendout over.

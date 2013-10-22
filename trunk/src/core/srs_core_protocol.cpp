@@ -1112,7 +1112,7 @@ int SrsCommonMessage::encode_packet()
 	return packet->encode(size, (char*&)payload);
 }
 
-SrsSharedMessage::SrsSharedPtr::SrsSharedPtr()
+SrsSharedPtrMessage::SrsSharedPtr::SrsSharedPtr()
 {
 	payload = NULL;
 	size = 0;
@@ -1120,21 +1120,21 @@ SrsSharedMessage::SrsSharedPtr::SrsSharedPtr()
 	shared_count = 0;
 }
 
-SrsSharedMessage::SrsSharedPtr::~SrsSharedPtr()
+SrsSharedPtrMessage::SrsSharedPtr::~SrsSharedPtr()
 {
 	srs_freepa(payload);
 }
 
-SrsSharedMessage::SrsSharedMessage()
+SrsSharedPtrMessage::SrsSharedPtrMessage()
 {
 	ptr = NULL;
 }
 
-SrsSharedMessage::~SrsSharedMessage()
+SrsSharedPtrMessage::~SrsSharedPtrMessage()
 {
 }
 
-void SrsSharedMessage::free_payload()
+void SrsSharedPtrMessage::free_payload()
 {
 	if (ptr) {
 		if (ptr->shared_count == 0) {
@@ -1145,7 +1145,7 @@ void SrsSharedMessage::free_payload()
 	}
 }
 
-int SrsSharedMessage::initialize(SrsMessageHeader* header, char* payload, int size, int perfer_cid)
+int SrsSharedPtrMessage::initialize(SrsMessageHeader* header, char* payload, int size, int perfer_cid)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -1170,7 +1170,7 @@ int SrsSharedMessage::initialize(SrsMessageHeader* header, char* payload, int si
 	return ret;
 }
 
-SrsSharedMessage* SrsSharedMessage::copy()
+SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
 {
 	if (!ptr) {
 		srs_error("invoke initialize to initialize the ptr.");
@@ -1178,7 +1178,7 @@ SrsSharedMessage* SrsSharedMessage::copy()
 		return NULL;
 	}
 	
-	SrsSharedMessage* copy = new SrsSharedMessage();
+	SrsSharedPtrMessage* copy = new SrsSharedPtrMessage();
 	copy->ptr = ptr;
 	ptr->shared_count++;
 	
@@ -1188,7 +1188,7 @@ SrsSharedMessage* SrsSharedMessage::copy()
 	return copy;
 }
 
-int SrsSharedMessage::get_perfer_cid()
+int SrsSharedPtrMessage::get_perfer_cid()
 {
 	if (!ptr) {
 		return 0;
@@ -1197,7 +1197,7 @@ int SrsSharedMessage::get_perfer_cid()
 	return ptr->perfer_cid;
 }
 
-int SrsSharedMessage::encode_packet()
+int SrsSharedPtrMessage::encode_packet()
 {
 	srs_verbose("shared message ignore the encode method.");
 	return ERROR_SUCCESS;
