@@ -34,7 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * the signature for packets to client.
 */
 #define RTMP_SIG_FMS_VER "3,5,3,888"
-#define RTMP_SIG_AMF0_VER 3
+#define RTMP_SIG_AMF0_VER 0
 #define RTMP_SIG_SRS_NAME "srs(simple rtmp server)"
 #define RTMP_SIG_SRS_URL "https://github.com/winlinvip/simple-rtmp-server"
 #define RTMP_SIG_SRS_VERSION "0.1"
@@ -52,6 +52,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define StatusCodeStreamReset "NetStream.Play.Reset"
 #define StatusCodeStreamStart "NetStream.Play.Start"
 #define StatusCodeDataStart "NetStream.Data.Start"
+
+SrsRequest::SrsRequest()
+{
+	objectEncoding = RTMP_SIG_AMF0_VER;
+}
+
+SrsRequest::~SrsRequest()
+{
+}
 
 int SrsRequest::discovery_app()
 {
@@ -183,6 +192,11 @@ int SrsRtmp::connect_app(SrsRequest* req)
 	if ((prop = pkt->command_object->ensure_property_string("swfUrl")) != NULL) {
 		req->swfUrl = srs_amf0_convert<SrsAmf0String>(prop)->value;
 	}
+	
+	if ((prop = pkt->command_object->ensure_property_string("objectEncoding")) != NULL) {
+		req->objectEncoding = srs_amf0_convert<SrsAmf0Number>(prop)->value;
+	}
+	
 	srs_info("get connect app message params success.");
 	
 	return req->discovery_app();
@@ -228,7 +242,7 @@ int SrsRtmp::set_peer_bandwidth(int bandwidth, int type)
 	return ret;
 }
 
-int SrsRtmp::response_connect_app()
+int SrsRtmp::response_connect_app(SrsRequest* req)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -242,7 +256,7 @@ int SrsRtmp::response_connect_app()
 	pkt->info->properties[StatusLevel] = new SrsAmf0String(StatusLevelStatus);
 	pkt->info->properties[StatusCode] = new SrsAmf0String(StatusCodeConnectSuccess);
 	pkt->info->properties[StatusDescription] = new SrsAmf0String("Connection succeeded");
-	pkt->info->properties["objectEncoding"] = new SrsAmf0Number(RTMP_SIG_AMF0_VER);
+	pkt->info->properties["objectEncoding"] = new SrsAmf0Number(req->objectEncoding);
 	SrsASrsAmf0EcmaArray* data = new SrsASrsAmf0EcmaArray();
 	pkt->info->properties["data"] = data;
 	

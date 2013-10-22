@@ -46,12 +46,16 @@ struct SrsRequest
 	std::string tcUrl;
 	std::string pageUrl;
 	std::string swfUrl;
+	double objectEncoding;
 	
 	std::string schema;
 	std::string vhost;
 	std::string port;
 	std::string app;
 	std::string stream;
+	
+	SrsRequest();
+	virtual ~SrsRequest();
 	
 	/**
 	* disconvery vhost/app from tcUrl.
@@ -91,7 +95,7 @@ public:
 	* using the Limit type field.
 	*/
 	virtual int set_peer_bandwidth(int bandwidth, int type);
-	virtual int response_connect_app();
+	virtual int response_connect_app(SrsRequest* req);
 	virtual int on_bw_done();
 	/**
 	* recv some message to identify the client.
