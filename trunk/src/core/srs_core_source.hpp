@@ -71,6 +71,7 @@ public:
 	static SrsSource* find(std::string stream_url);
 private:
 	std::string stream_url;
+	std::vector<SrsConsumer*> consumers;
 public:
 	SrsSource(std::string _stream_url);
 	virtual ~SrsSource();

@@ -63,6 +63,12 @@ SrsSource::SrsSource(std::string _stream_url)
 
 SrsSource::~SrsSource()
 {
+	std::vector<SrsConsumer*>::iterator it;
+	for (it = consumers.begin(); it != consumers.end(); ++it) {
+		SrsConsumer* consumer = *it;
+		srs_freep(consumer);
+	}
+	consumers.clear();
 }
 
 int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata)
@@ -90,6 +96,7 @@ int SrsSource::on_video(SrsCommonMessage* audio)
 SrsConsumer* SrsSource::create_consumer()
 {
 	SrsConsumer* consumer = new SrsConsumer();
+	consumers.push_back(consumer);
 	return consumer;
 }
 
