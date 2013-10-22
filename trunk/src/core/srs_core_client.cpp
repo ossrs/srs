@@ -163,6 +163,22 @@ int SrsClient::streaming_publish()
 
 		SrsAutoFree(SrsMessage, msg, false);
 		
+		// process onMetaData
+		if (msg->header.is_amf0_data() || msg->header.is_amf3_data()) {
+			if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
+				srs_error("decode onMetaData message failed. ret=%d", ret);
+				return ret;
+			}
+		
+			SrsPacket* pkt = msg->get_packet();
+			if (dynamic_cast<SrsOnMetaDataPacket*>(pkt)) {
+				SrsOnMetaDataPacket* metadata = dynamic_cast<SrsOnMetaDataPacket*>(pkt);
+			}
+			
+			srs_trace("ignore AMF0/AMF3 data message.");
+			continue;
+		}
+		
 		// process UnPublish event.
 		if (msg->header.is_amf0_command() || msg->header.is_amf3_command()) {
 			if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
@@ -177,6 +193,7 @@ int SrsClient::streaming_publish()
 			}
 			
 			srs_trace("ignore AMF0/AMF3 command message.");
+			continue;
 		}
 	}
 	

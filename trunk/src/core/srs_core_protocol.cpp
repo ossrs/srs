@@ -202,6 +202,8 @@ messages.
 #define RTMP_AMF0_COMMAND_UNPUBLISH			"FCUnpublish"
 #define RTMP_AMF0_COMMAND_PUBLISH			"publish"
 #define RTMP_AMF0_DATA_SAMPLE_ACCESS		"|RtmpSampleAccess"
+#define RTMP_AMF0_DATA_SET_DATAFRAME		"@setDataFrame"
+#define RTMP_AMF0_DATA_ON_METADATA			"onMetaData"
 
 /****************************************************************************
 *****************************************************************************
@@ -861,9 +863,19 @@ bool SrsMessageHeader::is_amf0_command()
 	return message_type == RTMP_MSG_AMF0CommandMessage;
 }
 
+bool SrsMessageHeader::is_amf0_data()
+{
+	return message_type == RTMP_MSG_AMF0DataMessage;
+}
+
 bool SrsMessageHeader::is_amf3_command()
 {
 	return message_type == RTMP_MSG_AMF3CommandMessage;
+}
+
+bool SrsMessageHeader::is_amf3_data()
+{
+	return message_type == RTMP_MSG_AMF3DataMessage;
 }
 
 bool SrsMessageHeader::is_window_ackledgement_size()
@@ -931,7 +943,7 @@ int SrsMessage::decode_packet()
 	srs_verbose("decode stream initialized success");
 	
 	// decode specified packet type
-	if (header.is_amf0_command() || header.is_amf3_command()) {
+	if (header.is_amf0_command() || header.is_amf3_command() || header.is_amf0_data() || header.is_amf3_data()) {
 		srs_verbose("start to decode AMF0/AMF3 command message.");
 		
 		// skip 1bytes to decode the amf3 command.
@@ -983,6 +995,10 @@ int SrsMessage::decode_packet()
 		} else if(command == RTMP_AMF0_COMMAND_UNPUBLISH) {
 			srs_info("decode the AMF0/AMF3 command(unpublish message).");
 			packet = new SrsFMLEStartPacket();
+			return packet->decode(stream);
+		} else if(command == RTMP_AMF0_DATA_SET_DATAFRAME || command == RTMP_AMF0_DATA_ON_METADATA) {
+			srs_info("decode the AMF0/AMF3 data(onMetaData message).");
+			packet = new SrsOnMetaDataPacket();
 			return packet->decode(stream);
 		}
 		
@@ -1254,7 +1270,6 @@ int SrsConnectAppResPacket::encode_packet(SrsStream* stream)
 		return ret;
 	}
 	srs_verbose("encode info success.");
-	
 	
 	srs_info("encode connect app response packet success.");
 	
@@ -1878,6 +1893,81 @@ int SrsSampleAccessPacket::encode_packet(SrsStream* stream)
 	
 	srs_info("encode |RtmpSampleAccess packet success.");
 	
+	return ret;
+}
+
+SrsOnMetaDataPacket::SrsOnMetaDataPacket()
+{
+	name = RTMP_AMF0_DATA_ON_METADATA;
+	metadata = new SrsAmf0Object();
+}
+
+SrsOnMetaDataPacket::~SrsOnMetaDataPacket()
+{
+	srs_freep(metadata);
+}
+
+int SrsOnMetaDataPacket::decode(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if ((ret = srs_amf0_read_string(stream, name)) != ERROR_SUCCESS) {
+		srs_error("decode metadata name failed. ret=%d", ret);
+		return ret;
+	}
+
+	// ignore the @setDataFrame
+	if (name == RTMP_AMF0_DATA_SET_DATAFRAME) {
+		if ((ret = srs_amf0_read_string(stream, name)) != ERROR_SUCCESS) {
+			srs_error("decode metadata name failed. ret=%d", ret);
+			return ret;
+		}
+	}
+	
+	srs_verbose("decode metadata name success. name=%s", name.c_str());
+	
+	if ((ret = srs_amf0_read_object(stream, metadata)) != ERROR_SUCCESS) {
+		srs_error("decode metadata metadata failed. ret=%d", ret);
+		return ret;
+	}
+	
+	srs_info("decode metadata success");
+	
+	return ret;
+}
+
+int SrsOnMetaDataPacket::get_perfer_cid()
+{
+	return RTMP_CID_OverConnection2;
+}
+
+int SrsOnMetaDataPacket::get_message_type()
+{
+	return RTMP_MSG_AMF0DataMessage;
+}
+
+int SrsOnMetaDataPacket::get_size()
+{
+	return srs_amf0_get_string_size(name) + srs_amf0_get_object_size(metadata);
+}
+
+int SrsOnMetaDataPacket::encode_packet(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if ((ret = srs_amf0_write_string(stream, name)) != ERROR_SUCCESS) {
+		srs_error("encode name failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode name success.");
+	
+	if ((ret = srs_amf0_write_object(stream, metadata)) != ERROR_SUCCESS) {
+		srs_error("encode metadata failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode metadata success.");
+	
+	srs_info("encode onMetaData packet success.");
 	return ret;
 }
 

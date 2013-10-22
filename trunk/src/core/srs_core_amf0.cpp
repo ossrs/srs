@@ -367,8 +367,8 @@ int srs_amf0_read_utf8(SrsStream* stream, std::string& value)
 		char ch = *(str.data() + i);
 		if ((ch & 0x80) != 0) {
 			ret = ERROR_RTMP_AMF0_DECODE;
-			srs_error("only support utf8-1, 0x00-0x7F, actual is %#x. ret=%d", (int)ch, ret);
-			return ret;
+			srs_error("ignored. only support utf8-1, 0x00-0x7F, actual is %#x. ret=%d", (int)ch, ret);
+			ret = ERROR_SUCCESS;
 		}
 	}
 	

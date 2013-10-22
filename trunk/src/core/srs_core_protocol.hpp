@@ -180,7 +180,9 @@ struct SrsMessageHeader
 	virtual ~SrsMessageHeader();
 
 	bool is_amf0_command();
+	bool is_amf0_data();
 	bool is_amf3_command();
+	bool is_amf3_data();
 	bool is_window_ackledgement_size();
 	bool is_set_chunk_size();
 };
@@ -683,6 +685,37 @@ public:
 public:
 	SrsSampleAccessPacket();
 	virtual ~SrsSampleAccessPacket();
+public:
+	virtual int get_perfer_cid();
+public:
+	virtual int get_message_type();
+protected:
+	virtual int get_size();
+	virtual int encode_packet(SrsStream* stream);
+};
+
+/**
+* the stream metadata.
+* FMLE: @setDataFrame
+* others: onMetaData
+*/
+class SrsOnMetaDataPacket : public SrsPacket
+{
+private:
+	typedef SrsPacket super;
+protected:
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsOnMetaDataPacket);
+	}
+public:
+	std::string name;
+	SrsAmf0Object* metadata;
+public:
+	SrsOnMetaDataPacket();
+	virtual ~SrsOnMetaDataPacket();
+public:
+	virtual int decode(SrsStream* stream);
 public:
 	virtual int get_perfer_cid();
 public:
