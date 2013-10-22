@@ -35,6 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <st.h>
 
 class SrsProtocol;
+class SrsMessage;
 class SrsCreateStreamPacket;
 class SrsFMLEStartPacket;
 
@@ -64,6 +65,17 @@ struct SrsRequest
 };
 
 /**
+* the response to client.
+*/
+struct SrsResponse
+{
+	int stream_id;
+	
+	SrsResponse();
+	virtual ~SrsResponse();
+};
+
+/**
 * the rtmp client type.
 */
 enum SrsClientType
@@ -88,6 +100,7 @@ public:
 	virtual ~SrsRtmp();
 public:
 	virtual int handshake();
+	virtual int recv_message(SrsMessage** pmsg);
 	virtual int connect_app(SrsRequest* req);
 	virtual int set_window_ack_size(int ack_size);
 	/**
@@ -116,9 +129,24 @@ public:
 	* onStatus(NetStream.Data.Start).
 	*/
 	virtual int start_play(int stream_id);
+	/**
+	* when client type is publish, response with packets:
+	* releaseStream response
+	* FCPublish
+	* FCPublish response
+	* createStream response
+	* onFCPublish(NetStream.Publish.Start)
+	* onStatus(NetStream.Publish.Start)
+	*/
+	virtual int start_publish(int stream_id);
+	/**
+	* process the FMLE unpublish event.
+	* @unpublish_tid the unpublish request transaction id.
+	*/
+	virtual int fmle_unpublish(int stream_id, double unpublish_tid);
 private:
 	virtual int identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, std::string& stream_name);
-	virtual int identify_fmle_publish_client(SrsFMLEStartPacket* req, int stream_id, SrsClientType& type, std::string& stream_name);
+	virtual int identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsClientType& type, std::string& stream_name);
 };
 
 #endif

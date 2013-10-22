@@ -53,9 +53,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define StatusCodeStreamStart "NetStream.Play.Start"
 #define StatusCodePublishStart "NetStream.Publish.Start"
 #define StatusCodeDataStart "NetStream.Data.Start"
+#define StatusCodeUnpublishSuccess "NetStream.Unpublish.Success"
 
 // FMLE
 #define RTMP_AMF0_COMMAND_ON_FC_PUBLISH		"onFCPublish"
+#define RTMP_AMF0_COMMAND_ON_FC_UNPUBLISH	"onFCUnpublish"
+
+// default stream id for response the createStream request.
+#define SRS_DEFAULT_SID 1
 
 SrsRequest::SrsRequest()
 {
@@ -105,6 +110,15 @@ int SrsRequest::discovery_app()
 	}
 	
 	return ret;
+}
+
+SrsResponse::SrsResponse()
+{
+	stream_id = SRS_DEFAULT_SID;
+}
+
+SrsResponse::~SrsResponse()
+{
 }
 
 SrsRtmp::SrsRtmp(st_netfd_t client_stfd)
@@ -162,6 +176,11 @@ int SrsRtmp::handshake()
     srs_trace("handshake success.");
     
 	return ret;
+}
+
+int SrsRtmp::recv_message(SrsMessage** pmsg)
+{
+	return protocol->recv_message(pmsg);
 }
 
 int SrsRtmp::connect_app(SrsRequest* req)
@@ -329,7 +348,7 @@ int SrsRtmp::identify_client(int stream_id, SrsClientType& type, std::string& st
 		if (dynamic_cast<SrsFMLEStartPacket*>(pkt)) {
 			srs_info("identify client by releaseStream, fmle publish.");
 			return identify_fmle_publish_client(
-				dynamic_cast<SrsFMLEStartPacket*>(pkt), stream_id, type, stream_name);
+				dynamic_cast<SrsFMLEStartPacket*>(pkt), type, stream_name);
 		}
 		
 		srs_trace("ignore AMF0/AMF3 command message.");
@@ -452,78 +471,9 @@ int SrsRtmp::start_play(int stream_id)
 	return ret;
 }
 
-int SrsRtmp::identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, std::string& stream_name)
+int SrsRtmp::start_publish(int stream_id)
 {
 	int ret = ERROR_SUCCESS;
-	
-	if (true) {
-		SrsMessage* msg = new SrsMessage();
-		SrsCreateStreamResPacket* pkt = new SrsCreateStreamResPacket(req->transaction_id, stream_id);
-		
-		msg->set_packet(pkt, 0);
-		
-		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
-			srs_error("send createStream response message failed. ret=%d", ret);
-			return ret;
-		}
-		srs_info("send createStream response message success.");
-	}
-	
-	while (true) {
-		SrsMessage* msg = NULL;
-		if ((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS) {
-			srs_error("recv identify client message failed. ret=%d", ret);
-			return ret;
-		}
-
-		SrsAutoFree(SrsMessage, msg, false);
-
-		if (!msg->header.is_amf0_command() && !msg->header.is_amf3_command()) {
-			srs_trace("identify ignore messages except "
-				"AMF0/AMF3 command message. type=%#x", msg->header.message_type);
-			continue;
-		}
-		
-		if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
-			srs_error("identify decode message failed. ret=%d", ret);
-			return ret;
-		}
-		
-		SrsPacket* pkt = msg->get_packet();
-		if (dynamic_cast<SrsPlayPacket*>(pkt)) {
-			SrsPlayPacket* play = dynamic_cast<SrsPlayPacket*>(pkt);
-			type = SrsClientPlay;
-			stream_name = play->stream_name;
-			srs_trace("identity client type=play, stream_name=%s", stream_name.c_str());
-			return ret;
-		}
-		
-		srs_trace("ignore AMF0/AMF3 command message.");
-	}
-	
-	return ret;
-}
-
-int SrsRtmp::identify_fmle_publish_client(SrsFMLEStartPacket* req, int stream_id, SrsClientType& type, std::string& stream_name)
-{
-	int ret = ERROR_SUCCESS;
-	
-	type = SrsClientPublish;
-	stream_name = req->stream_name;
-	
-	// createStream response
-	if (true) {
-		SrsMessage* msg = new SrsMessage();
-		SrsFMLEStartResPacket* pkt = new SrsFMLEStartResPacket(req->transaction_id);
-		
-		msg->set_packet(pkt, 0);
-		
-		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
-			srs_error("send releaseStream response message failed. ret=%d", ret);
-			return ret;
-		}
-		srs_info("send releaseStream response message success.");
-	}
 	
 	// FCPublish
 	double fc_publish_tid = 0;
@@ -629,6 +579,84 @@ int SrsRtmp::identify_fmle_publish_client(SrsFMLEStartPacket* req, int stream_id
 		srs_info("send onStatus(NetStream.Publish.Start) message success.");
 	}
 	
+	return ret;
+}
+
+int SrsRtmp::fmle_unpublish(int stream_id, double unpublish_tid)
+{
+	int ret = ERROR_SUCCESS;
+	
+	// publish response onFCUnpublish(NetStream.unpublish.Success)
+	if (true) {
+		SrsMessage* msg = new SrsMessage();
+		SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
+		
+		pkt->command_name = RTMP_AMF0_COMMAND_ON_FC_UNPUBLISH;
+		pkt->data->set(StatusCode, new SrsAmf0String(StatusCodeUnpublishSuccess));
+		pkt->data->set(StatusDescription, new SrsAmf0String("Stop publishing stream."));
+		
+		msg->set_packet(pkt, stream_id);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			srs_error("send onFCUnpublish(NetStream.unpublish.Success) message failed. ret=%d", ret);
+			return ret;
+		}
+		srs_info("send onFCUnpublish(NetStream.unpublish.Success) message success.");
+	}
+	// FCUnpublish response
+	if (true) {
+		SrsMessage* msg = new SrsMessage();
+		SrsFMLEStartResPacket* pkt = new SrsFMLEStartResPacket(unpublish_tid);
+		
+		msg->set_packet(pkt, stream_id);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			srs_error("send FCUnpublish response message failed. ret=%d", ret);
+			return ret;
+		}
+		srs_info("send FCUnpublish response message success.");
+	}
+	// publish response onStatus(NetStream.Unpublish.Success)
+	if (true) {
+		SrsMessage* msg = new SrsMessage();
+		SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
+		
+		pkt->data->set(StatusLevel, new SrsAmf0String(StatusLevelStatus));
+		pkt->data->set(StatusCode, new SrsAmf0String(StatusCodeUnpublishSuccess));
+		pkt->data->set(StatusDescription, new SrsAmf0String("Stream is now unpublished"));
+		pkt->data->set(StatusClientId, new SrsAmf0String(RTMP_SIG_CLIENT_ID));
+		
+		msg->set_packet(pkt, stream_id);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			srs_error("send onStatus(NetStream.Unpublish.Success) message failed. ret=%d", ret);
+			return ret;
+		}
+		srs_info("send onStatus(NetStream.Unpublish.Success) message success.");
+	}
+	
+	srs_info("FMLE unpublish success.");
+	
+	return ret;
+}
+
+int SrsRtmp::identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, std::string& stream_name)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if (true) {
+		SrsMessage* msg = new SrsMessage();
+		SrsCreateStreamResPacket* pkt = new SrsCreateStreamResPacket(req->transaction_id, stream_id);
+		
+		msg->set_packet(pkt, 0);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			srs_error("send createStream response message failed. ret=%d", ret);
+			return ret;
+		}
+		srs_info("send createStream response message success.");
+	}
+	
 	while (true) {
 		SrsMessage* msg = NULL;
 		if ((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS) {
@@ -637,6 +665,52 @@ int SrsRtmp::identify_fmle_publish_client(SrsFMLEStartPacket* req, int stream_id
 		}
 
 		SrsAutoFree(SrsMessage, msg, false);
+
+		if (!msg->header.is_amf0_command() && !msg->header.is_amf3_command()) {
+			srs_trace("identify ignore messages except "
+				"AMF0/AMF3 command message. type=%#x", msg->header.message_type);
+			continue;
+		}
+		
+		if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
+			srs_error("identify decode message failed. ret=%d", ret);
+			return ret;
+		}
+		
+		SrsPacket* pkt = msg->get_packet();
+		if (dynamic_cast<SrsPlayPacket*>(pkt)) {
+			SrsPlayPacket* play = dynamic_cast<SrsPlayPacket*>(pkt);
+			type = SrsClientPlay;
+			stream_name = play->stream_name;
+			srs_trace("identity client type=play, stream_name=%s", stream_name.c_str());
+			return ret;
+		}
+		
+		srs_trace("ignore AMF0/AMF3 command message.");
+	}
+	
+	return ret;
+}
+
+int SrsRtmp::identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsClientType& type, std::string& stream_name)
+{
+	int ret = ERROR_SUCCESS;
+	
+	type = SrsClientPublish;
+	stream_name = req->stream_name;
+	
+	// releaseStream response
+	if (true) {
+		SrsMessage* msg = new SrsMessage();
+		SrsFMLEStartResPacket* pkt = new SrsFMLEStartResPacket(req->transaction_id);
+		
+		msg->set_packet(pkt, 0);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			srs_error("send releaseStream response message failed. ret=%d", ret);
+			return ret;
+		}
+		srs_info("send releaseStream response message success.");
 	}
 	
 	return ret;

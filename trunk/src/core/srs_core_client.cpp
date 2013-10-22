@@ -28,15 +28,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_error.hpp>
 #include <srs_core_log.hpp>
 #include <srs_core_rtmp.hpp>
-
-// default stream id for response the createStream request.
-#define SRS_DEFAULT_SID 1
+#include <srs_core_protocol.hpp>
+#include <srs_core_auto_free.hpp>
 
 SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
 	: SrsConnection(srs_server, client_stfd)
 {
 	ip = NULL;
 	req = new SrsRequest();
+	res = new SrsResponse();
 	rtmp = new SrsRtmp(client_stfd);
 }
 
@@ -44,6 +44,7 @@ SrsClient::~SrsClient()
 {
 	srs_freepa(ip);
 	srs_freep(req);
+	srs_freep(res);
 	srs_freep(rtmp);
 }
 
@@ -97,14 +98,13 @@ int SrsClient::do_cycle()
 	}
 	srs_verbose("on_bw_done success");
 	
-	int stream_id = SRS_DEFAULT_SID;
 	SrsClientType type;
-	if ((ret = rtmp->identify_client(stream_id, type, req->stream)) != ERROR_SUCCESS) {
+	if ((ret = rtmp->identify_client(res->stream_id, type, req->stream)) != ERROR_SUCCESS) {
 		srs_error("identify client failed. ret=%d", ret);
 		return ret;
 	}
 	srs_verbose("identify client success. type=%d, stream_name=%s", type, req->stream.c_str());
-		
+	
 	// TODO: read from config.
 	int chunk_size = 4096;
 	if ((ret = rtmp->set_chunk_size(chunk_size)) != ERROR_SUCCESS) {
@@ -117,12 +117,22 @@ int SrsClient::do_cycle()
 		case SrsClientPlay: {
 			srs_verbose("start to play stream %s.", req->stream.c_str());
 			
-			if ((ret = rtmp->start_play(stream_id)) != ERROR_SUCCESS) {
+			if ((ret = rtmp->start_play(res->stream_id)) != ERROR_SUCCESS) {
 				srs_error("start to play stream failed. ret=%d", ret);
 				return ret;
 			}
 			srs_info("start to play stream %s success", req->stream.c_str());
 			return streaming_play();
+		}
+		case SrsClientPublish: {
+			srs_verbose("start to publish stream %s.", req->stream.c_str());
+			
+			if ((ret = rtmp->start_publish(res->stream_id)) != ERROR_SUCCESS) {
+				srs_error("start to publish stream failed. ret=%d", ret);
+				return ret;
+			}
+			srs_info("start to publish stream %s success", req->stream.c_str());
+			return streaming_publish();
 		}
 		default: {
 			ret = ERROR_SYSTEM_CLIENT_INVALID;
@@ -137,6 +147,39 @@ int SrsClient::do_cycle()
 int SrsClient::streaming_play()
 {
 	int ret = ERROR_SUCCESS;
+	return ret;
+}
+
+int SrsClient::streaming_publish()
+{
+	int ret = ERROR_SUCCESS;
+	
+	while (true) {
+		SrsMessage* msg = NULL;
+		if ((ret = rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
+			srs_error("recv identify client message failed. ret=%d", ret);
+			return ret;
+		}
+
+		SrsAutoFree(SrsMessage, msg, false);
+		
+		// process UnPublish event.
+		if (msg->header.is_amf0_command() || msg->header.is_amf3_command()) {
+			if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
+				srs_error("decode unpublish message failed. ret=%d", ret);
+				return ret;
+			}
+		
+			SrsPacket* pkt = msg->get_packet();
+			if (dynamic_cast<SrsFMLEStartPacket*>(pkt)) {
+				SrsFMLEStartPacket* unpublish = dynamic_cast<SrsFMLEStartPacket*>(pkt);
+				return rtmp->fmle_unpublish(res->stream_id, unpublish->transaction_id);
+			}
+			
+			srs_trace("ignore AMF0/AMF3 command message.");
+		}
+	}
+	
 	return ret;
 }
 

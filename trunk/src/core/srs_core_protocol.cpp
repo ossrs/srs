@@ -199,6 +199,7 @@ messages.
 #define RTMP_AMF0_COMMAND_RESULT			"_result"
 #define RTMP_AMF0_COMMAND_RELEASE_STREAM	"releaseStream"
 #define RTMP_AMF0_COMMAND_FC_PUBLISH		"FCPublish"
+#define RTMP_AMF0_COMMAND_UNPUBLISH			"FCUnpublish"
 #define RTMP_AMF0_COMMAND_PUBLISH			"publish"
 #define RTMP_AMF0_DATA_SAMPLE_ACCESS		"|RtmpSampleAccess"
 
@@ -979,6 +980,10 @@ int SrsMessage::decode_packet()
 			srs_info("decode the AMF0/AMF3 command(publish message).");
 			packet = new SrsPublishPacket();
 			return packet->decode(stream);
+		} else if(command == RTMP_AMF0_COMMAND_UNPUBLISH) {
+			srs_info("decode the AMF0/AMF3 command(unpublish message).");
+			packet = new SrsFMLEStartPacket();
+			return packet->decode(stream);
 		}
 		
 		// default packet to drop message.
@@ -1383,7 +1388,8 @@ int SrsFMLEStartPacket::decode(SrsStream* stream)
 	}
 	if (command_name.empty() 
 		|| (command_name != RTMP_AMF0_COMMAND_RELEASE_STREAM 
-		&& command_name != RTMP_AMF0_COMMAND_FC_PUBLISH)
+		&& command_name != RTMP_AMF0_COMMAND_FC_PUBLISH
+		&& command_name != RTMP_AMF0_COMMAND_UNPUBLISH)
 	) {
 		ret = ERROR_RTMP_AMF0_DECODE;
 		srs_error("amf0 decode FMLE start command_name failed. "
