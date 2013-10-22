@@ -17,7 +17,7 @@ Features:<br/>
 6. no multiple processes, single process only.<br/>
 
 DevLog:<br/>
-* 2013-10-23, support FMLE/FFMPEG publish vp6 codec, h264/aac not support yet
+* 2013-10-23, support FMLE/FFMPEG publish vp6 codec, h264/aac not support yet. 8184 lines.
 * 2013-10-17, created.
 
 Winlin
