@@ -63,8 +63,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	(void)0
 
 // server info.
-#define RTMP_SIG_SRS_NAME "srs(simple rtmp server)"
+#define RTMP_SIG_SRS_KEY "srs"
+#define RTMP_SIG_SRS_NAME RTMP_SIG_SRS_KEY"(simple rtmp server)"
 #define RTMP_SIG_SRS_URL "https://github.com/winlinvip/simple-rtmp-server"
+#define RTMP_SIG_SRS_WEB "http://blog.csdn.net/win_lin"
+#define RTMP_SIG_SRS_EMAIL "winterserver@126.com"
 #define RTMP_SIG_SRS_VERSION "0.1"
 
 // compare
