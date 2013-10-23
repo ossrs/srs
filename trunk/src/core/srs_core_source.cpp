@@ -227,6 +227,8 @@ int SrsSource::on_audio(SrsCommonMessage* audio)
 	}
 	srs_info("dispatch audio success.");
 
+	// TODO: always update the sh.
+	// TODO: cache last gop.
 	if (!cache_sh_audio) {
 		srs_freep(cache_sh_audio);
 		cache_sh_audio = msg->copy();
@@ -262,6 +264,8 @@ int SrsSource::on_video(SrsCommonMessage* video)
 	}
 	srs_info("dispatch video success.");
 
+	// TODO: always update the sh.
+	// TODO: cache last gop.
 	if (!cache_sh_video) {
 		srs_freep(cache_sh_video);
 		cache_sh_video = msg->copy();
