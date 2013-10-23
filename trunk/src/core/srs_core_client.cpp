@@ -31,9 +31,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_protocol.hpp>
 #include <srs_core_auto_free.hpp>
 #include <srs_core_source.hpp>
+#include <srs_core_server.hpp>
 
-// wait for client message.
-#define SRS_PULSE_TIME_MS 100
+#define SRS_PULSE_TIMEOUT_MS 100
+#define SRS_SEND_TIMEOUT_MS 5000
 
 SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
 	: SrsConnection(srs_server, client_stfd)
@@ -61,6 +62,9 @@ int SrsClient::do_cycle()
 		return ret;
 	}
 	srs_verbose("get peer ip success. ip=%s", ip);
+
+	rtmp->set_recv_timeout(SRS_SEND_TIMEOUT_MS);
+	rtmp->set_send_timeout(SRS_SEND_TIMEOUT_MS);
 	
 	if ((ret = rtmp->handshake()) != ERROR_SUCCESS) {
 		srs_error("rtmp handshake failed. ret=%d", ret);
@@ -167,27 +171,33 @@ int SrsClient::streaming_play(SrsSource* source)
 	SrsAutoFree(SrsConsumer, consumer, false);
 	srs_verbose("consumer created success.");
 	
+	rtmp->set_recv_timeout(SRS_PULSE_TIMEOUT_MS);
+	
+	int64_t report_time = 0;
+	int64_t reported_time = 0;
+
 	while (true) {
+		report_time += SRS_PULSE_TIMEOUT_MS;
+		
 		// switch to other st-threads.
 		st_usleep(0);
-		
-		bool ready = false;
-		if ((ret = rtmp->can_read(SRS_PULSE_TIME_MS, ready)) != ERROR_SUCCESS) {
-			srs_error("wait client control message failed. ret=%d", ret);
-			return ret;
-		}
-		srs_verbose("client pulse %dms, ready=%d", SRS_PULSE_TIME_MS, ready);
 
 		// read from client.
-		if (ready) {
+		int ctl_msg_ret = ERROR_SUCCESS;
+		if (true) {
 			SrsCommonMessage* msg = NULL;
-			if ((ret = rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
+			ctl_msg_ret = ret = rtmp->recv_message(&msg);
+			
+			srs_verbose("play loop recv message. ret=%d", ret);
+			if (ret != ERROR_SUCCESS && ret != ERROR_SOCKET_TIMEOUT) {
 				srs_error("recv client control message failed. ret=%d", ret);
 				return ret;
 			}
-	
-			SrsAutoFree(SrsCommonMessage, msg, false);
-			// TODO: process it.
+			if (ret == ERROR_SUCCESS && !msg) {
+				srs_info("play loop got a message.");
+				SrsAutoFree(SrsCommonMessage, msg, false);
+				// TODO: process it.
+			}
 		}
 		
 		// get messages from consumer.
@@ -196,6 +206,11 @@ int SrsClient::streaming_play(SrsSource* source)
 		if ((ret = consumer->get_packets(0, msgs, count)) != ERROR_SUCCESS) {
 			srs_error("get messages from consumer failed. ret=%d", ret);
 			return ret;
+		}
+
+		// reportable
+		if (server->can_report(reported_time, report_time)) {
+			srs_trace("play report, time=%"PRId64", ctl_msg_ret=%d, msgs=%d", report_time, ctl_msg_ret, count);
 		}
 		
 		if (count <= 0) {

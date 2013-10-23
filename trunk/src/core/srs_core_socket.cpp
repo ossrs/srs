@@ -28,41 +28,37 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 SrsSocket::SrsSocket(st_netfd_t client_stfd)
 {
     stfd = client_stfd;
+	recv_timeout = ST_UTIME_NO_TIMEOUT;
+	send_timeout = ST_UTIME_NO_TIMEOUT;
 }
 
 SrsSocket::~SrsSocket()
 {
 }
 
-int SrsSocket::can_read(int timeout_ms, bool& ready)
+void SrsSocket::set_recv_timeout(int timeout_ms)
 {
-    ready = false;
-    int ret = ERROR_SUCCESS;
-    
-    // If the named file descriptor object is ready for I/O within the specified amount of time, 
-    // a value of 0 is returned. Otherwise, a value of -1 is returned and errno is set to 
-    // indicate the error
-    if(st_netfd_poll(stfd, POLLIN, timeout_ms * 1000) == -1){
-        if(errno == ETIME){
-            return ret;
-        }
-        
-        return ERROR_SOCKET_WAIT;
-    }
-    
-    ready = true;
-    return ret;
+	recv_timeout = timeout_ms * 1000;
+}
+
+void SrsSocket::set_send_timeout(int timeout_ms)
+{
+	send_timeout = timeout_ms * 1000;
 }
 
 int SrsSocket::read(const void* buf, size_t size, ssize_t* nread)
 {
     int ret = ERROR_SUCCESS;
     
-    *nread = st_read(stfd, (void*)buf, size, ST_UTIME_NO_TIMEOUT);
+    *nread = st_read(stfd, (void*)buf, size, recv_timeout);
     
     // On success a non-negative integer indicating the number of bytes actually read is returned 
     // (a value of 0 means the network connection is closed or end of file is reached).
     if (*nread <= 0) {
+		if (errno == ETIME) {
+			return ERROR_SOCKET_TIMEOUT;
+		}
+		
         if (*nread == 0) {
             errno = ECONNRESET;
         }
@@ -77,11 +73,15 @@ int SrsSocket::read_fully(const void* buf, size_t size, ssize_t* nread)
 {
     int ret = ERROR_SUCCESS;
     
-    *nread = st_read_fully(stfd, (void*)buf, size, ST_UTIME_NO_TIMEOUT);
+    *nread = st_read_fully(stfd, (void*)buf, size, recv_timeout);
     
     // On success a non-negative integer indicating the number of bytes actually read is returned 
     // (a value less than nbyte means the network connection is closed or end of file is reached)
     if (*nread != (ssize_t)size) {
+		if (errno == ETIME) {
+			return ERROR_SOCKET_TIMEOUT;
+		}
+		
         if (*nread >= 0) {
             errno = ECONNRESET;
         }
@@ -96,9 +96,13 @@ int SrsSocket::write(const void* buf, size_t size, ssize_t* nwrite)
 {
     int ret = ERROR_SUCCESS;
     
-    *nwrite = st_write(stfd, (void*)buf, size, ST_UTIME_NO_TIMEOUT);
+    *nwrite = st_write(stfd, (void*)buf, size, send_timeout);
     
     if (*nwrite <= 0) {
+		if (errno == ETIME) {
+			return ERROR_SOCKET_TIMEOUT;
+		}
+		
         ret = ERROR_SOCKET_WRITE;
     }
         
@@ -109,9 +113,13 @@ int SrsSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
 {
     int ret = ERROR_SUCCESS;
     
-    *nwrite = st_writev(stfd, iov, iov_size, ST_UTIME_NO_TIMEOUT);
+    *nwrite = st_writev(stfd, iov, iov_size, send_timeout);
     
     if (*nwrite <= 0) {
+		if (errno == ETIME) {
+			return ERROR_SOCKET_TIMEOUT;
+		}
+		
         ret = ERROR_SOCKET_WRITE;
     }
     

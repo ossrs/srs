@@ -38,6 +38,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef __STDC_FORMAT_MACROS
     #define __STDC_FORMAT_MACROS
 #endif
+#include <inttypes.h>
 
 #include <assert.h>
 #define srs_assert(expression) assert(expression)

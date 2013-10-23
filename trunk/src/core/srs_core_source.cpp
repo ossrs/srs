@@ -23,6 +23,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core_source.hpp>
 
+#include <algorithm>
+
 #include <srs_core_log.hpp>
 #include <srs_core_protocol.hpp>
 #include <srs_core_auto_free.hpp>
@@ -40,8 +42,9 @@ SrsSource* SrsSource::find(std::string stream_url)
 	return pool[stream_url];
 }
 
-SrsConsumer::SrsConsumer()
+SrsConsumer::SrsConsumer(SrsSource* _source)
 {
+	source = _source;
 }
 
 SrsConsumer::~SrsConsumer()
@@ -52,6 +55,8 @@ SrsConsumer::~SrsConsumer()
 		srs_freep(msg);
 	}
 	msgs.clear();
+	
+	source->on_consumer_destroy(this);
 }
 
 int SrsConsumer::enqueue(SrsSharedPtrMessage* msg)
@@ -235,7 +240,7 @@ int SrsSource::on_video(SrsCommonMessage* video)
 {
 	int ret = ERROR_SUCCESS;
 	
-	consumer = new SrsConsumer();
+	consumer = new SrsConsumer(this);
 	consumers.push_back(consumer);
 
 	if (cache_metadata && (ret = consumer->enqueue(cache_metadata->copy())) != ERROR_SUCCESS) {
@@ -257,5 +262,15 @@ int SrsSource::on_video(SrsCommonMessage* video)
 	srs_info("dispatch audio sequence header success");
 	
 	return ret;
+}
+
+void SrsSource::on_consumer_destroy(SrsConsumer* consumer)
+{
+	std::vector<SrsConsumer*>::iterator it;
+	it = std::find(consumers.begin(), consumers.end(), consumer);
+	if (it != consumers.end()) {
+		consumers.erase(it);
+	}
+	srs_info("handle consumer destroy success.");
 }
 

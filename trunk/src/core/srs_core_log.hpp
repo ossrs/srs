@@ -78,7 +78,7 @@ extern ILogContext* log_context;
 	#undef srs_verbose
 	#define srs_verbose(msg, ...) (void)0
 #endif
-#if 1
+#if 0
 	#undef srs_info
 	#define srs_info(msg, ...) (void)0
 #endif

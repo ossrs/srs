@@ -37,8 +37,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define SERVER_LISTEN_BACKLOG 10
 
+// global value, ensure the report interval,
+// it will be changed when clients increase.
+#define SRS_CONST_REPORT_INTERVAL_MS 3000
+
 SrsServer::SrsServer()
 {
+	srs_report_interval_ms = SRS_CONST_REPORT_INTERVAL_MS;
 }
 
 SrsServer::~SrsServer()
@@ -155,6 +160,20 @@ void SrsServer::remove(SrsConnection* conn)
 	srs_freep(conn);
 }
 
+bool SrsServer::can_report(int64_t& reported, int64_t time)
+{
+	if (srs_report_interval_ms <= 0) {
+		return false;
+	}
+	
+	if (time - reported < srs_report_interval_ms) {
+		return false;
+	}
+	
+	reported = time;
+	return true;
+}
+
 int SrsServer::accept_client(st_netfd_t client_stfd)
 {
 	int ret = ERROR_SUCCESS;
@@ -164,6 +183,9 @@ int SrsServer::accept_client(st_netfd_t client_stfd)
 	// directly enqueue, the cycle thread will remove the client.
 	conns.push_back(conn);
 	srs_verbose("add conn to vector. conns=%d", (int)conns.size());
+
+	// ensure the report interval is consts
+	srs_report_interval_ms = SRS_CONST_REPORT_INTERVAL_MS * (int)conns.size();
 	
 	// cycle will start process thread and when finished remove the client.
 	if ((ret = conn->start()) != ERROR_SUCCESS) {

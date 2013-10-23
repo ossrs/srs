@@ -34,6 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 #include <string>
 
+class SrsSource;
 class SrsCommonMessage;
 class SrsOnMetaDataPacket;
 class SrsSharedPtrMessage;
@@ -44,9 +45,10 @@ class SrsSharedPtrMessage;
 class SrsConsumer
 {
 private:
+	SrsSource* source;
 	std::vector<SrsSharedPtrMessage*> msgs;
 public:
-	SrsConsumer();
+	SrsConsumer(SrsSource* _source);
 	virtual ~SrsConsumer();
 public:
 	/**
@@ -95,6 +97,7 @@ public:
 	virtual int on_video(SrsCommonMessage* video);
 public:
 	virtual int create_consumer(SrsConsumer*& consumer);
+	virtual void on_consumer_destroy(SrsConsumer* consumer);
 };
 
 #endif

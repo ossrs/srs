@@ -146,14 +146,19 @@ SrsRtmp::~SrsRtmp()
 	srs_freep(protocol);
 }
 
+void SrsRtmp::set_recv_timeout(int timeout_ms)
+{
+	return protocol->set_recv_timeout(timeout_ms);
+}
+
+void SrsRtmp::set_send_timeout(int timeout_ms)
+{
+	return protocol->set_send_timeout(timeout_ms);
+}
+
 int SrsRtmp::recv_message(SrsCommonMessage** pmsg)
 {
 	return protocol->recv_message(pmsg);
-}
-
-int SrsRtmp::can_read(int timeout_ms, bool& ready)
-{
-	return protocol->can_read(timeout_ms, ready);
 }
 
 int SrsRtmp::send_message(ISrsMessage* msg)

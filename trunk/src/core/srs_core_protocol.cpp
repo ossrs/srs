@@ -274,9 +274,14 @@ SrsProtocol::~SrsProtocol()
 	srs_freep(skt);
 }
 
-int SrsProtocol::can_read(int timeout_ms, bool& ready)
+void SrsProtocol::set_recv_timeout(int timeout_ms)
 {
-	return skt->can_read(timeout_ms, ready);
+	return skt->set_recv_timeout(timeout_ms);
+}
+
+void SrsProtocol::set_send_timeout(int timeout_ms)
+{
+	return skt->set_send_timeout(timeout_ms);
 }
 
 int SrsProtocol::recv_message(SrsCommonMessage** pmsg)
@@ -289,7 +294,9 @@ int SrsProtocol::recv_message(SrsCommonMessage** pmsg)
 		SrsCommonMessage* msg = NULL;
 		
 		if ((ret = recv_interlaced_message(&msg)) != ERROR_SUCCESS) {
-			srs_error("recv interlaced message failed. ret=%d", ret);
+			if (ret != ERROR_SOCKET_TIMEOUT) {
+				srs_error("recv interlaced message failed. ret=%d", ret);
+			}
 			return ret;
 		}
 		srs_verbose("entire msg received");
@@ -518,7 +525,9 @@ int SrsProtocol::recv_interlaced_message(SrsCommonMessage** pmsg)
 	int cid = 0;
 	int bh_size = 0;
 	if ((ret = read_basic_header(fmt, cid, bh_size)) != ERROR_SUCCESS) {
-		srs_error("read basic header failed. ret=%d", ret);
+		if (ret != ERROR_SOCKET_TIMEOUT) {
+			srs_error("read basic header failed. ret=%d", ret);
+		}
 		return ret;
 	}
 	srs_info("read basic header success. fmt=%d, cid=%d, bh_size=%d", fmt, cid, bh_size);
@@ -539,7 +548,9 @@ int SrsProtocol::recv_interlaced_message(SrsCommonMessage** pmsg)
 	// chunk stream message header
 	int mh_size = 0;
 	if ((ret = read_message_header(chunk, fmt, bh_size, mh_size)) != ERROR_SUCCESS) {
-		srs_error("read message header failed. ret=%d", ret);
+		if (ret != ERROR_SOCKET_TIMEOUT) {
+			srs_error("read message header failed. ret=%d", ret);
+		}
 		return ret;
 	}
 	srs_info("read message header success. "
@@ -551,7 +562,9 @@ int SrsProtocol::recv_interlaced_message(SrsCommonMessage** pmsg)
 	SrsCommonMessage* msg = NULL;
 	int payload_size = 0;
 	if ((ret = read_message_payload(chunk, bh_size, mh_size, payload_size, &msg)) != ERROR_SUCCESS) {
-		srs_error("read message payload failed. ret=%d", ret);
+		if (ret != ERROR_SOCKET_TIMEOUT) {
+			srs_error("read message payload failed. ret=%d", ret);
+		}
 		return ret;
 	}
 	
@@ -577,7 +590,9 @@ int SrsProtocol::read_basic_header(char& fmt, int& cid, int& bh_size)
 	
 	int required_size = 1;
 	if ((ret = buffer->ensure_buffer_bytes(skt, required_size)) != ERROR_SUCCESS) {
-		srs_error("read 1bytes basic header failed. required_size=%d, ret=%d", required_size, ret);
+		if (ret != ERROR_SOCKET_TIMEOUT) {
+			srs_error("read 1bytes basic header failed. required_size=%d, ret=%d", required_size, ret);
+		}
 		return ret;
 	}
 	
@@ -595,7 +610,9 @@ int SrsProtocol::read_basic_header(char& fmt, int& cid, int& bh_size)
 	if (cid == 0) {
 		required_size = 2;
 		if ((ret = buffer->ensure_buffer_bytes(skt, required_size)) != ERROR_SUCCESS) {
-			srs_error("read 2bytes basic header failed. required_size=%d, ret=%d", required_size, ret);
+			if (ret != ERROR_SOCKET_TIMEOUT) {
+				srs_error("read 2bytes basic header failed. required_size=%d, ret=%d", required_size, ret);
+			}
 			return ret;
 		}
 		
@@ -606,7 +623,9 @@ int SrsProtocol::read_basic_header(char& fmt, int& cid, int& bh_size)
 	} else if (cid == 1) {
 		required_size = 3;
 		if ((ret = buffer->ensure_buffer_bytes(skt, 3)) != ERROR_SUCCESS) {
-			srs_error("read 3bytes basic header failed. required_size=%d, ret=%d", required_size, ret);
+			if (ret != ERROR_SOCKET_TIMEOUT) {
+				srs_error("read 3bytes basic header failed. required_size=%d, ret=%d", required_size, ret);
+			}
 			return ret;
 		}
 		
@@ -682,7 +701,9 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
 	
 	int required_size = bh_size + mh_size;
 	if ((ret = buffer->ensure_buffer_bytes(skt, required_size)) != ERROR_SUCCESS) {
-		srs_error("read %dbytes message header failed. required_size=%d, ret=%d", mh_size, required_size, ret);
+		if (ret != ERROR_SOCKET_TIMEOUT) {
+			srs_error("read %dbytes message header failed. required_size=%d, ret=%d", mh_size, required_size, ret);
+		}
 		return ret;
 	}
 	char* p = buffer->bytes() + bh_size;
@@ -768,7 +789,9 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
 		required_size = bh_size + mh_size;
 		srs_verbose("read header ext time. fmt=%d, ext_time=%d, mh_size=%d", fmt, chunk->extended_timestamp, mh_size);
 		if ((ret = buffer->ensure_buffer_bytes(skt, required_size)) != ERROR_SUCCESS) {
-			srs_error("read %dbytes message header failed. required_size=%d, ret=%d", mh_size, required_size, ret);
+			if (ret != ERROR_SOCKET_TIMEOUT) {
+				srs_error("read %dbytes message header failed. required_size=%d, ret=%d", mh_size, required_size, ret);
+			}
 			return ret;
 		}
 
@@ -833,7 +856,9 @@ int SrsProtocol::read_message_payload(SrsChunkStream* chunk, int bh_size, int mh
 	// read payload to buffer
 	int required_size = bh_size + mh_size + payload_size;
 	if ((ret = buffer->ensure_buffer_bytes(skt, required_size)) != ERROR_SUCCESS) {
-		srs_error("read payload failed. required_size=%d, ret=%d", required_size, ret);
+		if (ret != ERROR_SOCKET_TIMEOUT) {
+			srs_error("read payload failed. required_size=%d, ret=%d", required_size, ret);
+		}
 		return ret;
 	}
 	memcpy(chunk->msg->payload + chunk->msg->size, buffer->bytes() + bh_size + mh_size, payload_size);
