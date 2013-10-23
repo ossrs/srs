@@ -249,6 +249,10 @@ messages.
 /****************************************************************************
 *****************************************************************************
 ****************************************************************************/
+SrsProtocol::AckWindowSize::AckWindowSize()
+{
+	ack_window_size = acked_size = 0;
+}
 
 SrsProtocol::SrsProtocol(st_netfd_t client_stfd)
 {
@@ -450,6 +454,21 @@ int SrsProtocol::on_recv_message(SrsCommonMessage* msg)
 	int ret = ERROR_SUCCESS;
 	
 	srs_assert(msg != NULL);
+		
+	// acknowledgement
+	if (skt->get_recv_bytes() - in_ack_size.acked_size > in_ack_size.ack_window_size) {
+		SrsCommonMessage* ack = new SrsCommonMessage();
+		SrsAcknowledgementPacket* pkt = new SrsAcknowledgementPacket();
+		
+		in_ack_size.acked_size = pkt->sequence_number = skt->get_recv_bytes();
+		ack->set_packet(pkt, 0);
+		
+		if ((ret = send_message(ack)) != ERROR_SUCCESS) {
+			srs_error("send acknowledgement failed. ret=%d", ret);
+			return ret;
+		}
+		srs_verbose("send acknowledgement success.");
+	}
 	
 	switch (msg->header.message_type) {
 		case RTMP_MSG_SetChunkSize:
@@ -466,8 +485,13 @@ int SrsProtocol::on_recv_message(SrsCommonMessage* msg)
 		case RTMP_MSG_WindowAcknowledgementSize: {
 			SrsSetWindowAckSizePacket* pkt = dynamic_cast<SrsSetWindowAckSizePacket*>(msg->get_packet());
 			srs_assert(pkt != NULL);
-			// TODO: take effect.
-			srs_trace("set ack window size to %d", pkt->ackowledgement_window_size);
+			
+			if (pkt->ackowledgement_window_size > 0) {
+				in_ack_size.ack_window_size = pkt->ackowledgement_window_size;
+				srs_trace("set ack window size to %d", pkt->ackowledgement_window_size);
+			} else {
+				srs_warn("ignored. set ack window size is %d", pkt->ackowledgement_window_size);
+			}
 			break;
 		}
 		case RTMP_MSG_SetChunkSize: {
@@ -2218,6 +2242,48 @@ int SrsSetWindowAckSizePacket::encode_packet(SrsStream* stream)
 	
 	srs_verbose("encode ack size packet "
 		"success. ack_size=%d", ackowledgement_window_size);
+	
+	return ret;
+}
+
+SrsAcknowledgementPacket::SrsAcknowledgementPacket()
+{
+	sequence_number = 0;
+}
+
+SrsAcknowledgementPacket::~SrsAcknowledgementPacket()
+{
+}
+
+int SrsAcknowledgementPacket::get_perfer_cid()
+{
+	return RTMP_CID_ProtocolControl;
+}
+
+int SrsAcknowledgementPacket::get_message_type()
+{
+	return RTMP_MSG_Acknowledgement;
+}
+
+int SrsAcknowledgementPacket::get_size()
+{
+	return 4;
+}
+
+int SrsAcknowledgementPacket::encode_packet(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if (!stream->require(4)) {
+		ret = ERROR_RTMP_MESSAGE_ENCODE;
+		srs_error("encode acknowledgement packet failed. ret=%d", ret);
+		return ret;
+	}
+	
+	stream->write_4bytes(sequence_number);
+	
+	srs_verbose("encode acknowledgement packet "
+		"success. sequence_number=%d", sequence_number);
 	
 	return ret;
 }

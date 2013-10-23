@@ -75,6 +75,14 @@ class ISrsMessage;
 */
 class SrsProtocol
 {
+private:
+	struct AckWindowSize
+	{
+		int ack_window_size;
+		int64_t acked_size;
+		
+		AckWindowSize();
+	};
 // peer in/out
 private:
 	st_netfd_t stfd;
@@ -85,6 +93,7 @@ private:
 	std::map<int, SrsChunkStream*> chunk_streams;
 	SrsBuffer* buffer;
 	int32_t in_chunk_size;
+	AckWindowSize in_ack_size;
 // peer out
 private:
 	char out_header_fmt0[RTMP_MAX_FMT0_HEADER_SIZE];
@@ -840,6 +849,34 @@ public:
 	virtual ~SrsSetWindowAckSizePacket();
 public:
 	virtual int decode(SrsStream* stream);
+public:
+	virtual int get_perfer_cid();
+public:
+	virtual int get_message_type();
+protected:
+	virtual int get_size();
+	virtual int encode_packet(SrsStream* stream);
+};
+
+/**
+* 5.3. Acknowledgement (3)
+* The client or the server sends the acknowledgment to the peer after
+* receiving bytes equal to the window size.
+*/
+class SrsAcknowledgementPacket : public SrsPacket
+{
+private:
+	typedef SrsPacket super;
+protected:
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsAcknowledgementPacket);
+	}
+public:
+	int32_t sequence_number;
+public:
+	SrsAcknowledgementPacket();
+	virtual ~SrsAcknowledgementPacket();
 public:
 	virtual int get_perfer_cid();
 public:

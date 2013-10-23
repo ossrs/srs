@@ -28,8 +28,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 SrsSocket::SrsSocket(st_netfd_t client_stfd)
 {
     stfd = client_stfd;
-	recv_timeout = ST_UTIME_NO_TIMEOUT;
-	send_timeout = ST_UTIME_NO_TIMEOUT;
+	send_timeout = recv_timeout = ST_UTIME_NO_TIMEOUT;
+	recv_bytes = send_bytes = 0;
 }
 
 SrsSocket::~SrsSocket()
@@ -44,6 +44,16 @@ void SrsSocket::set_recv_timeout(int timeout_ms)
 void SrsSocket::set_send_timeout(int timeout_ms)
 {
 	send_timeout = timeout_ms * 1000;
+}
+
+int64_t SrsSocket::get_recv_bytes()
+{
+	return recv_bytes;
+}
+
+int64_t SrsSocket::get_send_bytes()
+{
+	return send_bytes;
 }
 
 int SrsSocket::read(const void* buf, size_t size, ssize_t* nread)
@@ -63,8 +73,10 @@ int SrsSocket::read(const void* buf, size_t size, ssize_t* nread)
             errno = ECONNRESET;
         }
         
-        ret = ERROR_SOCKET_READ;
+        return ERROR_SOCKET_READ;
     }
+    
+    recv_bytes += *nread;
         
     return ret;
 }
@@ -86,8 +98,10 @@ int SrsSocket::read_fully(const void* buf, size_t size, ssize_t* nread)
             errno = ECONNRESET;
         }
         
-        ret = ERROR_SOCKET_READ_FULLY;
+        return ERROR_SOCKET_READ_FULLY;
     }
+    
+    recv_bytes += *nread;
     
     return ret;
 }
@@ -103,8 +117,10 @@ int SrsSocket::write(const void* buf, size_t size, ssize_t* nwrite)
 			return ERROR_SOCKET_TIMEOUT;
 		}
 		
-        ret = ERROR_SOCKET_WRITE;
+        return ERROR_SOCKET_WRITE;
     }
+    
+    send_bytes += *nwrite;
         
     return ret;
 }
@@ -120,8 +136,10 @@ int SrsSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
 			return ERROR_SOCKET_TIMEOUT;
 		}
 		
-        ret = ERROR_SOCKET_WRITE;
+        return ERROR_SOCKET_WRITE;
     }
+    
+    send_bytes += *nwrite;
     
     return ret;
 }
