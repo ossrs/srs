@@ -72,5 +72,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // compare
 #define srs_min(a, b) ((a < b)? a : b)
+#define srs_max(a, b) ((a < b)? b : a)
 
 #endif

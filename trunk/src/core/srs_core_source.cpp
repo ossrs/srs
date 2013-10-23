@@ -30,6 +30,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_auto_free.hpp>
 #include <srs_core_amf0.hpp>
 
+#define CONST_MAX_JITTER_MS 500
+#define DEFAULT_FRAME_TIME_MS 10
+
 std::map<std::string, SrsSource*> SrsSource::pool;
 
 SrsSource* SrsSource::find(std::string stream_url)
@@ -45,6 +48,7 @@ SrsSource* SrsSource::find(std::string stream_url)
 SrsConsumer::SrsConsumer(SrsSource* _source)
 {
 	source = _source;
+	last_pkt_correct_time = last_pkt_time = 0;
 }
 
 SrsConsumer::~SrsConsumer()
@@ -62,7 +66,34 @@ SrsConsumer::~SrsConsumer()
 int SrsConsumer::enqueue(SrsSharedPtrMessage* msg)
 {
 	int ret = ERROR_SUCCESS;
+	
+	/**
+	* we use a very simple time jitter detect/correct algorithm,
+	* if the delta of time is nagative or greater than CONST_MAX_JITTER_MS,
+	* we enforce the delta to DEFAULT_FRAME_TIME_MS,
+	* and update the last_pkt_time which used to detect next jitter.
+	* the last_pkt_correct_time is enforce the time monotonically.
+	*/
+	int32_t time = msg->header.timestamp;
+	int32_t delta = time - last_pkt_time;
+
+	// if jitter detected, reset the delta.
+	if (delta < 0 || delta > CONST_MAX_JITTER_MS) {
+		delta = DEFAULT_FRAME_TIME_MS;
+		
+		srs_info("jitter detected, delta=%d, last_pkt=%d, time=%d, correct_to=%d",
+			delta, last_pkt_time, time, last_pkt_correct_time + delta);
+	} else {
+		srs_verbose("timestamp no jitter. time=%d, last_pkt=%d, correct_to=%d", 
+			time, last_pkt_time, last_pkt_correct_time + delta);
+	}
+	
+	last_pkt_correct_time = srs_max(0, last_pkt_correct_time + delta);
+	msg->header.timestamp = last_pkt_correct_time;
+	last_pkt_time = time;
+	
 	msgs.push_back(msg);
+	
 	return ret;
 }
 

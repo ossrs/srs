@@ -45,6 +45,8 @@ class SrsSharedPtrMessage;
 class SrsConsumer
 {
 private:
+	int32_t last_pkt_time;
+	int32_t last_pkt_correct_time;
 	SrsSource* source;
 	std::vector<SrsSharedPtrMessage*> msgs;
 public:
