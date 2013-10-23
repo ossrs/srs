@@ -412,7 +412,7 @@ int SrsRtmp::start_play(int stream_id)
 	// StreamBegin
 	if (true) {
 		SrsCommonMessage* msg = new SrsCommonMessage();
-		SrsPCUC4BytesPacket* pkt = new SrsPCUC4BytesPacket();
+		SrsUserControlPacket* pkt = new SrsUserControlPacket();
 		
 		pkt->event_type = SrcPCUCStreamBegin;
 		pkt->event_data = stream_id;

@@ -129,6 +129,8 @@ private:
 	* when recv message, update the context.
 	*/
 	virtual int on_recv_message(SrsCommonMessage* msg);
+	virtual int response_acknowledgement_message();
+	virtual int response_ping_message(int32_t timestamp);
 	/**
 	* when message sentout, update the context.
 	*/
@@ -205,6 +207,7 @@ struct SrsMessageHeader
 	bool is_amf3_data();
 	bool is_window_ackledgement_size();
 	bool is_set_chunk_size();
+	bool is_user_control_message();
 };
 
 /**
@@ -965,6 +968,7 @@ enum SrcPCUCEventType
 * Stream Begin(=0)			4-bytes stream ID
 * Stream EOF(=1)			4-bytes stream ID
 * StreamDry(=2)				4-bytes stream ID
+* SetBufferLength(=3)		8-bytes 4bytes stream ID, 4bytes buffer length.
 * StreamIsRecorded(=4)		4-bytes stream ID
 * PingRequest(=6)			4-bytes timestamp local server time
 * PingResponse(=7)			4-bytes timestamp received ping request.
@@ -975,21 +979,27 @@ enum SrcPCUCEventType
 * +------------------------------+-------------------------
 * Figure 5 Pay load for the ‘User Control Message’.
 */
-class SrsPCUC4BytesPacket : public SrsPacket
+class SrsUserControlPacket : public SrsPacket
 {
 private:
 	typedef SrsPacket super;
 protected:
 	virtual const char* get_class_name()
 	{
-		return CLASS_NAME_STRING(SrsPCUC4BytesPacket);
+		return CLASS_NAME_STRING(SrsUserControlPacket);
 	}
 public:
 	int16_t event_type;
 	int32_t event_data;
+	/**
+	* 4bytes if event_type is SetBufferLength; otherwise 0.
+	*/
+	int32_t extra_data;
 public:
-	SrsPCUC4BytesPacket();
-	virtual ~SrsPCUC4BytesPacket();
+	SrsUserControlPacket();
+	virtual ~SrsUserControlPacket();
+public:
+	virtual int decode(SrsStream* stream);
 public:
 	virtual int get_perfer_cid();
 public:

@@ -449,6 +449,47 @@ int SrsProtocol::send_message(ISrsMessage* msg)
 	return ret;
 }
 
+int SrsProtocol::response_acknowledgement_message()
+{
+	int ret = ERROR_SUCCESS;
+	
+	SrsCommonMessage* msg = new SrsCommonMessage();
+	SrsAcknowledgementPacket* pkt = new SrsAcknowledgementPacket();
+	
+	in_ack_size.acked_size = pkt->sequence_number = skt->get_recv_bytes();
+	msg->set_packet(pkt, 0);
+	
+	if ((ret = send_message(msg)) != ERROR_SUCCESS) {
+		srs_error("send acknowledgement failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("send acknowledgement success.");
+	
+	return ret;
+}
+
+int SrsProtocol::response_ping_message(int32_t timestamp)
+{
+	int ret = ERROR_SUCCESS;
+	
+	srs_trace("get a ping request, response it. timestamp=%d", timestamp);
+	
+	SrsCommonMessage* msg = new SrsCommonMessage();
+	SrsUserControlPacket* pkt = new SrsUserControlPacket();
+	
+	pkt->event_type = SrcPCUCPingResponse;
+	pkt->event_data = timestamp;
+	msg->set_packet(pkt, 0);
+	
+	if ((ret = send_message(msg)) != ERROR_SUCCESS) {
+		srs_error("send ping response failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("send ping response success.");
+	
+	return ret;
+}
+
 int SrsProtocol::on_recv_message(SrsCommonMessage* msg)
 {
 	int ret = ERROR_SUCCESS;
@@ -457,21 +498,14 @@ int SrsProtocol::on_recv_message(SrsCommonMessage* msg)
 		
 	// acknowledgement
 	if (skt->get_recv_bytes() - in_ack_size.acked_size > in_ack_size.ack_window_size) {
-		SrsCommonMessage* ack = new SrsCommonMessage();
-		SrsAcknowledgementPacket* pkt = new SrsAcknowledgementPacket();
-		
-		in_ack_size.acked_size = pkt->sequence_number = skt->get_recv_bytes();
-		ack->set_packet(pkt, 0);
-		
-		if ((ret = send_message(ack)) != ERROR_SUCCESS) {
-			srs_error("send acknowledgement failed. ret=%d", ret);
+		if ((ret = response_acknowledgement_message()) != ERROR_SUCCESS) {
 			return ret;
 		}
-		srs_verbose("send acknowledgement success.");
 	}
 	
 	switch (msg->header.message_type) {
 		case RTMP_MSG_SetChunkSize:
+		case RTMP_MSG_UserControlMessage:
 		case RTMP_MSG_WindowAcknowledgementSize:
 			if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
 				srs_error("decode packet from message payload failed. ret=%d", ret);
@@ -501,6 +535,20 @@ int SrsProtocol::on_recv_message(SrsCommonMessage* msg)
 			in_chunk_size = pkt->chunk_size;
 			
 			srs_trace("set input chunk size to %d", pkt->chunk_size);
+			break;
+		}
+		case RTMP_MSG_UserControlMessage: {
+			SrsUserControlPacket* pkt = dynamic_cast<SrsUserControlPacket*>(msg->get_packet());
+			srs_assert(pkt != NULL);
+			
+			if (pkt->event_type == SrcPCUCSetBufferLength) {
+				srs_trace("ignored. set buffer length to %d", pkt->extra_data);
+			}
+			if (pkt->event_type == SrcPCUCPingRequest) {
+				if ((ret = response_ping_message(pkt->event_data)) != ERROR_SUCCESS) {
+					return ret;
+				}
+			}
 			break;
 		}
 	}
@@ -963,6 +1011,11 @@ bool SrsMessageHeader::is_set_chunk_size()
 	return message_type == RTMP_MSG_SetChunkSize;
 }
 
+bool SrsMessageHeader::is_user_control_message()
+{
+	return message_type == RTMP_MSG_UserControlMessage;
+}
+
 SrsChunkStream::SrsChunkStream(int _cid)
 {
 	fmt = 0;
@@ -1098,6 +1151,10 @@ int SrsCommonMessage::decode_packet()
 		srs_trace("drop the AMF0/AMF3 command message, command_name=%s", command.c_str());
 		packet = new SrsPacket();
 		return ret;
+	} else if(header.is_user_control_message()) {
+		srs_verbose("start to decode user control message.");
+		packet = new SrsUserControlPacket();
+		return packet->decode(stream);
 	} else if(header.is_window_ackledgement_size()) {
 		srs_verbose("start to decode set ack window size message.");
 		packet = new SrsSetWindowAckSizePacket();
@@ -2396,45 +2453,86 @@ int SrsSetPeerBandwidthPacket::encode_packet(SrsStream* stream)
 	return ret;
 }
 
-SrsPCUC4BytesPacket::SrsPCUC4BytesPacket()
+SrsUserControlPacket::SrsUserControlPacket()
 {
 	event_type = 0;
 	event_data = 0;
+	extra_data = 0;
 }
 
-SrsPCUC4BytesPacket::~SrsPCUC4BytesPacket()
+SrsUserControlPacket::~SrsUserControlPacket()
 {
 }
 
-int SrsPCUC4BytesPacket::get_perfer_cid()
-{
-	return RTMP_CID_ProtocolControl;
-}
-
-int SrsPCUC4BytesPacket::get_message_type()
-{
-	return RTMP_MSG_UserControlMessage;
-}
-
-int SrsPCUC4BytesPacket::get_size()
-{
-	return 2 + 4;
-}
-
-int SrsPCUC4BytesPacket::encode_packet(SrsStream* stream)
+int SrsUserControlPacket::decode(SrsStream* stream)
 {
 	int ret = ERROR_SUCCESS;
 	
 	if (!stream->require(6)) {
+		ret = ERROR_RTMP_MESSAGE_DECODE;
+		srs_error("decode user control failed. ret=%d", ret);
+		return ret;
+	}
+	
+	event_type = stream->read_2bytes();
+	event_data = stream->read_4bytes();
+	
+	if (event_type == SrcPCUCSetBufferLength) {
+		if (!stream->require(2)) {
+			ret = ERROR_RTMP_MESSAGE_ENCODE;
+			srs_error("decode user control packet failed. ret=%d", ret);
+			return ret;
+		}
+		extra_data = stream->read_4bytes();
+	}
+	
+	srs_info("decode user control success. "
+		"event_type=%d, event_data=%d, extra_data=%d", 
+		event_type, event_data, extra_data);
+	
+	return ret;
+}
+
+int SrsUserControlPacket::get_perfer_cid()
+{
+	return RTMP_CID_ProtocolControl;
+}
+
+int SrsUserControlPacket::get_message_type()
+{
+	return RTMP_MSG_UserControlMessage;
+}
+
+int SrsUserControlPacket::get_size()
+{
+	if (event_type == SrcPCUCSetBufferLength) {
+		return 2 + 4 + 4;
+	} else {
+		return 2 + 4;
+	}
+}
+
+int SrsUserControlPacket::encode_packet(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if (!stream->require(get_size())) {
 		ret = ERROR_RTMP_MESSAGE_ENCODE;
-		srs_error("encode set bandwidth packet failed. ret=%d", ret);
+		srs_error("encode user control packet failed. ret=%d", ret);
 		return ret;
 	}
 	
 	stream->write_2bytes(event_type);
 	stream->write_4bytes(event_data);
+
+	// when event type is set buffer length,
+	// read the extra buffer length.
+	if (event_type == SrcPCUCSetBufferLength) {
+		stream->write_2bytes(extra_data);
+		srs_verbose("user control message, buffer_length=%d", extra_data);
+	}
 	
-	srs_verbose("encode PCUC packet success. "
+	srs_verbose("encode user control packet success. "
 		"event_type=%d, event_data=%d", event_type, event_data);
 	
 	return ret;
