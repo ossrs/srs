@@ -68,11 +68,14 @@ int SrsConsumer::enqueue(SrsSharedPtrMessage* msg)
 	int ret = ERROR_SUCCESS;
 	
 	/**
-	* we use a very simple time jitter detect/correct algorithm,
-	* if the delta of time is nagative or greater than CONST_MAX_JITTER_MS,
-	* we enforce the delta to DEFAULT_FRAME_TIME_MS,
-	* and update the last_pkt_time which used to detect next jitter.
-	* the last_pkt_correct_time is enforce the time monotonically.
+	* we use a very simple time jitter detect/correct algorithm:
+	* 1. delta: ensure the delta is positive and valid,
+	* 	we set the delta to DEFAULT_FRAME_TIME_MS,
+	* 	if the delta of time is nagative or greater than CONST_MAX_JITTER_MS.
+	* 2. last_pkt_time: specifies the original packet time,
+	* 	is used to detect next jitter.
+	* 3. last_pkt_correct_time: simply add the positive delta, 
+	* 	and enforce the time monotonically.
 	*/
 	int32_t time = msg->header.timestamp;
 	int32_t delta = time - last_pkt_time;
