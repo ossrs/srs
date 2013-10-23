@@ -178,6 +178,7 @@ struct SrsMessageHeader
 	/**
 	* Three-byte field that contains a timestamp delta of the message.
 	* The 4 bytes are packed in the big-endian order.
+	* @remark, only used for decoding message from chunk stream.
 	*/
 	int32_t timestamp_delta;
 	/**
@@ -189,6 +190,7 @@ struct SrsMessageHeader
 	/**
 	* Four-byte field that contains a timestamp of the message.
 	* The 4 bytes are packed in the big-endian order.
+	* @remark, used as calc timestamp when decode and encode time.
 	*/
 	int32_t timestamp;
 	
