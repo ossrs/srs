@@ -34,6 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 #include <string>
 
+class SrsCodec;
 class SrsSource;
 class SrsCommonMessage;
 class SrsOnMetaDataPacket;
@@ -82,6 +83,7 @@ public:
 	*/
 	static SrsSource* find(std::string stream_url);
 private:
+	SrsCodec* codec;
 	std::string stream_url;
 	std::vector<SrsConsumer*> consumers;
 private:

@@ -16,6 +16,8 @@ file
     ..\core\srs_core_client.cpp,
     ..\core\srs_core_source.hpp,
     ..\core\srs_core_source.cpp,
+    ..\core\srs_core_codec.hpp,
+    ..\core\srs_core_codec.cpp,
     ..\core\srs_core_rtmp.hpp,
     ..\core\srs_core_rtmp.cpp,
     ..\core\srs_core_protocol.hpp,

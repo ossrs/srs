@@ -173,7 +173,7 @@ int SrsRtmp::handshake()
     ssize_t nsize;
     SrsSocket skt(stfd);
     
-    // TODO: complex handshake for h264 codec.
+    // TODO: complex handshake for h264/aac codec.
     char* c0c1 = new char[1537];
     SrsAutoFree(char, c0c1, true);
     if ((ret = skt.read_fully(c0c1, 1537, &nsize)) != ERROR_SUCCESS) {

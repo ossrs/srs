@@ -29,6 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_protocol.hpp>
 #include <srs_core_auto_free.hpp>
 #include <srs_core_amf0.hpp>
+#include <srs_core_codec.hpp>
 
 #define CONST_MAX_JITTER_MS 500
 #define DEFAULT_FRAME_TIME_MS 10
@@ -135,6 +136,7 @@ SrsSource::SrsSource(std::string _stream_url)
 	cache_metadata = NULL;
 	cache_sh_video = NULL;
 	cache_sh_audio = NULL;
+	codec = new SrsCodec();
 }
 
 SrsSource::~SrsSource()
@@ -149,6 +151,8 @@ SrsSource::~SrsSource()
 	srs_freep(cache_metadata);
 	srs_freep(cache_sh_video);
 	srs_freep(cache_sh_audio);
+	
+	srs_freep(codec);
 }
 
 int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata)
@@ -227,9 +231,8 @@ int SrsSource::on_audio(SrsCommonMessage* audio)
 	}
 	srs_info("dispatch audio success.");
 
-	// TODO: always update the sh.
-	// TODO: cache last gop.
-	if (!cache_sh_audio) {
+	// cache the sequence header if h264
+	if (codec->audio_is_sequence_header(msg->payload, msg->size)) {
 		srs_freep(cache_sh_audio);
 		cache_sh_audio = msg->copy();
 	}
@@ -264,9 +267,8 @@ int SrsSource::on_video(SrsCommonMessage* video)
 	}
 	srs_info("dispatch video success.");
 
-	// TODO: always update the sh.
-	// TODO: cache last gop.
-	if (!cache_sh_video) {
+	// cache the sequence header if h264
+	if (codec->video_is_sequence_header(msg->payload, msg->size)) {
 		srs_freep(cache_sh_video);
 		cache_sh_video = msg->copy();
 	}
