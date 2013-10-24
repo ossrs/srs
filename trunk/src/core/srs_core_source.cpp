@@ -68,33 +68,9 @@ int SrsConsumer::enqueue(SrsSharedPtrMessage* msg)
 {
 	int ret = ERROR_SUCCESS;
 	
-	/**
-	* we use a very simple time jitter detect/correct algorithm:
-	* 1. delta: ensure the delta is positive and valid,
-	* 	we set the delta to DEFAULT_FRAME_TIME_MS,
-	* 	if the delta of time is nagative or greater than CONST_MAX_JITTER_MS.
-	* 2. last_pkt_time: specifies the original packet time,
-	* 	is used to detect next jitter.
-	* 3. last_pkt_correct_time: simply add the positive delta, 
-	* 	and enforce the time monotonically.
-	*/
-	int32_t time = msg->header.timestamp;
-	int32_t delta = time - last_pkt_time;
-
-	// if jitter detected, reset the delta.
-	if (delta < 0 || delta > CONST_MAX_JITTER_MS) {
-		delta = DEFAULT_FRAME_TIME_MS;
-		
-		srs_info("jitter detected, delta=%d, last_pkt=%d, time=%d, correct_to=%d",
-			delta, last_pkt_time, time, last_pkt_correct_time + delta);
-	} else {
-		srs_verbose("timestamp no jitter. time=%d, last_pkt=%d, correct_to=%d", 
-			time, last_pkt_time, last_pkt_correct_time + delta);
+	if ((ret = jitter_correct(msg)) != ERROR_SUCCESS) {
+		return ret;
 	}
-	
-	last_pkt_correct_time = srs_max(0, last_pkt_correct_time + delta);
-	msg->header.timestamp = last_pkt_correct_time;
-	last_pkt_time = time;
 	
 	msgs.push_back(msg);
 	
@@ -126,6 +102,41 @@ int SrsConsumer::get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& c
 	} else {
 		msgs.erase(msgs.begin(), msgs.begin() + count);
 	}
+	
+	return ret;
+}
+
+int SrsConsumer::jitter_correct(SrsSharedPtrMessage* msg)
+{
+	int ret = ERROR_SUCCESS;
+	
+	/**
+	* we use a very simple time jitter detect/correct algorithm:
+	* 1. delta: ensure the delta is positive and valid,
+	* 	we set the delta to DEFAULT_FRAME_TIME_MS,
+	* 	if the delta of time is nagative or greater than CONST_MAX_JITTER_MS.
+	* 2. last_pkt_time: specifies the original packet time,
+	* 	is used to detect next jitter.
+	* 3. last_pkt_correct_time: simply add the positive delta, 
+	* 	and enforce the time monotonically.
+	*/
+	int32_t time = msg->header.timestamp;
+	int32_t delta = time - last_pkt_time;
+
+	// if jitter detected, reset the delta.
+	if (delta < 0 || delta > CONST_MAX_JITTER_MS) {
+		delta = DEFAULT_FRAME_TIME_MS;
+		
+		srs_info("jitter detected, delta=%d, last_pkt=%d, time=%d, correct_to=%d",
+			delta, last_pkt_time, time, last_pkt_correct_time + delta);
+	} else {
+		srs_verbose("timestamp no jitter. time=%d, last_pkt=%d, correct_to=%d", 
+			time, last_pkt_time, last_pkt_correct_time + delta);
+	}
+	
+	last_pkt_correct_time = srs_max(0, last_pkt_correct_time + delta);
+	msg->header.timestamp = last_pkt_correct_time;
+	last_pkt_time = time;
 	
 	return ret;
 }

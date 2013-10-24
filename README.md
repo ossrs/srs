@@ -25,4 +25,16 @@ Compare:<br/>
 * nginx-rtmp v1.0.4: 26786 lines <br/>
 * nginx v1.5.0: 139524 lines <br/>
 
+Features:<br/>
+* v0.2, 2013-10-25, support h264/avc codec by rtmp complex handshake(SrsComplexHandshake).
+* v0.2, 2013-10-24, support time jitter detect and correct algorithm(SrsConsumer::jitter_correct).
+* v0.2, 2013-10-24, support decode the video/audio codec type(SrsCodec), cache the h264/avc sequence header.
+* v0.1, 2013-10-23, support basic amf0 codec, simplify the api using c-style api.
+* v0.1, 2013-10-23, support shared ptr msg(SrsSharedPtrMessage) for zero memory copy.
+* v0.1, 2013-10-22, support vp6 codec with rtmp protocol specified simple handshake.
+* v0.1, 2013-10-20, support multiple flash client play live streaming.
+* v0.1, 2013-10-20, support FMLE/FFMPEG publish live streaming.
+* v0.1, 2013-10-18, support rtmp message2chunk protocol(send message).
+* v0.1, 2013-10-17, support rtmp chunk2message protocol(recv message).
+
 Winlin

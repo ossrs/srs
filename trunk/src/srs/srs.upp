@@ -20,6 +20,8 @@ file
     ..\core\srs_core_codec.cpp,
     ..\core\srs_core_rtmp.hpp,
     ..\core\srs_core_rtmp.cpp,
+    ..\core\srs_core_complex_handshake.hpp,
+    ..\core\srs_core_complex_handshake.cpp,
     ..\core\srs_core_protocol.hpp,
     ..\core\srs_core_protocol.cpp,
     ..\core\srs_core_amf0.hpp,

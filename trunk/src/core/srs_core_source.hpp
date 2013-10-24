@@ -65,6 +65,11 @@ public:
 	* @max_count the max count to dequeue, 0 to dequeue all.
 	*/
 	virtual int get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& count);
+private:
+	/**
+	* detect the time jitter and correct it.
+	*/
+	virtual int jitter_correct(SrsSharedPtrMessage* msg);
 };
 
 /**

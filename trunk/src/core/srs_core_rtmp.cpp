@@ -29,6 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_protocol.hpp>
 #include <srs_core_auto_free.hpp>
 #include <srs_core_amf0.hpp>
+#include <srs_core_complex_handshake.hpp>
 
 /**
 * the signature for packets to client.
@@ -139,11 +140,13 @@ SrsRtmp::SrsRtmp(st_netfd_t client_stfd)
 {
 	protocol = new SrsProtocol(client_stfd);
 	stfd = client_stfd;
+	complex_handshake = new SrsComplexHandshake();
 }
 
 SrsRtmp::~SrsRtmp()
 {
 	srs_freep(protocol);
+	srs_freep(complex_handshake);
 }
 
 void SrsRtmp::set_recv_timeout(int timeout_ms)
@@ -189,6 +192,18 @@ int SrsRtmp::handshake()
 		return ret;
 	}
     srs_verbose("check c0 success, required plain text.");
+    
+    // try complex handshake
+    ret = complex_handshake->handshake(skt, c0c1 + 1);
+    if (ret == ERROR_SUCCESS) {
+	    srs_trace("complex handshake success.");
+	    return ret;
+    }
+    if (ret != ERROR_RTMP_TRY_SIMPLE_HS) {
+	    srs_error("complex handshake failed. ret=%d", ret);
+    	return ret;
+    }
+    srs_info("complex handhskae failed, try simple. ret=%d", ret);
 	
 	char* s0s1s2 = new char[3073];
     SrsAutoFree(char, s0s1s2, true);
@@ -208,7 +223,7 @@ int SrsRtmp::handshake()
     }
     srs_verbose("read c2 success.");
     
-    srs_trace("handshake success.");
+    srs_trace("simple handshake success.");
     
 	return ret;
 }
