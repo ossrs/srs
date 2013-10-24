@@ -45,14 +45,14 @@ public:
 public:
 	/**
 	* complex hanshake.
-	* @c1, size of c1 must be 1536.
+	* @_c1, size of c1 must be 1536.
 	* @remark, user must free the c1.
 	* @return user must:
 	* 	continue connect app if success,
 	* 	try simple handshake if error is ERROR_RTMP_TRY_SIMPLE_HS,
 	* 	otherwise, disconnect
 	*/
-	virtual int handshake(SrsSocket& skt, char* c1);
+	virtual int handshake(SrsSocket& skt, char* _c1);
 };
 
 #endif
