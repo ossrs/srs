@@ -466,19 +466,19 @@ enum srs_schema_type {
 	srs_schema_invalid = 2,
 };
 
-void __time_copy_to(char*& pp, int32_t time)
+void __srs_time_copy_to(char*& pp, int32_t time)
 {
 	// 4bytes time
 	*(int32_t*)pp = time;
 	pp += 4;
 }
-void __version_copy_to(char*& pp, int32_t version)
+void __srs_version_copy_to(char*& pp, int32_t version)
 {
 	// 4bytes version
 	*(int32_t*)pp = version;
 	pp += 4;
 }
-void __key_copy_to(char*& pp, key_block* key)
+void __srs_key_copy_to(char*& pp, key_block* key)
 {
 	// 764bytes key block
 	if (key->random0_size > 0) {
@@ -497,7 +497,7 @@ void __key_copy_to(char*& pp, key_block* key)
 	*(int32_t*)pp = key->offset;
 	pp += 4;
 }
-void __digest_copy_to(char*& pp, digest_block* digest, bool with_digest)
+void __srs_digest_copy_to(char*& pp, digest_block* digest, bool with_digest)
 {
 	// 732bytes digest block without the 32bytes digest-data
 	// nbytes digest block part1
@@ -525,15 +525,15 @@ void __digest_copy_to(char*& pp, digest_block* digest, bool with_digest)
 /**
 * copy whole c1s1 to bytes.
 */
-void schema0_copy_to(char* bytes, bool with_digest, 
+void srs_schema0_copy_to(char* bytes, bool with_digest, 
 	int32_t time, int32_t version, key_block* key, digest_block* digest)
 {
 	char* pp = bytes;
 
-	__time_copy_to(pp, time);
-	__version_copy_to(pp, version);
-	__key_copy_to(pp, key);
-	__digest_copy_to(pp, digest, with_digest);
+	__srs_time_copy_to(pp, time);
+	__srs_version_copy_to(pp, version);
+	__srs_key_copy_to(pp, key);
+	__srs_digest_copy_to(pp, digest, with_digest);
 	
 	if (with_digest) {
 		srs_assert(pp - bytes == 1536);
@@ -541,15 +541,15 @@ void schema0_copy_to(char* bytes, bool with_digest,
 		srs_assert(pp - bytes == 1536 - 32);
 	}
 }
-void schema1_copy_to(char* bytes, bool with_digest, 
+void srs_schema1_copy_to(char* bytes, bool with_digest, 
 	int32_t time, int32_t version, digest_block* digest, key_block* key)
 {
 	char* pp = bytes;
 
-	__time_copy_to(pp, time);
-	__version_copy_to(pp, version);
-	__digest_copy_to(pp, digest, with_digest);
-	__key_copy_to(pp, key);
+	__srs_time_copy_to(pp, time);
+	__srs_version_copy_to(pp, version);
+	__srs_digest_copy_to(pp, digest, with_digest);
+	__srs_key_copy_to(pp, key);
 	
 	if (with_digest) {
 		srs_assert(pp - bytes == 1536);
@@ -563,11 +563,11 @@ void schema1_copy_to(char* bytes, bool with_digest,
 * 	digest-data: 32bytes
 * 	c1s1-part2: (1536-n-32)bytes (digest-part2)
 */
-char* bytes_join_schema0(int32_t time, int32_t version, key_block* key, digest_block* digest)
+char* srs_bytes_join_schema0(int32_t time, int32_t version, key_block* key, digest_block* digest)
 {
 	char* bytes = new char[1536 -32];
 	
-	schema0_copy_to(bytes, false, time, version, key, digest);
+	srs_schema0_copy_to(bytes, false, time, version, key, digest);
 	
 	return bytes;
 }
@@ -577,11 +577,11 @@ char* bytes_join_schema0(int32_t time, int32_t version, key_block* key, digest_b
 * 	digest-data: 32bytes
 * 	c1s1-part2: (1536-n-32)bytes (digest-part2 and key)
 */
-char* bytes_join_schema1(int32_t time, int32_t version, digest_block* digest, key_block* key)
+char* srs_bytes_join_schema1(int32_t time, int32_t version, digest_block* digest, key_block* key)
 {
 	char* bytes = new char[1536 -32];
 	
-	schema1_copy_to(bytes, false, time, version, digest, key);
+	srs_schema1_copy_to(bytes, false, time, version, digest, key);
 	
 	return bytes;
 }
@@ -813,9 +813,9 @@ void c1s1::dump(char* _c1s1)
 	srs_assert(schema != srs_schema_invalid);
 	
 	if (schema == srs_schema0) {
-		schema0_copy_to(_c1s1, true, time, version, &block0.key, &block1.digest);
+		srs_schema0_copy_to(_c1s1, true, time, version, &block0.key, &block1.digest);
 	} else {
-		schema1_copy_to(_c1s1, true, time, version, &block0.digest, &block1.key);
+		srs_schema1_copy_to(_c1s1, true, time, version, &block0.digest, &block1.key);
 	}
 }
 
@@ -998,9 +998,9 @@ int c1s1::calc_s1_digest(char*& digest)
 	char* c1s1_joined_bytes = NULL;
 
 	if (schema == srs_schema0) {
-		c1s1_joined_bytes = bytes_join_schema0(time, version, &block0.key, &block1.digest);
+		c1s1_joined_bytes = srs_bytes_join_schema0(time, version, &block0.key, &block1.digest);
 	} else {
-		c1s1_joined_bytes = bytes_join_schema1(time, version, &block0.digest, &block1.key);
+		c1s1_joined_bytes = srs_bytes_join_schema1(time, version, &block0.digest, &block1.key);
 	}
 	
 	srs_assert(c1s1_joined_bytes != NULL);
@@ -1025,9 +1025,9 @@ int c1s1::calc_c1_digest(char*& digest)
 	char* c1s1_joined_bytes = NULL;
 
 	if (schema == srs_schema0) {
-		c1s1_joined_bytes = bytes_join_schema0(time, version, &block0.key, &block1.digest);
+		c1s1_joined_bytes = srs_bytes_join_schema0(time, version, &block0.key, &block1.digest);
 	} else {
-		c1s1_joined_bytes = bytes_join_schema1(time, version, &block0.digest, &block1.key);
+		c1s1_joined_bytes = srs_bytes_join_schema1(time, version, &block0.digest, &block1.key);
 	}
 	
 	srs_assert(c1s1_joined_bytes != NULL);
