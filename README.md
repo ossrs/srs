@@ -17,6 +17,7 @@ Features:<br/>
 6. no multiple processes, single process only.<br/>
 
 DevLog:<br/>
+* 2013-10-25, release v0.2, support flash publish, h264 codec, time jitter correct. 10125 lines.<br/>
 * 2013-10-23, release v0.1, support FMLE/FFMPEG publish, vp6 codec live streaming. 8287 lines.<br/>
 * 2013-10-17, created.<br/>
 
