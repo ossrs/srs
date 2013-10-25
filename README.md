@@ -28,12 +28,12 @@ Compare:<br/>
 * nginx v1.5.0: 139524 lines <br/>
 
 Features:<br/>
-* v0.2, 2013-10-23, v0.2 released.
+* v0.2, 2013-10-23, v0.2 released. 10125 lines.
 * v0.2, 2013-10-25, support flash publish.
 * v0.2, 2013-10-25, support h264/avc codec by rtmp complex handshake(SrsComplexHandshake).
 * v0.2, 2013-10-24, support time jitter detect and correct algorithm(SrsConsumer::jitter_correct).
 * v0.2, 2013-10-24, support decode codec type(SrsCodec) to cache the h264/avc sequence header.
-* v0.1, 2013-10-23, v0.1 released.
+* v0.1, 2013-10-23, v0.1 released. 8287 lines.
 * v0.1, 2013-10-23, support basic amf0 codec, simplify the api using c-style api.
 * v0.1, 2013-10-23, support shared ptr msg(SrsSharedPtrMessage) for zero memory copy.
 * v0.1, 2013-10-22, support vp6 codec with rtmp protocol specified simple handshake.
