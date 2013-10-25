@@ -623,6 +623,7 @@ public:
 	double transaction_id;
 	SrsAmf0Null* command_object;
 	std::string stream_name;
+	// optional, default to live.
 	std::string type;
 public:
 	SrsPublishPacket();

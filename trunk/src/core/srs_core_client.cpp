@@ -137,15 +137,25 @@ int SrsClient::do_cycle()
 			srs_info("start to play stream %s success", req->stream.c_str());
 			return streaming_play(source);
 		}
-		case SrsClientPublish: {
-			srs_verbose("start to publish stream %s.", req->stream.c_str());
+		case SrsClientFMLEPublish: {
+			srs_verbose("FMLE start to publish stream %s.", req->stream.c_str());
 			
-			if ((ret = rtmp->start_publish(res->stream_id)) != ERROR_SUCCESS) {
+			if ((ret = rtmp->start_fmle_publish(res->stream_id)) != ERROR_SUCCESS) {
 				srs_error("start to publish stream failed. ret=%d", ret);
 				return ret;
 			}
 			srs_info("start to publish stream %s success", req->stream.c_str());
-			return streaming_publish(source);
+			return streaming_publish(source, true);
+		}
+		case SrsClientFlashPublish: {
+			srs_verbose("flash start to publish stream %s.", req->stream.c_str());
+			
+			if ((ret = rtmp->start_flash_publish(res->stream_id)) != ERROR_SUCCESS) {
+				srs_error("flash start to publish stream failed. ret=%d", ret);
+				return ret;
+			}
+			srs_info("flash start to publish stream %s success", req->stream.c_str());
+			return streaming_publish(source, false);
 		}
 		default: {
 			ret = ERROR_SYSTEM_CLIENT_INVALID;
@@ -237,7 +247,7 @@ int SrsClient::streaming_play(SrsSource* source)
 	return ret;
 }
 
-int SrsClient::streaming_publish(SrsSource* source)
+int SrsClient::streaming_publish(SrsSource* source, bool is_fmle)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -290,6 +300,12 @@ int SrsClient::streaming_publish(SrsSource* source)
 		if (msg->header.is_amf0_command() || msg->header.is_amf3_command()) {
 			if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
 				srs_error("decode unpublish message failed. ret=%d", ret);
+				return ret;
+			}
+			
+			// flash unpublish.
+			if (!is_fmle) {
+				srs_trace("flash publish finished.");
 				return ret;
 			}
 		

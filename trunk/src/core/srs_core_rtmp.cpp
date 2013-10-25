@@ -395,7 +395,6 @@ int SrsRtmp::identify_client(int stream_id, SrsClientType& type, std::string& st
 			return identify_fmle_publish_client(
 				dynamic_cast<SrsFMLEStartPacket*>(pkt), type, stream_name);
 		}
-		// TODO: identify the flash publish client.
 		
 		srs_trace("ignore AMF0/AMF3 command message.");
 	}
@@ -517,7 +516,7 @@ int SrsRtmp::start_play(int stream_id)
 	return ret;
 }
 
-int SrsRtmp::start_publish(int stream_id)
+int SrsRtmp::start_fmle_publish(int stream_id)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -625,6 +624,8 @@ int SrsRtmp::start_publish(int stream_id)
 		srs_info("send onStatus(NetStream.Publish.Start) message success.");
 	}
 	
+	srs_info("FMLE publish success.");
+	
 	return ret;
 }
 
@@ -686,6 +687,34 @@ int SrsRtmp::fmle_unpublish(int stream_id, double unpublish_tid)
 	return ret;
 }
 
+int SrsRtmp::start_flash_publish(int stream_id)
+{
+	int ret = ERROR_SUCCESS;
+	
+	// publish response onStatus(NetStream.Publish.Start)
+	if (true) {
+		SrsCommonMessage* msg = new SrsCommonMessage();
+		SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
+		
+		pkt->data->set(StatusLevel, new SrsAmf0String(StatusLevelStatus));
+		pkt->data->set(StatusCode, new SrsAmf0String(StatusCodePublishStart));
+		pkt->data->set(StatusDescription, new SrsAmf0String("Started publishing stream."));
+		pkt->data->set(StatusClientId, new SrsAmf0String(RTMP_SIG_CLIENT_ID));
+		
+		msg->set_packet(pkt, stream_id);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			srs_error("send onStatus(NetStream.Publish.Start) message failed. ret=%d", ret);
+			return ret;
+		}
+		srs_info("send onStatus(NetStream.Publish.Start) message success.");
+	}
+	
+	srs_info("flash publish success.");
+	
+	return ret;
+}
+
 int SrsRtmp::identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, std::string& stream_name)
 {
 	int ret = ERROR_SUCCESS;
@@ -731,6 +760,11 @@ int SrsRtmp::identify_create_stream_client(SrsCreateStreamPacket* req, int strea
 			srs_trace("identity client type=play, stream_name=%s", stream_name.c_str());
 			return ret;
 		}
+		if (dynamic_cast<SrsPublishPacket*>(pkt)) {
+			srs_info("identify client by publish, falsh publish.");
+			return identify_flash_publish_client(
+				dynamic_cast<SrsPublishPacket*>(pkt), type, stream_name);
+		}
 		
 		srs_trace("ignore AMF0/AMF3 command message.");
 	}
@@ -742,7 +776,7 @@ int SrsRtmp::identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsClientType
 {
 	int ret = ERROR_SUCCESS;
 	
-	type = SrsClientPublish;
+	type = SrsClientFMLEPublish;
 	stream_name = req->stream_name;
 	
 	// releaseStream response
@@ -758,6 +792,16 @@ int SrsRtmp::identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsClientType
 		}
 		srs_info("send releaseStream response message success.");
 	}
+	
+	return ret;
+}
+
+int SrsRtmp::identify_flash_publish_client(SrsPublishPacket* req, SrsClientType& type, std::string& stream_name)
+{
+	int ret = ERROR_SUCCESS;
+	
+	type = SrsClientFlashPublish;
+	stream_name = req->stream_name;
 	
 	return ret;
 }

@@ -54,7 +54,7 @@ protected:
 	virtual int do_cycle();
 private:
 	virtual int streaming_play(SrsSource* source);
-	virtual int streaming_publish(SrsSource* source);
+	virtual int streaming_publish(SrsSource* source, bool is_fmle);
 	virtual int get_peer_ip();
 };
 

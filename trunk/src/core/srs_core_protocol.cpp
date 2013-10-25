@@ -1792,7 +1792,7 @@ int SrsPublishPacket::decode(SrsStream* stream)
 		return ret;
 	}
 	
-	if ((ret = srs_amf0_read_string(stream, type)) != ERROR_SUCCESS) {
+	if (!stream->empty() && (ret = srs_amf0_read_string(stream, type)) != ERROR_SUCCESS) {
 		srs_error("amf0 decode publish type failed. ret=%d", ret);
 		return ret;
 	}

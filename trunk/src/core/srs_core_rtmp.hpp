@@ -40,6 +40,7 @@ class SrsCommonMessage;
 class SrsCreateStreamPacket;
 class SrsFMLEStartPacket;
 class SrsComplexHandshake;
+class SrsPublishPacket;
 
 /**
 * the original request from client.
@@ -85,7 +86,8 @@ enum SrsClientType
 {
 	SrsClientUnknown,
 	SrsClientPlay,
-	SrsClientPublish,
+	SrsClientFMLEPublish,
+	SrsClientFlashPublish,
 };
 
 /**
@@ -146,15 +148,21 @@ public:
 	* onFCPublish(NetStream.Publish.Start)
 	* onStatus(NetStream.Publish.Start)
 	*/
-	virtual int start_publish(int stream_id);
+	virtual int start_fmle_publish(int stream_id);
 	/**
 	* process the FMLE unpublish event.
 	* @unpublish_tid the unpublish request transaction id.
 	*/
 	virtual int fmle_unpublish(int stream_id, double unpublish_tid);
+	/**
+	* when client type is publish, response with packets:
+	* onStatus(NetStream.Publish.Start)
+	*/
+	virtual int start_flash_publish(int stream_id);
 private:
 	virtual int identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, std::string& stream_name);
 	virtual int identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsClientType& type, std::string& stream_name);
+	virtual int identify_flash_publish_client(SrsPublishPacket* req, SrsClientType& type, std::string& stream_name);
 };
 
 #endif
