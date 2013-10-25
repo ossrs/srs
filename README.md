@@ -21,6 +21,7 @@ DevLog:<br/>
 * 2013-10-17, created.<br/>
 
 Compare:<br/>
+* srs v0.2: 10125 lines.<br/>
 * srs v0.1: 8287 lines.<br/>
 * nginx-rtmp v1.0.4: 26786 lines <br/>
 * nginx v1.5.0: 139524 lines <br/>
