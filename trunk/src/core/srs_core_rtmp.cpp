@@ -395,6 +395,7 @@ int SrsRtmp::identify_client(int stream_id, SrsClientType& type, std::string& st
 			return identify_fmle_publish_client(
 				dynamic_cast<SrsFMLEStartPacket*>(pkt), type, stream_name);
 		}
+		// TODO: identify the flash publish client.
 		
 		srs_trace("ignore AMF0/AMF3 command message.");
 	}
