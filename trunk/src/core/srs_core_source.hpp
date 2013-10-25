@@ -68,6 +68,7 @@ public:
 private:
 	/**
 	* detect the time jitter and correct it.
+	* @doc update the README.cmd
 	*/
 	virtual int jitter_correct(SrsSharedPtrMessage* msg);
 };

@@ -210,18 +210,18 @@ int SrsRtmp::handshake()
 	// plain text required.
     s0s1s2[0] = 0x03;
     if ((ret = skt.write(s0s1s2, 3073, &nsize)) != ERROR_SUCCESS) {
-        srs_warn("send s0s1s2 failed. ret=%d", ret);
+        srs_warn("simple handshake send s0s1s2 failed. ret=%d", ret);
         return ret;
     }
-    srs_verbose("send s0s1s2 success.");
+    srs_verbose("simple handshake send s0s1s2 success.");
     
     char* c2 = new char[1536];
     SrsAutoFree(char, c2, true);
     if ((ret = skt.read_fully(c2, 1536, &nsize)) != ERROR_SUCCESS) {
-        srs_warn("read c2 failed. ret=%d", ret);
+        srs_warn("simple handshake read c2 failed. ret=%d", ret);
         return ret;
     }
-    srs_verbose("read c2 success.");
+    srs_verbose("simple handshake read c2 success.");
     
     srs_trace("simple handshake success.");
     

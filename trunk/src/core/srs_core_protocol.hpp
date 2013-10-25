@@ -345,6 +345,7 @@ public:
 * shared ptr message.
 * for audio/video/data message that need less memory copy.
 * and only for output.
+* @doc update the README.cmd
 */
 class SrsSharedPtrMessage : public ISrsMessage
 {
