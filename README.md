@@ -1,10 +1,9 @@
 simple-rtmp-server
 ==================
 
-simple rtmp origin live server over state-threads.<br/>
-can be used as origin server, or rtmp-server for encoder.<br/>
-srs is a simple, high-performance, running in single process, <br/>
-origin live server, with single vhost(like FMS \_\_defaultVhost\_\_).<br/>
+simple rtmp origin live server over state-threads, which can be used as origin server, or rtmp-server for encoder.<br/>
+srs is a simple, high-performance, running in single process, origin live server, with single vhost(like FMS \_\_defaultVhost\_\_).<br/>
+blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin)
 
 ### Usage
 step 1: build srs <br/>
@@ -33,9 +32,9 @@ url: rtmp://127.0.0.1:1935/live/livestream
 5. no vhost, \_\_defaultVhost\_\_ only.<br/>
 6. no multiple processes, single process only.<br/>
 
-### DevLog
-* 2013-10-25, release v0.2, support flash publish, h264 codec, time jitter correct. 10125 lines.<br/>
-* 2013-10-23, release v0.1, support FMLE/FFMPEG publish, vp6 codec live streaming. 8287 lines.<br/>
+### Releases
+* 2013-10-25, [release v0.2](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.2), support flash publish, h264 codec, time jitter correct. 10125 lines.<br/>
+* 2013-10-23, [release v0.1](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.1), support FMLE/FFMPEG publish, vp6 codec live streaming. 8287 lines.<br/>
 * 2013-10-17, created.<br/>
 
 ### Compare
