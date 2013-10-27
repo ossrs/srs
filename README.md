@@ -8,6 +8,25 @@ Summary:<br/>
 srs is a simple, high-performance, running in single process, <br/>
 origin live server, with single vhost(like FMS \_\_defaultVhost\_\_).<br/>
 
+Usage:<br/>
+step 1: build srs <br/>
+<pre>
+    tar xf srs.*.*.tar.gz
+    cd srs.*.*
+    ./configure
+    make
+    ./objs/simple_rtmp_server 1935
+</pre>
+step 2: publish live stream <br/>
+<pre>
+FMS URL: rtmp://127.0.0.1:1935/live
+Stream:  livestream
+</pre>
+step 3: play live stream <br/>
+<pre>
+url: rtmp://127.0.0.1:1935/live/livestream
+</pre>
+
 Features:<br/>
 1. simple: also stable enough.<br/>
 2. high-performance: single-thread, async socket, event/st-thread driven.<br/>
