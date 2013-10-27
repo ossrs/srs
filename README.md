@@ -4,6 +4,7 @@ simple-rtmp-server
 simple rtmp origin live server over state-threads, which can be used as origin server, or rtmp-server for encoder.<br/>
 srs is a simple, high-performance, running in single process, origin live server, with single vhost(like FMS \_\_defaultVhost\_\_).<br/>
 blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin)
+see also: [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.github.io/simple-rtmp-server)
 
 ### Usage
 step 1: build srs <br/>
