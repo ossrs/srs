@@ -4,11 +4,11 @@ simple-rtmp-server
 simple rtmp origin live server over state-threads.<br/>
 can be used as origin server, or rtmp-server for encoder.
 
-Summary:<br/>
+### Summary
 srs is a simple, high-performance, running in single process, <br/>
 origin live server, with single vhost(like FMS \_\_defaultVhost\_\_).<br/>
 
-Usage:<br/>
+### Usage
 step 1: build srs <br/>
 <pre>
 tar xf srs.*.*.tar.gz
@@ -27,7 +27,7 @@ step 3: play live stream <br/>
 url: rtmp://127.0.0.1:1935/live/livestream
 </pre>
 
-Features:<br/>
+### Features
 1. simple: also stable enough.<br/>
 2. high-performance: single-thread, async socket, event/st-thread driven.<br/>
 3. no edge server, origin server only.<br/>
@@ -35,18 +35,18 @@ Features:<br/>
 5. no vhost, \_\_defaultVhost\_\_ only.<br/>
 6. no multiple processes, single process only.<br/>
 
-DevLog:<br/>
+### DevLog
 * 2013-10-25, release v0.2, support flash publish, h264 codec, time jitter correct. 10125 lines.<br/>
 * 2013-10-23, release v0.1, support FMLE/FFMPEG publish, vp6 codec live streaming. 8287 lines.<br/>
 * 2013-10-17, created.<br/>
 
-Compare:<br/>
+### Compare
 * srs v0.2: 10125 lines.<br/>
 * srs v0.1: 8287 lines.<br/>
 * nginx-rtmp v1.0.4: 26786 lines <br/>
 * nginx v1.5.0: 139524 lines <br/>
 
-Features:<br/>
+### History
 * v0.2, 2013-10-23, v0.2 released. 10125 lines.
 * v0.2, 2013-10-25, support flash publish.
 * v0.2, 2013-10-25, support h264/avc codec by rtmp complex handshake(SrsComplexHandshake).
