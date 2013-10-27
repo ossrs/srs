@@ -45,7 +45,8 @@ url: rtmp://127.0.0.1:1935/live/livestream
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
-* v0.2, 2013-10-23, v0.2 released. 10125 lines.
+* v0.3, 2013-10-27, support cache last gop for client fast startup.
+* v0.2, 2013-10-25, v0.2 released. 10125 lines.
 * v0.2, 2013-10-25, support flash publish.
 * v0.2, 2013-10-25, support h264/avc codec by rtmp complex handshake(SrsComplexHandshake).
 * v0.2, 2013-10-24, support time jitter detect and correct algorithm(SrsConsumer::jitter_correct).

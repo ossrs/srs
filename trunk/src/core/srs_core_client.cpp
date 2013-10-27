@@ -145,7 +145,9 @@ int SrsClient::do_cycle()
 				return ret;
 			}
 			srs_info("start to publish stream %s success", req->stream.c_str());
-			return streaming_publish(source, true);
+			ret = streaming_publish(source, true);
+			source->on_unpublish();
+			return ret;
 		}
 		case SrsClientFlashPublish: {
 			srs_verbose("flash start to publish stream %s.", req->stream.c_str());
@@ -155,7 +157,9 @@ int SrsClient::do_cycle()
 				return ret;
 			}
 			srs_info("flash start to publish stream %s success", req->stream.c_str());
-			return streaming_publish(source, false);
+			ret = streaming_publish(source, false);
+			source->on_unpublish();
+			return ret;
 		}
 		default: {
 			ret = ERROR_SYSTEM_CLIENT_INVALID;

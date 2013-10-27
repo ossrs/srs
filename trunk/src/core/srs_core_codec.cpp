@@ -31,6 +31,35 @@ SrsCodec::~SrsCodec()
 {
 }
 
+bool SrsCodec::video_is_keyframe(int8_t* data, int size)
+{
+	// E.4.3.1 VIDEODATA
+	// Frame Type UB [4]
+	// Type of video frame. The following values are defined:
+	// 	1 = key frame (for AVC, a seekable frame)
+	// 	2 = inter frame (for AVC, a non-seekable frame)
+	// 	3 = disposable inter frame (H.263 only)
+	// 	4 = generated key frame (reserved for server use only)
+	// 	5 = video info/command frame
+	//
+	// AVCPacketType IF CodecID == 7 UI8
+	// The following values are defined:
+	// 	0 = AVC sequence header
+	// 	1 = AVC NALU
+	// 	2 = AVC end of sequence (lower level NALU sequence ender is
+	// 		not required or supported)
+	
+	// 2bytes required.
+	if (size < 1) {
+		return false;
+	}
+
+	char frame_type = *(char*)data;
+	frame_type = (frame_type >> 4) & 0x0F;
+	
+	return frame_type == 1;
+}
+
 bool SrsCodec::video_is_sequence_header(int8_t* data, int size)
 {
 	// E.4.3.1 VIDEODATA

@@ -64,6 +64,11 @@ SrsConsumer::~SrsConsumer()
 	source->on_consumer_destroy(this);
 }
 
+int SrsConsumer::get_time()
+{
+	return (int)last_pkt_correct_time;
+}
+
 int SrsConsumer::enqueue(SrsSharedPtrMessage* msg)
 {
 	int ret = ERROR_SUCCESS;
@@ -144,10 +149,12 @@ int SrsConsumer::jitter_correct(SrsSharedPtrMessage* msg)
 SrsSource::SrsSource(std::string _stream_url)
 {
 	stream_url = _stream_url;
-	cache_metadata = NULL;
-	cache_sh_video = NULL;
-	cache_sh_audio = NULL;
 	codec = new SrsCodec();
+	
+	cache_metadata = cache_sh_video = cache_sh_audio = NULL;
+	
+	cached_video_count = 0;
+	enable_gop_cache = true;
 }
 
 SrsSource::~SrsSource()
@@ -158,6 +165,8 @@ SrsSource::~SrsSource()
 		srs_freep(consumer);
 	}
 	consumers.clear();
+	
+	clear_gop_cache();
 	
 	srs_freep(cache_metadata);
 	srs_freep(cache_sh_video);
@@ -246,7 +255,15 @@ int SrsSource::on_audio(SrsCommonMessage* audio)
 	if (codec->audio_is_sequence_header(msg->payload, msg->size)) {
 		srs_freep(cache_sh_audio);
 		cache_sh_audio = msg->copy();
+		return ret;
 	}
+	
+	// cache the last gop packets
+	if ((ret = cache_last_gop(msg)) != ERROR_SUCCESS) {
+		srs_error("shrink gop cache failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("cache gop success.");
 	
 	return ret;
 }
@@ -282,7 +299,15 @@ int SrsSource::on_video(SrsCommonMessage* video)
 	if (codec->video_is_sequence_header(msg->payload, msg->size)) {
 		srs_freep(cache_sh_video);
 		cache_sh_video = msg->copy();
+		return ret;
 	}
+
+	// cache the last gop packets
+	if ((ret = cache_last_gop(msg)) != ERROR_SUCCESS) {
+		srs_error("shrink gop cache failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("cache gop success.");
 	
 	return ret;
 }
@@ -312,6 +337,16 @@ int SrsSource::on_video(SrsCommonMessage* video)
 	}
 	srs_info("dispatch audio sequence header success");
 	
+	std::vector<SrsSharedPtrMessage*>::iterator it;
+	for (it = gop_cache.begin(); it != gop_cache.end(); ++it) {
+		SrsSharedPtrMessage* msg = *it;
+		if ((ret = consumer->enqueue(msg->copy())) != ERROR_SUCCESS) {
+			srs_error("dispatch cached gop failed. ret=%d", ret);
+			return ret;
+		}
+	}
+	srs_trace("dispatch cached gop success. count=%d, duration=%d", (int)gop_cache.size(), consumer->get_time());
+	
 	return ret;
 }
 
@@ -323,5 +358,60 @@ void SrsSource::on_consumer_destroy(SrsConsumer* consumer)
 		consumers.erase(it);
 	}
 	srs_info("handle consumer destroy success.");
+}
+
+void SrsSource::on_unpublish()
+{
+	clear_gop_cache();
+	srs_trace("clear cache when unpublish.");
+}
+
+int SrsSource::cache_last_gop(SrsSharedPtrMessage* msg)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if (!enable_gop_cache) {
+		srs_verbose("gop cache is disabled.");
+		return ret;
+	}
+	
+	// got video, update the video count if acceptable
+	if (msg->header.is_video()) {
+		cached_video_count++;
+	}
+	
+	// no acceptable video or pure audio, disable the cache.
+	if (cached_video_count == 0) {
+		srs_verbose("ignore any frame util got a h264 video frame.");
+		return ret;
+	}
+	
+	// clear gop cache when got key frame
+	if (msg->header.is_video() && codec->video_is_keyframe(msg->payload, msg->size)) {
+		srs_info("clear gop cache when got keyframe. vcount=%d, count=%d",
+			cached_video_count, (int)gop_cache.size());
+			
+		clear_gop_cache();
+		
+		// curent msg is video frame, so we set to 1.
+		cached_video_count = 1;
+	}
+	
+	// cache the frame.
+	gop_cache.push_back(msg->copy());
+	
+	return ret;
+}
+
+void SrsSource::clear_gop_cache()
+{
+	std::vector<SrsSharedPtrMessage*>::iterator it;
+	for (it = gop_cache.begin(); it != gop_cache.end(); ++it) {
+		SrsSharedPtrMessage* msg = *it;
+		srs_freep(msg);
+	}
+	gop_cache.clear();
+
+	cached_video_count = 0;
 }
 

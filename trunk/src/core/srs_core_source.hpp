@@ -55,6 +55,10 @@ public:
 	virtual ~SrsConsumer();
 public:
 	/**
+	* get current client time, the last packet time.
+	*/
+	virtual int get_time();
+	/**
 	* enqueue an shared ptr message.
 	*/
 	virtual int enqueue(SrsSharedPtrMessage* msg);
@@ -92,6 +96,22 @@ private:
 	SrsCodec* codec;
 	std::string stream_url;
 	std::vector<SrsConsumer*> consumers;
+// gop cache for client fast startup.
+private:
+	/**
+	* if disabled the gop cache,
+	* the client will wait for the next keyframe for h264,
+	* and will be black-screen.
+	*/
+	bool enable_gop_cache;
+	/**
+	* the video frame count, avoid cache for pure audio stream.
+	*/
+	int cached_video_count;
+	/**
+	* cached gop.
+	*/
+	std::vector<SrsSharedPtrMessage*> gop_cache;
 private:
 	SrsSharedPtrMessage* cache_metadata;
 	// the cached video sequence header.
@@ -108,6 +128,15 @@ public:
 public:
 	virtual int create_consumer(SrsConsumer*& consumer);
 	virtual void on_consumer_destroy(SrsConsumer* consumer);
+	virtual void on_unpublish();
+private:
+	/**
+	* only for h264 codec
+	* 1. cache the gop when got h264 video packet.
+	* 2. clear gop when got keyframe.
+	*/
+	virtual int cache_last_gop(SrsSharedPtrMessage* msg);
+	virtual void clear_gop_cache();
 };
 
 #endif

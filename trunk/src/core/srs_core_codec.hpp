@@ -40,10 +40,26 @@ public:
 	SrsCodec();
 	virtual ~SrsCodec();
 public:
+	/**
+	* only check the frame_type, not check the codec type.
+	*/
+	virtual bool video_is_keyframe(int8_t* data, int size);
+	/**
+	* check codec h264, keyframe, sequence header
+	*/
 	virtual bool video_is_sequence_header(int8_t* data, int size);
+	/**
+	* check codec aac, sequence header
+	*/
 	virtual bool audio_is_sequence_header(int8_t* data, int size);
-private:
+	/**
+	* check codec h264.
+	*/
 	virtual bool video_is_h264(int8_t* data, int size);
+private:
+	/**
+	* check codec aac.
+	*/
 	virtual bool audio_is_aac(int8_t* data, int size);
 };
 
