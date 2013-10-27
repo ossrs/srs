@@ -11,11 +11,11 @@ origin live server, with single vhost(like FMS \_\_defaultVhost\_\_).<br/>
 Usage:<br/>
 step 1: build srs <br/>
 <pre>
-    tar xf srs.*.*.tar.gz
-    cd srs.*.*
-    ./configure
-    make
-    ./objs/simple_rtmp_server 1935
+tar xf srs.*.*.tar.gz
+cd srs.*.*
+./configure
+make
+./objs/simple_rtmp_server 1935
 </pre>
 step 2: publish live stream <br/>
 <pre>
