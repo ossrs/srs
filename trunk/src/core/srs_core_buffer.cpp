@@ -25,6 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core_error.hpp>
 #include <srs_core_socket.hpp>
+#include <srs_core_log.hpp>
 
 #define SOCKET_READ_SIZE 4096
 
@@ -62,7 +63,11 @@ int SrsBuffer::ensure_buffer_bytes(SrsSocket* skt, int required_size)
 {
 	int ret = ERROR_SUCCESS;
 
-	srs_assert(required_size >= 0);
+	if (required_size < 0) {
+		ret = ERROR_SYSTEM_SIZE_NEGATIVE;
+		srs_error("size is negative. size=%d, ret=%d", required_size, ret);
+		return ret;
+	}
 
 	while (size() < required_size) {
 		char buffer[SOCKET_READ_SIZE];

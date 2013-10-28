@@ -827,6 +827,15 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
             pp[0] = *p++;
             pp[3] = 0;
             
+            // if msg exists in cache, the size must not changed.
+            if (chunk->msg->size > 0 && chunk->msg->size != chunk->header.payload_length) {
+                ret = ERROR_RTMP_PACKET_SIZE;
+                srs_error("msg exists in chunk cache, "
+                	"size=%d cannot change to %d, ret=%d", 
+                	chunk->msg->size, chunk->header.payload_length, ret);
+                return ret;
+            }
+            
             chunk->header.message_type = *p++;
             
             if (fmt == 0) {
@@ -867,11 +876,21 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
 			return ret;
 		}
 
-        char* pp = (char*)&chunk->header.timestamp;
+		// ffmpeg/librtmp may donot send this filed, need to detect the value.
+		// @see also: http://blog.csdn.net/win_lin/article/details/13363699
+		int32_t timestamp = 0x00;
+        char* pp = (char*)&timestamp;
         pp[3] = *p++;
         pp[2] = *p++;
         pp[1] = *p++;
         pp[0] = *p++;
+        
+        if (chunk->header.timestamp > RTMP_EXTENDED_TIMESTAMP && chunk->header.timestamp != timestamp) {
+            mh_size -= 4;
+            srs_verbose("ignore the 4bytes extended timestamp. mh_size=%d", mh_size);
+        } else {
+            chunk->header.timestamp = timestamp;
+        }
 		srs_verbose("header read ext_time completed. time=%d", chunk->header.timestamp);
 	}
 	
@@ -897,7 +916,7 @@ int SrsProtocol::read_message_payload(SrsChunkStream* chunk, int bh_size, int mh
 	int ret = ERROR_SUCCESS;
 	
 	// empty message
-	if (chunk->header.payload_length == 0) {
+	if (chunk->header.payload_length <= 0) {
 		// need erase the header in buffer.
 		buffer->erase(bh_size + mh_size);
 		
