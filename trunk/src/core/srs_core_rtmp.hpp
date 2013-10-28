@@ -105,8 +105,9 @@ public:
 	SrsRtmp(st_netfd_t client_stfd);
 	virtual ~SrsRtmp();
 public:
-	virtual void set_recv_timeout(int timeout_ms);
-	virtual void set_send_timeout(int timeout_ms);
+	virtual void set_recv_timeout(int64_t timeout_us);
+	virtual int64_t get_recv_timeout();
+	virtual void set_send_timeout(int64_t timeout_us);
 	virtual int recv_message(SrsCommonMessage** pmsg);
 	virtual int send_message(ISrsMessage* msg);
 public:

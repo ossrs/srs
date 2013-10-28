@@ -149,14 +149,19 @@ SrsRtmp::~SrsRtmp()
 	srs_freep(complex_handshake);
 }
 
-void SrsRtmp::set_recv_timeout(int timeout_ms)
+void SrsRtmp::set_recv_timeout(int64_t timeout_us)
 {
-	return protocol->set_recv_timeout(timeout_ms);
+	return protocol->set_recv_timeout(timeout_us);
 }
 
-void SrsRtmp::set_send_timeout(int timeout_ms)
+int64_t SrsRtmp::get_recv_timeout()
 {
-	return protocol->set_send_timeout(timeout_ms);
+	return protocol->get_recv_timeout();
+}
+
+void SrsRtmp::set_send_timeout(int64_t timeout_us)
+{
+	return protocol->set_send_timeout(timeout_us);
 }
 
 int SrsRtmp::recv_message(SrsCommonMessage** pmsg)
@@ -176,7 +181,6 @@ int SrsRtmp::handshake()
     ssize_t nsize;
     SrsSocket skt(stfd);
     
-    // TODO: complex handshake for h264/aac codec.
     char* c0c1 = new char[1537];
     SrsAutoFree(char, c0c1, true);
     if ((ret = skt.read_fully(c0c1, 1537, &nsize)) != ERROR_SUCCESS) {
@@ -325,10 +329,15 @@ int SrsRtmp::response_connect_app(SrsRequest* req)
 	SrsASrsAmf0EcmaArray* data = new SrsASrsAmf0EcmaArray();
 	pkt->info->set("data", data);
 	
-	data->set("version", new SrsAmf0String(RTMP_SIG_FMS_VER));
-	data->set("server", new SrsAmf0String(RTMP_SIG_SRS_NAME));
+	data->set("srs_version", new SrsAmf0String(RTMP_SIG_FMS_VER));
+	data->set("srs_server", new SrsAmf0String(RTMP_SIG_SRS_NAME));
+	data->set("srs_license", new SrsAmf0String(RTMP_SIG_SRS_LICENSE));
+	data->set("srs_role", new SrsAmf0String(RTMP_SIG_SRS_ROLE));
 	data->set("srs_url", new SrsAmf0String(RTMP_SIG_SRS_URL));
 	data->set("srs_version", new SrsAmf0String(RTMP_SIG_SRS_VERSION));
+	data->set("srs_site", new SrsAmf0String(RTMP_SIG_SRS_WEB));
+	data->set("srs_email", new SrsAmf0String(RTMP_SIG_SRS_EMAIL));
+	data->set("srs_copyright", new SrsAmf0String(RTMP_SIG_SRS_COPYRIGHT));
 	
 	msg->set_packet(pkt, 0);
 	
