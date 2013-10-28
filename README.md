@@ -46,6 +46,7 @@ url: rtmp://127.0.0.1:1935/live/livestream
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v0.3, 2013-10-28, support librtmp without extended-timestamp in 0xCX chunk packet.
 * v0.3, 2013-10-27, support cache last gop for client fast startup.
 * v0.2, 2013-10-25, v0.2 released. 10125 lines.
 * v0.2, 2013-10-25, support flash publish.

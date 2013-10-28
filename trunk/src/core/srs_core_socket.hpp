@@ -48,8 +48,9 @@ public:
     SrsSocket(st_netfd_t client_stfd);
     virtual ~SrsSocket();
 public:
-	virtual void set_recv_timeout(int timeout_ms);
-	virtual void set_send_timeout(int timeout_ms);
+	virtual void set_recv_timeout(int64_t timeout_us);
+	virtual int64_t get_recv_timeout();
+	virtual void set_send_timeout(int64_t timeout_us);
 	virtual int64_t get_recv_bytes();
 	virtual int64_t get_send_bytes();
 public:

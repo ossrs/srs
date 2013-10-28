@@ -104,11 +104,12 @@ public:
 	virtual ~SrsProtocol();
 public:
 	/**
-	* set the timeout in ms.
+	* set the timeout in us.
 	* if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
 	*/
-	virtual void set_recv_timeout(int timeout_ms);
-	virtual void set_send_timeout(int timeout_ms);
+	virtual void set_recv_timeout(int64_t timeout_us);
+	virtual int64_t get_recv_timeout();
+	virtual void set_send_timeout(int64_t timeout_us);
 	/**
 	* recv a message with raw/undecoded payload from peer.
 	* the payload is not decoded, use srs_rtmp_expect_message<T> if requires 

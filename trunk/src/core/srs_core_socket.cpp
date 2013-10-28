@@ -36,14 +36,19 @@ SrsSocket::~SrsSocket()
 {
 }
 
-void SrsSocket::set_recv_timeout(int timeout_ms)
+void SrsSocket::set_recv_timeout(int64_t timeout_us)
 {
-	recv_timeout = timeout_ms * 1000;
+	recv_timeout = timeout_us;
 }
 
-void SrsSocket::set_send_timeout(int timeout_ms)
+int64_t SrsSocket::get_recv_timeout()
 {
-	send_timeout = timeout_ms * 1000;
+	return recv_timeout;
+}
+
+void SrsSocket::set_send_timeout(int64_t timeout_us)
+{
+	send_timeout = timeout_us;
 }
 
 int64_t SrsSocket::get_recv_bytes()

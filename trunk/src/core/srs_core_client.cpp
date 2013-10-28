@@ -63,8 +63,8 @@ int SrsClient::do_cycle()
 	}
 	srs_verbose("get peer ip success. ip=%s", ip);
 
-	rtmp->set_recv_timeout(SRS_SEND_TIMEOUT_MS);
-	rtmp->set_send_timeout(SRS_SEND_TIMEOUT_MS);
+	rtmp->set_recv_timeout(SRS_SEND_TIMEOUT_MS * 1000);
+	rtmp->set_send_timeout(SRS_SEND_TIMEOUT_MS * 1000);
 	
 	if ((ret = rtmp->handshake()) != ERROR_SUCCESS) {
 		srs_error("rtmp handshake failed. ret=%d", ret);
@@ -185,7 +185,7 @@ int SrsClient::streaming_play(SrsSource* source)
 	SrsAutoFree(SrsConsumer, consumer, false);
 	srs_verbose("consumer created success.");
 	
-	rtmp->set_recv_timeout(SRS_PULSE_TIMEOUT_MS);
+	rtmp->set_recv_timeout(SRS_PULSE_TIMEOUT_MS * 1000);
 	
 	int64_t report_time = 0;
 	int64_t reported_time = 0;

@@ -249,6 +249,9 @@ messages.
 /****************************************************************************
 *****************************************************************************
 ****************************************************************************/
+// when got a messae header, increase recv timeout to got an entire message.
+#define SRS_MIN_RECV_TIMEOUT_US 3000
+
 SrsProtocol::AckWindowSize::AckWindowSize()
 {
 	ack_window_size = acked_size = 0;
@@ -278,14 +281,19 @@ SrsProtocol::~SrsProtocol()
 	srs_freep(skt);
 }
 
-void SrsProtocol::set_recv_timeout(int timeout_ms)
+void SrsProtocol::set_recv_timeout(int64_t timeout_us)
 {
-	return skt->set_recv_timeout(timeout_ms);
+	return skt->set_recv_timeout(timeout_us);
 }
 
-void SrsProtocol::set_send_timeout(int timeout_ms)
+int64_t SrsProtocol::get_recv_timeout()
 {
-	return skt->set_send_timeout(timeout_ms);
+	return skt->get_recv_timeout();
+}
+
+void SrsProtocol::set_send_timeout(int64_t timeout_us)
+{
+	return skt->set_send_timeout(timeout_us);
 }
 
 int SrsProtocol::recv_message(SrsCommonMessage** pmsg)
@@ -602,17 +610,31 @@ int SrsProtocol::recv_interlaced_message(SrsCommonMessage** pmsg)
 		}
 		return ret;
 	}
-	srs_info("read basic header success. fmt=%d, cid=%d, bh_size=%d", fmt, cid, bh_size);
+	srs_verbose("read basic header success. fmt=%d, cid=%d, bh_size=%d", fmt, cid, bh_size);
+	
+	// once we got the chunk message header, 
+	// that is there is a real message in cache,
+	// increase the timeout to got it.
+	// For example, in the play loop, we set timeout to 100ms,
+	// when we got a chunk header, we should increase the timeout,
+	// or we maybe timeout and disconnect the client.
+	int64_t timeout_us = skt->get_recv_timeout();
+	if (timeout_us != (int64_t)ST_UTIME_NO_TIMEOUT) {
+		int64_t pkt_timeout_us = srs_max(timeout_us, SRS_MIN_RECV_TIMEOUT_US);
+		skt->set_recv_timeout(pkt_timeout_us);
+		srs_verbose("change recv timeout_us "
+			"from %"PRId64" to %"PRId64"", timeout_us, pkt_timeout_us);
+	}
 	
 	// get the cached chunk stream.
 	SrsChunkStream* chunk = NULL;
 	
 	if (chunk_streams.find(cid) == chunk_streams.end()) {
 		chunk = chunk_streams[cid] = new SrsChunkStream(cid);
-		srs_info("cache new chunk stream: fmt=%d, cid=%d", fmt, cid);
+		srs_verbose("cache new chunk stream: fmt=%d, cid=%d", fmt, cid);
 	} else {
 		chunk = chunk_streams[cid];
-		srs_info("cached chunk stream: fmt=%d, cid=%d, size=%d, message(type=%d, size=%d, time=%d, sid=%d)",
+		srs_verbose("cached chunk stream: fmt=%d, cid=%d, size=%d, message(type=%d, size=%d, time=%d, sid=%d)",
 			chunk->fmt, chunk->cid, (chunk->msg? chunk->msg->size : 0), chunk->header.message_type, chunk->header.payload_length,
 			chunk->header.timestamp, chunk->header.stream_id);
 	}
@@ -625,7 +647,7 @@ int SrsProtocol::recv_interlaced_message(SrsCommonMessage** pmsg)
 		}
 		return ret;
 	}
-	srs_info("read message header success. "
+	srs_verbose("read message header success. "
 			"fmt=%d, mh_size=%d, ext_time=%d, size=%d, message(type=%d, size=%d, time=%d, sid=%d)", 
 			fmt, mh_size, chunk->extended_timestamp, (chunk->msg? chunk->msg->size : 0), chunk->header.message_type, 
 			chunk->header.payload_length, chunk->header.timestamp, chunk->header.stream_id);
@@ -640,9 +662,15 @@ int SrsProtocol::recv_interlaced_message(SrsCommonMessage** pmsg)
 		return ret;
 	}
 	
+	// reset the recv timeout
+	if (timeout_us != (int64_t)ST_UTIME_NO_TIMEOUT) {
+		skt->set_recv_timeout(timeout_us);
+		srs_verbose("reset recv timeout_us to %"PRId64"", timeout_us);
+	}
+	
 	// not got an entire RTMP message, try next chunk.
 	if (!msg) {
-		srs_info("get partial message success. chunk_payload_size=%d, size=%d, message(type=%d, size=%d, time=%d, sid=%d)",
+		srs_verbose("get partial message success. chunk_payload_size=%d, size=%d, message(type=%d, size=%d, time=%d, sid=%d)",
 				payload_size, (msg? msg->size : (chunk->msg? chunk->msg->size : 0)), chunk->header.message_type, chunk->header.payload_length,
 				chunk->header.timestamp, chunk->header.stream_id);
 		return ret;
@@ -827,6 +855,15 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
             pp[0] = *p++;
             pp[3] = 0;
             
+            // if msg exists in cache, the size must not changed.
+            if (chunk->msg->size > 0 && chunk->msg->size != chunk->header.payload_length) {
+                ret = ERROR_RTMP_PACKET_SIZE;
+                srs_error("msg exists in chunk cache, "
+                	"size=%d cannot change to %d, ret=%d", 
+                	chunk->msg->size, chunk->header.payload_length, ret);
+                return ret;
+            }
+            
             chunk->header.message_type = *p++;
             
             if (fmt == 0) {
@@ -867,11 +904,21 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
 			return ret;
 		}
 
-        char* pp = (char*)&chunk->header.timestamp;
+		// ffmpeg/librtmp may donot send this filed, need to detect the value.
+		// @see also: http://blog.csdn.net/win_lin/article/details/13363699
+		int32_t timestamp = 0x00;
+        char* pp = (char*)&timestamp;
         pp[3] = *p++;
         pp[2] = *p++;
         pp[1] = *p++;
         pp[0] = *p++;
+        
+        if (chunk->header.timestamp > RTMP_EXTENDED_TIMESTAMP && chunk->header.timestamp != timestamp) {
+            mh_size -= 4;
+            srs_verbose("ignore the 4bytes extended timestamp. mh_size=%d", mh_size);
+        } else {
+            chunk->header.timestamp = timestamp;
+        }
 		srs_verbose("header read ext_time completed. time=%d", chunk->header.timestamp);
 	}
 	
@@ -897,7 +944,7 @@ int SrsProtocol::read_message_payload(SrsChunkStream* chunk, int bh_size, int mh
 	int ret = ERROR_SUCCESS;
 	
 	// empty message
-	if (chunk->header.payload_length == 0) {
+	if (chunk->header.payload_length <= 0) {
 		// need erase the header in buffer.
 		buffer->erase(bh_size + mh_size);
 		
