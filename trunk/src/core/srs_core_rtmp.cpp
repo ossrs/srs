@@ -164,6 +164,26 @@ void SrsRtmp::set_send_timeout(int64_t timeout_us)
 	return protocol->set_send_timeout(timeout_us);
 }
 
+int64_t SrsRtmp::get_recv_bytes()
+{
+	return protocol->get_recv_bytes();
+}
+
+int64_t SrsRtmp::get_send_bytes()
+{
+	return protocol->get_send_bytes();
+}
+
+int SrsRtmp::get_recv_kbps()
+{
+	return protocol->get_recv_kbps();
+}
+
+int SrsRtmp::get_send_kbps()
+{
+	return protocol->get_send_kbps();
+}
+
 int SrsRtmp::recv_message(SrsCommonMessage** pmsg)
 {
 	return protocol->recv_message(pmsg);

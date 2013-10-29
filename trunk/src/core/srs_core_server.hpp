@@ -41,7 +41,6 @@ private:
 	int fd;
 	st_netfd_t stfd;
 	std::vector<SrsConnection*> conns;
-	int srs_report_interval_ms;
 public:
 	SrsServer();
 	virtual ~SrsServer();
@@ -50,7 +49,6 @@ public:
 	virtual int listen(int port);
 	virtual int cycle();
 	virtual void remove(SrsConnection* conn);
-	virtual bool can_report(int64_t& reported, int64_t time);
 private:
 	virtual int accept_client(st_netfd_t client_stfd);
 	virtual void listen_cycle();

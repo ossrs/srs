@@ -296,6 +296,26 @@ void SrsProtocol::set_send_timeout(int64_t timeout_us)
 	return skt->set_send_timeout(timeout_us);
 }
 
+int64_t SrsProtocol::get_recv_bytes()
+{
+	return skt->get_recv_bytes();
+}
+
+int64_t SrsProtocol::get_send_bytes()
+{
+	return skt->get_send_bytes();
+}
+
+int SrsProtocol::get_recv_kbps()
+{
+	return skt->get_recv_kbps();
+}
+
+int SrsProtocol::get_send_kbps()
+{
+	return skt->get_send_kbps();
+}
+
 int SrsProtocol::recv_message(SrsCommonMessage** pmsg)
 {
 	*pmsg = NULL;

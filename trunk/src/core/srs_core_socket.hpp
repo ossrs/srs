@@ -43,6 +43,7 @@ private:
 	int64_t send_timeout;
 	int64_t recv_bytes;
 	int64_t send_bytes;
+	int64_t start_time_ms;
     st_netfd_t stfd;
 public:
     SrsSocket(st_netfd_t client_stfd);
@@ -53,6 +54,8 @@ public:
 	virtual void set_send_timeout(int64_t timeout_us);
 	virtual int64_t get_recv_bytes();
 	virtual int64_t get_send_bytes();
+	virtual int get_recv_kbps();
+	virtual int get_send_kbps();
 public:
     virtual int read(const void* buf, size_t size, ssize_t* nread);
     virtual int read_fully(const void* buf, size_t size, ssize_t* nread);

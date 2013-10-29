@@ -110,6 +110,10 @@ public:
 	virtual void set_recv_timeout(int64_t timeout_us);
 	virtual int64_t get_recv_timeout();
 	virtual void set_send_timeout(int64_t timeout_us);
+	virtual int64_t get_recv_bytes();
+	virtual int64_t get_send_bytes();
+	virtual int get_recv_kbps();
+	virtual int get_send_kbps();
 	/**
 	* recv a message with raw/undecoded payload from peer.
 	* the payload is not decoded, use srs_rtmp_expect_message<T> if requires 

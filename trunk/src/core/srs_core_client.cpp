@@ -32,9 +32,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_auto_free.hpp>
 #include <srs_core_source.hpp>
 #include <srs_core_server.hpp>
+#include <srs_core_pithy_print.hpp>
 
 #define SRS_PULSE_TIMEOUT_MS 100
 #define SRS_SEND_TIMEOUT_MS 5000
+#define SRS_RECV_TIMEOUT_MS SRS_SEND_TIMEOUT_MS
 
 SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
 	: SrsConnection(srs_server, client_stfd)
@@ -61,9 +63,10 @@ int SrsClient::do_cycle()
 		srs_error("get peer ip failed. ret=%d", ret);
 		return ret;
 	}
-	srs_verbose("get peer ip success. ip=%s", ip);
+	srs_trace("get peer ip success. ip=%s, send_to=%d, recv_to=%d", 
+		ip, SRS_SEND_TIMEOUT_MS, SRS_RECV_TIMEOUT_MS);
 
-	rtmp->set_recv_timeout(SRS_SEND_TIMEOUT_MS * 1000);
+	rtmp->set_recv_timeout(SRS_RECV_TIMEOUT_MS * 1000);
 	rtmp->set_send_timeout(SRS_SEND_TIMEOUT_MS * 1000);
 	
 	if ((ret = rtmp->handshake()) != ERROR_SUCCESS) {
@@ -135,7 +138,7 @@ int SrsClient::do_cycle()
 				return ret;
 			}
 			srs_info("start to play stream %s success", req->stream.c_str());
-			return streaming_play(source);
+			return playing(source);
 		}
 		case SrsClientFMLEPublish: {
 			srs_verbose("FMLE start to publish stream %s.", req->stream.c_str());
@@ -145,7 +148,7 @@ int SrsClient::do_cycle()
 				return ret;
 			}
 			srs_info("start to publish stream %s success", req->stream.c_str());
-			ret = streaming_publish(source, true);
+			ret = publish(source, true);
 			source->on_unpublish();
 			return ret;
 		}
@@ -157,7 +160,7 @@ int SrsClient::do_cycle()
 				return ret;
 			}
 			srs_info("flash start to publish stream %s success", req->stream.c_str());
-			ret = streaming_publish(source, false);
+			ret = publish(source, false);
 			source->on_unpublish();
 			return ret;
 		}
@@ -171,7 +174,7 @@ int SrsClient::do_cycle()
 	return ret;
 }
 
-int SrsClient::streaming_play(SrsSource* source)
+int SrsClient::playing(SrsSource* source)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -187,11 +190,10 @@ int SrsClient::streaming_play(SrsSource* source)
 	
 	rtmp->set_recv_timeout(SRS_PULSE_TIMEOUT_MS * 1000);
 	
-	int64_t report_time = 0;
-	int64_t reported_time = 0;
+	SrsPithyPrint pithy_print(SRS_STAGE_PLAY_USER);
 
 	while (true) {
-		report_time += SRS_PULSE_TIMEOUT_MS;
+		pithy_print.elapse(SRS_PULSE_TIMEOUT_MS);
 		
 		// switch to other st-threads.
 		st_usleep(0);
@@ -223,8 +225,9 @@ int SrsClient::streaming_play(SrsSource* source)
 		}
 
 		// reportable
-		if (server->can_report(reported_time, report_time)) {
-			srs_trace("play report, time=%"PRId64", ctl_msg_ret=%d, msgs=%d", report_time, ctl_msg_ret, count);
+		if (pithy_print.can_print()) {
+			srs_trace("-> clock=%u, time=%"PRId64", cmr=%d, msgs=%d, obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
+				(int)srs_get_system_time_ms(), pithy_print.get_age(), ctl_msg_ret, count, rtmp->get_send_bytes(), rtmp->get_recv_bytes(), rtmp->get_send_kbps(), rtmp->get_recv_kbps());
 		}
 		
 		if (count <= 0) {
@@ -251,9 +254,11 @@ int SrsClient::streaming_play(SrsSource* source)
 	return ret;
 }
 
-int SrsClient::streaming_publish(SrsSource* source, bool is_fmle)
+int SrsClient::publish(SrsSource* source, bool is_fmle)
 {
 	int ret = ERROR_SUCCESS;
+	
+	SrsPithyPrint pithy_print(SRS_STAGE_PUBLISH_USER);
 	
 	while (true) {
 		// switch to other st-threads.
@@ -266,6 +271,14 @@ int SrsClient::streaming_publish(SrsSource* source, bool is_fmle)
 		}
 
 		SrsAutoFree(SrsCommonMessage, msg, false);
+		
+		pithy_print.set_age(msg->header.timestamp);
+
+		// reportable
+		if (pithy_print.can_print()) {
+			srs_trace("<- clock=%u, time=%"PRId64", obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
+				(int)srs_get_system_time_ms(), pithy_print.get_age(), rtmp->get_send_bytes(), rtmp->get_recv_bytes(), rtmp->get_send_kbps(), rtmp->get_recv_kbps());
+		}
 		
 		// process audio packet
 		if (msg->header.is_audio() && ((ret = source->on_audio(msg)) != ERROR_SUCCESS)) {
@@ -357,7 +370,7 @@ int SrsClient::get_peer_ip()
     ip = new char[strlen(buf) + 1];
     strcpy(ip, buf);
     
-    srs_trace("get peer ip success. ip=%s, fd=%d", ip, fd);
+    srs_verbose("get peer ip success. ip=%s, fd=%d", ip, fd);
     
     return ret;
 }

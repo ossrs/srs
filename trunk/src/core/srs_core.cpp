@@ -22,3 +22,24 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
 #include <srs_core.hpp>
+
+#include <sys/time.h>
+
+static int64_t _srs_system_time_us_cache = 0;
+
+int64_t srs_get_system_time_ms()
+{
+	return _srs_system_time_us_cache / 1000;
+}
+
+void srs_update_system_time_ms()
+{
+    timeval now;
+    
+    gettimeofday(&now, NULL);
+
+    // we must convert the tv_sec/tv_usec to int64_t.
+    _srs_system_time_us_cache = now.tv_sec * 1000 * 1000 + now.tv_usec;
+    
+    _srs_system_time_us_cache = srs_max(0, _srs_system_time_us_cache);
+}
