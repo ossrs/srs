@@ -817,19 +817,6 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
         pp[0] = *p++;
         pp[3] = 0;
         
-        if (fmt == RTMP_FMT_TYPE0) {
-			// 6.1.2.1. Type 0
-			// For a type-0 chunk, the absolute timestamp of the message is sent
-			// here.
-            chunk->header.timestamp = chunk->header.timestamp_delta;
-        } else {
-            // 6.1.2.2. Type 1
-            // 6.1.2.3. Type 2
-            // For a type-1 or type-2 chunk, the difference between the previous
-            // chunk's timestamp and the current chunk's timestamp is sent here.
-            chunk->header.timestamp += chunk->header.timestamp_delta;
-        }
-        
         // fmt: 0
         // timestamp: 3 bytes
         // If the timestamp is greater than or equal to 16777215
@@ -845,7 +832,32 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
         // the entire delta.
         chunk->extended_timestamp = (chunk->header.timestamp_delta >= RTMP_EXTENDED_TIMESTAMP);
         if (chunk->extended_timestamp) {
+            // Extended timestamp: 0 or 4 bytes
+            // This field MUST be sent when the normal timsestamp is set to
+            // 0xffffff, it MUST NOT be sent if the normal timestamp is set to
+            // anything else. So for values less than 0xffffff the normal
+            // timestamp field SHOULD be used in which case the extended timestamp
+            // MUST NOT be present. For values greater than or equal to 0xffffff
+            // the normal timestamp field MUST NOT be used and MUST be set to
+            // 0xffffff and the extended timestamp MUST be sent.
+			//
+            // if extended timestamp, the timestamp must >= RTMP_EXTENDED_TIMESTAMP
+            // we set the timestamp to RTMP_EXTENDED_TIMESTAMP to identify we
+            // got an extended timestamp.
 			chunk->header.timestamp = RTMP_EXTENDED_TIMESTAMP;
+        } else {
+	        if (fmt == RTMP_FMT_TYPE0) {
+				// 6.1.2.1. Type 0
+				// For a type-0 chunk, the absolute timestamp of the message is sent
+				// here.
+	            chunk->header.timestamp = chunk->header.timestamp_delta;
+	        } else {
+	            // 6.1.2.2. Type 1
+	            // 6.1.2.3. Type 2
+	            // For a type-1 or type-2 chunk, the difference between the previous
+	            // chunk's timestamp and the current chunk's timestamp is sent here.
+	            chunk->header.timestamp += chunk->header.timestamp_delta;
+	        }
         }
         
         if (fmt <= RTMP_FMT_TYPE1) {
@@ -913,7 +925,10 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
         pp[1] = *p++;
         pp[0] = *p++;
         
-        if (chunk->header.timestamp > RTMP_EXTENDED_TIMESTAMP && chunk->header.timestamp != timestamp) {
+        // compare to the chunk timestamp, which is set by chunk message header
+        // type 0,1 or 2.
+        int32_t chunk_timestamp = chunk->header.timestamp;
+        if (chunk_timestamp > RTMP_EXTENDED_TIMESTAMP && chunk_timestamp != timestamp) {
             mh_size -= 4;
             srs_verbose("ignore the 4bytes extended timestamp. mh_size=%d", mh_size);
         } else {

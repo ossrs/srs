@@ -61,7 +61,7 @@ public:
 	/**
 	* enqueue an shared ptr message.
 	*/
-	virtual int enqueue(SrsSharedPtrMessage* msg);
+	virtual int enqueue(SrsSharedPtrMessage* msg, int audio_sample_rate);
 	/**
 	* get packets in consumer queue.
 	* @pmsgs SrsMessages*[], output the prt array.
@@ -74,7 +74,7 @@ private:
 	* detect the time jitter and correct it.
 	* @doc update the README.cmd
 	*/
-	virtual int jitter_correct(SrsSharedPtrMessage* msg);
+	virtual int jitter_correct(SrsSharedPtrMessage* msg, int audio_sample_rate);
 };
 
 /**
@@ -112,6 +112,11 @@ private:
 	* cached gop.
 	*/
 	std::vector<SrsSharedPtrMessage*> gop_cache;
+private:
+	/**
+	* the sample rate of audio in metadata.
+	*/
+	int audio_sample_rate;
 private:
 	SrsSharedPtrMessage* cache_metadata;
 	// the cached video sequence header.
