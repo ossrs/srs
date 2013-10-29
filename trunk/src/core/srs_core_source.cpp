@@ -136,6 +136,11 @@ int SrsConsumer::jitter_correct(SrsSharedPtrMessage* msg, int audio_sample_rate)
 		} else {
 			delta = DEFAULT_FRAME_TIME_MS;
 		}
+
+		// sometimes, the time is absolute time, so correct it again.
+		if (delta > CONST_MAX_JITTER_MS) {
+			delta = DEFAULT_FRAME_TIME_MS;
+		}
 		
 		srs_info("jitter detected, last_pts=%d, pts=%d, diff=%d, last_time=%d, time=%d, diff=%d",
 			last_pkt_time, time, time - last_pkt_time, last_pkt_correct_time, last_pkt_correct_time + delta, delta);
