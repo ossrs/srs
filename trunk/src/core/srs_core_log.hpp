@@ -82,5 +82,9 @@ extern ILogContext* log_context;
 	#undef srs_info
 	#define srs_info(msg, ...) (void)0
 #endif
+#if 0
+	#undef srs_trace
+	#define srs_trace(msg, ...) (void)0
+#endif
 
 #endif
