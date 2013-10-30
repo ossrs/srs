@@ -60,7 +60,7 @@ url: rtmp://127.0.0.1:1935/live/livestream
 * v0.1, 2013-10-22, support vp6 codec with rtmp protocol specified simple handshake.
 * v0.1, 2013-10-20, support multiple flash client play live streaming.
 * v0.1, 2013-10-20, support FMLE/FFMPEG publish live streaming.
-* v0.1, 2013-10-18, support rtmp message2chunk protocol(send message).
-* v0.1, 2013-10-17, support rtmp chunk2message protocol(recv message).
+* v0.1, 2013-10-18, support rtmp message2chunk protocol(send\_message).
+* v0.1, 2013-10-17, support rtmp chunk2message protocol(recv\_message).
 
 Winlin
