@@ -5,6 +5,9 @@ GLOBAL_DIR_OBJS="objs"
 
 mkdir -p ${GLOBAL_DIR_OBJS}
 
+echo "check gcc/g++/gdb/make/openssl"
+echo "depends tools are ok"
+
 #####################################################################################
 # prepare the depends tools
 #####################################################################################
