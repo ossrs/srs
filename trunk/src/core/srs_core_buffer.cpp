@@ -54,9 +54,7 @@ void SrsBuffer::erase(int size)
 
 void SrsBuffer::append(char* bytes, int size)
 {
-	std::vector<char> vec(bytes, bytes + size);
-	
-	data.insert(data.end(), vec.begin(), vec.end());
+	data.insert(data.end(), bytes, bytes + size);
 }
 
 int SrsBuffer::ensure_buffer_bytes(SrsSocket* skt, int required_size)
