@@ -14,7 +14,7 @@ tar xf srs.*.*.tar.gz
 cd srs.*.*
 ./configure
 make
-./objs/simple_rtmp_server 1935
+./objs/simple_rtmp_server -c conf/srs.conf
 </pre>
 step 2: publish live stream <br/>
 <pre>
