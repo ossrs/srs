@@ -63,7 +63,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	(void)0
 
 // current release version
-#define RTMP_SIG_SRS_VERSION "0.2"
+#define RTMP_SIG_SRS_VERSION "0.2.0"
 // server info.
 #define RTMP_SIG_SRS_KEY "srs"
 #define RTMP_SIG_SRS_ROLE "origin server"
@@ -76,8 +76,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RTMP_SIG_SRS_COPYRIGHT "Copyright (c) 2013 winlin"
 
 // compare
-#define srs_min(a, b) ((a < b)? a : b)
-#define srs_max(a, b) ((a < b)? b : a)
+#define srs_min(a, b) (((a) < (b))? (a) : (b))
+#define srs_max(a, b) (((a) < (b))? (b) : (a))
 
 // get current system time in ms, use cache to avoid performance problem
 extern int64_t srs_get_system_time_ms();

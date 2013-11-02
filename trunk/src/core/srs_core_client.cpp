@@ -35,7 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_pithy_print.hpp>
 
 #define SRS_PULSE_TIMEOUT_MS 100
-#define SRS_SEND_TIMEOUT_MS 5000
+#define SRS_SEND_TIMEOUT_MS 5000000L
 #define SRS_RECV_TIMEOUT_MS SRS_SEND_TIMEOUT_MS
 
 SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
@@ -63,7 +63,7 @@ int SrsClient::do_cycle()
 		srs_error("get peer ip failed. ret=%d", ret);
 		return ret;
 	}
-	srs_trace("get peer ip success. ip=%s, send_to=%d, recv_to=%d", 
+	srs_trace("get peer ip success. ip=%s, send_to=%"PRId64", recv_to=%"PRId64"", 
 		ip, SRS_SEND_TIMEOUT_MS, SRS_RECV_TIMEOUT_MS);
 
 	rtmp->set_recv_timeout(SRS_RECV_TIMEOUT_MS * 1000);

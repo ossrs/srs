@@ -24,26 +24,18 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_log.hpp>
 #include <srs_core_error.hpp>
 #include <srs_core_server.hpp>
+#include <srs_core_config.hpp>
 
 #include <stdlib.h>
 
 int main(int argc, char** argv){
 	int ret = ERROR_SUCCESS;
 	
-	if (argc <= 1) {
-		printf(RTMP_SIG_SRS_NAME" "RTMP_SIG_SRS_VERSION
-			" Copyright (c) 2013 winlin\n"
-			"Usage: %s <listen_port>\n" 
-			"\n"
-			RTMP_SIG_SRS_WEB"\n"
-			RTMP_SIG_SRS_URL"\n"
-			"Email: "RTMP_SIG_SRS_EMAIL"\n",
-			argv[0]);
-		exit(1);
-	}
+	Config config;
 	
-	int listen_port = ::atoi(argv[1]);
-	srs_trace("listen_port=%d", listen_port);
+	if ((ret = config.parse_options(argc, argv)) != ERROR_SUCCESS) {
+		return ret;
+	}
 	
 	SrsServer server;
 	
@@ -51,7 +43,7 @@ int main(int argc, char** argv){
 		return ret;
 	}
 	
-	if ((ret = server.listen(listen_port)) != ERROR_SUCCESS) {
+	if ((ret = server.listen(1935)) != ERROR_SUCCESS) {
 		return ret;
 	}
 	
