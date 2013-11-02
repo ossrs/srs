@@ -31,9 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 int main(int argc, char** argv){
 	int ret = ERROR_SUCCESS;
 	
-	Config config;
-	
-	if ((ret = config.parse_options(argc, argv)) != ERROR_SUCCESS) {
+	if ((ret = config->parse_options(argc, argv)) != ERROR_SUCCESS) {
 		return ret;
 	}
 	
@@ -43,7 +41,7 @@ int main(int argc, char** argv){
 		return ret;
 	}
 	
-	if ((ret = server.listen(1935)) != ERROR_SUCCESS) {
+	if ((ret = server.listen()) != ERROR_SUCCESS) {
 		return ret;
 	}
 	

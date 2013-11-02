@@ -34,25 +34,50 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <st.h>
 
+class SrsServer;
 class SrsConnection;
-class SrsServer
+
+enum SrsListenerType 
 {
+	SrsListenerStream = 0,
+	SrsListenerApi
+};
+
+class SrsListener
+{
+public:
+	SrsListenerType type;
 private:
 	int fd;
 	st_netfd_t stfd;
+	int port;
+	SrsServer* server;
+public:
+	SrsListener(SrsServer* _server, SrsListenerType _type);
+	virtual ~SrsListener();
+public:
+	virtual int listen(int port);
+private:
+	virtual void listen_cycle();
+	static void* listen_thread(void* arg);
+};
+
+class SrsServer
+{
+	friend class SrsListener;
+private:
 	std::vector<SrsConnection*> conns;
+	std::vector<SrsListener*> listeners;
 public:
 	SrsServer();
 	virtual ~SrsServer();
 public:
 	virtual int initialize();
-	virtual int listen(int port);
+	virtual int listen();
 	virtual int cycle();
 	virtual void remove(SrsConnection* conn);
 private:
-	virtual int accept_client(st_netfd_t client_stfd);
-	virtual void listen_cycle();
-	static void* listen_thread(void* arg);
+	virtual int accept_client(SrsListenerType type, st_netfd_t client_stfd);
 };
 
 #endif

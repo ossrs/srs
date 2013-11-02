@@ -32,25 +32,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 #include <string>
 
-/**
-* the config parser.
-*/
-class Config
-{
-private:
-	bool show_help;
-	bool show_version;
-	char* config_file;
-public:
-	Config();
-	virtual ~Config();
-public:
-	virtual int parse_options(int argc, char** argv);
-private:
-	virtual int parse_argv(int& i, char** argv);
-	virtual void print_help(char** argv);
-};
-
 class SrsFileBuffer
 {
 public:
@@ -73,6 +54,7 @@ public:
 class SrsConfDirective
 {
 public:
+	int conf_line;
 	std::string name;
 	std::vector<std::string> args;
 	std::vector<SrsConfDirective*> directives;
@@ -80,6 +62,7 @@ public:
 	SrsConfDirective();
 	virtual ~SrsConfDirective();
 	SrsConfDirective* at(int index);
+	SrsConfDirective* get(std::string _name);
 public:
 	virtual int parse(const char* filename);
 public:
@@ -88,5 +71,29 @@ public:
 	virtual int read_token(SrsFileBuffer* buffer, std::vector<std::string>& args);
 	virtual int refill_buffer(SrsFileBuffer* buffer, bool d_quoted, bool s_quoted, int startline, char*& pstart);
 };
+
+/**
+* the config parser.
+*/
+class Config
+{
+private:
+	bool show_help;
+	bool show_version;
+	char* config_file;
+	SrsConfDirective* root;
+public:
+	Config();
+	virtual ~Config();
+public:
+	virtual int parse_options(int argc, char** argv);
+	virtual SrsConfDirective* get_listen();
+private:
+	virtual int parse_argv(int& i, char** argv);
+	virtual void print_help(char** argv);
+};
+
+// global config
+extern Config* config;
 
 #endif

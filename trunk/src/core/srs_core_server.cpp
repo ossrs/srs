@@ -34,52 +34,34 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_log.hpp>
 #include <srs_core_error.hpp>
 #include <srs_core_client.hpp>
+#include <srs_core_config.hpp>
 
 #define SERVER_LISTEN_BACKLOG 10
 #define SRS_TIME_RESOLUTION_MS 1000
 
-SrsServer::SrsServer()
+SrsListener::SrsListener(SrsServer* _server, SrsListenerType _type)
 {
+	fd = -1;
+	stfd = NULL;
+	
+	port = 0;
+	server = _server;
+	type = _type;
 }
 
-SrsServer::~SrsServer()
+SrsListener::~SrsListener()
 {
-	for (std::vector<SrsConnection*>::iterator it = conns.begin(); it != conns.end(); ++it) {
-		SrsConnection* conn = *it;
-		srs_freep(conn);
+	if (stfd) {
+		st_netfd_close(stfd);
+		stfd = NULL;
 	}
-	conns.clear();
 }
 
-int SrsServer::initialize()
+int SrsListener::listen(int _port)
 {
 	int ret = ERROR_SUCCESS;
-    
-    // use linux epoll.
-    if (st_set_eventsys(ST_EVENTSYS_ALT) == -1) {
-        ret = ERROR_ST_SET_EPOLL;
-        srs_error("st_set_eventsys use linux epoll failed. ret=%d", ret);
-        return ret;
-    }
-    srs_verbose("st_set_eventsys use linux epoll success");
-    
-    if(st_init() != 0){
-        ret = ERROR_ST_INITIALIZE;
-        srs_error("st_init failed. ret=%d", ret);
-        return ret;
-    }
-    srs_verbose("st_init success");
 	
-	// set current log id.
-	log_context->generate_id();
-	srs_info("log set id success");
-	
-	return ret;
-}
-
-int SrsServer::listen(int port)
-{
-	int ret = ERROR_SUCCESS;
+	port = _port;
 	
 	if ((fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         ret = ERROR_SOCKET_CREATE;
@@ -133,6 +115,117 @@ int SrsServer::listen(int port)
 	return ret;
 }
 
+void SrsListener::listen_cycle()
+{
+	int ret = ERROR_SUCCESS;
+	
+	log_context->generate_id();
+	srs_trace("listen cycle start, port=%d, type=%d, fd=%d", port, type, fd);
+	
+	while (true) {
+	    st_netfd_t client_stfd = st_accept(stfd, NULL, NULL, ST_UTIME_NO_TIMEOUT);
+	    
+	    if(client_stfd == NULL){
+	        // ignore error.
+	        srs_warn("ignore accept thread stoppped for accept client error");
+	        continue;
+	    }
+	    srs_verbose("get a client. fd=%d", st_netfd_fileno(client_stfd));
+    	
+    	if ((ret = server->accept_client(type, client_stfd)) != ERROR_SUCCESS) {
+    		srs_warn("accept client error. ret=%d", ret);
+			continue;
+    	}
+    	
+    	srs_verbose("accept client finished. conns=%d, ret=%d", (int)conns.size(), ret);
+	}
+}
+
+void* SrsListener::listen_thread(void* arg)
+{
+	SrsListener* obj = (SrsListener*)arg;
+	srs_assert(obj != NULL);
+	
+	obj->listen_cycle();
+	
+	return NULL;
+}
+
+SrsServer::SrsServer()
+{
+}
+
+SrsServer::~SrsServer()
+{
+	if (true) {
+		std::vector<SrsConnection*>::iterator it;
+		for (it = conns.begin(); it != conns.end(); ++it) {
+			SrsConnection* conn = *it;
+			srs_freep(conn);
+		}
+		conns.clear();
+	}
+	
+	if (true) {
+		std::vector<SrsListener*>::iterator it;
+		for (it = listeners.begin(); it != listeners.end(); ++it) {
+			SrsListener* listener = *it;
+			srs_freep(listener);
+		}
+		listeners.clear();
+	}
+}
+
+int SrsServer::initialize()
+{
+	int ret = ERROR_SUCCESS;
+    
+    // use linux epoll.
+    if (st_set_eventsys(ST_EVENTSYS_ALT) == -1) {
+        ret = ERROR_ST_SET_EPOLL;
+        srs_error("st_set_eventsys use linux epoll failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("st_set_eventsys use linux epoll success");
+    
+    if(st_init() != 0){
+        ret = ERROR_ST_INITIALIZE;
+        srs_error("st_init failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("st_init success");
+	
+	// set current log id.
+	log_context->generate_id();
+	srs_info("log set id success");
+	
+	return ret;
+}
+
+int SrsServer::listen()
+{
+	int ret = ERROR_SUCCESS;
+	
+	SrsConfDirective* conf = NULL;
+	
+	// stream service port.
+	conf = config->get_listen();
+	srs_assert(conf);
+	
+	for (int i = 0; i < (int)conf->args.size(); i++) {
+		SrsListener* listener = new SrsListener(this, SrsListenerStream);
+		listeners.push_back(listener);
+		
+		int port = ::atoi(conf->args.at(i).c_str());
+		if ((ret = listener->listen(port)) != ERROR_SUCCESS) {
+			srs_error("listen at port %d failed. ret=%d", port, ret);
+			return ret;
+		}
+	}
+	
+	return ret;
+}
+
 int SrsServer::cycle()
 {
 	int ret = ERROR_SUCCESS;
@@ -161,15 +254,21 @@ void SrsServer::remove(SrsConnection* conn)
 	srs_freep(conn);
 }
 
-int SrsServer::accept_client(st_netfd_t client_stfd)
+int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
 {
 	int ret = ERROR_SUCCESS;
 	
-	SrsConnection* conn = new SrsClient(this, client_stfd);
+	SrsConnection* conn = NULL;
+	if (type == SrsListenerStream) {
+		conn = new SrsClient(this, client_stfd);
+	} else {
+		// handler others
+	}
+	srs_assert(conn);
 	
 	// directly enqueue, the cycle thread will remove the client.
 	conns.push_back(conn);
-	srs_verbose("add conn to vector. conns=%d", (int)conns.size());
+	srs_verbose("add conn from port %d to vector. conns=%d", port, (int)conns.size());
 	
 	// cycle will start process thread and when finished remove the client.
 	if ((ret = conn->start()) != ERROR_SUCCESS) {
@@ -178,41 +277,5 @@ int SrsServer::accept_client(st_netfd_t client_stfd)
 	srs_verbose("conn start finished. ret=%d", ret);
     
 	return ret;
-}
-
-void SrsServer::listen_cycle()
-{
-	int ret = ERROR_SUCCESS;
-	
-	log_context->generate_id();
-	srs_trace("listen cycle start.");
-	
-	while (true) {
-	    st_netfd_t client_stfd = st_accept(stfd, NULL, NULL, ST_UTIME_NO_TIMEOUT);
-	    
-	    if(client_stfd == NULL){
-	        // ignore error.
-	        srs_warn("ignore accept thread stoppped for accept client error");
-	        continue;
-	    }
-	    srs_verbose("get a client. fd=%d", st_netfd_fileno(client_stfd));
-    	
-    	if ((ret = accept_client(client_stfd)) != ERROR_SUCCESS) {
-    		srs_warn("accept client error. ret=%d", ret);
-			continue;
-    	}
-    	
-    	srs_verbose("accept client finished. conns=%d, ret=%d", (int)conns.size(), ret);
-	}
-}
-
-void* SrsServer::listen_thread(void* arg)
-{
-	SrsServer* server = (SrsServer*)arg;
-	srs_assert(server != NULL);
-	
-	server->listen_cycle();
-	
-	return NULL;
 }
 

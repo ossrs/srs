@@ -83,6 +83,8 @@ int SrsFileBuffer::open(const char* filename)
 		return ERROR_SYSTEM_CONFIG_INVALID;
 	}
 	
+	line = 1;
+	
 	return ERROR_SUCCESS;
 }
 
@@ -103,6 +105,19 @@ SrsConfDirective::~SrsConfDirective()
 SrsConfDirective* SrsConfDirective::at(int index)
 {
 	return directives.at(index);
+}
+
+SrsConfDirective* SrsConfDirective::get(std::string _name)
+{
+	std::vector<SrsConfDirective*>::iterator it;
+	for (it = directives.begin(); it != directives.end(); ++it) {
+		SrsConfDirective* directive = *it;
+		if (directive->name == _name) {
+			return directive;
+		}
+	}
+	
+	return NULL;
 }
 
 int SrsConfDirective::parse(const char* filename)
@@ -161,6 +176,7 @@ int SrsConfDirective::parse_conf(SrsFileBuffer* buffer, SrsDirectiveType type)
 		// build directive tree.
 		SrsConfDirective* directive = new SrsConfDirective();
 
+		directive->conf_line = buffer->line;
 		directive->name = args[0];
 		args.erase(args.begin());
 		directive->args.swap(args);
@@ -361,15 +377,22 @@ int SrsConfDirective::refill_buffer(SrsFileBuffer* buffer, bool d_quoted, bool s
 	return ret;
 }
 
+Config* config = new Config();
+
 Config::Config()
 {
 	show_help = false;
 	show_version = false;
 	config_file = NULL;
+	
+	root = new SrsConfDirective();
+	root->conf_line = 0;
+	root->name = "root";
 }
 
 Config::~Config()
 {
+	srs_freep(root);
 }
 
 // see: ngx_get_options
@@ -400,14 +423,23 @@ int Config::parse_options(int argc, char** argv)
 		return ERROR_SYSTEM_CONFIG_INVALID;
 	}
 	
-	SrsConfDirective root;
-	root.name = "root";
-	
-	if ((ret = root.parse(config_file)) != ERROR_SUCCESS) {
+	if ((ret = root->parse(config_file)) != ERROR_SUCCESS) {
 		return ret;
 	}
 	
+	SrsConfDirective* conf = NULL;
+	if ((conf = get_listen()) == NULL || conf->args.size() == 0) {
+		fprintf(stderr, "line %d: conf error, "
+			"directive \"listen\" is empty\n", conf? conf->conf_line:0);
+		return ERROR_SYSTEM_CONFIG_INVALID;
+	}
+	
 	return ret;
+}
+
+SrsConfDirective* Config::get_listen()
+{
+	return root->get("listen");
 }
 
 int Config::parse_argv(int& i, char** argv)
