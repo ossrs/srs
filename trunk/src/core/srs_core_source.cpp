@@ -382,7 +382,13 @@ void SrsSource::on_consumer_destroy(SrsConsumer* consumer)
 void SrsSource::on_unpublish()
 {
 	clear_gop_cache();
-	srs_trace("clear cache when unpublish.");
+
+	srs_freep(cache_metadata);
+	
+	srs_freep(cache_sh_video);
+	srs_freep(cache_sh_audio);
+	
+	srs_trace("clear cache/metadata/sequence-headers when unpublish.");
 }
 
 int SrsSource::cache_last_gop(SrsSharedPtrMessage* msg)
