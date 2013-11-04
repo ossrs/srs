@@ -37,7 +37,7 @@ url: rtmp://127.0.0.1:1935/live/livestream
 ### Releases
 * 2013-11-04, [release v0.3](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.3), support vhost, refer, gop cache, listen multiple ports. 11773 lines.<br/>
 * 2013-10-25, [release v0.2](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.2), support flash publish, h264 codec, time jitter correct. 10125 lines.<br/>
-* 2013-10-23, [release v0.1](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.1), support FMLE/FFMPEG publish, vp6 codec live streaming. 8287 lines.<br/>
+* 2013-10-23, [release v0.1](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.1), support FMLE/FFMPEG publish, vp6 codec. 8287 lines.<br/>
 * 2013-10-17, created.<br/>
 
 ### Compare
