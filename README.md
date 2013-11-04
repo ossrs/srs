@@ -63,7 +63,7 @@ url: rtmp://127.0.0.1:1935/live/livestream
 * v0.2, 2013-10-24, support decode codec type to cache the h264/avc sequence header.
 * v0.1, 2013-10-23, v0.1 released. 8287 lines.
 * v0.1, 2013-10-23, support basic amf0 codec, simplify the api using c-style api.
-* v0.1, 2013-10-23, support shared ptr msg(SrsSharedPtrMessage) for zero memory copy.
+* v0.1, 2013-10-23, support shared ptr msg for zero memory copy.
 * v0.1, 2013-10-22, support vp6 codec with rtmp protocol specified simple handshake.
 * v0.1, 2013-10-20, support multiple flash client play live streaming.
 * v0.1, 2013-10-20, support FMLE/FFMPEG publish live streaming.
