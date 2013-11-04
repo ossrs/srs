@@ -215,7 +215,7 @@ int SrsClient::check_vhost()
 	}
 	
 	SrsConfDirective* conf = NULL;
-	if ((conf = vhost->get(RTMP_VHOST_ENABLED)) != NULL && conf->arg0() == "off") {
+	if ((conf = vhost->get(RTMP_VHOST_ENABLED)) != NULL && conf->arg0() != "on") {
 		ret = ERROR_RTMP_VHOST_NOT_FOUND;
 		srs_error("vhost %s disabled. ret=%d", req->vhost.c_str(), ret);
 		return ret;
