@@ -391,6 +391,19 @@ void SrsSource::on_unpublish()
 	srs_trace("clear cache/metadata/sequence-headers when unpublish.");
 }
 
+void SrsSource::set_cache(bool enabled)
+{
+	enable_gop_cache = enabled;
+	
+	if (!enabled) {
+		srs_info("disable gop cache, clear %d packets.", (int)gop_cache.size());
+		clear_gop_cache();
+		return;
+	}
+	
+	srs_info("enable gop cache");
+}
+
 int SrsSource::cache_last_gop(SrsSharedPtrMessage* msg)
 {
 	int ret = ERROR_SUCCESS;

@@ -134,6 +134,7 @@ public:
 	virtual int create_consumer(SrsConsumer*& consumer);
 	virtual void on_consumer_destroy(SrsConsumer* consumer);
 	virtual void on_unpublish();
+	virtual void set_cache(bool enabled);
 private:
 	/**
 	* only for h264 codec

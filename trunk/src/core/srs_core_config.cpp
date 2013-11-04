@@ -102,6 +102,33 @@ SrsConfDirective::~SrsConfDirective()
 	directives.clear();
 }
 
+std::string SrsConfDirective::arg0()
+{
+	if (args.size() > 0) {
+		return args.at(0);
+	}
+	
+	return "";
+}
+
+std::string SrsConfDirective::arg1()
+{
+	if (args.size() > 1) {
+		return args.at(1);
+	}
+	
+	return "";
+}
+
+std::string SrsConfDirective::arg2()
+{
+	if (args.size() > 2) {
+		return args.at(2);
+	}
+	
+	return "";
+}
+
 SrsConfDirective* SrsConfDirective::at(int index)
 {
 	return directives.at(index);
@@ -435,6 +462,73 @@ int Config::parse_options(int argc, char** argv)
 	}
 	
 	return ret;
+}
+
+SrsConfDirective* Config::get_vhost(std::string vhost)
+{
+	srs_assert(root);
+	
+	for (int i = 0; i < (int)root->directives.size(); i++) {
+		SrsConfDirective* conf = root->at(i);
+		
+		if (conf->name != "vhost") {
+			continue;
+		}
+		
+		if (conf->arg0() == vhost) {
+			return conf;
+		}
+	}
+	
+	if (vhost != RTMP_VHOST_DEFAULT) {
+		return get_vhost(RTMP_VHOST_DEFAULT);
+	}
+	
+	return NULL;
+}
+
+SrsConfDirective* Config::get_gop_cache(std::string vhost)
+{
+	SrsConfDirective* conf = get_vhost(vhost);
+
+	if (!conf) {
+		return NULL;
+	}
+	
+	return conf->get("gop_cache");
+}
+
+SrsConfDirective* Config::get_refer(std::string vhost)
+{
+	SrsConfDirective* conf = get_vhost(vhost);
+
+	if (!conf) {
+		return NULL;
+	}
+	
+	return conf->get("refer");
+}
+
+SrsConfDirective* Config::get_refer_play(std::string vhost)
+{
+	SrsConfDirective* conf = get_vhost(vhost);
+
+	if (!conf) {
+		return NULL;
+	}
+	
+	return conf->get("refer_play");
+}
+
+SrsConfDirective* Config::get_refer_publish(std::string vhost)
+{
+	SrsConfDirective* conf = get_vhost(vhost);
+
+	if (!conf) {
+		return NULL;
+	}
+	
+	return conf->get("refer_publish");
 }
 
 SrsConfDirective* Config::get_listen()

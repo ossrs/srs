@@ -12,6 +12,8 @@ file
     ..\core\srs_core_server.cpp,
     ..\core\srs_core_config.hpp,
     ..\core\srs_core_config.cpp,
+    ..\core\srs_core_refer.hpp,
+    ..\core\srs_core_refer.cpp,
     ..\core\srs_core_conn.hpp,
     ..\core\srs_core_conn.cpp,
     ..\core\srs_core_client.hpp,

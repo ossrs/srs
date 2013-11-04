@@ -21,44 +21,29 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_CORE_CLIENT_HPP
-#define SRS_CORE_CLIENT_HPP
+#ifndef SRS_CORE_REFER_HPP
+#define SRS_CORE_REFER_HPP
 
 /*
-#include <srs_core_client.hpp>
+#include <srs_core_refer.hpp>
 */
-
 #include <srs_core.hpp>
 
-#include <srs_core_conn.hpp>
+#include <string>
 
-class SrsRtmp;
-class SrsRequest;
-class SrsResponse;
-class SrsSource;
-class SrsRefer;
+class SrsConfDirective;
 
-/**
-* the client provides the main logic control for RTMP clients.
-*/
-class SrsClient : public SrsConnection
+class SrsRefer
 {
-private:
-	char* ip;
-	SrsRequest* req;
-	SrsResponse* res;
-	SrsRtmp* rtmp;
-	SrsRefer* refer;
 public:
-	SrsClient(SrsServer* srs_server, st_netfd_t client_stfd);
-	virtual ~SrsClient();
-protected:
-	virtual int do_cycle();
+	/**
+	* to check the refer.
+	* @param page_url the client page url.
+	* @param refer the refer in config.
+	*/
+	virtual int check(std::string page_url, SrsConfDirective* refer);
 private:
-	virtual int check_vhost();
-	virtual int playing(SrsSource* source);
-	virtual int publish(SrsSource* source, bool is_fmle);
-	virtual int get_peer_ip();
+	virtual int check_single_refer(std::string page_url, std::string refer);
 };
 
 #endif

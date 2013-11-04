@@ -33,6 +33,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_source.hpp>
 #include <srs_core_server.hpp>
 #include <srs_core_pithy_print.hpp>
+#include <srs_core_config.hpp>
+#include <srs_core_refer.hpp>
 
 #define SRS_PULSE_TIMEOUT_MS 100
 #define SRS_SEND_TIMEOUT_MS 5000000L
@@ -45,6 +47,7 @@ SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
 	req = new SrsRequest();
 	res = new SrsResponse();
 	rtmp = new SrsRtmp(client_stfd);
+	refer = new SrsRefer();
 }
 
 SrsClient::~SrsClient()
@@ -53,6 +56,7 @@ SrsClient::~SrsClient()
 	srs_freep(req);
 	srs_freep(res);
 	srs_freep(rtmp);
+	srs_freep(refer);
 }
 
 int SrsClient::do_cycle()
@@ -79,11 +83,25 @@ int SrsClient::do_cycle()
 		srs_error("rtmp connect vhost/app failed. ret=%d", ret);
 		return ret;
 	}
+	srs_verbose("rtmp connect app success");
+	
+	if ((ret = check_vhost()) != ERROR_SUCCESS) {
+		srs_error("check vhost failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("check vhost success.");
+	
 	srs_trace("rtmp connect app success. "
 		"tcUrl=%s, pageUrl=%s, swfUrl=%s, schema=%s, vhost=%s, port=%s, app=%s", 
 		req->tcUrl.c_str(), req->pageUrl.c_str(), req->swfUrl.c_str(), 
 		req->schema.c_str(), req->vhost.c_str(), req->port.c_str(),
 		req->app.c_str());
+	
+	if ((ret = refer->check(req->pageUrl, config->get_refer(req->vhost))) != ERROR_SUCCESS) {
+		srs_error("check refer failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("check refer success.");
 		
 	if ((ret = rtmp->set_window_ack_size(2.5 * 1000 * 1000)) != ERROR_SUCCESS) {
 		srs_error("set window acknowledgement size failed. ret=%d", ret);
@@ -114,7 +132,8 @@ int SrsClient::do_cycle()
 		srs_error("identify client failed. ret=%d", ret);
 		return ret;
 	}
-	srs_verbose("identify client success. type=%d, stream_name=%s", type, req->stream.c_str());
+	req->strip();
+	srs_trace("identify client success. type=%d, stream_name=%s", type, req->stream.c_str());
 	
 	// TODO: read from config.
 	int chunk_size = 4096;
@@ -127,7 +146,15 @@ int SrsClient::do_cycle()
 	// find a source to publish.
 	SrsSource* source = SrsSource::find(req->get_stream_url());
 	srs_assert(source != NULL);
-	srs_info("source found, url=%s", req->get_stream_url().c_str());
+	
+	SrsConfDirective* conf = config->get_gop_cache(req->vhost);
+	bool enabled_cache = true;
+	if (conf && conf->arg0() == "off") {
+		enabled_cache = false;
+	}
+	source->set_cache(enabled_cache);
+
+	srs_info("source found, url=%s, enabled_cache=%d", req->get_stream_url().c_str(), enabled_cache);
 	
 	switch (type) {
 		case SrsClientPlay: {
@@ -174,9 +201,43 @@ int SrsClient::do_cycle()
 	return ret;
 }
 
+int SrsClient::check_vhost()
+{
+	int ret = ERROR_SUCCESS;
+	
+	srs_assert(req != NULL);
+	
+	SrsConfDirective* vhost = config->get_vhost(req->vhost);
+	if (vhost == NULL) {
+		ret = ERROR_RTMP_VHOST_NOT_FOUND;
+		srs_error("vhost %s not found. ret=%d", req->vhost.c_str(), ret);
+		return ret;
+	}
+	
+	SrsConfDirective* conf = NULL;
+	if ((conf = vhost->get(RTMP_VHOST_ENABLED)) != NULL && conf->arg0() == "off") {
+		ret = ERROR_RTMP_VHOST_NOT_FOUND;
+		srs_error("vhost %s disabled. ret=%d", req->vhost.c_str(), ret);
+		return ret;
+	}
+	
+	if (req->vhost != vhost->arg0()) {
+		srs_trace("vhost change from %s to %s", req->vhost.c_str(), vhost->arg0().c_str());
+		req->vhost = vhost->arg0();
+	}
+	
+	return ret;
+}
+
 int SrsClient::playing(SrsSource* source)
 {
 	int ret = ERROR_SUCCESS;
+	
+	if ((ret = refer->check(req->pageUrl, config->get_refer_play(req->vhost))) != ERROR_SUCCESS) {
+		srs_error("check play_refer failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("check play_refer success.");
 	
 	SrsConsumer* consumer = NULL;
 	if ((ret = source->create_consumer(consumer)) != ERROR_SUCCESS) {
@@ -257,6 +318,12 @@ int SrsClient::playing(SrsSource* source)
 int SrsClient::publish(SrsSource* source, bool is_fmle)
 {
 	int ret = ERROR_SUCCESS;
+	
+	if ((ret = refer->check(req->pageUrl, config->get_refer_publish(req->vhost))) != ERROR_SUCCESS) {
+		srs_error("check publish_refer failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("check publish_refer success.");
 	
 	SrsPithyPrint pithy_print(SRS_STAGE_PUBLISH_USER);
 	

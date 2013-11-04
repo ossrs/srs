@@ -32,6 +32,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 #include <string>
 
+// default vhost for rtmp
+#define RTMP_VHOST_DEFAULT "__defaultVhost__"
+
+// conf node: enabled.
+#define RTMP_VHOST_ENABLED "enabled"
+
 class SrsFileBuffer
 {
 public:
@@ -61,6 +67,9 @@ public:
 public:
 	SrsConfDirective();
 	virtual ~SrsConfDirective();
+	std::string arg0();
+	std::string arg1();
+	std::string arg2();
 	SrsConfDirective* at(int index);
 	SrsConfDirective* get(std::string _name);
 public:
@@ -87,6 +96,11 @@ public:
 	virtual ~Config();
 public:
 	virtual int parse_options(int argc, char** argv);
+	virtual SrsConfDirective* get_vhost(std::string vhost);
+	virtual SrsConfDirective* get_gop_cache(std::string vhost);
+	virtual SrsConfDirective* get_refer(std::string vhost);
+	virtual SrsConfDirective* get_refer_play(std::string vhost);
+	virtual SrsConfDirective* get_refer_publish(std::string vhost);
 	virtual SrsConfDirective* get_listen();
 private:
 	virtual int parse_argv(int& i, char** argv);

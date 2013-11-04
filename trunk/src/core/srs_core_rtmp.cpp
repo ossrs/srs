@@ -110,6 +110,8 @@ int SrsRequest::discovery_app()
 		return ret;
 	}
 	
+	strip();
+	
 	return ret;
 }
 
@@ -117,14 +119,37 @@ std::string SrsRequest::get_stream_url()
 {
 	std::string url = "";
 	
-	//url += vhost;
-	
+	url += vhost;
 	url += "/";
 	url += app;
 	url += "/";
 	url += stream;
 
 	return url;
+}
+
+void SrsRequest::strip()
+{
+	trim(vhost, "/ \n\r\t");
+	trim(app, "/ \n\r\t");
+	trim(stream, "/ \n\r\t");
+}
+
+std::string& SrsRequest::trim(std::string& str, std::string chs)
+{
+	for (int i = 0; i < (int)chs.length(); i++) {
+		char ch = chs.at(i);
+		
+		for (std::string::iterator it = str.begin(); it != str.end();) {
+			if (ch == *it) {
+				it = str.erase(it);
+			} else {
+				++it;
+			}
+		}
+	}
+	
+	return str;
 }
 
 SrsResponse::SrsResponse()

@@ -46,6 +46,7 @@ url: rtmp://127.0.0.1:1935/live/livestream
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v0.3, 2013-11-04, support vhosts specified config.
 * v0.3, 2013-11-02, support listen multiple ports.
 * v0.3, 2013-11-02, support config file in nginx-conf style.
 * v0.3, 2013-10-29, support pithy print log message specified by stage.
