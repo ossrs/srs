@@ -58,9 +58,9 @@ url: rtmp://127.0.0.1:1935/live/livestream
 * v0.3, 2013-10-27, support cache last gop for client fast startup.
 * v0.2, 2013-10-25, v0.2 released. 10125 lines.
 * v0.2, 2013-10-25, support flash publish.
-* v0.2, 2013-10-25, support h264/avc codec by rtmp complex handshake(SrsComplexHandshake).
-* v0.2, 2013-10-24, support time jitter detect and correct algorithm(SrsConsumer::jitter_correct).
-* v0.2, 2013-10-24, support decode codec type(SrsCodec) to cache the h264/avc sequence header.
+* v0.2, 2013-10-25, support h264/avc codec by rtmp complex handshake.
+* v0.2, 2013-10-24, support time jitter detect and correct algorithm
+* v0.2, 2013-10-24, support decode codec type to cache the h264/avc sequence header.
 * v0.1, 2013-10-23, v0.1 released. 8287 lines.
 * v0.1, 2013-10-23, support basic amf0 codec, simplify the api using c-style api.
 * v0.1, 2013-10-23, support shared ptr msg(SrsSharedPtrMessage) for zero memory copy.

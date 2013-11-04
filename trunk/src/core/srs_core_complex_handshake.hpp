@@ -36,7 +36,6 @@ class SrsSocket;
 * rtmp complex handshake,
 * @see also crtmp(crtmpserver) or librtmp,
 * @see also: http://blog.csdn.net/win_lin/article/details/13006803
-* @doc update the README.cmd
 */
 class SrsComplexHandshake
 {

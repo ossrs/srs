@@ -32,7 +32,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 /**
 * Annex E. The FLV File Format
-* @doc update the README.cmd
 */
 class SrsCodec
 {
