@@ -10,8 +10,8 @@ see also: [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.githu
 ### Usage
 step 1: build srs <br/>
 <pre>
-tar xf srs.*.*.tar.gz
-cd srs.*.*
+tar xf simple-rtmp-server-*.*.tar.gz
+cd simple-rtmp-server-*.*/trunk
 ./configure
 make
 ./objs/simple_rtmp_server -c conf/srs.conf
