@@ -418,7 +418,7 @@ int SrsProtocol::send_message(ISrsMessage* msg)
 		    
 		    // chunk extended timestamp header, 0 or 4 bytes, big-endian
 		    if(msg->header.timestamp >= RTMP_EXTENDED_TIMESTAMP){
-		        pp = (char*)&msg->header.timestamp; 
+		        pp = (char*)&msg->header.timestamp;
 		        *pheader++ = pp[3];
 		        *pheader++ = pp[2];
 		        *pheader++ = pp[1];
@@ -433,6 +433,18 @@ int SrsProtocol::send_message(ISrsMessage* msg)
 			*pheader++ = 0xC0 | (msg->get_perfer_cid() & 0x3F);
 		    
 		    // chunk extended timestamp header, 0 or 4 bytes, big-endian
+		    // 6.1.3. Extended Timestamp
+		    // This field is transmitted only when the normal time stamp in the
+		    // chunk message header is set to 0x00ffffff. If normal time stamp is
+		    // set to any value less than 0x00ffffff, this field MUST NOT be
+		    // present. This field MUST NOT be present if the timestamp field is not
+		    // present. Type 3 chunks MUST NOT have this field.
+		    // adobe changed for Type3 chunk:
+		    //		FMLE always sendout the extended-timestamp,
+		    // 		must send the extended-timestamp to FMS,
+		    //		must send the extended-timestamp to flash-player.
+		    // @see: ngx_rtmp_prepare_message
+		    // @see: http://blog.csdn.net/win_lin/article/details/13363699
 		    if(msg->header.timestamp >= RTMP_EXTENDED_TIMESTAMP){
 		        pp = (char*)&msg->header.timestamp; 
 		        *pheader++ = pp[3];
