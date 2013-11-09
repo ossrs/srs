@@ -24,6 +24,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_client.hpp>
 
 #include <arpa/inet.h>
+#include <stdlib.h>
 
 #include <srs_core_error.hpp>
 #include <srs_core_log.hpp>
@@ -135,20 +136,23 @@ int SrsClient::do_cycle()
 	req->strip();
 	srs_trace("identify client success. type=%d, stream_name=%s", type, req->stream.c_str());
 	
-	// TODO: read from config.
 	int chunk_size = 4096;
+	SrsConfDirective* conf = config->get_chunk_size();
+	if (conf && !conf->arg0().empty()) {
+		chunk_size = ::atoi(conf->arg0().c_str());
+	}
 	if ((ret = rtmp->set_chunk_size(chunk_size)) != ERROR_SUCCESS) {
-		srs_error("set chunk size failed. ret=%d", ret);
+		srs_error("set chunk_size=%d failed. ret=%d", chunk_size, ret);
 		return ret;
 	}
-	srs_verbose("set chunk size success");
+	srs_trace("set chunk_size=%d success", chunk_size);
 	
 	// find a source to publish.
 	SrsSource* source = SrsSource::find(req->get_stream_url());
 	srs_assert(source != NULL);
 	
-	SrsConfDirective* conf = config->get_gop_cache(req->vhost);
 	bool enabled_cache = true;
+	conf = config->get_gop_cache(req->vhost);
 	if (conf && conf->arg0() == "off") {
 		enabled_cache = false;
 	}

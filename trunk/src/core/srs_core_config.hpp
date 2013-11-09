@@ -102,6 +102,7 @@ public:
 	virtual SrsConfDirective* get_refer_play(std::string vhost);
 	virtual SrsConfDirective* get_refer_publish(std::string vhost);
 	virtual SrsConfDirective* get_listen();
+	virtual SrsConfDirective* get_chunk_size();
 private:
 	virtual int parse_argv(int& i, char** argv);
 	virtual void print_help(char** argv);

@@ -536,6 +536,11 @@ SrsConfDirective* Config::get_listen()
 	return root->get("listen");
 }
 
+SrsConfDirective* Config::get_chunk_size()
+{
+	return root->get("chunk_size");
+}
+
 int Config::parse_argv(int& i, char** argv)
 {
 	int ret = ERROR_SUCCESS;
