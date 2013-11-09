@@ -26,6 +26,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <signal.h>
 
 #include <algorithm>
 
@@ -37,7 +38,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_config.hpp>
 
 #define SERVER_LISTEN_BACKLOG 10
-#define SRS_TIME_RESOLUTION_MS 1000
+#define SRS_TIME_RESOLUTION_MS 500
 
 SrsListener::SrsListener(SrsServer* _server, SrsListenerType _type)
 {
@@ -47,6 +48,9 @@ SrsListener::SrsListener(SrsServer* _server, SrsListenerType _type)
 	port = 0;
 	server = _server;
 	type = _type;
+	
+	tid = NULL;
+	loop = false;
 }
 
 SrsListener::~SrsListener()
@@ -55,6 +59,17 @@ SrsListener::~SrsListener()
 		st_netfd_close(stfd);
 		stfd = NULL;
 	}
+	
+	if (tid) {
+		loop = false;
+		st_thread_interrupt(tid);
+		st_thread_join(tid, NULL);
+		tid = NULL;
+	}
+	
+	// st does not close it sometimes, 
+	// close it manually.
+	close(fd);
 }
 
 int SrsListener::listen(int _port)
@@ -103,7 +118,7 @@ int SrsListener::listen(int _port)
     }
     srs_verbose("st open socket success. fd=%d", fd);
     
-    if (st_thread_create(listen_thread, this, 0, 0) == NULL) {
+    if ((tid = st_thread_create(listen_thread, this, 1, 0)) == NULL) {
         ret = ERROR_ST_CREATE_LISTEN_THREAD;
         srs_error("st_thread_create listen thread error. ret=%d", ret);
         return ret;
@@ -122,7 +137,7 @@ void SrsListener::listen_cycle()
 	log_context->generate_id();
 	srs_trace("listen cycle start, port=%d, type=%d, fd=%d", port, type, fd);
 	
-	while (true) {
+	while (loop) {
 	    st_netfd_t client_stfd = st_accept(stfd, NULL, NULL, ST_UTIME_NO_TIMEOUT);
 	    
 	    if(client_stfd == NULL){
@@ -146,6 +161,7 @@ void* SrsListener::listen_thread(void* arg)
 	SrsListener* obj = (SrsListener*)arg;
 	srs_assert(obj != NULL);
 	
+	obj->loop = true;
 	obj->listen_cycle();
 	
 	return NULL;
@@ -153,10 +169,15 @@ void* SrsListener::listen_thread(void* arg)
 
 SrsServer::SrsServer()
 {
+	signal_reload = false;
+	
+	config->subscribe(this);
 }
 
 SrsServer::~SrsServer()
 {
+	config->unsubscribe(this);
+	
 	if (true) {
 		std::vector<SrsConnection*>::iterator it;
 		for (it = conns.begin(); it != conns.end(); ++it) {
@@ -166,14 +187,7 @@ SrsServer::~SrsServer()
 		conns.clear();
 	}
 	
-	if (true) {
-		std::vector<SrsListener*>::iterator it;
-		for (it = listeners.begin(); it != listeners.end(); ++it) {
-			SrsListener* listener = *it;
-			srs_freep(listener);
-		}
-		listeners.clear();
-	}
+	close_listeners();
 }
 
 int SrsServer::initialize()
@@ -212,6 +226,8 @@ int SrsServer::listen()
 	conf = config->get_listen();
 	srs_assert(conf);
 	
+	close_listeners();
+	
 	for (int i = 0; i < (int)conf->args.size(); i++) {
 		SrsListener* listener = new SrsListener(this, SrsListenerStream);
 		listeners.push_back(listener);
@@ -234,6 +250,17 @@ int SrsServer::cycle()
 	while (true) {
 		st_usleep(SRS_TIME_RESOLUTION_MS * 1000);
 		srs_update_system_time_ms();
+		
+		if (signal_reload) {
+			signal_reload = false;
+			srs_info("get signal reload, to reload the config.");
+			
+			if ((ret = config->reload()) != ERROR_SUCCESS) {
+				srs_error("reload config failed. ret=%d", ret);
+				return ret;
+			}
+			srs_trace("reload config success.");
+		}
 	}
 	
 	return ret;
@@ -252,6 +279,23 @@ void SrsServer::remove(SrsConnection* conn)
 	// all connections are created by server,
 	// so we free it here.
 	srs_freep(conn);
+}
+
+void SrsServer::on_signal(int signo)
+{
+	if (signo == SIGNAL_RELOAD) {
+		signal_reload = true;
+	}
+}
+
+void SrsServer::close_listeners()
+{
+	std::vector<SrsListener*>::iterator it;
+	for (it = listeners.begin(); it != listeners.end(); ++it) {
+		SrsListener* listener = *it;
+		srs_freep(listener);
+	}
+	listeners.clear();
 }
 
 int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
@@ -278,4 +322,11 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
     
 	return ret;
 }
+
+int SrsServer::on_reload_listen()
+{
+	return listen();
+}
+
+SrsServer server;
 

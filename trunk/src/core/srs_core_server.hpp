@@ -34,6 +34,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <st.h>
 
+#include <srs_core_reload.hpp>
+
 class SrsServer;
 class SrsConnection;
 
@@ -52,6 +54,8 @@ private:
 	st_netfd_t stfd;
 	int port;
 	SrsServer* server;
+	st_thread_t tid;
+	bool loop;
 public:
 	SrsListener(SrsServer* _server, SrsListenerType _type);
 	virtual ~SrsListener();
@@ -62,12 +66,13 @@ private:
 	static void* listen_thread(void* arg);
 };
 
-class SrsServer
+class SrsServer : public SrsReloadHandler
 {
 	friend class SrsListener;
 private:
 	std::vector<SrsConnection*> conns;
 	std::vector<SrsListener*> listeners;
+	bool signal_reload;
 public:
 	SrsServer();
 	virtual ~SrsServer();
@@ -76,8 +81,14 @@ public:
 	virtual int listen();
 	virtual int cycle();
 	virtual void remove(SrsConnection* conn);
+	virtual void on_signal(int signo);
 private:
+	virtual void close_listeners();
 	virtual int accept_client(SrsListenerType type, st_netfd_t client_stfd);
+public:
+	virtual int on_reload_listen();
 };
+	
+extern SrsServer server;
 
 #endif

@@ -84,4 +84,7 @@ extern int64_t srs_get_system_time_ms();
 // the deamon st-thread will update it.
 extern void srs_update_system_time_ms();
 
+// signal defines.
+#define SIGNAL_RELOAD SIGHUP
+
 #endif

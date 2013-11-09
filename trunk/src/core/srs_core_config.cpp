@@ -34,8 +34,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <fcntl.h>
 
 #include <vector>
+#include <algorithm>
 
 #include <srs_core_error.hpp>
+#include <srs_core_log.hpp>
+#include <srs_core_auto_free.hpp>
 
 #define FILE_OFFSET(fd) lseek(fd, 0, SEEK_CUR)
 
@@ -79,7 +82,7 @@ int SrsFileBuffer::open(const char* filename)
 	assert(fd == -1);
 	
 	if ((fd = ::open(filename, O_RDONLY, 0)) < 0) {
-		fprintf(stderr, "open conf file error. errno=%d(%s)\n", errno, strerror(errno));
+		srs_error("open conf file error. errno=%d(%s)", errno, strerror(errno));
 		return ERROR_SYSTEM_CONFIG_INVALID;
 	}
 	
@@ -182,21 +185,21 @@ int SrsConfDirective::parse_conf(SrsFileBuffer* buffer, SrsDirectiveType type)
 		}
 		if (ret == ERROR_SYSTEM_CONFIG_BLOCK_END) {
 			if (type != parse_block) {
-				fprintf(stderr, "line %d: unexpected \"}\"\n", buffer->line);
+				srs_error("line %d: unexpected \"}\"", buffer->line);
 				return ret;
 			}
 			return ERROR_SUCCESS;
 		}
 		if (ret == ERROR_SYSTEM_CONFIG_EOF) {
 			if (type == parse_block) {
-				fprintf(stderr, "line %d: unexpected end of file, expecting \"}\"\n", buffer->line);
+				srs_error("line %d: unexpected end of file, expecting \"}\"", buffer->line);
 				return ret;
 			}
 			return ERROR_SUCCESS;
 		}
 		
 		if (args.empty()) {
-			fprintf(stderr, "line %d: empty directive.\n", buffer->line);
+			srs_error("line %d: empty directive.", buffer->line);
 			return ret;
 		}
 		
@@ -239,7 +242,7 @@ int SrsConfDirective::read_token(SrsFileBuffer* buffer, std::vector<std::string>
 	while (true) {
 		if ((ret = refill_buffer(buffer, d_quoted, s_quoted, startline, pstart)) != ERROR_SUCCESS) {
 			if (!args.empty() || !last_space) {
-				fprintf(stderr, "line %d: unexpected end of file, expecting ; or \"}\"\n", buffer->line);
+				srs_error("line %d: unexpected end of file, expecting ; or \"}\"", buffer->line);
 				return ERROR_SYSTEM_CONFIG_INVALID;
 			}
 			return ret;
@@ -268,7 +271,7 @@ int SrsConfDirective::read_token(SrsFileBuffer* buffer, std::vector<std::string>
 			if (ch == '{') {
 				return ERROR_SYSTEM_CONFIG_BLOCK_START;
 			}
-			fprintf(stderr, "line %d: unexpected '%c'\n", buffer->line, ch);
+			srs_error("line %d: unexpected '%c'", buffer->line, ch);
 			return ERROR_SYSTEM_CONFIG_INVALID; 
 		}
 		
@@ -282,19 +285,19 @@ int SrsConfDirective::read_token(SrsFileBuffer* buffer, std::vector<std::string>
 			switch (ch) {
 				case ';':
 					if (args.size() == 0) {
-						fprintf(stderr, "line %d: unexpected ';'\n", buffer->line);
+						srs_error("line %d: unexpected ';'", buffer->line);
 						return ERROR_SYSTEM_CONFIG_INVALID;
 					}
 					return ERROR_SYSTEM_CONFIG_DIRECTIVE;
 				case '{':
 					if (args.size() == 0) {
-						fprintf(stderr, "line %d: unexpected '{'\n", buffer->line);
+						srs_error("line %d: unexpected '{'", buffer->line);
 						return ERROR_SYSTEM_CONFIG_INVALID;
 					}
 					return ERROR_SYSTEM_CONFIG_BLOCK_START;
 				case '}':
 					if (args.size() != 0) {
-						fprintf(stderr, "line %d: unexpected '}'\n", buffer->line);
+						srs_error("line %d: unexpected '}'", buffer->line);
 						return ERROR_SYSTEM_CONFIG_INVALID;
 					}
 					return ERROR_SYSTEM_CONFIG_BLOCK_END;
@@ -376,12 +379,12 @@ int SrsConfDirective::refill_buffer(SrsFileBuffer* buffer, bool d_quoted, bool s
 		buffer->line = startline;
 		
 		if (!d_quoted && !s_quoted) {
-			fprintf(stderr, "line %d: too long parameter \"%*s...\" started\n", 
+			srs_error("line %d: too long parameter \"%*s...\" started", 
 				buffer->line, 10, buffer->start);
 			
 		} else {
-			fprintf(stderr, "line %d: too long parameter, "
-				"probably missing terminating '%c' character\n", buffer->line, d_quoted? '"':'\'');
+			srs_error("line %d: too long parameter, "
+				"probably missing terminating '%c' character", buffer->line, d_quoted? '"':'\'');
 		}
 		return ERROR_SYSTEM_CONFIG_INVALID;
 	}
@@ -393,7 +396,7 @@ int SrsConfDirective::refill_buffer(SrsFileBuffer* buffer, bool d_quoted, bool s
 	size = srs_min(size, buffer->end - (buffer->start + len));
 	int n = read(buffer->fd, buffer->start + len, size);
 	if (n != size) {
-		fprintf(stderr, "read file read error. expect %d, actual %d bytes.\n", size, n);
+		srs_error("read file read error. expect %d, actual %d bytes.", size, n);
 		return ERROR_SYSTEM_CONFIG_INVALID;
 	}
 	
@@ -404,26 +407,85 @@ int SrsConfDirective::refill_buffer(SrsFileBuffer* buffer, bool d_quoted, bool s
 	return ret;
 }
 
-Config* config = new Config();
+SrsConfig* config = new SrsConfig();
 
-Config::Config()
+SrsConfig::SrsConfig()
 {
 	show_help = false;
 	show_version = false;
-	config_file = NULL;
 	
 	root = new SrsConfDirective();
 	root->conf_line = 0;
 	root->name = "root";
 }
 
-Config::~Config()
+SrsConfig::~SrsConfig()
 {
 	srs_freep(root);
 }
 
+int SrsConfig::reload()
+{
+	int ret = ERROR_SUCCESS;
+
+	SrsConfig conf;
+	if ((ret = conf.parse_file(config_file.c_str())) != ERROR_SUCCESS) {
+		srs_error("config reloader parse file failed. ret=%d", ret);
+		return ret;
+	}
+	srs_info("config reloader parse file success.");
+	
+	// store current root to old_root,
+	// and reap the root from conf to current root.
+	SrsConfDirective* old_root = root;
+	SrsAutoFree(SrsConfDirective, old_root, false);
+	
+	root = conf.root;
+	conf.root = NULL;
+	
+	// merge config.
+	std::vector<SrsReloadHandler*>::iterator it;
+
+	// merge config: listen
+	if (!srs_directive_equals(root->get("listen"), old_root->get("listen"))) {
+		for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+			SrsReloadHandler* subscribe = *it;
+			if ((ret = subscribe->on_reload_listen()) != ERROR_SUCCESS) {
+				srs_error("notify subscribes reload listen failed. ret=%d", ret);
+				return ret;
+			}
+		}
+	}
+	
+	return ret;
+}
+
+void SrsConfig::subscribe(SrsReloadHandler* handler)
+{
+	std::vector<SrsReloadHandler*>::iterator it;
+	
+	it = std::find(subscribes.begin(), subscribes.end(), handler);
+	if (it != subscribes.end()) {
+		return;
+	}
+	
+	subscribes.push_back(handler);
+}
+
+void SrsConfig::unsubscribe(SrsReloadHandler* handler)
+{
+	std::vector<SrsReloadHandler*>::iterator it;
+	
+	it = std::find(subscribes.begin(), subscribes.end(), handler);
+	if (it == subscribes.end()) {
+		return;
+	}
+	
+	subscribes.erase(it);
+}
+
 // see: ngx_get_options
-int Config::parse_options(int argc, char** argv)
+int SrsConfig::parse_options(int argc, char** argv)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -438,33 +500,23 @@ int Config::parse_options(int argc, char** argv)
 	}
 	
 	if (show_version) {
-		fprintf(stderr, "%s\n", RTMP_SIG_SRS_VERSION);
+		printf("%s\n", RTMP_SIG_SRS_VERSION);
 	}
 	
 	if (show_help || show_version) {
 		exit(0);
 	}
 	
-	if (!config_file) {
-		fprintf(stderr, "config file not specified, see help: %s -h\n", argv[0]);
-		return ERROR_SYSTEM_CONFIG_INVALID;
-	}
-	
-	if ((ret = root->parse(config_file)) != ERROR_SUCCESS) {
+	if (config_file.empty()) {
+		ret = ERROR_SYSTEM_CONFIG_INVALID;
+		srs_error("config file not specified, see help: %s -h, ret=%d", argv[0], ret);
 		return ret;
 	}
-	
-	SrsConfDirective* conf = NULL;
-	if ((conf = get_listen()) == NULL || conf->args.size() == 0) {
-		fprintf(stderr, "line %d: conf error, "
-			"directive \"listen\" is empty\n", conf? conf->conf_line:0);
-		return ERROR_SYSTEM_CONFIG_INVALID;
-	}
-	
-	return ret;
+
+	return parse_file(config_file.c_str());
 }
 
-SrsConfDirective* Config::get_vhost(std::string vhost)
+SrsConfDirective* SrsConfig::get_vhost(std::string vhost)
 {
 	srs_assert(root);
 	
@@ -487,7 +539,7 @@ SrsConfDirective* Config::get_vhost(std::string vhost)
 	return NULL;
 }
 
-SrsConfDirective* Config::get_gop_cache(std::string vhost)
+SrsConfDirective* SrsConfig::get_gop_cache(std::string vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
 
@@ -498,7 +550,7 @@ SrsConfDirective* Config::get_gop_cache(std::string vhost)
 	return conf->get("gop_cache");
 }
 
-SrsConfDirective* Config::get_refer(std::string vhost)
+SrsConfDirective* SrsConfig::get_refer(std::string vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
 
@@ -509,7 +561,7 @@ SrsConfDirective* Config::get_refer(std::string vhost)
 	return conf->get("refer");
 }
 
-SrsConfDirective* Config::get_refer_play(std::string vhost)
+SrsConfDirective* SrsConfig::get_refer_play(std::string vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
 
@@ -520,7 +572,7 @@ SrsConfDirective* Config::get_refer_play(std::string vhost)
 	return conf->get("refer_play");
 }
 
-SrsConfDirective* Config::get_refer_publish(std::string vhost)
+SrsConfDirective* SrsConfig::get_refer_publish(std::string vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
 
@@ -531,26 +583,52 @@ SrsConfDirective* Config::get_refer_publish(std::string vhost)
 	return conf->get("refer_publish");
 }
 
-SrsConfDirective* Config::get_listen()
+SrsConfDirective* SrsConfig::get_listen()
 {
 	return root->get("listen");
 }
 
-SrsConfDirective* Config::get_chunk_size()
+SrsConfDirective* SrsConfig::get_chunk_size()
 {
 	return root->get("chunk_size");
 }
 
-int Config::parse_argv(int& i, char** argv)
+int SrsConfig::parse_file(const char* filename)
+{
+	int ret = ERROR_SUCCESS;
+	
+	config_file = filename;
+	
+	if (config_file.empty()) {
+		return ERROR_SYSTEM_CONFIG_INVALID;
+	}
+	
+	if ((ret = root->parse(config_file.c_str())) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
+	SrsConfDirective* conf = NULL;
+	if ((conf = get_listen()) == NULL || conf->args.size() == 0) {
+		ret = ERROR_SYSTEM_CONFIG_INVALID;
+		srs_error("line %d: conf error, "
+			"directive \"listen\" is empty, ret=%d", (conf? conf->conf_line:0), ret);
+		return ret;
+	}
+	
+	return ret;
+}
+
+int SrsConfig::parse_argv(int& i, char** argv)
 {
 	int ret = ERROR_SUCCESS;
 
 	char* p = argv[i];
 		
 	if (*p++ != '-') {
-		fprintf(stderr, "invalid options(index=%d, value=%s), "
-			"must starts with -, see help: %s -h\n", i, argv[i], argv[0]);
-		return ERROR_SYSTEM_CONFIG_INVALID;
+		ret = ERROR_SYSTEM_CONFIG_INVALID;
+		srs_error("invalid options(index=%d, value=%s), "
+			"must starts with -, see help: %s -h, ret=%d", i, argv[i], argv[0], ret);
+		return ret;
 	}
 	
 	while (*p) {
@@ -572,20 +650,22 @@ int Config::parse_argv(int& i, char** argv)
 					config_file = argv[i];
 					return ret;
 				}
-				fprintf(stderr, "option \"-c\" requires parameter\n");
-				return ERROR_SYSTEM_CONFIG_INVALID;
+				ret = ERROR_SYSTEM_CONFIG_INVALID;
+				srs_error("option \"-c\" requires parameter, ret=%d", ret);
+				return ret;
 			default:
-				fprintf(stderr, "invalid option: \"%c\", see help: %s -h\n", *(p - 1), argv[0]);
-				return ERROR_SYSTEM_CONFIG_INVALID;
+				ret = ERROR_SYSTEM_CONFIG_INVALID;
+				srs_error("invalid option: \"%c\", see help: %s -h, ret=%d", *(p - 1), argv[0], ret);
+				return ret;
 		}
 	}
 	
 	return ret;
 }
 
-void Config::print_help(char** argv)
+void SrsConfig::print_help(char** argv)
 {
-	fprintf(stderr, RTMP_SIG_SRS_NAME" "RTMP_SIG_SRS_VERSION
+	printf(RTMP_SIG_SRS_NAME" "RTMP_SIG_SRS_VERSION
 		" Copyright (c) 2013 winlin\n"
 		"Usage: %s [-h?vV] [-c <filename>]\n" 
 		"\n"
@@ -598,5 +678,41 @@ void Config::print_help(char** argv)
 		RTMP_SIG_SRS_URL"\n"
 		"Email: "RTMP_SIG_SRS_EMAIL"\n",
 		argv[0]);
+}
+
+bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b)
+{
+	if (!a || !b) {
+		return false;
+	}
+	
+	if (a->name != b->name) {
+		return false;
+	}
+	
+	if (a->args.size() != b->args.size()) {
+		return false;
+	}
+	
+	for (int i = 0; i < (int)a->args.size(); i++) {
+		if (a->args.at(i) != b->args.at(i)) {
+			return false;
+		}
+	}
+	
+	if (a->directives.size() != b->directives.size()) {
+		return false;
+	}
+	
+	for (int i = 0; i < (int)a->directives.size(); i++) {
+		SrsConfDirective* a0 = a->at(i);
+		SrsConfDirective* b0 = b->at(i);
+		
+		if (!srs_directive_equals(a0, b0)) {
+			return false;
+		}
+	}
+	
+	return true;
 }
 

@@ -21,40 +21,24 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <srs_core_log.hpp>
-#include <srs_core_error.hpp>
-#include <srs_core_server.hpp>
-#include <srs_core_config.hpp>
+#ifndef SRS_CORE_RELOAD_HPP
+#define SRS_CORE_RELOAD_HPP
 
-#include <stdlib.h>
-#include <signal.h>
+/*
+#include <srs_core_reload.hpp>
+*/
+#include <srs_core.hpp>
 
-void handler(int signo)
+/**
+* the handler for config reload.
+*/
+class SrsReloadHandler
 {
-	srs_trace("get a signal, signo=%d", signo);
-	server.on_signal(signo);
-}
+public:
+	SrsReloadHandler();
+	virtual ~SrsReloadHandler();
+public:
+	virtual int on_reload_listen();
+};
 
-int main(int argc, char** argv){
-	int ret = ERROR_SUCCESS;
-	
-	signal(SIGNAL_RELOAD, handler);
-	
-	if ((ret = config->parse_options(argc, argv)) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	if ((ret = server.initialize()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	if ((ret = server.listen()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	if ((ret = server.cycle()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-    return 0;
-}
+#endif

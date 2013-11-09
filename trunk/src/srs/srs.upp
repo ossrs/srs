@@ -10,6 +10,8 @@ file
     ..\core\srs_core_auto_free.cpp,
     ..\core\srs_core_server.hpp,
     ..\core\srs_core_server.cpp,
+    ..\core\srs_core_reload.hpp,
+    ..\core\srs_core_reload.cpp,
     ..\core\srs_core_config.hpp,
     ..\core\srs_core_config.cpp,
     ..\core\srs_core_refer.hpp,

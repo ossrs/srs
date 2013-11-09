@@ -32,6 +32,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 #include <string>
 
+#include <srs_core_reload.hpp>
+
 // default vhost for rtmp
 #define RTMP_VHOST_DEFAULT "__defaultVhost__"
 
@@ -84,16 +86,21 @@ public:
 /**
 * the config parser.
 */
-class Config
+class SrsConfig
 {
 private:
 	bool show_help;
 	bool show_version;
-	char* config_file;
+	std::string config_file;
 	SrsConfDirective* root;
+	std::vector<SrsReloadHandler*> subscribes;
 public:
-	Config();
-	virtual ~Config();
+	SrsConfig();
+	virtual ~SrsConfig();
+public:
+	virtual int reload();
+	virtual void subscribe(SrsReloadHandler* handler);
+	virtual void unsubscribe(SrsReloadHandler* handler);
 public:
 	virtual int parse_options(int argc, char** argv);
 	virtual SrsConfDirective* get_vhost(std::string vhost);
@@ -104,11 +111,17 @@ public:
 	virtual SrsConfDirective* get_listen();
 	virtual SrsConfDirective* get_chunk_size();
 private:
+	virtual int parse_file(const char* filename);
 	virtual int parse_argv(int& i, char** argv);
 	virtual void print_help(char** argv);
 };
 
+/**
+* deep compare directive.
+*/
+bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b);
+
 // global config
-extern Config* config;
+extern SrsConfig* config;
 
 #endif
