@@ -270,10 +270,9 @@ int SrsClient::playing(SrsSource* source)
 				srs_error("recv client control message failed. ret=%d", ret);
 				return ret;
 			}
-			if (ret == ERROR_SUCCESS && !msg) {
-				srs_info("play loop got a message.");
-				SrsAutoFree(SrsCommonMessage, msg, false);
-				// TODO: process it.
+			if ((ret = process_play_control_msg(consumer, msg)) != ERROR_SUCCESS) {
+				srs_error("process play control message failed. ret=%d", ret);
+				return ret;
 			}
 		}
 		
@@ -439,6 +438,47 @@ int SrsClient::get_peer_ip()
     
     srs_verbose("get peer ip success. ip=%s, fd=%d", ip, fd);
     
+    return ret;
+}
+
+int SrsClient::process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage* msg)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if (!msg) {
+		srs_verbose("ignore all empty message.");
+		return ret;
+	}
+	SrsAutoFree(SrsCommonMessage, msg, false);
+	
+	if (!msg->header.is_amf0_command() && !msg->header.is_amf3_command()) {
+		srs_info("ignore all message except amf0/amf3 command.");
+		return ret;
+	}
+	
+	if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
+		srs_error("decode the amf0/amf3 command packet failed. ret=%d", ret);
+		return ret;
+	}
+	srs_info("decode the amf0/amf3 command packet success.");
+	
+	SrsPausePacket* pause = dynamic_cast<SrsPausePacket*>(msg->get_packet());
+	if (!pause) {
+		srs_info("ignore all amf0/amf3 command except pause.");
+		return ret;
+	}
+	
+	if ((ret = rtmp->on_play_client_pause(res->stream_id, pause->is_pause)) != ERROR_SUCCESS) {
+		srs_error("rtmp process play client pause failed. ret=%d", ret);
+		return ret;
+	}
+	
+	if ((ret = consumer->on_play_client_pause(pause->is_pause)) != ERROR_SUCCESS) {
+		srs_error("consumer process play client pause failed. ret=%d", ret);
+		return ret;
+	}
+	srs_info("process pause success, is_pause=%d, time=%d.", pause->is_pause, pause->time_ms);
+	
     return ret;
 }
 

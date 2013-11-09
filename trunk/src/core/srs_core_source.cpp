@@ -31,8 +31,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_amf0.hpp>
 #include <srs_core_codec.hpp>
 
-#define CONST_MAX_JITTER_MS 500
-#define DEFAULT_FRAME_TIME_MS 10
+#define CONST_MAX_JITTER_MS 		500
+#define DEFAULT_FRAME_TIME_MS 		10
+#define PAUSED_SHRINK_SIZE			250
 
 std::map<std::string, SrsSource*> SrsSource::pool;
 
@@ -50,16 +51,14 @@ SrsConsumer::SrsConsumer(SrsSource* _source)
 {
 	source = _source;
 	last_pkt_correct_time = last_pkt_time = 0;
+	paused = false;
+	codec = new SrsCodec();
 }
 
 SrsConsumer::~SrsConsumer()
 {
-	std::vector<SrsSharedPtrMessage*>::iterator it;
-	for (it = msgs.begin(); it != msgs.end(); ++it) {
-		SrsSharedPtrMessage* msg = *it;
-		srs_freep(msg);
-	}
-	msgs.clear();
+	clear();	
+	srs_freep(codec);
 	
 	source->on_consumer_destroy(this);
 }
@@ -89,6 +88,13 @@ int SrsConsumer::get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& c
 	if (msgs.empty()) {
 		return ret;
 	}
+
+	if (paused) {
+		if ((int)msgs.size() >= PAUSED_SHRINK_SIZE) {
+			shrink();
+		}
+		return ret;
+	}
 	
 	if (max_count == 0) {
 		count = (int)msgs.size();
@@ -109,6 +115,68 @@ int SrsConsumer::get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& c
 	}
 	
 	return ret;
+}
+
+int SrsConsumer::on_play_client_pause(bool is_pause)
+{
+	int ret = ERROR_SUCCESS;
+	
+	srs_trace("stream consumer change pause state %d=>%d", paused, is_pause);
+	paused = is_pause;
+	
+	return ret;
+}
+
+void SrsConsumer::shrink()
+{
+	int i = 0;
+	std::vector<SrsSharedPtrMessage*>::iterator it;
+	
+	// issue the last video iframe.
+	bool has_video = false;
+	int frame_to_remove = 0;
+	std::vector<SrsSharedPtrMessage*>::iterator iframe = msgs.end();
+	for (i = 0, it = msgs.begin(); it != msgs.end(); ++it, i++) {
+		SrsSharedPtrMessage* msg = *it;
+		if (msg->header.is_video()) {
+			has_video = true;
+			if (codec->video_is_keyframe(msg->payload, msg->size)) {
+				iframe = it;
+				frame_to_remove = i + 1;
+			}
+		}
+	}
+	
+	// last iframe is the first elem, ignore it.
+	if (iframe == msgs.begin()) {
+		return;
+	}
+	
+	// recalc the frame to remove
+	if (iframe == msgs.end()) {
+		frame_to_remove = 0;
+	}
+	if (!has_video) {
+		frame_to_remove = (int)msgs.size();
+	}
+	
+	srs_trace("shrink the cache queue, has_video=%d, has_iframe=%d, size=%d, removed=%d", 
+		has_video, iframe != msgs.end(), (int)msgs.size(), frame_to_remove);
+	
+	// if no video, remove all audio.
+	if (!has_video) {
+		clear();
+		return;
+	}
+	
+	// if exists video Iframe, remove the frames before it.
+	if (iframe != msgs.end()) {
+		for (it = msgs.begin(); it != iframe; ++it) {
+			SrsSharedPtrMessage* msg = *it;
+			srs_freep(msg);
+		}
+		msgs.erase(msgs.begin(), iframe);
+	}
 }
 
 int SrsConsumer::jitter_correct(SrsSharedPtrMessage* msg, int audio_sample_rate)
@@ -154,6 +222,16 @@ int SrsConsumer::jitter_correct(SrsSharedPtrMessage* msg, int audio_sample_rate)
 	last_pkt_time = time;
 	
 	return ret;
+}
+
+void SrsConsumer::clear()
+{
+	std::vector<SrsSharedPtrMessage*>::iterator it;
+	for (it = msgs.begin(); it != msgs.end(); ++it) {
+		SrsSharedPtrMessage* msg = *it;
+		srs_freep(msg);
+	}
+	msgs.clear();
 }
 
 SrsSource::SrsSource(std::string _stream_url)

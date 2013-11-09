@@ -34,34 +34,36 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /**
 * the signature for packets to client.
 */
-#define RTMP_SIG_FMS_VER "3,5,3,888"
-#define RTMP_SIG_AMF0_VER 0
-#define RTMP_SIG_CLIENT_ID "ASAICiss"
+#define RTMP_SIG_FMS_VER 					"3,5,3,888"
+#define RTMP_SIG_AMF0_VER 					0
+#define RTMP_SIG_CLIENT_ID 					"ASAICiss"
 
 /**
 * onStatus consts.
 */
-#define StatusLevel "level"
-#define StatusCode "code"
-#define StatusDescription "description"
-#define StatusDetails "details"
-#define StatusClientId "clientid"
+#define StatusLevel 						"level"
+#define StatusCode 							"code"
+#define StatusDescription 					"description"
+#define StatusDetails 						"details"
+#define StatusClientId 						"clientid"
 // status value
-#define StatusLevelStatus "status"
+#define StatusLevelStatus 					"status"
 // code value
-#define StatusCodeConnectSuccess "NetConnection.Connect.Success"
-#define StatusCodeStreamReset "NetStream.Play.Reset"
-#define StatusCodeStreamStart "NetStream.Play.Start"
-#define StatusCodePublishStart "NetStream.Publish.Start"
-#define StatusCodeDataStart "NetStream.Data.Start"
-#define StatusCodeUnpublishSuccess "NetStream.Unpublish.Success"
+#define StatusCodeConnectSuccess 			"NetConnection.Connect.Success"
+#define StatusCodeStreamReset 				"NetStream.Play.Reset"
+#define StatusCodeStreamStart 				"NetStream.Play.Start"
+#define StatusCodeStreamPause 				"NetStream.Pause.Notify"
+#define StatusCodeStreamUnpause 			"NetStream.Unpause.Notify"
+#define StatusCodePublishStart 				"NetStream.Publish.Start"
+#define StatusCodeDataStart 				"NetStream.Data.Start"
+#define StatusCodeUnpublishSuccess 			"NetStream.Unpublish.Success"
 
 // FMLE
 #define RTMP_AMF0_COMMAND_ON_FC_PUBLISH		"onFCPublish"
 #define RTMP_AMF0_COMMAND_ON_FC_UNPUBLISH	"onFCUnpublish"
 
 // default stream id for response the createStream request.
-#define SRS_DEFAULT_SID 1
+#define SRS_DEFAULT_SID 					1
 
 SrsRequest::SrsRequest()
 {
@@ -566,6 +568,81 @@ int SrsRtmp::start_play(int stream_id)
 	}
 	
 	srs_info("start play success.");
+	
+	return ret;
+}
+
+int SrsRtmp::on_play_client_pause(int stream_id, bool is_pause)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if (is_pause) {
+		// onStatus(NetStream.Pause.Notify)
+		if (true) {
+			SrsCommonMessage* msg = new SrsCommonMessage();
+			SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
+			
+			pkt->data->set(StatusLevel, new SrsAmf0String(StatusLevelStatus));
+			pkt->data->set(StatusCode, new SrsAmf0String(StatusCodeStreamPause));
+			pkt->data->set(StatusDescription, new SrsAmf0String("Paused stream."));
+			
+			msg->set_packet(pkt, stream_id);
+			
+			if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+				srs_error("send onStatus(NetStream.Pause.Notify) message failed. ret=%d", ret);
+				return ret;
+			}
+			srs_info("send onStatus(NetStream.Pause.Notify) message success.");
+		}
+		// StreamEOF
+		if (true) {
+			SrsCommonMessage* msg = new SrsCommonMessage();
+			SrsUserControlPacket* pkt = new SrsUserControlPacket();
+			
+			pkt->event_type = SrcPCUCStreamEOF;
+			pkt->event_data = stream_id;
+			msg->set_packet(pkt, 0);
+			
+			if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+				srs_error("send PCUC(StreamEOF) message failed. ret=%d", ret);
+				return ret;
+			}
+			srs_info("send PCUC(StreamEOF) message success.");
+		}
+	} else {
+		// onStatus(NetStream.Unpause.Notify)
+		if (true) {
+			SrsCommonMessage* msg = new SrsCommonMessage();
+			SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
+			
+			pkt->data->set(StatusLevel, new SrsAmf0String(StatusLevelStatus));
+			pkt->data->set(StatusCode, new SrsAmf0String(StatusCodeStreamUnpause));
+			pkt->data->set(StatusDescription, new SrsAmf0String("Unpaused stream."));
+			
+			msg->set_packet(pkt, stream_id);
+			
+			if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+				srs_error("send onStatus(NetStream.Unpause.Notify) message failed. ret=%d", ret);
+				return ret;
+			}
+			srs_info("send onStatus(NetStream.Unpause.Notify) message success.");
+		}
+		// StreanBegin
+		if (true) {
+			SrsCommonMessage* msg = new SrsCommonMessage();
+			SrsUserControlPacket* pkt = new SrsUserControlPacket();
+			
+			pkt->event_type = SrcPCUCStreamBegin;
+			pkt->event_data = stream_id;
+			msg->set_packet(pkt, 0);
+			
+			if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+				srs_error("send PCUC(StreanBegin) message failed. ret=%d", ret);
+				return ret;
+			}
+			srs_info("send PCUC(StreanBegin) message success.");
+		}
+	}
 	
 	return ret;
 }

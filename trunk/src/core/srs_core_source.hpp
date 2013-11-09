@@ -50,6 +50,8 @@ private:
 	int32_t last_pkt_correct_time;
 	SrsSource* source;
 	std::vector<SrsSharedPtrMessage*> msgs;
+	bool paused;
+	SrsCodec* codec;
 public:
 	SrsConsumer(SrsSource* _source);
 	virtual ~SrsConsumer();
@@ -69,11 +71,21 @@ public:
 	* @max_count the max count to dequeue, 0 to dequeue all.
 	*/
 	virtual int get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& count);
+	/**
+	* when client send the pause message.
+	*/
+	virtual int on_play_client_pause(bool is_pause);
 private:
+	/**
+	* when paused, shrink the cache queue,
+	* remove to cache only one gop.
+	*/
+	virtual void shrink();
 	/**
 	* detect the time jitter and correct it.
 	*/
 	virtual int jitter_correct(SrsSharedPtrMessage* msg, int audio_sample_rate);
+	virtual void clear();
 };
 
 /**

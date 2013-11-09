@@ -195,6 +195,7 @@ messages.
 #define RTMP_AMF0_COMMAND_CONNECT			"connect"
 #define RTMP_AMF0_COMMAND_CREATE_STREAM		"createStream"
 #define RTMP_AMF0_COMMAND_PLAY				"play"
+#define RTMP_AMF0_COMMAND_PAUSE				"pause"
 #define RTMP_AMF0_COMMAND_ON_BW_DONE		"onBWDone"
 #define RTMP_AMF0_COMMAND_ON_STATUS			"onStatus"
 #define RTMP_AMF0_COMMAND_RESULT			"_result"
@@ -1219,6 +1220,10 @@ int SrsCommonMessage::decode_packet()
 			srs_info("decode the AMF0/AMF3 command(paly message).");
 			packet = new SrsPlayPacket();
 			return packet->decode(stream);
+		} else if(command == RTMP_AMF0_COMMAND_PAUSE) {
+			srs_info("decode the AMF0/AMF3 command(pause message).");
+			packet = new SrsPausePacket();
+			return packet->decode(stream);
 		} else if(command == RTMP_AMF0_COMMAND_RELEASE_STREAM) {
 			srs_info("decode the AMF0/AMF3 command(FMLE releaseStream message).");
 			packet = new SrsFMLEStartPacket();
@@ -1892,6 +1897,61 @@ int SrsPublishPacket::decode(SrsStream* stream)
 	}
 	
 	srs_info("amf0 decode publish packet success");
+	
+	return ret;
+}
+
+SrsPausePacket::SrsPausePacket()
+{
+	command_name = RTMP_AMF0_COMMAND_PAUSE;
+	transaction_id = 0;
+	command_object = new SrsAmf0Null();
+
+	time_ms = 0;
+	is_pause = true;
+}
+
+SrsPausePacket::~SrsPausePacket()
+{
+	srs_freep(command_object);
+}
+
+int SrsPausePacket::decode(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+
+	if ((ret = srs_amf0_read_string(stream, command_name)) != ERROR_SUCCESS) {
+		srs_error("amf0 decode pause command_name failed. ret=%d", ret);
+		return ret;
+	}
+	if (command_name.empty() || command_name != RTMP_AMF0_COMMAND_PAUSE) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 decode pause command_name failed. "
+			"command_name=%s, ret=%d", command_name.c_str(), ret);
+		return ret;
+	}
+	
+	if ((ret = srs_amf0_read_number(stream, transaction_id)) != ERROR_SUCCESS) {
+		srs_error("amf0 decode pause transaction_id failed. ret=%d", ret);
+		return ret;
+	}
+	
+	if ((ret = srs_amf0_read_null(stream)) != ERROR_SUCCESS) {
+		srs_error("amf0 decode pause command_object failed. ret=%d", ret);
+		return ret;
+	}
+	
+	if ((ret = srs_amf0_read_boolean(stream, is_pause)) != ERROR_SUCCESS) {
+		srs_error("amf0 decode pause is_pause failed. ret=%d", ret);
+		return ret;
+	}
+	
+	if ((ret = srs_amf0_read_number(stream, time_ms)) != ERROR_SUCCESS) {
+		srs_error("amf0 decode pause time_ms failed. ret=%d", ret);
+		return ret;
+	}
+	
+	srs_info("amf0 decode pause packet success");
 	
 	return ret;
 }

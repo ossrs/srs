@@ -148,6 +148,16 @@ public:
 	*/
 	virtual int start_play(int stream_id);
 	/**
+	* when client(type is play) send pause message,
+	* if is_pause, response the following packets:
+	* 	onStatus(NetStream.Pause.Notify)
+	* 	StreamEOF
+	* if not is_pause, response the following packets:
+	* 	onStatus(NetStream.Unpause.Notify)
+	* 	StreamBegin
+	*/
+	virtual int on_play_client_pause(int stream_id, bool is_pause);
+	/**
 	* when client type is publish, response with packets:
 	* releaseStream response
 	* FCPublish

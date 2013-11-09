@@ -637,6 +637,33 @@ public:
 };
 
 /**
+* 4.2.8. pause
+* The client sends the pause command to tell the server to pause or
+* start playing.
+*/
+class SrsPausePacket : public SrsPacket
+{
+private:
+	typedef SrsPacket super;
+protected:
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsPausePacket);
+	}
+public:
+	std::string command_name;
+	double transaction_id;
+	SrsAmf0Null* command_object;
+	bool is_pause;
+	double time_ms;
+public:
+	SrsPausePacket();
+	virtual ~SrsPausePacket();
+public:
+	virtual int decode(SrsStream* stream);
+};
+
+/**
 * 4.2.1. play
 * The client sends this command to the server to play a stream.
 */
@@ -960,12 +987,12 @@ protected:
 enum SrcPCUCEventType
 {
 	 // generally, 4bytes event-data
-	SrcPCUCStreamBegin 		= 0x00,
+	SrcPCUCStreamBegin 			= 0x00,
 	SrcPCUCStreamEOF 			= 0x01,
 	SrcPCUCStreamDry 			= 0x02,
-	SrcPCUCSetBufferLength 	= 0x03, // 8bytes event-data
+	SrcPCUCSetBufferLength 		= 0x03, // 8bytes event-data
 	SrcPCUCStreamIsRecorded 	= 0x04,
-	SrcPCUCPingRequest 		= 0x06,
+	SrcPCUCPingRequest 			= 0x06,
 	SrcPCUCPingResponse 		= 0x07,
 };
 
