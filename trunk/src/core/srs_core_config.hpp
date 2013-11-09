@@ -85,6 +85,10 @@ public:
 
 /**
 * the config parser.
+* for the config supports reload, so never keep the reference cross st-thread,
+* that is, never save the SrsConfDirective* get by any api of config,
+* for it maybe free in the reload st-thread cycle.
+* you can keep it before st-thread switch, or simply never keep it.
 */
 class SrsConfig
 {
