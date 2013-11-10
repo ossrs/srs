@@ -35,12 +35,14 @@ url: rtmp://127.0.0.1:1935/live/livestream
 6. no multiple processes, single process only.<br/>
 
 ### Releases
+* 2013-11-10, [release v0.4](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.4), support reload config, pause, longtime publish/play. 12500 lines.<br/>
 * 2013-11-04, [release v0.3](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.3), support vhost, refer, gop cache, listen multiple ports. 11773 lines.<br/>
 * 2013-10-25, [release v0.2](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.2), support flash publish, h264 codec, time jitter correct. 10125 lines.<br/>
 * 2013-10-23, [release v0.1](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.1), support FMLE/FFMPEG publish, vp6 codec. 8287 lines.<br/>
 * 2013-10-17, created.<br/>
 
 ### Compare
+* srs v0.4: 12500 lines.<br/>
 * srs v0.3: 11773 lines.<br/>
 * srs v0.2: 10125 lines.<br/>
 * srs v0.1: 8287 lines.<br/>
@@ -48,6 +50,7 @@ url: rtmp://127.0.0.1:1935/live/livestream
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v0.4, 2013-11-10, v0.4 released. 12500 lines.
 * v0.4, 2013-11-10, support config and reload the pithy print.
 * v0.4, 2013-11-09, support reload config(vhost and its detail).
 * v0.4, 2013-11-09, support reload config(listen and chunk_size) by SIGHUP(1).
