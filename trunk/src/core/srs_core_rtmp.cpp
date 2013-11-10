@@ -225,8 +225,9 @@ int SrsRtmp::handshake()
 	
     SrsSocket skt(stfd);
     
-    SrsSimpleHandshake hs;
-    if ((ret = hs.handshake(skt)) != ERROR_SUCCESS) {
+    SrsComplexHandshake complex_hs;
+    SrsSimpleHandshake simple_hs;
+    if ((ret = simple_hs.handshake(skt, complex_hs)) != ERROR_SUCCESS) {
         return ret;
     }
     

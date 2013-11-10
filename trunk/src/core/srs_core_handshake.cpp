@@ -1066,7 +1066,7 @@ SrsSimpleHandshake::~SrsSimpleHandshake()
 {
 }
 
-int SrsSimpleHandshake::handshake(SrsSocket& skt)
+int SrsSimpleHandshake::handshake(SrsSocket& skt, SrsComplexHandshake& complex_hs)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -1089,8 +1089,7 @@ int SrsSimpleHandshake::handshake(SrsSocket& skt)
     srs_verbose("check c0 success, required plain text.");
     
     // try complex handshake
-    SrsComplexHandshake complex_handshake;
-    ret = complex_handshake.handshake(skt, c0c1 + 1);
+    ret = complex_hs.handshake(skt, c0c1 + 1);
     if (ret == ERROR_SUCCESS) {
 	    srs_trace("complex handshake success.");
 	    return ret;
@@ -1099,7 +1098,7 @@ int SrsSimpleHandshake::handshake(SrsSocket& skt)
 	    srs_error("complex handshake failed. ret=%d", ret);
     	return ret;
     }
-    srs_info("complex handhskae failed, try simple. ret=%d", ret);
+    srs_info("rollback complex to simple handshake. ret=%d", ret);
 	
 	char* s0s1s2 = new char[3073];
     SrsAutoFree(char, s0s1s2, true);

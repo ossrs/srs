@@ -31,6 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 class SrsSocket;
+class SrsComplexHandshake;
 
 /**
 * try complex handshake, if failed, fallback to simple handshake.
@@ -43,8 +44,10 @@ public:
 public:
 	/**
 	* simple handshake.
+	* @param complex_hs, try complex handshake first, 
+	* 		if failed, rollback to simple handshake.
 	*/
-	virtual int handshake(SrsSocket& skt);
+	virtual int handshake(SrsSocket& skt, SrsComplexHandshake& complex_hs);
 };
 
 /**
