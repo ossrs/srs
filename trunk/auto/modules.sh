@@ -15,15 +15,15 @@ FILE=${GLOBAL_DIR_OBJS}/${GLOBAL_FILE_MAKEFILE}
 # INCS
 INCS_NAME="${MODULE_ID}_INCS"
 echo "# the ${MODULE_ID} module." >> ${FILE}
-echo "${MODULE_ID}_MODULE_INCS = -I ${MODULE_DIR} " >> ${FILE}
-echo -n "${INCS_NAME} = -I ${MODULE_DIR} " >> ${FILE}
+echo "${MODULE_ID}_MODULE_INCS = -I${MODULE_DIR} " >> ${FILE}
+echo -n "${INCS_NAME} = -I${MODULE_DIR} " >> ${FILE}
 for item in ${MODULE_DEPENDS[*]}; do
     DEP_INCS_NAME="${item}_INCS"do
     DEP_INCS_NAME="${item}_MODULE_INCS"
     echo -n "\$(${DEP_INCS_NAME}) " >> ${FILE}
 done
 for item in ${ModuleLibIncs[*]}; do
-    echo -n "-I ${item} " >> ${FILE}
+    echo -n "-I${item} " >> ${FILE}
 done
 echo "" >> ${FILE}
 
@@ -50,7 +50,7 @@ for item in ${MODULE_FILES[*]}; do
     MODULE_OBJS="${MODULE_OBJS[@]} ${CPP_FILE}"
     if [ -f ${CPP_FILE} ]; then
         echo "${OBJ_FILE}: \$(${DEPS_NAME}) ${CPP_FILE} " >> ${FILE}
-        echo "	\$(GCC) -c \$(CXXFLAGS) \$(${INCS_NAME}) -o ${OBJ_FILE} ${CPP_FILE}" >> ${FILE}
+        echo "	\$(GCC) -c \$(CXXFLAGS) \$(${INCS_NAME})-o ${OBJ_FILE} ${CPP_FILE}" >> ${FILE}
     fi
 done
 echo "" >> ${FILE}

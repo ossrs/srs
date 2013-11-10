@@ -48,6 +48,7 @@ url: rtmp://127.0.0.1:1935/live/livestream
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v0.4, 2013-11-10, support config and reload the pithy print.
 * v0.4, 2013-11-09, support reload config(vhost and its detail).
 * v0.4, 2013-11-09, support reload config(listen and chunk_size) by SIGHUP(1).
 * v0.4, 2013-11-09, support longtime(>4.6hours) publish/play.

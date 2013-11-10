@@ -25,7 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CORE_AUTO_FREE_HPP
 
 /*
-#include <srs_core_auto_free.hpp>
+#include <srs_core_autofree.hpp>
 */
 
 #include <srs_core.hpp>

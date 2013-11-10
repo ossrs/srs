@@ -114,6 +114,8 @@ public:
 	virtual SrsConfDirective* get_refer_publish(std::string vhost);
 	virtual SrsConfDirective* get_listen();
 	virtual SrsConfDirective* get_chunk_size();
+	virtual SrsConfDirective* get_pithy_print_publish();
+	virtual SrsConfDirective* get_pithy_print_play();
 private:
 	virtual int parse_file(const char* filename);
 	virtual int parse_argv(int& i, char** argv);

@@ -29,7 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_socket.hpp>
 #include <srs_core_buffer.hpp>
 #include <srs_core_stream.hpp>
-#include <srs_core_auto_free.hpp>
+#include <srs_core_autofree.hpp>
 
 /****************************************************************************
 *****************************************************************************

@@ -27,9 +27,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_error.hpp>
 #include <srs_core_socket.hpp>
 #include <srs_core_protocol.hpp>
-#include <srs_core_auto_free.hpp>
+#include <srs_core_autofree.hpp>
 #include <srs_core_amf0.hpp>
-#include <srs_core_complex_handshake.hpp>
+#include <srs_core_handshake.hpp>
 
 /**
 * the signature for packets to client.
@@ -167,13 +167,11 @@ SrsRtmp::SrsRtmp(st_netfd_t client_stfd)
 {
 	protocol = new SrsProtocol(client_stfd);
 	stfd = client_stfd;
-	complex_handshake = new SrsComplexHandshake();
 }
 
 SrsRtmp::~SrsRtmp()
 {
 	srs_freep(protocol);
-	srs_freep(complex_handshake);
 }
 
 void SrsRtmp::set_recv_timeout(int64_t timeout_us)
@@ -225,58 +223,14 @@ int SrsRtmp::handshake()
 {
 	int ret = ERROR_SUCCESS;
 	
-    ssize_t nsize;
     SrsSocket skt(stfd);
     
-    char* c0c1 = new char[1537];
-    SrsAutoFree(char, c0c1, true);
-    if ((ret = skt.read_fully(c0c1, 1537, &nsize)) != ERROR_SUCCESS) {
-        srs_warn("read c0c1 failed. ret=%d", ret);
+    SrsSimpleHandshake hs;
+    if ((ret = hs.handshake(skt)) != ERROR_SUCCESS) {
         return ret;
     }
-    srs_verbose("read c0c1 success.");
-
-	// plain text required.
-	if (c0c1[0] != 0x03) {
-		ret = ERROR_RTMP_PLAIN_REQUIRED;
-		srs_warn("only support rtmp plain text. ret=%d", ret);
-		return ret;
-	}
-    srs_verbose("check c0 success, required plain text.");
     
-    // try complex handshake
-    ret = complex_handshake->handshake(skt, c0c1 + 1);
-    if (ret == ERROR_SUCCESS) {
-	    srs_trace("complex handshake success.");
-	    return ret;
-    }
-    if (ret != ERROR_RTMP_TRY_SIMPLE_HS) {
-	    srs_error("complex handshake failed. ret=%d", ret);
-    	return ret;
-    }
-    srs_info("complex handhskae failed, try simple. ret=%d", ret);
-	
-	char* s0s1s2 = new char[3073];
-    SrsAutoFree(char, s0s1s2, true);
-	// plain text required.
-    s0s1s2[0] = 0x03;
-    if ((ret = skt.write(s0s1s2, 3073, &nsize)) != ERROR_SUCCESS) {
-        srs_warn("simple handshake send s0s1s2 failed. ret=%d", ret);
-        return ret;
-    }
-    srs_verbose("simple handshake send s0s1s2 success.");
-    
-    char* c2 = new char[1536];
-    SrsAutoFree(char, c2, true);
-    if ((ret = skt.read_fully(c2, 1536, &nsize)) != ERROR_SUCCESS) {
-        srs_warn("simple handshake read c2 failed. ret=%d", ret);
-        return ret;
-    }
-    srs_verbose("simple handshake read c2 success.");
-    
-    srs_trace("simple handshake success.");
-    
-	return ret;
+    return ret;
 }
 
 int SrsRtmp::connect_app(SrsRequest* req)

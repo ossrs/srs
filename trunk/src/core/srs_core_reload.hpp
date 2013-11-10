@@ -39,6 +39,7 @@ public:
 	virtual ~SrsReloadHandler();
 public:
 	virtual int on_reload_listen();
+	virtual int on_reload_pithy_print();
 };
 
 #endif

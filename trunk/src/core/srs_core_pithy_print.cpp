@@ -23,15 +23,19 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core_pithy_print.hpp>
 
+#include <stdlib.h>
 #include <map>
 
 #include <srs_core_log.hpp>
+#include <srs_core_config.hpp>
+#include <srs_core_reload.hpp>
+#include <srs_core_error.hpp>
 
 #define SRS_STAGE_DEFAULT_INTERVAL_MS 1200
 #define SRS_STAGE_PLAY_USER_INTERVAL_MS 1300
 #define SRS_STAGE_PUBLISH_USER_INTERVAL_MS 1100
 
-struct SrsStageInfo
+struct SrsStageInfo : public SrsReloadHandler
 {
 	int stage_id;
 	int pithy_print_time_ms;
@@ -40,19 +44,46 @@ struct SrsStageInfo
 	SrsStageInfo(int _stage_id)
 	{
 		stage_id = _stage_id;
-
-		switch (_stage_id) {
-			case SRS_STAGE_PLAY_USER:
+		nb_clients = 0;
+		
+		update_print_time();
+		
+		config->subscribe(this);
+	}
+	virtual ~SrsStageInfo()
+	{
+		config->unsubscribe(this);
+	}
+	void update_print_time()
+	{
+		switch (stage_id) {
+			case SRS_STAGE_PLAY_USER: {
 				pithy_print_time_ms = SRS_STAGE_PLAY_USER_INTERVAL_MS;
-			case SRS_STAGE_PUBLISH_USER:
-				pithy_print_time_ms = SRS_STAGE_PUBLISH_USER_INTERVAL_MS;
+				SrsConfDirective* conf = config->get_pithy_print_play();
+				if (conf && !conf->arg0().empty()) {
+					pithy_print_time_ms = ::atoi(conf->arg0().c_str());
+				}
 				break;
-			default:
+			}
+			case SRS_STAGE_PUBLISH_USER: {
+				pithy_print_time_ms = SRS_STAGE_PUBLISH_USER_INTERVAL_MS;
+				SrsConfDirective* conf = config->get_pithy_print_publish();
+				if (conf && !conf->arg0().empty()) {
+					pithy_print_time_ms = ::atoi(conf->arg0().c_str());
+				}
+				break;
+			}
+			default: {
 				pithy_print_time_ms = SRS_STAGE_DEFAULT_INTERVAL_MS;
 				break;
+			}
 		}
-		
-		nb_clients = 0;
+	}
+public:
+	virtual int on_reload_pithy_print()
+	{
+		update_print_time();
+		return ERROR_SUCCESS;
 	}
 };
 static std::map<int, SrsStageInfo*> _srs_stages;

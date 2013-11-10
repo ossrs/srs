@@ -21,38 +21,4 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_CORE_COMPLEX_HANDSHKAE_HPP
-#define SRS_CORE_COMPLEX_HANDSHKAE_HPP
-
-/*
-#include <srs_core_complex_handshake.hpp>
-*/
-
-#include <srs_core.hpp>
-
-class SrsSocket;
-
-/**
-* rtmp complex handshake,
-* @see also crtmp(crtmpserver) or librtmp,
-* @see also: http://blog.csdn.net/win_lin/article/details/13006803
-*/
-class SrsComplexHandshake
-{
-public:
-	SrsComplexHandshake();
-	virtual ~SrsComplexHandshake();
-public:
-	/**
-	* complex hanshake.
-	* @_c1, size of c1 must be 1536.
-	* @remark, user must free the c1.
-	* @return user must:
-	* 	continue connect app if success,
-	* 	try simple handshake if error is ERROR_RTMP_TRY_SIMPLE_HS,
-	* 	otherwise, disconnect
-	*/
-	virtual int handshake(SrsSocket& skt, char* _c1);
-};
-
-#endif
+#include <srs_core_autofree.hpp>

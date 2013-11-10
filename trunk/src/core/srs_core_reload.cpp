@@ -35,7 +35,11 @@ SrsReloadHandler::~SrsReloadHandler()
 
 int SrsReloadHandler::on_reload_listen()
 {
-	int ret = ERROR_SUCCESS;
-	return ret;
+	return ERROR_SUCCESS;
+}
+
+int SrsReloadHandler::on_reload_pithy_print()
+{
+	return ERROR_SUCCESS;
 }
 

@@ -38,7 +38,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core_error.hpp>
 #include <srs_core_log.hpp>
-#include <srs_core_auto_free.hpp>
+#include <srs_core_autofree.hpp>
 
 #define FILE_OFFSET(fd) lseek(fd, 0, SEEK_CUR)
 
@@ -455,6 +455,18 @@ int SrsConfig::reload()
 				return ret;
 			}
 		}
+		srs_trace("reload listen success.");
+	}
+	// merge config: pithy_print
+	if (!srs_directive_equals(root->get("pithy_print"), old_root->get("pithy_print"))) {
+		for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+			SrsReloadHandler* subscribe = *it;
+			if ((ret = subscribe->on_reload_pithy_print()) != ERROR_SUCCESS) {
+				srs_error("notify subscribes pithy_print listen failed. ret=%d", ret);
+				return ret;
+			}
+		}
+		srs_trace("reload pithy_print success.");
 	}
 	
 	return ret;
@@ -591,6 +603,26 @@ SrsConfDirective* SrsConfig::get_listen()
 SrsConfDirective* SrsConfig::get_chunk_size()
 {
 	return root->get("chunk_size");
+}
+
+SrsConfDirective* SrsConfig::get_pithy_print_publish()
+{
+	SrsConfDirective* pithy = root->get("pithy_print");
+	if (!pithy) {
+		return NULL;
+	}
+	
+	return pithy->get("publish");
+}
+
+SrsConfDirective* SrsConfig::get_pithy_print_play()
+{
+	SrsConfDirective* pithy = root->get("pithy_print");
+	if (!pithy) {
+		return NULL;
+	}
+	
+	return pithy->get("play");
 }
 
 int SrsConfig::parse_file(const char* filename)

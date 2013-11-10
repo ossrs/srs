@@ -39,7 +39,6 @@ class ISrsMessage;
 class SrsCommonMessage;
 class SrsCreateStreamPacket;
 class SrsFMLEStartPacket;
-class SrsComplexHandshake;
 class SrsPublishPacket;
 
 /**
@@ -101,7 +100,6 @@ enum SrsClientType
 class SrsRtmp
 {
 private:
-	SrsComplexHandshake* complex_handshake;
 	SrsProtocol* protocol;
 	st_netfd_t stfd;
 public:
