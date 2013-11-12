@@ -68,11 +68,11 @@ int SrsConsumer::get_time()
 	return (int)last_pkt_correct_time;
 }
 
-int SrsConsumer::enqueue(SrsSharedPtrMessage* msg, int audio_sample_rate)
+int SrsConsumer::enqueue(SrsSharedPtrMessage* msg, int audio_sample_rate, int video_frame_rate)
 {
 	int ret = ERROR_SUCCESS;
 	
-	if ((ret = jitter_correct(msg, audio_sample_rate)) != ERROR_SUCCESS) {
+	if ((ret = jitter_correct(msg, audio_sample_rate, video_frame_rate)) != ERROR_SUCCESS) {
 		return ret;
 	}
 	
@@ -179,7 +179,7 @@ void SrsConsumer::shrink()
 	}
 }
 
-int SrsConsumer::jitter_correct(SrsSharedPtrMessage* msg, int audio_sample_rate)
+int SrsConsumer::jitter_correct(SrsSharedPtrMessage* msg, int audio_sample_rate, int video_frame_rate)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -201,6 +201,8 @@ int SrsConsumer::jitter_correct(SrsSharedPtrMessage* msg, int audio_sample_rate)
 		// calc the right diff by audio sample rate
 		if (msg->header.is_audio() && audio_sample_rate > 0) {
 			delta = (int32_t)(delta * 1000.0 / audio_sample_rate);
+		} else if (msg->header.is_video() && video_frame_rate > 0) {
+			delta = (int32_t)(delta * 1.0 / video_frame_rate);
 		} else {
 			delta = DEFAULT_FRAME_TIME_MS;
 		}
@@ -244,7 +246,7 @@ SrsSource::SrsSource(std::string _stream_url)
 	cached_video_count = 0;
 	enable_gop_cache = true;
 	
-	audio_sample_rate = 0;
+	video_frame_rate = audio_sample_rate = 0;
 }
 
 SrsSource::~SrsSource()
@@ -276,6 +278,11 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
 	if ((prop = metadata->metadata->get_property("audiosamplerate")) != NULL) {
 		if (prop->is_number()) {
 			audio_sample_rate = (int)(srs_amf0_convert<SrsAmf0Number>(prop)->value);
+		}
+	}
+	if ((prop = metadata->metadata->get_property("framerate")) != NULL) {
+		if (prop->is_number()) {
+			video_frame_rate = (int)(srs_amf0_convert<SrsAmf0Number>(prop)->value);
 		}
 	}
 	
@@ -311,7 +318,7 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
 	std::vector<SrsConsumer*>::iterator it;
 	for (it = consumers.begin(); it != consumers.end(); ++it) {
 		SrsConsumer* consumer = *it;
-		if ((ret = consumer->enqueue(cache_metadata->copy(), audio_sample_rate)) != ERROR_SUCCESS) {
+		if ((ret = consumer->enqueue(cache_metadata->copy(), audio_sample_rate, video_frame_rate)) != ERROR_SUCCESS) {
 			srs_error("dispatch the metadata failed. ret=%d", ret);
 			return ret;
 		}
@@ -341,7 +348,7 @@ int SrsSource::on_audio(SrsCommonMessage* audio)
 	std::vector<SrsConsumer*>::iterator it;
 	for (it = consumers.begin(); it != consumers.end(); ++it) {
 		SrsConsumer* consumer = *it;
-		if ((ret = consumer->enqueue(msg->copy(), audio_sample_rate)) != ERROR_SUCCESS) {
+		if ((ret = consumer->enqueue(msg->copy(), audio_sample_rate, video_frame_rate)) != ERROR_SUCCESS) {
 			srs_error("dispatch the audio failed. ret=%d", ret);
 			return ret;
 		}
@@ -385,7 +392,7 @@ int SrsSource::on_video(SrsCommonMessage* video)
 	std::vector<SrsConsumer*>::iterator it;
 	for (it = consumers.begin(); it != consumers.end(); ++it) {
 		SrsConsumer* consumer = *it;
-		if ((ret = consumer->enqueue(msg->copy(), audio_sample_rate)) != ERROR_SUCCESS) {
+		if ((ret = consumer->enqueue(msg->copy(), audio_sample_rate, video_frame_rate)) != ERROR_SUCCESS) {
 			srs_error("dispatch the video failed. ret=%d", ret);
 			return ret;
 		}
@@ -416,19 +423,19 @@ int SrsSource::on_video(SrsCommonMessage* video)
 	consumer = new SrsConsumer(this);
 	consumers.push_back(consumer);
 
-	if (cache_metadata && (ret = consumer->enqueue(cache_metadata->copy(), audio_sample_rate)) != ERROR_SUCCESS) {
+	if (cache_metadata && (ret = consumer->enqueue(cache_metadata->copy(), audio_sample_rate, video_frame_rate)) != ERROR_SUCCESS) {
 		srs_error("dispatch metadata failed. ret=%d", ret);
 		return ret;
 	}
 	srs_info("dispatch metadata success");
 	
-	if (cache_sh_video && (ret = consumer->enqueue(cache_sh_video->copy(), audio_sample_rate)) != ERROR_SUCCESS) {
+	if (cache_sh_video && (ret = consumer->enqueue(cache_sh_video->copy(), audio_sample_rate, video_frame_rate)) != ERROR_SUCCESS) {
 		srs_error("dispatch video sequence header failed. ret=%d", ret);
 		return ret;
 	}
 	srs_info("dispatch video sequence header success");
 	
-	if (cache_sh_audio && (ret = consumer->enqueue(cache_sh_audio->copy(), audio_sample_rate)) != ERROR_SUCCESS) {
+	if (cache_sh_audio && (ret = consumer->enqueue(cache_sh_audio->copy(), audio_sample_rate, video_frame_rate)) != ERROR_SUCCESS) {
 		srs_error("dispatch audio sequence header failed. ret=%d", ret);
 		return ret;
 	}
@@ -437,7 +444,7 @@ int SrsSource::on_video(SrsCommonMessage* video)
 	std::vector<SrsSharedPtrMessage*>::iterator it;
 	for (it = gop_cache.begin(); it != gop_cache.end(); ++it) {
 		SrsSharedPtrMessage* msg = *it;
-		if ((ret = consumer->enqueue(msg->copy(), audio_sample_rate)) != ERROR_SUCCESS) {
+		if ((ret = consumer->enqueue(msg->copy(), audio_sample_rate, video_frame_rate)) != ERROR_SUCCESS) {
 			srs_error("dispatch cached gop failed. ret=%d", ret);
 			return ret;
 		}

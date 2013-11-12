@@ -62,8 +62,10 @@ public:
 	virtual int get_time();
 	/**
 	* enqueue an shared ptr message.
+	* @param audio_sample_rate used to calc the audio time delta if time-jitter detected.
+	* @param video_frame_rate used to calc the video time delta if time-jitter detected.
 	*/
-	virtual int enqueue(SrsSharedPtrMessage* msg, int audio_sample_rate);
+	virtual int enqueue(SrsSharedPtrMessage* msg, int audio_sample_rate, int video_frame_rate);
 	/**
 	* get packets in consumer queue.
 	* @pmsgs SrsMessages*[], output the prt array.
@@ -84,7 +86,7 @@ private:
 	/**
 	* detect the time jitter and correct it.
 	*/
-	virtual int jitter_correct(SrsSharedPtrMessage* msg, int audio_sample_rate);
+	virtual int jitter_correct(SrsSharedPtrMessage* msg, int audio_sample_rate, int video_frame_rate);
 	virtual void clear();
 };
 
@@ -128,6 +130,10 @@ private:
 	* the sample rate of audio in metadata.
 	*/
 	int audio_sample_rate;
+	/**
+	* the video frame rate in metadata.
+	*/
+	int video_frame_rate;
 private:
 	SrsSharedPtrMessage* cache_metadata;
 	// the cached video sequence header.
