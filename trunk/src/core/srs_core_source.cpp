@@ -469,6 +469,7 @@ void SrsSource::on_unpublish()
 	clear_gop_cache();
 
 	srs_freep(cache_metadata);
+	video_frame_rate = audio_sample_rate = 0;
 	
 	srs_freep(cache_sh_video);
 	srs_freep(cache_sh_audio);
