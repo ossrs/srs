@@ -359,6 +359,7 @@ int SrsSource::on_audio(SrsCommonMessage* audio)
 	if (codec->audio_is_sequence_header(msg->payload, msg->size)) {
 		srs_freep(cache_sh_audio);
 		cache_sh_audio = msg->copy();
+		srs_trace("update audio sequence header success.");
 		return ret;
 	}
 	
@@ -403,6 +404,7 @@ int SrsSource::on_video(SrsCommonMessage* video)
 	if (codec->video_is_sequence_header(msg->payload, msg->size)) {
 		srs_freep(cache_sh_video);
 		cache_sh_video = msg->copy();
+		srs_trace("update video sequence header success.");
 		return ret;
 	}
 
