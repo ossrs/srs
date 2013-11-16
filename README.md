@@ -50,6 +50,7 @@ url: rtmp://127.0.0.1:1935/live/livestream
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v0.5, 2013-11-16, add rtmp players(OSMF/jwplayer5/jwplayer6).
 * v0.4, 2013-11-10, v0.4 released. 12500 lines.
 * v0.4, 2013-11-10, support config and reload the pithy print.
 * v0.4, 2013-11-09, support reload config(vhost and its detail).
