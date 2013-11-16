@@ -734,10 +734,12 @@ int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any*& value)
 			return ret;
 		}
 		case RTMP_AMF0_Null: {
+			stream->skip(1);
 			value = new SrsAmf0Null();
 			return ret;
 		}
 		case RTMP_AMF0_Undefined: {
+			stream->skip(1);
 			value = new SrsAmf0Undefined();
 			return ret;
 		}

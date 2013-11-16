@@ -538,7 +538,7 @@ int SrsProtocol::on_recv_message(SrsCommonMessage* msg)
 	srs_assert(msg != NULL);
 		
 	// acknowledgement
-	if (skt->get_recv_bytes() - in_ack_size.acked_size > in_ack_size.ack_window_size) {
+	if (in_ack_size.ack_window_size > 0 && skt->get_recv_bytes() - in_ack_size.acked_size > in_ack_size.ack_window_size) {
 		if ((ret = response_acknowledgement_message()) != ERROR_SUCCESS) {
 			return ret;
 		}
