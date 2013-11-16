@@ -1,0 +1,47 @@
+<head>
+    <title>JWPlayer6</title>
+    <meta http-equiv=Content-Type content="text/html;charset=utf-8">
+    <style>
+    body{margin:0; padding:0; color:#EEEEEE;}
+    input.url{width:400px; height:20px;}
+    input.size{width:40px; height:20px;}
+    input.buffer{width:20px; height:20px;}
+    input.play{width:60px; height: 25px;}
+    select.type{width:50px; }
+    span.size{padding-left:10px; padding-right:10px;}
+    div.main{font-size:12px; padding:5px 10px 0px 5px; background-color:#333333; width: 780px;}
+    div.player{padding-top:3px; padding-bottom:10px;}
+    div.control{padding-bottom:10px; background-color:#333333; margin-top:5px;}
+    </style>
+</head>
+<div class="main">
+    <div id="player"></div>
+    <div class="control" id="control">
+        Url(RTMP/HTTP): <input id="url" type="text" class="url" value="rtmp://dev:1935/live/livestream"></input>
+        <input type="button" class="play" value="Play" onclick="play()"></input>
+    </div>
+</div>
+<script type="text/javascript" src="jwplayer.js" ></script>
+<script>jwplayer.key="L1P3Ig76mGOK94gZ9WAAGD+Fb1VCVhoZ/Dm0fg=="</script>
+<script type='text/javascript'>
+    function play(){
+        var player = document.getElementById("player");
+        player.innerHTML = "";
+        
+        var div = document.createElement("div");
+        div.id = "player_div";
+        player.appendChild(div);
+        
+        var url = document.getElementById("url").value;
+        var conf = {
+            file: url,
+            width: "720",
+            height: "576",
+            autostart: true,
+        };
+        //console.log(conf);
+        jwplayer('player_div').setup(conf);
+    }
+    play();
+</script>
+

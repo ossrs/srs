@@ -1,0 +1,87 @@
+<head>
+    <meta http-equiv=Content-Type content="text/html;charset=utf-8">
+    <title>OSMFPlayer</title>
+</head>
+
+<style>
+body{margin:0; padding:0; color:#EEEEEE;}
+input.url{width:300px; height:20px;}
+input.size{width:40px; height:20px;}
+input.buffer{width:20px; height:20px;}
+input.play{width:60px; height: 25px;}
+select.type{width:50px; }
+span.size{padding-left:10px; padding-right:10px;}
+div.main{font-size:12px; padding:5px 10px 0px 5px; background-color:#333333;}
+div.player{padding-top:3px; padding-bottom:10px;}
+div.control{padding-bottom:10px; background-color:#333333; }
+</style>
+
+<div class="main" id="main">
+    <div id="player" class="player"></div>
+    <div class="control" id="control">
+        Url(RTMP/HTTP): <input id="url" type="text" class="url" value="rtmp://dev:1935/live/livestream"></input>
+        <select class="type" id="type">
+            <option value="live" selected>live</option>
+            <option value="recorded">vod</option>
+        </select>
+        <span class="size">
+            Width: <input id="width" type="text" class="size" value="720"></input>
+            Height: <input id="height" type="text" class="size" value="576"></input>
+            Buffer: <input id="buffer" type="text" class="buffer" value="2"></input>(s)
+        </span>
+        <input type="button" class="play" value="Play" onclick="play()"></input>
+    </div>
+</div>
+
+<script type="text/javascript" src="swfobject.js"></script>
+
+<script type="text/javascript">
+    player = document.getElementById("player");
+    player_div = null;
+    
+    function play(){
+        // remove old player
+        if(player_div != null){
+            player.innerHTML = "";
+        }
+        
+        // create new div
+        player_div = document.createElement("div");
+        player.appendChild(player_div);
+        
+        // set id to swfobject to create player.
+        player_div.id = "player_div";
+        
+        // generate player.
+        var width = document.getElementById("width").value;
+        var height = document.getElementById("height").value;
+
+        // set new style
+        var main = document.getElementById("main");
+        var min_width = 830;
+        main.style.width = Math.max(min_width, width);
+        
+        var flashvars = {};
+        flashvars.src = document.getElementById("url").value;
+        flashvars.streamType = document.getElementById("type").value; // live or recorded
+        flashvars.autoPlay = true;
+        flashvars.controlBarAutoHide = false;
+        flashvars.scaleMode = "stretch";
+        flashvars.bufferTime = document.getElementById("buffer").value;
+        
+        var params = {};
+        params.allowFullScreen = true;
+        
+        var attributes = {};
+        
+        swfobject.embedSWF(
+            "StrobeMediaPlayback.swf", "player_div",
+            width, height,
+            "11.1", "AdobeFlashPlayerInstall.swf",
+            flashvars, params, attributes
+        );
+    }
+    
+    // play the default stream.
+    play();
+</script>

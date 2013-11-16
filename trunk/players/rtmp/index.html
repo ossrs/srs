@@ -1,0 +1,33 @@
+<head>
+    <meta http-equiv=Content-Type content="text/html;charset=utf-8">
+    <title>RtmpPlayer</title>
+    <style>
+    body{margin:0; padding:0; color:#EEEEEE;}
+    input.url{width:400px; height:20px;}
+    input.size{width:40px; height:20px;}
+    input.buffer{width:20px; height:20px;}
+    input.play{width:60px; height: 25px;}
+    select.type{width:50px; }
+    span.size{padding-left:10px; padding-right:10px;}
+    div.main{font-size:12px; padding:5px 10px 0px 5px; background-color:#333333; width: 980px;}
+    div.player{padding-top:3px; padding-bottom:10px;}
+    div.control{padding-bottom:10px; background-color:#333333; }
+    </style>
+</head>
+<script type="text/javascript" src="rtmp.player.js"></script>
+<div>
+    <div id="player"></div>
+</div>
+<script type="text/javascript">
+    var o = new RtmpPlayer("player", "RtmpPlayer.swf", 1350, 1050);
+
+    o.setRtmpUrl("rtmp://dev:1935/live/livestream");
+    o.admin = "admin";
+    o.password = "123456";
+    o.loop = false;
+    o.cansave = true;
+    o.islive = true;
+    o.autostart = true;
+
+    o.run();
+</script>
