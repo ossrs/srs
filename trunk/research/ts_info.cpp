@@ -11,7 +11,13 @@ g++ -o ts_info ts_info.cpp -g -O0 -ansi
 /**
 ISO/IEC 13818-1:2000(E)
 Introduction
-SECTION 1 ¨C GENERAL
+    Intro. 1 Transport Stream
+        The Transport Stream system layer is divided into two sub-layers, one for multiplex-wide operations 
+        (the Transport Stream packet layer), and one for stream-specific operations (the PES packet layer).
+    Intro. 2 Program Stream
+        The Program Stream system layer is divided into two sub-layers, one for multiplex-wide operations 
+        (the pack layer), and one for stream-specific operations (the PES packet layer).
+    Intro. 4 Packetized Elementary Stream
 SECTION 2 ¨C TECHNICAL ELEMENTS
     2.4 Transport Stream bitstream requirements
     2.5 Program Stream bitstream requirements
