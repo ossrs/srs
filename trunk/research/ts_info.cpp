@@ -117,7 +117,7 @@ struct TSPacket
                 
             return ret;
         }
-    }header;
+    } *header;
     
     // variant ts packet adation field.
     struct AdaptionField 
@@ -334,7 +334,7 @@ struct TSPacket
             
             return ret;
         }
-    }adaption_field;
+    } *adaption_field;
     
     // variant ts packet payload.
     // PES packet or PSI table.
@@ -384,7 +384,7 @@ struct TSPacket
             {
                 int ret = 0;
                 
-                size = ppkt->payload.size - ppkt->payload.pointer_field_size;
+                size = ppkt->payload->size - ppkt->payload->pointer_field_size;
             
                 // not parsed bytes.
                 if (size > 0) {
@@ -526,12 +526,12 @@ struct TSPacket
         {
             int ret = 0;
             
-            if (ppkt->header.payload_unit_start_indicator) {
+            if (ppkt->header->payload_unit_start_indicator) {
                 pointer_field = *p++;
                 pointer_field_size = 1;
             }
             
-            if (ppkt->header.pid == PID_PAT) {
+            if (ppkt->header->pid == PID_PAT) {
                 type = TypePAT;
                 pat = new PAT();
                 return pat->demux(ppkt, start, last, p);
@@ -546,29 +546,43 @@ struct TSPacket
             
             return ret;
         }
-    }payload;
+    } *payload;
+    
+    TSPacket()
+    {
+        header = new Header();
+        adaption_field = new AdaptionField();
+        payload = new Payload();
+    }
+    
+    virtual ~TSPacket()
+    {
+        srs_freep(header);
+        srs_freep(adaption_field);
+        srs_freep(payload);
+    }
     
     int demux(u_int8_t* start, u_int8_t* last, u_int8_t*& p)
     {
         int ret = 0;
         
-        if ((ret = header.demux(this, start, last, p))  != 0) {
+        if ((ret = header->demux(this, start, last, p))  != 0) {
             return ret;
         }
     
-        if (header.adaption_field_control == AFC_ADAPTION_ONLY || header.adaption_field_control == AFC_BOTH) {
-            if ((ret = adaption_field.demux(this, start, last, p)) != 0) {
+        if (header->adaption_field_control == AFC_ADAPTION_ONLY || header->adaption_field_control == AFC_BOTH) {
+            if ((ret = adaption_field->demux(this, start, last, p)) != 0) {
                 trace("ts+header af(adaption field) decode error. ret=%d", ret);
                 return ret;
             }
-            trace("ts+header af(adaption field decoded.");
+            trace("ts+header af(adaption field) decoded.");
         }
         
         // calc the user defined data size for payload.
-        payload.size = TS_PACKET_SIZE - header.get_size() - adaption_field.get_size();
+        payload->size = TS_PACKET_SIZE - header->get_size() - adaption_field->get_size();
         
-        if (header.adaption_field_control == AFC_PAYLOAD_ONLY || header.adaption_field_control == AFC_BOTH) {
-            if ((ret = payload.demux(this, start, last, p)) != 0) {
+        if (header->adaption_field_control == AFC_PAYLOAD_ONLY || header->adaption_field_control == AFC_BOTH) {
+            if ((ret = payload->demux(this, start, last, p)) != 0) {
                 trace("ts+header payload decode error. ret=%d", ret);
                 return ret;
             }
@@ -576,8 +590,8 @@ struct TSPacket
         }
         
         trace("ts+header parsed finished. parsed: %d left: %d header: %d payload: %d(%d+%d)", 
-            (int)(p - start), (int)(last - p), header.get_size(), payload.size, payload.pointer_field_size, 
-            payload.size - payload.pointer_field_size);
+            (int)(p - start), (int)(last - p), header->get_size(), payload->size, payload->pointer_field_size, 
+            payload->size - payload->pointer_field_size);
         
         return finish();
     }
