@@ -41,7 +41,9 @@ file
     ..\core\srs_core_pithy_print.hpp,
     ..\core\srs_core_pithy_print.cpp,
     ..\core\srs_core_log.hpp,
-    ..\core\srs_core_log.cpp;
+    ..\core\srs_core_log.cpp,
+    research readonly separator,
+    ..\..\research\ts_info.cpp;
 mainconfig
 	"" = "MAIN";
 
