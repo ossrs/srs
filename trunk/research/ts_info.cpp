@@ -48,6 +48,11 @@ SECTION 2 ¨C TECHNICAL ELEMENTS
             2.4.4.6 Conditional access Table
     2.5 Program Stream bitstream requirements
     2.6 Program and program element descriptors
+    	2.6.2 Video stream descriptor
+		2.6.4 Audio stream descriptor
+    	2.6.34 IBP descriptor
+    	2.6.37 Semantic definition of fields in MPEG-4 video descriptor
+    	2.6.38 MPEG-4 audio descriptor
     2.7 Restrictions on the multiplexed stream semantics
 Annex A ¨C CRC Decoder Model
 */
@@ -129,7 +134,9 @@ public:
     int finish();
 };
 
-// TSHeader declares.
+/**
+* 2.4.3.2 Transport Stream packet layer. page 36.
+*/
 class TSHeader 
 {
 public:
@@ -367,6 +374,7 @@ public:
     
     TSPayloadPMT();
     virtual ~TSPayloadPMT();
+    TSPMTESInfo* at(int index);
     int demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t* last, u_int8_t*& p, TSMessage*& pmsg);
 };
 
@@ -375,10 +383,10 @@ public:
 */
 enum TSPESStreamId
 {
-	PES_program_stream_map 		= 0b10111100,
-	PES_private_stream_1 		= 0b10111101,
-	PES_padding_stream			= 0b10111110,
-	PES_private_stream_2		= 0b10111111,
+	PES_program_stream_map 		= 0b10111100, // 0xbc
+	PES_private_stream_1 		= 0b10111101, // 0xbd
+	PES_padding_stream			= 0b10111110, // 0xbe
+	PES_private_stream_2		= 0b10111111, // 0xbf
 	
 	// 110x xxxx
 	// ISO/IEC 13818-3 or ISO/IEC 11172-3 or ISO/IEC 13818-7 or ISO/IEC
@@ -389,24 +397,24 @@ enum TSPESStreamId
 	// 1110 xxxx
 	// ITU-T Rec. H.262 | ISO/IEC 13818-2 or ISO/IEC 11172-2 or ISO/IEC
 	// 14496-2 video stream number xxxx
-	// (stream_id>>5)&0x07 == PES_audio_prefix
+	// (stream_id>>4)&0x0f == PES_audio_prefix
 	PES_video_prefix			= 0b1110,
 	
-	PES_ECM_stream				= 0b11110000,
-	PES_EMM_stream				= 0b11110001,
-	PES_DSMCC_stream			= 0b11110010,
-	PES_13522_stream			= 0b11110011,
-	PES_H_222_1_type_A			= 0b11110100,
-	PES_H_222_1_type_B			= 0b11110101,
-	PES_H_222_1_type_C			= 0b11110110,
-	PES_H_222_1_type_D			= 0b11110111,
-	PES_H_222_1_type_E			= 0b11111000,
-	PES_ancillary_stream		= 0b11111001,
-	PES_SL_packetized_stream	= 0b11111010,
-	PES_FlexMux_stream			= 0b11111011,
+	PES_ECM_stream				= 0b11110000, // 0xf0
+	PES_EMM_stream				= 0b11110001, // 0xf1
+	PES_DSMCC_stream			= 0b11110010, // 0xf2
+	PES_13522_stream			= 0b11110011, // 0xf3
+	PES_H_222_1_type_A			= 0b11110100, // 0xf4
+	PES_H_222_1_type_B			= 0b11110101, // 0xf5
+	PES_H_222_1_type_C			= 0b11110110, // 0xf6
+	PES_H_222_1_type_D			= 0b11110111, // 0xf7
+	PES_H_222_1_type_E			= 0b11111000, // 0xf8
+	PES_ancillary_stream		= 0b11111001, // 0xf9
+	PES_SL_packetized_stream	= 0b11111010, // 0xfa
+	PES_FlexMux_stream			= 0b11111011, // 0xfb
 	// reserved data stream
 	// 1111 1100 â€¦ 1111 1110
-	PES_program_stream_directory= 0b11111111,
+	PES_program_stream_directory= 0b11111111, // 0xff
 };
 
 
@@ -1005,6 +1013,11 @@ TSPayloadPMT::~TSPayloadPMT()
 	ES_info.clear();
 }
 
+TSPMTESInfo* TSPayloadPMT::at(int index)
+{
+	return ES_info.at(index);
+}
+
 int TSPayloadPMT::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t* last, u_int8_t*& p, TSMessage*& pmsg)
 {
     int ret = 0;
@@ -1191,6 +1204,17 @@ int64_t TSPayloadPES::decode_33bits_int(int64_t& temp)
 int TSPayloadPES::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t* last, u_int8_t*& p, TSMessage*& pmsg)
 {
     int ret = 0;
+    
+    if (!pkt->header->payload_unit_start_indicator) {
+        TSMessage* msg = ctx->get_msg(pkt->header->pid);
+		if (msg->packet_start_code_prefix != 0x01) {
+			trace("ts+pes decode continous packet error, msg is empty.");
+			return -1;
+		}
+		msg->append(p, last - p);
+		msg->detach(ctx, pmsg);
+		return ret;
+    }
     
     char* pp = (char*)&packet_start_code_prefix;
     pp[2] = *p++;
@@ -1478,16 +1502,6 @@ int TSPayload::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t* l
         return pmt->demux(ctx, pkt, start, last, p, pmsg);
     }
     if (pid && (pid->type == TSPidTypeVideo || pid->type == TSPidTypeAudio)) {
-        if (!pkt->header->payload_unit_start_indicator) {
-            TSMessage* msg = ctx->get_msg(pkt->header->pid);
-			if (msg->packet_start_code_prefix != 0x01) {
-				trace("ts+pes decode continous packet error, msg is empty.");
-				return -1;
-			}
-			msg->append(p, last - p);
-			msg->detach(ctx, pmsg);
-			return ret;
-        }
         type = pid->type;
         pes = new TSPayloadPES();
         return pes->demux(ctx, pkt, start, last, p, pmsg);
