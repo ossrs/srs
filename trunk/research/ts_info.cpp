@@ -105,8 +105,8 @@ enum TSPidType
     TSPidTypePAT, // Program associtate table
     TSPidTypePMT, // Program map table.
     
-    TSPidTypeVideo,
-    TSPidTypeAudio,
+    TSPidTypeVideo, // only for H264 video
+    TSPidTypeAudio, // only for AAC audio
 };
 
 // forward declares.
@@ -1094,13 +1094,17 @@ int TSPayloadPMT::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t
 	    
 	    ES_info.push_back(info);
 		
-		// TODO: support more video type.
 		if (info->stream_type == TSStreamTypeVideoH264) {
+			// TODO: support more video type.
 			ctx->push(TSPidTypeVideo, info->elementary_PID);
-		}
-		// TODO: support more audio type.
-		if (info->stream_type == TSStreamTypeAudioAAC) {
+			trace("ts+pmt add pid: %d, type: H264 video", info->elementary_PID);
+		} else if (info->stream_type == TSStreamTypeAudioAAC) {
+			// TODO: support more audio type.
+			// see aac: 6.2 Audio Data Transport Stream, ADTS
 			ctx->push(TSPidTypeAudio, info->elementary_PID);
+			trace("ts+pmt add pid: %d, type: AAC audio", info->elementary_PID);
+		} else {
+			trace("ts+pmt ignore the stream type: %d", info->stream_type);
 		}
     }
     
@@ -1626,6 +1630,158 @@ int TSHeader::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t* la
     return ret;
 }
 
+/**
+* 6.2 Audio Data Transport Stream, ADTS
+*/
+class TSAacAdts
+{
+public:
+	// adts_fixed_header
+	// 2B, 16bits
+	int16_t syncword; //12bits
+	int8_t ID; //1bit
+	int8_t layer; //2bits
+	int8_t protection_absent; //1bit
+	// 12bits
+	int8_t profile; //2bit
+	int8_t sampling_frequency_index; //4bits
+	int8_t private_bit; //1bit
+	int8_t channel_configuration; //3bits
+	int8_t original_or_copy; //1bit
+	int8_t home; //1bit
+	
+	// adts_variable_header
+	// 28bits
+	int8_t copyright_identification_bit; //1bit
+	int8_t copyright_identification_start; //1bit
+	int16_t frame_length; //13bits
+	int16_t adts_buffer_fullness; //11bits
+	int8_t number_of_raw_data_blocks_in_frame; //2bits
+	
+	u_int8_t* raw_data;
+	int size;
+	
+	TSAacAdts()
+	{
+		syncword = 0;
+		ID = 0;
+		layer = 0;
+		protection_absent = 0;
+		profile = 0;
+		sampling_frequency_index = 0;
+		private_bit = 0;
+		channel_configuration = 0;
+		original_or_copy = 0;
+		home = 0;
+		copyright_identification_bit = 0;
+		copyright_identification_start = 0;
+		frame_length = 0;
+		adts_buffer_fullness = 0;
+		number_of_raw_data_blocks_in_frame = 0;
+		
+		size = 0;
+		raw_data = NULL;
+	}
+	
+	int parse(TSMessage* msg, char*& p)
+	{
+		int ret = 0;
+		
+		char* start = p;
+		
+		// adts_fixed_header
+		char* pp = (char*)&syncword;
+		pp[1] = *p++;
+		pp[0] = *p++;
+		
+		protection_absent = syncword & 0x01;
+		layer = (syncword >> 1) & 0x03;
+		ID = (syncword >> 3) & 0x01;
+		syncword = (syncword >> 4) & 0x0FFF;
+
+		// adts_variable_header
+		int64_t temp = 0;
+		pp = (char*)&temp;
+		pp[4] = *p++;
+		pp[3] = *p++;
+		pp[2] = *p++;
+		pp[1] = *p++;
+		pp[0] = *p++;
+		
+		number_of_raw_data_blocks_in_frame = temp & 0x03;
+		temp = temp >> 2;
+
+		adts_buffer_fullness = temp & 0x7FF;
+		temp = temp >> 11;
+
+		frame_length = temp & 0x1FFF;
+		temp = temp >> 13;
+		
+		copyright_identification_start = temp & 0x01;
+		temp = temp >> 1;
+		
+		copyright_identification_bit = temp & 0x01;
+		temp = temp >> 1;
+		
+		// adts_fixed_header
+		home = temp & 0x01;
+		temp = temp >> 1;
+		
+		original_or_copy = temp & 0x01;
+		temp = temp >> 1;
+		
+		channel_configuration = temp & 0x07;
+		temp = temp >> 3;
+		
+		private_bit = temp & 0x01;
+		temp = temp >> 1;
+		
+		sampling_frequency_index = temp & 0x0F;
+		temp = temp >> 4;
+		
+		profile = temp & 0x03;
+		temp = temp >> 2;
+
+		if (!number_of_raw_data_blocks_in_frame) {
+			// adts_error_check
+			if (!protection_absent) {
+				// crc_check
+				trace("ts+aac TODO: crc_check.");
+			}
+			// raw_data_block
+			raw_data = (u_int8_t*)p;
+			size = frame_length - (p - start);
+			p += size;
+		} else {
+			trace("ts+aac TODO: parse multiple blocks.");
+		}
+		
+		return ret;
+	}
+};
+
+int consume(TSMessage* msg)
+{
+	int ret = 0; 
+        
+    if (!msg->is_video()) {
+	    // parse AAC audio.
+		char* p = msg->packet_data;
+		while (p < msg->packet_data + msg->packet_data_size) {
+		    TSAacAdts aac;
+		    if ((ret = aac.parse(msg, p)) != 0) {
+		        return ret;
+		    }
+		    trace("ts+aac audio raw data parsed, size: %d, 0x%02x 0x%02x 0x%02x 0x%02x",
+		    	aac.size, aac.raw_data[0], aac.raw_data[1], aac.raw_data[2], aac.raw_data[3]);
+		    // TODO: process audio.
+		}
+    } else {
+    }
+    
+	return ret;
+}
+
 int main(int /*argc*/, char** /*argv*/)
 {
     const char* file = "livestream-1347.ts";
@@ -1664,10 +1820,17 @@ int main(int /*argc*/, char** /*argv*/)
             return ret;
         }
         
-        // TODO: process it.
-        srs_freep(msg);
-        
         offset += nread;
+        if (!msg) {
+            continue;
+        }
+        
+        if ((ret = consume(msg)) != 0) {
+            trace("demuxer+consume parse and consume message failed. ret=%d", ret);
+            break;
+        }
+        
+        srs_freep(msg);
     }
     
     close(fd);
