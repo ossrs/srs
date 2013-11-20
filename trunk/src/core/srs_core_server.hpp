@@ -89,6 +89,6 @@ public:
 	virtual int on_reload_listen();
 };
 	
-extern SrsServer server;
+SrsServer* _server();
 
 #endif

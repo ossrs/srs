@@ -171,6 +171,7 @@ SrsServer::SrsServer()
 {
 	signal_reload = false;
 	
+	srs_assert(config);
 	config->subscribe(this);
 }
 
@@ -328,5 +329,8 @@ int SrsServer::on_reload_listen()
 	return listen();
 }
 
-SrsServer server;
-
+SrsServer* _server()
+{
+	static SrsServer server;
+	return &server;
+}

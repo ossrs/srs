@@ -81,6 +81,8 @@ Annex A ¨C CRC Decoder Model
 // Table 2-29 â€“ Stream type assignments. page 66.
 enum TSStreamType
 {
+	// ITU-T | ISO/IEC Reserved
+	TSStreamTypeReserved			= 0x00,
 	/*defined by ffmpeg*/
 	TSStreamTypeVideoMpeg1 			= 0x01,
 	TSStreamTypeVideoMpeg2 			= 0x02,
@@ -508,8 +510,12 @@ public:
     int demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t* last, u_int8_t*& p, TSMessage*& pmsg);
 };
 
+/**
+* logic ts pid.
+*/
 struct TSPid
 {
+	TSStreamType stream_type;
 	TSPidType type;
 	int16_t pid;
 };
@@ -526,6 +532,8 @@ public:
 	
 	// the type of pid.
 	TSPidType type;
+	// the type of stream, codec type.
+	TSStreamType stream_type;
 	
 	// 2.4.3.7 Semantic definition of fields in PES packet. page 49
 	// PES packet header size plus data size.
@@ -571,7 +579,7 @@ public:
     virtual ~TSContext();
     bool exists(int16_t pid);
     TSPid* get(int16_t pid);
-    void push(TSPidType type, int16_t pid);
+    void push(TSStreamType stream_type, TSPidType type, int16_t pid);
     
     TSMessage* get_msg(int16_t pid);
     void detach(TSMessage* msg);
@@ -617,7 +625,7 @@ TSPid* TSContext::get(int16_t pid)
     return NULL;
 }
 
-void TSContext::push(TSPidType type, int16_t pid)
+void TSContext::push(TSStreamType stream_type, TSPidType type, int16_t pid)
 {
     if (exists(pid)) {
         return;
@@ -626,7 +634,7 @@ void TSContext::push(TSPidType type, int16_t pid)
 	TSPid* p = new TSPid[pid_size + 1];
 	memcpy(p, pids, sizeof(TSPid) * pid_size);
 	
-	p[pid_size] = (TSPid){type, pid};
+	p[pid_size] = (TSPid){stream_type, type, pid};
 	pid_size++;
 	
 	srs_freepa(pids);
@@ -653,6 +661,7 @@ TSMessage::TSMessage()
 {
 	pid = 0;
 	type = TSPidTypeReserved;
+	stream_type = TSStreamTypeReserved;
 	stream_id = 0;
 	packet_start_code_prefix = 0;
 	PES_packet_length = 0;
@@ -959,7 +968,7 @@ int TSPayloadPAT::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t
             pp[0] = *p++;
             
             int16_t pid = programs[i] & 0x1FFF;
-            ctx->push(TSPidTypePMT, pid);
+            ctx->push(TSStreamTypeReserved, TSPidTypePMT, pid);
         }
     }
     
@@ -1096,12 +1105,12 @@ int TSPayloadPMT::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t
 		
 		if (info->stream_type == TSStreamTypeVideoH264) {
 			// TODO: support more video type.
-			ctx->push(TSPidTypeVideo, info->elementary_PID);
+			ctx->push((TSStreamType)info->stream_type, TSPidTypeVideo, info->elementary_PID);
 			trace("ts+pmt add pid: %d, type: H264 video", info->elementary_PID);
 		} else if (info->stream_type == TSStreamTypeAudioAAC) {
 			// TODO: support more audio type.
 			// see aac: 6.2 Audio Data Transport Stream, ADTS
-			ctx->push(TSPidTypeAudio, info->elementary_PID);
+			ctx->push((TSStreamType)info->stream_type, TSPidTypeAudio, info->elementary_PID);
 			trace("ts+pmt add pid: %d, type: AAC audio", info->elementary_PID);
 		} else {
 			trace("ts+pmt ignore the stream type: %d", info->stream_type);
@@ -1406,6 +1415,7 @@ int TSPayloadPES::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t
 		TSMessage* msg = ctx->get_msg(pid->pid);
 
 		msg->type = pid->type;
+		msg->stream_type = pid->stream_type;
 		msg->stream_id = stream_id;
 		msg->packet_start_code_prefix = packet_start_code_prefix;
 		
@@ -1615,7 +1625,7 @@ int TSHeader::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t* la
     transport_priority = (pid >> 13) & 0x01;
     pid &= 0x1FFF;
     
-    ctx->push(TSPidTypePAT, pid);
+    ctx->push(TSStreamTypeReserved, TSPidTypePAT, pid);
     
     continuity_counter = *p++;
     

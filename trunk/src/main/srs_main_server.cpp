@@ -32,7 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 void handler(int signo)
 {
 	srs_trace("get a signal, signo=%d", signo);
-	server.on_signal(signo);
+	_server()->on_signal(signo);
 }
 
 int main(int argc, char** argv){
@@ -44,15 +44,15 @@ int main(int argc, char** argv){
 		return ret;
 	}
 	
-	if ((ret = server.initialize()) != ERROR_SUCCESS) {
+	if ((ret = _server()->initialize()) != ERROR_SUCCESS) {
 		return ret;
 	}
 	
-	if ((ret = server.listen()) != ERROR_SUCCESS) {
+	if ((ret = _server()->listen()) != ERROR_SUCCESS) {
 		return ret;
 	}
 	
-	if ((ret = server.cycle()) != ERROR_SUCCESS) {
+	if ((ret = _server()->cycle()) != ERROR_SUCCESS) {
 		return ret;
 	}
 	
