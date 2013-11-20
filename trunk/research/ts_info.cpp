@@ -568,6 +568,7 @@ public:
     */
     int pid_size;
 	TSPid* pids;
+	int64_t ts_packet_count;
 	std::map<int16_t, TSMessage*> msgs;
     
     TSContext();
@@ -583,6 +584,7 @@ public:
 TSContext::TSContext()
 {
     pid_size = 0;
+    ts_packet_count = 0;
     pids = NULL;
 }
 
@@ -1567,8 +1569,9 @@ int TSPacket::demux(TSContext* ctx, u_int8_t* start, u_int8_t* last, u_int8_t*& 
         trace("ts+header payload decoded.");
     }
     
-    trace("ts+header parsed finished. parsed: %d left: %d header: %d payload: %d(%d+%d)", 
-        (int)(p - start), (int)(last - p), header->get_size(), payload->size, payload->pointer_field_size, 
+    ctx->ts_packet_count++;
+    trace("ts+header parsed %"PRId64" packets finished. parsed: %d left: %d header: %d payload: %d(%d+%d)", 
+        ctx->ts_packet_count, (int)(p - start), (int)(last - p), header->get_size(), payload->size, payload->pointer_field_size, 
         payload->size - payload->pointer_field_size);
     
     return finish();
@@ -1692,22 +1695,11 @@ enum TSH264PicType
 class TSH264Codec
 {
 public:
-	int8_t forbidden_zero_bit; //1bit
-	int8_t nal_ref_idc; //2bits
-	TSH264NalUnitType nal_unit_type; //5bits
-	
-	// for nal_unit_type == TSH264NalUnitTypePictureDelimiter
-	TSH264PicType pic_type; //3bits
-	
 	u_int8_t* raw_data;
 	int size;
 	
 	TSH264Codec()
 	{
-		forbidden_zero_bit = 0;
-		nal_ref_idc = 0;
-		nal_unit_type = TSH264NalUnitTypeUnspecified;
-		pic_type = TSH264PicTypeI;
 		size = 0;
 		raw_data = NULL;
 	}
@@ -1724,7 +1716,9 @@ public:
 	{
 		int ret = 0;
 		
-		while (next_int(p, 3) != 0x000001) {
+		srs_assert(p);
+		
+		while (next_start_code_prefix(p) != 0x000001) {
 			char ch = *p++;
 			if (ch != 0x00) {
 				trace("ts+h264 parse msg failed, "
@@ -1741,45 +1735,25 @@ public:
 		// start_code_prefix_one_3bytes /* equal to 0x000001 */
 		p += 3;
 		
-		raw_data = (u_int8_t*)p;
-		while (p < last) {
+		if (p < last) {
+			raw_data = (u_int8_t*)p;
+		}
+		while (p < last - 3) {
 			if (match_start_code_prefix(p)) {
 				break;
 			}
 			p++;
 		}
-		size = (u_int8_t*)p - raw_data;
 		
-		trace("ts+h264 parse msg finished");
-		return ret;
-	
-		// nal_unit( NumBytesInNALunit ) specified in page 44.
-		// where f(1) specified in page 43.
-		int8_t _nal_unit_type = *p++;
-		
-		forbidden_zero_bit = (_nal_unit_type >> 7) &0x01;
-		nal_ref_idc = (_nal_unit_type >> 5) &0x03;
-		_nal_unit_type &= 0x1f;
-		
-		nal_unit_type = (TSH264NalUnitType)_nal_unit_type;
-		
-		if (nal_unit_type == TSH264NalUnitTypePictureDelimiter) {
-		/**
-		* 7.3.2.4 Picture delimiter RBSP syntax
-		* pic_delimiter_rbsp(), in page 47
-		*/
-		} else if (nal_unit_type == TSH264NalUnitTypeSequenceParameterSet) {
-		/**
-		* 7.3.2.1 Sequence parameter set RBSP syntax
-		* seq_parameter_set_rbsp(), in page 45
-		*/
-		} else if (nal_unit_type == TSH264NalUnitTypePictureParameterSet) {
-		/**
-		* 7.3.2.2 Picture parameter set RBSP syntax
-		* pic_parameter_set_rbsp(), in page 46
-		*/
+		if (raw_data) {
+			size = (u_int8_t*)p - raw_data;
+			if (p == last - 3) {
+				size = (u_int8_t*)last - raw_data;
+				p = last;
+			}
 		}
 		
+		trace("ts+h264 parse msg finished");
 		return ret;
 	}
 	
@@ -1788,16 +1762,14 @@ public:
 		return p[0] == 0x00 && p[1] == 0x00 && (p[2] == 0x00 || p[2] == 0x01);
 	}
 	
-	int32_t next_int(char* p, int bytes)
+	int32_t next_start_code_prefix(char* p)
 	{
-		srs_assert(bytes <= sizeof(int32_t));
-		
 		int32_t value = 0;
 		char* pp = (char*)&value;
 		
-		for (int i = 0; i < bytes; i++) {
-			*(pp + bytes - 1 - i) = *(p + i);
-		}
+		pp[2] = p[0];
+		pp[1] = p[1];
+		pp[0] = p[2];
 
 		return value;
 	}
@@ -1867,6 +1839,8 @@ public:
 	int parse(TSMessage* msg, char*& p)
 	{
 		int ret = 0;
+		
+		srs_assert(p);
 		
 		char* start = p;
 		
@@ -1946,6 +1920,11 @@ int consume(TSMessage* msg)
 	int ret = 0;
 	
 	char* p = msg->packet_data;
+	if (!p) {
+		trace("ts+aac+h264 ignore empty message.");
+		return ret;
+	}
+	
 	char* last = msg->packet_data + msg->packet_data_size;
         
     if (!msg->is_video()) {

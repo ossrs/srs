@@ -225,3 +225,55 @@ TS的第二个视频包数据如下：
 0x60b3b0:	0xf3	0x99	0x45	0xee	0xce	0xc7	0x1f	0xeb
 0x60b3b8:	0x43	0x37	0xfd	0x67	0x34	0x97	0xcc	0x8c
 0x60b3c0:	0xc5	0xec	0x86	0xb0	0x57	0xb4	0x83	0xa9
+
+
+
+3031个ts包是空包，解析有问题：
+47 41 00 38 07 50 05 09 5A A6 7E 00 00 00 01 E0
+00 00 80 C0 0A 31 28 53 60 81 11 28 53 42 F9 00
+00 00 01 09 F0 00 00 00 01 67 64 00 28 AC D1 C0
+50 05 BB FF 00 2D 00 22 10 00 00 03 00 10 00 00
+03 03 08 F1 83 11 E0 00 00 00 01 68 E9 AB 2C 8B
+00 00 01 65 88 84 00 42 BF 08 EE 00 02 B2 75 8D
+9F C4 24 E5 BD 27 87 F1 E4 09 A0 51 2D 12 FC F5
+6E 31 3D C4 0E 3F 51 47 07 BD D2 8C AB 72 1C 2D
+D0 FA 2F 7D EF AA FB 17 C1 08 AD 36 8D F1 41 35
+E0 20 AE E8 75 66 39 15 78 88 01 E8 2E 4E 8A 8B
+F8 04 68 BF EC 82 59 86 DE E1 66 32 37 FA 78 6D
+01 EF C0 2C 6B A6 E9 36 44 4B C8 37 
+
+Adaptation fields
+   Adaptation_field_length: 7
+   discontinuity_indicator: False
+   random_access_indicator: True
+   ES_priority_indicator: False
+   PCR_flag: True
+   OPCR_flag: False
+   splicing_point_flag: False
+   transport_private_data_flag: False
+   adaptation_field_extension_flag: False
+   PCR: 50699466000
+
+PES header
+   stream_id: E0 (video stream 224)
+   PES_packet_length: 0 (undefined)
+   PES_scrambling: 0
+   PES_priority: False
+   data_alignment: False
+   copyright: False
+   original_or_copy: False
+   PTS_flag: True
+   DTS_flag: True
+   ESCR_flag: False
+   ES_rate_flag: False
+   DSM_trick_mode_flag: False
+   additional_copy_info_flag: False
+   PES_CRC_flag: False
+   PES_extension_flag: False
+   PES_header_data_length: 10
+   PTS: 169128000
+   DTS: 169124220
+
+Video sequence
+Sequence header code not found in this packet
+AFD not found in this packet
