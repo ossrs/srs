@@ -31,6 +31,19 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_autofree.hpp>
 #include <srs_core_socket.hpp>
 
+void srs_random_generate(char* bytes, int size)
+{
+	static char cdata[]  = { 
+		0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x2d, 0x72, 0x74, 0x6d, 0x70, 0x2d, 0x73, 0x65, 
+		0x72, 0x76, 0x65, 0x72, 0x2d, 0x77, 0x69, 0x6e, 0x6c, 0x69, 0x6e, 0x2d, 0x77, 0x69, 
+		0x6e, 0x74, 0x65, 0x72, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x40, 0x31, 0x32, 0x36, 
+		0x2e, 0x63, 0x6f, 0x6d
+	};
+	for (int i = 0; i < size; i++) {
+		bytes[i] = cdata[rand() % (sizeof(cdata) - 1)];
+	}
+}
+
 // 68bytes FMS key which is used to sign the sever packet.
 u_int8_t SrsGenuineFMSKey[] = {
     0x47, 0x65, 0x6e, 0x75, 0x69, 0x6e, 0x65, 0x20,
@@ -274,21 +287,15 @@ void srs_key_block_init(key_block* key)
 	key->random0_size = offset;
 	if (key->random0_size > 0) {
 		key->random0 = new char[key->random0_size];
-		for (int i = 0; i < key->random0_size; i++) {
-			*(key->random0 + i) = rand() % 256;
-		}
+		srs_random_generate(key->random0, key->random0_size);
 	}
 	
-	for (int i = 0; i < (int)sizeof(key->key); i++) {
-		*(key->key + i) = rand() % 256;
-	}
+	srs_random_generate(key->key, sizeof(key->key));
 	
 	key->random1_size = 764 - offset - 128 - 4;
 	if (key->random1_size > 0) {
 		key->random1 = new char[key->random1_size];
-		for (int i = 0; i < key->random1_size; i++) {
-			*(key->random1 + i) = rand() % 256;
-		}
+		srs_random_generate(key->random1, key->random1_size);
 	}
 }
 // parse key block from c1s1.
@@ -392,21 +399,15 @@ void srs_digest_block_init(digest_block* digest)
 	digest->random0_size = offset;
 	if (digest->random0_size > 0) {
 		digest->random0 = new char[digest->random0_size];
-		for (int i = 0; i < digest->random0_size; i++) {
-			*(digest->random0 + i) = rand() % 256;
-		}
+		srs_random_generate(digest->random0, digest->random0_size);
 	}
 	
-	for (int i = 0; i < (int)sizeof(digest->digest); i++) {
-		*(digest->digest + i) = rand() % 256;
-	}
+	srs_random_generate(digest->digest, sizeof(digest->digest));
 	
 	digest->random1_size = 764 - 4 - offset - 32;
 	if (digest->random1_size > 0) {
 		digest->random1 = new char[digest->random1_size];
-		for (int i = 0; i < digest->random1_size; i++) {
-			*(digest->random1 + i) = rand() % 256;
-		}
+		srs_random_generate(digest->random1, digest->random1_size);
 	}
 }
 // parse digest block from c1s1.
@@ -724,12 +725,8 @@ struct c2s2
 
 c2s2::c2s2()
 {
-	for (int i = 0; i < 1504; i++) {
-		*(random + i) = rand();
-	}
-	for (int i = 0; i < 32; i++) {
-		*(digest + i) = rand();
-	}
+	srs_random_generate(random, 1504);
+	srs_random_generate(digest, 32);
 }
 
 c2s2::~c2s2()
@@ -1101,6 +1098,7 @@ int SrsSimpleHandshake::handshake(SrsSocket& skt, SrsComplexHandshake& complex_h
     srs_info("rollback complex to simple handshake. ret=%d", ret);
 	
 	char* s0s1s2 = new char[3073];
+	srs_random_generate(s0s1s2, 3073);
     SrsAutoFree(char, s0s1s2, true);
 	// plain text required.
     s0s1s2[0] = 0x03;
