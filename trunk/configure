@@ -132,7 +132,7 @@ MAIN_ENTRANCES=("srs_main_server")
 # srs(simple rtmp server) over st(state-threads)
 ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile})
 MODULE_OBJS="${CORE_OBJS[@]} ${CONFIG_OBJS[@]} ${PROTOCOL_OBJS[@]} ${MAIN_OBJS[@]}"
-BUILD_KEY="simple_rtmp_server" APP_MAIN="srs_main_server" APP_NAME="simple_rtmp_server" LINK_OPTIONS="-ldl -lssl" SO_PATH="" . auto/apps.sh
+BUILD_KEY="simple_rtmp_server" APP_MAIN="srs_main_server" APP_NAME="simple_rtmp_server" LINK_OPTIONS="-ldl -lssl -lcrypto" SO_PATH="" . auto/apps.sh
 
 echo 'configure ok! '
 
