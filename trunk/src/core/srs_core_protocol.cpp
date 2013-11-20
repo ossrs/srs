@@ -2632,7 +2632,7 @@ int SrsUserControlPacket::decode(SrsStream* stream)
 	event_data = stream->read_4bytes();
 	
 	if (event_type == SrcPCUCSetBufferLength) {
-		if (!stream->require(2)) {
+		if (!stream->require(4)) {
 			ret = ERROR_RTMP_MESSAGE_ENCODE;
 			srs_error("decode user control packet failed. ret=%d", ret);
 			return ret;
