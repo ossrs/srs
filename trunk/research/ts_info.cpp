@@ -48,11 +48,6 @@ SECTION 2 ¨C TECHNICAL ELEMENTS
             2.4.4.6 Conditional access Table
     2.5 Program Stream bitstream requirements
     2.6 Program and program element descriptors
-    	2.6.2 Video stream descriptor
-		2.6.4 Audio stream descriptor
-    	2.6.34 IBP descriptor
-    	2.6.37 Semantic definition of fields in MPEG-4 video descriptor
-    	2.6.38 MPEG-4 audio descriptor
     2.7 Restrictions on the multiplexed stream semantics
 Annex A ¨C CRC Decoder Model
 */
@@ -1639,6 +1634,14 @@ int TSHeader::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t* la
         
     return ret;
 }
+
+/**
+* Annex B Byte stream format
+*/
+class TSH264Codec
+{
+public:
+};
 
 /**
 * 6.2 Audio Data Transport Stream, ADTS
