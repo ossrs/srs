@@ -1636,11 +1636,171 @@ int TSHeader::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t* la
 }
 
 /**
-* Annex B Byte stream format
+* Table 7-1 – NAL unit type codes, page 61.
+*/
+enum TSH264NalUnitType
+{
+	TSH264NalUnitTypeUnspecified 				= 0,
+	TSH264NalUnitTypeCodedSlice 				= 1,
+	TSH264NalUnitTypeCodedSliceDataPartitionA 	= 2,
+	TSH264NalUnitTypeCodedSliceDataPartitionB 	= 3,
+	TSH264NalUnitTypeCodedSliceDataPartitionC 	= 4,
+	TSH264NalUnitTypeCodedSliceOfAnIDRPicture 	= 5,
+	TSH264NalUnitTypeSEI					 	= 6,
+	/**
+	* 7.3.2.1 Sequence parameter set RBSP syntax
+	* seq_parameter_set_rbsp(), in page 45
+	*/
+	TSH264NalUnitTypeSequenceParameterSet		= 7,
+	/**
+	* 7.3.2.2 Picture parameter set RBSP syntax
+	* pic_parameter_set_rbsp(), in page 46
+	*/
+	TSH264NalUnitTypePictureParameterSet		= 8,
+	/**
+	* 7.3.2.4 Picture delimiter RBSP syntax
+	* pic_delimiter_rbsp(), in page 47
+	*/
+	TSH264NalUnitTypePictureDelimiter			= 9,
+	TSH264NalUnitTypeEndOfSequence				= 10,
+	TSH264NalUnitTypeEndOfStream				= 11,
+	TSH264NalUnitTypeFillerData					= 12,
+	TSH264NalUnitTypeReservedStart				= 13,
+	TSH264NalUnitTypeReservedEnd				= 23,
+	TSH264NalUnitTypeUnspecifiedStart			= 24,
+	TSH264NalUnitTypeUnspecifiedEnd				= 31,
+};
+
+/**
+* Table 7-2 – Meaning of pic_type, page 69.
+*/
+enum TSH264PicType
+{
+	TSH264PicTypeI 			= 0,
+	TSH264PicTypeIP 		= 1,
+	TSH264PicTypeIPB 		= 2,
+	TSH264PicTypeSI 		= 3,
+	TSH264PicTypeSISP 		= 4,
+	TSH264PicTypeISI 		= 5,
+	TSH264PicTypeISIPSP		= 6,
+	TSH264PicTypeISIPSPB	= 7,
+};
+
+/**
+* Annex B Byte stream format, in page 211.
 */
 class TSH264Codec
 {
 public:
+	int8_t forbidden_zero_bit; //1bit
+	int8_t nal_ref_idc; //2bits
+	TSH264NalUnitType nal_unit_type; //5bits
+	
+	// for nal_unit_type == TSH264NalUnitTypePictureDelimiter
+	TSH264PicType pic_type; //3bits
+	
+	u_int8_t* raw_data;
+	int size;
+	
+	TSH264Codec()
+	{
+		forbidden_zero_bit = 0;
+		nal_ref_idc = 0;
+		nal_unit_type = TSH264NalUnitTypeUnspecified;
+		pic_type = TSH264PicTypeI;
+		size = 0;
+		raw_data = NULL;
+	}
+	
+	u_int8_t at(int index)
+	{
+		if (index >= size) {
+			return 0;
+		}
+		return raw_data[index];
+	}
+	
+	int parse(TSMessage* msg, char* last, char*& p)
+	{
+		int ret = 0;
+		
+		while (next_int(p, 3) != 0x000001) {
+			char ch = *p++;
+			if (ch != 0x00) {
+				trace("ts+h264 parse msg failed, "
+					"expect 0x00 before start-code. actual is: %#x", (u_int8_t)ch);
+				return -1;
+			}
+		}
+		
+		if (p >= last) {
+			trace("ts+h264 parse msg finished, no start-code.");
+			return ret;
+		}
+		
+		// start_code_prefix_one_3bytes /* equal to 0x000001 */
+		p += 3;
+		
+		raw_data = (u_int8_t*)p;
+		while (p < last) {
+			if (match_start_code_prefix(p)) {
+				break;
+			}
+			p++;
+		}
+		size = (u_int8_t*)p - raw_data;
+		
+		trace("ts+h264 parse msg finished");
+		return ret;
+	
+		// nal_unit( NumBytesInNALunit ) specified in page 44.
+		// where f(1) specified in page 43.
+		int8_t _nal_unit_type = *p++;
+		
+		forbidden_zero_bit = (_nal_unit_type >> 7) &0x01;
+		nal_ref_idc = (_nal_unit_type >> 5) &0x03;
+		_nal_unit_type &= 0x1f;
+		
+		nal_unit_type = (TSH264NalUnitType)_nal_unit_type;
+		
+		if (nal_unit_type == TSH264NalUnitTypePictureDelimiter) {
+		/**
+		* 7.3.2.4 Picture delimiter RBSP syntax
+		* pic_delimiter_rbsp(), in page 47
+		*/
+		} else if (nal_unit_type == TSH264NalUnitTypeSequenceParameterSet) {
+		/**
+		* 7.3.2.1 Sequence parameter set RBSP syntax
+		* seq_parameter_set_rbsp(), in page 45
+		*/
+		} else if (nal_unit_type == TSH264NalUnitTypePictureParameterSet) {
+		/**
+		* 7.3.2.2 Picture parameter set RBSP syntax
+		* pic_parameter_set_rbsp(), in page 46
+		*/
+		}
+		
+		return ret;
+	}
+	
+	bool match_start_code_prefix(char*p)
+	{
+		return p[0] == 0x00 && p[1] == 0x00 && (p[2] == 0x00 || p[2] == 0x01);
+	}
+	
+	int32_t next_int(char* p, int bytes)
+	{
+		srs_assert(bytes <= sizeof(int32_t));
+		
+		int32_t value = 0;
+		char* pp = (char*)&value;
+		
+		for (int i = 0; i < bytes; i++) {
+			*(pp + bytes - 1 - i) = *(p + i);
+		}
+
+		return value;
+	}
 };
 
 /**
@@ -1694,6 +1854,14 @@ public:
 		
 		size = 0;
 		raw_data = NULL;
+	}
+	
+	u_int8_t at(int index)
+	{
+		if (index >= size) {
+			return 0;
+		}
+		return raw_data[index];
 	}
 	
 	int parse(TSMessage* msg, char*& p)
@@ -1775,21 +1943,33 @@ public:
 
 int consume(TSMessage* msg)
 {
-	int ret = 0; 
+	int ret = 0;
+	
+	char* p = msg->packet_data;
+	char* last = msg->packet_data + msg->packet_data_size;
         
     if (!msg->is_video()) {
 	    // parse AAC audio.
-		char* p = msg->packet_data;
-		while (p < msg->packet_data + msg->packet_data_size) {
+		while (p < last) {
 		    TSAacAdts aac;
 		    if ((ret = aac.parse(msg, p)) != 0) {
 		        return ret;
 		    }
 		    trace("ts+aac audio raw data parsed, size: %d, 0x%02x 0x%02x 0x%02x 0x%02x",
-		    	aac.size, aac.raw_data[0], aac.raw_data[1], aac.raw_data[2], aac.raw_data[3]);
+		    	aac.size, aac.at(0), aac.at(1), aac.at(2), aac.at(3));
 		    // TODO: process audio.
 		}
     } else {
+        // parse H264 video.
+		while (p < last) {
+			TSH264Codec h264;
+		    if ((ret = h264.parse(msg, last, p)) != 0) {
+		        return ret;
+		    }
+		    trace("ts+h264 video raw data parsed, size: %d, 0x%02x 0x%02x 0x%02x 0x%02x",
+		    	h264.size, h264.at(0), h264.at(1), h264.at(2), h264.at(3));
+		    // TODO: process video.
+		}
     }
     
 	return ret;
