@@ -557,6 +557,9 @@ public:
 	
 	// 2.4.3.7 Semantic definition of fields in PES packet. page 49.
 	int32_t packet_start_code_prefix;
+	
+	int64_t pts; // 33bits
+	int64_t dts; // 33bits
     
     // header size.
     int packet_header_size;
@@ -681,6 +684,7 @@ TSMessage::TSMessage()
 	stream_type = TSStreamTypeReserved;
 	stream_id = 0;
 	packet_start_code_prefix = 0;
+	pts = dts = 0;
 	PES_packet_length = 0;
 	packet_header_size = 0;
 	parsed_packet_size = 0;
@@ -1439,6 +1443,8 @@ int TSPayloadPES::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t
 		msg->continuity_counter = pid->continuity_counter;
 		msg->stream_id = stream_id;
 		msg->packet_start_code_prefix = packet_start_code_prefix;
+		msg->dts = dts;
+		msg->pts = pts;
 		
 		// PES_packet_data_byte, page58.
 		// the packet size contains the header size.
@@ -1789,7 +1795,31 @@ public:
 };
 
 /**
-* 6.2 Audio Data Transport Stream, ADTS
+* Table 35 – Sampling frequency dependent on
+* sampling_frequency_index. in page 46.
+*/
+enum TSAacSampleFrequency
+{
+	TSAacSampleFrequency96000 		= 0x00,
+	TSAacSampleFrequency88200 		= 0x01,
+	TSAacSampleFrequency64000 		= 0x02,
+	TSAacSampleFrequency48000 		= 0x03,
+	TSAacSampleFrequency44100 		= 0x04,
+	TSAacSampleFrequency32000 		= 0x05,
+	TSAacSampleFrequency24000 		= 0x06,
+	TSAacSampleFrequency22050 		= 0x07,
+	TSAacSampleFrequency16000 		= 0x08,
+	TSAacSampleFrequency12000 		= 0x09,
+	TSAacSampleFrequency11025 		= 0x0a,
+	TSAacSampleFrequency8000  		= 0x0b,
+	TSAacSampleFrequencyReserved0 	= 0x0c,
+	TSAacSampleFrequencyReserved1 	= 0x0d,
+	TSAacSampleFrequencyReserved2 	= 0x0e,
+	TSAacSampleFrequencyReserved3 	= 0x0f,
+};
+
+/**
+* 6.2 Audio Data Transport Stream, ADTS, in page 26.
 */
 class TSAacAdts
 {
@@ -1802,7 +1832,7 @@ public:
 	int8_t protection_absent; //1bit
 	// 12bits
 	int8_t profile; //2bit
-	int8_t sampling_frequency_index; //4bits
+	TSAacSampleFrequency sampling_frequency_index; //4bits
 	int8_t private_bit; //1bit
 	int8_t channel_configuration; //3bits
 	int8_t original_or_copy; //1bit
@@ -1826,7 +1856,7 @@ public:
 		layer = 0;
 		protection_absent = 0;
 		profile = 0;
-		sampling_frequency_index = 0;
+		sampling_frequency_index = TSAacSampleFrequencyReserved0;
 		private_bit = 0;
 		channel_configuration = 0;
 		original_or_copy = 0;
@@ -1904,7 +1934,7 @@ public:
 		private_bit = temp & 0x01;
 		temp = temp >> 1;
 		
-		sampling_frequency_index = temp & 0x0F;
+		sampling_frequency_index = (TSAacSampleFrequency)(temp & 0x0F);
 		temp = temp >> 4;
 		
 		profile = temp & 0x03;
@@ -1928,7 +1958,199 @@ public:
 	}
 };
 
-int consume(TSMessage* msg)
+class FlvMuxer
+{
+public:
+	int fd;
+	const char* file;
+	bool audio_sequence_header_writen;
+
+	FlvMuxer()
+	{
+		file = NULL;
+		fd = 0;
+		audio_sequence_header_writen = false;
+	}
+	
+	virtual ~FlvMuxer()
+	{
+		if (fd > 0) {
+			close(fd);
+		}
+	}
+
+	int open(const char* _file)
+	{
+		file = _file;
+		if ((fd = ::open(file, O_CREAT|O_WRONLY|O_TRUNC, 
+			S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH)) < 0 
+		) {
+			return -1;
+		}
+		
+		char header[] = {
+			0x46, 0x4c, 0x56, // FLV
+			0x01,  // version: 01
+			0x04, // 0x05:audio+video, 0x01:video, 0x04:audio
+			0x00, 0x00, 0x00, 0x09, // offset: always 0x09
+			0x00, 0x00, 0x00, 0x00 // previous tag 0: always 0
+		};
+		if (write(fd, header, sizeof(header)) != sizeof(header)) {
+			return -1;
+		}
+		
+		return 0;
+	}
+
+	/**
+	* @param size, if 0 for sequence header.
+	* @param sound_rate, Sampling rate. The following values are defined:
+	* 		0 = 5.5 kHz
+	* 		1 = 11 kHz
+	* 		2 = 22 kHz
+	* 		3 = 44 kHz
+	* @param sound_type, Mono or stereo sound
+	* 		0 = Mono sound
+	* 		1 = Stereo sound
+	*/
+	int write_audio(char* data, int size, u_int32_t timestamp, int sound_rate, int sound_type)
+	{
+		if (size > 0 && !audio_sequence_header_writen) {
+			audio_sequence_header_writen = true;
+			if (write_audio(NULL, 0, 0, sound_rate, sound_type) != 0) {
+				return -1;
+			}
+		}
+		
+		char tag_header[11];
+		char sequence_header[2]; // aac only
+		
+		int data_size = size + sizeof(sequence_header);
+		int tag_size = data_size + sizeof(tag_header);
+		
+		////////////////////////////////////
+		// 11bytes tag header.
+		////////////////////////////////////
+		// TagType
+		char* p = tag_header;
+		*p++ = 0x08; // audio
+		
+		// DataSize
+		char* pp = (char*)&data_size;
+		*p++ = pp[2];
+		*p++ = pp[1];
+		*p++ = pp[0];
+		
+		// Timestamp
+		pp = (char*)&timestamp;
+		*p++ = pp[2];
+		*p++ = pp[1];
+		*p++ = pp[0];
+		
+		// TimestampExtended
+		*p++ = pp[3]; 
+		
+		//StreamID
+		*p++ = 0;
+		*p++ = 0;
+		*p++ = 0;
+		
+		////////////////////////////////////
+		// 2bytes codec header for aac
+		////////////////////////////////////
+		// SoundFormat
+		sequence_header[0] = 0xa0; // aac
+		sequence_header[0] |= (sound_rate << 2) & 0x0c;
+		sequence_header[0] |= 0x02; // Compressed formats always decode to 16 bits internally.
+		sequence_header[0] |= sound_type & 0x01;
+		// AACPacketType
+		if (size == 0) {
+			sequence_header[1] = 0x00;
+		} else {
+			sequence_header[1] = 0x01;
+		}
+		
+		////////////////////////////////////
+		// 4bytes tag size
+		////////////////////////////////////
+		char tag_size_bytes[4];
+		p = tag_size_bytes;
+		pp = (char*)&tag_size;
+		*p++ = pp[4];
+		*p++ = pp[2];
+		*p++ = pp[1];
+		*p++ = pp[0];
+		
+		// write
+		if (write(fd, tag_header, sizeof(tag_header)) != sizeof(tag_header)) {
+			return -1;
+		}
+		if (write(fd, sequence_header, sizeof(sequence_header)) != sizeof(sequence_header)) {
+			return -1;
+		}
+		if (size > 0 && write(fd, data, size) != size) {
+			return -1;
+		}
+		if (write(fd, tag_size_bytes, sizeof(tag_size_bytes)) != sizeof(tag_size_bytes)) {
+			return -1;
+		}
+		
+		return 0;
+	}
+
+	int write_video(char* data, int size)
+	{
+		return 0;
+	}
+};
+
+class AacMuxer
+{
+public:
+	int fd;
+	const char* file;
+
+	AacMuxer()
+	{
+		file = NULL;
+		fd = 0;
+	}
+	
+	virtual ~AacMuxer()
+	{
+		if (fd > 0) {
+			close(fd);
+		}
+	}
+
+	int open(const char* _file)
+	{
+		file = _file;
+		if ((fd = ::open(file, O_CREAT|O_WRONLY|O_TRUNC, 
+			S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH)) < 0 
+		) {
+			return -1;
+		}
+		
+		return 0;
+	}
+
+	int write_audio(char* data, int size)
+	{
+		if (size > 0 && write(fd, data, size) != size) {
+			return -1;
+		}
+		
+		return 0;
+	}
+
+	int write_video(char* data, int size)
+	{
+		return 0;
+	}
+};
+
+int consume(TSMessage* msg, FlvMuxer* flv, AacMuxer* aac_muxer)
 {
 	int ret = 0;
 	
@@ -1941,6 +2163,11 @@ int consume(TSMessage* msg)
 	char* last = msg->packet_data + msg->packet_data_size;
         
     if (!msg->is_video()) {
+	    // write AAC raw audio.
+	    if (aac_muxer && (ret = aac_muxer->write_audio((char*)msg->packet_data, msg->packet_data_size)) != 0) {
+	        return ret;
+	    }
+	    
 	    // parse AAC audio.
 		while (p < last) {
 		    TSAacAdts aac;
@@ -1949,7 +2176,35 @@ int consume(TSMessage* msg)
 		    }
 		    trace("ts+aac audio raw data parsed, size: %d, 0x%02x 0x%02x 0x%02x 0x%02x",
 		    	aac.size, aac.at(0), aac.at(1), aac.at(2), aac.at(3));
-		    // TODO: process audio.
+		    
+		    int sound_rate = 0;
+		    if (aac.sampling_frequency_index == TSAacSampleFrequency22050) {
+		        sound_rate = 0x02;
+		    } else if(aac.sampling_frequency_index == TSAacSampleFrequency44100) {
+		        sound_rate = 0x03;
+		    } else {
+		         // 0 = 5.5 kHz
+		         // 1 = 11 kHz
+		         // others.
+		         trace("ts+aac flv donot support sample-rate: %d", aac.sampling_frequency_index);
+		         return -1;
+		    }
+		    
+		    int sound_type = 0;
+		    if (aac.channel_configuration == 1) {
+		        // 0 = Mono sound
+		        sound_type = 0;
+		    } else if (aac.channel_configuration == 2) {
+		        // 1 = Stereo sound
+		        sound_type = 1;
+		    } else {
+		         trace("ts+aac flv donot support channel: %d", aac.channel_configuration);
+		         return -1;
+		    }
+		    
+		    if (flv && (ret = flv->write_audio((char*)aac.raw_data, aac.size, msg->pts, sound_rate, sound_type)) != 0) {
+		        return ret;
+		    }
 		}
     } else {
         // parse H264 video.
@@ -1970,10 +2225,23 @@ int consume(TSMessage* msg)
 int main(int /*argc*/, char** /*argv*/)
 {
     const char* file = "livestream-1347.ts";
-    //file = "nginx-rtmp-hls/livestream-1347-currupt.ts";
+    const char* output_flv_file = "livestream.flv";
+    const char* output_aac_file = "livestream.aac";
+    
     int fd = open(file, O_RDONLY);
+    FlvMuxer flv;
+    AacMuxer aac_muxer;
     
     int ret = 0;
+    if ((ret = flv.open(output_flv_file)) != 0) {
+        trace("flv+open open flv file failed.");
+        return ret;
+    }
+    if ((ret = aac_muxer.open(output_aac_file)) != 0) {
+        trace("aac_muxer+open open flv file failed.");
+        return ret;
+    }
+    
     trace("demuxer+read packet count offset T+0  T+1  T+2  T+3  T+x T+L2 T+L1 T+L0");
     
     TSContext ctx;
@@ -2012,7 +2280,7 @@ int main(int /*argc*/, char** /*argv*/)
 	            continue;
 	        }
 	        
-	        if ((ret = consume(msg)) != 0) {
+	        if ((ret = consume(msg, &flv, &aac_muxer)) != 0) {
 	            trace("demuxer+consume parse and consume message failed. ret=%d", ret);
 	            break;
 	        }
