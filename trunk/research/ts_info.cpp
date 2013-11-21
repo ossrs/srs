@@ -1639,57 +1639,6 @@ int TSHeader::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t* la
 }
 
 /**
-* Table 7-1 – NAL unit type codes, page 61.
-*/
-enum TSH264NalUnitType
-{
-	TSH264NalUnitTypeUnspecified 				= 0,
-	TSH264NalUnitTypeCodedSlice 				= 1,
-	TSH264NalUnitTypeCodedSliceDataPartitionA 	= 2,
-	TSH264NalUnitTypeCodedSliceDataPartitionB 	= 3,
-	TSH264NalUnitTypeCodedSliceDataPartitionC 	= 4,
-	TSH264NalUnitTypeCodedSliceOfAnIDRPicture 	= 5,
-	TSH264NalUnitTypeSEI					 	= 6,
-	/**
-	* 7.3.2.1 Sequence parameter set RBSP syntax
-	* seq_parameter_set_rbsp(), in page 45
-	*/
-	TSH264NalUnitTypeSequenceParameterSet		= 7,
-	/**
-	* 7.3.2.2 Picture parameter set RBSP syntax
-	* pic_parameter_set_rbsp(), in page 46
-	*/
-	TSH264NalUnitTypePictureParameterSet		= 8,
-	/**
-	* 7.3.2.4 Picture delimiter RBSP syntax
-	* pic_delimiter_rbsp(), in page 47
-	*/
-	TSH264NalUnitTypePictureDelimiter			= 9,
-	TSH264NalUnitTypeEndOfSequence				= 10,
-	TSH264NalUnitTypeEndOfStream				= 11,
-	TSH264NalUnitTypeFillerData					= 12,
-	TSH264NalUnitTypeReservedStart				= 13,
-	TSH264NalUnitTypeReservedEnd				= 23,
-	TSH264NalUnitTypeUnspecifiedStart			= 24,
-	TSH264NalUnitTypeUnspecifiedEnd				= 31,
-};
-
-/**
-* Table 7-2 – Meaning of pic_type, page 69.
-*/
-enum TSH264PicType
-{
-	TSH264PicTypeI 			= 0,
-	TSH264PicTypeIP 		= 1,
-	TSH264PicTypeIPB 		= 2,
-	TSH264PicTypeSI 		= 3,
-	TSH264PicTypeSISP 		= 4,
-	TSH264PicTypeISI 		= 5,
-	TSH264PicTypeISIPSP		= 6,
-	TSH264PicTypeISIPSPB	= 7,
-};
-
-/**
 * Annex B Byte stream format, in page 211.
 */
 class TSH264Codec
