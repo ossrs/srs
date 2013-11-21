@@ -13,6 +13,7 @@ g++ -o ts_info ts_info.cpp -g -O0 -ansi
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 
@@ -55,22 +56,33 @@ Annex A �C CRC Decoder Model
 // Transport Stream packets are 188 bytes in length.
 #define TS_PACKET_SIZE          188
 
-// Program Association Table(see Table 2-25).
-#define PID_PAT                 0x00
-// Conditional Access Table (see Table 2-27).
-#define PID_CAT                 0x01
-// Transport Stream Description Table
-#define PID_TSDT                0x02
-// null packets (see Table 2-3)
-#define PID_NULL                0x01FFF
+enum TSPidTable
+{
+	// Program Association Table(see Table 2-25).
+	TSPidTablePAT	= 0x00,
+	// Conditional Access Table (see Table 2-27).
+	TSPidTableCAT	= 0x01,
+	// Transport Stream Description Table
+	TSPidTableTSDT	= 0x02,
+	// null packets (see Table 2-3)
+	TSPidTableNULL	= 0x01FFF,
+};
 
 /*adaptation_field_control*/
-// No adaptation_field, payload only
-#define AFC_PAYLOAD_ONLY        0x01
-// Adaptation_field only, no payload
-#define AFC_ADAPTION_ONLY       0x02
-// Adaptation_field followed by payload
-#define AFC_BOTH                0x03
+/**
+* Table 2-5 – Adaptation field control values, page 38.
+*/
+enum TSAdaptionType
+{
+	// Reserved for future use by ISO/IEC
+	TSAdaptionTypeReserved		= 0x00,
+	// No adaptation_field, payload only
+	TSAdaptionTypePayloadOnly 	= 0x01,
+	// Adaptation_field only, no payload
+	TSAdaptionTypeAdaptionOnly 	= 0x02,
+	// Adaptation_field followed by payload
+	TSAdaptionTypeBoth			= 0x03,
+};
 #endif
 
 // Table 2-29 – Stream type assignments. page 66.
@@ -143,10 +155,10 @@ public:
     int8_t transport_error_indicator; //1bit
     int8_t payload_unit_start_indicator; //1bit
     int8_t transport_priority; //1bit
-    u_int16_t pid; //13bits
+    TSPidTable pid; //13bits
     // 1B
     int8_t transport_scrambling_control; //2bits
-    int8_t adaption_field_control; //2bits
+    TSAdaptionType adaption_field_control; //2bits
     u_int8_t continuity_counter; //4bits
     
     TSHeader();
@@ -214,8 +226,8 @@ public:
     // left bytes.
     char* af_reserved;
     
-    // user defined data size.
-    int __user_size;
+    // user defined total adaption field size.
+    int __field_size;
     
     TSAdaptionField();
     virtual ~TSAdaptionField();
@@ -510,9 +522,13 @@ public:
 */
 struct TSPid
 {
-	TSStreamType stream_type;
 	TSPidType type;
-	int16_t pid;
+	// page 66.
+	TSStreamType stream_type;
+	// page 36
+	TSPidTable pid;
+	// page 36
+	u_int8_t continuity_counter;
 };
 
 /**
@@ -523,12 +539,14 @@ class TSMessage
 public:
 	// 2.4.3.2 Transport Stream packet layer. page 36
 	// the pid of PES packet.
-	int16_t pid;
+	TSPidTable pid;
 	
 	// the type of pid.
 	TSPidType type;
 	// the type of stream, codec type.
 	TSStreamType stream_type;
+	// page 36
+	u_int8_t continuity_counter;
 	
 	// 2.4.3.7 Semantic definition of fields in PES packet. page 49
 	// PES packet header size plus data size.
@@ -569,15 +587,15 @@ public:
     int pid_size;
 	TSPid* pids;
 	int64_t ts_packet_count;
-	std::map<int16_t, TSMessage*> msgs;
+	std::map<TSPidTable, TSMessage*> msgs;
     
     TSContext();
     virtual ~TSContext();
-    bool exists(int16_t pid);
-    TSPid* get(int16_t pid);
-    void push(TSStreamType stream_type, TSPidType type, int16_t pid);
+    bool exists(TSPidTable pid);
+    TSPid* get(TSPidTable pid);
+    void push(TSPidTable pid, TSStreamType stream_type, TSPidType type, u_int8_t continuity_counter);
     
-    TSMessage* get_msg(int16_t pid);
+    TSMessage* get_msg(TSPidTable pid);
     void detach(TSMessage* msg);
 };
 
@@ -592,7 +610,7 @@ TSContext::~TSContext()
 {
     srs_freepa(pids);
     
-    std::map<int16_t, TSMessage*>::iterator it;
+    std::map<TSPidTable, TSMessage*>::iterator it;
     for (it = msgs.begin(); it != msgs.end(); ++it) {
         TSMessage* msg = it->second;
         srs_freep(msg);
@@ -600,7 +618,7 @@ TSContext::~TSContext()
     msgs.clear();
 }
 
-bool TSContext::exists(int16_t pid)
+bool TSContext::exists(TSPidTable pid)
 {
     for (int i = 0; i < pid_size; i++) {
         if (pid == pids[i].pid) {
@@ -611,7 +629,7 @@ bool TSContext::exists(int16_t pid)
     return false;
 }
 
-TSPid* TSContext::get(int16_t pid)
+TSPid* TSContext::get(TSPidTable pid)
 {
     for (int i = 0; i < pid_size; i++) {
         if (pid == pids[i].pid) {
@@ -622,23 +640,25 @@ TSPid* TSContext::get(int16_t pid)
     return NULL;
 }
 
-void TSContext::push(TSStreamType stream_type, TSPidType type, int16_t pid)
+void TSContext::push(TSPidTable pid, TSStreamType stream_type, TSPidType type, u_int8_t continuity_counter)
 {
-    if (exists(pid)) {
-        return;
+	TSPid* p = get(pid);
+	
+    if (!p) {
+        p = new TSPid[pid_size + 1];
+		memcpy(p, pids, sizeof(TSPid) * pid_size);
+		
+		p[pid_size] = (TSPid){type, stream_type, pid, continuity_counter};
+		pid_size++;
+		
+		srs_freepa(pids);
+		pids = p;
     }
     
-	TSPid* p = new TSPid[pid_size + 1];
-	memcpy(p, pids, sizeof(TSPid) * pid_size);
-	
-	p[pid_size] = (TSPid){stream_type, type, pid};
-	pid_size++;
-	
-	srs_freepa(pids);
-	pids = p;
+    p->continuity_counter = continuity_counter;
 }
 
-TSMessage* TSContext::get_msg(int16_t pid)
+TSMessage* TSContext::get_msg(TSPidTable pid)
 {
 	if (msgs[pid] == NULL) {
 		TSMessage* msg = new TSMessage();
@@ -656,7 +676,7 @@ void TSContext::detach(TSMessage* msg)
 
 TSMessage::TSMessage()
 {
-	pid = 0;
+	pid = TSPidTablePAT;
 	type = TSPidTypeReserved;
 	stream_type = TSStreamTypeReserved;
 	stream_id = 0;
@@ -675,11 +695,21 @@ TSMessage::~TSMessage()
 
 void TSMessage::append(u_int8_t*& p, int size)
 {
-	if (size > 0) {
-		memcpy(packet_data + parsed_packet_size, p, size);
-		p += size;
-		parsed_packet_size += size;
+	if (size <= 0) {
+		return;
 	}
+	
+	// for PES_packet_length is 0, the size is varient.
+	if (packet_data_size - parsed_packet_size < size) {
+		int realloc_size = size - (packet_data_size - parsed_packet_size);
+		packet_data = (char*)realloc(packet_data, packet_data_size + realloc_size);
+		
+		packet_data_size += realloc_size;
+	}
+	
+	memcpy(packet_data + parsed_packet_size, p, size);
+	p += size;
+	parsed_packet_size += size;
 }
 
 void TSMessage::detach(TSContext* ctx, TSMessage*& pmsg)
@@ -729,7 +759,7 @@ TSAdaptionField::TSAdaptionField()
     marker_bit2 = 0;
     af_ext_reserved = NULL;
     af_reserved = NULL;
-    __user_size = 0;
+    __field_size = 0;
 }
 
 TSAdaptionField::~TSAdaptionField()
@@ -741,7 +771,7 @@ TSAdaptionField::~TSAdaptionField()
 
 int TSAdaptionField::get_size()
 {
-    return __user_size;
+    return __field_size;
 }
 
 int TSAdaptionField::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t* last, u_int8_t*& p, TSMessage*& pmsg)
@@ -750,7 +780,7 @@ int TSAdaptionField::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int
 
     adaption_field_length = *p++;
     u_int8_t* pos_af = p;
-    __user_size = 1 + adaption_field_length;
+    __field_size = 1 + adaption_field_length;
     
     if (adaption_field_length <= 0) {
         trace("ts+af empty af decoded.");
@@ -965,7 +995,7 @@ int TSPayloadPAT::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t
             pp[0] = *p++;
             
             int16_t pid = programs[i] & 0x1FFF;
-            ctx->push(TSStreamTypeReserved, TSPidTypePMT, pid);
+            ctx->push((TSPidTable)pid, TSStreamTypeReserved, TSPidTypePMT, pkt->header->continuity_counter);
         }
     }
     
@@ -1102,12 +1132,12 @@ int TSPayloadPMT::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t
 		
 		if (info->stream_type == TSStreamTypeVideoH264) {
 			// TODO: support more video type.
-			ctx->push((TSStreamType)info->stream_type, TSPidTypeVideo, info->elementary_PID);
+			ctx->push((TSPidTable)info->elementary_PID, (TSStreamType)info->stream_type, TSPidTypeVideo, pkt->header->continuity_counter);
 			trace("ts+pmt add pid: %d, type: H264 video", info->elementary_PID);
 		} else if (info->stream_type == TSStreamTypeAudioAAC) {
 			// TODO: support more audio type.
 			// see aac: 6.2 Audio Data Transport Stream, ADTS
-			ctx->push((TSStreamType)info->stream_type, TSPidTypeAudio, info->elementary_PID);
+			ctx->push((TSPidTable)info->elementary_PID, (TSStreamType)info->stream_type, TSPidTypeAudio, pkt->header->continuity_counter);
 			trace("ts+pmt add pid: %d, type: AAC audio", info->elementary_PID);
 		} else {
 			trace("ts+pmt ignore the stream type: %d", info->stream_type);
@@ -1215,23 +1245,16 @@ int TSPayloadPES::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t
 {
     int ret = 0;
     
-    if (!pkt->header->payload_unit_start_indicator) {
-        TSMessage* msg = ctx->get_msg(pkt->header->pid);
-		if (msg->packet_start_code_prefix != 0x01) {
-			trace("ts+pes decode continous packet error, msg is empty.");
-			return -1;
-		}
-		msg->append(p, last - p);
-		msg->detach(ctx, pmsg);
-		return ret;
-    }
-    
     char* pp = (char*)&packet_start_code_prefix;
     pp[2] = *p++;
     pp[1] = *p++;
     pp[0] = *p++;
     
     packet_start_code_prefix &= 0xFFFFFF;
+	if (packet_start_code_prefix != 0x01) {
+		trace("ts+pes decode unit start packet error, msg is empty.");
+		return -1;
+	}
 
 	stream_id = *p++;
 	
@@ -1413,6 +1436,7 @@ int TSPayloadPES::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t
 
 		msg->type = pid->type;
 		msg->stream_type = pid->stream_type;
+		msg->continuity_counter = pid->continuity_counter;
 		msg->stream_id = stream_id;
 		msg->packet_start_code_prefix = packet_start_code_prefix;
 		
@@ -1426,6 +1450,9 @@ int TSPayloadPES::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t
 		msg->PES_packet_length = PES_packet_length;
 		msg->packet_header_size = p - pos_packet;
 		msg->packet_data_size = PES_packet_length - msg->packet_header_size;
+		if (PES_packet_length == 0) {
+			msg->packet_data_size = last - p - msg->packet_header_size;
+		}
 		
 		if (msg->packet_data_size > 0) {
 			msg->packet_data = new char[msg->packet_data_size];
@@ -1433,12 +1460,16 @@ int TSPayloadPES::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t
 		
 		// PES_packet_data_byte
 		int size = srs_min(msg->packet_data_size, last - p);
-		msg->append(p, size);
+		if (size > 0) {
+			msg->append(p, size);
+		}
 		
-		msg->detach(ctx, pmsg);
+		if (PES_packet_length > 0) {
+			msg->detach(ctx, pmsg);
+		}
 	
-		trace("ts+pes stream_id: %d size: %d pts: %"PRId64" dts: %"PRId64" packet_size: %d parsed_size: %d",
-			stream_id, PES_packet_length, pts, dts, msg->packet_data_size, msg->parsed_packet_size);
+		trace("ts+pes stream_id: %d size: %d pts: %"PRId64" dts: %"PRId64" total: %d header: %d packet_size: %d parsed_size: %d",
+			stream_id, PES_packet_length, pts, dts, msg->PES_packet_length, msg->packet_header_size, msg->packet_data_size, msg->parsed_packet_size);
 	} else if (stream_id == PES_program_stream_map
 		|| stream_id == PES_private_stream_2
 		|| stream_id == PES_ECM_stream
@@ -1496,7 +1527,7 @@ int TSPayload::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t* l
 {
     int ret = 0;
     
-    if (pkt->header->pid == PID_PAT) {
+    if (pkt->header->pid == TSPidTablePAT) {
         read_pointer_field(pkt, p);
         
         type = TSPidTypePAT;
@@ -1550,7 +1581,7 @@ int TSPacket::demux(TSContext* ctx, u_int8_t* start, u_int8_t* last, u_int8_t*& 
         return ret;
     }
 
-    if (header->adaption_field_control == AFC_ADAPTION_ONLY || header->adaption_field_control == AFC_BOTH) {
+    if (header->adaption_field_control == TSAdaptionTypeAdaptionOnly || header->adaption_field_control == TSAdaptionTypeBoth) {
         if ((ret = adaption_field->demux(ctx, this, start, last, p, pmsg)) != 0) {
             trace("ts+header af(adaption field) decode error. ret=%d", ret);
             return ret;
@@ -1561,7 +1592,36 @@ int TSPacket::demux(TSContext* ctx, u_int8_t* start, u_int8_t* last, u_int8_t*& 
     // calc the user defined data size for payload.
     payload->size = TS_PACKET_SIZE - header->get_size() - adaption_field->get_size();
     
-    if (header->adaption_field_control == AFC_PAYLOAD_ONLY || header->adaption_field_control == AFC_BOTH) {
+    if (header->adaption_field_control == TSAdaptionTypePayloadOnly || header->adaption_field_control == TSAdaptionTypeBoth) {
+	    TSMessage* msg = ctx->get_msg(header->pid);
+	    
+        // flush previous PES_packet_length(0) packets.
+        if (msg->packet_start_code_prefix == 0x01 
+            && header->payload_unit_start_indicator == 1
+        	&& msg->PES_packet_length == 0
+        ) {
+            msg->detach(ctx, pmsg);
+            // reparse current message
+            p = start;
+            return ret;
+        }
+        
+		// parse continous packet.
+	    if (!header->payload_unit_start_indicator) {
+			if (msg->packet_start_code_prefix != 0x01) {
+				trace("ts+pes decode continous packet error, msg is empty.");
+				return -1;
+			}
+			msg->append(p, last - p);
+			
+			// for PES_packet_length is 0, donot attach it.
+			if (msg->PES_packet_length > 0) {
+				msg->detach(ctx, pmsg);
+			}
+			return ret;
+	    }
+	    
+	    // parse new packet.
         if ((ret = payload->demux(ctx, this, start, last, p, pmsg)) != 0) {
             trace("ts+header payload decode error. ret=%d", ret);
             return ret;
@@ -1588,9 +1648,9 @@ TSHeader::TSHeader()
     transport_error_indicator = 0;
     payload_unit_start_indicator = 0;
     transport_priority = 0;
-    pid = 0;
+    pid = TSPidTablePAT;
     transport_scrambling_control = 0;
-    adaption_field_control = 0;
+    adaption_field_control = TSAdaptionTypeReserved;
     continuity_counter = 0;
 }
 
@@ -1614,22 +1674,26 @@ int TSHeader::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t* la
         return -1;
     }
     
-    pid = 0;
-    ((char*)&pid)[1] = *p++;
-    ((char*)&pid)[0] = *p++;
+    int16_t _pid = 0;
+    char* pp = (char*)&_pid;
+    pp[1] = *p++;
+    pp[0] = *p++;
     
-    transport_error_indicator = (pid >> 15) & 0x01;
-    payload_unit_start_indicator = (pid >> 14) & 0x01;
-    transport_priority = (pid >> 13) & 0x01;
-    pid &= 0x1FFF;
+    transport_error_indicator = (_pid >> 15) & 0x01;
+    payload_unit_start_indicator = (_pid >> 14) & 0x01;
+    transport_priority = (_pid >> 13) & 0x01;
+    _pid &= 0x1FFF;
     
-    ctx->push(TSStreamTypeReserved, TSPidTypePAT, pid);
+    pid = (TSPidTable)_pid;
     
     continuity_counter = *p++;
     
     transport_scrambling_control = (continuity_counter >> 6) & 0x03;
-    adaption_field_control = (continuity_counter >> 4) & 0x03;
+    int8_t _adaption_field_control = (continuity_counter >> 4) & 0x03;
+    adaption_field_control = (TSAdaptionType)_adaption_field_control;
     continuity_counter &= 0x0F;
+    
+    ctx->push(pid, TSStreamTypeReserved, TSPidTypePAT, continuity_counter);
     
     trace("ts+header sync: %#x error: %d unit_start: %d priotiry: %d pid: %d scrambling: %d adaption: %d counter: %d",
         sync_byte, transport_error_indicator, payload_unit_start_indicator, transport_priority, pid,
@@ -1934,24 +1998,27 @@ int main(int /*argc*/, char** /*argv*/)
         u_int8_t* start = ts_packet;
         u_int8_t* last = ts_packet + TS_PACKET_SIZE;
         
-        TSPacket pkt;
-        TSMessage* msg = NULL;
-        if ((ret = pkt.demux(&ctx, start, last, p, msg)) != 0) {
-            trace("demuxer+read decode ts packet error. ret=%d", ret);
-            return ret;
+        // maybe need to parse multiple times for the PES_packet_length(0) packets.
+        while (p == start) {
+	        TSPacket pkt;
+	        TSMessage* msg = NULL;
+	        if ((ret = pkt.demux(&ctx, start, last, p, msg)) != 0) {
+	            trace("demuxer+read decode ts packet error. ret=%d", ret);
+	            return ret;
+	        }
+	        
+	        offset += nread;
+	        if (!msg) {
+	            continue;
+	        }
+	        
+	        if ((ret = consume(msg)) != 0) {
+	            trace("demuxer+consume parse and consume message failed. ret=%d", ret);
+	            break;
+	        }
+	        
+	        srs_freep(msg);
         }
-        
-        offset += nread;
-        if (!msg) {
-            continue;
-        }
-        
-        if ((ret = consume(msg)) != 0) {
-            trace("demuxer+consume parse and consume message failed. ret=%d", ret);
-            break;
-        }
-        
-        srs_freep(msg);
     }
     
     close(fd);
