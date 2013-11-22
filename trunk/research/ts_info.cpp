@@ -2013,6 +2013,9 @@ int consume(TSMessage* msg, AacMuxer* aac_muxer)
 		trace("ts+aac+h264 ignore empty message.");
 		return ret;
 	}
+	trace("ts+aac+h264+data %s pts:%"PRId64" dts(calc):%"PRId64" dts:%"PRId64" size: %d",
+		(msg->type == TSPidTypeVideo)? "video":"audio", msg->pts, 
+		(msg->dts == 0)? msg->pts : msg->dts, msg->dts, msg->packet_data_size);
 	
 	char* last = msg->packet_data + msg->packet_data_size;
         
