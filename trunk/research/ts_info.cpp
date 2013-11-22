@@ -2013,9 +2013,6 @@ int consume(TSMessage* msg, AacMuxer* aac_muxer)
 		trace("ts+aac+h264 ignore empty message.");
 		return ret;
 	}
-	trace("ts+aac+h264+data %s pts:%"PRId64" dts(calc):%"PRId64" dts:%"PRId64" size: %d",
-		(msg->type == TSPidTypeVideo)? "video":"audio", msg->pts, 
-		(msg->dts == 0)? msg->pts : msg->dts, msg->dts, msg->packet_data_size);
 	
 	char* last = msg->packet_data + msg->packet_data_size;
         
@@ -2026,6 +2023,7 @@ int consume(TSMessage* msg, AacMuxer* aac_muxer)
 	    }
 	    
 	    // parse AAC audio.
+	    int64_t dts = -1;
 		while (p < last) {
 		    TSAacAdts aac;
 		    if ((ret = aac.parse(msg, p)) != 0) {
@@ -2033,9 +2031,34 @@ int consume(TSMessage* msg, AacMuxer* aac_muxer)
 		    }
 		    trace("ts+aac audio raw data parsed, size: %d, 0x%02x 0x%02x 0x%02x 0x%02x",
 		    	aac.size, aac.at(0), aac.at(1), aac.at(2), aac.at(3));
+			
+			if (dts == -1) {
+				dts = (msg->dts == 0)? msg->pts : msg->dts;
+			} else {
+				// see ffmpeg: avpriv_aac_parse_header
+				// rdb = get_bits(gbc, 2);  /* number_of_raw_data_blocks_in_frame */
+				// hdr->samples  = (rdb + 1) * 1024;
+				int samples = (aac.number_of_raw_data_blocks_in_frame + 1) * 1024;
+				static int sample_rates[] = {
+					96000, 88200, 64000, 48000, 44100, 32000,
+					24000, 22050, 16000, 12000, 11025, 8000, 
+					1, 1, 1, 1
+				};
+				int sample_rate = sample_rates[aac.sampling_frequency_index];
+				
+				dts += samples * 90000 / sample_rate;
+			}
+			
+			trace("ts+aac+h264+data %s pts:%"PRId64" dts:%"PRId64" size: %d",
+				(msg->type == TSPidTypeVideo)? "video":"audio", dts, dts, aac.frame_length);
+				
 		    // TODO: process audio.
 		}
-    } else {
+    } else { 	
+		trace("ts+aac+h264+data %s pts:%"PRId64" dts:%"PRId64" size: %d",
+			(msg->type == TSPidTypeVideo)? "video":"audio", msg->pts, 
+			(msg->dts == 0)? msg->pts : msg->dts, msg->packet_data_size);
+		   
         // parse H264 video.
 		while (p < last) {
 			TSH264Codec h264;
@@ -2044,6 +2067,7 @@ int consume(TSMessage* msg, AacMuxer* aac_muxer)
 		    }
 		    trace("ts+h264 video raw data parsed, size: %d, 0x%02x 0x%02x 0x%02x 0x%02x",
 		    	h264.size, h264.at(0), h264.at(1), h264.at(2), h264.at(3));
+			
 		    // TODO: process video.
 		}
     }
