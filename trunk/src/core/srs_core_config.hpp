@@ -109,6 +109,7 @@ public:
 	virtual int parse_options(int argc, char** argv);
 	virtual SrsConfDirective* get_vhost(std::string vhost);
 	virtual SrsConfDirective* get_gop_cache(std::string vhost);
+	virtual SrsConfDirective* get_hls(std::string vhost);
 	virtual SrsConfDirective* get_refer(std::string vhost);
 	virtual SrsConfDirective* get_refer_play(std::string vhost);
 	virtual SrsConfDirective* get_refer_publish(std::string vhost);
