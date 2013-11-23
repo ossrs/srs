@@ -228,6 +228,9 @@ public:
     
     // user defined total adaption field size.
     int __field_size;
+    // logic pcr/original_pcr
+    int64_t pcr;
+    int64_t original_pcr;
     
     TSAdaptionField();
     virtual ~TSAdaptionField();
@@ -764,6 +767,8 @@ TSAdaptionField::TSAdaptionField()
     af_ext_reserved = NULL;
     af_reserved = NULL;
     __field_size = 0;
+    pcr = 0;
+    original_pcr = 0;
 }
 
 TSAdaptionField::~TSAdaptionField()
@@ -802,10 +807,6 @@ int TSAdaptionField::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int
     transport_private_data_flag          =   (value >> 1) & 0x01;
     adaptation_field_extension_flag      =   (value >> 0) & 0x01;
     
-    trace("ts+af af flags parsed, discontinuity: %d random: %d priority: %d PCR: %d OPCR: %d slicing: %d private: %d extension: %d",
-        discontinuity_indicator, random_access_indicator, elementary_stream_priority_indicator, PCR_flag, OPCR_flag, splicing_point_flag,
-        transport_private_data_flag, adaptation_field_extension_flag);
-    
     char* pp = NULL;
     if (PCR_flag) {
         pp = (char*)&program_clock_reference_base;
@@ -816,8 +817,14 @@ int TSAdaptionField::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int
         pp[1] = *p++;
         pp[0] = *p++;
         
-        program_clock_reference_extension = program_clock_reference_base & 0x1F;
-        program_clock_reference_base = (program_clock_reference_base >> 9) & 0x1FFFFFFFF;
+        program_clock_reference_extension = program_clock_reference_base & 0x1ff;
+        program_clock_reference_base = (program_clock_reference_base >> 15) & 0x1ffffffff;
+        
+        // high 9bits
+        pcr = program_clock_reference_extension;
+        pcr = (pcr << 33) & 0x3fe00000000;
+        // low 33bits
+        pcr |= program_clock_reference_base;
     }
     if (OPCR_flag) {
         pp = (char*)&original_program_clock_reference_base;
@@ -828,8 +835,14 @@ int TSAdaptionField::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int
         pp[1] = *p++;
         pp[0] = *p++;
         
-        original_program_clock_reference_extension = original_program_clock_reference_base & 0x1F;
-        original_program_clock_reference_base = (original_program_clock_reference_base >> 9) & 0x1FFFFFFFF;
+        original_program_clock_reference_extension = original_program_clock_reference_base & 0x1ff;
+        original_program_clock_reference_base = (original_program_clock_reference_base >> 15) & 0x1ffffffff;
+        
+        // high 9bits
+        original_pcr = program_clock_reference_extension;
+        original_pcr = (original_pcr << 33) & 0x3fe00000000;
+        // low 33bits
+        original_pcr |= program_clock_reference_base;
     }
     if (splicing_point_flag) {
         splice_countdown = *p++;
@@ -908,6 +921,10 @@ int TSAdaptionField::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int
         memcpy(af_reserved, p, af_size);
         p += af_size;
     }
+    
+    trace("ts+af af flags parsed, discontinuity: %d random: %d priority: %d PCR: %d OPCR: %d slicing: %d private: %d extension: %d pcr: %"PRId64" opcr: %"PRId64"",
+        discontinuity_indicator, random_access_indicator, elementary_stream_priority_indicator, PCR_flag, OPCR_flag, splicing_point_flag,
+        transport_private_data_flag, adaptation_field_extension_flag, pcr, original_pcr);
     
     return ret;
 }
@@ -1550,6 +1567,34 @@ int TSPayload::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t* l
         return pmt->demux(ctx, pkt, start, last, p, pmsg);
     }
     if (pid && (pid->type == TSPidTypeVideo || pid->type == TSPidTypeAudio)) {
+	    TSMessage* msg = ctx->get_msg(pkt->header->pid);
+	    
+        // flush previous PES_packet_length(0) packets.
+        if (msg->packet_start_code_prefix == 0x01 
+            && pkt->header->payload_unit_start_indicator == 1
+        	&& msg->PES_packet_length == 0
+        ) {
+            msg->detach(ctx, pmsg);
+            // reparse current message
+            p = start;
+            return ret;
+        }
+        
+		// parse continous packet.
+	    if (!pkt->header->payload_unit_start_indicator) {
+			if (msg->packet_start_code_prefix != 0x01) {
+				trace("ts+pes decode continous packet error, msg is empty.");
+				return -1;
+			}
+			msg->append(p, last - p);
+			
+			// for PES_packet_length is 0, donot attach it.
+			if (msg->PES_packet_length > 0) {
+				msg->detach(ctx, pmsg);
+			}
+			return ret;
+	    }
+	    
         type = pid->type;
         pes = new TSPayloadPES();
         return pes->demux(ctx, pkt, start, last, p, pmsg);
@@ -1599,34 +1644,6 @@ int TSPacket::demux(TSContext* ctx, u_int8_t* start, u_int8_t* last, u_int8_t*& 
     payload->size = TS_PACKET_SIZE - header->get_size() - adaption_field->get_size();
     
     if (header->adaption_field_control == TSAdaptionTypePayloadOnly || header->adaption_field_control == TSAdaptionTypeBoth) {
-	    TSMessage* msg = ctx->get_msg(header->pid);
-	    
-        // flush previous PES_packet_length(0) packets.
-        if (msg->packet_start_code_prefix == 0x01 
-            && header->payload_unit_start_indicator == 1
-        	&& msg->PES_packet_length == 0
-        ) {
-            msg->detach(ctx, pmsg);
-            // reparse current message
-            p = start;
-            return ret;
-        }
-        
-		// parse continous packet.
-	    if (!header->payload_unit_start_indicator) {
-			if (msg->packet_start_code_prefix != 0x01) {
-				trace("ts+pes decode continous packet error, msg is empty.");
-				return -1;
-			}
-			msg->append(p, last - p);
-			
-			// for PES_packet_length is 0, donot attach it.
-			if (msg->PES_packet_length > 0) {
-				msg->detach(ctx, pmsg);
-			}
-			return ret;
-	    }
-	    
 	    // parse new packet.
         if ((ret = payload->demux(ctx, this, start, last, p, pmsg)) != 0) {
             trace("ts+header payload decode error. ret=%d", ret);
