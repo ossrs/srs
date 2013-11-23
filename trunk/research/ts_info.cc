@@ -1495,6 +1495,12 @@ int TSPayloadPES::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t
 		msg->PES_packet_length = PES_packet_length;
 		msg->packet_header_size = p - pos_packet;
 		msg->packet_data_size = PES_packet_length - msg->packet_header_size;
+		
+		/**
+		* when actual packet length > 0xffff(65535),
+		* which exceed the max u_int16_t packet length,
+		* use 0 packet length, the next unit start indicates the end of packet.
+		*/
 		if (PES_packet_length == 0) {
 			msg->packet_data_size = last - p - msg->packet_header_size;
 		}
