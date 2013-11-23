@@ -55,7 +55,7 @@ Introduction
     Intro. 1 Transport Stream
     Intro. 2 Program Stream
     Intro. 4 Packetized Elementary Stream
-SECTION 2 ¨C TECHNICAL ELEMENTS
+SECTION 2 â€“ TECHNICAL ELEMENTS
     2.4 Transport Stream bitstream requirements
         2.4.1 Transport Stream coding structure and parameters
         2.4.2 Transport Stream system target decoder
@@ -72,7 +72,7 @@ SECTION 2 ¨C TECHNICAL ELEMENTS
     2.5 Program Stream bitstream requirements
     2.6 Program and program element descriptors
     2.7 Restrictions on the multiplexed stream semantics
-Annex A ¨C CRC Decoder Model
+Annex A CRC Decoder Model
 */
 #if 1
 // Transport Stream packets are 188 bytes in length.
