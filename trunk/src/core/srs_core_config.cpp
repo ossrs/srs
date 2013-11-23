@@ -573,6 +573,17 @@ SrsConfDirective* SrsConfig::get_hls(std::string vhost)
 	return conf->get("hls");
 }
 
+SrsConfDirective* SrsConfig::get_hls_path(std::string vhost)
+{
+	SrsConfDirective* conf = get_vhost(vhost);
+
+	if (!conf) {
+		return NULL;
+	}
+	
+	return conf->get("hls_path");
+}
+
 SrsConfDirective* SrsConfig::get_refer(std::string vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
