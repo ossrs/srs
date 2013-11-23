@@ -279,8 +279,7 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
 {
 	int ret = ERROR_SUCCESS;
 	
-	metadata->metadata->set("server", new SrsAmf0String(RTMP_SIG_SRS_KEY));
-	metadata->metadata->set("srs_server", new SrsAmf0String(
+	metadata->metadata->set("server", new SrsAmf0String(
 		RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
 	
 	SrsAmf0Any* prop = NULL;
