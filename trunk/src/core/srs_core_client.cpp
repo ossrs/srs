@@ -351,62 +351,74 @@ int SrsClient::publish(SrsSource* source, bool is_fmle)
 			srs_trace("<- clock=%u, time=%"PRId64", obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
 				(int)(srs_get_system_time_ms()/1000), pithy_print.get_age(), rtmp->get_send_bytes(), rtmp->get_recv_bytes(), rtmp->get_send_kbps(), rtmp->get_recv_kbps());
 		}
-		
-		// process audio packet
-		if (msg->header.is_audio() && ((ret = source->on_audio(msg)) != ERROR_SUCCESS)) {
-			srs_error("process audio message failed. ret=%d", ret);
+
+		if ((ret = process_publish_message(source, hls, msg, is_fmle)) != ERROR_SUCCESS) {
+			srs_error("process publish message failed. ret=%d", ret);
 			return ret;
 		}
-		// process video packet
-		if (msg->header.is_video() && ((ret = source->on_video(msg)) != ERROR_SUCCESS)) {
-			srs_error("process video message failed. ret=%d", ret);
+	}
+	
+	return ret;
+}
+
+int SrsClient::process_publish_message(SrsSource* source, SrsHLS* hls, SrsCommonMessage* msg, bool is_fmle)
+{
+	int ret = ERROR_SUCCESS;
+	
+	// process audio packet
+	if (msg->header.is_audio() && ((ret = source->on_audio(msg)) != ERROR_SUCCESS)) {
+		srs_error("process audio message failed. ret=%d", ret);
+		return ret;
+	}
+	// process video packet
+	if (msg->header.is_video() && ((ret = source->on_video(msg)) != ERROR_SUCCESS)) {
+		srs_error("process video message failed. ret=%d", ret);
+		return ret;
+	}
+	
+	// process onMetaData
+	if (msg->header.is_amf0_data() || msg->header.is_amf3_data()) {
+		if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
+			srs_error("decode onMetaData message failed. ret=%d", ret);
+			return ret;
+		}
+	
+		SrsPacket* pkt = msg->get_packet();
+		if (dynamic_cast<SrsOnMetaDataPacket*>(pkt)) {
+			SrsOnMetaDataPacket* metadata = dynamic_cast<SrsOnMetaDataPacket*>(pkt);
+			if ((ret = source->on_meta_data(msg, metadata)) != ERROR_SUCCESS) {
+				srs_error("process onMetaData message failed. ret=%d", ret);
+				return ret;
+			}
+			srs_trace("process onMetaData message success.");
 			return ret;
 		}
 		
-		// process onMetaData
-		if (msg->header.is_amf0_data() || msg->header.is_amf3_data()) {
-			if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
-				srs_error("decode onMetaData message failed. ret=%d", ret);
-				return ret;
-			}
-		
-			SrsPacket* pkt = msg->get_packet();
-			if (dynamic_cast<SrsOnMetaDataPacket*>(pkt)) {
-				SrsOnMetaDataPacket* metadata = dynamic_cast<SrsOnMetaDataPacket*>(pkt);
-				if ((ret = source->on_meta_data(msg, metadata)) != ERROR_SUCCESS) {
-					srs_error("process onMetaData message failed. ret=%d", ret);
-					return ret;
-				}
-				srs_trace("process onMetaData message success.");
-				continue;
-			}
-			
-			srs_trace("ignore AMF0/AMF3 data message.");
-			continue;
+		srs_trace("ignore AMF0/AMF3 data message.");
+		return ret;
+	}
+	
+	// process UnPublish event.
+	if (msg->header.is_amf0_command() || msg->header.is_amf3_command()) {
+		if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
+			srs_error("decode unpublish message failed. ret=%d", ret);
+			return ret;
 		}
 		
-		// process UnPublish event.
-		if (msg->header.is_amf0_command() || msg->header.is_amf3_command()) {
-			if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
-				srs_error("decode unpublish message failed. ret=%d", ret);
-				return ret;
-			}
-			
-			// flash unpublish.
-			if (!is_fmle) {
-				srs_trace("flash publish finished.");
-				return ret;
-			}
-		
-			SrsPacket* pkt = msg->get_packet();
-			if (dynamic_cast<SrsFMLEStartPacket*>(pkt)) {
-				SrsFMLEStartPacket* unpublish = dynamic_cast<SrsFMLEStartPacket*>(pkt);
-				return rtmp->fmle_unpublish(res->stream_id, unpublish->transaction_id);
-			}
-			
-			srs_trace("ignore AMF0/AMF3 command message.");
-			continue;
+		// flash unpublish.
+		if (!is_fmle) {
+			srs_trace("flash publish finished.");
+			return ret;
 		}
+	
+		SrsPacket* pkt = msg->get_packet();
+		if (dynamic_cast<SrsFMLEStartPacket*>(pkt)) {
+			SrsFMLEStartPacket* unpublish = dynamic_cast<SrsFMLEStartPacket*>(pkt);
+			return rtmp->fmle_unpublish(res->stream_id, unpublish->transaction_id);
+		}
+		
+		srs_trace("ignore AMF0/AMF3 command message.");
+		return ret;
 	}
 	
 	return ret;

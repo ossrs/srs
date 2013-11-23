@@ -39,6 +39,7 @@ class SrsSource;
 class SrsRefer;
 class SrsConsumer;
 class SrsCommonMessage;
+class SrsHLS;
 
 /**
 * the client provides the main logic control for RTMP clients.
@@ -60,6 +61,7 @@ private:
 	virtual int check_vhost();
 	virtual int playing(SrsSource* source);
 	virtual int publish(SrsSource* source, bool is_fmle);
+	virtual int process_publish_message(SrsSource* source, SrsHLS* hls, SrsCommonMessage* msg, bool is_fmle);
 	virtual int get_peer_ip();
 	virtual int process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage* msg);
 };
