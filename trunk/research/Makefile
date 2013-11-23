@@ -1,2 +1,2 @@
-ts_info: ts_info.cpp Makefile
-	g++ -o ts_info ts_info.cpp -g -O0 -ansi
+ts_info: ts_info.cc Makefile
+	g++ -o ts_info ts_info.cc -g -O0 -ansi

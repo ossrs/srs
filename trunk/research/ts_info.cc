@@ -1,5 +1,5 @@
 /**
-g++ -o ts_info ts_info.cpp -g -O0 -ansi
+g++ -o ts_info ts_info.cc -g -O0 -ansi
 */
 #if 1
 // for int64_t print using PRId64 format.

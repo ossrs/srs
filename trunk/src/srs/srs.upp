@@ -43,7 +43,7 @@ file
     ..\core\srs_core_log.hpp,
     ..\core\srs_core_log.cpp,
     research readonly separator,
-    ..\..\research\ts_info.cpp;
+    ..\..\research\ts_info.cc;
 mainconfig
 	"" = "MAIN";
 
