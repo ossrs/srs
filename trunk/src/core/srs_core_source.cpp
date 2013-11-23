@@ -30,6 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_autofree.hpp>
 #include <srs_core_amf0.hpp>
 #include <srs_core_codec.hpp>
+#include <srs_core_hls.hpp>
 
 #define CONST_MAX_JITTER_MS 		500
 #define DEFAULT_FRAME_TIME_MS 		10
@@ -240,6 +241,7 @@ SrsSource::SrsSource(std::string _stream_url)
 {
 	stream_url = _stream_url;
 	codec = new SrsCodec();
+	hls = new SrsHLS();
 	
 	cache_metadata = cache_sh_video = cache_sh_audio = NULL;
 	
@@ -265,13 +267,20 @@ SrsSource::~SrsSource()
 	srs_freep(cache_sh_audio);
 	
 	srs_freep(codec);
+	srs_freep(hls);
+}
+
+SrsHLS* SrsSource::get_hls()
+{
+	return hls;
 }
 
 int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata)
 {
 	int ret = ERROR_SUCCESS;
 	
-	metadata->metadata->set("server", new SrsAmf0String(
+	metadata->metadata->set("server", new SrsAmf0String(RTMP_SIG_SRS_KEY));
+	metadata->metadata->set("srs_server", new SrsAmf0String(
 		RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
 	
 	SrsAmf0Any* prop = NULL;
@@ -418,6 +427,19 @@ int SrsSource::on_video(SrsCommonMessage* video)
 	return ret;
 }
 
+void SrsSource::on_unpublish()
+{
+	clear_gop_cache();
+
+	srs_freep(cache_metadata);
+	video_frame_rate = audio_sample_rate = 0;
+	
+	srs_freep(cache_sh_video);
+	srs_freep(cache_sh_audio);
+	
+	srs_trace("clear cache/metadata/sequence-headers when unpublish.");
+}
+
  int SrsSource::create_consumer(SrsConsumer*& consumer)
 {
 	int ret = ERROR_SUCCESS;
@@ -464,19 +486,6 @@ void SrsSource::on_consumer_destroy(SrsConsumer* consumer)
 		consumers.erase(it);
 	}
 	srs_info("handle consumer destroy success.");
-}
-
-void SrsSource::on_unpublish()
-{
-	clear_gop_cache();
-
-	srs_freep(cache_metadata);
-	video_frame_rate = audio_sample_rate = 0;
-	
-	srs_freep(cache_sh_video);
-	srs_freep(cache_sh_audio);
-	
-	srs_trace("clear cache/metadata/sequence-headers when unpublish.");
 }
 
 void SrsSource::set_cache(bool enabled)

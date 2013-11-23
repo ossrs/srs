@@ -39,6 +39,7 @@ class SrsSource;
 class SrsCommonMessage;
 class SrsOnMetaDataPacket;
 class SrsSharedPtrMessage;
+class SrsHLS;
 
 /**
 * the consumer for SrsSource, that is a play client.
@@ -106,6 +107,7 @@ public:
 	*/
 	static SrsSource* find(std::string stream_url);
 private:
+	SrsHLS* hls;
 	SrsCodec* codec;
 	std::string stream_url;
 	std::vector<SrsConsumer*> consumers;
@@ -144,13 +146,19 @@ public:
 	SrsSource(std::string _stream_url);
 	virtual ~SrsSource();
 public:
+	/**
+	* get the hls handler, which has a long lifecycle
+	* util the source destroyed.
+	*/
+	virtual SrsHLS* get_hls();
+public:
 	virtual int on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);
 	virtual int on_audio(SrsCommonMessage* audio);
 	virtual int on_video(SrsCommonMessage* video);
+	virtual void on_unpublish();
 public:
 	virtual int create_consumer(SrsConsumer*& consumer);
 	virtual void on_consumer_destroy(SrsConsumer* consumer);
-	virtual void on_unpublish();
 	virtual void set_cache(bool enabled);
 private:
 	/**

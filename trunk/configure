@@ -114,7 +114,8 @@ MODULE_FILES=("srs_core" "srs_core_log" "srs_core_server"
         "srs_core_autofree" "srs_core_protocol" "srs_core_amf0"
         "srs_core_stream" "srs_core_source" "srs_core_codec"
         "srs_core_handshake" "srs_core_pithy_print"
-        "srs_core_config" "srs_core_refer" "srs_core_reload")
+        "srs_core_config" "srs_core_refer" "srs_core_reload"
+        "srs_core_hls")
 MODULE_DIR="src/core" . auto/modules.sh
 CORE_OBJS="${MODULE_OBJS[@]}"
 

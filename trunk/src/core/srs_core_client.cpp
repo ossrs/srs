@@ -36,6 +36,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_pithy_print.hpp>
 #include <srs_core_config.hpp>
 #include <srs_core_refer.hpp>
+#include <srs_core_hls.hpp>
 
 #define SRS_PULSE_TIMEOUT_MS 100
 #define SRS_SEND_TIMEOUT_MS 5000000L
@@ -330,6 +331,7 @@ int SrsClient::publish(SrsSource* source, bool is_fmle)
 	
 	SrsPithyPrint pithy_print(SRS_STAGE_PUBLISH_USER);
 	
+	SrsHLS* hls = source->get_hls();
 	while (true) {
 		// switch to other st-threads.
 		st_usleep(0);
