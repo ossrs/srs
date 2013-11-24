@@ -37,8 +37,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // default vhost for rtmp
 #define RTMP_VHOST_DEFAULT "__defaultVhost__"
 
-// conf node: enabled.
-#define RTMP_VHOST_ENABLED "enabled"
+#define SRS_CONF_DEFAULT_HLS_PATH "./hls"
 
 class SrsFileBuffer
 {
@@ -108,6 +107,7 @@ public:
 public:
 	virtual int parse_options(int argc, char** argv);
 	virtual SrsConfDirective* get_vhost(std::string vhost);
+	virtual SrsConfDirective* get_vhost_enabled(std::string vhost);
 	virtual SrsConfDirective* get_gop_cache(std::string vhost);
 	virtual SrsConfDirective* get_hls(std::string vhost);
 	virtual SrsConfDirective* get_hls_path(std::string vhost);

@@ -29,25 +29,40 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
+#include <string>
+
 class SrsOnMetaDataPacket;
 class SrsCommonMessage;
 class SrsCodecSample;
+class SrsTSMuxer;
 class SrsCodec;
 
 class SrsHLS
 {
 private:
+	std::string vhost;
+	bool hls_enabled;
 	SrsCodec* codec;
 	SrsCodecSample* sample;
+	SrsTSMuxer* muxer;
 public:
 	SrsHLS();
 	virtual ~SrsHLS();
 public:
-	virtual int on_publish();
+	virtual int on_publish(std::string _vhost);
 	virtual void on_unpublish();
 	virtual int on_meta_data(SrsOnMetaDataPacket* metadata);
 	virtual int on_audio(SrsCommonMessage* audio);
 	virtual int on_video(SrsCommonMessage* video);
+};
+
+class SrsTSMuxer
+{
+public:
+	SrsTSMuxer();
+	virtual ~SrsTSMuxer();
+public:
+	virtual int open(std::string path);
 };
 
 #endif

@@ -27,27 +27,62 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_codec.hpp>
 #include <srs_core_amf0.hpp>
 #include <srs_core_protocol.hpp>
+#include <srs_core_config.hpp>
 
 SrsHLS::SrsHLS()
 {
+	hls_enabled = false;
 	codec = new SrsCodec();
 	sample = new SrsCodecSample();
+	muxer = NULL;
 }
 
 SrsHLS::~SrsHLS()
 {
 	srs_freep(codec);
 	srs_freep(sample);
+	srs_freep(muxer);
 }
 
-int SrsHLS::on_publish()
+int SrsHLS::on_publish(std::string _vhost)
 {
 	int ret = ERROR_SUCCESS;
+
+	if (muxer) {
+		ret = ERROR_HLS_BUSY;
+		srs_error("hls is busy, something error, "
+			"vhost=%s, ret=%d", _vhost.c_str(), ret);
+		return ret;
+	}
+	
+	vhost = _vhost;
+	muxer = new SrsTSMuxer();
+	
+	// try to open the HLS muxer
+	SrsConfDirective* conf = config->get_hls(vhost);
+	if (!conf && conf->arg0() == "off") {
+		return ret;
+	}
+
+	hls_enabled = true;
+	
+	std::string path = SRS_CONF_DEFAULT_HLS_PATH;
+	if ((conf = config->get_hls_path(vhost)) != NULL) {
+		path = conf->arg0();
+	}
+	
+	if ((ret = muxer->open(path)) != ERROR_SUCCESS) {
+		srs_error("open hls muxer failed. ret=%d", ret);
+		return ret;
+	}
+	
 	return ret;
 }
 
 void SrsHLS::on_unpublish()
 {
+	hls_enabled = false;
+	srs_freep(muxer);
 }
 
 int SrsHLS::on_meta_data(SrsOnMetaDataPacket* metadata)
@@ -145,6 +180,11 @@ int SrsHLS::on_audio(SrsCommonMessage* audio)
 		return ret;
 	}
 	
+	// TODO: maybe donot need to demux the aac?
+	if (!hls_enabled) {
+		return ret;
+	}
+	
 	return ret;
 }
 
@@ -161,6 +201,25 @@ int SrsHLS::on_video(SrsCommonMessage* video)
 		return ret;
 	}
 	
+	// TODO: maybe donot need to demux the avc?
+	if (!hls_enabled) {
+		return ret;
+	}
+	
+	return ret;
+}
+
+SrsTSMuxer::SrsTSMuxer()
+{
+}
+
+SrsTSMuxer::~SrsTSMuxer()
+{
+}
+
+int SrsTSMuxer::open(std::string path)
+{
+	int ret = ERROR_SUCCESS;
 	return ret;
 }
 

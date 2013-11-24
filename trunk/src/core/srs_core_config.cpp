@@ -551,6 +551,17 @@ SrsConfDirective* SrsConfig::get_vhost(std::string vhost)
 	return NULL;
 }
 
+SrsConfDirective* SrsConfig::get_vhost_enabled(std::string vhost)
+{
+	SrsConfDirective* conf = get_vhost(vhost);
+
+	if (!conf) {
+		return NULL;
+	}
+	
+	return conf->get("enabled");
+}
+
 SrsConfDirective* SrsConfig::get_gop_cache(std::string vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
@@ -668,6 +679,8 @@ int SrsConfig::parse_file(const char* filename)
 			"directive \"listen\" is empty, ret=%d", (conf? conf->conf_line:0), ret);
 		return ret;
 	}
+	// TODO: check the hls.
+	// TODO: check other config.
 	
 	return ret;
 }
