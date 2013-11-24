@@ -192,7 +192,7 @@ int SrsConsumer::jitter_correct(SrsSharedPtrMessage* msg, int audio_sample_rate,
 	* 3. last_pkt_correct_time: simply add the positive delta, 
 	* 	and enforce the time monotonically.
 	*/
-	int32_t time = msg->header.timestamp;
+	u_int32_t time = msg->header.timestamp;
 	int32_t delta = time - last_pkt_time;
 
 	// if jitter detected, reset the delta.
@@ -207,7 +207,7 @@ int SrsConsumer::jitter_correct(SrsSharedPtrMessage* msg, int audio_sample_rate,
 		}
 
 		// sometimes, the time is absolute time, so correct it again.
-		if (delta > CONST_MAX_JITTER_MS) {
+		if (delta < 0 || delta > CONST_MAX_JITTER_MS) {
 			delta = DEFAULT_FRAME_TIME_MS;
 		}
 		

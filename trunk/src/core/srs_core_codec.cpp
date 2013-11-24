@@ -46,8 +46,12 @@ void SrsCodecSample::clear()
 
 	cts = 0;
 	frame_type = SrsCodecVideoAVCFrameReserved;
-	codec_id = SrsCodecVideoReserved;
 	avc_packet_type = SrsCodecVideoAVCTypeReserved;
+	
+	sound_rate = SrsCodecAudioSampleRateReserved;
+	sound_size = SrsCodecAudioSampleSizeReserved;
+	sound_type = SrsCodecAudioSoundTypeReserved;
+	aac_packet_type = SrsCodecAudioTypeReserved;
 }
 
 int SrsCodecSample::add_sample(char* bytes, int size)
@@ -79,9 +83,6 @@ SrsCodec::SrsCodec()
 	video_codec_id 			= 0;
 	audio_data_rate 		= 0;
 	audio_codec_id 			= 0;
-	sound_rate		 		= 0;
-	sound_size		 		= 0;
-	sound_type	 			= 0;
 	profile 				= 0;
 	level 					= 0;
 	avc_extra_size 			= 0;
@@ -124,12 +125,15 @@ int SrsCodec::audio_aac_demux(int8_t* data, int size, SrsCodecSample* sample)
 	
 	int8_t sound_format = stream->read_1bytes();
 	
-	sound_type = sound_format & 0x01;
-	sound_size = (sound_format >> 1) & 0x01;
-	sound_rate = (sound_format >> 2) & 0x01;
+	int8_t sound_type = sound_format & 0x01;
+	int8_t sound_size = (sound_format >> 1) & 0x01;
+	int8_t sound_rate = (sound_format >> 2) & 0x01;
 	sound_format = (sound_format >> 4) & 0x0f;
 	
 	audio_codec_id = sound_format;
+	sample->sound_type = (SrsCodecAudioSoundType)sound_type;
+	sample->sound_rate = (SrsCodecAudioSampleRate)sound_rate;
+	sample->sound_size = (SrsCodecAudioSampleSize)sound_size;
 	
 	// only support aac
 	if (audio_codec_id != SrsCodecAudioAAC) {
@@ -145,6 +149,7 @@ int SrsCodec::audio_aac_demux(int8_t* data, int size, SrsCodecSample* sample)
 	}
 	
 	int8_t aac_packet_type = stream->read_1bytes();
+	sample->aac_packet_type = (SrsCodecAudioType)aac_packet_type;
 	
 	if (aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
 		// AudioSpecificConfig
@@ -206,7 +211,6 @@ int SrsCodec::video_avc_demux(int8_t* data, int size, SrsCodecSample* sample)
 	frame_type = (frame_type >> 4) & 0x0f;
 	
 	sample->frame_type = (SrsCodecVideoAVCFrame)frame_type;
-	sample->codec_id = (SrsCodecVideo)codec_id;
 	
 	// only support h.264/avc
 	if (codec_id != SrsCodecVideoAVC) {

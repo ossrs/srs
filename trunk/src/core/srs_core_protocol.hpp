@@ -199,7 +199,7 @@ struct SrsMessageHeader
 	* The 4 bytes are packed in the big-endian order.
 	* @remark, used as calc timestamp when decode and encode time.
 	*/
-	int32_t timestamp;
+	u_int32_t timestamp;
 	
 	SrsMessageHeader();
 	virtual ~SrsMessageHeader();

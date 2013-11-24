@@ -139,41 +139,11 @@ int SrsHLS::on_meta_data(SrsOnMetaDataPacket* metadata)
 	if ((prop = obj->get_property("audiodatarate")) != NULL && prop->is_number()) {
 		codec->audio_data_rate = (int)(1000 * srs_amf0_convert<SrsAmf0Number>(prop)->value);
 	}
-	if ((prop = obj->get_property("audiosamplerate")) != NULL && prop->is_number()) {
-		int sound_rate = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
-		if (sound_rate == 5512) {
-			codec->sound_rate = SrsCodecAudioSampleRate5512;
-		} else if (sound_rate == 11025) {
-			codec->sound_rate = SrsCodecAudioSampleRate11025;
-		} else if (sound_rate == 22050) {
-			codec->sound_rate = SrsCodecAudioSampleRate22050;
-		} else if (sound_rate == 44100) {
-			codec->sound_rate = SrsCodecAudioSampleRate44100;
-		} else {
-			ret = ERROR_HLS_METADATA;
-			srs_error("invalid sound_rate of metadata: %d, ret=%d", sound_rate, ret);
-			return ret;
-		}
-	}
-	if ((prop = obj->get_property("audiosamplesize")) != NULL && prop->is_number()) {
-		int sound_size = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
-		if (sound_size == 16) {
-			codec->sound_size = SrsCodecAudioSampleSize16bit;
-		} else if (sound_size == 8) {
-			codec->sound_size = SrsCodecAudioSampleSize8bit;
-		} else {
-			ret = ERROR_HLS_METADATA;
-			srs_error("invalid sound_size of metadata: %d, ret=%d", sound_size, ret);
-			return ret;
-		}
-	}
-	if ((prop = obj->get_property("stereo")) != NULL && prop->is_number()) {
-		if (srs_amf0_convert<SrsAmf0Boolean>(prop)->value) {
-			codec->sound_type = SrsCodecAudioSoundTypeStereo;
-		} else {
-			codec->sound_type = SrsCodecAudioSoundTypeMono;
-		}
-	}
+	
+	// ignore the following, for each flv/rtmp packet contains them:
+	// audiosamplerate, sample->sound_rate
+	// audiosamplesize, sample->sound_size
+	// stereo, 			sample->sound_type
 	
 	return ret;
 }
@@ -196,7 +166,15 @@ int SrsHLS::on_audio(SrsCommonMessage* audio)
 		return ret;
 	}
 	
-	if ((ret = muxer->write(codec, sample)) != ERROR_SUCCESS) {
+	// ignore sequence header
+	if (sample->aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
+		return ret;
+	}
+	
+	u_int32_t timestamp = audio->header.timestamp;
+	// TODO: correct the timestamp.
+	
+	if ((ret = muxer->write_audio(timestamp, codec, sample)) != ERROR_SUCCESS) {
 		return ret;
 	}
 	
@@ -221,7 +199,15 @@ int SrsHLS::on_video(SrsCommonMessage* video)
 		return ret;
 	}
 	
-	if ((ret = muxer->write(codec, sample)) != ERROR_SUCCESS) {
+	// ignore sequence header
+	if (sample->frame_type == SrsCodecVideoAVCFrameKeyFrame && sample->avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader) {
+		return ret;
+	}
+	
+	u_int32_t timestamp = video->header.timestamp;
+	// TODO: correct the timestamp.
+	
+	if ((ret = muxer->write_video(timestamp, codec, sample)) != ERROR_SUCCESS) {
 		return ret;
 	}
 	
@@ -229,7 +215,7 @@ int SrsHLS::on_video(SrsCommonMessage* video)
 }
 
 // @see: ngx_rtmp_mpegts_header
-static u_char mpegts_header[] = {
+u_int8_t mpegts_header[] = {
     /* TS */
     0x47, 0x40, 0x00, 0x10, 0x00,
     /* PSI */
@@ -329,9 +315,21 @@ int SrsTSMuxer::open(std::string _path)
 	return ret;
 }
 
-int SrsTSMuxer::write(SrsCodec* codec, SrsCodecSample* sample)
+int SrsTSMuxer::write_audio(u_int32_t time, SrsCodec* codec, SrsCodecSample* sample)
 {
 	int ret = ERROR_SUCCESS;
+	
+	static u_int8_t packet[188];
+	
+	return ret;
+}
+
+int SrsTSMuxer::write_video(u_int32_t time, SrsCodec* codec, SrsCodecSample* sample)
+{
+	int ret = ERROR_SUCCESS;
+	
+	static u_int8_t packet[188];
+	
 	return ret;
 }
 

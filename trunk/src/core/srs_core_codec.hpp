@@ -132,6 +132,7 @@ enum SrsCodecAudio
 // 	1 = AAC raw
 enum SrsCodecAudioType
 {
+	SrsCodecAudioTypeReserved						= -1,
 	SrsCodecAudioTypeSequenceHeader 				= 0,
 	SrsCodecAudioTypeRawData 						= 1,
 };
@@ -143,10 +144,12 @@ enum SrsCodecAudioType
 // 3 = 44 kHz = 44100 Hz
 enum SrsCodecAudioSampleRate
 {
-	SrsCodecAudioSampleRate5512 				= 0,
-	SrsCodecAudioSampleRate11025 				= 1,
-	SrsCodecAudioSampleRate22050 				= 2,
-	SrsCodecAudioSampleRate44100 				= 3,
+	SrsCodecAudioSampleRateReserved					= -1,
+	
+	SrsCodecAudioSampleRate5512 					= 0,
+	SrsCodecAudioSampleRate11025 					= 1,
+	SrsCodecAudioSampleRate22050 					= 2,
+	SrsCodecAudioSampleRate44100 					= 3,
 };
 
 // Size of each audio sample. This parameter only pertains to
@@ -156,8 +159,10 @@ enum SrsCodecAudioSampleRate
 // 1 = 16-bit samples
 enum SrsCodecAudioSampleSize
 {
-	SrsCodecAudioSampleSize8bit 				= 0,
-	SrsCodecAudioSampleSize16bit 				= 1,
+	SrsCodecAudioSampleSizeReserved					= -1,
+	
+	SrsCodecAudioSampleSize8bit 					= 0,
+	SrsCodecAudioSampleSize16bit 					= 1,
 };
 
 // Mono or stereo sound
@@ -165,8 +170,10 @@ enum SrsCodecAudioSampleSize
 // 1 = Stereo sound
 enum SrsCodecAudioSoundType
 {
-	SrsCodecAudioSoundTypeMono 					= 0,
-	SrsCodecAudioSoundTypeStereo 				= 1,
+	SrsCodecAudioSoundTypeReserved					= -1, 
+	
+	SrsCodecAudioSoundTypeMono 						= 0,
+	SrsCodecAudioSoundTypeStereo 					= 1,
 };
 
 /**
@@ -188,12 +195,17 @@ public:
 	SrsCodecBuffer buffers[SRS_MAX_CODEC_SAMPLE];
 public:
 	bool is_video;
+	// video specified
+	SrsCodecVideoAVCFrame frame_type;
+	SrsCodecVideoAVCType avc_packet_type;
 	// CompositionTime, video_file_format_spec_v10_1.pdf, page 78.
 	// cts = pts - dts, where dts = flvheader->timestamp.
 	int32_t cts;
-	SrsCodecVideoAVCFrame frame_type;
-	SrsCodecVideo codec_id;
-	SrsCodecVideoAVCType avc_packet_type;
+	// audio specified
+	SrsCodecAudioSampleRate sound_rate;
+	SrsCodecAudioSampleSize sound_size;
+	SrsCodecAudioSoundType sound_type;
+	SrsCodecAudioType aac_packet_type;
 public:
 	SrsCodecSample();
 	virtual ~SrsCodecSample();
@@ -230,12 +242,6 @@ public:
 	*/
 	// @see: SrsCodecAudioType
 	int			audio_codec_id;
-	// @see: SrsCodecAudioSampleRate
-	int			sound_rate;
-	// @see: SrsCodecAudioSampleSize
-	int			sound_size;
-	// @see: SrsCodecAudioSoundType
-	int			sound_type;
 	int			audio_data_rate; // in bps
 	// the avc extra data, the AVC sequence header,
 	// without the flv codec header,

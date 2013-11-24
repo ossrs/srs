@@ -66,7 +66,8 @@ public:
 	virtual ~SrsTSMuxer();
 public:
 	virtual int open(std::string _path);
-	virtual int write(SrsCodec* codec, SrsCodecSample* sample);
+	virtual int write_audio(u_int32_t time, SrsCodec* codec, SrsCodecSample* sample);
+	virtual int write_video(u_int32_t time, SrsCodec* codec, SrsCodecSample* sample);
 	virtual void close();
 };
 
