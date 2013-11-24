@@ -560,6 +560,9 @@ int SrsTSMuxer::write_audio(u_int32_t time, SrsCodec* codec, SrsCodecSample* sam
 			return ret;
 		}
 		
+		// the frame length is the AAC raw data plus the adts header size.
+		int32_t frame_length = size + 7;
+		
 		// AAC-ADTS
 		// 6.2 Audio Data Transport Stream, ADTS
 		// in aac-iso-13818-7.pdf, page 26.
@@ -593,12 +596,14 @@ int SrsTSMuxer::write_audio(u_int32_t time, SrsCodec* codec, SrsCodecSample* sam
 		// sampling_frequency_index 4bits
 		adts_header[2] |= (codec->aac_sample_rate << 2) & 0x3c;
 		// channel_configuration 3bits
-		adts_header[2] |= (codec->aac_channels >> 1) & 0x01;
-		adts_header[3] = (codec->aac_channels << 5) & 0xc0;
+		adts_header[2] |= (codec->aac_channels >> 2) & 0x01;
+		adts_header[3] = (codec->aac_channels << 6) & 0xc0;
 		// frame_length 13bits
-		adts_header[3] |= (size >> 11) & 0x03;
-		adts_header[4] = (size >> 3) & 0xff;
-		adts_header[5] = (size << 5) & 0xcf;
+		adts_header[3] |= (frame_length >> 11) & 0x03;
+		adts_header[4] = (frame_length >> 3) & 0xff;
+		adts_header[5] = ((frame_length << 5) & 0xe0);
+		// adts_buffer_fullness; //11bits
+		adts_header[5] |= 0x1f;
 
 		// copy to audio buffer
 		audio_buffer->append(adts_header, sizeof(adts_header));

@@ -1941,6 +1941,10 @@ public:
 		layer = (syncword >> 1) & 0x03;
 		ID = (syncword >> 3) & 0x01;
 		syncword = (syncword >> 4) & 0x0FFF;
+		if (syncword != 0xfff) {
+			trace("ts+aac invalid sync word. expect 0xfff, actual %#x", syncword);
+			return -1;
+		}
 
 		// adts_variable_header
 		int64_t temp = 0;
@@ -2228,7 +2232,7 @@ int main(int argc, char** argv)
 	        
 	        if ((ret = consume(msg, &aac_muxer)) != 0) {
 	            trace("demuxer+consume parse and consume message failed. ret=%d", ret);
-	            break;
+	            return -1;
 	        }
 	        
 	        srs_freep(msg);
