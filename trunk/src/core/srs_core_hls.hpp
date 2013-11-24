@@ -58,11 +58,16 @@ public:
 
 class SrsTSMuxer
 {
+private:
+	int fd;
+	std::string path;
 public:
 	SrsTSMuxer();
 	virtual ~SrsTSMuxer();
 public:
-	virtual int open(std::string path);
+	virtual int open(std::string _path);
+	virtual int write(SrsCodec* codec, SrsCodecSample* sample);
+	virtual void close();
 };
 
 #endif

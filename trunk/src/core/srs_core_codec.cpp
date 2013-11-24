@@ -41,8 +41,13 @@ SrsCodecSample::~SrsCodecSample()
 
 void SrsCodecSample::clear()
 {
-	cts = 0;
+	is_video = false;
 	nb_buffers = 0;
+
+	cts = 0;
+	frame_type = SrsCodecVideoAVCFrameReserved;
+	codec_id = SrsCodecVideoReserved;
+	avc_packet_type = SrsCodecVideoAVCTypeReserved;
 }
 
 int SrsCodecSample::add_sample(char* bytes, int size)
@@ -98,6 +103,8 @@ SrsCodec::~SrsCodec()
 int SrsCodec::audio_aac_demux(int8_t* data, int size, SrsCodecSample* sample)
 {
 	int ret = ERROR_SUCCESS;
+	
+	sample->is_video = false;
 	
 	if (!data || size <= 0) {
 		srs_trace("no audio present, hls ignore it.");
@@ -176,6 +183,8 @@ int SrsCodec::video_avc_demux(int8_t* data, int size, SrsCodecSample* sample)
 {
 	int ret = ERROR_SUCCESS;
 	
+	sample->is_video = true;
+	
 	if (!data || size <= 0) {
 		srs_trace("no video present, hls ignore it.");
 		return ret;
@@ -196,13 +205,16 @@ int SrsCodec::video_avc_demux(int8_t* data, int size, SrsCodecSample* sample)
 	int8_t codec_id = frame_type & 0x0f;
 	frame_type = (frame_type >> 4) & 0x0f;
 	
-	video_codec_id = codec_id;
+	sample->frame_type = (SrsCodecVideoAVCFrame)frame_type;
+	sample->codec_id = (SrsCodecVideo)codec_id;
+	
 	// only support h.264/avc
 	if (codec_id != SrsCodecVideoAVC) {
 		ret = ERROR_HLS_DECODE_ERROR;
 		srs_error("hls only support video h.264/avc codec. ret=%d", ret);
 		return ret;
 	}
+	video_codec_id = codec_id;
 	
 	if (!stream->require(4)) {
 		ret = ERROR_HLS_DECODE_ERROR;
@@ -214,6 +226,7 @@ int SrsCodec::video_avc_demux(int8_t* data, int size, SrsCodecSample* sample)
 	
 	// pts = dts + cts.
 	sample->cts = composition_time;
+	sample->avc_packet_type = (SrsCodecVideoAVCType)avc_packet_type;
 	
 	if (avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader) {
 		// AVCDecoderConfigurationRecord

@@ -45,6 +45,8 @@ class SrsStream;
 // 	7 = AVC
 enum SrsCodecVideo
 {
+	SrsCodecVideoReserved				= 0,
+	
 	SrsCodecVideoSorensonH263 			= 2,
 	SrsCodecVideoScreenVideo 			= 3,
 	SrsCodecVideoOn2VP6 				= 4,
@@ -63,6 +65,8 @@ enum SrsCodecVideo
 // 	5 = video info/command frame
 enum SrsCodecVideoAVCFrame
 {
+	SrsCodecVideoAVCFrameReserved					= 0,
+	
 	SrsCodecVideoAVCFrameKeyFrame 					= 1,
 	SrsCodecVideoAVCFrameInterFrame 				= 2,
 	SrsCodecVideoAVCFrameDisposableInterFrame 		= 3,
@@ -78,6 +82,8 @@ enum SrsCodecVideoAVCFrame
 // 		not required or supported)
 enum SrsCodecVideoAVCType
 {
+	SrsCodecVideoAVCTypeReserved					= -1,
+	
 	SrsCodecVideoAVCTypeSequenceHeader 				= 0,
 	SrsCodecVideoAVCTypeNALU 						= 1,
 	SrsCodecVideoAVCTypeSequenceHeaderEOF 			= 2,
@@ -180,9 +186,14 @@ class SrsCodecSample
 public:
 	int nb_buffers;
 	SrsCodecBuffer buffers[SRS_MAX_CODEC_SAMPLE];
+public:
+	bool is_video;
 	// CompositionTime, video_file_format_spec_v10_1.pdf, page 78.
 	// cts = pts - dts, where dts = flvheader->timestamp.
 	int32_t cts;
+	SrsCodecVideoAVCFrame frame_type;
+	SrsCodecVideo codec_id;
+	SrsCodecVideoAVCType avc_packet_type;
 public:
 	SrsCodecSample();
 	virtual ~SrsCodecSample();
