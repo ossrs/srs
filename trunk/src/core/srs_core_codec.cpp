@@ -24,11 +24,34 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_codec.hpp>
 
 #include <string.h>
+#include <stdlib.h>
 
 #include <srs_core_error.hpp>
 #include <srs_core_stream.hpp>
 #include <srs_core_log.hpp>
 #include <srs_core_autofree.hpp>
+
+SrsCodecBuffer::SrsCodecBuffer()
+{
+	size = 0;
+	bytes = NULL;
+}
+
+void SrsCodecBuffer::append(void* data, int len)
+{
+	srs_assert(data);
+	srs_assert(len > 0);
+	
+	bytes = (char*)realloc(bytes, size + len);
+	memcpy(bytes + size, data, len);
+	size += len;
+}
+
+void SrsCodecBuffer::free()
+{
+	size = 0;
+	srs_freepa(bytes);
+}
 
 SrsCodecSample::SrsCodecSample()
 {
@@ -83,8 +106,11 @@ SrsCodec::SrsCodec()
 	video_codec_id 			= 0;
 	audio_data_rate 		= 0;
 	audio_codec_id 			= 0;
-	profile 				= 0;
-	level 					= 0;
+	avc_profile 			= 0;
+	avc_level 				= 0;
+	aac_profile				= 0;
+	aac_sample_rate			= 0;
+	aac_channels			= 0;
 	avc_extra_size 			= 0;
 	avc_extra_data 			= NULL;
 	aac_extra_size 			= 0;
@@ -159,6 +185,39 @@ int SrsCodec::audio_aac_demux(int8_t* data, int size, SrsCodecSample* sample)
 			srs_freepa(aac_extra_data);
 			aac_extra_data = new char[aac_extra_size];
 			memcpy(aac_extra_data, stream->current(), aac_extra_size);
+		}
+		
+		// only need to decode the first 2bytes:
+		// audioObjectType, aac_profile, 5bits.
+		// samplingFrequencyIndex, aac_sample_rate, 4bits.
+		// channelConfiguration, aac_channels, 4bits
+		if (!stream->require(2)) {
+			ret = ERROR_HLS_DECODE_ERROR;
+			srs_error("hls decode audio aac sequence header failed. ret=%d", ret);
+			return ret;
+		}
+		aac_profile = stream->read_1bytes();
+		aac_sample_rate = stream->read_1bytes();
+		
+		aac_channels = (aac_sample_rate >> 3) & 0x0f;
+		aac_sample_rate = ((aac_profile << 1) & 0x0e) | ((aac_sample_rate >> 7) & 0x01);
+		aac_profile = (aac_profile >> 3) & 0x1f;
+		
+		if (aac_profile == 0 || aac_profile == 0x1f) {
+			ret = ERROR_HLS_DECODE_ERROR;
+			srs_error("hls decode audio aac sequence header failed, "
+				"adts object=%d invalid. ret=%d", aac_profile, ret);
+			return ret;
+		}
+		
+		// aac_profile = audioObjectType - 1
+		aac_profile--;
+		
+		if (aac_profile > 3) {
+			// Mark all extended profiles as LC
+			// to make Android as happy as possible.
+			// @see: ngx_rtmp_hls_parse_aac_header
+			aac_profile = 1;
 		}
 	} else if (aac_packet_type == SrsCodecAudioTypeRawData) {
 		// ensure the sequence header demuxed

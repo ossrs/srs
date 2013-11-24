@@ -34,6 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsOnMetaDataPacket;
 class SrsCommonMessage;
 class SrsCodecSample;
+class SrsCodecBuffer;
 class SrsTSMuxer;
 class SrsCodec;
 
@@ -56,11 +57,34 @@ public:
 	virtual int on_video(SrsCommonMessage* video);
 };
 
+// @see: ngx_rtmp_mpegts_frame_t
+struct mpegts_frame
+{
+    int64_t		pts;
+    int64_t		dts;
+    int  		pid;
+    int			sid;
+    int			cc;
+    bool		key;
+    
+    mpegts_frame()
+    {
+        pts = dts = 0;
+        pid = sid = cc = 0;
+        key = false;
+    }
+};
+
 class SrsTSMuxer
 {
 private:
 	int fd;
 	std::string path;
+private:
+	mpegts_frame audio_frame;
+	SrsCodecBuffer* audio_buffer;
+	mpegts_frame video_frame;
+	SrsCodecBuffer* video_buffer;
 public:
 	SrsTSMuxer();
 	virtual ~SrsTSMuxer();

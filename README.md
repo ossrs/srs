@@ -50,6 +50,7 @@ url: rtmp://127.0.0.1:1935/live/livestream
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v0.5, 2013-11-24, support write ts file.
 * v0.5, 2013-11-21, add ts_info tool to demux ts file.
 * v0.5, 2013-11-16, add rtmp players(OSMF/jwplayer5/jwplayer6).
 * v0.4, 2013-11-10, v0.4 released. 12500 lines.

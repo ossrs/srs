@@ -181,8 +181,21 @@ enum SrsCodecAudioSoundType
 */
 struct SrsCodecBuffer
 {
+	/**
+	* @remark user must manage the bytes.
+	*/
 	int size;
 	char* bytes;
+	
+	SrsCodecBuffer();
+	void append(void* data, int len);
+	
+	/**
+	* free the bytes, 
+	* user can invoke it to free the bytes,
+	* the SrsCodecBuffer never free automatically.
+	*/
+	void free();
 };
 
 /**
@@ -227,9 +240,9 @@ public:
 	// @see: SrsCodecVideo
 	int			video_codec_id;
 	// profile_idc, H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
-	u_int8_t	profile; 
+	u_int8_t	avc_profile; 
 	// level_idc, H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
-	u_int8_t	level; 
+	u_int8_t	avc_level; 
 	int			width;
 	int			height;
 	int			video_data_rate; // in bps
@@ -243,6 +256,13 @@ public:
 	// @see: SrsCodecAudioType
 	int			audio_codec_id;
 	int			audio_data_rate; // in bps
+	// 1.6.2.1 AudioSpecificConfig, in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 33.
+	// audioObjectType, value defines in 7.1 Profiles, aac-iso-13818-7.pdf, page 40.
+	u_int8_t	aac_profile; 
+	// samplingFrequencyIndex
+	u_int8_t	aac_sample_rate;
+	// channelConfiguration
+	u_int8_t	aac_channels;
 	// the avc extra data, the AVC sequence header,
 	// without the flv codec header,
 	// @see: ffmpeg, AVCodecContext::extradata
