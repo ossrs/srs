@@ -301,6 +301,10 @@ public:
 	{
 		int ret = ERROR_SUCCESS;
 		
+		if (!buffer->bytes || buffer->size <= 0) {
+			return ret;
+		}
+		
 		char* last = buffer->bytes + buffer->size;
 		char* pos = buffer->bytes;
 		
@@ -550,6 +554,10 @@ int SrsTSMuxer::write_audio(u_int32_t time, SrsCodec* codec, SrsCodecSample* sam
 {
 	int ret = ERROR_SUCCESS;
 	
+	audio_frame.dts = audio_frame.pts = time * 90;
+	audio_frame.pid = TS_AUDIO_PID;
+	audio_frame.sid = TS_AUDIO_AAC;
+	
 	for (int i = 0; i < sample->nb_buffers; i++) {
 		SrsCodecBuffer* buf = &sample->buffers[i];
 		int32_t size = buf->size;
@@ -610,10 +618,6 @@ int SrsTSMuxer::write_audio(u_int32_t time, SrsCodec* codec, SrsCodecSample* sam
 		audio_buffer->append(buf->bytes, buf->size);
 	}
 	
-	audio_frame.dts = audio_frame.pts = time * 90;
-	audio_frame.pid = TS_AUDIO_PID;
-	audio_frame.sid = TS_AUDIO_AAC;
-	
 	return ret;
 }
 
@@ -621,9 +625,16 @@ int SrsTSMuxer::write_video(u_int32_t time, SrsCodec* codec, SrsCodecSample* sam
 {
 	int ret = ERROR_SUCCESS;
 	
+	video_frame.dts = time * 90;
+	video_frame.pts = video_frame.dts + sample->cts * 90;
+	video_frame.pid = TS_VIDEO_PID;
+	video_frame.sid = TS_VIDEO_AVC;
+	video_frame.key = sample->frame_type == SrsCodecVideoAVCFrameKeyFrame;
+	
 	static u_int8_t aud_nal[] = { 0x00, 0x00, 0x00, 0x01, 0x09, 0xf0 };
 	video_buffer->append(aud_nal, sizeof(aud_nal));
 	
+	bool sps_pps_sent = false;
 	for (int i = 0; i < sample->nb_buffers; i++) {
 		SrsCodecBuffer* buf = &sample->buffers[i];
 		int32_t size = buf->size;
@@ -632,6 +643,14 @@ int SrsTSMuxer::write_video(u_int32_t time, SrsCodec* codec, SrsCodecSample* sam
 			ret = ERROR_HLS_AVC_SAMPLE_SIZE;
 			srs_error("invalid avc sample length=%d, ret=%d", size, ret);
 			return ret;
+		}
+		
+		if (video_frame.key && !sps_pps_sent) {
+			// sample start prefix
+			video_buffer->append(aud_nal, 4);
+			// sps and pps
+			// TODO: do in right way.
+			video_buffer->append(codec->avc_extra_data, codec->avc_extra_size);
 		}
 		
 		// sample start prefix, '00 00 00 01' or '00 00 01'
@@ -647,12 +666,6 @@ int SrsTSMuxer::write_video(u_int32_t time, SrsCodec* codec, SrsCodecSample* sam
 		// sample data
 		video_buffer->append(buf->bytes, buf->size);
 	}
-	
-	video_frame.dts = time * 90;
-	video_frame.pts = video_frame.dts + sample->cts * 90;
-	video_frame.pid = TS_VIDEO_PID;
-	video_frame.sid = TS_VIDEO_AVC;
-	video_frame.key = sample->frame_type == SrsCodecVideoAVCFrameKeyFrame;
 	
 	if ((ret = SrsMpegtsWriter::write_frame(fd, &video_frame, video_buffer)) != ERROR_SUCCESS) {
 		return ret;
