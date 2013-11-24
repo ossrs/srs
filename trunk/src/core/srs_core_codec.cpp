@@ -28,12 +28,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_error.hpp>
 #include <srs_core_stream.hpp>
 #include <srs_core_log.hpp>
+#include <srs_core_autofree.hpp>
 
 SrsCodec::SrsCodec()
 {
 	width 					= 0;
 	height 					= 0;
 	duration 				= 0;
+	NAL_unit_length			= 0;
 	frame_rate 				= 0;
 	video_data_rate 		= 0;
 	video_codec_id 			= 0;
@@ -60,7 +62,7 @@ SrsCodec::~SrsCodec()
 	srs_freep(stream);
 }
 
-int SrsCodec::parse_audio_codec(int8_t* data, int size)
+int SrsCodec::audio_aac_demux(int8_t* data, int size)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -115,6 +117,7 @@ int SrsCodec::parse_audio_codec(int8_t* data, int size)
 		}
 	} else if (aac_packet_type == SrsCodecAudioTypeRawData) {
 		// Raw AAC frame data in UI8 []
+		// 6.3 Raw Data, aac-iso-13818-7.pdf, page 28
 	} else {
 		// ignored.
 	}
@@ -125,7 +128,7 @@ int SrsCodec::parse_audio_codec(int8_t* data, int size)
 	return ret;
 }
 
-int SrsCodec::parse_video_codec(int8_t* data, int size)
+int SrsCodec::video_avc_demux(int8_t* data, int size)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -177,9 +180,62 @@ int SrsCodec::parse_video_codec(int8_t* data, int size)
 			avc_extra_data = new char[avc_extra_size];
 			memcpy(avc_extra_data, data + stream->pos(), avc_extra_size);
 		}
+		
+		if (!stream->require(6)) {
+			ret = ERROR_HLS_DECODE_ERROR;
+			srs_error("hls decode video avc sequenc header failed. ret=%d", ret);
+			return ret;
+		}
+		//int8_t configurationVersion = stream->read_1bytes();
+		//int8_t AVCProfileIndication = stream->read_1bytes();
+		//int8_t profile_compatibility = stream->read_1bytes();
+		//int8_t AVCLevelIndication = stream->read_1bytes();
+		stream->skip(4);
+		// parse the NALU size.
+		int8_t lengthSizeMinusOne = stream->read_1bytes();
+		lengthSizeMinusOne &= 0x03;
+		NAL_unit_length = lengthSizeMinusOne;
+		/**
+		* skip the following:
+		* numOfSequenceParameterSets
+		* donot parse the following:
+		* sequenceParameterSetLength
+		* sequenceParameterSetNALUnit
+		* numOfPictureParameterSets
+		* pictureParameterSetLength
+		* pictureParameterSetNALUnit
+		*/
 	} else if (avc_packet_type == SrsCodecVideoAVCTypeNALU){
 		// One or more NALUs (Full frames are required)
 		// 5.3.4.2.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 20
+		int PictureLength = size - stream->pos();
+		for (int i = 0; i < PictureLength;) {
+			if (!stream->require(NAL_unit_length + 1)) {
+				ret = ERROR_HLS_DECODE_ERROR;
+				srs_error("hls decode video avc NALU size failed. ret=%d", ret);
+				return ret;
+			}
+			int32_t NALUnitLength = 0;
+			if (NAL_unit_length == 3) {
+				NALUnitLength = stream->read_4bytes();
+			} else if (NALUnitLength == 2) {
+				NALUnitLength = stream->read_3bytes();
+			} else if (NALUnitLength == 1) {
+				NALUnitLength = stream->read_2bytes();
+			} else {
+				NALUnitLength = stream->read_1bytes();
+			}
+			// NALUnit
+			if (!stream->require(NALUnitLength)) {
+				ret = ERROR_HLS_DECODE_ERROR;
+				srs_error("hls decode video avc NALU data failed. ret=%d", ret);
+				return ret;
+			}
+			// 7.3.1 NAL unit syntax, H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+			stream->skip(NALUnitLength);
+			
+			i += NAL_unit_length + 1 + NALUnitLength;
+		}
 	} else {
 		// ignored.
 	}

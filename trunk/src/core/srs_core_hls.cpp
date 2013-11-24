@@ -134,7 +134,7 @@ int SrsHLS::on_audio(SrsCommonMessage* audio)
 {
 	int ret = ERROR_SUCCESS;
 	
-	if ((ret = codec->parse_audio_codec(audio->payload, audio->size)) != ERROR_SUCCESS) {
+	if ((ret = codec->audio_aac_demux(audio->payload, audio->size)) != ERROR_SUCCESS) {
 		return ret;
 	}
 	
@@ -145,7 +145,7 @@ int SrsHLS::on_video(SrsCommonMessage* video)
 {
 	int ret = ERROR_SUCCESS;
 	
-	if ((ret = codec->parse_video_codec(video->payload, video->size)) != ERROR_SUCCESS) {
+	if ((ret = codec->video_avc_demux(video->payload, video->size)) != ERROR_SUCCESS) {
 		return ret;
 	}
 	

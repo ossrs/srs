@@ -174,13 +174,17 @@ public:
 	*/
 	// @see: SrsCodecVideo
 	int			video_codec_id;
-	u_int8_t	profile; // profile_idc, page 45.
-	u_int8_t	level; // level_idc, page 45.
+	// profile_idc, H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
+	u_int8_t	profile; 
+	// level_idc, H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
+	u_int8_t	level; 
 	int			width;
 	int			height;
 	int			video_data_rate; // in bps
 	int			frame_rate;
 	int			duration;
+	// lengthSizeMinusOne, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
+	int8_t 		NAL_unit_length;
 	/**
 	* audio specified
 	*/
@@ -208,8 +212,8 @@ public:
 	virtual ~SrsCodec();
 // the following function used for hls to build the codec info.
 public:
-	virtual int parse_audio_codec(int8_t* data, int size);
-	virtual int parse_video_codec(int8_t* data, int size);
+	virtual int audio_aac_demux(int8_t* data, int size);
+	virtual int video_avc_demux(int8_t* data, int size);
 // the following function used to finger out the flv/rtmp packet detail.
 public:
 	/**
