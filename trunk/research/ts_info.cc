@@ -2136,6 +2136,8 @@ int consume(TSMessage* msg, AacMuxer* aac_muxer)
 		    }
 		    if (nal_unit_type == 7) {
 		        trace("ts+h264 got an SPS.");
+		    } else if (nal_unit_type == 5) {
+		        trace("ts+h264 got an Coded slice of an IDR picture.");
 		    } else if (nal_unit_type == 8) {
 		        trace("ts+h264 got an PPS.");
 		    } else if (nal_unit_type == 9) {
