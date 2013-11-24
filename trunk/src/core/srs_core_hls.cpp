@@ -31,11 +31,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 SrsHLS::SrsHLS()
 {
 	codec = new SrsCodec();
+	sample = new SrsCodecSample();
 }
 
 SrsHLS::~SrsHLS()
 {
 	srs_freep(codec);
+	srs_freep(sample);
 }
 
 int SrsHLS::on_publish()
@@ -134,7 +136,12 @@ int SrsHLS::on_audio(SrsCommonMessage* audio)
 {
 	int ret = ERROR_SUCCESS;
 	
-	if ((ret = codec->audio_aac_demux(audio->payload, audio->size)) != ERROR_SUCCESS) {
+	sample->clear();
+	if ((ret = codec->audio_aac_demux(audio->payload, audio->size, sample)) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
+	if (codec->audio_codec_id != SrsCodecAudioAAC) {
 		return ret;
 	}
 	
@@ -145,7 +152,8 @@ int SrsHLS::on_video(SrsCommonMessage* video)
 {
 	int ret = ERROR_SUCCESS;
 	
-	if ((ret = codec->video_avc_demux(video->payload, video->size)) != ERROR_SUCCESS) {
+	sample->clear();
+	if ((ret = codec->video_avc_demux(video->payload, video->size, sample)) != ERROR_SUCCESS) {
 		return ret;
 	}
 	

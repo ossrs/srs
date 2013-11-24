@@ -87,6 +87,16 @@ int SrsStream::pos()
 	return p - bytes;
 }
 
+int SrsStream::left()
+{
+	return size - pos();
+}
+
+char* SrsStream::current()
+{
+	return p;
+}
+
 int8_t SrsStream::read_1bytes()
 {
 	srs_assert(require(1));

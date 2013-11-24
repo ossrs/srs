@@ -31,12 +31,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsOnMetaDataPacket;
 class SrsCommonMessage;
+class SrsCodecSample;
 class SrsCodec;
 
 class SrsHLS
 {
 private:
 	SrsCodec* codec;
+	SrsCodecSample* sample;
 public:
 	SrsHLS();
 	virtual ~SrsHLS();

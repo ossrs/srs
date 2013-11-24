@@ -74,6 +74,11 @@ public:
 	* tell the current pos.
 	*/
 	virtual int pos();
+	/**
+	* left size of bytes.
+	*/
+	virtual int left();
+	virtual char* current();
 public:
 	/**
 	* get 1bytes char from stream.

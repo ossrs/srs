@@ -30,6 +30,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+#define SRS_MAX_CODEC_SAMPLE 128
+
 class SrsStream;
 
 // E.4.3.1 VIDEODATA
@@ -162,6 +164,33 @@ enum SrsCodecAudioSoundType
 };
 
 /**
+* buffer indicates the position and size.
+*/
+struct SrsCodecBuffer
+{
+	int size;
+	char* bytes;
+};
+
+/**
+* the samples in the flv audio/video packet.
+*/
+class SrsCodecSample
+{
+public:
+	int nb_buffers;
+	SrsCodecBuffer buffers[SRS_MAX_CODEC_SAMPLE];
+	// CompositionTime, video_file_format_spec_v10_1.pdf, page 78.
+	// cts = pts - dts, where dts = flvheader->timestamp.
+	int32_t cts;
+public:
+	SrsCodecSample();
+	virtual ~SrsCodecSample();
+	void clear();
+	int add_sample(char* bytes, int size);
+};
+
+/**
 * Annex E. The FLV File Format
 */
 class SrsCodec
@@ -212,8 +241,8 @@ public:
 	virtual ~SrsCodec();
 // the following function used for hls to build the codec info.
 public:
-	virtual int audio_aac_demux(int8_t* data, int size);
-	virtual int video_avc_demux(int8_t* data, int size);
+	virtual int audio_aac_demux(int8_t* data, int size, SrsCodecSample* sample);
+	virtual int video_avc_demux(int8_t* data, int size, SrsCodecSample* sample);
 // the following function used to finger out the flv/rtmp packet detail.
 public:
 	/**

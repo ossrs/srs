@@ -30,6 +30,39 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_log.hpp>
 #include <srs_core_autofree.hpp>
 
+SrsCodecSample::SrsCodecSample()
+{
+	clear();
+}
+
+SrsCodecSample::~SrsCodecSample()
+{
+}
+
+void SrsCodecSample::clear()
+{
+	cts = 0;
+	nb_buffers = 0;
+}
+
+int SrsCodecSample::add_sample(char* bytes, int size)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if (nb_buffers >= SRS_MAX_CODEC_SAMPLE) {
+		ret = ERROR_HLS_DECODE_ERROR;
+		srs_error("hls decode samples error, "
+			"exceed the max count: %d, ret=%d", SRS_MAX_CODEC_SAMPLE, ret);
+		return ret;
+	}
+	
+	SrsCodecBuffer* buf = &buffers[nb_buffers++];
+	buf->bytes = bytes;
+	buf->size = size;
+	
+	return ret;
+}
+
 SrsCodec::SrsCodec()
 {
 	width 					= 0;
@@ -62,7 +95,7 @@ SrsCodec::~SrsCodec()
 	srs_freep(stream);
 }
 
-int SrsCodec::audio_aac_demux(int8_t* data, int size)
+int SrsCodec::audio_aac_demux(int8_t* data, int size, SrsCodecSample* sample)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -109,11 +142,11 @@ int SrsCodec::audio_aac_demux(int8_t* data, int size)
 	if (aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
 		// AudioSpecificConfig
 		// 1.6.2.1 AudioSpecificConfig, in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 33.
-		aac_extra_size = size - stream->pos();
+		aac_extra_size = stream->left();
 		if (aac_extra_size > 0) {
 			srs_freepa(aac_extra_data);
 			aac_extra_data = new char[aac_extra_size];
-			memcpy(aac_extra_data, data + stream->pos(), aac_extra_size);
+			memcpy(aac_extra_data, stream->current(), aac_extra_size);
 		}
 	} else if (aac_packet_type == SrsCodecAudioTypeRawData) {
 		// ensure the sequence header demuxed
@@ -125,6 +158,10 @@ int SrsCodec::audio_aac_demux(int8_t* data, int size)
 		
 		// Raw AAC frame data in UI8 []
 		// 6.3 Raw Data, aac-iso-13818-7.pdf, page 28
+		if ((ret = sample->add_sample(stream->current(), stream->left())) != ERROR_SUCCESS) {
+			srs_error("hls add audio sample failed. ret=%d", ret);
+			return ret;
+		}
 	} else {
 		// ignored.
 	}
@@ -135,7 +172,7 @@ int SrsCodec::audio_aac_demux(int8_t* data, int size)
 	return ret;
 }
 
-int SrsCodec::video_avc_demux(int8_t* data, int size)
+int SrsCodec::video_avc_demux(int8_t* data, int size, SrsCodecSample* sample)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -175,17 +212,17 @@ int SrsCodec::video_avc_demux(int8_t* data, int size)
 	int8_t avc_packet_type = stream->read_1bytes();
 	int32_t composition_time = stream->read_3bytes();
 	
-	// avoid warning, used it future.
-	(void)composition_time;
+	// pts = dts + cts.
+	sample->cts = composition_time;
 	
 	if (avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader) {
 		// AVCDecoderConfigurationRecord
 		// 5.2.4.1.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
-		avc_extra_size = size - stream->pos();
+		avc_extra_size = stream->left();
 		if (avc_extra_size > 0) {
 			srs_freepa(avc_extra_data);
 			avc_extra_data = new char[avc_extra_size];
-			memcpy(avc_extra_data, data + stream->pos(), avc_extra_size);
+			memcpy(avc_extra_data, stream->current(), avc_extra_size);
 		}
 		
 		if (!stream->require(6)) {
@@ -222,7 +259,7 @@ int SrsCodec::video_avc_demux(int8_t* data, int size)
 		
 		// One or more NALUs (Full frames are required)
 		// 5.3.4.2.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 20
-		int PictureLength = size - stream->pos();
+		int PictureLength = stream->left();
 		for (int i = 0; i < PictureLength;) {
 			if (!stream->require(NAL_unit_length + 1)) {
 				ret = ERROR_HLS_DECODE_ERROR;
@@ -246,6 +283,10 @@ int SrsCodec::video_avc_demux(int8_t* data, int size)
 				return ret;
 			}
 			// 7.3.1 NAL unit syntax, H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+			if ((ret = sample->add_sample(stream->current(), NALUnitLength)) != ERROR_SUCCESS) {
+				srs_error("hls add video sample failed. ret=%d", ret);
+				return ret;
+			}
 			stream->skip(NALUnitLength);
 			
 			i += NAL_unit_length + 1 + NALUnitLength;
