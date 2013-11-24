@@ -29,11 +29,23 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
+class SrsOnMetaDataPacket;
+class SrsCommonMessage;
+class SrsCodec;
+
 class SrsHLS
 {
+private:
+	SrsCodec* codec;
 public:
 	SrsHLS();
 	virtual ~SrsHLS();
+public:
+	virtual int on_publish();
+	virtual void on_unpublish();
+	virtual int on_meta_data(SrsOnMetaDataPacket* metadata);
+	virtual int on_audio(SrsCommonMessage* audio);
+	virtual int on_video(SrsCommonMessage* video);
 };
 
 #endif

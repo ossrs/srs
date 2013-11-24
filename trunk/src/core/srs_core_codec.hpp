@@ -30,36 +30,170 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+class SrsStream;
+
+// E.4.3.1 VIDEODATA
+// CodecID UB [4]
+// Codec Identifier. The following values are defined:
+// 	2 = Sorenson H.263
+// 	3 = Screen video
+// 	4 = On2 VP6
+// 	5 = On2 VP6 with alpha channel
+// 	6 = Screen video version 2
+// 	7 = AVC
+enum SrsCodecVideo
+{
+	SrsCodecVideoSorensonH263 			= 2,
+	SrsCodecVideoScreenVideo 			= 3,
+	SrsCodecVideoOn2VP6 				= 4,
+	SrsCodecVideoOn2VP6WithAlphaChannel = 5,
+	SrsCodecVideoScreenVideoVersion2 	= 6,
+	SrsCodecVideoAVC 					= 7,
+};
+
+// E.4.3.1 VIDEODATA
+// Frame Type UB [4]
+// Type of video frame. The following values are defined:
+// 	1 = key frame (for AVC, a seekable frame)
+// 	2 = inter frame (for AVC, a non-seekable frame)
+// 	3 = disposable inter frame (H.263 only)
+// 	4 = generated key frame (reserved for server use only)
+// 	5 = video info/command frame
+enum SrsCodecVideoAVCFrame
+{
+	SrsCodecVideoAVCFrameKeyFrame 					= 1,
+	SrsCodecVideoAVCFrameInterFrame 				= 2,
+	SrsCodecVideoAVCFrameDisposableInterFrame 		= 3,
+	SrsCodecVideoAVCFrameGeneratedKeyFrame			= 4,
+	SrsCodecVideoAVCFrameVideoInfoFrame				= 5,
+};
+
+// AVCPacketType IF CodecID == 7 UI8
+// The following values are defined:
+// 	0 = AVC sequence header
+// 	1 = AVC NALU
+// 	2 = AVC end of sequence (lower level NALU sequence ender is
+// 		not required or supported)
+enum SrsCodecVideoAVCType
+{
+	SrsCodecVideoAVCTypeSequenceHeader 				= 0,
+	SrsCodecVideoAVCTypeNALU 						= 1,
+	SrsCodecVideoAVCTypeSequenceHeaderEOF 			= 2,
+};
+
+// SoundFormat UB [4] 
+// Format of SoundData. The following values are defined:
+// 	0 = Linear PCM, platform endian
+// 	1 = ADPCM
+// 	2 = MP3
+// 	3 = Linear PCM, little endian
+// 	4 = Nellymoser 16 kHz mono
+// 	5 = Nellymoser 8 kHz mono
+// 	6 = Nellymoser
+// 	7 = G.711 A-law logarithmic PCM
+// 	8 = G.711 mu-law logarithmic PCM
+// 	9 = reserved
+// 	10 = AAC
+// 	11 = Speex
+// 	14 = MP3 8 kHz
+// 	15 = Device-specific sound
+// Formats 7, 8, 14, and 15 are reserved.
+// AAC is supported in Flash Player 9,0,115,0 and higher.
+// Speex is supported in Flash Player 10 and higher.
+enum SrsCodecAudio
+{
+	SrsCodecAudioLinearPCMPlatformEndian 			= 0,
+	SrsCodecAudioADPCM 								= 1,
+	SrsCodecAudioMP3 								= 2,
+	SrsCodecAudioLinearPCMLittleEndian 				= 3,
+	SrsCodecAudioNellymoser16kHzMono 				= 4,
+	SrsCodecAudioNellymoser8kHzMono 				= 5,
+	SrsCodecAudioNellymoser 						= 6,
+	SrsCodecAudioReservedG711AlawLogarithmicPCM		= 7,
+	SrsCodecAudioReservedG711MuLawLogarithmicPCM	= 8,
+	SrsCodecAudioReserved 							= 9,
+	SrsCodecAudioAAC 								= 10,
+	SrsCodecAudioSpeex 								= 11,
+	SrsCodecAudioReservedMP3_8kHz 					= 14,
+	SrsCodecAudioReservedDeviceSpecificSound 		= 15,
+};
+
+// AACPacketType IF SoundFormat == 10 UI8
+// The following values are defined:
+// 	0 = AAC sequence header
+// 	1 = AAC raw
+enum SrsCodecAudioType
+{
+	SrsCodecAudioTypeSequenceHeader 				= 0,
+	SrsCodecAudioTypeRawData 						= 1,
+};
+
 /**
 * Annex E. The FLV File Format
 */
 class SrsCodec
 {
+private:
+	SrsStream* stream;
+public:
+	/**
+	* video specified
+	*/
+	int			width;
+	int			height;
+	int			duration;
+	int			frame_rate;
+	// @see: SrsCodecVideo
+	int			video_codec_id;
+	int			video_data_rate; // in bps
+	u_int8_t	profile; // profile_idc, page 45.
+	u_int8_t	level; // level_idc, page 45.
+	/**
+	* audio specified
+	*/
+	int			audio_codec_id;
+	int			audio_data_rate; // in bps
+	int			aac_sample_rate;
+	int			sample_rate; /* 5512, 11025, 22050, 44100 */
+	int			sample_size; /* 1=8bit, 2=16bit */
+	int			audio_channels; /* 1, 2 */
+	// the avc extra data, the AVC sequence header,
+	// without the flv codec header
+	int 		avc_extra_size;
+	char*		avc_extra_data;
+	// the aac extra data, the AAC sequence header,
+	// without the flv codec header
+	int 		aac_extra_size;
+	char*		aac_extra_data;
 public:
 	SrsCodec();
 	virtual ~SrsCodec();
+// the following function used for hls to build the codec info.
+public:
+	virtual int parse_av_codec(bool is_video, int8_t* data, int size);
+// the following function used to finger out the flv/rtmp packet detail.
 public:
 	/**
 	* only check the frame_type, not check the codec type.
 	*/
-	virtual bool video_is_keyframe(int8_t* data, int size);
+	static bool video_is_keyframe(int8_t* data, int size);
 	/**
 	* check codec h264, keyframe, sequence header
 	*/
-	virtual bool video_is_sequence_header(int8_t* data, int size);
+	static bool video_is_sequence_header(int8_t* data, int size);
 	/**
 	* check codec aac, sequence header
 	*/
-	virtual bool audio_is_sequence_header(int8_t* data, int size);
+	static bool audio_is_sequence_header(int8_t* data, int size);
 	/**
 	* check codec h264.
 	*/
-	virtual bool video_is_h264(int8_t* data, int size);
+	static bool video_is_h264(int8_t* data, int size);
 private:
 	/**
 	* check codec aac.
 	*/
-	virtual bool audio_is_aac(int8_t* data, int size);
+	static bool audio_is_aac(int8_t* data, int size);
 };
 
 #endif

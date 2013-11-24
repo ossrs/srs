@@ -106,6 +106,19 @@ int16_t SrsStream::read_2bytes()
 	return value;
 }
 
+int32_t SrsStream::read_3bytes()
+{
+	srs_assert(require(3));
+	
+	int32_t value = 0x00;
+	pp = (char*)&value;
+	pp[2] = *p++;
+	pp[1] = *p++;
+	pp[0] = *p++;
+	
+	return value;
+}
+
 int32_t SrsStream::read_4bytes()
 {
 	srs_assert(require(4));

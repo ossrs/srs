@@ -34,7 +34,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 #include <string>
 
-class SrsCodec;
 class SrsSource;
 class SrsCommonMessage;
 class SrsOnMetaDataPacket;
@@ -52,7 +51,6 @@ private:
 	SrsSource* source;
 	std::vector<SrsSharedPtrMessage*> msgs;
 	bool paused;
-	SrsCodec* codec;
 public:
 	SrsConsumer(SrsSource* _source);
 	virtual ~SrsConsumer();
@@ -108,7 +106,6 @@ public:
 	static SrsSource* find(std::string stream_url);
 private:
 	SrsHLS* hls;
-	SrsCodec* codec;
 	std::string stream_url;
 	std::vector<SrsConsumer*> consumers;
 // gop cache for client fast startup.

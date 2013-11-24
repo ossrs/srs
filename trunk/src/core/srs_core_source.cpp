@@ -53,13 +53,11 @@ SrsConsumer::SrsConsumer(SrsSource* _source)
 	source = _source;
 	last_pkt_correct_time = last_pkt_time = 0;
 	paused = false;
-	codec = new SrsCodec();
 }
 
 SrsConsumer::~SrsConsumer()
 {
-	clear();	
-	srs_freep(codec);
+	clear();
 	
 	source->on_consumer_destroy(this);
 }
@@ -141,7 +139,7 @@ void SrsConsumer::shrink()
 		SrsSharedPtrMessage* msg = *it;
 		if (msg->header.is_video()) {
 			has_video = true;
-			if (codec->video_is_keyframe(msg->payload, msg->size)) {
+			if (SrsCodec::video_is_keyframe(msg->payload, msg->size)) {
 				iframe = it;
 				frame_to_remove = i + 1;
 			}
@@ -240,7 +238,6 @@ void SrsConsumer::clear()
 SrsSource::SrsSource(std::string _stream_url)
 {
 	stream_url = _stream_url;
-	codec = new SrsCodec();
 	hls = new SrsHLS();
 	
 	cache_metadata = cache_sh_video = cache_sh_audio = NULL;
@@ -266,7 +263,6 @@ SrsSource::~SrsSource()
 	srs_freep(cache_sh_video);
 	srs_freep(cache_sh_audio);
 	
-	srs_freep(codec);
 	srs_freep(hls);
 }
 
@@ -364,7 +360,7 @@ int SrsSource::on_audio(SrsCommonMessage* audio)
 	srs_info("dispatch audio success.");
 
 	// cache the sequence header if h264
-	if (codec->audio_is_sequence_header(msg->payload, msg->size)) {
+	if (SrsCodec::audio_is_sequence_header(msg->payload, msg->size)) {
 		srs_freep(cache_sh_audio);
 		cache_sh_audio = msg->copy();
 		srs_trace("update audio sequence header success. size=%d", msg->header.payload_length);
@@ -409,7 +405,7 @@ int SrsSource::on_video(SrsCommonMessage* video)
 	srs_info("dispatch video success.");
 
 	// cache the sequence header if h264
-	if (codec->video_is_sequence_header(msg->payload, msg->size)) {
+	if (SrsCodec::video_is_sequence_header(msg->payload, msg->size)) {
 		srs_freep(cache_sh_video);
 		cache_sh_video = msg->copy();
 		srs_trace("update video sequence header success. size=%d", msg->header.payload_length);
@@ -521,7 +517,7 @@ int SrsSource::cache_last_gop(SrsSharedPtrMessage* msg)
 	}
 	
 	// clear gop cache when got key frame
-	if (msg->header.is_video() && codec->video_is_keyframe(msg->payload, msg->size)) {
+	if (msg->header.is_video() && SrsCodec::video_is_keyframe(msg->payload, msg->size)) {
 		srs_info("clear gop cache when got keyframe. vcount=%d, count=%d",
 			cached_video_count, (int)gop_cache.size());
 			

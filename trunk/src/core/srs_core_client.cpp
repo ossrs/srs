@@ -151,6 +151,7 @@ int SrsClient::do_cycle()
 	// find a source to publish.
 	SrsSource* source = SrsSource::find(req->get_stream_url());
 	srs_assert(source != NULL);
+	SrsHLS* hls = source->get_hls();
 	
 	bool enabled_cache = true;
 	conf = config->get_gop_cache(req->vhost);
@@ -181,6 +182,7 @@ int SrsClient::do_cycle()
 			}
 			srs_info("start to publish stream %s success", req->stream.c_str());
 			ret = publish(source, true);
+			hls->on_unpublish();
 			source->on_unpublish();
 			return ret;
 		}
@@ -193,6 +195,7 @@ int SrsClient::do_cycle()
 			}
 			srs_info("flash start to publish stream %s success", req->stream.c_str());
 			ret = publish(source, false);
+			hls->on_unpublish();
 			source->on_unpublish();
 			return ret;
 		}
@@ -330,8 +333,15 @@ int SrsClient::publish(SrsSource* source, bool is_fmle)
 	srs_verbose("check publish_refer success.");
 	
 	SrsPithyPrint pithy_print(SRS_STAGE_PUBLISH_USER);
-	
 	SrsHLS* hls = source->get_hls();
+	
+	// notify the hls to prepare when publish start.
+	if ((ret = hls->on_publish()) != ERROR_SUCCESS) {
+		srs_error("hls on_publish failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("hls on_publish success.");
+	
 	while (true) {
 		// switch to other st-threads.
 		st_usleep(0);
@@ -366,14 +376,26 @@ int SrsClient::process_publish_message(SrsSource* source, SrsHLS* hls, SrsCommon
 	int ret = ERROR_SUCCESS;
 	
 	// process audio packet
-	if (msg->header.is_audio() && ((ret = source->on_audio(msg)) != ERROR_SUCCESS)) {
-		srs_error("process audio message failed. ret=%d", ret);
-		return ret;
+	if (msg->header.is_audio()) {
+		if ((ret = hls->on_audio(msg)) != ERROR_SUCCESS) {
+			srs_error("hls process audio message failed. ret=%d", ret);
+			return ret;
+		}
+		if ((ret = source->on_audio(msg)) != ERROR_SUCCESS) {
+			srs_error("source process audio message failed. ret=%d", ret);
+			return ret;
+		}
 	}
 	// process video packet
-	if (msg->header.is_video() && ((ret = source->on_video(msg)) != ERROR_SUCCESS)) {
-		srs_error("process video message failed. ret=%d", ret);
-		return ret;
+	if (msg->header.is_video()) {
+		if ((ret = hls->on_video(msg)) != ERROR_SUCCESS) {
+			srs_error("hls process video message failed. ret=%d", ret);
+			return ret;
+		}
+		if ((ret = source->on_video(msg)) != ERROR_SUCCESS) {
+			srs_error("source process video message failed. ret=%d", ret);
+			return ret;
+		}
 	}
 	
 	// process onMetaData
@@ -386,8 +408,12 @@ int SrsClient::process_publish_message(SrsSource* source, SrsHLS* hls, SrsCommon
 		SrsPacket* pkt = msg->get_packet();
 		if (dynamic_cast<SrsOnMetaDataPacket*>(pkt)) {
 			SrsOnMetaDataPacket* metadata = dynamic_cast<SrsOnMetaDataPacket*>(pkt);
+			if ((ret = hls->on_meta_data(metadata)) != ERROR_SUCCESS) {
+				srs_error("hls process onMetaData message failed. ret=%d", ret);
+				return ret;
+			}
 			if ((ret = source->on_meta_data(msg, metadata)) != ERROR_SUCCESS) {
-				srs_error("process onMetaData message failed. ret=%d", ret);
+				srs_error("source process onMetaData message failed. ret=%d", ret);
 				return ret;
 			}
 			srs_trace("process onMetaData message success.");
