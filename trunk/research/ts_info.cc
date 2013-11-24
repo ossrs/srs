@@ -2105,6 +2105,7 @@ int consume(TSMessage* msg, AacMuxer* aac_muxer)
 			(msg->dts == 0)? msg->pts : msg->dts, msg->packet_data_size);
 		   
         // parse H264 video.
+        bool first = true;
 		while (p < last) {
 			TSH264Codec h264;
 		    if ((ret = h264.parse(msg, last, p)) != 0) {
@@ -2112,8 +2113,55 @@ int consume(TSMessage* msg, AacMuxer* aac_muxer)
 		    }
 		    trace("ts+h264 video raw data parsed, size: %d, 0x%02x 0x%02x 0x%02x 0x%02x",
 		    	h264.size, h264.at(0), h264.at(1), h264.at(2), h264.at(3));
+		    	
+		    // first?
+		    if (!first) {
+		        continue;
+		    }
+		    first = false;
 			
 		    // TODO: process video.
+		    
+		    // directly check the sequence header for test_22m.flv
+		    if (h264.at(0) == 0x67 && h264.at(1) == 0x00 && h264.at(2) == 0x1f && h264.at(3) == 0xac) {
+		        trace("ts+h264 directly find the sequence header for test_22m.flv");
+		    }
+		    // 7.3.1 NAL unit syntax, hls-mpeg-ts-iso13818-1.pdf, page 44
+		    char* pp = (char*)h264.raw_data;
+		    int8_t nal_unit_type = *pp++;
+		    int8_t nal_ref_idc = (nal_unit_type >> 5) & 0x03;
+		    nal_unit_type &= 0x1f;
+		    if (nal_ref_idc != 0) {
+		        trace("ts+h264 got an SPS or PPS.");
+		    }
+		    if (nal_unit_type == 7) {
+		        trace("ts+h264 got an SPS.");
+		    } else if (nal_unit_type == 8) {
+		        trace("ts+h264 got an PPS.");
+		    } else if (nal_unit_type == 9) {
+		        trace("ts+h264 got an Picture delimiter.");
+		        int8_t pic_type = *pp++;
+		        pic_type = (pic_type >> 6) & 0x07;
+		        if (pic_type == 0) {
+		        	trace("ts+h264 got an I picture.");
+		        } else if (pic_type == 1) {
+		        	trace("ts+h264 got an I,P picture.");
+		        } else if (pic_type == 2) {
+		        	trace("ts+h264 got an I,P,B picture.");
+		        } else if (pic_type == 3) {
+		        	trace("ts+h264 got an SI picture.");
+		        } else if (pic_type == 4) {
+		        	trace("ts+h264 got an SI,SP picture.");
+		        } else if (pic_type == 5) {
+		        	trace("ts+h264 got an I,SI picture.");
+		        } else if (pic_type == 6) {
+		        	trace("ts+h264 got an I,SI,P,SP picture.");
+		        } else if (pic_type == 7) {
+		        	trace("ts+h264 got an I,SI,P,SP,B picture.");
+		        }
+		    } else {
+		        trace("ts+h264 got an unknown unit type: %d.", nal_unit_type);
+		    }
 		}
     }
     
