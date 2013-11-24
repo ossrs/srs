@@ -107,4 +107,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // when open ssl sha256 digest key invalid size.
 #define ERROR_OpenSslSha256DigestSize	512
 
+#define ERROR_HLS_METADATA				600
+#define ERROR_HLS_DECODE_ERROR			601
+
 #endif

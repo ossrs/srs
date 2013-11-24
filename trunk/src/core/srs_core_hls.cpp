@@ -53,11 +53,13 @@ int SrsHLS::on_meta_data(SrsOnMetaDataPacket* metadata)
 	int ret = ERROR_SUCCESS;
 
 	if (!metadata || !metadata->metadata) {
+		srs_trace("no metadata persent, hls ignored it.");
 		return ret;
 	}
 	
 	SrsAmf0Object* obj = metadata->metadata;
 	if (obj->size() <= 0) {
+		srs_trace("no metadata persent, hls ignored it.");
 		return ret;
 	}
 	
@@ -90,21 +92,38 @@ int SrsHLS::on_meta_data(SrsOnMetaDataPacket* metadata)
 		codec->audio_data_rate = (int)(1000 * srs_amf0_convert<SrsAmf0Number>(prop)->value);
 	}
 	if ((prop = obj->get_property("audiosamplerate")) != NULL && prop->is_number()) {
-		codec->sample_rate = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
+		int sound_rate = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
+		if (sound_rate == 5512) {
+			codec->sound_rate = SrsCodecAudioSampleRate5512;
+		} else if (sound_rate == 11025) {
+			codec->sound_rate = SrsCodecAudioSampleRate11025;
+		} else if (sound_rate == 22050) {
+			codec->sound_rate = SrsCodecAudioSampleRate22050;
+		} else if (sound_rate == 44100) {
+			codec->sound_rate = SrsCodecAudioSampleRate44100;
+		} else {
+			ret = ERROR_HLS_METADATA;
+			srs_error("invalid sound_rate of metadata: %d, ret=%d", sound_rate, ret);
+			return ret;
+		}
 	}
 	if ((prop = obj->get_property("audiosamplesize")) != NULL && prop->is_number()) {
-		codec->sample_size = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
-		if (codec->sample_size == 16) {
-			codec->sample_size = 2;
+		int sound_size = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
+		if (sound_size == 16) {
+			codec->sound_size = SrsCodecAudioSampleSize16bit;
+		} else if (sound_size == 8) {
+			codec->sound_size = SrsCodecAudioSampleSize8bit;
 		} else {
-			codec->sample_size = 1;
+			ret = ERROR_HLS_METADATA;
+			srs_error("invalid sound_size of metadata: %d, ret=%d", sound_size, ret);
+			return ret;
 		}
 	}
 	if ((prop = obj->get_property("stereo")) != NULL && prop->is_number()) {
 		if (srs_amf0_convert<SrsAmf0Boolean>(prop)->value) {
-			codec->audio_channels = 2;
+			codec->sound_type = SrsCodecAudioSoundTypeStereo;
 		} else {
-			codec->audio_channels = 1;
+			codec->sound_type = SrsCodecAudioSoundTypeMono;
 		}
 	}
 	
@@ -115,7 +134,7 @@ int SrsHLS::on_audio(SrsCommonMessage* audio)
 {
 	int ret = ERROR_SUCCESS;
 	
-	if ((ret = codec->parse_av_codec(false, audio->payload, audio->size)) != ERROR_SUCCESS) {
+	if ((ret = codec->parse_audio_codec(audio->payload, audio->size)) != ERROR_SUCCESS) {
 		return ret;
 	}
 	
@@ -126,7 +145,7 @@ int SrsHLS::on_video(SrsCommonMessage* video)
 {
 	int ret = ERROR_SUCCESS;
 	
-	if ((ret = codec->parse_av_codec(true, video->payload, video->size)) != ERROR_SUCCESS) {
+	if ((ret = codec->parse_video_codec(video->payload, video->size)) != ERROR_SUCCESS) {
 		return ret;
 	}
 	

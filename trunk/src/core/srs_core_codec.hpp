@@ -128,6 +128,39 @@ enum SrsCodecAudioType
 	SrsCodecAudioTypeRawData 						= 1,
 };
 
+// Sampling rate. The following values are defined:
+// 0 = 5.5 kHz = 5512 Hz
+// 1 = 11 kHz = 11025 Hz
+// 2 = 22 kHz = 22050 Hz
+// 3 = 44 kHz = 44100 Hz
+enum SrsCodecAudioSampleRate
+{
+	SrsCodecAudioSampleRate5512 				= 0,
+	SrsCodecAudioSampleRate11025 				= 1,
+	SrsCodecAudioSampleRate22050 				= 2,
+	SrsCodecAudioSampleRate44100 				= 3,
+};
+
+// Size of each audio sample. This parameter only pertains to
+// uncompressed formats. Compressed formats always decode
+// to 16 bits internally.
+// 0 = 8-bit samples
+// 1 = 16-bit samples
+enum SrsCodecAudioSampleSize
+{
+	SrsCodecAudioSampleSize8bit 				= 0,
+	SrsCodecAudioSampleSize16bit 				= 1,
+};
+
+// Mono or stereo sound
+// 0 = Mono sound
+// 1 = Stereo sound
+enum SrsCodecAudioSoundType
+{
+	SrsCodecAudioSoundTypeMono 					= 0,
+	SrsCodecAudioSoundTypeStereo 				= 1,
+};
+
 /**
 * Annex E. The FLV File Format
 */
@@ -139,30 +172,35 @@ public:
 	/**
 	* video specified
 	*/
-	int			width;
-	int			height;
-	int			duration;
-	int			frame_rate;
 	// @see: SrsCodecVideo
 	int			video_codec_id;
-	int			video_data_rate; // in bps
 	u_int8_t	profile; // profile_idc, page 45.
 	u_int8_t	level; // level_idc, page 45.
+	int			width;
+	int			height;
+	int			video_data_rate; // in bps
+	int			frame_rate;
+	int			duration;
 	/**
 	* audio specified
 	*/
+	// @see: SrsCodecAudioType
 	int			audio_codec_id;
+	// @see: SrsCodecAudioSampleRate
+	int			sound_rate;
+	// @see: SrsCodecAudioSampleSize
+	int			sound_size;
+	// @see: SrsCodecAudioSoundType
+	int			sound_type;
 	int			audio_data_rate; // in bps
-	int			aac_sample_rate;
-	int			sample_rate; /* 5512, 11025, 22050, 44100 */
-	int			sample_size; /* 1=8bit, 2=16bit */
-	int			audio_channels; /* 1, 2 */
 	// the avc extra data, the AVC sequence header,
-	// without the flv codec header
+	// without the flv codec header,
+	// @see: ffmpeg, AVCodecContext::extradata
 	int 		avc_extra_size;
 	char*		avc_extra_data;
 	// the aac extra data, the AAC sequence header,
-	// without the flv codec header
+	// without the flv codec header,
+	// @see: ffmpeg, AVCodecContext::extradata
 	int 		aac_extra_size;
 	char*		aac_extra_data;
 public:
@@ -170,7 +208,8 @@ public:
 	virtual ~SrsCodec();
 // the following function used for hls to build the codec info.
 public:
-	virtual int parse_av_codec(bool is_video, int8_t* data, int size);
+	virtual int parse_audio_codec(int8_t* data, int size);
+	virtual int parse_video_codec(int8_t* data, int size);
 // the following function used to finger out the flv/rtmp packet detail.
 public:
 	/**
