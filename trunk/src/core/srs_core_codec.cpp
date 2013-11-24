@@ -116,6 +116,13 @@ int SrsCodec::audio_aac_demux(int8_t* data, int size)
 			memcpy(aac_extra_data, data + stream->pos(), aac_extra_size);
 		}
 	} else if (aac_packet_type == SrsCodecAudioTypeRawData) {
+		// ensure the sequence header demuxed
+		if (aac_extra_size <= 0 || !aac_extra_data) {
+			ret = ERROR_HLS_DECODE_ERROR;
+			srs_error("hls decode audio aac failed, sequence header not found. ret=%d", ret);
+			return ret;
+		}
+		
 		// Raw AAC frame data in UI8 []
 		// 6.3 Raw Data, aac-iso-13818-7.pdf, page 28
 	} else {
@@ -206,6 +213,13 @@ int SrsCodec::video_avc_demux(int8_t* data, int size)
 		* pictureParameterSetNALUnit
 		*/
 	} else if (avc_packet_type == SrsCodecVideoAVCTypeNALU){
+		// ensure the sequence header demuxed
+		if (avc_extra_size <= 0 || !avc_extra_data) {
+			ret = ERROR_HLS_DECODE_ERROR;
+			srs_error("hls decode video avc failed, sequence header not found. ret=%d", ret);
+			return ret;
+		}
+		
 		// One or more NALUs (Full frames are required)
 		// 5.3.4.2.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 20
 		int PictureLength = size - stream->pos();
