@@ -585,6 +585,7 @@ public:
 	
 	int64_t pts; // 33bits
 	int64_t dts; // 33bits
+    int64_t pcr;
     
     // header size.
     int packet_header_size;
@@ -595,6 +596,10 @@ public:
     // total packet size.
 	int packet_data_size;
 	char* packet_data;
+	
+	// for avc.
+	u_int8_t nal_ref_idc;
+	u_int8_t nal_unit_type;
 	
 	TSMessage();
 	virtual ~TSMessage();
@@ -709,12 +714,15 @@ TSMessage::TSMessage()
 	stream_type = TSStreamTypeReserved;
 	stream_id = 0;
 	packet_start_code_prefix = 0;
-	pts = dts = 0;
+	pts = dts = pcr = 0;
 	PES_packet_length = 0;
 	packet_header_size = 0;
 	parsed_packet_size = 0;
 	packet_data_size = 0;
 	packet_data = NULL;
+	
+	nal_ref_idc = 0;
+	nal_unit_type = 0;
 }
 
 TSMessage::~TSMessage()
@@ -1596,6 +1604,10 @@ int TSPayload::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t* l
     }
     if (pid && (pid->type == TSPidTypeVideo || pid->type == TSPidTypeAudio)) {
 	    TSMessage* msg = ctx->get_msg(pkt->header->pid);
+
+		if (pkt->adaption_field->pcr > 0) {
+			msg->pcr = pkt->adaption_field->pcr;
+		}
 	    
         // flush previous PES_packet_length(0) packets.
         if (msg->packet_start_code_prefix == 0x01 
@@ -2135,6 +2147,10 @@ int consume(TSMessage* msg, AacMuxer* aac_muxer)
 		    int8_t nal_unit_type = *pp++;
 		    int8_t nal_ref_idc = (nal_unit_type >> 5) & 0x03;
 		    nal_unit_type &= 0x1f;
+		    
+		    msg->nal_ref_idc = nal_ref_idc;
+		    msg->nal_unit_type = nal_unit_type;
+		    
 		    if (nal_ref_idc != 0) {
 		        trace("ts+h264 got an SPS or PPS.");
 		    }
@@ -2234,6 +2250,18 @@ int main(int argc, char** argv)
 	            trace("demuxer+consume parse and consume message failed. ret=%d", ret);
 	            return -1;
 	        }
+	        
+	        int64_t pts = msg->pts;
+	        int64_t dts = (msg->dts == 0)? msg->pts : msg->dts;
+	        int64_t pcr = msg->pcr;
+	        static int64_t last_pcr_dts = 0;
+	        trace("demuxer+report id=%d, type=%s, size=%d, dts=%d, pts=%d, cts=%d, pcr=%d, dts-pcr=%d, ref=%d, unit=%d, dts(diff-pcr)=%d",
+	        	ctx.ts_packet_count, (msg->type == TSPidTypeVideo)? "video":"audio", 
+				msg->parsed_packet_size, dts, pts, pts - dts, pcr, pcr? dts - pcr : 0,
+				msg->nal_ref_idc, msg->nal_unit_type, pcr? dts - last_pcr_dts: 0);
+			if (pcr > 0) {
+				last_pcr_dts = dts;
+			}
 	        
 	        srs_freep(msg);
         }

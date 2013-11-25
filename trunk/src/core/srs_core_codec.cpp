@@ -115,6 +115,10 @@ SrsCodec::SrsCodec()
 	avc_extra_data 			= NULL;
 	aac_extra_size 			= 0;
 	aac_extra_data 			= NULL;
+	sequenceParameterSetLength = 0;
+	sequenceParameterSetNALUnit = NULL;
+	pictureParameterSetLength = 0;
+	pictureParameterSetNALUnit = NULL;
 
 	stream = new SrsStream();
 }
@@ -125,6 +129,8 @@ SrsCodec::~SrsCodec()
 	srs_freepa(aac_extra_data);
 
 	srs_freep(stream);
+	srs_freepa(sequenceParameterSetNALUnit);
+	srs_freepa(pictureParameterSetNALUnit);
 }
 
 int SrsCodec::audio_aac_demux(int8_t* data, int size, SrsCodecSample* sample)
@@ -315,16 +321,67 @@ int SrsCodec::video_avc_demux(int8_t* data, int size, SrsCodecSample* sample)
 		int8_t lengthSizeMinusOne = stream->read_1bytes();
 		lengthSizeMinusOne &= 0x03;
 		NAL_unit_length = lengthSizeMinusOne;
-		/**
-		* skip the following:
-		* numOfSequenceParameterSets
-		* donot parse the following:
-		* sequenceParameterSetLength
-		* sequenceParameterSetNALUnit
-		* numOfPictureParameterSets
-		* pictureParameterSetLength
-		* pictureParameterSetNALUnit
-		*/
+		
+		// 1 sps
+		if (!stream->require(1)) {
+			ret = ERROR_HLS_DECODE_ERROR;
+			srs_error("hls decode video avc sequenc header sps failed. ret=%d", ret);
+			return ret;
+		}
+		int8_t numOfSequenceParameterSets = stream->read_1bytes();
+		numOfSequenceParameterSets &= 0x1f;
+		if (numOfSequenceParameterSets != 1) {
+			ret = ERROR_HLS_DECODE_ERROR;
+			srs_error("hls decode video avc sequenc header sps failed. ret=%d", ret);
+			return ret;
+		}
+		if (!stream->require(2)) {
+			ret = ERROR_HLS_DECODE_ERROR;
+			srs_error("hls decode video avc sequenc header sps size failed. ret=%d", ret);
+			return ret;
+		}
+		sequenceParameterSetLength = stream->read_2bytes();
+		if (!stream->require(sequenceParameterSetLength)) {
+			ret = ERROR_HLS_DECODE_ERROR;
+			srs_error("hls decode video avc sequenc header sps data failed. ret=%d", ret);
+			return ret;
+		}
+		if (sequenceParameterSetLength > 0) {
+			srs_freepa(sequenceParameterSetNALUnit);
+			sequenceParameterSetNALUnit = new char[sequenceParameterSetLength];
+			memcpy(sequenceParameterSetNALUnit, stream->current(), sequenceParameterSetLength);
+			stream->skip(sequenceParameterSetLength);
+		}
+		// 1 pps
+		if (!stream->require(1)) {
+			ret = ERROR_HLS_DECODE_ERROR;
+			srs_error("hls decode video avc sequenc header pps failed. ret=%d", ret);
+			return ret;
+		}
+		int8_t numOfPictureParameterSets = stream->read_1bytes();
+		numOfPictureParameterSets &= 0x1f;
+		if (numOfPictureParameterSets != 1) {
+			ret = ERROR_HLS_DECODE_ERROR;
+			srs_error("hls decode video avc sequenc header pps failed. ret=%d", ret);
+			return ret;
+		}
+		if (!stream->require(2)) {
+			ret = ERROR_HLS_DECODE_ERROR;
+			srs_error("hls decode video avc sequenc header pps size failed. ret=%d", ret);
+			return ret;
+		}
+		pictureParameterSetLength = stream->read_2bytes();
+		if (!stream->require(pictureParameterSetLength)) {
+			ret = ERROR_HLS_DECODE_ERROR;
+			srs_error("hls decode video avc sequenc header pps data failed. ret=%d", ret);
+			return ret;
+		}
+		if (pictureParameterSetLength > 0) {
+			srs_freepa(pictureParameterSetNALUnit);
+			pictureParameterSetNALUnit = new char[pictureParameterSetLength];
+			memcpy(pictureParameterSetNALUnit, stream->current(), pictureParameterSetLength);
+			stream->skip(pictureParameterSetLength);
+		}
 	} else if (avc_packet_type == SrsCodecVideoAVCTypeNALU){
 		// ensure the sequence header demuxed
 		if (avc_extra_size <= 0 || !avc_extra_data) {

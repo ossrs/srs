@@ -512,8 +512,13 @@ SrsTSMuxer::SrsTSMuxer()
 {
 	fd = -1;
 	
+	// ffmpeg set the start time to the delay time.
+	base_dts = SRS_HLS_DELAY;
+	
 	audio_buffer = new SrsCodecBuffer();
 	video_buffer = new SrsCodecBuffer();
+
+	got_iframe = false;
 }
 
 SrsTSMuxer::~SrsTSMuxer()
@@ -555,7 +560,7 @@ int SrsTSMuxer::write_audio(u_int32_t time, SrsCodec* codec, SrsCodecSample* sam
 {
 	int ret = ERROR_SUCCESS;
 	
-	audio_frame.dts = audio_frame.pts = time * 90;
+	audio_frame.dts = audio_frame.pts = base_dts + time * 90;
 	audio_frame.pid = TS_AUDIO_PID;
 	audio_frame.sid = TS_AUDIO_AAC;
 	
@@ -626,11 +631,18 @@ int SrsTSMuxer::write_video(u_int32_t time, SrsCodec* codec, SrsCodecSample* sam
 {
 	int ret = ERROR_SUCCESS;
 	
-	video_frame.dts = time * 90;
+	video_frame.dts = base_dts + time * 90;
 	video_frame.pts = video_frame.dts + sample->cts * 90;
 	video_frame.pid = TS_VIDEO_PID;
 	video_frame.sid = TS_VIDEO_AVC;
 	video_frame.key = sample->frame_type == SrsCodecVideoAVCFrameKeyFrame;
+	
+	if (video_frame.key) {
+		got_iframe = true;
+	}
+	if (!got_iframe) {
+		return ret;
+	}
 	
 	static u_int8_t aud_nal[] = { 0x00, 0x00, 0x00, 0x01, 0x09, 0xf0 };
 	video_buffer->append(aud_nal, sizeof(aud_nal));
@@ -646,12 +658,33 @@ int SrsTSMuxer::write_video(u_int32_t time, SrsCodec* codec, SrsCodecSample* sam
 			return ret;
 		}
 		
-		if (false && video_frame.key && !sps_pps_sent) {
-			// sample start prefix
-			video_buffer->append(aud_nal, 4);
-			// sps and pps
-			// TODO: do in right way.
-			video_buffer->append(codec->avc_extra_data, codec->avc_extra_size);
+		// 5bits, 7.3.1 NAL unit syntax, 
+		// H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+		u_int8_t nal_unit_type;
+		nal_unit_type = *buf->bytes;
+		nal_unit_type &= 0x1f;
+		
+		// Table 7-1 – NAL unit type codes, page 61
+		// 1: Coded slice
+		if (nal_unit_type == 1) {
+			sps_pps_sent = false;
+		}
+		// 5: Coded slice of an IDR picture
+		if (nal_unit_type == 5 && !sps_pps_sent) {
+			// ngx_rtmp_hls_append_sps_pps
+			if (codec->sequenceParameterSetLength > 0) {
+				// AnnexB prefix
+				video_buffer->append(aud_nal, 4);
+				// sps
+				video_buffer->append(codec->sequenceParameterSetNALUnit, codec->sequenceParameterSetLength);
+			}
+			if (codec->pictureParameterSetLength > 0) {
+				// AnnexB prefix
+				video_buffer->append(aud_nal, 4);
+				// pps
+				video_buffer->append(codec->pictureParameterSetNALUnit, codec->pictureParameterSetLength);
+			}
+			
 		}
 		
 		// sample start prefix, '00 00 00 01' or '00 00 01'

@@ -81,6 +81,8 @@ private:
 	int fd;
 	std::string path;
 private:
+	bool got_iframe;
+	int64_t base_dts;
 	mpegts_frame audio_frame;
 	SrsCodecBuffer* audio_buffer;
 	mpegts_frame video_frame;

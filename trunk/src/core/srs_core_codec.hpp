@@ -250,6 +250,10 @@ public:
 	int			duration;
 	// lengthSizeMinusOne, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
 	int8_t 		NAL_unit_length;
+	u_int16_t 	sequenceParameterSetLength;
+	char* 		sequenceParameterSetNALUnit;
+	u_int16_t 	pictureParameterSetLength;
+	char* 		pictureParameterSetNALUnit;
 	/**
 	* audio specified
 	*/
