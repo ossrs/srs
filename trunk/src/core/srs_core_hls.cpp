@@ -277,7 +277,8 @@ u_int8_t mpegts_header[] = {
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
 
-// @see: NGX_RTMP_HLS_DELAY, 700ms, ts_tbn=90000
+// @see: NGX_RTMP_HLS_DELAY, 
+// 63000: 700ms, ts_tbn=90000
 #define SRS_HLS_DELAY 63000
 
 // @see: ngx_rtmp_mpegts.c
@@ -645,7 +646,7 @@ int SrsTSMuxer::write_video(u_int32_t time, SrsCodec* codec, SrsCodecSample* sam
 			return ret;
 		}
 		
-		if (video_frame.key && !sps_pps_sent) {
+		if (false && video_frame.key && !sps_pps_sent) {
 			// sample start prefix
 			video_buffer->append(aud_nal, 4);
 			// sps and pps

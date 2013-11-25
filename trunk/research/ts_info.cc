@@ -1269,7 +1269,7 @@ int64_t TSPayloadPES::decode_33bits_int(int64_t& temp)
 	// marker_bit 1bit
 	temp = temp >> 1;
 	// PTS [14..0] 15bits
-	ret |= temp & 0x3fff;
+	ret |= temp & 0x7fff;
 	// marker_bit 1bit
 	temp = temp >> 1;
 	// PTS [29..15] 15bits, 15zero, 29-15+1one
