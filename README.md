@@ -24,7 +24,8 @@ step 3: publish live stream <br/>
 FMS URL: rtmp://127.0.0.1:1935/live
 Stream:  livestream
 For example, use ffmpeg to publish:
-    ffmpeg -re -i source.flv -vcodec copy -acodec copy -f flv -y rtmp://127.0.0.1:1935/live/livestream
+    ffmpeg -re -i source.flv -vcodec copy -acodec copy \
+    -f flv -y rtmp://127.0.0.1:1935/live/livestream
 </pre>
 step 4: play live stream <br/>
 <pre>
