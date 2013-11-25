@@ -14,16 +14,19 @@ tar xf simple-rtmp-server-*.*.tar.gz
 cd simple-rtmp-server-*.*/trunk
 ./configure
 make
+</pre>
+step 2: start srs <br/>
+<pre>
 ./objs/simple_rtmp_server -c conf/srs.conf
 </pre>
-step 2: publish live stream <br/>
+step 3: publish live stream <br/>
 <pre>
 FMS URL: rtmp://127.0.0.1:1935/live
 Stream:  livestream
 For example, use ffmpeg to publish:
     ffmpeg -re -i source.flv -vcodec copy -acodec copy -f flv -y rtmp://127.0.0.1:1935/live/livestream
 </pre>
-step 3: play live stream <br/>
+step 4: play live stream <br/>
 <pre>
 url: rtmp://127.0.0.1:1935/live/livestream
 </pre>
