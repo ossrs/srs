@@ -684,7 +684,6 @@ int SrsTSMuxer::write_video(u_int32_t time, SrsCodec* codec, SrsCodecSample* sam
 				// pps
 				video_buffer->append(codec->pictureParameterSetNALUnit, codec->pictureParameterSetLength);
 			}
-			
 		}
 		
 		// sample start prefix, '00 00 00 01' or '00 00 01'
