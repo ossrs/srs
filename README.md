@@ -47,6 +47,7 @@ m3u8 url: http://127.0.0.1:1935/live/livestream.m3u8
 7. no multiple processes, single process only.<br/>
 
 ### Releases
+* 2013-11-26, [release v0.5](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.5), support HLS(m3u8), fragment and window. 14449 lines.<br/>
 * 2013-11-10, [release v0.4](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.4), support reload config, pause, longtime publish/play. 12500 lines.<br/>
 * 2013-11-04, [release v0.3](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.3), support vhost, refer, gop cache, listen multiple ports. 11773 lines.<br/>
 * 2013-10-25, [release v0.2](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.2), support flash publish, h264 codec, time jitter correct. 10125 lines.<br/>
@@ -62,6 +63,7 @@ m3u8 url: http://127.0.0.1:1935/live/livestream.m3u8
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v0.5, 2013-11-26, v0.5 released. 14449 lines.
 * v0.5, 2013-11-24, support HLS(m3u8), fragment and window.
 * v0.5, 2013-11-24, support record to ts file for HLS.
 * v0.5, 2013-11-21, add ts_info tool to demux ts file.
