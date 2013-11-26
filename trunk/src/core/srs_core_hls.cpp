@@ -617,6 +617,9 @@ int SrsHLS::reopen()
 	if (current) {
 		current->duration = (stream_dts - current->segment_start_dts) / 90000.0;
 		segments.push_back(current);
+		
+		// close the muxer of finished segment.
+		srs_freep(current->muxer);
 		current = NULL;
 		
 		// the segments to remove
