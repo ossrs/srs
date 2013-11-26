@@ -41,9 +41,10 @@ m3u8 url: http://127.0.0.1:1935/live/livestream.m3u8
 1. simple: also stable enough.<br/>
 2. high-performance: single-thread, async socket, event/st-thread driven.<br/>
 3. support vhost,support \_\_defaultVhost\_\_.<br/>
-4. no edge server, origin server only.<br/>
-5. no vod streaming, live streaming only.<br/>
-6. no multiple processes, single process only.<br/>
+4. support both rtmp and hls live streaming.<br/>
+5. no edge server, origin server only.<br/>
+6. no vod streaming, live streaming only.<br/>
+7. no multiple processes, single process only.<br/>
 
 ### Releases
 * 2013-11-10, [release v0.4](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.4), support reload config, pause, longtime publish/play. 12500 lines.<br/>
