@@ -36,23 +36,72 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DEFAULT_FRAME_TIME_MS 		10
 #define PAUSED_SHRINK_SIZE			250
 
-std::map<std::string, SrsSource*> SrsSource::pool;
-
-SrsSource* SrsSource::find(std::string stream_url)
+SrsRtmpJitter::SrsRtmpJitter()
 {
-	if (pool.find(stream_url) == pool.end()) {
-		pool[stream_url] = new SrsSource(stream_url);
-		srs_verbose("create new source for url=%s", stream_url.c_str());
+	last_pkt_correct_time = last_pkt_time = 0;
+}
+
+SrsRtmpJitter::~SrsRtmpJitter()
+{
+}
+
+int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, int audio_sample_rate, int video_frame_rate)
+{
+	int ret = ERROR_SUCCESS;
+	
+	/**
+	* we use a very simple time jitter detect/correct algorithm:
+	* 1. delta: ensure the delta is positive and valid,
+	* 	we set the delta to DEFAULT_FRAME_TIME_MS,
+	* 	if the delta of time is nagative or greater than CONST_MAX_JITTER_MS.
+	* 2. last_pkt_time: specifies the original packet time,
+	* 	is used to detect next jitter.
+	* 3. last_pkt_correct_time: simply add the positive delta, 
+	* 	and enforce the time monotonically.
+	*/
+	u_int32_t time = msg->header.timestamp;
+	int32_t delta = time - last_pkt_time;
+
+	// if jitter detected, reset the delta.
+	if (delta < 0 || delta > CONST_MAX_JITTER_MS) {
+		// calc the right diff by audio sample rate
+		if (msg->header.is_audio() && audio_sample_rate > 0) {
+			delta = (int32_t)(delta * 1000.0 / audio_sample_rate);
+		} else if (msg->header.is_video() && video_frame_rate > 0) {
+			delta = (int32_t)(delta * 1.0 / video_frame_rate);
+		} else {
+			delta = DEFAULT_FRAME_TIME_MS;
+		}
+
+		// sometimes, the time is absolute time, so correct it again.
+		if (delta < 0 || delta > CONST_MAX_JITTER_MS) {
+			delta = DEFAULT_FRAME_TIME_MS;
+		}
+		
+		srs_info("jitter detected, last_pts=%d, pts=%d, diff=%d, last_time=%d, time=%d, diff=%d",
+			last_pkt_time, time, time - last_pkt_time, last_pkt_correct_time, last_pkt_correct_time + delta, delta);
+	} else {
+		srs_verbose("timestamp no jitter. time=%d, last_pkt=%d, correct_to=%d", 
+			time, last_pkt_time, last_pkt_correct_time + delta);
 	}
 	
-	return pool[stream_url];
+	last_pkt_correct_time = srs_max(0, last_pkt_correct_time + delta);
+	msg->header.timestamp = last_pkt_correct_time;
+	last_pkt_time = time;
+	
+	return ret;
+}
+
+int SrsRtmpJitter::get_time()
+{
+	return (int)last_pkt_correct_time;
 }
 
 SrsConsumer::SrsConsumer(SrsSource* _source)
 {
 	source = _source;
-	last_pkt_correct_time = last_pkt_time = 0;
 	paused = false;
+	jitter = new SrsRtmpJitter();
 }
 
 SrsConsumer::~SrsConsumer()
@@ -60,18 +109,19 @@ SrsConsumer::~SrsConsumer()
 	clear();
 	
 	source->on_consumer_destroy(this);
+	srs_freep(jitter);
 }
 
 int SrsConsumer::get_time()
 {
-	return (int)last_pkt_correct_time;
+	return jitter->get_time();
 }
 
 int SrsConsumer::enqueue(SrsSharedPtrMessage* msg, int audio_sample_rate, int video_frame_rate)
 {
 	int ret = ERROR_SUCCESS;
 	
-	if ((ret = jitter_correct(msg, audio_sample_rate, video_frame_rate)) != ERROR_SUCCESS) {
+	if ((ret = jitter->correct(msg, audio_sample_rate, video_frame_rate)) != ERROR_SUCCESS) {
 		return ret;
 	}
 	
@@ -178,53 +228,6 @@ void SrsConsumer::shrink()
 	}
 }
 
-int SrsConsumer::jitter_correct(SrsSharedPtrMessage* msg, int audio_sample_rate, int video_frame_rate)
-{
-	int ret = ERROR_SUCCESS;
-	
-	/**
-	* we use a very simple time jitter detect/correct algorithm:
-	* 1. delta: ensure the delta is positive and valid,
-	* 	we set the delta to DEFAULT_FRAME_TIME_MS,
-	* 	if the delta of time is nagative or greater than CONST_MAX_JITTER_MS.
-	* 2. last_pkt_time: specifies the original packet time,
-	* 	is used to detect next jitter.
-	* 3. last_pkt_correct_time: simply add the positive delta, 
-	* 	and enforce the time monotonically.
-	*/
-	u_int32_t time = msg->header.timestamp;
-	int32_t delta = time - last_pkt_time;
-
-	// if jitter detected, reset the delta.
-	if (delta < 0 || delta > CONST_MAX_JITTER_MS) {
-		// calc the right diff by audio sample rate
-		if (msg->header.is_audio() && audio_sample_rate > 0) {
-			delta = (int32_t)(delta * 1000.0 / audio_sample_rate);
-		} else if (msg->header.is_video() && video_frame_rate > 0) {
-			delta = (int32_t)(delta * 1.0 / video_frame_rate);
-		} else {
-			delta = DEFAULT_FRAME_TIME_MS;
-		}
-
-		// sometimes, the time is absolute time, so correct it again.
-		if (delta < 0 || delta > CONST_MAX_JITTER_MS) {
-			delta = DEFAULT_FRAME_TIME_MS;
-		}
-		
-		srs_info("jitter detected, last_pts=%d, pts=%d, diff=%d, last_time=%d, time=%d, diff=%d",
-			last_pkt_time, time, time - last_pkt_time, last_pkt_correct_time, last_pkt_correct_time + delta, delta);
-	} else {
-		srs_verbose("timestamp no jitter. time=%d, last_pkt=%d, correct_to=%d", 
-			time, last_pkt_time, last_pkt_correct_time + delta);
-	}
-	
-	last_pkt_correct_time = srs_max(0, last_pkt_correct_time + delta);
-	msg->header.timestamp = last_pkt_correct_time;
-	last_pkt_time = time;
-	
-	return ret;
-}
-
 void SrsConsumer::clear()
 {
 	std::vector<SrsSharedPtrMessage*>::iterator it;
@@ -233,6 +236,18 @@ void SrsConsumer::clear()
 		srs_freep(msg);
 	}
 	msgs.clear();
+}
+
+std::map<std::string, SrsSource*> SrsSource::pool;
+
+SrsSource* SrsSource::find(std::string stream_url)
+{
+	if (pool.find(stream_url) == pool.end()) {
+		pool[stream_url] = new SrsSource(stream_url);
+		srs_verbose("create new source for url=%s", stream_url.c_str());
+	}
+	
+	return pool[stream_url];
 }
 
 SrsSource::SrsSource(std::string _stream_url)

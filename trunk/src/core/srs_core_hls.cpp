@@ -41,6 +41,7 @@ SrsHLS::SrsHLS()
 	codec = new SrsCodec();
 	sample = new SrsCodecSample();
 	muxer = NULL;
+	jitter = new SrsRtmpJitter();
 }
 
 SrsHLS::~SrsHLS()
@@ -48,6 +49,7 @@ SrsHLS::~SrsHLS()
 	srs_freep(codec);
 	srs_freep(sample);
 	srs_freep(muxer);
+	srs_freep(jitter);
 }
 
 int SrsHLS::on_publish(std::string _vhost)

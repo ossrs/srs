@@ -38,6 +38,7 @@ class SrsCodecBuffer;
 class SrsMpegtsFrame;
 class SrsTSMuxer;
 class SrsCodec;
+class SrsRtmpJitter;
 
 class SrsHLS
 {
@@ -47,6 +48,7 @@ private:
 	SrsCodec* codec;
 	SrsCodecSample* sample;
 	SrsTSMuxer* muxer;
+	SrsRtmpJitter* jitter;
 public:
 	SrsHLS();
 	virtual ~SrsHLS();

@@ -41,13 +41,35 @@ class SrsSharedPtrMessage;
 class SrsHLS;
 
 /**
+* time jitter detect and correct,
+* to ensure the rtmp stream is monotonically.
+*/
+class SrsRtmpJitter
+{
+private:
+	u_int32_t last_pkt_time;
+	u_int32_t last_pkt_correct_time;
+public:
+	SrsRtmpJitter();
+	virtual ~SrsRtmpJitter();
+public:
+	/**
+	* detect the time jitter and correct it.
+	*/
+	virtual int correct(SrsSharedPtrMessage* msg, int audio_sample_rate, int video_frame_rate);
+	/**
+	* get current client time, the last packet time.
+	*/
+	virtual int get_time();
+};
+
+/**
 * the consumer for SrsSource, that is a play client.
 */
 class SrsConsumer
 {
 private:
-	u_int32_t last_pkt_time;
-	u_int32_t last_pkt_correct_time;
+	SrsRtmpJitter* jitter;
 	SrsSource* source;
 	std::vector<SrsSharedPtrMessage*> msgs;
 	bool paused;
@@ -82,10 +104,6 @@ private:
 	* remove to cache only one gop.
 	*/
 	virtual void shrink();
-	/**
-	* detect the time jitter and correct it.
-	*/
-	virtual int jitter_correct(SrsSharedPtrMessage* msg, int audio_sample_rate, int video_frame_rate);
 	virtual void clear();
 };
 
