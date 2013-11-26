@@ -34,6 +34,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_amf0.hpp>
 #include <srs_core_protocol.hpp>
 #include <srs_core_config.hpp>
+#include <srs_core_source.hpp>
+#include <srs_core_autofree.hpp>
 
 SrsHLS::SrsHLS()
 {
@@ -56,10 +58,10 @@ int SrsHLS::on_publish(std::string _vhost)
 {
 	int ret = ERROR_SUCCESS;
 
+	// TODO: check config.
 	if (muxer) {
-		ret = ERROR_HLS_BUSY;
-		srs_error("hls is busy, something error, "
-			"vhost=%s, ret=%d", _vhost.c_str(), ret);
+		hls_enabled = true;
+		srs_trace("hls is reopen, continue streaming HLS, vhost=%s", _vhost.c_str());
 		return ret;
 	}
 	
@@ -96,8 +98,8 @@ int SrsHLS::on_publish(std::string _vhost)
 void SrsHLS::on_unpublish()
 {
 	hls_enabled = false;
-	muxer->close();
-	srs_freep(muxer);
+	//muxer->close();
+	//srs_freep(muxer);
 }
 
 int SrsHLS::on_meta_data(SrsOnMetaDataPacket* metadata)
@@ -152,9 +154,11 @@ int SrsHLS::on_meta_data(SrsOnMetaDataPacket* metadata)
 	return ret;
 }
 
-int SrsHLS::on_audio(SrsCommonMessage* audio)
+int SrsHLS::on_audio(SrsSharedPtrMessage* audio)
 {
 	int ret = ERROR_SUCCESS;
+	
+	SrsAutoFree(SrsSharedPtrMessage, audio, false);
 	
 	sample->clear();
 	if ((ret = codec->audio_aac_demux(audio->payload, audio->size, sample)) != ERROR_SUCCESS) {
@@ -175,19 +179,22 @@ int SrsHLS::on_audio(SrsCommonMessage* audio)
 		return ret;
 	}
 	
-	u_int32_t timestamp = audio->header.timestamp;
-	// TODO: correct the timestamp.
+	if ((ret = jitter->correct(audio, 0, 0)) != ERROR_SUCCESS) {
+		return ret;
+	}
 	
-	if ((ret = muxer->write_audio(timestamp, codec, sample)) != ERROR_SUCCESS) {
+	if ((ret = muxer->write_audio(audio->header.timestamp, codec, sample)) != ERROR_SUCCESS) {
 		return ret;
 	}
 	
 	return ret;
 }
 
-int SrsHLS::on_video(SrsCommonMessage* video)
+int SrsHLS::on_video(SrsSharedPtrMessage* video)
 {
 	int ret = ERROR_SUCCESS;
+	
+	SrsAutoFree(SrsSharedPtrMessage, video, false);
 	
 	sample->clear();
 	if ((ret = codec->video_avc_demux(video->payload, video->size, sample)) != ERROR_SUCCESS) {
@@ -208,10 +215,11 @@ int SrsHLS::on_video(SrsCommonMessage* video)
 		return ret;
 	}
 	
-	u_int32_t timestamp = video->header.timestamp;
-	// TODO: correct the timestamp.
+	if ((ret = jitter->correct(video, 0, 0)) != ERROR_SUCCESS) {
+		return ret;
+	}
 	
-	if ((ret = muxer->write_video(timestamp, codec, sample)) != ERROR_SUCCESS) {
+	if ((ret = muxer->write_video(video->header.timestamp, codec, sample)) != ERROR_SUCCESS) {
 		return ret;
 	}
 	

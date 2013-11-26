@@ -32,7 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string>
 
 class SrsOnMetaDataPacket;
-class SrsCommonMessage;
+class SrsSharedPtrMessage;
 class SrsCodecSample;
 class SrsCodecBuffer;
 class SrsMpegtsFrame;
@@ -56,8 +56,8 @@ public:
 	virtual int on_publish(std::string _vhost);
 	virtual void on_unpublish();
 	virtual int on_meta_data(SrsOnMetaDataPacket* metadata);
-	virtual int on_audio(SrsCommonMessage* audio);
-	virtual int on_video(SrsCommonMessage* video);
+	virtual int on_audio(SrsSharedPtrMessage* audio);
+	virtual int on_video(SrsSharedPtrMessage* video);
 };
 
 class SrsTSMuxer

@@ -56,7 +56,7 @@ public:
 	/**
 	* detect the time jitter and correct it.
 	*/
-	virtual int correct(SrsSharedPtrMessage* msg, int audio_sample_rate, int video_frame_rate);
+	virtual int correct(SrsSharedPtrMessage* msg, int tba, int tbv);
 	/**
 	* get current client time, the last packet time.
 	*/
@@ -83,10 +83,12 @@ public:
 	virtual int get_time();
 	/**
 	* enqueue an shared ptr message.
-	* @param audio_sample_rate used to calc the audio time delta if time-jitter detected.
-	* @param video_frame_rate used to calc the video time delta if time-jitter detected.
+	* @param tba timebase of audio.
+	* 		used to calc the audio time delta if time-jitter detected.
+	* @param tbv timebase of video.
+	*		used to calc the video time delta if time-jitter detected.
 	*/
-	virtual int enqueue(SrsSharedPtrMessage* msg, int audio_sample_rate, int video_frame_rate);
+	virtual int enqueue(SrsSharedPtrMessage* msg, int tba, int tbv);
 	/**
 	* get packets in consumer queue.
 	* @pmsgs SrsMessages*[], output the prt array.

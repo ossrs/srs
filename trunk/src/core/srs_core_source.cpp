@@ -45,9 +45,12 @@ SrsRtmpJitter::~SrsRtmpJitter()
 {
 }
 
-int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, int audio_sample_rate, int video_frame_rate)
+int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, int tba, int tbv)
 {
 	int ret = ERROR_SUCCESS;
+	
+	int audio_sample_rate = tba;
+	int video_frame_rate = tbv;
 	
 	/**
 	* we use a very simple time jitter detect/correct algorithm:
@@ -117,11 +120,12 @@ int SrsConsumer::get_time()
 	return jitter->get_time();
 }
 
-int SrsConsumer::enqueue(SrsSharedPtrMessage* msg, int audio_sample_rate, int video_frame_rate)
+int SrsConsumer::enqueue(SrsSharedPtrMessage* msg, int tba, int tbv)
 {
 	int ret = ERROR_SUCCESS;
 	
-	if ((ret = jitter->correct(msg, audio_sample_rate, video_frame_rate)) != ERROR_SUCCESS) {
+	if ((ret = jitter->correct(msg, tba, tbv)) != ERROR_SUCCESS) {
+		srs_freep(msg);
 		return ret;
 	}
 	
@@ -351,11 +355,6 @@ int SrsSource::on_audio(SrsCommonMessage* audio)
 {
 	int ret = ERROR_SUCCESS;
 	
-	if ((ret = hls->on_audio(audio)) != ERROR_SUCCESS) {
-		srs_error("hls process audio message failed. ret=%d", ret);
-		return ret;
-	}
-	
 	SrsSharedPtrMessage* msg = new SrsSharedPtrMessage();
 	SrsAutoFree(SrsSharedPtrMessage, msg, false);
 	if ((ret = msg->initialize(audio, (char*)audio->payload, audio->size)) != ERROR_SUCCESS) {
@@ -363,6 +362,11 @@ int SrsSource::on_audio(SrsCommonMessage* audio)
 		return ret;
 	}
 	srs_verbose("initialize shared ptr audio success.");
+	
+	if ((ret = hls->on_audio(msg->copy())) != ERROR_SUCCESS) {
+		srs_error("hls process audio message failed. ret=%d", ret);
+		return ret;
+	}
 	
 	// detach the original audio
 	audio->payload = NULL;
@@ -401,11 +405,6 @@ int SrsSource::on_video(SrsCommonMessage* video)
 {
 	int ret = ERROR_SUCCESS;
 	
-	if ((ret = hls->on_video(video)) != ERROR_SUCCESS) {
-		srs_error("hls process video message failed. ret=%d", ret);
-		return ret;
-	}
-	
 	SrsSharedPtrMessage* msg = new SrsSharedPtrMessage();
 	SrsAutoFree(SrsSharedPtrMessage, msg, false);
 	if ((ret = msg->initialize(video, (char*)video->payload, video->size)) != ERROR_SUCCESS) {
@@ -413,6 +412,11 @@ int SrsSource::on_video(SrsCommonMessage* video)
 		return ret;
 	}
 	srs_verbose("initialize shared ptr video success.");
+	
+	if ((ret = hls->on_video(msg->copy())) != ERROR_SUCCESS) {
+		srs_error("hls process video message failed. ret=%d", ret);
+		return ret;
+	}
 	
 	// detach the original audio
 	video->payload = NULL;
