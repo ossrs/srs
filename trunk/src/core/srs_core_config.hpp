@@ -38,6 +38,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RTMP_VHOST_DEFAULT "__defaultVhost__"
 
 #define SRS_CONF_DEFAULT_HLS_PATH "./objs/nginx/html"
+#define SRS_CONF_DEFAULT_HLS_FRAGMENT 10
+#define SRS_CONF_DEFAULT_HLS_WINDOW 60
 
 class SrsFileBuffer
 {
@@ -111,6 +113,8 @@ public:
 	virtual SrsConfDirective* get_gop_cache(std::string vhost);
 	virtual SrsConfDirective* get_hls(std::string vhost);
 	virtual SrsConfDirective* get_hls_path(std::string vhost);
+	virtual SrsConfDirective* get_hls_fragment(std::string vhost);
+	virtual SrsConfDirective* get_hls_window(std::string vhost);
 	virtual SrsConfDirective* get_refer(std::string vhost);
 	virtual SrsConfDirective* get_refer_play(std::string vhost);
 	virtual SrsConfDirective* get_refer_publish(std::string vhost);

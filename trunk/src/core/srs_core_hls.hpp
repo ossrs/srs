@@ -74,6 +74,8 @@ private:
 	std::string stream;
 	std::string app;
 	std::string hls_path;
+	int hls_fragment;
+	int hls_window;
 private:
 	int file_index;
 	std::string m3u8;

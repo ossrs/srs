@@ -370,6 +370,7 @@ SrsHLS::SrsHLS()
 	jitter = new SrsRtmpJitter();
 	file_index = 0;
 	m3u8_dts = stream_dts = 0;
+	hls_fragment = hls_window = 0;
 	
 	audio_buffer = new SrsCodecBuffer();
 	video_buffer = new SrsCodecBuffer();
@@ -410,6 +411,23 @@ int SrsHLS::on_publish(std::string _vhost, std::string _app, std::string _stream
 	vhost = _vhost;
 	stream = _stream;
 	app = _app;
+	
+	// TODO: subscribe the reload event.
+	
+	SrsConfDirective* conf = NULL;
+	if ((conf = config->get_hls_fragment(vhost)) != NULL && !conf->arg0().empty()) {
+		hls_fragment = ::atoi(conf->arg0().c_str());
+	}
+	if (hls_fragment <= 0) {
+		hls_fragment = SRS_CONF_DEFAULT_HLS_FRAGMENT;
+	}
+	
+	if ((conf = config->get_hls_window(vhost)) != NULL && !conf->arg0().empty()) {
+		hls_window = ::atoi(conf->arg0().c_str());
+	}
+	if (hls_window <= 0) {
+		hls_window = SRS_CONF_DEFAULT_HLS_WINDOW;
+	}
 	
 	if ((ret = reopen()) != ERROR_SUCCESS) {
 		return ret;
@@ -555,9 +573,7 @@ int SrsHLS::on_video(SrsSharedPtrMessage* video)
 	// reopen the muxer for a gop
 	if (sample->frame_type == SrsCodecVideoAVCFrameKeyFrame) {
 		int64_t diff = stream_dts - m3u8_dts;
-		// 10s.
-		// TODO: config it.
-		if (diff / 90000 >= 10) {
+		if (diff / 90000 >= hls_fragment) {
 			if ((ret = reopen()) != ERROR_SUCCESS) {
 				return ret;
 			}
@@ -603,12 +619,39 @@ int SrsHLS::reopen()
 		segments.push_back(current);
 		current = NULL;
 		
+		// the segments to remove
+		std::vector<SrsM3u8Segment*> segment_to_remove;
+		
+		// shrink the segments.
+		double duration = 0;
+		std::vector<SrsM3u8Segment*>::reverse_iterator it;
+		for (it = segments.rbegin(); it != segments.rend(); ++it) {
+			SrsM3u8Segment* segment = *it;
+			duration += segment->duration;
+			
+			if ((int)duration > hls_window) {
+				segment_to_remove.push_back(segment);
+			}
+		}
+		if (!segment_to_remove.empty()) {
+			segments.erase(segments.begin(), segments.begin() + segment_to_remove.size());
+		}
+		
+		// refresh the m3u8, donot contains the removed ts
 		if ((ret = refresh_m3u8()) != ERROR_SUCCESS) {
 			return ret;
+		}
+		
+		// remove the ts file.
+		for (it = segment_to_remove.rbegin(); it != segment_to_remove.rend(); ++it) {
+			SrsM3u8Segment* segment = *it;
+			unlink(segment->full_path.c_str());
+			srs_freep(segment);
 		}
 	}
 	// new segment.
 	current = new SrsM3u8Segment();
+	current->sequence_no = file_index;
 	m3u8_dts = current->segment_start_dts = stream_dts;
 	
 	// generate filename.
