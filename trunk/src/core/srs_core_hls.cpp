@@ -579,12 +579,9 @@ int SrsTSMuxer::write_audio(u_int32_t time, SrsCodec* codec, SrsCodecSample* sam
 {
 	int ret = ERROR_SUCCESS;
 	
-	if (!audio_frame) {
-		audio_frame = new SrsMpegtsFrame();
-		audio_frame->dts = audio_frame->pts = time * 90;
-		audio_frame->pid = TS_AUDIO_PID;
-		audio_frame->sid = TS_AUDIO_AAC;
-	}
+	audio_frame->dts = audio_frame->pts = time * 90;
+	audio_frame->pid = TS_AUDIO_PID;
+	audio_frame->sid = TS_AUDIO_AAC;
 	
 	for (int i = 0; i < sample->nb_buffers; i++) {
 		SrsCodecBuffer* buf = &sample->buffers[i];
@@ -649,7 +646,6 @@ int SrsTSMuxer::write_audio(u_int32_t time, SrsCodec* codec, SrsCodecSample* sam
 	if ((ret = SrsMpegtsWriter::write_frame(fd, audio_frame, audio_buffer)) != ERROR_SUCCESS) {
 		return ret;
 	}
-	srs_freep(audio_frame);
 	
 	return ret;
 }
