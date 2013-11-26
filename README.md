@@ -19,7 +19,11 @@ step 2: start srs <br/>
 <pre>
 ./objs/simple_rtmp_server -c conf/srs.conf
 </pre>
-step 3: publish live stream <br/>
+step 3(optional): start nginx for HLS <br/>
+<pre>
+sudo ./objs/nginx/_release/sbin/nginx
+</pre>
+step 4: publish live stream <br/>
 <pre>
 FMS URL: rtmp://127.0.0.1:1935/live
 Stream:  livestream
@@ -27,7 +31,7 @@ For example, use ffmpeg to publish:
     ffmpeg -re -i source.flv -vcodec copy -acodec copy \
     -f flv -y rtmp://127.0.0.1:1935/live/livestream
 </pre>
-step 4: play live stream <br/>
+step 5: play live stream <br/>
 <pre>
 rtmp url: rtmp://127.0.0.1:1935/live/livestream
 m3u8 url: http://127.0.0.1:1935/live/livestream.m3u8
