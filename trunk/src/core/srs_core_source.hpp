@@ -143,15 +143,10 @@ public:
 	SrsSource(std::string _stream_url);
 	virtual ~SrsSource();
 public:
-	/**
-	* get the hls handler, which has a long lifecycle
-	* util the source destroyed.
-	*/
-	virtual SrsHLS* get_hls();
-public:
 	virtual int on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);
 	virtual int on_audio(SrsCommonMessage* audio);
 	virtual int on_video(SrsCommonMessage* video);
+	virtual int on_publish(std::string vhost);
 	virtual void on_unpublish();
 public:
 	virtual int create_consumer(SrsConsumer*& consumer);

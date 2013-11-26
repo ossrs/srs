@@ -35,6 +35,7 @@ class SrsOnMetaDataPacket;
 class SrsCommonMessage;
 class SrsCodecSample;
 class SrsCodecBuffer;
+class SrsMpegtsFrame;
 class SrsTSMuxer;
 class SrsCodec;
 
@@ -57,35 +58,15 @@ public:
 	virtual int on_video(SrsCommonMessage* video);
 };
 
-// @see: ngx_rtmp_mpegts_frame_t
-struct mpegts_frame
-{
-    int64_t		pts;
-    int64_t		dts;
-    int  		pid;
-    int			sid;
-    int			cc;
-    bool		key;
-    
-    mpegts_frame()
-    {
-        pts = dts = 0;
-        pid = sid = cc = 0;
-        key = false;
-    }
-};
-
 class SrsTSMuxer
 {
 private:
 	int fd;
 	std::string path;
 private:
-	bool got_iframe;
-	int64_t base_dts;
-	mpegts_frame audio_frame;
+	SrsMpegtsFrame* audio_frame;
 	SrsCodecBuffer* audio_buffer;
-	mpegts_frame video_frame;
+	SrsMpegtsFrame* video_frame;
 	SrsCodecBuffer* video_buffer;
 public:
 	SrsTSMuxer();

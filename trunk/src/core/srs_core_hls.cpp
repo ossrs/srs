@@ -281,6 +281,24 @@ u_int8_t mpegts_header[] = {
 // 63000: 700ms, ts_tbn=90000
 #define SRS_HLS_DELAY 63000
 
+// @see: ngx_rtmp_SrsMpegtsFrame_t
+struct SrsMpegtsFrame
+{
+    int64_t		pts;
+    int64_t		dts;
+    int  		pid;
+    int			sid;
+    int			cc;
+    bool		key;
+    
+    SrsMpegtsFrame()
+    {
+        pts = dts = 0;
+        pid = sid = cc = 0;
+        key = false;
+    }
+};
+
 // @see: ngx_rtmp_mpegts.c
 // TODO: support full mpegts feature in future.
 class SrsMpegtsWriter
@@ -298,7 +316,7 @@ public:
 
 		return ret;
 	}
-	static int write_frame(int fd, mpegts_frame* frame, SrsCodecBuffer* buffer)
+	static int write_frame(int fd, SrsMpegtsFrame* frame, SrsCodecBuffer* buffer)
 	{
 		int ret = ERROR_SUCCESS;
 		
@@ -512,13 +530,11 @@ SrsTSMuxer::SrsTSMuxer()
 {
 	fd = -1;
 	
-	// ffmpeg set the start time to the delay time.
-	base_dts = SRS_HLS_DELAY;
-	
 	audio_buffer = new SrsCodecBuffer();
 	video_buffer = new SrsCodecBuffer();
-
-	got_iframe = false;
+	
+	audio_frame = new SrsMpegtsFrame();
+	video_frame = new SrsMpegtsFrame();
 }
 
 SrsTSMuxer::~SrsTSMuxer()
@@ -530,6 +546,9 @@ SrsTSMuxer::~SrsTSMuxer()
 	
 	srs_freep(audio_buffer);
 	srs_freep(video_buffer);
+	
+	srs_freep(audio_frame);
+	srs_freep(video_frame);
 }
 
 int SrsTSMuxer::open(std::string _path)
@@ -560,9 +579,12 @@ int SrsTSMuxer::write_audio(u_int32_t time, SrsCodec* codec, SrsCodecSample* sam
 {
 	int ret = ERROR_SUCCESS;
 	
-	audio_frame.dts = audio_frame.pts = base_dts + time * 90;
-	audio_frame.pid = TS_AUDIO_PID;
-	audio_frame.sid = TS_AUDIO_AAC;
+	if (!audio_frame) {
+		audio_frame = new SrsMpegtsFrame();
+		audio_frame->dts = audio_frame->pts = time * 90;
+		audio_frame->pid = TS_AUDIO_PID;
+		audio_frame->sid = TS_AUDIO_AAC;
+	}
 	
 	for (int i = 0; i < sample->nb_buffers; i++) {
 		SrsCodecBuffer* buf = &sample->buffers[i];
@@ -631,18 +653,11 @@ int SrsTSMuxer::write_video(u_int32_t time, SrsCodec* codec, SrsCodecSample* sam
 {
 	int ret = ERROR_SUCCESS;
 	
-	video_frame.dts = base_dts + time * 90;
-	video_frame.pts = video_frame.dts + sample->cts * 90;
-	video_frame.pid = TS_VIDEO_PID;
-	video_frame.sid = TS_VIDEO_AVC;
-	video_frame.key = sample->frame_type == SrsCodecVideoAVCFrameKeyFrame;
-	
-	if (video_frame.key) {
-		got_iframe = true;
-	}
-	if (!got_iframe) {
-		return ret;
-	}
+	video_frame->dts = time * 90;
+	video_frame->pts = video_frame->dts + sample->cts * 90;
+	video_frame->pid = TS_VIDEO_PID;
+	video_frame->sid = TS_VIDEO_AVC;
+	video_frame->key = sample->frame_type == SrsCodecVideoAVCFrameKeyFrame;
 	
 	static u_int8_t aud_nal[] = { 0x00, 0x00, 0x00, 0x01, 0x09, 0xf0 };
 	video_buffer->append(aud_nal, sizeof(aud_nal));
@@ -669,8 +684,12 @@ int SrsTSMuxer::write_video(u_int32_t time, SrsCodec* codec, SrsCodecSample* sam
 		if (nal_unit_type == 1) {
 			sps_pps_sent = false;
 		}
-		// 5: Coded slice of an IDR picture
+		// 5: Coded slice of an IDR picture.
+		// insert sps/pps before IDR or key frame is ok.
 		if (nal_unit_type == 5 && !sps_pps_sent) {
+		//if (video_frame->key && !sps_pps_sent) {
+			sps_pps_sent = true;
+			
 			// ngx_rtmp_hls_append_sps_pps
 			if (codec->sequenceParameterSetLength > 0) {
 				// AnnexB prefix
@@ -700,12 +719,14 @@ int SrsTSMuxer::write_video(u_int32_t time, SrsCodec* codec, SrsCodecSample* sam
 		video_buffer->append(buf->bytes, buf->size);
 	}
 	
-	if ((ret = SrsMpegtsWriter::write_frame(fd, &video_frame, video_buffer)) != ERROR_SUCCESS) {
+	if ((ret = SrsMpegtsWriter::write_frame(fd, video_frame, video_buffer)) != ERROR_SUCCESS) {
 		return ret;
 	}
-	if ((ret = SrsMpegtsWriter::write_frame(fd, &audio_frame, audio_buffer)) != ERROR_SUCCESS) {
+	
+	if ((ret = SrsMpegtsWriter::write_frame(fd, audio_frame, audio_buffer)) != ERROR_SUCCESS) {
 		return ret;
 	}
+	srs_freep(audio_frame);
 	
 	return ret;
 }

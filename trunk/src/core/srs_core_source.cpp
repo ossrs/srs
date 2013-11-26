@@ -266,14 +266,14 @@ SrsSource::~SrsSource()
 	srs_freep(hls);
 }
 
-SrsHLS* SrsSource::get_hls()
-{
-	return hls;
-}
-
 int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata)
 {
 	int ret = ERROR_SUCCESS;
+	
+	if ((ret = hls->on_meta_data(metadata)) != ERROR_SUCCESS) {
+		srs_error("hls process onMetaData message failed. ret=%d", ret);
+		return ret;
+	}
 	
 	metadata->metadata->set("server", new SrsAmf0String(
 		RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
@@ -336,6 +336,11 @@ int SrsSource::on_audio(SrsCommonMessage* audio)
 {
 	int ret = ERROR_SUCCESS;
 	
+	if ((ret = hls->on_audio(audio)) != ERROR_SUCCESS) {
+		srs_error("hls process audio message failed. ret=%d", ret);
+		return ret;
+	}
+	
 	SrsSharedPtrMessage* msg = new SrsSharedPtrMessage();
 	SrsAutoFree(SrsSharedPtrMessage, msg, false);
 	if ((ret = msg->initialize(audio, (char*)audio->payload, audio->size)) != ERROR_SUCCESS) {
@@ -381,6 +386,11 @@ int SrsSource::on_video(SrsCommonMessage* video)
 {
 	int ret = ERROR_SUCCESS;
 	
+	if ((ret = hls->on_video(video)) != ERROR_SUCCESS) {
+		srs_error("hls process video message failed. ret=%d", ret);
+		return ret;
+	}
+	
 	SrsSharedPtrMessage* msg = new SrsSharedPtrMessage();
 	SrsAutoFree(SrsSharedPtrMessage, msg, false);
 	if ((ret = msg->initialize(video, (char*)video->payload, video->size)) != ERROR_SUCCESS) {
@@ -422,8 +432,15 @@ int SrsSource::on_video(SrsCommonMessage* video)
 	return ret;
 }
 
+int SrsSource::on_publish(std::string vhost)
+{
+	return hls->on_publish(vhost);
+}
+
 void SrsSource::on_unpublish()
 {
+	hls->on_unpublish();
+	
 	clear_gop_cache();
 
 	srs_freep(cache_metadata);
