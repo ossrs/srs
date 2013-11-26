@@ -1373,7 +1373,10 @@ int SrsSharedPtrMessage::initialize(ISrsMessage* msg, char* payload, int size)
 	header.payload_length = size;
 	
 	ptr = new SrsSharedPtr();
-	ptr->payload = payload;
+	
+	// should copy the payload once
+	ptr->payload = new char[size];
+	memcpy(ptr->payload, payload, size);
 	ptr->size = size;
 	
 	if (msg->header.is_video()) {
