@@ -452,9 +452,9 @@ int SrsSource::on_video(SrsCommonMessage* video)
 	return ret;
 }
 
-int SrsSource::on_publish(std::string vhost, std::string stream)
+int SrsSource::on_publish(std::string vhost, std::string app, std::string stream)
 {
-	return hls->on_publish(vhost, stream);
+	return hls->on_publish(vhost, app, stream);
 }
 
 void SrsSource::on_unpublish()

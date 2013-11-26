@@ -72,6 +72,7 @@ class SrsHLS
 private:
 	std::string vhost;
 	std::string stream;
+	std::string app;
 	std::string hls_path;
 private:
 	int file_index;
@@ -103,7 +104,7 @@ public:
 	SrsHLS();
 	virtual ~SrsHLS();
 public:
-	virtual int on_publish(std::string _vhost, std::string _stream);
+	virtual int on_publish(std::string _vhost, std::string _app, std::string _stream);
 	virtual void on_unpublish();
 	virtual int on_meta_data(SrsOnMetaDataPacket* metadata);
 	virtual int on_audio(SrsSharedPtrMessage* audio);
@@ -111,7 +112,8 @@ public:
 private:
 	virtual int reopen();
 	virtual int refresh_m3u8();
-	virtual int _refresh_m3u8(int& fd);
+	virtual int _refresh_m3u8(int& fd, std::string m3u8_file);
+	virtual int create_dir();
 };
 
 class SrsTSMuxer

@@ -166,7 +166,7 @@ public:
 	virtual int on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);
 	virtual int on_audio(SrsCommonMessage* audio);
 	virtual int on_video(SrsCommonMessage* video);
-	virtual int on_publish(std::string vhost, std::string stream);
+	virtual int on_publish(std::string vhost, std::string app, std::string stream);
 	virtual void on_unpublish();
 public:
 	virtual int create_consumer(SrsConsumer*& consumer);

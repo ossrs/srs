@@ -403,12 +403,13 @@ SrsHLS::~SrsHLS()
 	srs_freep(video_frame);
 }
 
-int SrsHLS::on_publish(std::string _vhost, std::string _stream)
+int SrsHLS::on_publish(std::string _vhost, std::string _app, std::string _stream)
 {
 	int ret = ERROR_SUCCESS;
 
 	vhost = _vhost;
 	stream = _stream;
+	app = _app;
 	
 	if ((ret = reopen()) != ERROR_SUCCESS) {
 		return ret;
@@ -555,6 +556,7 @@ int SrsHLS::on_video(SrsSharedPtrMessage* video)
 	if (sample->frame_type == SrsCodecVideoAVCFrameKeyFrame) {
 		int64_t diff = stream_dts - m3u8_dts;
 		// 10s.
+		// TODO: config it.
 		if (diff / 90000 >= 10) {
 			if ((ret = reopen()) != ERROR_SUCCESS) {
 				return ret;
@@ -590,6 +592,11 @@ int SrsHLS::reopen()
 		hls_path = conf->arg0();
 	}
 	
+	// create dir for app.
+	if ((ret = create_dir()) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
 	// start new segment.
 	if (current) {
 		current->duration = (stream_dts - current->segment_start_dts) / 90000.0;
@@ -610,6 +617,8 @@ int SrsHLS::reopen()
 	
 	current->full_path = hls_path;
 	current->full_path += "/";
+	current->full_path += app;
+	current->full_path += "/";
 	current->full_path += filename;
 	
 	// TODO: support base url, and so on.
@@ -619,7 +628,7 @@ int SrsHLS::reopen()
 		srs_error("open hls muxer failed. ret=%d", ret);
 		return ret;
 	}
-	srs_trace("open HLS muxer success. vhost=%s, path=%s", vhost.c_str(), current->full_path.c_str());
+	srs_info("open HLS muxer success. vhost=%s, path=%s", vhost.c_str(), current->full_path.c_str());
 	
 	return ret;
 }
@@ -628,16 +637,33 @@ int SrsHLS::refresh_m3u8()
 {
 	int ret = ERROR_SUCCESS;
 	
+	std::string m3u8_file = hls_path;
+	m3u8_file += "/";
+	m3u8_file += app;
+	m3u8_file += "/";
+	m3u8_file += stream;
+	m3u8_file += ".m3u8";
+	
+	m3u8 = m3u8_file;
+	m3u8_file += ".temp";
+	
 	int fd = -1;
-	ret = _refresh_m3u8(fd);
+	ret = _refresh_m3u8(fd, m3u8_file);
 	if (fd >= 0) {
 		close(fd);
+		if (rename(m3u8_file.c_str(), m3u8.c_str()) < 0) {
+			ret = ERROR_HLS_WRITE_FAILED;
+			srs_error("rename m3u8 file failed. ret=%d", ret);
+		}
 	}
+	
+	// remove the temp file.
+	unlink(m3u8_file.c_str());
 	
 	return ret;
 }
 
-int SrsHLS::_refresh_m3u8(int& fd)
+int SrsHLS::_refresh_m3u8(int& fd, std::string m3u8_file)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -646,19 +672,14 @@ int SrsHLS::_refresh_m3u8(int& fd)
 		return ret;
 	}
 	
-	m3u8 = hls_path;
-	m3u8 += "/";
-	m3u8 += stream;
-	m3u8 += ".m3u8";
-	
 	int flags = O_CREAT|O_WRONLY|O_TRUNC;
 	mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
-	if ((fd = ::open(m3u8.c_str(), flags, mode)) < 0) {
+	if ((fd = ::open(m3u8_file.c_str(), flags, mode)) < 0) {
 		ret = ERROR_HLS_OPEN_FAILED;
-		srs_error("open m3u8 file %s failed. ret=%d", m3u8.c_str(), ret);
+		srs_error("open m3u8 file %s failed. ret=%d", m3u8_file.c_str(), ret);
 		return ret;
 	}
-	srs_info("open m3u8 file %s success.", m3u8.c_str());
+	srs_info("open m3u8 file %s success.", m3u8_file.c_str());
 	
 	// #EXTM3U\n#EXT-X-VERSION:3\n
 	char header[] = {
@@ -728,8 +749,31 @@ int SrsHLS::_refresh_m3u8(int& fd)
 		}
 		srs_verbose("write m3u8 segment uri success.");
 	}
-	srs_info("write m3u8 %s success.", m3u8.c_str());
+	srs_info("write m3u8 %s success.", m3u8_file.c_str());
 	
+	return ret;
+}
+
+int SrsHLS::create_dir()
+{
+	int ret = ERROR_SUCCESS;
+	
+	std::string app_dir = hls_path;
+	app_dir += "/";
+	app_dir += app;
+	
+	// TODO: cleanup the dir when startup.
+
+	mode_t mode = S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_IROTH|S_IXOTH;
+	if (::mkdir(app_dir.c_str(), mode) < 0) {
+		if (errno != EEXIST) {
+			ret = ERROR_HLS_CREATE_DIR;
+			srs_error("create app dir %s failed. ret=%d", app_dir.c_str(), ret);
+			return ret;
+		}
+	}
+	srs_info("create app dir %s success.", app_dir.c_str());
+
 	return ret;
 }
 
