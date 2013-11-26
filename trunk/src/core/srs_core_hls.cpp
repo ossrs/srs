@@ -357,7 +357,6 @@ SrsM3u8Segment::SrsM3u8Segment()
 
 SrsM3u8Segment::~SrsM3u8Segment()
 {
-	muxer->close();
 	srs_freep(muxer);
 }
 
