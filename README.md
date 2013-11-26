@@ -21,7 +21,7 @@ step 2: start srs <br/>
 </pre>
 step 3(optional): start nginx for HLS <br/>
 <pre>
-sudo ./objs/nginx/_release/sbin/nginx
+sudo ./objs/nginx/sbin/nginx
 </pre>
 step 4: publish live stream <br/>
 <pre>

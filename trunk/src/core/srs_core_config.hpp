@@ -37,7 +37,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // default vhost for rtmp
 #define RTMP_VHOST_DEFAULT "__defaultVhost__"
 
-#define SRS_CONF_DEFAULT_HLS_PATH "./hls"
+#define SRS_CONF_DEFAULT_HLS_PATH "./objs/nginx/html"
 
 class SrsFileBuffer
 {
