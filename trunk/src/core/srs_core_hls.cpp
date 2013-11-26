@@ -646,6 +646,11 @@ int SrsTSMuxer::write_audio(u_int32_t time, SrsCodec* codec, SrsCodecSample* sam
 		audio_buffer->append(buf->bytes, buf->size);
 	}
 	
+	if ((ret = SrsMpegtsWriter::write_frame(fd, audio_frame, audio_buffer)) != ERROR_SUCCESS) {
+		return ret;
+	}
+	srs_freep(audio_frame);
+	
 	return ret;
 }
 
@@ -722,11 +727,6 @@ int SrsTSMuxer::write_video(u_int32_t time, SrsCodec* codec, SrsCodecSample* sam
 	if ((ret = SrsMpegtsWriter::write_frame(fd, video_frame, video_buffer)) != ERROR_SUCCESS) {
 		return ret;
 	}
-	
-	if ((ret = SrsMpegtsWriter::write_frame(fd, audio_frame, audio_buffer)) != ERROR_SUCCESS) {
-		return ret;
-	}
-	srs_freep(audio_frame);
 	
 	return ret;
 }
