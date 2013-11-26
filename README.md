@@ -55,6 +55,7 @@ m3u8 url: http://127.0.0.1:1935/live/livestream.m3u8
 * 2013-10-17, created.<br/>
 
 ### Compare
+* srs v0.5: 14449 lines.<br/>
 * srs v0.4: 12500 lines.<br/>
 * srs v0.3: 11773 lines.<br/>
 * srs v0.2: 10125 lines.<br/>
