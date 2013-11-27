@@ -38,7 +38,7 @@ class SrsSource;
 class SrsCommonMessage;
 class SrsOnMetaDataPacket;
 class SrsSharedPtrMessage;
-class SrsHLS;
+class SrsHls;
 
 /**
 * time jitter detect and correct,
@@ -125,7 +125,7 @@ public:
 	*/
 	static SrsSource* find(std::string stream_url);
 private:
-	SrsHLS* hls;
+	SrsHls* hls;
 	std::string stream_url;
 	std::vector<SrsConsumer*> consumers;
 // gop cache for client fast startup.

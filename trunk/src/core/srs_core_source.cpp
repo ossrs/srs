@@ -257,7 +257,7 @@ SrsSource* SrsSource::find(std::string stream_url)
 SrsSource::SrsSource(std::string _stream_url)
 {
 	stream_url = _stream_url;
-	hls = new SrsHLS();
+	hls = new SrsHls();
 	
 	cache_metadata = cache_sh_video = cache_sh_audio = NULL;
 	

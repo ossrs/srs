@@ -159,7 +159,7 @@ int SrsCodec::audio_aac_demux(int8_t* data, int size, SrsCodecSample* sample)
 	
 	int8_t sound_type = sound_format & 0x01;
 	int8_t sound_size = (sound_format >> 1) & 0x01;
-	int8_t sound_rate = (sound_format >> 2) & 0x01;
+	int8_t sound_rate = (sound_format >> 2) & 0x03;
 	sound_format = (sound_format >> 4) & 0x0f;
 	
 	audio_codec_id = sound_format;
@@ -167,6 +167,25 @@ int SrsCodec::audio_aac_demux(int8_t* data, int size, SrsCodecSample* sample)
 	sample->sound_rate = (SrsCodecAudioSampleRate)sound_rate;
 	sample->sound_size = (SrsCodecAudioSampleSize)sound_size;
 	
+	// reset the sample rate by sequence header
+    static int aac_sample_rates[] = {
+    	96000, 88200, 64000, 48000,
+    	44100, 32000, 24000, 22050,
+    	16000, 12000, 11025,  8000,
+    	7350,     0,     0,    0
+    };
+    switch (aac_sample_rates[aac_sample_rate]) {
+        case 11025:
+        	sample->sound_rate = SrsCodecAudioSampleRate11025;
+        	break;
+        case 22050:
+        	sample->sound_rate = SrsCodecAudioSampleRate22050;
+        	break;
+        case 44100:
+        	sample->sound_rate = SrsCodecAudioSampleRate44100;
+        	break;
+    };
+    
 	// only support aac
 	if (audio_codec_id != SrsCodecAudioAAC) {
 		ret = ERROR_HLS_DECODE_ERROR;

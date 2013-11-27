@@ -269,9 +269,6 @@ public:
 			}
 		}
 		
-		// write success, clear and free the buffer
-		buffer->free();
-		
 		return ret;
 	}
 private:
@@ -360,16 +357,79 @@ SrsM3u8Segment::~SrsM3u8Segment()
 	srs_freep(muxer);
 }
 
-SrsHLS::SrsHLS()
+SrsHlsAacJitter::SrsHlsAacJitter()
+{
+	base_pts = 0;
+	nb_samples = 0;
+
+	// TODO: config it, 0 means no adjust
+	sync_ms = SRS_CONF_DEFAULT_AAC_SYNC;
+}
+
+SrsHlsAacJitter::~SrsHlsAacJitter()
+{
+}
+
+int64_t SrsHlsAacJitter::on_buffer_start(int64_t flv_pts, int sample_rate)
+{
+	// 0 = 5.5 kHz = 5512 Hz
+	// 1 = 11 kHz = 11025 Hz
+	// 2 = 22 kHz = 22050 Hz
+	// 3 = 44 kHz = 44100 Hz
+	static int flv_sample_rates[] = {5512, 11025, 22050, 44100};
+	int flv_sample_rate = flv_sample_rates[sample_rate & 0x03];
+
+	// sync time set to 0, donot adjust the aac timestamp.
+	if (!sync_ms) {
+		return flv_pts;
+	}
+	
+	// @see: ngx_rtmp_hls_audio
+    /* TODO: We assume here AAC frame size is 1024
+     *       Need to handle AAC frames with frame size of 960 */
+	int64_t est_pts = base_pts + nb_samples * 90000LL * 1024LL / flv_sample_rate;
+	int64_t dpts = (int64_t) (est_pts - flv_pts);
+
+    if (dpts <= (int64_t) sync_ms * 90 && dpts >= (int64_t) sync_ms * -90) {
+        srs_info("HLS correct aac pts "
+        	"from %"PRId64" to %"PRId64", base=%"PRId64", nb_samples=%d, sample_rate=%d",
+        	flv_pts, est_pts, nb_samples, flv_sample_rate, base_pts);
+
+		nb_samples++;
+		
+		return est_pts;
+    }
+    
+    // resync
+	srs_trace("HLS aac resync, dpts=%"PRId64", pts=%"PRId64
+		", base=%"PRId64", nb_samples=%"PRId64", sample_rate=%d",
+		dpts, flv_pts, base_pts, nb_samples, flv_sample_rate);
+	
+    base_pts = flv_pts;
+    nb_samples = 1;
+    
+    return flv_pts;
+}
+
+void SrsHlsAacJitter::on_buffer_continue()
+{
+	nb_samples++;
+}
+
+SrsHls::SrsHls()
 {
 	hls_enabled = false;
 	codec = new SrsCodec();
 	sample = new SrsCodecSample();
 	current = NULL;
 	jitter = new SrsRtmpJitter();
+	aac_jitter = new SrsHlsAacJitter();
 	file_index = 0;
-	m3u8_dts = stream_dts = 0;
+	audio_buffer_start_pts = m3u8_dts = stream_dts = 0;
 	hls_fragment = hls_window = 0;
+
+	// TODO: config it.
+	audio_delay = SRS_CONF_DEFAULT_AAC_DELAY;
 	
 	audio_buffer = new SrsCodecBuffer();
 	video_buffer = new SrsCodecBuffer();
@@ -378,11 +438,12 @@ SrsHLS::SrsHLS()
 	video_frame = new SrsMpegtsFrame();
 }
 
-SrsHLS::~SrsHLS()
+SrsHls::~SrsHls()
 {
 	srs_freep(codec);
 	srs_freep(sample);
 	srs_freep(jitter);
+	srs_freep(aac_jitter);
 
 	std::vector<SrsM3u8Segment*>::iterator it;
 	for (it = segments.begin(); it != segments.end(); ++it) {
@@ -403,7 +464,7 @@ SrsHLS::~SrsHLS()
 	srs_freep(video_frame);
 }
 
-int SrsHLS::on_publish(std::string _vhost, std::string _app, std::string _stream)
+int SrsHls::on_publish(std::string _vhost, std::string _app, std::string _stream)
 {
 	int ret = ERROR_SUCCESS;
 
@@ -435,12 +496,12 @@ int SrsHLS::on_publish(std::string _vhost, std::string _app, std::string _stream
 	return ret;
 }
 
-void SrsHLS::on_unpublish()
+void SrsHls::on_unpublish()
 {
 	hls_enabled = false;
 }
 
-int SrsHLS::on_meta_data(SrsOnMetaDataPacket* metadata)
+int SrsHls::on_meta_data(SrsOnMetaDataPacket* metadata)
 {
 	int ret = ERROR_SUCCESS;
 
@@ -492,7 +553,7 @@ int SrsHLS::on_meta_data(SrsOnMetaDataPacket* metadata)
 	return ret;
 }
 
-int SrsHLS::on_audio(SrsSharedPtrMessage* audio)
+int SrsHls::on_audio(SrsSharedPtrMessage* audio)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -523,18 +584,43 @@ int SrsHLS::on_audio(SrsSharedPtrMessage* audio)
 	
 	srs_assert(current);
 	
-	stream_dts = audio_frame->dts = audio_frame->pts = audio->header.timestamp * 90;
-	audio_frame->pid = TS_AUDIO_PID;
-	audio_frame->sid = TS_AUDIO_AAC;
+	// the pts calc from rtmp/flv header.
+	int64_t pts = audio->header.timestamp * 90;
 	
-	if ((ret = current->muxer->write_audio(audio_frame, audio_buffer, codec, sample)) != ERROR_SUCCESS) {
+	// flush if audio delay exceed
+	if (pts - audio_buffer_start_pts > audio_delay * 90) {
+		if ((ret = flush_audio()) != ERROR_SUCCESS) {
+			return ret;
+		}
+	}
+	
+	// start buffer, set the audio_frame
+	if (audio_buffer->size == 0) {
+		pts = aac_jitter->on_buffer_start(pts, sample->sound_rate);
+		
+		audio_frame->dts = audio_frame->pts = audio_buffer_start_pts = pts;
+		audio_frame->pid = TS_AUDIO_PID;
+		audio_frame->sid = TS_AUDIO_AAC;
+	} else {
+		aac_jitter->on_buffer_continue();
+	}
+	
+	// write audio to cache.
+	if ((ret = write_audio()) != ERROR_SUCCESS) {
 		return ret;
+	}
+	
+	// write cache to file.
+	if (audio_buffer->size > 1024 * 1024) {
+		if ((ret = flush_audio()) != ERROR_SUCCESS) {
+			return ret;
+		}
 	}
 	
 	return ret;
 }
 
-int SrsHLS::on_video(SrsSharedPtrMessage* video)
+int SrsHls::on_video(SrsSharedPtrMessage* video)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -563,6 +649,11 @@ int SrsHLS::on_video(SrsSharedPtrMessage* video)
 		return ret;
 	}
 	
+	// write video to cache.
+	if ((ret = write_video()) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
 	stream_dts = video_frame->dts = video->header.timestamp * 90;
 	video_frame->pts = video_frame->dts + sample->cts * 90;
 	video_frame->pid = TS_VIDEO_PID;
@@ -580,14 +671,17 @@ int SrsHLS::on_video(SrsSharedPtrMessage* video)
 	}
 	
 	srs_assert(current);
-	if ((ret = current->muxer->write_video(video_frame, video_buffer, codec, sample)) != ERROR_SUCCESS) {
+	if ((ret = current->muxer->write_video(video_frame, video_buffer)) != ERROR_SUCCESS) {
 		return ret;
 	}
+		
+	// write success, clear and free the buffer
+	video_buffer->free();
 	
 	return ret;
 }
 
-int SrsHLS::reopen()
+int SrsHls::reopen()
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -675,10 +769,19 @@ int SrsHLS::reopen()
 	}
 	srs_info("open HLS muxer success. vhost=%s, path=%s", vhost.c_str(), current->full_path.c_str());
 	
+	// segment open, flush the audio.
+	// @see: ngx_rtmp_hls_open_fragment
+    /* start fragment with audio to make iPhone happy */
+	if (current->muxer->fresh()) {
+		if ((ret = flush_audio()) != ERROR_SUCCESS) {
+			return ret;
+		}
+	}
+	
 	return ret;
 }
 
-int SrsHLS::refresh_m3u8()
+int SrsHls::refresh_m3u8()
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -708,7 +811,7 @@ int SrsHLS::refresh_m3u8()
 	return ret;
 }
 
-int SrsHLS::_refresh_m3u8(int& fd, std::string m3u8_file)
+int SrsHls::_refresh_m3u8(int& fd, std::string m3u8_file)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -799,7 +902,7 @@ int SrsHLS::_refresh_m3u8(int& fd, std::string m3u8_file)
 	return ret;
 }
 
-int SrsHLS::create_dir()
+int SrsHls::create_dir()
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -822,41 +925,7 @@ int SrsHLS::create_dir()
 	return ret;
 }
 
-SrsTSMuxer::SrsTSMuxer()
-{
-	fd = -1;
-}
-
-SrsTSMuxer::~SrsTSMuxer()
-{
-	close();
-}
-
-int SrsTSMuxer::open(std::string _path)
-{
-	int ret = ERROR_SUCCESS;
-	
-	path = _path;
-	
-	close();
-	
-	int flags = O_CREAT|O_WRONLY|O_TRUNC;
-	mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
-	if ((fd = ::open(path.c_str(), flags, mode)) < 0) {
-		ret = ERROR_HLS_OPEN_FAILED;
-		srs_error("open ts file %s failed. ret=%d", path.c_str(), ret);
-		return ret;
-	}
-
-	// write mpegts header
-	if ((ret = SrsMpegtsWriter::write_header(fd)) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	return ret;
-}
-
-int SrsTSMuxer::write_audio(SrsMpegtsFrame* audio_frame, SrsCodecBuffer* audio_buffer, SrsCodec* codec, SrsCodecSample* sample)
+int SrsHls::write_audio()
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -920,14 +989,10 @@ int SrsTSMuxer::write_audio(SrsMpegtsFrame* audio_frame, SrsCodecBuffer* audio_b
 		audio_buffer->append(buf->bytes, buf->size);
 	}
 	
-	if ((ret = SrsMpegtsWriter::write_frame(fd, audio_frame, audio_buffer)) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
 	return ret;
 }
 
-int SrsTSMuxer::write_video(SrsMpegtsFrame* video_frame, SrsCodecBuffer* video_buffer, SrsCodec* codec, SrsCodecSample* sample)
+int SrsHls::write_video()
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -991,6 +1056,81 @@ int SrsTSMuxer::write_video(SrsMpegtsFrame* video_frame, SrsCodecBuffer* video_b
 		video_buffer->append(buf->bytes, buf->size);
 	}
 	
+	return ret;
+}
+
+int SrsHls::flush_audio()
+{
+	int ret = ERROR_SUCCESS;
+	
+	if (audio_buffer->size <= 0) {
+		return ret;
+	}
+	
+	if ((ret = current->muxer->write_audio(audio_frame, audio_buffer)) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
+	// write success, clear and free the buffer
+	audio_buffer->free();
+
+	return ret;
+}
+
+SrsTSMuxer::SrsTSMuxer()
+{
+	fd = -1;
+	_fresh = false;
+}
+
+SrsTSMuxer::~SrsTSMuxer()
+{
+	close();
+}
+
+int SrsTSMuxer::open(std::string _path)
+{
+	int ret = ERROR_SUCCESS;
+	
+	path = _path;
+	
+	close();
+	
+	int flags = O_CREAT|O_WRONLY|O_TRUNC;
+	mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
+	if ((fd = ::open(path.c_str(), flags, mode)) < 0) {
+		ret = ERROR_HLS_OPEN_FAILED;
+		srs_error("open ts file %s failed. ret=%d", path.c_str(), ret);
+		return ret;
+	}
+
+	// write mpegts header
+	if ((ret = SrsMpegtsWriter::write_header(fd)) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
+	_fresh = true;
+	
+	return ret;
+}
+
+int SrsTSMuxer::write_audio(SrsMpegtsFrame* audio_frame, SrsCodecBuffer* audio_buffer)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if ((ret = SrsMpegtsWriter::write_frame(fd, audio_frame, audio_buffer)) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
+	_fresh = false;
+	
+	return ret;
+}
+
+int SrsTSMuxer::write_video(SrsMpegtsFrame* video_frame, SrsCodecBuffer* video_buffer)
+{
+	int ret = ERROR_SUCCESS;
+	
 	if ((ret = SrsMpegtsWriter::write_frame(fd, video_frame, video_buffer)) != ERROR_SUCCESS) {
 		return ret;
 	}
@@ -1003,6 +1143,12 @@ void SrsTSMuxer::close()
 	if (fd > 0) {
 		::close(fd);
 		fd = -1;
+		_fresh = false;
 	}
+}
+
+bool SrsTSMuxer::fresh()
+{
+	return _fresh;
 }
 

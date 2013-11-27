@@ -65,9 +65,39 @@ struct SrsM3u8Segment
 };
 
 /**
+* jitter correct for audio,
+* the sample rate 44100/32000 will lost precise,
+* when mp4/ts(tbn=90000) covert to flv/rtmp(1000),
+* so the Hls on ipad or iphone will corrupt,
+* @see nginx-rtmp: est_pts
+*/
+class SrsHlsAacJitter
+{
+private:
+	int64_t base_pts;
+	int64_t nb_samples;
+	int sync_ms;
+public:
+	SrsHlsAacJitter();
+	virtual ~SrsHlsAacJitter();
+	/**
+	* when buffer start, calc the "correct" pts for ts,
+	* @param flv_pts, the flv pts calc from flv header timestamp,
+	* @return the calc correct pts.
+	*/
+	virtual int64_t on_buffer_start(int64_t flv_pts, int sample_rate);
+	/**
+	* when buffer continue, muxer donot write to file,
+	* the audio buffer continue grow and donot need a pts,
+	* for the ts audio PES packet only has one pts at the first time.
+	*/
+	virtual void on_buffer_continue();
+};
+
+/**
 * write m3u8 hls.
 */
-class SrsHLS
+class SrsHls
 {
 private:
 	std::string vhost;
@@ -95,16 +125,20 @@ private:
 	SrsCodecBuffer* video_buffer;
 	// last known dts
 	int64_t stream_dts;
+	int64_t audio_buffer_start_pts;
 	// last segment dts in m3u8
 	int64_t m3u8_dts;
+	// in ms, audio delay to flush the audios.
+	int64_t audio_delay;
 private:
 	bool hls_enabled;
 	SrsCodec* codec;
 	SrsCodecSample* sample;
 	SrsRtmpJitter* jitter;
+	SrsHlsAacJitter* aac_jitter;
 public:
-	SrsHLS();
-	virtual ~SrsHLS();
+	SrsHls();
+	virtual ~SrsHls();
 public:
 	virtual int on_publish(std::string _vhost, std::string _app, std::string _stream);
 	virtual void on_unpublish();
@@ -116,6 +150,10 @@ private:
 	virtual int refresh_m3u8();
 	virtual int _refresh_m3u8(int& fd, std::string m3u8_file);
 	virtual int create_dir();
+private:
+	virtual int write_audio();
+	virtual int write_video();
+	virtual int flush_audio();
 };
 
 class SrsTSMuxer
@@ -123,14 +161,16 @@ class SrsTSMuxer
 private:
 	int fd;
 	std::string path;
+	bool _fresh;
 public:
 	SrsTSMuxer();
 	virtual ~SrsTSMuxer();
 public:
 	virtual int open(std::string _path);
-	virtual int write_audio(SrsMpegtsFrame* audio_frame, SrsCodecBuffer* audio_buffer, SrsCodec* codec, SrsCodecSample* sample);
-	virtual int write_video(SrsMpegtsFrame* video_frame, SrsCodecBuffer* video_buffer, SrsCodec* codec, SrsCodecSample* sample);
+	virtual int write_audio(SrsMpegtsFrame* audio_frame, SrsCodecBuffer* audio_buffer);
+	virtual int write_video(SrsMpegtsFrame* video_frame, SrsCodecBuffer* video_buffer);
 	virtual void close();
+	virtual bool fresh();
 };
 
 #endif

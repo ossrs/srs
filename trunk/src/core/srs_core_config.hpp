@@ -40,6 +40,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_HLS_PATH "./objs/nginx/html"
 #define SRS_CONF_DEFAULT_HLS_FRAGMENT 10
 #define SRS_CONF_DEFAULT_HLS_WINDOW 60
+// in ms, for HLS aac sync time.
+#define SRS_CONF_DEFAULT_AAC_SYNC 100
+// in ms, for HLS aac flush the audio
+#define SRS_CONF_DEFAULT_AAC_DELAY 300
 
 class SrsFileBuffer
 {
