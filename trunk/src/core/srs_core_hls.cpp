@@ -23,6 +23,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core_hls.hpp>
 
+#ifdef SRS_HLS
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -731,11 +733,11 @@ int SrsHls::reopen()
 		}
 		if (!segment_to_remove.empty()) {
 			segments.erase(segments.begin(), segments.begin() + segment_to_remove.size());
-		}
 		
-		// refresh the m3u8, donot contains the removed ts
-		if ((ret = refresh_m3u8()) != ERROR_SUCCESS) {
-			return ret;
+			// refresh the m3u8, donot contains the removed ts
+			if ((ret = refresh_m3u8()) != ERROR_SUCCESS) {
+				return ret;
+			}
 		}
 		
 		// remove the ts file.
@@ -1151,4 +1153,6 @@ bool SrsTSMuxer::fresh()
 {
 	return _fresh;
 }
+
+#endif
 

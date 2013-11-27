@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # params:
-# $GLOBAL_DIR_OBJS the objs directory. ie. objs
-# $GLOBAL_FILE_MAKEFILE the makefile name. ie. Makefile
+# $SRS_OBJS the objs directory. ie. objs
+# $SRS_MAKEFILE the makefile name. ie. Makefile
 # $MAIN_ENTRANCES array, all main entrance, disable all except the $APP_MAIN itself
 # $MODULE_OBJS array, the objects to compile the app.
 # $BUILD_KEY a string indicates the build key for Makefile. ie. dump
@@ -12,9 +12,9 @@
 # $LINK_OPTIONS the linker options.
 # $SO_PATH the libssl.so.10 and other so file path.
 
-FILE=${GLOBAL_DIR_OBJS}/${GLOBAL_FILE_MAKEFILE}
+FILE=${SRS_OBJS}/${SRS_MAKEFILE}
 
-APP_TARGET="${GLOBAL_DIR_OBJS}/${APP_NAME}"
+APP_TARGET="${SRS_OBJS}/${APP_NAME}"
 
 echo "generate app ${APP_NAME} depends...";
 
@@ -42,7 +42,7 @@ for item in ${MODULE_OBJS[*]}; do
         continue;
     fi
     
-    OBJ_FILE=${GLOBAL_DIR_OBJS}/$item
+    OBJ_FILE=${SRS_OBJS}/$item
     OBJ_FILE="${OBJ_FILE%.*}.o"
     echo -n "${OBJ_FILE} " >> ${FILE}
 done
@@ -71,7 +71,7 @@ for item in ${MODULE_OBJS[*]}; do
         continue;
     fi
     
-    OBJ_FILE=${GLOBAL_DIR_OBJS}/$item
+    OBJ_FILE=${SRS_OBJS}/$item
     OBJ_FILE="${OBJ_FILE%.*}.o"
     echo -n "${OBJ_FILE} " >> ${FILE}
 done

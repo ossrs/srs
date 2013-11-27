@@ -29,6 +29,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
+#ifdef SRS_HLS
+
 #include <string>
 #include <vector>
 
@@ -172,5 +174,7 @@ public:
 	virtual void close();
 	virtual bool fresh();
 };
+
+#endif
 
 #endif

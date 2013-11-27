@@ -257,7 +257,10 @@ SrsSource* SrsSource::find(std::string stream_url)
 SrsSource::SrsSource(std::string _stream_url)
 {
 	stream_url = _stream_url;
+	
+#ifdef SRS_HLS
 	hls = new SrsHls();
+#endif
 	
 	cache_metadata = cache_sh_video = cache_sh_audio = NULL;
 	
@@ -282,17 +285,21 @@ SrsSource::~SrsSource()
 	srs_freep(cache_sh_video);
 	srs_freep(cache_sh_audio);
 	
+#ifdef SRS_HLS
 	srs_freep(hls);
+#endif
 }
 
 int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata)
 {
 	int ret = ERROR_SUCCESS;
 	
+#ifdef SRS_HLS
 	if ((ret = hls->on_meta_data(metadata)) != ERROR_SUCCESS) {
 		srs_error("hls process onMetaData message failed. ret=%d", ret);
 		return ret;
 	}
+#endif
 	
 	metadata->metadata->set("server", new SrsAmf0String(
 		RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
@@ -363,10 +370,12 @@ int SrsSource::on_audio(SrsCommonMessage* audio)
 	}
 	srs_verbose("initialize shared ptr audio success.");
 	
+#ifdef SRS_HLS
 	if ((ret = hls->on_audio(msg->copy())) != ERROR_SUCCESS) {
 		srs_error("hls process audio message failed. ret=%d", ret);
 		return ret;
 	}
+#endif
 	
 	// detach the original audio
 	audio->payload = NULL;
@@ -413,11 +422,12 @@ int SrsSource::on_video(SrsCommonMessage* video)
 	}
 	srs_verbose("initialize shared ptr video success.");
 	
-	// TODO: when return error, crash.
+#ifdef SRS_HLS
 	if ((ret = hls->on_video(msg->copy())) != ERROR_SUCCESS) {
 		srs_error("hls process video message failed. ret=%d", ret);
 		return ret;
 	}
+#endif
 	
 	// detach the original audio
 	video->payload = NULL;
@@ -452,15 +462,24 @@ int SrsSource::on_video(SrsCommonMessage* video)
 	return ret;
 }
 
+#ifdef SRS_HLS
 int SrsSource::on_publish(std::string vhost, std::string app, std::string stream)
 {
 	return hls->on_publish(vhost, app, stream);
 }
+#else
+int SrsSource::on_publish(std::string /*vhost*/, std::string /*app*/, std::string /*stream*/)
+{
+	return ERROR_SUCCESS;
+}
+#endif
 
 void SrsSource::on_unpublish()
 {
+#ifdef SRS_HLS
 	hls->on_unpublish();
-	
+#endif
+
 	clear_gop_cache();
 
 	srs_freep(cache_metadata);

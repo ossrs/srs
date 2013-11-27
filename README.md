@@ -12,7 +12,7 @@ step 1: build srs <br/>
 <pre>
 tar xf simple-rtmp-server-*.*.tar.gz
 cd simple-rtmp-server-*.*/trunk
-./configure
+./configure --with-ssl --with-hls
 make
 </pre>
 step 2: start srs <br/>
@@ -64,6 +64,8 @@ m3u8 url: http://127.0.0.1:80/live/livestream.m3u8
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v0.6, 2013-11-27, support --with or --without -hls and -ssl options.
+* v0.6, 2013-11-27, support AAC 44100HZ sample rate for iphone, adjust the timestamp.
 * v0.5, 2013-11-26, v0.5 released. 14449 lines.
 * v0.5, 2013-11-24, support HLS(m3u8), fragment and window.
 * v0.5, 2013-11-24, support record to ts file for HLS.

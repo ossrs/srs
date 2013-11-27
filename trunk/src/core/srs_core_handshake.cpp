@@ -44,6 +44,8 @@ void srs_random_generate(char* bytes, int size)
 	}
 }
 
+#ifdef SRS_SSL
+
 // 68bytes FMS key which is used to sign the sever packet.
 u_int8_t SrsGenuineFMSKey[] = {
     0x47, 0x65, 0x6e, 0x75, 0x69, 0x6e, 0x65, 0x20,
@@ -1055,6 +1057,8 @@ void c1s1::destroy_blocks()
 	}
 }
 
+#endif
+
 SrsSimpleHandshake::SrsSimpleHandshake()
 {
 }
@@ -1129,10 +1133,16 @@ SrsComplexHandshake::~SrsComplexHandshake()
 {
 }
 
+#ifndef SRS_SSL
+int SrsComplexHandshake::handshake(SrsSocket& /*skt*/, char* /*_c1*/)
+{
+	return ERROR_RTMP_TRY_SIMPLE_HS;
+}
+#else
 int SrsComplexHandshake::handshake(SrsSocket& skt, char* _c1)
 {
 	int ret = ERROR_SUCCESS;
-	
+
     ssize_t nsize;
 	
 	static bool _random_initialized = false;
@@ -1204,4 +1214,5 @@ int SrsComplexHandshake::handshake(SrsSocket& skt, char* _c1)
 	
 	return ret;
 }
+#endif
 

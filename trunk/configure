@@ -1,79 +1,34 @@
 #!/bin/bash
 
-GLOBAL_FILE_MAKEFILE="Makefile"
-GLOBAL_DIR_OBJS="objs"
+SRS_MAKEFILE="Makefile"
+SRS_OBJS="objs"
+SRS_AUTO_HEADERS_H="${SRS_OBJS}/srs_auto_headers.hpp"
 
-mkdir -p ${GLOBAL_DIR_OBJS}
+mkdir -p ${SRS_OBJS}
 
-echo "check gcc/g++/gdb/make/openssl-devel"
-echo "depends tools are ok"
-
-#####################################################################################
-# prepare the depends tools
-#####################################################################################
-# st-1.9
-if [[ -f ${GLOBAL_DIR_OBJS}/st-1.9/obj/libst.a && -f ${GLOBAL_DIR_OBJS}/st-1.9/obj/libst.so ]]; then
-    echo "st-1.9t is ok.";
-else
-    echo "build st-1.9t"; 
-    (
-        rm -rf ${GLOBAL_DIR_OBJS}/st-1.9 && cd ${GLOBAL_DIR_OBJS} && 
-        unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && make linux-debug &&
-        cd .. && rm -f st && ln -sf st-1.9/obj st
-    )
+# clean the exists
+if [[ -f Makefile ]]; then
+    make clean
 fi
-# check status
-ret=$?; if [[ $ret -ne 0 ]]; then echo "build st-1.9 failed, ret=$ret"; exit $ret; fi
-if [ ! -f ${GLOBAL_DIR_OBJS}/st-1.9/obj/libst.a ]; then echo "build st-1.9 failed."; exit -1; fi
-if [ ! -f ${GLOBAL_DIR_OBJS}/st-1.9/obj/libst.so ]; then echo "build st-1.9 failed."; exit -1; fi
 
-# http-parser-2.1
-if [[ -f ${GLOBAL_DIR_OBJS}/http-parser-2.1/http_parser.h && -f ${GLOBAL_DIR_OBJS}/http-parser-2.1/libhttp_parser.a ]]; then
-    echo "http-parser-2.1 is ok.";
-else
-    echo "build http-parser-2.1";
-    (
-        rm -rf ${GLOBAL_DIR_OBJS}/http-parser-2.1 && cd ${GLOBAL_DIR_OBJS} && unzip -q ../3rdparty/http-parser-2.1.zip && 
-        cd http-parser-2.1 && 
-        sed -i "s/CPPFLAGS_FAST +=.*$/CPPFLAGS_FAST = \$\(CPPFLAGS_DEBUG\)/g" Makefile &&
-        sed -i "s/CFLAGS_FAST =.*$/CFLAGS_FAST = \$\(CFLAGS_DEBUG\)/g" Makefile &&
-        make package &&
-        cd .. && rm -f hp && ln -sf http-parser-2.1 hp
-    )
-fi
-# check status
-ret=$?; if [[ $ret -ne 0 ]]; then echo "build http-parser-2.1 failed, ret=$ret"; exit $ret; fi
-if [[ ! -f ${GLOBAL_DIR_OBJS}/http-parser-2.1/http_parser.h ]]; then echo "build http-parser-2.1 failed"; exit -1; fi
-if [[ ! -f ${GLOBAL_DIR_OBJS}/http-parser-2.1/libhttp_parser.a ]]; then echo "build http-parser-2.1 failed"; exit -1; fi
+# parse user options.
+. auto/options.sh
 
-# nginx for HLS, nginx-1.5.0
-if [[ -f ${GLOBAL_DIR_OBJS}/nginx-1.5.7/_release/sbin/nginx ]]; then
-    echo "nginx-1.5.7 is ok.";
-else
-    echo "build nginx-1.5.7"; 
-    (
-        rm -rf ${GLOBAL_DIR_OBJS}/nginx-1.5.7 && cd ${GLOBAL_DIR_OBJS} && 
-        unzip -q ../3rdparty/nginx-1.5.7.zip && cd nginx-1.5.7 && 
-        ./configure --prefix=`pwd`/_release && make && make install &&
-        ln -sf `pwd`/_release ../nginx
-    )
-fi
-# check status
-ret=$?; if [[ $ret -ne 0 ]]; then echo "build nginx-1.5.7 failed, ret=$ret"; exit $ret; fi
-if [ ! -f ${GLOBAL_DIR_OBJS}/nginx-1.5.7/_release/sbin/nginx ]; then echo "build nginx-1.5.7 failed."; exit -1; fi
+# generate the audo headers file.
+echo "#define SRS_CONFIGURE \"${SRS_CONFIGURE}\"" > $SRS_AUTO_HEADERS_H
 
-# use current user to config nginx,
-# srs will write ts/m3u8 file use current user,
-# nginx default use nobody, so cannot read the ts/m3u8 created by srs.
-cp ${GLOBAL_DIR_OBJS}/nginx/conf/nginx.conf ${GLOBAL_DIR_OBJS}/nginx/conf/nginx.conf.bk
-sed -i "s/^.user  nobody;/user `whoami`;/g" ${GLOBAL_DIR_OBJS}/nginx/conf/nginx.conf
+# apply user options.
+. auto/depends.sh
+
+# new empty line to auto headers file.
+echo "" >> $SRS_AUTO_HEADERS_H
 
 #####################################################################################
 # generate Makefile.
 #####################################################################################
 echo "generate Makefile"
 
-cat << END > ${GLOBAL_FILE_MAKEFILE}
+cat << END > ${SRS_MAKEFILE}
 .PHONY: default help clean server _prepare_dir
 default: server
 
@@ -84,15 +39,15 @@ help:
 	@echo "  server     build the srs(simple rtmp server) over st(state-threads)"
 
 clean: 
-	(cd ${GLOBAL_DIR_OBJS}; rm -rf src st_*_load)
+	(rm -f Makefile; cd ${SRS_OBJS}; rm -rf Makefile *.hpp src st_*_load)
 
 server: _prepare_dir
 	@echo "build the srs(simple rtmp server) over st(state-threads)"
-	\$(MAKE) -f ${GLOBAL_DIR_OBJS}/${GLOBAL_FILE_MAKEFILE} simple_rtmp_server
+	\$(MAKE) -f ${SRS_OBJS}/${SRS_MAKEFILE} simple_rtmp_server
 
 # the ./configure will generate it.
 _prepare_dir:
-	@mkdir -p ${GLOBAL_DIR_OBJS}
+	@mkdir -p ${SRS_OBJS}
 END
 
 echo 'generate Makefile ok!'
@@ -108,7 +63,7 @@ CppStd="-ansi"
 # the cxx flag generated.
 CXXFLAGS="${CppStd} ${WarnLevel} ${GDBDebug}"
 #CXXFLAGS="${CppStd} ${WarnLevel} ${GDBDebug} ${Performance}"
-cat << END > ${GLOBAL_DIR_OBJS}/${GLOBAL_FILE_MAKEFILE}
+cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
 CXXFLAGS = ${CXXFLAGS}
 GCC = g++
 LINK = \$(GCC)
@@ -121,15 +76,15 @@ default:
 END
 
 # Libraries
-LibSTRoot="${GLOBAL_DIR_OBJS}/st"
+LibSTRoot="${SRS_OBJS}/st"
 LibSTfile="${LibSTRoot}/libst.a"
-LibHttpParserRoot="${GLOBAL_DIR_OBJS}/hp"
+LibHttpParserRoot="${SRS_OBJS}/hp"
 LibHttpParserfile="${LibHttpParserRoot}/libhttp_parser.a"
 
 #Core Module
 MODULE_ID="CORE" 
 MODULE_DEPENDS=() 
-ModuleLibIncs=(${LibSTRoot} ${LibHttpParserRoot})
+ModuleLibIncs=(${LibSTRoot} ${LibHttpParserRoot} ${SRS_OBJS})
 MODULE_FILES=("srs_core" "srs_core_log" "srs_core_server" 
         "srs_core_error" "srs_core_conn" "srs_core_client" 
         "srs_core_rtmp" "srs_core_socket" "srs_core_buffer"
@@ -144,7 +99,7 @@ CORE_OBJS="${MODULE_OBJS[@]}"
 #Main Module
 MODULE_ID="MAIN" 
 MODULE_DEPENDS=("CORE")
-ModuleLibIncs=(${LibSTRoot})
+ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS})
 MODULE_FILES=("srs_main_server")
 MODULE_DIR="src/main" . auto/modules.sh
 MAIN_OBJS="${MODULE_OBJS[@].o}"
@@ -155,7 +110,12 @@ MAIN_ENTRANCES=("srs_main_server")
 # srs(simple rtmp server) over st(state-threads)
 ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile})
 MODULE_OBJS="${CORE_OBJS[@]} ${CONFIG_OBJS[@]} ${PROTOCOL_OBJS[@]} ${MAIN_OBJS[@]}"
-BUILD_KEY="simple_rtmp_server" APP_MAIN="srs_main_server" APP_NAME="simple_rtmp_server" LINK_OPTIONS="-ldl -lssl -lcrypto" SO_PATH="" . auto/apps.sh
+if [ $SRS_SSL = YES ]; then
+    LINK_OPTIONS="-ldl -lssl -lcrypto"
+else
+    LINK_OPTIONS="-ldl"
+fi
+BUILD_KEY="simple_rtmp_server" APP_MAIN="srs_main_server" APP_NAME="simple_rtmp_server" SO_PATH="" . auto/apps.sh
 
 echo 'configure ok! '
 
@@ -163,5 +123,7 @@ echo 'configure ok! '
 echo "you can:"
 echo "\" make \" to build the srs(simple rtmp server)."
 echo "\" make help \" to get the usage of make"
-echo "\" sudo ./objs/nginx/sbin/nginx  \" to start the nginx http server for hls"
+if [ $SRS_HLS = YES ]; then
+    echo "\" sudo ./objs/nginx/sbin/nginx  \" to start the nginx http server for hls"
+fi
 echo "\" ./objs/simple_rtmp_server -c conf/srs.conf \" to start the srs live server"

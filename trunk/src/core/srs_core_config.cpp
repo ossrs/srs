@@ -703,6 +703,8 @@ int SrsConfig::parse_file(const char* filename)
 	}
 	// TODO: check the hls.
 	// TODO: check other config.
+	// TODO: check hls.
+	// TODO: check ssl.
 	
 	return ret;
 }
@@ -756,6 +758,7 @@ void SrsConfig::print_help(char** argv)
 {
 	printf(RTMP_SIG_SRS_NAME" "RTMP_SIG_SRS_VERSION
 		" Copyright (c) 2013 winlin\n"
+		"configuration: "SRS_CONFIGURE"\n"
 		"Usage: %s [-h?vV] [-c <filename>]\n" 
 		"\n"
 		"Options:\n"
@@ -765,7 +768,8 @@ void SrsConfig::print_help(char** argv)
 		"\n"
 		RTMP_SIG_SRS_WEB"\n"
 		RTMP_SIG_SRS_URL"\n"
-		"Email: "RTMP_SIG_SRS_EMAIL"\n",
+		"Email: "RTMP_SIG_SRS_EMAIL"\n"
+		"\n",
 		argv[0]);
 }
 

@@ -1,6 +1,6 @@
 # params:
-# $GLOBAL_DIR_OBJS the objs directory. ie. objs
-# $GLOBAL_FILE_MAKEFILE the makefile name. ie. Makefile
+# $SRS_OBJS the objs directory. ie. objs
+# $SRS_MAKEFILE the makefile name. ie. Makefile
 # $MODULE_DIR the module dir. ie. src/os/linux
 # $MODULE_ID the id of module. ie. CORE
 # $MODULE_DEPENDS array, the denpend MODULEs id. ie. (CORE OS)
@@ -10,7 +10,7 @@
 # returns:
 # $MODULE_OBJS array, the objects of the modules.
 
-FILE=${GLOBAL_DIR_OBJS}/${GLOBAL_FILE_MAKEFILE}
+FILE=${SRS_OBJS}/${SRS_MAKEFILE}
 
 # INCS
 INCS_NAME="${MODULE_ID}_INCS"
@@ -46,16 +46,17 @@ echo "" >> ${FILE}; echo "" >> ${FILE}
 MODULE_OBJS=()
 for item in ${MODULE_FILES[*]}; do
     CPP_FILE="${MODULE_DIR}/${item}.cpp"
-    OBJ_FILE="${GLOBAL_DIR_OBJS}/${MODULE_DIR}/${item}.o"
+    OBJ_FILE="${SRS_OBJS}/${MODULE_DIR}/${item}.o"
     MODULE_OBJS="${MODULE_OBJS[@]} ${CPP_FILE}"
     if [ -f ${CPP_FILE} ]; then
         echo "${OBJ_FILE}: \$(${DEPS_NAME}) ${CPP_FILE} " >> ${FILE}
-        echo "	\$(GCC) -c \$(CXXFLAGS) \$(${INCS_NAME})-o ${OBJ_FILE} ${CPP_FILE}" >> ${FILE}
+        echo "	\$(GCC) -c \$(CXXFLAGS) \$(${INCS_NAME})\\" >> ${FILE}
+        echo "          -o ${OBJ_FILE} ${CPP_FILE}" >> ${FILE}
     fi
 done
 echo "" >> ${FILE}
 
 # Makefile
-echo "	mkdir -p ${GLOBAL_DIR_OBJS}/${MODULE_DIR}" >> ${GLOBAL_FILE_MAKEFILE}
+echo "	mkdir -p ${SRS_OBJS}/${MODULE_DIR}" >> ${SRS_MAKEFILE}
 
 echo -n "generate module ${MODULE_ID} ok"; echo '!';
