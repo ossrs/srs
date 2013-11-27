@@ -46,12 +46,13 @@ m3u8 url: http://127.0.0.1:80/live/livestream.m3u8
 6. support cache last gop for flash player to fast startup.<br/>
 7. support listen at multiple ports.<br/>
 8. [dev] support forward publish stream to build active-standby cluster.<br/>
-9. [dev] support live stream transcoding by ffmpeg.<br/>
-10. [dev] support full http callback api.<br/>
-11. [dev] support network based cli and json result.<br/>
-12. no edge server, origin server only.<br/>
-13. no vod streaming, live streaming only.<br/>
-14. no multiple processes, single process only.<br/>
+9. [plan] support live stream transcoding by ffmpeg.<br/>
+10. [plan] support full http callback api.<br/>
+11. [plan] support network based cli and json result.<br/>
+12. [plan] support bandwidth test api and flash client.<br/>
+13. no edge server, origin server only.<br/>
+14. no vod streaming, live streaming only.<br/>
+15. no multiple processes, single process only.<br/>
 
 ### Releases
 * 2013-11-26, [release v0.5](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.5), support HLS(m3u8), fragment and window. 14449 lines.<br/>
