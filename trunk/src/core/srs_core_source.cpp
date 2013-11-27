@@ -268,6 +268,7 @@ SrsSource::SrsSource(std::string _stream_url)
 	enable_gop_cache = true;
 	
 	video_frame_rate = audio_sample_rate = 0;
+	_can_publish = true;
 }
 
 SrsSource::~SrsSource()
@@ -288,6 +289,11 @@ SrsSource::~SrsSource()
 #ifdef SRS_HLS
 	srs_freep(hls);
 #endif
+}
+
+bool SrsSource::can_publish()
+{
+	return _can_publish;
 }
 
 int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata)
@@ -465,11 +471,13 @@ int SrsSource::on_video(SrsCommonMessage* video)
 #ifdef SRS_HLS
 int SrsSource::on_publish(std::string vhost, std::string app, std::string stream)
 {
+	_can_publish = false;
 	return hls->on_publish(vhost, app, stream);
 }
 #else
 int SrsSource::on_publish(std::string /*vhost*/, std::string /*app*/, std::string /*stream*/)
 {
+	_can_publish = false;
 	return ERROR_SUCCESS;
 }
 #endif
@@ -489,6 +497,8 @@ void SrsSource::on_unpublish()
 	srs_freep(cache_sh_audio);
 	
 	srs_trace("clear cache/metadata/sequence-headers when unpublish.");
+	
+	_can_publish = true;
 }
 
  int SrsSource::create_consumer(SrsConsumer*& consumer)

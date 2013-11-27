@@ -157,6 +157,10 @@ private:
 	* the video frame rate in metadata.
 	*/
 	int video_frame_rate;
+	/**
+	* can publish, true when is not streaming
+	*/
+	bool _can_publish;
 private:
 	SrsSharedPtrMessage* cache_metadata;
 	// the cached video sequence header.
@@ -167,6 +171,7 @@ public:
 	SrsSource(std::string _stream_url);
 	virtual ~SrsSource();
 public:
+	virtual bool can_publish();
 	virtual int on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);
 	virtual int on_audio(SrsCommonMessage* audio);
 	virtual int on_video(SrsCommonMessage* video);

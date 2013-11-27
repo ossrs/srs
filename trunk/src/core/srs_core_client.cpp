@@ -41,6 +41,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_PULSE_TIMEOUT_MS 100
 #define SRS_SEND_TIMEOUT_MS 5000000L
 #define SRS_RECV_TIMEOUT_MS SRS_SEND_TIMEOUT_MS
+#define SRS_STREAM_BUSY_SLEEP_MS 2000
 
 SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
 	: SrsConnection(srs_server, client_stfd)
@@ -151,6 +152,16 @@ int SrsClient::do_cycle()
 	// find a source to publish.
 	SrsSource* source = SrsSource::find(req->get_stream_url());
 	srs_assert(source != NULL);
+	
+	// check publish available.
+	if (type != SrsClientPlay && !source->can_publish()) {
+		ret = ERROR_SYSTEM_STREAM_BUSY;
+		srs_warn("stream %s is already publishing. ret=%d", 
+			req->get_stream_url().c_str(), ret);
+		// to delay request
+		st_usleep(SRS_STREAM_BUSY_SLEEP_MS * 1000);
+		return ret;
+	}
 	
 	bool enabled_cache = true;
 	conf = config->get_gop_cache(req->vhost);
