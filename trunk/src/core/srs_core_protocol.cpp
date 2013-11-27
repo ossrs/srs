@@ -1375,6 +1375,7 @@ int SrsSharedPtrMessage::initialize(ISrsMessage* msg, char* payload, int size)
 	ptr = new SrsSharedPtr();
 	
 	// should copy the payload once
+	// TODO: maybe can directly attach the common message.
 	ptr->payload = new char[size];
 	memcpy(ptr->payload, payload, size);
 	ptr->size = size;
