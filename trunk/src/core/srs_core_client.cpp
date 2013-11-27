@@ -62,6 +62,7 @@ SrsClient::~SrsClient()
 	srs_freep(refer);
 }
 
+// TODO: return detail message when error for client.
 int SrsClient::do_cycle()
 {
 	int ret = ERROR_SUCCESS;
