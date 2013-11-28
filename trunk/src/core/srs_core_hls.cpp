@@ -689,7 +689,7 @@ int SrsHls::reopen()
 	
 	// try to open the HLS muxer
 	SrsConfDirective* conf = config->get_hls(vhost);
-	if (!conf && conf->arg0() == "off") {
+	if (!conf || conf->arg0() == "off") {
 		return ret;
 	}
 	
