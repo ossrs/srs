@@ -40,6 +40,8 @@ class SrsCommonMessage;
 class SrsCreateStreamPacket;
 class SrsFMLEStartPacket;
 class SrsPublishPacket;
+class SrsSharedPtrMessage;
+class SrsOnMetaDataPacket;
 
 /**
 * the original request from client.
@@ -102,6 +104,9 @@ private:
 public:
 	SrsRtmpClient();
 	virtual ~SrsRtmpClient();
+private:
+	virtual int connect_to(std::string server, int port);
+	std::string parse_server(std::string host);
 };
 
 /**

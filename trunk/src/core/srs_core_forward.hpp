@@ -31,6 +31,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
+#include <st.h>
+
 class SrsSharedPtrMessage;
 class SrsOnMetaDataPacket;
 class SrsRtmpClient;
@@ -45,9 +47,11 @@ private:
 	std::string stream_name;
 	std::string server;
 	int port;
-	SrsRtmpClient* client;
+private:
 	st_thread_t tid;
 	bool loop;
+private:
+	SrsRtmpClient* client;
 public:
 	SrsForwarder();
 	virtual ~SrsForwarder();

@@ -23,6 +23,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core_rtmp.hpp>
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+
 #include <srs_core_log.hpp>
 #include <srs_core_error.hpp>
 #include <srs_core_socket.hpp>
@@ -179,6 +184,34 @@ SrsRtmpClient::~SrsRtmpClient()
 		// close it manually.
 		close(fd);
 	}
+}
+
+int SrsRtmpClient::connect_to(std::string server, int port)
+{
+	int ret = ERROR_SUCCESS;
+	return ret;
+}
+
+std::string SrsRtmpClient::parse_server(std::string host){
+    if(inet_addr(host.c_str()) != INADDR_NONE){
+        return host;
+    }
+    
+    hostent* answer = gethostbyname(host.c_str());
+    if(answer == NULL){
+        srs_error("dns resolve host %s error.", host.c_str());
+        return "";
+    }
+    
+    char ipv4[16];
+    memset(ipv4, 0, sizeof(ipv4));
+    for(int i = 0; i < answer->h_length; i++){
+        inet_ntop(AF_INET, answer->h_addr_list[i], ipv4, sizeof(ipv4));
+        srs_info("dns resolve host %s to %s.", host.c_str(), ipv4);
+        break;
+    }
+    
+    return ipv4;
 }
 
 SrsRtmp::SrsRtmp(st_netfd_t client_stfd)

@@ -32,34 +32,34 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 SrsForwarder::SrsForwarder()
 {
 	client = new SrsRtmpClient();
-	port = 1935;
 	tid = NULL;
 	loop = false;
 }
 
 SrsForwarder::~SrsForwarder()
 {
-	srs_freep(client);
-	
 	if (tid) {
 		loop = false;
 		st_thread_interrupt(tid);
 		st_thread_join(tid, NULL);
 		tid = NULL;
 	}
+	
+	srs_freep(client);
 }
 
 int SrsForwarder::on_publish(std::string vhost, std::string app, std::string stream, std::string forward_server)
 {
 	int ret = ERROR_SUCCESS;
 	
-	tc_url = "rtmp://";
+	std::string tc_url = "rtmp://";
 	tc_url += vhost;
 	tc_url += "/";
 	tc_url += app;
 	
-	stream_name = stream;
-	server = forward_server;
+	std::string stream_name = stream;
+	std::string server = forward_server;
+	int port = 1935;
 	
 	size_t pos = forward_server.find(":");
 	if (pos != std::string::npos) {

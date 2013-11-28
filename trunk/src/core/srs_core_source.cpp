@@ -618,7 +618,7 @@ int SrsSource::on_publish(std::string vhost, std::string app, std::string stream
 	
 	// create forwarders
 	SrsConfDirective* conf = config->get_forward(vhost);
-	for (int i = 0; conf && i < conf->args.size(); i++) {
+	for (int i = 0; conf && i < (int)conf->args.size(); i++) {
 		std::string forward_server = conf->args.at(i);
 		
 		SrsForwarder* forwarder = new SrsForwarder();
