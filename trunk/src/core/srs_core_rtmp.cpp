@@ -163,6 +163,24 @@ SrsResponse::~SrsResponse()
 {
 }
 
+SrsRtmpClient::SrsRtmpClient()
+{
+	stfd = NULL;
+}
+
+SrsRtmpClient::~SrsRtmpClient()
+{
+	if (stfd) {
+		int fd = st_netfd_fileno(stfd);
+		st_netfd_close(stfd);
+		stfd = NULL;
+		
+		// st does not close it sometimes, 
+		// close it manually.
+		close(fd);
+	}
+}
+
 SrsRtmp::SrsRtmp(st_netfd_t client_stfd)
 {
 	protocol = new SrsProtocol(client_stfd);

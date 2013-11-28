@@ -93,6 +93,18 @@ enum SrsClientType
 };
 
 /**
+* implements the client role protocol.
+*/
+class SrsRtmpClient
+{
+private:
+	st_netfd_t stfd;
+public:
+	SrsRtmpClient();
+	virtual ~SrsRtmpClient();
+};
+
+/**
 * the rtmp provices rtmp-command-protocol services,
 * a high level protocol, media stream oriented services,
 * such as connect to vhost/app, play stream, get audio/video data.

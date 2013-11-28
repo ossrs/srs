@@ -23,19 +23,53 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core_forward.hpp>
 
+#include <stdlib.h>
+
 #include <srs_core_error.hpp>
+#include <srs_core_rtmp.hpp>
+#include <srs_core_log.hpp>
 
 SrsForwarder::SrsForwarder()
 {
+	client = new SrsRtmpClient();
+	port = 1935;
+	tid = NULL;
+	loop = false;
 }
 
 SrsForwarder::~SrsForwarder()
 {
+	srs_freep(client);
+	
+	if (tid) {
+		loop = false;
+		st_thread_interrupt(tid);
+		st_thread_join(tid, NULL);
+		tid = NULL;
+	}
 }
 
 int SrsForwarder::on_publish(std::string vhost, std::string app, std::string stream, std::string forward_server)
 {
 	int ret = ERROR_SUCCESS;
+	
+	tc_url = "rtmp://";
+	tc_url += vhost;
+	tc_url += "/";
+	tc_url += app;
+	
+	stream_name = stream;
+	server = forward_server;
+	
+	size_t pos = forward_server.find(":");
+	if (pos != std::string::npos) {
+		port = ::atoi(forward_server.substr(pos + 1).c_str());
+		server = forward_server.substr(0, pos);
+	}
+	
+	srs_trace("forward stream=%s, tcUrl=%s to server=%s, port=%d",
+		stream_name.c_str(), tc_url.c_str(), server.c_str(), port);
+	
 	return ret;
 }
 

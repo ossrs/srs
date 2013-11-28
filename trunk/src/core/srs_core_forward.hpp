@@ -33,12 +33,21 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsSharedPtrMessage;
 class SrsOnMetaDataPacket;
+class SrsRtmpClient;
 
 /**
 * forward the stream to other servers.
 */
 class SrsForwarder
 {
+private:
+	std::string tc_url;
+	std::string stream_name;
+	std::string server;
+	int port;
+	SrsRtmpClient* client;
+	st_thread_t tid;
+	bool loop;
 public:
 	SrsForwarder();
 	virtual ~SrsForwarder();
