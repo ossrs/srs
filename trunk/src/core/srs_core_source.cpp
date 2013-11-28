@@ -370,7 +370,7 @@ int SrsSource::on_audio(SrsCommonMessage* audio)
 	
 	SrsSharedPtrMessage* msg = new SrsSharedPtrMessage();
 	SrsAutoFree(SrsSharedPtrMessage, msg, false);
-	if ((ret = msg->initialize(audio, (char*)audio->payload, audio->size)) != ERROR_SUCCESS) {
+	if ((ret = msg->initialize(audio)) != ERROR_SUCCESS) {
 		srs_error("initialize the audio failed. ret=%d", ret);
 		return ret;
 	}
@@ -382,10 +382,6 @@ int SrsSource::on_audio(SrsCommonMessage* audio)
 		return ret;
 	}
 #endif
-	
-	// detach the original audio
-	audio->payload = NULL;
-	audio->size = 0;
 	
 	// copy to all consumer
 	std::vector<SrsConsumer*>::iterator it;
@@ -422,7 +418,7 @@ int SrsSource::on_video(SrsCommonMessage* video)
 	
 	SrsSharedPtrMessage* msg = new SrsSharedPtrMessage();
 	SrsAutoFree(SrsSharedPtrMessage, msg, false);
-	if ((ret = msg->initialize(video, (char*)video->payload, video->size)) != ERROR_SUCCESS) {
+	if ((ret = msg->initialize(video)) != ERROR_SUCCESS) {
 		srs_error("initialize the video failed. ret=%d", ret);
 		return ret;
 	}
@@ -434,10 +430,6 @@ int SrsSource::on_video(SrsCommonMessage* video)
 		return ret;
 	}
 #endif
-	
-	// detach the original audio
-	video->payload = NULL;
-	video->size = 0;
 	
 	// copy to all consumer
 	std::vector<SrsConsumer*>::iterator it;

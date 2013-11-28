@@ -1356,11 +1356,26 @@ bool SrsSharedPtrMessage::can_decode()
 	return false;
 }
 
-int SrsSharedPtrMessage::initialize(ISrsMessage* msg, char* payload, int size)
+int SrsSharedPtrMessage::initialize(SrsCommonMessage* source)
 {
 	int ret = ERROR_SUCCESS;
 	
-	srs_assert(msg != NULL);
+	if ((ret = initialize(source, (char*)source->payload, source->size)) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
+	// detach the payload from source
+	source->payload = NULL;
+	source->size = 0;
+	
+	return ret;
+}
+
+int SrsSharedPtrMessage::initialize(SrsCommonMessage* source, char* payload, int size)
+{
+	int ret = ERROR_SUCCESS;
+	
+	srs_assert(source != NULL);
 	if (ptr) {
 		ret = ERROR_SYSTEM_ASSERT_FAILED;
 		srs_error("should not set the payload twice. ret=%d", ret);
@@ -1369,20 +1384,18 @@ int SrsSharedPtrMessage::initialize(ISrsMessage* msg, char* payload, int size)
 		return ret;
 	}
 	
-	header = msg->header;
+	header = source->header;
 	header.payload_length = size;
 	
 	ptr = new SrsSharedPtr();
 	
-	// should copy the payload once
-	// TODO: maybe can directly attach the common message.
-	ptr->payload = new char[size];
-	memcpy(ptr->payload, payload, size);
+	// direct attach the data of common message.
+	ptr->payload = payload;
 	ptr->size = size;
 	
-	if (msg->header.is_video()) {
+	if (source->header.is_video()) {
 		ptr->perfer_cid = RTMP_CID_Video;
-	} else if (msg->header.is_audio()) {
+	} else if (source->header.is_audio()) {
 		ptr->perfer_cid = RTMP_CID_Audio;
 	} else {
 		ptr->perfer_cid = RTMP_CID_OverConnection2;

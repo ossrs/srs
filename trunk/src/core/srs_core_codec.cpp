@@ -41,7 +41,7 @@ void SrsCodecBuffer::append(void* data, int len)
 {
 	srs_assert(data);
 	srs_assert(len > 0);
-	
+
 	bytes = (char*)realloc(bytes, size + len);
 	memcpy(bytes + size, data, len);
 	size += len;
