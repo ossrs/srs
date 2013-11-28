@@ -573,6 +573,17 @@ SrsConfDirective* SrsConfig::get_gop_cache(std::string vhost)
 	return conf->get("gop_cache");
 }
 
+SrsConfDirective* SrsConfig::get_forward(std::string vhost)
+{
+	SrsConfDirective* conf = get_vhost(vhost);
+
+	if (!conf) {
+		return NULL;
+	}
+	
+	return conf->get("forward");
+}
+
 SrsConfDirective* SrsConfig::get_hls(std::string vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);

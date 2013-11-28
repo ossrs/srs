@@ -32,6 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_codec.hpp>
 #include <srs_core_hls.hpp>
 #include <srs_core_forward.hpp>
+#include <srs_core_config.hpp>
 
 #define CONST_MAX_JITTER_MS 		500
 #define DEFAULT_FRAME_TIME_MS 		10
@@ -408,6 +409,17 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
 		return ret;
 	}
 #endif
+
+	if (true) {
+		std::vector<SrsForwarder*>::iterator it;
+		for (it = forwarders.begin(); it != forwarders.end(); ++it) {
+			SrsForwarder* forwarder = *it;
+			if ((ret = forwarder->on_meta_data(metadata)) != ERROR_SUCCESS) {
+				srs_error("forwarder process onMetaData message failed. ret=%d", ret);
+				return ret;
+			}
+		}
+	}
 	
 	metadata->metadata->set("server", new SrsAmf0String(
 		RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
@@ -453,15 +465,17 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
 	srs_verbose("initialize shared ptr metadata success.");
 	
 	// copy to all consumer
-	std::vector<SrsConsumer*>::iterator it;
-	for (it = consumers.begin(); it != consumers.end(); ++it) {
-		SrsConsumer* consumer = *it;
-		if ((ret = consumer->enqueue(cache_metadata->copy(), sample_rate, frame_rate)) != ERROR_SUCCESS) {
-			srs_error("dispatch the metadata failed. ret=%d", ret);
-			return ret;
+	if (true) {
+		std::vector<SrsConsumer*>::iterator it;
+		for (it = consumers.begin(); it != consumers.end(); ++it) {
+			SrsConsumer* consumer = *it;
+			if ((ret = consumer->enqueue(cache_metadata->copy(), sample_rate, frame_rate)) != ERROR_SUCCESS) {
+				srs_error("dispatch the metadata failed. ret=%d", ret);
+				return ret;
+			}
 		}
+		srs_trace("dispatch metadata success.");
 	}
-	srs_trace("dispatch metadata success.");
 	
 	return ret;
 }
@@ -484,17 +498,30 @@ int SrsSource::on_audio(SrsCommonMessage* audio)
 		return ret;
 	}
 #endif
-	
-	// copy to all consumer
-	std::vector<SrsConsumer*>::iterator it;
-	for (it = consumers.begin(); it != consumers.end(); ++it) {
-		SrsConsumer* consumer = *it;
-		if ((ret = consumer->enqueue(msg->copy(), sample_rate, frame_rate)) != ERROR_SUCCESS) {
-			srs_error("dispatch the audio failed. ret=%d", ret);
-			return ret;
+
+	if (true) {
+		std::vector<SrsForwarder*>::iterator it;
+		for (it = forwarders.begin(); it != forwarders.end(); ++it) {
+			SrsForwarder* forwarder = *it;
+			if ((ret = forwarder->on_audio(msg->copy())) != ERROR_SUCCESS) {
+				srs_error("forwarder process audio message failed. ret=%d", ret);
+				return ret;
+			}
 		}
 	}
-	srs_info("dispatch audio success.");
+	
+	// copy to all consumer
+	if (true) {
+		std::vector<SrsConsumer*>::iterator it;
+		for (it = consumers.begin(); it != consumers.end(); ++it) {
+			SrsConsumer* consumer = *it;
+			if ((ret = consumer->enqueue(msg->copy(), sample_rate, frame_rate)) != ERROR_SUCCESS) {
+				srs_error("dispatch the audio failed. ret=%d", ret);
+				return ret;
+			}
+		}
+		srs_info("dispatch audio success.");
+	}
 
 	// cache the sequence header if h264
 	if (SrsCodec::audio_is_sequence_header(msg->payload, msg->size)) {
@@ -532,17 +559,30 @@ int SrsSource::on_video(SrsCommonMessage* video)
 		return ret;
 	}
 #endif
-	
-	// copy to all consumer
-	std::vector<SrsConsumer*>::iterator it;
-	for (it = consumers.begin(); it != consumers.end(); ++it) {
-		SrsConsumer* consumer = *it;
-		if ((ret = consumer->enqueue(msg->copy(), sample_rate, frame_rate)) != ERROR_SUCCESS) {
-			srs_error("dispatch the video failed. ret=%d", ret);
-			return ret;
+
+	if (true) {
+		std::vector<SrsForwarder*>::iterator it;
+		for (it = forwarders.begin(); it != forwarders.end(); ++it) {
+			SrsForwarder* forwarder = *it;
+			if ((ret = forwarder->on_video(msg->copy())) != ERROR_SUCCESS) {
+				srs_error("forwarder process video message failed. ret=%d", ret);
+				return ret;
+			}
 		}
 	}
-	srs_info("dispatch video success.");
+	
+	// copy to all consumer
+	if (true) {
+		std::vector<SrsConsumer*>::iterator it;
+		for (it = consumers.begin(); it != consumers.end(); ++it) {
+			SrsConsumer* consumer = *it;
+			if ((ret = consumer->enqueue(msg->copy(), sample_rate, frame_rate)) != ERROR_SUCCESS) {
+				srs_error("dispatch the video failed. ret=%d", ret);
+				return ret;
+			}
+		}
+		srs_info("dispatch video success.");
+	}
 
 	// cache the sequence header if h264
 	if (SrsCodec::video_is_sequence_header(msg->payload, msg->size)) {
@@ -562,25 +602,54 @@ int SrsSource::on_video(SrsCommonMessage* video)
 	return ret;
 }
 
-#ifdef SRS_HLS
 int SrsSource::on_publish(std::string vhost, std::string app, std::string stream)
 {
+	int ret = ERROR_SUCCESS;
+	
 	_can_publish = false;
-	return hls->on_publish(vhost, app, stream);
-}
-#else
-int SrsSource::on_publish(std::string /*vhost*/, std::string /*app*/, std::string /*stream*/)
-{
-	_can_publish = false;
-	return ERROR_SUCCESS;
-}
+	
+#ifdef SRS_HLS
+	if ((ret = hls->on_publish(vhost, app, stream)) != ERROR_SUCCESS) {
+		return ret;
+	}
 #endif
+
+	// TODO: support reload.
+	
+	// create forwarders
+	SrsConfDirective* conf = config->get_forward(vhost);
+	for (int i = 0; conf && i < conf->args.size(); i++) {
+		std::string forward_server = conf->args.at(i);
+		
+		SrsForwarder* forwarder = new SrsForwarder();
+		forwarders.push_back(forwarder);
+		
+		if ((ret = forwarder->on_publish(vhost, app, stream, forward_server)) != ERROR_SUCCESS) {
+			srs_error("start forwarder failed. "
+				"vhost=%s, app=%s, stream=%s, forward-to=%s",
+				vhost.c_str(), app.c_str(), stream.c_str(),
+				forward_server.c_str());
+			return ret;
+		}
+	}
+
+	return ret;
+}
 
 void SrsSource::on_unpublish()
 {
 #ifdef SRS_HLS
 	hls->on_unpublish();
 #endif
+
+	// close all forwarders
+	std::vector<SrsForwarder*>::iterator it;
+	for (it = forwarders.begin(); it != forwarders.end(); ++it) {
+		SrsForwarder* forwarder = *it;
+		forwarder->on_unpublish();
+		srs_freep(forwarder);
+	}
+	forwarders.clear();
 
 	gop_cache->clear();
 

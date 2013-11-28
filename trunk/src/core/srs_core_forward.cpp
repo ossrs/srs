@@ -23,11 +23,41 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core_forward.hpp>
 
+#include <srs_core_error.hpp>
+
 SrsForwarder::SrsForwarder()
 {
 }
 
 SrsForwarder::~SrsForwarder()
 {
+}
+
+int SrsForwarder::on_publish(std::string vhost, std::string app, std::string stream, std::string forward_server)
+{
+	int ret = ERROR_SUCCESS;
+	return ret;
+}
+
+void SrsForwarder::on_unpublish()
+{
+}
+
+int SrsForwarder::on_meta_data(SrsOnMetaDataPacket* metadata)
+{
+	int ret = ERROR_SUCCESS;
+	return ret;
+}
+
+int SrsForwarder::on_audio(SrsSharedPtrMessage* msg)
+{
+	int ret = ERROR_SUCCESS;
+	return ret;
+}
+
+int SrsForwarder::on_video(SrsSharedPtrMessage* msg)
+{
+	int ret = ERROR_SUCCESS;
+	return ret;
 }
 

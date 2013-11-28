@@ -115,6 +115,7 @@ public:
 	virtual SrsConfDirective* get_vhost(std::string vhost);
 	virtual SrsConfDirective* get_vhost_enabled(std::string vhost);
 	virtual SrsConfDirective* get_gop_cache(std::string vhost);
+	virtual SrsConfDirective* get_forward(std::string vhost);
 	virtual SrsConfDirective* get_hls(std::string vhost);
 	virtual SrsConfDirective* get_hls_path(std::string vhost);
 	virtual SrsConfDirective* get_hls_fragment(std::string vhost);

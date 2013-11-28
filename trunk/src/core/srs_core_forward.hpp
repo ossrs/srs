@@ -29,6 +29,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
+#include <string>
+
+class SrsSharedPtrMessage;
+class SrsOnMetaDataPacket;
+
 /**
 * forward the stream to other servers.
 */
@@ -38,6 +43,11 @@ public:
 	SrsForwarder();
 	virtual ~SrsForwarder();
 public:
+	virtual int on_publish(std::string vhost, std::string app, std::string stream, std::string forward_server);
+	virtual void on_unpublish();
+	virtual int on_meta_data(SrsOnMetaDataPacket* metadata);
+	virtual int on_audio(SrsSharedPtrMessage* msg);
+	virtual int on_video(SrsSharedPtrMessage* msg);
 };
 
 #endif
