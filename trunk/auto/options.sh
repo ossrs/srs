@@ -5,6 +5,10 @@ help=no
 SRS_HLS=RESERVED
 SRS_SSL=RESERVED
 
+# TODO: remove the default to yes.
+SRS_HLS=YES
+SRS_SSL=YES
+
 opt=
 
 for option

@@ -6,13 +6,13 @@ SRS_AUTO_HEADERS_H="${SRS_OBJS}/srs_auto_headers.hpp"
 
 mkdir -p ${SRS_OBJS}
 
+# parse user options.
+. auto/options.sh
+
 # clean the exists
 if [[ -f Makefile ]]; then
     make clean
 fi
-
-# parse user options.
-. auto/options.sh
 
 # generate the audo headers file.
 echo "#define SRS_CONFIGURE \"${SRS_CONFIGURE}\"" > $SRS_AUTO_HEADERS_H
@@ -92,7 +92,7 @@ MODULE_FILES=("srs_core" "srs_core_log" "srs_core_server"
         "srs_core_stream" "srs_core_source" "srs_core_codec"
         "srs_core_handshake" "srs_core_pithy_print"
         "srs_core_config" "srs_core_refer" "srs_core_reload"
-        "srs_core_hls")
+        "srs_core_hls" "srs_core_forward")
 MODULE_DIR="src/core" . auto/modules.sh
 CORE_OBJS="${MODULE_OBJS[@]}"
 

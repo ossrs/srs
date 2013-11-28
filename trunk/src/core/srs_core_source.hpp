@@ -38,6 +38,7 @@ class SrsSource;
 class SrsCommonMessage;
 class SrsOnMetaDataPacket;
 class SrsSharedPtrMessage;
+class SrsForwarder;
 #ifdef SRS_HLS
 class SrsHls;
 #endif
@@ -112,27 +113,12 @@ private:
 };
 
 /**
-* live streaming source.
+* cache a gop of video/audio data,
+* delivery at the connect of flash player,
+* to enable it to fast startup.
 */
-class SrsSource
+class SrsGopCache
 {
-private:
-	static std::map<std::string, SrsSource*> pool;
-public:
-	/**
-	* find stream by vhost/app/stream.
-	* @stream_url the stream url, for example, myserver.xxx.com/app/stream
-	* @return the matched source, never be NULL.
-	* @remark stream_url should without port and schema.
-	*/
-	static SrsSource* find(std::string stream_url);
-private:
-#ifdef SRS_HLS
-	SrsHls* hls;
-#endif
-	std::string stream_url;
-	std::vector<SrsConsumer*> consumers;
-// gop cache for client fast startup.
 private:
 	/**
 	* if disabled the gop cache,
@@ -148,15 +134,55 @@ private:
 	* cached gop.
 	*/
 	std::vector<SrsSharedPtrMessage*> gop_cache;
+public:
+	SrsGopCache();
+	virtual ~SrsGopCache();
+public:
+	virtual void set(bool enabled);
+	/**
+	* only for h264 codec
+	* 1. cache the gop when got h264 video packet.
+	* 2. clear gop when got keyframe.
+	*/
+	virtual int cache(SrsSharedPtrMessage* msg);
+	virtual void clear();
+	virtual int dump(SrsConsumer* consumer, int tba, int tbv);
+};
+
+/**
+* live streaming source.
+*/
+class SrsSource
+{
+private:
+	static std::map<std::string, SrsSource*> pool;
+public:
+	/**
+	* find stream by vhost/app/stream.
+	* @stream_url the stream url, for example, myserver.xxx.com/app/stream
+	* @return the matched source, never be NULL.
+	* @remark stream_url should without port and schema.
+	*/
+	static SrsSource* find(std::string stream_url);
+private:
+	std::string stream_url;
+	std::vector<SrsConsumer*> consumers;
+private:
+	// hls handler.
+#ifdef SRS_HLS
+	SrsHls* hls;
+#endif
+	// gop cache for client fast startup.
+	SrsGopCache* gop_cache;
 private:
 	/**
 	* the sample rate of audio in metadata.
 	*/
-	int audio_sample_rate;
+	int sample_rate;
 	/**
 	* the video frame rate in metadata.
 	*/
-	int video_frame_rate;
+	int frame_rate;
 	/**
 	* can publish, true when is not streaming
 	*/
@@ -181,14 +207,6 @@ public:
 	virtual int create_consumer(SrsConsumer*& consumer);
 	virtual void on_consumer_destroy(SrsConsumer* consumer);
 	virtual void set_cache(bool enabled);
-private:
-	/**
-	* only for h264 codec
-	* 1. cache the gop when got h264 video packet.
-	* 2. clear gop when got keyframe.
-	*/
-	virtual int cache_last_gop(SrsSharedPtrMessage* msg);
-	virtual void clear_gop_cache();
 };
 
 #endif

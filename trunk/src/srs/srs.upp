@@ -24,6 +24,8 @@ file
     ..\core\srs_core_client.cpp,
     ..\core\srs_core_source.hpp,
     ..\core\srs_core_source.cpp,
+    ..\core\srs_core_forward.hpp,
+    ..\core\srs_core_forward.cpp,
     ..\core\srs_core_hls.hpp,
     ..\core\srs_core_hls.cpp,
     ..\core\srs_core_codec.hpp,
