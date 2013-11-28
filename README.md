@@ -54,6 +54,31 @@ m3u8 url: http://127.0.0.1:80/live/livestream.m3u8
 14. no vod streaming, live streaming only.<br/>
 15. no multiple processes, single process only.<br/>
 
+### Performance
+1. 300 connections, 150Mbps, 500kbps, CPU 18.8%, 5956KB.
+2. 600 connections, 300Mbps, 500kbps, CPU 32.1%, 9808KB.
+3. 900 connections, 450Mbps, 500kbps, CPU 49.9%, 11MB.
+4. 1200 connections, 600Mbps, 500kbps, CPU 72.4%, 15MB.
+5. 1500 connections, 750Mbps, 500kbps, CPU 81.9%, 28MB.
+6. 1800 connections, 900Mbps, 500kbps, CPU 90.2%, 41MB.
+<pre>
+----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
+usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
+ 58   9  32   0   0   1|   0  4168k| 277M  277M|   0     0 |  29k   25k
+ 61   8  30   0   0   1|   0  1168k| 336M  336M|   0     0 |  29k   24k
+ 63   8  27   0   0   1|   0  2240k| 124M  124M|   0     0 |  32k   33k
+ 62   8  28   0   0   1|   0  1632k| 110M  110M|   0     0 |  31k   33k
+ 67   9  23   0   0   2|   0  1604k| 130M  130M|   0     0 |  33k   32k
+ 63   9  27   0   0   2|   0  1496k| 145M  145M|   0     0 |  32k   32k
+ 61   9  29   0   0   1|   0  1112k| 132M  132M|   0     0 |  32k   33k
+ 63   9  27   0   0   2|   0  1220k| 145M  145M|   0     0 |  32k   33k
+ 53   7  40   0   0   1|   0  1360k| 115M  115M|   0     0 |  24k   26k
+ 51   7  41   0   0   1|   0  1184k| 146M  146M|   0     0 |  24k   27k
+ 39   6  54   0   0   1|   0  1284k| 105M  105M|   0     0 |  22k   28k
+ 41   6  52   0   0   1|   0  1264k| 116M  116M|   0     0 |  25k   28k
+ 48   6  45   0   0   1|   0  1272k| 143M  143M|   0     0 |  27k   27k
+</pre>
+
 ### Releases
 * 2013-11-26, [release v0.5](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.5), support HLS(m3u8), fragment and window. 14449 lines.<br/>
 * 2013-11-10, [release v0.4](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.4), support reload config, pause, longtime publish/play. 12500 lines.<br/>
