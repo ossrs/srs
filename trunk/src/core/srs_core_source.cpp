@@ -364,12 +364,23 @@ SrsSource::SrsSource(std::string _stream_url)
 
 SrsSource::~SrsSource()
 {
-	std::vector<SrsConsumer*>::iterator it;
-	for (it = consumers.begin(); it != consumers.end(); ++it) {
-		SrsConsumer* consumer = *it;
-		srs_freep(consumer);
+	if (true) {
+		std::vector<SrsConsumer*>::iterator it;
+		for (it = consumers.begin(); it != consumers.end(); ++it) {
+			SrsConsumer* consumer = *it;
+			srs_freep(consumer);
+		}
+		consumers.clear();
 	}
-	consumers.clear();
+
+	if (true) {
+		std::vector<SrsForwarder*>::iterator it;
+		for (it = forwarders.begin(); it != forwarders.end(); ++it) {
+			SrsForwarder* forwarder = *it;
+			srs_freep(forwarder);
+		}
+		forwarders.clear();
+	}
 	
 	srs_freep(cache_metadata);
 	srs_freep(cache_sh_video);

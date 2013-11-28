@@ -166,14 +166,16 @@ public:
 	static SrsSource* find(std::string stream_url);
 private:
 	std::string stream_url;
+	// to delivery stream to clients.
 	std::vector<SrsConsumer*> consumers;
-private:
 	// hls handler.
 #ifdef SRS_HLS
 	SrsHls* hls;
 #endif
 	// gop cache for client fast startup.
 	SrsGopCache* gop_cache;
+	// to forward stream to other servers
+	std::vector<SrsForwarder*> forwarders;
 private:
 	/**
 	* the sample rate of audio in metadata.
