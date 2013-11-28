@@ -41,18 +41,20 @@ m3u8 url: http://127.0.0.1:80/live/livestream.m3u8
 1. simple: also stable enough.<br/>
 2. high-performance: single-thread, async socket, event/st-thread driven.<br/>
 3. support vhost, support \_\_defaultVhost\_\_.<br/>
-4. support both rtmp and hls(m3u8) live streaming.<br/>
-5. support reload config to enable changes.<br/>
-6. support cache last gop for flash player to fast startup.<br/>
-7. support listen at multiple ports.<br/>
-8. [dev] support forward publish stream to build active-standby cluster.<br/>
-9. [plan] support live stream transcoding by ffmpeg.<br/>
-10. [plan] support full http callback api.<br/>
-11. [plan] support network based cli and json result.<br/>
-12. [plan] support bandwidth test api and flash client.<br/>
-13. no edge server, origin server only.<br/>
-14. no vod streaming, live streaming only.<br/>
-15. no multiple processes, single process only.<br/>
+4. support adobe rtmp live streaming.<br/>
+5. support apple hls(m3u8) live streaming.<br/>
+7. support reload config to enable changes.<br/>
+8. support cache last gop for flash player to fast startup.<br/>
+9. support listen at multiple ports.<br/>
+10. support long time(>4.6hours) publish/play.<br/>
+11. [dev] support forward publish stream to build active-standby cluster.<br/>
+12. [plan] support live stream transcoding by ffmpeg.<br/>
+13. [plan] support full http callback api.<br/>
+14. [plan] support network based cli and json result.<br/>
+15. [plan] support bandwidth test api and flash client.<br/>
+16. no edge server, origin server only.<br/>
+17. no vod streaming, live streaming only.<br/>
+18. no multiple processes, single process only.<br/>
 
 ### Performance
 1. 300 connections, 150Mbps, 500kbps, CPU 18.8%, 5956KB.
