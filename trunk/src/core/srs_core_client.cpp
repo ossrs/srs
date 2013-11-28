@@ -384,7 +384,7 @@ int SrsClient::process_publish_message(SrsSource* source, SrsCommonMessage* msg,
 	int ret = ERROR_SUCCESS;
 	
 	// process audio packet
-	if (false && msg->header.is_audio()) {
+	if (msg->header.is_audio()) {
 		if ((ret = source->on_audio(msg)) != ERROR_SUCCESS) {
 			srs_error("source process audio message failed. ret=%d", ret);
 			return ret;
