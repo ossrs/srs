@@ -43,11 +43,14 @@ class SrsRtmpClient;
 class SrsForwarder
 {
 private:
+	std::string app;
 	std::string tc_url;
 	std::string stream_name;
+	int stream_id;
 	std::string server;
 	int port;
 private:
+	st_netfd_t stfd;
 	st_thread_t tid;
 	bool loop;
 private:
@@ -61,6 +64,14 @@ public:
 	virtual int on_meta_data(SrsOnMetaDataPacket* metadata);
 	virtual int on_audio(SrsSharedPtrMessage* msg);
 	virtual int on_video(SrsSharedPtrMessage* msg);
+private:
+	virtual int open_socket();
+	virtual int connect_server();
+	std::string parse_server(std::string host);
+private:
+	virtual int forward_cycle_imp();
+	virtual void forward_cycle();
+	static void* forward_thread(void* arg);
 };
 
 #endif

@@ -1067,7 +1067,7 @@ SrsSimpleHandshake::~SrsSimpleHandshake()
 {
 }
 
-int SrsSimpleHandshake::handshake(SrsSocket& skt, SrsComplexHandshake& complex_hs)
+int SrsSimpleHandshake::handshake_with_client(SrsSocket& skt, SrsComplexHandshake& complex_hs)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -1090,7 +1090,7 @@ int SrsSimpleHandshake::handshake(SrsSocket& skt, SrsComplexHandshake& complex_h
     srs_verbose("check c0 success, required plain text.");
     
     // try complex handshake
-    ret = complex_hs.handshake(skt, c0c1 + 1);
+    ret = complex_hs.handshake_with_client(skt, c0c1 + 1);
     if (ret == ERROR_SUCCESS) {
 	    srs_trace("complex handshake success.");
 	    return ret;
@@ -1125,6 +1125,67 @@ int SrsSimpleHandshake::handshake(SrsSocket& skt, SrsComplexHandshake& complex_h
 	return ret;
 }
 
+int SrsSimpleHandshake::handshake_with_server(SrsSocket& skt, SrsComplexHandshake& complex_hs)
+{
+	int ret = ERROR_SUCCESS;
+    
+    // try complex handshake
+    ret = complex_hs.handshake_with_server(skt);
+    if (ret == ERROR_SUCCESS) {
+	    srs_trace("complex handshake success.");
+	    return ret;
+    }
+    if (ret != ERROR_RTMP_TRY_SIMPLE_HS) {
+	    srs_error("complex handshake failed. ret=%d", ret);
+    	return ret;
+    }
+    srs_info("rollback complex to simple handshake. ret=%d", ret);
+	
+	// simple handshake
+    ssize_t nsize;
+    
+    char* c0c1 = new char[1537];
+    SrsAutoFree(char, c0c1, true);
+    
+	srs_random_generate(c0c1, 1537);
+	// plain text required.
+	c0c1[0] = 0x03;
+	
+    if ((ret = skt.write(c0c1, 1537, &nsize)) != ERROR_SUCCESS) {
+        srs_warn("write c0c1 failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("write c0c1 success.");
+	
+	char* s0s1s2 = new char[3073];
+    SrsAutoFree(char, s0s1s2, true);
+    if ((ret = skt.read_fully(s0s1s2, 3073, &nsize)) != ERROR_SUCCESS) {
+        srs_warn("simple handshake recv s0s1s2 failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("simple handshake recv s0s1s2 success.");
+    
+	// plain text required.
+    if (s0s1s2[0] != 0x03) {
+        ret = ERROR_RTMP_HANDSHAKE;
+        srs_warn("handshake failed, plain text required. ret=%d", ret);
+        return ret;
+    }
+    
+    char* c2 = new char[1536];
+    SrsAutoFree(char, c2, true);
+	srs_random_generate(c2, 1536);
+    if ((ret = skt.write(c2, 1536, &nsize)) != ERROR_SUCCESS) {
+        srs_warn("simple handshake write c2 failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("simple handshake write c2 success.");
+    
+    srs_trace("simple handshake success.");
+    
+	return ret;
+}
+
 SrsComplexHandshake::SrsComplexHandshake()
 {
 }
@@ -1134,12 +1195,12 @@ SrsComplexHandshake::~SrsComplexHandshake()
 }
 
 #ifndef SRS_SSL
-int SrsComplexHandshake::handshake(SrsSocket& /*skt*/, char* /*_c1*/)
+int SrsComplexHandshake::handshake_with_client(SrsSocket& /*skt*/, char* /*_c1*/)
 {
 	return ERROR_RTMP_TRY_SIMPLE_HS;
 }
 #else
-int SrsComplexHandshake::handshake(SrsSocket& skt, char* _c1)
+int SrsComplexHandshake::handshake_with_client(SrsSocket& skt, char* _c1)
 {
 	int ret = ERROR_SUCCESS;
 
@@ -1211,6 +1272,23 @@ int SrsComplexHandshake::handshake(SrsSocket& skt, char* _c1)
         return ret;
     }
     srs_verbose("complex handshake read c2 success.");
+	
+	return ret;
+}
+#endif
+
+#ifndef SRS_SSL
+int SrsComplexHandshake::handshake_with_server(SrsSocket& /*skt*/)
+{
+	return ERROR_RTMP_TRY_SIMPLE_HS;
+}
+#else
+int SrsComplexHandshake::handshake_with_server(SrsSocket& /*skt*/)
+{
+	int ret = ERROR_SUCCESS;
+	
+	// TODO: implements complex handshake.
+	ret = ERROR_RTMP_TRY_SIMPLE_HS;
 	
 	return ret;
 }

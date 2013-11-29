@@ -199,6 +199,7 @@ messages.
 #define RTMP_AMF0_COMMAND_ON_BW_DONE		"onBWDone"
 #define RTMP_AMF0_COMMAND_ON_STATUS			"onStatus"
 #define RTMP_AMF0_COMMAND_RESULT			"_result"
+#define RTMP_AMF0_COMMAND_ERROR				"_error"
 #define RTMP_AMF0_COMMAND_RELEASE_STREAM	"releaseStream"
 #define RTMP_AMF0_COMMAND_FC_PUBLISH		"FCPublish"
 #define RTMP_AMF0_COMMAND_UNPUBLISH			"FCUnpublish"
@@ -280,6 +281,15 @@ SrsProtocol::~SrsProtocol()
 	
 	srs_freep(buffer);
 	srs_freep(skt);
+}
+
+std::string SrsProtocol::get_request_name(double transcationId)
+{
+	if (requests.find(transcationId) == requests.end()) {
+		return "";
+	}
+	
+	return requests[transcationId];
 }
 
 void SrsProtocol::set_recv_timeout(int64_t timeout_us)
@@ -548,7 +558,7 @@ int SrsProtocol::on_recv_message(SrsCommonMessage* msg)
 		case RTMP_MSG_SetChunkSize:
 		case RTMP_MSG_UserControlMessage:
 		case RTMP_MSG_WindowAcknowledgementSize:
-			if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
+			if ((ret = msg->decode_packet(this)) != ERROR_SUCCESS) {
 				srs_error("decode packet from message payload failed. ret=%d", ret);
 				return ret;
 			}
@@ -622,6 +632,17 @@ int SrsProtocol::on_send_message(ISrsMessage* msg)
 			out_chunk_size = pkt->chunk_size;
 			
 			srs_trace("set output chunk size to %d", pkt->chunk_size);
+			break;
+		}
+		case RTMP_MSG_AMF0CommandMessage:
+		case RTMP_MSG_AMF3CommandMessage: {
+			if (true) {
+				SrsConnectAppPacket* pkt = NULL;
+				pkt = dynamic_cast<SrsConnectAppPacket*>(common_msg->get_packet());
+				if (pkt) {
+					requests[pkt->transaction_id] = RTMP_AMF0_COMMAND_CONNECT;
+				}
+			}
 			break;
 		}
 	}
@@ -1157,7 +1178,7 @@ bool SrsCommonMessage::can_decode()
 	return true;
 }
 
-int SrsCommonMessage::decode_packet()
+int SrsCommonMessage::decode_packet(SrsProtocol* protocol)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -1200,6 +1221,39 @@ int SrsCommonMessage::decode_packet()
 			return ret;
 		}
 		srs_verbose("AMF0/AMF3 command message, command_name=%s", command.c_str());
+		
+		// result/error packet
+		if (command == RTMP_AMF0_COMMAND_RESULT || command == RTMP_AMF0_COMMAND_ERROR) {
+			double transactionId = 0.0;
+			if ((ret = srs_amf0_read_number(stream, transactionId)) != ERROR_SUCCESS) {
+				srs_error("decode AMF0/AMF3 transcationId failed. ret=%d", ret);
+				return ret;
+			}
+			srs_verbose("AMF0/AMF3 command id, transcationId=%.2f", transactionId);
+			
+			// reset stream, for header read completed.
+			stream->reset();
+			
+			std::string request_name = protocol->get_request_name(transactionId);
+			if (request_name.empty()) {
+				ret = ERROR_RTMP_NO_REQUEST;
+				srs_error("decode AMF0/AMF3 request failed. ret=%d", ret);
+				return ret;
+			}
+			srs_verbose("AMF0/AMF3 request parsed. request_name=%s", request_name.c_str());
+
+			if (request_name == RTMP_AMF0_COMMAND_CONNECT) {
+				srs_info("decode the AMF0/AMF3 response command(connect vhost/app message).");
+				packet = new SrsConnectAppResPacket();
+				return packet->decode(stream);
+			} else {
+				ret = ERROR_RTMP_NO_REQUEST;
+				srs_error("decode AMF0/AMF3 request failed. "
+					"request_name=%s, transactionId=%.2f, ret=%d", 
+					request_name.c_str(), transactionId, ret);
+				return ret;
+			}
+		}
 		
 		// reset to zero(amf3 to 1) to restart decode.
 		stream->reset();
@@ -1319,7 +1373,13 @@ int SrsCommonMessage::encode_packet()
 	size = 0;
 	srs_freepa(payload);
 	
-	return packet->encode(size, (char*&)payload);
+	if ((ret = packet->encode(size, (char*&)payload)) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
+	header.payload_length = size;
+	
+	return ret;
 }
 
 SrsSharedPtrMessage::SrsSharedPtr::SrsSharedPtr()
@@ -1582,6 +1642,49 @@ int SrsConnectAppPacket::decode(SrsStream* stream)
 	return ret;
 }
 
+int SrsConnectAppPacket::get_perfer_cid()
+{
+	return RTMP_CID_OverConnection;
+}
+
+int SrsConnectAppPacket::get_message_type()
+{
+	return RTMP_MSG_AMF0CommandMessage;
+}
+
+int SrsConnectAppPacket::get_size()
+{
+	return srs_amf0_get_string_size(command_name) + srs_amf0_get_number_size()
+		+ srs_amf0_get_object_size(command_object);
+}
+
+int SrsConnectAppPacket::encode_packet(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if ((ret = srs_amf0_write_string(stream, command_name)) != ERROR_SUCCESS) {
+		srs_error("encode command_name failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode command_name success.");
+	
+	if ((ret = srs_amf0_write_number(stream, transaction_id)) != ERROR_SUCCESS) {
+		srs_error("encode transaction_id failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode transaction_id success.");
+	
+	if ((ret = srs_amf0_write_object(stream, command_object)) != ERROR_SUCCESS) {
+		srs_error("encode command_object failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode command_object success.");
+	
+	srs_info("encode connect app request packet success.");
+	
+	return ret;
+}
+
 SrsConnectAppResPacket::SrsConnectAppResPacket()
 {
 	command_name = RTMP_AMF0_COMMAND_RESULT;
@@ -1594,6 +1697,57 @@ SrsConnectAppResPacket::~SrsConnectAppResPacket()
 {
 	srs_freep(props);
 	srs_freep(info);
+}
+
+int SrsConnectAppResPacket::decode(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+
+	if ((ret = srs_amf0_read_string(stream, command_name)) != ERROR_SUCCESS) {
+		srs_error("amf0 decode connect command_name failed. ret=%d", ret);
+		return ret;
+	}
+	if (command_name.empty() || command_name != RTMP_AMF0_COMMAND_RESULT) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 decode connect command_name failed. "
+			"command_name=%s, ret=%d", command_name.c_str(), ret);
+		return ret;
+	}
+	
+	if ((ret = srs_amf0_read_number(stream, transaction_id)) != ERROR_SUCCESS) {
+		srs_error("amf0 decode connect transaction_id failed. ret=%d", ret);
+		return ret;
+	}
+	if (transaction_id != 1.0) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 decode connect transaction_id failed. "
+			"required=%.1f, actual=%.1f, ret=%d", 1.0, transaction_id, ret);
+		return ret;
+	}
+	
+	if ((ret = srs_amf0_read_object(stream, props)) != ERROR_SUCCESS) {
+		srs_error("amf0 decode connect props failed. ret=%d", ret);
+		return ret;
+	}
+	if (props == NULL) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 decode connect props failed. ret=%d", ret);
+		return ret;
+	}
+	
+	if ((ret = srs_amf0_read_object(stream, info)) != ERROR_SUCCESS) {
+		srs_error("amf0 decode connect info failed. ret=%d", ret);
+		return ret;
+	}
+	if (info == NULL) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 decode connect info failed. ret=%d", ret);
+		return ret;
+	}
+	
+	srs_info("amf0 decode connect response packet success");
+	
+	return ret;
 }
 
 int SrsConnectAppResPacket::get_perfer_cid()

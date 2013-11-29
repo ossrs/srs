@@ -100,13 +100,18 @@ enum SrsClientType
 class SrsRtmpClient
 {
 private:
+	SrsProtocol* protocol;
 	st_netfd_t stfd;
 public:
-	SrsRtmpClient();
+	SrsRtmpClient(st_netfd_t _stfd);
 	virtual ~SrsRtmpClient();
-private:
-	virtual int connect_to(std::string server, int port);
-	std::string parse_server(std::string host);
+public:
+	virtual void set_recv_timeout(int64_t timeout_us);
+	virtual void set_send_timeout(int64_t timeout_us);
+public:
+	virtual int handshake();
+	virtual int connect_app(std::string app, std::string tc_url);
+	virtual int play_stream(std::string stream, int& stream_id);
 };
 
 /**
@@ -123,6 +128,7 @@ public:
 	SrsRtmp(st_netfd_t client_stfd);
 	virtual ~SrsRtmp();
 public:
+	virtual SrsProtocol* get_protocol();
 	virtual void set_recv_timeout(int64_t timeout_us);
 	virtual int64_t get_recv_timeout();
 	virtual void set_send_timeout(int64_t timeout_us);

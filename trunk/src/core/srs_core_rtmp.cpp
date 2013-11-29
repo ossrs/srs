@@ -23,11 +23,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core_rtmp.hpp>
 
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-
 #include <srs_core_log.hpp>
 #include <srs_core_error.hpp>
 #include <srs_core_socket.hpp>
@@ -168,50 +163,104 @@ SrsResponse::~SrsResponse()
 {
 }
 
-SrsRtmpClient::SrsRtmpClient()
+SrsRtmpClient::SrsRtmpClient(st_netfd_t _stfd)
 {
-	stfd = NULL;
+	stfd = _stfd;
+	protocol = new SrsProtocol(stfd);
 }
 
 SrsRtmpClient::~SrsRtmpClient()
 {
-	if (stfd) {
-		int fd = st_netfd_fileno(stfd);
-		st_netfd_close(stfd);
-		stfd = NULL;
-		
-		// st does not close it sometimes, 
-		// close it manually.
-		close(fd);
-	}
+	srs_freep(protocol);
 }
 
-int SrsRtmpClient::connect_to(std::string server, int port)
+void SrsRtmpClient::set_recv_timeout(int64_t timeout_us)
+{
+	protocol->set_recv_timeout(timeout_us);
+}
+
+void SrsRtmpClient::set_send_timeout(int64_t timeout_us)
+{
+	protocol->set_send_timeout(timeout_us);
+}
+
+int SrsRtmpClient::handshake()
 {
 	int ret = ERROR_SUCCESS;
-	return ret;
+	
+    SrsSocket skt(stfd);
+    
+    SrsComplexHandshake complex_hs;
+    SrsSimpleHandshake simple_hs;
+    if ((ret = simple_hs.handshake_with_server(skt, complex_hs)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
 }
 
-std::string SrsRtmpClient::parse_server(std::string host){
-    if(inet_addr(host.c_str()) != INADDR_NONE){
-        return host;
-    }
-    
-    hostent* answer = gethostbyname(host.c_str());
-    if(answer == NULL){
-        srs_error("dns resolve host %s error.", host.c_str());
-        return "";
-    }
-    
-    char ipv4[16];
-    memset(ipv4, 0, sizeof(ipv4));
-    for(int i = 0; i < answer->h_length; i++){
-        inet_ntop(AF_INET, answer->h_addr_list[i], ipv4, sizeof(ipv4));
-        srs_info("dns resolve host %s to %s.", host.c_str(), ipv4);
-        break;
-    }
-    
-    return ipv4;
+int SrsRtmpClient::connect_app(std::string app, std::string tc_url)
+{
+	int ret = ERROR_SUCCESS;
+	
+	// Connect(vhost, app)
+	if (true) {
+		SrsCommonMessage* msg = new SrsCommonMessage();
+		SrsConnectAppPacket* pkt = new SrsConnectAppPacket();
+		msg->set_packet(pkt, 0);
+		
+		pkt->command_object = new SrsAmf0Object();
+		pkt->command_object->set("app", new SrsAmf0String(app.c_str()));
+		pkt->command_object->set("swfUrl", new SrsAmf0String());
+		pkt->command_object->set("tcUrl", new SrsAmf0String(tc_url.c_str()));
+		pkt->command_object->set("fpad", new SrsAmf0Boolean(false));
+		pkt->command_object->set("capabilities", new SrsAmf0Number(239));
+		pkt->command_object->set("audioCodecs", new SrsAmf0Number(3575));
+		pkt->command_object->set("videoCodecs", new SrsAmf0Number(252));
+		pkt->command_object->set("videoFunction", new SrsAmf0Number(1));
+		pkt->command_object->set("pageUrl", new SrsAmf0String());
+		pkt->command_object->set("objectEncoding", new SrsAmf0Number(0));
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			return ret;
+		}
+	}
+	
+	// Set Window Acknowledgement size(2500000)
+	if (true) {
+		SrsCommonMessage* msg = new SrsCommonMessage();
+		SrsSetWindowAckSizePacket* pkt = new SrsSetWindowAckSizePacket();
+	
+		pkt->ackowledgement_window_size = 2500000;
+		msg->set_packet(pkt, 0);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			return ret;
+		}
+	}
+	
+	// expect connect _result
+	SrsCommonMessage* msg = NULL;
+	SrsConnectAppResPacket* pkt = NULL;
+	if ((ret = srs_rtmp_expect_message<SrsConnectAppResPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+		srs_error("expect connect app response message failed. ret=%d", ret);
+		return ret;
+	}
+	SrsAutoFree(SrsCommonMessage, msg, false);
+	srs_info("get connect app response message");
+	
+    return ret;
+}
+
+int SrsRtmpClient::play_stream(std::string stream, int& stream_id)
+{
+	int ret = ERROR_SUCCESS;
+	
+	// CreateStream
+	if (true) {
+	}
+	
+	return ret;
 }
 
 SrsRtmp::SrsRtmp(st_netfd_t client_stfd)
@@ -225,9 +274,14 @@ SrsRtmp::~SrsRtmp()
 	srs_freep(protocol);
 }
 
+SrsProtocol* SrsRtmp::get_protocol()
+{
+	return protocol;
+}
+
 void SrsRtmp::set_recv_timeout(int64_t timeout_us)
 {
-	return protocol->set_recv_timeout(timeout_us);
+	protocol->set_recv_timeout(timeout_us);
 }
 
 int64_t SrsRtmp::get_recv_timeout()
@@ -237,7 +291,7 @@ int64_t SrsRtmp::get_recv_timeout()
 
 void SrsRtmp::set_send_timeout(int64_t timeout_us)
 {
-	return protocol->set_send_timeout(timeout_us);
+	protocol->set_send_timeout(timeout_us);
 }
 
 int64_t SrsRtmp::get_recv_bytes()
@@ -278,7 +332,7 @@ int SrsRtmp::handshake()
     
     SrsComplexHandshake complex_hs;
     SrsSimpleHandshake simple_hs;
-    if ((ret = simple_hs.handshake(skt, complex_hs)) != ERROR_SUCCESS) {
+    if ((ret = simple_hs.handshake_with_client(skt, complex_hs)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -441,7 +495,7 @@ int SrsRtmp::identify_client(int stream_id, SrsClientType& type, std::string& st
 			continue;
 		}
 		
-		if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
+		if ((ret = msg->decode_packet(protocol)) != ERROR_SUCCESS) {
 			srs_error("identify decode message failed. ret=%d", ret);
 			return ret;
 		}
@@ -884,7 +938,7 @@ int SrsRtmp::identify_create_stream_client(SrsCreateStreamPacket* req, int strea
 			continue;
 		}
 		
-		if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
+		if ((ret = msg->decode_packet(protocol)) != ERROR_SUCCESS) {
 			srs_error("identify decode message failed. ret=%d", ret);
 			return ret;
 		}

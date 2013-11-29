@@ -39,8 +39,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_hls.hpp>
 
 #define SRS_PULSE_TIMEOUT_MS 100
-#define SRS_SEND_TIMEOUT_MS 5000000L
-#define SRS_RECV_TIMEOUT_MS SRS_SEND_TIMEOUT_MS
+#define SRS_SEND_TIMEOUT_US 5000000L
+#define SRS_RECV_TIMEOUT_US SRS_SEND_TIMEOUT_US
 #define SRS_STREAM_BUSY_SLEEP_MS 2000
 
 SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
@@ -72,10 +72,10 @@ int SrsClient::do_cycle()
 		return ret;
 	}
 	srs_trace("get peer ip success. ip=%s, send_to=%"PRId64", recv_to=%"PRId64"", 
-		ip, SRS_SEND_TIMEOUT_MS, SRS_RECV_TIMEOUT_MS);
+		ip, SRS_SEND_TIMEOUT_US, SRS_RECV_TIMEOUT_US);
 
-	rtmp->set_recv_timeout(SRS_RECV_TIMEOUT_MS * 1000);
-	rtmp->set_send_timeout(SRS_SEND_TIMEOUT_MS * 1000);
+	rtmp->set_recv_timeout(SRS_RECV_TIMEOUT_US);
+	rtmp->set_send_timeout(SRS_SEND_TIMEOUT_US);
 	
 	if ((ret = rtmp->handshake()) != ERROR_SUCCESS) {
 		srs_error("rtmp handshake failed. ret=%d", ret);
@@ -400,7 +400,7 @@ int SrsClient::process_publish_message(SrsSource* source, SrsCommonMessage* msg,
 	
 	// process onMetaData
 	if (msg->header.is_amf0_data() || msg->header.is_amf3_data()) {
-		if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
+		if ((ret = msg->decode_packet(rtmp->get_protocol())) != ERROR_SUCCESS) {
 			srs_error("decode onMetaData message failed. ret=%d", ret);
 			return ret;
 		}
@@ -422,7 +422,7 @@ int SrsClient::process_publish_message(SrsSource* source, SrsCommonMessage* msg,
 	
 	// process UnPublish event.
 	if (msg->header.is_amf0_command() || msg->header.is_amf3_command()) {
-		if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
+		if ((ret = msg->decode_packet(rtmp->get_protocol())) != ERROR_SUCCESS) {
 			srs_error("decode unpublish message failed. ret=%d", ret);
 			return ret;
 		}
@@ -496,7 +496,7 @@ int SrsClient::process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage*
 		return ret;
 	}
 	
-	if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
+	if ((ret = msg->decode_packet(rtmp->get_protocol())) != ERROR_SUCCESS) {
 		srs_error("decode the amf0/amf3 command packet failed. ret=%d", ret);
 		return ret;
 	}

@@ -88,6 +88,12 @@ private:
 	st_netfd_t stfd;
 	SrsSocket* skt;
 	char* pp;
+	/**
+	* requests sent out, used to build the response.
+	* key: transactionId
+	* value: the request command name
+	*/
+	std::map<double, std::string> requests;
 // peer in
 private:
 	std::map<int, SrsChunkStream*> chunk_streams;
@@ -103,6 +109,7 @@ public:
 	SrsProtocol(st_netfd_t client_stfd);
 	virtual ~SrsProtocol();
 public:
+	std::string get_request_name(double transcationId);
 	/**
 	* set the timeout in us.
 	* if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
@@ -319,7 +326,7 @@ public:
 	/**
 	* decode packet from message payload.
 	*/
-	virtual int decode_packet();
+	virtual int decode_packet(SrsProtocol* protocol);
 	/**
 	* get the decoded packet which decoded by decode_packet().
 	* @remark, user never free the pkt, the message will auto free it.
@@ -481,6 +488,13 @@ public:
 	virtual ~SrsConnectAppPacket();
 public:
 	virtual int decode(SrsStream* stream);
+public:
+	virtual int get_perfer_cid();
+public:
+	virtual int get_message_type();
+protected:
+	virtual int get_size();
+	virtual int encode_packet(SrsStream* stream);
 };
 /**
 * response for SrsConnectAppPacket.
@@ -502,6 +516,8 @@ public:
 public:
 	SrsConnectAppResPacket();
 	virtual ~SrsConnectAppResPacket();
+public:
+	virtual int decode(SrsStream* stream);
 public:
 	virtual int get_perfer_cid();
 public:
@@ -1076,7 +1092,7 @@ int srs_rtmp_expect_message(SrsProtocol* protocol, SrsCommonMessage** pmsg, T** 
 		}
 		srs_verbose("recv message success.");
 		
-		if ((ret = msg->decode_packet()) != ERROR_SUCCESS) {
+		if ((ret = msg->decode_packet(protocol)) != ERROR_SUCCESS) {
 			delete msg;
 			srs_error("decode message failed. ret=%d", ret);
 			return ret;
