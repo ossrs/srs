@@ -30,6 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <string>
+#include <vector>
 
 #include <st.h>
 
@@ -55,6 +56,7 @@ private:
 	bool loop;
 private:
 	SrsRtmpClient* client;
+	std::vector<SrsSharedPtrMessage*> msgs;
 public:
 	SrsForwarder();
 	virtual ~SrsForwarder();
@@ -70,6 +72,7 @@ private:
 	std::string parse_server(std::string host);
 private:
 	virtual int forward_cycle_imp();
+	virtual int forward();
 	virtual void forward_cycle();
 	static void* forward_thread(void* arg);
 };

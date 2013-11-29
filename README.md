@@ -47,14 +47,16 @@ m3u8 url: http://127.0.0.1:80/live/livestream.m3u8
 8. support cache last gop for flash player to fast startup.<br/>
 9. support listen at multiple ports.<br/>
 10. support long time(>4.6hours) publish/play.<br/>
-11. [dev] support forward publish stream to build active-standby cluster.<br/>
-12. [plan] support live stream transcoding by ffmpeg.<br/>
-13. [plan] support full http callback api.<br/>
-14. [plan] support network based cli and json result.<br/>
-15. [plan] support bandwidth test api and flash client.<br/>
-16. no edge server, origin server only.<br/>
-17. no vod streaming, live streaming only.<br/>
-18. no multiple processes, single process only.<br/>
+11. high performace, 1800 connections(500kbps), 900Mbps, CPU 90.2%, 41MB<br/>
+12. support forward publish stream to build active-standby cluster.<br/>
+13. support broadcast by forward the stream to other servers(origin/edge).<br/>
+14. [plan] support live stream transcoding by ffmpeg.<br/>
+15. [plan] support full http callback api.<br/>
+16. [plan] support network based cli and json result.<br/>
+17. [plan] support bandwidth test api and flash client.<br/>
+18. no edge server, origin server only.<br/>
+19. no vod streaming, live streaming only.<br/>
+20. no multiple processes, single process only.<br/>
 
 ### Performance
 1. 300 connections, 150Mbps, 500kbps, CPU 18.8%, 5956KB.

@@ -126,6 +126,7 @@ public:
 	virtual SrsConfDirective* get_listen();
 	virtual SrsConfDirective* get_chunk_size();
 	virtual SrsConfDirective* get_pithy_print_publish();
+	virtual SrsConfDirective* get_pithy_print_forwarder();
 	virtual SrsConfDirective* get_pithy_print_play();
 private:
 	virtual int parse_file(const char* filename);

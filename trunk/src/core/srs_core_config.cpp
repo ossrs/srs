@@ -681,6 +681,16 @@ SrsConfDirective* SrsConfig::get_pithy_print_publish()
 	return pithy->get("publish");
 }
 
+SrsConfDirective* SrsConfig::get_pithy_print_forwarder()
+{
+	SrsConfDirective* pithy = root->get("pithy_print");
+	if (!pithy) {
+		return NULL;
+	}
+	
+	return pithy->get("forwarder");
+}
+
 SrsConfDirective* SrsConfig::get_pithy_print_play()
 {
 	SrsConfDirective* pithy = root->get("pithy_print");

@@ -32,7 +32,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_error.hpp>
 #include <srs_core_rtmp.hpp>
 #include <srs_core_log.hpp>
+#include <srs_core_protocol.hpp>
+#include <srs_core_pithy_print.hpp>
 
+#define SRS_PULSE_TIMEOUT_MS 100
 #define SRS_FORWARDER_SLEEP_MS 2000
 #define SRS_SEND_TIMEOUT_US 3000000L
 #define SRS_RECV_TIMEOUT_US SRS_SEND_TIMEOUT_US
@@ -49,6 +52,13 @@ SrsForwarder::SrsForwarder()
 SrsForwarder::~SrsForwarder()
 {
 	on_unpublish();
+	
+	std::vector<SrsSharedPtrMessage*>::iterator it;
+	for (it = msgs.begin(); it != msgs.end(); ++it) {
+		SrsSharedPtrMessage* msg = *it;
+		srs_freep(msg);
+	}
+	msgs.clear();
 }
 
 int SrsForwarder::on_publish(std::string vhost, std::string _app, std::string stream, std::string forward_server)
@@ -111,18 +121,27 @@ void SrsForwarder::on_unpublish()
 int SrsForwarder::on_meta_data(SrsSharedPtrMessage* metadata)
 {
 	int ret = ERROR_SUCCESS;
+	
+	msgs.push_back(metadata);
+	
 	return ret;
 }
 
 int SrsForwarder::on_audio(SrsSharedPtrMessage* msg)
 {
 	int ret = ERROR_SUCCESS;
+	
+	msgs.push_back(msg);
+	
 	return ret;
 }
 
 int SrsForwarder::on_video(SrsSharedPtrMessage* msg)
 {
 	int ret = ERROR_SUCCESS;
+	
+	msgs.push_back(msg);
+	
 	return ret;
 }
 
@@ -230,6 +249,60 @@ int SrsForwarder::forward_cycle_imp()
 		srs_error("connect with server failed, stream_name=%s, stream_id=%d. ret=%d", 
 			stream_name.c_str(), stream_id, ret);
 		return ret;
+	}
+	
+	if ((ret = forward()) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
+	return ret;
+}
+
+int SrsForwarder::forward()
+{
+	int ret = ERROR_SUCCESS;
+	
+	client->set_recv_timeout(SRS_PULSE_TIMEOUT_MS * 1000);
+	
+	SrsPithyPrint pithy_print(SRS_STAGE_FORWARDER);
+
+	while (loop) {
+		pithy_print.elapse(SRS_PULSE_TIMEOUT_MS);
+		
+		// switch to other st-threads.
+		st_usleep(0);
+
+		// read from client.
+		if (true) {
+			SrsCommonMessage* msg = NULL;
+			ret = client->recv_message(&msg);
+			
+			srs_verbose("play loop recv message. ret=%d", ret);
+			if (ret != ERROR_SUCCESS && ret != ERROR_SOCKET_TIMEOUT) {
+				srs_error("recv server control message failed. ret=%d", ret);
+				return ret;
+			}
+		}
+		
+		int count = (int)msgs.size();
+
+		// reportable
+		if (pithy_print.can_print()) {
+			srs_trace("-> clock=%u, time=%"PRId64", msgs=%d, obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
+				(int)(srs_get_system_time_ms()/1000), pithy_print.get_age(), count, client->get_send_bytes(), client->get_recv_bytes(), client->get_send_kbps(), client->get_recv_kbps());
+		}
+	
+		// all msgs to forward.
+		for (int i = 0; i < count; i++) {
+			SrsSharedPtrMessage* msg = msgs[i];
+			msgs[i] = NULL;
+			
+			if ((ret = client->send_message(msg)) != ERROR_SUCCESS) {
+				srs_error("forwarder send message to server failed. ret=%d", ret);
+				return ret;
+			}
+		}
+		msgs.clear();
 	}
 	
 	return ret;
