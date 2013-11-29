@@ -288,8 +288,8 @@ int SrsForwarder::forward()
 
 		// reportable
 		if (pithy_print.can_print()) {
-			srs_trace("-> clock=%u, time=%"PRId64", msgs=%d, obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
-				(int)(srs_get_system_time_ms()/1000), pithy_print.get_age(), count, client->get_send_bytes(), client->get_recv_bytes(), client->get_send_kbps(), client->get_recv_kbps());
+			srs_trace("-> time=%"PRId64", msgs=%d, obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
+				pithy_print.get_age(), count, client->get_send_bytes(), client->get_recv_bytes(), client->get_send_kbps(), client->get_recv_kbps());
 		}
 	
 		// all msgs to forward.

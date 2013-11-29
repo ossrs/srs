@@ -303,8 +303,8 @@ int SrsClient::playing(SrsSource* source)
 
 		// reportable
 		if (pithy_print.can_print()) {
-			srs_trace("-> clock=%u, time=%"PRId64", cmr=%d, msgs=%d, obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
-				(int)(srs_get_system_time_ms()/1000), pithy_print.get_age(), ctl_msg_ret, count, rtmp->get_send_bytes(), rtmp->get_recv_bytes(), rtmp->get_send_kbps(), rtmp->get_recv_kbps());
+			srs_trace("-> time=%"PRId64", cmr=%d, msgs=%d, obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
+				pithy_print.get_age(), ctl_msg_ret, count, rtmp->get_send_bytes(), rtmp->get_recv_bytes(), rtmp->get_send_kbps(), rtmp->get_recv_kbps());
 		}
 		
 		if (count <= 0) {
@@ -366,8 +366,8 @@ int SrsClient::publish(SrsSource* source, bool is_fmle)
 
 		// reportable
 		if (pithy_print.can_print()) {
-			srs_trace("<- clock=%u, time=%"PRId64", obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
-				(int)(srs_get_system_time_ms()/1000), pithy_print.get_age(), rtmp->get_send_bytes(), rtmp->get_recv_bytes(), rtmp->get_send_kbps(), rtmp->get_recv_kbps());
+			srs_trace("<- time=%"PRId64", obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
+				pithy_print.get_age(), rtmp->get_send_bytes(), rtmp->get_recv_bytes(), rtmp->get_send_kbps(), rtmp->get_recv_kbps());
 		}
 
 		if ((ret = process_publish_message(source, msg, is_fmle)) != ERROR_SUCCESS) {
