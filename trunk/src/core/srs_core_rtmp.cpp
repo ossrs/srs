@@ -252,12 +252,99 @@ int SrsRtmpClient::connect_app(std::string app, std::string tc_url)
     return ret;
 }
 
-int SrsRtmpClient::play_stream(std::string stream, int& stream_id)
+int SrsRtmpClient::create_stream(int& stream_id)
 {
 	int ret = ERROR_SUCCESS;
 	
 	// CreateStream
 	if (true) {
+		SrsCommonMessage* msg = new SrsCommonMessage();
+		SrsCreateStreamPacket* pkt = new SrsCreateStreamPacket();
+	
+		msg->set_packet(pkt, 0);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			return ret;
+		}
+	}
+
+	// CreateStream _result.
+	if (true) {
+		SrsCommonMessage* msg = NULL;
+		SrsCreateStreamResPacket* pkt = NULL;
+		if ((ret = srs_rtmp_expect_message<SrsCreateStreamResPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+			srs_error("expect create stream response message failed. ret=%d", ret);
+			return ret;
+		}
+		SrsAutoFree(SrsCommonMessage, msg, false);
+		srs_info("get create stream response message");
+
+		stream_id = (int)pkt->stream_id;
+	}
+	
+	return ret;
+}
+
+int SrsRtmpClient::play(std::string stream, int stream_id)
+{
+	int ret = ERROR_SUCCESS;
+
+	// Play(stream)
+	if (true) {
+		SrsCommonMessage* msg = new SrsCommonMessage();
+		SrsPlayPacket* pkt = new SrsPlayPacket();
+	
+		pkt->stream_name = stream;
+		msg->set_packet(pkt, stream_id);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			srs_error("send play stream failed. "
+				"stream=%s, stream_id=%d, ret=%d", 
+				stream.c_str(), stream_id, ret);
+			return ret;
+		}
+	}
+	
+	// SetBufferLength(1000ms)
+	int buffer_length_ms = 1000;
+	if (true) {
+		SrsCommonMessage* msg = new SrsCommonMessage();
+		SrsUserControlPacket* pkt = new SrsUserControlPacket();
+	
+		pkt->event_type = SrcPCUCSetBufferLength;
+		pkt->event_data = stream_id;
+		pkt->extra_data = buffer_length_ms;
+		msg->set_packet(pkt, 0);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			srs_error("send set buffer length failed. "
+				"stream=%s, stream_id=%d, bufferLength=%d, ret=%d", 
+				stream.c_str(), stream_id, buffer_length_ms, ret);
+			return ret;
+		}
+	}
+	
+	return ret;
+}
+
+int SrsRtmpClient::publish(std::string stream, int stream_id)
+{
+	int ret = ERROR_SUCCESS;
+
+	// publish(stream)
+	if (true) {
+		SrsCommonMessage* msg = new SrsCommonMessage();
+		SrsPublishPacket* pkt = new SrsPublishPacket();
+	
+		pkt->stream_name = stream;
+		msg->set_packet(pkt, stream_id);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			srs_error("send publish message failed. "
+				"stream=%s, stream_id=%d, ret=%d", 
+				stream.c_str(), stream_id, ret);
+			return ret;
+		}
 	}
 	
 	return ret;

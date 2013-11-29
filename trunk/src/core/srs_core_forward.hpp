@@ -61,7 +61,7 @@ public:
 public:
 	virtual int on_publish(std::string vhost, std::string app, std::string stream, std::string forward_server);
 	virtual void on_unpublish();
-	virtual int on_meta_data(SrsOnMetaDataPacket* metadata);
+	virtual int on_meta_data(SrsSharedPtrMessage* metadata);
 	virtual int on_audio(SrsSharedPtrMessage* msg);
 	virtual int on_video(SrsSharedPtrMessage* msg);
 private:

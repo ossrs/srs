@@ -552,6 +552,13 @@ public:
 	virtual ~SrsCreateStreamPacket();
 public:
 	virtual int decode(SrsStream* stream);
+public:
+	virtual int get_perfer_cid();
+public:
+	virtual int get_message_type();
+protected:
+	virtual int get_size();
+	virtual int encode_packet(SrsStream* stream);
 };
 /**
 * response for SrsCreateStreamPacket.
@@ -573,6 +580,8 @@ public:
 public:
 	SrsCreateStreamResPacket(double _transaction_id, double _stream_id);
 	virtual ~SrsCreateStreamResPacket();
+public:
+	virtual int decode(SrsStream* stream);
 public:
 	virtual int get_perfer_cid();
 public:
@@ -662,6 +671,13 @@ public:
 	virtual ~SrsPublishPacket();
 public:
 	virtual int decode(SrsStream* stream);
+public:
+	virtual int get_perfer_cid();
+public:
+	virtual int get_message_type();
+protected:
+	virtual int get_size();
+	virtual int encode_packet(SrsStream* stream);
 };
 
 /**
@@ -717,6 +733,13 @@ public:
 	virtual ~SrsPlayPacket();
 public:
 	virtual int decode(SrsStream* stream);
+public:
+	virtual int get_perfer_cid();
+public:
+	virtual int get_message_type();
+protected:
+	virtual int get_size();
+	virtual int encode_packet(SrsStream* stream);
 };
 /**
 * response for SrsPlayPacket.
@@ -1050,6 +1073,7 @@ protected:
 		return CLASS_NAME_STRING(SrsUserControlPacket);
 	}
 public:
+	// @see: SrcPCUCEventType
 	int16_t event_type;
 	int32_t event_data;
 	/**

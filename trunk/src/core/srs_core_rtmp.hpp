@@ -111,7 +111,9 @@ public:
 public:
 	virtual int handshake();
 	virtual int connect_app(std::string app, std::string tc_url);
-	virtual int play_stream(std::string stream, int& stream_id);
+	virtual int create_stream(int& stream_id);
+	virtual int play(std::string stream, int stream_id);
+	virtual int publish(std::string stream, int stream_id);
 };
 
 /**

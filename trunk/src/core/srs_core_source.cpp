@@ -409,17 +409,6 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
 		return ret;
 	}
 #endif
-
-	if (true) {
-		std::vector<SrsForwarder*>::iterator it;
-		for (it = forwarders.begin(); it != forwarders.end(); ++it) {
-			SrsForwarder* forwarder = *it;
-			if ((ret = forwarder->on_meta_data(metadata)) != ERROR_SUCCESS) {
-				srs_error("forwarder process onMetaData message failed. ret=%d", ret);
-				return ret;
-			}
-		}
-	}
 	
 	metadata->metadata->set("server", new SrsAmf0String(
 		RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
@@ -477,6 +466,18 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
 		srs_trace("dispatch metadata success.");
 	}
 	
+	// copy to all forwarders
+	if (true) {
+		std::vector<SrsForwarder*>::iterator it;
+		for (it = forwarders.begin(); it != forwarders.end(); ++it) {
+			SrsForwarder* forwarder = *it;
+			if ((ret = forwarder->on_meta_data(cache_metadata->copy())) != ERROR_SUCCESS) {
+				srs_error("forwarder process onMetaData message failed. ret=%d", ret);
+				return ret;
+			}
+		}
+	}
+	
 	return ret;
 }
 
@@ -498,17 +499,6 @@ int SrsSource::on_audio(SrsCommonMessage* audio)
 		return ret;
 	}
 #endif
-
-	if (true) {
-		std::vector<SrsForwarder*>::iterator it;
-		for (it = forwarders.begin(); it != forwarders.end(); ++it) {
-			SrsForwarder* forwarder = *it;
-			if ((ret = forwarder->on_audio(msg->copy())) != ERROR_SUCCESS) {
-				srs_error("forwarder process audio message failed. ret=%d", ret);
-				return ret;
-			}
-		}
-	}
 	
 	// copy to all consumer
 	if (true) {
@@ -521,6 +511,18 @@ int SrsSource::on_audio(SrsCommonMessage* audio)
 			}
 		}
 		srs_info("dispatch audio success.");
+	}
+
+	// copy to all forwarders.
+	if (true) {
+		std::vector<SrsForwarder*>::iterator it;
+		for (it = forwarders.begin(); it != forwarders.end(); ++it) {
+			SrsForwarder* forwarder = *it;
+			if ((ret = forwarder->on_audio(msg->copy())) != ERROR_SUCCESS) {
+				srs_error("forwarder process audio message failed. ret=%d", ret);
+				return ret;
+			}
+		}
 	}
 
 	// cache the sequence header if h264
@@ -559,17 +561,6 @@ int SrsSource::on_video(SrsCommonMessage* video)
 		return ret;
 	}
 #endif
-
-	if (true) {
-		std::vector<SrsForwarder*>::iterator it;
-		for (it = forwarders.begin(); it != forwarders.end(); ++it) {
-			SrsForwarder* forwarder = *it;
-			if ((ret = forwarder->on_video(msg->copy())) != ERROR_SUCCESS) {
-				srs_error("forwarder process video message failed. ret=%d", ret);
-				return ret;
-			}
-		}
-	}
 	
 	// copy to all consumer
 	if (true) {
@@ -582,6 +573,18 @@ int SrsSource::on_video(SrsCommonMessage* video)
 			}
 		}
 		srs_info("dispatch video success.");
+	}
+
+	// copy to all forwarders.
+	if (true) {
+		std::vector<SrsForwarder*>::iterator it;
+		for (it = forwarders.begin(); it != forwarders.end(); ++it) {
+			SrsForwarder* forwarder = *it;
+			if ((ret = forwarder->on_video(msg->copy())) != ERROR_SUCCESS) {
+				srs_error("forwarder process video message failed. ret=%d", ret);
+				return ret;
+			}
+		}
 	}
 
 	// cache the sequence header if h264

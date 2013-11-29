@@ -108,7 +108,7 @@ void SrsForwarder::on_unpublish()
 	srs_freep(client);
 }
 
-int SrsForwarder::on_meta_data(SrsOnMetaDataPacket* metadata)
+int SrsForwarder::on_meta_data(SrsSharedPtrMessage* metadata)
 {
 	int ret = ERROR_SUCCESS;
 	return ret;
@@ -222,8 +222,13 @@ int SrsForwarder::forward_cycle_imp()
 		srs_error("connect with server failed, tcUrl=%s. ret=%d", tc_url.c_str(), ret);
 		return ret;
 	}
-	if ((ret = client->play_stream(stream_name, stream_id)) != ERROR_SUCCESS) {
-		srs_error("connect with server failed, stream_name=%s. ret=%d", stream_name.c_str(), ret);
+	if ((ret = client->create_stream(stream_id)) != ERROR_SUCCESS) {
+		srs_error("connect with server failed, stream_id=%d. ret=%d", stream_id, ret);
+		return ret;
+	}
+	if ((ret = client->publish(stream_name, stream_id)) != ERROR_SUCCESS) {
+		srs_error("connect with server failed, stream_name=%s, stream_id=%d. ret=%d", 
+			stream_name.c_str(), stream_id, ret);
 		return ret;
 	}
 	
