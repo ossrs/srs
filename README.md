@@ -84,6 +84,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 </pre>
 
 ### Releases
+* 2013-11-29, [release v0.6](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.6), support forward stream to origin/edge. 16094 lines.<br/>
 * 2013-11-26, [release v0.5](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.5), support HLS(m3u8), fragment and window. 14449 lines.<br/>
 * 2013-11-10, [release v0.4](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.4), support reload config, pause, longtime publish/play. 12500 lines.<br/>
 * 2013-11-04, [release v0.3](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.3), support vhost, refer, gop cache, listen multiple ports. 11773 lines.<br/>
@@ -92,6 +93,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * 2013-10-17, created.<br/>
 
 ### Compare
+* srs v0.6: 16094 lines.<br/>
 * srs v0.5: 14449 lines.<br/>
 * srs v0.4: 12500 lines.<br/>
 * srs v0.3: 11773 lines.<br/>
@@ -101,6 +103,10 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v0.6, 2013-11-29, v0.6 released. 16094 lines.
+* v0.6, 2013-11-29, support forward stream to other edge server.
+* v0.6, 2013-11-29, support forward stream to other origin server.
+* v0.6, 2013-11-2888, fix memory leak bug, aac decode bug.
 * v0.6, 2013-11-27, support --with or --without -hls and -ssl options.
 * v0.6, 2013-11-27, support AAC 44100HZ sample rate for iphone, adjust the timestamp.
 * v0.5, 2013-11-26, v0.5 released. 14449 lines.
