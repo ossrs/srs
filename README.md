@@ -104,9 +104,10 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 
 ### History
 * v0.6, 2013-11-29, v0.6 released. 16094 lines.
+* v0.6, 2013-11-29, add performance summary, 1800 clients, 900Mbps, CPU 90.2%, 41MB.
 * v0.6, 2013-11-29, support forward stream to other edge server.
 * v0.6, 2013-11-29, support forward stream to other origin server.
-* v0.6, 2013-11-2888, fix memory leak bug, aac decode bug.
+* v0.6, 2013-11-28, fix memory leak bug, aac decode bug.
 * v0.6, 2013-11-27, support --with or --without -hls and -ssl options.
 * v0.6, 2013-11-27, support AAC 44100HZ sample rate for iphone, adjust the timestamp.
 * v0.5, 2013-11-26, v0.5 released. 14449 lines.
