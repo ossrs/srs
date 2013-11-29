@@ -77,6 +77,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RTMP_SIG_SRS_EMAIL "winterserver@126.com"
 #define RTMP_SIG_SRS_LICENSE "The MIT License (MIT)"
 #define RTMP_SIG_SRS_COPYRIGHT "Copyright (c) 2013 winlin"
+#define RTMP_SIG_SRS_AUTHORS "winlin"
 
 // compare
 #define srs_min(a, b) (((a) < (b))? (a) : (b))
