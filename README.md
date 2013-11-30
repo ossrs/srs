@@ -150,5 +150,6 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * v0.1, 2013-10-18, support rtmp message2chunk protocol(send\_message).
 * v0.1, 2013-10-17, support rtmp chunk2message protocol(recv\_message).
 
+beijing, 2013
 Winlin
 
