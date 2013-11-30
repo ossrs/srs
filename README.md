@@ -56,9 +56,11 @@ m3u8 url: http://127.0.0.1:80/live/livestream.m3u8
 17. [plan] support bandwidth test api and flash client.<br/>
 18. [plan] support adobe flash refer/token/swf verification.<br/>
 19. [plan] support adobe amf3 codec.<br/>
-20. no edge server, origin server only.<br/>
-21. no vod streaming, live streaming only.<br/>
-22. no multiple processes, single process only.<br/>
+20. [plan] support dvr(record live to vod file)<br/>
+21. [plan] support FMS edge protocol<br/>
+22. no edge server, origin server only.<br/>
+23. no vod streaming, live streaming only.<br/>
+24. no multiple processes, single process only.<br/>
 
 ### Performance
 1. 300 connections, 150Mbps, 500kbps, CPU 18.8%, 5956KB.
