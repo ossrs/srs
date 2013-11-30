@@ -117,6 +117,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v0.7, 2013-11-29, add ffmpeg-2.1, x264-core138, lame-3.99.5, libaacplus-2.0.2.
 * v0.6, 2013-11-29, v0.6 released. 16094 lines.
 * v0.6, 2013-11-29, add performance summary, 1800 clients, 900Mbps, CPU 90.2%, 41MB.
 * v0.6, 2013-11-29, support forward stream to other edge server.

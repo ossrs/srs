@@ -11,7 +11,7 @@ ffmpeg-2.1.1.tar.gz
 lame-3.99.5.tar.gz
 libaacplus-2.0.2.tar.gz
 libaacplus-patch-26410-b00.zip
-x264-snapshot-20131129-2245-stable.tar.bz2
+x264-snapshot-20131129-2245-stable.tar.bz2 (core.138)
 	for srs to support live stream transcoding.
 
 tools/ccache-3.1.9.zip
