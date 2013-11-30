@@ -95,6 +95,8 @@ public:
 	virtual int on_publish(std::string vhost, std::string port, std::string app, std::string stream);
 	virtual void on_unpublish();
 private:
+	virtual int parse_scope_engines();
+	virtual void clear_engines();
 	virtual SrsFFMPEG* at(int index);
 	virtual int parse_transcode(SrsConfDirective* conf);
 	virtual int cycle();

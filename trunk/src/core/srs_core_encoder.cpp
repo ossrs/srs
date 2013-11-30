@@ -81,6 +81,7 @@ int SrsFFMPEG::initialize(std::string vhost, std::string port, std::string app, 
 	vheight -= vheight % 2;
 
 	// input stream, from local.
+	// ie. rtmp://127.0.0.1:1935/live/livestream
 	input = "rtmp://127.0.0.1:";
 	input += port;
 	input += "/";
@@ -88,6 +89,8 @@ int SrsFFMPEG::initialize(std::string vhost, std::string port, std::string app, 
 	input += "/";
 	input += stream;
 	
+	// output stream, to other/self server
+	// ie. rtmp://127.0.0.1:1935/live/livestream_sd
 	if (vhost == RTMP_VHOST_DEFAULT) {
 		output = srs_replace(output, "[vhost]", "127.0.0.1");
 	} else {
@@ -96,6 +99,22 @@ int SrsFFMPEG::initialize(std::string vhost, std::string port, std::string app, 
 	output = srs_replace(output, "[port]", port);
 	output = srs_replace(output, "[app]", app);
 	output = srs_replace(output, "[stream]", stream);
+
+	// important: loop check, donot transcode again.
+	// we think the following is loop circle:
+	// input: rtmp://127.0.0.1:1935/live/livestream_sd
+	// output: rtmp://127.0.0.1:1935/live/livestream_sd_sd
+	std::string tail = ""; // tail="_sd"
+	if (output.length() > input.length()) {
+		tail = output.substr(input.length());
+	}
+	// if input also endwiths the tail, loop detected.
+	if (!tail.empty() && input.rfind(tail) == input.length() - tail.length()) {
+		ret = ERROR_ENCODER_LOOP;
+		srs_info("detect a loop cycle, input=%s, output=%s, ignore it. ret=%d",
+			input.c_str(), output.c_str(), ret);
+		return ret;
+	}
 	
 	if (vcodec != SRS_ENCODER_VCODEC) {
 		ret = ERROR_ENCODER_VCODEC;
@@ -184,9 +203,32 @@ int SrsFFMPEG::start()
 	snprintf(vsize, sizeof(vsize), "%dx%d", vwidth, vheight);
 	char vaspect[22];
 	snprintf(vaspect, sizeof(vaspect), "%d:%d", vwidth, vheight);
+	char s_vbitrate[10];
+	snprintf(s_vbitrate, sizeof(s_vbitrate), "%d", vbitrate * 1000);
+	char s_vfps[10];
+	snprintf(s_vfps, sizeof(s_vfps), "%.2f", vfps);
+	char s_vthreads[10];
+	snprintf(s_vthreads, sizeof(s_vthreads), "%d", vthreads);
+	char s_abitrate[10];
+	snprintf(s_abitrate, sizeof(s_abitrate), "%d", abitrate * 1000);
+	char s_asample_rate[10];
+	snprintf(s_asample_rate, sizeof(s_asample_rate), "%d", asample_rate);
+	char s_achannels[10];
+	snprintf(s_achannels, sizeof(s_achannels), "%d", achannels);
 	
-	// we use vfork, for we use fored process
-	// to start ffmpeg, that is, exec after vfork.
+	// video params
+	std::string s_vpreset = vpreset;
+	if (!vparams.empty()) {
+		s_vpreset += " ";
+		s_vpreset += vparams;
+	}
+	// audio params
+	std::string s_aparams = s_achannels;
+	if (!aparams.empty()) {
+		s_aparams += " ";
+		s_aparams += aparams;
+	}
+	
 	if ((pid = fork()) < 0) {
 		ret = ERROR_ENCODER_FORK;
 		srs_error("vfork process failed. ret=%d", ret);
@@ -195,25 +237,24 @@ int SrsFFMPEG::start()
 	
 	// child process: ffmpeg encoder engine.
 	if (pid == 0) {
-		// must exec immediately, or may introduce bug.
 		ret = execl(ffmpeg.c_str(), 
+		    ffmpeg.c_str(),
+		    "-f", "flv",
 			"-i", input.c_str(), 
 			// video specified.
 			"-vcodec", vcodec.c_str(), 
-			"-b:v", vbitrate * 1000,
-			"-r", vfps,
-			"-size", vsize,
+			"-b:v", s_vbitrate,
+			"-r", s_vfps,
+			"-s", vsize,
 			"-aspect", vaspect, // TODO: add aspect if needed.
-			"-threads", vthreads,
-			"-profile", vprofile.c_str(),
-			"-preset", vpreset.c_str(),
-			vparams.c_str(),
+			"-threads", s_vthreads,
+			"-profile:v", vprofile.c_str(),
+			"-preset", s_vpreset.c_str(),
 			// audio specified.
 			"-acodec", acodec.c_str(),
-			"-b:a", abitrate * 1000,
-			"-ar", asample_rate,
-			"-ac", achannels,
-			aparams.c_str(),
+			"-b:a", s_abitrate,
+			"-ar", s_asample_rate,
+			"-ac", s_aparams.c_str(),
 			"-f", "flv",
 			"-y", output.c_str(),
 			NULL
@@ -253,14 +294,9 @@ SrsEncoder::~SrsEncoder()
 	on_unpublish();
 }
 
-int SrsEncoder::on_publish(std::string _vhost, std::string _port, std::string _app, std::string _stream)
+int SrsEncoder::parse_scope_engines()
 {
 	int ret = ERROR_SUCCESS;
-
-	vhost = _vhost;
-	port = _port;
-	app = _app;
-	stream = _stream;
 	
 	// parse all transcode engines.
 	SrsConfDirective* conf = NULL;
@@ -293,6 +329,30 @@ int SrsEncoder::on_publish(std::string _vhost, std::string _port, std::string _a
 			return ret;
 		}
 	}
+	
+	return ret;
+}
+
+int SrsEncoder::on_publish(std::string _vhost, std::string _port, std::string _app, std::string _stream)
+{
+	int ret = ERROR_SUCCESS;
+
+	vhost = _vhost;
+	port = _port;
+	app = _app;
+	stream = _stream;
+
+	ret = parse_scope_engines();
+	
+	// ignore the loop encoder
+	if (ret = ERROR_ENCODER_LOOP) {
+		ret = ERROR_SUCCESS;
+	}
+	
+	// return for error or no engine.
+	if (ret != ERROR_SUCCESS || ffmpegs.empty()) {
+		return ret;
+	}
     
     // start thread to run all encoding engines.
     srs_assert(!tid);
@@ -313,7 +373,12 @@ void SrsEncoder::on_unpublish()
 		st_thread_join(tid, NULL);
 		tid = NULL;
 	}
-	
+
+	clear_engines();
+}
+
+void SrsEncoder::clear_engines()
+{
 	std::vector<SrsFFMPEG*>::iterator it;
 	for (it = ffmpegs.begin(); it != ffmpegs.end(); ++it) {
 		SrsFFMPEG* ffmpeg = *it;
@@ -370,6 +435,12 @@ int SrsEncoder::parse_transcode(SrsConfDirective* conf)
 		
 		if ((ret = ffmpeg->initialize(vhost, port, app, stream, engine)) != ERROR_SUCCESS) {
 			srs_freep(ffmpeg);
+			
+			// if got a loop, donot transcode the whole stream.
+			if (ret == ERROR_ENCODER_LOOP) {
+				clear_engines();
+				break;
+			}
 			
 			srs_error("invalid transcode engine: %s %s", 
 				conf->arg0().c_str(), engine->arg0().c_str());

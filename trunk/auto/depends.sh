@@ -109,3 +109,12 @@ if [ $SRS_FFMPEG = YES ]; then
 else
     echo "#undef SRS_FFMPEG" >> $SRS_AUTO_HEADERS_H
 fi
+
+#####################################################################################
+# build research code
+#####################################################################################
+(cd research/hls && make)
+ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/hls failed, ret=$ret"; exit $ret; fi
+
+(cd research/ffempty && make)
+ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/ffempty failed, ret=$ret"; exit $ret; fi

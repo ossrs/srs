@@ -31,6 +31,12 @@ int main(int argc, char** argv)
     for (int i = 0; i < argc; i++) {
         fprintf(stderr, "argv[%d]=%s\n", i, argv[i]);
     }
+   
+    fprintf(stderr, "summary:\n"); 
+    for (int i = 0; i < argc; i++) {
+        fprintf(stderr, "%s ", argv[i]);
+    }
+    fprintf(stderr, "\n");
 
     return 0;
 }
