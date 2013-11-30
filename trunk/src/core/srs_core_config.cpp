@@ -58,7 +58,7 @@ bool is_common_space(char ch)
 	return (ch == ' ' || ch == '\t' || ch == CR || ch == LF);
 }
 
-#define CONF_BUFFER_SIZE 4096
+#define CONF_BUFFER_SIZE 1024 * 1024
 
 SrsFileBuffer::SrsFileBuffer()
 {
@@ -369,6 +369,12 @@ int SrsConfDirective::refill_buffer(SrsFileBuffer* buffer, bool d_quoted, bool s
 	}
 	
 	int size = FILE_SIZE(buffer->fd) - FILE_OFFSET(buffer->fd);
+	if (size > CONF_BUFFER_SIZE) {
+		ret = ERROR_SYSTEM_CONFIG_TOO_LARGE;
+		srs_error("config file too large, max=%d, actual=%d, ret=%d",
+			CONF_BUFFER_SIZE, size, ret);
+		return ret;
+	}
 	
 	if (size <= 0) {
 		return ERROR_SYSTEM_CONFIG_EOF;
