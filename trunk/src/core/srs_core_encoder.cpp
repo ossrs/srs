@@ -216,6 +216,7 @@ int SrsFFMPEG::start()
 	char s_achannels[10];
 	snprintf(s_achannels, sizeof(s_achannels), "%d", achannels);
 	
+	// TODO: execl donot support the params.
 	// video params
 	std::string s_vpreset = vpreset;
 	if (!vparams.empty()) {
@@ -229,6 +230,7 @@ int SrsFFMPEG::start()
 		s_aparams += aparams;
 	}
 	
+	// TODO: fork or vfork?
 	if ((pid = fork()) < 0) {
 		ret = ERROR_ENCODER_FORK;
 		srs_error("vfork process failed. ret=%d", ret);
@@ -237,6 +239,7 @@ int SrsFFMPEG::start()
 	
 	// child process: ffmpeg encoder engine.
 	if (pid == 0) {
+		// TODO: execl or execlp
 		ret = execl(ffmpeg.c_str(), 
 		    ffmpeg.c_str(),
 		    "-f", "flv",
