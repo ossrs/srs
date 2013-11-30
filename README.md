@@ -61,7 +61,7 @@ Supported operating systems and hardware:
 13. high performace, 1800 connections(500kbps), 900Mbps, CPU 90.2%, 41MB<br/>
 14. support forward publish stream to build active-standby cluster.<br/>
 15. support broadcast by forward the stream to other servers(origin/edge).<br/>
-16. [plan] support live stream transcoding by ffmpeg.<br/>
+16. support live stream transcoding by ffmpeg.<br/>
 17. [plan] support full http callback api.<br/>
 18. [plan] support network based cli and json result.<br/>
 19. [plan] support bandwidth test api and flash client.<br/>
