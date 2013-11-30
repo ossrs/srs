@@ -43,3 +43,20 @@ void srs_update_system_time_ms()
     
     _srs_system_time_us_cache = srs_max(0, _srs_system_time_us_cache);
 }
+
+std::string srs_replace(std::string str, std::string old_str, std::string new_str)
+{
+	std::string ret = str;
+	
+	if (old_str == new_str) {
+		return ret;
+	}
+	
+	size_t pos = 0;
+	while ((pos = ret.find(old_str, pos)) != std::string::npos) {
+		ret = ret.replace(pos, old_str.length(), new_str);
+		pos += new_str.length();
+	}
+	
+	return ret;
+}

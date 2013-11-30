@@ -91,4 +91,8 @@ extern void srs_update_system_time_ms();
 // signal defines.
 #define SIGNAL_RELOAD SIGHUP
 
+#include <string>
+// replace utility
+extern std::string srs_replace(std::string str, std::string old_str, std::string new_str);
+
 #endif

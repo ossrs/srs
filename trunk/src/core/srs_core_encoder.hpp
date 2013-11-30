@@ -30,15 +30,59 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <string>
+#include <vector>
 
 #include <st.h>
 
+class SrsConfDirective;
+
+/**
+* a transcode engine: ffmepg,
+* used to transcode a stream to another.
+*/
+class SrsFFMPEG
+{
+private:
+	bool started;
+private:
+	std::string 				ffmpeg;
+	std::string 				vcodec;
+	int 						vbitrate;
+	double 						vfps;
+	int 						vwidth;
+	int 						vheight;
+	int 						vthreads;
+	std::string 				vprofile;
+	std::string 				vpreset;
+	std::string 				vparams;
+	std::string 				acodec;
+	int 						abitrate;
+	int 						asample_rate;
+	int 						achannels;
+	std::string					aparams;
+	std::string 				output;
+public:
+	SrsFFMPEG(std::string ffmpeg_bin);
+	virtual ~SrsFFMPEG();
+public:
+	virtual int initialize(std::string vhost, std::string port, std::string app, std::string stream, SrsConfDirective* engine);
+	virtual int start();
+	virtual void stop();
+};
+
+/**
+* the encoder for a stream,
+* may use multiple ffmpegs to transcode the specified stream.
+*/
 class SrsEncoder
 {
 private:
 	std::string vhost;
+	std::string port;
 	std::string app;
 	std::string stream;
+private:
+	std::vector<SrsFFMPEG*> ffmpegs;
 private:
 	st_thread_t tid;
 	bool loop;
@@ -46,9 +90,11 @@ public:
 	SrsEncoder();
 	virtual ~SrsEncoder();
 public:
-	virtual int on_publish(std::string vhost, std::string app, std::string stream);
+	virtual int on_publish(std::string vhost, std::string port, std::string app, std::string stream);
 	virtual void on_unpublish();
 private:
+	virtual SrsFFMPEG* at(int index);
+	virtual int parse_transcode(SrsConfDirective* conf);
 	virtual int cycle();
 	virtual void encoder_cycle();
 	static void* encoder_thread(void* arg);

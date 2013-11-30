@@ -688,8 +688,7 @@ int SrsHls::reopen()
 	int ret = ERROR_SUCCESS;
 	
 	// try to open the HLS muxer
-	SrsConfDirective* conf = config->get_hls(vhost);
-	if (conf && conf->arg0() == "off") {
+	if (!config->get_hls_enabled(vhost)) {
 		return ret;
 	}
 	
@@ -698,6 +697,7 @@ int SrsHls::reopen()
 
 	hls_enabled = true;
 	
+	SrsConfDirective* conf = NULL;
 	hls_path = SRS_CONF_DEFAULT_HLS_PATH;
 	if ((conf = config->get_hls_path(vhost)) != NULL) {
 		hls_path = conf->arg0();

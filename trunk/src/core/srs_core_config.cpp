@@ -557,15 +557,24 @@ SrsConfDirective* SrsConfig::get_vhost(std::string vhost)
 	return NULL;
 }
 
-SrsConfDirective* SrsConfig::get_vhost_enabled(std::string vhost)
+bool SrsConfig::get_vhost_enabled(std::string vhost)
 {
-	SrsConfDirective* conf = get_vhost(vhost);
+	SrsConfDirective* vhost_conf = get_vhost(vhost);
 
-	if (!conf) {
-		return NULL;
+	if (!vhost_conf) {
+		return true;
 	}
 	
-	return conf->get("enabled");
+	SrsConfDirective* conf = vhost_conf->get("enabled");
+	if (!conf) {
+		return true;
+	}
+	
+	if (conf->arg0() == "off") {
+		return false;
+	}
+	
+	return true;
 }
 
 SrsConfDirective* SrsConfig::get_transcode(std::string vhost, std::string scope)
@@ -587,6 +596,300 @@ SrsConfDirective* SrsConfig::get_transcode(std::string vhost, std::string scope)
 	
 	return NULL;
 }
+
+bool SrsConfig::get_transcode_enabled(SrsConfDirective* transcode)
+{
+	if (!transcode) {
+		return false;
+	}
+	
+	SrsConfDirective* conf = transcode->get("enabled");
+	if (!conf || conf->arg0() != "on") {
+		return false;
+	}
+	
+	return true;
+}
+
+std::string SrsConfig::get_transcode_ffmpeg(SrsConfDirective* transcode)
+{
+	if (!transcode) {
+		return "";
+	}
+	
+	SrsConfDirective* conf = transcode->get("ffmpeg");
+	if (!conf) {
+		return "";
+	}
+	
+	return conf->arg0();
+}
+
+void SrsConfig::get_transcode_engines(SrsConfDirective* transcode, std::vector<SrsConfDirective*>& engines)
+{
+	if (!transcode) {
+		return;
+	}
+	
+	for (int i = 0; i < (int)transcode->directives.size(); i++) {
+		SrsConfDirective* conf = transcode->directives[i];
+		
+		if (conf->name == "engine") {
+			engines.push_back(conf);
+		}
+	}
+	
+	return;
+}
+
+bool SrsConfig::get_engine_enabled(SrsConfDirective* engine)
+{
+	if (!engine) {
+		return false;
+	}
+	
+	SrsConfDirective* conf = engine->get("enabled");
+	if (!conf || conf->arg0() != "on") {
+		return false;
+	}
+	
+	return true;
+}
+
+std::string SrsConfig::get_engine_vcodec(SrsConfDirective* engine)
+{
+	if (!engine) {
+		return "";
+	}
+	
+	SrsConfDirective* conf = engine->get("vcodec");
+	if (!conf) {
+		return "";
+	}
+	
+	return conf->arg0();
+}
+
+int SrsConfig::get_engine_vbitrate(SrsConfDirective* engine)
+{
+	if (!engine) {
+		return 0;
+	}
+	
+	SrsConfDirective* conf = engine->get("vbitrate");
+	if (!conf) {
+		return 0;
+	}
+	
+	return ::atoi(conf->arg0().c_str());
+}
+
+double SrsConfig::get_engine_vfps(SrsConfDirective* engine)
+{
+	if (!engine) {
+		return 0;
+	}
+	
+	SrsConfDirective* conf = engine->get("vfps");
+	if (!conf) {
+		return 0;
+	}
+	
+	return ::atof(conf->arg0().c_str());
+}
+
+int SrsConfig::get_engine_vwidth(SrsConfDirective* engine)
+{
+	if (!engine) {
+		return 0;
+	}
+	
+	SrsConfDirective* conf = engine->get("vwidth");
+	if (!conf) {
+		return 0;
+	}
+	
+	return ::atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_engine_vheight(SrsConfDirective* engine)
+{
+	if (!engine) {
+		return 0;
+	}
+	
+	SrsConfDirective* conf = engine->get("vheight");
+	if (!conf) {
+		return 0;
+	}
+	
+	return ::atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_engine_vthreads(SrsConfDirective* engine)
+{
+	if (!engine) {
+		return 0;
+	}
+	
+	SrsConfDirective* conf = engine->get("vthreads");
+	if (!conf) {
+		return 0;
+	}
+	
+	return ::atoi(conf->arg0().c_str());
+}
+
+std::string SrsConfig::get_engine_vprofile(SrsConfDirective* engine)
+{
+	if (!engine) {
+		return "";
+	}
+	
+	SrsConfDirective* conf = engine->get("vprofile");
+	if (!conf) {
+		return "";
+	}
+	
+	return conf->arg0();
+}
+
+std::string SrsConfig::get_engine_vpreset(SrsConfDirective* engine)
+{
+	if (!engine) {
+		return "";
+	}
+	
+	SrsConfDirective* conf = engine->get("vpreset");
+	if (!conf) {
+		return "";
+	}
+	
+	return conf->arg0();
+}
+
+std::string SrsConfig::get_engine_vparams(SrsConfDirective* engine)
+{
+	if (!engine) {
+		return "";
+	}
+	
+	SrsConfDirective* conf = engine->get("vparams");
+	if (!conf) {
+		return "";
+	}
+	
+	std::string avparams;
+	for (int i = 0; i < (int)conf->directives.size(); i++) {
+		SrsConfDirective* p = conf->directives[i];
+		if (!p) {
+			continue;
+		}
+		
+		avparams += p->name;
+		avparams += " ";
+		avparams += p->arg0();
+	}
+	
+	return avparams;
+}
+
+std::string SrsConfig::get_engine_acodec(SrsConfDirective* engine)
+{
+	if (!engine) {
+		return "";
+	}
+	
+	SrsConfDirective* conf = engine->get("acodec");
+	if (!conf) {
+		return "";
+	}
+	
+	return conf->arg0();
+}
+
+int SrsConfig::get_engine_abitrate(SrsConfDirective* engine)
+{
+	if (!engine) {
+		return 0;
+	}
+	
+	SrsConfDirective* conf = engine->get("abitrate");
+	if (!conf) {
+		return 0;
+	}
+	
+	return ::atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_engine_asample_rate(SrsConfDirective* engine)
+{
+	if (!engine) {
+		return 0;
+	}
+	
+	SrsConfDirective* conf = engine->get("asample_rate");
+	if (!conf) {
+		return 0;
+	}
+	
+	return ::atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_engine_achannels(SrsConfDirective* engine)
+{
+	if (!engine) {
+		return 0;
+	}
+	
+	SrsConfDirective* conf = engine->get("achannels");
+	if (!conf) {
+		return 0;
+	}
+	
+	return ::atoi(conf->arg0().c_str());
+}
+
+std::string SrsConfig::get_engine_aparams(SrsConfDirective* engine)
+{
+	if (!engine) {
+		return "";
+	}
+	
+	SrsConfDirective* conf = engine->get("aparams");
+	if (!conf) {
+		return "";
+	}
+	
+	std::string avparams;
+	for (int i = 0; i < (int)conf->directives.size(); i++) {
+		SrsConfDirective* p = conf->directives[i];
+		if (!p) {
+			continue;
+		}
+		
+		avparams += p->name;
+		avparams += " ";
+		avparams += p->arg0();
+	}
+	
+	return avparams;
+}
+
+std::string SrsConfig::get_engine_output(SrsConfDirective* engine)
+{
+	if (!engine) {
+		return "";
+	}
+	
+	SrsConfDirective* conf = engine->get("output");
+	if (!conf) {
+		return "";
+	}
+	
+	return conf->arg0();
+}
+
 
 SrsConfDirective* SrsConfig::get_gop_cache(std::string vhost)
 {
@@ -619,6 +922,21 @@ SrsConfDirective* SrsConfig::get_hls(std::string vhost)
 	}
 	
 	return conf->get("hls");
+}
+
+bool SrsConfig::get_hls_enabled(std::string vhost)
+{
+	SrsConfDirective* hls = get_hls(vhost);
+	
+	if (!hls) {
+		return true;
+	}
+	
+	if (hls->arg0() == "off") {
+		return false;
+	}
+	
+	return true;
 }
 
 SrsConfDirective* SrsConfig::get_hls_path(std::string vhost)

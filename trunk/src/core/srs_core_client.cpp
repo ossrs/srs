@@ -231,8 +231,7 @@ int SrsClient::check_vhost()
 		return ret;
 	}
 	
-	SrsConfDirective* conf = NULL;
-	if ((conf = config->get_vhost_enabled(req->vhost)) != NULL && conf->arg0() != "on") {
+	if (!config->get_vhost_enabled(req->vhost)) {
 		ret = ERROR_RTMP_VHOST_NOT_FOUND;
 		srs_error("vhost %s disabled. ret=%d", req->vhost.c_str(), ret);
 		return ret;
@@ -344,7 +343,7 @@ int SrsClient::publish(SrsSource* source, bool is_fmle)
 	SrsPithyPrint pithy_print(SRS_STAGE_PUBLISH_USER);
 	
 	// notify the hls to prepare when publish start.
-	if ((ret = source->on_publish(req->vhost, req->app, req->stream)) != ERROR_SUCCESS) {
+	if ((ret = source->on_publish(req->vhost, req->port, req->app, req->stream)) != ERROR_SUCCESS) {
 		srs_error("hls on_publish failed. ret=%d", ret);
 		return ret;
 	}

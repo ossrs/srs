@@ -112,12 +112,33 @@ public:
 	virtual void unsubscribe(SrsReloadHandler* handler);
 public:
 	virtual int parse_options(int argc, char** argv);
+public:
 	virtual SrsConfDirective* get_vhost(std::string vhost);
-	virtual SrsConfDirective* get_vhost_enabled(std::string vhost);
+	virtual bool    		  get_vhost_enabled(std::string vhost);
 	virtual SrsConfDirective* get_transcode(std::string vhost, std::string scope);
+	virtual bool    		  get_transcode_enabled(SrsConfDirective* transcode);
+	virtual std::string		  get_transcode_ffmpeg(SrsConfDirective* transcode);
+	virtual void 			  get_transcode_engines(SrsConfDirective* transcode, std::vector<SrsConfDirective*>& engines);
+	virtual bool    		  get_engine_enabled(SrsConfDirective* engine);
+	virtual std::string 	  get_engine_vcodec(SrsConfDirective* engine);
+	virtual int		     	  get_engine_vbitrate(SrsConfDirective* engine);
+	virtual double	     	  get_engine_vfps(SrsConfDirective* engine);
+	virtual int		     	  get_engine_vwidth(SrsConfDirective* engine);
+	virtual int		     	  get_engine_vheight(SrsConfDirective* engine);
+	virtual int		     	  get_engine_vthreads(SrsConfDirective* engine);
+	virtual std::string 	  get_engine_vprofile(SrsConfDirective* engine);
+	virtual std::string 	  get_engine_vpreset(SrsConfDirective* engine);
+	virtual std::string 	  get_engine_vparams(SrsConfDirective* engine);
+	virtual std::string 	  get_engine_acodec(SrsConfDirective* engine);
+	virtual int		     	  get_engine_abitrate(SrsConfDirective* engine);
+	virtual int		     	  get_engine_asample_rate(SrsConfDirective* engine);
+	virtual int		     	  get_engine_achannels(SrsConfDirective* engine);
+	virtual std::string 	  get_engine_aparams(SrsConfDirective* engine);
+	virtual std::string 	  get_engine_output(SrsConfDirective* engine);
 	virtual SrsConfDirective* get_gop_cache(std::string vhost);
 	virtual SrsConfDirective* get_forward(std::string vhost);
 	virtual SrsConfDirective* get_hls(std::string vhost);
+	virtual bool    		  get_hls_enabled(std::string vhost);
 	virtual SrsConfDirective* get_hls_path(std::string vhost);
 	virtual SrsConfDirective* get_hls_fragment(std::string vhost);
 	virtual SrsConfDirective* get_hls_window(std::string vhost);

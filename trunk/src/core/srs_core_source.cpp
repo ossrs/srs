@@ -612,7 +612,7 @@ int SrsSource::on_video(SrsCommonMessage* video)
 	return ret;
 }
 
-int SrsSource::on_publish(std::string vhost, std::string app, std::string stream)
+int SrsSource::on_publish(std::string vhost, std::string port, std::string app, std::string stream)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -625,7 +625,7 @@ int SrsSource::on_publish(std::string vhost, std::string app, std::string stream
 #endif
 
 #ifdef SRS_FFMPEG
-	if ((ret = encoder->on_publish(vhost, app, stream)) != ERROR_SUCCESS) {
+	if ((ret = encoder->on_publish(vhost, port, app, stream)) != ERROR_SUCCESS) {
 		return ret;
 	}
 #endif
