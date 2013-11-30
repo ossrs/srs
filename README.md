@@ -40,29 +40,29 @@ m3u8 url: http://127.0.0.1:80/live/livestream.m3u8
 ### Summary
 1. simple: also stable enough.<br/>
 2. high-performance: single-thread, async socket, event/st-thread driven.<br/>
-3. support vhost, support \_\_defaultVhost\_\_.<br/>
-4. support adobe rtmp live streaming.<br/>
-5. support apple hls(m3u8) live streaming.<br/>
-7. support reload config to enable changes.<br/>
-8. support cache last gop for flash player to fast startup.<br/>
-9. support listen at multiple ports.<br/>
-10. support long time(>4.6hours) publish/play.<br/>
-11. high performace, 1800 connections(500kbps), 900Mbps, CPU 90.2%, 41MB<br/>
-12. support forward publish stream to build active-standby cluster.<br/>
-13. support broadcast by forward the stream to other servers(origin/edge).<br/>
-14. [plan] support live stream transcoding by ffmpeg.<br/>
-15. [plan] support full http callback api.<br/>
-16. [plan] support network based cli and json result.<br/>
-17. [plan] support bandwidth test api and flash client.<br/>
-18. [plan] support adobe flash refer/token/swf verification.<br/>
-19. [plan] support adobe amf3 codec.<br/>
-20. [plan] support dvr(record live to vod file)<br/>
-21. [plan] support FMS edge protocol<br/>
-21. [plan] support encryption: RTMPE/RTMPS, HLS DRM<br/>
-22. [plan] support RTMPT, http to tranverse firewalls<br/>
-23. no edge server, origin server only.<br/>
-24. no vod streaming, live streaming only.<br/>
-25. no multiple processes, single process only.<br/>
+3. no edge server, origin server only.<br/>
+4. no vod streaming, live streaming only.<br/>
+5. no multiple processes, single process only.<br/>
+6. support vhost, support \_\_defaultVhost\_\_.<br/>
+7. support adobe rtmp live streaming.<br/>
+8. support apple hls(m3u8) live streaming.<br/>
+9. support reload config to enable changes.<br/>
+10. support cache last gop for flash player to fast startup.<br/>
+11. support listen at multiple ports.<br/>
+12. support long time(>4.6hours) publish/play.<br/>
+13. high performace, 1800 connections(500kbps), 900Mbps, CPU 90.2%, 41MB<br/>
+14. support forward publish stream to build active-standby cluster.<br/>
+15. support broadcast by forward the stream to other servers(origin/edge).<br/>
+16. [plan] support live stream transcoding by ffmpeg.<br/>
+17. [plan] support full http callback api.<br/>
+18. [plan] support network based cli and json result.<br/>
+19. [plan] support bandwidth test api and flash client.<br/>
+20. [plan] support adobe flash refer/token/swf verification.<br/>
+21. [plan] support adobe amf3 codec.<br/>
+22. [plan] support dvr(record live to vod file)<br/>
+23. [plan] support FMS edge protocol<br/>
+24. [plan] support encryption: RTMPE/RTMPS, HLS DRM<br/>
+25. [plan] support RTMPT, http to tranverse firewalls<br/>
 
 ### Performance
 1. 300 connections, 150Mbps, 500kbps, CPU 18.8%, 5956KB.
