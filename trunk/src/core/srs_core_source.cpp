@@ -33,6 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_hls.hpp>
 #include <srs_core_forward.hpp>
 #include <srs_core_config.hpp>
+#include <srs_core_encoder.hpp>
 
 #define CONST_MAX_JITTER_MS 		500
 #define DEFAULT_FRAME_TIME_MS 		10
@@ -354,6 +355,9 @@ SrsSource::SrsSource(std::string _stream_url)
 #ifdef SRS_HLS
 	hls = new SrsHls();
 #endif
+#ifdef SRS_FFMPEG
+	encoder = new SrsEncoder();
+#endif
 	
 	cache_metadata = cache_sh_video = cache_sh_audio = NULL;
 	
@@ -391,6 +395,9 @@ SrsSource::~SrsSource()
 	
 #ifdef SRS_HLS
 	srs_freep(hls);
+#endif
+#ifdef SRS_FFMPEG
+	srs_freep(encoder);
 #endif
 }
 
@@ -617,6 +624,12 @@ int SrsSource::on_publish(std::string vhost, std::string app, std::string stream
 	}
 #endif
 
+#ifdef SRS_FFMPEG
+	if ((ret = encoder->on_publish(vhost, app, stream)) != ERROR_SUCCESS) {
+		return ret;
+	}
+#endif
+
 	// TODO: support reload.
 	
 	// create forwarders
@@ -643,6 +656,10 @@ void SrsSource::on_unpublish()
 {
 #ifdef SRS_HLS
 	hls->on_unpublish();
+#endif
+
+#ifdef SRS_FFMPEG
+	encoder->on_unpublish();
 #endif
 
 	// close all forwarders

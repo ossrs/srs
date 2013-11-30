@@ -42,6 +42,9 @@ class SrsForwarder;
 #ifdef SRS_HLS
 class SrsHls;
 #endif
+#ifdef SRS_FFMPEG
+class SrsEncoder;
+#endif
 
 /**
 * time jitter detect and correct,
@@ -171,6 +174,10 @@ private:
 	// hls handler.
 #ifdef SRS_HLS
 	SrsHls* hls;
+#endif
+	// transcoding handler.
+#ifdef SRS_FFMPEG
+	SrsEncoder* encoder;
 #endif
 	// gop cache for client fast startup.
 	SrsGopCache* gop_cache;

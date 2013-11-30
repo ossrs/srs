@@ -568,6 +568,17 @@ SrsConfDirective* SrsConfig::get_vhost_enabled(std::string vhost)
 	return conf->get("enabled");
 }
 
+SrsConfDirective* SrsConfig::get_transcode(std::string vhost)
+{
+	SrsConfDirective* conf = get_vhost(vhost);
+
+	if (!conf) {
+		return NULL;
+	}
+	
+	return conf->get("transcode");
+}
+
 SrsConfDirective* SrsConfig::get_gop_cache(std::string vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
@@ -732,6 +743,7 @@ int SrsConfig::parse_file(const char* filename)
 	// TODO: check other config.
 	// TODO: check hls.
 	// TODO: check ssl.
+	// TODO: check ffmpeg.
 	
 	return ret;
 }

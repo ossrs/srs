@@ -114,6 +114,7 @@ public:
 	virtual int parse_options(int argc, char** argv);
 	virtual SrsConfDirective* get_vhost(std::string vhost);
 	virtual SrsConfDirective* get_vhost_enabled(std::string vhost);
+	virtual SrsConfDirective* get_transcode(std::string vhost);
 	virtual SrsConfDirective* get_gop_cache(std::string vhost);
 	virtual SrsConfDirective* get_forward(std::string vhost);
 	virtual SrsConfDirective* get_hls(std::string vhost);
