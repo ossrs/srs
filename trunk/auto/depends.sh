@@ -52,11 +52,10 @@ if [ $SRS_HLS = YES ]; then
     else
         echo "build nginx-1.5.7"; 
         (
-            pwd_dir=`pwd` &&
             rm -rf ${SRS_OBJS}/nginx-1.5.7 && cd ${SRS_OBJS} && 
             unzip -q ../3rdparty/nginx-1.5.7.zip && cd nginx-1.5.7 && 
             ./configure --prefix=`pwd`/_release && make && make install &&
-            ln -sf ${pwd_dir}/nginx-1.5.7/_release nginx
+            cd .. && ln -sf nginx-1.5.7/_release nginx
         )
     fi
     # check status
@@ -94,11 +93,10 @@ if [ $SRS_FFMPEG = YES ]; then
     else
         echo "build ffmpeg-2.1"; 
         (
-            pwd_dir=`pwd` && exit 0;
-            rm -rf ${SRS_OBJS}/nginx-1.5.7 && cd ${SRS_OBJS} && 
-            unzip -q ../3rdparty/nginx-1.5.7.zip && cd nginx-1.5.7 && 
-            ./configure --prefix=`pwd`/_release && make && make install &&
-            ln -sf ${pwd_dir}/nginx-1.5.7/_release nginx
+            cd ${SRS_OBJS} && pwd_dir=`pwd` && 
+            rm -rf ffmepg.src && mkdir -p ffmpeg.src && cd ffmpeg.src &&
+            rm -f build_ffmpeg.sh && ln -sf ../../auto/build_ffmpeg.sh && . build_ffmpeg.sh &&
+            cd ${pwd_dir} && ln -sf ffmepg.src/_release ffmpeg
         )
     fi
     # check status

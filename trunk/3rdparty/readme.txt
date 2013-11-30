@@ -8,11 +8,13 @@ st-1.9.zip
 	basic framework for srs.
 
 ffmpeg-2.1.1.tar.gz
+yasm-1.2.0.tar.gz
 lame-3.99.5.tar.gz
 libaacplus-2.0.2.tar.gz
-libaacplus-patch-26410-b00.zip
+libaacplus-patch-26410-800.zip (26410-800.zip)
 x264-snapshot-20131129-2245-stable.tar.bz2 (core.138)
 	for srs to support live stream transcoding.
+	remark: we use *.zip for all linux plantform.
 
 tools/ccache-3.1.9.zip
 	to fast build.
@@ -32,5 +34,8 @@ links:
 		http://217.20.164.161/~tipok/aacplus/libaacplus-2.0.2.tar.gz
 	aacplus-patch: 
 		http://www.3gpp.org/DynaReport/26410.htm 
-		http://www.3gpp.org/ftp/Specs/archive/26_series/26.410/26410-b00.zip
+		http://www.3gpp.org/ftp/Specs/archive/26_series/26.410/26410-800.zip
+	yasm:
+		http://yasm.tortall.net/
+		http://www.tortall.net/projects/yasm/releases/yasm-1.2.0.tar.gz
 
