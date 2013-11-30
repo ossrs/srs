@@ -31,14 +31,27 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
+#include <st.h>
+
 class SrsEncoder
 {
+private:
+	std::string vhost;
+	std::string app;
+	std::string stream;
+private:
+	st_thread_t tid;
+	bool loop;
 public:
 	SrsEncoder();
 	virtual ~SrsEncoder();
 public:
 	virtual int on_publish(std::string vhost, std::string app, std::string stream);
 	virtual void on_unpublish();
+private:
+	virtual int cycle();
+	virtual void encoder_cycle();
+	static void* encoder_thread(void* arg);
 };
 
 #endif

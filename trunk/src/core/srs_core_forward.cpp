@@ -43,10 +43,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 SrsForwarder::SrsForwarder()
 {
 	client = NULL;
-	tid = NULL;
 	stfd = NULL;
-	loop = false;
 	stream_id = 0;
+	
+	tid = NULL;
+	loop = false;
 }
 
 SrsForwarder::~SrsForwarder()
@@ -221,7 +222,7 @@ std::string SrsForwarder::parse_server(std::string host)
     return ipv4;
 }
 
-int SrsForwarder::forward_cycle_imp()
+int SrsForwarder::cycle()
 {
 	int ret = ERROR_SUCCESS;
 
@@ -316,7 +317,7 @@ void SrsForwarder::forward_cycle()
 	srs_trace("forward cycle start");
 	
 	while (loop) {
-		if ((ret = forward_cycle_imp()) != ERROR_SUCCESS) {
+		if ((ret = cycle()) != ERROR_SUCCESS) {
 			srs_warn("forward cycle failed, ignored and retry, ret=%d", ret);
 		} else {
 			srs_info("forward cycle success, retry");

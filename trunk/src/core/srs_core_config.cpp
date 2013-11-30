@@ -568,7 +568,7 @@ SrsConfDirective* SrsConfig::get_vhost_enabled(std::string vhost)
 	return conf->get("enabled");
 }
 
-SrsConfDirective* SrsConfig::get_transcode(std::string vhost)
+SrsConfDirective* SrsConfig::get_transcode(std::string vhost, std::string scope)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
 
@@ -576,7 +576,16 @@ SrsConfDirective* SrsConfig::get_transcode(std::string vhost)
 		return NULL;
 	}
 	
-	return conf->get("transcode");
+	SrsConfDirective* transcode = conf->get("transcode");
+	if (!transcode) {
+		return NULL;
+	}
+	
+	if (transcode->arg0() == scope) {
+		return transcode;
+	}
+	
+	return NULL;
 }
 
 SrsConfDirective* SrsConfig::get_gop_cache(std::string vhost)

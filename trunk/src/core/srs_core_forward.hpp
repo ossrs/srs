@@ -71,7 +71,7 @@ private:
 	virtual int connect_server();
 	std::string parse_server(std::string host);
 private:
-	virtual int forward_cycle_imp();
+	virtual int cycle();
 	virtual int forward();
 	virtual void forward_cycle();
 	static void* forward_thread(void* arg);
