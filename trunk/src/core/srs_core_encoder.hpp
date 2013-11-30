@@ -44,6 +44,7 @@ class SrsFFMPEG
 {
 private:
 	bool started;
+	pid_t pid;
 private:
 	std::string 				ffmpeg;
 	std::string 				vcodec;
@@ -61,6 +62,7 @@ private:
 	int 						achannels;
 	std::string					aparams;
 	std::string 				output;
+	std::string 				input;
 public:
 	SrsFFMPEG(std::string ffmpeg_bin);
 	virtual ~SrsFFMPEG();

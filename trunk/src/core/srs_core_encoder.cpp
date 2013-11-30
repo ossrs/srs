@@ -23,6 +23,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core_encoder.hpp>
 
+#include <stdlib.h>
+#include <unistd.h>
+
 #include <srs_core_error.hpp>
 #include <srs_core_log.hpp>
 #include <srs_core_config.hpp>
@@ -35,6 +38,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 SrsFFMPEG::SrsFFMPEG(std::string ffmpeg_bin)
 {
 	started			= false;
+	pid				= -1;
 	ffmpeg 			= ffmpeg_bin;
 	
 	vbitrate 		= 0;
@@ -75,6 +79,14 @@ int SrsFFMPEG::initialize(std::string vhost, std::string port, std::string app, 
 	// ensure the size is even.
 	vwidth -= vwidth % 2;
 	vheight -= vheight % 2;
+
+	// input stream, from local.
+	input = "rtmp://127.0.0.1:";
+	input += port;
+	input += "/";
+	input += app;
+	input += "/";
+	input += stream;
 	
 	if (vhost == RTMP_VHOST_DEFAULT) {
 		output = srs_replace(output, "[vhost]", "127.0.0.1");
@@ -164,6 +176,59 @@ int SrsFFMPEG::start()
 	int ret = ERROR_SUCCESS;
 	
 	if (started) {
+		return ret;
+	}
+	
+	// prepare execl params
+	char vsize[22];
+	snprintf(vsize, sizeof(vsize), "%dx%d", vwidth, vheight);
+	char vaspect[22];
+	snprintf(vaspect, sizeof(vaspect), "%d:%d", vwidth, vheight);
+	
+	// we use vfork, for we use fored process
+	// to start ffmpeg, that is, exec after vfork.
+	if ((pid = fork()) < 0) {
+		ret = ERROR_ENCODER_FORK;
+		srs_error("vfork process failed. ret=%d", ret);
+		return ret;
+	}
+	
+	// child process: ffmpeg encoder engine.
+	if (pid == 0) {
+		// must exec immediately, or may introduce bug.
+		ret = execl(ffmpeg.c_str(), 
+			"-i", input.c_str(), 
+			// video specified.
+			"-vcodec", vcodec.c_str(), 
+			"-b:v", vbitrate * 1000,
+			"-r", vfps,
+			"-size", vsize,
+			"-aspect", vaspect, // TODO: add aspect if needed.
+			"-threads", vthreads,
+			"-profile", vprofile.c_str(),
+			"-preset", vpreset.c_str(),
+			vparams.c_str(),
+			// audio specified.
+			"-acodec", acodec.c_str(),
+			"-b:a", abitrate * 1000,
+			"-ar", asample_rate,
+			"-ac", achannels,
+			aparams.c_str(),
+			"-f", "flv",
+			"-y", output.c_str(),
+			NULL
+		);
+		if (ret < 0) {
+			fprintf(stderr, "fork ffmpeg failed, errno=%d(%s)", 
+				errno, strerror(errno));
+		}
+		exit(ret);
+	}
+
+	// parent.
+	if (pid > 0) {
+		started = true;
+		srs_trace("vfored ffmpeg encoder engine, pid=%d", pid);
 		return ret;
 	}
 	
