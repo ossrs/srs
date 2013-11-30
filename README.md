@@ -41,10 +41,8 @@ m3u8 url: http://127.0.0.1:80/live/livestream.m3u8
 </pre>
 
 ### System Requirements
-Supported operating systems:
-* All Linux 32/64 bits
-
-Hardware requirements:
+Supported operating systems and hardware:
+* All Linux , both 32 and 64 bits
 * All handware.
 
 ### Summary
