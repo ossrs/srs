@@ -4,10 +4,12 @@ help=no
 
 SRS_HLS=RESERVED
 SRS_SSL=RESERVED
+SRS_FFMPEG=RESERVED
 
 # TODO: remove the default to yes.
 SRS_HLS=YES
 SRS_SSL=YES
+SRS_FFMPEG=YES
 
 opt=
 
@@ -25,9 +27,11 @@ do
         
         --with-ssl)                     SRS_SSL=YES               ;;
         --with-hls)                     SRS_HLS=YES               ;;
+        --with-ffmpeg)                  SRS_FFMPEG=YES            ;;
         
         --without-ssl)                  SRS_SSL=NO                ;;
         --without-hls)                  SRS_HLS=NO                ;;
+        --without-ffmpeg)               SRS_FFMPEG=NO             ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
@@ -63,6 +67,10 @@ if [ $SRS_SSL = RESERVED ]; then
 fi
 if [ $SRS_HLS = RESERVED ]; then
     echo "you must specifies the hls, see: ./configure --help";
+    __check_ok=NO
+fi
+if [ $SRS_FFMPEG = RESERVED ]; then
+    echo "you must specifies the ffmpeg, see: ./configure --help";
     __check_ok=NO
 fi
 if [ $__check_ok = NO ]; then

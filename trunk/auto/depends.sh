@@ -47,20 +47,21 @@ if [[ ! -f ${SRS_OBJS}/http-parser-2.1/libhttp_parser.a ]]; then echo "build htt
 # nginx for HLS, nginx-1.5.0
 #####################################################################################
 if [ $SRS_HLS = YES ]; then
-    if [[ -f ${SRS_OBJS}/nginx-1.5.7/_release/sbin/nginx ]]; then
+    if [[ -f ${SRS_OBJS}/nginx/sbin/nginx ]]; then
         echo "nginx-1.5.7 is ok.";
     else
         echo "build nginx-1.5.7"; 
         (
+            pwd_dir=`pwd` &&
             rm -rf ${SRS_OBJS}/nginx-1.5.7 && cd ${SRS_OBJS} && 
             unzip -q ../3rdparty/nginx-1.5.7.zip && cd nginx-1.5.7 && 
             ./configure --prefix=`pwd`/_release && make && make install &&
-            ln -sf `pwd`/_release ../nginx
+            ln -sf ${pwd_dir}/nginx-1.5.7/_release nginx
         )
     fi
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "build nginx-1.5.7 failed, ret=$ret"; exit $ret; fi
-    if [ ! -f ${SRS_OBJS}/nginx-1.5.7/_release/sbin/nginx ]; then echo "build nginx-1.5.7 failed."; exit -1; fi
+    if [ ! -f ${SRS_OBJS}/nginx/sbin/nginx ]; then echo "build nginx-1.5.7 failed."; exit -1; fi
 
     # use current user to config nginx,
     # srs will write ts/m3u8 file use current user,
@@ -82,4 +83,31 @@ if [ $SRS_SSL = YES ]; then
     echo "#define SRS_SSL" >> $SRS_AUTO_HEADERS_H
 else
     echo "#undef SRS_SSL" >> $SRS_AUTO_HEADERS_H
+fi
+
+#####################################################################################
+# live transcoding, ffmpeg-2.1, x264-core138, lame-3.99.5, libaacplus-2.0.2.
+#####################################################################################
+if [ $SRS_FFMPEG = YES ]; then
+    if [[ -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]]; then
+        echo "ffmpeg-2.1 is ok.";
+    else
+        echo "build ffmpeg-2.1"; 
+        (
+            pwd_dir=`pwd` && exit 0;
+            rm -rf ${SRS_OBJS}/nginx-1.5.7 && cd ${SRS_OBJS} && 
+            unzip -q ../3rdparty/nginx-1.5.7.zip && cd nginx-1.5.7 && 
+            ./configure --prefix=`pwd`/_release && make && make install &&
+            ln -sf ${pwd_dir}/nginx-1.5.7/_release nginx
+        )
+    fi
+    # check status
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "build ffmpeg-2.1 failed, ret=$ret"; exit $ret; fi
+    if [ ! -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]; then echo "build ffmpeg-2.1 failed."; exit -1; fi
+fi
+
+if [ $SRS_FFMPEG = YES ]; then
+    echo "#define SRS_FFMPEG" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_FFMPEG" >> $SRS_AUTO_HEADERS_H
 fi

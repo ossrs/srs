@@ -15,7 +15,7 @@ step 1: build srs <br/>
 <pre>
 tar xf simple-rtmp-server-*.*.tar.gz
 cd simple-rtmp-server-*.*/trunk
-./configure --with-ssl --with-hls
+./configure --with-ssl --with-hls --with-ffmpeg
 make
 </pre>
 step 2: start srs <br/>
@@ -117,6 +117,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v0.7, 2013-11-29, support --with/without -ffmpeg.
 * v0.7, 2013-11-29, add ffmpeg-2.1, x264-core138, lame-3.99.5, libaacplus-2.0.2.
 * v0.6, 2013-11-29, v0.6 released. 16094 lines.
 * v0.6, 2013-11-29, add performance summary, 1800 clients, 900Mbps, CPU 90.2%, 41MB.
