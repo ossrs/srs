@@ -43,6 +43,8 @@ step 6: play live stream auto transcoded<br/>
 <pre>
 rtmp url: rtmp://127.0.0.1:1935/live/livestream_fast
 m3u8 url: http://127.0.0.1:80/live/livestream_fast.m3u8
+rtmp url: rtmp://127.0.0.1:1935/live/livestream_sd
+m3u8 url: http://127.0.0.1:80/live/livestream_sd.m3u8
 </pre>
 
 ### System Requirements
