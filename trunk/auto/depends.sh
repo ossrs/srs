@@ -96,7 +96,7 @@ if [ $SRS_FFMPEG = YES ]; then
             cd ${SRS_OBJS} && pwd_dir=`pwd` && 
             rm -rf ffmepg.src && mkdir -p ffmpeg.src && cd ffmpeg.src &&
             rm -f build_ffmpeg.sh && ln -sf ../../auto/build_ffmpeg.sh && . build_ffmpeg.sh &&
-            cd ${pwd_dir} && ln -sf ffmepg.src/_release ffmpeg
+            cd ${pwd_dir} && ln -sf ffmpeg.src/_release ffmpeg
         )
     fi
     # check status
