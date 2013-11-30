@@ -6,6 +6,12 @@ SRS_AUTO_HEADERS_H="${SRS_OBJS}/srs_auto_headers.hpp"
 
 mkdir -p ${SRS_OBJS}
 
+# linux shell color support.
+RED="\\e[31m"
+GREEN="\\e[32m"
+YELLOW="\\e[33m"
+BLACK="\\e[0m"
+
 # parse user options.
 . auto/options.sh
 
@@ -119,11 +125,34 @@ BUILD_KEY="simple_rtmp_server" APP_MAIN="srs_main_server" APP_NAME="simple_rtmp_
 
 echo 'configure ok! '
 
+# summary
+echo ""
+echo "configure summary:"
+if [ $SRS_HLS = YES ]; then
+    echo -e "${GREEN}HLS over nginx is enabled${BLACK}"
+else
+    echo -e "warning: without HLS support"
+fi
+if [ $SRS_SSL = YES ]; then
+    echo -e "${GREEN}rtmp complex handshake is enabled${BLACK}"
+else
+    echo -e "${YELLOW}warning: without rtmp complex handshake support, donot support h264/aac to adobe flash player${BLACK}"
+fi
+if [ $SRS_FFMPEG = YES ]; then
+    echo -e "${GREEN}live stream transcoding over FFMPEG is enabled${BLACK}"
+else
+    echo -e "${YELLOW}warning: without live stream transcoding over FFMPEG support${BLACK}"
+fi
+
 # next step.
+echo ""
 echo "you can:"
 echo "\" make \" to build the srs(simple rtmp server)."
 echo "\" make help \" to get the usage of make"
 if [ $SRS_HLS = YES ]; then
     echo "\" sudo ./objs/nginx/sbin/nginx  \" to start the nginx http server for hls"
+fi
+if [ $SRS_FFMPEG = YES ]; then
+    echo -e "\" ./objs/ffmpeg/bin/ffmpeg  \" is used for live stream transcoding"
 fi
 echo "\" ./objs/simple_rtmp_server -c conf/srs.conf \" to start the srs live server"
