@@ -40,6 +40,12 @@ rtmp url: rtmp://127.0.0.1:1935/live/livestream
 m3u8 url: http://127.0.0.1:80/live/livestream.m3u8
 </pre>
 
+### System Requirements
+Supported operating systems:
+* All Linux 32/64 bits
+Hardware requirements:
+* All handware.
+
 ### Summary
 1. simple: also stable enough.<br/>
 2. high-performance: single-thread, async socket, event/st-thread driven.<br/>
