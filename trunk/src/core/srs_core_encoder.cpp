@@ -240,8 +240,7 @@ int SrsFFMPEG::start()
 	// child process: ffmpeg encoder engine.
 	if (pid == 0) {
 		// TODO: execl or execlp 
-		ret = execl(ffmpeg.c_str(), 
-		    ffmpeg.c_str(),
+		ret = execl(ffmpeg.c_str(),
 		    "-f", "flv",
 			"-i", input.c_str(), 
 			// video specified.
