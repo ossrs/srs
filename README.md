@@ -76,7 +76,7 @@ m3u8 url: http://demo:80/forward/live/livestream_sd.m3u8
 System Architecture:
 <pre>
 +------------------------------------------------------+
-|        SRS(Simple Rtmp Server)                       |
+|             SRS(Simple Rtmp Server)                  |
 +---------------+---------------+-----------+----------+
 |   API/hook    |   Transcoder  |    HLS    |   RTMP   |
 |  http-parser  |  FFMPEG/x264  |  NGINX/ts | protocol |
