@@ -32,7 +32,7 @@ FMS URL: rtmp://127.0.0.1:1935/live
 Stream:  livestream
 For example, use ffmpeg to publish:
     for((;;)); do \
-        ./objs/ffmpeg/bin/ffmpeg -re -i doc/source.flv -vcodec copy -acodec copy \
+        ./objs/ffmpeg/bin/ffmpeg -re -i ./doc/source.flv -vcodec copy -acodec copy \
         -f flv -y rtmp://127.0.0.1:1935/live/livestream; \
         sleep 1; \
     done
