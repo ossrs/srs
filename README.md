@@ -22,11 +22,15 @@ step 2: start srs <br/>
 <pre>
 ./objs/simple_rtmp_server -c conf/srs.conf
 </pre>
-step 3(optional): start nginx for HLS <br/>
+step 3(optinal): start srs listen at 19350 for forward<br/>
+<pre>
+./objs/simple_rtmp_server -c conf/srs.19350.conf
+</pre>
+step 4(optional): start nginx for HLS <br/>
 <pre>
 sudo ./objs/nginx/sbin/nginx
 </pre>
-step 4: publish live stream <br/>
+step 5: publish live stream <br/>
 <pre>
 FMS URL: rtmp://127.0.0.1:1935/live
 Stream:  livestream
@@ -37,17 +41,24 @@ For example, use ffmpeg to publish:
         sleep 1; \
     done
 </pre>
-step 5: play live stream <br/>
+step 6: play live stream <br/>
 <pre>
 rtmp url: rtmp://127.0.0.1:1935/live/livestream
 m3u8 url: http://127.0.0.1:80/live/livestream.m3u8
 </pre>
-step 6: play live stream auto transcoded<br/>
+step 7: play live stream auto transcoded<br/>
 <pre>
 rtmp url: rtmp://127.0.0.1:1935/live/livestream_ld
 m3u8 url: http://127.0.0.1:80/live/livestream_ld.m3u8
 rtmp url: rtmp://127.0.0.1:1935/live/livestream_sd
 m3u8 url: http://127.0.0.1:80/live/livestream_sd.m3u8
+</pre>
+step 8: play live stream auto forwarded, the hls dir change to /forward<br/>
+<pre>
+rtmp url: rtmp://127.0.0.1:19350/live/livestream_ld
+m3u8 url: http://127.0.0.1:80/forward/live/livestream_ld.m3u8
+rtmp url: rtmp://127.0.0.1:19350/live/livestream_sd
+m3u8 url: http://127.0.0.1:80/forward/live/livestream_sd.m3u8
 </pre>
 
 ### System Requirements

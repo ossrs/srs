@@ -67,6 +67,9 @@ if [ $SRS_HLS = YES ]; then
     # nginx default use nobody, so cannot read the ts/m3u8 created by srs.
     cp ${SRS_OBJS}/nginx/conf/nginx.conf ${SRS_OBJS}/nginx/conf/nginx.conf.bk
     sed -i "s/^.user  nobody;/user `whoami`;/g" ${SRS_OBJS}/nginx/conf/nginx.conf
+    
+    # create forward dir
+    mkdir -p ${SRS_OBJS}/nginx/html/forward
 fi
 
 if [ $SRS_HLS = YES ]; then
