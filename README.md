@@ -42,33 +42,33 @@ For example, use ffmpeg to publish:
         sleep 1; \
     done
 </pre>
-step 6: add server ip to hosts as dev. <br/>
+step 6: add server ip to hosts as demo. <br/>
 <pre>
 # edit the folowing file:
 # linux: /etc/hosts
 # windows: C:\Windows\System32\drivers\etc\hosts
-192.168.2.111 dev 
+192.168.2.111 demo 
 </pre>
 step 7: play live stream. <br/>
 <pre>
-rtmp url: rtmp://dev:1935/live/livestream
-m3u8 url: http://dev:80/live/livestream.m3u8
+rtmp url: rtmp://demo:1935/live/livestream
+m3u8 url: http://demo:80/live/livestream.m3u8
 </pre>
 step 8: play live stream auto transcoded<br/>
 <pre>
-rtmp url: rtmp://dev:1935/live/livestream_ld
-m3u8 url: http://dev:80/live/livestream_ld.m3u8
-rtmp url: rtmp://dev:1935/live/livestream_sd
-m3u8 url: http://dev:80/live/livestream_sd.m3u8
+rtmp url: rtmp://demo:1935/live/livestream_ld
+m3u8 url: http://demo:80/live/livestream_ld.m3u8
+rtmp url: rtmp://demo:1935/live/livestream_sd
+m3u8 url: http://demo:80/live/livestream_sd.m3u8
 </pre>
 step 9: play live stream auto forwarded, the hls dir change to /forward<br/>
 <pre>
-rtmp url: rtmp://dev:19350/live/livestream
-m3u8 url: http://dev:80/forward/live/livestream.m3u8
-rtmp url: rtmp://dev:19350/live/livestream_ld
-m3u8 url: http://dev:80/forward/live/livestream_ld.m3u8
-rtmp url: rtmp://dev:19350/live/livestream_sd
-m3u8 url: http://dev:80/forward/live/livestream_sd.m3u8
+rtmp url: rtmp://demo:19350/live/livestream
+m3u8 url: http://demo:80/forward/live/livestream.m3u8
+rtmp url: rtmp://demo:19350/live/livestream_ld
+m3u8 url: http://demo:80/forward/live/livestream_ld.m3u8
+rtmp url: rtmp://demo:19350/live/livestream_sd
+m3u8 url: http://demo:80/forward/live/livestream_sd.m3u8
 </pre>
 
 ### System Requirements
