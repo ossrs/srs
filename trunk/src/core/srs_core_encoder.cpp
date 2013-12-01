@@ -109,6 +109,7 @@ int SrsFFMPEG::initialize(std::string vhost, std::string port, std::string app, 
 	if (output.length() > input.length()) {
 		tail = output.substr(input.length());
 	}
+	// TODO: better dead loop check.
 	// if input also endwiths the tail, loop detected.
 	if (!tail.empty() && input.rfind(tail) == input.length() - tail.length()) {
 		ret = ERROR_ENCODER_LOOP;

@@ -77,6 +77,8 @@ int SrsForwarder::on_publish(std::string vhost, std::string _app, std::string st
 	server = forward_server;
 	port = 1935;
 	
+	// TODO: dead loop check.
+	
 	size_t pos = forward_server.find(":");
 	if (pos != std::string::npos) {
 		port = ::atoi(forward_server.substr(pos + 1).c_str());
