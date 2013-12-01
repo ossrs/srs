@@ -62,6 +62,8 @@ m3u8 url: http://dev:80/live/livestream_sd.m3u8
 </pre>
 step 9: play live stream auto forwarded, the hls dir change to /forward<br/>
 <pre>
+rtmp url: rtmp://dev:19350/live/livestream
+m3u8 url: http://dev:80/forward/live/livestream.m3u8
 rtmp url: rtmp://dev:19350/live/livestream_ld
 m3u8 url: http://dev:80/forward/live/livestream_ld.m3u8
 rtmp url: rtmp://dev:19350/live/livestream_sd
