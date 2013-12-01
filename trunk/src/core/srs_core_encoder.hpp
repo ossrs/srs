@@ -35,6 +35,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <st.h>
 
 class SrsConfDirective;
+class SrsRequest;
+
+#ifdef SRS_FFMPEG
 
 /**
 * a transcode engine: ffmepg,
@@ -68,7 +71,7 @@ public:
 	SrsFFMPEG(std::string ffmpeg_bin);
 	virtual ~SrsFFMPEG();
 public:
-	virtual int initialize(std::string vhost, std::string port, std::string app, std::string stream, SrsConfDirective* engine);
+	virtual int initialize(SrsRequest* req, SrsConfDirective* engine);
 	virtual int start();
 	virtual void stop();
 };
@@ -80,11 +83,6 @@ public:
 class SrsEncoder
 {
 private:
-	std::string vhost;
-	std::string port;
-	std::string app;
-	std::string stream;
-private:
 	std::vector<SrsFFMPEG*> ffmpegs;
 private:
 	st_thread_t tid;
@@ -93,16 +91,18 @@ public:
 	SrsEncoder();
 	virtual ~SrsEncoder();
 public:
-	virtual int on_publish(std::string vhost, std::string port, std::string app, std::string stream);
+	virtual int on_publish(SrsRequest* req);
 	virtual void on_unpublish();
 private:
-	virtual int parse_scope_engines();
+	virtual int parse_scope_engines(SrsRequest* req);
 	virtual void clear_engines();
 	virtual SrsFFMPEG* at(int index);
-	virtual int parse_transcode(SrsConfDirective* conf);
+	virtual int parse_transcode(SrsRequest* req, SrsConfDirective* conf);
 	virtual int cycle();
 	virtual void encoder_cycle();
 	static void* encoder_thread(void* arg);
 };
+
+#endif
 
 #endif

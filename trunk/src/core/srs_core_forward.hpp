@@ -37,6 +37,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsSharedPtrMessage;
 class SrsOnMetaDataPacket;
 class SrsRtmpClient;
+class SrsRequest;
 
 /**
 * forward the stream to other servers.
@@ -61,7 +62,7 @@ public:
 	SrsForwarder();
 	virtual ~SrsForwarder();
 public:
-	virtual int on_publish(std::string vhost, std::string app, std::string stream, std::string forward_server);
+	virtual int on_publish(SrsRequest* req, std::string forward_server);
 	virtual void on_unpublish();
 	virtual int on_meta_data(SrsSharedPtrMessage* metadata);
 	virtual int on_audio(SrsSharedPtrMessage* msg);
@@ -69,7 +70,6 @@ public:
 private:
 	virtual int open_socket();
 	virtual int connect_server();
-	std::string parse_server(std::string host);
 private:
 	virtual int cycle();
 	virtual int forward();

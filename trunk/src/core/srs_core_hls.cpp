@@ -38,6 +38,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_config.hpp>
 #include <srs_core_source.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_core_rtmp.hpp>
 
 // @see: NGX_RTMP_HLS_DELAY, 
 // 63000: 700ms, ts_tbn=90000
@@ -466,13 +467,13 @@ SrsHls::~SrsHls()
 	srs_freep(video_frame);
 }
 
-int SrsHls::on_publish(std::string _vhost, std::string _app, std::string _stream)
+int SrsHls::on_publish(SrsRequest* req)
 {
 	int ret = ERROR_SUCCESS;
 
-	vhost = _vhost;
-	stream = _stream;
-	app = _app;
+	vhost = req->vhost;
+	stream = req->stream;
+	app = req->app;
 	
 	// TODO: subscribe the reload event.
 	

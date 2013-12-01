@@ -34,6 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_forward.hpp>
 #include <srs_core_config.hpp>
 #include <srs_core_encoder.hpp>
+#include <srs_core_rtmp.hpp>
 
 #define CONST_MAX_JITTER_MS 		500
 #define DEFAULT_FRAME_TIME_MS 		10
@@ -612,56 +613,48 @@ int SrsSource::on_video(SrsCommonMessage* video)
 	return ret;
 }
 
-int SrsSource::on_publish(std::string vhost, std::string port, std::string app, std::string stream)
+int SrsSource::on_publish(SrsRequest* req)
 {
 	int ret = ERROR_SUCCESS;
 	
 	_can_publish = false;
-	
-#ifdef SRS_HLS
-	if ((ret = hls->on_publish(vhost, app, stream)) != ERROR_SUCCESS) {
-		return ret;
-	}
-#endif
-
-#ifdef SRS_FFMPEG
-	if ((ret = encoder->on_publish(vhost, port, app, stream)) != ERROR_SUCCESS) {
-		return ret;
-	}
-#endif
 
 	// TODO: support reload.
 	
 	// create forwarders
-	SrsConfDirective* conf = config->get_forward(vhost);
+	SrsConfDirective* conf = config->get_forward(req->vhost);
 	for (int i = 0; conf && i < (int)conf->args.size(); i++) {
 		std::string forward_server = conf->args.at(i);
 		
 		SrsForwarder* forwarder = new SrsForwarder();
 		forwarders.push_back(forwarder);
 		
-		if ((ret = forwarder->on_publish(vhost, app, stream, forward_server)) != ERROR_SUCCESS) {
+		if ((ret = forwarder->on_publish(req, forward_server)) != ERROR_SUCCESS) {
 			srs_error("start forwarder failed. "
 				"vhost=%s, app=%s, stream=%s, forward-to=%s",
-				vhost.c_str(), app.c_str(), stream.c_str(),
+				req->vhost.c_str(), req->app.c_str(), req->stream.c_str(),
 				forward_server.c_str());
 			return ret;
 		}
 	}
+
+#ifdef SRS_FFMPEG
+	if ((ret = encoder->on_publish(req)) != ERROR_SUCCESS) {
+		return ret;
+	}
+#endif
+	
+#ifdef SRS_HLS
+	if ((ret = hls->on_publish(req)) != ERROR_SUCCESS) {
+		return ret;
+	}
+#endif
 
 	return ret;
 }
 
 void SrsSource::on_unpublish()
 {
-#ifdef SRS_HLS
-	hls->on_unpublish();
-#endif
-
-#ifdef SRS_FFMPEG
-	encoder->on_unpublish();
-#endif
-
 	// close all forwarders
 	std::vector<SrsForwarder*>::iterator it;
 	for (it = forwarders.begin(); it != forwarders.end(); ++it) {
@@ -670,6 +663,14 @@ void SrsSource::on_unpublish()
 		srs_freep(forwarder);
 	}
 	forwarders.clear();
+
+#ifdef SRS_FFMPEG
+	encoder->on_unpublish();
+#endif
+
+#ifdef SRS_HLS
+	hls->on_unpublish();
+#endif
 
 	gop_cache->clear();
 

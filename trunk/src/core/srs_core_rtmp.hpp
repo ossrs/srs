@@ -48,6 +48,12 @@ class SrsOnMetaDataPacket;
 */
 struct SrsRequest
 {
+	/**
+	* tcUrl: rtmp://request_vhost:port/app/stream
+	* support pass vhost in query string, such as:
+	*	rtmp://ip:port/app?vhost=request_vhost/stream
+	*	rtmp://ip:port/app...vhost...request_vhost/stream
+	*/
 	std::string tcUrl;
 	std::string pageUrl;
 	std::string swfUrl;

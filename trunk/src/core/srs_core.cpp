@@ -24,6 +24,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <sys/time.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+
+#include <srs_core_log.hpp>
 
 static int64_t _srs_system_time_us_cache = 0;
 
@@ -59,4 +63,50 @@ std::string srs_replace(std::string str, std::string old_str, std::string new_st
 	}
 	
 	return ret;
+}
+
+std::string srs_dns_resolve(std::string host)
+{
+    if (inet_addr(host.c_str()) != INADDR_NONE) {
+        return host;
+    }
+    
+    hostent* answer = gethostbyname(host.c_str());
+    if (answer == NULL) {
+        srs_error("dns resolve host %s error.", host.c_str());
+        return "";
+    }
+    
+    char ipv4[16];
+    memset(ipv4, 0, sizeof(ipv4));
+    for (int i = 0; i < answer->h_length; i++) {
+        inet_ntop(AF_INET, answer->h_addr_list[i], ipv4, sizeof(ipv4));
+        srs_info("dns resolve host %s to %s.", host.c_str(), ipv4);
+        break;
+    }
+    
+    return ipv4;
+}
+
+void srs_vhost_resolve(std::string& vhost, std::string& app)
+{
+	app = srs_replace(app, "...", "?");
+	
+	if ((pos = app.find("?")) == std::string::npos) {
+		return;
+	}
+	
+	std::string query = app.substr(pos + 1);
+	app = app.substr(0, pos);
+	
+	if ((pos = query.find("vhost?")) != std::string::npos
+		|| (pos = query.find("vhost=")) != std::string::npos
+		|| (pos = query.find("Vhost?")) != std::string::npos
+		|| (pos = query.find("Vhost=")) != std::string::npos
+	) {
+		query = query.substr(pos + 6);
+		if (!query.empty()) {
+			vhost = query;
+		}
+	}
 }

@@ -343,7 +343,7 @@ int SrsClient::publish(SrsSource* source, bool is_fmle)
 	SrsPithyPrint pithy_print(SRS_STAGE_PUBLISH_USER);
 	
 	// notify the hls to prepare when publish start.
-	if ((ret = source->on_publish(req->vhost, req->port, req->app, req->stream)) != ERROR_SUCCESS) {
+	if ((ret = source->on_publish(req)) != ERROR_SUCCESS) {
 		srs_error("hls on_publish failed. ret=%d", ret);
 		return ret;
 	}

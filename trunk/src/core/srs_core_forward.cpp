@@ -27,13 +27,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <netdb.h>
 
 #include <srs_core_error.hpp>
 #include <srs_core_rtmp.hpp>
 #include <srs_core_log.hpp>
 #include <srs_core_protocol.hpp>
 #include <srs_core_pithy_print.hpp>
+#include <srs_core_rtmp.hpp>
+#include <srs_core_config.hpp>
 
 #define SRS_PULSE_TIMEOUT_MS 100
 #define SRS_FORWARDER_SLEEP_MS 2000
@@ -62,29 +63,54 @@ SrsForwarder::~SrsForwarder()
 	msgs.clear();
 }
 
-int SrsForwarder::on_publish(std::string vhost, std::string _app, std::string stream, std::string forward_server)
+int SrsForwarder::on_publish(SrsRequest* req, std::string forward_server)
 {
 	int ret = ERROR_SUCCESS;
 	
-	app = _app;
+	// forward app
+	app = req->app;
 	
-	tc_url = "rtmp://";
-	tc_url += vhost;
-	tc_url += "/";
-	tc_url += app;
-	
-	stream_name = stream;
+	stream_name = req->stream;
 	server = forward_server;
-	port = 1935;
-	
-	// TODO: dead loop check. 
+	std::string s_port = RTMP_DEFAULT_PORTS;
+	port = RTMP_DEFAULT_PORT;
 	
 	size_t pos = forward_server.find(":");
 	if (pos != std::string::npos) {
-		port = ::atoi(forward_server.substr(pos + 1).c_str());
+		s_port = forward_server.substr(pos + 1);
 		server = forward_server.substr(0, pos);
 	}
+	// discovery vhost
+	std::string vhost = req->vhost;
+	srs_vhost_resolve(vhost, s_port);
+	port = ::atoi(s_port.c_str());
 	
+	// generate tcUrl
+	tc_url = "rtmp://";
+	tc_url += vhost;
+	tc_url += "/";
+	tc_url += req->app;
+	
+	// dead loop check
+	std::string source_ep = req->vhost;
+	source_ep += ":";
+	source_ep += req->port;
+	
+	std::string dest_ep = vhost;
+	dest_ep += ":";
+	dest_ep += s_port;
+	
+	if (source_ep == dest_ep) {
+		ret = ERROR_SYSTEM_FORWARD_LOOP;
+		srs_warn("farder loop detected. src=%s, dest=%s, ret=%d", 
+			source_ep.c_str(), dest_ep.c_str(), ret);
+		return ret;
+	}
+	srs_trace("start forward %s to %s, stream: %s/%s", 
+		source_ep.c_str(), dest_ep.c_str(), tc_url.c_str(), 
+		stream_name.c_str());
+	
+	// start forward
 	if ((ret = open_socket()) != ERROR_SUCCESS) {
 		return ret;
 	}
@@ -179,7 +205,7 @@ int SrsForwarder::connect_server()
 {
 	int ret = ERROR_SUCCESS;
 	
-	std::string ip = parse_server(server);
+	std::string ip = srs_dns_resolve(server);
 	if (ip.empty()) {
 		ret = ERROR_SYSTEM_IP_INVALID;
 		srs_error("dns resolve server error, ip empty. ret=%d", ret);
@@ -199,29 +225,6 @@ int SrsForwarder::connect_server()
     srs_trace("connect to server success. server=%s, ip=%s, port=%d", server.c_str(), ip.c_str(), port);
     
 	return ret;
-}
-
-std::string SrsForwarder::parse_server(std::string host)
-{
-    if (inet_addr(host.c_str()) != INADDR_NONE) {
-        return host;
-    }
-    
-    hostent* answer = gethostbyname(host.c_str());
-    if (answer == NULL) {
-        srs_error("dns resolve host %s error.", host.c_str());
-        return "";
-    }
-    
-    char ipv4[16];
-    memset(ipv4, 0, sizeof(ipv4));
-    for (int i = 0; i < answer->h_length; i++) {
-        inet_ntop(AF_INET, answer->h_addr_list[i], ipv4, sizeof(ipv4));
-        srs_info("dns resolve host %s to %s.", host.c_str(), ipv4);
-        break;
-    }
-    
-    return ipv4;
 }
 
 int SrsForwarder::cycle()

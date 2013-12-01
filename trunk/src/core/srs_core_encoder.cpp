@@ -26,14 +26,22 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <algorithm>
+
 #include <srs_core_error.hpp>
 #include <srs_core_log.hpp>
 #include <srs_core_config.hpp>
+#include <srs_core_rtmp.hpp>
+
+#ifdef SRS_FFMPEG
 
 #define SRS_ENCODER_SLEEP_MS 2000
 
 #define SRS_ENCODER_VCODEC "libx264"
 #define SRS_ENCODER_ACODEC "libaacplus"
+
+// for encoder to detect the dead loop
+static std::vector<std::string> _transcoded_url;
 
 SrsFFMPEG::SrsFFMPEG(std::string ffmpeg_bin)
 {
@@ -56,7 +64,7 @@ SrsFFMPEG::~SrsFFMPEG()
 	stop();
 }
 
-int SrsFFMPEG::initialize(std::string vhost, std::string port, std::string app, std::string stream, SrsConfDirective* engine)
+int SrsFFMPEG::initialize(SrsRequest* req, SrsConfDirective* engine)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -84,39 +92,32 @@ int SrsFFMPEG::initialize(std::string vhost, std::string port, std::string app, 
 	// input stream, from local.
 	// ie. rtmp://127.0.0.1:1935/live/livestream
 	input = "rtmp://127.0.0.1:";
-	input += port;
+	input += req->port;
 	input += "/";
-	input += app;
+	input += req->app;
+	input += "?vhost=";
+	input += req->vhost;
 	input += "/";
-	input += stream;
+	input += req->stream;
 	
 	// output stream, to other/self server
 	// ie. rtmp://127.0.0.1:1935/live/livestream_sd
-	if (vhost == RTMP_VHOST_DEFAULT) {
-		output = srs_replace(output, "[vhost]", "127.0.0.1");
-	} else {
-		output = srs_replace(output, "[vhost]", vhost);
-	}
-	output = srs_replace(output, "[port]", port);
-	output = srs_replace(output, "[app]", app);
-	output = srs_replace(output, "[stream]", stream);
+	output = srs_replace(output, "[vhost]", req->vhost);
+	output = srs_replace(output, "[port]", req->port);
+	output = srs_replace(output, "[app]", req->app);
+	output = srs_replace(output, "[stream]", req->stream);
+	output = srs_replace(output, "[engine]", engine->arg0());
 
 	// important: loop check, donot transcode again.
-	// we think the following is loop circle:
-	// input: rtmp://127.0.0.1:1935/live/livestream_sd
-	// output: rtmp://127.0.0.1:1935/live/livestream_sd_sd
-	std::string tail = ""; // tail="_sd"
-	if (output.length() > input.length()) {
-		tail = output.substr(input.length());
-	}
-	// TODO: better dead loop check. 
-	// if input also endwiths the tail, loop detected.
-	if (!tail.empty() && input.rfind(tail) == input.length() - tail.length()) {
+	std::vector<std::string>::iterator it;
+	it = std::find(_transcoded_url.begin(), _transcoded_url.end(), input);
+	if (it != _transcoded_url.end()) {
 		ret = ERROR_ENCODER_LOOP;
 		srs_info("detect a loop cycle, input=%s, output=%s, ignore it. ret=%d",
 			input.c_str(), output.c_str(), ret);
 		return ret;
 	}
+	_transcoded_url.push_back(output);
 	
 	if (vcodec != SRS_ENCODER_VCODEC) {
 		ret = ERROR_ENCODER_VCODEC;
@@ -303,6 +304,20 @@ int SrsFFMPEG::start()
 	
 	params.push_back("-y");
 	params.push_back(output);
+
+	if (true) {
+		int pparam_size = 8 * 1024;
+		char* pparam = new char[pparam_size];
+		char* p = pparam;
+		char* last = pparam + pparam_size;
+		for (int i = 0; i < (int)params.size(); i++) {
+			std::string ffp = params[i];
+			snprintf(p, last - p, "%s ", ffp.c_str());
+			p += ffp.length() + 1;
+		}
+		srs_trace("start transcoder: %s", pparam);
+		srs_freepa(pparam);
+	}
 	
 	// TODO: fork or vfork?
 	if ((pid = fork()) < 0) {
@@ -346,6 +361,12 @@ void SrsFFMPEG::stop()
 	if (!started) {
 		return;
 	}
+	
+	std::vector<std::string>::iterator it;
+	it = std::find(_transcoded_url.begin(), _transcoded_url.end(), output);
+	if (it != _transcoded_url.end()) {
+		_transcoded_url.erase(it);
+	}
 }
 
 SrsEncoder::SrsEncoder()
@@ -359,7 +380,7 @@ SrsEncoder::~SrsEncoder()
 	on_unpublish();
 }
 
-int SrsEncoder::parse_scope_engines()
+int SrsEncoder::parse_scope_engines(SrsRequest* req)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -368,17 +389,17 @@ int SrsEncoder::parse_scope_engines()
 	
 	// parse vhost scope engines
 	std::string scope = "";
-	if ((conf = config->get_transcode(vhost, "")) != NULL) {
-		if ((ret = parse_transcode(conf)) != ERROR_SUCCESS) {
+	if ((conf = config->get_transcode(req->vhost, scope)) != NULL) {
+		if ((ret = parse_transcode(req, conf)) != ERROR_SUCCESS) {
 			srs_error("parse vhost scope=%s transcode engines failed. "
 				"ret=%d", scope.c_str(), ret);
 			return ret;
 		}
 	}
 	// parse app scope engines
-	scope = app;
-	if ((conf = config->get_transcode(vhost, app)) != NULL) {
-		if ((ret = parse_transcode(conf)) != ERROR_SUCCESS) {
+	scope = req->app;
+	if ((conf = config->get_transcode(req->vhost, scope)) != NULL) {
+		if ((ret = parse_transcode(req, conf)) != ERROR_SUCCESS) {
 			srs_error("parse app scope=%s transcode engines failed. "
 				"ret=%d", scope.c_str(), ret);
 			return ret;
@@ -386,9 +407,9 @@ int SrsEncoder::parse_scope_engines()
 	}
 	// parse stream scope engines
 	scope += "/";
-	scope += stream;
-	if ((conf = config->get_transcode(vhost, app + "/" + stream)) != NULL) {
-		if ((ret = parse_transcode(conf)) != ERROR_SUCCESS) {
+	scope += req->stream;
+	if ((conf = config->get_transcode(req->vhost, scope)) != NULL) {
+		if ((ret = parse_transcode(req, conf)) != ERROR_SUCCESS) {
 			srs_error("parse stream scope=%s transcode engines failed. "
 				"ret=%d", scope.c_str(), ret);
 			return ret;
@@ -398,16 +419,11 @@ int SrsEncoder::parse_scope_engines()
 	return ret;
 }
 
-int SrsEncoder::on_publish(std::string _vhost, std::string _port, std::string _app, std::string _stream)
+int SrsEncoder::on_publish(SrsRequest* req)
 {
 	int ret = ERROR_SUCCESS;
 
-	vhost = _vhost;
-	port = _port;
-	app = _app;
-	stream = _stream;
-
-	ret = parse_scope_engines();
+	ret = parse_scope_engines(req);
 	
 	// ignore the loop encoder
 	if (ret == ERROR_ENCODER_LOOP) {
@@ -457,7 +473,7 @@ SrsFFMPEG* SrsEncoder::at(int index)
 	return ffmpegs[index];
 }
 
-int SrsEncoder::parse_transcode(SrsConfDirective* conf)
+int SrsEncoder::parse_transcode(SrsRequest* req, SrsConfDirective* conf)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -498,7 +514,7 @@ int SrsEncoder::parse_transcode(SrsConfDirective* conf)
 		
 		SrsFFMPEG* ffmpeg = new SrsFFMPEG(ffmpeg_bin);
 		
-		if ((ret = ffmpeg->initialize(vhost, port, app, stream, engine)) != ERROR_SUCCESS) {
+		if ((ret = ffmpeg->initialize(req, engine)) != ERROR_SUCCESS) {
 			srs_freep(ffmpeg);
 			
 			// if got a loop, donot transcode the whole stream.
@@ -576,4 +592,6 @@ void* SrsEncoder::encoder_thread(void* arg)
 	
 	return NULL;
 }
+
+#endif
 

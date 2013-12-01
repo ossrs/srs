@@ -39,6 +39,7 @@ class SrsCommonMessage;
 class SrsOnMetaDataPacket;
 class SrsSharedPtrMessage;
 class SrsForwarder;
+class SrsRequest;
 #ifdef SRS_HLS
 class SrsHls;
 #endif
@@ -210,7 +211,7 @@ public:
 	virtual int on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);
 	virtual int on_audio(SrsCommonMessage* audio);
 	virtual int on_video(SrsCommonMessage* video);
-	virtual int on_publish(std::string vhost, std::string port, std::string app, std::string stream);
+	virtual int on_publish(SrsRequest* req);
 	virtual void on_unpublish();
 public:
 	virtual int create_consumer(SrsConsumer*& consumer);

@@ -42,6 +42,7 @@ class SrsMpegtsFrame;
 class SrsRtmpJitter;
 class SrsTSMuxer;
 class SrsCodec;
+class SrsRequest;
 
 /**
 * 3.3.2.  EXTINF
@@ -142,7 +143,7 @@ public:
 	SrsHls();
 	virtual ~SrsHls();
 public:
-	virtual int on_publish(std::string _vhost, std::string _app, std::string _stream);
+	virtual int on_publish(SrsRequest* req);
 	virtual void on_unpublish();
 	virtual int on_meta_data(SrsOnMetaDataPacket* metadata);
 	virtual int on_audio(SrsSharedPtrMessage* audio);

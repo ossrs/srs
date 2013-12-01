@@ -97,13 +97,14 @@ Supported operating systems and hardware:
 17. support live stream transcoding by ffmpeg.<br/>
 18. support ffmpeg filters(logo/overlay/crop), x264 params.<br/>
 19. [plan] support network based cli and json result.<br/>
-20. [plan] support bandwidth test api and flash client.<br/>
-21. [plan] support adobe flash refer/token/swf verification.<br/>
-22. [plan] support adobe amf3 codec.<br/>
-23. [plan] support dvr(record live to vod file)<br/>
-24. [plan] support FMS edge protocol<br/>
-25. [plan] support encryption: RTMPE/RTMPS, HLS DRM<br/>
-26. [plan] support RTMPT, http to tranverse firewalls<br/>
+20. [plan] support http callback api hooks.<br/>
+21. [plan] support bandwidth test api and flash client.<br/>
+22. [plan] support adobe flash refer/token/swf verification.<br/>
+23. [plan] support adobe amf3 codec.<br/>
+24. [plan] support dvr(record live to vod file)<br/>
+25. [plan] support FMS edge protocol<br/>
+26. [plan] support encryption: RTMPE/RTMPS, HLS DRM<br/>
+27. [plan] support RTMPT, http to tranverse firewalls<br/>
 
 ### Performance
 1. 300 connections, 150Mbps, 500kbps, CPU 18.8%, 5956KB.
@@ -150,8 +151,9 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v0.7, 2013-12-01, support dead-loop detect for forwarder and transcoder.
 * v0.7, 2013-12-01, support all ffmpeg filters and params.
-* v0.7, 2013-11-30, support live stream transcoding by ffmpeg.
+* v0.7, 2013-11-30, support live stream transcoder by ffmpeg.
 * v0.7, 2013-11-30, support --with/without -ffmpeg, build ffmpeg-2.1.
 * v0.7, 2013-11-30, add ffmpeg-2.1, x264-core138, lame-3.99.5, libaacplus-2.0.2.
 * v0.6, 2013-11-29, v0.6 released. 16094 lines.

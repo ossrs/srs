@@ -30,6 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_autofree.hpp>
 #include <srs_core_amf0.hpp>
 #include <srs_core_handshake.hpp>
+#include <srs_core_config.hpp>
 
 /**
 * the signature for packets to client.
@@ -93,7 +94,7 @@ int SrsRequest::discovery_app()
 		srs_verbose("discovery vhost=%s", vhost.c_str());
 	}
 
-	port = "1935";
+	port = RTMP_DEFAULT_PORTS;
 	if ((pos = vhost.find(":")) != std::string::npos) {
 		port = vhost.substr(pos + 1);
 		vhost = vhost.substr(0, pos);
@@ -101,6 +102,14 @@ int SrsRequest::discovery_app()
 	}
 	
 	app = url;
+	srs_vhost_resolve(vhost, app);
+	
+	// resolve the vhost from config
+	SrsConfDirective* parsed_vhost = config->get_vhost(vhost);
+	if (parsed_vhost) {
+		vhost = parsed_vhost->arg0();
+	}
+	
 	srs_info("discovery app success. schema=%s, vhost=%s, port=%s, app=%s",
 		schema.c_str(), vhost.c_str(), port.c_str(), app.c_str());
 	
