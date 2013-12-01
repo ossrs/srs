@@ -128,6 +128,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v0.7, 2013-12-01, support all ffmpeg filters and params.
 * v0.7, 2013-11-30, support live stream transcoding by ffmpeg.
 * v0.7, 2013-11-30, support --with/without -ffmpeg, build ffmpeg-2.1.
 * v0.7, 2013-11-30, add ffmpeg-2.1, x264-core138, lame-3.99.5, libaacplus-2.0.2.
