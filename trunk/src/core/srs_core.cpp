@@ -92,6 +92,7 @@ void srs_vhost_resolve(std::string& vhost, std::string& app)
 {
 	app = srs_replace(app, "...", "?");
 	
+	size_t pos = 0;
 	if ((pos = app.find("?")) == std::string::npos) {
 		return;
 	}
