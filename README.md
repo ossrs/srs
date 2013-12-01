@@ -127,7 +127,7 @@ Supported operating systems and hardware:
 17. support live stream transcoding by ffmpeg.<br/>
 18. support ffmpeg filters(logo/overlay/crop), x264 params.<br/>
 19. [plan] support network based cli and json result.<br/>
-20. [plan] support http callback api hooks.<br/>
+20. [plan] support http callback api hooks(for authentication).<br/>
 21. [plan] support bandwidth test api and flash client.<br/>
 22. [plan] support adobe flash refer/token/swf verification.<br/>
 23. [plan] support adobe amf3 codec.<br/>
