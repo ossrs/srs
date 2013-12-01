@@ -42,11 +42,12 @@ For example, use ffmpeg to publish:
         sleep 1; \
     done
 </pre>
-step 6: add server ip to hosts as demo. <br/>
+step 6: add server ip to client hosts as demo. <br/>
 <pre>
 # edit the folowing file:
 # linux: /etc/hosts
 # windows: C:\Windows\System32\drivers\etc\hosts
+# where server ip is 192.168.2.111
 192.168.2.111 demo 
 </pre>
 step 7: play live stream. <br/>
