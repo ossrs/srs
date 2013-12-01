@@ -76,7 +76,7 @@ m3u8 url: http://demo:80/forward/live/livestream_sd.m3u8
 System Architecture:
 <pre>
 +------------------------------------------------------+
-|        Srs(Simple Rtmp Server)                       |
+|        SRS(Simple Rtmp Server)                       |
 +---------------+---------------+-----------+----------+
 |   API/hook    |   Transcoder  |    HLS    |   RTMP   |
 |  http-parser  |  FFMPEG/x264  |  NGINX/ts | protocol |
@@ -88,18 +88,18 @@ System Architecture:
 </pre>
 Stream Architecture:
 <pre>
-        +---------+             +----------+  
-        + Publish +             +  Deliver |  
-        +---|-----+             +----|-----+  
-+-----------+------------------------+-----------------+
-| Encoder   |       SRS              |     Client      |
-+-----------+------------------------+-----------------+
-| (FMLE,    |   +-> RTMP protocol ---+-> Flash Player  |
-| FFMPEG, --+-> +-> HLS/NGINX -------+-> m3u8 player   |
-| Flash,    |   +-> Fowarder --------+-> RTMP Server   |
-| XSPLIT,   |   +-> Transcoder ------+-> RTMP Server   |
-|  ...)     |   +-> DVR -------------+-> FILE          |
-+-----------+------------------------+-----------------+
+        +---------+              +----------+ 
+        + Publish +              +  Deliver | 
+        +---|-----+              +----|-----+ 
++-----------+-------------------------+----------------+
+| Encoder   | SRS(Simple Rtmp Server) |     Client     |
++-----------+-------------------------+----------------+
+| (FMLE,    |   +-> RTMP protocol ----+-> Flash Player |
+| FFMPEG, --+-> +-> HLS/NGINX --------+-> m3u8 player  |
+| Flash,    |   +-> Fowarder ---------+-> RTMP Server  |
+| XSPLIT,   |   +-> Transcoder -------+-> RTMP Server  |
+|  ...)     |   +-> DVR --------------+-> FILE         |
++-----------+-------------------------+----------------+
 </pre>
 
 ### System Requirements
