@@ -110,6 +110,8 @@ int SrsForwarder::on_publish(SrsRequest* req, std::string forward_server)
 		source_ep.c_str(), dest_ep.c_str(), tc_url.c_str(), 
 		stream_name.c_str());
 	
+	// TODO: seems bug when republish and reforward.
+	
 	// start forward
 	if ((ret = open_socket()) != ERROR_SUCCESS) {
 		return ret;
