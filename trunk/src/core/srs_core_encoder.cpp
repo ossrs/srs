@@ -548,6 +548,8 @@ int SrsEncoder::cycle()
 		}
 	}
 	
+	// TODO: cycle all processes.
+	
 	return ret;
 }
 
