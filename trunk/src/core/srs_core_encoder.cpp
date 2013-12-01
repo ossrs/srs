@@ -60,6 +60,7 @@ int SrsFFMPEG::initialize(std::string vhost, std::string port, std::string app, 
 {
 	int ret = ERROR_SUCCESS;
 	
+	config->get_engine_vfilter(engine, vfilter);
 	vcodec 			= config->get_engine_vcodec(engine);
 	vbitrate 		= config->get_engine_vbitrate(engine);
 	vfps 			= config->get_engine_vfps(engine);
@@ -68,12 +69,12 @@ int SrsFFMPEG::initialize(std::string vhost, std::string port, std::string app, 
 	vthreads 		= config->get_engine_vthreads(engine);
 	vprofile 		= config->get_engine_vprofile(engine);
 	vpreset 		= config->get_engine_vpreset(engine);
-	vparams 		= config->get_engine_vparams(engine);
+	config->get_engine_vparams(engine, vparams);
 	acodec 			= config->get_engine_acodec(engine);
 	abitrate 		= config->get_engine_abitrate(engine);
 	asample_rate 	= config->get_engine_asample_rate(engine);
 	achannels 		= config->get_engine_achannels(engine);
-	aparams 		= config->get_engine_aparams(engine);
+	config->get_engine_aparams(engine, aparams);
 	output 			= config->get_engine_output(engine);
 	
 	// ensure the size is even.
@@ -198,37 +199,109 @@ int SrsFFMPEG::start()
 		return ret;
 	}
 	
-	// prepare execl params
-	char vsize[22];
-	snprintf(vsize, sizeof(vsize), "%dx%d", vwidth, vheight);
-	char vaspect[22];
-	snprintf(vaspect, sizeof(vaspect), "%d:%d", vwidth, vheight);
-	char s_vbitrate[10];
-	snprintf(s_vbitrate, sizeof(s_vbitrate), "%d", vbitrate * 1000);
-	char s_vfps[10];
-	snprintf(s_vfps, sizeof(s_vfps), "%.2f", vfps);
-	char s_vthreads[10];
-	snprintf(s_vthreads, sizeof(s_vthreads), "%d", vthreads);
-	char s_abitrate[10];
-	snprintf(s_abitrate, sizeof(s_abitrate), "%d", abitrate * 1000);
-	char s_asample_rate[10];
-	snprintf(s_asample_rate, sizeof(s_asample_rate), "%d", asample_rate);
-	char s_achannels[10];
-	snprintf(s_achannels, sizeof(s_achannels), "%d", achannels);
+	// prepare exec params
+	char tmp[256];
+	std::vector<std::string> params;
 	
-	// TODO: execl donot support the params.
-	// video params
-	std::string s_vpreset = vpreset;
+	// argv[0], set to ffmpeg bin.
+	// The  execv()  and  execvp() functions ....
+	// The first argument, by convention, should point to 
+	// the filename associated  with  the file being executed.
+	params.push_back(ffmpeg);
+	
+	// input.
+	params.push_back("-f");
+	params.push_back("flv");
+	
+	params.push_back("-i");
+	params.push_back(input);
+	
+	// build the filter
+	if (!vfilter.empty()) {
+		std::vector<std::string>::iterator it;
+		for (it = vfilter.begin(); it != vfilter.end(); ++it) {
+			std::string p = *it;
+			if (!p.empty()) {
+				params.push_back(p);
+			}
+		}
+	}
+	
+	// video specified.
+	params.push_back("-vcodec");
+	params.push_back(vcodec);
+	
+	params.push_back("-b:v");
+	snprintf(tmp, sizeof(tmp), "%d", vbitrate * 1000);
+	params.push_back(tmp);
+	
+	params.push_back("-r");
+	snprintf(tmp, sizeof(tmp), "%.2f", vfps);
+	params.push_back(tmp);
+	
+	params.push_back("-s");
+	snprintf(tmp, sizeof(tmp), "%dx%d", vwidth, vheight);
+	params.push_back(tmp);
+	
+	// TODO: add aspect if needed.
+	params.push_back("-aspect");
+	snprintf(tmp, sizeof(tmp), "%d:%d", vwidth, vheight);
+	params.push_back(tmp);
+	
+	params.push_back("-threads");
+	snprintf(tmp, sizeof(tmp), "%d", vthreads);
+	params.push_back(tmp);
+	
+	params.push_back("-profile:v");
+	params.push_back(vprofile);
+	
+	params.push_back("-preset");
+	params.push_back(vpreset);
+	
+	// vparams
 	if (!vparams.empty()) {
-		s_vpreset += " ";
-		s_vpreset += vparams;
+		std::vector<std::string>::iterator it;
+		for (it = vparams.begin(); it != vparams.end(); ++it) {
+			std::string p = *it;
+			if (!p.empty()) {
+				params.push_back(p);
+			}
+		}
 	}
-	// audio params
-	std::string s_aparams = s_achannels;
+	
+	// audio specified.
+	params.push_back("-acodec");
+	params.push_back(acodec);
+	
+	params.push_back("-b:a");
+	snprintf(tmp, sizeof(tmp), "%d", abitrate * 1000);
+	params.push_back(tmp);
+	
+	params.push_back("-ar");
+	snprintf(tmp, sizeof(tmp), "%d", asample_rate);
+	params.push_back(tmp);
+	
+	params.push_back("-ac");
+	snprintf(tmp, sizeof(tmp), "%d", achannels);
+	params.push_back(tmp);
+	
+	// aparams
 	if (!aparams.empty()) {
-		s_aparams += " ";
-		s_aparams += aparams;
+		std::vector<std::string>::iterator it;
+		for (it = aparams.begin(); it != aparams.end(); ++it) {
+			std::string p = *it;
+			if (!p.empty()) {
+				params.push_back(p);
+			}
+		}
 	}
+
+	// output
+	params.push_back("-f");
+	params.push_back("flv");
+	
+	params.push_back("-y");
+	params.push_back(output);
 	
 	// TODO: fork or vfork?
 	if ((pid = fork()) < 0) {
@@ -239,28 +312,17 @@ int SrsFFMPEG::start()
 	
 	// child process: ffmpeg encoder engine.
 	if (pid == 0) {
-		// TODO: execl or execlp 
-		ret = execl(ffmpeg.c_str(),
-		    "-f", "flv",
-			"-i", input.c_str(), 
-			// video specified.
-			"-vcodec", vcodec.c_str(), 
-			"-b:v", s_vbitrate,
-			"-r", s_vfps,
-			"-s", vsize,
-			"-aspect", vaspect, // TODO: add aspect if needed.
-			"-threads", s_vthreads,
-			"-profile:v", vprofile.c_str(),
-			"-preset", s_vpreset.c_str(),
-			// audio specified.
-			"-acodec", acodec.c_str(),
-			"-b:a", s_abitrate,
-			"-ar", s_asample_rate,
-			"-ac", s_aparams.c_str(),
-			"-f", "flv",
-			"-y", output.c_str(),
-			NULL
-		);
+		// memory leak in child process, it's ok.
+		char** charpv_params = new char*[params.size() + 1];
+		for (int i = 0; i < (int)params.size(); i++) {
+			std::string p = params[i];
+			charpv_params[i] = (char*)p.c_str();
+		}
+		// EOF: NULL
+		charpv_params[params.size()] = NULL;
+		
+		// TODO: execv or execvp
+		ret = execv(ffmpeg.c_str(), charpv_params);
 		if (ret < 0) {
 			fprintf(stderr, "fork ffmpeg failed, errno=%d(%s)", 
 				errno, strerror(errno));
@@ -347,7 +409,7 @@ int SrsEncoder::on_publish(std::string _vhost, std::string _port, std::string _a
 	ret = parse_scope_engines();
 	
 	// ignore the loop encoder
-	if (ret = ERROR_ENCODER_LOOP) {
+	if (ret == ERROR_ENCODER_LOOP) {
 		ret = ERROR_SUCCESS;
 	}
 	

@@ -128,12 +128,13 @@ public:
 	virtual int		     	  get_engine_vthreads(SrsConfDirective* engine);
 	virtual std::string 	  get_engine_vprofile(SrsConfDirective* engine);
 	virtual std::string 	  get_engine_vpreset(SrsConfDirective* engine);
-	virtual std::string 	  get_engine_vparams(SrsConfDirective* engine);
+	virtual void		 	  get_engine_vparams(SrsConfDirective* engine, std::vector<std::string>& vparams);
+	virtual void		 	  get_engine_vfilter(SrsConfDirective* engine, std::vector<std::string>& vfilter);
 	virtual std::string 	  get_engine_acodec(SrsConfDirective* engine);
 	virtual int		     	  get_engine_abitrate(SrsConfDirective* engine);
 	virtual int		     	  get_engine_asample_rate(SrsConfDirective* engine);
 	virtual int		     	  get_engine_achannels(SrsConfDirective* engine);
-	virtual std::string 	  get_engine_aparams(SrsConfDirective* engine);
+	virtual void			  get_engine_aparams(SrsConfDirective* engine, std::vector<std::string>& aparams);
 	virtual std::string 	  get_engine_output(SrsConfDirective* engine);
 	virtual SrsConfDirective* get_gop_cache(std::string vhost);
 	virtual SrsConfDirective* get_forward(std::string vhost);

@@ -768,30 +768,48 @@ std::string SrsConfig::get_engine_vpreset(SrsConfDirective* engine)
 	return conf->arg0();
 }
 
-std::string SrsConfig::get_engine_vparams(SrsConfDirective* engine)
+void SrsConfig::get_engine_vparams(SrsConfDirective* engine, std::vector<std::string>& vparams)
 {
 	if (!engine) {
-		return "";
+		return;
 	}
 	
 	SrsConfDirective* conf = engine->get("vparams");
 	if (!conf) {
-		return "";
+		return;
 	}
 	
-	std::string avparams;
 	for (int i = 0; i < (int)conf->directives.size(); i++) {
 		SrsConfDirective* p = conf->directives[i];
 		if (!p) {
 			continue;
 		}
 		
-		avparams += p->name;
-		avparams += " ";
-		avparams += p->arg0();
+		vparams.push_back("-" + p->name);
+		vparams.push_back(p->arg0());
+	}
+}
+
+void SrsConfig::get_engine_vfilter(SrsConfDirective* engine, std::vector<std::string>& vfilter)
+{
+	if (!engine) {
+		return;
 	}
 	
-	return avparams;
+	SrsConfDirective* conf = engine->get("vfilter");
+	if (!conf) {
+		return;
+	}
+	
+	for (int i = 0; i < (int)conf->directives.size(); i++) {
+		SrsConfDirective* p = conf->directives[i];
+		if (!p) {
+			continue;
+		}
+		
+		vfilter.push_back("-" + p->name);
+		vfilter.push_back(p->arg0());
+	}
 }
 
 std::string SrsConfig::get_engine_acodec(SrsConfDirective* engine)
@@ -850,30 +868,26 @@ int SrsConfig::get_engine_achannels(SrsConfDirective* engine)
 	return ::atoi(conf->arg0().c_str());
 }
 
-std::string SrsConfig::get_engine_aparams(SrsConfDirective* engine)
+void SrsConfig::get_engine_aparams(SrsConfDirective* engine, std::vector<std::string>& aparams)
 {
 	if (!engine) {
-		return "";
+		return;
 	}
 	
 	SrsConfDirective* conf = engine->get("aparams");
 	if (!conf) {
-		return "";
+		return;
 	}
 	
-	std::string avparams;
 	for (int i = 0; i < (int)conf->directives.size(); i++) {
 		SrsConfDirective* p = conf->directives[i];
 		if (!p) {
 			continue;
 		}
 		
-		avparams += p->name;
-		avparams += " ";
-		avparams += p->arg0();
+		aparams.push_back("-" + p->name);
+		aparams.push_back(p->arg0());
 	}
-	
-	return avparams;
 }
 
 std::string SrsConfig::get_engine_output(SrsConfDirective* engine)

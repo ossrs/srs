@@ -69,15 +69,16 @@ Supported operating systems and hardware:
 14. support forward publish stream to build active-standby cluster.<br/>
 15. support broadcast by forward the stream to other servers(origin/edge).<br/>
 16. support live stream transcoding by ffmpeg.<br/>
-17. [plan] support full http callback api.<br/>
-18. [plan] support network based cli and json result.<br/>
-19. [plan] support bandwidth test api and flash client.<br/>
-20. [plan] support adobe flash refer/token/swf verification.<br/>
-21. [plan] support adobe amf3 codec.<br/>
-22. [plan] support dvr(record live to vod file)<br/>
-23. [plan] support FMS edge protocol<br/>
-24. [plan] support encryption: RTMPE/RTMPS, HLS DRM<br/>
-25. [plan] support RTMPT, http to tranverse firewalls<br/>
+17. support live stream transcoding by ffmpeg.<br/>
+18. support ffmpeg filters(logo/overlay/crop), x264 params.<br/>
+19. [plan] support network based cli and json result.<br/>
+20. [plan] support bandwidth test api and flash client.<br/>
+21. [plan] support adobe flash refer/token/swf verification.<br/>
+22. [plan] support adobe amf3 codec.<br/>
+23. [plan] support dvr(record live to vod file)<br/>
+24. [plan] support FMS edge protocol<br/>
+25. [plan] support encryption: RTMPE/RTMPS, HLS DRM<br/>
+26. [plan] support RTMPT, http to tranverse firewalls<br/>
 
 ### Performance
 1. 300 connections, 150Mbps, 500kbps, CPU 18.8%, 5956KB.

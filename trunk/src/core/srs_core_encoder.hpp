@@ -47,6 +47,7 @@ private:
 	pid_t pid;
 private:
 	std::string 				ffmpeg;
+	std::vector<std::string> 	vfilter;
 	std::string 				vcodec;
 	int 						vbitrate;
 	double 						vfps;
@@ -55,12 +56,12 @@ private:
 	int 						vthreads;
 	std::string 				vprofile;
 	std::string 				vpreset;
-	std::string 				vparams;
+	std::vector<std::string> 	vparams;
 	std::string 				acodec;
 	int 						abitrate;
 	int 						asample_rate;
 	int 						achannels;
-	std::string					aparams;
+	std::vector<std::string> 	aparams;
 	std::string 				output;
 	std::string 				input;
 public:

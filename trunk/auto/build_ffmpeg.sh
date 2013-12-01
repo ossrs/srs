@@ -84,6 +84,7 @@ else
         --extra-ldflags='-L${ffmpeg_exported_release_dir}/lib -lm -ldl' \
         --disable-ffplay --disable-ffprobe --disable-ffserver --disable-doc \
         --enable-postproc --enable-bzlib --enable-zlib --enable-parsers \
+        --enable-libfreetype \
         --enable-libx264 --enable-libmp3lame --enable-libaacplus \
         --enable-pthreads --extra-libs=-lpthread --enable-encoders --enable-decoders --enable-avfilter --enable-muxers --enable-demuxers && 
     make && make install
