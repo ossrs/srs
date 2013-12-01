@@ -81,9 +81,9 @@ System Architecture:
 |   API/hook    |   Transcoder  |    HLS    |   RTMP   |
 |  http-parser  |  FFMPEG/x264  |  NGINX/ts | protocol |
 +---------------+---------------+-----------+----------+
-|        Network(state-threads)                        |
+|              Network(state-threads)                  |
 +------------------------------------------------------+
-|  All Linux(RHEL,Centos,Ubuntu,Fedora...)             |
+|      All Linux(RHEL,Centos,Ubuntu,Fedora...)         |
 +------------------------------------------------------+
 </pre>
 Stream Architecture:
