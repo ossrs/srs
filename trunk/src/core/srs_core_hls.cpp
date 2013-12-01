@@ -714,6 +714,9 @@ int SrsHls::reopen()
 		current->duration = (stream_dts - current->segment_start_dts) / 90000.0;
 		segments.push_back(current);
 		
+		srs_trace("reap ts segment, sequence_no=%d, uri=%s, duration=%.2f, start=%"PRId64"",
+			current->sequence_no, current->uri.c_str(), current->duration, current->segment_start_dts);
+		
 		// close the muxer of finished segment.
 		srs_freep(current->muxer);
 		current = NULL;
@@ -726,19 +729,20 @@ int SrsHls::reopen()
 		std::vector<SrsM3u8Segment*>::reverse_iterator it;
 		for (it = segments.rbegin(); it != segments.rend(); ++it) {
 			SrsM3u8Segment* segment = *it;
-			duration += segment->duration;
 			
+			// once find the overflow segment, clear all segments before it.
 			if ((int)duration > hls_window) {
 				segment_to_remove.push_back(segment);
+				continue;
 			}
+			
+			duration += segment->duration;
 		}
 		if (!segment_to_remove.empty()) {
 			segments.erase(segments.begin(), segments.begin() + segment_to_remove.size());
 		
 			// refresh the m3u8, donot contains the removed ts
-			if ((ret = refresh_m3u8()) != ERROR_SUCCESS) {
-				return ret;
-			}
+			ret = refresh_m3u8();
 		}
 		
 		// remove the ts file.
@@ -746,6 +750,12 @@ int SrsHls::reopen()
 			SrsM3u8Segment* segment = *it;
 			unlink(segment->full_path.c_str());
 			srs_freep(segment);
+		}
+		
+		// check ret of refresh m3u8
+		if (ret != ERROR_SUCCESS) {
+			srs_error("refresh m3u8 failed. ret=%d", ret);
+			return ret;
 		}
 	}
 	// new segment.
