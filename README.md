@@ -31,8 +31,11 @@ step 4: publish live stream <br/>
 FMS URL: rtmp://127.0.0.1:1935/live
 Stream:  livestream
 For example, use ffmpeg to publish:
-    ffmpeg -re -i source.flv -vcodec copy -acodec copy \
-    -f flv -y rtmp://127.0.0.1:1935/live/livestream
+    for((;;)); do \
+        ./objs/ffmpeg/bin/ffmpeg -re -i doc/source.flv -vcodec copy -acodec copy \
+        -f flv -y rtmp://127.0.0.1:1935/live/livestream; \
+        sleep 1; \
+    done
 </pre>
 step 5: play live stream <br/>
 <pre>
@@ -41,8 +44,8 @@ m3u8 url: http://127.0.0.1:80/live/livestream.m3u8
 </pre>
 step 6: play live stream auto transcoded<br/>
 <pre>
-rtmp url: rtmp://127.0.0.1:1935/live/livestream_fast
-m3u8 url: http://127.0.0.1:80/live/livestream_fast.m3u8
+rtmp url: rtmp://127.0.0.1:1935/live/livestream_ld
+m3u8 url: http://127.0.0.1:80/live/livestream_ld.m3u8
 rtmp url: rtmp://127.0.0.1:1935/live/livestream_sd
 m3u8 url: http://127.0.0.1:80/live/livestream_sd.m3u8
 </pre>
