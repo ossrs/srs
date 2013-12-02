@@ -31,6 +31,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdlib.h>
 #include <string.h>
 
+#include <algorithm>
+
 #include <srs_core_error.hpp>
 #include <srs_core_codec.hpp>
 #include <srs_core_amf0.hpp>
@@ -704,6 +706,7 @@ int SrsHls::reopen()
 		hls_path = conf->arg0();
 	}
 	
+	// TODO: create all parents dirs.
 	// create dir for app.
 	if ((ret = create_dir()) != ERROR_SUCCESS) {
 		return ret;
@@ -712,10 +715,19 @@ int SrsHls::reopen()
 	// start new segment.
 	if (current) {
 		current->duration = (stream_dts - current->segment_start_dts) / 90000.0;
+		srs_assert(current->duration > 0);
+		
+		// assert segment duplicate.
+		std::vector<SrsM3u8Segment*>::iterator it;
+		it = std::find(segments.begin(), segments.end(), current);
+		srs_assert(it == segments.end());
+
+		// valid, add to segments.
 		segments.push_back(current);
 		
 		srs_trace("reap ts segment, sequence_no=%d, uri=%s, duration=%.2f, start=%"PRId64"",
-			current->sequence_no, current->uri.c_str(), current->duration, current->segment_start_dts);
+			current->sequence_no, current->uri.c_str(), current->duration, 
+			current->segment_start_dts);
 		
 		// close the muxer of finished segment.
 		srs_freep(current->muxer);
@@ -726,31 +738,32 @@ int SrsHls::reopen()
 		
 		// shrink the segments.
 		double duration = 0;
-		std::vector<SrsM3u8Segment*>::reverse_iterator it;
-		for (it = segments.rbegin(); it != segments.rend(); ++it) {
-			SrsM3u8Segment* segment = *it;
-			
-			// once find the overflow segment, clear all segments before it.
-			if ((int)duration > hls_window) {
-				segment_to_remove.push_back(segment);
-				continue;
-			}
-			
+		int remove_index = -1;
+		for (int i = segments.size() - 1; i >= 0; i--) {
+			SrsM3u8Segment* segment = segments[i];
 			duration += segment->duration;
+			
+			if ((int)duration > hls_window) {
+				remove_index = i;
+				break;
+			}
 		}
-		if (!segment_to_remove.empty()) {
-			segments.erase(segments.begin(), segments.begin() + segment_to_remove.size());
-		
-			// refresh the m3u8, donot contains the removed ts
-			ret = refresh_m3u8();
+		for (int i = 0; i < remove_index && !segments.empty(); i++) {
+			SrsM3u8Segment* segment = *segments.begin();
+			segments.erase(segments.begin());
+			segment_to_remove.push_back(segment);
 		}
 		
+		// refresh the m3u8, donot contains the removed ts
+		ret = refresh_m3u8();
+	
 		// remove the ts file.
-		for (it = segment_to_remove.rbegin(); it != segment_to_remove.rend(); ++it) {
-			SrsM3u8Segment* segment = *it;
+		for (int i = 0; i < (int)segment_to_remove.size(); i++) {
+			SrsM3u8Segment* segment = segment_to_remove[i];
 			unlink(segment->full_path.c_str());
 			srs_freep(segment);
 		}
+		segment_to_remove.clear();
 		
 		// check ret of refresh m3u8
 		if (ret != ERROR_SUCCESS) {
@@ -760,13 +773,15 @@ int SrsHls::reopen()
 	}
 	// new segment.
 	current = new SrsM3u8Segment();
-	current->sequence_no = file_index;
+	current->sequence_no = file_index++;
 	m3u8_dts = current->segment_start_dts = stream_dts;
 	
 	// generate filename.
 	char filename[128];
-	snprintf(filename, sizeof(filename), "%s-%d.ts", stream.c_str(), file_index++);
+	snprintf(filename, sizeof(filename), 
+		"%s-%d.ts", stream.c_str(), current->sequence_no);
 	
+	// TODO: use temp file and rename it.
 	current->full_path = hls_path;
 	current->full_path += "/";
 	current->full_path += app;
@@ -780,7 +795,8 @@ int SrsHls::reopen()
 		srs_error("open hls muxer failed. ret=%d", ret);
 		return ret;
 	}
-	srs_info("open HLS muxer success. vhost=%s, path=%s", vhost.c_str(), current->full_path.c_str());
+	srs_info("open HLS muxer success. vhost=%s, path=%s", 
+		vhost.c_str(), current->full_path.c_str());
 	
 	// segment open, flush the audio.
 	// @see: ngx_rtmp_hls_open_fragment
