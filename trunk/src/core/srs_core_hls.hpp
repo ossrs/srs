@@ -160,25 +160,55 @@ private:
 };
 
 /**
+* ts need to cache some audio then flush
+*/
+class SrsTSCache
+{
+private:
+	// current frame and buffer
+	SrsMpegtsFrame* af;
+	SrsCodecBuffer* ab;
+	SrsMpegtsFrame* vf;
+	SrsCodecBuffer* vb;
+private:
+	// the audio cache buffer start pts, to flush audio if full.
+	int64_t audio_buffer_start_pts;
+	// time jitter for aac
+	SrsHlsAacJitter* aac_jitter;
+public:
+	SrsTSCache();
+	virtual ~SrsTSCache();
+public:
+	/**
+	* write audio to cache, if need to flush, flush to muxer.
+	*/
+	virtual int write_audio(SrsCodec* codec, SrsM3u8Muxer* muxer, int64_t pts, SrsCodecSample* sample);
+	/**
+	* write video to muxer.
+	*/
+	virtual int write_video(SrsCodec* codec, SrsM3u8Muxer* muxer, int64_t dts, SrsCodecSample* sample);
+	/**
+	* flush audio in cache to muxer.
+	*/
+	virtual int flush_audio(SrsM3u8Muxer* muxer);
+private:
+	virtual int cache_audio(SrsCodec* codec, SrsCodecSample* sample);
+	virtual int cache_video(SrsCodec* codec, SrsCodecSample* sample);
+};
+
+/**
 * write m3u8 hls.
 */
 class SrsHls
 {
 private:
 	SrsM3u8Muxer* muxer;
-	// current frame and buffer
-	SrsMpegtsFrame* af;
-	SrsCodecBuffer* ab;
-	SrsMpegtsFrame* vf;
-	SrsCodecBuffer* vb;
-	// the audio cache buffer start pts, to flush audio if full.
-	int64_t audio_buffer_start_pts;
+	SrsTSCache* ts_cache;
 private:
 	bool hls_enabled;
 	SrsCodec* codec;
 	SrsCodecSample* sample;
 	SrsRtmpJitter* jitter;
-	SrsHlsAacJitter* aac_jitter;
 public:
 	SrsHls();
 	virtual ~SrsHls();
@@ -188,9 +218,6 @@ public:
 	virtual int on_meta_data(SrsOnMetaDataPacket* metadata);
 	virtual int on_audio(SrsSharedPtrMessage* audio);
 	virtual int on_video(SrsSharedPtrMessage* video);
-private:
-	virtual int cache_audio();
-	virtual int cache_video();
 };
 
 #endif

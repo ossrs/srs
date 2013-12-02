@@ -856,13 +856,8 @@ int SrsM3u8Muxer::create_dir()
 	return ret;
 }
 
-SrsHls::SrsHls()
+SrsTSCache::SrsTSCache()
 {
-	hls_enabled = false;
-	
-	codec = new SrsCodec();
-	sample = new SrsCodecSample();
-	jitter = new SrsRtmpJitter();
 	aac_jitter = new SrsHlsAacJitter();
 	
 	ab = new SrsCodecBuffer();
@@ -870,15 +865,10 @@ SrsHls::SrsHls()
 	
 	af = new SrsMpegtsFrame();
 	vf = new SrsMpegtsFrame();
-	
-	muxer = new SrsM3u8Muxer();
 }
 
-SrsHls::~SrsHls()
+SrsTSCache::~SrsTSCache()
 {
-	srs_freep(codec);
-	srs_freep(sample);
-	srs_freep(jitter);
 	srs_freep(aac_jitter);
 	
 	ab->free();
@@ -889,8 +879,237 @@ SrsHls::~SrsHls()
 	
 	srs_freep(af);
 	srs_freep(vf);
+}
+	
+int SrsTSCache::write_audio(SrsCodec* codec, SrsM3u8Muxer* muxer, int64_t pts, SrsCodecSample* sample)
+{
+	int ret = ERROR_SUCCESS;
+	
+	// start buffer, set the af
+	if (ab->size == 0) {
+		pts = aac_jitter->on_buffer_start(pts, sample->sound_rate);
+		
+		af->dts = af->pts = audio_buffer_start_pts = pts;
+		af->pid = TS_AUDIO_PID;
+		af->sid = TS_AUDIO_AAC;
+	} else {
+		aac_jitter->on_buffer_continue();
+	}
+	
+	// write audio to cache.
+	if ((ret = cache_audio(codec, sample)) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
+	// flush if buffer exceed max size.
+	if (ab->size > SRS_HLS_AUDIO_CACHE_SIZE) {
+		if ((ret = muxer->flush_audio(af, ab)) != ERROR_SUCCESS) {
+			return ret;
+		}
+	}
+	// TODO: config it.
+	// in ms, audio delay to flush the audios.
+	int64_t audio_delay = SRS_CONF_DEFAULT_AAC_DELAY;
+	// flush if audio delay exceed
+	if (pts - audio_buffer_start_pts > audio_delay * 90) {
+		if ((ret = muxer->flush_audio(af, ab)) != ERROR_SUCCESS) {
+			return ret;
+		}
+	}
+	
+	return ret;
+}
+	
+int SrsTSCache::write_video(SrsCodec* codec, SrsM3u8Muxer* muxer, int64_t dts, SrsCodecSample* sample)
+{
+	int ret = ERROR_SUCCESS;
+	
+	// write video to cache.
+	if ((ret = cache_video(codec, sample)) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
+	vf->dts = dts;
+	vf->pts = vf->dts + sample->cts * 90;
+	vf->pid = TS_VIDEO_PID;
+	vf->sid = TS_VIDEO_AVC;
+	vf->key = sample->frame_type == SrsCodecVideoAVCFrameKeyFrame;
+	
+	// flush video when got one
+	if ((ret = muxer->flush_video(af, ab, vf, vb)) != ERROR_SUCCESS) {
+		srs_error("m3u8 muxer flush video failed. ret=%d", ret);
+		return ret;
+	}
+	
+	return ret;
+}
+
+int SrsTSCache::flush_audio(SrsM3u8Muxer* muxer)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if ((ret = muxer->flush_audio(af, ab)) != ERROR_SUCCESS) {
+		srs_error("m3u8 muxer flush audio failed. ret=%d", ret);
+		return ret;
+	}
+	
+	return ret;
+}
+
+int SrsTSCache::cache_audio(SrsCodec* codec, SrsCodecSample* sample)
+{
+	int ret = ERROR_SUCCESS;
+	
+	for (int i = 0; i < sample->nb_buffers; i++) {
+		SrsCodecBuffer* buf = &sample->buffers[i];
+		int32_t size = buf->size;
+		
+		if (!buf->bytes || size <= 0 || size > 0x1fff) {
+			ret = ERROR_HLS_AAC_FRAME_LENGTH;
+			srs_error("invalid aac frame length=%d, ret=%d", size, ret);
+			return ret;
+		}
+		
+		// the frame length is the AAC raw data plus the adts header size.
+		int32_t frame_length = size + 7;
+		
+		// AAC-ADTS
+		// 6.2 Audio Data Transport Stream, ADTS
+		// in aac-iso-13818-7.pdf, page 26.
+		// fixed 7bytes header
+		static u_int8_t adts_header[7] = {0xff, 0xf1, 0x00, 0x00, 0x00, 0x0f, 0xfc};
+		/*
+		// adts_fixed_header
+		// 2B, 16bits
+		int16_t syncword; //12bits, '1111 1111 1111'
+		int8_t ID; //1bit, '0'
+		int8_t layer; //2bits, '00'
+		int8_t protection_absent; //1bit, can be '1'
+		// 12bits
+		int8_t profile; //2bit, 7.1 Profiles, page 40
+		TSAacSampleFrequency sampling_frequency_index; //4bits, Table 35, page 46
+		int8_t private_bit; //1bit, can be '0'
+		int8_t channel_configuration; //3bits, Table 8
+		int8_t original_or_copy; //1bit, can be '0'
+		int8_t home; //1bit, can be '0'
+		
+		// adts_variable_header
+		// 28bits
+		int8_t copyright_identification_bit; //1bit, can be '0'
+		int8_t copyright_identification_start; //1bit, can be '0'
+		int16_t frame_length; //13bits
+		int16_t adts_buffer_fullness; //11bits, 7FF signals that the bitstream is a variable rate bitstream.
+		int8_t number_of_raw_data_blocks_in_frame; //2bits, 0 indicating 1 raw_data_block()
+		*/
+		// profile, 2bits
+		adts_header[2] = (codec->aac_profile << 6) & 0xc0;
+		// sampling_frequency_index 4bits
+		adts_header[2] |= (codec->aac_sample_rate << 2) & 0x3c;
+		// channel_configuration 3bits
+		adts_header[2] |= (codec->aac_channels >> 2) & 0x01;
+		adts_header[3] = (codec->aac_channels << 6) & 0xc0;
+		// frame_length 13bits
+		adts_header[3] |= (frame_length >> 11) & 0x03;
+		adts_header[4] = (frame_length >> 3) & 0xff;
+		adts_header[5] = ((frame_length << 5) & 0xe0);
+		// adts_buffer_fullness; //11bits
+		adts_header[5] |= 0x1f;
+
+		// copy to audio buffer
+		ab->append(adts_header, sizeof(adts_header));
+		ab->append(buf->bytes, buf->size);
+	}
+	
+	return ret;
+}
+
+int SrsTSCache::cache_video(SrsCodec* codec, SrsCodecSample* sample)
+{
+	int ret = ERROR_SUCCESS;
+	
+	static u_int8_t aud_nal[] = { 0x00, 0x00, 0x00, 0x01, 0x09, 0xf0 };
+	vb->append(aud_nal, sizeof(aud_nal));
+	
+	bool sps_pps_sent = false;
+	for (int i = 0; i < sample->nb_buffers; i++) {
+		SrsCodecBuffer* buf = &sample->buffers[i];
+		int32_t size = buf->size;
+		
+		if (!buf->bytes || size <= 0) {
+			ret = ERROR_HLS_AVC_SAMPLE_SIZE;
+			srs_error("invalid avc sample length=%d, ret=%d", size, ret);
+			return ret;
+		}
+		
+		// 5bits, 7.3.1 NAL unit syntax, 
+		// H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+		u_int8_t nal_unit_type;
+		nal_unit_type = *buf->bytes;
+		nal_unit_type &= 0x1f;
+		
+		// Table 7-1 – NAL unit type codes, page 61
+		// 1: Coded slice
+		if (nal_unit_type == 1) {
+			sps_pps_sent = false;
+		}
+		// 5: Coded slice of an IDR picture.
+		// insert sps/pps before IDR or key frame is ok.
+		if (nal_unit_type == 5 && !sps_pps_sent) {
+		//if (vf->key && !sps_pps_sent) {
+			sps_pps_sent = true;
+			
+			// ngx_rtmp_hls_append_sps_pps
+			if (codec->sequenceParameterSetLength > 0) {
+				// AnnexB prefix
+				vb->append(aud_nal, 4);
+				// sps
+				vb->append(codec->sequenceParameterSetNALUnit, codec->sequenceParameterSetLength);
+			}
+			if (codec->pictureParameterSetLength > 0) {
+				// AnnexB prefix
+				vb->append(aud_nal, 4);
+				// pps
+				vb->append(codec->pictureParameterSetNALUnit, codec->pictureParameterSetLength);
+			}
+		}
+		
+		// sample start prefix, '00 00 00 01' or '00 00 01'
+		u_int8_t* p = aud_nal + 1;
+		u_int8_t* end = p + 3;
+		
+		// first AnnexB prefix is long (4 bytes)
+		if (i == 0) {
+			p = aud_nal;
+		}
+		vb->append(p, end - p);
+		
+		// sample data
+		vb->append(buf->bytes, buf->size);
+	}
+	
+	return ret;
+}
+
+SrsHls::SrsHls()
+{
+	hls_enabled = false;
+	
+	codec = new SrsCodec();
+	sample = new SrsCodecSample();
+	jitter = new SrsRtmpJitter();
+	
+	muxer = new SrsM3u8Muxer();
+	ts_cache = new SrsTSCache();
+}
+
+SrsHls::~SrsHls()
+{
+	srs_freep(codec);
+	srs_freep(sample);
+	srs_freep(jitter);
 	
 	srs_freep(muxer);
+	srs_freep(ts_cache);
 }
 
 int SrsHls::on_publish(SrsRequest* req)
@@ -953,7 +1172,7 @@ void SrsHls::on_unpublish()
 	int ret = ERROR_SUCCESS;
 	
 	// close muxer when unpublish.
-	ret = muxer->flush_audio(af, ab);
+	ret = ts_cache->flush_audio(muxer);
 	ret += muxer->segment_close();
 	if (ret != ERROR_SUCCESS) {
 		srs_error("ignore m3u8 muxer flush/close audio failed. ret=%d", ret);
@@ -1028,6 +1247,7 @@ int SrsHls::on_audio(SrsSharedPtrMessage* audio)
 	
 	sample->clear();
 	if ((ret = codec->audio_aac_demux(audio->payload, audio->size, sample)) != ERROR_SUCCESS) {
+		srs_error("codec demux audio failed. ret=%d", ret);
 		return ret;
 	}
 	
@@ -1042,42 +1262,16 @@ int SrsHls::on_audio(SrsSharedPtrMessage* audio)
 	
 	int64_t corrected_time = 0;
 	if ((ret = jitter->correct(audio, 0, 0, &corrected_time)) != ERROR_SUCCESS) {
+		srs_error("rtmp jitter correct audio failed. ret=%d", ret);
 		return ret;
 	}
 	
 	// the pts calc from rtmp/flv header.
 	int64_t pts = corrected_time * 90;
 	
-	// start buffer, set the af
-	if (ab->size == 0) {
-		pts = aac_jitter->on_buffer_start(pts, sample->sound_rate);
-		
-		af->dts = af->pts = audio_buffer_start_pts = pts;
-		af->pid = TS_AUDIO_PID;
-		af->sid = TS_AUDIO_AAC;
-	} else {
-		aac_jitter->on_buffer_continue();
-	}
-	
-	// write audio to cache.
-	if ((ret = cache_audio()) != ERROR_SUCCESS) {
+	if ((ret = ts_cache->write_audio(codec, muxer, pts, sample)) != ERROR_SUCCESS) {
+		srs_error("ts cache write audio failed. ret=%d", ret);
 		return ret;
-	}
-	
-	// flush if buffer exceed max size.
-	if (ab->size > SRS_HLS_AUDIO_CACHE_SIZE) {
-		if ((ret = muxer->flush_audio(af, ab)) != ERROR_SUCCESS) {
-			return ret;
-		}
-	}
-	// TODO: config it.
-	// in ms, audio delay to flush the audios.
-	int64_t audio_delay = SRS_CONF_DEFAULT_AAC_DELAY;
-	// flush if audio delay exceed
-	if (pts - audio_buffer_start_pts > audio_delay * 90) {
-		if ((ret = muxer->flush_audio(af, ab)) != ERROR_SUCCESS) {
-			return ret;
-		}
 	}
 	
 	return ret;
@@ -1096,6 +1290,7 @@ int SrsHls::on_video(SrsSharedPtrMessage* video)
 	
 	sample->clear();
 	if ((ret = codec->video_avc_demux(video->payload, video->size, sample)) != ERROR_SUCCESS) {
+		srs_error("codec demux video failed. ret=%d", ret);
 		return ret;
 	}
 	
@@ -1104,164 +1299,21 @@ int SrsHls::on_video(SrsSharedPtrMessage* video)
 	}
 	
 	// ignore sequence header
-	if (sample->frame_type == SrsCodecVideoAVCFrameKeyFrame && sample->avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader) {
+	if (sample->frame_type == SrsCodecVideoAVCFrameKeyFrame
+		 && sample->avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader) {
 		return ret;
 	}
 	
 	int64_t corrected_time = 0;
 	if ((ret = jitter->correct(video, 0, 0, &corrected_time)) != ERROR_SUCCESS) {
+		srs_error("rtmp jitter correct video failed. ret=%d", ret);
 		return ret;
 	}
 	
-	// write video to cache.
-	if ((ret = cache_video()) != ERROR_SUCCESS) {
+	int64_t dts = corrected_time * 90;
+	if ((ret = ts_cache->write_video(codec, muxer, dts, sample)) != ERROR_SUCCESS) {
+		srs_error("ts cache write video failed. ret=%d", ret);
 		return ret;
-	}
-	
-	vf->dts = corrected_time * 90;
-	vf->pts = vf->dts + sample->cts * 90;
-	vf->pid = TS_VIDEO_PID;
-	vf->sid = TS_VIDEO_AVC;
-	vf->key = sample->frame_type == SrsCodecVideoAVCFrameKeyFrame;
-	
-	// flush video when got one
-	if ((ret = muxer->flush_video(af, ab, vf, vb)) != ERROR_SUCCESS) {
-		srs_error("m3u8 muxer flush video failed. ret=%d", ret);
-		return ret;
-	}
-	
-	return ret;
-}
-
-int SrsHls::cache_audio()
-{
-	int ret = ERROR_SUCCESS;
-	
-	for (int i = 0; i < sample->nb_buffers; i++) {
-		SrsCodecBuffer* buf = &sample->buffers[i];
-		int32_t size = buf->size;
-		
-		if (!buf->bytes || size <= 0 || size > 0x1fff) {
-			ret = ERROR_HLS_AAC_FRAME_LENGTH;
-			srs_error("invalid aac frame length=%d, ret=%d", size, ret);
-			return ret;
-		}
-		
-		// the frame length is the AAC raw data plus the adts header size.
-		int32_t frame_length = size + 7;
-		
-		// AAC-ADTS
-		// 6.2 Audio Data Transport Stream, ADTS
-		// in aac-iso-13818-7.pdf, page 26.
-		// fixed 7bytes header
-		static u_int8_t adts_header[7] = {0xff, 0xf1, 0x00, 0x00, 0x00, 0x0f, 0xfc};
-		/*
-		// adts_fixed_header
-		// 2B, 16bits
-		int16_t syncword; //12bits, '1111 1111 1111'
-		int8_t ID; //1bit, '0'
-		int8_t layer; //2bits, '00'
-		int8_t protection_absent; //1bit, can be '1'
-		// 12bits
-		int8_t profile; //2bit, 7.1 Profiles, page 40
-		TSAacSampleFrequency sampling_frequency_index; //4bits, Table 35, page 46
-		int8_t private_bit; //1bit, can be '0'
-		int8_t channel_configuration; //3bits, Table 8
-		int8_t original_or_copy; //1bit, can be '0'
-		int8_t home; //1bit, can be '0'
-		
-		// adts_variable_header
-		// 28bits
-		int8_t copyright_identification_bit; //1bit, can be '0'
-		int8_t copyright_identification_start; //1bit, can be '0'
-		int16_t frame_length; //13bits
-		int16_t adts_buffer_fullness; //11bits, 7FF signals that the bitstream is a variable rate bitstream.
-		int8_t number_of_raw_data_blocks_in_frame; //2bits, 0 indicating 1 raw_data_block()
-		*/
-		// profile, 2bits
-		adts_header[2] = (codec->aac_profile << 6) & 0xc0;
-		// sampling_frequency_index 4bits
-		adts_header[2] |= (codec->aac_sample_rate << 2) & 0x3c;
-		// channel_configuration 3bits
-		adts_header[2] |= (codec->aac_channels >> 2) & 0x01;
-		adts_header[3] = (codec->aac_channels << 6) & 0xc0;
-		// frame_length 13bits
-		adts_header[3] |= (frame_length >> 11) & 0x03;
-		adts_header[4] = (frame_length >> 3) & 0xff;
-		adts_header[5] = ((frame_length << 5) & 0xe0);
-		// adts_buffer_fullness; //11bits
-		adts_header[5] |= 0x1f;
-
-		// copy to audio buffer
-		ab->append(adts_header, sizeof(adts_header));
-		ab->append(buf->bytes, buf->size);
-	}
-	
-	return ret;
-}
-
-int SrsHls::cache_video()
-{
-	int ret = ERROR_SUCCESS;
-	
-	static u_int8_t aud_nal[] = { 0x00, 0x00, 0x00, 0x01, 0x09, 0xf0 };
-	vb->append(aud_nal, sizeof(aud_nal));
-	
-	bool sps_pps_sent = false;
-	for (int i = 0; i < sample->nb_buffers; i++) {
-		SrsCodecBuffer* buf = &sample->buffers[i];
-		int32_t size = buf->size;
-		
-		if (!buf->bytes || size <= 0) {
-			ret = ERROR_HLS_AVC_SAMPLE_SIZE;
-			srs_error("invalid avc sample length=%d, ret=%d", size, ret);
-			return ret;
-		}
-		
-		// 5bits, 7.3.1 NAL unit syntax, 
-		// H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
-		u_int8_t nal_unit_type;
-		nal_unit_type = *buf->bytes;
-		nal_unit_type &= 0x1f;
-		
-		// Table 7-1 – NAL unit type codes, page 61
-		// 1: Coded slice
-		if (nal_unit_type == 1) {
-			sps_pps_sent = false;
-		}
-		// 5: Coded slice of an IDR picture.
-		// insert sps/pps before IDR or key frame is ok.
-		if (nal_unit_type == 5 && !sps_pps_sent) {
-		//if (vf->key && !sps_pps_sent) {
-			sps_pps_sent = true;
-			
-			// ngx_rtmp_hls_append_sps_pps
-			if (codec->sequenceParameterSetLength > 0) {
-				// AnnexB prefix
-				vb->append(aud_nal, 4);
-				// sps
-				vb->append(codec->sequenceParameterSetNALUnit, codec->sequenceParameterSetLength);
-			}
-			if (codec->pictureParameterSetLength > 0) {
-				// AnnexB prefix
-				vb->append(aud_nal, 4);
-				// pps
-				vb->append(codec->pictureParameterSetNALUnit, codec->pictureParameterSetLength);
-			}
-		}
-		
-		// sample start prefix, '00 00 00 01' or '00 00 01'
-		u_int8_t* p = aud_nal + 1;
-		u_int8_t* end = p + 3;
-		
-		// first AnnexB prefix is long (4 bytes)
-		if (i == 0) {
-			p = aud_nal;
-		}
-		vb->append(p, end - p);
-		
-		// sample data
-		vb->append(buf->bytes, buf->size);
 	}
 	
 	return ret;
