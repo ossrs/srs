@@ -374,6 +374,8 @@ int SrsFFMPEG::cycle()
 		return ret;
 	}
 	
+	// TODO: to support rewind.
+	
 	if (p == 0) {
 		srs_info("transcode process pid=%d is running.", pid);
 		return ret;
@@ -390,6 +392,8 @@ void SrsFFMPEG::stop()
 	if (!started) {
 		return;
 	}
+	
+	// TODO: kill the ffmpeg process when stop.
 	
 	std::vector<std::string>::iterator it;
 	it = std::find(_transcoded_url.begin(), _transcoded_url.end(), output);
