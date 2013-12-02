@@ -49,7 +49,7 @@ SrsRtmpJitter::~SrsRtmpJitter()
 {
 }
 
-int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, int tba, int tbv)
+int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, int tba, int tbv, int64_t* corrected_time)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -93,7 +93,12 @@ int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, int tba, int tbv)
 	}
 	
 	last_pkt_correct_time = srs_max(0, last_pkt_correct_time + delta);
+	
+	if (corrected_time) {
+		*corrected_time = last_pkt_correct_time;
+	}
 	msg->header.timestamp = last_pkt_correct_time;
+	
 	last_pkt_time = time;
 	
 	return ret;

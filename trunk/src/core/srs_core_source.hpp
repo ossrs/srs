@@ -62,8 +62,10 @@ public:
 public:
 	/**
 	* detect the time jitter and correct it.
+	* @param corrected_time output the 64bits time.
+	* 		ignore if NULL.
 	*/
-	virtual int correct(SrsSharedPtrMessage* msg, int tba, int tbv);
+	virtual int correct(SrsSharedPtrMessage* msg, int tba, int tbv, int64_t* corrected_time = NULL);
 	/**
 	* get current client time, the last packet time.
 	*/

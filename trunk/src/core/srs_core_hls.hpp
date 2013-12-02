@@ -45,29 +45,6 @@ class SrsCodec;
 class SrsRequest;
 
 /**
-* 3.3.2.  EXTINF
-* The EXTINF tag specifies the duration of a media segment.
-*/
-struct SrsM3u8Segment
-{
-	// duration in seconds in m3u8.
-	double duration;
-	// sequence number in m3u8.
-	int sequence_no;
-	// ts uri in m3u8.
-	std::string uri;
-	// ts full file to write.
-	std::string full_path;
-	// the muxer to write ts.
-	SrsTSMuxer* muxer;
-	// current segment start dts for m3u8
-	int64_t segment_start_dts;
-	
-	SrsM3u8Segment();
-	virtual ~SrsM3u8Segment();
-};
-
-/**
 * jitter correct for audio,
 * the sample rate 44100/32000 will lost precise,
 * when mp4/ts(tbn=90000) covert to flv/rtmp(1000),
@@ -95,6 +72,52 @@ public:
 	* for the ts audio PES packet only has one pts at the first time.
 	*/
 	virtual void on_buffer_continue();
+};
+
+/**
+* 3.3.2.  EXTINF
+* The EXTINF tag specifies the duration of a media segment.
+*/
+struct SrsM3u8Segment
+{
+	// duration in seconds in m3u8.
+	double duration;
+	// sequence number in m3u8.
+	int sequence_no;
+	// ts uri in m3u8.
+	std::string uri;
+	// ts full file to write.
+	std::string full_path;
+	// the muxer to write ts.
+	SrsTSMuxer* muxer;
+	// current segment start dts for m3u8
+	int64_t segment_start_dts;
+	
+	SrsM3u8Segment();
+	virtual ~SrsM3u8Segment();
+	
+	/**
+	* update the segment duration.
+	*/
+	virtual double update_duration(int64_t video_stream_dts);
+};
+
+//TODO: refine the ts muxer, do more jobs.
+class SrsTSMuxer
+{
+private:
+	int fd;
+	std::string path;
+	bool _fresh;
+public:
+	SrsTSMuxer();
+	virtual ~SrsTSMuxer();
+public:
+	virtual int open(std::string _path);
+	virtual int write_audio(SrsMpegtsFrame* audio_frame, SrsCodecBuffer* audio_buffer);
+	virtual int write_video(SrsMpegtsFrame* video_frame, SrsCodecBuffer* video_buffer);
+	virtual void close();
+	virtual bool fresh();
 };
 
 /**
@@ -127,10 +150,8 @@ private:
 	SrsMpegtsFrame* video_frame;
 	SrsCodecBuffer* video_buffer;
 	// last known dts
-	int64_t stream_dts;
+	int64_t video_stream_dts;
 	int64_t audio_buffer_start_pts;
-	// last segment dts in m3u8
-	int64_t m3u8_dts;
 	// in ms, audio delay to flush the audios.
 	int64_t audio_delay;
 private:
@@ -157,24 +178,6 @@ private:
 	virtual int write_audio();
 	virtual int write_video();
 	virtual int flush_audio();
-};
-
-//TODO: refine the ts muxer, do more jobs.
-class SrsTSMuxer
-{
-private:
-	int fd;
-	std::string path;
-	bool _fresh;
-public:
-	SrsTSMuxer();
-	virtual ~SrsTSMuxer();
-public:
-	virtual int open(std::string _path);
-	virtual int write_audio(SrsMpegtsFrame* audio_frame, SrsCodecBuffer* audio_buffer);
-	virtual int write_video(SrsMpegtsFrame* video_frame, SrsCodecBuffer* video_buffer);
-	virtual void close();
-	virtual bool fresh();
 };
 
 #endif
