@@ -326,6 +326,7 @@ public:
 	/**
 	* decode packet from message payload.
 	*/
+	// TODO: use protocol to decode it.
 	virtual int decode_packet(SrsProtocol* protocol);
 	/**
 	* get the decoded packet which decoded by decode_packet().
@@ -345,6 +346,7 @@ public:
 	* @stream_id, the id of stream which is created by createStream.
 	* @remark, user never free the pkt, the message will auto free it.
 	*/
+	// TODO: refine the send methods.
 	virtual void set_packet(SrsPacket* pkt, int stream_id);
 	/**
 	* encode the packet to message payload bytes.

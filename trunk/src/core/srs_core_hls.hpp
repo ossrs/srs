@@ -159,6 +159,7 @@ private:
 	virtual int flush_audio();
 };
 
+//TODO: refine the ts muxer, do more jobs.
 class SrsTSMuxer
 {
 private:
