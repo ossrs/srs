@@ -42,6 +42,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_autofree.hpp>
 #include <srs_core_rtmp.hpp>
 
+// max PES packets size to flush the video.
+#define SRS_HLS_AUDIO_CACHE_SIZE 512 * 1024
+
 // @see: NGX_RTMP_HLS_DELAY, 
 // 63000: 700ms, ts_tbn=90000
 #define SRS_HLS_DELAY 63000
@@ -399,40 +402,9 @@ void SrsHlsAacJitter::on_buffer_continue()
 	nb_samples++;
 }
 
-SrsM3u8Segment::SrsM3u8Segment()
-{
-	duration = 0;
-	sequence_no = 0;
-	muxer = new SrsTSMuxer();
-	segment_start_dts = 0;
-}
-
-SrsM3u8Segment::~SrsM3u8Segment()
-{
-	srs_freep(muxer);
-}
-
-double SrsM3u8Segment::update_duration(int64_t video_stream_dts)
-{
-	duration = (video_stream_dts - segment_start_dts) / 90000.0;
-	srs_assert(duration > 0);
-	
-	return duration;
-}
-
-SrsHlsAacJitter::SrsHlsAacJitter()
-{
-	base_pts = 0;
-	nb_samples = 0;
-
-	// TODO: config it, 0 means no adjust
-	sync_ms = SRS_CONF_DEFAULT_AAC_SYNC;
-}
-
 SrsTSMuxer::SrsTSMuxer()
 {
 	fd = -1;
-	_fresh = false;
 }
 
 SrsTSMuxer::~SrsTSMuxer()
@@ -461,29 +433,25 @@ int SrsTSMuxer::open(std::string _path)
 		return ret;
 	}
 	
-	_fresh = true;
-	
 	return ret;
 }
 
-int SrsTSMuxer::write_audio(SrsMpegtsFrame* audio_frame, SrsCodecBuffer* audio_buffer)
+int SrsTSMuxer::write_audio(SrsMpegtsFrame* af, SrsCodecBuffer* ab)
 {
 	int ret = ERROR_SUCCESS;
 	
-	if ((ret = SrsMpegtsWriter::write_frame(fd, audio_frame, audio_buffer)) != ERROR_SUCCESS) {
+	if ((ret = SrsMpegtsWriter::write_frame(fd, af, ab)) != ERROR_SUCCESS) {
 		return ret;
 	}
 	
-	_fresh = false;
-	
 	return ret;
 }
 
-int SrsTSMuxer::write_video(SrsMpegtsFrame* video_frame, SrsCodecBuffer* video_buffer)
+int SrsTSMuxer::write_video(SrsMpegtsFrame* vf, SrsCodecBuffer* vb)
 {
 	int ret = ERROR_SUCCESS;
 	
-	if ((ret = SrsMpegtsWriter::write_frame(fd, video_frame, video_buffer)) != ERROR_SUCCESS) {
+	if ((ret = SrsMpegtsWriter::write_frame(fd, vf, vb)) != ERROR_SUCCESS) {
 		return ret;
 	}
 	
@@ -495,44 +463,49 @@ void SrsTSMuxer::close()
 	if (fd > 0) {
 		::close(fd);
 		fd = -1;
-		_fresh = false;
 	}
 }
 
-bool SrsTSMuxer::fresh()
+SrsM3u8Segment::SrsM3u8Segment()
 {
-	return _fresh;
+	duration = 0;
+	sequence_no = 0;
+	muxer = new SrsTSMuxer();
+	segment_start_dts = 0;
 }
 
-SrsHls::SrsHls()
+SrsM3u8Segment::~SrsM3u8Segment()
 {
-	hls_enabled = false;
-	codec = new SrsCodec();
-	sample = new SrsCodecSample();
-	current = NULL;
-	jitter = new SrsRtmpJitter();
-	aac_jitter = new SrsHlsAacJitter();
-	file_index = 0;
-	audio_buffer_start_pts = video_stream_dts = 0;
+	srs_freep(muxer);
+}
+
+double SrsM3u8Segment::update_duration(int64_t video_stream_dts)
+{
+	duration = (video_stream_dts - segment_start_dts) / 90000.0;
+	srs_assert(duration >= 0);
+	
+	return duration;
+}
+
+SrsHlsAacJitter::SrsHlsAacJitter()
+{
+	base_pts = 0;
+	nb_samples = 0;
+
+	// TODO: config it, 0 means no adjust
+	sync_ms = SRS_CONF_DEFAULT_AAC_SYNC;
+}
+
+SrsM3u8Muxer::SrsM3u8Muxer()
+{
 	hls_fragment = hls_window = 0;
-
-	// TODO: config it.
-	audio_delay = SRS_CONF_DEFAULT_AAC_DELAY;
-	
-	audio_buffer = new SrsCodecBuffer();
-	video_buffer = new SrsCodecBuffer();
-	
-	audio_frame = new SrsMpegtsFrame();
-	video_frame = new SrsMpegtsFrame();
+	video_stream_dts = 0;
+	file_index = 0;
+	current = NULL;
 }
 
-SrsHls::~SrsHls()
+SrsM3u8Muxer::~SrsM3u8Muxer()
 {
-	srs_freep(codec);
-	srs_freep(sample);
-	srs_freep(jitter);
-	srs_freep(aac_jitter);
-
 	std::vector<SrsM3u8Segment*>::iterator it;
 	for (it = segments.begin(); it != segments.end(); ++it) {
 		SrsM3u8Segment* segment = *it;
@@ -541,258 +514,26 @@ SrsHls::~SrsHls()
 	segments.clear();
 	
 	srs_freep(current);
-	
-	audio_buffer->free();
-	video_buffer->free();
-	
-	srs_freep(audio_buffer);
-	srs_freep(video_buffer);
-	
-	srs_freep(audio_frame);
-	srs_freep(video_frame);
 }
 
-int SrsHls::on_publish(SrsRequest* req)
-{
+int SrsM3u8Muxer::update_config(
+	std::string _app, std::string _stream, 
+	std::string path, int fragment, int window
+) {
 	int ret = ERROR_SUCCESS;
-
-	vhost = req->vhost;
-	stream = req->stream;
-	app = req->app;
 	
-	// TODO: subscribe the reload event.
-	
-	SrsConfDirective* conf = NULL;
-	if ((conf = config->get_hls_fragment(vhost)) != NULL && !conf->arg0().empty()) {
-		hls_fragment = ::atoi(conf->arg0().c_str());
-	}
-	if (hls_fragment <= 0) {
-		hls_fragment = SRS_CONF_DEFAULT_HLS_FRAGMENT;
-	}
-	
-	if ((conf = config->get_hls_window(vhost)) != NULL && !conf->arg0().empty()) {
-		hls_window = ::atoi(conf->arg0().c_str());
-	}
-	if (hls_window <= 0) {
-		hls_window = SRS_CONF_DEFAULT_HLS_WINDOW;
-	}
-	
-	if ((ret = reopen()) != ERROR_SUCCESS) {
-		return ret;
-	}
-
-	return ret;
-}
-
-void SrsHls::on_unpublish()
-{
-	hls_enabled = false;
-}
-
-int SrsHls::on_meta_data(SrsOnMetaDataPacket* metadata)
-{
-	int ret = ERROR_SUCCESS;
-
-	if (!metadata || !metadata->metadata) {
-		srs_trace("no metadata persent, hls ignored it.");
-		return ret;
-	}
-	
-	SrsAmf0Object* obj = metadata->metadata;
-	if (obj->size() <= 0) {
-		srs_trace("no metadata persent, hls ignored it.");
-		return ret;
-	}
-	
-	//	finger out the codec info from metadata if possible.
-	SrsAmf0Any* prop = NULL;
-
-	if ((prop = obj->get_property("duration")) != NULL && prop->is_number()) {
-		codec->duration = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
-	}
-	if ((prop = obj->get_property("width")) != NULL && prop->is_number()) {
-		codec->width = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
-	}
-	if ((prop = obj->get_property("height")) != NULL && prop->is_number()) {
-		codec->height = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
-	}
-	if ((prop = obj->get_property("framerate")) != NULL && prop->is_number()) {
-		codec->frame_rate = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
-	}
-	if ((prop = obj->get_property("videocodecid")) != NULL && prop->is_number()) {
-		codec->video_codec_id = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
-	}
-	if ((prop = obj->get_property("videodatarate")) != NULL && prop->is_number()) {
-		codec->video_data_rate = (int)(1000 * srs_amf0_convert<SrsAmf0Number>(prop)->value);
-	}
-	
-	if ((prop = obj->get_property("audiocodecid")) != NULL && prop->is_number()) {
-		codec->audio_codec_id = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
-	}
-	if ((prop = obj->get_property("audiodatarate")) != NULL && prop->is_number()) {
-		codec->audio_data_rate = (int)(1000 * srs_amf0_convert<SrsAmf0Number>(prop)->value);
-	}
-	
-	// ignore the following, for each flv/rtmp packet contains them:
-	// audiosamplerate, sample->sound_rate
-	// audiosamplesize, sample->sound_size
-	// stereo, 			sample->sound_type
+	app = _app;
+	stream = _stream;
+	hls_path = path;
+	hls_fragment = fragment;
+	hls_window = window;
 	
 	return ret;
 }
 
-int SrsHls::on_audio(SrsSharedPtrMessage* audio)
+int SrsM3u8Muxer::segment_open()
 {
 	int ret = ERROR_SUCCESS;
-	
-	SrsAutoFree(SrsSharedPtrMessage, audio, false);
-	
-	// TODO: maybe donot need to demux the aac?
-	if (!hls_enabled) {
-		return ret;
-	}
-	
-	sample->clear();
-	if ((ret = codec->audio_aac_demux(audio->payload, audio->size, sample)) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	if (codec->audio_codec_id != SrsCodecAudioAAC) {
-		return ret;
-	}
-	
-	// ignore sequence header
-	if (sample->aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
-		return ret;
-	}
-	
-	int64_t corrected_time = 0;
-	if ((ret = jitter->correct(audio, 0, 0, &corrected_time)) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	srs_assert(current);
-	
-	// the pts calc from rtmp/flv header.
-	int64_t pts = corrected_time * 90;
-	
-	// flush if audio delay exceed
-	if (pts - audio_buffer_start_pts > audio_delay * 90) {
-		if ((ret = flush_audio()) != ERROR_SUCCESS) {
-			return ret;
-		}
-	}
-	
-	// start buffer, set the audio_frame
-	if (audio_buffer->size == 0) {
-		pts = aac_jitter->on_buffer_start(pts, sample->sound_rate);
-		
-		audio_frame->dts = audio_frame->pts = audio_buffer_start_pts = pts;
-		audio_frame->pid = TS_AUDIO_PID;
-		audio_frame->sid = TS_AUDIO_AAC;
-	} else {
-		aac_jitter->on_buffer_continue();
-	}
-	
-	// write audio to cache.
-	if ((ret = write_audio()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	// write cache to file.
-	if (audio_buffer->size > 1024 * 1024) {
-		if ((ret = flush_audio()) != ERROR_SUCCESS) {
-			return ret;
-		}
-	}
-	
-	return ret;
-}
-
-int SrsHls::on_video(SrsSharedPtrMessage* video)
-{
-	int ret = ERROR_SUCCESS;
-	
-	SrsAutoFree(SrsSharedPtrMessage, video, false);
-	
-	// TODO: maybe donot need to demux the avc?
-	if (!hls_enabled) {
-		return ret;
-	}
-	
-	sample->clear();
-	if ((ret = codec->video_avc_demux(video->payload, video->size, sample)) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	if (codec->video_codec_id != SrsCodecVideoAVC) {
-		return ret;
-	}
-	
-	// ignore sequence header
-	if (sample->frame_type == SrsCodecVideoAVCFrameKeyFrame && sample->avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader) {
-		return ret;
-	}
-	
-	int64_t corrected_time = 0;
-	if ((ret = jitter->correct(video, 0, 0, &corrected_time)) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	// write video to cache.
-	if ((ret = write_video()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	video_stream_dts = video_frame->dts = corrected_time * 90;
-	video_frame->pts = video_frame->dts + sample->cts * 90;
-	video_frame->pid = TS_VIDEO_PID;
-	video_frame->sid = TS_VIDEO_AVC;
-	video_frame->key = sample->frame_type == SrsCodecVideoAVCFrameKeyFrame;
-	
-	// reopen the muxer for a gop
-	srs_assert(current);
-	if (sample->frame_type == SrsCodecVideoAVCFrameKeyFrame) {
-		if (current->duration >= hls_fragment) {
-			if ((ret = reopen()) != ERROR_SUCCESS) {
-				return ret;
-			}
-		}
-	}
-	
-	srs_assert(current);
-	// update the duration of segment.
-	current->update_duration(video_stream_dts);
-	
-	if ((ret = current->muxer->write_video(video_frame, video_buffer)) != ERROR_SUCCESS) {
-		return ret;
-	}
-		
-	// write success, clear and free the buffer
-	video_buffer->free();
-	
-	return ret;
-}
-
-int SrsHls::reopen()
-{
-	int ret = ERROR_SUCCESS;
-	
-	// try to open the HLS muxer
-	if (!config->get_hls_enabled(vhost)) {
-		return ret;
-	}
-	
-	// TODO: check the audio and video, ensure both exsists.
-	// for use fixed mpegts header specifeid the audio and video pid.
-
-	hls_enabled = true;
-	
-	SrsConfDirective* conf = NULL;
-	hls_path = SRS_CONF_DEFAULT_HLS_PATH;
-	if ((conf = config->get_hls_path(vhost)) != NULL) {
-		hls_path = conf->arg0();
-	}
 	
 	// TODO: create all parents dirs.
 	// create dir for app.
@@ -800,62 +541,9 @@ int SrsHls::reopen()
 		return ret;
 	}
 	
-	// close current segment and update the m3u8 file.
-	if (current) {
-		// assert segment duplicate.
-		std::vector<SrsM3u8Segment*>::iterator it;
-		it = std::find(segments.begin(), segments.end(), current);
-		srs_assert(it == segments.end());
-
-		// valid, add to segments.
-		segments.push_back(current);
-		
-		srs_trace("reap ts segment, sequence_no=%d, uri=%s, duration=%.2f, start=%"PRId64"",
-			current->sequence_no, current->uri.c_str(), current->duration, 
-			current->segment_start_dts);
-		
-		// close the muxer of finished segment.
-		srs_freep(current->muxer);
-		current = NULL;
-		
-		// the segments to remove
-		std::vector<SrsM3u8Segment*> segment_to_remove;
-		
-		// shrink the segments.
-		double duration = 0;
-		int remove_index = -1;
-		for (int i = segments.size() - 1; i >= 0; i--) {
-			SrsM3u8Segment* segment = segments[i];
-			duration += segment->duration;
-			
-			if ((int)duration > hls_window) {
-				remove_index = i;
-				break;
-			}
-		}
-		for (int i = 0; i < remove_index && !segments.empty(); i++) {
-			SrsM3u8Segment* segment = *segments.begin();
-			segments.erase(segments.begin());
-			segment_to_remove.push_back(segment);
-		}
-		
-		// refresh the m3u8, donot contains the removed ts
-		ret = refresh_m3u8();
+	// when segment open, the current segment must be NULL.
+	srs_assert(!current);
 	
-		// remove the ts file.
-		for (int i = 0; i < (int)segment_to_remove.size(); i++) {
-			SrsM3u8Segment* segment = segment_to_remove[i];
-			unlink(segment->full_path.c_str());
-			srs_freep(segment);
-		}
-		segment_to_remove.clear();
-		
-		// check ret of refresh m3u8
-		if (ret != ERROR_SUCCESS) {
-			srs_error("refresh m3u8 failed. ret=%d", ret);
-			return ret;
-		}
-	}
 	// new segment.
 	current = new SrsM3u8Segment();
 	current->sequence_no = file_index++;
@@ -883,19 +571,148 @@ int SrsHls::reopen()
 	srs_info("open HLS muxer success. vhost=%s, path=%s", 
 		vhost.c_str(), current->full_path.c_str());
 	
-	// segment open, flush the audio.
-	// @see: ngx_rtmp_hls_open_fragment
-    /* start fragment with audio to make iPhone happy */
-	if (current->muxer->fresh()) {
-		if ((ret = flush_audio()) != ERROR_SUCCESS) {
+	return ret;
+}
+
+int SrsM3u8Muxer::flush_audio(SrsMpegtsFrame* af, SrsCodecBuffer* ab)
+{
+	int ret = ERROR_SUCCESS;
+
+	srs_assert(current);
+	
+	if (ab->size <= 0) {
+		return ret;
+	}
+	
+	if ((ret = current->muxer->write_audio(af, ab)) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
+	// write success, clear and free the buffer
+	ab->free();
+
+	return ret;
+}
+
+int SrsM3u8Muxer::flush_video(
+	SrsMpegtsFrame* af, SrsCodecBuffer* ab, 
+	SrsMpegtsFrame* vf, SrsCodecBuffer* vb)
+{
+	int ret = ERROR_SUCCESS;
+
+	srs_assert(current);
+	
+	video_stream_dts = vf->dts;
+	
+	// reopen the muxer for a gop
+	if (vf->key && current->duration >= hls_fragment) {
+		// TODO: flush audio before or after segment?
+		/*
+		if ((ret = flush_audio(af, ab)) != ERROR_SUCCESS) {
+			srs_error("m3u8 muxer flush audio failed. ret=%d", ret);
 			return ret;
 		}
+		*/
+		
+		if ((ret = segment_close()) != ERROR_SUCCESS) {
+			srs_error("m3u8 muxer close segment failed. ret=%d", ret);
+			return ret;
+		}
+		
+		if ((ret = segment_open()) != ERROR_SUCCESS) {
+			srs_error("m3u8 muxer open segment failed. ret=%d", ret);
+			return ret;
+		}
+	
+		// TODO: flush audio before or after segment?
+		// segment open, flush the audio.
+		// @see: ngx_rtmp_hls_open_fragment
+	    /* start fragment with audio to make iPhone happy */
+		if ((ret = flush_audio(af, ab)) != ERROR_SUCCESS) {
+			srs_error("m3u8 muxer flush audio failed. ret=%d", ret);
+			return ret;
+		}
+	}
+	
+	srs_assert(current);
+	// update the duration of segment.
+	current->update_duration(video_stream_dts);
+	
+	if ((ret = current->muxer->write_video(vf, vb)) != ERROR_SUCCESS) {
+		return ret;
+	}
+		
+	// write success, clear and free the buffer
+	vb->free();
+	
+	return ret;
+}
+
+int SrsM3u8Muxer::segment_close()
+{
+	int ret = ERROR_SUCCESS;
+	
+	// when close current segment, the current segment must not be NULL.
+	srs_assert(current);
+
+	// assert segment duplicate.
+	std::vector<SrsM3u8Segment*>::iterator it;
+	it = std::find(segments.begin(), segments.end(), current);
+	srs_assert(it == segments.end());
+
+	// valid, add to segments.
+	segments.push_back(current);
+	
+	srs_trace("reap ts segment, sequence_no=%d, uri=%s, duration=%.2f, start=%"PRId64"",
+		current->sequence_no, current->uri.c_str(), current->duration, 
+		current->segment_start_dts);
+	
+	// close the muxer of finished segment.
+	srs_freep(current->muxer);
+	current = NULL;
+	
+	// the segments to remove
+	std::vector<SrsM3u8Segment*> segment_to_remove;
+	
+	// shrink the segments.
+	double duration = 0;
+	int remove_index = -1;
+	for (int i = segments.size() - 1; i >= 0; i--) {
+		SrsM3u8Segment* segment = segments[i];
+		duration += segment->duration;
+		
+		if ((int)duration > hls_window) {
+			remove_index = i;
+			break;
+		}
+	}
+	for (int i = 0; i < remove_index && !segments.empty(); i++) {
+		SrsM3u8Segment* segment = *segments.begin();
+		segments.erase(segments.begin());
+		segment_to_remove.push_back(segment);
+	}
+	
+	// refresh the m3u8, donot contains the removed ts
+	ret = refresh_m3u8();
+
+	// remove the ts file.
+	for (int i = 0; i < (int)segment_to_remove.size(); i++) {
+		SrsM3u8Segment* segment = segment_to_remove[i];
+		unlink(segment->full_path.c_str());
+		srs_freep(segment);
+	}
+	segment_to_remove.clear();
+	
+	// check ret of refresh m3u8
+	if (ret != ERROR_SUCCESS) {
+		srs_error("refresh m3u8 failed. ret=%d", ret);
+		return ret;
 	}
 	
 	return ret;
 }
 
-int SrsHls::refresh_m3u8()
+int SrsM3u8Muxer::refresh_m3u8()
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -925,7 +742,7 @@ int SrsHls::refresh_m3u8()
 	return ret;
 }
 
-int SrsHls::_refresh_m3u8(int& fd, std::string m3u8_file)
+int SrsM3u8Muxer::_refresh_m3u8(int& fd, std::string m3u8_file)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -1016,7 +833,7 @@ int SrsHls::_refresh_m3u8(int& fd, std::string m3u8_file)
 	return ret;
 }
 
-int SrsHls::create_dir()
+int SrsM3u8Muxer::create_dir()
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -1039,7 +856,284 @@ int SrsHls::create_dir()
 	return ret;
 }
 
-int SrsHls::write_audio()
+SrsHls::SrsHls()
+{
+	hls_enabled = false;
+	
+	codec = new SrsCodec();
+	sample = new SrsCodecSample();
+	jitter = new SrsRtmpJitter();
+	aac_jitter = new SrsHlsAacJitter();
+	
+	ab = new SrsCodecBuffer();
+	vb = new SrsCodecBuffer();
+	
+	af = new SrsMpegtsFrame();
+	vf = new SrsMpegtsFrame();
+	
+	muxer = new SrsM3u8Muxer();
+}
+
+SrsHls::~SrsHls()
+{
+	srs_freep(codec);
+	srs_freep(sample);
+	srs_freep(jitter);
+	srs_freep(aac_jitter);
+	
+	ab->free();
+	vb->free();
+	
+	srs_freep(ab);
+	srs_freep(vb);
+	
+	srs_freep(af);
+	srs_freep(vf);
+	
+	srs_freep(muxer);
+}
+
+int SrsHls::on_publish(SrsRequest* req)
+{
+	int ret = ERROR_SUCCESS;
+
+	std::string vhost = req->vhost;
+	std::string stream = req->stream;
+	std::string app = req->app;
+	
+	// TODO: support reload.
+	if (!config->get_hls_enabled(vhost)) {
+		return ret;
+	}
+	
+	// if enabled, open the muxer.
+	hls_enabled = true;
+	
+	// TODO: subscribe the reload event.
+	int hls_fragment = 0;
+	int hls_window = 0;
+	
+	SrsConfDirective* conf = NULL;
+	if ((conf = config->get_hls_fragment(vhost)) != NULL && !conf->arg0().empty()) {
+		hls_fragment = ::atoi(conf->arg0().c_str());
+	}
+	if (hls_fragment <= 0) {
+		hls_fragment = SRS_CONF_DEFAULT_HLS_FRAGMENT;
+	}
+	
+	if ((conf = config->get_hls_window(vhost)) != NULL && !conf->arg0().empty()) {
+		hls_window = ::atoi(conf->arg0().c_str());
+	}
+	if (hls_window <= 0) {
+		hls_window = SRS_CONF_DEFAULT_HLS_WINDOW;
+	}
+	
+	// get the hls path config
+	std::string hls_path = SRS_CONF_DEFAULT_HLS_PATH;
+	if ((conf = config->get_hls_path(vhost)) != NULL) {
+		hls_path = conf->arg0();
+	}
+	
+	// open muxer
+	if ((ret = muxer->update_config(app, stream, hls_path, hls_fragment, hls_window)) != ERROR_SUCCESS) {
+		srs_error("m3u8 muxer update config failed. ret=%d", ret);
+		return ret;
+	}
+	
+	if ((ret = muxer->segment_open()) != ERROR_SUCCESS) {
+		srs_error("m3u8 muxer open segment failed. ret=%d", ret);
+		return ret;
+	}
+
+	return ret;
+}
+
+void SrsHls::on_unpublish()
+{
+	int ret = ERROR_SUCCESS;
+	
+	// close muxer when unpublish.
+	ret = muxer->flush_audio(af, ab);
+	ret += muxer->segment_close();
+	if (ret != ERROR_SUCCESS) {
+		srs_error("ignore m3u8 muxer flush/close audio failed. ret=%d", ret);
+		return;
+	}
+	
+	hls_enabled = false;
+}
+
+int SrsHls::on_meta_data(SrsOnMetaDataPacket* metadata)
+{
+	int ret = ERROR_SUCCESS;
+
+	if (!metadata || !metadata->metadata) {
+		srs_trace("no metadata persent, hls ignored it.");
+		return ret;
+	}
+	
+	SrsAmf0Object* obj = metadata->metadata;
+	if (obj->size() <= 0) {
+		srs_trace("no metadata persent, hls ignored it.");
+		return ret;
+	}
+	
+	//	finger out the codec info from metadata if possible.
+	SrsAmf0Any* prop = NULL;
+
+	if ((prop = obj->get_property("duration")) != NULL && prop->is_number()) {
+		codec->duration = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
+	}
+	if ((prop = obj->get_property("width")) != NULL && prop->is_number()) {
+		codec->width = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
+	}
+	if ((prop = obj->get_property("height")) != NULL && prop->is_number()) {
+		codec->height = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
+	}
+	if ((prop = obj->get_property("framerate")) != NULL && prop->is_number()) {
+		codec->frame_rate = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
+	}
+	if ((prop = obj->get_property("videocodecid")) != NULL && prop->is_number()) {
+		codec->video_codec_id = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
+	}
+	if ((prop = obj->get_property("videodatarate")) != NULL && prop->is_number()) {
+		codec->video_data_rate = (int)(1000 * srs_amf0_convert<SrsAmf0Number>(prop)->value);
+	}
+	
+	if ((prop = obj->get_property("audiocodecid")) != NULL && prop->is_number()) {
+		codec->audio_codec_id = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
+	}
+	if ((prop = obj->get_property("audiodatarate")) != NULL && prop->is_number()) {
+		codec->audio_data_rate = (int)(1000 * srs_amf0_convert<SrsAmf0Number>(prop)->value);
+	}
+	
+	// ignore the following, for each flv/rtmp packet contains them:
+	// audiosamplerate, sample->sound_rate
+	// audiosamplesize, sample->sound_size
+	// stereo, 			sample->sound_type
+	
+	return ret;
+}
+
+int SrsHls::on_audio(SrsSharedPtrMessage* audio)
+{
+	int ret = ERROR_SUCCESS;
+	
+	SrsAutoFree(SrsSharedPtrMessage, audio, false);
+	
+	// TODO: maybe donot need to demux the aac?
+	if (!hls_enabled) {
+		return ret;
+	}
+	
+	sample->clear();
+	if ((ret = codec->audio_aac_demux(audio->payload, audio->size, sample)) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
+	if (codec->audio_codec_id != SrsCodecAudioAAC) {
+		return ret;
+	}
+	
+	// ignore sequence header
+	if (sample->aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
+		return ret;
+	}
+	
+	int64_t corrected_time = 0;
+	if ((ret = jitter->correct(audio, 0, 0, &corrected_time)) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
+	// the pts calc from rtmp/flv header.
+	int64_t pts = corrected_time * 90;
+	
+	// start buffer, set the af
+	if (ab->size == 0) {
+		pts = aac_jitter->on_buffer_start(pts, sample->sound_rate);
+		
+		af->dts = af->pts = audio_buffer_start_pts = pts;
+		af->pid = TS_AUDIO_PID;
+		af->sid = TS_AUDIO_AAC;
+	} else {
+		aac_jitter->on_buffer_continue();
+	}
+	
+	// write audio to cache.
+	if ((ret = cache_audio()) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
+	// flush if buffer exceed max size.
+	if (ab->size > SRS_HLS_AUDIO_CACHE_SIZE) {
+		if ((ret = muxer->flush_audio(af, ab)) != ERROR_SUCCESS) {
+			return ret;
+		}
+	}
+	// TODO: config it.
+	// in ms, audio delay to flush the audios.
+	int64_t audio_delay = SRS_CONF_DEFAULT_AAC_DELAY;
+	// flush if audio delay exceed
+	if (pts - audio_buffer_start_pts > audio_delay * 90) {
+		if ((ret = muxer->flush_audio(af, ab)) != ERROR_SUCCESS) {
+			return ret;
+		}
+	}
+	
+	return ret;
+}
+
+int SrsHls::on_video(SrsSharedPtrMessage* video)
+{
+	int ret = ERROR_SUCCESS;
+	
+	SrsAutoFree(SrsSharedPtrMessage, video, false);
+	
+	// TODO: maybe donot need to demux the avc?
+	if (!hls_enabled) {
+		return ret;
+	}
+	
+	sample->clear();
+	if ((ret = codec->video_avc_demux(video->payload, video->size, sample)) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
+	if (codec->video_codec_id != SrsCodecVideoAVC) {
+		return ret;
+	}
+	
+	// ignore sequence header
+	if (sample->frame_type == SrsCodecVideoAVCFrameKeyFrame && sample->avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader) {
+		return ret;
+	}
+	
+	int64_t corrected_time = 0;
+	if ((ret = jitter->correct(video, 0, 0, &corrected_time)) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
+	// write video to cache.
+	if ((ret = cache_video()) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
+	vf->dts = corrected_time * 90;
+	vf->pts = vf->dts + sample->cts * 90;
+	vf->pid = TS_VIDEO_PID;
+	vf->sid = TS_VIDEO_AVC;
+	vf->key = sample->frame_type == SrsCodecVideoAVCFrameKeyFrame;
+	
+	// flush video when got one
+	if ((ret = muxer->flush_video(af, ab, vf, vb)) != ERROR_SUCCESS) {
+		srs_error("m3u8 muxer flush video failed. ret=%d", ret);
+		return ret;
+	}
+	
+	return ret;
+}
+
+int SrsHls::cache_audio()
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -1099,19 +1193,19 @@ int SrsHls::write_audio()
 		adts_header[5] |= 0x1f;
 
 		// copy to audio buffer
-		audio_buffer->append(adts_header, sizeof(adts_header));
-		audio_buffer->append(buf->bytes, buf->size);
+		ab->append(adts_header, sizeof(adts_header));
+		ab->append(buf->bytes, buf->size);
 	}
 	
 	return ret;
 }
 
-int SrsHls::write_video()
+int SrsHls::cache_video()
 {
 	int ret = ERROR_SUCCESS;
 	
 	static u_int8_t aud_nal[] = { 0x00, 0x00, 0x00, 0x01, 0x09, 0xf0 };
-	video_buffer->append(aud_nal, sizeof(aud_nal));
+	vb->append(aud_nal, sizeof(aud_nal));
 	
 	bool sps_pps_sent = false;
 	for (int i = 0; i < sample->nb_buffers; i++) {
@@ -1138,21 +1232,21 @@ int SrsHls::write_video()
 		// 5: Coded slice of an IDR picture.
 		// insert sps/pps before IDR or key frame is ok.
 		if (nal_unit_type == 5 && !sps_pps_sent) {
-		//if (video_frame->key && !sps_pps_sent) {
+		//if (vf->key && !sps_pps_sent) {
 			sps_pps_sent = true;
 			
 			// ngx_rtmp_hls_append_sps_pps
 			if (codec->sequenceParameterSetLength > 0) {
 				// AnnexB prefix
-				video_buffer->append(aud_nal, 4);
+				vb->append(aud_nal, 4);
 				// sps
-				video_buffer->append(codec->sequenceParameterSetNALUnit, codec->sequenceParameterSetLength);
+				vb->append(codec->sequenceParameterSetNALUnit, codec->sequenceParameterSetLength);
 			}
 			if (codec->pictureParameterSetLength > 0) {
 				// AnnexB prefix
-				video_buffer->append(aud_nal, 4);
+				vb->append(aud_nal, 4);
 				// pps
-				video_buffer->append(codec->pictureParameterSetNALUnit, codec->pictureParameterSetLength);
+				vb->append(codec->pictureParameterSetNALUnit, codec->pictureParameterSetLength);
 			}
 		}
 		
@@ -1164,30 +1258,12 @@ int SrsHls::write_video()
 		if (i == 0) {
 			p = aud_nal;
 		}
-		video_buffer->append(p, end - p);
+		vb->append(p, end - p);
 		
 		// sample data
-		video_buffer->append(buf->bytes, buf->size);
+		vb->append(buf->bytes, buf->size);
 	}
 	
-	return ret;
-}
-
-int SrsHls::flush_audio()
-{
-	int ret = ERROR_SUCCESS;
-	
-	if (audio_buffer->size <= 0) {
-		return ret;
-	}
-	
-	if ((ret = current->muxer->write_audio(audio_frame, audio_buffer)) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	// write success, clear and free the buffer
-	audio_buffer->free();
-
 	return ret;
 }
 

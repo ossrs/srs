@@ -74,6 +74,22 @@ public:
 	virtual void on_buffer_continue();
 };
 
+//TODO: refine the ts muxer, do more jobs.
+class SrsTSMuxer
+{
+private:
+	int fd;
+	std::string path;
+public:
+	SrsTSMuxer();
+	virtual ~SrsTSMuxer();
+public:
+	virtual int open(std::string _path);
+	virtual int write_audio(SrsMpegtsFrame* af, SrsCodecBuffer* ab);
+	virtual int write_video(SrsMpegtsFrame* vf, SrsCodecBuffer* vb);
+	virtual void close();
+};
+
 /**
 * 3.3.2.  EXTINF
 * The EXTINF tag specifies the duration of a media segment.
@@ -102,33 +118,15 @@ struct SrsM3u8Segment
 	virtual double update_duration(int64_t video_stream_dts);
 };
 
-//TODO: refine the ts muxer, do more jobs.
-class SrsTSMuxer
-{
-private:
-	int fd;
-	std::string path;
-	bool _fresh;
-public:
-	SrsTSMuxer();
-	virtual ~SrsTSMuxer();
-public:
-	virtual int open(std::string _path);
-	virtual int write_audio(SrsMpegtsFrame* audio_frame, SrsCodecBuffer* audio_buffer);
-	virtual int write_video(SrsMpegtsFrame* video_frame, SrsCodecBuffer* video_buffer);
-	virtual void close();
-	virtual bool fresh();
-};
-
 /**
-* write m3u8 hls.
+* muxer the m3u8 and ts files.
 */
-class SrsHls
+class SrsM3u8Muxer
 {
 private:
-	std::string vhost;
-	std::string stream;
 	std::string app;
+	std::string stream;
+private:
 	std::string hls_path;
 	int hls_fragment;
 	int hls_window;
@@ -144,16 +142,37 @@ private:
 	* current writing segment.
 	*/
 	SrsM3u8Segment* current;
-	// current frame and buffer
-	SrsMpegtsFrame* audio_frame;
-	SrsCodecBuffer* audio_buffer;
-	SrsMpegtsFrame* video_frame;
-	SrsCodecBuffer* video_buffer;
 	// last known dts
 	int64_t video_stream_dts;
+public:
+	SrsM3u8Muxer();
+	virtual ~SrsM3u8Muxer();
+public:
+	virtual int update_config(std::string _app, std::string _stream, std::string path, int fragment, int window);
+	virtual int segment_open();
+	virtual int flush_audio(SrsMpegtsFrame* af, SrsCodecBuffer* ab);
+	virtual int flush_video(SrsMpegtsFrame* af, SrsCodecBuffer* ab, SrsMpegtsFrame* vf, SrsCodecBuffer* vb);
+	virtual int segment_close();
+private:
+	virtual int refresh_m3u8();
+	virtual int _refresh_m3u8(int& fd, std::string m3u8_file);
+	virtual int create_dir();
+};
+
+/**
+* write m3u8 hls.
+*/
+class SrsHls
+{
+private:
+	SrsM3u8Muxer* muxer;
+	// current frame and buffer
+	SrsMpegtsFrame* af;
+	SrsCodecBuffer* ab;
+	SrsMpegtsFrame* vf;
+	SrsCodecBuffer* vb;
+	// the audio cache buffer start pts, to flush audio if full.
 	int64_t audio_buffer_start_pts;
-	// in ms, audio delay to flush the audios.
-	int64_t audio_delay;
 private:
 	bool hls_enabled;
 	SrsCodec* codec;
@@ -170,14 +189,8 @@ public:
 	virtual int on_audio(SrsSharedPtrMessage* audio);
 	virtual int on_video(SrsSharedPtrMessage* video);
 private:
-	virtual int reopen();
-	virtual int refresh_m3u8();
-	virtual int _refresh_m3u8(int& fd, std::string m3u8_file);
-	virtual int create_dir();
-private:
-	virtual int write_audio();
-	virtual int write_video();
-	virtual int flush_audio();
+	virtual int cache_audio();
+	virtual int cache_video();
 };
 
 #endif
