@@ -131,6 +131,7 @@ private:
 	int hls_fragment;
 	int hls_window;
 private:
+	bool _is_open;
 	int file_index;
 	std::string m3u8;
 private:
@@ -148,6 +149,7 @@ public:
 	SrsM3u8Muxer();
 	virtual ~SrsM3u8Muxer();
 public:
+	virtual bool is_open();
 	virtual int update_config(std::string _app, std::string _stream, std::string path, int fragment, int window);
 	virtual int segment_open();
 	virtual int flush_audio(SrsMpegtsFrame* af, SrsCodecBuffer* ab);

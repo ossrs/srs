@@ -502,6 +502,7 @@ SrsM3u8Muxer::SrsM3u8Muxer()
 	video_stream_dts = 0;
 	file_index = 0;
 	current = NULL;
+	_is_open = false;
 }
 
 SrsM3u8Muxer::~SrsM3u8Muxer()
@@ -514,6 +515,11 @@ SrsM3u8Muxer::~SrsM3u8Muxer()
 	segments.clear();
 	
 	srs_freep(current);
+}
+
+bool SrsM3u8Muxer::is_open()
+{
+	return _is_open;
 }
 
 int SrsM3u8Muxer::update_config(
@@ -570,6 +576,8 @@ int SrsM3u8Muxer::segment_open()
 	}
 	srs_info("open HLS muxer success. vhost=%s, path=%s", 
 		vhost.c_str(), current->full_path.c_str());
+	
+	_is_open = true;
 	
 	return ret;
 }
@@ -708,6 +716,8 @@ int SrsM3u8Muxer::segment_close()
 		srs_error("refresh m3u8 failed. ret=%d", ret);
 		return ret;
 	}
+	
+	_is_open = false;
 	
 	return ret;
 }
@@ -1171,12 +1181,14 @@ void SrsHls::on_unpublish()
 {
 	int ret = ERROR_SUCCESS;
 	
-	// close muxer when unpublish.
-	ret = ts_cache->flush_audio(muxer);
-	ret += muxer->segment_close();
-	if (ret != ERROR_SUCCESS) {
-		srs_error("ignore m3u8 muxer flush/close audio failed. ret=%d", ret);
-		return;
+	if (muxer->is_open()) {
+		// close muxer when unpublish.
+		ret = ts_cache->flush_audio(muxer);
+		ret += muxer->segment_close();
+
+		if (ret != ERROR_SUCCESS) {
+			srs_error("ignore m3u8 muxer flush/close audio failed. ret=%d", ret);
+		}
 	}
 	
 	hls_enabled = false;

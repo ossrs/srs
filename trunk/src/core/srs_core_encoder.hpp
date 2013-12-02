@@ -73,6 +73,7 @@ public:
 public:
 	virtual int initialize(SrsRequest* req, SrsConfDirective* engine);
 	virtual int start();
+	virtual int cycle();
 	virtual void stop();
 };
 

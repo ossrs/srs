@@ -25,6 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/wait.h>
 
 #include <algorithm>
 
@@ -356,6 +357,34 @@ int SrsFFMPEG::start()
 	return ret;
 }
 
+int SrsFFMPEG::cycle()
+{
+	int ret = ERROR_SUCCESS;
+	
+	if (!started) {
+		return ret;
+	}
+	
+	int status = 0;
+	pid_t p = waitpid(pid, &status, WNOHANG);
+	
+	if (p < 0) {
+		ret = ERROR_SYSTEM_WAITPID;
+		srs_error("transcode waitpid failed, pid=%d, ret=%d", pid, ret);
+		return ret;
+	}
+	
+	if (p == 0) {
+		srs_info("transcode process pid=%d is running.", pid);
+		return ret;
+	}
+	
+	srs_trace("transcode process pid=%d terminate, restart it.", pid);
+	started = false;
+	
+	return ret;
+}
+
 void SrsFFMPEG::stop()
 {
 	if (!started) {
@@ -538,17 +567,22 @@ int SrsEncoder::cycle()
 {
 	int ret = ERROR_SUCCESS;
 	
-	// start all ffmpegs.
 	std::vector<SrsFFMPEG*>::iterator it;
 	for (it = ffmpegs.begin(); it != ffmpegs.end(); ++it) {
 		SrsFFMPEG* ffmpeg = *it;
+		
+		// start all ffmpegs.
 		if ((ret = ffmpeg->start()) != ERROR_SUCCESS) {
 			srs_error("ffmpeg start failed. ret=%d", ret);
 			return ret;
 		}
+
+		// check ffmpeg status.
+		if ((ret = ffmpeg->cycle()) != ERROR_SUCCESS) {
+			srs_error("ffmpeg cycle failed. ret=%d", ret);
+			return ret;
+		}
 	}
-	
-	// TODO: cycle all processes.
 	
 	return ret;
 }
