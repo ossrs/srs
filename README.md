@@ -136,6 +136,7 @@ Supported operating systems and hardware:
 26. [plan] support encryption: RTMPE/RTMPS, HLS DRM<br/>
 27. [plan] support RTMPT, http to tranverse firewalls<br/>
 28. [plan] support audio transcode only, speex to aac<br/>
+29. [plan] support file source, transcoding file to live stream<br/>
 
 ### Performance
 1. 300 connections, 150Mbps, 500kbps, CPU 18.8%, 5956KB.
