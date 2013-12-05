@@ -36,6 +36,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_STAGE_PUBLISH_USER 2
 // the pithy stage for all forward clients.
 #define SRS_STAGE_FORWARDER 3
+// the pithy stage for all encoders.
+#define SRS_STAGE_ENCODER 4
+// the pithy stage for all hls.
+#define SRS_STAGE_HLS 5
 
 /**
 * the stage is used for a collection of object to do print,

@@ -140,6 +140,7 @@ public:
 	virtual int		     	  get_engine_achannels(SrsConfDirective* engine);
 	virtual void			  get_engine_aparams(SrsConfDirective* engine, std::vector<std::string>& aparams);
 	virtual std::string 	  get_engine_output(SrsConfDirective* engine);
+	virtual std::string 	  get_log_dir();
 	virtual SrsConfDirective* get_gop_cache(std::string vhost);
 	virtual SrsConfDirective* get_forward(std::string vhost);
 	virtual SrsConfDirective* get_hls(std::string vhost);
@@ -154,6 +155,8 @@ public:
 	virtual SrsConfDirective* get_chunk_size();
 	virtual SrsConfDirective* get_pithy_print_publish();
 	virtual SrsConfDirective* get_pithy_print_forwarder();
+	virtual SrsConfDirective* get_pithy_print_encoder();
+	virtual SrsConfDirective* get_pithy_print_hls();
 	virtual SrsConfDirective* get_pithy_print_play();
 private:
 	virtual int parse_file(const char* filename);

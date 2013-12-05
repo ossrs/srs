@@ -144,6 +144,9 @@ else
     echo -e "${YELLOW}warning: without live stream transcoding over FFMPEG support${BLACK}"
 fi
 
+# mkdir dirs
+mkdir -p ${SRS_OBJS}/logs
+
 # next step.
 echo ""
 echo "you can:"

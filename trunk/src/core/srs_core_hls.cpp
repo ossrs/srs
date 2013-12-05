@@ -41,6 +41,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_source.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_core_rtmp.hpp>
+#include <srs_core_pithy_print.hpp>
 
 // max PES packets size to flush the video.
 #define SRS_HLS_AUDIO_CACHE_SIZE 512 * 1024
@@ -1110,6 +1111,8 @@ SrsHls::SrsHls()
 	
 	muxer = new SrsM3u8Muxer();
 	ts_cache = new SrsTSCache();
+
+	pithy_print = new SrsPithyPrint(SRS_STAGE_HLS);
 }
 
 SrsHls::~SrsHls()
@@ -1120,6 +1123,8 @@ SrsHls::~SrsHls()
 	
 	srs_freep(muxer);
 	srs_freep(ts_cache);
+	
+	srs_freep(pithy_print);
 }
 
 int SrsHls::on_publish(SrsRequest* req)
@@ -1328,7 +1333,19 @@ int SrsHls::on_video(SrsSharedPtrMessage* video)
 		return ret;
 	}
 	
+	_mpegts();
+	
 	return ret;
+}
+
+void SrsHls::_mpegts()
+{
+	// reportable
+	if (pithy_print->can_print()) {
+		srs_trace("-> time=%"PRId64"", pithy_print->get_age());
+	}
+	
+	pithy_print->elapse(sample->cts);
 }
 
 #endif

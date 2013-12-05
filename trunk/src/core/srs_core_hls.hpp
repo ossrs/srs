@@ -43,6 +43,7 @@ class SrsRtmpJitter;
 class SrsTSMuxer;
 class SrsCodec;
 class SrsRequest;
+class SrsPithyPrint;
 
 /**
 * jitter correct for audio,
@@ -211,6 +212,7 @@ private:
 	SrsCodec* codec;
 	SrsCodecSample* sample;
 	SrsRtmpJitter* jitter;
+	SrsPithyPrint* pithy_print;
 public:
 	SrsHls();
 	virtual ~SrsHls();
@@ -220,6 +222,8 @@ public:
 	virtual int on_meta_data(SrsOnMetaDataPacket* metadata);
 	virtual int on_audio(SrsSharedPtrMessage* audio);
 	virtual int on_video(SrsSharedPtrMessage* video);
+private:
+	virtual void _mpegts();
 };
 
 #endif

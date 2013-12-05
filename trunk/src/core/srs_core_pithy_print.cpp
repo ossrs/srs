@@ -35,6 +35,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_STAGE_PLAY_USER_INTERVAL_MS 1300
 #define SRS_STAGE_PUBLISH_USER_INTERVAL_MS 1100
 #define SRS_STAGE_FORWARDER_INTERVAL_MS 2000
+#define SRS_STAGE_ENCODER_INTERVAL_MS 2000
+#define SRS_STAGE_HLS_INTERVAL_MS 2000
 
 struct SrsStageInfo : public SrsReloadHandler
 {
@@ -77,6 +79,22 @@ struct SrsStageInfo : public SrsReloadHandler
 			case SRS_STAGE_FORWARDER: {
 				pithy_print_time_ms = SRS_STAGE_FORWARDER_INTERVAL_MS;
 				SrsConfDirective* conf = config->get_pithy_print_forwarder();
+				if (conf && !conf->arg0().empty()) {
+					pithy_print_time_ms = ::atoi(conf->arg0().c_str());
+				}
+				break;
+			}
+			case SRS_STAGE_ENCODER: {
+				pithy_print_time_ms = SRS_STAGE_ENCODER_INTERVAL_MS;
+				SrsConfDirective* conf = config->get_pithy_print_encoder();
+				if (conf && !conf->arg0().empty()) {
+					pithy_print_time_ms = ::atoi(conf->arg0().c_str());
+				}
+				break;
+			}
+			case SRS_STAGE_HLS: {
+				pithy_print_time_ms = SRS_STAGE_HLS_INTERVAL_MS;
+				SrsConfDirective* conf = config->get_pithy_print_hls();
 				if (conf && !conf->arg0().empty()) {
 					pithy_print_time_ms = ::atoi(conf->arg0().c_str());
 				}

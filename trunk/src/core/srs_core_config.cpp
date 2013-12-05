@@ -904,6 +904,17 @@ std::string SrsConfig::get_engine_output(SrsConfDirective* engine)
 	return conf->arg0();
 }
 
+std::string SrsConfig::get_log_dir()
+{
+	srs_assert(root);
+	
+	SrsConfDirective* conf = root->get("log_dir");
+	if (!conf || conf->arg0().empty()) {
+		return "./objs/logs";
+	}
+	
+	return conf->arg0();
+}
 
 SrsConfDirective* SrsConfig::get_gop_cache(std::string vhost)
 {
@@ -1042,6 +1053,26 @@ SrsConfDirective* SrsConfig::get_pithy_print_publish()
 SrsConfDirective* SrsConfig::get_pithy_print_forwarder()
 {
 	SrsConfDirective* pithy = root->get("pithy_print");
+	if (!pithy) {
+		return NULL;
+	}
+	
+	return pithy->get("forwarder");
+}
+
+SrsConfDirective* SrsConfig::get_pithy_print_hls()
+{
+	SrsConfDirective* pithy = root->get("pithy_print");
+	if (!pithy) {
+		return NULL;
+	}
+	
+	return pithy->get("hls");
+}
+
+SrsConfDirective* SrsConfig::get_pithy_print_encoder()
+{
+	SrsConfDirective* pithy = root->get("encoder");
 	if (!pithy) {
 		return NULL;
 	}

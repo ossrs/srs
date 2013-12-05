@@ -26,6 +26,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 #include <algorithm>
 
@@ -33,6 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_log.hpp>
 #include <srs_core_config.hpp>
 #include <srs_core_rtmp.hpp>
+#include <srs_core_pithy_print.hpp>
 
 #ifdef SRS_FFMPEG
 
@@ -58,6 +60,8 @@ SrsFFMPEG::SrsFFMPEG(std::string ffmpeg_bin)
 	abitrate 		= 0;
 	asample_rate 	= 0;
 	achannels 		= 0;
+	
+	log_fd = -1;
 }
 
 SrsFFMPEG::~SrsFFMPEG()
@@ -108,6 +112,18 @@ int SrsFFMPEG::initialize(SrsRequest* req, SrsConfDirective* engine)
 	output = srs_replace(output, "[app]", req->app);
 	output = srs_replace(output, "[stream]", req->stream);
 	output = srs_replace(output, "[engine]", engine->arg0());
+	
+	// write ffmpeg info to log file.
+	log_file = config->get_log_dir();
+	log_file += "/";
+	log_file += "encoder";
+	log_file += "-";
+	log_file += req->vhost;
+	log_file += "-";
+	log_file += req->app;
+	log_file += "-";
+	log_file += req->stream;
+	log_file += ".log";
 
 	// important: loop check, donot transcode again.
 	std::vector<std::string>::iterator it;
@@ -316,7 +332,8 @@ int SrsFFMPEG::start()
 			snprintf(p, last - p, "%s ", ffp.c_str());
 			p += ffp.length() + 1;
 		}
-		srs_trace("start transcoder: %s", pparam);
+		srs_trace("start transcoder, log: %s, params: %s", 
+			log_file.c_str(), pparam);
 		srs_freepa(pparam);
 	}
 	
@@ -329,6 +346,30 @@ int SrsFFMPEG::start()
 	
 	// child process: ffmpeg encoder engine.
 	if (pid == 0) {
+		// redirect logs to file.
+		int flags = O_CREAT|O_WRONLY|O_APPEND;
+		mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
+		if ((log_fd = ::open(log_file.c_str(), flags, mode)) < 0) {
+			ret = ERROR_ENCODER_OPEN;
+			srs_error("open encoder file %s failed. ret=%d", log_file.c_str(), ret);
+			return ret;
+		}
+		if (dup2(log_fd, STDOUT_FILENO) < 0) {
+			ret = ERROR_ENCODER_DUP2;
+			srs_error("dup2 encoder file failed. ret=%d", ret);
+			return ret;
+		}
+		if (dup2(log_fd, STDERR_FILENO) < 0) {
+			ret = ERROR_ENCODER_DUP2;
+			srs_error("dup2 encoder file failed. ret=%d", ret);
+			return ret;
+		}
+		// close other fds
+		// TODO: do in right way.
+		for (int i = 3; i < 1024; i++) {
+			::close(i);
+		}
+		
 		// memory leak in child process, it's ok.
 		char** charpv_params = new char*[params.size() + 1];
 		for (int i = 0; i < (int)params.size(); i++) {
@@ -389,6 +430,11 @@ int SrsFFMPEG::cycle()
 
 void SrsFFMPEG::stop()
 {
+	if (log_fd > 0) {
+		::close(log_fd);
+		log_fd = -1;
+	}
+	
 	if (!started) {
 		return;
 	}
@@ -598,6 +644,8 @@ void SrsEncoder::encoder_cycle()
 	log_context->generate_id();
 	srs_trace("encoder cycle start");
 	
+	SrsPithyPrint pithy_print(SRS_STAGE_ENCODER);
+	
 	while (loop) {
 		if ((ret = cycle()) != ERROR_SUCCESS) {
 			srs_warn("encoder cycle failed, ignored and retry, ret=%d", ret);
@@ -608,6 +656,9 @@ void SrsEncoder::encoder_cycle()
 		if (!loop) {
 			break;
 		}
+
+		encoder(&pithy_print);
+		pithy_print.elapse(SRS_ENCODER_SLEEP_MS);
 		
 		st_usleep(SRS_ENCODER_SLEEP_MS * 1000);
 	}
@@ -620,6 +671,15 @@ void SrsEncoder::encoder_cycle()
 	}
 	
 	srs_trace("encoder cycle finished");
+}
+
+void SrsEncoder::encoder(SrsPithyPrint* pithy_print)
+{
+	// reportable
+	if (pithy_print->can_print()) {
+		srs_trace("-> time=%"PRId64", encoders=%d",
+			pithy_print->get_age(), (int)ffmpegs.size());
+	}
 }
 
 void* SrsEncoder::encoder_thread(void* arg)

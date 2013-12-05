@@ -48,6 +48,8 @@ int main(int argc, char** argv){
 		return ret;
 	}
 	
+	// TODO: create log dir in config->get_log_dir()
+	
 	if ((ret = _server()->listen()) != ERROR_SUCCESS) {
 		return ret;
 	}

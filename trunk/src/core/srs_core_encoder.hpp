@@ -36,6 +36,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsConfDirective;
 class SrsRequest;
+class SrsPithyPrint;
 
 #ifdef SRS_FFMPEG
 
@@ -48,6 +49,9 @@ class SrsFFMPEG
 private:
 	bool started;
 	pid_t pid;
+private:
+	std::string log_file;
+	int log_fd;
 private:
 	std::string 				ffmpeg;
 	std::vector<std::string> 	vfilter;
@@ -101,6 +105,7 @@ private:
 	virtual int parse_transcode(SrsRequest* req, SrsConfDirective* conf);
 	virtual int cycle();
 	virtual void encoder_cycle();
+	virtual void encoder(SrsPithyPrint* pithy_print);
 	static void* encoder_thread(void* arg);
 };
 
