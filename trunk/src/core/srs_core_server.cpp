@@ -287,6 +287,8 @@ void SrsServer::on_signal(int signo)
 	if (signo == SIGNAL_RELOAD) {
 		signal_reload = true;
 	}
+
+	// TODO: handle the SIGINT, SIGTERM.
 }
 
 void SrsServer::close_listeners()

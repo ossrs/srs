@@ -27,6 +27,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <unistd.h>
 #include <sys/wait.h>
 #include <fcntl.h>
+#include <signal.h>
+#include <sys/types.h>
 
 #include <algorithm>
 
@@ -415,8 +417,6 @@ int SrsFFMPEG::cycle()
 		return ret;
 	}
 	
-	// TODO: to support rewind.
-	
 	if (p == 0) {
 		srs_info("transcode process pid=%d is running.", pid);
 		return ret;
@@ -439,7 +439,23 @@ void SrsFFMPEG::stop()
 		return;
 	}
 	
-	// TODO: kill the ffmpeg process when stop.
+	// kill the ffmpeg,
+	// when rewind, upstream will stop publish(unpublish),
+	// unpublish event will stop all ffmpeg encoders,
+	// then publish will start all ffmpeg encoders.
+	if (pid > 0) {
+		if (kill(pid, SIGKILL) < 0) {
+			srs_warn("kill the encoder failed, ignored. pid=%d", pid);
+		}
+		
+		int status = 0;
+		if (waitpid(pid, &status, WNOHANG) < 0) {
+			srs_warn("wait the encoder quit failed, ignored. pid=%d", pid);
+		}
+		
+		srs_trace("stop the encoder success. pid=%d", pid);
+		pid = -1;
+	}
 	
 	std::vector<std::string>::iterator it;
 	it = std::find(_transcoded_url.begin(), _transcoded_url.end(), output);
