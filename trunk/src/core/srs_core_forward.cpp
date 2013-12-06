@@ -292,7 +292,11 @@ int SrsForwarder::forward()
 			}
 		}
 		
+		// ignore when no messages.
 		int count = (int)msgs.size();
+		if (msgs.empty()) {
+			continue;
+		}
 
 		// reportable
 		if (pithy_print.can_print()) {
@@ -301,16 +305,32 @@ int SrsForwarder::forward()
 		}
 	
 		// all msgs to forward.
-		for (int i = 0; i < count; i++) {
+		int i = 0;
+		for (i = 0; i < count; i++) {
 			SrsSharedPtrMessage* msg = msgs[i];
 			msgs[i] = NULL;
+
+			// we erased the sendout messages, the msg must not be NULL.
+			srs_assert(msg);
 			
-			if ((ret = client->send_message(msg)) != ERROR_SUCCESS) {
+			ret = client->send_message(msg);
+			if (ret != ERROR_SUCCESS) {
 				srs_error("forwarder send message to server failed. ret=%d", ret);
-				return ret;
+				break;
 			}
 		}
-		msgs.clear();
+
+		// clear sendout mesages.
+		if (i < count) {
+			srs_warn("clear forwarded msg, total=%d, forwarded=%d, ret=%d", count, i, ret);
+		} else {
+			srs_info("clear forwarded msg, total=%d, forwarded=%d, ret=%d", count, i, ret);
+		}
+		msgs.erase(msgs.begin(), msgs.begin() + i);
+		
+		if (ret != ERROR_SUCCESS) {
+			break;
+		}
 	}
 	
 	return ret;
