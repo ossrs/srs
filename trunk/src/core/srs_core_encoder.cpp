@@ -448,8 +448,12 @@ void SrsFFMPEG::stop()
 			srs_warn("kill the encoder failed, ignored. pid=%d", pid);
 		}
 		
+		// wait for the ffmpeg to quit.
+		// ffmpeg will gracefully quit if signal is:
+		// 		1) SIGHUP	 2) SIGINT	 3) SIGQUIT
+		// other signals, directly exit(123).
 		int status = 0;
-		if (waitpid(pid, &status, WNOHANG) < 0) {
+		if (waitpid(pid, &status, 0) < 0) {
 			srs_warn("wait the encoder quit failed, ignored. pid=%d", pid);
 		}
 		
