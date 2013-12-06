@@ -42,8 +42,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define SRS_ENCODER_SLEEP_MS 2000
 
-#define SRS_ENCODER_VCODEC "libx264"
-#define SRS_ENCODER_ACODEC "libaacplus"
+#define SRS_ENCODER_COPY	"copy"
+#define SRS_ENCODER_VCODEC 	"libx264"
+#define SRS_ENCODER_ACODEC 	"libaacplus"
 
 // for encoder to detect the dead loop
 static std::vector<std::string> _transcoded_url;
@@ -138,70 +139,75 @@ int SrsFFMPEG::initialize(SrsRequest* req, SrsConfDirective* engine)
 	}
 	_transcoded_url.push_back(output);
 	
-	if (vcodec != SRS_ENCODER_VCODEC) {
-		ret = ERROR_ENCODER_VCODEC;
-		srs_error("invalid vcodec, must be %s, actual %s, ret=%d",
-			SRS_ENCODER_VCODEC, vcodec.c_str(), ret);
-		return ret;
+	if (vcodec != SRS_ENCODER_COPY) {
+		if (vcodec != SRS_ENCODER_VCODEC) {
+			ret = ERROR_ENCODER_VCODEC;
+			srs_error("invalid vcodec, must be %s, actual %s, ret=%d",
+				SRS_ENCODER_VCODEC, vcodec.c_str(), ret);
+			return ret;
+		}
+		if (vbitrate <= 0) {
+			ret = ERROR_ENCODER_VBITRATE;
+			srs_error("invalid vbitrate: %d, ret=%d", vbitrate, ret);
+			return ret;
+		}
+		if (vfps <= 0) {
+			ret = ERROR_ENCODER_VFPS;
+			srs_error("invalid vfps: %.2f, ret=%d", vfps, ret);
+			return ret;
+		}
+		if (vwidth <= 0) {
+			ret = ERROR_ENCODER_VWIDTH;
+			srs_error("invalid vwidth: %d, ret=%d", vwidth, ret);
+			return ret;
+		}
+		if (vheight <= 0) {
+			ret = ERROR_ENCODER_VHEIGHT;
+			srs_error("invalid vheight: %d, ret=%d", vheight, ret);
+			return ret;
+		}
+		if (vthreads < 0) {
+			ret = ERROR_ENCODER_VTHREADS;
+			srs_error("invalid vthreads: %d, ret=%d", vthreads, ret);
+			return ret;
+		}
+		if (vprofile.empty()) {
+			ret = ERROR_ENCODER_VPROFILE;
+			srs_error("invalid vprofile: %s, ret=%d", vprofile.c_str(), ret);
+			return ret;
+		}
+		if (vpreset.empty()) {
+			ret = ERROR_ENCODER_VPRESET;
+			srs_error("invalid vpreset: %s, ret=%d", vpreset.c_str(), ret);
+			return ret;
+		}
 	}
-	if (vbitrate <= 0) {
-		ret = ERROR_ENCODER_VBITRATE;
-		srs_error("invalid vbitrate: %d, ret=%d", vbitrate, ret);
-		return ret;
-	}
-	if (vfps <= 0) {
-		ret = ERROR_ENCODER_VFPS;
-		srs_error("invalid vfps: %.2f, ret=%d", vfps, ret);
-		return ret;
-	}
-	if (vwidth <= 0) {
-		ret = ERROR_ENCODER_VWIDTH;
-		srs_error("invalid vwidth: %d, ret=%d", vwidth, ret);
-		return ret;
-	}
-	if (vheight <= 0) {
-		ret = ERROR_ENCODER_VHEIGHT;
-		srs_error("invalid vheight: %d, ret=%d", vheight, ret);
-		return ret;
-	}
-	if (vthreads < 0) {
-		ret = ERROR_ENCODER_VTHREADS;
-		srs_error("invalid vthreads: %d, ret=%d", vthreads, ret);
-		return ret;
-	}
-	if (vprofile.empty()) {
-		ret = ERROR_ENCODER_VPROFILE;
-		srs_error("invalid vprofile: %s, ret=%d", vprofile.c_str(), ret);
-		return ret;
-	}
-	if (vpreset.empty()) {
-		ret = ERROR_ENCODER_VPRESET;
-		srs_error("invalid vpreset: %s, ret=%d", vpreset.c_str(), ret);
-		return ret;
-	}
-	if (acodec != SRS_ENCODER_ACODEC) {
-		ret = ERROR_ENCODER_ACODEC;
-		srs_error("invalid acodec, must be %s, actual %s, ret=%d",
-			SRS_ENCODER_ACODEC, acodec.c_str(), ret);
-		return ret;
-	}
-	if (abitrate <= 0) {
-		ret = ERROR_ENCODER_ABITRATE;
-		srs_error("invalid abitrate: %d, ret=%d", 
-			abitrate, ret);
-		return ret;
-	}
-	if (asample_rate <= 0) {
-		ret = ERROR_ENCODER_ASAMPLE_RATE;
-		srs_error("invalid sample rate: %d, ret=%d", 
-			asample_rate, ret);
-		return ret;
-	}
-	if (achannels != 1 && achannels != 2) {
-		ret = ERROR_ENCODER_ACHANNELS;
-		srs_error("invalid achannels, must be 1 or 2, actual %d, ret=%d", 
-			achannels, ret);
-		return ret;
+	
+	if (acodec != SRS_ENCODER_COPY) {
+		if (acodec != SRS_ENCODER_ACODEC) {
+			ret = ERROR_ENCODER_ACODEC;
+			srs_error("invalid acodec, must be %s, actual %s, ret=%d",
+				SRS_ENCODER_ACODEC, acodec.c_str(), ret);
+			return ret;
+		}
+		if (abitrate <= 0) {
+			ret = ERROR_ENCODER_ABITRATE;
+			srs_error("invalid abitrate: %d, ret=%d", 
+				abitrate, ret);
+			return ret;
+		}
+		if (asample_rate <= 0) {
+			ret = ERROR_ENCODER_ASAMPLE_RATE;
+			srs_error("invalid sample rate: %d, ret=%d", 
+				asample_rate, ret);
+			return ret;
+		}
+		if (achannels != 1 && achannels != 2) {
+			ret = ERROR_ENCODER_ACHANNELS;
+			srs_error("invalid achannels, must be 1 or 2, actual %d, ret=%d", 
+				achannels, ret);
+			return ret;
+		}
 	}
 	if (output.empty()) {
 		ret = ERROR_ENCODER_OUTPUT;
@@ -252,40 +258,43 @@ int SrsFFMPEG::start()
 	params.push_back("-vcodec");
 	params.push_back(vcodec);
 	
-	params.push_back("-b:v");
-	snprintf(tmp, sizeof(tmp), "%d", vbitrate * 1000);
-	params.push_back(tmp);
-	
-	params.push_back("-r");
-	snprintf(tmp, sizeof(tmp), "%.2f", vfps);
-	params.push_back(tmp);
-	
-	params.push_back("-s");
-	snprintf(tmp, sizeof(tmp), "%dx%d", vwidth, vheight);
-	params.push_back(tmp);
-	
-	// TODO: add aspect if needed.
-	params.push_back("-aspect");
-	snprintf(tmp, sizeof(tmp), "%d:%d", vwidth, vheight);
-	params.push_back(tmp);
-	
-	params.push_back("-threads");
-	snprintf(tmp, sizeof(tmp), "%d", vthreads);
-	params.push_back(tmp);
-	
-	params.push_back("-profile:v");
-	params.push_back(vprofile);
-	
-	params.push_back("-preset");
-	params.push_back(vpreset);
-	
-	// vparams
-	if (!vparams.empty()) {
-		std::vector<std::string>::iterator it;
-		for (it = vparams.begin(); it != vparams.end(); ++it) {
-			std::string p = *it;
-			if (!p.empty()) {
-				params.push_back(p);
+	// the codec params is disabled when copy
+	if (vcodec != SRS_ENCODER_COPY) {
+		params.push_back("-b:v");
+		snprintf(tmp, sizeof(tmp), "%d", vbitrate * 1000);
+		params.push_back(tmp);
+		
+		params.push_back("-r");
+		snprintf(tmp, sizeof(tmp), "%.2f", vfps);
+		params.push_back(tmp);
+		
+		params.push_back("-s");
+		snprintf(tmp, sizeof(tmp), "%dx%d", vwidth, vheight);
+		params.push_back(tmp);
+		
+		// TODO: add aspect if needed.
+		params.push_back("-aspect");
+		snprintf(tmp, sizeof(tmp), "%d:%d", vwidth, vheight);
+		params.push_back(tmp);
+		
+		params.push_back("-threads");
+		snprintf(tmp, sizeof(tmp), "%d", vthreads);
+		params.push_back(tmp);
+		
+		params.push_back("-profile:v");
+		params.push_back(vprofile);
+		
+		params.push_back("-preset");
+		params.push_back(vpreset);
+		
+		// vparams
+		if (!vparams.empty()) {
+			std::vector<std::string>::iterator it;
+			for (it = vparams.begin(); it != vparams.end(); ++it) {
+				std::string p = *it;
+				if (!p.empty()) {
+					params.push_back(p);
+				}
 			}
 		}
 	}
@@ -294,25 +303,28 @@ int SrsFFMPEG::start()
 	params.push_back("-acodec");
 	params.push_back(acodec);
 	
-	params.push_back("-b:a");
-	snprintf(tmp, sizeof(tmp), "%d", abitrate * 1000);
-	params.push_back(tmp);
-	
-	params.push_back("-ar");
-	snprintf(tmp, sizeof(tmp), "%d", asample_rate);
-	params.push_back(tmp);
-	
-	params.push_back("-ac");
-	snprintf(tmp, sizeof(tmp), "%d", achannels);
-	params.push_back(tmp);
-	
-	// aparams
-	if (!aparams.empty()) {
-		std::vector<std::string>::iterator it;
-		for (it = aparams.begin(); it != aparams.end(); ++it) {
-			std::string p = *it;
-			if (!p.empty()) {
-				params.push_back(p);
+	// the codec params is disabled when copy
+	if (acodec != SRS_ENCODER_COPY) {
+		params.push_back("-b:a");
+		snprintf(tmp, sizeof(tmp), "%d", abitrate * 1000);
+		params.push_back(tmp);
+		
+		params.push_back("-ar");
+		snprintf(tmp, sizeof(tmp), "%d", asample_rate);
+		params.push_back(tmp);
+		
+		params.push_back("-ac");
+		snprintf(tmp, sizeof(tmp), "%d", achannels);
+		params.push_back(tmp);
+		
+		// aparams
+		if (!aparams.empty()) {
+			std::vector<std::string>::iterator it;
+			for (it = aparams.begin(); it != aparams.end(); ++it) {
+				std::string p = *it;
+				if (!p.empty()) {
+					params.push_back(p);
+				}
 			}
 		}
 	}
