@@ -503,7 +503,6 @@ SrsM3u8Muxer::SrsM3u8Muxer()
 	video_stream_dts = 0;
 	file_index = 0;
 	current = NULL;
-	_is_open = false;
 }
 
 SrsM3u8Muxer::~SrsM3u8Muxer()
@@ -516,11 +515,6 @@ SrsM3u8Muxer::~SrsM3u8Muxer()
 	segments.clear();
 	
 	srs_freep(current);
-}
-
-bool SrsM3u8Muxer::is_open()
-{
-	return _is_open;
 }
 
 int SrsM3u8Muxer::update_config(
@@ -541,6 +535,11 @@ int SrsM3u8Muxer::update_config(
 int SrsM3u8Muxer::segment_open()
 {
 	int ret = ERROR_SUCCESS;
+	
+	if (current) {
+		srs_warn("ignore the segment open, for segment is already open.");
+		return ret;
+	}
 	
 	// TODO: create all parents dirs.
 	// create dir for app.
@@ -578,8 +577,6 @@ int SrsM3u8Muxer::segment_open()
 	srs_info("open HLS muxer success. vhost=%s, path=%s", 
 		vhost.c_str(), current->full_path.c_str());
 	
-	_is_open = true;
-	
 	return ret;
 }
 
@@ -587,7 +584,11 @@ int SrsM3u8Muxer::flush_audio(SrsMpegtsFrame* af, SrsCodecBuffer* ab)
 {
 	int ret = ERROR_SUCCESS;
 
-	srs_assert(current);
+	// if current is NULL, segment is not open, ignore the flush event.
+	if (!current) {
+		srs_warn("flush audio ignored, for segment is not open.");
+		return ret;
+	}
 	
 	if (ab->size <= 0) {
 		return ret;
@@ -609,10 +610,15 @@ int SrsM3u8Muxer::flush_video(
 {
 	int ret = ERROR_SUCCESS;
 
-	srs_assert(current);
+	// if current is NULL, segment is not open, ignore the flush event.
+	if (!current) {
+		srs_warn("flush video ignored, for segment is not open.");
+		return ret;
+	}
 	
 	video_stream_dts = vf->dts;
 	
+	srs_assert(current);
 	// reopen the muxer for a gop
 	if (vf->key && current->duration >= hls_fragment) {
 		// TODO: flush audio before or after segment?
@@ -643,7 +649,6 @@ int SrsM3u8Muxer::flush_video(
 		}
 	}
 	
-	srs_assert(current);
 	// update the duration of segment.
 	current->update_duration(video_stream_dts);
 	
@@ -660,6 +665,11 @@ int SrsM3u8Muxer::flush_video(
 int SrsM3u8Muxer::segment_close()
 {
 	int ret = ERROR_SUCCESS;
+	
+	if (!current) {
+		srs_warn("ignore the segment close, for segment is not open.");
+		return ret;
+	}
 	
 	// when close current segment, the current segment must not be NULL.
 	srs_assert(current);
@@ -717,8 +727,6 @@ int SrsM3u8Muxer::segment_close()
 		srs_error("refresh m3u8 failed. ret=%d", ret);
 		return ret;
 	}
-	
-	_is_open = false;
 	
 	return ret;
 }
@@ -1186,14 +1194,12 @@ void SrsHls::on_unpublish()
 {
 	int ret = ERROR_SUCCESS;
 	
-	if (muxer->is_open()) {
-		// close muxer when unpublish.
-		ret = ts_cache->flush_audio(muxer);
-		ret += muxer->segment_close();
+	// close muxer when unpublish.
+	ret = ts_cache->flush_audio(muxer);
+	ret += muxer->segment_close();
 
-		if (ret != ERROR_SUCCESS) {
-			srs_error("ignore m3u8 muxer flush/close audio failed. ret=%d", ret);
-		}
+	if (ret != ERROR_SUCCESS) {
+		srs_error("ignore m3u8 muxer flush/close audio failed. ret=%d", ret);
 	}
 	
 	hls_enabled = false;
