@@ -305,6 +305,19 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
 {
 	int ret = ERROR_SUCCESS;
 	
+	int max_connections = config->get_max_connections();
+	if ((int)conns.size() >= max_connections) {
+		int fd = st_netfd_fileno(client_stfd);
+		
+		srs_error("exceed the max connections, drop client: "
+			"clients=%d, max=%d, fd=%d", (int)conns.size(), max_connections, fd);
+			
+		st_netfd_close(client_stfd);
+		::close(fd);
+		
+		return ret;
+	}
+	
 	SrsConnection* conn = NULL;
 	if (type == SrsListenerStream) {
 		conn = new SrsClient(this, client_stfd);

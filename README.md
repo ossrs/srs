@@ -185,6 +185,9 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v0.8, 2013-12-06, support max_connections, drop if exceed.
+* v0.8, 2013-12-05, support log_dir, write ffmpeg log to file.
+* v0.8, 2013-12-05, fix the forward/hls/encoder bug.
 * v0.7, 2013-12-03, v0.7 released. 17605 lines.
 * v0.7, 2013-12-01, support dead-loop detect for forwarder and transcoder.
 * v0.7, 2013-12-01, support all ffmpeg filters and params.

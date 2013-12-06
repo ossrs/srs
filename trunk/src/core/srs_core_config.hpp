@@ -141,6 +141,7 @@ public:
 	virtual void			  get_engine_aparams(SrsConfDirective* engine, std::vector<std::string>& aparams);
 	virtual std::string 	  get_engine_output(SrsConfDirective* engine);
 	virtual std::string 	  get_log_dir();
+	virtual int			 	  get_max_connections();
 	virtual SrsConfDirective* get_gop_cache(std::string vhost);
 	virtual SrsConfDirective* get_forward(std::string vhost);
 	virtual SrsConfDirective* get_hls(std::string vhost);

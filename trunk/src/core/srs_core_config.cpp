@@ -916,6 +916,18 @@ std::string SrsConfig::get_log_dir()
 	return conf->arg0();
 }
 
+int SrsConfig::get_max_connections()
+{
+	srs_assert(root);
+	
+	SrsConfDirective* conf = root->get("max_connections");
+	if (!conf || conf->arg0().empty()) {
+		return 2000;
+	}
+	
+	return ::atoi(conf->arg0().c_str());
+}
+
 SrsConfDirective* SrsConfig::get_gop_cache(std::string vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
