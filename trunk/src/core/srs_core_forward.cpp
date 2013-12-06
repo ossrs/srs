@@ -316,6 +316,10 @@ int SrsForwarder::forward()
 			ret = client->send_message(msg);
 			if (ret != ERROR_SUCCESS) {
 				srs_error("forwarder send message to server failed. ret=%d", ret);
+		
+				// convert the index to count when error.
+				i++;
+				
 				break;
 			}
 		}
