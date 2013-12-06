@@ -126,16 +126,16 @@ Supported operating systems and hardware:
 16. support live stream transcoding by ffmpeg.<br/>
 17. support live stream transcoding by ffmpeg.<br/>
 18. support ffmpeg filters(logo/overlay/crop), x264 params.<br/>
-19. [plan] support network based cli and json result.<br/>
-20. [plan] support http callback api hooks(for authentication).<br/>
-21. [plan] support bandwidth test api and flash client.<br/>
-22. [plan] support adobe flash refer/token/swf verification.<br/>
-23. [plan] support adobe amf3 codec.<br/>
-24. [plan] support dvr(record live to vod file)<br/>
-25. [plan] support FMS edge protocol<br/>
-26. [plan] support encryption: RTMPE/RTMPS, HLS DRM<br/>
-27. [plan] support RTMPT, http to tranverse firewalls<br/>
-28. [plan] support audio transcode only, speex to aac<br/>
+19. [dev] support audio transcode only, speex/mp3 to aac<br/>
+20. [plan] support network based cli and json result.<br/>
+21. [plan] support http callback api hooks(for authentication).<br/>
+22. [plan] support bandwidth test api and flash client.<br/>
+23. [plan] support adobe flash refer/token/swf verification.<br/>
+24. [plan] support adobe amf3 codec.<br/>
+25. [plan] support dvr(record live to vod file)<br/>
+26. [plan] support FMS edge protocol<br/>
+27. [plan] support encryption: RTMPE/RTMPS, HLS DRM<br/>
+28. [plan] support RTMPT, http to tranverse firewalls<br/>
 29. [plan] support file source, transcoding file to live stream<br/>
 
 ### Performance

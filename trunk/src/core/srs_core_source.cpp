@@ -508,8 +508,13 @@ int SrsSource::on_audio(SrsCommonMessage* audio)
 	
 #ifdef SRS_HLS
 	if ((ret = hls->on_audio(msg->copy())) != ERROR_SUCCESS) {
-		srs_error("hls process audio message failed. ret=%d", ret);
-		return ret;
+		srs_warn("hls process audio message failed, ignore and disable hls. ret=%d", ret);
+		
+		// unpublish, ignore ret.
+		hls->on_unpublish();
+		
+		// ignore.
+		ret = ERROR_SUCCESS;
 	}
 #endif
 	
@@ -570,8 +575,13 @@ int SrsSource::on_video(SrsCommonMessage* video)
 	
 #ifdef SRS_HLS
 	if ((ret = hls->on_video(msg->copy())) != ERROR_SUCCESS) {
-		srs_error("hls process video message failed. ret=%d", ret);
-		return ret;
+		srs_warn("hls process video message failed, ignore and disable hls. ret=%d", ret);
+		
+		// unpublish, ignore ret.
+		hls->on_unpublish();
+		
+		// ignore.
+		ret = ERROR_SUCCESS;
 	}
 #endif
 	

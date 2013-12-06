@@ -1138,6 +1138,11 @@ SrsHls::~SrsHls()
 int SrsHls::on_publish(SrsRequest* req)
 {
 	int ret = ERROR_SUCCESS;
+	
+	// support multiple publish.
+	if (hls_enabled) {
+		return ret;
+	}
 
 	std::string vhost = req->vhost;
 	std::string stream = req->stream;
@@ -1193,6 +1198,11 @@ int SrsHls::on_publish(SrsRequest* req)
 void SrsHls::on_unpublish()
 {
 	int ret = ERROR_SUCCESS;
+	
+	// support multiple unpublish.
+	if (!hls_enabled) {
+		return;
+	}
 	
 	// close muxer when unpublish.
 	ret = ts_cache->flush_audio(muxer);
