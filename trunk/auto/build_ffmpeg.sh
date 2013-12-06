@@ -17,9 +17,6 @@ mkdir -p ${ff_release_dir}
 ff_yasm_bin=${ff_release_dir}/bin/yasm
 if [[ -f ${ff_yasm_bin} ]]; then 
     echo "yasm is ok"
-    # add yasm to path, for x264 to use yasm directly.
-    # ffmpeg can specifies the yasm path when configure it.
-    PATH=${PATH}:${ff_release_dir}/bin
 else
     echo "build yasm-1.2.0"
     cd $ff_current_dir &&
@@ -28,6 +25,9 @@ else
     make && make install
     ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build yasm-1.2.0 failed"; exit 1; fi
 fi
+# add yasm to path, for x264 to use yasm directly.
+# ffmpeg can specifies the yasm path when configure it.
+PATH=${PATH}:${ff_release_dir}/bin
 
 # libaacplus
 if [[ -f ${ff_release_dir}/lib/libaacplus.a ]]; then
