@@ -174,4 +174,7 @@ fi
 if [ $SRS_FFMPEG = YES ]; then
     echo -e "\" ./objs/ffmpeg/bin/ffmpeg  \" is used for live stream transcoding"
 fi
+if [ $SRS_HTTP = YES ]; then
+    echo -e "\" python ./research/api-server/server.py 8085  \" to start the api-server"
+fi
 echo "\" ./objs/simple_rtmp_server -c conf/srs.conf \" to start the srs live server"

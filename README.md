@@ -15,7 +15,7 @@ step 1: build srs <br/>
 <pre>
 tar xf simple-rtmp-server-*.*.tar.gz
 cd simple-rtmp-server-*.*/trunk
-./configure --with-ssl --with-hls --with-ffmpeg
+./configure --with-ssl --with-hls --with-ffmpeg --with-http
 make
 </pre>
 step 2: start srs <br/>
@@ -29,6 +29,10 @@ step 3(optinal): start srs listen at 19350 to forward to<br/>
 step 4(optional): start nginx for HLS <br/>
 <pre>
 sudo ./objs/nginx/sbin/nginx
+</pre>
+step 5(optional): start http hooks for srs callback <br/>
+<pre>
+python ./research/api-server/server.py 8085
 </pre>
 step 5: publish live stream <br/>
 <pre>
