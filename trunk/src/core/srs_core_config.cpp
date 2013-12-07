@@ -475,6 +475,8 @@ int SrsConfig::reload()
 		srs_trace("reload pithy_print success.");
 	}
 	
+	// TODO: suppor reload hls/forward/ffmpeg/http
+	
 	return ret;
 }
 
@@ -555,6 +557,22 @@ SrsConfDirective* SrsConfig::get_vhost(std::string vhost)
 	}
 	
 	return NULL;
+}
+
+std::string SrsConfig::get_vhost_on_connect(std::string vhost)
+{
+	SrsConfDirective* vhost_conf = get_vhost(vhost);
+
+	if (!vhost_conf) {
+		return "";
+	}
+	
+	SrsConfDirective* conf = vhost_conf->get("on_connect");
+	if (!conf) {
+		return "";
+	}
+	
+	return conf->arg0();
 }
 
 bool SrsConfig::get_vhost_enabled(std::string vhost)
@@ -1128,6 +1146,7 @@ int SrsConfig::parse_file(const char* filename)
 	// TODO: check hls.
 	// TODO: check ssl.
 	// TODO: check ffmpeg.
+	// TODO: check http.
 	
 	return ret;
 }

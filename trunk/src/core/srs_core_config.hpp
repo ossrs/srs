@@ -119,6 +119,7 @@ public:
 public:
 	virtual SrsConfDirective* get_vhost(std::string vhost);
 	virtual bool    		  get_vhost_enabled(std::string vhost);
+	virtual std::string		  get_vhost_on_connect(std::string vhost);
 	virtual SrsConfDirective* get_transcode(std::string vhost, std::string scope);
 	virtual bool    		  get_transcode_enabled(SrsConfDirective* transcode);
 	virtual std::string		  get_transcode_ffmpeg(SrsConfDirective* transcode);
