@@ -127,7 +127,7 @@ Supported operating systems and hardware:
 17. support live stream transcoding by ffmpeg.<br/>
 18. support ffmpeg filters(logo/overlay/crop), x264 params.<br/>
 19. support audio transcode only, speex/mp3 to aac<br/>
-20. [plan] support network based cli and json result.<br/>
+20. support network based cli and json result.<br/>
 21. [plan] support http callback api hooks(for authentication).<br/>
 22. [plan] support bandwidth test api and flash client.<br/>
 23. [plan] support adobe flash refer/token/swf verification.<br/>
@@ -185,6 +185,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v0.8, 2013-12-07, support network based cli and json result, add CherryPy 3.2.4.
 * v0.8, 2013-12-07, update http/hls/rtmp load test tool [st_load](https://github.com/winlinvip/st-load), use srs rtmp sdk.
 * v0.8, 2013-12-06, support max_connections, drop if exceed.
 * v0.8, 2013-12-05, support log_dir, write ffmpeg log to file.
