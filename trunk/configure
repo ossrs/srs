@@ -95,13 +95,18 @@ END
 # Libraries
 LibSTRoot="${SRS_OBJS}/st"
 LibSTfile="${LibSTRoot}/libst.a"
-LibHttpParserRoot="${SRS_OBJS}/hp"
-LibHttpParserfile="${LibHttpParserRoot}/libhttp_parser.a"
+if [ $SRS_HTTP = YES ]; then
+    LibHttpParserRoot="${SRS_OBJS}/hp"
+    LibHttpParserfile="${LibHttpParserRoot}/libhttp_parser.a"
+fi
 
 #Core Module
 MODULE_ID="CORE" 
 MODULE_DEPENDS=() 
-ModuleLibIncs=(${LibSTRoot} ${LibHttpParserRoot} ${SRS_OBJS})
+ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS})
+if [ $SRS_HTTP = YES ]; then
+    ModuleLibIncs="${ModuleLibIncs[@]} ${LibHttpParserRoot}"
+fi
 MODULE_FILES=("srs_core" "srs_core_log" "srs_core_server" 
         "srs_core_error" "srs_core_conn" "srs_core_client" 
         "srs_core_rtmp" "srs_core_socket" "srs_core_buffer"
@@ -109,7 +114,8 @@ MODULE_FILES=("srs_core" "srs_core_log" "srs_core_server"
         "srs_core_stream" "srs_core_source" "srs_core_codec"
         "srs_core_handshake" "srs_core_pithy_print"
         "srs_core_config" "srs_core_refer" "srs_core_reload"
-        "srs_core_hls" "srs_core_forward" "srs_core_encoder")
+        "srs_core_hls" "srs_core_forward" "srs_core_encoder"
+        "srs_core_http")
 MODULE_DIR="src/core" . auto/modules.sh
 CORE_OBJS="${MODULE_OBJS[@]}"
 
@@ -125,7 +131,10 @@ MAIN_OBJS="${MODULE_OBJS[@].o}"
 MAIN_ENTRANCES=("srs_main_server")
 
 # srs(simple rtmp server) over st(state-threads)
-ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile})
+ModuleLibFiles=(${LibSTfile})
+if [ $SRS_HTTP = YES ]; then
+    ModuleLibFiles="${ModuleLibFiles[@]} ${LibHttpParserfile}"
+fi
 MODULE_OBJS="${CORE_OBJS[@]} ${CONFIG_OBJS[@]} ${PROTOCOL_OBJS[@]} ${MAIN_OBJS[@]}"
 if [ $SRS_SSL = YES ]; then
     LINK_OPTIONS="-ldl -lssl -lcrypto"

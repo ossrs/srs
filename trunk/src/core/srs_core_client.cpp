@@ -242,6 +242,15 @@ int SrsClient::check_vhost()
 		req->vhost = vhost->arg0();
 	}
 	
+#ifdef SRS_HTTP	
+	// HTTP: on_connect
+	std::string on_connect = config->get_vhost_on_connect(req->vhost);
+	if (on_connect.empty()) {
+		srs_info("ignore the empty http callback: on_connect");
+		return ret;
+	}
+#endif
+	
 	return ret;
 }
 

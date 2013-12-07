@@ -22,6 +22,8 @@ file
 	..\core\srs_core_conn.cpp,
 	..\core\srs_core_client.hpp,
 	..\core\srs_core_client.cpp,
+        ..\core\srs_core_http.hpp,
+        ..\core\srs_core_http.cpp,
 	..\core\srs_core_source.hpp,
 	..\core\srs_core_source.cpp,
 	..\core\srs_core_forward.hpp,
