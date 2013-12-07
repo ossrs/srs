@@ -15,6 +15,15 @@ BLACK="\\e[0m"
 # parse user options.
 . auto/options.sh
 
+# if specifies http, requires sudo to install the CherryPy.
+if [ $SRS_HTTP = YES ]; then
+    sudo echo "" >/dev/null 2>&1
+    ret=$?; if [[ 0 -ne $ret ]]; then echo 
+        "--with-http requires sudoer, ret=$ret"; 
+        exit $ret; 
+    fi
+fi
+
 # clean the exists
 if [[ -f Makefile ]]; then
     make clean
@@ -22,6 +31,8 @@ fi
 
 # generate the audo headers file.
 echo "#define SRS_CONFIGURE \"${SRS_CONFIGURE}\"" > $SRS_AUTO_HEADERS_H
+echo "#define SRS_BUILD_DATE \"`date \"+%Y-%m-%d %H:%M:%S\"`\"" >> $SRS_AUTO_HEADERS_H
+echo "#define SRS_BUILD_TS \"`date +%s`\"" >> $SRS_AUTO_HEADERS_H
 
 # apply user options.
 . auto/depends.sh
@@ -142,6 +153,11 @@ if [ $SRS_FFMPEG = YES ]; then
     echo -e "${GREEN}live stream transcoding over FFMPEG is enabled${BLACK}"
 else
     echo -e "${YELLOW}warning: without live stream transcoding over FFMPEG support${BLACK}"
+fi
+if [ $SRS_HTTP = YES ]; then
+    echo -e "${GREEN}http hooks callback over CherryPy is enabled${BLACK}"
+else
+    echo -e "${YELLOW}warning: without http hooks callback over CherryPy support${BLACK}"
 fi
 
 # mkdir dirs

@@ -7,6 +7,9 @@ nginx-1.5.7.zip
 st-1.9.zip
     basic framework for srs.
 
+CherryPy-3.2.4.zip
+    sample api server for srs.
+
 ffmpeg-2.1.1.tar.gz
 yasm-1.2.0.tar.gz
 lame-3.99.5.tar.gz
@@ -38,4 +41,7 @@ links:
     yasm:
         http://yasm.tortall.net/
         http://www.tortall.net/projects/yasm/releases/yasm-1.2.0.tar.gz
+    cherrypy:
+        http://www.cherrypy.org/
+        https://pypi.python.org/pypi/CherryPy/3.2.4
 

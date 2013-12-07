@@ -1182,7 +1182,7 @@ void SrsConfig::print_help(char** argv)
 	printf(RTMP_SIG_SRS_NAME" "RTMP_SIG_SRS_VERSION
 		" Copyright (c) 2013 winlin\n"
 		"Contributors: "RTMP_SIG_SRS_CONTRIBUTOR"\n"
-		"Configuration: "SRS_CONFIGURE"\n"
+		"Build: "SRS_BUILD_DATE" Configuration: "SRS_CONFIGURE"\n"
 		"Usage: %s [-h?vV] [-c <filename>]\n" 
 		"\n"
 		"Options:\n"

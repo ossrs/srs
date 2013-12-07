@@ -66,7 +66,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	(void)0
 
 // current release version
-#define RTMP_SIG_SRS_VERSION "0.5.0"
+#define RTMP_SIG_SRS_VERSION "0.8.0"
 // server info.
 #define RTMP_SIG_SRS_KEY "srs"
 #define RTMP_SIG_SRS_ROLE "origin server"
