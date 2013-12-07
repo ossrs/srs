@@ -29,13 +29,18 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
+#ifdef SRS_HTTP
+
 class SrsRequest;
+class SrsSocket;
 
 #include <string>
 
-#ifdef SRS_HTTP
-
+#include <st.h>
 #include <http_parser.h>
+
+#define SRS_HTTP_HEADER_BUFFER		1024
+#define SRS_HTTP_BODY_BUFFER		32 * 1024
 
 /**
 * used to resolve the http uri.
@@ -61,6 +66,7 @@ public:
     virtual const char* get_schema();
     virtual const char* get_host();
     virtual int get_port();
+    virtual const char* get_path();
 private:
     /**
     * get the parsed url field.
@@ -74,6 +80,11 @@ private:
 */
 class SrsHttpClient
 {
+private:
+	bool connected;
+	st_netfd_t stfd;
+private:
+    http_parser http_header;
 public:
 	SrsHttpClient();
 	virtual ~SrsHttpClient();
@@ -84,6 +95,17 @@ public:
 	* @param res the response data from server.
 	*/
 	virtual int post(SrsHttpUri* uri, std::string req, std::string& res);
+private:
+	virtual void disconnect();
+	virtual int connect(SrsHttpUri* uri);
+private:
+    virtual int parse_response(SrsHttpUri* uri, SrsSocket* skt, std::string* response);
+    virtual int parse_response_header(SrsSocket* skt, std::string* response, int& body_received);
+    virtual int parse_response_body(SrsHttpUri* uri, SrsSocket* skt, std::string* response, int body_received);
+    virtual int parse_response_body_data(SrsHttpUri* uri, SrsSocket* skt, std::string* response, size_t body_left, const void* buf, size_t size);
+private:
+    static int on_headers_complete(http_parser* parser);
+    virtual void comple_header(http_parser* parser);
 };
 
 /**

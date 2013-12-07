@@ -49,14 +49,53 @@ if len(sys.argv) <= 1:
     print "See also: https://github.com/winlinvip/simple-rtmp-server"
     sys.exit(1)
 
-import datetime, cherrypy
+import json, datetime, cherrypy
 
 def trace(msg):
     date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print "[%s][trace] %s"%(date, msg)
 
+def enable_crossdomain():
+    cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
+    cherrypy.response.headers["Access-Control-Allow-Methods"] = "GET, POST, HEAD, PUT, DELETE"
+    # generate allow headers for crossdomain.
+    allow_headers = ["Cache-Control", "X-Proxy-Authorization", "X-Requested-With", "Content-Type"]
+    cherrypy.response.headers["Access-Control-Allow-Headers"] = ",".join(allow_headers)
+
+class Error:
+    # ok, success, completed.
+    success = 0
+    # error when parse json
+    system_parse_json = 100
+
+'''
+handle the clients requests:
+POST: create new client, handle the SRS on_connect callback.
+'''
 class RESTClients(object):
-    pass;
+    exposed = True
+    def GET(self):
+        enable_crossdomain();
+
+        clients = {};
+        return json.dumps(clients);
+
+    def POST(self):
+        enable_crossdomain();
+
+        req = cherrypy.request.body.read();
+        trace("post to clients, req=%s"%(req));
+        try:
+            json_req = json.loads(req)
+        except Exception, ex:
+            trace("parse the request to json failed, req=%s, ex=%s"%(req, ex))
+            return str(Error.system_parse_json);
+
+        trace("valid clients post request success.")
+        return str(Error.success);
+
+    def OPTIONS(self):
+        enable_crossdomain()
 
 class Root(object):
     def __init__(self):
