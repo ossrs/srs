@@ -39,6 +39,9 @@ class SrsSource;
 class SrsRefer;
 class SrsConsumer;
 class SrsCommonMessage;
+#ifdef SRS_HTTP	
+class SrsHttpHooks;
+#endif
 
 /**
 * the client provides the main logic control for RTMP clients.
@@ -51,6 +54,9 @@ private:
 	SrsResponse* res;
 	SrsRtmp* rtmp;
 	SrsRefer* refer;
+#ifdef SRS_HTTP	
+	SrsHttpHooks* http_hooks;
+#endif
 public:
 	SrsClient(SrsServer* srs_server, st_netfd_t client_stfd);
 	virtual ~SrsClient();

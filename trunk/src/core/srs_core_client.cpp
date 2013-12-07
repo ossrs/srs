@@ -37,6 +37,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_config.hpp>
 #include <srs_core_refer.hpp>
 #include <srs_core_hls.hpp>
+#include <srs_core_http.hpp>
 
 #define SRS_PULSE_TIMEOUT_MS 100
 #define SRS_SEND_TIMEOUT_US 5000000L
@@ -51,6 +52,9 @@ SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
 	res = new SrsResponse();
 	rtmp = new SrsRtmp(client_stfd);
 	refer = new SrsRefer();
+#ifdef SRS_HTTP	
+	http_hooks = new SrsHttpHooks();
+#endif
 }
 
 SrsClient::~SrsClient()
@@ -60,6 +64,9 @@ SrsClient::~SrsClient()
 	srs_freep(res);
 	srs_freep(rtmp);
 	srs_freep(refer);
+#ifdef SRS_HTTP	
+	srs_freep(http_hooks);
+#endif
 }
 
 // TODO: return detail message when error for client.
@@ -247,6 +254,11 @@ int SrsClient::check_vhost()
 	std::string on_connect = config->get_vhost_on_connect(req->vhost);
 	if (on_connect.empty()) {
 		srs_info("ignore the empty http callback: on_connect");
+		return ret;
+	}
+	
+	if ((ret = http_hooks->on_connect(on_connect, ip, req)) != ERROR_SUCCESS) {
+		srs_error("hook client failed. ret=%d", ret);
 		return ret;
 	}
 #endif
