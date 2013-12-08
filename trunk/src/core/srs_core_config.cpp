@@ -575,6 +575,11 @@ SrsConfDirective* SrsConfig::get_vhost_on_connect(std::string vhost)
 		return NULL;
 	}
 	
+	SrsConfDirective* enabled = conf->get("enabled");
+	if (!enabled || enabled->arg0() != "on") {
+		return NULL;
+	}
+	
 	return conf->get("on_connect");
 }
 
@@ -588,6 +593,11 @@ SrsConfDirective* SrsConfig::get_vhost_on_close(std::string vhost)
 	
 	conf = conf->get("http_hooks");
 	if (!conf) {
+		return NULL;
+	}
+	
+	SrsConfDirective* enabled = conf->get("enabled");
+	if (!enabled || enabled->arg0() != "on") {
 		return NULL;
 	}
 	
@@ -607,6 +617,11 @@ SrsConfDirective* SrsConfig::get_vhost_on_publish(std::string vhost)
 		return NULL;
 	}
 	
+	SrsConfDirective* enabled = conf->get("enabled");
+	if (!enabled || enabled->arg0() != "on") {
+		return NULL;
+	}
+	
 	return conf->get("on_publish");
 }
 
@@ -620,6 +635,11 @@ SrsConfDirective* SrsConfig::get_vhost_on_unpublish(std::string vhost)
 	
 	conf = conf->get("http_hooks");
 	if (!conf) {
+		return NULL;
+	}
+	
+	SrsConfDirective* enabled = conf->get("enabled");
+	if (!enabled || enabled->arg0() != "on") {
 		return NULL;
 	}
 	
@@ -639,6 +659,11 @@ SrsConfDirective* SrsConfig::get_vhost_on_play(std::string vhost)
 		return NULL;
 	}
 	
+	SrsConfDirective* enabled = conf->get("enabled");
+	if (!enabled || enabled->arg0() != "on") {
+		return NULL;
+	}
+	
 	return conf->get("on_play");
 }
 
@@ -652,6 +677,11 @@ SrsConfDirective* SrsConfig::get_vhost_on_stop(std::string vhost)
 	
 	conf = conf->get("http_hooks");
 	if (!conf) {
+		return NULL;
+	}
+	
+	SrsConfDirective* enabled = conf->get("enabled");
+	if (!enabled || enabled->arg0() != "on") {
 		return NULL;
 	}
 	
