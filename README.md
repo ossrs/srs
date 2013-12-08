@@ -128,7 +128,7 @@ Supported operating systems and hardware:
 14. support forward publish stream to build active-standby cluster.<br/>
 15. support broadcast by forward the stream to other servers(origin/edge).<br/>
 16. support live stream transcoding by ffmpeg.<br/>
-17. support live stream transcoding by ffmpeg.<br/>
+17. support live stream forward(acopy/vcopy) by ffmpeg.<br/>
 18. support ffmpeg filters(logo/overlay/crop), x264 params.<br/>
 19. support audio transcode only, speex/mp3 to aac<br/>
 20. support http callback api hooks(for authentication and injection).<br/>
