@@ -251,15 +251,18 @@ int SrsClient::check_vhost()
 	
 #ifdef SRS_HTTP	
 	// HTTP: on_connect
-	std::string on_connect = config->get_vhost_on_connect(req->vhost);
-	if (on_connect.empty()) {
+	SrsConfDirective* on_connect = config->get_vhost_on_connect(req->vhost);
+	if (!on_connect) {
 		srs_info("ignore the empty http callback: on_connect");
 		return ret;
 	}
 	
-	if ((ret = http_hooks->on_connect(on_connect, ip, req)) != ERROR_SUCCESS) {
-		srs_error("hook client failed. ret=%d", ret);
-		return ret;
+	for (int i = 0; i < (int)on_connect->args.size(); i++) {
+		std::string url = on_connect->args.at(i);
+		if ((ret = http_hooks->on_connect(url, ip, req)) != ERROR_SUCCESS) {
+			srs_error("hook client failed. url=%s, ret=%d", url.c_str(), ret);
+			return ret;
+		}
 	}
 #endif
 	
