@@ -120,6 +120,11 @@ public:
 	virtual SrsConfDirective* get_vhost(std::string vhost);
 	virtual bool    		  get_vhost_enabled(std::string vhost);
 	virtual SrsConfDirective* get_vhost_on_connect(std::string vhost);
+	virtual SrsConfDirective* get_vhost_on_close(std::string vhost);
+	virtual SrsConfDirective* get_vhost_on_publish(std::string vhost);
+	virtual SrsConfDirective* get_vhost_on_unpublish(std::string vhost);
+	virtual SrsConfDirective* get_vhost_on_play(std::string vhost);
+	virtual SrsConfDirective* get_vhost_on_stop(std::string vhost);
 	virtual SrsConfDirective* get_transcode(std::string vhost, std::string scope);
 	virtual bool    		  get_transcode_enabled(SrsConfDirective* transcode);
 	virtual std::string		  get_transcode_ffmpeg(SrsConfDirective* transcode);

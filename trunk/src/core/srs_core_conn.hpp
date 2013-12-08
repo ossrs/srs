@@ -38,6 +38,7 @@ class SrsConnection
 protected:
 	SrsServer* server;
 	st_netfd_t stfd;
+	int connection_id;
 public:
 	SrsConnection(SrsServer* srs_server, st_netfd_t client_stfd);
 	virtual ~SrsConnection();

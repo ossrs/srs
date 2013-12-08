@@ -120,12 +120,50 @@ public:
 	virtual ~SrsHttpHooks();
 public:
 	/**
-	* on_connect hook,
+	* on_connect hook, when client connect to srs.
+	* @param client_id the id of client on server.
 	* @param url the api server url, to valid the client. 
 	* 		ignore if empty.
 	* @return valid failed or connect to the url failed.
 	*/
-	virtual int on_connect(std::string url, std::string ip, SrsRequest* req);
+	virtual int on_connect(std::string url, int client_id, std::string ip, SrsRequest* req);
+	/**
+	* on_close hook, when client disconnect to srs, where client is valid by on_connect.
+	* @param client_id the id of client on server.
+	* @param url the api server url, to process the event. 
+	* 		ignore if empty.
+	*/
+	virtual void on_close(std::string url, int client_id, std::string ip, SrsRequest* req);
+	/**
+	* on_publish hook, when client(encoder) start to publish stream
+	* @param client_id the id of client on server.
+	* @param url the api server url, to valid the client. 
+	* 		ignore if empty.
+	* @return valid failed or connect to the url failed.
+	*/
+	virtual int on_publish(std::string url, int client_id, std::string ip, SrsRequest* req);
+	/**
+	* on_unpublish hook, when client(encoder) stop publish stream.
+	* @param client_id the id of client on server.
+	* @param url the api server url, to process the event. 
+	* 		ignore if empty.
+	*/
+	virtual void on_unpublish(std::string url, int client_id, std::string ip, SrsRequest* req);
+	/**
+	* on_play hook, when client start to play stream.
+	* @param client_id the id of client on server.
+	* @param url the api server url, to valid the client. 
+	* 		ignore if empty.
+	* @return valid failed or connect to the url failed.
+	*/
+	virtual int on_play(std::string url, int client_id, std::string ip, SrsRequest* req);
+	/**
+	* on_stop hook, when client stop to play the stream.
+	* @param client_id the id of client on server.
+	* @param url the api server url, to process the event. 
+	* 		ignore if empty.
+	*/
+	virtual void on_stop(std::string url, int client_id, std::string ip, SrsRequest* req);
 };
 
 #endif

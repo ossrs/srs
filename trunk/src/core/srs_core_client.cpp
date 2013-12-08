@@ -108,12 +108,16 @@ int SrsClient::do_cycle()
 		req->schema.c_str(), req->vhost.c_str(), req->port.c_str(),
 		req->app.c_str());
 	
-	if ((ret = refer->check(req->pageUrl, config->get_refer(req->vhost))) != ERROR_SUCCESS) {
-		srs_error("check refer failed. ret=%d", ret);
-		return ret;
-	}
-	srs_verbose("check refer success.");
-		
+	ret = service_cycle();
+	on_close();
+	
+	return ret;
+}
+	
+int SrsClient::service_cycle()
+{	
+	int ret = ERROR_SUCCESS;
+	
 	if ((ret = rtmp->set_window_ack_size(2.5 * 1000 * 1000)) != ERROR_SUCCESS) {
 		srs_error("set window acknowledgement size failed. ret=%d", ret);
 		return ret;
@@ -188,8 +192,14 @@ int SrsClient::do_cycle()
 				srs_error("start to play stream failed. ret=%d", ret);
 				return ret;
 			}
+			if ((ret = on_play()) != ERROR_SUCCESS) {
+				srs_error("http hook on_play failed. ret=%d", ret);
+				return ret;
+			}
 			srs_info("start to play stream %s success", req->stream.c_str());
-			return playing(source);
+			ret = playing(source);
+			on_stop();
+			return ret;
 		}
 		case SrsClientFMLEPublish: {
 			srs_verbose("FMLE start to publish stream %s.", req->stream.c_str());
@@ -198,9 +208,14 @@ int SrsClient::do_cycle()
 				srs_error("start to publish stream failed. ret=%d", ret);
 				return ret;
 			}
+			if ((ret = on_publish()) != ERROR_SUCCESS) {
+				srs_error("http hook on_publish failed. ret=%d", ret);
+				return ret;
+			}
 			srs_info("start to publish stream %s success", req->stream.c_str());
 			ret = publish(source, true);
 			source->on_unpublish();
+			on_unpublish();
 			return ret;
 		}
 		case SrsClientFlashPublish: {
@@ -210,9 +225,14 @@ int SrsClient::do_cycle()
 				srs_error("flash start to publish stream failed. ret=%d", ret);
 				return ret;
 			}
+			if ((ret = on_publish()) != ERROR_SUCCESS) {
+				srs_error("http hook on_publish failed. ret=%d", ret);
+				return ret;
+			}
 			srs_info("flash start to publish stream %s success", req->stream.c_str());
 			ret = publish(source, false);
 			source->on_unpublish();
+			on_unpublish();
 			return ret;
 		}
 		default: {
@@ -249,22 +269,15 @@ int SrsClient::check_vhost()
 		req->vhost = vhost->arg0();
 	}
 	
-#ifdef SRS_HTTP	
-	// HTTP: on_connect 
-	SrsConfDirective* on_connect = config->get_vhost_on_connect(req->vhost);
-	if (!on_connect) {
-		srs_info("ignore the empty http callback: on_connect");
+	if ((ret = refer->check(req->pageUrl, config->get_refer(req->vhost))) != ERROR_SUCCESS) {
+		srs_error("check refer failed. ret=%d", ret);
 		return ret;
 	}
+	srs_verbose("check refer success.");
 	
-	for (int i = 0; i < (int)on_connect->args.size(); i++) {
-		std::string url = on_connect->args.at(i);
-		if ((ret = http_hooks->on_connect(url, ip, req)) != ERROR_SUCCESS) {
-			srs_error("hook client failed. url=%s, ret=%d", url.c_str(), ret);
-			return ret;
-		}
+	if ((ret = on_connect()) != ERROR_SUCCESS) {
+		return ret;
 	}
-#endif
 	
 	return ret;
 }
@@ -543,5 +556,131 @@ int SrsClient::process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage*
 	srs_info("process pause success, is_pause=%d, time=%d.", pause->is_pause, pause->time_ms);
 	
     return ret;
+}
+
+int SrsClient::on_connect()
+{
+	int ret = ERROR_SUCCESS;
+	
+#ifdef SRS_HTTP	
+	// HTTP: on_connect 
+	SrsConfDirective* on_connect = config->get_vhost_on_connect(req->vhost);
+	if (!on_connect) {
+		srs_info("ignore the empty http callback: on_connect");
+		return ret;
+	}
+	
+	for (int i = 0; i < (int)on_connect->args.size(); i++) {
+		std::string url = on_connect->args.at(i);
+		if ((ret = http_hooks->on_connect(url, connection_id, ip, req)) != ERROR_SUCCESS) {
+			srs_error("hook client on_connect failed. url=%s, ret=%d", url.c_str(), ret);
+			return ret;
+		}
+	}
+#endif
+
+    return ret;
+}
+
+void SrsClient::on_close()
+{
+#ifdef SRS_HTTP
+	// whatever the ret code, notify the api hooks.
+	// HTTP: on_close 
+	SrsConfDirective* on_close = config->get_vhost_on_close(req->vhost);
+	if (!on_close) {
+		srs_info("ignore the empty http callback: on_close");
+		return;
+	}
+	
+	for (int i = 0; i < (int)on_close->args.size(); i++) {
+		std::string url = on_close->args.at(i);
+		http_hooks->on_close(url, connection_id, ip, req);
+	}
+#endif
+}
+
+int SrsClient::on_publish()
+{
+	int ret = ERROR_SUCCESS;
+	
+#ifdef SRS_HTTP	
+	// HTTP: on_publish 
+	SrsConfDirective* on_publish = config->get_vhost_on_publish(req->vhost);
+	if (!on_publish) {
+		srs_info("ignore the empty http callback: on_publish");
+		return ret;
+	}
+	
+	for (int i = 0; i < (int)on_publish->args.size(); i++) {
+		std::string url = on_publish->args.at(i);
+		if ((ret = http_hooks->on_publish(url, connection_id, ip, req)) != ERROR_SUCCESS) {
+			srs_error("hook client on_publish failed. url=%s, ret=%d", url.c_str(), ret);
+			return ret;
+		}
+	}
+#endif
+
+    return ret;
+}
+
+void SrsClient::on_unpublish()
+{
+#ifdef SRS_HTTP
+	// whatever the ret code, notify the api hooks.
+	// HTTP: on_unpublish 
+	SrsConfDirective* on_unpublish = config->get_vhost_on_unpublish(req->vhost);
+	if (!on_unpublish) {
+		srs_info("ignore the empty http callback: on_unpublish");
+		return;
+	}
+	
+	for (int i = 0; i < (int)on_unpublish->args.size(); i++) {
+		std::string url = on_unpublish->args.at(i);
+		http_hooks->on_unpublish(url, connection_id, ip, req);
+	}
+#endif
+}
+
+int SrsClient::on_play()
+{
+	int ret = ERROR_SUCCESS;
+	
+#ifdef SRS_HTTP	
+	// HTTP: on_play 
+	SrsConfDirective* on_play = config->get_vhost_on_play(req->vhost);
+	if (!on_play) {
+		srs_info("ignore the empty http callback: on_play");
+		return ret;
+	}
+	
+	for (int i = 0; i < (int)on_play->args.size(); i++) {
+		std::string url = on_play->args.at(i);
+		if ((ret = http_hooks->on_play(url, connection_id, ip, req)) != ERROR_SUCCESS) {
+			srs_error("hook client on_play failed. url=%s, ret=%d", url.c_str(), ret);
+			return ret;
+		}
+	}
+#endif
+
+    return ret;
+}
+
+void SrsClient::on_stop()
+{
+#ifdef SRS_HTTP
+	// whatever the ret code, notify the api hooks.
+	// HTTP: on_stop 
+	SrsConfDirective* on_stop = config->get_vhost_on_stop(req->vhost);
+	if (!on_stop) {
+		srs_info("ignore the empty http callback: on_stop");
+		return;
+	}
+	
+	for (int i = 0; i < (int)on_stop->args.size(); i++) {
+		std::string url = on_stop->args.at(i);
+		http_hooks->on_stop(url, connection_id, ip, req);
+	}
+#endif
 }
 

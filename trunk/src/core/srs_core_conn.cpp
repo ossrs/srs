@@ -31,6 +31,7 @@ SrsConnection::SrsConnection(SrsServer* srs_server, st_netfd_t client_stfd)
 {
 	server = srs_server;
 	stfd = client_stfd;
+	connection_id = 0;
 }
 
 SrsConnection::~SrsConnection()
@@ -65,6 +66,8 @@ void SrsConnection::cycle()
 	int ret = ERROR_SUCCESS;
 	
 	log_context->generate_id();
+	connection_id = log_context->get_id();
+	
 	ret = do_cycle();
 	
 	// if socket io error, set to closed.

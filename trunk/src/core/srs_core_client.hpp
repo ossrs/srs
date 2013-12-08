@@ -63,12 +63,21 @@ public:
 protected:
 	virtual int do_cycle();
 private:
+	// when valid and connected to vhost/app, service the client.
+	virtual int service_cycle();
 	virtual int check_vhost();
 	virtual int playing(SrsSource* source);
 	virtual int publish(SrsSource* source, bool is_fmle);
 	virtual int process_publish_message(SrsSource* source, SrsCommonMessage* msg, bool is_fmle);
 	virtual int get_peer_ip();
 	virtual int process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage* msg);
+private:
+	virtual int on_connect();
+	virtual void on_close();
+	virtual int on_publish();
+	virtual void on_unpublish();
+	virtual int on_play();
+	virtual void on_stop();
 };
 
 #endif

@@ -578,6 +578,86 @@ SrsConfDirective* SrsConfig::get_vhost_on_connect(std::string vhost)
 	return conf->get("on_connect");
 }
 
+SrsConfDirective* SrsConfig::get_vhost_on_close(std::string vhost)
+{
+	SrsConfDirective* conf = get_vhost(vhost);
+
+	if (!conf) { 
+		return NULL;
+	}
+	
+	conf = conf->get("http_hooks");
+	if (!conf) {
+		return NULL;
+	}
+	
+	return conf->get("on_close");
+}
+
+SrsConfDirective* SrsConfig::get_vhost_on_publish(std::string vhost)
+{
+	SrsConfDirective* conf = get_vhost(vhost);
+
+	if (!conf) { 
+		return NULL;
+	}
+	
+	conf = conf->get("http_hooks");
+	if (!conf) {
+		return NULL;
+	}
+	
+	return conf->get("on_publish");
+}
+
+SrsConfDirective* SrsConfig::get_vhost_on_unpublish(std::string vhost)
+{
+	SrsConfDirective* conf = get_vhost(vhost);
+
+	if (!conf) { 
+		return NULL;
+	}
+	
+	conf = conf->get("http_hooks");
+	if (!conf) {
+		return NULL;
+	}
+	
+	return conf->get("on_unpublish");
+}
+
+SrsConfDirective* SrsConfig::get_vhost_on_play(std::string vhost)
+{
+	SrsConfDirective* conf = get_vhost(vhost);
+
+	if (!conf) { 
+		return NULL;
+	}
+	
+	conf = conf->get("http_hooks");
+	if (!conf) {
+		return NULL;
+	}
+	
+	return conf->get("on_play");
+}
+
+SrsConfDirective* SrsConfig::get_vhost_on_stop(std::string vhost)
+{
+	SrsConfDirective* conf = get_vhost(vhost);
+
+	if (!conf) { 
+		return NULL;
+	}
+	
+	conf = conf->get("http_hooks");
+	if (!conf) {
+		return NULL;
+	}
+	
+	return conf->get("on_stop");
+}
+
 bool SrsConfig::get_vhost_enabled(std::string vhost)
 {
 	SrsConfDirective* vhost_conf = get_vhost(vhost);
