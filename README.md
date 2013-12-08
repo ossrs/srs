@@ -180,13 +180,13 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * 2013-10-17, created.<br/>
 
 ### Compare
-* srs v0.8: 19186 lines. implements http hooks refer to nginx-rtmp. <br/>
-* srs v0.7: 17605 lines. implements transcoding(FFMPEG) feature refer to wowza. <br/>
+* srs v0.8: 19186 lines. implements http hooks refer to [nginx-rtmp](https://github.com/arut/nginx-rtmp-module). <br/>
+* srs v0.7: 17605 lines. implements transcoding(FFMPEG) feature refer to [wowza](http://www.wowza.com). <br/>
 * srs v0.6: 16094 lines. important feature forward for CDN. <br/>
-* srs v0.5: 14449 lines. implements HLS feature refer to nginx-rtmp. <br/>
+* srs v0.5: 14449 lines. implements HLS feature refer to [nginx-rtmp](https://github.com/arut/nginx-rtmp-module). <br/>
 * srs v0.4: 12500 lines. important feature reload for CDN. <br/>
-* srs v0.3: 11773 lines. implements vhost feature refer to FMS. <br/>
-* srs v0.2: 10125 lines. implements rtmp protocol stack refer to nginx-rtmp. <br/>
+* srs v0.3: 11773 lines. implements vhost feature refer to [FMS](http://www.adobe.com/products/adobe-media-server-family.html). <br/>
+* srs v0.2: 10125 lines. implements rtmp protocol stack refer to [nginx-rtmp](https://github.com/arut/nginx-rtmp-module). <br/>
 * srs v0.1: 8287 lines. base on state-threads. <br/>
 * nginx-rtmp v1.0.4: 26786 lines <br/>
 * nginx v1.5.0: 139524 lines <br/>
