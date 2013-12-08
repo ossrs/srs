@@ -28,13 +28,13 @@ when srs get some event, for example, when client connect
 to srs, srs can invoke the http api of the api-server
 """
 
-import sys;
+import sys
 # reload sys model to enable the getdefaultencoding method.
-reload(sys);
+reload(sys)
 # set the default encoding to utf-8
 # using exec to set the encoding, to avoid error in IDE.
-exec("sys.setdefaultencoding('utf-8')");
-assert sys.getdefaultencoding().lower() == "utf-8";
+exec("sys.setdefaultencoding('utf-8')")
+assert sys.getdefaultencoding().lower() == "utf-8"
 
 import json, datetime, cherrypy
 
@@ -66,25 +66,46 @@ class RESTClients(object):
     exposed = True
 
     def GET(self):
-        enable_crossdomain();
+        enable_crossdomain()
 
-        clients = {};
-        return json.dumps(clients);
+        clients = {}
+        return json.dumps(clients)
 
-    # for SRS hook: on_connect
+    '''
+    for SRS hook: on_connect
+    when client connect to vhost/app, call the hook,
+    the request in the POST data string is a object encode by json:
+          {
+              "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
+              "pageUrl": "http://www.test.com/live.html"
+          }
+    if valid, the hook must return HTTP code 200(Stauts OK) and response
+    an int value specifies the error code(0 corresponding to success):
+          0
+    '''
     def POST(self):
-        enable_crossdomain();
+        enable_crossdomain()
 
-        req = cherrypy.request.body.read();
-        trace("post to clients, req=%s"%(req));
+        # return the error code in str
+        ret = Error.success
+
+        req = cherrypy.request.body.read()
+        trace("post to clients, req=%s"%(req))
         try:
             json_req = json.loads(req)
         except Exception, ex:
-            trace("parse the request to json failed, req=%s, ex=%s"%(req, ex))
-            return str(Error.system_parse_json);
+            ret = Error.system_parse_json
+            trace("parse the request to json failed, req=%s, ex=%s, ret=%s"%(req, ex, ret))
+            return str(ret)
+
+        trace("srs on_connect: client ip=%s, vhost=%s, app=%s, pageUrl=%s"%(
+            json_req["ip"], json_req["vhost"], json_req["app"], json_req["pageUrl"]
+        ))
+
+        # TODO: valid the client.
 
         trace("valid clients post request success.")
-        return str(Error.success);
+        return str(ret)
 
     def OPTIONS(self):
         enable_crossdomain()
@@ -108,7 +129,7 @@ main code start.
 '''
 # donot support use this module as library.
 if __name__ != "__main__":
-    raise Exception("embed not support");
+    raise Exception("embed not support")
 
 # check the user options
 if len(sys.argv) <= 1:
