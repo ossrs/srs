@@ -169,6 +169,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 </pre>
 
 ### Releases
+* 2013-12-08, [release v0.8](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.8), support http hooks callback, update st-load. 19186 lines.<br/>
 * 2013-12-03, [release v0.7](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.7), support live stream transcoding. 17605 lines.<br/>
 * 2013-11-29, [release v0.6](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.6), support forward stream to origin/edge. 16094 lines.<br/>
 * 2013-11-26, [release v0.5](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.5), support HLS(m3u8), fragment and window. 14449 lines.<br/>
@@ -179,6 +180,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * 2013-10-17, created.<br/>
 
 ### Compare
+* srs v0.8: 19186 lines.<br/>
 * srs v0.7: 17605 lines.<br/>
 * srs v0.6: 16094 lines.<br/>
 * srs v0.5: 14449 lines.<br/>
@@ -190,6 +192,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v0.8, 2013-12-08, v0.8 released. 19186 lines.
 * v0.8, 2013-12-08, support http hooks: on_connect/close/publish/unpublish/play/stop.
 * v0.8, 2013-12-08, support multiple http hooks for a event.
 * v0.8, 2013-12-07, support http callback hooks, on_connect.
