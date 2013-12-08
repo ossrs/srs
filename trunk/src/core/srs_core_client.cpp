@@ -250,7 +250,7 @@ int SrsClient::check_vhost()
 	}
 	
 #ifdef SRS_HTTP	
-	// HTTP: on_connect
+	// HTTP: on_connect 
 	SrsConfDirective* on_connect = config->get_vhost_on_connect(req->vhost);
 	if (!on_connect) {
 		srs_info("ignore the empty http callback: on_connect");

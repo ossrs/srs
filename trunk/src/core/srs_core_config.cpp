@@ -566,7 +566,7 @@ SrsConfDirective* SrsConfig::get_vhost_on_connect(std::string vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
 
-	if (!conf) {
+	if (!conf) { 
 		return NULL;
 	}
 	

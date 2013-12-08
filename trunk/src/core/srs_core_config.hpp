@@ -79,7 +79,7 @@ public:
 	SrsConfDirective();
 	virtual ~SrsConfDirective();
 	std::string arg0();
-	std::string arg1();
+	std::string arg1(); 
 	std::string arg2();
 	SrsConfDirective* at(int index);
 	SrsConfDirective* get(std::string _name);
