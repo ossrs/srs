@@ -3,6 +3,7 @@ simple-rtmp-server
 
 srs(simple rtmp origin live server) over state-threads.<br/>
 srs is a simple, high-performance, running in single process, origin live server.<br/>
+srs supports rtmp, HLS, transcoding, forward, http hooks. <br/>
 blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
 see also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) <br/>
 see also: [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.github.io/simple-rtmp-server)
