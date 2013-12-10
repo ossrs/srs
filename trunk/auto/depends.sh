@@ -77,6 +77,8 @@ function Ubuntu_prepare()
         sudo apt-get install -y libssl-dev
         echo "install libssl-dev success"
     fi
+    
+    echo "Ubuntu install tools success"
 }
 Ubuntu_prepare
 #####################################################################################
@@ -138,6 +140,8 @@ function Centos_prepare()
         sudo yum install -y openssl-devel
         echo "install openssl-devels success"
     fi
+    
+    echo "Centos install tools success"
 }
 Centos_prepare
 
