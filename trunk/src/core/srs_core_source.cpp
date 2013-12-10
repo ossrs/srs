@@ -683,6 +683,7 @@ void SrsSource::on_unpublish()
 	encoder->on_unpublish();
 #endif
 
+	// TODO: HLS should continue previous sequence and stream.
 #ifdef SRS_HLS
 	hls->on_unpublish();
 #endif
