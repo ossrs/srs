@@ -15,70 +15,63 @@ function Ubuntu_prepare()
 
     echo "Ubuntu detected, install tools if needed"
     
-    apt-cache show libpcre3; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install libpcre3"
-        require_sudoer "sudo apt-get install -y libpcre3"
-        sudo apt-get install -y libpcre3
-        echo "install libpcre3 success"
-    fi
-    
-    apt-cache show libpcre3-dev; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install libpcre3-dev"
-        require_sudoer "sudo apt-get install -y libpcre3-dev"
-        sudo apt-get install -y libpcre3-dev
-        echo "install libpcre3-dev success"
-    fi
-    
-    apt-cache show zlib1g-dev; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install zlib1g-dev"
-        require_sudoer "sudo apt-get install -y zlib1g-dev"
-        sudo apt-get install -y zlib1g-dev
-        echo "install zlib1g-dev success"
-    fi
-    
-    apt-cache show libfreetype6-dev; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install libfreetype6-dev"
-        require_sudoer "sudo apt-get install -y libfreetype6-dev"
-        sudo apt-get install -y libfreetype6-dev
-        echo "install libfreetype6-dev success"
-    fi
-    
-    apt-cache show gcc; ret=$?; if [[ 0 -ne $ret ]]; then
+    gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install gcc"
         require_sudoer "sudo apt-get install -y gcc"
         sudo apt-get install -y gcc
         echo "install gcc success"
     fi
     
-    apt-cache show g++; ret=$?; if [[ 0 -ne $ret ]]; then
+    g++ --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install g++"
         require_sudoer "sudo apt-get install -y g++"
         sudo apt-get install -y g++
         echo "install g++ success"
     fi
     
-    apt-cache show make; ret=$?; if [[ 0 -ne $ret ]]; then
+    make --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install make"
         require_sudoer "sudo apt-get install -y make"
         sudo apt-get install -y make
         echo "install make success"
     fi
     
-    apt-cache show autoconf; ret=$?; if [[ 0 -ne $ret ]]; then
+    autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install autoconf"
         require_sudoer "sudo apt-get install -y autoconf"
         sudo apt-get install -y autoconf
         echo "install autoconf success"
     fi
     
-    apt-cache show libtool; ret=$?; if [[ 0 -ne $ret ]]; then
+    libtool --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install libtool"
         require_sudoer "sudo apt-get install -y libtool"
         sudo apt-get install -y libtool
         echo "install libtool success"
     fi
     
-    apt-cache show libssl-dev; ret=$?; if [[ 0 -ne $ret ]]; then
+    if [[ ! -f /usr/include/pcre.h ]]; then
+        echo "install libpcre3-dev"
+        require_sudoer "sudo apt-get install -y libpcre3-dev"
+        sudo apt-get install -y libpcre3-dev
+        echo "install libpcre3-dev success"
+    fi
+    
+    if [[ ! -f /usr/include/zlib.h ]]; then
+        echo "install zlib1g-dev"
+        require_sudoer "sudo apt-get install -y zlib1g-dev"
+        sudo apt-get install -y zlib1g-dev
+        echo "install zlib1g-dev success"
+    fi
+    
+    if [[ ! -d /usr/include/freetype2 ]]; then
+        echo "install libfreetype6-dev"
+        require_sudoer "sudo apt-get install -y libfreetype6-dev"
+        sudo apt-get install -y libfreetype6-dev
+        echo "install libfreetype6-dev success"
+    fi
+    
+    if [[ ! -d /usr/include/openssl ]]; then
         echo "install libssl-dev"
         require_sudoer "sudo apt-get install -y libssl-dev"
         sudo apt-get install -y libssl-dev
