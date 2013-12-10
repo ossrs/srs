@@ -59,22 +59,28 @@ step 8: play live stream. <br/>
 <pre>
 rtmp url: rtmp://demo:1935/live/livestream
 m3u8 url: http://demo:80/live/livestream.m3u8
+for android: http://demo:80/live/livestream.html
 </pre>
 step 9: play live stream auto transcoded<br/>
 <pre>
 rtmp url: rtmp://demo:1935/live/livestream_ld
 m3u8 url: http://demo:80/live/livestream_ld.m3u8
+for android: http://demo:80/live/livestream_ld.html
 rtmp url: rtmp://demo:1935/live/livestream_sd
 m3u8 url: http://demo:80/live/livestream_sd.m3u8
+for android: http://demo:80/live/livestream_sd.html
 </pre>
 step 10: play live stream auto forwarded, the hls dir change to /forward<br/>
 <pre>
 rtmp url: rtmp://demo:19350/live/livestream
 m3u8 url: http://demo:80/forward/live/livestream.m3u8
+for android: http://demo:80/forward/live/livestream.html
 rtmp url: rtmp://demo:19350/live/livestream_ld
 m3u8 url: http://demo:80/forward/live/livestream_ld.m3u8
+for android: http://demo:80/forward/live/livestream_ld.html
 rtmp url: rtmp://demo:19350/live/livestream_sd
 m3u8 url: http://demo:80/forward/live/livestream_sd.m3u8
+for android: http://demo:80/forward/live/livestream_sd.html
 </pre>
 
 ### Architecture

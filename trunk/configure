@@ -15,14 +15,15 @@ BLACK="\\e[0m"
 # parse user options.
 . auto/options.sh
 
-# if specifies http, requires sudo to install the CherryPy.
-if [ $SRS_HTTP = YES ]; then
+function require_sudoer()
+{
     sudo echo "" >/dev/null 2>&1
-    ret=$?; if [[ 0 -ne $ret ]]; then echo 
-        "--with-http requires sudoer, ret=$ret"; 
+    
+    ret=$?; if [[ 0 -ne $ret ]]; then 
+        echo "\"$1\" require sudoer failed. ret=$ret";
         exit $ret; 
     fi
-fi
+}
 
 # clean the exists
 if [[ -f Makefile ]]; then
