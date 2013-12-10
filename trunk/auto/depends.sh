@@ -134,11 +134,32 @@ function Centos_prepare()
         echo "install libtool success"
     fi
     
+    if [[ ! -f /usr/include/pcre.h ]]; then
+        echo "install pcre-devel"
+        require_sudoer "sudo yum install -y pcre-devel"
+        sudo yum install -y pcre-devel
+        echo "install pcre-devel success"
+    fi
+    
+    if [[ ! -f /usr/include/zlib.h ]]; then
+        echo "install zlib-devel"
+        require_sudoer "sudo yum install -y zlib-devel"
+        sudo yum install -y zlib-devel
+        echo "install zlib-devel success"
+    fi
+    
+    if [[ ! -d /usr/include/freetype2 ]]; then
+        echo "install freetype-devel"
+        require_sudoer "sudo yum install -y freetype-devel"
+        sudo yum install -y freetype-devel
+        echo "install freetype-devel success"
+    fi
+    
     if [[ ! -d /usr/include/openssl ]]; then
         echo "install openssl-devel"
         require_sudoer "sudo yum install -y openssl-devel"
         sudo yum install -y openssl-devel
-        echo "install openssl-devels success"
+        echo "install openssl-devel success"
     fi
     
     echo "Centos install tools success"
