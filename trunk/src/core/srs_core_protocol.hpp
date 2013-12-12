@@ -220,6 +220,7 @@ struct SrsMessageHeader
 	bool is_window_ackledgement_size();
 	bool is_set_chunk_size();
 	bool is_user_control_message();
+    bool is_windows_ackledgement();
 };
 
 /**
@@ -801,6 +802,26 @@ protected:
 	virtual int encode_packet(SrsStream* stream);
 };
 
+
+/**
+* band width check method name, which will be invoked by client.
+* band width check mothods use SrsOnStatusCallPacket as its internal packet type,
+* so ensure you set command name when you use it.
+*/
+// for play
+#define SRS_BW_CHECK_START_PLAY         "onSrsBandCheckStartPlayBytes"
+#define SRS_BW_CHECK_STARTING_PLAY      "onSrsBandCheckStartingPlayBytes"
+#define SRS_BW_CHECK_STOP_PLAY          "onSrsBandCheckStopPlayBytes"
+#define SRS_BW_CHECK_STOPPED_PLAY       "onSrsBandCheckStoppedPlayBytes"
+#define SRS_BW_CHECK_PLAYING            "onSrsBandCheckPlaying"
+
+// for publish
+#define SRS_BW_CHECK_START_PUBLISH      "onSrsBandCheckStartPublishBytes"
+#define SRS_BW_CHECK_STARTING_PUBLISH   "onSrsBandCheckStartingPublishBytes"
+#define SRS_BW_CHECK_STOP_PUBLISH       "onSrsBandCheckStopPublishBytes"
+#define SRS_BW_CHECK_FINISHED           "onSrsBandCheckFinished"
+#define SRS_BW_CHECK_PUBLISHING         "onSrsBandCheckPublishing"
+
 /**
 * onStatus command, AMF0 Call
 * @remark, user must set the stream_id by SrsMessage.set_packet().
@@ -822,6 +843,10 @@ public:
 public:
 	SrsOnStatusCallPacket();
 	virtual ~SrsOnStatusCallPacket();
+
+public:
+    virtual int decode(SrsStream* stream);
+
 public:
 	virtual int get_perfer_cid();
 public:
@@ -968,6 +993,10 @@ public:
 public:
 	SrsAcknowledgementPacket();
 	virtual ~SrsAcknowledgementPacket();
+
+public:
+    virtual int decode(SrsStream *stream);
+
 public:
 	virtual int get_perfer_cid();
 public:

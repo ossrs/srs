@@ -144,14 +144,14 @@ void SrsListener::listen_cycle()
 	        // ignore error.
 	        srs_warn("ignore accept thread stoppped for accept client error");
 	        continue;
-	    }
+        }
 	    srs_verbose("get a client. fd=%d", st_netfd_fileno(client_stfd));
     	
     	if ((ret = server->accept_client(type, client_stfd)) != ERROR_SUCCESS) {
     		srs_warn("accept client error. ret=%d", ret);
 			continue;
     	}
-    	
+
     	srs_verbose("accept client finished. conns=%d, ret=%d", (int)conns.size(), ret);
 	}
 }
@@ -250,7 +250,7 @@ int SrsServer::cycle()
 	// the deamon thread, update the time cache
 	while (true) {
 		st_usleep(SRS_TIME_RESOLUTION_MS * 1000);
-		srs_update_system_time_ms();
+        srs_update_system_time_ms();
 		
 		if (signal_reload) {
 			signal_reload = false;

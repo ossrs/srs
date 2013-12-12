@@ -539,7 +539,7 @@ int SrsConfig::parse_options(int argc, char** argv)
 	return parse_file(config_file.c_str());
 }
 
-SrsConfDirective* SrsConfig::get_vhost(std::string vhost)
+SrsConfDirective* SrsConfig::get_vhost(const std::string& vhost)
 {
 	srs_assert(root);
 	
@@ -562,7 +562,7 @@ SrsConfDirective* SrsConfig::get_vhost(std::string vhost)
 	return NULL;
 }
 
-SrsConfDirective* SrsConfig::get_vhost_on_connect(std::string vhost)
+SrsConfDirective* SrsConfig::get_vhost_on_connect(const std::string &vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
 
@@ -583,7 +583,7 @@ SrsConfDirective* SrsConfig::get_vhost_on_connect(std::string vhost)
 	return conf->get("on_connect");
 }
 
-SrsConfDirective* SrsConfig::get_vhost_on_close(std::string vhost)
+SrsConfDirective* SrsConfig::get_vhost_on_close(const std::string &vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
 
@@ -604,7 +604,7 @@ SrsConfDirective* SrsConfig::get_vhost_on_close(std::string vhost)
 	return conf->get("on_close");
 }
 
-SrsConfDirective* SrsConfig::get_vhost_on_publish(std::string vhost)
+SrsConfDirective* SrsConfig::get_vhost_on_publish(const std::string &vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
 
@@ -625,7 +625,7 @@ SrsConfDirective* SrsConfig::get_vhost_on_publish(std::string vhost)
 	return conf->get("on_publish");
 }
 
-SrsConfDirective* SrsConfig::get_vhost_on_unpublish(std::string vhost)
+SrsConfDirective* SrsConfig::get_vhost_on_unpublish(const std::string &vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
 
@@ -646,7 +646,7 @@ SrsConfDirective* SrsConfig::get_vhost_on_unpublish(std::string vhost)
 	return conf->get("on_unpublish");
 }
 
-SrsConfDirective* SrsConfig::get_vhost_on_play(std::string vhost)
+SrsConfDirective* SrsConfig::get_vhost_on_play(const std::string &vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
 
@@ -667,7 +667,7 @@ SrsConfDirective* SrsConfig::get_vhost_on_play(std::string vhost)
 	return conf->get("on_play");
 }
 
-SrsConfDirective* SrsConfig::get_vhost_on_stop(std::string vhost)
+SrsConfDirective* SrsConfig::get_vhost_on_stop(const std::string &vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
 
@@ -688,7 +688,7 @@ SrsConfDirective* SrsConfig::get_vhost_on_stop(std::string vhost)
 	return conf->get("on_stop");
 }
 
-bool SrsConfig::get_vhost_enabled(std::string vhost)
+bool SrsConfig::get_vhost_enabled(const std::string &vhost)
 {
 	SrsConfDirective* vhost_conf = get_vhost(vhost);
 
@@ -708,7 +708,7 @@ bool SrsConfig::get_vhost_enabled(std::string vhost)
 	return true;
 }
 
-SrsConfDirective* SrsConfig::get_transcode(std::string vhost, std::string scope)
+SrsConfDirective* SrsConfig::get_transcode(const std::string &vhost, const std::string &scope)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
 
@@ -1059,7 +1059,7 @@ int SrsConfig::get_max_connections()
 	return ::atoi(conf->arg0().c_str());
 }
 
-SrsConfDirective* SrsConfig::get_gop_cache(std::string vhost)
+SrsConfDirective* SrsConfig::get_gop_cache(const std::string &vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
 
@@ -1070,7 +1070,7 @@ SrsConfDirective* SrsConfig::get_gop_cache(std::string vhost)
 	return conf->get("gop_cache");
 }
 
-SrsConfDirective* SrsConfig::get_forward(std::string vhost)
+SrsConfDirective* SrsConfig::get_forward(const std::string &vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
 
@@ -1081,7 +1081,7 @@ SrsConfDirective* SrsConfig::get_forward(std::string vhost)
 	return conf->get("forward");
 }
 
-SrsConfDirective* SrsConfig::get_hls(std::string vhost)
+SrsConfDirective* SrsConfig::get_hls(const std::string &vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
 
@@ -1092,7 +1092,7 @@ SrsConfDirective* SrsConfig::get_hls(std::string vhost)
 	return conf->get("hls");
 }
 
-bool SrsConfig::get_hls_enabled(std::string vhost)
+bool SrsConfig::get_hls_enabled(const std::string &vhost)
 {
 	SrsConfDirective* hls = get_hls(vhost);
 	
@@ -1107,7 +1107,7 @@ bool SrsConfig::get_hls_enabled(std::string vhost)
 	return true;
 }
 
-SrsConfDirective* SrsConfig::get_hls_path(std::string vhost)
+SrsConfDirective* SrsConfig::get_hls_path(const std::string &vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
 
@@ -1118,7 +1118,7 @@ SrsConfDirective* SrsConfig::get_hls_path(std::string vhost)
 	return conf->get("hls_path");
 }
 
-SrsConfDirective* SrsConfig::get_hls_fragment(std::string vhost)
+SrsConfDirective* SrsConfig::get_hls_fragment(const std::string &vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
 
@@ -1129,7 +1129,7 @@ SrsConfDirective* SrsConfig::get_hls_fragment(std::string vhost)
 	return conf->get("hls_fragment");
 }
 
-SrsConfDirective* SrsConfig::get_hls_window(std::string vhost)
+SrsConfDirective* SrsConfig::get_hls_window(const std::string &vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
 
@@ -1140,7 +1140,7 @@ SrsConfDirective* SrsConfig::get_hls_window(std::string vhost)
 	return conf->get("hls_window");
 }
 
-SrsConfDirective* SrsConfig::get_refer(std::string vhost)
+SrsConfDirective* SrsConfig::get_refer(const std::string &vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
 
@@ -1151,7 +1151,7 @@ SrsConfDirective* SrsConfig::get_refer(std::string vhost)
 	return conf->get("refer");
 }
 
-SrsConfDirective* SrsConfig::get_refer_play(std::string vhost)
+SrsConfDirective* SrsConfig::get_refer_play(const std::string &vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
 
@@ -1162,7 +1162,7 @@ SrsConfDirective* SrsConfig::get_refer_play(std::string vhost)
 	return conf->get("refer_play");
 }
 
-SrsConfDirective* SrsConfig::get_refer_publish(std::string vhost)
+SrsConfDirective* SrsConfig::get_refer_publish(const std::string &vhost)
 {
 	SrsConfDirective* conf = get_vhost(vhost);
 
@@ -1178,9 +1178,15 @@ SrsConfDirective* SrsConfig::get_listen()
 	return root->get("listen");
 }
 
-SrsConfDirective* SrsConfig::get_chunk_size()
+SrsConfDirective* SrsConfig::get_chunk_size(const std::string &vhost)
 {
-	return root->get("chunk_size");
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return NULL;
+    }
+
+    return conf->get("chunk_size");
 }
 
 SrsConfDirective* SrsConfig::get_pithy_print_publish()
@@ -1230,7 +1236,63 @@ SrsConfDirective* SrsConfig::get_pithy_print_play()
 		return NULL;
 	}
 	
-	return pithy->get("play");
+    return pithy->get("play");
+}
+
+bool SrsConfig::get_bw_check_enabled(const std::string &vhost, const std::string &key)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return false;
+    }
+
+    SrsConfDirective* bw_test = conf->get("bandcheck");
+    if(!bw_test)
+        return false;
+
+    SrsConfDirective* bw_enabled_conf = bw_test->get("enabled");
+    if(bw_enabled_conf && bw_enabled_conf->arg0() == "on"){
+        SrsConfDirective* bw_key = bw_test->get("key");
+        if(!bw_key) return false;
+
+        std::vector<std::string> &args = bw_key->args;
+        for(unsigned int i = 0; i < args.size(); ++i){
+            if(args.at(i) == key)
+                return true;
+        }
+    }
+
+    return false;
+}
+
+void SrsConfig::get_bw_check_settings(const std::string &vhost, int64_t &interval_ms, int &play_kbps, int &pub_kbps)
+{
+    // set default value;
+    interval_ms = 30 * 1000;
+    play_kbps   = 45000;
+    pub_kbps    = 25000;
+
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return;
+    }
+
+    SrsConfDirective* bw_test = conf->get("bandcheck");
+    if(!bw_test)
+        return;
+
+    SrsConfDirective* interval_conf = bw_test->get("interval");
+    if(interval_conf)
+        interval_ms = ::atoll(interval_conf->arg0().c_str()) * 1000;
+
+    SrsConfDirective* play_conf = bw_test->get("max_play_kbps");
+    if(play_conf)
+        play_kbps = ::atoi(play_conf->arg0().c_str());
+
+    SrsConfDirective* pub_conf = bw_test->get("max_pub_kbps");
+    if(pub_conf)
+        pub_kbps = ::atoi(pub_conf->arg0().c_str());
 }
 
 int SrsConfig::parse_file(const char* filename)

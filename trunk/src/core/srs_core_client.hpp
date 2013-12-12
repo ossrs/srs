@@ -70,6 +70,7 @@ private:
 	virtual int publish(SrsSource* source, bool is_fmle);
 	virtual int process_publish_message(SrsSource* source, SrsCommonMessage* msg, bool is_fmle);
 	virtual int get_peer_ip();
+    virtual int get_local_ip(char *&local_ip);
 	virtual int process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage* msg);
 private:
 	virtual int on_connect();

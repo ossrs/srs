@@ -1138,7 +1138,12 @@ bool SrsMessageHeader::is_set_chunk_size()
 
 bool SrsMessageHeader::is_user_control_message()
 {
-	return message_type == RTMP_MSG_UserControlMessage;
+    return message_type == RTMP_MSG_UserControlMessage;
+}
+
+bool SrsMessageHeader::is_windows_ackledgement()
+{
+    return message_type == RTMP_MSG_Acknowledgement;
 }
 
 SrsChunkStream::SrsChunkStream(int _cid)
@@ -1311,7 +1316,21 @@ int SrsCommonMessage::decode_packet(SrsProtocol* protocol)
 			srs_info("decode the AMF0/AMF3 data(onMetaData message).");
 			packet = new SrsOnMetaDataPacket();
 			return packet->decode(stream);
-		}
+        } else if(   command == SRS_BW_CHECK_FINISHED
+                  || command == SRS_BW_CHECK_PLAYING
+                  || command == SRS_BW_CHECK_PUBLISHING
+                  || command == SRS_BW_CHECK_STARTING_PLAY
+                  || command == SRS_BW_CHECK_STARTING_PUBLISH
+                  || command == SRS_BW_CHECK_START_PLAY
+                  || command == SRS_BW_CHECK_START_PUBLISH
+                  || command == SRS_BW_CHECK_STOPPED_PLAY
+                  || command == SRS_BW_CHECK_STOP_PLAY
+                  || command == SRS_BW_CHECK_STOP_PUBLISH)
+        {
+            srs_info("decode the AMF0/AMF3 band width check message.");
+            packet = new SrsOnStatusCallPacket();
+            return packet->decode(stream);
+        }
 		
 		// default packet to drop message.
 		srs_trace("drop the AMF0/AMF3 command message, command_name=%s", command.c_str());
@@ -1329,7 +1348,11 @@ int SrsCommonMessage::decode_packet(SrsProtocol* protocol)
 		srs_verbose("start to decode set chunk size message.");
 		packet = new SrsSetChunkSizePacket();
 		return packet->decode(stream);
-	} else {
+    } else if(header.is_windows_ackledgement()) {
+        srs_verbose("start to decode AcknowledgementPacket message.");
+        packet = new SrsAcknowledgementPacket();
+        return packet->decode(stream);
+    } else {
 		// default packet to drop message.
 		srs_trace("drop the unknown message, type=%d", header.message_type);
 		packet = new SrsPacket();
@@ -1775,8 +1798,13 @@ int SrsConnectAppResPacket::get_message_type()
 
 int SrsConnectAppResPacket::get_size()
 {
-	return srs_amf0_get_string_size(command_name) + srs_amf0_get_number_size()
-		+ srs_amf0_get_object_size(props)+ srs_amf0_get_object_size(info);
+    int size = srs_amf0_get_string_size(command_name) + srs_amf0_get_number_size();
+    if(props->size() > 0)
+        size += srs_amf0_get_object_size(props);
+    if(info->size() > 0)
+        size += srs_amf0_get_object_size(info);
+
+    return size;
 }
 
 int SrsConnectAppResPacket::encode_packet(SrsStream* stream)
@@ -1795,16 +1823,22 @@ int SrsConnectAppResPacket::encode_packet(SrsStream* stream)
 	}
 	srs_verbose("encode transaction_id success.");
 	
-	if ((ret = srs_amf0_write_object(stream, props)) != ERROR_SUCCESS) {
-		srs_error("encode props failed. ret=%d", ret);
-		return ret;
-	}
+    if(props->size() > 0){
+        if ((ret = srs_amf0_write_object(stream, props)) != ERROR_SUCCESS) {
+            srs_error("encode props failed. ret=%d", ret);
+            return ret;
+        }
+    }
+
 	srs_verbose("encode props success.");
 	
-	if ((ret = srs_amf0_write_object(stream, info)) != ERROR_SUCCESS) {
-		srs_error("encode info failed. ret=%d", ret);
-		return ret;
-	}
+    if(info->size() > 0){
+        if ((ret = srs_amf0_write_object(stream, info)) != ERROR_SUCCESS) {
+            srs_error("encode info failed. ret=%d", ret);
+            return ret;
+        }
+    }
+
 	srs_verbose("encode info success.");
 	
 	srs_info("encode connect app response packet success.");
@@ -2537,7 +2571,31 @@ SrsOnStatusCallPacket::SrsOnStatusCallPacket()
 SrsOnStatusCallPacket::~SrsOnStatusCallPacket()
 {
 	srs_freep(args);
-	srs_freep(data);
+    srs_freep(data);
+}
+
+int SrsOnStatusCallPacket::decode(SrsStream *stream)
+{
+    int ret = ERROR_SUCCESS;
+
+    if ((ret = srs_amf0_read_string(stream, command_name)) != ERROR_SUCCESS) {
+        srs_error("amf0 decode play command_name failed. ret=%d", ret);
+        return ret;
+    }
+
+    if ((ret = srs_amf0_read_number(stream, transaction_id)) != ERROR_SUCCESS) {
+        srs_error("amf0 decode play transaction_id failed. ret=%d", ret);
+        return ret;
+    }
+
+    if ((ret = srs_amf0_read_null(stream)) != ERROR_SUCCESS) {
+        srs_error("amf0 decode play command_object failed. ret=%d", ret);
+        return ret;
+    }
+
+    srs_info("decode SrsOnStatusCallPacket success.");
+
+    return ret;
 }
 
 int SrsOnStatusCallPacket::get_perfer_cid()
@@ -2853,6 +2911,14 @@ SrsAcknowledgementPacket::~SrsAcknowledgementPacket()
 {
 }
 
+int SrsAcknowledgementPacket::decode(SrsStream *stream)
+{
+    int ret = ERROR_SUCCESS;
+    ret = sequence_number = stream->read_4bytes();
+
+    return ret;
+}
+
 int SrsAcknowledgementPacket::get_perfer_cid()
 {
 	return RTMP_CID_ProtocolControl;
@@ -3078,4 +3144,3 @@ int SrsUserControlPacket::encode_packet(SrsStream* stream)
 	
 	return ret;
 }
-

@@ -2,6 +2,7 @@
 The MIT License (MIT)
 
 Copyright (c) 2013 winlin
+Copyright (c) 2013 wenjiejit
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -49,8 +50,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define StatusClientId 						"clientid"
 // status value
 #define StatusLevelStatus 					"status"
+// status error
+#define StatusLevelError                    "error"
 // code value
 #define StatusCodeConnectSuccess 			"NetConnection.Connect.Success"
+#define StatusCodeConnectRejected 			"NetConnection.Connect.Rejected"
 #define StatusCodeStreamReset 				"NetStream.Play.Reset"
 #define StatusCodeStreamStart 				"NetStream.Play.Start"
 #define StatusCodeStreamPause 				"NetStream.Pause.Notify"
@@ -67,8 +71,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_DEFAULT_SID 					1
 
 SrsRequest::SrsRequest()
+    : objectEncoding(RTMP_SIG_AMF0_VER)
 {
-	objectEncoding = RTMP_SIG_AMF0_VER;
 }
 
 SrsRequest::~SrsRequest()
@@ -99,11 +103,23 @@ int SrsRequest::discovery_app()
 		port = vhost.substr(pos + 1);
 		vhost = vhost.substr(0, pos);
 		srs_verbose("discovery vhost=%s, port=%s", vhost.c_str(), port.c_str());
-	}
-	
+    }
+
 	app = url;
 	srs_vhost_resolve(vhost, app);
-	
+
+    // reslove bw check key
+    std::string app_str = url;
+    if ((pos = app_str.find("key=")) != std::string::npos){
+        std::string temp_key = app_str.substr(pos + strlen("key="));
+        for(unsigned int i = 0; i < temp_key.size(); ++i){
+            char c = temp_key[i];
+            if(c != '&')
+                bw_key.push_back(c);
+            else break;
+        }
+    }
+
 	// resolve the vhost from config
 	SrsConfDirective* parsed_vhost = config->get_vhost(vhost);
 	if (parsed_vhost) {
@@ -238,7 +254,7 @@ int SrsRtmpClient::handshake()
     return ret;
 }
 
-int SrsRtmpClient::connect_app(std::string app, std::string tc_url)
+int SrsRtmpClient::connect_app(const std::string &app, const std::string &tc_url)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -324,7 +340,7 @@ int SrsRtmpClient::create_stream(int& stream_id)
 	return ret;
 }
 
-int SrsRtmpClient::play(std::string stream, int stream_id)
+int SrsRtmpClient::play(const std::string &stream, int stream_id)
 {
 	int ret = ERROR_SUCCESS;
 
@@ -366,7 +382,7 @@ int SrsRtmpClient::play(std::string stream, int stream_id)
 	return ret;
 }
 
-int SrsRtmpClient::publish(std::string stream, int stream_id)
+int SrsRtmpClient::publish(const std::string &stream, int stream_id)
 {
 	int ret = ERROR_SUCCESS;
 
@@ -544,7 +560,7 @@ int SrsRtmp::set_peer_bandwidth(int bandwidth, int type)
 	return ret;
 }
 
-int SrsRtmp::response_connect_app(SrsRequest* req)
+int SrsRtmp::response_connect_app(SrsRequest *req, const char *ip)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -556,7 +572,7 @@ int SrsRtmp::response_connect_app(SrsRequest* req)
 	pkt->props->set("mode", new SrsAmf0Number(1));
 	
 	pkt->info->set(StatusLevel, new SrsAmf0String(StatusLevelStatus));
-	pkt->info->set(StatusCode, new SrsAmf0String(StatusCodeConnectSuccess));
+    pkt->info->set(StatusCode, new SrsAmf0String(StatusCodeConnectSuccess));
 	pkt->info->set(StatusDescription, new SrsAmf0String("Connection succeeded"));
 	pkt->info->set("objectEncoding", new SrsAmf0Number(req->objectEncoding));
 	SrsASrsAmf0EcmaArray* data = new SrsASrsAmf0EcmaArray();
@@ -571,6 +587,9 @@ int SrsRtmp::response_connect_app(SrsRequest* req)
 	data->set("srs_site", new SrsAmf0String(RTMP_SIG_SRS_WEB));
 	data->set("srs_email", new SrsAmf0String(RTMP_SIG_SRS_EMAIL));
 	data->set("srs_copyright", new SrsAmf0String(RTMP_SIG_SRS_COPYRIGHT));
+
+    if(ip)
+        data->set("srs_server_ip", new SrsAmf0String(ip));
 	
 	msg->set_packet(pkt, 0);
 	
@@ -580,7 +599,30 @@ int SrsRtmp::response_connect_app(SrsRequest* req)
 	}
 	srs_info("send connect app response message success.");
 	
-	return ret;
+    return ret;
+}
+
+int SrsRtmp::response_connect_reject(SrsRequest *req, const std::string &description)
+{
+    int ret = ERROR_SUCCESS;
+
+    SrsCommonMessage* msg = new SrsCommonMessage();
+    SrsConnectAppResPacket* pkt = new SrsConnectAppResPacket();
+    pkt->command_name = "_error";
+    pkt->props->set(StatusLevel, new SrsAmf0String(StatusLevelError));
+    pkt->props->set(StatusCode, new SrsAmf0String(StatusCodeConnectRejected));
+    pkt->props->set(StatusDescription, new SrsAmf0String(description.c_str()));
+    //pkt->props->set("objectEncoding", new SrsAmf0Number(req->objectEncoding));
+
+    msg->set_packet(pkt, 0);
+
+    if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+        srs_error("send connect app response rejected message failed. ret=%d", ret);
+        return ret;
+    }
+    srs_info("send connect app response rejected message success.");
+
+    return ret;
 }
 
 int SrsRtmp::on_bw_done()
@@ -1029,7 +1071,60 @@ int SrsRtmp::start_flash_publish(int stream_id)
 	
 	srs_info("flash publish success.");
 	
-	return ret;
+    return ret;
+}
+
+int SrsRtmp::start_bandwidth_check(int max_play_kbps, int max_pub_kbps)
+{
+    int ret = ERROR_SUCCESS;
+
+    int play_duration_ms        = 3000;
+    int play_interval_ms        = 0;
+    int play_actual_duration_ms = 0;
+    int play_bytes              = 0;
+
+    int publish_duration_ms        = 3000;
+    int publish_interval_ms        = 0;
+    int publish_actual_duration_ms = 0;
+    int publish_bytes              = 0;
+
+    int64_t start_time = srs_get_system_time_ms();
+    if((ret = bandwidth_check_play(play_duration_ms, play_interval_ms,
+                                   play_actual_duration_ms, play_bytes, max_play_kbps) != ERROR_SUCCESS)
+            || (ret = bandwidth_check_publish(publish_duration_ms, publish_interval_ms,
+                                   publish_actual_duration_ms, publish_bytes, max_pub_kbps)) != ERROR_SUCCESS)
+    {
+        srs_error("band width check failed. ret = %d", ret);
+
+        return ret;
+    }
+
+    int64_t end_time = srs_get_system_time_ms();
+    int play_kbps = play_bytes * 8 / play_actual_duration_ms;
+    int publish_kbps = publish_bytes * 8 / publish_actual_duration_ms;
+
+    // send finished msg
+    SrsCommonMessage* finish_msg = new SrsCommonMessage();
+    SrsOnStatusCallPacket* finish_pkt = new SrsOnStatusCallPacket;
+    finish_pkt->command_name = SRS_BW_CHECK_FINISHED;
+    finish_pkt->data->set("code",           new SrsAmf0Number(0));
+    finish_pkt->data->set("start_time",     new SrsAmf0Number(start_time));
+    finish_pkt->data->set("end_time",       new SrsAmf0Number(end_time));
+    finish_pkt->data->set("play_kbps",      new SrsAmf0Number(play_kbps));
+    finish_pkt->data->set("publish_kbps",   new SrsAmf0Number(publish_kbps));
+    finish_pkt->data->set("play_bytes",     new SrsAmf0Number(play_bytes));
+    finish_pkt->data->set("play_time",      new SrsAmf0Number(play_actual_duration_ms));
+    finish_pkt->data->set("publish_bytes",  new SrsAmf0Number(publish_bytes));
+    finish_pkt->data->set("publish_time",   new SrsAmf0Number(publish_actual_duration_ms));
+
+    finish_msg->set_packet(finish_pkt, 0);
+    if ((ret = protocol->send_message(finish_msg)) != ERROR_SUCCESS) {
+        srs_error("send bandwidth check finish message failed. ret=%d", ret);
+        return ret;
+    }
+    srs_trace("BW check finished.");
+
+    return ret;
 }
 
 int SrsRtmp::identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, std::string& stream_name)
@@ -1120,6 +1215,221 @@ int SrsRtmp::identify_flash_publish_client(SrsPublishPacket* req, SrsClientType&
 	type = SrsClientFlashPublish;
 	stream_name = req->stream_name;
 	
-	return ret;
+    return ret;
+}
+
+int SrsRtmp::bandwidth_check_play(int duration_ms, int interval_ms, int &actual_duration_ms,
+                                  int &play_bytes, int max_play_kbps)
+{
+    int ret = ERROR_SUCCESS;
+
+    // send start play command to client
+    SrsCommonMessage* start_play_msg = new SrsCommonMessage();
+    SrsOnStatusCallPacket* start_play_packet = new SrsOnStatusCallPacket;
+    start_play_packet->command_name = SRS_BW_CHECK_START_PLAY;
+    start_play_packet->data->set("duration_ms", new SrsAmf0Number(duration_ms));
+    start_play_packet->data->set("interval_ms", new SrsAmf0Number(interval_ms));
+
+    start_play_msg->set_packet(start_play_packet, 0);
+    if ((ret = protocol->send_message(start_play_msg)) != ERROR_SUCCESS) {
+        srs_error("send bandwidth check start play message failed. ret=%d", ret);
+        return ret;
+    }
+    srs_trace("BW check begin.");
+
+    // recv client's starting play response
+    while (true) {
+        SrsCommonMessage* msg = 0;
+        if( (ret = protocol->recv_message(&msg)) != ERROR_SUCCESS)
+        {
+            srs_error("recv client's starting play response failed. ret= %d", ret);
+            return ret;
+        }
+
+        msg->decode_packet(protocol);
+        SrsOnStatusCallPacket* pkt = dynamic_cast<SrsOnStatusCallPacket*>(msg->get_packet());
+        if(pkt && (pkt->command_name == SRS_BW_CHECK_STARTING_PLAY))
+            break;
+    }
+    srs_trace("BW check recv play begin response.");
+
+    // send play data to client
+    int64_t current_Time = srs_get_system_time_ms();
+    int size = 1024*4;   // 32KB
+    char random_data[size];
+    memset(random_data, 0x01, size);
+
+    int64_t last_time = current_Time;
+    int interval = 0;
+    while ( (srs_get_system_time_ms() - current_Time) < duration_ms ){
+        st_usleep(interval);
+        SrsCommonMessage* msg = new SrsCommonMessage;
+        SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket;
+        pkt->command_name = SRS_BW_CHECK_PLAYING;
+
+        for(int i = 0; i < 10; ++i)
+        {
+            char buf[32];
+            sprintf(buf, "%d", i);
+            pkt->data->set(buf, new SrsAmf0String(random_data));
+        }
+        msg->set_packet(pkt, 0);
+
+        play_bytes += pkt->get_payload_length();
+
+        if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+           srs_error("send bandwidth check play messages failed. ret=%d", ret);
+           return ret;
+       }
+
+        if((srs_get_system_time_ms() - last_time) > 5){ // check kbps every 5 ms;
+            int kbps = play_bytes * 8 / (srs_get_system_time_ms() - current_Time);
+            if(kbps > max_play_kbps){
+                interval += 1000*3;    // 2 ms
+            } else {
+                interval -= 1000*3;
+                if(interval < 0)
+                    interval = 0;
+            }
+        }
+    }
+    actual_duration_ms = srs_get_system_time_ms() - current_Time;
+    srs_trace("BW check send play bytes over.");
+
+    // notify client to stop play
+    SrsCommonMessage* stop_play_msg = new SrsCommonMessage;
+    SrsOnStatusCallPacket* stop_play_pkt = new SrsOnStatusCallPacket;
+    stop_play_pkt->command_name = SRS_BW_CHECK_STOP_PLAY;
+    stop_play_pkt->data->set("duration_ms", new SrsAmf0Number(duration_ms));
+    stop_play_pkt->data->set("interval_ms", new SrsAmf0Number(interval_ms));
+    stop_play_pkt->data->set("duration_delta", new SrsAmf0Number(actual_duration_ms));
+    stop_play_pkt->data->set("bytes_delta", new SrsAmf0Number(play_bytes));
+
+    stop_play_msg->set_packet(stop_play_pkt, 0);
+
+    if ((ret = protocol->send_message(stop_play_msg)) != ERROR_SUCCESS) {
+        srs_error("send bandwidth check stop play message failed. ret=%d", ret);
+        return ret;
+    }
+    srs_trace("BW check stop play bytes.");
+
+    // recv client's stop play response.
+    while (true) {
+        SrsCommonMessage* msg = 0;
+        if((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS)
+        {
+            srs_error("recv client's stop play response failed. ret = %d", ret);
+            return ret;
+        }
+
+        msg->decode_packet(protocol);
+        SrsOnStatusCallPacket* pkt = dynamic_cast<SrsOnStatusCallPacket*>(msg->get_packet());
+        if(pkt && (pkt->command_name == SRS_BW_CHECK_STOPPED_PLAY))
+            break;
+    }
+    srs_trace("BW check recv stop play response.");
+
+    return ret;
+}
+
+int SrsRtmp::bandwidth_check_publish(int duration_ms, int interval_ms, int &actual_duration_ms,
+                                     int &publish_bytes, int max_pub_kbps)
+{
+    int ret = ERROR_SUCCESS;
+
+    // notify client to start publish
+    SrsCommonMessage* start_publish_msg = new SrsCommonMessage;
+    SrsOnStatusCallPacket* start_publish_pkt = new SrsOnStatusCallPacket;
+    start_publish_pkt->command_name = SRS_BW_CHECK_START_PUBLISH;
+    start_publish_pkt->data->set("duration_ms", new SrsAmf0Number(duration_ms));
+    start_publish_pkt->data->set("interval_ms", new SrsAmf0Number(interval_ms));
+
+    start_publish_msg->set_packet(start_publish_pkt, 0);
+    if ((ret = protocol->send_message(start_publish_msg)) != ERROR_SUCCESS) {
+        srs_error("send bandwidth check start publish message failed. ret=%d", ret);
+        return ret;
+    }
+    srs_trace("BW check publish begin.");
+
+    // read client's notification of starting publish
+    while (true) {
+        SrsCommonMessage* msg = 0;
+        if((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS)
+        {
+            srs_error("recv client's notification of starting publish failed. ret = %d", ret);
+            return ret;
+        }
+
+        msg->decode_packet(protocol);
+        SrsOnStatusCallPacket* pkt = dynamic_cast<SrsOnStatusCallPacket*>(msg->get_packet());
+        if(pkt && (pkt->command_name == SRS_BW_CHECK_STARTING_PUBLISH))
+            break;
+    }
+    srs_trace("BW check recv publish begin response.");
+
+    // recv publish msgs until @duration_ms ms
+    int64_t current_time = srs_get_system_time_ms();
+    int64_t last_time = current_time;
+    int interval = 0;
+
+    while( (srs_get_system_time_ms() - current_time) < duration_ms )
+    {
+        st_usleep(interval);
+        SrsCommonMessage* msg = NULL;
+        if ((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS) {
+            srs_error("recv message failed. ret=%d", ret);
+            return ret;
+        }
+        SrsAutoFree(SrsCommonMessage, msg, false);
+
+        publish_bytes += msg->header.payload_length;
+
+        if((srs_get_system_time_ms() - last_time) > 5){ // check kbps every 5 ms;
+            int kbps = publish_bytes * 8 / (srs_get_system_time_ms() - current_time);
+            if(kbps > max_pub_kbps){
+                interval += 1000*3;    // 2 ms
+            } else {
+                interval -= 1000*3;
+                if(interval < 0)
+                    interval = 0;
+            }
+        }
+    }
+    actual_duration_ms = srs_get_system_time_ms() -  current_time;
+    srs_trace("BW check recv publish data over.");
+
+    // notify client to stop publish
+    SrsCommonMessage* stop_publish_msg = new SrsCommonMessage;
+    SrsOnStatusCallPacket* stop_publish_pkt = new SrsOnStatusCallPacket;
+    stop_publish_pkt->command_name = SRS_BW_CHECK_STOP_PUBLISH;
+    stop_publish_pkt->data->set("duration_ms", new SrsAmf0Number(duration_ms));
+    stop_publish_pkt->data->set("interval_ms", new SrsAmf0Number(interval_ms));
+    stop_publish_pkt->data->set("duration_delta", new SrsAmf0Number(actual_duration_ms));
+    stop_publish_pkt->data->set("bytes_delta", new SrsAmf0Number(publish_bytes));
+
+    stop_publish_msg->set_packet(stop_publish_pkt, 0);
+    if ((ret = protocol->send_message(stop_publish_msg)) != ERROR_SUCCESS) {
+        srs_error("send bandwidth check stop publish message failed. ret=%d", ret);
+        return ret;
+    }
+    srs_trace("BW check stop pulish.");
+
+    // recv left msg
+    while (true) {
+        if((ret = st_netfd_poll(stfd, POLLIN, 1000*500)) == ERROR_SUCCESS)
+        {
+            SrsCommonMessage* msg = 0;
+            if((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS)
+            {
+                srs_error("recv client's left msg failed, ret = %d", ret);
+                return ret;
+            }
+        } else {
+            ret = ERROR_SUCCESS;
+            break;
+        }
+    }
+
+    return ret;
 }
 

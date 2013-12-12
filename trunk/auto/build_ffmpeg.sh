@@ -80,7 +80,7 @@ else
         --yasmexe=${ff_yasm_bin} \
         --prefix=${ff_release_dir} --cc= \
         --enable-static --disable-shared --disable-debug \
-        --extra-cflags='-I${ffmpeg_exported_release_dir}/include' \
+        --extra-cflags='-I${ffmpeg_exported_release_dir}/include -I /usr/include/freetype2/' \
         --extra-ldflags='-L${ffmpeg_exported_release_dir}/lib -lm -ldl' \
         --disable-ffplay --disable-ffprobe --disable-ffserver --disable-doc \
         --enable-postproc --enable-bzlib --enable-zlib --enable-parsers \

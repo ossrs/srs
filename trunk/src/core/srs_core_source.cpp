@@ -344,7 +344,7 @@ int SrsGopCache::dump(SrsConsumer* consumer, int tba, int tbv)
 
 std::map<std::string, SrsSource*> SrsSource::pool;
 
-SrsSource* SrsSource::find(std::string stream_url)
+SrsSource* SrsSource::find(const std::string &stream_url)
 {
 	if (pool.find(stream_url) == pool.end()) {
 		pool[stream_url] = new SrsSource(stream_url);

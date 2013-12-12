@@ -117,8 +117,8 @@ int SrsClient::do_cycle()
 int SrsClient::service_cycle()
 {	
 	int ret = ERROR_SUCCESS;
-	
-	if ((ret = rtmp->set_window_ack_size(2.5 * 1000 * 1000)) != ERROR_SUCCESS) {
+
+    if ((ret = rtmp->set_window_ack_size(2.5 * 1000 * 1000)) != ERROR_SUCCESS) {
 		srs_error("set window acknowledgement size failed. ret=%d", ret);
 		return ret;
 	}
@@ -129,29 +129,59 @@ int SrsClient::service_cycle()
 		return ret;
 	}
 	srs_verbose("set peer bandwidth success");
+
+    if(config->get_bw_check_enabled(req->vhost, req->bw_key))
+    {
+        static int64_t last_check_time_ms = srs_get_system_time_ms();
+        int64_t interval_ms = 0;
+        int     play_kbps   = 0;
+        int     pub_kbps    = 0;
+        config->get_bw_check_settings(req->vhost, interval_ms, play_kbps, pub_kbps);
+
+        if((srs_get_system_time_ms() - last_check_time_ms) < interval_ms
+                && last_check_time_ms != srs_get_system_time_ms())
+        {
+            srs_trace("bandcheck interval less than limted interval. last time=%lld, current time=%lld"
+                      , last_check_time_ms, srs_get_system_time_ms());
+            return rtmp->response_connect_reject(req, "your bandcheck frequency is too high!");
+        } else {
+            last_check_time_ms = srs_get_system_time_ms();  // update last check time
+            char* local_ip = 0;
+            if((ret = get_local_ip(local_ip)) != ERROR_SUCCESS){
+                srs_error("get local ip failed. ret = %d", ret);
+                return ret;
+            }
+            if ((ret = rtmp->response_connect_app(req, local_ip)) != ERROR_SUCCESS) {
+                srs_error("response connect app failed. ret=%d", ret);
+                return ret;
+            }
+            return rtmp->start_bandwidth_check(play_kbps, pub_kbps);
+        }
+    }
 		
 	if ((ret = rtmp->response_connect_app(req)) != ERROR_SUCCESS) {
 		srs_error("response connect app failed. ret=%d", ret);
 		return ret;
 	}
-	srs_verbose("response connect app success");
+    srs_verbose("response connect app success");
 		
 	if ((ret = rtmp->on_bw_done()) != ERROR_SUCCESS) {
 		srs_error("on_bw_done failed. ret=%d", ret);
 		return ret;
 	}
 	srs_verbose("on_bw_done success");
-	
-	SrsClientType type;
-	if ((ret = rtmp->identify_client(res->stream_id, type, req->stream)) != ERROR_SUCCESS) {
-		srs_error("identify client failed. ret=%d", ret);
-		return ret;
-	}
+
+    SrsClientType type;
+    if ((ret = rtmp->identify_client(res->stream_id, type, req->stream)) != ERROR_SUCCESS) {
+            srs_error("identify client failed. ret=%d", ret);
+            return ret;
+    }
+
 	req->strip();
 	srs_trace("identify client success. type=%d, stream_name=%s", type, req->stream.c_str());
 	
 	int chunk_size = 4096;
-	SrsConfDirective* conf = config->get_chunk_size();
+    SrsConfDirective* conf = config->get_chunk_size(req->vhost);
 	if (conf && !conf->arg0().empty()) {
 		chunk_size = ::atoi(conf->arg0().c_str());
 	}
@@ -514,6 +544,40 @@ int SrsClient::get_peer_ip()
     
     srs_verbose("get peer ip success. ip=%s, fd=%d", ip, fd);
     
+    return ret;
+}
+
+int SrsClient::get_local_ip(char *&local_ip)
+{
+    int ret = ERROR_SUCCESS;
+
+    int fd = st_netfd_fileno(stfd);
+
+    // discovery client information
+    sockaddr_in addr;
+    socklen_t addrlen = sizeof(addr);
+    if (getsockname(fd, (sockaddr*)&addr, &addrlen) == -1) {
+        ret = ERROR_SOCKET_GET_LOCAL_IP;
+        srs_error("discovery local ip information failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("get local ip success.");
+
+    // ip v4 or v6
+    char buf[INET6_ADDRSTRLEN];
+    memset(buf, 0, sizeof(buf));
+
+    if ((inet_ntop(addr.sin_family, &addr.sin_addr, buf, sizeof(buf))) == NULL) {
+        ret = ERROR_SOCKET_GET_LOCAL_IP;
+        srs_error("convert local ip information failed. ret=%d", ret);
+        return ret;
+    }
+
+    local_ip = new char[strlen(buf) + 1];
+    strcpy(local_ip, buf);
+
+    srs_verbose("get local ip of client ip=%s, fd=%d", buf, fd);
+
     return ret;
 }
 
