@@ -162,8 +162,8 @@ int SrsForwarder::on_audio(SrsSharedPtrMessage* msg)
 {
 	int ret = ERROR_SUCCESS;
 	
-	msgs.push_back(ms
-	// TODO: FIXME: must drop the msgs when server failed.g);
+	// TODO: FIXME: must drop the msgs when server failed.
+	msgs.push_back(msg);
 	
 	return ret;
 }
