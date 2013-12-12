@@ -169,7 +169,7 @@ public:
 	* @return the matched source, never be NULL.
 	* @remark stream_url should without port and schema.
 	*/
-	static SrsSource* find(std::string stream_url);
+	static SrsSource* find(const std::string& stream_url);
 private:
 	std::string stream_url;
 	// to delivery stream to clients.
