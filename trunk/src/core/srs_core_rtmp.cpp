@@ -109,6 +109,8 @@ int SrsRequest::discovery_app()
 	if (parsed_vhost) {
 		vhost = parsed_vhost->arg0();
 	}
+
+	// TODO: discovery the params of vhost.
 	
 	srs_info("discovery app success. schema=%s, vhost=%s, port=%s, app=%s",
 		schema.c_str(), vhost.c_str(), port.c_str(), app.c_str());

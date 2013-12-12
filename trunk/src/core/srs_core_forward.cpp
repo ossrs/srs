@@ -255,6 +255,9 @@ int SrsForwarder::cycle()
 		srs_error("connect with server failed, stream_id=%d. ret=%d", stream_id, ret);
 		return ret;
 	}
+	
+	// TODO: FIXME: need to cache the metadata and sequence header when reconnect.
+	
 	if ((ret = client->publish(stream_name, stream_id)) != ERROR_SUCCESS) {
 		srs_error("connect with server failed, stream_name=%s, stream_id=%d. ret=%d", 
 			stream_name.c_str(), stream_id, ret);
