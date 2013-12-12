@@ -33,8 +33,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <map>
 #include <string>
 
-#include <st.h>
-
 #include <srs_core_log.hpp>
 #include <srs_core_error.hpp>
 
@@ -117,6 +115,7 @@ public:
 	virtual void set_recv_timeout(int64_t timeout_us);
 	virtual int64_t get_recv_timeout();
 	virtual void set_send_timeout(int64_t timeout_us);
+	virtual int64_t get_send_timeout();
 	virtual int64_t get_recv_bytes();
 	virtual int64_t get_send_bytes();
 	virtual int get_recv_kbps();
@@ -205,8 +204,9 @@ struct SrsMessageHeader
 	* Four-byte field that contains a timestamp of the message.
 	* The 4 bytes are packed in the big-endian order.
 	* @remark, used as calc timestamp when decode and encode time.
+	* @remark, we use 64bits for large time for jitter detect and hls.
 	*/
-	u_int32_t timestamp;
+	int64_t timestamp;
 	
 	SrsMessageHeader();
 	virtual ~SrsMessageHeader();
@@ -1156,7 +1156,7 @@ int srs_rtmp_expect_message(SrsProtocol* protocol, SrsCommonMessage** pmsg, T** 
 		T* pkt = dynamic_cast<T*>(msg->get_packet());
 		if (!pkt) {
 			delete msg;
-			srs_trace("drop message(type=%d, size=%d, time=%d, sid=%d).", 
+			srs_trace("drop message(type=%d, size=%d, time=%"PRId64", sid=%d).", 
 				msg->header.message_type, msg->header.payload_length,
 				msg->header.timestamp, msg->header.stream_id);
 			continue;

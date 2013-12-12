@@ -32,9 +32,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <vector>
 
-#include <st.h>
-
 #include <srs_core_reload.hpp>
+#include <srs_core_thread.hpp>
 
 class SrsServer;
 class SrsConnection;
@@ -45,7 +44,7 @@ enum SrsListenerType
 	SrsListenerApi
 };
 
-class SrsListener
+class SrsListener : public ISrsThreadHandler
 {
 public:
 	SrsListenerType type;
@@ -54,19 +53,19 @@ private:
 	st_netfd_t stfd;
 	int port;
 	SrsServer* server;
-	st_thread_t tid;
-	bool loop;
+	SrsThread* pthread;
 public:
 	SrsListener(SrsServer* _server, SrsListenerType _type);
 	virtual ~SrsListener();
 public:
 	virtual int listen(int port);
-private:
-	virtual void listen_cycle();
-	static void* listen_thread(void* arg);
+// interface ISrsThreadHandler.
+public:
+	virtual void on_enter_loop();
+	virtual int cycle();
 };
 
-class SrsServer : public SrsReloadHandler
+class SrsServer : public ISrsReloadHandler
 {
 	friend class SrsListener;
 private:

@@ -52,6 +52,11 @@ void SrsSocket::set_send_timeout(int64_t timeout_us)
 	send_timeout = timeout_us;
 }
 
+int64_t SrsSocket::get_send_timeout()
+{
+	return send_timeout;
+}
+
 int64_t SrsSocket::get_recv_bytes()
 {
 	return recv_bytes;

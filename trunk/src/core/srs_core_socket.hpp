@@ -30,8 +30,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
-#include <st.h>
-
 /**
 * the socket provides TCP socket over st,
 * that is, the sync socket mechanism.
@@ -52,6 +50,7 @@ public:
 	virtual void set_recv_timeout(int64_t timeout_us);
 	virtual int64_t get_recv_timeout();
 	virtual void set_send_timeout(int64_t timeout_us);
+	virtual int64_t get_send_timeout();
 	virtual int64_t get_recv_bytes();
 	virtual int64_t get_send_bytes();
 	virtual int get_recv_kbps();

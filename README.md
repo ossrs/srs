@@ -3,7 +3,7 @@ simple-rtmp-server
 
 srs(simple rtmp origin live server) over state-threads.<br/>
 srs is a simple, high-performance, running in single process, origin live server.<br/>
-srs supports rtmp, HLS, transcoding, forward, http hooks. <br/>
+srs supports vhost, rtmp, HLS, transcoding, forward, http hooks. <br/>
 blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
 see also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) <br/>
 see also: [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.github.io/simple-rtmp-server)
@@ -12,30 +12,36 @@ see also: [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.githu
 winlin(winterserver): [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin)
 
 ### Usage
-step 1: build srs <br/>
+<strong>step 1:</strong> build srs <br/>
 <pre>
 tar xf simple-rtmp-server-*.*.tar.gz
 cd simple-rtmp-server-*.*/trunk
 ./configure --with-ssl --with-hls --with-ffmpeg --with-http
 make
 </pre>
-step 2: start srs <br/>
+or get the latest code:<br/>
 <pre>
-./objs/simple_rtmp_server -c conf/srs.conf
+git clone  https://github.com/winlinvip/simple-rtmp-server
+cd simple-rtmp-server/trunk
+./configure --with-ssl --with-hls --with-ffmpeg --with-http
 </pre>
-step 3(optinal): start srs listen at 19350 to forward to<br/>
+<strong>step 2:</strong> start srs <br/>
 <pre>
-./objs/simple_rtmp_server -c conf/srs.19350.conf
+./objs/srs -c conf/srs.conf
 </pre>
-step 4(optional): start nginx for HLS <br/>
+<strong>step 3(optinal):</strong> start srs listen at 19350 to forward to<br/>
+<pre>
+./objs/srs -c conf/srs.19350.conf
+</pre>
+<strong>step 4(optinal):</strong> start nginx for HLS <br/>
 <pre>
 sudo ./objs/nginx/sbin/nginx
 </pre>
-step 5(optional): start http hooks for srs callback <br/>
+<strong>step 5(optinal):</strong> start http hooks for srs callback <br/>
 <pre>
 python ./research/api-server/server.py 8085
 </pre>
-step 6: publish live stream <br/>
+<strong>step 6:</strong> publish live stream <br/>
 <pre>
 FMS URL: rtmp://127.0.0.1:1935/live
 Stream:  livestream
@@ -47,7 +53,7 @@ For example, use ffmpeg to publish:
         sleep 1; \
     done
 </pre>
-step 7: add server ip to client hosts as demo. <br/>
+<strong>step 7:</strong> add server ip to client hosts as demo. <br/>
 <pre>
 # edit the folowing file:
 # linux: /etc/hosts
@@ -55,26 +61,41 @@ step 7: add server ip to client hosts as demo. <br/>
 # where server ip is 192.168.2.111
 192.168.2.111 demo 
 </pre>
-step 8: play live stream. <br/>
+<strong>step 8:</strong> play live stream. <br/>
 <pre>
+players: http://demo:80/players
 rtmp url: rtmp://demo:1935/live/livestream
 m3u8 url: http://demo:80/live/livestream.m3u8
+for android: http://demo:80/live/livestream.html
 </pre>
-step 9: play live stream auto transcoded<br/>
+<strong>step 9(optinal):</strong> play live stream auto transcoded<br/>
 <pre>
 rtmp url: rtmp://demo:1935/live/livestream_ld
 m3u8 url: http://demo:80/live/livestream_ld.m3u8
+for android: http://demo:80/live/livestream_ld.html
 rtmp url: rtmp://demo:1935/live/livestream_sd
 m3u8 url: http://demo:80/live/livestream_sd.m3u8
+for android: http://demo:80/live/livestream_sd.html
 </pre>
-step 10: play live stream auto forwarded, the hls dir change to /forward<br/>
+<strong>step 10(optinal):</strong> play live stream auto forwarded, the hls dir change to /forward<br/>
 <pre>
 rtmp url: rtmp://demo:19350/live/livestream
 m3u8 url: http://demo:80/forward/live/livestream.m3u8
+for android: http://demo:80/forward/live/livestream.html
 rtmp url: rtmp://demo:19350/live/livestream_ld
 m3u8 url: http://demo:80/forward/live/livestream_ld.m3u8
+for android: http://demo:80/forward/live/livestream_ld.html
 rtmp url: rtmp://demo:19350/live/livestream_sd
 m3u8 url: http://demo:80/forward/live/livestream_sd.m3u8
+for android: http://demo:80/forward/live/livestream_sd.html
+</pre>
+<strong>step 11(optinal):</strong> modify the config and reload it (all features support reload)<br/>
+<pre>
+killall -1 srs
+</pre>
+or use specified signal to reload:<br/>
+<pre>
+killall -s SIGHUP srs
 </pre>
 
 ### Architecture
@@ -192,7 +213,15 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
-* v0.8, 2013-12-08, v0.8 released. 19186 lines.
+* v0.9, 2013-12-15, ensure the HLS(ts) is continous when republish stream.
+* v0.9, 2013-12-15, fix the hls reload bug, feed it the sequence header.
+* v0.9, 2013-12-15, refine protocol, use int64_t timestamp for ts and jitter.
+* v0.9, 2013-12-15, support set the live queue length(in seconds), drop when full.
+* v0.9, 2013-12-15, fix the forwarder reconnect bug, feed it the sequence header.
+* v0.9, 2013-12-15, support reload the hls/forwarder/transcoder.
+* v0.9, 2013-12-14, refine the thread model for the retry threads.
+* v0.9, 2013-12-10, auto install depends tools/libs on centos/ubuntu.
+* v0.8, 2013-12-08, [v0.8](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.8) released. 19186 lines.
 * v0.8, 2013-12-08, support http hooks: on_connect/close/publish/unpublish/play/stop.
 * v0.8, 2013-12-08, support multiple http hooks for a event.
 * v0.8, 2013-12-07, support http callback hooks, on_connect.
@@ -201,32 +230,32 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * v0.8, 2013-12-06, support max_connections, drop if exceed.
 * v0.8, 2013-12-05, support log_dir, write ffmpeg log to file.
 * v0.8, 2013-12-05, fix the forward/hls/encoder bug.
-* v0.7, 2013-12-03, v0.7 released. 17605 lines.
+* v0.7, 2013-12-03, [v0.7](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.7) released. 17605 lines.
 * v0.7, 2013-12-01, support dead-loop detect for forwarder and transcoder.
 * v0.7, 2013-12-01, support all ffmpeg filters and params.
 * v0.7, 2013-11-30, support live stream transcoder by ffmpeg.
 * v0.7, 2013-11-30, support --with/without -ffmpeg, build ffmpeg-2.1.
 * v0.7, 2013-11-30, add ffmpeg-2.1, x264-core138, lame-3.99.5, libaacplus-2.0.2.
-* v0.6, 2013-11-29, v0.6 released. 16094 lines.
+* v0.6, 2013-11-29, [v0.6](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.6) released. 16094 lines.
 * v0.6, 2013-11-29, add performance summary, 1800 clients, 900Mbps, CPU 90.2%, 41MB.
 * v0.6, 2013-11-29, support forward stream to other edge server.
 * v0.6, 2013-11-29, support forward stream to other origin server.
 * v0.6, 2013-11-28, fix memory leak bug, aac decode bug.
 * v0.6, 2013-11-27, support --with or --without -hls and -ssl options.
 * v0.6, 2013-11-27, support AAC 44100HZ sample rate for iphone, adjust the timestamp.
-* v0.5, 2013-11-26, v0.5 released. 14449 lines.
+* v0.5, 2013-11-26, [v0.5](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.5) released. 14449 lines.
 * v0.5, 2013-11-24, support HLS(m3u8), fragment and window.
 * v0.5, 2013-11-24, support record to ts file for HLS.
 * v0.5, 2013-11-21, add ts_info tool to demux ts file.
 * v0.5, 2013-11-16, add rtmp players(OSMF/jwplayer5/jwplayer6).
-* v0.4, 2013-11-10, v0.4 released. 12500 lines.
+* v0.4, 2013-11-10, [v0.4](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.4) released. 12500 lines.
 * v0.4, 2013-11-10, support config and reload the pithy print.
 * v0.4, 2013-11-09, support reload config(vhost and its detail).
 * v0.4, 2013-11-09, support reload config(listen and chunk_size) by SIGHUP(1).
 * v0.4, 2013-11-09, support longtime(>4.6hours) publish/play.
 * v0.4, 2013-11-09, support config the chunk_size.
 * v0.4, 2013-11-09, support pause for live stream.
-* v0.3, 2013-11-04, v0.3 released. 11773 lines.
+* v0.3, 2013-11-04, [v0.3](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.3) released. 11773 lines.
 * v0.3, 2013-11-04, support refer/play-refer/publish-refer.
 * v0.3, 2013-11-04, support vhosts specified config.
 * v0.3, 2013-11-02, support listen multiple ports.
@@ -234,12 +263,12 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * v0.3, 2013-10-29, support pithy print log message specified by stage.
 * v0.3, 2013-10-28, support librtmp without extended-timestamp in 0xCX chunk packet.
 * v0.3, 2013-10-27, support cache last gop for client fast startup.
-* v0.2, 2013-10-25, v0.2 released. 10125 lines.
+* v0.2, 2013-10-25, [v0.2](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.2) released. 10125 lines.
 * v0.2, 2013-10-25, support flash publish.
 * v0.2, 2013-10-25, support h264/avc codec by rtmp complex handshake.
 * v0.2, 2013-10-24, support time jitter detect and correct algorithm
 * v0.2, 2013-10-24, support decode codec type to cache the h264/avc sequence header.
-* v0.1, 2013-10-23, v0.1 released. 8287 lines.
+* v0.1, 2013-10-23, [v0.1](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.1) released. 8287 lines.
 * v0.1, 2013-10-23, support basic amf0 codec, simplify the api using c-style api.
 * v0.1, 2013-10-23, support shared ptr msg for zero memory copy.
 * v0.1, 2013-10-22, support vp6 codec with rtmp protocol specified simple handshake.

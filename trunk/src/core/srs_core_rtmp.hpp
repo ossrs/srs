@@ -33,8 +33,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
-#include <st.h>
-
 class SrsProtocol;
 class ISrsMessage;
 class SrsCommonMessage;
@@ -69,6 +67,13 @@ struct SrsRequest
 	
 	SrsRequest();
 	virtual ~SrsRequest();
+
+	/**
+	* deep copy the request, for source to use it to support reload,
+	* for when initialize the source, the request is valid,
+	* when reload it, the request maybe invalid, so need to copy it.
+	*/
+	virtual SrsRequest* copy();
 	
 	/**
 	* disconvery vhost/app from tcUrl.
@@ -148,6 +153,7 @@ public:
 	virtual void set_recv_timeout(int64_t timeout_us);
 	virtual int64_t get_recv_timeout();
 	virtual void set_send_timeout(int64_t timeout_us);
+	virtual int64_t get_send_timeout();
 	virtual int64_t get_recv_bytes();
 	virtual int64_t get_send_bytes();
 	virtual int get_recv_kbps();

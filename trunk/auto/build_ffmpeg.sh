@@ -59,7 +59,9 @@ else
     echo "build x264"
     cd $ff_current_dir &&
     rm -rf x264-snapshot-20131129-2245-stable && unzip -q ${ff_src_dir}/x264-snapshot-20131129-2245-stable.zip &&
-    cd x264-snapshot-20131129-2245-stable && ./configure --prefix=${ff_release_dir} --bit-depth=8 --enable-static && make && make install
+    cd x264-snapshot-20131129-2245-stable && 
+    ./configure --prefix=${ff_release_dir} --disable-opencl --bit-depth=8 --enable-static && 
+    make && make install
     ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build x264 failed"; exit 1; fi
 fi
 
@@ -86,7 +88,8 @@ else
         --enable-postproc --enable-bzlib --enable-zlib --enable-parsers \
         --enable-libfreetype \
         --enable-libx264 --enable-libmp3lame --enable-libaacplus \
-        --enable-pthreads --extra-libs=-lpthread --enable-encoders --enable-decoders --enable-avfilter --enable-muxers --enable-demuxers && 
+        --enable-pthreads --extra-libs=-lpthread \
+        --enable-encoders --enable-decoders --enable-avfilter --enable-muxers --enable-demuxers && 
     make && make install
-    ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build x264 failed"; exit 1; fi
+    ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build ffmpeg failed"; exit 1; fi
 fi

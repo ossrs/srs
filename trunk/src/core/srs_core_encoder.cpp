@@ -483,13 +483,103 @@ void SrsFFMPEG::stop()
 
 SrsEncoder::SrsEncoder()
 {
-	tid = NULL;
-	loop = false;
+	pthread = new SrsThread(this, SRS_ENCODER_SLEEP_MS);
+	pithy_print = new SrsPithyPrint(SRS_STAGE_ENCODER);
 }
 
 SrsEncoder::~SrsEncoder()
 {
 	on_unpublish();
+	
+	srs_freep(pthread);
+}
+
+int SrsEncoder::on_publish(SrsRequest* req)
+{
+	int ret = ERROR_SUCCESS;
+
+	ret = parse_scope_engines(req);
+	
+	// ignore the loop encoder
+	if (ret == ERROR_ENCODER_LOOP) {
+		clear_engines();
+		ret = ERROR_SUCCESS;
+	}
+	
+	// return for error or no engine.
+	if (ret != ERROR_SUCCESS || ffmpegs.empty()) {
+		return ret;
+	}
+    
+    // start thread to run all encoding engines.
+    if ((ret = pthread->start()) != ERROR_SUCCESS) {
+        srs_error("st_thread_create failed. ret=%d", ret);
+        return ret;
+    }
+    
+	return ret;
+}
+
+void SrsEncoder::on_unpublish()
+{
+	pthread->stop();
+	clear_engines();
+}
+
+int SrsEncoder::cycle()
+{
+	int ret = ERROR_SUCCESS;
+	
+	std::vector<SrsFFMPEG*>::iterator it;
+	for (it = ffmpegs.begin(); it != ffmpegs.end(); ++it) {
+		SrsFFMPEG* ffmpeg = *it;
+		
+		// start all ffmpegs.
+		if ((ret = ffmpeg->start()) != ERROR_SUCCESS) {
+			srs_error("ffmpeg start failed. ret=%d", ret);
+			return ret;
+		}
+
+		// check ffmpeg status.
+		if ((ret = ffmpeg->cycle()) != ERROR_SUCCESS) {
+			srs_error("ffmpeg cycle failed. ret=%d", ret);
+			return ret;
+		}
+	}
+
+	// pithy print
+	encoder();
+	pithy_print->elapse(SRS_ENCODER_SLEEP_MS);
+	
+	return ret;
+}
+
+void SrsEncoder::on_leave_loop()
+{
+	// kill ffmpeg when finished and it alive
+	std::vector<SrsFFMPEG*>::iterator it;
+
+	for (it = ffmpegs.begin(); it != ffmpegs.end(); ++it) {
+		SrsFFMPEG* ffmpeg = *it;
+		ffmpeg->stop();
+	}
+}
+
+void SrsEncoder::clear_engines()
+{
+	std::vector<SrsFFMPEG*>::iterator it;
+	
+	for (it = ffmpegs.begin(); it != ffmpegs.end(); ++it) {
+		SrsFFMPEG* ffmpeg = *it;
+		srs_freep(ffmpeg);
+	}
+
+	ffmpegs.clear();
+}
+
+SrsFFMPEG* SrsEncoder::at(int index)
+{
+	return ffmpegs[index];
 }
 
 int SrsEncoder::parse_scope_engines(SrsRequest* req)
@@ -529,60 +619,6 @@ int SrsEncoder::parse_scope_engines(SrsRequest* req)
 	}
 	
 	return ret;
-}
-
-int SrsEncoder::on_publish(SrsRequest* req)
-{
-	int ret = ERROR_SUCCESS;
-
-	ret = parse_scope_engines(req);
-	
-	// ignore the loop encoder
-	if (ret == ERROR_ENCODER_LOOP) {
-		ret = ERROR_SUCCESS;
-	}
-	
-	// return for error or no engine.
-	if (ret != ERROR_SUCCESS || ffmpegs.empty()) {
-		return ret;
-	}
-    
-    // start thread to run all encoding engines.
-    srs_assert(!tid);
-    if((tid = st_thread_create(encoder_thread, this, 1, 0)) == NULL) {
-		ret = ERROR_ST_CREATE_FORWARD_THREAD;
-        srs_error("st_thread_create failed. ret=%d", ret);
-        return ret;
-    }
-    
-	return ret;
-}
-
-void SrsEncoder::on_unpublish()
-{
-	if (tid) {
-		loop = false;
-		st_thread_interrupt(tid);
-		st_thread_join(tid, NULL);
-		tid = NULL;
-	}
-
-	clear_engines();
-}
-
-void SrsEncoder::clear_engines()
-{
-	std::vector<SrsFFMPEG*>::iterator it;
-	for (it = ffmpegs.begin(); it != ffmpegs.end(); ++it) {
-		SrsFFMPEG* ffmpeg = *it;
-		srs_freep(ffmpeg);
-	}
-	ffmpegs.clear();
-}
-
-SrsFFMPEG* SrsEncoder::at(int index)
-{
-	return ffmpegs[index];
 }
 
 int SrsEncoder::parse_transcode(SrsRequest* req, SrsConfDirective* conf)
@@ -631,7 +667,6 @@ int SrsEncoder::parse_transcode(SrsRequest* req, SrsConfDirective* conf)
 			
 			// if got a loop, donot transcode the whole stream.
 			if (ret == ERROR_ENCODER_LOOP) {
-				clear_engines();
 				break;
 			}
 			
@@ -646,84 +681,13 @@ int SrsEncoder::parse_transcode(SrsRequest* req, SrsConfDirective* conf)
 	return ret;
 }
 
-int SrsEncoder::cycle()
-{
-	int ret = ERROR_SUCCESS;
-	
-	std::vector<SrsFFMPEG*>::iterator it;
-	for (it = ffmpegs.begin(); it != ffmpegs.end(); ++it) {
-		SrsFFMPEG* ffmpeg = *it;
-		
-		// start all ffmpegs.
-		if ((ret = ffmpeg->start()) != ERROR_SUCCESS) {
-			srs_error("ffmpeg start failed. ret=%d", ret);
-			return ret;
-		}
-
-		// check ffmpeg status.
-		if ((ret = ffmpeg->cycle()) != ERROR_SUCCESS) {
-			srs_error("ffmpeg cycle failed. ret=%d", ret);
-			return ret;
-		}
-	}
-	
-	return ret;
-}
-
-void SrsEncoder::encoder_cycle()
-{
-	int ret = ERROR_SUCCESS;
-	
-	log_context->generate_id();
-	srs_trace("encoder cycle start");
-	
-	SrsPithyPrint pithy_print(SRS_STAGE_ENCODER);
-	
-	while (loop) {
-		if ((ret = cycle()) != ERROR_SUCCESS) {
-			srs_warn("encoder cycle failed, ignored and retry, ret=%d", ret);
-		} else {
-			srs_info("encoder cycle success, retry");
-		}
-		
-		if (!loop) {
-			break;
-		}
-
-		encoder(&pithy_print);
-		pithy_print.elapse(SRS_ENCODER_SLEEP_MS);
-		
-		st_usleep(SRS_ENCODER_SLEEP_MS * 1000);
-	}
-	
-	// kill ffmpeg when finished and it alive
-	std::vector<SrsFFMPEG*>::iterator it;
-	for (it = ffmpegs.begin(); it != ffmpegs.end(); ++it) {
-		SrsFFMPEG* ffmpeg = *it;
-		ffmpeg->stop();
-	}
-	
-	srs_trace("encoder cycle finished");
-}
-
-void SrsEncoder::encoder(SrsPithyPrint* pithy_print)
+void SrsEncoder::encoder()
 {
 	// reportable
 	if (pithy_print->can_print()) {
-		srs_trace("-> time=%"PRId64", encoders=%d",
-			pithy_print->get_age(), (int)ffmpegs.size());
+		// TODO: FIXME: show more info.
+		srs_trace("-> time=%"PRId64", encoders=%d", pithy_print->get_age(), (int)ffmpegs.size());
 	}
-}
-
-void* SrsEncoder::encoder_thread(void* arg)
-{
-	SrsEncoder* obj = (SrsEncoder*)arg;
-	srs_assert(obj != NULL);
-	
-	obj->loop = true;
-	obj->encoder_cycle();
-	
-	return NULL;
 }
 
 #endif

@@ -33,6 +33,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_handshake.hpp>
 #include <srs_core_config.hpp>
 
+using namespace std;
+
 /**
 * the signature for packets to client.
 */
@@ -77,6 +79,23 @@ SrsRequest::SrsRequest()
 
 SrsRequest::~SrsRequest()
 {
+}
+
+SrsRequest* SrsRequest::copy()
+{
+	SrsRequest* cp = new SrsRequest();
+	
+	cp->app = app;
+	cp->objectEncoding = objectEncoding;
+	cp->pageUrl = pageUrl;
+	cp->port = port;
+	cp->schema = schema;
+	cp->stream = stream;
+	cp->swfUrl = swfUrl;
+	cp->tcUrl = tcUrl;
+	cp->vhost = vhost;
+	
+	return cp;
 }
 
 int SrsRequest::discovery_app()
@@ -125,6 +144,8 @@ int SrsRequest::discovery_app()
 	if (parsed_vhost) {
 		vhost = parsed_vhost->arg0();
 	}
+
+	// TODO: discovery the params of vhost.
 	
 	srs_info("discovery app success. schema=%s, vhost=%s, port=%s, app=%s",
 		schema.c_str(), vhost.c_str(), port.c_str(), app.c_str());
@@ -142,7 +163,7 @@ int SrsRequest::discovery_app()
 	return ret;
 }
 
-std::string SrsRequest::get_stream_url()
+string SrsRequest::get_stream_url()
 {
 	std::string url = "";
 	
@@ -162,7 +183,7 @@ void SrsRequest::strip()
 	trim(stream, "/ \n\r\t");
 }
 
-std::string& SrsRequest::trim(std::string& str, std::string chs)
+std::string& SrsRequest::trim(string& str, string chs)
 {
 	for (int i = 0; i < (int)chs.length(); i++) {
 		char ch = chs.at(i);
@@ -244,6 +265,9 @@ int SrsRtmpClient::handshake()
 	int ret = ERROR_SUCCESS;
 	
     SrsSocket skt(stfd);
+    
+    skt.set_recv_timeout(protocol->get_recv_timeout());
+    skt.set_send_timeout(protocol->get_send_timeout());
     
     SrsComplexHandshake complex_hs;
     SrsSimpleHandshake simple_hs;
@@ -436,6 +460,11 @@ void SrsRtmp::set_send_timeout(int64_t timeout_us)
 	protocol->set_send_timeout(timeout_us);
 }
 
+int64_t SrsRtmp::get_send_timeout()
+{
+	return protocol->get_send_timeout();
+}
+
 int64_t SrsRtmp::get_recv_bytes()
 {
 	return protocol->get_recv_bytes();
@@ -471,6 +500,9 @@ int SrsRtmp::handshake()
 	int ret = ERROR_SUCCESS;
 	
     SrsSocket skt(stfd);
+    
+    skt.set_recv_timeout(protocol->get_recv_timeout());
+    skt.set_send_timeout(protocol->get_send_timeout());
     
     SrsComplexHandshake complex_hs;
     SrsSimpleHandshake simple_hs;
@@ -1127,7 +1159,7 @@ int SrsRtmp::start_bandwidth_check(int max_play_kbps, int max_pub_kbps)
     return ret;
 }
 
-int SrsRtmp::identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, std::string& stream_name)
+int SrsRtmp::identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, string& stream_name)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -1184,7 +1216,7 @@ int SrsRtmp::identify_create_stream_client(SrsCreateStreamPacket* req, int strea
 	return ret;
 }
 
-int SrsRtmp::identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsClientType& type, std::string& stream_name)
+int SrsRtmp::identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsClientType& type, string& stream_name)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -1208,7 +1240,7 @@ int SrsRtmp::identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsClientType
 	return ret;
 }
 
-int SrsRtmp::identify_flash_publish_client(SrsPublishPacket* req, SrsClientType& type, std::string& stream_name)
+int SrsRtmp::identify_flash_publish_client(SrsPublishPacket* req, SrsClientType& type, string& stream_name)
 {
 	int ret = ERROR_SUCCESS;
 	

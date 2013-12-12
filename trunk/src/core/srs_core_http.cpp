@@ -184,15 +184,7 @@ void SrsHttpClient::disconnect()
 {
 	connected = false;
 	
-	if (stfd) {
-		int fd = st_netfd_fileno(stfd);
-		st_netfd_close(stfd);
-		stfd = NULL;
-		
-		// st does not close it sometimes, 
-		// close it manually.
-		::close(fd);
-	}
+	srs_close_stfd(stfd);
 }
 
 int SrsHttpClient::connect(SrsHttpUri* uri)

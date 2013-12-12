@@ -26,6 +26,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <arpa/inet.h>
 #include <stdlib.h>
 
+using namespace std;
+
 #include <srs_core_error.hpp>
 #include <srs_core_log.hpp>
 #include <srs_core_rtmp.hpp>
@@ -55,10 +57,14 @@ SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
 #ifdef SRS_HTTP	
 	http_hooks = new SrsHttpHooks();
 #endif
+	
+	config->subscribe(this);
 }
 
 SrsClient::~SrsClient()
 {
+	config->unsubscribe(this);
+	
 	srs_freepa(ip);
 	srs_freep(req);
 	srs_freep(res);
@@ -110,6 +116,23 @@ int SrsClient::do_cycle()
 	
 	ret = service_cycle();
 	on_close();
+	
+	return ret;
+}
+
+int SrsClient::on_reload_vhost_removed(string vhost)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if (req->vhost != vhost) {
+		return ret;
+	}
+	
+	// if the vhost connected is removed, disconnect the client.
+	srs_trace("vhost %s removed/disabled, close client url=%s", 
+		vhost.c_str(), req->get_stream_url().c_str());
+		
+	srs_close_stfd(stfd);
 	
 	return ret;
 }
@@ -180,11 +203,7 @@ int SrsClient::service_cycle()
 	req->strip();
 	srs_trace("identify client success. type=%d, stream_name=%s", type, req->stream.c_str());
 	
-	int chunk_size = 4096;
-    SrsConfDirective* conf = config->get_chunk_size(req->vhost);
-	if (conf && !conf->arg0().empty()) {
-		chunk_size = ::atoi(conf->arg0().c_str());
-	}
+	int chunk_size = config->get_chunk_size();
 	if ((ret = rtmp->set_chunk_size(chunk_size)) != ERROR_SUCCESS) {
 		srs_error("set chunk_size=%d failed. ret=%d", chunk_size, ret);
 		return ret;
@@ -192,7 +211,7 @@ int SrsClient::service_cycle()
 	srs_trace("set chunk_size=%d success", chunk_size);
 	
 	// find a source to publish.
-	SrsSource* source = SrsSource::find(req->get_stream_url());
+	SrsSource* source = SrsSource::find(req);
 	srs_assert(source != NULL);
 	
 	// check publish available.
@@ -205,14 +224,9 @@ int SrsClient::service_cycle()
 		return ret;
 	}
 	
-	bool enabled_cache = true;
-	conf = config->get_gop_cache(req->vhost);
-	if (conf && conf->arg0() == "off") {
-		enabled_cache = false;
-	}
-	source->set_cache(enabled_cache);
-
+	bool enabled_cache = config->get_gop_cache(req->vhost);
 	srs_info("source found, url=%s, enabled_cache=%d", req->get_stream_url().c_str(), enabled_cache);
+	source->set_cache(enabled_cache);
 	
 	switch (type) {
 		case SrsClientPlay: {

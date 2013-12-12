@@ -35,32 +35,39 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_pithy_print.hpp>
 #include <srs_core_rtmp.hpp>
 #include <srs_core_config.hpp>
+#include <srs_core_source.hpp>
+#include <srs_core_autofree.hpp>
 
 #define SRS_PULSE_TIMEOUT_MS 100
 #define SRS_FORWARDER_SLEEP_MS 2000
 #define SRS_SEND_TIMEOUT_US 3000000L
 #define SRS_RECV_TIMEOUT_US SRS_SEND_TIMEOUT_US
 
-SrsForwarder::SrsForwarder()
+SrsForwarder::SrsForwarder(SrsSource* _source)
 {
+	source = _source;
+	
 	client = NULL;
 	stfd = NULL;
 	stream_id = 0;
-	
-	tid = NULL;
-	loop = false;
+
+	pthread = new SrsThread(this, SRS_FORWARDER_SLEEP_MS);
+	queue = new SrsMessageQueue();
+	jitter = new SrsRtmpJitter();
 }
 
 SrsForwarder::~SrsForwarder()
 {
 	on_unpublish();
 	
-	std::vector<SrsSharedPtrMessage*>::iterator it;
-	for (it = msgs.begin(); it != msgs.end(); ++it) {
-		SrsSharedPtrMessage* msg = *it;
-		srs_freep(msg);
-	}
-	msgs.clear();
+	srs_freep(pthread);
+	srs_freep(queue);
+	srs_freep(jitter);
+}
+
+void SrsForwarder::set_queue_size(double queue_size)
+{
+	queue->set_queue_size(queue_size);
 }
 
 int SrsForwarder::on_publish(SrsRequest* req, std::string forward_server)
@@ -110,41 +117,19 @@ int SrsForwarder::on_publish(SrsRequest* req, std::string forward_server)
 		source_ep.c_str(), dest_ep.c_str(), tc_url.c_str(), 
 		stream_name.c_str());
 	
-	// TODO: seems bug when republish and reforward.
-	
-	// start forward
-	if ((ret = open_socket()) != ERROR_SUCCESS) {
-		return ret;
-	}
-    
-    srs_assert(!tid);
-    if((tid = st_thread_create(forward_thread, this, 1, 0)) == NULL){
-		ret = ERROR_ST_CREATE_FORWARD_THREAD;
-        srs_error("st_thread_create failed. ret=%d", ret);
+	if ((ret = pthread->start()) != ERROR_SUCCESS) {
+        srs_error("start srs thread failed. ret=%d", ret);
         return ret;
-    }
+	}
 	
 	return ret;
 }
 
 void SrsForwarder::on_unpublish()
 {
-	if (tid) {
-		loop = false;
-		st_thread_interrupt(tid);
-		st_thread_join(tid, NULL);
-		tid = NULL;
-	}
+	pthread->stop();
 	
-	if (stfd) {
-		int fd = st_netfd_fileno(stfd);
-		st_netfd_close(stfd);
-		stfd = NULL;
-		
-		// st does not close it sometimes, 
-		// close it manually.
-		close(fd);
-	}
+	close_underlayer_socket();
 	
 	srs_freep(client);
 }
@@ -153,7 +138,14 @@ int SrsForwarder::on_meta_data(SrsSharedPtrMessage* metadata)
 {
 	int ret = ERROR_SUCCESS;
 	
-	msgs.push_back(metadata);
+	if ((ret = jitter->correct(metadata, 0, 0)) != ERROR_SUCCESS) {
+		srs_freep(metadata);
+		return ret;
+	}
+	
+	if ((ret = queue->enqueue(metadata)) != ERROR_SUCCESS) {
+		return ret;
+	}
 	
 	return ret;
 }
@@ -162,7 +154,14 @@ int SrsForwarder::on_audio(SrsSharedPtrMessage* msg)
 {
 	int ret = ERROR_SUCCESS;
 	
-	msgs.push_back(msg);
+	if ((ret = jitter->correct(msg, 0, 0)) != ERROR_SUCCESS) {
+		srs_freep(msg);
+		return ret;
+	}
+	
+	if ((ret = queue->enqueue(msg)) != ERROR_SUCCESS) {
+		return ret;
+	}
 	
 	return ret;
 }
@@ -171,15 +170,74 @@ int SrsForwarder::on_video(SrsSharedPtrMessage* msg)
 {
 	int ret = ERROR_SUCCESS;
 	
-	msgs.push_back(msg);
+	if ((ret = jitter->correct(msg, 0, 0)) != ERROR_SUCCESS) {
+		srs_freep(msg);
+		return ret;
+	}
+	
+	if ((ret = queue->enqueue(msg)) != ERROR_SUCCESS) {
+		return ret;
+	}
 	
 	return ret;
 }
 
-int SrsForwarder::open_socket()
+int SrsForwarder::cycle()
 {
 	int ret = ERROR_SUCCESS;
 	
+	if ((ret = connect_server()) != ERROR_SUCCESS) {
+		return ret;
+	}
+	srs_assert(client);
+
+	client->set_recv_timeout(SRS_RECV_TIMEOUT_US);
+	client->set_send_timeout(SRS_SEND_TIMEOUT_US);
+	
+	if ((ret = client->handshake()) != ERROR_SUCCESS) {
+		srs_error("handshake with server failed. ret=%d", ret);
+		return ret;
+	}
+	if ((ret = client->connect_app(app, tc_url)) != ERROR_SUCCESS) {
+		srs_error("connect with server failed, tcUrl=%s. ret=%d", tc_url.c_str(), ret);
+		return ret;
+	}
+	if ((ret = client->create_stream(stream_id)) != ERROR_SUCCESS) {
+		srs_error("connect with server failed, stream_id=%d. ret=%d", stream_id, ret);
+		return ret;
+	}
+	
+	if ((ret = client->publish(stream_name, stream_id)) != ERROR_SUCCESS) {
+		srs_error("connect with server failed, stream_name=%s, stream_id=%d. ret=%d", 
+			stream_name.c_str(), stream_id, ret);
+		return ret;
+	}
+	
+	if ((ret = source->on_forwarder_start(this)) != ERROR_SUCCESS) {
+		srs_error("callback the source to feed the sequence header failed. ret=%d", ret);
+		return ret;
+	}
+	
+	if ((ret = forward()) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
+	return ret;
+}
+
+void SrsForwarder::close_underlayer_socket()
+{
+	srs_close_stfd(stfd);
+}
+
+int SrsForwarder::connect_server()
+{
+	int ret = ERROR_SUCCESS;
+	
+	// reopen
+	close_underlayer_socket();
+	
+	// open socket.
 	srs_trace("forward stream=%s, tcUrl=%s to server=%s, port=%d",
 		stream_name.c_str(), tc_url.c_str(), server.c_str(), port);
 
@@ -190,6 +248,7 @@ int SrsForwarder::open_socket()
         return ret;
     }
     
+    srs_assert(!stfd);
     stfd = st_netfd_open_socket(sock);
     if(stfd == NULL){
         ret = ERROR_ST_OPEN_SOCKET;
@@ -200,13 +259,7 @@ int SrsForwarder::open_socket()
 	srs_freep(client);
 	client = new SrsRtmpClient(stfd);
 	
-	return ret;
-}
-
-int SrsForwarder::connect_server()
-{
-	int ret = ERROR_SUCCESS;
-	
+	// connect to server.
 	std::string ip = srs_dns_resolve(server);
 	if (ip.empty()) {
 		ret = ERROR_SYSTEM_IP_INVALID;
@@ -229,43 +282,6 @@ int SrsForwarder::connect_server()
 	return ret;
 }
 
-int SrsForwarder::cycle()
-{
-	int ret = ERROR_SUCCESS;
-
-	client->set_recv_timeout(SRS_RECV_TIMEOUT_US);
-	client->set_send_timeout(SRS_SEND_TIMEOUT_US);
-	
-	if ((ret = connect_server()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	srs_assert(client);
-	
-	if ((ret = client->handshake()) != ERROR_SUCCESS) {
-		srs_error("handshake with server failed. ret=%d", ret);
-		return ret;
-	}
-	if ((ret = client->connect_app(app, tc_url)) != ERROR_SUCCESS) {
-		srs_error("connect with server failed, tcUrl=%s. ret=%d", tc_url.c_str(), ret);
-		return ret;
-	}
-	if ((ret = client->create_stream(stream_id)) != ERROR_SUCCESS) {
-		srs_error("connect with server failed, stream_id=%d. ret=%d", stream_id, ret);
-		return ret;
-	}
-	if ((ret = client->publish(stream_name, stream_id)) != ERROR_SUCCESS) {
-		srs_error("connect with server failed, stream_name=%s, stream_id=%d. ret=%d", 
-			stream_name.c_str(), stream_id, ret);
-		return ret;
-	}
-	
-	if ((ret = forward()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	return ret;
-}
-
 int SrsForwarder::forward()
 {
 	int ret = ERROR_SUCCESS;
@@ -274,9 +290,7 @@ int SrsForwarder::forward()
 	
 	SrsPithyPrint pithy_print(SRS_STAGE_FORWARDER);
 
-	while (loop) {
-		pithy_print.elapse(SRS_PULSE_TIMEOUT_MS);
-		
+	while (true) {
 		// switch to other st-threads.
 		st_usleep(0);
 
@@ -292,91 +306,42 @@ int SrsForwarder::forward()
 			}
 		}
 		
+		// forward all messages.
+		int count = 0;
+		SrsSharedPtrMessage** msgs = NULL;
+		if ((ret = queue->get_packets(0, msgs, count)) != ERROR_SUCCESS) {
+			srs_error("get message to forward failed. ret=%d", ret);
+			return ret;
+		}
+		
 		// ignore when no messages.
-		int count = (int)msgs.size();
-		if (msgs.empty()) {
+		if (count <= 0) {
+			srs_verbose("no packets to forward.");
 			continue;
 		}
+		SrsAutoFree(SrsSharedPtrMessage*, msgs, true);
 
-		// reportable
+		// pithy print
+		pithy_print.elapse(SRS_PULSE_TIMEOUT_MS);
 		if (pithy_print.can_print()) {
 			srs_trace("-> time=%"PRId64", msgs=%d, obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
 				pithy_print.get_age(), count, client->get_send_bytes(), client->get_recv_bytes(), client->get_send_kbps(), client->get_recv_kbps());
 		}
 	
 		// all msgs to forward.
-		int i = 0;
-		for (i = 0; i < count; i++) {
+		for (int i = 0; i < count; i++) {
 			SrsSharedPtrMessage* msg = msgs[i];
-			msgs[i] = NULL;
-
-			// we erased the sendout messages, the msg must not be NULL.
-			srs_assert(msg);
 			
-			ret = client->send_message(msg);
-			if (ret != ERROR_SUCCESS) {
+			srs_assert(msg);
+			msgs[i] = NULL;
+			
+			if ((ret = client->send_message(msg)) != ERROR_SUCCESS) {
 				srs_error("forwarder send message to server failed. ret=%d", ret);
-		
-				// convert the index to count when error.
-				i++;
-				
-				break;
+				return ret;
 			}
-		}
-
-		// clear sendout mesages.
-		if (i < count) {
-			srs_warn("clear forwarded msg, total=%d, forwarded=%d, ret=%d", count, i, ret);
-		} else {
-			srs_info("clear forwarded msg, total=%d, forwarded=%d, ret=%d", count, i, ret);
-		}
-		msgs.erase(msgs.begin(), msgs.begin() + i);
-		
-		if (ret != ERROR_SUCCESS) {
-			break;
 		}
 	}
 	
 	return ret;
-}
-
-void SrsForwarder::forward_cycle()
-{
-	int ret = ERROR_SUCCESS;
-	
-	log_context->generate_id();
-	srs_trace("forward cycle start");
-	
-	while (loop) {
-		if ((ret = cycle()) != ERROR_SUCCESS) {
-			srs_warn("forward cycle failed, ignored and retry, ret=%d", ret);
-		} else {
-			srs_info("forward cycle success, retry");
-		}
-		
-		if (!loop) {
-			break;
-		}
-		
-		st_usleep(SRS_FORWARDER_SLEEP_MS * 1000);
-
-		if ((ret = open_socket()) != ERROR_SUCCESS) {
-			srs_warn("forward cycle reopen failed, ignored and retry, ret=%d", ret);
-		} else {
-			srs_info("forward cycle reopen success");
-		}
-	}
-	srs_trace("forward cycle finished");
-}
-
-void* SrsForwarder::forward_thread(void* arg)
-{
-	SrsForwarder* obj = (SrsForwarder*)arg;
-	srs_assert(obj != NULL);
-	
-	obj->loop = true;
-	obj->forward_cycle();
-	
-	return NULL;
 }
 

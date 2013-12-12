@@ -1109,10 +1109,11 @@ int SrsTSCache::cache_video(SrsCodec* codec, SrsCodecSample* sample)
 	return ret;
 }
 
-SrsHls::SrsHls()
+SrsHls::SrsHls(SrsSource* _source)
 {
 	hls_enabled = false;
 	
+	source = _source;
 	codec = new SrsCodec();
 	sample = new SrsCodecSample();
 	jitter = new SrsRtmpJitter();
@@ -1148,7 +1149,6 @@ int SrsHls::on_publish(SrsRequest* req)
 	std::string stream = req->stream;
 	std::string app = req->app;
 	
-	// TODO: support reload.
 	if (!config->get_hls_enabled(vhost)) {
 		return ret;
 	}
@@ -1156,30 +1156,11 @@ int SrsHls::on_publish(SrsRequest* req)
 	// if enabled, open the muxer.
 	hls_enabled = true;
 	
-	// TODO: subscribe the reload event.
-	int hls_fragment = 0;
-	int hls_window = 0;
-	
-	SrsConfDirective* conf = NULL;
-	if ((conf = config->get_hls_fragment(vhost)) != NULL && !conf->arg0().empty()) {
-		hls_fragment = ::atoi(conf->arg0().c_str());
-	}
-	if (hls_fragment <= 0) {
-		hls_fragment = SRS_CONF_DEFAULT_HLS_FRAGMENT;
-	}
-	
-	if ((conf = config->get_hls_window(vhost)) != NULL && !conf->arg0().empty()) {
-		hls_window = ::atoi(conf->arg0().c_str());
-	}
-	if (hls_window <= 0) {
-		hls_window = SRS_CONF_DEFAULT_HLS_WINDOW;
-	}
+	int hls_fragment = config->get_hls_fragment(vhost);
+	int hls_window = config->get_hls_window(vhost);
 	
 	// get the hls path config
-	std::string hls_path = SRS_CONF_DEFAULT_HLS_PATH;
-	if ((conf = config->get_hls_path(vhost)) != NULL) {
-		hls_path = conf->arg0();
-	}
+	std::string hls_path = config->get_hls_path(vhost);
 	
 	// open muxer
 	if ((ret = muxer->update_config(app, stream, hls_path, hls_fragment, hls_window)) != ERROR_SUCCESS) {
@@ -1189,6 +1170,12 @@ int SrsHls::on_publish(SrsRequest* req)
 	
 	if ((ret = muxer->segment_open()) != ERROR_SUCCESS) {
 		srs_error("m3u8 muxer open segment failed. ret=%d", ret);
+		return ret;
+	}
+	
+	// notice the source to get the cached sequence header.
+	if ((ret = source->on_hls_start()) != ERROR_SUCCESS) {
+		srs_error("callback source hls start failed. ret=%d", ret);
 		return ret;
 	}
 
@@ -1215,16 +1202,16 @@ void SrsHls::on_unpublish()
 	hls_enabled = false;
 }
 
-int SrsHls::on_meta_data(SrsOnMetaDataPacket* metadata)
+int SrsHls::on_meta_data(SrsAmf0Object* metadata)
 {
 	int ret = ERROR_SUCCESS;
 
-	if (!metadata || !metadata->metadata) {
+	if (!metadata) {
 		srs_trace("no metadata persent, hls ignored it.");
 		return ret;
 	}
 	
-	SrsAmf0Object* obj = metadata->metadata;
+	SrsAmf0Object* obj = metadata;
 	if (obj->size() <= 0) {
 		srs_trace("no metadata persent, hls ignored it.");
 		return ret;
@@ -1273,7 +1260,6 @@ int SrsHls::on_audio(SrsSharedPtrMessage* audio)
 	
 	SrsAutoFree(SrsSharedPtrMessage, audio, false);
 	
-	// TODO: maybe donot need to demux the aac?
 	if (!hls_enabled) {
 		return ret;
 	}
@@ -1293,14 +1279,13 @@ int SrsHls::on_audio(SrsSharedPtrMessage* audio)
 		return ret;
 	}
 	
-	int64_t corrected_time = 0;
-	if ((ret = jitter->correct(audio, 0, 0, &corrected_time)) != ERROR_SUCCESS) {
+	if ((ret = jitter->correct(audio, 0, 0)) != ERROR_SUCCESS) {
 		srs_error("rtmp jitter correct audio failed. ret=%d", ret);
 		return ret;
 	}
 	
 	// the pts calc from rtmp/flv header.
-	int64_t pts = corrected_time * 90;
+	int64_t pts = audio->header.timestamp * 90;
 	
 	if ((ret = ts_cache->write_audio(codec, muxer, pts, sample)) != ERROR_SUCCESS) {
 		srs_error("ts cache write audio failed. ret=%d", ret);
@@ -1316,7 +1301,6 @@ int SrsHls::on_video(SrsSharedPtrMessage* video)
 	
 	SrsAutoFree(SrsSharedPtrMessage, video, false);
 	
-	// TODO: maybe donot need to demux the avc?
 	if (!hls_enabled) {
 		return ret;
 	}
@@ -1337,24 +1321,23 @@ int SrsHls::on_video(SrsSharedPtrMessage* video)
 		return ret;
 	}
 	
-	int64_t corrected_time = 0;
-	if ((ret = jitter->correct(video, 0, 0, &corrected_time)) != ERROR_SUCCESS) {
+	if ((ret = jitter->correct(video, 0, 0)) != ERROR_SUCCESS) {
 		srs_error("rtmp jitter correct video failed. ret=%d", ret);
 		return ret;
 	}
 	
-	int64_t dts = corrected_time * 90;
+	int64_t dts = video->header.timestamp * 90;
 	if ((ret = ts_cache->write_video(codec, muxer, dts, sample)) != ERROR_SUCCESS) {
 		srs_error("ts cache write video failed. ret=%d", ret);
 		return ret;
 	}
 	
-	_mpegts();
+	hls_mux();
 	
 	return ret;
 }
 
-void SrsHls::_mpegts()
+void SrsHls::hls_mux()
 {
 	// reportable
 	if (pithy_print->can_print()) {

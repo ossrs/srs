@@ -32,7 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string>
 #include <vector>
 
-#include <st.h>
+#include <srs_core_thread.hpp>
 
 class SrsConfDirective;
 class SrsRequest;
@@ -85,28 +85,29 @@ public:
 * the encoder for a stream,
 * may use multiple ffmpegs to transcode the specified stream.
 */
-class SrsEncoder
+class SrsEncoder : public ISrsThreadHandler
 {
 private:
 	std::vector<SrsFFMPEG*> ffmpegs;
 private:
-	st_thread_t tid;
-	bool loop;
+	SrsThread* pthread;
+	SrsPithyPrint* pithy_print;
 public:
 	SrsEncoder();
 	virtual ~SrsEncoder();
 public:
 	virtual int on_publish(SrsRequest* req);
 	virtual void on_unpublish();
+// interface ISrsThreadHandler.
+public:
+	virtual int cycle();
+	virtual void on_leave_loop();
 private:
-	virtual int parse_scope_engines(SrsRequest* req);
 	virtual void clear_engines();
 	virtual SrsFFMPEG* at(int index);
+	virtual int parse_scope_engines(SrsRequest* req);
 	virtual int parse_transcode(SrsRequest* req, SrsConfDirective* conf);
-	virtual int cycle();
-	virtual void encoder_cycle();
-	virtual void encoder(SrsPithyPrint* pithy_print);
-	static void* encoder_thread(void* arg);
+	virtual void encoder();
 };
 
 #endif

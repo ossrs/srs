@@ -3,6 +3,168 @@
 # TODO: check gcc/g++
 echo "check gcc/g++/gdb/make/openssl-devel"
 echo "depends tools are ok"
+#####################################################################################
+# for Ubuntu
+#####################################################################################
+function Ubuntu_prepare()
+{
+    uname -v|grep Ubuntu >/dev/null 2>&1
+    ret=$?; if [[ 0 -ne $ret ]]; then
+        return;
+    fi
+
+    echo "Ubuntu detected, install tools if needed"
+    
+    gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install gcc"
+        require_sudoer "sudo apt-get install -y gcc"
+        sudo apt-get install -y gcc
+        echo "install gcc success"
+    fi
+    
+    g++ --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install g++"
+        require_sudoer "sudo apt-get install -y g++"
+        sudo apt-get install -y g++
+        echo "install g++ success"
+    fi
+    
+    make --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install make"
+        require_sudoer "sudo apt-get install -y make"
+        sudo apt-get install -y make
+        echo "install make success"
+    fi
+    
+    autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install autoconf"
+        require_sudoer "sudo apt-get install -y autoconf"
+        sudo apt-get install -y autoconf
+        echo "install autoconf success"
+    fi
+    
+    libtool --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install libtool"
+        require_sudoer "sudo apt-get install -y libtool"
+        sudo apt-get install -y libtool
+        echo "install libtool success"
+    fi
+    
+    if [[ ! -f /usr/include/pcre.h ]]; then
+        echo "install libpcre3-dev"
+        require_sudoer "sudo apt-get install -y libpcre3-dev"
+        sudo apt-get install -y libpcre3-dev
+        echo "install libpcre3-dev success"
+    fi
+    
+    if [[ ! -f /usr/include/zlib.h ]]; then
+        echo "install zlib1g-dev"
+        require_sudoer "sudo apt-get install -y zlib1g-dev"
+        sudo apt-get install -y zlib1g-dev
+        echo "install zlib1g-dev success"
+    fi
+    
+    if [[ ! -d /usr/include/freetype2 ]]; then
+        echo "install libfreetype6-dev"
+        require_sudoer "sudo apt-get install -y libfreetype6-dev"
+        sudo apt-get install -y libfreetype6-dev
+        echo "install libfreetype6-dev success"
+    fi
+    
+    if [[ ! -d /usr/include/openssl ]]; then
+        echo "install libssl-dev"
+        require_sudoer "sudo apt-get install -y libssl-dev"
+        sudo apt-get install -y libssl-dev
+        echo "install libssl-dev success"
+    fi
+    
+    echo "Ubuntu install tools success"
+}
+Ubuntu_prepare
+#####################################################################################
+# for Centos
+#####################################################################################
+function Centos_prepare()
+{
+    if [[ ! -f /etc/redhat-release ]]; then
+        return;
+    fi
+
+    echo "Centos detected, install tools if needed"
+    
+    gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install gcc"
+        require_sudoer "sudo yum install -y gcc"
+        sudo yum install -y gcc
+        echo "install gcc success"
+    fi
+    
+    g++ --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install gcc-c++"
+        require_sudoer "sudo yum install -y gcc-c++"
+        sudo yum install -y gcc-c++
+        echo "install gcc-c++ success"
+    fi
+    
+    make --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install make"
+        require_sudoer "sudo yum install -y make"
+        sudo yum install -y make
+        echo "install make success"
+    fi
+    
+    automake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install automake"
+        require_sudoer "sudo yum install -y automake"
+        sudo yum install -y automake
+        echo "install automake success"
+    fi
+    
+    autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install autoconf"
+        require_sudoer "sudo yum install -y autoconf"
+        sudo yum install -y autoconf
+        echo "install autoconf success"
+    fi
+    
+    libtool --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install libtool"
+        require_sudoer "sudo yum install -y libtool"
+        sudo yum install -y libtool
+        echo "install libtool success"
+    fi
+    
+    if [[ ! -f /usr/include/pcre.h ]]; then
+        echo "install pcre-devel"
+        require_sudoer "sudo yum install -y pcre-devel"
+        sudo yum install -y pcre-devel
+        echo "install pcre-devel success"
+    fi
+    
+    if [[ ! -f /usr/include/zlib.h ]]; then
+        echo "install zlib-devel"
+        require_sudoer "sudo yum install -y zlib-devel"
+        sudo yum install -y zlib-devel
+        echo "install zlib-devel success"
+    fi
+    
+    if [[ ! -d /usr/include/freetype2 ]]; then
+        echo "install freetype-devel"
+        require_sudoer "sudo yum install -y freetype-devel"
+        sudo yum install -y freetype-devel
+        echo "install freetype-devel success"
+    fi
+    
+    if [[ ! -d /usr/include/openssl ]]; then
+        echo "install openssl-devel"
+        require_sudoer "sudo yum install -y openssl-devel"
+        sudo yum install -y openssl-devel
+        echo "install openssl-devel success"
+    fi
+    
+    echo "Centos install tools success"
+}
+Centos_prepare
 
 #####################################################################################
 # st-1.9
@@ -48,6 +210,16 @@ fi
 #####################################################################################
 # nginx for HLS, nginx-1.5.0
 #####################################################################################
+function write_nginx_html5()
+{
+    cat<<END >> ${html_file}
+<video width="640" height="360"
+        autoplay controls autobuffer 
+        src="${hls_stream}"
+        type="application/vnd.apple.mpegurl">
+</video>
+END
+}
 if [ $SRS_HLS = YES ]; then
     if [[ -f ${SRS_OBJS}/nginx/sbin/nginx ]]; then
         echo "nginx-1.5.7 is ok.";
@@ -72,6 +244,17 @@ if [ $SRS_HLS = YES ]; then
     
     # create forward dir
     mkdir -p ${SRS_OBJS}/nginx/html/forward
+    
+    # generate default html pages for android.
+    html_file=${SRS_OBJS}/nginx/html/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
+    html_file=${SRS_OBJS}/nginx/html/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
+    html_file=${SRS_OBJS}/nginx/html/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
+    html_file=${SRS_OBJS}/nginx/html/forward/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
+    html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
+    html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
+    
+    # copy players to nginx html dir.
+    cp research/players ${SRS_OBJS}/nginx/html/ -r
 fi
 
 if [ $SRS_HLS = YES ]; then
@@ -87,6 +270,7 @@ if [ $SRS_HTTP = YES ]; then
     if [[ -f ${SRS_OBJS}/CherryPy-3.2.4/setup.py ]]; then
         echo "CherryPy-3.2.4 is ok.";
     else
+        require_sudoer "configure --with-http"
         echo "install CherryPy-3.2.4"; 
         (
             sudo rm -rf ${SRS_OBJS}/CherryPy-3.2.4 && cd ${SRS_OBJS} && 

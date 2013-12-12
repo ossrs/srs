@@ -29,17 +29,25 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
+#include <string>
+
 /**
 * the handler for config reload.
 */
-class SrsReloadHandler
+class ISrsReloadHandler
 {
 public:
-	SrsReloadHandler();
-	virtual ~SrsReloadHandler();
+	ISrsReloadHandler();
+	virtual ~ISrsReloadHandler();
 public:
 	virtual int on_reload_listen();
 	virtual int on_reload_pithy_print();
+	virtual int on_reload_vhost_removed(std::string vhost);
+	virtual int on_reload_gop_cache(std::string vhost);
+	virtual int on_reload_queue_length(std::string vhost);
+	virtual int on_reload_forward(std::string vhost);
+	virtual int on_reload_hls(std::string vhost);
+	virtual int on_reload_transcode(std::string vhost);
 };
 
 #endif

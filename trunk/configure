@@ -15,14 +15,15 @@ BLACK="\\e[0m"
 # parse user options.
 . auto/options.sh
 
-# if specifies http, requires sudo to install the CherryPy.
-if [ $SRS_HTTP = YES ]; then
+function require_sudoer()
+{
     sudo echo "" >/dev/null 2>&1
-    ret=$?; if [[ 0 -ne $ret ]]; then echo 
-        "--with-http requires sudoer, ret=$ret"; 
+    
+    ret=$?; if [[ 0 -ne $ret ]]; then 
+        echo "\"$1\" require sudoer failed. ret=$ret";
         exit $ret; 
     fi
-fi
+}
 
 # clean the exists
 if [[ -f Makefile ]]; then
@@ -56,11 +57,11 @@ help:
 	@echo "  server     build the srs(simple rtmp server) over st(state-threads)"
 
 clean: 
-	(rm -f Makefile; cd ${SRS_OBJS}; rm -rf Makefile *.hpp src st_*_load)
+	(rm -f Makefile; cd ${SRS_OBJS}; rm -rf srs Makefile *.hpp src st_*_load)
 
 server: _prepare_dir
 	@echo "build the srs(simple rtmp server) over st(state-threads)"
-	\$(MAKE) -f ${SRS_OBJS}/${SRS_MAKEFILE} simple_rtmp_server
+	\$(MAKE) -f ${SRS_OBJS}/${SRS_MAKEFILE} srs
 
 # the ./configure will generate it.
 _prepare_dir:
@@ -86,7 +87,7 @@ GCC = g++
 LINK = \$(GCC)
 AR = ar
 
-.PHONY: default simple_rtmp_server 
+.PHONY: default srs 
 
 default:
 
@@ -115,7 +116,7 @@ MODULE_FILES=("srs_core" "srs_core_log" "srs_core_server"
         "srs_core_handshake" "srs_core_pithy_print"
         "srs_core_config" "srs_core_refer" "srs_core_reload"
         "srs_core_hls" "srs_core_forward" "srs_core_encoder"
-        "srs_core_http")
+        "srs_core_http" "srs_core_thread")
 MODULE_DIR="src/core" . auto/modules.sh
 CORE_OBJS="${MODULE_OBJS[@]}"
 
@@ -141,7 +142,7 @@ if [ $SRS_SSL = YES ]; then
 else
     LINK_OPTIONS="-ldl"
 fi
-BUILD_KEY="simple_rtmp_server" APP_MAIN="srs_main_server" APP_NAME="simple_rtmp_server" SO_PATH="" . auto/apps.sh
+BUILD_KEY="srs" APP_MAIN="srs_main_server" APP_NAME="srs" SO_PATH="" . auto/apps.sh
 
 echo 'configure ok! '
 
@@ -179,6 +180,7 @@ echo "\" make \" to build the srs(simple rtmp server)."
 echo "\" make help \" to get the usage of make"
 if [ $SRS_HLS = YES ]; then
     echo "\" sudo ./objs/nginx/sbin/nginx  \" to start the nginx http server for hls"
+    echo "\" http://demo:80/players \" rtmp players(OSMF/JWPlayer)"
 fi
 if [ $SRS_FFMPEG = YES ]; then
     echo -e "\" ./objs/ffmpeg/bin/ffmpeg  \" is used for live stream transcoding"
@@ -186,4 +188,4 @@ fi
 if [ $SRS_HTTP = YES ]; then
     echo -e "\" python ./research/api-server/server.py 8085  \" to start the api-server"
 fi
-echo "\" ./objs/simple_rtmp_server -c conf/srs.conf \" to start the srs live server"
+echo "\" ./objs/srs -c conf/srs.conf \" to start the srs live server"

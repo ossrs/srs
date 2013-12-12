@@ -34,6 +34,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 #include <string>
 
+#include <srs_core_reload.hpp>
+
 class SrsSource;
 class SrsCommonMessage;
 class SrsOnMetaDataPacket;
@@ -54,22 +56,62 @@ class SrsEncoder;
 class SrsRtmpJitter
 {
 private:
-	u_int32_t last_pkt_time;
-	u_int32_t last_pkt_correct_time;
+	int64_t last_pkt_time;
+	int64_t last_pkt_correct_time;
 public:
 	SrsRtmpJitter();
 	virtual ~SrsRtmpJitter();
 public:
 	/**
 	* detect the time jitter and correct it.
-	* @param corrected_time output the 64bits time.
-	* 		ignore if NULL.
 	*/
-	virtual int correct(SrsSharedPtrMessage* msg, int tba, int tbv, int64_t* corrected_time = NULL);
+	virtual int correct(SrsSharedPtrMessage* msg, int tba, int tbv);
 	/**
 	* get current client time, the last packet time.
 	*/
 	virtual int get_time();
+};
+
+/**
+* the message queue for the consumer(client), forwarder.
+* we limit the size in seconds, drop old messages(the whole gop) if full.
+*/
+class SrsMessageQueue
+{
+private:
+	int64_t av_start_time;
+	int64_t av_end_time;
+	int queue_size_ms;
+	std::vector<SrsSharedPtrMessage*> msgs;
+public:
+	SrsMessageQueue();
+	virtual ~SrsMessageQueue();
+public:
+	/**
+	* set the queue size
+	* @param queue_size the queue size in seconds.
+	*/
+	virtual void set_queue_size(double queue_size);
+public:
+	/**
+	* enqueue the message, the timestamp always monotonically.
+	* @param msg, the msg to enqueue, user never free it whatever the return code.
+	*/
+	virtual int enqueue(SrsSharedPtrMessage* msg);
+	/**
+	* get packets in consumer queue.
+	* @pmsgs SrsMessages*[], output the prt array.
+	* @count the count in array.
+	* @max_count the max count to dequeue, 0 to dequeue all.
+	*/
+	virtual int get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& count);
+private:
+	/**
+	* remove a gop from the front.
+	* if no iframe found, clear it.
+	*/
+	virtual void shrink();
+	virtual void clear();
 };
 
 /**
@@ -80,11 +122,13 @@ class SrsConsumer
 private:
 	SrsRtmpJitter* jitter;
 	SrsSource* source;
-	std::vector<SrsSharedPtrMessage*> msgs;
+	SrsMessageQueue* queue;
 	bool paused;
 public:
 	SrsConsumer(SrsSource* _source);
 	virtual ~SrsConsumer();
+public:
+	virtual void set_queue_size(double queue_size);
 public:
 	/**
 	* get current client time, the last packet time.
@@ -109,13 +153,6 @@ public:
 	* when client send the pause message.
 	*/
 	virtual int on_play_client_pause(bool is_pause);
-private:
-	/**
-	* when paused, shrink the cache queue,
-	* remove to cache only one gop.
-	*/
-	virtual void shrink();
-	virtual void clear();
 };
 
 /**
@@ -158,20 +195,21 @@ public:
 /**
 * live streaming source.
 */
-class SrsSource
+class SrsSource : public ISrsReloadHandler
 {
 private:
 	static std::map<std::string, SrsSource*> pool;
 public:
 	/**
 	* find stream by vhost/app/stream.
-	* @stream_url the stream url, for example, myserver.xxx.com/app/stream
+	* @param req the client request.
 	* @return the matched source, never be NULL.
 	* @remark stream_url should without port and schema.
 	*/
-	static SrsSource* find(const std::string& stream_url);
+	static SrsSource* find(SrsRequest* req);
 private:
-	std::string stream_url;
+	// deep copy of client request.
+	SrsRequest* req;
 	// to delivery stream to clients.
 	std::vector<SrsConsumer*> consumers;
 	// hls handler.
@@ -206,19 +244,43 @@ private:
 	// the cached audio sequence header.
 	SrsSharedPtrMessage* cache_sh_audio;
 public:
-	SrsSource(std::string _stream_url);
+	/**
+	* @param _req the client request object, 
+	* 	this object will deep copy it for reload.
+	*/
+	SrsSource(SrsRequest* _req);
 	virtual ~SrsSource();
+// interface ISrsReloadHandler
+public:
+	virtual int on_reload_gop_cache(std::string vhost);
+	virtual int on_reload_queue_length(std::string vhost);
+	virtual int on_reload_forward(std::string vhost);
+	virtual int on_reload_hls(std::string vhost);
+	virtual int on_reload_transcode(std::string vhost);
+public:
+	// for the SrsForwarder to callback to request the sequence headers.
+	virtual int on_forwarder_start(SrsForwarder* forwarder);
+	// for the SrsHls to callback to request the sequence headers.
+	virtual int on_hls_start();
 public:
 	virtual bool can_publish();
 	virtual int on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);
 	virtual int on_audio(SrsCommonMessage* audio);
 	virtual int on_video(SrsCommonMessage* video);
-	virtual int on_publish(SrsRequest* req);
+	/**
+	* publish stream event notify.
+	* @param _req the request from client, the source will deep copy it,
+	* 		for when reload the request of client maybe invalid.
+	*/
+	virtual int on_publish(SrsRequest* _req);
 	virtual void on_unpublish();
 public:
 	virtual int create_consumer(SrsConsumer*& consumer);
 	virtual void on_consumer_destroy(SrsConsumer* consumer);
 	virtual void set_cache(bool enabled);
+private:
+	virtual int create_forwarders();
+	virtual void destroy_forwarders();
 };
 
 #endif
