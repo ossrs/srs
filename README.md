@@ -3,7 +3,7 @@ simple-rtmp-server
 
 srs(simple rtmp origin live server) over state-threads.<br/>
 srs is a simple, high-performance, running in single process, origin live server.<br/>
-srs supports rtmp, HLS, transcoding, forward, http hooks. <br/>
+srs supports vhost, rtmp, HLS, transcoding, forward, http hooks. <br/>
 blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
 see also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) <br/>
 see also: [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.github.io/simple-rtmp-server)
@@ -198,6 +198,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v0.9, 2013-12-14, support reload the hls/forwarder/transcoder.
 * v0.9, 2013-12-14, refine the thread model for the retry threads.
 * v0.9, 2013-12-10, auto install depends tools/libs on centos/ubuntu.
 * v0.8, 2013-12-08, v0.8 released. 19186 lines.

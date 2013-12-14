@@ -49,24 +49,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // in ms, for HLS aac flush the audio
 #define SRS_CONF_DEFAULT_AAC_DELAY 300
 
-class SrsFileBuffer
-{
-public:
-	int fd;
-	int line;
-	// start of buffer.
-	char* start;
-	// end of buffer.
-	char* end;
-	// current consumed position.
-	char* pos;
-	// last available position.
-	char* last;
-	
-	SrsFileBuffer();
-	virtual ~SrsFileBuffer();
-	virtual int open(const char* filename);
-};
+class SrsFileBuffer;
 
 class SrsConfDirective
 {
@@ -89,7 +72,6 @@ public:
 	enum SrsDirectiveType{parse_file, parse_block};
 	virtual int parse_conf(SrsFileBuffer* buffer, SrsDirectiveType type);
 	virtual int read_token(SrsFileBuffer* buffer, std::vector<std::string>& args);
-	virtual int refill_buffer(SrsFileBuffer* buffer, bool d_quoted, bool s_quoted, int startline, char*& pstart);
 };
 
 /**

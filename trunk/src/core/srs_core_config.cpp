@@ -58,15 +58,35 @@ bool is_common_space(char ch)
 	return (ch == ' ' || ch == '\t' || ch == CR || ch == LF);
 }
 
-#define CONF_BUFFER_SIZE 1024 * 1024
+class SrsFileBuffer
+{
+private:
+	int fd;
+	// last available position.
+	char* last;
+	// end of buffer.
+	char* end;
+public:
+	// start of buffer.
+	char* start;
+	// current consumed position.
+	char* pos;
+	// current parsed line.
+	int line;
+	
+	SrsFileBuffer();
+	virtual ~SrsFileBuffer();
+	virtual int fullfill(const char* filename);
+	virtual bool empty();
+};
 
 SrsFileBuffer::SrsFileBuffer()
 {
 	fd = -1;
 	line = 0;
 
-	pos = last = start = new char[CONF_BUFFER_SIZE];
-	end = start + CONF_BUFFER_SIZE;
+	pos = last = start = NULL;
+	end = start;
 }
 
 SrsFileBuffer::~SrsFileBuffer()
@@ -77,7 +97,7 @@ SrsFileBuffer::~SrsFileBuffer()
 	srs_freepa(start);
 }
 
-int SrsFileBuffer::open(const char* filename)
+int SrsFileBuffer::fullfill(const char* filename)
 {
 	assert(fd == -1);
 	
@@ -88,7 +108,27 @@ int SrsFileBuffer::open(const char* filename)
 	
 	line = 1;
 	
+	int size = FILE_SIZE(fd) - FILE_OFFSET(fd);
+	if (size <= 0) {
+		return ERROR_SYSTEM_CONFIG_EOF;
+	}
+
+	srs_freepa(start);
+	pos = last = start = new char[size];
+	end = start + size;
+	
+	int n = read(fd, start, size);
+	if (n != size) {
+		srs_error("read file read error. expect %d, actual %d bytes.", size, n);
+		return ERROR_SYSTEM_CONFIG_INVALID;
+	}
+	
 	return ERROR_SUCCESS;
+}
+
+bool SrsFileBuffer::empty()
+{
+	return pos >= end;
 }
 
 SrsConfDirective::SrsConfDirective()
@@ -156,7 +196,7 @@ int SrsConfDirective::parse(const char* filename)
 	
 	SrsFileBuffer buffer;
 	
-	if ((ret = buffer.open(filename)) != ERROR_SUCCESS) {
+	if ((ret = buffer.fullfill(filename)) != ERROR_SUCCESS) {
 		return ret;
 	}
 	
@@ -240,11 +280,15 @@ int SrsConfDirective::read_token(SrsFileBuffer* buffer, std::vector<std::string>
 	bool last_space = true;
 	
 	while (true) {
-		if ((ret = refill_buffer(buffer, d_quoted, s_quoted, startline, pstart)) != ERROR_SUCCESS) {
+		if (buffer->empty()) {
+			ret = ERROR_SYSTEM_CONFIG_EOF;
+			
 			if (!args.empty() || !last_space) {
 				srs_error("line %d: unexpected end of file, expecting ; or \"}\"", buffer->line);
 				return ERROR_SYSTEM_CONFIG_INVALID;
 			}
+			srs_error("end of file. ret=%d", ret);
+			
 			return ret;
 		}
 		
@@ -359,59 +403,6 @@ int SrsConfDirective::read_token(SrsFileBuffer* buffer, std::vector<std::string>
 			}
 		}
 	}
-	
-	return ret;
-}
-
-int SrsConfDirective::refill_buffer(SrsFileBuffer* buffer, bool d_quoted, bool s_quoted, int startline, char*& pstart)
-{
-	int ret = ERROR_SUCCESS;
-	
-	if (buffer->pos < buffer->last) {
-		return ret;
-	}
-	
-	int size = FILE_SIZE(buffer->fd) - FILE_OFFSET(buffer->fd);
-	if (size > CONF_BUFFER_SIZE) {
-		ret = ERROR_SYSTEM_CONFIG_TOO_LARGE;
-		srs_error("config file too large, max=%d, actual=%d, ret=%d",
-			CONF_BUFFER_SIZE, size, ret);
-		return ret;
-	}
-	
-	if (size <= 0) {
-		return ERROR_SYSTEM_CONFIG_EOF;
-	}
-	
-	int len = buffer->pos - buffer->start;
-	if (len >= CONF_BUFFER_SIZE) {
-		buffer->line = startline;
-		
-		if (!d_quoted && !s_quoted) {
-			srs_error("line %d: too long parameter \"%*s...\" started", 
-				buffer->line, 10, buffer->start);
-			
-		} else {
-			srs_error("line %d: too long parameter, "
-				"probably missing terminating '%c' character", buffer->line, d_quoted? '"':'\'');
-		}
-		return ERROR_SYSTEM_CONFIG_INVALID;
-	}
-	
-	if (len) {
-		memmove(buffer->start, pstart, len);
-	}
-	
-	size = srs_min(size, buffer->end - (buffer->start + len));
-	int n = read(buffer->fd, buffer->start + len, size);
-	if (n != size) {
-		srs_error("read file read error. expect %d, actual %d bytes.", size, n);
-		return ERROR_SYSTEM_CONFIG_INVALID;
-	}
-	
-	buffer->pos = buffer->start + len;
-	buffer->last = buffer->pos + n;
-	pstart = buffer->start;
 	
 	return ret;
 }
