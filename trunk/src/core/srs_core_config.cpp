@@ -61,14 +61,13 @@ bool is_common_space(char ch)
 class SrsFileBuffer
 {
 private:
-	int fd;
 	// last available position.
 	char* last;
 	// end of buffer.
 	char* end;
-public:
 	// start of buffer.
 	char* start;
+public:
 	// current consumed position.
 	char* pos;
 	// current parsed line.
@@ -82,7 +81,6 @@ public:
 
 SrsFileBuffer::SrsFileBuffer()
 {
-	fd = -1;
 	line = 0;
 
 	pos = last = start = NULL;
@@ -91,39 +89,48 @@ SrsFileBuffer::SrsFileBuffer()
 
 SrsFileBuffer::~SrsFileBuffer()
 {
-	if (fd > 0) {
-		close(fd);
-	}
 	srs_freepa(start);
 }
 
 int SrsFileBuffer::fullfill(const char* filename)
 {
-	assert(fd == -1);
+	int ret = ERROR_SUCCESS;
+	
+	int fd = -1;
+	int nread = 0;
+	int filesize = 0;
 	
 	if ((fd = ::open(filename, O_RDONLY, 0)) < 0) {
-		srs_error("open conf file error. errno=%d(%s)", errno, strerror(errno));
-		return ERROR_SYSTEM_CONFIG_INVALID;
+		ret = ERROR_SYSTEM_CONFIG_INVALID;
+		srs_error("open conf file error. ret=%d", ret);
+		goto finish;
+	}
+	
+	if ((filesize = FILE_SIZE(fd) - FILE_OFFSET(fd)) <= 0) {
+		ret = ERROR_SYSTEM_CONFIG_EOF;
+		srs_error("read conf file error. ret=%d", ret);
+		goto finish;
+	}
+
+	srs_freepa(start);
+	pos = last = start = new char[filesize];
+	end = start + filesize;
+	
+	if ((nread = read(fd, start, filesize)) != filesize) {
+		ret = ERROR_SYSTEM_CONFIG_INVALID;
+		srs_error("read file read error. expect %d, actual %d bytes, ret=%d", 
+			filesize, nread, ret);
+		goto finish;
 	}
 	
 	line = 1;
 	
-	int size = FILE_SIZE(fd) - FILE_OFFSET(fd);
-	if (size <= 0) {
-		return ERROR_SYSTEM_CONFIG_EOF;
-	}
-
-	srs_freepa(start);
-	pos = last = start = new char[size];
-	end = start + size;
-	
-	int n = read(fd, start, size);
-	if (n != size) {
-		srs_error("read file read error. expect %d, actual %d bytes.", size, n);
-		return ERROR_SYSTEM_CONFIG_INVALID;
+finish:
+	if (fd > 0) {
+		::close(fd);
 	}
 	
-	return ERROR_SUCCESS;
+	return ret;
 }
 
 bool SrsFileBuffer::empty()
@@ -1245,6 +1252,7 @@ int SrsConfig::parse_file(const char* filename)
 			"directive \"listen\" is empty, ret=%d", (conf? conf->conf_line:0), ret);
 		return ret;
 	}
+	
 	// TODO: check the hls.
 	// TODO: check other config.
 	// TODO: check hls.
