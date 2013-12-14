@@ -150,11 +150,7 @@ int SrsClient::service_cycle()
 	req->strip();
 	srs_trace("identify client success. type=%d, stream_name=%s", type, req->stream.c_str());
 	
-	int chunk_size = 4096;
-	SrsConfDirective* conf = config->get_chunk_size();
-	if (conf && !conf->arg0().empty()) {
-		chunk_size = ::atoi(conf->arg0().c_str());
-	}
+	int chunk_size = config->get_chunk_size();
 	if ((ret = rtmp->set_chunk_size(chunk_size)) != ERROR_SUCCESS) {
 		srs_error("set chunk_size=%d failed. ret=%d", chunk_size, ret);
 		return ret;
@@ -175,14 +171,9 @@ int SrsClient::service_cycle()
 		return ret;
 	}
 	
-	bool enabled_cache = true;
-	conf = config->get_gop_cache(req->vhost);
-	if (conf && conf->arg0() == "off") {
-		enabled_cache = false;
-	}
-	source->set_cache(enabled_cache);
-
+	bool enabled_cache = config->get_gop_cache(req->vhost);
 	srs_info("source found, url=%s, enabled_cache=%d", req->get_stream_url().c_str(), enabled_cache);
+	source->set_cache(enabled_cache);
 	
 	switch (type) {
 		case SrsClientPlay: {

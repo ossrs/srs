@@ -1157,29 +1157,11 @@ int SrsHls::on_publish(SrsRequest* req)
 	hls_enabled = true;
 	
 	// TODO: subscribe the reload event.
-	int hls_fragment = 0;
-	int hls_window = 0;
-	
-	SrsConfDirective* conf = NULL;
-	if ((conf = config->get_hls_fragment(vhost)) != NULL && !conf->arg0().empty()) {
-		hls_fragment = ::atoi(conf->arg0().c_str());
-	}
-	if (hls_fragment <= 0) {
-		hls_fragment = SRS_CONF_DEFAULT_HLS_FRAGMENT;
-	}
-	
-	if ((conf = config->get_hls_window(vhost)) != NULL && !conf->arg0().empty()) {
-		hls_window = ::atoi(conf->arg0().c_str());
-	}
-	if (hls_window <= 0) {
-		hls_window = SRS_CONF_DEFAULT_HLS_WINDOW;
-	}
+	int hls_fragment = config->get_hls_fragment(vhost);
+	int hls_window = config->get_hls_window(vhost);
 	
 	// get the hls path config
-	std::string hls_path = SRS_CONF_DEFAULT_HLS_PATH;
-	if ((conf = config->get_hls_path(vhost)) != NULL) {
-		hls_path = conf->arg0();
-	}
+	std::string hls_path = config->get_hls_path(vhost);
 	
 	// open muxer
 	if ((ret = muxer->update_config(app, stream, hls_path, hls_fragment, hls_window)) != ERROR_SUCCESS) {
