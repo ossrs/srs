@@ -231,6 +231,9 @@ int SrsRtmpClient::handshake()
 	
     SrsSocket skt(stfd);
     
+    skt.set_recv_timeout(protocol->get_recv_timeout());
+    skt.set_send_timeout(protocol->get_send_timeout());
+    
     SrsComplexHandshake complex_hs;
     SrsSimpleHandshake simple_hs;
     if ((ret = simple_hs.handshake_with_server(skt, complex_hs)) != ERROR_SUCCESS) {
@@ -422,6 +425,11 @@ void SrsRtmp::set_send_timeout(int64_t timeout_us)
 	protocol->set_send_timeout(timeout_us);
 }
 
+int64_t SrsRtmp::get_send_timeout()
+{
+	return protocol->get_send_timeout();
+}
+
 int64_t SrsRtmp::get_recv_bytes()
 {
 	return protocol->get_recv_bytes();
@@ -457,6 +465,9 @@ int SrsRtmp::handshake()
 	int ret = ERROR_SUCCESS;
 	
     SrsSocket skt(stfd);
+    
+    skt.set_recv_timeout(protocol->get_recv_timeout());
+    skt.set_send_timeout(protocol->get_send_timeout());
     
     SrsComplexHandshake complex_hs;
     SrsSimpleHandshake simple_hs;

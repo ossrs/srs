@@ -198,6 +198,19 @@ SrsConfDirective* SrsConfDirective::get(string _name)
 	return NULL;
 }
 
+SrsConfDirective* SrsConfDirective::get(string _name, string _arg0)
+{
+	std::vector<SrsConfDirective*>::iterator it;
+	for (it = directives.begin(); it != directives.end(); ++it) {
+		SrsConfDirective* directive = *it;
+		if (directive->name == _name && directive->arg0() == _arg0) {
+			return directive;
+		}
+	}
+	
+	return NULL;
+}
+
 int SrsConfDirective::parse(const char* filename)
 {
 	int ret = ERROR_SUCCESS;
@@ -465,6 +478,7 @@ int SrsConfig::reload()
 		}
 		srs_trace("reload listen success.");
 	}
+	
 	// merge config: pithy_print
 	if (!srs_directive_equals(root->get("pithy_print"), old_root->get("pithy_print"))) {
 		for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -475,6 +489,46 @@ int SrsConfig::reload()
 			}
 		}
 		srs_trace("reload pithy_print success.");
+	}
+
+	// merge config: vhost added, directly supported.
+		
+	// merge config: vhost removed/disabled/modified.
+	for (int i = 0; i < (int)old_root->directives.size(); i++) {
+		SrsConfDirective* old_vhost = old_root->at(i);
+		// only process vhost directives.
+		if (old_vhost->name != "vhost") {
+			continue;
+		}
+
+		SrsConfDirective* new_vhost = root->get("vhost", old_vhost->arg0());
+		// ignore if absolutely equal
+		if (new_vhost && srs_directive_equals(old_vhost, new_vhost)) {
+			continue;
+		}
+		// ignore if enable the new vhost when old vhost is disabled.
+		if (get_vhost_enabled(new_vhost) && !get_vhost_enabled(old_vhost)) {
+			continue;
+		}
+		// ignore if both old and new vhost are disabled.
+		if (!get_vhost_enabled(new_vhost) && !get_vhost_enabled(old_vhost)) {
+			continue;
+		}
+
+		// merge config: vhost removed/disabled.
+		if (!get_vhost_enabled(new_vhost) && get_vhost_enabled(old_vhost)) {
+			srs_trace("vhost %s disabled, reload it.", old_vhost->name.c_str());
+			for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+				ISrsReloadHandler* subscribe = *it;
+				if ((ret = subscribe->on_reload_vhost_removed(old_vhost)) != ERROR_SUCCESS) {
+					srs_error("notify subscribes pithy_print remove vhost failed. ret=%d", ret);
+					return ret;
+				}
+			}
+			srs_trace("reload remove vhost success.");
+		}
+		
+		// merge config: vhost modified.
 	}
 	
 	// TODO: suppor reload hls/forward/ffmpeg/http
@@ -785,12 +839,17 @@ SrsConfDirective* SrsConfig::get_vhost_on_stop(string vhost)
 bool SrsConfig::get_vhost_enabled(string vhost)
 {
 	SrsConfDirective* vhost_conf = get_vhost(vhost);
+	
+	return get_vhost_enabled(vhost_conf);
+}
 
-	if (!vhost_conf) {
-		return true;
+bool SrsConfig::get_vhost_enabled(SrsConfDirective* vhost)
+{
+	if (!vhost) {
+		return false;
 	}
 	
-	SrsConfDirective* conf = vhost_conf->get("enabled");
+	SrsConfDirective* conf = vhost->get("enabled");
 	if (!conf) {
 		return true;
 	}

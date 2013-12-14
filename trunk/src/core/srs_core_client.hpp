@@ -31,6 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <srs_core_conn.hpp>
+#include <srs_core_reload.hpp>
 
 class SrsRtmp;
 class SrsRequest;
@@ -46,7 +47,7 @@ class SrsHttpHooks;
 /**
 * the client provides the main logic control for RTMP clients.
 */
-class SrsClient : public SrsConnection
+class SrsClient : public SrsConnection, public ISrsReloadHandler
 {
 private:
 	char* ip;
@@ -62,6 +63,9 @@ public:
 	virtual ~SrsClient();
 protected:
 	virtual int do_cycle();
+// interface ISrsReloadHandler
+public:
+	virtual int on_reload_vhost_removed(SrsConfDirective* vhost);
 private:
 	// when valid and connected to vhost/app, service the client.
 	virtual int service_cycle();

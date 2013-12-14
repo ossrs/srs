@@ -74,6 +74,7 @@ public:
 	std::string arg2();
 	SrsConfDirective* at(int index);
 	SrsConfDirective* get(std::string _name);
+	SrsConfDirective* get(std::string _name, std::string _arg0);
 public:
 	virtual int parse(const char* filename);
 public:
@@ -113,6 +114,7 @@ private:
 public:
 	virtual SrsConfDirective* 	get_vhost(std::string vhost);
 	virtual bool    		  	get_vhost_enabled(std::string vhost);
+	virtual bool    		  	get_vhost_enabled(SrsConfDirective* vhost);
 	virtual SrsConfDirective* 	get_vhost_on_connect(std::string vhost);
 	virtual SrsConfDirective* 	get_vhost_on_close(std::string vhost);
 	virtual SrsConfDirective* 	get_vhost_on_publish(std::string vhost);

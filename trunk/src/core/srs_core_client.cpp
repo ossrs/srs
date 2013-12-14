@@ -55,6 +55,8 @@ SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
 #ifdef SRS_HTTP	
 	http_hooks = new SrsHttpHooks();
 #endif
+	
+	config->subscribe(this);
 }
 
 SrsClient::~SrsClient()
@@ -67,6 +69,8 @@ SrsClient::~SrsClient()
 #ifdef SRS_HTTP	
 	srs_freep(http_hooks);
 #endif
+
+	config->unsubscribe(this);
 }
 
 // TODO: return detail message when error for client.
@@ -110,6 +114,18 @@ int SrsClient::do_cycle()
 	
 	ret = service_cycle();
 	on_close();
+	
+	return ret;
+}
+
+int SrsClient::on_reload_vhost_removed(SrsConfDirective* vhost)
+{
+	int ret = ERROR_SUCCESS;
+	
+	// if the vhost connected is removed, disconnect the client.
+	if (req->vhost == vhost->arg0()) {
+		srs_close_stfd(stfd);
+	}
 	
 	return ret;
 }

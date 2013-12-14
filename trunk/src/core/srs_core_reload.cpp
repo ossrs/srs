@@ -43,3 +43,8 @@ int ISrsReloadHandler::on_reload_pithy_print()
 	return ERROR_SUCCESS;
 }
 
+int ISrsReloadHandler::on_reload_vhost_removed(SrsConfDirective* /*vhost*/)
+{
+	return ERROR_SUCCESS;
+}
+
