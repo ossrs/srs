@@ -25,20 +25,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core_error.hpp>
 
-SrsReloadHandler::SrsReloadHandler()
+ISrsReloadHandler::ISrsReloadHandler()
 {
 }
 
-SrsReloadHandler::~SrsReloadHandler()
+ISrsReloadHandler::~ISrsReloadHandler()
 {
 }
 
-int SrsReloadHandler::on_reload_listen()
+int ISrsReloadHandler::on_reload_listen()
 {
 	return ERROR_SUCCESS;
 }
 
-int SrsReloadHandler::on_reload_pithy_print()
+int ISrsReloadHandler::on_reload_pithy_print()
 {
 	return ERROR_SUCCESS;
 }

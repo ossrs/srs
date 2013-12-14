@@ -32,11 +32,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /**
 * the handler for config reload.
 */
-class SrsReloadHandler
+class ISrsReloadHandler
 {
 public:
-	SrsReloadHandler();
-	virtual ~SrsReloadHandler();
+	ISrsReloadHandler();
+	virtual ~ISrsReloadHandler();
 public:
 	virtual int on_reload_listen();
 	virtual int on_reload_pithy_print();

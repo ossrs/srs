@@ -96,14 +96,14 @@ private:
 	bool show_version;
 	std::string config_file;
 	SrsConfDirective* root;
-	std::vector<SrsReloadHandler*> subscribes;
+	std::vector<ISrsReloadHandler*> subscribes;
 public:
 	SrsConfig();
 	virtual ~SrsConfig();
 public:
 	virtual int reload();
-	virtual void subscribe(SrsReloadHandler* handler);
-	virtual void unsubscribe(SrsReloadHandler* handler);
+	virtual void subscribe(ISrsReloadHandler* handler);
+	virtual void unsubscribe(ISrsReloadHandler* handler);
 public:
 	virtual int parse_options(int argc, char** argv);
 private:

@@ -65,7 +65,7 @@ public:
 	virtual int cycle();
 };
 
-class SrsServer : public SrsReloadHandler
+class SrsServer : public ISrsReloadHandler
 {
 	friend class SrsListener;
 private:

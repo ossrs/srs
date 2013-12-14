@@ -452,12 +452,12 @@ int SrsConfig::reload()
 	conf.root = NULL;
 	
 	// merge config.
-	std::vector<SrsReloadHandler*>::iterator it;
+	std::vector<ISrsReloadHandler*>::iterator it;
 
 	// merge config: listen
 	if (!srs_directive_equals(root->get("listen"), old_root->get("listen"))) {
 		for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-			SrsReloadHandler* subscribe = *it;
+			ISrsReloadHandler* subscribe = *it;
 			if ((ret = subscribe->on_reload_listen()) != ERROR_SUCCESS) {
 				srs_error("notify subscribes reload listen failed. ret=%d", ret);
 				return ret;
@@ -468,7 +468,7 @@ int SrsConfig::reload()
 	// merge config: pithy_print
 	if (!srs_directive_equals(root->get("pithy_print"), old_root->get("pithy_print"))) {
 		for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-			SrsReloadHandler* subscribe = *it;
+			ISrsReloadHandler* subscribe = *it;
 			if ((ret = subscribe->on_reload_pithy_print()) != ERROR_SUCCESS) {
 				srs_error("notify subscribes pithy_print listen failed. ret=%d", ret);
 				return ret;
@@ -482,9 +482,9 @@ int SrsConfig::reload()
 	return ret;
 }
 
-void SrsConfig::subscribe(SrsReloadHandler* handler)
+void SrsConfig::subscribe(ISrsReloadHandler* handler)
 {
-	std::vector<SrsReloadHandler*>::iterator it;
+	std::vector<ISrsReloadHandler*>::iterator it;
 	
 	it = std::find(subscribes.begin(), subscribes.end(), handler);
 	if (it != subscribes.end()) {
@@ -494,9 +494,9 @@ void SrsConfig::subscribe(SrsReloadHandler* handler)
 	subscribes.push_back(handler);
 }
 
-void SrsConfig::unsubscribe(SrsReloadHandler* handler)
+void SrsConfig::unsubscribe(ISrsReloadHandler* handler)
 {
-	std::vector<SrsReloadHandler*>::iterator it;
+	std::vector<ISrsReloadHandler*>::iterator it;
 	
 	it = std::find(subscribes.begin(), subscribes.end(), handler);
 	if (it == subscribes.end()) {

@@ -33,7 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define SRS_STAGE_DEFAULT_INTERVAL_MS 1200
 
-struct SrsStageInfo : public SrsReloadHandler
+struct SrsStageInfo : public ISrsReloadHandler
 {
 	int stage_id;
 	int pithy_print_time_ms;
