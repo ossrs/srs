@@ -198,6 +198,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v0.9, 2013-12-14, refine the thread model for the retry threads.
 * v0.9, 2013-12-10, auto install depends tools/libs on centos/ubuntu.
 * v0.8, 2013-12-08, v0.8 released. 19186 lines.
 * v0.8, 2013-12-08, support http hooks: on_connect/close/publish/unpublish/play/stop.
