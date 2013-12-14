@@ -46,9 +46,8 @@ SrsForwarder::SrsForwarder()
 	client = NULL;
 	stfd = NULL;
 	stream_id = 0;
-	
-	tid = NULL;
-	loop = false;
+
+	pthread = new SrsThread(this, SRS_FORWARDER_SLEEP_MS);
 }
 
 SrsForwarder::~SrsForwarder()
@@ -61,6 +60,8 @@ SrsForwarder::~SrsForwarder()
 		srs_freep(msg);
 	}
 	msgs.clear();
+	
+	srs_freep(pthread);
 }
 
 int SrsForwarder::on_publish(SrsRequest* req, std::string forward_server)
@@ -110,41 +111,19 @@ int SrsForwarder::on_publish(SrsRequest* req, std::string forward_server)
 		source_ep.c_str(), dest_ep.c_str(), tc_url.c_str(), 
 		stream_name.c_str());
 	
-	// TODO: seems bug when republish and reforward.
-	
-	// start forward
-	if ((ret = open_socket()) != ERROR_SUCCESS) {
-		return ret;
-	}
-    
-    srs_assert(!tid);
-    if((tid = st_thread_create(forward_thread, this, 1, 0)) == NULL){
-		ret = ERROR_ST_CREATE_FORWARD_THREAD;
-        srs_error("st_thread_create failed. ret=%d", ret);
+	if ((ret = pthread->start()) != ERROR_SUCCESS) {
+        srs_error("start srs thread failed. ret=%d", ret);
         return ret;
-    }
+	}
 	
 	return ret;
 }
 
 void SrsForwarder::on_unpublish()
 {
-	if (tid) {
-		loop = false;
-		st_thread_interrupt(tid);
-		st_thread_join(tid, NULL);
-		tid = NULL;
-	}
+	pthread->stop();
 	
-	if (stfd) {
-		int fd = st_netfd_fileno(stfd);
-		st_netfd_close(stfd);
-		stfd = NULL;
-		
-		// st does not close it sometimes, 
-		// close it manually.
-		close(fd);
-	}
+	close_underlayer_socket();
 	
 	srs_freep(client);
 }
@@ -178,70 +157,17 @@ int SrsForwarder::on_video(SrsSharedPtrMessage* msg)
 	return ret;
 }
 
-int SrsForwarder::open_socket()
-{
-	int ret = ERROR_SUCCESS;
-	
-	srs_trace("forward stream=%s, tcUrl=%s to server=%s, port=%d",
-		stream_name.c_str(), tc_url.c_str(), server.c_str(), port);
-
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if(sock == -1){
-        ret = ERROR_SOCKET_CREATE;
-        srs_error("create socket error. ret=%d", ret);
-        return ret;
-    }
-    
-    stfd = st_netfd_open_socket(sock);
-    if(stfd == NULL){
-        ret = ERROR_ST_OPEN_SOCKET;
-        srs_error("st_netfd_open_socket failed. ret=%d", ret);
-        return ret;
-    }
-
-	srs_freep(client);
-	client = new SrsRtmpClient(stfd);
-	
-	return ret;
-}
-
-int SrsForwarder::connect_server()
-{
-	int ret = ERROR_SUCCESS;
-	
-	std::string ip = srs_dns_resolve(server);
-	if (ip.empty()) {
-		ret = ERROR_SYSTEM_IP_INVALID;
-		srs_error("dns resolve server error, ip empty. ret=%d", ret);
-		return ret;
-	}
-	
-    sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = inet_addr(ip.c_str());
-    
-    if (st_connect(stfd, (const struct sockaddr*)&addr, sizeof(sockaddr_in), ST_UTIME_NO_TIMEOUT) == -1){
-        ret = ERROR_ST_CONNECT;
-        srs_error("connect to server error. ip=%s, port=%d, ret=%d", ip.c_str(), port, ret);
-        return ret;
-    }
-    srs_trace("connect to server success. server=%s, ip=%s, port=%d", server.c_str(), ip.c_str(), port);
-    
-	return ret;
-}
-
 int SrsForwarder::cycle()
 {
 	int ret = ERROR_SUCCESS;
-
-	client->set_recv_timeout(SRS_RECV_TIMEOUT_US);
-	client->set_send_timeout(SRS_SEND_TIMEOUT_US);
 	
 	if ((ret = connect_server()) != ERROR_SUCCESS) {
 		return ret;
 	}
 	srs_assert(client);
+
+	client->set_recv_timeout(SRS_RECV_TIMEOUT_US);
+	client->set_send_timeout(SRS_SEND_TIMEOUT_US);
 	
 	if ((ret = client->handshake()) != ERROR_SUCCESS) {
 		srs_error("handshake with server failed. ret=%d", ret);
@@ -271,6 +197,63 @@ int SrsForwarder::cycle()
 	return ret;
 }
 
+void SrsForwarder::close_underlayer_socket()
+{
+	srs_close_stfd(stfd);
+}
+
+int SrsForwarder::connect_server()
+{
+	int ret = ERROR_SUCCESS;
+	
+	// reopen
+	close_underlayer_socket();
+	
+	// open socket.
+	srs_trace("forward stream=%s, tcUrl=%s to server=%s, port=%d",
+		stream_name.c_str(), tc_url.c_str(), server.c_str(), port);
+
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if(sock == -1){
+        ret = ERROR_SOCKET_CREATE;
+        srs_error("create socket error. ret=%d", ret);
+        return ret;
+    }
+    
+    srs_assert(!stfd);
+    stfd = st_netfd_open_socket(sock);
+    if(stfd == NULL){
+        ret = ERROR_ST_OPEN_SOCKET;
+        srs_error("st_netfd_open_socket failed. ret=%d", ret);
+        return ret;
+    }
+
+	srs_freep(client);
+	client = new SrsRtmpClient(stfd);
+	
+	// connect to server.
+	std::string ip = srs_dns_resolve(server);
+	if (ip.empty()) {
+		ret = ERROR_SYSTEM_IP_INVALID;
+		srs_error("dns resolve server error, ip empty. ret=%d", ret);
+		return ret;
+	}
+	
+    sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = inet_addr(ip.c_str());
+    
+    if (st_connect(stfd, (const struct sockaddr*)&addr, sizeof(sockaddr_in), ST_UTIME_NO_TIMEOUT) == -1){
+        ret = ERROR_ST_CONNECT;
+        srs_error("connect to server error. ip=%s, port=%d, ret=%d", ip.c_str(), port, ret);
+        return ret;
+    }
+    srs_trace("connect to server success. server=%s, ip=%s, port=%d", server.c_str(), ip.c_str(), port);
+    
+	return ret;
+}
+
 int SrsForwarder::forward()
 {
 	int ret = ERROR_SUCCESS;
@@ -279,9 +262,7 @@ int SrsForwarder::forward()
 	
 	SrsPithyPrint pithy_print(SRS_STAGE_FORWARDER);
 
-	while (loop) {
-		pithy_print.elapse(SRS_PULSE_TIMEOUT_MS);
-		
+	while (true) {
 		// switch to other st-threads.
 		st_usleep(0);
 
@@ -303,7 +284,8 @@ int SrsForwarder::forward()
 			continue;
 		}
 
-		// reportable
+		// pithy print
+		pithy_print.elapse(SRS_PULSE_TIMEOUT_MS);
 		if (pithy_print.can_print()) {
 			srs_trace("-> time=%"PRId64", msgs=%d, obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
 				pithy_print.get_age(), count, client->get_send_bytes(), client->get_recv_bytes(), client->get_send_kbps(), client->get_recv_kbps());
@@ -343,45 +325,5 @@ int SrsForwarder::forward()
 	}
 	
 	return ret;
-}
-
-void SrsForwarder::forward_cycle()
-{
-	int ret = ERROR_SUCCESS;
-	
-	log_context->generate_id();
-	srs_trace("forward cycle start");
-	
-	while (loop) {
-		if ((ret = cycle()) != ERROR_SUCCESS) {
-			srs_warn("forward cycle failed, ignored and retry, ret=%d", ret);
-		} else {
-			srs_info("forward cycle success, retry");
-		}
-		
-		if (!loop) {
-			break;
-		}
-		
-		st_usleep(SRS_FORWARDER_SLEEP_MS * 1000);
-
-		if ((ret = open_socket()) != ERROR_SUCCESS) {
-			srs_warn("forward cycle reopen failed, ignored and retry, ret=%d", ret);
-		} else {
-			srs_info("forward cycle reopen success");
-		}
-	}
-	srs_trace("forward cycle finished");
-}
-
-void* SrsForwarder::forward_thread(void* arg)
-{
-	SrsForwarder* obj = (SrsForwarder*)arg;
-	srs_assert(obj != NULL);
-	
-	obj->loop = true;
-	obj->forward_cycle();
-	
-	return NULL;
 }
 

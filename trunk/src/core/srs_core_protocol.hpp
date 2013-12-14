@@ -33,8 +33,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <map>
 #include <string>
 
-#include <st.h>
-
 #include <srs_core_log.hpp>
 #include <srs_core_error.hpp>
 

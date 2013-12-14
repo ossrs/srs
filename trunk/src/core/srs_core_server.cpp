@@ -30,8 +30,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <algorithm>
 
-#include <st.h>
-
 #include <srs_core_log.hpp>
 #include <srs_core_error.hpp>
 #include <srs_core_client.hpp>
@@ -48,24 +46,16 @@ SrsListener::SrsListener(SrsServer* _server, SrsListenerType _type)
 	port = 0;
 	server = _server;
 	type = _type;
-	
-	tid = NULL;
-	loop = false;
+
+	pthread = new SrsThread(this, 0);
 }
 
 SrsListener::~SrsListener()
 {
-	if (stfd) {
-		st_netfd_close(stfd);
-		stfd = NULL;
-	}
+	srs_close_stfd(stfd);
 	
-	if (tid) {
-		loop = false;
-		st_thread_interrupt(tid);
-		st_thread_join(tid, NULL);
-		tid = NULL;
-	}
+	pthread->stop();
+	srs_freep(pthread);
 	
 	// st does not close it sometimes, 
 	// close it manually.
@@ -118,8 +108,7 @@ int SrsListener::listen(int _port)
     }
     srs_verbose("st open socket success. fd=%d", fd);
     
-    if ((tid = st_thread_create(listen_thread, this, 1, 0)) == NULL) {
-        ret = ERROR_ST_CREATE_LISTEN_THREAD;
+    if ((ret = pthread->start()) != ERROR_SUCCESS) {
         srs_error("st_thread_create listen thread error. ret=%d", ret);
         return ret;
     }
@@ -130,41 +119,32 @@ int SrsListener::listen(int _port)
 	return ret;
 }
 
-void SrsListener::listen_cycle()
+void SrsListener::on_enter_loop()
+{
+	srs_trace("listen cycle start, port=%d, type=%d, fd=%d", port, type, fd);
+}
+
+int SrsListener::cycle()
 {
 	int ret = ERROR_SUCCESS;
 	
-	log_context->generate_id();
-	srs_trace("listen cycle start, port=%d, type=%d, fd=%d", port, type, fd);
+    st_netfd_t client_stfd = st_accept(stfd, NULL, NULL, ST_UTIME_NO_TIMEOUT);
+    
+    if(client_stfd == NULL){
+        // ignore error.
+        srs_warn("ignore accept thread stoppped for accept client error");
+        return ret;
+    }
+    srs_verbose("get a client. fd=%d", st_netfd_fileno(client_stfd));
 	
-	while (loop) {
-	    st_netfd_t client_stfd = st_accept(stfd, NULL, NULL, ST_UTIME_NO_TIMEOUT);
-	    
-	    if(client_stfd == NULL){
-	        // ignore error.
-	        srs_warn("ignore accept thread stoppped for accept client error");
-	        continue;
-	    }
-	    srs_verbose("get a client. fd=%d", st_netfd_fileno(client_stfd));
-    	
-    	if ((ret = server->accept_client(type, client_stfd)) != ERROR_SUCCESS) {
-    		srs_warn("accept client error. ret=%d", ret);
-			continue;
-    	}
-    	
-    	srs_verbose("accept client finished. conns=%d, ret=%d", (int)conns.size(), ret);
+	if ((ret = server->accept_client(type, client_stfd)) != ERROR_SUCCESS) {
+		srs_warn("accept client error. ret=%d", ret);
+		return ret;
 	}
-}
-
-void* SrsListener::listen_thread(void* arg)
-{
-	SrsListener* obj = (SrsListener*)arg;
-	srs_assert(obj != NULL);
 	
-	obj->loop = true;
-	obj->listen_cycle();
+	srs_verbose("accept client finished. conns=%d, ret=%d", (int)conns.size(), ret);
 	
-	return NULL;
+	return ret;
 }
 
 SrsServer::SrsServer()
@@ -312,8 +292,7 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
 		srs_error("exceed the max connections, drop client: "
 			"clients=%d, max=%d, fd=%d", (int)conns.size(), max_connections, fd);
 			
-		st_netfd_close(client_stfd);
-		::close(fd);
+		srs_close_stfd(client_stfd);
 		
 		return ret;
 	}

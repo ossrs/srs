@@ -32,7 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string>
 #include <vector>
 
-#include <st.h>
+#include <srs_core_thread.hpp>
 
 class SrsSharedPtrMessage;
 class SrsOnMetaDataPacket;
@@ -42,7 +42,7 @@ class SrsRequest;
 /**
 * forward the stream to other servers.
 */
-class SrsForwarder
+class SrsForwarder : public ISrsThreadHandler
 {
 private:
 	std::string app;
@@ -53,8 +53,7 @@ private:
 	int port;
 private:
 	st_netfd_t stfd;
-	st_thread_t tid;
-	bool loop;
+	SrsThread* pthread;
 private:
 	SrsRtmpClient* client;
 	std::vector<SrsSharedPtrMessage*> msgs;
@@ -67,14 +66,13 @@ public:
 	virtual int on_meta_data(SrsSharedPtrMessage* metadata);
 	virtual int on_audio(SrsSharedPtrMessage* msg);
 	virtual int on_video(SrsSharedPtrMessage* msg);
-private:
-	virtual int open_socket();
-	virtual int connect_server();
-private:
+// interface ISrsThreadHandler.
+public:
 	virtual int cycle();
+private:
+	virtual void close_underlayer_socket();
+	virtual int connect_server();
 	virtual int forward();
-	virtual void forward_cycle();
-	static void* forward_thread(void* arg);
 };
 
 #endif

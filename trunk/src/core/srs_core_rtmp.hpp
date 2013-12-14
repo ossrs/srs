@@ -32,8 +32,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
-#include <st.h>
-
 class SrsProtocol;
 class ISrsMessage;
 class SrsCommonMessage;

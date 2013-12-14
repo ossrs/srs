@@ -36,7 +36,6 @@ class SrsSocket;
 
 #include <string>
 
-#include <st.h>
 #include <http_parser.h>
 
 #define SRS_HTTP_HEADER_BUFFER		1024
