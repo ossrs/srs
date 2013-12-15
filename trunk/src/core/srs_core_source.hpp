@@ -101,7 +101,10 @@ public:
 	*/
 	virtual int enqueue(SrsSharedPtrMessage* msg);
 	/**
-	* get messages from the queue.
+	* get packets in consumer queue.
+	* @pmsgs SrsMessages*[], output the prt array.
+	* @count the count in array.
+	* @max_count the max count to dequeue, 0 to dequeue all.
 	*/
 	virtual int get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& count);
 private:
@@ -122,7 +125,6 @@ private:
 	SrsRtmpJitter* jitter;
 	SrsSource* source;
 	SrsMessageQueue* queue;
-	std::vector<SrsSharedPtrMessage*> msgs;
 	bool paused;
 public:
 	SrsConsumer(SrsSource* _source);

@@ -30,13 +30,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <string>
-#include <vector>
 
 #include <srs_core_thread.hpp>
 
 class SrsSharedPtrMessage;
 class SrsOnMetaDataPacket;
 class SrsMessageQueue;
+class SrsRtmpJitter;
 class SrsRtmpClient;
 class SrsRequest;
 class SrsSource;
@@ -59,8 +59,8 @@ private:
 private:
 	SrsSource* source;
 	SrsRtmpClient* client;
+	SrsRtmpJitter* jitter;
 	SrsMessageQueue* queue;
-	std::vector<SrsSharedPtrMessage*> msgs;
 public:
 	SrsForwarder(SrsSource* _source);
 	virtual ~SrsForwarder();
