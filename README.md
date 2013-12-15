@@ -92,7 +92,7 @@ for android: http://demo:80/forward/live/livestream_sd.html
 <pre>
 killall -1 srs
 </pre>
-or use specified signal name to reload:<br/>
+or use specified signal to reload:<br/>
 <pre>
 killall -s SIGHUP srs
 </pre>
