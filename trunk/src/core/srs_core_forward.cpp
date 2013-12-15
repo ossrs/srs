@@ -35,14 +35,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_pithy_print.hpp>
 #include <srs_core_rtmp.hpp>
 #include <srs_core_config.hpp>
+#include <srs_core_source.hpp>
 
 #define SRS_PULSE_TIMEOUT_MS 100
 #define SRS_FORWARDER_SLEEP_MS 2000
 #define SRS_SEND_TIMEOUT_US 3000000L
 #define SRS_RECV_TIMEOUT_US SRS_SEND_TIMEOUT_US
 
-SrsForwarder::SrsForwarder()
+SrsForwarder::SrsForwarder(SrsSource* _source)
 {
+	source = _source;
+	
 	client = NULL;
 	stfd = NULL;
 	stream_id = 0;
@@ -182,11 +185,14 @@ int SrsForwarder::cycle()
 		return ret;
 	}
 	
-	// TODO: FIXME: need to cache the metadata and sequence header when reconnect.
-	
 	if ((ret = client->publish(stream_name, stream_id)) != ERROR_SUCCESS) {
 		srs_error("connect with server failed, stream_name=%s, stream_id=%d. ret=%d", 
 			stream_name.c_str(), stream_id, ret);
+		return ret;
+	}
+	
+	if ((ret = source->on_forwarder_start(this)) != ERROR_SUCCESS) {
+		srs_error("callback the source to feed the sequence header failed. ret=%d", ret);
 		return ret;
 	}
 	

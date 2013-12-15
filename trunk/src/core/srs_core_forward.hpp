@@ -38,6 +38,7 @@ class SrsSharedPtrMessage;
 class SrsOnMetaDataPacket;
 class SrsRtmpClient;
 class SrsRequest;
+class SrsSource;
 
 /**
 * forward the stream to other servers.
@@ -55,10 +56,11 @@ private:
 	st_netfd_t stfd;
 	SrsThread* pthread;
 private:
+	SrsSource* source;
 	SrsRtmpClient* client;
 	std::vector<SrsSharedPtrMessage*> msgs;
 public:
-	SrsForwarder();
+	SrsForwarder(SrsSource* _source);
 	virtual ~SrsForwarder();
 public:
 	virtual int on_publish(SrsRequest* req, std::string forward_server);

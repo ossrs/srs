@@ -221,6 +221,9 @@ public:
 	virtual int on_reload_forward(std::string vhost);
 	virtual int on_reload_hls(std::string vhost);
 	virtual int on_reload_transcode(std::string vhost);
+// for the SrsForwarder to callback to request the sequence headers.
+public:
+	virtual int on_forwarder_start(SrsForwarder* forwarder);
 public:
 	virtual bool can_publish();
 	virtual int on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);

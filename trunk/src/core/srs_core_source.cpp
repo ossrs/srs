@@ -450,7 +450,7 @@ int SrsSource::on_reload_forward(string vhost)
 		srs_error("create forwarders failed. ret=%d", ret);
 		return ret;
 	}
-	// TODO: FIXME: must feed it the sequence header.
+
 	srs_trace("vhost %s forwarders reload success", vhost.c_str());
 	
 	return ret;
@@ -494,6 +494,28 @@ int SrsSource::on_reload_transcode(string vhost)
 	}
 	srs_trace("vhost %s transcode reload success", vhost.c_str());
 #endif
+	
+	return ret;
+}
+
+int SrsSource::on_forwarder_start(SrsForwarder* forwarder)
+{
+	int ret = ERROR_SUCCESS;
+		
+	// feed the forwarder the metadata/sequence header,
+	// when reload to enable the forwarder.
+	if (cache_metadata && (ret = forwarder->on_meta_data(cache_metadata->copy())) != ERROR_SUCCESS) {
+		srs_error("forwarder process onMetaData message failed. ret=%d", ret);
+		return ret;
+	}
+	if (cache_sh_video && (ret = forwarder->on_video(cache_sh_video->copy())) != ERROR_SUCCESS) {
+		srs_error("forwarder process video sequence header message failed. ret=%d", ret);
+		return ret;
+	}
+	if (cache_sh_audio && (ret = forwarder->on_audio(cache_sh_audio->copy())) != ERROR_SUCCESS) {
+		srs_error("forwarder process audio sequence header message failed. ret=%d", ret);
+		return ret;
+	}
 	
 	return ret;
 }
@@ -837,7 +859,7 @@ int SrsSource::create_forwarders()
 	for (int i = 0; conf && i < (int)conf->args.size(); i++) {
 		std::string forward_server = conf->args.at(i);
 		
-		SrsForwarder* forwarder = new SrsForwarder();
+		SrsForwarder* forwarder = new SrsForwarder(this);
 		forwarders.push_back(forwarder);
 		
 		if ((ret = forwarder->on_publish(req, forward_server)) != ERROR_SUCCESS) {
