@@ -1272,14 +1272,13 @@ int SrsHls::on_audio(SrsSharedPtrMessage* audio)
 		return ret;
 	}
 	
-	int64_t corrected_time = 0;
-	if ((ret = jitter->correct(audio, 0, 0, &corrected_time)) != ERROR_SUCCESS) {
+	if ((ret = jitter->correct(audio, 0, 0)) != ERROR_SUCCESS) {
 		srs_error("rtmp jitter correct audio failed. ret=%d", ret);
 		return ret;
 	}
 	
 	// the pts calc from rtmp/flv header.
-	int64_t pts = corrected_time * 90;
+	int64_t pts = audio->header.timestamp * 90;
 	
 	if ((ret = ts_cache->write_audio(codec, muxer, pts, sample)) != ERROR_SUCCESS) {
 		srs_error("ts cache write audio failed. ret=%d", ret);
@@ -1315,13 +1314,12 @@ int SrsHls::on_video(SrsSharedPtrMessage* video)
 		return ret;
 	}
 	
-	int64_t corrected_time = 0;
-	if ((ret = jitter->correct(video, 0, 0, &corrected_time)) != ERROR_SUCCESS) {
+	if ((ret = jitter->correct(video, 0, 0)) != ERROR_SUCCESS) {
 		srs_error("rtmp jitter correct video failed. ret=%d", ret);
 		return ret;
 	}
 	
-	int64_t dts = corrected_time * 90;
+	int64_t dts = video->header.timestamp * 90;
 	if ((ret = ts_cache->write_video(codec, muxer, dts, sample)) != ERROR_SUCCESS) {
 		srs_error("ts cache write video failed. ret=%d", ret);
 		return ret;

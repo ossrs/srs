@@ -354,7 +354,7 @@ int SrsProtocol::recv_message(SrsCommonMessage** pmsg)
 		}
 		
 		if (msg->size <= 0 || msg->header.payload_length <= 0) {
-			srs_trace("ignore empty message(type=%d, size=%d, time=%d, sid=%d).",
+			srs_trace("ignore empty message(type=%d, size=%d, time=%"PRId64", sid=%d).",
 				msg->header.message_type, msg->header.payload_length,
 				msg->header.timestamp, msg->header.stream_id);
 			srs_freep(msg);
@@ -405,12 +405,13 @@ int SrsProtocol::send_message(ISrsMessage* msg)
 			
 		    // chunk message header, 11 bytes
 		    // timestamp, 3bytes, big-endian
-			if (msg->header.timestamp >= RTMP_EXTENDED_TIMESTAMP) {
+			u_int32_t timestamp = (u_int32_t)msg->header.timestamp;
+			if (timestamp >= RTMP_EXTENDED_TIMESTAMP) {
 		        *pheader++ = 0xFF;
 		        *pheader++ = 0xFF;
 		        *pheader++ = 0xFF;
 			} else {
-		        pp = (char*)&msg->header.timestamp; 
+		        pp = (char*)&timestamp;
 		        *pheader++ = pp[2];
 		        *pheader++ = pp[1];
 		        *pheader++ = pp[0];
@@ -433,8 +434,8 @@ int SrsProtocol::send_message(ISrsMessage* msg)
 		    *pheader++ = pp[3];
 		    
 		    // chunk extended timestamp header, 0 or 4 bytes, big-endian
-		    if(msg->header.timestamp >= RTMP_EXTENDED_TIMESTAMP){
-		        pp = (char*)&msg->header.timestamp;
+		    if(timestamp >= RTMP_EXTENDED_TIMESTAMP){
+		        pp = (char*)&timestamp;
 		        *pheader++ = pp[3];
 		        *pheader++ = pp[2];
 		        *pheader++ = pp[1];
@@ -461,8 +462,9 @@ int SrsProtocol::send_message(ISrsMessage* msg)
 		    //		must send the extended-timestamp to flash-player.
 		    // @see: ngx_rtmp_prepare_message
 		    // @see: http://blog.csdn.net/win_lin/article/details/13363699
-		    if(msg->header.timestamp >= RTMP_EXTENDED_TIMESTAMP){
-		        pp = (char*)&msg->header.timestamp; 
+			u_int32_t timestamp = (u_int32_t)msg->header.timestamp;
+		    if(timestamp >= RTMP_EXTENDED_TIMESTAMP){
+		        pp = (char*)&timestamp; 
 		        *pheader++ = pp[3];
 		        *pheader++ = pp[2];
 		        *pheader++ = pp[1];
@@ -702,7 +704,7 @@ int SrsProtocol::recv_interlaced_message(SrsCommonMessage** pmsg)
 		srs_verbose("cache new chunk stream: fmt=%d, cid=%d", fmt, cid);
 	} else {
 		chunk = chunk_streams[cid];
-		srs_verbose("cached chunk stream: fmt=%d, cid=%d, size=%d, message(type=%d, size=%d, time=%d, sid=%d)",
+		srs_verbose("cached chunk stream: fmt=%d, cid=%d, size=%d, message(type=%d, size=%d, time=%"PRId64", sid=%d)",
 			chunk->fmt, chunk->cid, (chunk->msg? chunk->msg->size : 0), chunk->header.message_type, chunk->header.payload_length,
 			chunk->header.timestamp, chunk->header.stream_id);
 	}
@@ -716,7 +718,7 @@ int SrsProtocol::recv_interlaced_message(SrsCommonMessage** pmsg)
 		return ret;
 	}
 	srs_verbose("read message header success. "
-			"fmt=%d, mh_size=%d, ext_time=%d, size=%d, message(type=%d, size=%d, time=%d, sid=%d)", 
+			"fmt=%d, mh_size=%d, ext_time=%d, size=%d, message(type=%d, size=%d, time=%"PRId64", sid=%d)", 
 			fmt, mh_size, chunk->extended_timestamp, (chunk->msg? chunk->msg->size : 0), chunk->header.message_type, 
 			chunk->header.payload_length, chunk->header.timestamp, chunk->header.stream_id);
 	
@@ -738,14 +740,14 @@ int SrsProtocol::recv_interlaced_message(SrsCommonMessage** pmsg)
 	
 	// not got an entire RTMP message, try next chunk.
 	if (!msg) {
-		srs_verbose("get partial message success. chunk_payload_size=%d, size=%d, message(type=%d, size=%d, time=%d, sid=%d)",
+		srs_verbose("get partial message success. chunk_payload_size=%d, size=%d, message(type=%d, size=%d, time=%"PRId64", sid=%d)",
 				payload_size, (msg? msg->size : (chunk->msg? chunk->msg->size : 0)), chunk->header.message_type, chunk->header.payload_length,
 				chunk->header.timestamp, chunk->header.stream_id);
 		return ret;
 	}
 	
 	*pmsg = msg;
-	srs_info("get entire message success. chunk_payload_size=%d, size=%d, message(type=%d, size=%d, time=%d, sid=%d)",
+	srs_info("get entire message success. chunk_payload_size=%d, size=%d, message(type=%d, size=%d, time=%"PRId64", sid=%d)",
 			payload_size, (msg? msg->size : (chunk->msg? chunk->msg->size : 0)), chunk->header.message_type, chunk->header.payload_length,
 			chunk->header.timestamp, chunk->header.stream_id);
 			
@@ -952,16 +954,16 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
                 pp[1] = *p++;
                 pp[2] = *p++;
                 pp[3] = *p++;
-				srs_verbose("header read completed. fmt=%d, mh_size=%d, ext_time=%d, time=%d, payload=%d, type=%d, sid=%d", 
+				srs_verbose("header read completed. fmt=%d, mh_size=%d, ext_time=%d, time=%"PRId64", payload=%d, type=%d, sid=%d", 
 					fmt, mh_size, chunk->extended_timestamp, chunk->header.timestamp, chunk->header.payload_length, 
 					chunk->header.message_type, chunk->header.stream_id);
 			} else {
-				srs_verbose("header read completed. fmt=%d, mh_size=%d, ext_time=%d, time=%d, payload=%d, type=%d", 
+				srs_verbose("header read completed. fmt=%d, mh_size=%d, ext_time=%d, time=%"PRId64", payload=%d, type=%d", 
 					fmt, mh_size, chunk->extended_timestamp, chunk->header.timestamp, chunk->header.payload_length, 
 					chunk->header.message_type);
 			}
 		} else {
-			srs_verbose("header read completed. fmt=%d, mh_size=%d, ext_time=%d, time=%d", 
+			srs_verbose("header read completed. fmt=%d, mh_size=%d, ext_time=%d, time=%"PRId64"", 
 				fmt, mh_size, chunk->extended_timestamp, chunk->header.timestamp);
 		}
 	} else {
@@ -986,7 +988,7 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
 
 		// ffmpeg/librtmp may donot send this filed, need to detect the value.
 		// @see also: http://blog.csdn.net/win_lin/article/details/13363699
-		int32_t timestamp = 0x00;
+		u_int32_t timestamp = 0x00;
         char* pp = (char*)&timestamp;
         pp[3] = *p++;
         pp[2] = *p++;
@@ -995,14 +997,14 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
         
         // compare to the chunk timestamp, which is set by chunk message header
         // type 0,1 or 2.
-        int32_t chunk_timestamp = chunk->header.timestamp;
+        u_int32_t chunk_timestamp = chunk->header.timestamp;
         if (chunk_timestamp > RTMP_EXTENDED_TIMESTAMP && chunk_timestamp != timestamp) {
             mh_size -= 4;
             srs_verbose("ignore the 4bytes extended timestamp. mh_size=%d", mh_size);
         } else {
             chunk->header.timestamp = timestamp;
         }
-		srs_verbose("header read ext_time completed. time=%d", chunk->header.timestamp);
+		srs_verbose("header read ext_time completed. time=%"PRId64"", chunk->header.timestamp);
 	}
 	
 	// valid message
@@ -1032,7 +1034,7 @@ int SrsProtocol::read_message_payload(SrsChunkStream* chunk, int bh_size, int mh
 		buffer->erase(bh_size + mh_size);
 		
 		srs_trace("get an empty RTMP "
-				"message(type=%d, size=%d, time=%d, sid=%d)", chunk->header.message_type, 
+				"message(type=%d, size=%d, time=%"PRId64", sid=%d)", chunk->header.message_type, 
 				chunk->header.payload_length, chunk->header.timestamp, chunk->header.stream_id);
 		
 		*pmsg = chunk->msg;
@@ -1073,13 +1075,13 @@ int SrsProtocol::read_message_payload(SrsChunkStream* chunk, int bh_size, int mh
 	if (chunk->header.payload_length == chunk->msg->size) {
 		*pmsg = chunk->msg;
 		chunk->msg = NULL;
-		srs_verbose("get entire RTMP message(type=%d, size=%d, time=%d, sid=%d)", 
+		srs_verbose("get entire RTMP message(type=%d, size=%d, time=%"PRId64", sid=%d)", 
 				chunk->header.message_type, chunk->header.payload_length, 
 				chunk->header.timestamp, chunk->header.stream_id);
 		return ret;
 	}
 	
-	srs_verbose("get partial RTMP message(type=%d, size=%d, time=%d, sid=%d), partial size=%d", 
+	srs_verbose("get partial RTMP message(type=%d, size=%d, time=%"PRId64", sid=%d), partial size=%d", 
 			chunk->header.message_type, chunk->header.payload_length, 
 			chunk->header.timestamp, chunk->header.stream_id,
 			chunk->msg->size);

@@ -38,7 +38,7 @@ using namespace std;
 #include <srs_core_rtmp.hpp>
 
 #define CONST_MAX_JITTER_MS 		500
-#define DEFAULT_FRAME_TIME_MS 		10
+#define DEFAULT_FRAME_TIME_MS 		40
 
 SrsRtmpJitter::SrsRtmpJitter()
 {
@@ -49,19 +49,13 @@ SrsRtmpJitter::~SrsRtmpJitter()
 {
 }
 
-// TODO: FIXME: remove the 64bits time, change the timestamp in heaer to 64bits.
-int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, int tba, int tbv, int64_t* corrected_time)
+int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, int tba, int tbv)
 {
 	int ret = ERROR_SUCCESS;
 
 	// set to 0 for metadata.
 	if (!msg->header.is_video() && !msg->header.is_audio()) {
-		if (corrected_time) {
-			*corrected_time = 0;
-		}
-		
 		msg->header.timestamp = 0;
-		
 		return ret;
 	}
 	
@@ -78,16 +72,16 @@ int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, int tba, int tbv, int64_t* 
 	* 3. last_pkt_correct_time: simply add the positive delta, 
 	* 	and enforce the time monotonically.
 	*/
-	u_int32_t time = msg->header.timestamp;
-	int32_t delta = time - last_pkt_time;
+	int64_t time = msg->header.timestamp;
+	int64_t delta = time - last_pkt_time;
 
 	// if jitter detected, reset the delta.
 	if (delta < 0 || delta > CONST_MAX_JITTER_MS) {
 		// calc the right diff by audio sample rate
 		if (msg->header.is_audio() && sample_rate > 0) {
-			delta = (int32_t)(delta * 1000.0 / sample_rate);
+			delta = (int64_t)(delta * 1000.0 / sample_rate);
 		} else if (msg->header.is_video() && frame_rate > 0) {
-			delta = (int32_t)(delta * 1.0 / frame_rate);
+			delta = (int64_t)(delta * 1.0 / frame_rate);
 		} else {
 			delta = DEFAULT_FRAME_TIME_MS;
 		}
@@ -97,20 +91,16 @@ int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, int tba, int tbv, int64_t* 
 			delta = DEFAULT_FRAME_TIME_MS;
 		}
 		
-		srs_info("jitter detected, last_pts=%d, pts=%d, diff=%d, last_time=%d, time=%d, diff=%d",
+		srs_info("jitter detected, last_pts=%"PRId64", pts=%"PRId64", diff=%"PRId64", last_time=%"PRId64", time=%"PRId64", diff=%"PRId64"",
 			last_pkt_time, time, time - last_pkt_time, last_pkt_correct_time, last_pkt_correct_time + delta, delta);
 	} else {
-		srs_verbose("timestamp no jitter. time=%d, last_pkt=%d, correct_to=%d", 
+		srs_verbose("timestamp no jitter. time=%"PRId64", last_pkt=%"PRId64", correct_to=%"PRId64"", 
 			time, last_pkt_time, last_pkt_correct_time + delta);
 	}
 	
 	last_pkt_correct_time = srs_max(0, last_pkt_correct_time + delta);
 	
-	if (corrected_time) {
-		*corrected_time = last_pkt_correct_time;
-	}
 	msg->header.timestamp = last_pkt_correct_time;
-	
 	last_pkt_time = time;
 	
 	return ret;

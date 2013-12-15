@@ -56,18 +56,16 @@ class SrsEncoder;
 class SrsRtmpJitter
 {
 private:
-	u_int32_t last_pkt_time;
-	u_int32_t last_pkt_correct_time;
+	int64_t last_pkt_time;
+	int64_t last_pkt_correct_time;
 public:
 	SrsRtmpJitter();
 	virtual ~SrsRtmpJitter();
 public:
 	/**
 	* detect the time jitter and correct it.
-	* @param corrected_time output the 64bits time.
-	* 		ignore if NULL.
 	*/
-	virtual int correct(SrsSharedPtrMessage* msg, int tba, int tbv, int64_t* corrected_time = NULL);
+	virtual int correct(SrsSharedPtrMessage* msg, int tba, int tbv);
 	/**
 	* get current client time, the last packet time.
 	*/

@@ -212,6 +212,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v0.9, 2013-12-15, refine protocol, use int64_t timestamp for ts and jitter.
 * v0.9, 2013-12-15, support set the live queue length(in seconds), drop when full.
 * v0.9, 2013-12-15, fix the forwarder reconnect bug, feed it the sequence header.
 * v0.9, 2013-12-15, support reload the hls/forwarder/transcoder.
