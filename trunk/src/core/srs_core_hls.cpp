@@ -1253,7 +1253,6 @@ int SrsHls::on_audio(SrsSharedPtrMessage* audio)
 	
 	SrsAutoFree(SrsSharedPtrMessage, audio, false);
 	
-	// TODO: maybe donot need to demux the aac?
 	if (!hls_enabled) {
 		return ret;
 	}
@@ -1296,7 +1295,6 @@ int SrsHls::on_video(SrsSharedPtrMessage* video)
 	
 	SrsAutoFree(SrsSharedPtrMessage, video, false);
 	
-	// TODO: maybe donot need to demux the avc?
 	if (!hls_enabled) {
 		return ret;
 	}

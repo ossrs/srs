@@ -450,6 +450,7 @@ int SrsSource::on_reload_forward(string vhost)
 		srs_error("create forwarders failed. ret=%d", ret);
 		return ret;
 	}
+	// TODO: FIXME: must feed it the sequence header.
 	srs_trace("vhost %s forwarders reload success", vhost.c_str());
 	
 	return ret;
@@ -470,6 +471,7 @@ int SrsSource::on_reload_hls(string vhost)
 		srs_error("hls publish failed. ret=%d", ret);
 		return ret;
 	}
+	// TODO: FIXME: must feed it the sequence header.
 	srs_trace("vhost %s hls reload success", vhost.c_str());
 #endif
 	
