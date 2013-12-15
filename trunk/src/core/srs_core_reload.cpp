@@ -55,3 +55,8 @@ int ISrsReloadHandler::on_reload_gop_cache(string /*vhost*/)
 	return ERROR_SUCCESS;
 }
 
+int ISrsReloadHandler::on_reload_forward(string /*vhost*/)
+{
+	return ERROR_SUCCESS;
+}
+

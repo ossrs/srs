@@ -374,10 +374,14 @@ SrsSource::SrsSource(string _stream_url, string _vhost)
 	_can_publish = true;
 	
 	gop_cache = new SrsGopCache();
+	
+	config->subscribe(this);
 }
 
 SrsSource::~SrsSource()
 {
+	config->unsubscribe(this);
+	
 	if (true) {
 		std::vector<SrsConsumer*>::iterator it;
 		for (it = consumers.begin(); it != consumers.end(); ++it) {

@@ -537,6 +537,7 @@ int SrsConfig::reload()
 		// merge config: vhost modified.
 		srs_trace("vhost %s modified, reload its detail.", vhost.c_str());
 		if (get_vhost_enabled(new_vhost) && get_vhost_enabled(old_vhost)) {
+			// gop_cache
 			if (!srs_directive_equals(new_vhost->get("gop_cache"), old_vhost->get("gop_cache"))) {
 				for (it = subscribes.begin(); it != subscribes.end(); ++it) {
 					ISrsReloadHandler* subscribe = *it;
@@ -546,6 +547,17 @@ int SrsConfig::reload()
 					}
 				}
 				srs_trace("vhost %s reload gop_cache success.", vhost.c_str());
+			}
+			// forward
+			if (!srs_directive_equals(new_vhost->get("forward"), old_vhost->get("forward"))) {
+				for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+					ISrsReloadHandler* subscribe = *it;
+					if ((ret = subscribe->on_reload_forward(vhost)) != ERROR_SUCCESS) {
+						srs_error("vhost %s notify subscribes forward failed. ret=%d", vhost.c_str(), ret);
+						return ret;
+					}
+				}
+				srs_trace("vhost %s reload forward success.", vhost.c_str());
 			}
 			// TODO: suppor reload hls/forward/ffmpeg/http
 			continue;

@@ -63,6 +63,8 @@ SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
 
 SrsClient::~SrsClient()
 {
+	config->unsubscribe(this);
+	
 	srs_freepa(ip);
 	srs_freep(req);
 	srs_freep(res);
@@ -71,8 +73,6 @@ SrsClient::~SrsClient()
 #ifdef SRS_HTTP	
 	srs_freep(http_hooks);
 #endif
-
-	config->unsubscribe(this);
 }
 
 // TODO: return detail message when error for client.
