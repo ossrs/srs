@@ -546,7 +546,6 @@ int SrsSource::on_reload_hls(string vhost)
 		return ret;
 	}
 	
-	// TODO: HLS should continue previous sequence and stream.
 #ifdef SRS_HLS
 	hls->on_unpublish();
 	if ((ret = hls->on_publish(req)) != ERROR_SUCCESS) {

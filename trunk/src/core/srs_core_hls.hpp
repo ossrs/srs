@@ -217,13 +217,30 @@ public:
 	SrsHls(SrsSource* _source);
 	virtual ~SrsHls();
 public:
+	/**
+	* publish stream event, continue to write the m3u8,
+	* for the muxer object not destroyed.
+	*/
 	virtual int on_publish(SrsRequest* req);
+	/**
+	* the unpublish event, only close the muxer, donot destroy the 
+	* muxer, for when we continue to publish, the m3u8 will continue.
+	*/
 	virtual void on_unpublish();
+	/**
+	* get some information from metadata, it's optinal.
+	*/
 	virtual int on_meta_data(SrsAmf0Object* metadata);
+	/**
+	* mux the audio packets to ts.
+	*/
 	virtual int on_audio(SrsSharedPtrMessage* audio);
+	/**
+	* mux the video packets to ts.
+	*/
 	virtual int on_video(SrsSharedPtrMessage* video);
 private:
-	virtual void _mpegts();
+	virtual void hls_mux();
 };
 
 #endif

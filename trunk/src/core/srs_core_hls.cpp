@@ -1332,12 +1332,12 @@ int SrsHls::on_video(SrsSharedPtrMessage* video)
 		return ret;
 	}
 	
-	_mpegts();
+	hls_mux();
 	
 	return ret;
 }
 
-void SrsHls::_mpegts()
+void SrsHls::hls_mux()
 {
 	// reportable
 	if (pithy_print->can_print()) {
