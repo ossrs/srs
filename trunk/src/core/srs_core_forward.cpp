@@ -36,6 +36,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_rtmp.hpp>
 #include <srs_core_config.hpp>
 #include <srs_core_source.hpp>
+#include <srs_core_autofree.hpp>
 
 #define SRS_PULSE_TIMEOUT_MS 100
 #define SRS_FORWARDER_SLEEP_MS 2000
@@ -138,7 +139,7 @@ int SrsForwarder::on_meta_data(SrsSharedPtrMessage* metadata)
 	int ret = ERROR_SUCCESS;
 	
 	if ((ret = jitter->correct(metadata, 0, 0)) != ERROR_SUCCESS) {
-		srs_freep(msg);
+		srs_freep(metadata);
 		return ret;
 	}
 	
@@ -308,7 +309,7 @@ int SrsForwarder::forward()
 		// forward all messages.
 		int count = 0;
 		SrsSharedPtrMessage** msgs = NULL;
-		if ((ret = queue->get_packets(0, &msgs, count)) != ERROR_SUCCESS) {
+		if ((ret = queue->get_packets(0, msgs, count)) != ERROR_SUCCESS) {
 			srs_error("get message to forward failed. ret=%d", ret);
 			return ret;
 		}

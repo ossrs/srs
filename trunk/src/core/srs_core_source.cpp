@@ -900,11 +900,10 @@ void SrsSource::on_unpublish()
 {
 	int ret = ERROR_SUCCESS;
 	
-	double queue_size = config->get_queue_length(req->vhost);
-	
 	consumer = new SrsConsumer(this);
-	
 	consumers.push_back(consumer);
+	
+	double queue_size = config->get_queue_length(req->vhost);
 	consumer->set_queue_size(queue_size);
 
 	if (cache_metadata && (ret = consumer->enqueue(cache_metadata->copy(), sample_rate, frame_rate)) != ERROR_SUCCESS) {
@@ -959,6 +958,9 @@ int SrsSource::create_forwarders()
 		
 		SrsForwarder* forwarder = new SrsForwarder(this);
 		forwarders.push_back(forwarder);
+	
+		double queue_size = config->get_queue_length(req->vhost);
+		forwarder->set_queue_size(queue_size);
 		
 		if ((ret = forwarder->on_publish(req, forward_server)) != ERROR_SUCCESS) {
 			srs_error("start forwarder failed. "
