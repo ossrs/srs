@@ -219,6 +219,8 @@ public:
 public:
 	virtual int on_reload_gop_cache(std::string vhost);
 	virtual int on_reload_forward(std::string vhost);
+	virtual int on_reload_hls(std::string vhost);
+	virtual int on_reload_transcode(std::string vhost);
 public:
 	virtual bool can_publish();
 	virtual int on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);

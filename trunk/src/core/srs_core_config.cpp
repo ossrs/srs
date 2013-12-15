@@ -559,6 +559,28 @@ int SrsConfig::reload()
 				}
 				srs_trace("vhost %s reload forward success.", vhost.c_str());
 			}
+			// hls
+			if (!srs_directive_equals(new_vhost->get("hls"), old_vhost->get("hls"))) {
+				for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+					ISrsReloadHandler* subscribe = *it;
+					if ((ret = subscribe->on_reload_hls(vhost)) != ERROR_SUCCESS) {
+						srs_error("vhost %s notify subscribes hls failed. ret=%d", vhost.c_str(), ret);
+						return ret;
+					}
+				}
+				srs_trace("vhost %s reload hls success.", vhost.c_str());
+			}
+			// transcode
+			if (!srs_directive_equals(new_vhost->get("transcode"), old_vhost->get("transcode"))) {
+				for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+					ISrsReloadHandler* subscribe = *it;
+					if ((ret = subscribe->on_reload_transcode(vhost)) != ERROR_SUCCESS) {
+						srs_error("vhost %s notify subscribes transcode failed. ret=%d", vhost.c_str(), ret);
+						return ret;
+					}
+				}
+				srs_trace("vhost %s reload transcode success.", vhost.c_str());
+			}
 			// TODO: suppor reload hls/forward/ffmpeg/http
 			continue;
 		}

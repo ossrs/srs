@@ -45,6 +45,8 @@ public:
 	virtual int on_reload_vhost_removed(std::string vhost);
 	virtual int on_reload_gop_cache(std::string vhost);
 	virtual int on_reload_forward(std::string vhost);
+	virtual int on_reload_hls(std::string vhost);
+	virtual int on_reload_transcode(std::string vhost);
 };
 
 #endif

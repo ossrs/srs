@@ -60,3 +60,13 @@ int ISrsReloadHandler::on_reload_forward(string /*vhost*/)
 	return ERROR_SUCCESS;
 }
 
+int ISrsReloadHandler::on_reload_hls(string /*vhost*/)
+{
+	return ERROR_SUCCESS;
+}
+
+int ISrsReloadHandler::on_reload_transcode(string /*vhost*/)
+{
+	return ERROR_SUCCESS;
+}
+

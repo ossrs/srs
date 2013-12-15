@@ -455,6 +455,47 @@ int SrsSource::on_reload_forward(string vhost)
 	return ret;
 }
 
+int SrsSource::on_reload_hls(string vhost)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if (req->vhost != vhost) {
+		return ret;
+	}
+	
+	// TODO: HLS should continue previous sequence and stream.
+#ifdef SRS_HLS
+	hls->on_unpublish();
+	if ((ret = hls->on_publish(req)) != ERROR_SUCCESS) {
+		srs_error("hls publish failed. ret=%d", ret);
+		return ret;
+	}
+	srs_trace("vhost %s hls reload success", vhost.c_str());
+#endif
+	
+	return ret;
+}
+
+int SrsSource::on_reload_transcode(string vhost)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if (req->vhost != vhost) {
+		return ret;
+	}
+	
+#ifdef SRS_FFMPEG
+	encoder->on_unpublish();
+	if ((ret = encoder->on_publish(req)) != ERROR_SUCCESS) {
+		srs_error("start encoder failed. ret=%d", ret);
+		return ret;
+	}
+	srs_trace("vhost %s transcode reload success", vhost.c_str());
+#endif
+	
+	return ret;
+}
+
 bool SrsSource::can_publish()
 {
 	return _can_publish;
@@ -697,12 +738,14 @@ int SrsSource::on_publish(SrsRequest* _req)
 	
 #ifdef SRS_FFMPEG
 	if ((ret = encoder->on_publish(req)) != ERROR_SUCCESS) {
+		srs_error("start encoder failed. ret=%d", ret);
 		return ret;
 	}
 #endif
 	
 #ifdef SRS_HLS
 	if ((ret = hls->on_publish(req)) != ERROR_SUCCESS) {
+		srs_error("start hls failed. ret=%d", ret);
 		return ret;
 	}
 #endif
