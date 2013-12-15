@@ -26,6 +26,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <arpa/inet.h>
 #include <stdlib.h>
 
+using namespace std;
+
 #include <srs_core_error.hpp>
 #include <srs_core_log.hpp>
 #include <srs_core_rtmp.hpp>
@@ -118,14 +120,19 @@ int SrsClient::do_cycle()
 	return ret;
 }
 
-int SrsClient::on_reload_vhost_removed(SrsConfDirective* vhost)
+int SrsClient::on_reload_vhost_removed(string vhost)
 {
 	int ret = ERROR_SUCCESS;
 	
-	// if the vhost connected is removed, disconnect the client.
-	if (req->vhost == vhost->arg0()) {
-		srs_close_stfd(stfd);
+	if (req->vhost != vhost) {
+		return ret;
 	}
+	
+	// if the vhost connected is removed, disconnect the client.
+	srs_trace("vhost %s removed/disabled, close client url=%s", 
+		vhost.c_str(), req->get_stream_url().c_str());
+		
+	srs_close_stfd(stfd);
 	
 	return ret;
 }
@@ -174,7 +181,7 @@ int SrsClient::service_cycle()
 	srs_trace("set chunk_size=%d success", chunk_size);
 	
 	// find a source to publish.
-	SrsSource* source = SrsSource::find(req->get_stream_url());
+	SrsSource* source = SrsSource::find(req->get_stream_url(), req->vhost);
 	srs_assert(source != NULL);
 	
 	// check publish available.

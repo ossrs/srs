@@ -29,7 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
-class SrsConfDirective;
+#include <string>
 
 /**
 * the handler for config reload.
@@ -42,7 +42,8 @@ public:
 public:
 	virtual int on_reload_listen();
 	virtual int on_reload_pithy_print();
-	virtual int on_reload_vhost_removed(SrsConfDirective* vhost);
+	virtual int on_reload_vhost_removed(std::string vhost);
+	virtual int on_reload_gop_cache(std::string vhost);
 };
 
 #endif

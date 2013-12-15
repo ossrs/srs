@@ -23,6 +23,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core_reload.hpp>
 
+using namespace std;
+
 #include <srs_core_error.hpp>
 
 ISrsReloadHandler::ISrsReloadHandler()
@@ -43,7 +45,12 @@ int ISrsReloadHandler::on_reload_pithy_print()
 	return ERROR_SUCCESS;
 }
 
-int ISrsReloadHandler::on_reload_vhost_removed(SrsConfDirective* /*vhost*/)
+int ISrsReloadHandler::on_reload_vhost_removed(string /*vhost*/)
+{
+	return ERROR_SUCCESS;
+}
+
+int ISrsReloadHandler::on_reload_gop_cache(string /*vhost*/)
 {
 	return ERROR_SUCCESS;
 }

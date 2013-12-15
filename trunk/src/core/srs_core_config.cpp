@@ -500,38 +500,59 @@ int SrsConfig::reload()
 		if (old_vhost->name != "vhost") {
 			continue;
 		}
+		
+		std::string vhost = old_vhost->arg0();
 
-		SrsConfDirective* new_vhost = root->get("vhost", old_vhost->arg0());
+		SrsConfDirective* new_vhost = root->get("vhost", vhost);
 		// ignore if absolutely equal
 		if (new_vhost && srs_directive_equals(old_vhost, new_vhost)) {
+			srs_trace("vhost %s absolutely equal, ignore.", vhost.c_str());
 			continue;
 		}
 		// ignore if enable the new vhost when old vhost is disabled.
 		if (get_vhost_enabled(new_vhost) && !get_vhost_enabled(old_vhost)) {
+			srs_trace("vhost %s disabled=>enabled, ignore.", vhost.c_str());
 			continue;
 		}
 		// ignore if both old and new vhost are disabled.
 		if (!get_vhost_enabled(new_vhost) && !get_vhost_enabled(old_vhost)) {
+			srs_trace("vhost %s disabled=>disabled, ignore.", vhost.c_str());
 			continue;
 		}
 
 		// merge config: vhost removed/disabled.
 		if (!get_vhost_enabled(new_vhost) && get_vhost_enabled(old_vhost)) {
-			srs_trace("vhost %s disabled, reload it.", old_vhost->name.c_str());
+			srs_trace("vhost %s disabled, reload it.", vhost.c_str());
 			for (it = subscribes.begin(); it != subscribes.end(); ++it) {
 				ISrsReloadHandler* subscribe = *it;
-				if ((ret = subscribe->on_reload_vhost_removed(old_vhost)) != ERROR_SUCCESS) {
-					srs_error("notify subscribes pithy_print remove vhost failed. ret=%d", ret);
+				if ((ret = subscribe->on_reload_vhost_removed(vhost)) != ERROR_SUCCESS) {
+					srs_error("notify subscribes pithy_print remove "
+						"vhost %s failed. ret=%d", vhost.c_str(), ret);
 					return ret;
 				}
 			}
-			srs_trace("reload remove vhost success.");
+			srs_trace("reload remove vhost %s success.", vhost.c_str());
 		}
 		
 		// merge config: vhost modified.
+		srs_trace("vhost %s modified, reload its detail.", vhost.c_str());
+		if (get_vhost_enabled(new_vhost) && get_vhost_enabled(old_vhost)) {
+			if (!srs_directive_equals(new_vhost->get("gop_cache"), old_vhost->get("gop_cache"))) {
+				for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+					ISrsReloadHandler* subscribe = *it;
+					if ((ret = subscribe->on_reload_gop_cache(vhost)) != ERROR_SUCCESS) {
+						srs_error("vhost %s notify subscribes gop_cache failed. ret=%d", vhost.c_str(), ret);
+						return ret;
+					}
+				}
+				srs_trace("vhost %s reload gop_cache success.", vhost.c_str());
+			}
+			// TODO: suppor reload hls/forward/ffmpeg/http
+			continue;
+		}
+		srs_warn("invalid reload path, enabled old: %d, new: %d", 
+			get_vhost_enabled(old_vhost), get_vhost_enabled(new_vhost));
 	}
-	
-	// TODO: suppor reload hls/forward/ffmpeg/http
 	
 	return ret;
 }
@@ -1440,6 +1461,11 @@ int SrsConfig::get_pithy_print_play()
 
 bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b)
 {
+	// both NULL, equal.
+	if (!a && !b) {
+		return true;
+	}
+	
 	if (!a || !b) {
 		return false;
 	}

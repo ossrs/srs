@@ -65,7 +65,7 @@ protected:
 	virtual int do_cycle();
 // interface ISrsReloadHandler
 public:
-	virtual int on_reload_vhost_removed(SrsConfDirective* vhost);
+	virtual int on_reload_vhost_removed(std::string vhost);
 private:
 	// when valid and connected to vhost/app, service the client.
 	virtual int service_cycle();

@@ -24,6 +24,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_source.hpp>
 
 #include <algorithm>
+using namespace std;
 
 #include <srs_core_log.hpp>
 #include <srs_core_protocol.hpp>
@@ -344,19 +345,21 @@ int SrsGopCache::dump(SrsConsumer* consumer, int tba, int tbv)
 
 std::map<std::string, SrsSource*> SrsSource::pool;
 
-SrsSource* SrsSource::find(std::string stream_url)
+SrsSource* SrsSource::find(string stream_url, string vhost)
 {
 	if (pool.find(stream_url) == pool.end()) {
-		pool[stream_url] = new SrsSource(stream_url);
-		srs_verbose("create new source for url=%s", stream_url.c_str());
+		pool[stream_url] = new SrsSource(stream_url, vhost);
+		srs_verbose("create new source for "
+			"url=%s, vhost=%s", stream_url.c_str(), vhost.c_str());
 	}
 	
 	return pool[stream_url];
 }
 
-SrsSource::SrsSource(std::string _stream_url)
+SrsSource::SrsSource(string _stream_url, string _vhost)
 {
 	stream_url = _stream_url;
+	vhost = _vhost;
 	
 #ifdef SRS_HLS
 	hls = new SrsHls();
@@ -405,6 +408,25 @@ SrsSource::~SrsSource()
 #ifdef SRS_FFMPEG
 	srs_freep(encoder);
 #endif
+}
+
+int SrsSource::on_reload_gop_cache(string _vhost)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if (vhost != _vhost) {
+		return ret;
+	}
+	
+	// gop cache changed.
+	bool enabled_cache = config->get_gop_cache(vhost);
+	
+	srs_trace("vhost %s gop_cache changed to %d, source url=%s", 
+		vhost.c_str(), enabled_cache, stream_url.c_str());
+	
+	set_cache(enabled_cache);
+	
+	return ret;
 }
 
 bool SrsSource::can_publish()

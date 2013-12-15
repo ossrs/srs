@@ -34,6 +34,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 #include <string>
 
+#include <srs_core_reload.hpp>
+
 class SrsSource;
 class SrsCommonMessage;
 class SrsOnMetaDataPacket;
@@ -158,19 +160,21 @@ public:
 /**
 * live streaming source.
 */
-class SrsSource
+class SrsSource : public ISrsReloadHandler
 {
 private:
 	static std::map<std::string, SrsSource*> pool;
 public:
 	/**
 	* find stream by vhost/app/stream.
-	* @stream_url the stream url, for example, myserver.xxx.com/app/stream
+	* @param stream_url the stream url, for example, myserver.xxx.com/app/stream
+	* @param vhost the vhost to constructor the object.
 	* @return the matched source, never be NULL.
 	* @remark stream_url should without port and schema.
 	*/
-	static SrsSource* find(std::string stream_url);
+	static SrsSource* find(std::string stream_url, std::string vhost);
 private:
+	std::string vhost;
 	std::string stream_url;
 	// to delivery stream to clients.
 	std::vector<SrsConsumer*> consumers;
@@ -206,8 +210,11 @@ private:
 	// the cached audio sequence header.
 	SrsSharedPtrMessage* cache_sh_audio;
 public:
-	SrsSource(std::string _stream_url);
+	SrsSource(std::string _stream_url, std::string _vhost);
 	virtual ~SrsSource();
+// interface ISrsReloadHandler
+public:
+	virtual int on_reload_gop_cache(std::string _vhost);
 public:
 	virtual bool can_publish();
 	virtual int on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);
