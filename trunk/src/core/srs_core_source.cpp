@@ -410,7 +410,7 @@ SrsSource::SrsSource(SrsRequest* _req)
 	req = _req->copy();
 	
 #ifdef SRS_HLS
-	hls = new SrsHls();
+	hls = new SrsHls(this);
 #endif
 #ifdef SRS_FFMPEG
 	encoder = new SrsEncoder();
@@ -553,7 +553,6 @@ int SrsSource::on_reload_hls(string vhost)
 		srs_error("hls publish failed. ret=%d", ret);
 		return ret;
 	}
-	// TODO: FIXME: must feed it the sequence header.
 	srs_trace("vhost %s hls reload success", vhost.c_str());
 #endif
 	
@@ -602,6 +601,29 @@ int SrsSource::on_forwarder_start(SrsForwarder* forwarder)
 	return ret;
 }
 
+int SrsSource::on_hls_start()
+{
+	int ret = ERROR_SUCCESS;
+	
+#ifdef SRS_HLS
+		
+	// feed the hls the metadata/sequence header,
+	// when reload to enable the hls.
+	// TODO: maybe need to decode the metadata?
+	if (cache_sh_video && (ret = hls->on_video(cache_sh_video->copy())) != ERROR_SUCCESS) {
+		srs_error("hls process video sequence header message failed. ret=%d", ret);
+		return ret;
+	}
+	if (cache_sh_audio && (ret = hls->on_audio(cache_sh_audio->copy())) != ERROR_SUCCESS) {
+		srs_error("hls process audio sequence header message failed. ret=%d", ret);
+		return ret;
+	}
+	
+#endif
+	
+	return ret;
+}
+
 bool SrsSource::can_publish()
 {
 	return _can_publish;
@@ -612,7 +634,7 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
 	int ret = ERROR_SUCCESS;
 	
 #ifdef SRS_HLS
-	if ((ret = hls->on_meta_data(metadata)) != ERROR_SUCCESS) {
+	if (metadata && (ret = hls->on_meta_data(metadata->metadata)) != ERROR_SUCCESS) {
 		srs_error("hls process onMetaData message failed. ret=%d", ret);
 		return ret;
 	}

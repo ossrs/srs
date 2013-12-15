@@ -1109,10 +1109,11 @@ int SrsTSCache::cache_video(SrsCodec* codec, SrsCodecSample* sample)
 	return ret;
 }
 
-SrsHls::SrsHls()
+SrsHls::SrsHls(SrsSource* _source)
 {
 	hls_enabled = false;
 	
+	source = _source;
 	codec = new SrsCodec();
 	sample = new SrsCodecSample();
 	jitter = new SrsRtmpJitter();
@@ -1171,6 +1172,12 @@ int SrsHls::on_publish(SrsRequest* req)
 		srs_error("m3u8 muxer open segment failed. ret=%d", ret);
 		return ret;
 	}
+	
+	// notice the source to get the cached sequence header.
+	if ((ret = source->on_hls_start()) != ERROR_SUCCESS) {
+		srs_error("callback source hls start failed. ret=%d", ret);
+		return ret;
+	}
 
 	return ret;
 }
@@ -1195,16 +1202,16 @@ void SrsHls::on_unpublish()
 	hls_enabled = false;
 }
 
-int SrsHls::on_meta_data(SrsOnMetaDataPacket* metadata)
+int SrsHls::on_meta_data(SrsAmf0Object* metadata)
 {
 	int ret = ERROR_SUCCESS;
 
-	if (!metadata || !metadata->metadata) {
+	if (!metadata) {
 		srs_trace("no metadata persent, hls ignored it.");
 		return ret;
 	}
 	
-	SrsAmf0Object* obj = metadata->metadata;
+	SrsAmf0Object* obj = metadata;
 	if (obj->size() <= 0) {
 		srs_trace("no metadata persent, hls ignored it.");
 		return ret;

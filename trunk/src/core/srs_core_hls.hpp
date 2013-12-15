@@ -34,16 +34,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string>
 #include <vector>
 
-class SrsOnMetaDataPacket;
 class SrsSharedPtrMessage;
 class SrsCodecSample;
 class SrsCodecBuffer;
 class SrsMpegtsFrame;
+class SrsAmf0Object;
 class SrsRtmpJitter;
 class SrsTSMuxer;
 class SrsCodec;
 class SrsRequest;
 class SrsPithyPrint;
+class SrsSource;
 
 /**
 * jitter correct for audio,
@@ -207,17 +208,18 @@ private:
 	SrsTSCache* ts_cache;
 private:
 	bool hls_enabled;
+	SrsSource* source;
 	SrsCodec* codec;
 	SrsCodecSample* sample;
 	SrsRtmpJitter* jitter;
 	SrsPithyPrint* pithy_print;
 public:
-	SrsHls();
+	SrsHls(SrsSource* _source);
 	virtual ~SrsHls();
 public:
 	virtual int on_publish(SrsRequest* req);
 	virtual void on_unpublish();
-	virtual int on_meta_data(SrsOnMetaDataPacket* metadata);
+	virtual int on_meta_data(SrsAmf0Object* metadata);
 	virtual int on_audio(SrsSharedPtrMessage* audio);
 	virtual int on_video(SrsSharedPtrMessage* video);
 private:
