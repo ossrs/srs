@@ -12,7 +12,7 @@ see also: [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.githu
 winlin(winterserver): [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin)
 
 ### Usage
-step 1: build srs <br/>
+<strong>step 1:</strong> build srs <br/>
 <pre>
 tar xf simple-rtmp-server-*.*.tar.gz
 cd simple-rtmp-server-*.*/trunk
@@ -25,23 +25,23 @@ git clone  https://github.com/winlinvip/simple-rtmp-server
 cd simple-rtmp-server/trunk
 ./configure --with-ssl --with-hls --with-ffmpeg --with-http
 </pre>
-step 2: start srs <br/>
+<strong>step 2:</strong> start srs <br/>
 <pre>
 ./objs/srs -c conf/srs.conf
 </pre>
-step 3(optinal): start srs listen at 19350 to forward to<br/>
+<strong>step 3(optinal):</strong> start srs listen at 19350 to forward to<br/>
 <pre>
 ./objs/srs -c conf/srs.19350.conf
 </pre>
-step 4(optional): start nginx for HLS <br/>
+<strong>step 4(optinal):</strong> start nginx for HLS <br/>
 <pre>
 sudo ./objs/nginx/sbin/nginx
 </pre>
-step 5(optional): start http hooks for srs callback <br/>
+<strong>step 5(optinal):</strong> start http hooks for srs callback <br/>
 <pre>
 python ./research/api-server/server.py 8085
 </pre>
-step 6: publish live stream <br/>
+<strong>step 6:</strong> publish live stream <br/>
 <pre>
 FMS URL: rtmp://127.0.0.1:1935/live
 Stream:  livestream
@@ -53,7 +53,7 @@ For example, use ffmpeg to publish:
         sleep 1; \
     done
 </pre>
-step 7: add server ip to client hosts as demo. <br/>
+<strong>step 7:</strong> add server ip to client hosts as demo. <br/>
 <pre>
 # edit the folowing file:
 # linux: /etc/hosts
@@ -61,13 +61,13 @@ step 7: add server ip to client hosts as demo. <br/>
 # where server ip is 192.168.2.111
 192.168.2.111 demo 
 </pre>
-step 8: play live stream. <br/>
+<strong>step 8:</strong> play live stream. <br/>
 <pre>
 rtmp url: rtmp://demo:1935/live/livestream
 m3u8 url: http://demo:80/live/livestream.m3u8
 for android: http://demo:80/live/livestream.html
 </pre>
-step 9: play live stream auto transcoded<br/>
+<strong>step 9(optinal):</strong> play live stream auto transcoded<br/>
 <pre>
 rtmp url: rtmp://demo:1935/live/livestream_ld
 m3u8 url: http://demo:80/live/livestream_ld.m3u8
@@ -76,7 +76,7 @@ rtmp url: rtmp://demo:1935/live/livestream_sd
 m3u8 url: http://demo:80/live/livestream_sd.m3u8
 for android: http://demo:80/live/livestream_sd.html
 </pre>
-step 10: play live stream auto forwarded, the hls dir change to /forward<br/>
+<strong>step 10(optinal):</strong> play live stream auto forwarded, the hls dir change to /forward<br/>
 <pre>
 rtmp url: rtmp://demo:19350/live/livestream
 m3u8 url: http://demo:80/forward/live/livestream.m3u8
@@ -88,7 +88,7 @@ rtmp url: rtmp://demo:19350/live/livestream_sd
 m3u8 url: http://demo:80/forward/live/livestream_sd.m3u8
 for android: http://demo:80/forward/live/livestream_sd.html
 </pre>
-step 11: modify the config and reload it (all features support reload)<br/>
+<strong>step 11(optinal):</strong> modify the config and reload it (all features support reload)<br/>
 <pre>
 killall -1 srs
 </pre>
