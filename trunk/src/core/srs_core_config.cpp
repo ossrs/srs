@@ -1312,11 +1312,17 @@ bool SrsConfig::get_hls_enabled(string vhost)
 		return false;
 	}
 	
-	if (hls->arg0() == "off") {
+	SrsConfDirective* conf = hls->get("enabled");
+	
+	if (!conf) {
 		return false;
 	}
 	
-	return true;
+	if (conf->arg0() == "on") {
+		return true;
+	}
+	
+	return false;
 }
 
 string SrsConfig::get_hls_path(string vhost)

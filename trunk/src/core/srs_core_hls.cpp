@@ -1148,7 +1148,6 @@ int SrsHls::on_publish(SrsRequest* req)
 	std::string stream = req->stream;
 	std::string app = req->app;
 	
-	// TODO: support reload.
 	if (!config->get_hls_enabled(vhost)) {
 		return ret;
 	}
@@ -1156,7 +1155,6 @@ int SrsHls::on_publish(SrsRequest* req)
 	// if enabled, open the muxer.
 	hls_enabled = true;
 	
-	// TODO: subscribe the reload event.
 	int hls_fragment = config->get_hls_fragment(vhost);
 	int hls_window = config->get_hls_window(vhost);
 	
