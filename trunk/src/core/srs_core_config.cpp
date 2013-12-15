@@ -1303,7 +1303,7 @@ double SrsConfig::get_queue_length(string vhost)
 	}
 	
 	conf = conf->get("queue_length");
-	if (conf || conf->arg0().empty()) {
+	if (!conf || conf->arg0().empty()) {
 		return SRS_CONF_DEFAULT_QUEUE_LENGTH;
 	}
 	

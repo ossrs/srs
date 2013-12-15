@@ -171,12 +171,19 @@ int SrsMessageQueue::get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, in
 	} else {
 		count = srs_min(max_count, (int)msgs.size());
 	}
+
+	if (count <= 0) {
+		return ret;
+	}
 	
 	pmsgs = new SrsSharedPtrMessage*[count];
 	
 	for (int i = 0; i < count; i++) {
 		pmsgs[i] = msgs[i];
 	}
+	
+	SrsSharedPtrMessage* last = msgs[count - 1];
+	av_start_time = last->header.timestamp;
 	
 	if (count == (int)msgs.size()) {
 		msgs.clear();
@@ -217,15 +224,15 @@ void SrsMessageQueue::shrink()
 		return;
 	}
 	
+	srs_trace("shrink the cache queue, size=%d, removed=%d, max=%.2f", 
+		(int)msgs.size(), iframe_index, queue_size_ms / 1000.0);
+	
 	// remove the first gop from the front
 	for (int i = 0; i < iframe_index; i++) {
 		SrsSharedPtrMessage* msg = msgs[i];
 		srs_freep(msg);
 	}
 	msgs.erase(msgs.begin(), msgs.begin() + iframe_index);
-	
-	srs_trace("shrink the cache queue, "
-		"size=%d, removed=%d", (int)msgs.size(), iframe_index);
 }
 
 void SrsMessageQueue::clear()
@@ -893,9 +900,12 @@ void SrsSource::on_unpublish()
 {
 	int ret = ERROR_SUCCESS;
 	
+	double queue_size = config->get_queue_length(req->vhost);
+	
 	consumer = new SrsConsumer(this);
-	consumer->set_queue_size(config->get_queue_length(req->vhost));
+	
 	consumers.push_back(consumer);
+	consumer->set_queue_size(queue_size);
 
 	if (cache_metadata && (ret = consumer->enqueue(cache_metadata->copy(), sample_rate, frame_rate)) != ERROR_SUCCESS) {
 		srs_error("dispatch metadata failed. ret=%d", ret);
@@ -918,6 +928,8 @@ void SrsSource::on_unpublish()
 	if ((ret = gop_cache->dump(consumer, sample_rate, frame_rate)) != ERROR_SUCCESS) {
 		return ret;
 	}
+	
+	srs_trace("create consumer, queue_size=%.2f, tba=%d, tbv=%d", queue_size, sample_rate, frame_rate);
 	
 	return ret;
 }
