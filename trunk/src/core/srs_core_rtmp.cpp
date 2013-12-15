@@ -32,6 +32,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_handshake.hpp>
 #include <srs_core_config.hpp>
 
+using namespace std;
+
 /**
 * the signature for packets to client.
 */
@@ -73,6 +75,23 @@ SrsRequest::SrsRequest()
 
 SrsRequest::~SrsRequest()
 {
+}
+
+SrsRequest* SrsRequest::copy()
+{
+	SrsRequest* cp = new SrsRequest();
+	
+	cp->app = app;
+	cp->objectEncoding = objectEncoding;
+	cp->pageUrl = pageUrl;
+	cp->port = port;
+	cp->schema = schema;
+	cp->stream = stream;
+	cp->swfUrl = swfUrl;
+	cp->tcUrl = tcUrl;
+	cp->vhost = vhost;
+	
+	return cp;
 }
 
 int SrsRequest::discovery_app()
@@ -128,7 +147,7 @@ int SrsRequest::discovery_app()
 	return ret;
 }
 
-std::string SrsRequest::get_stream_url()
+string SrsRequest::get_stream_url()
 {
 	std::string url = "";
 	
@@ -148,7 +167,7 @@ void SrsRequest::strip()
 	trim(stream, "/ \n\r\t");
 }
 
-std::string& SrsRequest::trim(std::string& str, std::string chs)
+std::string& SrsRequest::trim(string& str, string chs)
 {
 	for (int i = 0; i < (int)chs.length(); i++) {
 		char ch = chs.at(i);
@@ -243,7 +262,7 @@ int SrsRtmpClient::handshake()
     return ret;
 }
 
-int SrsRtmpClient::connect_app(std::string app, std::string tc_url)
+int SrsRtmpClient::connect_app(string app, string tc_url)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -329,7 +348,7 @@ int SrsRtmpClient::create_stream(int& stream_id)
 	return ret;
 }
 
-int SrsRtmpClient::play(std::string stream, int stream_id)
+int SrsRtmpClient::play(string stream, int stream_id)
 {
 	int ret = ERROR_SUCCESS;
 
@@ -371,7 +390,7 @@ int SrsRtmpClient::play(std::string stream, int stream_id)
 	return ret;
 }
 
-int SrsRtmpClient::publish(std::string stream, int stream_id)
+int SrsRtmpClient::publish(string stream, int stream_id)
 {
 	int ret = ERROR_SUCCESS;
 
@@ -1045,7 +1064,7 @@ int SrsRtmp::start_flash_publish(int stream_id)
 	return ret;
 }
 
-int SrsRtmp::identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, std::string& stream_name)
+int SrsRtmp::identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, string& stream_name)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -1102,7 +1121,7 @@ int SrsRtmp::identify_create_stream_client(SrsCreateStreamPacket* req, int strea
 	return ret;
 }
 
-int SrsRtmp::identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsClientType& type, std::string& stream_name)
+int SrsRtmp::identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsClientType& type, string& stream_name)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -1126,7 +1145,7 @@ int SrsRtmp::identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsClientType
 	return ret;
 }
 
-int SrsRtmp::identify_flash_publish_client(SrsPublishPacket* req, SrsClientType& type, std::string& stream_name)
+int SrsRtmp::identify_flash_publish_client(SrsPublishPacket* req, SrsClientType& type, string& stream_name)
 {
 	int ret = ERROR_SUCCESS;
 	

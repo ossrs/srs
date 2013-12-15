@@ -345,21 +345,22 @@ int SrsGopCache::dump(SrsConsumer* consumer, int tba, int tbv)
 
 std::map<std::string, SrsSource*> SrsSource::pool;
 
-SrsSource* SrsSource::find(string stream_url, string vhost)
+SrsSource* SrsSource::find(SrsRequest* req)
 {
+	string stream_url = req->get_stream_url();
+	string vhost = req->vhost;
+	
 	if (pool.find(stream_url) == pool.end()) {
-		pool[stream_url] = new SrsSource(stream_url, vhost);
-		srs_verbose("create new source for "
-			"url=%s, vhost=%s", stream_url.c_str(), vhost.c_str());
+		pool[stream_url] = new SrsSource(req);
+		srs_verbose("create new source for url=%s, vhost=%s", stream_url.c_str(), vhost.c_str());
 	}
 	
 	return pool[stream_url];
 }
 
-SrsSource::SrsSource(string _stream_url, string _vhost)
+SrsSource::SrsSource(SrsRequest* _req)
 {
-	stream_url = _stream_url;
-	vhost = _vhost;
+	req = _req->copy();
 	
 #ifdef SRS_HLS
 	hls = new SrsHls();
@@ -412,13 +413,15 @@ SrsSource::~SrsSource()
 #ifdef SRS_FFMPEG
 	srs_freep(encoder);
 #endif
+
+	srs_freep(req);
 }
 
-int SrsSource::on_reload_gop_cache(string _vhost)
+int SrsSource::on_reload_gop_cache(string vhost)
 {
 	int ret = ERROR_SUCCESS;
 	
-	if (vhost != _vhost) {
+	if (req->vhost != vhost) {
 		return ret;
 	}
 	
@@ -426,9 +429,28 @@ int SrsSource::on_reload_gop_cache(string _vhost)
 	bool enabled_cache = config->get_gop_cache(vhost);
 	
 	srs_trace("vhost %s gop_cache changed to %d, source url=%s", 
-		vhost.c_str(), enabled_cache, stream_url.c_str());
+		vhost.c_str(), enabled_cache, req->get_stream_url().c_str());
 	
 	set_cache(enabled_cache);
+	
+	return ret;
+}
+
+int SrsSource::on_reload_forward(string vhost)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if (req->vhost != vhost) {
+		return ret;
+	}
+
+	// forwarders
+	destroy_forwarders();
+	if ((ret = create_forwarders()) != ERROR_SUCCESS) {
+		srs_error("create forwarders failed. ret=%d", ret);
+		return ret;
+	}
+	srs_trace("vhost %s forwarders reload success", vhost.c_str());
 	
 	return ret;
 }
@@ -656,31 +678,23 @@ int SrsSource::on_video(SrsCommonMessage* video)
 	return ret;
 }
 
-int SrsSource::on_publish(SrsRequest* req)
+int SrsSource::on_publish(SrsRequest* _req)
 {
 	int ret = ERROR_SUCCESS;
 	
+	// update the request object.
+	srs_freep(req);
+	req = _req->copy();
+	srs_assert(req);
+	
 	_can_publish = false;
-
-	// TODO: support reload.
 	
 	// create forwarders
-	SrsConfDirective* conf = config->get_forward(req->vhost);
-	for (int i = 0; conf && i < (int)conf->args.size(); i++) {
-		std::string forward_server = conf->args.at(i);
-		
-		SrsForwarder* forwarder = new SrsForwarder();
-		forwarders.push_back(forwarder);
-		
-		if ((ret = forwarder->on_publish(req, forward_server)) != ERROR_SUCCESS) {
-			srs_error("start forwarder failed. "
-				"vhost=%s, app=%s, stream=%s, forward-to=%s",
-				req->vhost.c_str(), req->app.c_str(), req->stream.c_str(),
-				forward_server.c_str());
-			return ret;
-		}
+	if ((ret = create_forwarders()) != ERROR_SUCCESS) {
+		srs_error("create forwarders failed. ret=%d", ret);
+		return ret;
 	}
-
+	
 #ifdef SRS_FFMPEG
 	if ((ret = encoder->on_publish(req)) != ERROR_SUCCESS) {
 		return ret;
@@ -698,14 +712,8 @@ int SrsSource::on_publish(SrsRequest* req)
 
 void SrsSource::on_unpublish()
 {
-	// close all forwarders
-	std::vector<SrsForwarder*>::iterator it;
-	for (it = forwarders.begin(); it != forwarders.end(); ++it) {
-		SrsForwarder* forwarder = *it;
-		forwarder->on_unpublish();
-		srs_freep(forwarder);
-	}
-	forwarders.clear();
+	// destroy all forwarders
+	destroy_forwarders();
 
 #ifdef SRS_FFMPEG
 	encoder->on_unpublish();
@@ -774,5 +782,39 @@ void SrsSource::on_consumer_destroy(SrsConsumer* consumer)
 void SrsSource::set_cache(bool enabled)
 {
 	gop_cache->set(enabled);
+}
+
+int SrsSource::create_forwarders()
+{
+	int ret = ERROR_SUCCESS;
+	
+	SrsConfDirective* conf = config->get_forward(req->vhost);
+	for (int i = 0; conf && i < (int)conf->args.size(); i++) {
+		std::string forward_server = conf->args.at(i);
+		
+		SrsForwarder* forwarder = new SrsForwarder();
+		forwarders.push_back(forwarder);
+		
+		if ((ret = forwarder->on_publish(req, forward_server)) != ERROR_SUCCESS) {
+			srs_error("start forwarder failed. "
+				"vhost=%s, app=%s, stream=%s, forward-to=%s",
+				req->vhost.c_str(), req->app.c_str(), req->stream.c_str(),
+				forward_server.c_str());
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
+void SrsSource::destroy_forwarders()
+{
+	std::vector<SrsForwarder*>::iterator it;
+	for (it = forwarders.begin(); it != forwarders.end(); ++it) {
+		SrsForwarder* forwarder = *it;
+		forwarder->on_unpublish();
+		srs_freep(forwarder);
+	}
+	forwarders.clear();
 }
 

@@ -65,6 +65,13 @@ struct SrsRequest
 	
 	SrsRequest();
 	virtual ~SrsRequest();
+
+	/**
+	* deep copy the request, for source to use it to support reload,
+	* for when initialize the source, the request is valid,
+	* when reload it, the request maybe invalid, so need to copy it.
+	*/
+	virtual SrsRequest* copy();
 	
 	/**
 	* disconvery vhost/app from tcUrl.

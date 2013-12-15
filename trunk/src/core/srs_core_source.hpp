@@ -167,15 +167,14 @@ private:
 public:
 	/**
 	* find stream by vhost/app/stream.
-	* @param stream_url the stream url, for example, myserver.xxx.com/app/stream
-	* @param vhost the vhost to constructor the object.
+	* @param req the client request.
 	* @return the matched source, never be NULL.
 	* @remark stream_url should without port and schema.
 	*/
-	static SrsSource* find(std::string stream_url, std::string vhost);
+	static SrsSource* find(SrsRequest* req);
 private:
-	std::string vhost;
-	std::string stream_url;
+	// deep copy of client request.
+	SrsRequest* req;
 	// to delivery stream to clients.
 	std::vector<SrsConsumer*> consumers;
 	// hls handler.
@@ -210,22 +209,35 @@ private:
 	// the cached audio sequence header.
 	SrsSharedPtrMessage* cache_sh_audio;
 public:
-	SrsSource(std::string _stream_url, std::string _vhost);
+	/**
+	* @param _req the client request object, 
+	* 	this object will deep copy it for reload.
+	*/
+	SrsSource(SrsRequest* _req);
 	virtual ~SrsSource();
 // interface ISrsReloadHandler
 public:
-	virtual int on_reload_gop_cache(std::string _vhost);
+	virtual int on_reload_gop_cache(std::string vhost);
+	virtual int on_reload_forward(std::string vhost);
 public:
 	virtual bool can_publish();
 	virtual int on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);
 	virtual int on_audio(SrsCommonMessage* audio);
 	virtual int on_video(SrsCommonMessage* video);
-	virtual int on_publish(SrsRequest* req);
+	/**
+	* publish stream event notify.
+	* @param _req the request from client, the source will deep copy it,
+	* 		for when reload the request of client maybe invalid.
+	*/
+	virtual int on_publish(SrsRequest* _req);
 	virtual void on_unpublish();
 public:
 	virtual int create_consumer(SrsConsumer*& consumer);
 	virtual void on_consumer_destroy(SrsConsumer* consumer);
 	virtual void set_cache(bool enabled);
+private:
+	virtual int create_forwarders();
+	virtual void destroy_forwarders();
 };
 
 #endif

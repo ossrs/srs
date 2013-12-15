@@ -181,7 +181,7 @@ int SrsClient::service_cycle()
 	srs_trace("set chunk_size=%d success", chunk_size);
 	
 	// find a source to publish.
-	SrsSource* source = SrsSource::find(req->get_stream_url(), req->vhost);
+	SrsSource* source = SrsSource::find(req);
 	srs_assert(source != NULL);
 	
 	// check publish available.
