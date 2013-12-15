@@ -19,13 +19,19 @@ cd simple-rtmp-server-*.*/trunk
 ./configure --with-ssl --with-hls --with-ffmpeg --with-http
 make
 </pre>
+or get the latest code:<br/>
+<pre>
+git clone  https://github.com/winlinvip/simple-rtmp-server
+cd simple-rtmp-server/trunk
+./configure --with-ssl --with-hls --with-ffmpeg --with-http
+</pre>
 step 2: start srs <br/>
 <pre>
-./objs/simple_rtmp_server -c conf/srs.conf
+./objs/srs -c conf/srs.conf
 </pre>
 step 3(optinal): start srs listen at 19350 to forward to<br/>
 <pre>
-./objs/simple_rtmp_server -c conf/srs.19350.conf
+./objs/srs -c conf/srs.19350.conf
 </pre>
 step 4(optional): start nginx for HLS <br/>
 <pre>
@@ -81,6 +87,14 @@ for android: http://demo:80/forward/live/livestream_ld.html
 rtmp url: rtmp://demo:19350/live/livestream_sd
 m3u8 url: http://demo:80/forward/live/livestream_sd.m3u8
 for android: http://demo:80/forward/live/livestream_sd.html
+</pre>
+step 11: modify the config and reload it (all features support reload)<br/>
+<pre>
+killall -1 srs
+</pre>
+or use specified signal name to reload:<br/>
+<pre>
+killall -s SIGHUP srs
 </pre>
 
 ### Architecture
