@@ -36,6 +36,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsSharedPtrMessage;
 class SrsOnMetaDataPacket;
+class SrsMessageQueue;
 class SrsRtmpClient;
 class SrsRequest;
 class SrsSource;
@@ -58,10 +59,13 @@ private:
 private:
 	SrsSource* source;
 	SrsRtmpClient* client;
+	SrsMessageQueue* queue;
 	std::vector<SrsSharedPtrMessage*> msgs;
 public:
 	SrsForwarder(SrsSource* _source);
 	virtual ~SrsForwarder();
+public:
+	virtual void set_queue_size(double queue_size);
 public:
 	virtual int on_publish(SrsRequest* req, std::string forward_server);
 	virtual void on_unpublish();

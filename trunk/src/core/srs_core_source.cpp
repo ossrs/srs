@@ -39,7 +39,6 @@ using namespace std;
 
 #define CONST_MAX_JITTER_MS 		500
 #define DEFAULT_FRAME_TIME_MS 		10
-#define PAUSED_SHRINK_SIZE			250
 
 SrsRtmpJitter::SrsRtmpJitter()
 {
@@ -50,9 +49,21 @@ SrsRtmpJitter::~SrsRtmpJitter()
 {
 }
 
+// TODO: FIXME: remove the 64bits time, change the timestamp in heaer to 64bits.
 int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, int tba, int tbv, int64_t* corrected_time)
 {
 	int ret = ERROR_SUCCESS;
+
+	// set to 0 for metadata.
+	if (!msg->header.is_video() && !msg->header.is_audio()) {
+		if (corrected_time) {
+			*corrected_time = 0;
+		}
+		
+		msg->header.timestamp = 0;
+		
+		return ret;
+	}
 	
 	int sample_rate = tba;
 	int frame_rate = tbv;
@@ -110,53 +121,48 @@ int SrsRtmpJitter::get_time()
 	return (int)last_pkt_correct_time;
 }
 
-SrsConsumer::SrsConsumer(SrsSource* _source)
+SrsMessageQueue::SrsMessageQueue()
 {
-	source = _source;
-	paused = false;
-	jitter = new SrsRtmpJitter();
+	queue_size_ms = 0;
+	av_start_time = av_end_time = -1;
 }
 
-SrsConsumer::~SrsConsumer()
+SrsMessageQueue::~SrsMessageQueue()
 {
 	clear();
-	
-	source->on_consumer_destroy(this);
-	srs_freep(jitter);
 }
 
-int SrsConsumer::get_time()
+void SrsMessageQueue::set_queue_size(double queue_size)
 {
-	return jitter->get_time();
+	queue_size_ms = (int)(queue_size * 1000);
 }
 
-int SrsConsumer::enqueue(SrsSharedPtrMessage* msg, int tba, int tbv)
+int SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg)
 {
 	int ret = ERROR_SUCCESS;
 	
-	if ((ret = jitter->correct(msg, tba, tbv)) != ERROR_SUCCESS) {
-		srs_freep(msg);
-		return ret;
+	if (msg->header.is_video() || msg->header.is_audio()) {
+		if (av_start_time == -1) {
+			av_start_time = msg->header.timestamp;
+		}
+		
+		av_end_time = msg->header.timestamp;
 	}
 	
-	// TODO: check the queue size and drop packets if overflow.
 	msgs.push_back(msg);
+
+	while (av_end_time - av_start_time > queue_size_ms) {
+		shrink();
+	}
 	
 	return ret;
 }
 
-int SrsConsumer::get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& count)
+int SrsMessageQueue::get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& count)
 {
 	int ret = ERROR_SUCCESS;
 	
 	if (msgs.empty()) {
-		return ret;
-	}
-
-	if (paused) {
-		if ((int)msgs.size() >= PAUSED_SHRINK_SIZE) {
-			shrink();
-		}
 		return ret;
 	}
 	
@@ -181,6 +187,112 @@ int SrsConsumer::get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& c
 	return ret;
 }
 
+void SrsMessageQueue::shrink()
+{
+	int iframe_index = -1;
+	
+	// issue the first iframe.
+	// skip the first frame, whatever the type of it,
+	// for when we shrinked, the first is the iframe,
+	// we will directly remove the gop next time.
+	for (int i = 1; i < (int)msgs.size(); i++) {
+		SrsSharedPtrMessage* msg = msgs[i];
+		
+		if (msg->header.is_video()) {
+			if (SrsCodec::video_is_keyframe(msg->payload, msg->size)) {
+				// the max frame index to remove.
+				iframe_index = i;
+				
+				// set the start time, we will remove until this frame.
+				av_start_time = msg->header.timestamp;
+				
+				break;
+			}
+		}
+	}
+	
+	// no iframe, clear the queue.
+	if (iframe_index < 0) {
+		clear();
+		return;
+	}
+	
+	// remove the first gop from the front
+	for (int i = 0; i < iframe_index; i++) {
+		SrsSharedPtrMessage* msg = msgs[i];
+		srs_freep(msg);
+	}
+	msgs.erase(msgs.begin(), msgs.begin() + iframe_index);
+	
+	srs_trace("shrink the cache queue, "
+		"size=%d, removed=%d", (int)msgs.size(), iframe_index);
+}
+
+void SrsMessageQueue::clear()
+{
+	std::vector<SrsSharedPtrMessage*>::iterator it;
+
+	for (it = msgs.begin(); it != msgs.end(); ++it) {
+		SrsSharedPtrMessage* msg = *it;
+		srs_freep(msg);
+	}
+
+	msgs.clear();
+	
+	av_start_time = av_end_time = -1;
+}
+
+SrsConsumer::SrsConsumer(SrsSource* _source)
+{
+	source = _source;
+	paused = false;
+	jitter = new SrsRtmpJitter();
+	queue = new SrsMessageQueue();
+}
+
+SrsConsumer::~SrsConsumer()
+{
+	source->on_consumer_destroy(this);
+	srs_freep(jitter);
+	srs_freep(queue);
+}
+
+void SrsConsumer::set_queue_size(double queue_size)
+{
+	queue->set_queue_size(queue_size);
+}
+
+int SrsConsumer::get_time()
+{
+	return jitter->get_time();
+}
+
+int SrsConsumer::enqueue(SrsSharedPtrMessage* msg, int tba, int tbv)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if ((ret = jitter->correct(msg, tba, tbv)) != ERROR_SUCCESS) {
+		srs_freep(msg);
+		return ret;
+	}
+	
+	if ((ret = queue->enqueue(msg)) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
+	return ret;
+}
+
+int SrsConsumer::get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& count)
+{
+	// paused, return nothing.
+	if (paused) {
+		return ERROR_SUCCESS;
+	}
+	
+	return queue->get_packets(max_count, pmsgs, count);
+}
+
 int SrsConsumer::on_play_client_pause(bool is_pause)
 {
 	int ret = ERROR_SUCCESS;
@@ -189,68 +301,6 @@ int SrsConsumer::on_play_client_pause(bool is_pause)
 	paused = is_pause;
 	
 	return ret;
-}
-
-void SrsConsumer::shrink()
-{
-	int i = 0;
-	std::vector<SrsSharedPtrMessage*>::iterator it;
-	
-	// issue the last video iframe.
-	bool has_video = false;
-	int frame_to_remove = 0;
-	std::vector<SrsSharedPtrMessage*>::iterator iframe = msgs.end();
-	for (i = 0, it = msgs.begin(); it != msgs.end(); ++it, i++) {
-		SrsSharedPtrMessage* msg = *it;
-		if (msg->header.is_video()) {
-			has_video = true;
-			if (SrsCodec::video_is_keyframe(msg->payload, msg->size)) {
-				iframe = it;
-				frame_to_remove = i + 1;
-			}
-		}
-	}
-	
-	// last iframe is the first elem, ignore it.
-	if (iframe == msgs.begin()) {
-		return;
-	}
-	
-	// recalc the frame to remove
-	if (iframe == msgs.end()) {
-		frame_to_remove = 0;
-	}
-	if (!has_video) {
-		frame_to_remove = (int)msgs.size();
-	}
-	
-	srs_trace("shrink the cache queue, has_video=%d, has_iframe=%d, size=%d, removed=%d", 
-		has_video, iframe != msgs.end(), (int)msgs.size(), frame_to_remove);
-	
-	// if no video, remove all audio.
-	if (!has_video) {
-		clear();
-		return;
-	}
-	
-	// if exists video Iframe, remove the frames before it.
-	if (iframe != msgs.end()) {
-		for (it = msgs.begin(); it != iframe; ++it) {
-			SrsSharedPtrMessage* msg = *it;
-			srs_freep(msg);
-		}
-		msgs.erase(msgs.begin(), iframe);
-	}
-}
-
-void SrsConsumer::clear()
-{
-	std::vector<SrsSharedPtrMessage*>::iterator it;
-	for (it = msgs.begin(); it != msgs.end(); ++it) {
-		SrsSharedPtrMessage* msg = *it;
-		srs_freep(msg);
-	}
-	msgs.clear();
 }
 
 SrsGopCache::SrsGopCache()
@@ -432,6 +482,41 @@ int SrsSource::on_reload_gop_cache(string vhost)
 		vhost.c_str(), enabled_cache, req->get_stream_url().c_str());
 	
 	set_cache(enabled_cache);
+	
+	return ret;
+}
+
+int SrsSource::on_reload_queue_length(string vhost)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if (req->vhost != vhost) {
+		return ret;
+	}
+
+	double queue_size = config->get_queue_length(req->vhost);
+	
+	if (true) {
+		std::vector<SrsConsumer*>::iterator it;
+		
+		for (it = consumers.begin(); it != consumers.end(); ++it) {
+			SrsConsumer* consumer = *it;
+			consumer->set_queue_size(queue_size);
+		}
+
+		srs_trace("consumers reload queue size success.");
+	}
+	
+	if (true) {
+		std::vector<SrsForwarder*>::iterator it;
+		
+		for (it = forwarders.begin(); it != forwarders.end(); ++it) {
+			SrsForwarder* forwarder = *it;
+			forwarder->set_queue_size(queue_size);
+		}
+
+		srs_trace("forwarders reload queue size success.");
+	}
 	
 	return ret;
 }
@@ -735,7 +820,7 @@ int SrsSource::on_video(SrsCommonMessage* video)
 
 	// cache the last gop packets
 	if ((ret = gop_cache->cache(msg)) != ERROR_SUCCESS) {
-		srs_error("shrink gop cache failed. ret=%d", ret);
+		srs_error("gop cache msg failed. ret=%d", ret);
 		return ret;
 	}
 	srs_verbose("cache gop success.");
@@ -809,6 +894,7 @@ void SrsSource::on_unpublish()
 	int ret = ERROR_SUCCESS;
 	
 	consumer = new SrsConsumer(this);
+	consumer->set_queue_size(config->get_queue_length(req->vhost));
 	consumers.push_back(consumer);
 
 	if (cache_metadata && (ret = consumer->enqueue(cache_metadata->copy(), sample_rate, frame_rate)) != ERROR_SUCCESS) {

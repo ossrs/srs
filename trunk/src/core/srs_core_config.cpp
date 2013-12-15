@@ -548,6 +548,17 @@ int SrsConfig::reload()
 				}
 				srs_trace("vhost %s reload gop_cache success.", vhost.c_str());
 			}
+			// queue_length
+			if (!srs_directive_equals(new_vhost->get("queue_length"), old_vhost->get("queue_length"))) {
+				for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+					ISrsReloadHandler* subscribe = *it;
+					if ((ret = subscribe->on_reload_queue_length(vhost)) != ERROR_SUCCESS) {
+						srs_error("vhost %s notify subscribes queue_length failed. ret=%d", vhost.c_str(), ret);
+						return ret;
+					}
+				}
+				srs_trace("vhost %s reload queue_length success.", vhost.c_str());
+			}
 			// forward
 			if (!srs_directive_equals(new_vhost->get("forward"), old_vhost->get("forward"))) {
 				for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -1275,11 +1286,28 @@ bool SrsConfig::get_gop_cache(string vhost)
 		return true;
 	}
 	
+	conf = conf->get("gop_cache");
 	if (conf && conf->arg0() == "off") {
 		return false;
 	}
 	
 	return true;
+}
+
+double SrsConfig::get_queue_length(string vhost)
+{
+	SrsConfDirective* conf = get_vhost(vhost);
+
+	if (!conf) {
+		return SRS_CONF_DEFAULT_QUEUE_LENGTH;
+	}
+	
+	conf = conf->get("queue_length");
+	if (conf || conf->arg0().empty()) {
+		return SRS_CONF_DEFAULT_QUEUE_LENGTH;
+	}
+	
+	return ::atoi(conf->arg0().c_str());
 }
 
 SrsConfDirective* SrsConfig::get_forward(string vhost)

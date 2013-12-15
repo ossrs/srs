@@ -75,6 +75,45 @@ public:
 };
 
 /**
+* the message queue for the consumer(client), forwarder.
+* we limit the size in seconds, drop old messages(the whole gop) if full.
+*/
+class SrsMessageQueue
+{
+private:
+	int64_t av_start_time;
+	int64_t av_end_time;
+	int queue_size_ms;
+	std::vector<SrsSharedPtrMessage*> msgs;
+public:
+	SrsMessageQueue();
+	virtual ~SrsMessageQueue();
+public:
+	/**
+	* set the queue size
+	* @param queue_size the queue size in seconds.
+	*/
+	virtual void set_queue_size(double queue_size);
+public:
+	/**
+	* enqueue the message, the timestamp always monotonically.
+	* @param msg, the msg to enqueue, user never free it whatever the return code.
+	*/
+	virtual int enqueue(SrsSharedPtrMessage* msg);
+	/**
+	* get messages from the queue.
+	*/
+	virtual int get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& count);
+private:
+	/**
+	* remove a gop from the front.
+	* if no iframe found, clear it.
+	*/
+	virtual void shrink();
+	virtual void clear();
+};
+
+/**
 * the consumer for SrsSource, that is a play client.
 */
 class SrsConsumer
@@ -82,11 +121,14 @@ class SrsConsumer
 private:
 	SrsRtmpJitter* jitter;
 	SrsSource* source;
+	SrsMessageQueue* queue;
 	std::vector<SrsSharedPtrMessage*> msgs;
 	bool paused;
 public:
 	SrsConsumer(SrsSource* _source);
 	virtual ~SrsConsumer();
+public:
+	virtual void set_queue_size(double queue_size);
 public:
 	/**
 	* get current client time, the last packet time.
@@ -111,13 +153,6 @@ public:
 	* when client send the pause message.
 	*/
 	virtual int on_play_client_pause(bool is_pause);
-private:
-	/**
-	* when paused, shrink the cache queue,
-	* remove to cache only one gop.
-	*/
-	virtual void shrink();
-	virtual void clear();
 };
 
 /**
@@ -218,6 +253,7 @@ public:
 // interface ISrsReloadHandler
 public:
 	virtual int on_reload_gop_cache(std::string vhost);
+	virtual int on_reload_queue_length(std::string vhost);
 	virtual int on_reload_forward(std::string vhost);
 	virtual int on_reload_hls(std::string vhost);
 	virtual int on_reload_transcode(std::string vhost);

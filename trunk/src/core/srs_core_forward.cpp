@@ -51,12 +51,14 @@ SrsForwarder::SrsForwarder(SrsSource* _source)
 	stream_id = 0;
 
 	pthread = new SrsThread(this, SRS_FORWARDER_SLEEP_MS);
+	queue = new SrsMessageQueue();
 }
 
 SrsForwarder::~SrsForwarder()
 {
 	on_unpublish();
 	
+	// TODO: FIXME: remove it.
 	std::vector<SrsSharedPtrMessage*>::iterator it;
 	for (it = msgs.begin(); it != msgs.end(); ++it) {
 		SrsSharedPtrMessage* msg = *it;
@@ -65,6 +67,12 @@ SrsForwarder::~SrsForwarder()
 	msgs.clear();
 	
 	srs_freep(pthread);
+	srs_freep(queue);
+}
+
+void SrsForwarder::set_queue_size(double queue_size)
+{
+	queue->set_queue_size(queue_size);
 }
 
 int SrsForwarder::on_publish(SrsRequest* req, std::string forward_server)

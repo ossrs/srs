@@ -48,6 +48,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_AAC_SYNC 100
 // in ms, for HLS aac flush the audio
 #define SRS_CONF_DEFAULT_AAC_DELAY 300
+// in seconds, the live queue length.
+#define SRS_CONF_DEFAULT_QUEUE_LENGTH 30
+// in seconds, the paused queue length.
+#define SRS_CONF_DEFAULT_PAUSED_LENGTH 10
 
 #define SRS_CONF_DEFAULT_CHUNK_SIZE 4096
 
@@ -145,6 +149,7 @@ public:
 	virtual std::string			get_log_dir();
 	virtual int					get_max_connections();
 	virtual bool				get_gop_cache(std::string vhost);
+	virtual double				get_queue_length(std::string vhost);
 	virtual SrsConfDirective*	get_forward(std::string vhost);
 private:
 	virtual SrsConfDirective*	get_hls(std::string vhost);

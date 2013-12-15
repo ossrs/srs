@@ -212,6 +212,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v0.9, 2013-12-15, drop the old whole gop when live message queue full.
 * v0.9, 2013-12-15, fix the forwarder reconnect bug, feed it the sequence header.
 * v0.9, 2013-12-15, support reload the hls/forwarder/transcoder.
 * v0.9, 2013-12-14, refine the thread model for the retry threads.
