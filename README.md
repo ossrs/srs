@@ -63,6 +63,7 @@ For example, use ffmpeg to publish:
 </pre>
 <strong>step 8:</strong> play live stream. <br/>
 <pre>
+players: http://demo:80/players
 rtmp url: rtmp://demo:1935/live/livestream
 m3u8 url: http://demo:80/live/livestream.m3u8
 for android: http://demo:80/live/livestream.html

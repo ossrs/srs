@@ -180,6 +180,7 @@ echo "\" make \" to build the srs(simple rtmp server)."
 echo "\" make help \" to get the usage of make"
 if [ $SRS_HLS = YES ]; then
     echo "\" sudo ./objs/nginx/sbin/nginx  \" to start the nginx http server for hls"
+    echo "\" http://demo:80/players \" rtmp players(OSMF/JWPlayer)"
 fi
 if [ $SRS_FFMPEG = YES ]; then
     echo -e "\" ./objs/ffmpeg/bin/ffmpeg  \" is used for live stream transcoding"
