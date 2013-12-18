@@ -25,10 +25,14 @@ function parse_query_string(){
 
 function build_default_url() {
     var query = parse_query_string();
+    
+    var schema = (query.schema == undefined)? "rtmp":query.schema;
     var port = (query.port == undefined)? 1935:query.port;
     var vhost = (query.vhost == undefined)? window.location.hostname:query.vhost;
+    var app = (query.app == undefined)? "live":query.app;
+    var stream = (query.stream == undefined)? "livestream":query.stream;
     
-   return "rtmp://"+vhost+":"+port+"/live/livestream";
+   return schema + "://" + vhost + ":" + port + "/" + app + "/" + stream;
 }
 
 function srs_init(url_obj) {
