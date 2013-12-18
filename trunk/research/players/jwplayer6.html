@@ -6,6 +6,7 @@
     <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
     <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
     <script type="text/javascript" src="js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="js/srs.js"></script>
     <style>
         body{
             padding-top: 55px;
@@ -15,7 +16,10 @@
     <script>jwplayer.key="L1P3Ig76mGOK94gZ9WAAGD+Fb1VCVhoZ/Dm0fg=="</script>
     <script type="text/javascript">
         $(function(){
-            $("#txt_url").val("rtmp://"+window.location.hostname+":1935/live/livestream");
+            // get the vhost and port to set the default url.
+            // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
+            // url set to: rtmp://demo:1935/live/livestream
+            srs_init($("#txt_url"));
             
             $("#btn_play").click(function(){
                 $("#main_modal").show(function(){
@@ -52,12 +56,12 @@
         <a class="brand" href="#">SrsPlayers</a>
             <div class="nav-collapse collapse">
                 <ul class="nav">
-                    <li><a href="srs_player.html">SRS播放器</a></li>
-                    <li><a href="srs_publisher.html">SRS编码器</a></li>
-                    <li><a href="srs_bwt.html">SRS测网速</a></li>
-                    <li class="active"><a href="jwplayer6.html">JWPlayer6播放器</a></li>
-                    <li><a href="osmf.html">AdobeOSMF播放器</a></li>
-                    <li><a href="vlc.html">VLC播放器</a></li>
+                    <li><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
+                    <li><a id="nav_srs_publisher" href="srs_publisher.html">SRS编码器</a></li>
+                    <li><a id="nav_srs_bwt" href="srs_bwt.html">SRS测网速</a></li>
+                    <li class="active"><a id="nav_jwplayer6" href="jwplayer6.html">JWPlayer6播放器</a></li>
+                    <li><a id="nav_osmf" href="osmf.html">AdobeOSMF播放器</a></li>
+                    <li><a id="nav_vlc" href="vlc.html">VLC播放器</a></li>
                 </ul>
             </div>
         </div>

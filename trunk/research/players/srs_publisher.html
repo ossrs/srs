@@ -7,6 +7,7 @@
     <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
     <script type="text/javascript" src="js/bootstrap.min.js"></script>
     <script type="text/javascript" src="js/swfobject.js"></script>
+    <script type="text/javascript" src="js/srs.js"></script>
     <style>
         body{
             padding-top: 55px;
@@ -14,6 +15,7 @@
     </style>
     <script type="text/javascript">
         $(function(){
+            srs_init(null);
         });
     </script>
 </head>
@@ -24,12 +26,12 @@
         <a class="brand" href="#">SrsPlayers</a>
             <div class="nav-collapse collapse">
                 <ul class="nav">
-                    <li><a href="srs_player.html">SRS播放器</a></li>
-                    <li class="active"><a href="srs_publisher.html">SRS编码器</a></li>
-                    <li><a href="srs_bwt.html">SRS测网速</a></li>
-                    <li><a href="jwplayer6.html">JWPlayer6播放器</a></li>
-                    <li><a href="osmf.html">AdobeOSMF播放器</a></li>
-                    <li><a href="vlc.html">VLC播放器</a></li>
+                    <li><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
+                    <li class="active"><a id="nav_srs_publisher" href="srs_publisher.html">SRS编码器</a></li>
+                    <li><a id="nav_srs_bwt" href="srs_bwt.html">SRS测网速</a></li>
+                    <li><a id="nav_jwplayer6" href="jwplayer6.html">JWPlayer6播放器</a></li>
+                    <li><a id="nav_osmf" href="osmf.html">AdobeOSMF播放器</a></li>
+                    <li><a id="nav_vlc" href="vlc.html">VLC播放器</a></li>
                 </ul>
             </div>
         </div>

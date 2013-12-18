@@ -254,7 +254,8 @@ if [ $SRS_HLS = YES ]; then
     html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
     
     # copy players to nginx html dir.
-    cp research/players ${SRS_OBJS}/nginx/html/ -r
+    rm -rf ${SRS_OBJS}/nginx/html/players &&
+    ln -sf `pwd`/research/players ${SRS_OBJS}/nginx/html/
 fi
 
 if [ $SRS_HLS = YES ]; then
