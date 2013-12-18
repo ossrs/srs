@@ -12,6 +12,11 @@
             padding-top: 55px;
         }
     </style>
+    <script type="text/javascript">
+        $(function(){
+            $("#main_frame").attr("src", "http://www.videolan.org/vlc/");
+        });
+    </script>
 </head>
 <body>
 <div class="navbar navbar-fixed-top">
@@ -25,10 +30,13 @@
                     <li><a href="srs_bwt.html">SRS测网速</a></li>
                     <li><a href="jwplayer6.html">JWPlayer6播放器</a></li>
                     <li><a href="osmf.html">AdobeOSMF播放器</a></li>
-                    <li><a href="vlc.html">VLC播放器</a></li>
+                    <li class="active"><a href="vlc.html">VLC播放器</a></li>
                 </ul>
             </div>
         </div>
+    </div>
+    <div class="container">
+        <iframe id="main_frame" width="100%" height="800" frameBorder="0"></iframe>
     </div>
 </div>
 </body>

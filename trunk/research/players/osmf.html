@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SrsPlayers</title>   
+    <meta charset="utf-8">
+    <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
+    <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
+    <script type="text/javascript" src="js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="js/swfobject.js"></script>
+    <style>
+        body{
+            padding-top: 55px;
+        }
+    </style>
+    <script type="text/javascript">
+        $(function(){
+            $("#txt_url").val("rtmp://"+window.location.hostname+":1935/live/livestream");
+            
+            $("#btn_play").click(function(){
+                $("#main_modal").show(function(){
+                    $("#div_container").remove();
+                    
+                    var obj = $("<div/>");
+                    $(obj).attr("id", "div_container");
+                    
+                    var player = $("<div/>");
+                    $(obj).append(player);
+                    $(obj).attr("id", "player_id");
+                    
+                    $("#player").append(obj);
+                    
+                    var url = $("#txt_url").val();
+                    
+                    var flashvars = {};
+                    flashvars.src = url;
+                    flashvars.streamType = "live"; // live or recorded
+                    flashvars.autoPlay = true;
+                    flashvars.controlBarAutoHide = false;
+                    flashvars.scaleMode = "stretch";
+                    flashvars.bufferTime = 0.8;
+                    
+                    var params = {};
+                    params.allowFullScreen = true;
+                    
+                    var attributes = {};
+                    
+                    swfobject.embedSWF(
+                        "js/StrobeMediaPlayback.swf", "player_id",
+                        530, 300,
+                        "11.1", "js/AdobeFlashPlayerInstall.swf",
+                        flashvars, params, attributes
+                    );
+                });
+                $("#main_modal").modal({show:true, keyboard:false});
+            });
+        });
+    </script>
+</head>
+<body>
+<div class="navbar navbar-fixed-top">
+    <div class="navbar-inner">
+        <div class="container">
+        <a class="brand" href="#">SrsPlayers</a>
+            <div class="nav-collapse collapse">
+                <ul class="nav">
+                    <li><a href="srs_player.html">SRS播放器</a></li>
+                    <li><a href="srs_publisher.html">SRS编码器</a></li>
+                    <li><a href="srs_bwt.html">SRS测网速</a></li>
+                    <li><a href="jwplayer6.html">JWPlayer6播放器</a></li>
+                    <li class="active"><a href="osmf.html">AdobeOSMF播放器</a></li>
+                    <li><a href="vlc.html">VLC播放器</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="container">
+    <div class="alert alert-info fade in">
+        <button type="button" class="close" data-dismiss="alert">×</button>
+        <strong><span>Usage:</span></strong> <span>输入地址后点击播放按钮</span>
+    </div>
+    <div class="form-inline">
+        URL:
+        <input type="text" id="txt_url" class="input-xxlarge" value=""></input>
+        <button class="btn" id="btn_play">播放视频</button>
+    </div>
+    <div id="main_modal" class="modal hide fade">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+            <h3>AdobeOSMF</h3>
+        </div>
+        <div class="modal-body" id="player">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true"> 关闭 </button>
+        </div>
+    </div>
+</div>
+</body>
