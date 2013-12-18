@@ -243,7 +243,8 @@ if [ $SRS_HLS = YES ]; then
     sed -i "s/^.user  nobody;/user `whoami`;/g" ${SRS_OBJS}/nginx/conf/nginx.conf
     
     # create forward dir
-    mkdir -p ${SRS_OBJS}/nginx/html/forward
+    mkdir -p ${SRS_OBJS}/nginx/html/live &&
+    mkdir -p ${SRS_OBJS}/nginx/html/forward/live
     
     # generate default html pages for android.
     html_file=${SRS_OBJS}/nginx/html/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
