@@ -59,35 +59,35 @@ For example, use ffmpeg to publish:
 # linux: /etc/hosts
 # windows: C:\Windows\System32\drivers\etc\hosts
 # where server ip is 192.168.2.111
-192.168.2.111 demo 
+192.168.2.111 demo.srs.com
 </pre>
 <strong>step 8:</strong> play live stream. <br/>
 <pre>
-players: http://demo:80/players
-rtmp url: rtmp://demo:1935/live/livestream
-m3u8 url: http://demo:80/live/livestream.m3u8
-for android: http://demo:80/live/livestream.html
+players: http://demo.srs.com:80/players
+rtmp url: rtmp://demo.srs.com:1935/live/livestream
+m3u8 url: http://demo.srs.com:80/live/livestream.m3u8
+for android: http://demo.srs.com:80/live/livestream.html
 </pre>
 <strong>step 9(optinal):</strong> play live stream auto transcoded<br/>
 <pre>
-rtmp url: rtmp://demo:1935/live/livestream_ld
-m3u8 url: http://demo:80/live/livestream_ld.m3u8
-for android: http://demo:80/live/livestream_ld.html
-rtmp url: rtmp://demo:1935/live/livestream_sd
-m3u8 url: http://demo:80/live/livestream_sd.m3u8
-for android: http://demo:80/live/livestream_sd.html
+rtmp url: rtmp://demo.srs.com:1935/live/livestream_ld
+m3u8 url: http://demo.srs.com:80/live/livestream_ld.m3u8
+for android: http://demo.srs.com:80/live/livestream_ld.html
+rtmp url: rtmp://demo.srs.com:1935/live/livestream_sd
+m3u8 url: http://demo.srs.com:80/live/livestream_sd.m3u8
+for android: http://demo.srs.com:80/live/livestream_sd.html
 </pre>
 <strong>step 10(optinal):</strong> play live stream auto forwarded, the hls dir change to /forward<br/>
 <pre>
-rtmp url: rtmp://demo:19350/live/livestream
-m3u8 url: http://demo:80/forward/live/livestream.m3u8
-for android: http://demo:80/forward/live/livestream.html
-rtmp url: rtmp://demo:19350/live/livestream_ld
-m3u8 url: http://demo:80/forward/live/livestream_ld.m3u8
-for android: http://demo:80/forward/live/livestream_ld.html
-rtmp url: rtmp://demo:19350/live/livestream_sd
-m3u8 url: http://demo:80/forward/live/livestream_sd.m3u8
-for android: http://demo:80/forward/live/livestream_sd.html
+rtmp url: rtmp://demo.srs.com:19350/live/livestream
+m3u8 url: http://demo.srs.com:80/forward/live/livestream.m3u8
+for android: http://demo.srs.com:80/forward/live/livestream.html
+rtmp url: rtmp://demo.srs.com:19350/live/livestream_ld
+m3u8 url: http://demo.srs.com:80/forward/live/livestream_ld.m3u8
+for android: http://demo.srs.com:80/forward/live/livestream_ld.html
+rtmp url: rtmp://demo.srs.com:19350/live/livestream_sd
+m3u8 url: http://demo.srs.com:80/forward/live/livestream_sd.m3u8
+for android: http://demo.srs.com:80/forward/live/livestream_sd.html
 </pre>
 <strong>step 11(optinal):</strong> modify the config and reload it (all features support reload)<br/>
 <pre>
