@@ -13,38 +13,47 @@
         }
     </style>
     <script type="text/javascript" src="js/jwplayer.js" ></script>
-    <script>jwplayer.key="L1P3Ig76mGOK94gZ9WAAGD+Fb1VCVhoZ/Dm0fg=="</script>
+    <script type='text/javascript'>jwplayer.key = 'N8zhkmYvvRwOhz4aTGkySoEri4x+9pQwR7GHIQ=='; </script>
     <script type="text/javascript">
+        function jwplayer_play(url) {
+            $("#main_modal").show(function(){
+                $("#div_container").remove();
+                
+                var obj = $("<div/>");
+                $(obj).attr("id", "div_container");
+                
+                var player = $("<div/>");
+                $(obj).append(player);
+                $(obj).attr("id", "player_id");
+                
+                $("#player").append(obj);
+                
+                var conf = {
+                    file: url,
+                    width: "530",
+                    height: "300",
+                    autostart: true,
+                    analytics: { enabled: false}
+                };
+                jwplayer('player_id').setup(conf);
+            });
+            $("#main_modal").modal({show:true, keyboard:false});
+        }
+        
         $(function(){
             // get the vhost and port to set the default url.
             // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
             // url set to: rtmp://demo:1935/live/livestream
-            srs_init($("#txt_url"));
+            srs_init("#txt_rtmp_url", "#txt_hls_url");
             
-            $("#btn_play").click(function(){
-                $("#main_modal").show(function(){
-                    $("#div_container").remove();
-                    
-                    var obj = $("<div/>");
-                    $(obj).attr("id", "div_container");
-                    
-                    var player = $("<div/>");
-                    $(obj).append(player);
-                    $(obj).attr("id", "player_id");
-                    
-                    $("#player").append(obj);
-                    
-                    var url = $("#txt_url").val();
-                    
-                    var conf = {
-                        file: url,
-                        width: "530",
-                        height: "300",
-                        autostart: true,
-                    };
-                    jwplayer('player_id').setup(conf);
-                });
-                $("#main_modal").modal({show:true, keyboard:false});
+            $("#btn_play_rtmp").click(function(){
+                var url = $("#txt_rtmp_url").val();
+                jwplayer_play(url);
+            });
+            
+            $("#btn_play_hls").click(function(){
+                var url = $("#txt_hls_url").val();
+                jwplayer_play(url);
             });
         });
     </script>
@@ -74,8 +83,14 @@
     </div>
     <div class="form-inline">
         URL:
-        <input type="text" id="txt_url" class="input-xxlarge" value=""></input>
-        <button class="btn" id="btn_play">播放视频</button>
+        <input type="text" id="txt_rtmp_url" class="input-xxlarge" value=""></input>
+        <button class="btn" id="btn_play_rtmp">播放RTMP</button>
+    </div>
+    <hr/>
+    <div class="form-inline">
+        URL:
+        <input type="text" id="txt_hls_url" class="input-xxlarge" value=""></input>
+        <button class="btn" id="btn_play_hls"> 播放HLS </button>
     </div>
     <div id="main_modal" class="modal hide fade">
         <div class="modal-header">
@@ -88,6 +103,10 @@
             <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true"> 关闭 </button>
         </div>
     </div>
+    <hr>
+    <footer>
+        <p><a href="https://github.com/winlinvip/simple-rtmp-server">SRS Team &copy; 2013</a></p>
+    </footer>
 </div>
 </body>
 
