@@ -255,7 +255,9 @@ if [ $SRS_HLS = YES ]; then
     
     # copy players to nginx html dir.
     rm -rf ${SRS_OBJS}/nginx/html/players &&
-    ln -sf `pwd`/research/players ${SRS_OBJS}/nginx/html/
+    ln -sf `pwd`/research/players ${SRS_OBJS}/nginx/html/players &&
+    rm -f ${SRS_OBJS}/nginx/crossdomain.xml &&
+    ln -sf `pwd`/research/players/crossdomain.xml ${SRS_OBJS}/nginx/html/crossdomain.xml
 fi
 
 if [ $SRS_HLS = YES ]; then
