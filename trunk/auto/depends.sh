@@ -331,8 +331,10 @@ fi
 #####################################################################################
 # build research code
 #####################################################################################
-(cd research/hls && make)
+mkdir -p ${SRS_OBJS}/research
+
+(cd research/hls && make && mv ts_info ../../${SRS_OBJS}/research)
 ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/hls failed, ret=$ret"; exit $ret; fi
 
-(cd research/ffempty && make)
+(cd research/ffempty && make && mv ffempty ../../${SRS_OBJS}/research)
 ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/ffempty failed, ret=$ret"; exit $ret; fi
