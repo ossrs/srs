@@ -16,7 +16,12 @@
     <script type='text/javascript'>jwplayer.key = 'N8zhkmYvvRwOhz4aTGkySoEri4x+9pQwR7GHIQ=='; </script>
     <script type="text/javascript">
         function jwplayer_play(url) {
-            $("#main_modal").show(function(){
+            var _player = null;
+            $("#main_modal").on("hide", function(){
+                $("#div_container").remove();
+                _player.stop();
+            });
+            $("#main_modal").on("show", function(){
                 $("#div_container").remove();
                 
                 var obj = $("<div/>");
@@ -35,7 +40,7 @@
                     autostart: true,
                     analytics: { enabled: false}
                 };
-                jwplayer('player_id').setup(conf);
+                _player = jwplayer('player_id').setup(conf);
             });
             $("#main_modal").modal({show:true, keyboard:false});
         }

@@ -21,7 +21,10 @@
             srs_init($("#txt_url"));
             
             $("#btn_play").click(function(){
-                $("#main_modal").show(function(){
+                $("#main_modal").on("hide", function(){
+                    $("#div_container").remove();
+                });
+                $("#main_modal").on("show", function(){
                     $("#div_container").remove();
                     
                     var obj = $("<div/>");

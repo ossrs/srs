@@ -15,8 +15,123 @@
     </style>
     <script type="text/javascript">
         $(function(){
-            srs_init(null);
+            // get the vhost and port to set the default url.
+            // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
+            // url set to: rtmp://demo:1935/live/livestream
+            srs_init($("#txt_url"));
+            
+            var srs_player = null;
+            $("#main_modal").on("show", function(){
+                $("#div_container").remove();
+                
+                var obj = $("<div/>");
+                $(obj).attr("id", "div_container");
+                
+                var player = $("<div/>");
+                $(obj).append(player);
+                $(obj).attr("id", "player_id");
+                
+                $("#player").append(obj);
+                
+                var url = $("#txt_url").val();
+                
+                srs_player = new SrsPlayer("player_id", url, 530, 300);
+                srs_player.on_player_ready = function() {
+                    // hack the callback function, start to play the url.
+                    return srs_player.play();
+                }
+                srs_player.start();
+            });
+            $("#main_modal").on("hide", function(){
+                srs_player.stop();
+            });
+            
+            $("#btn_play").click(on_btn_play);
+            $("#btn_pause").click(function(){
+                var _v = $("#btn_pause").text();
+                if (_v == "暂停") {
+                    $("#btn_pause").text("继续");
+                    srs_player.pause();
+                } else {
+                    $("#btn_pause").text("暂停");
+                    srs_player.resume();
+                }
+            });
         });
+        function on_btn_play(){
+            $("#main_modal").modal({show:true, keyboard:false});
+        }
+        
+        function SrsPlayer(container, stream_url, width, height) {
+            if (!SrsPlayer.__id) {
+                SrsPlayer.__id = 100;
+            }
+            if (!SrsPlayer.__players) {
+                SrsPlayer.__players = [];
+            }
+            
+            SrsPlayer.__players.push(this);
+            
+            this.container = container;
+            this.stream_url = stream_url;
+            this.width = width;
+            this.height = height;
+            this.id = SrsPlayer.__id++;
+            this.callbackObj = null;
+        }
+        SrsPlayer.prototype.start = function() {
+            // embed the flash.
+            var flashvars = {};
+            flashvars.id = this.id;
+            flashvars.on_player_ready = "__srs_on_player_ready";
+            
+            var params = {};
+            params.allowFullScreen = true;
+            
+            var attributes = {};
+            
+            var self = this;
+            
+            swfobject.embedSWF(
+                "srs_player/release/srs_player.swf", this.container,
+                this.width, this.height,
+                "11.1", "js/AdobeFlashPlayerInstall.swf",
+                flashvars, params, attributes,
+                function(callbackObj){
+                    self.callbackObj = callbackObj;
+                }
+            );
+            
+            return this;
+        }
+        SrsPlayer.prototype.play = function() {
+            return this.callbackObj.ref.__play(this.stream_url, this.width, this.height);
+        }
+        SrsPlayer.prototype.stop = function() {
+            return this.callbackObj.ref.__stop();
+        }
+        SrsPlayer.prototype.pause = function() {
+            return this.callbackObj.ref.__pause();
+        }
+        SrsPlayer.prototype.resume = function() {
+            return this.callbackObj.ref.__resume();
+        }
+        SrsPlayer.prototype.on_player_ready = function() {
+            return this.play();
+        }
+        function __srs_on_player_ready(id) {
+            for (var i = 0; i < SrsPlayer.__players.length; i++) {
+                var player = SrsPlayer.__players[i];
+                
+                if (player.id != id) {
+                    continue;
+                }
+                
+                return player.on_player_ready();
+            }
+            
+            throw new Error("player not found. id=" + id);
+        }
     </script>
 </head>
 <body>
@@ -38,10 +153,30 @@
     </div>
 </div>
 <div class="container">
+    <div class="alert alert-info fade in">
+        <button type="button" class="close" data-dismiss="alert">×</button>
+        <strong><span>Usage:</span></strong> <span>输入地址后点击播放按钮</span>
+    </div>
+    <div class="form-inline">
+        URL:
+        <input type="text" id="txt_url" class="input-xxlarge" value=""></input>
+        <button class="btn" id="btn_play">播放视频</button>
+    </div>
+    <div id="main_modal" class="modal hide fade">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+            <h3>SrsPlayer</h3>
+        </div>
+        <div class="modal-body" id="player">
+        </div>
+        <div class="modal-footer">
+            <button id="btn_pause" class="btn">暂停</button>
+            <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true">关闭</button>
+        </div>
+    </div>
     <hr>
     <footer>
         <p><a href="https://github.com/winlinvip/simple-rtmp-server">SRS Team &copy; 2013</a></p>
     </footer>
 </div>
 </body>
-
