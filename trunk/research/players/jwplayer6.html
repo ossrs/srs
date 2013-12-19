@@ -21,6 +21,7 @@
                 $("#div_container").remove();
                 _player.stop();
             });
+            
             $("#main_modal").on("show", function(){
                 $("#div_container").remove();
                 
@@ -42,6 +43,7 @@
                 };
                 _player = jwplayer('player_id').setup(conf);
             });
+            
             $("#main_modal").modal({show:true, keyboard:false});
         }
         

@@ -14,13 +14,26 @@
         }
     </style>
     <script type="text/javascript">
+        var srs_player = null;
+        
         $(function(){
             // get the vhost and port to set the default url.
             // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
             // url set to: rtmp://demo:1935/live/livestream
             srs_init($("#txt_url"));
             
-            var srs_player = null;
+            $("#btn_play").click(on_btn_play);
+            $("#btn_pause").click(function(){
+                if ($("#btn_pause").text() == "暂停") {
+                    $("#btn_pause").text("继续");
+                    srs_player.pause();
+                } else {
+                    $("#btn_pause").text("暂停");
+                    srs_player.resume();
+                }
+            });
+        });
+        function on_btn_play(){
             $("#main_modal").on("show", function(){
                 $("#div_container").remove();
                 
@@ -35,34 +48,23 @@
                 
                 var url = $("#txt_url").val();
                 
-                srs_player = new SrsPlayer("player_id", url, 530, 300);
+                srs_player = new SrsPlayer("player_id", url, 530, 300, 0.8);
                 srs_player.on_player_ready = function() {
-                    // hack the callback function, start to play the url.
+                    // hack the callback function, do something then play.
                     return srs_player.play();
                 }
                 srs_player.start();
             });
+            
             $("#main_modal").on("hide", function(){
                 srs_player.stop();
             });
             
-            $("#btn_play").click(on_btn_play);
-            $("#btn_pause").click(function(){
-                var _v = $("#btn_pause").text();
-                if (_v == "暂停") {
-                    $("#btn_pause").text("继续");
-                    srs_player.pause();
-                } else {
-                    $("#btn_pause").text("暂停");
-                    srs_player.resume();
-                }
-            });
-        });
-        function on_btn_play(){
             $("#main_modal").modal({show:true, keyboard:false});
         }
         
-        function SrsPlayer(container, stream_url, width, height) {
+        // the SrsPlayer object.
+        function SrsPlayer(container, stream_url, width, height, buffer_time) {
             if (!SrsPlayer.__id) {
                 SrsPlayer.__id = 100;
             }
@@ -76,9 +78,13 @@
             this.stream_url = stream_url;
             this.width = width;
             this.height = height;
+            this.buffer_time = buffer_time;
             this.id = SrsPlayer.__id++;
             this.callbackObj = null;
         }
+        // user can set some callback, then start the player.
+        // callbacks:
+        //      on_player_ready():int, when srs player ready, user can play.
         SrsPlayer.prototype.start = function() {
             // embed the flash.
             var flashvars = {};
@@ -105,7 +111,7 @@
             return this;
         }
         SrsPlayer.prototype.play = function() {
-            return this.callbackObj.ref.__play(this.stream_url, this.width, this.height);
+            return this.callbackObj.ref.__play(this.stream_url, this.width, this.height, this.buffer_time);
         }
         SrsPlayer.prototype.stop = function() {
             return this.callbackObj.ref.__stop();

@@ -104,7 +104,7 @@ package
             return 0;
         }
         
-        public function js_call_play(url:String, _width:int, _height:int):int {
+        public function js_call_play(url:String, _width:int, _height:int, _buffer_time:Number):int {
             this.url = url;
             trace("start to play url: " + this.url);
             
@@ -120,6 +120,7 @@ package
                 }
                 
                 stream = new NetStream(conn);
+                stream.bufferTime = _buffer_time;
                 stream.client = {};
                 stream.client.onMetaData = function(metadata:Object):void {
                     var customItems:Array = [new ContextMenuItem("SrsPlayer")];
