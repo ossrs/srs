@@ -14,6 +14,15 @@
         }
     </style>
     <script type="text/javascript">
+        var active_dar = null;
+        function select_dar(dar_id) {
+            if (active_dar) {
+                active_dar.removeClass("active");
+            }
+            active_dar = $(dar_id).parent();
+            active_dar.addClass("active");
+        }
+        
         $(function(){
             // get the vhost and port to set the default url.
             // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
@@ -43,6 +52,8 @@
                 srs_player.on_player_metadata = function(metadata) {
                     $("#btn_dar_original").text("视频原始比例" + "(" + metadata.width + ":" + metadata.height + ")");
                     srs_player.dar(0, 0);
+                    select_dar("#btn_dar_original");
+                    
                     return 0;
                 }
                 srs_player.start();
@@ -68,18 +79,23 @@
             
             $("#btn_dar_original").click(function(){
                 srs_player.dar(0, 0);
+                select_dar("#btn_dar_original");
             });
             $("#btn_dar_21_9").click(function(){
                 srs_player.dar(9, 21);
+                select_dar("#btn_dar_21_9");
             });
             $("#btn_dar_16_9").click(function(){
                 srs_player.dar(9, 16);
+                select_dar("#btn_dar_16_9");
             });
             $("#btn_dar_4_3").click(function(){
                 srs_player.dar(3, 4);
+                select_dar("#btn_dar_4_3");
             });
             $("#btn_dar_fill").click(function(){
                 srs_player.dar(-1, -1);
+                select_dar("#btn_dar_fill");
             });
         });
         
