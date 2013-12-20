@@ -42,6 +42,7 @@
                 }
                 srs_player.on_player_metadata = function(metadata) {
                     $("#btn_dar_original").text("视频原始比例" + "(" + metadata.width + ":" + metadata.height + ")");
+                    srs_player.dar(0, 0);
                     return 0;
                 }
                 srs_player.start();
