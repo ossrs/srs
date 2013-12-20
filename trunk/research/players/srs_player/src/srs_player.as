@@ -106,20 +106,17 @@ package
         public function js_call_dar(num:int, den:int):int {
             if (this.video && num > 0 && den > 0 && this.video.width > 0) {
                 // set DAR.
-                if (num < den) {
-                    // calc the height by DAR
-                    var _height:int = this.video.width * num / den;
-                    
+                // calc the height by DAR
+                var _height:int = this.w * num / den;
+                if (_height <= this.h) {
+                    this.video.width = this.w;
+                    this.video.height = _height;
+                } else {
                     // height overflow, calc the width by DAR
-                    if (_height > this.h) {
-                        var _width:int = this.video.height * den / num;
-                        
-                        this.video.width = _width;
-                        this.video.height = this.h;
-                    } else {
-                        this.video.width = this.w;
-                        this.video.height = _height;
-                    }
+                    var _width:int = this.h * den / num;
+                    
+                    this.video.width = _width;
+                    this.video.height = this.h;
                 }
                 
                 // align center.
