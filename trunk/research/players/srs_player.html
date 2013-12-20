@@ -14,13 +14,30 @@
         }
     </style>
     <script type="text/javascript">
-        var active_dar = null;
-        function select_dar(dar_id) {
-            if (active_dar) {
-                active_dar.removeClass("active");
+        var srs_player = null;
+        
+        var __active_dar = null;
+        function select_dar(dar_id, num, den) {
+            srs_player.dar(num, den);
+            
+            if (__active_dar) {
+                __active_dar.removeClass("active");
             }
-            active_dar = $(dar_id).parent();
-            active_dar.addClass("active");
+            
+            __active_dar = $(dar_id).parent();
+            __active_dar.addClass("active");
+        }
+        
+        var __active_size = null;
+        function select_fs_size(size_id, refer, percent) {
+            srs_player.set_fs(refer, percent);
+            
+            if (__active_size) {
+                __active_size.removeClass("active");
+            }
+            
+            __active_size = $(size_id).parent();
+            __active_size.addClass("active");
         }
         
         $(function(){
@@ -29,9 +46,15 @@
             // url set to: rtmp://demo:1935/live/livestream
             srs_init($("#txt_url"));
             
-            var srs_player = null;
-        
+            $("#fs_tips").tooltip({
+                title: "点击视频进入或退出全屏"
+            });
+            
             $("#main_modal").on("show", function(){
+                if (srs_player) {
+                    return;
+                }
+                
                 $("#div_container").remove();
                 
                 var obj = $("<div/>");
@@ -51,16 +74,22 @@
                 }
                 srs_player.on_player_metadata = function(metadata) {
                     $("#btn_dar_original").text("视频原始比例" + "(" + metadata.width + ":" + metadata.height + ")");
-                    srs_player.dar(0, 0);
-                    select_dar("#btn_dar_original");
-                    
+                    select_dar("#btn_dar_original", 0, 0);
+                    select_fs_size("#btn_fs_size_screen_100", "screen", 100);
                     return 0;
                 }
                 srs_player.start();
             });
             
             $("#main_modal").on("hide", function(){
-                srs_player.stop();
+                if ($("#main_modal").is(":visible")) {
+                    return;
+                }
+                
+                if (srs_player) {
+                    srs_player.stop();
+                    srs_player = null;
+                }
             });
             
             $("#btn_play").click(function(){
@@ -68,177 +97,54 @@
             });
             
             $("#btn_pause").click(function(){
-                if ($("#btn_pause").text() == "暂停") {
-                    $("#btn_pause").text("继续");
+                if ($("#btn_pause").text() == "暂停播放") {
+                    $("#btn_pause").text("继续播放");
                     srs_player.pause();
                 } else {
-                    $("#btn_pause").text("暂停");
+                    $("#btn_pause").text("暂停播放");
                     srs_player.resume();
                 }
             });
             
-            $("#btn_dar_original").click(function(){
-                srs_player.dar(0, 0);
-                select_dar("#btn_dar_original");
-            });
-            $("#btn_dar_21_9").click(function(){
-                srs_player.dar(9, 21);
-                select_dar("#btn_dar_21_9");
-            });
-            $("#btn_dar_16_9").click(function(){
-                srs_player.dar(9, 16);
-                select_dar("#btn_dar_16_9");
-            });
-            $("#btn_dar_4_3").click(function(){
-                srs_player.dar(3, 4);
-                select_dar("#btn_dar_4_3");
-            });
-            $("#btn_dar_fill").click(function(){
-                srs_player.dar(-1, -1);
-                select_dar("#btn_dar_fill");
-            });
+            if (true) {
+                $("#btn_dar_original").click(function(){
+                    select_dar("#btn_dar_original", 0, 0);
+                });
+                $("#btn_dar_21_9").click(function(){
+                    select_dar("#btn_dar_21_9", 9, 21);
+                });
+                $("#btn_dar_16_9").click(function(){
+                    select_dar("#btn_dar_16_9", 9, 16);
+                });
+                $("#btn_dar_4_3").click(function(){
+                    select_dar("#btn_dar_4_3", 3, 4);
+                });
+                $("#btn_dar_fill").click(function(){
+                    select_dar("#btn_dar_fill", -1, -1);
+                });
+            }
+            
+            if (true) {
+                $("#btn_fs_size_video_100").click(function(){
+                    select_fs_size("#btn_fs_size_video_100", "video", 100);
+                });
+                $("#btn_fs_size_video_75").click(function(){
+                    select_fs_size("#btn_fs_size_video_75", "video", 75);
+                });
+                $("#btn_fs_size_video_50").click(function(){
+                    select_fs_size("#btn_fs_size_video_50", "video", 50);
+                });
+                $("#btn_fs_size_screen_100").click(function(){
+                    select_fs_size("#btn_fs_size_screen_100", "screen", 100);
+                });
+                $("#btn_fs_size_screen_75").click(function(){
+                    select_fs_size("#btn_fs_size_screen_75", "screen", 75);
+                });
+                $("#btn_fs_size_screen_50").click(function(){
+                    select_fs_size("#btn_fs_size_screen_50", "screen", 50);
+                });
+            }
         });
-        
-        /*
-        * the SrsPlayer object.
-        */
-        function SrsPlayer(container, stream_url, width, height, buffer_time) {
-            if (!SrsPlayer.__id) {
-                SrsPlayer.__id = 100;
-            }
-            if (!SrsPlayer.__players) {
-                SrsPlayer.__players = [];
-            }
-            
-            SrsPlayer.__players.push(this);
-            
-            this.container = container;
-            this.stream_url = stream_url;
-            this.width = width;
-            this.height = height;
-            this.buffer_time = buffer_time;
-            this.id = SrsPlayer.__id++;
-            this.callbackObj = null;
-            
-            // callback set the following values.
-            this.meatadata = {}; // for on_player_metadata
-        }
-        /*
-        * user can set some callback, then start the player.
-        * callbacks:
-        *      on_player_ready():int, when srs player ready, user can play.
-        *      on_player_metadata(metadata:Object):int, when srs player get metadata.
-        */
-        SrsPlayer.prototype.start = function() {
-            // embed the flash.
-            var flashvars = {};
-            flashvars.id = this.id;
-            flashvars.on_player_ready = "__srs_on_player_ready";
-            flashvars.on_player_metadata = "__srs_on_player_metadata";
-            
-            var params = {};
-            params.wmode = "opaque";
-            params.allowFullScreen = true;
-            params.allowScriptAccess = "always";
-            
-            var attributes = {};
-            
-            var self = this;
-            
-            swfobject.embedSWF(
-                "srs_player/release/srs_player.swf", this.container,
-                this.width, this.height,
-                "11.1", "js/AdobeFlashPlayerInstall.swf",
-                flashvars, params, attributes,
-                function(callbackObj){
-                    self.callbackObj = callbackObj;
-                }
-            );
-            
-            return this;
-        }
-        SrsPlayer.prototype.play = function() {
-            return this.callbackObj.ref.__play(this.stream_url, this.width, this.height, this.buffer_time);
-        }
-        SrsPlayer.prototype.stop = function() {
-            for (var i = 0; i < SrsPlayer.__players.length; i++) {
-                var player = SrsPlayer.__players[i];
-                
-                if (player.id != this.id) {
-                    continue;
-                }
-                
-                SrsPlayer.__players.splice(i, 1);
-                break;
-            }
-            return this.callbackObj.ref.__stop();
-        }
-        SrsPlayer.prototype.pause = function() {
-            return this.callbackObj.ref.__pause();
-        }
-        SrsPlayer.prototype.resume = function() {
-            return this.callbackObj.ref.__resume();
-        }
-        /*
-        * to set the DAR, for example, DAR=16:9
-        * @param num, for example, 9. 
-        *       use metadata height if 0.
-        *       use user specified height if -1.
-        * @param den, for example, 16. 
-        *       use metadata width if 0.
-        *       use user specified width if -1.
-        */
-        SrsPlayer.prototype.dar = function(num, den) {
-            if (num == 0 && this.metadata) {
-                num = this.metadata.height;
-            } else if (num == -1) {
-                num = this.height;
-            }
-            
-            if (den == 0 && this.metadata) {
-                den = this.metadata.width;
-            } else if (den == -1) {
-                den = this.width;
-            }
-            
-            return this.callbackObj.ref.__dar(num, den);
-        }
-        SrsPlayer.prototype.on_player_ready = function() {
-            return this.play();
-        }
-        SrsPlayer.prototype.on_player_metadata = function(metadata) {
-            return 0;
-        }
-        function __srs_on_player_ready(id) {
-            for (var i = 0; i < SrsPlayer.__players.length; i++) {
-                var player = SrsPlayer.__players[i];
-                
-                if (player.id != id) {
-                    continue;
-                }
-                
-                return player.on_player_ready();
-            }
-            
-            throw new Error("player not found. id=" + id);
-        }
-        function __srs_on_player_metadata(id, metadata) {
-            for (var i = 0; i < SrsPlayer.__players.length; i++) {
-                var player = SrsPlayer.__players[i];
-                
-                if (player.id != id) {
-                    continue;
-                }
-                
-                // user may override the on_player_metadata, 
-                // so set the data before invoke it.
-                player.metadata = metadata;
-                
-                return player.on_player_metadata(metadata);
-            }
-            
-            throw new Error("player not found. id=" + id);
-        }
     </script>
 </head>
 <body>
@@ -278,17 +184,37 @@
         </div>
         <div class="modal-footer">
             <div class="btn-group dropup">
-                <button class="btn dropdown-toggle" data-toggle="dropdown">宽高比 <span class="caret"></span></button>
+                <button class="btn dropdown-toggle" data-toggle="dropdown">
+                    <a id="fs_tips" href="#" data-toggle="tooltip" data-placement="top" title="">
+                        <img src="img/tooltip.png"/>
+                    </a>
+                    全屏大小<span class="caret"></span>
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a id="btn_fs_size_screen_100" href="#">屏幕大小(100%)</a></li>
+                    <li><a id="btn_fs_size_screen_75" href="#">屏幕大小(75%)</a></li>
+                    <li><a id="btn_fs_size_screen_50" href="#">屏幕大小(50%)</a></li>
+                    <li><a id="btn_fs_size_video_100" href="#">视频大小(100%)</a></li>
+                    <li><a id="btn_fs_size_video_75" href="#">视频大小(75%)</a></li>
+                    <li><a id="btn_fs_size_video_50" href="#">视频大小(50%)</a></li>
+                </ul>
+            </div>
+            <div class="btn-group dropup">
+                <button class="btn dropdown-toggle" data-toggle="dropdown">显示比例<span class="caret"></span></button>
                 <ul class="dropdown-menu">
                     <li><a id="btn_dar_original" href="#">视频原始比例</a></li>
                     <li><a id="btn_dar_21_9" href="#">宽屏影院(21:9)</a></li>
                     <li><a id="btn_dar_16_9" href="#">宽屏电影(16:9)</a></li>
                     <li><a id="btn_dar_4_3" href="#">窄屏(4:3)</a></li>
-                    <li><a id="btn_dar_fill" href="#">填充</a></li>
+                    <li><a id="btn_dar_fill" href="#">填充(容器比例)</a></li>
                 </ul>
             </div>
-            <button id="btn_pause" class="btn">暂停</button>
-            <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true">关闭</button>
+            <div class="btn-group dropup">
+                <button id="btn_pause" class="btn">暂停播放</button>
+            </div>
+            <div class="btn-group dropup">
+                <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true">关闭</button>
+            </div>
         </div>
     </div>
     <hr>
