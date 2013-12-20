@@ -15,14 +15,23 @@ package
     
     public class srs_player extends Sprite
     {
+        // user set id.
         private var id:String = null;
+        // user set callback
         private var on_player_ready:String = null;
+        private var on_player_metadata:String = null;
         
+        // play param url.
         private var url:String = null;
+        // play param, user set width
+        private var w:int = 0;
+        // play param, user set height.
+        private var h:int = 0;
         
         private var conn:NetConnection = null;
         private var stream:NetStream = null;
         private var video:Video = null;
+        private var metadata:Object = {};
         
         public function srs_player()
         {
@@ -51,6 +60,7 @@ package
             
             this.id = flashvars.id;
             this.on_player_ready = flashvars.on_player_ready;
+            this.on_player_metadata = flashvars.on_player_metadata;
             
             flash.utils.setTimeout(this.onJsReady, 0);
         }
@@ -66,6 +76,7 @@ package
             flash.external.ExternalInterface.addCallback("__stop", this.js_call_stop);
             flash.external.ExternalInterface.addCallback("__pause", this.js_call_pause);
             flash.external.ExternalInterface.addCallback("__resume", this.js_call_resume);
+            flash.external.ExternalInterface.addCallback("__dar", this.js_call_dar);
             
             var code:int = flash.external.ExternalInterface.call(this.on_player_ready, this.id);
             if (code != 0) {
@@ -83,6 +94,37 @@ package
         public function js_call_resume():int {
             if (this.stream) {
                 this.stream.resume();
+            }
+            return 0;
+        }
+        
+        /**
+        * to set the DAR, for example, DAR=16:9
+        * @param num, for example, 9.
+        * @param den, for example, 16.
+        */
+        public function js_call_dar(num:int, den:int):int {
+            if (this.video && num > 0 && den > 0 && this.video.width > 0) {
+                // set DAR.
+                if (num < den) {
+                    // calc the height by DAR
+                    var _height:int = this.video.width * num / den;
+                    
+                    // height overflow, calc the width by DAR
+                    if (_height > this.h) {
+                        var _width:int = this.video.height * den / num;
+                        
+                        this.video.width = _width;
+                        this.video.height = this.h;
+                    } else {
+                        this.video.width = this.w;
+                        this.video.height = _height;
+                    }
+                }
+                
+                // align center.
+                this.video.y = (this.h - this.video.height) / 2;
+                this.video.x = (this.w - this.video.width) / 2;
             }
             return 0;
         }
@@ -106,7 +148,14 @@ package
         
         public function js_call_play(url:String, _width:int, _height:int, _buffer_time:Number):int {
             this.url = url;
-            trace("start to play url: " + this.url);
+            this.w = _width;
+            this.h = _height;
+            trace("start to play url: " + this.url + ", w=" + this.w + ", h=" + this.h);
+            
+            // draw black bg.
+            this.graphics.beginFill(0x00, 1.0);
+            this.graphics.drawRect(0, 0, this.w, this.h);
+            this.graphics.endFill();
             
             js_call_stop();
             
@@ -122,18 +171,13 @@ package
                 stream = new NetStream(conn);
                 stream.bufferTime = _buffer_time;
                 stream.client = {};
-                stream.client.onMetaData = function(metadata:Object):void {
-                    var customItems:Array = [new ContextMenuItem("SrsPlayer")];
-                    if (metadata.hasOwnProperty("server")) {
-                        customItems.push(new ContextMenuItem("Server: " + metadata.server));
-                    }
-                    if (metadata.hasOwnProperty("contributor")) {
-                        customItems.push(new ContextMenuItem("Contributor: " + metadata.contributor));
-                    }
-                    contextMenu.customItems = customItems;
-                };
+                stream.client.onMetaData = on_metadata;
                 stream.addEventListener(NetStatusEvent.NET_STATUS, function(evt:NetStatusEvent):void {
                     trace ("NetStream: code=" + evt.info.code);
+                    
+                    if (evt.info.code == "NetStream.Video.DimensionChange") {
+                        on_metadata(metadata);
+                    }
                 });
                 stream.play(url.substr(url.lastIndexOf("/")));
                 
@@ -147,6 +191,54 @@ package
             this.conn.connect(this.url.substr(0, this.url.lastIndexOf("/")));
             
             return 0;
+        }
+        
+        private function on_metadata(metadata:Object):void {
+            this.metadata = metadata;
+            
+            // for context menu
+            var customItems:Array = [new ContextMenuItem("SrsPlayer")];
+            if (metadata.hasOwnProperty("server")) {
+                customItems.push(new ContextMenuItem("Server: " + metadata.server));
+            }
+            if (metadata.hasOwnProperty("contributor")) {
+                customItems.push(new ContextMenuItem("Contributor: " + metadata.contributor));
+            }
+            contextMenu.customItems = customItems;
+            
+            // for js.
+            var obj:Object = {
+                width: video.width,
+                    height: video.height,
+                    server: 'srs',
+                    contributor: 'winlin'
+            };
+            
+            if (metadata.hasOwnProperty("width")) {
+                obj.width = metadata.width;
+            }
+            if (metadata.hasOwnProperty("height")) {
+                obj.height = metadata.height;
+            }
+            
+            if (video.videoWidth > 0) {
+                obj.width = video.videoWidth;
+            }
+            if (video.videoHeight > 0) {
+                obj.height = video.videoHeight;
+            }
+            
+            if (metadata.hasOwnProperty("server")) {
+                obj.server = metadata.server;
+            }
+            if (metadata.hasOwnProperty("contributor")) {
+                obj.contributor = metadata.contributor;
+            }
+            
+            var code:int = flash.external.ExternalInterface.call(on_player_metadata, id, obj);
+            if (code != 0) {
+                throw new Error("callback on_player_metadata failed. code=" + code);
+            }
         }
     }
 }

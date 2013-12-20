@@ -14,26 +14,14 @@
         }
     </style>
     <script type="text/javascript">
-        var srs_player = null;
-        
         $(function(){
             // get the vhost and port to set the default url.
             // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
             // url set to: rtmp://demo:1935/live/livestream
             srs_init($("#txt_url"));
             
-            $("#btn_play").click(on_btn_play);
-            $("#btn_pause").click(function(){
-                if ($("#btn_pause").text() == "暂停") {
-                    $("#btn_pause").text("继续");
-                    srs_player.pause();
-                } else {
-                    $("#btn_pause").text("暂停");
-                    srs_player.resume();
-                }
-            });
-        });
-        function on_btn_play(){
+            var srs_player = null;
+        
             $("#main_modal").on("show", function(){
                 $("#div_container").remove();
                 
@@ -50,8 +38,11 @@
                 
                 srs_player = new SrsPlayer("player_id", url, 530, 300, 0.8);
                 srs_player.on_player_ready = function() {
-                    // hack the callback function, do something then play.
                     return srs_player.play();
+                }
+                srs_player.on_player_metadata = function(metadata) {
+                    $("#btn_dar_original").text("视频原始比例" + "(" + metadata.width + ":" + metadata.height + ")");
+                    return 0;
                 }
                 srs_player.start();
             });
@@ -60,10 +51,37 @@
                 srs_player.stop();
             });
             
-            $("#main_modal").modal({show:true, keyboard:false});
-        }
+            $("#btn_play").click(function(){
+                $("#main_modal").modal({show:true, keyboard:false});
+            });
+            
+            $("#btn_pause").click(function(){
+                if ($("#btn_pause").text() == "暂停") {
+                    $("#btn_pause").text("继续");
+                    srs_player.pause();
+                } else {
+                    $("#btn_pause").text("暂停");
+                    srs_player.resume();
+                }
+            });
+            
+            $("#btn_dar_original").click(function(){
+                srs_player.dar(0, 0);
+            });
+            $("#btn_dar_21_9").click(function(){
+                srs_player.dar(9, 21);
+            });
+            $("#btn_dar_16_9").click(function(){
+                srs_player.dar(9, 16);
+            });
+            $("#btn_dar_4_3").click(function(){
+                srs_player.dar(3, 4);
+            });
+        });
         
-        // the SrsPlayer object.
+        /*
+        * the SrsPlayer object.
+        */
         function SrsPlayer(container, stream_url, width, height, buffer_time) {
             if (!SrsPlayer.__id) {
                 SrsPlayer.__id = 100;
@@ -81,18 +99,27 @@
             this.buffer_time = buffer_time;
             this.id = SrsPlayer.__id++;
             this.callbackObj = null;
+            
+            // callback set the following values.
+            this.meatadata = {}; // for on_player_metadata
         }
-        // user can set some callback, then start the player.
-        // callbacks:
-        //      on_player_ready():int, when srs player ready, user can play.
+        /*
+        * user can set some callback, then start the player.
+        * callbacks:
+        *      on_player_ready():int, when srs player ready, user can play.
+        *      on_player_metadata(metadata:Object):int, when srs player get metadata.
+        */
         SrsPlayer.prototype.start = function() {
             // embed the flash.
             var flashvars = {};
             flashvars.id = this.id;
             flashvars.on_player_ready = "__srs_on_player_ready";
+            flashvars.on_player_metadata = "__srs_on_player_metadata";
             
             var params = {};
+            params.wmode = "opaque";
             params.allowFullScreen = true;
+            params.allowScriptAccess = "always";
             
             var attributes = {};
             
@@ -114,6 +141,16 @@
             return this.callbackObj.ref.__play(this.stream_url, this.width, this.height, this.buffer_time);
         }
         SrsPlayer.prototype.stop = function() {
+            for (var i = 0; i < SrsPlayer.__players.length; i++) {
+                var player = SrsPlayer.__players[i];
+                
+                if (player.id != this.id) {
+                    continue;
+                }
+                
+                SrsPlayer.__players.splice(i, 1);
+                break;
+            }
             return this.callbackObj.ref.__stop();
         }
         SrsPlayer.prototype.pause = function() {
@@ -122,8 +159,25 @@
         SrsPlayer.prototype.resume = function() {
             return this.callbackObj.ref.__resume();
         }
+        /*
+        * to set the DAR, for example, DAR=16:9
+        * @param num, for example, 9. use metadata height if 0.
+        * @param den, for example, 16. use metadata width if 0.
+        */
+        SrsPlayer.prototype.dar = function(num, den) {
+            if (num == 0 && this.metadata) {
+                num = this.metadata.height;
+            }
+            if (den == 0 && this.metadata) {
+                den = this.metadata.width;
+            }
+            return this.callbackObj.ref.__dar(num, den);
+        }
         SrsPlayer.prototype.on_player_ready = function() {
             return this.play();
+        }
+        SrsPlayer.prototype.on_player_metadata = function(metadata) {
+            return 0;
         }
         function __srs_on_player_ready(id) {
             for (var i = 0; i < SrsPlayer.__players.length; i++) {
@@ -134,6 +188,23 @@
                 }
                 
                 return player.on_player_ready();
+            }
+            
+            throw new Error("player not found. id=" + id);
+        }
+        function __srs_on_player_metadata(id, metadata) {
+            for (var i = 0; i < SrsPlayer.__players.length; i++) {
+                var player = SrsPlayer.__players[i];
+                
+                if (player.id != id) {
+                    continue;
+                }
+                
+                // user may override the on_player_metadata, 
+                // so set the data before invoke it.
+                player.metadata = metadata;
+                
+                return player.on_player_metadata(metadata);
             }
             
             throw new Error("player not found. id=" + id);
@@ -176,6 +247,15 @@
         <div class="modal-body" id="player">
         </div>
         <div class="modal-footer">
+            <div class="btn-group dropup">
+                <button class="btn dropdown-toggle" data-toggle="dropdown">宽高比 <span class="caret"></span></button>
+                <ul class="dropdown-menu">
+                    <li><a id="btn_dar_original" href="#">视频原始比例</a></li>
+                    <li><a id="btn_dar_21_9" href="#">宽屏影院(21:9)</a></li>
+                    <li><a id="btn_dar_16_9" href="#">宽屏电影(16:9)</a></li>
+                    <li><a id="btn_dar_4_3" href="#">窄屏(4:3)</a></li>
+                </ul>
+            </div>
             <button id="btn_pause" class="btn">暂停</button>
             <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true">关闭</button>
         </div>

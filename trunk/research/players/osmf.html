@@ -14,50 +14,54 @@
         }
     </style>
     <script type="text/javascript">
+        function osmf_play(url) {
+            $("#div_container").remove();
+            
+            var obj = $("<div/>");
+            $(obj).attr("id", "div_container");
+            
+            var player = $("<div/>");
+            $(obj).append(player);
+            $(obj).attr("id", "player_id");
+            
+            $("#player").append(obj);
+            
+            var flashvars = {};
+            flashvars.src = url;
+            flashvars.streamType = "live"; // live or recorded
+            flashvars.autoPlay = true;
+            flashvars.controlBarAutoHide = false;
+            flashvars.scaleMode = "stretch";
+            flashvars.bufferTime = 0.8;
+            
+            var params = {};
+            params.allowFullScreen = true;
+            
+            var attributes = {};
+            
+            swfobject.embedSWF(
+                "js/StrobeMediaPlayback.swf", "player_id",
+                530, 300,
+                "11.1", "js/AdobeFlashPlayerInstall.swf",
+                flashvars, params, attributes
+            );
+        }
         $(function(){
             // get the vhost and port to set the default url.
             // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
             // url set to: rtmp://demo:1935/live/livestream
             srs_init($("#txt_url"));
             
+            $("#main_modal").on("hide", function(){
+                osmf_play("http://localhost");
+                $("#div_container").remove();
+            });
+            $("#main_modal").on("show", function(){
+                var url = $("#txt_url").val();
+                osmf_play(url);
+            });
+            
             $("#btn_play").click(function(){
-                $("#main_modal").on("hide", function(){
-                    $("#div_container").remove();
-                });
-                $("#main_modal").on("show", function(){
-                    $("#div_container").remove();
-                    
-                    var obj = $("<div/>");
-                    $(obj).attr("id", "div_container");
-                    
-                    var player = $("<div/>");
-                    $(obj).append(player);
-                    $(obj).attr("id", "player_id");
-                    
-                    $("#player").append(obj);
-                    
-                    var url = $("#txt_url").val();
-                    
-                    var flashvars = {};
-                    flashvars.src = url;
-                    flashvars.streamType = "live"; // live or recorded
-                    flashvars.autoPlay = true;
-                    flashvars.controlBarAutoHide = false;
-                    flashvars.scaleMode = "stretch";
-                    flashvars.bufferTime = 0.8;
-                    
-                    var params = {};
-                    params.allowFullScreen = true;
-                    
-                    var attributes = {};
-                    
-                    swfobject.embedSWF(
-                        "js/StrobeMediaPlayback.swf", "player_id",
-                        530, 300,
-                        "11.1", "js/AdobeFlashPlayerInstall.swf",
-                        flashvars, params, attributes
-                    );
-                });
                 $("#main_modal").modal({show:true, keyboard:false});
             });
         });

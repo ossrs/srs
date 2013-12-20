@@ -15,8 +15,14 @@
     <script type="text/javascript" src="js/jwplayer.js" ></script>
     <script type='text/javascript'>jwplayer.key = 'N8zhkmYvvRwOhz4aTGkySoEri4x+9pQwR7GHIQ=='; </script>
     <script type="text/javascript">
-        function jwplayer_play(url) {
-            var _player = null;
+        var _player = null;
+        var _url = null;
+        $(function(){
+            // get the vhost and port to set the default url.
+            // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
+            // url set to: rtmp://demo:1935/live/livestream
+            srs_init("#txt_rtmp_url", "#txt_hls_url");
+            
             $("#main_modal").on("hide", function(){
                 $("#div_container").remove();
                 _player.stop();
@@ -35,7 +41,7 @@
                 $("#player").append(obj);
                 
                 var conf = {
-                    file: url,
+                    file: _url,
                     width: "530",
                     height: "300",
                     autostart: true,
@@ -44,23 +50,14 @@
                 _player = jwplayer('player_id').setup(conf);
             });
             
-            $("#main_modal").modal({show:true, keyboard:false});
-        }
-        
-        $(function(){
-            // get the vhost and port to set the default url.
-            // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
-            // url set to: rtmp://demo:1935/live/livestream
-            srs_init("#txt_rtmp_url", "#txt_hls_url");
-            
             $("#btn_play_rtmp").click(function(){
-                var url = $("#txt_rtmp_url").val();
-                jwplayer_play(url);
+                _url = $("#txt_rtmp_url").val();
+                $("#main_modal").modal({show:true, keyboard:false});
             });
             
             $("#btn_play_hls").click(function(){
-                var url = $("#txt_hls_url").val();
-                jwplayer_play(url);
+                _url = $("#txt_hls_url").val();
+                $("#main_modal").modal({show:true, keyboard:false});
             });
         });
     </script>
