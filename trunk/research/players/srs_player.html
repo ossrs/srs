@@ -77,6 +77,9 @@
             $("#btn_dar_4_3").click(function(){
                 srs_player.dar(3, 4);
             });
+            $("#btn_dar_fill").click(function(){
+                srs_player.dar(-1, -1);
+            });
         });
         
         /*
@@ -161,16 +164,26 @@
         }
         /*
         * to set the DAR, for example, DAR=16:9
-        * @param num, for example, 9. use metadata height if 0.
-        * @param den, for example, 16. use metadata width if 0.
+        * @param num, for example, 9. 
+        *       use metadata height if 0.
+        *       use user specified height if -1.
+        * @param den, for example, 16. 
+        *       use metadata width if 0.
+        *       use user specified width if -1.
         */
         SrsPlayer.prototype.dar = function(num, den) {
             if (num == 0 && this.metadata) {
                 num = this.metadata.height;
+            } else if (num == -1) {
+                num = this.height;
             }
+            
             if (den == 0 && this.metadata) {
                 den = this.metadata.width;
+            } else if (den == -1) {
+                den = this.width;
             }
+            
             return this.callbackObj.ref.__dar(num, den);
         }
         SrsPlayer.prototype.on_player_ready = function() {
@@ -254,6 +267,7 @@
                     <li><a id="btn_dar_21_9" href="#">宽屏影院(21:9)</a></li>
                     <li><a id="btn_dar_16_9" href="#">宽屏电影(16:9)</a></li>
                     <li><a id="btn_dar_4_3" href="#">窄屏(4:3)</a></li>
+                    <li><a id="btn_dar_fill" href="#">填充</a></li>
                 </ul>
             </div>
             <button id="btn_pause" class="btn">暂停</button>
