@@ -154,13 +154,17 @@
             srs_player_url += "vhost=" + srs_get_player_publish_vhost(ret.vhost) + "&port=" + ret.port + "&app=" + ret.app + "&stream=" + ret.stream;
             srs_player_url += "&autostart=true";
             
+            var srs_player_rt_url = "http://" + query.host + query.dir + "/srs_player.html?";
+            srs_player_rt_url += "vhost=" + ret.vhost + "&port=" + ret.port + "&app=" + ret.app + "&stream=" + ret.stream;
+            srs_player_rt_url += "&autostart=true";
+            
             var jwplayer_url = "http://" + query.host + query.dir + "/jwplayer6.html?";
             jwplayer_url += "vhost=" + srs_get_player_publish_vhost(ret.vhost) + "&port=" + ret.port + "&app=" + ret.app + "&stream=" + ret.stream;
             jwplayer_url += "&hls_autostart=true";
             
             var hls_url = "http://" + ret.server + ":" + query.http_port + "/" + ret.app + "/" + ret.stream + ".m3u8";
             
-            $("#txt_play_realtime").text("RTMP低延时(点击打开)").attr("href", url).attr("target", "_blank");
+            $("#txt_play_realtime").text("RTMP低延时(点击打开)").attr("href", srs_player_rt_url).attr("target", "_blank");
             $("#txt_play_url").text("RTMP已转码(点击打开)").attr("href", srs_player_url).attr("target", "_blank");
             $("#txt_play_hls").text("HLS-m3u8(点击打开或右键复制)").attr("href", hls_url).attr("target", "_blank");
             $("#txt_play_jwplayer").text("HLS-JWPlayer(点击打开)").attr("href", jwplayer_url).attr("target", "_blank");
