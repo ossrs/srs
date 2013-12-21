@@ -266,6 +266,8 @@ function __srs_on_player_timer(id, time, buffer_length) {
     buffer_length = Math.max(0, buffer_length);
     buffer_length = Math.min(player.buffer_time, buffer_length);
     
+    time = Math.max(0, time);
+    
     // user may override the on_player_timer, 
     // so set the data before invoke it.
     player.time = time;

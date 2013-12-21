@@ -94,6 +94,7 @@
                 srs_player = new SrsPlayer("player_id", url, 
                     srs_get_player_width(), srs_get_player_height());
                 srs_player.on_player_ready = function() {
+                    select_buffer_time("#btn_bt_0_8", 0.8);
                     srs_player.play();
                 }
                 srs_player.on_player_metadata = function(metadata) {
@@ -104,11 +105,6 @@
                 srs_player.on_player_timer = function(time, buffer_length) {
                     var buffer = buffer_length / srs_player.buffer_time * 100;
                     $("#pb_buffer").width(Number(buffer).toFixed(1) + "%");
-                    
-                    // @remark, hack the default buffer time.
-                    if (!__active_bt && time > 3) {
-                        select_buffer_time("#btn_bt_2", 2);
-                    }
                     
                     $("#pb_buffer_bg").attr("title", 
                         "缓冲区长度:" + Number(buffer_length).toFixed(1) + "秒(" 
