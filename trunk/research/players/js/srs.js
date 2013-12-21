@@ -80,11 +80,19 @@ function build_default_hls_url() {
 }
 
 /**
-* initialize the page.
-* @param rtmp_url the rtmp stream url to play
-* @param hls_url the hls stream url to play
+* player specified size.
 */
-function srs_init(rtmp_url, hls_url) {
+function srs_get_player_modal() { return 740; }
+function srs_get_player_width() { return srs_get_player_modal() - 30; }
+function srs_get_player_height() { return srs_get_player_width() * 9 / 19; }
+
+/**
+* initialize the page.
+* @param rtmp_url the div id contains the rtmp stream url to play
+* @param hls_url the div id contains the hls stream url to play
+* @param modal_player the div id contains the modal player
+*/
+function srs_init(rtmp_url, hls_url, modal_player) {
     update_nav();
     
     if (rtmp_url) {
@@ -92,6 +100,10 @@ function srs_init(rtmp_url, hls_url) {
     }
     if (hls_url) {
         $(hls_url).val(build_default_hls_url());
+    }
+    if (modal_player) {
+        $(modal_player).width(srs_get_player_modal() + "px");
+        $(modal_player).css("margin-left", "-" + srs_get_player_modal() / 2 +"px");
     }
 }
 

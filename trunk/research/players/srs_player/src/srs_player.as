@@ -258,8 +258,12 @@ package
                     // TODO: FIXME: failed event.
                 });
                 
-                var streamName:String = url.substr(url.lastIndexOf("/"));
-                stream.play(streamName);
+                if (url.indexOf("http") == 0) {
+                    stream.play(url);
+                } else {
+                    var streamName:String = url.substr(url.lastIndexOf("/"));
+                    stream.play(streamName);
+                }
                 
                 video = new Video();
                 video.width = _width;
@@ -274,8 +278,12 @@ package
                 setChildIndex(video, 0);
             });
             
-            var tcUrl:String = this.url.substr(0, this.url.lastIndexOf("/"));
-            this.conn.connect(tcUrl);
+            if (url.indexOf("http") == 0) {
+                this.conn.connect(null);
+            } else {
+                var tcUrl:String = this.url.substr(0, this.url.lastIndexOf("/"));
+                this.conn.connect(tcUrl);
+            }
         }
         
         private function on_metadata(metadata:Object):void {

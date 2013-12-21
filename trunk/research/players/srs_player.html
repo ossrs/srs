@@ -12,6 +12,17 @@
         body{
             padding-top: 55px;
         }
+        #my_modal_footer {
+            margin-top: -20px;
+            padding-top: 3px;
+        }
+        #div_play_time {
+            margin-top: 10px;
+        }
+        #pb_buffer_bg {
+            margin-top: -4px;
+            margin-bottom: 10px;
+        }
     </style>
     <script type="text/javascript">
         var srs_player = null;
@@ -56,7 +67,7 @@
             // get the vhost and port to set the default url.
             // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
             // url set to: rtmp://demo:1935/live/livestream
-            srs_init($("#txt_url"));
+            srs_init("#txt_url", null, "#main_modal");
             
             $("#fs_tips").tooltip({
                 title: "点击视频进入或退出全屏"
@@ -80,7 +91,8 @@
                 
                 var url = $("#txt_url").val();
                 
-                srs_player = new SrsPlayer("player_id", url, 530, 300);
+                srs_player = new SrsPlayer("player_id", url, 
+                    srs_get_player_width(), srs_get_player_height());
                 srs_player.on_player_ready = function() {
                     srs_player.play();
                 }
@@ -240,7 +252,7 @@
     <div id="main_modal" class="modal hide fade">
         <div class="modal-header">
             <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-            <h3>SrsPlayer</h3>
+            <h3><a href="https://github.com/winlinvip/simple-rtmp-server">SrsPlayer</a></h3>
         </div>
         <div class="modal-body">
             <div id="player"></div>
@@ -248,8 +260,8 @@
                 <div class="bar" style="width: 0%;" id="pb_buffer"></div>
             </div>
         </div>
-        <div class="modal-footer" style="margin-top:-20px;">
-            <div class="input-prepend" style="margin-top: 10px;">
+        <div class="modal-footer" id="my_modal_footer">
+            <div class="input-prepend" id="div_play_time">
               <span class="add-on" title="播放时长">@T</span>
               <input class="span2" style="width:85px" id="txt_time" type="text" placeholder="天 时:分:秒">
             </div>
@@ -258,7 +270,7 @@
                     <a id="fs_tips" href="#" data-toggle="tooltip" data-placement="top" title="">
                         <img src="img/tooltip.png"/>
                     </a>
-                    大小<span class="caret"></span>
+                    全屏大小<span class="caret"></span>
                 </button>
                 <ul class="dropdown-menu">
                     <li><a id="btn_fs_size_screen_100" href="#">屏幕大小(100%)</a></li>
@@ -270,11 +282,11 @@
                 </ul>
             </div>
             <div class="btn-group dropup">
-                <button class="btn dropdown-toggle" data-toggle="dropdown">比例<span class="caret"></span></button>
+                <button class="btn dropdown-toggle" data-toggle="dropdown">显示比例<span class="caret"></span></button>
                 <ul class="dropdown-menu">
                     <li><a id="btn_dar_original" href="#">视频原始比例</a></li>
                     <li><a id="btn_dar_21_9" href="#">宽屏影院(21:9)</a></li>
-                    <li><a id="btn_dar_16_9" href="#">宽屏电影(16:9)</a></li>
+                    <li><a id="btn_dar_16_9" href="#">宽屏电视(16:9)</a></li>
                     <li><a id="btn_dar_4_3" href="#">窄屏(4:3)</a></li>
                     <li><a id="btn_dar_fill" href="#">填充(容器比例)</a></li>
                 </ul>
