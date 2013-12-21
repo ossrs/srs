@@ -127,12 +127,16 @@
             // start the normal player with HLS supported.
             remote_player = new SrsPlayer("remote_player", 430, 185);
             remote_player.on_player_ready = function() {
+                remote_player.set_bt(0.8);
+                remote_player.set_fs("screen", 100);
             };
             remote_player.start();
             
             // start the realtime player.
             realtime_player = new SrsPlayer("realtime_player", 430, 185);
             realtime_player.on_player_ready = function() {
+                realtime_player.set_bt(0.8);
+                realtime_player.set_fs("screen", 100);
             };
             realtime_player.start();
         });
@@ -408,11 +412,11 @@
             <div class="span6">
                 <div class="accordion-group">
                     <div class="accordion-heading">
-                        <span class="accordion-toggle" data-toggle="collapse" href="#collapseOne">
+                        <span class="accordion-toggle" data-toggle="collapse" href="#collapse1">
                             <strong>本地摄像头</strong>
                         </span>
                     </div>
-                    <div id="collapseOne" class="accordion-body collapse in">
+                    <div id="collapse1" class="accordion-body collapse in">
                         <div class="accordion-inner">
                             <div id="local_publisher"></div>
                         </div>
@@ -422,14 +426,14 @@
             <div class="span6">
                 <div class="accordion-group">
                     <div class="accordion-heading">
-                        <span class="accordion-toggle" data-toggle="collapse" href="#collapseTwo">
+                        <span class="accordion-toggle" data-toggle="collapse" href="#collapse2">
                             <strong>远程服务器</strong>
                             <a id="remote_tips" href="#" data-toggle="tooltip" data-placement="top" title="">
                                 黑屏<img src="img/tooltip.png"/>
                             </a>
                         </span>
                     </div>
-                    <div id="collapseTwo" class="accordion-body collapse in">
+                    <div id="collapse2" class="accordion-body collapse in">
                         <div class="accordion-inner">
                             <div id="remote_player"></div>
                         </div>
@@ -443,14 +447,14 @@
             <div class="span6">
                 <div class="accordion-group">
                     <div class="accordion-heading">
-                        <span class="accordion-toggle" data-toggle="collapse" href="#collapseOne">
+                        <span class="accordion-toggle" data-toggle="collapse" href="#collapse3">
                             <strong>远程服务器</strong>
                             <a id="low_latecy_tips" href="#" data-toggle="tooltip" data-placement="top" title="">
                                 低延时<img src="img/tooltip.png"/>
                             </a>
                         </span>
                     </div>
-                    <div id="collapseOne" class="accordion-body collapse in">
+                    <div id="collapse3" class="accordion-body collapse in">
                         <div class="accordion-inner">
                             <div id="realtime_player"></div>
                         </div>
