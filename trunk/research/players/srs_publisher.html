@@ -16,6 +16,7 @@
     <script type="text/javascript">
         var srs_publisher = null;
         var remote_player = null;
+        var realtime_player = null;
         
         $(function(){
             // get the vhost and port to set the default url.
@@ -32,6 +33,9 @@
             
             $("#remote_tips").tooltip({
                 title: "为了支持HLS输出，FLASH编码器输出的流需要经过转码(VP6=>H264,MP3=>aac)，所以会黑屏较长时间，请耐心等待"
+            });
+            $("#low_latecy_tips").tooltip({
+                title: "服务器不转码直接转发FLASH编码器的流，所以延迟比支持HLS的流要低很多"
             });
             
             $("#btn_publish").click(on_user_publish);
@@ -120,11 +124,17 @@
             };
             srs_publisher.start();
             
-            // start the player.
+            // start the normal player with HLS supported.
             remote_player = new SrsPlayer("remote_player", 430, 185);
             remote_player.on_player_ready = function() {
             };
             remote_player.start();
+            
+            // start the realtime player.
+            realtime_player = new SrsPlayer("realtime_player", 430, 185);
+            realtime_player.on_player_ready = function() {
+            };
+            realtime_player.start();
         });
         
         /**
@@ -136,7 +146,8 @@
         * players_pub enalbed HLS.
         */
         function update_play_url() {
-            var ret = srs_parse_rtmp_url($("#txt_url").val());
+            var url = $("#txt_url").val();
+            var ret = srs_parse_rtmp_url(url);
             var query = parse_query_string();
             
             var srs_player_url = "http://" + query.host + query.dir + "/srs_player.html?";
@@ -149,17 +160,19 @@
             
             var hls_url = "http://" + ret.server + ":" + query.http_port + "/" + ret.app + "/" + ret.stream + ".m3u8";
             
-            $("#txt_play_url").text("点击或右键复制").attr("href", srs_player_url).attr("target", "_blank");
-            $("#txt_play_hls").text("点击或右键复制").attr("href", hls_url).attr("target", "_blank");
-            $("#txt_play_jwplayer").text("点击或右键复制").attr("href", jwplayer_url).attr("target", "_blank");
+            $("#txt_play_realtime").text("RTMP低延时(点击打开)").attr("href", url).attr("target", "_blank");
+            $("#txt_play_url").text("RTMP已转码(点击打开)").attr("href", srs_player_url).attr("target", "_blank");
+            $("#txt_play_hls").text("HLS-m3u8(点击打开或右键复制)").attr("href", hls_url).attr("target", "_blank");
+            $("#txt_play_jwplayer").text("HLS-JWPlayer(点击打开)").attr("href", jwplayer_url).attr("target", "_blank");
         }
         function on_user_publish() {
             if ($("#btn_publish").text() == "停止发布") {
                 srs_publisher.stop();
                 $("#btn_publish").text("发布视频");
-                $("#txt_play_url").text("请发布视频").attr("href", "#").attr("target", "_self");
-                $("#txt_play_hls").text("请发布视频").attr("href", "#").attr("target", "_self");
-                $("#txt_play_jwplayer").text("请发布视频").attr("href", "#").attr("target", "_self");
+                $("#txt_play_realtime").text("RTMP低延时(请发布视频)").attr("href", "#").attr("target", "_self");
+                $("#txt_play_url").text("RTMP已转码(请发布视频)").attr("href", "#").attr("target", "_self");
+                $("#txt_play_hls").text("HLS-m3u8(请发布视频)").attr("href", "#").attr("target", "_self");
+                $("#txt_play_jwplayer").text("HLS-JWPlayer(请发布视频)").attr("href", "#").attr("target", "_self");
                 return;
             }
             
@@ -188,7 +201,14 @@
             info("开始推流到服务器");
             srs_publisher.publish(url, vcodec, acodec);
             
-            // replay the url.
+            // directly play the url for the realtime player.
+            realtime_player.stop();
+            realtime_player.play(url);
+            
+            // the normal player should play the transcoded stream in another vhost.
+            // for example, publish stream to vhost players,
+            // the realtime player play the vhost players, which may donot support HLS,
+            // the normal player play the vhost players_pub, which transcoded to h264/aac with HLS.
             var ret = srs_parse_rtmp_url(url);
             var pub_url = "rtmp://" + ret.server + ":" + ret.port + "/" + ret.app;
             pub_url += "?vhost=" + srs_get_player_publish_vhost(ret.vhost) + "/" + ret.stream;
@@ -247,20 +267,11 @@
     </div>
     <div class="control-group">
         <div class="form-inline">
-            观看地址(rtmp地址):
-            <a id="txt_play_url" class="input-xxlarge" href="#">请发布视频</a>
-        </div>
-    </div>
-    <div class="control-group">
-        <div class="form-inline">
-            HLS地址(m3u8地址):
-            <a id="txt_play_hls" class="input-xxlarge" href="#">请发布视频</a>
-        </div>
-    </div>
-    <div class="control-group">
-        <div class="form-inline">
-            HLS地址(JWPlayer):
-            <a id="txt_play_jwplayer" class="input-xxlarge" href="#">请发布视频</a>
+            播放地址
+            1.<a id="txt_play_realtime" class="input-xxlarge" href="#">RTMP低延时(请发布视频)</a>
+            2.<a id="txt_play_url" class="input-xxlarge" href="#">RTMP已转码(请发布视频)</a>
+            3.<a id="txt_play_hls" class="input-xxlarge" href="#">HLS-m3u8(请发布视频)</a>
+            4.<a id="txt_play_jwplayer" class="input-xxlarge" href="#">HLS-JWPlayer(请发布视频)</a>
         </div>
     </div>
     <div id="video_modal" class="modal hide fade">
@@ -423,7 +434,29 @@
             </div>
         </div>
     </div>
-    <hr>
+    <div class="container">
+        <div class="row-fluid">
+            <div class="span6">
+                <div class="accordion-group">
+                    <div class="accordion-heading">
+                        <span class="accordion-toggle" data-toggle="collapse" href="#collapseOne">
+                            <strong>远程服务器</strong>
+                            <a id="low_latecy_tips" href="#" data-toggle="tooltip" data-placement="top" title="">
+                                低延时<img src="img/tooltip.png"/>
+                            </a>
+                        </span>
+                    </div>
+                    <div id="collapseOne" class="accordion-body collapse in">
+                        <div class="accordion-inner">
+                            <div id="realtime_player"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="span6">
+            </div>
+        </div>
+    </div>
     <footer>
         <p><a href="https://github.com/winlinvip/simple-rtmp-server">SRS Team &copy; 2013</a></p>
     </footer>
