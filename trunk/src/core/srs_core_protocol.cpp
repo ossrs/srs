@@ -2,6 +2,7 @@
 The MIT License (MIT)
 
 Copyright (c) 2013 winlin
+Copyright (c) 2013 wenjiegit
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -1355,10 +1356,6 @@ int SrsCommonMessage::decode_packet(SrsProtocol* protocol)
 		srs_verbose("start to decode set chunk size message.");
 		packet = new SrsSetChunkSizePacket();
 		return packet->decode(stream);
-    } else if(header.is_windows_ackledgement()) {
-        srs_verbose("start to decode AcknowledgementPacket message.");
-        packet = new SrsAcknowledgementPacket();
-        return packet->decode(stream);
     } else {
 		// default packet to drop message.
 		srs_trace("drop the unknown message, type=%d", header.message_type);

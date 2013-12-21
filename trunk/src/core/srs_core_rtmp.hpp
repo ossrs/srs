@@ -225,7 +225,7 @@ public:
     /**
     * used to process band width check from client.
     */
-    virtual int start_bandwidth_check(int max_play_kbps, int max_pub_kbps);
+    virtual int start_bandwidth_check(int limit_kbps);
 
 private:
 	virtual int identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, std::string& stream_name);

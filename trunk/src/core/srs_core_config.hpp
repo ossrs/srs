@@ -2,6 +2,7 @@
 The MIT License (MIT)
 
 Copyright (c) 2013 winlin
+Copyright (c) 2013 wenjiegit
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -164,13 +165,14 @@ public:
 	virtual SrsConfDirective*	get_refer_publish(std::string vhost);
 	virtual SrsConfDirective*	get_listen();
 	virtual int					get_chunk_size();
+    virtual int					get_chunk_size(const std::string& vhost);
 	virtual int					get_pithy_print_publish();
 	virtual int					get_pithy_print_forwarder();
 	virtual int					get_pithy_print_encoder();
 	virtual int					get_pithy_print_hls();
 	virtual int					get_pithy_print_play();
     virtual bool                get_bw_check_enabled(const std::string &vhost, const std::string &key);
-    virtual void                get_bw_check_settings(const std::string &vhost, int64_t &interval_ms, int &play_kbps, int &pub_kbps);
+    virtual void                get_bw_check_settings(const std::string &vhost, int64_t &interval_ms, int &limit_kbps);
 };
 
 /**

@@ -2,6 +2,7 @@
 The MIT License (MIT)
 
 Copyright (c) 2013 winlin
+Copyright (c) 2013 wenjiegit
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -153,32 +154,35 @@ int SrsClient::service_cycle()
 	}
 	srs_verbose("set peer bandwidth success");
 
-    if(config->get_bw_check_enabled(req->vhost, req->bw_key))
-    {
+    if (config->get_bw_check_enabled(req->vhost, req->bw_key)) {
         static int64_t last_check_time_ms = srs_get_system_time_ms();
         int64_t interval_ms = 0;
-        int     play_kbps   = 0;
-        int     pub_kbps    = 0;
-        config->get_bw_check_settings(req->vhost, interval_ms, play_kbps, pub_kbps);
+        int     limit_kbps   = 0;
+
+        config->get_bw_check_settings(req->vhost, interval_ms, limit_kbps);
 
         if((srs_get_system_time_ms() - last_check_time_ms) < interval_ms
                 && last_check_time_ms != srs_get_system_time_ms())
         {
             srs_trace("bandcheck interval less than limted interval. last time=%lld, current time=%lld"
                       , last_check_time_ms, srs_get_system_time_ms());
+
             return rtmp->response_connect_reject(req, "your bandcheck frequency is too high!");
         } else {
             last_check_time_ms = srs_get_system_time_ms();  // update last check time
             char* local_ip = 0;
-            if((ret = get_local_ip(local_ip)) != ERROR_SUCCESS){
+
+            if ((ret = get_local_ip(local_ip)) != ERROR_SUCCESS) {
                 srs_error("get local ip failed. ret = %d", ret);
                 return ret;
             }
+
             if ((ret = rtmp->response_connect_app(req, local_ip)) != ERROR_SUCCESS) {
                 srs_error("response connect app failed. ret=%d", ret);
                 return ret;
             }
-            return rtmp->start_bandwidth_check(play_kbps, pub_kbps);
+
+            return rtmp->start_bandwidth_check(limit_kbps);
         }
     }
 		
@@ -203,7 +207,7 @@ int SrsClient::service_cycle()
 	req->strip();
 	srs_trace("identify client success. type=%d, stream_name=%s", type, req->stream.c_str());
 	
-	int chunk_size = config->get_chunk_size();
+    int chunk_size = config->get_chunk_size(req->vhost);
 	if ((ret = rtmp->set_chunk_size(chunk_size)) != ERROR_SUCCESS) {
 		srs_error("set chunk_size=%d failed. ret=%d", chunk_size, ret);
 		return ret;

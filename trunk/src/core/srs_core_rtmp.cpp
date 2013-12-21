@@ -1106,7 +1106,7 @@ int SrsRtmp::start_flash_publish(int stream_id)
     return ret;
 }
 
-int SrsRtmp::start_bandwidth_check(int max_play_kbps, int max_pub_kbps)
+int SrsRtmp::start_bandwidth_check(int limit_kbps)
 {
     int ret = ERROR_SUCCESS;
 
@@ -1121,11 +1121,11 @@ int SrsRtmp::start_bandwidth_check(int max_play_kbps, int max_pub_kbps)
     int publish_bytes              = 0;
 
     int64_t start_time = srs_get_system_time_ms();
-    if((ret = bandwidth_check_play(play_duration_ms, play_interval_ms,
-                                   play_actual_duration_ms, play_bytes, max_play_kbps) != ERROR_SUCCESS)
+    if ((ret = bandwidth_check_play(play_duration_ms, play_interval_ms,
+                                   play_actual_duration_ms, play_bytes, limit_kbps) != ERROR_SUCCESS)
             || (ret = bandwidth_check_publish(publish_duration_ms, publish_interval_ms,
-                                   publish_actual_duration_ms, publish_bytes, max_pub_kbps)) != ERROR_SUCCESS)
-    {
+                                   publish_actual_duration_ms, publish_bytes, limit_kbps)) != ERROR_SUCCESS) {
+
         srs_error("band width check failed. ret = %d", ret);
 
         return ret;
@@ -1272,8 +1272,7 @@ int SrsRtmp::bandwidth_check_play(int duration_ms, int interval_ms, int &actual_
     // recv client's starting play response
     while (true) {
         SrsCommonMessage* msg = 0;
-        if( (ret = protocol->recv_message(&msg)) != ERROR_SUCCESS)
-        {
+        if ( (ret = protocol->recv_message(&msg)) != ERROR_SUCCESS) {
             srs_error("recv client's starting play response failed. ret= %d", ret);
             return ret;
         }
@@ -1286,21 +1285,19 @@ int SrsRtmp::bandwidth_check_play(int duration_ms, int interval_ms, int &actual_
     srs_trace("BW check recv play begin response.");
 
     // send play data to client
-    int64_t current_Time = srs_get_system_time_ms();
-    int size = 1024*4;   // 32KB
+    int64_t current_time = srs_get_system_time_ms();
+    int size = 1024;
     char random_data[size];
     memset(random_data, 0x01, size);
 
-    int64_t last_time = current_Time;
     int interval = 0;
-    while ( (srs_get_system_time_ms() - current_Time) < duration_ms ){
+    while ( (srs_get_system_time_ms() - current_time) < duration_ms ) {
         st_usleep(interval);
         SrsCommonMessage* msg = new SrsCommonMessage;
         SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket;
         pkt->command_name = SRS_BW_CHECK_PLAYING;
 
-        for(int i = 0; i < 10; ++i)
-        {
+        for (int i = 0; i < 100; ++i) {
             char buf[32];
             sprintf(buf, "%d", i);
             pkt->data->set(buf, new SrsAmf0String(random_data));
@@ -1310,22 +1307,24 @@ int SrsRtmp::bandwidth_check_play(int duration_ms, int interval_ms, int &actual_
         play_bytes += pkt->get_payload_length();
 
         if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
-           srs_error("send bandwidth check play messages failed. ret=%d", ret);
-           return ret;
-       }
+            srs_error("send bandwidth check play messages failed. ret=%d", ret);
+            return ret;
+        }
 
-        if((srs_get_system_time_ms() - last_time) > 5){ // check kbps every 5 ms;
-            int kbps = play_bytes * 8 / (srs_get_system_time_ms() - current_Time);
-            if(kbps > max_play_kbps){
-                interval += 1000*3;    // 2 ms
+        // sleep while current kbps <= max_play_kbps
+        int kbps = 0;
+        while (true) {
+            if(srs_get_system_time_ms() - current_time != 0)
+                kbps = play_bytes * 8 / (srs_get_system_time_ms() - current_time);
+
+            if (kbps > max_play_kbps) {
+                st_usleep(500);
             } else {
-                interval -= 1000*3;
-                if(interval < 0)
-                    interval = 0;
+                break;
             }
         }
     }
-    actual_duration_ms = srs_get_system_time_ms() - current_Time;
+    actual_duration_ms = srs_get_system_time_ms() - current_time;
     srs_trace("BW check send play bytes over.");
 
     // notify client to stop play
@@ -1348,8 +1347,7 @@ int SrsRtmp::bandwidth_check_play(int duration_ms, int interval_ms, int &actual_
     // recv client's stop play response.
     while (true) {
         SrsCommonMessage* msg = 0;
-        if((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS)
-        {
+        if ((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS) {
             srs_error("recv client's stop play response failed. ret = %d", ret);
             return ret;
         }
@@ -1386,8 +1384,7 @@ int SrsRtmp::bandwidth_check_publish(int duration_ms, int interval_ms, int &actu
     // read client's notification of starting publish
     while (true) {
         SrsCommonMessage* msg = 0;
-        if((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS)
-        {
+        if ((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS) {
             srs_error("recv client's notification of starting publish failed. ret = %d", ret);
             return ret;
         }
@@ -1401,12 +1398,8 @@ int SrsRtmp::bandwidth_check_publish(int duration_ms, int interval_ms, int &actu
 
     // recv publish msgs until @duration_ms ms
     int64_t current_time = srs_get_system_time_ms();
-    int64_t last_time = current_time;
-    int interval = 0;
-
-    while( (srs_get_system_time_ms() - current_time) < duration_ms )
-    {
-        st_usleep(interval);
+    while ( (srs_get_system_time_ms() - current_time) < duration_ms ) {
+        st_usleep(0);
         SrsCommonMessage* msg = NULL;
         if ((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS) {
             srs_error("recv message failed. ret=%d", ret);
@@ -1416,14 +1409,15 @@ int SrsRtmp::bandwidth_check_publish(int duration_ms, int interval_ms, int &actu
 
         publish_bytes += msg->header.payload_length;
 
-        if((srs_get_system_time_ms() - last_time) > 5){ // check kbps every 5 ms;
-            int kbps = publish_bytes * 8 / (srs_get_system_time_ms() - current_time);
-            if(kbps > max_pub_kbps){
-                interval += 1000*3;    // 2 ms
+        int kbps = 0;
+        while (true) {
+            if(srs_get_system_time_ms() - current_time != 0)
+                kbps = publish_bytes * 8 / (srs_get_system_time_ms() - current_time);
+
+            if (kbps > max_pub_kbps) {
+                st_usleep(500);
             } else {
-                interval -= 1000*3;
-                if(interval < 0)
-                    interval = 0;
+                break;
             }
         }
     }
@@ -1448,11 +1442,10 @@ int SrsRtmp::bandwidth_check_publish(int duration_ms, int interval_ms, int &actu
 
     // recv left msg
     while (true) {
-        if((ret = st_netfd_poll(stfd, POLLIN, 1000*500)) == ERROR_SUCCESS)
-        {
+        if((ret = st_netfd_poll(stfd, POLLIN, 1000*500)) == ERROR_SUCCESS) {
             SrsCommonMessage* msg = 0;
-            if((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS)
-            {
+
+            if ((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS) {
                 srs_error("recv client's left msg failed, ret = %d", ret);
                 return ret;
             }

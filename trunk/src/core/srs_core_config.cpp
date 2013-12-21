@@ -2,6 +2,7 @@
 The MIT License (MIT)
 
 Copyright (c) 2013 winlin
+Copyright (c) 2013 wenjiegit
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -1449,7 +1450,23 @@ int SrsConfig::get_chunk_size()
 		return SRS_CONF_DEFAULT_CHUNK_SIZE;
 	}
 	
-	return ::atoi(conf->arg0().c_str());
+    return ::atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_chunk_size(const std::string &vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return get_chunk_size();
+    }
+
+    SrsConfDirective* conf_vhost = conf->get("chunk_size");
+    if (!conf_vhost) {
+        return get_chunk_size();
+    }
+
+    return ::atoi(conf_vhost->arg0().c_str());
 }
 
 int SrsConfig::get_pithy_print_publish()
@@ -1524,12 +1541,11 @@ bool SrsConfig::get_bw_check_enabled(const std::string &vhost, const std::string
     return false;
 }
 
-void SrsConfig::get_bw_check_settings(const std::string &vhost, int64_t &interval_ms, int &play_kbps, int &pub_kbps)
+void SrsConfig::get_bw_check_settings(const std::string &vhost, int64_t &interval_ms, int &limit_kbps)
 {
     // set default value;
     interval_ms = 30 * 1000;
-    play_kbps   = 45000;
-    pub_kbps    = 25000;
+    limit_kbps   = 32000;
 
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
@@ -1537,20 +1553,19 @@ void SrsConfig::get_bw_check_settings(const std::string &vhost, int64_t &interva
     }
 
     SrsConfDirective* bw_test = conf->get("bandcheck");
-    if(!bw_test)
+    if (!bw_test) {
         return;
+    }
 
     SrsConfDirective* interval_conf = bw_test->get("interval");
-    if(interval_conf)
+    if (interval_conf) {
         interval_ms = ::atoll(interval_conf->arg0().c_str()) * 1000;
+    }
 
-    SrsConfDirective* play_conf = bw_test->get("max_play_kbps");
-    if(play_conf)
-        play_kbps = ::atoi(play_conf->arg0().c_str());
-
-    SrsConfDirective* pub_conf = bw_test->get("max_pub_kbps");
-    if(pub_conf)
-        pub_kbps = ::atoi(pub_conf->arg0().c_str());
+    SrsConfDirective* limit_kbps_conf = bw_test->get("limit_kbps");
+    if (limit_kbps_conf) {
+        limit_kbps = ::atoi(limit_kbps_conf->arg0().c_str());
+    }
 }
 
 int SrsConfig::get_pithy_print_encoder()
