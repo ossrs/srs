@@ -30,6 +30,10 @@
                 $("#audio_modal").modal({show:true});
             });
             
+            $("#remote_tips").tooltip({
+                title: "为了支持HLS输出，FLASH编码器输出的流需要经过转码(VP6=>H264,MP3=>aac)，所以会黑屏较长时间，请耐心等待"
+            });
+            
             $("#btn_publish").click(on_user_publish);
             
             // for publish, we use randome stream name.
@@ -405,6 +409,9 @@
                     <div class="accordion-heading">
                         <span class="accordion-toggle" data-toggle="collapse" href="#collapseTwo">
                             <strong>远程服务器</strong>
+                            <a id="remote_tips" href="#" data-toggle="tooltip" data-placement="top" title="">
+                                黑屏<img src="img/tooltip.png"/>
+                            </a>
                         </span>
                     </div>
                     <div id="collapseTwo" class="accordion-body collapse in">
