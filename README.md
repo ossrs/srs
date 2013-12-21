@@ -63,7 +63,7 @@ For example, use ffmpeg to publish:
 </pre>
 <strong>step 8:</strong> play live stream. <br/>
 <pre>
-players: http://demo.srs.com/players
+players: [http://demo.srs.com/players](http://demo.srs.com/players)
 rtmp url: rtmp://demo.srs.com/live/livestream
 m3u8 url: http://demo.srs.com/live/livestream.m3u8
 for android: http://demo.srs.com/live/livestream.html
@@ -72,22 +72,22 @@ for android: http://demo.srs.com/live/livestream.html
 <pre>
 rtmp url: rtmp://demo.srs.com/live/livestream_ld
 m3u8 url: http://demo.srs.com/live/livestream_ld.m3u8
-for android: http://demo.srs.com/live/livestream_ld.html
+for android: [http://demo.srs.com/live/livestream_ld.html](http://demo.srs.com/live/livestream_ld.html)
 rtmp url: rtmp://demo.srs.com/live/livestream_sd
 m3u8 url: http://demo.srs.com/live/livestream_sd.m3u8
-for android: http://demo.srs.com/live/livestream_sd.html
+for android: [http://demo.srs.com/live/livestream_sd.html](http://demo.srs.com/live/livestream_sd.html)
 </pre>
 <strong>step 10(optinal):</strong> play live stream auto forwarded, the hls dir change to /forward<br/>
 <pre>
 rtmp url: rtmp://demo.srs.com:19350/live/livestream
 m3u8 url: http://demo.srs.com/forward/live/livestream.m3u8
-for android: http://demo.srs.com/forward/live/livestream.html
+for android: [http://demo.srs.com/forward/live/livestream.html](http://demo.srs.com/forward/live/livestream.html)
 rtmp url: rtmp://demo.srs.com:19350/live/livestream_ld
 m3u8 url: http://demo.srs.com/forward/live/livestream_ld.m3u8
-for android: http://demo.srs.com/forward/live/livestream_ld.html
+for android: [http://demo.srs.com/forward/live/livestream_ld.html](http://demo.srs.com/forward/live/livestream_ld.html)
 rtmp url: rtmp://demo.srs.com:19350/live/livestream_sd
 m3u8 url: http://demo.srs.com/forward/live/livestream_sd.m3u8
-for android: http://demo.srs.com/forward/live/livestream_sd.html
+for android: [http://demo.srs.com/forward/live/livestream_sd.html](http://demo.srs.com/forward/live/livestream_sd.html)
 </pre>
 <strong>step 11(optinal):</strong> modify the config and reload it (all features support reload)<br/>
 <pre>
