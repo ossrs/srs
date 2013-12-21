@@ -43,6 +43,13 @@
                 for (var i = 0; i < cameras.length; i++) {
                     $("#sl_cameras").append("<option value='" + i + "'>" + cameras[i] + "</option");
                 }
+                // optional: select the first no "virtual" signed.
+                for (var i = 0; i < cameras.length; i++) {
+                    if (cameras[i].toLowerCase().indexOf("virtual") == -1) {
+                        $("#sl_cameras option[value='" + i + "']").attr("selected", true);
+                        break;
+                    }
+                }
                 
                 $("#sl_microphones").empty();
                 for (var i = 0; i < microphones.length; i++) {
