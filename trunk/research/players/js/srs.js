@@ -89,6 +89,9 @@ function srs_get_player_modal() { return 740; }
 function srs_get_player_width() { return srs_get_player_modal() - 30; }
 function srs_get_player_height() { return srs_get_player_width() * 9 / 19; }
 
+// to query the swf anti cache.
+function srs_get_version_code() { return "1.0"; }
+
 /**
 * initialize the page.
 * @param rtmp_url the div id contains the rtmp stream url to play
@@ -155,6 +158,7 @@ SrsPlayer.prototype.start = function() {
     flashvars.on_player_ready = "__srs_on_player_ready";
     flashvars.on_player_metadata = "__srs_on_player_metadata";
     flashvars.on_player_timer = "__srs_on_player_timer";
+    flashvars.version = srs_get_version_code();
     
     var params = {};
     params.wmode = "opaque";
@@ -336,6 +340,7 @@ SrsPublisher.prototype.start = function() {
     flashvars.id = this.id;
     flashvars.on_publisher_ready = "__srs_on_publisher_ready";
     flashvars.on_publisher_error = "__srs_on_publisher_error";
+    flashvars.version = srs_get_version_code();
     
     var params = {};
     params.wmode = "opaque";
