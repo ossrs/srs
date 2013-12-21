@@ -254,6 +254,7 @@
             
             var query = parse_query_string();
             if (query.autostart == "true") {
+                url = $("#txt_url").val();
                 $("#main_modal").modal({show:true, keyboard:false});
             }
         });
