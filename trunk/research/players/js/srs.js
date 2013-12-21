@@ -158,7 +158,7 @@ function srs_get_player_width() { return srs_get_player_modal() - 30; }
 function srs_get_player_height() { return srs_get_player_width() * 9 / 19; }
 
 // to query the swf anti cache.
-function srs_get_version_code() { return "1.1"; }
+function srs_get_version_code() { return "1.3"; }
 // get the default vhost for players.
 function srs_get_player_vhost() { return "players"; }
 // get the stream published to vhost,
