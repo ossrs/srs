@@ -116,11 +116,10 @@ function srs_init(rtmp_url, hls_url, modal_player) {
 /**
 * the SrsPlayer object.
 * @param container the html container id.
-* @param stream_url the url of stream, rtmp or http.
 * @param width a float value specifies the width of player.
 * @param height a float value specifies the height of player.
 */
-function SrsPlayer(container, stream_url, width, height) {
+function SrsPlayer(container, width, height) {
     if (!SrsPlayer.__id) {
         SrsPlayer.__id = 100;
     }
@@ -131,12 +130,12 @@ function SrsPlayer(container, stream_url, width, height) {
     SrsPlayer.__players.push(this);
     
     this.container = container;
-    this.stream_url = stream_url;
     this.width = width;
     this.height = height;
     this.id = SrsPlayer.__id++;
-    this.callbackObj = null;
+    this.stream_url = null;
     this.buffer_time = 0.8; // default to 0.8
+    this.callbackObj = null;
     
     // callback set the following values.
     this.meatadata = {}; // for on_player_metadata
@@ -178,7 +177,12 @@ SrsPlayer.prototype.start = function() {
     
     return this;
 }
-SrsPlayer.prototype.play = function() {
+/**
+* play the stream.
+* @param stream_url the url of stream, rtmp or http.
+*/
+SrsPlayer.prototype.play = function(url) {
+    this.stream_url = url;
     this.callbackObj.ref.__play(this.stream_url, this.width, this.height, this.buffer_time);
 }
 SrsPlayer.prototype.stop = function() {
@@ -233,7 +237,6 @@ SrsPlayer.prototype.set_bt = function(buffer_time) {
     this.callbackObj.ref.__set_bt(buffer_time);
 }
 SrsPlayer.prototype.on_player_ready = function() {
-    this.play();
 }
 SrsPlayer.prototype.on_player_metadata = function(metadata) {
     // ignore.
@@ -286,4 +289,131 @@ function __srs_on_player_timer(id, time, buffer_length) {
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
+/**
+* the SrsPublisher object.
+* @param container the html container id.
+* @param width a float value specifies the width of publisher.
+* @param height a float value specifies the height of publisher.
+*/
+function SrsPublisher(container, width, height) {
+    if (!SrsPublisher.__id) {
+        SrsPublisher.__id = 100;
+    }
+    if (!SrsPublisher.__publishers) {
+        SrsPublisher.__publishers = [];
+    }
+    
+    SrsPublisher.__publishers.push(this);
+    
+    this.container = container;
+    this.width = width;
+    this.height = height;
+    this.id = SrsPublisher.__id++;
+    this.callbackObj = null;
+    
+    // set the values when publish.
+    this.url = null;
+    this.vcodec = {};
+    this.acodec = {};
+    
+    // callback set the following values.
+    this.cameras = [];
+    this.microphones = [];
+    this.code = 0;
+    
+    // error code defines.
+    this.error_device_muted = 100;
+}
+/**
+* user can set some callback, then start the publisher.
+* callbacks:
+*      on_publisher_ready(cameras, microphones):int, when srs publisher ready, user can publish.
+*      on_publisher_error(code):int, when srs publisher error, callback this method.
+*/
+SrsPublisher.prototype.start = function() {
+    // embed the flash.
+    var flashvars = {};
+    flashvars.id = this.id;
+    flashvars.on_publisher_ready = "__srs_on_publisher_ready";
+    flashvars.on_publisher_error = "__srs_on_publisher_error";
+    
+    var params = {};
+    params.wmode = "opaque";
+    params.allowFullScreen = "true";
+    params.allowScriptAccess = "always";
+    
+    var attributes = {};
+    
+    var self = this;
+    
+    swfobject.embedSWF(
+        "srs_publisher/release/srs_publisher.swf", this.container,
+        this.width, this.height,
+        "11.1", "js/AdobeFlashPlayerInstall.swf",
+        flashvars, params, attributes,
+        function(callbackObj){
+            self.callbackObj = callbackObj;
+        }
+    );
+    
+    return this;
+}
+/**
+* publish stream to server.
+* @param url a string indicates the rtmp url to publish.
+* @param vcodec an object contains the video codec info.
+* @param acodec an object contains the audio codec info.
+*/
+SrsPublisher.prototype.publish = function(url, vcodec, acodec) {
+    this.url = url;
+    this.vcodec = vcodec;
+    this.acodec = acodec;
+    
+    this.callbackObj.ref.__publish(url, this.width, this.height, vcodec, acodec);
+}
+SrsPublisher.prototype.stop = function() {
+    this.callbackObj.ref.__stop();
+}
+/**
+* when publisher ready.
+* @param cameras a string array contains the names of cameras.
+* @param microphones a string array contains the names of microphones.
+*/
+SrsPublisher.prototype.on_publisher_ready = function(cameras, microphones) {
+}
+/**
+* when publisher error.
+* @code the error code.
+*/
+SrsPublisher.prototype.on_publisher_error = function(code) {
+    throw new Error("publisher error. code=" + code);
+}
+function __srs_find_publisher(id) {
+    for (var i = 0; i < SrsPublisher.__publishers.length; i++) {
+        var publisher = SrsPublisher.__publishers[i];
+        
+        if (publisher.id != id) {
+            continue;
+        }
+        
+        return publisher;
+    }
+    
+    throw new Error("publisher not found. id=" + id);
+}
+function __srs_on_publisher_ready(id, cameras, microphones) {
+    var publisher = __srs_find_publisher(id);
+    
+    publisher.cameras = cameras;
+    publisher.microphones = microphones;
+    
+    publisher.on_publisher_ready(cameras, microphones);
+}
+function __srs_on_publisher_error(id, code) {
+    var publisher = __srs_find_publisher(id);
+    
+    publisher.code = code;
+    
+    publisher.on_publisher_error(code);
+}
 

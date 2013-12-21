@@ -258,6 +258,10 @@ package
          * function for js to call: to stop the stream. ignore if not play.
          */
         private function js_call_stop():void {
+            if (this.media_video) {
+                this.removeChild(this.media_video);
+                this.media_video = null;
+            }
             if (this.media_stream) {
                 this.media_stream.close();
                 this.media_stream = null;
@@ -265,10 +269,6 @@ package
             if (this.media_conn) {
                 this.media_conn.close();
                 this.media_conn = null;
-            }
-            if (this.media_video) {
-                this.removeChild(this.media_video);
-                this.media_video = null;
             }
         }
         

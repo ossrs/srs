@@ -35,14 +35,13 @@
             $("#main_modal").on("show", function(){
                 $("#div_container").remove();
                 
-                var obj = $("<div/>");
-                $(obj).attr("id", "div_container");
+                var div_container = $("<div/>");
+                $(div_container).attr("id", "div_container");
+                $("#player").append(div_container);
                 
                 var player = $("<div/>");
-                $(obj).append(player);
-                $(obj).attr("id", "player_id");
-                
-                $("#player").append(obj);
+                $(player).attr("id", "player_id");
+                $(div_container).append(player);
                 
                 var conf = {
                     file: _url,

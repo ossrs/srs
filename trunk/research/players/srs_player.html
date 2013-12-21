@@ -80,28 +80,26 @@
                 
                 $("#div_container").remove();
                 
-                var obj = $("<div/>");
-                $(obj).attr("id", "div_container");
+                var div_container = $("<div/>");
+                $(div_container).attr("id", "div_container");
+                $("#player").append(div_container);
                 
                 var player = $("<div/>");
-                $(obj).append(player);
-                $(obj).attr("id", "player_id");
-                
-                $("#player").append(obj);
+                $(player).attr("id", "player_id");
+                $(div_container).append(player);
                 
                 var url = $("#txt_url").val();
                 
-                srs_player = new SrsPlayer("player_id", url, 
-                    srs_get_player_width(), srs_get_player_height());
+                srs_player = new SrsPlayer("player_id", srs_get_player_width(), srs_get_player_height());
                 srs_player.on_player_ready = function() {
                     select_buffer_time("#btn_bt_0_8", 0.8);
-                    srs_player.play();
-                }
+                    srs_player.play(url);
+                };
                 srs_player.on_player_metadata = function(metadata) {
                     $("#btn_dar_original").text("视频原始比例" + "(" + metadata.width + ":" + metadata.height + ")");
                     select_dar("#btn_dar_original", 0, 0);
                     select_fs_size("#btn_fs_size_screen_100", "screen", 100);
-                }
+                };
                 srs_player.on_player_timer = function(time, buffer_length) {
                     var buffer = buffer_length / srs_player.buffer_time * 100;
                     $("#pb_buffer").width(Number(buffer).toFixed(1) + "%");
@@ -124,7 +122,7 @@
                     time_str += padding(parseInt(time), 2, '0');
                     // show
                     $("#txt_time").val(time_str);
-                }
+                };
                 srs_player.start();
             });
             
@@ -217,6 +215,11 @@
                 $("#btn_bt_30").click(function(){
                     select_buffer_time("#btn_bt_30", 30);
                 });
+            }
+            
+            var query = parse_query_string();
+            if (query.autostart == "true") {
+                $("#main_modal").modal({show:true, keyboard:false});
             }
         });
     </script>
