@@ -32,6 +32,8 @@
             
             $("#btn_publish").click(on_user_publish);
             
+            // for publish, we use randome stream name.
+            $("#txt_url").val($("#txt_url").val() + "." + new Date().getTime());
             update_play_url();
             
             // start the publisher.
