@@ -22,54 +22,60 @@ package
     public class srs_player extends Sprite
     {
         // user set id.
-        private var id:String = null;
+        private var js_id:String = null;
         // user set callback
-        private var on_player_ready:String = null;
-        private var on_player_metadata:String = null;
-        private var on_player_timer:String = null;
+        private var js_on_player_ready:String = null;
+        private var js_on_player_metadata:String = null;
+        private var js_on_player_timer:String = null;
         
         // play param url.
-        private var url:String = null;
+        private var user_url:String = null;
         // play param, user set width and height
-        private var w:int = 0;
-        private var h:int = 0;
+        private var user_w:int = 0;
+        private var user_h:int = 0;
         // user set dar den:num
-        private var dar_num:int = 0;
-        private var dar_den:int = 0;
+        private var user_dar_num:int = 0;
+        private var user_dar_den:int = 0;
         // user set fs(fullscreen) refer and percent.
-        private var fs_refer:String = null;
-        private var fs_percent:int = 0;
+        private var user_fs_refer:String = null;
+        private var user_fs_percent:int = 0;
         
-        private var conn:NetConnection = null;
-        private var stream:NetStream = null;
-        private var video:Video = null;
-        private var metadata:Object = {};
-        private var timer:Timer = new Timer(300);
+        // media specified.
+        private var media_conn:NetConnection = null;
+        private var media_stream:NetStream = null;
+        private var media_video:Video = null;
+        private var media_metadata:Object = {};
+        private var media_timer:Timer = new Timer(300);
         
+        // controls.
         // flash donot allow js to set to fullscreen,
         // only allow user click to enter fullscreen.
-        private var fs_mask:Sprite = new Sprite();
+        private var control_fs_mask:Sprite = new Sprite();
         
         public function srs_player()
         {
-            flash.system.Security.allowDomain("*");
-            
             if (!this.stage) {
-                this.addEventListener(Event.ADDED_TO_STAGE, this.onAddToStage);
+                this.addEventListener(Event.ADDED_TO_STAGE, this.system_on_add_to_stage);
             } else {
-                this.onAddToStage(null);
+                this.system_on_add_to_stage(null);
             }
         }
         
-        private function onAddToStage(evt:Event):void {
+        /**
+        * system event callback, when this control added to stage.
+        * the main function.
+        */
+        private function system_on_add_to_stage(evt:Event):void {
+            this.removeEventListener(Event.ADDED_TO_STAGE, this.system_on_add_to_stage);
+            
             this.stage.align = StageAlign.TOP_LEFT;
             this.stage.scaleMode = StageScaleMode.NO_SCALE;
             
-            this.stage.addEventListener(FullScreenEvent.FULL_SCREEN, this.on_stage_fullscreen);
+            this.stage.addEventListener(FullScreenEvent.FULL_SCREEN, this.user_on_stage_fullscreen);
             
-            this.addChild(this.fs_mask);
-            this.fs_mask.buttonMode = true;
-            this.fs_mask.addEventListener(MouseEvent.CLICK, on_user_click_video);
+            this.addChild(this.control_fs_mask);
+            this.control_fs_mask.buttonMode = true;
+            this.control_fs_mask.addEventListener(MouseEvent.CLICK, user_on_click_video);
             
             this.contextMenu = new ContextMenu();
             this.contextMenu.hideBuiltInItems();
@@ -83,40 +89,25 @@ package
                 throw new Error("must specifies the on_player_ready");
             }
             
-            this.id = flashvars.id;
-            this.on_player_ready = flashvars.on_player_ready;
-            this.on_player_metadata = flashvars.on_player_metadata;
-            this.on_player_timer = flashvars.on_player_timer;
+            this.js_id = flashvars.id;
+            this.js_on_player_ready = flashvars.on_player_ready;
+            this.js_on_player_metadata = flashvars.on_player_metadata;
+            this.js_on_player_timer = flashvars.on_player_timer;
             
-            this.timer.addEventListener(TimerEvent.TIMER, this.on_timer);
-            this.timer.start();
+            this.media_timer.addEventListener(TimerEvent.TIMER, this.system_on_timer);
+            this.media_timer.start();
             
-            flash.utils.setTimeout(this.on_js_ready, 0);
+            flash.utils.setTimeout(this.system_on_js_ready, 0);
         }
         
-        private function on_timer(evt:TimerEvent):void {
-            if (!this.stream) {
-                trace("stream is null, ignore timer event.");
-                return;
-            }
-            
-            trace("notify js the timer event.");
-            flash.external.ExternalInterface.call(
-                this.on_player_timer, this.id, this.stream.time, this.stream.bufferLength);
-        }
-        
-        private function on_stage_fullscreen(evt:FullScreenEvent):void {
-            if (!evt.fullScreen) {
-                execute_user_set_dar();
-            } else {
-                execute_user_enter_fullscreen();
-            }
-        }
-        
-        private function on_js_ready():void {
+        /**
+         * system callack event, when js ready, register callback for js.
+         * the actual main function.
+         */
+        private function system_on_js_ready():void {
             if (!flash.external.ExternalInterface.available) {
                 trace("js not ready, try later.");
-                flash.utils.setTimeout(this.on_js_ready, 100);
+                flash.utils.setTimeout(this.system_on_js_ready, 100);
                 return;
             }
             
@@ -128,53 +119,74 @@ package
             flash.external.ExternalInterface.addCallback("__set_fs", this.js_call_set_fs_size);
             flash.external.ExternalInterface.addCallback("__set_bt", this.js_call_set_bt);
             
-            flash.external.ExternalInterface.call(this.on_player_ready, this.id);
-        }
-        
-        private function js_call_pause():void {
-            if (this.stream) {
-                this.stream.pause();
-            }
-        }
-        
-        private function js_call_resume():void {
-            if (this.stream) {
-                this.stream.resume();
-            }
+            flash.external.ExternalInterface.call(this.js_on_player_ready, this.js_id);
         }
         
         /**
-         * to set the DAR, for example, DAR=16:9
-         * @param num, for example, 9. 
-         *       use metadata height if 0.
-         *       use user specified height if -1.
-         * @param den, for example, 16. 
-         *       use metadata width if 0.
-         *       use user specified width if -1.
-         */
-        private function js_call_dar(num:int, den:int):void {
-            dar_num = num;
-            dar_den = den;
-            
-            flash.utils.setTimeout(execute_user_set_dar, 0);
-        }
-        
-        /**
-         * set the fullscreen size data.
-         * @refer the refer fullscreen mode. it can be:
-         *       video: use video orignal size.
-         *       screen: use screen size to rescale video.
-         * @param percent, the rescale percent, where
-         *       100 means 100%.
-         */
-        private function js_call_set_fs_size(refer:String, percent:int):void {
-            fs_refer = refer;
-            fs_percent = percent;
-        }
-        /**
-        * js cannot enter the fullscreen mode, user must click to.
+        * system callack event, timer to do some regular tasks.
         */
-        private function on_user_click_video(evt:MouseEvent):void {
+        private function system_on_timer(evt:TimerEvent):void {
+            if (!this.media_stream) {
+                trace("stream is null, ignore timer event.");
+                return;
+            }
+            
+            trace("notify js the timer event.");
+            flash.external.ExternalInterface.call(
+                this.js_on_player_timer, this.js_id, this.media_stream.time, this.media_stream.bufferLength);
+        }
+        
+        /**
+         * system callack event, when got metadata from stream.
+         * or got video dimension change event(the DAR notification), to update the metadata manually.
+         */
+        private function system_on_metadata(metadata:Object):void {
+            this.media_metadata = metadata;
+            
+            // for context menu
+            var customItems:Array = [new ContextMenuItem("SrsPlayer")];
+            if (metadata.hasOwnProperty("server")) {
+                customItems.push(new ContextMenuItem("Server: " + metadata.server));
+            }
+            if (metadata.hasOwnProperty("contributor")) {
+                customItems.push(new ContextMenuItem("Contributor: " + metadata.contributor));
+            }
+            contextMenu.customItems = customItems;
+            
+            // for js.
+            var obj:Object = __get_video_size_object();
+            
+            obj.server = 'srs';
+            obj.contributor = 'winlin';
+            
+            if (metadata.hasOwnProperty("server")) {
+                obj.server = metadata.server;
+            }
+            if (metadata.hasOwnProperty("contributor")) {
+                obj.contributor = metadata.contributor;
+            }
+            
+            var code:int = flash.external.ExternalInterface.call(js_on_player_metadata, js_id, obj);
+            if (code != 0) {
+                throw new Error("callback on_player_metadata failed. code=" + code);
+            }
+        }
+        
+        /**
+         * player callack event, when user click video to enter or leave fullscreen.
+         */
+        private function user_on_stage_fullscreen(evt:FullScreenEvent):void {
+            if (!evt.fullScreen) {
+                __execute_user_set_dar();
+            } else {
+                __execute_user_enter_fullscreen();
+            }
+        }
+        
+        /**
+         * user event callback, js cannot enter the fullscreen mode, user must click to.
+         */
+        private function user_on_click_video(evt:MouseEvent):void {
             if (!this.stage.allowsFullScreen) {
                 trace("donot allow fullscreen.");
                 return;
@@ -189,54 +201,99 @@ package
         }
         
         /**
+         * function for js to call: to pause the stream. ignore if not play.
+         */
+        private function js_call_pause():void {
+            if (this.media_stream) {
+                this.media_stream.pause();
+            }
+        }
+        
+        /**
+         * function for js to call: to resume the stream. ignore if not play.
+         */
+        private function js_call_resume():void {
+            if (this.media_stream) {
+                this.media_stream.resume();
+            }
+        }
+        
+        /**
+         * to set the DAR, for example, DAR=16:9
+         * @param num, for example, 9. 
+         *       use metadata height if 0.
+         *       use user specified height if -1.
+         * @param den, for example, 16. 
+         *       use metadata width if 0.
+         *       use user specified width if -1.
+         */
+        private function js_call_dar(num:int, den:int):void {
+            user_dar_num = num;
+            user_dar_den = den;
+            
+            flash.utils.setTimeout(__execute_user_set_dar, 0);
+        }
+        
+        /**
+         * set the fullscreen size data.
+         * @refer the refer fullscreen mode. it can be:
+         *       video: use video orignal size.
+         *       screen: use screen size to rescale video.
+         * @param percent, the rescale percent, where
+         *       100 means 100%.
+         */
+        private function js_call_set_fs_size(refer:String, percent:int):void {
+            user_fs_refer = refer;
+            user_fs_percent = percent;
+        }
+        
+        /**
          * set the stream buffer time in seconds.
          * @buffer_time the buffer time in seconds.
          */
         private function js_call_set_bt(buffer_time:Number):void {
-            if (this.stream) {
-                this.stream.bufferTime = buffer_time;
+            if (this.media_stream) {
+                this.media_stream.bufferTime = buffer_time;
             }
         }
         
+        /**
+         * function for js to call: to stop the stream. ignore if not play.
+         */
         private function js_call_stop():void {
-            if (this.stream) {
-                this.stream.close();
-                this.stream = null;
+            if (this.media_stream) {
+                this.media_stream.close();
+                this.media_stream = null;
             }
-            if (this.conn) {
-                this.conn.close();
-                this.conn = null;
+            if (this.media_conn) {
+                this.media_conn.close();
+                this.media_conn = null;
             }
-            if (this.video) {
-                this.removeChild(this.video);
-                this.video = null;
+            if (this.media_video) {
+                this.removeChild(this.media_video);
+                this.media_video = null;
             }
         }
         
-        private function draw_black_background(_width:int, _height:int):void {
-            // draw black bg.
-            this.graphics.beginFill(0x00, 1.0);
-            this.graphics.drawRect(0, 0, _width, _height);
-            this.graphics.endFill();
-            
-            // draw the fs mask.
-            this.fs_mask.graphics.beginFill(0xff0000, 0);
-            this.fs_mask.graphics.drawRect(0, 0, _width, _height);
-            this.fs_mask.graphics.endFill();
-        }
-        
-        private function js_call_play(url:String, _width:int, _height:int, _buffer_time:Number):void {
-            this.url = url;
-            this.w = _width;
-            this.h = _height;
-            trace("start to play url: " + this.url + ", w=" + this.w + ", h=" + this.h);
+        /**
+         * function for js to call: to play the stream. stop then play.
+         * @param url, the rtmp/http url to play.
+         * @param _width, the player width.
+         * @param _height, the player height.
+         * @param buffer_time, the buffer time in seconds. recommend to >=0.5
+         */
+        private function js_call_play(url:String, _width:int, _height:int, buffer_time:Number):void {
+            this.user_url = url;
+            this.user_w = _width;
+            this.user_h = _height;
+            trace("start to play url: " + this.user_url + ", w=" + this.user_w + ", h=" + this.user_h);
             
             js_call_stop();
             
-            this.conn = new NetConnection();
-            this.conn.client = {};
-            this.conn.client.onBWDone = function():void {};
-            this.conn.addEventListener(NetStatusEvent.NET_STATUS, function(evt:NetStatusEvent):void {
+            this.media_conn = new NetConnection();
+            this.media_conn.client = {};
+            this.media_conn.client.onBWDone = function():void {};
+            this.media_conn.addEventListener(NetStatusEvent.NET_STATUS, function(evt:NetStatusEvent):void {
                 trace ("NetConnection: code=" + evt.info.code);
                 
                 // TODO: FIXME: failed event.
@@ -244,77 +301,45 @@ package
                     return;
                 }
                 
-                stream = new NetStream(conn);
-                stream.bufferTime = _buffer_time;
-                stream.client = {};
-                stream.client.onMetaData = on_metadata;
-                stream.addEventListener(NetStatusEvent.NET_STATUS, function(evt:NetStatusEvent):void {
+                media_stream = new NetStream(media_conn);
+                media_stream.bufferTime = buffer_time;
+                media_stream.client = {};
+                media_stream.client.onMetaData = system_on_metadata;
+                media_stream.addEventListener(NetStatusEvent.NET_STATUS, function(evt:NetStatusEvent):void {
                     trace ("NetStream: code=" + evt.info.code);
                     
                     if (evt.info.code == "NetStream.Video.DimensionChange") {
-                        on_metadata(metadata);
+                        system_on_metadata(media_metadata);
                     }
                     
                     // TODO: FIXME: failed event.
                 });
                 
                 if (url.indexOf("http") == 0) {
-                    stream.play(url);
+                    media_stream.play(url);
                 } else {
                     var streamName:String = url.substr(url.lastIndexOf("/"));
-                    stream.play(streamName);
+                    media_stream.play(streamName);
                 }
                 
-                video = new Video();
-                video.width = _width;
-                video.height = _height;
-                video.attachNetStream(stream);
-                video.smoothing = true;
-                addChild(video);
+                media_video = new Video();
+                media_video.width = _width;
+                media_video.height = _height;
+                media_video.attachNetStream(media_stream);
+                media_video.smoothing = true;
+                addChild(media_video);
                 
-                draw_black_background(_width, _height);
+                __draw_black_background(_width, _height);
                 
                 // lowest layer, for mask to cover it.
-                setChildIndex(video, 0);
+                setChildIndex(media_video, 0);
             });
             
             if (url.indexOf("http") == 0) {
-                this.conn.connect(null);
+                this.media_conn.connect(null);
             } else {
-                var tcUrl:String = this.url.substr(0, this.url.lastIndexOf("/"));
-                this.conn.connect(tcUrl);
-            }
-        }
-        
-        private function on_metadata(metadata:Object):void {
-            this.metadata = metadata;
-            
-            // for context menu
-            var customItems:Array = [new ContextMenuItem("SrsPlayer")];
-            if (metadata.hasOwnProperty("server")) {
-                customItems.push(new ContextMenuItem("Server: " + metadata.server));
-            }
-            if (metadata.hasOwnProperty("contributor")) {
-                customItems.push(new ContextMenuItem("Contributor: " + metadata.contributor));
-            }
-            contextMenu.customItems = customItems;
-            
-            // for js.
-            var obj:Object = get_video_size_object();
-            
-            obj.server = 'srs';
-            obj.contributor = 'winlin';
-            
-            if (metadata.hasOwnProperty("server")) {
-                obj.server = metadata.server;
-            }
-            if (metadata.hasOwnProperty("contributor")) {
-                obj.contributor = metadata.contributor;
-            }
-            
-            var code:int = flash.external.ExternalInterface.call(on_player_metadata, id, obj);
-            if (code != 0) {
-                throw new Error("callback on_player_metadata failed. code=" + code);
+                var tcUrl:String = this.user_url.substr(0, this.user_url.lastIndexOf("/"));
+                this.media_conn.connect(tcUrl);
             }
         }
         
@@ -324,26 +349,26 @@ package
         * 2. override with metadata size if specified.
         * 3. override with codec size if specified.
         */
-        private function get_video_size_object():Object {
+        private function __get_video_size_object():Object {
             var obj:Object = {
-                width: video.width,
-                height: video.height
+                width: media_video.width,
+                height: media_video.height
             };
             
             // override with metadata size.
-            if (metadata.hasOwnProperty("width")) {
-                obj.width = metadata.width;
+            if (this.media_metadata.hasOwnProperty("width")) {
+                obj.width = this.media_metadata.width;
             }
-            if (metadata.hasOwnProperty("height")) {
-                obj.height = metadata.height;
+            if (this.media_metadata.hasOwnProperty("height")) {
+                obj.height = this.media_metadata.height;
             }
             
             // override with codec size.
-            if (video.videoWidth > 0) {
-                obj.width = video.videoWidth;
+            if (media_video.videoWidth > 0) {
+                obj.width = media_video.videoWidth;
             }
-            if (video.videoHeight > 0) {
-                obj.height = video.videoHeight;
+            if (media_video.videoHeight > 0) {
+                obj.height = media_video.videoHeight;
             }
             
             return obj;
@@ -352,17 +377,17 @@ package
         /**
         * execute the enter fullscreen action.
         */
-        private function execute_user_enter_fullscreen():void {
-            if (!fs_refer || fs_percent <= 0) {
+        private function __execute_user_enter_fullscreen():void {
+            if (!user_fs_refer || user_fs_percent <= 0) {
                 return;
             }
             
             // change to video size if refer to video.
-            var obj:Object = get_video_size_object();
+            var obj:Object = __get_video_size_object();
             
             // get the DAR
-            var num:int = dar_num;
-            var den:int = dar_den;
+            var num:int = user_dar_num;
+            var den:int = user_dar_den;
             
             if (num == 0) {
                 num = obj.height;
@@ -379,7 +404,7 @@ package
             }
                 
             // for refer is screen.
-            if (fs_refer == "screen") {
+            if (user_fs_refer == "screen") {
                 obj = {
                     width: this.stage.fullScreenWidth,
                     height: this.stage.fullScreenHeight
@@ -387,34 +412,34 @@ package
             }
             
             // rescale to fs
-            update_video_size(num, den, obj.width * fs_percent / 100, obj.height * fs_percent / 100, this.stage.fullScreenWidth, this.stage.fullScreenHeight);
+            __update_video_size(num, den, obj.width * user_fs_percent / 100, obj.height * user_fs_percent / 100, this.stage.fullScreenWidth, this.stage.fullScreenHeight);
         }
         
         /**
          * for user set dar, or leave fullscreen to recover the dar.
          */
-        private function execute_user_set_dar():void {
+        private function __execute_user_set_dar():void {
             // get the DAR
-            var num:int = dar_num;
-            var den:int = dar_den;
+            var num:int = user_dar_num;
+            var den:int = user_dar_den;
             
-            var obj:Object = get_video_size_object();
+            var obj:Object = __get_video_size_object();
             
             if (num == 0) {
                 num = obj.height;
             }
             if (num == -1) {
-                num = this.h;
+                num = this.user_h;
             }
             
             if (den == 0) {
                 den = obj.width;
             }
             if (den == -1) {
-                den = this.w;
+                den = this.user_w;
             }
             
-            update_video_size(num, den, this.w, this.h, this.w, this.h);
+            __update_video_size(num, den, this.user_w, this.user_h, this.user_w, this.user_h);
         }
         
         /**
@@ -426,8 +451,8 @@ package
         * @param _w/_h the video draw paper size. used to rescale the player together with DAR.
         * @param _sw/_wh the stage size, >= paper size. used to center the player.
         */
-        private function update_video_size(_num:int, _den:int, _w:int, _h:int, _sw:int, _sh:int):void {
-            if (!this.video || _num <= 0 || _den <= 0) {
+        private function __update_video_size(_num:int, _den:int, _w:int, _h:int, _sw:int, _sh:int):void {
+            if (!this.media_video || _num <= 0 || _den <= 0) {
                 return;
             }
             
@@ -435,21 +460,36 @@ package
             // calc the height by DAR
             var _height:int = _w * _num / _den;
             if (_height <= _h) {
-                this.video.width = _w;
-                this.video.height = _height;
+                this.media_video.width = _w;
+                this.media_video.height = _height;
             } else {
                 // height overflow, calc the width by DAR
                 var _width:int = _h * _den / _num;
                 
-                this.video.width = _width;
-                this.video.height = _h;
+                this.media_video.width = _width;
+                this.media_video.height = _h;
             }
             
             // align center.
-            this.video.x = (_sw - this.video.width) / 2;
-            this.video.y = (_sh - this.video.height) / 2;
+            this.media_video.x = (_sw - this.media_video.width) / 2;
+            this.media_video.y = (_sh - this.media_video.height) / 2;
             
-            draw_black_background(_sw, _sh);
+            __draw_black_background(_sw, _sh);
+        }
+        
+        /**
+        * draw black background and draw the fullscreen mask.
+        */
+        private function __draw_black_background(_width:int, _height:int):void {
+            // draw black bg.
+            this.graphics.beginFill(0x00, 1.0);
+            this.graphics.drawRect(0, 0, _width, _height);
+            this.graphics.endFill();
+            
+            // draw the fs mask.
+            this.control_fs_mask.graphics.beginFill(0xff0000, 0);
+            this.control_fs_mask.graphics.drawRect(0, 0, _width, _height);
+            this.control_fs_mask.graphics.endFill();
         }
     }
 }

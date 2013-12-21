@@ -234,7 +234,7 @@ SrsPlayer.prototype.on_player_metadata = function(metadata) {
 SrsPlayer.prototype.on_player_timer = function(time, buffer_length) {
     // ignore.
 }
-function __srs_on_player_ready(id) {
+function __srs_find_player(id) {
     for (var i = 0; i < SrsPlayer.__players.length; i++) {
         var player = SrsPlayer.__players[i];
         
@@ -242,49 +242,34 @@ function __srs_on_player_ready(id) {
             continue;
         }
         
-        player.on_player_ready();
-        return;
+        return player;
     }
     
     throw new Error("player not found. id=" + id);
+}
+function __srs_on_player_ready(id) {
+    var player = __srs_find_player(id);
+    player.on_player_ready();
 }
 function __srs_on_player_metadata(id, metadata) {
-    for (var i = 0; i < SrsPlayer.__players.length; i++) {
-        var player = SrsPlayer.__players[i];
-        
-        if (player.id != id) {
-            continue;
-        }
-        
-        // user may override the on_player_metadata, 
-        // so set the data before invoke it.
-        player.metadata = metadata;
-        
-        player.on_player_metadata(metadata);
-        return;
-    }
+    var player = __srs_find_player(id);
     
-    throw new Error("player not found. id=" + id);
+    // user may override the on_player_metadata, 
+    // so set the data before invoke it.
+    player.metadata = metadata;
+    
+    player.on_player_metadata(metadata);
 }
 function __srs_on_player_timer(id, time, buffer_length) {
-    for (var i = 0; i < SrsPlayer.__players.length; i++) {
-        var player = SrsPlayer.__players[i];
-        
-        if (player.id != id) {
-            continue;
-        }
-        
-        buffer_length = Math.max(0, buffer_length);
-        buffer_length = Math.min(player.buffer_time, buffer_length);
-        
-        // user may override the on_player_timer, 
-        // so set the data before invoke it.
-        player.time = time;
-        player.buffer_length = buffer_length;
-        
-        player.on_player_timer(time, buffer_length);
-        return;
-    }
+    var player = __srs_find_player(id);
     
-    throw new Error("player not found. id=" + id);
+    buffer_length = Math.max(0, buffer_length);
+    buffer_length = Math.min(player.buffer_time, buffer_length);
+    
+    // user may override the on_player_timer, 
+    // so set the data before invoke it.
+    player.time = time;
+    player.buffer_length = buffer_length;
+    
+    player.on_player_timer(time, buffer_length);
 }

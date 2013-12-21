@@ -100,11 +100,15 @@
                     $("#btn_dar_original").text("视频原始比例" + "(" + metadata.width + ":" + metadata.height + ")");
                     select_dar("#btn_dar_original", 0, 0);
                     select_fs_size("#btn_fs_size_screen_100", "screen", 100);
-                    select_buffer_time("#btn_bt_0_8", 0.8);
                 }
                 srs_player.on_player_timer = function(time, buffer_length) {
                     var buffer = buffer_length / srs_player.buffer_time * 100;
                     $("#pb_buffer").width(Number(buffer).toFixed(1) + "%");
+                    
+                    // @remark, hack the default buffer time.
+                    if (!__active_bt && time > 3) {
+                        select_buffer_time("#btn_bt_2", 2);
+                    }
                     
                     $("#pb_buffer_bg").attr("title", 
                         "缓冲区长度:" + Number(buffer_length).toFixed(1) + "秒(" 
