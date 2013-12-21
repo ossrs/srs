@@ -595,7 +595,7 @@ int SrsRtmp::response_connect_app(SrsRequest* req)
 	pkt->info->set("data", data);
 	
 	data->set("srs_version", new SrsAmf0String(RTMP_SIG_FMS_VER));
-	data->set("srs_server", new SrsAmf0String(RTMP_SIG_SRS_NAME));
+	data->set("srs_server", new SrsAmf0String(RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
 	data->set("srs_license", new SrsAmf0String(RTMP_SIG_SRS_LICENSE));
 	data->set("srs_role", new SrsAmf0String(RTMP_SIG_SRS_ROLE));
 	data->set("srs_url", new SrsAmf0String(RTMP_SIG_SRS_URL));
@@ -603,6 +603,7 @@ int SrsRtmp::response_connect_app(SrsRequest* req)
 	data->set("srs_site", new SrsAmf0String(RTMP_SIG_SRS_WEB));
 	data->set("srs_email", new SrsAmf0String(RTMP_SIG_SRS_EMAIL));
 	data->set("srs_copyright", new SrsAmf0String(RTMP_SIG_SRS_COPYRIGHT));
+	data->set("srs_contributor", new SrsAmf0String(RTMP_SIG_SRS_CONTRIBUTOR));
 	
 	msg->set_packet(pkt, 0);
 	

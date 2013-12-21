@@ -14,6 +14,7 @@ package
     import flash.net.NetConnection;
     import flash.net.NetStream;
     import flash.ui.ContextMenu;
+    import flash.ui.ContextMenuItem;
     import flash.utils.setTimeout;
     
     public class srs_publisher extends Sprite
@@ -158,6 +159,18 @@ package
             this.media_conn.client.onBWDone = function():void {};
             this.media_conn.addEventListener(NetStatusEvent.NET_STATUS, function(evt:NetStatusEvent):void {
                 trace ("NetConnection: code=" + evt.info.code);
+                
+                if (evt.info.hasOwnProperty("data") && evt.info.data) {
+                    // for context menu
+                    var customItems:Array = [new ContextMenuItem("SrsPlayer")];
+                    if (evt.info.data.hasOwnProperty("srs_server")) {
+                        customItems.push(new ContextMenuItem("Server: " + evt.info.data.srs_server));
+                    }
+                    if (evt.info.data.hasOwnProperty("srs_contributor")) {
+                        customItems.push(new ContextMenuItem("Contributor: " + evt.info.data.srs_contributor));
+                    }
+                    contextMenu.customItems = customItems;
+                }
                 
                 // TODO: FIXME: failed event.
                 if (evt.info.code != "NetConnection.Connect.Success") {
