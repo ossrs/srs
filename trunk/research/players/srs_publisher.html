@@ -123,32 +123,39 @@
             remote_player.start();
         });
         
+        /**
+        * we generate the transcoded stream url for flash publish donot support HLS
+        * which requires aac, so the publish vhost maybe players for example, we
+        * use players_pub vhost(transcoded stream to which) for all clients,
+        * both players and players_pub are write HLS to the sample dir, 
+        * it's ok for the players vhost disabled the HLS, only the 
+        * players_pub enalbed HLS.
+        */
         function update_play_url() {
-            // @see: http://stackoverflow.com/questions/10469575/how-to-use-location-object-to-parse-url-without-redirecting-the-page-in-javascri
-            var a = document.createElement("a");
-            a.href = $("#txt_url").val().replace("rtmp://", "http://");
+            var ret = srs_parse_rtmp_url($("#txt_url").val());
+            var query = parse_query_string();
             
-            var url = "http://" + window.location.host;
-            url += window.location.pathname.substr(0, window.location.pathname.lastIndexOf("/"));
-            url += "/srs_player.html?";
+            var srs_player_url = "http://" + query.host + query.dir + "/srs_player.html?";
+            srs_player_url += "vhost=" + srs_get_player_publish_vhost(ret.vhost) + "&port=" + ret.port + "&app=" + ret.app + "&stream=" + ret.stream;
+            srs_player_url += "&autostart=true";
             
-            url += "vhost=" + a.hostname;
-            url += "&port=" + a.port;
-            url += "&app=" + a.pathname.substr(1, a.pathname.lastIndexOf("/") - 1);
-            url += "&stream=" + a.pathname.substr(a.pathname.lastIndexOf("/") + 1);
+            var jwplayer_url = "http://" + query.host + query.dir + "/jwplayer6.html?";
+            jwplayer_url += "vhost=" + srs_get_player_publish_vhost(ret.vhost) + "&port=" + ret.port + "&app=" + ret.app + "&stream=" + ret.stream;
+            jwplayer_url += "&hls_autostart=true";
             
-            // autostart
-            url += "&autostart=true";
+            var hls_url = "http://" + ret.server + ":" + query.http_port + "/" + ret.app + "/" + ret.stream + ".m3u8";
             
-            $("#txt_play_url").text(url);
-            $("#txt_play_url").attr("href", url);
-            $("#txt_play_url").attr("target", "_blank");
+            $("#txt_play_url").text("点击或右键复制").attr("href", srs_player_url).attr("target", "_blank");
+            $("#txt_play_hls").text("点击或右键复制").attr("href", hls_url).attr("target", "_blank");
+            $("#txt_play_jwplayer").text("点击或右键复制").attr("href", jwplayer_url).attr("target", "_blank");
         }
         function on_user_publish() {
             if ($("#btn_publish").text() == "停止发布") {
                 srs_publisher.stop();
                 $("#btn_publish").text("发布视频");
                 $("#txt_play_url").text("请发布视频").attr("href", "#").attr("target", "_self");
+                $("#txt_play_hls").text("请发布视频").attr("href", "#").attr("target", "_self");
+                $("#txt_play_jwplayer").text("请发布视频").attr("href", "#").attr("target", "_self");
                 return;
             }
             
@@ -178,8 +185,11 @@
             srs_publisher.publish(url, vcodec, acodec);
             
             // replay the url.
+            var ret = srs_parse_rtmp_url(url);
+            var pub_url = "rtmp://" + ret.server + ":" + ret.port + "/" + ret.app;
+            pub_url += "?vhost=" + srs_get_player_publish_vhost(ret.vhost) + "/" + ret.stream;
             remote_player.stop();
-            remote_player.play(url);
+            remote_player.play(pub_url);
         }
         
         function info(desc) {
@@ -198,7 +208,7 @@
 <div class="navbar navbar-fixed-top">
     <div class="navbar-inner">
         <div class="container">
-        <a class="brand" href="#">SRS</a>
+        <a class="brand" href="index.html">SRS</a>
             <div class="nav-collapse collapse">
                 <ul class="nav">
                     <li><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
@@ -233,8 +243,20 @@
     </div>
     <div class="control-group">
         <div class="form-inline">
-            观看地址:
+            观看地址(rtmp地址):
             <a id="txt_play_url" class="input-xxlarge" href="#">请发布视频</a>
+        </div>
+    </div>
+    <div class="control-group">
+        <div class="form-inline">
+            HLS地址(m3u8地址):
+            <a id="txt_play_hls" class="input-xxlarge" href="#">请发布视频</a>
+        </div>
+    </div>
+    <div class="control-group">
+        <div class="form-inline">
+            HLS地址(JWPlayer):
+            <a id="txt_play_jwplayer" class="input-xxlarge" href="#">请发布视频</a>
         </div>
     </div>
     <div id="video_modal" class="modal hide fade">

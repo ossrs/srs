@@ -62,6 +62,15 @@
                 _url = $("#txt_hls_url").val();
                 $("#main_modal").modal({show:true, keyboard:false});
             });
+            
+            var query = parse_query_string();
+            if (query.hls_autostart == "true") {
+                _url = $("#txt_hls_url").val();
+                $("#main_modal").modal({show:true, keyboard:false});
+            } else if (query.rtmp_autostart == "true") {
+                _url = $("#txt_rtmp_url").val();
+                $("#main_modal").modal({show:true, keyboard:false});
+            }
         });
     </script>
 </head>
@@ -69,7 +78,7 @@
 <div class="navbar navbar-fixed-top">
     <div class="navbar-inner">
         <div class="container">
-        <a class="brand" href="#">SRS</a>
+        <a class="brand" href="index.html">SRS</a>
             <div class="nav-collapse collapse">
                 <ul class="nav">
                     <li><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>

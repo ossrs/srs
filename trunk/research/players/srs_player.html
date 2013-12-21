@@ -26,6 +26,7 @@
     </style>
     <script type="text/javascript">
         var srs_player = null;
+        var url = null;
         
         var __active_dar = null;
         function select_dar(dar_id, num, den) {
@@ -88,8 +89,6 @@
                 $(player).attr("id", "player_id");
                 $(div_container).append(player);
                 
-                var url = $("#txt_url").val();
-                
                 srs_player = new SrsPlayer("player_id", srs_get_player_width(), srs_get_player_height());
                 srs_player.on_player_ready = function() {
                     select_buffer_time("#btn_bt_0_8", 0.8);
@@ -138,6 +137,7 @@
             });
             
             $("#btn_play").click(function(){
+                url = $("#txt_url").val();
                 $("#main_modal").modal({show:true, keyboard:false});
             });
             
@@ -150,6 +150,41 @@
                     srs_player.resume();
                 }
             });
+            
+            $("#srs_publish").click(function(){
+                url = $("#srs_publish").text();
+                $("#main_modal").modal({show:true, keyboard:false});
+            });
+            $("#srs_publish_ld").click(function(){
+                url = $("#srs_publish_ld").text();
+                $("#main_modal").modal({show:true, keyboard:false});
+            });
+            $("#srs_publish_sd").click(function(){
+                url = $("#srs_publish_sd").text();
+                $("#main_modal").modal({show:true, keyboard:false});
+            });
+            $("#srs_publish_fw").click(function(){
+                url = $("#srs_publish_fw").text();
+                $("#main_modal").modal({show:true, keyboard:false});
+            });
+            $("#srs_publish_fw_ld").click(function(){
+                url = $("#srs_publish_fw_ld").text();
+                $("#main_modal").modal({show:true, keyboard:false});
+            });
+            $("#srs_publish_fw_sd").click(function(){
+                url = $("#srs_publish_fw_sd").text();
+                $("#main_modal").modal({show:true, keyboard:false});
+            });
+            
+            var query = parse_query_string();
+            var jwplayer_url = "http://" + query.host + query.dir + "/jwplayer6.html?vhost=demo.srs.com&app=live&hls_autostart=true";
+            $("#srs_publish_hls").attr("href", jwplayer_url + "&stream=livestream");
+            $("#srs_publish_ld_hls").attr("href", jwplayer_url + "&stream=livestream_ld");
+            $("#srs_publish_sd_hls").attr("href", jwplayer_url + "&stream=livestream_sd");
+            var jwplayer_url = "http://" + query.host + query.dir + "/jwplayer6.html?vhost=demo.srs.com&app=forward/live&hls_autostart=true";
+            $("#srs_publish_fw_hls").attr("href", jwplayer_url + "&stream=livestream");
+            $("#srs_publish_fw_ld_hls").attr("href", jwplayer_url + "&stream=livestream_ld");
+            $("#srs_publish_fw_sd_hls").attr("href", jwplayer_url + "&stream=livestream_sd");
             
             if (true) {
                 $("#btn_dar_original").click(function(){
@@ -228,7 +263,7 @@
 <div class="navbar navbar-fixed-top">
     <div class="navbar-inner">
         <div class="container">
-        <a class="brand" href="#">SRS</a>
+        <a class="brand" href="index.html">SRS</a>
             <div class="nav-collapse collapse">
                 <ul class="nav">
                     <li class="active"><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
@@ -251,6 +286,171 @@
         URL:
         <input type="text" id="txt_url" class="input-xxlarge" value=""></input>
         <button class="btn btn-primary" id="btn_play">播放视频</button>
+    </div>
+    <div class="container">
+        <hr/>
+        <span>
+            注意：必须按照<a href="https://github.com/winlinvip/simple-rtmp-server/blob/master/README.md">SRS README.md</a>
+            中的11个Step做完，下面所有的链接才能观看。
+        </span>
+        <div class="accordion" id="main_accordion">
+            <div class="accordion-group">
+                <div class="accordion-heading">
+                    <span class="accordion-toggle" data-toggle="collapse" data-parent="#main_accordion" href="#collapse1">
+                        <strong>[1] SRS示例播放流: 原始流</strong>
+                    </span>
+                </div>
+                <div id="collapse1" class="accordion-body collapse">
+                    <div class="accordion-inner">
+                        <a href="#" id="srs_publish">rtmp://demo.srs.com/live/livestream</a> <br/>
+                        <span>用户推送过来的唯一一路流，经过服务器的多种变换和再转发。</span>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-group">
+                <div class="accordion-heading">
+                    <span class="accordion-toggle" data-toggle="collapse" data-parent="#main_accordion" href="#collapse10">
+                        <strong>[2] SRS示例播放流: 原始流HLS</strong>
+                    </span>
+                </div>
+                <div id="collapse10" class="accordion-body collapse">
+                    <div class="accordion-inner">
+                        <a href="#" id="srs_publish_hls">http://demo.srs.com/live/livestream.m3u8</a> <br/>
+                        <span>对用户的流进行HLS切片（若编码为非H264/AAC，HLS流会自动禁用）。</span>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-group">
+                <div class="accordion-heading">
+                    <span class="accordion-toggle" data-toggle="collapse" data-parent="#main_accordion" href="#collapse2">
+                        <strong>[3] SRS示例播放流: 转码配置LD流</strong>
+                    </span>
+                </div>
+                <div id="collapse2" class="accordion-body collapse">
+                    <div class="accordion-inner">
+                        <a href="#" id="srs_publish_ld">rtmp://demo.srs.com/live/livestream_ld</a> <br/>
+                        <span>对原始流加了<a href="http://ffmpeg.org/ffmpeg-filters.html#drawtext-1">FFMPEG文字水印</a></span>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-group">
+                <div class="accordion-heading">
+                    <span class="accordion-toggle" data-toggle="collapse" data-parent="#main_accordion" href="#collapse11">
+                        <strong>[4] SRS示例播放流: 转码配置LD流HLS</strong>
+                    </span>
+                </div>
+                <div id="collapse11" class="accordion-body collapse">
+                    <div class="accordion-inner">
+                        <a href="#" id="srs_publish_ld_hls">http://demo.srs.com/live/livestream_ld.m3u8</a> <br/>
+                        <span>对转码配置LD流进行HLS切片。</span>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-group">
+                <div class="accordion-heading">
+                    <span class="accordion-toggle" data-toggle="collapse" data-parent="#main_accordion" href="#collapse3">
+                        <strong>[5] SRS示例播放流: 转码配置SD流</strong>
+                    </span>
+                </div>
+                <div id="collapse3" class="accordion-body collapse">
+                    <div class="accordion-inner">
+                        <a href="#" id="srs_publish_sd">rtmp://demo.srs.com/live/livestream_sd</a> <br/>
+                        <span>对原始流应用了<a href="http://ffmpeg.org/ffmpeg-filters.html#Filtering-Introduction">FFMPEG翻转滤镜</a></span>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-group">
+                <div class="accordion-heading">
+                    <span class="accordion-toggle" data-toggle="collapse" data-parent="#main_accordion" href="#collapse12">
+                        <strong>[6] SRS示例播放流: 转码配置SD流HLS</strong>
+                    </span>
+                </div>
+                <div id="collapse12" class="accordion-body collapse">
+                    <div class="accordion-inner">
+                        <a href="#" id="srs_publish_sd_hls">http://demo.srs.com/live/livestream_sd.m3u8</a> <br/>
+                        <span>对转码配置SD流进行HLS切片。</span>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-group">
+                <div class="accordion-heading">
+                    <span class="accordion-toggle" data-toggle="collapse" data-parent="#main_accordion" href="#collapse4">
+                        <strong>[7] SRS示例播放流: 转发原始流</strong>
+                    </span>
+                </div>
+                <div id="collapse4" class="accordion-body collapse">
+                    <div class="accordion-inner">
+                        <a href="#" id="srs_publish_fw">rtmp://demo.srs.com:19350/live/livestream</a> <br/>
+                        <span>将用户推送的流转发到另外的vhost或服务器，做热备用。</span>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-group">
+                <div class="accordion-heading">
+                    <span class="accordion-toggle" data-toggle="collapse" data-parent="#main_accordion" href="#collapse13">
+                        <strong>[8] SRS示例播放流: 转发原始流HLS</strong>
+                    </span>
+                </div>
+                <div id="collapse13" class="accordion-body collapse">
+                    <div class="accordion-inner">
+                        <a href="#" id="srs_publish_fw_hls">http://demo.srs.com/forward/live/livestream.m3u8</a> <br/>
+                        <span>对转发原始流进行HLS切片（若编码为非H264/AAC，HLS流会自动禁用）。</span>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-group">
+                <div class="accordion-heading">
+                    <span class="accordion-toggle" data-toggle="collapse" data-parent="#main_accordion" href="#collapse5">
+                        <strong>[9] SRS示例播放流: 转发转码配置LD流</strong>
+                    </span>
+                </div>
+                <div id="collapse5" class="accordion-body collapse">
+                    <div class="accordion-inner">
+                        <a href="#" id="srs_publish_fw_ld">rtmp://demo.srs.com:19350/live/livestream_ld</a> <br/>
+                        <span>FFMPEG加水印后的流也会自动转发。</span>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-group">
+                <div class="accordion-heading">
+                    <span class="accordion-toggle" data-toggle="collapse" data-parent="#main_accordion" href="#collapse14">
+                        <strong>[10] SRS示例播放流: 转发转码配置LD流HLS</strong>
+                    </span>
+                </div>
+                <div id="collapse14" class="accordion-body collapse">
+                    <div class="accordion-inner">
+                        <a href="#" id="srs_publish_fw_ld_hls">http://demo.srs.com/forward/live/livestream_ld.m3u8</a> <br/>
+                        <span>对转发转码配置LD流进行HLS切片，所有转发的流会自动支持HLS。</span>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-group">
+                <div class="accordion-heading">
+                    <span class="accordion-toggle" data-toggle="collapse" data-parent="#main_accordion" href="#collapse6">
+                        <strong>[11] SRS示例播放流: 转发转码配置SD流</strong>
+                    </span>
+                </div>
+                <div id="collapse6" class="accordion-body collapse">
+                    <div class="accordion-inner">
+                        <a href="#" id="srs_publish_fw_sd">rtmp://demo.srs.com:19350/live/livestream_sd</a> <br/>
+                        <span>FFMPEG翻转后的流也会自动转发。</span>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-group">
+                <div class="accordion-heading">
+                    <span class="accordion-toggle" data-toggle="collapse" data-parent="#main_accordion" href="#collapse15">
+                        <strong>[12] SRS示例播放流: 转发转码配置SD流HLS</strong>
+                    </span>
+                </div>
+                <div id="collapse15" class="accordion-body collapse">
+                    <div class="accordion-inner">
+                        <a href="#" id="srs_publish_fw_sd_hls">http://demo.srs.com/forward/live/livestream_sd.m3u8</a> <br/>
+                        <span>对转发转码配置SD流进行HLS切片，所有转发的流会自动支持HLS。</span>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     <div id="main_modal" class="modal hide fade">
         <div class="modal-header">

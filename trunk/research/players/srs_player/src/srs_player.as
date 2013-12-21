@@ -140,15 +140,17 @@ package
         private function system_on_metadata(metadata:Object):void {
             this.media_metadata = metadata;
             
-            // for context menu
-            var customItems:Array = [new ContextMenuItem("SrsPlayer")];
             if (metadata.hasOwnProperty("server")) {
-                customItems.push(new ContextMenuItem("Server: " + metadata.server));
+                // for context menu
+                var customItems:Array = [new ContextMenuItem("SrsPlayer")];
+                if (metadata.hasOwnProperty("server")) {
+                    customItems.push(new ContextMenuItem("Server: " + metadata.server));
+                }
+                if (metadata.hasOwnProperty("contributor")) {
+                    customItems.push(new ContextMenuItem("Contributor: " + metadata.contributor));
+                }
+                contextMenu.customItems = customItems;
             }
-            if (metadata.hasOwnProperty("contributor")) {
-                customItems.push(new ContextMenuItem("Contributor: " + metadata.contributor));
-            }
-            contextMenu.customItems = customItems;
             
             // for js.
             var obj:Object = __get_video_size_object();

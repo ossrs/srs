@@ -49,7 +49,7 @@ For example, use ffmpeg to publish:
     for((;;)); do \
         ./objs/ffmpeg/bin/ffmpeg -re -i ./doc/source.200kbps.768x320.flv \
         -vcodec copy -acodec copy \
-        -f flv -y rtmp://127.0.0.1/live/livestream; \
+        -f flv -y rtmp://127.0.0.1/live?vhost=demo.srs.com/livestream; \
         sleep 1; \
     done
 </pre>

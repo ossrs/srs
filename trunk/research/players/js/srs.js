@@ -30,13 +30,28 @@ function update_nav() {
 * parse the query string to object.
 */
 function parse_query_string(){
+    var obj = {};
+    
+    // parse the host(hostname:http_port), pathname(dir/filename)
+    obj.host = window.location.host;
+    obj.hostname = window.location.hostname;
+    obj.http_port = (window.location.port == "")? 80:window.location.port;
+    obj.pathname = window.location.pathname;
+    if (obj.pathname.lastIndexOf("/") <= 0) {
+        obj.dir = "/";
+        obj.filename = "";
+    } else {
+        obj.dir = obj.pathname.substr(0, obj.pathname.lastIndexOf("/"));
+        obj.filename = obj.pathname.substr(obj.pathname.lastIndexOf("/"));
+    }
+    
+    // parse the query string.
     var query_string = String(window.location.search).replace(" ", "").split("?")[1];
     if(query_string == undefined){
-        return {};
+        return obj;
     }
     
     var queries = query_string.split("&");
-    var obj = {};
     $(queries).each(function(){
         var query = this.split("=");
         obj[query[0]] = query[1];
@@ -46,6 +61,7 @@ function parse_query_string(){
 }
 
 /**
+@param server the ip of server. default to window.location.hostname
 @param vhost the vhost of rtmp. default to window.location.hostname
 @param port the port of rtmp. default to 1935
 @param app the app of rtmp. default to live.
@@ -54,16 +70,23 @@ function parse_query_string(){
 function build_default_rtmp_url() {
     var query = parse_query_string();
 
+    var server = (query.server == undefined)? window.location.hostname:query.server;
     var port = (query.port == undefined)? 1935:query.port;
     var vhost = (query.vhost == undefined)? window.location.hostname:query.vhost;
     var app = (query.app == undefined)? "live":query.app;
     var stream = (query.stream == undefined)? "livestream":query.stream;
 
-    return "rtmp://" + vhost + ":" + port + "/" + app + "/" + stream;
+    if (server == vhost || vhost == "") {
+        return "rtmp://" + server + ":" + port + "/" + app + "/" + stream;
+    } else {
+        return "rtmp://" + server + ":" + port + "/" + app + "...vhost..." + vhost + "/" + stream;
+    }
 }
 
 /**
+@param server the ip of server. default to window.location.hostname
 @param vhost the vhost of hls. default to window.location.hostname
+@param hls_vhost the vhost of hls. override the server if specified.
 @param hls_port the port of hls. default to window.location.port
 @param app the app of hls. default to live.
 @param stream the stream of hls. default to livestream.
@@ -71,7 +94,14 @@ function build_default_rtmp_url() {
 function build_default_hls_url() {
     var query = parse_query_string();
 
-    var vhost = (query.vhost == undefined)? window.location.hostname:query.vhost;
+    // for http, use hls_vhost to override server if specified.
+    var server = window.location.hostname;
+    if (query.server != undefined) {
+        server = query.server;
+    } else if (query.hls_vhost != undefined) {
+        server = query.hls_vhost;
+    }
+    
     var port = (query.hls_port == undefined)? window.location.port:query.hls_port;
     var app = (query.app == undefined)? "live":query.app;
     var stream = (query.stream == undefined)? "livestream":query.stream;
@@ -79,7 +109,45 @@ function build_default_hls_url() {
     if (port == "" || port == null || port == undefined) {
         port = 80;
     }
-    return "http://" + vhost + ":" + port + "/" + app + "/" + stream + ".m3u8";
+    
+    return "http://" + server + ":" + port + "/" + app + "/" + stream + ".m3u8";
+}
+
+/**
+* parse the rtmp url,
+* for example: rtmp://demo.srs.com:1935/live...vhost...players/livestream
+* @return object {server, port, vhost, app, stream}
+*/
+function srs_parse_rtmp_url(rtmp_url) {
+    // @see: http://stackoverflow.com/questions/10469575/how-to-use-location-object-to-parse-url-without-redirecting-the-page-in-javascri
+    var a = document.createElement("a");
+    a.href = rtmp_url.replace("rtmp://", "http://");
+    
+    var vhost = a.hostname;
+    var port = (a.port == "")? "1935":a.port;
+    var app = a.pathname.substr(1, a.pathname.lastIndexOf("/") - 1);
+    var stream = a.pathname.substr(a.pathname.lastIndexOf("/") + 1);
+
+    // parse the vhost in the params of app, that srs supports.
+    app = app.replace("...vhost...", "?vhost=");
+    if (app.indexOf("?") >= 0) {
+        var params = app.substr(app.indexOf("?"));
+        app = app.substr(0, app.indexOf("?"));
+        
+        if (params.indexOf("vhost=") > 0) {
+            vhost = params.substr(params.indexOf("vhost=") + "vhost=".length);
+            if (vhost.indexOf("&") > 0) {
+                vhost = vhost.substr(0, vhost.indexOf("&"));
+            }
+        }
+    }
+    
+    var ret = {
+        server: a.hostname, port: port, 
+        vhost: vhost, app: app, stream: stream
+    };
+    
+    return ret;
 }
 
 /**
@@ -91,6 +159,13 @@ function srs_get_player_height() { return srs_get_player_width() * 9 / 19; }
 
 // to query the swf anti cache.
 function srs_get_version_code() { return "1.1"; }
+// get the default vhost for players.
+function srs_get_player_vhost() { return "players"; }
+// get the stream published to vhost,
+// generally we need to transcode the stream to support HLS and filters.
+// for example, src_vhost is "players", we transcode stream to vhost "players_pub".
+// if not equals to the player vhost, return the orignal vhost.
+function srs_get_player_publish_vhost(src_vhost) { return (src_vhost != srs_get_player_vhost())? src_vhost:(src_vhost + "_pub"); }
 
 /**
 * initialize the page.

@@ -17,7 +17,8 @@
         $(function(){
             update_nav();
             
-            window.location.href = "srs_player.html";
+            // direct to the default vhost for players.
+            window.location.href = "srs_player.html?vhost=" + srs_get_player_vhost();
         });
     </script>
 </head>
@@ -25,7 +26,7 @@
 <div class="navbar navbar-fixed-top">
     <div class="navbar-inner">
         <div class="container">
-        <a class="brand" href="#">SRS</a>
+        <a class="brand" href="index.html">SRS</a>
             <div class="nav-collapse collapse">
                 <ul class="nav">
                     <li><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
