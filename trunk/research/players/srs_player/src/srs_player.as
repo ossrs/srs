@@ -85,9 +85,6 @@ package
             if (!flashvars.hasOwnProperty("id")) {
                 throw new Error("must specifies the id");
             }
-            if (!flashvars.hasOwnProperty("on_player_ready")) {
-                throw new Error("must specifies the on_player_ready");
-            }
             
             this.js_id = flashvars.id;
             this.js_on_player_ready = flashvars.on_player_ready;

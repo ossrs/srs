@@ -259,6 +259,13 @@ if [ $SRS_HLS = YES ]; then
     ln -sf `pwd`/research/players ${SRS_OBJS}/nginx/html/players &&
     rm -f ${SRS_OBJS}/nginx/crossdomain.xml &&
     ln -sf `pwd`/research/players/crossdomain.xml ${SRS_OBJS}/nginx/html/crossdomain.xml
+    
+    # override the default index.
+    cat <<END > ${SRS_OBJS}/nginx/html/index.html
+    <script type="text/javascript">
+        window.location.href = "players/index.html";
+    </script>
+END
 fi
 
 if [ $SRS_HLS = YES ]; then
