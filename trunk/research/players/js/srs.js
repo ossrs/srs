@@ -158,7 +158,6 @@ SrsPlayer.prototype.start = function() {
     flashvars.on_player_ready = "__srs_on_player_ready";
     flashvars.on_player_metadata = "__srs_on_player_metadata";
     flashvars.on_player_timer = "__srs_on_player_timer";
-    flashvars.version = srs_get_version_code();
     
     var params = {};
     params.wmode = "opaque";
@@ -170,7 +169,8 @@ SrsPlayer.prototype.start = function() {
     var self = this;
     
     swfobject.embedSWF(
-        "srs_player/release/srs_player.swf", this.container,
+        "srs_player/release/srs_player.swf?_version="+srs_get_version_code(), 
+        this.container,
         this.width, this.height,
         "11.1", "js/AdobeFlashPlayerInstall.swf",
         flashvars, params, attributes,
@@ -340,7 +340,6 @@ SrsPublisher.prototype.start = function() {
     flashvars.id = this.id;
     flashvars.on_publisher_ready = "__srs_on_publisher_ready";
     flashvars.on_publisher_error = "__srs_on_publisher_error";
-    flashvars.version = srs_get_version_code();
     
     var params = {};
     params.wmode = "opaque";
@@ -352,7 +351,8 @@ SrsPublisher.prototype.start = function() {
     var self = this;
     
     swfobject.embedSWF(
-        "srs_publisher/release/srs_publisher.swf", this.container,
+        "srs_publisher/release/srs_publisher.swf?_version="+srs_get_version_code(), 
+        this.container,
         this.width, this.height,
         "11.1", "js/AdobeFlashPlayerInstall.swf",
         flashvars, params, attributes,
