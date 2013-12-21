@@ -122,6 +122,7 @@ int SrsRequest::discovery_app()
 	
 	app = url;
 	srs_vhost_resolve(vhost, app);
+	strip();
 	
 	// resolve the vhost from config
 	SrsConfDirective* parsed_vhost = config->get_vhost(vhost);
