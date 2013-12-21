@@ -142,12 +142,13 @@
             
             $("#txt_play_url").text(url);
             $("#txt_play_url").attr("href", url);
+            $("#txt_play_url").attr("target", "_blank");
         }
         function on_user_publish() {
             if ($("#btn_publish").text() == "停止发布") {
                 srs_publisher.stop();
                 $("#btn_publish").text("发布视频");
-                $("#txt_play_url").text("请发布视频").attr("href", "#");
+                $("#txt_play_url").text("请发布视频").attr("href", "#").attr("target", "_self");
                 return;
             }
             
