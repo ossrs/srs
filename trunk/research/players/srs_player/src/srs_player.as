@@ -8,6 +8,7 @@ package
     import flash.events.FullScreenEvent;
     import flash.events.MouseEvent;
     import flash.events.NetStatusEvent;
+    import flash.events.TimerEvent;
     import flash.external.ExternalInterface;
     import flash.media.Video;
     import flash.net.NetConnection;
@@ -15,6 +16,7 @@ package
     import flash.system.Security;
     import flash.ui.ContextMenu;
     import flash.ui.ContextMenuItem;
+    import flash.utils.Timer;
     import flash.utils.setTimeout;
     
     public class srs_player extends Sprite
@@ -24,6 +26,7 @@ package
         // user set callback
         private var on_player_ready:String = null;
         private var on_player_metadata:String = null;
+        private var on_player_timer:String = null;
         
         // play param url.
         private var url:String = null;
@@ -41,6 +44,7 @@ package
         private var stream:NetStream = null;
         private var video:Video = null;
         private var metadata:Object = {};
+        private var timer:Timer = new Timer(300);
         
         // flash donot allow js to set to fullscreen,
         // only allow user click to enter fullscreen.
@@ -82,8 +86,23 @@ package
             this.id = flashvars.id;
             this.on_player_ready = flashvars.on_player_ready;
             this.on_player_metadata = flashvars.on_player_metadata;
+            this.on_player_timer = flashvars.on_player_timer;
+            
+            this.timer.addEventListener(TimerEvent.TIMER, this.on_timer);
+            this.timer.start();
             
             flash.utils.setTimeout(this.on_js_ready, 0);
+        }
+        
+        private function on_timer(evt:TimerEvent):void {
+            if (!this.stream) {
+                trace("stream is null, ignore timer event.");
+                return;
+            }
+            
+            trace("notify js the timer event.");
+            flash.external.ExternalInterface.call(
+                this.on_player_timer, this.id, this.stream.time, this.stream.bufferLength);
         }
         
         private function on_stage_fullscreen(evt:FullScreenEvent):void {
@@ -107,25 +126,21 @@ package
             flash.external.ExternalInterface.addCallback("__resume", this.js_call_resume);
             flash.external.ExternalInterface.addCallback("__dar", this.js_call_dar);
             flash.external.ExternalInterface.addCallback("__set_fs", this.js_call_set_fs_size);
+            flash.external.ExternalInterface.addCallback("__set_bt", this.js_call_set_bt);
             
-            var code:int = flash.external.ExternalInterface.call(this.on_player_ready, this.id);
-            if (code != 0) {
-                throw new Error("callback on_player_ready failed. code=" + code);
-            }
+            flash.external.ExternalInterface.call(this.on_player_ready, this.id);
         }
         
-        private function js_call_pause():int {
+        private function js_call_pause():void {
             if (this.stream) {
                 this.stream.pause();
             }
-            return 0;
         }
         
-        private function js_call_resume():int {
+        private function js_call_resume():void {
             if (this.stream) {
                 this.stream.resume();
             }
-            return 0;
         }
         
         /**
@@ -137,12 +152,11 @@ package
          *       use metadata width if 0.
          *       use user specified width if -1.
          */
-        private function js_call_dar(num:int, den:int):int {
+        private function js_call_dar(num:int, den:int):void {
             dar_num = num;
             dar_den = den;
             
             flash.utils.setTimeout(execute_user_set_dar, 0);
-            return 0;
         }
         
         /**
@@ -153,11 +167,9 @@ package
          * @param percent, the rescale percent, where
          *       100 means 100%.
          */
-        private function js_call_set_fs_size(refer:String, percent:int):int {
+        private function js_call_set_fs_size(refer:String, percent:int):void {
             fs_refer = refer;
             fs_percent = percent;
-            
-            return 0;
         }
         /**
         * js cannot enter the fullscreen mode, user must click to.
@@ -176,7 +188,17 @@ package
             }
         }
         
-        private function js_call_stop():int {
+        /**
+         * set the stream buffer time in seconds.
+         * @buffer_time the buffer time in seconds.
+         */
+        private function js_call_set_bt(buffer_time:Number):void {
+            if (this.stream) {
+                this.stream.bufferTime = buffer_time;
+            }
+        }
+        
+        private function js_call_stop():void {
             if (this.stream) {
                 this.stream.close();
                 this.stream = null;
@@ -189,8 +211,6 @@ package
                 this.removeChild(this.video);
                 this.video = null;
             }
-            
-            return 0;
         }
         
         private function draw_black_background(_width:int, _height:int):void {
@@ -205,7 +225,7 @@ package
             this.fs_mask.graphics.endFill();
         }
         
-        private function js_call_play(url:String, _width:int, _height:int, _buffer_time:Number):int {
+        private function js_call_play(url:String, _width:int, _height:int, _buffer_time:Number):void {
             this.url = url;
             this.w = _width;
             this.h = _height;
@@ -218,6 +238,8 @@ package
             this.conn.client.onBWDone = function():void {};
             this.conn.addEventListener(NetStatusEvent.NET_STATUS, function(evt:NetStatusEvent):void {
                 trace ("NetConnection: code=" + evt.info.code);
+                
+                // TODO: FIXME: failed event.
                 if (evt.info.code != "NetConnection.Connect.Success") {
                     return;
                 }
@@ -232,8 +254,12 @@ package
                     if (evt.info.code == "NetStream.Video.DimensionChange") {
                         on_metadata(metadata);
                     }
+                    
+                    // TODO: FIXME: failed event.
                 });
-                stream.play(url.substr(url.lastIndexOf("/")));
+                
+                var streamName:String = url.substr(url.lastIndexOf("/"));
+                stream.play(streamName);
                 
                 video = new Video();
                 video.width = _width;
@@ -247,9 +273,9 @@ package
                 // lowest layer, for mask to cover it.
                 setChildIndex(video, 0);
             });
-            this.conn.connect(this.url.substr(0, this.url.lastIndexOf("/")));
             
-            return 0;
+            var tcUrl:String = this.url.substr(0, this.url.lastIndexOf("/"));
+            this.conn.connect(tcUrl);
         }
         
         private function on_metadata(metadata:Object):void {

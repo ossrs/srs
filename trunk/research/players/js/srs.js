@@ -1,4 +1,17 @@
 /**
+* padding the output.
+* padding(3, 5, '0') is 00003
+* padding(3, 5, 'x') is xxxx3
+* @see http://blog.csdn.net/win_lin/article/details/12065413
+*/
+function padding(number, length, prefix) {
+    if(String(number).length >= length){
+        return String(number);
+    }
+    return padding(prefix+number, length, prefix);
+}
+
+/**
 * update the navigator, add same query string.
 */
 function update_nav() {
@@ -88,7 +101,7 @@ function srs_init(rtmp_url, hls_url) {
 /**
 * the SrsPlayer object.
 */
-function SrsPlayer(container, stream_url, width, height, buffer_time) {
+function SrsPlayer(container, stream_url, width, height) {
     if (!SrsPlayer.__id) {
         SrsPlayer.__id = 100;
     }
@@ -102,12 +115,14 @@ function SrsPlayer(container, stream_url, width, height, buffer_time) {
     this.stream_url = stream_url;
     this.width = width;
     this.height = height;
-    this.buffer_time = buffer_time;
     this.id = SrsPlayer.__id++;
     this.callbackObj = null;
+    this.buffer_time = 0.8; // default to 0.8
     
     // callback set the following values.
     this.meatadata = {}; // for on_player_metadata
+    this.time = 0; // current stream time.
+    this.buffer_length = 0; // current stream buffer length.
 }
 /**
 * user can set some callback, then start the player.
@@ -121,6 +136,7 @@ SrsPlayer.prototype.start = function() {
     flashvars.id = this.id;
     flashvars.on_player_ready = "__srs_on_player_ready";
     flashvars.on_player_metadata = "__srs_on_player_metadata";
+    flashvars.on_player_timer = "__srs_on_player_timer";
     
     var params = {};
     params.wmode = "opaque";
@@ -144,7 +160,7 @@ SrsPlayer.prototype.start = function() {
     return this;
 }
 SrsPlayer.prototype.play = function() {
-    return this.callbackObj.ref.__play(this.stream_url, this.width, this.height, this.buffer_time);
+    this.callbackObj.ref.__play(this.stream_url, this.width, this.height, this.buffer_time);
 }
 SrsPlayer.prototype.stop = function() {
     for (var i = 0; i < SrsPlayer.__players.length; i++) {
@@ -157,13 +173,14 @@ SrsPlayer.prototype.stop = function() {
         SrsPlayer.__players.splice(i, 1);
         break;
     }
-    return this.callbackObj.ref.__stop();
+    
+    this.callbackObj.ref.__stop();
 }
 SrsPlayer.prototype.pause = function() {
-    return this.callbackObj.ref.__pause();
+    this.callbackObj.ref.__pause();
 }
 SrsPlayer.prototype.resume = function() {
-    return this.callbackObj.ref.__resume();
+    this.callbackObj.ref.__resume();
 }
 /**
 * to set the DAR, for example, DAR=16:9
@@ -175,7 +192,7 @@ SrsPlayer.prototype.resume = function() {
 *       use user specified width if -1.
 */
 SrsPlayer.prototype.dar = function(num, den) {
-    return this.callbackObj.ref.__dar(num, den);
+    this.callbackObj.ref.__dar(num, den);
 }
 /**
 * set the fullscreen size data.
@@ -186,13 +203,24 @@ SrsPlayer.prototype.dar = function(num, den) {
 *       100 means 100%.
 */
 SrsPlayer.prototype.set_fs = function(refer, percent) {
-    return this.callbackObj.ref.__set_fs(refer, percent);
+    this.callbackObj.ref.__set_fs(refer, percent);
+}
+/**
+* set the stream buffer time in seconds.
+* @buffer_time the buffer time in seconds.
+*/
+SrsPlayer.prototype.set_bt = function(buffer_time) {
+    this.buffer_time = buffer_time;
+    this.callbackObj.ref.__set_bt(buffer_time);
 }
 SrsPlayer.prototype.on_player_ready = function() {
-    return this.play();
+    this.play();
 }
 SrsPlayer.prototype.on_player_metadata = function(metadata) {
-    return 0;
+    // ignore.
+}
+SrsPlayer.prototype.on_player_timer = function(time, buffer_length) {
+    // ignore.
 }
 function __srs_on_player_ready(id) {
     for (var i = 0; i < SrsPlayer.__players.length; i++) {
@@ -202,7 +230,8 @@ function __srs_on_player_ready(id) {
             continue;
         }
         
-        return player.on_player_ready();
+        player.on_player_ready();
+        return;
     }
     
     throw new Error("player not found. id=" + id);
@@ -219,7 +248,30 @@ function __srs_on_player_metadata(id, metadata) {
         // so set the data before invoke it.
         player.metadata = metadata;
         
-        return player.on_player_metadata(metadata);
+        player.on_player_metadata(metadata);
+        return;
+    }
+    
+    throw new Error("player not found. id=" + id);
+}
+function __srs_on_player_timer(id, time, buffer_length) {
+    for (var i = 0; i < SrsPlayer.__players.length; i++) {
+        var player = SrsPlayer.__players[i];
+        
+        if (player.id != id) {
+            continue;
+        }
+        
+        buffer_length = Math.max(0, buffer_length);
+        buffer_length = Math.min(player.buffer_time, buffer_length);
+        
+        // user may override the on_player_timer, 
+        // so set the data before invoke it.
+        player.time = time;
+        player.buffer_length = buffer_length;
+        
+        player.on_player_timer(time, buffer_length);
+        return;
     }
     
     throw new Error("player not found. id=" + id);

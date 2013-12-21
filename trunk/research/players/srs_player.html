@@ -40,6 +40,18 @@
             __active_size.addClass("active");
         }
         
+        var __active_bt = null;
+        function select_buffer_time(bt_id, buffer_time) {
+            srs_player.set_bt(buffer_time);
+            
+            if (__active_bt) {
+                __active_bt.removeClass("active");
+            }
+            
+            __active_bt = $(bt_id).parent();
+            __active_bt.addClass("active");
+        }
+        
         $(function(){
             // get the vhost and port to set the default url.
             // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
@@ -68,15 +80,38 @@
                 
                 var url = $("#txt_url").val();
                 
-                srs_player = new SrsPlayer("player_id", url, 530, 300, 0.8);
+                srs_player = new SrsPlayer("player_id", url, 530, 300);
                 srs_player.on_player_ready = function() {
-                    return srs_player.play();
+                    srs_player.play();
                 }
                 srs_player.on_player_metadata = function(metadata) {
                     $("#btn_dar_original").text("视频原始比例" + "(" + metadata.width + ":" + metadata.height + ")");
                     select_dar("#btn_dar_original", 0, 0);
                     select_fs_size("#btn_fs_size_screen_100", "screen", 100);
-                    return 0;
+                    select_buffer_time("#btn_bt_0_8", 0.8);
+                }
+                srs_player.on_player_timer = function(time, buffer_length) {
+                    var buffer = buffer_length / srs_player.buffer_time * 100;
+                    $("#pb_buffer").width(Number(buffer).toFixed(1) + "%");
+                    
+                    $("#pb_buffer_bg").attr("title", 
+                        "缓冲区长度:" + Number(buffer_length).toFixed(1) + "秒(" 
+                        + Number(buffer).toFixed(1) + "%)");
+                    
+                    var time_str = "";
+                    // day
+                    time_str = padding(parseInt(time / 24 / 3600), 2, '0') + " ";
+                    // hour
+                    time = time % (24 * 3600);
+                    time_str += padding(parseInt(time / 3600), 2, '0') + ":";
+                    // minute
+                    time = time % (3600);
+                    time_str += padding(parseInt(time / 60), 2, '0') + ":";
+                    // seconds
+                    time = time % (60);
+                    time_str += padding(parseInt(time), 2, '0');
+                    // show
+                    $("#txt_time").val(time_str);
                 }
                 srs_player.start();
             });
@@ -97,11 +132,11 @@
             });
             
             $("#btn_pause").click(function(){
-                if ($("#btn_pause").text() == "暂停播放") {
-                    $("#btn_pause").text("继续播放");
+                if ($("#btn_pause").text() == "暂停") {
+                    $("#btn_pause").text("继续");
                     srs_player.pause();
                 } else {
-                    $("#btn_pause").text("暂停播放");
+                    $("#btn_pause").text("暂停");
                     srs_player.resume();
                 }
             });
@@ -144,6 +179,33 @@
                     select_fs_size("#btn_fs_size_screen_50", "screen", 50);
                 });
             }
+            
+            if (true) {
+                $("#btn_bt_0_5").click(function(){
+                    select_buffer_time("#btn_bt_0_5", 0.5);
+                });
+                $("#btn_bt_0_8").click(function(){
+                    select_buffer_time("#btn_bt_0_8", 0.8);
+                });
+                $("#btn_bt_1").click(function(){
+                    select_buffer_time("#btn_bt_1", 1);
+                });
+                $("#btn_bt_2").click(function(){
+                    select_buffer_time("#btn_bt_2", 2);
+                });
+                $("#btn_bt_3").click(function(){
+                    select_buffer_time("#btn_bt_3", 3);
+                });
+                $("#btn_bt_5").click(function(){
+                    select_buffer_time("#btn_bt_5", 5);
+                });
+                $("#btn_bt_10").click(function(){
+                    select_buffer_time("#btn_bt_10", 10);
+                });
+                $("#btn_bt_30").click(function(){
+                    select_buffer_time("#btn_bt_30", 30);
+                });
+            }
         });
     </script>
 </head>
@@ -180,15 +242,23 @@
             <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
             <h3>SrsPlayer</h3>
         </div>
-        <div class="modal-body" id="player">
+        <div class="modal-body">
+            <div id="player"></div>
+            <div class="progress progress-striped active" id="pb_buffer_bg">
+                <div class="bar" style="width: 0%;" id="pb_buffer"></div>
+            </div>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer" style="margin-top:-20px;">
+            <div class="input-prepend" style="margin-top: 10px;">
+              <span class="add-on" title="播放时长">@T</span>
+              <input class="span2" style="width:85px" id="txt_time" type="text" placeholder="天 时:分:秒">
+            </div>
             <div class="btn-group dropup">
                 <button class="btn dropdown-toggle" data-toggle="dropdown">
                     <a id="fs_tips" href="#" data-toggle="tooltip" data-placement="top" title="">
                         <img src="img/tooltip.png"/>
                     </a>
-                    全屏大小<span class="caret"></span>
+                    大小<span class="caret"></span>
                 </button>
                 <ul class="dropdown-menu">
                     <li><a id="btn_fs_size_screen_100" href="#">屏幕大小(100%)</a></li>
@@ -200,7 +270,7 @@
                 </ul>
             </div>
             <div class="btn-group dropup">
-                <button class="btn dropdown-toggle" data-toggle="dropdown">显示比例<span class="caret"></span></button>
+                <button class="btn dropdown-toggle" data-toggle="dropdown">比例<span class="caret"></span></button>
                 <ul class="dropdown-menu">
                     <li><a id="btn_dar_original" href="#">视频原始比例</a></li>
                     <li><a id="btn_dar_21_9" href="#">宽屏影院(21:9)</a></li>
@@ -210,7 +280,20 @@
                 </ul>
             </div>
             <div class="btn-group dropup">
-                <button id="btn_pause" class="btn">暂停播放</button>
+                <button class="btn dropdown-toggle" data-toggle="dropdown">缓冲区<span class="caret"></span></button>
+                <ul class="dropdown-menu">
+                    <li><a id="btn_bt_0_5" href="#">0.5秒(实时)</a></li>
+                    <li><a id="btn_bt_0_8" href="#">0.8秒(会议)</a></li>
+                    <li><a id="btn_bt_1" href="#">1秒(低延迟)</a></li>
+                    <li><a id="btn_bt_2" href="#">2秒(较低延时)</a></li>
+                    <li><a id="btn_bt_3" href="#">3秒(流畅播放)</a></li>
+                    <li><a id="btn_bt_5" href="#">5秒(网速较低)</a></li>
+                    <li><a id="btn_bt_10" href="#">10秒(无所谓延迟)</a></li>
+                    <li><a id="btn_bt_30" href="#">30秒(流畅第一)</a></li>
+                </ul>
+            </div>
+            <div class="btn-group dropup">
+                <button id="btn_pause" class="btn">暂停</button>
             </div>
             <div class="btn-group dropup">
                 <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true">关闭</button>
