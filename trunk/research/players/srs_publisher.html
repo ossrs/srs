@@ -34,7 +34,6 @@
             
             // for publish, we use randome stream name.
             $("#txt_url").val($("#txt_url").val() + "." + new Date().getTime());
-            update_play_url();
             
             // start the publisher.
             srs_publisher = new SrsPublisher("local_publisher", 430, 185);
@@ -148,6 +147,7 @@
             if ($("#btn_publish").text() == "停止发布") {
                 srs_publisher.stop();
                 $("#btn_publish").text("发布视频");
+                $("#txt_play_url").text("请发布视频").attr("href", "#");
                 return;
             }
             
@@ -233,7 +233,7 @@
     <div class="control-group">
         <div class="form-inline">
             观看地址:
-            <a id="txt_play_url" class="input-xxlarge" href="srs_player.html">srs_player.html</a>
+            <a id="txt_play_url" class="input-xxlarge" href="#">请发布视频</a>
         </div>
     </div>
     <div id="video_modal" class="modal hide fade">
