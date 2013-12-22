@@ -187,14 +187,16 @@ Supported operating systems and hardware:
 19. support audio transcode only, speex/mp3 to aac<br/>
 20. support http callback api hooks(for authentication and injection).<br/>
 21. support bandwidth test api and flash client.<br/>
-22. [plan] support network based cli and json result.<br/>
-23. [plan] support adobe flash refer/token/swf verification.<br/>
-24. [plan] support adobe amf3 codec.<br/>
-25. [plan] support dvr(record live to vod file)<br/>
-26. [plan] support FMS edge protocol<br/>
-27. [plan] support encryption: RTMPE/RTMPS, HLS DRM<br/>
-28. [plan] support RTMPT, http to tranverse firewalls<br/>
-29. [plan] support file source, transcoding file to live stream<br/>
+22. player, publisher(encoder), and demo pages(jquery+bootstrap). <br/>
+23. [dev] demo video meeting or chat(srs+cherrypy+jquery+bootstrap). <br/>
+24. [plan] support network based cli and json result.<br/>
+25. [plan] support adobe flash refer/token/swf verification.<br/>
+26. [plan] support adobe amf3 codec.<br/>
+27. [plan] support dvr(record live to vod file)<br/>
+28. [plan] support FMS edge protocol<br/>
+29. [plan] support encryption: RTMPE/RTMPS, HLS DRM<br/>
+30. [plan] support RTMPT, http to tranverse firewalls<br/>
+31. [plan] support file source, transcoding file to live stream<br/>
 
 ### Performance
 1. 300 connections, 150Mbps, 500kbps, CPU 18.8%, 5956KB.
