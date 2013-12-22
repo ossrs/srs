@@ -28,6 +28,31 @@ function update_nav() {
 }
 
 /**
+* log specified, there must be a log element as:
+    <!-- for the log -->
+    <div class="alert alert-info fade in" id="txt_log">
+        <button type="button" class="close" data-dismiss="alert">×</button>
+        <strong><span id="txt_log_title">Usage:</span></strong>
+        <span id="txt_log_msg">创建会议室，或者加入会议室</span>
+    </div>
+*/
+function info(desc) {
+    $("#txt_log").addClass("alert-info").removeClass("alert-error").removeClass("alert-warn");
+    $("#txt_log_title").text("Info:");
+    $("#txt_log_msg").text(desc);
+}
+function warn(code, desc) {
+    $("#txt_log").removeClass("alert-info").removeClass("alert-error").addClass("alert-warn");
+    $("#txt_log_title").text("Warn:");
+    $("#txt_log_msg").text("code: " + code + ", " + desc);
+}
+function error(code, desc) {
+    $("#txt_log").removeClass("alert-info").addClass("alert-error").removeClass("alert-warn");
+    $("#txt_log_title").text("Error:");
+    $("#txt_log_msg").text("code: " + code + ", " + desc);
+}
+
+/**
 * parse the query string to object.
 */
 function parse_query_string(){
@@ -80,6 +105,23 @@ function build_default_rtmp_url() {
     if (server == vhost || vhost == "") {
         return "rtmp://" + server + ":" + port + "/" + app + "/" + stream;
     } else {
+        return "rtmp://" + server + ":" + port + "/" + app + "...vhost..." + vhost + "/" + stream;
+    }
+}
+// for the chat to init the publish url.
+function build_default_publish_rtmp_url() {
+    var query = parse_query_string();
+
+    var server = (query.server == undefined)? window.location.hostname:query.server;
+    var port = (query.port == undefined)? 1935:query.port;
+    var vhost = (query.vhost == undefined)? window.location.hostname:query.vhost;
+    var app = (query.app == undefined)? "live":query.app;
+    var stream = (query.stream == undefined)? "livestream":query.stream;
+
+    if (server == vhost || vhost == "") {
+        return "rtmp://" + server + ":" + port + "/" + app + "/" + stream;
+    } else {
+        vhost = srs_get_player_publish_vhost(vhost);
         return "rtmp://" + server + ":" + port + "/" + app + "...vhost..." + vhost + "/" + stream;
     }
 }
@@ -162,6 +204,8 @@ function srs_get_player_height() { return srs_get_player_width() * 9 / 19; }
 function srs_get_version_code() { return "1.5"; }
 // get the default vhost for players.
 function srs_get_player_vhost() { return "players"; }
+// the api server port, for chat room.
+function srs_get_api_server_port() { return 8085; }
 // get the stream published to vhost,
 // generally we need to transcode the stream to support HLS and filters.
 // for example, src_vhost is "players", we transcode stream to vhost "players_pub".
@@ -187,6 +231,112 @@ function srs_init(rtmp_url, hls_url, modal_player) {
         $(modal_player).width(srs_get_player_modal() + "px");
         $(modal_player).css("margin-left", "-" + srs_get_player_modal() / 2 +"px");
     }
+}
+// for the chat to init the publish url.
+function srs_init_publish(rtmp_url) {
+    update_nav();
+    
+    if (rtmp_url) {
+        $(rtmp_url).val(build_default_publish_rtmp_url());
+    }
+}
+
+/**
+* when publisher ready, init the page elements.
+*/
+function srs_publisher_initialize_page(
+    cameras, microphones,
+    sl_cameras, sl_microphones, sl_vcodec, sl_profile, sl_level, sl_gop, sl_size, sl_fps, sl_bitrate
+) {
+    $(sl_cameras).empty();
+    for (var i = 0; i < cameras.length; i++) {
+        $(sl_cameras).append("<option value='" + i + "'>" + cameras[i] + "</option");
+    }
+    // optional: select the first no "virtual" signed.
+    for (var i = 0; i < cameras.length; i++) {
+        if (cameras[i].toLowerCase().indexOf("virtual") == -1) {
+            $(sl_cameras + " option[value='" + i + "']").attr("selected", true);
+            break;
+        }
+    }
+    
+    $(sl_microphones).empty();
+    for (var i = 0; i < microphones.length; i++) {
+        $(sl_microphones).append("<option value='" + i + "'>" + microphones[i] + "</option");
+    }
+    
+    $(sl_vcodec).empty();
+    var vcodecs = ["h264", "vp6"];
+    for (var i = 0; i < vcodecs.length; i++) {
+        $(sl_vcodec).append("<option value='" + vcodecs[i] + "'>" + vcodecs[i] + "</option");
+    }
+    
+    $(sl_profile).empty();
+    var profiles = ["baseline", "main"];
+    for (var i = 0; i < profiles.length; i++) {
+        $(sl_profile).append("<option value='" + profiles[i] + "'>" + profiles[i] + "</option");
+    }
+    
+    $(sl_level).empty();
+    var levels = ["1", "1b", "1.1", "1.2", "1.3", 
+        "2", "2.1", "2.2", "3", "3.1", "3.2", "4", "4.1", "4.2", "5", "5.1"];
+    for (var i = 0; i < levels.length; i++) {
+        $(sl_level).append("<option value='" + levels[i] + "'>" + levels[i] + "</option");
+    }
+    $(sl_level + " option[value='4.1']").attr("selected", true);
+    
+    $(sl_gop).empty();
+    var gops = ["0.3", "0.5", "1", "2", "3", "4", 
+        "5", "6", "7", "8", "9", "10", "15", "20"];
+    for (var i = 0; i < gops.length; i++) {
+        $(sl_gop).append("<option value='" + gops[i] + "'>" + gops[i] + "秒</option");
+    }
+    $(sl_gop + " option[value='5']").attr("selected", true);
+    
+    $(sl_size).empty();
+    var sizes = ["176x144", "320x240", "352x240", 
+        "352x288", "460x240", "640x480", "720x480", "720x576", "800x600", 
+        "1024x768", "1280x720", "1360x768", "1920x1080"];
+    for (i = 0; i < sizes.length; i++) {
+        $(sl_size).append("<option value='" + sizes[i] + "'>" + sizes[i] + "</option");
+    }
+    $(sl_size + " option[value='460x240']").attr("selected", true);
+    
+    $(sl_fps).empty();
+    var fpses = ["5", "10", "15", "20", "24", "25", "29.97", "30"];
+    for (i = 0; i < fpses.length; i++) {
+        $(sl_fps).append("<option value='" + fpses[i] + "'>" + Number(fpses[i]).toFixed(2) + " 帧/秒</option");
+    }
+    $(sl_fps + " option[value='15']").attr("selected", true);
+    
+    $(sl_bitrate).empty();
+    var bitrates = ["50", "200", "350", "500", "650", "800", 
+        "950", "1000", "1200", "1500", "1800", "2000", "3000", "5000"];
+    for (i = 0; i < bitrates.length; i++) {
+        $(sl_bitrate).append("<option value='" + bitrates[i] + "'>" + bitrates[i] + " kbps</option");
+    }
+    $(sl_bitrate + " option[value='350']").attr("selected", true);
+}
+/**
+* get the vcodec and acodec.
+*/
+function srs_publiser_get_codec(
+    vcodec, acodec,
+    sl_cameras, sl_microphones, sl_vcodec, sl_profile, sl_level, sl_gop, sl_size, sl_fps, sl_bitrate
+) {
+    acodec.device_code = $(sl_microphones).val();
+    acodec.device_name = $(sl_microphones).text();
+    
+    vcodec.device_code = $(sl_cameras).find("option:selected").val();
+    vcodec.device_name = $(sl_cameras).find("option:selected").text();
+    
+    vcodec.codec    = $(sl_vcodec).find("option:selected").val();
+    vcodec.profile  = $(sl_profile).find("option:selected").val();
+    vcodec.level    = $(sl_level).find("option:selected").val();
+    vcodec.fps      = $(sl_fps).find("option:selected").val();
+    vcodec.gop      = $(sl_gop).find("option:selected").val();
+    vcodec.size     = $(sl_size).find("option:selected").val();
+    vcodec.bitrate  = $(sl_bitrate).find("option:selected").val();
 }
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -223,11 +373,16 @@ function SrsPlayer(container, width, height) {
 }
 /**
 * user can set some callback, then start the player.
+* @param url the default url.
 * callbacks:
 *      on_player_ready():int, when srs player ready, user can play.
 *      on_player_metadata(metadata:Object):int, when srs player get metadata.
 */
-SrsPlayer.prototype.start = function() {
+SrsPlayer.prototype.start = function(url) {
+    if (url) {
+        this.stream_url = url;
+    }
+    
     // embed the flash.
     var flashvars = {};
     flashvars.id = this.id;
@@ -262,7 +417,9 @@ SrsPlayer.prototype.start = function() {
 * @param stream_url the url of stream, rtmp or http.
 */
 SrsPlayer.prototype.play = function(url) {
-    this.stream_url = url;
+    if (url) {
+        this.stream_url = url;
+    }
     this.callbackObj.ref.__play(this.stream_url, this.width, this.height, this.buffer_time);
 }
 SrsPlayer.prototype.stop = function() {

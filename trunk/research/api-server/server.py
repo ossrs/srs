@@ -36,7 +36,7 @@ reload(sys)
 exec("sys.setdefaultencoding('utf-8')")
 assert sys.getdefaultencoding().lower() == "utf-8"
 
-import json, datetime, cherrypy
+import os, json, time, datetime, cherrypy, threading
 
 # simple log functions.
 def trace(msg):
@@ -320,6 +320,123 @@ class RESTSessions(object):
 
         return code
 
+global_chat_id = os.getpid();
+'''
+the chat streams, public chat room.
+'''
+class RESTChats(object):
+    exposed = True
+    global_id = 100
+    
+    def __init__(self):
+        # object fields:
+        # id: an int value indicates the id of user.
+        # username: a str indicates the user name.
+        # url: a str indicates the url of user stream.
+        # agent: a str indicates the agent of user.
+        # join_date: a number indicates the join timestamp in seconds.
+        # join_date_str: a str specifies the formated friendly time.
+        # heatbeat: a number indicates the heartbeat timestamp in seconds.
+        # vcodec: a dict indicates the video codec info.
+        # acodec: a dict indicates the audio codec info.
+        self.__chats = [];
+        self.__chat_lock = threading.Lock();
+
+        # dead time in seconds, if exceed, remove the chat.
+        self.__dead_time = 30;
+
+    def GET(self):
+        enable_crossdomain()
+
+        try:
+            self.__chat_lock.acquire();
+
+            chats = [];
+            copy = self.__chats[:];
+            for chat in copy:
+                if time.time() - chat["heartbeat"] > self.__dead_time:
+                    self.__chats.remove(chat);
+                    continue;
+
+                chats.append({
+                    "id": chat["id"],
+                    "username": chat["username"],
+                    "url": chat["url"],
+                    "join_date_str": chat["join_date_str"],
+                    "heartbeat": chat["heartbeat"],
+                });
+        finally:
+            self.__chat_lock.release();
+            
+        return json.dumps({"code":0, "data": {"now": time.time(), "chats": chats}})
+        
+    def POST(self):
+        enable_crossdomain()
+        
+        req = cherrypy.request.body.read()
+        chat = json.loads(req)
+
+        global global_chat_id;
+        chat["id"] = global_chat_id
+        global_chat_id += 1
+
+        chat["join_date"] = time.time();
+        chat["heartbeat"] = time.time();
+        chat["join_date_str"] = time.strftime("%Y-%m-%d %H:%M:%S");
+
+        try:
+            self.__chat_lock.acquire();
+
+            self.__chats.append(chat)
+        finally:
+            self.__chat_lock.release();
+
+        trace("create chat success, id=%s"%(chat["id"]))
+        
+        return json.dumps({"code":0, "data": chat["id"]})
+
+    def DELETE(self, id):
+        enable_crossdomain()
+
+        try:
+            self.__chat_lock.acquire();
+
+            for chat in self.__chats:
+                if str(id) != str(chat["id"]):
+                    continue
+
+                self.__chats.remove(chat)
+                trace("delete chat success, id=%s"%(id))
+
+                return json.dumps({"code":0, "data": None})
+        finally:
+            self.__chat_lock.release();
+
+        raise cherrypy.HTTPError(405, "Not allowed.")
+
+    def PUT(self, id):
+        enable_crossdomain()
+
+        try:
+            self.__chat_lock.acquire();
+
+            for chat in self.__chats:
+                if str(id) != str(chat["id"]):
+                    continue
+
+                chat["heartbeat"] = time.time();
+                trace("heartbeat chat success, id=%s"%(id))
+
+                return json.dumps({"code":0, "data": None})
+        finally:
+            self.__chat_lock.release();
+
+        raise cherrypy.HTTPError(405, "Not allowed.")
+
+
+    def OPTIONS(self, id=None):
+        enable_crossdomain()
+
 # HTTP RESTful path.
 class Root(object):
     def __init__(self):
@@ -335,6 +452,7 @@ class V1(object):
         self.clients = RESTClients()
         self.streams = RESTStreams()
         self.sessions = RESTSessions()
+        self.chats = RESTChats()
 
 '''
 main code start.

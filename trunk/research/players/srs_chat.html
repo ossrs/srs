@@ -15,99 +15,45 @@
     </style>
     <script type="text/javascript">
         var srs_publisher = null;
-        var remote_player = null;
         var realtime_player = null;
-        var wizard = null;
+        var api_server = null;
+        var self_chat = null;
+        var global_chat_user_id = 200;
+        var previous_chats = [];
+        var no_play = false;
         
         $(function(){
             // get the vhost and port to set the default url.
             // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
             // url set to: rtmp://demo:1935/live/livestream
-            srs_init("#txt_url", null, null);
+            srs_init_publish("#txt_url");
             
-            $("#btn_create_chat").click(function(){
+            // if no play specified, donot show the player, for debug the publisher.
+            var query = parse_query_string();
+            if (query.no_play == "true") {
+                no_play = true;
+            }
+            
+            $("#btn_video_settings").click(function(){
                 $("#video_modal").modal({show:true});
             });
-            $("#btn_join_chat").click(function(){
+            $("#btn_audio_settings").click(function(){
                 $("#audio_modal").modal({show:true});
             });
-            
-            $("#btn_publish").click(on_user_publish);
-            
+            $("#btn_join").click(on_user_publish);
+
             // for publish, we use randome stream name.
             $("#txt_url").val($("#txt_url").val() + "." + new Date().getTime());
             
             // start the publisher.
             srs_publisher = new SrsPublisher("local_publisher", 430, 185);
             srs_publisher.on_publisher_ready = function(cameras, microphones) {
-                $("#sl_cameras").empty();
-                for (var i = 0; i < cameras.length; i++) {
-                    $("#sl_cameras").append("<option value='" + i + "'>" + cameras[i] + "</option");
-                }
-                // optional: select the first no "virtual" signed.
-                for (var i = 0; i < cameras.length; i++) {
-                    if (cameras[i].toLowerCase().indexOf("virtual") == -1) {
-                        $("#sl_cameras option[value='" + i + "']").attr("selected", true);
-                        break;
-                    }
-                }
-                
-                $("#sl_microphones").empty();
-                for (var i = 0; i < microphones.length; i++) {
-                    $("#sl_microphones").append("<option value='" + i + "'>" + microphones[i] + "</option");
-                }
-                
-                $("#sl_vcodec").empty();
-                var vcodecs = ["h264", "vp6"];
-                for (var i = 0; i < vcodecs.length; i++) {
-                    $("#sl_vcodec").append("<option value='" + vcodecs[i] + "'>" + vcodecs[i] + "</option");
-                }
-                
-                $("#sl_profile").empty();
-                var profiles = ["baseline", "main"];
-                for (var i = 0; i < profiles.length; i++) {
-                    $("#sl_profile").append("<option value='" + profiles[i] + "'>" + profiles[i] + "</option");
-                }
-                
-                $("#sl_level").empty();
-                var levels = ["1", "1b", "1.1", "1.2", "1.3", 
-                    "2", "2.1", "2.2", "3", "3.1", "3.2", "4", "4.1", "4.2", "5", "5.1"];
-                for (var i = 0; i < levels.length; i++) {
-                    $("#sl_level").append("<option value='" + levels[i] + "'>" + levels[i] + "</option");
-                }
-                $("#sl_level option[value='4.1']").attr("selected", true);
-                
-                $("#sl_gop").empty();
-                var gops = ["0.3", "0.5", "1", "2", "3", "4", 
-                    "5", "6", "7", "8", "9", "10", "15", "20"];
-                for (var i = 0; i < gops.length; i++) {
-                    $("#sl_gop").append("<option value='" + gops[i] + "'>" + gops[i] + "秒</option");
-                }
-                $("#sl_gop option[value='5']").attr("selected", true);
-                
-                $("#sl_size").empty();
-                var sizes = ["176x144", "320x240", "352x240", 
-                    "352x288", "460x240", "640x480", "720x480", "720x576", "800x600", 
-                    "1024x768", "1280x720", "1360x768", "1920x1080"];
-                for (i = 0; i < sizes.length; i++) {
-                    $("#sl_size").append("<option value='" + sizes[i] + "'>" + sizes[i] + "</option");
-                }
-                $("#sl_size option[value='460x240']").attr("selected", true);
-                
-                $("#sl_fps").empty();
-                var fpses = ["5", "10", "15", "20", "24", "25", "29.97", "30"];
-                for (i = 0; i < fpses.length; i++) {
-                    $("#sl_fps").append("<option value='" + fpses[i] + "'>" + Number(fpses[i]).toFixed(2) + " 帧/秒</option");
-                }
-                $("#sl_fps option[value='15']").attr("selected", true);
-                
-                $("#sl_bitrate").empty();
-                var bitrates = ["50", "200", "350", "500", "650", "800", 
-                    "950", "1000", "1200", "1500", "1800", "2000", "3000", "5000"];
-                for (i = 0; i < bitrates.length; i++) {
-                    $("#sl_bitrate").append("<option value='" + bitrates[i] + "'>" + bitrates[i] + " kbps</option");
-                }
-                $("#sl_bitrate option[value='350']").attr("selected", true);
+                srs_publisher_initialize_page(
+                    cameras, microphones,
+                    "#sl_cameras", "#sl_microphones", 
+                    "#sl_vcodec", "#sl_profile", "#sl_level", "#sl_gop", "#sl_size",
+                    "#sl_fps", "#sl_bitrate"
+                );
             };
             srs_publisher.on_publisher_error = function(code, desc) {
                 error(code, desc);
@@ -117,20 +63,7 @@
             };
             srs_publisher.start();
             
-            //wizard = $("#some-wizard").wizard({});
-            //wizard.show();
-            
-            // if no play specified, donot show the player, for debug the publisher.
-            var query = parse_query_string();
-            if (query.no_play != "true") {
-                // start the normal player with HLS supported.
-                remote_player = new SrsPlayer("remote_player", 430, 185);
-                remote_player.on_player_ready = function() {
-                    remote_player.set_bt(0.8);
-                    remote_player.set_fs("screen", 100);
-                };
-                remote_player.start();
-                
+            if (!no_play) {
                 // start the realtime player.
                 realtime_player = new SrsPlayer("realtime_player", 430, 185);
                 realtime_player.on_player_ready = function() {
@@ -139,101 +72,340 @@
                 };
                 realtime_player.start();
             }
+            
+            api_server = "http://" + query.hostname + ":" + srs_get_api_server_port() + "/api/v1/chats";
+            refresh();
         });
         
-        function update_play_url() {
-            var url = $("#txt_url").val();
-            var ret = srs_parse_rtmp_url(url);
-            var query = parse_query_string();
-            
-            var srs_player_url = "http://" + query.host + query.dir + "/srs_player.html?";
-            srs_player_url += "vhost=" + srs_get_player_publish_vhost(ret.vhost) + "&port=" + ret.port + "&app=" + ret.app + "&stream=" + ret.stream;
-            srs_player_url += "&autostart=true";
-            
-            var srs_player_rt_url = "http://" + query.host + query.dir + "/srs_player.html?";
-            srs_player_rt_url += "vhost=" + ret.vhost + "&port=" + ret.port + "&app=" + ret.app + "&stream=" + ret.stream;
-            srs_player_rt_url += "&autostart=true";
-            
-            var jwplayer_url = "http://" + query.host + query.dir + "/jwplayer6.html?";
-            jwplayer_url += "vhost=" + srs_get_player_publish_vhost(ret.vhost) + "&port=" + ret.port + "&app=" + ret.app + "&stream=" + ret.stream;
-            jwplayer_url += "&hls_autostart=true";
-            
-            var hls_url = "http://" + ret.server + ":" + query.http_port + "/" + ret.app + "/" + ret.stream + ".m3u8";
-            
-            $("#txt_play_realtime").text("RTMP低延时(点击打开)").attr("href", srs_player_rt_url).attr("target", "_blank");
-            $("#txt_play_url").text("RTMP已转码(点击打开)").attr("href", srs_player_url).attr("target", "_blank");
-            $("#txt_play_hls").text("HLS-m3u8(点击打开或右键复制)").attr("href", hls_url).attr("target", "_blank");
-            $("#txt_play_jwplayer").text("HLS-JWPlayer(点击打开)").attr("href", jwplayer_url).attr("target", "_blank");
-        }
-        function on_user_publish() {
-            if ($("#btn_publish").text() == "停止发布") {
-                srs_publisher.stop();
-                $("#btn_publish").text("发布视频");
-                $("#txt_play_realtime").text("RTMP低延时(请发布视频)").attr("href", "#").attr("target", "_self");
-                $("#txt_play_url").text("RTMP已转码(请发布视频)").attr("href", "#").attr("target", "_self");
-                $("#txt_play_hls").text("HLS-m3u8(请发布视频)").attr("href", "#").attr("target", "_self");
-                $("#txt_play_jwplayer").text("HLS-JWPlayer(请发布视频)").attr("href", "#").attr("target", "_self");
+        function refresh() {
+            if (!self_chat) {
+                setTimeout(refresh, 1000);
                 return;
             }
             
-            $("#btn_publish").text("停止发布");
+            $.ajax({
+                type       : "GET",
+                async      : true,
+                url        : api_server,
+                contentType: "text/html",
+                data       : "",
+                dataType   : "json",
+                complete   : function() {
+                },
+                error      : function(ret) {
+                    setTimeout(refresh, 5000);
+                    warn(101, "查询会议室失败：" + JSON.stringify(ret));
+                },
+                success    : function(ret) {
+                    if(0 != ret["code"]) {
+                        warn(102, "查询会议室失败: " + JSON.stringify(ret));
+                        setTimeout(refresh, 5000);
+                        return;
+                    }
+
+                    var chats = ret["data"]["chats"];
+                    var server_time = ret["now"];
+                    
+                    on_get_chats(chats);
+                    setTimeout(refresh, 5000);
+                }
+            });
+        }
+        function on_get_chats(chats) {
+            if (!self_chat) {
+                return;
+            }
             
-            update_play_url();
+            // get self, check self is valid?
+            var _self_chat = null;
+            for (var i = 0; i < chats.length; i++) {
+                var chat = chats[i];
+                if (self_chat && self_chat.id == chat.id) {
+                    _self_chat = chat;
+                    break;
+                }
+            }
+            // rejoin if invalid.
+            if (!_self_chat) {
+                on_user_exit_chat(function(){
+                    on_user_join_chat(function(){
+                        info("重新加入会议室成功");
+                    });
+                });
+                return;
+            }
+            
+            render_chat_room(chats);
+            
+            if (!self_chat) {
+                return;
+            }
+            
+            // update self heartbeat.
+            var url = api_server + "/" + self_chat.id;
+            
+            var chat = {};
+            chat.localtime = new Date().getTime();
+            
+            // publish to api server to requires an id.
+            $.ajax({
+                type       : "PUT",
+                async      : true,
+                url        : url,
+                contentType: "text/html",
+                data       : JSON.stringify(chat),
+                dataType   : "json",
+                complete   : function() {
+                },
+                error      : function(ret) {
+                    warn(105, "更新会议室信息失败：" + JSON.stringify(ret));
+                },
+                success    : function(ret) {
+                    if(0 != ret["code"]) {
+                        warn(106, "更新会议室信息失败：: " + JSON.stringify(ret));
+                        return;
+                    }
+                }
+            });
+        }
+        function render_chat_room(chats) {
+            if (!self_chat) {
+                return;
+            }
+            
+            // new added chat
+            for (var i = 0; i < chats.length; i++) {
+                var chat = chats[i];
+                // ignore the self.
+                if (self_chat && self_chat.id == chat.id) {
+                    continue;
+                }
+                
+                // if previous exists, ignore, only add new here.
+                var previous_chat = get_previous_chat_user(previous_chats, chat.id);
+                if (previous_chat) {
+                    chat.player = previous_chat.player;
+                    continue;
+                }
+                
+                global_chat_user_id++;
+                
+                // username: a str indicates the user name.
+                // url: a str indicates the url of user stream.
+                // join_date: a str indicates the join timestamp in seconds.
+                // join_date_str: friendly formated time.
+                var obj = $("<div/>").html($("#template").html());
+                $(obj).attr("chat_id", chat.id);
+                $(obj).attr("id", "div_" + chat.id); // for specifed chat: $("#div_" + chat_id)
+                $(obj).attr("class", "div_chat"); // for all chats: $(".div_chat")
+                $(obj).find("#realtime_player").attr("id", "rp_" + chat.id); // for specifed player: $("#rp_" + chat_id)
+                $(obj).find("#realtime_player_raw").attr("id", "rp_raw_" + chat.id); // for specifed player: $("#rp_raw_" + chat_id)
+                $(obj).find("#user_name").text(chat.username);
+                $(obj).find("#join_date").text(chat.join_date_str);
+                $(obj).find("#collapseM").attr("id", "collapse_" + global_chat_user_id);
+                $(obj).find("#headerN").attr("href", "#collapse_" + global_chat_user_id);
+                
+                $("#lst_chats").append(obj);
+            
+                if (!no_play) {
+                    // start the realtime player.
+                    var _player = new SrsPlayer("rp_raw_" + chat.id, 600, 300);
+                    _player.on_player_ready = function() {
+                        this.set_bt(0.8);
+                        this.set_fs("screen", 100);
+                    };
+                    _player.start(chat.url);
+                    
+                    chat.player = _player;
+                } else {
+                    chat.player = null;
+                }
+                
+                $(obj).find("#collapse_main").on('hidden', function(){
+                    var id = $(this).parent().attr("chat_id");
+                    var chat = get_previous_chat_user(previous_chats, id);
+                    if (!chat || !chat.player) {
+                        return;
+                    }
+                    chat.player.stop();
+                });
+                $(obj).find("#collapse_main").on('shown', function(){
+                    var id = $(this).parent().attr("chat_id");
+                    var chat = get_previous_chat_user(previous_chats, id);
+                    if (!chat || !chat.player) {
+                        return;
+                    }
+                    chat.player.play();
+                });
+            }
+            
+            // removed chat
+            for (var i = 0; i < previous_chats.length; i++) {
+                var chat = previous_chats[i];
+                // ignore the self.
+                if (self_chat && self_chat.id == chat.id) {
+                    continue;
+                }
+                
+                var new_chat = get_previous_chat_user(chats, chat.id);
+                if (new_chat) {
+                    continue;
+                }
+                
+                if (chat.player) {
+                    chat.player.stop();
+                }
+                $("#div_" + chat.id).remove();
+            }
+            
+            previous_chats = chats;
+        }
+        function get_previous_chat_user(arr, id) {
+            for (var i = 0; i < arr.length; i++) {
+                var chat = arr[i];
+                if (id == chat.id) {
+                    return chat;
+                }
+            }
+            return null;
+        }
+        
+        function on_user_publish() {
+            if ($("#txt_name").val().trim() == "") {
+                $("#txt_name").focus().parent().parent().addClass("error");
+                warn(100, "请输入您的名字");
+                return;
+            }
+            
+            $("#txt_name").parent().parent().removeClass("error");
+            
+            // join chat.
+            if (!self_chat) {
+                on_user_join_chat();
+            } else {
+                on_user_exit_chat();
+            }
+        }
+        function on_user_exit_chat(complete_pfn) {
+            srs_publisher.stop();
+            $("#btn_join").text("加入会议");
+            
+            if (!self_chat) {
+                return;
+            }
+            
+            // removed chat
+            for (var i = 0; i < previous_chats.length; i++) {
+                var chat = previous_chats[i];
+                // ignore the self.
+                if (self_chat && self_chat.id == chat.id) {
+                    continue;
+                }
+                
+                if (chat.player) {
+                    chat.player.stop();
+                }
+                $("#div_" + chat.id).remove();
+            }
+            previous_chats = [];
+            
+            var url = api_server + "/" + self_chat.id;
+            // whatever, cleanup local chat.
+            self_chat = null;
+            
+            $("#btn_join").attr("disabled", true);
+            
+            // publish to api server to requires an id.
+            $.ajax({
+                type       : "DELETE",
+                async      : true,
+                url        : url,
+                contentType: "text/html",
+                data       : "",
+                dataType   : "json",
+                complete   : function() {
+                    $("#btn_join").attr("disabled", false);
+                    if (complete_pfn) {
+                        complete_pfn();
+                    }
+                },
+                error      : function(ret) {
+                    warn(103, "退出会议室失败");
+                },
+                success    : function(ret) {
+                    if(0 != ret["code"]) {
+                        warn(104, "退出会议室失败");
+                        return;
+                    }
+                    info("退出会议室成功");
+                }
+            });
+        }
+        function on_user_join_chat(complete_pfn) {
+            if (self_chat) {
+                return;
+            }
             
             var url = $("#txt_url").val();
             var vcodec = {};
             var acodec = {};
+            srs_publiser_get_codec(
+                vcodec, acodec,
+                "#sl_cameras", "#sl_microphones", 
+                "#sl_vcodec", "#sl_profile", "#sl_level", "#sl_gop", "#sl_size",
+                "#sl_fps", "#sl_bitrate"
+            );
             
-            acodec.device_code = $("#sl_microphones").val();
-            acodec.device_name = $("#sl_microphones").text();
+            var chat = {};
+            chat.id = -1;
+            chat.username = $("#txt_name").val().trim();
+            chat.agent = navigator.userAgent;
+            chat.url = url;
+            chat.vcodec = vcodec;
+            chat.acodec = acodec;
             
-            vcodec.device_code = $("#sl_cameras").find("option:selected").val();
-            vcodec.device_name = $("#sl_cameras").find("option:selected").text();
+            $("#btn_join").attr("disabled", true);
             
-            vcodec.codec = $("#sl_vcodec").find("option:selected").val();
-            vcodec.profile = $("#sl_profile").find("option:selected").val();
-            vcodec.level = $("#sl_level").find("option:selected").val();
-            vcodec.fps = $("#sl_fps").find("option:selected").val();
-            vcodec.gop = $("#sl_gop").find("option:selected").val();
-            vcodec.size = $("#sl_size").find("option:selected").val();
-            vcodec.bitrate = $("#sl_bitrate").find("option:selected").val();
-            
-            info("开始推流到服务器");
-            srs_publisher.publish(url, vcodec, acodec);
-            
-            if (realtime_player) {
-                // directly play the url for the realtime player.
-                realtime_player.stop();
-                realtime_player.play(url);
-            }
-            
-            if (remote_player) {
-                // the normal player should play the transcoded stream in another vhost.
-                // for example, publish stream to vhost players,
-                // the realtime player play the vhost players, which may donot support HLS,
-                // the normal player play the vhost players_pub, which transcoded to h264/aac with HLS.
-                var ret = srs_parse_rtmp_url(url);
-                var pub_url = "rtmp://" + ret.server + ":" + ret.port + "/" + ret.app;
-                pub_url += "?vhost=" + srs_get_player_publish_vhost(ret.vhost) + "/" + ret.stream;
-                remote_player.stop();
-                remote_player.play(pub_url);
-            }
-        }
-        
-        function info(desc) {
-            $("#txt_log").addClass("alert-info").removeClass("alert-error").removeClass("alert-warn");
-            $("#txt_log_title").text("Info:");
-            $("#txt_log_msg").text(desc);
-        }
-        function warn(code, desc) {
-            $("#txt_log").removeClass("alert-info").removeClass("alert-error").addClass("alert-warn");
-            $("#txt_log_title").text("Warn:");
-            $("#txt_log_msg").text("code: " + code + ", " + desc);
-        }
-        function error(code, desc) {
-            $("#txt_log").removeClass("alert-info").addClass("alert-error").removeClass("alert-warn");
-            $("#txt_log_title").text("Error:");
-            $("#txt_log_msg").text("code: " + code + ", " + desc);
+            // publish to api server to requires an id.
+            $.ajax({
+                type       : "POST",
+                async      : true,
+                url        : api_server,
+                contentType: "text/html",
+                data       : JSON.stringify(chat),
+                dataType   : "json",
+                complete   : function() {
+                    $("#btn_join").attr("disabled", false);
+                    if (complete_pfn) {
+                        complete_pfn();
+                    }
+                },
+                error      : function(ret) {
+                    warn(105, "创建会议室失败：" + JSON.stringify(ret));
+                },
+                success    : function(ret) {
+                    if(0 != ret["code"]) {
+                        warn(106, "创建会议室失败: " + JSON.stringify(ret));
+                        return;
+                    }
+
+                    chat.id = ret["data"];
+                    
+                    // success, start publish.
+                    self_chat = chat;
+                    
+                    $("#btn_join").text("退出会议");
+                
+                    info("开始推流到服务器");
+                    srs_publisher.publish(url, vcodec, acodec);
+                
+                    if (realtime_player) {
+                        // directly play the url for the realtime player.
+                        realtime_player.stop();
+                        realtime_player.play(url);
+                    }
+                }
+            });
         }
     </script>
 </head>
@@ -257,32 +429,82 @@
     </div>
 </div>
 <div class="container">
+    <!-- for the log -->
     <div class="alert alert-info fade in" id="txt_log">
         <button type="button" class="close" data-dismiss="alert">×</button>
         <strong><span id="txt_log_title">Usage:</span></strong>
-        <span id="txt_log_msg">创建会议室，或者加入会议室</span>
+        <span id="txt_log_msg">输入名字，设置编码参数后，加入会议室</span>
     </div>
+    
     <div class="control-group">
         <div class="form-inline">
-            <button class="btn" id="btn_create_chat">创建会议室</button>
-            <button class="btn" id="btn_join_chat">加入会议室</button>
+            <input type="text" id="txt_name" class="input-small" placeholder="您的名字..." value=""></input>
+            <button class="btn input-medium" id="btn_video_settings">视频编码配置</button>
+            <button class="btn input-medium" id="btn_audio_settings">音频编码配置</button>
+            <button class="btn input-medium btn-primary" id="btn_join">加入会议</button>
+            <input type="text" id="txt_url" class="input-mini hide" value=""></input>
         </div>
     </div>
-    <div class="control-group">
-        <div class="form-inline">
-            发布地址:
-            <input type="text" id="txt_url" class="input-xxlarge" value=""></input>
-            <button class="btn btn-primary" id="btn_publish">发布视频</button>
+    <div class="container">
+        <div class="row-fluid">
+            <div class="span6">
+                <div class="accordion-group">
+                    <div class="accordion-heading">
+                        <span class="accordion-toggle" data-toggle="collapse" href="#collapseN">
+                            <strong>[我的] 本地摄像头</strong>
+                        </span>
+                    </div>
+                    <div id="collapseM" class="accordion-body collapse in">
+                        <div class="accordion-inner">
+                            <div id="local_publisher"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="span6">
+                <div class="accordion-group">
+                    <div class="accordion-heading">
+                        <span class="accordion-toggle" data-toggle="collapse" href="#collapseN">
+                            <strong>[我的] 远程服务器流</strong>
+                        </span>
+                    </div>
+                    <div id="collapseM" class="accordion-body collapse in">
+                        <div class="accordion-inner">
+                            <div id="realtime_player"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-    <div class="control-group">
-        <div class="form-inline">
-            播放地址
-            1.<a id="txt_play_realtime" class="input-xxlarge" href="#">RTMP低延时(请发布视频)</a>
-            2.<a id="txt_play_url" class="input-xxlarge" href="#">RTMP已转码(请发布视频)</a>
-            3.<a id="txt_play_hls" class="input-xxlarge" href="#">HLS-m3u8(请发布视频)</a>
-            4.<a id="txt_play_jwplayer" class="input-xxlarge" href="#">HLS-JWPlayer(请发布视频)</a>
+    <div class="container hide" id="template">
+        <div class="accordion-group" id="collapse_main">
+            <div class="accordion-heading" title="点击展开或收起，收起后停止播放流，展开时从服务器请求流">
+                <span id="headerN" class="accordion-toggle" data-toggle="collapse" href="#collapseN">
+                    <strong>[<a href="#"><span id="user_name">XX</span></a>]</strong>
+                    <strong>加入时间</strong>[<span id="join_date"></span>]
+                    <img src="img/tooltip.png"/>
+                </span>
+            </div>
+            <div id="collapseM" class="accordion-body collapse">
+                <div class="accordion-inner">
+                    <div class="row-fluid">
+                        <div class="span2">
+                        </div>
+                        <div class="span8">
+                            <div id="realtime_player">
+                                <div id="realtime_player_raw">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="span2">
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
+    </div>
+    <div class="container" id="lst_chats">
     </div>
     <div id="video_modal" class="modal hide fade">
         <div class="modal-header">
@@ -409,64 +631,7 @@
             <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true">设置</button>
         </div>
     </div>
-    <div class="container">
-        <div class="row-fluid">
-            <div class="span6">
-                <div class="accordion-group">
-                    <div class="accordion-heading">
-                        <span class="accordion-toggle" data-toggle="collapse" href="#collapse1">
-                            <strong>本地摄像头</strong>
-                        </span>
-                    </div>
-                    <div id="collapse1" class="accordion-body collapse in">
-                        <div class="accordion-inner">
-                            <div id="local_publisher"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="span6">
-                <div class="accordion-group">
-                    <div class="accordion-heading">
-                        <span class="accordion-toggle" data-toggle="collapse" href="#collapse2">
-                            <strong>远程服务器</strong>
-                            <a id="remote_tips" href="#" data-toggle="tooltip" data-placement="top" title="">
-                                黑屏<img src="img/tooltip.png"/>
-                            </a>
-                        </span>
-                    </div>
-                    <div id="collapse2" class="accordion-body collapse in">
-                        <div class="accordion-inner">
-                            <div id="remote_player"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="container">
-        <div class="row-fluid">
-            <div class="span6">
-                <div class="accordion-group">
-                    <div class="accordion-heading">
-                        <span class="accordion-toggle" data-toggle="collapse" href="#collapse3">
-                            <strong>远程服务器</strong>
-                            <a id="low_latecy_tips" href="#" data-toggle="tooltip" data-placement="top" title="">
-                                低延时<img src="img/tooltip.png"/>
-                            </a>
-                        </span>
-                    </div>
-                    <div id="collapse3" class="accordion-body collapse in">
-                        <div class="accordion-inner">
-                            <div id="realtime_player"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="span6">
-            </div>
-        </div>
-    </div>
+    <hr/>
     <footer>
         <p><a href="https://github.com/winlinvip/simple-rtmp-server">SRS Team &copy; 2013</a></p>
     </footer>
