@@ -139,23 +139,23 @@ Bandwidth Test Workflow:
       +-----+------+             +-----+----+
             |                          |
             |  connect vhost------>    |
-            |  \<-----result(success)   |
+            |  &lt;-----result(success)   |
             |                          |
-            |  <----call(start play)   |
+            |  &lt;----call(start play)   |
             |  result(playing)----->   |
-            |  <-------data(playing)   |
-            |  <-----call(stop play)   |
+            |  &lt;-------data(playing)   |
+            |  &lt;-----call(stop play)   |
             |  result(stopped)----->   |
             |                          |
-            |  <-call(start publish)   |
+            |  &lt;-call(start publish)   |
             |  result(publishing)-->   |
             |  data(publishing)---->   |
-            |  <--call(stop publish)   |
+            |  &lt;--call(stop publish)   |
             |  result(stopped)(1)-->   |
             |                          |
-            |  <--------------report   |
+            |  &lt;--------------report   |
             |  final(2)------------>   |
-            |          <END>           |
+            |          &lt;END>           |
             
 @see: class SrsBandwidth comments.
 </pre>
