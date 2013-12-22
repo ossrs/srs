@@ -186,8 +186,8 @@ Supported operating systems and hardware:
 18. support ffmpeg filters(logo/overlay/crop), x264 params.<br/>
 19. support audio transcode only, speex/mp3 to aac<br/>
 20. support http callback api hooks(for authentication and injection).<br/>
-21. [plan] support network based cli and json result.<br/>
-22. [plan] support bandwidth test api and flash client.<br/>
+21. support bandwidth test api and flash client.<br/>
+22. [plan] support network based cli and json result.<br/>
 23. [plan] support adobe flash refer/token/swf verification.<br/>
 24. [plan] support adobe amf3 codec.<br/>
 25. [plan] support dvr(record live to vod file)<br/>
