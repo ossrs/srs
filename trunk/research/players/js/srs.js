@@ -201,7 +201,7 @@ function srs_get_player_width() { return srs_get_player_modal() - 30; }
 function srs_get_player_height() { return srs_get_player_width() * 9 / 19; }
 
 // to query the swf anti cache.
-function srs_get_version_code() { return "1.5"; }
+function srs_get_version_code() { return "1.7"; }
 // get the default vhost for players.
 function srs_get_player_vhost() { return "players"; }
 // the api server port, for chat room.
