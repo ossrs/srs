@@ -173,7 +173,7 @@ int SrsClient::service_cycle()
 	req->strip();
 	srs_trace("identify client success. type=%d, stream_name=%s", type, req->stream.c_str());
 	
-	int chunk_size = config->get_chunk_size();
+    int chunk_size = config->get_chunk_size(req->vhost);
 	if ((ret = rtmp->set_chunk_size(chunk_size)) != ERROR_SUCCESS) {
 		srs_error("set chunk_size=%d failed. ret=%d", chunk_size, ret);
 		return ret;

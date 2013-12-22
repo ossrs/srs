@@ -2,6 +2,7 @@
 The MIT License (MIT)
 
 Copyright (c) 2013 winlin
+Copyright (c) 2013 wenjiegit
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -1442,14 +1443,27 @@ SrsConfDirective* SrsConfig::get_listen()
 	return root->get("listen");
 }
 
-int SrsConfig::get_chunk_size()
+int SrsConfig::get_chunk_size(const std::string &vhost)
 {
-	SrsConfDirective* conf = root->get("chunk_size");
-	if (!conf) {
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
 		return SRS_CONF_DEFAULT_CHUNK_SIZE;
-	}
-	
-	return ::atoi(conf->arg0().c_str());
+    }
+
+    conf = conf->get("chunk_size");
+    if (!conf) {
+        // vhost does not specify the chunk size,
+        // use the global instead.
+		conf = root->get("chunk_size");
+		if (!conf) {
+			return SRS_CONF_DEFAULT_CHUNK_SIZE;
+		}
+		
+		return ::atoi(conf->arg0().c_str());
+    }
+
+    return ::atoi(conf->arg0().c_str());
 }
 
 int SrsConfig::get_pithy_print_publish()
