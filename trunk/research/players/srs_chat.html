@@ -289,6 +289,10 @@
         function on_user_exit_chat(complete_pfn) {
             srs_publisher.stop();
             $("#btn_join").text("加入会议");
+                
+            if (realtime_player) {
+                realtime_player.stop();
+            }
             
             if (!self_chat) {
                 return;
