@@ -200,7 +200,7 @@ Supported operating systems and hardware:
 20. support http callback api hooks(for authentication and injection).<br/>
 21. support bandwidth test api and flash client.<br/>
 22. player, publisher(encoder), and demo pages(jquery+bootstrap). <br/>
-23. [dev] demo video meeting or chat(srs+cherrypy+jquery+bootstrap). <br/>
+23. demo video meeting or chat(srs+cherrypy+jquery+bootstrap). <br/>
 24. [plan] support network based cli and json result.<br/>
 25. [plan] support adobe flash refer/token/swf verification.<br/>
 26. [plan] support adobe amf3 codec.<br/>
@@ -259,6 +259,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v0.9, 2013-12-22, demo video meeting or chat(srs+cherrypy+jquery+bootstrap).
 * v0.9, 2013-12-22, merge from wenjie, support banwidth test.
 * v0.9, 2013-12-22, merge from wenjie: support set chunk size at vhost level
 * v0.9, 2013-12-21, add [players](http://demo.srs.com/players) for play and publish.
