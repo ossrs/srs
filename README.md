@@ -45,18 +45,23 @@ sudo ./objs/nginx/sbin/nginx
 <pre>
 python ./research/api-server/server.py 8085
 </pre>
-<strong>step 6:</strong> publish live stream <br/>
+<strong>step 6:</strong> publish demo live stream <br/>
 <pre>
-FMS URL: rtmp://127.0.0.1/live
+FMS URL: rtmp://127.0.0.1/live?vhost=demo.srs.com
 Stream:  livestream
-For example, use ffmpeg to publish:
+FFMPEG to publish the default demo stream:
     for((;;)); do \
         ./objs/ffmpeg/bin/ffmpeg -re -i ./doc/source.200kbps.768x320.flv \
         -vcodec copy -acodec copy \
         -f flv -y rtmp://127.0.0.1/live?vhost=demo.srs.com/livestream; \
         sleep 1; \
     done
-publish the demo stream for players:
+</pre>
+<strong>step 7:</strong> publish players live stream <br/>
+<pre>
+FMS URL: rtmp://127.0.0.1/live?vhost=players
+Stream:  livestream
+FFMPEG to publish the players demo stream:
     for((;;)); do \
         ./objs/ffmpeg/bin/ffmpeg -re -i ./doc/source.200kbps.768x320.flv \
         -vcodec copy -acodec copy \
@@ -64,7 +69,7 @@ publish the demo stream for players:
         sleep 1; \
     done
 </pre>
-<strong>step 7:</strong> add server ip to client hosts as demo. <br/>
+<strong>step 8:</strong> add server ip to client hosts as demo. <br/>
 <pre>
 # edit the folowing file:
 # linux: /etc/hosts
@@ -72,14 +77,14 @@ publish the demo stream for players:
 # where server ip is 192.168.2.111
 192.168.2.111 demo.srs.com
 </pre>
-<strong>step 8:</strong> play live stream. <br/>
+<strong>step 9:</strong> play live stream. <br/>
 <pre>
 players: http://demo.srs.com/players
 rtmp url: rtmp://demo.srs.com/live/livestream
 m3u8 url: http://demo.srs.com/live/livestream.m3u8
 for android: http://demo.srs.com/live/livestream.html
 </pre>
-<strong>step 9(optinal):</strong> play live stream auto transcoded<br/>
+<strong>step 10(optinal):</strong> play live stream auto transcoded<br/>
 <pre>
 rtmp url: rtmp://demo.srs.com/live/livestream_ld
 m3u8 url: http://demo.srs.com/live/livestream_ld.m3u8
@@ -88,7 +93,7 @@ rtmp url: rtmp://demo.srs.com/live/livestream_sd
 m3u8 url: http://demo.srs.com/live/livestream_sd.m3u8
 for android: http://demo.srs.com/live/livestream_sd.html
 </pre>
-<strong>step 10(optinal):</strong> play live stream auto forwarded, the hls dir change to /forward<br/>
+<strong>step 11(optinal):</strong> play live stream auto forwarded, the hls dir change to /forward<br/>
 <pre>
 rtmp url: rtmp://demo.srs.com:19350/live/livestream
 m3u8 url: http://demo.srs.com/forward/live/livestream.m3u8
@@ -100,7 +105,7 @@ rtmp url: rtmp://demo.srs.com:19350/live/livestream_sd
 m3u8 url: http://demo.srs.com/forward/live/livestream_sd.m3u8
 for android: http://demo.srs.com/forward/live/livestream_sd.html
 </pre>
-<strong>step 11(optinal):</strong> modify the config and reload it (all features support reload)<br/>
+<strong>step 12(optinal):</strong> modify the config and reload it (all features support reload)<br/>
 <pre>
 killall -1 srs
 </pre>
