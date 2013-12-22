@@ -24,6 +24,7 @@ package
         // user set callback
         private var js_on_publisher_ready:String = null;
         private var js_on_publisher_error:String = null;
+        private var js_on_publisher_warn:String = null;
         
         // publish param url.
         private var user_url:String = null;
@@ -41,7 +42,9 @@ package
         private var media_microphone:Microphone = null;
         
         // error code.
-        private const error_device_muted:int = 100;
+        private const error_camera_get:int = 100;
+        private const error_microphone_get:int = 101;
+        private const error_camera_muted:int = 102;
         
         public function srs_publisher()
         {
@@ -74,6 +77,7 @@ package
             this.js_id = flashvars.id;
             this.js_on_publisher_ready = flashvars.on_publisher_ready;
             this.js_on_publisher_error = flashvars.on_publisher_error;
+            this.js_on_publisher_warn = flashvars.on_publisher_warn;
             
             flash.utils.setTimeout(this.system_on_js_ready, 0);
         }
@@ -106,6 +110,10 @@ package
             trace("system error, code=" + code + ", error=" + desc);
             flash.external.ExternalInterface.call(this.js_on_publisher_error, this.js_id, code);
         }
+        private function system_warn(code:int, desc:String):void {
+            trace("system warn, code=" + code + ", error=" + desc);
+            flash.external.ExternalInterface.call(this.js_on_publisher_warn, this.js_id, code);
+        }
         
         /**
          * publish stream to server.
@@ -129,26 +137,21 @@ package
             // microphone and camera
             var m:Microphone = Microphone.getMicrophone(acodec.device_code);
             if(m == null){
-                trace("failed to open microphone " + acodec.device_code + "(" + acodec.device_name + ")");
+                this.system_error(this.error_microphone_get, "failed to open microphone " + acodec.device_code + "(" + acodec.device_name + ")");
+                return;
             }
-            if(m.muted){
-                trace("Access Denied, microphone " + acodec.device_code + "(" + acodec.device_name + ") is muted");
-                m = null;
-            }
+            // ignore muted, for flash will require user to access it.
             
             // Remark: the name is the index!
             var c:Camera = Camera.getCamera(vcodec.device_code);
             if(c == null){
-                trace("failed to open camera " + vcodec.device_code + "(" + vcodec.device_name + ")");
-            }
-            if(c.muted){
-                trace("Access Denied, camera " + vcodec.device_code + "(" + vcodec.device_name + ") is muted");
-                c = null;
-            }
-            
-            if (m == null && c == null) {
-                system_error(error_device_muted, "failed to publish, for neither camera or microphone is ok.");
+                this.system_error(this.error_camera_get, "failed to open camera " + vcodec.device_code + "(" + vcodec.device_name + ")");
                 return;
+            }
+            // ignore muted, for flash will require user to access it.
+            // but we still warn user.
+            if(c && c.muted){
+                this.system_warn(this.error_camera_muted, "Access Denied, camera " + vcodec.device_code + "(" + vcodec.device_name + ") is muted");
             }
             
             this.media_camera = c;

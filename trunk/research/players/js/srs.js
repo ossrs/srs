@@ -401,13 +401,18 @@ function SrsPublisher(container, width, height) {
     this.code = 0;
     
     // error code defines.
-    this.error_device_muted = 100;
+    this.errors = {
+        "100": "无法获取指定的摄像头", //error_camera_get 
+        "101": "无法获取指定的麦克风", //error_microphone_get 
+        "102": "摄像头为禁用状态，推流时请允许flash访问摄像头", //error_camera_muted 
+    };
 }
 /**
 * user can set some callback, then start the publisher.
 * callbacks:
 *      on_publisher_ready(cameras, microphones):int, when srs publisher ready, user can publish.
-*      on_publisher_error(code):int, when srs publisher error, callback this method.
+*      on_publisher_error(code, desc):int, when srs publisher error, callback this method.
+*      on_publisher_warn(code, desc):int, when srs publisher warn, callback this method.
 */
 SrsPublisher.prototype.start = function() {
     // embed the flash.
@@ -415,6 +420,7 @@ SrsPublisher.prototype.start = function() {
     flashvars.id = this.id;
     flashvars.on_publisher_ready = "__srs_on_publisher_ready";
     flashvars.on_publisher_error = "__srs_on_publisher_error";
+    flashvars.on_publisher_warn = "__srs_on_publisher_warn";
     
     var params = {};
     params.wmode = "opaque";
@@ -464,9 +470,13 @@ SrsPublisher.prototype.on_publisher_ready = function(cameras, microphones) {
 /**
 * when publisher error.
 * @code the error code.
+* @desc the error desc message.
 */
-SrsPublisher.prototype.on_publisher_error = function(code) {
-    throw new Error("publisher error. code=" + code);
+SrsPublisher.prototype.on_publisher_error = function(code, desc) {
+    throw new Error("publisher error. code=" + code + ", desc=" + desc);
+}
+SrsPublisher.prototype.on_publisher_warn = function(code, desc) {
+    throw new Error("publisher warn. code=" + code + ", desc=" + desc);
 }
 function __srs_find_publisher(id) {
     for (var i = 0; i < SrsPublisher.__publishers.length; i++) {
@@ -494,6 +504,13 @@ function __srs_on_publisher_error(id, code) {
     
     publisher.code = code;
     
-    publisher.on_publisher_error(code);
+    publisher.on_publisher_error(code, publisher.errors[""+code]);
+}
+function __srs_on_publisher_warn(id, code) {
+    var publisher = __srs_find_publisher(id);
+    
+    publisher.code = code;
+    
+    publisher.on_publisher_warn(code, publisher.errors[""+code]);
 }
 

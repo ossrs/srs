@@ -115,30 +115,33 @@
                 }
                 $("#sl_bitrate option[value='350']").attr("selected", true);
             };
-            srs_publisher.on_publisher_error = function(code) {
-                if (code == srs_publisher.error_device_muted) {
-                    error(code, "摄像头和麦克风被禁用，请右键flash播放器启用。");
-                } else {
-                    error(code, "未知系统错误");
-                }
+            srs_publisher.on_publisher_error = function(code, desc) {
+                error(code, desc);
+            };
+            srs_publisher.on_publisher_warn = function(code, desc) {
+                warn(code, desc);
             };
             srs_publisher.start();
             
-            // start the normal player with HLS supported.
-            remote_player = new SrsPlayer("remote_player", 430, 185);
-            remote_player.on_player_ready = function() {
-                remote_player.set_bt(0.8);
-                remote_player.set_fs("screen", 100);
-            };
-            remote_player.start();
-            
-            // start the realtime player.
-            realtime_player = new SrsPlayer("realtime_player", 430, 185);
-            realtime_player.on_player_ready = function() {
-                realtime_player.set_bt(0.8);
-                realtime_player.set_fs("screen", 100);
-            };
-            realtime_player.start();
+            // if no play specified, donot show the player, for debug the publisher.
+            var query = parse_query_string();
+            if (query.no_play != "true") {
+                // start the normal player with HLS supported.
+                remote_player = new SrsPlayer("remote_player", 430, 185);
+                remote_player.on_player_ready = function() {
+                    remote_player.set_bt(0.8);
+                    remote_player.set_fs("screen", 100);
+                };
+                remote_player.start();
+                
+                // start the realtime player.
+                realtime_player = new SrsPlayer("realtime_player", 430, 185);
+                realtime_player.on_player_ready = function() {
+                    realtime_player.set_bt(0.8);
+                    realtime_player.set_fs("screen", 100);
+                };
+                realtime_player.start();
+            }
         });
         
         /**
@@ -209,28 +212,37 @@
             info("开始推流到服务器");
             srs_publisher.publish(url, vcodec, acodec);
             
-            // directly play the url for the realtime player.
-            realtime_player.stop();
-            realtime_player.play(url);
+            if (realtime_player) {
+                // directly play the url for the realtime player.
+                realtime_player.stop();
+                realtime_player.play(url);
+            }
             
-            // the normal player should play the transcoded stream in another vhost.
-            // for example, publish stream to vhost players,
-            // the realtime player play the vhost players, which may donot support HLS,
-            // the normal player play the vhost players_pub, which transcoded to h264/aac with HLS.
-            var ret = srs_parse_rtmp_url(url);
-            var pub_url = "rtmp://" + ret.server + ":" + ret.port + "/" + ret.app;
-            pub_url += "?vhost=" + srs_get_player_publish_vhost(ret.vhost) + "/" + ret.stream;
-            remote_player.stop();
-            remote_player.play(pub_url);
+            if (remote_player) {
+                // the normal player should play the transcoded stream in another vhost.
+                // for example, publish stream to vhost players,
+                // the realtime player play the vhost players, which may donot support HLS,
+                // the normal player play the vhost players_pub, which transcoded to h264/aac with HLS.
+                var ret = srs_parse_rtmp_url(url);
+                var pub_url = "rtmp://" + ret.server + ":" + ret.port + "/" + ret.app;
+                pub_url += "?vhost=" + srs_get_player_publish_vhost(ret.vhost) + "/" + ret.stream;
+                remote_player.stop();
+                remote_player.play(pub_url);
+            }
         }
         
         function info(desc) {
-            $("#txt_log").removeClass("alert-error").addClass("alert-info");
+            $("#txt_log").addClass("alert-info").removeClass("alert-error").removeClass("alert-warn");
             $("#txt_log_title").text("Info:");
             $("#txt_log_msg").text(desc);
         }
+        function warn(code, desc) {
+            $("#txt_log").removeClass("alert-info").removeClass("alert-error").addClass("alert-warn");
+            $("#txt_log_title").text("Warn:");
+            $("#txt_log_msg").text("code: " + code + ", " + desc);
+        }
         function error(code, desc) {
-            $("#txt_log").removeClass("alert-info").addClass("alert-error");
+            $("#txt_log").removeClass("alert-info").addClass("alert-error").removeClass("alert-warn");
             $("#txt_log_title").text("Error:");
             $("#txt_log_msg").text("code: " + code + ", " + desc);
         }
@@ -258,7 +270,7 @@
     <div class="alert alert-info fade in" id="txt_log">
         <button type="button" class="close" data-dismiss="alert">×</button>
         <strong><span id="txt_log_title">Usage:</span></strong>
-        <span id="txt_log_msg">允许Flash访问摄像头，设置编码参数，点“发布视频”即可推流</span>
+        <span id="txt_log_msg">设置编码参数，点“发布视频”，允许Flash访问摄像头即可推流</span>
     </div>
     <div class="control-group">
         <div class="form-inline">
