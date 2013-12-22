@@ -213,6 +213,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v0.9, 2013-12-21, add [players](http://demo.srs.com/players) for play and publish.
 * v0.9, 2013-12-15, ensure the HLS(ts) is continous when republish stream.
 * v0.9, 2013-12-15, fix the hls reload bug, feed it the sequence header.
 * v0.9, 2013-12-15, refine protocol, use int64_t timestamp for ts and jitter.
