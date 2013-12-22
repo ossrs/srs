@@ -137,28 +137,26 @@ Bandwidth Test Workflow:
  |  Client    |             |  Server  |    
  +-----+------+             +-----+----+      
        |                          |           
-       |  connect vhost------>    | if vhost enable bandwidth,
-       |  <-----result(success)   | do bandwidth check.
-       |                          |           
-       |  <----call(start play)   | onSrsBandCheckStartPlayBytes
-       |  result(playing)----->   | onSrsBandCheckStartingPlayBytes
-       |  <-------data(playing)   | onSrsBandCheckStartingPlayBytes
-       |  <-----call(stop play)   | onSrsBandCheckStopPlayBytes
-       |  result(stopped)----->   | onSrsBandCheckStoppedPlayBytes
-       |                          |           
-       |  <-call(start publish)   | onSrsBandCheckStartPublishBytes
-       |  result(publishing)-->   | onSrsBandCheckStartingPublishBytes
-       |  data(publishing)---->   | onSrsBandCheckStartingPublishBytes
-       |  <--call(stop publish)   | onSrsBandCheckStopPublishBytes
-       |  result(stopped)(1)-->   | onSrsBandCheckStoppedPublishBytes
-       |                          | 
+       |  connect vhost------>    |
+       |  <-----result(success)   |
+       |                          |
+       |  <----call(start play)   |
+       |  result(playing)----->   |
+       |  <-------data(playing)   |
+       |  <-----call(stop play)   |
+       |  result(stopped)----->   |
+       |                          |
+       |  <-call(start publish)   |
+       |  result(publishing)-->   |
+       |  data(publishing)---->   |
+       |  <--call(stop publish)   |
+       |  result(stopped)(1)-->   |
+       |                          |
        |  <--------------report   |
-       |  final(2)------------>   | finalClientPacket
+       |  final(2)------------>   |
        |          <END>           |
-1. when flash client, server ignore the publish stopped result,
-  and directly send the report to flash client.
-2. flash client only. when got report, flash client should send out
-  a final packet and close the connection immediately.
+       
+@see: class SrsBandwidth comments.
 </pre>
 
 ### System Requirements
