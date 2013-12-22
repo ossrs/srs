@@ -57,10 +57,10 @@ class SrsRtmp;
 *        |  result(publishing)-->   | onSrsBandCheckStartingPublishBytes
 *        |  data(publishing)---->   | onSrsBandCheckStartingPublishBytes
 *        |  <--call(stop publish)   | onSrsBandCheckStopPublishBytes
-*        |  result(stopped)----->   | onSrsBandCheckStoppedPublishBytes(1)
+*        |  result(stopped)(1)-->   | onSrsBandCheckStoppedPublishBytes
 *        |                          | 
 *        |  <--------------report   |
-*        |  final--------------->   | finalClientPacket(2)
+*        |  final(2)------------>   | finalClientPacket
 *        |          <END>           |
 * 1. when flash client, server ignore the publish stopped result,
 *   and directly send the report to flash client.

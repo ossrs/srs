@@ -131,6 +131,35 @@ Stream Architecture:
 |  ...)     |   +-> DVR --------------+-> FILE         |
 +-----------+-------------------------+----------------+
 </pre>
+Bandwidth Test Workflow:
+<pre>
+ +------------+             +----------+    
+ |  Client    |             |  Server  |    
+ +-----+------+             +-----+----+      
+       |                          |           
+       |  connect vhost------>    | if vhost enable bandwidth,
+       |  <-----result(success)   | do bandwidth check.
+       |                          |           
+       |  <----call(start play)   | onSrsBandCheckStartPlayBytes
+       |  result(playing)----->   | onSrsBandCheckStartingPlayBytes
+       |  <-------data(playing)   | onSrsBandCheckStartingPlayBytes
+       |  <-----call(stop play)   | onSrsBandCheckStopPlayBytes
+       |  result(stopped)----->   | onSrsBandCheckStoppedPlayBytes
+       |                          |           
+       |  <-call(start publish)   | onSrsBandCheckStartPublishBytes
+       |  result(publishing)-->   | onSrsBandCheckStartingPublishBytes
+       |  data(publishing)---->   | onSrsBandCheckStartingPublishBytes
+       |  <--call(stop publish)   | onSrsBandCheckStopPublishBytes
+       |  result(stopped)(1)-->   | onSrsBandCheckStoppedPublishBytes
+       |                          | 
+       |  <--------------report   |
+       |  final(2)------------>   | finalClientPacket
+       |          <END>           |
+1. when flash client, server ignore the publish stopped result,
+  and directly send the report to flash client.
+2. flash client only. when got report, flash client should send out
+  a final packet and close the connection immediately.
+</pre>
 
 ### System Requirements
 Supported operating systems and hardware:
