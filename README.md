@@ -129,6 +129,7 @@ Stream Architecture:
 | Flash,    |   +-> Fowarder ---------+-> RTMP Server  |
 | XSPLIT,   |   +-> Transcoder -------+-> RTMP Server  |
 |  ...)     |   +-> DVR --------------+-> FILE         |
+|           |   +-> BandwidthTest-----+-> Flash/StLoad |
 +-----------+-------------------------+----------------+
 </pre>
 Bandwidth Test Workflow:
@@ -138,7 +139,7 @@ Bandwidth Test Workflow:
       +-----+------+             +-----+----+
             |                          |
             |  connect vhost------>    |
-            |  <-----result(success)   |
+            |  \<-----result(success)   |
             |                          |
             |  <----call(start play)   |
             |  result(playing)----->   |
