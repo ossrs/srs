@@ -4,10 +4,8 @@
     <title>SRS</title>   
     <meta charset="utf-8">
     <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
-    <link rel="stylesheet" type="text/css" href="css/bootstrap-wizard.css"/>
     <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
     <script type="text/javascript" src="js/bootstrap.min.js"></script>
-    <script type="text/javascript" src="js/bootstrap-wizard.min.js"></script>
     <script type="text/javascript" src="js/swfobject.js"></script>
     <script type="text/javascript" src="js/srs.js"></script>
     <style>
@@ -27,18 +25,11 @@
             // url set to: rtmp://demo:1935/live/livestream
             srs_init("#txt_url", null, null);
             
-            $("#btn_video_settings").click(function(){
+            $("#btn_create_chat").click(function(){
                 $("#video_modal").modal({show:true});
             });
-            $("#btn_audio_settings").click(function(){
+            $("#btn_join_chat").click(function(){
                 $("#audio_modal").modal({show:true});
-            });
-            
-            $("#remote_tips").tooltip({
-                title: "为了支持HLS输出，FLASH编码器输出的流需要经过转码(VP6=>H264,MP3=>aac)，所以会黑屏较长时间，请耐心等待"
-            });
-            $("#low_latecy_tips").tooltip({
-                title: "服务器不转码直接转发FLASH编码器的流，所以延迟比支持HLS的流要低很多"
             });
             
             $("#btn_publish").click(on_user_publish);
@@ -126,7 +117,7 @@
             };
             srs_publisher.start();
             
-            //wizard = $("#main_wizard").wizard({});
+            //wizard = $("#some-wizard").wizard({});
             //wizard.show();
             
             // if no play specified, donot show the player, for debug the publisher.
@@ -150,14 +141,6 @@
             }
         });
         
-        /**
-        * we generate the transcoded stream url for flash publish donot support HLS
-        * which requires aac, so the publish vhost maybe players for example, we
-        * use players_pub vhost(transcoded stream to which) for all clients,
-        * both players and players_pub are write HLS to the sample dir, 
-        * it's ok for the players vhost disabled the HLS, only the 
-        * players_pub enalbed HLS.
-        */
         function update_play_url() {
             var url = $("#txt_url").val();
             var ret = srs_parse_rtmp_url(url);
@@ -277,25 +260,12 @@
     <div class="alert alert-info fade in" id="txt_log">
         <button type="button" class="close" data-dismiss="alert">×</button>
         <strong><span id="txt_log_title">Usage:</span></strong>
-        <span id="txt_log_msg">设置编码参数，点“发布视频”，允许Flash访问摄像头即可推流</span>
+        <span id="txt_log_msg">创建会议室，或者加入会议室</span>
     </div>
-    <!-- http://www.panopta.com/2013/02/06/bootstrap-application-wizard/ -->
-    <!-- https://github.com/amoffat/bootstrap-application-wizard -->
-<div class="wizard" id="main_wizard" data-title="Wizard Title">
-    <div class="wizard-card" data-cardname="card1">
-        <h3>Card 1</h3>
-        Some content
-    </div>
-
-    <div class="wizard-card" data-cardname="card2">
-        <h3>Card 2</h3>
-        Some content
-    </div>
-</div>
     <div class="control-group">
         <div class="form-inline">
-            <button class="btn" id="btn_video_settings">视频编码配置</button>
-            <button class="btn" id="btn_audio_settings">音频编码配置</button>
+            <button class="btn" id="btn_create_chat">创建会议室</button>
+            <button class="btn" id="btn_join_chat">加入会议室</button>
         </div>
     </div>
     <div class="control-group">
