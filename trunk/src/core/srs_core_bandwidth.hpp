@@ -60,9 +60,12 @@ class SrsRtmp;
 *        |  result(stopped)----->   | onSrsBandCheckStoppedPublishBytes(1)
 *        |                          | 
 *        |  <--------------report   |
+*        |  final--------------->   | finalClientPacket(2)
 *        |          <END>           |
-* 1. when flash client, server ignore the publish stopped result.
-*   and flash client should close connection when got the report.
+* 1. when flash client, server ignore the publish stopped result,
+*   and directly send the report to flash client.
+* 2. flash client only. when got report, flash client should send out
+*   a final packet and close the connection immediately.
 */
 class SrsBandwidth
 {

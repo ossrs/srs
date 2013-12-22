@@ -170,6 +170,11 @@ int SrsBandwidth::do_bandwidth_check()
     int play_kbps = play_bytes * 8 / play_actual_duration_ms;
     int publish_kbps = publish_bytes * 8 / publish_actual_duration_ms;
 
+    srs_trace("bandwidth check finished. start=%"PRId64"ms, end=%"PRId64"ms, "
+        "duartion=%dms, play=%dkbps, publish=%dkbps, tcUrl=%s, ret=%#x", 
+        start_time, end_time, (int)(end_time - start_time), play_kbps, publish_kbps, 
+        req->tcUrl.c_str(), ret);
+
     // send finished msg
     SrsBandwidthPacket* pkt = SrsBandwidthPacket::create_finish();
     pkt->data->set("code",           new SrsAmf0Number(ERROR_SUCCESS));
@@ -193,19 +198,20 @@ int SrsBandwidth::do_bandwidth_check()
 		SrsCommonMessage* msg = NULL;
 		SrsBandwidthPacket* pkt = NULL;
 		if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
-			srs_error("expect final message failed. ret=%d", ret);
-			return ret;
+			// info level to ignore and return success.
+			srs_info("expect final message failed. ret=%d", ret);
+			return ERROR_SUCCESS;
 		}
 		SrsAutoFree(SrsCommonMessage, msg, false);
-		srs_info("get final message succes.");
+		srs_info("get final message success.");
 		
 		if (pkt->is_flash_final()) {
-    		srs_trace("BW check recv flash final response.");
+    		srs_info("BW check recv flash final response.");
 			break;
 		}
 	}
     
-    srs_trace("BW check finished.");
+    srs_info("BW check finished.");
 
     return ret;
 }
@@ -230,7 +236,7 @@ int SrsBandwidth::check_play(
 	        srs_error("send bandwidth check start play message failed. ret=%d", ret);
 	        return ret;
 	    }
-	    srs_trace("BW check begin.");
+	    srs_info("BW check begin.");
 	}
 
 	while (true) {
@@ -245,7 +251,7 @@ int SrsBandwidth::check_play(
 		srs_info("get bandwidth message succes.");
 		
 		if (pkt->is_starting_play()) {
-    		srs_trace("BW check recv play begin response.");
+    		srs_info("BW check recv play begin response.");
 			break;
 		}
 	}
@@ -293,7 +299,7 @@ int SrsBandwidth::check_play(
         }
     }
     actual_duration_ms = srs_get_system_time_ms() - current_time;
-    srs_trace("BW check send play bytes over.");
+    srs_info("BW check send play bytes over.");
 
 	if (true) {
 	    // notify client to stop play
@@ -308,7 +314,7 @@ int SrsBandwidth::check_play(
 	        srs_error("send bandwidth check stop play message failed. ret=%d", ret);
 	        return ret;
 	    }
-	    srs_trace("BW check stop play bytes.");
+	    srs_info("BW check stop play bytes.");
 	}
 
 	while (true) {
@@ -323,7 +329,7 @@ int SrsBandwidth::check_play(
 		srs_info("get bandwidth message succes.");
 		
 		if (pkt->is_stopped_play()) {
-    		srs_trace("BW check recv stop play response.");
+    		srs_info("BW check recv stop play response.");
 			break;
 		}
 	}
@@ -351,7 +357,7 @@ int SrsBandwidth::check_publish(
 	        srs_error("send bandwidth check start publish message failed. ret=%d", ret);
 	        return ret;
 	    }
-	    srs_trace("BW check publish begin.");
+	    srs_info("BW check publish begin.");
 	}
 
 	while (true) {
@@ -366,7 +372,7 @@ int SrsBandwidth::check_publish(
 		srs_info("get bandwidth message succes.");
 		
 		if (pkt->is_starting_publish()) {
-    		srs_trace("BW check recv publish begin response.");
+    		srs_info("BW check recv publish begin response.");
 			break;
 		}
 	}
@@ -399,7 +405,7 @@ int SrsBandwidth::check_publish(
         }
     }
     actual_duration_ms = srs_get_system_time_ms() -  current_time;
-    srs_trace("BW check recv publish data over.");
+    srs_info("BW check recv publish data over.");
 
 	if (true) {
 	    // notify client to stop publish
@@ -414,7 +420,7 @@ int SrsBandwidth::check_publish(
 	        srs_error("send bandwidth check stop publish message failed. ret=%d", ret);
 	        return ret;
 	    }
-	    srs_trace("BW check stop publish bytes.");
+	    srs_info("BW check stop publish bytes.");
 	}
 
     // expect client to stop publish
@@ -435,7 +441,7 @@ int SrsBandwidth::check_publish(
 		srs_info("get bandwidth message succes.");
 		
 		if (pkt->is_stopped_publish()) {
-    		srs_trace("BW check recv stop publish response.");
+    		srs_info("BW check recv stop publish response.");
 			break;
 		}
 	}

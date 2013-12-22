@@ -231,6 +231,8 @@ messages.
 #define SRS_BW_CHECK_FINISHED           "onSrsBandCheckFinished"
 // for flash, it will sendout a final call, 
 // used to confirm got the report.
+// actually, client send out this packet and close the connection,
+// so server may cannot got this packet, ignore is ok.
 #define SRS_BW_CHECK_FLASH_FINAL        "finalClientPacket"
 
 // client only
@@ -1356,7 +1358,9 @@ int SrsCommonMessage::decode_packet(SrsProtocol* protocol)
         	|| command == SRS_BW_CHECK_START_PUBLISH
         	|| command == SRS_BW_CHECK_STOPPED_PLAY
         	|| command == SRS_BW_CHECK_STOP_PLAY
-        	|| command == SRS_BW_CHECK_STOP_PUBLISH)
+        	|| command == SRS_BW_CHECK_STOP_PUBLISH
+        	|| command == SRS_BW_CHECK_STOPPED_PUBLISH
+        	|| command == SRS_BW_CHECK_FLASH_FINAL)
         {
             srs_info("decode the AMF0/AMF3 band width check message.");
             packet = new SrsBandwidthPacket();
