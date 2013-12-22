@@ -40,6 +40,7 @@ using namespace std;
 #include <srs_core_refer.hpp>
 #include <srs_core_hls.hpp>
 #include <srs_core_http.hpp>
+#include <srs_core_bandwidth.hpp>
 
 #define SRS_PULSE_TIMEOUT_MS 100
 #define SRS_SEND_TIMEOUT_US 5000000L
@@ -57,6 +58,7 @@ SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
 #ifdef SRS_HTTP	
 	http_hooks = new SrsHttpHooks();
 #endif
+	bandwidth = new SrsBandwidth();
 	
 	config->subscribe(this);
 }
@@ -73,6 +75,7 @@ SrsClient::~SrsClient()
 #ifdef SRS_HTTP	
 	srs_freep(http_hooks);
 #endif
+	srs_freep(bandwidth);
 }
 
 // TODO: return detail message when error for client.
@@ -152,7 +155,12 @@ int SrsClient::service_cycle()
 		return ret;
 	}
 	srs_verbose("set peer bandwidth success");
-		
+
+	// do bandwidth test if connect to the vhost which is for bandwidth check.
+	if (config->get_bw_check_enabled(req->vhost)) {
+		return bandwidth->bandwidth_test(req, stfd, rtmp);
+	}
+	
 	if ((ret = rtmp->response_connect_app(req)) != ERROR_SUCCESS) {
 		srs_error("response connect app failed. ret=%d", ret);
 		return ret;

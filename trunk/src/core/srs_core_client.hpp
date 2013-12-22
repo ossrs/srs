@@ -43,6 +43,7 @@ class SrsCommonMessage;
 #ifdef SRS_HTTP	
 class SrsHttpHooks;
 #endif
+class SrsBandwidth;
 
 /**
 * the client provides the main logic control for RTMP clients.
@@ -58,6 +59,7 @@ private:
 #ifdef SRS_HTTP	
 	SrsHttpHooks* http_hooks;
 #endif
+	SrsBandwidth* bandwidth;
 public:
 	SrsClient(SrsServer* srs_server, st_netfd_t client_stfd);
 	virtual ~SrsClient();

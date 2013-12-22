@@ -31,6 +31,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_stream.hpp>
 #include <srs_core_autofree.hpp>
 
+using namespace std;
+
 /****************************************************************************
 *****************************************************************************
 ****************************************************************************/
@@ -208,6 +210,33 @@ messages.
 #define RTMP_AMF0_DATA_SET_DATAFRAME		"@setDataFrame"
 #define RTMP_AMF0_DATA_ON_METADATA			"onMetaData"
 
+/**
+* band width check method name, which will be invoked by client.
+* band width check mothods use SrsBandwidthPacket as its internal packet type,
+* so ensure you set command name when you use it.
+*/
+// server play control
+#define SRS_BW_CHECK_START_PLAY         "onSrsBandCheckStartPlayBytes"
+#define SRS_BW_CHECK_STARTING_PLAY      "onSrsBandCheckStartingPlayBytes"
+#define SRS_BW_CHECK_STOP_PLAY          "onSrsBandCheckStopPlayBytes"
+#define SRS_BW_CHECK_STOPPED_PLAY       "onSrsBandCheckStoppedPlayBytes"
+
+// server publish control
+#define SRS_BW_CHECK_START_PUBLISH      "onSrsBandCheckStartPublishBytes"
+#define SRS_BW_CHECK_STARTING_PUBLISH   "onSrsBandCheckStartingPublishBytes"
+#define SRS_BW_CHECK_STOP_PUBLISH       "onSrsBandCheckStopPublishBytes"
+#define SRS_BW_CHECK_STOPPED_PUBLISH    "onSrsBandCheckStoppedPublishBytes"
+
+// EOF control.
+#define SRS_BW_CHECK_FINISHED           "onSrsBandCheckFinished"
+// for flash, it will sendout a final call, 
+// used to confirm got the report.
+#define SRS_BW_CHECK_FLASH_FINAL        "finalClientPacket"
+
+// client only
+#define SRS_BW_CHECK_PLAYING            "onSrsBandCheckPlaying"
+#define SRS_BW_CHECK_PUBLISHING         "onSrsBandCheckPublishing"
+
 /****************************************************************************
 *****************************************************************************
 ****************************************************************************/
@@ -283,7 +312,7 @@ SrsProtocol::~SrsProtocol()
 	srs_freep(skt);
 }
 
-std::string SrsProtocol::get_request_name(double transcationId)
+string SrsProtocol::get_request_name(double transcationId)
 {
 	if (requests.find(transcationId) == requests.end()) {
 		return "";
@@ -1318,7 +1347,21 @@ int SrsCommonMessage::decode_packet(SrsProtocol* protocol)
 			srs_info("decode the AMF0/AMF3 data(onMetaData message).");
 			packet = new SrsOnMetaDataPacket();
 			return packet->decode(stream);
-		}
+        } else if(command == SRS_BW_CHECK_FINISHED
+        	|| command == SRS_BW_CHECK_PLAYING
+        	|| command == SRS_BW_CHECK_PUBLISHING
+        	|| command == SRS_BW_CHECK_STARTING_PLAY
+        	|| command == SRS_BW_CHECK_STARTING_PUBLISH
+        	|| command == SRS_BW_CHECK_START_PLAY
+        	|| command == SRS_BW_CHECK_START_PUBLISH
+        	|| command == SRS_BW_CHECK_STOPPED_PLAY
+        	|| command == SRS_BW_CHECK_STOP_PLAY
+        	|| command == SRS_BW_CHECK_STOP_PUBLISH)
+        {
+            srs_info("decode the AMF0/AMF3 band width check message.");
+            packet = new SrsBandwidthPacket();
+            return packet->decode(stream);
+        }
 		
 		// default packet to drop message.
 		srs_trace("drop the AMF0/AMF3 command message, command_name=%s", command.c_str());
@@ -1370,7 +1413,7 @@ int SrsCommonMessage::get_perfer_cid()
 	return packet->get_perfer_cid();
 }
 
-void SrsCommonMessage::set_packet(SrsPacket* pkt, int stream_id)
+SrsCommonMessage* SrsCommonMessage::set_packet(SrsPacket* pkt, int stream_id)
 {
 	srs_freep(packet);
 
@@ -1379,6 +1422,8 @@ void SrsCommonMessage::set_packet(SrsPacket* pkt, int stream_id)
 	header.message_type = packet->get_message_type();
 	header.payload_length = packet->get_payload_length();
 	header.stream_id = stream_id;
+	
+	return this;
 }
 
 int SrsCommonMessage::encode_packet()
@@ -1782,8 +1827,17 @@ int SrsConnectAppResPacket::get_message_type()
 
 int SrsConnectAppResPacket::get_size()
 {
-	return srs_amf0_get_string_size(command_name) + srs_amf0_get_number_size()
-		+ srs_amf0_get_object_size(props)+ srs_amf0_get_object_size(info);
+    int size = srs_amf0_get_string_size(command_name) + srs_amf0_get_number_size();
+    
+    if (props->size() > 0) {
+        size += srs_amf0_get_object_size(props);
+    }
+    
+    if (info->size() > 0) {
+        size += srs_amf0_get_object_size(info);
+    }
+
+    return size;
 }
 
 int SrsConnectAppResPacket::encode_packet(SrsStream* stream)
@@ -1802,16 +1856,22 @@ int SrsConnectAppResPacket::encode_packet(SrsStream* stream)
 	}
 	srs_verbose("encode transaction_id success.");
 	
-	if ((ret = srs_amf0_write_object(stream, props)) != ERROR_SUCCESS) {
-		srs_error("encode props failed. ret=%d", ret);
-		return ret;
-	}
+    if (props->size() > 0) {
+        if ((ret = srs_amf0_write_object(stream, props)) != ERROR_SUCCESS) {
+            srs_error("encode props failed. ret=%d", ret);
+            return ret;
+        }
+    }
+
 	srs_verbose("encode props success.");
 	
-	if ((ret = srs_amf0_write_object(stream, info)) != ERROR_SUCCESS) {
-		srs_error("encode info failed. ret=%d", ret);
-		return ret;
-	}
+    if (info->size() > 0) {
+        if ((ret = srs_amf0_write_object(stream, info)) != ERROR_SUCCESS) {
+            srs_error("encode info failed. ret=%d", ret);
+            return ret;
+        }
+    }
+
 	srs_verbose("encode info success.");
 	
 	srs_info("encode connect app response packet success.");
@@ -2594,6 +2654,163 @@ int SrsOnStatusCallPacket::encode_packet(SrsStream* stream)
 	srs_info("encode onStatus(Call) packet success.");
 	
 	return ret;
+}
+
+SrsBandwidthPacket::SrsBandwidthPacket()
+{
+	command_name = RTMP_AMF0_COMMAND_ON_STATUS;
+	transaction_id = 0;
+	args = new SrsAmf0Null();
+	data = new SrsAmf0Object();
+}
+
+SrsBandwidthPacket::~SrsBandwidthPacket()
+{
+	srs_freep(args);
+	srs_freep(data);
+}
+
+int SrsBandwidthPacket::get_perfer_cid()
+{
+	return RTMP_CID_OverStream;
+}
+
+int SrsBandwidthPacket::get_message_type()
+{
+	return RTMP_MSG_AMF0CommandMessage;
+}
+
+int SrsBandwidthPacket::get_size()
+{
+	return srs_amf0_get_string_size(command_name) + srs_amf0_get_number_size()
+		+ srs_amf0_get_null_size() + srs_amf0_get_object_size(data);
+}
+
+int SrsBandwidthPacket::encode_packet(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if ((ret = srs_amf0_write_string(stream, command_name)) != ERROR_SUCCESS) {
+		srs_error("encode command_name failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode command_name success.");
+	
+	if ((ret = srs_amf0_write_number(stream, transaction_id)) != ERROR_SUCCESS) {
+		srs_error("encode transaction_id failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode transaction_id success.");
+	
+	if ((ret = srs_amf0_write_null(stream)) != ERROR_SUCCESS) {
+		srs_error("encode args failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode args success.");;
+	
+	if ((ret = srs_amf0_write_object(stream, data)) != ERROR_SUCCESS) {
+		srs_error("encode data failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode data success.");
+	
+	srs_info("encode onStatus(Call) packet success.");
+	
+	return ret;
+}
+
+int SrsBandwidthPacket::decode(SrsStream *stream)
+{
+    int ret = ERROR_SUCCESS;
+
+    if ((ret = srs_amf0_read_string(stream, command_name)) != ERROR_SUCCESS) {
+        srs_error("amf0 decode play command_name failed. ret=%d", ret);
+        return ret;
+    }
+
+    if ((ret = srs_amf0_read_number(stream, transaction_id)) != ERROR_SUCCESS) {
+        srs_error("amf0 decode play transaction_id failed. ret=%d", ret);
+        return ret;
+    }
+
+    if ((ret = srs_amf0_read_null(stream)) != ERROR_SUCCESS) {
+        srs_error("amf0 decode play command_object failed. ret=%d", ret);
+        return ret;
+    }
+    
+    // @remark, for bandwidth test, ignore the data field.
+
+    srs_info("decode SrsBandwidthPacket success.");
+
+    return ret;
+}
+
+bool SrsBandwidthPacket::is_starting_play()
+{
+	return command_name == SRS_BW_CHECK_STARTING_PLAY;
+}
+
+bool SrsBandwidthPacket::is_stopped_play()
+{
+	return command_name == SRS_BW_CHECK_STOPPED_PLAY;
+}
+
+bool SrsBandwidthPacket::is_starting_publish()
+{
+	return command_name == SRS_BW_CHECK_STARTING_PUBLISH;
+}
+
+bool SrsBandwidthPacket::is_stopped_publish()
+{
+	return command_name == SRS_BW_CHECK_STOPPED_PUBLISH;
+}
+
+bool SrsBandwidthPacket::is_flash_final()
+{
+	return command_name == SRS_BW_CHECK_FLASH_FINAL;
+}
+
+SrsBandwidthPacket* SrsBandwidthPacket::create_finish()
+{
+	SrsBandwidthPacket* pkt = new SrsBandwidthPacket();
+	return pkt->set_command(SRS_BW_CHECK_FINISHED);
+}
+
+SrsBandwidthPacket* SrsBandwidthPacket::create_start_play()
+{
+	SrsBandwidthPacket* pkt = new SrsBandwidthPacket();
+	return pkt->set_command(SRS_BW_CHECK_START_PLAY);
+}
+
+SrsBandwidthPacket* SrsBandwidthPacket::create_playing()
+{
+	SrsBandwidthPacket* pkt = new SrsBandwidthPacket();
+	return pkt->set_command(SRS_BW_CHECK_STARTING_PLAY);
+}
+
+SrsBandwidthPacket* SrsBandwidthPacket::create_stop_play()
+{
+	SrsBandwidthPacket* pkt = new SrsBandwidthPacket();
+	return pkt->set_command(SRS_BW_CHECK_STOP_PLAY);
+}
+
+SrsBandwidthPacket* SrsBandwidthPacket::create_start_publish()
+{
+	SrsBandwidthPacket* pkt = new SrsBandwidthPacket();
+	return pkt->set_command(SRS_BW_CHECK_START_PUBLISH);
+}
+
+SrsBandwidthPacket* SrsBandwidthPacket::create_stop_publish()
+{
+	SrsBandwidthPacket* pkt = new SrsBandwidthPacket();
+	return pkt->set_command(SRS_BW_CHECK_STOP_PUBLISH);
+}
+
+SrsBandwidthPacket* SrsBandwidthPacket::set_command(string command)
+{
+	command_name = command;
+	
+	return this;
 }
 
 SrsOnStatusDataPacket::SrsOnStatusDataPacket()

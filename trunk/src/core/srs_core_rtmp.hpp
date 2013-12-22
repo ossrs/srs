@@ -167,7 +167,11 @@ public:
 	* using the Limit type field.
 	*/
 	virtual int set_peer_bandwidth(int bandwidth, int type);
-	virtual int response_connect_app(SrsRequest* req);
+	/**
+	* @param server_ip the ip of server.
+	*/
+    virtual int response_connect_app(SrsRequest* req, const char* server_ip = NULL);
+    virtual void response_connect_reject(SrsRequest* req, const char* desc);
 	virtual int on_bw_done();
 	/**
 	* recv some message to identify the client.

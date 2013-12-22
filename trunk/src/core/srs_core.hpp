@@ -107,4 +107,15 @@ extern void srs_vhost_resolve(std::string& vhost, std::string& app);
 // close the netfd, and close the underlayer fd.
 extern void srs_close_stfd(st_netfd_t& stfd);
 
+/**
+* disable copy constructor of class
+*/
+#define disable_default_copy(className)\
+    private:\
+        /** \
+        * disable the copy constructor and operator=, donot allow directly copy. \
+        */ \
+        className(const className&); \
+        className& operator= (const className&)
+
 #endif

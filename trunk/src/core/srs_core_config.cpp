@@ -1510,6 +1510,90 @@ int SrsConfig::get_pithy_print_hls()
 	return ::atoi(pithy->arg0().c_str());
 }
 
+bool SrsConfig::get_bw_check_enabled(const string &vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return false;
+    }
+
+    conf = conf->get("bandcheck");
+    if (!conf) {
+        return false;
+    }
+
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0() != "on") {
+        return false;
+    }
+
+    return true;
+}
+
+string SrsConfig::get_bw_check_key(const string &vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return "";
+    }
+
+    conf = conf->get("bandcheck");
+    if (!conf) {
+        return "";
+    }
+    
+    conf = conf->get("key");
+    if (!conf) {
+        return "";
+    }
+
+    return conf->arg0();
+}
+
+int SrsConfig::get_bw_check_interval_ms(const string &vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return SRS_CONF_DEFAULT_BANDWIDTH_INTERVAL;
+    }
+
+    conf = conf->get("bandcheck");
+    if (!conf) {
+        return SRS_CONF_DEFAULT_BANDWIDTH_INTERVAL;
+    }
+    
+    conf = conf->get("interval_ms");
+    if (!conf) {
+        return SRS_CONF_DEFAULT_BANDWIDTH_INTERVAL;
+    }
+
+    return ::atoi(conf->arg0().c_str()) * 1000;
+}
+
+int SrsConfig::get_bw_check_limit_kbps(const string &vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return SRS_CONF_DEFAULT_BANDWIDTH_LIMIT_KBPS;
+    }
+
+    conf = conf->get("bandcheck");
+    if (!conf) {
+        return SRS_CONF_DEFAULT_BANDWIDTH_LIMIT_KBPS;
+    }
+    
+    conf = conf->get("limit_kbps");
+    if (!conf) {
+        return SRS_CONF_DEFAULT_BANDWIDTH_LIMIT_KBPS;
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
 int SrsConfig::get_pithy_print_encoder()
 {
 	SrsConfDirective* pithy = root->get("encoder");
