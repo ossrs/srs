@@ -2,6 +2,7 @@
 The MIT License (MIT)
 
 Copyright (c) 2013 winlin
+Copyright (c) 2013 wenjiegit
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -79,7 +80,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RTMP_SIG_SRS_EMAIL "winterserver@126.com"
 #define RTMP_SIG_SRS_LICENSE "The MIT License (MIT)"
 #define RTMP_SIG_SRS_COPYRIGHT "Copyright (c) 2013 winlin"
-#define RTMP_SIG_SRS_CONTRIBUTOR "winlin"
+#define RTMP_SIG_SRS_CONTRIBUTOR "winlin,wenjiegit"
 
 // compare
 #define srs_min(a, b) (((a) < (b))? (a) : (b))
