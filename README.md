@@ -133,29 +133,29 @@ Stream Architecture:
 </pre>
 Bandwidth Test Workflow:
 <pre>
- +------------+             +----------+
- |  Client    |             |  Server  |
- +-----+------+             +-----+----+
-       |                          |           
-       |  connect vhost------>    |
-       |  <-----result(success)   |
-       |                          |
-       |  <----call(start play)   |
-       |  result(playing)----->   |
-       |  <-------data(playing)   |
-       |  <-----call(stop play)   |
-       |  result(stopped)----->   |
-       |                          |
-       |  <-call(start publish)   |
-       |  result(publishing)-->   |
-       |  data(publishing)---->   |
-       |  <--call(stop publish)   |
-       |  result(stopped)(1)-->   |
-       |                          |
-       |  <--------------report   |
-       |  final(2)------------>   |
-       |          <END>           |
-       
+      +------------+             +----------+
+      |  Client    |             |  Server  |
+      +-----+------+             +-----+----+
+                |                          |       
+            |  connect vhost------>    |
+            |  <-----result(success)   |
+            |                          |
+            |  <----call(start play)   |
+            |  result(playing)----->   |
+            |  <-------data(playing)   |
+            |  <-----call(stop play)   |
+            |  result(stopped)----->   |
+            |                          |
+            |  <-call(start publish)   |
+            |  result(publishing)-->   |
+            |  data(publishing)---->   |
+            |  <--call(stop publish)   |
+            |  result(stopped)(1)-->   |
+            |                          |
+            |  <--------------report   |
+            |  final(2)------------>   |
+            |          <END>           |
+            
 @see: class SrsBandwidth comments.
 </pre>
 
