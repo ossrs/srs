@@ -56,6 +56,13 @@ For example, use ffmpeg to publish:
         -f flv -y rtmp://127.0.0.1/live?vhost=demo.srs.com/livestream; \
         sleep 1; \
     done
+publish the demo stream for players:
+    for((;;)); do \
+        ./objs/ffmpeg/bin/ffmpeg -re -i ./doc/source.200kbps.768x320.flv \
+        -vcodec copy -acodec copy \
+        -f flv -y rtmp://127.0.0.1/live?vhost=players/livestream; \
+        sleep 1; \
+    done
 </pre>
 <strong>step 7:</strong> add server ip to client hosts as demo. <br/>
 <pre>
