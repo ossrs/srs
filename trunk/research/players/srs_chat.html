@@ -4,8 +4,10 @@
     <title>SRS</title>   
     <meta charset="utf-8">
     <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
+    <link rel="stylesheet" type="text/css" href="css/bootstrap-wizard.css"/>
     <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
     <script type="text/javascript" src="js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="js/bootstrap-wizard.min.js"></script>
     <script type="text/javascript" src="js/swfobject.js"></script>
     <script type="text/javascript" src="js/srs.js"></script>
     <style>
@@ -17,6 +19,7 @@
         var srs_publisher = null;
         var remote_player = null;
         var realtime_player = null;
+        var wizard = null;
         
         $(function(){
             // get the vhost and port to set the default url.
@@ -122,6 +125,9 @@
                 warn(code, desc);
             };
             srs_publisher.start();
+            
+            //wizard = $("#main_wizard").wizard({});
+            //wizard.show();
             
             // if no play specified, donot show the player, for debug the publisher.
             var query = parse_query_string();
@@ -256,8 +262,8 @@
             <div class="nav-collapse collapse">
                 <ul class="nav">
                     <li><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
-                    <li class="active"><a id="nav_srs_publisher" href="srs_publisher.html">SRS编码器</a></li>
-                    <li><a id="nav_srs_chat" href="srs_chat.html">SRS会议</a></li>
+                    <li><a id="nav_srs_publisher" href="srs_publisher.html">SRS编码器</a></li>
+                    <li class="active"><a id="nav_srs_chat" href="srs_chat.html">SRS会议</a></li>
                     <li><a id="nav_srs_bwt" href="srs_bwt.html">SRS测网速</a></li>
                     <li><a id="nav_jwplayer6" href="jwplayer6.html">JWPlayer6播放器</a></li>
                     <li><a id="nav_osmf" href="osmf.html">AdobeOSMF播放器</a></li>
@@ -273,6 +279,19 @@
         <strong><span id="txt_log_title">Usage:</span></strong>
         <span id="txt_log_msg">设置编码参数，点“发布视频”，允许Flash访问摄像头即可推流</span>
     </div>
+    <!-- http://www.panopta.com/2013/02/06/bootstrap-application-wizard/ -->
+    <!-- https://github.com/amoffat/bootstrap-application-wizard -->
+<div class="wizard" id="main_wizard" data-title="Wizard Title">
+    <div class="wizard-card" data-cardname="card1">
+        <h3>Card 1</h3>
+        Some content
+    </div>
+
+    <div class="wizard-card" data-cardname="card2">
+        <h3>Card 2</h3>
+        Some content
+    </div>
+</div>
     <div class="control-group">
         <div class="form-inline">
             <button class="btn" id="btn_video_settings">视频编码配置</button>
