@@ -133,9 +133,9 @@ Stream Architecture:
 </pre>
 Bandwidth Test Workflow:
 <pre>
- +------------+             +----------+    
- |  Client    |             |  Server  |    
- +-----+------+             +-----+----+      
+ +------------+             +----------+
+ |  Client    |             |  Server  |
+ +-----+------+             +-----+----+
        |                          |           
        |  connect vhost------>    |
        |  <-----result(success)   |
