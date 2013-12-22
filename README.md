@@ -136,7 +136,7 @@ Bandwidth Test Workflow:
       +------------+             +----------+
       |  Client    |             |  Server  |
       +-----+------+             +-----+----+
-                |                          |       
+            |                          |
             |  connect vhost------>    |
             |  <-----result(success)   |
             |                          |
