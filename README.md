@@ -9,7 +9,7 @@ see also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/w
 see also: [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.github.io/simple-rtmp-server)
 
 ### Contributors
-winlin(winterserver): [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
+winlin([winterserver](#)): [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
 wenjie([wenjiegit](https://github.com/wenjiegit/simple-rtmp-server)): [http://blog.chinaunix.net/uid/25006789.html](http://blog.chinaunix.net/uid/25006789.html) <br/>
 who is the contributors: <br/>
 1. contribute important features to srs. <br/>
