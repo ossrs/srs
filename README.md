@@ -134,29 +134,29 @@ Stream Architecture:
 </pre>
 Bandwidth Test Workflow:
 <pre>
-      +------------+             +----------+
-      |  Client    |             |  Server  |
-      +-----+------+             +-----+----+
-            |                          |
-            |  connect vhost------>    |
-            |  &lt;-----result(success)   |
-            |                          |
-            |  &lt;----call(start play)   |
-            |  result(playing)----->   |
-            |  &lt;-------data(playing)   |
-            |  &lt;-----call(stop play)   |
-            |  result(stopped)----->   |
-            |                          |
-            |  &lt;-call(start publish)   |
-            |  result(publishing)-->   |
-            |  data(publishing)---->   |
-            |  &lt;--call(stop publish)   |
-            |  result(stopped)(1)-->   |
-            |                          |
-            |  &lt;--------------report   |
-            |  final(2)------------>   |
-            |          &lt;END>           |
-            
+   +------------+                    +----------+
+   |  Client    |                    |  Server  |
+   +-----+------+                    +-----+----+
+         |                                 |
+         |   connect vhost------------->   |
+         |   &lt;-----------result(success)   |
+         |                                 |
+         |   &lt;----------call(start play)   |
+         |   result(playing)---------->    |
+         |   &lt;-------------data(playing)   |
+         |   &lt;-----------call(stop play)   |
+         |   result(stopped)---------->    |
+         |                                 |
+         |   &lt;-------call(start publish)   |
+         |   result(publishing)------->    |
+         |   data(publishing)--------->    |
+         |   &lt;--------call(stop publish)   |
+         |   result(stopped)(1)------->    |
+         |                                 |
+         |   &lt;--------------------report   |
+         |   final(2)----------------->    |
+         |           &lt;END>                 |
+         
 @see: class SrsBandwidth comments.
 </pre>
 
