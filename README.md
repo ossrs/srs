@@ -16,14 +16,9 @@ who is the contributors: <br/>
 2. the name of all contributors will send in the response of NetConnection.connect and metadata. 
 
 ### Usage(simple)
-<strong>step 0:</strong> get srs <br/>
+<strong>step 0:</strong> get srs<br/>
 <pre>
-tar xf simple-rtmp-server-*.*.tar.gz
-cd simple-rtmp-server-*.*/trunk
-</pre>
-or get the latest code:<br/>
-<pre>
-git clone https://github.com/winlinvip/simple-rtmp-server
+git clone https://github.com/winlinvip/simple-rtmp-server &&
 cd simple-rtmp-server/trunk
 </pre>
 <strong>step 1:</strong> build and start srs all demo features.<br/>
@@ -47,23 +42,12 @@ bash scripts/stop.sh
 ### Usage(detail)
 <strong>step 0:</strong> get srs <br/>
 <pre>
-tar xf simple-rtmp-server-*.*.tar.gz
-cd simple-rtmp-server-*.*/trunk
-</pre>
-or get the latest code:<br/>
-<pre>
-git clone https://github.com/winlinvip/simple-rtmp-server
+git clone https://github.com/winlinvip/simple-rtmp-server &&
 cd simple-rtmp-server/trunk
 </pre>
 <strong>step 1:</strong> build srs <br/>
 <pre>
 ./configure --with-ssl --with-hls --with-ffmpeg --with-http && make
-</pre>
-or get the latest code:<br/>
-<pre>
-cd simple-rtmp-server/trunk
-./configure --with-ssl --with-hls --with-ffmpeg --with-http
-</pre>
 <strong>step 2:</strong> start srs <br/>
 <pre>
 ./objs/srs -c conf/srs.conf
