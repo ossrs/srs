@@ -184,7 +184,9 @@
                 // if previous exists, ignore, only add new here.
                 var previous_chat = get_previous_chat_user(previous_chats, chat.id);
                 if (previous_chat) {
+                    // update reference.
                     chat.player = previous_chat.player;
+                    chat.player.private_object = chat;
                     continue;
                 }
                 
@@ -209,7 +211,7 @@
             
                 if (!no_play) {
                     // start the realtime player.
-                    var _player = new SrsPlayer("rp_raw_" + chat.id, 600, 300);
+                    var _player = new SrsPlayer("rp_raw_" + chat.id, 600, 300, chat);
                     _player.on_player_ready = function() {
                         this.set_bt(0.5);
                         this.set_fs("screen", 100);

@@ -427,8 +427,10 @@ function srs_publiser_get_codec(
 * @param container the html container id.
 * @param width a float value specifies the width of player.
 * @param height a float value specifies the height of player.
+* @param private_object [optional] an object that used as private object, 
+*       for example, the logic chat object which owner this player.
 */
-function SrsPlayer(container, width, height) {
+function SrsPlayer(container, width, height, private_object) {
     if (!SrsPlayer.__id) {
         SrsPlayer.__id = 100;
     }
@@ -438,6 +440,7 @@ function SrsPlayer(container, width, height) {
     
     SrsPlayer.__players.push(this);
     
+    this.private_object = private_object;
     this.container = container;
     this.width = width;
     this.height = height;
@@ -611,8 +614,10 @@ function __srs_on_player_timer(id, time, buffer_length) {
 * @param container the html container id.
 * @param width a float value specifies the width of publisher.
 * @param height a float value specifies the height of publisher.
+* @param private_object [optional] an object that used as private object, 
+*       for example, the logic chat object which owner this publisher.
 */
-function SrsPublisher(container, width, height) {
+function SrsPublisher(container, width, height, private_object) {
     if (!SrsPublisher.__id) {
         SrsPublisher.__id = 100;
     }
@@ -622,6 +627,7 @@ function SrsPublisher(container, width, height) {
     
     SrsPublisher.__publishers.push(this);
     
+    this.private_object = private_object;
     this.container = container;
     this.width = width;
     this.height = height;
