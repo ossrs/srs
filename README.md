@@ -15,7 +15,32 @@ who is the contributors: <br/>
 1. contribute important features to srs. <br/>
 2. the name of all contributors will send in the response of NetConnection.connect and metadata. 
 
-### Usage
+### Usage(simple)
+<strong>step 1:</strong> get srs <br/>
+<pre>
+tar xf simple-rtmp-server-*.*.tar.gz
+cd simple-rtmp-server-*.*/trunk
+</pre>
+or get the latest code:<br/>
+<pre>
+git clone https://github.com/winlinvip/simple-rtmp-server
+cd simple-rtmp-server/trunk
+</pre>
+<strong>step 2:</strong> build and start srs all demo features.<br/>
+<pre>
+bash scripts/demo.sh
+</pre>
+<strong>step 3:</strong> srs live show: [http://demo.srs.com/players](http://demo.srs.com/players) <br/>
+requires client add server ip to hosts. <br/>
+<pre>
+# edit the folowing file:
+# linux: /etc/hosts
+# windows: C:\Windows\System32\drivers\etc\hosts
+# where server ip is 192.168.2.111
+192.168.2.111 demo.srs.com
+</pre>
+
+### Usage(detail)
 <strong>step 1:</strong> build srs <br/>
 <pre>
 tar xf simple-rtmp-server-*.*.tar.gz
