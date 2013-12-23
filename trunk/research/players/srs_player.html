@@ -92,7 +92,7 @@
                 srs_player = new SrsPlayer("player_id", srs_get_player_width(), srs_get_player_height());
                 srs_player.on_player_ready = function() {
                     select_buffer_time("#btn_bt_0_8", 0.8);
-                    srs_player.play(url);
+                    this.play(url);
                 };
                 srs_player.on_player_metadata = function(metadata) {
                     $("#btn_dar_original").text("视频原始比例" + "(" + metadata.width + ":" + metadata.height + ")");
@@ -100,7 +100,7 @@
                     select_fs_size("#btn_fs_size_screen_100", "screen", 100);
                 };
                 srs_player.on_player_timer = function(time, buffer_length) {
-                    var buffer = buffer_length / srs_player.buffer_time * 100;
+                    var buffer = buffer_length / this.buffer_time * 100;
                     $("#pb_buffer").width(Number(buffer).toFixed(1) + "%");
                     
                     $("#pb_buffer_bg").attr("title", 
