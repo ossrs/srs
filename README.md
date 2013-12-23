@@ -39,6 +39,10 @@ requires client add server ip to hosts. <br/>
 # where server ip is 192.168.2.111
 192.168.2.111 demo.srs.com
 </pre>
+<strong>step 4:</strong> stop srs demo<br/>
+<pre>
+bash scripts/stop.sh
+</pre>
 
 ### Usage(detail)
 <strong>step 1:</strong> build srs <br/>
