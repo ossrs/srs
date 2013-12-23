@@ -121,7 +121,7 @@ function build_default_publish_rtmp_url() {
     if (server == vhost || vhost == "") {
         return "rtmp://" + server + ":" + port + "/" + app + "/" + stream;
     } else {
-        vhost = srs_get_player_publish_vhost(vhost);
+        vhost = srs_get_player_chat_vhost(vhost);
         return "rtmp://" + server + ":" + port + "/" + app + "...vhost..." + vhost + "/" + stream;
     }
 }
@@ -211,6 +211,8 @@ function srs_get_api_server_port() { return 8085; }
 // for example, src_vhost is "players", we transcode stream to vhost "players_pub".
 // if not equals to the player vhost, return the orignal vhost.
 function srs_get_player_publish_vhost(src_vhost) { return (src_vhost != srs_get_player_vhost())? src_vhost:(src_vhost + "_pub"); }
+// for chat, use rtmp only vhost, low latecy, without gop cache.
+function srs_get_player_chat_vhost(src_vhost) { return (src_vhost != srs_get_player_vhost())? src_vhost:(src_vhost + "_pub_rtmp"); }
 
 /**
 * initialize the page.
@@ -276,6 +278,7 @@ function srs_publisher_initialize_page(
     for (var i = 0; i < profiles.length; i++) {
         $(sl_profile).append("<option value='" + profiles[i] + "'>" + profiles[i] + "</option");
     }
+    $(sl_profile + " option[value='main']").attr("selected", true);
     
     $(sl_level).empty();
     var levels = ["1", "1b", "1.1", "1.2", "1.3", 
@@ -291,7 +294,84 @@ function srs_publisher_initialize_page(
     for (var i = 0; i < gops.length; i++) {
         $(sl_gop).append("<option value='" + gops[i] + "'>" + gops[i] + "秒</option");
     }
-    $(sl_gop + " option[value='5']").attr("selected", true);
+    $(sl_gop + " option[value='10']").attr("selected", true);
+    
+    $(sl_size).empty();
+    var sizes = ["176x144", "320x240", "352x240", 
+        "352x288", "460x240", "640x480", "720x480", "720x576", "800x600", 
+        "1024x768", "1280x720", "1360x768", "1920x1080"];
+    for (i = 0; i < sizes.length; i++) {
+        $(sl_size).append("<option value='" + sizes[i] + "'>" + sizes[i] + "</option");
+    }
+    $(sl_size + " option[value='640x480']").attr("selected", true);
+    
+    $(sl_fps).empty();
+    var fpses = ["5", "10", "15", "20", "24", "25", "29.97", "30"];
+    for (i = 0; i < fpses.length; i++) {
+        $(sl_fps).append("<option value='" + fpses[i] + "'>" + Number(fpses[i]).toFixed(2) + " 帧/秒</option");
+    }
+    $(sl_fps + " option[value='20']").attr("selected", true);
+    
+    $(sl_bitrate).empty();
+    var bitrates = ["50", "200", "350", "500", "650", "800", 
+        "950", "1000", "1200", "1500", "1800", "2000", "3000", "5000"];
+    for (i = 0; i < bitrates.length; i++) {
+        $(sl_bitrate).append("<option value='" + bitrates[i] + "'>" + bitrates[i] + " kbps</option");
+    }
+    $(sl_bitrate + " option[value='500']").attr("selected", true);
+}
+/**
+* for chat, use low latecy settings.
+*/
+function srs_chat_initialize_page(
+    cameras, microphones,
+    sl_cameras, sl_microphones, sl_vcodec, sl_profile, sl_level, sl_gop, sl_size, sl_fps, sl_bitrate
+) {
+    $(sl_cameras).empty();
+    for (var i = 0; i < cameras.length; i++) {
+        $(sl_cameras).append("<option value='" + i + "'>" + cameras[i] + "</option");
+    }
+    // optional: select the first no "virtual" signed.
+    for (var i = 0; i < cameras.length; i++) {
+        if (cameras[i].toLowerCase().indexOf("virtual") == -1) {
+            $(sl_cameras + " option[value='" + i + "']").attr("selected", true);
+            break;
+        }
+    }
+    
+    $(sl_microphones).empty();
+    for (var i = 0; i < microphones.length; i++) {
+        $(sl_microphones).append("<option value='" + i + "'>" + microphones[i] + "</option");
+    }
+    
+    $(sl_vcodec).empty();
+    var vcodecs = ["h264", "vp6"];
+    for (var i = 0; i < vcodecs.length; i++) {
+        $(sl_vcodec).append("<option value='" + vcodecs[i] + "'>" + vcodecs[i] + "</option");
+    }
+    
+    $(sl_profile).empty();
+    var profiles = ["baseline", "main"];
+    for (var i = 0; i < profiles.length; i++) {
+        $(sl_profile).append("<option value='" + profiles[i] + "'>" + profiles[i] + "</option");
+    }
+    $(sl_profile + " option[value='baseline']").attr("selected", true);
+    
+    $(sl_level).empty();
+    var levels = ["1", "1b", "1.1", "1.2", "1.3", 
+        "2", "2.1", "2.2", "3", "3.1", "3.2", "4", "4.1", "4.2", "5", "5.1"];
+    for (var i = 0; i < levels.length; i++) {
+        $(sl_level).append("<option value='" + levels[i] + "'>" + levels[i] + "</option");
+    }
+    $(sl_level + " option[value='3.1']").attr("selected", true);
+    
+    $(sl_gop).empty();
+    var gops = ["0.3", "0.5", "1", "2", "3", "4", 
+        "5", "6", "7", "8", "9", "10", "15", "20"];
+    for (var i = 0; i < gops.length; i++) {
+        $(sl_gop).append("<option value='" + gops[i] + "'>" + gops[i] + "秒</option");
+    }
+    $(sl_gop + " option[value='0.5']").attr("selected", true);
     
     $(sl_size).empty();
     var sizes = ["176x144", "320x240", "352x240", 

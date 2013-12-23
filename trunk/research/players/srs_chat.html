@@ -48,7 +48,7 @@
             // start the publisher.
             srs_publisher = new SrsPublisher("local_publisher", 430, 185);
             srs_publisher.on_publisher_ready = function(cameras, microphones) {
-                srs_publisher_initialize_page(
+                srs_chat_initialize_page(
                     cameras, microphones,
                     "#sl_cameras", "#sl_microphones", 
                     "#sl_vcodec", "#sl_profile", "#sl_level", "#sl_gop", "#sl_size",
@@ -67,8 +67,8 @@
                 // start the realtime player.
                 realtime_player = new SrsPlayer("realtime_player", 430, 185);
                 realtime_player.on_player_ready = function() {
-                    realtime_player.set_bt(0.8);
-                    realtime_player.set_fs("screen", 100);
+                    this.set_bt(0.5);
+                    this.set_fs("screen", 100);
                 };
                 realtime_player.start();
             }
@@ -211,7 +211,7 @@
                     // start the realtime player.
                     var _player = new SrsPlayer("rp_raw_" + chat.id, 600, 300);
                     _player.on_player_ready = function() {
-                        this.set_bt(0.8);
+                        this.set_bt(0.5);
                         this.set_fs("screen", 100);
                     };
                     _player.start(chat.url);
