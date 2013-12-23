@@ -1,6 +1,31 @@
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
+
+/**
+* player specified size.
+*/
+function srs_get_player_modal() { return 740; }
+function srs_get_player_width() { return srs_get_player_modal() - 30; }
+function srs_get_player_height() { return srs_get_player_width() * 9 / 19; }
+
+// to query the swf anti cache.
+function srs_get_version_code() { return "1.9"; }
+// get the default vhost for players.
+function srs_get_player_vhost() { return "players"; }
+// the api server port, for chat room.
+function srs_get_api_server_port() { return 8085; }
+// get the stream published to vhost,
+// generally we need to transcode the stream to support HLS and filters.
+// for example, src_vhost is "players", we transcode stream to vhost "players_pub".
+// if not equals to the player vhost, return the orignal vhost.
+function srs_get_player_publish_vhost(src_vhost) { return (src_vhost != srs_get_player_vhost())? src_vhost:(src_vhost + "_pub"); }
+// for chat, use rtmp only vhost, low latecy, without gop cache.
+function srs_get_player_chat_vhost(src_vhost) { return (src_vhost != srs_get_player_vhost())? src_vhost:(src_vhost + "_pub_rtmp"); }
+
+//////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
 /**
 * padding the output.
 * padding(3, 5, '0') is 00003
@@ -192,27 +217,6 @@ function srs_parse_rtmp_url(rtmp_url) {
     
     return ret;
 }
-
-/**
-* player specified size.
-*/
-function srs_get_player_modal() { return 740; }
-function srs_get_player_width() { return srs_get_player_modal() - 30; }
-function srs_get_player_height() { return srs_get_player_width() * 9 / 19; }
-
-// to query the swf anti cache.
-function srs_get_version_code() { return "1.7"; }
-// get the default vhost for players.
-function srs_get_player_vhost() { return "players"; }
-// the api server port, for chat room.
-function srs_get_api_server_port() { return 8085; }
-// get the stream published to vhost,
-// generally we need to transcode the stream to support HLS and filters.
-// for example, src_vhost is "players", we transcode stream to vhost "players_pub".
-// if not equals to the player vhost, return the orignal vhost.
-function srs_get_player_publish_vhost(src_vhost) { return (src_vhost != srs_get_player_vhost())? src_vhost:(src_vhost + "_pub"); }
-// for chat, use rtmp only vhost, low latecy, without gop cache.
-function srs_get_player_chat_vhost(src_vhost) { return (src_vhost != srs_get_player_vhost())? src_vhost:(src_vhost + "_pub_rtmp"); }
 
 /**
 * initialize the page.
