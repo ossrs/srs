@@ -48,6 +48,7 @@ cd simple-rtmp-server/trunk
 <strong>step 1:</strong> build srs <br/>
 <pre>
 ./configure --with-ssl --with-hls --with-ffmpeg --with-http && make
+</pre>
 <strong>step 2:</strong> start srs <br/>
 <pre>
 ./objs/srs -c conf/srs.conf
