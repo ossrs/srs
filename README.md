@@ -29,15 +29,7 @@ bash scripts/build.sh
 <pre>
 bash scripts/run.sh
 </pre>
-<strong>step 2:</strong> srs live show: [http://demo.srs.com/players](http://demo.srs.com/players) <br/>
-requires client add server ip to hosts. <br/>
-<pre>
-# edit the folowing file:
-# linux: /etc/hosts
-# windows: C:\Windows\System32\drivers\etc\hosts
-# where server ip is 192.168.2.111
-192.168.2.111 demo.srs.com
-</pre>
+<strong>step 2:</strong> srs live show: [http://your-server-ip](http://your-server-ip) <br/>
 <strong>step 3:</strong> stop srs demo<br/>
 <pre>
 bash scripts/stop.sh
