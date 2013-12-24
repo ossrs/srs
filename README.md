@@ -43,13 +43,13 @@ python ./research/api-server/server.py 8085
 </pre>
 <strong>step 6:</strong> publish live stream <br/>
 <pre>
-FMS URL: rtmp://127.0.0.1:1935/live
+FMS URL: rtmp://127.0.0.1/live
 Stream:  livestream
 For example, use ffmpeg to publish:
     for((;;)); do \
         ./objs/ffmpeg/bin/ffmpeg -re -i ./doc/source.200kbps.768x320.flv \
         -vcodec copy -acodec copy \
-        -f flv -y rtmp://127.0.0.1:1935/live/livestream; \
+        -f flv -y rtmp://127.0.0.1/live?vhost=demo.srs.com/livestream; \
         sleep 1; \
     done
 </pre>
@@ -59,35 +59,35 @@ For example, use ffmpeg to publish:
 # linux: /etc/hosts
 # windows: C:\Windows\System32\drivers\etc\hosts
 # where server ip is 192.168.2.111
-192.168.2.111 demo 
+192.168.2.111 demo.srs.com
 </pre>
 <strong>step 8:</strong> play live stream. <br/>
 <pre>
-players: http://demo:80/players
-rtmp url: rtmp://demo:1935/live/livestream
-m3u8 url: http://demo:80/live/livestream.m3u8
-for android: http://demo:80/live/livestream.html
+players: [http://demo.srs.com/players](http://demo.srs.com/players)
+rtmp url: rtmp://demo.srs.com/live/livestream
+m3u8 url: http://demo.srs.com/live/livestream.m3u8
+for android: http://demo.srs.com/live/livestream.html
 </pre>
 <strong>step 9(optinal):</strong> play live stream auto transcoded<br/>
 <pre>
-rtmp url: rtmp://demo:1935/live/livestream_ld
-m3u8 url: http://demo:80/live/livestream_ld.m3u8
-for android: http://demo:80/live/livestream_ld.html
-rtmp url: rtmp://demo:1935/live/livestream_sd
-m3u8 url: http://demo:80/live/livestream_sd.m3u8
-for android: http://demo:80/live/livestream_sd.html
+rtmp url: rtmp://demo.srs.com/live/livestream_ld
+m3u8 url: http://demo.srs.com/live/livestream_ld.m3u8
+for android: [http://demo.srs.com/live/livestream_ld.html](http://demo.srs.com/live/livestream_ld.html)
+rtmp url: rtmp://demo.srs.com/live/livestream_sd
+m3u8 url: http://demo.srs.com/live/livestream_sd.m3u8
+for android: [http://demo.srs.com/live/livestream_sd.html](http://demo.srs.com/live/livestream_sd.html)
 </pre>
 <strong>step 10(optinal):</strong> play live stream auto forwarded, the hls dir change to /forward<br/>
 <pre>
-rtmp url: rtmp://demo:19350/live/livestream
-m3u8 url: http://demo:80/forward/live/livestream.m3u8
-for android: http://demo:80/forward/live/livestream.html
-rtmp url: rtmp://demo:19350/live/livestream_ld
-m3u8 url: http://demo:80/forward/live/livestream_ld.m3u8
-for android: http://demo:80/forward/live/livestream_ld.html
-rtmp url: rtmp://demo:19350/live/livestream_sd
-m3u8 url: http://demo:80/forward/live/livestream_sd.m3u8
-for android: http://demo:80/forward/live/livestream_sd.html
+rtmp url: rtmp://demo.srs.com:19350/live/livestream
+m3u8 url: http://demo.srs.com/forward/live/livestream.m3u8
+for android: [http://demo.srs.com/forward/live/livestream.html](http://demo.srs.com/forward/live/livestream.html)
+rtmp url: rtmp://demo.srs.com:19350/live/livestream_ld
+m3u8 url: http://demo.srs.com/forward/live/livestream_ld.m3u8
+for android: [http://demo.srs.com/forward/live/livestream_ld.html](http://demo.srs.com/forward/live/livestream_ld.html)
+rtmp url: rtmp://demo.srs.com:19350/live/livestream_sd
+m3u8 url: http://demo.srs.com/forward/live/livestream_sd.m3u8
+for android: [http://demo.srs.com/forward/live/livestream_sd.html](http://demo.srs.com/forward/live/livestream_sd.html)
 </pre>
 <strong>step 11(optinal):</strong> modify the config and reload it (all features support reload)<br/>
 <pre>

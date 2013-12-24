@@ -139,6 +139,8 @@ int SrsRequest::discovery_app()
         }
     }
 
+	strip();
+
 	// resolve the vhost from config
 	SrsConfDirective* parsed_vhost = config->get_vhost(vhost);
 	if (parsed_vhost) {
@@ -611,7 +613,7 @@ int SrsRtmp::response_connect_app(SrsRequest *req, const char *ip)
 	pkt->info->set("data", data);
 	
 	data->set("srs_version", new SrsAmf0String(RTMP_SIG_FMS_VER));
-	data->set("srs_server", new SrsAmf0String(RTMP_SIG_SRS_NAME));
+	data->set("srs_server", new SrsAmf0String(RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
 	data->set("srs_license", new SrsAmf0String(RTMP_SIG_SRS_LICENSE));
 	data->set("srs_role", new SrsAmf0String(RTMP_SIG_SRS_ROLE));
 	data->set("srs_url", new SrsAmf0String(RTMP_SIG_SRS_URL));
@@ -620,9 +622,12 @@ int SrsRtmp::response_connect_app(SrsRequest *req, const char *ip)
 	data->set("srs_email", new SrsAmf0String(RTMP_SIG_SRS_EMAIL));
 	data->set("srs_copyright", new SrsAmf0String(RTMP_SIG_SRS_COPYRIGHT));
 
-    if(ip)
+    if (ip) {
         data->set("srs_server_ip", new SrsAmf0String(ip));
-	
+    }
+
+    data->set("srs_contributor", new SrsAmf0String(RTMP_SIG_SRS_CONTRIBUTOR));
+
 	msg->set_packet(pkt, 0);
 	
 	if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
@@ -1297,11 +1302,13 @@ int SrsRtmp::bandwidth_check_play(int duration_ms, int interval_ms, int &actual_
         SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket;
         pkt->command_name = SRS_BW_CHECK_PLAYING;
 
-        for (int i = 0; i < 100; ++i) {
+        int object_num = 1;
+        for (int i = 0; i < object_num; ++i) {
             char buf[32];
             sprintf(buf, "%d", i);
             pkt->data->set(buf, new SrsAmf0String(random_data));
         }
+        object_num += 1;
         msg->set_packet(pkt, 0);
 
         play_bytes += pkt->get_payload_length();

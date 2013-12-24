@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SRS</title>   
+    <meta charset="utf-8">
+    <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
+    <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
+    <script type="text/javascript" src="js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="js/swfobject.js"></script>
+    <script type="text/javascript" src="js/srs.js"></script>
+    <style>
+        body{
+            padding-top: 55px;
+        }
+    </style>
+    <script type="text/javascript">
+        var srs_publisher = null;
+        var remote_player = null;
+        var realtime_player = null;
+        
+        $(function(){
+            // get the vhost and port to set the default url.
+            // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
+            // url set to: rtmp://demo:1935/live/livestream
+            srs_init("#txt_url", null, null);
+            
+            $("#btn_video_settings").click(function(){
+                $("#video_modal").modal({show:true});
+            });
+            $("#btn_audio_settings").click(function(){
+                $("#audio_modal").modal({show:true});
+            });
+            
+            $("#remote_tips").tooltip({
+                title: "为了支持HLS输出，FLASH编码器输出的流需要经过转码(VP6=>H264,MP3=>aac)，所以会黑屏较长时间，请耐心等待"
+            });
+            $("#low_latecy_tips").tooltip({
+                title: "服务器不转码直接转发FLASH编码器的流，所以延迟比支持HLS的流要低很多"
+            });
+            
+            $("#btn_publish").click(on_user_publish);
+            
+            // for publish, we use randome stream name.
+            $("#txt_url").val($("#txt_url").val() + "." + new Date().getTime());
+            
+            // start the publisher.
+            srs_publisher = new SrsPublisher("local_publisher", 430, 185);
+            srs_publisher.on_publisher_ready = function(cameras, microphones) {
+                $("#sl_cameras").empty();
+                for (var i = 0; i < cameras.length; i++) {
+                    $("#sl_cameras").append("<option value='" + i + "'>" + cameras[i] + "</option");
+                }
+                // optional: select the first no "virtual" signed.
+                for (var i = 0; i < cameras.length; i++) {
+                    if (cameras[i].toLowerCase().indexOf("virtual") == -1) {
+                        $("#sl_cameras option[value='" + i + "']").attr("selected", true);
+                        break;
+                    }
+                }
+                
+                $("#sl_microphones").empty();
+                for (var i = 0; i < microphones.length; i++) {
+                    $("#sl_microphones").append("<option value='" + i + "'>" + microphones[i] + "</option");
+                }
+                
+                $("#sl_vcodec").empty();
+                var vcodecs = ["h264", "vp6"];
+                for (var i = 0; i < vcodecs.length; i++) {
+                    $("#sl_vcodec").append("<option value='" + vcodecs[i] + "'>" + vcodecs[i] + "</option");
+                }
+                
+                $("#sl_profile").empty();
+                var profiles = ["baseline", "main"];
+                for (var i = 0; i < profiles.length; i++) {
+                    $("#sl_profile").append("<option value='" + profiles[i] + "'>" + profiles[i] + "</option");
+                }
+                
+                $("#sl_level").empty();
+                var levels = ["1", "1b", "1.1", "1.2", "1.3", 
+                    "2", "2.1", "2.2", "3", "3.1", "3.2", "4", "4.1", "4.2", "5", "5.1"];
+                for (var i = 0; i < levels.length; i++) {
+                    $("#sl_level").append("<option value='" + levels[i] + "'>" + levels[i] + "</option");
+                }
+                $("#sl_level option[value='4.1']").attr("selected", true);
+                
+                $("#sl_gop").empty();
+                var gops = ["0.3", "0.5", "1", "2", "3", "4", 
+                    "5", "6", "7", "8", "9", "10", "15", "20"];
+                for (var i = 0; i < gops.length; i++) {
+                    $("#sl_gop").append("<option value='" + gops[i] + "'>" + gops[i] + "秒</option");
+                }
+                $("#sl_gop option[value='5']").attr("selected", true);
+                
+                $("#sl_size").empty();
+                var sizes = ["176x144", "320x240", "352x240", 
+                    "352x288", "460x240", "640x480", "720x480", "720x576", "800x600", 
+                    "1024x768", "1280x720", "1360x768", "1920x1080"];
+                for (i = 0; i < sizes.length; i++) {
+                    $("#sl_size").append("<option value='" + sizes[i] + "'>" + sizes[i] + "</option");
+                }
+                $("#sl_size option[value='460x240']").attr("selected", true);
+                
+                $("#sl_fps").empty();
+                var fpses = ["5", "10", "15", "20", "24", "25", "29.97", "30"];
+                for (i = 0; i < fpses.length; i++) {
+                    $("#sl_fps").append("<option value='" + fpses[i] + "'>" + Number(fpses[i]).toFixed(2) + " 帧/秒</option");
+                }
+                $("#sl_fps option[value='15']").attr("selected", true);
+                
+                $("#sl_bitrate").empty();
+                var bitrates = ["50", "200", "350", "500", "650", "800", 
+                    "950", "1000", "1200", "1500", "1800", "2000", "3000", "5000"];
+                for (i = 0; i < bitrates.length; i++) {
+                    $("#sl_bitrate").append("<option value='" + bitrates[i] + "'>" + bitrates[i] + " kbps</option");
+                }
+                $("#sl_bitrate option[value='350']").attr("selected", true);
+            };
+            srs_publisher.on_publisher_error = function(code, desc) {
+                error(code, desc);
+            };
+            srs_publisher.on_publisher_warn = function(code, desc) {
+                warn(code, desc);
+            };
+            srs_publisher.start();
+            
+            // if no play specified, donot show the player, for debug the publisher.
+            var query = parse_query_string();
+            if (query.no_play != "true") {
+                // start the normal player with HLS supported.
+                remote_player = new SrsPlayer("remote_player", 430, 185);
+                remote_player.on_player_ready = function() {
+                    remote_player.set_bt(0.8);
+                    remote_player.set_fs("screen", 100);
+                };
+                remote_player.start();
+                
+                // start the realtime player.
+                realtime_player = new SrsPlayer("realtime_player", 430, 185);
+                realtime_player.on_player_ready = function() {
+                    realtime_player.set_bt(0.8);
+                    realtime_player.set_fs("screen", 100);
+                };
+                realtime_player.start();
+            }
+        });
+        
+        /**
+        * we generate the transcoded stream url for flash publish donot support HLS
+        * which requires aac, so the publish vhost maybe players for example, we
+        * use players_pub vhost(transcoded stream to which) for all clients,
+        * both players and players_pub are write HLS to the sample dir, 
+        * it's ok for the players vhost disabled the HLS, only the 
+        * players_pub enalbed HLS.
+        */
+        function update_play_url() {
+            var url = $("#txt_url").val();
+            var ret = srs_parse_rtmp_url(url);
+            var query = parse_query_string();
+            
+            var srs_player_url = "http://" + query.host + query.dir + "/srs_player.html?";
+            srs_player_url += "vhost=" + srs_get_player_publish_vhost(ret.vhost) + "&port=" + ret.port + "&app=" + ret.app + "&stream=" + ret.stream;
+            srs_player_url += "&autostart=true";
+            
+            var srs_player_rt_url = "http://" + query.host + query.dir + "/srs_player.html?";
+            srs_player_rt_url += "vhost=" + ret.vhost + "&port=" + ret.port + "&app=" + ret.app + "&stream=" + ret.stream;
+            srs_player_rt_url += "&autostart=true";
+            
+            var jwplayer_url = "http://" + query.host + query.dir + "/jwplayer6.html?";
+            jwplayer_url += "vhost=" + srs_get_player_publish_vhost(ret.vhost) + "&port=" + ret.port + "&app=" + ret.app + "&stream=" + ret.stream;
+            jwplayer_url += "&hls_autostart=true";
+            
+            var hls_url = "http://" + ret.server + ":" + query.http_port + "/" + ret.app + "/" + ret.stream + ".m3u8";
+            
+            $("#txt_play_realtime").text("RTMP低延时(点击打开)").attr("href", srs_player_rt_url).attr("target", "_blank");
+            $("#txt_play_url").text("RTMP已转码(点击打开)").attr("href", srs_player_url).attr("target", "_blank");
+            $("#txt_play_hls").text("HLS-m3u8(点击打开或右键复制)").attr("href", hls_url).attr("target", "_blank");
+            $("#txt_play_jwplayer").text("HLS-JWPlayer(点击打开)").attr("href", jwplayer_url).attr("target", "_blank");
+        }
+        function on_user_publish() {
+            if ($("#btn_publish").text() == "停止发布") {
+                srs_publisher.stop();
+                $("#btn_publish").text("发布视频");
+                $("#txt_play_realtime").text("RTMP低延时(请发布视频)").attr("href", "#").attr("target", "_self");
+                $("#txt_play_url").text("RTMP已转码(请发布视频)").attr("href", "#").attr("target", "_self");
+                $("#txt_play_hls").text("HLS-m3u8(请发布视频)").attr("href", "#").attr("target", "_self");
+                $("#txt_play_jwplayer").text("HLS-JWPlayer(请发布视频)").attr("href", "#").attr("target", "_self");
+                return;
+            }
+            
+            $("#btn_publish").text("停止发布");
+            
+            update_play_url();
+            
+            var url = $("#txt_url").val();
+            var vcodec = {};
+            var acodec = {};
+            
+            acodec.device_code = $("#sl_microphones").val();
+            acodec.device_name = $("#sl_microphones").text();
+            
+            vcodec.device_code = $("#sl_cameras").find("option:selected").val();
+            vcodec.device_name = $("#sl_cameras").find("option:selected").text();
+            
+            vcodec.codec = $("#sl_vcodec").find("option:selected").val();
+            vcodec.profile = $("#sl_profile").find("option:selected").val();
+            vcodec.level = $("#sl_level").find("option:selected").val();
+            vcodec.fps = $("#sl_fps").find("option:selected").val();
+            vcodec.gop = $("#sl_gop").find("option:selected").val();
+            vcodec.size = $("#sl_size").find("option:selected").val();
+            vcodec.bitrate = $("#sl_bitrate").find("option:selected").val();
+            
+            info("开始推流到服务器");
+            srs_publisher.publish(url, vcodec, acodec);
+            
+            if (realtime_player) {
+                // directly play the url for the realtime player.
+                realtime_player.stop();
+                realtime_player.play(url);
+            }
+            
+            if (remote_player) {
+                // the normal player should play the transcoded stream in another vhost.
+                // for example, publish stream to vhost players,
+                // the realtime player play the vhost players, which may donot support HLS,
+                // the normal player play the vhost players_pub, which transcoded to h264/aac with HLS.
+                var ret = srs_parse_rtmp_url(url);
+                var pub_url = "rtmp://" + ret.server + ":" + ret.port + "/" + ret.app;
+                pub_url += "?vhost=" + srs_get_player_publish_vhost(ret.vhost) + "/" + ret.stream;
+                remote_player.stop();
+                remote_player.play(pub_url);
+            }
+        }
+        
+        function info(desc) {
+            $("#txt_log").addClass("alert-info").removeClass("alert-error").removeClass("alert-warn");
+            $("#txt_log_title").text("Info:");
+            $("#txt_log_msg").text(desc);
+        }
+        function warn(code, desc) {
+            $("#txt_log").removeClass("alert-info").removeClass("alert-error").addClass("alert-warn");
+            $("#txt_log_title").text("Warn:");
+            $("#txt_log_msg").text("code: " + code + ", " + desc);
+        }
+        function error(code, desc) {
+            $("#txt_log").removeClass("alert-info").addClass("alert-error").removeClass("alert-warn");
+            $("#txt_log_title").text("Error:");
+            $("#txt_log_msg").text("code: " + code + ", " + desc);
+        }
+    </script>
+</head>
+<body>
+<div class="navbar navbar-fixed-top">
+    <div class="navbar-inner">
+        <div class="container">
+        <a class="brand" href="index.html">SRS</a>
+            <div class="nav-collapse collapse">
+                <ul class="nav">
+                    <li><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
+                    <li class="active"><a id="nav_srs_publisher" href="srs_publisher.html">SRS编码器</a></li>
+                    <li><a id="nav_srs_bwt" href="srs_bwt.html">SRS测网速</a></li>
+                    <li><a id="nav_jwplayer6" href="jwplayer6.html">JWPlayer6播放器</a></li>
+                    <li><a id="nav_osmf" href="osmf.html">AdobeOSMF播放器</a></li>
+                    <li><a id="nav_vlc" href="vlc.html">VLC播放器</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="container">
+    <div class="alert alert-info fade in" id="txt_log">
+        <button type="button" class="close" data-dismiss="alert">×</button>
+        <strong><span id="txt_log_title">Usage:</span></strong>
+        <span id="txt_log_msg">设置编码参数，点“发布视频”，允许Flash访问摄像头即可推流</span>
+    </div>
+    <div class="control-group">
+        <div class="form-inline">
+            <button class="btn" id="btn_video_settings">视频编码配置</button>
+            <button class="btn" id="btn_audio_settings">音频编码配置</button>
+        </div>
+    </div>
+    <div class="control-group">
+        <div class="form-inline">
+            发布地址:
+            <input type="text" id="txt_url" class="input-xxlarge" value=""></input>
+            <button class="btn btn-primary" id="btn_publish">发布视频</button>
+        </div>
+    </div>
+    <div class="control-group">
+        <div class="form-inline">
+            播放地址
+            1.<a id="txt_play_realtime" class="input-xxlarge" href="#">RTMP低延时(请发布视频)</a>
+            2.<a id="txt_play_url" class="input-xxlarge" href="#">RTMP已转码(请发布视频)</a>
+            3.<a id="txt_play_hls" class="input-xxlarge" href="#">HLS-m3u8(请发布视频)</a>
+            4.<a id="txt_play_jwplayer" class="input-xxlarge" href="#">HLS-JWPlayer(请发布视频)</a>
+        </div>
+    </div>
+    <div id="video_modal" class="modal hide fade">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+            <h3>视频编码</h3>
+        </div>
+        <div class="modal-body">
+            <div class="form-horizontal">
+                <div class="control-group">
+                    <label class="control-label" for="sl_cameras">
+                        摄像头
+                        <a id="sl_cameras_tips" href="#" data-toggle="tooltip" data-placement="right" title="">
+                            <img src="img/tooltip.png"/>
+                        </a>
+                    </label>
+                    <div class="controls">
+                        <select class="span4" id="sl_cameras"></select>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="sl_vcodec">
+                        Codec
+                        <a id="sl_cameras_tips" href="#" data-toggle="tooltip" data-placement="right" title="">
+                            <img src="img/tooltip.png"/>
+                        </a>
+                    </label>
+                    <div class="controls">
+                        <select class="span2" id="sl_vcodec"></select>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="sl_profile">
+                        Profile
+                        <a id="sl_profile_tips" href="#" data-toggle="tooltip" data-placement="right" title="">
+                            <img src="img/tooltip.png"/>
+                        </a>
+                    </label>
+                    <div class="controls">
+                        <select class="span2" id="sl_profile"></select>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="sl_level">
+                        Level
+                        <a id="sl_level_tips" href="#" data-toggle="tooltip" data-placement="right" title="">
+                            <img src="img/tooltip.png"/>
+                        </a>
+                    </label>
+                    <div class="controls">
+                        <select class="span2" id="sl_level"></select>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="sl_gop">
+                        GOP
+                        <a id="sl_gop_tips" href="#" data-toggle="tooltip" data-placement="right" title="">
+                            <img src="img/tooltip.png"/>
+                        </a>
+                    </label>
+                    <div class="controls">
+                        <select class="span2" id="sl_gop"></select>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="sl_size">
+                        尺寸
+                        <a id="sl_size_tips" href="#" data-toggle="tooltip" data-placement="right" title="">
+                            <img src="img/tooltip.png"/>
+                        </a>
+                    </label>
+                    <div class="controls">
+                        <select class="span2" id="sl_size"></select>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="sl_fps">
+                        帧率
+                        <a id="sl_fps_tips" href="#" data-toggle="tooltip" data-placement="right" title="">
+                            <img src="img/tooltip.png"/>
+                        </a>
+                    </label>
+                    <div class="controls">
+                        <select class="span2" id="sl_fps"></select>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="sl_bitrate">
+                        码率
+                        <a id="sl_bitrate_tips" href="#" data-toggle="tooltip" data-placement="right" title="">
+                            <img src="img/tooltip.png"/>
+                        </a>
+                    </label>
+                    <div class="controls">
+                        <select class="span2" id="sl_bitrate"></select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true">设置</button>
+        </div>
+    </div>
+    <div id="audio_modal" class="modal hide fade">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+            <h3>音频编码</h3>
+        </div>
+        <div class="modal-body">
+            <div class="form-horizontal">
+                <div class="control-group">
+                    <label class="control-label" for="sl_microphones">
+                        麦克风
+                        <a id="worker_id_tips" href="#" data-toggle="tooltip" data-placement="right" title="">
+                            <img src="img/tooltip.png"/>
+                        </a>
+                    </label>
+                    <div class="controls">
+                        <select class="span4" id="sl_microphones"></select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true">设置</button>
+        </div>
+    </div>
+    <div class="container">
+        <div class="row-fluid">
+            <div class="span6">
+                <div class="accordion-group">
+                    <div class="accordion-heading">
+                        <span class="accordion-toggle" data-toggle="collapse" href="#collapse1">
+                            <strong>本地摄像头</strong>
+                        </span>
+                    </div>
+                    <div id="collapse1" class="accordion-body collapse in">
+                        <div class="accordion-inner">
+                            <div id="local_publisher"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="span6">
+                <div class="accordion-group">
+                    <div class="accordion-heading">
+                        <span class="accordion-toggle" data-toggle="collapse" href="#collapse2">
+                            <strong>远程服务器</strong>
+                            <a id="remote_tips" href="#" data-toggle="tooltip" data-placement="top" title="">
+                                黑屏<img src="img/tooltip.png"/>
+                            </a>
+                        </span>
+                    </div>
+                    <div id="collapse2" class="accordion-body collapse in">
+                        <div class="accordion-inner">
+                            <div id="remote_player"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="container">
+        <div class="row-fluid">
+            <div class="span6">
+                <div class="accordion-group">
+                    <div class="accordion-heading">
+                        <span class="accordion-toggle" data-toggle="collapse" href="#collapse3">
+                            <strong>远程服务器</strong>
+                            <a id="low_latecy_tips" href="#" data-toggle="tooltip" data-placement="top" title="">
+                                低延时<img src="img/tooltip.png"/>
+                            </a>
+                        </span>
+                    </div>
+                    <div id="collapse3" class="accordion-body collapse in">
+                        <div class="accordion-inner">
+                            <div id="realtime_player"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="span6">
+            </div>
+        </div>
+    </div>
+    <footer>
+        <p><a href="https://github.com/winlinvip/simple-rtmp-server">SRS Team &copy; 2013</a></p>
+    </footer>
+</div>
+</body>
+

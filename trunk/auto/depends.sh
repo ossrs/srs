@@ -243,7 +243,8 @@ if [ $SRS_HLS = YES ]; then
     sed -i "s/^.user  nobody;/user `whoami`;/g" ${SRS_OBJS}/nginx/conf/nginx.conf
     
     # create forward dir
-    mkdir -p ${SRS_OBJS}/nginx/html/forward
+    mkdir -p ${SRS_OBJS}/nginx/html/live &&
+    mkdir -p ${SRS_OBJS}/nginx/html/forward/live
     
     # generate default html pages for android.
     html_file=${SRS_OBJS}/nginx/html/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
@@ -254,7 +255,17 @@ if [ $SRS_HLS = YES ]; then
     html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
     
     # copy players to nginx html dir.
-    cp research/players ${SRS_OBJS}/nginx/html/ -r
+    rm -rf ${SRS_OBJS}/nginx/html/players &&
+    ln -sf `pwd`/research/players ${SRS_OBJS}/nginx/html/players &&
+    rm -f ${SRS_OBJS}/nginx/crossdomain.xml &&
+    ln -sf `pwd`/research/players/crossdomain.xml ${SRS_OBJS}/nginx/html/crossdomain.xml
+    
+    # override the default index.
+    cat <<END > ${SRS_OBJS}/nginx/html/index.html
+    <script type="text/javascript">
+        window.location.href = "players/index.html";
+    </script>
+END
 fi
 
 if [ $SRS_HLS = YES ]; then
@@ -327,8 +338,10 @@ fi
 #####################################################################################
 # build research code
 #####################################################################################
-(cd research/hls && make)
+mkdir -p ${SRS_OBJS}/research
+
+(cd research/hls && make && mv ts_info ../../${SRS_OBJS}/research)
 ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/hls failed, ret=$ret"; exit $ret; fi
 
-(cd research/ffempty && make)
+(cd research/ffempty && make && mv ffempty ../../${SRS_OBJS}/research)
 ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/ffempty failed, ret=$ret"; exit $ret; fi
