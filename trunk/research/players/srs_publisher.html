@@ -37,6 +37,12 @@
             $("#low_latecy_tips").tooltip({
                 title: "服务器不转码直接转发FLASH编码器的流，所以延迟比支持HLS的流要低很多"
             });
+            $("#realtime_player_url").tooltip({
+                title: "右键复制RTMP地址"
+            });
+            $("#remote_player_url").tooltip({
+                title: "右键复制RTMP地址"
+            });
             
             $("#btn_publish").click(on_user_publish);
             
@@ -60,6 +66,8 @@
                 warn(code, desc);
             };
             srs_publisher.start();
+            
+            update_play_url();
             
             // if no play specified, donot show the player, for debug the publisher.
             var query = parse_query_string();
@@ -95,6 +103,10 @@
             var ret = srs_parse_rtmp_url(url);
             var query = parse_query_string();
             
+            var remote_url = "rtmp://" + ret.server + ":" + ret.port + "/" + ret.app + "...vhost..." + srs_get_player_publish_vhost(ret.vhost) + "/" + ret.stream;
+            $("#realtime_player_url").attr("href", url).attr("target", "_blank");
+            $("#remote_player_url").attr("href", remote_url).attr("target", "_blank");
+            
             var srs_player_url = "http://" + query.host + query.dir + "/srs_player.html?";
             srs_player_url += "vhost=" + srs_get_player_publish_vhost(ret.vhost) + "&port=" + ret.port + "&app=" + ret.app + "&stream=" + ret.stream;
             srs_player_url += "&autostart=true";
@@ -118,10 +130,12 @@
             if ($("#btn_publish").text() == "停止发布") {
                 srs_publisher.stop();
                 $("#btn_publish").text("发布视频");
-                $("#txt_play_realtime").text("RTMP低延时(请发布视频)").attr("href", "#").attr("target", "_self");
-                $("#txt_play_url").text("RTMP已转码(请发布视频)").attr("href", "#").attr("target", "_self");
-                $("#txt_play_hls").text("HLS-m3u8(请发布视频)").attr("href", "#").attr("target", "_self");
-                $("#txt_play_jwplayer").text("HLS-JWPlayer(请发布视频)").attr("href", "#").attr("target", "_self");
+                //$("#txt_play_realtime").text("RTMP低延时(请发布视频)").attr("href", "#").attr("target", "_self");
+                //$("#txt_play_realtime").attr("href", "#").attr("target", "_self");
+                //$("#txt_play_url").text("RTMP已转码(请发布视频)").attr("href", "#").attr("target", "_self");
+                //$("#remote_player_url").attr("href", "#").attr("target", "_self");
+                //$("#txt_play_hls").text("HLS-m3u8(请发布视频)").attr("href", "#").attr("target", "_self");
+                //$("#txt_play_jwplayer").text("HLS-JWPlayer(请发布视频)").attr("href", "#").attr("target", "_self");
                 return;
             }
             
@@ -339,11 +353,11 @@
             <div class="span6">
                 <div class="accordion-group">
                     <div class="accordion-heading">
-                        <span class="accordion-toggle" data-toggle="collapse" href="#collapse1">
+                        <span class="accordion-toggle">
                             <strong>本地摄像头</strong>
                         </span>
                     </div>
-                    <div id="collapse1" class="accordion-body collapse in">
+                    <div class="accordion-body collapse in">
                         <div class="accordion-inner">
                             <div id="local_publisher"></div>
                         </div>
@@ -353,14 +367,17 @@
             <div class="span6">
                 <div class="accordion-group">
                     <div class="accordion-heading">
-                        <span class="accordion-toggle" data-toggle="collapse" href="#collapse2">
+                        <span class="accordion-toggle">
                             <strong>远程服务器</strong>
                             <a id="remote_tips" href="#" data-toggle="tooltip" data-placement="top" title="">
                                 黑屏<img src="img/tooltip.png"/>
                             </a>
+                            <a id="remote_player_url" href="#" data-toggle="tooltip" data-placement="top" title="">
+                                播放地址<img src="img/tooltip.png"/>
+                            </a>
                         </span>
                     </div>
-                    <div id="collapse2" class="accordion-body collapse in">
+                    <div class="accordion-body collapse in">
                         <div class="accordion-inner">
                             <div id="remote_player"></div>
                         </div>
@@ -374,14 +391,17 @@
             <div class="span6">
                 <div class="accordion-group">
                     <div class="accordion-heading">
-                        <span class="accordion-toggle" data-toggle="collapse" href="#collapse3">
+                        <span class="accordion-toggle">
                             <strong>远程服务器</strong>
                             <a id="low_latecy_tips" href="#" data-toggle="tooltip" data-placement="top" title="">
                                 低延时<img src="img/tooltip.png"/>
                             </a>
+                            <a id="realtime_player_url" href="#" data-toggle="tooltip" data-placement="top" title="">
+                                播放地址<img src="img/tooltip.png"/>
+                            </a>
                         </span>
                     </div>
-                    <div id="collapse3" class="accordion-body collapse in">
+                    <div class="accordion-body collapse in">
                         <div class="accordion-inner">
                             <div id="realtime_player"></div>
                         </div>

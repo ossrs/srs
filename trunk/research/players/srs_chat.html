@@ -28,6 +28,10 @@
             // url set to: rtmp://demo:1935/live/livestream
             srs_init_publish("#txt_url");
             
+            $("#realtime_player_url").tooltip({
+                title: "右键复制RTMP地址"
+            });
+            
             // if no play specified, donot show the player, for debug the publisher.
             var query = parse_query_string();
             if (query.no_play == "true") {
@@ -63,6 +67,8 @@
             };
             srs_publisher.start();
             
+            update_play_url();
+            
             if (!no_play) {
                 // start the realtime player.
                 realtime_player = new SrsPlayer("realtime_player", 430, 185);
@@ -76,6 +82,12 @@
             api_server = "http://" + query.hostname + ":" + srs_get_api_server_port() + "/api/v1/chats";
             refresh();
         });
+        
+        function update_play_url() {
+            var url = $("#txt_url").val();
+            
+            $("#realtime_player_url").attr("href", url).attr("target", "_blank");
+        }
         
         function refresh() {
             if (!self_chat) {
@@ -200,8 +212,8 @@
                 $(obj).attr("chat_id", chat.id);
                 $(obj).attr("id", "div_" + chat.id); // for specifed chat: $("#div_" + chat_id)
                 $(obj).attr("class", "div_chat"); // for all chats: $(".div_chat")
-                $(obj).find("#realtime_player").attr("id", "rp_" + chat.id); // for specifed player: $("#rp_" + chat_id)
-                $(obj).find("#realtime_player_raw").attr("id", "rp_raw_" + chat.id); // for specifed player: $("#rp_raw_" + chat_id)
+                $(obj).find("#chat_player").attr("id", "rp_" + chat.id); // for specifed player: $("#rp_" + chat_id)
+                $(obj).find("#chat_player_raw").attr("id", "rp_raw_" + chat.id); // for specifed player: $("#rp_raw_" + chat_id)
                 $(obj).find("#user_name").text(chat.username);
                 $(obj).find("#join_date").text(chat.join_date_str);
                 $(obj).find("#collapseM").attr("id", "collapse_" + global_chat_user_id);
@@ -456,11 +468,11 @@
             <div class="span6">
                 <div class="accordion-group">
                     <div class="accordion-heading">
-                        <span class="accordion-toggle" data-toggle="collapse" href="#collapseN">
+                        <span class="accordion-toggle">
                             <strong>[我的] 本地摄像头</strong>
                         </span>
                     </div>
-                    <div id="collapseM" class="accordion-body collapse in">
+                    <div class="accordion-body collapse in">
                         <div class="accordion-inner">
                             <div id="local_publisher"></div>
                         </div>
@@ -470,11 +482,14 @@
             <div class="span6">
                 <div class="accordion-group">
                     <div class="accordion-heading">
-                        <span class="accordion-toggle" data-toggle="collapse" href="#collapseN">
+                        <span class="accordion-toggle">
                             <strong>[我的] 远程服务器流</strong>
+                            <a id="realtime_player_url" href="#" data-toggle="tooltip" data-placement="top" title="">
+                                播放地址<img src="img/tooltip.png"/>
+                            </a>
                         </span>
                     </div>
-                    <div id="collapseM" class="accordion-body collapse in">
+                    <div class="accordion-body collapse in">
                         <div class="accordion-inner">
                             <div id="realtime_player"></div>
                         </div>
@@ -498,8 +513,8 @@
                         <div class="span2">
                         </div>
                         <div class="span8">
-                            <div id="realtime_player">
-                                <div id="realtime_player_raw">
+                            <div id="chat_player">
+                                <div id="chat_player_raw">
                                 </div>
                             </div>
                         </div>
