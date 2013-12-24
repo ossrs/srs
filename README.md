@@ -7,6 +7,7 @@ srs supports vhost, rtmp, HLS, transcoding, forward, http hooks. <br/>
 blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
 see also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) <br/>
 see also: [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.github.io/simple-rtmp-server)
+TencentQQ: http://url.cn/WAHICw (Group: 212189142)
 
 ### Contributors
 winlin([winterserver](#)): [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
