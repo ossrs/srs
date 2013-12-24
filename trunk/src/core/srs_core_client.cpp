@@ -2,7 +2,6 @@
 The MIT License (MIT)
 
 Copyright (c) 2013 winlin
-Copyright (c) 2013 wenjiegit
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -144,8 +143,8 @@ int SrsClient::on_reload_vhost_removed(string vhost)
 int SrsClient::service_cycle()
 {	
 	int ret = ERROR_SUCCESS;
-
-    if ((ret = rtmp->set_window_ack_size(2.5 * 1000 * 1000)) != ERROR_SUCCESS) {
+	
+	if ((ret = rtmp->set_window_ack_size(2.5 * 1000 * 1000)) != ERROR_SUCCESS) {
 		srs_error("set window acknowledgement size failed. ret=%d", ret);
 		return ret;
 	}
@@ -166,20 +165,19 @@ int SrsClient::service_cycle()
 		srs_error("response connect app failed. ret=%d", ret);
 		return ret;
 	}
-    srs_verbose("response connect app success");
+	srs_verbose("response connect app success");
 		
 	if ((ret = rtmp->on_bw_done()) != ERROR_SUCCESS) {
 		srs_error("on_bw_done failed. ret=%d", ret);
 		return ret;
 	}
 	srs_verbose("on_bw_done success");
-
-    SrsClientType type;
-    if ((ret = rtmp->identify_client(res->stream_id, type, req->stream)) != ERROR_SUCCESS) {
-            srs_error("identify client failed. ret=%d", ret);
-            return ret;
-    }
-
+	
+	SrsClientType type;
+	if ((ret = rtmp->identify_client(res->stream_id, type, req->stream)) != ERROR_SUCCESS) {
+		srs_error("identify client failed. ret=%d", ret);
+		return ret;
+	}
 	req->strip();
 	srs_trace("identify client success. type=%d, stream_name=%s", type, req->stream.c_str());
 	
@@ -538,40 +536,6 @@ int SrsClient::get_peer_ip()
     
     srs_verbose("get peer ip success. ip=%s, fd=%d", ip, fd);
     
-    return ret;
-}
-
-int SrsClient::get_local_ip(char *&local_ip)
-{
-    int ret = ERROR_SUCCESS;
-
-    int fd = st_netfd_fileno(stfd);
-
-    // discovery client information
-    sockaddr_in addr;
-    socklen_t addrlen = sizeof(addr);
-    if (getsockname(fd, (sockaddr*)&addr, &addrlen) == -1) {
-        ret = ERROR_SOCKET_GET_LOCAL_IP;
-        srs_error("discovery local ip information failed. ret=%d", ret);
-        return ret;
-    }
-    srs_verbose("get local ip success.");
-
-    // ip v4 or v6
-    char buf[INET6_ADDRSTRLEN];
-    memset(buf, 0, sizeof(buf));
-
-    if ((inet_ntop(addr.sin_family, &addr.sin_addr, buf, sizeof(buf))) == NULL) {
-        ret = ERROR_SOCKET_GET_LOCAL_IP;
-        srs_error("convert local ip information failed. ret=%d", ret);
-        return ret;
-    }
-
-    local_ip = new char[strlen(buf) + 1];
-    strcpy(local_ip, buf);
-
-    srs_verbose("get local ip of client ip=%s, fd=%d", buf, fd);
-
     return ret;
 }
 

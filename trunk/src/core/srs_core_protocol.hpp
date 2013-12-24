@@ -2,7 +2,6 @@
 The MIT License (MIT)
 
 Copyright (c) 2013 winlin
-Copyright (c) 2013 wenjiegit
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -66,25 +65,6 @@ class ISrsMessage;
 * that is, 1+4=5bytes.
 */
 #define RTMP_MAX_FMT3_HEADER_SIZE 5
-
-/**
-* band width check method name, which will be invoked by client.
-* band width check mothods use SrsOnStatusCallPacket as its internal packet type,
-* so ensure you set command name when you use it.
-*/
-// for play
-#define SRS_BW_CHECK_START_PLAY         "onSrsBandCheckStartPlayBytes"
-#define SRS_BW_CHECK_STARTING_PLAY      "onSrsBandCheckStartingPlayBytes"
-#define SRS_BW_CHECK_STOP_PLAY          "onSrsBandCheckStopPlayBytes"
-#define SRS_BW_CHECK_STOPPED_PLAY       "onSrsBandCheckStoppedPlayBytes"
-#define SRS_BW_CHECK_PLAYING            "onSrsBandCheckPlaying"
-
-// for publish
-#define SRS_BW_CHECK_START_PUBLISH      "onSrsBandCheckStartPublishBytes"
-#define SRS_BW_CHECK_STARTING_PUBLISH   "onSrsBandCheckStartingPublishBytes"
-#define SRS_BW_CHECK_STOP_PUBLISH       "onSrsBandCheckStopPublishBytes"
-#define SRS_BW_CHECK_FINISHED           "onSrsBandCheckFinished"
-#define SRS_BW_CHECK_PUBLISHING         "onSrsBandCheckPublishing"
 
 /**
 * the protocol provides the rtmp-message-protocol services,
@@ -240,7 +220,6 @@ struct SrsMessageHeader
 	bool is_window_ackledgement_size();
 	bool is_set_chunk_size();
 	bool is_user_control_message();
-    bool is_windows_ackledgement();
 };
 
 /**
@@ -845,10 +824,6 @@ public:
 public:
 	SrsOnStatusCallPacket();
 	virtual ~SrsOnStatusCallPacket();
-
-public:
-    virtual int decode(SrsStream* stream);
-
 public:
 	virtual int get_perfer_cid();
 public:
@@ -1044,10 +1019,6 @@ public:
 public:
 	SrsAcknowledgementPacket();
 	virtual ~SrsAcknowledgementPacket();
-
-public:
-    virtual int decode(SrsStream *stream);
-
 public:
 	virtual int get_perfer_cid();
 public:

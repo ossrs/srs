@@ -2,7 +2,6 @@
 The MIT License (MIT)
 
 Copyright (c) 2013 winlin
-Copyright (c) 2013 wenjiegit
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -63,7 +62,6 @@ struct SrsRequest
 	std::string port;
 	std::string app;
 	std::string stream;
-    std::string bw_key;
 	
 	SrsRequest();
 	virtual ~SrsRequest();
@@ -104,7 +102,7 @@ enum SrsClientType
 	SrsClientUnknown,
 	SrsClientPlay,
 	SrsClientFMLEPublish,
-    SrsClientFlashPublish
+	SrsClientFlashPublish,
 };
 
 /**
@@ -129,10 +127,10 @@ public:
 	virtual int send_message(ISrsMessage* msg);
 public:
 	virtual int handshake();
-    virtual int connect_app(const std::string &app, const std::string &tc_url);
+	virtual int connect_app(std::string app, std::string tc_url);
 	virtual int create_stream(int& stream_id);
-    virtual int play(const std::string &stream, int stream_id);
-    virtual int publish(const std::string &stream, int stream_id);
+	virtual int play(std::string stream, int stream_id);
+	virtual int publish(std::string stream, int stream_id);
 };
 
 /**
@@ -169,16 +167,11 @@ public:
 	* using the Limit type field.
 	*/
 	virtual int set_peer_bandwidth(int bandwidth, int type);
-<<<<<<< HEAD
-    virtual int response_connect_app(SrsRequest* req, const char *ip = 0);
-    virtual int response_connect_reject(SrsRequest* req, const std::string& description);
-=======
 	/**
 	* @param server_ip the ip of server.
 	*/
     virtual int response_connect_app(SrsRequest* req, const char* server_ip = NULL);
     virtual void response_connect_reject(SrsRequest* req, const char* desc);
->>>>>>> upstream/master
 	virtual int on_bw_done();
 	/**
 	* recv some message to identify the client.
@@ -229,18 +222,10 @@ public:
 	* onStatus(NetStream.Publish.Start)
 	*/
 	virtual int start_flash_publish(int stream_id);
-
-    /**
-    * used to process band width check from client.
-    */
-    virtual int start_bandwidth_check(int limit_kbps);
-
 private:
 	virtual int identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, std::string& stream_name);
 	virtual int identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsClientType& type, std::string& stream_name);
 	virtual int identify_flash_publish_client(SrsPublishPacket* req, SrsClientType& type, std::string& stream_name);
-    virtual int bandwidth_check_play(int duration_ms, int interval_ms, int& actual_duration_ms, int& play_bytes, int max_play_kbps);
-    virtual int bandwidth_check_publish(int duration_ms, int interval_ms, int& actual_duration_ms, int& publish_bytes, int max_pub_kbps);
 };
 
 #endif

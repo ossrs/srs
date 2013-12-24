@@ -230,7 +230,7 @@ int SrsServer::cycle()
 	// the deamon thread, update the time cache
 	while (true) {
 		st_usleep(SRS_TIME_RESOLUTION_MS * 1000);
-        srs_update_system_time_ms();
+		srs_update_system_time_ms();
 		
 		if (signal_reload) {
 			signal_reload = false;

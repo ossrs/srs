@@ -2,7 +2,6 @@
 The MIT License (MIT)
 
 Copyright (c) 2013 winlin
-Copyright (c) 2013 wenjiegit
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -1508,61 +1507,7 @@ int SrsConfig::get_pithy_print_hls()
 		return SRS_STAGE_HLS_INTERVAL_MS;
 	}
 	
-    return ::atoi(pithy->arg0().c_str());
-}
-
-bool SrsConfig::get_bw_check_enabled(const std::string &vhost, const std::string &key)
-{
-    SrsConfDirective* conf = get_vhost(vhost);
-
-    if (!conf) {
-        return false;
-    }
-
-    SrsConfDirective* bw_test = conf->get("bandcheck");
-    if(!bw_test)
-        return false;
-
-    SrsConfDirective* bw_enabled_conf = bw_test->get("enabled");
-    if(bw_enabled_conf && bw_enabled_conf->arg0() == "on"){
-        SrsConfDirective* bw_key = bw_test->get("key");
-        if(!bw_key) return false;
-
-        std::vector<std::string> &args = bw_key->args;
-        for(unsigned int i = 0; i < args.size(); ++i){
-            if(args.at(i) == key)
-                return true;
-        }
-    }
-
-    return false;
-}
-
-void SrsConfig::get_bw_check_settings(const std::string &vhost, int64_t &interval_ms, int &limit_kbps)
-{
-    // set default value;
-    interval_ms = 30 * 1000;
-    limit_kbps   = 32000;
-
-    SrsConfDirective* conf = get_vhost(vhost);
-    if (!conf) {
-        return;
-    }
-
-    SrsConfDirective* bw_test = conf->get("bandcheck");
-    if (!bw_test) {
-        return;
-    }
-
-    SrsConfDirective* interval_conf = bw_test->get("interval");
-    if (interval_conf) {
-        interval_ms = ::atoll(interval_conf->arg0().c_str()) * 1000;
-    }
-
-    SrsConfDirective* limit_kbps_conf = bw_test->get("limit_kbps");
-    if (limit_kbps_conf) {
-        limit_kbps = ::atoi(limit_kbps_conf->arg0().c_str());
-    }
+	return ::atoi(pithy->arg0().c_str());
 }
 
 bool SrsConfig::get_bw_check_enabled(const string &vhost)

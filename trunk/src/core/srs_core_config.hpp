@@ -2,7 +2,6 @@
 The MIT License (MIT)
 
 Copyright (c) 2013 winlin
-Copyright (c) 2013 wenjiegit
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -116,7 +115,6 @@ public:
 	virtual void unsubscribe(ISrsReloadHandler* handler);
 public:
 	virtual int parse_options(int argc, char** argv);
-
 private:
 	virtual int parse_file(const char* filename);
 	virtual int parse_argv(int& i, char** argv);

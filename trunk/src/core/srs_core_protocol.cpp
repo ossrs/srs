@@ -2,7 +2,6 @@
 The MIT License (MIT)
 
 Copyright (c) 2013 winlin
-Copyright (c) 2013 wenjiegit
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -1177,12 +1176,7 @@ bool SrsMessageHeader::is_set_chunk_size()
 
 bool SrsMessageHeader::is_user_control_message()
 {
-    return message_type == RTMP_MSG_UserControlMessage;
-}
-
-bool SrsMessageHeader::is_windows_ackledgement()
-{
-    return message_type == RTMP_MSG_Acknowledgement;
+	return message_type == RTMP_MSG_UserControlMessage;
 }
 
 SrsChunkStream::SrsChunkStream(int _cid)
@@ -1389,7 +1383,7 @@ int SrsCommonMessage::decode_packet(SrsProtocol* protocol)
 		srs_verbose("start to decode set chunk size message.");
 		packet = new SrsSetChunkSizePacket();
 		return packet->decode(stream);
-    } else {
+	} else {
 		// default packet to drop message.
 		srs_trace("drop the unknown message, type=%d", header.message_type);
 		packet = new SrsPacket();
@@ -2614,31 +2608,7 @@ SrsOnStatusCallPacket::SrsOnStatusCallPacket()
 SrsOnStatusCallPacket::~SrsOnStatusCallPacket()
 {
 	srs_freep(args);
-    srs_freep(data);
-}
-
-int SrsOnStatusCallPacket::decode(SrsStream *stream)
-{
-    int ret = ERROR_SUCCESS;
-
-    if ((ret = srs_amf0_read_string(stream, command_name)) != ERROR_SUCCESS) {
-        srs_error("amf0 decode play command_name failed. ret=%d", ret);
-        return ret;
-    }
-
-    if ((ret = srs_amf0_read_number(stream, transaction_id)) != ERROR_SUCCESS) {
-        srs_error("amf0 decode play transaction_id failed. ret=%d", ret);
-        return ret;
-    }
-
-    if ((ret = srs_amf0_read_null(stream)) != ERROR_SUCCESS) {
-        srs_error("amf0 decode play command_object failed. ret=%d", ret);
-        return ret;
-    }
-
-    srs_info("decode SrsOnStatusCallPacket success.");
-
-    return ret;
+	srs_freep(data);
 }
 
 int SrsOnStatusCallPacket::get_perfer_cid()
@@ -3111,14 +3081,6 @@ SrsAcknowledgementPacket::~SrsAcknowledgementPacket()
 {
 }
 
-int SrsAcknowledgementPacket::decode(SrsStream *stream)
-{
-    int ret = ERROR_SUCCESS;
-    ret = sequence_number = stream->read_4bytes();
-
-    return ret;
-}
-
 int SrsAcknowledgementPacket::get_perfer_cid()
 {
 	return RTMP_CID_ProtocolControl;
@@ -3344,3 +3306,4 @@ int SrsUserControlPacket::encode_packet(SrsStream* stream)
 	
 	return ret;
 }
+
