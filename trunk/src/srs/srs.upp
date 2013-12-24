@@ -10,6 +10,8 @@ file
     ..\core\srs_core_amf0.cpp,
     ..\core\srs_core_autofree.hpp,
     ..\core\srs_core_autofree.cpp,
+    ..\core\srs_core_bandwidth.hpp,
+    ..\core\srs_core_bandwidth.cpp,
     ..\core\srs_core_buffer.hpp,
     ..\core\srs_core_buffer.cpp,
     ..\core\srs_core_client.hpp,

@@ -1443,30 +1443,27 @@ SrsConfDirective* SrsConfig::get_listen()
 	return root->get("listen");
 }
 
-int SrsConfig::get_chunk_size()
-{
-	SrsConfDirective* conf = root->get("chunk_size");
-	if (!conf) {
-		return SRS_CONF_DEFAULT_CHUNK_SIZE;
-	}
-	
-    return ::atoi(conf->arg0().c_str());
-}
-
 int SrsConfig::get_chunk_size(const std::string &vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);
 
     if (!conf) {
-        return get_chunk_size();
+		return SRS_CONF_DEFAULT_CHUNK_SIZE;
     }
 
-    SrsConfDirective* conf_vhost = conf->get("chunk_size");
-    if (!conf_vhost) {
-        return get_chunk_size();
+    conf = conf->get("chunk_size");
+    if (!conf) {
+        // vhost does not specify the chunk size,
+        // use the global instead.
+		conf = root->get("chunk_size");
+		if (!conf) {
+			return SRS_CONF_DEFAULT_CHUNK_SIZE;
+		}
+		
+		return ::atoi(conf->arg0().c_str());
     }
 
-    return ::atoi(conf_vhost->arg0().c_str());
+    return ::atoi(conf->arg0().c_str());
 }
 
 int SrsConfig::get_pithy_print_publish()
@@ -1566,6 +1563,90 @@ void SrsConfig::get_bw_check_settings(const std::string &vhost, int64_t &interva
     if (limit_kbps_conf) {
         limit_kbps = ::atoi(limit_kbps_conf->arg0().c_str());
     }
+}
+
+bool SrsConfig::get_bw_check_enabled(const string &vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return false;
+    }
+
+    conf = conf->get("bandcheck");
+    if (!conf) {
+        return false;
+    }
+
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0() != "on") {
+        return false;
+    }
+
+    return true;
+}
+
+string SrsConfig::get_bw_check_key(const string &vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return "";
+    }
+
+    conf = conf->get("bandcheck");
+    if (!conf) {
+        return "";
+    }
+    
+    conf = conf->get("key");
+    if (!conf) {
+        return "";
+    }
+
+    return conf->arg0();
+}
+
+int SrsConfig::get_bw_check_interval_ms(const string &vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return SRS_CONF_DEFAULT_BANDWIDTH_INTERVAL;
+    }
+
+    conf = conf->get("bandcheck");
+    if (!conf) {
+        return SRS_CONF_DEFAULT_BANDWIDTH_INTERVAL;
+    }
+    
+    conf = conf->get("interval_ms");
+    if (!conf) {
+        return SRS_CONF_DEFAULT_BANDWIDTH_INTERVAL;
+    }
+
+    return ::atoi(conf->arg0().c_str()) * 1000;
+}
+
+int SrsConfig::get_bw_check_limit_kbps(const string &vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return SRS_CONF_DEFAULT_BANDWIDTH_LIMIT_KBPS;
+    }
+
+    conf = conf->get("bandcheck");
+    if (!conf) {
+        return SRS_CONF_DEFAULT_BANDWIDTH_LIMIT_KBPS;
+    }
+    
+    conf = conf->get("limit_kbps");
+    if (!conf) {
+        return SRS_CONF_DEFAULT_BANDWIDTH_LIMIT_KBPS;
+    }
+
+    return ::atoi(conf->arg0().c_str());
 }
 
 int SrsConfig::get_pithy_print_encoder()

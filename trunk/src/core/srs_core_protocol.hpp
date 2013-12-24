@@ -331,6 +331,7 @@ class SrsCommonMessage : public ISrsMessage
 {
 private:
 	typedef ISrsMessage super;
+	disable_default_copy(SrsCommonMessage);
 // decoded message payload.
 private:
 	SrsStream* stream;
@@ -366,9 +367,10 @@ public:
 	* set the encoded packet to encode_packet() to payload.
 	* @stream_id, the id of stream which is created by createStream.
 	* @remark, user never free the pkt, the message will auto free it.
+	* @return message itself.
 	*/
 	// TODO: refine the send methods.
-	virtual void set_packet(SrsPacket* pkt, int stream_id);
+	virtual SrsCommonMessage* set_packet(SrsPacket* pkt, int stream_id);
 	/**
 	* encode the packet to message payload bytes.
 	* @remark there exists empty packet, so maybe the payload is NULL.
@@ -854,6 +856,55 @@ public:
 protected:
 	virtual int get_size();
 	virtual int encode_packet(SrsStream* stream);
+};
+
+/**
+* the special packet for the bandwidth test.
+* actually, it's a SrsOnStatusCallPacket, but
+* 1. encode with data field, to send data to client.
+* 2. decode ignore the data field, donot care.
+*/
+class SrsBandwidthPacket : public SrsPacket
+{
+private:
+	typedef SrsPacket super;
+	disable_default_copy(SrsBandwidthPacket);
+protected:
+	virtual const char* get_class_name()
+	{
+		return CLASS_NAME_STRING(SrsBandwidthPacket);
+	}
+public:
+	std::string command_name;
+	double transaction_id;
+	SrsAmf0Null* args;
+	SrsAmf0Object* data;
+public:
+	SrsBandwidthPacket();
+	virtual ~SrsBandwidthPacket();
+public:
+	virtual int get_perfer_cid();
+public:
+	virtual int get_message_type();
+protected:
+	virtual int get_size();
+	virtual int encode_packet(SrsStream* stream);
+public:
+    virtual int decode(SrsStream* stream);
+public:
+	virtual bool is_starting_play();
+	virtual bool is_stopped_play();
+	virtual bool is_starting_publish();
+	virtual bool is_stopped_publish();
+	virtual bool is_flash_final();
+	static SrsBandwidthPacket* create_finish();
+	static SrsBandwidthPacket* create_start_play();
+	static SrsBandwidthPacket* create_playing();
+	static SrsBandwidthPacket* create_stop_play();
+	static SrsBandwidthPacket* create_start_publish();
+	static SrsBandwidthPacket* create_stop_publish();
+private:
+	virtual SrsBandwidthPacket* set_command(std::string command);
 };
 
 /**

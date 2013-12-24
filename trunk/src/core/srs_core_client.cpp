@@ -41,6 +41,7 @@ using namespace std;
 #include <srs_core_refer.hpp>
 #include <srs_core_hls.hpp>
 #include <srs_core_http.hpp>
+#include <srs_core_bandwidth.hpp>
 
 #define SRS_PULSE_TIMEOUT_MS 100
 #define SRS_SEND_TIMEOUT_US 5000000L
@@ -58,6 +59,7 @@ SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
 #ifdef SRS_HTTP	
 	http_hooks = new SrsHttpHooks();
 #endif
+	bandwidth = new SrsBandwidth();
 	
 	config->subscribe(this);
 }
@@ -74,6 +76,7 @@ SrsClient::~SrsClient()
 #ifdef SRS_HTTP	
 	srs_freep(http_hooks);
 #endif
+	srs_freep(bandwidth);
 }
 
 // TODO: return detail message when error for client.
@@ -154,38 +157,11 @@ int SrsClient::service_cycle()
 	}
 	srs_verbose("set peer bandwidth success");
 
-    if (config->get_bw_check_enabled(req->vhost, req->bw_key)) {
-        static int64_t last_check_time_ms = srs_get_system_time_ms();
-        int64_t interval_ms = 0;
-        int     limit_kbps   = 0;
-
-        config->get_bw_check_settings(req->vhost, interval_ms, limit_kbps);
-
-        if((srs_get_system_time_ms() - last_check_time_ms) < interval_ms
-                && last_check_time_ms != srs_get_system_time_ms())
-        {
-            srs_trace("bandcheck interval less than limted interval. last time=%lld, current time=%lld"
-                      , last_check_time_ms, srs_get_system_time_ms());
-
-            return rtmp->response_connect_reject(req, "your bandcheck frequency is too high!");
-        } else {
-            last_check_time_ms = srs_get_system_time_ms();  // update last check time
-            char* local_ip = 0;
-
-            if ((ret = get_local_ip(local_ip)) != ERROR_SUCCESS) {
-                srs_error("get local ip failed. ret = %d", ret);
-                return ret;
-            }
-
-            if ((ret = rtmp->response_connect_app(req, local_ip)) != ERROR_SUCCESS) {
-                srs_error("response connect app failed. ret=%d", ret);
-                return ret;
-            }
-
-            return rtmp->start_bandwidth_check(limit_kbps);
-        }
-    }
-		
+	// do bandwidth test if connect to the vhost which is for bandwidth check.
+	if (config->get_bw_check_enabled(req->vhost)) {
+		return bandwidth->bandwidth_test(req, stfd, rtmp);
+	}
+	
 	if ((ret = rtmp->response_connect_app(req)) != ERROR_SUCCESS) {
 		srs_error("response connect app failed. ret=%d", ret);
 		return ret;

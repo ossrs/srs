@@ -594,7 +594,7 @@ int SrsRtmp::set_peer_bandwidth(int bandwidth, int type)
 	return ret;
 }
 
-int SrsRtmp::response_connect_app(SrsRequest *req, const char *ip)
+int SrsRtmp::response_connect_app(SrsRequest *req, const char* server_ip)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -621,13 +621,12 @@ int SrsRtmp::response_connect_app(SrsRequest *req, const char *ip)
 	data->set("srs_site", new SrsAmf0String(RTMP_SIG_SRS_WEB));
 	data->set("srs_email", new SrsAmf0String(RTMP_SIG_SRS_EMAIL));
 	data->set("srs_copyright", new SrsAmf0String(RTMP_SIG_SRS_COPYRIGHT));
-
-    if (ip) {
-        data->set("srs_server_ip", new SrsAmf0String(ip));
+	data->set("srs_contributor", new SrsAmf0String(RTMP_SIG_SRS_CONTRIBUTOR));
+	
+    if (server_ip) {
+        data->set("srs_server_ip", new SrsAmf0String(server_ip));
     }
-
-    data->set("srs_contributor", new SrsAmf0String(RTMP_SIG_SRS_CONTRIBUTOR));
-
+	
 	msg->set_packet(pkt, 0);
 	
 	if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
@@ -639,27 +638,25 @@ int SrsRtmp::response_connect_app(SrsRequest *req, const char *ip)
     return ret;
 }
 
-int SrsRtmp::response_connect_reject(SrsRequest *req, const std::string &description)
+void SrsRtmp::response_connect_reject(SrsRequest *req, const char* desc)
 {
     int ret = ERROR_SUCCESS;
 
-    SrsCommonMessage* msg = new SrsCommonMessage();
     SrsConnectAppResPacket* pkt = new SrsConnectAppResPacket();
     pkt->command_name = "_error";
     pkt->props->set(StatusLevel, new SrsAmf0String(StatusLevelError));
     pkt->props->set(StatusCode, new SrsAmf0String(StatusCodeConnectRejected));
-    pkt->props->set(StatusDescription, new SrsAmf0String(description.c_str()));
+    pkt->props->set(StatusDescription, new SrsAmf0String(desc));
     //pkt->props->set("objectEncoding", new SrsAmf0Number(req->objectEncoding));
 
-    msg->set_packet(pkt, 0);
-
+    SrsCommonMessage* msg = (new SrsCommonMessage())->set_packet(pkt, 0);
     if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
         srs_error("send connect app response rejected message failed. ret=%d", ret);
-        return ret;
+        return;
     }
     srs_info("send connect app response rejected message success.");
 
-    return ret;
+    return;
 }
 
 int SrsRtmp::on_bw_done()

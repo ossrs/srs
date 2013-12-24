@@ -53,6 +53,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_QUEUE_LENGTH 30
 // in seconds, the paused queue length.
 #define SRS_CONF_DEFAULT_PAUSED_LENGTH 10
+// the interval in seconds for bandwidth check
+#define SRS_CONF_DEFAULT_BANDWIDTH_INTERVAL 30
+// the interval in seconds for bandwidth check
+#define SRS_CONF_DEFAULT_BANDWIDTH_LIMIT_KBPS 1000
 
 #define SRS_CONF_DEFAULT_CHUNK_SIZE 4096
 
@@ -164,15 +168,16 @@ public:
 	virtual SrsConfDirective*	get_refer_play(std::string vhost);
 	virtual SrsConfDirective*	get_refer_publish(std::string vhost);
 	virtual SrsConfDirective*	get_listen();
-	virtual int					get_chunk_size();
     virtual int					get_chunk_size(const std::string& vhost);
 	virtual int					get_pithy_print_publish();
 	virtual int					get_pithy_print_forwarder();
 	virtual int					get_pithy_print_encoder();
 	virtual int					get_pithy_print_hls();
 	virtual int					get_pithy_print_play();
-    virtual bool                get_bw_check_enabled(const std::string &vhost, const std::string &key);
-    virtual void                get_bw_check_settings(const std::string &vhost, int64_t &interval_ms, int &limit_kbps);
+    virtual bool                get_bw_check_enabled(const std::string& vhost);
+    virtual std::string			get_bw_check_key(const std::string& vhost);
+	virtual int					get_bw_check_interval_ms(const std::string& vhost);
+	virtual int					get_bw_check_limit_kbps(const std::string& vhost);
 };
 
 /**
