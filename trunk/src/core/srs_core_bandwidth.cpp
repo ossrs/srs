@@ -24,6 +24,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_bandwidth.hpp>
 
 #include <arpa/inet.h>
+#include <sstream>
 
 using namespace std;
 
@@ -260,21 +261,24 @@ int SrsBandwidth::check_play(
     int64_t current_time = srs_get_system_time_ms();
     int size = 1024; // TODO: FIXME: magic number
     char random_data[size];
-    memset(random_data, 0x01, size);
+    memset(random_data, 'A', size);
 
     int interval = 0;
+    int data_count = 1;
     while ( (srs_get_system_time_ms() - current_time) < duration_ms ) {
         st_usleep(interval);
         
         // TODO: FIXME: use shared ptr message.
         SrsBandwidthPacket* pkt = SrsBandwidthPacket::create_playing();
 
-		// TODO: FIXME: magic number
-        for (int i = 0; i < 100; ++i) {
-            char buf[32]; // TODO: FIXME: magic number
-            sprintf(buf, "%d", i);
-            pkt->data->set(buf, new SrsAmf0String(random_data));
+        // TODO: FIXME: magic number
+        for (int i = 0; i < data_count; ++i) {
+            std::stringstream seq;
+            seq << i;
+            std::string play_data = "SrS band check data from server's playing......";
+            pkt->data->set(seq.str(), new SrsAmf0String(play_data.c_str()));
         }
+        data_count += 2;
 
 		// TODO: FIXME: get length from the rtmp protocol stack.
         play_bytes += pkt->get_payload_length();

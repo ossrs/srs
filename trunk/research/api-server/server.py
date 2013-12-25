@@ -343,7 +343,7 @@ class RESTChats(object):
         self.__chat_lock = threading.Lock();
 
         # dead time in seconds, if exceed, remove the chat.
-        self.__dead_time = 30;
+        self.__dead_time = 15;
 
     def GET(self):
         enable_crossdomain()
@@ -474,7 +474,8 @@ if len(sys.argv) <= 1:
 
 # parse port from user options.
 port = int(sys.argv[1])
-trace("api server listen at port: %s"%(port))
+static_dir = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), "static-dir"))
+trace("api server listen at port: %s, static_dir: %s"%(port, static_dir))
 
 # cherrypy config.
 conf = {
@@ -483,9 +484,12 @@ conf = {
         'server.socket_host': '0.0.0.0',
         'server.socket_port': port,
         'tools.encode.on': True,
+        'tools.staticdir.on': True,
         'tools.encode.encoding': "utf-8"
     },
     '/': {
+        'tools.staticdir.dir': static_dir,
+        'tools.staticdir.index': "index.html",
         # for cherrypy RESTful api support
         'request.dispatch': cherrypy.dispatch.MethodDispatcher()
     }

@@ -45,3 +45,4 @@ cat<<END
 END
 echo -e "${GREEN}演示地址：${BLACK}"
 echo -e "${RED}    http://$ip${BLACK}"
+echo -e "${RED}    http://$ip:8085${BLACK}"

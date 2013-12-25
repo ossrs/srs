@@ -10,9 +10,14 @@ package
     import flash.media.H264Profile;
     import flash.media.H264VideoStreamSettings;
     import flash.media.Microphone;
+    import flash.media.MicrophoneEnhancedMode;
+    import flash.media.MicrophoneEnhancedOptions;
+    import flash.media.SoundCodec;
     import flash.media.Video;
     import flash.net.NetConnection;
     import flash.net.NetStream;
+    import flash.system.Security;
+    import flash.system.SecurityPanel;
     import flash.ui.ContextMenu;
     import flash.ui.ContextMenuItem;
     import flash.utils.setTimeout;
@@ -45,6 +50,8 @@ package
         private const error_camera_get:int = 100;
         private const error_microphone_get:int = 101;
         private const error_camera_muted:int = 102;
+        private const error_connection_closed:int = 103;
+        private const error_connection_failed:int = 104;
         
         public function srs_publisher()
         {
@@ -78,6 +85,18 @@ package
             this.js_on_publisher_ready = flashvars.on_publisher_ready;
             this.js_on_publisher_error = flashvars.on_publisher_error;
             this.js_on_publisher_warn = flashvars.on_publisher_warn;
+            
+            // initialized size.
+            this.user_w = flashvars.width;
+            this.user_h = flashvars.height;
+            
+            // try to get the camera, if muted, alert the security and requires user to open it.
+            var c:Camera = Camera.getCamera();
+            if (c.muted) {
+                Security.showSettings(SecurityPanel.PRIVACY);
+            }
+            
+            __show_local_camera(c);
             
             flash.utils.setTimeout(this.system_on_js_ready, 0);
         }
@@ -135,27 +154,31 @@ package
             this.js_call_stop();
             
             // microphone and camera
-            var m:Microphone = Microphone.getMicrophone(acodec.device_code);
-            if(m == null){
+            var microphone:Microphone = null;
+            //microphone = Microphone.getEnhancedMicrophone(acodec.device_code);
+            if (!microphone) {
+                microphone = Microphone.getMicrophone(acodec.device_code);
+            }
+            if(microphone == null){
                 this.system_error(this.error_microphone_get, "failed to open microphone " + acodec.device_code + "(" + acodec.device_name + ")");
                 return;
             }
             // ignore muted, for flash will require user to access it.
             
             // Remark: the name is the index!
-            var c:Camera = Camera.getCamera(vcodec.device_code);
-            if(c == null){
+            var camera:Camera = Camera.getCamera(vcodec.device_code);
+            if(camera == null){
                 this.system_error(this.error_camera_get, "failed to open camera " + vcodec.device_code + "(" + vcodec.device_name + ")");
                 return;
             }
             // ignore muted, for flash will require user to access it.
             // but we still warn user.
-            if(c && c.muted){
+            if(camera && camera.muted){
                 this.system_warn(this.error_camera_muted, "Access Denied, camera " + vcodec.device_code + "(" + vcodec.device_name + ") is muted");
             }
             
-            this.media_camera = c;
-            this.media_microphone = m;
+            this.media_camera = camera;
+            this.media_microphone = microphone;
             
             this.media_conn = new NetConnection();
             this.media_conn.client = {};
@@ -174,6 +197,17 @@ package
                     }
                     contextMenu.customItems = customItems;
                 }
+
+                if (evt.info.code == "NetConnection.Connect.Closed") {
+                    js_call_stop();
+                    system_error(error_connection_closed, "server closed the connection");
+                    return;
+                }
+                if (evt.info.code == "NetConnection.Connect.Failed") {
+                    js_call_stop();
+                    system_error(error_connection_failed, "connect to server failed");
+                    return;
+                }
                 
                 // TODO: FIXME: failed event.
                 if (evt.info.code != "NetConnection.Connect.Success") {
@@ -188,30 +222,20 @@ package
                     // TODO: FIXME: failed event.
                 });
                 
-                __build_video_codec(media_stream, c, vcodec);
-                __build_audio_codec(media_stream, m, acodec);
+                __build_video_codec(media_stream, camera, vcodec);
+                __build_audio_codec(media_stream, microphone, acodec);
                 
                 if (media_microphone) {
-                    media_stream.attachAudio(m);
+                    media_stream.attachAudio(microphone);
                 }
                 if (media_camera) {
-                    media_stream.attachCamera(c);
+                    media_stream.attachCamera(camera);
                 }
                 
                 var streamName:String = url.substr(url.lastIndexOf("/"));
                 media_stream.publish(streamName);
                 
-                media_video = new Video();
-                media_video.width = _width;
-                media_video.height = _height;
-                media_video.attachCamera(media_camera);
-                media_video.smoothing = true;
-                addChild(media_video);
-                
-                //__draw_black_background(_width, _height);
-                
-                // lowest layer, for mask to cover it.
-                setChildIndex(media_video, 0);
+                __show_local_camera(media_camera);
             });
             
             var tcUrl:String = this.user_url.substr(0, this.user_url.lastIndexOf("/"));
@@ -222,11 +246,9 @@ package
          * function for js to call: to stop the stream. ignore if not publish.
          */
         private function js_call_stop():void {
-            if (this.media_video) {
-                this.removeChild(this.media_video);
-                this.media_video = null;
-            }
             if (this.media_stream) {
+                this.media_stream.attachAudio(null);
+                this.media_stream.attachCamera(null);
                 this.media_stream.close();
                 this.media_stream = null;
             }
@@ -264,6 +286,10 @@ package
             // if your sound capture device supports this value. Otherwise, the default value is the next available capture level above 8 kHz that 
             // your sound capture device supports, usually 11 kHz.
             m.rate = microRate;
+            
+            // see: http://www.adobe.com/cn/devnet/flashplayer/articles/acoustic-echo-cancellation.html
+            m.codec = SoundCodec.SPEEX;
+            m.framesPerPacket = 1;
         }
         private function __build_video_codec(stream:NetStream, c:Camera, vcodec:Object):void {
             if (!c) {
@@ -332,9 +358,56 @@ package
             //		(highest quality, no compression). To specify that picture quality can vary as needed to avoid exceeding bandwidth, 
             //		pass 0 for quality.
             //  winlin:
-            //		bandwidth is in bps not kbps. 500*1000 = 500kbps.
+            //		bandwidth is in Bps not kbps. 
             //		quality=1 is lowest quality, 100 is highest quality.
-            c.setQuality(cameraBitrate * 1000, cameraQuality);
+            c.setQuality(cameraBitrate / 8.0 * 1000, cameraQuality);
+        }
+        
+        private function __show_local_camera(c:Camera):void {
+            if (this.media_video) {
+                this.media_video.attachCamera(null);
+                this.removeChild(this.media_video);
+                this.media_video = null;
+            }
+            
+            // show local camera
+            media_video = new Video();
+            media_video.attachCamera(c);
+            media_video.smoothing = true;
+            addChild(media_video);
+            
+            // rescale the local camera.
+            var cw:Number = user_h * c.width / c.height;
+            if (cw > user_w) {
+                var ch:Number = user_w * c.height / c.width;
+                media_video.width = user_w;
+                media_video.height = ch;
+            } else {
+                media_video.width = cw;
+                media_video.height = user_h;
+            }
+            media_video.x = (user_w - media_video.width) / 2;
+            media_video.y = (user_h - media_video.height) / 2;
+            
+            __draw_black_background(user_w, user_h);
+            
+            // lowest layer, for mask to cover it.
+            setChildIndex(media_video, 0);
+        }
+        
+        /**
+         * draw black background and draw the fullscreen mask.
+         */
+        private function __draw_black_background(_width:int, _height:int):void {
+            // draw black bg.
+            this.graphics.beginFill(0x00, 1.0);
+            this.graphics.drawRect(0, 0, _width, _height);
+            this.graphics.endFill();
+            
+            // draw the fs mask.
+            //this.control_fs_mask.graphics.beginFill(0xff0000, 0);
+            //this.control_fs_mask.graphics.drawRect(0, 0, _width, _height);
+            //this.control_fs_mask.graphics.endFill();
         }
     }
 }

@@ -31,12 +31,6 @@ bash scripts/_step.start.api.server.sh; ret=$?; if [[ 0 -ne $ret ]]; then exit $
 
 # step 8: add server ip to client hosts as demo. 
 ip=`ifconfig|grep "inet"|grep "addr"|grep "Mask"|grep -v "127.0.0.1"|awk 'NR==1 {print $2}'|awk -F ':' '{print $2}'`
-echo -e "${GREEN}SRS系统开发环境启动成功${BLACK}"
-echo -e "${BLACK}播放器演示：${BLACK}"
-echo -e "${RED}    http://$ip/players/srs_player.html?vhost=players${BLACK}"
-echo -e "${BLACK}编码器演示：${BLACK}"
-echo -e "${RED}    http://$ip/players/srs_publisher.html?vhost=players${BLACK}"
-echo -e "${BLACK}视频会议演示：${BLACK}"
-echo -e "${RED}    http://$ip/players/srs_chat.html?vhost=players${BLACK}"
-echo -e "${BLACK}服务器测速演示：${BLACK}"
-echo -e "${RED}    http://$ip/players/srs_bwt.html?vhost=players${BLACK}"
+echo -e "${GREEN}SRS系统开发环境启动成功。演示：${BLACK}"
+echo -e "${RED}    http://$ip${BLACK}"
+echo -e "${RED}    http://$ip:8085/players/index.html${BLACK}"

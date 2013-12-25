@@ -10,6 +10,7 @@ package
     import flash.events.NetStatusEvent;
     import flash.events.TimerEvent;
     import flash.external.ExternalInterface;
+    import flash.media.SoundTransform;
     import flash.media.Video;
     import flash.net.NetConnection;
     import flash.net.NetStream;
@@ -18,6 +19,8 @@ package
     import flash.ui.ContextMenuItem;
     import flash.utils.Timer;
     import flash.utils.setTimeout;
+    
+    import flashx.textLayout.formats.Float;
     
     public class srs_player extends Sprite
     {
@@ -34,8 +37,8 @@ package
         private var user_w:int = 0;
         private var user_h:int = 0;
         // user set dar den:num
-        private var user_dar_num:int = 0;
         private var user_dar_den:int = 0;
+        private var user_dar_num:int = 0;
         // user set fs(fullscreen) refer and percent.
         private var user_fs_refer:String = null;
         private var user_fs_percent:int = 0;
@@ -112,7 +115,7 @@ package
             flash.external.ExternalInterface.addCallback("__stop", this.js_call_stop);
             flash.external.ExternalInterface.addCallback("__pause", this.js_call_pause);
             flash.external.ExternalInterface.addCallback("__resume", this.js_call_resume);
-            flash.external.ExternalInterface.addCallback("__dar", this.js_call_dar);
+            flash.external.ExternalInterface.addCallback("__set_dar", this.js_call_set_dar);
             flash.external.ExternalInterface.addCallback("__set_fs", this.js_call_set_fs_size);
             flash.external.ExternalInterface.addCallback("__set_bt", this.js_call_set_bt);
             
@@ -218,15 +221,15 @@ package
         }
         
         /**
-         * to set the DAR, for example, DAR=16:9
-         * @param num, for example, 9. 
-         *       use metadata height if 0.
-         *       use user specified height if -1.
-         * @param den, for example, 16. 
-         *       use metadata width if 0.
-         *       use user specified width if -1.
+        * to set the DAR, for example, DAR=16:9 where num=16,den=9.
+        * @param num, for example, 16. 
+        *       use metadata width if 0.
+        *       use user specified width if -1.
+        * @param den, for example, 9. 
+        *       use metadata height if 0.
+        *       use user specified height if -1.
          */
-        private function js_call_dar(num:int, den:int):void {
+        private function js_call_set_dar(num:int, den:int):void {
             user_dar_num = num;
             user_dar_den = den;
             
@@ -280,8 +283,9 @@ package
          * @param _width, the player width.
          * @param _height, the player height.
          * @param buffer_time, the buffer time in seconds. recommend to >=0.5
+         * @param volume, the volume, 0 is mute, 1 is 100%, 2 is 200%.
          */
-        private function js_call_play(url:String, _width:int, _height:int, buffer_time:Number):void {
+        private function js_call_play(url:String, _width:int, _height:int, buffer_time:Number, volume:Number):void {
             this.user_url = url;
             this.user_w = _width;
             this.user_h = _height;
@@ -313,6 +317,7 @@ package
                 }
                 
                 media_stream = new NetStream(media_conn);
+                media_stream.soundTransform = new SoundTransform(volume);
                 media_stream.bufferTime = buffer_time;
                 media_stream.client = {};
                 media_stream.client.onMetaData = system_on_metadata;
@@ -397,21 +402,21 @@ package
             var obj:Object = __get_video_size_object();
             
             // get the DAR
-            var num:int = user_dar_num;
             var den:int = user_dar_den;
-            
-            if (num == 0) {
-                num = obj.height;
-            }
-            if (num == -1) {
-                num = this.stage.fullScreenHeight;
-            }
+            var num:int = user_dar_num;
             
             if (den == 0) {
-                den = obj.width;
+                den = obj.height;
             }
             if (den == -1) {
-                den = this.stage.fullScreenWidth;
+                den = this.stage.fullScreenHeight;
+            }
+            
+            if (num == 0) {
+                num = obj.width;
+            }
+            if (num == -1) {
+                num = this.stage.fullScreenWidth;
             }
                 
             // for refer is screen.
@@ -431,23 +436,23 @@ package
          */
         private function __execute_user_set_dar():void {
             // get the DAR
-            var num:int = user_dar_num;
             var den:int = user_dar_den;
+            var num:int = user_dar_num;
             
             var obj:Object = __get_video_size_object();
             
-            if (num == 0) {
-                num = obj.height;
-            }
-            if (num == -1) {
-                num = this.user_h;
-            }
-            
             if (den == 0) {
-                den = obj.width;
+                den = obj.height;
             }
             if (den == -1) {
-                den = this.user_w;
+                den = this.user_h;
+            }
+            
+            if (num == 0) {
+                num = obj.width;
+            }
+            if (num == -1) {
+                num = this.user_w;
             }
             
             __update_video_size(num, den, this.user_w, this.user_h, this.user_w, this.user_h);
@@ -463,19 +468,19 @@ package
         * @param _sw/_wh the stage size, >= paper size. used to center the player.
         */
         private function __update_video_size(_num:int, _den:int, _w:int, _h:int, _sw:int, _sh:int):void {
-            if (!this.media_video || _num <= 0 || _den <= 0) {
+            if (!this.media_video || _den <= 0 || _num <= 0) {
                 return;
             }
             
             // set DAR.
             // calc the height by DAR
-            var _height:int = _w * _num / _den;
+            var _height:int = _w * _den / _num;
             if (_height <= _h) {
                 this.media_video.width = _w;
                 this.media_video.height = _height;
             } else {
                 // height overflow, calc the width by DAR
-                var _width:int = _h * _den / _num;
+                var _width:int = _h * _num / _den;
                 
                 this.media_video.width = _width;
                 this.media_video.height = _h;

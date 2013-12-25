@@ -2789,7 +2789,7 @@ SrsBandwidthPacket* SrsBandwidthPacket::create_start_play()
 SrsBandwidthPacket* SrsBandwidthPacket::create_playing()
 {
 	SrsBandwidthPacket* pkt = new SrsBandwidthPacket();
-	return pkt->set_command(SRS_BW_CHECK_STARTING_PLAY);
+    return pkt->set_command(SRS_BW_CHECK_PLAYING);
 }
 
 SrsBandwidthPacket* SrsBandwidthPacket::create_stop_play()

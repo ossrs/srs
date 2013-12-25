@@ -414,7 +414,17 @@ int SrsRtmpClient::publish(string stream, int stream_id)
 		}
 	}
 	
-	return ret;
+    return ret;
+}
+
+SrsProtocol *SrsRtmpClient::get_protocol()
+{
+    return protocol;
+}
+
+st_netfd_t SrsRtmpClient::get_st_fd()
+{
+    return stfd;
 }
 
 SrsRtmp::SrsRtmp(st_netfd_t client_stfd)

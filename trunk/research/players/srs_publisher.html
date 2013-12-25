@@ -7,7 +7,12 @@
     <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
     <script type="text/javascript" src="js/bootstrap.min.js"></script>
     <script type="text/javascript" src="js/swfobject.js"></script>
-    <script type="text/javascript" src="js/srs.js"></script>
+    <script type="text/javascript" src="js/json2.js"></script>
+    <script type="text/javascript" src="js/srs.page.js"></script>
+    <script type="text/javascript" src="js/srs.log.js"></script>
+    <script type="text/javascript" src="js/srs.player.js"></script>
+    <script type="text/javascript" src="js/srs.publisher.js"></script>
+    <script type="text/javascript" src="js/srs.utility.js"></script>
     <style>
         body{
             padding-top: 55px;
@@ -18,11 +23,17 @@
         var remote_player = null;
         var realtime_player = null;
         
+        var query = parse_query_string();
         $(function(){
             // get the vhost and port to set the default url.
             // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
             // url set to: rtmp://demo:1935/live/livestream
             srs_init("#txt_url", null, null);
+            
+            if (query.agent == "true") {
+                document.write(navigator.userAgent);
+                return;
+            }
             
             $("#btn_video_settings").click(function(){
                 $("#video_modal").modal({show:true});
@@ -60,7 +71,10 @@
                 );
             };
             srs_publisher.on_publisher_error = function(code, desc) {
-                error(code, desc);
+                if (!on_publish_stop()) {
+                    return;
+                }
+                error(code, desc + "请重试。");
             };
             srs_publisher.on_publisher_warn = function(code, desc) {
                 warn(code, desc);
@@ -70,25 +84,42 @@
             update_play_url();
             
             // if no play specified, donot show the player, for debug the publisher.
-            var query = parse_query_string();
             if (query.no_play != "true") {
                 // start the normal player with HLS supported.
                 remote_player = new SrsPlayer("remote_player", 430, 185);
                 remote_player.on_player_ready = function() {
                     this.set_bt(0.8);
-                    this.set_fs("screen", 100);
                 };
+                remote_player.on_player_metadata = function(metadata) {
+                    this.set_dar(0, 0);
+                    this.set_fs("screen", 100);
+                }
                 remote_player.start();
                 
                 // start the realtime player.
                 realtime_player = new SrsPlayer("realtime_player", 430, 185);
                 realtime_player.on_player_ready = function() {
                     this.set_bt(0.8);
-                    this.set_fs("screen", 100);
                 };
+                realtime_player.on_player_metadata = function(metadata) {
+                    this.set_dar(0, 0);
+                    this.set_fs("screen", 100);
+                }
                 realtime_player.start();
             }
         });
+        
+        function on_publish_stop() {
+            if (!srs_can_republish()) {
+                $("#btn_join").attr("disabled", true);
+                error(0, "您使用的浏览器很弱，请关闭页面后重新打开页面（刷新也不管用）。<br/>推荐使用Chrome/Firefox/Safari/Opera浏览器，支持重试");
+                
+                srs_log_disabled = true;
+                return false;
+            }
+            
+            return true;
+        }
         
         /**
         * we generate the transcoded stream url for flash publish donot support HLS
@@ -101,7 +132,6 @@
         function update_play_url() {
             var url = $("#txt_url").val();
             var ret = srs_parse_rtmp_url(url);
-            var query = parse_query_string();
             
             var remote_url = "rtmp://" + ret.server + ":" + ret.port + "/" + ret.app + "...vhost..." + srs_get_player_publish_vhost(ret.vhost) + "/" + ret.stream;
             $("#realtime_player_url").attr("href", url).attr("target", "_blank");
@@ -136,6 +166,10 @@
                 //$("#remote_player_url").attr("href", "#").attr("target", "_self");
                 //$("#txt_play_hls").text("HLS-m3u8(请发布视频)").attr("href", "#").attr("target", "_self");
                 //$("#txt_play_jwplayer").text("HLS-JWPlayer(请发布视频)").attr("href", "#").attr("target", "_self");
+                
+                if (!on_publish_stop()) {
+                    return;
+                }
                 return;
             }
             
@@ -180,7 +214,7 @@
 <div class="navbar navbar-fixed-top">
     <div class="navbar-inner">
         <div class="container">
-        <a class="brand" href="index.html">SRS</a>
+            <a id="srs_index" class="brand" href="#">SRS</a>
             <div class="nav-collapse collapse">
                 <ul class="nav">
                     <li><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>

@@ -7,7 +7,12 @@
     <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
     <script type="text/javascript" src="js/bootstrap.min.js"></script>
     <script type="text/javascript" src="js/swfobject.js"></script>
-    <script type="text/javascript" src="js/srs.js"></script>
+    <script type="text/javascript" src="js/json2.js"></script>
+    <script type="text/javascript" src="js/srs.page.js"></script>
+    <script type="text/javascript" src="js/srs.log.js"></script>
+    <script type="text/javascript" src="js/srs.player.js"></script>
+    <script type="text/javascript" src="js/srs.publisher.js"></script>
+    <script type="text/javascript" src="js/srs.utility.js"></script>
     <style>
         body{
             padding-top: 55px;
@@ -30,7 +35,7 @@
         
         var __active_dar = null;
         function select_dar(dar_id, num, den) {
-            srs_player.dar(num, den);
+            srs_player.set_dar(num, den);
             
             if (__active_dar) {
                 __active_dar.removeClass("active");
@@ -191,13 +196,13 @@
                     select_dar("#btn_dar_original", 0, 0);
                 });
                 $("#btn_dar_21_9").click(function(){
-                    select_dar("#btn_dar_21_9", 9, 21);
+                    select_dar("#btn_dar_21_9", 21, 9);
                 });
                 $("#btn_dar_16_9").click(function(){
-                    select_dar("#btn_dar_16_9", 9, 16);
+                    select_dar("#btn_dar_16_9", 16, 9);
                 });
                 $("#btn_dar_4_3").click(function(){
-                    select_dar("#btn_dar_4_3", 3, 4);
+                    select_dar("#btn_dar_4_3", 4, 3);
                 });
                 $("#btn_dar_fill").click(function(){
                     select_dar("#btn_dar_fill", -1, -1);
@@ -264,7 +269,7 @@
 <div class="navbar navbar-fixed-top">
     <div class="navbar-inner">
         <div class="container">
-        <a class="brand" href="index.html">SRS</a>
+            <a id="srs_index" class="brand" href="#">SRS</a>
             <div class="nav-collapse collapse">
                 <ul class="nav">
                     <li class="active"><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>

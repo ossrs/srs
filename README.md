@@ -6,8 +6,8 @@ srs is a simple, high-performance, running in single process, origin live server
 srs supports vhost, rtmp, HLS, transcoding, forward, http hooks. <br/>
 blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
 see also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) <br/>
-see also: [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.github.io/simple-rtmp-server)
-TencentQQ: http://url.cn/WAHICw (Group: 212189142)
+see also: [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.github.io/simple-rtmp-server) <br/>
+TencentQQ: [http://url.cn/WAHICw](http://url.cn/WAHICw) (Group: 212189142)
 
 ### Contributors
 winlin([winterserver](#)): [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
@@ -253,7 +253,8 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 </pre>
 
 ### Releases
-* 2013-12-08, [release v0.8](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.8), support http hooks callback, update st-load. 19186 lines.<br/>
+* 2013-12-25, [release v0.9](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.9), support bandwidth test, add player/encoder/chat demos. 20926 lines.<br/>
+* 2013-12-08, [release v0.8](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.8), support http hooks callback, update [st_load](https://github.com/winlinvip/st-load). 19186 lines.<br/>
 * 2013-12-03, [release v0.7](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.7), support live stream transcoding. 17605 lines.<br/>
 * 2013-11-29, [release v0.6](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.6), support forward stream to origin/edge. 16094 lines.<br/>
 * 2013-11-26, [release v0.5](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.5), support HLS(m3u8), fragment and window. 14449 lines.<br/>
@@ -264,6 +265,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * 2013-10-17, created.<br/>
 
 ### Compare
+* srs v0.9: 20926 lines. player/encoder/chat demos. bandwidth test for encoder/CDN.<br/>
 * srs v0.8: 19186 lines. implements http hooks refer to [nginx-rtmp](https://github.com/arut/nginx-rtmp-module). <br/>
 * srs v0.7: 17605 lines. implements transcoding(FFMPEG) feature refer to [wowza](http://www.wowza.com). <br/>
 * srs v0.6: 16094 lines. important feature forward for CDN. <br/>
@@ -276,6 +278,8 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v0.9, 2013-12-25, [v0.9](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.9) released. 20926 lines.
+* v0.9, 2013-12-25, fix the bitrate bug(in Bps), use enhanced microphone.
 * v0.9, 2013-12-22, demo video meeting or chat(srs+cherrypy+jquery+bootstrap).
 * v0.9, 2013-12-22, merge from wenjie, support banwidth test.
 * v0.9, 2013-12-22, merge from wenjie: support set chunk size at vhost level
