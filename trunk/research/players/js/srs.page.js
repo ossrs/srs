@@ -148,17 +148,29 @@ function srs_initialize_codec_page(
     for (var i = 0; i < cameras.length; i++) {
         $(sl_cameras).append("<option value='" + i + "'>" + cameras[i] + "</option");
     }
-    // optional: select the first no "virtual" signed.
+    // optional: select the except matches
+    matchs = ["virtual"];
     for (var i = 0; i < cameras.length; i++) {
-        if (cameras[i].toLowerCase().indexOf("virtual") == -1) {
-            $(sl_cameras + " option[value='" + i + "']").attr("selected", true);
+        for (var j = 0; j < matchs.length; j++) {
+            if (cameras[i].toLowerCase().indexOf(matchs[j]) == -1) {
+                $(sl_cameras + " option[value='" + i + "']").attr("selected", true);
+                break;
+            }
+        }
+        if (j < matchs.length) {
             break;
         }
     }
-    // optional: select the first "integrated" signed.
+    // optional: select the first matched.
+    matchs = ["turevision", "integrated"];
     for (var i = 0; i < cameras.length; i++) {
-        if (cameras[i].toLowerCase().indexOf("integrated") >= 0) {
-            $(sl_cameras + " option[value='" + i + "']").attr("selected", true);
+        for (var j = 0; j < matchs.length; j++) {
+            if (cameras[i].toLowerCase().indexOf(matchs[j]) >= 0) {
+                $(sl_cameras + " option[value='" + i + "']").attr("selected", true);
+                break;
+            }
+        }
+        if (j < matchs.length) {
             break;
         }
     }
@@ -167,17 +179,29 @@ function srs_initialize_codec_page(
     for (var i = 0; i < microphones.length; i++) {
         $(sl_microphones).append("<option value='" + i + "'>" + microphones[i] + "</option");
     }
-    // optional: select the first no "default" signed.
+    // optional: select the except matches
+    matchs = ["default"];
     for (var i = 0; i < microphones.length; i++) {
-        if (microphones[i].toLowerCase().indexOf("default") == -1) {
-            $(sl_microphones + " option[value='" + i + "']").attr("selected", true);
+        for (var j = 0; j < matchs.length; j++) {
+            if (microphones[i].toLowerCase().indexOf(matchs[j]) == -1) {
+                $(sl_microphones + " option[value='" + i + "']").attr("selected", true);
+                break;
+            }
+        }
+        if (j < matchs.length) {
             break;
         }
     }
-    // optional: select the first "realtek" signed.
+    // optional: select the first matched.
+    matchs = ["realtek", "内置式麦克风"];
     for (var i = 0; i < microphones.length; i++) {
-        if (microphones[i].toLowerCase().indexOf("realtek") >= 0) {
-            $(sl_microphones + " option[value='" + i + "']").attr("selected", true);
+        for (var j = 0; j < matchs.length; j++) {
+            if (microphones[i].toLowerCase().indexOf(matchs[j]) >= 0) {
+                $(sl_microphones + " option[value='" + i + "']").attr("selected", true);
+                break;
+            }
+        }
+        if (j < matchs.length) {
             break;
         }
     }

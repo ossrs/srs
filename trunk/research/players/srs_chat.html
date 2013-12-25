@@ -373,7 +373,7 @@
         }
         
         function on_user_publish() {
-            if ($("#txt_name").val().trim() == "") {
+            if ($("#txt_name").val() == "") {
                 $("#txt_name").focus().parent().parent().addClass("error");
                 warn(100, "请输入您的名字");
                 return;
@@ -460,7 +460,7 @@
             
             var chat = {};
             chat.id = -1;
-            chat.username = $("#txt_name").val().trim();
+            chat.username = $("#txt_name").val();
             chat.agent = navigator.userAgent;
             chat.url = url;
             chat.vcodec = vcodec;
