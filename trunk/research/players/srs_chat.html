@@ -294,6 +294,7 @@
                         $(obj).find("#chat_player").attr("id", "rp_" + chat.id); // for specifed player: $("#rp_" + chat_id)
                         $(obj).find("#chat_player_raw").attr("id", "rp_raw_" + chat.id); // for specifed player: $("#rp_raw_" + chat_id)
                         $(obj).find("#user_name").text(chat.username);
+                        $(obj).find("#user_player_url").attr("href", chat.url);
                         $(obj).find("#join_date").text(chat.join_date_str);
                         $(obj).find("#collapseM").attr("id", "collapse_" + global_chat_user_id);
                         $(obj).find("#headerN").attr("href", "#collapse_" + global_chat_user_id);
@@ -588,7 +589,9 @@
                 <span id="headerN" class="accordion-toggle" data-toggle="collapse" href="#collapseN">
                     <strong>[<a href="#"><span id="user_name">XX</span></a>]</strong>
                     <strong>加入时间</strong>[<span id="join_date"></span>]
-                    <img src="img/tooltip.png"/>
+                    <a id="user_player_url" href="#" data-toggle="tooltip" data-placement="top" title="">
+                        播放地址<img src="img/tooltip.png"/>
+                    </a>
                 </span>
             </div>
             <div id="collapseM" class="accordion-body collapse in">

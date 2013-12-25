@@ -162,7 +162,7 @@ function srs_initialize_codec_page(
         }
     }
     // optional: select the first matched.
-    matchs = ["turevision", "integrated"];
+    matchs = ["truevision", "integrated"];
     for (var i = 0; i < cameras.length; i++) {
         for (var j = 0; j < matchs.length; j++) {
             if (cameras[i].toLowerCase().indexOf(matchs[j]) >= 0) {
