@@ -10,6 +10,9 @@ package
     import flash.media.H264Profile;
     import flash.media.H264VideoStreamSettings;
     import flash.media.Microphone;
+    import flash.media.MicrophoneEnhancedMode;
+    import flash.media.MicrophoneEnhancedOptions;
+    import flash.media.SoundCodec;
     import flash.media.Video;
     import flash.net.NetConnection;
     import flash.net.NetStream;
@@ -135,27 +138,31 @@ package
             this.js_call_stop();
             
             // microphone and camera
-            var m:Microphone = Microphone.getMicrophone(acodec.device_code);
-            if(m == null){
+            var microphone:Microphone = null;
+            //microphone = Microphone.getEnhancedMicrophone(acodec.device_code);
+            if (!microphone) {
+                microphone = Microphone.getMicrophone(acodec.device_code);
+            }
+            if(microphone == null){
                 this.system_error(this.error_microphone_get, "failed to open microphone " + acodec.device_code + "(" + acodec.device_name + ")");
                 return;
             }
             // ignore muted, for flash will require user to access it.
             
             // Remark: the name is the index!
-            var c:Camera = Camera.getCamera(vcodec.device_code);
-            if(c == null){
+            var camera:Camera = Camera.getCamera(vcodec.device_code);
+            if(camera == null){
                 this.system_error(this.error_camera_get, "failed to open camera " + vcodec.device_code + "(" + vcodec.device_name + ")");
                 return;
             }
             // ignore muted, for flash will require user to access it.
             // but we still warn user.
-            if(c && c.muted){
+            if(camera && camera.muted){
                 this.system_warn(this.error_camera_muted, "Access Denied, camera " + vcodec.device_code + "(" + vcodec.device_name + ") is muted");
             }
             
-            this.media_camera = c;
-            this.media_microphone = m;
+            this.media_camera = camera;
+            this.media_microphone = microphone;
             
             this.media_conn = new NetConnection();
             this.media_conn.client = {};
@@ -188,14 +195,14 @@ package
                     // TODO: FIXME: failed event.
                 });
                 
-                __build_video_codec(media_stream, c, vcodec);
-                __build_audio_codec(media_stream, m, acodec);
+                __build_video_codec(media_stream, camera, vcodec);
+                __build_audio_codec(media_stream, microphone, acodec);
                 
                 if (media_microphone) {
-                    media_stream.attachAudio(m);
+                    media_stream.attachAudio(microphone);
                 }
                 if (media_camera) {
-                    media_stream.attachCamera(c);
+                    media_stream.attachCamera(camera);
                 }
                 
                 var streamName:String = url.substr(url.lastIndexOf("/"));
@@ -264,6 +271,10 @@ package
             // if your sound capture device supports this value. Otherwise, the default value is the next available capture level above 8 kHz that 
             // your sound capture device supports, usually 11 kHz.
             m.rate = microRate;
+            
+            // see: http://www.adobe.com/cn/devnet/flashplayer/articles/acoustic-echo-cancellation.html
+            m.codec = SoundCodec.SPEEX;
+            m.framesPerPacket = 1;
         }
         private function __build_video_codec(stream:NetStream, c:Camera, vcodec:Object):void {
             if (!c) {
@@ -332,9 +343,9 @@ package
             //		(highest quality, no compression). To specify that picture quality can vary as needed to avoid exceeding bandwidth, 
             //		pass 0 for quality.
             //  winlin:
-            //		bandwidth is in bps not kbps. 500*1000 = 500kbps.
+            //		bandwidth is in Bps not kbps. 
             //		quality=1 is lowest quality, 100 is highest quality.
-            c.setQuality(cameraBitrate * 1000, cameraQuality);
+            c.setQuality(cameraBitrate / 8.0 * 1000, cameraQuality);
         }
     }
 }

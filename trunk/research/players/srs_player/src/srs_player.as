@@ -10,6 +10,7 @@ package
     import flash.events.NetStatusEvent;
     import flash.events.TimerEvent;
     import flash.external.ExternalInterface;
+    import flash.media.SoundTransform;
     import flash.media.Video;
     import flash.net.NetConnection;
     import flash.net.NetStream;
@@ -18,6 +19,8 @@ package
     import flash.ui.ContextMenuItem;
     import flash.utils.Timer;
     import flash.utils.setTimeout;
+    
+    import flashx.textLayout.formats.Float;
     
     public class srs_player extends Sprite
     {
@@ -280,8 +283,9 @@ package
          * @param _width, the player width.
          * @param _height, the player height.
          * @param buffer_time, the buffer time in seconds. recommend to >=0.5
+         * @param volume, the volume, 0 is mute, 1 is 100%, 2 is 200%.
          */
-        private function js_call_play(url:String, _width:int, _height:int, buffer_time:Number):void {
+        private function js_call_play(url:String, _width:int, _height:int, buffer_time:Number, volume:Number):void {
             this.user_url = url;
             this.user_w = _width;
             this.user_h = _height;
@@ -313,6 +317,7 @@ package
                 }
                 
                 media_stream = new NetStream(media_conn);
+                media_stream.soundTransform = new SoundTransform(volume);
                 media_stream.bufferTime = buffer_time;
                 media_stream.client = {};
                 media_stream.client.onMetaData = system_on_metadata;
