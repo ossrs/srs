@@ -7,6 +7,7 @@
     <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
     <script type="text/javascript" src="js/bootstrap.min.js"></script>
     <script type="text/javascript" src="js/swfobject.js"></script>
+    <script type="text/javascript" src="js/json2.js"></script>
     <script type="text/javascript" src="js/srs.page.js"></script>
     <script type="text/javascript" src="js/srs.log.js"></script>
     <script type="text/javascript" src="js/srs.player.js"></script>
@@ -82,6 +83,8 @@
                 realtime_player.on_player_metadata = function(metadata) {
                     this.set_dar(0, 0);
                     this.set_fs("screen", 100);
+                    
+                    info("推流到服务器成功。请戴耳机聊天，否则音箱的声音会进入麦克风造成回声。");
                 }
                 realtime_player.start();
             }
@@ -97,6 +100,8 @@
             }
             // remove border of row.
             $("#lst_chats").find("td").css("border", "none");
+            
+            $("#txt_name").focus();
             
             api_server = "http://" + query.hostname + ":" + srs_get_api_server_port() + "/api/v1/chats";
             refresh();
@@ -536,15 +541,15 @@
     <div class="alert alert-info fade in" id="txt_log">
         <button type="button" class="close" data-dismiss="alert">×</button>
         <strong><span id="txt_log_title">Usage:</span></strong>
-        <span id="txt_log_msg">输入名字，设置编码参数后，加入会议室</span>
+        <span id="txt_log_msg">输入名字，设点“加入会议”按钮</span>
     </div>
     
     <div class="control-group">
         <div class="form-inline">
-            <input type="text" id="txt_name" class="input-small" placeholder="您的名字..." value=""></input>
-            <button class="btn input-medium" id="btn_video_settings">视频编码配置</button>
-            <button class="btn input-medium" id="btn_audio_settings">音频编码配置</button>
-            <button class="btn input-medium btn-primary" id="btn_join">加入会议</button>
+            <button class="btn input-small" id="btn_video_settings">摄像头</button>
+            <button class="btn input-small" id="btn_audio_settings">麦克风</button>
+            <input type="text" id="txt_name" class="input-large" placeholder="请输入您的名字..." value=""></input>
+            <button class="btn input-small" id="btn_join">加入会议</button>
             <input type="text" id="txt_url" class="input-mini hide" value=""></input>
         </div>
     </div>

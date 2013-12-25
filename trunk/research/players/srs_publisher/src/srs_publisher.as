@@ -243,10 +243,13 @@ package
          */
         private function js_call_stop():void {
             if (this.media_video) {
+                this.media_video.attachCamera(null);
                 this.removeChild(this.media_video);
                 this.media_video = null;
             }
             if (this.media_stream) {
+                this.media_stream.attachAudio(null);
+                this.media_stream.attachCamera(null);
                 this.media_stream.close();
                 this.media_stream = null;
             }

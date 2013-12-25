@@ -300,6 +300,10 @@ else
     echo "#undef SRS_HTTP" >> $SRS_AUTO_HEADERS_H
 fi
 
+echo "link players to cherrypy static-dir"
+rm -f research/api-server/static-dir/players &&
+ln -sf `pwd`/research/players research/api-server/static-dir/players
+
 #####################################################################################
 # openssl, for rtmp complex handshake
 #####################################################################################
