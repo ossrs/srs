@@ -78,6 +78,9 @@ SrsPlayer.prototype.start = function(url) {
 * @param volume the volume, 0 is mute, 1 is 100%, 2 is 200%.
 */
 SrsPlayer.prototype.play = function(url, volume) {
+    this.stop();
+    SrsPlayer.__players.push(this);
+    
     if (url) {
         this.stream_url = url;
     }
@@ -118,8 +121,8 @@ SrsPlayer.prototype.resume = function() {
 *       use metadata width if 0.
 *       use user specified width if -1.
 */
-SrsPlayer.prototype.dar = function(num, den) {
-    this.callbackObj.ref.__dar(num, den);
+SrsPlayer.prototype.set_dar = function(num, den) {
+    this.callbackObj.ref.__set_dar(num, den);
 }
 /**
 * set the fullscreen size data.

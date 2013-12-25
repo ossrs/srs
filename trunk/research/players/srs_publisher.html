@@ -80,16 +80,22 @@
                 remote_player = new SrsPlayer("remote_player", 430, 185);
                 remote_player.on_player_ready = function() {
                     this.set_bt(0.8);
-                    this.set_fs("screen", 100);
                 };
+                remote_player.on_player_metadata = function(metadata) {
+                    this.set_dar(0, 0);
+                    this.set_fs("screen", 100);
+                }
                 remote_player.start();
                 
                 // start the realtime player.
                 realtime_player = new SrsPlayer("realtime_player", 430, 185);
                 realtime_player.on_player_ready = function() {
                     this.set_bt(0.8);
-                    this.set_fs("screen", 100);
                 };
+                realtime_player.on_player_metadata = function(metadata) {
+                    this.set_dar(0, 0);
+                    this.set_fs("screen", 100);
+                }
                 realtime_player.start();
             }
         });

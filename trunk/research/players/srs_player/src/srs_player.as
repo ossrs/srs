@@ -115,7 +115,7 @@ package
             flash.external.ExternalInterface.addCallback("__stop", this.js_call_stop);
             flash.external.ExternalInterface.addCallback("__pause", this.js_call_pause);
             flash.external.ExternalInterface.addCallback("__resume", this.js_call_resume);
-            flash.external.ExternalInterface.addCallback("__dar", this.js_call_dar);
+            flash.external.ExternalInterface.addCallback("__set_dar", this.js_call_set_dar);
             flash.external.ExternalInterface.addCallback("__set_fs", this.js_call_set_fs_size);
             flash.external.ExternalInterface.addCallback("__set_bt", this.js_call_set_bt);
             
@@ -229,7 +229,7 @@ package
          *       use metadata width if 0.
          *       use user specified width if -1.
          */
-        private function js_call_dar(num:int, den:int):void {
+        private function js_call_set_dar(num:int, den:int):void {
             user_dar_num = num;
             user_dar_den = den;
             

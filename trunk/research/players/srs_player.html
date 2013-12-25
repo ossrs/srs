@@ -34,7 +34,7 @@
         
         var __active_dar = null;
         function select_dar(dar_id, num, den) {
-            srs_player.dar(num, den);
+            srs_player.set_dar(num, den);
             
             if (__active_dar) {
                 __active_dar.removeClass("active");
