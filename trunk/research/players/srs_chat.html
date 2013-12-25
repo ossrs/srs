@@ -64,7 +64,7 @@
                 );
             };
             srs_publisher.on_publisher_error = function(code, desc) {
-                error(code, desc);
+                error(code, desc + "请重试。");
             };
             srs_publisher.on_publisher_warn = function(code, desc) {
                 warn(code, desc);
@@ -78,6 +78,7 @@
                 realtime_player = new SrsPlayer("realtime_player", 430, 185);
                 realtime_player.on_player_ready = function() {
                     this.set_bt(0.5);
+                    this.set_fs("screen", 100);
                 };
                 realtime_player.start();
             }
@@ -229,7 +230,6 @@
                     var _player = new SrsPlayer("rp_raw_" + chat.id, 600, 300, chat);
                     _player.on_player_ready = function() {
                         this.set_bt(0.5);
-                        this.play();
                         this.set_fs("screen", 100);
                     };
                     _player.start(chat.url);
@@ -254,7 +254,6 @@
                         return;
                     }
                     chat.player.play();
-                    chat.player.set_fs("screen", 100);
                 });
             }
             
@@ -419,14 +418,13 @@
                     
                     $("#btn_join").text("退出会议");
                 
-                    info("开始推流到服务器。请戴耳机聊天，否则音箱的声音会进入麦克风");
+                    info("开始推流到服务器。请戴耳机聊天，否则音箱的声音会进入麦克风造成回声。");
                     srs_publisher.publish(url, vcodec, acodec);
                 
                     if (realtime_player) {
                         // directly play the url for the realtime player.
                         realtime_player.stop();
                         realtime_player.play(url, 0);
-                        realtime_player.set_fs("screen", 100);
                     }
                 }
             });
@@ -513,7 +511,7 @@
                     <img src="img/tooltip.png"/>
                 </span>
             </div>
-            <div id="collapseM" class="accordion-body collapse in">
+            <div id="collapseM" class="accordion-body collapse">
                 <div class="accordion-inner">
                     <div class="row-fluid">
                         <div class="span2">

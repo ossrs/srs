@@ -64,7 +64,7 @@
                 );
             };
             srs_publisher.on_publisher_error = function(code, desc) {
-                error(code, desc);
+                error(code, desc + "请重试。");
             };
             srs_publisher.on_publisher_warn = function(code, desc) {
                 warn(code, desc);

@@ -35,9 +35,12 @@ function SrsPublisher(container, width, height, private_object) {
     
     // error code defines.
     this.errors = {
-        "100": "无法获取指定的摄像头", //error_camera_get 
-        "101": "无法获取指定的麦克风", //error_microphone_get 
-        "102": "摄像头为禁用状态，推流时请允许flash访问摄像头" //error_camera_muted 
+        "100": "无法获取指定的摄像头。", //error_camera_get 
+        "101": "无法获取指定的麦克风。", //error_microphone_get 
+        "102": "摄像头为禁用状态，推流时请允许flash访问摄像头。", //error_camera_muted 
+        "103": "服务器关闭了连接。", //error_connection_closed 
+        "104": "服务器连接失败。", //error_connection_failed 
+        "199": "未知错误。"
     };
 }
 /**
@@ -84,11 +87,17 @@ SrsPublisher.prototype.start = function() {
 * @param acodec an object contains the audio codec info.
 */
 SrsPublisher.prototype.publish = function(url, vcodec, acodec) {
-    this.url = url;
-    this.vcodec = vcodec;
-    this.acodec = acodec;
+    if (url) {
+        this.url = url;
+    }
+    if (vcodec) {
+        this.vcodec = vcodec;
+    }
+    if (acodec) {
+        this.acodec = acodec;
+    }
     
-    this.callbackObj.ref.__publish(url, this.width, this.height, vcodec, acodec);
+    this.callbackObj.ref.__publish(this.url, this.width, this.height, this.vcodec, this.acodec);
 }
 SrsPublisher.prototype.stop = function() {
     this.callbackObj.ref.__stop();

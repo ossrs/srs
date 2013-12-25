@@ -343,7 +343,7 @@ class RESTChats(object):
         self.__chat_lock = threading.Lock();
 
         # dead time in seconds, if exceed, remove the chat.
-        self.__dead_time = 30;
+        self.__dead_time = 15;
 
     def GET(self):
         enable_crossdomain()

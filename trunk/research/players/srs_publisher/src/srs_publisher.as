@@ -48,6 +48,8 @@ package
         private const error_camera_get:int = 100;
         private const error_microphone_get:int = 101;
         private const error_camera_muted:int = 102;
+        private const error_connection_closed:int = 103;
+        private const error_connection_failed:int = 104;
         
         public function srs_publisher()
         {
@@ -180,6 +182,17 @@ package
                         customItems.push(new ContextMenuItem("Contributor: " + evt.info.data.srs_contributor));
                     }
                     contextMenu.customItems = customItems;
+                }
+
+                if (evt.info.code == "NetConnection.Connect.Closed") {
+                    js_call_stop();
+                    system_error(error_connection_closed, "server closed the connection");
+                    return;
+                }
+                if (evt.info.code == "NetConnection.Connect.Failed") {
+                    js_call_stop();
+                    system_error(error_connection_failed, "connect to server failed");
+                    return;
                 }
                 
                 // TODO: FIXME: failed event.
