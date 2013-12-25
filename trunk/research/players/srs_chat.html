@@ -78,7 +78,6 @@
                 realtime_player = new SrsPlayer("realtime_player", 430, 185);
                 realtime_player.on_player_ready = function() {
                     this.set_bt(0.5);
-                    this.set_fs("screen", 100);
                 };
                 realtime_player.start();
             }
@@ -230,6 +229,7 @@
                     var _player = new SrsPlayer("rp_raw_" + chat.id, 600, 300, chat);
                     _player.on_player_ready = function() {
                         this.set_bt(0.5);
+                        this.play();
                         this.set_fs("screen", 100);
                     };
                     _player.start(chat.url);
@@ -253,8 +253,8 @@
                     if (!chat || !chat.player) {
                         return;
                     }
-                    chat.player.volume = 2.0;
                     chat.player.play();
+                    chat.player.set_fs("screen", 100);
                 });
             }
             
@@ -426,6 +426,7 @@
                         // directly play the url for the realtime player.
                         realtime_player.stop();
                         realtime_player.play(url, 0);
+                        realtime_player.set_fs("screen", 100);
                     }
                 }
             });
@@ -512,7 +513,7 @@
                     <img src="img/tooltip.png"/>
                 </span>
             </div>
-            <div id="collapseM" class="accordion-body collapse">
+            <div id="collapseM" class="accordion-body collapse in">
                 <div class="accordion-inner">
                     <div class="row-fluid">
                         <div class="span2">
