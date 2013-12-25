@@ -286,19 +286,19 @@ function srs_chat_initialize_page(
     
     //var gops = ["0.3", "0.5", "1", "2", "3", "4", 
     //    "5", "6", "7", "8", "9", "10", "15", "20"];
-    $(sl_gop + " option[value='0.5']").attr("selected", true);
+    $(sl_gop + " option[value='1']").attr("selected", true);
     
     //var sizes = ["176x144", "320x240", "352x240", 
     //    "352x288", "460x240", "640x480", "720x480", "720x576", "800x600", 
     //    "1024x768", "1280x720", "1360x768", "1920x1080"];
-    $(sl_size + " option[value='320x240']").attr("selected", true);
+    $(sl_size + " option[value='640x480']").attr("selected", true);
     
     //var fpses = ["5", "10", "15", "20", "24", "25", "29.97", "30"];
-    $(sl_fps + " option[value='10']").attr("selected", true);
+    $(sl_fps + " option[value='15']").attr("selected", true);
     
     //var bitrates = ["50", "200", "350", "500", "650", "800", 
     //    "950", "1000", "1200", "1500", "1800", "2000", "3000", "5000"];
-    $(sl_bitrate + " option[value='200']").attr("selected", true);
+    $(sl_bitrate + " option[value='350']").attr("selected", true);
 }
 /**
 * get the vcodec and acodec.

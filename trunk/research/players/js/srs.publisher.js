@@ -87,6 +87,9 @@ SrsPublisher.prototype.start = function() {
 * @param acodec an object contains the audio codec info.
 */
 SrsPublisher.prototype.publish = function(url, vcodec, acodec) {
+    this.stop();
+    SrsPublisher.__publishers.push(this);
+    
     if (url) {
         this.url = url;
     }
@@ -100,6 +103,17 @@ SrsPublisher.prototype.publish = function(url, vcodec, acodec) {
     this.callbackObj.ref.__publish(this.url, this.width, this.height, this.vcodec, this.acodec);
 }
 SrsPublisher.prototype.stop = function() {
+    for (var i = 0; i < SrsPublisher.__publishers.length; i++) {
+        var player = SrsPublisher.__publishers[i];
+        
+        if (player.id != this.id) {
+            continue;
+        }
+        
+        SrsPublisher.__publishers.splice(i, 1);
+        break;
+    }
+    
     this.callbackObj.ref.__stop();
 }
 /**

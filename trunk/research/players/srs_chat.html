@@ -86,6 +86,16 @@
                 realtime_player.start();
             }
             
+            // 2x8 users
+            for (var i = 0; i < 8; i++) {
+                var tr = $("<tr></tr>").hide();
+                $("#lst_chats").append(tr);
+                
+                for (var j = 0; j < 2; j++) {
+                    tr.append($("<td></td>").attr("id", "td_" + (i * 8 + j)));
+                }
+            }
+            
             api_server = "http://" + query.hostname + ":" + srs_get_api_server_port() + "/api/v1/chats";
             refresh();
         });
@@ -187,89 +197,44 @@
                 }
             });
         }
-        function render_chat_room(chats) {
+        function render_chat_room(original_chats) {
             if (!self_chat) {
                 return;
+            }
+            
+            var chats = [];
+            for (var i = 0; i < original_chats.length; i++) {
+                var chat = original_chats[i];
+                
+                // ignore the self.
+                if (self_chat && self_chat.id == chat.id) {
+                    continue;
+                }
+                
+                chats.push(chat);
             }
             
             // new added chat
             for (var i = 0; i < chats.length; i++) {
                 var chat = chats[i];
-                // ignore the self.
-                if (self_chat && self_chat.id == chat.id) {
-                    continue;
-                }
                 
                 // if previous exists, ignore, only add new here.
                 var previous_chat = get_previous_chat_user(previous_chats, chat.id);
                 if (previous_chat) {
                     // update reference.
+                    chat.ui = previous_chat.ui;
+                    chat.parent = previous_chat.parent;
                     chat.player = previous_chat.player;
-                    chat.player.private_object = chat;
+                    if (chat.player) {
+                        chat.player.private_object = chat;
+                    }
                     continue;
                 }
-                
-                global_chat_user_id++;
-                
-                // username: a str indicates the user name.
-                // url: a str indicates the url of user stream.
-                // join_date: a str indicates the join timestamp in seconds.
-                // join_date_str: friendly formated time.
-                var obj = $("<div/>").html($("#template").html());
-                $(obj).attr("chat_id", chat.id);
-                $(obj).attr("id", "div_" + chat.id); // for specifed chat: $("#div_" + chat_id)
-                $(obj).attr("class", "div_chat"); // for all chats: $(".div_chat")
-                $(obj).find("#chat_player").attr("id", "rp_" + chat.id); // for specifed player: $("#rp_" + chat_id)
-                $(obj).find("#chat_player_raw").attr("id", "rp_raw_" + chat.id); // for specifed player: $("#rp_raw_" + chat_id)
-                $(obj).find("#user_name").text(chat.username);
-                $(obj).find("#join_date").text(chat.join_date_str);
-                $(obj).find("#collapseM").attr("id", "collapse_" + global_chat_user_id);
-                $(obj).find("#headerN").attr("href", "#collapse_" + global_chat_user_id);
-                
-                $("#lst_chats").append(obj);
-            
-                if (!no_play) {
-                    // start the realtime player.
-                    var _player = new SrsPlayer("rp_raw_" + chat.id, 600, 300, chat);
-                    _player.on_player_ready = function() {
-                        this.set_bt(0.5);
-                    };
-                    _player.on_player_metadata = function(metadata) {
-                        this.set_dar(0, 0);
-                        this.set_fs("screen", 100);
-                    }
-                    _player.start(chat.url);
-                    
-                    chat.player = _player;
-                } else {
-                    chat.player = null;
-                }
-                
-                $(obj).find("#collapse_main").on('hidden', function(){
-                    var id = $(this).parent().attr("chat_id");
-                    var chat = get_previous_chat_user(previous_chats, id);
-                    if (!chat || !chat.player) {
-                        return;
-                    }
-                    chat.player.stop();
-                });
-                $(obj).find("#collapse_main").on('shown', function(){
-                    var id = $(this).parent().attr("chat_id");
-                    var chat = get_previous_chat_user(previous_chats, id);
-                    if (!chat || !chat.player) {
-                        return;
-                    }
-                    chat.player.play();
-                });
             }
             
             // removed chat
             for (var i = 0; i < previous_chats.length; i++) {
                 var chat = previous_chats[i];
-                // ignore the self.
-                if (self_chat && self_chat.id == chat.id) {
-                    continue;
-                }
                 
                 var new_chat = get_previous_chat_user(chats, chat.id);
                 if (new_chat) {
@@ -280,6 +245,117 @@
                     chat.player.stop();
                 }
                 $("#div_" + chat.id).remove();
+            }
+            
+            // hide empty rows.
+            $("#lst_chats").find("tr").each(function(){
+                var empty = true;
+                
+                $(this).find("td").each(function(){
+                    if ($(this).html() != "") {
+                        empty = false;
+                        return false; // abort each
+                    }
+                    return true;
+                });
+                
+                if (empty) {
+                    $(this).hide();
+                }
+            });
+            
+            // render the chat
+            for (var i = 0; i < chats.length; i++) {
+                var chat = chats[i];
+                
+                // if redered, ignore.
+                if (chat.parent) {
+                    continue;
+                }
+                
+                // generate the ui of chat
+                if (!chat.ui) {
+                    global_chat_user_id++;
+                    
+                    // username: a str indicates the user name.
+                    // url: a str indicates the url of user stream.
+                    // join_date: a str indicates the join timestamp in seconds.
+                    // join_date_str: friendly formated time.
+                    var obj = $("<div/>").html($("#template").html());
+                    if (true) {
+                        // save current ui object to the chat.
+                        chat.ui = obj;
+                        
+                        $(obj).attr("chat_id", chat.id);
+                        $(obj).attr("id", "div_" + chat.id); // for specifed chat: $("#div_" + chat_id)
+                        $(obj).attr("class", "div_chat"); // for all chats: $(".div_chat")
+                        $(obj).find("#chat_player").attr("id", "rp_" + chat.id); // for specifed player: $("#rp_" + chat_id)
+                        $(obj).find("#chat_player_raw").attr("id", "rp_raw_" + chat.id); // for specifed player: $("#rp_raw_" + chat_id)
+                        $(obj).find("#user_name").text(chat.username);
+                        $(obj).find("#join_date").text(chat.join_date_str);
+                        $(obj).find("#collapseM").attr("id", "collapse_" + global_chat_user_id);
+                        $(obj).find("#headerN").attr("href", "#collapse_" + global_chat_user_id);
+                    }
+                }
+                
+                // find a idle td to render the chat.
+                var parent = null;
+                $("#lst_chats").find("td").each(function(){
+                    if ($(this).html() != "") {
+                        return true;
+                    }
+                    
+                    parent = $(this);
+                    return false; // abort each
+                });
+                
+                if (!parent) {
+                    warn("没有可用的位置展示流。");
+                    break;
+                }
+                $(parent).append(chat.ui);
+                $(parent).parent().show();
+                
+                // when ui elements appent to the page,
+                // create the player, or flash will failed.
+                if (!chat.parent) {
+                    chat.parent = $(parent);
+                    
+                    if (!no_play) {
+                        // start the realtime player.
+                        var _player = new SrsPlayer("rp_raw_" + chat.id, 430, 185, chat);
+                        _player.on_player_ready = function() {
+                            this.set_bt(0.5);
+                            this.play();
+                        };
+                        _player.on_player_metadata = function(metadata) {
+                            this.set_dar(0, 0);
+                            this.set_fs("screen", 100);
+                        }
+                        _player.start(chat.url);
+                        
+                        chat.player = _player;
+                    } else {
+                        chat.player = null;
+                    }
+                    
+                    $(obj).find("#collapse_main").on('hidden', function(){
+                        var id = $(this).parent().attr("chat_id");
+                        var chat = get_previous_chat_user(previous_chats, id);
+                        if (!chat || !chat.player) {
+                            return;
+                        }
+                        chat.player.stop();
+                    });
+                    $(obj).find("#collapse_main").on('shown', function(){
+                        var id = $(this).parent().attr("chat_id");
+                        var chat = get_previous_chat_user(previous_chats, id);
+                        if (!chat || !chat.player) {
+                            return;
+                        }
+                        chat.player.play();
+                    });
+                }
             }
             
             previous_chats = chats;
@@ -325,10 +401,6 @@
             // removed chat
             for (var i = 0; i < previous_chats.length; i++) {
                 var chat = previous_chats[i];
-                // ignore the self.
-                if (self_chat && self_chat.id == chat.id) {
-                    continue;
-                }
                 
                 if (chat.player) {
                     chat.player.stop();
@@ -517,26 +589,18 @@
                     <img src="img/tooltip.png"/>
                 </span>
             </div>
-            <div id="collapseM" class="accordion-body collapse">
+            <div id="collapseM" class="accordion-body collapse in">
                 <div class="accordion-inner">
-                    <div class="row-fluid">
-                        <div class="span2">
-                        </div>
-                        <div class="span8">
-                            <div id="chat_player">
-                                <div id="chat_player_raw">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="span2">
+                    <div id="chat_player">
+                        <div id="chat_player_raw">
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="container" id="lst_chats">
-    </div>
+    <table id="lst_chats" class="table">
+    </table>
     <div id="video_modal" class="modal hide fade">
         <div class="modal-header">
             <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
