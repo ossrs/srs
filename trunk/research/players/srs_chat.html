@@ -7,8 +7,11 @@
     <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
     <script type="text/javascript" src="js/bootstrap.min.js"></script>
     <script type="text/javascript" src="js/swfobject.js"></script>
-    <script type="text/javascript" src="js/srs.js"></script>
+    <script type="text/javascript" src="js/srs.page.js"></script>
     <script type="text/javascript" src="js/srs.log.js"></script>
+    <script type="text/javascript" src="js/srs.player.js"></script>
+    <script type="text/javascript" src="js/srs.publisher.js"></script>
+    <script type="text/javascript" src="js/srs.utility.js"></script>
     <style>
         body{
             padding-top: 55px;
@@ -415,7 +418,7 @@
                     
                     $("#btn_join").text("退出会议");
                 
-                    info("开始推流到服务器");
+                    info("开始推流到服务器。请戴耳机聊天，否则音箱的声音会进入麦克风");
                     srs_publisher.publish(url, vcodec, acodec);
                 
                     if (realtime_player) {
