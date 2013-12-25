@@ -95,6 +95,8 @@
                     tr.append($("<td></td>").attr("id", "td_" + (i * 8 + j)));
                 }
             }
+            // remove border of row.
+            $("#lst_chats").find("td").css("border", "none");
             
             api_server = "http://" + query.hostname + ":" + srs_get_api_server_port() + "/api/v1/chats";
             refresh();
@@ -545,9 +547,9 @@
             <input type="text" id="txt_url" class="input-mini hide" value=""></input>
         </div>
     </div>
-    <div class="container">
-        <div class="row-fluid">
-            <div class="span6">
+    <table id="lst_chats" class="table">
+        <tr>
+            <td>
                 <div class="accordion-group">
                     <div class="accordion-heading">
                         <span class="accordion-toggle">
@@ -560,8 +562,8 @@
                         </div>
                     </div>
                 </div>
-            </div>
-            <div class="span6">
+            </td>
+            <td>
                 <div class="accordion-group">
                     <div class="accordion-heading">
                         <span class="accordion-toggle">
@@ -577,9 +579,9 @@
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
+            </td>
+        </tr>
+    </table>
     <div class="container hide" id="template">
         <div class="accordion-group" id="collapse_main">
             <div class="accordion-heading" title="点击展开或收起，收起后停止播放流，展开时从服务器请求流">
@@ -599,7 +601,7 @@
             </div>
         </div>
     </div>
-    <table id="lst_chats" class="table">
+    <table class="table">
     </table>
     <div id="video_modal" class="modal hide fade">
         <div class="modal-header">
