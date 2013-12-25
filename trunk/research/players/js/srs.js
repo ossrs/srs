@@ -82,7 +82,7 @@ function error(code, desc) {
 */
 function parse_query_string(){
     var obj = {};
-    
+
     // parse the host(hostname:http_port), pathname(dir/filename)
     obj.host = window.location.host;
     obj.hostname = window.location.hostname;
@@ -95,19 +95,19 @@ function parse_query_string(){
         obj.dir = obj.pathname.substr(0, obj.pathname.lastIndexOf("/"));
         obj.filename = obj.pathname.substr(obj.pathname.lastIndexOf("/"));
     }
-    
+
     // parse the query string.
     var query_string = String(window.location.search).replace(" ", "").split("?")[1];
     if(query_string == undefined){
         return obj;
     }
-    
+
     var queries = query_string.split("&");
     $(queries).each(function(){
         var query = this.split("=");
         obj[query[0]] = query[1];
     });
-    
+
     return obj;
 }
 
@@ -169,7 +169,7 @@ function build_default_hls_url() {
     } else if (query.hls_vhost != undefined) {
         server = query.hls_vhost;
     }
-    
+
     var port = (query.hls_port == undefined)? window.location.port:query.hls_port;
     var app = (query.app == undefined)? "live":query.app;
     var stream = (query.stream == undefined)? "livestream":query.stream;
@@ -177,7 +177,7 @@ function build_default_hls_url() {
     if (port == "" || port == null || port == undefined) {
         port = 80;
     }
-    
+
     return "http://" + server + ":" + port + "/" + app + "/" + stream + ".m3u8";
 }
 
@@ -190,7 +190,7 @@ function srs_parse_rtmp_url(rtmp_url) {
     // @see: http://stackoverflow.com/questions/10469575/how-to-use-location-object-to-parse-url-without-redirecting-the-page-in-javascri
     var a = document.createElement("a");
     a.href = rtmp_url.replace("rtmp://", "http://");
-    
+
     var vhost = a.hostname;
     var port = (a.port == "")? "1935":a.port;
     var app = a.pathname.substr(1, a.pathname.lastIndexOf("/") - 1);
@@ -201,7 +201,7 @@ function srs_parse_rtmp_url(rtmp_url) {
     if (app.indexOf("?") >= 0) {
         var params = app.substr(app.indexOf("?"));
         app = app.substr(0, app.indexOf("?"));
-        
+
         if (params.indexOf("vhost=") > 0) {
             vhost = params.substr(params.indexOf("vhost=") + "vhost=".length);
             if (vhost.indexOf("&") > 0) {
@@ -209,12 +209,12 @@ function srs_parse_rtmp_url(rtmp_url) {
             }
         }
     }
-    
+
     var ret = {
-        server: a.hostname, port: port, 
+        server: a.hostname, port: port,
         vhost: vhost, app: app, stream: stream
     };
-    
+
     return ret;
 }
 
@@ -226,7 +226,7 @@ function srs_parse_rtmp_url(rtmp_url) {
 */
 function srs_init(rtmp_url, hls_url, modal_player) {
     update_nav();
-    
+
     if (rtmp_url) {
         $(rtmp_url).val(build_default_rtmp_url());
     }
@@ -238,13 +238,42 @@ function srs_init(rtmp_url, hls_url, modal_player) {
         $(modal_player).css("margin-left", "-" + srs_get_player_modal() / 2 +"px");
     }
 }
+
 // for the chat to init the publish url.
 function srs_init_publish(rtmp_url) {
     update_nav();
-    
+
     if (rtmp_url) {
         $(rtmp_url).val(build_default_publish_rtmp_url());
     }
+}
+
+// for bw to init url
+// url: scheme://host:port/path?query#fragment
+function srs_init_bwt(rtmp_url, hls_url) {
+    update_nav();
+
+    if (rtmp_url) {
+		//var query = parse_query_string();
+		var search_filed = String(window.location.search).replace(" ", "").split("?")[1];
+        $(rtmp_url).val("rtmp://" + window.location.host + ":" + 1935 + "/app?" + search_filed);
+    }
+    if (hls_url) {
+        $(hls_url).val(build_default_hls_url());
+    }
+}
+
+function srs_bwt_check_url(url) {
+	if (url.indexOf("key") != -1 && url.indexOf("vhost") != -1) {
+		return true;
+	}
+	
+	return false;
+}
+
+function srs_bwt_build_default_url() {
+	var url_default = "rtmp://" + window.location.host + ":" + 1935 + "/app?key=35c9b402c12a7246868752e2878f7e0e&vhost=bandcheck.srs.com";
+	return url_default;
 }
 
 /**
@@ -265,59 +294,59 @@ function srs_publisher_initialize_page(
             break;
         }
     }
-    
+
     $(sl_microphones).empty();
     for (var i = 0; i < microphones.length; i++) {
         $(sl_microphones).append("<option value='" + i + "'>" + microphones[i] + "</option");
     }
-    
+
     $(sl_vcodec).empty();
     var vcodecs = ["h264", "vp6"];
     for (var i = 0; i < vcodecs.length; i++) {
         $(sl_vcodec).append("<option value='" + vcodecs[i] + "'>" + vcodecs[i] + "</option");
     }
-    
+
     $(sl_profile).empty();
     var profiles = ["baseline", "main"];
     for (var i = 0; i < profiles.length; i++) {
         $(sl_profile).append("<option value='" + profiles[i] + "'>" + profiles[i] + "</option");
     }
     $(sl_profile + " option[value='main']").attr("selected", true);
-    
+
     $(sl_level).empty();
-    var levels = ["1", "1b", "1.1", "1.2", "1.3", 
+    var levels = ["1", "1b", "1.1", "1.2", "1.3",
         "2", "2.1", "2.2", "3", "3.1", "3.2", "4", "4.1", "4.2", "5", "5.1"];
     for (var i = 0; i < levels.length; i++) {
         $(sl_level).append("<option value='" + levels[i] + "'>" + levels[i] + "</option");
     }
     $(sl_level + " option[value='4.1']").attr("selected", true);
-    
+
     $(sl_gop).empty();
-    var gops = ["0.3", "0.5", "1", "2", "3", "4", 
+    var gops = ["0.3", "0.5", "1", "2", "3", "4",
         "5", "6", "7", "8", "9", "10", "15", "20"];
     for (var i = 0; i < gops.length; i++) {
         $(sl_gop).append("<option value='" + gops[i] + "'>" + gops[i] + "秒</option");
     }
     $(sl_gop + " option[value='10']").attr("selected", true);
-    
+
     $(sl_size).empty();
-    var sizes = ["176x144", "320x240", "352x240", 
-        "352x288", "460x240", "640x480", "720x480", "720x576", "800x600", 
+    var sizes = ["176x144", "320x240", "352x240",
+        "352x288", "460x240", "640x480", "720x480", "720x576", "800x600",
         "1024x768", "1280x720", "1360x768", "1920x1080"];
     for (i = 0; i < sizes.length; i++) {
         $(sl_size).append("<option value='" + sizes[i] + "'>" + sizes[i] + "</option");
     }
     $(sl_size + " option[value='640x480']").attr("selected", true);
-    
+
     $(sl_fps).empty();
     var fpses = ["5", "10", "15", "20", "24", "25", "29.97", "30"];
     for (i = 0; i < fpses.length; i++) {
         $(sl_fps).append("<option value='" + fpses[i] + "'>" + Number(fpses[i]).toFixed(2) + " 帧/秒</option");
     }
     $(sl_fps + " option[value='20']").attr("selected", true);
-    
+
     $(sl_bitrate).empty();
-    var bitrates = ["50", "200", "350", "500", "650", "800", 
+    var bitrates = ["50", "200", "350", "500", "650", "800",
         "950", "1000", "1200", "1500", "1800", "2000", "3000", "5000"];
     for (i = 0; i < bitrates.length; i++) {
         $(sl_bitrate).append("<option value='" + bitrates[i] + "'>" + bitrates[i] + " kbps</option");
@@ -342,59 +371,59 @@ function srs_chat_initialize_page(
             break;
         }
     }
-    
+
     $(sl_microphones).empty();
     for (var i = 0; i < microphones.length; i++) {
         $(sl_microphones).append("<option value='" + i + "'>" + microphones[i] + "</option");
     }
-    
+
     $(sl_vcodec).empty();
     var vcodecs = ["h264", "vp6"];
     for (var i = 0; i < vcodecs.length; i++) {
         $(sl_vcodec).append("<option value='" + vcodecs[i] + "'>" + vcodecs[i] + "</option");
     }
-    
+
     $(sl_profile).empty();
     var profiles = ["baseline", "main"];
     for (var i = 0; i < profiles.length; i++) {
         $(sl_profile).append("<option value='" + profiles[i] + "'>" + profiles[i] + "</option");
     }
     $(sl_profile + " option[value='baseline']").attr("selected", true);
-    
+
     $(sl_level).empty();
-    var levels = ["1", "1b", "1.1", "1.2", "1.3", 
+    var levels = ["1", "1b", "1.1", "1.2", "1.3",
         "2", "2.1", "2.2", "3", "3.1", "3.2", "4", "4.1", "4.2", "5", "5.1"];
     for (var i = 0; i < levels.length; i++) {
         $(sl_level).append("<option value='" + levels[i] + "'>" + levels[i] + "</option");
     }
     $(sl_level + " option[value='3.1']").attr("selected", true);
-    
+
     $(sl_gop).empty();
-    var gops = ["0.3", "0.5", "1", "2", "3", "4", 
+    var gops = ["0.3", "0.5", "1", "2", "3", "4",
         "5", "6", "7", "8", "9", "10", "15", "20"];
     for (var i = 0; i < gops.length; i++) {
         $(sl_gop).append("<option value='" + gops[i] + "'>" + gops[i] + "秒</option");
     }
     $(sl_gop + " option[value='0.5']").attr("selected", true);
-    
+
     $(sl_size).empty();
-    var sizes = ["176x144", "320x240", "352x240", 
-        "352x288", "460x240", "640x480", "720x480", "720x576", "800x600", 
+    var sizes = ["176x144", "320x240", "352x240",
+        "352x288", "460x240", "640x480", "720x480", "720x576", "800x600",
         "1024x768", "1280x720", "1360x768", "1920x1080"];
     for (i = 0; i < sizes.length; i++) {
         $(sl_size).append("<option value='" + sizes[i] + "'>" + sizes[i] + "</option");
     }
     $(sl_size + " option[value='460x240']").attr("selected", true);
-    
+
     $(sl_fps).empty();
     var fpses = ["5", "10", "15", "20", "24", "25", "29.97", "30"];
     for (i = 0; i < fpses.length; i++) {
         $(sl_fps).append("<option value='" + fpses[i] + "'>" + Number(fpses[i]).toFixed(2) + " 帧/秒</option");
     }
     $(sl_fps + " option[value='15']").attr("selected", true);
-    
+
     $(sl_bitrate).empty();
-    var bitrates = ["50", "200", "350", "500", "650", "800", 
+    var bitrates = ["50", "200", "350", "500", "650", "800",
         "950", "1000", "1200", "1500", "1800", "2000", "3000", "5000"];
     for (i = 0; i < bitrates.length; i++) {
         $(sl_bitrate).append("<option value='" + bitrates[i] + "'>" + bitrates[i] + " kbps</option");
@@ -410,10 +439,10 @@ function srs_publiser_get_codec(
 ) {
     acodec.device_code = $(sl_microphones).val();
     acodec.device_name = $(sl_microphones).text();
-    
+
     vcodec.device_code = $(sl_cameras).find("option:selected").val();
     vcodec.device_name = $(sl_cameras).find("option:selected").text();
-    
+
     vcodec.codec    = $(sl_vcodec).find("option:selected").val();
     vcodec.profile  = $(sl_profile).find("option:selected").val();
     vcodec.level    = $(sl_level).find("option:selected").val();
@@ -431,7 +460,7 @@ function srs_publiser_get_codec(
 * @param container the html container id.
 * @param width a float value specifies the width of player.
 * @param height a float value specifies the height of player.
-* @param private_object [optional] an object that used as private object, 
+* @param private_object [optional] an object that used as private object,
 *       for example, the logic chat object which owner this player.
 */
 function SrsPlayer(container, width, height, private_object) {
@@ -441,9 +470,9 @@ function SrsPlayer(container, width, height, private_object) {
     if (!SrsPlayer.__players) {
         SrsPlayer.__players = [];
     }
-    
+
     SrsPlayer.__players.push(this);
-    
+
     this.private_object = private_object;
     this.container = container;
     this.width = width;
@@ -452,7 +481,7 @@ function SrsPlayer(container, width, height, private_object) {
     this.stream_url = null;
     this.buffer_time = 0.8; // default to 0.8
     this.callbackObj = null;
-    
+
     // callback set the following values.
     this.meatadata = {}; // for on_player_metadata
     this.time = 0; // current stream time.
@@ -469,25 +498,25 @@ SrsPlayer.prototype.start = function(url) {
     if (url) {
         this.stream_url = url;
     }
-    
+
     // embed the flash.
     var flashvars = {};
     flashvars.id = this.id;
     flashvars.on_player_ready = "__srs_on_player_ready";
     flashvars.on_player_metadata = "__srs_on_player_metadata";
     flashvars.on_player_timer = "__srs_on_player_timer";
-    
+
     var params = {};
     params.wmode = "opaque";
     params.allowFullScreen = "true";
     params.allowScriptAccess = "always";
-    
+
     var attributes = {};
-    
+
     var self = this;
-    
+
     swfobject.embedSWF(
-        "srs_player/release/srs_player.swf?_version="+srs_get_version_code(), 
+        "srs_player/release/srs_player.swf?_version="+srs_get_version_code(),
         this.container,
         this.width, this.height,
         "11.1", "js/AdobeFlashPlayerInstall.swf",
@@ -496,7 +525,7 @@ SrsPlayer.prototype.start = function(url) {
             self.callbackObj = callbackObj;
         }
     );
-    
+
     return this;
 }
 /**
@@ -512,15 +541,15 @@ SrsPlayer.prototype.play = function(url) {
 SrsPlayer.prototype.stop = function() {
     for (var i = 0; i < SrsPlayer.__players.length; i++) {
         var player = SrsPlayer.__players[i];
-        
+
         if (player.id != this.id) {
             continue;
         }
-        
+
         SrsPlayer.__players.splice(i, 1);
         break;
     }
-    
+
     this.callbackObj.ref.__stop();
 }
 SrsPlayer.prototype.pause = function() {
@@ -531,10 +560,10 @@ SrsPlayer.prototype.resume = function() {
 }
 /**
 * to set the DAR, for example, DAR=16:9
-* @param num, for example, 9. 
+* @param num, for example, 9.
 *       use metadata height if 0.
 *       use user specified height if -1.
-* @param den, for example, 16. 
+* @param den, for example, 16.
 *       use metadata width if 0.
 *       use user specified width if -1.
 */
@@ -571,14 +600,14 @@ SrsPlayer.prototype.on_player_timer = function(time, buffer_length) {
 function __srs_find_player(id) {
     for (var i = 0; i < SrsPlayer.__players.length; i++) {
         var player = SrsPlayer.__players[i];
-        
+
         if (player.id != id) {
             continue;
         }
-        
+
         return player;
     }
-    
+
     throw new Error("player not found. id=" + id);
 }
 function __srs_on_player_ready(id) {
@@ -587,26 +616,26 @@ function __srs_on_player_ready(id) {
 }
 function __srs_on_player_metadata(id, metadata) {
     var player = __srs_find_player(id);
-    
-    // user may override the on_player_metadata, 
+
+    // user may override the on_player_metadata,
     // so set the data before invoke it.
     player.metadata = metadata;
-    
+
     player.on_player_metadata(metadata);
 }
 function __srs_on_player_timer(id, time, buffer_length) {
     var player = __srs_find_player(id);
-    
+
     buffer_length = Math.max(0, buffer_length);
     buffer_length = Math.min(player.buffer_time, buffer_length);
-    
+
     time = Math.max(0, time);
-    
-    // user may override the on_player_timer, 
+
+    // user may override the on_player_timer,
     // so set the data before invoke it.
     player.time = time;
     player.buffer_length = buffer_length;
-    
+
     player.on_player_timer(time, buffer_length);
 }
 
@@ -618,7 +647,7 @@ function __srs_on_player_timer(id, time, buffer_length) {
 * @param container the html container id.
 * @param width a float value specifies the width of publisher.
 * @param height a float value specifies the height of publisher.
-* @param private_object [optional] an object that used as private object, 
+* @param private_object [optional] an object that used as private object,
 *       for example, the logic chat object which owner this publisher.
 */
 function SrsPublisher(container, width, height, private_object) {
@@ -628,31 +657,31 @@ function SrsPublisher(container, width, height, private_object) {
     if (!SrsPublisher.__publishers) {
         SrsPublisher.__publishers = [];
     }
-    
+
     SrsPublisher.__publishers.push(this);
-    
+
     this.private_object = private_object;
     this.container = container;
     this.width = width;
     this.height = height;
     this.id = SrsPublisher.__id++;
     this.callbackObj = null;
-    
+
     // set the values when publish.
     this.url = null;
     this.vcodec = {};
     this.acodec = {};
-    
+
     // callback set the following values.
     this.cameras = [];
     this.microphones = [];
     this.code = 0;
-    
+
     // error code defines.
     this.errors = {
-        "100": "无法获取指定的摄像头", //error_camera_get 
-        "101": "无法获取指定的麦克风", //error_microphone_get 
-        "102": "摄像头为禁用状态，推流时请允许flash访问摄像头", //error_camera_muted 
+        "100": "无法获取指定的摄像头", //error_camera_get
+        "101": "无法获取指定的麦克风", //error_microphone_get
+        "102": "摄像头为禁用状态，推流时请允许flash访问摄像头", //error_camera_muted
     };
 }
 /**
@@ -669,18 +698,18 @@ SrsPublisher.prototype.start = function() {
     flashvars.on_publisher_ready = "__srs_on_publisher_ready";
     flashvars.on_publisher_error = "__srs_on_publisher_error";
     flashvars.on_publisher_warn = "__srs_on_publisher_warn";
-    
+
     var params = {};
     params.wmode = "opaque";
     params.allowFullScreen = "true";
     params.allowScriptAccess = "always";
-    
+
     var attributes = {};
-    
+
     var self = this;
-    
+
     swfobject.embedSWF(
-        "srs_publisher/release/srs_publisher.swf?_version="+srs_get_version_code(), 
+        "srs_publisher/release/srs_publisher.swf?_version="+srs_get_version_code(),
         this.container,
         this.width, this.height,
         "11.1", "js/AdobeFlashPlayerInstall.swf",
@@ -689,7 +718,7 @@ SrsPublisher.prototype.start = function() {
             self.callbackObj = callbackObj;
         }
     );
-    
+
     return this;
 }
 /**
@@ -702,7 +731,7 @@ SrsPublisher.prototype.publish = function(url, vcodec, acodec) {
     this.url = url;
     this.vcodec = vcodec;
     this.acodec = acodec;
-    
+
     this.callbackObj.ref.__publish(url, this.width, this.height, vcodec, acodec);
 }
 SrsPublisher.prototype.stop = function() {
@@ -729,36 +758,36 @@ SrsPublisher.prototype.on_publisher_warn = function(code, desc) {
 function __srs_find_publisher(id) {
     for (var i = 0; i < SrsPublisher.__publishers.length; i++) {
         var publisher = SrsPublisher.__publishers[i];
-        
+
         if (publisher.id != id) {
             continue;
         }
-        
+
         return publisher;
     }
-    
+
     throw new Error("publisher not found. id=" + id);
 }
 function __srs_on_publisher_ready(id, cameras, microphones) {
     var publisher = __srs_find_publisher(id);
-    
+
     publisher.cameras = cameras;
     publisher.microphones = microphones;
-    
+
     publisher.on_publisher_ready(cameras, microphones);
 }
 function __srs_on_publisher_error(id, code) {
     var publisher = __srs_find_publisher(id);
-    
+
     publisher.code = code;
-    
+
     publisher.on_publisher_error(code, publisher.errors[""+code]);
 }
 function __srs_on_publisher_warn(id, code) {
     var publisher = __srs_find_publisher(id);
-    
+
     publisher.code = code;
-    
+
     publisher.on_publisher_warn(code, publisher.errors[""+code]);
 }
 
