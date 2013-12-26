@@ -10,7 +10,7 @@ function srs_get_player_width() { return srs_get_player_modal() - 30; }
 function srs_get_player_height() { return srs_get_player_width() * 9 / 19; }
 
 // to query the swf anti cache.
-function srs_get_version_code() { return "1.13"; }
+function srs_get_version_code() { return "1.15"; }
 // get the default vhost for players.
 function srs_get_player_vhost() { return "players"; }
 // the api server port, for chat room.
@@ -137,6 +137,21 @@ function srs_init_publish(rtmp_url) {
     if (rtmp_url) {
         $(rtmp_url).val(build_default_publish_rtmp_url());
     }
+}
+
+// check whether can republish
+function srs_can_republish() {
+    var browser = get_browser_agents();
+    
+    if (browser.Chrome || browser.Firefox) {
+        return true;
+    }
+    
+    if (browser.MSIE || browser.QQBrowser) {
+        return false;
+    }
+    
+    return false;
 }
 
 // without default values set.

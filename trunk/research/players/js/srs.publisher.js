@@ -54,6 +54,8 @@ SrsPublisher.prototype.start = function() {
     // embed the flash.
     var flashvars = {};
     flashvars.id = this.id;
+    flashvars.width = this.width;
+    flashvars.height = this.height;
     flashvars.on_publisher_ready = "__srs_on_publisher_ready";
     flashvars.on_publisher_error = "__srs_on_publisher_error";
     flashvars.on_publisher_warn = "__srs_on_publisher_warn";

@@ -81,3 +81,54 @@ function srs_parse_rtmp_url(rtmp_url) {
     
     return ret;
 }
+
+/**
+* get the agent.
+* @return an object specifies some browser.
+*   for example, get_browser_agents().MSIE
+*/
+function get_browser_agents() {
+    var agent = navigator.userAgent;
+    
+    /**
+    WindowsPC platform, Win7:
+        chrome 31.0.1650.63:
+            Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 
+            (KHTML, like Gecko) Chrome/31.0.1650.63 Safari/537.36
+        firefox 23.0.1:
+            Mozilla/5.0 (Windows NT 6.1; WOW64; rv:23.0) Gecko/20100101 
+            Firefox/23.0
+        safari 5.1.7(7534.57.2):
+            Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/534.57.2 
+            (KHTML, like Gecko) Version/5.1.7 Safari/534.57.2
+        opera 15.0.1147.153:
+            Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 
+            (KHTML, like Gecko) Chrome/28.0.1500.95 Safari/537.36 
+            OPR/15.0.1147.153
+        360 6.2.1.272: 
+            Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.1; WOW64; 
+            Trident/6.0; SLCC2; .NET CLR 2.0.50727; .NET CLR 3.5.30729; 
+            .NET CLR 3.0.30729; Media Center PC 6.0; InfoPath.2; .NET4.0C; 
+            .NET4.0E)
+        IE 10.0.9200.16750(update: 10.0.12):
+            Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.1; WOW64; 
+            Trident/6.0; SLCC2; .NET CLR 2.0.50727; .NET CLR 3.5.30729; 
+            .NET CLR 3.0.30729; Media Center PC 6.0; InfoPath.2; .NET4.0C; 
+            .NET4.0E)
+    */
+    
+    return {
+        // platform
+        Android: agent.indexOf("Android") != -1,
+        Windows: agent.indexOf("Windows") != -1,
+        iPhone: agent.indexOf("iPhone") != -1,
+        // Windows Browsers
+        Chrome: agent.indexOf("Chrome") != -1,
+        Firefox: agent.indexOf("Firefox") != -1,
+        QQBrowser: agent.indexOf("QQBrowser") != -1,
+        MSIE: agent.indexOf("MSIE") != -1, 
+        // Android Browsers
+        Opera: agent.indexOf("Presto") != -1,
+        MQQBrowser: agent.indexOf("MQQBrowser") != -1
+    };
+}

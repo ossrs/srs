@@ -16,6 +16,8 @@ package
     import flash.media.Video;
     import flash.net.NetConnection;
     import flash.net.NetStream;
+    import flash.system.Security;
+    import flash.system.SecurityPanel;
     import flash.ui.ContextMenu;
     import flash.ui.ContextMenuItem;
     import flash.utils.setTimeout;
@@ -83,6 +85,18 @@ package
             this.js_on_publisher_ready = flashvars.on_publisher_ready;
             this.js_on_publisher_error = flashvars.on_publisher_error;
             this.js_on_publisher_warn = flashvars.on_publisher_warn;
+            
+            // initialized size.
+            this.user_w = flashvars.width;
+            this.user_h = flashvars.height;
+            
+            // try to get the camera, if muted, alert the security and requires user to open it.
+            var c:Camera = Camera.getCamera();
+            if (c.muted) {
+                Security.showSettings(SecurityPanel.PRIVACY);
+            }
+            
+            __show_local_camera(c);
             
             flash.utils.setTimeout(this.system_on_js_ready, 0);
         }
@@ -221,17 +235,7 @@ package
                 var streamName:String = url.substr(url.lastIndexOf("/"));
                 media_stream.publish(streamName);
                 
-                media_video = new Video();
-                media_video.width = _width;
-                media_video.height = _height;
-                media_video.attachCamera(media_camera);
-                media_video.smoothing = true;
-                addChild(media_video);
-                
-                //__draw_black_background(_width, _height);
-                
-                // lowest layer, for mask to cover it.
-                setChildIndex(media_video, 0);
+                __show_local_camera(media_camera);
             });
             
             var tcUrl:String = this.user_url.substr(0, this.user_url.lastIndexOf("/"));
@@ -242,11 +246,6 @@ package
          * function for js to call: to stop the stream. ignore if not publish.
          */
         private function js_call_stop():void {
-            if (this.media_video) {
-                this.media_video.attachCamera(null);
-                this.removeChild(this.media_video);
-                this.media_video = null;
-            }
             if (this.media_stream) {
                 this.media_stream.attachAudio(null);
                 this.media_stream.attachCamera(null);
@@ -362,6 +361,53 @@ package
             //		bandwidth is in Bps not kbps. 
             //		quality=1 is lowest quality, 100 is highest quality.
             c.setQuality(cameraBitrate / 8.0 * 1000, cameraQuality);
+        }
+        
+        private function __show_local_camera(c:Camera):void {
+            if (this.media_video) {
+                this.media_video.attachCamera(null);
+                this.removeChild(this.media_video);
+                this.media_video = null;
+            }
+            
+            // show local camera
+            media_video = new Video();
+            media_video.attachCamera(c);
+            media_video.smoothing = true;
+            addChild(media_video);
+            
+            // rescale the local camera.
+            var cw:Number = user_h * c.width / c.height;
+            if (cw > user_w) {
+                var ch:Number = user_w * c.height / c.width;
+                media_video.width = user_w;
+                media_video.height = ch;
+            } else {
+                media_video.width = cw;
+                media_video.height = user_h;
+            }
+            media_video.x = (user_w - media_video.width) / 2;
+            media_video.y = (user_h - media_video.height) / 2;
+            
+            __draw_black_background(user_w, user_h);
+            
+            // lowest layer, for mask to cover it.
+            setChildIndex(media_video, 0);
+        }
+        
+        /**
+         * draw black background and draw the fullscreen mask.
+         */
+        private function __draw_black_background(_width:int, _height:int):void {
+            // draw black bg.
+            this.graphics.beginFill(0x00, 1.0);
+            this.graphics.drawRect(0, 0, _width, _height);
+            this.graphics.endFill();
+            
+            // draw the fs mask.
+            //this.control_fs_mask.graphics.beginFill(0xff0000, 0);
+            //this.control_fs_mask.graphics.drawRect(0, 0, _width, _height);
+            //this.control_fs_mask.graphics.endFill();
         }
     }
 }
