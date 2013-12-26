@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SRS</title>   
+    <meta charset="utf-8">
+    <script type="text/javascript" src="players/js/jquery-1.10.2.min.js"></script>
+    <script type="text/javascript" src="players/js/srs.page.js"></script>
+    <script type="text/javascript" src="players/js/srs.utility.js"></script>
+</head>
+<body>
+    <script type="text/javascript">
+        var query = parse_query_string();
+        var url = window.location.protocol + "//" + query.hostname + ":" + srs_get_api_server_port() + "/index.html" + window.location.search;
+        document.write("请确认api-server已经开启，跳转到api-server的页面（解决IE跨域问题）<br/>");
+        document.write("正在跳转，若您的浏览器没有跳转，请点击: <a href='" + url + "'>" + url + "</a>");
+        
+        setTimeout(function(){
+            window.location.href = url;
+        }, 3000);
+    </script>
+</body>
