@@ -17,6 +17,9 @@
         body{
             padding-top: 55px;
         }
+        .accordion-group {
+            width: 310px;
+        }
     </style>
     <script type="text/javascript">
         var srs_publisher = null;
@@ -33,6 +36,19 @@
             // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
             // url set to: rtmp://demo:1935/live/livestream
             srs_init_publish("#txt_url");
+            
+            // support 5x3+1 users
+            for (var i = 0; i < 5; i++) {
+                var tr = $("<tr></tr>").hide();
+                $("#lst_chats").append(tr);
+                
+                for (var j = 0; j < 3; j++) {
+                    tr.append($("<td></td>").attr("id", "td_" + ((i+1) * 8 + j)));
+                }
+            }
+            // remove border of row.
+            $("#lst_chats").find("td").css("border", "none").css("padding", "2px")
+                .css("padding-left", "0px").css("width", "327px");
             
             if (query.agent == "true") {
                 document.write(navigator.userAgent);
@@ -60,7 +76,7 @@
             $("#txt_url").val($("#txt_url").val() + "." + new Date().getTime());
             
             // start the publisher.
-            srs_publisher = new SrsPublisher("local_publisher", 430, 185);
+            srs_publisher = new SrsPublisher("local_publisher", 280, 180);
             srs_publisher.on_publisher_ready = function(cameras, microphones) {
                 srs_chat_initialize_page(
                     cameras, microphones,
@@ -85,7 +101,7 @@
             
             if (!no_play) {
                 // start the realtime player.
-                realtime_player = new SrsPlayer("realtime_player", 430, 185);
+                realtime_player = new SrsPlayer("realtime_player", 280, 180);
                 realtime_player.on_player_ready = function() {
                     this.set_bt(0.5);
                 };
@@ -97,18 +113,6 @@
                 }
                 realtime_player.start();
             }
-            
-            // 2x8 users
-            for (var i = 0; i < 8; i++) {
-                var tr = $("<tr></tr>").hide();
-                $("#lst_chats").append(tr);
-                
-                for (var j = 0; j < 2; j++) {
-                    tr.append($("<td></td>").attr("id", "td_" + (i * 8 + j)));
-                }
-            }
-            // remove border of row.
-            $("#lst_chats").find("td").css("border", "none");
             
             $("#txt_name").focus();
             
@@ -321,7 +325,7 @@
                         $(obj).find("#chat_player_raw").attr("id", "rp_raw_" + chat.id); // for specifed player: $("#rp_raw_" + chat_id)
                         $(obj).find("#user_name").text(chat.username);
                         $(obj).find("#user_player_url").attr("href", chat.url);
-                        $(obj).find("#join_date").text(chat.join_date_str);
+                        $(obj).find("#join_date").text(chat.join_date_str.split(" ")[1]);
                         $(obj).find("#collapseM").attr("id", "collapse_" + global_chat_user_id);
                         $(obj).find("#headerN").attr("href", "#collapse_" + global_chat_user_id);
                     }
@@ -352,7 +356,7 @@
                     
                     if (!no_play) {
                         // start the realtime player.
-                        var _player = new SrsPlayer("rp_raw_" + chat.id, 430, 185, chat);
+                        var _player = new SrsPlayer("rp_raw_" + chat.id, 240, 180, chat);
                         _player.on_player_ready = function() {
                             this.set_bt(0.5);
                             this.play();
@@ -580,7 +584,7 @@
     </div>
     <table id="lst_chats" class="table">
         <tr>
-            <td>
+            <td id="td_0">
                 <div class="accordion-group">
                     <div class="accordion-heading">
                         <span class="accordion-toggle">
@@ -594,7 +598,7 @@
                     </div>
                 </div>
             </td>
-            <td>
+            <td id="td_1">
                 <div class="accordion-group">
                     <div class="accordion-heading">
                         <span class="accordion-toggle">
@@ -611,6 +615,7 @@
                     </div>
                 </div>
             </td>
+            <td id="td_2"></td>
         </tr>
     </table>
     <div class="container hide" id="template">

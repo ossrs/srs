@@ -113,13 +113,13 @@ SrsPlayer.prototype.resume = function() {
     this.callbackObj.ref.__resume();
 }
 /**
-* to set the DAR, for example, DAR=16:9
-* @param num, for example, 9. 
-*       use metadata height if 0.
-*       use user specified height if -1.
-* @param den, for example, 16. 
+* to set the DAR, for example, DAR=16:9 where num=16,den=9.
+* @param num, for example, 16. 
 *       use metadata width if 0.
 *       use user specified width if -1.
+* @param den, for example, 9. 
+*       use metadata height if 0.
+*       use user specified height if -1.
 */
 SrsPlayer.prototype.set_dar = function(num, den) {
     this.callbackObj.ref.__set_dar(num, den);

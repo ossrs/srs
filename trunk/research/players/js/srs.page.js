@@ -251,7 +251,7 @@ function srs_initialize_codec_page(
     
     $(sl_size).empty();
     var sizes = ["176x144", "320x240", "352x240", 
-        "352x288", "460x240", "640x480", "720x480", "720x576", "800x600", 
+        "352x288", "480x360", "640x480", "720x480", "720x576", "800x600", 
         "1024x768", "1280x720", "1360x768", "1920x1080"];
     for (i = 0; i < sizes.length; i++) {
         $(sl_size).append("<option value='" + sizes[i] + "'>" + sizes[i] + "</option");
@@ -294,7 +294,7 @@ function srs_publisher_initialize_page(
     $(sl_gop + " option[value='10']").attr("selected", true);
     
     //var sizes = ["176x144", "320x240", "352x240", 
-    //    "352x288", "460x240", "640x480", "720x480", "720x576", "800x600", 
+    //    "352x288", "480x360", "640x480", "720x480", "720x576", "800x600", 
     //    "1024x768", "1280x720", "1360x768", "1920x1080"];
     $(sl_size + " option[value='640x480']").attr("selected", true);
     
@@ -322,16 +322,16 @@ function srs_chat_initialize_page(
     
     //var levels = ["1", "1b", "1.1", "1.2", "1.3", 
     //    "2", "2.1", "2.2", "3", "3.1", "3.2", "4", "4.1", "4.2", "5", "5.1"];
-    $(sl_level + " option[value='2.1']").attr("selected", true);
+    $(sl_level + " option[value='3.1']").attr("selected", true);
     
     //var gops = ["0.3", "0.5", "1", "2", "3", "4", 
     //    "5", "6", "7", "8", "9", "10", "15", "20"];
-    $(sl_gop + " option[value='1']").attr("selected", true);
+    $(sl_gop + " option[value='2']").attr("selected", true);
     
     //var sizes = ["176x144", "320x240", "352x240", 
-    //    "352x288", "460x240", "640x480", "720x480", "720x576", "800x600", 
+    //    "352x288", "480x360", "640x480", "720x480", "720x576", "800x600", 
     //    "1024x768", "1280x720", "1360x768", "1920x1080"];
-    $(sl_size + " option[value='640x480']").attr("selected", true);
+    $(sl_size + " option[value='480x360']").attr("selected", true);
     
     //var fpses = ["5", "10", "15", "20", "24", "25", "29.97", "30"];
     $(sl_fps + " option[value='15']").attr("selected", true);
