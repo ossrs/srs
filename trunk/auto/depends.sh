@@ -261,11 +261,8 @@ if [ $SRS_HLS = YES ]; then
     ln -sf `pwd`/research/players/crossdomain.xml ${SRS_OBJS}/nginx/html/crossdomain.xml
     
     # override the default index.
-    cat <<END > ${SRS_OBJS}/nginx/html/index.html
-    <script type="text/javascript">
-        window.location.href = "players/index.html";
-    </script>
-END
+    rm -f ${SRS_OBJS}/nginx/html/index.html &&
+    ln -sf `pwd`/research/players/nginx_index.html ${SRS_OBJS}/nginx/html/index.html
 fi
 
 if [ $SRS_HLS = YES ]; then
@@ -302,7 +299,9 @@ fi
 
 echo "link players to cherrypy static-dir"
 rm -f research/api-server/static-dir/players &&
-ln -sf `pwd`/research/players research/api-server/static-dir/players
+ln -sf `pwd`/research/players research/api-server/static-dir/players &&
+rm -f research/api-server/static-dir/crossdomain.xml &&
+ln -sf `pwd`/research/players/crossdomain.xml research/api-server/static-dir/crossdomain.xml
 
 #####################################################################################
 # openssl, for rtmp complex handshake
