@@ -8,6 +8,7 @@
     <script type="text/javascript" src="js/bootstrap.min.js"></script>
     <script type="text/javascript" src="js/swfobject.js"></script>
     <script type="text/javascript" src="js/srs.page.js"></script>
+    <script type="text/javascript" src="js/srs.utility.js"></script>
     <style>
         body{
             padding-top: 55px;
@@ -17,10 +18,19 @@
         $(function(){
             update_nav();
             
-            // direct to the default vhost for players.
-            var query = "" + window.location.search;
-            query = query.substr(1);
-            window.location.href = "srs_chat.html?" + "vhost=" + srs_get_player_vhost() + "&" + query;
+            var query = parse_query_string();
+            var url = "srs_chat.html?vhost=" + srs_get_player_vhost();
+            
+            for (var key in query.user_query) {
+                if (key == "vhost") {
+                    continue;
+                }
+                url += "&" + key + "=" + query[key];
+            }
+            
+            setTimeout(function(){
+                window.location.href = url;
+            }, 100);
         });
     </script>
 </head>
@@ -28,7 +38,7 @@
 <div class="navbar navbar-fixed-top">
     <div class="navbar-inner">
         <div class="container">
-        <a class="brand" href="index.html">SRS</a>
+            <a id="srs_index" class="brand" href="#">SRS</a>
             <div class="nav-collapse collapse">
                 <ul class="nav">
                     <li><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>

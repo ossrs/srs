@@ -31,6 +31,7 @@ function srs_get_player_chat_vhost(src_vhost) { return (src_vhost != srs_get_pla
 * update the navigator, add same query string.
 */
 function update_nav() {
+    $("#srs_index").attr("href", "index.html" + window.location.search);
     $("#nav_srs_player").attr("href", "srs_player.html" + window.location.search);
     $("#nav_srs_publisher").attr("href", "srs_publisher.html" + window.location.search);
     $("#nav_srs_chat").attr("href", "srs_chat.html" + window.location.search);

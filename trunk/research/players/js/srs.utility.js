@@ -17,6 +17,7 @@ function padding(number, length, prefix) {
 function parse_query_string(){
     var obj = {};
     
+    // add the uri object.
     // parse the host(hostname:http_port), pathname(dir/filename)
     obj.host = window.location.host;
     obj.hostname = window.location.hostname;
@@ -30,6 +31,9 @@ function parse_query_string(){
         obj.filename = obj.pathname.substr(obj.pathname.lastIndexOf("/"));
     }
     
+    // pure user query object.
+    obj.user_query = {};
+    
     // parse the query string.
     var query_string = String(window.location.search).replace(" ", "").split("?")[1];
     if(query_string == undefined){
@@ -40,6 +44,7 @@ function parse_query_string(){
     $(queries).each(function(){
         var query = this.split("=");
         obj[query[0]] = query[1];
+        obj.user_query[query[0]] = query[1];
     });
     
     return obj;
