@@ -18,7 +18,7 @@
             update_nav();
             
             // direct to the default vhost for players.
-            window.location.href = "srs_chat.html?vhost=" + srs_get_player_vhost();
+            window.location.href = "srs_chat.html?" + "&vhost=" + srs_get_player_vhost() + window.location.search ;
         });
     </script>
 </head>
