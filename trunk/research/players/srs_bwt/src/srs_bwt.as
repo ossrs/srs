@@ -203,7 +203,7 @@ package
 			kbps = (int(kbps * 10))/10.0;
 
 			flash.utils.setTimeout(stopPlayTest, 0);
-            updateState("下行带宽测试完毕，服务器: " + server_ip + ", " + kbps + "kbps，开始测试上行带宽。");
+            updateState("下行带宽测试完毕，服务器: " + server_ip + "，" + kbps + "kbps，开始测试上行带宽。");
 		}
 		
 		private function stopPlayTest():void{
