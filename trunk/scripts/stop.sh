@@ -11,7 +11,9 @@ pids=`ps aux|grep srs|grep "./objs"|grep "srs.19350.conf"|awk '{print $2}'`; for
 # step 4(optinal): start nginx for HLS 
 echo "停止NGINX（HLS服务）"
 ps aux|grep nginx|grep process
-pids=`ps aux|grep nginx|grep process|awk '{print $2}'`; for pid in $pids; do echo "结束现有进程：$pid"; sudo kill -s SIGKILL $pid; done
+if [[ -f ./objs/nginx/logs/nginx.pid ]]; then 
+    pids=`cat ./objs/nginx/logs/nginx.pid`; for pid in $pids; do echo "结束现有进程：$pid"; sudo kill -s SIGTERM $pid; done
+fi
 
 # step 5(optinal): start http hooks for srs callback 
 echo "停止API服务器"
