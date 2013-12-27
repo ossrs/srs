@@ -278,6 +278,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v1.0, 2013-12-27, merge from wenjie, the bandwidth test feature.
 * v0.9, 2013-12-25, [v0.9](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.9) released. 20926 lines.
 * v0.9, 2013-12-25, fix the bitrate bug(in Bps), use enhanced microphone.
 * v0.9, 2013-12-22, demo video meeting or chat(srs+cherrypy+jquery+bootstrap).

@@ -13,15 +13,112 @@
     <script type="text/javascript" src="js/srs.publisher.js"></script>
     <script type="text/javascript" src="js/srs.utility.js"></script>
     <script type="text/javascript" src="js/srs.utility.js"></script>
+	<script type="text/javascript" src="js/srs.bandwidth.js"></script>
     <style>
         body{
             padding-top: 55px;
         }
+        #main_modal {
+            width: 600px;
+            margin-left: -300px;
+        }
+        #check_status {
+            margin-left: 20px;
+            margin-top: -55px;
+        }
+        #pb_buffer_bg {
+            margin-top: 40px;
+            margin-bottom: 10px;
+        }
     </style>
     <script type="text/javascript">
+
+            function update_progress(percent) {
+                    $("#progress_bar").width(percent);
+            }
+
+            function progress_reset() {
+                    $("#progress_bar").width("0%");
+            }
+
+            function update_status(text) {
+                $("#check_status").text(text);
+            }
+			
+			function get_swf_width() {
+				return 1;
+			}
+			
+			function get_swf_height() {
+				return 1;
+			}
+			
+			function show_modal() {
+				$("#main_modal").modal({show:true, keyboard:false});
+			}
+
+            function band_check(url) {
+
+            // remove flash contet
+            var bw_div = $("<div/>");
+            $(bw_div).attr("id", "bw_div");
+            $("#bw_center").append(bw_div);
+
+            var flashvars = {};
+            flashvars.url = url;
+            flashvars.update_progress = "update_progress";
+            flashvars.progress_reset  = "progress_reset";
+			flashvars.update_status   = "update_status";
+
+            var params = {};
+            params.allowFullScreen = true;
+			
+            var attributes = {};
+
+            swfobject.embedSWF(
+                "srs_bwt/release/srs_bwt.swf", "bw_div",
+                get_swf_width(), get_swf_height(),
+                "11.1.0", "js/AdobeFlashPlayerInstall.swf",
+                flashvars, params, attributes
+            );
+        }
+
         $(function(){
             update_nav();
-        });
+			srs_init_bwt("#txt_url");
+			
+			var txt_input = $("#txt_url").val();
+			// if valid ?
+			if (!srs_bwt_check_url(txt_input)) {
+				$("#txt_url").val(srs_bwt_build_default_url());
+			}
+			
+            $("#main_modal").on(
+                "show",
+                function()
+                {
+					progress_reset();
+					update_status("");
+                   var url = $("#txt_url").val();
+				   /*!
+						url encode
+				   */
+				   url = escape(url);	
+                   band_check(url);
+                }
+             );
+
+            $("#main_modal").on("hide", function(){
+                $("#bw_div").remove();
+            });
+
+            $("#btn_play").click(
+                function()
+                {
+                    $("#main_modal").modal({show:true, keyboard:false});
+                }
+             );
+        });	
     </script>
 </head>
 <body>
@@ -44,6 +141,34 @@
     </div>
 </div>
 <div class="container">
+
+     <div class="form-inline">
+         URL:
+         <input type="text" id="txt_url" class="input-xxlarge" value="" placeholder="例如：rtmp://host:port/app?key=xx&vhost=yy"></input>
+         <button class="btn btn-primary" id="btn_play">开始测速</button>
+     </div>
+
+     <div id="main_modal" class="modal hide fade">
+         <div class="modal-header">
+             <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+             <h3>SRS Band Check</h3>
+         </div>
+         <div class="modal-body">
+             <div id="player"></div>
+             <div class="progress progress-striped active" id="pb_buffer_bg">
+                 <div class="bar" style="width: 50%;" id="progress_bar"></div>
+             </div>
+         </div>
+
+         <div class="modal-body" id="bw_center">
+         </div>
+         <span id="check_status1"><font ><strong id="check_status">status</strong></font> </span>
+
+         <div class="modal-footer">
+             <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true"> 关闭 </button>
+         </div>
+     </div>
+
     <hr>
     <footer>
         <p><a href="https://github.com/winlinvip/simple-rtmp-server">SRS Team &copy; 2013</a></p>

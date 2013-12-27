@@ -110,7 +110,7 @@ enum SrsClientType
 */
 class SrsRtmpClient
 {
-private:
+protected:
 	SrsProtocol* protocol;
 	st_netfd_t stfd;
 public:

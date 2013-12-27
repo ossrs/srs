@@ -47,21 +47,26 @@ echo "" >> $SRS_AUTO_HEADERS_H
 echo "generate Makefile"
 
 cat << END > ${SRS_MAKEFILE}
-.PHONY: default help clean server _prepare_dir
-default: server
+.PHONY: default help clean server bandwidth _prepare_dir
+default: server bandwidth
 
 help:
-	@echo "Usage: make <help>|<clean>|<server>"
+	@echo "Usage: make <help>|<clean>|<server>|<bandwidth>"
 	@echo "  help       display this help menu"
 	@echo "  clean      cleanup project"
 	@echo "  server     build the srs(simple rtmp server) over st(state-threads)"
+	@echo "  bandwidth  build the bandwidth test client tool."
 
 clean: 
-	(rm -f Makefile; cd ${SRS_OBJS}; rm -rf srs Makefile *.hpp src st_*_load)
+	(rm -f Makefile; cd ${SRS_OBJS}; rm -rf srs bandwidth Makefile *.hpp src st_*_load)
 
 server: _prepare_dir
 	@echo "build the srs(simple rtmp server) over st(state-threads)"
 	\$(MAKE) -f ${SRS_OBJS}/${SRS_MAKEFILE} srs
+
+bandwidth: _prepare_dir
+	@echo "build the bandwidth test client tool"
+	\$(MAKE) -f ${SRS_OBJS}/${SRS_MAKEFILE} bandwidth
 
 # the ./configure will generate it.
 _prepare_dir:
@@ -87,7 +92,7 @@ GCC = g++
 LINK = \$(GCC)
 AR = ar
 
-.PHONY: default srs 
+.PHONY: default srs bandwidth 
 
 default:
 
@@ -124,12 +129,12 @@ CORE_OBJS="${MODULE_OBJS[@]}"
 MODULE_ID="MAIN" 
 MODULE_DEPENDS=("CORE")
 ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS})
-MODULE_FILES=("srs_main_server")
+MODULE_FILES=("srs_main_server" "srs_main_bandcheck")
 MODULE_DIR="src/main" . auto/modules.sh
 MAIN_OBJS="${MODULE_OBJS[@].o}"
 
 # all main entrances
-MAIN_ENTRANCES=("srs_main_server")
+MAIN_ENTRANCES=("srs_main_server" "srs_main_bandcheck")
 
 # srs(simple rtmp server) over st(state-threads)
 ModuleLibFiles=(${LibSTfile})
@@ -143,6 +148,7 @@ else
     LINK_OPTIONS="-ldl"
 fi
 BUILD_KEY="srs" APP_MAIN="srs_main_server" APP_NAME="srs" SO_PATH="" . auto/apps.sh
+BUILD_KEY="bandwidth" APP_MAIN="srs_main_bandcheck" APP_NAME="bandwidth" SO_PATH="" . auto/apps.sh
 
 echo 'configure ok! '
 
