@@ -80,6 +80,18 @@ function build_default_publish_rtmp_url() {
         return "rtmp://" + server + ":" + port + "/" + app + "...vhost..." + vhost + "/" + stream;
     }
 }
+// for the bandwidth tool to init page
+function build_default_bandwidth_rtmp_url() {
+    var query = parse_query_string();
+
+    var server = (query.server == undefined)? window.location.hostname:query.server;
+    var port = (query.port == undefined)? 1935:query.port;
+    var vhost = (query.vhost == undefined)? "bandcheck.srs.com":query.vhost;
+    var app = (query.app == undefined)? "app":query.app;
+    var key = (query.key == undefined)? "35c9b402c12a7246868752e2878f7e0e":query.key;
+
+    return "rtmp://" + server + ":" + port + "/" + app + "?key=" + key + "&vhost=" + vhost;
+}
 
 /**
 @param server the ip of server. default to window.location.hostname
@@ -137,6 +149,15 @@ function srs_init_publish(rtmp_url) {
     
     if (rtmp_url) {
         $(rtmp_url).val(build_default_publish_rtmp_url());
+    }
+}
+// for bw to init url
+// url: scheme://host:port/path?query#fragment
+function srs_init_bwt(rtmp_url, hls_url) {
+    update_nav();
+    
+    if (rtmp_url) {
+        $(rtmp_url).val(build_default_bandwidth_rtmp_url());
     }
 }
 

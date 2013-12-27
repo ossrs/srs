@@ -73,7 +73,7 @@ SrsPublisher.prototype.start = function() {
         "srs_publisher/release/srs_publisher.swf?_version="+srs_get_version_code(), 
         this.container,
         this.width, this.height,
-        "11.1", "js/AdobeFlashPlayerInstall.swf",
+        "11.1.0", "js/AdobeFlashPlayerInstall.swf",
         flashvars, params, attributes,
         function(callbackObj){
             self.callbackObj = callbackObj;
