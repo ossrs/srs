@@ -86,7 +86,7 @@ function build_default_bandwidth_rtmp_url() {
 
     var server = (query.server == undefined)? window.location.hostname:query.server;
     var port = (query.port == undefined)? 1935:query.port;
-    var vhost = (query.vhost == undefined)? "bandcheck.srs.com":query.vhost;
+    var vhost = "bandcheck.srs.com";
     var app = (query.app == undefined)? "app":query.app;
     var key = (query.key == undefined)? "35c9b402c12a7246868752e2878f7e0e":query.key;
 
