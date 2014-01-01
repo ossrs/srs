@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013 wenjiegit
+Copyright (c) 2013-2014 wenjiegit
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -777,7 +777,7 @@ void print_version()
 {
     const char *version = ""
             "srs_bandcheck "BUILD_VERSION"\n"
-            "Copyright (C) 2013 wenjiegit.\n"
+            "Copyright (c) 2013-2014 wenjiegit.\n"
             "License MIT\n"
             "This is free software: you are free to change and redistribute it.\n"
             "There is NO WARRANTY, to the extent permitted by law.\n"
