@@ -1184,4 +1184,3 @@ int SrsRtmp::identify_flash_publish_client(SrsPublishPacket* req, SrsClientType&
 	
 	return ret;
 }
-

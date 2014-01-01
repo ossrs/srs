@@ -76,7 +76,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RTMP_SIG_SRS_URL "https://"RTMP_SIG_SRS_URL_SHORT
 #define RTMP_SIG_SRS_URL_SHORT "github.com/winlinvip/simple-rtmp-server"
 #define RTMP_SIG_SRS_WEB "http://blog.csdn.net/win_lin"
-#define RTMP_SIG_SRS_EMAIL "winterserver@126.com"
+#define RTMP_SIG_SRS_EMAIL "winlin@vip.126.com"
 #define RTMP_SIG_SRS_LICENSE "The MIT License (MIT)"
 #define RTMP_SIG_SRS_COPYRIGHT "Copyright (c) 2013-2014 winlin"
 #define RTMP_SIG_SRS_PRIMARY_AUTHROS "winlin,wenjiegit"

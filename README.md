@@ -21,52 +21,52 @@ people who have submitted patches, reported bugs, added translations, helped<br/
 answer newbie questions, and generally made SRS that much better: [AUTHORS.txt](https://github.com/winlinvip/simple-rtmp-server/blob/master/AUTHORS.txt)
 
 ### Usage(simple)
-<strong>step -1:</strong> get SRS<br/>
+<strong>Step -1:</strong> get SRS<br/>
 <pre>
 git clone https://github.com/winlinvip/simple-rtmp-server &&
 cd simple-rtmp-server/trunk
 </pre>
-<strong>step 0:</strong> build SRS system.<br/>
+<strong>Step 0:</strong> build SRS system.<br/>
 <pre>
 bash scripts/build.sh
 </pre>
-<strong>step 1:</strong> start SRS all demo features.<br/>
+<strong>Step 1:</strong> start SRS all demo features.<br/>
 <pre>
 bash scripts/run.sh
 </pre>
-<strong>step 2:</strong> SRS live show: [http://your-server-ip](http://your-server-ip) <br/>
-<strong>step 3:</strong> stop SRS demo<br/>
+<strong>Step 2:</strong> SRS live show: [http://your-server-ip](http://your-server-ip) <br/>
+<strong>Step 3:</strong> stop SRS demo<br/>
 <pre>
 bash scripts/stop.sh
 </pre>
 
 ### Usage(detail)
-<strong>step 0:</strong> get SRS <br/>
+<strong>Step 0:</strong> get SRS <br/>
 <pre>
 git clone https://github.com/winlinvip/simple-rtmp-server &&
 cd simple-rtmp-server/trunk
 </pre>
-<strong>step 1:</strong> build SRS <br/>
+<strong>Step 1:</strong> build SRS <br/>
 <pre>
 ./configure --with-ssl --with-hls --with-ffmpeg --with-http && make
 </pre>
-<strong>step 2:</strong> start SRS <br/>
+<strong>Step 2:</strong> start SRS <br/>
 <pre>
 ./objs/srs -c conf/srs.conf
 </pre>
-<strong>step 3(optinal):</strong> start SRS listen at 19350 to forward to<br/>
+<strong>Step 3(optinal):</strong> start SRS listen at 19350 to forward to<br/>
 <pre>
 ./objs/srs -c conf/srs.19350.conf
 </pre>
-<strong>step 4(optinal):</strong> start nginx for HLS <br/>
+<strong>Step 4(optinal):</strong> start nginx for HLS <br/>
 <pre>
 sudo ./objs/nginx/sbin/nginx
 </pre>
-<strong>step 5(optinal):</strong> start http hooks for SRS callback <br/>
+<strong>Step 5(optinal):</strong> start http hooks for SRS callback <br/>
 <pre>
 python ./research/api-server/server.py 8085
 </pre>
-<strong>step 6:</strong> publish demo live stream <br/>
+<strong>Step 6:</strong> publish demo live stream <br/>
 <pre>
 FMS URL: rtmp://127.0.0.1/live?vhost=demo.srs.com
 Stream:  livestream
@@ -78,7 +78,7 @@ FFMPEG to publish the default demo stream:
         sleep 1; \
     done
 </pre>
-<strong>step 7:</strong> publish players live stream <br/>
+<strong>Step 7:</strong> publish players live stream <br/>
 <pre>
 FMS URL: rtmp://127.0.0.1/live?vhost=players
 Stream:  livestream
@@ -90,7 +90,7 @@ FFMPEG to publish the players demo stream:
         sleep 1; \
     done
 </pre>
-<strong>step 8:</strong> add server ip to client hosts as demo. <br/>
+<strong>Step 8:</strong> add server ip to client hosts as demo. <br/>
 <pre>
 # edit the folowing file:
 # linux: /etc/hosts
@@ -98,14 +98,14 @@ FFMPEG to publish the players demo stream:
 # where server ip is 192.168.2.111
 192.168.2.111 demo.srs.com
 </pre>
-<strong>step 9:</strong> play live stream. <br/>
+<strong>Step 9:</strong> play live stream. <br/>
 <pre>
 players: http://demo.srs.com/players
 rtmp url: rtmp://demo.srs.com/live/livestream
 m3u8 url: http://demo.srs.com/live/livestream.m3u8
 for android: http://demo.srs.com/live/livestream.html
 </pre>
-<strong>step 10(optinal):</strong> play live stream auto transcoded<br/>
+<strong>Step 10(optinal):</strong> play live stream auto transcoded<br/>
 <pre>
 rtmp url: rtmp://demo.srs.com/live/livestream_ld
 m3u8 url: http://demo.srs.com/live/livestream_ld.m3u8
@@ -114,7 +114,7 @@ rtmp url: rtmp://demo.srs.com/live/livestream_sd
 m3u8 url: http://demo.srs.com/live/livestream_sd.m3u8
 for android: http://demo.srs.com/live/livestream_sd.html
 </pre>
-<strong>step 11(optinal):</strong> play live stream auto forwarded, the hls dir change to /forward<br/>
+<strong>Step 11(optinal):</strong> play live stream auto forwarded, the hls dir change to /forward<br/>
 <pre>
 rtmp url: rtmp://demo.srs.com:19350/live/livestream
 m3u8 url: http://demo.srs.com/forward/live/livestream.m3u8
@@ -126,7 +126,7 @@ rtmp url: rtmp://demo.srs.com:19350/live/livestream_sd
 m3u8 url: http://demo.srs.com/forward/live/livestream_sd.m3u8
 for android: http://demo.srs.com/forward/live/livestream_sd.html
 </pre>
-<strong>step 12(optinal):</strong> modify the config and reload it (all features support reload)<br/>
+<strong>Step 12(optinal):</strong> modify the config and reload it (all features support reload)<br/>
 <pre>
 killall -1 srs
 </pre>
@@ -190,7 +190,7 @@ Bandwidth Test Workflow:
          |   final(2)----------------->    |
          |           &lt;END>                 |
          
-@see: class SrsBandwidth comments.
+@See: class SrsBandwidth comments.
 </pre>
 
 ### System Requirements
@@ -199,37 +199,38 @@ Supported operating systems and hardware:
 * All handware.
 
 ### Summary
-1. simple: also stable enough.<br/>
-2. high-performance: single-thread, async socket, event/st-thread driven.<br/>
-3. no edge server, origin server only.<br/>
-4. no vod streaming, live streaming only.<br/>
-5. no multiple processes, single process only.<br/>
-6. support vhost, support \_\_defaultVhost\_\_.<br/>
-7. support adobe rtmp live streaming.<br/>
-8. support apple hls(m3u8) live streaming.<br/>
-9. support reload config to enable changes.<br/>
-10. support cache last gop for flash player to fast startup.<br/>
-11. support listen at multiple ports.<br/>
-12. support long time(>4.6hours) publish/play.<br/>
-13. high performace, 1800 connections(500kbps), 900Mbps, CPU 90.2%, 41MB<br/>
-14. support forward publish stream to build active-standby cluster.<br/>
-15. support broadcast by forward the stream to other servers(origin/edge).<br/>
-16. support live stream transcoding by ffmpeg.<br/>
-17. support live stream forward(acopy/vcopy) by ffmpeg.<br/>
-18. support ffmpeg filters(logo/overlay/crop), x264 params.<br/>
-19. support audio transcode only, speex/mp3 to aac<br/>
-20. support http callback api hooks(for authentication and injection).<br/>
-21. support bandwidth test api and flash client.<br/>
-22. player, publisher(encoder), and demo pages(jquery+bootstrap). <br/>
-23. demo video meeting or chat(SRS+cherrypy+jquery+bootstrap). <br/>
-24. [plan] support network based cli and json result.<br/>
-25. [plan] support adobe flash refer/token/swf verification.<br/>
-26. [plan] support adobe amf3 codec.<br/>
-27. [plan] support dvr(record live to vod file)<br/>
-28. [plan] support FMS edge protocol<br/>
-29. [plan] support encryption: RTMPE/RTMPS, HLS DRM<br/>
-30. [plan] support RTMPT, http to tranverse firewalls<br/>
-31. [plan] support file source, transcoding file to live stream<br/>
+1. Simple: also stable enough.<br/>
+2. High-performance: single-thread, async socket, event/st-thread driven.<br/>
+3. NO edge server, origin server only.<br/>
+4. NO vod streaming, live streaming only.<br/>
+5. NO multiple processes, single process only.<br/>
+6. Support vhost, support \_\_defaultVhost\_\_.<br/>
+7. Support adobe rtmp live streaming.<br/>
+8. Support apple hls(m3u8) live streaming.<br/>
+9. Support reload config to enable changes.<br/>
+10. Support cache last gop for flash player to fast startup.<br/>
+11. Support listen at multiple ports.<br/>
+12. Support long time(>4.6hours) publish/play.<br/>
+13. High performace, 1800 connections(500kbps), 900Mbps, CPU 90.2%, 41MB<br/>
+14. Support forward publish stream to build active-standby cluster.<br/>
+15. Support broadcast by forward the stream to other servers(origin/edge).<br/>
+16. Support live stream transcoding by ffmpeg.<br/>
+17. Support live stream forward(acopy/vcopy) by ffmpeg.<br/>
+18. Support ffmpeg filters(logo/overlay/crop), x264 params.<br/>
+19. Support audio transcode only, speex/mp3 to aac<br/>
+20. Support http callback api hooks(for authentication and injection).<br/>
+21. Support bandwidth test api and flash client.<br/>
+22. Player, publisher(encoder), and demo pages(jquery+bootstrap). <br/>
+23. Demo video meeting or chat(SRS+cherrypy+jquery+bootstrap). <br/>
+24. [dev] Full documents in wiki, in chineses. <br/>
+25. [plan] Support network based cli and json result.<br/>
+26. [plan] Support adobe flash refer/token/swf verification.<br/>
+27. [plan] Support adobe amf3 codec.<br/>
+28. [plan] Support dvr(record live to vod file)<br/>
+29. [plan] Support FMS edge protocol<br/>
+30. [plan] Support encryption: RTMPE/RTMPS, HLS DRM<br/>
+31. [plan] Support RTMPT, http to tranverse firewalls<br/>
+32. [plan] Support file source, transcoding file to live stream<br/>
 
 ### Performance
 1. 300 connections, 150Mbps, 500kbps, CPU 18.8%, 5956KB.
@@ -239,6 +240,7 @@ Supported operating systems and hardware:
 5. 1500 connections, 750Mbps, 500kbps, CPU 81.9%, 28MB.
 6. 1800 connections, 900Mbps, 500kbps, CPU 90.2%, 41MB.
 <pre>
+[winlin@dev6 srs]$ dstat
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
 usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
  58   9  32   0   0   1|   0  4168k| 277M  277M|   0     0 |  29k   25k
@@ -257,16 +259,16 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 </pre>
 
 ### Releases
-* 2013-12-25, [release v0.9](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.9), support bandwidth test, add player/encoder/chat demos. 20926 lines.<br/>
-* 2013-12-08, [release v0.8](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.8), support http hooks callback, update [st_load](https://github.com/winlinvip/st-load). 19186 lines.<br/>
-* 2013-12-03, [release v0.7](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.7), support live stream transcoding. 17605 lines.<br/>
-* 2013-11-29, [release v0.6](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.6), support forward stream to origin/edge. 16094 lines.<br/>
-* 2013-11-26, [release v0.5](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.5), support HLS(m3u8), fragment and window. 14449 lines.<br/>
-* 2013-11-10, [release v0.4](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.4), support reload config, pause, longtime publish/play. 12500 lines.<br/>
-* 2013-11-04, [release v0.3](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.3), support vhost, refer, gop cache, listen multiple ports. 11773 lines.<br/>
-* 2013-10-25, [release v0.2](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.2), support rtmp flash publish, h264, time jitter correct. 10125 lines.<br/>
-* 2013-10-23, [release v0.1](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.1), support rtmp FMLE/FFMPEG publish, vp6. 8287 lines.<br/>
-* 2013-10-17, created.<br/>
+* 2013-12-25, [Release v0.9](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.9), support bandwidth test, add player/encoder/chat demos. 20926 lines.<br/>
+* 2013-12-08, [Release v0.8](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.8), support http hooks callback, update [st_load](https://github.com/winlinvip/st-load). 19186 lines.<br/>
+* 2013-12-03, [Release v0.7](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.7), support live stream transcoding. 17605 lines.<br/>
+* 2013-11-29, [Release v0.6](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.6), support forward stream to origin/edge. 16094 lines.<br/>
+* 2013-11-26, [Release v0.5](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.5), support HLS(m3u8), fragment and window. 14449 lines.<br/>
+* 2013-11-10, [Release v0.4](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.4), support reload config, pause, longtime publish/play. 12500 lines.<br/>
+* 2013-11-04, [Release v0.3](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.3), support vhost, refer, gop cache, listen multiple ports. 11773 lines.<br/>
+* 2013-10-25, [Release v0.2](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.2), support rtmp flash publish, h264, time jitter correct. 10125 lines.<br/>
+* 2013-10-23, [Release v0.1](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.1), support rtmp FMLE/FFMPEG publish, vp6. 8287 lines.<br/>
+* 2013-10-17, Created.<br/>
 
 ### Compare
 * SRS v0.9: 20926 lines. player/encoder/chat demos. bandwidth test for encoder/CDN.<br/>
