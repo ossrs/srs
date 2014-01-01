@@ -391,12 +391,44 @@ int SrsRtmpClient::play(string stream, int stream_id)
 		}
 	}
 	
+	// SetChunkSize
+	if (true) {
+		SrsCommonMessage* msg = new SrsCommonMessage();
+		SrsSetChunkSizePacket* pkt = new SrsSetChunkSizePacket();
+	
+		pkt->chunk_size = SRS_CONF_DEFAULT_CHUNK_SIZE;
+		msg->set_packet(pkt, 0);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			srs_error("send set chunk size failed. "
+				"stream=%s, chunk_size=%d, ret=%d", 
+				stream.c_str(), SRS_CONF_DEFAULT_CHUNK_SIZE, ret);
+			return ret;
+		}
+	}
+	
 	return ret;
 }
 
 int SrsRtmpClient::publish(string stream, int stream_id)
 {
 	int ret = ERROR_SUCCESS;
+	
+	// SetChunkSize
+	if (true) {
+		SrsCommonMessage* msg = new SrsCommonMessage();
+		SrsSetChunkSizePacket* pkt = new SrsSetChunkSizePacket();
+	
+		pkt->chunk_size = SRS_CONF_DEFAULT_CHUNK_SIZE;
+		msg->set_packet(pkt, 0);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			srs_error("send set chunk size failed. "
+				"stream=%s, chunk_size=%d, ret=%d", 
+				stream.c_str(), SRS_CONF_DEFAULT_CHUNK_SIZE, ret);
+			return ret;
+		}
+	}
 
 	// publish(stream)
 	if (true) {
