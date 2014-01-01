@@ -35,7 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_client.hpp>
 #include <srs_core_config.hpp>
 
-#define SERVER_LISTEN_BACKLOG 10
+#define SERVER_LISTEN_BACKLOG 512
 #define SRS_TIME_RESOLUTION_MS 500
 
 SrsListener::SrsListener(SrsServer* _server, SrsListenerType _type)
