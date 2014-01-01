@@ -214,7 +214,7 @@ Supported operating systems and hardware:
 11. Support listen at multiple ports.<br/>
 12. Support long time(>4.6hours) publish/play.<br/>
 13. High performace, 1800 connections(500kbps), 900Mbps, CPU 90.2%, 41MB<br/>
-14. Support forward publish stream to build active-standby cluster.<br/>
+14. Support forward publish stream to build active-standby [cluster](https://github.com/winlinvip/simple-rtmp-server/wiki/Cluster).<br/>
 15. Support broadcast by forward the stream to other servers(origin/edge).<br/>
 16. Support live stream transcoding by ffmpeg.<br/>
 17. Support live stream forward(acopy/vcopy) by ffmpeg.<br/>
