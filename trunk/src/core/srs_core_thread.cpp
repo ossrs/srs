@@ -54,10 +54,10 @@ void ISrsThreadHandler::on_leave_loop()
 {
 }
 
-SrsThread::SrsThread(ISrsThreadHandler* thread_handler, int64_t interval_ms)
+SrsThread::SrsThread(ISrsThreadHandler* thread_handler, int64_t interval_us)
 {
 	handler = thread_handler;
-	cycle_interval_milliseconds = interval_ms;
+	cycle_interval_us = interval_us;
 	
 	tid = NULL;
 	loop = false;
@@ -143,7 +143,7 @@ failed:
 			break;
 		}
 		
-		st_usleep(cycle_interval_milliseconds * 1000);
+		st_usleep(cycle_interval_us);
 	}
 	
 	handler->on_leave_loop();

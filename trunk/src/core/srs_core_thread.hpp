@@ -85,14 +85,14 @@ private:
 	bool loop;
 private:
 	ISrsThreadHandler* handler;
-	int64_t cycle_interval_milliseconds;
+	int64_t cycle_interval_us;
 public:
 	/**
 	* initialize the thread.
 	* @param thread_handler, the cycle handler for the thread.
-	* @param interval_ms, the sleep interval when cycle finished.
+	* @param interval_us, the sleep interval when cycle finished.
 	*/
-	SrsThread(ISrsThreadHandler* thread_handler, int64_t interval_ms);
+	SrsThread(ISrsThreadHandler* thread_handler, int64_t interval_us);
 	virtual ~SrsThread();
 public:
 	/**

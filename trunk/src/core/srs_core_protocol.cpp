@@ -282,8 +282,6 @@ messages.
 /****************************************************************************
 *****************************************************************************
 ****************************************************************************/
-// when got a messae header, increase recv timeout to got an entire message.
-#define SRS_MIN_RECV_TIMEOUT_US 3000
 
 SrsProtocol::AckWindowSize::AckWindowSize()
 {

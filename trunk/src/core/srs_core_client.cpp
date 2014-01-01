@@ -42,11 +42,6 @@ using namespace std;
 #include <srs_core_http.hpp>
 #include <srs_core_bandwidth.hpp>
 
-#define SRS_PULSE_TIMEOUT_MS 100
-#define SRS_SEND_TIMEOUT_US 5000000L
-#define SRS_RECV_TIMEOUT_US SRS_SEND_TIMEOUT_US
-#define SRS_STREAM_BUSY_SLEEP_MS 2000
-
 SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
 	: SrsConnection(srs_server, client_stfd)
 {
@@ -198,7 +193,7 @@ int SrsClient::service_cycle()
 		srs_warn("stream %s is already publishing. ret=%d", 
 			req->get_stream_url().c_str(), ret);
 		// to delay request
-		st_usleep(SRS_STREAM_BUSY_SLEEP_MS * 1000);
+		st_usleep(SRS_STREAM_BUSY_SLEEP_US);
 		return ret;
 	}
 	
@@ -324,12 +319,12 @@ int SrsClient::playing(SrsSource* source)
 	SrsAutoFree(SrsConsumer, consumer, false);
 	srs_verbose("consumer created success.");
 	
-	rtmp->set_recv_timeout(SRS_PULSE_TIMEOUT_MS * 1000);
+	rtmp->set_recv_timeout(SRS_PULSE_TIMEOUT_US);
 	
 	SrsPithyPrint pithy_print(SRS_STAGE_PLAY_USER);
 
 	while (true) {
-		pithy_print.elapse(SRS_PULSE_TIMEOUT_MS);
+		pithy_print.elapse(SRS_PULSE_TIMEOUT_US / 1000);
 		
 		// switch to other st-threads.
 		st_usleep(0);

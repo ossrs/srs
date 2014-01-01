@@ -36,6 +36,37 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_log.hpp>
 #include <srs_core_error.hpp>
 
+// the following is the timeout for rtmp protocol, 
+// to avoid death connection.
+
+// when got a messae header, there must be some data,
+// increase recv timeout to got an entire message.
+#define SRS_MIN_RECV_TIMEOUT_US 60*1000*1000L
+
+// the timeout to wait for client control message,
+// if timeout, we generally ignore and send the data to client,
+// generally, it's the pulse time for data seding.
+#define SRS_PULSE_TIMEOUT_US 200*1000L
+
+// the timeout to wait client data,
+// if timeout, close the connection.
+#define SRS_SEND_TIMEOUT_US 30*1000*1000L
+
+// the timeout to send data to client,
+// if timeout, close the connection.
+#define SRS_RECV_TIMEOUT_US 30*1000*1000L
+
+// when stream is busy, for example, streaming is already
+// publishing, when a new client to request to publish,
+// sleep a while and close the connection.
+#define SRS_STREAM_BUSY_SLEEP_US 3*1000*1000L
+
+// when error, forwarder sleep for a while and retry.
+#define SRS_FORWARDER_SLEEP_US 3*1000*1000L
+
+// when error, encoder sleep for a while and retry.
+#define SRS_ENCODER_SLEEP_US 3*1000*1000L
+
 class SrsSocket;
 class SrsBuffer;
 class SrsPacket;

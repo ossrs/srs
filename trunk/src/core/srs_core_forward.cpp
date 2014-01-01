@@ -38,11 +38,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_source.hpp>
 #include <srs_core_autofree.hpp>
 
-#define SRS_PULSE_TIMEOUT_MS 100
-#define SRS_FORWARDER_SLEEP_MS 2000
-#define SRS_SEND_TIMEOUT_US 3000000L
-#define SRS_RECV_TIMEOUT_US SRS_SEND_TIMEOUT_US
-
 SrsForwarder::SrsForwarder(SrsSource* _source)
 {
 	source = _source;
@@ -51,7 +46,7 @@ SrsForwarder::SrsForwarder(SrsSource* _source)
 	stfd = NULL;
 	stream_id = 0;
 
-	pthread = new SrsThread(this, SRS_FORWARDER_SLEEP_MS);
+	pthread = new SrsThread(this, SRS_FORWARDER_SLEEP_US);
 	queue = new SrsMessageQueue();
 	jitter = new SrsRtmpJitter();
 }
@@ -286,7 +281,7 @@ int SrsForwarder::forward()
 {
 	int ret = ERROR_SUCCESS;
 	
-	client->set_recv_timeout(SRS_PULSE_TIMEOUT_MS * 1000);
+	client->set_recv_timeout(SRS_PULSE_TIMEOUT_US);
 	
 	SrsPithyPrint pithy_print(SRS_STAGE_FORWARDER);
 
@@ -322,7 +317,7 @@ int SrsForwarder::forward()
 		SrsAutoFree(SrsSharedPtrMessage*, msgs, true);
 
 		// pithy print
-		pithy_print.elapse(SRS_PULSE_TIMEOUT_MS);
+		pithy_print.elapse(SRS_PULSE_TIMEOUT_US / 1000);
 		if (pithy_print.can_print()) {
 			srs_trace("-> time=%"PRId64", msgs=%d, obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
 				pithy_print.get_age(), count, client->get_send_bytes(), client->get_recv_bytes(), client->get_send_kbps(), client->get_recv_kbps());
