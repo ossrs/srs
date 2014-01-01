@@ -607,7 +607,7 @@ int SrsRtmp::response_connect_app(SrsRequest *req, const char* server_ip)
 	data->set("srs_site", new SrsAmf0String(RTMP_SIG_SRS_WEB));
 	data->set("srs_email", new SrsAmf0String(RTMP_SIG_SRS_EMAIL));
 	data->set("srs_copyright", new SrsAmf0String(RTMP_SIG_SRS_COPYRIGHT));
-	data->set("srs_contributor", new SrsAmf0String(RTMP_SIG_SRS_CONTRIBUTOR));
+	data->set("srs_primary_authors", new SrsAmf0String(RTMP_SIG_SRS_PRIMARY_AUTHROS));
 	
     if (server_ip) {
         data->set("srs_server_ip", new SrsAmf0String(server_ip));

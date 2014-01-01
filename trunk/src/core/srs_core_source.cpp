@@ -642,7 +642,7 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
 	metadata->metadata->set("server", new SrsAmf0String(
 		RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
 	metadata->metadata->set("contributor", 
-		new SrsAmf0String(RTMP_SIG_SRS_CONTRIBUTOR));
+		new SrsAmf0String(RTMP_SIG_SRS_PRIMARY_AUTHROS));
 	
 	SrsAmf0Any* prop = NULL;
 	if ((prop = metadata->metadata->get_property("audiosamplerate")) != NULL) {

@@ -735,9 +735,9 @@ int SrsConfig::parse_argv(int& i, char** argv)
 
 void SrsConfig::print_help(char** argv)
 {
-	printf(RTMP_SIG_SRS_NAME" "RTMP_SIG_SRS_VERSION
-		" Copyright (c) 2013-2014 winlin\n" 
-		"Contributors: "RTMP_SIG_SRS_CONTRIBUTOR"\n"
+	printf(
+		RTMP_SIG_SRS_NAME" "RTMP_SIG_SRS_VERSION" "RTMP_SIG_SRS_COPYRIGHT"\n" 
+		"Primary Authors: "RTMP_SIG_SRS_PRIMARY_AUTHROS"\n"
 		"Build: "SRS_BUILD_DATE" Configuration: "SRS_CONFIGURE"\n"
 		"Usage: %s [-h?vV] [-c <filename>]\n" 
 		"\n"

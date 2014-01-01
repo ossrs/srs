@@ -1,56 +1,60 @@
-simple-rtmp-server
+Simple-RTMP-Server
 ==================
 
-srs(simple rtmp origin live server) over state-threads.<br/>
-srs is a simple, high-performance, running in single process, origin live server.<br/>
-srs supports vhost, rtmp, HLS, transcoding, forward, http hooks. <br/>
-blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
-see also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) <br/>
-see also: [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.github.io/simple-rtmp-server) <br/>
+SRS(SIMPLE RTMP Server) over state-threads created in 2013.<br/>
+SRS is a simple, high-performance, running in single process, origin live server.<br/>
+SRS supports vhost, rtmp, HLS, transcoding, forward, http hooks. <br/>
+Blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
+See also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) <br/>
+See also: [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.github.io/simple-rtmp-server) <br/>
 TencentQQ: [http://url.cn/WAHICw](http://url.cn/WAHICw) (Group: 212189142)
 
-### Contributors
-winlin([winterserver](#)): [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
-wenjie([wenjiegit](https://github.com/wenjiegit/simple-rtmp-server)): [http://blog.chinaunix.net/uid/25006789.html](http://blog.chinaunix.net/uid/25006789.html) <br/>
-about the contributors: <br/>
-1. contribute important features to srs. <br/>
-2. the name of all contributors will send in the response of NetConnection.connect and metadata. 
+### AUTHORS
+The PRIMARY AUTHORS are (and/or have been)(Authors ordered by first contribution): <br/>
+* winlin([winterserver](#)): [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
+* wenjie([wenjiegit](https://github.com/wenjiegit/simple-rtmp-server)): [http://blog.chinaunix.net/uid/25006789.html](http://blog.chinaunix.net/uid/25006789.html) <br/>
+About the primary AUTHORS: <br/>
+* Contribute important features to SRS. <br/>
+* Names of all PRIMARY AUTHORS response in NetConnection.connect and metadata. <br/>
+And here is an inevitably incomplete list of MUCH-APPRECIATED CONTRIBUTORS --<br/>
+people who have submitted patches, reported bugs, added translations, helped<br/>
+answer newbie questions, and generally made SRS that much better: [AUTHORS.txt](https://github.com/winlinvip/simple-rtmp-server/blob/master/AUTHORS.txt)
 
 ### Usage(simple)
-<strong>step -1:</strong> get srs<br/>
+<strong>step -1:</strong> get SRS<br/>
 <pre>
 git clone https://github.com/winlinvip/simple-rtmp-server &&
 cd simple-rtmp-server/trunk
 </pre>
-<strong>step 0:</strong> build srs system.<br/>
+<strong>step 0:</strong> build SRS system.<br/>
 <pre>
 bash scripts/build.sh
 </pre>
-<strong>step 1:</strong> start srs all demo features.<br/>
+<strong>step 1:</strong> start SRS all demo features.<br/>
 <pre>
 bash scripts/run.sh
 </pre>
-<strong>step 2:</strong> srs live show: [http://your-server-ip](http://your-server-ip) <br/>
-<strong>step 3:</strong> stop srs demo<br/>
+<strong>step 2:</strong> SRS live show: [http://your-server-ip](http://your-server-ip) <br/>
+<strong>step 3:</strong> stop SRS demo<br/>
 <pre>
 bash scripts/stop.sh
 </pre>
 
 ### Usage(detail)
-<strong>step 0:</strong> get srs <br/>
+<strong>step 0:</strong> get SRS <br/>
 <pre>
 git clone https://github.com/winlinvip/simple-rtmp-server &&
 cd simple-rtmp-server/trunk
 </pre>
-<strong>step 1:</strong> build srs <br/>
+<strong>step 1:</strong> build SRS <br/>
 <pre>
 ./configure --with-ssl --with-hls --with-ffmpeg --with-http && make
 </pre>
-<strong>step 2:</strong> start srs <br/>
+<strong>step 2:</strong> start SRS <br/>
 <pre>
 ./objs/srs -c conf/srs.conf
 </pre>
-<strong>step 3(optinal):</strong> start srs listen at 19350 to forward to<br/>
+<strong>step 3(optinal):</strong> start SRS listen at 19350 to forward to<br/>
 <pre>
 ./objs/srs -c conf/srs.19350.conf
 </pre>
@@ -58,7 +62,7 @@ cd simple-rtmp-server/trunk
 <pre>
 sudo ./objs/nginx/sbin/nginx
 </pre>
-<strong>step 5(optinal):</strong> start http hooks for srs callback <br/>
+<strong>step 5(optinal):</strong> start http hooks for SRS callback <br/>
 <pre>
 python ./research/api-server/server.py 8085
 </pre>
@@ -135,7 +139,7 @@ killall -s SIGHUP srs
 System Architecture:
 <pre>
 +------------------------------------------------------+
-|             SRS(Simple Rtmp Server)                  |
+|             SRS(Simple RTMP Server)                  |
 +---------------+---------------+-----------+----------+
 |   API/hook    |   Transcoder  |    HLS    |   RTMP   |
 |  http-parser  |  FFMPEG/x264  |  NGINX/ts | protocol |
@@ -151,7 +155,7 @@ Stream Architecture:
         + Publish +              +  Deliver | 
         +---|-----+              +----|-----+ 
 +-----------+-------------------------+----------------+
-| Encoder   | SRS(Simple Rtmp Server) |     Client     |
+| Encoder   | SRS(Simple RTMP Server) |     Client     |
 +-----------+-------------------------+----------------+
 | (FMLE,    |   +-> RTMP protocol ----+-> Flash Player |
 | FFMPEG, --+-> +-> HLS/NGINX --------+-> m3u8 player  |
@@ -217,7 +221,7 @@ Supported operating systems and hardware:
 20. support http callback api hooks(for authentication and injection).<br/>
 21. support bandwidth test api and flash client.<br/>
 22. player, publisher(encoder), and demo pages(jquery+bootstrap). <br/>
-23. demo video meeting or chat(srs+cherrypy+jquery+bootstrap). <br/>
+23. demo video meeting or chat(SRS+cherrypy+jquery+bootstrap). <br/>
 24. [plan] support network based cli and json result.<br/>
 25. [plan] support adobe flash refer/token/swf verification.<br/>
 26. [plan] support adobe amf3 codec.<br/>
@@ -265,15 +269,15 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * 2013-10-17, created.<br/>
 
 ### Compare
-* srs v0.9: 20926 lines. player/encoder/chat demos. bandwidth test for encoder/CDN.<br/>
-* srs v0.8: 19186 lines. implements http hooks refer to [nginx-rtmp](https://github.com/arut/nginx-rtmp-module). <br/>
-* srs v0.7: 17605 lines. implements transcoding(FFMPEG) feature refer to [wowza](http://www.wowza.com). <br/>
-* srs v0.6: 16094 lines. important feature forward for CDN. <br/>
-* srs v0.5: 14449 lines. implements HLS feature refer to [nginx-rtmp](https://github.com/arut/nginx-rtmp-module). <br/>
-* srs v0.4: 12500 lines. important feature reload for CDN. <br/>
-* srs v0.3: 11773 lines. implements vhost feature refer to [FMS](http://www.adobe.com/products/adobe-media-server-family.html). <br/>
-* srs v0.2: 10125 lines. implements rtmp protocol stack refer to [nginx-rtmp](https://github.com/arut/nginx-rtmp-module). <br/>
-* srs v0.1: 8287 lines. base on state-threads. <br/>
+* SRS v0.9: 20926 lines. player/encoder/chat demos. bandwidth test for encoder/CDN.<br/>
+* SRS v0.8: 19186 lines. implements http hooks refer to [nginx-rtmp](https://github.com/arut/nginx-rtmp-module). <br/>
+* SRS v0.7: 17605 lines. implements transcoding(FFMPEG) feature refer to [wowza](http://www.wowza.com). <br/>
+* SRS v0.6: 16094 lines. important feature forward for CDN. <br/>
+* SRS v0.5: 14449 lines. implements HLS feature refer to [nginx-rtmp](https://github.com/arut/nginx-rtmp-module). <br/>
+* SRS v0.4: 12500 lines. important feature reload for CDN. <br/>
+* SRS v0.3: 11773 lines. implements vhost feature refer to [FMS](http://www.adobe.com/products/adobe-media-server-family.html). <br/>
+* SRS v0.2: 10125 lines. implements rtmp protocol stack refer to [nginx-rtmp](https://github.com/arut/nginx-rtmp-module). <br/>
+* SRS v0.1: 8287 lines. base on state-threads. <br/>
 * nginx-rtmp v1.0.4: 26786 lines <br/>
 * nginx v1.5.0: 139524 lines <br/>
 
@@ -281,7 +285,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * v1.0, 2013-12-27, merge from wenjie, the bandwidth test feature.
 * v0.9, 2013-12-25, [v0.9](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.9) released. 20926 lines.
 * v0.9, 2013-12-25, fix the bitrate bug(in Bps), use enhanced microphone.
-* v0.9, 2013-12-22, demo video meeting or chat(srs+cherrypy+jquery+bootstrap).
+* v0.9, 2013-12-22, demo video meeting or chat(SRS+cherrypy+jquery+bootstrap).
 * v0.9, 2013-12-22, merge from wenjie, support banwidth test.
 * v0.9, 2013-12-22, merge from wenjie: support set chunk size at vhost level
 * v0.9, 2013-12-21, add [players](http://demo.srs.com/players) for play and publish.
@@ -298,7 +302,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * v0.8, 2013-12-08, support multiple http hooks for a event.
 * v0.8, 2013-12-07, support http callback hooks, on_connect.
 * v0.8, 2013-12-07, support network based cli and json result, add CherryPy 3.2.4.
-* v0.8, 2013-12-07, update http/hls/rtmp load test tool [st_load](https://github.com/winlinvip/st-load), use srs rtmp sdk.
+* v0.8, 2013-12-07, update http/hls/rtmp load test tool [st_load](https://github.com/winlinvip/st-load), use SRS rtmp sdk.
 * v0.8, 2013-12-06, support max_connections, drop if exceed.
 * v0.8, 2013-12-05, support log_dir, write ffmpeg log to file.
 * v0.8, 2013-12-05, fix the forward/hls/encoder bug.
