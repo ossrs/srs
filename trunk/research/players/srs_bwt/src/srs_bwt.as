@@ -143,8 +143,8 @@ package
                 if (evt.info.data.hasOwnProperty("srs_server")) {
                     customItems.push(new ContextMenuItem("Server: " + evt.info.data.srs_server));
                 }
-                if (evt.info.data.hasOwnProperty("srs_contributor")) {
-                    customItems.push(new ContextMenuItem("Contributor: " + evt.info.data.srs_contributor));
+                if (evt.info.data.hasOwnProperty("srs_primary_authors")) {
+                    customItems.push(new ContextMenuItem("PrimaryAuthors: " + evt.info.data.srs_primary_authors));
                 }
                 contextMenu.customItems = customItems;
             }
