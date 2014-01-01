@@ -256,7 +256,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
  41   6  52   0   0   1|   0  1264k| 116M  116M|   0     0 |  25k   28k
  48   6  45   0   0   1|   0  1272k| 143M  143M|   0     0 |  27k   27k
 </pre>
-See also: [Performance Test Guide](https://github.com/winlinvip/simple-rtmp-server/wiki/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95%E6%8C%87%E5%8D%97#%E6%80%A7%E8%83%BD%E5%AF%B9%E6%AF%94)
+See also: [Performance Test Guide](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance)
 
 ### Releases
 * 2013-12-25, [Release v0.9](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.9), support bandwidth test, add player/encoder/chat demos. 20926 lines.<br/>
