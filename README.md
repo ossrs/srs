@@ -241,6 +241,7 @@ Supported operating systems and hardware:
 4. 1200 connections, 600Mbps, 500kbps, CPU 72.4%, 15MB.
 5. 1500 connections, 750Mbps, 500kbps, CPU 81.9%, 28MB.
 6. 1800 connections, 900Mbps, 500kbps, CPU 90.2%, 41MB.
+
 <pre>
 [winlin@dev6 srs]$ dstat
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
