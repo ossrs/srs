@@ -13,9 +13,11 @@ TencentQQ: [http://url.cn/WAHICw](http://url.cn/WAHICw) (Group: 212189142)
 The PRIMARY AUTHORS are (and/or have been)(Authors ordered by first contribution): <br/>
 * winlin([winterserver](#)): [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
 * wenjie([wenjiegit](https://github.com/wenjiegit/simple-rtmp-server)): [http://blog.chinaunix.net/uid/25006789.html](http://blog.chinaunix.net/uid/25006789.html) <br/>
+
 About the primary AUTHORS: <br/>
 * Contribute important features to SRS. <br/>
 * Names of all PRIMARY AUTHORS response in NetConnection.connect and metadata. <br/>
+
 And here is an inevitably incomplete list of MUCH-APPRECIATED CONTRIBUTORS --<br/>
 people who have submitted patches, reported bugs, added translations, helped<br/>
 answer newbie questions, and generally made SRS that much better: [AUTHORS.txt](https://github.com/winlinvip/simple-rtmp-server/blob/master/AUTHORS.txt)
