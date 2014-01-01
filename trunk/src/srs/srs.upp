@@ -58,7 +58,7 @@ file
     ..\core\srs_core_source.hpp,
     ..\core\srs_core_source.cpp,
     research readonly separator,
-    ..\..\research\ts_info.cc;
+    ..\..\research\hls\ts_info.cc;
 
 mainconfig
     "" = "MAIN";
