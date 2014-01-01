@@ -334,7 +334,7 @@ package
                 if (url.indexOf("http") == 0) {
                     media_stream.play(url);
                 } else {
-                    var streamName:String = url.substr(url.lastIndexOf("/"));
+                    var streamName:String = url.substr(url.lastIndexOf("/") + 1);
                     media_stream.play(streamName);
                 }
                 
