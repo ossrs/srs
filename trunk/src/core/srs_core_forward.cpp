@@ -290,7 +290,7 @@ int SrsForwarder::forward()
 	
 	SrsPithyPrint pithy_print(SRS_STAGE_FORWARDER);
 
-	while (true) {
+	while (pthread->can_loop()) {
 		// switch to other st-threads.
 		st_usleep(0);
 
