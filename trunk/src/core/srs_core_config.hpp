@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013 winlin
+Copyright (c) 2013-2014 winlin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -57,7 +57,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // the interval in seconds for bandwidth check
 #define SRS_CONF_DEFAULT_BANDWIDTH_LIMIT_KBPS 1000
 
-#define SRS_CONF_DEFAULT_CHUNK_SIZE 4096
+// the default chunk size for system.
+#define SRS_CONF_DEFAULT_CHUNK_SIZE 60000
 
 #define SRS_STAGE_PLAY_USER_INTERVAL_MS 1300
 #define SRS_STAGE_PUBLISH_USER_INTERVAL_MS 1100

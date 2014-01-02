@@ -13,6 +13,21 @@ function padding(number, length, prefix) {
 
 /**
 * parse the query string to object.
+* parse the url location object as: host(hostname:http_port), pathname(dir/filename)
+* for example, url http://192.168.1.168:1980/ui/players.html?vhost=player.vhost.com&app=test&stream=livestream
+* parsed to object:
+{
+    host        : "192.168.1.168:1980",
+    hostname    : "192.168.1.168",
+    http_port   : 1980,
+    pathname    : "/ui/players.html",
+    dir         : "/ui",
+    filename    : "/players.html",
+    
+    vhost       : "player.vhost.com",
+    app         : "test",
+    stream      : "livestream"
+}
 */
 function parse_query_string(){
     var obj = {};

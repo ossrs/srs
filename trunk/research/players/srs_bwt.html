@@ -12,13 +12,18 @@
     <script type="text/javascript" src="js/srs.player.js"></script>
     <script type="text/javascript" src="js/srs.publisher.js"></script>
     <script type="text/javascript" src="js/srs.utility.js"></script>
+<<<<<<< HEAD
     <script type="text/javascript" src="js/srs.utility.js"></script>
 	<script type="text/javascript" src="js/srs.bandwidth.js"></script>
+=======
+    <script type="text/javascript" src="js/srs.bandwidth.js"></script>
+>>>>>>> upstream/master
     <style>
         body{
             padding-top: 55px;
         }
         #main_modal {
+<<<<<<< HEAD
             width: 600px;
             margin-left: -300px;
         }
@@ -119,6 +124,56 @@
                 }
              );
         });	
+=======
+            width: 700px;
+            margin-left: -350px;
+        }
+    </style>
+    <script type="text/javascript">
+        var bandwidth = null;
+        
+        $(function(){
+            srs_init_bwt("#txt_url");
+
+            $("#btn_play").click(on_click_play);
+            $("#main_modal").on("show", on_start_bandwidth_test);
+            $("#main_modal").on("hide", on_stop_bandwidth_test); 
+        });
+        
+        function on_click_play() {
+            $("#check_status").text("");
+            $("#progress_bar").width("0%");
+            $("#main_modal").modal({show:true, keyboard:false});
+        }
+        function on_start_bandwidth_test() {
+            $("#div_container").remove();
+
+            var div_container = $("<div/>");
+            $(div_container).attr("id", "div_container");
+            $("#player").append(div_container);
+
+            var player = $("<div/>");
+            $(player).attr("id", "player_id");
+            $(div_container).append(player);
+            
+            var url = $("#txt_url").val();
+            
+            bandwidth = new SrsBandwidth("player_id", 100, 1);
+            bandwidth.on_bandwidth_ready = function() {
+                this.check_bandwidth(url);
+            }
+            bandwidth.on_update_progress = function(percent) {
+                $("#progress_bar").width(percent + "%");
+            }
+            bandwidth.on_update_status = function(status) {
+                $("#check_status").text(status);
+            }
+            bandwidth.start(url);
+        }
+        function on_stop_bandwidth_test() {
+            bandwidth.stop();
+        }
+>>>>>>> upstream/master
     </script>
 </head>
 <body>
@@ -141,6 +196,7 @@
     </div>
 </div>
 <div class="container">
+<<<<<<< HEAD
 
      <div class="form-inline">
          URL:
@@ -164,15 +220,49 @@
          </div>
          <span id="check_status1"><font ><strong id="check_status">status</strong></font> </span>
 
+=======
+    <div class="alert alert-info fade in">
+        <button type="button" class="close" data-dismiss="alert">×</button>
+        <strong><span>Usage:</span></strong> <span>点击“开始测速”即可测带宽，最大可测试带宽由服务器限制</span>
+    </div>
+     <div class="form-inline">
+         URL:
+         <input type="text" id="txt_url" class="input-xxlarge" value=""></input>
+         <button class="btn btn-primary" id="btn_play">开始测速</button>
+    </div>
+     <div id="main_modal" class="modal hide fade">
+         <div class="modal-header">
+             <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+             <h3>SRS Bandwidth Check</h3>
+         </div>
+         <div class="modal-body">
+            <div class="row-fluid">
+                <div class="span1"></div>
+                <div class="span10">
+                    <div class="progress progress-striped active" id="pb_buffer_bg">
+                        <div class="bar" style="width: 0%;" id="progress_bar"></div>
+                    </div>
+                </div>
+                <div class="span1"></div>
+            </div>
+            <span id="check_status">status</span>
+         </div>
+>>>>>>> upstream/master
          <div class="modal-footer">
              <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true"> 关闭 </button>
          </div>
      </div>
+<<<<<<< HEAD
 
+=======
+>>>>>>> upstream/master
     <hr>
     <footer>
         <p><a href="https://github.com/winlinvip/simple-rtmp-server">SRS Team &copy; 2013</a></p>
     </footer>
+    <div class="container">
+        <div id="player"></div>
+    </div>
 </div>
 </body>
 

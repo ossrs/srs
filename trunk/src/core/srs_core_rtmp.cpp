@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013 winlin
+Copyright (c) 2013-2014 winlin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -391,12 +391,44 @@ int SrsRtmpClient::play(string stream, int stream_id)
 		}
 	}
 	
+	// SetChunkSize
+	if (true) {
+		SrsCommonMessage* msg = new SrsCommonMessage();
+		SrsSetChunkSizePacket* pkt = new SrsSetChunkSizePacket();
+	
+		pkt->chunk_size = SRS_CONF_DEFAULT_CHUNK_SIZE;
+		msg->set_packet(pkt, 0);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			srs_error("send set chunk size failed. "
+				"stream=%s, chunk_size=%d, ret=%d", 
+				stream.c_str(), SRS_CONF_DEFAULT_CHUNK_SIZE, ret);
+			return ret;
+		}
+	}
+	
 	return ret;
 }
 
 int SrsRtmpClient::publish(string stream, int stream_id)
 {
 	int ret = ERROR_SUCCESS;
+	
+	// SetChunkSize
+	if (true) {
+		SrsCommonMessage* msg = new SrsCommonMessage();
+		SrsSetChunkSizePacket* pkt = new SrsSetChunkSizePacket();
+	
+		pkt->chunk_size = SRS_CONF_DEFAULT_CHUNK_SIZE;
+		msg->set_packet(pkt, 0);
+		
+		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+			srs_error("send set chunk size failed. "
+				"stream=%s, chunk_size=%d, ret=%d", 
+				stream.c_str(), SRS_CONF_DEFAULT_CHUNK_SIZE, ret);
+			return ret;
+		}
+	}
 
 	// publish(stream)
 	if (true) {
@@ -617,7 +649,7 @@ int SrsRtmp::response_connect_app(SrsRequest *req, const char* server_ip)
 	data->set("srs_site", new SrsAmf0String(RTMP_SIG_SRS_WEB));
 	data->set("srs_email", new SrsAmf0String(RTMP_SIG_SRS_EMAIL));
 	data->set("srs_copyright", new SrsAmf0String(RTMP_SIG_SRS_COPYRIGHT));
-	data->set("srs_contributor", new SrsAmf0String(RTMP_SIG_SRS_CONTRIBUTOR));
+	data->set("srs_primary_authors", new SrsAmf0String(RTMP_SIG_SRS_PRIMARY_AUTHROS));
 	
     if (server_ip) {
         data->set("srs_server_ip", new SrsAmf0String(server_ip));
@@ -1194,4 +1226,3 @@ int SrsRtmp::identify_flash_publish_client(SrsPublishPacket* req, SrsClientType&
 	
 	return ret;
 }
-

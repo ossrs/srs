@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013 wenjiegit
+Copyright (c) 2013-2014 wenjiegit
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -155,7 +155,7 @@ private:
 *  @brief init st lib
 */
 static int init_st();
-static void print_help();
+static void print_help(char** argv);
 static void print_version();
 
 /**
@@ -192,6 +192,11 @@ static std::string g_vhost = "bandcheck.srs.com";
 int main(int argc ,char* argv[])
 {
     int ret = ERROR_SUCCESS;
+    
+    if (argc <= 1) {
+        print_help(argv);
+        exit(1);
+    }
 
     if ((ret = get_opt(argc, argv)) != ERROR_SUCCESS) {
         return -1;
@@ -199,12 +204,12 @@ int main(int argc ,char* argv[])
 
     // check param
     if (g_ip.empty()) {
-        printf("ip address should not be empty.");
+        printf("ip address should not be empty.\n");
         return -1;
     }
 
     if (g_key.empty()) {
-        printf("test key should not be empty.");
+        printf("test key should not be empty.\n");
         return -1;
     }
 
@@ -324,7 +329,7 @@ int SrsBandCheckClient::expect_start_play()
     // expect connect _result
     SrsCommonMessage* msg = NULL;
     SrsBandwidthPacket* pkt = NULL;
-    if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(get_protocol(), &msg, &pkt)) != ERROR_SUCCESS) {
+    if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
         srs_error("expect bandcheck start play message failed. ret=%d", ret);
         return ret;
     }
@@ -363,7 +368,7 @@ int SrsBandCheckClient::expect_stop_play()
     while (true) {
         SrsCommonMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
-        if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(get_protocol(), &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect stop play message failed. ret=%d", ret);
             return ret;
         }
@@ -402,7 +407,7 @@ int SrsBandCheckClient::expect_start_pub()
     while (true) {
         SrsCommonMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
-        if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(get_protocol(), &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect start pub message failed. ret=%d", ret);
             return ret;
         }
@@ -472,7 +477,7 @@ int SrsBandCheckClient::expect_stop_pub()
     int ret = ERROR_SUCCESS;
 
     while (true) {
-        if ((ret = st_netfd_poll(get_st_fd(), POLLIN, 1000)) == ERROR_SUCCESS) {
+        if ((ret = st_netfd_poll(stfd, POLLIN, 1000)) == ERROR_SUCCESS) {
             SrsCommonMessage* msg = 0;
             if ((ret = recv_message(&msg)) != ERROR_SUCCESS)
             {
@@ -480,7 +485,7 @@ int SrsBandCheckClient::expect_stop_pub()
                 return ret;
             }
 
-            if ((ret = msg->decode_packet(get_protocol())) != ERROR_SUCCESS) {
+            if ((ret = msg->decode_packet(protocol)) != ERROR_SUCCESS) {
                 srs_error("decode packet error while expect stop pub. ret=%d", ret);
                 return ret;
             }
@@ -505,7 +510,7 @@ int SrsBandCheckClient::expect_finished()
     while (true) {
         SrsCommonMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
-        if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(get_protocol(), &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect finished message failed. ret=%d", ret);
             return ret;
         }
@@ -744,34 +749,35 @@ int init_st()
     return ret;
 }
 
-void print_help()
+void print_help(char** argv)
 {
-    const char *help = "Usage: srs-bandcheck [OPTION]...\n"
-            "test band width from client to rtmp server.\n"
-
-            "Mandatory arguments to long options are mandatory for short options too.\n"
-            "  -i, --ip                  the ip or domain that to test\n"
-            "  -p, --port                the port that server listen \n"
-            "  -k, --key                 the key used to test \n"
-            "  -v, --vhost               the vhost used to test \n"
-            "  -V, --version             output version information and exit \n"
-            "  -h, --help                display this help and exit \n"
-            "\n\n\n"
-            "Exit status:\n"
-            "0      if OK,\n"
-            "other  if error occured, and the detail should be printed.\n"
-            "\n\n"
-            "srs home page: <winlin(winterserver): http://blog.csdn.net/win_lin>\n"
-            "srs home page: <http://blog.chinaunix.net/uid/25006789.html>\n";
-
-    printf("%s", help);
+    printf(
+		"Usage: %s [OPTION]...\n"
+        "test band width from client to rtmp server.\n"
+        "Mandatory arguments to long options are mandatory for short options too.\n"
+        "  -i, --ip                  the ip or domain that to test\n"
+        "  -p, --port                the port that server listen \n"
+        "  -k, --key                 the key used to test \n"
+        "  -v, --vhost               the vhost used to test \n"
+        "  -V, --version             output version information and exit \n"
+        "  -h, --help                display this help and exit \n"
+        "\n"
+		"For example:\n"
+		"	%s -i 192.168.1.248 -p 1935 -v bandcheck.srs.com -k 35c9b402c12a7246868752e2878f7e0e"
+        "\n\n"
+        "Exit status:\n"
+        "0      if OK,\n"
+        "other  if error occured, and the detail should be printed.\n"
+        "\n\n"
+        "srs home page: <http://blog.chinaunix.net/uid/25006789.html>\n", 
+        argv[0], argv[0]);
 }
 
 void print_version()
 {
     const char *version = ""
             "srs_bandcheck "BUILD_VERSION"\n"
-            "Copyright (C) 2013 wenjiegit.\n"
+            "Copyright (c) 2013-2014 wenjiegit.\n"
             "License MIT\n"
             "This is free software: you are free to change and redistribute it.\n"
             "There is NO WARRANTY, to the extent permitted by law.\n"
@@ -813,7 +819,7 @@ int get_opt(int argc, char *argv[])
             exit(0);
             break;
         case 'h':
-            print_help();
+            print_help(argv);
             exit(0);
             break;
         default:

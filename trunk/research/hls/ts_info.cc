@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013 winlin
+Copyright (c) 2013-2014 winlin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -417,38 +417,38 @@ public:
 */
 enum TSPESStreamId
 {
-	PES_program_stream_map 		= 0b10111100, // 0xbc
-	PES_private_stream_1 		= 0b10111101, // 0xbd
-	PES_padding_stream			= 0b10111110, // 0xbe
-	PES_private_stream_2		= 0b10111111, // 0xbf
+	PES_program_stream_map 		= 0xbc, // 0b10111100
+	PES_private_stream_1 		= 0xbd, // 0b10111101
+	PES_padding_stream			= 0xbe, // 0b10111110
+	PES_private_stream_2		= 0xbf, // 0b10111111
 	
 	// 110x xxxx
 	// ISO/IEC 13818-3 or ISO/IEC 11172-3 or ISO/IEC 13818-7 or ISO/IEC
 	// 14496-3 audio stream number x xxxx
 	// (stream_id>>5)&0x07 == PES_audio_prefix
-	PES_audio_prefix			= 0b110,
+	PES_audio_prefix			= 0x06, // 0b110
 	
 	// 1110 xxxx
 	// ITU-T Rec. H.262 | ISO/IEC 13818-2 or ISO/IEC 11172-2 or ISO/IEC
 	// 14496-2 video stream number xxxx
 	// (stream_id>>4)&0x0f == PES_audio_prefix
-	PES_video_prefix			= 0b1110,
+	PES_video_prefix			= 0x0e, // 0b1110
 	
-	PES_ECM_stream				= 0b11110000, // 0xf0
-	PES_EMM_stream				= 0b11110001, // 0xf1
-	PES_DSMCC_stream			= 0b11110010, // 0xf2
-	PES_13522_stream			= 0b11110011, // 0xf3
-	PES_H_222_1_type_A			= 0b11110100, // 0xf4
-	PES_H_222_1_type_B			= 0b11110101, // 0xf5
-	PES_H_222_1_type_C			= 0b11110110, // 0xf6
-	PES_H_222_1_type_D			= 0b11110111, // 0xf7
-	PES_H_222_1_type_E			= 0b11111000, // 0xf8
-	PES_ancillary_stream		= 0b11111001, // 0xf9
-	PES_SL_packetized_stream	= 0b11111010, // 0xfa
-	PES_FlexMux_stream			= 0b11111011, // 0xfb
+	PES_ECM_stream				= 0xf0, // 0b11110000
+	PES_EMM_stream				= 0xf1, // 0b11110001
+	PES_DSMCC_stream			= 0xf2, // 0b11110010
+	PES_13522_stream			= 0xf3, // 0b11110011
+	PES_H_222_1_type_A			= 0xf4, // 0b11110100
+	PES_H_222_1_type_B			= 0xf5, // 0b11110101
+	PES_H_222_1_type_C			= 0xf6, // 0b11110110
+	PES_H_222_1_type_D			= 0xf7, // 0b11110111
+	PES_H_222_1_type_E			= 0xf8, // 0b11111000
+	PES_ancillary_stream		= 0xf9, // 0b11111001
+	PES_SL_packetized_stream	= 0xfa, // 0b11111010
+	PES_FlexMux_stream			= 0xfb, // 0b11111011
 	// reserved data stream
 	// 1111 1100 … 1111 1110
-	PES_program_stream_directory= 0b11111111, // 0xff
+	PES_program_stream_directory= 0xff, // 0b11111111
 };
 
 

@@ -63,7 +63,7 @@ SrsPlayer.prototype.start = function(url) {
         "srs_player/release/srs_player.swf?_version="+srs_get_version_code(), 
         this.container,
         this.width, this.height,
-        "11.1", "js/AdobeFlashPlayerInstall.swf",
+        "11.1.0", "js/AdobeFlashPlayerInstall.swf",
         flashvars, params, attributes,
         function(callbackObj){
             self.callbackObj = callbackObj;

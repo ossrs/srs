@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013 winlin
+Copyright (c) 2013-2014 winlin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -43,6 +43,23 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * when stop, the thread will interrupt the st_thread,
 * which will cause the socket to return error and 
 * terminate the cycle thread.
+*
+* when thread interrupt, the socket maybe not got EINT,
+* espectially on st_usleep(), so the cycle must check the loop,
+* when handler->cycle() has loop itself, for example:
+* 		handler->cycle() is:
+* 			while (true):
+* 				st_usleep(0);
+* 				if (read_from_socket(skt) < 0) break;
+* if thread stop when read_from_socket, it's ok, the loop will break,
+* but when thread stop interrupt the s_usleep(0), then the loop is
+* death loop.
+* in a word, the handler->cycle() must:
+*		handler->cycle() is:
+* 			while (pthread->can_loop()):
+*				st_usleep(0);
+* 				if (read_from_socket(skt) < 0) break;
+* check the loop, then it works.
 */
 class ISrsThreadHandler
 {
@@ -68,14 +85,14 @@ private:
 	bool loop;
 private:
 	ISrsThreadHandler* handler;
-	int64_t cycle_interval_milliseconds;
+	int64_t cycle_interval_us;
 public:
 	/**
 	* initialize the thread.
 	* @param thread_handler, the cycle handler for the thread.
-	* @param interval_ms, the sleep interval when cycle finished.
+	* @param interval_us, the sleep interval when cycle finished.
 	*/
-	SrsThread(ISrsThreadHandler* thread_handler, int64_t interval_ms);
+	SrsThread(ISrsThreadHandler* thread_handler, int64_t interval_us);
 	virtual ~SrsThread();
 public:
 	/**
@@ -90,6 +107,12 @@ public:
 	* @remark user can stop multiple times, ignore if already stopped.
 	*/
 	virtual void stop();
+	/**
+	* whether the thread should loop,
+	* used for handler->cycle() which has a loop method,
+	* to check this method, break if false.
+	*/
+	virtual bool can_loop();
 private:
 	virtual void thread_cycle();
 	static void* thread_fun(void* arg);

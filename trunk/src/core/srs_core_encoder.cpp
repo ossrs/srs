@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013 winlin
+Copyright (c) 2013-2014 winlin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -37,10 +37,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_config.hpp>
 #include <srs_core_rtmp.hpp>
 #include <srs_core_pithy_print.hpp>
+#include <srs_core_protocol.hpp>
 
 #ifdef SRS_FFMPEG
-
-#define SRS_ENCODER_SLEEP_MS 2000
 
 #define SRS_ENCODER_COPY	"copy"
 #define SRS_ENCODER_VCODEC 	"libx264"
@@ -483,7 +482,7 @@ void SrsFFMPEG::stop()
 
 SrsEncoder::SrsEncoder()
 {
-	pthread = new SrsThread(this, SRS_ENCODER_SLEEP_MS);
+	pthread = new SrsThread(this, SRS_ENCODER_SLEEP_US);
 	pithy_print = new SrsPithyPrint(SRS_STAGE_ENCODER);
 }
 
@@ -549,7 +548,7 @@ int SrsEncoder::cycle()
 
 	// pithy print
 	encoder();
-	pithy_print->elapse(SRS_ENCODER_SLEEP_MS);
+	pithy_print->elapse(SRS_ENCODER_SLEEP_US / 1000);
 	
 	return ret;
 }

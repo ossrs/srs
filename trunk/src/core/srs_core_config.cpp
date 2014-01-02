@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013 winlin
+Copyright (c) 2013-2014 winlin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -735,9 +735,9 @@ int SrsConfig::parse_argv(int& i, char** argv)
 
 void SrsConfig::print_help(char** argv)
 {
-	printf(RTMP_SIG_SRS_NAME" "RTMP_SIG_SRS_VERSION
-		" Copyright (c) 2013 winlin\n" 
-		"Contributors: "RTMP_SIG_SRS_CONTRIBUTOR"\n"
+	printf(
+		RTMP_SIG_SRS_NAME" "RTMP_SIG_SRS_VERSION" "RTMP_SIG_SRS_COPYRIGHT"\n" 
+		"Primary Authors: "RTMP_SIG_SRS_PRIMARY_AUTHROS"\n"
 		"Build: "SRS_BUILD_DATE" Configuration: "SRS_CONFIGURE"\n"
 		"Usage: %s [-h?vV] [-c <filename>]\n" 
 		"\n"
@@ -1664,4 +1664,3 @@ bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b)
 	
 	return true;
 }
-

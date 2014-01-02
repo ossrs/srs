@@ -1,6 +1,7 @@
 file
     main readonly separator,
     ..\main\srs_main_server.cpp,
+    ..\main\srs_main_bandcheck.cpp,
     auto readonly separator,
     ..\..\objs\srs_auto_headers.hpp,
     core readonly separator,
@@ -57,7 +58,7 @@ file
     ..\core\srs_core_source.hpp,
     ..\core\srs_core_source.cpp,
     research readonly separator,
-    ..\..\research\ts_info.cc;
+    ..\..\research\hls\ts_info.cc;
 
 mainconfig
     "" = "MAIN";

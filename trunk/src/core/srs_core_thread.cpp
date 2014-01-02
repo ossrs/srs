@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2013 winlin
+Copyright (c) 2013-2014 winlin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -54,10 +54,10 @@ void ISrsThreadHandler::on_leave_loop()
 {
 }
 
-SrsThread::SrsThread(ISrsThreadHandler* thread_handler, int64_t interval_ms)
+SrsThread::SrsThread(ISrsThreadHandler* thread_handler, int64_t interval_us)
 {
 	handler = thread_handler;
-	cycle_interval_milliseconds = interval_ms;
+	cycle_interval_us = interval_us;
 	
 	tid = NULL;
 	loop = false;
@@ -102,6 +102,11 @@ void SrsThread::stop()
 	}
 }
 
+bool SrsThread::can_loop()
+{
+	return loop;
+}
+
 void SrsThread::thread_cycle()
 {
 	int ret = ERROR_SUCCESS;
@@ -138,7 +143,7 @@ failed:
 			break;
 		}
 		
-		st_usleep(cycle_interval_milliseconds * 1000);
+		st_usleep(cycle_interval_us);
 	}
 	
 	handler->on_leave_loop();
