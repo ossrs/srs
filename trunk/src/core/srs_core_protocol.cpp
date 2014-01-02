@@ -2398,33 +2398,31 @@ int SrsPlayPacket::decode(SrsStream* stream)
 		return ret;
 	}
 
-    SrsAmf0Any* any_value = NULL;
-    if (!stream->empty()) {
-        if ((ret = srs_amf0_read_any(stream, any_value)) != ERROR_SUCCESS) {
-            ret = ERROR_RTMP_AMF0_DECODE;
-            srs_error("amf0 read play reset marker failed. ret=%d", ret);
-            return ret;
-        } else {
-            // check if the value is bool or number
-            // An optional Boolean value or number that specifies whether to flush any previous playlist.
-            if (any_value->is_boolean()) {
-                SrsAmf0Boolean* reset_bool = dynamic_cast<SrsAmf0Boolean*> (any_value);
-                if (reset_bool) {
-                    reset = reset_bool->value;
-                }
-            } else if (any_value->is_number()) {
-                SrsAmf0Number* reset_number = dynamic_cast<SrsAmf0Number*> (any_value);
-                if (reset_number) {
-                    reset = (reset_number->value == 0 ? false : true);
-                }
-            } else {
-                ret = ERROR_RTMP_AMF0_DECODE;
-                srs_error("amf0 decode play reset not support type. desire number or bool, ret=%d", ret);
-                return ret;
-            }
-            SrsAutoFree(SrsAmf0Any, any_value, false);
-        }
+    if (stream->empty()) {
+        return ret;
     }
+    
+    SrsAmf0Any* reset_value = NULL;
+    if ((ret = srs_amf0_read_any(stream, reset_value)) != ERROR_SUCCESS) {
+        ret = ERROR_RTMP_AMF0_DECODE;
+        srs_error("amf0 read play reset marker failed. ret=%d", ret);
+        return ret;
+    }
+    SrsAutoFree(SrsAmf0Any, reset_value, false);
+    
+    // check if the value is bool or number
+    // An optional Boolean value or number that specifies whether
+    // to flush any previous playlist
+    if (reset_value->is_boolean()) {
+        reset = srs_amf0_convert<SrsAmf0Boolean>(reset_value)->value;
+    } else if (reset_value->is_number()) {
+        reset = (srs_amf0_convert<SrsAmf0Number>(reset_value)->value == 0 ? false : true);
+    } else {
+        ret = ERROR_RTMP_AMF0_DECODE;
+        srs_error("amf0 invalid type=%#x, requires number or bool, ret=%d", reset_value->marker, ret);
+        return ret;
+    }
+
     srs_info("amf0 decode play packet success");
 	
 	return ret;
