@@ -131,10 +131,6 @@ public:
 	virtual int create_stream(int& stream_id);
 	virtual int play(std::string stream, int stream_id);
 	virtual int publish(std::string stream, int stream_id);
-
-protected:
-    SrsProtocol* get_protocol();
-    st_netfd_t get_st_fd();
 };
 
 /**
