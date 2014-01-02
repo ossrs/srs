@@ -2397,12 +2397,35 @@ int SrsPlayPacket::decode(SrsStream* stream)
 		srs_error("amf0 decode play duration failed. ret=%d", ret);
 		return ret;
 	}
-	if (!stream->empty() && (ret = srs_amf0_read_boolean(stream, reset)) != ERROR_SUCCESS) {
-		srs_error("amf0 decode play reset failed. ret=%d", ret);
-		return ret;
-	}
-	
-	srs_info("amf0 decode play packet success");
+
+    SrsAmf0Any* any_value = NULL;
+    if (!stream->empty()) {
+        if ((ret = srs_amf0_read_any(stream, any_value)) != ERROR_SUCCESS) {
+            ret = ERROR_RTMP_AMF0_DECODE;
+            srs_error("amf0 read play reset marker failed. ret=%d", ret);
+            return ret;
+        } else {
+            // check if the value is bool or number
+            // An optional Boolean value or number that specifies whether to flush any previous playlist.
+            if (any_value->is_boolean()) {
+                SrsAmf0Boolean* reset_bool = dynamic_cast<SrsAmf0Boolean*> (any_value);
+                if (reset_bool) {
+                    reset = reset_bool->value;
+                }
+            } else if (any_value->is_number()) {
+                SrsAmf0Number* reset_number = dynamic_cast<SrsAmf0Number*> (any_value);
+                if (reset_number) {
+                    reset = (reset_number->value == 0 ? false : true);
+                }
+            } else {
+                ret = ERROR_RTMP_AMF0_DECODE;
+                srs_error("amf0 decode play reset not support type. desire number or bool, ret=%d", ret);
+                return ret;
+            }
+            SrsAutoFree(SrsAmf0Any, any_value, false);
+        }
+    }
+    srs_info("amf0 decode play packet success");
 	
 	return ret;
 }

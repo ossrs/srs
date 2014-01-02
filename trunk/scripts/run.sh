@@ -40,6 +40,8 @@ cat<<END
     http://$ip/players/srs_publisher.html?vhost=players
 视频会议（聊天室）应用演示：
     http://$ip/players/srs_chat.html?vhost=players
+默认的测速应用演示:
+	http://$ip/players/srs_bwt.html?key=35c9b402c12a7246868752e2878f7e0e&vhost=bandcheck.srs.com
 END
 echo -e "${GREEN}演示地址：${BLACK}"
 echo -e "${RED}    http://$ip${BLACK}"
