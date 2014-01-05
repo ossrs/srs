@@ -23,6 +23,7 @@ people who have submitted patches, reported bugs, added translations, helped<br/
 answer newbie questions, and generally made SRS that much better: [AUTHORS.txt](https://github.com/winlinvip/simple-rtmp-server/blob/master/AUTHORS.txt)
 
 ### Usage(simple)
+Requires: <font color='red'>Centos6/Ubuntu12</font>, others see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build)<br/>
 <strong>Step -1:</strong> get SRS<br/>
 <pre>
 git clone https://github.com/winlinvip/simple-rtmp-server &&
@@ -43,6 +44,7 @@ bash scripts/stop.sh
 </pre>
 
 ### Usage(detail)
+Requires: <font color='red'>Centos6/Ubuntu12</font>, others see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build)<br/>
 <strong>Step 0:</strong> get SRS <br/>
 <pre>
 git clone https://github.com/winlinvip/simple-rtmp-server &&
