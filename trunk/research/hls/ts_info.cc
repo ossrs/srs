@@ -848,11 +848,11 @@ int TSAdaptionField::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int
         pp[0] = *p++;
         
         program_clock_reference_extension = program_clock_reference_base & 0x1ff;
-        program_clock_reference_base = (program_clock_reference_base >> 15) & 0x1ffffffff;
+        program_clock_reference_base = (program_clock_reference_base >> 15) & 0x1ffffffffLL;
         
         // high 9bits
         pcr = program_clock_reference_extension;
-        pcr = (pcr << 33) & 0x3fe00000000;
+        pcr = (pcr << 33) & 0x3fe00000000LL;
         // low 33bits
         pcr |= program_clock_reference_base;
     }
@@ -866,11 +866,11 @@ int TSAdaptionField::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int
         pp[0] = *p++;
         
         original_program_clock_reference_extension = original_program_clock_reference_base & 0x1ff;
-        original_program_clock_reference_base = (original_program_clock_reference_base >> 15) & 0x1ffffffff;
+        original_program_clock_reference_base = (original_program_clock_reference_base >> 15) & 0x1ffffffffLL;
         
         // high 9bits
         original_pcr = program_clock_reference_extension;
-        original_pcr = (original_pcr << 33) & 0x3fe00000000;
+        original_pcr = (original_pcr << 33) & 0x3fe00000000LL;
         // low 33bits
         original_pcr |= program_clock_reference_base;
     }
