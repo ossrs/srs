@@ -26,7 +26,7 @@ answer newbie questions, and generally made SRS that much better: [AUTHORS.txt](
 [https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki)
 
 ### Usage(simple)
-<strong>Requires: Centos6/Ubuntu12 64bits, others see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build)</strong><br/>
+<strong>Requires: Centos6.x 64bits, others see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build)</strong><br/>
 <strong>Step -1:</strong> get SRS<br/>
 <pre>
 git clone https://github.com/winlinvip/simple-rtmp-server &&
@@ -47,7 +47,7 @@ bash scripts/stop.sh
 </pre>
 
 ### Usage(detail)
-<strong>Requires: Centos6/Ubuntu12 64bits, others see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build)</strong><br/>
+<strong>Requires: Centos6.x 64bits, others see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build)</strong><br/>
 <strong>Step 0:</strong> get SRS <br/>
 <pre>
 git clone https://github.com/winlinvip/simple-rtmp-server &&
