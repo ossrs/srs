@@ -319,7 +319,7 @@ if [ $SRS_HLS = YES ]; then
     <script type="text/javascript">
         setTimeout(function(){
             window.location.href = "players/index.html" + window.location.search;
-        }, 3000);
+        }, 500);
     </script>
 </body>
 END
