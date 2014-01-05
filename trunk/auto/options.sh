@@ -54,13 +54,15 @@ cat << END
 
   --with-ssl               enable rtmp complex handshake, requires openssl-devel installed.
                            to delivery h264 video and aac audio to flash player.
+  --with-hls               enable hls streaming, build nginx as http server for hls.
   --with-http              enable http hooks, build cherrypy as demo api server.
                            srs will call the http hooks, such as: on_connect.
-  --with-hls               enable hls streaming, build nginx as http server for hls.
+  --with-ffmpeg            enable transcoding with ffmpeg.
 
   --without-ssl            disable rtmp complex handshake.
   --without-hls            disable hls, rtmp streaming only.
   --without-http           disable http, http hooks callback.
+  --without-ffmpeg         disable the ffmpeg transcoding feature.
 
 END
 

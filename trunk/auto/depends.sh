@@ -259,10 +259,6 @@ if [ $SRS_HLS = YES ]; then
     ln -sf `pwd`/research/players ${SRS_OBJS}/nginx/html/players &&
     rm -f ${SRS_OBJS}/nginx/crossdomain.xml &&
     ln -sf `pwd`/research/players/crossdomain.xml ${SRS_OBJS}/nginx/html/crossdomain.xml
-    
-    # override the default index.
-    rm -f ${SRS_OBJS}/nginx/html/index.html &&
-    ln -sf `pwd`/research/players/nginx_index.html ${SRS_OBJS}/nginx/html/index.html
 fi
 
 if [ $SRS_HLS = YES ]; then
@@ -302,6 +298,33 @@ rm -f research/api-server/static-dir/players &&
 ln -sf `pwd`/research/players research/api-server/static-dir/players &&
 rm -f research/api-server/static-dir/crossdomain.xml &&
 ln -sf `pwd`/research/players/crossdomain.xml research/api-server/static-dir/crossdomain.xml
+
+# only when the nginx is ok, 
+# if api-server not enalbed, use nginx as demo.
+if [ $SRS_HLS = YES ]; then
+    if [ $SRS_HTTP = YES ]; then
+        # override the default index.
+        rm -f ${SRS_OBJS}/nginx/html/index.html &&
+        ln -sf `pwd`/research/players/nginx_index.html ${SRS_OBJS}/nginx/html/index.html
+    else
+        rm -f ${SRS_OBJS}/nginx/html/index.html &&
+        cat<<END >> ${SRS_OBJS}/nginx/html/index.html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SRS</title>   
+    <meta charset="utf-8">
+</head>
+<body>
+    <script type="text/javascript">
+        setTimeout(function(){
+            window.location.href = "players/index.html" + window.location.search;
+        }, 3000);
+    </script>
+</body>
+END
+    fi
+fi
 
 #####################################################################################
 # openssl, for rtmp complex handshake

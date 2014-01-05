@@ -22,6 +22,9 @@ And here is an inevitably incomplete list of MUCH-APPRECIATED CONTRIBUTORS --<br
 people who have submitted patches, reported bugs, added translations, helped<br/>
 answer newbie questions, and generally made SRS that much better: [AUTHORS.txt](https://github.com/winlinvip/simple-rtmp-server/blob/master/AUTHORS.txt)
 
+### Wiki
+[https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki)
+
 ### Usage(simple)
 <strong>Requires: Centos6/Ubuntu12 64bits, others see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build)</strong><br/>
 <strong>Step -1:</strong> get SRS<br/>

@@ -158,7 +158,7 @@ echo "configure summary:"
 if [ $SRS_HLS = YES ]; then
     echo -e "${GREEN}HLS over nginx is enabled${BLACK}"
 else
-    echo -e "warning: without HLS support"
+    echo -e "${YELLOW}warning: without HLS support${BLACK}"
 fi
 if [ $SRS_SSL = YES ]; then
     echo -e "${GREEN}rtmp complex handshake is enabled${BLACK}"
@@ -179,6 +179,7 @@ fi
 # mkdir dirs
 mkdir -p ${SRS_OBJS}/logs
 
+ip=`ifconfig|grep "inet addr"| grep -v "127.0.0.1"|awk '{print $2}'|awk -F ':' 'NR==1 {print $2}'`
 # next step.
 echo ""
 echo "you can:"
@@ -186,7 +187,7 @@ echo "\" make \" to build the srs(simple rtmp server)."
 echo "\" make help \" to get the usage of make"
 if [ $SRS_HLS = YES ]; then
     echo "\" sudo ./objs/nginx/sbin/nginx  \" to start the nginx http server for hls"
-    echo "\" http://demo:80/players \" rtmp players(OSMF/JWPlayer)"
+    echo "\" http://$ip \" rtmp players(OSMF/JWPlayer)"
 fi
 if [ $SRS_FFMPEG = YES ]; then
     echo -e "\" ./objs/ffmpeg/bin/ffmpeg  \" is used for live stream transcoding"
