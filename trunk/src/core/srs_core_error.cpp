@@ -27,3 +27,4 @@ bool srs_is_system_control_error(int error_code)
 {
 	return error_code == ERROR_CONTROL_RTMP_CLOSE;
 }
+
