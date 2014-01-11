@@ -171,7 +171,7 @@ void SrsRequest::strip()
 	trim(stream, "/ \n\r\t");
 }
 
-std::string& SrsRequest::trim(string& str, string chs)
+string& SrsRequest::trim(string& str, string chs)
 {
 	for (int i = 0; i < (int)chs.length(); i++) {
 		char ch = chs.at(i);
@@ -695,7 +695,7 @@ int SrsRtmp::on_bw_done()
 	return ret;
 }
 
-int SrsRtmp::identify_client(int stream_id, SrsClientType& type, std::string& stream_name)
+int SrsRtmp::identify_client(int stream_id, SrsClientType& type, string& stream_name)
 {
 	type = SrsClientUnknown;
 	int ret = ERROR_SUCCESS;
@@ -723,13 +723,15 @@ int SrsRtmp::identify_client(int stream_id, SrsClientType& type, std::string& st
 		SrsPacket* pkt = msg->get_packet();
 		if (dynamic_cast<SrsCreateStreamPacket*>(pkt)) {
 			srs_info("identify client by create stream, play or flash publish.");
-			return identify_create_stream_client(
-				dynamic_cast<SrsCreateStreamPacket*>(pkt), stream_id, type, stream_name);
+			return identify_create_stream_client(dynamic_cast<SrsCreateStreamPacket*>(pkt), stream_id, type, stream_name);
 		}
 		if (dynamic_cast<SrsFMLEStartPacket*>(pkt)) {
 			srs_info("identify client by releaseStream, fmle publish.");
-			return identify_fmle_publish_client(
-				dynamic_cast<SrsFMLEStartPacket*>(pkt), type, stream_name);
+			return identify_fmle_publish_client(dynamic_cast<SrsFMLEStartPacket*>(pkt), type, stream_name);
+		}
+		if (dynamic_cast<SrsPlayPacket*>(pkt)) {
+			srs_info("level0 identify client by play.");
+			return identify_play_client(dynamic_cast<SrsPlayPacket*>(pkt), type, stream_name);
 		}
 		
 		srs_trace("ignore AMF0/AMF3 command message.");
@@ -1165,16 +1167,12 @@ int SrsRtmp::identify_create_stream_client(SrsCreateStreamPacket* req, int strea
 		
 		SrsPacket* pkt = msg->get_packet();
 		if (dynamic_cast<SrsPlayPacket*>(pkt)) {
-			SrsPlayPacket* play = dynamic_cast<SrsPlayPacket*>(pkt);
-			type = SrsClientPlay;
-			stream_name = play->stream_name;
-			srs_trace("identity client type=play, stream_name=%s", stream_name.c_str());
-			return ret;
+			srs_info("level1 identify client by play.");
+			return identify_play_client(dynamic_cast<SrsPlayPacket*>(pkt), type, stream_name);
 		}
 		if (dynamic_cast<SrsPublishPacket*>(pkt)) {
 			srs_info("identify client by publish, falsh publish.");
-			return identify_flash_publish_client(
-				dynamic_cast<SrsPublishPacket*>(pkt), type, stream_name);
+			return identify_flash_publish_client(dynamic_cast<SrsPublishPacket*>(pkt), type, stream_name);
 		}
 		
 		srs_trace("ignore AMF0/AMF3 command message.");
@@ -1214,5 +1212,17 @@ int SrsRtmp::identify_flash_publish_client(SrsPublishPacket* req, SrsClientType&
 	type = SrsClientFlashPublish;
 	stream_name = req->stream_name;
 	
+	return ret;
+}
+
+int SrsRtmp::identify_play_client(SrsPlayPacket* req, SrsClientType& type, string& stream_name)
+{
+	int ret = ERROR_SUCCESS;
+	
+	type = SrsClientPlay;
+	stream_name = req->stream_name;
+	
+	srs_trace("identity client type=play, stream_name=%s", stream_name.c_str());
+
 	return ret;
 }

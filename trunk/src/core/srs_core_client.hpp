@@ -71,6 +71,8 @@ public:
 private:
 	// when valid and connected to vhost/app, service the client.
 	virtual int service_cycle();
+	// stream(play/publish) service cycle, identify client first.
+	virtual int stream_service_cycle();
 	virtual int check_vhost();
 	virtual int playing(SrsSource* source);
 	virtual int publish(SrsSource* source, bool is_fmle);
