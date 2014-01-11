@@ -147,4 +147,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_HTTP_DATA_INVLIAD			801
 #define ERROR_HTTP_PARSE_HEADER			802
 
+// system control message, 
+// not an error, but special control logic.
+// sys ctl: rtmp close stream, support replay.
+#define ERROR_CONTROL_RTMP_CLOSE		900
+
+/**
+* whether the error code is an system control error.
+*/
+extern bool srs_is_system_control_error(int error_code);
+
 #endif

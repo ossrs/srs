@@ -56,6 +56,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // if timeout, close the connection.
 #define SRS_RECV_TIMEOUT_US 30*1000*1000L
 
+// the timeout to wait client data, when client paused
+// if timeout, close the connection.
+#define SRS_PAUSED_SEND_TIMEOUT_US 30*60*1000*1000L
+
+// the timeout to send data to client, when client paused
+// if timeout, close the connection.
+#define SRS_PAUSED_RECV_TIMEOUT_US 30*60*1000*1000L
+
 // when stream is busy, for example, streaming is already
 // publishing, when a new client to request to publish,
 // sleep a while and close the connection.
@@ -624,6 +632,28 @@ public:
 protected:
 	virtual int get_size();
 	virtual int encode_packet(SrsStream* stream);
+};
+/**
+* client close stream packet.
+*/
+class SrsCloseStreamPacket : public SrsPacket
+{
+private:
+    typedef SrsPacket super;
+protected:
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsCloseStreamPacket);
+    }
+public:
+    std::string command_name;
+    double transaction_id;
+    SrsAmf0Null* command_object;
+public:
+    SrsCloseStreamPacket();
+    virtual ~SrsCloseStreamPacket();
+public:
+    virtual int decode(SrsStream* stream);
 };
 
 /**

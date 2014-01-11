@@ -168,6 +168,41 @@ int SrsClient::service_cycle()
 	}
 	srs_verbose("on_bw_done success");
 	
+	while (true) {
+		ret = stream_service_cycle();
+		
+		// stream service must terminated with error, never success.
+		srs_assert(ret != ERROR_SUCCESS);
+		
+		// when not system control error, fatal error, return.
+		if (!srs_is_system_control_error(ret)) {
+			srs_error("stream service cycle failed. ret=%d", ret);
+			return ret;
+		}
+		
+		// for "some" system control error, 
+		// logical accept and retry stream service.
+		if (ret == ERROR_CONTROL_RTMP_CLOSE) {
+			// set timeout to a larger value, for user paused.
+			rtmp->set_recv_timeout(SRS_PAUSED_SEND_TIMEOUT_US);
+			rtmp->set_send_timeout(SRS_PAUSED_SEND_TIMEOUT_US);
+			
+			srs_trace("control message(close) accept, retry stream service.");
+			continue;
+		}
+		
+		// for other system control message, fatal error.
+		srs_error("control message(%d) reject as error. ret=%d", ret, ret);
+		return ret;
+	}
+	
+	return ret;
+}
+
+int SrsClient::stream_service_cycle()
+{
+	int ret = ERROR_SUCCESS;
+		
 	SrsClientType type;
 	if ((ret = rtmp->identify_client(res->stream_id, type, req->stream)) != ERROR_SUCCESS) {
 		srs_error("identify client failed. ret=%d", ret);
@@ -175,7 +210,12 @@ int SrsClient::service_cycle()
 	}
 	req->strip();
 	srs_trace("identify client success. type=%d, stream_name=%s", type, req->stream.c_str());
+
+	// client is identified, set the timeout to service timeout.
+	rtmp->set_recv_timeout(SRS_RECV_TIMEOUT_US);
+	rtmp->set_send_timeout(SRS_SEND_TIMEOUT_US);
 	
+	// set timeout to larger.
     int chunk_size = config->get_chunk_size(req->vhost);
 	if ((ret = rtmp->set_chunk_size(chunk_size)) != ERROR_SUCCESS) {
 		srs_error("set chunk_size=%d failed. ret=%d", chunk_size, ret);
@@ -341,7 +381,9 @@ int SrsClient::playing(SrsSource* source)
 				return ret;
 			}
 			if ((ret = process_play_control_msg(consumer, msg)) != ERROR_SUCCESS) {
-				srs_error("process play control message failed. ret=%d", ret);
+				if (!srs_is_system_control_error(ret)) {
+					srs_error("process play control message failed. ret=%d", ret);
+				}
 				return ret;
 			}
 		}
@@ -555,6 +597,13 @@ int SrsClient::process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage*
 	}
 	srs_info("decode the amf0/amf3 command packet success.");
 	
+	SrsCloseStreamPacket* close = dynamic_cast<SrsCloseStreamPacket*>(msg->get_packet());
+	if (close) {
+		ret = ERROR_CONTROL_RTMP_CLOSE;
+		srs_trace("system control message: rtmp close stream. ret=%d", ret);
+		return ret;
+	}
+	
 	SrsPausePacket* pause = dynamic_cast<SrsPausePacket*>(msg->get_packet());
 	if (!pause) {
 		srs_info("ignore all amf0/amf3 command except pause.");
@@ -700,4 +749,3 @@ void SrsClient::on_stop()
 	}
 #endif
 }
-

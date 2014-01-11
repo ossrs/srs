@@ -40,6 +40,7 @@ class SrsFMLEStartPacket;
 class SrsPublishPacket;
 class SrsSharedPtrMessage;
 class SrsOnMetaDataPacket;
+class SrsPlayPacket;
 
 /**
 * the original request from client.
@@ -226,6 +227,8 @@ private:
 	virtual int identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, std::string& stream_name);
 	virtual int identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsClientType& type, std::string& stream_name);
 	virtual int identify_flash_publish_client(SrsPublishPacket* req, SrsClientType& type, std::string& stream_name);
+private:
+	virtual int identify_play_client(SrsPlayPacket* req, SrsClientType& type, std::string& stream_name);
 };
 
 #endif

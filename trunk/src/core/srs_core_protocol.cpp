@@ -196,6 +196,7 @@ messages.
 */
 #define RTMP_AMF0_COMMAND_CONNECT			"connect"
 #define RTMP_AMF0_COMMAND_CREATE_STREAM		"createStream"
+#define RTMP_AMF0_COMMAND_CLOSE_STREAM      "closeStream"
 #define RTMP_AMF0_COMMAND_PLAY				"play"
 #define RTMP_AMF0_COMMAND_PAUSE				"pause"
 #define RTMP_AMF0_COMMAND_ON_BW_DONE		"onBWDone"
@@ -1363,6 +1364,10 @@ int SrsCommonMessage::decode_packet(SrsProtocol* protocol)
             srs_info("decode the AMF0/AMF3 band width check message.");
             packet = new SrsBandwidthPacket();
             return packet->decode(stream);
+        } else if (command == RTMP_AMF0_COMMAND_CLOSE_STREAM) {
+            srs_info("decode the AMF0/AMF3 closeStream message.");
+            packet = new SrsCloseStreamPacket();
+            return packet->decode(stream);
         }
 		
 		// default packet to drop message.
@@ -2062,6 +2067,41 @@ int SrsCreateStreamResPacket::encode_packet(SrsStream* stream)
 	srs_info("encode createStream response packet success.");
 	
 	return ret;
+}
+
+SrsCloseStreamPacket::SrsCloseStreamPacket()
+{
+    command_name = RTMP_AMF0_COMMAND_CLOSE_STREAM;
+    transaction_id = 0;
+    command_object = new SrsAmf0Null();
+}
+
+SrsCloseStreamPacket::~SrsCloseStreamPacket()
+{
+    srs_freep(command_object);
+}
+
+int SrsCloseStreamPacket::decode(SrsStream* stream)
+{
+    int ret = ERROR_SUCCESS;
+
+    if ((ret = srs_amf0_read_string(stream, command_name)) != ERROR_SUCCESS) {
+        srs_error("amf0 decode closeStream command_name failed. ret=%d", ret);
+        return ret;
+    }
+
+    if ((ret = srs_amf0_read_number(stream, transaction_id)) != ERROR_SUCCESS) {
+        srs_error("amf0 decode closeStream transaction_id failed. ret=%d", ret);
+        return ret;
+    }
+
+    if ((ret = srs_amf0_read_null(stream)) != ERROR_SUCCESS) {
+        srs_error("amf0 decode closeStream command_object failed. ret=%d", ret);
+        return ret;
+    }
+    srs_info("amf0 decode closeStream packet success");
+
+    return ret;
 }
 
 SrsFMLEStartPacket::SrsFMLEStartPacket()
@@ -3325,4 +3365,3 @@ int SrsUserControlPacket::encode_packet(SrsStream* stream)
 	
 	return ret;
 }
-
