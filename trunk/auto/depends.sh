@@ -297,7 +297,13 @@ echo "link players to cherrypy static-dir"
 rm -f research/api-server/static-dir/players &&
 ln -sf `pwd`/research/players research/api-server/static-dir/players &&
 rm -f research/api-server/static-dir/crossdomain.xml &&
-ln -sf `pwd`/research/players/crossdomain.xml research/api-server/static-dir/crossdomain.xml
+ln -sf `pwd`/research/players/crossdomain.xml research/api-server/static-dir/crossdomain.xml &&
+rm -f research/api-server/static-dir/live && 
+mkdir -p `pwd`/${SRS_OBJS}/nginx/html/live &&
+ln -sf `pwd`/${SRS_OBJS}/nginx/html/live research/api-server/static-dir/live &&
+rm -f research/api-server/static-dir/forward && 
+mkdir -p `pwd`/${SRS_OBJS}/nginx/html/forward &&
+ln -sf `pwd`/${SRS_OBJS}/nginx/html/forward research/api-server/static-dir/forward
 
 # only when the nginx is ok, 
 # if api-server not enalbed, use nginx as demo.
