@@ -665,7 +665,6 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
 	srs_verbose("get metadata size success.");
 	
 	char* payload = NULL;
-	memset(payload, 0, size);
 	if ((ret = metadata->encode(size, payload)) != ERROR_SUCCESS) {
 		srs_error("encode metadata error. ret=%d", ret);
 		srs_freepa(payload);
