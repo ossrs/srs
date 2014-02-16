@@ -978,7 +978,7 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
             
             chunk->header.message_type = *p++;
             
-            if (fmt == 0) {
+            if (fmt == RTMP_FMT_TYPE0) {
                 pp = (char*)&chunk->header.stream_id;
                 pp[0] = *p++;
                 pp[1] = *p++;
