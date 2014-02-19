@@ -630,7 +630,8 @@ int SrsRtmp::response_connect_app(SrsRequest *req, const char* server_ip)
 	SrsASrsAmf0EcmaArray* data = new SrsASrsAmf0EcmaArray();
 	pkt->info->set("data", data);
 	
-	data->set("srs_version", new SrsAmf0String(RTMP_SIG_FMS_VER));
+	data->set("version", new SrsAmf0String(RTMP_SIG_FMS_VER));
+	data->set("srs_sig", new SrsAmf0String(RTMP_SIG_SRS_KEY));
 	data->set("srs_server", new SrsAmf0String(RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
 	data->set("srs_license", new SrsAmf0String(RTMP_SIG_SRS_LICENSE));
 	data->set("srs_role", new SrsAmf0String(RTMP_SIG_SRS_ROLE));
