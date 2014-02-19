@@ -3364,7 +3364,7 @@ int SrsUserControlPacket::encode_packet(SrsStream* stream)
 	stream->write_4bytes(event_data);
 
 	// when event type is set buffer length,
-	// read the extra buffer length.
+	// write the extra buffer length.
 	if (event_type == SrcPCUCSetBufferLength) {
 		stream->write_2bytes(extra_data);
 		srs_verbose("user control message, buffer_length=%d", extra_data);
