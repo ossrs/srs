@@ -215,7 +215,7 @@ int SrsClient::stream_service_cycle()
 	rtmp->set_recv_timeout(SRS_RECV_TIMEOUT_US);
 	rtmp->set_send_timeout(SRS_SEND_TIMEOUT_US);
 	
-	// set timeout to larger.
+	// set chunk size to larger.
     int chunk_size = config->get_chunk_size(req->vhost);
 	if ((ret = rtmp->set_chunk_size(chunk_size)) != ERROR_SUCCESS) {
 		srs_error("set chunk_size=%d failed. ret=%d", chunk_size, ret);
@@ -223,7 +223,7 @@ int SrsClient::stream_service_cycle()
 	}
 	srs_trace("set chunk_size=%d success", chunk_size);
 	
-	// find a source to publish.
+	// find a source to serve.
 	SrsSource* source = SrsSource::find(req);
 	srs_assert(source != NULL);
 	

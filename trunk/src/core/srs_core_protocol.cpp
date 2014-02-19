@@ -173,7 +173,8 @@ messages.
 * independently for each direction.
 */
 #define RTMP_DEFAULT_CHUNK_SIZE 			128
-#define RTMP_MIN_CHUNK_SIZE 				2
+#define RTMP_MIN_CHUNK_SIZE 				128
+#define RTMP_MAX_CHUNK_SIZE					65536
 
 /**
 * 6.1. Chunk Format
@@ -1279,6 +1280,9 @@ int SrsCommonMessage::decode_packet(SrsProtocol* protocol)
 			
 			// reset stream, for header read completed.
 			stream->reset();
+			if (header.is_amf3_command()) {
+				stream->skip(1);
+			}
 			
 			std::string request_name = protocol->get_request_name(transactionId);
 			if (request_name.empty()) {
@@ -3199,6 +3203,12 @@ int SrsSetChunkSizePacket::decode(SrsStream* stream)
 		ret = ERROR_RTMP_CHUNK_SIZE;
 		srs_error("invalid chunk size. min=%d, actual=%d, ret=%d", 
 			ERROR_RTMP_CHUNK_SIZE, chunk_size, ret);
+		return ret;
+	}
+	if (chunk_size > RTMP_MAX_CHUNK_SIZE) {
+		ret = ERROR_RTMP_CHUNK_SIZE;
+		srs_error("invalid chunk size. max=%d, actual=%d, ret=%d", 
+			RTMP_MAX_CHUNK_SIZE, chunk_size, ret);
 		return ret;
 	}
 	
