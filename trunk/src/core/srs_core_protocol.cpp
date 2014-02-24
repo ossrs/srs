@@ -2110,7 +2110,7 @@ int SrsCloseStreamPacket::decode(SrsStream* stream)
 
 SrsFMLEStartPacket::SrsFMLEStartPacket()
 {
-	command_name = RTMP_AMF0_COMMAND_CREATE_STREAM;
+	command_name = RTMP_AMF0_COMMAND_RELEASE_STREAM;
 	transaction_id = 0;
 	command_object = new SrsAmf0Null();
 }

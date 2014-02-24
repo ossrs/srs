@@ -184,7 +184,7 @@ int SrsClient::service_cycle()
 		// logical accept and retry stream service.
 		if (ret == ERROR_CONTROL_RTMP_CLOSE) {
 			// set timeout to a larger value, for user paused.
-			rtmp->set_recv_timeout(SRS_PAUSED_SEND_TIMEOUT_US);
+			rtmp->set_recv_timeout(SRS_PAUSED_RECV_TIMEOUT_US);
 			rtmp->set_send_timeout(SRS_PAUSED_SEND_TIMEOUT_US);
 			
 			srs_trace("control message(close) accept, retry stream service.");
