@@ -2,7 +2,7 @@ Simple-RTMP-Server
 ==================
 
 SRS(SIMPLE RTMP Server) over state-threads created in 2013.<br/>
-SRS is a simple, high-performance, multiple process, origin/edge live server.<br/>
+SRS is a simple, RTMP/HLS, high-performance, multiple process(plan), origin/edge(plan) live server.<br/>
 SRS supports [vhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUrlVhost), rtmp, [HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), transcoding, forward, http hooks. <br/>
 Blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
 See also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) <br/>
