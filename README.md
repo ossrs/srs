@@ -2,7 +2,7 @@ Simple-RTMP-Server
 ==================
 
 SRS(SIMPLE RTMP Server) over state-threads created in 2013.<br/>
-SRS is a simple, RTMP/HLS, high-performance, multiple process(plan), origin/edge(plan) live server.<br/>
+SRS is a simple, RTMP/HLS, high-performance, single(plan)/multiple processes, edge(plan)/origin live server.<br/>
 SRS supports [vhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUrlVhost), rtmp, [HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), transcoding, forward, http hooks. <br/>
 Blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
 See also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) <br/>
@@ -231,7 +231,7 @@ Supported operating systems and hardware:
 23. Demo video meeting or chat(SRS+cherrypy+jquery+bootstrap). <br/>
 24. [dev] Full documents in wiki, in chineses. <br/>
 25. [plan] Support RTMP edge server<br/>
-26. [plan] Support multiple process<br/>
+26. [plan] Support multiple processes<br/>
 27. [plan] Support network based cli and json result.<br/>
 28. [no-plan] Support adobe flash refer/token/swf verification.<br/>
 29. [no-plan] Support adobe amf3 codec.<br/>
