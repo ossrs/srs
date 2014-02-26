@@ -153,7 +153,7 @@ System Architecture:
 +---------------+---------------+-----------+----------+
 |              Network(state-threads)                  |
 +------------------------------------------------------+
-|      All Linux(RHEL,Centos,Ubuntu,Fedora...)         |
+|      All Linux(RHEL,CentOS,Ubuntu,Fedora...)         |
 +------------------------------------------------------+
 </pre>
 Stream Architecture:
@@ -169,7 +169,24 @@ Stream Architecture:
 | Flash,    |   +-> Fowarder ---------+-> RTMP Server  |
 | XSPLIT,   |   +-> Transcoder -------+-> RTMP Server  |
 |  ...)     |   +-> DVR --------------+-> FILE         |
-|           |   +-> BandwidthTest-----+-> Flash/StLoad |
+|           |   +-> BandwidthTest ----+-> Flash/StLoad |
++-----------+-------------------------+----------------+
+</pre>
+RTMP cluster(origin/edge) Architecture:<br/>
+Remark: cluster over forward, see [Cluster](https://github.com/winlinvip/simple-rtmp-server/wiki/Cluster)
+<pre>
+        +---------+              +----------+ 
+        + Publish +              +  Deliver | 
+        +---|-----+              +----|-----+ 
++-----------+-------------------------+----------------+
+| Encoder   | SRS(Simple RTMP Server) |     Client     |
++-----------+-------------------------+----------------+
+| (FMLE,    |   +-> RTMP protocol ----+-> Flash Player |
+| FFMPEG, --+-> +-> HLS/NGINX --------+-> m3u8 player  |
+| Flash,    |   +-> Fowarder ---------+-> RTMP Server  |
+| XSPLIT,   |   +-> Transcoder -------+-> RTMP Server  |
+|  ...)     |   +-> DVR --------------+-> FILE         |
+|           |   +-> BandwidthTest ----+-> Flash/StLoad |
 +-----------+-------------------------+----------------+
 </pre>
 Bandwidth Test Workflow:
