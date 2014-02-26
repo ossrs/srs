@@ -172,22 +172,51 @@ Stream Architecture:
 |           |   +-> BandwidthTest ----+-> Flash/StLoad |
 +-----------+-------------------------+----------------+
 </pre>
-RTMP cluster(origin/edge) Architecture:<br/>
+(plan) RTMP cluster(origin/edge) Architecture:<br/>
 Remark: cluster over forward, see [Cluster](https://github.com/winlinvip/simple-rtmp-server/wiki/Cluster)
 <pre>
-        +---------+              +----------+ 
-        + Publish +              +  Deliver | 
-        +---|-----+              +----|-----+ 
-+-----------+-------------------------+----------------+
-| Encoder   | SRS(Simple RTMP Server) |     Client     |
-+-----------+-------------------------+----------------+
-| (FMLE,    |   +-> RTMP protocol ----+-> Flash Player |
-| FFMPEG, --+-> +-> HLS/NGINX --------+-> m3u8 player  |
-| Flash,    |   +-> Fowarder ---------+-> RTMP Server  |
-| XSPLIT,   |   +-> Transcoder -------+-> RTMP Server  |
-|  ...)     |   +-> DVR --------------+-> FILE         |
-|           |   +-> BandwidthTest ----+-> Flash/StLoad |
-+-----------+-------------------------+----------------+
++---------+       +-----------------+     +-----------------------+ 
++ Encoder +--+-->-+  SRS(RTMP Edge) +--->-+     (RTMP Origin)     | 
++---------+  |    +-----------------+     |   SRS/FMS/NGINX-RTMP  |
+             |                            |    Red5/HELIX/CRTMP   |
+             +-------------------------->-+         ......        |
+                                          +-----------------------+ 
+Schema#1: Any RTMP encoder push RTMP stream to RTMP (origin/edge)server,
+    where SRS RTMP Edge server will forward stream to origin.
+
+
++-------------+    +-----------------+      +--------------------+
+| RTMP Origin +-->-+  SRS(RTMP Edge) +--+->-+  Client(RTMP/HLS)  |
++-------------+    +-----------------+  |   |  Flash/IOS/Android |
+                                        |   +--------------------+
+                                        |
+                                        |   +-----------------+
+                                        +->-+  SRS(RTMP Edge) +
+                                            +-----------------+
+Schema#2: SRS RTMP Edge server pull stream from origin (or upstream SRS 
+    RTMP Edge server), then delivery to Client.
+</pre>
+(plan) SRS Multiple processes Architecture:<br/>
+<pre>
+                                 +---------------------------+
+                           +-----+ worker process(3)         |
++----------------+         |     +---------------------------+
+| master process |---(2)---+           
+|   (1)manager   |         |     +---------------------------+
++----------------+         +-----+ worker process N          |
+                           |     +---------------------------+
+                           |
+                           |     +---------------------------+
+                           +-----+ bandwidth test process(4) |
+                                 +---------------------------+
+Remark:
+(1) master process: to fork processes, schedule fd(client) to the "right" process, 
+    forward messages between processes
+(2) communication: master process use unix domain socket to communicate with 
+    worker processes.
+(3) worker process: to provide RTMP streaming service, generate HLS files.
+(4) bandwidth test process: for all bandwidth test request, to make the bandwidth 
+    testing has minimal effect to streaming service
 </pre>
 Bandwidth Test Workflow:
 <pre>
@@ -247,15 +276,16 @@ Supported operating systems and hardware:
 22. Player, publisher(encoder), and demo pages(jquery+bootstrap). <br/>
 23. Demo video meeting or chat(SRS+cherrypy+jquery+bootstrap). <br/>
 24. [dev] Full documents in wiki, in chineses. <br/>
-25. [plan] Support RTMP edge server<br/>
-26. [plan] Support multiple processes<br/>
-27. [plan] Support network based cli and json result.<br/>
-28. [no-plan] Support adobe flash refer/token/swf verification.<br/>
-29. [no-plan] Support adobe amf3 codec.<br/>
-30. [no-plan] Support dvr(record live to vod file)<br/>
-31. [no-plan] Support encryption: RTMPE/RTMPS, HLS DRM<br/>
-32. [no-plan] Support RTMPT, http to tranverse firewalls<br/>
-33. [no-plan] Support file source, transcoding file to live stream<br/>
+25. [plan] Support HLS cluster, use RTMP ATC to generate the TS<br/>
+26. [plan] Support RTMP edge server, push/pull stream from any RTMP server<br/>
+27. [plan] Support multiple processes, for both origin and edge<br/>
+28. [plan] Support network based cli and json result.<br/>
+29. [no-plan] Support adobe flash refer/token/swf verification.<br/>
+30. [no-plan] Support adobe amf3 codec.<br/>
+31. [no-plan] Support dvr(record live to vod file)<br/>
+32. [no-plan] Support encryption: RTMPE/RTMPS, HLS DRM<br/>
+33. [no-plan] Support RTMPT, http to tranverse firewalls<br/>
+34. [no-plan] Support file source, transcoding file to live stream<br/>
 
 ### Performance
 1. 300 connections, 150Mbps, 500kbps, CPU 18.8%, 5956KB.
