@@ -2,7 +2,7 @@ Simple-RTMP-Server
 ==================
 
 SRS(SIMPLE RTMP Server) over state-threads created in 2013.<br/>
-SRS is a simple, high-performance, running in single process, origin live server.<br/>
+SRS is a simple, high-performance, multiple process, origin/edge live server.<br/>
 SRS supports [vhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUrlVhost), rtmp, [HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), transcoding, forward, http hooks. <br/>
 Blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
 See also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) <br/>
@@ -208,9 +208,9 @@ Supported operating systems and hardware:
 ### Summary
 1. Simple: also stable enough.<br/>
 2. [High-performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance): single-thread, async socket, event/st-thread driven.<br/>
-3. NO edge server, origin server only.<br/>
+3. With RTMP edge server, support origin server.<br/>
 4. NO vod streaming, live streaming only.<br/>
-5. NO multiple processes, single process only.<br/>
+5. With multiple processes, support single process.<br/>
 6. Support vhost, support \_\_defaultVhost\_\_.<br/>
 7. Support adobe rtmp live streaming.<br/>
 8. Support apple [HLS(m3u8)](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS) live streaming.<br/>
@@ -230,14 +230,15 @@ Supported operating systems and hardware:
 22. Player, publisher(encoder), and demo pages(jquery+bootstrap). <br/>
 23. Demo video meeting or chat(SRS+cherrypy+jquery+bootstrap). <br/>
 24. [dev] Full documents in wiki, in chineses. <br/>
-25. [plan] Support network based cli and json result.<br/>
-26. [plan] Support adobe flash refer/token/swf verification.<br/>
-27. [plan] Support adobe amf3 codec.<br/>
-28. [plan] Support dvr(record live to vod file)<br/>
-29. [plan] Support FMS edge protocol<br/>
-30. [plan] Support encryption: RTMPE/RTMPS, HLS DRM<br/>
-31. [plan] Support RTMPT, http to tranverse firewalls<br/>
-32. [plan] Support file source, transcoding file to live stream<br/>
+25. [plan] Support RTMP edge server<br/>
+26. [plan] Support multiple process<br/>
+27. [plan] Support network based cli and json result.<br/>
+28. [no-plan] Support adobe flash refer/token/swf verification.<br/>
+29. [no-plan] Support adobe amf3 codec.<br/>
+30. [no-plan] Support dvr(record live to vod file)<br/>
+31. [no-plan] Support encryption: RTMPE/RTMPS, HLS DRM<br/>
+32. [no-plan] Support RTMPT, http to tranverse firewalls<br/>
+33. [no-plan] Support file source, transcoding file to live stream<br/>
 
 ### Performance
 1. 300 connections, 150Mbps, 500kbps, CPU 18.8%, 5956KB.
