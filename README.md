@@ -316,12 +316,12 @@ Supported operating systems and hardware:
 35. [no-plan] Support RTSP<br/>
 
 ### Performance
-1. 300 connections, 150Mbps, 500kbps, CPU 18.8%, 5956KB.
-2. 600 connections, 300Mbps, 500kbps, CPU 32.1%, 9808KB.
-3. 900 connections, 450Mbps, 500kbps, CPU 49.9%, 11MB.
-4. 1200 connections, 600Mbps, 500kbps, CPU 72.4%, 15MB.
-5. 1500 connections, 750Mbps, 500kbps, CPU 81.9%, 28MB.
-6. 1800 connections, 900Mbps, 500kbps, CPU 90.2%, 41MB.
+1.  300 connections, 150Mbps, 500kbps, CPU 18.8%, MEM 5956KB.
+2.  600 connections, 300Mbps, 500kbps, CPU 32.1%, MEM 9808KB.
+3.  900 connections, 450Mbps, 500kbps, CPU 49.9%, MEM 11MB.
+4. 1200 connections, 600Mbps, 500kbps, CPU 72.4%, MEM 15MB.
+5. 1500 connections, 750Mbps, 500kbps, CPU 81.9%, MEM 28MB.
+6. 1800 connections, 900Mbps, 500kbps, CPU 90.2%, MEM 41MB.
 
 <pre>
 [winlin@dev6 srs]$ dstat
