@@ -210,13 +210,13 @@ Schema#2: SRS RTMP Edge server pull stream from origin (or upstream SRS
                            +-----+ bandwidth test process(4) |
                                  +---------------------------+
 Remark:
-(1) master process: to fork processes, schedule fd(client) to the "right" process, 
-    forward messages between processes
-(2) communication: master process use unix domain socket to communicate with 
-    worker processes.
+(1) master process: to fork processes, schedule fd(client) to the "right" 
+    process, forward messages between processes
+(2) communication: master process use unix domain socket to communicate 
+    with worker processes.
 (3) worker process: to provide RTMP streaming service, generate HLS files.
-(4) bandwidth test process: for all bandwidth test request, to make the bandwidth 
-    testing has minimal effect to streaming service
+(4) bandwidth test process: for all bandwidth test request, to make the 
+    bandwidth testing has minimal effect to streaming service
 </pre>
 Bandwidth Test Workflow:
 <pre>
