@@ -307,13 +307,13 @@ Supported operating systems and hardware:
 26. [plan] Support RTMP edge server, push/pull stream from any RTMP server<br/>
 27. [plan] Support multiple processes, for both origin and edge<br/>
 28. [plan] Support network based cli and json result.<br/>
-29. [no-plan] Support adobe flash refer/token/swf verification.<br/>
-30. [no-plan] Support adobe amf3 codec.<br/>
-31. [no-plan] Support dvr(record live to vod file)<br/>
-32. [no-plan] Support encryption: RTMPE/RTMPS, HLS DRM<br/>
-33. [no-plan] Support RTMPT, http to tranverse firewalls<br/>
-34. [no-plan] Support file source, transcoding file to live stream<br/>
-35. [no-plan] Support RTSP<br/>
+29. [plan] Support RTSP(RTP, SDP)<br/>
+30. [no-plan] Support adobe flash refer/token/swf verification.<br/>
+31. [no-plan] Support adobe amf3 codec.<br/>
+32. [no-plan] Support dvr(record live to vod file)<br/>
+33. [no-plan] Support encryption: RTMPE/RTMPS, HLS DRM<br/>
+34. [no-plan] Support RTMPT, http to tranverse firewalls<br/>
+35. [no-plan] Support file source, transcoding file to live stream<br/>
 
 ### Performance
 1.  300 connections, 150Mbps, 500kbps, CPU 18.8%, MEM 5956KB.
