@@ -25,7 +25,34 @@ answer newbie questions, and generally made SRS that much better: [AUTHORS.txt](
 ### Wiki
 [https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki)
 
+### Usage(RTMP)
+
+<strong>Requires: Centos6.x 64bits, others see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build)</strong><br/>
+<strong>Step 0:</strong> get SRS <br/>
+<pre>
+git clone https://github.com/winlinvip/simple-rtmp-server &&
+cd simple-rtmp-server/trunk
+</pre>
+<strong>Step 1:</strong> build SRS <br/>
+<pre>
+./configure --with-ssl --without-hls --without-ffmpeg --without-http && make
+</pre>
+<strong>Step 2:</strong> start SRS <br/>
+<pre>
+./objs/srs -c conf/srs.conf
+</pre>
+<strong>Step 3:</strong> [Adobe FMLE](http://www.adobe.com/cn/products/flash-media-encoder.html) publish demo live stream <br/>
+<pre>
+FMS URL: rtmp://192.168.1.170/live
+Stream:  livestream
+</pre>
+<strong>Step 4:</strong> [VLC (2.1+)](http://www.videolan.org/vlc/) play live stream. <br/>
+<pre>
+rtmp url: rtmp://192.168.1.170/live/livestream
+</pre>
+
 ### Usage(simple)
+
 <strong>Requires: Centos6.x 64bits, others see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build)</strong><br/>
 <strong>Step -1:</strong> get SRS<br/>
 <pre>
