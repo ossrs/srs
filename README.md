@@ -3,7 +3,7 @@ Simple-RTMP-Server
 
 SRS(SIMPLE RTMP Server) over state-threads created in 2013.<br/>
 SRS is a simple, RTMP/HLS, high-performance, single(plan)/multiple processes, edge(plan)/origin live server.<br/>
-SRS supports [vhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUrlVhost), rtmp, [HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), transcoding, forward, http hooks. <br/>
+SRS supports [vhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUrlVhost), rtmp, [HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), transcoding, forward, [http hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback). <br/>
 Blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
 See also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) <br/>
 See also: [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.github.io/simple-rtmp-server) <br/>
@@ -271,7 +271,7 @@ Supported operating systems and hardware:
 17. Support live stream forward(acopy/vcopy) by ffmpeg.<br/>
 18. Support ffmpeg filters(logo/overlay/crop), x264 params.<br/>
 19. Support audio transcode only, speex/mp3 to aac<br/>
-20. Support http callback api hooks(for authentication and injection).<br/>
+20. Support [http callback api hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback)(for authentication and injection).<br/>
 21. Support bandwidth test api and flash client.<br/>
 22. Player, publisher(encoder), and demo pages(jquery+bootstrap). <br/>
 23. Demo video meeting or chat(SRS+cherrypy+jquery+bootstrap). <br/>
@@ -359,7 +359,7 @@ See also: [Performance Test Guide](https://github.com/winlinvip/simple-rtmp-serv
 * v0.9, 2013-12-14, refine the thread model for the retry threads.
 * v0.9, 2013-12-10, auto install depends tools/libs on centos/ubuntu.
 * v0.8, 2013-12-08, [v0.8](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.8) released. 19186 lines.
-* v0.8, 2013-12-08, support http hooks: on_connect/close/publish/unpublish/play/stop.
+* v0.8, 2013-12-08, support [http hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback): on_connect/close/publish/unpublish/play/stop.
 * v0.8, 2013-12-08, support multiple http hooks for a event.
 * v0.8, 2013-12-07, support http callback hooks, on_connect.
 * v0.8, 2013-12-07, support network based cli and json result, add CherryPy 3.2.4.
