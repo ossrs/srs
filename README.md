@@ -25,7 +25,7 @@ answer newbie questions, and generally made SRS that much better: [AUTHORS.txt](
 ### Wiki
 [https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki)
 
-### Usage(RTMP)
+### Usage(RTMP) for RTMP only
 
 <strong>Requires: Centos6.x 64bits, others see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build)</strong><br/>
 <strong>Step 0:</strong> get SRS <br/>
@@ -51,7 +51,7 @@ Stream:  livestream
 rtmp url: rtmp://192.168.1.170/live/livestream
 </pre>
 
-### Usage(simple)
+### Usage(simple) for all features
 
 <strong>Requires: Centos6.x 64bits, others see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build)</strong><br/>
 <strong>Step -1:</strong> get SRS<br/>
@@ -73,7 +73,7 @@ bash scripts/run.sh
 bash scripts/stop.sh
 </pre>
 
-### Usage(detail)
+### Usage(detail) for all features
 <strong>Requires: Centos6.x 64bits, others see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build)</strong><br/>
 <strong>Step 0:</strong> get SRS <br/>
 <pre>
