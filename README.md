@@ -338,7 +338,7 @@ See also: [Performance Test Guide](https://github.com/winlinvip/simple-rtmp-serv
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
-* v1.0, 2014-02-27, add wiki [LowLatency]https://github.com/winlinvip/simple-rtmp-server/wiki/LowLatency), [HTTPCallback](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback), [ServerSideScript](https://github.com/winlinvip/simple-rtmp-server/wiki/ServerSideScript), [IDE](https://github.com/winlinvip/simple-rtmp-server/wiki/IDE)
+* v1.0, 2014-02-27, add wiki [LowLatency](https://github.com/winlinvip/simple-rtmp-server/wiki/LowLatency), [HTTPCallback](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback), [ServerSideScript](https://github.com/winlinvip/simple-rtmp-server/wiki/ServerSideScript), [IDE](https://github.com/winlinvip/simple-rtmp-server/wiki/IDE)
 * v1.0, 2014-01-19, add wiki [DeliveryHLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS)
 * v1.0, 2014-01-12, add wiki [HowToAskQuestion](https://github.com/winlinvip/simple-rtmp-server/wiki/HowToAskQuestion), [RtmpUrlVhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUrlVhost)
 * v1.0, 2014-01-11, fix jw/flower player pause bug, which send closeStream actually.
