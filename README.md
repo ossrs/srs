@@ -303,18 +303,19 @@ Supported operating systems and hardware:
 22. Player, publisher(encoder), and demo pages(jquery+bootstrap). <br/>
 23. Demo video meeting or chat(SRS+cherrypy+jquery+bootstrap). <br/>
 24. [dev] Full documents in wiki, in chineses. <br/>
-25. [plan] Support RTSP(RTP, SDP)<br/>
-26. [plan] Support system utest<br/>
-27. [plan] Support HLS cluster, use RTMP ATC to generate the TS<br/>
-28. [plan] Support RTMP edge server, push/pull stream from any RTMP server<br/>
-29. [plan] Support multiple processes, for both origin and edge<br/>
-30. [plan] Support network based cli and json result.<br/>
-31. [no-plan] Support adobe flash refer/token/swf verification.<br/>
-32. [no-plan] Support adobe amf3 codec.<br/>
-33. [no-plan] Support dvr(record live to vod file)<br/>
-34. [no-plan] Support encryption: RTMPE/RTMPS, HLS DRM<br/>
-35. [no-plan] Support RTMPT, http to tranverse firewalls<br/>
-36. [no-plan] Support file source, transcoding file to live stream<br/>
+25. [dev] Support RTMP(publish) library<br/>
+26. [plan] Support RTSP(RTP, SDP)<br/>
+27. [plan] Support system utest<br/>
+28. [plan] Support HLS cluster, use RTMP ATC to generate the TS<br/>
+29. [plan] Support RTMP edge server, push/pull stream from any RTMP server<br/>
+30. [plan] Support multiple processes, for both origin and edge<br/>
+31. [plan] Support network based cli and json result.<br/>
+32. [no-plan] Support adobe flash refer/token/swf verification.<br/>
+33. [no-plan] Support adobe amf3 codec.<br/>
+34. [no-plan] Support dvr(record live to vod file)<br/>
+35. [no-plan] Support encryption: RTMPE/RTMPS, HLS DRM<br/>
+36. [no-plan] Support RTMPT, http to tranverse firewalls<br/>
+37. [no-plan] Support file source, transcoding file to live stream<br/>
 
 ### Performance
 1.  300 connections, 150Mbps, 500kbps, CPU 18.8%, MEM 5956KB.
