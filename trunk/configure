@@ -102,9 +102,18 @@ END
 LibSTRoot="${SRS_OBJS}/st"
 LibSTfile="${LibSTRoot}/libst.a"
 # hp(http-parser) the http request/url parser, for SRS to support HTTP callback.
+LibHttpParserRoot=""
+LibHttpParserfile=""
 if [ $SRS_HTTP = YES ]; then
     LibHttpParserRoot="${SRS_OBJS}/hp"
     LibHttpParserfile="${LibHttpParserRoot}/libhttp_parser.a"
+fi
+# openssl-1.0.1f, for the RTMP complex handshake.
+LibSSLRoot=""
+LibSSLfile=""
+if [ $SRS_SSL = YES ]; then
+    LibSSLRoot="${SRS_OBJS}/openssl/include"
+    LibSSLfile="${SRS_OBJS}/openssl/lib/libssl.a ${SRS_OBJS}/openssl/lib/libcrypto.a"
 fi
 
 #####################################################################################
@@ -113,10 +122,7 @@ fi
 #Core Module
 MODULE_ID="CORE" 
 MODULE_DEPENDS=() 
-ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS})
-if [ $SRS_HTTP = YES ]; then
-    ModuleLibIncs="${ModuleLibIncs[@]} ${LibHttpParserRoot}"
-fi
+ModuleLibIncs=(${LibSTRoot} ${LibHttpParserRoot} ${LibSSLRoot} ${SRS_OBJS})
 MODULE_FILES=("srs_core" "srs_core_log" "srs_core_server" 
         "srs_core_error" "srs_core_conn" "srs_core_client" 
         "srs_core_rtmp" "srs_core_socket" "srs_core_buffer"
@@ -144,17 +150,10 @@ MAIN_OBJS="${MODULE_OBJS[@].o}"
 # all main entrances
 MAIN_ENTRANCES=("srs_main_server" "srs_main_bandcheck")
 # all depends libraries
-ModuleLibFiles=(${LibSTfile})
-if [ $SRS_HTTP = YES ]; then
-    ModuleLibFiles="${ModuleLibFiles[@]} ${LibHttpParserfile}"
-fi
+ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile} ${LibSSLfile})
 # all depends objects
 MODULE_OBJS="${CORE_OBJS[@]} ${CONFIG_OBJS[@]} ${PROTOCOL_OBJS[@]} ${MAIN_OBJS[@]}"
-if [ $SRS_SSL = YES ]; then
-    LINK_OPTIONS="-ldl ${SRS_OBJS}/openssl/lib/libssl.a ${SRS_OBJS}/openssl/lib/libcrypto.a"
-else
-    LINK_OPTIONS="-ldl"
-fi
+LINK_OPTIONS="-ldl"
 # srs(simple rtmp server) over st(state-threads)
 BUILD_KEY="srs" APP_MAIN="srs_main_server" APP_NAME="srs" SO_PATH="" . auto/apps.sh
 # bandwidth test tool, to test the bandwidth to server
