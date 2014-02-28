@@ -163,6 +163,12 @@ BUILD_KEY="bandwidth" APP_MAIN="srs_main_bandcheck" APP_NAME="bandwidth" SO_PATH
 echo 'configure ok! '
 
 #####################################################################################
+# when configure success, prepare build
+#####################################################################################
+# create objs/logs for ffmpeg to write log.
+mkdir -p ${SRS_OBJS}/logs
+
+#####################################################################################
 # configure summary
 #####################################################################################
 # linux shell color support.
