@@ -21,7 +21,7 @@ function require_sudoer()
 }
 
 # TODO: check gcc/g++
-echo "check gcc/g++/gdb/make/openssl-devel"
+echo "check gcc/g++/gdb/make"
 echo "depends tools are ok"
 #####################################################################################
 # for Ubuntu, auto install tools by apt-get
@@ -89,13 +89,6 @@ function Ubuntu_prepare()
         require_sudoer "sudo apt-get install -y libfreetype6-dev"
         sudo apt-get install -y libfreetype6-dev
         echo "install libfreetype6-dev success"
-    fi
-    
-    if [[ ! -d /usr/include/openssl ]]; then
-        echo "install libssl-dev"
-        require_sudoer "sudo apt-get install -y libssl-dev"
-        sudo apt-get install -y libssl-dev
-        echo "install libssl-dev success"
     fi
     
     echo "Ubuntu install tools success"
@@ -173,13 +166,6 @@ function Centos_prepare()
         require_sudoer "sudo yum install -y freetype-devel"
         sudo yum install -y freetype-devel
         echo "install freetype-devel success"
-    fi
-    
-    if [[ ! -d /usr/include/openssl ]]; then
-        echo "install openssl-devel"
-        require_sudoer "sudo yum install -y openssl-devel"
-        sudo yum install -y openssl-devel
-        echo "install openssl-devel success"
     fi
     
     echo "Centos install tools success"
@@ -355,6 +341,23 @@ fi
 #####################################################################################
 # openssl, for rtmp complex handshake
 #####################################################################################
+if [ $SRS_SSL = YES ]; then
+    if [[ -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
+        echo "openssl-1.0.1f is ok.";
+    else
+        echo "build openssl-1.0.1f"; 
+        (
+            rm -rf ${SRS_OBJS}/openssl-1.0.1f && cd ${SRS_OBJS} && 
+            unzip -q ../3rdparty/openssl-1.0.1f.zip && cd openssl-1.0.1f && 
+            ./config --prefix=`pwd`/_release -no-shared && make && make install &&
+            cd .. && ln -sf openssl-1.0.1f/_release openssl
+        )
+    fi
+    # check status
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "build openssl-1.0.1f failed, ret=$ret"; exit $ret; fi
+    if [ ! -f ${SRS_OBJS}/openssl/lib/libssl.a ]; then echo "build openssl-1.0.1f failed."; exit -1; fi
+fi
+
 if [ $SRS_SSL = YES ]; then
     echo "#define SRS_SSL" >> $SRS_AUTO_HEADERS_H
 else

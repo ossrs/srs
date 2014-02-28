@@ -151,7 +151,7 @@ fi
 # all depends objects
 MODULE_OBJS="${CORE_OBJS[@]} ${CONFIG_OBJS[@]} ${PROTOCOL_OBJS[@]} ${MAIN_OBJS[@]}"
 if [ $SRS_SSL = YES ]; then
-    LINK_OPTIONS="-ldl -lssl -lcrypto"
+    LINK_OPTIONS="-ldl ${SRS_OBJS}/openssl/lib/libssl.a ${SRS_OBJS}/openssl/lib/libcrypto.a"
 else
     LINK_OPTIONS="-ldl"
 fi
