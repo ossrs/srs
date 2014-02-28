@@ -1,5 +1,15 @@
 #!/bin/bash
 
+function require_sudoer()
+{
+    sudo echo "" >/dev/null 2>&1
+    
+    ret=$?; if [[ 0 -ne $ret ]]; then 
+        echo "\"$1\" require sudoer failed. ret=$ret";
+        exit $ret; 
+    fi
+}
+
 # TODO: check gcc/g++
 echo "check gcc/g++/gdb/make/openssl-devel"
 echo "depends tools are ok"

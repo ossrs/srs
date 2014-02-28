@@ -1,36 +1,29 @@
 #!/bin/bash
 
-SRS_MAKEFILE="Makefile"
+#####################################################################################
+# the main output dir, all configure and make output are in this dir.
+#####################################################################################
+# create the main objs
 SRS_OBJS="objs"
-SRS_AUTO_HEADERS_H="${SRS_OBJS}/srs_auto_headers.hpp"
-
 mkdir -p ${SRS_OBJS}
 
-# linux shell color support.
-RED="\\e[31m"
-GREEN="\\e[32m"
-YELLOW="\\e[33m"
-BLACK="\\e[0m"
-
-# parse user options.
+#####################################################################################
+# parse user options, set the variables like SRS_SSL/SRS_HLS/SRS_FFMPEG/SRS_HTTP
+#####################################################################################
+# parse options, exit with error when parse options invalid.
 . auto/options.sh
 
-function require_sudoer()
-{
-    sudo echo "" >/dev/null 2>&1
-    
-    ret=$?; if [[ 0 -ne $ret ]]; then 
-        echo "\"$1\" require sudoer failed. ret=$ret";
-        exit $ret; 
-    fi
-}
-
 # clean the exists
+# do this only when the options is ok.
 if [[ -f Makefile ]]; then
     make clean
 fi
 
-# generate the audo headers file.
+#####################################################################################
+# generate auto headers file, depends on the finished of options.sh
+#####################################################################################
+# write user options to headers
+SRS_AUTO_HEADERS_H="${SRS_OBJS}/srs_auto_headers.hpp"
 echo "#define SRS_CONFIGURE \"${SRS_CONFIGURE}\"" > $SRS_AUTO_HEADERS_H
 echo "#define SRS_BUILD_DATE \"`date \"+%Y-%m-%d %H:%M:%S\"`\"" >> $SRS_AUTO_HEADERS_H
 echo "#define SRS_BUILD_TS \"`date +%s`\"" >> $SRS_AUTO_HEADERS_H
@@ -46,6 +39,7 @@ echo "" >> $SRS_AUTO_HEADERS_H
 #####################################################################################
 echo "generate Makefile"
 
+SRS_MAKEFILE="Makefile"
 cat << END > ${SRS_MAKEFILE}
 .PHONY: default help clean server bandwidth _prepare_dir
 default: server bandwidth
@@ -152,6 +146,11 @@ BUILD_KEY="bandwidth" APP_MAIN="srs_main_bandcheck" APP_NAME="bandwidth" SO_PATH
 
 echo 'configure ok! '
 
+# linux shell color support.
+RED="\\e[31m"
+GREEN="\\e[32m"
+YELLOW="\\e[33m"
+BLACK="\\e[0m"
 # summary
 echo ""
 echo "configure summary:"
