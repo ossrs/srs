@@ -37,8 +37,9 @@ echo "" >> $SRS_AUTO_HEADERS_H
 #####################################################################################
 # generate Makefile.
 #####################################################################################
-echo "generate Makefile"
 
+#####################################################################################
+echo "generate Makefile"
 SRS_MAKEFILE="Makefile"
 cat << END > ${SRS_MAKEFILE}
 .PHONY: default help clean server bandwidth _prepare_dir
@@ -67,8 +68,8 @@ _prepare_dir:
 	@mkdir -p ${SRS_OBJS}
 END
 
-echo 'generate Makefile ok!'
-
+#####################################################################################
+# build tools or compiler args.
 # the performance analysis, uncomments the following when use gperf to analysis the performance. see third-party/readme.txt
 Performance="-pg"
 # enable gdb debug
@@ -92,14 +93,23 @@ default:
 
 END
 
-# Libraries
+#####################################################################################
+# Libraries, external library to build in srs,
+# header(.h): add to ModuleLibIncs if need the specified library. for example, LibSTRoot
+# library(.a): add to ModuleLibFiles if binary need the specifeid library. for example, LibSTfile
+#
+# st(state-threads) the basic network library for SRS.
 LibSTRoot="${SRS_OBJS}/st"
 LibSTfile="${LibSTRoot}/libst.a"
+# hp(http-parser) the http request/url parser, for SRS to support HTTP callback.
 if [ $SRS_HTTP = YES ]; then
     LibHttpParserRoot="${SRS_OBJS}/hp"
     LibHttpParserfile="${LibHttpParserRoot}/libhttp_parser.a"
 fi
 
+#####################################################################################
+# Modules, compile each module, then link to binary
+#
 #Core Module
 MODULE_ID="CORE" 
 MODULE_DEPENDS=() 
@@ -118,7 +128,7 @@ MODULE_FILES=("srs_core" "srs_core_log" "srs_core_server"
         "srs_core_http" "srs_core_thread" "srs_core_bandwidth")
 MODULE_DIR="src/core" . auto/modules.sh
 CORE_OBJS="${MODULE_OBJS[@]}"
-
+#
 #Main Module
 MODULE_ID="MAIN" 
 MODULE_DEPENDS=("CORE")
@@ -127,21 +137,27 @@ MODULE_FILES=("srs_main_server" "srs_main_bandcheck")
 MODULE_DIR="src/main" . auto/modules.sh
 MAIN_OBJS="${MODULE_OBJS[@].o}"
 
+#####################################################################################
+# Binaries, main entrances, link the module and its depends modules,
+# then link to a binary, for example, objs/srs
+#
 # all main entrances
 MAIN_ENTRANCES=("srs_main_server" "srs_main_bandcheck")
-
-# srs(simple rtmp server) over st(state-threads)
+# all depends libraries
 ModuleLibFiles=(${LibSTfile})
 if [ $SRS_HTTP = YES ]; then
     ModuleLibFiles="${ModuleLibFiles[@]} ${LibHttpParserfile}"
 fi
+# all depends objects
 MODULE_OBJS="${CORE_OBJS[@]} ${CONFIG_OBJS[@]} ${PROTOCOL_OBJS[@]} ${MAIN_OBJS[@]}"
 if [ $SRS_SSL = YES ]; then
     LINK_OPTIONS="-ldl -lssl -lcrypto"
 else
     LINK_OPTIONS="-ldl"
 fi
+# srs(simple rtmp server) over st(state-threads)
 BUILD_KEY="srs" APP_MAIN="srs_main_server" APP_NAME="srs" SO_PATH="" . auto/apps.sh
+# bandwidth test tool, to test the bandwidth to server
 BUILD_KEY="bandwidth" APP_MAIN="srs_main_bandcheck" APP_NAME="bandwidth" SO_PATH="" . auto/apps.sh
 
 echo 'configure ok! '
