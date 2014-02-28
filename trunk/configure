@@ -82,10 +82,12 @@ CppStd="-ansi"
 CXXFLAGS="${CppStd} ${WarnLevel} ${GDBDebug}"
 #CXXFLAGS="${CppStd} ${WarnLevel} ${GDBDebug} ${Performance}"
 cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
-CXXFLAGS ?= ${CXXFLAGS}
+CC ?= gcc
+GCC ?= gcc
 CXX ?= g++
-LINK ?= \$(CXX)
 AR ?= ar
+CXXFLAGS = ${CXXFLAGS}
+LINK = g++
 
 .PHONY: default srs bandwidth 
 

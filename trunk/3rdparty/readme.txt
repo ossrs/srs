@@ -24,6 +24,9 @@ x264-snapshot-20131129-2245-stable.tar.bz2 (core.138)
 
 tools/ccache-3.1.9.zip
     to fast build.
+    
+1.st.arm.Makefile.patch
+    st编译脚本补丁，允许用户指定cc编译器。
 
 links:
     ffmpeg: 
