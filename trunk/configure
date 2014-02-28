@@ -146,6 +146,9 @@ BUILD_KEY="bandwidth" APP_MAIN="srs_main_bandcheck" APP_NAME="bandwidth" SO_PATH
 
 echo 'configure ok! '
 
+#####################################################################################
+# configure summary
+#####################################################################################
 # linux shell color support.
 RED="\\e[31m"
 GREEN="\\e[32m"
@@ -180,11 +183,10 @@ else
     echo -e "${BLACK}note: research tools are not builded${BLACK}"
 fi
 
-# mkdir dirs
-mkdir -p ${SRS_OBJS}/logs
-
+#####################################################################################
+# next step
+#####################################################################################
 ip=`ifconfig|grep "inet addr"| grep -v "127.0.0.1"|awk '{print $2}'|awk -F ':' 'NR==1 {print $2}'`
-# next step.
 echo ""
 echo "you can:"
 echo "\" make \" to build the srs(simple rtmp server)."
