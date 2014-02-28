@@ -52,7 +52,7 @@ help:
 	@echo "  bandwidth  build the bandwidth test client tool."
 
 clean: 
-	(rm -f Makefile; cd ${SRS_OBJS}; rm -rf srs bandwidth Makefile *.hpp src st_*_load)
+	(rm -f Makefile; cd ${SRS_OBJS}; rm -rf srs bandwidth Makefile *.hpp src st_*_load research)
 
 server: _prepare_dir
 	@echo "build the srs(simple rtmp server) over st(state-threads)"
@@ -81,10 +81,10 @@ CppStd="-ansi"
 CXXFLAGS="${CppStd} ${WarnLevel} ${GDBDebug}"
 #CXXFLAGS="${CppStd} ${WarnLevel} ${GDBDebug} ${Performance}"
 cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
-CXXFLAGS = ${CXXFLAGS}
-GCC = g++
-LINK = \$(GCC)
-AR = ar
+CXXFLAGS ?= ${CXXFLAGS}
+CXX ?= g++
+LINK ?= \$(CXX)
+AR ?= ar
 
 .PHONY: default srs bandwidth 
 
@@ -173,6 +173,11 @@ if [ $SRS_HTTP = YES ]; then
     echo -e "${GREEN}http hooks callback over CherryPy is enabled${BLACK}"
 else
     echo -e "${YELLOW}warning: without http hooks callback over CherryPy support${BLACK}"
+fi
+if [ $SRS_RESEARCH = YES ]; then
+    echo -e "${GREEN}research tools are builded${BLACK}"
+else
+    echo -e "${BLACK}note: research tools are not builded${BLACK}"
 fi
 
 # mkdir dirs

@@ -50,7 +50,7 @@ for item in ${MODULE_FILES[*]}; do
     MODULE_OBJS="${MODULE_OBJS[@]} ${CPP_FILE}"
     if [ -f ${CPP_FILE} ]; then
         echo "${OBJ_FILE}: \$(${DEPS_NAME}) ${CPP_FILE} " >> ${FILE}
-        echo "	\$(GCC) -c \$(CXXFLAGS) \$(${INCS_NAME})\\" >> ${FILE}
+        echo "	\$(CXX) -c \$(CXXFLAGS) \$(${INCS_NAME})\\" >> ${FILE}
         echo "          -o ${OBJ_FILE} ${CPP_FILE}" >> ${FILE}
     fi
 done

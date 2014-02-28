@@ -1,5 +1,15 @@
 #!/bin/bash
 
+#####################################################################################
+#####################################################################################
+# prepare the depends tools and libraries
+# DEPENDS: options.sh, only when user options parsed, the depends tools are known.
+#####################################################################################
+#####################################################################################
+
+#####################################################################################
+# utilities
+#####################################################################################
 function require_sudoer()
 {
     sudo echo "" >/dev/null 2>&1
@@ -14,7 +24,7 @@ function require_sudoer()
 echo "check gcc/g++/gdb/make/openssl-devel"
 echo "depends tools are ok"
 #####################################################################################
-# for Ubuntu
+# for Ubuntu, auto install tools by apt-get
 #####################################################################################
 function Ubuntu_prepare()
 {
@@ -92,7 +102,7 @@ function Ubuntu_prepare()
 }
 Ubuntu_prepare
 #####################################################################################
-# for Centos
+# for Centos, auto install tools by yum
 #####################################################################################
 function Centos_prepare()
 {
@@ -380,10 +390,12 @@ fi
 #####################################################################################
 # build research code
 #####################################################################################
-mkdir -p ${SRS_OBJS}/research
+if [ $SRS_RESEARCH = YES ]; then
+    mkdir -p ${SRS_OBJS}/research
 
-(cd research/hls && make && mv ts_info ../../${SRS_OBJS}/research)
-ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/hls failed, ret=$ret"; exit $ret; fi
+    (cd research/hls && make && mv ts_info ../../${SRS_OBJS}/research)
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/hls failed, ret=$ret"; exit $ret; fi
 
-(cd research/ffempty && make && mv ffempty ../../${SRS_OBJS}/research)
-ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/ffempty failed, ret=$ret"; exit $ret; fi
+    (cd research/ffempty && make && mv ffempty ../../${SRS_OBJS}/research)
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/ffempty failed, ret=$ret"; exit $ret; fi
+fi

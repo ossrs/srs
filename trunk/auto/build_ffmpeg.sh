@@ -27,7 +27,7 @@ else
 fi
 # add yasm to path, for x264 to use yasm directly.
 # ffmpeg can specifies the yasm path when configure it.
-PATH=${PATH}:${ff_release_dir}/bin
+export PATH=${PATH}:${ff_release_dir}/bin
 
 # libaacplus
 if [[ -f ${ff_release_dir}/lib/libaacplus.a ]]; then
