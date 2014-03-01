@@ -125,7 +125,7 @@ fi
 MODULE_ID="CORE" 
 MODULE_DEPENDS=() 
 ModuleLibIncs=(${SRS_OBJS})
-MODULE_FILES=("srs_core")
+MODULE_FILES=("srs_core" "srs_core_autofree")
 MODULE_DIR="src/core" . auto/modules.sh
 CORE_OBJS="${MODULE_OBJS[@]}"
 #
@@ -136,7 +136,7 @@ ModuleLibIncs=(${LibSTRoot} ${LibHttpParserRoot} ${LibSSLRoot} ${SRS_OBJS})
 MODULE_FILES=("srs_core_log" "srs_core_server" 
         "srs_core_error" "srs_core_conn" "srs_core_client" 
         "srs_core_rtmp" "srs_core_socket" "srs_core_buffer"
-        "srs_core_autofree" "srs_core_protocol" "srs_core_amf0"
+        "srs_core_protocol" "srs_core_amf0"
         "srs_core_stream" "srs_core_source" "srs_core_codec"
         "srs_core_handshake" "srs_core_pithy_print"
         "srs_core_config" "srs_core_refer" "srs_core_reload"
