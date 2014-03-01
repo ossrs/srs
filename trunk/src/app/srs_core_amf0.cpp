@@ -27,7 +27,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
-#include <srs_core_stream.hpp>
+#include <srs_kernel_stream.hpp>
 
 // AMF0 marker
 #define RTMP_AMF0_Number 					0x00
