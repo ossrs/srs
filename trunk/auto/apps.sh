@@ -1,16 +1,16 @@
-#!/bin/bash
-
+# generate the binary
+#
 # params:
-# $SRS_OBJS the objs directory. ie. objs
-# $SRS_MAKEFILE the makefile name. ie. Makefile
-# $MAIN_ENTRANCES array, all main entrance, disable all except the $APP_MAIN itself
-# $MODULE_OBJS array, the objects to compile the app.
-# $BUILD_KEY a string indicates the build key for Makefile. ie. dump
-# $APP_MAIN the object file that contains main function. ie. your_app_main
-# $APP_NAME the app name to output. ie. your_app
-# $ModuleLibFiles array, the 3rdpart library file to link with. ie. (objs/st-1.9/obj/libst.a objs/libx264/obj/libx264.a)
-# $LINK_OPTIONS the linker options.
-# $SO_PATH the libssl.so.10 and other so file path.
+#     $SRS_OBJS the objs directory. ie. objs
+#     $SRS_MAKEFILE the makefile name. ie. Makefile
+#
+#     $MAIN_ENTRANCES array, disable all except the $APP_MAIN itself. ie. ["srs_main_server" "srs_main_bandcheck"]
+#     $APP_MAIN the object file that contains main function. ie. srs_main_server
+#     $BUILD_KEY a string indicates the build key for Makefile. ie. srs
+#     $APP_NAME the app name to output. ie. srs
+#     $MODULE_OBJS array, the objects to compile the app.
+#     $ModuleLibFiles array, the 3rdpart library file to link with. ie. [objs/st-1.9/obj/libst.a objs/libx264/obj/libx264.a]
+#     $LINK_OPTIONS the linker options. ie. -ldl
 
 FILE=${SRS_OBJS}/${SRS_MAKEFILE}
 
@@ -19,8 +19,11 @@ APP_TARGET="${SRS_OBJS}/${APP_NAME}"
 echo "generate app ${APP_NAME} depends...";
 
 echo "# build ${APP_TARGET}" >> ${FILE}
+# generate the binary depends, for example:
+#       srs: objs/srs
 echo "${BUILD_KEY}: ${APP_TARGET}" >> ${FILE}
-
+# the link commands, for example:
+#       objs/srs: objs/src/core/srs_core.o
 echo -n "${APP_TARGET}: " >> ${FILE}
 for item in ${MODULE_OBJS[*]}; do
     FILE_NAME=`basename $item`
@@ -50,7 +53,9 @@ echo "" >> ${FILE}
 
 echo "generate app ${APP_NAME} link...";
 
-echo -n "	\$(LINK) ${PerformanceLink} -o ${APP_TARGET} " >> ${FILE}
+# genereate the actual link command, for example:
+#       	$(LINK)  -o objs/srs objs/src/core/srs_core.o -ldl
+echo -n "	\$(LINK) -o ${APP_TARGET} " >> ${FILE}
 for item in ${MODULE_OBJS[*]}; do
     FILE_NAME=`basename $item`
     FILE_NAME=${FILE_NAME%.*}
@@ -82,11 +87,5 @@ done
 # link options.
 echo -n "${LINK_OPTIONS}" >> ${FILE}
 echo "" >> ${FILE}
-
-# set the so reference path.
-if [[ ! -z ${SO_PATH} ]]; then
-    echo -n "	@bash auto/set_so_rpath.sh ${SOPathTool} ${APP_TARGET} ${SO_PATH}" >> ${FILE}
-    echo "" >> ${FILE}
-fi
 
 echo -n "generate app ${APP_NAME} ok"; echo '!';

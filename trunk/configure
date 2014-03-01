@@ -157,9 +157,9 @@ ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile} ${LibSSLfile})
 MODULE_OBJS="${CORE_OBJS[@]} ${CONFIG_OBJS[@]} ${PROTOCOL_OBJS[@]} ${MAIN_OBJS[@]}"
 LINK_OPTIONS="-ldl"
 # srs(simple rtmp server) over st(state-threads)
-BUILD_KEY="srs" APP_MAIN="srs_main_server" APP_NAME="srs" SO_PATH="" . auto/apps.sh
+BUILD_KEY="srs" APP_MAIN="srs_main_server" APP_NAME="srs" . auto/apps.sh
 # bandwidth test tool, to test the bandwidth to server
-BUILD_KEY="bandwidth" APP_MAIN="srs_main_bandcheck" APP_NAME="bandwidth" SO_PATH="" . auto/apps.sh
+BUILD_KEY="bandwidth" APP_MAIN="srs_main_bandcheck" APP_NAME="bandwidth" . auto/apps.sh
 
 echo 'configure ok! '
 
