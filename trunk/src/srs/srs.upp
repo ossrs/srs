@@ -24,7 +24,7 @@ file
     ..\kernel\srs_kernel_reload.cpp,
     ..\kernel\srs_kernel_stream.hpp,
     ..\kernel\srs_kernel_stream.cpp,
-    rtmp protocol readonly separator,
+    rtmp-protocol readonly separator,
     ..\rtmp\srs_protocol_amf0.hpp,
     ..\rtmp\srs_protocol_amf0.cpp,
     ..\rtmp\srs_protocol_handshake.hpp,

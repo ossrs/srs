@@ -29,7 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
 // current release version
-#define RTMP_SIG_SRS_VERSION "0.9.6"
+#define RTMP_SIG_SRS_VERSION "0.9.7"
 // server info.
 #define RTMP_SIG_SRS_KEY "srs"
 #define RTMP_SIG_SRS_ROLE "origin server"
