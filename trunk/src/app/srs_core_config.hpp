@@ -21,11 +21,11 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_KERNEL_CONIFG_HPP
-#define SRS_KERNEL_CONIFG_HPP
+#ifndef SRS_CORE_CONIFG_HPP
+#define SRS_CORE_CONIFG_HPP
 
 /*
-#include <srs_kernel_config.hpp>
+#include <srs_core_config.hpp>
 */
 #include <srs_core.hpp>
 
