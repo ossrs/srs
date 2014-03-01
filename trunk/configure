@@ -142,8 +142,8 @@ KERNEL_OBJS="${MODULE_OBJS[@]}"
 MODULE_ID="PROTOCOL" 
 MODULE_DEPENDS=("CORE" "KERNEL") 
 ModuleLibIncs=(${SRS_OBJS})
-MODULE_FILES=("srs_protocol_amf0" "srs_protocol_io")
-MODULE_DIR="src/protocol" . auto/modules.sh
+MODULE_FILES=("srs_protocol_amf0" "srs_protocol_io" "srs_protocol_rtmp_stack")
+MODULE_DIR="src/pro" . auto/modules.sh
 PROTOCOL_OBJS="${MODULE_OBJS[@]}"
 #
 #App Module
@@ -151,10 +151,9 @@ MODULE_ID="APP"
 MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL") 
 ModuleLibIncs=(${LibSTRoot} ${LibHttpParserRoot} ${LibSSLRoot} ${SRS_OBJS})
 MODULE_FILES=("srs_core_server" 
-         "srs_core_conn" "srs_core_client" 
+        "srs_core_conn" "srs_core_client" 
         "srs_core_rtmp" "srs_core_socket" 
-        "srs_core_protocol" 
-         "srs_core_source" "srs_core_codec"
+        "srs_core_source" "srs_core_codec"
         "srs_core_handshake" "srs_core_refer"
         "srs_core_hls" "srs_core_forward" "srs_core_encoder"
         "srs_core_http" "srs_core_thread" "srs_core_bandwidth"

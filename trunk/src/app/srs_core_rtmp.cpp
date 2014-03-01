@@ -26,7 +26,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_io.hpp>
-#include <srs_core_protocol.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_core_handshake.hpp>
