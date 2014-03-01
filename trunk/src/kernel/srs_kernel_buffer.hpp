@@ -21,64 +21,46 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <srs_core_buffer.hpp>
+#ifndef SRS_KERNEL_BUFFER_HPP
+#define SRS_KERNEL_BUFFER_HPP
 
-#include <srs_kernel_error.hpp>
-#include <srs_core_socket.hpp>
-#include <srs_kernel_log.hpp>
+/*
+#include <srs_kernel_buffer.hpp>
+*/
 
-#define SOCKET_READ_SIZE 4096
+#include <srs_core.hpp>
 
-SrsBuffer::SrsBuffer()
+#include <vector>
+
+class ISrsReader
 {
-}
+public:
+	ISrsReader();
+	virtual ~ISrsReader();
+public:
+    virtual int read(const void* buf, size_t size, ssize_t* nread) = 0;
+};
 
-SrsBuffer::~SrsBuffer()
+/**
+* the buffer provices bytes cache for protocol. generally, 
+* protocol recv data from socket, put into buffer, decode to RTMP message.
+* protocol encode RTMP message to bytes, put into buffer, send to socket.
+*/
+class SrsBuffer
 {
-}
+private:
+	std::vector<char> data;
+public:
+	SrsBuffer();
+	virtual ~SrsBuffer();
+public:
+	virtual int size();
+	virtual char* bytes();
+	virtual void erase(int size);
+private:
+	virtual void append(char* bytes, int size);
+public:
+	virtual int ensure_buffer_bytes(ISrsReader* skt, int required_size);
+};
 
-int SrsBuffer::size()
-{
-	return (int)data.size();
-}
-
-char* SrsBuffer::bytes()
-{
-	return &data.at(0);
-}
-
-void SrsBuffer::erase(int size)
-{
-	data.erase(data.begin(), data.begin() + size);
-}
-
-void SrsBuffer::append(char* bytes, int size)
-{
-	data.insert(data.end(), bytes, bytes + size);
-}
-
-int SrsBuffer::ensure_buffer_bytes(SrsSocket* skt, int required_size)
-{
-	int ret = ERROR_SUCCESS;
-
-	if (required_size < 0) {
-		ret = ERROR_SYSTEM_SIZE_NEGATIVE;
-		srs_error("size is negative. size=%d, ret=%d", required_size, ret);
-		return ret;
-	}
-
-	while (size() < required_size) {
-		char buffer[SOCKET_READ_SIZE];
-		
-		ssize_t nread;
-		if ((ret = skt->read(buffer, SOCKET_READ_SIZE, &nread)) != ERROR_SUCCESS) {
-			return ret;
-		}
-		
-		srs_assert((int)nread > 0);
-		append(buffer, (int)nread);
-	}
-	
-	return ret;
-}
-
+#endif
