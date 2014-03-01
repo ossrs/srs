@@ -133,8 +133,8 @@ CORE_OBJS="${MODULE_OBJS[@]}"
 MODULE_ID="KERNEL" 
 MODULE_DEPENDS=("CORE") 
 ModuleLibIncs=(${SRS_OBJS})
-MODULE_FILES=("srs_kernel_error" "srs_kernel_log" "srs_kernel_reload" "srs_kernel_config" 
-        "srs_kernel_stream" "srs_kernel_buffer" "srs_kernel_pithy_print")
+MODULE_FILES=("srs_kernel_error" "srs_kernel_log" "srs_kernel_reload" "srs_kernel_stream" 
+        "srs_kernel_buffer")
 MODULE_DIR="src/kernel" . auto/modules.sh
 KERNEL_OBJS="${MODULE_OBJS[@]}"
 #
@@ -143,7 +143,7 @@ MODULE_ID="RTMP"
 MODULE_DEPENDS=("CORE" "KERNEL") 
 ModuleLibIncs=(${SRS_OBJS} ${LibSSLRoot})
 MODULE_FILES=("srs_protocol_amf0" "srs_protocol_io" "srs_protocol_rtmp_stack" "srs_protocol_rtmp"
-        "srs_protocol_handshake")
+        "srs_protocol_handshake" "srs_protocol_utility")
 MODULE_DIR="src/rtmp" . auto/modules.sh
 RTMP_OBJS="${MODULE_OBJS[@]}"
 #
@@ -151,14 +151,10 @@ RTMP_OBJS="${MODULE_OBJS[@]}"
 MODULE_ID="APP" 
 MODULE_DEPENDS=("CORE" "KERNEL" "RTMP") 
 ModuleLibIncs=(${LibSTRoot} ${LibHttpParserRoot} ${SRS_OBJS})
-MODULE_FILES=("srs_core_server" 
-        "srs_core_conn" "srs_core_client" 
-        "srs_core_socket" 
-        "srs_core_source" "srs_core_codec"
-        "srs_core_refer"
-        "srs_core_hls" "srs_core_forward" "srs_core_encoder"
-        "srs_core_http" "srs_core_thread" "srs_core_bandwidth"
-        "srs_core_st" "srs_core_log_context")
+MODULE_FILES=("srs_core_server" "srs_core_conn" "srs_core_client" "srs_core_socket" "srs_core_source" 
+        "srs_core_codec" "srs_core_refer" "srs_core_hls" "srs_core_forward" "srs_core_encoder"
+        "srs_core_http" "srs_core_thread" "srs_core_bandwidth" "srs_core_st" "srs_core_log_context"
+        "srs_kernel_config" "srs_kernel_pithy_print")
 MODULE_DIR="src/app" . auto/modules.sh
 APP_OBJS="${MODULE_OBJS[@]}"
 #

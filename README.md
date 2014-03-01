@@ -183,6 +183,20 @@ System Architecture:
 |      All Linux(RHEL,CentOS,Ubuntu,Fedora...)         |
 +------------------------------------------------------+
 </pre>
+Modularity Architecture:
+<pre>
++------------------------------------------------------+
+|             Main(srs/bandwidth/librtmp)              |
++------------------------------------------------------+
+|           App(Server/Client application)             |
++------------------------------------------------------+
+|               RTMP(Protocol stack)                   |
++------------------------------------------------------+
+|      Kernel(depends on Core, provides error/log)     |
++------------------------------------------------------+
+|         Core(depends only on system apis)            |
++------------------------------------------------------+
+</pre>
 Stream Architecture:
 <pre>
         +---------+              +----------+ 

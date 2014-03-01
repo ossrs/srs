@@ -24,13 +24,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_rtmp.hpp>
 
 #include <srs_core_autofree.hpp>
-#include <srs_protocol_handshake.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
-#include <srs_kernel_config.hpp>
 #include <srs_protocol_io.hpp>
-#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_amf0.hpp>
+#include <srs_protocol_handshake.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
+#include <srs_protocol_utility.hpp>
 
 using namespace std;
 
@@ -125,27 +125,6 @@ int SrsRequest::discovery_app()
 	
 	app = url;
 	srs_vhost_resolve(vhost, app);
-	strip();
-	
-	// resolve the vhost from config
-	SrsConfDirective* parsed_vhost = config->get_vhost(vhost);
-	if (parsed_vhost) {
-		vhost = parsed_vhost->arg0();
-	}
-
-	// TODO: discovery the params of vhost.
-	
-	srs_info("discovery app success. schema=%s, vhost=%s, port=%s, app=%s",
-		schema.c_str(), vhost.c_str(), port.c_str(), app.c_str());
-	
-	if (schema.empty() || vhost.empty() || port.empty() || app.empty()) {
-		ret = ERROR_RTMP_REQ_TCURL;
-		srs_error("discovery tcUrl failed. "
-			"tcUrl=%s, schema=%s, vhost=%s, port=%s, app=%s, ret=%d",
-			tcUrl.c_str(), schema.c_str(), vhost.c_str(), port.c_str(), app.c_str(), ret);
-		return ret;
-	}
-	
 	strip();
 	
 	return ret;

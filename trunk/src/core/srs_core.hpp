@@ -96,11 +96,6 @@ extern void srs_update_system_time_ms();
 extern std::string srs_replace(std::string str, std::string old_str, std::string new_str);
 // dns resolve utility, return the resolved ip address.
 extern std::string srs_dns_resolve(std::string host);
-// resolve the vhost in query string
-// @param app, may contains the vhost in query string format:
-// 		app?vhost=request_vhost
-//		app...vhost...request_vhost
-extern void srs_vhost_resolve(std::string& vhost, std::string& app);
 
 /**
 * disable copy constructor of class

@@ -85,27 +85,3 @@ std::string srs_dns_resolve(std::string host)
     return ipv4;
 }
 
-void srs_vhost_resolve(std::string& vhost, std::string& app)
-{
-	app = srs_replace(app, "...", "?");
-	
-	size_t pos = 0;
-	if ((pos = app.find("?")) == std::string::npos) {
-		return;
-	}
-	
-	std::string query = app.substr(pos + 1);
-	app = app.substr(0, pos);
-	
-	if ((pos = query.find("vhost?")) != std::string::npos
-		|| (pos = query.find("vhost=")) != std::string::npos
-		|| (pos = query.find("Vhost?")) != std::string::npos
-		|| (pos = query.find("Vhost=")) != std::string::npos
-	) {
-		query = query.substr(pos + 6);
-		if (!query.empty()) {
-			vhost = query;
-		}
-	}
-}
-

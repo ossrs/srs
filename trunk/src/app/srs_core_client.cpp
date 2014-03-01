@@ -103,6 +103,24 @@ int SrsClient::do_cycle()
 	}
 	srs_verbose("rtmp connect app success");
 	
+	// discovery vhost, resolve the vhost from config
+	SrsConfDirective* parsed_vhost = config->get_vhost(req->vhost);
+	if (parsed_vhost) {
+		req->vhost = parsed_vhost->arg0();
+	}
+	
+	srs_info("discovery app success. schema=%s, vhost=%s, port=%s, app=%s",
+		req->schema.c_str(), req->vhost.c_str(), req->port.c_str(), req->app.c_str());
+	
+	if (req->schema.empty() || req->vhost.empty() || req->port.empty() || req->app.empty()) {
+		ret = ERROR_RTMP_REQ_TCURL;
+		srs_error("discovery tcUrl failed. "
+			"tcUrl=%s, schema=%s, vhost=%s, port=%s, app=%s, ret=%d",
+			req->tcUrl.c_str(), req->schema.c_str(), req->vhost.c_str(), req->port.c_str(), req->app.c_str(), ret);
+		return ret;
+	}
+	
+	// check vhost
 	if ((ret = check_vhost()) != ERROR_SUCCESS) {
 		srs_error("check vhost failed. ret=%d", ret);
 		return ret;

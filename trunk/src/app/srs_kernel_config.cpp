@@ -39,6 +39,7 @@ using namespace std;
 
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
+#include <srs_protocol_utility.hpp>
 #include <srs_core_autofree.hpp>
 
 #define FILE_OFFSET(fd) lseek(fd, 0, SEEK_CUR)
