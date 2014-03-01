@@ -34,6 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 #include <string>
 
+#include <srs_core_st.hpp>
 #include <srs_core_reload.hpp>
 
 class SrsSource;

@@ -21,34 +21,17 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_CORE_CONN_HPP
-#define SRS_CORE_CONN_HPP
-
-/*
-#include <srs_core_conn.hpp>
-*/
-
-#include <srs_core.hpp>
-
 #include <srs_core_st.hpp>
 
-class SrsServer;
-class SrsConnection
+void srs_close_stfd(st_netfd_t& stfd)
 {
-protected:
-	SrsServer* server;
-	st_netfd_t stfd;
-	int connection_id;
-public:
-	SrsConnection(SrsServer* srs_server, st_netfd_t client_stfd);
-	virtual ~SrsConnection();
-public:
-	virtual int start();
-protected:
-	virtual int do_cycle() = 0;
-private:
-	virtual void cycle();
-	static void* cycle_thread(void* arg);
-};
-
-#endif
+	if (stfd) {
+		int fd = st_netfd_fileno(stfd);
+		st_netfd_close(stfd);
+		stfd = NULL;
+		
+		// st does not close it sometimes, 
+		// close it manually.
+		close(fd);
+	}
+}

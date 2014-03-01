@@ -52,6 +52,8 @@ file
     ..\app\srs_core_thread.cpp,
     ..\app\srs_core_server.hpp,
     ..\app\srs_core_server.cpp,
+    ..\app\srs_core_st.hpp,
+    ..\app\srs_core_st.cpp,
     ..\app\srs_core_stream.hpp,
     ..\app\srs_core_stream.cpp,
     ..\app\srs_core_socket.hpp,

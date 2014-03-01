@@ -29,6 +29,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
+#include <srs_core_st.hpp>
+
 /**
 * the handler for the thread, callback interface.
 * the thread model defines as:
