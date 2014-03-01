@@ -28,11 +28,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define SOCKET_READ_SIZE 4096
 
-ISrsReader::ISrsReader()
+ISrsBufferReader::ISrsBufferReader()
 {
 }
 
-ISrsReader::~ISrsReader()
+ISrsBufferReader::~ISrsBufferReader()
 {
 }
 
@@ -64,7 +64,7 @@ void SrsBuffer::append(char* bytes, int size)
 	data.insert(data.end(), bytes, bytes + size);
 }
 
-int SrsBuffer::ensure_buffer_bytes(ISrsReader* skt, int required_size)
+int SrsBuffer::ensure_buffer_bytes(ISrsBufferReader* skt, int required_size)
 {
 	int ret = ERROR_SUCCESS;
 

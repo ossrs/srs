@@ -32,11 +32,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <vector>
 
-class ISrsReader
+/**
+* the reader for the buffer to read from whatever channel.
+*/
+class ISrsBufferReader
 {
 public:
-	ISrsReader();
-	virtual ~ISrsReader();
+	ISrsBufferReader();
+	virtual ~ISrsBufferReader();
 public:
     virtual int read(const void* buf, size_t size, ssize_t* nread) = 0;
 };
@@ -60,7 +63,7 @@ public:
 private:
 	virtual void append(char* bytes, int size);
 public:
-	virtual int ensure_buffer_bytes(ISrsReader* skt, int required_size);
+	virtual int ensure_buffer_bytes(ISrsBufferReader* skt, int required_size);
 };
 
 #endif

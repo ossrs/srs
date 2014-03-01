@@ -37,7 +37,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * the socket provides TCP socket over st,
 * that is, the sync socket mechanism.
 */
-class SrsSocket : public ISrsReader
+class SrsSocket : public ISrsBufferReader
 {
 private:
 	int64_t recv_timeout;
