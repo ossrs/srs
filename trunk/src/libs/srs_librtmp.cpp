@@ -22,3 +22,78 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
 #include <srs_librtmp.hpp>
+
+#include <stdlib.h>
+
+#include <srs_protocol_rtmp.hpp>
+    
+/**
+* the stream over epoll: never wait for data coming, that is async mode.
+*/
+class SimpleSocketStream
+{
+private:
+    int sock;
+public:
+    SimpleSocketStream(int fd){
+        sock = fd;
+    }
+    virtual ~SimpleSocketStream() {
+        ::close(sock);
+    }
+public:
+};
+
+/**
+* export runtime context.
+*/
+struct Context
+{
+    SrsRtmpClient* rtmp;
+    SimpleSocketStream* stream;
+    int stream_id;
+    
+    Context() {
+        rtmp = NULL;
+        stream = NULL;
+        stream_id = 0;
+    }
+    virtual ~Context() {
+        srs_freep(rtmp);
+        srs_freep(stream);
+    }
+};
+
+#ifdef __cplusplus
+extern "C"{
+#endif
+
+srs_rtmp_t srs_rtmp_create(){
+    Context* context = new Context();
+    return context;
+}
+
+void srs_rtmp_destroy(srs_rtmp_t rtmp){
+    srs_assert(rtmp != NULL);
+    Context* context = (Context*)rtmp;
+    srs_freep(context);
+}
+
+int srs_version_major()
+{
+	return ::atoi(VERSION_MAJOR);
+}
+
+int srs_version_minor()
+{
+	return ::atoi(VERSION_MINOR);
+}
+
+int srs_version_revision()
+{
+	return ::atoi(VERSION_REVISION);
+}
+
+#ifdef __cplusplus
+}
+#endif

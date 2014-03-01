@@ -116,7 +116,7 @@ int SrsRequest::discovery_app()
 		srs_verbose("discovery vhost=%s", vhost.c_str());
 	}
 
-	port = RTMP_DEFAULT_PORTS;
+	port = RTMP_DEFAULT_PORT;
 	if ((pos = vhost.find(":")) != std::string::npos) {
 		port = vhost.substr(pos + 1);
 		vhost = vhost.substr(0, pos);

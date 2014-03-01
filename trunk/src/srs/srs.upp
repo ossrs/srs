@@ -72,6 +72,7 @@ file
     ..\app\srs_core_source.hpp,
     ..\app\srs_core_source.cpp,
     research readonly separator,
+    ..\..\research\librtmp\srs_publish.c,
     ..\..\research\hls\ts_info.cc;
 
 mainconfig

@@ -54,7 +54,7 @@ help:
 	@echo "  librtmp    build the client publish/play library."
 
 clean: 
-	(rm -f Makefile; cd ${SRS_OBJS}; rm -rf srs bandwidth Makefile *.hpp src st_*_load research)
+	(rm -f Makefile; cd ${SRS_OBJS}; rm -rf srs bandwidth Makefile *.hpp src st_*_load research include lib)
 
 server: _prepare_dir
 	@echo "build the srs(simple rtmp server) over st(state-threads)"
@@ -83,8 +83,10 @@ GDBDebug="-g -O0"
 WarnLevel="-Wall"
 # the compile standard.
 CppStd="-ansi"
+# for library compile
+LibraryCompile="-fPIC"
 # the cxx flag generated.
-CXXFLAGS="${CppStd} ${WarnLevel} ${GDBDebug}"
+CXXFLAGS="${CppStd} ${WarnLevel} ${GDBDebug} ${LibraryCompile}"
 #CXXFLAGS="${CppStd} ${WarnLevel} ${GDBDebug} ${Performance}"
 cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
 CC ?= gcc
@@ -166,7 +168,7 @@ APP_OBJS="${MODULE_OBJS[@]}"
 #LIBS Module, build libsrs.a for static link.
 MODULE_ID="LIBS" 
 MODULE_DEPENDS=("CORE" "KERNEL" "RTMP") 
-ModuleLibIncs=()
+ModuleLibIncs=(${SRS_OBJS})
 MODULE_FILES=("srs_librtmp")
 MODULE_DIR="src/libs" . auto/modules.sh
 LIBS_OBJS="${MODULE_OBJS[@]}"
@@ -202,7 +204,7 @@ BUILD_KEY="bandwidth" APP_MAIN="srs_main_bandcheck" APP_NAME="bandwidth" . auto/
 #
 # srs librtmp
 MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${RTMP_OBJS[@]} ${LIBS_OBJS[@]}"
-BUILD_KEY="librtmp" LIB_NAME="srs_librtmp" LINK_OPTIONS="" . auto/libs.sh
+BUILD_KEY="librtmp" LIB_NAME="lib/srs_librtmp" . auto/libs.sh
 
 echo 'configure ok! '
 
@@ -211,6 +213,9 @@ echo 'configure ok! '
 #####################################################################################
 # create objs/logs for ffmpeg to write log.
 mkdir -p ${SRS_OBJS}/logs
+# lib and include for library
+mkdir -p ${SRS_OBJS}/lib
+mkdir -p ${SRS_OBJS}/include
 
 #####################################################################################
 # configure summary

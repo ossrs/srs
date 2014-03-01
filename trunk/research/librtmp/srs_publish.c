@@ -20,41 +20,17 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
-
-#ifndef SRS_LIB_RTMP_HPP
-#define SRS_LIB_RTMP_HPP
-
-/*
-#include <srs_librtmp.h>
-*/
-
-#ifdef __cplusplus
-extern "C"{
-#endif
-
-// the output handler.
-typedef void* srs_rtmp_t;
-
 /**
-* create a rtmp protocol stack.
-* @return a rtmp handler, or NULL if error occured.
+gcc srs_publish.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_publish
 */
-srs_rtmp_t srs_rtmp_create();
 
-/**
-* close a rtmp protocl stack.
-*/
-void srs_rtmp_destroy(srs_rtmp_t rtmp);
+#include <stdio.h>
+#include "../../objs/include/srs_librtmp.h"
 
-/**
-* get protocol stack version
-*/
-int srs_version_major();
-int srs_version_minor();
-int srs_version_revision();
-
-#ifdef __cplusplus
+int main(int argc, char** argv)
+{
+    printf("srs(simple-rtmp-server) client librtmp library.\n");
+    printf("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
+    
+    return 0;
 }
-#endif
-
-#endif

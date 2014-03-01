@@ -29,8 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
-#define RTMP_DEFAULT_PORT 1935
-#define RTMP_DEFAULT_PORTS "1935"
+#define RTMP_DEFAULT_PORT "1935"
 
 // the default chunk size for system.
 #define SRS_CONF_DEFAULT_CHUNK_SIZE 60000
