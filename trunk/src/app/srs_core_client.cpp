@@ -28,7 +28,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 using namespace std;
 
-#include <srs_core_error.hpp>
+#include <srs_kernel_error.hpp>
 #include <srs_core_log.hpp>
 #include <srs_core_rtmp.hpp>
 #include <srs_core_protocol.hpp>

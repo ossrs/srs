@@ -23,7 +23,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core_thread.hpp>
 
-#include <srs_core_error.hpp>
+#include <srs_kernel_error.hpp>
 #include <srs_core_log.hpp>
 
 ISrsThreadHandler::ISrsThreadHandler()

@@ -29,7 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_log.hpp>
 #include <srs_core_config.hpp>
 #include <srs_core_reload.hpp>
-#include <srs_core_error.hpp>
+#include <srs_kernel_error.hpp>
 
 #define SRS_STAGE_DEFAULT_INTERVAL_MS 1200
 
