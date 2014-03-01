@@ -41,7 +41,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_source.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_core_rtmp.hpp>
-#include <srs_core_pithy_print.hpp>
+#include <srs_kernel_pithy_print.hpp>
 
 // max PES packets size to flush the video.
 #define SRS_HLS_AUDIO_CACHE_SIZE 512 * 1024

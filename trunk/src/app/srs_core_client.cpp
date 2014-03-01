@@ -35,7 +35,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_core_source.hpp>
 #include <srs_core_server.hpp>
-#include <srs_core_pithy_print.hpp>
+#include <srs_kernel_pithy_print.hpp>
 #include <srs_kernel_config.hpp>
 #include <srs_core_refer.hpp>
 #include <srs_core_hls.hpp>
