@@ -35,7 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string>
 
 #include <srs_core_st.hpp>
-#include <srs_core_reload.hpp>
+#include <srs_kernel_reload.hpp>
 
 class SrsSource;
 class SrsCommonMessage;
