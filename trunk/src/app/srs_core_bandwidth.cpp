@@ -32,7 +32,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_core_amf0.hpp>
 #include <srs_core_protocol.hpp>
-#include <srs_core_config.hpp>
+#include <srs_kernel_config.hpp>
 #include <srs_core_autofree.hpp>
 
 SrsBandwidth::SrsBandwidth()

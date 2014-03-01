@@ -33,7 +33,7 @@ using namespace std;
 #include <srs_core_codec.hpp>
 #include <srs_core_hls.hpp>
 #include <srs_core_forward.hpp>
-#include <srs_core_config.hpp>
+#include <srs_kernel_config.hpp>
 #include <srs_core_encoder.hpp>
 #include <srs_core_rtmp.hpp>
 
