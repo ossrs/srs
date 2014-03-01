@@ -124,8 +124,16 @@ fi
 #Core Module
 MODULE_ID="CORE" 
 MODULE_DEPENDS=() 
+ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS})
+MODULE_FILES=("srs_core")
+MODULE_DIR="src/core" . auto/modules.sh
+CORE_OBJS="${MODULE_OBJS[@]}"
+#
+#App Module
+MODULE_ID="APP" 
+MODULE_DEPENDS=("CORE") 
 ModuleLibIncs=(${LibSTRoot} ${LibHttpParserRoot} ${LibSSLRoot} ${SRS_OBJS})
-MODULE_FILES=("srs_core" "srs_core_log" "srs_core_server" 
+MODULE_FILES=("srs_core_log" "srs_core_server" 
         "srs_core_error" "srs_core_conn" "srs_core_client" 
         "srs_core_rtmp" "srs_core_socket" "srs_core_buffer"
         "srs_core_autofree" "srs_core_protocol" "srs_core_amf0"
@@ -135,11 +143,11 @@ MODULE_FILES=("srs_core" "srs_core_log" "srs_core_server"
         "srs_core_hls" "srs_core_forward" "srs_core_encoder"
         "srs_core_http" "srs_core_thread" "srs_core_bandwidth")
 MODULE_DIR="src/app" . auto/modules.sh
-CORE_OBJS="${MODULE_OBJS[@]}"
+APP_OBJS="${MODULE_OBJS[@]}"
 #
 #Main Module
 MODULE_ID="MAIN" 
-MODULE_DEPENDS=("CORE")
+MODULE_DEPENDS=("CORE" "APP")
 ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS})
 MODULE_FILES=("srs_main_server" "srs_main_bandcheck")
 MODULE_DIR="src/main" . auto/modules.sh
@@ -155,7 +163,7 @@ MAIN_ENTRANCES=("srs_main_server" "srs_main_bandcheck")
 # all depends libraries
 ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile} ${LibSSLfile})
 # all depends objects
-MODULE_OBJS="${CORE_OBJS[@]} ${CONFIG_OBJS[@]} ${PROTOCOL_OBJS[@]} ${MAIN_OBJS[@]}"
+MODULE_OBJS="${CORE_OBJS[@]} ${APP_OBJS[@]} ${MAIN_OBJS[@]}"
 LINK_OPTIONS="-ldl"
 #
 # srs:
