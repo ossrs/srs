@@ -26,7 +26,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdlib.h>
 #include <map>
 
-#include <srs_core_log.hpp>
+#include <srs_kernel_log.hpp>
 #include <srs_core_config.hpp>
 #include <srs_core_reload.hpp>
 #include <srs_kernel_error.hpp>

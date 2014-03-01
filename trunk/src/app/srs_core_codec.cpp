@@ -28,7 +28,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_error.hpp>
 #include <srs_core_stream.hpp>
-#include <srs_core_log.hpp>
+#include <srs_kernel_log.hpp>
 #include <srs_core_autofree.hpp>
 
 SrsCodecBuffer::SrsCodecBuffer()

@@ -25,7 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CORE_LOG_HPP
 
 /*
-#include <srs_core_log.hpp>
+#include <srs_kernel_log.hpp>
 */
 
 #include <srs_core.hpp>

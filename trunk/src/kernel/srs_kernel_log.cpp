@@ -22,41 +22,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
 #include <srs_kernel_log.hpp>
-#include <srs_kernel_error.hpp>
-#include <srs_core_server.hpp>
-#include <srs_core_config.hpp>
 
-#include <stdlib.h>
-#include <signal.h>
-
-void handler(int signo)
+ILogContext::ILogContext()
 {
-	srs_trace("get a signal, signo=%d", signo);
-	_server()->on_signal(signo);
 }
 
-int main(int argc, char** argv){
-	int ret = ERROR_SUCCESS;
-	
-	signal(SIGNAL_RELOAD, handler);
-	
-	if ((ret = config->parse_options(argc, argv)) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	if ((ret = _server()->initialize()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	// TODO: create log dir in config->get_log_dir()
-	
-	if ((ret = _server()->listen()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	if ((ret = _server()->cycle()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-    return 0;
+ILogContext::~ILogContext()
+{
 }
+

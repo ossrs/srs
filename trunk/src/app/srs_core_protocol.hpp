@@ -34,7 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string>
 
 #include <srs_core_st.hpp>
-#include <srs_core_log.hpp>
+#include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 
 // the following is the timeout for rtmp protocol, 

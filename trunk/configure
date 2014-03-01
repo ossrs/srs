@@ -133,7 +133,7 @@ CORE_OBJS="${MODULE_OBJS[@]}"
 MODULE_ID="KERNEL" 
 MODULE_DEPENDS=("CORE") 
 ModuleLibIncs=(${SRS_OBJS})
-MODULE_FILES=("srs_kernel_error")
+MODULE_FILES=("srs_kernel_error" "srs_kernel_log")
 MODULE_DIR="src/kernel" . auto/modules.sh
 KERNEL_OBJS="${MODULE_OBJS[@]}"
 #
@@ -141,7 +141,7 @@ KERNEL_OBJS="${MODULE_OBJS[@]}"
 MODULE_ID="APP" 
 MODULE_DEPENDS=("CORE" "KERNEL") 
 ModuleLibIncs=(${LibSTRoot} ${LibHttpParserRoot} ${LibSSLRoot} ${SRS_OBJS})
-MODULE_FILES=("srs_core_log" "srs_core_server" 
+MODULE_FILES=("srs_core_server" 
          "srs_core_conn" "srs_core_client" 
         "srs_core_rtmp" "srs_core_socket" "srs_core_buffer"
         "srs_core_protocol" "srs_core_amf0"
@@ -150,7 +150,7 @@ MODULE_FILES=("srs_core_log" "srs_core_server"
         "srs_core_config" "srs_core_refer" "srs_core_reload"
         "srs_core_hls" "srs_core_forward" "srs_core_encoder"
         "srs_core_http" "srs_core_thread" "srs_core_bandwidth"
-        "srs_core_st")
+        "srs_core_st" "srs_core_log_context")
 MODULE_DIR="src/app" . auto/modules.sh
 APP_OBJS="${MODULE_OBJS[@]}"
 #

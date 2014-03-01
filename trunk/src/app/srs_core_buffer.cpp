@@ -25,7 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_error.hpp>
 #include <srs_core_socket.hpp>
-#include <srs_core_log.hpp>
+#include <srs_kernel_log.hpp>
 
 #define SOCKET_READ_SIZE 4096
 

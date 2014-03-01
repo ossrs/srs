@@ -21,42 +21,50 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+#ifndef SRS_CORE_LOG_CONTEXT_HPP
+#define SRS_CORE_LOG_CONTEXT_HPP
+
+/*
+#include <srs_core_log_context.hpp>
+*/
+
+#include <srs_core.hpp>
+
+#include <srs_core_st.hpp>
 #include <srs_kernel_log.hpp>
-#include <srs_kernel_error.hpp>
-#include <srs_core_server.hpp>
-#include <srs_core_config.hpp>
 
-#include <stdlib.h>
-#include <signal.h>
+#include <string.h>
+#include <sys/time.h>
 
-void handler(int signo)
+#include <string>
+#include <map>
+
+class SrsLogContext : public ILogContext
 {
-	srs_trace("get a signal, signo=%d", signo);
-	_server()->on_signal(signo);
-}
+private:
+	class DateTime
+	{
+	private:
+	    // %d-%02d-%02d %02d:%02d:%02d.%03d
+	    #define DATE_LEN 24
+	    char time_data[DATE_LEN];
+	public:
+	    DateTime();
+	    virtual ~DateTime();
+	public:
+	    virtual const char* format_time();
+	};
+private:
+    DateTime time;
+    std::map<st_thread_t, int> cache;
+public:
+    SrsLogContext();
+    virtual ~SrsLogContext();
+public:
+    virtual void generate_id();
+    virtual int get_id();
+public:
+    virtual const char* format_time();
+};
 
-int main(int argc, char** argv){
-	int ret = ERROR_SUCCESS;
-	
-	signal(SIGNAL_RELOAD, handler);
-	
-	if ((ret = config->parse_options(argc, argv)) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	if ((ret = _server()->initialize()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	// TODO: create log dir in config->get_log_dir()
-	
-	if ((ret = _server()->listen()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	if ((ret = _server()->cycle()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-    return 0;
-}
+#endif

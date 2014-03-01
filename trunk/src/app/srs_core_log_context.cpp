@@ -21,64 +21,20 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <srs_core_log.hpp>
+#include <srs_core_log_context.hpp>
 
-#include <string.h>
-#include <sys/time.h>
+ILogContext* log_context = new SrsLogContext();
 
-#include <string>
-#include <map>
-
-#include <st.h>
-
-ILogContext::ILogContext()
-{
-}
-
-ILogContext::~ILogContext()
-{
-}
-
-class LogContext : public ILogContext
-{
-private:
-	class DateTime
-	{
-	private:
-	    // %d-%02d-%02d %02d:%02d:%02d.%03d
-	    #define DATE_LEN 24
-	    char time_data[DATE_LEN];
-	public:
-	    DateTime();
-	    virtual ~DateTime();
-	public:
-	    virtual const char* format_time();
-	};
-private:
-    DateTime time;
-    std::map<st_thread_t, int> cache;
-public:
-    LogContext();
-    virtual ~LogContext();
-public:
-    virtual void generate_id();
-    virtual int get_id();
-public:
-    virtual const char* format_time();
-};
-
-ILogContext* log_context = new LogContext();
-
-LogContext::DateTime::DateTime()
+SrsLogContext::DateTime::DateTime()
 {
     memset(time_data, 0, DATE_LEN);
 }
 
-LogContext::DateTime::~DateTime()
+SrsLogContext::DateTime::~DateTime()
 {
 }
 
-const char* LogContext::DateTime::format_time()
+const char* SrsLogContext::DateTime::format_time()
 {
     // clock time
     timeval tv;
@@ -100,27 +56,26 @@ const char* LogContext::DateTime::format_time()
     return time_data;
 }
 
-LogContext::LogContext()
+SrsLogContext::SrsLogContext()
 {
 }
 
-LogContext::~LogContext()
+SrsLogContext::~SrsLogContext()
 {
 }
 
-void LogContext::generate_id()
+void SrsLogContext::generate_id()
 {
 	static int id = 1;
     cache[st_thread_self()] = id++;
 }
 
-int LogContext::get_id()
+int SrsLogContext::get_id()
 {
     return cache[st_thread_self()];
 }
 
-const char* LogContext::format_time()
+const char* SrsLogContext::format_time()
 {
     return time.format_time();
 }
-
