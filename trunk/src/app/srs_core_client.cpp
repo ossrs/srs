@@ -41,6 +41,7 @@ using namespace std;
 #include <srs_core_hls.hpp>
 #include <srs_core_http.hpp>
 #include <srs_core_bandwidth.hpp>
+#include <srs_core_socket.hpp>
 
 SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
 	: SrsConnection(srs_server, client_stfd)
@@ -48,7 +49,8 @@ SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
 	ip = NULL;
 	req = new SrsRequest();
 	res = new SrsResponse();
-	rtmp = new SrsRtmp(client_stfd);
+	skt = new SrsSocket(client_stfd);
+	rtmp = new SrsRtmp(skt);
 	refer = new SrsRefer();
 #ifdef SRS_HTTP	
 	http_hooks = new SrsHttpHooks();
@@ -66,6 +68,7 @@ SrsClient::~SrsClient()
 	srs_freep(req);
 	srs_freep(res);
 	srs_freep(rtmp);
+	srs_freep(skt);
 	srs_freep(refer);
 #ifdef SRS_HTTP	
 	srs_freep(http_hooks);

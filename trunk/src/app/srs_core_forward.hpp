@@ -34,6 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_st.hpp>
 #include <srs_core_thread.hpp>
 
+class ISrsProtocolReaderWriter;
 class SrsSharedPtrMessage;
 class SrsOnMetaDataPacket;
 class SrsMessageQueue;
@@ -59,6 +60,7 @@ private:
 	SrsThread* pthread;
 private:
 	SrsSource* source;
+	ISrsProtocolReaderWriter* io;
 	SrsRtmpClient* client;
 	SrsRtmpJitter* jitter;
 	SrsMessageQueue* queue;

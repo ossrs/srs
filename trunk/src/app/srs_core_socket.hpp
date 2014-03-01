@@ -31,13 +31,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <srs_core_st.hpp>
-#include <srs_kernel_buffer.hpp>
+#include <srs_protocol_io.hpp>
 
 /**
 * the socket provides TCP socket over st,
 * that is, the sync socket mechanism.
 */
-class SrsSocket : public ISrsBufferReader
+class SrsSocket : public ISrsProtocolReaderWriter
 {
 private:
 	int64_t recv_timeout;
@@ -50,6 +50,7 @@ public:
     SrsSocket(st_netfd_t client_stfd);
     virtual ~SrsSocket();
 public:
+	virtual bool is_never_timeout(int64_t timeout_us);
 	virtual void set_recv_timeout(int64_t timeout_us);
 	virtual int64_t get_recv_timeout();
 	virtual void set_send_timeout(int64_t timeout_us);

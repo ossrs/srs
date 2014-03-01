@@ -29,7 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_core_autofree.hpp>
-#include <srs_core_socket.hpp>
+#include <srs_protocol_io.hpp>
 
 void srs_random_generate(char* bytes, int size)
 {
@@ -1067,7 +1067,7 @@ SrsSimpleHandshake::~SrsSimpleHandshake()
 {
 }
 
-int SrsSimpleHandshake::handshake_with_client(SrsSocket& skt, SrsComplexHandshake& complex_hs)
+int SrsSimpleHandshake::handshake_with_client(ISrsProtocolReaderWriter* skt, SrsComplexHandshake& complex_hs)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -1075,7 +1075,7 @@ int SrsSimpleHandshake::handshake_with_client(SrsSocket& skt, SrsComplexHandshak
     
     char* c0c1 = new char[1537];
     SrsAutoFree(char, c0c1, true);
-    if ((ret = skt.read_fully(c0c1, 1537, &nsize)) != ERROR_SUCCESS) {
+    if ((ret = skt->read_fully(c0c1, 1537, &nsize)) != ERROR_SUCCESS) {
         srs_warn("read c0c1 failed. ret=%d", ret);
         return ret;
     }
@@ -1106,7 +1106,7 @@ int SrsSimpleHandshake::handshake_with_client(SrsSocket& skt, SrsComplexHandshak
     SrsAutoFree(char, s0s1s2, true);
 	// plain text required.
     s0s1s2[0] = 0x03;
-    if ((ret = skt.write(s0s1s2, 3073, &nsize)) != ERROR_SUCCESS) {
+    if ((ret = skt->write(s0s1s2, 3073, &nsize)) != ERROR_SUCCESS) {
         srs_warn("simple handshake send s0s1s2 failed. ret=%d", ret);
         return ret;
     }
@@ -1114,7 +1114,7 @@ int SrsSimpleHandshake::handshake_with_client(SrsSocket& skt, SrsComplexHandshak
     
     char* c2 = new char[1536];
     SrsAutoFree(char, c2, true);
-    if ((ret = skt.read_fully(c2, 1536, &nsize)) != ERROR_SUCCESS) {
+    if ((ret = skt->read_fully(c2, 1536, &nsize)) != ERROR_SUCCESS) {
         srs_warn("simple handshake read c2 failed. ret=%d", ret);
         return ret;
     }
@@ -1125,7 +1125,7 @@ int SrsSimpleHandshake::handshake_with_client(SrsSocket& skt, SrsComplexHandshak
 	return ret;
 }
 
-int SrsSimpleHandshake::handshake_with_server(SrsSocket& skt, SrsComplexHandshake& complex_hs)
+int SrsSimpleHandshake::handshake_with_server(ISrsProtocolReaderWriter* skt, SrsComplexHandshake& complex_hs)
 {
 	int ret = ERROR_SUCCESS;
     
@@ -1151,7 +1151,7 @@ int SrsSimpleHandshake::handshake_with_server(SrsSocket& skt, SrsComplexHandshak
 	// plain text required.
 	c0c1[0] = 0x03;
 	
-    if ((ret = skt.write(c0c1, 1537, &nsize)) != ERROR_SUCCESS) {
+    if ((ret = skt->write(c0c1, 1537, &nsize)) != ERROR_SUCCESS) {
         srs_warn("write c0c1 failed. ret=%d", ret);
         return ret;
     }
@@ -1159,7 +1159,7 @@ int SrsSimpleHandshake::handshake_with_server(SrsSocket& skt, SrsComplexHandshak
 	
 	char* s0s1s2 = new char[3073];
     SrsAutoFree(char, s0s1s2, true);
-    if ((ret = skt.read_fully(s0s1s2, 3073, &nsize)) != ERROR_SUCCESS) {
+    if ((ret = skt->read_fully(s0s1s2, 3073, &nsize)) != ERROR_SUCCESS) {
         srs_warn("simple handshake recv s0s1s2 failed. ret=%d", ret);
         return ret;
     }
@@ -1175,7 +1175,7 @@ int SrsSimpleHandshake::handshake_with_server(SrsSocket& skt, SrsComplexHandshak
     char* c2 = new char[1536];
     SrsAutoFree(char, c2, true);
 	srs_random_generate(c2, 1536);
-    if ((ret = skt.write(c2, 1536, &nsize)) != ERROR_SUCCESS) {
+    if ((ret = skt->write(c2, 1536, &nsize)) != ERROR_SUCCESS) {
         srs_warn("simple handshake write c2 failed. ret=%d", ret);
         return ret;
     }
@@ -1195,12 +1195,12 @@ SrsComplexHandshake::~SrsComplexHandshake()
 }
 
 #ifndef SRS_SSL
-int SrsComplexHandshake::handshake_with_client(SrsSocket& /*skt*/, char* /*_c1*/)
+int SrsComplexHandshake::handshake_with_client(ISrsProtocolReaderWriter* /*skt*/, char* /*_c1*/)
 {
 	return ERROR_RTMP_TRY_SIMPLE_HS;
 }
 #else
-int SrsComplexHandshake::handshake_with_client(SrsSocket& skt, char* _c1)
+int SrsComplexHandshake::handshake_with_client(ISrsProtocolReaderWriter* skt, char* _c1)
 {
 	int ret = ERROR_SUCCESS;
 
@@ -1258,7 +1258,7 @@ int SrsComplexHandshake::handshake_with_client(SrsSocket& skt, char* _c1)
 	s0s1s2[0] = 0x03;
 	s1.dump(s0s1s2 + 1);
 	s2.dump(s0s1s2 + 1537);
-    if ((ret = skt.write(s0s1s2, 3073, &nsize)) != ERROR_SUCCESS) {
+    if ((ret = skt->write(s0s1s2, 3073, &nsize)) != ERROR_SUCCESS) {
         srs_warn("complex handshake send s0s1s2 failed. ret=%d", ret);
         return ret;
     }
@@ -1267,7 +1267,7 @@ int SrsComplexHandshake::handshake_with_client(SrsSocket& skt, char* _c1)
     // recv c2
     char* c2 = new char[1536];
     SrsAutoFree(char, c2, true);
-    if ((ret = skt.read_fully(c2, 1536, &nsize)) != ERROR_SUCCESS) {
+    if ((ret = skt->read_fully(c2, 1536, &nsize)) != ERROR_SUCCESS) {
         srs_warn("complex handshake read c2 failed. ret=%d", ret);
         return ret;
     }
@@ -1278,12 +1278,12 @@ int SrsComplexHandshake::handshake_with_client(SrsSocket& skt, char* _c1)
 #endif
 
 #ifndef SRS_SSL
-int SrsComplexHandshake::handshake_with_server(SrsSocket& /*skt*/)
+int SrsComplexHandshake::handshake_with_server(ISrsProtocolReaderWriter* /*skt*/)
 {
 	return ERROR_RTMP_TRY_SIMPLE_HS;
 }
 #else
-int SrsComplexHandshake::handshake_with_server(SrsSocket& /*skt*/)
+int SrsComplexHandshake::handshake_with_server(ISrsProtocolReaderWriter* /*skt*/)
 {
 	int ret = ERROR_SUCCESS;
 	

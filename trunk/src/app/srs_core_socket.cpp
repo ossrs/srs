@@ -37,6 +37,11 @@ SrsSocket::~SrsSocket()
 {
 }
 
+bool SrsSocket::is_never_timeout(int64_t timeout_us)
+{
+	return timeout_us == (int64_t)ST_UTIME_NO_TIMEOUT;
+}
+
 void SrsSocket::set_recv_timeout(int64_t timeout_us)
 {
 	recv_timeout = timeout_us;

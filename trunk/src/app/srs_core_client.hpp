@@ -41,6 +41,7 @@ class SrsSource;
 class SrsRefer;
 class SrsConsumer;
 class SrsCommonMessage;
+class SrsSocket;
 #ifdef SRS_HTTP	
 class SrsHttpHooks;
 #endif
@@ -55,6 +56,7 @@ private:
 	char* ip;
 	SrsRequest* req;
 	SrsResponse* res;
+	SrsSocket* skt;
 	SrsRtmp* rtmp;
 	SrsRefer* refer;
 #ifdef SRS_HTTP	

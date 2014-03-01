@@ -34,6 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_amf0.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_stream.hpp>
+#include <srs_core_socket.hpp>
 
 #include <st.h>
 
@@ -57,6 +58,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_BW_CHECK_PLAYING            "onSrsBandCheckPlaying"
 #define SRS_BW_CHECK_PUBLISHING         "onSrsBandCheckPublishing"
 
+class ISrsProtocolReaderWriter;
+
 /**
 *  @brief class of Linux version band check client
 *  check play and publish speed.
@@ -64,7 +67,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsBandCheckClient : public SrsRtmpClient
 {
 public:
-    SrsBandCheckClient(st_netfd_t _stfd);
+    SrsBandCheckClient(ISrsProtocolReaderWriter* io);
     ~SrsBandCheckClient();
 
 public:
@@ -144,8 +147,9 @@ public:
 
 private:
     int connect_server();
-
 private:
+	st_netfd_t stfd;
+	ISrsProtocolReaderWriter* skt;
     SrsBandCheckClient* bandCheck_Client;
     std::string server_address;
     int server_port;
@@ -234,8 +238,8 @@ int main(int argc ,char* argv[])
     return 0;
 }
 
-SrsBandCheckClient::SrsBandCheckClient(st_netfd_t _stfd)
-    : SrsRtmpClient(_stfd)
+SrsBandCheckClient::SrsBandCheckClient(ISrsProtocolReaderWriter* io)
+    : SrsRtmpClient(io)
 {
 }
 
@@ -475,29 +479,17 @@ int SrsBandCheckClient::send_pub_data()
 int SrsBandCheckClient::expect_stop_pub()
 {
     int ret = ERROR_SUCCESS;
-
-    while (true) {
-        if ((ret = st_netfd_poll(stfd, POLLIN, 1000)) == ERROR_SUCCESS) {
-            SrsCommonMessage* msg = 0;
-            if ((ret = recv_message(&msg)) != ERROR_SUCCESS)
-            {
-                srs_error("recv message failed while expect stop pub. ret=%d", ret);
-                return ret;
-            }
-
-            if ((ret = msg->decode_packet(protocol)) != ERROR_SUCCESS) {
-                srs_error("decode packet error while expect stop pub. ret=%d", ret);
-                return ret;
-            }
-
-            SrsBandwidthPacket* pkt = dynamic_cast<SrsBandwidthPacket*>(msg->get_packet());
-            if (pkt && pkt->command_name == SRS_BW_CHECK_STOP_PUBLISH) {
-
-                return ret;
-            }
-        } else {
-            break;
-        }
+    
+    this->set_recv_timeout(1000 * 1000);
+    this->set_send_timeout(1000 * 1000);
+    
+	SrsCommonMessage* msg;
+	SrsBandwidthPacket* pkt;
+    if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(this->protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if (pkt->command_name == SRS_BW_CHECK_STOP_PUBLISH) {
+        return ret;
     }
 
     return ret;
@@ -638,15 +630,17 @@ int SrsBandCheckClient::send_final()
 }
 
 SrsBandCheck::SrsBandCheck()
-    : bandCheck_Client(0)
 {
+	skt = NULL;
+	bandCheck_Client = NULL;
+	stfd = NULL;
 }
 
 SrsBandCheck::~SrsBandCheck()
 {
-    if (bandCheck_Client) {
-        srs_freep(bandCheck_Client);
-    }
+	srs_freep(bandCheck_Client);
+	srs_freep(skt);
+	srs_close_stfd(stfd);
 }
 
 int SrsBandCheck::check(const std::string &app, const std::string &tcUrl)
@@ -698,14 +692,15 @@ int SrsBandCheck::connect_server()
         return ret;
     }
 
-    st_netfd_t stfd = st_netfd_open_socket(sock);
+    stfd = st_netfd_open_socket(sock);
     if(stfd == NULL){
         ret = ERROR_ST_OPEN_SOCKET;
         srs_error("st_netfd_open_socket failed. ret=%d", ret);
         return ret;
     }
 
-    bandCheck_Client = new SrsBandCheckClient(stfd);
+	skt = new SrsSocket(stfd);
+    bandCheck_Client = new SrsBandCheckClient(skt);
 
     // connect to server.
     std::string ip = srs_dns_resolve(server_address);
@@ -763,7 +758,7 @@ void print_help(char** argv)
         "  -h, --help                display this help and exit \n"
         "\n"
 		"For example:\n"
-		"	%s -i 192.168.1.248 -p 1935 -v bandcheck.srs.com -k 35c9b402c12a7246868752e2878f7e0e"
+		"	%s -i 127.0.0.1 -p 1935 -v bandcheck.srs.com -k 35c9b402c12a7246868752e2878f7e0e"
         "\n\n"
         "Exit status:\n"
         "0      if OK,\n"

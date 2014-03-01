@@ -33,7 +33,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <map>
 #include <string>
 
-#include <srs_core_st.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 
@@ -76,7 +75,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // when error, encoder sleep for a while and retry.
 #define SRS_ENCODER_SLEEP_US (int64_t)(3*1000*1000LL)
 
-class SrsSocket;
+class ISrsProtocolReaderWriter;
 class SrsBuffer;
 class SrsPacket;
 class SrsStream;
@@ -123,8 +122,7 @@ private:
 	};
 // peer in/out
 private:
-	st_netfd_t stfd;
-	SrsSocket* skt;
+	ISrsProtocolReaderWriter* skt;
 	char* pp;
 	/**
 	* requests sent out, used to build the response.
@@ -144,7 +142,11 @@ private:
 	char out_header_fmt3[RTMP_MAX_FMT3_HEADER_SIZE];
 	int32_t out_chunk_size;
 public:
-	SrsProtocol(st_netfd_t client_stfd);
+	/**
+	* use io to create the protocol stack,
+	* @param io, provides io interfaces, user must free it.
+	*/
+	SrsProtocol(ISrsProtocolReaderWriter* io);
 	virtual ~SrsProtocol();
 public:
 	std::string get_request_name(double transcationId);
@@ -1214,6 +1216,15 @@ protected:
 * @pmsg, user must free it. NULL if not success.
 * @ppacket, store in the pmsg, user must never free it. NULL if not success.
 * @remark, only when success, user can use and must free the pmsg/ppacket.
+* for example:
+ 		SrsCommonMessage* msg = NULL;
+		SrsConnectAppResPacket* pkt = NULL;
+		if ((ret = srs_rtmp_expect_message<SrsConnectAppResPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+			return ret;
+		}
+		// use pkt
+* user should never recv message and convert it, use this method instead.
+* if need to set timeout, use set timeout of SrsProtocol.
 */
 template<class T>
 int srs_rtmp_expect_message(SrsProtocol* protocol, SrsCommonMessage** pmsg, T** ppacket)

@@ -26,7 +26,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_log.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_kernel_error.hpp>
-#include <srs_core_socket.hpp>
+#include <srs_protocol_io.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_core_autofree.hpp>
@@ -290,11 +290,10 @@ SrsProtocol::AckWindowSize::AckWindowSize()
 	ack_window_size = acked_size = 0;
 }
 
-SrsProtocol::SrsProtocol(st_netfd_t client_stfd)
+SrsProtocol::SrsProtocol(ISrsProtocolReaderWriter* io)
 {
-	stfd = client_stfd;
 	buffer = new SrsBuffer();
-	skt = new SrsSocket(stfd);
+	skt = io;
 	
 	in_chunk_size = out_chunk_size = RTMP_DEFAULT_CHUNK_SIZE;
 }
@@ -311,7 +310,6 @@ SrsProtocol::~SrsProtocol()
 	chunk_streams.clear();
 	
 	srs_freep(buffer);
-	srs_freep(skt);
 }
 
 string SrsProtocol::get_request_name(double transcationId)
@@ -720,7 +718,7 @@ int SrsProtocol::recv_interlaced_message(SrsCommonMessage** pmsg)
 	// when we got a chunk header, we should increase the timeout,
 	// or we maybe timeout and disconnect the client.
 	int64_t timeout_us = skt->get_recv_timeout();
-	if (timeout_us != (int64_t)ST_UTIME_NO_TIMEOUT) {
+	if (!skt->is_never_timeout(timeout_us)) {
 		int64_t pkt_timeout_us = srs_max(timeout_us, SRS_MIN_RECV_TIMEOUT_US);
 		skt->set_recv_timeout(pkt_timeout_us);
 		srs_verbose("change recv timeout_us "
@@ -764,7 +762,7 @@ int SrsProtocol::recv_interlaced_message(SrsCommonMessage** pmsg)
 	}
 	
 	// reset the recv timeout
-	if (timeout_us != (int64_t)ST_UTIME_NO_TIMEOUT) {
+	if (!skt->is_never_timeout(timeout_us)) {
 		skt->set_recv_timeout(timeout_us);
 		srs_verbose("reset recv timeout_us to %"PRId64"", timeout_us);
 	}

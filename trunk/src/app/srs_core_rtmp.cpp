@@ -25,7 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
-#include <srs_core_socket.hpp>
+#include <srs_protocol_io.hpp>
 #include <srs_core_protocol.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_protocol_amf0.hpp>
@@ -197,10 +197,10 @@ SrsResponse::~SrsResponse()
 {
 }
 
-SrsRtmpClient::SrsRtmpClient(st_netfd_t _stfd)
+SrsRtmpClient::SrsRtmpClient(ISrsProtocolReaderWriter* skt)
 {
-	stfd = _stfd;
-	protocol = new SrsProtocol(stfd);
+	io = skt;
+	protocol = new SrsProtocol(skt);
 }
 
 SrsRtmpClient::~SrsRtmpClient()
@@ -251,15 +251,10 @@ int SrsRtmpClient::send_message(ISrsMessage* msg)
 int SrsRtmpClient::handshake()
 {
 	int ret = ERROR_SUCCESS;
-	
-    SrsSocket skt(stfd);
-    
-    skt.set_recv_timeout(protocol->get_recv_timeout());
-    skt.set_send_timeout(protocol->get_send_timeout());
     
     SrsComplexHandshake complex_hs;
     SrsSimpleHandshake simple_hs;
-    if ((ret = simple_hs.handshake_with_server(skt, complex_hs)) != ERROR_SUCCESS) {
+    if ((ret = simple_hs.handshake_with_server(io, complex_hs)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -449,10 +444,10 @@ int SrsRtmpClient::publish(string stream, int stream_id)
 	return ret;
 }
 
-SrsRtmp::SrsRtmp(st_netfd_t client_stfd)
+SrsRtmp::SrsRtmp(ISrsProtocolReaderWriter* skt)
 {
-	protocol = new SrsProtocol(client_stfd);
-	stfd = client_stfd;
+	io = skt;
+	protocol = new SrsProtocol(skt);
 }
 
 SrsRtmp::~SrsRtmp()
@@ -518,15 +513,10 @@ int SrsRtmp::send_message(ISrsMessage* msg)
 int SrsRtmp::handshake()
 {
 	int ret = ERROR_SUCCESS;
-	
-    SrsSocket skt(stfd);
-    
-    skt.set_recv_timeout(protocol->get_recv_timeout());
-    skt.set_send_timeout(protocol->get_send_timeout());
     
     SrsComplexHandshake complex_hs;
     SrsSimpleHandshake simple_hs;
-    if ((ret = simple_hs.handshake_with_client(skt, complex_hs)) != ERROR_SUCCESS) {
+    if ((ret = simple_hs.handshake_with_client(io, complex_hs)) != ERROR_SUCCESS) {
         return ret;
     }
     

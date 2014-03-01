@@ -21,50 +21,28 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_KERNEL_BUFFER_HPP
-#define SRS_KERNEL_BUFFER_HPP
+#include <srs_protocol_io.hpp>
 
-/*
-#include <srs_kernel_buffer.hpp>
-*/
-
-#include <srs_core.hpp>
-
-#include <vector>
-
-/**
-* the reader for the buffer to read from whatever channel.
-*/
-class ISrsBufferReader
+ISrsProtocolReader::ISrsProtocolReader()
 {
-public:
-	ISrsBufferReader();
-	virtual ~ISrsBufferReader();
-// for protocol/amf0/msg-codec
-public:
-    virtual int read(const void* buf, size_t size, ssize_t* nread) = 0;
-};
+}
 
-/**
-* the buffer provices bytes cache for protocol. generally, 
-* protocol recv data from socket, put into buffer, decode to RTMP message.
-* protocol encode RTMP message to bytes, put into buffer, send to socket.
-*/
-class SrsBuffer
+ISrsProtocolReader::~ISrsProtocolReader()
 {
-private:
-	std::vector<char> data;
-public:
-	SrsBuffer();
-	virtual ~SrsBuffer();
-public:
-	virtual int size();
-	virtual char* bytes();
-	virtual void erase(int size);
-private:
-	virtual void append(char* bytes, int size);
-public:
-	virtual int ensure_buffer_bytes(ISrsBufferReader* skt, int required_size);
-};
+}
 
-#endif
+ISrsProtocolWriter::ISrsProtocolWriter()
+{
+}
+
+ISrsProtocolWriter::~ISrsProtocolWriter()
+{
+}
+
+ISrsProtocolReaderWriter::ISrsProtocolReaderWriter()
+{
+}
+
+ISrsProtocolReaderWriter::~ISrsProtocolReaderWriter()
+{
+}

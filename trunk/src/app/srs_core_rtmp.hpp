@@ -35,6 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_st.hpp>
 
 class SrsProtocol;
+class ISrsProtocolReaderWriter;
 class ISrsMessage;
 class SrsCommonMessage;
 class SrsCreateStreamPacket;
@@ -115,9 +116,9 @@ class SrsRtmpClient
 {
 protected:
 	SrsProtocol* protocol;
-	st_netfd_t stfd;
+	ISrsProtocolReaderWriter* io;
 public:
-	SrsRtmpClient(st_netfd_t _stfd);
+	SrsRtmpClient(ISrsProtocolReaderWriter* skt);
 	virtual ~SrsRtmpClient();
 public:
 	virtual void set_recv_timeout(int64_t timeout_us);
@@ -145,9 +146,9 @@ class SrsRtmp
 {
 private:
 	SrsProtocol* protocol;
-	st_netfd_t stfd;
+	ISrsProtocolReaderWriter* io;
 public:
-	SrsRtmp(st_netfd_t client_stfd);
+	SrsRtmp(ISrsProtocolReaderWriter* skt);
 	virtual ~SrsRtmp();
 public:
 	virtual SrsProtocol* get_protocol();

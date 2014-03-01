@@ -27,6 +27,8 @@ file
     protocol readonly separator,
     ..\protocol\srs_protocol_amf0.hpp,
     ..\protocol\srs_protocol_amf0.cpp,
+    ..\protocol\srs_protocol_io.hpp,
+    ..\protocol\srs_protocol_io.cpp,
     app readonly separator,
     ..\app\srs_core_bandwidth.hpp,
     ..\app\srs_core_bandwidth.cpp,

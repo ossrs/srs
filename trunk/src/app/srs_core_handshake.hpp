@@ -30,7 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
-class SrsSocket;
+class ISrsProtocolReaderWriter;
 class SrsComplexHandshake;
 
 /**
@@ -47,8 +47,8 @@ public:
 	* @param complex_hs, try complex handshake first, 
 	* 		if failed, rollback to simple handshake.
 	*/
-	virtual int handshake_with_client(SrsSocket& skt, SrsComplexHandshake& complex_hs);
-	virtual int handshake_with_server(SrsSocket& skt, SrsComplexHandshake& complex_hs);
+	virtual int handshake_with_client(ISrsProtocolReaderWriter* io, SrsComplexHandshake& complex_hs);
+	virtual int handshake_with_server(ISrsProtocolReaderWriter* io, SrsComplexHandshake& complex_hs);
 };
 
 /**
@@ -71,8 +71,8 @@ public:
 	* 	try simple handshake if error is ERROR_RTMP_TRY_SIMPLE_HS,
 	* 	otherwise, disconnect
 	*/
-	virtual int handshake_with_client(SrsSocket& skt, char* _c1);
-	virtual int handshake_with_server(SrsSocket& skt);
+	virtual int handshake_with_client(ISrsProtocolReaderWriter* io, char* _c1);
+	virtual int handshake_with_server(ISrsProtocolReaderWriter* io);
 };
 
 #endif

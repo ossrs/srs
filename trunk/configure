@@ -142,7 +142,7 @@ KERNEL_OBJS="${MODULE_OBJS[@]}"
 MODULE_ID="PROTOCOL" 
 MODULE_DEPENDS=("CORE" "KERNEL") 
 ModuleLibIncs=(${SRS_OBJS})
-MODULE_FILES=("srs_protocol_amf0")
+MODULE_FILES=("srs_protocol_amf0" "srs_protocol_io")
 MODULE_DIR="src/protocol" . auto/modules.sh
 PROTOCOL_OBJS="${MODULE_OBJS[@]}"
 #

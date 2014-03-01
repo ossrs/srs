@@ -37,11 +37,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_config.hpp>
 #include <srs_core_source.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_core_socket.hpp>
 
 SrsForwarder::SrsForwarder(SrsSource* _source)
 {
 	source = _source;
 	
+	io = NULL;
 	client = NULL;
 	stfd = NULL;
 	stream_id = 0;
@@ -127,6 +129,7 @@ void SrsForwarder::on_unpublish()
 	close_underlayer_socket();
 	
 	srs_freep(client);
+	srs_freep(io);
 }
 
 int SrsForwarder::on_meta_data(SrsSharedPtrMessage* metadata)
@@ -250,9 +253,12 @@ int SrsForwarder::connect_server()
         srs_error("st_netfd_open_socket failed. ret=%d", ret);
         return ret;
     }
-
+    
 	srs_freep(client);
-	client = new SrsRtmpClient(stfd);
+	srs_freep(io);
+	
+	io = new SrsSocket(stfd);
+	client = new SrsRtmpClient(io);
 	
 	// connect to server.
 	std::string ip = srs_dns_resolve(server);
