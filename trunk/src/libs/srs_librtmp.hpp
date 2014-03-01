@@ -36,15 +36,58 @@ extern "C"{
 typedef void* srs_rtmp_t;
 
 /**
-* create a rtmp protocol stack.
+* create/destroy a rtmp protocol stack.
+* @url rtmp url, for example: 
+* 		rtmp://127.0.0.1/live/livestream
 * @return a rtmp handler, or NULL if error occured.
 */
-srs_rtmp_t srs_rtmp_create();
+srs_rtmp_t srs_rtmp_create(const char* url);
+void srs_rtmp_destroy(srs_rtmp_t rtmp);
 
 /**
-* close a rtmp protocl stack.
+* handshake with server
+* category: publish/play
+* previous: rtmp-create
+* next: connect-app
+* @return 0, success; otherwise, failed.
 */
-void srs_rtmp_destroy(srs_rtmp_t rtmp);
+/**
+* simple handshake specifies in rtmp 1.0,
+* not depends on ssl.
+*/
+int srs_simple_handshake(srs_rtmp_t rtmp);
+/**
+* complex handshake is specified by adobe Flash player,
+* depends on ssl, user must link libssl.a and libcrypt.a
+*/
+int srs_complex_handshake(srs_rtmp_t rtmp);
+
+/**
+* connect to rtmp vhost/app
+* category: publish/play
+* previous: handshake
+* next: publish or play
+* @return 0, success; otherwise, failed.
+*/
+int srs_connect_app(srs_rtmp_t rtmp);
+
+/**
+* play a live/vod stream.
+* category: play
+* previous: connect-app
+* next: destroy
+* @return 0, success; otherwise, failed.
+*/
+int srs_play_stream(srs_rtmp_t rtmp);
+
+/**
+* publish a live stream.
+* category: publish
+* previous: connect-app
+* next: destroy
+* @return 0, success; otherwise, failed.
+*/
+int srs_publish_stream(srs_rtmp_t rtmp);
 
 /**
 * get protocol stack version

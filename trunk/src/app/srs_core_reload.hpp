@@ -25,7 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_KERNEL_RELOAD_HPP
 
 /*
-#include <srs_kernel_reload.hpp>
+#include <srs_core_reload.hpp>
 */
 #include <srs_core.hpp>
 

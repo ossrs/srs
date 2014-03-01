@@ -42,19 +42,21 @@ echo "" >> $SRS_AUTO_HEADERS_H
 echo "generate Makefile"
 SRS_MAKEFILE="Makefile"
 cat << END > ${SRS_MAKEFILE}
-.PHONY: default help clean server bandwidth librtmp _prepare_dir
-default: server bandwidth librtmp
+.PHONY: default help clean server bandwidth librtmp librtmp-sample _prepare_dir
+default: server bandwidth librtmp librtmp-sample
 
 help:
-	@echo "Usage: make <help>|<clean>|<server>|<bandwidth>|<librtmp>"
-	@echo "  help       display this help menu"
-	@echo "  clean      cleanup project"
-	@echo "  server     build the srs(simple rtmp server) over st(state-threads)"
-	@echo "  bandwidth  build the bandwidth test client tool."
-	@echo "  librtmp    build the client publish/play library."
+	@echo "Usage: make <help>|<clean>|<server>|<bandwidth>|<librtmp>|<librtmp-sample>"
+	@echo "  help               display this help menu"
+	@echo "  clean              cleanup project"
+	@echo "  server             build the srs(simple rtmp server) over st(state-threads)"
+	@echo "  bandwidth          build the bandwidth test client tool."
+	@echo "  librtmp            build the client publish/play library."
+	@echo "  librtmp-sample     build the srs-librtmp sample"
 
 clean: 
 	(rm -f Makefile; cd ${SRS_OBJS}; rm -rf srs bandwidth Makefile *.hpp src st_*_load research include lib)
+	(cd research/librtmp; make clean)
 
 server: _prepare_dir
 	@echo "build the srs(simple rtmp server) over st(state-threads)"
@@ -67,6 +69,11 @@ bandwidth: _prepare_dir
 librtmp: _prepare_dir
 	@echo "build the client publish/play library."
 	\$(MAKE) -f ${SRS_OBJS}/${SRS_MAKEFILE} librtmp
+
+librtmp-sample:
+	@echo "build the srs-librtmp sample"
+	(cd research/librtmp; make)
+	@echo "srs-librtmp sample build success"
 
 # the ./configure will generate it.
 _prepare_dir:
@@ -140,8 +147,7 @@ CORE_OBJS="${MODULE_OBJS[@]}"
 MODULE_ID="KERNEL" 
 MODULE_DEPENDS=("CORE") 
 ModuleLibIncs=(${SRS_OBJS})
-MODULE_FILES=("srs_kernel_error" "srs_kernel_log" "srs_kernel_reload" "srs_kernel_stream" 
-        "srs_kernel_buffer")
+MODULE_FILES=("srs_kernel_error" "srs_kernel_log" "srs_kernel_stream" "srs_kernel_buffer")
 MODULE_DIR="src/kernel" . auto/modules.sh
 KERNEL_OBJS="${MODULE_OBJS[@]}"
 #
@@ -161,7 +167,7 @@ ModuleLibIncs=(${LibSTRoot} ${LibHttpParserRoot} ${SRS_OBJS})
 MODULE_FILES=("srs_core_server" "srs_core_conn" "srs_core_client" "srs_core_socket" "srs_core_source" 
         "srs_core_codec" "srs_core_refer" "srs_core_hls" "srs_core_forward" "srs_core_encoder"
         "srs_core_http" "srs_core_thread" "srs_core_bandwidth" "srs_core_st" "srs_core_log"
-        "srs_core_config" "srs_core_pithy_print")
+        "srs_core_config" "srs_core_pithy_print" "srs_core_reload")
 MODULE_DIR="src/app" . auto/modules.sh
 APP_OBJS="${MODULE_OBJS[@]}"
 #

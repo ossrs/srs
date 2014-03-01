@@ -32,7 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 #include <string>
 
-#include <srs_kernel_reload.hpp>
+#include <srs_core_reload.hpp>
 
 // default vhost for rtmp
 #define RTMP_VHOST_DEFAULT "__defaultVhost__"

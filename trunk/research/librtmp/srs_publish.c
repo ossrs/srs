@@ -29,9 +29,33 @@ gcc srs_publish.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_publish
 
 int main(int argc, char** argv)
 {
+	srs_rtmp_t rtmp;
+	
     printf("publish rtmp stream to server like FMLE/FFMPEG/Encoder\n");
     printf("srs(simple-rtmp-server) client librtmp library.\n");
     printf("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
+    
+    rtmp = srs_rtmp_create("rtmp://127.0.0.1/live/livestream");
+    
+	if (srs_simple_handshake(rtmp) != 0) {
+		printf("simple handshake failed.\n");
+		return -1;
+	}
+	printf("simple handshake success\n");
+    
+	if (srs_connect_app(rtmp) != 0) {
+		printf("connect vhost/app failed.\n");
+		return -1;
+	}
+	printf("connect vhost/app success\n");
+    
+	if (srs_publish_stream(rtmp) != 0) {
+		printf("publish stream failed.\n");
+		return -1;
+	}
+	printf("publish stream success\n");
+	
+    srs_rtmp_destroy(rtmp);
     
     return 0;
 }

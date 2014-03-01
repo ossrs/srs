@@ -25,6 +25,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <stdlib.h>
 
+#include <string>
+using namespace std;
+
+#include <srs_kernel_error.hpp>
 #include <srs_protocol_rtmp.hpp>
     
 /**
@@ -49,6 +53,7 @@ public:
 */
 struct Context
 {
+	std::string url;
     SrsRtmpClient* rtmp;
     SimpleSocketStream* stream;
     int stream_id;
@@ -68,8 +73,9 @@ struct Context
 extern "C"{
 #endif
 
-srs_rtmp_t srs_rtmp_create(){
+srs_rtmp_t srs_rtmp_create(const char* url){
     Context* context = new Context();
+	context->url = url;
     return context;
 }
 
@@ -77,6 +83,31 @@ void srs_rtmp_destroy(srs_rtmp_t rtmp){
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
     srs_freep(context);
+}
+
+int srs_simple_handshake(srs_rtmp_t rtmp)
+{
+	return ERROR_SUCCESS;
+}
+
+int srs_complex_handshake(srs_rtmp_t rtmp)
+{
+	return ERROR_SUCCESS;
+}
+
+int srs_connect_app(srs_rtmp_t rtmp)
+{
+	return ERROR_SUCCESS;
+}
+
+int srs_play_stream(srs_rtmp_t rtmp)
+{
+	return ERROR_SUCCESS;
+}
+
+int srs_publish_stream(srs_rtmp_t rtmp)
+{
+	return ERROR_SUCCESS;
 }
 
 int srs_version_major()
