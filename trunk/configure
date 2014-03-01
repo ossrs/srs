@@ -42,15 +42,16 @@ echo "" >> $SRS_AUTO_HEADERS_H
 echo "generate Makefile"
 SRS_MAKEFILE="Makefile"
 cat << END > ${SRS_MAKEFILE}
-.PHONY: default help clean server bandwidth _prepare_dir
-default: server bandwidth
+.PHONY: default help clean server bandwidth librtmp _prepare_dir
+default: server bandwidth librtmp
 
 help:
-	@echo "Usage: make <help>|<clean>|<server>|<bandwidth>"
+	@echo "Usage: make <help>|<clean>|<server>|<bandwidth>|<librtmp>"
 	@echo "  help       display this help menu"
 	@echo "  clean      cleanup project"
 	@echo "  server     build the srs(simple rtmp server) over st(state-threads)"
 	@echo "  bandwidth  build the bandwidth test client tool."
+	@echo "  librtmp    build the client publish/play library."
 
 clean: 
 	(rm -f Makefile; cd ${SRS_OBJS}; rm -rf srs bandwidth Makefile *.hpp src st_*_load research)
@@ -62,6 +63,10 @@ server: _prepare_dir
 bandwidth: _prepare_dir
 	@echo "build the bandwidth test client tool"
 	\$(MAKE) -f ${SRS_OBJS}/${SRS_MAKEFILE} bandwidth
+
+librtmp: _prepare_dir
+	@echo "build the client publish/play library."
+	\$(MAKE) -f ${SRS_OBJS}/${SRS_MAKEFILE} librtmp
 
 # the ./configure will generate it.
 _prepare_dir:
@@ -158,6 +163,14 @@ MODULE_FILES=("srs_core_server" "srs_core_conn" "srs_core_client" "srs_core_sock
 MODULE_DIR="src/app" . auto/modules.sh
 APP_OBJS="${MODULE_OBJS[@]}"
 #
+#LIBS Module, build libsrs.a for static link.
+MODULE_ID="LIBS" 
+MODULE_DEPENDS=("CORE" "KERNEL" "RTMP") 
+ModuleLibIncs=()
+MODULE_FILES=("srs_librtmp")
+MODULE_DIR="src/libs" . auto/modules.sh
+LIBS_OBJS="${MODULE_OBJS[@]}"
+#
 #Main Module
 MODULE_ID="MAIN" 
 MODULE_DEPENDS=("CORE" "KERNEL" "RTMP" "APP")
@@ -186,6 +199,10 @@ BUILD_KEY="srs" APP_MAIN="srs_main_server" APP_NAME="srs" . auto/apps.sh
 # bandwidth
 # bandwidth test tool, to test the bandwidth to server
 BUILD_KEY="bandwidth" APP_MAIN="srs_main_bandcheck" APP_NAME="bandwidth" . auto/apps.sh
+#
+# srs librtmp
+MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${RTMP_OBJS[@]} ${LIBS_OBJS[@]}"
+BUILD_KEY="librtmp" LIB_NAME="srs_librtmp" LINK_OPTIONS="" . auto/libs.sh
 
 echo 'configure ok! '
 
