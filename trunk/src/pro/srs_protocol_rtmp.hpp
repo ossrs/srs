@@ -140,6 +140,7 @@ public:
 * a high level protocol, media stream oriented services,
 * such as connect to vhost/app, play stream, get audio/video data.
 */
+// TODO: FIXME: rename to SrsRtmpServer
 class SrsRtmp
 {
 private:
