@@ -317,7 +317,7 @@ Supported operating systems and hardware:
 22. Player, publisher(encoder), and demo pages(jquery+bootstrap). <br/>
 23. Demo video meeting or chat(SRS+cherrypy+jquery+bootstrap). <br/>
 24. [dev] Full documents in wiki, in chineses. <br/>
-25. [dev] Support RTMP(publish) library<br/>
+25. [dev] Support RTMP(play-publish) library: srs-librtmp<br/>
 26. [plan] Support RTSP(RTP, SDP)<br/>
 27. [plan] Support system utest<br/>
 28. [plan] Support HLS cluster, use RTMP ATC to generate the TS<br/>
@@ -381,6 +381,7 @@ See also: [Performance Test Guide](https://github.com/winlinvip/simple-rtmp-serv
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v1.0, 2014-03-02, srs-librtmp, client publish/play library like librtmp.
 * v1.0, 2014-03-01, modularity, extract core/kernel/os/protocol/drm/app/main module.
 * v1.0, 2014-02-28, support arm build(SRS/ST), add ssl to 3rdparty package.
 * v1.0, 2014-02-28, add wiki [BuildArm](https://github.com/winlinvip/simple-rtmp-server/wiki/Build), [FFMPEG](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), [Reload](https://github.com/winlinvip/simple-rtmp-server/wiki/Reload)
