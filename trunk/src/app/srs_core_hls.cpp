@@ -40,7 +40,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_config.hpp>
 #include <srs_core_source.hpp>
 #include <srs_core_autofree.hpp>
-#include <srs_core_rtmp.hpp>
+#include <srs_protocol_rtmp.hpp>
 #include <srs_kernel_pithy_print.hpp>
 
 // max PES packets size to flush the video.

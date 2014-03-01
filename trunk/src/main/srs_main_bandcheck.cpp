@@ -28,7 +28,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <getopt.h>
 #include <stdlib.h>
 
-#include <srs_core_rtmp.hpp>
+#include <srs_protocol_rtmp.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_amf0.hpp>

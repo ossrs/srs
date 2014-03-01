@@ -35,7 +35,7 @@ using namespace std;
 #include <srs_core_forward.hpp>
 #include <srs_kernel_config.hpp>
 #include <srs_core_encoder.hpp>
-#include <srs_core_rtmp.hpp>
+#include <srs_protocol_rtmp.hpp>
 
 #define CONST_MAX_JITTER_MS 		500
 #define DEFAULT_FRAME_TIME_MS 		40
