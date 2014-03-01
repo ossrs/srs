@@ -43,7 +43,8 @@ void handler(int signo)
 	_srs_server->on_signal(signo);
 }
 
-int main(int argc, char** argv){
+int main(int argc, char** argv) 
+{
 	int ret = ERROR_SUCCESS;
 	
 	signal(SIGNAL_RELOAD, handler);
