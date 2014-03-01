@@ -423,12 +423,12 @@ SrsSource::SrsSource(SrsRequest* _req)
 	
 	gop_cache = new SrsGopCache();
 	
-	config->subscribe(this);
+	_srs_config->subscribe(this);
 }
 
 SrsSource::~SrsSource()
 {
-	config->unsubscribe(this);
+	_srs_config->unsubscribe(this);
 	
 	if (true) {
 		std::vector<SrsConsumer*>::iterator it;
@@ -473,7 +473,7 @@ int SrsSource::on_reload_gop_cache(string vhost)
 	}
 	
 	// gop cache changed.
-	bool enabled_cache = config->get_gop_cache(vhost);
+	bool enabled_cache = _srs_config->get_gop_cache(vhost);
 	
 	srs_trace("vhost %s gop_cache changed to %d, source url=%s", 
 		vhost.c_str(), enabled_cache, req->get_stream_url().c_str());
@@ -491,7 +491,7 @@ int SrsSource::on_reload_queue_length(string vhost)
 		return ret;
 	}
 
-	double queue_size = config->get_queue_length(req->vhost);
+	double queue_size = _srs_config->get_queue_length(req->vhost);
 	
 	if (true) {
 		std::vector<SrsConsumer*>::iterator it;
@@ -913,7 +913,7 @@ void SrsSource::on_unpublish()
 	consumer = new SrsConsumer(this);
 	consumers.push_back(consumer);
 	
-	double queue_size = config->get_queue_length(req->vhost);
+	double queue_size = _srs_config->get_queue_length(req->vhost);
 	consumer->set_queue_size(queue_size);
 
 	if (cache_metadata && (ret = consumer->enqueue(cache_metadata->copy(), sample_rate, frame_rate)) != ERROR_SUCCESS) {
@@ -962,14 +962,14 @@ int SrsSource::create_forwarders()
 {
 	int ret = ERROR_SUCCESS;
 	
-	SrsConfDirective* conf = config->get_forward(req->vhost);
+	SrsConfDirective* conf = _srs_config->get_forward(req->vhost);
 	for (int i = 0; conf && i < (int)conf->args.size(); i++) {
 		std::string forward_server = conf->args.at(i);
 		
 		SrsForwarder* forwarder = new SrsForwarder(this);
 		forwarders.push_back(forwarder);
 	
-		double queue_size = config->get_queue_length(req->vhost);
+		double queue_size = _srs_config->get_queue_length(req->vhost);
 		forwarder->set_queue_size(queue_size);
 		
 		if ((ret = forwarder->on_publish(req, forward_server)) != ERROR_SUCCESS) {

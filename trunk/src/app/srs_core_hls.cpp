@@ -1149,18 +1149,18 @@ int SrsHls::on_publish(SrsRequest* req)
 	std::string stream = req->stream;
 	std::string app = req->app;
 	
-	if (!config->get_hls_enabled(vhost)) {
+	if (!_srs_config->get_hls_enabled(vhost)) {
 		return ret;
 	}
 	
 	// if enabled, open the muxer.
 	hls_enabled = true;
 	
-	int hls_fragment = config->get_hls_fragment(vhost);
-	int hls_window = config->get_hls_window(vhost);
+	int hls_fragment = _srs_config->get_hls_fragment(vhost);
+	int hls_window = _srs_config->get_hls_window(vhost);
 	
 	// get the hls path config
-	std::string hls_path = config->get_hls_path(vhost);
+	std::string hls_path = _srs_config->get_hls_path(vhost);
 	
 	// open muxer
 	if ((ret = muxer->update_config(app, stream, hls_path, hls_fragment, hls_window)) != ERROR_SUCCESS) {

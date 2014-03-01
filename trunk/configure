@@ -153,7 +153,7 @@ MODULE_DEPENDS=("CORE" "KERNEL" "RTMP")
 ModuleLibIncs=(${LibSTRoot} ${LibHttpParserRoot} ${SRS_OBJS})
 MODULE_FILES=("srs_core_server" "srs_core_conn" "srs_core_client" "srs_core_socket" "srs_core_source" 
         "srs_core_codec" "srs_core_refer" "srs_core_hls" "srs_core_forward" "srs_core_encoder"
-        "srs_core_http" "srs_core_thread" "srs_core_bandwidth" "srs_core_st" "srs_core_log_context"
+        "srs_core_http" "srs_core_thread" "srs_core_bandwidth" "srs_core_st" "srs_core_log"
         "srs_core_config" "srs_core_pithy_print")
 MODULE_DIR="src/app" . auto/modules.sh
 APP_OBJS="${MODULE_OBJS[@]}"

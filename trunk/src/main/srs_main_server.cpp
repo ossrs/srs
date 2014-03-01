@@ -25,6 +25,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_error.hpp>
 #include <srs_core_server.hpp>
 #include <srs_core_config.hpp>
+#include <srs_core_log.hpp>
+
+// kernel module.
+ISrsLog* _srs_log = new SrsFastLog();
+ISrsThreadContext* _srs_context = new SrsThreadContext();
+// app module.
+SrsConfig* _srs_config = new SrsConfig();
+SrsServer* _srs_server = new SrsServer();
 
 #include <stdlib.h>
 #include <signal.h>
@@ -32,7 +40,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 void handler(int signo)
 {
 	srs_trace("get a signal, signo=%d", signo);
-	_server()->on_signal(signo);
+	_srs_server->on_signal(signo);
 }
 
 int main(int argc, char** argv){
@@ -40,21 +48,21 @@ int main(int argc, char** argv){
 	
 	signal(SIGNAL_RELOAD, handler);
 	
-	if ((ret = config->parse_options(argc, argv)) != ERROR_SUCCESS) {
+	if ((ret = _srs_config->parse_options(argc, argv)) != ERROR_SUCCESS) {
 		return ret;
 	}
 	
-	if ((ret = _server()->initialize()) != ERROR_SUCCESS) {
+	if ((ret = _srs_server->initialize()) != ERROR_SUCCESS) {
 		return ret;
 	}
 	
-	// TODO: create log dir in config->get_log_dir()
+	// TODO: create log dir in _srs_config->get_log_dir()
 	
-	if ((ret = _server()->listen()) != ERROR_SUCCESS) {
+	if ((ret = _srs_server->listen()) != ERROR_SUCCESS) {
 		return ret;
 	}
 	
-	if ((ret = _server()->cycle()) != ERROR_SUCCESS) {
+	if ((ret = _srs_server->cycle()) != ERROR_SUCCESS) {
 		return ret;
 	}
 	

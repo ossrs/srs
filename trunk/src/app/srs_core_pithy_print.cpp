@@ -46,33 +46,33 @@ struct SrsStageInfo : public ISrsReloadHandler
 		
 		update_print_time();
 		
-		config->subscribe(this);
+		_srs_config->subscribe(this);
 	}
 	virtual ~SrsStageInfo()
 	{
-		config->unsubscribe(this);
+		_srs_config->unsubscribe(this);
 	}
 	void update_print_time()
 	{
 		switch (stage_id) {
 			case SRS_STAGE_PLAY_USER: {
-				pithy_print_time_ms = config->get_pithy_print_play();
+				pithy_print_time_ms = _srs_config->get_pithy_print_play();
 				break;
 			}
 			case SRS_STAGE_PUBLISH_USER: {
-				pithy_print_time_ms = config->get_pithy_print_publish();
+				pithy_print_time_ms = _srs_config->get_pithy_print_publish();
 				break;
 			}
 			case SRS_STAGE_FORWARDER: {
-				pithy_print_time_ms = config->get_pithy_print_forwarder();
+				pithy_print_time_ms = _srs_config->get_pithy_print_forwarder();
 				break;
 			}
 			case SRS_STAGE_ENCODER: {
-				pithy_print_time_ms = config->get_pithy_print_encoder();
+				pithy_print_time_ms = _srs_config->get_pithy_print_encoder();
 				break;
 			}
 			case SRS_STAGE_HLS: {
-				pithy_print_time_ms = config->get_pithy_print_hls();
+				pithy_print_time_ms = _srs_config->get_pithy_print_hls();
 				break;
 			}
 			default: {

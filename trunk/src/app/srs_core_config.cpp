@@ -429,8 +429,6 @@ int SrsConfDirective::read_token(SrsFileBuffer* buffer, std::vector<string>& arg
 	return ret;
 }
 
-SrsConfig* config = new SrsConfig();
-
 SrsConfig::SrsConfig()
 {
 	show_help = false;

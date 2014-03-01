@@ -57,12 +57,12 @@ SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
 #endif
 	bandwidth = new SrsBandwidth();
 	
-	config->subscribe(this);
+	_srs_config->subscribe(this);
 }
 
 SrsClient::~SrsClient()
 {
-	config->unsubscribe(this);
+	_srs_config->unsubscribe(this);
 	
 	srs_freepa(ip);
 	srs_freep(req);
@@ -104,7 +104,7 @@ int SrsClient::do_cycle()
 	srs_verbose("rtmp connect app success");
 	
 	// discovery vhost, resolve the vhost from config
-	SrsConfDirective* parsed_vhost = config->get_vhost(req->vhost);
+	SrsConfDirective* parsed_vhost = _srs_config->get_vhost(req->vhost);
 	if (parsed_vhost) {
 		req->vhost = parsed_vhost->arg0();
 	}
@@ -173,7 +173,7 @@ int SrsClient::service_cycle()
 	srs_verbose("set peer bandwidth success");
 
 	// do bandwidth test if connect to the vhost which is for bandwidth check.
-	if (config->get_bw_check_enabled(req->vhost)) {
+	if (_srs_config->get_bw_check_enabled(req->vhost)) {
 		return bandwidth->bandwidth_test(req, stfd, rtmp);
 	}
 	
@@ -237,7 +237,7 @@ int SrsClient::stream_service_cycle()
 	rtmp->set_send_timeout(SRS_SEND_TIMEOUT_US);
 	
 	// set chunk size to larger.
-    int chunk_size = config->get_chunk_size(req->vhost);
+    int chunk_size = _srs_config->get_chunk_size(req->vhost);
 	if ((ret = rtmp->set_chunk_size(chunk_size)) != ERROR_SUCCESS) {
 		srs_error("set chunk_size=%d failed. ret=%d", chunk_size, ret);
 		return ret;
@@ -258,7 +258,7 @@ int SrsClient::stream_service_cycle()
 		return ret;
 	}
 	
-	bool enabled_cache = config->get_gop_cache(req->vhost);
+	bool enabled_cache = _srs_config->get_gop_cache(req->vhost);
 	srs_info("source found, url=%s, enabled_cache=%d", req->get_stream_url().c_str(), enabled_cache);
 	source->set_cache(enabled_cache);
 	
@@ -329,14 +329,14 @@ int SrsClient::check_vhost()
 	
 	srs_assert(req != NULL);
 	
-	SrsConfDirective* vhost = config->get_vhost(req->vhost);
+	SrsConfDirective* vhost = _srs_config->get_vhost(req->vhost);
 	if (vhost == NULL) {
 		ret = ERROR_RTMP_VHOST_NOT_FOUND;
 		srs_error("vhost %s not found. ret=%d", req->vhost.c_str(), ret);
 		return ret;
 	}
 	
-	if (!config->get_vhost_enabled(req->vhost)) {
+	if (!_srs_config->get_vhost_enabled(req->vhost)) {
 		ret = ERROR_RTMP_VHOST_NOT_FOUND;
 		srs_error("vhost %s disabled. ret=%d", req->vhost.c_str(), ret);
 		return ret;
@@ -347,7 +347,7 @@ int SrsClient::check_vhost()
 		req->vhost = vhost->arg0();
 	}
 	
-	if ((ret = refer->check(req->pageUrl, config->get_refer(req->vhost))) != ERROR_SUCCESS) {
+	if ((ret = refer->check(req->pageUrl, _srs_config->get_refer(req->vhost))) != ERROR_SUCCESS) {
 		srs_error("check refer failed. ret=%d", ret);
 		return ret;
 	}
@@ -364,7 +364,7 @@ int SrsClient::playing(SrsSource* source)
 {
 	int ret = ERROR_SUCCESS;
 	
-	if ((ret = refer->check(req->pageUrl, config->get_refer_play(req->vhost))) != ERROR_SUCCESS) {
+	if ((ret = refer->check(req->pageUrl, _srs_config->get_refer_play(req->vhost))) != ERROR_SUCCESS) {
 		srs_error("check play_refer failed. ret=%d", ret);
 		return ret;
 	}
@@ -451,7 +451,7 @@ int SrsClient::publish(SrsSource* source, bool is_fmle)
 {
 	int ret = ERROR_SUCCESS;
 	
-	if ((ret = refer->check(req->pageUrl, config->get_refer_publish(req->vhost))) != ERROR_SUCCESS) {
+	if ((ret = refer->check(req->pageUrl, _srs_config->get_refer_publish(req->vhost))) != ERROR_SUCCESS) {
 		srs_error("check publish_refer failed. ret=%d", ret);
 		return ret;
 	}
@@ -651,7 +651,7 @@ int SrsClient::on_connect()
 	
 #ifdef SRS_HTTP	
 	// HTTP: on_connect 
-	SrsConfDirective* on_connect = config->get_vhost_on_connect(req->vhost);
+	SrsConfDirective* on_connect = _srs_config->get_vhost_on_connect(req->vhost);
 	if (!on_connect) {
 		srs_info("ignore the empty http callback: on_connect");
 		return ret;
@@ -674,7 +674,7 @@ void SrsClient::on_close()
 #ifdef SRS_HTTP
 	// whatever the ret code, notify the api hooks.
 	// HTTP: on_close 
-	SrsConfDirective* on_close = config->get_vhost_on_close(req->vhost);
+	SrsConfDirective* on_close = _srs_config->get_vhost_on_close(req->vhost);
 	if (!on_close) {
 		srs_info("ignore the empty http callback: on_close");
 		return;
@@ -693,7 +693,7 @@ int SrsClient::on_publish()
 	
 #ifdef SRS_HTTP	
 	// HTTP: on_publish 
-	SrsConfDirective* on_publish = config->get_vhost_on_publish(req->vhost);
+	SrsConfDirective* on_publish = _srs_config->get_vhost_on_publish(req->vhost);
 	if (!on_publish) {
 		srs_info("ignore the empty http callback: on_publish");
 		return ret;
@@ -716,7 +716,7 @@ void SrsClient::on_unpublish()
 #ifdef SRS_HTTP
 	// whatever the ret code, notify the api hooks.
 	// HTTP: on_unpublish 
-	SrsConfDirective* on_unpublish = config->get_vhost_on_unpublish(req->vhost);
+	SrsConfDirective* on_unpublish = _srs_config->get_vhost_on_unpublish(req->vhost);
 	if (!on_unpublish) {
 		srs_info("ignore the empty http callback: on_unpublish");
 		return;
@@ -735,7 +735,7 @@ int SrsClient::on_play()
 	
 #ifdef SRS_HTTP	
 	// HTTP: on_play 
-	SrsConfDirective* on_play = config->get_vhost_on_play(req->vhost);
+	SrsConfDirective* on_play = _srs_config->get_vhost_on_play(req->vhost);
 	if (!on_play) {
 		srs_info("ignore the empty http callback: on_play");
 		return ret;
@@ -758,7 +758,7 @@ void SrsClient::on_stop()
 #ifdef SRS_HTTP
 	// whatever the ret code, notify the api hooks.
 	// HTTP: on_stop 
-	SrsConfDirective* on_stop = config->get_vhost_on_stop(req->vhost);
+	SrsConfDirective* on_stop = _srs_config->get_vhost_on_stop(req->vhost);
 	if (!on_stop) {
 		srs_info("ignore the empty http callback: on_stop");
 		return;

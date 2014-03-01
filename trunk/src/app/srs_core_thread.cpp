@@ -113,7 +113,7 @@ void SrsThread::thread_cycle()
 	
 	srs_assert(handler);
 	
-	log_context->generate_id();
+	_srs_context->generate_id();
 	srs_trace("thread cycle start");
 
 	handler->on_end_cycle();

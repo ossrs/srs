@@ -151,13 +151,13 @@ SrsServer::SrsServer()
 {
 	signal_reload = false;
 	
-	srs_assert(config);
-	config->subscribe(this);
+	srs_assert(_srs_config);
+	_srs_config->subscribe(this);
 }
 
 SrsServer::~SrsServer()
 {
-	config->unsubscribe(this);
+	_srs_config->unsubscribe(this);
 	
 	if (true) {
 		std::vector<SrsConnection*>::iterator it;
@@ -191,7 +191,7 @@ int SrsServer::initialize()
     srs_verbose("st_init success");
 	
 	// set current log id.
-	log_context->generate_id();
+	_srs_context->generate_id();
 	srs_info("log set id success");
 	
 	return ret;
@@ -204,7 +204,7 @@ int SrsServer::listen()
 	SrsConfDirective* conf = NULL;
 	
 	// stream service port.
-	conf = config->get_listen();
+	conf = _srs_config->get_listen();
 	srs_assert(conf);
 	
 	close_listeners();
@@ -236,7 +236,7 @@ int SrsServer::cycle()
 			signal_reload = false;
 			srs_info("get signal reload, to reload the config.");
 			
-			if ((ret = config->reload()) != ERROR_SUCCESS) {
+			if ((ret = _srs_config->reload()) != ERROR_SUCCESS) {
 				srs_error("reload config failed. ret=%d", ret);
 				return ret;
 			}
@@ -285,7 +285,7 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
 {
 	int ret = ERROR_SUCCESS;
 	
-	int max_connections = config->get_max_connections();
+	int max_connections = _srs_config->get_max_connections();
 	if ((int)conns.size() >= max_connections) {
 		int fd = st_netfd_fileno(client_stfd);
 		
@@ -321,10 +321,4 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
 int SrsServer::on_reload_listen()
 {
 	return listen();
-}
-
-SrsServer* _server()
-{
-	static SrsServer server;
-	return &server;
 }

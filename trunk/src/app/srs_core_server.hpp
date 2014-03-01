@@ -88,7 +88,5 @@ private:
 public:
 	virtual int on_reload_listen();
 };
-	
-SrsServer* _server();
 
 #endif

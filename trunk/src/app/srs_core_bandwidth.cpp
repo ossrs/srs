@@ -50,12 +50,12 @@ int SrsBandwidth::bandwidth_test(SrsRequest* _req, st_netfd_t stfd, SrsRtmp* _rt
 	rtmp = _rtmp;
 	req = _req;
 	
-	if (!config->get_bw_check_enabled(req->vhost)) {
+	if (!_srs_config->get_bw_check_enabled(req->vhost)) {
 		return ret;
 	}
 
 	// validate the bandwidth check key
-	std::string key = "key=" + config->get_bw_check_key(req->vhost);
+	std::string key = "key=" + _srs_config->get_bw_check_key(req->vhost);
 	if (req->tcUrl.find(key) == std::string::npos) {
 		ret = ERROR_SYSTEM_BANDWIDTH_KEY;
 		srs_error("check the vhost=%s %s failed, tcUrl=%s, ret=%d", 
@@ -68,7 +68,7 @@ int SrsBandwidth::bandwidth_test(SrsRequest* _req, st_netfd_t stfd, SrsRtmp* _rt
 	// if client request check in the window(specifeid by interval),
 	// directly reject the request.
     static int64_t last_check_time = 0;
-    int interval_ms = config->get_bw_check_interval_ms(req->vhost);
+    int interval_ms = _srs_config->get_bw_check_interval_ms(req->vhost);
     
     int64_t time_now = srs_get_system_time_ms();
     // reject the connection in the interval window.
@@ -149,7 +149,7 @@ int SrsBandwidth::do_bandwidth_check()
     int publish_actual_duration_ms = 0;
     int publish_bytes              = 0;
     
-    int limit_kbps = config->get_bw_check_limit_kbps(req->vhost);
+    int limit_kbps = _srs_config->get_bw_check_limit_kbps(req->vhost);
 
     int64_t start_time = srs_get_system_time_ms();
     

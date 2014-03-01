@@ -23,11 +23,48 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_log.hpp>
 
-ILogContext::ILogContext()
+ISrsLog::ISrsLog()
 {
 }
 
-ILogContext::~ILogContext()
+ISrsLog::~ISrsLog() 
 {
+}
+
+void ISrsLog::verbose(const char* /*tag*/, int /*context_id*/, const char* /*fmt*/, ...)
+{
+}
+
+void ISrsLog::info(const char* /*tag*/, int /*context_id*/, const char* /*fmt*/, ...)
+{
+}
+
+void ISrsLog::trace(const char* /*tag*/, int /*context_id*/, const char* /*fmt*/, ...)
+{
+}
+
+void ISrsLog::warn(const char* /*tag*/, int /*context_id*/, const char* /*fmt*/, ...)
+{
+}
+
+void ISrsLog::error(const char* /*tag*/, int /*context_id*/, const char* /*fmt*/, ...)
+{
+}
+
+ISrsThreadContext::ISrsThreadContext()
+{
+}
+
+ISrsThreadContext::~ISrsThreadContext()
+{
+}
+
+void ISrsThreadContext::generate_id()
+{
+}
+
+int ISrsThreadContext::get_id()
+{
+	return 0;
 }
 

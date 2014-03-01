@@ -57,8 +57,8 @@ void SrsConnection::cycle()
 {
 	int ret = ERROR_SUCCESS;
 	
-	log_context->generate_id();
-	connection_id = log_context->get_id();
+	_srs_context->generate_id();
+	connection_id = _srs_context->get_id();
 	
 	ret = do_cycle();
 	

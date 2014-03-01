@@ -75,22 +75,22 @@ int SrsFFMPEG::initialize(SrsRequest* req, SrsConfDirective* engine)
 {
 	int ret = ERROR_SUCCESS;
 	
-	config->get_engine_vfilter(engine, vfilter);
-	vcodec 			= config->get_engine_vcodec(engine);
-	vbitrate 		= config->get_engine_vbitrate(engine);
-	vfps 			= config->get_engine_vfps(engine);
-	vwidth 			= config->get_engine_vwidth(engine);
-	vheight 		= config->get_engine_vheight(engine);
-	vthreads 		= config->get_engine_vthreads(engine);
-	vprofile 		= config->get_engine_vprofile(engine);
-	vpreset 		= config->get_engine_vpreset(engine);
-	config->get_engine_vparams(engine, vparams);
-	acodec 			= config->get_engine_acodec(engine);
-	abitrate 		= config->get_engine_abitrate(engine);
-	asample_rate 	= config->get_engine_asample_rate(engine);
-	achannels 		= config->get_engine_achannels(engine);
-	config->get_engine_aparams(engine, aparams);
-	output 			= config->get_engine_output(engine);
+	_srs_config->get_engine_vfilter(engine, vfilter);
+	vcodec 			= _srs_config->get_engine_vcodec(engine);
+	vbitrate 		= _srs_config->get_engine_vbitrate(engine);
+	vfps 			= _srs_config->get_engine_vfps(engine);
+	vwidth 			= _srs_config->get_engine_vwidth(engine);
+	vheight 		= _srs_config->get_engine_vheight(engine);
+	vthreads 		= _srs_config->get_engine_vthreads(engine);
+	vprofile 		= _srs_config->get_engine_vprofile(engine);
+	vpreset 		= _srs_config->get_engine_vpreset(engine);
+	_srs_config->get_engine_vparams(engine, vparams);
+	acodec 			= _srs_config->get_engine_acodec(engine);
+	abitrate 		= _srs_config->get_engine_abitrate(engine);
+	asample_rate 	= _srs_config->get_engine_asample_rate(engine);
+	achannels 		= _srs_config->get_engine_achannels(engine);
+	_srs_config->get_engine_aparams(engine, aparams);
+	output 			= _srs_config->get_engine_output(engine);
 	
 	// ensure the size is even.
 	vwidth -= vwidth % 2;
@@ -116,7 +116,7 @@ int SrsFFMPEG::initialize(SrsRequest* req, SrsConfDirective* engine)
 	output = srs_replace(output, "[engine]", engine->arg0());
 	
 	// write ffmpeg info to log file.
-	log_file = config->get_log_dir();
+	log_file = _srs_config->get_log_dir();
 	log_file += "/";
 	log_file += "encoder";
 	log_file += "-";
@@ -590,7 +590,7 @@ int SrsEncoder::parse_scope_engines(SrsRequest* req)
 	
 	// parse vhost scope engines
 	std::string scope = "";
-	if ((conf = config->get_transcode(req->vhost, scope)) != NULL) {
+	if ((conf = _srs_config->get_transcode(req->vhost, scope)) != NULL) {
 		if ((ret = parse_transcode(req, conf)) != ERROR_SUCCESS) {
 			srs_error("parse vhost scope=%s transcode engines failed. "
 				"ret=%d", scope.c_str(), ret);
@@ -599,7 +599,7 @@ int SrsEncoder::parse_scope_engines(SrsRequest* req)
 	}
 	// parse app scope engines
 	scope = req->app;
-	if ((conf = config->get_transcode(req->vhost, scope)) != NULL) {
+	if ((conf = _srs_config->get_transcode(req->vhost, scope)) != NULL) {
 		if ((ret = parse_transcode(req, conf)) != ERROR_SUCCESS) {
 			srs_error("parse app scope=%s transcode engines failed. "
 				"ret=%d", scope.c_str(), ret);
@@ -609,7 +609,7 @@ int SrsEncoder::parse_scope_engines(SrsRequest* req)
 	// parse stream scope engines
 	scope += "/";
 	scope += req->stream;
-	if ((conf = config->get_transcode(req->vhost, scope)) != NULL) {
+	if ((conf = _srs_config->get_transcode(req->vhost, scope)) != NULL) {
 		if ((ret = parse_transcode(req, conf)) != ERROR_SUCCESS) {
 			srs_error("parse stream scope=%s transcode engines failed. "
 				"ret=%d", scope.c_str(), ret);
@@ -627,14 +627,14 @@ int SrsEncoder::parse_transcode(SrsRequest* req, SrsConfDirective* conf)
 	srs_assert(conf);
 	
 	// enabled
-	if (!config->get_transcode_enabled(conf)) {
+	if (!_srs_config->get_transcode_enabled(conf)) {
 		srs_trace("ignore the disabled transcode: %s", 
 			conf->arg0().c_str());
 		return ret;
 	}
 	
 	// ffmpeg
-	std::string ffmpeg_bin = config->get_transcode_ffmpeg(conf);
+	std::string ffmpeg_bin = _srs_config->get_transcode_ffmpeg(conf);
 	if (ffmpeg_bin.empty()) {
 		srs_trace("ignore the empty ffmpeg transcode: %s", 
 			conf->arg0().c_str());
@@ -643,7 +643,7 @@ int SrsEncoder::parse_transcode(SrsRequest* req, SrsConfDirective* conf)
 	
 	// get all engines.
 	std::vector<SrsConfDirective*> engines;
-	config->get_transcode_engines(conf, engines);
+	_srs_config->get_transcode_engines(conf, engines);
 	if (engines.empty()) {
 		srs_trace("ignore the empty transcode engine: %s", 
 			conf->arg0().c_str());
@@ -653,7 +653,7 @@ int SrsEncoder::parse_transcode(SrsRequest* req, SrsConfDirective* conf)
 	// create engine
 	for (int i = 0; i < (int)engines.size(); i++) {
 		SrsConfDirective* engine = engines[i];
-		if (!config->get_engine_enabled(engine)) {
+		if (!_srs_config->get_engine_enabled(engine)) {
 			srs_trace("ignore the diabled transcode engine: %s %s", 
 				conf->arg0().c_str(), engine->arg0().c_str());
 			continue;

@@ -180,6 +180,6 @@ public:
 bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b);
 
 // global config
-extern SrsConfig* config;
+extern SrsConfig* _srs_config;
 
 #endif
