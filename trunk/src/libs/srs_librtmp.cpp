@@ -239,12 +239,17 @@ int srs_play_stream(srs_rtmp_t rtmp)
         return ret;
     }
     
-	return ERROR_SUCCESS;
+	return ret;
 }
 
 int srs_publish_stream(srs_rtmp_t rtmp)
 {
-	return ERROR_SUCCESS;
+	int ret = ERROR_SUCCESS;
+	
+    srs_assert(rtmp != NULL);
+    Context* context = (Context*)rtmp;
+    
+	return ret;
 }
 
 int srs_ssl_enabled()
