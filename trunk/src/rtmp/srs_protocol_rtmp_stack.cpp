@@ -676,7 +676,7 @@ int SrsProtocol::on_send_message(ISrsMessage* msg)
 				SrsConnectAppPacket* pkt = NULL;
 				pkt = dynamic_cast<SrsConnectAppPacket*>(common_msg->get_packet());
 				if (pkt) {
-					requests[pkt->transaction_id] = RTMP_AMF0_COMMAND_CONNECT;
+					requests[pkt->transaction_id] = pkt->command_name;
 					break;
 				}
 			}
@@ -684,7 +684,15 @@ int SrsProtocol::on_send_message(ISrsMessage* msg)
 				SrsCreateStreamPacket* pkt = NULL;
 				pkt = dynamic_cast<SrsCreateStreamPacket*>(common_msg->get_packet());
 				if (pkt) {
-					requests[pkt->transaction_id] = RTMP_AMF0_COMMAND_CREATE_STREAM;
+					requests[pkt->transaction_id] = pkt->command_name;
+					break;
+				}
+			}
+			if (true) {
+				SrsFMLEStartPacket* pkt = NULL;
+				pkt = dynamic_cast<SrsFMLEStartPacket*>(common_msg->get_packet());
+				if (pkt) {
+					requests[pkt->transaction_id] = pkt->command_name;
 					break;
 				}
 			}
@@ -1291,12 +1299,18 @@ int SrsCommonMessage::decode_packet(SrsProtocol* protocol)
 			srs_verbose("AMF0/AMF3 request parsed. request_name=%s", request_name.c_str());
 
 			if (request_name == RTMP_AMF0_COMMAND_CONNECT) {
-				srs_info("decode the AMF0/AMF3 response command(connect vhost/app message).");
+				srs_info("decode the AMF0/AMF3 response command(%s message).", request_name.c_str());
 				packet = new SrsConnectAppResPacket();
 				return packet->decode(stream);
 			} else if (request_name == RTMP_AMF0_COMMAND_CREATE_STREAM) {
-				srs_info("decode the AMF0/AMF3 response command(createStream message).");
+				srs_info("decode the AMF0/AMF3 response command(%s message).", request_name.c_str());
 				packet = new SrsCreateStreamResPacket(0, 0);
+				return packet->decode(stream);
+			} else if (request_name == RTMP_AMF0_COMMAND_RELEASE_STREAM
+				|| request_name == RTMP_AMF0_COMMAND_FC_PUBLISH
+				|| request_name == RTMP_AMF0_COMMAND_UNPUBLISH) {
+				srs_info("decode the AMF0/AMF3 response command(%s message).", request_name.c_str());
+				packet = new SrsFMLEStartResPacket(0);
 				return packet->decode(stream);
 			} else {
 				ret = ERROR_RTMP_NO_REQUEST;
@@ -2157,6 +2171,78 @@ int SrsFMLEStartPacket::decode(SrsStream* stream)
 	return ret;
 }
 
+int SrsFMLEStartPacket::get_perfer_cid()
+{
+	return RTMP_CID_OverConnection;
+}
+
+int SrsFMLEStartPacket::get_message_type()
+{
+	return RTMP_MSG_AMF0CommandMessage;
+}
+
+int SrsFMLEStartPacket::get_size()
+{
+	return srs_amf0_get_string_size(command_name) + srs_amf0_get_number_size()
+		+ srs_amf0_get_null_size() + srs_amf0_get_string_size(stream_name);
+}
+
+int SrsFMLEStartPacket::encode_packet(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if ((ret = srs_amf0_write_string(stream, command_name)) != ERROR_SUCCESS) {
+		srs_error("encode command_name failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode command_name success.");
+	
+	if ((ret = srs_amf0_write_number(stream, transaction_id)) != ERROR_SUCCESS) {
+		srs_error("encode transaction_id failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode transaction_id success.");
+	
+	if ((ret = srs_amf0_write_null(stream)) != ERROR_SUCCESS) {
+		srs_error("encode command_object failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode command_object success.");
+	
+	if ((ret = srs_amf0_write_string(stream, stream_name)) != ERROR_SUCCESS) {
+		srs_error("encode stream_name failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("encode stream_name success.");
+	
+	
+	srs_info("encode FMLE start response packet success.");
+	
+	return ret;
+}
+
+SrsFMLEStartPacket* SrsFMLEStartPacket::create_release_stream(string stream)
+{
+	SrsFMLEStartPacket* pkt = new SrsFMLEStartPacket();
+	
+	pkt->command_name = RTMP_AMF0_COMMAND_RELEASE_STREAM;
+	pkt->transaction_id = 2;
+	pkt->stream_name = stream;
+	
+	return pkt;
+}
+
+SrsFMLEStartPacket* SrsFMLEStartPacket::create_FC_publish(string stream)
+{
+	SrsFMLEStartPacket* pkt = new SrsFMLEStartPacket();
+	
+	pkt->command_name = RTMP_AMF0_COMMAND_FC_PUBLISH;
+	pkt->transaction_id = 3;
+	pkt->stream_name = stream;
+	
+	return pkt;
+}
+
 SrsFMLEStartResPacket::SrsFMLEStartResPacket(double _transaction_id)
 {
 	command_name = RTMP_AMF0_COMMAND_RESULT;
@@ -2169,6 +2255,41 @@ SrsFMLEStartResPacket::~SrsFMLEStartResPacket()
 {
 	srs_freep(command_object);
 	srs_freep(args);
+}
+
+int SrsFMLEStartResPacket::decode(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+
+	if ((ret = srs_amf0_read_string(stream, command_name)) != ERROR_SUCCESS) {
+		srs_error("amf0 decode FMLE start response command_name failed. ret=%d", ret);
+		return ret;
+	}
+	if (command_name.empty() || command_name != RTMP_AMF0_COMMAND_RESULT) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 decode FMLE start response command_name failed. "
+			"command_name=%s, ret=%d", command_name.c_str(), ret);
+		return ret;
+	}
+	
+	if ((ret = srs_amf0_read_number(stream, transaction_id)) != ERROR_SUCCESS) {
+		srs_error("amf0 decode FMLE start response transaction_id failed. ret=%d", ret);
+		return ret;
+	}
+	
+	if ((ret = srs_amf0_read_null(stream)) != ERROR_SUCCESS) {
+		srs_error("amf0 decode FMLE start response command_object failed. ret=%d", ret);
+		return ret;
+	}
+	
+	if ((ret = srs_amf0_read_undefined(stream)) != ERROR_SUCCESS) {
+		srs_error("amf0 decode FMLE start response stream_id failed. ret=%d", ret);
+		return ret;
+	}
+	
+	srs_info("amf0 decode FMLE start packet success");
+	
+	return ret;
 }
 
 int SrsFMLEStartResPacket::get_perfer_cid()

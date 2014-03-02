@@ -681,6 +681,16 @@ public:
 	virtual ~SrsFMLEStartPacket();
 public:
 	virtual int decode(SrsStream* stream);
+public:
+	virtual int get_perfer_cid();
+public:
+	virtual int get_message_type();
+protected:
+	virtual int get_size();
+	virtual int encode_packet(SrsStream* stream);
+public:
+	static SrsFMLEStartPacket* create_release_stream(std::string stream);
+	static SrsFMLEStartPacket* create_FC_publish(std::string stream);
 };
 /**
 * response for SrsFMLEStartPacket.
@@ -702,6 +712,8 @@ public:
 public:
 	SrsFMLEStartResPacket(double _transaction_id);
 	virtual ~SrsFMLEStartResPacket();
+public:
+	virtual int decode(SrsStream* stream);
 public:
 	virtual int get_perfer_cid();
 public:

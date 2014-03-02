@@ -230,7 +230,8 @@ int SrsClient::stream_service_cycle()
 		return ret;
 	}
 	req->strip();
-	srs_trace("identify client success. type=%d, stream_name=%s", type, req->stream.c_str());
+	srs_trace("identify client success. type=%s, stream_name=%s", 
+		srs_client_type_string(type).c_str(), req->stream.c_str());
 
 	// client is identified, set the timeout to service timeout.
 	rtmp->set_recv_timeout(SRS_RECV_TIMEOUT_US);

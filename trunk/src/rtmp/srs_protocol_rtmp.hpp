@@ -106,6 +106,7 @@ enum SrsClientType
 	SrsClientFMLEPublish,
 	SrsClientFlashPublish,
 };
+std::string srs_client_type_string(SrsClientType type);
 
 /**
 * implements the client role protocol.
@@ -137,7 +138,12 @@ public:
 	virtual int connect_app(std::string app, std::string tc_url);
 	virtual int create_stream(int& stream_id);
 	virtual int play(std::string stream, int stream_id);
+	// flash publish schema:
+	// connect-app => create-stream => flash-publish
 	virtual int publish(std::string stream, int stream_id);
+	// FMLE publish schema:
+	// connect-app => FMLE publish
+	virtual int fmle_publish(std::string stream, int& stream_id);
 };
 
 /**
