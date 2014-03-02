@@ -30,23 +30,7 @@ using namespace std;
 
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_rtmp.hpp>
-    
-/**
-* the stream over epoll: never wait for data coming, that is async mode.
-*/
-class SimpleSocketStream
-{
-private:
-    int sock;
-public:
-    SimpleSocketStream(int fd){
-        sock = fd;
-    }
-    virtual ~SimpleSocketStream() {
-        ::close(sock);
-    }
-public:
-};
+#include <srs_lib_simple_socket.hpp>
 
 /**
 * export runtime context.

@@ -7,6 +7,8 @@ file
     libs readonly separator,
     ..\libs\srs_librtmp.hpp,
     ..\libs\srs_librtmp.cpp,
+    ..\libs\srs_lib_simple_socket.hpp,
+    ..\libs\srs_lib_simple_socket.cpp,
     core readonly separator,
     ..\core\srs_core.hpp,
     ..\core\srs_core.cpp,

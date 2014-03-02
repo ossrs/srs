@@ -189,7 +189,7 @@ APP_OBJS="${MODULE_OBJS[@]}"
 MODULE_ID="LIBS" 
 MODULE_DEPENDS=("CORE" "KERNEL" "RTMP") 
 ModuleLibIncs=(${SRS_OBJS})
-MODULE_FILES=("srs_librtmp")
+MODULE_FILES=("srs_librtmp" "srs_lib_simple_socket")
 MODULE_DIR="src/libs" . auto/modules.sh
 LIBS_OBJS="${MODULE_OBJS[@]}"
 #
