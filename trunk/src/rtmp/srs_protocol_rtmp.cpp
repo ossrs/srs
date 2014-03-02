@@ -441,73 +441,73 @@ int SrsRtmpClient::publish(string stream, int stream_id)
 	return ret;
 }
 
-SrsRtmp::SrsRtmp(ISrsProtocolReaderWriter* skt)
+SrsRtmpServer::SrsRtmpServer(ISrsProtocolReaderWriter* skt)
 {
 	io = skt;
 	protocol = new SrsProtocol(skt);
 }
 
-SrsRtmp::~SrsRtmp()
+SrsRtmpServer::~SrsRtmpServer()
 {
 	srs_freep(protocol);
 }
 
-SrsProtocol* SrsRtmp::get_protocol()
+SrsProtocol* SrsRtmpServer::get_protocol()
 {
 	return protocol;
 }
 
-void SrsRtmp::set_recv_timeout(int64_t timeout_us)
+void SrsRtmpServer::set_recv_timeout(int64_t timeout_us)
 {
 	protocol->set_recv_timeout(timeout_us);
 }
 
-int64_t SrsRtmp::get_recv_timeout()
+int64_t SrsRtmpServer::get_recv_timeout()
 {
 	return protocol->get_recv_timeout();
 }
 
-void SrsRtmp::set_send_timeout(int64_t timeout_us)
+void SrsRtmpServer::set_send_timeout(int64_t timeout_us)
 {
 	protocol->set_send_timeout(timeout_us);
 }
 
-int64_t SrsRtmp::get_send_timeout()
+int64_t SrsRtmpServer::get_send_timeout()
 {
 	return protocol->get_send_timeout();
 }
 
-int64_t SrsRtmp::get_recv_bytes()
+int64_t SrsRtmpServer::get_recv_bytes()
 {
 	return protocol->get_recv_bytes();
 }
 
-int64_t SrsRtmp::get_send_bytes()
+int64_t SrsRtmpServer::get_send_bytes()
 {
 	return protocol->get_send_bytes();
 }
 
-int SrsRtmp::get_recv_kbps()
+int SrsRtmpServer::get_recv_kbps()
 {
 	return protocol->get_recv_kbps();
 }
 
-int SrsRtmp::get_send_kbps()
+int SrsRtmpServer::get_send_kbps()
 {
 	return protocol->get_send_kbps();
 }
 
-int SrsRtmp::recv_message(SrsCommonMessage** pmsg)
+int SrsRtmpServer::recv_message(SrsCommonMessage** pmsg)
 {
 	return protocol->recv_message(pmsg);
 }
 
-int SrsRtmp::send_message(ISrsMessage* msg)
+int SrsRtmpServer::send_message(ISrsMessage* msg)
 {
 	return protocol->send_message(msg);
 }
 
-int SrsRtmp::handshake()
+int SrsRtmpServer::handshake()
 {
 	int ret = ERROR_SUCCESS;
     
@@ -520,7 +520,7 @@ int SrsRtmp::handshake()
     return ret;
 }
 
-int SrsRtmp::connect_app(SrsRequest* req)
+int SrsRtmpServer::connect_app(SrsRequest* req)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -559,7 +559,7 @@ int SrsRtmp::connect_app(SrsRequest* req)
 	return req->discovery_app();
 }
 
-int SrsRtmp::set_window_ack_size(int ack_size)
+int SrsRtmpServer::set_window_ack_size(int ack_size)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -578,7 +578,7 @@ int SrsRtmp::set_window_ack_size(int ack_size)
 	return ret;
 }
 
-int SrsRtmp::set_peer_bandwidth(int bandwidth, int type)
+int SrsRtmpServer::set_peer_bandwidth(int bandwidth, int type)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -599,7 +599,7 @@ int SrsRtmp::set_peer_bandwidth(int bandwidth, int type)
 	return ret;
 }
 
-int SrsRtmp::response_connect_app(SrsRequest *req, const char* server_ip)
+int SrsRtmpServer::response_connect_app(SrsRequest *req, const char* server_ip)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -644,7 +644,7 @@ int SrsRtmp::response_connect_app(SrsRequest *req, const char* server_ip)
     return ret;
 }
 
-void SrsRtmp::response_connect_reject(SrsRequest *req, const char* desc)
+void SrsRtmpServer::response_connect_reject(SrsRequest *req, const char* desc)
 {
     int ret = ERROR_SUCCESS;
 
@@ -665,7 +665,7 @@ void SrsRtmp::response_connect_reject(SrsRequest *req, const char* desc)
     return;
 }
 
-int SrsRtmp::on_bw_done()
+int SrsRtmpServer::on_bw_done()
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -683,7 +683,7 @@ int SrsRtmp::on_bw_done()
 	return ret;
 }
 
-int SrsRtmp::identify_client(int stream_id, SrsClientType& type, string& stream_name)
+int SrsRtmpServer::identify_client(int stream_id, SrsClientType& type, string& stream_name)
 {
 	type = SrsClientUnknown;
 	int ret = ERROR_SUCCESS;
@@ -728,7 +728,7 @@ int SrsRtmp::identify_client(int stream_id, SrsClientType& type, string& stream_
 	return ret;
 }
 
-int SrsRtmp::set_chunk_size(int chunk_size)
+int SrsRtmpServer::set_chunk_size(int chunk_size)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -747,7 +747,7 @@ int SrsRtmp::set_chunk_size(int chunk_size)
 	return ret;
 }
 
-int SrsRtmp::start_play(int stream_id)
+int SrsRtmpServer::start_play(int stream_id)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -842,7 +842,7 @@ int SrsRtmp::start_play(int stream_id)
 	return ret;
 }
 
-int SrsRtmp::on_play_client_pause(int stream_id, bool is_pause)
+int SrsRtmpServer::on_play_client_pause(int stream_id, bool is_pause)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -917,7 +917,7 @@ int SrsRtmp::on_play_client_pause(int stream_id, bool is_pause)
 	return ret;
 }
 
-int SrsRtmp::start_fmle_publish(int stream_id)
+int SrsRtmpServer::start_fmle_publish(int stream_id)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -1030,7 +1030,7 @@ int SrsRtmp::start_fmle_publish(int stream_id)
 	return ret;
 }
 
-int SrsRtmp::fmle_unpublish(int stream_id, double unpublish_tid)
+int SrsRtmpServer::fmle_unpublish(int stream_id, double unpublish_tid)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -1088,7 +1088,7 @@ int SrsRtmp::fmle_unpublish(int stream_id, double unpublish_tid)
 	return ret;
 }
 
-int SrsRtmp::start_flash_publish(int stream_id)
+int SrsRtmpServer::start_flash_publish(int stream_id)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -1116,7 +1116,7 @@ int SrsRtmp::start_flash_publish(int stream_id)
 	return ret;
 }
 
-int SrsRtmp::identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, string& stream_name)
+int SrsRtmpServer::identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, string& stream_name)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -1169,7 +1169,7 @@ int SrsRtmp::identify_create_stream_client(SrsCreateStreamPacket* req, int strea
 	return ret;
 }
 
-int SrsRtmp::identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsClientType& type, string& stream_name)
+int SrsRtmpServer::identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsClientType& type, string& stream_name)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -1193,7 +1193,7 @@ int SrsRtmp::identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsClientType
 	return ret;
 }
 
-int SrsRtmp::identify_flash_publish_client(SrsPublishPacket* req, SrsClientType& type, string& stream_name)
+int SrsRtmpServer::identify_flash_publish_client(SrsPublishPacket* req, SrsClientType& type, string& stream_name)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -1203,7 +1203,7 @@ int SrsRtmp::identify_flash_publish_client(SrsPublishPacket* req, SrsClientType&
 	return ret;
 }
 
-int SrsRtmp::identify_play_client(SrsPlayPacket* req, SrsClientType& type, string& stream_name)
+int SrsRtmpServer::identify_play_client(SrsPlayPacket* req, SrsClientType& type, string& stream_name)
 {
 	int ret = ERROR_SUCCESS;
 	

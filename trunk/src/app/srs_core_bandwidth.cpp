@@ -43,7 +43,7 @@ SrsBandwidth::~SrsBandwidth()
 {
 }
 
-int SrsBandwidth::bandwidth_test(SrsRequest* _req, st_netfd_t stfd, SrsRtmp* _rtmp)
+int SrsBandwidth::bandwidth_test(SrsRequest* _req, st_netfd_t stfd, SrsRtmpServer* _rtmp)
 {
 	int ret = ERROR_SUCCESS;
 	

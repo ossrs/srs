@@ -34,7 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_conn.hpp>
 #include <srs_core_reload.hpp>
 
-class SrsRtmp;
+class SrsRtmpServer;
 class SrsRequest;
 class SrsResponse;
 class SrsSource;
@@ -57,7 +57,7 @@ private:
 	SrsRequest* req;
 	SrsResponse* res;
 	SrsSocket* skt;
-	SrsRtmp* rtmp;
+	SrsRtmpServer* rtmp;
 	SrsRefer* refer;
 #ifdef SRS_HTTP	
 	SrsHttpHooks* http_hooks;

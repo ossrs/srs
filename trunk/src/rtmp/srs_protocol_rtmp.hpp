@@ -146,14 +146,14 @@ public:
 * such as connect to vhost/app, play stream, get audio/video data.
 */
 // TODO: FIXME: rename to SrsRtmpServer
-class SrsRtmp
+class SrsRtmpServer
 {
 private:
 	SrsProtocol* protocol;
 	ISrsProtocolReaderWriter* io;
 public:
-	SrsRtmp(ISrsProtocolReaderWriter* skt);
-	virtual ~SrsRtmp();
+	SrsRtmpServer(ISrsProtocolReaderWriter* skt);
+	virtual ~SrsRtmpServer();
 public:
 	virtual SrsProtocol* get_protocol();
 	virtual void set_recv_timeout(int64_t timeout_us);

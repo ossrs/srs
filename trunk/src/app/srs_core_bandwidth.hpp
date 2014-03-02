@@ -32,7 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_st.hpp>
 
 class SrsRequest;
-class SrsRtmp;
+class SrsRtmpServer;
 
 /**
 * bandwidth test agent which provides the interfaces for bandwidth check.
@@ -74,7 +74,7 @@ class SrsBandwidth
 {
 private:
     SrsRequest* req;
-    SrsRtmp* rtmp;
+    SrsRtmpServer* rtmp;
 public:
     SrsBandwidth();
     virtual ~SrsBandwidth();
@@ -82,7 +82,7 @@ public:
     /**
     * do the bandwidth test.
     */
-    virtual int bandwidth_test(SrsRequest* _req, st_netfd_t stfd, SrsRtmp* _rtmp);
+    virtual int bandwidth_test(SrsRequest* _req, st_netfd_t stfd, SrsRtmpServer* _rtmp);
 private:
     virtual int get_local_ip(st_netfd_t stfd, char *&local_ip);
     /**

@@ -206,7 +206,23 @@ int srs_complex_handshake(srs_rtmp_t rtmp)
 
 int srs_connect_app(srs_rtmp_t rtmp)
 {
-	return ERROR_SUCCESS;
+	int ret = ERROR_SUCCESS;
+	
+    srs_assert(rtmp != NULL);
+    Context* context = (Context*)rtmp;
+	
+	string tcUrl = "rtmp://";
+	tcUrl += context->vhost;
+	tcUrl += ":";
+	tcUrl += context->port;
+	tcUrl += "/";
+	tcUrl += context->app;
+	
+	if ((ret = context->rtmp->connect_app(context->app, tcUrl)) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
+	return ret;
 }
 
 int srs_play_stream(srs_rtmp_t rtmp)

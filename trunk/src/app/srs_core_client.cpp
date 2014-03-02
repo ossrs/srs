@@ -50,7 +50,7 @@ SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
 	req = new SrsRequest();
 	res = new SrsResponse();
 	skt = new SrsSocket(client_stfd);
-	rtmp = new SrsRtmp(skt);
+	rtmp = new SrsRtmpServer(skt);
 	refer = new SrsRefer();
 #ifdef SRS_HTTP	
 	http_hooks = new SrsHttpHooks();
