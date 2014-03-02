@@ -43,7 +43,20 @@ echo "generate Makefile"
 SRS_MAKEFILE="Makefile"
 cat << END > ${SRS_MAKEFILE}
 .PHONY: default help clean server bandwidth librtmp librtmp-sample _prepare_dir
+
+RED="\\\\e[31m"
+GREEN="\\\\e[32m"
+YELLOW="\\\\e[33m"
+BLACK="\\\\e[0m"
+
 default: server bandwidth librtmp librtmp-sample
+	@echo -e "\$(GREEN)"
+	@echo -e "build success:"
+	@echo -e "     server:          ./objs/srs, the srs server"
+	@echo -e "     bandwidth:       ./objs/bandwidth, the bandwidth test client"
+	@echo -e "     librtmp:         ./objs/include, ./objs/lib, the srs-librtmp library"
+	@echo -e "     librtmp-sample:  ./research/librtmp, the srs-librtmp client sample"
+	@echo -e "\$(BLACK)"
 
 help:
 	@echo "Usage: make <help>|<clean>|<server>|<bandwidth>|<librtmp>|<librtmp-sample>"
