@@ -1193,6 +1193,33 @@ bool SrsMessageHeader::is_user_control_message()
 	return message_type == RTMP_MSG_UserControlMessage;
 }
 
+void SrsMessageHeader::initialize_amf0_script(int size, int stream)
+{
+	message_type = RTMP_MSG_AMF0DataMessage;
+	payload_length = (int32_t)size;
+	timestamp_delta = (int32_t)0;
+	timestamp = (int64_t)0;
+	stream_id = (int32_t)stream;
+}
+
+void SrsMessageHeader::initialize_audio(int size, u_int32_t time, int stream)
+{
+	message_type = RTMP_MSG_AudioMessage;
+	payload_length = (int32_t)size;
+	timestamp_delta = (int32_t)time;
+	timestamp = (int64_t)time;
+	stream_id = (int32_t)stream;
+}
+
+void SrsMessageHeader::initialize_video(int size, u_int32_t time, int stream)
+{
+	message_type = RTMP_MSG_VideoMessage;
+	payload_length = (int32_t)size;
+	timestamp_delta = (int32_t)time;
+	timestamp = (int64_t)time;
+	stream_id = (int32_t)stream;
+}
+
 SrsChunkStream::SrsChunkStream(int _cid)
 {
 	fmt = 0;
@@ -1516,7 +1543,7 @@ int SrsSharedPtrMessage::initialize(SrsCommonMessage* source)
 {
 	int ret = ERROR_SUCCESS;
 	
-	if ((ret = initialize(source, (char*)source->payload, source->size)) != ERROR_SUCCESS) {
+	if ((ret = initialize(&source->header, (char*)source->payload, source->size)) != ERROR_SUCCESS) {
 		return ret;
 	}
 	
@@ -1527,7 +1554,7 @@ int SrsSharedPtrMessage::initialize(SrsCommonMessage* source)
 	return ret;
 }
 
-int SrsSharedPtrMessage::initialize(SrsCommonMessage* source, char* payload, int size)
+int SrsSharedPtrMessage::initialize(SrsMessageHeader* source, char* payload, int size)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -1540,7 +1567,7 @@ int SrsSharedPtrMessage::initialize(SrsCommonMessage* source, char* payload, int
 		return ret;
 	}
 	
-	header = source->header;
+	header = *source;
 	header.payload_length = size;
 	
 	ptr = new SrsSharedPtr();
@@ -1549,9 +1576,9 @@ int SrsSharedPtrMessage::initialize(SrsCommonMessage* source, char* payload, int
 	ptr->payload = payload;
 	ptr->size = size;
 	
-	if (source->header.is_video()) {
+	if (source->is_video()) {
 		ptr->perfer_cid = RTMP_CID_Video;
-	} else if (source->header.is_audio()) {
+	} else if (source->is_audio()) {
 		ptr->perfer_cid = RTMP_CID_Audio;
 	} else {
 		ptr->perfer_cid = RTMP_CID_OverConnection2;

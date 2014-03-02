@@ -25,11 +25,19 @@ gcc srs_publish.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_publish
 */
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
 #include "../../objs/include/srs_librtmp.h"
 
 int main(int argc, char** argv)
 {
 	srs_rtmp_t rtmp;
+	
+	// packet data
+	int type, size;
+	u_int32_t timestamp = 0;
+	char* data;
 	
     printf("publish rtmp stream to server like FMLE/FFMPEG/Encoder\n");
     printf("srs(simple-rtmp-server) client librtmp library.\n");
@@ -54,6 +62,20 @@ int main(int argc, char** argv)
 		goto rtmp_destroy;
 	}
 	printf("publish stream success\n");
+	
+	for (;;) {
+		type = SRS_RTMP_TYPE_VIDEO;
+		timestamp += 40;
+		size = 4096;
+		data = (char*)malloc(4096);
+		
+		if (srs_write_packet(rtmp, type, timestamp, data, size) != 0) {
+			goto rtmp_destroy;
+		}
+		printf("sent packet: type=%s, time=%d, size=%d\n", srs_type2string(type), timestamp, size);
+		
+		usleep(40 * 1000);
+	}
 	
 rtmp_destroy:
     srs_rtmp_destroy(rtmp);

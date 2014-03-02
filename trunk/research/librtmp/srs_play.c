@@ -25,6 +25,8 @@ gcc srs_play.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_play
 */
 
 #include <stdio.h>
+#include <stdlib.h>
+
 #include "../../objs/include/srs_librtmp.h"
 
 int main(int argc, char** argv)
@@ -33,14 +35,14 @@ int main(int argc, char** argv)
 	
 	// packet data
 	int type, size;
-	u_int32_t timestamp;
+	u_int32_t timestamp = 0;
 	char* data;
 	
     printf("suck rtmp stream like rtmpdump\n");
     printf("srs(simple-rtmp-server) client librtmp library.\n");
     printf("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
     
-    rtmp = srs_rtmp_create("rtmp://127.0.0.1:1935/live?vhost=__defaultVhost__/livestream");
+    rtmp = srs_rtmp_create("rtmp://127.0.0.1:1935/live/livestream");
     
  	if (srs_simple_handshake(rtmp) != 0) {
 		printf("simple handshake failed.\n");

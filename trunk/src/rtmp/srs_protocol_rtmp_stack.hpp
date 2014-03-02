@@ -262,6 +262,10 @@ struct SrsMessageHeader
 	bool is_window_ackledgement_size();
 	bool is_set_chunk_size();
 	bool is_user_control_message();
+	
+	void initialize_amf0_script(int size, int stream);
+	void initialize_audio(int size, u_int32_t time, int stream);
+	void initialize_video(int size, u_int32_t time, int stream);
 };
 
 /**
@@ -434,9 +438,9 @@ public:
 	virtual int initialize(SrsCommonMessage* source);
 	/**
 	* set the shared payload.
-	* we will use the payload, donot use the payload of source.
+	* use source header, and specified param payload.
 	*/
-	virtual int initialize(SrsCommonMessage* source, char* payload, int size);
+	virtual int initialize(SrsMessageHeader* source, char* payload, int size);
 	virtual SrsSharedPtrMessage* copy();
 public:
 	/**

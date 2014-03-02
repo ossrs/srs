@@ -677,7 +677,7 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
 	cache_metadata = new SrsSharedPtrMessage();
 	
 	// dump message to shared ptr message.
-	if ((ret = cache_metadata->initialize(msg, payload, size)) != ERROR_SUCCESS) {
+	if ((ret = cache_metadata->initialize(&msg->header, payload, size)) != ERROR_SUCCESS) {
 		srs_error("initialize the cache metadata failed. ret=%d", ret);
 		return ret;
 	}

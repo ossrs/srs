@@ -328,6 +328,51 @@ int srs_read_packet(srs_rtmp_t rtmp, int* type, u_int32_t* timestamp, char** dat
 int srs_write_packet(srs_rtmp_t rtmp, int type, u_int32_t timestamp, char* data, int size)
 {
 	int ret = ERROR_SUCCESS;
+	
+    srs_assert(rtmp != NULL);
+    Context* context = (Context*)rtmp;
+	
+	SrsSharedPtrMessage* msg = NULL;
+	
+	if (type == SRS_RTMP_TYPE_AUDIO) {
+		SrsMessageHeader header;
+		header.initialize_audio(size, timestamp, context->stream_id);
+		
+		msg = new SrsSharedPtrMessage();
+		if ((ret = msg->initialize(&header, data, size)) != ERROR_SUCCESS) {
+			srs_freepa(data);
+			return ret;
+		}
+	} else if (type == SRS_RTMP_TYPE_VIDEO) {
+		SrsMessageHeader header;
+		header.initialize_video(size, timestamp, context->stream_id);
+		
+		msg = new SrsSharedPtrMessage();
+		if ((ret = msg->initialize(&header, data, size)) != ERROR_SUCCESS) {
+			srs_freepa(data);
+			return ret;
+		}
+	} else if (type == SRS_RTMP_TYPE_SCRIPT) {
+		SrsMessageHeader header;
+		header.initialize_amf0_script(size, context->stream_id);
+		
+		msg = new SrsSharedPtrMessage();
+		if ((ret = msg->initialize(&header, data, size)) != ERROR_SUCCESS) {
+			srs_freepa(data);
+			return ret;
+		}
+	}
+	
+	if (msg) {
+		// send out encoded msg.
+		if ((ret = context->rtmp->send_message(msg)) != ERROR_SUCCESS) {
+			return ret;
+		}
+	} else {
+		// directly free data if not sent out.
+		srs_freepa(data);
+	}
+	
 	return ret;
 }
 
