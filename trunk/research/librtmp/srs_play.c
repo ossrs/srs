@@ -39,22 +39,23 @@ int main(int argc, char** argv)
     
 	if (srs_simple_handshake(rtmp) != 0) {
 		printf("simple handshake failed.\n");
-		return -1;
+		goto rtmp_destroy;
 	}
 	printf("simple handshake success\n");
     
 	if (srs_connect_app(rtmp) != 0) {
 		printf("connect vhost/app failed.\n");
-		return -1;
+		goto rtmp_destroy;
 	}
 	printf("connect vhost/app success\n");
     
 	if (srs_play_stream(rtmp) != 0) {
 		printf("play stream failed.\n");
-		return -1;
+		goto rtmp_destroy;
 	}
 	printf("play stream success\n");
 	
+rtmp_destroy:
     srs_rtmp_destroy(rtmp);
     
     return 0;

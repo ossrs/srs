@@ -39,17 +39,17 @@ struct Context
 {
 	std::string url;
     SrsRtmpClient* rtmp;
-    SimpleSocketStream* stream;
+    SimpleSocketStream* skt;
     int stream_id;
     
     Context() {
         rtmp = NULL;
-        stream = NULL;
+        skt = NULL;
         stream_id = 0;
     }
     virtual ~Context() {
         srs_freep(rtmp);
-        srs_freep(stream);
+        srs_freep(skt);
     }
 };
 
@@ -66,11 +66,18 @@ srs_rtmp_t srs_rtmp_create(const char* url){
 void srs_rtmp_destroy(srs_rtmp_t rtmp){
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
+    
     srs_freep(context);
 }
 
 int srs_simple_handshake(srs_rtmp_t rtmp)
 {
+    srs_assert(rtmp != NULL);
+    Context* context = (Context*)rtmp;
+    
+	srs_freep(context->skt);
+	context->skt = new SimpleSocketStream();
+	
 	return ERROR_SUCCESS;
 }
 
