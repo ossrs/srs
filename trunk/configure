@@ -44,6 +44,7 @@ SRS_MAKEFILE="Makefile"
 cat << END > ${SRS_MAKEFILE}
 .PHONY: default help clean server bandwidth librtmp librtmp-sample _prepare_dir
 
+# linux shell color support.
 RED="\\\\e[31m"
 GREEN="\\\\e[32m"
 YELLOW="\\\\e[33m"
@@ -244,6 +245,7 @@ RED="\\e[31m"
 GREEN="\\e[32m"
 YELLOW="\\e[33m"
 BLACK="\\e[0m"
+
 # summary
 echo ""
 echo "configure summary:"
