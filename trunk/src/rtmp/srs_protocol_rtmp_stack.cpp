@@ -1025,6 +1025,14 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
 
 		// ffmpeg/librtmp may donot send this filed, need to detect the value.
 		// @see also: http://blog.csdn.net/win_lin/article/details/13363699
+		// the extended-timestamp must be unsigned-int,
+		// 		24bits timestamp: 0xffffff = 16777215ms = 16777.215s = 4.66h
+		// 		32bits timestamp: 0xffffffff = 4294967295ms = 4294967.295s = 1193.046h = 49.71d
+		// because the rtmp protocol says the 32bits timestamp is about "50 days":
+		// 		3. Byte Order, Alignment, and Time Format
+		//				Because timestamps are generally only 32 bits long, they will roll
+		//				over after fewer than 50 days.
+		// so, use u_int32_t is right.
 		u_int32_t timestamp = 0x00;
         char* pp = (char*)&timestamp;
         pp[3] = *p++;

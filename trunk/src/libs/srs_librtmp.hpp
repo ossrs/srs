@@ -28,6 +28,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_librtmp.h>
 */
 
+#include <sys/types.h>
+
 /**
 * srs-librtmp is a librtmp like library,
 * used to play/publish rtmp stream from/to rtmp server.
@@ -99,6 +101,43 @@ int srs_play_stream(srs_rtmp_t rtmp);
 * @return 0, success; otherwise, failed.
 */
 int srs_publish_stream(srs_rtmp_t rtmp);
+
+/**
+* E.4.1 FLV Tag, page 75
+*/
+// 8 = audio
+#define SRS_RTMP_TYPE_AUDIO 8
+// 9 = video
+#define SRS_RTMP_TYPE_VIDEO 9
+// 18 = script data
+#define SRS_RTMP_TYPE_SCRIPT 18
+/**
+* convert the flv tag type to string.
+* 	SRS_RTMP_TYPE_AUDIO to "Audio"
+* 	SRS_RTMP_TYPE_VIDEO to "Video"
+* 	SRS_RTMP_TYPE_SCRIPT to "Data"
+* 	otherwise, "Unknown"
+*/
+const char* srs_type2string(int type);
+/**
+* read a audio/video/script-data packet from rtmp stream.
+* @param type, output the packet type, macros:
+*			SRS_RTMP_TYPE_AUDIO, FlvTagAudio
+*			SRS_RTMP_TYPE_VIDEO, FlvTagVideo
+*			SRS_RTMP_TYPE_SCRIPT, FlvTagScript
+* @param timestamp, in ms, overflow in 50days
+* @param data, the packet data, according to type:
+* 			FlvTagAudio, @see "E.4.2.1 AUDIODATA"
+*			FlvTagVideo, @see "E.4.3.1 VIDEODATA"
+*			FlvTagScript, @see "E.4.4.1 SCRIPTDATA"
+* @param size, size of packet.
+* @return the error code. 0 for success; otherwise, error.
+*
+* @remark: for read, user must free the data.
+* @remark: for write, user should never free the data, even if error.
+*/
+int srs_read_packet(srs_rtmp_t rtmp, int* type, u_int32_t* timestamp, char** data, int* size);
+int srs_write_packet(srs_rtmp_t rtmp, int type, u_int32_t timestamp, char* data, int size);
 
 /**
 * whether srs is compiled with ssl,

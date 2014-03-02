@@ -31,11 +31,16 @@ int main(int argc, char** argv)
 {
 	srs_rtmp_t rtmp;
 	
+	// packet data
+	int type, size;
+	u_int32_t timestamp;
+	char* data;
+	
     printf("suck rtmp stream like rtmpdump\n");
     printf("srs(simple-rtmp-server) client librtmp library.\n");
     printf("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
     
-    rtmp = srs_rtmp_create("rtmp://127.0.0.1:1935/live/show?vhost=__defaultVhost__/livestream");
+    rtmp = srs_rtmp_create("rtmp://127.0.0.1:1935/live?vhost=__defaultVhost__/livestream");
     
  	if (srs_simple_handshake(rtmp) != 0) {
 		printf("simple handshake failed.\n");
@@ -54,6 +59,15 @@ int main(int argc, char** argv)
 		goto rtmp_destroy;
 	}
 	printf("play stream success\n");
+	
+	for (;;) {
+		if (srs_read_packet(rtmp, &type, &timestamp, &data, &size) != 0) {
+			goto rtmp_destroy;
+		}
+		printf("got packet: type=%s, time=%d, size=%d\n", srs_type2string(type), timestamp, size);
+		
+		free(data);
+	}
 	
 rtmp_destroy:
     srs_rtmp_destroy(rtmp);

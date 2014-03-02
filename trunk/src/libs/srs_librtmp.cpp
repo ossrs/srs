@@ -33,6 +33,8 @@ using namespace std;
 #include <srs_lib_simple_socket.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_core_autofree.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 
 // if user want to define log, define the folowing macro.
 #ifndef SRS_RTMP_USER_DEFINED_LOG
@@ -253,6 +255,79 @@ int srs_publish_stream(srs_rtmp_t rtmp)
         return ret;
     }
     
+	return ret;
+}
+
+const char* srs_type2string(int type)
+{
+	switch (type) {
+		case SRS_RTMP_TYPE_AUDIO: return "Audio";
+		case SRS_RTMP_TYPE_VIDEO: return "Video";
+		case SRS_RTMP_TYPE_SCRIPT: return "Data";
+		default: return "Unknown";
+	}
+	
+	return "Unknown";
+}
+
+int srs_read_packet(srs_rtmp_t rtmp, int* type, u_int32_t* timestamp, char** data, int* size)
+{
+	*type = 0;
+	*timestamp = 0;
+	*data = NULL;
+	*size = 0;
+	
+	int ret = ERROR_SUCCESS;
+	
+    srs_assert(rtmp != NULL);
+    Context* context = (Context*)rtmp;
+    
+    for (;;) {
+        SrsCommonMessage* msg = NULL;
+        if ((ret = context->rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        if (!msg) {
+            continue;
+        }
+        
+        SrsAutoFree(SrsCommonMessage, msg, false);
+        
+        if (msg->header.is_audio()) {
+            *type = SRS_RTMP_TYPE_AUDIO;
+            *timestamp = (u_int32_t)msg->header.timestamp;
+            *data = (char*)msg->payload;
+            *size = (int)msg->size;
+            // detach bytes from packet.
+            msg->payload = NULL;
+        } else if (msg->header.is_video()) {
+            *type = SRS_RTMP_TYPE_VIDEO;
+            *timestamp = (u_int32_t)msg->header.timestamp;
+            *data = (char*)msg->payload;
+            *size = (int)msg->size;
+            // detach bytes from packet.
+            msg->payload = NULL;
+        } else if (msg->header.is_amf0_data() || msg->header.is_amf3_data()) {
+            *type = SRS_RTMP_TYPE_SCRIPT;
+            *data = (char*)msg->payload;
+            *size = (int)msg->size;
+            // detach bytes from packet.
+            msg->payload = NULL;
+        } else {
+            // ignore and continue
+            continue;
+        }
+        
+        // got expected message.
+        break;
+    }
+    
+	return ret;
+}
+
+int srs_write_packet(srs_rtmp_t rtmp, int type, u_int32_t timestamp, char* data, int size)
+{
+	int ret = ERROR_SUCCESS;
 	return ret;
 }
 
