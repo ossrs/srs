@@ -31,6 +31,15 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_rtmp.hpp>
 #include <srs_lib_simple_socket.hpp>
+#include <srs_kernel_log.hpp>
+#include <srs_protocol_utility.hpp>
+
+// if user want to define log, define the folowing macro.
+#ifndef SRS_RTMP_USER_DEFINED_LOG
+	// kernel module.
+	ISrsLog* _srs_log = new ISrsLog();
+	ISrsThreadContext* _srs_context = new ISrsThreadContext();
+#endif
 
 /**
 * export runtime context.
@@ -38,6 +47,13 @@ using namespace std;
 struct Context
 {
 	std::string url;
+	std::string tcUrl;
+	std::string host;
+	std::string port;
+	std::string vhost;
+	std::string app;
+	std::string stream;
+	
     SrsRtmpClient* rtmp;
     SimpleSocketStream* skt;
     int stream_id;
@@ -53,17 +69,85 @@ struct Context
     }
 };
 
+int srs_librtmp_context_connect(Context* context) 
+{
+	int ret = ERROR_SUCCESS;
+    
+    // parse uri
+	size_t pos = string::npos;
+	string uri = context->url;
+	// tcUrl, stream
+	if ((pos = uri.rfind("/")) != string::npos) {
+		context->stream = uri.substr(pos + 1);
+		context->tcUrl = uri = uri.substr(0, pos);
+	}
+	// schema
+	if ((pos = uri.find("rtmp://")) != string::npos) {
+		uri = uri.substr(pos + 7);
+	}
+	// host/vhost/port
+	if ((pos = uri.find(":")) != string::npos) {
+		context->vhost = context->host = uri.substr(0, pos);
+		uri = uri.substr(pos + 1);
+		
+		if ((pos = uri.find("/")) != string::npos) {
+			context->port = uri.substr(0, pos);
+			uri = uri.substr(pos + 1);
+		}
+	} else {
+		if ((pos = uri.find("/")) != string::npos) {
+			context->vhost = context->host = uri.substr(0, pos);
+			uri = uri.substr(pos + 1);
+		}
+		context->port = RTMP_DEFAULT_PORT;
+	}
+	// app
+	context->app = uri;
+	// query of app
+	if ((pos = uri.find("?")) != string::npos) {
+		context->app = uri.substr(0, pos);
+		string query = uri.substr(pos + 1);
+		if ((pos = query.find("vhost=")) != string::npos) {
+			context->vhost = query.substr(pos + 6);
+			if ((pos = context->vhost.find("&")) != string::npos) {
+				context->vhost = context->vhost.substr(pos);
+			}
+		}
+	}
+    
+    // create socket
+	srs_freep(context->skt);
+	context->skt = new SimpleSocketStream();
+	
+	if ((ret = context->skt->create_socket()) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
+	// connect to server:port
+	string server = srs_dns_resolve(context->host);
+	if (server.empty()) {
+		return -1;
+	}
+	if ((ret = context->skt->connect(server.c_str(), ::atoi(context->port.c_str()))) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
+	return ret;
+}
+
 #ifdef __cplusplus
 extern "C"{
 #endif
 
-srs_rtmp_t srs_rtmp_create(const char* url){
+srs_rtmp_t srs_rtmp_create(const char* url)
+{
     Context* context = new Context();
 	context->url = url;
     return context;
 }
 
-void srs_rtmp_destroy(srs_rtmp_t rtmp){
+void srs_rtmp_destroy(srs_rtmp_t rtmp)
+{
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
     
@@ -72,17 +156,29 @@ void srs_rtmp_destroy(srs_rtmp_t rtmp){
 
 int srs_simple_handshake(srs_rtmp_t rtmp)
 {
+	int ret = ERROR_SUCCESS;
+	
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
     
-	srs_freep(context->skt);
-	context->skt = new SimpleSocketStream();
+    // parse uri, resolve host, connect to server:port
+    if ((ret = srs_librtmp_context_connect(context)) != ERROR_SUCCESS) {
+        return ret;
+    }
 	
-	return ERROR_SUCCESS;
+	// simple handshake
+	srs_freep(context->rtmp);
+	context->rtmp = new SrsRtmpClient(context->skt);
+	
+	return ret;
 }
 
 int srs_complex_handshake(srs_rtmp_t rtmp)
 {
+#ifndef SRS_SSL
+	return ERROR_RTMP_HS_SSL_REQUIRE;
+#endif
+
 	return ERROR_SUCCESS;
 }
 

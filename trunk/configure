@@ -39,6 +39,13 @@ echo "" >> $SRS_AUTO_HEADERS_H
 #####################################################################################
 
 #####################################################################################
+# srs-librtmp sample entry
+SrsLibrtmpSampleEntry="nossl"
+if [ $SRS_SSL = YES ]; then
+    SrsLibrtmpSampleEntry="ssl"
+fi
+
+# makefile
 echo "generate Makefile"
 SRS_MAKEFILE="Makefile"
 cat << END > ${SRS_MAKEFILE}
@@ -86,7 +93,7 @@ librtmp: _prepare_dir
 
 librtmp-sample:
 	@echo "build the srs-librtmp sample"
-	(cd research/librtmp; make)
+	(cd research/librtmp; make ${SrsLibrtmpSampleEntry})
 	@echo "srs-librtmp sample build success"
 
 # the ./configure will generate it.

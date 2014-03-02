@@ -35,9 +35,10 @@ int main(int argc, char** argv)
     printf("srs(simple-rtmp-server) client librtmp library.\n");
     printf("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
     
-    rtmp = srs_rtmp_create("rtmp://127.0.0.1/live/livestream");
+    rtmp = srs_rtmp_create("rtmp://127.0.0.1:1935/live/show?vhost=__defaultVhost__/livestream");
     
-	if (srs_simple_handshake(rtmp) != 0) {
+	//if (srs_simple_handshake(rtmp) != 0) {
+	if (srs_complex_handshake(rtmp) != 0) {
 		printf("simple handshake failed.\n");
 		goto rtmp_destroy;
 	}

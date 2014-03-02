@@ -71,6 +71,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_RTMP_ACCESS_DENIED		315
 #define ERROR_RTMP_HANDSHAKE			316
 #define ERROR_RTMP_NO_REQUEST			317
+// if user use complex handshake, but without ssl,
+// 1. srs is ok, ignore and turn to simple handshake.
+// 2. srs-librtmp return error, to terminate the program.
+#define ERROR_RTMP_HS_SSL_REQUIRE		318
 
 #define ERROR_SYSTEM_STREAM_INIT		400
 #define ERROR_SYSTEM_PACKET_INVALID		401
