@@ -39,6 +39,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SimpleSocketStream : public ISrsProtocolReaderWriter
 {
 private:
+	int64_t start_time_ms;
+	int64_t recv_timeout;
+	int64_t send_timeout;
+	int64_t recv_bytes;
+	int64_t send_bytes;
 	int fd;
 public:
     SimpleSocketStream();
