@@ -23,9 +23,32 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_lib_simple_socket.hpp>
 
-SimpleSocketStream::SimpleSocketStream(int fd) {
+#include <srs_kernel_error.hpp>
+
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+
+SimpleSocketStream::SimpleSocketStream()
+{
+	fd = -1;
 }
 
-SimpleSocketStream::~SimpleSocketStream() {
+SimpleSocketStream::~SimpleSocketStream()
+{
+	if (fd != -1) {
+		::close(fd);
+		fd = -1;
+	}
+}
+
+int SimpleSocketStream::create_socket()
+{
+    fd = ::socket(AF_INET, SOCK_STREAM, 0);
+    if(fd == -1){
+        return -1;
+    }
+
+	return ERROR_SUCCESS;
 }
 

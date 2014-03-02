@@ -33,10 +33,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 class SimpleSocketStream
 {
+private:
+	int fd;
 public:
-    SimpleSocketStream(int fd);
+    SimpleSocketStream();
     virtual ~SimpleSocketStream();
 public:
+	virtual int create_socket();
 };
 
 #endif
