@@ -227,6 +227,18 @@ int srs_connect_app(srs_rtmp_t rtmp)
 
 int srs_play_stream(srs_rtmp_t rtmp)
 {
+	int ret = ERROR_SUCCESS;
+	
+    srs_assert(rtmp != NULL);
+    Context* context = (Context*)rtmp;
+    
+    if ((ret = context->rtmp->create_stream(context->stream_id)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = context->rtmp->play(context->stream, context->stream_id)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
 	return ERROR_SUCCESS;
 }
 
