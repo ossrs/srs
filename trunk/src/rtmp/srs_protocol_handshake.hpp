@@ -45,10 +45,11 @@ public:
 	/**
 	* simple handshake.
 	* @param complex_hs, try complex handshake first, 
+	* 		if NULL, use simple handshake.
 	* 		if failed, rollback to simple handshake.
 	*/
-	virtual int handshake_with_client(ISrsProtocolReaderWriter* io, SrsComplexHandshake& complex_hs);
-	virtual int handshake_with_server(ISrsProtocolReaderWriter* io, SrsComplexHandshake& complex_hs);
+	virtual int handshake_with_client(ISrsProtocolReaderWriter* io, SrsComplexHandshake* complex_hs);
+	virtual int handshake_with_server(ISrsProtocolReaderWriter* io, SrsComplexHandshake* complex_hs);
 };
 
 /**

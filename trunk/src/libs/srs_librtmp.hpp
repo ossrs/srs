@@ -66,7 +66,10 @@ void srs_rtmp_destroy(srs_rtmp_t rtmp);
 int srs_simple_handshake(srs_rtmp_t rtmp);
 /**
 * complex handshake is specified by adobe Flash player,
-* depends on ssl, user must link libssl.a and libcrypt.a
+* depends on ssl, user must compile srs with ssl, then
+* link user program libssl.a and libcrypt.a
+* @remark user can use srs_ssl_enabled() to detect 
+* whether ssl is ok.
 */
 int srs_complex_handshake(srs_rtmp_t rtmp);
 
@@ -96,6 +99,14 @@ int srs_play_stream(srs_rtmp_t rtmp);
 * @return 0, success; otherwise, failed.
 */
 int srs_publish_stream(srs_rtmp_t rtmp);
+
+/**
+* whether srs is compiled with ssl,
+* that is, compile srs with ssl: ./configure --with-ssl,.
+* if no ssl, complex handshake always error.
+* @return 0 for false, otherwise, true.
+*/
+int srs_ssl_enabled();
 
 /**
 * get protocol stack version

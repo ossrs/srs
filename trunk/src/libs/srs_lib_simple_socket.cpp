@@ -81,20 +81,17 @@ void SimpleSocketStream::set_recv_timeout(int64_t timeout_us)
 
 int64_t SimpleSocketStream::get_recv_timeout()
 {
-	int ret = ERROR_SUCCESS;
-	return ret;
+	return -1;
 }
 
 int64_t SimpleSocketStream::get_recv_bytes()
 {
-	int ret = ERROR_SUCCESS;
-	return ret;
+	return 0;
 }
 
 int SimpleSocketStream::get_recv_kbps()
 {
-	int ret = ERROR_SUCCESS;
-	return ret;
+	return 0;
 }
 
 // ISrsProtocolWriter
@@ -104,20 +101,17 @@ void SimpleSocketStream::set_send_timeout(int64_t timeout_us)
 
 int64_t SimpleSocketStream::get_send_timeout()
 {
-	int ret = ERROR_SUCCESS;
-	return ret;
+	return -1;
 }
 
 int64_t SimpleSocketStream::get_send_bytes()
 {
-	int ret = ERROR_SUCCESS;
-	return ret;
+	return 0;
 }
 
 int SimpleSocketStream::get_send_kbps()
 {
-	int ret = ERROR_SUCCESS;
-	return ret;
+	return 0;
 }
 
 int SimpleSocketStream::writev(const iovec *iov, int iov_size, ssize_t* nwrite)

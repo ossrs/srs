@@ -170,6 +170,10 @@ int srs_simple_handshake(srs_rtmp_t rtmp)
 	srs_freep(context->rtmp);
 	context->rtmp = new SrsRtmpClient(context->skt);
 	
+	if ((ret = context->rtmp->simple_handshake()) != ERROR_SUCCESS) {
+		return ret;
+	}
+	
 	return ret;
 }
 
@@ -195,6 +199,14 @@ int srs_play_stream(srs_rtmp_t rtmp)
 int srs_publish_stream(srs_rtmp_t rtmp)
 {
 	return ERROR_SUCCESS;
+}
+
+int srs_ssl_enabled()
+{
+#ifndef SRS_SSL
+	return false;
+#endif
+	return true;
 }
 
 int srs_version_major()

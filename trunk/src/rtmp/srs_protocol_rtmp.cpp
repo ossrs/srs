@@ -233,11 +233,29 @@ int SrsRtmpClient::handshake()
     
     SrsComplexHandshake complex_hs;
     SrsSimpleHandshake simple_hs;
-    if ((ret = simple_hs.handshake_with_server(io, complex_hs)) != ERROR_SUCCESS) {
+    if ((ret = simple_hs.handshake_with_server(io, &complex_hs)) != ERROR_SUCCESS) {
         return ret;
     }
     
     return ret;
+}
+
+int SrsRtmpClient::simple_handshake()
+{
+	int ret = ERROR_SUCCESS;
+    
+    SrsSimpleHandshake simple_hs;
+    if ((ret = simple_hs.handshake_with_server(io, NULL)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsRtmpClient::complex_handshake()
+{
+	// TODO: FIXME: only use complex handshake.
+    return handshake();
 }
 
 int SrsRtmpClient::connect_app(string app, string tc_url)
@@ -495,7 +513,7 @@ int SrsRtmp::handshake()
     
     SrsComplexHandshake complex_hs;
     SrsSimpleHandshake simple_hs;
-    if ((ret = simple_hs.handshake_with_client(io, complex_hs)) != ERROR_SUCCESS) {
+    if ((ret = simple_hs.handshake_with_client(io, &complex_hs)) != ERROR_SUCCESS) {
         return ret;
     }
     

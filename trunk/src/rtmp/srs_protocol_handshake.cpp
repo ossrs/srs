@@ -1067,7 +1067,7 @@ SrsSimpleHandshake::~SrsSimpleHandshake()
 {
 }
 
-int SrsSimpleHandshake::handshake_with_client(ISrsProtocolReaderWriter* skt, SrsComplexHandshake& complex_hs)
+int SrsSimpleHandshake::handshake_with_client(ISrsProtocolReaderWriter* skt, SrsComplexHandshake* complex_hs)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -1090,16 +1090,18 @@ int SrsSimpleHandshake::handshake_with_client(ISrsProtocolReaderWriter* skt, Srs
     srs_verbose("check c0 success, required plain text.");
     
     // try complex handshake
-    ret = complex_hs.handshake_with_client(skt, c0c1 + 1);
-    if (ret == ERROR_SUCCESS) {
-	    srs_trace("complex handshake success.");
-	    return ret;
+    if (complex_hs) {
+	    ret = complex_hs->handshake_with_client(skt, c0c1 + 1);
+	    if (ret == ERROR_SUCCESS) {
+		    srs_trace("complex handshake success.");
+		    return ret;
+	    }
+	    if (ret != ERROR_RTMP_TRY_SIMPLE_HS) {
+		    srs_error("complex handshake failed. ret=%d", ret);
+	    	return ret;
+	    }
+	    srs_info("rollback complex to simple handshake. ret=%d", ret);
     }
-    if (ret != ERROR_RTMP_TRY_SIMPLE_HS) {
-	    srs_error("complex handshake failed. ret=%d", ret);
-    	return ret;
-    }
-    srs_info("rollback complex to simple handshake. ret=%d", ret);
 	
 	char* s0s1s2 = new char[3073];
 	srs_random_generate(s0s1s2, 3073);
@@ -1125,21 +1127,23 @@ int SrsSimpleHandshake::handshake_with_client(ISrsProtocolReaderWriter* skt, Srs
 	return ret;
 }
 
-int SrsSimpleHandshake::handshake_with_server(ISrsProtocolReaderWriter* skt, SrsComplexHandshake& complex_hs)
+int SrsSimpleHandshake::handshake_with_server(ISrsProtocolReaderWriter* skt, SrsComplexHandshake* complex_hs)
 {
 	int ret = ERROR_SUCCESS;
     
     // try complex handshake
-    ret = complex_hs.handshake_with_server(skt);
-    if (ret == ERROR_SUCCESS) {
-	    srs_trace("complex handshake success.");
-	    return ret;
+    if (complex_hs) {
+	    ret = complex_hs->handshake_with_server(skt);
+	    if (ret == ERROR_SUCCESS) {
+		    srs_trace("complex handshake success.");
+		    return ret;
+	    }
+	    if (ret != ERROR_RTMP_TRY_SIMPLE_HS) {
+		    srs_error("complex handshake failed. ret=%d", ret);
+	    	return ret;
+	    }
+	    srs_info("rollback complex to simple handshake. ret=%d", ret);
     }
-    if (ret != ERROR_RTMP_TRY_SIMPLE_HS) {
-	    srs_error("complex handshake failed. ret=%d", ret);
-    	return ret;
-    }
-    srs_info("rollback complex to simple handshake. ret=%d", ret);
 	
 	// simple handshake
     ssize_t nsize;

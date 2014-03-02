@@ -128,7 +128,12 @@ public:
 	virtual int recv_message(SrsCommonMessage** pmsg);
 	virtual int send_message(ISrsMessage* msg);
 public:
+	// try complex, then simple handshake.
 	virtual int handshake();
+	// only use simple handshake
+	virtual int simple_handshake();
+	// only use complex handshake
+	virtual int complex_handshake();
 	virtual int connect_app(std::string app, std::string tc_url);
 	virtual int create_stream(int& stream_id);
 	virtual int play(std::string stream, int stream_id);
