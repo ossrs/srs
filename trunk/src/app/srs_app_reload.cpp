@@ -21,51 +21,57 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <srs_kernel_log.hpp>
+#include <srs_app_reload.hpp>
+
+using namespace std;
+
 #include <srs_kernel_error.hpp>
-#include <srs_app_server.hpp>
-#include <srs_app_config.hpp>
-#include <srs_app_log.hpp>
 
-// kernel module.
-ISrsLog* _srs_log = new SrsFastLog();
-ISrsThreadContext* _srs_context = new SrsThreadContext();
-// app module.
-SrsConfig* _srs_config = new SrsConfig();
-SrsServer* _srs_server = new SrsServer();
-
-#include <stdlib.h>
-#include <signal.h>
-
-void handler(int signo)
+ISrsReloadHandler::ISrsReloadHandler()
 {
-	srs_trace("get a signal, signo=%d", signo);
-	_srs_server->on_signal(signo);
 }
 
-int main(int argc, char** argv) 
+ISrsReloadHandler::~ISrsReloadHandler()
 {
-	int ret = ERROR_SUCCESS;
-	
-	signal(SIGNAL_RELOAD, handler);
-	
-	if ((ret = _srs_config->parse_options(argc, argv)) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	if ((ret = _srs_server->initialize()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	// TODO: create log dir in _srs_config->get_log_dir()
-	
-	if ((ret = _srs_server->listen()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	if ((ret = _srs_server->cycle()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-    return 0;
 }
+
+int ISrsReloadHandler::on_reload_listen()
+{
+	return ERROR_SUCCESS;
+}
+
+int ISrsReloadHandler::on_reload_pithy_print()
+{
+	return ERROR_SUCCESS;
+}
+
+int ISrsReloadHandler::on_reload_vhost_removed(string /*vhost*/)
+{
+	return ERROR_SUCCESS;
+}
+
+int ISrsReloadHandler::on_reload_gop_cache(string /*vhost*/)
+{
+	return ERROR_SUCCESS;
+}
+
+int ISrsReloadHandler::on_reload_queue_length(string /*vhost*/)
+{
+	return ERROR_SUCCESS;
+}
+
+int ISrsReloadHandler::on_reload_forward(string /*vhost*/)
+{
+	return ERROR_SUCCESS;
+}
+
+int ISrsReloadHandler::on_reload_hls(string /*vhost*/)
+{
+	return ERROR_SUCCESS;
+}
+
+int ISrsReloadHandler::on_reload_transcode(string /*vhost*/)
+{
+	return ERROR_SUCCESS;
+}
+

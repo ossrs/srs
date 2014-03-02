@@ -21,51 +21,29 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <srs_kernel_log.hpp>
-#include <srs_kernel_error.hpp>
-#include <srs_app_server.hpp>
-#include <srs_app_config.hpp>
-#include <srs_app_log.hpp>
+#ifndef SRS_APP_REFER_HPP
+#define SRS_APP_REFER_HPP
 
-// kernel module.
-ISrsLog* _srs_log = new SrsFastLog();
-ISrsThreadContext* _srs_context = new SrsThreadContext();
-// app module.
-SrsConfig* _srs_config = new SrsConfig();
-SrsServer* _srs_server = new SrsServer();
+/*
+#include <srs_app_refer.hpp>
+*/
+#include <srs_core.hpp>
 
-#include <stdlib.h>
-#include <signal.h>
+#include <string>
 
-void handler(int signo)
+class SrsConfDirective;
+
+class SrsRefer
 {
-	srs_trace("get a signal, signo=%d", signo);
-	_srs_server->on_signal(signo);
-}
+public:
+	/**
+	* to check the refer.
+	* @param page_url the client page url.
+	* @param refer the refer in config.
+	*/
+	virtual int check(std::string page_url, SrsConfDirective* refer);
+private:
+	virtual int check_single_refer(std::string page_url, std::string refer);
+};
 
-int main(int argc, char** argv) 
-{
-	int ret = ERROR_SUCCESS;
-	
-	signal(SIGNAL_RELOAD, handler);
-	
-	if ((ret = _srs_config->parse_options(argc, argv)) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	if ((ret = _srs_server->initialize()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	// TODO: create log dir in _srs_config->get_log_dir()
-	
-	if ((ret = _srs_server->listen()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	if ((ret = _srs_server->cycle()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-    return 0;
-}
+#endif

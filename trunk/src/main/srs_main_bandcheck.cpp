@@ -34,10 +34,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_amf0.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_stream.hpp>
-#include <srs_core_socket.hpp>
-#include <srs_core_config.hpp>
-#include <srs_core_log.hpp>
-#include <srs_core_server.hpp>
+#include <srs_app_socket.hpp>
+#include <srs_app_config.hpp>
+#include <srs_app_log.hpp>
+#include <srs_app_server.hpp>
 
 // kernel module.
 ISrsLog* _srs_log = new SrsFastLog();

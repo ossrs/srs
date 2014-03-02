@@ -21,51 +21,17 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <srs_kernel_log.hpp>
-#include <srs_kernel_error.hpp>
-#include <srs_app_server.hpp>
-#include <srs_app_config.hpp>
-#include <srs_app_log.hpp>
+#include <srs_app_st.hpp>
 
-// kernel module.
-ISrsLog* _srs_log = new SrsFastLog();
-ISrsThreadContext* _srs_context = new SrsThreadContext();
-// app module.
-SrsConfig* _srs_config = new SrsConfig();
-SrsServer* _srs_server = new SrsServer();
-
-#include <stdlib.h>
-#include <signal.h>
-
-void handler(int signo)
+void srs_close_stfd(st_netfd_t& stfd)
 {
-	srs_trace("get a signal, signo=%d", signo);
-	_srs_server->on_signal(signo);
-}
-
-int main(int argc, char** argv) 
-{
-	int ret = ERROR_SUCCESS;
-	
-	signal(SIGNAL_RELOAD, handler);
-	
-	if ((ret = _srs_config->parse_options(argc, argv)) != ERROR_SUCCESS) {
-		return ret;
+	if (stfd) {
+		int fd = st_netfd_fileno(stfd);
+		st_netfd_close(stfd);
+		stfd = NULL;
+		
+		// st does not close it sometimes, 
+		// close it manually.
+		close(fd);
 	}
-	
-	if ((ret = _srs_server->initialize()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	// TODO: create log dir in _srs_config->get_log_dir()
-	
-	if ((ret = _srs_server->listen()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	if ((ret = _srs_server->cycle()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-    return 0;
 }
