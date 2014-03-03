@@ -239,25 +239,55 @@ Schema#2: SRS RTMP Edge server pull stream from origin (or upstream SRS
 </pre>
 (plan) SRS Multiple processes Architecture:<br/>
 <pre>
-                                 +---------------------------+
-                           +-----+ worker process(3)         |
-+----------------+         |     +---------------------------+
-| master process |---(2)---+           
-|   (1)manager   |         |     +---------------------------+
-+----------------+         +-----+ worker process N          |
-                           |     +---------------------------+
-                           |
-                           |     +---------------------------+
-                           +-----+ bandwidth test process(4) |
-                                 +---------------------------+
+                  +-------------------+          +-----------+
+                  |   upnode server   |          +   client  +
+                  +---------+---------+          +-----+-----+
+              --------------+------------network-------+---------
+                            |                          |
+ +-----------+         +----+-----------+         +----+------+
+ |   master  +--fork->-+ back source(1) +-->-pull-+ stream(2) +
+ +-----+-----+         +----------------+         +-------+---+
+       +-------------------------------------fork--->-----+
+       |          +-------------------+
+       +--fork->--+ bandwidth test(3) +
+                  +-------------------+
+
 Remark:
-(1) master process: to fork processes, schedule fd(client) to the "right" 
-    process, forward messages between processes
-(2) communication: master process use unix domain socket to communicate 
-    with worker processes.
-(3) worker process: to provide RTMP streaming service, generate HLS files.
-(4) bandwidth test process: for all bandwidth test request, to make the 
-    bandwidth testing has minimal effect to streaming service
+(1) back source process: create by master process, get stream from 
+    upnode server, serve the stream process.
+(2) stream process: create by master process, get stream from back
+    source process, serve the client.
+(3) bandwidth test process: create by master process, serve the
+    bandwidth test client.
+Remark:
+(a) This multiple processes architecture is design by wenjie, it's a
+    very simple and powerful multiple process architecture, for the
+    master no need to pass between stream process.
+(b) The CLI architecture is similar to this, instead, cli process
+    will collect informations from all stream process, master process
+    only send signals to child processes.
+</pre>
+CLI Architecture:
+<pre>
+                       +---------+
+                    +--+ stream1 +---------+
+                    |  +---------+         |
+ +--------+         |  +---------+         |   +-------+
+ | master +--fork->-+--+ streamN +---pull--+>--+  cli  +
+ +--------+         |  +---------+         |   +-------+
+                    |  +-------------+     |
+                    +--+ back source +-----+
+                       +-------------+
+Remark:
+(1) master listen the global api port, for example, 33330
+(2) back source and stream processes listen at private api port, 
+    for example, 33331, 33332, 33333
+(3) work processes(stream and back-source), report private api
+    port to master global api port.
+(4) cli connect to master global api port, get all other private
+    api ports
+(5) cli connect to each stream/back-source process to get api data,
+    cli analysis and summary the data, return to user.
 </pre>
 Bandwidth Test Workflow:
 <pre>
