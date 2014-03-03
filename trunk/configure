@@ -45,11 +45,17 @@ if [ $SRS_SSL = YES ]; then
     SrsLibrtmpSampleEntry="ssl"
 fi
 
+# utest make entry, (cd utest; make)
+SrsUtestMakeEntry="@echo -e \"\$(YELLOW)ignore utest for it's disabled\$(BLACK)\""
+if [ $SRS_UTEST = YES ]; then
+    SrsUtestMakeEntry="(cd utest; make)"
+fi
+
 # makefile
 echo "generate Makefile"
 SRS_MAKEFILE="Makefile"
 cat << END > ${SRS_MAKEFILE}
-.PHONY: default help clean server bandwidth librtmp librtmp-sample _prepare_dir
+.PHONY: default help clean server bandwidth librtmp librtmp-sample utest _prepare_dir
 
 # linux shell color support.
 RED="\\\\e[31m"
@@ -57,26 +63,29 @@ GREEN="\\\\e[32m"
 YELLOW="\\\\e[33m"
 BLACK="\\\\e[0m"
 
-default: server bandwidth librtmp librtmp-sample
+default: server bandwidth librtmp librtmp-sample utest
 	@echo -e "\$(GREEN)"
 	@echo -e "build success:"
 	@echo -e "     server:          ./objs/srs, the srs server"
 	@echo -e "     bandwidth:       ./objs/bandwidth, the bandwidth test client"
 	@echo -e "     librtmp:         ./objs/include, ./objs/lib, the srs-librtmp library"
 	@echo -e "     librtmp-sample:  ./research/librtmp, the srs-librtmp client sample"
+	@echo -e "     utest:           ./objs/srs_utest, the utest for srs"
 	@echo -e "\$(BLACK)"
 
 help:
-	@echo "Usage: make <help>|<clean>|<server>|<bandwidth>|<librtmp>|<librtmp-sample>"
+	@echo "Usage: make <help>|<clean>|<server>|<bandwidth>|<librtmp>|<librtmp-sample>|<utest>"
 	@echo "  help               display this help menu"
 	@echo "  clean              cleanup project"
 	@echo "  server             build the srs(simple rtmp server) over st(state-threads)"
 	@echo "  bandwidth          build the bandwidth test client tool."
 	@echo "  librtmp            build the client publish/play library."
 	@echo "  librtmp-sample     build the srs-librtmp sample"
+	@echo "  utest              build the utest for srs"
 
 clean: 
-	(rm -f Makefile; cd ${SRS_OBJS}; rm -rf srs bandwidth Makefile *.hpp src st_*_load research include lib)
+	(rm -f Makefile; cd ${SRS_OBJS}; rm -rf srs bandwidth Makefile *.hpp srs_utest)
+	(cd ${SRS_OBJS}; rm -rf src research include lib utest)
 	(cd research/librtmp; make clean)
 
 server: _prepare_dir
@@ -95,6 +104,11 @@ librtmp-sample:
 	@echo "build the srs-librtmp sample"
 	(cd research/librtmp; make ${SrsLibrtmpSampleEntry})
 	@echo "srs-librtmp sample build success"
+
+utest:
+	@echo "build the utest for srs"
+	${SrsUtestMakeEntry}
+	@echo "utest for srs build success"
 
 # the ./configure will generate it.
 _prepare_dir:

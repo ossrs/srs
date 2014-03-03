@@ -27,6 +27,9 @@ tools/ccache-3.1.9.zip
     
 1.st.arm.Makefile.patch
     st编译脚本补丁，允许用户指定cc编译器。
+    
+gtest-1.6.0.zip
+    google单元测试框架。
 
 links:
     ffmpeg: 
@@ -53,4 +56,7 @@ links:
     openssl:
         http://www.openssl.org/
         http://www.openssl.org/source/openssl-1.0.1f.tar.gz
+    gtest:
+        https://code.google.com/p/googletest
+        https://code.google.com/p/googletest/downloads/list
 

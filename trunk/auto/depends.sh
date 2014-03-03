@@ -405,3 +405,16 @@ if [ $SRS_RESEARCH = YES ]; then
     (cd research/ffempty && make && mv ffempty ../../${SRS_OBJS}/research)
     ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/ffempty failed, ret=$ret"; exit $ret; fi
 fi
+
+#####################################################################################
+# build utest code
+#####################################################################################
+if [ $SRS_UTEST = YES ]; then
+    mkdir -p ${SRS_OBJS}/utest
+
+    (cd research/hls && make && mv ts_info ../../${SRS_OBJS}/research)
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/hls failed, ret=$ret"; exit $ret; fi
+
+    (cd research/ffempty && make && mv ffempty ../../${SRS_OBJS}/research)
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/ffempty failed, ret=$ret"; exit $ret; fi
+fi

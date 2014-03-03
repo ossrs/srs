@@ -16,6 +16,7 @@ SRS_SSL=RESERVED
 SRS_FFMPEG=RESERVED
 SRS_HTTP=RESERVED
 SRS_RESEARCH=RESERVED
+SRS_UTEST=RESERVED
 
 # TODO: remove the default to yes.
 SRS_HLS=YES
@@ -23,6 +24,7 @@ SRS_SSL=YES
 SRS_FFMPEG=YES
 SRS_HTTP=YES
 SRS_RESEARCH=NO
+SRS_UTEST=NO
 
 #####################################################################################
 # parse options
@@ -45,13 +47,15 @@ do
         --with-hls)                     SRS_HLS=YES               ;;
         --with-ffmpeg)                  SRS_FFMPEG=YES            ;;
         --with-http)                    SRS_HTTP=YES              ;;
-        --with-research)                SRS_RESEARCH=YES              ;;
+        --with-research)                SRS_RESEARCH=YES          ;;
+        --with-utest)                   SRS_UTEST=YES             ;;
         
         --without-ssl)                  SRS_SSL=NO                ;;
         --without-hls)                  SRS_HLS=NO                ;;
         --without-ffmpeg)               SRS_FFMPEG=NO             ;;
         --without-http)                 SRS_HTTP=NO               ;;
-        --without-research)             SRS_RESEARCH=NO               ;;
+        --without-research)             SRS_RESEARCH=NO           ;;
+        --without-utest)                SRS_UTEST=NO              ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
@@ -78,12 +82,14 @@ if [ $help = yes ]; then
                            srs will call the http hooks, such as: on_connect.
   --with-ffmpeg            enable transcoding with ffmpeg.
   --with-research          build the research tools.
+  --with-utest             build the utest for srs.
 
   --without-ssl            disable rtmp complex handshake.
   --without-hls            disable hls, rtmp streaming only.
   --without-http           disable http, http hooks callback.
   --without-ffmpeg         disable the ffmpeg transcoding feature.
   --without-research       do not build the research tools.
+  --without-utest          do not build the utest for srs.
 
 END
     exit 0
@@ -111,6 +117,10 @@ if [ $SRS_HTTP = RESERVED ]; then
 fi
 if [ $SRS_RESEARCH = RESERVED ]; then
     echo "you must specifies the research, see: ./configure --help";
+    __check_ok=NO
+fi
+if [ $SRS_UTEST = RESERVED ]; then
+    echo "you must specifies the utest, see: ./configure --help";
     __check_ok=NO
 fi
 if [ $__check_ok = NO ]; then
