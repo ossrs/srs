@@ -3,7 +3,7 @@ Simple-RTMP-Server
 
 SRS(SIMPLE RTMP Server) over state-threads created in 2013.<br/>
 SRS is a simple, RTMP/HLS, high-performance, single(plan)/multiple processes, edge(plan)/origin live server.<br/>
-SRS supports [vhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUrlVhost), rtmp, [HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), transcoding, forward, [http hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback). <br/>
+SRS supports [vhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUrlVhost), rtmp, [HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), [transcoding](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), [forward](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), ingester(pull), [service(push)](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUrlVhost), [http hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback). <br/>
 Blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
 See also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) <br/>
 See also: [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.github.io/simple-rtmp-server) <br/>
@@ -199,19 +199,29 @@ Modularity Architecture:
 </pre>
 Stream Architecture:
 <pre>
-        +---------+              +----------+ 
-        + Publish +              +  Deliver | 
-        +---|-----+              +----|-----+ 
-+-----------+-------------------------+----------------+
-| Encoder   | SRS(Simple RTMP Server) |     Client     |
-+-----------+-------------------------+----------------+
-| (FMLE,    |   +-> RTMP protocol ----+-> Flash Player |
-| FFMPEG, --+-> +-> HLS/NGINX --------+-> m3u8 player  |
-| Flash,    |   +-> Fowarder ---------+-> RTMP Server  |
-| XSPLIT,   |   +-> Transcoder -------+-> RTMP Server  |
-|  ...)     |   +-> DVR --------------+-> FILE         |
-|           |   +-> BandwidthTest ----+-> Flash/StLoad |
-+-----------+-------------------------+----------------+
+               +---------+              +----------+
+               + Publish +              +  Deliver |
+               +---|-----+              +----|-----+
++------------------+-------------------------+----------------+
+|     Input        | SRS(Simple RTMP Server) |     Output     |
++------------------+-------------------------+----------------+
+|    Encoder(1)    |   +-> RTMP protocol ----+-> Flash Player |
+|  (FMLE,FFMPEG, --+->-+-> HLS/NGINX --------+-> m3u8 player  |
+|  Flash,XSPLIT,   |   +-> Fowarder ---------+-> RTMP Server  |
+|  ......)         |   +-> Transcoder -------+-> RTMP Server  |
+|                  |   +-> DVR --------------+-> FILE         |
+|                  |   +-> BandwidthTest ----+-> Flash/StLoad |
++------------------+                         |                |
+|  MediaSource(2)  |                         |                |
+|  (RTSP,FILE,     |                         |                |
+|   HTTP,HLS,    --+->-- Ingester -----------+-> SRS          |
+|   Device,        |                         |                |
+|   ......)        |                         |                |
++------------------+-------------------------+----------------+
+
+Remark:
+(1) Encoder: encoder must push RTMP stream to SRS server.
+(2) MediaSource: any media source, which can be ingest by ffmpeg.
 </pre>
 (plan) RTMP cluster(origin/edge) Architecture:<br/>
 Remark: cluster over forward, see [Cluster](https://github.com/winlinvip/simple-rtmp-server/wiki/Cluster)
@@ -349,17 +359,18 @@ Supported operating systems and hardware:
 24. Full documents in wiki, in chineses. <br/>
 25. Support RTMP(play-publish) library: srs-librtmp<br/>
 26. [plan] Support system utest<br/>
-27. [plan] Support network based cli and json result.<br/>
-28. [plan] Support HLS cluster, use RTMP ATC to generate the TS<br/>
-29. [plan] Support RTMP edge server, push/pull stream from any RTMP server<br/>
-30. [plan] Support multiple processes, for both origin and edge<br/>
-31. [plan] Support RTSP(RTP, SDP)<br/>
-32. [no-plan] Support adobe flash refer/token/swf verification.<br/>
-33. [no-plan] Support adobe amf3 codec.<br/>
-34. [no-plan] Support dvr(record live to vod file)<br/>
-35. [no-plan] Support encryption: RTMPE/RTMPS, HLS DRM<br/>
-36. [no-plan] Support RTMPT, http to tranverse firewalls<br/>
-37. [no-plan] Support file source, transcoding file to live stream<br/>
+27. [plan] Support stream ingester using ffmpeg.<br/>
+28. [plan] Support RTSP(RTP, SDP)<br/>
+29. [plan] Support network based cli and json result.<br/>
+30. [plan] Support HLS cluster, use RTMP ATC to generate the TS<br/>
+31. [plan] Support RTMP edge server, push/pull stream from any RTMP server<br/>
+32. [plan] Support multiple processes, for both origin and edge<br/>
+33. [no-plan] Support adobe flash refer/token/swf verification.<br/>
+34. [no-plan] Support adobe amf3 codec.<br/>
+35. [no-plan] Support dvr(record live to vod file)<br/>
+36. [no-plan] Support encryption: RTMPE/RTMPS, HLS DRM<br/>
+37. [no-plan] Support RTMPT, http to tranverse firewalls<br/>
+38. [no-plan] Support file source, transcoding file to live stream<br/>
 
 ### Performance
 1.  300 connections, 150Mbps, 500kbps, CPU 18.8%, MEM 5956KB.
