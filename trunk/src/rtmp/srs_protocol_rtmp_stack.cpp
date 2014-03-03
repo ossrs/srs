@@ -1812,6 +1812,8 @@ SrsConnectAppResPacket::SrsConnectAppResPacket()
 {
 	command_name = RTMP_AMF0_COMMAND_RESULT;
 	transaction_id = 1;
+	// TODO: FIXME: memory leak for decode will set the props and info.
+	// TODO: FIXME: bug#22, refine the amf0.
 	props = new SrsAmf0Object();
 	info = new SrsAmf0Object();
 }
