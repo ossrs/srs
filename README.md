@@ -316,11 +316,11 @@ Supported operating systems and hardware:
 21. Support bandwidth test api and flash client.<br/>
 22. Player, publisher(encoder), and demo pages(jquery+bootstrap). <br/>
 23. Demo video meeting or chat(SRS+cherrypy+jquery+bootstrap). <br/>
-24. [dev] Full documents in wiki, in chineses. <br/>
-25. [dev] Support RTMP(play-publish) library: srs-librtmp<br/>
-26. [plan] Support RTSP(RTP, SDP)<br/>
-27. [plan] Support system utest<br/>
-28. [plan] Support HLS cluster, use RTMP ATC to generate the TS<br/>
+24. Full documents in wiki, in chineses. <br/>
+25. Support RTMP(play-publish) library: srs-librtmp<br/>
+26. [plan] Support HLS cluster, use RTMP ATC to generate the TS<br/>
+27. [plan] Support RTSP(RTP, SDP)<br/>
+28. [plan] Support system utest<br/>
 29. [plan] Support RTMP edge server, push/pull stream from any RTMP server<br/>
 30. [plan] Support multiple processes, for both origin and edge<br/>
 31. [plan] Support network based cli and json result.<br/>
