@@ -237,7 +237,7 @@ Schema#1: Any RTMP encoder push RTMP stream to RTMP (origin/edge)server,
 Schema#2: SRS RTMP Edge server pull stream from origin (or upstream SRS 
     RTMP Edge server), then delivery to Client.
 </pre>
-(plan) SRS Multiple processes Architecture:<br/>
+(plan) SRS Multiple processes Architecture(design by wenjie):<br/>
 <pre>
                   +-------------------+          +-----------+
                   |   upnode server   |          +   client  +
