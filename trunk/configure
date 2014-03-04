@@ -8,6 +8,13 @@ SRS_OBJS="objs"
 mkdir -p ${SRS_OBJS}
 
 #####################################################################################
+# linux shell color support.
+RED="\\e[31m"
+GREEN="\\e[32m"
+YELLOW="\\e[33m"
+BLACK="\\e[0m"
+
+#####################################################################################
 # parse user options, set the variables like SRS_SSL/SRS_HLS/SRS_FFMPEG/SRS_HTTP
 #####################################################################################
 # parse options, exit with error when parse options invalid.
@@ -40,17 +47,20 @@ echo "" >> $SRS_AUTO_HEADERS_H
 
 #####################################################################################
 # srs-librtmp sample entry
-SrsLibrtmpSampleEntry="nossl"
-if [ $SRS_SSL = YES ]; then
-    SrsLibrtmpSampleEntry="ssl"
-fi
-
+SrsLibrtmpSampleEntry="nossl"; if [ $SRS_SSL = YES ]; then SrsLibrtmpSampleEntry="ssl";fi
 # utest make entry, (cd utest; make)
-SrsUtestMakeEntry="@echo -e \"\$(YELLOW)ignore utest for it's disabled\$(BLACK)\""
-if [ $SRS_UTEST = YES ]; then
-    SrsUtestMakeEntry="(cd utest; make)"
-fi
+SrsUtestMakeEntry="@echo -e \"ignore utest for it's disabled\""; if [ $SRS_UTEST = YES ]; then SrsUtestMakeEntry="(cd utest; make)"; fi
 
+#####################################################################################
+# colorful summary
+SrsHlsSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_HLS = YES ]; then SrsHlsSummaryColor="\$(GREEN)"; fi
+SrsSslSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_SSL = YES ]; then SrsSslSummaryColor="\$(GREEN)"; fi
+SrsFfmpegSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_FFMPEG = YES ]; then SrsFfmpegSummaryColor="\$(GREEN)"; fi
+SrsHttpSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_HTTP = YES ]; then SrsHttpSummaryColor="\$(GREEN)"; fi
+SrsResearchSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_RESEARCH = YES ]; then SrsResearchSummaryColor="\$(GREEN)"; fi
+SrsUtestSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_UTEST = YES ]; then SrsUtestSummaryColor="\$(GREEN)"; fi
+
+#####################################################################################
 # makefile
 echo "generate Makefile"
 SRS_MAKEFILE="Makefile"
@@ -58,20 +68,26 @@ cat << END > ${SRS_MAKEFILE}
 .PHONY: default help clean server bandwidth librtmp librtmp-sample utest _prepare_dir
 
 # linux shell color support.
-RED="\\\\e[31m"
-GREEN="\\\\e[32m"
-YELLOW="\\\\e[33m"
-BLACK="\\\\e[0m"
+RED="\\${RED}"
+GREEN="\\${GREEN}"
+YELLOW="\\${YELLOW}"
+BLACK="\\${BLACK}"
 
 default: server bandwidth librtmp librtmp-sample utest
-	@echo -e "\$(GREEN)"
-	@echo -e "build success:"
-	@echo -e "     server:          ./objs/srs, the srs server"
-	@echo -e "     bandwidth:       ./objs/bandwidth, the bandwidth test client"
-	@echo -e "     librtmp:         ./objs/include, ./objs/lib, the srs-librtmp library"
-	@echo -e "     librtmp-sample:  ./research/librtmp, the srs-librtmp client sample"
-	@echo -e "     utest:           ./objs/srs_utest, the utest for srs"
-	@echo -e "\$(BLACK)"
+	@echo -e "\$(GREEN)build summary:\$(BLACK)"
+	@echo -e "     \$(GREEN)server:          ./objs/srs, the srs server\$(BLACK)"
+	@echo -e "          ${SrsHlsSummaryColor}hls: delivery HLS stream, @see: https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS\$(BLACK)"
+	@echo -e "          ${SrsSslSummaryColor}ssl: support RTMP complex handshake, @see: https://github.com/winlinvip/simple-rtmp-server/wiki/RTMPHandshake\$(BLACK)"
+	@echo -e "          ${SrsFfmpegSummaryColor}ffmpeg: support transcoding with FFMPEG, @see: https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG\$(BLACK)"
+	@echo -e "          ${SrsHttpSummaryColor}http: support http callback, @see: https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback\$(BLACK)"
+	@echo -e "     \$(GREEN)bandwidth:       ./objs/bandwidth, the bandwidth test client\$(BLACK)"
+	@echo -e "     \$(GREEN)librtmp:         ./objs/include, ./objs/lib, the srs-librtmp library, @see: https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLibrtmp\$(BLACK)"
+	@echo -e "          \$(GREEN)simple handshake: publish/play stream with simple handshake to server\$(BLACK)"
+	@echo -e "          ${SrsSslSummaryColor}complex handshake: it's not required to publish/play stream for client, recommend disable it for srs-librtmp\$(BLACK)"
+	@echo -e "     \$(GREEN)librtmp-sample:  ./research/librtmp, the srs-librtmp client sample\$(BLACK)"
+	@echo -e "     ${SrsResearchSummaryColor}research:        ./objs/research, api server, players, ts info.\$(BLACK)"
+	@echo -e "     ${SrsUtestSummaryColor}utest:           ./objs/srs_utest, the utest for srs\$(BLACK)"
+	@echo -e "\$(GREEN)binaries @see: https://github.com/winlinvip/simple-rtmp-server/wiki/Build\$(BLACK)"
 
 help:
 	@echo "Usage: make <help>|<clean>|<server>|<bandwidth>|<librtmp>|<librtmp-sample>|<utest>"
@@ -261,12 +277,6 @@ mkdir -p ${SRS_OBJS}/include
 #####################################################################################
 # configure summary
 #####################################################################################
-# linux shell color support.
-RED="\\e[31m"
-GREEN="\\e[32m"
-YELLOW="\\e[33m"
-BLACK="\\e[0m"
-
 # summary
 echo ""
 echo "configure summary:"
@@ -293,7 +303,12 @@ fi
 if [ $SRS_RESEARCH = YES ]; then
     echo -e "${GREEN}research tools are builded${BLACK}"
 else
-    echo -e "${BLACK}note: research tools are not builded${BLACK}"
+    echo -e "${YELLOW}note: research tools are not builded${BLACK}"
+fi
+if [ $SRS_UTEST = YES ]; then
+    echo -e "${GREEN}utest for srs are builded${BLACK}"
+else
+    echo -e "${YELLOW}note: utest for srs are not builded${BLACK}"
 fi
 
 #####################################################################################
