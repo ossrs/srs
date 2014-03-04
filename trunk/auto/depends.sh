@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# variables:
+# SRS_JOBS: the build jobs, parent script must set it.
+
 #####################################################################################
 #####################################################################################
 # prepare the depends tools and libraries
@@ -183,7 +186,7 @@ else
         rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
         unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && 
         patch -p1 < ../../3rdparty/1.st.arm.Makefile.patch && 
-        make linux-debug ${SRS_JOBS}&&
+        make linux-debug &&
         cd .. && rm -f st && ln -sf st-1.9/obj st
     )
 fi
@@ -205,7 +208,7 @@ if [ $SRS_HTTP = YES ]; then
             cd http-parser-2.1 && 
             sed -i "s/CPPFLAGS_FAST +=.*$/CPPFLAGS_FAST = \$\(CPPFLAGS_DEBUG\)/g" Makefile &&
             sed -i "s/CFLAGS_FAST =.*$/CFLAGS_FAST = \$\(CFLAGS_DEBUG\)/g" Makefile &&
-            make package ${SRS_JOBS} &&
+            make package &&
             cd .. && rm -f hp && ln -sf http-parser-2.1 hp
         )
     fi
@@ -352,7 +355,7 @@ if [ $SRS_SSL = YES ]; then
             rm -rf ${SRS_OBJS}/openssl-1.0.1f && cd ${SRS_OBJS} && 
             unzip -q ../3rdparty/openssl-1.0.1f.zip && cd openssl-1.0.1f && 
             ./config --prefix=`pwd`/_release -no-shared && 
-            make ${SRS_JOBS} && make install &&
+            make && make install &&
             cd .. && ln -sf openssl-1.0.1f/_release openssl
         )
     fi

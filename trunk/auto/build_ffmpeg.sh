@@ -28,7 +28,7 @@ else
     cd $ff_current_dir &&
     rm -rf yasm-1.2.0 && unzip -q ${ff_src_dir}/yasm-1.2.0.zip &&
     cd yasm-1.2.0 && ./configure --prefix=${ff_release_dir} &&
-    make ${SRS_JOBS} && make install
+    make && make install
     ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build yasm-1.2.0 failed"; exit 1; fi
 fi
 # add yasm to path, for x264 to use yasm directly.
@@ -43,7 +43,7 @@ else
     cd $ff_current_dir &&
     rm -rf libaacplus-2.0.2 && unzip -q ${ff_src_dir}/libaacplus-2.0.2.zip &&
     cd libaacplus-2.0.2 && cp ../${ff_src_dir}/libaacplus-patch-26410-800.zip src/26410-800.zip &&
-    bash autogen.sh && ./configure --prefix=${ff_release_dir} --enable-static && make ${SRS_JOBS} && make install
+    bash autogen.sh && ./configure --prefix=${ff_release_dir} --enable-static && make && make install
     ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build libaacplus-2.0.2 failed"; exit 1; fi
 fi
 

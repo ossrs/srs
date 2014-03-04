@@ -15,7 +15,9 @@ YELLOW="\\e[33m"
 BLACK="\\e[0m"
 
 #####################################################################################
-# parse user options, set the variables like SRS_SSL/SRS_HLS/SRS_FFMPEG/SRS_HTTP
+# parse user options, set the variables like:
+# srs features: SRS_SSL/SRS_HLS/SRS_FFMPEG/SRS_HTTP/SRS_RESEARCH/SRS_UTEST
+# build options: SRS_JOBS
 #####################################################################################
 # parse options, exit with error when parse options invalid.
 . auto/options.sh
