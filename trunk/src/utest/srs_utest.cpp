@@ -22,3 +22,24 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
 #include <srs_utest.hpp>
+
+#include <srs_kernel_log.hpp>
+#include <srs_kernel_error.hpp>
+#include <srs_app_server.hpp>
+#include <srs_app_config.hpp>
+#include <srs_app_log.hpp>
+
+// kernel module.
+ISrsLog* _srs_log = new ISrsLog();
+ISrsThreadContext* _srs_context = new ISrsThreadContext();
+// app module.
+SrsConfig* _srs_config = NULL;
+SrsServer* _srs_server = NULL;
+
+// basic test and samples.
+VOID TEST(SampleTest, FastSampleInt64Test){
+	EXPECT_EQ(1, (int)sizeof(int8_t));
+	EXPECT_EQ(2, (int)sizeof(int16_t));
+	EXPECT_EQ(4, (int)sizeof(int32_t));
+	EXPECT_EQ(8, (int)sizeof(int64_t));
+}

@@ -5,19 +5,22 @@
 #     $SRS_MAKEFILE the makefile name. ie. Makefile
 #
 #     $APP_NAME the app name to output. ie. srs_utest
+#     $MODULE_DIR the src dir of utest code. ie. src/utest
 
-UTEST_OBJS=${SRS_OBJS}/utest
-FILE=${UTEST_OBJS}/${SRS_MAKEFILE}
+FILE=${SRS_OBJS}/utest/${SRS_MAKEFILE}
+# create dir for Makefile
+mkdir -p ${SRS_OBJS}/utest
 
-# dirs relative to objs/utest
-GTEST_DIR=../gtest
-UTEST_SRC=../../src/utest
-UTEST_APP=../${APP_NAME}
-
-mkdir -p ${UTEST_OBJS}
+# the prefix to generate the objs/utest/Makefile
+# dirs relative to current dir(objs/utest), it's trunk/objs/utest
+# trunk of srs, which contains the src dir, relative to objs/utest, it's trunk
+SRS_TRUNK_PREFIX=../..
+# gest dir, relative to objs/utest, it's trunk/objs/gtest
+GTEST_DIR=${SRS_TRUNK_PREFIX}/${SRS_OBJS}/gtest
 
 cat << END > ${FILE}
-# generate *.a, *.o at current dir.
+# user must run make the ${SRS_OBJS}/utest dir
+# at the same dir of Makefile.
 
 # A sample Makefile for building Google Test and using it in user
 # tests.  Please tweak it to suit your environment and project.  You
@@ -48,7 +51,7 @@ CXXFLAGS += -g -Wall -Wextra -O0
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.
-TESTS = ${UTEST_APP}
+TESTS = ${SRS_TRUNK_PREFIX}/${SRS_OBJS}/${APP_NAME}
 
 # All Google Test headers.  Usually you shouldn't change this
 # definition.
@@ -90,14 +93,86 @@ gtest_main.a : gtest-all.o gtest_main.o
 # gtest_main.a, depending on whether it defines its own main()
 # function.
 
-srs_utest.o : ${UTEST_SRC}/srs_utest.cpp
-	\$(CXX) \$(CPPFLAGS) \$(CXXFLAGS) -I${UTEST_SRC} -c ${UTEST_SRC}/srs_utest.cpp -o \$@
-SRS_UTEST_OBJS = srs_utest.o
+#####################################################################################
+#####################################################################################
+# SRS(Simple RTMP Server) utest section
+#####################################################################################
+#####################################################################################
 
-${UTEST_APP} : \$(SRS_UTEST_OBJS) gtest_main.a
-	\$(CXX) \$(CPPFLAGS) \$(CXXFLAGS) -lpthread \$^ -o \$@
 END
 
+#####################################################################################
+# Includes, the include dir.
+echo "# Includes, the include dir." >> ${FILE}
+#
+# current module header files
+echo -n "SRS_UTEST_INC = -I${SRS_TRUNK_PREFIX}/${MODULE_DIR} " >> ${FILE}
+#
+# depends module header files
+for item in ${MODULE_DEPENDS[*]}; do
+    DEP_INCS_NAME="${item}_INCS"
+    echo -n "-I${SRS_TRUNK_PREFIX}/${!DEP_INCS_NAME} " >> ${FILE}
+done
+#
+# depends library header files
+for item in ${ModuleLibIncs[*]}; do
+    echo -n "-I${SRS_TRUNK_PREFIX}/${item} " >> ${FILE}
+done
+echo "" >> ${FILE}; echo "" >> ${FILE}
+
+#####################################################################################
+# Depends, the depends objects
+echo "# Depends, the depends objects" >> ${FILE}
+#
+# current module header files
+echo -n "SRS_UTEST_DEPS = " >> ${FILE}
+for item in ${MODULE_OBJS[*]}; do
+    FILE_NAME=${item%.*}
+    echo -n "${SRS_TRUNK_PREFIX}/${SRS_OBJS}/${FILE_NAME}.o " >> ${FILE}
+done
+echo "" >> ${FILE}; echo "" >> ${FILE}
+#
+echo "# Depends, utest header files" >> ${FILE}
+DEPS_NAME="UTEST_DEPS"
+echo -n "${DEPS_NAME} = " >> ${FILE}
+for item in ${MODULE_FILES[*]}; do
+    HEADER_FILE="${SRS_TRUNK_PREFIX}/${MODULE_DIR}/${item}.hpp"
+    echo -n " ${HEADER_FILE}" >> ${FILE}
+done
+echo "" >> ${FILE}; echo "" >> ${FILE}
+
+#####################################################################################
+# Objects, build each object of utest
+echo "# Objects, build each object of utest" >> ${FILE}
+#
+MODULE_OBJS=()
+for item in ${MODULE_FILES[*]}; do
+    MODULE_OBJS="${MODULE_OBJS[@]} ${item}.o"
+    cat << END >> ${FILE}
+${item}.o : \$(${DEPS_NAME}) ${SRS_TRUNK_PREFIX}/${MODULE_DIR}/${item}.cpp \$(SRS_UTEST_DEPS)
+	\$(CXX) \$(CPPFLAGS) \$(CXXFLAGS) \$(SRS_UTEST_INC) -c ${SRS_TRUNK_PREFIX}/${MODULE_DIR}/${item}.cpp -o \$@
+END
+done
+echo "" >> ${FILE}
+
+#####################################################################################
+# App for utest
+#
+# link all depends libraries
+echo "# link all depends libraries" >> ${FILE}
+echo -n "DEPS_LIBRARIES_FILES = " >> ${FILE}
+for item in ${ModuleLibFiles[*]}; do
+    echo -n "${SRS_TRUNK_PREFIX}/${item} " >> ${FILE}
+done
+echo "" >> ${FILE}; echo "" >> ${FILE}
+#
+echo "# generate the utest binary" >> ${FILE}
+cat << END >> ${FILE}
+${SRS_TRUNK_PREFIX}/${SRS_OBJS}/${APP_NAME} : \$(SRS_UTEST_DEPS) ${MODULE_OBJS} gtest_main.a
+	\$(CXX) -o \$@ \$(CPPFLAGS) \$(CXXFLAGS) \$^ \$(DEPS_LIBRARIES_FILES) -lpthread -ldl
+END
+
+#####################################################################################
 # parent Makefile, to create module output dir before compile it.
 echo "	mkdir -p ${SRS_OBJS}/utest" >> ${SRS_MAKEFILE}
 

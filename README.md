@@ -422,6 +422,7 @@ See also: [Performance Test Guide](https://github.com/winlinvip/simple-rtmp-serv
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v1.0, 2014-03-04, add gest framework for utest, build success.
 * v1.0, 2014-03-02, add wiki [srs-librtmp](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLibrtmp), [srs for arm](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm), [product](https://github.com/winlinvip/simple-rtmp-server/wiki/Product)
 * v1.0, 2014-03-02, srs-librtmp, client publish/play library like librtmp.
 * v1.0, 2014-03-01, modularity, extract core/kernel/rtmp/app/main module.

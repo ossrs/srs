@@ -27,5 +27,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /*
 #include <srs_utest.hpp>
 */
+#include <srs_core.hpp>
+
+#include "gtest/gtest.h"
+
+// we add an empty macro for upp to show the smart tips.
+#define VOID
 
 #endif
