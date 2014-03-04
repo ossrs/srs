@@ -17,6 +17,8 @@ SRS_FFMPEG=RESERVED
 SRS_HTTP=RESERVED
 SRS_RESEARCH=RESERVED
 SRS_UTEST=RESERVED
+# arguments
+SRS_JOBS=1
 
 # TODO: remove the default to yes.
 SRS_HLS=YES
@@ -36,7 +38,10 @@ do
     opt="$opt `echo $option | sed -e \"s/\(--[^=]*=\)\(.* .*\)/\1'\2'/\"`"
 
     case "$option" in
-        -*=*) value=`echo "$option" | sed -e 's/[-_a-zA-Z0-9]*=//'` ;;
+        -*=*) 
+            value=`echo "$option" | sed -e 's/[-_a-zA-Z0-9]*=//'` 
+            option=`echo "$option" | sed -e 's/=[-_a-zA-Z0-9]*//'`
+        ;;
            *) value="" ;;
     esac
 
@@ -56,6 +61,8 @@ do
         --without-http)                 SRS_HTTP=NO               ;;
         --without-research)             SRS_RESEARCH=NO           ;;
         --without-utest)                SRS_UTEST=NO              ;;
+        
+        --jobs)                         SRS_JOBS=${value}         ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
@@ -63,6 +70,13 @@ do
         ;;
     esac
 done
+
+# parse the jobs for make
+if [[ "" -eq SRS_JOBS ]]; then 
+    export SRS_JOBS="--jobs" 
+else
+    export SRS_JOBS="--jobs=${SRS_JOBS}"
+fi
 
 # save all config options to macro to write to auto headers file
 SRS_CONFIGURE="$opt"
@@ -90,6 +104,9 @@ if [ $help = yes ]; then
   --without-ffmpeg         disable the ffmpeg transcoding feature.
   --without-research       do not build the research tools.
   --without-utest          do not build the utest for srs.
+  
+  --jobs[=N]               Allow N jobs at once; infinite jobs with no arg.
+                           used for make in the configure, for example, to make ffmpeg.
 
 END
     exit 0

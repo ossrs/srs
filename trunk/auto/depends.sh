@@ -183,7 +183,7 @@ else
         rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
         unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && 
         patch -p1 < ../../3rdparty/1.st.arm.Makefile.patch && 
-        make linux-debug &&
+        make linux-debug ${SRS_JOBS}&&
         cd .. && rm -f st && ln -sf st-1.9/obj st
     )
 fi
@@ -205,7 +205,7 @@ if [ $SRS_HTTP = YES ]; then
             cd http-parser-2.1 && 
             sed -i "s/CPPFLAGS_FAST +=.*$/CPPFLAGS_FAST = \$\(CPPFLAGS_DEBUG\)/g" Makefile &&
             sed -i "s/CFLAGS_FAST =.*$/CFLAGS_FAST = \$\(CFLAGS_DEBUG\)/g" Makefile &&
-            make package &&
+            make package ${SRS_JOBS} &&
             cd .. && rm -f hp && ln -sf http-parser-2.1 hp
         )
     fi
@@ -236,7 +236,7 @@ if [ $SRS_HLS = YES ]; then
         (
             rm -rf ${SRS_OBJS}/nginx-1.5.7 && cd ${SRS_OBJS} && 
             unzip -q ../3rdparty/nginx-1.5.7.zip && cd nginx-1.5.7 && 
-            ./configure --prefix=`pwd`/_release && make && make install &&
+            ./configure --prefix=`pwd`/_release && make ${SRS_JOBS} && make install &&
             cd .. && ln -sf nginx-1.5.7/_release nginx
         )
     fi
@@ -352,7 +352,7 @@ if [ $SRS_SSL = YES ]; then
             rm -rf ${SRS_OBJS}/openssl-1.0.1f && cd ${SRS_OBJS} && 
             unzip -q ../3rdparty/openssl-1.0.1f.zip && cd openssl-1.0.1f && 
             ./config --prefix=`pwd`/_release -no-shared && 
-            make && make install &&
+            make ${SRS_JOBS} && make install &&
             cd .. && ln -sf openssl-1.0.1f/_release openssl
         )
     fi
@@ -399,10 +399,10 @@ fi
 if [ $SRS_RESEARCH = YES ]; then
     mkdir -p ${SRS_OBJS}/research
 
-    (cd research/hls && make && mv ts_info ../../${SRS_OBJS}/research)
+    (cd research/hls && make ${SRS_JOBS} && mv ts_info ../../${SRS_OBJS}/research)
     ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/hls failed, ret=$ret"; exit $ret; fi
 
-    (cd research/ffempty && make && mv ffempty ../../${SRS_OBJS}/research)
+    (cd research/ffempty && make ${SRS_JOBS} && mv ffempty ../../${SRS_OBJS}/research)
     ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/ffempty failed, ret=$ret"; exit $ret; fi
 fi
 
@@ -412,9 +412,9 @@ fi
 if [ $SRS_UTEST = YES ]; then
     mkdir -p ${SRS_OBJS}/utest
 
-    (cd research/hls && make && mv ts_info ../../${SRS_OBJS}/research)
+    (cd research/hls && make ${SRS_JOBS} && mv ts_info ../../${SRS_OBJS}/research)
     ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/hls failed, ret=$ret"; exit $ret; fi
 
-    (cd research/ffempty && make && mv ffempty ../../${SRS_OBJS}/research)
+    (cd research/ffempty && make ${SRS_JOBS} && mv ffempty ../../${SRS_OBJS}/research)
     ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/ffempty failed, ret=$ret"; exit $ret; fi
 fi

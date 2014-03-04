@@ -49,7 +49,7 @@ echo "" >> $SRS_AUTO_HEADERS_H
 # srs-librtmp sample entry
 SrsLibrtmpSampleEntry="nossl"; if [ $SRS_SSL = YES ]; then SrsLibrtmpSampleEntry="ssl";fi
 # utest make entry, (cd utest; make)
-SrsUtestMakeEntry="@echo -e \"ignore utest for it's disabled\""; if [ $SRS_UTEST = YES ]; then SrsUtestMakeEntry="(cd utest; make)"; fi
+SrsUtestMakeEntry="@echo -e \"ignore utest for it's disabled\""; if [ $SRS_UTEST = YES ]; then SrsUtestMakeEntry="(cd utest; \$(MAKE))"; fi
 
 #####################################################################################
 # colorful summary
@@ -73,7 +73,7 @@ GREEN="\\${GREEN}"
 YELLOW="\\${YELLOW}"
 BLACK="\\${BLACK}"
 
-default: server bandwidth librtmp librtmp-sample utest
+default: bandwidth librtmp-sample utest
 	@echo -e "\$(GREEN)build summary:\$(BLACK)"
 	@echo -e "     \$(GREEN)server:          ./objs/srs, the srs server\$(BLACK)"
 	@echo -e "          ${SrsHlsSummaryColor}hls: delivery HLS stream, @see: https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS\$(BLACK)"
@@ -108,20 +108,20 @@ server: _prepare_dir
 	@echo "build the srs(simple rtmp server) over st(state-threads)"
 	\$(MAKE) -f ${SRS_OBJS}/${SRS_MAKEFILE} srs
 
-bandwidth: _prepare_dir
+bandwidth: server
 	@echo "build the bandwidth test client tool"
 	\$(MAKE) -f ${SRS_OBJS}/${SRS_MAKEFILE} bandwidth
 
-librtmp: _prepare_dir
+librtmp: server
 	@echo "build the client publish/play library."
 	\$(MAKE) -f ${SRS_OBJS}/${SRS_MAKEFILE} librtmp
 
-librtmp-sample:
+librtmp-sample: librtmp
 	@echo "build the srs-librtmp sample"
-	(cd research/librtmp; make ${SrsLibrtmpSampleEntry})
+	(cd research/librtmp; \$(MAKE) ${SrsLibrtmpSampleEntry})
 	@echo "srs-librtmp sample build success"
 
-utest:
+utest: server
 	@echo "build the utest for srs"
 	${SrsUtestMakeEntry}
 	@echo "utest for srs build success"
@@ -154,7 +154,7 @@ AR ?= ar
 CXXFLAGS = ${CXXFLAGS}
 LINK = g++
 
-.PHONY: default srs bandwidth 
+.PHONY: default srs bandwidth librtmp
 
 default:
 

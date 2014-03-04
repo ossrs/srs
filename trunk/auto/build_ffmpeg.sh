@@ -2,6 +2,11 @@
 
 ff_src_dir="../../3rdparty"
 
+# the jobs to make ffmpeg
+if [[ "" -eq SRS_JOBS ]]; then 
+    export SRS_JOBS="--jobs=1" 
+fi
+
 ff_current_dir=$(pwd -P)
 ff_build_dir="${ff_current_dir}/_build"
 ff_release_dir="${ff_current_dir}/_release"
@@ -9,6 +14,7 @@ echo "start to build the tools for transcode system:"
 echo "current_dir: ${ff_current_dir}"
 echo "build_dir: ${ff_build_dir}"
 echo "release_dir: ${ff_release_dir}"
+echo "SRS_JOBS: ${SRS_JOBS}"
 
 mkdir -p ${ff_build_dir}
 mkdir -p ${ff_release_dir}
@@ -22,7 +28,7 @@ else
     cd $ff_current_dir &&
     rm -rf yasm-1.2.0 && unzip -q ${ff_src_dir}/yasm-1.2.0.zip &&
     cd yasm-1.2.0 && ./configure --prefix=${ff_release_dir} &&
-    make && make install
+    make ${SRS_JOBS} && make install
     ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build yasm-1.2.0 failed"; exit 1; fi
 fi
 # add yasm to path, for x264 to use yasm directly.
@@ -37,7 +43,7 @@ else
     cd $ff_current_dir &&
     rm -rf libaacplus-2.0.2 && unzip -q ${ff_src_dir}/libaacplus-2.0.2.zip &&
     cd libaacplus-2.0.2 && cp ../${ff_src_dir}/libaacplus-patch-26410-800.zip src/26410-800.zip &&
-    bash autogen.sh && ./configure --prefix=${ff_release_dir} --enable-static && make && make install
+    bash autogen.sh && ./configure --prefix=${ff_release_dir} --enable-static && make ${SRS_JOBS} && make install
     ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build libaacplus-2.0.2 failed"; exit 1; fi
 fi
 
@@ -48,7 +54,7 @@ else
     echo "build lame-3.99.5"
     cd $ff_current_dir &&
     rm -rf lame-3.99.5 && unzip -q ${ff_src_dir}/lame-3.99.5.zip &&
-    cd lame-3.99.5 && ./configure --prefix=${ff_release_dir} --enable-static && make && make install
+    cd lame-3.99.5 && ./configure --prefix=${ff_release_dir} --enable-static && make ${SRS_JOBS} && make install
     ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build lame-3.99.5 failed"; exit 1; fi
 fi
 
@@ -61,7 +67,7 @@ else
     rm -rf x264-snapshot-20131129-2245-stable && unzip -q ${ff_src_dir}/x264-snapshot-20131129-2245-stable.zip &&
     cd x264-snapshot-20131129-2245-stable && 
     ./configure --prefix=${ff_release_dir} --disable-opencl --bit-depth=8 --enable-static && 
-    make && make install
+    make ${SRS_JOBS} && make install
     ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build x264 failed"; exit 1; fi
 fi
 
@@ -90,6 +96,6 @@ else
         --enable-libx264 --enable-libmp3lame --enable-libaacplus \
         --enable-pthreads --extra-libs=-lpthread \
         --enable-encoders --enable-decoders --enable-avfilter --enable-muxers --enable-demuxers && 
-    make && make install
+    make ${SRS_JOBS} && make install
     ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build ffmpeg failed"; exit 1; fi
 fi
