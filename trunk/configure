@@ -46,6 +46,7 @@ echo "" >> $SRS_AUTO_HEADERS_H
 #####################################################################################
 # generate Makefile.
 #####################################################################################
+SRS_MAKEFILE="Makefile"
 
 #####################################################################################
 # srs-librtmp sample entry
@@ -53,7 +54,7 @@ SrsLibrtmpSampleEntry="nossl"
 if [ $SRS_SSL = YES ]; then SrsLibrtmpSampleEntry="ssl";fi
 # utest make entry, (cd utest; make)
 SrsUtestMakeEntry="@echo -e \"ignore utest for it's disabled\""
-if [ $SRS_UTEST = YES ]; then SrsUtestMakeEntry="(\$(MAKE) -f ${SRS_OBJS}/${SRS_MAKEFILE}.utest)"; fi
+if [ $SRS_UTEST = YES ]; then SrsUtestMakeEntry="(cd $${SRS_OBJS}/utest; \$(MAKE) ${SRS_MAKEFILE})"; fi
 
 #####################################################################################
 # colorful summary
@@ -67,7 +68,6 @@ SrsUtestSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_UTEST = YES ]; then SrsU
 #####################################################################################
 # makefile
 echo "generate Makefile"
-SRS_MAKEFILE="Makefile"
 cat << END > ${SRS_MAKEFILE}
 .PHONY: default help clean server bandwidth librtmp librtmp-sample utest _prepare_dir
 
@@ -104,7 +104,7 @@ help:
 	@echo "  utest              build the utest for srs"
 
 clean: 
-	(rm -f Makefile; rm -f ${SRS_OBJS}/Makefile*)
+	(rm -f Makefile)
 	(cd ${SRS_OBJS}; rm -rf srs bandwidth *.hpp srs_utest)
 	(cd ${SRS_OBJS}; rm -rf src research include lib utest)
 	(cd research/librtmp; make clean)
@@ -237,7 +237,7 @@ MAIN_OBJS="${MODULE_OBJS[@].o}"
 #####################################################################################
 # utest, the unit-test cases of srs, base on gtest1.6
 MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${RTMP_OBJS[@]} ${APP_OBJS[@]} ${MAIN_OBJS[@]}"
-BUILD_KEY="utest" APP_NAME="srs_utest" . auto/utest.sh
+APP_NAME="srs_utest" . auto/utest.sh
 
 #####################################################################################
 # Binaries, main entrances, link the module and its depends modules,

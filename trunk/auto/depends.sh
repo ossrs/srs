@@ -413,11 +413,17 @@ fi
 # build utest code
 #####################################################################################
 if [ $SRS_UTEST = YES ]; then
-    mkdir -p ${SRS_OBJS}/utest
-
-    (cd research/hls && make ${SRS_JOBS} && mv ts_info ../../${SRS_OBJS}/research)
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/hls failed, ret=$ret"; exit $ret; fi
-
-    (cd research/ffempty && make ${SRS_JOBS} && mv ffempty ../../${SRS_OBJS}/research)
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/ffempty failed, ret=$ret"; exit $ret; fi
+    if [[ -f ${SRS_OBJS}/gtest/include/gtest/gtest.h ]]; then
+        echo "gtest-1.6.0 is ok.";
+    else
+        echo "build gtest-1.6.0"; 
+        (
+            rm -rf ${SRS_OBJS}/gtest-1.6.0 && cd ${SRS_OBJS} && 
+            unzip -q ../3rdparty/gtest-1.6.0.zip &&
+            rm -f gtest && ln -sf gtest-1.6.0 gtest
+        )
+    fi
+    # check status
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "build gtest-1.6.0 failed, ret=$ret"; exit $ret; fi
+    if [ ! -f ${SRS_OBJS}/gtest/include/gtest/gtest.h ]; then echo "build gtest-1.6.0 failed."; exit -1; fi
 fi

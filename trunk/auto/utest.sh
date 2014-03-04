@@ -4,10 +4,21 @@
 #     $SRS_OBJS the objs directory. ie. objs
 #     $SRS_MAKEFILE the makefile name. ie. Makefile
 #
+#     $APP_NAME the app name to output. ie. srs_utest
 
-FILE=${SRS_OBJS}/${SRS_MAKEFILE}.utest
+UTEST_OBJS=${SRS_OBJS}/utest
+FILE=${UTEST_OBJS}/${SRS_MAKEFILE}
+
+# dirs relative to objs/utest
+GTEST_DIR=../gtest
+UTEST_SRC=../../src/utest
+UTEST_APP=../${APP_NAME}
+
+mkdir -p ${UTEST_OBJS}
 
 cat << END > ${FILE}
+# generate *.a, *.o at current dir.
+
 # A sample Makefile for building Google Test and using it in user
 # tests.  Please tweak it to suit your environment and project.  You
 # may want to move it to your project's root directory.
@@ -24,7 +35,7 @@ cat << END > ${FILE}
 
 # Points to the root of Google Test, relative to where this file is.
 # Remember to tweak this if you move this file.
-GTEST_DIR = gtest-1.6.0
+GTEST_DIR = ${GTEST_DIR}
 
 # Where to find user code.
 USER_DIR = .
@@ -37,7 +48,7 @@ CXXFLAGS += -g -Wall -Wextra -O0
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.
-TESTS = smart_utest
+TESTS = ${UTEST_APP}
 
 # All Google Test headers.  Usually you shouldn't change this
 # definition.
@@ -79,35 +90,12 @@ gtest_main.a : gtest-all.o gtest_main.o
 # gtest_main.a, depending on whether it defines its own main()
 # function.
 
-SMART_DIR=../objs
-ST_DIR=\$(SMART_DIR)/st-1.9/obj
-SSL_LINK = \$(SMART_DIR)/openssl-1.0.1c/libssl.a \$(SMART_DIR)/openssl-1.0.1c/libcrypto.a -ldl
+srs_utest.o : ${UTEST_SRC}/srs_utest.cpp
+	\$(CXX) \$(CPPFLAGS) \$(CXXFLAGS) -I${UTEST_SRC} -c ${UTEST_SRC}/srs_utest.cpp -o \$@
+SRS_UTEST_OBJS = srs_utest.o
 
-smart_objs_o = objs/src/core/smt_public.o objs/src/core/smt_error_code.o objs/src/core/smt_log.o objs/src/core/smt_app.o objs/src/core/smt_utility.o objs/src/core/smt_process.o objs/src/core/smt_bytes_pool.o objs/src/core/smt_config.o objs/src/core/smt_buffer_manager.o objs/src/core/smt_connection.o objs/src/core/smt_descriptor.o objs/src/core/smt_tearup_ret.o objs/src/core/smt_context.o objs/src/core/smt_empty_app.o objs/src/core/smt_serialize.o objs/src/app/smt_app_process_handler.o objs/src/app/smt_app_smart_app.o objs/src/app/smt_app_connection.o objs/src/app/smt_app_socket_stream.o objs/src/app/smt_app_handshake.o objs/src/app/smt_app_context.o objs/src/app/smt_app_endpoint_switch.o objs/src/app/smt_app_edge.o objs/src/app/smt_app_edge_cache.o objs/src/app/smt_app_edge_stream.o objs/src/app/smt_app_utility.o objs/src/app/smt_app_edge_proxy.o objs/src/app/smt_app_api.o objs/src/app/smt_app_vhost_statistic.o objs/src/app/smt_app_bandwidth_check.o objs/src/protocol/rtmp/smt_rtmp_utility.o objs/src/protocol/rtmp/smt_rtmp_description_builder.o objs/src/protocol/rtmp/smt_rtmp_interfaces.o objs/src/protocol/rtmp/smt_rtmp_api.o objs/src/protocol/rtmp/smt_rtmp_chunk_packet.o objs/src/protocol/rtmp/smt_rtmp_handshake_packet.o objs/src/protocol/rtmp/smt_rtmp_message_packet.o objs/src/protocol/rtmp/smt_rtmp_farm.o objs/src/protocol/rtmp/smt_rtmp_crypto.o objs/src/protocol/rtmp/smt_rtmp_amf3.o objs/src/protocol/rtmp/smt_rtmp_bytes_pool.o objs/src/os/st/smt_st_process_model.o objs/src/os/st/smt_st_process_spawner.o objs/src/os/st/smt_st_process_channel.o objs/src/os/st/smt_st_utility.o objs/src/os/st/smt_st_pipe.o objs/src/os/st/smt_st_signal_channel.o objs/src/os/st/smt_st_server_listener.o objs/src/os/st/smt_st_connection.o objs/src/os/st/smt_st_connection_farm.o objs/src/os/st/smt_st_fd_auto_closer.o objs/src/log/smt_log_simple_log.o objs/src/log/smt_log_fast_log.o objs/src/amf0/smt_amf0_public.o objs/src/amf0/smt_amf0_packet.o objs/src/amf0/smt_amf0_codec.o objs/src/amf0/smt_amf0_utility.o objs/src/config/smt_config_app_args.o objs/src/config/smt_config_options_parser.o objs/src/config/smt_config_file_parser.o objs/src/stream/smt_stream_source.o objs/src/stream/smt_stream_vod_cache.o objs/src/stream/smt_stream_live_stream.o objs/src/stream/smt_stream_flv_muxer.o objs/src/stream/smt_stream_f4v_muxer.o objs/src/stream/smt_stream_vod_stream.o objs/src/stream/smt_stream_public_api.o objs/src/stream/smt_stream_internal_api.o objs/src/stream/smt_stream_utility.o objs/src/stream/smt_stream_buffer_manager.o objs/src/stream/smt_stream_factory.o objs/src/stream/smt_stream_file_stream.o objs/src/stream/smt_stream_strategy.o objs/src/stream/smt_stream_source_pool.o
-smart_objs = \$(addprefix \$(SMART_DIR)/../, \$(smart_objs_o))
-
-SMART_INC = -I\$(SMART_DIR)/inc -I\$(ST_DIR)
-SSL_LINK = \$(SMART_DIR)/openssl-1.0.1c/libssl.a \$(SMART_DIR)/openssl-1.0.1c/libcrypto.a -ldl
-
-smart_refer_utest.o : \$(smart_objs) smart_refer_utest.cpp
-	\$(CXX) \$(CPPFLAGS) \$(CXXFLAGS) \$(SMART_INC) -c smart_refer_utest.cpp -o \$@
-smart_app_utest.o : \$(smart_objs) smart_app_utest.cpp
-	\$(CXX) \$(CPPFLAGS) \$(CXXFLAGS) \$(SMART_INC) -c smart_app_utest.cpp -o \$@
-smart_reload_utest.o : \$(smart_objs) smart_reload_utest.cpp
-	\$(CXX) \$(CPPFLAGS) \$(CXXFLAGS) \$(SMART_INC) -c smart_reload_utest.cpp -o \$@
-smart_process_pool_utest.o : \$(smart_objs) smart_process_pool_utest.cpp
-	\$(CXX) \$(CPPFLAGS) \$(CXXFLAGS) \$(SMART_INC) -c smart_process_pool_utest.cpp -o \$@
-smart_config_utest.o : \$(smart_objs) smart_config_utest.cpp
-	\$(CXX) \$(CPPFLAGS) \$(CXXFLAGS) \$(SMART_INC) -c smart_config_utest.cpp -o \$@
-smart_utest.o : \$(smart_objs) smart_utest.cpp
-	@echo "ensure the smart-server is updated: (cd .. && make all)"
-	\$(CXX) \$(CPPFLAGS) \$(CXXFLAGS) \$(SMART_INC) -c smart_utest.cpp -o \$@
-utest_objs = smart_utest.o smart_config_utest.o smart_process_pool_utest.o smart_reload_utest.o smart_app_utest.o smart_refer_utest.o
-smart_utest : \$(utest_objs) gtest_main.a \$(smart_objs)
-	@echo \$(smart_objs)
-	@echo "===================="
-	@echo "the utest must run in centos6, for we depends on -lssl, that used in smart-server is openssl-1.0.1c"
-	\$(CXX) \$(CPPFLAGS) \$(CXXFLAGS) -lpthread \$^ \$(ST_DIR)/libst.a \$(SSL_LINK) -o \$@
+${UTEST_APP} : \$(SRS_UTEST_OBJS) gtest_main.a
+	\$(CXX) \$(CPPFLAGS) \$(CXXFLAGS) -lpthread \$^ -o \$@
 END
 
 # parent Makefile, to create module output dir before compile it.
