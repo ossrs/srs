@@ -55,4 +55,8 @@ for item in ${MODULE_OBJS[*]}; do
 done
 echo "" >> ${FILE}
 
+# parent Makefile, to create module output dir before compile it.
+echo "	mkdir -p ${SRS_OBJS}/include" >> ${SRS_MAKEFILE}
+echo "	mkdir -p ${SRS_OBJS}/lib" >> ${SRS_MAKEFILE}
+
 echo -n "generate lib ${LIB_NAME} ok"; echo '!';

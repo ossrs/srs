@@ -26,7 +26,7 @@ SRS_SSL=YES
 SRS_FFMPEG=YES
 SRS_HTTP=YES
 SRS_RESEARCH=NO
-SRS_UTEST=NO
+SRS_UTEST=YES
 
 #####################################################################################
 # parse options

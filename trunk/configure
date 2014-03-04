@@ -49,9 +49,11 @@ echo "" >> $SRS_AUTO_HEADERS_H
 
 #####################################################################################
 # srs-librtmp sample entry
-SrsLibrtmpSampleEntry="nossl"; if [ $SRS_SSL = YES ]; then SrsLibrtmpSampleEntry="ssl";fi
+SrsLibrtmpSampleEntry="nossl"
+if [ $SRS_SSL = YES ]; then SrsLibrtmpSampleEntry="ssl";fi
 # utest make entry, (cd utest; make)
-SrsUtestMakeEntry="@echo -e \"ignore utest for it's disabled\""; if [ $SRS_UTEST = YES ]; then SrsUtestMakeEntry="(cd utest; \$(MAKE))"; fi
+SrsUtestMakeEntry="@echo -e \"ignore utest for it's disabled\""
+if [ $SRS_UTEST = YES ]; then SrsUtestMakeEntry="(\$(MAKE) -f ${SRS_OBJS}/${SRS_MAKEFILE}.utest)"; fi
 
 #####################################################################################
 # colorful summary
@@ -102,7 +104,8 @@ help:
 	@echo "  utest              build the utest for srs"
 
 clean: 
-	(rm -f Makefile; cd ${SRS_OBJS}; rm -rf srs bandwidth Makefile *.hpp srs_utest)
+	(rm -f Makefile; rm -f ${SRS_OBJS}/Makefile*)
+	(cd ${SRS_OBJS}; rm -rf srs bandwidth *.hpp srs_utest)
 	(cd ${SRS_OBJS}; rm -rf src research include lib utest)
 	(cd research/librtmp; make clean)
 
@@ -153,8 +156,8 @@ CC ?= gcc
 GCC ?= gcc
 CXX ?= g++
 AR ?= ar
+LINK ?= g++
 CXXFLAGS = ${CXXFLAGS}
-LINK = g++
 
 .PHONY: default srs bandwidth librtmp
 
@@ -168,29 +171,20 @@ END
 # library(.a): add to ModuleLibFiles if binary need the specifeid library. for example, LibSTfile
 #
 # st(state-threads) the basic network library for SRS.
-LibSTRoot="${SRS_OBJS}/st"
-LibSTfile="${LibSTRoot}/libst.a"
+LibSTRoot="${SRS_OBJS}/st"; LibSTfile="${LibSTRoot}/libst.a"
 # hp(http-parser) the http request/url parser, for SRS to support HTTP callback.
-LibHttpParserRoot=""
-LibHttpParserfile=""
-if [ $SRS_HTTP = YES ]; then
-    LibHttpParserRoot="${SRS_OBJS}/hp"
-    LibHttpParserfile="${LibHttpParserRoot}/libhttp_parser.a"
-fi
+LibHttpParserRoot=""; LibHttpParserfile=""
+if [ $SRS_HTTP = YES ]; then LibHttpParserRoot="${SRS_OBJS}/hp"; LibHttpParserfile="${LibHttpParserRoot}/libhttp_parser.a"; fi
 # openssl-1.0.1f, for the RTMP complex handshake.
-LibSSLRoot=""
-LibSSLfile=""
-if [ $SRS_SSL = YES ]; then
-    LibSSLRoot="${SRS_OBJS}/openssl/include"
-    LibSSLfile="${SRS_OBJS}/openssl/lib/libssl.a ${SRS_OBJS}/openssl/lib/libcrypto.a"
-fi
+LibSSLRoot="";LibSSLfile=""
+if [ $SRS_SSL = YES ]; then LibSSLRoot="${SRS_OBJS}/openssl/include"; LibSSLfile="${SRS_OBJS}/openssl/lib/libssl.a ${SRS_OBJS}/openssl/lib/libcrypto.a"; fi
 
 #####################################################################################
 # Modules, compile each module, then link to binary
 #
 #Core, depends only on system apis.
-MODULE_ID="CORE" 
-MODULE_DEPENDS=() 
+MODULE_ID="CORE"
+MODULE_DEPENDS=()
 ModuleLibIncs=(${SRS_OBJS})
 MODULE_FILES=("srs_core" "srs_core_autofree")
 MODULE_DIR="src/core" . auto/modules.sh
@@ -241,6 +235,11 @@ MODULE_DIR="src/main" . auto/modules.sh
 MAIN_OBJS="${MODULE_OBJS[@].o}"
 
 #####################################################################################
+# utest, the unit-test cases of srs, base on gtest1.6
+MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${RTMP_OBJS[@]} ${APP_OBJS[@]} ${MAIN_OBJS[@]}"
+BUILD_KEY="utest" APP_NAME="srs_utest" . auto/utest.sh
+
+#####################################################################################
 # Binaries, main entrances, link the module and its depends modules,
 # then link to a binary, for example, objs/srs
 #
@@ -272,9 +271,6 @@ echo 'configure ok! '
 #####################################################################################
 # create objs/logs for ffmpeg to write log.
 mkdir -p ${SRS_OBJS}/logs
-# lib and include for library
-mkdir -p ${SRS_OBJS}/lib
-mkdir -p ${SRS_OBJS}/include
 
 #####################################################################################
 # configure summary
