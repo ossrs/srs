@@ -78,8 +78,9 @@ private:
 	virtual int stream_service_cycle();
 	virtual int check_vhost();
 	virtual int playing(SrsSource* source);
-	virtual int publish(SrsSource* source, bool is_fmle);
-	virtual int process_publish_message(SrsSource* source, SrsCommonMessage* msg, bool is_fmle);
+	virtual int fmle_publish(SrsSource* source);
+	virtual int flash_publish(SrsSource* source);
+	virtual int process_publish_message(SrsSource* source, SrsCommonMessage* msg);
 	virtual int get_peer_ip();
 	virtual int process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage* msg);
 private:

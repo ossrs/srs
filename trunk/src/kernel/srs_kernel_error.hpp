@@ -155,6 +155,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // not an error, but special control logic.
 // sys ctl: rtmp close stream, support replay.
 #define ERROR_CONTROL_RTMP_CLOSE		900
+// FMLE stop publish and republish.
+#define ERROR_CONTROL_REPUBLISH			901
 
 /**
 * whether the error code is an system control error.

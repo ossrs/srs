@@ -201,6 +201,16 @@ int SrsClient::service_cycle()
 			return ret;
 		}
 		
+		// for republish, continue service
+		if (ret == ERROR_CONTROL_REPUBLISH) {
+			// set timeout to a larger value, wait for encoder to republish.
+			rtmp->set_send_timeout(SRS_REPUBLISH_RECV_TIMEOUT_US);
+			rtmp->set_recv_timeout(SRS_REPUBLISH_SEND_TIMEOUT_US);
+			
+			srs_trace("control message(unpublish) accept, retry stream service.");
+			continue;
+		}
+		
 		// for "some" system control error, 
 		// logical accept and retry stream service.
 		if (ret == ERROR_CONTROL_RTMP_CLOSE) {
@@ -292,7 +302,7 @@ int SrsClient::stream_service_cycle()
 				return ret;
 			}
 			srs_info("start to publish stream %s success", req->stream.c_str());
-			ret = publish(source, true);
+			ret = fmle_publish(source);
 			source->on_unpublish();
 			on_unpublish();
 			return ret;
@@ -309,7 +319,7 @@ int SrsClient::stream_service_cycle()
 				return ret;
 			}
 			srs_info("flash start to publish stream %s success", req->stream.c_str());
-			ret = publish(source, false);
+			ret = flash_publish(source);
 			source->on_unpublish();
 			on_unpublish();
 			return ret;
@@ -448,24 +458,24 @@ int SrsClient::playing(SrsSource* source)
 	return ret;
 }
 
-int SrsClient::publish(SrsSource* source, bool is_fmle)
+int SrsClient::fmle_publish(SrsSource* source)
 {
 	int ret = ERROR_SUCCESS;
 	
 	if ((ret = refer->check(req->pageUrl, _srs_config->get_refer_publish(req->vhost))) != ERROR_SUCCESS) {
-		srs_error("check publish_refer failed. ret=%d", ret);
+		srs_error("fmle check publish_refer failed. ret=%d", ret);
 		return ret;
 	}
-	srs_verbose("check publish_refer success.");
+	srs_verbose("fmle check publish_refer success.");
 	
 	SrsPithyPrint pithy_print(SRS_STAGE_PUBLISH_USER);
 	
 	// notify the hls to prepare when publish start.
 	if ((ret = source->on_publish(req)) != ERROR_SUCCESS) {
-		srs_error("hls on_publish failed. ret=%d", ret);
+		srs_error("fmle hls on_publish failed. ret=%d", ret);
 		return ret;
 	}
-	srs_verbose("hls on_publish success.");
+	srs_verbose("fmle hls on_publish success.");
 	
 	while (true) {
 		// switch to other st-threads.
@@ -473,7 +483,7 @@ int SrsClient::publish(SrsSource* source, bool is_fmle)
 		
 		SrsCommonMessage* msg = NULL;
 		if ((ret = rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
-			srs_error("recv identify client message failed. ret=%d", ret);
+			srs_error("fmle recv identify client message failed. ret=%d", ret);
 			return ret;
 		}
 
@@ -486,9 +496,30 @@ int SrsClient::publish(SrsSource* source, bool is_fmle)
 			srs_trace("<- time=%"PRId64", obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
 				pithy_print.get_age(), rtmp->get_send_bytes(), rtmp->get_recv_bytes(), rtmp->get_send_kbps(), rtmp->get_recv_kbps());
 		}
+	
+		// process UnPublish event.
+		if (msg->header.is_amf0_command() || msg->header.is_amf3_command()) {
+			if ((ret = msg->decode_packet(rtmp->get_protocol())) != ERROR_SUCCESS) {
+				srs_error("fmle decode unpublish message failed. ret=%d", ret);
+				return ret;
+			}
+		
+			SrsPacket* pkt = msg->get_packet();
+			if (dynamic_cast<SrsFMLEStartPacket*>(pkt)) {
+				SrsFMLEStartPacket* unpublish = dynamic_cast<SrsFMLEStartPacket*>(pkt);
+				if ((ret = rtmp->fmle_unpublish(res->stream_id, unpublish->transaction_id)) != ERROR_SUCCESS) {
+					return ret;
+				}
+				return ERROR_CONTROL_REPUBLISH;
+			}
+			
+			srs_trace("fmle ignore AMF0/AMF3 command message.");
+			continue;
+		}
 
-		if ((ret = process_publish_message(source, msg, is_fmle)) != ERROR_SUCCESS) {
-			srs_error("process publish message failed. ret=%d", ret);
+		// video, audio, data message
+		if ((ret = process_publish_message(source, msg)) != ERROR_SUCCESS) {
+			srs_error("fmle process publish message failed. ret=%d", ret);
 			return ret;
 		}
 	}
@@ -496,7 +527,69 @@ int SrsClient::publish(SrsSource* source, bool is_fmle)
 	return ret;
 }
 
-int SrsClient::process_publish_message(SrsSource* source, SrsCommonMessage* msg, bool is_fmle)
+int SrsClient::flash_publish(SrsSource* source)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if ((ret = refer->check(req->pageUrl, _srs_config->get_refer_publish(req->vhost))) != ERROR_SUCCESS) {
+		srs_error("flash check publish_refer failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("flash check publish_refer success.");
+	
+	SrsPithyPrint pithy_print(SRS_STAGE_PUBLISH_USER);
+	
+	// notify the hls to prepare when publish start.
+	if ((ret = source->on_publish(req)) != ERROR_SUCCESS) {
+		srs_error("flash hls on_publish failed. ret=%d", ret);
+		return ret;
+	}
+	srs_verbose("flash hls on_publish success.");
+	
+	while (true) {
+		// switch to other st-threads.
+		st_usleep(0);
+		
+		SrsCommonMessage* msg = NULL;
+		if ((ret = rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
+			srs_error("flash recv identify client message failed. ret=%d", ret);
+			return ret;
+		}
+
+		SrsAutoFree(SrsCommonMessage, msg, false);
+		
+		pithy_print.set_age(msg->header.timestamp);
+
+		// reportable
+		if (pithy_print.can_print()) {
+			srs_trace("<- time=%"PRId64", obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
+				pithy_print.get_age(), rtmp->get_send_bytes(), rtmp->get_recv_bytes(), rtmp->get_send_kbps(), rtmp->get_recv_kbps());
+		}
+	
+		// process UnPublish event.
+		if (msg->header.is_amf0_command() || msg->header.is_amf3_command()) {
+			if ((ret = msg->decode_packet(rtmp->get_protocol())) != ERROR_SUCCESS) {
+				srs_error("flash decode unpublish message failed. ret=%d", ret);
+				return ret;
+			}
+			
+			// flash unpublish.
+			// TODO: maybe need to support republish.
+			srs_trace("flash flash publish finished.");
+			return ERROR_CONTROL_REPUBLISH;
+		}
+
+		// video, audio, data message
+		if ((ret = process_publish_message(source, msg)) != ERROR_SUCCESS) {
+			srs_error("flash process publish message failed. ret=%d", ret);
+			return ret;
+		}
+	}
+	
+	return ret;
+}
+
+int SrsClient::process_publish_message(SrsSource* source, SrsCommonMessage* msg)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -534,29 +627,6 @@ int SrsClient::process_publish_message(SrsSource* source, SrsCommonMessage* msg,
 		}
 		
 		srs_trace("ignore AMF0/AMF3 data message.");
-		return ret;
-	}
-	
-	// process UnPublish event.
-	if (msg->header.is_amf0_command() || msg->header.is_amf3_command()) {
-		if ((ret = msg->decode_packet(rtmp->get_protocol())) != ERROR_SUCCESS) {
-			srs_error("decode unpublish message failed. ret=%d", ret);
-			return ret;
-		}
-		
-		// flash unpublish.
-		if (!is_fmle) {
-			srs_trace("flash publish finished.");
-			return ret;
-		}
-	
-		SrsPacket* pkt = msg->get_packet();
-		if (dynamic_cast<SrsFMLEStartPacket*>(pkt)) {
-			SrsFMLEStartPacket* unpublish = dynamic_cast<SrsFMLEStartPacket*>(pkt);
-			return rtmp->fmle_unpublish(res->stream_id, unpublish->transaction_id);
-		}
-		
-		srs_trace("ignore AMF0/AMF3 command message.");
 		return ret;
 	}
 	

@@ -59,10 +59,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // the timeout to wait client data, when client paused
 // if timeout, close the connection.
 #define SRS_PAUSED_SEND_TIMEOUT_US (int64_t)(30*60*1000*1000LL)
-
-// the timeout to send data to client, when client paused
 // if timeout, close the connection.
 #define SRS_PAUSED_RECV_TIMEOUT_US (int64_t)(30*60*1000*1000LL)
+
+// the timeout to wait encoder to republish
+// if timeout, close the connection.
+#define SRS_REPUBLISH_SEND_TIMEOUT_US (int64_t)(3*60*1000*1000LL)
+// if timeout, close the connection.
+#define SRS_REPUBLISH_RECV_TIMEOUT_US (int64_t)(3*60*1000*1000LL)
 
 // when stream is busy, for example, streaming is already
 // publishing, when a new client to request to publish,
