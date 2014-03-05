@@ -254,21 +254,18 @@ Schema#2: SRS RTMP Edge server pull stream from origin (or upstream SRS
                   +---------+---------+          +-----+-----+
               --------------+------------network-------+---------
                             |                          |
- +-----------+         +----+-----------+         +----+------+
- |   master  +--fork->-+ back source(1) +-->-pull-+ stream(2) +
- +-----+-----+         +----------------+         +-------+---+
+ +-----------+         +----+-----------+         +----+-----------+
+ |   master  +--fork->-+ back source(1) +-->-pull-+ stream 1-N(2)  +
+ +-----+-----+         +----------------+         +-------+--------+
+       |                                                  |
        +-------------------------------------fork--->-----+
-       |          +-------------------+
-       +--fork->--+ bandwidth test(3) +
-                  +-------------------+
 
 Remark:
 (1) back source process: create by master process, get stream from 
-    upnode server, serve the stream process.
+    upnode server if edge, create stream if origin, serve the stream 
+    process.
 (2) stream process: create by master process, get stream from back
     source process, serve the client.
-(3) bandwidth test process: create by master process, serve the
-    bandwidth test client.
 Remark:
 (a) This multiple processes architecture is design by wenjie, it's a
     very simple and powerful multiple process architecture, for the
