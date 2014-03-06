@@ -30,6 +30,9 @@ tools/ccache-3.1.9.zip
     
 gtest-1.6.0.zip
     google单元测试框架。
+    
+gperftools-2.1.zip
+    google性能分析和测试工具。
 
 links:
     ffmpeg: 
@@ -59,4 +62,7 @@ links:
     gtest:
         https://code.google.com/p/googletest
         https://code.google.com/p/googletest/downloads/list
+    gperftools:
+        https://code.google.com/p/gperftools/
+        https://code.google.com/p/gperftools/downloads/list
 
