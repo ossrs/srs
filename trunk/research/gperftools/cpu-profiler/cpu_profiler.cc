@@ -26,11 +26,11 @@ config srs with gperf(to make gperftools):
 set the pprof path if not set:
     export PPROF_PATH=`pwd`/../../../objs/pprof
 to do cpu profile:
-    make && rm -f ./srs.conf* && env CPUPROFILE=./srs.conf ./cpu_profiler
-    $PPROF_PATH --text cpu_profiler ./srs.conf*
+    make && rm -f ./srs.prof* && env CPUPROFILE=./srs.prof ./cpu_profiler
+    $PPROF_PATH --text cpu_profiler ./srs.prof*
 to do cpu profile by signal:
-    make && rm -f ./srs.conf* && env CPUPROFILE=./srs.conf CPUPROFILESIGNAL=12 ./cpu_profiler
-    $PPROF_PATH --text cpu_profiler ./srs.conf*
+    make && rm -f ./srs.prof* && env CPUPROFILE=./srs.prof CPUPROFILESIGNAL=12 ./cpu_profiler
+    $PPROF_PATH --text cpu_profiler ./srs.prof*
 */
 #include <stdio.h>
 #include <unistd.h>

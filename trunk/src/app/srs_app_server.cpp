@@ -233,6 +233,14 @@ int SrsServer::cycle()
 		srs_update_system_time_ms();
 		
 		if (signal_reload) {
+// for gperf heap checker,
+// @see: research/gperftools/heap-checker/heap_checker.cc
+// if user interrupt the program, exit to check mem leak.
+// but, if gperf, use reload to terminate the server,
+// for the SIGINT will cause core-dump.
+#ifdef SRS_GPERF
+			break;
+#endif
 			signal_reload = false;
 			srs_info("get signal reload, to reload the config.");
 			

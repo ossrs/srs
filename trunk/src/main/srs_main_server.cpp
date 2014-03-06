@@ -37,6 +37,13 @@ SrsServer* _srs_server = new SrsServer();
 #include <stdlib.h>
 #include <signal.h>
 
+#ifdef SRS_GPERF_HEAP_PROFILE
+	#include <gperftools/heap-profiler.h>
+#endif
+#ifdef SRS_GPERF_CPU_PROFILE
+	#include <gperftools/profiler.h>
+#endif
+
 void handler(int signo)
 {
 	srs_trace("get a signal, signo=%d", signo);
@@ -46,6 +53,17 @@ void handler(int signo)
 int main(int argc, char** argv) 
 {
 	int ret = ERROR_SUCCESS;
+	
+#ifdef SRS_GPERF_HEAP_CHECK
+	// env HEAPCHECK=normal ./objs/srs -c srs.conf
+#endif
+
+#ifdef SRS_GPERF_HEAP_PROFILE
+    HeapProfilerStart("gperf.srs");
+#endif
+#ifdef SRS_GPERF_CPU_PROFILE
+    ProfilerStart("gperf.srs.prof");
+#endif
 	
 	signal(SIGNAL_RELOAD, handler);
 	

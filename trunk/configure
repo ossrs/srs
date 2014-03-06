@@ -138,8 +138,6 @@ END
 
 #####################################################################################
 # build tools or compiler args.
-# the performance analysis, uncomments the following when use gperf to analysis the performance. see third-party/readme.txt
-Performance="-pg"
 # enable gdb debug
 GDBDebug="-g -O0"
 # the warning level.
@@ -150,7 +148,7 @@ CppStd="-ansi"
 LibraryCompile="-fPIC"
 # the cxx flag generated.
 CXXFLAGS="${CppStd} ${WarnLevel} ${GDBDebug} ${LibraryCompile}"
-#CXXFLAGS="${CppStd} ${WarnLevel} ${GDBDebug} ${Performance}"
+if [ $SRS_GPERF = YES ]; then CXXFLAGS="${CXXFLAGS} -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free"; fi
 cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
 CC ?= gcc
 GCC ?= gcc
@@ -178,6 +176,9 @@ if [ $SRS_HTTP = YES ]; then LibHttpParserRoot="${SRS_OBJS}/hp"; LibHttpParserfi
 # openssl-1.0.1f, for the RTMP complex handshake.
 LibSSLRoot="";LibSSLfile=""
 if [ $SRS_SSL = YES ]; then LibSSLRoot="${SRS_OBJS}/openssl/include"; LibSSLfile="${SRS_OBJS}/openssl/lib/libssl.a ${SRS_OBJS}/openssl/lib/libcrypto.a"; fi
+# gperftools-2.1, for mem check and mem/cpu profile
+LibGperfRoot=""; LibGperfFile=""
+if [ $SRS_GPERF = YES ]; then LibGperfRoot="${SRS_OBJS}/gperf/include"; LibGperfFile="${SRS_OBJS}/gperf/lib/libtcmalloc_and_profiler.a"; fi
 
 #####################################################################################
 # Modules, compile each module, then link to binary
@@ -229,7 +230,7 @@ LIBS_OBJS="${MODULE_OBJS[@]}"
 #Main Module
 MODULE_ID="MAIN" 
 MODULE_DEPENDS=("CORE" "KERNEL" "RTMP" "APP")
-ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS})
+ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS} ${LibGperfRoot})
 MODULE_FILES=("srs_main_server" "srs_main_bandcheck")
 MAIN_INCS="src/main"; MODULE_DIR=${MAIN_INCS} . auto/modules.sh
 MAIN_OBJS="${MODULE_OBJS[@]}"
@@ -242,10 +243,11 @@ MAIN_OBJS="${MODULE_OBJS[@]}"
 MAIN_ENTRANCES=("srs_main_server" "srs_main_bandcheck")
 # 
 # all depends libraries
-ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile} ${LibSSLfile})
+ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile} ${LibSSLfile} ${LibGperfFile})
 # all depends objects
 MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${RTMP_OBJS[@]} ${APP_OBJS[@]} ${MAIN_OBJS[@]}"
 LINK_OPTIONS="-ldl"
+if [ $SRS_GPERF = YES ]; then LINK_OPTIONS="${LINK_OPTIONS} -lpthread"; fi
 #
 # srs:
 # srs(simple rtmp server) over st(state-threads)
@@ -335,4 +337,8 @@ fi
 if [ $SRS_HTTP = YES ]; then
     echo -e "\" python ./research/api-server/server.py 8085  \" to start the api-server"
 fi
-echo "\" ./objs/srs -c conf/srs.conf \" to start the srs live server"
+if [ $SRS_GPERF = YES ]; then
+    echo "\" env HEAPCHECK=normal ./objs/srs -c conf/srs.conf \" to start the srs live server"
+else
+    echo "\" ./objs/srs -c conf/srs.conf \" to start the srs live server"
+fi

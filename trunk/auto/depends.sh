@@ -448,3 +448,15 @@ if [ $SRS_GPERF = YES ]; then
     ret=$?; if [[ $ret -ne 0 ]]; then echo "build gperftools-2.1 failed, ret=$ret"; exit $ret; fi
     if [ ! -f ${SRS_OBJS}/gperf/bin/pprof ]; then echo "build gperftools-2.1 failed."; exit -1; fi
 fi
+
+if [ $SRS_GPERF = YES ]; then
+    echo "#define SRS_GPERF" >> $SRS_AUTO_HEADERS_H
+    #echo "#define SRS_GPERF_CPU_PROFILE" >> $SRS_AUTO_HEADERS_H
+    #echo "#define SRS_GPERF_HEAP_PROFILE" >> $SRS_AUTO_HEADERS_H
+    echo "#define SRS_GPERF_HEAP_CHECK" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_GPERF" >> $SRS_AUTO_HEADERS_H
+    echo "#undef SRS_GPERF_CPU_PROFILE" >> $SRS_AUTO_HEADERS_H
+    echo "#undef SRS_GPERF_HEAP_PROFILE" >> $SRS_AUTO_HEADERS_H
+    echo "#undef SRS_GPERF_HEAP_CHECK" >> $SRS_AUTO_HEADERS_H
+fi
