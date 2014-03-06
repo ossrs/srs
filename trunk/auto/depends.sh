@@ -440,7 +440,8 @@ if [ $SRS_GPERF = YES ]; then
             rm -rf ${SRS_OBJS}/gperftools-2.1 && cd ${SRS_OBJS} && 
             unzip -q ../3rdparty/gperftools-2.1.zip && cd gperftools-2.1 &&
             ./configure --prefix=`pwd`/_release --enable-frame-pointers && make ${SRS_JOBS} && make install &&
-            cd .. && rm -f gperf && ln -sf gperftools-2.1/_release gperf
+            cd .. && rm -f gperf && ln -sf gperftools-2.1/_release gperf &&
+            rm -f pprof && ln -sf gperf/bin/pprof pprof
         )
     fi
     # check status
