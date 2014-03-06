@@ -337,8 +337,4 @@ fi
 if [ $SRS_HTTP = YES ]; then
     echo -e "\" python ./research/api-server/server.py 8085  \" to start the api-server"
 fi
-if [ $SRS_GPERF = YES ]; then
-    echo "\" env HEAPCHECK=normal ./objs/srs -c conf/srs.conf \" to start the srs live server"
-else
-    echo "\" ./objs/srs -c conf/srs.conf \" to start the srs live server"
-fi
+echo "\" ./objs/srs -c conf/srs.conf \" to start the srs live server"
