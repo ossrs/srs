@@ -24,7 +24,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 set the pprof path if not set:
     export PPROF_PATH=`pwd`/../../../objs/pprof
 to do mem profile:
-    make && rm -f srs.*.heap && env ./heap_profiler
+    make && rm -f srs.*.heap && env HEAPPROFILE=./srs ./heap_profiler
     $PPROF_PATH --text heap_profiler ./*.heap
 */
 #include <stdio.h>
@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
     signal(SIGINT, handler);
     
     // must start profiler manually.
-    HeapProfilerStart("srs");
+    HeapProfilerStart(NULL);
     
     memory_alloc_profile();
     // not neccessary to call stop.
