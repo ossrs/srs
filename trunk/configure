@@ -311,6 +311,11 @@ if [ $SRS_UTEST = YES ]; then
 else
     echo -e "${YELLOW}note: utest for srs are not builded${BLACK}"
 fi
+if [ $SRS_GPERF = YES ]; then
+    echo -e "${GREEN}gperf(mem leak detect, mem/cpu perf) for srs are builded${BLACK}"
+else
+    echo -e "${YELLOW}note: gperf(mem leak detect, mem/cpu perf) for srs are not builded${BLACK}"
+fi
 
 #####################################################################################
 # next step

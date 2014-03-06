@@ -33,6 +33,7 @@ gtest-1.6.0.zip
     
 gperftools-2.1.zip
     google性能分析和测试工具。
+    编译和使用参考压缩文件中的README和doc目录。
 
 links:
     ffmpeg: 

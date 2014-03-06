@@ -427,3 +427,23 @@ if [ $SRS_UTEST = YES ]; then
     ret=$?; if [[ $ret -ne 0 ]]; then echo "build gtest-1.6.0 failed, ret=$ret"; exit $ret; fi
     if [ ! -f ${SRS_OBJS}/gtest/include/gtest/gtest.h ]; then echo "build gtest-1.6.0 failed."; exit -1; fi
 fi
+
+#####################################################################################
+# build gperf code
+#####################################################################################
+if [ $SRS_GPERF = YES ]; then
+    if [[ -f ${SRS_OBJS}/gperf/bin/pprof ]]; then
+        echo "gperftools-2.1 is ok.";
+    else
+        echo "build gperftools-2.1"; 
+        (
+            rm -rf ${SRS_OBJS}/gperftools-2.1 && cd ${SRS_OBJS} && 
+            unzip -q ../3rdparty/gperftools-2.1.zip && cd gperftools-2.1 &&
+            ./configure --prefix=`pwd`/_release --enable-frame-pointers && make ${SRS_JOBS} && make install &&
+            cd .. && rm -f gperf && ln -sf gperftools-2.1/_release gperf
+        )
+    fi
+    # check status
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "build gperftools-2.1 failed, ret=$ret"; exit $ret; fi
+    if [ ! -f ${SRS_OBJS}/gperf/bin/pprof ]; then echo "build gperftools-2.1 failed."; exit -1; fi
+fi
