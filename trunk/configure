@@ -67,6 +67,7 @@ SrsUtestSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_UTEST = YES ]; then SrsU
 SrsGperfSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_GPERF = YES ]; then SrsGperfSummaryColor="\$(GREEN)"; fi
 SrsGperfMCSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_GPERF_MC = YES ]; then SrsGperfMCSummaryColor="\$(GREEN)"; fi
 SrsGperfMPSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_GPERF_MP = YES ]; then SrsGperfMPSummaryColor="\$(GREEN)"; fi
+SrsGperfCPSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_GPERF_CP = YES ]; then SrsGperfCPSummaryColor="\$(GREEN)"; fi
 
 #####################################################################################
 # makefile
@@ -98,9 +99,14 @@ default: bandwidth librtmp-sample utest
 	@echo -e "          ${SrsGperfMCSummaryColor}gmc: gperf memory check, @see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html\$(BLACK)"
 	@echo -e "                  ${SrsGperfMCSummaryColor}env PPROF_PATH=./objs/pprof HEAPCHECK=normal ./objs/srs -c conf/srs.conf # start gmc\$(BLACK)"
 	@echo -e "                  ${SrsGperfMCSummaryColor}killall -2 srs # or CTRL+C to stop gmc\$(BLACK)"
-	@echo -e "          ${SrsGperfMPSummaryColor}gmc: gperf memory profile, @see: http://google-perftools.googlecode.com/svn/trunk/doc/heapprofile.html\$(BLACK)"
-	@echo -e "                  ${SrsGperfMPSummaryColor}env PPROF_PATH=./objs/pprof HEAPCHECK=normal ./objs/srs -c conf/srs.conf # start gmc\$(BLACK)"
-	@echo -e "                  ${SrsGperfMPSummaryColor}killall -2 srs # or CTRL+C to stop gmc\$(BLACK)"
+	@echo -e "          ${SrsGperfMPSummaryColor}gmp: gperf memory profile, @see: http://google-perftools.googlecode.com/svn/trunk/doc/heapprofile.html\$(BLACK)"
+	@echo -e "                  ${SrsGperfMPSummaryColor}rm -f gperf.srs.gmp*; ./objs/srs -c conf/srs.conf # start gmp\$(BLACK)"
+	@echo -e "                  ${SrsGperfMPSummaryColor}killall -2 srs # or CTRL+C to stop gmp\$(BLACK)"
+	@echo -e "                  ${SrsGperfMPSummaryColor}./objs/pprof --text objs/srs gperf.srs.gmp* # to analysis memory profile\$(BLACK)"
+	@echo -e "          ${SrsGperfCPSummaryColor}gcp: gperf cpu profile, @see: http://google-perftools.googlecode.com/svn/trunk/doc/cpuprofile.html\$(BLACK)"
+	@echo -e "                  ${SrsGperfCPSummaryColor}rm -f gperf.srs.gcp*; ./objs/srs -c conf/srs.conf # start gcp\$(BLACK)"
+	@echo -e "                  ${SrsGperfCPSummaryColor}killall -2 srs # or CTRL+C to stop gcp\$(BLACK)"
+	@echo -e "                  ${SrsGperfCPSummaryColor}./objs/pprof --text objs/srs gperf.srs.gcp* # to analysis cpu profile\$(BLACK)"
 	@echo -e "\$(GREEN)binaries @see: https://github.com/winlinvip/simple-rtmp-server/wiki/Build\$(BLACK)"
 
 help:

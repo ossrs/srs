@@ -281,13 +281,16 @@ void SrsServer::on_signal(int signo)
 		return;
 	}
 	
-#ifdef SRS_GPERF_MC
 	if (signo == SIGINT) {
+#ifdef SRS_GPERF_MC
 		srs_trace("gmc is on, main cycle will terminate normally.");
 		signal_gmc_stop = true;
+#else
+		srs_trace("user terminate program");
+		exit(0);
+#endif
 		return;
 	}
-#endif
 
 	// TODO: handle the SIGINT, SIGTERM.
 }

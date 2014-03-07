@@ -37,10 +37,10 @@ SrsServer* _srs_server = new SrsServer();
 #include <stdlib.h>
 #include <signal.h>
 
-#ifdef SRS_GPERF_HEAP_PROFILE
+#ifdef SRS_GPERF_MP
 	#include <gperftools/heap-profiler.h>
 #endif
-#ifdef SRS_GPERF_CPU_PROFILE
+#ifdef SRS_GPERF_CP
 	#include <gperftools/profiler.h>
 #endif
 
@@ -54,11 +54,11 @@ int main(int argc, char** argv)
 {
 	int ret = ERROR_SUCCESS;
 
-#ifdef SRS_GPERF_HEAP_PROFILE
-    HeapProfilerStart("gperf.srs");
+#ifdef SRS_GPERF_MP
+    HeapProfilerStart("gperf.srs.gmp");
 #endif
-#ifdef SRS_GPERF_CPU_PROFILE
-    ProfilerStart("gperf.srs.prof");
+#ifdef SRS_GPERF_CP
+    ProfilerStart("gperf.srs.gcp");
 #endif
 	
 	signal(SIGNAL_RELOAD, handler);
@@ -67,6 +67,16 @@ int main(int argc, char** argv)
 	if ((ret = _srs_config->parse_options(argc, argv)) != ERROR_SUCCESS) {
 		return ret;
 	}
+
+#ifdef SRS_GPERF_MC
+	#ifdef SRS_GPERF_MP
+	srs_error("option --with-gmc confict with --with-gmp, "
+		"@see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html\n"
+		"Note that since the heap-checker uses the heap-profiling framework internally, "
+		"it is not possible to run both the heap-checker and heap profiler at the same time");
+	return -1;
+	#endif
+#endif
 	
 	if ((ret = _srs_server->initialize()) != ERROR_SUCCESS) {
 		return ret;

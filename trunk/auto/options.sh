@@ -115,6 +115,8 @@ if [ $help = yes ]; then
   --with-utest             build the utest for srs.
   --with-gperf             build srs with gperf tools(no gmc/gmp/gcp, with tcmalloc only).
   --with-gmc               build memory check for srs with gperf tools.
+  --with-gmp               build memory profile for srs with gperf tools.
+  --with-gcp               build cpu profile for srs with gperf tools.
 
   --without-ssl            disable rtmp complex handshake.
   --without-hls            disable hls, rtmp streaming only.
@@ -124,6 +126,8 @@ if [ $help = yes ]; then
   --without-utest          do not build the utest for srs.
   --without-gperf          do not build srs with gperf tools(without tcmalloc and gmc/gmp/gcp).
   --without-gmc            do not build memory check for srs with gperf tools.
+  --without-gmp            do not build memory profile for srs with gperf tools.
+  --without-gcp            do not build cpu profile for srs with gperf tools.
   
   --jobs[=N]               Allow N jobs at once; infinite jobs with no arg.
                            used for make in the configure, for example, to make ffmpeg.
@@ -148,6 +152,14 @@ if [ $SRS_GPERF = NO ]; then
     fi
     if [ $SRS_GPERF_CP = YES ]; then
         echo "gperf-cp depends on gperf, see: ./configure --help";
+        __check_ok=NO
+    fi
+fi
+if [ $SRS_GPERF_MC = YES ]; then
+    if [ $SRS_GPERF_MP = YES ]; then
+        echo "gperf-mc not compatible with gperf-mp, see: ./configure --help";
+        echo "@see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html";
+        echo "Note that since the heap-checker uses the heap-profiling framework internally, it is not possible to run both the heap-checker and heap profiler at the same time";
         __check_ok=NO
     fi
 fi
