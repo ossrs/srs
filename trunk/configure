@@ -62,12 +62,13 @@ SrsHlsSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_HLS = YES ]; then SrsHlsSu
 SrsSslSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_SSL = YES ]; then SrsSslSummaryColor="\$(GREEN)"; fi
 SrsFfmpegSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_FFMPEG = YES ]; then SrsFfmpegSummaryColor="\$(GREEN)"; fi
 SrsHttpSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_HTTP = YES ]; then SrsHttpSummaryColor="\$(GREEN)"; fi
-SrsResearchSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_RESEARCH = YES ]; then SrsResearchSummaryColor="\$(GREEN)"; fi
+SrsResearchSummaryColor="\$(GREEN)(disabled) "; if [ $SRS_RESEARCH = YES ]; then SrsResearchSummaryColor="\$(GREEN)"; fi
 SrsUtestSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_UTEST = YES ]; then SrsUtestSummaryColor="\$(GREEN)"; fi
-SrsGperfSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_GPERF = YES ]; then SrsGperfSummaryColor="\$(GREEN)"; fi
-SrsGperfMCSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_GPERF_MC = YES ]; then SrsGperfMCSummaryColor="\$(GREEN)"; fi
-SrsGperfMPSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_GPERF_MP = YES ]; then SrsGperfMPSummaryColor="\$(GREEN)"; fi
-SrsGperfCPSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_GPERF_CP = YES ]; then SrsGperfCPSummaryColor="\$(GREEN)"; fi
+SrsGperfSummaryColor="\$(GREEN)(disabled) "; if [ $SRS_GPERF = YES ]; then SrsGperfSummaryColor="\$(GREEN)"; fi
+SrsGperfMCSummaryColor="\$(GREEN)(disabled) "; if [ $SRS_GPERF_MC = YES ]; then SrsGperfMCSummaryColor="\$(YELLOW)"; fi
+SrsGperfMPSummaryColor="\$(GREEN)(disabled) "; if [ $SRS_GPERF_MP = YES ]; then SrsGperfMPSummaryColor="\$(YELLOW)"; fi
+SrsGperfCPSummaryColor="\$(GREEN)(disabled) "; if [ $SRS_GPERF_CP = YES ]; then SrsGperfCPSummaryColor="\$(YELLOW)"; fi
+SrsGprofSummaryColor="\$(GREEN)(disabled) "; if [ $SRS_GPROF = YES ]; then SrsGprofSummaryColor="\$(YELLOW)"; fi
 
 #####################################################################################
 # makefile
@@ -83,30 +84,50 @@ BLACK="\\${BLACK}"
 
 default: bandwidth librtmp-sample utest
 	@echo -e "\$(GREEN)build summary:\$(BLACK)"
-	@echo -e "     \$(GREEN)server: ./objs/srs, the srs server\$(BLACK)"
-	@echo -e "          ${SrsHlsSummaryColor}hls: delivery HLS stream, @see: https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS\$(BLACK)"
-	@echo -e "          ${SrsSslSummaryColor}ssl: support RTMP complex handshake, @see: https://github.com/winlinvip/simple-rtmp-server/wiki/RTMPHandshake\$(BLACK)"
-	@echo -e "          ${SrsFfmpegSummaryColor}ffmpeg: support transcoding with FFMPEG, @see: https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG\$(BLACK)"
-	@echo -e "          ${SrsHttpSummaryColor}http: support http callback, @see: https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback\$(BLACK)"
-	@echo -e "     \$(GREEN)bandwidth: ./objs/bandwidth, the bandwidth test client\$(BLACK)"
-	@echo -e "     \$(GREEN)librtmp: ./objs/include, ./objs/lib, the srs-librtmp library, @see: https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLibrtmp\$(BLACK)"
-	@echo -e "          \$(GREEN)simple handshake: publish/play stream with simple handshake to server\$(BLACK)"
-	@echo -e "          ${SrsSslSummaryColor}complex handshake: it's not required to publish/play stream for client, recommend disable it for srs-librtmp\$(BLACK)"
-	@echo -e "     \$(GREEN)librtmp-sample: ./research/librtmp, the srs-librtmp client sample\$(BLACK)"
-	@echo -e "     ${SrsResearchSummaryColor}research: ./objs/research, api server, players, ts info.\$(BLACK)"
-	@echo -e "     ${SrsUtestSummaryColor}utest: ./objs/srs_utest, the utest for srs\$(BLACK)"
-	@echo -e "     ${SrsGperfSummaryColor}gperf: gmc/gmp/gcp for srs, @see: \$(BLACK)"
-	@echo -e "          ${SrsGperfMCSummaryColor}gmc: gperf memory check, @see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html\$(BLACK)"
-	@echo -e "                  ${SrsGperfMCSummaryColor}env PPROF_PATH=./objs/pprof HEAPCHECK=normal ./objs/srs -c conf/srs.conf # start gmc\$(BLACK)"
-	@echo -e "                  ${SrsGperfMCSummaryColor}killall -2 srs # or CTRL+C to stop gmc\$(BLACK)"
-	@echo -e "          ${SrsGperfMPSummaryColor}gmp: gperf memory profile, @see: http://google-perftools.googlecode.com/svn/trunk/doc/heapprofile.html\$(BLACK)"
-	@echo -e "                  ${SrsGperfMPSummaryColor}rm -f gperf.srs.gmp*; ./objs/srs -c conf/srs.conf # start gmp\$(BLACK)"
-	@echo -e "                  ${SrsGperfMPSummaryColor}killall -2 srs # or CTRL+C to stop gmp\$(BLACK)"
-	@echo -e "                  ${SrsGperfMPSummaryColor}./objs/pprof --text objs/srs gperf.srs.gmp* # to analysis memory profile\$(BLACK)"
-	@echo -e "          ${SrsGperfCPSummaryColor}gcp: gperf cpu profile, @see: http://google-perftools.googlecode.com/svn/trunk/doc/cpuprofile.html\$(BLACK)"
-	@echo -e "                  ${SrsGperfCPSummaryColor}rm -f gperf.srs.gcp*; ./objs/srs -c conf/srs.conf # start gcp\$(BLACK)"
-	@echo -e "                  ${SrsGperfCPSummaryColor}killall -2 srs # or CTRL+C to stop gcp\$(BLACK)"
-	@echo -e "                  ${SrsGperfCPSummaryColor}./objs/pprof --text objs/srs gperf.srs.gcp* # to analysis cpu profile\$(BLACK)"
+	@echo -e "     \$(BLACK)+------------------------------------------------------------------------------------\$(BLACK)"
+	@echo -e "     |${SrsGperfSummaryColor}gperf @see: https://github.com/winlinvip/simple-rtmp-server/wiki/GPERF\$(BLACK)"
+	@echo -e "     |     ${SrsGperfMCSummaryColor}gmc @see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html\$(BLACK)"
+	@echo -e "     |     ${SrsGperfMCSummaryColor}gmc: gperf memory check\$(BLACK)"
+	@echo -e "     |             ${SrsGperfMCSummaryColor}env PPROF_PATH=./objs/pprof HEAPCHECK=normal ./objs/srs -c conf/srs.conf # start gmc\$(BLACK)"
+	@echo -e "     |             ${SrsGperfMCSummaryColor}killall -2 srs # or CTRL+C to stop gmc\$(BLACK)"
+	@echo -e "     |     ${SrsGperfMPSummaryColor}gmp @see: http://google-perftools.googlecode.com/svn/trunk/doc/heapprofile.html\$(BLACK)"
+	@echo -e "     |     ${SrsGperfMPSummaryColor}gmp: gperf memory profile\$(BLACK)"
+	@echo -e "     |             ${SrsGperfMPSummaryColor}rm -f gperf.srs.gmp*; ./objs/srs -c conf/srs.conf # start gmp\$(BLACK)"
+	@echo -e "     |             ${SrsGperfMPSummaryColor}killall -2 srs # or CTRL+C to stop gmp\$(BLACK)"
+	@echo -e "     |             ${SrsGperfMPSummaryColor}./objs/pprof --text objs/srs gperf.srs.gmp* # to analysis memory profile\$(BLACK)"
+	@echo -e "     |     ${SrsGperfCPSummaryColor}gcp @see: http://google-perftools.googlecode.com/svn/trunk/doc/cpuprofile.html\$(BLACK)"
+	@echo -e "     |     ${SrsGperfCPSummaryColor}gcp: gperf cpu profile\$(BLACK)"
+	@echo -e "     |             ${SrsGperfCPSummaryColor}rm -f gperf.srs.gcp*; ./objs/srs -c conf/srs.conf # start gcp\$(BLACK)"
+	@echo -e "     |             ${SrsGperfCPSummaryColor}killall -2 srs # or CTRL+C to stop gcp\$(BLACK)"
+	@echo -e "     |             ${SrsGperfCPSummaryColor}./objs/pprof --text objs/srs gperf.srs.gcp* # to analysis cpu profile\$(BLACK)"
+	@echo -e "     \$(BLACK)+------------------------------------------------------------------------------------\$(BLACK)"
+	@echo -e "     |${SrsGprofSummaryColor}gprof @see: https://github.com/winlinvip/simple-rtmp-server/wiki/GPROF\$(BLACK)"
+	@echo -e "     |${SrsGprofSummaryColor}gprof: GNU profile tool, @see: http://www.cs.utah.edu/dept/old/texinfo/as/gprof.html\$(BLACK)"
+	@echo -e "     |     ${SrsGprofSummaryColor}rm -f gmon.out; ./objs/srs -c conf/srs.conf # start gprof\$(BLACK)"
+	@echo -e "     |     ${SrsGprofSummaryColor}gprof -b ./objs/srs gmon.out > gprof.srs.log && rm -f gmon.out # gprof report to gprof.srs.log\$(BLACK)"
+	@echo -e "     \$(BLACK)+------------------------------------------------------------------------------------\$(BLACK)"
+	@echo -e "     |${SrsResearchSummaryColor}research: ./objs/research, api server, players, ts info.\$(BLACK)"
+	@echo -e "     \$(BLACK)+------------------------------------------------------------------------------------\$(BLACK)"
+	@echo -e "     |${SrsUtestSummaryColor}utest: ./objs/srs_utest, the utest for srs\$(BLACK)"
+	@echo -e "     \$(BLACK)+------------------------------------------------------------------------------------\$(BLACK)"
+	@echo -e "     |\$(GREEN)bandwidth: ./objs/bandwidth, the bandwidth test client\$(BLACK)"
+	@echo -e "     \$(BLACK)+------------------------------------------------------------------------------------\$(BLACK)"
+	@echo -e "     |\$(GREEN)librtmp @see: https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLibrtmp\$(BLACK)"
+	@echo -e "     |\$(GREEN)librtmp: ./objs/include, ./objs/lib, the srs-librtmp library\$(BLACK)"
+	@echo -e "     |     \$(GREEN)simple handshake: publish/play stream with simple handshake to server\$(BLACK)"
+	@echo -e "     |     ${SrsSslSummaryColor}complex handshake: it's not required for client, recommend disable it\$(BLACK)"
+	@echo -e "     |     \$(GREEN)librtmp-sample: ./research/librtmp, the srs-librtmp client sample\$(BLACK)"
+	@echo -e "     \$(BLACK)+------------------------------------------------------------------------------------\$(BLACK)"
+	@echo -e "     |\$(GREEN)server: ./objs/srs, the srs server\$(BLACK)"
+	@echo -e "     |     ${SrsHlsSummaryColor}hls @see: https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS\$(BLACK)"
+	@echo -e "     |     ${SrsHlsSummaryColor}hls: generate m3u8 and ts, delivery HLS stream by nginx\$(BLACK)"
+	@echo -e "     |     ${SrsSslSummaryColor}ssl @see: https://github.com/winlinvip/simple-rtmp-server/wiki/RTMPHandshake\$(BLACK)"
+	@echo -e "     |     ${SrsSslSummaryColor}ssl: support RTMP complex handshake for client required, for instance, flash\$(BLACK)"
+	@echo -e "     |     ${SrsFfmpegSummaryColor}ffmpeg @see: https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG\$(BLACK)"
+	@echo -e "     |     ${SrsFfmpegSummaryColor}ffmpeg: support transcoding RTMP stream with FFMPEG\$(BLACK)"
+	@echo -e "     |     ${SrsHttpSummaryColor}http @see: https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback\$(BLACK)"
+	@echo -e "     |     ${SrsHttpSummaryColor}http: support http callback for authentication and event injection\$(BLACK)"
+	@echo -e "     \$(BLACK)+------------------------------------------------------------------------------------\$(BLACK)"
 	@echo -e "\$(GREEN)binaries @see: https://github.com/winlinvip/simple-rtmp-server/wiki/Build\$(BLACK)"
 
 help:
@@ -155,15 +176,19 @@ END
 #####################################################################################
 # build tools or compiler args.
 # enable gdb debug
-GDBDebug="-g -O0"
+GDBDebug=" -g -O0"
 # the warning level.
-WarnLevel="-Wall"
+WarnLevel=" -Wall"
 # the compile standard.
 CppStd="-ansi"
 # for library compile
-LibraryCompile="-fPIC"
+LibraryCompile=" -fPIC"
+# performance of gprof
+SrsGprof=""; SrsGprofLink=""; if [ $SRS_GPROF = YES ]; then SrsGprof=" -pg -lc_p"; SrsGprofLink=" -pg"; fi
+# performance of gperf
+SrsGperf=""; SrsGperfLink=""; if [ $SRS_GPERF = YES ]; then SrsGperfLink=" -lpthread"; fi
 # the cxx flag generated.
-CXXFLAGS="${CppStd} ${WarnLevel} ${GDBDebug} ${LibraryCompile}"
+CXXFLAGS="${CppStd}${WarnLevel}${GDBDebug}${LibraryCompile}${SrsGprof}"
 if [ $SRS_GPERF = YES ]; then CXXFLAGS="${CXXFLAGS} -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free"; fi
 cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
 CC ?= gcc
@@ -262,8 +287,7 @@ MAIN_ENTRANCES=("srs_main_server" "srs_main_bandcheck")
 ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile} ${LibSSLfile} ${LibGperfFile})
 # all depends objects
 MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${RTMP_OBJS[@]} ${APP_OBJS[@]} ${MAIN_OBJS[@]}"
-LINK_OPTIONS="-ldl"
-if [ $SRS_GPERF = YES ]; then LINK_OPTIONS="${LINK_OPTIONS} -lpthread"; fi
+LINK_OPTIONS="-ldl${SrsGprofLink}${SrsGperfLink}"
 #
 # srs:
 # srs(simple rtmp server) over st(state-threads)
@@ -329,20 +353,30 @@ if [ $SRS_UTEST = YES ]; then
 else
     echo -e "${YELLOW}note: utest for srs are not builded${BLACK}"
 fi
-if [ $SRS_GPERF_MC = YES ]; then
-    echo -e "${GREEN}gmc(gperf memory check) for srs are builded${BLACK}"
+if [ $SRS_GPERF = YES ]; then
+    echo -e "${GREEN}gperf(tcmalloc) for srs are builded${BLACK}"
 else
-    echo -e "${YELLOW}note: gmc(gperf memory check) for srs are not builded${BLACK}"
+    echo -e "${BLACK}note: gperf(tcmalloc) for srs are not builded${BLACK}"
+fi
+if [ $SRS_GPERF_MC = YES ]; then
+    echo -e "${YELLOW}gmc(gperf memory check) for srs are builded -- Performance may suffer${BLACK}"
+else
+    echo -e "${GREEN}note: gmc(gperf memory check) for srs are not builded${BLACK}"
 fi
 if [ $SRS_GPERF_MP = YES ]; then
-    echo -e "${GREEN}gmp(gperf memory profile) for srs are builded${BLACK}"
+    echo -e "${YELLOW}gmp(gperf memory profile) for srs are builded -- Performance may suffer${BLACK}"
 else
-    echo -e "${YELLOW}note: gmp(gperf memory profile) for srs are not builded${BLACK}"
+    echo -e "${GREEN}note: gmp(gperf memory profile) for srs are not builded${BLACK}"
 fi
 if [ $SRS_GPERF_CP = YES ]; then
-    echo -e "${GREEN}gcp(gperf cpu profile) for srs are builded${BLACK}"
+    echo -e "${YELLOW}gcp(gperf cpu profile) for srs are builded -- Performance may suffer${BLACK}"
 else
-    echo -e "${YELLOW}note: gcp(gperf cpu profile) for srs are not builded${BLACK}"
+    echo -e "${GREEN}note: gcp(gperf cpu profile) for srs are not builded${BLACK}"
+fi
+if [ $SRS_GPROF = YES ]; then
+    echo -e "${YELLOW}gprof(GNU profile tool) for srs are builded -- Performance may suffer${BLACK}"
+else
+    echo -e "${GREEN}note: gprof(GNU profile tool) for srs are not builded${BLACK}"
 fi
 
 #####################################################################################

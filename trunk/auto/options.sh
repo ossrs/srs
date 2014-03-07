@@ -21,6 +21,7 @@ SRS_GPERF=RESERVED # tcmalloc
 SRS_GPERF_MC=RESERVED # gperf memory check
 SRS_GPERF_MP=RESERVED # gperf memory profile
 SRS_GPERF_CP=RESERVED # gperf cpu profile
+SRS_GPROF=RESERVED # gprof
 # arguments
 SRS_JOBS=1
 
@@ -35,6 +36,7 @@ SRS_GPERF=NO
 SRS_GPERF_MC=NO
 SRS_GPERF_MP=NO
 SRS_GPERF_CP=NO
+SRS_GPROF=NO
 
 #####################################################################################
 # parse options
@@ -66,6 +68,7 @@ do
         --with-gmc)                     SRS_GPERF_MC=YES          ;;
         --with-gmp)                     SRS_GPERF_MP=YES          ;;
         --with-gcp)                     SRS_GPERF_CP=YES          ;;
+        --with-gprof)                   SRS_GPROF=YES             ;;
         
         --without-ssl)                  SRS_SSL=NO                ;;
         --without-hls)                  SRS_HLS=NO                ;;
@@ -77,6 +80,7 @@ do
         --without-gmc)                  SRS_GPERF_MC=NO           ;;
         --without-gmp)                  SRS_GPERF_MP=NO           ;;
         --without-gcp)                  SRS_GPERF_CP=NO           ;;
+        --without-gprof)                SRS_GPROF=NO              ;;
         
         --jobs)                         SRS_JOBS=${value}         ;;
 
@@ -117,6 +121,7 @@ if [ $help = yes ]; then
   --with-gmc               build memory check for srs with gperf tools.
   --with-gmp               build memory profile for srs with gperf tools.
   --with-gcp               build cpu profile for srs with gperf tools.
+  --with-gprof             build srs with gprof(GNU profile tool).
 
   --without-ssl            disable rtmp complex handshake.
   --without-hls            disable hls, rtmp streaming only.
@@ -128,6 +133,7 @@ if [ $help = yes ]; then
   --without-gmc            do not build memory check for srs with gperf tools.
   --without-gmp            do not build memory profile for srs with gperf tools.
   --without-gcp            do not build cpu profile for srs with gperf tools.
+  --without-gprof          do not build srs with gprof(GNU profile tool).
   
   --jobs[=N]               Allow N jobs at once; infinite jobs with no arg.
                            used for make in the configure, for example, to make ffmpeg.
@@ -163,6 +169,26 @@ if [ $SRS_GPERF_MC = YES ]; then
         __check_ok=NO
     fi
 fi
+# generate the group option: SRS_GPERF
+__gperf_slow=NO
+if [ $SRS_GPERF_MC = YES ]; then
+    SRS_GPERF=YES
+    __gperf_slow=YES
+fi
+if [ $SRS_GPERF_MP = YES ]; then
+    SRS_GPERF=YES
+    __gperf_slow=YES
+fi
+if [ $SRS_GPERF_CP = YES ]; then
+    SRS_GPERF=YES
+    __gperf_slow=YES
+fi
+if [ $__gperf_slow = YES ]; then
+    if [ $SRS_GPROF = YES ]; then
+        echo "gmc/gmp/gcp not compatible with gprof, see: ./configure --help";
+        __check_ok=NO
+    fi
+fi
 # check variable neccessary
 if [ $SRS_SSL = RESERVED ]; then
     echo "you must specifies the ssl, see: ./configure --help";
@@ -188,6 +214,10 @@ if [ $SRS_UTEST = RESERVED ]; then
     echo "you must specifies the utest, see: ./configure --help";
     __check_ok=NO
 fi
+if [ $SRS_GPROF = RESERVED ]; then
+    echo "you must specifies the gprof, see: ./configure --help";
+    __check_ok=NO
+fi
 if [ $SRS_GPERF_MC = RESERVED ]; then
     echo "you must specifies the gperf-mc, see: ./configure --help";
     __check_ok=NO
@@ -202,15 +232,4 @@ if [ $SRS_GPERF_CP = RESERVED ]; then
 fi
 if [ $__check_ok = NO ]; then
     exit 1;
-fi
-
-# generate the group option: SRS_GPERF
-if [ $SRS_GPERF_MC = YES ]; then
-    SRS_GPERF=YES
-fi
-if [ $SRS_GPERF_MP = YES ]; then
-    SRS_GPERF=YES
-fi
-if [ $SRS_GPERF_CP = YES ]; then
-    SRS_GPERF=YES
 fi

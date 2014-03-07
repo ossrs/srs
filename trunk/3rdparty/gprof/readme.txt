@@ -28,3 +28,4 @@ gprof2dot.py:
 备注：
     其实gprof生成的日志就可以看，不一定要图形化。
     也就是dot和gprof2dot都不用执行。
+    参考：http://www.cs.utah.edu/dept/old/texinfo/as/gprof.html
