@@ -104,6 +104,7 @@ default: bandwidth librtmp-sample utest
 	@echo -e "     |${SrsGprofSummaryColor}gprof @see: https://github.com/winlinvip/simple-rtmp-server/wiki/GPROF\$(BLACK)"
 	@echo -e "     |${SrsGprofSummaryColor}gprof: GNU profile tool, @see: http://www.cs.utah.edu/dept/old/texinfo/as/gprof.html\$(BLACK)"
 	@echo -e "     |     ${SrsGprofSummaryColor}rm -f gmon.out; ./objs/srs -c conf/srs.conf # start gprof\$(BLACK)"
+	@echo -e "     |     ${SrsGprofSummaryColor}killall -2 srs # or CTRL+C to stop gprof\$(BLACK)"
 	@echo -e "     |     ${SrsGprofSummaryColor}gprof -b ./objs/srs gmon.out > gprof.srs.log && rm -f gmon.out # gprof report to gprof.srs.log\$(BLACK)"
 	@echo -e "     \$(BLACK)+------------------------------------------------------------------------------------\$(BLACK)"
 	@echo -e "     |${SrsResearchSummaryColor}research: ./objs/research, api server, players, ts info.\$(BLACK)"
