@@ -1030,6 +1030,8 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
         pp[1] = *p++;
         pp[0] = *p++;
         
+		// ffmpeg/librtmp may donot send this filed, need to detect the value.
+		// @see also: http://blog.csdn.net/win_lin/article/details/13363699
         // compare to the chunk timestamp, which is set by chunk message header
         // type 0,1 or 2.
         u_int32_t chunk_timestamp = chunk->header.timestamp;
@@ -1042,8 +1044,6 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
 		srs_verbose("header read ext_time completed. time=%"PRId64"", chunk->header.timestamp);
 	}
 	
-	// ffmpeg/librtmp may donot send this filed, need to detect the value.
-	// @see also: http://blog.csdn.net/win_lin/article/details/13363699
 	// the extended-timestamp must be unsigned-int,
 	// 		24bits timestamp: 0xffffff = 16777215ms = 16777.215s = 4.66h
 	// 		32bits timestamp: 0xffffffff = 4294967295ms = 4294967.295s = 1193.046h = 49.71d
