@@ -21,6 +21,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 /**
+@see: http://google-perftools.googlecode.com/svn/trunk/doc/heapprofile.html
 config srs with gperf(to make gperftools):
     ./configure --with-gperf --jobs=3
 set the pprof path if not set:

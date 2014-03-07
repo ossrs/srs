@@ -21,6 +21,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 /**
+@see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html
 config srs with gperf(to make gperftools):
     ./configure --with-gperf --jobs=3
 set the pprof path if not set:
@@ -56,8 +57,12 @@ void global_leak() {
     global_leak_imp();
 }
 
+bool loop = true;
 void handler(int sig) {
-    exit(0);
+    // we must use signal to notice the main thread to exit normally.
+    if (sig == SIGINT) {
+        loop = false;
+    }
 }
 int main(int argc, char** argv) {
     signal(SIGINT, handler);
@@ -65,10 +70,16 @@ int main(int argc, char** argv) {
     global_leak();
     printf("press CTRL+C if you want to abort the program.\n");
     sleep(3);
+    if (!loop) {
+        return 0;
+    }
     
     explicit_leak();
     printf("press CTRL+C if you want to abort the program.\n");
     sleep(3);
+    if (!loop) {
+        return 0;
+    }
     
     return 0;
 }
