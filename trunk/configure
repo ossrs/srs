@@ -62,6 +62,8 @@ SrsHlsSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_HLS = YES ]; then SrsHlsSu
 SrsSslSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_SSL = YES ]; then SrsSslSummaryColor="\$(GREEN)"; fi
 SrsFfmpegSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_FFMPEG = YES ]; then SrsFfmpegSummaryColor="\$(GREEN)"; fi
 SrsHttpSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_HTTP = YES ]; then SrsHttpSummaryColor="\$(GREEN)"; fi
+SrsLibrtmpSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_LIBRTMP = YES ]; then SrsLibrtmpSummaryColor="\$(GREEN)"; fi
+SrsLibrtmpSSLSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_LIBRTMP = YES ]; then if [ $SRS_SSL = YES ]; then SrsLibrtmpSSLSummaryColor="\$(GREEN)"; fi fi
 SrsResearchSummaryColor="\$(GREEN)(disabled) "; if [ $SRS_RESEARCH = YES ]; then SrsResearchSummaryColor="\$(GREEN)"; fi
 SrsUtestSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_UTEST = YES ]; then SrsUtestSummaryColor="\$(GREEN)"; fi
 SrsGperfSummaryColor="\$(GREEN)(disabled) "; if [ $SRS_GPERF = YES ]; then SrsGperfSummaryColor="\$(GREEN)"; fi
@@ -113,11 +115,11 @@ default: bandwidth librtmp-sample utest
 	@echo -e "     \$(BLACK)+------------------------------------------------------------------------------------\$(BLACK)"
 	@echo -e "     |\$(GREEN)bandwidth: ./objs/bandwidth, the bandwidth test client\$(BLACK)"
 	@echo -e "     \$(BLACK)+------------------------------------------------------------------------------------\$(BLACK)"
-	@echo -e "     |\$(GREEN)librtmp @see: https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLibrtmp\$(BLACK)"
-	@echo -e "     |\$(GREEN)librtmp: ./objs/include, ./objs/lib, the srs-librtmp library\$(BLACK)"
-	@echo -e "     |     \$(GREEN)simple handshake: publish/play stream with simple handshake to server\$(BLACK)"
-	@echo -e "     |     ${SrsSslSummaryColor}complex handshake: it's not required for client, recommend disable it\$(BLACK)"
-	@echo -e "     |     \$(GREEN)librtmp-sample: ./research/librtmp, the srs-librtmp client sample\$(BLACK)"
+	@echo -e "     |${SrsLibrtmpSummaryColor}librtmp @see: https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLibrtmp\$(BLACK)"
+	@echo -e "     |${SrsLibrtmpSummaryColor}librtmp: ./objs/include, ./objs/lib, the srs-librtmp library\$(BLACK)"
+	@echo -e "     |     ${SrsLibrtmpSummaryColor}simple handshake: publish/play stream with simple handshake to server\$(BLACK)"
+	@echo -e "     |     ${SrsLibrtmpSSLSummaryColor}complex handshake: it's not required for client, recommend disable it\$(BLACK)"
+	@echo -e "     |     ${SrsLibrtmpSummaryColor}librtmp-sample: ./research/librtmp, the srs-librtmp client sample\$(BLACK)"
 	@echo -e "     \$(BLACK)+------------------------------------------------------------------------------------\$(BLACK)"
 	@echo -e "     |\$(GREEN)server: ./objs/srs, the srs server\$(BLACK)"
 	@echo -e "     |     ${SrsHlsSummaryColor}hls @see: https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS\$(BLACK)"
@@ -155,6 +157,10 @@ bandwidth: server
 	@echo "build the bandwidth test client tool"
 	\$(MAKE) -f ${SRS_OBJS}/${SRS_MAKEFILE} bandwidth
 
+END
+
+if [ $SRS_LIBRTMP = YES ]; then
+    cat << END >> ${SRS_MAKEFILE}
 librtmp: server
 	@echo "build the client publish/play library."
 	\$(MAKE) -f ${SRS_OBJS}/${SRS_MAKEFILE} librtmp
@@ -164,11 +170,35 @@ librtmp-sample: librtmp
 	(cd research/librtmp; \$(MAKE) ${SrsLibrtmpSampleEntry})
 	@echo "srs-librtmp sample build success"
 
+END
+else
+    cat << END >> ${SRS_MAKEFILE}
+librtmp: server
+	@echo "srs-librtmp is disabled, ignore."
+
+librtmp-sample: librtmp
+	@echo "srs-librtmp sample is disabled, ignore."
+
+END
+fi
+
+if [ $SRS_UTEST = YES ]; then
+    cat << END >> ${SRS_MAKEFILE}
 utest: server
 	@echo "build the utest for srs"
 	${SrsUtestMakeEntry}
 	@echo "utest for srs build success"
 
+END
+else
+    cat << END >> ${SRS_MAKEFILE}
+utest: server
+	@echo "utest is disabled, ignore"
+
+END
+fi
+
+cat << END >> ${SRS_MAKEFILE}
 # the ./configure will generate it.
 _prepare_dir:
 	@mkdir -p ${SRS_OBJS}
@@ -298,9 +328,11 @@ BUILD_KEY="srs" APP_MAIN="srs_main_server" APP_NAME="srs" . auto/apps.sh
 # bandwidth test tool, to test the bandwidth to server
 BUILD_KEY="bandwidth" APP_MAIN="srs_main_bandcheck" APP_NAME="bandwidth" . auto/apps.sh
 #
-# srs librtmp
-MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${RTMP_OBJS[@]} ${LIBS_OBJS[@]}"
-BUILD_KEY="librtmp" LIB_NAME="lib/srs_librtmp" . auto/libs.sh
+if [ $SRS_LIBRTMP = YES ]; then
+    # srs librtmp
+    MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${RTMP_OBJS[@]} ${LIBS_OBJS[@]}"
+    BUILD_KEY="librtmp" LIB_NAME="lib/srs_librtmp" . auto/libs.sh
+fi
 #
 # utest, the unit-test cases of srs, base on gtest1.6
 MODULE_FILES=("srs_utest")
@@ -344,6 +376,11 @@ if [ $SRS_HTTP = YES ]; then
 else
     echo -e "${YELLOW}warning: without http hooks callback over CherryPy support${BLACK}"
 fi
+if [ $SRS_LIBRTMP = YES ]; then
+    echo -e "${GREEN}srs-librtmp for client is enabled${BLACK}"
+else
+    echo -e "${YELLOW}note: srs-librtmp for client is disabled${BLACK}"
+fi
 if [ $SRS_RESEARCH = YES ]; then
     echo -e "${GREEN}research tools are builded${BLACK}"
 else
@@ -357,7 +394,7 @@ fi
 if [ $SRS_GPERF = YES ]; then
     echo -e "${GREEN}gperf(tcmalloc) for srs are builded${BLACK}"
 else
-    echo -e "${BLACK}note: gperf(tcmalloc) for srs are not builded${BLACK}"
+    echo -e "${GREEN}note: gperf(tcmalloc) for srs are not builded${BLACK}"
 fi
 if [ $SRS_GPERF_MC = YES ]; then
     echo -e "${YELLOW}gmc(gperf memory check) for srs are builded -- Performance may suffer${BLACK}"
