@@ -16,6 +16,7 @@ SRS_SSL=RESERVED
 SRS_FFMPEG=RESERVED
 SRS_HTTP=RESERVED
 SRS_LIBRTMP=RESERVED # srs-librtmp
+SRS_BWTC=RESERVED # srs-bandwidth-test client
 SRS_RESEARCH=RESERVED
 SRS_UTEST=RESERVED
 SRS_GPERF=RESERVED # tcmalloc
@@ -32,6 +33,7 @@ SRS_SSL=YES
 SRS_FFMPEG=YES
 SRS_HTTP=YES
 SRS_LIBRTMP=YES
+SRS_BWTC=YES
 SRS_RESEARCH=NO
 SRS_UTEST=YES
 SRS_GPERF=NO
@@ -65,6 +67,7 @@ do
         --with-ffmpeg)                  SRS_FFMPEG=YES            ;;
         --with-http)                    SRS_HTTP=YES              ;;
         --with-librtmp)                 SRS_LIBRTMP=YES           ;;
+        --with-bwtc)                    SRS_BWTC=YES              ;;
         --with-research)                SRS_RESEARCH=YES          ;;
         --with-utest)                   SRS_UTEST=YES             ;;
         --with-gperf)                   SRS_GPERF=YES             ;;
@@ -78,6 +81,7 @@ do
         --without-ffmpeg)               SRS_FFMPEG=NO             ;;
         --without-http)                 SRS_HTTP=NO               ;;
         --without-librtmp)              SRS_LIBRTMP=NO            ;;
+        --without-bwtc)                 SRS_BWTC=NO               ;;
         --without-research)             SRS_RESEARCH=NO           ;;
         --without-utest)                SRS_UTEST=NO              ;;
         --without-gperf)                SRS_GPERF=NO              ;;
@@ -120,6 +124,7 @@ if [ $help = yes ]; then
                            srs will call the http hooks, such as: on_connect.
   --with-ffmpeg            enable transcoding with ffmpeg.
   --with-librtmp           enable srs-librtmp, library for client.
+  --with-bwtc              enable srs bandwidth test client tool.
   --with-research          build the research tools.
   --with-utest             build the utest for srs.
   --with-gperf             build srs with gperf tools(no gmc/gmp/gcp, with tcmalloc only).
@@ -133,6 +138,7 @@ if [ $help = yes ]; then
   --without-http           disable http, http hooks callback.
   --without-ffmpeg         disable the ffmpeg transcoding feature.
   --without-librtmp        disable srs-librtmp, library for client.
+  --without-bwtc           disable srs bandwidth test client tool.
   --without-research       do not build the research tools.
   --without-utest          do not build the utest for srs.
   --without-gperf          do not build srs with gperf tools(without tcmalloc and gmc/gmp/gcp).
@@ -238,6 +244,10 @@ if [ $SRS_GPERF_CP = RESERVED ]; then
 fi
 if [ $SRS_LIBRTMP = RESERVED ]; then
     echo "you must specifies the librtmp, see: ./configure --help";
+    __check_ok=NO
+fi
+if [ $SRS_BWTC = RESERVED ]; then
+    echo "you must specifies the bwtc, see: ./configure --help";
     __check_ok=NO
 fi
 if [ $__check_ok = NO ]; then
