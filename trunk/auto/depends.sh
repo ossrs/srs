@@ -451,12 +451,21 @@ fi
 
 if [ $SRS_GPERF = YES ]; then
     echo "#define SRS_GPERF" >> $SRS_AUTO_HEADERS_H
-    #echo "#define SRS_GPERF_CPU_PROFILE" >> $SRS_AUTO_HEADERS_H
-    #echo "#define SRS_GPERF_HEAP_PROFILE" >> $SRS_AUTO_HEADERS_H
-    echo "#define SRS_GPERF_HEAP_CHECK" >> $SRS_AUTO_HEADERS_H
 else
     echo "#undef SRS_GPERF" >> $SRS_AUTO_HEADERS_H
-    echo "#undef SRS_GPERF_CPU_PROFILE" >> $SRS_AUTO_HEADERS_H
-    echo "#undef SRS_GPERF_HEAP_PROFILE" >> $SRS_AUTO_HEADERS_H
-    echo "#undef SRS_GPERF_HEAP_CHECK" >> $SRS_AUTO_HEADERS_H
+fi
+if [ $SRS_GPERF_MC = YES ]; then
+    echo "#define SRS_GPERF_MC" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_GPERF_MC" >> $SRS_AUTO_HEADERS_H
+fi
+if [ $SRS_GPERF_MP = YES ]; then
+    echo "#define SRS_GPERF_MP" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_GPERF_MP" >> $SRS_AUTO_HEADERS_H
+fi
+if [ $SRS_GPERF_CP = YES ]; then
+    echo "#define SRS_GPERF_CP" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_GPERF_CP" >> $SRS_AUTO_HEADERS_H
 fi

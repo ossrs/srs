@@ -73,6 +73,7 @@ private:
 	std::vector<SrsConnection*> conns;
 	std::vector<SrsListener*> listeners;
 	bool signal_reload;
+	bool signal_gmc_stop;
 public:
 	SrsServer();
 	virtual ~SrsServer();

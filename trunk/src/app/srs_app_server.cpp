@@ -150,6 +150,7 @@ int SrsListener::cycle()
 SrsServer::SrsServer()
 {
 	signal_reload = false;
+	signal_gmc_stop = false;
 	
 	srs_assert(_srs_config);
 	_srs_config->subscribe(this);
@@ -232,15 +233,18 @@ int SrsServer::cycle()
 		st_usleep(SRS_TIME_RESOLUTION_MS * 1000);
 		srs_update_system_time_ms();
 		
-		if (signal_reload) {
 // for gperf heap checker,
 // @see: research/gperftools/heap-checker/heap_checker.cc
 // if user interrupt the program, exit to check mem leak.
-// but, if gperf, use reload to terminate the server,
-// for the SIGINT will cause core-dump.
-#ifdef SRS_GPERF
+// but, if gperf, use reload to ensure main return normally,
+// because directly exit will cause core-dump.
+#ifdef SRS_GPERF_MC
+		if (signal_gmc_stop) {
 			break;
+		}
 #endif
+		
+		if (signal_reload) {
 			signal_reload = false;
 			srs_info("get signal reload, to reload the config.");
 			
@@ -274,7 +278,16 @@ void SrsServer::on_signal(int signo)
 {
 	if (signo == SIGNAL_RELOAD) {
 		signal_reload = true;
+		return;
 	}
+	
+#ifdef SRS_GPERF_MC
+	if (signo == SIGINT) {
+		srs_trace("gmc is on, main cycle will terminate normally.");
+		signal_gmc_stop = true;
+		return;
+	}
+#endif
 
 	// TODO: handle the SIGINT, SIGTERM.
 }

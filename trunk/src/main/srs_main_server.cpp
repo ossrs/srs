@@ -53,10 +53,6 @@ void handler(int signo)
 int main(int argc, char** argv) 
 {
 	int ret = ERROR_SUCCESS;
-	
-#ifdef SRS_GPERF_HEAP_CHECK
-	// env HEAPCHECK=normal ./objs/srs -c srs.conf
-#endif
 
 #ifdef SRS_GPERF_HEAP_PROFILE
     HeapProfilerStart("gperf.srs");
@@ -66,6 +62,7 @@ int main(int argc, char** argv)
 #endif
 	
 	signal(SIGNAL_RELOAD, handler);
+	signal(SIGINT, handler);
 	
 	if ((ret = _srs_config->parse_options(argc, argv)) != ERROR_SUCCESS) {
 		return ret;
