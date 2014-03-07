@@ -66,6 +66,7 @@ SrsResearchSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_RESEARCH = YES ]; the
 SrsUtestSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_UTEST = YES ]; then SrsUtestSummaryColor="\$(GREEN)"; fi
 SrsGperfSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_GPERF = YES ]; then SrsGperfSummaryColor="\$(GREEN)"; fi
 SrsGperfMCSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_GPERF_MC = YES ]; then SrsGperfMCSummaryColor="\$(GREEN)"; fi
+SrsGperfMPSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_GPERF_MP = YES ]; then SrsGperfMPSummaryColor="\$(GREEN)"; fi
 
 #####################################################################################
 # makefile
@@ -95,8 +96,11 @@ default: bandwidth librtmp-sample utest
 	@echo -e "     ${SrsUtestSummaryColor}utest: ./objs/srs_utest, the utest for srs\$(BLACK)"
 	@echo -e "     ${SrsGperfSummaryColor}gperf: gmc/gmp/gcp for srs, @see: \$(BLACK)"
 	@echo -e "          ${SrsGperfMCSummaryColor}gmc: gperf memory check, @see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html\$(BLACK)"
-	@echo -e "          ${SrsGperfMCSummaryColor}env PPROF_PATH=./objs/pprof HEAPCHECK=normal ./objs/srs -c conf/srs.conf # start gmc\$(BLACK)"
-	@echo -e "          ${SrsGperfMCSummaryColor}killall -2 srs # or CTRL+C to stop gmc\$(BLACK)"
+	@echo -e "                  ${SrsGperfMCSummaryColor}env PPROF_PATH=./objs/pprof HEAPCHECK=normal ./objs/srs -c conf/srs.conf # start gmc\$(BLACK)"
+	@echo -e "                  ${SrsGperfMCSummaryColor}killall -2 srs # or CTRL+C to stop gmc\$(BLACK)"
+	@echo -e "          ${SrsGperfMPSummaryColor}gmc: gperf memory profile, @see: http://google-perftools.googlecode.com/svn/trunk/doc/heapprofile.html\$(BLACK)"
+	@echo -e "                  ${SrsGperfMPSummaryColor}env PPROF_PATH=./objs/pprof HEAPCHECK=normal ./objs/srs -c conf/srs.conf # start gmc\$(BLACK)"
+	@echo -e "                  ${SrsGperfMPSummaryColor}killall -2 srs # or CTRL+C to stop gmc\$(BLACK)"
 	@echo -e "\$(GREEN)binaries @see: https://github.com/winlinvip/simple-rtmp-server/wiki/Build\$(BLACK)"
 
 help:

@@ -52,12 +52,7 @@ void memory_alloc_profile() {
     memory_alloc_profile_imp();
 }
 
-void handler(int sig) {
-    exit(0);
-}
 int main(int argc, char** argv) {
-    signal(SIGINT, handler);
-    
     // must start profiler manually.
     HeapProfilerStart(NULL);
     

@@ -17,10 +17,10 @@ SRS_FFMPEG=RESERVED
 SRS_HTTP=RESERVED
 SRS_RESEARCH=RESERVED
 SRS_UTEST=RESERVED
-SRS_GPERF=RESERVED
-SRS_GPERF_MC=RESERVED
-SRS_GPERF_MP=RESERVED
-SRS_GPERF_CP=RESERVED
+SRS_GPERF=RESERVED # tcmalloc
+SRS_GPERF_MC=RESERVED # gperf memory check
+SRS_GPERF_MP=RESERVED # gperf memory profile
+SRS_GPERF_CP=RESERVED # gperf cpu profile
 # arguments
 SRS_JOBS=1
 
@@ -31,6 +31,7 @@ SRS_FFMPEG=YES
 SRS_HTTP=YES
 SRS_RESEARCH=NO
 SRS_UTEST=YES
+SRS_GPERF=NO
 SRS_GPERF_MC=NO
 SRS_GPERF_MP=NO
 SRS_GPERF_CP=NO
@@ -61,6 +62,7 @@ do
         --with-http)                    SRS_HTTP=YES              ;;
         --with-research)                SRS_RESEARCH=YES          ;;
         --with-utest)                   SRS_UTEST=YES             ;;
+        --with-gperf)                   SRS_GPERF=YES             ;;
         --with-gmc)                     SRS_GPERF_MC=YES          ;;
         --with-gmp)                     SRS_GPERF_MP=YES          ;;
         --with-gcp)                     SRS_GPERF_CP=YES          ;;
@@ -71,6 +73,7 @@ do
         --without-http)                 SRS_HTTP=NO               ;;
         --without-research)             SRS_RESEARCH=NO           ;;
         --without-utest)                SRS_UTEST=NO              ;;
+        --without-gperf)                SRS_GPERF=NO              ;;
         --without-gmc)                  SRS_GPERF_MC=NO           ;;
         --without-gmp)                  SRS_GPERF_MP=NO           ;;
         --without-gcp)                  SRS_GPERF_CP=NO           ;;
@@ -110,6 +113,7 @@ if [ $help = yes ]; then
   --with-ffmpeg            enable transcoding with ffmpeg.
   --with-research          build the research tools.
   --with-utest             build the utest for srs.
+  --with-gperf             build srs with gperf tools(no gmc/gmp/gcp, with tcmalloc only).
   --with-gmc               build memory check for srs with gperf tools.
 
   --without-ssl            disable rtmp complex handshake.
@@ -118,6 +122,7 @@ if [ $help = yes ]; then
   --without-ffmpeg         disable the ffmpeg transcoding feature.
   --without-research       do not build the research tools.
   --without-utest          do not build the utest for srs.
+  --without-gperf          do not build srs with gperf tools(without tcmalloc and gmc/gmp/gcp).
   --without-gmc            do not build memory check for srs with gperf tools.
   
   --jobs[=N]               Allow N jobs at once; infinite jobs with no arg.
@@ -131,6 +136,22 @@ fi
 # check user options
 #####################################################################################
 __check_ok=YES
+# check conflict
+if [ $SRS_GPERF = NO ]; then
+    if [ $SRS_GPERF_MC = YES ]; then
+        echo "gperf-mc depends on gperf, see: ./configure --help";
+        __check_ok=NO
+    fi
+    if [ $SRS_GPERF_MP = YES ]; then
+        echo "gperf-mp depends on gperf, see: ./configure --help";
+        __check_ok=NO
+    fi
+    if [ $SRS_GPERF_CP = YES ]; then
+        echo "gperf-cp depends on gperf, see: ./configure --help";
+        __check_ok=NO
+    fi
+fi
+# check variable neccessary
 if [ $SRS_SSL = RESERVED ]; then
     echo "you must specifies the ssl, see: ./configure --help";
     __check_ok=NO
