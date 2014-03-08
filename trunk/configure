@@ -64,7 +64,7 @@ SrsFfmpegSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_FFMPEG = YES ]; then Sr
 SrsHttpSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_HTTP = YES ]; then SrsHttpSummaryColor="\$(GREEN)"; fi
 SrsLibrtmpSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_LIBRTMP = YES ]; then SrsLibrtmpSummaryColor="\$(GREEN)"; fi
 SrsLibrtmpSSLSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_LIBRTMP = YES ]; then if [ $SRS_SSL = YES ]; then SrsLibrtmpSSLSummaryColor="\$(GREEN)"; fi fi
-SrsBWTCSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_BWTC = YES ]; then SrsBWTCSummaryColor="\$(GREEN)"; fi
+SrsBWTCSummaryColor="\$(GREEN)(disabled) "; if [ $SRS_BWTC = YES ]; then SrsBWTCSummaryColor="\$(GREEN)"; fi
 SrsResearchSummaryColor="\$(GREEN)(disabled) "; if [ $SRS_RESEARCH = YES ]; then SrsResearchSummaryColor="\$(GREEN)"; fi
 SrsUtestSummaryColor="\$(YELLOW)(disabled) "; if [ $SRS_UTEST = YES ]; then SrsUtestSummaryColor="\$(GREEN)"; fi
 SrsGperfSummaryColor="\$(GREEN)(disabled) "; if [ $SRS_GPERF = YES ]; then SrsGperfSummaryColor="\$(GREEN)"; fi
@@ -369,6 +369,7 @@ mkdir -p ${SRS_OBJS}/logs
 # summary
 echo ""
 echo "configure summary:"
+echo "      ${SRS_CONFIGURE}"
 if [ $SRS_HLS = YES ]; then
     echo -e "${GREEN}HLS over nginx is enabled${BLACK}"
 else
@@ -397,12 +398,12 @@ fi
 if [ $SRS_BWTC = YES ]; then
     echo -e "${GREEN}srs bandwidth test client is enabled${BLACK}"
 else
-    echo -e "${YELLOW}note: srs bandwidth test client is disabled${BLACK}"
+    echo -e "${GREEN}note: srs bandwidth test client is disabled${BLACK}"
 fi
 if [ $SRS_RESEARCH = YES ]; then
     echo -e "${GREEN}research tools are builded${BLACK}"
 else
-    echo -e "${YELLOW}note: research tools are not builded${BLACK}"
+    echo -e "${GREEN}note: research tools are not builded${BLACK}"
 fi
 if [ $SRS_UTEST = YES ]; then
     echo -e "${GREEN}utest for srs are builded${BLACK}"
