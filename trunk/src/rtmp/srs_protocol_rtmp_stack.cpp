@@ -1828,8 +1828,8 @@ SrsConnectAppResPacket::SrsConnectAppResPacket()
 	transaction_id = 1;
 	// TODO: FIXME: memory leak for decode will set the props and info.
 	// TODO: FIXME: bug#22, refine the amf0.
-	props = new SrsAmf0Object();
-	info = new SrsAmf0Object();
+	props = SrsAmf0Any::object();
+	info = SrsAmf0Any::object();
 }
 
 SrsConnectAppResPacket::~SrsConnectAppResPacket()
@@ -2718,7 +2718,7 @@ SrsPlayResPacket::SrsPlayResPacket()
 	command_name = RTMP_AMF0_COMMAND_RESULT;
 	transaction_id = 0;
 	command_object = SrsAmf0Any::null();
-	desc = new SrsAmf0Object();
+	desc = SrsAmf0Any::object();
 }
 
 SrsPlayResPacket::~SrsPlayResPacket()
@@ -2837,7 +2837,7 @@ SrsOnStatusCallPacket::SrsOnStatusCallPacket()
 	command_name = RTMP_AMF0_COMMAND_ON_STATUS;
 	transaction_id = 0;
 	args = SrsAmf0Any::null();
-	data = new SrsAmf0Object();
+	data = SrsAmf0Any::object();
 }
 
 SrsOnStatusCallPacket::~SrsOnStatusCallPacket()
@@ -2900,7 +2900,7 @@ SrsBandwidthPacket::SrsBandwidthPacket()
 	command_name = RTMP_AMF0_COMMAND_ON_STATUS;
 	transaction_id = 0;
 	args = SrsAmf0Any::null();
-	data = new SrsAmf0Object();
+	data = SrsAmf0Any::object();
 }
 
 SrsBandwidthPacket::~SrsBandwidthPacket()
@@ -3055,7 +3055,7 @@ SrsBandwidthPacket* SrsBandwidthPacket::set_command(string command)
 SrsOnStatusDataPacket::SrsOnStatusDataPacket()
 {
 	command_name = RTMP_AMF0_COMMAND_ON_STATUS;
-	data = new SrsAmf0Object();
+	data = SrsAmf0Any::object();
 }
 
 SrsOnStatusDataPacket::~SrsOnStatusDataPacket()
@@ -3156,7 +3156,7 @@ int SrsSampleAccessPacket::encode_packet(SrsStream* stream)
 SrsOnMetaDataPacket::SrsOnMetaDataPacket()
 {
 	name = RTMP_AMF0_DATA_ON_METADATA;
-	metadata = new SrsAmf0Object();
+	metadata = SrsAmf0Any::object();
 }
 
 SrsOnMetaDataPacket::~SrsOnMetaDataPacket()
@@ -3190,27 +3190,27 @@ int SrsOnMetaDataPacket::decode(SrsStream* stream)
 		return ret;
 	}
 	
-	if (any && any->is_object()) {
+	srs_assert(any);
+	if (any->is_object()) {
 		srs_freep(metadata);
-		metadata = dynamic_cast<SrsAmf0Object*>(any);
+		metadata = any->to_object();
 		srs_info("decode metadata object success");
 		return ret;
 	}
 	
-	SrsAmf0EcmaArray* arr = dynamic_cast<SrsAmf0EcmaArray*>(any);
-	if (!arr) {
-		ret = ERROR_RTMP_AMF0_DECODE;
-		srs_error("decode metadata array failed. ret=%d", ret);
-		return ret;
-	}
+	SrsAutoFree(SrsAmf0Any, any, false);
 	
-	// if ecma array, copy to object.
-	SrsAutoFree(SrsAmf0EcmaArray, arr, false);
-	for (int i = 0; i < arr->size(); i++) {
-		metadata->set(arr->key_at(i), arr->value_at(i));
+	if (any->is_ecma_array()) {
+		SrsAmf0EcmaArray* arr = any->to_array();
+	
+		// if ecma array, copy to object.
+		for (int i = 0; i < arr->size(); i++) {
+			metadata->set(arr->key_at(i), arr->value_at(i));
+		}
+		
+		arr->clear();
+		srs_info("decode metadata array success");
 	}
-	arr->clear();
-	srs_info("decode metadata array success");
 	
 	return ret;
 }

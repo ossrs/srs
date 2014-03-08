@@ -279,7 +279,7 @@ int SrsRtmpClient::connect_app(string app, string tc_url)
 		SrsConnectAppPacket* pkt = new SrsConnectAppPacket();
 		msg->set_packet(pkt, 0);
 		
-		pkt->command_object = new SrsAmf0Object();
+		pkt->command_object = SrsAmf0Any::object();
 		pkt->command_object->set("app", SrsAmf0Any::str(app.c_str()));
 		pkt->command_object->set("swfUrl", SrsAmf0Any::str());
 		pkt->command_object->set("tcUrl", SrsAmf0Any::str(tc_url.c_str()));
@@ -706,7 +706,7 @@ int SrsRtmpServer::response_connect_app(SrsRequest *req, const char* server_ip)
 	pkt->info->set(StatusCode, SrsAmf0Any::str(StatusCodeConnectSuccess));
 	pkt->info->set(StatusDescription, SrsAmf0Any::str("Connection succeeded"));
 	pkt->info->set("objectEncoding", SrsAmf0Any::number(req->objectEncoding));
-	SrsAmf0EcmaArray* data = new SrsAmf0EcmaArray();
+	SrsAmf0EcmaArray* data = SrsAmf0Any::array();
 	pkt->info->set("data", data);
 	
 	data->set("version", SrsAmf0Any::str(RTMP_SIG_FMS_VER));

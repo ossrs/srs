@@ -36,6 +36,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsStream;
 class SrsAmf0Object;
 class SrsAmf0EcmaArray;
+class __SrsUnSortedHashtable;
+class __SrsAmf0ObjectEOF;
 
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
@@ -46,21 +48,20 @@ class SrsAmf0EcmaArray;
 //		if ((ret = srs_amf0_read_any(stream, &pany)) != ERROR_SUCCESS) {
 //			return ret;
 // 		}
+//		srs_assert(pany); // if success, always valid object.
 // 2. SrsAmf0Any: convert to specifid type, for instance, string
 //		SrsAmf0Any* pany = ...
-//		if (pany && pany->is_string()) {
+//		if (pany->is_string()) {
 //			string v = pany->to_str();
 //		}
 // 3. SrsAmf0Any: parse specified type to any, for instance, string
 //		SrsAmf0Any* pany = SrsAmf0Any::str("winlin");
 // 4. SrsAmf0Size: get amf0 instance size
 //		int size = SrsAmf0Size::str("winlin");
-// 5. SrsAmf0Object: the amf0 object, directly new is ok.
+// 5. SrsAmf0Object: the amf0 object.
 //		SrsAmf0Object* obj = SrsAmf0Any::object();
-//		SrsAmf0Object* obj = new SrsAmf0Object();
-// 5. SrsAmf0EcmaArray: the amf0 ecma array, directly new is ok.
+// 5. SrsAmf0EcmaArray: the amf0 ecma array.
 //		SrsAmf0EcmaArray* arr = SrsAmf0Any::array();
-//		SrsAmf0EcmaArray* arr = new SrsAmf0EcmaArray();
 // for detail usage, see interfaces of each object.
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
@@ -106,6 +107,16 @@ public:
 	* user must ensure the type is a number, or assert failed.
 	*/
 	virtual double to_number();
+	/**
+	* get the object of any when is_object() indicates true.
+	* user must ensure the type is a object, or assert failed.
+	*/
+	virtual SrsAmf0Object* to_object();
+	/**
+	* get the ecma array of any when is_ecma_array() indicates true.
+	* user must ensure the type is a ecma array, or assert failed.
+	*/
+	virtual SrsAmf0EcmaArray* to_array();
 public:
 	/**
 	* get the size of amf0 any, including the marker size.
@@ -130,50 +141,6 @@ public:
 };
 
 /**
-* to ensure in inserted order.
-* for the FMLE will crash when AMF0Object is not ordered by inserted,
-* if ordered in map, the string compare order, the FMLE will creash when
-* get the response of connect app.
-*/
-class __SrsUnSortedHashtable
-{
-private:
-	typedef std::pair<std::string, SrsAmf0Any*> SrsObjectPropertyType;
-	std::vector<SrsObjectPropertyType> properties;
-public:
-	__SrsUnSortedHashtable();
-	virtual ~__SrsUnSortedHashtable();
-	
-	virtual int size();
-	virtual void clear();
-	virtual std::string key_at(int index);
-	virtual SrsAmf0Any* value_at(int index);
-	virtual void set(std::string key, SrsAmf0Any* value);
-	
-	virtual SrsAmf0Any* get_property(std::string name);
-	virtual SrsAmf0Any* ensure_property_string(std::string name);
-	virtual SrsAmf0Any* ensure_property_number(std::string name);
-};
-
-/**
-* 2.11 Object End Type
-* object-end-type = UTF-8-empty object-end-marker
-* 0x00 0x00 0x09
-*/
-class __SrsAmf0ObjectEOF : public SrsAmf0Any
-{
-public:
-	int16_t utf8_empty;
-
-	__SrsAmf0ObjectEOF();
-	virtual ~__SrsAmf0ObjectEOF();
-	
-	virtual int size();
-	virtual int read(SrsStream* stream);
-	virtual int write(SrsStream* stream);
-};
-
-/**
 * 2.5 Object Type
 * anonymous-object-type = object-marker *(object-property)
 * object-property = (UTF-8 value-type) | (UTF-8-empty object-end-marker)
@@ -181,11 +148,14 @@ public:
 class SrsAmf0Object : public SrsAmf0Any
 {
 private:
-	__SrsUnSortedHashtable properties;
-public:
-	__SrsAmf0ObjectEOF eof;
+	__SrsUnSortedHashtable* properties;
+	__SrsAmf0ObjectEOF* eof;
 
+private:
+	// use SrsAmf0Any::object() to create it.
+	friend class SrsAmf0Any;
 	SrsAmf0Object();
+public:
 	virtual ~SrsAmf0Object();
 
 	virtual int read(SrsStream* stream);
@@ -210,12 +180,15 @@ public:
 class SrsAmf0EcmaArray : public SrsAmf0Any
 {
 private:
-	__SrsUnSortedHashtable properties;
-public:
+	__SrsUnSortedHashtable* properties;
+	__SrsAmf0ObjectEOF* eof;
 	int32_t count;
-	__SrsAmf0ObjectEOF eof;
 
+private:
+	// use SrsAmf0Any::array() to create it.
+	friend class SrsAmf0Any;
 	SrsAmf0EcmaArray();
+public:
 	virtual ~SrsAmf0EcmaArray();
 
 	virtual int read(SrsStream* stream);
@@ -250,98 +223,9 @@ public:
 };
 
 /**
-* read amf0 string from stream.
-* 2.4 String Type
-* string-type = string-marker UTF-8
-* @return default value is empty string.
-* @remark: use SrsAmf0Any::str() to create it.
-*/
-class __SrsAmf0String : public SrsAmf0Any
-{
-public:
-	std::string value;
-
-	__SrsAmf0String(const char* _value = NULL);
-	virtual ~__SrsAmf0String();
-	
-	virtual int size();
-	virtual int read(SrsStream* stream);
-	virtual int write(SrsStream* stream);
-};
-
-/**
-* read amf0 boolean from stream.
-* 2.4 String Type
-* boolean-type = boolean-marker U8
-* 		0 is false, <> 0 is true
-* @return default value is false.
-*/
-class __SrsAmf0Boolean : public SrsAmf0Any
-{
-public:
-	bool value;
-
-	__SrsAmf0Boolean(bool _value = false);
-	virtual ~__SrsAmf0Boolean();
-	
-	virtual int size();
-	virtual int read(SrsStream* stream);
-	virtual int write(SrsStream* stream);
-};
-
-/**
-* read amf0 number from stream.
-* 2.2 Number Type
-* number-type = number-marker DOUBLE
-* @return default value is 0.
-*/
-class __SrsAmf0Number : public SrsAmf0Any
-{
-public:
-	double value;
-
-	__SrsAmf0Number(double _value = 0.0);
-	virtual ~__SrsAmf0Number();
-	
-	virtual int size();
-	virtual int read(SrsStream* stream);
-	virtual int write(SrsStream* stream);
-};
-
-/**
-* read amf0 null from stream.
-* 2.7 null Type
-* null-type = null-marker
-*/
-class __SrsAmf0Null : public SrsAmf0Any
-{
-public:
-	__SrsAmf0Null();
-	virtual ~__SrsAmf0Null();
-	
-	virtual int size();
-	virtual int read(SrsStream* stream);
-	virtual int write(SrsStream* stream);
-};
-
-/**
-* read amf0 undefined from stream.
-* 2.8 undefined Type
-* undefined-type = undefined-marker
-*/
-class __SrsAmf0Undefined : public SrsAmf0Any
-{
-public:
-	__SrsAmf0Undefined();
-	virtual ~__SrsAmf0Undefined();
-	
-	virtual int size();
-	virtual int read(SrsStream* stream);
-	virtual int write(SrsStream* stream);
-};
-
-/**
 * read anything from stream.
+* @param ppvalue, the output amf0 any elem.
+* 		NULL if error; otherwise, never NULL and user must free it.
 */
 extern int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any** ppvalue);
 
