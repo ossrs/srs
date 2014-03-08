@@ -176,9 +176,19 @@ SrsAmf0Any* SrsAmf0Any::undefined()
 	return new __SrsAmf0Undefined();
 }
 
+SrsAmf0Object* SrsAmf0Any::object()
+{
+	return new SrsAmf0Object();
+}
+
 SrsAmf0Any* SrsAmf0Any::object_eof()
 {
 	return new __SrsAmf0ObjectEOF();
+}
+
+SrsAmf0EcmaArray* SrsAmf0Any::array()
+{
+	return new SrsAmf0EcmaArray();
 }
 
 __SrsUnSortedHashtable::__SrsUnSortedHashtable()

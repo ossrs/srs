@@ -34,6 +34,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 
 class SrsStream;
+class SrsAmf0Object;
+class SrsAmf0EcmaArray;
 
 /**
 * any amf0 value.
@@ -91,7 +93,9 @@ public:
 	static SrsAmf0Any* number(double value = 0.0);
 	static SrsAmf0Any* null();
 	static SrsAmf0Any* undefined();
+	static SrsAmf0Object* object();
 	static SrsAmf0Any* object_eof();
+	static SrsAmf0EcmaArray* array();
 };
 
 /**
