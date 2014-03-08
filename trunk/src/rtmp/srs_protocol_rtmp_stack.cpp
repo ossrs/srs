@@ -1957,7 +1957,7 @@ SrsCreateStreamPacket::SrsCreateStreamPacket()
 {
 	command_name = RTMP_AMF0_COMMAND_CREATE_STREAM;
 	transaction_id = 2;
-	command_object = new SrsAmf0Null();
+	command_object = SrsAmf0Any::null();
 }
 
 SrsCreateStreamPacket::~SrsCreateStreamPacket()
@@ -2042,7 +2042,7 @@ SrsCreateStreamResPacket::SrsCreateStreamResPacket(double _transaction_id, doubl
 {
 	command_name = RTMP_AMF0_COMMAND_RESULT;
 	transaction_id = _transaction_id;
-	command_object = new SrsAmf0Null();
+	command_object = SrsAmf0Any::null();
 	stream_id = _stream_id;
 }
 
@@ -2140,7 +2140,7 @@ SrsCloseStreamPacket::SrsCloseStreamPacket()
 {
     command_name = RTMP_AMF0_COMMAND_CLOSE_STREAM;
     transaction_id = 0;
-    command_object = new SrsAmf0Null();
+    command_object = SrsAmf0Any::null();
 }
 
 SrsCloseStreamPacket::~SrsCloseStreamPacket()
@@ -2175,7 +2175,7 @@ SrsFMLEStartPacket::SrsFMLEStartPacket()
 {
 	command_name = RTMP_AMF0_COMMAND_RELEASE_STREAM;
 	transaction_id = 0;
-	command_object = new SrsAmf0Null();
+	command_object = SrsAmf0Any::null();
 }
 
 SrsFMLEStartPacket::~SrsFMLEStartPacket()
@@ -2298,8 +2298,8 @@ SrsFMLEStartResPacket::SrsFMLEStartResPacket(double _transaction_id)
 {
 	command_name = RTMP_AMF0_COMMAND_RESULT;
 	transaction_id = _transaction_id;
-	command_object = new SrsAmf0Null();
-	args = new SrsAmf0Undefined();
+	command_object = SrsAmf0Any::null();
+	args = SrsAmf0Any::undefined();
 }
 
 SrsFMLEStartResPacket::~SrsFMLEStartResPacket()
@@ -2397,7 +2397,7 @@ SrsPublishPacket::SrsPublishPacket()
 {
 	command_name = RTMP_AMF0_COMMAND_PUBLISH;
 	transaction_id = 0;
-	command_object = new SrsAmf0Null();
+	command_object = SrsAmf0Any::null();
 	type = "live";
 }
 
@@ -2506,7 +2506,7 @@ SrsPausePacket::SrsPausePacket()
 {
 	command_name = RTMP_AMF0_COMMAND_PAUSE;
 	transaction_id = 0;
-	command_object = new SrsAmf0Null();
+	command_object = SrsAmf0Any::null();
 
 	time_ms = 0;
 	is_pause = true;
@@ -2561,7 +2561,7 @@ SrsPlayPacket::SrsPlayPacket()
 {
 	command_name = RTMP_AMF0_COMMAND_PLAY;
 	transaction_id = 0;
-	command_object = new SrsAmf0Null();
+	command_object = SrsAmf0Any::null();
 
 	start = -2;
 	duration = -1;
@@ -2630,7 +2630,7 @@ int SrsPlayPacket::decode(SrsStream* stream)
     if (reset_value->is_boolean()) {
         reset = reset_value->to_boolean();
     } else if (reset_value->is_number()) {
-        reset = (srs_amf0_convert<SrsAmf0Number>(reset_value)->value == 0 ? false : true);
+        reset = (reset_value->to_number() == 0 ? false : true);
     } else {
         ret = ERROR_RTMP_AMF0_DECODE;
         srs_error("amf0 invalid type=%#x, requires number or bool, ret=%d", reset_value->marker, ret);
@@ -2715,7 +2715,7 @@ SrsPlayResPacket::SrsPlayResPacket()
 {
 	command_name = RTMP_AMF0_COMMAND_RESULT;
 	transaction_id = 0;
-	command_object = new SrsAmf0Null();
+	command_object = SrsAmf0Any::null();
 	desc = new SrsAmf0Object();
 }
 
@@ -2779,7 +2779,7 @@ SrsOnBWDonePacket::SrsOnBWDonePacket()
 {
 	command_name = RTMP_AMF0_COMMAND_ON_BW_DONE;
 	transaction_id = 0;
-	args = new SrsAmf0Null();
+	args = SrsAmf0Any::null();
 }
 
 SrsOnBWDonePacket::~SrsOnBWDonePacket()
@@ -2834,7 +2834,7 @@ SrsOnStatusCallPacket::SrsOnStatusCallPacket()
 {
 	command_name = RTMP_AMF0_COMMAND_ON_STATUS;
 	transaction_id = 0;
-	args = new SrsAmf0Null();
+	args = SrsAmf0Any::null();
 	data = new SrsAmf0Object();
 }
 
@@ -2897,7 +2897,7 @@ SrsBandwidthPacket::SrsBandwidthPacket()
 {
 	command_name = RTMP_AMF0_COMMAND_ON_STATUS;
 	transaction_id = 0;
-	args = new SrsAmf0Null();
+	args = SrsAmf0Any::null();
 	data = new SrsAmf0Object();
 }
 

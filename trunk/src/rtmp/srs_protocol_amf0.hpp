@@ -67,75 +67,22 @@ public:
 	virtual std::string to_str();
 	/**
 	* get the boolean of any when is_boolean() indicates true.
-	* user must ensure the type is a is_boolean, or assert failed.
+	* user must ensure the type is a boolean, or assert failed.
 	*/
 	virtual bool to_boolean();
+	/**
+	* get the number of any when is_number() indicates true.
+	* user must ensure the type is a number, or assert failed.
+	*/
+	virtual double to_number();
 public:
 	virtual int size() = 0;
 public:
 	static SrsAmf0Any* str(const char* value = NULL); 
-	static SrsAmf0Any* boolean(bool value = false); 
-};
-
-/**
-* read amf0 number from stream.
-* 2.2 Number Type
-* number-type = number-marker DOUBLE
-* @return default value is 0.
-*/
-class SrsAmf0Number : public SrsAmf0Any
-{
-public:
-	double value;
-
-	SrsAmf0Number(double _value = 0.0);
-	virtual ~SrsAmf0Number();
-	
-	virtual int size();
-};
-
-/**
-* read amf0 null from stream.
-* 2.7 null Type
-* null-type = null-marker
-*/
-class SrsAmf0Null : public SrsAmf0Any
-{
-public:
-	SrsAmf0Null();
-	virtual ~SrsAmf0Null();
-	
-	virtual int size();
-};
-
-/**
-* read amf0 undefined from stream.
-* 2.8 undefined Type
-* undefined-type = undefined-marker
-*/
-class SrsAmf0Undefined : public SrsAmf0Any
-{
-public:
-	SrsAmf0Undefined();
-	virtual ~SrsAmf0Undefined();
-	
-	virtual int size();
-};
-
-/**
-* 2.11 Object End Type
-* object-end-type = UTF-8-empty object-end-marker
-* 0x00 0x00 0x09
-*/
-class SrsAmf0ObjectEOF : public SrsAmf0Any
-{
-public:
-	int16_t utf8_empty;
-
-	SrsAmf0ObjectEOF();
-	virtual ~SrsAmf0ObjectEOF();
-	
-	virtual int size();
+	static SrsAmf0Any* boolean(bool value = false);
+	static SrsAmf0Any* number(double value = 0.0);
+	static SrsAmf0Any* null();
+	static SrsAmf0Any* undefined();
 };
 
 /**
@@ -144,14 +91,14 @@ public:
 * if ordered in map, the string compare order, the FMLE will creash when
 * get the response of connect app.
 */
-class SrsUnSortedHashtable
+class __SrsUnSortedHashtable
 {
 private:
 	typedef std::pair<std::string, SrsAmf0Any*> SrsObjectPropertyType;
 	std::vector<SrsObjectPropertyType> properties;
 public:
-	SrsUnSortedHashtable();
-	virtual ~SrsUnSortedHashtable();
+	__SrsUnSortedHashtable();
+	virtual ~__SrsUnSortedHashtable();
 	
 	virtual int size();
 	virtual void clear();
@@ -165,6 +112,22 @@ public:
 };
 
 /**
+* 2.11 Object End Type
+* object-end-type = UTF-8-empty object-end-marker
+* 0x00 0x00 0x09
+*/
+class __SrsAmf0ObjectEOF : public SrsAmf0Any
+{
+public:
+	int16_t utf8_empty;
+
+	__SrsAmf0ObjectEOF();
+	virtual ~__SrsAmf0ObjectEOF();
+	
+	virtual int size();
+};
+
+/**
 * 2.5 Object Type
 * anonymous-object-type = object-marker *(object-property)
 * object-property = (UTF-8 value-type) | (UTF-8-empty object-end-marker)
@@ -172,9 +135,9 @@ public:
 class SrsAmf0Object : public SrsAmf0Any
 {
 private:
-	SrsUnSortedHashtable properties;
+	__SrsUnSortedHashtable properties;
 public:
-	SrsAmf0ObjectEOF eof;
+	__SrsAmf0ObjectEOF eof;
 
 	SrsAmf0Object();
 	virtual ~SrsAmf0Object();
@@ -201,10 +164,10 @@ public:
 class SrsAmf0EcmaArray : public SrsAmf0Any
 {
 private:
-	SrsUnSortedHashtable properties;
+	__SrsUnSortedHashtable properties;
 public:
 	int32_t count;
-	SrsAmf0ObjectEOF eof;
+	__SrsAmf0ObjectEOF eof;
 
 	SrsAmf0EcmaArray();
 	virtual ~SrsAmf0EcmaArray();
@@ -272,6 +235,51 @@ public:
 
 	__SrsAmf0Boolean(bool _value);
 	virtual ~__SrsAmf0Boolean();
+	
+	virtual int size();
+};
+
+/**
+* read amf0 number from stream.
+* 2.2 Number Type
+* number-type = number-marker DOUBLE
+* @return default value is 0.
+*/
+class __SrsAmf0Number : public SrsAmf0Any
+{
+public:
+	double value;
+
+	__SrsAmf0Number(double _value);
+	virtual ~__SrsAmf0Number();
+	
+	virtual int size();
+};
+
+/**
+* read amf0 null from stream.
+* 2.7 null Type
+* null-type = null-marker
+*/
+class __SrsAmf0Null : public SrsAmf0Any
+{
+public:
+	__SrsAmf0Null();
+	virtual ~__SrsAmf0Null();
+	
+	virtual int size();
+};
+
+/**
+* read amf0 undefined from stream.
+* 2.8 undefined Type
+* undefined-type = undefined-marker
+*/
+class __SrsAmf0Undefined : public SrsAmf0Any
+{
+public:
+	__SrsAmf0Undefined();
+	virtual ~__SrsAmf0Undefined();
 	
 	virtual int size();
 };

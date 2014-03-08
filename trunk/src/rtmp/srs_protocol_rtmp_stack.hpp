@@ -86,8 +86,7 @@ class SrsStream;
 class SrsCommonMessage;
 class SrsChunkStream;
 class SrsAmf0Object;
-class SrsAmf0Null;
-class SrsAmf0Undefined;
+class SrsAmf0Any;
 class ISrsMessage;
 
 // convert class name to string.
@@ -600,7 +599,7 @@ protected:
 public:
 	std::string command_name;
 	double transaction_id;
-	SrsAmf0Null* command_object;
+	SrsAmf0Any* command_object; // null
 public:
 	SrsCreateStreamPacket();
 	virtual ~SrsCreateStreamPacket();
@@ -629,7 +628,7 @@ protected:
 public:
 	std::string command_name;
 	double transaction_id;
-	SrsAmf0Null* command_object;
+	SrsAmf0Any* command_object; // null
 	double stream_id;
 public:
 	SrsCreateStreamResPacket(double _transaction_id, double _stream_id);
@@ -659,7 +658,7 @@ protected:
 public:
     std::string command_name;
     double transaction_id;
-    SrsAmf0Null* command_object;
+    SrsAmf0Any* command_object; // null
 public:
     SrsCloseStreamPacket();
     virtual ~SrsCloseStreamPacket();
@@ -682,7 +681,7 @@ protected:
 public:
 	std::string command_name;
 	double transaction_id;
-	SrsAmf0Null* command_object;
+	SrsAmf0Any* command_object; // null
 	std::string stream_name;
 public:
 	SrsFMLEStartPacket();
@@ -715,8 +714,8 @@ protected:
 public:
 	std::string command_name;
 	double transaction_id;
-	SrsAmf0Null* command_object;
-	SrsAmf0Undefined* args;
+	SrsAmf0Any* command_object; // null
+	SrsAmf0Any* args; // undefined
 public:
 	SrsFMLEStartResPacket(double _transaction_id);
 	virtual ~SrsFMLEStartResPacket();
@@ -750,7 +749,7 @@ protected:
 public:
 	std::string command_name;
 	double transaction_id;
-	SrsAmf0Null* command_object;
+	SrsAmf0Any* command_object; // null
 	std::string stream_name;
 	// optional, default to live.
 	std::string type;
@@ -785,7 +784,7 @@ protected:
 public:
 	std::string command_name;
 	double transaction_id;
-	SrsAmf0Null* command_object;
+	SrsAmf0Any* command_object; // null
 	bool is_pause;
 	double time_ms;
 public:
@@ -811,7 +810,7 @@ protected:
 public:
 	std::string command_name;
 	double transaction_id;
-	SrsAmf0Null* command_object;
+	SrsAmf0Any* command_object; // null
 	std::string stream_name;
 	double start;
 	double duration;
@@ -845,7 +844,7 @@ protected:
 public:
 	std::string command_name;
 	double transaction_id;
-	SrsAmf0Null* command_object;
+	SrsAmf0Any* command_object; // null
 	SrsAmf0Object* desc;
 public:
 	SrsPlayResPacket();
@@ -874,7 +873,7 @@ protected:
 public:
 	std::string command_name;
 	double transaction_id;
-	SrsAmf0Null* args;
+	SrsAmf0Any* args; // null
 public:
 	SrsOnBWDonePacket();
 	virtual ~SrsOnBWDonePacket();
@@ -903,7 +902,7 @@ protected:
 public:
 	std::string command_name;
 	double transaction_id;
-	SrsAmf0Null* args;
+	SrsAmf0Any* args; // null
 	SrsAmf0Object* data;
 public:
 	SrsOnStatusCallPacket();
@@ -936,7 +935,7 @@ protected:
 public:
 	std::string command_name;
 	double transaction_id;
-	SrsAmf0Null* args;
+	SrsAmf0Any* args; // null
 	SrsAmf0Object* data;
 public:
 	SrsBandwidthPacket();

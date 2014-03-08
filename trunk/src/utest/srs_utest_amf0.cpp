@@ -63,7 +63,7 @@ VOID TEST(AMF0Test, Size)
         SrsAmf0Object o;
         
         size += SrsAmf0Size::utf8("age")+SrsAmf0Size::number();
-        o.set("age", new SrsAmf0Number(9));
+        o.set("age", SrsAmf0Any::number(9));
         
         EXPECT_EQ(size, SrsAmf0Size::object(&o));
     }
@@ -72,7 +72,7 @@ VOID TEST(AMF0Test, Size)
         SrsAmf0Object o;
         
         size += SrsAmf0Size::utf8("email")+SrsAmf0Size::null();
-        o.set("email", new SrsAmf0Null());
+        o.set("email", SrsAmf0Any::null());
         
         EXPECT_EQ(size, SrsAmf0Size::object(&o));
     }
@@ -81,7 +81,7 @@ VOID TEST(AMF0Test, Size)
         SrsAmf0Object o;
         
         size += SrsAmf0Size::utf8("email")+SrsAmf0Size::undefined();
-        o.set("email", new SrsAmf0Undefined());
+        o.set("email", SrsAmf0Any::undefined());
         
         EXPECT_EQ(size, SrsAmf0Size::object(&o));
     }
@@ -117,7 +117,7 @@ VOID TEST(AMF0Test, Size)
         SrsAmf0EcmaArray o;
         
         size += SrsAmf0Size::utf8("age")+SrsAmf0Size::number();
-        o.set("age", new SrsAmf0Number(9));
+        o.set("age", SrsAmf0Any::number(9));
         
         EXPECT_EQ(size, SrsAmf0Size::array(&o));
     }
@@ -126,7 +126,7 @@ VOID TEST(AMF0Test, Size)
         SrsAmf0EcmaArray o;
         
         size += SrsAmf0Size::utf8("email")+SrsAmf0Size::null();
-        o.set("email", new SrsAmf0Null());
+        o.set("email", SrsAmf0Any::null());
         
         EXPECT_EQ(size, SrsAmf0Size::array(&o));
     }
@@ -135,7 +135,7 @@ VOID TEST(AMF0Test, Size)
         SrsAmf0EcmaArray o;
         
         size += SrsAmf0Size::utf8("email")+SrsAmf0Size::undefined();
-        o.set("email", new SrsAmf0Undefined());
+        o.set("email", SrsAmf0Any::undefined());
         
         EXPECT_EQ(size, SrsAmf0Size::array(&o));
     }
@@ -177,7 +177,7 @@ VOID TEST(AMF0Test, Size)
         o.set("args", args);
         
         SrsAmf0EcmaArray* params = new SrsAmf0EcmaArray();
-        params->set("p1", new SrsAmf0Number(10));
+        params->set("p1", SrsAmf0Any::number(10));
         size += SrsAmf0Size::utf8("params")+SrsAmf0Size::array(params);
         o.set("params", params);
         
@@ -212,7 +212,7 @@ VOID TEST(AMF0Test, Size)
         o.set("args", args);
         
         SrsAmf0Object* params = new SrsAmf0Object();
-        params->set("p1", new SrsAmf0Number(10));
+        params->set("p1", SrsAmf0Any::number(10));
         size += SrsAmf0Size::utf8("params")+SrsAmf0Size::object(params);
         o.set("params", params);
         
@@ -233,7 +233,7 @@ VOID TEST(AMF0Test, Size)
         o.set("args", args);
         
         SrsAmf0Object* params = new SrsAmf0Object();
-        params->set("p1", new SrsAmf0Number(10));
+        params->set("p1", SrsAmf0Any::number(10));
         size += SrsAmf0Size::utf8("params")+SrsAmf0Size::object(params);
         o.set("params", params);
         
@@ -254,7 +254,7 @@ VOID TEST(AMF0Test, Size)
         o.set("args", args);
         
         SrsAmf0EcmaArray* params = new SrsAmf0EcmaArray();
-        params->set("p1", new SrsAmf0Number(10));
+        params->set("p1", SrsAmf0Any::number(10));
         size += SrsAmf0Size::utf8("params")+SrsAmf0Size::array(params);
         o.set("params", params);
         
@@ -303,5 +303,44 @@ VOID TEST(AMF0Test, AnyElem)
 		EXPECT_TRUE(NULL != o);
 		EXPECT_TRUE(o->is_boolean());
 		EXPECT_TRUE(o->to_boolean());
+	}
+	
+	// number
+	if (true) {
+		o = SrsAmf0Any::number();
+		SrsAutoFree(SrsAmf0Any, o, false);
+		EXPECT_TRUE(NULL != o);
+		EXPECT_TRUE(o->is_number());
+		EXPECT_DOUBLE_EQ(0, o->to_number());
+	}
+	if (true) {
+		o = SrsAmf0Any::number(100);
+		SrsAutoFree(SrsAmf0Any, o, false);
+		EXPECT_TRUE(NULL != o);
+		EXPECT_TRUE(o->is_number());
+		EXPECT_DOUBLE_EQ(100, o->to_number());
+	}
+	if (true) {
+		o = SrsAmf0Any::number(-100);
+		SrsAutoFree(SrsAmf0Any, o, false);
+		EXPECT_TRUE(NULL != o);
+		EXPECT_TRUE(o->is_number());
+		EXPECT_DOUBLE_EQ(-100, o->to_number());
+	}
+
+	// null
+	if (true) {
+		o = SrsAmf0Any::null();
+		SrsAutoFree(SrsAmf0Any, o, false);
+		EXPECT_TRUE(NULL != o);
+		EXPECT_TRUE(o->is_null());
+	}
+
+	// undefined
+	if (true) {
+		o = SrsAmf0Any::undefined();
+		SrsAutoFree(SrsAmf0Any, o, false);
+		EXPECT_TRUE(NULL != o);
+		EXPECT_TRUE(o->is_undefined());
 	}
 }

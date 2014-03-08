@@ -284,12 +284,12 @@ int SrsRtmpClient::connect_app(string app, string tc_url)
 		pkt->command_object->set("swfUrl", SrsAmf0Any::str());
 		pkt->command_object->set("tcUrl", SrsAmf0Any::str(tc_url.c_str()));
 		pkt->command_object->set("fpad", SrsAmf0Any::boolean(false));
-		pkt->command_object->set("capabilities", new SrsAmf0Number(239));
-		pkt->command_object->set("audioCodecs", new SrsAmf0Number(3575));
-		pkt->command_object->set("videoCodecs", new SrsAmf0Number(252));
-		pkt->command_object->set("videoFunction", new SrsAmf0Number(1));
+		pkt->command_object->set("capabilities", SrsAmf0Any::number(239));
+		pkt->command_object->set("audioCodecs", SrsAmf0Any::number(3575));
+		pkt->command_object->set("videoCodecs", SrsAmf0Any::number(252));
+		pkt->command_object->set("videoFunction", SrsAmf0Any::number(1));
 		pkt->command_object->set("pageUrl", SrsAmf0Any::str());
-		pkt->command_object->set("objectEncoding", new SrsAmf0Number(0));
+		pkt->command_object->set("objectEncoding", SrsAmf0Any::number(0));
 		
 		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
 			return ret;
@@ -643,7 +643,7 @@ int SrsRtmpServer::connect_app(SrsRequest* req)
 	}
 	
 	if ((prop = pkt->command_object->ensure_property_number("objectEncoding")) != NULL) {
-		req->objectEncoding = srs_amf0_convert<SrsAmf0Number>(prop)->value;
+		req->objectEncoding = prop->to_number();
 	}
 	
 	srs_info("get connect app message params success.");
@@ -699,13 +699,13 @@ int SrsRtmpServer::response_connect_app(SrsRequest *req, const char* server_ip)
 	SrsConnectAppResPacket* pkt = new SrsConnectAppResPacket();
 	
 	pkt->props->set("fmsVer", SrsAmf0Any::str("FMS/"RTMP_SIG_FMS_VER));
-	pkt->props->set("capabilities", new SrsAmf0Number(127));
-	pkt->props->set("mode", new SrsAmf0Number(1));
+	pkt->props->set("capabilities", SrsAmf0Any::number(127));
+	pkt->props->set("mode", SrsAmf0Any::number(1));
 	
 	pkt->info->set(StatusLevel, SrsAmf0Any::str(StatusLevelStatus));
 	pkt->info->set(StatusCode, SrsAmf0Any::str(StatusCodeConnectSuccess));
 	pkt->info->set(StatusDescription, SrsAmf0Any::str("Connection succeeded"));
-	pkt->info->set("objectEncoding", new SrsAmf0Number(req->objectEncoding));
+	pkt->info->set("objectEncoding", SrsAmf0Any::number(req->objectEncoding));
 	SrsAmf0EcmaArray* data = new SrsAmf0EcmaArray();
 	pkt->info->set("data", data);
 	
@@ -745,7 +745,7 @@ void SrsRtmpServer::response_connect_reject(SrsRequest *req, const char* desc)
     pkt->props->set(StatusLevel, SrsAmf0Any::str(StatusLevelError));
     pkt->props->set(StatusCode, SrsAmf0Any::str(StatusCodeConnectRejected));
     pkt->props->set(StatusDescription, SrsAmf0Any::str(desc));
-    //pkt->props->set("objectEncoding", new SrsAmf0Number(req->objectEncoding));
+    //pkt->props->set("objectEncoding", SrsAmf0Any::number(req->objectEncoding));
 
     SrsCommonMessage* msg = (new SrsCommonMessage())->set_packet(pkt, 0);
     if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {

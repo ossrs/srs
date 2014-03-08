@@ -1221,29 +1221,29 @@ int SrsHls::on_meta_data(SrsAmf0Object* metadata)
 	SrsAmf0Any* prop = NULL;
 
 	if ((prop = obj->get_property("duration")) != NULL && prop->is_number()) {
-		codec->duration = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
+		codec->duration = (int)prop->to_number();
 	}
 	if ((prop = obj->get_property("width")) != NULL && prop->is_number()) {
-		codec->width = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
+		codec->width = (int)prop->to_number();
 	}
 	if ((prop = obj->get_property("height")) != NULL && prop->is_number()) {
-		codec->height = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
+		codec->height = (int)prop->to_number();
 	}
 	if ((prop = obj->get_property("framerate")) != NULL && prop->is_number()) {
-		codec->frame_rate = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
+		codec->frame_rate = (int)prop->to_number();
 	}
 	if ((prop = obj->get_property("videocodecid")) != NULL && prop->is_number()) {
-		codec->video_codec_id = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
+		codec->video_codec_id = (int)prop->to_number();
 	}
 	if ((prop = obj->get_property("videodatarate")) != NULL && prop->is_number()) {
-		codec->video_data_rate = (int)(1000 * srs_amf0_convert<SrsAmf0Number>(prop)->value);
+		codec->video_data_rate = (int)(1000 * prop->to_number());
 	}
 	
 	if ((prop = obj->get_property("audiocodecid")) != NULL && prop->is_number()) {
-		codec->audio_codec_id = (int)srs_amf0_convert<SrsAmf0Number>(prop)->value;
+		codec->audio_codec_id = (int)prop->to_number();
 	}
 	if ((prop = obj->get_property("audiodatarate")) != NULL && prop->is_number()) {
-		codec->audio_data_rate = (int)(1000 * srs_amf0_convert<SrsAmf0Number>(prop)->value);
+		codec->audio_data_rate = (int)(1000 * prop->to_number());
 	}
 	
 	// ignore the following, for each flv/rtmp packet contains them:

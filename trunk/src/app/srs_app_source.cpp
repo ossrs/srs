@@ -645,12 +645,12 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
 	SrsAmf0Any* prop = NULL;
 	if ((prop = metadata->metadata->get_property("audiosamplerate")) != NULL) {
 		if (prop->is_number()) {
-			sample_rate = (int)(srs_amf0_convert<SrsAmf0Number>(prop)->value);
+			sample_rate = (int)prop->to_number();
 		}
 	}
 	if ((prop = metadata->metadata->get_property("framerate")) != NULL) {
 		if (prop->is_number()) {
-			frame_rate = (int)(srs_amf0_convert<SrsAmf0Number>(prop)->value);
+			frame_rate = (int)prop->to_number();
 		}
 	}
 	

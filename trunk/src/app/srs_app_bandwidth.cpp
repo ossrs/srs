@@ -178,15 +178,15 @@ int SrsBandwidth::do_bandwidth_check()
 
     // send finished msg
     SrsBandwidthPacket* pkt = SrsBandwidthPacket::create_finish();
-    pkt->data->set("code",           new SrsAmf0Number(ERROR_SUCCESS));
-    pkt->data->set("start_time",     new SrsAmf0Number(start_time));
-    pkt->data->set("end_time",       new SrsAmf0Number(end_time));
-    pkt->data->set("play_kbps",      new SrsAmf0Number(play_kbps));
-    pkt->data->set("publish_kbps",   new SrsAmf0Number(publish_kbps));
-    pkt->data->set("play_bytes",     new SrsAmf0Number(play_bytes));
-    pkt->data->set("play_time",      new SrsAmf0Number(play_actual_duration_ms));
-    pkt->data->set("publish_bytes",  new SrsAmf0Number(publish_bytes));
-    pkt->data->set("publish_time",   new SrsAmf0Number(publish_actual_duration_ms));
+    pkt->data->set("code",           SrsAmf0Any::number(ERROR_SUCCESS));
+    pkt->data->set("start_time",     SrsAmf0Any::number(start_time));
+    pkt->data->set("end_time",       SrsAmf0Any::number(end_time));
+    pkt->data->set("play_kbps",      SrsAmf0Any::number(play_kbps));
+    pkt->data->set("publish_kbps",   SrsAmf0Any::number(publish_kbps));
+    pkt->data->set("play_bytes",     SrsAmf0Any::number(play_bytes));
+    pkt->data->set("play_time",      SrsAmf0Any::number(play_actual_duration_ms));
+    pkt->data->set("publish_bytes",  SrsAmf0Any::number(publish_bytes));
+    pkt->data->set("publish_time",   SrsAmf0Any::number(publish_actual_duration_ms));
 
 	SrsCommonMessage* msg = (new SrsCommonMessage())->set_packet(pkt, 0);
     if ((ret = rtmp->send_message(msg)) != ERROR_SUCCESS) {
@@ -229,8 +229,8 @@ int SrsBandwidth::check_play(
 	    // send start play command to client
 	    SrsBandwidthPacket* pkt = SrsBandwidthPacket::create_start_play();
 	
-	    pkt->data->set("duration_ms", new SrsAmf0Number(duration_ms));
-	    pkt->data->set("interval_ms", new SrsAmf0Number(interval_ms));
+	    pkt->data->set("duration_ms", SrsAmf0Any::number(duration_ms));
+	    pkt->data->set("interval_ms", SrsAmf0Any::number(interval_ms));
 	
 		SrsCommonMessage* msg = (new SrsCommonMessage())->set_packet(pkt, 0);
 	    if ((ret = rtmp->send_message(msg)) != ERROR_SUCCESS) {
@@ -308,10 +308,10 @@ int SrsBandwidth::check_play(
 	if (true) {
 	    // notify client to stop play
 	    SrsBandwidthPacket* pkt = SrsBandwidthPacket::create_stop_play();
-	    pkt->data->set("duration_ms", new SrsAmf0Number(duration_ms));
-	    pkt->data->set("interval_ms", new SrsAmf0Number(interval_ms));
-	    pkt->data->set("duration_delta", new SrsAmf0Number(actual_duration_ms));
-	    pkt->data->set("bytes_delta", new SrsAmf0Number(play_bytes));
+	    pkt->data->set("duration_ms", SrsAmf0Any::number(duration_ms));
+	    pkt->data->set("interval_ms", SrsAmf0Any::number(interval_ms));
+	    pkt->data->set("duration_delta", SrsAmf0Any::number(actual_duration_ms));
+	    pkt->data->set("bytes_delta", SrsAmf0Any::number(play_bytes));
 
 		SrsCommonMessage* msg = (new SrsCommonMessage())->set_packet(pkt, 0);
         if ((ret = rtmp->send_message(msg)) != ERROR_SUCCESS) {
@@ -353,8 +353,8 @@ int SrsBandwidth::check_publish(
 	    // notify client to start publish
 	    SrsBandwidthPacket* pkt = SrsBandwidthPacket::create_start_publish();
 	
-	    pkt->data->set("duration_ms", new SrsAmf0Number(duration_ms));
-	    pkt->data->set("interval_ms", new SrsAmf0Number(interval_ms));
+	    pkt->data->set("duration_ms", SrsAmf0Any::number(duration_ms));
+	    pkt->data->set("interval_ms", SrsAmf0Any::number(interval_ms));
 	
 		SrsCommonMessage* msg = (new SrsCommonMessage())->set_packet(pkt, 0);
 	    if ((ret = rtmp->send_message(msg)) != ERROR_SUCCESS) {
@@ -414,10 +414,10 @@ int SrsBandwidth::check_publish(
 	if (true) {
 	    // notify client to stop publish
 	    SrsBandwidthPacket* pkt = SrsBandwidthPacket::create_stop_publish();
-	    pkt->data->set("duration_ms", new SrsAmf0Number(duration_ms));
-	    pkt->data->set("interval_ms", new SrsAmf0Number(interval_ms));
-	    pkt->data->set("duration_delta", new SrsAmf0Number(actual_duration_ms));
-	    pkt->data->set("bytes_delta", new SrsAmf0Number(publish_bytes));
+	    pkt->data->set("duration_ms", SrsAmf0Any::number(duration_ms));
+	    pkt->data->set("interval_ms", SrsAmf0Any::number(interval_ms));
+	    pkt->data->set("duration_delta", SrsAmf0Any::number(actual_duration_ms));
+	    pkt->data->set("bytes_delta", SrsAmf0Any::number(publish_bytes));
 
 		SrsCommonMessage* msg = (new SrsCommonMessage())->set_packet(pkt, 0);
         if ((ret = rtmp->send_message(msg)) != ERROR_SUCCESS) {
