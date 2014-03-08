@@ -24,6 +24,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_amf0.hpp>
 
 #include <utility>
+using namespace std;
 
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
@@ -55,8 +56,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // User defined
 #define RTMP_AMF0_Invalid 					0x3F
 
-int srs_amf0_get_object_eof_size();
-int srs_amf0_get_any_size(SrsAmf0Any* value);
 int srs_amf0_read_object_eof(SrsStream* stream, SrsAmf0ObjectEOF*&);
 int srs_amf0_write_object_eof(SrsStream* stream, SrsAmf0ObjectEOF*);
 int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any*& value);
@@ -123,6 +122,11 @@ SrsAmf0String::~SrsAmf0String()
 {
 }
 
+int SrsAmf0String::size()
+{
+	return SrsAmf0Size::str(value);
+}
+
 SrsAmf0Boolean::SrsAmf0Boolean(bool _value)
 {
 	marker = RTMP_AMF0_Boolean;
@@ -131,6 +135,11 @@ SrsAmf0Boolean::SrsAmf0Boolean(bool _value)
 
 SrsAmf0Boolean::~SrsAmf0Boolean()
 {
+}
+
+int SrsAmf0Boolean::size()
+{
+	return SrsAmf0Size::boolean();
 }
 
 SrsAmf0Number::SrsAmf0Number(double _value)
@@ -143,6 +152,11 @@ SrsAmf0Number::~SrsAmf0Number()
 {
 }
 
+int SrsAmf0Number::size()
+{
+	return SrsAmf0Size::number();
+}
+
 SrsAmf0Null::SrsAmf0Null()
 {
 	marker = RTMP_AMF0_Null;
@@ -150,6 +164,11 @@ SrsAmf0Null::SrsAmf0Null()
 
 SrsAmf0Null::~SrsAmf0Null()
 {
+}
+
+int SrsAmf0Null::size()
+{
+	return SrsAmf0Size::null();
 }
 
 SrsAmf0Undefined::SrsAmf0Undefined()
@@ -161,6 +180,11 @@ SrsAmf0Undefined::~SrsAmf0Undefined()
 {
 }
 
+int SrsAmf0Undefined::size()
+{
+	return SrsAmf0Size::undefined();
+}
+
 SrsAmf0ObjectEOF::SrsAmf0ObjectEOF()
 {
 	marker = RTMP_AMF0_ObjectEnd;
@@ -169,6 +193,11 @@ SrsAmf0ObjectEOF::SrsAmf0ObjectEOF()
 
 SrsAmf0ObjectEOF::~SrsAmf0ObjectEOF()
 {
+}
+
+int SrsAmf0ObjectEOF::size()
+{
+	return SrsAmf0Size::object_eof();
 }
 
 SrsUnSortedHashtable::SrsUnSortedHashtable()
@@ -284,9 +313,115 @@ SrsAmf0Object::~SrsAmf0Object()
 {
 }
 
+int SrsAmf0Object::read(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	// marker
+	if (!stream->require(1)) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 read object marker failed. ret=%d", ret);
+		return ret;
+	}
+	
+	char marker = stream->read_1bytes();
+	if (marker != RTMP_AMF0_Object) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 check object marker failed. "
+			"marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Object, ret);
+		return ret;
+	}
+	srs_verbose("amf0 read object marker success");
+	
+	// value
+	while (!stream->empty()) {
+		// property-name: utf8 string
+		std::string property_name;
+		if ((ret =srs_amf0_read_utf8(stream, property_name)) != ERROR_SUCCESS) {
+			srs_error("amf0 object read property name failed. ret=%d", ret);
+			return ret;
+		}
+		// property-value: any
+		SrsAmf0Any* property_value = NULL;
+		if ((ret = srs_amf0_read_any(stream, property_value)) != ERROR_SUCCESS) {
+			srs_error("amf0 object read property_value failed. "
+				"name=%s, ret=%d", property_name.c_str(), ret);
+			return ret;
+		}
+		
+		// AMF0 Object EOF.
+		if (property_name.empty() || !property_value || property_value->is_object_eof()) {
+			if (property_value) {
+				srs_freep(property_value);
+			}
+			srs_info("amf0 read object EOF.");
+			break;
+		}
+		
+		// add property
+		this->set(property_name, property_value);
+	}
+	
+	return ret;
+}
+
+int SrsAmf0Object::write(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	// marker
+	if (!stream->require(1)) {
+		ret = ERROR_RTMP_AMF0_ENCODE;
+		srs_error("amf0 write object marker failed. ret=%d", ret);
+		return ret;
+	}
+	
+	stream->write_1bytes(RTMP_AMF0_Object);
+	srs_verbose("amf0 write object marker success");
+	
+	// value
+	for (int i = 0; i < properties.size(); i++) {
+		std::string name = this->key_at(i);
+		SrsAmf0Any* any = this->value_at(i);
+		
+		if ((ret = srs_amf0_write_utf8(stream, name)) != ERROR_SUCCESS) {
+			srs_error("write object property name failed. ret=%d", ret);
+			return ret;
+		}
+		
+		if ((ret = srs_amf0_write_any(stream, any)) != ERROR_SUCCESS) {
+			srs_error("write object property value failed. ret=%d", ret);
+			return ret;
+		}
+		
+		srs_verbose("write amf0 property success. name=%s", name.c_str());
+	}
+	
+	if ((ret = srs_amf0_write_object_eof(stream, &this->eof)) != ERROR_SUCCESS) {
+		srs_error("write object eof failed. ret=%d", ret);
+		return ret;
+	}
+	
+	srs_verbose("write amf0 object success.");
+	
+	return ret;
+}
+
 int SrsAmf0Object::size()
 {
-	return properties.size();
+	int size = 1;
+	
+	for (int i = 0; i < properties.size(); i++){
+		std::string name = key_at(i);
+		SrsAmf0Any* value = value_at(i);
+		
+		size += SrsAmf0Size::utf8(name);
+		size += SrsAmf0Size::any(value);
+	}
+	
+	size += SrsAmf0Size::object_eof();
+	
+	return size;
 }
 
 std::string SrsAmf0Object::key_at(int index)
@@ -319,46 +454,173 @@ SrsAmf0Any* SrsAmf0Object::ensure_property_number(std::string name)
 	return properties.ensure_property_number(name);
 }
 
-SrsASrsAmf0EcmaArray::SrsASrsAmf0EcmaArray()
+SrsAmf0EcmaArray::SrsAmf0EcmaArray()
 {
 	marker = RTMP_AMF0_EcmaArray;
 }
 
-SrsASrsAmf0EcmaArray::~SrsASrsAmf0EcmaArray()
+SrsAmf0EcmaArray::~SrsAmf0EcmaArray()
 {
 }
 
-int SrsASrsAmf0EcmaArray::size()
+int SrsAmf0EcmaArray::read(SrsStream* stream)
 {
-	return properties.size();
+	int ret = ERROR_SUCCESS;
+	
+	// marker
+	if (!stream->require(1)) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 read ecma_array marker failed. ret=%d", ret);
+		return ret;
+	}
+	
+	char marker = stream->read_1bytes();
+	if (marker != RTMP_AMF0_EcmaArray) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 check ecma_array marker failed. "
+			"marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Object, ret);
+		return ret;
+	}
+	srs_verbose("amf0 read ecma_array marker success");
+
+	// count
+	if (!stream->require(4)) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 read ecma_array count failed. ret=%d", ret);
+		return ret;
+	}
+	
+	int32_t count = stream->read_4bytes();
+	srs_verbose("amf0 read ecma_array count success. count=%d", count);
+	
+	// value
+	this->count = count;
+
+	while (!stream->empty()) {
+		// property-name: utf8 string
+		std::string property_name;
+		if ((ret =srs_amf0_read_utf8(stream, property_name)) != ERROR_SUCCESS) {
+			srs_error("amf0 ecma_array read property name failed. ret=%d", ret);
+			return ret;
+		}
+		// property-value: any
+		SrsAmf0Any* property_value = NULL;
+		if ((ret = srs_amf0_read_any(stream, property_value)) != ERROR_SUCCESS) {
+			srs_error("amf0 ecma_array read property_value failed. "
+				"name=%s, ret=%d", property_name.c_str(), ret);
+			return ret;
+		}
+		
+		// AMF0 Object EOF.
+		if (property_name.empty() || !property_value || property_value->is_object_eof()) {
+			if (property_value) {
+				srs_freep(property_value);
+			}
+			srs_info("amf0 read ecma_array EOF.");
+			break;
+		}
+		
+		// add property
+		this->set(property_name, property_value);
+	}
+	
+	return ret;
+}
+int SrsAmf0EcmaArray::write(SrsStream* stream)
+{
+	int ret = ERROR_SUCCESS;
+	
+	// marker
+	if (!stream->require(1)) {
+		ret = ERROR_RTMP_AMF0_ENCODE;
+		srs_error("amf0 write ecma_array marker failed. ret=%d", ret);
+		return ret;
+	}
+	
+	stream->write_1bytes(RTMP_AMF0_EcmaArray);
+	srs_verbose("amf0 write ecma_array marker success");
+
+	// count
+	if (!stream->require(4)) {
+		ret = ERROR_RTMP_AMF0_ENCODE;
+		srs_error("amf0 write ecma_array count failed. ret=%d", ret);
+		return ret;
+	}
+	
+	stream->write_4bytes(this->count);
+	srs_verbose("amf0 write ecma_array count success. count=%d", value->count);
+	
+	// value
+	for (int i = 0; i < properties.size(); i++) {
+		std::string name = this->key_at(i);
+		SrsAmf0Any* any = this->value_at(i);
+		
+		if ((ret = srs_amf0_write_utf8(stream, name)) != ERROR_SUCCESS) {
+			srs_error("write ecma_array property name failed. ret=%d", ret);
+			return ret;
+		}
+		
+		if ((ret = srs_amf0_write_any(stream, any)) != ERROR_SUCCESS) {
+			srs_error("write ecma_array property value failed. ret=%d", ret);
+			return ret;
+		}
+		
+		srs_verbose("write amf0 property success. name=%s", name.c_str());
+	}
+	
+	if ((ret = srs_amf0_write_object_eof(stream, &this->eof)) != ERROR_SUCCESS) {
+		srs_error("write ecma_array eof failed. ret=%d", ret);
+		return ret;
+	}
+	
+	srs_verbose("write ecma_array object success.");
+	
+	return ret;
 }
 
-void SrsASrsAmf0EcmaArray::clear()
+int SrsAmf0EcmaArray::size()
+{
+	int size = 1 + 4;
+	
+	for (int i = 0; i < properties.size(); i++){
+		std::string name = key_at(i);
+		SrsAmf0Any* value = value_at(i);
+		
+		size += SrsAmf0Size::utf8(name);
+		size += SrsAmf0Size::any(value);
+	}
+	
+	size += SrsAmf0Size::object_eof();
+	
+	return size;
+}
+
+void SrsAmf0EcmaArray::clear()
 {
 	properties.clear();
 }
 
-std::string SrsASrsAmf0EcmaArray::key_at(int index)
+std::string SrsAmf0EcmaArray::key_at(int index)
 {
 	return properties.key_at(index);
 }
 
-SrsAmf0Any* SrsASrsAmf0EcmaArray::value_at(int index)
+SrsAmf0Any* SrsAmf0EcmaArray::value_at(int index)
 {
 	return properties.value_at(index);
 }
 
-void SrsASrsAmf0EcmaArray::set(std::string key, SrsAmf0Any* value)
+void SrsAmf0EcmaArray::set(std::string key, SrsAmf0Any* value)
 {
 	properties.set(key, value);
 }
 
-SrsAmf0Any* SrsASrsAmf0EcmaArray::get_property(std::string name)
+SrsAmf0Any* SrsAmf0EcmaArray::get_property(std::string name)
 {
 	return properties.get_property(name);
 }
 
-SrsAmf0Any* SrsASrsAmf0EcmaArray::ensure_property_string(std::string name)
+SrsAmf0Any* SrsAmf0EcmaArray::ensure_property_string(std::string name)
 {
 	return properties.ensure_property_string(name);
 }
@@ -760,7 +1022,7 @@ int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any*& value)
 			return ret;
 		}
 		case RTMP_AMF0_EcmaArray: {
-			SrsASrsAmf0EcmaArray* p = NULL;
+			SrsAmf0EcmaArray* p = NULL;
 			if ((ret = srs_amf0_read_ecma_array(stream, p)) != ERROR_SUCCESS) {
 				return ret;
 			}
@@ -811,7 +1073,7 @@ int srs_amf0_write_any(SrsStream* stream, SrsAmf0Any* value)
 			return srs_amf0_write_object(stream, p);
 		}
 		case RTMP_AMF0_EcmaArray: {
-			SrsASrsAmf0EcmaArray* p = srs_amf0_convert<SrsASrsAmf0EcmaArray>(value);
+			SrsAmf0EcmaArray* p = srs_amf0_convert<SrsAmf0EcmaArray>(value);
 			return srs_amf0_write_ecma_array(stream, p);
 		}
 		case RTMP_AMF0_Invalid:
@@ -823,59 +1085,6 @@ int srs_amf0_write_any(SrsStream* stream, SrsAmf0Any* value)
 	}
 	
 	return ret;
-}
-int srs_amf0_get_any_size(SrsAmf0Any* value)
-{
-	if (!value) {
-		return 0;
-	}
-	
-	int size = 0;
-	
-	switch (value->marker) {
-		case RTMP_AMF0_String: {
-			SrsAmf0String* p = srs_amf0_convert<SrsAmf0String>(value);
-			size += srs_amf0_get_string_size(p->value);
-			break;
-		}
-		case RTMP_AMF0_Boolean: {
-			size += srs_amf0_get_boolean_size();
-			break;
-		}
-		case RTMP_AMF0_Number: {
-			size += srs_amf0_get_number_size();
-			break;
-		}
-		case RTMP_AMF0_Null: {
-			size += srs_amf0_get_null_size();
-			break;
-		}
-		case RTMP_AMF0_Undefined: {
-			size += srs_amf0_get_undefined_size();
-			break;
-		}
-		case RTMP_AMF0_ObjectEnd: {
-			size += srs_amf0_get_object_eof_size();
-			break;
-		}
-		case RTMP_AMF0_Object: {
-			SrsAmf0Object* p = srs_amf0_convert<SrsAmf0Object>(value);
-			size += srs_amf0_get_object_size(p);
-			break;
-		}
-		case RTMP_AMF0_EcmaArray: {
-			SrsASrsAmf0EcmaArray* p = srs_amf0_convert<SrsASrsAmf0EcmaArray>(value);
-			size += srs_amf0_get_ecma_array_size(p);
-			break;
-		}
-		default: {
-			// TOOD: other AMF0 types.
-			srs_warn("ignore unkown AMF0 type size.");
-			break;
-		}
-	}
-	
-	return size;
 }
 
 int srs_amf0_read_object_eof(SrsStream* stream, SrsAmf0ObjectEOF*& value)
@@ -954,290 +1163,96 @@ int srs_amf0_read_object(SrsStream* stream, SrsAmf0Object*& value)
 {
 	int ret = ERROR_SUCCESS;
 	
-	// marker
-	if (!stream->require(1)) {
-		ret = ERROR_RTMP_AMF0_DECODE;
-		srs_error("amf0 read object marker failed. ret=%d", ret);
-		return ret;
-	}
-	
-	char marker = stream->read_1bytes();
-	if (marker != RTMP_AMF0_Object) {
-		ret = ERROR_RTMP_AMF0_DECODE;
-		srs_error("amf0 check object marker failed. "
-			"marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Object, ret);
-		return ret;
-	}
-	srs_verbose("amf0 read object marker success");
-	
-	// value
 	value = new SrsAmf0Object();
-
-	while (!stream->empty()) {
-		// property-name: utf8 string
-		std::string property_name;
-		if ((ret =srs_amf0_read_utf8(stream, property_name)) != ERROR_SUCCESS) {
-			srs_error("amf0 object read property name failed. ret=%d", ret);
-			return ret;
-		}
-		// property-value: any
-		SrsAmf0Any* property_value = NULL;
-		if ((ret = srs_amf0_read_any(stream, property_value)) != ERROR_SUCCESS) {
-			srs_error("amf0 object read property_value failed. "
-				"name=%s, ret=%d", property_name.c_str(), ret);
-			return ret;
-		}
-		
-		// AMF0 Object EOF.
-		if (property_name.empty() || !property_value || property_value->is_object_eof()) {
-			if (property_value) {
-				srs_freep(property_value);
-			}
-			srs_info("amf0 read object EOF.");
-			break;
-		}
-		
-		// add property
-		value->set(property_name, property_value);
+	
+	if ((ret = value->read(stream)) != ERROR_SUCCESS) {
+		srs_freep(value);
+		return ret;
 	}
 	
 	return ret;
 }
 int srs_amf0_write_object(SrsStream* stream, SrsAmf0Object* value)
 {
-	int ret = ERROR_SUCCESS;
-
-	srs_assert(value != NULL);
-	
-	// marker
-	if (!stream->require(1)) {
-		ret = ERROR_RTMP_AMF0_ENCODE;
-		srs_error("amf0 write object marker failed. ret=%d", ret);
-		return ret;
-	}
-	
-	stream->write_1bytes(RTMP_AMF0_Object);
-	srs_verbose("amf0 write object marker success");
-	
-	// value
-	for (int i = 0; i < value->size(); i++) {
-		std::string name = value->key_at(i);
-		SrsAmf0Any* any = value->value_at(i);
-		
-		if ((ret = srs_amf0_write_utf8(stream, name)) != ERROR_SUCCESS) {
-			srs_error("write object property name failed. ret=%d", ret);
-			return ret;
-		}
-		
-		if ((ret = srs_amf0_write_any(stream, any)) != ERROR_SUCCESS) {
-			srs_error("write object property value failed. ret=%d", ret);
-			return ret;
-		}
-		
-		srs_verbose("write amf0 property success. name=%s", name.c_str());
-	}
-	
-	if ((ret = srs_amf0_write_object_eof(stream, &value->eof)) != ERROR_SUCCESS) {
-		srs_error("write object eof failed. ret=%d", ret);
-		return ret;
-	}
-	
-	srs_verbose("write amf0 object success.");
-	
-	return ret;
+	return value->write(stream);
 }
 
-int srs_amf0_read_ecma_array(SrsStream* stream, SrsASrsAmf0EcmaArray*& value)
+int srs_amf0_read_ecma_array(SrsStream* stream, SrsAmf0EcmaArray*& value)
 {
 	int ret = ERROR_SUCCESS;
 	
-	// marker
-	if (!stream->require(1)) {
-		ret = ERROR_RTMP_AMF0_DECODE;
-		srs_error("amf0 read ecma_array marker failed. ret=%d", ret);
-		return ret;
-	}
+	value = new SrsAmf0EcmaArray();
 	
-	char marker = stream->read_1bytes();
-	if (marker != RTMP_AMF0_EcmaArray) {
-		ret = ERROR_RTMP_AMF0_DECODE;
-		srs_error("amf0 check ecma_array marker failed. "
-			"marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Object, ret);
+	if ((ret = value->read(stream)) != ERROR_SUCCESS) {
+		srs_freep(value);
 		return ret;
-	}
-	srs_verbose("amf0 read ecma_array marker success");
-
-	// count
-	if (!stream->require(4)) {
-		ret = ERROR_RTMP_AMF0_DECODE;
-		srs_error("amf0 read ecma_array count failed. ret=%d", ret);
-		return ret;
-	}
-	
-	int32_t count = stream->read_4bytes();
-	srs_verbose("amf0 read ecma_array count success. count=%d", count);
-	
-	// value
-	value = new SrsASrsAmf0EcmaArray();
-	value->count = count;
-
-	while (!stream->empty()) {
-		// property-name: utf8 string
-		std::string property_name;
-		if ((ret =srs_amf0_read_utf8(stream, property_name)) != ERROR_SUCCESS) {
-			srs_error("amf0 ecma_array read property name failed. ret=%d", ret);
-			return ret;
-		}
-		// property-value: any
-		SrsAmf0Any* property_value = NULL;
-		if ((ret = srs_amf0_read_any(stream, property_value)) != ERROR_SUCCESS) {
-			srs_error("amf0 ecma_array read property_value failed. "
-				"name=%s, ret=%d", property_name.c_str(), ret);
-			return ret;
-		}
-		
-		// AMF0 Object EOF.
-		if (property_name.empty() || !property_value || property_value->is_object_eof()) {
-			if (property_value) {
-				srs_freep(property_value);
-			}
-			srs_info("amf0 read ecma_array EOF.");
-			break;
-		}
-		
-		// add property
-		value->set(property_name, property_value);
 	}
 	
 	return ret;
 }
-int srs_amf0_write_ecma_array(SrsStream* stream, SrsASrsAmf0EcmaArray* value)
+int srs_amf0_write_ecma_array(SrsStream* stream, SrsAmf0EcmaArray* value)
 {
-	int ret = ERROR_SUCCESS;
-
-	srs_assert(value != NULL);
-	
-	// marker
-	if (!stream->require(1)) {
-		ret = ERROR_RTMP_AMF0_ENCODE;
-		srs_error("amf0 write ecma_array marker failed. ret=%d", ret);
-		return ret;
-	}
-	
-	stream->write_1bytes(RTMP_AMF0_EcmaArray);
-	srs_verbose("amf0 write ecma_array marker success");
-
-	// count
-	if (!stream->require(4)) {
-		ret = ERROR_RTMP_AMF0_ENCODE;
-		srs_error("amf0 write ecma_array count failed. ret=%d", ret);
-		return ret;
-	}
-	
-	stream->write_4bytes(value->count);
-	srs_verbose("amf0 write ecma_array count success. count=%d", value->count);
-	
-	// value
-	for (int i = 0; i < value->size(); i++) {
-		std::string name = value->key_at(i);
-		SrsAmf0Any* any = value->value_at(i);
-		
-		if ((ret = srs_amf0_write_utf8(stream, name)) != ERROR_SUCCESS) {
-			srs_error("write ecma_array property name failed. ret=%d", ret);
-			return ret;
-		}
-		
-		if ((ret = srs_amf0_write_any(stream, any)) != ERROR_SUCCESS) {
-			srs_error("write ecma_array property value failed. ret=%d", ret);
-			return ret;
-		}
-		
-		srs_verbose("write amf0 property success. name=%s", name.c_str());
-	}
-	
-	if ((ret = srs_amf0_write_object_eof(stream, &value->eof)) != ERROR_SUCCESS) {
-		srs_error("write ecma_array eof failed. ret=%d", ret);
-		return ret;
-	}
-	
-	srs_verbose("write ecma_array object success.");
-	
-	return ret;
+	return value->write(stream);
 }
 
-int srs_amf0_get_utf8_size(std::string value)
+int SrsAmf0Size::utf8(string value)
 {
 	return 2 + value.length();
 }
 
-int srs_amf0_get_string_size(std::string value)
+int SrsAmf0Size::str(string value)
 {
-	return 1 + srs_amf0_get_utf8_size(value);
+	return 1 + SrsAmf0Size::utf8(value);
 }
 
-int srs_amf0_get_number_size()
+int SrsAmf0Size::number()
 {
 	return 1 + 8;
 }
 
-int srs_amf0_get_null_size()
+int SrsAmf0Size::null()
 {
 	return 1;
 }
 
-int srs_amf0_get_undefined_size()
+int SrsAmf0Size::undefined()
 {
 	return 1;
 }
 
-int srs_amf0_get_boolean_size()
+int SrsAmf0Size::boolean()
 {
 	return 1 + 1;
 }
 
-int srs_amf0_get_object_size(SrsAmf0Object* obj)
+int SrsAmf0Size::object(SrsAmf0Object* obj)
 {
 	if (!obj) {
 		return 0;
 	}
 	
-	int size = 1;
-	
-	for (int i = 0; i < obj->size(); i++){
-		std::string name = obj->key_at(i);
-		SrsAmf0Any* value = obj->value_at(i);
-		
-		size += srs_amf0_get_utf8_size(name);
-		size += srs_amf0_get_any_size(value);
-	}
-	
-	size += srs_amf0_get_object_eof_size();
-	
-	return size;
+	return obj->size();
 }
 
-int srs_amf0_get_ecma_array_size(SrsASrsAmf0EcmaArray* arr)
+int SrsAmf0Size::object_eof()
+{
+	return 2 + 1;
+}
+
+int SrsAmf0Size::array(SrsAmf0EcmaArray* arr)
 {
 	if (!arr) {
 		return 0;
 	}
 	
-	int size = 1 + 4;
-	
-	for (int i = 0; i < arr->size(); i++){
-		std::string name = arr->key_at(i);
-		SrsAmf0Any* value = arr->value_at(i);
-		
-		size += srs_amf0_get_utf8_size(name);
-		size += srs_amf0_get_any_size(value);
-	}
-	
-	size += srs_amf0_get_object_eof_size();
-	
-	return size;
+	return arr->size();
 }
 
-int srs_amf0_get_object_eof_size()
+int SrsAmf0Size::any(SrsAmf0Any* o)
 {
-	return 2 + 1;
+	if (!o) {
+		return 0;
+	}
+	
+	return o->size();
 }

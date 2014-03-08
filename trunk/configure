@@ -335,20 +335,18 @@ LINK_OPTIONS="-ldl${SrsGprofLink}${SrsGperfLink}"
 # srs:
 # srs(simple rtmp server) over st(state-threads)
 BUILD_KEY="srs" APP_MAIN="srs_main_server" APP_NAME="srs" . auto/apps.sh
-#
+# bandwidth test tool, to test the bandwidth to server
 if [ $SRS_BWTC = YES ]; then
-    # bandwidth test tool, to test the bandwidth to server
     BUILD_KEY="bandwidth" APP_MAIN="srs_main_bandcheck" APP_NAME="bandwidth" . auto/apps.sh
 fi
-#
+# srs librtmp
 if [ $SRS_LIBRTMP = YES ]; then
-    # srs librtmp
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${RTMP_OBJS[@]} ${LIBS_OBJS[@]}"
     BUILD_KEY="librtmp" LIB_NAME="lib/srs_librtmp" . auto/libs.sh
 fi
 #
 # utest, the unit-test cases of srs, base on gtest1.6
-MODULE_FILES=("srs_utest")
+MODULE_FILES=("srs_utest" "srs_utest_amf0")
 ModuleLibIncs=(${SRS_OBJS} ${LibSTRoot})
 ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile} ${LibSSLfile})
 MODULE_DEPENDS=("CORE" "KERNEL" "RTMP" "APP")

@@ -59,6 +59,8 @@ struct SrsAmf0Any
 	virtual bool is_object();
 	virtual bool is_object_eof();
 	virtual bool is_ecma_array();
+	
+	virtual int size() = 0;
 };
 
 /**
@@ -73,6 +75,8 @@ struct SrsAmf0String : public SrsAmf0Any
 
 	SrsAmf0String(const char* _value = NULL);
 	virtual ~SrsAmf0String();
+	
+	virtual int size();
 };
 
 /**
@@ -88,6 +92,8 @@ struct SrsAmf0Boolean : public SrsAmf0Any
 
 	SrsAmf0Boolean(bool _value = false);
 	virtual ~SrsAmf0Boolean();
+	
+	virtual int size();
 };
 
 /**
@@ -102,6 +108,8 @@ struct SrsAmf0Number : public SrsAmf0Any
 
 	SrsAmf0Number(double _value = 0.0);
 	virtual ~SrsAmf0Number();
+	
+	virtual int size();
 };
 
 /**
@@ -113,6 +121,8 @@ struct SrsAmf0Null : public SrsAmf0Any
 {
 	SrsAmf0Null();
 	virtual ~SrsAmf0Null();
+	
+	virtual int size();
 };
 
 /**
@@ -124,6 +134,8 @@ struct SrsAmf0Undefined : public SrsAmf0Any
 {
 	SrsAmf0Undefined();
 	virtual ~SrsAmf0Undefined();
+	
+	virtual int size();
 };
 
 /**
@@ -137,6 +149,8 @@ struct SrsAmf0ObjectEOF : public SrsAmf0Any
 
 	SrsAmf0ObjectEOF();
 	virtual ~SrsAmf0ObjectEOF();
+	
+	virtual int size();
 };
 
 /**
@@ -179,6 +193,9 @@ public:
 
 	SrsAmf0Object();
 	virtual ~SrsAmf0Object();
+
+	virtual int read(SrsStream* stream);
+	virtual int write(SrsStream* stream);
 	
 	virtual int size();
 	virtual std::string key_at(int index);
@@ -196,7 +213,7 @@ public:
 * associative-count = U32
 * object-property = (UTF-8 value-type) | (UTF-8-empty object-end-marker)
 */
-struct SrsASrsAmf0EcmaArray : public SrsAmf0Any
+struct SrsAmf0EcmaArray : public SrsAmf0Any
 {
 private:
 	SrsUnSortedHashtable properties;
@@ -204,8 +221,11 @@ public:
 	int32_t count;
 	SrsAmf0ObjectEOF eof;
 
-	SrsASrsAmf0EcmaArray();
-	virtual ~SrsASrsAmf0EcmaArray();
+	SrsAmf0EcmaArray();
+	virtual ~SrsAmf0EcmaArray();
+
+	virtual int read(SrsStream* stream);
+	virtual int write(SrsStream* stream);
 	
 	virtual int size();
 	virtual void clear();
@@ -287,20 +307,26 @@ extern int srs_amf0_write_object(SrsStream* stream, SrsAmf0Object* value);
 * associative-count = U32
 * object-property = (UTF-8 value-type) | (UTF-8-empty object-end-marker)
 */
-extern int srs_amf0_read_ecma_array(SrsStream* stream, SrsASrsAmf0EcmaArray*& value);
-extern int srs_amf0_write_ecma_array(SrsStream* stream, SrsASrsAmf0EcmaArray* value);
+extern int srs_amf0_read_ecma_array(SrsStream* stream, SrsAmf0EcmaArray*& value);
+extern int srs_amf0_write_ecma_array(SrsStream* stream, SrsAmf0EcmaArray* value);
 
 /**
-* get amf0 objects size.
+* the class to get amf0 object size
 */
-extern int srs_amf0_get_utf8_size(std::string value);
-extern int srs_amf0_get_string_size(std::string value);
-extern int srs_amf0_get_number_size();
-extern int srs_amf0_get_null_size();
-extern int srs_amf0_get_undefined_size();
-extern int srs_amf0_get_boolean_size();
-extern int srs_amf0_get_object_size(SrsAmf0Object* obj);
-extern int srs_amf0_get_ecma_array_size(SrsASrsAmf0EcmaArray* arr);
+class SrsAmf0Size
+{
+public:
+	static int utf8(std::string value);
+	static int str(std::string value);
+	static int number();
+	static int null();
+	static int undefined();
+	static int boolean();
+	static int object(SrsAmf0Object* obj);
+	static int object_eof();
+	static int array(SrsAmf0EcmaArray* arr);
+	static int any(SrsAmf0Any* o);
+};
 
 /**
 * convert the any to specified object.

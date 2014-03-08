@@ -1791,8 +1791,8 @@ int SrsConnectAppPacket::get_message_type()
 
 int SrsConnectAppPacket::get_size()
 {
-	return srs_amf0_get_string_size(command_name) + srs_amf0_get_number_size()
-		+ srs_amf0_get_object_size(command_object);
+	return SrsAmf0Size::str(command_name) + SrsAmf0Size::number()
+		+ SrsAmf0Size::object(command_object);
 }
 
 int SrsConnectAppPacket::encode_packet(SrsStream* stream)
@@ -1901,14 +1901,14 @@ int SrsConnectAppResPacket::get_message_type()
 
 int SrsConnectAppResPacket::get_size()
 {
-    int size = srs_amf0_get_string_size(command_name) + srs_amf0_get_number_size();
+    int size = SrsAmf0Size::str(command_name) + SrsAmf0Size::number();
     
     if (props->size() > 0) {
-        size += srs_amf0_get_object_size(props);
+        size += SrsAmf0Size::object(props);
     }
     
     if (info->size() > 0) {
-        size += srs_amf0_get_object_size(info);
+        size += SrsAmf0Size::object(info);
     }
 
     return size;
@@ -2007,8 +2007,8 @@ int SrsCreateStreamPacket::get_message_type()
 
 int SrsCreateStreamPacket::get_size()
 {
-	return srs_amf0_get_string_size(command_name) + srs_amf0_get_number_size()
-		+ srs_amf0_get_null_size();
+	return SrsAmf0Size::str(command_name) + SrsAmf0Size::number()
+		+ SrsAmf0Size::null();
 }
 
 int SrsCreateStreamPacket::encode_packet(SrsStream* stream)
@@ -2098,8 +2098,8 @@ int SrsCreateStreamResPacket::get_message_type()
 
 int SrsCreateStreamResPacket::get_size()
 {
-	return srs_amf0_get_string_size(command_name) + srs_amf0_get_number_size()
-		+ srs_amf0_get_null_size() + srs_amf0_get_number_size();
+	return SrsAmf0Size::str(command_name) + SrsAmf0Size::number()
+		+ SrsAmf0Size::null() + SrsAmf0Size::number();
 }
 
 int SrsCreateStreamResPacket::encode_packet(SrsStream* stream)
@@ -2234,8 +2234,8 @@ int SrsFMLEStartPacket::get_message_type()
 
 int SrsFMLEStartPacket::get_size()
 {
-	return srs_amf0_get_string_size(command_name) + srs_amf0_get_number_size()
-		+ srs_amf0_get_null_size() + srs_amf0_get_string_size(stream_name);
+	return SrsAmf0Size::str(command_name) + SrsAmf0Size::number()
+		+ SrsAmf0Size::null() + SrsAmf0Size::str(stream_name);
 }
 
 int SrsFMLEStartPacket::encode_packet(SrsStream* stream)
@@ -2355,8 +2355,8 @@ int SrsFMLEStartResPacket::get_message_type()
 
 int SrsFMLEStartResPacket::get_size()
 {
-	return srs_amf0_get_string_size(command_name) + srs_amf0_get_number_size()
-		+ srs_amf0_get_null_size() + srs_amf0_get_undefined_size();
+	return SrsAmf0Size::str(command_name) + SrsAmf0Size::number()
+		+ SrsAmf0Size::null() + SrsAmf0Size::undefined();
 }
 
 int SrsFMLEStartResPacket::encode_packet(SrsStream* stream)
@@ -2458,9 +2458,9 @@ int SrsPublishPacket::get_message_type()
 
 int SrsPublishPacket::get_size()
 {
-	return srs_amf0_get_string_size(command_name) + srs_amf0_get_number_size()
-		+ srs_amf0_get_null_size() + srs_amf0_get_string_size(stream_name)
-		+ srs_amf0_get_string_size(type);
+	return SrsAmf0Size::str(command_name) + SrsAmf0Size::number()
+		+ SrsAmf0Size::null() + SrsAmf0Size::str(stream_name)
+		+ SrsAmf0Size::str(type);
 }
 
 int SrsPublishPacket::encode_packet(SrsStream* stream)
@@ -2654,10 +2654,10 @@ int SrsPlayPacket::get_message_type()
 
 int SrsPlayPacket::get_size()
 {
-	return srs_amf0_get_string_size(command_name) + srs_amf0_get_number_size()
-		+ srs_amf0_get_null_size() + srs_amf0_get_string_size(stream_name)
-		+ srs_amf0_get_number_size() + srs_amf0_get_number_size()
-		+ srs_amf0_get_boolean_size();
+	return SrsAmf0Size::str(command_name) + SrsAmf0Size::number()
+		+ SrsAmf0Size::null() + SrsAmf0Size::str(stream_name)
+		+ SrsAmf0Size::number() + SrsAmf0Size::number()
+		+ SrsAmf0Size::boolean();
 }
 
 int SrsPlayPacket::encode_packet(SrsStream* stream)
@@ -2737,8 +2737,8 @@ int SrsPlayResPacket::get_message_type()
 
 int SrsPlayResPacket::get_size()
 {
-	return srs_amf0_get_string_size(command_name) + srs_amf0_get_number_size()
-		+ srs_amf0_get_null_size() + srs_amf0_get_object_size(desc);
+	return SrsAmf0Size::str(command_name) + SrsAmf0Size::number()
+		+ SrsAmf0Size::null() + SrsAmf0Size::object(desc);
 }
 
 int SrsPlayResPacket::encode_packet(SrsStream* stream)
@@ -2799,8 +2799,8 @@ int SrsOnBWDonePacket::get_message_type()
 
 int SrsOnBWDonePacket::get_size()
 {
-	return srs_amf0_get_string_size(command_name) + srs_amf0_get_number_size()
-		+ srs_amf0_get_null_size();
+	return SrsAmf0Size::str(command_name) + SrsAmf0Size::number()
+		+ SrsAmf0Size::null();
 }
 
 int SrsOnBWDonePacket::encode_packet(SrsStream* stream)
@@ -2856,8 +2856,8 @@ int SrsOnStatusCallPacket::get_message_type()
 
 int SrsOnStatusCallPacket::get_size()
 {
-	return srs_amf0_get_string_size(command_name) + srs_amf0_get_number_size()
-		+ srs_amf0_get_null_size() + srs_amf0_get_object_size(data);
+	return SrsAmf0Size::str(command_name) + SrsAmf0Size::number()
+		+ SrsAmf0Size::null() + SrsAmf0Size::object(data);
 }
 
 int SrsOnStatusCallPacket::encode_packet(SrsStream* stream)
@@ -2919,8 +2919,8 @@ int SrsBandwidthPacket::get_message_type()
 
 int SrsBandwidthPacket::get_size()
 {
-	return srs_amf0_get_string_size(command_name) + srs_amf0_get_number_size()
-		+ srs_amf0_get_null_size() + srs_amf0_get_object_size(data);
+	return SrsAmf0Size::str(command_name) + SrsAmf0Size::number()
+		+ SrsAmf0Size::null() + SrsAmf0Size::object(data);
 }
 
 int SrsBandwidthPacket::encode_packet(SrsStream* stream)
@@ -3073,7 +3073,7 @@ int SrsOnStatusDataPacket::get_message_type()
 
 int SrsOnStatusDataPacket::get_size()
 {
-	return srs_amf0_get_string_size(command_name) + srs_amf0_get_object_size(data);
+	return SrsAmf0Size::str(command_name) + SrsAmf0Size::object(data);
 }
 
 int SrsOnStatusDataPacket::encode_packet(SrsStream* stream)
@@ -3120,8 +3120,8 @@ int SrsSampleAccessPacket::get_message_type()
 
 int SrsSampleAccessPacket::get_size()
 {
-	return srs_amf0_get_string_size(command_name)
-		+ srs_amf0_get_boolean_size() + srs_amf0_get_boolean_size();
+	return SrsAmf0Size::str(command_name)
+		+ SrsAmf0Size::boolean() + SrsAmf0Size::boolean();
 }
 
 int SrsSampleAccessPacket::encode_packet(SrsStream* stream)
@@ -3195,7 +3195,7 @@ int SrsOnMetaDataPacket::decode(SrsStream* stream)
 		return ret;
 	}
 	
-	SrsASrsAmf0EcmaArray* arr = dynamic_cast<SrsASrsAmf0EcmaArray*>(any);
+	SrsAmf0EcmaArray* arr = dynamic_cast<SrsAmf0EcmaArray*>(any);
 	if (!arr) {
 		ret = ERROR_RTMP_AMF0_DECODE;
 		srs_error("decode metadata array failed. ret=%d", ret);
@@ -3224,7 +3224,7 @@ int SrsOnMetaDataPacket::get_message_type()
 
 int SrsOnMetaDataPacket::get_size()
 {
-	return srs_amf0_get_string_size(name) + srs_amf0_get_object_size(metadata);
+	return SrsAmf0Size::str(name) + SrsAmf0Size::object(metadata);
 }
 
 int SrsOnMetaDataPacket::encode_packet(SrsStream* stream)

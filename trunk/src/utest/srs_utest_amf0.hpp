@@ -21,48 +21,13 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+#ifndef SRS_UTEST_AMF0_HPP
+#define SRS_UTEST_AMF0_HPP
+
+/*
+#include <srs_utest_amf0.hpp>
+*/
 #include <srs_utest.hpp>
+#include <srs_protocol_amf0.hpp>
 
-#include <srs_kernel_log.hpp>
-#include <srs_kernel_error.hpp>
-#include <srs_app_server.hpp>
-#include <srs_app_config.hpp>
-#include <srs_app_log.hpp>
-
-// kernel module.
-ISrsLog* _srs_log = new ISrsLog();
-ISrsThreadContext* _srs_context = new ISrsThreadContext();
-// app module.
-SrsConfig* _srs_config = NULL;
-SrsServer* _srs_server = NULL;
-
-// basic test and samples.
-VOID TEST(SampleTest, FastSampleInt64Test) 
-{
-	EXPECT_EQ(1, (int)sizeof(int8_t));
-	EXPECT_EQ(2, (int)sizeof(int16_t));
-	EXPECT_EQ(4, (int)sizeof(int32_t));
-	EXPECT_EQ(8, (int)sizeof(int64_t));
-}
-
-VOID TEST(SampleTest, FastSampleMacrosTest) 
-{
-	EXPECT_TRUE(1);
-	EXPECT_FALSE(0);
-	
-	EXPECT_EQ(1, 1); // ==
-	EXPECT_NE(1, 2); // !=
-	EXPECT_LE(1, 2); // <=
-	EXPECT_LT(1, 2); // <
-	EXPECT_GE(2, 1); // >=
-	EXPECT_GT(2, 1); // >
-
-	EXPECT_STREQ("winlin", "winlin");
-	EXPECT_STRNE("winlin", "srs");
-	EXPECT_STRCASEEQ("winlin", "Winlin");
-	EXPECT_STRCASENE("winlin", "srs");
-	
-	EXPECT_FLOAT_EQ(1.0, 1.000000000000001);
-	EXPECT_DOUBLE_EQ(1.0, 1.0000000000000001);
-	EXPECT_NEAR(10, 15, 5);
-}
+#endif

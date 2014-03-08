@@ -706,7 +706,7 @@ int SrsRtmpServer::response_connect_app(SrsRequest *req, const char* server_ip)
 	pkt->info->set(StatusCode, new SrsAmf0String(StatusCodeConnectSuccess));
 	pkt->info->set(StatusDescription, new SrsAmf0String("Connection succeeded"));
 	pkt->info->set("objectEncoding", new SrsAmf0Number(req->objectEncoding));
-	SrsASrsAmf0EcmaArray* data = new SrsASrsAmf0EcmaArray();
+	SrsAmf0EcmaArray* data = new SrsAmf0EcmaArray();
 	pkt->info->set("data", data);
 	
 	data->set("version", new SrsAmf0String(RTMP_SIG_FMS_VER));
