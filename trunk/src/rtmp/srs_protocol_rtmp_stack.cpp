@@ -2624,17 +2624,19 @@ int SrsPlayPacket::decode(SrsStream* stream)
     }
     SrsAutoFree(SrsAmf0Any, reset_value, false);
     
-    // check if the value is bool or number
-    // An optional Boolean value or number that specifies whether
-    // to flush any previous playlist
-    if (reset_value->is_boolean()) {
-        reset = reset_value->to_boolean();
-    } else if (reset_value->is_number()) {
-        reset = (reset_value->to_number() == 0 ? false : true);
-    } else {
-        ret = ERROR_RTMP_AMF0_DECODE;
-        srs_error("amf0 invalid type=%#x, requires number or bool, ret=%d", reset_value->marker, ret);
-        return ret;
+    if (reset_value) {
+	    // check if the value is bool or number
+	    // An optional Boolean value or number that specifies whether
+	    // to flush any previous playlist
+	    if (reset_value->is_boolean()) {
+	        reset = reset_value->to_boolean();
+	    } else if (reset_value->is_number()) {
+	        reset = (reset_value->to_number() == 0 ? false : true);
+	    } else {
+	        ret = ERROR_RTMP_AMF0_DECODE;
+	        srs_error("amf0 invalid type=%#x, requires number or bool, ret=%d", reset_value->marker, ret);
+	        return ret;
+	    }
     }
 
     srs_info("amf0 decode play packet success");
@@ -3188,7 +3190,7 @@ int SrsOnMetaDataPacket::decode(SrsStream* stream)
 		return ret;
 	}
 	
-	if (any->is_object()) {
+	if (any && any->is_object()) {
 		srs_freep(metadata);
 		metadata = dynamic_cast<SrsAmf0Object*>(any);
 		srs_info("decode metadata object success");
@@ -3199,10 +3201,11 @@ int SrsOnMetaDataPacket::decode(SrsStream* stream)
 	if (!arr) {
 		ret = ERROR_RTMP_AMF0_DECODE;
 		srs_error("decode metadata array failed. ret=%d", ret);
-		srs_freep(any);
 		return ret;
 	}
 	
+	// if ecma array, copy to object.
+	SrsAutoFree(SrsAmf0EcmaArray, arr, false);
 	for (int i = 0; i < arr->size(); i++) {
 		metadata->set(arr->key_at(i), arr->value_at(i));
 	}

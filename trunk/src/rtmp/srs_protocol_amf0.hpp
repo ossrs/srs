@@ -37,6 +37,35 @@ class SrsStream;
 class SrsAmf0Object;
 class SrsAmf0EcmaArray;
 
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+// amf0 codec
+// 1. SrsAmf0Any: read any from stream
+//		SrsAmf0Any* pany = NULL;
+//		if ((ret = srs_amf0_read_any(stream, &pany)) != ERROR_SUCCESS) {
+//			return ret;
+// 		}
+// 2. SrsAmf0Any: convert to specifid type, for instance, string
+//		SrsAmf0Any* pany = ...
+//		if (pany && pany->is_string()) {
+//			string v = pany->to_str();
+//		}
+// 3. SrsAmf0Any: parse specified type to any, for instance, string
+//		SrsAmf0Any* pany = SrsAmf0Any::str("winlin");
+// 4. SrsAmf0Size: get amf0 instance size
+//		int size = SrsAmf0Size::str("winlin");
+// 5. SrsAmf0Object: the amf0 object, directly new is ok.
+//		SrsAmf0Object* obj = SrsAmf0Any::object();
+//		SrsAmf0Object* obj = new SrsAmf0Object();
+// 5. SrsAmf0EcmaArray: the amf0 ecma array, directly new is ok.
+//		SrsAmf0EcmaArray* arr = SrsAmf0Any::array();
+//		SrsAmf0EcmaArray* arr = new SrsAmf0EcmaArray();
+// for detail usage, see interfaces of each object.
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+
 /**
 * any amf0 value.
 * 2.1 Types Overview
