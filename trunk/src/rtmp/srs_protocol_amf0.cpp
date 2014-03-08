@@ -191,6 +191,69 @@ SrsAmf0EcmaArray* SrsAmf0Any::array()
 	return new SrsAmf0EcmaArray();
 }
 
+int SrsAmf0Any::discovery(SrsStream* stream, SrsAmf0Any** ppvalue)
+{
+	int ret = ERROR_SUCCESS;
+	
+	// detect the object-eof specially
+	if (srs_amf0_is_object_eof(stream)) {
+		*ppvalue = new __SrsAmf0ObjectEOF();
+		return ret;
+	}
+	
+	// marker
+	if (!stream->require(1)) {
+		ret = ERROR_RTMP_AMF0_DECODE;
+		srs_error("amf0 read any marker failed. ret=%d", ret);
+		return ret;
+	}
+	
+	char marker = stream->read_1bytes();
+	srs_verbose("amf0 any marker success");
+	
+	// backward the 1byte marker.
+	stream->skip(-1);
+	
+	switch (marker) {
+		case RTMP_AMF0_String: {
+			*ppvalue = new __SrsAmf0String();
+			return ret;
+		}
+		case RTMP_AMF0_Boolean: {
+			*ppvalue = new __SrsAmf0Boolean();
+			return ret;
+		}
+		case RTMP_AMF0_Number: {
+			*ppvalue = new __SrsAmf0Number();
+			return ret;
+		}
+		case RTMP_AMF0_Null: {
+			*ppvalue = new __SrsAmf0Null();
+			return ret;
+		}
+		case RTMP_AMF0_Undefined: {
+			*ppvalue = new __SrsAmf0Undefined();
+			return ret;
+		}
+		case RTMP_AMF0_Object: {
+			*ppvalue = new SrsAmf0Object();
+			return ret;
+		}
+		case RTMP_AMF0_EcmaArray: {
+			*ppvalue = new SrsAmf0EcmaArray();
+			return ret;
+		}
+		case RTMP_AMF0_Invalid:
+		default: {
+			ret = ERROR_RTMP_AMF0_INVALID;
+			srs_error("invalid amf0 message type. marker=%#x, ret=%d", marker, ret);
+			return ret;
+		}
+	}
+	
+	return ret;
+}
+
 __SrsUnSortedHashtable::__SrsUnSortedHashtable()
 {
 }
@@ -893,6 +956,32 @@ int __SrsAmf0Undefined::write(SrsStream* stream)
 	return srs_amf0_write_undefined(stream);
 }
 
+int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any** ppvalue)
+{
+	int ret = ERROR_SUCCESS;
+	
+	if ((ret = SrsAmf0Any::discovery(stream, ppvalue)) != ERROR_SUCCESS) {
+		srs_error("amf0 discovery any elem failed. ret=%d", ret);
+		return ret;
+	}
+	
+	srs_assert(*ppvalue);
+	
+	if ((ret = (*ppvalue)->read(stream)) != ERROR_SUCCESS) {
+		srs_error("amf0 parse elem failed. ret=%d", ret);
+		srs_freep(*ppvalue);
+		return ret;
+	}
+	
+	return ret;
+}
+
+int srs_amf0_write_any(SrsStream* stream, SrsAmf0Any* value)
+{
+	srs_assert(value != NULL);
+	return value->write(stream);
+}
+
 int srs_amf0_read_utf8(SrsStream* stream, std::string& value)
 {
 	int ret = ERROR_SUCCESS;
@@ -1229,142 +1318,6 @@ bool srs_amf0_is_object_eof(SrsStream* stream)
 	}
 	
 	return false;
-}
-
-int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any** ppvalue)
-{
-	int ret = ERROR_SUCCESS;
-	
-	// detect the object-eof specially
-	if (srs_amf0_is_object_eof(stream)) {
-		*ppvalue = new __SrsAmf0ObjectEOF();
-		if ((ret = (*ppvalue)->read(stream)) != ERROR_SUCCESS) {
-			srs_freep(*ppvalue);
-			return ret;
-		}
-		return ret;
-	}
-	
-	// marker
-	if (!stream->require(1)) {
-		ret = ERROR_RTMP_AMF0_DECODE;
-		srs_error("amf0 read any marker failed. ret=%d", ret);
-		return ret;
-	}
-	
-	char marker = stream->read_1bytes();
-	srs_verbose("amf0 any marker success");
-	
-	// backward the 1byte marker.
-	stream->skip(-1);
-	
-	switch (marker) {
-		case RTMP_AMF0_String: {
-			std::string data;
-			if ((ret = srs_amf0_read_string(stream, data)) != ERROR_SUCCESS) {
-				return ret;
-			}
-			*ppvalue = SrsAmf0Any::str(data.c_str());
-			return ret;
-		}
-		case RTMP_AMF0_Boolean: {
-			bool data;
-			if ((ret = srs_amf0_read_boolean(stream, data)) != ERROR_SUCCESS) {
-				return ret;
-			}
-			*ppvalue = SrsAmf0Any::boolean(data);
-			return ret;
-		}
-		case RTMP_AMF0_Number: {
-			double data;
-			if ((ret = srs_amf0_read_number(stream, data)) != ERROR_SUCCESS) {
-				return ret;
-			}
-			*ppvalue = SrsAmf0Any::number(data);
-			return ret;
-		}
-		case RTMP_AMF0_Null: {
-			stream->skip(1);
-			*ppvalue = new __SrsAmf0Null();
-			return ret;
-		}
-		case RTMP_AMF0_Undefined: {
-			stream->skip(1);
-			*ppvalue = new __SrsAmf0Undefined();
-			return ret;
-		}
-		case RTMP_AMF0_Object: {
-			SrsAmf0Object* p = NULL;
-			if ((ret = srs_amf0_read_object(stream, p)) != ERROR_SUCCESS) {
-				return ret;
-			}
-			*ppvalue = p;
-			return ret;
-		}
-		case RTMP_AMF0_EcmaArray: {
-			SrsAmf0EcmaArray* p = NULL;
-			if ((ret = srs_amf0_read_ecma_array(stream, p)) != ERROR_SUCCESS) {
-				return ret;
-			}
-			*ppvalue = p;
-			return ret;
-		}
-		case RTMP_AMF0_Invalid:
-		default: {
-			ret = ERROR_RTMP_AMF0_INVALID;
-			srs_error("invalid amf0 message type. marker=%#x, ret=%d", marker, ret);
-			return ret;
-		}
-	}
-	
-	return ret;
-}
-int srs_amf0_write_any(SrsStream* stream, SrsAmf0Any* value)
-{
-	int ret = ERROR_SUCCESS;
-	
-	srs_assert(value != NULL);
-	
-	switch (value->marker) {
-		case RTMP_AMF0_String: {
-			std::string data = srs_amf0_convert<__SrsAmf0String*>(value)->value;
-			return srs_amf0_write_string(stream, data);
-		}
-		case RTMP_AMF0_Boolean: {
-			bool data = srs_amf0_convert<__SrsAmf0Boolean*>(value)->value;
-			return srs_amf0_write_boolean(stream, data);
-		}
-		case RTMP_AMF0_Number: {
-			double data = srs_amf0_convert<__SrsAmf0Number*>(value)->value;
-			return srs_amf0_write_number(stream, data);
-		}
-		case RTMP_AMF0_Null: {
-			return srs_amf0_write_null(stream);
-		}
-		case RTMP_AMF0_Undefined: {
-			return srs_amf0_write_undefined(stream);
-		}
-		case RTMP_AMF0_ObjectEnd: {
-			__SrsAmf0ObjectEOF* p = srs_amf0_convert<__SrsAmf0ObjectEOF*>(value);
-			return p->write(stream);
-		}
-		case RTMP_AMF0_Object: {
-			SrsAmf0Object* p = srs_amf0_convert<SrsAmf0Object*>(value);
-			return srs_amf0_write_object(stream, p);
-		}
-		case RTMP_AMF0_EcmaArray: {
-			SrsAmf0EcmaArray* p = srs_amf0_convert<SrsAmf0EcmaArray*>(value);
-			return srs_amf0_write_ecma_array(stream, p);
-		}
-		case RTMP_AMF0_Invalid:
-		default: {
-			ret = ERROR_RTMP_AMF0_INVALID;
-			srs_error("invalid amf0 message type. marker=%#x, ret=%d", value->marker, ret);
-			return ret;
-		}
-	}
-	
-	return ret;
 }
 
 int srs_amf0_write_object_eof(SrsStream* stream, __SrsAmf0ObjectEOF* value)

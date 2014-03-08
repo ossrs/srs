@@ -125,6 +125,8 @@ public:
 	static SrsAmf0Object* object();
 	static SrsAmf0Any* object_eof();
 	static SrsAmf0EcmaArray* array();
+public:
+	static int discovery(SrsStream* stream, SrsAmf0Any** ppvalue);
 };
 
 /**
@@ -259,7 +261,7 @@ class __SrsAmf0String : public SrsAmf0Any
 public:
 	std::string value;
 
-	__SrsAmf0String(const char* _value);
+	__SrsAmf0String(const char* _value = NULL);
 	virtual ~__SrsAmf0String();
 	
 	virtual int size();
@@ -279,7 +281,7 @@ class __SrsAmf0Boolean : public SrsAmf0Any
 public:
 	bool value;
 
-	__SrsAmf0Boolean(bool _value);
+	__SrsAmf0Boolean(bool _value = false);
 	virtual ~__SrsAmf0Boolean();
 	
 	virtual int size();
@@ -298,7 +300,7 @@ class __SrsAmf0Number : public SrsAmf0Any
 public:
 	double value;
 
-	__SrsAmf0Number(double _value);
+	__SrsAmf0Number(double _value = 0.0);
 	virtual ~__SrsAmf0Number();
 	
 	virtual int size();
@@ -337,6 +339,11 @@ public:
 	virtual int read(SrsStream* stream);
 	virtual int write(SrsStream* stream);
 };
+
+/**
+* read anything from stream.
+*/
+extern int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any** ppvalue);
 
 /**
 * read amf0 string from stream.
@@ -378,11 +385,6 @@ extern int srs_amf0_write_null(SrsStream* stream);
 */
 extern int srs_amf0_read_undefined(SrsStream* stream);
 extern int srs_amf0_write_undefined(SrsStream* stream);
-
-/**
-* read anything from stream.
-*/
-extern int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any** ppvalue);
 
 /**
 * read amf0 object from stream.
