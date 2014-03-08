@@ -106,61 +106,61 @@ VOID TEST(AMF0Test, Size)
     // array: empty
     if (true) {
         int size = 1+4+3;
-        SrsAmf0EcmaArray* o = SrsAmf0Any::array();
+        SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
         SrsAutoFree(SrsAmf0EcmaArray, o, false);
         
-        EXPECT_EQ(size, SrsAmf0Size::array(o));
+        EXPECT_EQ(size, SrsAmf0Size::ecma_array(o));
     }
     // array: elem
     if (true) {
         int size = 1+4+3;
-        SrsAmf0EcmaArray* o = SrsAmf0Any::array();
+        SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
         SrsAutoFree(SrsAmf0EcmaArray, o, false);
         
         size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
         o->set("name", SrsAmf0Any::str("winlin"));
         
-        EXPECT_EQ(size, SrsAmf0Size::array(o));
+        EXPECT_EQ(size, SrsAmf0Size::ecma_array(o));
     }
     if (true) {
         int size = 1+4+3;
-        SrsAmf0EcmaArray* o = SrsAmf0Any::array();
+        SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
         SrsAutoFree(SrsAmf0EcmaArray, o, false);
         
         size += SrsAmf0Size::utf8("age")+SrsAmf0Size::number();
         o->set("age", SrsAmf0Any::number(9));
         
-        EXPECT_EQ(size, SrsAmf0Size::array(o));
+        EXPECT_EQ(size, SrsAmf0Size::ecma_array(o));
     }
     if (true) {
         int size = 1+4+3;
-        SrsAmf0EcmaArray* o = SrsAmf0Any::array();
+        SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
         SrsAutoFree(SrsAmf0EcmaArray, o, false);
         
         size += SrsAmf0Size::utf8("email")+SrsAmf0Size::null();
         o->set("email", SrsAmf0Any::null());
         
-        EXPECT_EQ(size, SrsAmf0Size::array(o));
+        EXPECT_EQ(size, SrsAmf0Size::ecma_array(o));
     }
     if (true) {
         int size = 1+4+3;
-        SrsAmf0EcmaArray* o = SrsAmf0Any::array();
+        SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
         SrsAutoFree(SrsAmf0EcmaArray, o, false);
         
         size += SrsAmf0Size::utf8("email")+SrsAmf0Size::undefined();
         o->set("email", SrsAmf0Any::undefined());
         
-        EXPECT_EQ(size, SrsAmf0Size::array(o));
+        EXPECT_EQ(size, SrsAmf0Size::ecma_array(o));
     }
     if (true) {
         int size = 1+4+3;
-        SrsAmf0EcmaArray* o = SrsAmf0Any::array();
+        SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
         SrsAutoFree(SrsAmf0EcmaArray, o, false);
         
         size += SrsAmf0Size::utf8("sex")+SrsAmf0Size::boolean();
         o->set("sex", SrsAmf0Any::boolean(true));
         
-        EXPECT_EQ(size, SrsAmf0Size::array(o));
+        EXPECT_EQ(size, SrsAmf0Size::ecma_array(o));
     }
     
     // object: array
@@ -172,9 +172,9 @@ VOID TEST(AMF0Test, Size)
         size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
         o->set("name", SrsAmf0Any::str("winlin"));
         
-        SrsAmf0EcmaArray* args = SrsAmf0Any::array();
+        SrsAmf0EcmaArray* args = SrsAmf0Any::ecma_array();
         args->set("p0", SrsAmf0Any::str("function"));
-        size += SrsAmf0Size::utf8("args")+SrsAmf0Size::array(args);
+        size += SrsAmf0Size::utf8("args")+SrsAmf0Size::ecma_array(args);
         o->set("args", args);
         
         EXPECT_EQ(size, SrsAmf0Size::object(o));
@@ -187,14 +187,14 @@ VOID TEST(AMF0Test, Size)
         size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
         o->set("name", SrsAmf0Any::str("winlin"));
         
-        SrsAmf0EcmaArray* args = SrsAmf0Any::array();
+        SrsAmf0EcmaArray* args = SrsAmf0Any::ecma_array();
         args->set("p0", SrsAmf0Any::str("function"));
-        size += SrsAmf0Size::utf8("args")+SrsAmf0Size::array(args);
+        size += SrsAmf0Size::utf8("args")+SrsAmf0Size::ecma_array(args);
         o->set("args", args);
         
-        SrsAmf0EcmaArray* params = SrsAmf0Any::array();
+        SrsAmf0EcmaArray* params = SrsAmf0Any::ecma_array();
         params->set("p1", SrsAmf0Any::number(10));
-        size += SrsAmf0Size::utf8("params")+SrsAmf0Size::array(params);
+        size += SrsAmf0Size::utf8("params")+SrsAmf0Size::ecma_array(params);
         o->set("params", params);
         
         EXPECT_EQ(size, SrsAmf0Size::object(o));
@@ -203,7 +203,7 @@ VOID TEST(AMF0Test, Size)
     // array: object
     if (true) {
         int size = 1+4+3;
-        SrsAmf0EcmaArray* o = SrsAmf0Any::array();
+        SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
         SrsAutoFree(SrsAmf0EcmaArray, o, false);
         
         size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
@@ -214,11 +214,11 @@ VOID TEST(AMF0Test, Size)
         size += SrsAmf0Size::utf8("args")+SrsAmf0Size::object(args);
         o->set("args", args);
         
-        EXPECT_EQ(size, SrsAmf0Size::array(o));
+        EXPECT_EQ(size, SrsAmf0Size::ecma_array(o));
     }
     if (true) {
         int size = 1+4+3;
-        SrsAmf0EcmaArray* o = SrsAmf0Any::array();
+        SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
         SrsAutoFree(SrsAmf0EcmaArray, o, false);
         
         size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
@@ -234,7 +234,7 @@ VOID TEST(AMF0Test, Size)
         size += SrsAmf0Size::utf8("params")+SrsAmf0Size::object(params);
         o->set("params", params);
         
-        EXPECT_EQ(size, SrsAmf0Size::array(o));
+        EXPECT_EQ(size, SrsAmf0Size::ecma_array(o));
     }
     
     // object: object
@@ -262,23 +262,23 @@ VOID TEST(AMF0Test, Size)
     // array: array
     if (true) {
         int size = 1+4+3;
-        SrsAmf0EcmaArray* o = SrsAmf0Any::array();
+        SrsAmf0EcmaArray* o = SrsAmf0Any::ecma_array();
         SrsAutoFree(SrsAmf0EcmaArray, o, false);
         
         size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
         o->set("name", SrsAmf0Any::str("winlin"));
         
-        SrsAmf0EcmaArray* args = SrsAmf0Any::array();
+        SrsAmf0EcmaArray* args = SrsAmf0Any::ecma_array();
         args->set("p0", SrsAmf0Any::str("function"));
-        size += SrsAmf0Size::utf8("args")+SrsAmf0Size::array(args);
+        size += SrsAmf0Size::utf8("args")+SrsAmf0Size::ecma_array(args);
         o->set("args", args);
         
-        SrsAmf0EcmaArray* params = SrsAmf0Any::array();
+        SrsAmf0EcmaArray* params = SrsAmf0Any::ecma_array();
         params->set("p1", SrsAmf0Any::number(10));
-        size += SrsAmf0Size::utf8("params")+SrsAmf0Size::array(params);
+        size += SrsAmf0Size::utf8("params")+SrsAmf0Size::ecma_array(params);
         o->set("params", params);
         
-        EXPECT_EQ(size, SrsAmf0Size::array(o)); 
+        EXPECT_EQ(size, SrsAmf0Size::ecma_array(o)); 
     }
 }
 
@@ -693,5 +693,40 @@ VOID TEST(AMF0Test, AnyAssert)
 		srs_freep(o);
 	}
 	
-	// 
+	// any convert
+	if (true) {
+		o = SrsAmf0Any::str();
+		SrsAutoFree(SrsAmf0Any, o, false);
+		EXPECT_TRUE(o->is_string());
+	}
+	if (true) {
+		o = SrsAmf0Any::number();
+		SrsAutoFree(SrsAmf0Any, o, false);
+		EXPECT_TRUE(o->is_number());
+	}
+	if (true) {
+		o = SrsAmf0Any::boolean();
+		SrsAutoFree(SrsAmf0Any, o, false);
+		EXPECT_TRUE(o->is_boolean());
+	}
+	if (true) {
+		o = SrsAmf0Any::null();
+		SrsAutoFree(SrsAmf0Any, o, false);
+		EXPECT_TRUE(o->is_null());
+	}
+	if (true) {
+		o = SrsAmf0Any::undefined();
+		SrsAutoFree(SrsAmf0Any, o, false);
+		EXPECT_TRUE(o->is_undefined());
+	}
+	if (true) {
+		o = SrsAmf0Any::object();
+		SrsAutoFree(SrsAmf0Any, o, false);
+		EXPECT_TRUE(o->is_object());
+	}
+	if (true) {
+		o = SrsAmf0Any::ecma_array();
+		SrsAutoFree(SrsAmf0Any, o, false);
+		EXPECT_TRUE(o->is_ecma_array());
+	}
 }

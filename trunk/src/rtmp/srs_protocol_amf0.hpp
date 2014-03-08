@@ -58,10 +58,10 @@ class __SrsAmf0ObjectEOF;
 //		SrsAmf0Any* pany = SrsAmf0Any::str("winlin");
 // 4. SrsAmf0Size: get amf0 instance size
 //		int size = SrsAmf0Size::str("winlin");
-// 5. SrsAmf0Object: the amf0 object.
+// 5. SrsAmf0Object: create the amf0 object.
 //		SrsAmf0Object* obj = SrsAmf0Any::object();
-// 5. SrsAmf0EcmaArray: the amf0 ecma array.
-//		SrsAmf0EcmaArray* arr = SrsAmf0Any::array();
+// 5. SrsAmf0EcmaArray: create the amf0 ecma array.
+//		SrsAmf0EcmaArray* arr = SrsAmf0Any::ecma_array();
 // for detail usage, see interfaces of each object.
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
@@ -116,7 +116,7 @@ public:
 	* get the ecma array of any when is_ecma_array() indicates true.
 	* user must ensure the type is a ecma array, or assert failed.
 	*/
-	virtual SrsAmf0EcmaArray* to_array();
+	virtual SrsAmf0EcmaArray* to_ecma_array();
 public:
 	/**
 	* get the size of amf0 any, including the marker size.
@@ -135,7 +135,7 @@ public:
 	static SrsAmf0Any* undefined();
 	static SrsAmf0Object* object();
 	static SrsAmf0Any* object_eof();
-	static SrsAmf0EcmaArray* array();
+	static SrsAmf0EcmaArray* ecma_array();
 public:
 	static int discovery(SrsStream* stream, SrsAmf0Any** ppvalue);
 };
@@ -185,7 +185,7 @@ private:
 	int32_t count;
 
 private:
-	// use SrsAmf0Any::array() to create it.
+	// use SrsAmf0Any::ecma_array() to create it.
 	friend class SrsAmf0Any;
 	SrsAmf0EcmaArray();
 public:
@@ -218,7 +218,7 @@ public:
 	static int boolean();
 	static int object(SrsAmf0Object* obj);
 	static int object_eof();
-	static int array(SrsAmf0EcmaArray* arr);
+	static int ecma_array(SrsAmf0EcmaArray* arr);
 	static int any(SrsAmf0Any* o);
 };
 

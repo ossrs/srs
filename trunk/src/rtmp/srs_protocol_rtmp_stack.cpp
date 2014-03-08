@@ -3201,7 +3201,7 @@ int SrsOnMetaDataPacket::decode(SrsStream* stream)
 	SrsAutoFree(SrsAmf0Any, any, false);
 	
 	if (any->is_ecma_array()) {
-		SrsAmf0EcmaArray* arr = any->to_array();
+		SrsAmf0EcmaArray* arr = any->to_ecma_array();
 	
 		// if ecma array, copy to object.
 		for (int i = 0; i < arr->size(); i++) {

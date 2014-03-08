@@ -277,7 +277,7 @@ SrsAmf0Object* SrsAmf0Any::to_object()
 	return p;
 }
 
-SrsAmf0EcmaArray* SrsAmf0Any::to_array()
+SrsAmf0EcmaArray* SrsAmf0Any::to_ecma_array()
 {
 	SrsAmf0EcmaArray* p = dynamic_cast<SrsAmf0EcmaArray*>(this);
 	srs_assert(p != NULL);
@@ -324,7 +324,7 @@ SrsAmf0Any* SrsAmf0Any::object_eof()
 	return new __SrsAmf0ObjectEOF();
 }
 
-SrsAmf0EcmaArray* SrsAmf0Any::array()
+SrsAmf0EcmaArray* SrsAmf0Any::ecma_array()
 {
 	return new SrsAmf0EcmaArray();
 }
@@ -378,7 +378,7 @@ int SrsAmf0Any::discovery(SrsStream* stream, SrsAmf0Any** ppvalue)
 			return ret;
 		}
 		case RTMP_AMF0_EcmaArray: {
-			*ppvalue = SrsAmf0Any::array();
+			*ppvalue = SrsAmf0Any::ecma_array();
 			return ret;
 		}
 		case RTMP_AMF0_Invalid:
@@ -959,7 +959,7 @@ int SrsAmf0Size::object_eof()
 	return 2 + 1;
 }
 
-int SrsAmf0Size::array(SrsAmf0EcmaArray* arr)
+int SrsAmf0Size::ecma_array(SrsAmf0EcmaArray* arr)
 {
 	if (!arr) {
 		return 0;
@@ -1517,7 +1517,7 @@ int srs_amf0_read_ecma_array(SrsStream* stream, SrsAmf0EcmaArray*& value)
 {
 	int ret = ERROR_SUCCESS;
 	
-	value = SrsAmf0Any::array();
+	value = SrsAmf0Any::ecma_array();
 	
 	if ((ret = value->read(stream)) != ERROR_SUCCESS) {
 		srs_freep(value);
