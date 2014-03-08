@@ -1212,7 +1212,7 @@ int SrsHls::on_meta_data(SrsAmf0Object* metadata)
 	}
 	
 	SrsAmf0Object* obj = metadata;
-	if (obj->size() <= 0) {
+	if (obj->count() <= 0) {
 		srs_trace("no metadata persent, hls ignored it.");
 		return ret;
 	}

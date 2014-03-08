@@ -121,7 +121,7 @@ public:
 	/**
 	* get the size of amf0 any, including the marker size.
 	*/
-	virtual int size() = 0;
+	virtual int total_size() = 0;
 	/**
 	* read elem from stream
 	*/
@@ -159,7 +159,7 @@ public:
 	virtual ~SrsAmf0Object();
 
 public:
-	virtual int size();
+	virtual int total_size();
 	virtual int read(SrsStream* stream);
 	virtual int write(SrsStream* stream);
 	
@@ -198,7 +198,7 @@ public:
 	virtual ~SrsAmf0EcmaArray();
 
 public:
-	virtual int size();
+	virtual int total_size();
 	virtual int read(SrsStream* stream);
 	virtual int write(SrsStream* stream);
 	

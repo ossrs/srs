@@ -383,7 +383,7 @@ VOID TEST(AMF0Test, AnyIO)
 		SrsAutoFree(SrsAmf0Any, o, false);
 		
 		EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
-		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_EQ(o->total_size(), s.pos());
 		EXPECT_EQ(3, s.pos());
 		
 		s.reset();
@@ -397,7 +397,7 @@ VOID TEST(AMF0Test, AnyIO)
 		SrsAutoFree(SrsAmf0Any, o, false);
 		
 		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_EQ(o->total_size(), s.pos());
 		EXPECT_EQ(3, s.pos());
 		
 		s.skip(-3);
@@ -412,7 +412,7 @@ VOID TEST(AMF0Test, AnyIO)
 		SrsAutoFree(SrsAmf0Any, o, false);
 		
 		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_EQ(o->total_size(), s.pos());
 		
 		s.reset();
 		EXPECT_EQ(2, s.read_1bytes());
@@ -423,7 +423,7 @@ VOID TEST(AMF0Test, AnyIO)
 		s.reset();
 		s.current()[3] = 'x';
 		EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
-		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_EQ(o->total_size(), s.pos());
 		EXPECT_STREQ("xinlin", o->to_str().c_str());
 	}
 	
@@ -435,14 +435,14 @@ VOID TEST(AMF0Test, AnyIO)
 		SrsAutoFree(SrsAmf0Any, o, false);
 		
 		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_EQ(o->total_size(), s.pos());
 
 		s.reset();
 		EXPECT_EQ(0, s.read_1bytes());
 		
 		s.reset();
 		EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
-		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_EQ(o->total_size(), s.pos());
 		EXPECT_DOUBLE_EQ(10, o->to_number());
 	}
 	
@@ -454,14 +454,14 @@ VOID TEST(AMF0Test, AnyIO)
 		SrsAutoFree(SrsAmf0Any, o, false);
 		
 		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_EQ(o->total_size(), s.pos());
 
 		s.reset();
 		EXPECT_EQ(1, s.read_1bytes());
 		
 		s.reset();
 		EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
-		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_EQ(o->total_size(), s.pos());
 		EXPECT_TRUE(o->to_boolean());
 	}
 	if (true) {
@@ -471,14 +471,14 @@ VOID TEST(AMF0Test, AnyIO)
 		SrsAutoFree(SrsAmf0Any, o, false);
 		
 		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_EQ(o->total_size(), s.pos());
 
 		s.reset();
 		EXPECT_EQ(1, s.read_1bytes());
 		
 		s.reset();
 		EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
-		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_EQ(o->total_size(), s.pos());
 		EXPECT_FALSE(o->to_boolean());
 	}
 	
@@ -490,14 +490,14 @@ VOID TEST(AMF0Test, AnyIO)
 		SrsAutoFree(SrsAmf0Any, o, false);
 		
 		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_EQ(o->total_size(), s.pos());
 
 		s.reset();
 		EXPECT_EQ(5, s.read_1bytes());
 		
 		s.reset();
 		EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
-		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_EQ(o->total_size(), s.pos());
 		EXPECT_TRUE(o->is_null());
 	}
 	
@@ -509,14 +509,14 @@ VOID TEST(AMF0Test, AnyIO)
 		SrsAutoFree(SrsAmf0Any, o, false);
 		
 		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_EQ(o->total_size(), s.pos());
 
 		s.reset();
 		EXPECT_EQ(6, s.read_1bytes());
 		
 		s.reset();
 		EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
-		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_EQ(o->total_size(), s.pos());
 		EXPECT_TRUE(o->is_undefined());
 	}
 
@@ -528,7 +528,7 @@ VOID TEST(AMF0Test, AnyIO)
 		SrsAutoFree(SrsAmf0Any, o, false);
 		
 		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_EQ(o->total_size(), s.pos());
 
 		s.reset();
 		
@@ -548,7 +548,7 @@ VOID TEST(AMF0Test, AnyIO)
 		SrsAutoFree(SrsAmf0Any, o, false);
 		
 		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_EQ(o->total_size(), s.pos());
 
 		s.reset();
 		
@@ -568,7 +568,7 @@ VOID TEST(AMF0Test, AnyIO)
 		SrsAutoFree(SrsAmf0Any, o, false);
 		
 		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_EQ(o->total_size(), s.pos());
 
 		s.reset();
 		
@@ -588,7 +588,7 @@ VOID TEST(AMF0Test, AnyIO)
 		SrsAutoFree(SrsAmf0Any, o, false);
 		
 		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_EQ(o->total_size(), s.pos());
 
 		s.reset();
 		
@@ -607,7 +607,7 @@ VOID TEST(AMF0Test, AnyIO)
 		SrsAutoFree(SrsAmf0Any, o, false);
 		
 		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_EQ(o->total_size(), s.pos());
 
 		s.reset();
 		

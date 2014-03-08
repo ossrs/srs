@@ -71,7 +71,7 @@ public:
 	__SrsAmf0String(const char* _value);
 	virtual ~__SrsAmf0String();
 	
-	virtual int size();
+	virtual int total_size();
 	virtual int read(SrsStream* stream);
 	virtual int write(SrsStream* stream);
 };
@@ -91,7 +91,7 @@ public:
 	__SrsAmf0Boolean(bool _value);
 	virtual ~__SrsAmf0Boolean();
 	
-	virtual int size();
+	virtual int total_size();
 	virtual int read(SrsStream* stream);
 	virtual int write(SrsStream* stream);
 };
@@ -110,7 +110,7 @@ public:
 	__SrsAmf0Number(double _value);
 	virtual ~__SrsAmf0Number();
 	
-	virtual int size();
+	virtual int total_size();
 	virtual int read(SrsStream* stream);
 	virtual int write(SrsStream* stream);
 };
@@ -126,7 +126,7 @@ public:
 	__SrsAmf0Null();
 	virtual ~__SrsAmf0Null();
 	
-	virtual int size();
+	virtual int total_size();
 	virtual int read(SrsStream* stream);
 	virtual int write(SrsStream* stream);
 };
@@ -142,7 +142,7 @@ public:
 	__SrsAmf0Undefined();
 	virtual ~__SrsAmf0Undefined();
 	
-	virtual int size();
+	virtual int total_size();
 	virtual int read(SrsStream* stream);
 	virtual int write(SrsStream* stream);
 };
@@ -162,7 +162,7 @@ public:
 	__SrsUnSortedHashtable();
 	virtual ~__SrsUnSortedHashtable();
 	
-	virtual int size();
+	virtual int count();
 	virtual void clear();
 	virtual std::string key_at(int index);
 	virtual SrsAmf0Any* value_at(int index);
@@ -186,7 +186,7 @@ public:
 	__SrsAmf0ObjectEOF();
 	virtual ~__SrsAmf0ObjectEOF();
 	
-	virtual int size();
+	virtual int total_size();
 	virtual int read(SrsStream* stream);
 	virtual int write(SrsStream* stream);
 };
@@ -407,7 +407,7 @@ __SrsUnSortedHashtable::~__SrsUnSortedHashtable()
 	properties.clear();
 }
 
-int __SrsUnSortedHashtable::size()
+int __SrsUnSortedHashtable::count()
 {
 	return (int)properties.size();
 }
@@ -419,14 +419,14 @@ void __SrsUnSortedHashtable::clear()
 
 std::string __SrsUnSortedHashtable::key_at(int index)
 {
-	srs_assert(index < size());
+	srs_assert(index < count());
 	SrsObjectPropertyType& elem = properties[index];
 	return elem.first;
 }
 
 SrsAmf0Any* __SrsUnSortedHashtable::value_at(int index)
 {
-	srs_assert(index < size());
+	srs_assert(index < count());
 	SrsObjectPropertyType& elem = properties[index];
 	return elem.second;
 }
@@ -511,7 +511,7 @@ __SrsAmf0ObjectEOF::~__SrsAmf0ObjectEOF()
 {
 }
 
-int __SrsAmf0ObjectEOF::size()
+int __SrsAmf0ObjectEOF::total_size()
 {
 	return SrsAmf0Size::object_eof();
 }
@@ -594,11 +594,11 @@ SrsAmf0Object::~SrsAmf0Object()
 	srs_freep(eof);
 }
 
-int SrsAmf0Object::size()
+int SrsAmf0Object::total_size()
 {
 	int size = 1;
 	
-	for (int i = 0; i < properties->size(); i++){
+	for (int i = 0; i < properties->count(); i++){
 		std::string name = key_at(i);
 		SrsAmf0Any* value = value_at(i);
 		
@@ -681,7 +681,7 @@ int SrsAmf0Object::write(SrsStream* stream)
 	srs_verbose("amf0 write object marker success");
 	
 	// value
-	for (int i = 0; i < properties->size(); i++) {
+	for (int i = 0; i < properties->count(); i++) {
 		std::string name = this->key_at(i);
 		SrsAmf0Any* any = this->value_at(i);
 		
@@ -710,7 +710,7 @@ int SrsAmf0Object::write(SrsStream* stream)
 
 int SrsAmf0Object::count()
 {
-	return properties->size();
+	return properties->count();
 }
 
 std::string SrsAmf0Object::key_at(int index)
@@ -756,11 +756,11 @@ SrsAmf0EcmaArray::~SrsAmf0EcmaArray()
 	srs_freep(eof);
 }
 
-int SrsAmf0EcmaArray::size()
+int SrsAmf0EcmaArray::total_size()
 {
 	int size = 1 + 4;
 	
-	for (int i = 0; i < properties->size(); i++){
+	for (int i = 0; i < properties->count(); i++){
 		std::string name = key_at(i);
 		SrsAmf0Any* value = value_at(i);
 		
@@ -863,7 +863,7 @@ int SrsAmf0EcmaArray::write(SrsStream* stream)
 	srs_verbose("amf0 write ecma_array count success. count=%d", _count);
 	
 	// value
-	for (int i = 0; i < properties->size(); i++) {
+	for (int i = 0; i < properties->count(); i++) {
 		std::string name = this->key_at(i);
 		SrsAmf0Any* any = this->value_at(i);
 		
@@ -897,7 +897,7 @@ void SrsAmf0EcmaArray::clear()
 
 int SrsAmf0EcmaArray::count()
 {
-	return properties->size();
+	return properties->count();
 }
 
 std::string SrsAmf0EcmaArray::key_at(int index)
@@ -961,7 +961,7 @@ int SrsAmf0Size::object(SrsAmf0Object* obj)
 		return 0;
 	}
 	
-	return obj->size();
+	return obj->total_size();
 }
 
 int SrsAmf0Size::object_eof()
@@ -975,7 +975,7 @@ int SrsAmf0Size::ecma_array(SrsAmf0EcmaArray* arr)
 		return 0;
 	}
 	
-	return arr->size();
+	return arr->total_size();
 }
 
 int SrsAmf0Size::any(SrsAmf0Any* o)
@@ -984,7 +984,7 @@ int SrsAmf0Size::any(SrsAmf0Any* o)
 		return 0;
 	}
 	
-	return o->size();
+	return o->total_size();
 }
 
 __SrsAmf0String::__SrsAmf0String(const char* _value)
@@ -999,7 +999,7 @@ __SrsAmf0String::~__SrsAmf0String()
 {
 }
 
-int __SrsAmf0String::size()
+int __SrsAmf0String::total_size()
 {
 	return SrsAmf0Size::str(value);
 }
@@ -1024,7 +1024,7 @@ __SrsAmf0Boolean::~__SrsAmf0Boolean()
 {
 }
 
-int __SrsAmf0Boolean::size()
+int __SrsAmf0Boolean::total_size()
 {
 	return SrsAmf0Size::boolean();
 }
@@ -1049,7 +1049,7 @@ __SrsAmf0Number::~__SrsAmf0Number()
 {
 }
 
-int __SrsAmf0Number::size()
+int __SrsAmf0Number::total_size()
 {
 	return SrsAmf0Size::number();
 }
@@ -1073,7 +1073,7 @@ __SrsAmf0Null::~__SrsAmf0Null()
 {
 }
 
-int __SrsAmf0Null::size()
+int __SrsAmf0Null::total_size()
 {
 	return SrsAmf0Size::null();
 }
@@ -1097,7 +1097,7 @@ __SrsAmf0Undefined::~__SrsAmf0Undefined()
 {
 }
 
-int __SrsAmf0Undefined::size()
+int __SrsAmf0Undefined::total_size()
 {
 	return SrsAmf0Size::undefined();
 }

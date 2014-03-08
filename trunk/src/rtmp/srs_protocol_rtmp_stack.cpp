@@ -1884,17 +1884,8 @@ int SrsConnectAppResPacket::get_message_type()
 
 int SrsConnectAppResPacket::get_size()
 {
-    int size = SrsAmf0Size::str(command_name) + SrsAmf0Size::number();
-    
-    if (props->size() > 0) {
-        size += SrsAmf0Size::object(props);
-    }
-    
-    if (info->size() > 0) {
-        size += SrsAmf0Size::object(info);
-    }
-
-    return size;
+    return SrsAmf0Size::str(command_name) + SrsAmf0Size::number() 
+    	+ SrsAmf0Size::object(props) + SrsAmf0Size::object(info);
 }
 
 int SrsConnectAppResPacket::encode_packet(SrsStream* stream)
