@@ -158,14 +158,20 @@ private:
 public:
 	virtual ~SrsAmf0Object();
 
+public:
+	virtual int size();
 	virtual int read(SrsStream* stream);
 	virtual int write(SrsStream* stream);
 	
-	virtual int size();
+public:
+	virtual int count();
+	// @remark: max index is count().
 	virtual std::string key_at(int index);
+	// @remark: max index is count().
 	virtual SrsAmf0Any* value_at(int index);
+	
+public:
 	virtual void set(std::string key, SrsAmf0Any* value);
-
 	virtual SrsAmf0Any* get_property(std::string name);
 	virtual SrsAmf0Any* ensure_property_string(std::string name);
 	virtual SrsAmf0Any* ensure_property_number(std::string name);
@@ -182,7 +188,7 @@ class SrsAmf0EcmaArray : public SrsAmf0Any
 private:
 	__SrsUnSortedHashtable* properties;
 	__SrsAmf0ObjectEOF* eof;
-	int32_t count;
+	int32_t _count;
 
 private:
 	// use SrsAmf0Any::ecma_array() to create it.
@@ -191,15 +197,21 @@ private:
 public:
 	virtual ~SrsAmf0EcmaArray();
 
+public:
+	virtual int size();
 	virtual int read(SrsStream* stream);
 	virtual int write(SrsStream* stream);
 	
-	virtual int size();
+public:
 	virtual void clear();
+	virtual int count();
+	// @remark: max index is count().
 	virtual std::string key_at(int index);
+	// @remark: max index is count().
 	virtual SrsAmf0Any* value_at(int index);
-	virtual void set(std::string key, SrsAmf0Any* value);
 
+public:
+	virtual void set(std::string key, SrsAmf0Any* value);
 	virtual SrsAmf0Any* get_property(std::string name);
 	virtual SrsAmf0Any* ensure_property_string(std::string name);
 };

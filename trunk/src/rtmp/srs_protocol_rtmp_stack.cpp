@@ -3183,7 +3183,7 @@ int SrsOnMetaDataPacket::decode(SrsStream* stream)
 		SrsAmf0EcmaArray* arr = any->to_ecma_array();
 	
 		// if ecma array, copy to object.
-		for (int i = 0; i < arr->size(); i++) {
+		for (int i = 0; i < arr->count(); i++) {
 			metadata->set(arr->key_at(i), arr->value_at(i));
 		}
 		

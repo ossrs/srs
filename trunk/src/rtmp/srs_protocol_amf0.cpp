@@ -594,6 +594,23 @@ SrsAmf0Object::~SrsAmf0Object()
 	srs_freep(eof);
 }
 
+int SrsAmf0Object::size()
+{
+	int size = 1;
+	
+	for (int i = 0; i < properties->size(); i++){
+		std::string name = key_at(i);
+		SrsAmf0Any* value = value_at(i);
+		
+		size += SrsAmf0Size::utf8(name);
+		size += SrsAmf0Size::any(value);
+	}
+	
+	size += SrsAmf0Size::object_eof();
+	
+	return size;
+}
+
 int SrsAmf0Object::read(SrsStream* stream)
 {
 	int ret = ERROR_SUCCESS;
@@ -691,21 +708,9 @@ int SrsAmf0Object::write(SrsStream* stream)
 	return ret;
 }
 
-int SrsAmf0Object::size()
+int SrsAmf0Object::count()
 {
-	int size = 1;
-	
-	for (int i = 0; i < properties->size(); i++){
-		std::string name = key_at(i);
-		SrsAmf0Any* value = value_at(i);
-		
-		size += SrsAmf0Size::utf8(name);
-		size += SrsAmf0Size::any(value);
-	}
-	
-	size += SrsAmf0Size::object_eof();
-	
-	return size;
+	return properties->size();
 }
 
 std::string SrsAmf0Object::key_at(int index)
@@ -751,6 +756,23 @@ SrsAmf0EcmaArray::~SrsAmf0EcmaArray()
 	srs_freep(eof);
 }
 
+int SrsAmf0EcmaArray::size()
+{
+	int size = 1 + 4;
+	
+	for (int i = 0; i < properties->size(); i++){
+		std::string name = key_at(i);
+		SrsAmf0Any* value = value_at(i);
+		
+		size += SrsAmf0Size::utf8(name);
+		size += SrsAmf0Size::any(value);
+	}
+	
+	size += SrsAmf0Size::object_eof();
+	
+	return size;
+}
+
 int SrsAmf0EcmaArray::read(SrsStream* stream)
 {
 	int ret = ERROR_SUCCESS;
@@ -782,7 +804,7 @@ int SrsAmf0EcmaArray::read(SrsStream* stream)
 	srs_verbose("amf0 read ecma_array count success. count=%d", count);
 	
 	// value
-	this->count = count;
+	this->_count = count;
 
 	while (!stream->empty()) {
 		// detect whether is eof.
@@ -837,8 +859,8 @@ int SrsAmf0EcmaArray::write(SrsStream* stream)
 		return ret;
 	}
 	
-	stream->write_4bytes(this->count);
-	srs_verbose("amf0 write ecma_array count success. count=%d", value->count);
+	stream->write_4bytes(this->_count);
+	srs_verbose("amf0 write ecma_array count success. count=%d", _count);
 	
 	// value
 	for (int i = 0; i < properties->size(); i++) {
@@ -868,26 +890,14 @@ int SrsAmf0EcmaArray::write(SrsStream* stream)
 	return ret;
 }
 
-int SrsAmf0EcmaArray::size()
-{
-	int size = 1 + 4;
-	
-	for (int i = 0; i < properties->size(); i++){
-		std::string name = key_at(i);
-		SrsAmf0Any* value = value_at(i);
-		
-		size += SrsAmf0Size::utf8(name);
-		size += SrsAmf0Size::any(value);
-	}
-	
-	size += SrsAmf0Size::object_eof();
-	
-	return size;
-}
-
 void SrsAmf0EcmaArray::clear()
 {
 	properties->clear();
+}
+
+int SrsAmf0EcmaArray::count()
+{
+	return properties->size();
 }
 
 std::string SrsAmf0EcmaArray::key_at(int index)
