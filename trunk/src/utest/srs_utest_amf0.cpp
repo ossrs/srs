@@ -52,7 +52,7 @@ VOID TEST(AMF0Test, Size)
         SrsAmf0Object o;
         
         size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
-        o.set("name", new SrsAmf0String("winlin"));
+        o.set("name", SrsAmf0Any::str("winlin"));
         
         EXPECT_EQ(size, SrsAmf0Size::object(&o));
     }
@@ -106,7 +106,7 @@ VOID TEST(AMF0Test, Size)
         SrsAmf0EcmaArray o;
         
         size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
-        o.set("name", new SrsAmf0String("winlin"));
+        o.set("name", SrsAmf0Any::str("winlin"));
         
         EXPECT_EQ(size, SrsAmf0Size::array(&o));
     }
@@ -153,10 +153,10 @@ VOID TEST(AMF0Test, Size)
         SrsAmf0Object o;
         
         size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
-        o.set("name", new SrsAmf0String("winlin"));
+        o.set("name", SrsAmf0Any::str("winlin"));
         
         SrsAmf0EcmaArray* args = new SrsAmf0EcmaArray();
-        args->set("p0", new SrsAmf0String("function"));
+        args->set("p0", SrsAmf0Any::str("function"));
         size += SrsAmf0Size::utf8("args")+SrsAmf0Size::array(args);
         o.set("args", args);
         
@@ -167,10 +167,10 @@ VOID TEST(AMF0Test, Size)
         SrsAmf0Object o;
         
         size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
-        o.set("name", new SrsAmf0String("winlin"));
+        o.set("name", SrsAmf0Any::str("winlin"));
         
         SrsAmf0EcmaArray* args = new SrsAmf0EcmaArray();
-        args->set("p0", new SrsAmf0String("function"));
+        args->set("p0", SrsAmf0Any::str("function"));
         size += SrsAmf0Size::utf8("args")+SrsAmf0Size::array(args);
         o.set("args", args);
         
@@ -188,10 +188,10 @@ VOID TEST(AMF0Test, Size)
         SrsAmf0EcmaArray o;
         
         size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
-        o.set("name", new SrsAmf0String("winlin"));
+        o.set("name", SrsAmf0Any::str("winlin"));
         
         SrsAmf0Object* args = new SrsAmf0Object();
-        args->set("p0", new SrsAmf0String("function"));
+        args->set("p0", SrsAmf0Any::str("function"));
         size += SrsAmf0Size::utf8("args")+SrsAmf0Size::object(args);
         o.set("args", args);
         
@@ -202,10 +202,10 @@ VOID TEST(AMF0Test, Size)
         SrsAmf0EcmaArray o;
         
         size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
-        o.set("name", new SrsAmf0String("winlin"));
+        o.set("name", SrsAmf0Any::str("winlin"));
         
         SrsAmf0Object* args = new SrsAmf0Object();
-        args->set("p0", new SrsAmf0String("function"));
+        args->set("p0", SrsAmf0Any::str("function"));
         size += SrsAmf0Size::utf8("args")+SrsAmf0Size::object(args);
         o.set("args", args);
         
@@ -223,10 +223,10 @@ VOID TEST(AMF0Test, Size)
         SrsAmf0Object o;
         
         size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
-        o.set("name", new SrsAmf0String("winlin"));
+        o.set("name", SrsAmf0Any::str("winlin"));
         
         SrsAmf0Object* args = new SrsAmf0Object();
-        args->set("p0", new SrsAmf0String("function"));
+        args->set("p0", SrsAmf0Any::str("function"));
         size += SrsAmf0Size::utf8("args")+SrsAmf0Size::object(args);
         o.set("args", args);
         
@@ -244,10 +244,10 @@ VOID TEST(AMF0Test, Size)
         SrsAmf0EcmaArray o;
         
         size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
-        o.set("name", new SrsAmf0String("winlin"));
+        o.set("name", SrsAmf0Any::str("winlin"));
         
         SrsAmf0EcmaArray* args = new SrsAmf0EcmaArray();
-        args->set("p0", new SrsAmf0String("function"));
+        args->set("p0", SrsAmf0Any::str("function"));
         size += SrsAmf0Size::utf8("args")+SrsAmf0Size::array(args);
         o.set("args", args);
         

@@ -47,10 +47,10 @@ class SrsAmf0Any
 {
 public:
 	char marker;
-
+public:
 	SrsAmf0Any();
 	virtual ~SrsAmf0Any();
-	
+public:
 	virtual bool is_string();
 	virtual bool is_boolean();
 	virtual bool is_number();
@@ -59,8 +59,12 @@ public:
 	virtual bool is_object();
 	virtual bool is_object_eof();
 	virtual bool is_ecma_array();
-	
+public:
+	virtual std::string to_str();
+public:
 	virtual int size() = 0;
+public:
+	static SrsAmf0Any* str(const char* value = NULL); 
 };
 
 /**
@@ -68,14 +72,15 @@ public:
 * 2.4 String Type
 * string-type = string-marker UTF-8
 * @return default value is empty string.
+* @remark: use SrsAmf0Any::str() to create it.
 */
-class SrsAmf0String : public SrsAmf0Any
+class __SrsAmf0String : public SrsAmf0Any
 {
 public:
 	std::string value;
 
-	SrsAmf0String(const char* _value = NULL);
-	virtual ~SrsAmf0String();
+	__SrsAmf0String(const char* _value);
+	virtual ~__SrsAmf0String();
 	
 	virtual int size();
 };

@@ -280,15 +280,15 @@ int SrsRtmpClient::connect_app(string app, string tc_url)
 		msg->set_packet(pkt, 0);
 		
 		pkt->command_object = new SrsAmf0Object();
-		pkt->command_object->set("app", new SrsAmf0String(app.c_str()));
-		pkt->command_object->set("swfUrl", new SrsAmf0String());
-		pkt->command_object->set("tcUrl", new SrsAmf0String(tc_url.c_str()));
+		pkt->command_object->set("app", SrsAmf0Any::str(app.c_str()));
+		pkt->command_object->set("swfUrl", SrsAmf0Any::str());
+		pkt->command_object->set("tcUrl", SrsAmf0Any::str(tc_url.c_str()));
 		pkt->command_object->set("fpad", new SrsAmf0Boolean(false));
 		pkt->command_object->set("capabilities", new SrsAmf0Number(239));
 		pkt->command_object->set("audioCodecs", new SrsAmf0Number(3575));
 		pkt->command_object->set("videoCodecs", new SrsAmf0Number(252));
 		pkt->command_object->set("videoFunction", new SrsAmf0Number(1));
-		pkt->command_object->set("pageUrl", new SrsAmf0String());
+		pkt->command_object->set("pageUrl", SrsAmf0Any::str());
 		pkt->command_object->set("objectEncoding", new SrsAmf0Number(0));
 		
 		if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
@@ -632,14 +632,14 @@ int SrsRtmpServer::connect_app(SrsRequest* req)
 		srs_error("invalid request, must specifies the tcUrl. ret=%d", ret);
 		return ret;
 	}
-	req->tcUrl = srs_amf0_convert<SrsAmf0String>(prop)->value;
+	req->tcUrl = prop->to_str();
 	
 	if ((prop = pkt->command_object->ensure_property_string("pageUrl")) != NULL) {
-		req->pageUrl = srs_amf0_convert<SrsAmf0String>(prop)->value;
+		req->pageUrl = prop->to_str();
 	}
 	
 	if ((prop = pkt->command_object->ensure_property_string("swfUrl")) != NULL) {
-		req->swfUrl = srs_amf0_convert<SrsAmf0String>(prop)->value;
+		req->swfUrl = prop->to_str();
 	}
 	
 	if ((prop = pkt->command_object->ensure_property_number("objectEncoding")) != NULL) {
@@ -698,31 +698,31 @@ int SrsRtmpServer::response_connect_app(SrsRequest *req, const char* server_ip)
 	SrsCommonMessage* msg = new SrsCommonMessage();
 	SrsConnectAppResPacket* pkt = new SrsConnectAppResPacket();
 	
-	pkt->props->set("fmsVer", new SrsAmf0String("FMS/"RTMP_SIG_FMS_VER));
+	pkt->props->set("fmsVer", SrsAmf0Any::str("FMS/"RTMP_SIG_FMS_VER));
 	pkt->props->set("capabilities", new SrsAmf0Number(127));
 	pkt->props->set("mode", new SrsAmf0Number(1));
 	
-	pkt->info->set(StatusLevel, new SrsAmf0String(StatusLevelStatus));
-	pkt->info->set(StatusCode, new SrsAmf0String(StatusCodeConnectSuccess));
-	pkt->info->set(StatusDescription, new SrsAmf0String("Connection succeeded"));
+	pkt->info->set(StatusLevel, SrsAmf0Any::str(StatusLevelStatus));
+	pkt->info->set(StatusCode, SrsAmf0Any::str(StatusCodeConnectSuccess));
+	pkt->info->set(StatusDescription, SrsAmf0Any::str("Connection succeeded"));
 	pkt->info->set("objectEncoding", new SrsAmf0Number(req->objectEncoding));
 	SrsAmf0EcmaArray* data = new SrsAmf0EcmaArray();
 	pkt->info->set("data", data);
 	
-	data->set("version", new SrsAmf0String(RTMP_SIG_FMS_VER));
-	data->set("srs_sig", new SrsAmf0String(RTMP_SIG_SRS_KEY));
-	data->set("srs_server", new SrsAmf0String(RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
-	data->set("srs_license", new SrsAmf0String(RTMP_SIG_SRS_LICENSE));
-	data->set("srs_role", new SrsAmf0String(RTMP_SIG_SRS_ROLE));
-	data->set("srs_url", new SrsAmf0String(RTMP_SIG_SRS_URL));
-	data->set("srs_version", new SrsAmf0String(RTMP_SIG_SRS_VERSION));
-	data->set("srs_site", new SrsAmf0String(RTMP_SIG_SRS_WEB));
-	data->set("srs_email", new SrsAmf0String(RTMP_SIG_SRS_EMAIL));
-	data->set("srs_copyright", new SrsAmf0String(RTMP_SIG_SRS_COPYRIGHT));
-	data->set("srs_primary_authors", new SrsAmf0String(RTMP_SIG_SRS_PRIMARY_AUTHROS));
+	data->set("version", SrsAmf0Any::str(RTMP_SIG_FMS_VER));
+	data->set("srs_sig", SrsAmf0Any::str(RTMP_SIG_SRS_KEY));
+	data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
+	data->set("srs_license", SrsAmf0Any::str(RTMP_SIG_SRS_LICENSE));
+	data->set("srs_role", SrsAmf0Any::str(RTMP_SIG_SRS_ROLE));
+	data->set("srs_url", SrsAmf0Any::str(RTMP_SIG_SRS_URL));
+	data->set("srs_version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
+	data->set("srs_site", SrsAmf0Any::str(RTMP_SIG_SRS_WEB));
+	data->set("srs_email", SrsAmf0Any::str(RTMP_SIG_SRS_EMAIL));
+	data->set("srs_copyright", SrsAmf0Any::str(RTMP_SIG_SRS_COPYRIGHT));
+	data->set("srs_primary_authors", SrsAmf0Any::str(RTMP_SIG_SRS_PRIMARY_AUTHROS));
 	
     if (server_ip) {
-        data->set("srs_server_ip", new SrsAmf0String(server_ip));
+        data->set("srs_server_ip", SrsAmf0Any::str(server_ip));
     }
 	
 	msg->set_packet(pkt, 0);
@@ -742,9 +742,9 @@ void SrsRtmpServer::response_connect_reject(SrsRequest *req, const char* desc)
 
     SrsConnectAppResPacket* pkt = new SrsConnectAppResPacket();
     pkt->command_name = "_error";
-    pkt->props->set(StatusLevel, new SrsAmf0String(StatusLevelError));
-    pkt->props->set(StatusCode, new SrsAmf0String(StatusCodeConnectRejected));
-    pkt->props->set(StatusDescription, new SrsAmf0String(desc));
+    pkt->props->set(StatusLevel, SrsAmf0Any::str(StatusLevelError));
+    pkt->props->set(StatusCode, SrsAmf0Any::str(StatusCodeConnectRejected));
+    pkt->props->set(StatusDescription, SrsAmf0Any::str(desc));
     //pkt->props->set("objectEncoding", new SrsAmf0Number(req->objectEncoding));
 
     SrsCommonMessage* msg = (new SrsCommonMessage())->set_packet(pkt, 0);
@@ -864,11 +864,11 @@ int SrsRtmpServer::start_play(int stream_id)
 		SrsCommonMessage* msg = new SrsCommonMessage();
 		SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
 		
-		pkt->data->set(StatusLevel, new SrsAmf0String(StatusLevelStatus));
-		pkt->data->set(StatusCode, new SrsAmf0String(StatusCodeStreamReset));
-		pkt->data->set(StatusDescription, new SrsAmf0String("Playing and resetting stream."));
-		pkt->data->set(StatusDetails, new SrsAmf0String("stream"));
-		pkt->data->set(StatusClientId, new SrsAmf0String(RTMP_SIG_CLIENT_ID));
+		pkt->data->set(StatusLevel, SrsAmf0Any::str(StatusLevelStatus));
+		pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodeStreamReset));
+		pkt->data->set(StatusDescription, SrsAmf0Any::str("Playing and resetting stream."));
+		pkt->data->set(StatusDetails, SrsAmf0Any::str("stream"));
+		pkt->data->set(StatusClientId, SrsAmf0Any::str(RTMP_SIG_CLIENT_ID));
 		
 		msg->set_packet(pkt, stream_id);
 		
@@ -884,11 +884,11 @@ int SrsRtmpServer::start_play(int stream_id)
 		SrsCommonMessage* msg = new SrsCommonMessage();
 		SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
 		
-		pkt->data->set(StatusLevel, new SrsAmf0String(StatusLevelStatus));
-		pkt->data->set(StatusCode, new SrsAmf0String(StatusCodeStreamStart));
-		pkt->data->set(StatusDescription, new SrsAmf0String("Started playing stream."));
-		pkt->data->set(StatusDetails, new SrsAmf0String("stream"));
-		pkt->data->set(StatusClientId, new SrsAmf0String(RTMP_SIG_CLIENT_ID));
+		pkt->data->set(StatusLevel, SrsAmf0Any::str(StatusLevelStatus));
+		pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodeStreamStart));
+		pkt->data->set(StatusDescription, SrsAmf0Any::str("Started playing stream."));
+		pkt->data->set(StatusDetails, SrsAmf0Any::str("stream"));
+		pkt->data->set(StatusClientId, SrsAmf0Any::str(RTMP_SIG_CLIENT_ID));
 		
 		msg->set_packet(pkt, stream_id);
 		
@@ -918,7 +918,7 @@ int SrsRtmpServer::start_play(int stream_id)
 		SrsCommonMessage* msg = new SrsCommonMessage();
 		SrsOnStatusDataPacket* pkt = new SrsOnStatusDataPacket();
 		
-		pkt->data->set(StatusCode, new SrsAmf0String(StatusCodeDataStart));
+		pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodeDataStart));
 		
 		msg->set_packet(pkt, stream_id);
 		
@@ -944,9 +944,9 @@ int SrsRtmpServer::on_play_client_pause(int stream_id, bool is_pause)
 			SrsCommonMessage* msg = new SrsCommonMessage();
 			SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
 			
-			pkt->data->set(StatusLevel, new SrsAmf0String(StatusLevelStatus));
-			pkt->data->set(StatusCode, new SrsAmf0String(StatusCodeStreamPause));
-			pkt->data->set(StatusDescription, new SrsAmf0String("Paused stream."));
+			pkt->data->set(StatusLevel, SrsAmf0Any::str(StatusLevelStatus));
+			pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodeStreamPause));
+			pkt->data->set(StatusDescription, SrsAmf0Any::str("Paused stream."));
 			
 			msg->set_packet(pkt, stream_id);
 			
@@ -977,9 +977,9 @@ int SrsRtmpServer::on_play_client_pause(int stream_id, bool is_pause)
 			SrsCommonMessage* msg = new SrsCommonMessage();
 			SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
 			
-			pkt->data->set(StatusLevel, new SrsAmf0String(StatusLevelStatus));
-			pkt->data->set(StatusCode, new SrsAmf0String(StatusCodeStreamUnpause));
-			pkt->data->set(StatusDescription, new SrsAmf0String("Unpaused stream."));
+			pkt->data->set(StatusLevel, SrsAmf0Any::str(StatusLevelStatus));
+			pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodeStreamUnpause));
+			pkt->data->set(StatusDescription, SrsAmf0Any::str("Unpaused stream."));
 			
 			msg->set_packet(pkt, stream_id);
 			
@@ -1087,8 +1087,8 @@ int SrsRtmpServer::start_fmle_publish(int stream_id)
 		SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
 		
 		pkt->command_name = RTMP_AMF0_COMMAND_ON_FC_PUBLISH;
-		pkt->data->set(StatusCode, new SrsAmf0String(StatusCodePublishStart));
-		pkt->data->set(StatusDescription, new SrsAmf0String("Started publishing stream."));
+		pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodePublishStart));
+		pkt->data->set(StatusDescription, SrsAmf0Any::str("Started publishing stream."));
 		
 		msg->set_packet(pkt, stream_id);
 		
@@ -1103,10 +1103,10 @@ int SrsRtmpServer::start_fmle_publish(int stream_id)
 		SrsCommonMessage* msg = new SrsCommonMessage();
 		SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
 		
-		pkt->data->set(StatusLevel, new SrsAmf0String(StatusLevelStatus));
-		pkt->data->set(StatusCode, new SrsAmf0String(StatusCodePublishStart));
-		pkt->data->set(StatusDescription, new SrsAmf0String("Started publishing stream."));
-		pkt->data->set(StatusClientId, new SrsAmf0String(RTMP_SIG_CLIENT_ID));
+		pkt->data->set(StatusLevel, SrsAmf0Any::str(StatusLevelStatus));
+		pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodePublishStart));
+		pkt->data->set(StatusDescription, SrsAmf0Any::str("Started publishing stream."));
+		pkt->data->set(StatusClientId, SrsAmf0Any::str(RTMP_SIG_CLIENT_ID));
 		
 		msg->set_packet(pkt, stream_id);
 		
@@ -1132,8 +1132,8 @@ int SrsRtmpServer::fmle_unpublish(int stream_id, double unpublish_tid)
 		SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
 		
 		pkt->command_name = RTMP_AMF0_COMMAND_ON_FC_UNPUBLISH;
-		pkt->data->set(StatusCode, new SrsAmf0String(StatusCodeUnpublishSuccess));
-		pkt->data->set(StatusDescription, new SrsAmf0String("Stop publishing stream."));
+		pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodeUnpublishSuccess));
+		pkt->data->set(StatusDescription, SrsAmf0Any::str("Stop publishing stream."));
 		
 		msg->set_packet(pkt, stream_id);
 		
@@ -1161,10 +1161,10 @@ int SrsRtmpServer::fmle_unpublish(int stream_id, double unpublish_tid)
 		SrsCommonMessage* msg = new SrsCommonMessage();
 		SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
 		
-		pkt->data->set(StatusLevel, new SrsAmf0String(StatusLevelStatus));
-		pkt->data->set(StatusCode, new SrsAmf0String(StatusCodeUnpublishSuccess));
-		pkt->data->set(StatusDescription, new SrsAmf0String("Stream is now unpublished"));
-		pkt->data->set(StatusClientId, new SrsAmf0String(RTMP_SIG_CLIENT_ID));
+		pkt->data->set(StatusLevel, SrsAmf0Any::str(StatusLevelStatus));
+		pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodeUnpublishSuccess));
+		pkt->data->set(StatusDescription, SrsAmf0Any::str("Stream is now unpublished"));
+		pkt->data->set(StatusClientId, SrsAmf0Any::str(RTMP_SIG_CLIENT_ID));
 		
 		msg->set_packet(pkt, stream_id);
 		
@@ -1189,10 +1189,10 @@ int SrsRtmpServer::start_flash_publish(int stream_id)
 		SrsCommonMessage* msg = new SrsCommonMessage();
 		SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
 		
-		pkt->data->set(StatusLevel, new SrsAmf0String(StatusLevelStatus));
-		pkt->data->set(StatusCode, new SrsAmf0String(StatusCodePublishStart));
-		pkt->data->set(StatusDescription, new SrsAmf0String("Started publishing stream."));
-		pkt->data->set(StatusClientId, new SrsAmf0String(RTMP_SIG_CLIENT_ID));
+		pkt->data->set(StatusLevel, SrsAmf0Any::str(StatusLevelStatus));
+		pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodePublishStart));
+		pkt->data->set(StatusDescription, SrsAmf0Any::str("Started publishing stream."));
+		pkt->data->set(StatusClientId, SrsAmf0Any::str(RTMP_SIG_CLIENT_ID));
 		
 		msg->set_packet(pkt, stream_id);
 		

@@ -276,7 +276,7 @@ int SrsBandwidth::check_play(
             std::stringstream seq;
             seq << i;
             std::string play_data = "SrS band check data from server's playing......";
-            pkt->data->set(seq.str(), new SrsAmf0String(play_data.c_str()));
+            pkt->data->set(seq.str(), SrsAmf0Any::str(play_data.c_str()));
         }
         data_count += 2;
 

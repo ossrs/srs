@@ -105,12 +105,23 @@ bool SrsAmf0Any::is_ecma_array()
 	return marker == RTMP_AMF0_EcmaArray;
 }
 
+std::string SrsAmf0Any::to_str()
+{
+	__SrsAmf0String* o = srs_amf0_convert<__SrsAmf0String>(this);
+	return o->value;
+}
+
 bool SrsAmf0Any::is_object_eof()
 {
 	return marker == RTMP_AMF0_ObjectEnd;
 }
 
-SrsAmf0String::SrsAmf0String(const char* _value)
+SrsAmf0Any* SrsAmf0Any::str(const char* value)
+{
+	return new __SrsAmf0String(value);
+}
+
+__SrsAmf0String::__SrsAmf0String(const char* _value)
 {
 	marker = RTMP_AMF0_String;
 	if (_value) {
@@ -118,11 +129,11 @@ SrsAmf0String::SrsAmf0String(const char* _value)
 	}
 }
 
-SrsAmf0String::~SrsAmf0String()
+__SrsAmf0String::~__SrsAmf0String()
 {
 }
 
-int SrsAmf0String::size()
+int __SrsAmf0String::size()
 {
 	return SrsAmf0Size::str(value);
 }
@@ -1035,8 +1046,8 @@ int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any*& value)
 			if ((ret = srs_amf0_read_string(stream, data)) != ERROR_SUCCESS) {
 				return ret;
 			}
-			value = new SrsAmf0String();
-			srs_amf0_convert<SrsAmf0String>(value)->value = data;
+			value = SrsAmf0Any::str();
+			srs_amf0_convert<__SrsAmf0String>(value)->value = data;
 			return ret;
 		}
 		case RTMP_AMF0_Boolean: {
@@ -1109,7 +1120,7 @@ int srs_amf0_write_any(SrsStream* stream, SrsAmf0Any* value)
 	
 	switch (value->marker) {
 		case RTMP_AMF0_String: {
-			std::string data = srs_amf0_convert<SrsAmf0String>(value)->value;
+			std::string data = srs_amf0_convert<__SrsAmf0String>(value)->value;
 			return srs_amf0_write_string(stream, data);
 		}
 		case RTMP_AMF0_Boolean: {
