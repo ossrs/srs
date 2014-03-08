@@ -23,6 +23,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_utest_amf0.hpp>
 
 #include <srs_core_autofree.hpp>
+#include <srs_kernel_error.hpp>
+#include <srs_kernel_stream.hpp>
 
 VOID TEST(AMF0Test, Size) 
 {
@@ -270,14 +272,14 @@ VOID TEST(AMF0Test, AnyElem)
 	if (true) {
 		o = SrsAmf0Any::str();
 		SrsAutoFree(SrsAmf0Any, o, false);
-		EXPECT_TRUE(NULL != o);
+		ASSERT_TRUE(NULL != o);
 		EXPECT_TRUE(o->is_string());
 		EXPECT_STREQ("", o->to_str().c_str());
 	}
 	if (true) {
 		o = SrsAmf0Any::str("winlin");
 		SrsAutoFree(SrsAmf0Any, o, false);
-		EXPECT_TRUE(NULL != o);
+		ASSERT_TRUE(NULL != o);
 		EXPECT_TRUE(o->is_string());
 		EXPECT_STREQ("winlin", o->to_str().c_str());
 	}
@@ -286,21 +288,21 @@ VOID TEST(AMF0Test, AnyElem)
 	if (true) {
 		o = SrsAmf0Any::boolean();
 		SrsAutoFree(SrsAmf0Any, o, false);
-		EXPECT_TRUE(NULL != o);
+		ASSERT_TRUE(NULL != o);
 		EXPECT_TRUE(o->is_boolean());
 		EXPECT_FALSE(o->to_boolean());
 	}
 	if (true) {
 		o = SrsAmf0Any::boolean(false);
 		SrsAutoFree(SrsAmf0Any, o, false);
-		EXPECT_TRUE(NULL != o);
+		ASSERT_TRUE(NULL != o);
 		EXPECT_TRUE(o->is_boolean());
 		EXPECT_FALSE(o->to_boolean());
 	}
 	if (true) {
 		o = SrsAmf0Any::boolean(true);
 		SrsAutoFree(SrsAmf0Any, o, false);
-		EXPECT_TRUE(NULL != o);
+		ASSERT_TRUE(NULL != o);
 		EXPECT_TRUE(o->is_boolean());
 		EXPECT_TRUE(o->to_boolean());
 	}
@@ -309,21 +311,21 @@ VOID TEST(AMF0Test, AnyElem)
 	if (true) {
 		o = SrsAmf0Any::number();
 		SrsAutoFree(SrsAmf0Any, o, false);
-		EXPECT_TRUE(NULL != o);
+		ASSERT_TRUE(NULL != o);
 		EXPECT_TRUE(o->is_number());
 		EXPECT_DOUBLE_EQ(0, o->to_number());
 	}
 	if (true) {
 		o = SrsAmf0Any::number(100);
 		SrsAutoFree(SrsAmf0Any, o, false);
-		EXPECT_TRUE(NULL != o);
+		ASSERT_TRUE(NULL != o);
 		EXPECT_TRUE(o->is_number());
 		EXPECT_DOUBLE_EQ(100, o->to_number());
 	}
 	if (true) {
 		o = SrsAmf0Any::number(-100);
 		SrsAutoFree(SrsAmf0Any, o, false);
-		EXPECT_TRUE(NULL != o);
+		ASSERT_TRUE(NULL != o);
 		EXPECT_TRUE(o->is_number());
 		EXPECT_DOUBLE_EQ(-100, o->to_number());
 	}
@@ -332,7 +334,7 @@ VOID TEST(AMF0Test, AnyElem)
 	if (true) {
 		o = SrsAmf0Any::null();
 		SrsAutoFree(SrsAmf0Any, o, false);
-		EXPECT_TRUE(NULL != o);
+		ASSERT_TRUE(NULL != o);
 		EXPECT_TRUE(o->is_null());
 	}
 
@@ -340,7 +342,261 @@ VOID TEST(AMF0Test, AnyElem)
 	if (true) {
 		o = SrsAmf0Any::undefined();
 		SrsAutoFree(SrsAmf0Any, o, false);
-		EXPECT_TRUE(NULL != o);
+		ASSERT_TRUE(NULL != o);
 		EXPECT_TRUE(o->is_undefined());
+	}
+}
+
+VOID TEST(AMF0Test, AnyIO) 
+{
+	SrsStream s;
+	SrsAmf0Any* o = NULL;
+	
+	char buf[1024];
+	memset(buf, 0, sizeof(buf));
+	EXPECT_EQ(ERROR_SUCCESS, s.initialize(buf, sizeof(buf)));
+	
+	// object eof
+	if (true) {
+		s.reset();
+		s.current()[2] = 0x09;
+		
+		o = SrsAmf0Any::object_eof();
+		SrsAutoFree(SrsAmf0Any, o, false);
+		
+		EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
+		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_EQ(3, s.pos());
+		
+		s.reset();
+		s.current()[0] = 0x01;
+		EXPECT_NE(ERROR_SUCCESS, o->read(&s));
+	}
+	if (true) {
+		s.reset();
+		
+		o = SrsAmf0Any::object_eof();
+		SrsAutoFree(SrsAmf0Any, o, false);
+		
+		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_EQ(3, s.pos());
+		
+		s.skip(-3);
+		EXPECT_EQ(0x09, s.read_3bytes());
+	}
+	
+	// string
+	if (true) {
+		s.reset();
+		
+		o = SrsAmf0Any::str("winlin");
+		SrsAutoFree(SrsAmf0Any, o, false);
+		
+		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+		EXPECT_EQ(o->size(), s.pos());
+		
+		s.reset();
+		EXPECT_EQ(2, s.read_1bytes());
+		EXPECT_EQ(6, s.read_2bytes());
+		EXPECT_EQ('w', s.current()[0]);
+		EXPECT_EQ('n', s.current()[5]);
+		
+		s.reset();
+		s.current()[3] = 'x';
+		EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
+		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_STREQ("xinlin", o->to_str().c_str());
+	}
+	
+	// number
+	if (true) {
+		s.reset();
+		
+		o = SrsAmf0Any::number(10);
+		SrsAutoFree(SrsAmf0Any, o, false);
+		
+		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+		EXPECT_EQ(o->size(), s.pos());
+
+		s.reset();
+		EXPECT_EQ(0, s.read_1bytes());
+		
+		s.reset();
+		EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
+		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_DOUBLE_EQ(10, o->to_number());
+	}
+	
+	// boolean
+	if (true) {
+		s.reset();
+		
+		o = SrsAmf0Any::boolean(true);
+		SrsAutoFree(SrsAmf0Any, o, false);
+		
+		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+		EXPECT_EQ(o->size(), s.pos());
+
+		s.reset();
+		EXPECT_EQ(1, s.read_1bytes());
+		
+		s.reset();
+		EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
+		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_TRUE(o->to_boolean());
+	}
+	if (true) {
+		s.reset();
+		
+		o = SrsAmf0Any::boolean(false);
+		SrsAutoFree(SrsAmf0Any, o, false);
+		
+		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+		EXPECT_EQ(o->size(), s.pos());
+
+		s.reset();
+		EXPECT_EQ(1, s.read_1bytes());
+		
+		s.reset();
+		EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
+		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_FALSE(o->to_boolean());
+	}
+	
+	// null
+	if (true) {
+		s.reset();
+		
+		o = SrsAmf0Any::null();
+		SrsAutoFree(SrsAmf0Any, o, false);
+		
+		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+		EXPECT_EQ(o->size(), s.pos());
+
+		s.reset();
+		EXPECT_EQ(5, s.read_1bytes());
+		
+		s.reset();
+		EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
+		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_TRUE(o->is_null());
+	}
+	
+	// undefined
+	if (true) {
+		s.reset();
+		
+		o = SrsAmf0Any::undefined();
+		SrsAutoFree(SrsAmf0Any, o, false);
+		
+		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+		EXPECT_EQ(o->size(), s.pos());
+
+		s.reset();
+		EXPECT_EQ(6, s.read_1bytes());
+		
+		s.reset();
+		EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
+		EXPECT_EQ(o->size(), s.pos());
+		EXPECT_TRUE(o->is_undefined());
+	}
+
+	// any: string
+	if (true) {
+		s.reset();
+		
+		o = SrsAmf0Any::str("winlin");
+		SrsAutoFree(SrsAmf0Any, o, false);
+		
+		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+		EXPECT_EQ(o->size(), s.pos());
+
+		s.reset();
+		
+		SrsAmf0Any* po = NULL;
+		EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
+		ASSERT_TRUE(NULL != po);
+		SrsAutoFree(SrsAmf0Any, po, false);
+		ASSERT_TRUE(po->is_string());
+		EXPECT_STREQ("winlin", po->to_str().c_str());
+	}
+
+	// any: number
+	if (true) {
+		s.reset();
+		
+		o = SrsAmf0Any::number(10);
+		SrsAutoFree(SrsAmf0Any, o, false);
+		
+		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+		EXPECT_EQ(o->size(), s.pos());
+
+		s.reset();
+		
+		SrsAmf0Any* po = NULL;
+		EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
+		ASSERT_TRUE(NULL != po);
+		SrsAutoFree(SrsAmf0Any, po, false);
+		ASSERT_TRUE(po->is_number());
+		EXPECT_DOUBLE_EQ(10, po->to_number());
+	}
+
+	// any: boolean
+	if (true) {
+		s.reset();
+		
+		o = SrsAmf0Any::boolean(true);
+		SrsAutoFree(SrsAmf0Any, o, false);
+		
+		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+		EXPECT_EQ(o->size(), s.pos());
+
+		s.reset();
+		
+		SrsAmf0Any* po = NULL;
+		EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
+		ASSERT_TRUE(NULL != po);
+		SrsAutoFree(SrsAmf0Any, po, false);
+		ASSERT_TRUE(po->is_boolean());
+		EXPECT_TRUE(po->to_boolean());
+	}
+
+	// any: null
+	if (true) {
+		s.reset();
+		
+		o = SrsAmf0Any::null();
+		SrsAutoFree(SrsAmf0Any, o, false);
+		
+		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+		EXPECT_EQ(o->size(), s.pos());
+
+		s.reset();
+		
+		SrsAmf0Any* po = NULL;
+		EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
+		ASSERT_TRUE(NULL != po);
+		SrsAutoFree(SrsAmf0Any, po, false);
+		ASSERT_TRUE(po->is_null());
+	}
+
+	// any: undefined
+	if (true) {
+		s.reset();
+		
+		o = SrsAmf0Any::undefined();
+		SrsAutoFree(SrsAmf0Any, o, false);
+		
+		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+		EXPECT_EQ(o->size(), s.pos());
+
+		s.reset();
+		
+		SrsAmf0Any* po = NULL;
+		EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
+		ASSERT_TRUE(NULL != po);
+		SrsAutoFree(SrsAmf0Any, po, false);
+		ASSERT_TRUE(po->is_undefined());
 	}
 }

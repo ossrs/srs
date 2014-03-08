@@ -2617,7 +2617,7 @@ int SrsPlayPacket::decode(SrsStream* stream)
     }
     
     SrsAmf0Any* reset_value = NULL;
-    if ((ret = srs_amf0_read_any(stream, reset_value)) != ERROR_SUCCESS) {
+    if ((ret = srs_amf0_read_any(stream, &reset_value)) != ERROR_SUCCESS) {
         ret = ERROR_RTMP_AMF0_DECODE;
         srs_error("amf0 read play reset marker failed. ret=%d", ret);
         return ret;
@@ -3183,14 +3183,14 @@ int SrsOnMetaDataPacket::decode(SrsStream* stream)
 	
 	// the metadata maybe object or ecma array
 	SrsAmf0Any* any = NULL;
-	if ((ret = srs_amf0_read_any(stream, any)) != ERROR_SUCCESS) {
+	if ((ret = srs_amf0_read_any(stream, &any)) != ERROR_SUCCESS) {
 		srs_error("decode metadata metadata failed. ret=%d", ret);
 		return ret;
 	}
 	
 	if (any->is_object()) {
 		srs_freep(metadata);
-		metadata = srs_amf0_convert<SrsAmf0Object>(any);
+		metadata = dynamic_cast<SrsAmf0Object*>(any);
 		srs_info("decode metadata object success");
 		return ret;
 	}

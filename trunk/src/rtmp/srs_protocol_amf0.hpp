@@ -76,13 +76,22 @@ public:
 	*/
 	virtual double to_number();
 public:
+	/**
+	* get the size of amf0 any, including the marker size.
+	*/
 	virtual int size() = 0;
+	/**
+	* read elem from stream
+	*/
+	virtual int read(SrsStream* stream) = 0;
+	virtual int write(SrsStream* stream) = 0;
 public:
 	static SrsAmf0Any* str(const char* value = NULL); 
 	static SrsAmf0Any* boolean(bool value = false);
 	static SrsAmf0Any* number(double value = 0.0);
 	static SrsAmf0Any* null();
 	static SrsAmf0Any* undefined();
+	static SrsAmf0Any* object_eof();
 };
 
 /**
@@ -125,6 +134,8 @@ public:
 	virtual ~__SrsAmf0ObjectEOF();
 	
 	virtual int size();
+	virtual int read(SrsStream* stream);
+	virtual int write(SrsStream* stream);
 };
 
 /**
@@ -219,6 +230,8 @@ public:
 	virtual ~__SrsAmf0String();
 	
 	virtual int size();
+	virtual int read(SrsStream* stream);
+	virtual int write(SrsStream* stream);
 };
 
 /**
@@ -237,6 +250,8 @@ public:
 	virtual ~__SrsAmf0Boolean();
 	
 	virtual int size();
+	virtual int read(SrsStream* stream);
+	virtual int write(SrsStream* stream);
 };
 
 /**
@@ -254,6 +269,8 @@ public:
 	virtual ~__SrsAmf0Number();
 	
 	virtual int size();
+	virtual int read(SrsStream* stream);
+	virtual int write(SrsStream* stream);
 };
 
 /**
@@ -268,6 +285,8 @@ public:
 	virtual ~__SrsAmf0Null();
 	
 	virtual int size();
+	virtual int read(SrsStream* stream);
+	virtual int write(SrsStream* stream);
 };
 
 /**
@@ -282,18 +301,9 @@ public:
 	virtual ~__SrsAmf0Undefined();
 	
 	virtual int size();
+	virtual int read(SrsStream* stream);
+	virtual int write(SrsStream* stream);
 };
-
-/**
-* read amf0 utf8 string from stream.
-* 1.3.1 Strings and UTF-8
-* UTF-8 = U16 *(UTF8-char)
-* UTF8-char = UTF8-1 | UTF8-2 | UTF8-3 | UTF8-4
-* UTF8-1 = %x00-7F
-* @remark only support UTF8-1 char.
-*/
-extern int srs_amf0_read_utf8(SrsStream* stream, std::string& value);
-extern int srs_amf0_write_utf8(SrsStream* stream, std::string value);
 
 /**
 * read amf0 string from stream.
@@ -336,7 +346,10 @@ extern int srs_amf0_write_null(SrsStream* stream);
 extern int srs_amf0_read_undefined(SrsStream* stream);
 extern int srs_amf0_write_undefined(SrsStream* stream);
 
-extern int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any*& value);
+/**
+* read anything from stream.
+*/
+extern int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any** ppvalue);
 
 /**
 * read amf0 object from stream.
@@ -356,19 +369,5 @@ extern int srs_amf0_write_object(SrsStream* stream, SrsAmf0Object* value);
 */
 extern int srs_amf0_read_ecma_array(SrsStream* stream, SrsAmf0EcmaArray*& value);
 extern int srs_amf0_write_ecma_array(SrsStream* stream, SrsAmf0EcmaArray* value);
-
-/**
-* convert the any to specified object.
-* @return T*, the converted object. never NULL.
-* @remark, user must ensure the current object type, 
-* 		or the covert will cause assert failed.
-*/
-template<class T>
-T* srs_amf0_convert(SrsAmf0Any* any)
-{
-	T* p = dynamic_cast<T*>(any);
-	srs_assert(p != NULL);
-	return p;
-}
 
 #endif

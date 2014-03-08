@@ -80,10 +80,6 @@ void SrsStream::skip(int size)
 
 int SrsStream::pos()
 {
-	if (empty()) {
-		return 0;
-	}
-	
 	return p - bytes;
 }
 
