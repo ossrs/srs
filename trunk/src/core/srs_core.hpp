@@ -31,7 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // current release version
 #define VERSION_MAJOR "0"
 #define VERSION_MINOR "9"
-#define VERSION_REVISION "13"
+#define VERSION_REVISION "14"
 #define RTMP_SIG_SRS_VERSION VERSION_MAJOR"."VERSION_MINOR"."VERSION_REVISION
 // server info.
 #define RTMP_SIG_SRS_KEY "srs"
@@ -43,7 +43,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RTMP_SIG_SRS_EMAIL "winlin@vip.126.com"
 #define RTMP_SIG_SRS_LICENSE "The MIT License (MIT)"
 #define RTMP_SIG_SRS_COPYRIGHT "Copyright (c) 2013-2014 winlin"
-#define RTMP_SIG_SRS_PRIMARY_AUTHROS "winlin,wenjiegit"
+#define RTMP_SIG_SRS_PRIMARY_AUTHROS "winlin,wenjie.zhao"
 
 /**
 * the core provides the common defined macros, utilities,
