@@ -599,4 +599,60 @@ VOID TEST(AMF0Test, AnyIO)
 		SrsAutoFree(SrsAmf0Any, po, false);
 		ASSERT_TRUE(po->is_undefined());
 	}
+	
+	// mixed any
+	if (true) {
+		s.reset();
+		
+		o = SrsAmf0Any::str("winlin");
+		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+		srs_freep(o);
+		
+		o = SrsAmf0Any::number(10);
+		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+		srs_freep(o);
+		
+		o = SrsAmf0Any::boolean(true);
+		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+		srs_freep(o);
+		
+		o = SrsAmf0Any::null();
+		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+		srs_freep(o);
+		
+		o = SrsAmf0Any::undefined();
+		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+		srs_freep(o);
+		
+		s.reset();
+		SrsAmf0Any* po = NULL;
+		
+		EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
+		ASSERT_TRUE(NULL != po);
+		ASSERT_TRUE(po->is_string());
+		EXPECT_STREQ("winlin", po->to_str().c_str());
+		srs_freep(po);
+		
+		EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
+		ASSERT_TRUE(NULL != po);
+		ASSERT_TRUE(po->is_number());
+		EXPECT_DOUBLE_EQ(10, po->to_number());
+		srs_freep(po);
+		
+		EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
+		ASSERT_TRUE(NULL != po);
+		ASSERT_TRUE(po->is_boolean());
+		EXPECT_TRUE(po->to_boolean());
+		srs_freep(po);
+		
+		EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
+		ASSERT_TRUE(NULL != po);
+		ASSERT_TRUE(po->is_null());
+		srs_freep(po);
+		
+		EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
+		ASSERT_TRUE(NULL != po);
+		ASSERT_TRUE(po->is_undefined());
+		srs_freep(po);
+	}
 }
