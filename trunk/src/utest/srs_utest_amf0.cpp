@@ -808,4 +808,99 @@ VOID TEST(AMF0Test, ObjectProps)
 		EXPECT_TRUE(NULL != o->ensure_property_number("age"));
 		EXPECT_TRUE(NULL == o->ensure_property_string("age"));
 	}
+
+	// count
+	if (true) {
+		o = SrsAmf0Any::object();
+		SrsAutoFree(SrsAmf0Object, o, false);
+		
+		EXPECT_EQ(0, o->count());
+		
+		o->set("name", SrsAmf0Any::str("winlin"));
+		EXPECT_EQ(1, o->count());
+		
+		o->set("name", SrsAmf0Any::str("winlin"));
+		EXPECT_EQ(1, o->count());
+		
+		o->set("age", SrsAmf0Any::number(100));
+		EXPECT_EQ(2, o->count());
+	}
+}
+
+VOID TEST(AMF0Test, EcmaArrayProps) 
+{
+	SrsAmf0EcmaArray* o = NULL;
+	
+	// get/set property
+	if (true) {
+		o = SrsAmf0Any::ecma_array();
+		SrsAutoFree(SrsAmf0EcmaArray, o, false);
+		
+		EXPECT_TRUE(NULL == o->get_property("name"));
+		
+		o->set("name", SrsAmf0Any::str("winlin"));
+		EXPECT_TRUE(NULL != o->get_property("name"));
+		
+		EXPECT_TRUE(NULL == o->get_property("age"));
+		
+		o->set("age", SrsAmf0Any::number(100));
+		EXPECT_TRUE(NULL != o->get_property("age"));
+	}
+	
+	// index property
+	if (true) {
+		o = SrsAmf0Any::ecma_array();
+		SrsAutoFree(SrsAmf0EcmaArray, o, false);
+		
+		o->set("name", SrsAmf0Any::str("winlin"));
+		EXPECT_STREQ("name", o->key_at(0).c_str());
+		ASSERT_TRUE(o->value_at(0)->is_string());
+		EXPECT_STREQ("winlin", o->value_at(0)->to_str().c_str());
+		
+		o->set("age", SrsAmf0Any::number(100));
+		EXPECT_STREQ("name", o->key_at(0).c_str());
+		ASSERT_TRUE(o->value_at(0)->is_string());
+		EXPECT_STREQ("winlin", o->value_at(0)->to_str().c_str());
+		
+		EXPECT_STREQ("age", o->key_at(1).c_str());
+		ASSERT_TRUE(o->value_at(1)->is_number());
+		EXPECT_DOUBLE_EQ(100, o->value_at(1)->to_number());
+	}
+	
+	// ensure property
+	if (true) {
+		o = SrsAmf0Any::ecma_array();
+		SrsAutoFree(SrsAmf0EcmaArray, o, false);
+		
+		EXPECT_TRUE(NULL == o->ensure_property_string("name"));
+		EXPECT_TRUE(NULL == o->ensure_property_number("age"));
+		
+		o->set("name", SrsAmf0Any::str("winlin"));
+		EXPECT_TRUE(NULL != o->ensure_property_string("name"));
+		EXPECT_TRUE(NULL == o->ensure_property_number("name"));
+		EXPECT_TRUE(NULL == o->ensure_property_number("age"));
+		
+		o->set("age", SrsAmf0Any::number(100));
+		EXPECT_TRUE(NULL != o->ensure_property_string("name"));
+		EXPECT_TRUE(NULL == o->ensure_property_number("name"));
+		EXPECT_TRUE(NULL != o->ensure_property_number("age"));
+		EXPECT_TRUE(NULL == o->ensure_property_string("age"));
+	}
+
+	// count
+	if (true) {
+		o = SrsAmf0Any::ecma_array();
+		SrsAutoFree(SrsAmf0EcmaArray, o, false);
+		
+		EXPECT_EQ(0, o->count());
+		
+		o->set("name", SrsAmf0Any::str("winlin"));
+		EXPECT_EQ(1, o->count());
+		
+		o->set("name", SrsAmf0Any::str("winlin"));
+		EXPECT_EQ(1, o->count());
+		
+		o->set("age", SrsAmf0Any::number(100));
+		EXPECT_EQ(2, o->count());
+	}
 }

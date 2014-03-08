@@ -31,7 +31,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <string>
-#include <vector>
 
 class SrsStream;
 class SrsAmf0Object;
@@ -220,6 +219,7 @@ public:
 	virtual void set(std::string key, SrsAmf0Any* value);
 	virtual SrsAmf0Any* get_property(std::string name);
 	virtual SrsAmf0Any* ensure_property_string(std::string name);
+	virtual SrsAmf0Any* ensure_property_number(std::string name);
 };
 
 /**

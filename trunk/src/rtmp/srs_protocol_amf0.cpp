@@ -24,6 +24,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_amf0.hpp>
 
 #include <utility>
+#include <vector>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
@@ -417,7 +418,7 @@ void __SrsUnSortedHashtable::clear()
 	properties.clear();
 }
 
-std::string __SrsUnSortedHashtable::key_at(int index)
+string __SrsUnSortedHashtable::key_at(int index)
 {
 	srs_assert(index < count());
 	SrsObjectPropertyType& elem = properties[index];
@@ -431,7 +432,7 @@ SrsAmf0Any* __SrsUnSortedHashtable::value_at(int index)
 	return elem.second;
 }
 
-void __SrsUnSortedHashtable::set(std::string key, SrsAmf0Any* value)
+void __SrsUnSortedHashtable::set(string key, SrsAmf0Any* value)
 {
 	if (!value) {
 		srs_warn("add a NULL propertity %s", key.c_str());
@@ -455,7 +456,7 @@ void __SrsUnSortedHashtable::set(std::string key, SrsAmf0Any* value)
 	properties.push_back(std::make_pair(key, value));
 }
 
-SrsAmf0Any* __SrsUnSortedHashtable::get_property(std::string name)
+SrsAmf0Any* __SrsUnSortedHashtable::get_property(string name)
 {
 	std::vector<SrsObjectPropertyType>::iterator it;
 	
@@ -471,7 +472,7 @@ SrsAmf0Any* __SrsUnSortedHashtable::get_property(std::string name)
 	return NULL;
 }
 
-SrsAmf0Any* __SrsUnSortedHashtable::ensure_property_string(std::string name)
+SrsAmf0Any* __SrsUnSortedHashtable::ensure_property_string(string name)
 {
 	SrsAmf0Any* prop = get_property(name);
 	
@@ -486,7 +487,7 @@ SrsAmf0Any* __SrsUnSortedHashtable::ensure_property_string(std::string name)
 	return prop;
 }
 
-SrsAmf0Any* __SrsUnSortedHashtable::ensure_property_number(std::string name)
+SrsAmf0Any* __SrsUnSortedHashtable::ensure_property_number(string name)
 {
 	SrsAmf0Any* prop = get_property(name);
 	
@@ -713,7 +714,7 @@ int SrsAmf0Object::count()
 	return properties->count();
 }
 
-std::string SrsAmf0Object::key_at(int index)
+string SrsAmf0Object::key_at(int index)
 {
 	return properties->key_at(index);
 }
@@ -723,22 +724,22 @@ SrsAmf0Any* SrsAmf0Object::value_at(int index)
 	return properties->value_at(index);
 }
 
-void SrsAmf0Object::set(std::string key, SrsAmf0Any* value)
+void SrsAmf0Object::set(string key, SrsAmf0Any* value)
 {
 	properties->set(key, value);
 }
 
-SrsAmf0Any* SrsAmf0Object::get_property(std::string name)
+SrsAmf0Any* SrsAmf0Object::get_property(string name)
 {
 	return properties->get_property(name);
 }
 
-SrsAmf0Any* SrsAmf0Object::ensure_property_string(std::string name)
+SrsAmf0Any* SrsAmf0Object::ensure_property_string(string name)
 {
 	return properties->ensure_property_string(name);
 }
 
-SrsAmf0Any* SrsAmf0Object::ensure_property_number(std::string name)
+SrsAmf0Any* SrsAmf0Object::ensure_property_number(string name)
 {
 	return properties->ensure_property_number(name);
 }
@@ -900,7 +901,7 @@ int SrsAmf0EcmaArray::count()
 	return properties->count();
 }
 
-std::string SrsAmf0EcmaArray::key_at(int index)
+string SrsAmf0EcmaArray::key_at(int index)
 {
 	return properties->key_at(index);
 }
@@ -910,19 +911,24 @@ SrsAmf0Any* SrsAmf0EcmaArray::value_at(int index)
 	return properties->value_at(index);
 }
 
-void SrsAmf0EcmaArray::set(std::string key, SrsAmf0Any* value)
+void SrsAmf0EcmaArray::set(string key, SrsAmf0Any* value)
 {
 	properties->set(key, value);
 }
 
-SrsAmf0Any* SrsAmf0EcmaArray::get_property(std::string name)
+SrsAmf0Any* SrsAmf0EcmaArray::get_property(string name)
 {
 	return properties->get_property(name);
 }
 
-SrsAmf0Any* SrsAmf0EcmaArray::ensure_property_string(std::string name)
+SrsAmf0Any* SrsAmf0EcmaArray::ensure_property_string(string name)
 {
 	return properties->ensure_property_string(name);
+}
+
+SrsAmf0Any* SrsAmf0EcmaArray::ensure_property_number(string name)
+{
+	return properties->ensure_property_number(name);
 }
 
 int SrsAmf0Size::utf8(string value)
@@ -1138,7 +1144,7 @@ int srs_amf0_write_any(SrsStream* stream, SrsAmf0Any* value)
 	return value->write(stream);
 }
 
-int srs_amf0_read_utf8(SrsStream* stream, std::string& value)
+int srs_amf0_read_utf8(SrsStream* stream, string& value)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -1182,7 +1188,7 @@ int srs_amf0_read_utf8(SrsStream* stream, std::string& value)
 	
 	return ret;
 }
-int srs_amf0_write_utf8(SrsStream* stream, std::string value)
+int srs_amf0_write_utf8(SrsStream* stream, string value)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -1213,7 +1219,7 @@ int srs_amf0_write_utf8(SrsStream* stream, std::string value)
 	return ret;
 }
 
-int srs_amf0_read_string(SrsStream* stream, std::string& value)
+int srs_amf0_read_string(SrsStream* stream, string& value)
 {
 	int ret = ERROR_SUCCESS;
 	
@@ -1236,7 +1242,7 @@ int srs_amf0_read_string(SrsStream* stream, std::string& value)
 	return srs_amf0_read_utf8(stream, value);
 }
 
-int srs_amf0_write_string(SrsStream* stream, std::string value)
+int srs_amf0_write_string(SrsStream* stream, string value)
 {
 	int ret = ERROR_SUCCESS;
 	
