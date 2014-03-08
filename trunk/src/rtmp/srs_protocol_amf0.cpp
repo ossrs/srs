@@ -625,6 +625,68 @@ SrsAmf0Any* SrsAmf0EcmaArray::ensure_property_string(std::string name)
 	return properties.ensure_property_string(name);
 }
 
+int SrsAmf0Size::utf8(string value)
+{
+	return 2 + value.length();
+}
+
+int SrsAmf0Size::str(string value)
+{
+	return 1 + SrsAmf0Size::utf8(value);
+}
+
+int SrsAmf0Size::number()
+{
+	return 1 + 8;
+}
+
+int SrsAmf0Size::null()
+{
+	return 1;
+}
+
+int SrsAmf0Size::undefined()
+{
+	return 1;
+}
+
+int SrsAmf0Size::boolean()
+{
+	return 1 + 1;
+}
+
+int SrsAmf0Size::object(SrsAmf0Object* obj)
+{
+	if (!obj) {
+		return 0;
+	}
+	
+	return obj->size();
+}
+
+int SrsAmf0Size::object_eof()
+{
+	return 2 + 1;
+}
+
+int SrsAmf0Size::array(SrsAmf0EcmaArray* arr)
+{
+	if (!arr) {
+		return 0;
+	}
+	
+	return arr->size();
+}
+
+int SrsAmf0Size::any(SrsAmf0Any* o)
+{
+	if (!o) {
+		return 0;
+	}
+	
+	return o->size();
+}
+
 int srs_amf0_read_utf8(SrsStream* stream, std::string& value)
 {
 	int ret = ERROR_SUCCESS;
@@ -1193,66 +1255,4 @@ int srs_amf0_read_ecma_array(SrsStream* stream, SrsAmf0EcmaArray*& value)
 int srs_amf0_write_ecma_array(SrsStream* stream, SrsAmf0EcmaArray* value)
 {
 	return value->write(stream);
-}
-
-int SrsAmf0Size::utf8(string value)
-{
-	return 2 + value.length();
-}
-
-int SrsAmf0Size::str(string value)
-{
-	return 1 + SrsAmf0Size::utf8(value);
-}
-
-int SrsAmf0Size::number()
-{
-	return 1 + 8;
-}
-
-int SrsAmf0Size::null()
-{
-	return 1;
-}
-
-int SrsAmf0Size::undefined()
-{
-	return 1;
-}
-
-int SrsAmf0Size::boolean()
-{
-	return 1 + 1;
-}
-
-int SrsAmf0Size::object(SrsAmf0Object* obj)
-{
-	if (!obj) {
-		return 0;
-	}
-	
-	return obj->size();
-}
-
-int SrsAmf0Size::object_eof()
-{
-	return 2 + 1;
-}
-
-int SrsAmf0Size::array(SrsAmf0EcmaArray* arr)
-{
-	if (!arr) {
-		return 0;
-	}
-	
-	return arr->size();
-}
-
-int SrsAmf0Size::any(SrsAmf0Any* o)
-{
-	if (!o) {
-		return 0;
-	}
-	
-	return o->size();
 }

@@ -34,7 +34,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 
 class SrsStream;
-class SrsAmf0Object;
 
 /**
 * any amf0 value.
@@ -44,8 +43,9 @@ class SrsAmf0Object;
 * 		| strict-array-type | date-type | long-string-type | xml-document-type 
 * 		| typed-object-type
 */
-struct SrsAmf0Any
+class SrsAmf0Any
 {
+public:
 	char marker;
 
 	SrsAmf0Any();
@@ -69,8 +69,9 @@ struct SrsAmf0Any
 * string-type = string-marker UTF-8
 * @return default value is empty string.
 */
-struct SrsAmf0String : public SrsAmf0Any
+class SrsAmf0String : public SrsAmf0Any
 {
+public:
 	std::string value;
 
 	SrsAmf0String(const char* _value = NULL);
@@ -86,8 +87,9 @@ struct SrsAmf0String : public SrsAmf0Any
 * 		0 is false, <> 0 is true
 * @return default value is false.
 */
-struct SrsAmf0Boolean : public SrsAmf0Any
+class SrsAmf0Boolean : public SrsAmf0Any
 {
+public:
 	bool value;
 
 	SrsAmf0Boolean(bool _value = false);
@@ -102,8 +104,9 @@ struct SrsAmf0Boolean : public SrsAmf0Any
 * number-type = number-marker DOUBLE
 * @return default value is 0.
 */
-struct SrsAmf0Number : public SrsAmf0Any
+class SrsAmf0Number : public SrsAmf0Any
 {
+public:
 	double value;
 
 	SrsAmf0Number(double _value = 0.0);
@@ -117,8 +120,9 @@ struct SrsAmf0Number : public SrsAmf0Any
 * 2.7 null Type
 * null-type = null-marker
 */
-struct SrsAmf0Null : public SrsAmf0Any
+class SrsAmf0Null : public SrsAmf0Any
 {
+public:
 	SrsAmf0Null();
 	virtual ~SrsAmf0Null();
 	
@@ -130,8 +134,9 @@ struct SrsAmf0Null : public SrsAmf0Any
 * 2.8 undefined Type
 * undefined-type = undefined-marker
 */
-struct SrsAmf0Undefined : public SrsAmf0Any
+class SrsAmf0Undefined : public SrsAmf0Any
 {
+public:
 	SrsAmf0Undefined();
 	virtual ~SrsAmf0Undefined();
 	
@@ -143,8 +148,9 @@ struct SrsAmf0Undefined : public SrsAmf0Any
 * object-end-type = UTF-8-empty object-end-marker
 * 0x00 0x00 0x09
 */
-struct SrsAmf0ObjectEOF : public SrsAmf0Any
+class SrsAmf0ObjectEOF : public SrsAmf0Any
 {
+public:
 	int16_t utf8_empty;
 
 	SrsAmf0ObjectEOF();
@@ -159,7 +165,7 @@ struct SrsAmf0ObjectEOF : public SrsAmf0Any
 * if ordered in map, the string compare order, the FMLE will creash when
 * get the response of connect app.
 */
-struct SrsUnSortedHashtable
+class SrsUnSortedHashtable
 {
 private:
 	typedef std::pair<std::string, SrsAmf0Any*> SrsObjectPropertyType;
@@ -184,7 +190,7 @@ public:
 * anonymous-object-type = object-marker *(object-property)
 * object-property = (UTF-8 value-type) | (UTF-8-empty object-end-marker)
 */
-struct SrsAmf0Object : public SrsAmf0Any
+class SrsAmf0Object : public SrsAmf0Any
 {
 private:
 	SrsUnSortedHashtable properties;
@@ -213,7 +219,7 @@ public:
 * associative-count = U32
 * object-property = (UTF-8 value-type) | (UTF-8-empty object-end-marker)
 */
-struct SrsAmf0EcmaArray : public SrsAmf0Any
+class SrsAmf0EcmaArray : public SrsAmf0Any
 {
 private:
 	SrsUnSortedHashtable properties;
@@ -235,6 +241,24 @@ public:
 
 	virtual SrsAmf0Any* get_property(std::string name);
 	virtual SrsAmf0Any* ensure_property_string(std::string name);
+};
+
+/**
+* the class to get amf0 object size
+*/
+class SrsAmf0Size
+{
+public:
+	static int utf8(std::string value);
+	static int str(std::string value);
+	static int number();
+	static int null();
+	static int undefined();
+	static int boolean();
+	static int object(SrsAmf0Object* obj);
+	static int object_eof();
+	static int array(SrsAmf0EcmaArray* arr);
+	static int any(SrsAmf0Any* o);
 };
 
 /**
@@ -309,24 +333,6 @@ extern int srs_amf0_write_object(SrsStream* stream, SrsAmf0Object* value);
 */
 extern int srs_amf0_read_ecma_array(SrsStream* stream, SrsAmf0EcmaArray*& value);
 extern int srs_amf0_write_ecma_array(SrsStream* stream, SrsAmf0EcmaArray* value);
-
-/**
-* the class to get amf0 object size
-*/
-class SrsAmf0Size
-{
-public:
-	static int utf8(std::string value);
-	static int str(std::string value);
-	static int number();
-	static int null();
-	static int undefined();
-	static int boolean();
-	static int object(SrsAmf0Object* obj);
-	static int object_eof();
-	static int array(SrsAmf0EcmaArray* arr);
-	static int any(SrsAmf0Any* o);
-};
 
 /**
 * convert the any to specified object.
