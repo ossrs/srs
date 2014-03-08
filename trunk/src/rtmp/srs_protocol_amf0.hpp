@@ -62,6 +62,12 @@ class __SrsAmf0ObjectEOF;
 //		SrsAmf0Object* obj = SrsAmf0Any::object();
 // 5. SrsAmf0EcmaArray: create the amf0 ecma array.
 //		SrsAmf0EcmaArray* arr = SrsAmf0Any::ecma_array();
+//
+// please carefully the size and count of amf0 any:
+// 1. total_size(): the total memory size the object wrote to buffer.
+// 2. count(): the total element count of object, for instance, the properties
+//		of amf0 object, used for key_at/value_at loop.
+//
 // for detail usage, see interfaces of each object.
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
