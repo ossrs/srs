@@ -90,7 +90,7 @@ VOID TEST(AMF0Test, Size)
         SrsAmf0Object o;
         
         size += SrsAmf0Size::utf8("sex")+SrsAmf0Size::boolean();
-        o.set("sex", new SrsAmf0Boolean(true));
+        o.set("sex", SrsAmf0Any::boolean(true));
         
         EXPECT_EQ(size, SrsAmf0Size::object(&o));
     }
@@ -144,7 +144,7 @@ VOID TEST(AMF0Test, Size)
         SrsAmf0EcmaArray o;
         
         size += SrsAmf0Size::utf8("sex")+SrsAmf0Size::boolean();
-        o.set("sex", new SrsAmf0Boolean(true));
+        o.set("sex", SrsAmf0Any::boolean(true));
         
         EXPECT_EQ(size, SrsAmf0Size::array(&o));
     }
@@ -280,5 +280,28 @@ VOID TEST(AMF0Test, AnyElem)
 		EXPECT_TRUE(NULL != o);
 		EXPECT_TRUE(o->is_string());
 		EXPECT_STREQ("winlin", o->to_str().c_str());
+	}
+	
+	// bool
+	if (true) {
+		o = SrsAmf0Any::boolean();
+		SrsAutoFree(SrsAmf0Any, o, false);
+		EXPECT_TRUE(NULL != o);
+		EXPECT_TRUE(o->is_boolean());
+		EXPECT_FALSE(o->to_boolean());
+	}
+	if (true) {
+		o = SrsAmf0Any::boolean(false);
+		SrsAutoFree(SrsAmf0Any, o, false);
+		EXPECT_TRUE(NULL != o);
+		EXPECT_TRUE(o->is_boolean());
+		EXPECT_FALSE(o->to_boolean());
+	}
+	if (true) {
+		o = SrsAmf0Any::boolean(true);
+		SrsAutoFree(SrsAmf0Any, o, false);
+		EXPECT_TRUE(NULL != o);
+		EXPECT_TRUE(o->is_boolean());
+		EXPECT_TRUE(o->to_boolean());
 	}
 }

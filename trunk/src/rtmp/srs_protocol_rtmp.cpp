@@ -283,7 +283,7 @@ int SrsRtmpClient::connect_app(string app, string tc_url)
 		pkt->command_object->set("app", SrsAmf0Any::str(app.c_str()));
 		pkt->command_object->set("swfUrl", SrsAmf0Any::str());
 		pkt->command_object->set("tcUrl", SrsAmf0Any::str(tc_url.c_str()));
-		pkt->command_object->set("fpad", new SrsAmf0Boolean(false));
+		pkt->command_object->set("fpad", SrsAmf0Any::boolean(false));
 		pkt->command_object->set("capabilities", new SrsAmf0Number(239));
 		pkt->command_object->set("audioCodecs", new SrsAmf0Number(3575));
 		pkt->command_object->set("videoCodecs", new SrsAmf0Number(252));

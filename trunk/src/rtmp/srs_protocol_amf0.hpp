@@ -65,46 +65,16 @@ public:
 	* user must ensure the type is a string, or assert failed.
 	*/
 	virtual std::string to_str();
+	/**
+	* get the boolean of any when is_boolean() indicates true.
+	* user must ensure the type is a is_boolean, or assert failed.
+	*/
+	virtual bool to_boolean();
 public:
 	virtual int size() = 0;
 public:
 	static SrsAmf0Any* str(const char* value = NULL); 
-};
-
-/**
-* read amf0 string from stream.
-* 2.4 String Type
-* string-type = string-marker UTF-8
-* @return default value is empty string.
-* @remark: use SrsAmf0Any::str() to create it.
-*/
-class __SrsAmf0String : public SrsAmf0Any
-{
-public:
-	std::string value;
-
-	__SrsAmf0String(const char* _value);
-	virtual ~__SrsAmf0String();
-	
-	virtual int size();
-};
-
-/**
-* read amf0 boolean from stream.
-* 2.4 String Type
-* boolean-type = boolean-marker U8
-* 		0 is false, <> 0 is true
-* @return default value is false.
-*/
-class SrsAmf0Boolean : public SrsAmf0Any
-{
-public:
-	bool value;
-
-	SrsAmf0Boolean(bool _value = false);
-	virtual ~SrsAmf0Boolean();
-	
-	virtual int size();
+	static SrsAmf0Any* boolean(bool value = false); 
 };
 
 /**
@@ -268,6 +238,42 @@ public:
 	static int object_eof();
 	static int array(SrsAmf0EcmaArray* arr);
 	static int any(SrsAmf0Any* o);
+};
+
+/**
+* read amf0 string from stream.
+* 2.4 String Type
+* string-type = string-marker UTF-8
+* @return default value is empty string.
+* @remark: use SrsAmf0Any::str() to create it.
+*/
+class __SrsAmf0String : public SrsAmf0Any
+{
+public:
+	std::string value;
+
+	__SrsAmf0String(const char* _value);
+	virtual ~__SrsAmf0String();
+	
+	virtual int size();
+};
+
+/**
+* read amf0 boolean from stream.
+* 2.4 String Type
+* boolean-type = boolean-marker U8
+* 		0 is false, <> 0 is true
+* @return default value is false.
+*/
+class __SrsAmf0Boolean : public SrsAmf0Any
+{
+public:
+	bool value;
+
+	__SrsAmf0Boolean(bool _value);
+	virtual ~__SrsAmf0Boolean();
+	
+	virtual int size();
 };
 
 /**

@@ -2628,7 +2628,7 @@ int SrsPlayPacket::decode(SrsStream* stream)
     // An optional Boolean value or number that specifies whether
     // to flush any previous playlist
     if (reset_value->is_boolean()) {
-        reset = srs_amf0_convert<SrsAmf0Boolean>(reset_value)->value;
+        reset = reset_value->to_boolean();
     } else if (reset_value->is_number()) {
         reset = (srs_amf0_convert<SrsAmf0Number>(reset_value)->value == 0 ? false : true);
     } else {

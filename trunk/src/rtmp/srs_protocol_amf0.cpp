@@ -105,9 +105,15 @@ bool SrsAmf0Any::is_ecma_array()
 	return marker == RTMP_AMF0_EcmaArray;
 }
 
-std::string SrsAmf0Any::to_str()
+string SrsAmf0Any::to_str()
 {
 	__SrsAmf0String* o = srs_amf0_convert<__SrsAmf0String>(this);
+	return o->value;
+}
+
+bool SrsAmf0Any::to_boolean()
+{
+	__SrsAmf0Boolean* o = srs_amf0_convert<__SrsAmf0Boolean>(this);
 	return o->value;
 }
 
@@ -121,36 +127,9 @@ SrsAmf0Any* SrsAmf0Any::str(const char* value)
 	return new __SrsAmf0String(value);
 }
 
-__SrsAmf0String::__SrsAmf0String(const char* _value)
+SrsAmf0Any* SrsAmf0Any::boolean(bool value)
 {
-	marker = RTMP_AMF0_String;
-	if (_value) {
-		value = _value;
-	}
-}
-
-__SrsAmf0String::~__SrsAmf0String()
-{
-}
-
-int __SrsAmf0String::size()
-{
-	return SrsAmf0Size::str(value);
-}
-
-SrsAmf0Boolean::SrsAmf0Boolean(bool _value)
-{
-	marker = RTMP_AMF0_Boolean;
-	value = _value;
-}
-
-SrsAmf0Boolean::~SrsAmf0Boolean()
-{
-}
-
-int SrsAmf0Boolean::size()
-{
-	return SrsAmf0Size::boolean();
+	return new __SrsAmf0Boolean(value);
 }
 
 SrsAmf0Number::SrsAmf0Number(double _value)
@@ -698,6 +677,38 @@ int SrsAmf0Size::any(SrsAmf0Any* o)
 	return o->size();
 }
 
+__SrsAmf0String::__SrsAmf0String(const char* _value)
+{
+	marker = RTMP_AMF0_String;
+	if (_value) {
+		value = _value;
+	}
+}
+
+__SrsAmf0String::~__SrsAmf0String()
+{
+}
+
+int __SrsAmf0String::size()
+{
+	return SrsAmf0Size::str(value);
+}
+
+__SrsAmf0Boolean::__SrsAmf0Boolean(bool _value)
+{
+	marker = RTMP_AMF0_Boolean;
+	value = _value;
+}
+
+__SrsAmf0Boolean::~__SrsAmf0Boolean()
+{
+}
+
+int __SrsAmf0Boolean::size()
+{
+	return SrsAmf0Size::boolean();
+}
+
 int srs_amf0_read_utf8(SrsStream* stream, std::string& value)
 {
 	int ret = ERROR_SUCCESS;
@@ -1046,8 +1057,7 @@ int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any*& value)
 			if ((ret = srs_amf0_read_string(stream, data)) != ERROR_SUCCESS) {
 				return ret;
 			}
-			value = SrsAmf0Any::str();
-			srs_amf0_convert<__SrsAmf0String>(value)->value = data;
+			value = SrsAmf0Any::str(data.c_str());
 			return ret;
 		}
 		case RTMP_AMF0_Boolean: {
@@ -1055,8 +1065,7 @@ int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any*& value)
 			if ((ret = srs_amf0_read_boolean(stream, data)) != ERROR_SUCCESS) {
 				return ret;
 			}
-			value = new SrsAmf0Boolean();
-			srs_amf0_convert<SrsAmf0Boolean>(value)->value = data;
+			value = SrsAmf0Any::boolean(data);
 			return ret;
 		}
 		case RTMP_AMF0_Number: {
@@ -1124,7 +1133,7 @@ int srs_amf0_write_any(SrsStream* stream, SrsAmf0Any* value)
 			return srs_amf0_write_string(stream, data);
 		}
 		case RTMP_AMF0_Boolean: {
-			bool data = srs_amf0_convert<SrsAmf0Boolean>(value)->value;
+			bool data = srs_amf0_convert<__SrsAmf0Boolean>(value)->value;
 			return srs_amf0_write_boolean(stream, data);
 		}
 		case RTMP_AMF0_Number: {
