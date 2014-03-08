@@ -729,4 +729,22 @@ VOID TEST(AMF0Test, AnyAssert)
 		SrsAutoFree(SrsAmf0Any, o, false);
 		EXPECT_TRUE(o->is_ecma_array());
 	}
+	
+	// empty object
+	if (true) {
+		o = SrsAmf0Any::object();
+		SrsAutoFree(SrsAmf0Any, o, false);
+		s.reset();
+		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+		EXPECT_EQ(1+3, s.pos());
+	}
+	
+	// empty ecma array
+	if (true) {
+		o = SrsAmf0Any::ecma_array();
+		SrsAutoFree(SrsAmf0Any, o, false);
+		s.reset();
+		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+		EXPECT_EQ(1+4+3, s.pos());
+	}
 }

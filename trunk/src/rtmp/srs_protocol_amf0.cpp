@@ -1494,39 +1494,3 @@ int srs_amf0_write_object_eof(SrsStream* stream, __SrsAmf0ObjectEOF* value)
 	
 	return ret;
 }
-
-int srs_amf0_read_object(SrsStream* stream, SrsAmf0Object*& value)
-{
-	int ret = ERROR_SUCCESS;
-	
-	value = SrsAmf0Any::object();
-	
-	if ((ret = value->read(stream)) != ERROR_SUCCESS) {
-		srs_freep(value);
-		return ret;
-	}
-	
-	return ret;
-}
-int srs_amf0_write_object(SrsStream* stream, SrsAmf0Object* value)
-{
-	return value->write(stream);
-}
-
-int srs_amf0_read_ecma_array(SrsStream* stream, SrsAmf0EcmaArray*& value)
-{
-	int ret = ERROR_SUCCESS;
-	
-	value = SrsAmf0Any::ecma_array();
-	
-	if ((ret = value->read(stream)) != ERROR_SUCCESS) {
-		srs_freep(value);
-		return ret;
-	}
-	
-	return ret;
-}
-int srs_amf0_write_ecma_array(SrsStream* stream, SrsAmf0EcmaArray* value)
-{
-	return value->write(stream);
-}

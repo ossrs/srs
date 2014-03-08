@@ -270,23 +270,4 @@ extern int srs_amf0_write_null(SrsStream* stream);
 extern int srs_amf0_read_undefined(SrsStream* stream);
 extern int srs_amf0_write_undefined(SrsStream* stream);
 
-/**
-* read amf0 object from stream.
-* 2.5 Object Type
-* anonymous-object-type = object-marker *(object-property)
-* object-property = (UTF-8 value-type) | (UTF-8-empty object-end-marker)
-*/
-extern int srs_amf0_read_object(SrsStream* stream, SrsAmf0Object*& value);
-extern int srs_amf0_write_object(SrsStream* stream, SrsAmf0Object* value);
-
-/**
-* read amf0 object from stream.
-* 2.10 ECMA Array Type
-* ecma-array-type = associative-count *(object-property)
-* associative-count = U32
-* object-property = (UTF-8 value-type) | (UTF-8-empty object-end-marker)
-*/
-extern int srs_amf0_read_ecma_array(SrsStream* stream, SrsAmf0EcmaArray*& value);
-extern int srs_amf0_write_ecma_array(SrsStream* stream, SrsAmf0EcmaArray* value);
-
 #endif
