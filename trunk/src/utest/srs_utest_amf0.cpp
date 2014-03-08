@@ -24,62 +24,238 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 VOID TEST(AMF0Test, Size) 
 {
-	EXPECT_EQ(2+6, SrsAmf0Size::utf8("winlin"));
-	EXPECT_EQ(2+0, SrsAmf0Size::utf8(""));
-	
-	EXPECT_EQ(1+2+6, SrsAmf0Size::str("winlin"));
-	EXPECT_EQ(1+2+0, SrsAmf0Size::str(""));
-	
-	EXPECT_EQ(1+8, SrsAmf0Size::number());
-	
-	EXPECT_EQ(1, SrsAmf0Size::null());
-	
-	EXPECT_EQ(1, SrsAmf0Size::undefined());
-	
-	EXPECT_EQ(1+1, SrsAmf0Size::boolean());
-	
-	if (true) {
-		int size = 1+3;
-		SrsAmf0Object obj;
-		
-		EXPECT_EQ(size, SrsAmf0Size::object(&obj));
-	}
-	if (true) {
-		int size = 1+3;
-		SrsAmf0Object obj;
-		
-		size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
-		obj.set("name", new SrsAmf0String("winlin"));
-		
-		EXPECT_EQ(size, SrsAmf0Size::object(&obj));
-	}
-	
-	if (true) {
-		int size = 1+4+3;
-		SrsAmf0EcmaArray arr;
-		
-		EXPECT_EQ(size, SrsAmf0Size::array(&arr));
-	}
-	if (true) {
-		int size = 1+4+3;
-		SrsAmf0EcmaArray arr;
-		
-		size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
-		arr.set("name", new SrsAmf0String("winlin"));
-		
-		EXPECT_EQ(size, SrsAmf0Size::array(&arr));
-	}
-	if (true) {
-		int size = 1+4+3;
-		SrsAmf0EcmaArray arr;
-		
-		size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
-		arr.set("name", new SrsAmf0String("winlin"));
-		
-		SrsAmf0Object* args = new SrsAmf0Object();
-		size += SrsAmf0Size::utf8("args")+SrsAmf0Size::object(args);
-		arr.set("args", args);
-		
-		EXPECT_EQ(size, SrsAmf0Size::array(&arr));
-	}
+    // size of elem
+    EXPECT_EQ(2+6, SrsAmf0Size::utf8("winlin"));
+    EXPECT_EQ(2+0, SrsAmf0Size::utf8(""));
+    
+    EXPECT_EQ(1+2+6, SrsAmf0Size::str("winlin"));
+    EXPECT_EQ(1+2+0, SrsAmf0Size::str(""));
+    
+    EXPECT_EQ(1+8, SrsAmf0Size::number());
+    
+    EXPECT_EQ(1, SrsAmf0Size::null());
+    
+    EXPECT_EQ(1, SrsAmf0Size::undefined());
+    
+    EXPECT_EQ(1+1, SrsAmf0Size::boolean());
+    
+    // object: empty
+    if (true) {
+        int size = 1+3;
+        SrsAmf0Object o;
+        
+        EXPECT_EQ(size, SrsAmf0Size::object(&o));
+    }
+    // object: elem
+    if (true) {
+        int size = 1+3;
+        SrsAmf0Object o;
+        
+        size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
+        o.set("name", new SrsAmf0String("winlin"));
+        
+        EXPECT_EQ(size, SrsAmf0Size::object(&o));
+    }
+    if (true) {
+        int size = 1+3;
+        SrsAmf0Object o;
+        
+        size += SrsAmf0Size::utf8("age")+SrsAmf0Size::number();
+        o.set("age", new SrsAmf0Number(9));
+        
+        EXPECT_EQ(size, SrsAmf0Size::object(&o));
+    }
+    if (true) {
+        int size = 1+3;
+        SrsAmf0Object o;
+        
+        size += SrsAmf0Size::utf8("email")+SrsAmf0Size::null();
+        o.set("email", new SrsAmf0Null());
+        
+        EXPECT_EQ(size, SrsAmf0Size::object(&o));
+    }
+    if (true) {
+        int size = 1+3;
+        SrsAmf0Object o;
+        
+        size += SrsAmf0Size::utf8("email")+SrsAmf0Size::undefined();
+        o.set("email", new SrsAmf0Undefined());
+        
+        EXPECT_EQ(size, SrsAmf0Size::object(&o));
+    }
+    if (true) {
+        int size = 1+3;
+        SrsAmf0Object o;
+        
+        size += SrsAmf0Size::utf8("sex")+SrsAmf0Size::boolean();
+        o.set("sex", new SrsAmf0Boolean(true));
+        
+        EXPECT_EQ(size, SrsAmf0Size::object(&o));
+    }
+    
+    // array: empty
+    if (true) {
+        int size = 1+4+3;
+        SrsAmf0EcmaArray o;
+        
+        EXPECT_EQ(size, SrsAmf0Size::array(&o));
+    }
+    // array: elem
+    if (true) {
+        int size = 1+4+3;
+        SrsAmf0EcmaArray o;
+        
+        size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
+        o.set("name", new SrsAmf0String("winlin"));
+        
+        EXPECT_EQ(size, SrsAmf0Size::array(&o));
+    }
+    if (true) {
+        int size = 1+4+3;
+        SrsAmf0EcmaArray o;
+        
+        size += SrsAmf0Size::utf8("age")+SrsAmf0Size::number();
+        o.set("age", new SrsAmf0Number(9));
+        
+        EXPECT_EQ(size, SrsAmf0Size::array(&o));
+    }
+    if (true) {
+        int size = 1+4+3;
+        SrsAmf0EcmaArray o;
+        
+        size += SrsAmf0Size::utf8("email")+SrsAmf0Size::null();
+        o.set("email", new SrsAmf0Null());
+        
+        EXPECT_EQ(size, SrsAmf0Size::array(&o));
+    }
+    if (true) {
+        int size = 1+4+3;
+        SrsAmf0EcmaArray o;
+        
+        size += SrsAmf0Size::utf8("email")+SrsAmf0Size::undefined();
+        o.set("email", new SrsAmf0Undefined());
+        
+        EXPECT_EQ(size, SrsAmf0Size::array(&o));
+    }
+    if (true) {
+        int size = 1+4+3;
+        SrsAmf0EcmaArray o;
+        
+        size += SrsAmf0Size::utf8("sex")+SrsAmf0Size::boolean();
+        o.set("sex", new SrsAmf0Boolean(true));
+        
+        EXPECT_EQ(size, SrsAmf0Size::array(&o));
+    }
+    
+    // object: array
+    if (true) {
+        int size = 1+3;
+        SrsAmf0Object o;
+        
+        size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
+        o.set("name", new SrsAmf0String("winlin"));
+        
+        SrsAmf0EcmaArray* args = new SrsAmf0EcmaArray();
+        args->set("p0", new SrsAmf0String("function"));
+        size += SrsAmf0Size::utf8("args")+SrsAmf0Size::array(args);
+        o.set("args", args);
+        
+        EXPECT_EQ(size, SrsAmf0Size::object(&o));
+    }
+    if (true) {
+        int size = 1+3;
+        SrsAmf0Object o;
+        
+        size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
+        o.set("name", new SrsAmf0String("winlin"));
+        
+        SrsAmf0EcmaArray* args = new SrsAmf0EcmaArray();
+        args->set("p0", new SrsAmf0String("function"));
+        size += SrsAmf0Size::utf8("args")+SrsAmf0Size::array(args);
+        o.set("args", args);
+        
+        SrsAmf0EcmaArray* params = new SrsAmf0EcmaArray();
+        params->set("p1", new SrsAmf0Number(10));
+        size += SrsAmf0Size::utf8("params")+SrsAmf0Size::array(params);
+        o.set("params", params);
+        
+        EXPECT_EQ(size, SrsAmf0Size::object(&o));
+    }
+    
+    // array: object
+    if (true) {
+        int size = 1+4+3;
+        SrsAmf0EcmaArray o;
+        
+        size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
+        o.set("name", new SrsAmf0String("winlin"));
+        
+        SrsAmf0Object* args = new SrsAmf0Object();
+        args->set("p0", new SrsAmf0String("function"));
+        size += SrsAmf0Size::utf8("args")+SrsAmf0Size::object(args);
+        o.set("args", args);
+        
+        EXPECT_EQ(size, SrsAmf0Size::array(&o));
+    }
+    if (true) {
+        int size = 1+4+3;
+        SrsAmf0EcmaArray o;
+        
+        size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
+        o.set("name", new SrsAmf0String("winlin"));
+        
+        SrsAmf0Object* args = new SrsAmf0Object();
+        args->set("p0", new SrsAmf0String("function"));
+        size += SrsAmf0Size::utf8("args")+SrsAmf0Size::object(args);
+        o.set("args", args);
+        
+        SrsAmf0Object* params = new SrsAmf0Object();
+        params->set("p1", new SrsAmf0Number(10));
+        size += SrsAmf0Size::utf8("params")+SrsAmf0Size::object(params);
+        o.set("params", params);
+        
+        EXPECT_EQ(size, SrsAmf0Size::array(&o));
+    }
+    
+    // object: object
+    if (true) {
+        int size = 1+3;
+        SrsAmf0Object o;
+        
+        size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
+        o.set("name", new SrsAmf0String("winlin"));
+        
+        SrsAmf0Object* args = new SrsAmf0Object();
+        args->set("p0", new SrsAmf0String("function"));
+        size += SrsAmf0Size::utf8("args")+SrsAmf0Size::object(args);
+        o.set("args", args);
+        
+        SrsAmf0Object* params = new SrsAmf0Object();
+        params->set("p1", new SrsAmf0Number(10));
+        size += SrsAmf0Size::utf8("params")+SrsAmf0Size::object(params);
+        o.set("params", params);
+        
+        EXPECT_EQ(size, SrsAmf0Size::object(&o));
+    }
+    
+    // array: array
+    if (true) {
+        int size = 1+4+3;
+        SrsAmf0EcmaArray o;
+        
+        size += SrsAmf0Size::utf8("name")+SrsAmf0Size::str("winlin");
+        o.set("name", new SrsAmf0String("winlin"));
+        
+        SrsAmf0EcmaArray* args = new SrsAmf0EcmaArray();
+        args->set("p0", new SrsAmf0String("function"));
+        size += SrsAmf0Size::utf8("args")+SrsAmf0Size::array(args);
+        o.set("args", args);
+        
+        SrsAmf0EcmaArray* params = new SrsAmf0EcmaArray();
+        params->set("p1", new SrsAmf0Number(10));
+        size += SrsAmf0Size::utf8("params")+SrsAmf0Size::array(params);
+        o.set("params", params);
+        
+        EXPECT_EQ(size, SrsAmf0Size::array(&o));
+    }
 }
