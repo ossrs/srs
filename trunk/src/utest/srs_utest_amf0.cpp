@@ -256,6 +256,6 @@ VOID TEST(AMF0Test, Size)
         size += SrsAmf0Size::utf8("params")+SrsAmf0Size::array(params);
         o.set("params", params);
         
-        EXPECT_EQ(size, SrsAmf0Size::array(&o));
+        EXPECT_EQ(size, SrsAmf0Size::array(&o)); 
     }
 }
