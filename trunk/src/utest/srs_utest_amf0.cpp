@@ -22,6 +22,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_utest_amf0.hpp>
 
+#include <srs_core_autofree.hpp>
+
 VOID TEST(AMF0Test, Size) 
 {
     // size of elem
@@ -258,4 +260,25 @@ VOID TEST(AMF0Test, Size)
         
         EXPECT_EQ(size, SrsAmf0Size::array(&o)); 
     }
+}
+
+VOID TEST(AMF0Test, AnyElem) 
+{
+	SrsAmf0Any* o = NULL;
+	
+	// string
+	if (true) {
+		o = SrsAmf0Any::str();
+		SrsAutoFree(SrsAmf0Any, o, false);
+		EXPECT_TRUE(NULL != o);
+		EXPECT_TRUE(o->is_string());
+		EXPECT_STREQ("", o->to_str().c_str());
+	}
+	if (true) {
+		o = SrsAmf0Any::str("winlin");
+		SrsAutoFree(SrsAmf0Any, o, false);
+		EXPECT_TRUE(NULL != o);
+		EXPECT_TRUE(o->is_string());
+		EXPECT_STREQ("winlin", o->to_str().c_str());
+	}
 }

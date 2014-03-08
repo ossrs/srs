@@ -60,6 +60,10 @@ public:
 	virtual bool is_object_eof();
 	virtual bool is_ecma_array();
 public:
+	/**
+	* get the string of any when is_string() indicates true.
+	* user must ensure the type is a string, or assert failed.
+	*/
 	virtual std::string to_str();
 public:
 	virtual int size() = 0;
