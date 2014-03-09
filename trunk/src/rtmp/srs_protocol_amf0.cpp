@@ -1174,14 +1174,15 @@ int srs_amf0_read_utf8(SrsStream* stream, string& value)
 	// support utf8-1 only
 	// 1.3.1 Strings and UTF-8
 	// UTF8-1 = %x00-7F
-	for (int i = 0; i < len; i++) {
+	// TODO: support other utf-8 strings
+	/*for (int i = 0; i < len; i++) {
 		char ch = *(str.data() + i);
 		if ((ch & 0x80) != 0) {
 			ret = ERROR_RTMP_AMF0_DECODE;
 			srs_error("ignored. only support utf8-1, 0x00-0x7F, actual is %#x. ret=%d", (int)ch, ret);
 			ret = ERROR_SUCCESS;
 		}
-	}
+	}*/
 	
 	value = str;
 	srs_verbose("amf0 read string data success. str=%s", str.c_str());

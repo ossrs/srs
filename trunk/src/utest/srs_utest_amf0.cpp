@@ -22,11 +22,156 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_utest_amf0.hpp>
 
+#include <string>
+using namespace std;
+
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_stream.hpp>
 
-VOID TEST(AMF0Test, Size) 
+// user scenario: coding and decoding with amf0
+VOID TEST(AMF0Test, ScenarioMain)
+{
+	// coded amf0 object
+	int nb_bytes = 0;
+	char* bytes = NULL;
+	
+	// coding data to binaries by amf0
+	// for example, send connect app response to client.
+	if (true) {
+		// props: object
+		//		fmsVer: string
+		//		capabilities: number
+		//		mode: number
+		// info: object
+		// 		level: string
+		//		code: string
+		//		descrption: string
+		//		objectEncoding: number
+		//		data: array
+		//				version: string
+		//				srs_sig: string
+		SrsAmf0Object* props = SrsAmf0Any::object();
+		SrsAutoFree(SrsAmf0Object, props, false);
+		props->set("fmsVer", SrsAmf0Any::str("FMS/3,5,3,888"));
+		props->set("capabilities", SrsAmf0Any::number(253));
+		props->set("mode", SrsAmf0Any::number(123));
+		
+		SrsAmf0Object* info = SrsAmf0Any::object();
+		SrsAutoFree(SrsAmf0Object, info, false);
+		info->set("level", SrsAmf0Any::str("info"));
+		info->set("code", SrsAmf0Any::str("NetStream.Connnect.Success"));
+		info->set("descrption", SrsAmf0Any::str("connected"));
+		info->set("objectEncoding", SrsAmf0Any::number(3));
+		
+		SrsAmf0EcmaArray* data = SrsAmf0Any::ecma_array();
+		info->set("data", data);
+		data->set("version", SrsAmf0Any::str("FMS/3,5,3,888"));
+		data->set("srs_sig", SrsAmf0Any::str("srs"));
+		
+		// buf store the serialized props/info
+		nb_bytes = props->total_size() + info->total_size();
+		ASSERT_GT(nb_bytes, 0);
+		bytes = new char[nb_bytes];
+		
+		// use SrsStream to write props/info to binary buf.
+		SrsStream s;
+		EXPECT_EQ(ERROR_SUCCESS, s.initialize(bytes, nb_bytes));
+		EXPECT_EQ(ERROR_SUCCESS, props->write(&s));
+		EXPECT_EQ(ERROR_SUCCESS, info->write(&s));
+		EXPECT_TRUE(s.empty());
+		
+		// now, user can use the buf
+		EXPECT_EQ(0x03, bytes[0]);
+		EXPECT_EQ(0x09, bytes[nb_bytes - 1]);
+	}
+	SrsAutoFree(char, bytes, true);
+	
+	// decoding amf0 object from bytes
+	// when user know the schema
+	if (true) {
+		ASSERT_TRUE(NULL != bytes);
+		
+		// use SrsStream to assist amf0 object to read from bytes.
+		SrsStream s;
+		EXPECT_EQ(ERROR_SUCCESS, s.initialize(bytes, nb_bytes));
+		
+		// decoding
+		// if user know the schema, for instance, it's an amf0 object,
+		// user can use specified object to decoding.
+		SrsAmf0Object* props = SrsAmf0Any::object();
+		SrsAutoFree(SrsAmf0Object, props, false);
+		EXPECT_EQ(ERROR_SUCCESS, props->read(&s));
+		
+		// user can use specified object to decoding.
+		SrsAmf0Object* info = SrsAmf0Any::object();
+		SrsAutoFree(SrsAmf0Object, info, false);
+		EXPECT_EQ(ERROR_SUCCESS, info->read(&s));
+		
+		// use the decoded data.
+		SrsAmf0Any* prop = NULL;
+		
+		// if user requires specified property, use ensure of amf0 object
+		EXPECT_TRUE(NULL != (prop = props->ensure_property_string("fmsVer")));
+		// the property can assert to string.
+		ASSERT_TRUE(prop->is_string());
+		// get the prop string value.
+		EXPECT_STREQ("FMS/3,5,3,888", prop->to_str().c_str());
+		
+		// get other type property value
+		EXPECT_TRUE(NULL != (prop = info->get_property("data")));
+		// we cannot assert the property is ecma array
+		if (prop->is_ecma_array()) {
+			SrsAmf0EcmaArray* data = prop->to_ecma_array();
+			// it must be a ecma array.
+			ASSERT_TRUE(NULL != data);
+			
+			// get property of array
+			EXPECT_TRUE(NULL != (prop = data->ensure_property_string("srs_sig")));
+			ASSERT_TRUE(prop->is_string());
+			EXPECT_STREQ("srs", prop->to_str().c_str());
+		}
+		
+		// confidence about the schema
+		EXPECT_TRUE(NULL != (prop = info->ensure_property_string("level")));
+		ASSERT_TRUE(prop->is_string());
+		EXPECT_STREQ("info", prop->to_str().c_str());
+	}
+	
+	// use any to decoding it,
+	// if user donot know the schema
+	if (true) {
+		ASSERT_TRUE(NULL != bytes);
+		
+		// use SrsStream to assist amf0 object to read from bytes.
+		SrsStream s;
+		EXPECT_EQ(ERROR_SUCCESS, s.initialize(bytes, nb_bytes));
+		
+		// decoding a amf0 any, for user donot know
+		SrsAmf0Any* any = NULL;
+		EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &any));
+		SrsAutoFree(SrsAmf0Any, any, false);
+		
+		// for amf0 object
+		if (any->is_object()) {
+			SrsAmf0Object* obj = any->to_object();
+			ASSERT_TRUE(NULL != obj);
+			
+			// use foreach to process properties
+			for (int i = 0; i < obj->count(); ++i) {
+				string name = obj->key_at(i);
+				SrsAmf0Any* value = obj->value_at(i);
+				
+				// use the property name
+				EXPECT_TRUE("" != name);
+				// use the property value
+				EXPECT_TRUE(NULL != value);
+			}
+		}
+	}
+}
+
+VOID TEST(AMF0Test, ApiSize) 
 {
     // size of elem
     EXPECT_EQ(2+6, SrsAmf0Size::utf8("winlin"));
@@ -282,7 +427,7 @@ VOID TEST(AMF0Test, Size)
     }
 }
 
-VOID TEST(AMF0Test, AnyElem) 
+VOID TEST(AMF0Test, ApiAnyElem) 
 {
 	SrsAmf0Any* o = NULL;
 	
@@ -365,7 +510,7 @@ VOID TEST(AMF0Test, AnyElem)
 	}
 }
 
-VOID TEST(AMF0Test, AnyIO) 
+VOID TEST(AMF0Test, ApiAnyIO) 
 {
 	SrsStream s;
 	SrsAmf0Any* o = NULL;
@@ -675,7 +820,7 @@ VOID TEST(AMF0Test, AnyIO)
 	}
 }
 
-VOID TEST(AMF0Test, AnyAssert) 
+VOID TEST(AMF0Test, ApiAnyAssert) 
 {
 	SrsStream s;
 	SrsAmf0Any* o = NULL;
@@ -749,7 +894,7 @@ VOID TEST(AMF0Test, AnyAssert)
 	}
 }
 
-VOID TEST(AMF0Test, ObjectProps) 
+VOID TEST(AMF0Test, ApiObjectProps) 
 {
 	SrsAmf0Object* o = NULL;
 	
@@ -827,7 +972,7 @@ VOID TEST(AMF0Test, ObjectProps)
 	}
 }
 
-VOID TEST(AMF0Test, EcmaArrayProps) 
+VOID TEST(AMF0Test, ApiEcmaArrayProps) 
 {
 	SrsAmf0EcmaArray* o = NULL;
 	
