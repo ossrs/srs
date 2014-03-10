@@ -6,7 +6,7 @@ SRS is a simple, RTMP/HLS, high-performance, single/multiple(plan) processes, ed
 SRS supports [vhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUrlVhost), rtmp(encoder push, client/edge pull), ingester(srs pull), [HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), [transcoding](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), [forward](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), [http hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback). <br/>
 Blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
 See also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) <br/>
-See also: [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.github.io/simple-rtmp-server) <br/>
+Github demo(with your SRS): [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.github.io/simple-rtmp-server) <br/>
 Wiki: [https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki) <br/>
 TencentQQ: [http://url.cn/WAHICw](http://url.cn/WAHICw) (Group: 212189142)
 
