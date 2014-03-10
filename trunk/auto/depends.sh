@@ -41,56 +41,56 @@ function Ubuntu_prepare()
     gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install gcc"
         require_sudoer "sudo apt-get install -y --force-yes gcc"
-        sudo apt-get install -y gcc
+        sudo apt-get install -y --force-yes gcc
         echo "install gcc success"
     fi
     
     g++ --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install g++"
         require_sudoer "sudo apt-get install -y --force-yes g++"
-        sudo apt-get install -y g++
+        sudo apt-get install -y --force-yes g++
         echo "install g++ success"
     fi
     
     make --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install make"
         require_sudoer "sudo apt-get install -y --force-yes make"
-        sudo apt-get install -y make
+        sudo apt-get install -y --force-yes make
         echo "install make success"
     fi
     
     autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install autoconf"
         require_sudoer "sudo apt-get install -y --force-yes autoconf"
-        sudo apt-get install -y autoconf
+        sudo apt-get install -y --force-yes autoconf
         echo "install autoconf success"
     fi
     
     libtool --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install libtool"
         require_sudoer "sudo apt-get install -y --force-yes libtool"
-        sudo apt-get install -y libtool
+        sudo apt-get install -y --force-yes libtool
         echo "install libtool success"
     fi
     
     if [[ ! -f /usr/include/pcre.h ]]; then
         echo "install libpcre3-dev"
         require_sudoer "sudo apt-get install -y --force-yes libpcre3-dev"
-        sudo apt-get install -y libpcre3-dev
+        sudo apt-get install -y --force-yes libpcre3-dev
         echo "install libpcre3-dev success"
     fi
     
     if [[ ! -f /usr/include/zlib.h ]]; then
         echo "install zlib1g-dev"
         require_sudoer "sudo apt-get install -y --force-yes zlib1g-dev"
-        sudo apt-get install -y zlib1g-dev
+        sudo apt-get install -y --force-yes zlib1g-dev
         echo "install zlib1g-dev success"
     fi
     
     if [[ ! -d /usr/include/freetype2 ]]; then
         echo "install libfreetype6-dev"
         require_sudoer "sudo apt-get install -y --force-yes libfreetype6-dev"
-        sudo apt-get install -y libfreetype6-dev
+        sudo apt-get install -y --force-yes libfreetype6-dev
         echo "install libfreetype6-dev success"
     fi
     
