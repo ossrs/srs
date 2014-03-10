@@ -14,7 +14,7 @@ help=no
 SRS_HLS=RESERVED
 SRS_SSL=RESERVED
 SRS_FFMPEG=RESERVED
-SRS_HTTP=RESERVED
+SRS_HTTP_CALLBACK=RESERVED
 SRS_LIBRTMP=RESERVED # srs-librtmp
 SRS_BWTC=RESERVED # srs-bandwidth-test client
 SRS_RESEARCH=RESERVED
@@ -31,7 +31,7 @@ SRS_JOBS=1
 SRS_HLS=YES
 SRS_SSL=YES
 SRS_FFMPEG=YES
-SRS_HTTP=YES
+SRS_HTTP_CALLBACK=YES
 SRS_LIBRTMP=YES
 SRS_BWTC=NO
 SRS_RESEARCH=NO
@@ -65,7 +65,7 @@ do
         --with-ssl)                     SRS_SSL=YES               ;;
         --with-hls)                     SRS_HLS=YES               ;;
         --with-ffmpeg)                  SRS_FFMPEG=YES            ;;
-        --with-http)                    SRS_HTTP=YES              ;;
+        --with-http-callback)           SRS_HTTP_CALLBACK=YES     ;;
         --with-librtmp)                 SRS_LIBRTMP=YES           ;;
         --with-bwtc)                    SRS_BWTC=YES              ;;
         --with-research)                SRS_RESEARCH=YES          ;;
@@ -79,7 +79,7 @@ do
         --without-ssl)                  SRS_SSL=NO                ;;
         --without-hls)                  SRS_HLS=NO                ;;
         --without-ffmpeg)               SRS_FFMPEG=NO             ;;
-        --without-http)                 SRS_HTTP=NO               ;;
+        --without-http-callback)        SRS_HTTP_CALLBACK=NO      ;;
         --without-librtmp)              SRS_LIBRTMP=NO            ;;
         --without-bwtc)                 SRS_BWTC=NO               ;;
         --without-research)             SRS_RESEARCH=NO           ;;
@@ -120,7 +120,7 @@ if [ $help = yes ]; then
   --with-ssl               enable rtmp complex handshake, requires openssl-devel installed.
                            to delivery h264 video and aac audio to flash player.
   --with-hls               enable hls streaming, build nginx as http server for hls.
-  --with-http              enable http hooks, build cherrypy as demo api server.
+  --with-http-callback              enable http hooks, build cherrypy as demo api server.
                            srs will call the http hooks, such as: on_connect.
   --with-ffmpeg            enable transcoding with ffmpeg.
   --with-librtmp           enable srs-librtmp, library for client.
@@ -135,7 +135,7 @@ if [ $help = yes ]; then
 
   --without-ssl            disable rtmp complex handshake.
   --without-hls            disable hls, rtmp streaming only.
-  --without-http           disable http, http hooks callback.
+  --without-http-callback           disable http, http hooks callback.
   --without-ffmpeg         disable the ffmpeg transcoding feature.
   --without-librtmp        disable srs-librtmp, library for client.
   --without-bwtc           disable srs bandwidth test client tool.
@@ -185,7 +185,7 @@ fi fi
 if [ $SRS_HLS = RESERVED ]; then echo "you must specifies the hls, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_SSL = RESERVED ]; then echo "you must specifies the ssl, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_FFMPEG = RESERVED ]; then echo "you must specifies the ffmpeg, see: ./configure --help"; __check_ok=NO; fi
-if [ $SRS_HTTP = RESERVED ]; then echo "you must specifies the http, see: ./configure --help"; __check_ok=NO; fi
+if [ $SRS_HTTP_CALLBACK = RESERVED ]; then echo "you must specifies the http, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_LIBRTMP = RESERVED ]; then echo "you must specifies the librtmp, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_BWTC = RESERVED ]; then echo "you must specifies the bwtc, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_RESEARCH = RESERVED ]; then echo "you must specifies the research, see: ./configure --help"; __check_ok=NO; fi
@@ -204,7 +204,7 @@ SRS_CONFIGURE=""
 if [ $SRS_HLS = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-hls"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-hls"; fi
 if [ $SRS_SSL = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-ssl"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-ssl"; fi
 if [ $SRS_FFMPEG = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-ffmpeg"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-ffmpeg"; fi
-if [ $SRS_HTTP = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-http"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-http"; fi
+if [ $SRS_HTTP_CALLBACK = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-http-callback"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-http-callback"; fi
 if [ $SRS_LIBRTMP = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-librtmp"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-librtmp"; fi
 if [ $SRS_BWTC = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-bwtc"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-bwtc"; fi
 if [ $SRS_RESEARCH = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-research"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-research"; fi

@@ -42,7 +42,7 @@ class SrsRefer;
 class SrsConsumer;
 class SrsCommonMessage;
 class SrsSocket;
-#ifdef SRS_HTTP	
+#ifdef SRS_HTTP_CALLBACK	
 class SrsHttpHooks;
 #endif
 class SrsBandwidth;
@@ -59,7 +59,7 @@ private:
 	SrsSocket* skt;
 	SrsRtmpServer* rtmp;
 	SrsRefer* refer;
-#ifdef SRS_HTTP	
+#ifdef SRS_HTTP_CALLBACK	
 	SrsHttpHooks* http_hooks;
 #endif
 	SrsBandwidth* bandwidth;

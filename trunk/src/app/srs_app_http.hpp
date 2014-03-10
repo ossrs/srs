@@ -31,7 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_st.hpp>
 
-#ifdef SRS_HTTP
+#ifdef SRS_HTTP_CALLBACK
 
 class SrsRequest;
 class SrsSocket;

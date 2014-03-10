@@ -198,7 +198,7 @@ if [ ! -f ${SRS_OBJS}/st-1.9/obj/libst.so ]; then echo "build st-1.9 failed."; e
 #####################################################################################
 # http-parser-2.1
 #####################################################################################
-if [ $SRS_HTTP = YES ]; then
+if [ $SRS_HTTP_CALLBACK = YES ]; then
     if [[ -f ${SRS_OBJS}/http-parser-2.1/http_parser.h && -f ${SRS_OBJS}/http-parser-2.1/libhttp_parser.a ]]; then
         echo "http-parser-2.1 is ok.";
     else
@@ -284,11 +284,11 @@ fi
 #####################################################################################
 # cherrypy for http hooks callback, CherryPy-3.2.4
 #####################################################################################
-if [ $SRS_HTTP = YES ]; then
+if [ $SRS_HTTP_CALLBACK = YES ]; then
     if [[ -f ${SRS_OBJS}/CherryPy-3.2.4/setup.py ]]; then
         echo "CherryPy-3.2.4 is ok.";
     else
-        require_sudoer "configure --with-http"
+        require_sudoer "configure --with-http-callback"
         echo "install CherryPy-3.2.4"; 
         (
             sudo rm -rf ${SRS_OBJS}/CherryPy-3.2.4 && cd ${SRS_OBJS} && 
@@ -301,10 +301,10 @@ if [ $SRS_HTTP = YES ]; then
     if [ ! -f ${SRS_OBJS}/nginx/sbin/nginx ]; then echo "build CherryPy-3.2.4 failed."; exit -1; fi
 fi
 
-if [ $SRS_HTTP = YES ]; then
-    echo "#define SRS_HTTP" >> $SRS_AUTO_HEADERS_H
+if [ $SRS_HTTP_CALLBACK = YES ]; then
+    echo "#define SRS_HTTP_CALLBACK" >> $SRS_AUTO_HEADERS_H
 else
-    echo "#undef SRS_HTTP" >> $SRS_AUTO_HEADERS_H
+    echo "#undef SRS_HTTP_CALLBACK" >> $SRS_AUTO_HEADERS_H
 fi
 
 echo "link players to cherrypy static-dir"
@@ -322,7 +322,7 @@ ln -sf `pwd`/${SRS_OBJS}/nginx/html/forward research/api-server/static-dir/forwa
 # only when the nginx is ok, 
 # if api-server not enalbed, use nginx as demo.
 if [ $SRS_HLS = YES ]; then
-    if [ $SRS_HTTP = YES ]; then
+    if [ $SRS_HTTP_CALLBACK = YES ]; then
         # override the default index.
         rm -f ${SRS_OBJS}/nginx/html/index.html &&
         ln -sf `pwd`/research/players/nginx_index.html ${SRS_OBJS}/nginx/html/index.html

@@ -52,7 +52,7 @@ SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
 	skt = new SrsSocket(client_stfd);
 	rtmp = new SrsRtmpServer(skt);
 	refer = new SrsRefer();
-#ifdef SRS_HTTP	
+#ifdef SRS_HTTP_CALLBACK	
 	http_hooks = new SrsHttpHooks();
 #endif
 	bandwidth = new SrsBandwidth();
@@ -70,7 +70,7 @@ SrsClient::~SrsClient()
 	srs_freep(rtmp);
 	srs_freep(skt);
 	srs_freep(refer);
-#ifdef SRS_HTTP	
+#ifdef SRS_HTTP_CALLBACK	
 	srs_freep(http_hooks);
 #endif
 	srs_freep(bandwidth);
@@ -720,7 +720,7 @@ int SrsClient::on_connect()
 {
 	int ret = ERROR_SUCCESS;
 	
-#ifdef SRS_HTTP	
+#ifdef SRS_HTTP_CALLBACK	
 	// HTTP: on_connect 
 	SrsConfDirective* on_connect = _srs_config->get_vhost_on_connect(req->vhost);
 	if (!on_connect) {
@@ -742,7 +742,7 @@ int SrsClient::on_connect()
 
 void SrsClient::on_close()
 {
-#ifdef SRS_HTTP
+#ifdef SRS_HTTP_CALLBACK
 	// whatever the ret code, notify the api hooks.
 	// HTTP: on_close 
 	SrsConfDirective* on_close = _srs_config->get_vhost_on_close(req->vhost);
@@ -762,7 +762,7 @@ int SrsClient::on_publish()
 {
 	int ret = ERROR_SUCCESS;
 	
-#ifdef SRS_HTTP	
+#ifdef SRS_HTTP_CALLBACK	
 	// HTTP: on_publish 
 	SrsConfDirective* on_publish = _srs_config->get_vhost_on_publish(req->vhost);
 	if (!on_publish) {
@@ -784,7 +784,7 @@ int SrsClient::on_publish()
 
 void SrsClient::on_unpublish()
 {
-#ifdef SRS_HTTP
+#ifdef SRS_HTTP_CALLBACK
 	// whatever the ret code, notify the api hooks.
 	// HTTP: on_unpublish 
 	SrsConfDirective* on_unpublish = _srs_config->get_vhost_on_unpublish(req->vhost);
@@ -804,7 +804,7 @@ int SrsClient::on_play()
 {
 	int ret = ERROR_SUCCESS;
 	
-#ifdef SRS_HTTP	
+#ifdef SRS_HTTP_CALLBACK	
 	// HTTP: on_play 
 	SrsConfDirective* on_play = _srs_config->get_vhost_on_play(req->vhost);
 	if (!on_play) {
@@ -826,7 +826,7 @@ int SrsClient::on_play()
 
 void SrsClient::on_stop()
 {
-#ifdef SRS_HTTP
+#ifdef SRS_HTTP_CALLBACK
 	// whatever the ret code, notify the api hooks.
 	// HTTP: on_stop 
 	SrsConfDirective* on_stop = _srs_config->get_vhost_on_stop(req->vhost);
