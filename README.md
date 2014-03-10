@@ -67,7 +67,8 @@ bash scripts/build.sh
 <pre>
 bash scripts/run.sh
 </pre>
-<strong>Step 2:</strong> SRS live show: [http://your-server-ip](http://your-server-ip) <br/>
+<strong>Step 2:</strong> SRS live show: <br/>
+[http://your-server-ip](http://your-server-ip) <br/>
 <strong>Step 3:</strong> stop SRS demo<br/>
 <pre>
 bash scripts/stop.sh
