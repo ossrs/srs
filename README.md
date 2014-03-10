@@ -260,7 +260,7 @@ Schema#2: SRS RTMP Edge server pull stream from origin (or upstream SRS
      |                                                 |
      +-------------------------------------fork--->-----+
      |                           +-------------+
-     +---------------------------+ http/vod(3) |
+     +-------------------fork-->-+ http/vod(3) |
                                  +-------------+
 Remark:
 (1) back source process: create by master process, get stream from 
