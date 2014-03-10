@@ -25,150 +25,23 @@ answer newbie questions, and generally made SRS that much better: [AUTHORS.txt](
 ### Wiki
 [https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki)
 
-### Usage(RTMP) for RTMP only
+### Usage
 
-<strong>Requires: Centos6.x 64bits, others see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build)</strong><br/>
-<strong>Step 0:</strong> get SRS <br/>
+<strong>Step 1:</strong> get SRS <br/>
 <pre>
 git clone https://github.com/winlinvip/simple-rtmp-server &&
 cd simple-rtmp-server/trunk
 </pre>
-<strong>Step 1:</strong> build SRS <br/>
+<strong>Step 2:</strong> build SRS <br/>
 <pre>
 ./configure --with-ssl --without-hls --without-ffmpeg --without-http && make
 </pre>
-<strong>Step 2:</strong> start SRS <br/>
+<strong>Step 3:</strong> start SRS <br/>
 <pre>
 ./objs/srs -c conf/srs.conf
 </pre>
-<strong>Step 3:</strong> [Adobe FMLE](http://www.adobe.com/cn/products/flash-media-encoder.html) publish demo live stream <br/>
-<pre>
-FMS URL: rtmp://192.168.1.170/live
-Stream:  livestream
-</pre>
-<strong>Step 4:</strong> [VLC (2.1+)](http://www.videolan.org/vlc/) play live stream. <br/>
-<pre>
-rtmp url: rtmp://192.168.1.170/live/livestream
-</pre>
-
-### Usage(simple) for all features
 
 <strong>Requires: Centos6.x 64bits, others see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build)</strong><br/>
-<strong>Step -1:</strong> get SRS<br/>
-<pre>
-git clone https://github.com/winlinvip/simple-rtmp-server &&
-cd simple-rtmp-server/trunk
-</pre>
-<strong>Step 0:</strong> build SRS system.<br/>
-<pre>
-bash scripts/build.sh
-</pre>
-<strong>Step 1:</strong> start SRS all demo features.<br/>
-<pre>
-bash scripts/run.sh
-</pre>
-<strong>Step 2:</strong> SRS live show: <br/>
-[http://your-server-ip](http://your-server-ip) <br/>
-<strong>Step 3:</strong> stop SRS demo<br/>
-<pre>
-bash scripts/stop.sh
-</pre>
-
-### Usage(detail) for all features
-<strong>Requires: Centos6.x 64bits, others see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build)</strong><br/>
-<strong>Step 0:</strong> get SRS <br/>
-<pre>
-git clone https://github.com/winlinvip/simple-rtmp-server &&
-cd simple-rtmp-server/trunk
-</pre>
-<strong>Step 1:</strong> build SRS <br/>
-<pre>
-./configure --with-ssl --with-hls --with-ffmpeg --with-http && make
-</pre>
-<strong>Step 2:</strong> start SRS <br/>
-<pre>
-./objs/srs -c conf/srs.conf
-</pre>
-<strong>Step 3(optinal):</strong> start SRS listen at 19350 to forward to<br/>
-<pre>
-./objs/srs -c conf/srs.19350.conf
-</pre>
-<strong>Step 4(optinal):</strong> start nginx for HLS <br/>
-<pre>
-sudo ./objs/nginx/sbin/nginx
-</pre>
-<strong>Step 5(optinal):</strong> start http hooks for SRS callback <br/>
-<pre>
-python ./research/api-server/server.py 8085
-</pre>
-<strong>Step 6:</strong> publish demo live stream <br/>
-<pre>
-FMS URL: rtmp://127.0.0.1/live?vhost=demo.srs.com
-Stream:  livestream
-FFMPEG to publish the default demo stream:
-    for((;;)); do \
-        ./objs/ffmpeg/bin/ffmpeg -re -i ./doc/source.200kbps.768x320.flv \
-        -vcodec copy -acodec copy \
-        -f flv -y rtmp://127.0.0.1/live?vhost=demo.srs.com/livestream; \
-        sleep 1; \
-    done
-</pre>
-<strong>Step 7:</strong> publish players live stream <br/>
-<pre>
-FMS URL: rtmp://127.0.0.1/live?vhost=players
-Stream:  livestream
-FFMPEG to publish the players demo stream:
-    for((;;)); do \
-        ./objs/ffmpeg/bin/ffmpeg -re -i ./doc/source.200kbps.768x320.flv \
-        -vcodec copy -acodec copy \
-        -f flv -y rtmp://127.0.0.1/live?vhost=players/livestream; \
-        sleep 1; \
-    done
-</pre>
-<strong>Step 8:</strong> add server ip to client hosts as demo. <br/>
-<pre>
-# edit the folowing file:
-# linux: /etc/hosts
-# windows: C:\Windows\System32\drivers\etc\hosts
-# where server ip is 192.168.2.111
-192.168.2.111 demo.srs.com
-</pre>
-<strong>Step 9:</strong> play live stream. <br/>
-<pre>
-players: http://demo.srs.com/players
-rtmp url: rtmp://demo.srs.com/live/livestream
-m3u8 url: http://demo.srs.com/live/livestream.m3u8
-for android: http://demo.srs.com/live/livestream.html
-</pre>
-<strong>Step 10(optinal):</strong> play live stream auto transcoded<br/>
-<pre>
-rtmp url: rtmp://demo.srs.com/live/livestream_ld
-m3u8 url: http://demo.srs.com/live/livestream_ld.m3u8
-for android: http://demo.srs.com/live/livestream_ld.html
-rtmp url: rtmp://demo.srs.com/live/livestream_sd
-m3u8 url: http://demo.srs.com/live/livestream_sd.m3u8
-for android: http://demo.srs.com/live/livestream_sd.html
-</pre>
-<strong>Step 11(optinal):</strong> play live stream auto forwarded, the hls dir change to /forward<br/>
-<pre>
-rtmp url: rtmp://demo.srs.com:19350/live/livestream
-m3u8 url: http://demo.srs.com/forward/live/livestream.m3u8
-for android: http://demo.srs.com/forward/live/livestream.html
-rtmp url: rtmp://demo.srs.com:19350/live/livestream_ld
-m3u8 url: http://demo.srs.com/forward/live/livestream_ld.m3u8
-for android: http://demo.srs.com/forward/live/livestream_ld.html
-rtmp url: rtmp://demo.srs.com:19350/live/livestream_sd
-m3u8 url: http://demo.srs.com/forward/live/livestream_sd.m3u8
-for android: http://demo.srs.com/forward/live/livestream_sd.html
-</pre>
-<strong>Step 12(optinal):</strong> modify the config and reload it (all features support reload)<br/>
-<pre>
-killall -1 srs
-</pre>
-or use specified signal to reload:<br/>
-<pre>
-killall -s SIGHUP srs
-</pre>
 
 ### Architecture
 System Architecture:
