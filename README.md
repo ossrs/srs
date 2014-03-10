@@ -249,23 +249,28 @@ Schema#2: SRS RTMP Edge server pull stream from origin (or upstream SRS
 </pre>
 (plan) SRS Multiple processes Architecture(design by wenjie):<br/>
 <pre>
-                  +-------------------+          +-----------+
-                  |   upnode server   |          +   client  +
-                  +---------+---------+          +-----+-----+
-              --------------+------------network-------+---------
-                            |                          |
- +-----------+         +----+-----------+         +----+-----------+
- |   master  +--fork->-+ back source(1) +-->-pull-+ stream 1-N(2)  +
- +-----+-----+         +----------------+         +-------+--------+
-       |                                                  |
-       +-------------------------------------fork--->-----+
-
+                 +---------------+              +--------+
+                 | upnode server |              + client +
+                 +-------+-------+              +---+----+
+            -------------+------------network-------+---------
+                         |                          |
+ +--------+         +----+-----------+         +----+----------+
+ | master +--fork->-+ back source(1) +-->-pull-+ stream 1-N(2) +
+ +---+----+         +----------------+         +-------+-------+
+     |                                                 |
+     +-------------------------------------fork--->-----+
+     |                           +-------------+
+     +---------------------------+ http/vod(3) |
+                                 +-------------+
 Remark:
 (1) back source process: create by master process, get stream from 
     upnode server if edge, create stream if origin, serve the stream 
     process.
 (2) stream process: create by master process, get stream from back
     source process, serve the client.
+(3) the embeded mininum http server, also provides vod service. for
+    http server, it provides http api, hls(live/vod) delivery. for
+    vod server, it slice the file to hls(m3u8/ts).
 Remark:
 (a) This multiple processes architecture is design by wenjie, it's a
     very simple and powerful multiple process architecture, for the
@@ -356,18 +361,20 @@ Supported operating systems and hardware:
 24. Full documents in wiki, in chineses. <br/>
 25. Support RTMP(play-publish) library: srs-librtmp<br/>
 26. [plan] Support system utest<br/>
-27. [plan] Support stream ingester using ffmpeg.<br/>
-28. [plan] Support RTSP(RTP, SDP)<br/>
-29. [plan] Support network based cli and json result.<br/>
-30. [plan] Support HLS cluster, use RTMP ATC to generate the TS<br/>
-31. [plan] Support RTMP edge server, push/pull stream from any RTMP server<br/>
-32. [plan] Support multiple processes, for both origin and edge<br/>
-33. [no-plan] Support adobe flash refer/token/swf verification.<br/>
-34. [no-plan] Support adobe amf3 codec.<br/>
-35. [no-plan] Support dvr(record live to vod file)<br/>
-36. [no-plan] Support encryption: RTMPE/RTMPS, HLS DRM<br/>
-37. [no-plan] Support RTMPT, http to tranverse firewalls<br/>
-38. [no-plan] Support file source, transcoding file to live stream<br/>
+27. [plan] Support embeded http server for api and hls(live/vod)<br/>
+28. [plan] Support vod(file to hls stream)<br/>
+29. [plan] Support stream ingester using ffmpeg.<br/>
+30. [plan] Support RTSP(RTP, SDP)<br/>
+31. [plan] Support network based cli and json result.<br/>
+32. [plan] Support HLS cluster, use RTMP ATC to generate the TS<br/>
+33. [plan] Support RTMP edge server, push/pull stream from any RTMP server<br/>
+34. [plan] Support multiple processes, for both origin and edge<br/>
+35. [no-plan] Support adobe flash refer/token/swf verification.<br/>
+36. [no-plan] Support adobe amf3 codec.<br/>
+37. [no-plan] Support dvr(record live to vod file)<br/>
+38. [no-plan] Support encryption: RTMPE/RTMPS, HLS DRM<br/>
+39. [no-plan] Support RTMPT, http to tranverse firewalls<br/>
+40. [no-plan] Support file source, transcoding file to live stream<br/>
 
 ### Performance
 1.  300 connections, 150Mbps, 500kbps, CPU 18.8%, MEM 5956KB.
