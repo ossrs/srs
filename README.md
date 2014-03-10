@@ -33,6 +33,7 @@ git clone https://github.com/winlinvip/simple-rtmp-server &&
 cd simple-rtmp-server/trunk
 </pre>
 <strong>Step 2:</strong> build SRS <br/>
+<strong>Requires: Centos6.x 64bits, others see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build)</strong><br/>
 <pre>
 ./configure --with-ssl --without-hls --without-ffmpeg --without-http && make
 </pre>
@@ -40,8 +41,6 @@ cd simple-rtmp-server/trunk
 <pre>
 ./objs/srs -c conf/srs.conf
 </pre>
-
-<strong>Requires: Centos6.x 64bits, others see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build)</strong><br/>
 
 ### Architecture
 System Architecture:
