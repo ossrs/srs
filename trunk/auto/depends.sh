@@ -270,6 +270,9 @@ if [ $SRS_HLS = YES ]; then
     ln -sf `pwd`/research/players ${SRS_OBJS}/nginx/html/players &&
     rm -f ${SRS_OBJS}/nginx/crossdomain.xml &&
     ln -sf `pwd`/research/players/crossdomain.xml ${SRS_OBJS}/nginx/html/crossdomain.xml
+    
+    # nginx.html to detect whether nginx is alive
+    echo "nginx is ok" > ${SRS_OBJS}/nginx/html/nginx.html
 fi
 
 if [ $SRS_HLS = YES ]; then
