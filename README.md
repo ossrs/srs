@@ -32,7 +32,7 @@ answer newbie questions, and generally made SRS that much better: [AUTHORS.txt](
 git clone https://github.com/winlinvip/simple-rtmp-server &&
 cd simple-rtmp-server/trunk
 </pre>
-<strong>Step 2:</strong> build SRS <br/>
+<strong>Step 2:</strong> build SRS,
 <strong>Requires: Centos6.x 64bits, others see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build)</strong><br/>
 <pre>
 ./configure --with-ssl --without-hls --without-ffmpeg --without-http && make
@@ -41,8 +41,8 @@ cd simple-rtmp-server/trunk
 <pre>
 ./objs/srs -c conf/srs.conf
 </pre>
-<strong>Samples</strong>:
-* [Usage: How to delivery RTMP?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleRTMP)
+<strong>Samples</strong>:<br/>
+[Usage: How to delivery RTMP?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleRTMP)<br/>
 
 ### Architecture
 System Architecture:
