@@ -52,6 +52,7 @@ cd simple-rtmp-server/trunk
 <strong>See also:</strong><br/>
 [Usage: How to delivery RTMP?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleRTMP)<br/>
 [Usage: How to delivery HLS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleHLS)<br/>
+[Usage: How to delivery FFMPEG?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleFFMPEG)<br/>
 [Usage: How to show the demo of SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleDemo)<br/>
 
 ### Architecture
