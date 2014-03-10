@@ -42,6 +42,9 @@ cd simple-rtmp-server/trunk
 ./objs/srs -c conf/srs.conf
 </pre>
 
+DeploySamples:
+* [How to delivery RTMP?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleRTMP)
+
 ### Architecture
 System Architecture:
 <pre>
