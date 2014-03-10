@@ -1,9 +1,18 @@
 Simple-RTMP-Server
 ==================
 
-SRS(SIMPLE RTMP Server) over state-threads created in 2013.<br/>
-SRS is a simple, [RTMP](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryRTMP)/[HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), [high-performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance), single/multiple(plan) processes, edge(plan)/origin live server, compile depends on [st](http://sourceforge.net/projects/state-threads), [ssl](http://www.openssl.org/) and [http-parser](https://github.com/joyent/http-parser), use [nginx](http://nginx.org/), [ffmpeg](http://ffmpeg.org/) and [cherrypy](http://www.cherrypy.org/) as tools.<br/>
-SRS supports [vhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUrlVhost), rtmp([encoder push](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryRTMP), client/edge pull), ingester(srs pull), [HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), [transcoding](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), [forward](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), [http hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback). <br/>
+SRS(SIMPLE RTMP Server) over state-threads created in 2013.
+
+SRS is a simple, [RTMP](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryRTMP)/[HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), 
+[high-performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance), single/multiple(plan) processes, edge(plan)/origin live server, 
+compile depends on [st](http://sourceforge.net/projects/state-threads), [ssl](http://www.openssl.org/) and [http-parser](https://github.com/joyent/http-parser), 
+use [nginx](http://nginx.org/), [ffmpeg](http://ffmpeg.org/) and [cherrypy](http://www.cherrypy.org/) as external tools.
+
+SRS supports [vhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUrlVhost), 
+rtmp([encoder push](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryRTMP), client/edge pull), ingester(srs pull), 
+[HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), [transcoding](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), 
+[forward](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), [http hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback).
+
 Blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
 See also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) <br/>
 Github demo(with your SRS): [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.github.io/simple-rtmp-server) <br/>
