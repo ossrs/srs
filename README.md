@@ -7,6 +7,7 @@ SRS supports [vhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUr
 Blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
 See also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) <br/>
 See also: [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.github.io/simple-rtmp-server) <br/>
+Wiki: [https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki) <br/>
 TencentQQ: [http://url.cn/WAHICw](http://url.cn/WAHICw) (Group: 212189142)
 
 ### AUTHORS
@@ -21,9 +22,6 @@ About the primary AUTHORS: <br/>
 And here is an inevitably incomplete list of MUCH-APPRECIATED CONTRIBUTORS --<br/>
 people who have submitted patches, reported bugs, added translations, helped<br/>
 answer newbie questions, and generally made SRS that much better: [AUTHORS.txt](https://github.com/winlinvip/simple-rtmp-server/blob/master/AUTHORS.txt)
-
-### Wiki
-[https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki)
 
 ### Usage
 
