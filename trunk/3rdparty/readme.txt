@@ -36,6 +36,12 @@ gperftools-2.1.zip
     编译和使用参考压缩文件中的README和doc目录。
 
 links:
+    nginx:
+        http://nginx.org/
+    http-parser:
+        https://github.com/joyent/http-parser
+    state-threads:
+        http://sourceforge.net/projects/state-threads
     ffmpeg: 
         http://ffmpeg.org/ 
         http://ffmpeg.org/releases/ffmpeg-2.1.1.tar.gz
