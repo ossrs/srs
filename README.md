@@ -41,6 +41,7 @@ cd simple-rtmp-server/trunk
 </pre>
 <strong>See also:</strong><br/>
 [Usage: How to delivery RTMP?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleRTMP)<br/>
+[Usage: How to delivery HLS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleHLS)<br/>
 
 ### Architecture
 System Architecture:
