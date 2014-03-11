@@ -6,8 +6,8 @@ SRS(SIMPLE RTMP Server) over state-threads created in 2013.
 SRS is a simple, [RTMP](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryRTMP)/[HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), 
 [high-performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance), single/multiple(plan) processes, edge(plan)/origin live server, 
 compile depends on [st](http://sourceforge.net/projects/state-threads)(required), [ssl](http://www.openssl.org/) and [http-parser](https://github.com/joyent/http-parser), 
-use [nginx](http://nginx.org/), [ffmpeg](http://ffmpeg.org/) and [cherrypy](http://www.cherrypy.org/) as external tools. that is, only need st to kick srs. 
-see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build).
+use [nginx](http://nginx.org/), [ffmpeg](http://ffmpeg.org/) and [cherrypy](http://www.cherrypy.org/) as external tools. that is, only need st to run srs for 
+minimum run. see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build).
 
 SRS supports [vhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUrlVhost), 
 rtmp([encoder push](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryRTMP), client/edge pull), ingester(srs pull), 
@@ -52,9 +52,6 @@ cd simple-rtmp-server/trunk
 <strong>See also:</strong><br/>
 [Usage: How to delivery RTMP?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleRTMP)<br/>
 [Usage: How to delivery HLS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleHLS)<br/>
-[Usage: How to transcode RTMP stream by FFMPEG?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleFFMPEG)<br/>
-[Usage: How to Forward stream?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleForward)<br/>
-[Usage: How to delivery low latency RTMP stream?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleRealtime)<br/>
 [Usage: How to show the demo of SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleDemo)<br/>
 
 ### Architecture
@@ -252,7 +249,7 @@ Supported operating systems and hardware:
 27. [plan] Support embeded http server for api and hls(live/vod)<br/>
 28. [plan] Support vod(file to hls stream)<br/>
 29. [plan] Support stream ingester using ffmpeg.<br/>
-30. [plan] Support RTSP(RTP, SDP)<br/>
+30. [plan] Support ingest RTSP(RTP, SDP) stream to RTMP.<br/>
 31. [plan] Support network based cli and json result.<br/>
 32. [plan] Support HLS cluster, use RTMP ATC to generate the TS<br/>
 33. [plan] Support RTMP edge server, push/pull stream from any RTMP server<br/>
