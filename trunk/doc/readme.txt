@@ -47,3 +47,11 @@ rtmp_specification_1.0.pdf
     
 video_file_format_spec_v10_1.pdf
     adobe f4v/flv标准。
+
+HTTP协议：
+http1.0-rfc1945.txt
+    http://www.rfc-editor.org/rfc/rfc1945.txt
+http1.1-rfc2616.txt
+    http://www.rfc-editor.org/rfc/rfc2616.txt
+
+Winlin
