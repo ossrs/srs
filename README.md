@@ -318,16 +318,26 @@ See also: [Performance Test Guide](https://github.com/winlinvip/simple-rtmp-serv
 * v1.0, 2014-03-12, finish utest for amf0 codec.
 * v1.0, 2014-03-06, add gperftools for mem leak detect, mem/cpu profile.
 * v1.0, 2014-03-04, add gest framework for utest, build success.
-* v1.0, 2014-03-02, add wiki [srs-librtmp](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLibrtmp), [srs for arm](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm), [product](https://github.com/winlinvip/simple-rtmp-server/wiki/Product)
+* v1.0, 2014-03-02, add wiki [srs-librtmp](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLibrtmp), 
+[srs for arm](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm), 
+[product](https://github.com/winlinvip/simple-rtmp-server/wiki/Product)
 * v1.0, 2014-03-02, srs-librtmp, client publish/play library like librtmp.
 * v1.0, 2014-03-01, modularity, extract core/kernel/rtmp/app/main module.
 * v1.0, 2014-02-28, support arm build(SRS/ST), add ssl to 3rdparty package.
-* v1.0, 2014-02-28, add wiki [BuildArm](https://github.com/winlinvip/simple-rtmp-server/wiki/Build), [FFMPEG](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), [Reload](https://github.com/winlinvip/simple-rtmp-server/wiki/Reload)
-* v1.0, 2014-02-27, add wiki [LowLatency](https://github.com/winlinvip/simple-rtmp-server/wiki/LowLatency), [HTTPCallback](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback), [ServerSideScript](https://github.com/winlinvip/simple-rtmp-server/wiki/ServerSideScript), [IDE](https://github.com/winlinvip/simple-rtmp-server/wiki/IDE)
+* v1.0, 2014-02-28, add wiki [BuildArm](https://github.com/winlinvip/simple-rtmp-server/wiki/Build), 
+[FFMPEG](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), 
+[Reload](https://github.com/winlinvip/simple-rtmp-server/wiki/Reload)
+* v1.0, 2014-02-27, add wiki [LowLatency](https://github.com/winlinvip/simple-rtmp-server/wiki/LowLatency), 
+[HTTPCallback](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback), 
+[ServerSideScript](https://github.com/winlinvip/simple-rtmp-server/wiki/ServerSideScript), 
+[IDE](https://github.com/winlinvip/simple-rtmp-server/wiki/IDE)
 * v1.0, 2014-01-19, add wiki [DeliveryHLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS)
-* v1.0, 2014-01-12, add wiki [HowToAskQuestion](https://github.com/winlinvip/simple-rtmp-server/wiki/HowToAskQuestion), [RtmpUrlVhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUrlVhost)
+* v1.0, 2014-01-12, add wiki [HowToAskQuestion](https://github.com/winlinvip/simple-rtmp-server/wiki/HowToAskQuestion), 
+[RtmpUrlVhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUrlVhost)
 * v1.0, 2014-01-11, fix jw/flower player pause bug, which send closeStream actually.
-* v1.0, 2014-01-05, add wiki [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build), [Performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance), [Cluster](https://github.com/winlinvip/simple-rtmp-server/wiki/Cluster)
+* v1.0, 2014-01-05, add wiki [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build), 
+[Performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance), 
+[Cluster](https://github.com/winlinvip/simple-rtmp-server/wiki/Cluster)
 * v1.0, 2014-01-01, change listen(512), chunk-size(60000), to improve performance.
 * v1.0, 2013-12-27, merge from wenjie, the bandwidth test feature.
 * v0.9, 2013-12-25, [v0.9](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.9) released. 20926 lines.
@@ -345,7 +355,8 @@ See also: [Performance Test Guide](https://github.com/winlinvip/simple-rtmp-serv
 * v0.9, 2013-12-14, refine the thread model for the retry threads.
 * v0.9, 2013-12-10, auto install depends tools/libs on centos/ubuntu.
 * v0.8, 2013-12-08, [v0.8](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.8) released. 19186 lines.
-* v0.8, 2013-12-08, support [http hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback): on_connect/close/publish/unpublish/play/stop.
+* v0.8, 2013-12-08, support [http hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback): 
+on_connect/close/publish/unpublish/play/stop.
 * v0.8, 2013-12-08, support multiple http hooks for a event.
 * v0.8, 2013-12-07, support http callback hooks, on_connect.
 * v0.8, 2013-12-07, support network based cli and json result, add CherryPy 3.2.4.
