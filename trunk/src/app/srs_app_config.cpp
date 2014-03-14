@@ -308,7 +308,7 @@ int SrsConfDirective::read_token(SrsFileBuffer* buffer, std::vector<string>& arg
 				srs_error("line %d: unexpected end of file, expecting ; or \"}\"", buffer->line);
 				return ERROR_SYSTEM_CONFIG_INVALID;
 			}
-			srs_error("end of file. ret=%d", ret);
+            srs_trace("end of file. ret=%d", ret);
 			
 			return ret;
 		}
