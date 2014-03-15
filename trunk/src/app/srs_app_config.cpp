@@ -291,7 +291,7 @@ int SrsConfDirective::read_token(SrsFileBuffer* buffer, std::vector<string>& arg
 	int ret = ERROR_SUCCESS;
 
 	char* pstart = buffer->pos;
-	int startline = buffer->line;
+	int startline = 0;
 
 	bool sharp_comment = false;
 	
