@@ -33,6 +33,15 @@ And here is an inevitably incomplete list of MUCH-APPRECIATED CONTRIBUTORS --<br
 people who have submitted patches, reported bugs, added translations, helped<br/>
 answer newbie questions, and generally made SRS that much better: [AUTHORS.txt](https://github.com/winlinvip/simple-rtmp-server/blob/master/AUTHORS.txt)
 
+A big THANK YOU goes to:<br/>
+    Genes amd Mabbott for creating [st](https://github.com/winlinvip/state-threads)([state-threads](http://sourceforge.net/projects/state-threads/)).<br/>
+    Michael Talyanksy for introducing us to use st.<br/>
+    Roman Arutyunyan for creating [nginx-rtmp](https://github.com/arut/nginx-rtmp-module) for srs to refer to. <br/>
+    Joyent for creating [http-parser](https://github.com/joyent/http-parser) for http-api for srs.<br/>
+    Igor Sysoev for creating [nginx](http://nginx.org/) for srs to refer to.<br/>
+    [FFMPEG](http://ffmpeg.org/) and [libx264](http://www.videolan.org/) group for srs to use to transcode.<br/>
+    Guido van Rossum for creating Python for api-server for srs.<br/>
+
 ### Usage
 
 <strong>Step 1:</strong> get SRS <br/>
