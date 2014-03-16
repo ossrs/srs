@@ -260,7 +260,7 @@ Supported operating systems and hardware:
 23. Demo video meeting or chat(SRS+cherrypy+jquery+bootstrap). <br/>
 24. Full documents in wiki, in chineses. <br/>
 25. Support RTMP(play-publish) library: srs-librtmp<br/>
-26. Support arm(ubuntu12 cross build)[(debian armhf, v7cpu)](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm) with rtmp/ssl/hls/librtmp.<br/>
+26. Support ARM([debian armhf, v7cpu](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm)) with rtmp/ssl/hls/librtmp.<br/>
 27. [plan] Support system utest<br/>
 28. [plan] Support embeded http server for api and hls(live/vod)<br/>
 29. [plan] Support vod(file to hls stream)<br/>
@@ -327,7 +327,7 @@ See also: [Performance Test Guide](https://github.com/winlinvip/simple-rtmp-serv
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
-* v1.0, 2014-03-16, support arm(ubuntu12 cross build)[(debian armhf, v7cpu)](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm) with rtmp/ssl/hls/librtmp.
+* v1.0, 2014-03-16, support ARM([debian armhf, v7cpu](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm)) with rtmp/ssl/hls/librtmp.
 * v1.0, 2014-03-12, finish utest for amf0 codec.
 * v1.0, 2014-03-06, add gperftools for mem leak detect, mem/cpu profile.
 * v1.0, 2014-03-04, add gest framework for utest, build success.
