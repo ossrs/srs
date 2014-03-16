@@ -209,6 +209,7 @@ if [ $SRS_ARM_UBUNTU12 = YES ]; then
         (
             rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
             unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && 
+            patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
             make CC=${SrsArmCC} AR=${SrsArmAR} LD=${SrsArmLD} RANDLIB=${SrsArmRANDLIB} linux-debug &&
             cd .. && rm -f st && ln -sf st-1.9/obj st &&
             cd .. && touch ${SRS_OBJS}/_flag.st.arm.tmp

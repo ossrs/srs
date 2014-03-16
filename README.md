@@ -65,6 +65,7 @@ cd simple-rtmp-server/trunk
 [Usage: How to transode RTMP stream by SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleFFMPEG)<br/>
 [Usage: How to forward stream to other server?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleForward)<br/>
 [Usage: How to deploy low lantency application?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleRealtime)<br/>
+[Usage: How to deploy srs on ARM?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleARM)<br/>
 [Usage: How to show the demo of SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleDemo)<br/>
 [Usage: Who is using SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/Sample)<br/>
 
