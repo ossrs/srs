@@ -259,21 +259,22 @@ Supported operating systems and hardware:
 23. Demo video meeting or chat(SRS+cherrypy+jquery+bootstrap). <br/>
 24. Full documents in wiki, in chineses. <br/>
 25. Support RTMP(play-publish) library: srs-librtmp<br/>
-26. [plan] Support system utest<br/>
-27. [plan] Support embeded http server for api and hls(live/vod)<br/>
-28. [plan] Support vod(file to hls stream)<br/>
-29. [plan] Support stream ingester using ffmpeg.<br/>
-30. [plan] Support ingest RTSP(RTP, SDP) stream to RTMP.<br/>
-31. [plan] Support network based cli and json result.<br/>
-32. [plan] Support HLS cluster, use RTMP ATC to generate the TS<br/>
-33. [plan] Support RTMP edge server, push/pull stream from any RTMP server<br/>
-34. [plan] Support multiple processes, for both origin and edge<br/>
-35. [no-plan] Support adobe flash refer/token/swf verification.<br/>
-36. [no-plan] Support adobe amf3 codec.<br/>
-37. [no-plan] Support dvr(record live to vod file)<br/>
-38. [no-plan] Support encryption: RTMPE/RTMPS, HLS DRM<br/>
-39. [no-plan] Support RTMPT, http to tranverse firewalls<br/>
-40. [no-plan] Support file source, transcoding file to live stream<br/>
+26. Support arm (ubuntu12 dev env) build and test ok[(debian armhf, v7cpu)](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm).<br/>
+27. [plan] Support system utest<br/>
+28. [plan] Support embeded http server for api and hls(live/vod)<br/>
+29. [plan] Support vod(file to hls stream)<br/>
+30. [plan] Support stream ingester using ffmpeg.<br/>
+31. [plan] Support ingest RTSP(RTP, SDP) stream to RTMP.<br/>
+32. [plan] Support network based cli and json result.<br/>
+33. [plan] Support HLS cluster, use RTMP ATC to generate the TS<br/>
+34. [plan] Support RTMP edge server, push/pull stream from any RTMP server<br/>
+35. [plan] Support multiple processes, for both origin and edge<br/>
+36. [no-plan] Support adobe flash refer/token/swf verification.<br/>
+37. [no-plan] Support adobe amf3 codec.<br/>
+38. [no-plan] Support dvr(record live to vod file)<br/>
+39. [no-plan] Support encryption: RTMPE/RTMPS, HLS DRM<br/>
+40. [no-plan] Support RTMPT, http to tranverse firewalls<br/>
+41. [no-plan] Support file source, transcoding file to live stream<br/>
 
 ### Performance
 1.  300 connections, 150Mbps, 500kbps, CPU 18.8%, MEM 5956KB.
@@ -325,6 +326,7 @@ See also: [Performance Test Guide](https://github.com/winlinvip/simple-rtmp-serv
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v1.0, 2014-03-16, add arm(ubuntu12 dev env) build and test ok[(debian armhf, v7cpu)](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm).
 * v1.0, 2014-03-12, finish utest for amf0 codec.
 * v1.0, 2014-03-06, add gperftools for mem leak detect, mem/cpu profile.
 * v1.0, 2014-03-04, add gest framework for utest, build success.
