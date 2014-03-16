@@ -200,6 +200,23 @@ librtmp: server
 	@echo "build the client publish/play library."
 	\$(MAKE) -f ${SRS_OBJS}/${SRS_MAKEFILE} librtmp
 
+END
+else
+    cat << END >> ${SRS_MAKEFILE}
+librtmp: server
+	@echo "srs-librtmp is disabled, ignore."
+
+END
+fi
+SrsLibrtmpSampleCompile=NO
+if [ $SRS_ARM_UBUNTU12 = NO ]; then
+    if [ $SRS_LIBRTMP = YES ]; then
+        SrsLibrtmpSampleCompile=YES
+    fi
+fi
+if [ $SrsLibrtmpSampleCompile = YES ]; then
+    cat << END >> ${SRS_MAKEFILE}
+
 librtmp-sample: librtmp
 	@echo "build the srs-librtmp sample"
 	(cd research/librtmp; \$(MAKE) ${SrsLibrtmpSampleEntry})
@@ -208,8 +225,6 @@ librtmp-sample: librtmp
 END
 else
     cat << END >> ${SRS_MAKEFILE}
-librtmp: server
-	@echo "srs-librtmp is disabled, ignore."
 
 librtmp-sample: librtmp
 	@echo "srs-librtmp sample is disabled, ignore."
