@@ -24,23 +24,9 @@ SRS_GPERF_MC=RESERVED # gperf memory check
 SRS_GPERF_MP=RESERVED # gperf memory profile
 SRS_GPERF_CP=RESERVED # gperf cpu profile
 SRS_GPROF=RESERVED # gprof
+SRS_ARM_UBUNTU12=RESERVED # armhf(v7cpu) built on ubuntu12
 # arguments
 SRS_JOBS=1
-
-# TODO: remove the default to yes.
-SRS_HLS=YES
-SRS_SSL=YES
-SRS_FFMPEG=YES
-SRS_HTTP_CALLBACK=YES
-SRS_LIBRTMP=YES
-SRS_BWTC=NO
-SRS_RESEARCH=NO
-SRS_UTEST=YES
-SRS_GPERF=NO
-SRS_GPERF_MC=NO
-SRS_GPERF_MP=NO
-SRS_GPERF_CP=NO
-SRS_GPROF=NO
 
 #####################################################################################
 # parse options
@@ -75,6 +61,7 @@ do
         --with-gmp)                     SRS_GPERF_MP=YES          ;;
         --with-gcp)                     SRS_GPERF_CP=YES          ;;
         --with-gprof)                   SRS_GPROF=YES             ;;
+        --with-arm-ubuntu12)            SRS_ARM_UBUNTU12=YES      ;;
         
         --without-ssl)                  SRS_SSL=NO                ;;
         --without-hls)                  SRS_HLS=NO                ;;
@@ -89,6 +76,7 @@ do
         --without-gmp)                  SRS_GPERF_MP=NO           ;;
         --without-gcp)                  SRS_GPERF_CP=NO           ;;
         --without-gprof)                SRS_GPROF=NO              ;;
+        --without-arm-ubuntu12)         SRS_ARM_UBUNTU12=NO       ;;
         
         --jobs)                         SRS_JOBS=${value}         ;;
 
@@ -98,6 +86,42 @@ do
         ;;
     esac
 done
+
+#####################################################################################
+# apply the default value when user donot specified.
+#####################################################################################
+# if arm specified, set some default to disabled.
+if [ $SRS_ARM_UBUNTU12 = YES ]; then
+    if [ $SRS_HLS = RESERVED ]; then SRS_HLS=NO; fi
+    if [ $SRS_SSL = RESERVED ]; then SRS_SSL=NO; fi
+    if [ $SRS_FFMPEG = RESERVED ]; then SRS_FFMPEG=NO; fi
+    if [ $SRS_HTTP_CALLBACK = RESERVED ]; then SRS_HTTP_CALLBACK=NO; fi
+    if [ $SRS_LIBRTMP = RESERVED ]; then SRS_LIBRTMP=NO; fi
+    if [ $SRS_BWTC = RESERVED ]; then SRS_BWTC=NO; fi
+    if [ $SRS_RESEARCH = RESERVED ]; then SRS_RESEARCH=NO; fi
+    if [ $SRS_UTEST = RESERVED ]; then SRS_UTEST=NO; fi
+    if [ $SRS_GPERF = RESERVED ]; then SRS_GPERF=NO; fi
+    if [ $SRS_GPERF_MC = RESERVED ]; then SRS_GPERF_MC=NO; fi
+    if [ $SRS_GPERF_MP = RESERVED ]; then SRS_GPERF_MP=NO; fi
+    if [ $SRS_GPERF_CP = RESERVED ]; then SRS_GPERF_CP=NO; fi
+    if [ $SRS_GPROF = RESERVED ]; then SRS_GPROF=NO; fi
+    if [ $SRS_ARM_UBUNTU12 = RESERVED ]; then SRS_ARM_UBUNTU12=NO; fi
+else
+    if [ $SRS_HLS = RESERVED ]; then SRS_HLS=YES; fi
+    if [ $SRS_SSL = RESERVED ]; then SRS_SSL=YES; fi
+    if [ $SRS_FFMPEG = RESERVED ]; then SRS_FFMPEG=YES; fi
+    if [ $SRS_HTTP_CALLBACK = RESERVED ]; then SRS_HTTP_CALLBACK=YES; fi
+    if [ $SRS_LIBRTMP = RESERVED ]; then SRS_LIBRTMP=YES; fi
+    if [ $SRS_BWTC = RESERVED ]; then SRS_BWTC=NO; fi
+    if [ $SRS_RESEARCH = RESERVED ]; then SRS_RESEARCH=NO; fi
+    if [ $SRS_UTEST = RESERVED ]; then SRS_UTEST=YES; fi
+    if [ $SRS_GPERF = RESERVED ]; then SRS_GPERF=NO; fi
+    if [ $SRS_GPERF_MC = RESERVED ]; then SRS_GPERF_MC=NO; fi
+    if [ $SRS_GPERF_MP = RESERVED ]; then SRS_GPERF_MP=NO; fi
+    if [ $SRS_GPERF_CP = RESERVED ]; then SRS_GPERF_CP=NO; fi
+    if [ $SRS_GPROF = RESERVED ]; then SRS_GPROF=NO; fi
+    if [ $SRS_ARM_UBUNTU12 = RESERVED ]; then SRS_ARM_UBUNTU12=NO; fi
+fi
 
 # parse the jobs for make
 if [[ "" -eq SRS_JOBS ]]; then 
@@ -120,7 +144,7 @@ if [ $help = yes ]; then
   --with-ssl               enable rtmp complex handshake, requires openssl-devel installed.
                            to delivery h264 video and aac audio to flash player.
   --with-hls               enable hls streaming, build nginx as http server for hls.
-  --with-http-callback              enable http hooks, build cherrypy as demo api server.
+  --with-http-callback     enable http hooks, build cherrypy as demo api server.
                            srs will call the http hooks, such as: on_connect.
   --with-ffmpeg            enable transcoding with ffmpeg.
   --with-librtmp           enable srs-librtmp, library for client.
@@ -132,10 +156,11 @@ if [ $help = yes ]; then
   --with-gmp               build memory profile for srs with gperf tools.
   --with-gcp               build cpu profile for srs with gperf tools.
   --with-gprof             build srs with gprof(GNU profile tool).
+  --with-arm-ubuntu12      build srs on ubuntu12 for armhf(v7cpu).
 
   --without-ssl            disable rtmp complex handshake.
   --without-hls            disable hls, rtmp streaming only.
-  --without-http-callback           disable http, http hooks callback.
+  --without-http-callback  disable http, http hooks callback.
   --without-ffmpeg         disable the ffmpeg transcoding feature.
   --without-librtmp        disable srs-librtmp, library for client.
   --without-bwtc           disable srs bandwidth test client tool.
@@ -146,6 +171,7 @@ if [ $help = yes ]; then
   --without-gmp            do not build memory profile for srs with gperf tools.
   --without-gcp            do not build cpu profile for srs with gperf tools.
   --without-gprof          do not build srs with gprof(GNU profile tool).
+  --without-arm-ubuntu12   do not build srs on ubuntu12 for armhf(v7cpu).
   
   --jobs[=N]               Allow N jobs at once; infinite jobs with no arg.
                            used for make in the configure, for example, to make ffmpeg.
@@ -181,6 +207,21 @@ if [ $__gperf_slow = YES ]; then if [ $SRS_GPROF = YES ]; then
     echo "gmc/gmp/gcp not compatible with gprof, see: ./configure --help"; __check_ok=NO; 
 fi fi
 
+# check arm, if arm enabled, only allow st/ssl/librtmp,
+# user should disable all other features
+if [ $SRS_ARM_UBUNTU12 = YES ]; then
+    if [ $SRS_FFMPEG = YES ]; then echo "ffmpeg for arm is not available, see: ./configure --help"; __check_ok=NO; fi
+    if [ $SRS_HTTP_CALLBACK = YES ]; then echo "http-callback for arm is not available, see: ./configure --help"; __check_ok=NO; fi
+    if [ $SRS_BWTC = YES ]; then echo "bwtc for arm is not available, see: ./configure --help"; __check_ok=NO; fi
+    if [ $SRS_RESEARCH = YES ]; then echo "research for arm is not available, see: ./configure --help"; __check_ok=NO; fi
+    if [ $SRS_UTEST = YES ]; then echo "utest for arm is not available, see: ./configure --help"; __check_ok=NO; fi
+    if [ $SRS_GPERF = YES ]; then echo "gperf for arm is not available, see: ./configure --help"; __check_ok=NO; fi
+    if [ $SRS_GPERF_MC = YES ]; then echo "gmc for arm is not available, see: ./configure --help"; __check_ok=NO; fi
+    if [ $SRS_GPERF_MP = YES ]; then echo "gmp for arm is not available, see: ./configure --help"; __check_ok=NO; fi
+    if [ $SRS_GPERF_CP = YES ]; then echo "gcp for arm is not available, see: ./configure --help"; __check_ok=NO; fi
+    if [ $SRS_GPROF = YES ]; then echo "gprof for arm is not available, see: ./configure --help"; __check_ok=NO; fi
+fi
+
 # check variable neccessary
 if [ $SRS_HLS = RESERVED ]; then echo "you must specifies the hls, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_SSL = RESERVED ]; then echo "you must specifies the ssl, see: ./configure --help"; __check_ok=NO; fi
@@ -195,6 +236,7 @@ if [ $SRS_GPERF_MC = RESERVED ]; then echo "you must specifies the gperf-mc, see
 if [ $SRS_GPERF_MP = RESERVED ]; then echo "you must specifies the gperf-mp, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_GPERF_CP = RESERVED ]; then echo "you must specifies the gperf-cp, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_GPROF = RESERVED ]; then echo "you must specifies the gprof, see: ./configure --help"; __check_ok=NO; fi
+if [ $SRS_ARM_UBUNTU12 = RESERVED ]; then echo "you must specifies the arm-ubuntu12, see: ./configure --help"; __check_ok=NO; fi
 if [ $__check_ok = NO ]; then
     exit 1;
 fi
@@ -214,5 +256,6 @@ if [ $SRS_GPERF_MC = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-gmc"; el
 if [ $SRS_GPERF_MP = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-gmp"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-gmp"; fi
 if [ $SRS_GPERF_CP = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-gcp"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-gcp"; fi
 if [ $SRS_GPROF = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-gprof"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-gprof"; fi
+if [ $SRS_ARM_UBUNTU12 = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-arm-ubuntu12"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-arm-ubuntu12"; fi
 SRS_CONFIGURE="${SRS_CONFIGURE} ${SRS_JOBS}"
 echo "regenerate config: ${SRS_CONFIGURE}"

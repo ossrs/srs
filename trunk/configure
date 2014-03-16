@@ -37,6 +37,15 @@ echo "#define SRS_CONFIGURE \"${SRS_CONFIGURE}\"" > $SRS_AUTO_HEADERS_H
 echo "#define SRS_BUILD_DATE \"`date \"+%Y-%m-%d %H:%M:%S\"`\"" >> $SRS_AUTO_HEADERS_H
 echo "#define SRS_BUILD_TS \"`date +%s`\"" >> $SRS_AUTO_HEADERS_H
 
+# the arm-ubuntu12 options for make for depends
+SrsArmCC="arm-linux-gnueabi-gcc"
+SrsArmGCC="arm-linux-gnueabi-gcc"
+SrsArmCXX="arm-linux-gnueabi-g++"
+SrsArmLINK="arm-linux-gnueabi-g++"
+SrsArmAR="arm-linux-gnueabi-ar"
+SrsArmLD="arm-linux-gnueabi-ld"
+SrsArmRANDLIB="arm-linux-gnueabi-ranlib"
+
 # apply user options.
 . auto/depends.sh
 
@@ -247,12 +256,25 @@ SrsGperf=""; SrsGperfLink=""; if [ $SRS_GPERF = YES ]; then SrsGperfLink=" -lpth
 # the cxx flag generated.
 CXXFLAGS="${CppStd}${WarnLevel}${GDBDebug}${LibraryCompile}${SrsGprof}"
 if [ $SRS_GPERF = YES ]; then CXXFLAGS="${CXXFLAGS} -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free"; fi
-cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
-CC ?= gcc
-GCC ?= gcc
-CXX ?= g++
-AR ?= ar
-LINK ?= g++
+# arm or i386/x86_64
+if [ $SRS_ARM_UBUNTU12 = YES ]; then
+    cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
+CC = ${SrsArmCC}
+GCC = ${SrsArmGCC}
+CXX = ${SrsArmCXX}
+AR = ${SrsArmAR}
+LINK = ${SrsArmLINK}
+END
+else
+    cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
+CC = gcc
+GCC = gcc
+CXX = g++
+AR = ar
+LINK = g++
+END
+fi
+cat << END >> ${SRS_OBJS}/${SRS_MAKEFILE}
 CXXFLAGS = ${CXXFLAGS}
 
 .PHONY: default srs bandwidth librtmp
@@ -277,6 +299,8 @@ if [ $SRS_SSL = YES ]; then LibSSLRoot="${SRS_OBJS}/openssl/include"; LibSSLfile
 # gperftools-2.1, for mem check and mem/cpu profile
 LibGperfRoot=""; LibGperfFile=""
 if [ $SRS_GPERF = YES ]; then LibGperfRoot="${SRS_OBJS}/gperf/include"; LibGperfFile="${SRS_OBJS}/gperf/lib/libtcmalloc_and_profiler.a"; fi
+# the link options, if arm, use static link
+SrsLinkOptions="-ldl"; if [ $SRS_ARM_UBUNTU12 = YES ]; then SrsLinkOptions="-ldl -static"; fi
 
 #####################################################################################
 # Modules, compile each module, then link to binary
@@ -344,7 +368,7 @@ MAIN_ENTRANCES=("srs_main_server" "srs_main_bandcheck")
 ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile} ${LibSSLfile} ${LibGperfFile})
 # all depends objects
 MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${RTMP_OBJS[@]} ${APP_OBJS[@]} ${MAIN_OBJS[@]}"
-LINK_OPTIONS="-ldl${SrsGprofLink}${SrsGperfLink}"
+LINK_OPTIONS="${SrsLinkOptions}${SrsGprofLink}${SrsGperfLink}"
 #
 # srs:
 # srs(simple rtmp server) over st(state-threads)
@@ -446,6 +470,11 @@ if [ $SRS_GPROF = YES ]; then
     echo -e "${YELLOW}gprof(GNU profile tool) for srs are builded -- Performance may suffer${BLACK}"
 else
     echo -e "${GREEN}note: gprof(GNU profile tool) for srs are not builded${BLACK}"
+fi
+if [ $SRS_ARM_UBUNTU12 = YES ]; then
+    echo -e "${GREEN}arm-ubuntu12(armhf, v7cpu) for srs are builded${BLACK}"
+else
+    echo -e "${GREEN}note: arm-ubuntu12(armhf, v7cpu) for srs are not builded${BLACK}"
 fi
 
 #####################################################################################

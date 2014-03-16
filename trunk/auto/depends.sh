@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# variables:
-# SRS_JOBS: the build jobs, parent script must set it.
+# variables, parent script must set it:
+# SRS_JOBS: the build jobs.
+# SrsArmMakeOptions: the arm make options for ubuntu12(armhf, v7cpu)
 
 #####################################################################################
 #####################################################################################
@@ -33,7 +34,7 @@ function Ubuntu_prepare()
 {
     uname -v|grep Ubuntu >/dev/null 2>&1
     ret=$?; if [[ 0 -ne $ret ]]; then
-        return;
+        return 0;
     fi
 
     echo "Ubuntu detected, install tools if needed"
@@ -41,69 +42,80 @@ function Ubuntu_prepare()
     gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install gcc"
         require_sudoer "sudo apt-get install -y --force-yes gcc"
-        sudo apt-get install -y --force-yes gcc
+        sudo apt-get install -y --force-yes gcc; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install gcc success"
     fi
     
     g++ --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install g++"
         require_sudoer "sudo apt-get install -y --force-yes g++"
-        sudo apt-get install -y --force-yes g++
+        sudo apt-get install -y --force-yes g++; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install g++ success"
     fi
     
     make --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install make"
         require_sudoer "sudo apt-get install -y --force-yes make"
-        sudo apt-get install -y --force-yes make
+        sudo apt-get install -y --force-yes make; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install make success"
     fi
     
     autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install autoconf"
         require_sudoer "sudo apt-get install -y --force-yes autoconf"
-        sudo apt-get install -y --force-yes autoconf
+        sudo apt-get install -y --force-yes autoconf; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install autoconf success"
     fi
     
     libtool --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install libtool"
         require_sudoer "sudo apt-get install -y --force-yes libtool"
-        sudo apt-get install -y --force-yes libtool
+        sudo apt-get install -y --force-yes libtool; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install libtool success"
     fi
     
     if [[ ! -f /usr/include/pcre.h ]]; then
         echo "install libpcre3-dev"
         require_sudoer "sudo apt-get install -y --force-yes libpcre3-dev"
-        sudo apt-get install -y --force-yes libpcre3-dev
+        sudo apt-get install -y --force-yes libpcre3-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install libpcre3-dev success"
     fi
     
     if [[ ! -f /usr/include/zlib.h ]]; then
         echo "install zlib1g-dev"
         require_sudoer "sudo apt-get install -y --force-yes zlib1g-dev"
-        sudo apt-get install -y --force-yes zlib1g-dev
+        sudo apt-get install -y --force-yes zlib1g-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install zlib1g-dev success"
     fi
     
     if [[ ! -d /usr/include/freetype2 ]]; then
         echo "install libfreetype6-dev"
         require_sudoer "sudo apt-get install -y --force-yes libfreetype6-dev"
-        sudo apt-get install -y --force-yes libfreetype6-dev
+        sudo apt-get install -y --force-yes libfreetype6-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install libfreetype6-dev success"
     fi
     
+    # for arm, install the cross build tool chain.
+    if [ $SRS_ARM_UBUNTU12 = YES ]; then
+        arm-linux-gnueabi-gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+            echo "install gcc-arm-linux-gnueabi g++-arm-linux-gnueabi"
+            require_sudoer "sudo apt-get install -y --force-yes gcc-arm-linux-gnueabi g++-arm-linux-gnueabi"
+            sudo apt-get install -y --force-yes gcc-arm-linux-gnueabi g++-arm-linux-gnueabi; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "install gcc-arm-linux-gnueabi g++-arm-linux-gnueabi success"
+        fi
+    fi
+    
     echo "Ubuntu install tools success"
+    return 0
 }
-Ubuntu_prepare
+Ubuntu_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "Ubuntu perfapre failed, ret=$ret"; exit $ret; fi
 #####################################################################################
 # for Centos, auto install tools by yum
 #####################################################################################
 function Centos_prepare()
 {
     if [[ ! -f /etc/redhat-release ]]; then
-        return;
+        return 0;
     fi
 
     echo "Centos detected, install tools if needed"
@@ -111,83 +123,111 @@ function Centos_prepare()
     gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install gcc"
         require_sudoer "sudo yum install -y gcc"
-        sudo yum install -y gcc
+        sudo yum install -y gcc; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install gcc success"
     fi
     
     g++ --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install gcc-c++"
         require_sudoer "sudo yum install -y gcc-c++"
-        sudo yum install -y gcc-c++
+        sudo yum install -y gcc-c++; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install gcc-c++ success"
     fi
     
     make --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install make"
         require_sudoer "sudo yum install -y make"
-        sudo yum install -y make
+        sudo yum install -y make; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install make success"
     fi
     
     automake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install automake"
         require_sudoer "sudo yum install -y automake"
-        sudo yum install -y automake
+        sudo yum install -y automake; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install automake success"
     fi
     
     autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install autoconf"
         require_sudoer "sudo yum install -y autoconf"
-        sudo yum install -y autoconf
+        sudo yum install -y autoconf; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install autoconf success"
     fi
     
     libtool --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install libtool"
         require_sudoer "sudo yum install -y libtool"
-        sudo yum install -y libtool
+        sudo yum install -y libtool; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install libtool success"
     fi
     
     if [[ ! -f /usr/include/pcre.h ]]; then
         echo "install pcre-devel"
         require_sudoer "sudo yum install -y pcre-devel"
-        sudo yum install -y pcre-devel
+        sudo yum install -y pcre-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install pcre-devel success"
     fi
     
     if [[ ! -f /usr/include/zlib.h ]]; then
         echo "install zlib-devel"
         require_sudoer "sudo yum install -y zlib-devel"
-        sudo yum install -y zlib-devel
+        sudo yum install -y zlib-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install zlib-devel success"
     fi
     
     if [[ ! -d /usr/include/freetype2 ]]; then
         echo "install freetype-devel"
         require_sudoer "sudo yum install -y freetype-devel"
-        sudo yum install -y freetype-devel
+        sudo yum install -y freetype-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install freetype-devel success"
     fi
     
+    # for arm, install the cross build tool chain.
+    if [ $SRS_ARM_UBUNTU12 = YES ]; then
+        echo "arm-ubuntu12 is invalid for CentOS"
+        return 1
+    fi
+    
     echo "Centos install tools success"
+    return 0
 }
-Centos_prepare
+Centos_prepare; ret=$?; if [[ 0 -ne $ret ]]; then "CentOS perfapre failed, ret=$ret"; exit $ret; fi
 
 #####################################################################################
 # st-1.9
 #####################################################################################
-if [[ -f ${SRS_OBJS}/st-1.9/obj/libst.a && -f ${SRS_OBJS}/st-1.9/obj/libst.so ]]; then
-    echo "st-1.9t is ok.";
+# check the arm flag file, if flag changed, need to rebuild the st.
+if [ $SRS_ARM_UBUNTU12 = YES ]; then
+    # ok, arm specified, if the flag filed does not exists, need to rebuild.
+    if [[ -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st-1.9/obj/libst.a && -f ${SRS_OBJS}/st-1.9/obj/libst.so ]]; then
+        echo "st-1.9t for arm is ok.";
+    else
+        # TODO: FIXME: patch the bug.
+        # patch st for arm, @see: https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm#st-arm-bug-fix
+        echo "build st-1.9t for arm"; 
+        (
+            rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
+            unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && 
+            make CC=${SrsArmCC} AR=${SrsArmAR} LD=${SrsArmLD} RANDLIB=${SrsArmRANDLIB} linux-debug &&
+            cd .. && rm -f st && ln -sf st-1.9/obj st &&
+            cd .. && touch ${SRS_OBJS}/_flag.st.arm.tmp
+        )
+    fi
 else
-    echo "build st-1.9t"; 
-    (
-        rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
-        unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && 
-        make linux-debug &&
-        cd .. && rm -f st && ln -sf st-1.9/obj st
-    )
+    # arm not specified, if exists flag, need to rebuild for no-arm platform.
+    if [[ ! -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st-1.9/obj/libst.a && -f ${SRS_OBJS}/st-1.9/obj/libst.so ]]; then
+        echo "st-1.9t is ok.";
+    else
+        echo "build st-1.9t"; 
+        (
+            rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
+            unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && 
+            make linux-debug &&
+            cd .. && rm -f st && ln -sf st-1.9/obj st &&
+            cd .. && rm -f ${SRS_OBJS}/_flag.st.arm.tmp
+        )
+    fi
 fi
 # check status
 ret=$?; if [[ $ret -ne 0 ]]; then echo "build st-1.9 failed, ret=$ret"; exit $ret; fi
@@ -230,48 +270,50 @@ function write_nginx_html5()
 </video>
 END
 }
-if [ $SRS_HLS = YES ]; then
-    if [[ -f ${SRS_OBJS}/nginx/sbin/nginx ]]; then
-        echo "nginx-1.5.7 is ok.";
-    else
-        echo "build nginx-1.5.7"; 
-        (
-            rm -rf ${SRS_OBJS}/nginx-1.5.7 && cd ${SRS_OBJS} && 
-            unzip -q ../3rdparty/nginx-1.5.7.zip && cd nginx-1.5.7 && 
-            ./configure --prefix=`pwd`/_release && make ${SRS_JOBS} && make install &&
-            cd .. && ln -sf nginx-1.5.7/_release nginx
-        )
-    fi
-    # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "build nginx-1.5.7 failed, ret=$ret"; exit $ret; fi
-    if [ ! -f ${SRS_OBJS}/nginx/sbin/nginx ]; then echo "build nginx-1.5.7 failed."; exit -1; fi
+if [ $SRS_ARM_UBUNTU12 = NO ]; then
+    if [ $SRS_HLS = YES ]; then
+        if [[ -f ${SRS_OBJS}/nginx/sbin/nginx ]]; then
+            echo "nginx-1.5.7 is ok.";
+        else
+            echo "build nginx-1.5.7"; 
+            (
+                rm -rf ${SRS_OBJS}/nginx-1.5.7 && cd ${SRS_OBJS} && 
+                unzip -q ../3rdparty/nginx-1.5.7.zip && cd nginx-1.5.7 && 
+                ./configure --prefix=`pwd`/_release && make ${SRS_JOBS} && make install &&
+                cd .. && ln -sf nginx-1.5.7/_release nginx
+            )
+        fi
+        # check status
+        ret=$?; if [[ $ret -ne 0 ]]; then echo "build nginx-1.5.7 failed, ret=$ret"; exit $ret; fi
+        if [ ! -f ${SRS_OBJS}/nginx/sbin/nginx ]; then echo "build nginx-1.5.7 failed."; exit -1; fi
 
-    # use current user to config nginx,
-    # srs will write ts/m3u8 file use current user,
-    # nginx default use nobody, so cannot read the ts/m3u8 created by srs.
-    cp ${SRS_OBJS}/nginx/conf/nginx.conf ${SRS_OBJS}/nginx/conf/nginx.conf.bk
-    sed -i "s/^.user  nobody;/user `whoami`;/g" ${SRS_OBJS}/nginx/conf/nginx.conf
-    
-    # create forward dir
-    mkdir -p ${SRS_OBJS}/nginx/html/live &&
-    mkdir -p ${SRS_OBJS}/nginx/html/forward/live
-    
-    # generate default html pages for android.
-    html_file=${SRS_OBJS}/nginx/html/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
-    html_file=${SRS_OBJS}/nginx/html/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
-    html_file=${SRS_OBJS}/nginx/html/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
-    html_file=${SRS_OBJS}/nginx/html/forward/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
-    html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
-    html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
-    
-    # copy players to nginx html dir.
-    rm -rf ${SRS_OBJS}/nginx/html/players &&
-    ln -sf `pwd`/research/players ${SRS_OBJS}/nginx/html/players &&
-    rm -f ${SRS_OBJS}/nginx/crossdomain.xml &&
-    ln -sf `pwd`/research/players/crossdomain.xml ${SRS_OBJS}/nginx/html/crossdomain.xml
-    
-    # nginx.html to detect whether nginx is alive
-    echo "nginx is ok" > ${SRS_OBJS}/nginx/html/nginx.html
+        # use current user to config nginx,
+        # srs will write ts/m3u8 file use current user,
+        # nginx default use nobody, so cannot read the ts/m3u8 created by srs.
+        cp ${SRS_OBJS}/nginx/conf/nginx.conf ${SRS_OBJS}/nginx/conf/nginx.conf.bk
+        sed -i "s/^.user  nobody;/user `whoami`;/g" ${SRS_OBJS}/nginx/conf/nginx.conf
+        
+        # create forward dir
+        mkdir -p ${SRS_OBJS}/nginx/html/live &&
+        mkdir -p ${SRS_OBJS}/nginx/html/forward/live
+        
+        # generate default html pages for android.
+        html_file=${SRS_OBJS}/nginx/html/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
+        html_file=${SRS_OBJS}/nginx/html/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
+        html_file=${SRS_OBJS}/nginx/html/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
+        html_file=${SRS_OBJS}/nginx/html/forward/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
+        html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
+        html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
+        
+        # copy players to nginx html dir.
+        rm -rf ${SRS_OBJS}/nginx/html/players &&
+        ln -sf `pwd`/research/players ${SRS_OBJS}/nginx/html/players &&
+        rm -f ${SRS_OBJS}/nginx/crossdomain.xml &&
+        ln -sf `pwd`/research/players/crossdomain.xml ${SRS_OBJS}/nginx/html/crossdomain.xml
+        
+        # nginx.html to detect whether nginx is alive
+        echo "nginx is ok" > ${SRS_OBJS}/nginx/html/nginx.html
+    fi
 fi
 
 if [ $SRS_HLS = YES ]; then
@@ -320,28 +362,30 @@ ln -sf `pwd`/${SRS_OBJS}/nginx/html/forward research/api-server/static-dir/forwa
 
 # only when the nginx is ok, 
 # if api-server not enalbed, use nginx as demo.
-if [ $SRS_HLS = YES ]; then
-    if [ $SRS_HTTP_CALLBACK = YES ]; then
-        # override the default index.
-        rm -f ${SRS_OBJS}/nginx/html/index.html &&
-        ln -sf `pwd`/research/players/nginx_index.html ${SRS_OBJS}/nginx/html/index.html
-    else
-        rm -f ${SRS_OBJS}/nginx/html/index.html &&
-        cat<<END >> ${SRS_OBJS}/nginx/html/index.html
-<!DOCTYPE html>
-<html>
-<head>
-    <title>SRS</title>   
-    <meta charset="utf-8">
-</head>
-<body>
-    <script type="text/javascript">
-        setTimeout(function(){
-            window.location.href = "players/index.html" + window.location.search;
-        }, 500);
-    </script>
-</body>
+if [ $SRS_ARM_UBUNTU12 = NO ]; then
+    if [ $SRS_HLS = YES ]; then
+        if [ $SRS_HTTP_CALLBACK = YES ]; then
+            # override the default index.
+            rm -f ${SRS_OBJS}/nginx/html/index.html &&
+            ln -sf `pwd`/research/players/nginx_index.html ${SRS_OBJS}/nginx/html/index.html
+        else
+            rm -f ${SRS_OBJS}/nginx/html/index.html &&
+            cat<<END >> ${SRS_OBJS}/nginx/html/index.html
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>SRS</title>   
+        <meta charset="utf-8">
+    </head>
+    <body>
+        <script type="text/javascript">
+            setTimeout(function(){
+                window.location.href = "players/index.html" + window.location.search;
+            }, 500);
+        </script>
+    </body>
 END
+        fi
     fi
 fi
 
@@ -349,17 +393,37 @@ fi
 # openssl, for rtmp complex handshake
 #####################################################################################
 if [ $SRS_SSL = YES ]; then
-    if [[ -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
-        echo "openssl-1.0.1f is ok.";
+    # check the arm flag file, if flag changed, need to rebuild the st.
+    if [ $SRS_ARM_UBUNTU12 = YES ]; then
+        # ok, arm specified, if the flag filed does not exists, need to rebuild.
+        if [[ -f ${SRS_OBJS}/_flag.ssl.arm.tmp && -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
+            echo "openssl-1.0.1f for arm is ok.";
+        else
+            echo "build openssl-1.0.1f for arm"; 
+            (
+                rm -rf ${SRS_OBJS}/openssl-1.0.1f && cd ${SRS_OBJS} && 
+                unzip -q ../3rdparty/openssl-1.0.1f.zip && cd openssl-1.0.1f && 
+                ./Configure --prefix=`pwd`/_release -no-shared no-asm linux-armv4 && 
+                make CC=${SrsArmCC} GCC=${SrsArmGCC} AR="${SrsArmAR} r" KD=${SrsArmLD} LINK=${SrsArmLINK} RANDLIB=${SrsArmRANDLIB} && make install &&
+                cd .. && ln -sf openssl-1.0.1f/_release openssl &&
+                cd .. && touch ${SRS_OBJS}/_flag.ssl.arm.tmp
+            )
+        fi
     else
-        echo "build openssl-1.0.1f"; 
-        (
-            rm -rf ${SRS_OBJS}/openssl-1.0.1f && cd ${SRS_OBJS} && 
-            unzip -q ../3rdparty/openssl-1.0.1f.zip && cd openssl-1.0.1f && 
-            ./config --prefix=`pwd`/_release -no-shared && 
-            make && make install &&
-            cd .. && ln -sf openssl-1.0.1f/_release openssl
-        )
+        # arm not specified, if exists flag, need to rebuild for no-arm platform.
+        if [[ ! -f ${SRS_OBJS}/_flag.ssl.arm.tmp && -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
+            echo "openssl-1.0.1f is ok.";
+        else
+            echo "build openssl-1.0.1f"; 
+            (
+                rm -rf ${SRS_OBJS}/openssl-1.0.1f && cd ${SRS_OBJS} && 
+                unzip -q ../3rdparty/openssl-1.0.1f.zip && cd openssl-1.0.1f && 
+                ./config --prefix=`pwd`/_release -no-shared && 
+                make && make install &&
+                cd .. && ln -sf openssl-1.0.1f/_release openssl &&
+                cd .. && rm -f ${SRS_OBJS}/_flag.ssl.arm.tmp
+            )
+        fi
     fi
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "build openssl-1.0.1f failed, ret=$ret"; exit $ret; fi
@@ -470,4 +534,13 @@ if [ $SRS_GPERF_CP = YES ]; then
     echo "#define SRS_GPERF_CP" >> $SRS_AUTO_HEADERS_H
 else
     echo "#undef SRS_GPERF_CP" >> $SRS_AUTO_HEADERS_H
+fi
+
+#####################################################################################
+# for arm.
+#####################################################################################
+if [ $SRS_ARM_UBUNTU12 = YES ]; then
+    echo "#define SRS_ARM_UBUNTU12" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_ARM_UBUNTU12" >> $SRS_AUTO_HEADERS_H
 fi
