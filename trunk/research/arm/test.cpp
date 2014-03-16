@@ -1,4 +1,5 @@
 /*
+# see: https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm
  arm-linux-gnueabi-g++ -o test test.cpp -static
  arm-linux-gnueabi-strip test
 */
