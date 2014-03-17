@@ -145,16 +145,30 @@ END
 # makefile
 echo "generate Makefile"
 cat << END > ${SRS_MAKEFILE}
-.PHONY: default help clean server bandwidth librtmp librtmp-sample utest _prepare_dir
+.PHONY: default _default help clean server bandwidth librtmp librtmp-sample utest _prepare_dir
 
-# linux shell color support.
-RED="\\${RED}"
-GREEN="\\${GREEN}"
-YELLOW="\\${YELLOW}"
-BLACK="\\${BLACK}"
+END
 
-default: bandwidth librtmp-sample utest
-	@bash ${SRS_OBJS}/${SRS_BUILD_SUMMARY}
+# arm, ubuntu12, use arm tool chain.
+if [ $SRS_ARM_UBUNTU12 = YES ]; then
+    cat << END >> ${SRS_MAKEFILE}
+default:
+	\$(MAKE) GCC=${SrsArmGCC} CXX=${SrsArmCXX} AR=${SrsArmAR} LINK=${SrsArmCXX} _default
+
+END
+# x86/x64, use gnu-gcc/g++ tool chain.
+else
+    cat << END >> ${SRS_MAKEFILE}
+default:
+	\$(MAKE) _default
+
+END
+fi
+
+# the real entry for all platform.
+cat << END >> ${SRS_MAKEFILE}
+_default: bandwidth librtmp-sample utest
+	@bash objs/_srs_build_summary.sh
 
 help:
 	@echo "Usage: make <help>|<clean>|<server>|<bandwidth>|<librtmp>|<librtmp-sample>|<utest>"
@@ -207,13 +221,7 @@ librtmp: server
 
 END
 fi
-SrsLibrtmpSampleCompile=NO
-if [ $SRS_ARM_UBUNTU12 = NO ]; then
-    if [ $SRS_LIBRTMP = YES ]; then
-        SrsLibrtmpSampleCompile=YES
-    fi
-fi
-if [ $SrsLibrtmpSampleCompile = YES ]; then
+if [ $SRS_LIBRTMP = YES ]; then
     cat << END >> ${SRS_MAKEFILE}
 
 librtmp-sample: librtmp
@@ -270,23 +278,11 @@ SrsGperf=""; SrsGperfLink=""; if [ $SRS_GPERF = YES ]; then SrsGperfLink=" -lpth
 # the cxx flag generated.
 CXXFLAGS="${CppStd}${WarnLevel}${GDBDebug}${LibraryCompile}${SrsGprof}"
 if [ $SRS_GPERF = YES ]; then CXXFLAGS="${CXXFLAGS} -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free"; fi
-# arm or i386/x86_64
-if [ $SRS_ARM_UBUNTU12 = YES ]; then
-    cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
-GCC = ${SrsArmGCC}
-CXX = ${SrsArmCXX}
-AR = ${SrsArmAR}
-LINK = ${SrsArmCXX}
-END
-else
-    cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
+cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
 GCC = gcc
 CXX = g++
 AR = ar
 LINK = g++
-END
-fi
-cat << END >> ${SRS_OBJS}/${SRS_MAKEFILE}
 CXXFLAGS = ${CXXFLAGS}
 
 .PHONY: default srs bandwidth librtmp
