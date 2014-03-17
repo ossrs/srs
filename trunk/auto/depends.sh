@@ -402,7 +402,7 @@ if [ $SRS_SSL = YES ]; then
                 rm -rf ${SRS_OBJS}/openssl-1.0.1f && cd ${SRS_OBJS} && 
                 unzip -q ../3rdparty/openssl-1.0.1f.zip && cd openssl-1.0.1f && 
                 ./Configure --prefix=`pwd`/_release -no-shared no-asm linux-armv4 && 
-                make CC=${SrsArmCC} GCC=${SrsArmGCC} AR="${SrsArmAR} r" KD=${SrsArmLD} LINK=${SrsArmLINK} RANDLIB=${SrsArmRANDLIB} && make install &&
+                make CC=${SrsArmCC} GCC=${SrsArmGCC} AR="${SrsArmAR} r" LD=${SrsArmLD} LINK=${SrsArmGCC} RANDLIB=${SrsArmRANDLIB} && make install &&
                 cd .. && ln -sf openssl-1.0.1f/_release openssl &&
                 cd .. && touch ${SRS_OBJS}/_flag.ssl.arm.tmp
             )

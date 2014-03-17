@@ -41,7 +41,6 @@ echo "#define SRS_BUILD_TS \"`date +%s`\"" >> $SRS_AUTO_HEADERS_H
 SrsArmCC="arm-linux-gnueabi-gcc"
 SrsArmGCC="arm-linux-gnueabi-gcc"
 SrsArmCXX="arm-linux-gnueabi-g++"
-SrsArmLINK="arm-linux-gnueabi-g++"
 SrsArmAR="arm-linux-gnueabi-ar"
 SrsArmLD="arm-linux-gnueabi-ld"
 SrsArmRANDLIB="arm-linux-gnueabi-ranlib"
@@ -274,11 +273,9 @@ if [ $SRS_GPERF = YES ]; then CXXFLAGS="${CXXFLAGS} -fno-builtin-malloc -fno-bui
 # arm or i386/x86_64
 if [ $SRS_ARM_UBUNTU12 = YES ]; then
     cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
-CC = ${SrsArmCC}
-GCC = ${SrsArmGCC}
 CXX = ${SrsArmCXX}
 AR = ${SrsArmAR}
-LINK = ${SrsArmLINK}
+LINK = ${SrsArmCXX}
 END
 else
     cat << END > ${SRS_OBJS}/${SRS_MAKEFILE}
