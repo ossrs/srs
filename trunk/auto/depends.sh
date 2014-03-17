@@ -272,50 +272,48 @@ function write_nginx_html5()
 END
 }
 __SRS_BUILD_NGINX=NO; if [ $SRS_ARM_UBUNTU12 = NO ]; then if [ $SRS_HLS = YES ]; then __SRS_BUILD_NGINX=YES; fi fi
-if [ $SRS_ARM_UBUNTU12 = NO ]; then
-    if [ $SRS_HLS = YES ]; then
-        if [[ -f ${SRS_OBJS}/nginx/sbin/nginx ]]; then
-            echo "nginx-1.5.7 is ok.";
-        else
-            echo "build nginx-1.5.7"; 
-            (
-                rm -rf ${SRS_OBJS}/nginx-1.5.7 && cd ${SRS_OBJS} && 
-                unzip -q ../3rdparty/nginx-1.5.7.zip && cd nginx-1.5.7 && 
-                ./configure --prefix=`pwd`/_release && make ${SRS_JOBS} && make install &&
-                cd .. && ln -sf nginx-1.5.7/_release nginx
-            )
-        fi
-        # check status
-        ret=$?; if [[ $ret -ne 0 ]]; then echo "build nginx-1.5.7 failed, ret=$ret"; exit $ret; fi
-        if [ ! -f ${SRS_OBJS}/nginx/sbin/nginx ]; then echo "build nginx-1.5.7 failed."; exit -1; fi
-
-        # use current user to config nginx,
-        # srs will write ts/m3u8 file use current user,
-        # nginx default use nobody, so cannot read the ts/m3u8 created by srs.
-        cp ${SRS_OBJS}/nginx/conf/nginx.conf ${SRS_OBJS}/nginx/conf/nginx.conf.bk
-        sed -i "s/^.user  nobody;/user `whoami`;/g" ${SRS_OBJS}/nginx/conf/nginx.conf
-        
-        # create forward dir
-        mkdir -p ${SRS_OBJS}/nginx/html/live &&
-        mkdir -p ${SRS_OBJS}/nginx/html/forward/live
-        
-        # generate default html pages for android.
-        html_file=${SRS_OBJS}/nginx/html/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
-        html_file=${SRS_OBJS}/nginx/html/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
-        html_file=${SRS_OBJS}/nginx/html/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
-        html_file=${SRS_OBJS}/nginx/html/forward/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
-        html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
-        html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
-        
-        # copy players to nginx html dir.
-        rm -rf ${SRS_OBJS}/nginx/html/players &&
-        ln -sf `pwd`/research/players ${SRS_OBJS}/nginx/html/players &&
-        rm -f ${SRS_OBJS}/nginx/crossdomain.xml &&
-        ln -sf `pwd`/research/players/crossdomain.xml ${SRS_OBJS}/nginx/html/crossdomain.xml
-        
-        # nginx.html to detect whether nginx is alive
-        echo "nginx is ok" > ${SRS_OBJS}/nginx/html/nginx.html
+if [ $__SRS_BUILD_NGINX = YES ]; then
+    if [[ -f ${SRS_OBJS}/nginx/sbin/nginx ]]; then
+        echo "nginx-1.5.7 is ok.";
+    else
+        echo "build nginx-1.5.7"; 
+        (
+            rm -rf ${SRS_OBJS}/nginx-1.5.7 && cd ${SRS_OBJS} && 
+            unzip -q ../3rdparty/nginx-1.5.7.zip && cd nginx-1.5.7 && 
+            ./configure --prefix=`pwd`/_release && make ${SRS_JOBS} && make install &&
+            cd .. && ln -sf nginx-1.5.7/_release nginx
+        )
     fi
+    # check status
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "build nginx-1.5.7 failed, ret=$ret"; exit $ret; fi
+    if [ ! -f ${SRS_OBJS}/nginx/sbin/nginx ]; then echo "build nginx-1.5.7 failed."; exit -1; fi
+
+    # use current user to config nginx,
+    # srs will write ts/m3u8 file use current user,
+    # nginx default use nobody, so cannot read the ts/m3u8 created by srs.
+    cp ${SRS_OBJS}/nginx/conf/nginx.conf ${SRS_OBJS}/nginx/conf/nginx.conf.bk
+    sed -i "s/^.user  nobody;/user `whoami`;/g" ${SRS_OBJS}/nginx/conf/nginx.conf
+    
+    # create forward dir
+    mkdir -p ${SRS_OBJS}/nginx/html/live &&
+    mkdir -p ${SRS_OBJS}/nginx/html/forward/live
+    
+    # generate default html pages for android.
+    html_file=${SRS_OBJS}/nginx/html/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
+    html_file=${SRS_OBJS}/nginx/html/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
+    html_file=${SRS_OBJS}/nginx/html/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
+    html_file=${SRS_OBJS}/nginx/html/forward/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
+    html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
+    html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
+    
+    # copy players to nginx html dir.
+    rm -rf ${SRS_OBJS}/nginx/html/players &&
+    ln -sf `pwd`/research/players ${SRS_OBJS}/nginx/html/players &&
+    rm -f ${SRS_OBJS}/nginx/crossdomain.xml &&
+    ln -sf `pwd`/research/players/crossdomain.xml ${SRS_OBJS}/nginx/html/crossdomain.xml
+    
+    # nginx.html to detect whether nginx is alive
+    echo "nginx is ok" > ${SRS_OBJS}/nginx/html/nginx.html
 fi
 
 if [ $SRS_HLS = YES ]; then
@@ -364,30 +362,28 @@ ln -sf `pwd`/${SRS_OBJS}/nginx/html/forward research/api-server/static-dir/forwa
 
 # only when the nginx is ok, 
 # if api-server not enalbed, use nginx as demo.
-if [ $SRS_ARM_UBUNTU12 = NO ]; then
-    if [ $SRS_HLS = YES ]; then
-        if [ $SRS_HTTP_CALLBACK = YES ]; then
-            # override the default index.
-            rm -f ${SRS_OBJS}/nginx/html/index.html &&
-            ln -sf `pwd`/research/players/nginx_index.html ${SRS_OBJS}/nginx/html/index.html
-        else
-            rm -f ${SRS_OBJS}/nginx/html/index.html &&
-            cat<<END >> ${SRS_OBJS}/nginx/html/index.html
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>SRS</title>   
-        <meta charset="utf-8">
-    </head>
-    <body>
-        <script type="text/javascript">
-            setTimeout(function(){
-                window.location.href = "players/index.html" + window.location.search;
-            }, 500);
-        </script>
-    </body>
+if [ $__SRS_BUILD_NGINX = YES ]; then
+    if [ $SRS_HTTP_CALLBACK = YES ]; then
+        # override the default index.
+        rm -f ${SRS_OBJS}/nginx/html/index.html &&
+        ln -sf `pwd`/research/players/nginx_index.html ${SRS_OBJS}/nginx/html/index.html
+    else
+        rm -f ${SRS_OBJS}/nginx/html/index.html &&
+        cat<<END >> ${SRS_OBJS}/nginx/html/index.html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SRS</title>   
+    <meta charset="utf-8">
+</head>
+<body>
+    <script type="text/javascript">
+        setTimeout(function(){
+            window.location.href = "players/index.html" + window.location.search;
+        }, 500);
+    </script>
+</body>
 END
-        fi
     fi
 fi
 
