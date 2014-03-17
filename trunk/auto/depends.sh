@@ -217,7 +217,7 @@ if [ $SRS_ARM_UBUNTU12 = YES ]; then
     fi
 else
     # arm not specified, if exists flag, need to rebuild for no-arm platform.
-    if [[ ! -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st-1.9/obj/libst.a && -f ${SRS_OBJS}/st-1.9/obj/libst.so ]]; then
+    if [[ ! -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st-1.9/obj/libst.a && -f ${SRS_OBJS}/st-1.9/obj/libst.so ]]; then
         echo "st-1.9t is ok.";
     else
         echo "build st-1.9t"; 
@@ -271,6 +271,7 @@ function write_nginx_html5()
 </video>
 END
 }
+__SRS_BUILD_NGINX=NO; if [ $SRS_ARM_UBUNTU12 = NO ]; then if [ $SRS_HLS = YES ]; then __SRS_BUILD_NGINX=YES; fi fi
 if [ $SRS_ARM_UBUNTU12 = NO ]; then
     if [ $SRS_HLS = YES ]; then
         if [[ -f ${SRS_OBJS}/nginx/sbin/nginx ]]; then
