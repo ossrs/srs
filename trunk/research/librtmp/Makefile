@@ -32,6 +32,21 @@ SRS_LIBRTMP_L = $(SRS_OBJS)/lib/srs_librtmp.a
 # openssl for complex handshake, built by srs.
 SRS_LIBSSL_L = $(SRS_OBJS)/openssl/lib/libssl.a $(SRS_OBJS)/openssl/lib/libcrypto.a
 
+# for x86/x64 platform
+ifeq ($(GCC), gcc)
+srs_publish_nossl: srs_publish.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
+	$(GCC) srs_publish.c $(SRS_LIBRTMP_L) -g -O0 -lstdc++ -o srs_publish_nossl
+
+srs_play_nossl: srs_play.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
+	$(GCC) srs_play.c $(SRS_LIBRTMP_L) -g -O0 -lstdc++ -o srs_play_nossl
+
+srs_publish_ssl: srs_publish.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
+	$(GCC) srs_publish.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) -g -O0 -ldl -lstdc++ -o srs_publish_ssl
+
+srs_play_ssl: srs_play.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
+	$(GCC) srs_play.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) -g -O0 -ldl -lstdc++ -o srs_play_ssl
+# for arm.
+else
 srs_publish_nossl: srs_publish.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
 	$(GCC) srs_publish.c $(SRS_LIBRTMP_L) -g -O0 -static -lstdc++ -o srs_publish_nossl
 
@@ -43,6 +58,7 @@ srs_publish_ssl: srs_publish.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_
 
 srs_play_ssl: srs_play.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
 	$(GCC) srs_play.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) -g -O0 -static -ldl -lstdc++ -o srs_play_ssl
+endif
 
 # alias for publish/play with/without ssl
 ssl: srs_publish_ssl srs_play_ssl
