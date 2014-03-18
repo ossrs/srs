@@ -63,7 +63,7 @@ void SrsConnection::cycle()
 	ret = do_cycle();
 	
 	// if socket io error, set to closed.
-	if (ret == ERROR_SOCKET_READ || ret == ERROR_SOCKET_READ_FULLY || ret == ERROR_SOCKET_WRITE) {
+	if (srs_is_client_gracefully_close(ret)) {
 		ret = ERROR_SOCKET_CLOSED;
 	}
     
@@ -74,7 +74,7 @@ void SrsConnection::cycle()
 	
 	// client close peer.
 	if (ret == ERROR_SOCKET_CLOSED) {
-		srs_trace("client disconnect peer. ret=%d", ret);
+		srs_warn("client disconnect peer. ret=%d", ret);
 	}
 	
 	server->remove(this);

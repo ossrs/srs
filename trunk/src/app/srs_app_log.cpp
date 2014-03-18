@@ -218,11 +218,15 @@ void SrsFastLog::write_log(char *str_log, int size, int _level)
     log_data[size++] = 0;
     
     // if is error msg, then print color msg.
-    // \033[1;31m : red text code in shell
-    // \033[1;31m : normal text code
-    if (_level == SrsLogLevel::Error) {
-        printf("\033[1;31m%s\033[0m", str_log);
-    } else {
+    // \033[31m : red text code in shell
+    // \033[32m : green text code in shell
+    // \033[33m : yellow text code in shell
+    // \033[0m : normal text code
+    if (_level <= SrsLogLevel::Trace) {
         printf("%s", str_log);
+    } else if (_level == SrsLogLevel::Warn) {
+        printf("\033[33m%s\033[0m", str_log);
+    } else{
+        printf("\033[31m%s\033[0m", str_log);
     }
 }

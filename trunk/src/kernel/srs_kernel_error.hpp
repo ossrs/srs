@@ -162,5 +162,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * whether the error code is an system control error.
 */
 extern bool srs_is_system_control_error(int error_code);
+extern bool srs_is_client_gracefully_close(int error_code);
 
 #endif

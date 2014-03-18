@@ -197,7 +197,9 @@ int SrsClient::service_cycle()
 		
 		// when not system control error, fatal error, return.
 		if (!srs_is_system_control_error(ret)) {
-			srs_error("stream service cycle failed. ret=%d", ret);
+		    if (ret != ERROR_SOCKET_TIMEOUT && !srs_is_client_gracefully_close(ret)) {
+			    srs_error("stream service cycle failed. ret=%d", ret);
+		    }
 			return ret;
 		}
 		
@@ -409,7 +411,9 @@ int SrsClient::playing(SrsSource* source)
 			
 			srs_verbose("play loop recv message. ret=%d", ret);
 			if (ret != ERROR_SUCCESS && ret != ERROR_SOCKET_TIMEOUT) {
-				srs_error("recv client control message failed. ret=%d", ret);
+			    if (ret != ERROR_SOCKET_TIMEOUT && !srs_is_client_gracefully_close(ret)) {
+				    srs_error("recv client control message failed. ret=%d", ret);
+			    }
 				return ret;
 			}
 			if ((ret = process_play_control_msg(consumer, msg)) != ERROR_SUCCESS) {
