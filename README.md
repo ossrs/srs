@@ -52,7 +52,7 @@ cd simple-rtmp-server/trunk
 <strong>Step 2:</strong> build SRS,
 <strong>Requires Centos6.x/Ubuntu12 32/64bits, others see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build)</strong><br/>
 <pre>
-./configure --with-ssl --without-hls --without-ffmpeg --without-http && make
+./configure --with-ssl --without-hls --without-ffmpeg --without-http-callback && make
 </pre>
 <strong>Step 3:</strong> start SRS <br/>
 <pre>

@@ -1,12 +1,12 @@
 #!/bin/bash
 
 echo "停止SRS服务器"
-ps aux|grep srs|grep "./objs"|grep "srs.conf"
-pids=`ps aux|grep srs|grep "./objs"|grep "srs.conf"|awk '{print $2}'`; for pid in $pids; do echo "结束现有进程：$pid"; kill -s SIGKILL $pid; done
+ps aux|grep srs|grep "./objs"|grep "demo.conf"
+pids=`ps aux|grep srs|grep "./objs"|grep "demo.conf"|awk '{print $2}'`; for pid in $pids; do echo "结束现有进程：$pid"; kill -s SIGKILL $pid; done
 
 echo "停止SRS转发服务器"
-ps aux|grep srs|grep "./objs"|grep "srs.19350.conf"
-pids=`ps aux|grep srs|grep "./objs"|grep "srs.19350.conf"|awk '{print $2}'`; for pid in $pids; do echo "结束现有进程：$pid"; kill -s SIGKILL $pid; done
+ps aux|grep srs|grep "./objs"|grep "demo.19350.conf"
+pids=`ps aux|grep srs|grep "./objs"|grep "demo.19350.conf"|awk '{print $2}'`; for pid in $pids; do echo "结束现有进程：$pid"; kill -s SIGKILL $pid; done
 
 # step 4(optinal): start nginx for HLS 
 echo "停止NGINX（HLS服务）"
