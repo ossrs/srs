@@ -31,6 +31,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_log.hpp>
 #include <srs_protocol_io.hpp>
 
+using namespace srs;
+
 void srs_random_generate(char* bytes, int size)
 {
     static char cdata[]  = { 
@@ -47,7 +49,7 @@ void srs_random_generate(char* bytes, int size)
 #ifdef SRS_SSL
 
 // 68bytes FMS key which is used to sign the sever packet.
-u_int8_t SrsGenuineFMSKey[] = {
+u_int8_t srs::SrsGenuineFMSKey[] = {
     0x47, 0x65, 0x6e, 0x75, 0x69, 0x6e, 0x65, 0x20,
     0x41, 0x64, 0x6f, 0x62, 0x65, 0x20, 0x46, 0x6c,
     0x61, 0x73, 0x68, 0x20, 0x4d, 0x65, 0x64, 0x69,
@@ -60,7 +62,7 @@ u_int8_t SrsGenuineFMSKey[] = {
 }; // 68
 
 // 62bytes FP key which is used to sign the client packet.
-u_int8_t SrsGenuineFPKey[] = {
+u_int8_t srs::SrsGenuineFPKey[] = {
     0x47, 0x65, 0x6E, 0x75, 0x69, 0x6E, 0x65, 0x20,
     0x41, 0x64, 0x6F, 0x62, 0x65, 0x20, 0x46, 0x6C,
     0x61, 0x73, 0x68, 0x20, 0x50, 0x6C, 0x61, 0x79,
@@ -73,7 +75,8 @@ u_int8_t SrsGenuineFPKey[] = {
 
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
-int openssl_HMACsha256(const void* data, int data_size, const void* key, int key_size, void* digest) {
+int srs::openssl_HMACsha256(const void* data, int data_size, const void* key, int key_size, void* digest) 
+{
     HMAC_CTX ctx;
     
     HMAC_CTX_init(&ctx);
@@ -234,32 +237,6 @@ int openssl_generate_key(char* _private_key, char* _public_key, int32_t size)
     return ret;
 }
 
-// the digest key generate size.
-#define OpensslHashSize 512
-
-/**
-* 764bytes key结构
-*     random-data: (offset)bytes
-*     key-data: 128bytes
-*     random-data: (764-offset-128-4)bytes
-*     offset: 4bytes
-*/
-struct key_block
-{
-    // (offset)bytes
-    char* random0;
-    int random0_size;
-    
-    // 128bytes
-    char key[128];
-    
-    // (764-offset-128-4)bytes
-    char* random1;
-    int random1_size;
-    
-    // 4bytes
-    int32_t offset;
-};
 // calc the offset of key,
 // the key->offset cannot be used as the offset of key.
 int srs_key_block_get_offset(key_block* key)
@@ -349,29 +326,6 @@ void srs_key_block_free(key_block* key)
     }
 }
 
-/**
-* 764bytes digest结构
-*     offset: 4bytes
-*     random-data: (offset)bytes
-*     digest-data: 32bytes
-*     random-data: (764-4-offset-32)bytes
-*/
-struct digest_block
-{
-    // 4bytes
-    int32_t offset;
-    
-    // (offset)bytes
-    char* random0;
-    int random0_size;
-    
-    // 32bytes
-    char digest[32];
-    
-    // (764-4-offset-32)bytes
-    char* random1;
-    int random1_size;
-};
 // calc the offset of digest,
 // the key->offset cannot be used as the offset of digest.
 int srs_digest_block_get_offset(digest_block* digest)
@@ -459,15 +413,6 @@ void srs_digest_block_free(digest_block* digest)
         srs_freepa(digest->random1);
     }
 }
-
-/**
-* the schema type.
-*/
-enum srs_schema_type {
-    srs_schema0 = 0, // key-digest sequence
-    srs_schema1 = 1, // digest-key sequence
-    srs_schema_invalid = 2,
-};
 
 void __srs_time_copy_to(char*& pp, int32_t time)
 {
@@ -560,13 +505,14 @@ void srs_schema1_copy_to(char* bytes, bool with_digest,
         srs_assert(pp - bytes == 1536 - 32);
     }
 }
+
 /**
 * c1s1 is splited by digest:
 *     c1s1-part1: n bytes (time, version, key and digest-part1).
 *     digest-data: 32bytes
 *     c1s1-part2: (1536-n-32)bytes (digest-part2)
 */
-char* srs_bytes_join_schema0(int32_t time, int32_t version, key_block* key, digest_block* digest)
+char* srs::srs_bytes_join_schema0(int32_t time, int32_t version, key_block* key, digest_block* digest)
 {
     char* bytes = new char[1536 -32];
     
@@ -574,13 +520,14 @@ char* srs_bytes_join_schema0(int32_t time, int32_t version, key_block* key, dige
     
     return bytes;
 }
+
 /**
 * c1s1 is splited by digest:
 *     c1s1-part1: n bytes (time, version and digest-part1).
 *     digest-data: 32bytes
 *     c1s1-part2: (1536-n-32)bytes (digest-part2 and key)
 */
-char* srs_bytes_join_schema1(int32_t time, int32_t version, digest_block* digest, key_block* key)
+char* srs::srs_bytes_join_schema1(int32_t time, int32_t version, digest_block* digest, key_block* key)
 {
     char* bytes = new char[1536 -32];
     
@@ -592,7 +539,8 @@ char* srs_bytes_join_schema1(int32_t time, int32_t version, digest_block* digest
 /**
 * compare the memory in bytes.
 */
-bool srs_bytes_equals(void* pa, void* pb, int size){
+bool srs::srs_bytes_equals(void* pa, void* pb, int size)
+{
     u_int8_t* a = (u_int8_t*)pa;
     u_int8_t* b = (u_int8_t*)pb;
     
@@ -604,126 +552,6 @@ bool srs_bytes_equals(void* pa, void* pb, int size){
 
     return true;
 }
-
-/**
-* c1s1 schema0
-*     time: 4bytes
-*     version: 4bytes
-*     key: 764bytes
-*     digest: 764bytes
-* c1s1 schema1
-*     time: 4bytes
-*     version: 4bytes
-*     digest: 764bytes
-*     key: 764bytes
-*/
-struct c1s1
-{
-    union block {
-        key_block key; 
-        digest_block digest; 
-    };
-    
-    // 4bytes
-    int32_t time;
-    // 4bytes
-    int32_t version;
-    // 764bytes
-    // if schema0, use key
-    // if schema1, use digest
-    block block0;
-    // 764bytes
-    // if schema0, use digest
-    // if schema1, use key
-    block block1;
-    
-    // the logic schema
-    srs_schema_type schema;
-    
-    c1s1();
-    virtual ~c1s1();
-    /**
-    * get the digest key.
-    */
-    virtual char* get_digest();
-    /**
-    * copy to bytes.
-    */
-    virtual void dump(char* _c1s1);
-    
-    /**
-    * client: create and sign c1 by schema.
-    * sign the c1, generate the digest.
-    *         calc_c1_digest(c1, schema) {
-    *            get c1s1-joined from c1 by specified schema
-    *            digest-data = HMACsha256(c1s1-joined, FPKey, 30)
-    *            return digest-data;
-    *        }
-    *        random fill 1536bytes c1 // also fill the c1-128bytes-key
-    *        time = time() // c1[0-3]
-    *        version = [0x80, 0x00, 0x07, 0x02] // c1[4-7]
-    *        schema = choose schema0 or schema1
-    *        digest-data = calc_c1_digest(c1, schema)
-    *        copy digest-data to c1
-    */
-    virtual int c1_create(srs_schema_type _schema);
-    /**
-    * server: parse the c1s1, discovery the key and digest by schema.
-    * use the c1_validate_digest() to valid the digest of c1.
-    */
-    virtual int c1_parse(char* _c1s1, srs_schema_type _schema);
-    /**
-    * server: validate the parsed schema and c1s1
-    */
-    virtual int c1_validate_digest(bool& is_valid);
-    /**
-    * server: create and sign the s1 from c1.
-    */
-    virtual int s1_create(c1s1* c1);
-private:
-    virtual int calc_s1_digest(char*& digest);
-    virtual int calc_c1_digest(char*& digest);
-    virtual void destroy_blocks();
-};
-
-/**
-* the c2s2 complex handshake structure.
-* random-data: 1504bytes
-* digest-data: 32bytes
-*/
-struct c2s2
-{
-    char random[1504];
-    char digest[32];
-    
-    c2s2();
-    virtual ~c2s2();
-    
-    /**
-    * copy to bytes.
-    */
-    virtual void dump(char* _c2s2);
-
-    /**
-    * create c2.
-    * random fill c2s2 1536 bytes
-    * 
-    * // client generate C2, or server valid C2
-    * temp-key = HMACsha256(s1-digest, FPKey, 62)
-    * c2-digest-data = HMACsha256(c2-random-data, temp-key, 32)
-    */
-    virtual int c2_create(c1s1* s1);
-    
-    /**
-    * create s2.
-    * random fill c2s2 1536 bytes
-    * 
-    * // server generate S2, or client valid S2
-    * temp-key = HMACsha256(c1-digest, FMSKey, 68)
-    * s2-digest-data = HMACsha256(s2-random-data, temp-key, 32)
-    */
-    virtual int s2_create(c1s1* c1);
-};
 
 c2s2::c2s2()
 {
