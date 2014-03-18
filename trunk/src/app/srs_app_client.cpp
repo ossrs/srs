@@ -556,7 +556,9 @@ int SrsClient::flash_publish(SrsSource* source)
         
         SrsCommonMessage* msg = NULL;
         if ((ret = rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
-            srs_error("flash recv identify client message failed. ret=%d", ret);
+            if (!srs_is_client_gracefully_close(ret)) {
+                srs_error("flash recv identify client message failed. ret=%d", ret);
+            }
             return ret;
         }
 
