@@ -128,7 +128,7 @@ echo -e "     |     ${SrsLibrtmpSummaryColor}simple handshake: publish/play stre
 echo -e "     |     ${SrsLibrtmpSSLSummaryColor}complex handshake: it's not required for client, recommend disable it\${BLACK}"
 echo -e "     |     ${SrsLibrtmpSummaryColor}librtmp-sample: ./research/librtmp, the srs-librtmp client sample\${BLACK}"
 echo -e "     \${BLACK}+------------------------------------------------------------------------------------\${BLACK}"
-echo -e "     |\${GREEN}server: ./objs/srs, the srs server\${BLACK}"
+echo -e "     |\${GREEN}server: ./objs/srs -c conf/srs.conf, start the srs server\${BLACK}"
 echo -e "     |     ${SrsHlsSummaryColor}hls @see: https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS\${BLACK}"
 echo -e "     |     ${SrsHlsSummaryColor}hls: generate m3u8 and ts, delivery HLS stream by nginx\${BLACK}"
 echo -e "     |     ${SrsSslSummaryColor}ssl @see: https://github.com/winlinvip/simple-rtmp-server/wiki/RTMPHandshake\${BLACK}"
