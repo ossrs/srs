@@ -1201,6 +1201,7 @@ SrsComplexHandshake::~SrsComplexHandshake()
 #ifndef SRS_SSL
 int SrsComplexHandshake::handshake_with_client(ISrsProtocolReaderWriter* /*skt*/, char* /*_c1*/)
 {
+    srs_trace("directly use simple handshake for ssl disabled.");
     return ERROR_RTMP_TRY_SIMPLE_HS;
 }
 #else
