@@ -110,16 +110,16 @@ extern ISrsThreadContext* _srs_context;
 #endif
 
 #if 1
-	#undef srs_verbose
-	#define srs_verbose(msg, ...) (void)0
+    #undef srs_verbose
+    #define srs_verbose(msg, ...) (void)0
 #endif
 #if 1
-	#undef srs_info
-	#define srs_info(msg, ...) (void)0
+    #undef srs_info
+    #define srs_info(msg, ...) (void)0
 #endif
 #if 0
-	#undef srs_trace
-	#define srs_trace(msg, ...) (void)0
+    #undef srs_trace
+    #define srs_trace(msg, ...) (void)0
 #endif
 
 #endif

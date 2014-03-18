@@ -36,8 +36,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // resolve the vhost in query string
 // @param app, may contains the vhost in query string format:
-// 		app?vhost=request_vhost
-//		app...vhost...request_vhost
+//         app?vhost=request_vhost
+//        app...vhost...request_vhost
 extern void srs_vhost_resolve(std::string& vhost, std::string& app);
 
 #endif

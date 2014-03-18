@@ -43,29 +43,29 @@ class __SrsAmf0ObjectEOF;
 ////////////////////////////////////////////////////////////////////////
 // amf0 codec
 // 1. SrsAmf0Any: read any from stream
-//		SrsAmf0Any* pany = NULL;
-//		if ((ret = srs_amf0_read_any(stream, &pany)) != ERROR_SUCCESS) {
-//			return ret;
-// 		}
-//		srs_assert(pany); // if success, always valid object.
+//        SrsAmf0Any* pany = NULL;
+//        if ((ret = srs_amf0_read_any(stream, &pany)) != ERROR_SUCCESS) {
+//            return ret;
+//         }
+//        srs_assert(pany); // if success, always valid object.
 // 2. SrsAmf0Any: convert to specifid type, for instance, string
-//		SrsAmf0Any* pany = ...
-//		if (pany->is_string()) {
-//			string v = pany->to_str();
-//		}
+//        SrsAmf0Any* pany = ...
+//        if (pany->is_string()) {
+//            string v = pany->to_str();
+//        }
 // 3. SrsAmf0Any: parse specified type to any, for instance, string
-//		SrsAmf0Any* pany = SrsAmf0Any::str("winlin");
+//        SrsAmf0Any* pany = SrsAmf0Any::str("winlin");
 // 4. SrsAmf0Size: get amf0 instance size
-//		int size = SrsAmf0Size::str("winlin");
+//        int size = SrsAmf0Size::str("winlin");
 // 5. SrsAmf0Object: create the amf0 object.
-//		SrsAmf0Object* obj = SrsAmf0Any::object();
+//        SrsAmf0Object* obj = SrsAmf0Any::object();
 // 5. SrsAmf0EcmaArray: create the amf0 ecma array.
-//		SrsAmf0EcmaArray* arr = SrsAmf0Any::ecma_array();
+//        SrsAmf0EcmaArray* arr = SrsAmf0Any::ecma_array();
 //
 // please carefully the size and count of amf0 any:
 // 1. total_size(): the total memory size the object wrote to buffer.
 // 2. count(): the total element count of object, for instance, the properties
-//		of amf0 object, used for key_at/value_at loop.
+//        of amf0 object, used for key_at/value_at loop.
 //
 // for detail usage, see interfaces of each object.
 ////////////////////////////////////////////////////////////////////////
@@ -76,73 +76,73 @@ class __SrsAmf0ObjectEOF;
 * any amf0 value.
 * 2.1 Types Overview
 * value-type = number-type | boolean-type | string-type | object-type 
-* 		| null-marker | undefined-marker | reference-type | ecma-array-type 
-* 		| strict-array-type | date-type | long-string-type | xml-document-type 
-* 		| typed-object-type
+*         | null-marker | undefined-marker | reference-type | ecma-array-type 
+*         | strict-array-type | date-type | long-string-type | xml-document-type 
+*         | typed-object-type
 */
 class SrsAmf0Any
 {
 public:
-	char marker;
+    char marker;
 public:
-	SrsAmf0Any();
-	virtual ~SrsAmf0Any();
+    SrsAmf0Any();
+    virtual ~SrsAmf0Any();
 public:
-	virtual bool is_string();
-	virtual bool is_boolean();
-	virtual bool is_number();
-	virtual bool is_null();
-	virtual bool is_undefined();
-	virtual bool is_object();
-	virtual bool is_object_eof();
-	virtual bool is_ecma_array();
+    virtual bool is_string();
+    virtual bool is_boolean();
+    virtual bool is_number();
+    virtual bool is_null();
+    virtual bool is_undefined();
+    virtual bool is_object();
+    virtual bool is_object_eof();
+    virtual bool is_ecma_array();
 public:
-	/**
-	* get the string of any when is_string() indicates true.
-	* user must ensure the type is a string, or assert failed.
-	*/
-	virtual std::string to_str();
-	/**
-	* get the boolean of any when is_boolean() indicates true.
-	* user must ensure the type is a boolean, or assert failed.
-	*/
-	virtual bool to_boolean();
-	/**
-	* get the number of any when is_number() indicates true.
-	* user must ensure the type is a number, or assert failed.
-	*/
-	virtual double to_number();
-	/**
-	* get the object of any when is_object() indicates true.
-	* user must ensure the type is a object, or assert failed.
-	*/
-	virtual SrsAmf0Object* to_object();
-	/**
-	* get the ecma array of any when is_ecma_array() indicates true.
-	* user must ensure the type is a ecma array, or assert failed.
-	*/
-	virtual SrsAmf0EcmaArray* to_ecma_array();
+    /**
+    * get the string of any when is_string() indicates true.
+    * user must ensure the type is a string, or assert failed.
+    */
+    virtual std::string to_str();
+    /**
+    * get the boolean of any when is_boolean() indicates true.
+    * user must ensure the type is a boolean, or assert failed.
+    */
+    virtual bool to_boolean();
+    /**
+    * get the number of any when is_number() indicates true.
+    * user must ensure the type is a number, or assert failed.
+    */
+    virtual double to_number();
+    /**
+    * get the object of any when is_object() indicates true.
+    * user must ensure the type is a object, or assert failed.
+    */
+    virtual SrsAmf0Object* to_object();
+    /**
+    * get the ecma array of any when is_ecma_array() indicates true.
+    * user must ensure the type is a ecma array, or assert failed.
+    */
+    virtual SrsAmf0EcmaArray* to_ecma_array();
 public:
-	/**
-	* get the size of amf0 any, including the marker size.
-	*/
-	virtual int total_size() = 0;
-	/**
-	* read elem from stream
-	*/
-	virtual int read(SrsStream* stream) = 0;
-	virtual int write(SrsStream* stream) = 0;
+    /**
+    * get the size of amf0 any, including the marker size.
+    */
+    virtual int total_size() = 0;
+    /**
+    * read elem from stream
+    */
+    virtual int read(SrsStream* stream) = 0;
+    virtual int write(SrsStream* stream) = 0;
 public:
-	static SrsAmf0Any* str(const char* value = NULL); 
-	static SrsAmf0Any* boolean(bool value = false);
-	static SrsAmf0Any* number(double value = 0.0);
-	static SrsAmf0Any* null();
-	static SrsAmf0Any* undefined();
-	static SrsAmf0Object* object();
-	static SrsAmf0Any* object_eof();
-	static SrsAmf0EcmaArray* ecma_array();
+    static SrsAmf0Any* str(const char* value = NULL); 
+    static SrsAmf0Any* boolean(bool value = false);
+    static SrsAmf0Any* number(double value = 0.0);
+    static SrsAmf0Any* null();
+    static SrsAmf0Any* undefined();
+    static SrsAmf0Object* object();
+    static SrsAmf0Any* object_eof();
+    static SrsAmf0EcmaArray* ecma_array();
 public:
-	static int discovery(SrsStream* stream, SrsAmf0Any** ppvalue);
+    static int discovery(SrsStream* stream, SrsAmf0Any** ppvalue);
 };
 
 /**
@@ -153,33 +153,33 @@ public:
 class SrsAmf0Object : public SrsAmf0Any
 {
 private:
-	__SrsUnSortedHashtable* properties;
-	__SrsAmf0ObjectEOF* eof;
+    __SrsUnSortedHashtable* properties;
+    __SrsAmf0ObjectEOF* eof;
 
 private:
-	// use SrsAmf0Any::object() to create it.
-	friend class SrsAmf0Any;
-	SrsAmf0Object();
+    // use SrsAmf0Any::object() to create it.
+    friend class SrsAmf0Any;
+    SrsAmf0Object();
 public:
-	virtual ~SrsAmf0Object();
+    virtual ~SrsAmf0Object();
 
 public:
-	virtual int total_size();
-	virtual int read(SrsStream* stream);
-	virtual int write(SrsStream* stream);
-	
+    virtual int total_size();
+    virtual int read(SrsStream* stream);
+    virtual int write(SrsStream* stream);
+    
 public:
-	virtual int count();
-	// @remark: max index is count().
-	virtual std::string key_at(int index);
-	// @remark: max index is count().
-	virtual SrsAmf0Any* value_at(int index);
-	
+    virtual int count();
+    // @remark: max index is count().
+    virtual std::string key_at(int index);
+    // @remark: max index is count().
+    virtual SrsAmf0Any* value_at(int index);
+    
 public:
-	virtual void set(std::string key, SrsAmf0Any* value);
-	virtual SrsAmf0Any* get_property(std::string name);
-	virtual SrsAmf0Any* ensure_property_string(std::string name);
-	virtual SrsAmf0Any* ensure_property_number(std::string name);
+    virtual void set(std::string key, SrsAmf0Any* value);
+    virtual SrsAmf0Any* get_property(std::string name);
+    virtual SrsAmf0Any* ensure_property_string(std::string name);
+    virtual SrsAmf0Any* ensure_property_number(std::string name);
 };
 
 /**
@@ -191,35 +191,35 @@ public:
 class SrsAmf0EcmaArray : public SrsAmf0Any
 {
 private:
-	__SrsUnSortedHashtable* properties;
-	__SrsAmf0ObjectEOF* eof;
-	int32_t _count;
+    __SrsUnSortedHashtable* properties;
+    __SrsAmf0ObjectEOF* eof;
+    int32_t _count;
 
 private:
-	// use SrsAmf0Any::ecma_array() to create it.
-	friend class SrsAmf0Any;
-	SrsAmf0EcmaArray();
+    // use SrsAmf0Any::ecma_array() to create it.
+    friend class SrsAmf0Any;
+    SrsAmf0EcmaArray();
 public:
-	virtual ~SrsAmf0EcmaArray();
+    virtual ~SrsAmf0EcmaArray();
 
 public:
-	virtual int total_size();
-	virtual int read(SrsStream* stream);
-	virtual int write(SrsStream* stream);
-	
+    virtual int total_size();
+    virtual int read(SrsStream* stream);
+    virtual int write(SrsStream* stream);
+    
 public:
-	virtual void clear();
-	virtual int count();
-	// @remark: max index is count().
-	virtual std::string key_at(int index);
-	// @remark: max index is count().
-	virtual SrsAmf0Any* value_at(int index);
+    virtual void clear();
+    virtual int count();
+    // @remark: max index is count().
+    virtual std::string key_at(int index);
+    // @remark: max index is count().
+    virtual SrsAmf0Any* value_at(int index);
 
 public:
-	virtual void set(std::string key, SrsAmf0Any* value);
-	virtual SrsAmf0Any* get_property(std::string name);
-	virtual SrsAmf0Any* ensure_property_string(std::string name);
-	virtual SrsAmf0Any* ensure_property_number(std::string name);
+    virtual void set(std::string key, SrsAmf0Any* value);
+    virtual SrsAmf0Any* get_property(std::string name);
+    virtual SrsAmf0Any* ensure_property_string(std::string name);
+    virtual SrsAmf0Any* ensure_property_number(std::string name);
 };
 
 /**
@@ -228,22 +228,22 @@ public:
 class SrsAmf0Size
 {
 public:
-	static int utf8(std::string value);
-	static int str(std::string value);
-	static int number();
-	static int null();
-	static int undefined();
-	static int boolean();
-	static int object(SrsAmf0Object* obj);
-	static int object_eof();
-	static int ecma_array(SrsAmf0EcmaArray* arr);
-	static int any(SrsAmf0Any* o);
+    static int utf8(std::string value);
+    static int str(std::string value);
+    static int number();
+    static int null();
+    static int undefined();
+    static int boolean();
+    static int object(SrsAmf0Object* obj);
+    static int object_eof();
+    static int ecma_array(SrsAmf0EcmaArray* arr);
+    static int any(SrsAmf0Any* o);
 };
 
 /**
 * read anything from stream.
 * @param ppvalue, the output amf0 any elem.
-* 		NULL if error; otherwise, never NULL and user must free it.
+*         NULL if error; otherwise, never NULL and user must free it.
 */
 extern int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any** ppvalue);
 
@@ -259,7 +259,7 @@ extern int srs_amf0_write_string(SrsStream* stream, std::string value);
 * read amf0 boolean from stream.
 * 2.4 String Type
 * boolean-type = boolean-marker U8
-* 		0 is false, <> 0 is true
+*         0 is false, <> 0 is true
 */
 extern int srs_amf0_read_boolean(SrsStream* stream, bool& value);
 extern int srs_amf0_write_boolean(SrsStream* stream, bool value);

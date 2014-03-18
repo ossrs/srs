@@ -38,21 +38,21 @@ SrsServer* _srs_server = new SrsServer();
 #include <signal.h>
 
 #ifdef SRS_GPERF_MP
-	#include <gperftools/heap-profiler.h>
+    #include <gperftools/heap-profiler.h>
 #endif
 #ifdef SRS_GPERF_CP
-	#include <gperftools/profiler.h>
+    #include <gperftools/profiler.h>
 #endif
 
 void handler(int signo)
 {
-	srs_trace("get a signal, signo=%d", signo);
-	_srs_server->on_signal(signo);
+    srs_trace("get a signal, signo=%d", signo);
+    _srs_server->on_signal(signo);
 }
 
 int main(int argc, char** argv) 
 {
-	int ret = ERROR_SUCCESS;
+    int ret = ERROR_SUCCESS;
 
 #ifdef SRS_GPERF_MP
     HeapProfilerStart("gperf.srs.gmp");
@@ -60,37 +60,37 @@ int main(int argc, char** argv)
 #ifdef SRS_GPERF_CP
     ProfilerStart("gperf.srs.gcp");
 #endif
-	
-	signal(SIGNAL_RELOAD, handler);
-	signal(SIGINT, handler);
-	
-	if ((ret = _srs_config->parse_options(argc, argv)) != ERROR_SUCCESS) {
-		return ret;
-	}
+    
+    signal(SIGNAL_RELOAD, handler);
+    signal(SIGINT, handler);
+    
+    if ((ret = _srs_config->parse_options(argc, argv)) != ERROR_SUCCESS) {
+        return ret;
+    }
 
 #ifdef SRS_GPERF_MC
-	#ifdef SRS_GPERF_MP
-	srs_error("option --with-gmc confict with --with-gmp, "
-		"@see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html\n"
-		"Note that since the heap-checker uses the heap-profiling framework internally, "
-		"it is not possible to run both the heap-checker and heap profiler at the same time");
-	return -1;
-	#endif
+    #ifdef SRS_GPERF_MP
+    srs_error("option --with-gmc confict with --with-gmp, "
+        "@see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html\n"
+        "Note that since the heap-checker uses the heap-profiling framework internally, "
+        "it is not possible to run both the heap-checker and heap profiler at the same time");
+    return -1;
+    #endif
 #endif
-	
-	if ((ret = _srs_server->initialize()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	// TODO: create log dir in _srs_config->get_log_dir()
-	
-	if ((ret = _srs_server->listen()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	if ((ret = _srs_server->cycle()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
+    
+    if ((ret = _srs_server->initialize()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // TODO: create log dir in _srs_config->get_log_dir()
+    
+    if ((ret = _srs_server->listen()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = _srs_server->cycle()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     return 0;
 }

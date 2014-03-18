@@ -36,19 +36,19 @@ class SrsServer;
 class SrsConnection
 {
 protected:
-	SrsServer* server;
-	st_netfd_t stfd;
-	int connection_id;
+    SrsServer* server;
+    st_netfd_t stfd;
+    int connection_id;
 public:
-	SrsConnection(SrsServer* srs_server, st_netfd_t client_stfd);
-	virtual ~SrsConnection();
+    SrsConnection(SrsServer* srs_server, st_netfd_t client_stfd);
+    virtual ~SrsConnection();
 public:
-	virtual int start();
+    virtual int start();
 protected:
-	virtual int do_cycle() = 0;
+    virtual int do_cycle() = 0;
 private:
-	virtual void cycle();
-	static void* cycle_thread(void* arg);
+    virtual void cycle();
+    static void* cycle_thread(void* arg);
 };
 
 #endif

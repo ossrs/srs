@@ -48,7 +48,7 @@ typedef void* srs_rtmp_t;
 /**
 * create/destroy a rtmp protocol stack.
 * @url rtmp url, for example: 
-* 		rtmp://127.0.0.1/live/livestream
+*         rtmp://127.0.0.1/live/livestream
 * @return a rtmp handler, or NULL if error occured.
 */
 srs_rtmp_t srs_rtmp_create(const char* url);
@@ -113,23 +113,23 @@ int srs_publish_stream(srs_rtmp_t rtmp);
 #define SRS_RTMP_TYPE_SCRIPT 18
 /**
 * convert the flv tag type to string.
-* 	SRS_RTMP_TYPE_AUDIO to "Audio"
-* 	SRS_RTMP_TYPE_VIDEO to "Video"
-* 	SRS_RTMP_TYPE_SCRIPT to "Data"
-* 	otherwise, "Unknown"
+*     SRS_RTMP_TYPE_AUDIO to "Audio"
+*     SRS_RTMP_TYPE_VIDEO to "Video"
+*     SRS_RTMP_TYPE_SCRIPT to "Data"
+*     otherwise, "Unknown"
 */
 const char* srs_type2string(int type);
 /**
 * read a audio/video/script-data packet from rtmp stream.
 * @param type, output the packet type, macros:
-*			SRS_RTMP_TYPE_AUDIO, FlvTagAudio
-*			SRS_RTMP_TYPE_VIDEO, FlvTagVideo
-*			SRS_RTMP_TYPE_SCRIPT, FlvTagScript
+*            SRS_RTMP_TYPE_AUDIO, FlvTagAudio
+*            SRS_RTMP_TYPE_VIDEO, FlvTagVideo
+*            SRS_RTMP_TYPE_SCRIPT, FlvTagScript
 * @param timestamp, in ms, overflow in 50days
 * @param data, the packet data, according to type:
-* 			FlvTagAudio, @see "E.4.2.1 AUDIODATA"
-*			FlvTagVideo, @see "E.4.3.1 VIDEODATA"
-*			FlvTagScript, @see "E.4.4.1 SCRIPTDATA"
+*             FlvTagAudio, @see "E.4.2.1 AUDIODATA"
+*            FlvTagVideo, @see "E.4.3.1 VIDEODATA"
+*            FlvTagScript, @see "E.4.4.1 SCRIPTDATA"
 * @param size, size of packet.
 * @return the error code. 0 for success; otherwise, error.
 *

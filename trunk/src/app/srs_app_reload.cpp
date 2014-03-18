@@ -37,41 +37,41 @@ ISrsReloadHandler::~ISrsReloadHandler()
 
 int ISrsReloadHandler::on_reload_listen()
 {
-	return ERROR_SUCCESS;
+    return ERROR_SUCCESS;
 }
 
 int ISrsReloadHandler::on_reload_pithy_print()
 {
-	return ERROR_SUCCESS;
+    return ERROR_SUCCESS;
 }
 
 int ISrsReloadHandler::on_reload_vhost_removed(string /*vhost*/)
 {
-	return ERROR_SUCCESS;
+    return ERROR_SUCCESS;
 }
 
 int ISrsReloadHandler::on_reload_gop_cache(string /*vhost*/)
 {
-	return ERROR_SUCCESS;
+    return ERROR_SUCCESS;
 }
 
 int ISrsReloadHandler::on_reload_queue_length(string /*vhost*/)
 {
-	return ERROR_SUCCESS;
+    return ERROR_SUCCESS;
 }
 
 int ISrsReloadHandler::on_reload_forward(string /*vhost*/)
 {
-	return ERROR_SUCCESS;
+    return ERROR_SUCCESS;
 }
 
 int ISrsReloadHandler::on_reload_hls(string /*vhost*/)
 {
-	return ERROR_SUCCESS;
+    return ERROR_SUCCESS;
 }
 
 int ISrsReloadHandler::on_reload_transcode(string /*vhost*/)
 {
-	return ERROR_SUCCESS;
+    return ERROR_SUCCESS;
 }
 

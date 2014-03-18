@@ -38,8 +38,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class ISrsBufferReader
 {
 public:
-	ISrsBufferReader();
-	virtual ~ISrsBufferReader();
+    ISrsBufferReader();
+    virtual ~ISrsBufferReader();
 // for protocol/amf0/msg-codec
 public:
     virtual int read(const void* buf, size_t size, ssize_t* nread) = 0;
@@ -53,18 +53,18 @@ public:
 class SrsBuffer
 {
 private:
-	std::vector<char> data;
+    std::vector<char> data;
 public:
-	SrsBuffer();
-	virtual ~SrsBuffer();
+    SrsBuffer();
+    virtual ~SrsBuffer();
 public:
-	virtual int size();
-	virtual char* bytes();
-	virtual void erase(int size);
+    virtual int size();
+    virtual char* bytes();
+    virtual void erase(int size);
 private:
-	virtual void append(char* bytes, int size);
+    virtual void append(char* bytes, int size);
 public:
-	virtual int ensure_buffer_bytes(ISrsBufferReader* skt, int required_size);
+    virtual int ensure_buffer_bytes(ISrsBufferReader* skt, int required_size);
 };
 
 #endif

@@ -94,16 +94,16 @@ class ISrsMessage;
 
 /**
 * max rtmp header size:
-* 	1bytes basic header,
-* 	11bytes message header,
-* 	4bytes timestamp header,
+*     1bytes basic header,
+*     11bytes message header,
+*     4bytes timestamp header,
 * that is, 1+11+4=16bytes.
 */
 #define RTMP_MAX_FMT0_HEADER_SIZE 16
 /**
 * max rtmp header size:
-* 	1bytes basic header,
-* 	4bytes timestamp header,
+*     1bytes basic header,
+*     4bytes timestamp header,
 * that is, 1+4=5bytes.
 */
 #define RTMP_MAX_FMT3_HEADER_SIZE 5
@@ -116,106 +116,106 @@ class ISrsMessage;
 class SrsProtocol
 {
 private:
-	struct AckWindowSize
-	{
-		int ack_window_size;
-		int64_t acked_size;
-		
-		AckWindowSize();
-	};
+    struct AckWindowSize
+    {
+        int ack_window_size;
+        int64_t acked_size;
+        
+        AckWindowSize();
+    };
 // peer in/out
 private:
-	ISrsProtocolReaderWriter* skt;
-	char* pp;
-	/**
-	* requests sent out, used to build the response.
-	* key: transactionId
-	* value: the request command name
-	*/
-	std::map<double, std::string> requests;
+    ISrsProtocolReaderWriter* skt;
+    char* pp;
+    /**
+    * requests sent out, used to build the response.
+    * key: transactionId
+    * value: the request command name
+    */
+    std::map<double, std::string> requests;
 // peer in
 private:
-	std::map<int, SrsChunkStream*> chunk_streams;
-	SrsBuffer* buffer;
-	int32_t in_chunk_size;
-	AckWindowSize in_ack_size;
+    std::map<int, SrsChunkStream*> chunk_streams;
+    SrsBuffer* buffer;
+    int32_t in_chunk_size;
+    AckWindowSize in_ack_size;
 // peer out
 private:
-	char out_header_fmt0[RTMP_MAX_FMT0_HEADER_SIZE];
-	char out_header_fmt3[RTMP_MAX_FMT3_HEADER_SIZE];
-	int32_t out_chunk_size;
+    char out_header_fmt0[RTMP_MAX_FMT0_HEADER_SIZE];
+    char out_header_fmt3[RTMP_MAX_FMT3_HEADER_SIZE];
+    int32_t out_chunk_size;
 public:
-	/**
-	* use io to create the protocol stack,
-	* @param io, provides io interfaces, user must free it.
-	*/
-	SrsProtocol(ISrsProtocolReaderWriter* io);
-	virtual ~SrsProtocol();
+    /**
+    * use io to create the protocol stack,
+    * @param io, provides io interfaces, user must free it.
+    */
+    SrsProtocol(ISrsProtocolReaderWriter* io);
+    virtual ~SrsProtocol();
 public:
-	std::string get_request_name(double transcationId);
-	/**
-	* set the timeout in us.
-	* if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
-	*/
-	virtual void set_recv_timeout(int64_t timeout_us);
-	virtual int64_t get_recv_timeout();
-	virtual void set_send_timeout(int64_t timeout_us);
-	virtual int64_t get_send_timeout();
-	virtual int64_t get_recv_bytes();
-	virtual int64_t get_send_bytes();
-	virtual int get_recv_kbps();
-	virtual int get_send_kbps();
-	/**
-	* recv a message with raw/undecoded payload from peer.
-	* the payload is not decoded, use srs_rtmp_expect_message<T> if requires 
-	* specifies message.
-	* @pmsg, user must free it. NULL if not success.
-	* @remark, only when success, user can use and must free the pmsg.
-	*/
-	virtual int recv_message(SrsCommonMessage** pmsg);
-	/**
-	* send out message with encoded payload to peer.
-	* use the message encode method to encode to payload,
-	* then sendout over socket.
-	* @msg this method will free it whatever return value.
-	*/
-	virtual int send_message(ISrsMessage* msg);
+    std::string get_request_name(double transcationId);
+    /**
+    * set the timeout in us.
+    * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
+    */
+    virtual void set_recv_timeout(int64_t timeout_us);
+    virtual int64_t get_recv_timeout();
+    virtual void set_send_timeout(int64_t timeout_us);
+    virtual int64_t get_send_timeout();
+    virtual int64_t get_recv_bytes();
+    virtual int64_t get_send_bytes();
+    virtual int get_recv_kbps();
+    virtual int get_send_kbps();
+    /**
+    * recv a message with raw/undecoded payload from peer.
+    * the payload is not decoded, use srs_rtmp_expect_message<T> if requires 
+    * specifies message.
+    * @pmsg, user must free it. NULL if not success.
+    * @remark, only when success, user can use and must free the pmsg.
+    */
+    virtual int recv_message(SrsCommonMessage** pmsg);
+    /**
+    * send out message with encoded payload to peer.
+    * use the message encode method to encode to payload,
+    * then sendout over socket.
+    * @msg this method will free it whatever return value.
+    */
+    virtual int send_message(ISrsMessage* msg);
 private:
-	/**
-	* when recv message, update the context.
-	*/
-	virtual int on_recv_message(SrsCommonMessage* msg);
-	virtual int response_acknowledgement_message();
-	virtual int response_ping_message(int32_t timestamp);
-	/**
-	* when message sentout, update the context.
-	*/
-	virtual int on_send_message(ISrsMessage* msg);
-	/**
-	* try to recv interlaced message from peer,
-	* return error if error occur and nerver set the pmsg,
-	* return success and pmsg set to NULL if no entire message got,
-	* return success and pmsg set to entire message if got one.
-	*/
-	virtual int recv_interlaced_message(SrsCommonMessage** pmsg);
-	/**
-	* read the chunk basic header(fmt, cid) from chunk stream.
-	* user can discovery a SrsChunkStream by cid.
-	* @bh_size return the chunk basic header size, to remove the used bytes when finished.
-	*/
-	virtual int read_basic_header(char& fmt, int& cid, int& bh_size);
-	/**
-	* read the chunk message header(timestamp, payload_length, message_type, stream_id) 
-	* from chunk stream and save to SrsChunkStream.
-	* @mh_size return the chunk message header size, to remove the used bytes when finished.
-	*/
-	virtual int read_message_header(SrsChunkStream* chunk, char fmt, int bh_size, int& mh_size);
-	/**
-	* read the chunk payload, remove the used bytes in buffer,
-	* if got entire message, set the pmsg.
-	* @payload_size read size in this roundtrip, generally a chunk size or left message size.
-	*/
-	virtual int read_message_payload(SrsChunkStream* chunk, int bh_size, int mh_size, int& payload_size, SrsCommonMessage** pmsg);
+    /**
+    * when recv message, update the context.
+    */
+    virtual int on_recv_message(SrsCommonMessage* msg);
+    virtual int response_acknowledgement_message();
+    virtual int response_ping_message(int32_t timestamp);
+    /**
+    * when message sentout, update the context.
+    */
+    virtual int on_send_message(ISrsMessage* msg);
+    /**
+    * try to recv interlaced message from peer,
+    * return error if error occur and nerver set the pmsg,
+    * return success and pmsg set to NULL if no entire message got,
+    * return success and pmsg set to entire message if got one.
+    */
+    virtual int recv_interlaced_message(SrsCommonMessage** pmsg);
+    /**
+    * read the chunk basic header(fmt, cid) from chunk stream.
+    * user can discovery a SrsChunkStream by cid.
+    * @bh_size return the chunk basic header size, to remove the used bytes when finished.
+    */
+    virtual int read_basic_header(char& fmt, int& cid, int& bh_size);
+    /**
+    * read the chunk message header(timestamp, payload_length, message_type, stream_id) 
+    * from chunk stream and save to SrsChunkStream.
+    * @mh_size return the chunk message header size, to remove the used bytes when finished.
+    */
+    virtual int read_message_header(SrsChunkStream* chunk, char fmt, int bh_size, int& mh_size);
+    /**
+    * read the chunk payload, remove the used bytes in buffer,
+    * if got entire message, set the pmsg.
+    * @payload_size read size in this roundtrip, generally a chunk size or left message size.
+    */
+    virtual int read_message_payload(SrsChunkStream* chunk, int bh_size, int mh_size, int& payload_size, SrsCommonMessage** pmsg);
 };
 
 /**
@@ -223,52 +223,52 @@ private:
 */
 struct SrsMessageHeader
 {
-	/**
-	* One byte field to represent the message type. A range of type IDs
-	* (1-7) are reserved for protocol control messages.
-	*/
-	int8_t message_type;
-	/**
-	* Three-byte field that represents the size of the payload in bytes.
-	* It is set in big-endian format.
-	*/
-	int32_t payload_length;
-	/**
-	* Three-byte field that contains a timestamp delta of the message.
-	* The 4 bytes are packed in the big-endian order.
-	* @remark, only used for decoding message from chunk stream.
-	*/
-	int32_t timestamp_delta;
-	/**
-	* Three-byte field that identifies the stream of the message. These
-	* bytes are set in big-endian format.
-	*/
-	int32_t stream_id;
-	
-	/**
-	* Four-byte field that contains a timestamp of the message.
-	* The 4 bytes are packed in the big-endian order.
-	* @remark, used as calc timestamp when decode and encode time.
-	* @remark, we use 64bits for large time for jitter detect and hls.
-	*/
-	int64_t timestamp;
-	
-	SrsMessageHeader();
-	virtual ~SrsMessageHeader();
+    /**
+    * One byte field to represent the message type. A range of type IDs
+    * (1-7) are reserved for protocol control messages.
+    */
+    int8_t message_type;
+    /**
+    * Three-byte field that represents the size of the payload in bytes.
+    * It is set in big-endian format.
+    */
+    int32_t payload_length;
+    /**
+    * Three-byte field that contains a timestamp delta of the message.
+    * The 4 bytes are packed in the big-endian order.
+    * @remark, only used for decoding message from chunk stream.
+    */
+    int32_t timestamp_delta;
+    /**
+    * Three-byte field that identifies the stream of the message. These
+    * bytes are set in big-endian format.
+    */
+    int32_t stream_id;
+    
+    /**
+    * Four-byte field that contains a timestamp of the message.
+    * The 4 bytes are packed in the big-endian order.
+    * @remark, used as calc timestamp when decode and encode time.
+    * @remark, we use 64bits for large time for jitter detect and hls.
+    */
+    int64_t timestamp;
+    
+    SrsMessageHeader();
+    virtual ~SrsMessageHeader();
 
-	bool is_audio();
-	bool is_video();
-	bool is_amf0_command();
-	bool is_amf0_data();
-	bool is_amf3_command();
-	bool is_amf3_data();
-	bool is_window_ackledgement_size();
-	bool is_set_chunk_size();
-	bool is_user_control_message();
-	
-	void initialize_amf0_script(int size, int stream);
-	void initialize_audio(int size, u_int32_t time, int stream);
-	void initialize_video(int size, u_int32_t time, int stream);
+    bool is_audio();
+    bool is_video();
+    bool is_amf0_command();
+    bool is_amf0_data();
+    bool is_amf3_command();
+    bool is_amf3_data();
+    bool is_window_ackledgement_size();
+    bool is_set_chunk_size();
+    bool is_user_control_message();
+    
+    void initialize_amf0_script(int size, int stream);
+    void initialize_audio(int size, u_int32_t time, int stream);
+    void initialize_video(int size, u_int32_t time, int stream);
 };
 
 /**
@@ -278,35 +278,35 @@ struct SrsMessageHeader
 class SrsChunkStream
 {
 public:
-	/**
-	* represents the basic header fmt,
-	* which used to identify the variant message header type.
-	*/
-	char fmt;
-	/**
-	* represents the basic header cid,
-	* which is the chunk stream id.
-	*/
-	int cid;
-	/**
-	* cached message header
-	*/
-	SrsMessageHeader header;
-	/**
-	* whether the chunk message header has extended timestamp.
-	*/
-	bool extended_timestamp;
-	/**
-	* partially read message.
-	*/
-	SrsCommonMessage* msg;
-	/**
-	* decoded msg count, to identify whether the chunk stream is fresh.
-	*/
-	int64_t msg_count;
+    /**
+    * represents the basic header fmt,
+    * which used to identify the variant message header type.
+    */
+    char fmt;
+    /**
+    * represents the basic header cid,
+    * which is the chunk stream id.
+    */
+    int cid;
+    /**
+    * cached message header
+    */
+    SrsMessageHeader header;
+    /**
+    * whether the chunk message header has extended timestamp.
+    */
+    bool extended_timestamp;
+    /**
+    * partially read message.
+    */
+    SrsCommonMessage* msg;
+    /**
+    * decoded msg count, to identify whether the chunk stream is fresh.
+    */
+    int64_t msg_count;
 public:
-	SrsChunkStream(int _cid);
-	virtual ~SrsChunkStream();
+    SrsChunkStream(int _cid);
+    virtual ~SrsChunkStream();
 };
 
 /**
@@ -316,39 +316,39 @@ class ISrsMessage
 {
 // 4.1. Message Header
 public:
-	SrsMessageHeader header;
+    SrsMessageHeader header;
 // 4.2. Message Payload
 public:
-	/**
-	* The other part which is the payload is the actual data that is
-	* contained in the message. For example, it could be some audio samples
-	* or compressed video data. The payload format and interpretation are
-	* beyond the scope of this document.
-	*/
-	int32_t size;
-	int8_t* payload;
+    /**
+    * The other part which is the payload is the actual data that is
+    * contained in the message. For example, it could be some audio samples
+    * or compressed video data. The payload format and interpretation are
+    * beyond the scope of this document.
+    */
+    int32_t size;
+    int8_t* payload;
 public:
-	ISrsMessage();
-	virtual ~ISrsMessage();
+    ISrsMessage();
+    virtual ~ISrsMessage();
 public:
-	/**
-	* whether message canbe decoded.
-	* only update the context when message canbe decoded.
-	*/
-	virtual bool can_decode() = 0;
+    /**
+    * whether message canbe decoded.
+    * only update the context when message canbe decoded.
+    */
+    virtual bool can_decode() = 0;
 /**
 * encode functions.
 */
 public:
-	/**
-	* get the perfered cid(chunk stream id) which sendout over.
-	*/
-	virtual int get_perfer_cid() = 0;
-	/**
-	* encode the packet to message payload bytes.
-	* @remark there exists empty packet, so maybe the payload is NULL.
-	*/
-	virtual int encode_packet() = 0;
+    /**
+    * get the perfered cid(chunk stream id) which sendout over.
+    */
+    virtual int get_perfer_cid() = 0;
+    /**
+    * encode the packet to message payload bytes.
+    * @remark there exists empty packet, so maybe the payload is NULL.
+    */
+    virtual int encode_packet() = 0;
 };
 
 /**
@@ -358,52 +358,52 @@ public:
 class SrsCommonMessage : public ISrsMessage
 {
 private:
-	typedef ISrsMessage super;
-	disable_default_copy(SrsCommonMessage);
+    typedef ISrsMessage super;
+    disable_default_copy(SrsCommonMessage);
 // decoded message payload.
 private:
-	SrsStream* stream;
-	SrsPacket* packet;
+    SrsStream* stream;
+    SrsPacket* packet;
 public:
-	SrsCommonMessage();
-	virtual ~SrsCommonMessage();
+    SrsCommonMessage();
+    virtual ~SrsCommonMessage();
 public:
-	virtual bool can_decode();
+    virtual bool can_decode();
 /**
 * decode functions.
 */
 public:
-	/**
-	* decode packet from message payload.
-	*/
-	// TODO: use protocol to decode it.
-	virtual int decode_packet(SrsProtocol* protocol);
-	/**
-	* get the decoded packet which decoded by decode_packet().
-	* @remark, user never free the pkt, the message will auto free it.
-	*/
-	virtual SrsPacket* get_packet();
+    /**
+    * decode packet from message payload.
+    */
+    // TODO: use protocol to decode it.
+    virtual int decode_packet(SrsProtocol* protocol);
+    /**
+    * get the decoded packet which decoded by decode_packet().
+    * @remark, user never free the pkt, the message will auto free it.
+    */
+    virtual SrsPacket* get_packet();
 /**
 * encode functions.
 */
 public:
-	/**
-	* get the perfered cid(chunk stream id) which sendout over.
-	*/
-	virtual int get_perfer_cid();
-	/**
-	* set the encoded packet to encode_packet() to payload.
-	* @stream_id, the id of stream which is created by createStream.
-	* @remark, user never free the pkt, the message will auto free it.
-	* @return message itself.
-	*/
-	// TODO: refine the send methods.
-	virtual SrsCommonMessage* set_packet(SrsPacket* pkt, int stream_id);
-	/**
-	* encode the packet to message payload bytes.
-	* @remark there exists empty packet, so maybe the payload is NULL.
-	*/
-	virtual int encode_packet();
+    /**
+    * get the perfered cid(chunk stream id) which sendout over.
+    */
+    virtual int get_perfer_cid();
+    /**
+    * set the encoded packet to encode_packet() to payload.
+    * @stream_id, the id of stream which is created by createStream.
+    * @remark, user never free the pkt, the message will auto free it.
+    * @return message itself.
+    */
+    // TODO: refine the send methods.
+    virtual SrsCommonMessage* set_packet(SrsPacket* pkt, int stream_id);
+    /**
+    * encode the packet to message payload bytes.
+    * @remark there exists empty packet, so maybe the payload is NULL.
+    */
+    virtual int encode_packet();
 };
 
 /**
@@ -414,108 +414,108 @@ public:
 class SrsSharedPtrMessage : public ISrsMessage
 {
 private:
-	typedef ISrsMessage super;
+    typedef ISrsMessage super;
 private:
-	struct SrsSharedPtr
-	{
-		char* payload;
-		int size;
-		int perfer_cid;
-		int shared_count;
-		
-		SrsSharedPtr();
-		virtual ~SrsSharedPtr();
-	};
-	SrsSharedPtr* ptr;
+    struct SrsSharedPtr
+    {
+        char* payload;
+        int size;
+        int perfer_cid;
+        int shared_count;
+        
+        SrsSharedPtr();
+        virtual ~SrsSharedPtr();
+    };
+    SrsSharedPtr* ptr;
 public:
-	SrsSharedPtrMessage();
-	virtual ~SrsSharedPtrMessage();
+    SrsSharedPtrMessage();
+    virtual ~SrsSharedPtrMessage();
 public:
-	virtual bool can_decode();
+    virtual bool can_decode();
 public:
-	/**
-	* set the shared payload.
-	* we will detach the payload of source,
-	* so ensure donot use it before.
-	*/
-	virtual int initialize(SrsCommonMessage* source);
-	/**
-	* set the shared payload.
-	* use source header, and specified param payload.
-	*/
-	virtual int initialize(SrsMessageHeader* source, char* payload, int size);
-	virtual SrsSharedPtrMessage* copy();
+    /**
+    * set the shared payload.
+    * we will detach the payload of source,
+    * so ensure donot use it before.
+    */
+    virtual int initialize(SrsCommonMessage* source);
+    /**
+    * set the shared payload.
+    * use source header, and specified param payload.
+    */
+    virtual int initialize(SrsMessageHeader* source, char* payload, int size);
+    virtual SrsSharedPtrMessage* copy();
 public:
-	/**
-	* get the perfered cid(chunk stream id) which sendout over.
-	*/
-	virtual int get_perfer_cid();
-	/**
-	* ignored.
-	* for shared message, nothing should be done.
-	* use initialize() to set the data.
-	*/
-	virtual int encode_packet();
+    /**
+    * get the perfered cid(chunk stream id) which sendout over.
+    */
+    virtual int get_perfer_cid();
+    /**
+    * ignored.
+    * for shared message, nothing should be done.
+    * use initialize() to set the data.
+    */
+    virtual int encode_packet();
 };
 
 /**
 * the decoded message payload.
 * @remark we seperate the packet from message,
-*		for the packet focus on logic and domain data,
-*		the message bind to the protocol and focus on protocol, such as header.
-* 		we can merge the message and packet, using OOAD hierachy, packet extends from message,
-* 		it's better for me to use components -- the message use the packet as payload.
+*        for the packet focus on logic and domain data,
+*        the message bind to the protocol and focus on protocol, such as header.
+*         we can merge the message and packet, using OOAD hierachy, packet extends from message,
+*         it's better for me to use components -- the message use the packet as payload.
 */
 class SrsPacket
 {
 protected:
-	/**
-	* subpacket must override to provide the right class name.
-	*/
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsPacket);
-	}
+    /**
+    * subpacket must override to provide the right class name.
+    */
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsPacket);
+    }
 public:
-	SrsPacket();
-	virtual ~SrsPacket();
+    SrsPacket();
+    virtual ~SrsPacket();
 /**
 * decode functions.
 */
 public:
-	/**
-	* subpacket must override to decode packet from stream.
-	* @remark never invoke the super.decode, it always failed.
-	*/
-	virtual int decode(SrsStream* stream);
+    /**
+    * subpacket must override to decode packet from stream.
+    * @remark never invoke the super.decode, it always failed.
+    */
+    virtual int decode(SrsStream* stream);
 /**
 * encode functions.
 */
 public:
-	virtual int get_perfer_cid();
-	virtual int get_payload_length();
+    virtual int get_perfer_cid();
+    virtual int get_payload_length();
 public:
-	/**
-	* subpacket must override to provide the right message type.
-	*/
-	virtual int get_message_type();
-	/**
-	* the subpacket can override this encode,
-	* for example, video and audio will directly set the payload withou memory copy,
-	* other packet which need to serialize/encode to bytes by override the 
-	* get_size and encode_packet.
-	*/
-	virtual int encode(int& size, char*& payload);
+    /**
+    * subpacket must override to provide the right message type.
+    */
+    virtual int get_message_type();
+    /**
+    * the subpacket can override this encode,
+    * for example, video and audio will directly set the payload withou memory copy,
+    * other packet which need to serialize/encode to bytes by override the 
+    * get_size and encode_packet.
+    */
+    virtual int encode(int& size, char*& payload);
 protected:
-	/**
-	* subpacket can override to calc the packet size.
-	*/
-	virtual int get_size();
-	/**
-	* subpacket can override to encode the payload to stream.
-	* @remark never invoke the super.encode_packet, it always failed.
-	*/
-	virtual int encode_packet(SrsStream* stream);
+    /**
+    * subpacket can override to calc the packet size.
+    */
+    virtual int get_size();
+    /**
+    * subpacket can override to encode the payload to stream.
+    * @remark never invoke the super.encode_packet, it always failed.
+    */
+    virtual int encode_packet(SrsStream* stream);
 };
 
 /**
@@ -526,28 +526,28 @@ protected:
 class SrsConnectAppPacket : public SrsPacket
 {
 private:
-	typedef SrsPacket super;
+    typedef SrsPacket super;
 protected:
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsConnectAppPacket);
-	}
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsConnectAppPacket);
+    }
 public:
-	std::string command_name;
-	double transaction_id;
-	SrsAmf0Object* command_object;
+    std::string command_name;
+    double transaction_id;
+    SrsAmf0Object* command_object;
 public:
-	SrsConnectAppPacket();
-	virtual ~SrsConnectAppPacket();
+    SrsConnectAppPacket();
+    virtual ~SrsConnectAppPacket();
 public:
-	virtual int decode(SrsStream* stream);
+    virtual int decode(SrsStream* stream);
 public:
-	virtual int get_perfer_cid();
+    virtual int get_perfer_cid();
 public:
-	virtual int get_message_type();
+    virtual int get_message_type();
 protected:
-	virtual int get_size();
-	virtual int encode_packet(SrsStream* stream);
+    virtual int get_size();
+    virtual int encode_packet(SrsStream* stream);
 };
 /**
 * response for SrsConnectAppPacket.
@@ -555,29 +555,29 @@ protected:
 class SrsConnectAppResPacket : public SrsPacket
 {
 private:
-	typedef SrsPacket super;
+    typedef SrsPacket super;
 protected:
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsConnectAppResPacket);
-	}
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsConnectAppResPacket);
+    }
 public:
-	std::string command_name;
-	double transaction_id;
-	SrsAmf0Object* props;
-	SrsAmf0Object* info;
+    std::string command_name;
+    double transaction_id;
+    SrsAmf0Object* props;
+    SrsAmf0Object* info;
 public:
-	SrsConnectAppResPacket();
-	virtual ~SrsConnectAppResPacket();
+    SrsConnectAppResPacket();
+    virtual ~SrsConnectAppResPacket();
 public:
-	virtual int decode(SrsStream* stream);
+    virtual int decode(SrsStream* stream);
 public:
-	virtual int get_perfer_cid();
+    virtual int get_perfer_cid();
 public:
-	virtual int get_message_type();
+    virtual int get_message_type();
 protected:
-	virtual int get_size();
-	virtual int encode_packet(SrsStream* stream);
+    virtual int get_size();
+    virtual int encode_packet(SrsStream* stream);
 };
 
 /**
@@ -590,28 +590,28 @@ protected:
 class SrsCreateStreamPacket : public SrsPacket
 {
 private:
-	typedef SrsPacket super;
+    typedef SrsPacket super;
 protected:
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsCreateStreamPacket);
-	}
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsCreateStreamPacket);
+    }
 public:
-	std::string command_name;
-	double transaction_id;
-	SrsAmf0Any* command_object; // null
+    std::string command_name;
+    double transaction_id;
+    SrsAmf0Any* command_object; // null
 public:
-	SrsCreateStreamPacket();
-	virtual ~SrsCreateStreamPacket();
+    SrsCreateStreamPacket();
+    virtual ~SrsCreateStreamPacket();
 public:
-	virtual int decode(SrsStream* stream);
+    virtual int decode(SrsStream* stream);
 public:
-	virtual int get_perfer_cid();
+    virtual int get_perfer_cid();
 public:
-	virtual int get_message_type();
+    virtual int get_message_type();
 protected:
-	virtual int get_size();
-	virtual int encode_packet(SrsStream* stream);
+    virtual int get_size();
+    virtual int encode_packet(SrsStream* stream);
 };
 /**
 * response for SrsCreateStreamPacket.
@@ -619,29 +619,29 @@ protected:
 class SrsCreateStreamResPacket : public SrsPacket
 {
 private:
-	typedef SrsPacket super;
+    typedef SrsPacket super;
 protected:
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsCreateStreamResPacket);
-	}
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsCreateStreamResPacket);
+    }
 public:
-	std::string command_name;
-	double transaction_id;
-	SrsAmf0Any* command_object; // null
-	double stream_id;
+    std::string command_name;
+    double transaction_id;
+    SrsAmf0Any* command_object; // null
+    double stream_id;
 public:
-	SrsCreateStreamResPacket(double _transaction_id, double _stream_id);
-	virtual ~SrsCreateStreamResPacket();
+    SrsCreateStreamResPacket(double _transaction_id, double _stream_id);
+    virtual ~SrsCreateStreamResPacket();
 public:
-	virtual int decode(SrsStream* stream);
+    virtual int decode(SrsStream* stream);
 public:
-	virtual int get_perfer_cid();
+    virtual int get_perfer_cid();
 public:
-	virtual int get_message_type();
+    virtual int get_message_type();
 protected:
-	virtual int get_size();
-	virtual int encode_packet(SrsStream* stream);
+    virtual int get_size();
+    virtual int encode_packet(SrsStream* stream);
 };
 /**
 * client close stream packet.
@@ -672,32 +672,32 @@ public:
 class SrsFMLEStartPacket : public SrsPacket
 {
 private:
-	typedef SrsPacket super;
+    typedef SrsPacket super;
 protected:
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsFMLEStartPacket);
-	}
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsFMLEStartPacket);
+    }
 public:
-	std::string command_name;
-	double transaction_id;
-	SrsAmf0Any* command_object; // null
-	std::string stream_name;
+    std::string command_name;
+    double transaction_id;
+    SrsAmf0Any* command_object; // null
+    std::string stream_name;
 public:
-	SrsFMLEStartPacket();
-	virtual ~SrsFMLEStartPacket();
+    SrsFMLEStartPacket();
+    virtual ~SrsFMLEStartPacket();
 public:
-	virtual int decode(SrsStream* stream);
+    virtual int decode(SrsStream* stream);
 public:
-	virtual int get_perfer_cid();
+    virtual int get_perfer_cid();
 public:
-	virtual int get_message_type();
+    virtual int get_message_type();
 protected:
-	virtual int get_size();
-	virtual int encode_packet(SrsStream* stream);
+    virtual int get_size();
+    virtual int encode_packet(SrsStream* stream);
 public:
-	static SrsFMLEStartPacket* create_release_stream(std::string stream);
-	static SrsFMLEStartPacket* create_FC_publish(std::string stream);
+    static SrsFMLEStartPacket* create_release_stream(std::string stream);
+    static SrsFMLEStartPacket* create_FC_publish(std::string stream);
 };
 /**
 * response for SrsFMLEStartPacket.
@@ -705,29 +705,29 @@ public:
 class SrsFMLEStartResPacket : public SrsPacket
 {
 private:
-	typedef SrsPacket super;
+    typedef SrsPacket super;
 protected:
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsFMLEStartResPacket);
-	}
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsFMLEStartResPacket);
+    }
 public:
-	std::string command_name;
-	double transaction_id;
-	SrsAmf0Any* command_object; // null
-	SrsAmf0Any* args; // undefined
+    std::string command_name;
+    double transaction_id;
+    SrsAmf0Any* command_object; // null
+    SrsAmf0Any* args; // undefined
 public:
-	SrsFMLEStartResPacket(double _transaction_id);
-	virtual ~SrsFMLEStartResPacket();
+    SrsFMLEStartResPacket(double _transaction_id);
+    virtual ~SrsFMLEStartResPacket();
 public:
-	virtual int decode(SrsStream* stream);
+    virtual int decode(SrsStream* stream);
 public:
-	virtual int get_perfer_cid();
+    virtual int get_perfer_cid();
 public:
-	virtual int get_message_type();
+    virtual int get_message_type();
 protected:
-	virtual int get_size();
-	virtual int encode_packet(SrsStream* stream);
+    virtual int get_size();
+    virtual int encode_packet(SrsStream* stream);
 };
 
 /**
@@ -740,31 +740,31 @@ protected:
 class SrsPublishPacket : public SrsPacket
 {
 private:
-	typedef SrsPacket super;
+    typedef SrsPacket super;
 protected:
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsPublishPacket);
-	}
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsPublishPacket);
+    }
 public:
-	std::string command_name;
-	double transaction_id;
-	SrsAmf0Any* command_object; // null
-	std::string stream_name;
-	// optional, default to live.
-	std::string type;
+    std::string command_name;
+    double transaction_id;
+    SrsAmf0Any* command_object; // null
+    std::string stream_name;
+    // optional, default to live.
+    std::string type;
 public:
-	SrsPublishPacket();
-	virtual ~SrsPublishPacket();
+    SrsPublishPacket();
+    virtual ~SrsPublishPacket();
 public:
-	virtual int decode(SrsStream* stream);
+    virtual int decode(SrsStream* stream);
 public:
-	virtual int get_perfer_cid();
+    virtual int get_perfer_cid();
 public:
-	virtual int get_message_type();
+    virtual int get_message_type();
 protected:
-	virtual int get_size();
-	virtual int encode_packet(SrsStream* stream);
+    virtual int get_size();
+    virtual int encode_packet(SrsStream* stream);
 };
 
 /**
@@ -775,23 +775,23 @@ protected:
 class SrsPausePacket : public SrsPacket
 {
 private:
-	typedef SrsPacket super;
+    typedef SrsPacket super;
 protected:
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsPausePacket);
-	}
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsPausePacket);
+    }
 public:
-	std::string command_name;
-	double transaction_id;
-	SrsAmf0Any* command_object; // null
-	bool is_pause;
-	double time_ms;
+    std::string command_name;
+    double transaction_id;
+    SrsAmf0Any* command_object; // null
+    bool is_pause;
+    double time_ms;
 public:
-	SrsPausePacket();
-	virtual ~SrsPausePacket();
+    SrsPausePacket();
+    virtual ~SrsPausePacket();
 public:
-	virtual int decode(SrsStream* stream);
+    virtual int decode(SrsStream* stream);
 };
 
 /**
@@ -801,32 +801,32 @@ public:
 class SrsPlayPacket : public SrsPacket
 {
 private:
-	typedef SrsPacket super;
+    typedef SrsPacket super;
 protected:
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsPlayPacket);
-	}
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsPlayPacket);
+    }
 public:
-	std::string command_name;
-	double transaction_id;
-	SrsAmf0Any* command_object; // null
-	std::string stream_name;
-	double start;
-	double duration;
-	bool reset;
+    std::string command_name;
+    double transaction_id;
+    SrsAmf0Any* command_object; // null
+    std::string stream_name;
+    double start;
+    double duration;
+    bool reset;
 public:
-	SrsPlayPacket();
-	virtual ~SrsPlayPacket();
+    SrsPlayPacket();
+    virtual ~SrsPlayPacket();
 public:
-	virtual int decode(SrsStream* stream);
+    virtual int decode(SrsStream* stream);
 public:
-	virtual int get_perfer_cid();
+    virtual int get_perfer_cid();
 public:
-	virtual int get_message_type();
+    virtual int get_message_type();
 protected:
-	virtual int get_size();
-	virtual int encode_packet(SrsStream* stream);
+    virtual int get_size();
+    virtual int encode_packet(SrsStream* stream);
 };
 /**
 * response for SrsPlayPacket.
@@ -835,27 +835,27 @@ protected:
 class SrsPlayResPacket : public SrsPacket
 {
 private:
-	typedef SrsPacket super;
+    typedef SrsPacket super;
 protected:
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsPlayResPacket);
-	}
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsPlayResPacket);
+    }
 public:
-	std::string command_name;
-	double transaction_id;
-	SrsAmf0Any* command_object; // null
-	SrsAmf0Object* desc;
+    std::string command_name;
+    double transaction_id;
+    SrsAmf0Any* command_object; // null
+    SrsAmf0Object* desc;
 public:
-	SrsPlayResPacket();
-	virtual ~SrsPlayResPacket();
+    SrsPlayResPacket();
+    virtual ~SrsPlayResPacket();
 public:
-	virtual int get_perfer_cid();
+    virtual int get_perfer_cid();
 public:
-	virtual int get_message_type();
+    virtual int get_message_type();
 protected:
-	virtual int get_size();
-	virtual int encode_packet(SrsStream* stream);
+    virtual int get_size();
+    virtual int encode_packet(SrsStream* stream);
 };
 
 /**
@@ -864,26 +864,26 @@ protected:
 class SrsOnBWDonePacket : public SrsPacket
 {
 private:
-	typedef SrsPacket super;
+    typedef SrsPacket super;
 protected:
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsOnBWDonePacket);
-	}
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsOnBWDonePacket);
+    }
 public:
-	std::string command_name;
-	double transaction_id;
-	SrsAmf0Any* args; // null
+    std::string command_name;
+    double transaction_id;
+    SrsAmf0Any* args; // null
 public:
-	SrsOnBWDonePacket();
-	virtual ~SrsOnBWDonePacket();
+    SrsOnBWDonePacket();
+    virtual ~SrsOnBWDonePacket();
 public:
-	virtual int get_perfer_cid();
+    virtual int get_perfer_cid();
 public:
-	virtual int get_message_type();
+    virtual int get_message_type();
 protected:
-	virtual int get_size();
-	virtual int encode_packet(SrsStream* stream);
+    virtual int get_size();
+    virtual int encode_packet(SrsStream* stream);
 };
 
 /**
@@ -893,27 +893,27 @@ protected:
 class SrsOnStatusCallPacket : public SrsPacket
 {
 private:
-	typedef SrsPacket super;
+    typedef SrsPacket super;
 protected:
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsOnStatusCallPacket);
-	}
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsOnStatusCallPacket);
+    }
 public:
-	std::string command_name;
-	double transaction_id;
-	SrsAmf0Any* args; // null
-	SrsAmf0Object* data;
+    std::string command_name;
+    double transaction_id;
+    SrsAmf0Any* args; // null
+    SrsAmf0Object* data;
 public:
-	SrsOnStatusCallPacket();
-	virtual ~SrsOnStatusCallPacket();
+    SrsOnStatusCallPacket();
+    virtual ~SrsOnStatusCallPacket();
 public:
-	virtual int get_perfer_cid();
+    virtual int get_perfer_cid();
 public:
-	virtual int get_message_type();
+    virtual int get_message_type();
 protected:
-	virtual int get_size();
-	virtual int encode_packet(SrsStream* stream);
+    virtual int get_size();
+    virtual int encode_packet(SrsStream* stream);
 };
 
 /**
@@ -925,44 +925,44 @@ protected:
 class SrsBandwidthPacket : public SrsPacket
 {
 private:
-	typedef SrsPacket super;
-	disable_default_copy(SrsBandwidthPacket);
+    typedef SrsPacket super;
+    disable_default_copy(SrsBandwidthPacket);
 protected:
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsBandwidthPacket);
-	}
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsBandwidthPacket);
+    }
 public:
-	std::string command_name;
-	double transaction_id;
-	SrsAmf0Any* args; // null
-	SrsAmf0Object* data;
+    std::string command_name;
+    double transaction_id;
+    SrsAmf0Any* args; // null
+    SrsAmf0Object* data;
 public:
-	SrsBandwidthPacket();
-	virtual ~SrsBandwidthPacket();
+    SrsBandwidthPacket();
+    virtual ~SrsBandwidthPacket();
 public:
-	virtual int get_perfer_cid();
+    virtual int get_perfer_cid();
 public:
-	virtual int get_message_type();
+    virtual int get_message_type();
 protected:
-	virtual int get_size();
-	virtual int encode_packet(SrsStream* stream);
+    virtual int get_size();
+    virtual int encode_packet(SrsStream* stream);
 public:
     virtual int decode(SrsStream* stream);
 public:
-	virtual bool is_starting_play();
-	virtual bool is_stopped_play();
-	virtual bool is_starting_publish();
-	virtual bool is_stopped_publish();
-	virtual bool is_flash_final();
-	static SrsBandwidthPacket* create_finish();
-	static SrsBandwidthPacket* create_start_play();
-	static SrsBandwidthPacket* create_playing();
-	static SrsBandwidthPacket* create_stop_play();
-	static SrsBandwidthPacket* create_start_publish();
-	static SrsBandwidthPacket* create_stop_publish();
+    virtual bool is_starting_play();
+    virtual bool is_stopped_play();
+    virtual bool is_starting_publish();
+    virtual bool is_stopped_publish();
+    virtual bool is_flash_final();
+    static SrsBandwidthPacket* create_finish();
+    static SrsBandwidthPacket* create_start_play();
+    static SrsBandwidthPacket* create_playing();
+    static SrsBandwidthPacket* create_stop_play();
+    static SrsBandwidthPacket* create_start_publish();
+    static SrsBandwidthPacket* create_stop_publish();
 private:
-	virtual SrsBandwidthPacket* set_command(std::string command);
+    virtual SrsBandwidthPacket* set_command(std::string command);
 };
 
 /**
@@ -972,25 +972,25 @@ private:
 class SrsOnStatusDataPacket : public SrsPacket
 {
 private:
-	typedef SrsPacket super;
+    typedef SrsPacket super;
 protected:
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsOnStatusDataPacket);
-	}
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsOnStatusDataPacket);
+    }
 public:
-	std::string command_name;
-	SrsAmf0Object* data;
+    std::string command_name;
+    SrsAmf0Object* data;
 public:
-	SrsOnStatusDataPacket();
-	virtual ~SrsOnStatusDataPacket();
+    SrsOnStatusDataPacket();
+    virtual ~SrsOnStatusDataPacket();
 public:
-	virtual int get_perfer_cid();
+    virtual int get_perfer_cid();
 public:
-	virtual int get_message_type();
+    virtual int get_message_type();
 protected:
-	virtual int get_size();
-	virtual int encode_packet(SrsStream* stream);
+    virtual int get_size();
+    virtual int encode_packet(SrsStream* stream);
 };
 
 /**
@@ -1000,26 +1000,26 @@ protected:
 class SrsSampleAccessPacket : public SrsPacket
 {
 private:
-	typedef SrsPacket super;
+    typedef SrsPacket super;
 protected:
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsSampleAccessPacket);
-	}
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsSampleAccessPacket);
+    }
 public:
-	std::string command_name;
-	bool video_sample_access;
-	bool audio_sample_access;
+    std::string command_name;
+    bool video_sample_access;
+    bool audio_sample_access;
 public:
-	SrsSampleAccessPacket();
-	virtual ~SrsSampleAccessPacket();
+    SrsSampleAccessPacket();
+    virtual ~SrsSampleAccessPacket();
 public:
-	virtual int get_perfer_cid();
+    virtual int get_perfer_cid();
 public:
-	virtual int get_message_type();
+    virtual int get_message_type();
 protected:
-	virtual int get_size();
-	virtual int encode_packet(SrsStream* stream);
+    virtual int get_size();
+    virtual int encode_packet(SrsStream* stream);
 };
 
 /**
@@ -1030,27 +1030,27 @@ protected:
 class SrsOnMetaDataPacket : public SrsPacket
 {
 private:
-	typedef SrsPacket super;
+    typedef SrsPacket super;
 protected:
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsOnMetaDataPacket);
-	}
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsOnMetaDataPacket);
+    }
 public:
-	std::string name;
-	SrsAmf0Object* metadata;
+    std::string name;
+    SrsAmf0Object* metadata;
 public:
-	SrsOnMetaDataPacket();
-	virtual ~SrsOnMetaDataPacket();
+    SrsOnMetaDataPacket();
+    virtual ~SrsOnMetaDataPacket();
 public:
-	virtual int decode(SrsStream* stream);
+    virtual int decode(SrsStream* stream);
 public:
-	virtual int get_perfer_cid();
+    virtual int get_perfer_cid();
 public:
-	virtual int get_message_type();
+    virtual int get_message_type();
 protected:
-	virtual int get_size();
-	virtual int encode_packet(SrsStream* stream);
+    virtual int get_size();
+    virtual int encode_packet(SrsStream* stream);
 };
 
 /**
@@ -1061,26 +1061,26 @@ protected:
 class SrsSetWindowAckSizePacket : public SrsPacket
 {
 private:
-	typedef SrsPacket super;
+    typedef SrsPacket super;
 protected:
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsSetWindowAckSizePacket);
-	}
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsSetWindowAckSizePacket);
+    }
 public:
-	int32_t ackowledgement_window_size;
+    int32_t ackowledgement_window_size;
 public:
-	SrsSetWindowAckSizePacket();
-	virtual ~SrsSetWindowAckSizePacket();
+    SrsSetWindowAckSizePacket();
+    virtual ~SrsSetWindowAckSizePacket();
 public:
-	virtual int decode(SrsStream* stream);
+    virtual int decode(SrsStream* stream);
 public:
-	virtual int get_perfer_cid();
+    virtual int get_perfer_cid();
 public:
-	virtual int get_message_type();
+    virtual int get_message_type();
 protected:
-	virtual int get_size();
-	virtual int encode_packet(SrsStream* stream);
+    virtual int get_size();
+    virtual int encode_packet(SrsStream* stream);
 };
 
 /**
@@ -1091,24 +1091,24 @@ protected:
 class SrsAcknowledgementPacket : public SrsPacket
 {
 private:
-	typedef SrsPacket super;
+    typedef SrsPacket super;
 protected:
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsAcknowledgementPacket);
-	}
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsAcknowledgementPacket);
+    }
 public:
-	int32_t sequence_number;
+    int32_t sequence_number;
 public:
-	SrsAcknowledgementPacket();
-	virtual ~SrsAcknowledgementPacket();
+    SrsAcknowledgementPacket();
+    virtual ~SrsAcknowledgementPacket();
 public:
-	virtual int get_perfer_cid();
+    virtual int get_perfer_cid();
 public:
-	virtual int get_message_type();
+    virtual int get_message_type();
 protected:
-	virtual int get_size();
-	virtual int encode_packet(SrsStream* stream);
+    virtual int get_size();
+    virtual int encode_packet(SrsStream* stream);
 };
 
 /**
@@ -1119,26 +1119,26 @@ protected:
 class SrsSetChunkSizePacket : public SrsPacket
 {
 private:
-	typedef SrsPacket super;
+    typedef SrsPacket super;
 protected:
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsSetChunkSizePacket);
-	}
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsSetChunkSizePacket);
+    }
 public:
-	int32_t chunk_size;
+    int32_t chunk_size;
 public:
-	SrsSetChunkSizePacket();
-	virtual ~SrsSetChunkSizePacket();
+    SrsSetChunkSizePacket();
+    virtual ~SrsSetChunkSizePacket();
 public:
-	virtual int decode(SrsStream* stream);
+    virtual int decode(SrsStream* stream);
 public:
-	virtual int get_perfer_cid();
+    virtual int get_perfer_cid();
 public:
-	virtual int get_message_type();
+    virtual int get_message_type();
 protected:
-	virtual int get_size();
-	virtual int encode_packet(SrsStream* stream);
+    virtual int get_size();
+    virtual int encode_packet(SrsStream* stream);
 };
 
 /**
@@ -1149,49 +1149,49 @@ protected:
 class SrsSetPeerBandwidthPacket : public SrsPacket
 {
 private:
-	typedef SrsPacket super;
+    typedef SrsPacket super;
 protected:
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsSetPeerBandwidthPacket);
-	}
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsSetPeerBandwidthPacket);
+    }
 public:
-	int32_t bandwidth;
-	int8_t type;
+    int32_t bandwidth;
+    int8_t type;
 public:
-	SrsSetPeerBandwidthPacket();
-	virtual ~SrsSetPeerBandwidthPacket();
+    SrsSetPeerBandwidthPacket();
+    virtual ~SrsSetPeerBandwidthPacket();
 public:
-	virtual int get_perfer_cid();
+    virtual int get_perfer_cid();
 public:
-	virtual int get_message_type();
+    virtual int get_message_type();
 protected:
-	virtual int get_size();
-	virtual int encode_packet(SrsStream* stream);
+    virtual int get_size();
+    virtual int encode_packet(SrsStream* stream);
 };
 
 // 3.7. User Control message
 enum SrcPCUCEventType
 {
-	 // generally, 4bytes event-data
-	SrcPCUCStreamBegin 			= 0x00,
-	SrcPCUCStreamEOF 			= 0x01,
-	SrcPCUCStreamDry 			= 0x02,
-	SrcPCUCSetBufferLength 		= 0x03, // 8bytes event-data
-	SrcPCUCStreamIsRecorded 	= 0x04,
-	SrcPCUCPingRequest 			= 0x06,
-	SrcPCUCPingResponse 		= 0x07,
+     // generally, 4bytes event-data
+    SrcPCUCStreamBegin             = 0x00,
+    SrcPCUCStreamEOF             = 0x01,
+    SrcPCUCStreamDry             = 0x02,
+    SrcPCUCSetBufferLength         = 0x03, // 8bytes event-data
+    SrcPCUCStreamIsRecorded     = 0x04,
+    SrcPCUCPingRequest             = 0x06,
+    SrcPCUCPingResponse         = 0x07,
 };
 
 /**
 * for the EventData is 4bytes.
-* Stream Begin(=0)			4-bytes stream ID
-* Stream EOF(=1)			4-bytes stream ID
-* StreamDry(=2)				4-bytes stream ID
-* SetBufferLength(=3)		8-bytes 4bytes stream ID, 4bytes buffer length.
-* StreamIsRecorded(=4)		4-bytes stream ID
-* PingRequest(=6)			4-bytes timestamp local server time
-* PingResponse(=7)			4-bytes timestamp received ping request.
+* Stream Begin(=0)            4-bytes stream ID
+* Stream EOF(=1)            4-bytes stream ID
+* StreamDry(=2)                4-bytes stream ID
+* SetBufferLength(=3)        8-bytes 4bytes stream ID, 4bytes buffer length.
+* StreamIsRecorded(=4)        4-bytes stream ID
+* PingRequest(=6)            4-bytes timestamp local server time
+* PingResponse(=7)            4-bytes timestamp received ping request.
 * 
 * 3.7. User Control message
 * +------------------------------+-------------------------
@@ -1202,32 +1202,32 @@ enum SrcPCUCEventType
 class SrsUserControlPacket : public SrsPacket
 {
 private:
-	typedef SrsPacket super;
+    typedef SrsPacket super;
 protected:
-	virtual const char* get_class_name()
-	{
-		return CLASS_NAME_STRING(SrsUserControlPacket);
-	}
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsUserControlPacket);
+    }
 public:
-	// @see: SrcPCUCEventType
-	int16_t event_type;
-	int32_t event_data;
-	/**
-	* 4bytes if event_type is SetBufferLength; otherwise 0.
-	*/
-	int32_t extra_data;
+    // @see: SrcPCUCEventType
+    int16_t event_type;
+    int32_t event_data;
+    /**
+    * 4bytes if event_type is SetBufferLength; otherwise 0.
+    */
+    int32_t extra_data;
 public:
-	SrsUserControlPacket();
-	virtual ~SrsUserControlPacket();
+    SrsUserControlPacket();
+    virtual ~SrsUserControlPacket();
 public:
-	virtual int decode(SrsStream* stream);
+    virtual int decode(SrsStream* stream);
 public:
-	virtual int get_perfer_cid();
+    virtual int get_perfer_cid();
 public:
-	virtual int get_message_type();
+    virtual int get_message_type();
 protected:
-	virtual int get_size();
-	virtual int encode_packet(SrsStream* stream);
+    virtual int get_size();
+    virtual int encode_packet(SrsStream* stream);
 };
 
 /**
@@ -1236,52 +1236,52 @@ protected:
 * @ppacket, store in the pmsg, user must never free it. NULL if not success.
 * @remark, only when success, user can use and must free the pmsg/ppacket.
 * for example:
- 		SrsCommonMessage* msg = NULL;
-		SrsConnectAppResPacket* pkt = NULL;
-		if ((ret = srs_rtmp_expect_message<SrsConnectAppResPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
-			return ret;
-		}
-		// use pkt
+         SrsCommonMessage* msg = NULL;
+        SrsConnectAppResPacket* pkt = NULL;
+        if ((ret = srs_rtmp_expect_message<SrsConnectAppResPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        // use pkt
 * user should never recv message and convert it, use this method instead.
 * if need to set timeout, use set timeout of SrsProtocol.
 */
 template<class T>
 int srs_rtmp_expect_message(SrsProtocol* protocol, SrsCommonMessage** pmsg, T** ppacket)
 {
-	*pmsg = NULL;
-	*ppacket = NULL;
-	
-	int ret = ERROR_SUCCESS;
-	
-	while (true) {
-		SrsCommonMessage* msg = NULL;
-		if ((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS) {
-			srs_error("recv message failed. ret=%d", ret);
-			return ret;
-		}
-		srs_verbose("recv message success.");
-		
-		if ((ret = msg->decode_packet(protocol)) != ERROR_SUCCESS) {
-			delete msg;
-			srs_error("decode message failed. ret=%d", ret);
-			return ret;
-		}
-		
-		T* pkt = dynamic_cast<T*>(msg->get_packet());
-		if (!pkt) {
-			delete msg;
-			srs_trace("drop message(type=%d, size=%d, time=%"PRId64", sid=%d).", 
-				msg->header.message_type, msg->header.payload_length,
-				msg->header.timestamp, msg->header.stream_id);
-			continue;
-		}
-		
-		*pmsg = msg;
-		*ppacket = pkt;
-		break;
-	}
-	
-	return ret;
+    *pmsg = NULL;
+    *ppacket = NULL;
+    
+    int ret = ERROR_SUCCESS;
+    
+    while (true) {
+        SrsCommonMessage* msg = NULL;
+        if ((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS) {
+            srs_error("recv message failed. ret=%d", ret);
+            return ret;
+        }
+        srs_verbose("recv message success.");
+        
+        if ((ret = msg->decode_packet(protocol)) != ERROR_SUCCESS) {
+            delete msg;
+            srs_error("decode message failed. ret=%d", ret);
+            return ret;
+        }
+        
+        T* pkt = dynamic_cast<T*>(msg->get_packet());
+        if (!pkt) {
+            delete msg;
+            srs_trace("drop message(type=%d, size=%d, time=%"PRId64", sid=%d).", 
+                msg->header.message_type, msg->header.payload_length,
+                msg->header.timestamp, msg->header.stream_id);
+            continue;
+        }
+        
+        *pmsg = msg;
+        *ppacket = pkt;
+        break;
+    }
+    
+    return ret;
 }
 
 #endif

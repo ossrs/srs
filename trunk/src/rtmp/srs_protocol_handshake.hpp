@@ -39,17 +39,17 @@ class SrsComplexHandshake;
 class SrsSimpleHandshake
 {
 public:
-	SrsSimpleHandshake();
-	virtual ~SrsSimpleHandshake();
+    SrsSimpleHandshake();
+    virtual ~SrsSimpleHandshake();
 public:
-	/**
-	* simple handshake.
-	* @param complex_hs, try complex handshake first, 
-	* 		if NULL, use simple handshake.
-	* 		if failed, rollback to simple handshake.
-	*/
-	virtual int handshake_with_client(ISrsProtocolReaderWriter* io, SrsComplexHandshake* complex_hs);
-	virtual int handshake_with_server(ISrsProtocolReaderWriter* io, SrsComplexHandshake* complex_hs);
+    /**
+    * simple handshake.
+    * @param complex_hs, try complex handshake first, 
+    *         if NULL, use simple handshake.
+    *         if failed, rollback to simple handshake.
+    */
+    virtual int handshake_with_client(ISrsProtocolReaderWriter* io, SrsComplexHandshake* complex_hs);
+    virtual int handshake_with_server(ISrsProtocolReaderWriter* io, SrsComplexHandshake* complex_hs);
 };
 
 /**
@@ -60,20 +60,20 @@ public:
 class SrsComplexHandshake
 {
 public:
-	SrsComplexHandshake();
-	virtual ~SrsComplexHandshake();
+    SrsComplexHandshake();
+    virtual ~SrsComplexHandshake();
 public:
-	/**
-	* complex hanshake.
-	* @_c1, size of c1 must be 1536.
-	* @remark, user must free the c1.
-	* @return user must:
-	* 	continue connect app if success,
-	* 	try simple handshake if error is ERROR_RTMP_TRY_SIMPLE_HS,
-	* 	otherwise, disconnect
-	*/
-	virtual int handshake_with_client(ISrsProtocolReaderWriter* io, char* _c1);
-	virtual int handshake_with_server(ISrsProtocolReaderWriter* io);
+    /**
+    * complex hanshake.
+    * @_c1, size of c1 must be 1536.
+    * @remark, user must free the c1.
+    * @return user must:
+    *     continue connect app if success,
+    *     try simple handshake if error is ERROR_RTMP_TRY_SIMPLE_HS,
+    *     otherwise, disconnect
+    */
+    virtual int handshake_with_client(ISrsProtocolReaderWriter* io, char* _c1);
+    virtual int handshake_with_server(ISrsProtocolReaderWriter* io);
 };
 
 #endif

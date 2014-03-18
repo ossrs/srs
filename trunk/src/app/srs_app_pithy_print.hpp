@@ -50,39 +50,39 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsPithyPrint
 {
 private:
-	int client_id;
-	int stage_id;
-	int64_t age;
-	int64_t printed_age;
+    int client_id;
+    int stage_id;
+    int64_t age;
+    int64_t printed_age;
 public:
-	/**
-	* @param _stage_id defined in SRS_STAGE_xxx, eg. SRS_STAGE_PLAY_USER.
-	*/
-	SrsPithyPrint(int _stage_id);
-	virtual ~SrsPithyPrint();
+    /**
+    * @param _stage_id defined in SRS_STAGE_xxx, eg. SRS_STAGE_PLAY_USER.
+    */
+    SrsPithyPrint(int _stage_id);
+    virtual ~SrsPithyPrint();
 private:
-	/**
-	* enter the specified stage, return the client id.
-	*/
-	virtual int enter_stage();
-	/**
-	* leave the specified stage, release the client id.
-	*/
-	virtual void leave_stage();
+    /**
+    * enter the specified stage, return the client id.
+    */
+    virtual int enter_stage();
+    /**
+    * leave the specified stage, release the client id.
+    */
+    virtual void leave_stage();
 public:
-	/**
-	* specified client elapse some time.
-	*/
-	virtual void elapse(int64_t time_ms);
-	/**
-	* whether current client can print.
-	*/
-	virtual bool can_print();
-	/**
-	* get the elapsed time in ms.
-	*/
-	virtual int64_t get_age();
-	virtual void set_age(int64_t _age);
+    /**
+    * specified client elapse some time.
+    */
+    virtual void elapse(int64_t time_ms);
+    /**
+    * whether current client can print.
+    */
+    virtual bool can_print();
+    /**
+    * get the elapsed time in ms.
+    */
+    virtual int64_t get_age();
+    virtual void set_age(int64_t _age);
 };
 
 #endif

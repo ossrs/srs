@@ -158,8 +158,8 @@ public:
 private:
     int connect_server();
 private:
-	st_netfd_t stfd;
-	ISrsProtocolReaderWriter* skt;
+    st_netfd_t stfd;
+    ISrsProtocolReaderWriter* skt;
     SrsBandCheckClient* bandCheck_Client;
     std::string server_address;
     int server_port;
@@ -493,8 +493,8 @@ int SrsBandCheckClient::expect_stop_pub()
     this->set_recv_timeout(1000 * 1000);
     this->set_send_timeout(1000 * 1000);
     
-	SrsCommonMessage* msg;
-	SrsBandwidthPacket* pkt;
+    SrsCommonMessage* msg;
+    SrsBandwidthPacket* pkt;
     if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(this->protocol, &msg, &pkt)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -641,16 +641,16 @@ int SrsBandCheckClient::send_final()
 
 SrsBandCheck::SrsBandCheck()
 {
-	skt = NULL;
-	bandCheck_Client = NULL;
-	stfd = NULL;
+    skt = NULL;
+    bandCheck_Client = NULL;
+    stfd = NULL;
 }
 
 SrsBandCheck::~SrsBandCheck()
 {
-	srs_freep(bandCheck_Client);
-	srs_freep(skt);
-	srs_close_stfd(stfd);
+    srs_freep(bandCheck_Client);
+    srs_freep(skt);
+    srs_close_stfd(stfd);
 }
 
 int SrsBandCheck::check(const std::string &app, const std::string &tcUrl)
@@ -709,7 +709,7 @@ int SrsBandCheck::connect_server()
         return ret;
     }
 
-	skt = new SrsSocket(stfd);
+    skt = new SrsSocket(stfd);
     bandCheck_Client = new SrsBandCheckClient(skt);
 
     // connect to server.
@@ -757,7 +757,7 @@ int init_st()
 void print_help(char** argv)
 {
     printf(
-		"Usage: %s [OPTION]...\n"
+        "Usage: %s [OPTION]...\n"
         "test band width from client to rtmp server.\n"
         "Mandatory arguments to long options are mandatory for short options too.\n"
         "  -i, --ip                  the ip or domain that to test\n"
@@ -767,8 +767,8 @@ void print_help(char** argv)
         "  -V, --version             output version information and exit \n"
         "  -h, --help                display this help and exit \n"
         "\n"
-		"For example:\n"
-		"	%s -i 127.0.0.1 -p 1935 -v bandcheck.srs.com -k 35c9b402c12a7246868752e2878f7e0e"
+        "For example:\n"
+        "    %s -i 127.0.0.1 -p 1935 -v bandcheck.srs.com -k 35c9b402c12a7246868752e2878f7e0e"
         "\n\n"
         "Exit status:\n"
         "0      if OK,\n"

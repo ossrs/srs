@@ -38,9 +38,9 @@ using namespace std;
 
 // if user want to define log, define the folowing macro.
 #ifndef SRS_RTMP_USER_DEFINED_LOG
-	// kernel module.
-	ISrsLog* _srs_log = new ISrsLog();
-	ISrsThreadContext* _srs_context = new ISrsThreadContext();
+    // kernel module.
+    ISrsLog* _srs_log = new ISrsLog();
+    ISrsThreadContext* _srs_context = new ISrsThreadContext();
 #endif
 
 /**
@@ -48,14 +48,14 @@ using namespace std;
 */
 struct Context
 {
-	std::string url;
-	std::string tcUrl;
-	std::string host;
-	std::string port;
-	std::string vhost;
-	std::string app;
-	std::string stream;
-	
+    std::string url;
+    std::string tcUrl;
+    std::string host;
+    std::string port;
+    std::string vhost;
+    std::string app;
+    std::string stream;
+    
     SrsRtmpClient* rtmp;
     SimpleSocketStream* skt;
     int stream_id;
@@ -73,68 +73,68 @@ struct Context
 
 int srs_librtmp_context_connect(Context* context) 
 {
-	int ret = ERROR_SUCCESS;
+    int ret = ERROR_SUCCESS;
     
     // parse uri
-	size_t pos = string::npos;
-	string uri = context->url;
-	// tcUrl, stream
-	if ((pos = uri.rfind("/")) != string::npos) {
-		context->stream = uri.substr(pos + 1);
-		context->tcUrl = uri = uri.substr(0, pos);
-	}
-	// schema
-	if ((pos = uri.find("rtmp://")) != string::npos) {
-		uri = uri.substr(pos + 7);
-	}
-	// host/vhost/port
-	if ((pos = uri.find(":")) != string::npos) {
-		context->vhost = context->host = uri.substr(0, pos);
-		uri = uri.substr(pos + 1);
-		
-		if ((pos = uri.find("/")) != string::npos) {
-			context->port = uri.substr(0, pos);
-			uri = uri.substr(pos + 1);
-		}
-	} else {
-		if ((pos = uri.find("/")) != string::npos) {
-			context->vhost = context->host = uri.substr(0, pos);
-			uri = uri.substr(pos + 1);
-		}
-		context->port = RTMP_DEFAULT_PORT;
-	}
-	// app
-	context->app = uri;
-	// query of app
-	if ((pos = uri.find("?")) != string::npos) {
-		context->app = uri.substr(0, pos);
-		string query = uri.substr(pos + 1);
-		if ((pos = query.find("vhost=")) != string::npos) {
-			context->vhost = query.substr(pos + 6);
-			if ((pos = context->vhost.find("&")) != string::npos) {
-				context->vhost = context->vhost.substr(pos);
-			}
-		}
-	}
+    size_t pos = string::npos;
+    string uri = context->url;
+    // tcUrl, stream
+    if ((pos = uri.rfind("/")) != string::npos) {
+        context->stream = uri.substr(pos + 1);
+        context->tcUrl = uri = uri.substr(0, pos);
+    }
+    // schema
+    if ((pos = uri.find("rtmp://")) != string::npos) {
+        uri = uri.substr(pos + 7);
+    }
+    // host/vhost/port
+    if ((pos = uri.find(":")) != string::npos) {
+        context->vhost = context->host = uri.substr(0, pos);
+        uri = uri.substr(pos + 1);
+        
+        if ((pos = uri.find("/")) != string::npos) {
+            context->port = uri.substr(0, pos);
+            uri = uri.substr(pos + 1);
+        }
+    } else {
+        if ((pos = uri.find("/")) != string::npos) {
+            context->vhost = context->host = uri.substr(0, pos);
+            uri = uri.substr(pos + 1);
+        }
+        context->port = RTMP_DEFAULT_PORT;
+    }
+    // app
+    context->app = uri;
+    // query of app
+    if ((pos = uri.find("?")) != string::npos) {
+        context->app = uri.substr(0, pos);
+        string query = uri.substr(pos + 1);
+        if ((pos = query.find("vhost=")) != string::npos) {
+            context->vhost = query.substr(pos + 6);
+            if ((pos = context->vhost.find("&")) != string::npos) {
+                context->vhost = context->vhost.substr(pos);
+            }
+        }
+    }
     
     // create socket
-	srs_freep(context->skt);
-	context->skt = new SimpleSocketStream();
-	
-	if ((ret = context->skt->create_socket()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	// connect to server:port
-	string server = srs_dns_resolve(context->host);
-	if (server.empty()) {
-		return -1;
-	}
-	if ((ret = context->skt->connect(server.c_str(), ::atoi(context->port.c_str()))) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	return ret;
+    srs_freep(context->skt);
+    context->skt = new SimpleSocketStream();
+    
+    if ((ret = context->skt->create_socket()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // connect to server:port
+    string server = srs_dns_resolve(context->host);
+    if (server.empty()) {
+        return -1;
+    }
+    if ((ret = context->skt->connect(server.c_str(), ::atoi(context->port.c_str()))) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
 }
 
 #ifdef __cplusplus
@@ -144,7 +144,7 @@ extern "C"{
 srs_rtmp_t srs_rtmp_create(const char* url)
 {
     Context* context = new Context();
-	context->url = url;
+    context->url = url;
     return context;
 }
 
@@ -158,8 +158,8 @@ void srs_rtmp_destroy(srs_rtmp_t rtmp)
 
 int srs_simple_handshake(srs_rtmp_t rtmp)
 {
-	int ret = ERROR_SUCCESS;
-	
+    int ret = ERROR_SUCCESS;
+    
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
     
@@ -167,26 +167,26 @@ int srs_simple_handshake(srs_rtmp_t rtmp)
     if ((ret = srs_librtmp_context_connect(context)) != ERROR_SUCCESS) {
         return ret;
     }
-	
-	// simple handshake
-	srs_freep(context->rtmp);
-	context->rtmp = new SrsRtmpClient(context->skt);
-	
-	if ((ret = context->rtmp->simple_handshake()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	return ret;
+    
+    // simple handshake
+    srs_freep(context->rtmp);
+    context->rtmp = new SrsRtmpClient(context->skt);
+    
+    if ((ret = context->rtmp->simple_handshake()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
 }
 
 int srs_complex_handshake(srs_rtmp_t rtmp)
 {
 #ifndef SRS_SSL
-	return ERROR_RTMP_HS_SSL_REQUIRE;
+    return ERROR_RTMP_HS_SSL_REQUIRE;
 #endif
 
-	int ret = ERROR_SUCCESS;
-	
+    int ret = ERROR_SUCCESS;
+    
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
     
@@ -194,43 +194,43 @@ int srs_complex_handshake(srs_rtmp_t rtmp)
     if ((ret = srs_librtmp_context_connect(context)) != ERROR_SUCCESS) {
         return ret;
     }
-	
-	// complex handshake
-	srs_freep(context->rtmp);
-	context->rtmp = new SrsRtmpClient(context->skt);
-	
-	if ((ret = context->rtmp->complex_handshake()) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	return ret;
+    
+    // complex handshake
+    srs_freep(context->rtmp);
+    context->rtmp = new SrsRtmpClient(context->skt);
+    
+    if ((ret = context->rtmp->complex_handshake()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
 }
 
 int srs_connect_app(srs_rtmp_t rtmp)
 {
-	int ret = ERROR_SUCCESS;
-	
+    int ret = ERROR_SUCCESS;
+    
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
-	
-	string tcUrl = "rtmp://";
-	tcUrl += context->vhost;
-	tcUrl += ":";
-	tcUrl += context->port;
-	tcUrl += "/";
-	tcUrl += context->app;
-	
-	if ((ret = context->rtmp->connect_app(context->app, tcUrl)) != ERROR_SUCCESS) {
-		return ret;
-	}
-	
-	return ret;
+    
+    string tcUrl = "rtmp://";
+    tcUrl += context->vhost;
+    tcUrl += ":";
+    tcUrl += context->port;
+    tcUrl += "/";
+    tcUrl += context->app;
+    
+    if ((ret = context->rtmp->connect_app(context->app, tcUrl)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
 }
 
 int srs_play_stream(srs_rtmp_t rtmp)
 {
-	int ret = ERROR_SUCCESS;
-	
+    int ret = ERROR_SUCCESS;
+    
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
     
@@ -241,13 +241,13 @@ int srs_play_stream(srs_rtmp_t rtmp)
         return ret;
     }
     
-	return ret;
+    return ret;
 }
 
 int srs_publish_stream(srs_rtmp_t rtmp)
 {
-	int ret = ERROR_SUCCESS;
-	
+    int ret = ERROR_SUCCESS;
+    
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
     
@@ -255,30 +255,30 @@ int srs_publish_stream(srs_rtmp_t rtmp)
         return ret;
     }
     
-	return ret;
+    return ret;
 }
 
 const char* srs_type2string(int type)
 {
-	switch (type) {
-		case SRS_RTMP_TYPE_AUDIO: return "Audio";
-		case SRS_RTMP_TYPE_VIDEO: return "Video";
-		case SRS_RTMP_TYPE_SCRIPT: return "Data";
-		default: return "Unknown";
-	}
-	
-	return "Unknown";
+    switch (type) {
+        case SRS_RTMP_TYPE_AUDIO: return "Audio";
+        case SRS_RTMP_TYPE_VIDEO: return "Video";
+        case SRS_RTMP_TYPE_SCRIPT: return "Data";
+        default: return "Unknown";
+    }
+    
+    return "Unknown";
 }
 
 int srs_read_packet(srs_rtmp_t rtmp, int* type, u_int32_t* timestamp, char** data, int* size)
 {
-	*type = 0;
-	*timestamp = 0;
-	*data = NULL;
-	*size = 0;
-	
-	int ret = ERROR_SUCCESS;
-	
+    *type = 0;
+    *timestamp = 0;
+    *data = NULL;
+    *size = 0;
+    
+    int ret = ERROR_SUCCESS;
+    
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
     
@@ -322,81 +322,81 @@ int srs_read_packet(srs_rtmp_t rtmp, int* type, u_int32_t* timestamp, char** dat
         break;
     }
     
-	return ret;
+    return ret;
 }
 
 int srs_write_packet(srs_rtmp_t rtmp, int type, u_int32_t timestamp, char* data, int size)
 {
-	int ret = ERROR_SUCCESS;
-	
+    int ret = ERROR_SUCCESS;
+    
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
-	
-	SrsSharedPtrMessage* msg = NULL;
-	
-	if (type == SRS_RTMP_TYPE_AUDIO) {
-		SrsMessageHeader header;
-		header.initialize_audio(size, timestamp, context->stream_id);
-		
-		msg = new SrsSharedPtrMessage();
-		if ((ret = msg->initialize(&header, data, size)) != ERROR_SUCCESS) {
-			srs_freepa(data);
-			return ret;
-		}
-	} else if (type == SRS_RTMP_TYPE_VIDEO) {
-		SrsMessageHeader header;
-		header.initialize_video(size, timestamp, context->stream_id);
-		
-		msg = new SrsSharedPtrMessage();
-		if ((ret = msg->initialize(&header, data, size)) != ERROR_SUCCESS) {
-			srs_freepa(data);
-			return ret;
-		}
-	} else if (type == SRS_RTMP_TYPE_SCRIPT) {
-		SrsMessageHeader header;
-		header.initialize_amf0_script(size, context->stream_id);
-		
-		msg = new SrsSharedPtrMessage();
-		if ((ret = msg->initialize(&header, data, size)) != ERROR_SUCCESS) {
-			srs_freepa(data);
-			return ret;
-		}
-	}
-	
-	if (msg) {
-		// send out encoded msg.
-		if ((ret = context->rtmp->send_message(msg)) != ERROR_SUCCESS) {
-			return ret;
-		}
-	} else {
-		// directly free data if not sent out.
-		srs_freepa(data);
-	}
-	
-	return ret;
+    
+    SrsSharedPtrMessage* msg = NULL;
+    
+    if (type == SRS_RTMP_TYPE_AUDIO) {
+        SrsMessageHeader header;
+        header.initialize_audio(size, timestamp, context->stream_id);
+        
+        msg = new SrsSharedPtrMessage();
+        if ((ret = msg->initialize(&header, data, size)) != ERROR_SUCCESS) {
+            srs_freepa(data);
+            return ret;
+        }
+    } else if (type == SRS_RTMP_TYPE_VIDEO) {
+        SrsMessageHeader header;
+        header.initialize_video(size, timestamp, context->stream_id);
+        
+        msg = new SrsSharedPtrMessage();
+        if ((ret = msg->initialize(&header, data, size)) != ERROR_SUCCESS) {
+            srs_freepa(data);
+            return ret;
+        }
+    } else if (type == SRS_RTMP_TYPE_SCRIPT) {
+        SrsMessageHeader header;
+        header.initialize_amf0_script(size, context->stream_id);
+        
+        msg = new SrsSharedPtrMessage();
+        if ((ret = msg->initialize(&header, data, size)) != ERROR_SUCCESS) {
+            srs_freepa(data);
+            return ret;
+        }
+    }
+    
+    if (msg) {
+        // send out encoded msg.
+        if ((ret = context->rtmp->send_message(msg)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    } else {
+        // directly free data if not sent out.
+        srs_freepa(data);
+    }
+    
+    return ret;
 }
 
 int srs_ssl_enabled()
 {
 #ifndef SRS_SSL
-	return false;
+    return false;
 #endif
-	return true;
+    return true;
 }
 
 int srs_version_major()
 {
-	return ::atoi(VERSION_MAJOR);
+    return ::atoi(VERSION_MAJOR);
 }
 
 int srs_version_minor()
 {
-	return ::atoi(VERSION_MINOR);
+    return ::atoi(VERSION_MINOR);
 }
 
 int srs_version_revision()
 {
-	return ::atoi(VERSION_REVISION);
+    return ::atoi(VERSION_REVISION);
 }
 
 #ifdef __cplusplus

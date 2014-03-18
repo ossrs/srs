@@ -42,7 +42,7 @@ class SrsRefer;
 class SrsConsumer;
 class SrsCommonMessage;
 class SrsSocket;
-#ifdef SRS_HTTP_CALLBACK	
+#ifdef SRS_HTTP_CALLBACK    
 class SrsHttpHooks;
 #endif
 class SrsBandwidth;
@@ -53,43 +53,43 @@ class SrsBandwidth;
 class SrsClient : public SrsConnection, public ISrsReloadHandler
 {
 private:
-	char* ip;
-	SrsRequest* req;
-	SrsResponse* res;
-	SrsSocket* skt;
-	SrsRtmpServer* rtmp;
-	SrsRefer* refer;
-#ifdef SRS_HTTP_CALLBACK	
-	SrsHttpHooks* http_hooks;
+    char* ip;
+    SrsRequest* req;
+    SrsResponse* res;
+    SrsSocket* skt;
+    SrsRtmpServer* rtmp;
+    SrsRefer* refer;
+#ifdef SRS_HTTP_CALLBACK    
+    SrsHttpHooks* http_hooks;
 #endif
-	SrsBandwidth* bandwidth;
+    SrsBandwidth* bandwidth;
 public:
-	SrsClient(SrsServer* srs_server, st_netfd_t client_stfd);
-	virtual ~SrsClient();
+    SrsClient(SrsServer* srs_server, st_netfd_t client_stfd);
+    virtual ~SrsClient();
 protected:
-	virtual int do_cycle();
+    virtual int do_cycle();
 // interface ISrsReloadHandler
 public:
-	virtual int on_reload_vhost_removed(std::string vhost);
+    virtual int on_reload_vhost_removed(std::string vhost);
 private:
-	// when valid and connected to vhost/app, service the client.
-	virtual int service_cycle();
-	// stream(play/publish) service cycle, identify client first.
-	virtual int stream_service_cycle();
-	virtual int check_vhost();
-	virtual int playing(SrsSource* source);
-	virtual int fmle_publish(SrsSource* source);
-	virtual int flash_publish(SrsSource* source);
-	virtual int process_publish_message(SrsSource* source, SrsCommonMessage* msg);
-	virtual int get_peer_ip();
-	virtual int process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage* msg);
+    // when valid and connected to vhost/app, service the client.
+    virtual int service_cycle();
+    // stream(play/publish) service cycle, identify client first.
+    virtual int stream_service_cycle();
+    virtual int check_vhost();
+    virtual int playing(SrsSource* source);
+    virtual int fmle_publish(SrsSource* source);
+    virtual int flash_publish(SrsSource* source);
+    virtual int process_publish_message(SrsSource* source, SrsCommonMessage* msg);
+    virtual int get_peer_ip();
+    virtual int process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage* msg);
 private:
-	virtual int on_connect();
-	virtual void on_close();
-	virtual int on_publish();
-	virtual void on_unpublish();
-	virtual int on_play();
-	virtual void on_stop();
+    virtual int on_connect();
+    virtual void on_close();
+    virtual int on_publish();
+    virtual void on_unpublish();
+    virtual int on_play();
+    virtual void on_stop();
 };
 
 #endif

@@ -41,53 +41,53 @@ class SrsConnection;
 
 enum SrsListenerType 
 {
-	SrsListenerStream = 0,
-	SrsListenerApi
+    SrsListenerStream = 0,
+    SrsListenerApi
 };
 
 class SrsListener : public ISrsThreadHandler
 {
 public:
-	SrsListenerType type;
+    SrsListenerType type;
 private:
-	int fd;
-	st_netfd_t stfd;
-	int port;
-	SrsServer* server;
-	SrsThread* pthread;
+    int fd;
+    st_netfd_t stfd;
+    int port;
+    SrsServer* server;
+    SrsThread* pthread;
 public:
-	SrsListener(SrsServer* _server, SrsListenerType _type);
-	virtual ~SrsListener();
+    SrsListener(SrsServer* _server, SrsListenerType _type);
+    virtual ~SrsListener();
 public:
-	virtual int listen(int port);
+    virtual int listen(int port);
 // interface ISrsThreadHandler.
 public:
-	virtual void on_enter_loop();
-	virtual int cycle();
+    virtual void on_enter_loop();
+    virtual int cycle();
 };
 
 class SrsServer : public ISrsReloadHandler
 {
-	friend class SrsListener;
+    friend class SrsListener;
 private:
-	std::vector<SrsConnection*> conns;
-	std::vector<SrsListener*> listeners;
-	bool signal_reload;
-	bool signal_gmc_stop;
+    std::vector<SrsConnection*> conns;
+    std::vector<SrsListener*> listeners;
+    bool signal_reload;
+    bool signal_gmc_stop;
 public:
-	SrsServer();
-	virtual ~SrsServer();
+    SrsServer();
+    virtual ~SrsServer();
 public:
-	virtual int initialize();
-	virtual int listen();
-	virtual int cycle();
-	virtual void remove(SrsConnection* conn);
-	virtual void on_signal(int signo);
+    virtual int initialize();
+    virtual int listen();
+    virtual int cycle();
+    virtual void remove(SrsConnection* conn);
+    virtual void on_signal(int signo);
 private:
-	virtual void close_listeners();
-	virtual int accept_client(SrsListenerType type, st_netfd_t client_stfd);
+    virtual void close_listeners();
+    virtual int accept_client(SrsListenerType type, st_netfd_t client_stfd);
 public:
-	virtual int on_reload_listen();
+    virtual int on_reload_listen();
 };
 
 #endif

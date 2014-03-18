@@ -69,18 +69,18 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // free the p and set to NULL.
 // p must be a T*.
 #define srs_freep(p) \
-	if (p) { \
-		delete p; \
-		p = NULL; \
-	} \
-	(void)0
+    if (p) { \
+        delete p; \
+        p = NULL; \
+    } \
+    (void)0
 // free the p which represents a array
 #define srs_freepa(p) \
-	if (p) { \
-		delete[] p; \
-		p = NULL; \
-	} \
-	(void)0
+    if (p) { \
+        delete[] p; \
+        p = NULL; \
+    } \
+    (void)0
 
 // compare
 #define srs_min(a, b) (((a) < (b))? (a) : (b))

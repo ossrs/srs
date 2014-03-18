@@ -39,30 +39,30 @@ SrsServer* _srs_server = NULL;
 // basic test and samples.
 VOID TEST(SampleTest, FastSampleInt64Test) 
 {
-	EXPECT_EQ(1, (int)sizeof(int8_t));
-	EXPECT_EQ(2, (int)sizeof(int16_t));
-	EXPECT_EQ(4, (int)sizeof(int32_t));
-	EXPECT_EQ(8, (int)sizeof(int64_t));
+    EXPECT_EQ(1, (int)sizeof(int8_t));
+    EXPECT_EQ(2, (int)sizeof(int16_t));
+    EXPECT_EQ(4, (int)sizeof(int32_t));
+    EXPECT_EQ(8, (int)sizeof(int64_t));
 }
 
 VOID TEST(SampleTest, FastSampleMacrosTest) 
 {
-	EXPECT_TRUE(1);
-	EXPECT_FALSE(0);
-	
-	EXPECT_EQ(1, 1); // ==
-	EXPECT_NE(1, 2); // !=
-	EXPECT_LE(1, 2); // <=
-	EXPECT_LT(1, 2); // <
-	EXPECT_GE(2, 1); // >=
-	EXPECT_GT(2, 1); // >
+    EXPECT_TRUE(1);
+    EXPECT_FALSE(0);
+    
+    EXPECT_EQ(1, 1); // ==
+    EXPECT_NE(1, 2); // !=
+    EXPECT_LE(1, 2); // <=
+    EXPECT_LT(1, 2); // <
+    EXPECT_GE(2, 1); // >=
+    EXPECT_GT(2, 1); // >
 
-	EXPECT_STREQ("winlin", "winlin");
-	EXPECT_STRNE("winlin", "srs");
-	EXPECT_STRCASEEQ("winlin", "Winlin");
-	EXPECT_STRCASENE("winlin", "srs");
-	
-	EXPECT_FLOAT_EQ(1.0, 1.000000000000001);
-	EXPECT_DOUBLE_EQ(1.0, 1.0000000000000001);
-	EXPECT_NEAR(10, 15, 5);
+    EXPECT_STREQ("winlin", "winlin");
+    EXPECT_STRNE("winlin", "srs");
+    EXPECT_STRCASEEQ("winlin", "Winlin");
+    EXPECT_STRCASENE("winlin", "srs");
+    
+    EXPECT_FLOAT_EQ(1.0, 1.000000000000001);
+    EXPECT_DOUBLE_EQ(1.0, 1.0000000000000001);
+    EXPECT_NEAR(10, 15, 5);
 }

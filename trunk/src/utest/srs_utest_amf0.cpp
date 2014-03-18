@@ -32,143 +32,143 @@ using namespace std;
 // user scenario: coding and decoding with amf0
 VOID TEST(AMF0Test, ScenarioMain)
 {
-	// coded amf0 object
-	int nb_bytes = 0;
-	char* bytes = NULL;
-	
-	// coding data to binaries by amf0
-	// for example, send connect app response to client.
-	if (true) {
-		// props: object
-		//		fmsVer: string
-		//		capabilities: number
-		//		mode: number
-		// info: object
-		// 		level: string
-		//		code: string
-		//		descrption: string
-		//		objectEncoding: number
-		//		data: array
-		//				version: string
-		//				srs_sig: string
-		SrsAmf0Object* props = SrsAmf0Any::object();
-		SrsAutoFree(SrsAmf0Object, props, false);
-		props->set("fmsVer", SrsAmf0Any::str("FMS/3,5,3,888"));
-		props->set("capabilities", SrsAmf0Any::number(253));
-		props->set("mode", SrsAmf0Any::number(123));
-		
-		SrsAmf0Object* info = SrsAmf0Any::object();
-		SrsAutoFree(SrsAmf0Object, info, false);
-		info->set("level", SrsAmf0Any::str("info"));
-		info->set("code", SrsAmf0Any::str("NetStream.Connnect.Success"));
-		info->set("descrption", SrsAmf0Any::str("connected"));
-		info->set("objectEncoding", SrsAmf0Any::number(3));
-		
-		SrsAmf0EcmaArray* data = SrsAmf0Any::ecma_array();
-		info->set("data", data);
-		data->set("version", SrsAmf0Any::str("FMS/3,5,3,888"));
-		data->set("srs_sig", SrsAmf0Any::str("srs"));
-		
-		// buf store the serialized props/info
-		nb_bytes = props->total_size() + info->total_size();
-		ASSERT_GT(nb_bytes, 0);
-		bytes = new char[nb_bytes];
-		
-		// use SrsStream to write props/info to binary buf.
-		SrsStream s;
-		EXPECT_EQ(ERROR_SUCCESS, s.initialize(bytes, nb_bytes));
-		EXPECT_EQ(ERROR_SUCCESS, props->write(&s));
-		EXPECT_EQ(ERROR_SUCCESS, info->write(&s));
-		EXPECT_TRUE(s.empty());
-		
-		// now, user can use the buf
-		EXPECT_EQ(0x03, bytes[0]);
-		EXPECT_EQ(0x09, bytes[nb_bytes - 1]);
-	}
-	SrsAutoFree(char, bytes, true);
-	
-	// decoding amf0 object from bytes
-	// when user know the schema
-	if (true) {
-		ASSERT_TRUE(NULL != bytes);
-		
-		// use SrsStream to assist amf0 object to read from bytes.
-		SrsStream s;
-		EXPECT_EQ(ERROR_SUCCESS, s.initialize(bytes, nb_bytes));
-		
-		// decoding
-		// if user know the schema, for instance, it's an amf0 object,
-		// user can use specified object to decoding.
-		SrsAmf0Object* props = SrsAmf0Any::object();
-		SrsAutoFree(SrsAmf0Object, props, false);
-		EXPECT_EQ(ERROR_SUCCESS, props->read(&s));
-		
-		// user can use specified object to decoding.
-		SrsAmf0Object* info = SrsAmf0Any::object();
-		SrsAutoFree(SrsAmf0Object, info, false);
-		EXPECT_EQ(ERROR_SUCCESS, info->read(&s));
-		
-		// use the decoded data.
-		SrsAmf0Any* prop = NULL;
-		
-		// if user requires specified property, use ensure of amf0 object
-		EXPECT_TRUE(NULL != (prop = props->ensure_property_string("fmsVer")));
-		// the property can assert to string.
-		ASSERT_TRUE(prop->is_string());
-		// get the prop string value.
-		EXPECT_STREQ("FMS/3,5,3,888", prop->to_str().c_str());
-		
-		// get other type property value
-		EXPECT_TRUE(NULL != (prop = info->get_property("data")));
-		// we cannot assert the property is ecma array
-		if (prop->is_ecma_array()) {
-			SrsAmf0EcmaArray* data = prop->to_ecma_array();
-			// it must be a ecma array.
-			ASSERT_TRUE(NULL != data);
-			
-			// get property of array
-			EXPECT_TRUE(NULL != (prop = data->ensure_property_string("srs_sig")));
-			ASSERT_TRUE(prop->is_string());
-			EXPECT_STREQ("srs", prop->to_str().c_str());
-		}
-		
-		// confidence about the schema
-		EXPECT_TRUE(NULL != (prop = info->ensure_property_string("level")));
-		ASSERT_TRUE(prop->is_string());
-		EXPECT_STREQ("info", prop->to_str().c_str());
-	}
-	
-	// use any to decoding it,
-	// if user donot know the schema
-	if (true) {
-		ASSERT_TRUE(NULL != bytes);
-		
-		// use SrsStream to assist amf0 object to read from bytes.
-		SrsStream s;
-		EXPECT_EQ(ERROR_SUCCESS, s.initialize(bytes, nb_bytes));
-		
-		// decoding a amf0 any, for user donot know
-		SrsAmf0Any* any = NULL;
-		EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &any));
-		SrsAutoFree(SrsAmf0Any, any, false);
-		
-		// for amf0 object
-		if (any->is_object()) {
-			SrsAmf0Object* obj = any->to_object();
-			ASSERT_TRUE(NULL != obj);
-			
-			// use foreach to process properties
-			for (int i = 0; i < obj->count(); ++i) {
-				string name = obj->key_at(i);
-				SrsAmf0Any* value = obj->value_at(i);
-				
-				// use the property name
-				EXPECT_TRUE("" != name);
-				// use the property value
-				EXPECT_TRUE(NULL != value);
-			}
-		}
-	}
+    // coded amf0 object
+    int nb_bytes = 0;
+    char* bytes = NULL;
+    
+    // coding data to binaries by amf0
+    // for example, send connect app response to client.
+    if (true) {
+        // props: object
+        //        fmsVer: string
+        //        capabilities: number
+        //        mode: number
+        // info: object
+        //         level: string
+        //        code: string
+        //        descrption: string
+        //        objectEncoding: number
+        //        data: array
+        //                version: string
+        //                srs_sig: string
+        SrsAmf0Object* props = SrsAmf0Any::object();
+        SrsAutoFree(SrsAmf0Object, props, false);
+        props->set("fmsVer", SrsAmf0Any::str("FMS/3,5,3,888"));
+        props->set("capabilities", SrsAmf0Any::number(253));
+        props->set("mode", SrsAmf0Any::number(123));
+        
+        SrsAmf0Object* info = SrsAmf0Any::object();
+        SrsAutoFree(SrsAmf0Object, info, false);
+        info->set("level", SrsAmf0Any::str("info"));
+        info->set("code", SrsAmf0Any::str("NetStream.Connnect.Success"));
+        info->set("descrption", SrsAmf0Any::str("connected"));
+        info->set("objectEncoding", SrsAmf0Any::number(3));
+        
+        SrsAmf0EcmaArray* data = SrsAmf0Any::ecma_array();
+        info->set("data", data);
+        data->set("version", SrsAmf0Any::str("FMS/3,5,3,888"));
+        data->set("srs_sig", SrsAmf0Any::str("srs"));
+        
+        // buf store the serialized props/info
+        nb_bytes = props->total_size() + info->total_size();
+        ASSERT_GT(nb_bytes, 0);
+        bytes = new char[nb_bytes];
+        
+        // use SrsStream to write props/info to binary buf.
+        SrsStream s;
+        EXPECT_EQ(ERROR_SUCCESS, s.initialize(bytes, nb_bytes));
+        EXPECT_EQ(ERROR_SUCCESS, props->write(&s));
+        EXPECT_EQ(ERROR_SUCCESS, info->write(&s));
+        EXPECT_TRUE(s.empty());
+        
+        // now, user can use the buf
+        EXPECT_EQ(0x03, bytes[0]);
+        EXPECT_EQ(0x09, bytes[nb_bytes - 1]);
+    }
+    SrsAutoFree(char, bytes, true);
+    
+    // decoding amf0 object from bytes
+    // when user know the schema
+    if (true) {
+        ASSERT_TRUE(NULL != bytes);
+        
+        // use SrsStream to assist amf0 object to read from bytes.
+        SrsStream s;
+        EXPECT_EQ(ERROR_SUCCESS, s.initialize(bytes, nb_bytes));
+        
+        // decoding
+        // if user know the schema, for instance, it's an amf0 object,
+        // user can use specified object to decoding.
+        SrsAmf0Object* props = SrsAmf0Any::object();
+        SrsAutoFree(SrsAmf0Object, props, false);
+        EXPECT_EQ(ERROR_SUCCESS, props->read(&s));
+        
+        // user can use specified object to decoding.
+        SrsAmf0Object* info = SrsAmf0Any::object();
+        SrsAutoFree(SrsAmf0Object, info, false);
+        EXPECT_EQ(ERROR_SUCCESS, info->read(&s));
+        
+        // use the decoded data.
+        SrsAmf0Any* prop = NULL;
+        
+        // if user requires specified property, use ensure of amf0 object
+        EXPECT_TRUE(NULL != (prop = props->ensure_property_string("fmsVer")));
+        // the property can assert to string.
+        ASSERT_TRUE(prop->is_string());
+        // get the prop string value.
+        EXPECT_STREQ("FMS/3,5,3,888", prop->to_str().c_str());
+        
+        // get other type property value
+        EXPECT_TRUE(NULL != (prop = info->get_property("data")));
+        // we cannot assert the property is ecma array
+        if (prop->is_ecma_array()) {
+            SrsAmf0EcmaArray* data = prop->to_ecma_array();
+            // it must be a ecma array.
+            ASSERT_TRUE(NULL != data);
+            
+            // get property of array
+            EXPECT_TRUE(NULL != (prop = data->ensure_property_string("srs_sig")));
+            ASSERT_TRUE(prop->is_string());
+            EXPECT_STREQ("srs", prop->to_str().c_str());
+        }
+        
+        // confidence about the schema
+        EXPECT_TRUE(NULL != (prop = info->ensure_property_string("level")));
+        ASSERT_TRUE(prop->is_string());
+        EXPECT_STREQ("info", prop->to_str().c_str());
+    }
+    
+    // use any to decoding it,
+    // if user donot know the schema
+    if (true) {
+        ASSERT_TRUE(NULL != bytes);
+        
+        // use SrsStream to assist amf0 object to read from bytes.
+        SrsStream s;
+        EXPECT_EQ(ERROR_SUCCESS, s.initialize(bytes, nb_bytes));
+        
+        // decoding a amf0 any, for user donot know
+        SrsAmf0Any* any = NULL;
+        EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &any));
+        SrsAutoFree(SrsAmf0Any, any, false);
+        
+        // for amf0 object
+        if (any->is_object()) {
+            SrsAmf0Object* obj = any->to_object();
+            ASSERT_TRUE(NULL != obj);
+            
+            // use foreach to process properties
+            for (int i = 0; i < obj->count(); ++i) {
+                string name = obj->key_at(i);
+                SrsAmf0Any* value = obj->value_at(i);
+                
+                // use the property name
+                EXPECT_TRUE("" != name);
+                // use the property value
+                EXPECT_TRUE(NULL != value);
+            }
+        }
+    }
 }
 
 VOID TEST(AMF0Test, ApiSize) 
@@ -429,623 +429,623 @@ VOID TEST(AMF0Test, ApiSize)
 
 VOID TEST(AMF0Test, ApiAnyElem) 
 {
-	SrsAmf0Any* o = NULL;
-	
-	// string
-	if (true) {
-		o = SrsAmf0Any::str();
-		SrsAutoFree(SrsAmf0Any, o, false);
-		ASSERT_TRUE(NULL != o);
-		EXPECT_TRUE(o->is_string());
-		EXPECT_STREQ("", o->to_str().c_str());
-	}
-	if (true) {
-		o = SrsAmf0Any::str("winlin");
-		SrsAutoFree(SrsAmf0Any, o, false);
-		ASSERT_TRUE(NULL != o);
-		EXPECT_TRUE(o->is_string());
-		EXPECT_STREQ("winlin", o->to_str().c_str());
-	}
-	
-	// bool
-	if (true) {
-		o = SrsAmf0Any::boolean();
-		SrsAutoFree(SrsAmf0Any, o, false);
-		ASSERT_TRUE(NULL != o);
-		EXPECT_TRUE(o->is_boolean());
-		EXPECT_FALSE(o->to_boolean());
-	}
-	if (true) {
-		o = SrsAmf0Any::boolean(false);
-		SrsAutoFree(SrsAmf0Any, o, false);
-		ASSERT_TRUE(NULL != o);
-		EXPECT_TRUE(o->is_boolean());
-		EXPECT_FALSE(o->to_boolean());
-	}
-	if (true) {
-		o = SrsAmf0Any::boolean(true);
-		SrsAutoFree(SrsAmf0Any, o, false);
-		ASSERT_TRUE(NULL != o);
-		EXPECT_TRUE(o->is_boolean());
-		EXPECT_TRUE(o->to_boolean());
-	}
-	
-	// number
-	if (true) {
-		o = SrsAmf0Any::number();
-		SrsAutoFree(SrsAmf0Any, o, false);
-		ASSERT_TRUE(NULL != o);
-		EXPECT_TRUE(o->is_number());
-		EXPECT_DOUBLE_EQ(0, o->to_number());
-	}
-	if (true) {
-		o = SrsAmf0Any::number(100);
-		SrsAutoFree(SrsAmf0Any, o, false);
-		ASSERT_TRUE(NULL != o);
-		EXPECT_TRUE(o->is_number());
-		EXPECT_DOUBLE_EQ(100, o->to_number());
-	}
-	if (true) {
-		o = SrsAmf0Any::number(-100);
-		SrsAutoFree(SrsAmf0Any, o, false);
-		ASSERT_TRUE(NULL != o);
-		EXPECT_TRUE(o->is_number());
-		EXPECT_DOUBLE_EQ(-100, o->to_number());
-	}
+    SrsAmf0Any* o = NULL;
+    
+    // string
+    if (true) {
+        o = SrsAmf0Any::str();
+        SrsAutoFree(SrsAmf0Any, o, false);
+        ASSERT_TRUE(NULL != o);
+        EXPECT_TRUE(o->is_string());
+        EXPECT_STREQ("", o->to_str().c_str());
+    }
+    if (true) {
+        o = SrsAmf0Any::str("winlin");
+        SrsAutoFree(SrsAmf0Any, o, false);
+        ASSERT_TRUE(NULL != o);
+        EXPECT_TRUE(o->is_string());
+        EXPECT_STREQ("winlin", o->to_str().c_str());
+    }
+    
+    // bool
+    if (true) {
+        o = SrsAmf0Any::boolean();
+        SrsAutoFree(SrsAmf0Any, o, false);
+        ASSERT_TRUE(NULL != o);
+        EXPECT_TRUE(o->is_boolean());
+        EXPECT_FALSE(o->to_boolean());
+    }
+    if (true) {
+        o = SrsAmf0Any::boolean(false);
+        SrsAutoFree(SrsAmf0Any, o, false);
+        ASSERT_TRUE(NULL != o);
+        EXPECT_TRUE(o->is_boolean());
+        EXPECT_FALSE(o->to_boolean());
+    }
+    if (true) {
+        o = SrsAmf0Any::boolean(true);
+        SrsAutoFree(SrsAmf0Any, o, false);
+        ASSERT_TRUE(NULL != o);
+        EXPECT_TRUE(o->is_boolean());
+        EXPECT_TRUE(o->to_boolean());
+    }
+    
+    // number
+    if (true) {
+        o = SrsAmf0Any::number();
+        SrsAutoFree(SrsAmf0Any, o, false);
+        ASSERT_TRUE(NULL != o);
+        EXPECT_TRUE(o->is_number());
+        EXPECT_DOUBLE_EQ(0, o->to_number());
+    }
+    if (true) {
+        o = SrsAmf0Any::number(100);
+        SrsAutoFree(SrsAmf0Any, o, false);
+        ASSERT_TRUE(NULL != o);
+        EXPECT_TRUE(o->is_number());
+        EXPECT_DOUBLE_EQ(100, o->to_number());
+    }
+    if (true) {
+        o = SrsAmf0Any::number(-100);
+        SrsAutoFree(SrsAmf0Any, o, false);
+        ASSERT_TRUE(NULL != o);
+        EXPECT_TRUE(o->is_number());
+        EXPECT_DOUBLE_EQ(-100, o->to_number());
+    }
 
-	// null
-	if (true) {
-		o = SrsAmf0Any::null();
-		SrsAutoFree(SrsAmf0Any, o, false);
-		ASSERT_TRUE(NULL != o);
-		EXPECT_TRUE(o->is_null());
-	}
+    // null
+    if (true) {
+        o = SrsAmf0Any::null();
+        SrsAutoFree(SrsAmf0Any, o, false);
+        ASSERT_TRUE(NULL != o);
+        EXPECT_TRUE(o->is_null());
+    }
 
-	// undefined
-	if (true) {
-		o = SrsAmf0Any::undefined();
-		SrsAutoFree(SrsAmf0Any, o, false);
-		ASSERT_TRUE(NULL != o);
-		EXPECT_TRUE(o->is_undefined());
-	}
+    // undefined
+    if (true) {
+        o = SrsAmf0Any::undefined();
+        SrsAutoFree(SrsAmf0Any, o, false);
+        ASSERT_TRUE(NULL != o);
+        EXPECT_TRUE(o->is_undefined());
+    }
 }
 
 VOID TEST(AMF0Test, ApiAnyIO) 
 {
-	SrsStream s;
-	SrsAmf0Any* o = NULL;
-	
-	char buf[1024];
-	memset(buf, 0, sizeof(buf));
-	EXPECT_EQ(ERROR_SUCCESS, s.initialize(buf, sizeof(buf)));
-	
-	// object eof
-	if (true) {
-		s.reset();
-		s.current()[2] = 0x09;
-		
-		o = SrsAmf0Any::object_eof();
-		SrsAutoFree(SrsAmf0Any, o, false);
-		
-		EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
-		EXPECT_EQ(o->total_size(), s.pos());
-		EXPECT_EQ(3, s.pos());
-		
-		s.reset();
-		s.current()[0] = 0x01;
-		EXPECT_NE(ERROR_SUCCESS, o->read(&s));
-	}
-	if (true) {
-		s.reset();
-		
-		o = SrsAmf0Any::object_eof();
-		SrsAutoFree(SrsAmf0Any, o, false);
-		
-		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->total_size(), s.pos());
-		EXPECT_EQ(3, s.pos());
-		
-		s.skip(-3);
-		EXPECT_EQ(0x09, s.read_3bytes());
-	}
-	
-	// string
-	if (true) {
-		s.reset();
-		
-		o = SrsAmf0Any::str("winlin");
-		SrsAutoFree(SrsAmf0Any, o, false);
-		
-		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->total_size(), s.pos());
-		
-		s.reset();
-		EXPECT_EQ(2, s.read_1bytes());
-		EXPECT_EQ(6, s.read_2bytes());
-		EXPECT_EQ('w', s.current()[0]);
-		EXPECT_EQ('n', s.current()[5]);
-		
-		s.reset();
-		s.current()[3] = 'x';
-		EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
-		EXPECT_EQ(o->total_size(), s.pos());
-		EXPECT_STREQ("xinlin", o->to_str().c_str());
-	}
-	
-	// number
-	if (true) {
-		s.reset();
-		
-		o = SrsAmf0Any::number(10);
-		SrsAutoFree(SrsAmf0Any, o, false);
-		
-		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->total_size(), s.pos());
+    SrsStream s;
+    SrsAmf0Any* o = NULL;
+    
+    char buf[1024];
+    memset(buf, 0, sizeof(buf));
+    EXPECT_EQ(ERROR_SUCCESS, s.initialize(buf, sizeof(buf)));
+    
+    // object eof
+    if (true) {
+        s.reset();
+        s.current()[2] = 0x09;
+        
+        o = SrsAmf0Any::object_eof();
+        SrsAutoFree(SrsAmf0Any, o, false);
+        
+        EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
+        EXPECT_EQ(o->total_size(), s.pos());
+        EXPECT_EQ(3, s.pos());
+        
+        s.reset();
+        s.current()[0] = 0x01;
+        EXPECT_NE(ERROR_SUCCESS, o->read(&s));
+    }
+    if (true) {
+        s.reset();
+        
+        o = SrsAmf0Any::object_eof();
+        SrsAutoFree(SrsAmf0Any, o, false);
+        
+        EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+        EXPECT_EQ(o->total_size(), s.pos());
+        EXPECT_EQ(3, s.pos());
+        
+        s.skip(-3);
+        EXPECT_EQ(0x09, s.read_3bytes());
+    }
+    
+    // string
+    if (true) {
+        s.reset();
+        
+        o = SrsAmf0Any::str("winlin");
+        SrsAutoFree(SrsAmf0Any, o, false);
+        
+        EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+        EXPECT_EQ(o->total_size(), s.pos());
+        
+        s.reset();
+        EXPECT_EQ(2, s.read_1bytes());
+        EXPECT_EQ(6, s.read_2bytes());
+        EXPECT_EQ('w', s.current()[0]);
+        EXPECT_EQ('n', s.current()[5]);
+        
+        s.reset();
+        s.current()[3] = 'x';
+        EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
+        EXPECT_EQ(o->total_size(), s.pos());
+        EXPECT_STREQ("xinlin", o->to_str().c_str());
+    }
+    
+    // number
+    if (true) {
+        s.reset();
+        
+        o = SrsAmf0Any::number(10);
+        SrsAutoFree(SrsAmf0Any, o, false);
+        
+        EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+        EXPECT_EQ(o->total_size(), s.pos());
 
-		s.reset();
-		EXPECT_EQ(0, s.read_1bytes());
-		
-		s.reset();
-		EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
-		EXPECT_EQ(o->total_size(), s.pos());
-		EXPECT_DOUBLE_EQ(10, o->to_number());
-	}
-	
-	// boolean
-	if (true) {
-		s.reset();
-		
-		o = SrsAmf0Any::boolean(true);
-		SrsAutoFree(SrsAmf0Any, o, false);
-		
-		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->total_size(), s.pos());
+        s.reset();
+        EXPECT_EQ(0, s.read_1bytes());
+        
+        s.reset();
+        EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
+        EXPECT_EQ(o->total_size(), s.pos());
+        EXPECT_DOUBLE_EQ(10, o->to_number());
+    }
+    
+    // boolean
+    if (true) {
+        s.reset();
+        
+        o = SrsAmf0Any::boolean(true);
+        SrsAutoFree(SrsAmf0Any, o, false);
+        
+        EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+        EXPECT_EQ(o->total_size(), s.pos());
 
-		s.reset();
-		EXPECT_EQ(1, s.read_1bytes());
-		
-		s.reset();
-		EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
-		EXPECT_EQ(o->total_size(), s.pos());
-		EXPECT_TRUE(o->to_boolean());
-	}
-	if (true) {
-		s.reset();
-		
-		o = SrsAmf0Any::boolean(false);
-		SrsAutoFree(SrsAmf0Any, o, false);
-		
-		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->total_size(), s.pos());
+        s.reset();
+        EXPECT_EQ(1, s.read_1bytes());
+        
+        s.reset();
+        EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
+        EXPECT_EQ(o->total_size(), s.pos());
+        EXPECT_TRUE(o->to_boolean());
+    }
+    if (true) {
+        s.reset();
+        
+        o = SrsAmf0Any::boolean(false);
+        SrsAutoFree(SrsAmf0Any, o, false);
+        
+        EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+        EXPECT_EQ(o->total_size(), s.pos());
 
-		s.reset();
-		EXPECT_EQ(1, s.read_1bytes());
-		
-		s.reset();
-		EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
-		EXPECT_EQ(o->total_size(), s.pos());
-		EXPECT_FALSE(o->to_boolean());
-	}
-	
-	// null
-	if (true) {
-		s.reset();
-		
-		o = SrsAmf0Any::null();
-		SrsAutoFree(SrsAmf0Any, o, false);
-		
-		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->total_size(), s.pos());
+        s.reset();
+        EXPECT_EQ(1, s.read_1bytes());
+        
+        s.reset();
+        EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
+        EXPECT_EQ(o->total_size(), s.pos());
+        EXPECT_FALSE(o->to_boolean());
+    }
+    
+    // null
+    if (true) {
+        s.reset();
+        
+        o = SrsAmf0Any::null();
+        SrsAutoFree(SrsAmf0Any, o, false);
+        
+        EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+        EXPECT_EQ(o->total_size(), s.pos());
 
-		s.reset();
-		EXPECT_EQ(5, s.read_1bytes());
-		
-		s.reset();
-		EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
-		EXPECT_EQ(o->total_size(), s.pos());
-		EXPECT_TRUE(o->is_null());
-	}
-	
-	// undefined
-	if (true) {
-		s.reset();
-		
-		o = SrsAmf0Any::undefined();
-		SrsAutoFree(SrsAmf0Any, o, false);
-		
-		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->total_size(), s.pos());
+        s.reset();
+        EXPECT_EQ(5, s.read_1bytes());
+        
+        s.reset();
+        EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
+        EXPECT_EQ(o->total_size(), s.pos());
+        EXPECT_TRUE(o->is_null());
+    }
+    
+    // undefined
+    if (true) {
+        s.reset();
+        
+        o = SrsAmf0Any::undefined();
+        SrsAutoFree(SrsAmf0Any, o, false);
+        
+        EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+        EXPECT_EQ(o->total_size(), s.pos());
 
-		s.reset();
-		EXPECT_EQ(6, s.read_1bytes());
-		
-		s.reset();
-		EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
-		EXPECT_EQ(o->total_size(), s.pos());
-		EXPECT_TRUE(o->is_undefined());
-	}
+        s.reset();
+        EXPECT_EQ(6, s.read_1bytes());
+        
+        s.reset();
+        EXPECT_EQ(ERROR_SUCCESS, o->read(&s));
+        EXPECT_EQ(o->total_size(), s.pos());
+        EXPECT_TRUE(o->is_undefined());
+    }
 
-	// any: string
-	if (true) {
-		s.reset();
-		
-		o = SrsAmf0Any::str("winlin");
-		SrsAutoFree(SrsAmf0Any, o, false);
-		
-		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->total_size(), s.pos());
+    // any: string
+    if (true) {
+        s.reset();
+        
+        o = SrsAmf0Any::str("winlin");
+        SrsAutoFree(SrsAmf0Any, o, false);
+        
+        EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+        EXPECT_EQ(o->total_size(), s.pos());
 
-		s.reset();
-		
-		SrsAmf0Any* po = NULL;
-		EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
-		ASSERT_TRUE(NULL != po);
-		SrsAutoFree(SrsAmf0Any, po, false);
-		ASSERT_TRUE(po->is_string());
-		EXPECT_STREQ("winlin", po->to_str().c_str());
-	}
+        s.reset();
+        
+        SrsAmf0Any* po = NULL;
+        EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
+        ASSERT_TRUE(NULL != po);
+        SrsAutoFree(SrsAmf0Any, po, false);
+        ASSERT_TRUE(po->is_string());
+        EXPECT_STREQ("winlin", po->to_str().c_str());
+    }
 
-	// any: number
-	if (true) {
-		s.reset();
-		
-		o = SrsAmf0Any::number(10);
-		SrsAutoFree(SrsAmf0Any, o, false);
-		
-		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->total_size(), s.pos());
+    // any: number
+    if (true) {
+        s.reset();
+        
+        o = SrsAmf0Any::number(10);
+        SrsAutoFree(SrsAmf0Any, o, false);
+        
+        EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+        EXPECT_EQ(o->total_size(), s.pos());
 
-		s.reset();
-		
-		SrsAmf0Any* po = NULL;
-		EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
-		ASSERT_TRUE(NULL != po);
-		SrsAutoFree(SrsAmf0Any, po, false);
-		ASSERT_TRUE(po->is_number());
-		EXPECT_DOUBLE_EQ(10, po->to_number());
-	}
+        s.reset();
+        
+        SrsAmf0Any* po = NULL;
+        EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
+        ASSERT_TRUE(NULL != po);
+        SrsAutoFree(SrsAmf0Any, po, false);
+        ASSERT_TRUE(po->is_number());
+        EXPECT_DOUBLE_EQ(10, po->to_number());
+    }
 
-	// any: boolean
-	if (true) {
-		s.reset();
-		
-		o = SrsAmf0Any::boolean(true);
-		SrsAutoFree(SrsAmf0Any, o, false);
-		
-		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->total_size(), s.pos());
+    // any: boolean
+    if (true) {
+        s.reset();
+        
+        o = SrsAmf0Any::boolean(true);
+        SrsAutoFree(SrsAmf0Any, o, false);
+        
+        EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+        EXPECT_EQ(o->total_size(), s.pos());
 
-		s.reset();
-		
-		SrsAmf0Any* po = NULL;
-		EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
-		ASSERT_TRUE(NULL != po);
-		SrsAutoFree(SrsAmf0Any, po, false);
-		ASSERT_TRUE(po->is_boolean());
-		EXPECT_TRUE(po->to_boolean());
-	}
+        s.reset();
+        
+        SrsAmf0Any* po = NULL;
+        EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
+        ASSERT_TRUE(NULL != po);
+        SrsAutoFree(SrsAmf0Any, po, false);
+        ASSERT_TRUE(po->is_boolean());
+        EXPECT_TRUE(po->to_boolean());
+    }
 
-	// any: null
-	if (true) {
-		s.reset();
-		
-		o = SrsAmf0Any::null();
-		SrsAutoFree(SrsAmf0Any, o, false);
-		
-		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->total_size(), s.pos());
+    // any: null
+    if (true) {
+        s.reset();
+        
+        o = SrsAmf0Any::null();
+        SrsAutoFree(SrsAmf0Any, o, false);
+        
+        EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+        EXPECT_EQ(o->total_size(), s.pos());
 
-		s.reset();
-		
-		SrsAmf0Any* po = NULL;
-		EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
-		ASSERT_TRUE(NULL != po);
-		SrsAutoFree(SrsAmf0Any, po, false);
-		ASSERT_TRUE(po->is_null());
-	}
+        s.reset();
+        
+        SrsAmf0Any* po = NULL;
+        EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
+        ASSERT_TRUE(NULL != po);
+        SrsAutoFree(SrsAmf0Any, po, false);
+        ASSERT_TRUE(po->is_null());
+    }
 
-	// any: undefined
-	if (true) {
-		s.reset();
-		
-		o = SrsAmf0Any::undefined();
-		SrsAutoFree(SrsAmf0Any, o, false);
-		
-		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(o->total_size(), s.pos());
+    // any: undefined
+    if (true) {
+        s.reset();
+        
+        o = SrsAmf0Any::undefined();
+        SrsAutoFree(SrsAmf0Any, o, false);
+        
+        EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+        EXPECT_EQ(o->total_size(), s.pos());
 
-		s.reset();
-		
-		SrsAmf0Any* po = NULL;
-		EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
-		ASSERT_TRUE(NULL != po);
-		SrsAutoFree(SrsAmf0Any, po, false);
-		ASSERT_TRUE(po->is_undefined());
-	}
-	
-	// mixed any
-	if (true) {
-		s.reset();
-		
-		o = SrsAmf0Any::str("winlin");
-		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		srs_freep(o);
-		
-		o = SrsAmf0Any::number(10);
-		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		srs_freep(o);
-		
-		o = SrsAmf0Any::boolean(true);
-		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		srs_freep(o);
-		
-		o = SrsAmf0Any::null();
-		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		srs_freep(o);
-		
-		o = SrsAmf0Any::undefined();
-		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		srs_freep(o);
-		
-		s.reset();
-		SrsAmf0Any* po = NULL;
-		
-		EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
-		ASSERT_TRUE(NULL != po);
-		ASSERT_TRUE(po->is_string());
-		EXPECT_STREQ("winlin", po->to_str().c_str());
-		srs_freep(po);
-		
-		EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
-		ASSERT_TRUE(NULL != po);
-		ASSERT_TRUE(po->is_number());
-		EXPECT_DOUBLE_EQ(10, po->to_number());
-		srs_freep(po);
-		
-		EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
-		ASSERT_TRUE(NULL != po);
-		ASSERT_TRUE(po->is_boolean());
-		EXPECT_TRUE(po->to_boolean());
-		srs_freep(po);
-		
-		EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
-		ASSERT_TRUE(NULL != po);
-		ASSERT_TRUE(po->is_null());
-		srs_freep(po);
-		
-		EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
-		ASSERT_TRUE(NULL != po);
-		ASSERT_TRUE(po->is_undefined());
-		srs_freep(po);
-	}
+        s.reset();
+        
+        SrsAmf0Any* po = NULL;
+        EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
+        ASSERT_TRUE(NULL != po);
+        SrsAutoFree(SrsAmf0Any, po, false);
+        ASSERT_TRUE(po->is_undefined());
+    }
+    
+    // mixed any
+    if (true) {
+        s.reset();
+        
+        o = SrsAmf0Any::str("winlin");
+        EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+        srs_freep(o);
+        
+        o = SrsAmf0Any::number(10);
+        EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+        srs_freep(o);
+        
+        o = SrsAmf0Any::boolean(true);
+        EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+        srs_freep(o);
+        
+        o = SrsAmf0Any::null();
+        EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+        srs_freep(o);
+        
+        o = SrsAmf0Any::undefined();
+        EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+        srs_freep(o);
+        
+        s.reset();
+        SrsAmf0Any* po = NULL;
+        
+        EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
+        ASSERT_TRUE(NULL != po);
+        ASSERT_TRUE(po->is_string());
+        EXPECT_STREQ("winlin", po->to_str().c_str());
+        srs_freep(po);
+        
+        EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
+        ASSERT_TRUE(NULL != po);
+        ASSERT_TRUE(po->is_number());
+        EXPECT_DOUBLE_EQ(10, po->to_number());
+        srs_freep(po);
+        
+        EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
+        ASSERT_TRUE(NULL != po);
+        ASSERT_TRUE(po->is_boolean());
+        EXPECT_TRUE(po->to_boolean());
+        srs_freep(po);
+        
+        EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
+        ASSERT_TRUE(NULL != po);
+        ASSERT_TRUE(po->is_null());
+        srs_freep(po);
+        
+        EXPECT_EQ(ERROR_SUCCESS, srs_amf0_read_any(&s, &po));
+        ASSERT_TRUE(NULL != po);
+        ASSERT_TRUE(po->is_undefined());
+        srs_freep(po);
+    }
 }
 
 VOID TEST(AMF0Test, ApiAnyAssert) 
 {
-	SrsStream s;
-	SrsAmf0Any* o = NULL;
-	
-	char buf[1024];
-	memset(buf, 0, sizeof(buf));
-	EXPECT_EQ(ERROR_SUCCESS, s.initialize(buf, sizeof(buf)));
-	
-	// read any
-	if (true) {
-		s.reset();
-		s.current()[0] = 0x12;
-		EXPECT_NE(ERROR_SUCCESS, srs_amf0_read_any(&s, &o));
-		EXPECT_TRUE(NULL == o);
-		srs_freep(o);
-	}
-	
-	// any convert
-	if (true) {
-		o = SrsAmf0Any::str();
-		SrsAutoFree(SrsAmf0Any, o, false);
-		EXPECT_TRUE(o->is_string());
-	}
-	if (true) {
-		o = SrsAmf0Any::number();
-		SrsAutoFree(SrsAmf0Any, o, false);
-		EXPECT_TRUE(o->is_number());
-	}
-	if (true) {
-		o = SrsAmf0Any::boolean();
-		SrsAutoFree(SrsAmf0Any, o, false);
-		EXPECT_TRUE(o->is_boolean());
-	}
-	if (true) {
-		o = SrsAmf0Any::null();
-		SrsAutoFree(SrsAmf0Any, o, false);
-		EXPECT_TRUE(o->is_null());
-	}
-	if (true) {
-		o = SrsAmf0Any::undefined();
-		SrsAutoFree(SrsAmf0Any, o, false);
-		EXPECT_TRUE(o->is_undefined());
-	}
-	if (true) {
-		o = SrsAmf0Any::object();
-		SrsAutoFree(SrsAmf0Any, o, false);
-		EXPECT_TRUE(o->is_object());
-	}
-	if (true) {
-		o = SrsAmf0Any::ecma_array();
-		SrsAutoFree(SrsAmf0Any, o, false);
-		EXPECT_TRUE(o->is_ecma_array());
-	}
-	
-	// empty object
-	if (true) {
-		o = SrsAmf0Any::object();
-		SrsAutoFree(SrsAmf0Any, o, false);
-		s.reset();
-		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(1+3, s.pos());
-	}
-	
-	// empty ecma array
-	if (true) {
-		o = SrsAmf0Any::ecma_array();
-		SrsAutoFree(SrsAmf0Any, o, false);
-		s.reset();
-		EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
-		EXPECT_EQ(1+4+3, s.pos());
-	}
+    SrsStream s;
+    SrsAmf0Any* o = NULL;
+    
+    char buf[1024];
+    memset(buf, 0, sizeof(buf));
+    EXPECT_EQ(ERROR_SUCCESS, s.initialize(buf, sizeof(buf)));
+    
+    // read any
+    if (true) {
+        s.reset();
+        s.current()[0] = 0x12;
+        EXPECT_NE(ERROR_SUCCESS, srs_amf0_read_any(&s, &o));
+        EXPECT_TRUE(NULL == o);
+        srs_freep(o);
+    }
+    
+    // any convert
+    if (true) {
+        o = SrsAmf0Any::str();
+        SrsAutoFree(SrsAmf0Any, o, false);
+        EXPECT_TRUE(o->is_string());
+    }
+    if (true) {
+        o = SrsAmf0Any::number();
+        SrsAutoFree(SrsAmf0Any, o, false);
+        EXPECT_TRUE(o->is_number());
+    }
+    if (true) {
+        o = SrsAmf0Any::boolean();
+        SrsAutoFree(SrsAmf0Any, o, false);
+        EXPECT_TRUE(o->is_boolean());
+    }
+    if (true) {
+        o = SrsAmf0Any::null();
+        SrsAutoFree(SrsAmf0Any, o, false);
+        EXPECT_TRUE(o->is_null());
+    }
+    if (true) {
+        o = SrsAmf0Any::undefined();
+        SrsAutoFree(SrsAmf0Any, o, false);
+        EXPECT_TRUE(o->is_undefined());
+    }
+    if (true) {
+        o = SrsAmf0Any::object();
+        SrsAutoFree(SrsAmf0Any, o, false);
+        EXPECT_TRUE(o->is_object());
+    }
+    if (true) {
+        o = SrsAmf0Any::ecma_array();
+        SrsAutoFree(SrsAmf0Any, o, false);
+        EXPECT_TRUE(o->is_ecma_array());
+    }
+    
+    // empty object
+    if (true) {
+        o = SrsAmf0Any::object();
+        SrsAutoFree(SrsAmf0Any, o, false);
+        s.reset();
+        EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+        EXPECT_EQ(1+3, s.pos());
+    }
+    
+    // empty ecma array
+    if (true) {
+        o = SrsAmf0Any::ecma_array();
+        SrsAutoFree(SrsAmf0Any, o, false);
+        s.reset();
+        EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+        EXPECT_EQ(1+4+3, s.pos());
+    }
 }
 
 VOID TEST(AMF0Test, ApiObjectProps) 
 {
-	SrsAmf0Object* o = NULL;
-	
-	// get/set property
-	if (true) {
-		o = SrsAmf0Any::object();
-		SrsAutoFree(SrsAmf0Object, o, false);
-		
-		EXPECT_TRUE(NULL == o->get_property("name"));
-		
-		o->set("name", SrsAmf0Any::str("winlin"));
-		EXPECT_TRUE(NULL != o->get_property("name"));
-		
-		EXPECT_TRUE(NULL == o->get_property("age"));
-		
-		o->set("age", SrsAmf0Any::number(100));
-		EXPECT_TRUE(NULL != o->get_property("age"));
-	}
-	
-	// index property
-	if (true) {
-		o = SrsAmf0Any::object();
-		SrsAutoFree(SrsAmf0Object, o, false);
-		
-		o->set("name", SrsAmf0Any::str("winlin"));
-		EXPECT_STREQ("name", o->key_at(0).c_str());
-		ASSERT_TRUE(o->value_at(0)->is_string());
-		EXPECT_STREQ("winlin", o->value_at(0)->to_str().c_str());
-		
-		o->set("age", SrsAmf0Any::number(100));
-		EXPECT_STREQ("name", o->key_at(0).c_str());
-		ASSERT_TRUE(o->value_at(0)->is_string());
-		EXPECT_STREQ("winlin", o->value_at(0)->to_str().c_str());
-		
-		EXPECT_STREQ("age", o->key_at(1).c_str());
-		ASSERT_TRUE(o->value_at(1)->is_number());
-		EXPECT_DOUBLE_EQ(100, o->value_at(1)->to_number());
-	}
-	
-	// ensure property
-	if (true) {
-		o = SrsAmf0Any::object();
-		SrsAutoFree(SrsAmf0Object, o, false);
-		
-		EXPECT_TRUE(NULL == o->ensure_property_string("name"));
-		EXPECT_TRUE(NULL == o->ensure_property_number("age"));
-		
-		o->set("name", SrsAmf0Any::str("winlin"));
-		EXPECT_TRUE(NULL != o->ensure_property_string("name"));
-		EXPECT_TRUE(NULL == o->ensure_property_number("name"));
-		EXPECT_TRUE(NULL == o->ensure_property_number("age"));
-		
-		o->set("age", SrsAmf0Any::number(100));
-		EXPECT_TRUE(NULL != o->ensure_property_string("name"));
-		EXPECT_TRUE(NULL == o->ensure_property_number("name"));
-		EXPECT_TRUE(NULL != o->ensure_property_number("age"));
-		EXPECT_TRUE(NULL == o->ensure_property_string("age"));
-	}
+    SrsAmf0Object* o = NULL;
+    
+    // get/set property
+    if (true) {
+        o = SrsAmf0Any::object();
+        SrsAutoFree(SrsAmf0Object, o, false);
+        
+        EXPECT_TRUE(NULL == o->get_property("name"));
+        
+        o->set("name", SrsAmf0Any::str("winlin"));
+        EXPECT_TRUE(NULL != o->get_property("name"));
+        
+        EXPECT_TRUE(NULL == o->get_property("age"));
+        
+        o->set("age", SrsAmf0Any::number(100));
+        EXPECT_TRUE(NULL != o->get_property("age"));
+    }
+    
+    // index property
+    if (true) {
+        o = SrsAmf0Any::object();
+        SrsAutoFree(SrsAmf0Object, o, false);
+        
+        o->set("name", SrsAmf0Any::str("winlin"));
+        EXPECT_STREQ("name", o->key_at(0).c_str());
+        ASSERT_TRUE(o->value_at(0)->is_string());
+        EXPECT_STREQ("winlin", o->value_at(0)->to_str().c_str());
+        
+        o->set("age", SrsAmf0Any::number(100));
+        EXPECT_STREQ("name", o->key_at(0).c_str());
+        ASSERT_TRUE(o->value_at(0)->is_string());
+        EXPECT_STREQ("winlin", o->value_at(0)->to_str().c_str());
+        
+        EXPECT_STREQ("age", o->key_at(1).c_str());
+        ASSERT_TRUE(o->value_at(1)->is_number());
+        EXPECT_DOUBLE_EQ(100, o->value_at(1)->to_number());
+    }
+    
+    // ensure property
+    if (true) {
+        o = SrsAmf0Any::object();
+        SrsAutoFree(SrsAmf0Object, o, false);
+        
+        EXPECT_TRUE(NULL == o->ensure_property_string("name"));
+        EXPECT_TRUE(NULL == o->ensure_property_number("age"));
+        
+        o->set("name", SrsAmf0Any::str("winlin"));
+        EXPECT_TRUE(NULL != o->ensure_property_string("name"));
+        EXPECT_TRUE(NULL == o->ensure_property_number("name"));
+        EXPECT_TRUE(NULL == o->ensure_property_number("age"));
+        
+        o->set("age", SrsAmf0Any::number(100));
+        EXPECT_TRUE(NULL != o->ensure_property_string("name"));
+        EXPECT_TRUE(NULL == o->ensure_property_number("name"));
+        EXPECT_TRUE(NULL != o->ensure_property_number("age"));
+        EXPECT_TRUE(NULL == o->ensure_property_string("age"));
+    }
 
-	// count
-	if (true) {
-		o = SrsAmf0Any::object();
-		SrsAutoFree(SrsAmf0Object, o, false);
-		
-		EXPECT_EQ(0, o->count());
-		
-		o->set("name", SrsAmf0Any::str("winlin"));
-		EXPECT_EQ(1, o->count());
-		
-		o->set("name", SrsAmf0Any::str("winlin"));
-		EXPECT_EQ(1, o->count());
-		
-		o->set("age", SrsAmf0Any::number(100));
-		EXPECT_EQ(2, o->count());
-	}
+    // count
+    if (true) {
+        o = SrsAmf0Any::object();
+        SrsAutoFree(SrsAmf0Object, o, false);
+        
+        EXPECT_EQ(0, o->count());
+        
+        o->set("name", SrsAmf0Any::str("winlin"));
+        EXPECT_EQ(1, o->count());
+        
+        o->set("name", SrsAmf0Any::str("winlin"));
+        EXPECT_EQ(1, o->count());
+        
+        o->set("age", SrsAmf0Any::number(100));
+        EXPECT_EQ(2, o->count());
+    }
 }
 
 VOID TEST(AMF0Test, ApiEcmaArrayProps) 
 {
-	SrsAmf0EcmaArray* o = NULL;
-	
-	// get/set property
-	if (true) {
-		o = SrsAmf0Any::ecma_array();
-		SrsAutoFree(SrsAmf0EcmaArray, o, false);
-		
-		EXPECT_TRUE(NULL == o->get_property("name"));
-		
-		o->set("name", SrsAmf0Any::str("winlin"));
-		EXPECT_TRUE(NULL != o->get_property("name"));
-		
-		EXPECT_TRUE(NULL == o->get_property("age"));
-		
-		o->set("age", SrsAmf0Any::number(100));
-		EXPECT_TRUE(NULL != o->get_property("age"));
-	}
-	
-	// index property
-	if (true) {
-		o = SrsAmf0Any::ecma_array();
-		SrsAutoFree(SrsAmf0EcmaArray, o, false);
-		
-		o->set("name", SrsAmf0Any::str("winlin"));
-		EXPECT_STREQ("name", o->key_at(0).c_str());
-		ASSERT_TRUE(o->value_at(0)->is_string());
-		EXPECT_STREQ("winlin", o->value_at(0)->to_str().c_str());
-		
-		o->set("age", SrsAmf0Any::number(100));
-		EXPECT_STREQ("name", o->key_at(0).c_str());
-		ASSERT_TRUE(o->value_at(0)->is_string());
-		EXPECT_STREQ("winlin", o->value_at(0)->to_str().c_str());
-		
-		EXPECT_STREQ("age", o->key_at(1).c_str());
-		ASSERT_TRUE(o->value_at(1)->is_number());
-		EXPECT_DOUBLE_EQ(100, o->value_at(1)->to_number());
-	}
-	
-	// ensure property
-	if (true) {
-		o = SrsAmf0Any::ecma_array();
-		SrsAutoFree(SrsAmf0EcmaArray, o, false);
-		
-		EXPECT_TRUE(NULL == o->ensure_property_string("name"));
-		EXPECT_TRUE(NULL == o->ensure_property_number("age"));
-		
-		o->set("name", SrsAmf0Any::str("winlin"));
-		EXPECT_TRUE(NULL != o->ensure_property_string("name"));
-		EXPECT_TRUE(NULL == o->ensure_property_number("name"));
-		EXPECT_TRUE(NULL == o->ensure_property_number("age"));
-		
-		o->set("age", SrsAmf0Any::number(100));
-		EXPECT_TRUE(NULL != o->ensure_property_string("name"));
-		EXPECT_TRUE(NULL == o->ensure_property_number("name"));
-		EXPECT_TRUE(NULL != o->ensure_property_number("age"));
-		EXPECT_TRUE(NULL == o->ensure_property_string("age"));
-	}
+    SrsAmf0EcmaArray* o = NULL;
+    
+    // get/set property
+    if (true) {
+        o = SrsAmf0Any::ecma_array();
+        SrsAutoFree(SrsAmf0EcmaArray, o, false);
+        
+        EXPECT_TRUE(NULL == o->get_property("name"));
+        
+        o->set("name", SrsAmf0Any::str("winlin"));
+        EXPECT_TRUE(NULL != o->get_property("name"));
+        
+        EXPECT_TRUE(NULL == o->get_property("age"));
+        
+        o->set("age", SrsAmf0Any::number(100));
+        EXPECT_TRUE(NULL != o->get_property("age"));
+    }
+    
+    // index property
+    if (true) {
+        o = SrsAmf0Any::ecma_array();
+        SrsAutoFree(SrsAmf0EcmaArray, o, false);
+        
+        o->set("name", SrsAmf0Any::str("winlin"));
+        EXPECT_STREQ("name", o->key_at(0).c_str());
+        ASSERT_TRUE(o->value_at(0)->is_string());
+        EXPECT_STREQ("winlin", o->value_at(0)->to_str().c_str());
+        
+        o->set("age", SrsAmf0Any::number(100));
+        EXPECT_STREQ("name", o->key_at(0).c_str());
+        ASSERT_TRUE(o->value_at(0)->is_string());
+        EXPECT_STREQ("winlin", o->value_at(0)->to_str().c_str());
+        
+        EXPECT_STREQ("age", o->key_at(1).c_str());
+        ASSERT_TRUE(o->value_at(1)->is_number());
+        EXPECT_DOUBLE_EQ(100, o->value_at(1)->to_number());
+    }
+    
+    // ensure property
+    if (true) {
+        o = SrsAmf0Any::ecma_array();
+        SrsAutoFree(SrsAmf0EcmaArray, o, false);
+        
+        EXPECT_TRUE(NULL == o->ensure_property_string("name"));
+        EXPECT_TRUE(NULL == o->ensure_property_number("age"));
+        
+        o->set("name", SrsAmf0Any::str("winlin"));
+        EXPECT_TRUE(NULL != o->ensure_property_string("name"));
+        EXPECT_TRUE(NULL == o->ensure_property_number("name"));
+        EXPECT_TRUE(NULL == o->ensure_property_number("age"));
+        
+        o->set("age", SrsAmf0Any::number(100));
+        EXPECT_TRUE(NULL != o->ensure_property_string("name"));
+        EXPECT_TRUE(NULL == o->ensure_property_number("name"));
+        EXPECT_TRUE(NULL != o->ensure_property_number("age"));
+        EXPECT_TRUE(NULL == o->ensure_property_string("age"));
+    }
 
-	// count
-	if (true) {
-		o = SrsAmf0Any::ecma_array();
-		SrsAutoFree(SrsAmf0EcmaArray, o, false);
-		
-		EXPECT_EQ(0, o->count());
-		
-		o->set("name", SrsAmf0Any::str("winlin"));
-		EXPECT_EQ(1, o->count());
-		
-		o->set("name", SrsAmf0Any::str("winlin"));
-		EXPECT_EQ(1, o->count());
-		
-		o->set("age", SrsAmf0Any::number(100));
-		EXPECT_EQ(2, o->count());
-	}
+    // count
+    if (true) {
+        o = SrsAmf0Any::ecma_array();
+        SrsAutoFree(SrsAmf0EcmaArray, o, false);
+        
+        EXPECT_EQ(0, o->count());
+        
+        o->set("name", SrsAmf0Any::str("winlin"));
+        EXPECT_EQ(1, o->count());
+        
+        o->set("name", SrsAmf0Any::str("winlin"));
+        EXPECT_EQ(1, o->count());
+        
+        o->set("age", SrsAmf0Any::number(100));
+        EXPECT_EQ(2, o->count());
+    }
 }

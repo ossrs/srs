@@ -42,7 +42,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 SrsHttpUri::SrsHttpUri()
 {
-	port = SRS_DEFAULT_HTTP_PORT;
+    port = SRS_DEFAULT_HTTP_PORT;
 }
 
 SrsHttpUri::~SrsHttpUri()
@@ -51,7 +51,7 @@ SrsHttpUri::~SrsHttpUri()
 
 int SrsHttpUri::initialize(std::string _url)
 {
-	int ret = ERROR_SUCCESS;
+    int ret = ERROR_SUCCESS;
     
     url = _url;
     const char* purl = url.c_str();
@@ -65,7 +65,7 @@ int SrsHttpUri::initialize(std::string _url)
         return ret;
     }
     
-	std::string field = get_uri_field(url, &hp_u, UF_SCHEMA);
+    std::string field = get_uri_field(url, &hp_u, UF_SCHEMA);
     if(!field.empty()){
         schema = field;
     }
@@ -80,7 +80,7 @@ int SrsHttpUri::initialize(std::string _url)
     path = get_uri_field(url, &hp_u, UF_PATH);
     srs_info("parse url %s success", purl);
     
-	return ret;
+    return ret;
 }
 
 const char* SrsHttpUri::get_url()
@@ -128,24 +128,24 @@ std::string SrsHttpUri::get_uri_field(std::string uri, http_parser_url* hp_u, ht
 
 SrsHttpClient::SrsHttpClient()
 {
-	connected = false;
-	stfd = NULL;
+    connected = false;
+    stfd = NULL;
 }
 
 SrsHttpClient::~SrsHttpClient()
 {
-	disconnect();
+    disconnect();
 }
 
 int SrsHttpClient::post(SrsHttpUri* uri, std::string req, std::string& res)
 {
-	int ret = ERROR_SUCCESS;
-	
-	if ((ret = connect(uri)) != ERROR_SUCCESS) {
-		srs_error("http connect server failed. ret=%d", ret);
-		return ret;
-	}
-	
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = connect(uri)) != ERROR_SUCCESS) {
+        srs_error("http connect server failed. ret=%d", ret);
+        return ret;
+    }
+    
     // send POST request to uri
     // POST %s HTTP/1.1\r\nHost: %s\r\nContent-Length: %d\r\n\r\n%s
     std::stringstream ss;
@@ -176,33 +176,33 @@ int SrsHttpClient::post(SrsHttpUri* uri, std::string req, std::string& res)
         return ret;
     }
     srs_info("parse http post response success.");
-	
-	return ret;
+    
+    return ret;
 }
 
 void SrsHttpClient::disconnect()
 {
-	connected = false;
-	
-	srs_close_stfd(stfd);
+    connected = false;
+    
+    srs_close_stfd(stfd);
 }
 
 int SrsHttpClient::connect(SrsHttpUri* uri)
 {
-	int ret = ERROR_SUCCESS;
-	
-	if (connected) {
-		return ret;
-	}
-	
-	disconnect();
-	
-	std::string ip = srs_dns_resolve(uri->get_host());
-	if (ip.empty()) {
-		ret = ERROR_SYSTEM_IP_INVALID;
-		srs_error("dns resolve server error, ip empty. ret=%d", ret);
-		return ret;
-	}
+    int ret = ERROR_SUCCESS;
+    
+    if (connected) {
+        return ret;
+    }
+    
+    disconnect();
+    
+    std::string ip = srs_dns_resolve(uri->get_host());
+    if (ip.empty()) {
+        ret = ERROR_SYSTEM_IP_INVALID;
+        srs_error("dns resolve server error, ip empty. ret=%d", ret);
+        return ret;
+    }
 
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if(sock == -1){
@@ -217,7 +217,7 @@ int SrsHttpClient::connect(SrsHttpUri* uri)
         srs_error("st_netfd_open_socket failed. ret=%d", ret);
         return ret;
     }
-	
+    
     sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_port = htons(uri->get_port());
@@ -226,16 +226,16 @@ int SrsHttpClient::connect(SrsHttpUri* uri)
     if (st_connect(stfd, (const struct sockaddr*)&addr, sizeof(sockaddr_in), ST_UTIME_NO_TIMEOUT) == -1){
         ret = ERROR_ST_CONNECT;
         srs_error("connect to server error. "
-        	"ip=%s, port=%d, ret=%d", ip.c_str(), uri->get_port(), ret);
+            "ip=%s, port=%d, ret=%d", ip.c_str(), uri->get_port(), ret);
         return ret;
     }
     srs_info("connect to server success. "
-    	"http url=%s, server=%s, ip=%s, port=%d", 
-    	uri->get_url(), uri->get_host(), ip.c_str(), uri->get_port());
+        "http url=%s, server=%s, ip=%s, port=%d", 
+        uri->get_url(), uri->get_host(), ip.c_str(), uri->get_port());
     
     connected = true;
     
-	return ret;
+    return ret;
 }
 
 int SrsHttpClient::parse_response(SrsHttpUri* uri, SrsSocket* skt, std::string* response)
@@ -327,17 +327,17 @@ int SrsHttpClient::parse_response_body(SrsHttpUri* uri, SrsSocket* skt, std::str
         char buf[SRS_HTTP_BODY_BUFFER];
         
         return parse_response_body_data(
-        	uri, skt, response, (size_t)body_left, 
-        	(const void*)buf, (size_t)SRS_HTTP_BODY_BUFFER
+            uri, skt, response, (size_t)body_left, 
+            (const void*)buf, (size_t)SRS_HTTP_BODY_BUFFER
         );
     } else {
         // if ignore response, use shared fast memory.
         static char buf[SRS_HTTP_BODY_BUFFER];
         
         return parse_response_body_data(
-			uri, skt, response, (size_t)body_left, 
-			(const void*)buf, (size_t)SRS_HTTP_BODY_BUFFER
-		);
+            uri, skt, response, (size_t)body_left, 
+            (const void*)buf, (size_t)SRS_HTTP_BODY_BUFFER
+        );
     }
     
     return ret;
@@ -351,7 +351,7 @@ int SrsHttpClient::parse_response_body_data(SrsHttpUri* uri, SrsSocket* skt, std
     
     while (body_left > 0) {
         ssize_t nread;
-		int size_to_read = srs_min(size, body_left);
+        int size_to_read = srs_min(size, body_left);
         if ((ret = skt->read(buf, size_to_read, &nread)) != ERROR_SUCCESS) {
             srs_error("read header from server failed. ret=%d", ret);
             return ret;
@@ -394,424 +394,424 @@ SrsHttpHooks::~SrsHttpHooks()
 
 int SrsHttpHooks::on_connect(std::string url, int client_id, std::string ip, SrsRequest* req)
 {
-	int ret = ERROR_SUCCESS;
-	
-	SrsHttpUri uri;
-	if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
-		srs_error("http uri parse on_connect url failed. "
-			"client_id=%d, url=%s, ret=%d", client_id, url.c_str(), ret);
-		return ret;
-	}
-	
-	/**
-	{
-		"action": "on_connect",
-		"client_id": 1985,
-		"ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
-		"pageUrl": "http://www.test.com/live.html"
-	}
+    int ret = ERROR_SUCCESS;
+    
+    SrsHttpUri uri;
+    if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
+        srs_error("http uri parse on_connect url failed. "
+            "client_id=%d, url=%s, ret=%d", client_id, url.c_str(), ret);
+        return ret;
+    }
+    
+    /**
+    {
+        "action": "on_connect",
+        "client_id": 1985,
+        "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
+        "pageUrl": "http://www.test.com/live.html"
+    }
     */
-	std::stringstream ss;
-	ss << "{"
-		// action
-		<< '"' << "action" << '"' << ':'
-		<< '"' << "on_connect" << '"'
-		<< ','
-		// client_id
-		<< '"' << "client_id" << '"' << ':'
-		<< std::dec << client_id
-		<< ','
-		// ip
-		<< '"' << "ip" << '"' << ':'
-		<< '"' << ip << '"'
-		<< ','
-		// vhost
-		<< '"' << "vhost" << '"' << ':'
-		<< '"' << req->vhost << '"'
-		<< ','
-		// app
-		<< '"' << "app" << '"' << ':'
-		<< '"' << req->app << '"'
-		<< ','
-		// pageUrl
-		<< '"' << "pageUrl" << '"' << ':'
-		<< '"' << req->pageUrl << '"'
-		//<< ','
-		<< "}";
-	std::string data = ss.str();
-	std::string res;
-	
-	SrsHttpClient http;
-	if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
-		srs_error("http post on_connect uri failed. "
-			"client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-			client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-		return ret;
-	}
-	
-	if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
-		ret = ERROR_HTTP_DATA_INVLIAD;
-		srs_error("http hook on_connect validate failed. "
-			"client_id=%d, res=%s, ret=%d", client_id, res.c_str(), ret);
-		return ret;
-	}
-	
-	srs_trace("http hook on_connect success. "
-		"client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-		client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-	
-	return ret;
+    std::stringstream ss;
+    ss << "{"
+        // action
+        << '"' << "action" << '"' << ':'
+        << '"' << "on_connect" << '"'
+        << ','
+        // client_id
+        << '"' << "client_id" << '"' << ':'
+        << std::dec << client_id
+        << ','
+        // ip
+        << '"' << "ip" << '"' << ':'
+        << '"' << ip << '"'
+        << ','
+        // vhost
+        << '"' << "vhost" << '"' << ':'
+        << '"' << req->vhost << '"'
+        << ','
+        // app
+        << '"' << "app" << '"' << ':'
+        << '"' << req->app << '"'
+        << ','
+        // pageUrl
+        << '"' << "pageUrl" << '"' << ':'
+        << '"' << req->pageUrl << '"'
+        //<< ','
+        << "}";
+    std::string data = ss.str();
+    std::string res;
+    
+    SrsHttpClient http;
+    if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
+        srs_error("http post on_connect uri failed. "
+            "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
+            client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+        return ret;
+    }
+    
+    if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
+        ret = ERROR_HTTP_DATA_INVLIAD;
+        srs_error("http hook on_connect validate failed. "
+            "client_id=%d, res=%s, ret=%d", client_id, res.c_str(), ret);
+        return ret;
+    }
+    
+    srs_trace("http hook on_connect success. "
+        "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
+        client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+    
+    return ret;
 }
 
 void SrsHttpHooks::on_close(std::string url, int client_id, std::string ip, SrsRequest* req)
 {
-	int ret = ERROR_SUCCESS;
-	
-	SrsHttpUri uri;
-	if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
-		srs_warn("http uri parse on_close url failed, ignored. "
-			"client_id=%d, url=%s, ret=%d", client_id, url.c_str(), ret);
-		return;
-	}
-	
-	/**
-	{
-		"action": "on_close",
-		"client_id": 1985,
-		"ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
-		"stream": "livestream"
-	}
+    int ret = ERROR_SUCCESS;
+    
+    SrsHttpUri uri;
+    if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
+        srs_warn("http uri parse on_close url failed, ignored. "
+            "client_id=%d, url=%s, ret=%d", client_id, url.c_str(), ret);
+        return;
+    }
+    
+    /**
+    {
+        "action": "on_close",
+        "client_id": 1985,
+        "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
+        "stream": "livestream"
+    }
     */
-	std::stringstream ss;
-	ss << "{"
-		// action
-		<< '"' << "action" << '"' << ':'
-		<< '"' << "on_close" << '"'
-		<< ','
-		// client_id
-		<< '"' << "client_id" << '"' << ':'
-		<< std::dec << client_id
-		<< ','
-		// ip
-		<< '"' << "ip" << '"' << ':'
-		<< '"' << ip << '"'
-		<< ','
-		// vhost
-		<< '"' << "vhost" << '"' << ':'
-		<< '"' << req->vhost << '"'
-		<< ','
-		// app
-		<< '"' << "app" << '"' << ':'
-		<< '"' << req->app << '"'
-		//<< ','
-		<< "}";
-	std::string data = ss.str();
-	std::string res;
-	
-	SrsHttpClient http;
-	if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
-		srs_warn("http post on_close uri failed, ignored. "
-			"client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-			client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-		return;
-	}
-	
-	if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
-		ret = ERROR_HTTP_DATA_INVLIAD;
-		srs_warn("http hook on_close validate failed, ignored. "
-			"client_id=%d, res=%s, ret=%d", client_id, res.c_str(), ret);
-		return;
-	}
-	
-	srs_trace("http hook on_close success. "
-		"client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-		client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-	
-	return;
+    std::stringstream ss;
+    ss << "{"
+        // action
+        << '"' << "action" << '"' << ':'
+        << '"' << "on_close" << '"'
+        << ','
+        // client_id
+        << '"' << "client_id" << '"' << ':'
+        << std::dec << client_id
+        << ','
+        // ip
+        << '"' << "ip" << '"' << ':'
+        << '"' << ip << '"'
+        << ','
+        // vhost
+        << '"' << "vhost" << '"' << ':'
+        << '"' << req->vhost << '"'
+        << ','
+        // app
+        << '"' << "app" << '"' << ':'
+        << '"' << req->app << '"'
+        //<< ','
+        << "}";
+    std::string data = ss.str();
+    std::string res;
+    
+    SrsHttpClient http;
+    if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
+        srs_warn("http post on_close uri failed, ignored. "
+            "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
+            client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+        return;
+    }
+    
+    if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
+        ret = ERROR_HTTP_DATA_INVLIAD;
+        srs_warn("http hook on_close validate failed, ignored. "
+            "client_id=%d, res=%s, ret=%d", client_id, res.c_str(), ret);
+        return;
+    }
+    
+    srs_trace("http hook on_close success. "
+        "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
+        client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+    
+    return;
 }
 
 int SrsHttpHooks::on_publish(std::string url, int client_id, std::string ip, SrsRequest* req)
 {
-	int ret = ERROR_SUCCESS;
-	
-	SrsHttpUri uri;
-	if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
-		srs_error("http uri parse on_publish url failed. "
-			"client_id=%d, url=%s, ret=%d", client_id, url.c_str(), ret);
-		return ret;
-	}
-	
-	/**
-	{
-		"action": "on_publish",
-		"client_id": 1985,
-		"ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
-		"stream": "livestream"
-	}
+    int ret = ERROR_SUCCESS;
+    
+    SrsHttpUri uri;
+    if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
+        srs_error("http uri parse on_publish url failed. "
+            "client_id=%d, url=%s, ret=%d", client_id, url.c_str(), ret);
+        return ret;
+    }
+    
+    /**
+    {
+        "action": "on_publish",
+        "client_id": 1985,
+        "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
+        "stream": "livestream"
+    }
     */
-	std::stringstream ss;
-	ss << "{"
-		// action
-		<< '"' << "action" << '"' << ':'
-		<< '"' << "on_publish" << '"'
-		<< ','
-		// client_id
-		<< '"' << "client_id" << '"' << ':'
-		<< std::dec << client_id
-		<< ','
-		// ip
-		<< '"' << "ip" << '"' << ':'
-		<< '"' << ip << '"'
-		<< ','
-		// vhost
-		<< '"' << "vhost" << '"' << ':'
-		<< '"' << req->vhost << '"'
-		<< ','
-		// app
-		<< '"' << "app" << '"' << ':'
-		<< '"' << req->app << '"'
-		<< ','
-		// stream
-		<< '"' << "stream" << '"' << ':'
-		<< '"' << req->stream << '"'
-		//<< ','
-		<< "}";
-	std::string data = ss.str();
-	std::string res;
-	
-	SrsHttpClient http;
-	if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
-		srs_error("http post on_publish uri failed. "
-			"client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-			client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-		return ret;
-	}
-	
-	if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
-		ret = ERROR_HTTP_DATA_INVLIAD;
-		srs_error("http hook on_publish validate failed. "
-			"client_id=%d, res=%s, ret=%d", client_id, res.c_str(), ret);
-		return ret;
-	}
-	
-	srs_trace("http hook on_publish success. "
-		"client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-		client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-	
-	return ret;
+    std::stringstream ss;
+    ss << "{"
+        // action
+        << '"' << "action" << '"' << ':'
+        << '"' << "on_publish" << '"'
+        << ','
+        // client_id
+        << '"' << "client_id" << '"' << ':'
+        << std::dec << client_id
+        << ','
+        // ip
+        << '"' << "ip" << '"' << ':'
+        << '"' << ip << '"'
+        << ','
+        // vhost
+        << '"' << "vhost" << '"' << ':'
+        << '"' << req->vhost << '"'
+        << ','
+        // app
+        << '"' << "app" << '"' << ':'
+        << '"' << req->app << '"'
+        << ','
+        // stream
+        << '"' << "stream" << '"' << ':'
+        << '"' << req->stream << '"'
+        //<< ','
+        << "}";
+    std::string data = ss.str();
+    std::string res;
+    
+    SrsHttpClient http;
+    if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
+        srs_error("http post on_publish uri failed. "
+            "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
+            client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+        return ret;
+    }
+    
+    if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
+        ret = ERROR_HTTP_DATA_INVLIAD;
+        srs_error("http hook on_publish validate failed. "
+            "client_id=%d, res=%s, ret=%d", client_id, res.c_str(), ret);
+        return ret;
+    }
+    
+    srs_trace("http hook on_publish success. "
+        "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
+        client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+    
+    return ret;
 }
 
 void SrsHttpHooks::on_unpublish(std::string url, int client_id, std::string ip, SrsRequest* req)
 {
-	int ret = ERROR_SUCCESS;
-	
-	SrsHttpUri uri;
-	if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
-		srs_warn("http uri parse on_unpublish url failed, ignored. "
-			"client_id=%d, url=%s, ret=%d", client_id, url.c_str(), ret);
-		return;
-	}
-	
-	/**
-	{
-		"action": "on_unpublish",
-		"client_id": 1985,
-		"ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
-		"stream": "livestream"
-	}
+    int ret = ERROR_SUCCESS;
+    
+    SrsHttpUri uri;
+    if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
+        srs_warn("http uri parse on_unpublish url failed, ignored. "
+            "client_id=%d, url=%s, ret=%d", client_id, url.c_str(), ret);
+        return;
+    }
+    
+    /**
+    {
+        "action": "on_unpublish",
+        "client_id": 1985,
+        "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
+        "stream": "livestream"
+    }
     */
-	std::stringstream ss;
-	ss << "{"
-		// action
-		<< '"' << "action" << '"' << ':'
-		<< '"' << "on_unpublish" << '"'
-		<< ','
-		// client_id
-		<< '"' << "client_id" << '"' << ':'
-		<< std::dec << client_id
-		<< ','
-		// ip
-		<< '"' << "ip" << '"' << ':'
-		<< '"' << ip << '"'
-		<< ','
-		// vhost
-		<< '"' << "vhost" << '"' << ':'
-		<< '"' << req->vhost << '"'
-		<< ','
-		// app
-		<< '"' << "app" << '"' << ':'
-		<< '"' << req->app << '"'
-		<< ','
-		// stream
-		<< '"' << "stream" << '"' << ':'
-		<< '"' << req->stream << '"'
-		//<< ','
-		<< "}";
-	std::string data = ss.str();
-	std::string res;
-	
-	SrsHttpClient http;
-	if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
-		srs_warn("http post on_unpublish uri failed, ignored. "
-			"client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-			client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-		return;
-	}
-	
-	if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
-		ret = ERROR_HTTP_DATA_INVLIAD;
-		srs_warn("http hook on_unpublish validate failed, ignored. "
-			"client_id=%d, res=%s, ret=%d", client_id, res.c_str(), ret);
-		return;
-	}
-	
-	srs_trace("http hook on_unpublish success. "
-		"client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-		client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-	
-	return;
+    std::stringstream ss;
+    ss << "{"
+        // action
+        << '"' << "action" << '"' << ':'
+        << '"' << "on_unpublish" << '"'
+        << ','
+        // client_id
+        << '"' << "client_id" << '"' << ':'
+        << std::dec << client_id
+        << ','
+        // ip
+        << '"' << "ip" << '"' << ':'
+        << '"' << ip << '"'
+        << ','
+        // vhost
+        << '"' << "vhost" << '"' << ':'
+        << '"' << req->vhost << '"'
+        << ','
+        // app
+        << '"' << "app" << '"' << ':'
+        << '"' << req->app << '"'
+        << ','
+        // stream
+        << '"' << "stream" << '"' << ':'
+        << '"' << req->stream << '"'
+        //<< ','
+        << "}";
+    std::string data = ss.str();
+    std::string res;
+    
+    SrsHttpClient http;
+    if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
+        srs_warn("http post on_unpublish uri failed, ignored. "
+            "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
+            client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+        return;
+    }
+    
+    if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
+        ret = ERROR_HTTP_DATA_INVLIAD;
+        srs_warn("http hook on_unpublish validate failed, ignored. "
+            "client_id=%d, res=%s, ret=%d", client_id, res.c_str(), ret);
+        return;
+    }
+    
+    srs_trace("http hook on_unpublish success. "
+        "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
+        client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+    
+    return;
 }
 
 int SrsHttpHooks::on_play(std::string url, int client_id, std::string ip, SrsRequest* req)
 {
-	int ret = ERROR_SUCCESS;
-	
-	SrsHttpUri uri;
-	if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
-		srs_error("http uri parse on_play url failed. "
-			"client_id=%d, url=%s, ret=%d", client_id, url.c_str(), ret);
-		return ret;
-	}
-	
-	/**
-	{
-		"action": "on_play",
-		"client_id": 1985,
-		"ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
-		"stream": "livestream"
-	}
+    int ret = ERROR_SUCCESS;
+    
+    SrsHttpUri uri;
+    if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
+        srs_error("http uri parse on_play url failed. "
+            "client_id=%d, url=%s, ret=%d", client_id, url.c_str(), ret);
+        return ret;
+    }
+    
+    /**
+    {
+        "action": "on_play",
+        "client_id": 1985,
+        "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
+        "stream": "livestream"
+    }
     */
-	std::stringstream ss;
-	ss << "{"
-		// action
-		<< '"' << "action" << '"' << ':'
-		<< '"' << "on_play" << '"'
-		<< ','
-		// client_id
-		<< '"' << "client_id" << '"' << ':'
-		<< std::dec << client_id
-		<< ','
-		// ip
-		<< '"' << "ip" << '"' << ':'
-		<< '"' << ip << '"'
-		<< ','
-		// vhost
-		<< '"' << "vhost" << '"' << ':'
-		<< '"' << req->vhost << '"'
-		<< ','
-		// app
-		<< '"' << "app" << '"' << ':'
-		<< '"' << req->app << '"'
-		<< ','
-		// stream
-		<< '"' << "stream" << '"' << ':'
-		<< '"' << req->stream << '"'
-		//<< ','
-		<< "}";
-	std::string data = ss.str();
-	std::string res;
-	
-	SrsHttpClient http;
-	if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
-		srs_error("http post on_play uri failed. "
-			"client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-			client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-		return ret;
-	}
-	
-	if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
-		ret = ERROR_HTTP_DATA_INVLIAD;
-		srs_error("http hook on_play validate failed. "
-			"client_id=%d, res=%s, ret=%d", client_id, res.c_str(), ret);
-		return ret;
-	}
-	
-	srs_trace("http hook on_play success. "
-		"client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-		client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-	
-	return ret;
+    std::stringstream ss;
+    ss << "{"
+        // action
+        << '"' << "action" << '"' << ':'
+        << '"' << "on_play" << '"'
+        << ','
+        // client_id
+        << '"' << "client_id" << '"' << ':'
+        << std::dec << client_id
+        << ','
+        // ip
+        << '"' << "ip" << '"' << ':'
+        << '"' << ip << '"'
+        << ','
+        // vhost
+        << '"' << "vhost" << '"' << ':'
+        << '"' << req->vhost << '"'
+        << ','
+        // app
+        << '"' << "app" << '"' << ':'
+        << '"' << req->app << '"'
+        << ','
+        // stream
+        << '"' << "stream" << '"' << ':'
+        << '"' << req->stream << '"'
+        //<< ','
+        << "}";
+    std::string data = ss.str();
+    std::string res;
+    
+    SrsHttpClient http;
+    if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
+        srs_error("http post on_play uri failed. "
+            "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
+            client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+        return ret;
+    }
+    
+    if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
+        ret = ERROR_HTTP_DATA_INVLIAD;
+        srs_error("http hook on_play validate failed. "
+            "client_id=%d, res=%s, ret=%d", client_id, res.c_str(), ret);
+        return ret;
+    }
+    
+    srs_trace("http hook on_play success. "
+        "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
+        client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+    
+    return ret;
 }
 
 void SrsHttpHooks::on_stop(std::string url, int client_id, std::string ip, SrsRequest* req)
 {
-	int ret = ERROR_SUCCESS;
-	
-	SrsHttpUri uri;
-	if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
-		srs_warn("http uri parse on_stop url failed, ignored. "
-			"client_id=%d, url=%s, ret=%d", client_id, url.c_str(), ret);
-		return;
-	}
-	
-	/**
-	{
-		"action": "on_stop",
-		"client_id": 1985,
-		"ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
-		"stream": "livestream"
-	}
+    int ret = ERROR_SUCCESS;
+    
+    SrsHttpUri uri;
+    if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
+        srs_warn("http uri parse on_stop url failed, ignored. "
+            "client_id=%d, url=%s, ret=%d", client_id, url.c_str(), ret);
+        return;
+    }
+    
+    /**
+    {
+        "action": "on_stop",
+        "client_id": 1985,
+        "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
+        "stream": "livestream"
+    }
     */
-	std::stringstream ss;
-	ss << "{"
-		// action
-		<< '"' << "action" << '"' << ':'
-		<< '"' << "on_stop" << '"'
-		<< ','
-		// client_id
-		<< '"' << "client_id" << '"' << ':'
-		<< std::dec << client_id
-		<< ','
-		// ip
-		<< '"' << "ip" << '"' << ':'
-		<< '"' << ip << '"'
-		<< ','
-		// vhost
-		<< '"' << "vhost" << '"' << ':'
-		<< '"' << req->vhost << '"'
-		<< ','
-		// app
-		<< '"' << "app" << '"' << ':'
-		<< '"' << req->app << '"'
-		<< ','
-		// stream
-		<< '"' << "stream" << '"' << ':'
-		<< '"' << req->stream << '"'
-		//<< ','
-		<< "}";
-	std::string data = ss.str();
-	std::string res;
-	
-	SrsHttpClient http;
-	if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
-		srs_warn("http post on_stop uri failed, ignored. "
-			"client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-			client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-		return;
-	}
-	
-	if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
-		ret = ERROR_HTTP_DATA_INVLIAD;
-		srs_warn("http hook on_stop validate failed, ignored. "
-			"client_id=%d, res=%s, ret=%d", client_id, res.c_str(), ret);
-		return;
-	}
-	
-	srs_trace("http hook on_stop success. "
-		"client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-		client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-	
-	return;
+    std::stringstream ss;
+    ss << "{"
+        // action
+        << '"' << "action" << '"' << ':'
+        << '"' << "on_stop" << '"'
+        << ','
+        // client_id
+        << '"' << "client_id" << '"' << ':'
+        << std::dec << client_id
+        << ','
+        // ip
+        << '"' << "ip" << '"' << ':'
+        << '"' << ip << '"'
+        << ','
+        // vhost
+        << '"' << "vhost" << '"' << ':'
+        << '"' << req->vhost << '"'
+        << ','
+        // app
+        << '"' << "app" << '"' << ':'
+        << '"' << req->app << '"'
+        << ','
+        // stream
+        << '"' << "stream" << '"' << ':'
+        << '"' << req->stream << '"'
+        //<< ','
+        << "}";
+    std::string data = ss.str();
+    std::string res;
+    
+    SrsHttpClient http;
+    if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
+        srs_warn("http post on_stop uri failed, ignored. "
+            "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
+            client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+        return;
+    }
+    
+    if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
+        ret = ERROR_HTTP_DATA_INVLIAD;
+        srs_warn("http hook on_stop validate failed, ignored. "
+            "client_id=%d, res=%s, ret=%d", client_id, res.c_str(), ret);
+        return;
+    }
+    
+    srs_trace("http hook on_stop success. "
+        "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
+        client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+    
+    return;
 }
 
 #endif

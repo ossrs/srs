@@ -56,40 +56,40 @@ class SrsSource;
 class SrsHlsAacJitter
 {
 private:
-	int64_t base_pts;
-	int64_t nb_samples;
-	int sync_ms;
+    int64_t base_pts;
+    int64_t nb_samples;
+    int sync_ms;
 public:
-	SrsHlsAacJitter();
-	virtual ~SrsHlsAacJitter();
-	/**
-	* when buffer start, calc the "correct" pts for ts,
-	* @param flv_pts, the flv pts calc from flv header timestamp,
-	* @return the calc correct pts.
-	*/
-	virtual int64_t on_buffer_start(int64_t flv_pts, int sample_rate);
-	/**
-	* when buffer continue, muxer donot write to file,
-	* the audio buffer continue grow and donot need a pts,
-	* for the ts audio PES packet only has one pts at the first time.
-	*/
-	virtual void on_buffer_continue();
+    SrsHlsAacJitter();
+    virtual ~SrsHlsAacJitter();
+    /**
+    * when buffer start, calc the "correct" pts for ts,
+    * @param flv_pts, the flv pts calc from flv header timestamp,
+    * @return the calc correct pts.
+    */
+    virtual int64_t on_buffer_start(int64_t flv_pts, int sample_rate);
+    /**
+    * when buffer continue, muxer donot write to file,
+    * the audio buffer continue grow and donot need a pts,
+    * for the ts audio PES packet only has one pts at the first time.
+    */
+    virtual void on_buffer_continue();
 };
 
 //TODO: refine the ts muxer, do more jobs.
 class SrsTSMuxer
 {
 private:
-	int fd;
-	std::string path;
+    int fd;
+    std::string path;
 public:
-	SrsTSMuxer();
-	virtual ~SrsTSMuxer();
+    SrsTSMuxer();
+    virtual ~SrsTSMuxer();
 public:
-	virtual int open(std::string _path);
-	virtual int write_audio(SrsMpegtsFrame* af, SrsCodecBuffer* ab);
-	virtual int write_video(SrsMpegtsFrame* vf, SrsCodecBuffer* vb);
-	virtual void close();
+    virtual int open(std::string _path);
+    virtual int write_audio(SrsMpegtsFrame* af, SrsCodecBuffer* ab);
+    virtual int write_video(SrsMpegtsFrame* vf, SrsCodecBuffer* vb);
+    virtual void close();
 };
 
 /**
@@ -98,26 +98,26 @@ public:
 */
 struct SrsM3u8Segment
 {
-	// duration in seconds in m3u8.
-	double duration;
-	// sequence number in m3u8.
-	int sequence_no;
-	// ts uri in m3u8.
-	std::string uri;
-	// ts full file to write.
-	std::string full_path;
-	// the muxer to write ts.
-	SrsTSMuxer* muxer;
-	// current segment start dts for m3u8
-	int64_t segment_start_dts;
-	
-	SrsM3u8Segment();
-	virtual ~SrsM3u8Segment();
-	
-	/**
-	* update the segment duration.
-	*/
-	virtual double update_duration(int64_t video_stream_dts);
+    // duration in seconds in m3u8.
+    double duration;
+    // sequence number in m3u8.
+    int sequence_no;
+    // ts uri in m3u8.
+    std::string uri;
+    // ts full file to write.
+    std::string full_path;
+    // the muxer to write ts.
+    SrsTSMuxer* muxer;
+    // current segment start dts for m3u8
+    int64_t segment_start_dts;
+    
+    SrsM3u8Segment();
+    virtual ~SrsM3u8Segment();
+    
+    /**
+    * update the segment duration.
+    */
+    virtual double update_duration(int64_t video_stream_dts);
 };
 
 /**
@@ -126,39 +126,39 @@ struct SrsM3u8Segment
 class SrsM3u8Muxer
 {
 private:
-	std::string app;
-	std::string stream;
+    std::string app;
+    std::string stream;
 private:
-	std::string hls_path;
-	int hls_fragment;
-	int hls_window;
+    std::string hls_path;
+    int hls_fragment;
+    int hls_window;
 private:
-	int file_index;
-	std::string m3u8;
+    int file_index;
+    std::string m3u8;
 private:
-	/**
-	* m3u8 segments.
-	*/
-	std::vector<SrsM3u8Segment*> segments;
-	/**
-	* current writing segment.
-	*/
-	SrsM3u8Segment* current;
-	// last known dts
-	int64_t video_stream_dts;
+    /**
+    * m3u8 segments.
+    */
+    std::vector<SrsM3u8Segment*> segments;
+    /**
+    * current writing segment.
+    */
+    SrsM3u8Segment* current;
+    // last known dts
+    int64_t video_stream_dts;
 public:
-	SrsM3u8Muxer();
-	virtual ~SrsM3u8Muxer();
+    SrsM3u8Muxer();
+    virtual ~SrsM3u8Muxer();
 public:
-	virtual int update_config(std::string _app, std::string _stream, std::string path, int fragment, int window);
-	virtual int segment_open();
-	virtual int flush_audio(SrsMpegtsFrame* af, SrsCodecBuffer* ab);
-	virtual int flush_video(SrsMpegtsFrame* af, SrsCodecBuffer* ab, SrsMpegtsFrame* vf, SrsCodecBuffer* vb);
-	virtual int segment_close();
+    virtual int update_config(std::string _app, std::string _stream, std::string path, int fragment, int window);
+    virtual int segment_open();
+    virtual int flush_audio(SrsMpegtsFrame* af, SrsCodecBuffer* ab);
+    virtual int flush_video(SrsMpegtsFrame* af, SrsCodecBuffer* ab, SrsMpegtsFrame* vf, SrsCodecBuffer* vb);
+    virtual int segment_close();
 private:
-	virtual int refresh_m3u8();
-	virtual int _refresh_m3u8(int& fd, std::string m3u8_file);
-	virtual int create_dir();
+    virtual int refresh_m3u8();
+    virtual int _refresh_m3u8(int& fd, std::string m3u8_file);
+    virtual int create_dir();
 };
 
 /**
@@ -167,35 +167,35 @@ private:
 class SrsTSCache
 {
 private:
-	// current frame and buffer
-	SrsMpegtsFrame* af;
-	SrsCodecBuffer* ab;
-	SrsMpegtsFrame* vf;
-	SrsCodecBuffer* vb;
+    // current frame and buffer
+    SrsMpegtsFrame* af;
+    SrsCodecBuffer* ab;
+    SrsMpegtsFrame* vf;
+    SrsCodecBuffer* vb;
 private:
-	// the audio cache buffer start pts, to flush audio if full.
-	int64_t audio_buffer_start_pts;
-	// time jitter for aac
-	SrsHlsAacJitter* aac_jitter;
+    // the audio cache buffer start pts, to flush audio if full.
+    int64_t audio_buffer_start_pts;
+    // time jitter for aac
+    SrsHlsAacJitter* aac_jitter;
 public:
-	SrsTSCache();
-	virtual ~SrsTSCache();
+    SrsTSCache();
+    virtual ~SrsTSCache();
 public:
-	/**
-	* write audio to cache, if need to flush, flush to muxer.
-	*/
-	virtual int write_audio(SrsCodec* codec, SrsM3u8Muxer* muxer, int64_t pts, SrsCodecSample* sample);
-	/**
-	* write video to muxer.
-	*/
-	virtual int write_video(SrsCodec* codec, SrsM3u8Muxer* muxer, int64_t dts, SrsCodecSample* sample);
-	/**
-	* flush audio in cache to muxer.
-	*/
-	virtual int flush_audio(SrsM3u8Muxer* muxer);
+    /**
+    * write audio to cache, if need to flush, flush to muxer.
+    */
+    virtual int write_audio(SrsCodec* codec, SrsM3u8Muxer* muxer, int64_t pts, SrsCodecSample* sample);
+    /**
+    * write video to muxer.
+    */
+    virtual int write_video(SrsCodec* codec, SrsM3u8Muxer* muxer, int64_t dts, SrsCodecSample* sample);
+    /**
+    * flush audio in cache to muxer.
+    */
+    virtual int flush_audio(SrsM3u8Muxer* muxer);
 private:
-	virtual int cache_audio(SrsCodec* codec, SrsCodecSample* sample);
-	virtual int cache_video(SrsCodec* codec, SrsCodecSample* sample);
+    virtual int cache_audio(SrsCodec* codec, SrsCodecSample* sample);
+    virtual int cache_video(SrsCodec* codec, SrsCodecSample* sample);
 };
 
 /**
@@ -204,43 +204,43 @@ private:
 class SrsHls
 {
 private:
-	SrsM3u8Muxer* muxer;
-	SrsTSCache* ts_cache;
+    SrsM3u8Muxer* muxer;
+    SrsTSCache* ts_cache;
 private:
-	bool hls_enabled;
-	SrsSource* source;
-	SrsCodec* codec;
-	SrsCodecSample* sample;
-	SrsRtmpJitter* jitter;
-	SrsPithyPrint* pithy_print;
+    bool hls_enabled;
+    SrsSource* source;
+    SrsCodec* codec;
+    SrsCodecSample* sample;
+    SrsRtmpJitter* jitter;
+    SrsPithyPrint* pithy_print;
 public:
-	SrsHls(SrsSource* _source);
-	virtual ~SrsHls();
+    SrsHls(SrsSource* _source);
+    virtual ~SrsHls();
 public:
-	/**
-	* publish stream event, continue to write the m3u8,
-	* for the muxer object not destroyed.
-	*/
-	virtual int on_publish(SrsRequest* req);
-	/**
-	* the unpublish event, only close the muxer, donot destroy the 
-	* muxer, for when we continue to publish, the m3u8 will continue.
-	*/
-	virtual void on_unpublish();
-	/**
-	* get some information from metadata, it's optinal.
-	*/
-	virtual int on_meta_data(SrsAmf0Object* metadata);
-	/**
-	* mux the audio packets to ts.
-	*/
-	virtual int on_audio(SrsSharedPtrMessage* audio);
-	/**
-	* mux the video packets to ts.
-	*/
-	virtual int on_video(SrsSharedPtrMessage* video);
+    /**
+    * publish stream event, continue to write the m3u8,
+    * for the muxer object not destroyed.
+    */
+    virtual int on_publish(SrsRequest* req);
+    /**
+    * the unpublish event, only close the muxer, donot destroy the 
+    * muxer, for when we continue to publish, the m3u8 will continue.
+    */
+    virtual void on_unpublish();
+    /**
+    * get some information from metadata, it's optinal.
+    */
+    virtual int on_meta_data(SrsAmf0Object* metadata);
+    /**
+    * mux the audio packets to ts.
+    */
+    virtual int on_audio(SrsSharedPtrMessage* audio);
+    /**
+    * mux the video packets to ts.
+    */
+    virtual int on_video(SrsSharedPtrMessage* video);
 private:
-	virtual void hls_mux();
+    virtual void hls_mux();
 };
 
 #endif

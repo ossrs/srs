@@ -36,7 +36,7 @@ SrsThreadContext::~SrsThreadContext()
 
 void SrsThreadContext::generate_id()
 {
-	static int id = 1;
+    static int id = 1;
     cache[st_thread_self()] = id++;
 }
 
@@ -55,7 +55,7 @@ int SrsThreadContext::get_id()
 
 SrsFastLog::SrsFastLog()
 {
-	level = SrsLogLevel::Trace;
+    level = SrsLogLevel::Trace;
     log_data = new char[LOG_MAX_SIZE];
 }
 
@@ -185,15 +185,15 @@ bool SrsFastLog::generate_header(const char* tag, int context_id, const char* le
     int log_header_size = -1;
     
     if (tag) {
-	    log_header_size = snprintf(log_data, LOG_MAX_SIZE, 
-	        "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%s][%d][%d] ", 
-	        1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000), 
-	        level_name, tag, context_id, errno);
+        log_header_size = snprintf(log_data, LOG_MAX_SIZE, 
+            "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%s][%d][%d] ", 
+            1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000), 
+            level_name, tag, context_id, errno);
     } else {
-	    log_header_size = snprintf(log_data, LOG_MAX_SIZE, 
-	        "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%d] ", 
-	        1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000), 
-	        level_name, context_id, errno);
+        log_header_size = snprintf(log_data, LOG_MAX_SIZE, 
+            "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%d] ", 
+            1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000), 
+            level_name, context_id, errno);
     }
 
     if (log_header_size == -1) {

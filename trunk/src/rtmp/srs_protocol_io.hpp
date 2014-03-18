@@ -40,14 +40,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class ISrsProtocolReader : public ISrsBufferReader
 {
 public:
-	ISrsProtocolReader();
-	virtual ~ISrsProtocolReader();
+    ISrsProtocolReader();
+    virtual ~ISrsProtocolReader();
 // for protocol
 public:
-	virtual void set_recv_timeout(int64_t timeout_us) = 0;
-	virtual int64_t get_recv_timeout() = 0;
-	virtual int64_t get_recv_bytes() = 0;
-	virtual int get_recv_kbps() = 0;
+    virtual void set_recv_timeout(int64_t timeout_us) = 0;
+    virtual int64_t get_recv_timeout() = 0;
+    virtual int64_t get_recv_bytes() = 0;
+    virtual int get_recv_kbps() = 0;
 };
 
 /**
@@ -56,28 +56,28 @@ public:
 class ISrsProtocolWriter
 {
 public:
-	ISrsProtocolWriter();
-	virtual ~ISrsProtocolWriter();
+    ISrsProtocolWriter();
+    virtual ~ISrsProtocolWriter();
 // for protocol
 public:
-	virtual void set_send_timeout(int64_t timeout_us) = 0;
-	virtual int64_t get_send_timeout() = 0;
-	virtual int64_t get_send_bytes() = 0;
-	virtual int get_send_kbps() = 0;
+    virtual void set_send_timeout(int64_t timeout_us) = 0;
+    virtual int64_t get_send_timeout() = 0;
+    virtual int64_t get_send_bytes() = 0;
+    virtual int get_send_kbps() = 0;
     virtual int writev(const iovec *iov, int iov_size, ssize_t* nwrite) = 0;
 };
 
 class ISrsProtocolReaderWriter : public ISrsProtocolReader, public ISrsProtocolWriter
 {
 public:
-	ISrsProtocolReaderWriter();
-	virtual ~ISrsProtocolReaderWriter();
+    ISrsProtocolReaderWriter();
+    virtual ~ISrsProtocolReaderWriter();
 // for protocol
 public:
-	/**
-	* whether the specified timeout_us is never timeout.
-	*/
-	virtual bool is_never_timeout(int64_t timeout_us) = 0;
+    /**
+    * whether the specified timeout_us is never timeout.
+    */
+    virtual bool is_never_timeout(int64_t timeout_us) = 0;
 // for handshake.
 public:
     virtual int read_fully(const void* buf, size_t size, ssize_t* nread) = 0;

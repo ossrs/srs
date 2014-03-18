@@ -48,41 +48,41 @@ class SrsPlayPacket;
 */
 struct SrsRequest
 {
-	/**
-	* tcUrl: rtmp://request_vhost:port/app/stream
-	* support pass vhost in query string, such as:
-	*	rtmp://ip:port/app?vhost=request_vhost/stream
-	*	rtmp://ip:port/app...vhost...request_vhost/stream
-	*/
-	std::string tcUrl;
-	std::string pageUrl;
-	std::string swfUrl;
-	double objectEncoding;
-	
-	std::string schema;
-	std::string vhost;
-	std::string port;
-	std::string app;
-	std::string stream;
-	
-	SrsRequest();
-	virtual ~SrsRequest();
+    /**
+    * tcUrl: rtmp://request_vhost:port/app/stream
+    * support pass vhost in query string, such as:
+    *    rtmp://ip:port/app?vhost=request_vhost/stream
+    *    rtmp://ip:port/app...vhost...request_vhost/stream
+    */
+    std::string tcUrl;
+    std::string pageUrl;
+    std::string swfUrl;
+    double objectEncoding;
+    
+    std::string schema;
+    std::string vhost;
+    std::string port;
+    std::string app;
+    std::string stream;
+    
+    SrsRequest();
+    virtual ~SrsRequest();
 
-	/**
-	* deep copy the request, for source to use it to support reload,
-	* for when initialize the source, the request is valid,
-	* when reload it, the request maybe invalid, so need to copy it.
-	*/
-	virtual SrsRequest* copy();
-	
-	/**
-	* disconvery vhost/app from tcUrl.
-	*/
-	virtual int discovery_app();
-	virtual std::string get_stream_url();
-	virtual void strip();
+    /**
+    * deep copy the request, for source to use it to support reload,
+    * for when initialize the source, the request is valid,
+    * when reload it, the request maybe invalid, so need to copy it.
+    */
+    virtual SrsRequest* copy();
+    
+    /**
+    * disconvery vhost/app from tcUrl.
+    */
+    virtual int discovery_app();
+    virtual std::string get_stream_url();
+    virtual void strip();
 private:
-	std::string& trim(std::string& str, std::string chs);
+    std::string& trim(std::string& str, std::string chs);
 };
 
 /**
@@ -90,10 +90,10 @@ private:
 */
 struct SrsResponse
 {
-	int stream_id;
-	
-	SrsResponse();
-	virtual ~SrsResponse();
+    int stream_id;
+    
+    SrsResponse();
+    virtual ~SrsResponse();
 };
 
 /**
@@ -101,10 +101,10 @@ struct SrsResponse
 */
 enum SrsClientType
 {
-	SrsClientUnknown,
-	SrsClientPlay,
-	SrsClientFMLEPublish,
-	SrsClientFlashPublish,
+    SrsClientUnknown,
+    SrsClientPlay,
+    SrsClientFMLEPublish,
+    SrsClientFlashPublish,
 };
 std::string srs_client_type_string(SrsClientType type);
 
@@ -114,36 +114,36 @@ std::string srs_client_type_string(SrsClientType type);
 class SrsRtmpClient
 {
 protected:
-	SrsProtocol* protocol;
-	ISrsProtocolReaderWriter* io;
+    SrsProtocol* protocol;
+    ISrsProtocolReaderWriter* io;
 public:
-	SrsRtmpClient(ISrsProtocolReaderWriter* skt);
-	virtual ~SrsRtmpClient();
+    SrsRtmpClient(ISrsProtocolReaderWriter* skt);
+    virtual ~SrsRtmpClient();
 public:
-	virtual void set_recv_timeout(int64_t timeout_us);
-	virtual void set_send_timeout(int64_t timeout_us);
-	virtual int64_t get_recv_bytes();
-	virtual int64_t get_send_bytes();
-	virtual int get_recv_kbps();
-	virtual int get_send_kbps();
-	virtual int recv_message(SrsCommonMessage** pmsg);
-	virtual int send_message(ISrsMessage* msg);
+    virtual void set_recv_timeout(int64_t timeout_us);
+    virtual void set_send_timeout(int64_t timeout_us);
+    virtual int64_t get_recv_bytes();
+    virtual int64_t get_send_bytes();
+    virtual int get_recv_kbps();
+    virtual int get_send_kbps();
+    virtual int recv_message(SrsCommonMessage** pmsg);
+    virtual int send_message(ISrsMessage* msg);
 public:
-	// try complex, then simple handshake.
-	virtual int handshake();
-	// only use simple handshake
-	virtual int simple_handshake();
-	// only use complex handshake
-	virtual int complex_handshake();
-	virtual int connect_app(std::string app, std::string tc_url);
-	virtual int create_stream(int& stream_id);
-	virtual int play(std::string stream, int stream_id);
-	// flash publish schema:
-	// connect-app => create-stream => flash-publish
-	virtual int publish(std::string stream, int stream_id);
-	// FMLE publish schema:
-	// connect-app => FMLE publish
-	virtual int fmle_publish(std::string stream, int& stream_id);
+    // try complex, then simple handshake.
+    virtual int handshake();
+    // only use simple handshake
+    virtual int simple_handshake();
+    // only use complex handshake
+    virtual int complex_handshake();
+    virtual int connect_app(std::string app, std::string tc_url);
+    virtual int create_stream(int& stream_id);
+    virtual int play(std::string stream, int stream_id);
+    // flash publish schema:
+    // connect-app => create-stream => flash-publish
+    virtual int publish(std::string stream, int stream_id);
+    // FMLE publish schema:
+    // connect-app => FMLE publish
+    virtual int fmle_publish(std::string stream, int& stream_id);
 };
 
 /**
@@ -155,93 +155,93 @@ public:
 class SrsRtmpServer
 {
 private:
-	SrsProtocol* protocol;
-	ISrsProtocolReaderWriter* io;
+    SrsProtocol* protocol;
+    ISrsProtocolReaderWriter* io;
 public:
-	SrsRtmpServer(ISrsProtocolReaderWriter* skt);
-	virtual ~SrsRtmpServer();
+    SrsRtmpServer(ISrsProtocolReaderWriter* skt);
+    virtual ~SrsRtmpServer();
 public:
-	virtual SrsProtocol* get_protocol();
-	virtual void set_recv_timeout(int64_t timeout_us);
-	virtual int64_t get_recv_timeout();
-	virtual void set_send_timeout(int64_t timeout_us);
-	virtual int64_t get_send_timeout();
-	virtual int64_t get_recv_bytes();
-	virtual int64_t get_send_bytes();
-	virtual int get_recv_kbps();
-	virtual int get_send_kbps();
-	virtual int recv_message(SrsCommonMessage** pmsg);
-	virtual int send_message(ISrsMessage* msg);
+    virtual SrsProtocol* get_protocol();
+    virtual void set_recv_timeout(int64_t timeout_us);
+    virtual int64_t get_recv_timeout();
+    virtual void set_send_timeout(int64_t timeout_us);
+    virtual int64_t get_send_timeout();
+    virtual int64_t get_recv_bytes();
+    virtual int64_t get_send_bytes();
+    virtual int get_recv_kbps();
+    virtual int get_send_kbps();
+    virtual int recv_message(SrsCommonMessage** pmsg);
+    virtual int send_message(ISrsMessage* msg);
 public:
-	virtual int handshake();
-	virtual int connect_app(SrsRequest* req);
-	virtual int set_window_ack_size(int ack_size);
-	/**
-	* @type: The sender can mark this message hard (0), soft (1), or dynamic (2)
-	* using the Limit type field.
-	*/
-	virtual int set_peer_bandwidth(int bandwidth, int type);
-	/**
-	* @param server_ip the ip of server.
-	*/
+    virtual int handshake();
+    virtual int connect_app(SrsRequest* req);
+    virtual int set_window_ack_size(int ack_size);
+    /**
+    * @type: The sender can mark this message hard (0), soft (1), or dynamic (2)
+    * using the Limit type field.
+    */
+    virtual int set_peer_bandwidth(int bandwidth, int type);
+    /**
+    * @param server_ip the ip of server.
+    */
     virtual int response_connect_app(SrsRequest* req, const char* server_ip = NULL);
     virtual void response_connect_reject(SrsRequest* req, const char* desc);
-	virtual int on_bw_done();
-	/**
-	* recv some message to identify the client.
-	* @stream_id, client will createStream to play or publish by flash, 
-	* 		the stream_id used to response the createStream request.
-	* @type, output the client type.
-	*/
-	virtual int identify_client(int stream_id, SrsClientType& type, std::string& stream_name);
-	/**
-	* set the chunk size when client type identified.
-	*/
-	virtual int set_chunk_size(int chunk_size);
-	/**
-	* when client type is play, response with packets:
-	* StreamBegin, 
-	* onStatus(NetStream.Play.Reset), onStatus(NetStream.Play.Start).,
-	* |RtmpSampleAccess(false, false),
-	* onStatus(NetStream.Data.Start).
-	*/
-	virtual int start_play(int stream_id);
-	/**
-	* when client(type is play) send pause message,
-	* if is_pause, response the following packets:
-	* 	onStatus(NetStream.Pause.Notify)
-	* 	StreamEOF
-	* if not is_pause, response the following packets:
-	* 	onStatus(NetStream.Unpause.Notify)
-	* 	StreamBegin
-	*/
-	virtual int on_play_client_pause(int stream_id, bool is_pause);
-	/**
-	* when client type is publish, response with packets:
-	* releaseStream response
-	* FCPublish
-	* FCPublish response
-	* createStream response
-	* onFCPublish(NetStream.Publish.Start)
-	* onStatus(NetStream.Publish.Start)
-	*/
-	virtual int start_fmle_publish(int stream_id);
-	/**
-	* process the FMLE unpublish event.
-	* @unpublish_tid the unpublish request transaction id.
-	*/
-	virtual int fmle_unpublish(int stream_id, double unpublish_tid);
-	/**
-	* when client type is publish, response with packets:
-	* onStatus(NetStream.Publish.Start)
-	*/
-	virtual int start_flash_publish(int stream_id);
+    virtual int on_bw_done();
+    /**
+    * recv some message to identify the client.
+    * @stream_id, client will createStream to play or publish by flash, 
+    *         the stream_id used to response the createStream request.
+    * @type, output the client type.
+    */
+    virtual int identify_client(int stream_id, SrsClientType& type, std::string& stream_name);
+    /**
+    * set the chunk size when client type identified.
+    */
+    virtual int set_chunk_size(int chunk_size);
+    /**
+    * when client type is play, response with packets:
+    * StreamBegin, 
+    * onStatus(NetStream.Play.Reset), onStatus(NetStream.Play.Start).,
+    * |RtmpSampleAccess(false, false),
+    * onStatus(NetStream.Data.Start).
+    */
+    virtual int start_play(int stream_id);
+    /**
+    * when client(type is play) send pause message,
+    * if is_pause, response the following packets:
+    *     onStatus(NetStream.Pause.Notify)
+    *     StreamEOF
+    * if not is_pause, response the following packets:
+    *     onStatus(NetStream.Unpause.Notify)
+    *     StreamBegin
+    */
+    virtual int on_play_client_pause(int stream_id, bool is_pause);
+    /**
+    * when client type is publish, response with packets:
+    * releaseStream response
+    * FCPublish
+    * FCPublish response
+    * createStream response
+    * onFCPublish(NetStream.Publish.Start)
+    * onStatus(NetStream.Publish.Start)
+    */
+    virtual int start_fmle_publish(int stream_id);
+    /**
+    * process the FMLE unpublish event.
+    * @unpublish_tid the unpublish request transaction id.
+    */
+    virtual int fmle_unpublish(int stream_id, double unpublish_tid);
+    /**
+    * when client type is publish, response with packets:
+    * onStatus(NetStream.Publish.Start)
+    */
+    virtual int start_flash_publish(int stream_id);
 private:
-	virtual int identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, std::string& stream_name);
-	virtual int identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsClientType& type, std::string& stream_name);
-	virtual int identify_flash_publish_client(SrsPublishPacket* req, SrsClientType& type, std::string& stream_name);
+    virtual int identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, std::string& stream_name);
+    virtual int identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsClientType& type, std::string& stream_name);
+    virtual int identify_flash_publish_client(SrsPublishPacket* req, SrsClientType& type, std::string& stream_name);
 private:
-	virtual int identify_play_client(SrsPlayPacket* req, SrsClientType& type, std::string& stream_name);
+    virtual int identify_play_client(SrsPlayPacket* req, SrsClientType& type, std::string& stream_name);
 };
 
 #endif

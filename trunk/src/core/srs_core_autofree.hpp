@@ -34,7 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * auto free the instance in the current scope.
 */
 #define SrsAutoFree(className, instance, is_array) \
-	__SrsAutoFree<className> _auto_free_##instance(&instance, is_array)
+    __SrsAutoFree<className> _auto_free_##instance(&instance, is_array)
     
 template<class T>
 class __SrsAutoFree

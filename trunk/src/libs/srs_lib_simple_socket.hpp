@@ -39,37 +39,37 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SimpleSocketStream : public ISrsProtocolReaderWriter
 {
 private:
-	int64_t start_time_ms;
-	int64_t recv_timeout;
-	int64_t send_timeout;
-	int64_t recv_bytes;
-	int64_t send_bytes;
-	int fd;
+    int64_t start_time_ms;
+    int64_t recv_timeout;
+    int64_t send_timeout;
+    int64_t recv_bytes;
+    int64_t send_bytes;
+    int fd;
 public:
     SimpleSocketStream();
     virtual ~SimpleSocketStream();
 public:
-	virtual int create_socket();
-	virtual int connect(const char* server, int port);
+    virtual int create_socket();
+    virtual int connect(const char* server, int port);
 // ISrsBufferReader
 public:
     virtual int read(const void* buf, size_t size, ssize_t* nread);
 // ISrsProtocolReader
 public:
-	virtual void set_recv_timeout(int64_t timeout_us);
-	virtual int64_t get_recv_timeout();
-	virtual int64_t get_recv_bytes();
-	virtual int get_recv_kbps();
+    virtual void set_recv_timeout(int64_t timeout_us);
+    virtual int64_t get_recv_timeout();
+    virtual int64_t get_recv_bytes();
+    virtual int get_recv_kbps();
 // ISrsProtocolWriter
 public:
-	virtual void set_send_timeout(int64_t timeout_us);
-	virtual int64_t get_send_timeout();
-	virtual int64_t get_send_bytes();
-	virtual int get_send_kbps();
+    virtual void set_send_timeout(int64_t timeout_us);
+    virtual int64_t get_send_timeout();
+    virtual int64_t get_send_bytes();
+    virtual int get_send_kbps();
     virtual int writev(const iovec *iov, int iov_size, ssize_t* nwrite);
 // ISrsProtocolReaderWriter
 public:
-	virtual bool is_never_timeout(int64_t timeout_us);
+    virtual bool is_never_timeout(int64_t timeout_us);
     virtual int read_fully(const void* buf, size_t size, ssize_t* nread);
     virtual int write(const void* buf, size_t size, ssize_t* nwrite);
 };

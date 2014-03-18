@@ -40,8 +40,8 @@ class SrsSocket;
 
 #include <http_parser.h>
 
-#define SRS_HTTP_HEADER_BUFFER		1024
-#define SRS_HTTP_BODY_BUFFER		32 * 1024
+#define SRS_HTTP_HEADER_BUFFER        1024
+#define SRS_HTTP_BODY_BUFFER        32 * 1024
 
 /**
 * used to resolve the http uri.
@@ -55,13 +55,13 @@ private:
     int port;
     std::string path;
 public:
-	SrsHttpUri();
-	virtual ~SrsHttpUri();
+    SrsHttpUri();
+    virtual ~SrsHttpUri();
 public:
-	/**
-	* initialize the http uri.
-	*/
-	virtual int initialize(std::string _url);
+    /**
+    * initialize the http uri.
+    */
+    virtual int initialize(std::string _url);
 public:
     virtual const char* get_url();
     virtual const char* get_schema();
@@ -82,23 +82,23 @@ private:
 class SrsHttpClient
 {
 private:
-	bool connected;
-	st_netfd_t stfd;
+    bool connected;
+    st_netfd_t stfd;
 private:
     http_parser http_header;
 public:
-	SrsHttpClient();
-	virtual ~SrsHttpClient();
+    SrsHttpClient();
+    virtual ~SrsHttpClient();
 public:
-	/**
-	* to post data to the uri.
-	* @param req the data post to uri.
-	* @param res the response data from server.
-	*/
-	virtual int post(SrsHttpUri* uri, std::string req, std::string& res);
+    /**
+    * to post data to the uri.
+    * @param req the data post to uri.
+    * @param res the response data from server.
+    */
+    virtual int post(SrsHttpUri* uri, std::string req, std::string& res);
 private:
-	virtual void disconnect();
-	virtual int connect(SrsHttpUri* uri);
+    virtual void disconnect();
+    virtual int connect(SrsHttpUri* uri);
 private:
     virtual int parse_response(SrsHttpUri* uri, SrsSocket* skt, std::string* response);
     virtual int parse_response_header(SrsSocket* skt, std::string* response, int& body_received);
@@ -117,54 +117,54 @@ private:
 class SrsHttpHooks
 {
 public:
-	SrsHttpHooks();
-	virtual ~SrsHttpHooks();
+    SrsHttpHooks();
+    virtual ~SrsHttpHooks();
 public:
-	/**
-	* on_connect hook, when client connect to srs.
-	* @param client_id the id of client on server.
-	* @param url the api server url, to valid the client. 
-	* 		ignore if empty.
-	* @return valid failed or connect to the url failed.
-	*/
-	virtual int on_connect(std::string url, int client_id, std::string ip, SrsRequest* req);
-	/**
-	* on_close hook, when client disconnect to srs, where client is valid by on_connect.
-	* @param client_id the id of client on server.
-	* @param url the api server url, to process the event. 
-	* 		ignore if empty.
-	*/
-	virtual void on_close(std::string url, int client_id, std::string ip, SrsRequest* req);
-	/**
-	* on_publish hook, when client(encoder) start to publish stream
-	* @param client_id the id of client on server.
-	* @param url the api server url, to valid the client. 
-	* 		ignore if empty.
-	* @return valid failed or connect to the url failed.
-	*/
-	virtual int on_publish(std::string url, int client_id, std::string ip, SrsRequest* req);
-	/**
-	* on_unpublish hook, when client(encoder) stop publish stream.
-	* @param client_id the id of client on server.
-	* @param url the api server url, to process the event. 
-	* 		ignore if empty.
-	*/
-	virtual void on_unpublish(std::string url, int client_id, std::string ip, SrsRequest* req);
-	/**
-	* on_play hook, when client start to play stream.
-	* @param client_id the id of client on server.
-	* @param url the api server url, to valid the client. 
-	* 		ignore if empty.
-	* @return valid failed or connect to the url failed.
-	*/
-	virtual int on_play(std::string url, int client_id, std::string ip, SrsRequest* req);
-	/**
-	* on_stop hook, when client stop to play the stream.
-	* @param client_id the id of client on server.
-	* @param url the api server url, to process the event. 
-	* 		ignore if empty.
-	*/
-	virtual void on_stop(std::string url, int client_id, std::string ip, SrsRequest* req);
+    /**
+    * on_connect hook, when client connect to srs.
+    * @param client_id the id of client on server.
+    * @param url the api server url, to valid the client. 
+    *         ignore if empty.
+    * @return valid failed or connect to the url failed.
+    */
+    virtual int on_connect(std::string url, int client_id, std::string ip, SrsRequest* req);
+    /**
+    * on_close hook, when client disconnect to srs, where client is valid by on_connect.
+    * @param client_id the id of client on server.
+    * @param url the api server url, to process the event. 
+    *         ignore if empty.
+    */
+    virtual void on_close(std::string url, int client_id, std::string ip, SrsRequest* req);
+    /**
+    * on_publish hook, when client(encoder) start to publish stream
+    * @param client_id the id of client on server.
+    * @param url the api server url, to valid the client. 
+    *         ignore if empty.
+    * @return valid failed or connect to the url failed.
+    */
+    virtual int on_publish(std::string url, int client_id, std::string ip, SrsRequest* req);
+    /**
+    * on_unpublish hook, when client(encoder) stop publish stream.
+    * @param client_id the id of client on server.
+    * @param url the api server url, to process the event. 
+    *         ignore if empty.
+    */
+    virtual void on_unpublish(std::string url, int client_id, std::string ip, SrsRequest* req);
+    /**
+    * on_play hook, when client start to play stream.
+    * @param client_id the id of client on server.
+    * @param url the api server url, to valid the client. 
+    *         ignore if empty.
+    * @return valid failed or connect to the url failed.
+    */
+    virtual int on_play(std::string url, int client_id, std::string ip, SrsRequest* req);
+    /**
+    * on_stop hook, when client stop to play the stream.
+    * @param client_id the id of client on server.
+    * @param url the api server url, to process the event. 
+    *         ignore if empty.
+    */
+    virtual void on_stop(std::string url, int client_id, std::string ip, SrsRequest* req);
 };
 
 #endif

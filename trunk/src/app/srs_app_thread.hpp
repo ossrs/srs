@@ -34,14 +34,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /**
 * the handler for the thread, callback interface.
 * the thread model defines as:
-* 	handler->on_enter_loop()
-* 	while loop:
-*		handler->on_before_cycle()
-*		handler->cycle()
-*		handler->on_end_cycle()
-*		if !loop then break for user stop thread.
-*		sleep(CycleIntervalMilliseconds)
-* 	handler->on_leave_loop()
+*     handler->on_enter_loop()
+*     while loop:
+*        handler->on_before_cycle()
+*        handler->cycle()
+*        handler->on_end_cycle()
+*        if !loop then break for user stop thread.
+*        sleep(CycleIntervalMilliseconds)
+*     handler->on_leave_loop()
 * when stop, the thread will interrupt the st_thread,
 * which will cause the socket to return error and 
 * terminate the cycle thread.
@@ -49,31 +49,31 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * when thread interrupt, the socket maybe not got EINT,
 * espectially on st_usleep(), so the cycle must check the loop,
 * when handler->cycle() has loop itself, for example:
-* 		handler->cycle() is:
-* 			while (true):
-* 				st_usleep(0);
-* 				if (read_from_socket(skt) < 0) break;
+*         handler->cycle() is:
+*             while (true):
+*                 st_usleep(0);
+*                 if (read_from_socket(skt) < 0) break;
 * if thread stop when read_from_socket, it's ok, the loop will break,
 * but when thread stop interrupt the s_usleep(0), then the loop is
 * death loop.
 * in a word, the handler->cycle() must:
-*		handler->cycle() is:
-* 			while (pthread->can_loop()):
-*				st_usleep(0);
-* 				if (read_from_socket(skt) < 0) break;
+*        handler->cycle() is:
+*             while (pthread->can_loop()):
+*                st_usleep(0);
+*                 if (read_from_socket(skt) < 0) break;
 * check the loop, then it works.
 */
 class ISrsThreadHandler
 {
 public:
-	ISrsThreadHandler();
-	virtual ~ISrsThreadHandler();
+    ISrsThreadHandler();
+    virtual ~ISrsThreadHandler();
 public:
-	virtual void on_enter_loop();
-	virtual int on_before_cycle();
-	virtual int cycle() = 0;
-	virtual int on_end_cycle();
-	virtual void on_leave_loop();
+    virtual void on_enter_loop();
+    virtual int on_before_cycle();
+    virtual int cycle() = 0;
+    virtual int on_end_cycle();
+    virtual void on_leave_loop();
 };
 
 /**
@@ -83,41 +83,41 @@ public:
 class SrsThread
 {
 private:
-	st_thread_t tid;
-	bool loop;
+    st_thread_t tid;
+    bool loop;
 private:
-	ISrsThreadHandler* handler;
-	int64_t cycle_interval_us;
+    ISrsThreadHandler* handler;
+    int64_t cycle_interval_us;
 public:
-	/**
-	* initialize the thread.
-	* @param thread_handler, the cycle handler for the thread.
-	* @param interval_us, the sleep interval when cycle finished.
-	*/
-	SrsThread(ISrsThreadHandler* thread_handler, int64_t interval_us);
-	virtual ~SrsThread();
+    /**
+    * initialize the thread.
+    * @param thread_handler, the cycle handler for the thread.
+    * @param interval_us, the sleep interval when cycle finished.
+    */
+    SrsThread(ISrsThreadHandler* thread_handler, int64_t interval_us);
+    virtual ~SrsThread();
 public:
-	/**
-	* start the thread, invoke the cycle of handler util
-	* user stop the thread.
-	* @remark ignore any error of cycle of handler.
-	* @remark user can start multiple times, ignore if already started.
-	*/
-	virtual int start();
-	/**
-	* stop the thread, wait for the thread to terminate.
-	* @remark user can stop multiple times, ignore if already stopped.
-	*/
-	virtual void stop();
-	/**
-	* whether the thread should loop,
-	* used for handler->cycle() which has a loop method,
-	* to check this method, break if false.
-	*/
-	virtual bool can_loop();
+    /**
+    * start the thread, invoke the cycle of handler util
+    * user stop the thread.
+    * @remark ignore any error of cycle of handler.
+    * @remark user can start multiple times, ignore if already started.
+    */
+    virtual int start();
+    /**
+    * stop the thread, wait for the thread to terminate.
+    * @remark user can stop multiple times, ignore if already stopped.
+    */
+    virtual void stop();
+    /**
+    * whether the thread should loop,
+    * used for handler->cycle() which has a loop method,
+    * to check this method, break if false.
+    */
+    virtual bool can_loop();
 private:
-	virtual void thread_cycle();
-	static void* thread_fun(void* arg);
+    virtual void thread_cycle();
+    static void* thread_fun(void* arg);
 };
 
 #endif

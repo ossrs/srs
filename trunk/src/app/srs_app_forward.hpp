@@ -49,39 +49,39 @@ class SrsSource;
 class SrsForwarder : public ISrsThreadHandler
 {
 private:
-	std::string app;
-	std::string tc_url;
-	std::string stream_name;
-	int stream_id;
-	std::string server;
-	int port;
+    std::string app;
+    std::string tc_url;
+    std::string stream_name;
+    int stream_id;
+    std::string server;
+    int port;
 private:
-	st_netfd_t stfd;
-	SrsThread* pthread;
+    st_netfd_t stfd;
+    SrsThread* pthread;
 private:
-	SrsSource* source;
-	ISrsProtocolReaderWriter* io;
-	SrsRtmpClient* client;
-	SrsRtmpJitter* jitter;
-	SrsMessageQueue* queue;
+    SrsSource* source;
+    ISrsProtocolReaderWriter* io;
+    SrsRtmpClient* client;
+    SrsRtmpJitter* jitter;
+    SrsMessageQueue* queue;
 public:
-	SrsForwarder(SrsSource* _source);
-	virtual ~SrsForwarder();
+    SrsForwarder(SrsSource* _source);
+    virtual ~SrsForwarder();
 public:
-	virtual void set_queue_size(double queue_size);
+    virtual void set_queue_size(double queue_size);
 public:
-	virtual int on_publish(SrsRequest* req, std::string forward_server);
-	virtual void on_unpublish();
-	virtual int on_meta_data(SrsSharedPtrMessage* metadata);
-	virtual int on_audio(SrsSharedPtrMessage* msg);
-	virtual int on_video(SrsSharedPtrMessage* msg);
+    virtual int on_publish(SrsRequest* req, std::string forward_server);
+    virtual void on_unpublish();
+    virtual int on_meta_data(SrsSharedPtrMessage* metadata);
+    virtual int on_audio(SrsSharedPtrMessage* msg);
+    virtual int on_video(SrsSharedPtrMessage* msg);
 // interface ISrsThreadHandler.
 public:
-	virtual int cycle();
+    virtual int cycle();
 private:
-	virtual void close_underlayer_socket();
-	virtual int connect_server();
-	virtual int forward();
+    virtual void close_underlayer_socket();
+    virtual int connect_server();
+    virtual int forward();
 };
 
 #endif

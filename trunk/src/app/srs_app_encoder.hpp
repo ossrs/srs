@@ -47,38 +47,38 @@ class SrsPithyPrint;
 class SrsFFMPEG
 {
 private:
-	bool started;
-	pid_t pid;
+    bool started;
+    pid_t pid;
 private:
-	std::string log_file;
-	int log_fd;
+    std::string log_file;
+    int log_fd;
 private:
-	std::string 				ffmpeg;
-	std::vector<std::string> 	vfilter;
-	std::string 				vcodec;
-	int 						vbitrate;
-	double 						vfps;
-	int 						vwidth;
-	int 						vheight;
-	int 						vthreads;
-	std::string 				vprofile;
-	std::string 				vpreset;
-	std::vector<std::string> 	vparams;
-	std::string 				acodec;
-	int 						abitrate;
-	int 						asample_rate;
-	int 						achannels;
-	std::vector<std::string> 	aparams;
-	std::string 				output;
-	std::string 				input;
+    std::string                 ffmpeg;
+    std::vector<std::string>     vfilter;
+    std::string                 vcodec;
+    int                         vbitrate;
+    double                         vfps;
+    int                         vwidth;
+    int                         vheight;
+    int                         vthreads;
+    std::string                 vprofile;
+    std::string                 vpreset;
+    std::vector<std::string>     vparams;
+    std::string                 acodec;
+    int                         abitrate;
+    int                         asample_rate;
+    int                         achannels;
+    std::vector<std::string>     aparams;
+    std::string                 output;
+    std::string                 input;
 public:
-	SrsFFMPEG(std::string ffmpeg_bin);
-	virtual ~SrsFFMPEG();
+    SrsFFMPEG(std::string ffmpeg_bin);
+    virtual ~SrsFFMPEG();
 public:
-	virtual int initialize(SrsRequest* req, SrsConfDirective* engine);
-	virtual int start();
-	virtual int cycle();
-	virtual void stop();
+    virtual int initialize(SrsRequest* req, SrsConfDirective* engine);
+    virtual int start();
+    virtual int cycle();
+    virtual void stop();
 };
 
 /**
@@ -88,26 +88,26 @@ public:
 class SrsEncoder : public ISrsThreadHandler
 {
 private:
-	std::vector<SrsFFMPEG*> ffmpegs;
+    std::vector<SrsFFMPEG*> ffmpegs;
 private:
-	SrsThread* pthread;
-	SrsPithyPrint* pithy_print;
+    SrsThread* pthread;
+    SrsPithyPrint* pithy_print;
 public:
-	SrsEncoder();
-	virtual ~SrsEncoder();
+    SrsEncoder();
+    virtual ~SrsEncoder();
 public:
-	virtual int on_publish(SrsRequest* req);
-	virtual void on_unpublish();
+    virtual int on_publish(SrsRequest* req);
+    virtual void on_unpublish();
 // interface ISrsThreadHandler.
 public:
-	virtual int cycle();
-	virtual void on_leave_loop();
+    virtual int cycle();
+    virtual void on_leave_loop();
 private:
-	virtual void clear_engines();
-	virtual SrsFFMPEG* at(int index);
-	virtual int parse_scope_engines(SrsRequest* req);
-	virtual int parse_transcode(SrsRequest* req, SrsConfDirective* conf);
-	virtual void encoder();
+    virtual void clear_engines();
+    virtual SrsFFMPEG* at(int index);
+    virtual int parse_scope_engines(SrsRequest* req);
+    virtual int parse_transcode(SrsRequest* req, SrsConfDirective* conf);
+    virtual void encoder();
 };
 
 #endif

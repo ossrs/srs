@@ -35,132 +35,132 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 struct SrsStageInfo : public ISrsReloadHandler
 {
-	int stage_id;
-	int pithy_print_time_ms;
-	int nb_clients;
-	
-	SrsStageInfo(int _stage_id)
-	{
-		stage_id = _stage_id;
-		nb_clients = 0;
-		
-		update_print_time();
-		
-		_srs_config->subscribe(this);
-	}
-	virtual ~SrsStageInfo()
-	{
-		_srs_config->unsubscribe(this);
-	}
-	void update_print_time()
-	{
-		switch (stage_id) {
-			case SRS_STAGE_PLAY_USER: {
-				pithy_print_time_ms = _srs_config->get_pithy_print_play();
-				break;
-			}
-			case SRS_STAGE_PUBLISH_USER: {
-				pithy_print_time_ms = _srs_config->get_pithy_print_publish();
-				break;
-			}
-			case SRS_STAGE_FORWARDER: {
-				pithy_print_time_ms = _srs_config->get_pithy_print_forwarder();
-				break;
-			}
-			case SRS_STAGE_ENCODER: {
-				pithy_print_time_ms = _srs_config->get_pithy_print_encoder();
-				break;
-			}
-			case SRS_STAGE_HLS: {
-				pithy_print_time_ms = _srs_config->get_pithy_print_hls();
-				break;
-			}
-			default: {
-				pithy_print_time_ms = SRS_STAGE_DEFAULT_INTERVAL_MS;
-				break;
-			}
-		}
-	}
+    int stage_id;
+    int pithy_print_time_ms;
+    int nb_clients;
+    
+    SrsStageInfo(int _stage_id)
+    {
+        stage_id = _stage_id;
+        nb_clients = 0;
+        
+        update_print_time();
+        
+        _srs_config->subscribe(this);
+    }
+    virtual ~SrsStageInfo()
+    {
+        _srs_config->unsubscribe(this);
+    }
+    void update_print_time()
+    {
+        switch (stage_id) {
+            case SRS_STAGE_PLAY_USER: {
+                pithy_print_time_ms = _srs_config->get_pithy_print_play();
+                break;
+            }
+            case SRS_STAGE_PUBLISH_USER: {
+                pithy_print_time_ms = _srs_config->get_pithy_print_publish();
+                break;
+            }
+            case SRS_STAGE_FORWARDER: {
+                pithy_print_time_ms = _srs_config->get_pithy_print_forwarder();
+                break;
+            }
+            case SRS_STAGE_ENCODER: {
+                pithy_print_time_ms = _srs_config->get_pithy_print_encoder();
+                break;
+            }
+            case SRS_STAGE_HLS: {
+                pithy_print_time_ms = _srs_config->get_pithy_print_hls();
+                break;
+            }
+            default: {
+                pithy_print_time_ms = SRS_STAGE_DEFAULT_INTERVAL_MS;
+                break;
+            }
+        }
+    }
 public:
-	virtual int on_reload_pithy_print()
-	{
-		update_print_time();
-		return ERROR_SUCCESS;
-	}
+    virtual int on_reload_pithy_print()
+    {
+        update_print_time();
+        return ERROR_SUCCESS;
+    }
 };
 static std::map<int, SrsStageInfo*> _srs_stages;
 
 SrsPithyPrint::SrsPithyPrint(int _stage_id)
 {
-	stage_id = _stage_id;
-	client_id = enter_stage();
-	printed_age = age = 0;
+    stage_id = _stage_id;
+    client_id = enter_stage();
+    printed_age = age = 0;
 }
 
 SrsPithyPrint::~SrsPithyPrint()
 {
-	leave_stage();
+    leave_stage();
 }
 
 int SrsPithyPrint::enter_stage()
 {
-	SrsStageInfo* stage = NULL;
-	
-	std::map<int, SrsStageInfo*>::iterator it = _srs_stages.find(stage_id);
-	if (it == _srs_stages.end()) {
-		stage = _srs_stages[stage_id] = new SrsStageInfo(stage_id);
-	} else {
-		stage = it->second;
-	}
-	
-	srs_assert(stage != NULL);
-	client_id = stage->nb_clients++;
+    SrsStageInfo* stage = NULL;
+    
+    std::map<int, SrsStageInfo*>::iterator it = _srs_stages.find(stage_id);
+    if (it == _srs_stages.end()) {
+        stage = _srs_stages[stage_id] = new SrsStageInfo(stage_id);
+    } else {
+        stage = it->second;
+    }
+    
+    srs_assert(stage != NULL);
+    client_id = stage->nb_clients++;
 
-	srs_verbose("enter stage, stage_id=%d, client_id=%d, nb_clients=%d, time_ms=%d",
-		stage->stage_id, client_id, stage->nb_clients, stage->pithy_print_time_ms);
-	
-	return client_id;
+    srs_verbose("enter stage, stage_id=%d, client_id=%d, nb_clients=%d, time_ms=%d",
+        stage->stage_id, client_id, stage->nb_clients, stage->pithy_print_time_ms);
+    
+    return client_id;
 }
 
 void SrsPithyPrint::leave_stage()
 {
-	SrsStageInfo* stage = _srs_stages[stage_id];
-	srs_assert(stage != NULL);
-	
-	stage->nb_clients--;
+    SrsStageInfo* stage = _srs_stages[stage_id];
+    srs_assert(stage != NULL);
+    
+    stage->nb_clients--;
 
-	srs_verbose("leave stage, stage_id=%d, client_id=%d, nb_clients=%d, time_ms=%d",
-		stage->stage_id, client_id, stage->nb_clients, stage->pithy_print_time_ms);
+    srs_verbose("leave stage, stage_id=%d, client_id=%d, nb_clients=%d, time_ms=%d",
+        stage->stage_id, client_id, stage->nb_clients, stage->pithy_print_time_ms);
 }
 
 void SrsPithyPrint::elapse(int64_t time_ms)
 {
-	age += time_ms;
+    age += time_ms;
 }
 
 bool SrsPithyPrint::can_print()
 {
-	SrsStageInfo* stage = _srs_stages[stage_id];
-	srs_assert(stage != NULL);
-	
-	int64_t alive_age = age - printed_age;
-	int64_t can_print_age = stage->nb_clients * stage->pithy_print_time_ms;
-	
-	bool can_print = alive_age >= can_print_age;
-	if (can_print) {
-		printed_age = age;
-	}
-	
-	return can_print;
+    SrsStageInfo* stage = _srs_stages[stage_id];
+    srs_assert(stage != NULL);
+    
+    int64_t alive_age = age - printed_age;
+    int64_t can_print_age = stage->nb_clients * stage->pithy_print_time_ms;
+    
+    bool can_print = alive_age >= can_print_age;
+    if (can_print) {
+        printed_age = age;
+    }
+    
+    return can_print;
 }
 
 int64_t SrsPithyPrint::get_age()
 {
-	return age;
+    return age;
 }
 
 void SrsPithyPrint::set_age(int64_t _age)
 {
-	age = _age;
+    age = _age;
 }
 
