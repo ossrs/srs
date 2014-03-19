@@ -23,6 +23,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_protocol_utility.hpp>
 
+#include <stdlib.h>
+
+#include <srs_kernel_log.hpp>
+
 void srs_vhost_resolve(std::string& vhost, std::string& app)
 {
     app = srs_replace(app, "...", "?");
@@ -44,5 +48,25 @@ void srs_vhost_resolve(std::string& vhost, std::string& app)
         if (!query.empty()) {
             vhost = query;
         }
+    }
+}
+
+void srs_random_generate(char* bytes, int size)
+{
+    static bool _random_initialized = false;
+    if (!_random_initialized) {
+        srand(0);
+        _random_initialized = true;
+        srs_trace("srand initialized the random.");
+    }
+    
+    static char cdata[]  = { 
+        0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x2d, 0x72, 0x74, 0x6d, 0x70, 0x2d, 0x73, 0x65, 
+        0x72, 0x76, 0x65, 0x72, 0x2d, 0x77, 0x69, 0x6e, 0x6c, 0x69, 0x6e, 0x2d, 0x77, 0x69, 
+        0x6e, 0x74, 0x65, 0x72, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x40, 0x31, 0x32, 0x36, 
+        0x2e, 0x63, 0x6f, 0x6d
+    };
+    for (int i = 0; i < size; i++) {
+        bytes[i] = cdata[rand() % (sizeof(cdata) - 1)];
     }
 }

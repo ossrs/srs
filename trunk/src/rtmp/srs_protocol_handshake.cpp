@@ -24,27 +24,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_handshake.hpp>
 
 #include <time.h>
-#include <stdlib.h>
 
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_protocol_io.hpp>
+#include <srs_protocol_utility.hpp>
+#include <srs_protocol_rtmp.hpp>
 
 using namespace srs;
-
-void srs_random_generate(char* bytes, int size)
-{
-    static char cdata[]  = { 
-        0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x2d, 0x72, 0x74, 0x6d, 0x70, 0x2d, 0x73, 0x65, 
-        0x72, 0x76, 0x65, 0x72, 0x2d, 0x77, 0x69, 0x6e, 0x6c, 0x69, 0x6e, 0x2d, 0x77, 0x69, 
-        0x6e, 0x74, 0x65, 0x72, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x40, 0x31, 0x32, 0x36, 
-        0x2e, 0x63, 0x6f, 0x6d
-    };
-    for (int i = 0; i < size; i++) {
-        bytes[i] = cdata[rand() % (sizeof(cdata) - 1)];
-    }
-}
 
 #ifdef SRS_SSL
 
@@ -569,6 +557,12 @@ void c2s2::dump(char* _c2s2)
     memcpy(_c2s2 + 1504, digest, 32);
 }
 
+void c2s2::parse(char* _c2s2)
+{
+    memcpy(random, _c2s2, 1504);
+    memcpy(digest, _c2s2 + 1504, 32);
+}
+
 int c2s2::c2_create(c1s1* s1)
 {
     int ret = ERROR_SUCCESS;
@@ -592,6 +586,30 @@ int c2s2::c2_create(c1s1* s1)
     return ret;
 }
 
+int c2s2::c2_validate(c1s1* s1, bool& is_valid)
+{
+    is_valid = false;
+    int ret = ERROR_SUCCESS;
+    
+    char temp_key[OpensslHashSize];
+    if ((ret = openssl_HMACsha256(s1->get_digest(), 32, SrsGenuineFPKey, 62, temp_key)) != ERROR_SUCCESS) {
+        srs_error("create c2 temp key failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("generate c2 temp key success.");
+    
+    char _digest[OpensslHashSize];
+    if ((ret = openssl_HMACsha256(random, 1504, temp_key, 32, _digest)) != ERROR_SUCCESS) {
+        srs_error("create c2 digest failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("generate c2 digest success.");
+    
+    is_valid = srs_bytes_equals(digest, _digest, 32);
+    
+    return ret;
+}
+
 int c2s2::s2_create(c1s1* c1)
 {
     int ret = ERROR_SUCCESS;
@@ -611,6 +629,30 @@ int c2s2::s2_create(c1s1* c1)
     srs_verbose("generate s2 digest success.");
     
     memcpy(digest, _digest, 32);
+    
+    return ret;
+}
+
+int c2s2::s2_validate(c1s1* c1, bool& is_valid)
+{
+    is_valid = false;
+    int ret = ERROR_SUCCESS;
+    
+    char temp_key[OpensslHashSize];
+    if ((ret = openssl_HMACsha256(c1->get_digest(), 32, SrsGenuineFMSKey, 68, temp_key)) != ERROR_SUCCESS) {
+        srs_error("create s2 temp key failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("generate s2 temp key success.");
+    
+    char _digest[OpensslHashSize];
+    if ((ret = openssl_HMACsha256(random, 1504, temp_key, 32, _digest)) != ERROR_SUCCESS) {
+        srs_error("create s2 digest failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("generate s2 digest success.");
+    
+    is_valid = srs_bytes_equals(digest, _digest, 32);
     
     return ret;
 }
@@ -738,6 +780,7 @@ int c1s1::c1_parse(char* _c1s1, srs_schema_type _schema)
 
 int c1s1::c1_validate_digest(bool& is_valid)
 {
+    is_valid = false;
     int ret = ERROR_SUCCESS;
     
     char* c1_digest = NULL;
@@ -761,6 +804,7 @@ int c1s1::c1_validate_digest(bool& is_valid)
 
 int c1s1::s1_validate_digest(bool& is_valid)
 {
+    is_valid = false;
     int ret = ERROR_SUCCESS;
     
     char* s1_digest = NULL;
@@ -918,125 +962,85 @@ SrsSimpleHandshake::~SrsSimpleHandshake()
 {
 }
 
-int SrsSimpleHandshake::handshake_with_client(ISrsProtocolReaderWriter* skt, SrsComplexHandshake* complex_hs)
+int SrsSimpleHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io)
 {
     int ret = ERROR_SUCCESS;
     
     ssize_t nsize;
     
-    char* c0c1 = new char[1537];
-    SrsAutoFree(char, c0c1, true);
-    if ((ret = skt->read_fully(c0c1, 1537, &nsize)) != ERROR_SUCCESS) {
-        srs_warn("read c0c1 failed. ret=%d", ret);
+    if ((ret = hs_bytes->read_c0c1(io)) != ERROR_SUCCESS) {
         return ret;
     }
-    srs_verbose("read c0c1 success.");
 
     // plain text required.
-    if (c0c1[0] != 0x03) {
+    if (hs_bytes->c0c1[0] != 0x03) {
         ret = ERROR_RTMP_PLAIN_REQUIRED;
         srs_warn("only support rtmp plain text. ret=%d", ret);
         return ret;
     }
     srs_verbose("check c0 success, required plain text.");
     
-    // try complex handshake
-    if (complex_hs) {
-        ret = complex_hs->handshake_with_client(skt, c0c1 + 1);
-        if (ret == ERROR_SUCCESS) {
-            srs_trace("complex handshake success.");
-            return ret;
-        }
-        if (ret != ERROR_RTMP_TRY_SIMPLE_HS) {
-            srs_error("complex handshake failed. ret=%d", ret);
-            return ret;
-        }
-        srs_info("rollback complex to simple handshake. ret=%d", ret);
+    if ((ret = hs_bytes->create_s0s1s2()) != ERROR_SUCCESS) {
+        return ret;
     }
     
-    char* s0s1s2 = new char[3073];
-    srs_random_generate(s0s1s2, 3073);
-    SrsAutoFree(char, s0s1s2, true);
     // plain text required.
-    s0s1s2[0] = 0x03;
-    if ((ret = skt->write(s0s1s2, 3073, &nsize)) != ERROR_SUCCESS) {
+    hs_bytes->s0s1s2[0] = 0x03;
+    if ((ret = io->write(hs_bytes->s0s1s2, 3073, &nsize)) != ERROR_SUCCESS) {
         srs_warn("simple handshake send s0s1s2 failed. ret=%d", ret);
         return ret;
     }
     srs_verbose("simple handshake send s0s1s2 success.");
     
-    char* c2 = new char[1536];
-    SrsAutoFree(char, c2, true);
-    if ((ret = skt->read_fully(c2, 1536, &nsize)) != ERROR_SUCCESS) {
-        srs_warn("simple handshake read c2 failed. ret=%d", ret);
+    if ((ret = hs_bytes->read_c2(io)) != ERROR_SUCCESS) {
         return ret;
     }
-    srs_verbose("simple handshake read c2 success.");
     
-    srs_trace("simple handshake success.");
+    srs_trace("simple handshake with client success.");
     
     return ret;
 }
 
-int SrsSimpleHandshake::handshake_with_server(ISrsProtocolReaderWriter* skt, SrsComplexHandshake* complex_hs)
+int SrsSimpleHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io)
 {
     int ret = ERROR_SUCCESS;
     
-    // try complex handshake
-    if (complex_hs) {
-        ret = complex_hs->handshake_with_server(skt);
-        if (ret == ERROR_SUCCESS) {
-            srs_trace("complex handshake success.");
-            return ret;
-        }
-        if (ret != ERROR_RTMP_TRY_SIMPLE_HS) {
-            srs_error("complex handshake failed. ret=%d", ret);
-            return ret;
-        }
-        srs_info("rollback complex to simple handshake. ret=%d", ret);
-    }
-    
-    // simple handshake
     ssize_t nsize;
     
-    char* c0c1 = new char[1537];
-    SrsAutoFree(char, c0c1, true);
-    
-    srs_random_generate(c0c1, 1537);
+    // simple handshake
+    if ((ret = hs_bytes->create_c0c1()) != ERROR_SUCCESS) {
+        return ret;
+    }
     // plain text required.
-    c0c1[0] = 0x03;
+    hs_bytes->c0c1[0] = 0x03;
     
-    if ((ret = skt->write(c0c1, 1537, &nsize)) != ERROR_SUCCESS) {
+    if ((ret = io->write(hs_bytes->c0c1, 1537, &nsize)) != ERROR_SUCCESS) {
         srs_warn("write c0c1 failed. ret=%d", ret);
         return ret;
     }
     srs_verbose("write c0c1 success.");
     
-    char* s0s1s2 = new char[3073];
-    SrsAutoFree(char, s0s1s2, true);
-    if ((ret = skt->read_fully(s0s1s2, 3073, &nsize)) != ERROR_SUCCESS) {
-        srs_warn("simple handshake recv s0s1s2 failed. ret=%d", ret);
+    if ((ret = hs_bytes->read_s0s1s2(io)) != ERROR_SUCCESS) {
         return ret;
     }
-    srs_verbose("simple handshake recv s0s1s2 success.");
     
     // plain text required.
-    if (s0s1s2[0] != 0x03) {
+    if (hs_bytes->s0s1s2[0] != 0x03) {
         ret = ERROR_RTMP_HANDSHAKE;
         srs_warn("handshake failed, plain text required. ret=%d", ret);
         return ret;
     }
     
-    char* c2 = new char[1536];
-    SrsAutoFree(char, c2, true);
-    srs_random_generate(c2, 1536);
-    if ((ret = skt->write(c2, 1536, &nsize)) != ERROR_SUCCESS) {
+    if ((ret = hs_bytes->create_c2()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = io->write(hs_bytes->c2, 1536, &nsize)) != ERROR_SUCCESS) {
         srs_warn("simple handshake write c2 failed. ret=%d", ret);
         return ret;
     }
     srs_verbose("simple handshake write c2 success.");
     
-    srs_trace("simple handshake success.");
+    srs_trace("simple handshake with server success.");
     
     return ret;
 }
@@ -1050,36 +1054,33 @@ SrsComplexHandshake::~SrsComplexHandshake()
 }
 
 #ifndef SRS_SSL
-int SrsComplexHandshake::handshake_with_client(ISrsProtocolReaderWriter* /*skt*/, char* /*_c1*/)
+int SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* /*hs_bytes*/, ISrsProtocolReaderWriter* /*io*/)
 {
     srs_trace("directly use simple handshake for ssl disabled.");
     return ERROR_RTMP_TRY_SIMPLE_HS;
 }
 #else
-int SrsComplexHandshake::handshake_with_client(ISrsProtocolReaderWriter* skt, char* _c1)
+int SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io)
 {
     int ret = ERROR_SUCCESS;
 
     ssize_t nsize;
     
-    static bool _random_initialized = false;
-    if (!_random_initialized) {
-        srand(0);
-        _random_initialized = true;
-        srs_trace("srand initialized the random.");
+    if ((ret = hs_bytes->read_c0c1(io)) != ERROR_SUCCESS) {
+        return ret;
     }
     
     // decode c1
     c1s1 c1;
     // try schema0.
-    if ((ret = c1.c1_parse(_c1, srs_schema0)) != ERROR_SUCCESS) {
+    if ((ret = c1.c1_parse(hs_bytes->c0c1 + 1, srs_schema0)) != ERROR_SUCCESS) {
         srs_error("parse c1 schema%d error. ret=%d", srs_schema0, ret);
         return ret;
     }
     // try schema1
     bool is_valid = false;
     if ((ret = c1.c1_validate_digest(is_valid)) != ERROR_SUCCESS || !is_valid) {
-        if ((ret = c1.c1_parse(_c1, srs_schema1)) != ERROR_SUCCESS) {
+        if ((ret = c1.c1_parse(hs_bytes->c0c1 + 1, srs_schema1)) != ERROR_SUCCESS) {
             srs_error("parse c1 schema%d error. ret=%d", srs_schema1, ret);
             return ret;
         }
@@ -1102,10 +1103,10 @@ int SrsComplexHandshake::handshake_with_client(ISrsProtocolReaderWriter* skt, ch
     // verify s1
     if ((ret = s1.s1_validate_digest(is_valid)) != ERROR_SUCCESS || !is_valid) {
         ret = ERROR_RTMP_TRY_SIMPLE_HS;
-        srs_info("valid s1 failed, try simple handshake. ret=%d", ret);
+        srs_info("verify s1 failed, try simple handshake. ret=%d", ret);
         return ret;
     }
-    srs_verbose("verify s1 from c1 success.");
+    srs_verbose("verify s1 success.");
     
     c2s2 s2;
     if ((ret = s2.s2_create(&c1)) != ERROR_SUCCESS) {
@@ -1113,40 +1114,56 @@ int SrsComplexHandshake::handshake_with_client(ISrsProtocolReaderWriter* skt, ch
         return ret;
     }
     srs_verbose("create s2 from c1 success.");
+    // verify s2
+    if ((ret = s2.s2_validate(&c1, is_valid)) != ERROR_SUCCESS || !is_valid) {
+        ret = ERROR_RTMP_TRY_SIMPLE_HS;
+        srs_info("verify s2 failed, try simple handshake. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("verify s2 success.");
     
     // sendout s0s1s2
-    char* s0s1s2 = new char[3073];
-    SrsAutoFree(char, s0s1s2, true);
+    if ((ret = hs_bytes->create_s0s1s2()) != ERROR_SUCCESS) {
+        return ret;
+    }
     // plain text required.
-    s0s1s2[0] = 0x03;
-    s1.dump(s0s1s2 + 1);
-    s2.dump(s0s1s2 + 1537);
-    if ((ret = skt->write(s0s1s2, 3073, &nsize)) != ERROR_SUCCESS) {
+    hs_bytes->s0s1s2[0] = 0x03;
+    s1.dump(hs_bytes->s0s1s2 + 1);
+    s2.dump(hs_bytes->s0s1s2 + 1537);
+    if ((ret = io->write(hs_bytes->s0s1s2, 3073, &nsize)) != ERROR_SUCCESS) {
         srs_warn("complex handshake send s0s1s2 failed. ret=%d", ret);
         return ret;
     }
     srs_verbose("complex handshake send s0s1s2 success.");
     
     // recv c2
-    char* c2 = new char[1536];
-    SrsAutoFree(char, c2, true);
-    if ((ret = skt->read_fully(c2, 1536, &nsize)) != ERROR_SUCCESS) {
-        srs_warn("complex handshake read c2 failed. ret=%d", ret);
+    if ((ret = hs_bytes->read_c2(io)) != ERROR_SUCCESS) {
         return ret;
     }
+    c2s2 c2;
+    c2.parse(hs_bytes->c2);
     srs_verbose("complex handshake read c2 success.");
+    // verify c2
+    if ((ret = c2.c2_validate(&s1, is_valid)) != ERROR_SUCCESS || !is_valid) {
+        ret = ERROR_RTMP_HANDSHAKE;
+        srs_trace("verify c2 failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("verify c2 success.");
+    
+    srs_trace("comple handshake with client success");
     
     return ret;
 }
 #endif
 
 #ifndef SRS_SSL
-int SrsComplexHandshake::handshake_with_server(ISrsProtocolReaderWriter* /*skt*/)
+int SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* /*hs_bytes*/, ISrsProtocolReaderWriter* /*io*/)
 {
     return ERROR_RTMP_TRY_SIMPLE_HS;
 }
 #else
-int SrsComplexHandshake::handshake_with_server(ISrsProtocolReaderWriter* /*skt*/)
+int SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* /*hs_bytes*/, ISrsProtocolReaderWriter* /*io*/)
 {
     int ret = ERROR_SUCCESS;
     

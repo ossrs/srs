@@ -109,10 +109,37 @@ enum SrsClientType
 std::string srs_client_type_string(SrsClientType type);
 
 /**
+* store the handshake bytes, 
+* for smart switch between complex and simple handshake.
+*/
+class SrsHandshakeBytes
+{
+public:
+    // [1+1536]
+    char* c0c1;
+    // [1+1536+1536]
+    char* s0s1s2;
+    // [1536]
+    char* c2;
+public:
+    SrsHandshakeBytes();
+    virtual ~SrsHandshakeBytes();
+public:
+    virtual int read_c0c1(ISrsProtocolReaderWriter* io);
+    virtual int read_s0s1s2(ISrsProtocolReaderWriter* io);
+    virtual int read_c2(ISrsProtocolReaderWriter* io);
+    virtual int create_c0c1();
+    virtual int create_s0s1s2();
+    virtual int create_c2();
+};
+
+/**
 * implements the client role protocol.
 */
 class SrsRtmpClient
 {
+private:
+    SrsHandshakeBytes* hs_bytes;
 protected:
     SrsProtocol* protocol;
     ISrsProtocolReaderWriter* io;
@@ -155,6 +182,7 @@ public:
 class SrsRtmpServer
 {
 private:
+    SrsHandshakeBytes* hs_bytes;
     SrsProtocol* protocol;
     ISrsProtocolReaderWriter* io;
 public:

@@ -187,15 +187,131 @@ string srs_client_type_string(SrsClientType type)
     return "Unknown";
 }
 
+SrsHandshakeBytes::SrsHandshakeBytes() 
+{
+    c0c1 = s0s1s2 = c2 = NULL;
+}
+
+SrsHandshakeBytes::~SrsHandshakeBytes() 
+{
+    srs_freepa(c0c1);
+    srs_freepa(s0s1s2);
+    srs_freepa(c2);
+}
+
+int SrsHandshakeBytes::read_c0c1(ISrsProtocolReaderWriter* io)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (c0c1) {
+        return ret;
+    }
+    
+    ssize_t nsize;
+    
+    c0c1 = new char[1537];
+    if ((ret = io->read_fully(c0c1, 1537, &nsize)) != ERROR_SUCCESS) {
+        srs_warn("read c0c1 failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("read c0c1 success.");
+    
+    return ret;
+}
+
+int SrsHandshakeBytes::read_s0s1s2(ISrsProtocolReaderWriter* io)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (s0s1s2) {
+        return ret;
+    }
+    
+    ssize_t nsize;
+    
+    c0c1 = new char[3073];
+    if ((ret = io->read_fully(s0s1s2, 3073, &nsize)) != ERROR_SUCCESS) {
+        srs_warn("read s0s1s2 failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("read s0s1s2 success.");
+    
+    return ret;
+}
+
+int SrsHandshakeBytes::read_c2(ISrsProtocolReaderWriter* io)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (c2) {
+        return ret;
+    }
+    
+    ssize_t nsize;
+    
+    c2 = new char[1536];
+    if ((ret = io->read_fully(c2, 1536, &nsize)) != ERROR_SUCCESS) {
+        srs_warn("read c2 failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("read c2 success.");
+    
+    return ret;
+}
+
+int SrsHandshakeBytes::create_c0c1()
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (c0c1) {
+        return ret;
+    }
+    
+    c0c1 = new char[1537];
+    srs_random_generate(c0c1, 1537);
+    
+    return ret;
+}
+
+int SrsHandshakeBytes::create_s0s1s2()
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (s0s1s2) {
+        return ret;
+    }
+    
+    s0s1s2 = new char[3073];
+    srs_random_generate(s0s1s2, 3073);
+    
+    return ret;
+}
+
+int SrsHandshakeBytes::create_c2()
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (c2) {
+        return ret;
+    }
+    
+    c2 = new char[1536];
+    srs_random_generate(c2, 1536);
+    
+    return ret;
+}
+
 SrsRtmpClient::SrsRtmpClient(ISrsProtocolReaderWriter* skt)
 {
     io = skt;
     protocol = new SrsProtocol(skt);
+    hs_bytes = new SrsHandshakeBytes();
 }
 
 SrsRtmpClient::~SrsRtmpClient()
 {
     srs_freep(protocol);
+    srs_freep(hs_bytes);
 }
 
 void SrsRtmpClient::set_recv_timeout(int64_t timeout_us)
@@ -242,11 +358,20 @@ int SrsRtmpClient::handshake()
 {
     int ret = ERROR_SUCCESS;
     
+    srs_assert(hs_bytes);
+    
     SrsComplexHandshake complex_hs;
-    SrsSimpleHandshake simple_hs;
-    if ((ret = simple_hs.handshake_with_server(io, &complex_hs)) != ERROR_SUCCESS) {
+    if ((ret = complex_hs.handshake_with_server(hs_bytes, io)) != ERROR_SUCCESS) {
+        if (ret == ERROR_RTMP_TRY_SIMPLE_HS) {
+            SrsSimpleHandshake simple_hs;
+            if ((ret = simple_hs.handshake_with_server(hs_bytes, io)) != ERROR_SUCCESS) {
+                return ret;
+            }
+        }
         return ret;
     }
+    
+    srs_freep(hs_bytes);
     
     return ret;
 }
@@ -255,18 +380,32 @@ int SrsRtmpClient::simple_handshake()
 {
     int ret = ERROR_SUCCESS;
     
+    srs_assert(hs_bytes);
+    
     SrsSimpleHandshake simple_hs;
-    if ((ret = simple_hs.handshake_with_server(io, NULL)) != ERROR_SUCCESS) {
+    if ((ret = simple_hs.handshake_with_server(hs_bytes, io)) != ERROR_SUCCESS) {
         return ret;
     }
+    
+    srs_freep(hs_bytes);
     
     return ret;
 }
 
 int SrsRtmpClient::complex_handshake()
 {
-    // TODO: FIXME: only use complex handshake.
-    return handshake();
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(hs_bytes);
+    
+    SrsComplexHandshake complex_hs;
+    if ((ret = complex_hs.handshake_with_server(hs_bytes, io)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    srs_freep(hs_bytes);
+    
+    return ret;
 }
 
 int SrsRtmpClient::connect_app(string app, string tc_url)
@@ -537,11 +676,13 @@ SrsRtmpServer::SrsRtmpServer(ISrsProtocolReaderWriter* skt)
 {
     io = skt;
     protocol = new SrsProtocol(skt);
+    hs_bytes = new SrsHandshakeBytes();
 }
 
 SrsRtmpServer::~SrsRtmpServer()
 {
     srs_freep(protocol);
+    srs_freep(hs_bytes);
 }
 
 SrsProtocol* SrsRtmpServer::get_protocol()
@@ -603,11 +744,20 @@ int SrsRtmpServer::handshake()
 {
     int ret = ERROR_SUCCESS;
     
+    srs_assert(hs_bytes);
+    
     SrsComplexHandshake complex_hs;
-    SrsSimpleHandshake simple_hs;
-    if ((ret = simple_hs.handshake_with_client(io, &complex_hs)) != ERROR_SUCCESS) {
+    if ((ret = complex_hs.handshake_with_client(hs_bytes, io)) != ERROR_SUCCESS) {
+        if (ret == ERROR_RTMP_TRY_SIMPLE_HS) {
+            SrsSimpleHandshake simple_hs;
+            if ((ret = simple_hs.handshake_with_client(hs_bytes, io)) != ERROR_SUCCESS) {
+                return ret;
+            }
+        }
         return ret;
     }
+    
+    srs_freep(hs_bytes);
     
     return ret;
 }

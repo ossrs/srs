@@ -32,6 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class ISrsProtocolReaderWriter;
 class SrsComplexHandshake;
+class SrsHandshakeBytes;
 
 /**
 * try complex handshake, if failed, fallback to simple handshake.
@@ -44,12 +45,9 @@ public:
 public:
     /**
     * simple handshake.
-    * @param complex_hs, try complex handshake first, 
-    *         if NULL, use simple handshake.
-    *         if failed, rollback to simple handshake.
     */
-    virtual int handshake_with_client(ISrsProtocolReaderWriter* io, SrsComplexHandshake* complex_hs);
-    virtual int handshake_with_server(ISrsProtocolReaderWriter* io, SrsComplexHandshake* complex_hs);
+    virtual int handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
+    virtual int handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
 };
 
 /**
@@ -65,15 +63,13 @@ public:
 public:
     /**
     * complex hanshake.
-    * @_c1, size of c1 must be 1536.
-    * @remark, user must free the c1.
     * @return user must:
     *     continue connect app if success,
     *     try simple handshake if error is ERROR_RTMP_TRY_SIMPLE_HS,
     *     otherwise, disconnect
     */
-    virtual int handshake_with_client(ISrsProtocolReaderWriter* io, char* _c1);
-    virtual int handshake_with_server(ISrsProtocolReaderWriter* io);
+    virtual int handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
+    virtual int handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
 };
 
 namespace srs
@@ -241,6 +237,10 @@ namespace srs
         * copy to bytes.
         */
         virtual void dump(char* _c2s2);
+        /**
+        * parse the c2s2
+        */
+        virtual void parse(char* _c2s2);
     
         /**
         * create c2.
@@ -253,6 +253,11 @@ namespace srs
         virtual int c2_create(c1s1* s1);
         
         /**
+        * validate the c2 from client.
+        */
+        virtual int c2_validate(c1s1* s1, bool& is_valid);
+        
+        /**
         * create s2.
         * random fill c2s2 1536 bytes
         * 
@@ -261,6 +266,11 @@ namespace srs
         * s2-digest-data = HMACsha256(s2-random-data, temp-key, 32)
         */
         virtual int s2_create(c1s1* c1);
+        
+        /**
+        * validate the s2 from server.
+        */
+        virtual int s2_validate(c1s1* c1, bool& is_valid);
     };
     
     /**
