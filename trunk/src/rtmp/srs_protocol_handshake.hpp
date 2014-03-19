@@ -313,7 +313,9 @@ namespace srs
 #endif
 
 /**
-* try complex handshake, if failed, fallback to simple handshake.
+* simple handshake.
+* user can try complex handshake first, 
+* rollback to simple handshake if error ERROR_RTMP_TRY_SIMPLE_HS
 */
 class SrsSimpleHandshake
 {
