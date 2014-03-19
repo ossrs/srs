@@ -97,6 +97,78 @@ namespace srs
         int random1_size;
     };
     
+    // the digest key generate size.
+    #define OpensslHashSize 512
+    extern u_int8_t SrsGenuineFMSKey[];
+    extern u_int8_t SrsGenuineFPKey[];
+    int openssl_HMACsha256(const void* data, int data_size, const void* key, int key_size, void* digest);
+    int openssl_generate_key(char* _private_key, char* _public_key, int32_t size);
+    
+    // calc the offset of key,
+    // the key->offset cannot be used as the offset of key.
+    int srs_key_block_get_offset(key_block* key);
+    
+    // create new key block data.
+    // if created, user must free it by srs_key_block_free
+    void srs_key_block_init(key_block* key);
+    
+    // parse key block from c1s1.
+    // if created, user must free it by srs_key_block_free
+    // @c1s1_key_bytes the key start bytes, maybe c1s1 or c1s1+764
+    int srs_key_block_parse(key_block* key, char* c1s1_key_bytes);
+    
+    // free the block data create by 
+    // srs_key_block_init or srs_key_block_parse
+    void srs_key_block_free(key_block* key);
+    
+    // calc the offset of digest,
+    // the key->offset cannot be used as the offset of digest.
+    int srs_digest_block_get_offset(digest_block* digest);
+    
+    // create new digest block data.
+    // if created, user must free it by srs_digest_block_free
+    void srs_digest_block_init(digest_block* digest);
+
+    // parse digest block from c1s1.
+    // if created, user must free it by srs_digest_block_free
+    // @c1s1_digest_bytes the digest start bytes, maybe c1s1 or c1s1+764
+    int srs_digest_block_parse(digest_block* digest, char* c1s1_digest_bytes);
+    
+    // free the block data create by 
+    // srs_digest_block_init or srs_digest_block_parse
+    void srs_digest_block_free(digest_block* digest);
+    
+    /**
+    * copy whole c1s1 to bytes.
+    */
+    void srs_schema0_copy_to(char* bytes, bool with_digest, 
+        int32_t time, int32_t version, key_block* key, digest_block* digest);
+    void srs_schema1_copy_to(char* bytes, bool with_digest, 
+        int32_t time, int32_t version, digest_block* digest, key_block* key);
+    
+    /**
+    * c1s1 is splited by digest:
+    *     c1s1-part1: n bytes (time, version, key and digest-part1).
+    *     digest-data: 32bytes
+    *     c1s1-part2: (1536-n-32)bytes (digest-part2)
+    * @return a new allocated bytes, user must free it.
+    */
+    char* srs_bytes_join_schema0(int32_t time, int32_t version, key_block* key, digest_block* digest);
+    
+    /**
+    * c1s1 is splited by digest:
+    *     c1s1-part1: n bytes (time, version and digest-part1).
+    *     digest-data: 32bytes
+    *     c1s1-part2: (1536-n-32)bytes (digest-part2 and key)
+    * @return a new allocated bytes, user must free it.
+    */
+    char* srs_bytes_join_schema1(int32_t time, int32_t version, digest_block* digest, key_block* key);
+    
+    /**
+    * compare the memory in bytes.
+    */
+    bool srs_bytes_equals(void* pa, void* pb, int size);
+    
     /**
     * c1s1 schema0
     *     time: 4bytes
@@ -236,35 +308,6 @@ namespace srs
         */
         virtual int s2_validate(c1s1* c1, bool& is_valid);
     };
-    
-    /**
-    * compare the memory in bytes.
-    */
-    bool srs_bytes_equals(void* pa, void* pb, int size);
-    
-    /**
-    * c1s1 is splited by digest:
-    *     c1s1-part1: n bytes (time, version, key and digest-part1).
-    *     digest-data: 32bytes
-    *     c1s1-part2: (1536-n-32)bytes (digest-part2)
-    * @return a new allocated bytes, user must free it.
-    */
-    char* srs_bytes_join_schema0(int32_t time, int32_t version, key_block* key, digest_block* digest);
-    
-    /**
-    * c1s1 is splited by digest:
-    *     c1s1-part1: n bytes (time, version and digest-part1).
-    *     digest-data: 32bytes
-    *     c1s1-part2: (1536-n-32)bytes (digest-part2 and key)
-    * @return a new allocated bytes, user must free it.
-    */
-    char* srs_bytes_join_schema1(int32_t time, int32_t version, digest_block* digest, key_block* key);
-    
-    // the digest key generate size.
-    #define OpensslHashSize 512
-    extern u_int8_t SrsGenuineFMSKey[];
-    extern u_int8_t SrsGenuineFPKey[];
-    int openssl_HMACsha256(const void* data, int data_size, const void* key, int key_size, void* digest);
 }
 
 #endif

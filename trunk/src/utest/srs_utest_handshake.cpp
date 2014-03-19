@@ -172,7 +172,7 @@ VOID TEST(HandshakeTest, VerifyFPC0C1)
         0xb1, 0xb5, 0xbc, 0xa6, 0xd6, 0xd6, 0x1d, 0xce, 0x93, 0x78, 0xb3, 0xec, 0xa8, 0x64, 0x19, 0x13
     };
     EXPECT_TRUE(srs_bytes_equals(c1.block1.digest.digest, digest, 32));
-}
+} 
 
 VOID TEST(HandshakeTest, SimpleHandshake)
 {
@@ -259,4 +259,9 @@ VOID TEST(HandshakeTest, ComplexHandshake)
         ASSERT_EQ(ERROR_SUCCESS, s2.s2_validate(&c1, is_valid));
         ASSERT_TRUE(is_valid);
     }
+}
+
+VOID TEST(HandshakeTest, BytesEqual)
+{
+    //srs_bytes_equals
 }
