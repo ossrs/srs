@@ -316,8 +316,8 @@ if [ $SRS_SSL = YES ]; then LibSSLRoot="${SRS_OBJS}/openssl/include"; LibSSLfile
 # gperftools-2.1, for mem check and mem/cpu profile
 LibGperfRoot=""; LibGperfFile=""
 if [ $SRS_GPERF = YES ]; then LibGperfRoot="${SRS_OBJS}/gperf/include"; LibGperfFile="${SRS_OBJS}/gperf/lib/libtcmalloc_and_profiler.a"; fi
-# the link options, if arm, use static link
-SrsLinkOptions="-ldl"; if [ $SRS_ARM_UBUNTU12 = YES ]; then SrsLinkOptions="-ldl -static"; fi
+# the link options, always use static link
+SrsLinkOptions="-static"
 
 #####################################################################################
 # Modules, compile each module, then link to binary

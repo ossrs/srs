@@ -201,7 +201,7 @@ Centos_prepare; ret=$?; if [[ 0 -ne $ret ]]; then "CentOS perfapre failed, ret=$
 # check the arm flag file, if flag changed, need to rebuild the st.
 if [ $SRS_ARM_UBUNTU12 = YES ]; then
     # ok, arm specified, if the flag filed does not exists, need to rebuild.
-    if [[ -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st-1.9/obj/libst.a && -f ${SRS_OBJS}/st-1.9/obj/libst.so ]]; then
+    if [[ -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st/libst.a && -f ${SRS_OBJS}/st/libst.so ]]; then
         echo "st-1.9t for arm is ok.";
     else
         # TODO: FIXME: patch the bug.
@@ -218,7 +218,7 @@ if [ $SRS_ARM_UBUNTU12 = YES ]; then
     fi
 else
     # arm not specified, if exists flag, need to rebuild for no-arm platform.
-    if [[ ! -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st-1.9/obj/libst.a && -f ${SRS_OBJS}/st-1.9/obj/libst.so ]]; then
+    if [[ ! -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st/libst.a && -f ${SRS_OBJS}/st/libst.so ]]; then
         echo "st-1.9t is ok.";
     else
         echo "build st-1.9t"; 
@@ -233,14 +233,14 @@ else
 fi
 # check status
 ret=$?; if [[ $ret -ne 0 ]]; then echo "build st-1.9 failed, ret=$ret"; exit $ret; fi
-if [ ! -f ${SRS_OBJS}/st-1.9/obj/libst.a ]; then echo "build st-1.9 failed."; exit -1; fi
-if [ ! -f ${SRS_OBJS}/st-1.9/obj/libst.so ]; then echo "build st-1.9 failed."; exit -1; fi
+if [ ! -f ${SRS_OBJS}/st/libst.a ]; then echo "build st-1.9 failed."; exit -1; fi
+if [ ! -f ${SRS_OBJS}/st/libst.so ]; then echo "build st-1.9 failed."; exit -1; fi
 
 #####################################################################################
 # http-parser-2.1
 #####################################################################################
 if [ $SRS_HTTP_CALLBACK = YES ]; then
-    if [[ -f ${SRS_OBJS}/http-parser-2.1/http_parser.h && -f ${SRS_OBJS}/http-parser-2.1/libhttp_parser.a ]]; then
+    if [[ -f ${SRS_OBJS}/hp/http_parser.h && -f ${SRS_OBJS}/hp/libhttp_parser.a ]]; then
         echo "http-parser-2.1 is ok.";
     else
         echo "build http-parser-2.1";
@@ -255,8 +255,8 @@ if [ $SRS_HTTP_CALLBACK = YES ]; then
     fi
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "build http-parser-2.1 failed, ret=$ret"; exit $ret; fi
-    if [[ ! -f ${SRS_OBJS}/http-parser-2.1/http_parser.h ]]; then echo "build http-parser-2.1 failed"; exit -1; fi
-    if [[ ! -f ${SRS_OBJS}/http-parser-2.1/libhttp_parser.a ]]; then echo "build http-parser-2.1 failed"; exit -1; fi
+    if [[ ! -f ${SRS_OBJS}/hp/http_parser.h ]]; then echo "build http-parser-2.1 failed"; exit -1; fi
+    if [[ ! -f ${SRS_OBJS}/hp/libhttp_parser.a ]]; then echo "build http-parser-2.1 failed"; exit -1; fi
 fi
 
 #####################################################################################
