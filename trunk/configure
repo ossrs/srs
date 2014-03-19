@@ -30,6 +30,10 @@ if [[ -f Makefile ]]; then
 fi
 
 # write user options to headers
+echo "#ifndef SRS_AUTO_HEADER_HPP" >> $SRS_AUTO_HEADERS_H
+echo "#define SRS_AUTO_HEADER_HPP" >> $SRS_AUTO_HEADERS_H
+echo "" >> $SRS_AUTO_HEADERS_H
+
 echo "#define SRS_BUILD_TS \"`date +%s`\"" >> $SRS_AUTO_HEADERS_H
 echo "#define SRS_BUILD_DATE \"`date \"+%Y-%m-%d %H:%M:%S\"`\"" >> $SRS_AUTO_HEADERS_H
 echo "#define SRS_UNAME \"`uname -a`\"" >> $SRS_AUTO_HEADERS_H
@@ -51,6 +55,10 @@ SrsArmRANDLIB="arm-linux-gnueabi-ranlib"
 
 # apply user options.
 . auto/depends.sh
+
+# auto header EOF.
+echo "#endif" >> $SRS_AUTO_HEADERS_H
+echo "" >> $SRS_AUTO_HEADERS_H
 
 #####################################################################################
 # generate Makefile.
@@ -398,7 +406,7 @@ ModuleLibIncs=(${SRS_OBJS} ${LibSTRoot})
 ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile} ${LibSSLfile})
 MODULE_DEPENDS=("CORE" "KERNEL" "RTMP" "APP")
 MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${RTMP_OBJS[@]} ${APP_OBJS[@]}"
-MODULE_DIR="src/utest" APP_NAME="srs_utest" . auto/utest.sh
+LINK_OPTIONS="-lpthread ${SrsLinkOptions}" MODULE_DIR="src/utest" APP_NAME="srs_utest" . auto/utest.sh
 
 echo 'configure ok! '
 

@@ -6,6 +6,7 @@
 #
 #     $APP_NAME the app name to output. ie. srs_utest
 #     $MODULE_DIR the src dir of utest code. ie. src/utest
+#     $LINK_OPTIONS the link options for utest. ie. -lpthread -ldl
 
 FILE=${SRS_OBJS}/utest/${SRS_MAKEFILE}
 # create dir for Makefile
@@ -169,7 +170,7 @@ echo "" >> ${FILE}; echo "" >> ${FILE}
 echo "# generate the utest binary" >> ${FILE}
 cat << END >> ${FILE}
 ${SRS_TRUNK_PREFIX}/${SRS_OBJS}/${APP_NAME} : \$(SRS_UTEST_DEPS) ${MODULE_OBJS} gtest_main.a
-	\$(CXX) -o \$@ \$(CPPFLAGS) \$(CXXFLAGS) \$^ \$(DEPS_LIBRARIES_FILES) -lpthread -ldl
+	\$(CXX) -o \$@ \$(CPPFLAGS) \$(CXXFLAGS) \$^ \$(DEPS_LIBRARIES_FILES) ${LINK_OPTIONS}
 END
 
 #####################################################################################

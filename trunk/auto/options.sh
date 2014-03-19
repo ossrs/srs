@@ -217,7 +217,6 @@ if [ $SRS_ARM_UBUNTU12 = YES ]; then
     if [ $SRS_HTTP_CALLBACK = YES ]; then echo "http-callback for arm is not available, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_BWTC = YES ]; then echo "bwtc for arm is not available, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_RESEARCH = YES ]; then echo "research for arm is not available, see: ./configure --help"; __check_ok=NO; fi
-    if [ $SRS_UTEST = YES ]; then echo "utest for arm is not available, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_GPERF = YES ]; then echo "gperf for arm is not available, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_GPERF_MC = YES ]; then echo "gmc for arm is not available, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_GPERF_MP = YES ]; then echo "gmp for arm is not available, see: ./configure --help"; __check_ok=NO; fi
