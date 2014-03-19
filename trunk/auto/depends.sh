@@ -3,6 +3,7 @@
 # variables, parent script must set it:
 # SRS_JOBS: the build jobs.
 # SrsArmMakeOptions: the arm make options for ubuntu12(armhf, v7cpu)
+# SRS_AUTO_HEADERS_H: the auto generated header file.
 
 #####################################################################################
 #####################################################################################
@@ -542,3 +543,6 @@ if [ $SRS_ARM_UBUNTU12 = YES ]; then
 else
     echo "#undef SRS_ARM_UBUNTU12" >> $SRS_AUTO_HEADERS_H
 fi
+
+# new empty line to auto headers file.
+echo "" >> $SRS_AUTO_HEADERS_H

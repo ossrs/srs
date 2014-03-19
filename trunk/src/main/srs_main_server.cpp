@@ -80,6 +80,10 @@ int main(int argc, char** argv)
     return -1;
     #endif
 #endif
+
+    srs_trace("uname: "SRS_UNAME);
+    srs_trace("build: %s, %s", SRS_BUILD_DATE, srs_is_little_endian()? "little-endian":"big-endian");
+    srs_trace("configure: "SRS_CONFIGURE);
     
     if ((ret = _srs_server->initialize()) != ERROR_SUCCESS) {
         return ret;

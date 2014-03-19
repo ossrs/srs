@@ -19,6 +19,7 @@ BLACK="\\e[0m"
 # srs features: SRS_SSL/SRS_HLS/SRS_FFMPEG/SRS_HTTP_CALLBACK/SRS_RESEARCH/SRS_UTEST
 # build options: SRS_JOBS
 #####################################################################################
+SRS_AUTO_HEADERS_H="${SRS_OBJS}/srs_auto_headers.hpp"
 # parse options, exit with error when parse options invalid.
 . auto/options.sh
 
@@ -28,15 +29,18 @@ if [[ -f Makefile ]]; then
     make clean
 fi
 
+# write user options to headers
+echo "#define SRS_BUILD_TS \"`date +%s`\"" >> $SRS_AUTO_HEADERS_H
+echo "#define SRS_BUILD_DATE \"`date \"+%Y-%m-%d %H:%M:%S\"`\"" >> $SRS_AUTO_HEADERS_H
+echo "#define SRS_UNAME \"`uname -a`\"" >> $SRS_AUTO_HEADERS_H
+echo "#define SRS_CONFIGURE \"${SRS_CONFIGURE}\"" >> $SRS_AUTO_HEADERS_H
+
+# new empty line to auto headers file.
+echo "" >> $SRS_AUTO_HEADERS_H
+
 #####################################################################################
 # generate auto headers file, depends on the finished of options.sh
 #####################################################################################
-# write user options to headers
-SRS_AUTO_HEADERS_H="${SRS_OBJS}/srs_auto_headers.hpp"
-echo "#define SRS_CONFIGURE \"${SRS_CONFIGURE}\"" > $SRS_AUTO_HEADERS_H
-echo "#define SRS_BUILD_DATE \"`date \"+%Y-%m-%d %H:%M:%S\"`\"" >> $SRS_AUTO_HEADERS_H
-echo "#define SRS_BUILD_TS \"`date +%s`\"" >> $SRS_AUTO_HEADERS_H
-
 # the arm-ubuntu12 options for make for depends
 SrsArmCC="arm-linux-gnueabi-gcc"
 SrsArmGCC="arm-linux-gnueabi-gcc"
@@ -47,9 +51,6 @@ SrsArmRANDLIB="arm-linux-gnueabi-ranlib"
 
 # apply user options.
 . auto/depends.sh
-
-# new empty line to auto headers file.
-echo "" >> $SRS_AUTO_HEADERS_H
 
 #####################################################################################
 # generate Makefile.

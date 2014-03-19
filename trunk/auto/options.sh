@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# variables, parent script must set it:
+# SRS_AUTO_HEADERS_H: the auto generated header file.
+
 #####################################################################################
 #####################################################################################
 # parse user options, do this at first
