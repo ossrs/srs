@@ -30,6 +30,9 @@ SrsStream::SrsStream()
 {
     p = bytes = NULL;
     size = 0;
+    
+    // TODO: support both little and big endian.
+    srs_assert(srs_is_little_endian());
 }
 
 SrsStream::~SrsStream()

@@ -99,6 +99,8 @@ extern void srs_update_system_time_ms();
 extern std::string srs_replace(std::string str, std::string old_str, std::string new_str);
 // dns resolve utility, return the resolved ip address.
 extern std::string srs_dns_resolve(std::string host);
+// whether system is little endian
+extern bool srs_is_little_endian();
 
 /**
 * disable copy constructor of class
