@@ -36,6 +36,77 @@ ISrsThreadContext* _srs_context = new ISrsThreadContext();
 SrsConfig* _srs_config = NULL;
 SrsServer* _srs_server = NULL;
 
+MockEmptyIO::MockEmptyIO()
+{
+}
+
+MockEmptyIO::~MockEmptyIO()
+{
+}
+
+bool MockEmptyIO::is_never_timeout(int64_t /*timeout_us*/)
+{
+    return true;
+}
+
+int MockEmptyIO::read_fully(const void* /*buf*/, size_t /*size*/, ssize_t* /*nread*/)
+{
+    return ERROR_SUCCESS;
+}
+
+int MockEmptyIO::write(const void* /*buf*/, size_t /*size*/, ssize_t* /*nwrite*/)
+{
+    return ERROR_SUCCESS;
+}
+
+void MockEmptyIO::set_recv_timeout(int64_t /*timeout_us*/)
+{
+}
+
+int64_t MockEmptyIO::get_recv_timeout()
+{
+    return -1;
+}
+
+int64_t MockEmptyIO::get_recv_bytes()
+{
+    return -1;
+}
+
+int MockEmptyIO::get_recv_kbps()
+{
+    return 0;
+}
+
+void MockEmptyIO::set_send_timeout(int64_t /*timeout_us*/)
+{
+}
+
+int64_t MockEmptyIO::get_send_timeout()
+{
+    return 0;
+}
+
+int64_t MockEmptyIO::get_send_bytes()
+{
+    return 0;
+}
+
+int MockEmptyIO::get_send_kbps()
+{
+    return 0;
+}
+
+int MockEmptyIO::writev(const iovec */*iov*/, int /*iov_size*/, ssize_t* /*nwrite*/)
+{
+    return ERROR_SUCCESS;
+}
+
+int MockEmptyIO::read(const void* /*buf*/, size_t /*size*/, ssize_t* /*nread*/)
+{
+    return ERROR_SUCCESS;
+}
+
 // basic test and samples.
 VOID TEST(SampleTest, FastSampleInt64Test) 
 {

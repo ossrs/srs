@@ -34,4 +34,36 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // we add an empty macro for upp to show the smart tips.
 #define VOID
 
+#include <srs_protocol_io.hpp>
+
+class MockEmptyIO : public ISrsProtocolReaderWriter
+{
+public:
+    MockEmptyIO();
+    virtual ~MockEmptyIO();
+// for protocol
+public:
+    virtual bool is_never_timeout(int64_t timeout_us);
+// for handshake.
+public:
+    virtual int read_fully(const void* buf, size_t size, ssize_t* nread);
+    virtual int write(const void* buf, size_t size, ssize_t* nwrite);
+// for protocol
+public:
+    virtual void set_recv_timeout(int64_t timeout_us);
+    virtual int64_t get_recv_timeout();
+    virtual int64_t get_recv_bytes();
+    virtual int get_recv_kbps();
+// for protocol
+public:
+    virtual void set_send_timeout(int64_t timeout_us);
+    virtual int64_t get_send_timeout();
+    virtual int64_t get_send_bytes();
+    virtual int get_send_kbps();
+    virtual int writev(const iovec *iov, int iov_size, ssize_t* nwrite);
+// for protocol/amf0/msg-codec
+public:
+    virtual int read(const void* buf, size_t size, ssize_t* nread);
+};
+
 #endif

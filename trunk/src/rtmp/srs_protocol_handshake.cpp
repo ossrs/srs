@@ -97,7 +97,7 @@ namespace srs
             "EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381" \
             "FFFFFFFFFFFFFFFF"
     int __openssl_generate_key(
-        u_int8_t*& _private_key, u_int8_t*& _public_key, int32_t& size,
+        u_int8_t* _private_key, u_int8_t* _public_key, int32_t& size,
         DH*& pdh, int32_t& bits_count, u_int8_t*& shared_key, int32_t& shared_key_length, BIGNUM*& peer_public_key
     ){
         int ret = ERROR_SUCCESS;
@@ -200,7 +200,7 @@ namespace srs
         BIGNUM* peer_public_key = NULL;
         
         ret = __openssl_generate_key(
-            (u_int8_t*&)_private_key, (u_int8_t*&)_public_key, size,
+            (u_int8_t*)_private_key, (u_int8_t*)_public_key, size,
             pdh, bits_count, shared_key, shared_key_length, peer_public_key
         );
         
@@ -542,6 +542,14 @@ namespace srs
     {
         u_int8_t* a = (u_int8_t*)pa;
         u_int8_t* b = (u_int8_t*)pb;
+        
+        if (!a && !b) {
+            return true;
+        }
+        
+        if (!a || !b) {
+            return false;
+        }
         
         for(int i = 0; i < size; i++){
             if(a[i] != b[i]){
