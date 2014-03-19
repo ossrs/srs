@@ -84,7 +84,7 @@ namespace srs
     };
     
     /**
-    * 764bytes key结构
+    * 764bytes key structure
     *     random-data: (offset)bytes
     *     key-data: 128bytes
     *     random-data: (764-offset-128-4)bytes
@@ -109,7 +109,7 @@ namespace srs
     };
     
     /**
-    * 764bytes digest结构
+    * 764bytes digest structure
     *     offset: 4bytes
     *     random-data: (offset)bytes
     *     digest-data: 32bytes
@@ -179,6 +179,11 @@ namespace srs
         * copy to bytes.
         */
         virtual void dump(char* _c1s1);
+        /**
+        * server: parse the c1s1, discovery the key and digest by schema.
+        * use the c1_validate_digest() to valid the digest of c1.
+        */
+        virtual int parse(char* _c1s1, srs_schema_type _schema);
         
         /**
         * client: create and sign c1 by schema.
@@ -196,11 +201,6 @@ namespace srs
         *        copy digest-data to c1
         */
         virtual int c1_create(srs_schema_type _schema);
-        /**
-        * server: parse the c1s1, discovery the key and digest by schema.
-        * use the c1_validate_digest() to valid the digest of c1.
-        */
-        virtual int c1_parse(char* _c1s1, srs_schema_type _schema);
         /**
         * server: validate the parsed c1 schema
         */

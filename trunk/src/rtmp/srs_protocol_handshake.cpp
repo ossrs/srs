@@ -657,6 +657,7 @@ int c2s2::s2_validate(c1s1* c1, bool& is_valid)
     return ret;
 }
 
+// TODO: FIXME: move to the right position.
 c1s1::c1s1()
 {
     schema = srs_schema_invalid;
@@ -686,6 +687,52 @@ void c1s1::dump(char* _c1s1)
     } else {
         srs_schema1_copy_to(_c1s1, true, time, version, &block0.digest, &block1.key);
     }
+}
+
+int c1s1::parse(char* _c1s1, srs_schema_type _schema)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (_schema == srs_schema_invalid) {
+        ret = ERROR_RTMP_CH_SCHEMA;
+        srs_error("parse c1 failed. invalid schema=%d, ret=%d", _schema, ret);
+        return ret;
+    }
+    
+    destroy_blocks();
+    
+    time = *(int32_t*)_c1s1;
+    version = *(int32_t*)(_c1s1 + 4); // client c1 version
+    
+    if (_schema == srs_schema0) {
+        if ((ret = srs_key_block_parse(&block0.key, _c1s1 + 8)) != ERROR_SUCCESS) {
+            srs_error("parse the c1 key failed. ret=%d", ret);
+            return ret;
+        }
+        if ((ret = srs_digest_block_parse(&block1.digest, _c1s1 + 8 + 764)) != ERROR_SUCCESS) {
+            srs_error("parse the c1 digest failed. ret=%d", ret);
+            return ret;
+        }
+        srs_verbose("parse c1 key-digest success");
+    } else if (_schema == srs_schema1) {
+        if ((ret = srs_digest_block_parse(&block0.digest, _c1s1 + 8)) != ERROR_SUCCESS) {
+            srs_error("parse the c1 key failed. ret=%d", ret);
+            return ret;
+        }
+        if ((ret = srs_key_block_parse(&block1.key, _c1s1 + 8 + 764)) != ERROR_SUCCESS) {
+            srs_error("parse the c1 digest failed. ret=%d", ret);
+            return ret;
+        }
+        srs_verbose("parse c1 digest-key success");
+    } else {
+        ret = ERROR_RTMP_CH_SCHEMA;
+        srs_error("parse c1 failed. invalid schema=%d, ret=%d", _schema, ret);
+        return ret;
+    }
+    
+    schema = _schema;
+    
+    return ret;
 }
 
 int c1s1::c1_create(srs_schema_type _schema)
@@ -728,52 +775,6 @@ int c1s1::c1_create(srs_schema_type _schema)
     } else {
         memcpy(block0.digest.digest, digest, 32);
     }
-    
-    return ret;
-}
-
-int c1s1::c1_parse(char* _c1s1, srs_schema_type _schema)
-{
-    int ret = ERROR_SUCCESS;
-    
-    if (_schema == srs_schema_invalid) {
-        ret = ERROR_RTMP_CH_SCHEMA;
-        srs_error("parse c1 failed. invalid schema=%d, ret=%d", _schema, ret);
-        return ret;
-    }
-    
-    destroy_blocks();
-    
-    time = *(int32_t*)_c1s1;
-    version = *(int32_t*)(_c1s1 + 4); // client c1 version
-    
-    if (_schema == srs_schema0) {
-        if ((ret = srs_key_block_parse(&block0.key, _c1s1 + 8)) != ERROR_SUCCESS) {
-            srs_error("parse the c1 key failed. ret=%d", ret);
-            return ret;
-        }
-        if ((ret = srs_digest_block_parse(&block1.digest, _c1s1 + 8 + 764)) != ERROR_SUCCESS) {
-            srs_error("parse the c1 digest failed. ret=%d", ret);
-            return ret;
-        }
-        srs_verbose("parse c1 key-digest success");
-    } else if (_schema == srs_schema1) {
-        if ((ret = srs_digest_block_parse(&block0.digest, _c1s1 + 8)) != ERROR_SUCCESS) {
-            srs_error("parse the c1 key failed. ret=%d", ret);
-            return ret;
-        }
-        if ((ret = srs_key_block_parse(&block1.key, _c1s1 + 8 + 764)) != ERROR_SUCCESS) {
-            srs_error("parse the c1 digest failed. ret=%d", ret);
-            return ret;
-        }
-        srs_verbose("parse c1 digest-key success");
-    } else {
-        ret = ERROR_RTMP_CH_SCHEMA;
-        srs_error("parse c1 failed. invalid schema=%d, ret=%d", _schema, ret);
-        return ret;
-    }
-    
-    schema = _schema;
     
     return ret;
 }
@@ -1073,14 +1074,14 @@ int SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrs
     // decode c1
     c1s1 c1;
     // try schema0.
-    if ((ret = c1.c1_parse(hs_bytes->c0c1 + 1, srs_schema0)) != ERROR_SUCCESS) {
+    if ((ret = c1.parse(hs_bytes->c0c1 + 1, srs_schema0)) != ERROR_SUCCESS) {
         srs_error("parse c1 schema%d error. ret=%d", srs_schema0, ret);
         return ret;
     }
     // try schema1
     bool is_valid = false;
     if ((ret = c1.c1_validate_digest(is_valid)) != ERROR_SUCCESS || !is_valid) {
-        if ((ret = c1.c1_parse(hs_bytes->c0c1 + 1, srs_schema1)) != ERROR_SUCCESS) {
+        if ((ret = c1.parse(hs_bytes->c0c1 + 1, srs_schema1)) != ERROR_SUCCESS) {
             srs_error("parse c1 schema%d error. ret=%d", srs_schema1, ret);
             return ret;
         }
@@ -1163,12 +1164,76 @@ int SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* /*hs_bytes*/, 
     return ERROR_RTMP_TRY_SIMPLE_HS;
 }
 #else
-int SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* /*hs_bytes*/, ISrsProtocolReaderWriter* /*io*/)
+int SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io)
 {
     int ret = ERROR_SUCCESS;
     
-    // TODO: implements complex handshake.
-    ret = ERROR_RTMP_TRY_SIMPLE_HS;
+    ssize_t nsize;
+    
+    // complex handshake
+    if ((ret = hs_bytes->create_c0c1()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    // plain text required.
+    hs_bytes->c0c1[0] = 0x03;
+    
+    // sign c1
+    c1s1 c1;
+    if ((ret = c1.c1_create(srs_schema0)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    c1.dump(hs_bytes->c0c1 + 1);
+    // verify c1
+    bool is_valid;
+    if ((ret = c1.c1_validate_digest(is_valid)) != ERROR_SUCCESS || !is_valid) {
+        ret = ERROR_RTMP_TRY_SIMPLE_HS;
+        return ret;
+    }
+    
+    if ((ret = io->write(hs_bytes->c0c1, 1537, &nsize)) != ERROR_SUCCESS) {
+        srs_warn("write c0c1 failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("write c0c1 success.");
+    
+    // s0s1s2
+    if ((ret = hs_bytes->read_s0s1s2(io)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // plain text required.
+    if (hs_bytes->s0s1s2[0] != 0x03) {
+        ret = ERROR_RTMP_HANDSHAKE;
+        srs_warn("handshake failed, plain text required. ret=%d", ret);
+        return ret;
+    }
+    
+    // verify s1s2
+    c1s1 s1;
+    if ((ret = s1.parse(hs_bytes->s0s1s2 + 1, c1.schema)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = s1.s1_validate_digest(is_valid)) != ERROR_SUCCESS || !is_valid) {
+        ret = ERROR_RTMP_TRY_SIMPLE_HS;
+        return ret;
+    }
+    
+    // c2
+    if ((ret = hs_bytes->create_c2()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    c2s2 c2;
+    if ((ret = c2.c2_create(&s1)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    c2.dump(hs_bytes->c2);
+    if ((ret = io->write(hs_bytes->c2, 1536, &nsize)) != ERROR_SUCCESS) {
+        srs_warn("complex handshake write c2 failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("complex handshake write c2 success.");
+    
+    srs_trace("complex handshake with server success.");
     
     return ret;
 }
