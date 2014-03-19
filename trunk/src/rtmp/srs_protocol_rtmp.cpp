@@ -229,7 +229,7 @@ int SrsHandshakeBytes::read_s0s1s2(ISrsProtocolReaderWriter* io)
     
     ssize_t nsize;
     
-    c0c1 = new char[3073];
+    s0s1s2 = new char[3073];
     if ((ret = io->read_fully(s0s1s2, 3073, &nsize)) != ERROR_SUCCESS) {
         srs_warn("read s0s1s2 failed. ret=%d", ret);
         return ret;

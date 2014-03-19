@@ -80,14 +80,14 @@ Annex A CRC Decoder Model
 
 enum TSPidTable
 {
-	// Program Association Table(see Table 2-25).
-	TSPidTablePAT	= 0x00,
-	// Conditional Access Table (see Table 2-27).
-	TSPidTableCAT	= 0x01,
-	// Transport Stream Description Table
-	TSPidTableTSDT	= 0x02,
-	// null packets (see Table 2-3)
-	TSPidTableNULL	= 0x01FFF,
+    // Program Association Table(see Table 2-25).
+    TSPidTablePAT    = 0x00,
+    // Conditional Access Table (see Table 2-27).
+    TSPidTableCAT    = 0x01,
+    // Transport Stream Description Table
+    TSPidTableTSDT    = 0x02,
+    // null packets (see Table 2-3)
+    TSPidTableNULL    = 0x01FFF,
 };
 
 /*adaptation_field_control*/
@@ -96,34 +96,34 @@ enum TSPidTable
 */
 enum TSAdaptionType
 {
-	// Reserved for future use by ISO/IEC
-	TSAdaptionTypeReserved		= 0x00,
-	// No adaptation_field, payload only
-	TSAdaptionTypePayloadOnly 	= 0x01,
-	// Adaptation_field only, no payload
-	TSAdaptionTypeAdaptionOnly 	= 0x02,
-	// Adaptation_field followed by payload
-	TSAdaptionTypeBoth			= 0x03,
+    // Reserved for future use by ISO/IEC
+    TSAdaptionTypeReserved        = 0x00,
+    // No adaptation_field, payload only
+    TSAdaptionTypePayloadOnly     = 0x01,
+    // Adaptation_field only, no payload
+    TSAdaptionTypeAdaptionOnly     = 0x02,
+    // Adaptation_field followed by payload
+    TSAdaptionTypeBoth            = 0x03,
 };
 #endif
 
 // Table 2-29 – Stream type assignments. page 66.
 enum TSStreamType
 {
-	// ITU-T | ISO/IEC Reserved
-	TSStreamTypeReserved			= 0x00,
-	/*defined by ffmpeg*/
-	TSStreamTypeVideoMpeg1 			= 0x01,
-	TSStreamTypeVideoMpeg2 			= 0x02,
-	TSStreamTypeAudioMpeg1 			= 0x03,
-	TSStreamTypeAudioMpeg2 			= 0x04,
-	TSStreamTypePrivateSection 		= 0x05,
-	TSStreamTypePrivateData 		= 0x06,
-	TSStreamTypeAudioAAC	 		= 0x0f,
-	TSStreamTypeVideoMpeg4	 		= 0x10,
-	TSStreamTypeVideoH264	 		= 0x1b,
-	TSStreamTypeAudioAC3	 		= 0x81,
-	TSStreamTypeAudioDTS	 		= 0x8a,
+    // ITU-T | ISO/IEC Reserved
+    TSStreamTypeReserved            = 0x00,
+    /*defined by ffmpeg*/
+    TSStreamTypeVideoMpeg1             = 0x01,
+    TSStreamTypeVideoMpeg2             = 0x02,
+    TSStreamTypeAudioMpeg1             = 0x03,
+    TSStreamTypeAudioMpeg2             = 0x04,
+    TSStreamTypePrivateSection         = 0x05,
+    TSStreamTypePrivateData         = 0x06,
+    TSStreamTypeAudioAAC             = 0x0f,
+    TSStreamTypeVideoMpeg4             = 0x10,
+    TSStreamTypeVideoH264             = 0x1b,
+    TSStreamTypeAudioAC3             = 0x81,
+    TSStreamTypeAudioDTS             = 0x8a,
 };
 
 /**
@@ -155,7 +155,7 @@ class TSMessage;
 class TSPacket
 {
 public:
-	TSHeader* header;
+    TSHeader* header;
     TSAdaptionField* adaption_field;
     TSPayload* payload;
     
@@ -272,7 +272,7 @@ public:
     int size;
     int pointer_field_size;
     
-	TSPidType type;
+    TSPidType type;
     
     /**
     * 2.4.4.2 Semantics definition of fields in pointer syntax
@@ -417,38 +417,38 @@ public:
 */
 enum TSPESStreamId
 {
-	PES_program_stream_map 		= 0xbc, // 0b10111100
-	PES_private_stream_1 		= 0xbd, // 0b10111101
-	PES_padding_stream			= 0xbe, // 0b10111110
-	PES_private_stream_2		= 0xbf, // 0b10111111
-	
-	// 110x xxxx
-	// ISO/IEC 13818-3 or ISO/IEC 11172-3 or ISO/IEC 13818-7 or ISO/IEC
-	// 14496-3 audio stream number x xxxx
-	// (stream_id>>5)&0x07 == PES_audio_prefix
-	PES_audio_prefix			= 0x06, // 0b110
-	
-	// 1110 xxxx
-	// ITU-T Rec. H.262 | ISO/IEC 13818-2 or ISO/IEC 11172-2 or ISO/IEC
-	// 14496-2 video stream number xxxx
-	// (stream_id>>4)&0x0f == PES_audio_prefix
-	PES_video_prefix			= 0x0e, // 0b1110
-	
-	PES_ECM_stream				= 0xf0, // 0b11110000
-	PES_EMM_stream				= 0xf1, // 0b11110001
-	PES_DSMCC_stream			= 0xf2, // 0b11110010
-	PES_13522_stream			= 0xf3, // 0b11110011
-	PES_H_222_1_type_A			= 0xf4, // 0b11110100
-	PES_H_222_1_type_B			= 0xf5, // 0b11110101
-	PES_H_222_1_type_C			= 0xf6, // 0b11110110
-	PES_H_222_1_type_D			= 0xf7, // 0b11110111
-	PES_H_222_1_type_E			= 0xf8, // 0b11111000
-	PES_ancillary_stream		= 0xf9, // 0b11111001
-	PES_SL_packetized_stream	= 0xfa, // 0b11111010
-	PES_FlexMux_stream			= 0xfb, // 0b11111011
-	// reserved data stream
-	// 1111 1100 … 1111 1110
-	PES_program_stream_directory= 0xff, // 0b11111111
+    PES_program_stream_map         = 0xbc, // 0b10111100
+    PES_private_stream_1         = 0xbd, // 0b10111101
+    PES_padding_stream            = 0xbe, // 0b10111110
+    PES_private_stream_2        = 0xbf, // 0b10111111
+    
+    // 110x xxxx
+    // ISO/IEC 13818-3 or ISO/IEC 11172-3 or ISO/IEC 13818-7 or ISO/IEC
+    // 14496-3 audio stream number x xxxx
+    // (stream_id>>5)&0x07 == PES_audio_prefix
+    PES_audio_prefix            = 0x06, // 0b110
+    
+    // 1110 xxxx
+    // ITU-T Rec. H.262 | ISO/IEC 13818-2 or ISO/IEC 11172-2 or ISO/IEC
+    // 14496-2 video stream number xxxx
+    // (stream_id>>4)&0x0f == PES_audio_prefix
+    PES_video_prefix            = 0x0e, // 0b1110
+    
+    PES_ECM_stream                = 0xf0, // 0b11110000
+    PES_EMM_stream                = 0xf1, // 0b11110001
+    PES_DSMCC_stream            = 0xf2, // 0b11110010
+    PES_13522_stream            = 0xf3, // 0b11110011
+    PES_H_222_1_type_A            = 0xf4, // 0b11110100
+    PES_H_222_1_type_B            = 0xf5, // 0b11110101
+    PES_H_222_1_type_C            = 0xf6, // 0b11110110
+    PES_H_222_1_type_D            = 0xf7, // 0b11110111
+    PES_H_222_1_type_E            = 0xf8, // 0b11111000
+    PES_ancillary_stream        = 0xf9, // 0b11111001
+    PES_SL_packetized_stream    = 0xfa, // 0b11111010
+    PES_FlexMux_stream            = 0xfb, // 0b11111011
+    // reserved data stream
+    // 1111 1100 … 1111 1110
+    PES_program_stream_directory= 0xff, // 0b11111111
 };
 
 
@@ -465,64 +465,64 @@ public:
     // 2B
     u_int16_t PES_packet_length; //16bits
 
-	// 1B
-	// 2bits const '10'
-	int8_t PES_scrambling_control; //2bits
-	int8_t PES_priority; //1bit
-	int8_t data_alignment_indicator; //1bit
-	int8_t copyright; //1bit
-	int8_t original_or_copy; //1bit
-	
-	// 1B
-	int8_t PTS_DTS_flags; //2bits
-	int8_t ESCR_flag; //1bit
-	int8_t ES_rate_flag; //1bit
-	int8_t DSM_trick_mode_flag; //1bit
-	int8_t additional_copy_info_flag; //1bit
-	int8_t PES_CRC_flag; //1bit
-	int8_t PES_extension_flag; //1bit
-	
-	// 1B
-	u_int8_t PES_header_data_length; //8bits
-	
-	int64_t pts; // 33bits
-	int64_t dts; // 33bits
-	
-	int16_t ESCR_extension; //9bits
-	int64_t ESCR_base; //33bits
-	int32_t ES_rate; //22bits
-	
-	int8_t trick_mode_control; //3bits
-	int8_t trick_mode_value; //5bits
-	
-	int8_t additional_copy_info; //7bits
-	int16_t previous_PES_packet_CRC; //16bits
-	
-	int8_t PES_private_data_flag; //1bit
-	int8_t pack_header_field_flag; //1bit
-	int8_t program_packet_sequence_counter_flag; //1bit
-	int8_t P_STD_buffer_flag; //1bit
-	// reserved 3bits
-	int8_t PES_extension_flag_2; //1bit
-	
-	// 16B
-	char* PES_private_data; //128bits
-	
-	int8_t pack_field_length; //8bits
-	char* pack_field; //[pack_field_length] bytes
-				
-	int8_t program_packet_sequence_counter; //7bits
-	int8_t MPEG1_MPEG2_identifier; //1bit
-	int8_t original_stuff_length; //6bits
-				
-	int8_t P_STD_buffer_scale; //1bit
-	int16_t P_STD_buffer_size; //13bits
-	
-	int8_t PES_extension_field_length; //7bits
-	char* PES_extension_field; //[PES_extension_field_length] bytes
-	
-	int stuffing_size;
-	char* stuffing_byte;
+    // 1B
+    // 2bits const '10'
+    int8_t PES_scrambling_control; //2bits
+    int8_t PES_priority; //1bit
+    int8_t data_alignment_indicator; //1bit
+    int8_t copyright; //1bit
+    int8_t original_or_copy; //1bit
+    
+    // 1B
+    int8_t PTS_DTS_flags; //2bits
+    int8_t ESCR_flag; //1bit
+    int8_t ES_rate_flag; //1bit
+    int8_t DSM_trick_mode_flag; //1bit
+    int8_t additional_copy_info_flag; //1bit
+    int8_t PES_CRC_flag; //1bit
+    int8_t PES_extension_flag; //1bit
+    
+    // 1B
+    u_int8_t PES_header_data_length; //8bits
+    
+    int64_t pts; // 33bits
+    int64_t dts; // 33bits
+    
+    int16_t ESCR_extension; //9bits
+    int64_t ESCR_base; //33bits
+    int32_t ES_rate; //22bits
+    
+    int8_t trick_mode_control; //3bits
+    int8_t trick_mode_value; //5bits
+    
+    int8_t additional_copy_info; //7bits
+    int16_t previous_PES_packet_CRC; //16bits
+    
+    int8_t PES_private_data_flag; //1bit
+    int8_t pack_header_field_flag; //1bit
+    int8_t program_packet_sequence_counter_flag; //1bit
+    int8_t P_STD_buffer_flag; //1bit
+    // reserved 3bits
+    int8_t PES_extension_flag_2; //1bit
+    
+    // 16B
+    char* PES_private_data; //128bits
+    
+    int8_t pack_field_length; //8bits
+    char* pack_field; //[pack_field_length] bytes
+                
+    int8_t program_packet_sequence_counter; //7bits
+    int8_t MPEG1_MPEG2_identifier; //1bit
+    int8_t original_stuff_length; //6bits
+                
+    int8_t P_STD_buffer_scale; //1bit
+    int16_t P_STD_buffer_size; //13bits
+    
+    int8_t PES_extension_field_length; //7bits
+    char* PES_extension_field; //[PES_extension_field_length] bytes
+    
+    int stuffing_size;
+    char* stuffing_byte;
     
     TSPayloadPES();
     virtual ~TSPayloadPES();
@@ -547,13 +547,13 @@ public:
 */
 struct TSPid
 {
-	TSPidType type;
-	// page 66.
-	TSStreamType stream_type;
-	// page 36
-	TSPidTable pid;
-	// page 36
-	u_int8_t continuity_counter;
+    TSPidType type;
+    // page 66.
+    TSStreamType stream_type;
+    // page 36
+    TSPidTable pid;
+    // page 36
+    u_int8_t continuity_counter;
 };
 
 /**
@@ -562,29 +562,29 @@ struct TSPid
 class TSMessage
 {
 public:
-	// 2.4.3.2 Transport Stream packet layer. page 36
-	// the pid of PES packet.
-	TSPidTable pid;
-	
-	// the type of pid.
-	TSPidType type;
-	// the type of stream, codec type.
-	TSStreamType stream_type;
-	// page 36
-	u_int8_t continuity_counter;
-	
-	// 2.4.3.7 Semantic definition of fields in PES packet. page 49
-	// PES packet header size plus data size.
+    // 2.4.3.2 Transport Stream packet layer. page 36
+    // the pid of PES packet.
+    TSPidTable pid;
+    
+    // the type of pid.
+    TSPidType type;
+    // the type of stream, codec type.
+    TSStreamType stream_type;
+    // page 36
+    u_int8_t continuity_counter;
+    
+    // 2.4.3.7 Semantic definition of fields in PES packet. page 49
+    // PES packet header size plus data size.
     u_int16_t PES_packet_length; //16bits
 
-	// the stream id.
-	u_int8_t stream_id;
-	
-	// 2.4.3.7 Semantic definition of fields in PES packet. page 49.
-	int32_t packet_start_code_prefix;
-	
-	int64_t pts; // 33bits
-	int64_t dts; // 33bits
+    // the stream id.
+    u_int8_t stream_id;
+    
+    // 2.4.3.7 Semantic definition of fields in PES packet. page 49.
+    int32_t packet_start_code_prefix;
+    
+    int64_t pts; // 33bits
+    int64_t dts; // 33bits
     int64_t pcr;
     
     // header size.
@@ -594,20 +594,20 @@ public:
     int parsed_packet_size;
     
     // total packet size.
-	int packet_data_size;
-	char* packet_data;
-	
-	// for avc.
-	u_int8_t nal_ref_idc;
-	u_int8_t nal_unit_type;
-	
-	TSMessage();
-	virtual ~TSMessage();
-	
-	void append(u_int8_t*& p, int size);
-	void detach(TSContext* ctx, TSMessage*& pmsg);
-	
-	bool is_video();
+    int packet_data_size;
+    char* packet_data;
+    
+    // for avc.
+    u_int8_t nal_ref_idc;
+    u_int8_t nal_unit_type;
+    
+    TSMessage();
+    virtual ~TSMessage();
+    
+    void append(u_int8_t*& p, int size);
+    void detach(TSContext* ctx, TSMessage*& pmsg);
+    
+    bool is_video();
 };
 
 // ts context
@@ -618,9 +618,9 @@ public:
     * consumed pids.
     */
     int pid_size;
-	TSPid* pids;
-	int64_t ts_packet_count;
-	std::map<TSPidTable, TSMessage*> msgs;
+    TSPid* pids;
+    int64_t ts_packet_count;
+    std::map<TSPidTable, TSMessage*> msgs;
     
     TSContext();
     virtual ~TSContext();
@@ -675,17 +675,17 @@ TSPid* TSContext::get(TSPidTable pid)
 
 void TSContext::push(TSPidTable pid, TSStreamType stream_type, TSPidType type, u_int8_t continuity_counter)
 {
-	TSPid* p = get(pid);
-	
+    TSPid* p = get(pid);
+    
     if (!p) {
         p = new TSPid[pid_size + 1];
-		memcpy(p, pids, sizeof(TSPid) * pid_size);
-		
-		p[pid_size] = (TSPid){type, stream_type, pid, continuity_counter};
-		pid_size++;
-		
-		srs_freepa(pids);
-		pids = p;
+        memcpy(p, pids, sizeof(TSPid) * pid_size);
+        
+        p[pid_size] = (TSPid){type, stream_type, pid, continuity_counter};
+        pid_size++;
+        
+        srs_freepa(pids);
+        pids = p;
     }
     
     p->continuity_counter = continuity_counter;
@@ -693,73 +693,73 @@ void TSContext::push(TSPidTable pid, TSStreamType stream_type, TSPidType type, u
 
 TSMessage* TSContext::get_msg(TSPidTable pid)
 {
-	if (msgs[pid] == NULL) {
-		TSMessage* msg = new TSMessage();
-		msg->pid = pid;
-		msgs[pid] = msg;
-	}
-	
-	return msgs[pid];
+    if (msgs[pid] == NULL) {
+        TSMessage* msg = new TSMessage();
+        msg->pid = pid;
+        msgs[pid] = msg;
+    }
+    
+    return msgs[pid];
 }
 
 void TSContext::detach(TSMessage* msg)
 {
-	msgs[msg->pid] = NULL;
+    msgs[msg->pid] = NULL;
 }
 
 TSMessage::TSMessage()
 {
-	pid = TSPidTablePAT;
-	type = TSPidTypeReserved;
-	stream_type = TSStreamTypeReserved;
-	stream_id = 0;
-	packet_start_code_prefix = 0;
-	pts = dts = pcr = 0;
-	PES_packet_length = 0;
-	packet_header_size = 0;
-	parsed_packet_size = 0;
-	packet_data_size = 0;
-	packet_data = NULL;
-	
-	nal_ref_idc = 0;
-	nal_unit_type = 0;
+    pid = TSPidTablePAT;
+    type = TSPidTypeReserved;
+    stream_type = TSStreamTypeReserved;
+    stream_id = 0;
+    packet_start_code_prefix = 0;
+    pts = dts = pcr = 0;
+    PES_packet_length = 0;
+    packet_header_size = 0;
+    parsed_packet_size = 0;
+    packet_data_size = 0;
+    packet_data = NULL;
+    
+    nal_ref_idc = 0;
+    nal_unit_type = 0;
 }
 
 TSMessage::~TSMessage()
 {
-	srs_freepa(packet_data);
+    srs_freepa(packet_data);
 }
 
 void TSMessage::append(u_int8_t*& p, int size)
 {
-	if (size <= 0) {
-		return;
-	}
-	
-	// for PES_packet_length is 0, the size is varient.
-	if (packet_data_size - parsed_packet_size < size) {
-		int realloc_size = size - (packet_data_size - parsed_packet_size);
-		packet_data = (char*)realloc(packet_data, packet_data_size + realloc_size);
-		
-		packet_data_size += realloc_size;
-	}
-	
-	memcpy(packet_data + parsed_packet_size, p, size);
-	p += size;
-	parsed_packet_size += size;
+    if (size <= 0) {
+        return;
+    }
+    
+    // for PES_packet_length is 0, the size is varient.
+    if (packet_data_size - parsed_packet_size < size) {
+        int realloc_size = size - (packet_data_size - parsed_packet_size);
+        packet_data = (char*)realloc(packet_data, packet_data_size + realloc_size);
+        
+        packet_data_size += realloc_size;
+    }
+    
+    memcpy(packet_data + parsed_packet_size, p, size);
+    p += size;
+    parsed_packet_size += size;
 }
 
 void TSMessage::detach(TSContext* ctx, TSMessage*& pmsg)
 {
-	if (parsed_packet_size >= packet_data_size) {
-		ctx->detach(this);
-		pmsg = this;
-	}
+    if (parsed_packet_size >= packet_data_size) {
+        ctx->detach(this);
+        pmsg = this;
+    }
 }
 
 bool TSMessage::is_video()
 {
-	return type == TSPidTypeVideo;
+    return type == TSPidTypeVideo;
 }
 
 TSAdaptionField::TSAdaptionField()
@@ -1064,12 +1064,12 @@ TSPMTESInfo::TSPMTESInfo()
     stream_type = 0;
     elementary_PID = 0;
     ES_info_length = 0;
-	ES_info = NULL;
+    ES_info = NULL;
 }
 
 TSPMTESInfo::~TSPMTESInfo()
 {
-	srs_freepa(ES_info);
+    srs_freepa(ES_info);
 }
 
 TSPayloadPMT::TSPayloadPMT()
@@ -1091,18 +1091,18 @@ TSPayloadPMT::TSPayloadPMT()
 
 TSPayloadPMT::~TSPayloadPMT()
 {
-	srs_freepa(program_info_desc);
-	
-	for (std::vector<TSPMTESInfo*>::iterator it = ES_info.begin(); it != ES_info.end(); ++it) {
-		TSPMTESInfo* info = *it;
-		srs_freep(info);
-	}
-	ES_info.clear();
+    srs_freepa(program_info_desc);
+    
+    for (std::vector<TSPMTESInfo*>::iterator it = ES_info.begin(); it != ES_info.end(); ++it) {
+        TSPMTESInfo* info = *it;
+        srs_freep(info);
+    }
+    ES_info.clear();
 }
 
 TSPMTESInfo* TSPayloadPMT::at(int index)
 {
-	return ES_info.at(index);
+    return ES_info.at(index);
 }
 
 int TSPayloadPMT::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t* last, u_int8_t*& p, TSMessage*& pmsg)
@@ -1144,55 +1144,55 @@ int TSPayloadPMT::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t
     program_info_length &= 0xFFF;
     
     if (program_info_length > 0) {
-	    program_info_desc = new char[program_info_length];
-	    memcpy(program_info_desc, p, program_info_length);
-	    p += program_info_length;
+        program_info_desc = new char[program_info_length];
+        memcpy(program_info_desc, p, program_info_length);
+        p += program_info_length;
     }
     
     // [section_length] - 4(CRC) - 9B - [program_info_length]
     int ES_bytes = section_length - 4 - 9 - program_info_length;
     while (ES_bytes > 0) {
-	    TSPMTESInfo* info = new TSPMTESInfo();
-	    
-	    info->stream_type = *p++;
-	    ES_bytes--;
-	    
-	    pp = (char*)&info->elementary_PID;
-	    pp[1] = *p++;
-	    pp[0] = *p++;
-	    ES_bytes -= 2;
-	    
-	    info->elementary_PID &= 0x1FFF;
-	    
-	    pp = (char*)&info->ES_info_length;
-	    pp[1] = *p++;
-	    pp[0] = *p++;
-	    ES_bytes -= 2;
-	    
-	    info->ES_info_length &= 0x0FFF;
-	    
-	    if (info->ES_info_length > 0) {
-	        info->ES_info = new char[info->ES_info_length];
-	        memcpy(info->ES_info, p, info->ES_info_length);
-	        
-	        p += info->ES_info_length;
-	        ES_bytes -= info->ES_info_length;
-	    }
-	    
-	    ES_info.push_back(info);
-		
-		if (info->stream_type == TSStreamTypeVideoH264) {
-			// TODO: support more video type.
-			ctx->push((TSPidTable)info->elementary_PID, (TSStreamType)info->stream_type, TSPidTypeVideo, pkt->header->continuity_counter);
-			trace("ts+pmt add pid: %d, type: H264 video", info->elementary_PID);
-		} else if (info->stream_type == TSStreamTypeAudioAAC) {
-			// TODO: support more audio type.
-			// see aac: 6.2 Audio Data Transport Stream, ADTS
-			ctx->push((TSPidTable)info->elementary_PID, (TSStreamType)info->stream_type, TSPidTypeAudio, pkt->header->continuity_counter);
-			trace("ts+pmt add pid: %d, type: AAC audio", info->elementary_PID);
-		} else {
-			trace("ts+pmt ignore the stream type: %d", info->stream_type);
-		}
+        TSPMTESInfo* info = new TSPMTESInfo();
+        
+        info->stream_type = *p++;
+        ES_bytes--;
+        
+        pp = (char*)&info->elementary_PID;
+        pp[1] = *p++;
+        pp[0] = *p++;
+        ES_bytes -= 2;
+        
+        info->elementary_PID &= 0x1FFF;
+        
+        pp = (char*)&info->ES_info_length;
+        pp[1] = *p++;
+        pp[0] = *p++;
+        ES_bytes -= 2;
+        
+        info->ES_info_length &= 0x0FFF;
+        
+        if (info->ES_info_length > 0) {
+            info->ES_info = new char[info->ES_info_length];
+            memcpy(info->ES_info, p, info->ES_info_length);
+            
+            p += info->ES_info_length;
+            ES_bytes -= info->ES_info_length;
+        }
+        
+        ES_info.push_back(info);
+        
+        if (info->stream_type == TSStreamTypeVideoH264) {
+            // TODO: support more video type.
+            ctx->push((TSPidTable)info->elementary_PID, (TSStreamType)info->stream_type, TSPidTypeVideo, pkt->header->continuity_counter);
+            trace("ts+pmt add pid: %d, type: H264 video", info->elementary_PID);
+        } else if (info->stream_type == TSStreamTypeAudioAAC) {
+            // TODO: support more audio type.
+            // see aac: 6.2 Audio Data Transport Stream, ADTS
+            ctx->push((TSPidTable)info->elementary_PID, (TSStreamType)info->stream_type, TSPidTypeAudio, pkt->header->continuity_counter);
+            trace("ts+pmt add pid: %d, type: AAC audio", info->elementary_PID);
+        } else {
+            trace("ts+pmt ignore the stream type: %d", info->stream_type);
+        }
     }
     
     pp = (char*)&CRC_32;
@@ -1252,44 +1252,44 @@ TSPayloadPES::TSPayloadPES()
 
 TSPayloadPES::~TSPayloadPES()
 {
-	srs_freepa(PES_private_data);
-	srs_freepa(pack_field);
-	srs_freepa(PES_extension_field);
-	srs_freepa(stuffing_byte);
+    srs_freepa(PES_private_data);
+    srs_freepa(pack_field);
+    srs_freepa(PES_extension_field);
+    srs_freepa(stuffing_byte);
 }
 
 int64_t TSPayloadPES::decode_33bits_int(u_int8_t*& p, int64_t& temp)
 {
-	char* pp = (char*)&temp;
-	pp[4] = *p++;
-	pp[3] = *p++;
-	pp[2] = *p++;
-	pp[1] = *p++;
-	pp[0] = *p++;
-	
-	return decode_33bits_int(temp);
+    char* pp = (char*)&temp;
+    pp[4] = *p++;
+    pp[3] = *p++;
+    pp[2] = *p++;
+    pp[1] = *p++;
+    pp[0] = *p++;
+    
+    return decode_33bits_int(temp);
 }
 
 int64_t TSPayloadPES::decode_33bits_int(int64_t& temp)
 {
     int64_t ret = 0;
-	
-	// marker_bit 1bit
-	temp = temp >> 1;
-	// PTS [14..0] 15bits
-	ret |= temp & 0x7fff;
-	// marker_bit 1bit
-	temp = temp >> 1;
-	// PTS [29..15] 15bits, 15zero, 29-15+1one
-	ret |= temp & 0x3fff8000LL;
-	// marker_bit 1bit
-	temp = temp >> 1;
-	// PTS [32..30] 3bits
-	ret |= temp & 0x1c0000000LL;
-	
-	temp = temp >> 33;
-	
-	return ret;
+    
+    // marker_bit 1bit
+    temp = temp >> 1;
+    // PTS [14..0] 15bits
+    ret |= temp & 0x7fff;
+    // marker_bit 1bit
+    temp = temp >> 1;
+    // PTS [29..15] 15bits, 15zero, 29-15+1one
+    ret |= temp & 0x3fff8000LL;
+    // marker_bit 1bit
+    temp = temp >> 1;
+    // PTS [32..30] 3bits
+    ret |= temp & 0x1c0000000LL;
+    
+    temp = temp >> 33;
+    
+    return ret;
 }
 
 int TSPayloadPES::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t* last, u_int8_t*& p, TSMessage*& pmsg)
@@ -1302,249 +1302,249 @@ int TSPayloadPES::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t
     pp[0] = *p++;
     
     packet_start_code_prefix &= 0xFFFFFF;
-	if (packet_start_code_prefix != 0x01) {
-		trace("ts+pes decode unit start packet error, msg is empty.");
-		return -1;
-	}
+    if (packet_start_code_prefix != 0x01) {
+        trace("ts+pes decode unit start packet error, msg is empty.");
+        return -1;
+    }
 
-	stream_id = *p++;
-	
-	pp = (char*)&PES_packet_length;
-	pp[1] = *p++;
-	pp[0] = *p++;
-	u_int8_t* pos_packet = p;
-	
-	if (stream_id != PES_program_stream_map
-	    && stream_id != PES_padding_stream
-	    && stream_id != PES_private_stream_2
-	    && stream_id != PES_ECM_stream
-	    && stream_id != PES_EMM_stream
-	    && stream_id != PES_program_stream_directory
-	    && stream_id != PES_DSMCC_stream
-	    && stream_id != PES_H_222_1_type_E
-	) {
-		original_or_copy = *p++;
-		
-		//int8_t const2bits = (original_or_copy >> 6) & 0x03;
-		PES_scrambling_control = (original_or_copy >> 4) & 0x03;
-		PES_priority = (original_or_copy >> 3) & 0x01;
-		data_alignment_indicator = (original_or_copy >> 2) & 0x01;
-		copyright = (original_or_copy >> 1) & 0x01;
-		original_or_copy &= 0x01;
-		
-		PES_extension_flag = *p++;
-		
-		PTS_DTS_flags = (PES_extension_flag >> 6) & 0x03;
-		ESCR_flag = (PES_extension_flag >> 5) & 0x01;
-		ES_rate_flag = (PES_extension_flag >> 4) & 0x01;
-		DSM_trick_mode_flag = (PES_extension_flag >> 3) & 0x01;
-		additional_copy_info_flag = (PES_extension_flag >> 2) & 0x01;
-		PES_CRC_flag = (PES_extension_flag >> 1) & 0x01;
-		PES_extension_flag &= 0x01;
-		
-		PES_header_data_length = *p++;
-		u_int8_t* pos_header = p;
+    stream_id = *p++;
+    
+    pp = (char*)&PES_packet_length;
+    pp[1] = *p++;
+    pp[0] = *p++;
+    u_int8_t* pos_packet = p;
+    
+    if (stream_id != PES_program_stream_map
+        && stream_id != PES_padding_stream
+        && stream_id != PES_private_stream_2
+        && stream_id != PES_ECM_stream
+        && stream_id != PES_EMM_stream
+        && stream_id != PES_program_stream_directory
+        && stream_id != PES_DSMCC_stream
+        && stream_id != PES_H_222_1_type_E
+    ) {
+        original_or_copy = *p++;
+        
+        //int8_t const2bits = (original_or_copy >> 6) & 0x03;
+        PES_scrambling_control = (original_or_copy >> 4) & 0x03;
+        PES_priority = (original_or_copy >> 3) & 0x01;
+        data_alignment_indicator = (original_or_copy >> 2) & 0x01;
+        copyright = (original_or_copy >> 1) & 0x01;
+        original_or_copy &= 0x01;
+        
+        PES_extension_flag = *p++;
+        
+        PTS_DTS_flags = (PES_extension_flag >> 6) & 0x03;
+        ESCR_flag = (PES_extension_flag >> 5) & 0x01;
+        ES_rate_flag = (PES_extension_flag >> 4) & 0x01;
+        DSM_trick_mode_flag = (PES_extension_flag >> 3) & 0x01;
+        additional_copy_info_flag = (PES_extension_flag >> 2) & 0x01;
+        PES_CRC_flag = (PES_extension_flag >> 1) & 0x01;
+        PES_extension_flag &= 0x01;
+        
+        PES_header_data_length = *p++;
+        u_int8_t* pos_header = p;
 
-		int64_t temp = 0;
-		if (PTS_DTS_flags == 0x2) {
-			pts = decode_33bits_int(p, temp);
-			// '0010' 4bits
-			//int8_t const4bits = temp & 0x0F;
-		}
+        int64_t temp = 0;
+        if (PTS_DTS_flags == 0x2) {
+            pts = decode_33bits_int(p, temp);
+            // '0010' 4bits
+            //int8_t const4bits = temp & 0x0F;
+        }
 
-		if (PTS_DTS_flags == 0x3) {
-			pts = decode_33bits_int(p, temp);
-			// '0011' 4bits
-			//int8_t const4bits = temp & 0x0F;
-			
-			dts = decode_33bits_int(p, temp);
-			// '0001' 4bits
-			//int8_t const4bits = temp & 0x0F;
-		}
-		
-		if (ESCR_flag) {
-			pp = (char*)&temp;
-			pp[5] = *p++;
-			pp[4] = *p++;
-			pp[3] = *p++;
-			pp[2] = *p++;
-			pp[1] = *p++;
-			pp[0] = *p++;
-			
-			// marker_bit 1bit
-			temp = temp >> 1;
-			// ESCR_extension 9bits
-			ESCR_extension = temp & 0x1f;
-			temp = temp >> 9;
-			
-			ESCR_base = decode_33bits_int(temp);
-			
-			// reserved 2bits
-			//int8_t reserved2bits = temp & 0x03;
-		}
-		
-		if (ES_rate_flag) {
-			pp = (char*)&ES_rate;
-			pp[2] = *p++;
-			pp[1] = *p++;
-			pp[0] = *p++;
-			
-			ES_rate = ES_rate >> 1;
-			ES_rate &= 0x3FFFFF;
-		}
+        if (PTS_DTS_flags == 0x3) {
+            pts = decode_33bits_int(p, temp);
+            // '0011' 4bits
+            //int8_t const4bits = temp & 0x0F;
+            
+            dts = decode_33bits_int(p, temp);
+            // '0001' 4bits
+            //int8_t const4bits = temp & 0x0F;
+        }
+        
+        if (ESCR_flag) {
+            pp = (char*)&temp;
+            pp[5] = *p++;
+            pp[4] = *p++;
+            pp[3] = *p++;
+            pp[2] = *p++;
+            pp[1] = *p++;
+            pp[0] = *p++;
+            
+            // marker_bit 1bit
+            temp = temp >> 1;
+            // ESCR_extension 9bits
+            ESCR_extension = temp & 0x1f;
+            temp = temp >> 9;
+            
+            ESCR_base = decode_33bits_int(temp);
+            
+            // reserved 2bits
+            //int8_t reserved2bits = temp & 0x03;
+        }
+        
+        if (ES_rate_flag) {
+            pp = (char*)&ES_rate;
+            pp[2] = *p++;
+            pp[1] = *p++;
+            pp[0] = *p++;
+            
+            ES_rate = ES_rate >> 1;
+            ES_rate &= 0x3FFFFF;
+        }
 
-		if (DSM_trick_mode_flag) {
-			trick_mode_control = *p++;
+        if (DSM_trick_mode_flag) {
+            trick_mode_control = *p++;
 
-			trick_mode_value = trick_mode_control & 0x1f;
-			trick_mode_control = (trick_mode_control >> 5) & 0x03;
-		}
-		
-		if (additional_copy_info_flag) {
-			additional_copy_info = *p++;
-			additional_copy_info &= 0x7f;
-		}
-		
-		if (PES_CRC_flag) {
-			pp = (char*)&previous_PES_packet_CRC;
-			pp[1] = *p++;
-			pp[0] = *p++;
-		}
+            trick_mode_value = trick_mode_control & 0x1f;
+            trick_mode_control = (trick_mode_control >> 5) & 0x03;
+        }
+        
+        if (additional_copy_info_flag) {
+            additional_copy_info = *p++;
+            additional_copy_info &= 0x7f;
+        }
+        
+        if (PES_CRC_flag) {
+            pp = (char*)&previous_PES_packet_CRC;
+            pp[1] = *p++;
+            pp[0] = *p++;
+        }
 
-		if (PES_extension_flag) {
-			PES_extension_flag_2 = *p++;
-			
-			PES_private_data_flag = (PES_extension_flag_2 >> 7) & 0x01;
-			pack_header_field_flag = (PES_extension_flag_2 >> 6) & 0x01;
-			program_packet_sequence_counter_flag = (PES_extension_flag_2 >> 5) & 0x01;
-			P_STD_buffer_flag = (PES_extension_flag_2 >> 4) & 0x01;
-			PES_extension_flag_2 &= PES_extension_flag_2 & 0x01;
-			
-			if (PES_private_data_flag) {
-				PES_private_data = new char[16];
-				memcpy(PES_private_data, p, 16);
-				p += 16;
-			}
-			
-			if (pack_header_field_flag) {
-				pack_field_length = *p++;
-				if (pack_field_length > 0) {
-					pack_field = new char[pack_field_length];
-					memcpy(pack_field, p, pack_field_length);
-					p += pack_field_length;
-				}
-			}
-			
-			if (program_packet_sequence_counter_flag) {
-				program_packet_sequence_counter = *p++;
-				program_packet_sequence_counter &= 0x7f;
-				
-				original_stuff_length = *p++;
-				MPEG1_MPEG2_identifier = (original_stuff_length >> 6) & 0x01;
-				original_stuff_length &= 0x3f;
-			}
-			
-			if (P_STD_buffer_flag) {
-				pp = (char*)&P_STD_buffer_size;
-				pp[1] = *p++;
-				pp[0] = *p++;
-				
-				// '01'
-				//int8_t const2bits = (P_STD_buffer_scale >>14) & 0x03;
+        if (PES_extension_flag) {
+            PES_extension_flag_2 = *p++;
+            
+            PES_private_data_flag = (PES_extension_flag_2 >> 7) & 0x01;
+            pack_header_field_flag = (PES_extension_flag_2 >> 6) & 0x01;
+            program_packet_sequence_counter_flag = (PES_extension_flag_2 >> 5) & 0x01;
+            P_STD_buffer_flag = (PES_extension_flag_2 >> 4) & 0x01;
+            PES_extension_flag_2 &= PES_extension_flag_2 & 0x01;
+            
+            if (PES_private_data_flag) {
+                PES_private_data = new char[16];
+                memcpy(PES_private_data, p, 16);
+                p += 16;
+            }
+            
+            if (pack_header_field_flag) {
+                pack_field_length = *p++;
+                if (pack_field_length > 0) {
+                    pack_field = new char[pack_field_length];
+                    memcpy(pack_field, p, pack_field_length);
+                    p += pack_field_length;
+                }
+            }
+            
+            if (program_packet_sequence_counter_flag) {
+                program_packet_sequence_counter = *p++;
+                program_packet_sequence_counter &= 0x7f;
+                
+                original_stuff_length = *p++;
+                MPEG1_MPEG2_identifier = (original_stuff_length >> 6) & 0x01;
+                original_stuff_length &= 0x3f;
+            }
+            
+            if (P_STD_buffer_flag) {
+                pp = (char*)&P_STD_buffer_size;
+                pp[1] = *p++;
+                pp[0] = *p++;
+                
+                // '01'
+                //int8_t const2bits = (P_STD_buffer_scale >>14) & 0x03;
 
-				P_STD_buffer_scale = (P_STD_buffer_scale >>13) & 0x01;
-				P_STD_buffer_size &= 0x1FFF;
-			}
-			
-			if (PES_extension_flag_2) {
-				PES_extension_field_length = *p++;
-				PES_extension_field_length &= 0x07;
-				
-				if (PES_extension_field_length > 0) {
-					PES_extension_field = new char[PES_extension_field_length];
-					memcpy(PES_extension_field, p, PES_extension_field_length);
-					p += PES_extension_field_length;
-				}
-			}
-		}
-		
-		// stuffing_byte
-		int stuffing_size = PES_header_data_length - (p - pos_header);
-		if (stuffing_size > 0) {
-			stuffing_byte = new char[stuffing_size];
-			memcpy(stuffing_byte, p, stuffing_size);
-			p += stuffing_size;
-		}
-		
-		// get the pid.
-		TSPid* pid = ctx->get(pkt->header->pid);
-		if (!pid) {
-			trace("ts+pes pid: %d type is invalid.", pkt->header->pid);
-		}
-		
-		// get the message to build from the chunks(PES packets).
-		TSMessage* msg = ctx->get_msg(pid->pid);
+                P_STD_buffer_scale = (P_STD_buffer_scale >>13) & 0x01;
+                P_STD_buffer_size &= 0x1FFF;
+            }
+            
+            if (PES_extension_flag_2) {
+                PES_extension_field_length = *p++;
+                PES_extension_field_length &= 0x07;
+                
+                if (PES_extension_field_length > 0) {
+                    PES_extension_field = new char[PES_extension_field_length];
+                    memcpy(PES_extension_field, p, PES_extension_field_length);
+                    p += PES_extension_field_length;
+                }
+            }
+        }
+        
+        // stuffing_byte
+        int stuffing_size = PES_header_data_length - (p - pos_header);
+        if (stuffing_size > 0) {
+            stuffing_byte = new char[stuffing_size];
+            memcpy(stuffing_byte, p, stuffing_size);
+            p += stuffing_size;
+        }
+        
+        // get the pid.
+        TSPid* pid = ctx->get(pkt->header->pid);
+        if (!pid) {
+            trace("ts+pes pid: %d type is invalid.", pkt->header->pid);
+        }
+        
+        // get the message to build from the chunks(PES packets).
+        TSMessage* msg = ctx->get_msg(pid->pid);
 
-		msg->type = pid->type;
-		msg->stream_type = pid->stream_type;
-		msg->continuity_counter = pid->continuity_counter;
-		msg->stream_id = stream_id;
-		msg->packet_start_code_prefix = packet_start_code_prefix;
-		msg->dts = dts;
-		msg->pts = pts;
-		
-		// PES_packet_data_byte, page58.
-		// the packet size contains the header size.
-		// The number of PES_packet_data_bytes, N, is specified by the 
-		// PES_packet_length field. N shall be equal to the value 
-		// indicated in the PES_packet_length minus the number of bytes 
-		// between the last byte of the PES_packet_length field and the 
-		// first PES_packet_data_byte.
-		msg->PES_packet_length = PES_packet_length;
-		msg->packet_header_size = p - pos_packet;
-		msg->packet_data_size = PES_packet_length - msg->packet_header_size;
-		
-		/**
-		* when actual packet length > 0xffff(65535),
-		* which exceed the max u_int16_t packet length,
-		* use 0 packet length, the next unit start indicates the end of packet.
-		*/
-		if (PES_packet_length == 0) {
-			msg->packet_data_size = last - p - msg->packet_header_size;
-		}
-		
-		if (msg->packet_data_size > 0) {
-			msg->packet_data = new char[msg->packet_data_size];
-		}
-		
-		// PES_packet_data_byte
-		int size = srs_min(msg->packet_data_size, last - p);
-		if (size > 0) {
-			msg->append(p, size);
-		}
-		
-		if (PES_packet_length > 0) {
-			msg->detach(ctx, pmsg);
-		}
-	
-		trace("ts+pes stream_id: %d size: %d pts: %"PRId64" dts: %"PRId64" total: %d header: %d packet_size: %d parsed_size: %d",
-			stream_id, PES_packet_length, pts, dts, msg->PES_packet_length, msg->packet_header_size, msg->packet_data_size, msg->parsed_packet_size);
-	} else if (stream_id == PES_program_stream_map
-		|| stream_id == PES_private_stream_2
-		|| stream_id == PES_ECM_stream
-		|| stream_id == PES_EMM_stream
-		|| stream_id == PES_program_stream_directory
-		|| stream_id == PES_DSMCC_stream
-		|| stream_id == PES_H_222_1_type_E
-	) {
-		// for (i = 0; i < PES_packet_length; i++) {
-		// 		PES_packet_data_byte
-		// }
-	} else if (stream_id != PES_padding_stream) {
-		// for (i = 0; i < PES_packet_length; i++) {
-		// 		padding_byte
-		// }
-	}
+        msg->type = pid->type;
+        msg->stream_type = pid->stream_type;
+        msg->continuity_counter = pid->continuity_counter;
+        msg->stream_id = stream_id;
+        msg->packet_start_code_prefix = packet_start_code_prefix;
+        msg->dts = dts;
+        msg->pts = pts;
+        
+        // PES_packet_data_byte, page58.
+        // the packet size contains the header size.
+        // The number of PES_packet_data_bytes, N, is specified by the 
+        // PES_packet_length field. N shall be equal to the value 
+        // indicated in the PES_packet_length minus the number of bytes 
+        // between the last byte of the PES_packet_length field and the 
+        // first PES_packet_data_byte.
+        msg->PES_packet_length = PES_packet_length;
+        msg->packet_header_size = p - pos_packet;
+        msg->packet_data_size = PES_packet_length - msg->packet_header_size;
+        
+        /**
+        * when actual packet length > 0xffff(65535),
+        * which exceed the max u_int16_t packet length,
+        * use 0 packet length, the next unit start indicates the end of packet.
+        */
+        if (PES_packet_length == 0) {
+            msg->packet_data_size = last - p - msg->packet_header_size;
+        }
+        
+        if (msg->packet_data_size > 0) {
+            msg->packet_data = new char[msg->packet_data_size];
+        }
+        
+        // PES_packet_data_byte
+        int size = srs_min(msg->packet_data_size, last - p);
+        if (size > 0) {
+            msg->append(p, size);
+        }
+        
+        if (PES_packet_length > 0) {
+            msg->detach(ctx, pmsg);
+        }
+    
+        trace("ts+pes stream_id: %d size: %d pts: %"PRId64" dts: %"PRId64" total: %d header: %d packet_size: %d parsed_size: %d",
+            stream_id, PES_packet_length, pts, dts, msg->PES_packet_length, msg->packet_header_size, msg->packet_data_size, msg->parsed_packet_size);
+    } else if (stream_id == PES_program_stream_map
+        || stream_id == PES_private_stream_2
+        || stream_id == PES_ECM_stream
+        || stream_id == PES_EMM_stream
+        || stream_id == PES_program_stream_directory
+        || stream_id == PES_DSMCC_stream
+        || stream_id == PES_H_222_1_type_E
+    ) {
+        // for (i = 0; i < PES_packet_length; i++) {
+        //         PES_packet_data_byte
+        // }
+    } else if (stream_id != PES_padding_stream) {
+        // for (i = 0; i < PES_packet_length; i++) {
+        //         padding_byte
+        // }
+    }
     
     return ret;
 }
@@ -1603,16 +1603,16 @@ int TSPayload::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t* l
         return pmt->demux(ctx, pkt, start, last, p, pmsg);
     }
     if (pid && (pid->type == TSPidTypeVideo || pid->type == TSPidTypeAudio)) {
-	    TSMessage* msg = ctx->get_msg(pkt->header->pid);
+        TSMessage* msg = ctx->get_msg(pkt->header->pid);
 
-		if (pkt->adaption_field->pcr > 0) {
-			msg->pcr = pkt->adaption_field->pcr;
-		}
-	    
+        if (pkt->adaption_field->pcr > 0) {
+            msg->pcr = pkt->adaption_field->pcr;
+        }
+        
         // flush previous PES_packet_length(0) packets.
         if (msg->packet_start_code_prefix == 0x01 
             && pkt->header->payload_unit_start_indicator == 1
-        	&& msg->PES_packet_length == 0
+            && msg->PES_packet_length == 0
         ) {
             msg->detach(ctx, pmsg);
             // reparse current message
@@ -1620,21 +1620,21 @@ int TSPayload::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t* l
             return ret;
         }
         
-		// parse continous packet.
-	    if (!pkt->header->payload_unit_start_indicator) {
-			if (msg->packet_start_code_prefix != 0x01) {
-				trace("ts+pes decode continous packet error, msg is empty.");
-				return -1;
-			}
-			msg->append(p, last - p);
-			
-			// for PES_packet_length is 0, donot attach it.
-			if (msg->PES_packet_length > 0) {
-				msg->detach(ctx, pmsg);
-			}
-			return ret;
-	    }
-	    
+        // parse continous packet.
+        if (!pkt->header->payload_unit_start_indicator) {
+            if (msg->packet_start_code_prefix != 0x01) {
+                trace("ts+pes decode continous packet error, msg is empty.");
+                return -1;
+            }
+            msg->append(p, last - p);
+            
+            // for PES_packet_length is 0, donot attach it.
+            if (msg->PES_packet_length > 0) {
+                msg->detach(ctx, pmsg);
+            }
+            return ret;
+        }
+        
         type = pid->type;
         pes = new TSPayloadPES();
         return pes->demux(ctx, pkt, start, last, p, pmsg);
@@ -1684,7 +1684,7 @@ int TSPacket::demux(TSContext* ctx, u_int8_t* start, u_int8_t* last, u_int8_t*& 
     payload->size = TS_PACKET_SIZE - header->get_size() - adaption_field->get_size();
     
     if (header->adaption_field_control == TSAdaptionTypePayloadOnly || header->adaption_field_control == TSAdaptionTypeBoth) {
-	    // parse new packet.
+        // parse new packet.
         if ((ret = payload->demux(ctx, this, start, last, p, pmsg)) != 0) {
             trace("ts+header payload decode error. ret=%d", ret);
             return ret;
@@ -1771,84 +1771,84 @@ int TSHeader::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t* la
 class TSH264Codec
 {
 public:
-	u_int8_t* raw_data;
-	int size;
-	
-	TSH264Codec()
-	{
-		size = 0;
-		raw_data = NULL;
-	}
-	
-	u_int8_t at(int index)
-	{
-		if (index >= size) {
-			return 0;
-		}
-		return raw_data[index];
-	}
-	
-	int parse(TSMessage* msg, char* last, char*& p)
-	{
-		int ret = 0;
-		
-		srs_assert(p);
-		
-		while (next_start_code_prefix(p) != 0x000001) {
-			char ch = *p++;
-			if (ch != 0x00) {
-				trace("ts+h264 parse msg failed, "
-					"expect 0x00 before start-code. actual is: %#x", (u_int8_t)ch);
-				return -1;
-			}
-		}
-		
-		if (p >= last) {
-			trace("ts+h264 parse msg finished, no start-code.");
-			return ret;
-		}
-		
-		// start_code_prefix_one_3bytes /* equal to 0x000001 */
-		p += 3;
-		
-		if (p < last) {
-			raw_data = (u_int8_t*)p;
-		}
-		while (p < last - 3) {
-			if (match_start_code_prefix(p)) {
-				break;
-			}
-			p++;
-		}
-		
-		if (raw_data) {
-			size = (u_int8_t*)p - raw_data;
-			if (p == last - 3) {
-				size = (u_int8_t*)last - raw_data;
-				p = last;
-			}
-		}
-		
-		trace("ts+h264 parse msg finished");
-		return ret;
-	}
-	
-	bool match_start_code_prefix(char*p)
-	{
-		return p[0] == 0x00 && p[1] == 0x00 && (p[2] == 0x00 || p[2] == 0x01);
-	}
-	
-	int32_t next_start_code_prefix(char* p)
-	{
-		int32_t value = 0;
-		char* pp = (char*)&value;
-		
-		pp[2] = p[0];
-		pp[1] = p[1];
-		pp[0] = p[2];
+    u_int8_t* raw_data;
+    int size;
+    
+    TSH264Codec()
+    {
+        size = 0;
+        raw_data = NULL;
+    }
+    
+    u_int8_t at(int index)
+    {
+        if (index >= size) {
+            return 0;
+        }
+        return raw_data[index];
+    }
+    
+    int parse(TSMessage* msg, char* last, char*& p)
+    {
+        int ret = 0;
+        
+        srs_assert(p);
+        
+        while (next_start_code_prefix(p) != 0x000001) {
+            char ch = *p++;
+            if (ch != 0x00) {
+                trace("ts+h264 parse msg failed, "
+                    "expect 0x00 before start-code. actual is: %#x", (u_int8_t)ch);
+                return -1;
+            }
+        }
+        
+        if (p >= last) {
+            trace("ts+h264 parse msg finished, no start-code.");
+            return ret;
+        }
+        
+        // start_code_prefix_one_3bytes /* equal to 0x000001 */
+        p += 3;
+        
+        if (p < last) {
+            raw_data = (u_int8_t*)p;
+        }
+        while (p < last - 3) {
+            if (match_start_code_prefix(p)) {
+                break;
+            }
+            p++;
+        }
+        
+        if (raw_data) {
+            size = (u_int8_t*)p - raw_data;
+            if (p == last - 3) {
+                size = (u_int8_t*)last - raw_data;
+                p = last;
+            }
+        }
+        
+        trace("ts+h264 parse msg finished");
+        return ret;
+    }
+    
+    bool match_start_code_prefix(char*p)
+    {
+        return p[0] == 0x00 && p[1] == 0x00 && (p[2] == 0x00 || p[2] == 0x01);
+    }
+    
+    int32_t next_start_code_prefix(char* p)
+    {
+        int32_t value = 0;
+        char* pp = (char*)&value;
+        
+        pp[2] = p[0];
+        pp[1] = p[1];
+        pp[0] = p[2];
 
-		return value;
-	}
+        return value;
+    }
 };
 
 /**
@@ -1857,22 +1857,22 @@ public:
 */
 enum TSAacSampleFrequency
 {
-	TSAacSampleFrequency96000 		= 0x00,
-	TSAacSampleFrequency88200 		= 0x01,
-	TSAacSampleFrequency64000 		= 0x02,
-	TSAacSampleFrequency48000 		= 0x03,
-	TSAacSampleFrequency44100 		= 0x04,
-	TSAacSampleFrequency32000 		= 0x05,
-	TSAacSampleFrequency24000 		= 0x06,
-	TSAacSampleFrequency22050 		= 0x07,
-	TSAacSampleFrequency16000 		= 0x08,
-	TSAacSampleFrequency12000 		= 0x09,
-	TSAacSampleFrequency11025 		= 0x0a,
-	TSAacSampleFrequency8000  		= 0x0b,
-	TSAacSampleFrequencyReserved0 	= 0x0c,
-	TSAacSampleFrequencyReserved1 	= 0x0d,
-	TSAacSampleFrequencyReserved2 	= 0x0e,
-	TSAacSampleFrequencyReserved3 	= 0x0f,
+    TSAacSampleFrequency96000         = 0x00,
+    TSAacSampleFrequency88200         = 0x01,
+    TSAacSampleFrequency64000         = 0x02,
+    TSAacSampleFrequency48000         = 0x03,
+    TSAacSampleFrequency44100         = 0x04,
+    TSAacSampleFrequency32000         = 0x05,
+    TSAacSampleFrequency24000         = 0x06,
+    TSAacSampleFrequency22050         = 0x07,
+    TSAacSampleFrequency16000         = 0x08,
+    TSAacSampleFrequency12000         = 0x09,
+    TSAacSampleFrequency11025         = 0x0a,
+    TSAacSampleFrequency8000          = 0x0b,
+    TSAacSampleFrequencyReserved0     = 0x0c,
+    TSAacSampleFrequencyReserved1     = 0x0d,
+    TSAacSampleFrequencyReserved2     = 0x0e,
+    TSAacSampleFrequencyReserved3     = 0x0f,
 };
 
 /**
@@ -1881,313 +1881,313 @@ enum TSAacSampleFrequency
 class TSAacAdts
 {
 public:
-	// adts_fixed_header
-	// 2B, 16bits
-	int16_t syncword; //12bits
-	int8_t ID; //1bit
-	int8_t layer; //2bits
-	int8_t protection_absent; //1bit
-	// 12bits
-	int8_t profile; //2bit
-	TSAacSampleFrequency sampling_frequency_index; //4bits
-	int8_t private_bit; //1bit
-	int8_t channel_configuration; //3bits
-	int8_t original_or_copy; //1bit
-	int8_t home; //1bit
-	
-	// adts_variable_header
-	// 28bits
-	int8_t copyright_identification_bit; //1bit
-	int8_t copyright_identification_start; //1bit
-	int16_t frame_length; //13bits
-	int16_t adts_buffer_fullness; //11bits
-	int8_t number_of_raw_data_blocks_in_frame; //2bits
-	
-	u_int8_t* raw_data;
-	int size;
-	
-	TSAacAdts()
-	{
-		syncword = 0;
-		ID = 0;
-		layer = 0;
-		protection_absent = 0;
-		profile = 0;
-		sampling_frequency_index = TSAacSampleFrequencyReserved0;
-		private_bit = 0;
-		channel_configuration = 0;
-		original_or_copy = 0;
-		home = 0;
-		copyright_identification_bit = 0;
-		copyright_identification_start = 0;
-		frame_length = 0;
-		adts_buffer_fullness = 0;
-		number_of_raw_data_blocks_in_frame = 0;
-		
-		size = 0;
-		raw_data = NULL;
-	}
-	
-	u_int8_t at(int index)
-	{
-		if (index >= size) {
-			return 0;
-		}
-		return raw_data[index];
-	}
-	
-	int parse(TSMessage* msg, char*& p)
-	{
-		int ret = 0;
-		
-		srs_assert(p);
-		
-		char* start = p;
-		
-		// adts_fixed_header
-		char* pp = (char*)&syncword;
-		pp[1] = *p++;
-		pp[0] = *p++;
-		
-		protection_absent = syncword & 0x01;
-		layer = (syncword >> 1) & 0x03;
-		ID = (syncword >> 3) & 0x01;
-		syncword = (syncword >> 4) & 0x0FFF;
-		if (syncword != 0xfff) {
-			trace("ts+aac invalid sync word. expect 0xfff, actual %#x", syncword);
-			return -1;
-		}
+    // adts_fixed_header
+    // 2B, 16bits
+    int16_t syncword; //12bits
+    int8_t ID; //1bit
+    int8_t layer; //2bits
+    int8_t protection_absent; //1bit
+    // 12bits
+    int8_t profile; //2bit
+    TSAacSampleFrequency sampling_frequency_index; //4bits
+    int8_t private_bit; //1bit
+    int8_t channel_configuration; //3bits
+    int8_t original_or_copy; //1bit
+    int8_t home; //1bit
+    
+    // adts_variable_header
+    // 28bits
+    int8_t copyright_identification_bit; //1bit
+    int8_t copyright_identification_start; //1bit
+    int16_t frame_length; //13bits
+    int16_t adts_buffer_fullness; //11bits
+    int8_t number_of_raw_data_blocks_in_frame; //2bits
+    
+    u_int8_t* raw_data;
+    int size;
+    
+    TSAacAdts()
+    {
+        syncword = 0;
+        ID = 0;
+        layer = 0;
+        protection_absent = 0;
+        profile = 0;
+        sampling_frequency_index = TSAacSampleFrequencyReserved0;
+        private_bit = 0;
+        channel_configuration = 0;
+        original_or_copy = 0;
+        home = 0;
+        copyright_identification_bit = 0;
+        copyright_identification_start = 0;
+        frame_length = 0;
+        adts_buffer_fullness = 0;
+        number_of_raw_data_blocks_in_frame = 0;
+        
+        size = 0;
+        raw_data = NULL;
+    }
+    
+    u_int8_t at(int index)
+    {
+        if (index >= size) {
+            return 0;
+        }
+        return raw_data[index];
+    }
+    
+    int parse(TSMessage* msg, char*& p)
+    {
+        int ret = 0;
+        
+        srs_assert(p);
+        
+        char* start = p;
+        
+        // adts_fixed_header
+        char* pp = (char*)&syncword;
+        pp[1] = *p++;
+        pp[0] = *p++;
+        
+        protection_absent = syncword & 0x01;
+        layer = (syncword >> 1) & 0x03;
+        ID = (syncword >> 3) & 0x01;
+        syncword = (syncword >> 4) & 0x0FFF;
+        if (syncword != 0xfff) {
+            trace("ts+aac invalid sync word. expect 0xfff, actual %#x", syncword);
+            return -1;
+        }
 
-		// adts_variable_header
-		int64_t temp = 0;
-		pp = (char*)&temp;
-		pp[4] = *p++;
-		pp[3] = *p++;
-		pp[2] = *p++;
-		pp[1] = *p++;
-		pp[0] = *p++;
-		
-		number_of_raw_data_blocks_in_frame = temp & 0x03;
-		temp = temp >> 2;
+        // adts_variable_header
+        int64_t temp = 0;
+        pp = (char*)&temp;
+        pp[4] = *p++;
+        pp[3] = *p++;
+        pp[2] = *p++;
+        pp[1] = *p++;
+        pp[0] = *p++;
+        
+        number_of_raw_data_blocks_in_frame = temp & 0x03;
+        temp = temp >> 2;
 
-		adts_buffer_fullness = temp & 0x7FF;
-		temp = temp >> 11;
+        adts_buffer_fullness = temp & 0x7FF;
+        temp = temp >> 11;
 
-		frame_length = temp & 0x1FFF;
-		temp = temp >> 13;
-		
-		copyright_identification_start = temp & 0x01;
-		temp = temp >> 1;
-		
-		copyright_identification_bit = temp & 0x01;
-		temp = temp >> 1;
-		
-		// adts_fixed_header
-		home = temp & 0x01;
-		temp = temp >> 1;
-		
-		original_or_copy = temp & 0x01;
-		temp = temp >> 1;
-		
-		channel_configuration = temp & 0x07;
-		temp = temp >> 3;
-		
-		private_bit = temp & 0x01;
-		temp = temp >> 1;
-		
-		sampling_frequency_index = (TSAacSampleFrequency)(temp & 0x0F);
-		temp = temp >> 4;
-		
-		profile = temp & 0x03;
-		temp = temp >> 2;
+        frame_length = temp & 0x1FFF;
+        temp = temp >> 13;
+        
+        copyright_identification_start = temp & 0x01;
+        temp = temp >> 1;
+        
+        copyright_identification_bit = temp & 0x01;
+        temp = temp >> 1;
+        
+        // adts_fixed_header
+        home = temp & 0x01;
+        temp = temp >> 1;
+        
+        original_or_copy = temp & 0x01;
+        temp = temp >> 1;
+        
+        channel_configuration = temp & 0x07;
+        temp = temp >> 3;
+        
+        private_bit = temp & 0x01;
+        temp = temp >> 1;
+        
+        sampling_frequency_index = (TSAacSampleFrequency)(temp & 0x0F);
+        temp = temp >> 4;
+        
+        profile = temp & 0x03;
+        temp = temp >> 2;
 
-		if (!number_of_raw_data_blocks_in_frame) {
-			// adts_error_check
-			if (!protection_absent) {
-				// crc_check
-				trace("ts+aac TODO: crc_check.");
-			}
-			// raw_data_block
-			raw_data = (u_int8_t*)p;
-			size = frame_length - (p - start);
-			p += size;
-		} else {
-			trace("ts+aac TODO: parse multiple blocks.");
-		}
-		
-		return ret;
-	}
+        if (!number_of_raw_data_blocks_in_frame) {
+            // adts_error_check
+            if (!protection_absent) {
+                // crc_check
+                trace("ts+aac TODO: crc_check.");
+            }
+            // raw_data_block
+            raw_data = (u_int8_t*)p;
+            size = frame_length - (p - start);
+            p += size;
+        } else {
+            trace("ts+aac TODO: parse multiple blocks.");
+        }
+        
+        return ret;
+    }
 };
 
 class AacMuxer
 {
 public:
-	int fd;
-	const char* file;
+    int fd;
+    const char* file;
 
-	AacMuxer()
-	{
-		file = NULL;
-		fd = 0;
-	}
-	
-	virtual ~AacMuxer()
-	{
-		if (fd > 0) {
-			close(fd);
-		}
-	}
+    AacMuxer()
+    {
+        file = NULL;
+        fd = 0;
+    }
+    
+    virtual ~AacMuxer()
+    {
+        if (fd > 0) {
+            close(fd);
+        }
+    }
 
-	int open(const char* _file)
-	{
-		file = _file;
-		if ((fd = ::open(file, O_CREAT|O_WRONLY|O_TRUNC, 
-			S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH)) < 0 
-		) {
-			return -1;
-		}
-		
-		return 0;
-	}
+    int open(const char* _file)
+    {
+        file = _file;
+        if ((fd = ::open(file, O_CREAT|O_WRONLY|O_TRUNC, 
+            S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH)) < 0 
+        ) {
+            return -1;
+        }
+        
+        return 0;
+    }
 
-	int write_audio(char* data, int size)
-	{
-		if (size > 0 && write(fd, data, size) != size) {
-			return -1;
-		}
-		
-		return 0;
-	}
+    int write_audio(char* data, int size)
+    {
+        if (size > 0 && write(fd, data, size) != size) {
+            return -1;
+        }
+        
+        return 0;
+    }
 
-	int write_video(char* data, int size)
-	{
-		return 0;
-	}
+    int write_video(char* data, int size)
+    {
+        return 0;
+    }
 };
 
 int consume(TSMessage* msg, AacMuxer* aac_muxer)
 {
-	int ret = 0;
-	
-	char* p = msg->packet_data;
-	if (!p) {
-		trace("ts+aac+h264 ignore empty message.");
-		return ret;
-	}
-	
-	char* last = msg->packet_data + msg->packet_data_size;
-        
-    if (!msg->is_video()) {
-	    // write AAC raw audio.
-	    if (aac_muxer && (ret = aac_muxer->write_audio((char*)msg->packet_data, msg->packet_data_size)) != 0) {
-	        return ret;
-	    }
-	    
-	    // parse AAC audio.
-	    int64_t dts = -1;
-		while (p < last) {
-		    TSAacAdts aac;
-		    if ((ret = aac.parse(msg, p)) != 0) {
-		        return ret;
-		    }
-		    trace("ts+aac audio raw data parsed, size: %d, 0x%02x 0x%02x 0x%02x 0x%02x",
-		    	aac.size, aac.at(0), aac.at(1), aac.at(2), aac.at(3));
-			
-			if (dts == -1) {
-				dts = (msg->dts == 0)? msg->pts : msg->dts;
-			} else {
-				// see ffmpeg: avpriv_aac_parse_header
-				// rdb = get_bits(gbc, 2);  /* number_of_raw_data_blocks_in_frame */
-				// hdr->samples  = (rdb + 1) * 1024;
-				int samples = (aac.number_of_raw_data_blocks_in_frame + 1) * 1024;
-				static int sample_rates[] = {
-					96000, 88200, 64000, 48000, 44100, 32000,
-					24000, 22050, 16000, 12000, 11025, 8000, 
-					1, 1, 1, 1
-				};
-				int sample_rate = sample_rates[aac.sampling_frequency_index];
-				
-				dts += samples * 90000 / sample_rate;
-			}
-			
-			trace("ts+aac+h264+data %s pts:%"PRId64" dts:%"PRId64" size: %d",
-				(msg->type == TSPidTypeVideo)? "video":"audio", dts, dts, aac.frame_length);
-				
-		    // TODO: process audio.
-		}
-    } else { 	
-		trace("ts+aac+h264+data %s pts:%"PRId64" dts:%"PRId64" size: %d",
-			(msg->type == TSPidTypeVideo)? "video":"audio", msg->pts, 
-			(msg->dts == 0)? msg->pts : msg->dts, msg->packet_data_size);
-		   
-        // parse H264 video.
-        bool first = true;
-		while (p < last) {
-			TSH264Codec h264;
-		    if ((ret = h264.parse(msg, last, p)) != 0) {
-		        return ret;
-		    }
-		    trace("ts+h264 video raw data parsed, size: %d, 0x%02x 0x%02x 0x%02x 0x%02x",
-		    	h264.size, h264.at(0), h264.at(1), h264.at(2), h264.at(3));
-		    	
-		    // first?
-		    if (!first) {
-		        continue;
-		    }
-		    first = false;
-			
-		    // TODO: process video.
-		    
-		    // directly check the sequence header for test_22m.flv
-		    if (h264.at(0) == 0x67 && h264.at(1) == 0x00 && h264.at(2) == 0x1f && h264.at(3) == 0xac) {
-		        trace("ts+h264 directly find the sequence header for test_22m.flv");
-		    }
-		    // 7.3.1 NAL unit syntax, hls-mpeg-ts-iso13818-1.pdf, page 44
-		    char* pp = (char*)h264.raw_data;
-		    int8_t nal_unit_type = *pp++;
-		    int8_t nal_ref_idc = (nal_unit_type >> 5) & 0x03;
-		    nal_unit_type &= 0x1f;
-		    
-		    msg->nal_ref_idc = nal_ref_idc;
-		    msg->nal_unit_type = nal_unit_type;
-		    
-		    if (nal_ref_idc != 0) {
-		        trace("ts+h264 got an SPS or PPS.");
-		    }
-		    if (nal_unit_type == 7) {
-		        trace("ts+h264 got an SPS.");
-		    } else if (nal_unit_type == 5) {
-		        trace("ts+h264 got an Coded slice of an IDR picture.");
-		    } else if (nal_unit_type == 8) {
-		        trace("ts+h264 got an PPS.");
-		    } else if (nal_unit_type == 9) {
-		        trace("ts+h264 got an Picture delimiter.");
-		        int8_t pic_type = *pp++;
-		        pic_type = (pic_type >> 6) & 0x07;
-		        if (pic_type == 0) {
-		        	trace("ts+h264 got an I picture.");
-		        } else if (pic_type == 1) {
-		        	trace("ts+h264 got an I,P picture.");
-		        } else if (pic_type == 2) {
-		        	trace("ts+h264 got an I,P,B picture.");
-		        } else if (pic_type == 3) {
-		        	trace("ts+h264 got an SI picture.");
-		        } else if (pic_type == 4) {
-		        	trace("ts+h264 got an SI,SP picture.");
-		        } else if (pic_type == 5) {
-		        	trace("ts+h264 got an I,SI picture.");
-		        } else if (pic_type == 6) {
-		        	trace("ts+h264 got an I,SI,P,SP picture.");
-		        } else if (pic_type == 7) {
-		        	trace("ts+h264 got an I,SI,P,SP,B picture.");
-		        }
-		    } else {
-		        trace("ts+h264 got an unknown unit type: %d.", nal_unit_type);
-		    }
-		}
+    int ret = 0;
+    
+    char* p = msg->packet_data;
+    if (!p) {
+        trace("ts+aac+h264 ignore empty message.");
+        return ret;
     }
     
-	return ret;
+    char* last = msg->packet_data + msg->packet_data_size;
+        
+    if (!msg->is_video()) {
+        // write AAC raw audio.
+        if (aac_muxer && (ret = aac_muxer->write_audio((char*)msg->packet_data, msg->packet_data_size)) != 0) {
+            return ret;
+        }
+        
+        // parse AAC audio.
+        int64_t dts = -1;
+        while (p < last) {
+            TSAacAdts aac;
+            if ((ret = aac.parse(msg, p)) != 0) {
+                return ret;
+            }
+            trace("ts+aac audio raw data parsed, size: %d, 0x%02x 0x%02x 0x%02x 0x%02x",
+                aac.size, aac.at(0), aac.at(1), aac.at(2), aac.at(3));
+            
+            if (dts == -1) {
+                dts = (msg->dts == 0)? msg->pts : msg->dts;
+            } else {
+                // see ffmpeg: avpriv_aac_parse_header
+                // rdb = get_bits(gbc, 2);  /* number_of_raw_data_blocks_in_frame */
+                // hdr->samples  = (rdb + 1) * 1024;
+                int samples = (aac.number_of_raw_data_blocks_in_frame + 1) * 1024;
+                static int sample_rates[] = {
+                    96000, 88200, 64000, 48000, 44100, 32000,
+                    24000, 22050, 16000, 12000, 11025, 8000, 
+                    1, 1, 1, 1
+                };
+                int sample_rate = sample_rates[aac.sampling_frequency_index];
+                
+                dts += samples * 90000 / sample_rate;
+            }
+            
+            trace("ts+aac+h264+data %s pts:%"PRId64" dts:%"PRId64" size: %d",
+                (msg->type == TSPidTypeVideo)? "video":"audio", dts, dts, aac.frame_length);
+                
+            // TODO: process audio.
+        }
+    } else {     
+        trace("ts+aac+h264+data %s pts:%"PRId64" dts:%"PRId64" size: %d",
+            (msg->type == TSPidTypeVideo)? "video":"audio", msg->pts, 
+            (msg->dts == 0)? msg->pts : msg->dts, msg->packet_data_size);
+           
+        // parse H264 video.
+        bool first = true;
+        while (p < last) {
+            TSH264Codec h264;
+            if ((ret = h264.parse(msg, last, p)) != 0) {
+                return ret;
+            }
+            trace("ts+h264 video raw data parsed, size: %d, 0x%02x 0x%02x 0x%02x 0x%02x",
+                h264.size, h264.at(0), h264.at(1), h264.at(2), h264.at(3));
+                
+            // first?
+            if (!first) {
+                continue;
+            }
+            first = false;
+            
+            // TODO: process video.
+            
+            // directly check the sequence header for test_22m.flv
+            if (h264.at(0) == 0x67 && h264.at(1) == 0x00 && h264.at(2) == 0x1f && h264.at(3) == 0xac) {
+                trace("ts+h264 directly find the sequence header for test_22m.flv");
+            }
+            // 7.3.1 NAL unit syntax, hls-mpeg-ts-iso13818-1.pdf, page 44
+            char* pp = (char*)h264.raw_data;
+            int8_t nal_unit_type = *pp++;
+            int8_t nal_ref_idc = (nal_unit_type >> 5) & 0x03;
+            nal_unit_type &= 0x1f;
+            
+            msg->nal_ref_idc = nal_ref_idc;
+            msg->nal_unit_type = nal_unit_type;
+            
+            if (nal_ref_idc != 0) {
+                trace("ts+h264 got an SPS or PPS.");
+            }
+            if (nal_unit_type == 7) {
+                trace("ts+h264 got an SPS.");
+            } else if (nal_unit_type == 5) {
+                trace("ts+h264 got an Coded slice of an IDR picture.");
+            } else if (nal_unit_type == 8) {
+                trace("ts+h264 got an PPS.");
+            } else if (nal_unit_type == 9) {
+                trace("ts+h264 got an Picture delimiter.");
+                int8_t pic_type = *pp++;
+                pic_type = (pic_type >> 6) & 0x07;
+                if (pic_type == 0) {
+                    trace("ts+h264 got an I picture.");
+                } else if (pic_type == 1) {
+                    trace("ts+h264 got an I,P picture.");
+                } else if (pic_type == 2) {
+                    trace("ts+h264 got an I,P,B picture.");
+                } else if (pic_type == 3) {
+                    trace("ts+h264 got an SI picture.");
+                } else if (pic_type == 4) {
+                    trace("ts+h264 got an SI,SP picture.");
+                } else if (pic_type == 5) {
+                    trace("ts+h264 got an I,SI picture.");
+                } else if (pic_type == 6) {
+                    trace("ts+h264 got an I,SI,P,SP picture.");
+                } else if (pic_type == 7) {
+                    trace("ts+h264 got an I,SI,P,SP,B picture.");
+                }
+            } else {
+                trace("ts+h264 got an unknown unit type: %d.", nal_unit_type);
+            }
+        }
+    }
+    
+    return ret;
 }
 
 int main(int argc, char** argv)
@@ -2234,36 +2234,36 @@ int main(int argc, char** argv)
         
         // maybe need to parse multiple times for the PES_packet_length(0) packets.
         while (p == start) {
-	        TSPacket pkt;
-	        TSMessage* msg = NULL;
-	        if ((ret = pkt.demux(&ctx, start, last, p, msg)) != 0) {
-	            trace("demuxer+read decode ts packet error. ret=%d", ret);
-	            return ret;
-	        }
-	        
-	        offset += nread;
-	        if (!msg) {
-	            continue;
-	        }
-	        
-	        if ((ret = consume(msg, &aac_muxer)) != 0) {
-	            trace("demuxer+consume parse and consume message failed. ret=%d", ret);
-	            return -1;
-	        }
-	        
-	        int64_t pts = msg->pts;
-	        int64_t dts = (msg->dts == 0)? msg->pts : msg->dts;
-	        int64_t pcr = msg->pcr;
-	        static int64_t last_pcr_dts = 0;
-	        trace("demuxer+report id=%d, type=%s, size=%d, dts=%d, pts=%d, cts=%d, pcr=%d, dts-pcr=%d, ref=%d, unit=%d, dts(diff-pcr)=%d",
-	        	ctx.ts_packet_count, (msg->type == TSPidTypeVideo)? "video":"audio", 
-				msg->parsed_packet_size, dts, pts, pts - dts, pcr, pcr? dts - pcr : 0,
-				msg->nal_ref_idc, msg->nal_unit_type, pcr? dts - last_pcr_dts: 0);
-			if (pcr > 0) {
-				last_pcr_dts = dts;
-			}
-	        
-	        srs_freep(msg);
+            TSPacket pkt;
+            TSMessage* msg = NULL;
+            if ((ret = pkt.demux(&ctx, start, last, p, msg)) != 0) {
+                trace("demuxer+read decode ts packet error. ret=%d", ret);
+                return ret;
+            }
+            
+            offset += nread;
+            if (!msg) {
+                continue;
+            }
+            
+            if ((ret = consume(msg, &aac_muxer)) != 0) {
+                trace("demuxer+consume parse and consume message failed. ret=%d", ret);
+                return -1;
+            }
+            
+            int64_t pts = msg->pts;
+            int64_t dts = (msg->dts == 0)? msg->pts : msg->dts;
+            int64_t pcr = msg->pcr;
+            static int64_t last_pcr_dts = 0;
+            trace("demuxer+report id=%d, type=%s, size=%d, dts=%d, pts=%d, cts=%d, pcr=%d, dts-pcr=%d, ref=%d, unit=%d, dts(diff-pcr)=%d",
+                ctx.ts_packet_count, (msg->type == TSPidTypeVideo)? "video":"audio", 
+                msg->parsed_packet_size, dts, pts, pts - dts, pcr, pcr? dts - pcr : 0,
+                msg->nal_ref_idc, msg->nal_unit_type, pcr? dts - last_pcr_dts: 0);
+            if (pcr > 0) {
+                last_pcr_dts = dts;
+            }
+            
+            srs_freep(msg);
         }
     }
     

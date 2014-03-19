@@ -67,7 +67,7 @@ cd simple-rtmp-server/trunk
 [Usage: How to deploy low lantency application?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleRealtime)<br/>
 [Usage: How to deploy srs on ARM?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleARM)<br/>
 [Usage: How to show the demo of SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleDemo)<br/>
-[Usage: Who is using SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/Sample)<br/>
+[Usage: Solution using SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/Sample)<br/>
 
 ### System Requirements
 Supported operating systems and hardware:

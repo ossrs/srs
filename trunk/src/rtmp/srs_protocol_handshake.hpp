@@ -34,43 +34,7 @@ class ISrsProtocolReaderWriter;
 class SrsComplexHandshake;
 class SrsHandshakeBytes;
 
-/**
-* try complex handshake, if failed, fallback to simple handshake.
-*/
-class SrsSimpleHandshake
-{
-public:
-    SrsSimpleHandshake();
-    virtual ~SrsSimpleHandshake();
-public:
-    /**
-    * simple handshake.
-    */
-    virtual int handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
-    virtual int handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
-};
-
-/**
-* rtmp complex handshake,
-* @see also crtmp(crtmpserver) or librtmp,
-* @see also: http://blog.csdn.net/win_lin/article/details/13006803
-*/
-class SrsComplexHandshake
-{
-public:
-    SrsComplexHandshake();
-    virtual ~SrsComplexHandshake();
-public:
-    /**
-    * complex hanshake.
-    * @return user must:
-    *     continue connect app if success,
-    *     try simple handshake if error is ERROR_RTMP_TRY_SIMPLE_HS,
-    *     otherwise, disconnect
-    */
-    virtual int handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
-    virtual int handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
-};
+#ifdef SRS_SSL
 
 namespace srs
 {
@@ -302,5 +266,45 @@ namespace srs
     extern u_int8_t SrsGenuineFPKey[];
     int openssl_HMACsha256(const void* data, int data_size, const void* key, int key_size, void* digest);
 }
+
+#endif
+
+/**
+* try complex handshake, if failed, fallback to simple handshake.
+*/
+class SrsSimpleHandshake
+{
+public:
+    SrsSimpleHandshake();
+    virtual ~SrsSimpleHandshake();
+public:
+    /**
+    * simple handshake.
+    */
+    virtual int handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
+    virtual int handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
+};
+
+/**
+* rtmp complex handshake,
+* @see also crtmp(crtmpserver) or librtmp,
+* @see also: http://blog.csdn.net/win_lin/article/details/13006803
+*/
+class SrsComplexHandshake
+{
+public:
+    SrsComplexHandshake();
+    virtual ~SrsComplexHandshake();
+public:
+    /**
+    * complex hanshake.
+    * @return user must:
+    *     continue connect app if success,
+    *     try simple handshake if error is ERROR_RTMP_TRY_SIMPLE_HS,
+    *     otherwise, disconnect
+    */
+    virtual int handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
+    virtual int handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io);
+};
 
 #endif

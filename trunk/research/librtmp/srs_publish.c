@@ -32,51 +32,52 @@ gcc srs_publish.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_publish
 
 int main(int argc, char** argv)
 {
-	srs_rtmp_t rtmp;
-	
-	// packet data
-	int type, size;
-	u_int32_t timestamp = 0;
-	char* data;
-	
+    srs_rtmp_t rtmp;
+    
+    // packet data
+    int type, size;
+    u_int32_t timestamp = 0;
+    char* data;
+    
     printf("publish rtmp stream to server like FMLE/FFMPEG/Encoder\n");
     printf("srs(simple-rtmp-server) client librtmp library.\n");
     printf("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
     
     rtmp = srs_rtmp_create("rtmp://127.0.0.1:1935/live/livestream");
     
-	if (srs_simple_handshake(rtmp) != 0) {
-		printf("simple handshake failed.\n");
-		goto rtmp_destroy;
-	}
-	printf("simple handshake success\n");
+    //if (srs_simple_handshake(rtmp) != 0) {
+    if (srs_complex_handshake(rtmp) != 0) {
+        printf("simple handshake failed.\n");
+        goto rtmp_destroy;
+    }
+    printf("simple handshake success\n");
     
-	if (srs_connect_app(rtmp) != 0) {
-		printf("connect vhost/app failed.\n");
-		goto rtmp_destroy;
-	}
-	printf("connect vhost/app success\n");
+    if (srs_connect_app(rtmp) != 0) {
+        printf("connect vhost/app failed.\n");
+        goto rtmp_destroy;
+    }
+    printf("connect vhost/app success\n");
     
-	if (srs_publish_stream(rtmp) != 0) {
-		printf("publish stream failed.\n");
-		goto rtmp_destroy;
-	}
-	printf("publish stream success\n");
-	
-	for (;;) {
-		type = SRS_RTMP_TYPE_VIDEO;
-		timestamp += 40;
-		size = 4096;
-		data = (char*)malloc(4096);
-		
-		if (srs_write_packet(rtmp, type, timestamp, data, size) != 0) {
-			goto rtmp_destroy;
-		}
-		printf("sent packet: type=%s, time=%d, size=%d\n", srs_type2string(type), timestamp, size);
-		
-		usleep(40 * 1000);
-	}
-	
+    if (srs_publish_stream(rtmp) != 0) {
+        printf("publish stream failed.\n");
+        goto rtmp_destroy;
+    }
+    printf("publish stream success\n");
+    
+    for (;;) {
+        type = SRS_RTMP_TYPE_VIDEO;
+        timestamp += 40;
+        size = 4096;
+        data = (char*)malloc(4096);
+        
+        if (srs_write_packet(rtmp, type, timestamp, data, size) != 0) {
+            goto rtmp_destroy;
+        }
+        printf("sent packet: type=%s, time=%d, size=%d\n", srs_type2string(type), timestamp, size);
+        
+        usleep(40 * 1000);
+    }
+    
 rtmp_destroy:
     srs_rtmp_destroy(rtmp);
     
