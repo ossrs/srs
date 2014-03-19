@@ -30,6 +30,7 @@ SRS_GPROF=RESERVED # gprof
 SRS_ARM_UBUNTU12=RESERVED # armhf(v7cpu) built on ubuntu12
 # arguments
 SRS_JOBS=1
+SRS_STATIC=RESERVED
 
 #####################################################################################
 # parse options
@@ -82,6 +83,7 @@ do
         --without-arm-ubuntu12)         SRS_ARM_UBUNTU12=NO       ;;
         
         --jobs)                         SRS_JOBS=${value}         ;;
+        --static)                       SRS_STATIC=YES            ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
@@ -109,6 +111,8 @@ if [ $SRS_ARM_UBUNTU12 = YES ]; then
     if [ $SRS_GPERF_CP = RESERVED ]; then SRS_GPERF_CP=NO; fi
     if [ $SRS_GPROF = RESERVED ]; then SRS_GPROF=NO; fi
     if [ $SRS_ARM_UBUNTU12 = RESERVED ]; then SRS_ARM_UBUNTU12=NO; fi
+    # for arm, always set to static link.
+    SRS_STATIC=YES
 else
     if [ $SRS_HLS = RESERVED ]; then SRS_HLS=YES; fi
     if [ $SRS_SSL = RESERVED ]; then SRS_SSL=YES; fi
@@ -124,6 +128,7 @@ else
     if [ $SRS_GPERF_CP = RESERVED ]; then SRS_GPERF_CP=NO; fi
     if [ $SRS_GPROF = RESERVED ]; then SRS_GPROF=NO; fi
     if [ $SRS_ARM_UBUNTU12 = RESERVED ]; then SRS_ARM_UBUNTU12=NO; fi
+    if [ $SRS_STATIC = RESERVED ]; then SRS_STATIC=NO; fi
 fi
 
 # parse the jobs for make
@@ -176,6 +181,7 @@ if [ $help = yes ]; then
   --without-gprof          do not build srs with gprof(GNU profile tool).
   --without-arm-ubuntu12   do not build srs on ubuntu12 for armhf(v7cpu).
   
+  --static                 whether add '-static' to link options. always set this option for arm.
   --jobs[=N]               Allow N jobs at once; infinite jobs with no arg.
                            used for make in the configure, for example, to make ffmpeg.
 
@@ -259,5 +265,6 @@ if [ $SRS_GPERF_MP = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-gmp"; el
 if [ $SRS_GPERF_CP = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-gcp"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-gcp"; fi
 if [ $SRS_GPROF = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-gprof"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-gprof"; fi
 if [ $SRS_ARM_UBUNTU12 = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-arm-ubuntu12"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-arm-ubuntu12"; fi
+if [ $SRS_STATIC = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --static"; fi
 SRS_CONFIGURE="${SRS_CONFIGURE} ${SRS_JOBS}"
 echo "regenerate config: ${SRS_CONFIGURE}"
