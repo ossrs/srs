@@ -206,13 +206,17 @@ namespace srs
         */
         virtual int c1_parse(char* _c1s1, srs_schema_type _schema);
         /**
-        * server: validate the parsed schema and c1s1
+        * server: validate the parsed c1 schema
         */
         virtual int c1_validate_digest(bool& is_valid);
         /**
         * server: create and sign the s1 from c1.
         */
         virtual int s1_create(c1s1* c1);
+        /**
+        * server: validate the parsed s1 schema
+        */
+        virtual int s1_validate_digest(bool& is_valid);
     private:
         virtual int calc_s1_digest(char*& digest);
         virtual int calc_c1_digest(char*& digest);

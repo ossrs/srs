@@ -759,6 +759,29 @@ int c1s1::c1_validate_digest(bool& is_valid)
     return ret;
 }
 
+int c1s1::s1_validate_digest(bool& is_valid)
+{
+    int ret = ERROR_SUCCESS;
+    
+    char* s1_digest = NULL;
+    
+    if ((ret = calc_s1_digest(s1_digest)) != ERROR_SUCCESS) {
+        srs_error("validate s1 error, failed to calc digest. ret=%d", ret);
+        return ret;
+    }
+    
+    srs_assert(s1_digest != NULL);
+    SrsAutoFree(char, s1_digest, true);
+    
+    if (schema == srs_schema0) {
+        is_valid = srs_bytes_equals(block1.digest.digest, s1_digest, 32);
+    } else {
+        is_valid = srs_bytes_equals(block0.digest.digest, s1_digest, 32);
+    }
+    
+    return ret;
+}
+
 int c1s1::s1_create(c1s1* c1)
 {
     int ret = ERROR_SUCCESS;
@@ -1076,6 +1099,13 @@ int SrsComplexHandshake::handshake_with_client(ISrsProtocolReaderWriter* skt, ch
         return ret;
     }
     srs_verbose("create s1 from c1 success.");
+    // verify s1
+    if ((ret = s1.s1_validate_digest(is_valid)) != ERROR_SUCCESS || !is_valid) {
+        ret = ERROR_RTMP_TRY_SIMPLE_HS;
+        srs_info("valid s1 failed, try simple handshake. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("verify s1 from c1 success.");
     
     c2s2 s2;
     if ((ret = s2.s2_create(&c1)) != ERROR_SUCCESS) {
