@@ -15,6 +15,7 @@
 help=no
 
 SRS_HLS=RESERVED
+SRS_NGINX=RESERVED
 SRS_SSL=RESERVED
 SRS_FFMPEG=RESERVED
 SRS_HTTP_CALLBACK=RESERVED
@@ -54,6 +55,7 @@ do
         
         --with-ssl)                     SRS_SSL=YES               ;;
         --with-hls)                     SRS_HLS=YES               ;;
+        --with-nginx)                   SRS_NGINX=YES             ;;
         --with-ffmpeg)                  SRS_FFMPEG=YES            ;;
         --with-http-callback)           SRS_HTTP_CALLBACK=YES     ;;
         --with-librtmp)                 SRS_LIBRTMP=YES           ;;
@@ -69,6 +71,7 @@ do
         
         --without-ssl)                  SRS_SSL=NO                ;;
         --without-hls)                  SRS_HLS=NO                ;;
+        --without-nginx)                SRS_NGINX=NO              ;;
         --without-ffmpeg)               SRS_FFMPEG=NO             ;;
         --without-http-callback)        SRS_HTTP_CALLBACK=NO      ;;
         --without-librtmp)              SRS_LIBRTMP=NO            ;;
@@ -98,6 +101,7 @@ done
 # if arm specified, set some default to disabled.
 if [ $SRS_ARM_UBUNTU12 = YES ]; then
     if [ $SRS_HLS = RESERVED ]; then SRS_HLS=NO; fi
+    if [ $SRS_NGINX = RESERVED ]; then SRS_NGINX=NO; fi
     if [ $SRS_SSL = RESERVED ]; then SRS_SSL=NO; fi
     if [ $SRS_FFMPEG = RESERVED ]; then SRS_FFMPEG=NO; fi
     if [ $SRS_HTTP_CALLBACK = RESERVED ]; then SRS_HTTP_CALLBACK=NO; fi
@@ -115,6 +119,7 @@ if [ $SRS_ARM_UBUNTU12 = YES ]; then
     SRS_STATIC=YES
 else
     if [ $SRS_HLS = RESERVED ]; then SRS_HLS=YES; fi
+    if [ $SRS_NGINX = RESERVED ]; then SRS_NGINX=NO; fi
     if [ $SRS_SSL = RESERVED ]; then SRS_SSL=YES; fi
     if [ $SRS_FFMPEG = RESERVED ]; then SRS_FFMPEG=NO; fi
     if [ $SRS_HTTP_CALLBACK = RESERVED ]; then SRS_HTTP_CALLBACK=NO; fi
@@ -232,6 +237,7 @@ fi
 
 # check variable neccessary
 if [ $SRS_HLS = RESERVED ]; then echo "you must specifies the hls, see: ./configure --help"; __check_ok=NO; fi
+if [ $SRS_NGINX = RESERVED ]; then echo "you must specifies the nginx, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_SSL = RESERVED ]; then echo "you must specifies the ssl, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_FFMPEG = RESERVED ]; then echo "you must specifies the ffmpeg, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_HTTP_CALLBACK = RESERVED ]; then echo "you must specifies the http, see: ./configure --help"; __check_ok=NO; fi
@@ -252,6 +258,7 @@ fi
 # regenerate the options for default values.
 SRS_CONFIGURE=""
 if [ $SRS_HLS = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-hls"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-hls"; fi
+if [ $SRS_NGINX = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-nginx"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-nginx"; fi
 if [ $SRS_SSL = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-ssl"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-ssl"; fi
 if [ $SRS_FFMPEG = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-ffmpeg"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-ffmpeg"; fi
 if [ $SRS_HTTP_CALLBACK = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-http-callback"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-http-callback"; fi

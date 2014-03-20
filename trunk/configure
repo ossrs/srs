@@ -16,7 +16,7 @@ BLACK="\\e[0m"
 
 #####################################################################################
 # parse user options, set the variables like:
-# srs features: SRS_SSL/SRS_HLS/SRS_FFMPEG/SRS_HTTP_CALLBACK/SRS_RESEARCH/SRS_UTEST
+# srs features: SRS_SSL/SRS_HLS/SRS_NGINX/SRS_FFMPEG/SRS_HTTP_CALLBACK/SRS_RESEARCH/SRS_UTEST
 # build options: SRS_JOBS
 #####################################################################################
 SRS_AUTO_HEADERS_H="${SRS_OBJS}/srs_auto_headers.hpp"
@@ -78,6 +78,7 @@ if [ $SRS_UTEST = YES ]; then SrsUtestMakeEntry="(cd ${SRS_OBJS}/utest; \$(MAKE)
 #####################################################################################
 # colorful summary
 SrsHlsSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_HLS = YES ]; then SrsHlsSummaryColor="\${GREEN}"; fi
+SrsNginxSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_NGINX = YES ]; then SrsNginxSummaryColor="\${GREEN}"; fi
 SrsSslSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_SSL = YES ]; then SrsSslSummaryColor="\${GREEN}"; fi
 SrsFfmpegSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_FFMPEG = YES ]; then SrsFfmpegSummaryColor="\${GREEN}"; fi
 SrsHttpCallbackSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_HTTP_CALLBACK = YES ]; then SrsHttpCallbackSummaryColor="\${GREEN}"; fi
@@ -139,7 +140,9 @@ echo -e "     |     ${SrsLibrtmpSummaryColor}librtmp-sample: ./research/librtmp,
 echo -e "     \${BLACK}+------------------------------------------------------------------------------------\${BLACK}"
 echo -e "     |\${GREEN}server: ./objs/srs -c conf/srs.conf, start the srs server\${BLACK}"
 echo -e "     |     ${SrsHlsSummaryColor}hls @see: https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS\${BLACK}"
-echo -e "     |     ${SrsHlsSummaryColor}hls: generate m3u8 and ts, delivery HLS stream by nginx\${BLACK}"
+echo -e "     |     ${SrsHlsSummaryColor}hls: generate m3u8 and ts from rtmp stream\${BLACK}"
+echo -e "     |     ${SrsNginxSummaryColor}nginx @see: https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS\${BLACK}"
+echo -e "     |     ${SrsNginxSummaryColor}nginx: delivery HLS stream by nginx\${BLACK}"
 echo -e "     |     ${SrsSslSummaryColor}ssl @see: https://github.com/winlinvip/simple-rtmp-server/wiki/RTMPHandshake\${BLACK}"
 echo -e "     |     ${SrsSslSummaryColor}ssl: support RTMP complex handshake for client required, for instance, flash\${BLACK}"
 echo -e "     |     ${SrsFfmpegSummaryColor}ffmpeg @see: https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG\${BLACK}"
@@ -428,6 +431,15 @@ if [ $SRS_HLS = YES ]; then
 else
     echo -e "${YELLOW}warning: without HLS support${BLACK}"
 fi
+if [ $SRS_NGINX = YES ]; then
+    echo -e "${GREEN}Nginx http server is enabled${BLACK}"
+else
+    if [ $SRS_HLS = YES ]; then
+        echo -e "${YELLOW}warning: HLS without Nginx support${BLACK}"
+    else
+        echo -e "${GREEN}note: HLS without Nginx support${BLACK}"
+    fi
+fi
 if [ $SRS_SSL = YES ]; then
     echo -e "${GREEN}rtmp complex handshake is enabled${BLACK}"
 else
@@ -502,7 +514,7 @@ echo ""
 echo "you can:"
 echo "\" make \" to build the srs(simple rtmp server)."
 echo "\" make help \" to get the usage of make"
-if [ $SRS_HLS = YES ]; then
+if [ $SRS_NGINX = YES ]; then
     echo "\" sudo ./objs/nginx/sbin/nginx  \" to start the nginx http server for hls"
     echo "\" http://$ip \" rtmp players(OSMF/JWPlayer)"
 fi

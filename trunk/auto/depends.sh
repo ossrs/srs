@@ -272,7 +272,7 @@ function write_nginx_html5()
 </video>
 END
 }
-__SRS_BUILD_NGINX=NO; if [ $SRS_ARM_UBUNTU12 = NO ]; then if [ $SRS_HLS = YES ]; then __SRS_BUILD_NGINX=YES; fi fi
+__SRS_BUILD_NGINX=NO; if [ $SRS_ARM_UBUNTU12 = NO ]; then if [ $SRS_NGINX = YES ]; then __SRS_BUILD_NGINX=YES; fi fi
 if [ $__SRS_BUILD_NGINX = YES ]; then
     if [[ -f ${SRS_OBJS}/nginx/sbin/nginx ]]; then
         echo "nginx-1.5.7 is ok.";
@@ -315,6 +315,12 @@ if [ $__SRS_BUILD_NGINX = YES ]; then
     
     # nginx.html to detect whether nginx is alive
     echo "nginx is ok" > ${SRS_OBJS}/nginx/html/nginx.html
+fi
+
+if [ $SRS_NGINX = YES ]; then
+    echo "#define SRS_NGINX" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_NGINX" >> $SRS_AUTO_HEADERS_H
 fi
 
 if [ $SRS_HLS = YES ]; then
