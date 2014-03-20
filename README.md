@@ -92,7 +92,7 @@ Supported operating systems and hardware:
 15. Support broadcast by forward the stream to other servers(origin/edge).<br/>
 16. Support live stream transcoding by ffmpeg.<br/>
 17. Support live stream forward(acopy/vcopy) by ffmpeg.<br/>
-18. Support ffmpeg filters(logo/overlay/crop), x264 params.<br/>
+18. Support ffmpeg filters(logo/overlay/crop), x264 params, copy/vn/an.<br/>
 19. Support audio transcode only, speex/mp3 to aac<br/>
 20. Support [http callback api hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback)(for authentication and injection).<br/>
 21. Support bandwidth test api and flash client.<br/>
