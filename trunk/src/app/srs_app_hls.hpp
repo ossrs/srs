@@ -76,7 +76,10 @@ public:
     virtual void on_buffer_continue();
 };
 
-//TODO: refine the ts muxer, do more jobs.
+/**
+* write data from frame(header info) and buffer(data) to ts file.
+* it's a simple object wrapper for utility from nginx-rtmp: SrsMpegtsWriter
+*/
 class SrsTSMuxer
 {
 private:
@@ -93,11 +96,14 @@ public:
 };
 
 /**
+* the wrapper of m3u8 segment from specification:
+*
 * 3.3.2.  EXTINF
 * The EXTINF tag specifies the duration of a media segment.
 */
-struct SrsM3u8Segment
+class SrsHlsSegment
 {
+public:
     // duration in seconds in m3u8.
     double duration;
     // sequence number in m3u8.
@@ -111,19 +117,25 @@ struct SrsM3u8Segment
     // current segment start dts for m3u8
     int64_t segment_start_dts;
     
-    SrsM3u8Segment();
-    virtual ~SrsM3u8Segment();
+    SrsHlsSegment();
+    virtual ~SrsHlsSegment();
     
     /**
     * update the segment duration.
+    * @current_frame_dts the dts of frame, in tbn of ts.
     */
-    virtual double update_duration(int64_t video_stream_dts);
+    virtual double update_duration(int64_t current_frame_dts);
 };
 
 /**
-* muxer the m3u8 and ts files.
+* muxer the HLS stream(m3u8 and ts files).
+* generally, the m3u8 muxer only provides methods to open/close segments,
+* to flush video/audio, without any mechenisms.
+* 
+* that is, user must use HlsCache, which will control the methods of muxer,
+* and provides HLS mechenisms.
 */
-class SrsM3u8Muxer
+class SrsHlsMuxer
 {
 private:
     std::string app;
@@ -137,21 +149,37 @@ private:
     std::string m3u8;
 private:
     /**
+    * for pure audio HLS application,
+    * the video count used to count the video,
+    * if zero and audio buffer overflow, reap the ts,
+    * just like we got a keyframe.
+    */
+    u_int32_t video_count;
+private:
+    /**
     * m3u8 segments.
     */
-    std::vector<SrsM3u8Segment*> segments;
+    std::vector<SrsHlsSegment*> segments;
     /**
     * current writing segment.
     */
-    SrsM3u8Segment* current;
-    // last known dts
-    int64_t video_stream_dts;
+    SrsHlsSegment* current;
 public:
-    SrsM3u8Muxer();
-    virtual ~SrsM3u8Muxer();
+    SrsHlsMuxer();
+    virtual ~SrsHlsMuxer();
 public:
     virtual int update_config(std::string _app, std::string _stream, std::string path, int fragment, int window);
-    virtual int segment_open();
+    /**
+    * open a new segment(a new ts file),
+    * @param segment_start_dts use to calc the segment duration,
+    *       use 0 for the first segment of HLS.
+    */
+    virtual int segment_open(int64_t segment_start_dts);
+    /**
+    * whether video overflow,
+    * that is whether the current segment duration >= the segment in config
+    */
+    virtual bool is_segment_overflow();
     virtual int flush_audio(SrsMpegtsFrame* af, SrsCodecBuffer* ab);
     virtual int flush_video(SrsMpegtsFrame* af, SrsCodecBuffer* ab, SrsMpegtsFrame* vf, SrsCodecBuffer* vb);
     virtual int segment_close();
@@ -162,9 +190,23 @@ private:
 };
 
 /**
-* ts need to cache some audio then flush
+* hls stream cache, 
+* use to cache hls stream and flush to hls muxer.
+* 
+* when write stream to ts file:
+* video frame will directly flush to M3u8Muxer,
+* audio frame need to cache, because it's small and flv tbn problem.
+* 
+* whatever, the Hls cache used to cache video/audio,
+* and flush video/audio to m3u8 muxer if needed.
+* 
+* about the flv tbn problem:
+*   flv tbn is 1/1000, ts tbn is 1/90000,
+*   when timestamp convert to flv tbn, it will loose precise,
+*   so we must gather audio frame together, and recalc the timestamp @see SrsHlsAacJitter,
+*   we use a aac jitter to correct the audio pts.
 */
-class SrsTSCache
+class SrsHlsCache
 {
 private:
     // current frame and buffer
@@ -178,34 +220,37 @@ private:
     // time jitter for aac
     SrsHlsAacJitter* aac_jitter;
 public:
-    SrsTSCache();
-    virtual ~SrsTSCache();
+    SrsHlsCache();
+    virtual ~SrsHlsCache();
 public:
+    /**
+    * when publish or unpublish stream.
+    */
+    virtual int on_publish(SrsHlsMuxer* muxer, SrsRequest* req, int64_t segment_start_dts);
+    virtual int on_unpublish(SrsHlsMuxer* muxer);
     /**
     * write audio to cache, if need to flush, flush to muxer.
     */
-    virtual int write_audio(SrsCodec* codec, SrsM3u8Muxer* muxer, int64_t pts, SrsCodecSample* sample);
+    virtual int write_audio(SrsCodec* codec, SrsHlsMuxer* muxer, int64_t pts, SrsCodecSample* sample);
     /**
     * write video to muxer.
     */
-    virtual int write_video(SrsCodec* codec, SrsM3u8Muxer* muxer, int64_t dts, SrsCodecSample* sample);
-    /**
-    * flush audio in cache to muxer.
-    */
-    virtual int flush_audio(SrsM3u8Muxer* muxer);
+    virtual int write_video(SrsCodec* codec, SrsHlsMuxer* muxer, int64_t dts, SrsCodecSample* sample);
 private:
     virtual int cache_audio(SrsCodec* codec, SrsCodecSample* sample);
     virtual int cache_video(SrsCodec* codec, SrsCodecSample* sample);
 };
 
 /**
-* write m3u8 hls.
+* delivery RTMP stream to HLS(m3u8 and ts),
+* SrsHls provides interface with SrsSource.
+*
 */
 class SrsHls
 {
 private:
-    SrsM3u8Muxer* muxer;
-    SrsTSCache* ts_cache;
+    SrsHlsMuxer* muxer;
+    SrsHlsCache* hls_cache;
 private:
     bool hls_enabled;
     SrsSource* source;
@@ -213,6 +258,20 @@ private:
     SrsCodecSample* sample;
     SrsRtmpJitter* jitter;
     SrsPithyPrint* pithy_print;
+    /**
+    * we store the stream dts,
+    * for when we notice the hls cache to publish,
+    * it need to know the segment start dts.
+    * 
+    * for example. when republish, the stream dts will 
+    * monotonically increase, and the ts dts should start 
+    * from current dts.
+    * 
+    * or, simply because the HlsCache never free when unpublish,
+    * so when publish or republish it must start at stream dts,
+    * not zero dts.
+    */
+    int64_t stream_dts;
 public:
     SrsHls(SrsSource* _source);
     virtual ~SrsHls();

@@ -212,7 +212,7 @@ if [ $SRS_ARM_UBUNTU12 = YES ]; then
             unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && 
             patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
             make CC=${SrsArmCC} AR=${SrsArmAR} LD=${SrsArmLD} RANDLIB=${SrsArmRANDLIB} linux-debug &&
-            cd .. && rm -f st && ln -sf st-1.9/obj st &&
+            cd .. && rm -rf st && ln -sf st-1.9/obj st &&
             cd .. && touch ${SRS_OBJS}/_flag.st.arm.tmp
         )
     fi
@@ -226,7 +226,7 @@ else
             rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
             unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && 
             make linux-debug &&
-            cd .. && rm -f st && ln -sf st-1.9/obj st &&
+            cd .. && rm -rf st && ln -sf st-1.9/obj st &&
             cd .. && rm -f ${SRS_OBJS}/_flag.st.arm.tmp
         )
     fi
@@ -250,7 +250,7 @@ if [ $SRS_HTTP_CALLBACK = YES ]; then
             sed -i "s/CPPFLAGS_FAST +=.*$/CPPFLAGS_FAST = \$\(CPPFLAGS_DEBUG\)/g" Makefile &&
             sed -i "s/CFLAGS_FAST =.*$/CFLAGS_FAST = \$\(CFLAGS_DEBUG\)/g" Makefile &&
             make package &&
-            cd .. && rm -f hp && ln -sf http-parser-2.1 hp
+            cd .. && rm -rf hp && ln -sf http-parser-2.1 hp
         )
     fi
     # check status
@@ -282,7 +282,7 @@ if [ $__SRS_BUILD_NGINX = YES ]; then
             rm -rf ${SRS_OBJS}/nginx-1.5.7 && cd ${SRS_OBJS} && 
             unzip -q ../3rdparty/nginx-1.5.7.zip && cd nginx-1.5.7 && 
             ./configure --prefix=`pwd`/_release && make ${SRS_JOBS} && make install &&
-            cd .. && ln -sf nginx-1.5.7/_release nginx
+            cd .. && rm -rf nginx && ln -sf nginx-1.5.7/_release nginx
         )
     fi
     # check status
@@ -356,14 +356,14 @@ else
 fi
 
 echo "link players to cherrypy static-dir"
-rm -f research/api-server/static-dir/players &&
+rm -rf research/api-server/static-dir/players &&
 ln -sf `pwd`/research/players research/api-server/static-dir/players &&
 rm -f research/api-server/static-dir/crossdomain.xml &&
 ln -sf `pwd`/research/players/crossdomain.xml research/api-server/static-dir/crossdomain.xml &&
-rm -f research/api-server/static-dir/live && 
+rm -rf research/api-server/static-dir/live && 
 mkdir -p `pwd`/${SRS_OBJS}/nginx/html/live &&
 ln -sf `pwd`/${SRS_OBJS}/nginx/html/live research/api-server/static-dir/live &&
-rm -f research/api-server/static-dir/forward && 
+rm -rf research/api-server/static-dir/forward && 
 mkdir -p `pwd`/${SRS_OBJS}/nginx/html/forward &&
 ln -sf `pwd`/${SRS_OBJS}/nginx/html/forward research/api-server/static-dir/forward
 
@@ -410,7 +410,7 @@ if [ $SRS_SSL = YES ]; then
                 unzip -q ../3rdparty/openssl-1.0.1f.zip && cd openssl-1.0.1f && 
                 ./Configure --prefix=`pwd`/_release -no-shared no-asm linux-armv4 && 
                 make CC=${SrsArmCC} GCC=${SrsArmGCC} AR="${SrsArmAR} r" LD=${SrsArmLD} LINK=${SrsArmGCC} RANDLIB=${SrsArmRANDLIB} && make install &&
-                cd .. && ln -sf openssl-1.0.1f/_release openssl &&
+                cd .. && rm -rf openssl && ln -sf openssl-1.0.1f/_release openssl &&
                 cd .. && touch ${SRS_OBJS}/_flag.ssl.arm.tmp
             )
         fi
@@ -425,7 +425,7 @@ if [ $SRS_SSL = YES ]; then
                 unzip -q ../3rdparty/openssl-1.0.1f.zip && cd openssl-1.0.1f && 
                 ./config --prefix=`pwd`/_release -no-shared && 
                 make && make install &&
-                cd .. && ln -sf openssl-1.0.1f/_release openssl &&
+                cd .. && rm -rf openssl && ln -sf openssl-1.0.1f/_release openssl &&
                 cd .. && rm -f ${SRS_OBJS}/_flag.ssl.arm.tmp
             )
         fi
@@ -453,7 +453,7 @@ if [ $SRS_FFMPEG = YES ]; then
             cd ${SRS_OBJS} && pwd_dir=`pwd` && 
             rm -rf ffmepg.src && mkdir -p ffmpeg.src && cd ffmpeg.src &&
             rm -f build_ffmpeg.sh && ln -sf ../../auto/build_ffmpeg.sh && . build_ffmpeg.sh &&
-            cd ${pwd_dir} && ln -sf ffmpeg.src/_release ffmpeg
+            cd ${pwd_dir} && rm -rf ffmpeg && ln -sf ffmpeg.src/_release ffmpeg
         )
     fi
     # check status
@@ -491,7 +491,7 @@ if [ $SRS_UTEST = YES ]; then
         (
             rm -rf ${SRS_OBJS}/gtest-1.6.0 && cd ${SRS_OBJS} && 
             unzip -q ../3rdparty/gtest-1.6.0.zip &&
-            rm -f gtest && ln -sf gtest-1.6.0 gtest
+            rm -rf gtest && ln -sf gtest-1.6.0 gtest
         )
     fi
     # check status
@@ -511,8 +511,8 @@ if [ $SRS_GPERF = YES ]; then
             rm -rf ${SRS_OBJS}/gperftools-2.1 && cd ${SRS_OBJS} && 
             unzip -q ../3rdparty/gperftools-2.1.zip && cd gperftools-2.1 &&
             ./configure --prefix=`pwd`/_release --enable-frame-pointers && make ${SRS_JOBS} && make install &&
-            cd .. && rm -f gperf && ln -sf gperftools-2.1/_release gperf &&
-            rm -f pprof && ln -sf gperf/bin/pprof pprof
+            cd .. && rm -rf gperf && ln -sf gperftools-2.1/_release gperf &&
+            rm -rf pprof && ln -sf gperf/bin/pprof pprof
         )
     fi
     # check status
