@@ -167,6 +167,8 @@ See also: [Performance Test Guide](https://github.com/winlinvip/simple-rtmp-serv
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v1.0, 2014-03-19, add vn/an for FFMPEG to drop video/audio for radio stream.
+* v1.0, 2014-03-19, refine handshake, client support coplex handshake, add utest.
 * v1.0, 2014-03-16, support ARM([debian armhf, v7cpu](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm)) with rtmp/ssl/hls/librtmp.
 * v1.0, 2014-03-12, finish utest for amf0 codec.
 * v1.0, 2014-03-06, add gperftools for mem leak detect, mem/cpu profile.

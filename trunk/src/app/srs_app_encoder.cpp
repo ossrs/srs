@@ -42,6 +42,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef SRS_FFMPEG
 
 #define SRS_ENCODER_COPY    "copy"
+#define SRS_ENCODER_NO_VIDEO    "vn"
+#define SRS_ENCODER_NO_AUDIO    "an"
 #define SRS_ENCODER_VCODEC     "libx264"
 #define SRS_ENCODER_ACODEC     "libaacplus"
 
@@ -138,7 +140,13 @@ int SrsFFMPEG::initialize(SrsRequest* req, SrsConfDirective* engine)
     }
     _transcoded_url.push_back(output);
     
-    if (vcodec != SRS_ENCODER_COPY) {
+    if (vcodec == SRS_ENCODER_NO_VIDEO && acodec == SRS_ENCODER_NO_AUDIO) {
+        ret = ERROR_ENCODER_VCODEC;
+        srs_warn("video and audio disabled. ret=%d", ret);
+        return ret;
+    }
+    
+    if (vcodec != SRS_ENCODER_COPY && vcodec != SRS_ENCODER_NO_VIDEO) {
         if (vcodec != SRS_ENCODER_VCODEC) {
             ret = ERROR_ENCODER_VCODEC;
             srs_error("invalid vcodec, must be %s, actual %s, ret=%d",
@@ -182,7 +190,7 @@ int SrsFFMPEG::initialize(SrsRequest* req, SrsConfDirective* engine)
         }
     }
     
-    if (acodec != SRS_ENCODER_COPY) {
+    if (acodec != SRS_ENCODER_COPY && acodec != SRS_ENCODER_NO_AUDIO) {
         if (acodec != SRS_ENCODER_ACODEC) {
             ret = ERROR_ENCODER_ACODEC;
             srs_error("invalid acodec, must be %s, actual %s, ret=%d",
@@ -254,11 +262,15 @@ int SrsFFMPEG::start()
     }
     
     // video specified.
-    params.push_back("-vcodec");
-    params.push_back(vcodec);
+    if (vcodec != SRS_ENCODER_NO_VIDEO) {
+        params.push_back("-vcodec");
+        params.push_back(vcodec);
+    } else {
+        params.push_back("-vn");
+    }
     
     // the codec params is disabled when copy
-    if (vcodec != SRS_ENCODER_COPY) {
+    if (vcodec != SRS_ENCODER_COPY && vcodec != SRS_ENCODER_NO_VIDEO) {
         params.push_back("-b:v");
         snprintf(tmp, sizeof(tmp), "%d", vbitrate * 1000);
         params.push_back(tmp);
@@ -299,11 +311,15 @@ int SrsFFMPEG::start()
     }
     
     // audio specified.
-    params.push_back("-acodec");
-    params.push_back(acodec);
+    if (acodec != SRS_ENCODER_NO_AUDIO) {
+        params.push_back("-acodec");
+        params.push_back(acodec);
+    } else {
+        params.push_back("-an");
+    }
     
     // the codec params is disabled when copy
-    if (acodec != SRS_ENCODER_COPY) {
+    if (acodec != SRS_ENCODER_COPY && acodec != SRS_ENCODER_NO_AUDIO) {
         params.push_back("-b:a");
         snprintf(tmp, sizeof(tmp), "%d", abitrate * 1000);
         params.push_back(tmp);

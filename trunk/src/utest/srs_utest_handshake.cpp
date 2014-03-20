@@ -24,77 +24,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_error.hpp>
 #include <srs_core_autofree.hpp>
-
-MockEmptyIO::MockEmptyIO()
-{
-}
-
-MockEmptyIO::~MockEmptyIO()
-{
-}
-
-bool MockEmptyIO::is_never_timeout(int64_t /*timeout_us*/)
-{
-    return true;
-}
-
-int MockEmptyIO::read_fully(const void* /*buf*/, size_t /*size*/, ssize_t* /*nread*/)
-{
-    return ERROR_SUCCESS;
-}
-
-int MockEmptyIO::write(const void* /*buf*/, size_t /*size*/, ssize_t* /*nwrite*/)
-{
-    return ERROR_SUCCESS;
-}
-
-void MockEmptyIO::set_recv_timeout(int64_t /*timeout_us*/)
-{
-}
-
-int64_t MockEmptyIO::get_recv_timeout()
-{
-    return -1;
-}
-
-int64_t MockEmptyIO::get_recv_bytes()
-{
-    return -1;
-}
-
-int MockEmptyIO::get_recv_kbps()
-{
-    return 0;
-}
-
-void MockEmptyIO::set_send_timeout(int64_t /*timeout_us*/)
-{
-}
-
-int64_t MockEmptyIO::get_send_timeout()
-{
-    return 0;
-}
-
-int64_t MockEmptyIO::get_send_bytes()
-{
-    return 0;
-}
-
-int MockEmptyIO::get_send_kbps()
-{
-    return 0;
-}
-
-int MockEmptyIO::writev(const iovec */*iov*/, int /*iov_size*/, ssize_t* /*nwrite*/)
-{
-    return ERROR_SUCCESS;
-}
-
-int MockEmptyIO::read(const void* /*buf*/, size_t /*size*/, ssize_t* /*nread*/)
-{
-    return ERROR_SUCCESS;
-}
+#include <srs_protocol_utility.hpp>
 
 // verify the sha256
 VOID TEST(HandshakeTest, OpensslSha256)
@@ -122,6 +52,37 @@ VOID TEST(HandshakeTest, OpensslSha256)
         0xb4, 0x82, 0x2a, 0x7f, 0xd3, 0x1d, 0xc3, 0xd8, 0x92, 0x97, 0xc4, 0x61, 0xb7, 0x4d, 0x5d, 0xd2
     };
     EXPECT_TRUE(srs_bytes_equals(digest, expect_digest, 32));
+}
+
+// verify the dh key
+VOID TEST(HandshakeTest, DHKey)
+{
+    char pri_key[] = {
+        0x6e, 0x65, 0x69, 0x2d, 0x69, 0x2d, 0x69, 0x73, 
+        0x6e, 0x69, 0x73, 0x6c, 0x65, 0x72, 0x69, 0x72, 
+        0x76, 0x65, 0x72, 0x69, 0x77, 0x74, 0x2e, 0x6e, 
+        0x72, 0x76, 0x72, 0x65, 0x72, 0x70, 0x72, 0x69, 
+        0x69, 0x70, 0x72, 0x73, 0x6e, 0x65, 0x72, 0x72, 
+        0x6e, 0x2d, 0x65, 0x74, 0x72, 0x6c, 0x69, 0x74, 
+        0x69, 0x65, 0x40, 0x69, 0x69, 0x76, 0x77, 0x2d, 
+        0x73, 0x65, 0x72, 0x72, 0x76, 0x73, 0x72, 0x2e, 
+        0x2d, 0x76, 0x65, 0x31, 0x65, 0x6d, 0x6d, 0x73, 
+        0x69, 0x73, 0x74, 0x2e, 0x74, 0x72, 0x65, 0x65, 
+        0x72, 0x65, 0x2d, 0x74, 0x69, 0x31, 0x65, 0x2d, 
+        0x6f, 0x77, 0x2e, 0x76, 0x77, 0x2d, 0x77, 0x72, 
+        0x65, 0x65, 0x31, 0x74, 0x73, 0x70, 0x74, 0x6e, 
+        0x72, 0x6e, 0x73, 0x6d, 0x2e, 0x69, 0x72, 0x2d, 
+        0x65, 0x69, 0x77, 0x69, 0x76, 0x72, 0x77, 0x72, 
+        0x32, 0x6e, 0x65, 0x6c, 0x2e, 0x2d, 0x6e, 0x69
+    };
+    
+    char pub_key1[128];
+    openssl_generate_key(pri_key, pub_key1, 128);
+    
+    char pub_key2[128];
+    openssl_generate_key(pri_key, pub_key2, 128);
+    
+    EXPECT_FALSE(srs_bytes_equals(pub_key1, pub_key2, 128));
 }
 
 // flash will sendout a c0c1 encrypt by ssl.
@@ -172,7 +133,7 @@ VOID TEST(HandshakeTest, VerifyFPC0C1)
         0xb1, 0xb5, 0xbc, 0xa6, 0xd6, 0xd6, 0x1d, 0xce, 0x93, 0x78, 0xb3, 0xec, 0xa8, 0x64, 0x19, 0x13
     };
     EXPECT_TRUE(srs_bytes_equals(c1.block1.digest.digest, digest, 32));
-}
+} 
 
 VOID TEST(HandshakeTest, SimpleHandshake)
 {
@@ -259,4 +220,20 @@ VOID TEST(HandshakeTest, ComplexHandshake)
         ASSERT_EQ(ERROR_SUCCESS, s2.s2_validate(&c1, is_valid));
         ASSERT_TRUE(is_valid);
     }
+}
+
+VOID TEST(HandshakeTest, BytesEqual)
+{
+    char a1[] = { 0x01 };
+    char b1[] = { 0x02 };
+    char a2[] = { 0x01, 0x02 };
+    char b2[] = { 0x02, 0x03 };
+    
+    EXPECT_TRUE(srs_bytes_equals(NULL, NULL, 0));
+    EXPECT_FALSE(srs_bytes_equals(a1, NULL, 1));
+    EXPECT_FALSE(srs_bytes_equals(NULL, a1, 1));
+    EXPECT_FALSE(srs_bytes_equals(a1, b1, 1));
+    EXPECT_TRUE(srs_bytes_equals(a1, a1, 1));
+    EXPECT_TRUE(srs_bytes_equals(a1, a2, 1));
+    EXPECT_FALSE(srs_bytes_equals(a1, b2, 1));
 }
