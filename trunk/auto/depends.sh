@@ -356,16 +356,17 @@ else
 fi
 
 echo "link players to cherrypy static-dir"
-rm -f research/api-server/static-dir/players &&
+rm -rf research/api-server/static-dir/players &&
 ln -sf `pwd`/research/players research/api-server/static-dir/players &&
 rm -f research/api-server/static-dir/crossdomain.xml &&
 ln -sf `pwd`/research/players/crossdomain.xml research/api-server/static-dir/crossdomain.xml &&
-rm -f research/api-server/static-dir/live && 
+rm -rf research/api-server/static-dir/live && 
 mkdir -p `pwd`/${SRS_OBJS}/nginx/html/live &&
 ln -sf `pwd`/${SRS_OBJS}/nginx/html/live research/api-server/static-dir/live &&
-rm -f research/api-server/static-dir/forward && 
+rm -rf research/api-server/static-dir/forward && 
 mkdir -p `pwd`/${SRS_OBJS}/nginx/html/forward &&
 ln -sf `pwd`/${SRS_OBJS}/nginx/html/forward research/api-server/static-dir/forward
+ret=$?; if [[ $ret -ne 0 ]]; then echo "link players to cherrypy static-dir failed, ret=$ret"; exit $ret; fi
 
 # only when the nginx is ok, 
 # if api-server not enalbed, use nginx as demo.
