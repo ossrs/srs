@@ -44,7 +44,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_pithy_print.hpp>
 
 // max PES packets size to flush the video.
-#define SRS_HLS_AUDIO_CACHE_SIZE 512 * 1024
+#define SRS_HLS_AUDIO_CACHE_SIZE 1024 * 1024
 
 // @see: NGX_RTMP_HLS_DELAY, 
 // 63000: 700ms, ts_tbn=90000
@@ -481,12 +481,20 @@ SrsHlsSegment::~SrsHlsSegment()
     srs_freep(muxer);
 }
 
-double SrsHlsSegment::update_duration(int64_t current_frame_dts)
+void SrsHlsSegment::update_duration(int64_t current_frame_dts)
 {
+    // we use video/audio to update segment duration,
+    // so when reap segment, some previous audio frame will
+    // update the segment duration, which is nagetive,
+    // just ignore it.
+    if (current_frame_dts < segment_start_dts) {
+        return;
+    }
+    
     duration = (current_frame_dts - segment_start_dts) / 90000.0;
     srs_assert(duration >= 0);
     
-    return duration;
+    return;
 }
 
 SrsHlsAacJitter::SrsHlsAacJitter()
@@ -503,7 +511,6 @@ SrsHlsMuxer::SrsHlsMuxer()
     hls_fragment = hls_window = 0;
     file_index = 0;
     current = NULL;
-    video_count = 0;
 }
 
 SrsHlsMuxer::~SrsHlsMuxer()
@@ -541,9 +548,6 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
         srs_warn("ignore the segment open, for segment is already open.");
         return ret;
     }
-    
-    // reset video count for new publish session.
-    video_count = 0;
     
     // TODO: create all parents dirs.
     // create dir for app.
@@ -605,6 +609,9 @@ int SrsHlsMuxer::flush_audio(SrsMpegtsFrame* af, SrsCodecBuffer* ab)
         return ret;
     }
     
+    // update the duration of segment.
+    current->update_duration(af->pts);
+    
     if ((ret = current->muxer->write_audio(af, ab)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -634,6 +641,9 @@ int SrsHlsMuxer::flush_video(
     if ((ret = current->muxer->write_video(vf, vb)) != ERROR_SUCCESS) {
         return ret;
     }
+    
+    // write success, clear and free the buffer
+    vb->free();
     
     return ret;
 }
@@ -860,6 +870,8 @@ SrsHlsCache::SrsHlsCache()
     
     af = new SrsMpegtsFrame();
     vf = new SrsMpegtsFrame();
+
+    video_count = 0;
 }
 
 SrsHlsCache::~SrsHlsCache()
@@ -889,6 +901,9 @@ int SrsHlsCache::on_publish(SrsHlsMuxer* muxer, SrsRequest* req, int64_t segment
     
     // get the hls path config
     std::string hls_path = _srs_config->get_hls_path(vhost);
+    
+    // reset video count for new publish session.
+    video_count = 0;
     
     // open muxer
     if ((ret = muxer->update_config(app, stream, hls_path, hls_fragment, hls_window)) != ERROR_SUCCESS) {
@@ -956,12 +971,24 @@ int SrsHlsCache::write_audio(SrsCodec* codec, SrsHlsMuxer* muxer, int64_t pts, S
         }
     }
     
+    // for pure audio
+    // start new segment when duration overflow.
+    if (video_count == 0 && muxer->is_segment_overflow()) {
+        srs_trace("pure audio segment reap");
+        if ((ret = reap_segment(muxer, af->pts)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    
     return ret;
 }
     
-int SrsHlsCache::write_video(SrsCodec* codec, SrsHlsMuxer* muxer, int64_t dts, SrsCodecSample* sample)
+int SrsHlsCache::write_video(
+    SrsCodec* codec, SrsHlsMuxer* muxer, int64_t dts, SrsCodecSample* sample)
 {
     int ret = ERROR_SUCCESS;
+    
+    video_count++;
     
     // write video to cache.
     if ((ret = cache_video(codec, sample)) != ERROR_SUCCESS) {
@@ -974,26 +1001,11 @@ int SrsHlsCache::write_video(SrsCodec* codec, SrsHlsMuxer* muxer, int64_t dts, S
     vf->sid = TS_VIDEO_AVC;
     vf->key = sample->frame_type == SrsCodecVideoAVCFrameKeyFrame;
     
-    // reopen the muxer for a gop
-    // close current segment, open a new segment,
-    // then write the key frame to the new segment.
+    // new segment when:
+    // 1. base on gop.
+    // 2. some gops duration overflow.
     if (vf->key && muxer->is_segment_overflow()) {
-        if ((ret = muxer->segment_close()) != ERROR_SUCCESS) {
-            srs_error("m3u8 muxer close segment failed. ret=%d", ret);
-            return ret;
-        }
-        
-        if ((ret = muxer->segment_open(vf->dts)) != ERROR_SUCCESS) {
-            srs_error("m3u8 muxer open segment failed. ret=%d", ret);
-            return ret;
-        }
-    
-        // TODO: flush audio before or after segment?
-        // segment open, flush the audio.
-        // @see: ngx_rtmp_hls_open_fragment
-        /* start fragment with audio to make iPhone happy */
-        if ((ret = muxer->flush_audio(af, ab)) != ERROR_SUCCESS) {
-            srs_error("m3u8 muxer flush audio failed. ret=%d", ret);
+        if ((ret = reap_segment(muxer, vf->dts)) != ERROR_SUCCESS) {
             return ret;
         }
     }
@@ -1004,8 +1016,31 @@ int SrsHlsCache::write_video(SrsCodec* codec, SrsHlsMuxer* muxer, int64_t dts, S
         return ret;
     }
     
-    // write success, clear and free the buffer
-    vb->free();
+    return ret;
+}
+
+int SrsHlsCache::reap_segment(SrsHlsMuxer* muxer, int64_t segment_start_dts)
+{
+    int ret = ERROR_SUCCESS;
+
+    if ((ret = muxer->segment_close()) != ERROR_SUCCESS) {
+        srs_error("m3u8 muxer close segment failed. ret=%d", ret);
+        return ret;
+    }
+    
+    if ((ret = muxer->segment_open(segment_start_dts)) != ERROR_SUCCESS) {
+        srs_error("m3u8 muxer open segment failed. ret=%d", ret);
+        return ret;
+    }
+
+    // TODO: flush audio before or after segment?
+    // segment open, flush the audio.
+    // @see: ngx_rtmp_hls_open_fragment
+    /* start fragment with audio to make iPhone happy */
+    if ((ret = muxer->flush_audio(af, ab)) != ERROR_SUCCESS) {
+        srs_error("m3u8 muxer flush audio failed. ret=%d", ret);
+        return ret;
+    }
     
     return ret;
 }

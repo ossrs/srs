@@ -124,7 +124,7 @@ public:
     * update the segment duration.
     * @current_frame_dts the dts of frame, in tbn of ts.
     */
-    virtual double update_duration(int64_t current_frame_dts);
+    virtual void update_duration(int64_t current_frame_dts);
 };
 
 /**
@@ -147,14 +147,6 @@ private:
 private:
     int file_index;
     std::string m3u8;
-private:
-    /**
-    * for pure audio HLS application,
-    * the video count used to count the video,
-    * if zero and audio buffer overflow, reap the ts,
-    * just like we got a keyframe.
-    */
-    u_int32_t video_count;
 private:
     /**
     * m3u8 segments.
@@ -219,6 +211,14 @@ private:
     int64_t audio_buffer_start_pts;
     // time jitter for aac
     SrsHlsAacJitter* aac_jitter;
+private:
+    /**
+    * for pure audio HLS application,
+    * the video count used to count the video,
+    * if zero and audio buffer overflow, reap the ts,
+    * just like we got a keyframe.
+    */
+    u_int32_t video_count;
 public:
     SrsHlsCache();
     virtual ~SrsHlsCache();
@@ -237,6 +237,13 @@ public:
     */
     virtual int write_video(SrsCodec* codec, SrsHlsMuxer* muxer, int64_t dts, SrsCodecSample* sample);
 private:
+    /**
+    * reopen the muxer for a new hls segment,
+    * close current segment, open a new segment,
+    * then write the key frame to the new segment.
+    * so, user must reap_segment then flush_video to hls muxer.
+    */
+    virtual int reap_segment(SrsHlsMuxer* muxer, int64_t segment_start_dts);
     virtual int cache_audio(SrsCodec* codec, SrsCodecSample* sample);
     virtual int cache_video(SrsCodec* codec, SrsCodecSample* sample);
 };
