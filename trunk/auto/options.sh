@@ -116,12 +116,12 @@ if [ $SRS_ARM_UBUNTU12 = YES ]; then
 else
     if [ $SRS_HLS = RESERVED ]; then SRS_HLS=YES; fi
     if [ $SRS_SSL = RESERVED ]; then SRS_SSL=YES; fi
-    if [ $SRS_FFMPEG = RESERVED ]; then SRS_FFMPEG=YES; fi
-    if [ $SRS_HTTP_CALLBACK = RESERVED ]; then SRS_HTTP_CALLBACK=YES; fi
-    if [ $SRS_LIBRTMP = RESERVED ]; then SRS_LIBRTMP=YES; fi
+    if [ $SRS_FFMPEG = RESERVED ]; then SRS_FFMPEG=NO; fi
+    if [ $SRS_HTTP_CALLBACK = RESERVED ]; then SRS_HTTP_CALLBACK=NO; fi
+    if [ $SRS_LIBRTMP = RESERVED ]; then SRS_LIBRTMP=NO; fi
     if [ $SRS_BWTC = RESERVED ]; then SRS_BWTC=NO; fi
     if [ $SRS_RESEARCH = RESERVED ]; then SRS_RESEARCH=NO; fi
-    if [ $SRS_UTEST = RESERVED ]; then SRS_UTEST=YES; fi
+    if [ $SRS_UTEST = RESERVED ]; then SRS_UTEST=NO; fi
     if [ $SRS_GPERF = RESERVED ]; then SRS_GPERF=NO; fi
     if [ $SRS_GPERF_MC = RESERVED ]; then SRS_GPERF_MC=NO; fi
     if [ $SRS_GPERF_MP = RESERVED ]; then SRS_GPERF_MP=NO; fi
