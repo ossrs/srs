@@ -366,6 +366,7 @@ ln -sf `pwd`/${SRS_OBJS}/nginx/html/live research/api-server/static-dir/live &&
 rm -rf research/api-server/static-dir/forward && 
 mkdir -p `pwd`/${SRS_OBJS}/nginx/html/forward &&
 ln -sf `pwd`/${SRS_OBJS}/nginx/html/forward research/api-server/static-dir/forward
+ret=$?; if [[ $ret -ne 0 ]]; then echo "link players to cherrypy static-dir failed, ret=$ret"; exit $ret; fi
 
 # only when the nginx is ok, 
 # if api-server not enalbed, use nginx as demo.
