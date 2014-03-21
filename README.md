@@ -402,7 +402,7 @@ Remark:
     only send signals to child processes.
 </pre>
 
-### CLI Architecture
+### (plan) CLI Architecture
 
 <pre>
                        +---------+
