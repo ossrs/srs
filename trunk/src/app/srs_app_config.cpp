@@ -682,6 +682,7 @@ int SrsConfig::parse_file(const char* filename)
     // TODO: check forward.
     // TODO: check ffmpeg.
     // TODO: check http.
+    // TODO: check pid.
     
     return ret;
 }
@@ -1438,6 +1439,17 @@ SrsConfDirective* SrsConfig::get_refer_publish(string vhost)
 SrsConfDirective* SrsConfig::get_listen()
 {
     return root->get("listen");
+}
+
+string SrsConfig::get_pid_file()
+{
+    SrsConfDirective* conf = root->get("pid");
+    
+    if (!conf) {
+        return SRS_CONF_DEFAULT_PID_FILE;
+    }
+    
+    return conf->arg0();
 }
 
 int SrsConfig::get_chunk_size(const std::string &vhost)

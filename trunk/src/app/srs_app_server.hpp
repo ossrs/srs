@@ -79,6 +79,7 @@ public:
     virtual ~SrsServer();
 public:
     virtual int initialize();
+    virtual int acquire_pid_file();
     virtual int listen();
     virtual int cycle();
     virtual void remove(SrsConnection* conn);

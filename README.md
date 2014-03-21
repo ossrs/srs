@@ -1,7 +1,7 @@
 Simple-RTMP-Server
 ==================
 
-SRS(SIMPLE RTMP Server) over state-threads created in 2013.
+SRS(SIMPLE RTMP Server) over state-threads created in 2013.10.
 
 SRS is a simple, [RTMP](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryRTMP)/[HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), 
 [high-performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance), single/multiple(plan) processes, edge(plan)/origin live server, 
@@ -169,6 +169,7 @@ See also: [Performance Test Guide](https://github.com/winlinvip/simple-rtmp-serv
 * nginx v1.5.0: 139524 lines <br/>
 
 ### History
+* v1.0, 2014-03-21, write pid to ./objs/srs.pid.
 * v1.0, 2014-03-20, refine hls code, support pure audio HLS.
 * v1.0, 2014-03-19, add vn/an for FFMPEG to drop video/audio for radio stream.
 * v1.0, 2014-03-19, refine handshake, client support coplex handshake, add utest.
@@ -429,7 +430,7 @@ Bandwidth Test Workflow:
 @See: class SrsBandwidth comments.
 </pre>
 
-Beijing, 2013<br/>
+Beijing, 2013.10<br/>
 Winlin
 
 

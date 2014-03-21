@@ -27,6 +27,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include <algorithm>
 
@@ -194,6 +197,81 @@ int SrsServer::initialize()
     // set current log id.
     _srs_context->generate_id();
     srs_info("log set id success");
+    
+    return ret;
+}
+
+int SrsServer::acquire_pid_file()
+{
+    int ret = ERROR_SUCCESS;
+    
+    std::string pid_file = _srs_config->get_pid_file();
+    
+    // -rw-r--r-- 
+    // 644
+    int mode = S_IRUSR | S_IWUSR |  S_IRGRP | S_IROTH;
+    
+    int fd;
+    // open pid file
+    if ((fd = ::open(pid_file.c_str(), O_WRONLY | O_CREAT, mode)) < 0) {
+        ret = ERROR_SYSTEM_PID_ACQUIRE;
+        srs_error("open pid file %s error, ret=%#x", pid_file.c_str(), ret);
+        return ret;
+    }
+    
+    // require write lock
+    flock lock;
+
+    lock.l_type = F_WRLCK; // F_RDLCK, F_WRLCK, F_UNLCK
+    lock.l_start = 0; // type offset, relative to l_whence
+    lock.l_whence = SEEK_SET;  // SEEK_SET, SEEK_CUR, SEEK_END
+    lock.l_len = 0;
+    
+    if (fcntl(fd, F_SETLK, &lock) < 0) {
+        if(errno == EACCES || errno == EAGAIN) {
+            ret = ERROR_SYSTEM_PID_ALREADY_RUNNING;
+            srs_error("srs is already running! ret=%#x", ret);
+            return ret;
+        }
+        
+        ret = ERROR_SYSTEM_PID_LOCK;
+        srs_error("require lock for file %s error! ret=%#x", pid_file.c_str(), ret);
+        return ret;
+    }
+
+    // truncate file
+    if (ftruncate(fd, 0) < 0) {
+        ret = ERROR_SYSTEM_PID_TRUNCATE_FILE;
+        srs_error("truncate pid file %s error! ret=%#x", pid_file.c_str(), ret);
+        return ret;
+    }
+
+    int pid = (int)getpid();
+    
+    // write the pid
+    char buf[512];
+    snprintf(buf, sizeof(buf), "%d", pid);
+    if (write(fd, buf, strlen(buf)) != (int)strlen(buf)) {
+        ret = ERROR_SYSTEM_PID_WRITE_FILE;
+        srs_error("write our pid error! pid=%d file=%s ret=%#x", pid, pid_file.c_str(), ret);
+        return ret;
+    }
+
+    // auto close when fork child process.
+    int val;
+    if ((val = fcntl(fd, F_GETFD, 0)) < 0) {
+        ret = ERROR_SYSTEM_PID_GET_FILE_INFO;
+        srs_error("fnctl F_GETFD error! file=%s ret=%#x", pid_file.c_str(), ret);
+        return ret;
+    }
+    val |= FD_CLOEXEC;
+    if (fcntl(fd, F_SETFD, val) < 0) {
+        ret = ERROR_SYSTEM_PID_SET_FILE_INFO;
+        srs_error("fcntl F_SETFD error! file=%s ret=%#x", pid_file.c_str(), ret);
+        return ret;
+    }
+    
+    srs_trace("write pid=%d to %s success!", pid, pid_file.c_str());
     
     return ret;
 }

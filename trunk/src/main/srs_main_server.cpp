@@ -91,6 +91,10 @@ int main(int argc, char** argv)
     
     // TODO: create log dir in _srs_config->get_log_dir()
     
+    if ((ret = _srs_server->acquire_pid_file()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     if ((ret = _srs_server->listen()) != ERROR_SUCCESS) {
         return ret;
     }

@@ -38,6 +38,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RTMP_VHOST_DEFAULT "__defaultVhost__"
 
 #define SRS_LOCALHOST "127.0.0.1"
+#define SRS_CONF_DEFAULT_PID_FILE "./objs/srs.pid"
 
 #define SRS_CONF_DEFAULT_HLS_PATH "./objs/nginx/html"
 #define SRS_CONF_DEFAULT_HLS_FRAGMENT 10
@@ -116,62 +117,63 @@ private:
     virtual int parse_argv(int& i, char** argv);
     virtual void print_help(char** argv);
 public:
-    virtual SrsConfDirective*     get_vhost(std::string vhost);
-    virtual bool                  get_vhost_enabled(std::string vhost);
-    virtual bool                  get_vhost_enabled(SrsConfDirective* vhost);
-    virtual SrsConfDirective*     get_vhost_on_connect(std::string vhost);
-    virtual SrsConfDirective*     get_vhost_on_close(std::string vhost);
-    virtual SrsConfDirective*     get_vhost_on_publish(std::string vhost);
-    virtual SrsConfDirective*     get_vhost_on_unpublish(std::string vhost);
-    virtual SrsConfDirective*     get_vhost_on_play(std::string vhost);
-    virtual SrsConfDirective*     get_vhost_on_stop(std::string vhost);
-    virtual SrsConfDirective*     get_transcode(std::string vhost, std::string scope);
-    virtual bool                  get_transcode_enabled(SrsConfDirective* transcode);
-    virtual std::string            get_transcode_ffmpeg(SrsConfDirective* transcode);
+    virtual SrsConfDirective*   get_vhost(std::string vhost);
+    virtual bool                get_vhost_enabled(std::string vhost);
+    virtual bool                get_vhost_enabled(SrsConfDirective* vhost);
+    virtual SrsConfDirective*   get_vhost_on_connect(std::string vhost);
+    virtual SrsConfDirective*   get_vhost_on_close(std::string vhost);
+    virtual SrsConfDirective*   get_vhost_on_publish(std::string vhost);
+    virtual SrsConfDirective*   get_vhost_on_unpublish(std::string vhost);
+    virtual SrsConfDirective*   get_vhost_on_play(std::string vhost);
+    virtual SrsConfDirective*   get_vhost_on_stop(std::string vhost);
+    virtual SrsConfDirective*   get_transcode(std::string vhost, std::string scope);
+    virtual bool                get_transcode_enabled(SrsConfDirective* transcode);
+    virtual std::string         get_transcode_ffmpeg(SrsConfDirective* transcode);
     virtual void                get_transcode_engines(SrsConfDirective* transcode, std::vector<SrsConfDirective*>& engines);
     virtual bool                get_engine_enabled(SrsConfDirective* engine);
-    virtual std::string            get_engine_vcodec(SrsConfDirective* engine);
-    virtual int                    get_engine_vbitrate(SrsConfDirective* engine);
-    virtual double                get_engine_vfps(SrsConfDirective* engine);
-    virtual int                    get_engine_vwidth(SrsConfDirective* engine);
-    virtual int                    get_engine_vheight(SrsConfDirective* engine);
-    virtual int                    get_engine_vthreads(SrsConfDirective* engine);
-    virtual std::string            get_engine_vprofile(SrsConfDirective* engine);
-    virtual std::string            get_engine_vpreset(SrsConfDirective* engine);
+    virtual std::string         get_engine_vcodec(SrsConfDirective* engine);
+    virtual int                 get_engine_vbitrate(SrsConfDirective* engine);
+    virtual double              get_engine_vfps(SrsConfDirective* engine);
+    virtual int                 get_engine_vwidth(SrsConfDirective* engine);
+    virtual int                 get_engine_vheight(SrsConfDirective* engine);
+    virtual int                 get_engine_vthreads(SrsConfDirective* engine);
+    virtual std::string         get_engine_vprofile(SrsConfDirective* engine);
+    virtual std::string         get_engine_vpreset(SrsConfDirective* engine);
     virtual void                get_engine_vparams(SrsConfDirective* engine, std::vector<std::string>& vparams);
     virtual void                get_engine_vfilter(SrsConfDirective* engine, std::vector<std::string>& vfilter);
-    virtual std::string            get_engine_acodec(SrsConfDirective* engine);
-    virtual int                    get_engine_abitrate(SrsConfDirective* engine);
-    virtual int                    get_engine_asample_rate(SrsConfDirective* engine);
-    virtual int                    get_engine_achannels(SrsConfDirective* engine);
+    virtual std::string         get_engine_acodec(SrsConfDirective* engine);
+    virtual int                 get_engine_abitrate(SrsConfDirective* engine);
+    virtual int                 get_engine_asample_rate(SrsConfDirective* engine);
+    virtual int                 get_engine_achannels(SrsConfDirective* engine);
     virtual void                get_engine_aparams(SrsConfDirective* engine, std::vector<std::string>& aparams);
-    virtual std::string            get_engine_output(SrsConfDirective* engine);
-    virtual std::string            get_log_dir();
-    virtual int                    get_max_connections();
+    virtual std::string         get_engine_output(SrsConfDirective* engine);
+    virtual std::string         get_log_dir();
+    virtual int                 get_max_connections();
     virtual bool                get_gop_cache(std::string vhost);
-    virtual double                get_queue_length(std::string vhost);
-    virtual SrsConfDirective*    get_forward(std::string vhost);
+    virtual double              get_queue_length(std::string vhost);
+    virtual SrsConfDirective*   get_forward(std::string vhost);
 private:
-    virtual SrsConfDirective*    get_hls(std::string vhost);
+    virtual SrsConfDirective*   get_hls(std::string vhost);
 public:
     virtual bool                get_hls_enabled(std::string vhost);
-    virtual std::string            get_hls_path(std::string vhost);
-    virtual double                get_hls_fragment(std::string vhost);
-    virtual double                get_hls_window(std::string vhost);
-    virtual SrsConfDirective*    get_refer(std::string vhost);
-    virtual SrsConfDirective*    get_refer_play(std::string vhost);
-    virtual SrsConfDirective*    get_refer_publish(std::string vhost);
-    virtual SrsConfDirective*    get_listen();
-    virtual int                    get_chunk_size(const std::string& vhost);
-    virtual int                    get_pithy_print_publish();
-    virtual int                    get_pithy_print_forwarder();
-    virtual int                    get_pithy_print_encoder();
-    virtual int                    get_pithy_print_hls();
-    virtual int                    get_pithy_print_play();
+    virtual std::string         get_hls_path(std::string vhost);
+    virtual double              get_hls_fragment(std::string vhost);
+    virtual double              get_hls_window(std::string vhost);
+    virtual SrsConfDirective*   get_refer(std::string vhost);
+    virtual SrsConfDirective*   get_refer_play(std::string vhost);
+    virtual SrsConfDirective*   get_refer_publish(std::string vhost);
+    virtual SrsConfDirective*   get_listen();
+    virtual std::string         get_pid_file();
+    virtual int                 get_chunk_size(const std::string& vhost);
+    virtual int                 get_pithy_print_publish();
+    virtual int                 get_pithy_print_forwarder();
+    virtual int                 get_pithy_print_encoder();
+    virtual int                 get_pithy_print_hls();
+    virtual int                 get_pithy_print_play();
     virtual bool                get_bw_check_enabled(const std::string& vhost);
-    virtual std::string            get_bw_check_key(const std::string& vhost);
-    virtual int                    get_bw_check_interval_ms(const std::string& vhost);
-    virtual int                    get_bw_check_limit_kbps(const std::string& vhost);
+    virtual std::string         get_bw_check_key(const std::string& vhost);
+    virtual int                 get_bw_check_interval_ms(const std::string& vhost);
+    virtual int                 get_bw_check_limit_kbps(const std::string& vhost);
 };
 
 /**
