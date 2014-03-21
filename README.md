@@ -1,4 +1,4 @@
-Simple-RTMP-Server
+#Simple-RTMP-Server
 ==================
 
 SRS(SIMPLE RTMP Server) over state-threads created in 2013.10.
@@ -20,7 +20,7 @@ Github demo(with your SRS): [http://winlinvip.github.io/simple-rtmp-server](http
 Wiki: [https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki) <br/>
 TencentQQ: [http://url.cn/WAHICw](http://url.cn/WAHICw) (Group: 212189142)
 
-### AUTHORS
+## AUTHORS
 The PRIMARY AUTHORS are (and/or have been)(Authors ordered by first contribution): <br/>
 * winlin([winterserver](#)): [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
 * wenjie([wenjiegit](https://github.com/wenjiegit/simple-rtmp-server)): [http://blog.chinaunix.net/uid/25006789.html](http://blog.chinaunix.net/uid/25006789.html) <br/>
