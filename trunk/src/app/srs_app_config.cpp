@@ -670,6 +670,7 @@ int SrsConfig::parse_file(const char* filename)
     }
     
     SrsConfDirective* conf = NULL;
+    // check rtmp port specified by directive listen.
     if ((conf = get_listen()) == NULL || conf->args.size() == 0) {
         ret = ERROR_SYSTEM_CONFIG_INVALID;
         srs_error("line %d: conf error, "

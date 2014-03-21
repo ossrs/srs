@@ -325,7 +325,7 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
     if (type == SrsListenerStream) {
         conn = new SrsClient(this, client_stfd);
     } else {
-        // handler others
+        // TODO: FIXME: handler others
     }
     srs_assert(conn);
     
