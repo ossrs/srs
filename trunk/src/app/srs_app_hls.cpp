@@ -475,6 +475,7 @@ SrsHlsSegment::SrsHlsSegment()
     sequence_no = 0;
     muxer = new SrsTSMuxer();
     segment_start_dts = 0;
+    is_sequence_header = false;
 }
 
 SrsHlsSegment::~SrsHlsSegment()
@@ -585,6 +586,19 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     }
     srs_info("open HLS muxer success. vhost=%s, path=%s, tmp=%s", 
         vhost.c_str(), current->full_path.c_str(), tmp_file.c_str());
+    
+    return ret;
+}
+
+int SrsHlsMuxer::on_sequence_header()
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(current);
+    
+    // set the current segment to sequence header,
+    // when close the segement, it will write a discontinuity to m3u8 file.
+    current->is_sequence_header = true;
     
     return ret;
 }
@@ -810,7 +824,7 @@ int SrsHlsMuxer::_refresh_m3u8(int& fd, string m3u8_file)
     }
     // TODO: maybe need to take an around value
     target_duration += 1;
-    char duration[34];
+    char duration[34]; // 23+10+1
     len = snprintf(duration, sizeof(duration), "#EXT-X-TARGETDURATION:%d\n", target_duration);
     if (::write(fd, duration, len) != len) {
         ret = ERROR_HLS_WRITE_FAILED;
@@ -823,15 +837,27 @@ int SrsHlsMuxer::_refresh_m3u8(int& fd, string m3u8_file)
     for (it = segments.begin(); it != segments.end(); ++it) {
         SrsHlsSegment* segment = *it;
         
+        if (segment->is_sequence_header) {
+            // #EXT-X-DISCONTINUITY\n
+            char ext_discon[22]; // 21+1
+            len = snprintf(ext_discon, sizeof(ext_discon), "#EXT-X-DISCONTINUITY\n");
+            if (::write(fd, ext_discon, len) != len) {
+                ret = ERROR_HLS_WRITE_FAILED;
+                srs_error("write m3u8 segment discontinuity failed. ret=%d", ret);
+                return ret;
+            }
+            srs_verbose("write m3u8 segment discontinuity success.");
+        }
+        
         // "#EXTINF:4294967295.208,\n"
-        char ext_info[25];
+        char ext_info[25]; // 14+10+1
         len = snprintf(ext_info, sizeof(ext_info), "#EXTINF:%.3f\n", segment->duration);
         if (::write(fd, ext_info, len) != len) {
             ret = ERROR_HLS_WRITE_FAILED;
-            srs_error("write m3u8 segment failed. ret=%d", ret);
+            srs_error("write m3u8 segment info failed. ret=%d", ret);
             return ret;
         }
-        srs_verbose("write m3u8 segment success.");
+        srs_verbose("write m3u8 segment info success.");
         
         // file name
         std::string filename = segment->uri;
@@ -943,6 +969,17 @@ int SrsHlsCache::on_unpublish(SrsHlsMuxer* muxer)
     }
     
     return ret;
+}
+
+int SrsHlsCache::on_sequence_header(SrsHlsMuxer* muxer)
+{
+    // TODO: support discontinuity for the same stream
+    // currently we reap and insert discontinity when encoder republish,
+    // but actually, event when stream is not republish, the 
+    // sequence header may change, for example,
+    // ffmpeg ingest a external rtmp stream and push to srs,
+    // when the sequence header changed, the stream is not republish.
+    return muxer->on_sequence_header();
 }
     
 int SrsHlsCache::write_audio(SrsCodec* codec, SrsHlsMuxer* muxer, int64_t pts, SrsCodecSample* sample)
@@ -1336,7 +1373,7 @@ int SrsHls::on_audio(SrsSharedPtrMessage* audio)
     
     // ignore sequence header
     if (sample->aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
-        return ret;
+        return hls_cache->on_sequence_header(muxer);
     }
     
     if ((ret = jitter->correct(audio, 0, 0)) != ERROR_SUCCESS) {
@@ -1381,7 +1418,7 @@ int SrsHls::on_video(SrsSharedPtrMessage* video)
     // ignore sequence header
     if (sample->frame_type == SrsCodecVideoAVCFrameKeyFrame
          && sample->avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader) {
-        return ret;
+        return hls_cache->on_sequence_header(muxer);
     }
     
     if ((ret = jitter->correct(video, 0, 0)) != ERROR_SUCCESS) {

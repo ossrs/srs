@@ -41,6 +41,7 @@ void srs_update_system_time_ms()
     
     gettimeofday(&now, NULL);
 
+    // @see: https://github.com/winlinvip/simple-rtmp-server/issues/35
     // we must convert the tv_sec/tv_usec to int64_t.
     _srs_system_time_us_cache = ((int64_t)now.tv_sec) * 1000 * 1000 + (int64_t)now.tv_usec;
     

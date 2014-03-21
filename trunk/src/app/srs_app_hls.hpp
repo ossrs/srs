@@ -116,6 +116,8 @@ public:
     SrsTSMuxer* muxer;
     // current segment start dts for m3u8
     int64_t segment_start_dts;
+    // whether current segement is sequence header.
+    bool is_sequence_header;
     
     SrsHlsSegment();
     virtual ~SrsHlsSegment();
@@ -167,6 +169,7 @@ public:
     *       use 0 for the first segment of HLS.
     */
     virtual int segment_open(int64_t segment_start_dts);
+    virtual int on_sequence_header();
     /**
     * whether video overflow,
     * that is whether the current segment duration >= the segment in config
@@ -232,6 +235,13 @@ public:
     */
     virtual int on_publish(SrsHlsMuxer* muxer, SrsRequest* req, int64_t segment_start_dts);
     virtual int on_unpublish(SrsHlsMuxer* muxer);
+    /**
+    * when get sequence header, 
+    * must write a #EXT-X-DISCONTINUITY to m3u8.
+    * @see: hls-m3u8-draft-pantos-http-live-streaming-12.txt
+    * @see: 3.4.11.  EXT-X-DISCONTINUITY
+    */
+    virtual int on_sequence_header(SrsHlsMuxer* muxer);
     /**
     * write audio to cache, if need to flush, flush to muxer.
     */
