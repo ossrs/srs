@@ -314,25 +314,25 @@ srs always use the most simple architecture to support complex transaction.
 ### Stream Architecture
 
 <pre>
-                    +---------+              +----------+
-                    + Publish +              +  Deliver |
-                    +---|-----+              +----|-----+
-+-----------------------+-------------------------+----------------+
-|     Input             | SRS(Simple RTMP Server) |     Output     |
-+-----------------------+-------------------------+----------------+
-|    Encoder(1)         |   +-> RTMP protocol ----+-> Flash Player |
-|  (FMLE,FFMPEG, --rtmp-+->-+-> HLS/NGINX --------+-> m3u8 player  |
-|  Flash,XSPLIT,        |   +-> Fowarder ---------+-> RTMP Server  |
-|  ......)              |   +-> Transcoder -------+-> RTMP Server  |
-|                       |   +-> DVR --------------+-> FILE         |
-|                       |   +-> BandwidthTest ----+-> Flash/StLoad |
-+-----------------------+                         |                |
-|  MediaSource(2)       |                         |                |
-|  (RTSP,FILE,          |                         |                |
-|   HTTP,HLS,    -------+->-- Ingester -----rtmp--+-> SRS          |
-|   Device,             |                         |                |
-|   ......)             |                         |                |
-+-----------------------+-------------------------+----------------+
+                   +---------+              +----------+
+                   + Publish +              +  Deliver |
+                   +---|-----+              +----|-----+
++----------------------+-------------------------+----------------+
+|     Input            | SRS(Simple RTMP Server) |     Output     |
++----------------------+-------------------------+----------------+
+|    Encoder(1)        |   +-> RTMP protocol ----+-> Flash Player |
+|  (FMLE,FFMPEG, -rtmp-+->-+-> HLS/NGINX --------+-> m3u8 player  |
+|  Flash,XSPLIT,       |   +-> Fowarder ---------+-> RTMP Server  |
+|  ......)             |   +-> Transcoder -------+-> RTMP Server  |
+|                      |   +-> DVR --------------+-> FILE         |
+|                      |   +-> BandwidthTest ----+-> Flash/StLoad |
++----------------------+                         |                |
+|  MediaSource(2)      |                         |                |
+|  (RTSP,FILE,         |                         |                |
+|   HTTP,HLS,    ------+->-- Ingester ----(rtmp)-+-> SRS          |
+|   Device,            |                         |                |
+|   ......)            |                         |                |
++----------------------+-------------------------+----------------+
 
 Remark:
 (1) Encoder: encoder must push RTMP stream to SRS server.
