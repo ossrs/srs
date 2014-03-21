@@ -337,6 +337,8 @@ srs always use the most simple architecture to support complex transaction.
 Remark:
 (1) Encoder: encoder must push RTMP stream to SRS server.
 (2) MediaSource: any media source, which can be ingest by ffmpeg.
+(3) Ingester: srs will fork a process to run ffmpeg(or your application) 
+to ingest any input to rtmp, push to srs.
 </pre>
 
 ### (plan) RTMP cluster(origin/edge) Architecture
