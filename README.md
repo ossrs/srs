@@ -11,7 +11,7 @@ minimum run. see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Bu
 
 SRS supports [vhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUrlVhost), 
 rtmp([encoder push](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryRTMP), client/edge pull), ingester(srs pull), 
-[HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), HLS audio only, [transcoding](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), 
+[HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), [HLS audio only](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS#hlsaudioonly), [transcoding](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), 
 [forward](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), [http hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback).
 
 Blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
