@@ -329,7 +329,7 @@ srs always use the most simple architecture to support complex transaction.
 +-----------------------+                         |                |
 |  MediaSource(2)       |                         |                |
 |  (RTSP,FILE,          |                         |                |
-|   HTTP,HLS,    -------+->-- Ingester -----------+-> SRS          |
+|   HTTP,HLS,    -------+->-- Ingester -----rtmp--+-> SRS          |
 |   Device,             |                         |                |
 |   ......)             |                         |                |
 +-----------------------+-------------------------+----------------+
