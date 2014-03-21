@@ -1,5 +1,4 @@
 #Simple-RTMP-Server
-==================
 
 SRS(SIMPLE RTMP Server) over state-threads created in 2013.10.
 
@@ -42,7 +41,7 @@ A big THANK YOU goes to:
 * [FFMPEG](http://ffmpeg.org/) and [libx264](http://www.videolan.org/) group for srs to use to transcode.
 * Guido van Rossum for creating Python for api-server for srs.
 
-### Usage
+## Usage
 
 <strong>Step 1:</strong> get SRS <br/>
 <pre>
@@ -70,12 +69,12 @@ cd simple-rtmp-server/trunk
 [Usage: Solution using SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/Sample)<br/>
 [Usage: Why SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/Product)<br/>
 
-### System Requirements
+## System Requirements
 Supported operating systems and hardware:
 * All Linux , both 32 and 64 bits
 * All handware.
 
-### Summary
+## Summary
 01. Simple: also stable enough.<br/>
 02. [High-performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance): single-thread, async socket, event/st-thread driven.<br/>
 03. With RTMP edge server, support origin server.<br/>
@@ -119,7 +118,7 @@ Supported operating systems and hardware:
 41. [no-plan] Support RTMPT, http to tranverse firewalls<br/>
 42. [no-plan] Support file source, transcoding file to live stream<br/>
 
-### Performance
+## Performance
 1.  300 connections, 150Mbps, 500kbps, CPU 18.8%, MEM 5956KB.
 2.  600 connections, 300Mbps, 500kbps, CPU 32.1%, MEM 9808KB.
 3.  900 connections, 450Mbps, 500kbps, CPU 49.9%, MEM 11MB.
@@ -143,7 +142,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 </pre>
 See also: [Performance Test Guide](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance)
 
-### Releases
+## Releases
 * 2013-12-25, [Release v0.9](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.9), support bandwidth test, player/encoder/chat demos. 20926 lines.<br/>
 * 2013-12-08, [Release v0.8](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.8), support http hooks callback, update [st_load](https://github.com/winlinvip/st-load). 19186 lines.<br/>
 * 2013-12-03, [Release v0.7](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.7), support live stream transcoding. 17605 lines.<br/>
@@ -155,7 +154,7 @@ See also: [Performance Test Guide](https://github.com/winlinvip/simple-rtmp-serv
 * 2013-10-23, [Release v0.1](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.1), support rtmp FMLE/FFMPEG publish, vp6. 8287 lines.<br/>
 * 2013-10-17, Created.<br/>
 
-### Compare
+## Compare
 * SRS v0.9: 20926 lines. player/encoder/chat demos. bandwidth test for encoder/CDN.<br/>
 * SRS v0.8: 19186 lines. implements http hooks refer to [nginx-rtmp](https://github.com/arut/nginx-rtmp-module). <br/>
 * SRS v0.7: 17605 lines. implements transcoding(FFMPEG) feature refer to [wowza](http://www.wowza.com). <br/>
@@ -168,7 +167,7 @@ See also: [Performance Test Guide](https://github.com/winlinvip/simple-rtmp-serv
 * nginx-rtmp v1.0.4: 26786 lines <br/>
 * nginx v1.5.0: 139524 lines <br/>
 
-### History
+## History
 * v1.0, 2014-03-21, write pid to ./objs/srs.pid.
 * v1.0, 2014-03-20, refine hls code, support pure audio HLS.
 * v1.0, 2014-03-19, add vn/an for FFMPEG to drop video/audio for radio stream.
@@ -270,8 +269,19 @@ on_connect/close/publish/unpublish/play/stop.
 * v0.1, 2013-10-18, support rtmp message2chunk protocol(send\_message).
 * v0.1, 2013-10-17, support rtmp chunk2message protocol(recv\_message).
 
-### Architecture
-System Architecture:
+## Architecture
+
+srs always use the most simple architecture to support complex transaction.
+* System arch: the system structure and arch.
+* Modularity arch: the main modularity of srs.
+* Stream arch: the stream dispatch arch of srs.
+* RTMP cluster arch: the RTMP origin and edge cluster arch.
+* Multiple processes arch (by wenjie): the multiple process of srs.
+* CLI arch: the cli arch for srs, api to manage srs.
+* Bandwidth specification: the bandwidth test specification of srs.
+
+### System Architecture
+
 <pre>
 +------------------------------------------------------+
 |             SRS(Simple RTMP Server)                  |
@@ -284,7 +294,9 @@ System Architecture:
 |      All Linux(RHEL,CentOS,Ubuntu,Fedora...)         |
 +------------------------------------------------------+
 </pre>
-Modularity Architecture:
+
+### Modularity Architecture
+
 <pre>
 +------------------------------------------------------+
 |             Main(srs/bandwidth/librtmp)              |
@@ -298,7 +310,9 @@ Modularity Architecture:
 |         Core(depends only on system apis)            |
 +------------------------------------------------------+
 </pre>
-Stream Architecture:
+
+### Stream Architecture
+
 <pre>
                +---------+              +----------+
                + Publish +              +  Deliver |
@@ -324,8 +338,11 @@ Remark:
 (1) Encoder: encoder must push RTMP stream to SRS server.
 (2) MediaSource: any media source, which can be ingest by ffmpeg.
 </pre>
-(plan) RTMP cluster(origin/edge) Architecture:<br/>
+
+### (plan) RTMP cluster(origin/edge) Architecture
+
 Remark: cluster over forward, see [Cluster](https://github.com/winlinvip/simple-rtmp-server/wiki/Cluster)
+
 <pre>
 +---------+       +-----------------+     +-----------------------+ 
 + Encoder +--+-->-+  SRS(RTMP Edge) +--->-+     (RTMP Origin)     | 
@@ -348,7 +365,9 @@ Schema#1: Any RTMP encoder push RTMP stream to RTMP (origin/edge)server,
 Schema#2: SRS RTMP Edge server pull stream from origin (or upstream SRS 
     RTMP Edge server), then delivery to Client.
 </pre>
-(plan) SRS Multiple processes Architecture(design by wenjie):<br/>
+
+### (plan) SRS Multiple processes Architecture(design by wenjie)
+
 <pre>
                  +---------------+              +--------+
                  | upnode server |              + client +
@@ -380,7 +399,9 @@ Remark:
     will collect informations from all stream process, master process
     only send signals to child processes.
 </pre>
-CLI Architecture:
+
+### CLI Architecture
+
 <pre>
                        +---------+
                     +--+ stream1 +---------+
@@ -402,7 +423,9 @@ Remark:
 (5) cli connect to each stream/back-source process to get api data,
     cli analysis and summary the data, return to user.
 </pre>
-Bandwidth Test Workflow:
+
+### Bandwidth Test Workflow
+
 <pre>
    +------------+                    +----------+
    |  Client    |                    |  Server  |
