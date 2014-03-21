@@ -34,6 +34,7 @@ using namespace std;
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_app_config.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_kernel_utility.hpp>
 
 SrsBandwidth::SrsBandwidth()
 {

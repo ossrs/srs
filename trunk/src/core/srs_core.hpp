@@ -86,11 +86,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define srs_min(a, b) (((a) < (b))? (a) : (b))
 #define srs_max(a, b) (((a) < (b))? (b) : (a))
 
-// get current system time in ms, use cache to avoid performance problem
-extern int64_t srs_get_system_time_ms();
-// the deamon st-thread will update it.
-extern void srs_update_system_time_ms();
-
 // signal defines.
 #define SIGNAL_RELOAD SIGHUP
 

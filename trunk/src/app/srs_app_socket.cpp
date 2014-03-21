@@ -24,6 +24,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_socket.hpp>
 
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_utility.hpp>
 
 SrsSocket::SrsSocket(st_netfd_t client_stfd)
 {

@@ -24,29 +24,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <string.h>
-#include <sys/time.h>
 #include <netdb.h>
 #include <arpa/inet.h>
-
-static int64_t _srs_system_time_us_cache = 0;
-
-int64_t srs_get_system_time_ms()
-{
-    return _srs_system_time_us_cache / 1000;
-}
-
-void srs_update_system_time_ms()
-{
-    timeval now;
-    
-    gettimeofday(&now, NULL);
-
-    // @see: https://github.com/winlinvip/simple-rtmp-server/issues/35
-    // we must convert the tv_sec/tv_usec to int64_t.
-    _srs_system_time_us_cache = ((int64_t)now.tv_sec) * 1000 * 1000 + (int64_t)now.tv_usec;
-    
-    _srs_system_time_us_cache = srs_max(0, _srs_system_time_us_cache);
-}
 
 std::string srs_replace(std::string str, std::string old_str, std::string new_str)
 {
