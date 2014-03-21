@@ -4,3 +4,4 @@ Authors ordered by first contribution.
 * wenjie.zhao <740936897@qq.com>
 * xiangcheng.liu <liuxc0116@foxmail.com>
 * naijia.liu <youngcow@youngcow.net>
+* alcoholyi <alcoholyi@qq.com>
