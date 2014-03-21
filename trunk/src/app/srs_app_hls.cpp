@@ -47,6 +47,9 @@ using namespace std;
 // max PES packets size to flush the video.
 #define SRS_HLS_AUDIO_CACHE_SIZE 1024 * 1024
 
+// drop the segment when duration of ts too small.
+#define SRS_HLS_SEGMENT_MIN_DURATION_MS 100
+
 // @see: NGX_RTMP_HLS_DELAY, 
 // 63000: 700ms, ts_tbn=90000
 #define SRS_HLS_DELAY 63000
@@ -680,24 +683,39 @@ int SrsHlsMuxer::segment_close(string log_desc)
     it = std::find(segments.begin(), segments.end(), current);
     srs_assert(it == segments.end());
 
-    // valid, add to segments.
-    segments.push_back(current);
+    // valid, add to segments if segment duration is ok
+    if (current->duration * 1000 >= SRS_HLS_SEGMENT_MIN_DURATION_MS) {
+        segments.push_back(current);
     
-    srs_trace("%s reap ts segment, sequence_no=%d, uri=%s, duration=%.2f, start=%"PRId64"",
-        log_desc.c_str(), current->sequence_no, current->uri.c_str(), current->duration, 
-        current->segment_start_dts);
+        srs_trace("%s reap ts segment, sequence_no=%d, uri=%s, duration=%.2f, start=%"PRId64"",
+            log_desc.c_str(), current->sequence_no, current->uri.c_str(), current->duration, 
+            current->segment_start_dts);
     
-    // close the muxer of finished segment.
-    srs_freep(current->muxer);
-    // rename from tmp to real path
-    std::string tmp_file = current->full_path + ".tmp";
-    if (rename(tmp_file.c_str(), current->full_path.c_str()) < 0) {
-        ret = ERROR_HLS_WRITE_FAILED;
-        srs_error("rename ts file failed, %s => %s. ret=%d", 
-            tmp_file.c_str(), current->full_path.c_str(), ret);
-        return ret;
+        // close the muxer of finished segment.
+        srs_freep(current->muxer);
+        // rename from tmp to real path
+        std::string tmp_file = current->full_path + ".tmp";
+        if (rename(tmp_file.c_str(), current->full_path.c_str()) < 0) {
+            ret = ERROR_HLS_WRITE_FAILED;
+            srs_error("rename ts file failed, %s => %s. ret=%d", 
+                tmp_file.c_str(), current->full_path.c_str(), ret);
+            return ret;
+        }
+        current = NULL;
+    } else {
+        // reuse current segment index.
+        file_index--;
+        
+        srs_trace("%s drop ts segment, sequence_no=%d, uri=%s, duration=%.2f, start=%"PRId64"",
+            log_desc.c_str(), current->sequence_no, current->uri.c_str(), current->duration, 
+            current->segment_start_dts);
+        
+        // rename from tmp to real path
+        std::string tmp_file = current->full_path + ".tmp";
+        unlink(tmp_file.c_str());
+        
+        srs_freep(current);
     }
-    current = NULL;
     
     // the segments to remove
     std::vector<SrsHlsSegment*> segment_to_remove;
@@ -940,6 +958,9 @@ int SrsHlsCache::on_publish(SrsHlsMuxer* muxer, SrsRequest* req, int64_t segment
     
     // reset video count for new publish session.
     video_count = 0;
+    
+    // TODO: FIXME: support load exists m3u8, to continue publish stream.
+    // for the HLS donot requires the EXT-X-MEDIA-SEQUENCE be monotonically increase.
     
     // open muxer
     if ((ret = muxer->update_config(app, stream, hls_path, hls_fragment, hls_window)) != ERROR_SUCCESS) {
