@@ -32,6 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string.h>
 
 #include <algorithm>
+using namespace std;
 
 #include <srs_kernel_error.hpp>
 #include <srs_app_codec.hpp>
@@ -414,7 +415,7 @@ SrsTSMuxer::~SrsTSMuxer()
     close();
 }
 
-int SrsTSMuxer::open(std::string _path)
+int SrsTSMuxer::open(string _path)
 {
     int ret = ERROR_SUCCESS;
     
@@ -526,8 +527,7 @@ SrsHlsMuxer::~SrsHlsMuxer()
 }
 
 int SrsHlsMuxer::update_config(
-    std::string _app, std::string _stream, 
-    std::string path, int fragment, int window
+    string _app, string _stream, string path, int fragment, int window
 ) {
     int ret = ERROR_SUCCESS;
     
@@ -578,12 +578,13 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     // TODO: support base url, and so on.
     current->uri = filename;
     
-    if ((ret = current->muxer->open(current->full_path)) != ERROR_SUCCESS) {
+    std::string tmp_file = current->full_path + ".tmp";
+    if ((ret = current->muxer->open(tmp_file.c_str())) != ERROR_SUCCESS) {
         srs_error("open hls muxer failed. ret=%d", ret);
         return ret;
     }
-    srs_info("open HLS muxer success. vhost=%s, path=%s", 
-        vhost.c_str(), current->full_path.c_str());
+    srs_info("open HLS muxer success. vhost=%s, path=%s, tmp=%s", 
+        vhost.c_str(), current->full_path.c_str(), tmp_file.c_str());
     
     return ret;
 }
@@ -648,7 +649,7 @@ int SrsHlsMuxer::flush_video(
     return ret;
 }
 
-int SrsHlsMuxer::segment_close()
+int SrsHlsMuxer::segment_close(string log_desc)
 {
     int ret = ERROR_SUCCESS;
     
@@ -668,12 +669,20 @@ int SrsHlsMuxer::segment_close()
     // valid, add to segments.
     segments.push_back(current);
     
-    srs_trace("reap ts segment, sequence_no=%d, uri=%s, duration=%.2f, start=%"PRId64"",
-        current->sequence_no, current->uri.c_str(), current->duration, 
+    srs_trace("%s reap ts segment, sequence_no=%d, uri=%s, duration=%.2f, start=%"PRId64"",
+        log_desc.c_str(), current->sequence_no, current->uri.c_str(), current->duration, 
         current->segment_start_dts);
     
     // close the muxer of finished segment.
     srs_freep(current->muxer);
+    // rename from tmp to real path
+    std::string tmp_file = current->full_path + ".tmp";
+    if (rename(tmp_file.c_str(), current->full_path.c_str()) < 0) {
+        ret = ERROR_HLS_WRITE_FAILED;
+        srs_error("rename ts file failed, %s => %s. ret=%d", 
+            tmp_file.c_str(), current->full_path.c_str(), ret);
+        return ret;
+    }
     current = NULL;
     
     // the segments to remove
@@ -737,7 +746,8 @@ int SrsHlsMuxer::refresh_m3u8()
         close(fd);
         if (rename(m3u8_file.c_str(), m3u8.c_str()) < 0) {
             ret = ERROR_HLS_WRITE_FAILED;
-            srs_error("rename m3u8 file failed. ret=%d", ret);
+            srs_error("rename m3u8 file failed. "
+                "%s => %s, ret=%d", m3u8_file.c_str(), m3u8.c_str(), ret);
         }
     }
     
@@ -747,7 +757,7 @@ int SrsHlsMuxer::refresh_m3u8()
     return ret;
 }
 
-int SrsHlsMuxer::_refresh_m3u8(int& fd, std::string m3u8_file)
+int SrsHlsMuxer::_refresh_m3u8(int& fd, string m3u8_file)
 {
     int ret = ERROR_SUCCESS;
     
@@ -928,7 +938,7 @@ int SrsHlsCache::on_unpublish(SrsHlsMuxer* muxer)
         return ret;
     }
     
-    if ((ret = muxer->segment_close()) != ERROR_SUCCESS) {
+    if ((ret = muxer->segment_close("unpublish")) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -974,8 +984,7 @@ int SrsHlsCache::write_audio(SrsCodec* codec, SrsHlsMuxer* muxer, int64_t pts, S
     // for pure audio
     // start new segment when duration overflow.
     if (video_count == 0 && muxer->is_segment_overflow()) {
-        srs_trace("pure audio segment reap");
-        if ((ret = reap_segment(muxer, af->pts)) != ERROR_SUCCESS) {
+        if ((ret = reap_segment("audio", muxer, af->pts)) != ERROR_SUCCESS) {
             return ret;
         }
     }
@@ -1005,7 +1014,7 @@ int SrsHlsCache::write_video(
     // 1. base on gop.
     // 2. some gops duration overflow.
     if (vf->key && muxer->is_segment_overflow()) {
-        if ((ret = reap_segment(muxer, vf->dts)) != ERROR_SUCCESS) {
+        if ((ret = reap_segment("video", muxer, vf->dts)) != ERROR_SUCCESS) {
             return ret;
         }
     }
@@ -1019,11 +1028,11 @@ int SrsHlsCache::write_video(
     return ret;
 }
 
-int SrsHlsCache::reap_segment(SrsHlsMuxer* muxer, int64_t segment_start_dts)
+int SrsHlsCache::reap_segment(string log_desc, SrsHlsMuxer* muxer, int64_t segment_start_dts)
 {
     int ret = ERROR_SUCCESS;
 
-    if ((ret = muxer->segment_close()) != ERROR_SUCCESS) {
+    if ((ret = muxer->segment_close(log_desc)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer close segment failed. ret=%d", ret);
         return ret;
     }

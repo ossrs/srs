@@ -174,7 +174,11 @@ public:
     virtual bool is_segment_overflow();
     virtual int flush_audio(SrsMpegtsFrame* af, SrsCodecBuffer* ab);
     virtual int flush_video(SrsMpegtsFrame* af, SrsCodecBuffer* ab, SrsMpegtsFrame* vf, SrsCodecBuffer* vb);
-    virtual int segment_close();
+    /**
+    * close segment(ts).
+    * @param log_desc the description for log.
+    */
+    virtual int segment_close(std::string log_desc);
 private:
     virtual int refresh_m3u8();
     virtual int _refresh_m3u8(int& fd, std::string m3u8_file);
@@ -243,7 +247,7 @@ private:
     * then write the key frame to the new segment.
     * so, user must reap_segment then flush_video to hls muxer.
     */
-    virtual int reap_segment(SrsHlsMuxer* muxer, int64_t segment_start_dts);
+    virtual int reap_segment(std::string log_desc, SrsHlsMuxer* muxer, int64_t segment_start_dts);
     virtual int cache_audio(SrsCodec* codec, SrsCodecSample* sample);
     virtual int cache_video(SrsCodec* codec, SrsCodecSample* sample);
 };
