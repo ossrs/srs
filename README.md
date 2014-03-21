@@ -33,6 +33,7 @@ people who have submitted patches, reported bugs, added translations, helped<br/
 answer newbie questions, and generally made SRS that much better: [AUTHORS.txt](https://github.com/winlinvip/simple-rtmp-server/blob/master/AUTHORS.txt)
 
 A big THANK YOU goes to:
+* Chnvideo co-founders([wiseyoung](mailto:wiseyoung@chnvideo.com), [trueice](mailto:trueice@chnvideo.com], [leijian](leijian@chnvideo.com)) help us to open-source srs.
 * Genes amd Mabbott for creating [st](https://github.com/winlinvip/state-threads)([state-threads](http://sourceforge.net/projects/state-threads/)).
 * Michael Talyanksy for introducing us to use st.
 * Roman Arutyunyan for creating [nginx-rtmp](https://github.com/arut/nginx-rtmp-module) for srs to refer to. 
