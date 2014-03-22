@@ -187,7 +187,7 @@ _default: bandwidth librtmp-sample utest
 	@bash objs/_srs_build_summary.sh
 
 help:
-	@echo "Usage: make <help>|<clean>|<server>|<bandwidth>|<librtmp>|<librtmp-sample>|<utest>|<install>|<uninstall>"
+	@echo "Usage: make <help>|<clean>|<server>|<bandwidth>|<librtmp>|<librtmp-sample>|<utest>|<install>|<install-demo>|<uninstall>"
 	@echo "  help               display this help menu"
 	@echo "  clean              cleanup project"
 	@echo "  server             build the srs(simple rtmp server) over st(state-threads)"
@@ -196,6 +196,7 @@ help:
 	@echo "  librtmp-sample     build the srs-librtmp sample"
 	@echo "  utest              build the utest for srs"
 	@echo "  install            install srs to the prefix path"
+	@echo "  install-demo       install srs demo to the prefix path"
 	@echo "  uninstall          uninstall srs from prefix path"
 
 clean: 
@@ -214,6 +215,22 @@ cat << END >> ${SRS_MAKEFILE}
 uninstall:
 	@echo "rmdir \$(SRS_PREFIX)"
 	@rm -rf \$(SRS_PREFIX)
+
+install-demo:
+	@echo "mkdir \$(SRS_PREFIX)"
+	@mkdir -p \$(SRS_PREFIX)
+	@echo "copy binary files"
+	@mkdir -p \$(SRS_PREFIX)/research/api-server
+	@cp research/api-server/server.py \$(SRS_PREFIX)/research/api-server
+	@echo "copy html files"
+	@mkdir -p \$(SRS_PREFIX)/research/api-server/static-dir/players
+	@cp research/api-server/static-dir/crossdomain.xml \$(SRS_PREFIX)/research/api-server/static-dir
+	@cp research/api-server/static-dir/index.html \$(SRS_PREFIX)/research/api-server/static-dir
+	@cp -r research/api-server/static-dir/players/* \$(SRS_PREFIX)/research/api-server/static-dir/players
+	@echo "copy init.d script files"
+	@mkdir -p \$(SRS_PREFIX)/etc/init.d
+	@cp etc/init.d/simple-rtmp-server-api \$(SRS_PREFIX)/etc/init.d
+	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" \$(SRS_PREFIX)/etc/init.d/simple-rtmp-server-api
 
 install:
 	@echo "mkdir \$(SRS_PREFIX)"
