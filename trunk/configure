@@ -158,7 +158,10 @@ END
 # makefile
 echo "generate Makefile"
 cat << END > ${SRS_MAKEFILE}
-.PHONY: default _default help clean server bandwidth librtmp librtmp-sample utest _prepare_dir
+.PHONY: default _default install help clean server bandwidth librtmp librtmp-sample utest _prepare_dir
+
+# install prefix.
+SRS_PREFIX=${SRS_PREFIX}
 
 END
 
@@ -184,7 +187,7 @@ _default: bandwidth librtmp-sample utest
 	@bash objs/_srs_build_summary.sh
 
 help:
-	@echo "Usage: make <help>|<clean>|<server>|<bandwidth>|<librtmp>|<librtmp-sample>|<utest>"
+	@echo "Usage: make <help>|<clean>|<server>|<bandwidth>|<librtmp>|<librtmp-sample>|<utest>|<install>|<uninstall>"
 	@echo "  help               display this help menu"
 	@echo "  clean              cleanup project"
 	@echo "  server             build the srs(simple rtmp server) over st(state-threads)"
@@ -192,6 +195,8 @@ help:
 	@echo "  librtmp            build the client publish/play library."
 	@echo "  librtmp-sample     build the srs-librtmp sample"
 	@echo "  utest              build the utest for srs"
+	@echo "  install            install srs to the prefix path"
+	@echo "  uninstall          uninstall srs from prefix path"
 
 clean: 
 	(cd ${SRS_OBJS}; rm -f rm -rf srs bandwidth srs_utest)
@@ -201,6 +206,28 @@ clean:
 server: _prepare_dir
 	@echo "build the srs(simple rtmp server) over st(state-threads)"
 	\$(MAKE) -f ${SRS_OBJS}/${SRS_MAKEFILE} srs
+
+END
+
+# install entry
+cat << END >> ${SRS_MAKEFILE}
+uninstall:
+	@echo "rmdir \$(SRS_PREFIX)"
+	@rm -rf \$(SRS_PREFIX)
+
+install:
+	@echo "mkdir \$(SRS_PREFIX)"
+	@mkdir -p \$(SRS_PREFIX)
+	@echo "copy binary files"
+	@mkdir -p \$(SRS_PREFIX)/objs
+	@cp objs/srs \$(SRS_PREFIX)/objs
+	@echo "copy srs conf files"
+	@mkdir -p \$(SRS_PREFIX)/conf
+	@cp conf/*.conf \$(SRS_PREFIX)/conf
+	@echo "copy init.d script files"
+	@mkdir -p \$(SRS_PREFIX)/etc/init.d
+	@cp etc/init.d/simple-rtmp-server \$(SRS_PREFIX)/etc/init.d
+	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" \$(SRS_PREFIX)/etc/init.d/simple-rtmp-server
 
 END
 

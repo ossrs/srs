@@ -551,5 +551,9 @@ else
     echo "#undef SRS_ARM_UBUNTU12" >> $SRS_AUTO_HEADERS_H
 fi
 
+echo "" >> $SRS_AUTO_HEADERS_H
+# prefix
+echo "#define SRS_PREFIX \"${SRS_PREFIX}\"" >> $SRS_AUTO_HEADERS_H
+
 # new empty line to auto headers file.
 echo "" >> $SRS_AUTO_HEADERS_H

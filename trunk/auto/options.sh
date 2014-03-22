@@ -29,6 +29,7 @@ SRS_GPERF_CP=RESERVED # gperf cpu profile
 SRS_GPROF=RESERVED # gprof
 SRS_ARM_UBUNTU12=RESERVED # armhf(v7cpu) built on ubuntu12
 # arguments
+SRS_PREFIX=/usr/local/srs
 SRS_JOBS=1
 SRS_STATIC=RESERVED
 
@@ -85,6 +86,7 @@ do
         --without-arm-ubuntu12)         SRS_ARM_UBUNTU12=NO       ;;
         
         --jobs)                         SRS_JOBS=${value}         ;;
+        --prefix)                       SRS_PREFIX=${value}       ;;
         --static)                       SRS_STATIC=YES            ;;
 
         *)
@@ -188,6 +190,7 @@ if [ $help = yes ]; then
   --static                 whether add '-static' to link options. always set this option for arm.
   --jobs[=N]               Allow N jobs at once; infinite jobs with no arg.
                            used for make in the configure, for example, to make ffmpeg.
+  --prefix=<path>           the absolute install path for srs.
 
 END
     exit 0
@@ -250,6 +253,7 @@ if [ $SRS_GPERF_MP = RESERVED ]; then echo "you must specifies the gperf-mp, see
 if [ $SRS_GPERF_CP = RESERVED ]; then echo "you must specifies the gperf-cp, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_GPROF = RESERVED ]; then echo "you must specifies the gprof, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_ARM_UBUNTU12 = RESERVED ]; then echo "you must specifies the arm-ubuntu12, see: ./configure --help"; __check_ok=NO; fi
+if [[ -z $SRS_PREFIX ]]; then echo "you must specifies the prefix, see: ./configure --prefix"; __check_ok=NO; fi
 if [ $__check_ok = NO ]; then
     exit 1;
 fi
@@ -272,5 +276,5 @@ if [ $SRS_GPERF_CP = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-gcp"; el
 if [ $SRS_GPROF = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-gprof"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-gprof"; fi
 if [ $SRS_ARM_UBUNTU12 = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-arm-ubuntu12"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-arm-ubuntu12"; fi
 if [ $SRS_STATIC = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --static"; fi
-SRS_CONFIGURE="${SRS_CONFIGURE} ${SRS_JOBS}"
+SRS_CONFIGURE="${SRS_CONFIGURE} ${SRS_JOBS} --prefix=${SRS_PREFIX}"
 echo "regenerate config: ${SRS_CONFIGURE}"
