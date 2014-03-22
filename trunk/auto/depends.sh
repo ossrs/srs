@@ -346,7 +346,7 @@ if [ $SRS_HTTP_CALLBACK = YES ]; then
     fi
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "build CherryPy-3.2.4 failed, ret=$ret"; exit $ret; fi
-    if [ ! -f ${SRS_OBJS}/nginx/sbin/nginx ]; then echo "build CherryPy-3.2.4 failed."; exit -1; fi
+    if [ ! -f ${SRS_OBJS}/CherryPy-3.2.4/setup.py ]; then echo "build CherryPy-3.2.4 failed."; exit -1; fi
 fi
 
 if [ $SRS_HTTP_CALLBACK = YES ]; then
