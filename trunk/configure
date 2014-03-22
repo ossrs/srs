@@ -194,8 +194,7 @@ help:
 	@echo "  utest              build the utest for srs"
 
 clean: 
-	(rm -f Makefile)
-	(cd ${SRS_OBJS}; rm -rf ${SRS_BUILD_SUMMARY} srs bandwidth *.hpp srs_utest)
+	(cd ${SRS_OBJS}; rm -f rm -rf srs bandwidth srs_utest)
 	(cd ${SRS_OBJS}; rm -rf src research include lib utest)
 	(cd research/librtmp; make clean)
 

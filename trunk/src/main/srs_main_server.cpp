@@ -65,6 +65,7 @@ int main(int argc, char** argv)
 #endif
     
     signal(SIGNAL_RELOAD, handler);
+    signal(SIGTERM, handler);
     signal(SIGINT, handler);
     
     if ((ret = _srs_config->parse_options(argc, argv)) != ERROR_SUCCESS) {

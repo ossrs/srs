@@ -370,8 +370,12 @@ void SrsServer::on_signal(int signo)
 #endif
         return;
     }
-
-    // TODO: handle the SIGINT, SIGTERM.
+    
+    if (signo == SIGTERM) {
+        srs_trace("user terminate program");
+        exit(0);
+        return;
+    }
 }
 
 void SrsServer::close_listeners()
