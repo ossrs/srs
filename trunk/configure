@@ -223,7 +223,7 @@ install-demo: install
 	@mkdir -p \$(SRS_PREFIX)/research/api-server
 	@cp research/api-server/server.py \$(SRS_PREFIX)/research/api-server
 	@mkdir -p \$(SRS_PREFIX)/objs/ffmpeg/bin
-	@cp research/objs/ffmpeg/bin/ffmpeg \$(SRS_PREFIX)/objs/ffmpeg/bin
+	@cp objs/ffmpeg/bin/ffmpeg \$(SRS_PREFIX)/objs/ffmpeg/bin
 	@echo "copy html files"
 	@mkdir -p \$(SRS_PREFIX)/research/api-server/static-dir/players
 	@cp research/api-server/static-dir/crossdomain.xml \$(SRS_PREFIX)/research/api-server/static-dir
