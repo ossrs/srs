@@ -1,6 +1,6 @@
 #Simple-RTMP-Server
 
-You can [Download Released SRS](http://winlinvip.github.io/simple-rtmp-server).
+You can [Download Released SRS(下载发布版)](http://winlinvip.github.io/simple-rtmp-server).
 
 ## About
 
