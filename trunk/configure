@@ -237,7 +237,7 @@ install-api: install
 	@echo "api installed, to link and start api:"
 	@echo "     sudo ln -sf /usr/local/srs/etc/init.d/srs-api /etc/init.d/srs-api"
 	@echo "     /etc/init.d/srs-api start"
-	@echo "     http://$(shell bash auto/local_ip.sh):8085"
+	@echo "     http://\$(shell bash auto/local_ip.sh):8085"
 	@echo "@see: https://github.com/winlinvip/simple-rtmp-server/wiki/LinuxService"
 
 install:
