@@ -78,7 +78,7 @@ start() {
     fi
     
     # check again after start server
-    sleep 0.5
+    sleep 1
     for ((i = 0; i < 5; i++)); do
         # sleep a little while, for srs may start then crash.
         sleep 0.1

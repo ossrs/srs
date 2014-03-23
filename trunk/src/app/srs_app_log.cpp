@@ -243,23 +243,21 @@ void SrsFastLog::write_log(char *str_log, int size, int _level)
         printf("\033[31m%s\033[0m", str_log);
     }
 
-    // if specified log file, write log to it.
-    if (!_srs_config->get_srs_log_file().empty()) {
-        if (fd < 0) {
-            std::string filename = _srs_config->get_srs_log_file();
-            
-            fd = ::open(filename.c_str(), O_RDWR | O_APPEND);
-            
-            if(fd == -1 && errno == ENOENT) {
-                fd = open(filename.c_str(), 
-                    O_RDWR | O_CREAT | O_TRUNC, 
-                    S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH
-                );
-            }
+    // open log file.
+    if (!_srs_config->get_srs_log_file().empty() && fd < 0) {
+        std::string filename = _srs_config->get_srs_log_file();
+        
+        fd = ::open(filename.c_str(), O_RDWR | O_APPEND);
+        
+        if(fd == -1 && errno == ENOENT) {
+            fd = open(filename.c_str(), 
+                O_RDWR | O_CREAT | O_TRUNC, 
+                S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH
+            );
         }
-
-        if (fd > 0) {
-            ::write(fd, str_log, size);
-        }
+    }
+    // write log to file.
+    if (fd > 0) {
+        ::write(fd, str_log, size);
     }
 }
