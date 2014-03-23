@@ -686,7 +686,7 @@ int SrsConfig::parse_file(const char* filename)
     
     std::string log_filename = this->get_srs_log_file();
     if (!log_filename.empty()) {
-        srs_trace("open log file %s and write to", log_filename.c_str());
+        srs_trace("log file is %s", log_filename.c_str());
     }
     
     return ret;
