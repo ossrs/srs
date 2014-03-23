@@ -231,8 +231,8 @@ install-demo: install
 	@cp -r research/api-server/static-dir/players/* \$(SRS_PREFIX)/research/api-server/static-dir/players
 	@echo "copy init.d script files"
 	@mkdir -p \$(SRS_PREFIX)/etc/init.d
-	@cp etc/init.d/simple-rtmp-server-api \$(SRS_PREFIX)/etc/init.d
-	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" \$(SRS_PREFIX)/etc/init.d/simple-rtmp-server-api
+	@cp etc/init.d/srs-api \$(SRS_PREFIX)/etc/init.d
+	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" \$(SRS_PREFIX)/etc/init.d/srs-api
 
 install:
 	@echo "mkdir \$(SRS_PREFIX)"
@@ -245,8 +245,8 @@ install:
 	@cp conf/*.conf \$(SRS_PREFIX)/conf
 	@echo "copy init.d script files"
 	@mkdir -p \$(SRS_PREFIX)/etc/init.d
-	@cp etc/init.d/simple-rtmp-server \$(SRS_PREFIX)/etc/init.d
-	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" \$(SRS_PREFIX)/etc/init.d/simple-rtmp-server
+	@cp etc/init.d/srs \$(SRS_PREFIX)/etc/init.d
+	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" \$(SRS_PREFIX)/etc/init.d/srs
 
 END
 
