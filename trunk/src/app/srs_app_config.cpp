@@ -684,6 +684,11 @@ int SrsConfig::parse_file(const char* filename)
     // TODO: check http.
     // TODO: check pid.
     
+    std::string filename = this->get_srs_log_file();
+    if (!filename.empty()) {
+        srs_trace("open log file %s and write to", filename.c_str());
+    }
+    
     return ret;
 }
 
@@ -1253,13 +1258,25 @@ string SrsConfig::get_engine_output(SrsConfDirective* engine)
     return conf->arg0();
 }
 
-string SrsConfig::get_log_dir()
+string SrsConfig::get_ffmpeg_log_dir()
 {
     srs_assert(root);
     
-    SrsConfDirective* conf = root->get("log_dir");
+    SrsConfDirective* conf = root->get("ff_log_dir");
     if (!conf || conf->arg0().empty()) {
         return "./objs/logs";
+    }
+    
+    return conf->arg0();
+}
+
+string SrsConfig::get_srs_log_file()
+{
+    srs_assert(root);
+    
+    SrsConfDirective* conf = root->get("srs_log_file");
+    if (!conf || conf->arg0().empty()) {
+        return "";
     }
     
     return conf->arg0();

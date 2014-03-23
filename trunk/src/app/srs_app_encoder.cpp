@@ -118,7 +118,7 @@ int SrsFFMPEG::initialize(SrsRequest* req, SrsConfDirective* engine)
     output = srs_replace(output, "[engine]", engine->arg0());
     
     // write ffmpeg info to log file.
-    log_file = _srs_config->get_log_dir();
+    log_file = _srs_config->get_ffmpeg_log_dir();
     log_file += "/";
     log_file += "encoder";
     log_file += "-";

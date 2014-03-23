@@ -16,6 +16,7 @@ ROOT="./"
 APP="./objs/srs"
 CONFIG="./conf/srs.conf"
 DEFAULT_PID_FILE='./objs/srs.pid'
+DEFAULT_LOG_FILE='./objs/srs.log'
 
 ########################################################################
 # utility functions
@@ -65,10 +66,17 @@ start() {
     
     # not exists, start server
     ok_msg "Starting SRS..."
+    
+    # get log file
+    srs_log_file=`cat ${ROOT}/${CONFIG} |grep '^srs_log_file'| awk '{print $2}'| awk -F ';' '{print $1}'`
+    
     # TODO: FIXME: set limit by, for instance, "ulimit -HSn 10000"
-    # TODO: FIXME: write log to, for instance, the same dir of log.
     # TODO: FIXME: support deamon, without nohup.
-    (cd ${ROOT}; nohup ${APP} -c ${CONFIG} >/dev/null 2>&1 &)
+    if [[ -z $srs_log_file ]]; then
+        (cd ${ROOT}; nohup ${APP} -c ${CONFIG} >/dev/null 2>&1 &)
+    else
+        (cd ${ROOT}; nohup ${APP} -c ${CONFIG} >> $srs_log_file 2>&1 &)
+    fi
     
     # check again after start server
     sleep 0.5

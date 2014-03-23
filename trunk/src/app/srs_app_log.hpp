@@ -80,6 +80,8 @@ private:
     // defined in SrsLogLevel.
     int level;
     char* log_data;
+    // log to file if specified srs_log_file
+    int fd;
 public:
     SrsFastLog();
     virtual ~SrsFastLog();

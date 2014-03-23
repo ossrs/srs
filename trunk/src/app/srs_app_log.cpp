@@ -26,6 +26,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdarg.h>
 #include <sys/time.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+#include <srs_app_config.hpp>
+
 SrsThreadContext::SrsThreadContext()
 {
 }
@@ -57,11 +63,18 @@ SrsFastLog::SrsFastLog()
 {
     level = SrsLogLevel::Trace;
     log_data = new char[LOG_MAX_SIZE];
+
+    fd = -1;
 }
 
 SrsFastLog::~SrsFastLog()
 {
     srs_freepa(log_data);
+
+    if (fd > 0) {
+        ::close(fd);
+        fd = -1;
+    }
 }
 
 void SrsFastLog::verbose(const char* tag, int context_id, const char* fmt, ...)
@@ -228,5 +241,25 @@ void SrsFastLog::write_log(char *str_log, int size, int _level)
         printf("\033[33m%s\033[0m", str_log);
     } else{
         printf("\033[31m%s\033[0m", str_log);
+    }
+
+    // if specified log file, write log to it.
+    if (!_srs_config->get_srs_log_file().empty()) {
+        if (fd < 0) {
+            std::string filename = _srs_config->get_srs_log_file();
+            
+            fd = ::open(filename.c_str(), O_RDWR | O_APPEND);
+            
+            if(fd == -1 && errno == ENOENT) {
+                fd = open(filename.c_str(), 
+                    O_RDWR | O_CREAT | O_TRUNC, 
+                    S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH
+                );
+            }
+        }
+
+        if (fd > 0) {
+            ::write(fd, str_log, size);
+        }
     }
 }

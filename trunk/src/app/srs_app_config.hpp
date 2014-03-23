@@ -147,7 +147,8 @@ public:
     virtual int                 get_engine_achannels(SrsConfDirective* engine);
     virtual void                get_engine_aparams(SrsConfDirective* engine, std::vector<std::string>& aparams);
     virtual std::string         get_engine_output(SrsConfDirective* engine);
-    virtual std::string         get_log_dir();
+    virtual std::string         get_ffmpeg_log_dir();
+    virtual std::string         get_srs_log_file();
     virtual int                 get_max_connections();
     virtual bool                get_gop_cache(std::string vhost);
     virtual double              get_queue_length(std::string vhost);
