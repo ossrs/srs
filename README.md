@@ -15,7 +15,7 @@ rtmp([encoder push](https://github.com/winlinvip/simple-rtmp-server/wiki/Deliver
 
 Blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
 See also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) <br/>
-Github demo(with your SRS): [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.github.io/simple-rtmp-server) <br/>
+Github demo(with your SRS): [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.github.io/simple-rtmp-server/trunk/research/players/srs_player.html?server=192.168.1.170&vhost=192.168.1.170) <br/>
 Wiki: [https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki) <br/>
 TencentQQ: [http://url.cn/WAHICw](http://url.cn/WAHICw) (Group: 212189142)
 
