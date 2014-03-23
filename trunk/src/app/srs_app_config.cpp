@@ -1304,7 +1304,7 @@ bool SrsConfig::get_deamon()
 {
     srs_assert(root);
     
-    SrsConfDirective* conf = root->get("deamon");
+    SrsConfDirective* conf = root->get("daemon");
     if (conf && conf->arg0() == "off") {
         return false;
     }
