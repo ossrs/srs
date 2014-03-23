@@ -71,6 +71,15 @@ start() {
     (cd ${ROOT}; nohup ${APP} -c ${CONFIG} >/dev/null 2>&1 &)
     
     # check again after start server
+    sleep 0.5
+    for ((i = 0; i < 5; i++)); do
+        # sleep a little while, for srs may start then crash.
+        sleep 0.1
+        load_process_info
+        ret=$?; if [[ 0 -ne $ret ]]; then failed_msg "SRS start failed"; return $ret; fi
+    done
+    
+    # check whether started.
     load_process_info
     ret=$?; if [[ 0 -eq $? ]]; then ok_msg "SRS started(pid ${srs_pid})"; return 0; fi
     

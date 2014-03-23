@@ -158,7 +158,7 @@ END
 # makefile
 echo "generate Makefile"
 cat << END > ${SRS_MAKEFILE}
-.PHONY: default _default install help clean server bandwidth librtmp librtmp-sample utest _prepare_dir
+.PHONY: default _default install install-api help clean server bandwidth librtmp librtmp-sample utest _prepare_dir
 
 # install prefix.
 SRS_PREFIX=${SRS_PREFIX}
@@ -187,7 +187,7 @@ _default: bandwidth librtmp-sample utest
 	@bash objs/_srs_build_summary.sh
 
 help:
-	@echo "Usage: make <help>|<clean>|<server>|<bandwidth>|<librtmp>|<librtmp-sample>|<utest>|<install>|<install-demo>|<uninstall>"
+	@echo "Usage: make <help>|<clean>|<server>|<bandwidth>|<librtmp>|<librtmp-sample>|<utest>|<install>|<install-api>|<uninstall>"
 	@echo "  help               display this help menu"
 	@echo "  clean              cleanup project"
 	@echo "  server             build the srs(simple rtmp server) over st(state-threads)"
@@ -196,7 +196,7 @@ help:
 	@echo "  librtmp-sample     build the srs-librtmp sample"
 	@echo "  utest              build the utest for srs"
 	@echo "  install            install srs to the prefix path"
-	@echo "  install-demo       install srs demo to the prefix path"
+	@echo "  install-api        install srs api to the prefix path"
 	@echo "  uninstall          uninstall srs from prefix path"
 
 clean: 
@@ -216,7 +216,7 @@ uninstall:
 	@echo "rmdir \$(SRS_PREFIX)"
 	@rm -rf \$(SRS_PREFIX)
 
-install-demo: install
+install-api: install
 	@echo "mkdir \$(SRS_PREFIX)"
 	@mkdir -p \$(SRS_PREFIX)
 	@echo "copy binary files"
@@ -233,6 +233,12 @@ install-demo: install
 	@mkdir -p \$(SRS_PREFIX)/etc/init.d
 	@cp etc/init.d/srs-api \$(SRS_PREFIX)/etc/init.d
 	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" \$(SRS_PREFIX)/etc/init.d/srs-api
+	@echo ""
+	@echo "api installed, to link and start api:"
+	@echo "     sudo ln -sf /usr/local/srs/etc/init.d/srs-api /etc/init.d/srs-api"
+	@echo "     /etc/init.d/srs-api start"
+	@echo "     http://$(shell bash auto/local_ip.sh):8085"
+	@echo "@see: https://github.com/winlinvip/simple-rtmp-server/wiki/LinuxService"
 
 install:
 	@echo "mkdir \$(SRS_PREFIX)"
@@ -247,6 +253,11 @@ install:
 	@mkdir -p \$(SRS_PREFIX)/etc/init.d
 	@cp etc/init.d/srs \$(SRS_PREFIX)/etc/init.d
 	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" \$(SRS_PREFIX)/etc/init.d/srs
+	@echo ""
+	@echo "srs installed, to link and start srs:"
+	@echo "     sudo ln -sf /usr/local/srs/etc/init.d/srs /etc/init.d/srs"
+	@echo "     /etc/init.d/srs start"
+	@echo "@see: https://github.com/winlinvip/simple-rtmp-server/wiki/LinuxService"
 
 END
 
