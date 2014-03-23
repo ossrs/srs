@@ -1282,6 +1282,18 @@ string SrsConfig::get_srs_log_file()
     return conf->arg0();
 }
 
+bool SrsConfig::get_deamon()
+{
+    srs_assert(root);
+    
+    SrsConfDirective* conf = root->get("deamon");
+    if (conf && conf->arg0() == "off") {
+        return false;
+    }
+    
+    return true;
+}
+
 int SrsConfig::get_max_connections()
 {
     srs_assert(root);

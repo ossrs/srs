@@ -71,11 +71,10 @@ start() {
     srs_log_file=`cat ${ROOT}/${CONFIG} |grep '^srs_log_file'| awk '{print $2}'| awk -F ';' '{print $1}'`
     
     # TODO: FIXME: set limit by, for instance, "ulimit -HSn 10000"
-    # TODO: FIXME: support deamon, without nohup.
     if [[ -z $srs_log_file ]]; then
-        (cd ${ROOT}; nohup ${APP} -c ${CONFIG} >/dev/null 2>&1 &)
+        (cd ${ROOT}; ${APP} -c ${CONFIG} >/dev/null 2>&1)
     else
-        (cd ${ROOT}; nohup ${APP} -c ${CONFIG} >> $srs_log_file 2>&1 &)
+        (cd ${ROOT}; ${APP} -c ${CONFIG} >> $srs_log_file 2>&1)
     fi
     
     # check again after start server

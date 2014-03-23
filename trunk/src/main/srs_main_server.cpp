@@ -37,6 +37,9 @@ SrsServer* _srs_server = new SrsServer();
 #include <stdlib.h>
 #include <signal.h>
 
+#include <sys/types.h>
+#include <sys/wait.h>
+
 #ifdef SRS_GPERF_MP
     #include <gperftools/heap-profiler.h>
 #endif
@@ -50,37 +53,13 @@ void handler(int signo)
     _srs_server->on_signal(signo);
 }
 
-int main(int argc, char** argv) 
+int run_master() 
 {
     int ret = ERROR_SUCCESS;
-    
-    // TODO: support both little and big endian.
-    srs_assert(srs_is_little_endian());
-
-#ifdef SRS_GPERF_MP
-    HeapProfilerStart("gperf.srs.gmp");
-#endif
-#ifdef SRS_GPERF_CP
-    ProfilerStart("gperf.srs.gcp");
-#endif
     
     signal(SIGNAL_RELOAD, handler);
     signal(SIGTERM, handler);
     signal(SIGINT, handler);
-    
-    if ((ret = _srs_config->parse_options(argc, argv)) != ERROR_SUCCESS) {
-        return ret;
-    }
-
-#ifdef SRS_GPERF_MC
-    #ifdef SRS_GPERF_MP
-    srs_error("option --with-gmc confict with --with-gmp, "
-        "@see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html\n"
-        "Note that since the heap-checker uses the heap-profiling framework internally, "
-        "it is not possible to run both the heap-checker and heap profiler at the same time");
-    return -1;
-    #endif
-#endif
 
     srs_trace("uname: "SRS_UNAME);
     srs_trace("build: %s, %s", SRS_BUILD_DATE, srs_is_little_endian()? "little-endian":"big-endian");
@@ -105,4 +84,82 @@ int main(int argc, char** argv)
     }
     
     return 0;
+}
+
+int run() 
+{
+    // if not deamon, directly run master.
+    if (!_srs_config->get_deamon()) {
+        return run_master();
+    }
+    
+    srs_trace("start deamon mode...");
+    
+    int pid = fork();
+    
+    if(pid == -1){
+        srs_error("create process error. ret=-1"); //ret=0
+        return -1;
+    }
+
+    // grandpa
+    if(pid > 0){
+        int status = 0;
+        if(waitpid(pid, &status, 0) == -1){
+            srs_error("wait child process error! ret=-1"); //ret=0
+        }
+        srs_trace("grandpa process exit.");
+        exit(0);
+        return 0;
+    }
+
+    // father
+    pid = fork();
+    
+    if(pid == -1){
+        srs_error("create process error. ret=-1");
+        return -1;
+    }
+
+    if(pid > 0){
+        srs_trace("father process exit. ret=-1");
+        exit(0);
+        return 0;
+    }
+
+    // son
+    srs_trace("son(deamon) process running.");
+    
+    return run_master();
+}
+
+int main(int argc, char** argv) 
+{
+    int ret = ERROR_SUCCESS;
+    
+    // TODO: support both little and big endian.
+    srs_assert(srs_is_little_endian());
+
+#ifdef SRS_GPERF_MP
+    HeapProfilerStart("gperf.srs.gmp");
+#endif
+#ifdef SRS_GPERF_CP
+    ProfilerStart("gperf.srs.gcp");
+#endif
+
+#ifdef SRS_GPERF_MC
+    #ifdef SRS_GPERF_MP
+    srs_error("option --with-gmc confict with --with-gmp, "
+        "@see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html\n"
+        "Note that since the heap-checker uses the heap-profiling framework internally, "
+        "it is not possible to run both the heap-checker and heap profiler at the same time");
+    return -1;
+    #endif
+#endif
+    
+    if ((ret = _srs_config->parse_options(argc, argv)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return run();
 }
