@@ -44,8 +44,8 @@ do
 
     case "$option" in
         -*=*) 
-            value=`echo "$option" | sed -e 's/[-_a-zA-Z0-9]*=//'` 
-            option=`echo "$option" | sed -e 's/=[-_a-zA-Z0-9]*//'`
+            value=`echo "$option" | sed -e 's|[-_a-zA-Z0-9/]*=||'` 
+            option=`echo "$option" | sed -e 's|=[-_a-zA-Z0-9/]*||'`
         ;;
            *) value="" ;;
     esac

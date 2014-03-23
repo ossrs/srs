@@ -162,6 +162,7 @@ cat << END > ${SRS_MAKEFILE}
 
 # install prefix.
 SRS_PREFIX=${SRS_PREFIX}
+DESTDIR=\$(SRS_PREFIX)
 
 END
 
@@ -217,22 +218,22 @@ uninstall:
 	@rm -rf \$(SRS_PREFIX)
 
 install-api: install
-	@echo "mkdir \$(SRS_PREFIX)"
-	@mkdir -p \$(SRS_PREFIX)
+	@echo "mkdir \$(DESTDIR)"
+	@mkdir -p \$(DESTDIR)
 	@echo "copy binary files"
-	@mkdir -p \$(SRS_PREFIX)/research/api-server
-	@cp research/api-server/server.py \$(SRS_PREFIX)/research/api-server
-	@mkdir -p \$(SRS_PREFIX)/objs/ffmpeg/bin
-	@cp objs/ffmpeg/bin/ffmpeg \$(SRS_PREFIX)/objs/ffmpeg/bin
+	@mkdir -p \$(DESTDIR)/research/api-server
+	@cp research/api-server/server.py \$(DESTDIR)/research/api-server
+	@mkdir -p \$(DESTDIR)/objs/ffmpeg/bin
+	@cp objs/ffmpeg/bin/ffmpeg \$(DESTDIR)/objs/ffmpeg/bin
 	@echo "copy html files"
-	@mkdir -p \$(SRS_PREFIX)/research/api-server/static-dir/players
-	@cp research/api-server/static-dir/crossdomain.xml \$(SRS_PREFIX)/research/api-server/static-dir
-	@cp research/api-server/static-dir/index.html \$(SRS_PREFIX)/research/api-server/static-dir
-	@cp -r research/api-server/static-dir/players/* \$(SRS_PREFIX)/research/api-server/static-dir/players
+	@mkdir -p \$(DESTDIR)/research/api-server/static-dir/players
+	@cp research/api-server/static-dir/crossdomain.xml \$(DESTDIR)/research/api-server/static-dir
+	@cp research/api-server/static-dir/index.html \$(DESTDIR)/research/api-server/static-dir
+	@cp -r research/api-server/static-dir/players/* \$(DESTDIR)/research/api-server/static-dir/players
 	@echo "copy init.d script files"
-	@mkdir -p \$(SRS_PREFIX)/etc/init.d
-	@cp etc/init.d/srs-api \$(SRS_PREFIX)/etc/init.d
-	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" \$(SRS_PREFIX)/etc/init.d/srs-api
+	@mkdir -p \$(DESTDIR)/etc/init.d
+	@cp etc/init.d/srs-api \$(DESTDIR)/etc/init.d
+	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" \$(DESTDIR)/etc/init.d/srs-api
 	@echo ""
 	@echo "api installed, to link and start api:"
 	@echo "     sudo ln -sf /usr/local/srs/etc/init.d/srs-api /etc/init.d/srs-api"
@@ -241,18 +242,18 @@ install-api: install
 	@echo "@see: https://github.com/winlinvip/simple-rtmp-server/wiki/LinuxService"
 
 install:
-	@echo "mkdir \$(SRS_PREFIX)"
-	@mkdir -p \$(SRS_PREFIX)
+	@echo "mkdir \$(DESTDIR)"
+	@mkdir -p \$(DESTDIR)
 	@echo "copy binary files"
-	@mkdir -p \$(SRS_PREFIX)/objs
-	@cp objs/srs \$(SRS_PREFIX)/objs
+	@mkdir -p \$(DESTDIR)/objs
+	@cp objs/srs \$(DESTDIR)/objs
 	@echo "copy srs conf files"
-	@mkdir -p \$(SRS_PREFIX)/conf
-	@cp conf/*.conf \$(SRS_PREFIX)/conf
+	@mkdir -p \$(DESTDIR)/conf
+	@cp conf/*.conf \$(DESTDIR)/conf
 	@echo "copy init.d script files"
-	@mkdir -p \$(SRS_PREFIX)/etc/init.d
-	@cp etc/init.d/srs \$(SRS_PREFIX)/etc/init.d
-	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" \$(SRS_PREFIX)/etc/init.d/srs
+	@mkdir -p \$(DESTDIR)/etc/init.d
+	@cp etc/init.d/srs \$(DESTDIR)/etc/init.d
+	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" \$(DESTDIR)/etc/init.d/srs
 	@echo ""
 	@echo "srs installed, to link and start srs:"
 	@echo "     sudo ln -sf /usr/local/srs/etc/init.d/srs /etc/init.d/srs"

@@ -639,7 +639,7 @@ int SrsConfig::parse_options(int argc, char** argv)
     }
     
     if (show_version) {
-        printf("%s\n", RTMP_SIG_SRS_VERSION);
+        fprintf(stderr, "%s\n", RTMP_SIG_SRS_VERSION);
     }
     
     if (show_help || show_version) {
