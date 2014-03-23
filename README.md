@@ -169,6 +169,7 @@ See also: [Performance Test Guide](https://github.com/winlinvip/simple-rtmp-serv
 * nginx v1.5.0: 139524 lines <br/>
 
 ## History
+* v1.0, 2014-03-23, support daemon, default start in daemon.
 * v1.0, 2014-03-22, support make install/install-api and uninstall.
 * v1.0, 2014-03-22, add ./etc/init.d/srs, refine to support make clean then make.
 * v1.0, 2014-03-21, write pid to ./objs/srs.pid.
