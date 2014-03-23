@@ -684,9 +684,9 @@ int SrsConfig::parse_file(const char* filename)
     // TODO: check http.
     // TODO: check pid.
     
-    std::string filename = this->get_srs_log_file();
-    if (!filename.empty()) {
-        srs_trace("open log file %s and write to", filename.c_str());
+    std::string log_filename = this->get_srs_log_file();
+    if (!log_filename.empty()) {
+        srs_trace("open log file %s and write to", log_filename.c_str());
     }
     
     return ret;
