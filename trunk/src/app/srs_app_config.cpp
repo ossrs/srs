@@ -1282,7 +1282,7 @@ string SrsConfig::get_srs_log_file()
     
     SrsConfDirective* conf = root->get("srs_log_file");
     if (!conf || conf->arg0().empty()) {
-        return "";
+        return "./objs/srs.log";
     }
     
     return conf->arg0();
@@ -1293,11 +1293,11 @@ bool SrsConfig::get_srs_log_tank_file()
     srs_assert(root);
     
     SrsConfDirective* conf = root->get("srs_log_tank");
-    if (conf && conf->arg0() == "file") {
-        return true;
+    if (conf && conf->arg0() == "console") {
+        return false;
     }
     
-    return false;
+    return true;
 }
 
 bool SrsConfig::get_deamon()

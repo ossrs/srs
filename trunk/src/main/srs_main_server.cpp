@@ -61,6 +61,10 @@ int run_master()
     signal(SIGTERM, handler);
     signal(SIGINT, handler);
     
+    if ((ret = _srs_server->acquire_pid_file()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     if ((ret = _srs_server->initialize_st()) != ERROR_SUCCESS) {
         return ret;
     }
@@ -158,10 +162,6 @@ int main(int argc, char** argv)
     srs_trace("configure: "SRS_CONFIGURE);
     
     if ((ret = _srs_server->initialize()) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    if ((ret = _srs_server->acquire_pid_file()) != ERROR_SUCCESS) {
         return ret;
     }
     
