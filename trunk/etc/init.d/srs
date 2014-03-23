@@ -27,11 +27,11 @@ YELLOW="\\e[33m"
 BLACK="\\e[0m"
 POS="\\e[60G"
 
-ok_msg(){
+ok_msg() {
     echo -e "${1}${POS}${BLACK}[${GREEN}  OK  ${BLACK}]"
 }
 
-failed_msg(){
+failed_msg() {
     echo -e "${1}${POS}${BLACK}[${RED}FAILED${BLACK}]"
 }
 
@@ -43,14 +43,14 @@ failed_msg(){
 # @set variable $error_msg if error.
 # @set variable $srs_pid_file to pid file.
 load_process_info() {
+    # get pid file
     srs_pid_file=`cat ${ROOT}/${CONFIG} |grep ^pid|awk '{print $2}'|awk -F ';' '{print $1}'`
     if [[ -z $srs_pid_file ]]; then srs_pid_file=${DEFAULT_PID_FILE}; fi
+    # get abs path
+    srs_pid_dir=`dirname $srs_pid_file`
+    srs_pid_file=`(cd ${ROOT}; cd $srs_pid_dir; pwd)`/`basename $srs_pid_file`
     
-    if [[ -f $srs_pid_file ]]; then
-        srs_pid=`cat $srs_pid_file 2>/dev/null`
-    else
-        srs_pid=`cat ${ROOT}/$srs_pid_file 2>/dev/null`
-    fi
+    srs_pid=`cat $srs_pid_file 2>/dev/null`
     ret=$?; if [[ 0 -ne $ret ]]; then error_msg="file $srs_pid_file does not exists"; return 1; fi
     
     ps -p ${srs_pid} >/dev/null 2>/dev/null
@@ -69,21 +69,24 @@ start() {
     
     # get log file
     srs_log_file=`cat ${ROOT}/${CONFIG} |grep '^srs_log_file'| awk '{print $2}'| awk -F ';' '{print $1}'`
+    if [[ -z $srs_log_file ]]; then srs_log_file=${DEFAULT_LOG_FILE}; fi
+    # get abs path
+    srs_log_dir=`dirname $srs_log_file`
+    srs_log_file=`(cd ${ROOT}; cd $srs_log_dir; pwd)`/`basename $srs_log_file`
     
     # TODO: FIXME: set limit by, for instance, "ulimit -HSn 10000"
     if [[ -z $srs_log_file ]]; then
-        (cd ${ROOT}; ${APP} -c ${CONFIG} >/dev/null 2>&1)
+        (cd ${ROOT}; ${ROOT}/${APP} -c ${CONFIG} >/dev/null 2>&1)
     else
-        (cd ${ROOT}; ${APP} -c ${CONFIG} >> $srs_log_file 2>&1)
+        (cd ${ROOT}; ${ROOT}/${APP} -c ${CONFIG} >> $srs_log_file 2>&1)
     fi
     
     # check again after start server
-    sleep 1
     for ((i = 0; i < 5; i++)); do
         # sleep a little while, for srs may start then crash.
         sleep 0.1
         load_process_info
-        ret=$?; if [[ 0 -ne $ret ]]; then failed_msg "SRS start failed"; return $ret; fi
+        ret=$?; if [[ 0 -ne $ret ]]; then failed_msg "SRS start failed, see $srs_log_file"; return $ret; fi
     done
     
     # check whether started.

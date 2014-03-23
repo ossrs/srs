@@ -179,26 +179,6 @@ SrsServer::~SrsServer()
 int SrsServer::initialize()
 {
     int ret = ERROR_SUCCESS;
-    
-    // use linux epoll.
-    if (st_set_eventsys(ST_EVENTSYS_ALT) == -1) {
-        ret = ERROR_ST_SET_EPOLL;
-        srs_error("st_set_eventsys use linux epoll failed. ret=%d", ret);
-        return ret;
-    }
-    srs_verbose("st_set_eventsys use linux epoll success");
-    
-    if(st_init() != 0){
-        ret = ERROR_ST_INITIALIZE;
-        srs_error("st_init failed. ret=%d", ret);
-        return ret;
-    }
-    srs_verbose("st_init success");
-    
-    // set current log id.
-    _srs_context->generate_id();
-    srs_info("log set id success");
-    
     return ret;
 }
 
@@ -273,6 +253,32 @@ int SrsServer::acquire_pid_file()
     }
     
     srs_trace("write pid=%d to %s success!", pid, pid_file.c_str());
+    
+    return ret;
+}
+
+int SrsServer::initialize_st()
+{
+    int ret = ERROR_SUCCESS;
+    
+    // use linux epoll.
+    if (st_set_eventsys(ST_EVENTSYS_ALT) == -1) {
+        ret = ERROR_ST_SET_EPOLL;
+        srs_error("st_set_eventsys use linux epoll failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("st_set_eventsys use linux epoll success");
+    
+    if(st_init() != 0){
+        ret = ERROR_ST_INITIALIZE;
+        srs_error("st_init failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("st_init success");
+    
+    // set current log id.
+    _srs_context->generate_id();
+    srs_info("log set id success");
     
     return ret;
 }

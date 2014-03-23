@@ -42,7 +42,7 @@ SrsThreadContext::~SrsThreadContext()
 
 void SrsThreadContext::generate_id()
 {
-    static int id = 1;
+    static int id = 100;
     cache[st_thread_self()] = id++;
 }
 
@@ -230,20 +230,22 @@ void SrsFastLog::write_log(char *str_log, int size, int _level)
     log_data[size++] = LOG_TAIL;
     log_data[size++] = 0;
     
-    // if is error msg, then print color msg.
-    // \033[31m : red text code in shell
-    // \033[32m : green text code in shell
-    // \033[33m : yellow text code in shell
-    // \033[0m : normal text code
-    if (_level <= SrsLogLevel::Trace) {
-        printf("%s", str_log);
-    } else if (_level == SrsLogLevel::Warn) {
-        printf("\033[33m%s\033[0m", str_log);
-    } else{
-        printf("\033[31m%s\033[0m", str_log);
+    if (fd < 0 || !_srs_config->get_srs_log_tank_file()) {
+        // if is error msg, then print color msg.
+        // \033[31m : red text code in shell
+        // \033[32m : green text code in shell
+        // \033[33m : yellow text code in shell
+        // \033[0m : normal text code
+        if (_level <= SrsLogLevel::Trace) {
+            printf("%s", str_log);
+        } else if (_level == SrsLogLevel::Warn) {
+            printf("\033[33m%s\033[0m", str_log);
+        } else{
+            printf("\033[31m%s\033[0m", str_log);
+        }
     }
-
-    // open log file.
+    
+    // open log file. if specified
     if (!_srs_config->get_srs_log_file().empty() && fd < 0) {
         std::string filename = _srs_config->get_srs_log_file();
         
@@ -256,8 +258,9 @@ void SrsFastLog::write_log(char *str_log, int size, int _level)
             );
         }
     }
+    
     // write log to file.
-    if (fd > 0) {
+    if (fd > 0 && _srs_config->get_srs_log_tank_file()) {
         ::write(fd, str_log, size);
     }
 }

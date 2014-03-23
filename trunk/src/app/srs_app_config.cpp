@@ -308,7 +308,7 @@ int SrsConfDirective::read_token(SrsFileBuffer* buffer, std::vector<string>& arg
                 srs_error("line %d: unexpected end of file, expecting ; or \"}\"", buffer->line);
                 return ERROR_SYSTEM_CONFIG_INVALID;
             }
-            srs_trace("end of file. ret=%d", ret);
+            srs_trace("config parsed EOF");
             
             return ret;
         }
@@ -684,7 +684,13 @@ int SrsConfig::parse_file(const char* filename)
     // TODO: check http.
     // TODO: check pid.
     
+    // check log
     std::string log_filename = this->get_srs_log_file();
+    if (this->get_srs_log_tank_file() && log_filename.empty()) {
+        ret = ERROR_SYSTEM_CONFIG_INVALID;
+        srs_error("must specifies the file to write log to. ret=%d", ret);
+        return ret;
+    }
     if (!log_filename.empty()) {
         srs_trace("log file is %s", log_filename.c_str());
     }
@@ -1280,6 +1286,18 @@ string SrsConfig::get_srs_log_file()
     }
     
     return conf->arg0();
+}
+
+bool SrsConfig::get_srs_log_tank_file()
+{
+    srs_assert(root);
+    
+    SrsConfDirective* conf = root->get("srs_log_tank");
+    if (conf && conf->arg0() == "file") {
+        return true;
+    }
+    
+    return false;
 }
 
 bool SrsConfig::get_deamon()

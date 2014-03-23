@@ -60,18 +60,8 @@ int run_master()
     signal(SIGNAL_RELOAD, handler);
     signal(SIGTERM, handler);
     signal(SIGINT, handler);
-
-    srs_trace("uname: "SRS_UNAME);
-    srs_trace("build: %s, %s", SRS_BUILD_DATE, srs_is_little_endian()? "little-endian":"big-endian");
-    srs_trace("configure: "SRS_CONFIGURE);
     
-    if ((ret = _srs_server->initialize()) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    // TODO: create log dir in _srs_config->get_log_dir()
-    
-    if ((ret = _srs_server->acquire_pid_file()) != ERROR_SUCCESS) {
+    if ((ret = _srs_server->initialize_st()) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -137,6 +127,8 @@ int main(int argc, char** argv)
 {
     int ret = ERROR_SUCCESS;
     
+    srs_trace("srs(simple-rtmp-server)");
+    
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
 
@@ -158,6 +150,18 @@ int main(int argc, char** argv)
 #endif
     
     if ((ret = _srs_config->parse_options(argc, argv)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    srs_trace("uname: "SRS_UNAME);
+    srs_trace("build: %s, %s", SRS_BUILD_DATE, srs_is_little_endian()? "little-endian":"big-endian");
+    srs_trace("configure: "SRS_CONFIGURE);
+    
+    if ((ret = _srs_server->initialize()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = _srs_server->acquire_pid_file()) != ERROR_SUCCESS) {
         return ret;
     }
     
