@@ -131,7 +131,7 @@ int main(int argc, char** argv)
 {
     int ret = ERROR_SUCCESS;
     
-    srs_trace("srs(simple-rtmp-server)");
+    srs_trace("srs(simple-rtmp-server) "RTMP_SIG_SRS_VERSION);
     
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
