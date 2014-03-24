@@ -27,7 +27,7 @@ ret=$?; if [[ $ret -ne 0 ]]; then exit $ret; fi
 os_name=`lsb_release --id|awk '{print $3}'` &&
 os_release=`lsb_release --release|awk '{print $2}'` &&
 os_major_version=`echo $os_release|awk -F '.' '{print $1}'` &&
-os_machine=`uname -m`
+os_machine=`uname -i`
 ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "lsb_release get os info failed."; exit $ret; fi
 ok_msg "target os is ${os_name}-${os_major_version} ${os_release} ${os_machine}"
 
