@@ -109,7 +109,7 @@ function Ubuntu_prepare()
     echo "Ubuntu install tools success"
     return 0
 }
-Ubuntu_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "Ubuntu perfapre failed, ret=$ret"; exit $ret; fi
+Ubuntu_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "Ubuntu prepare failed, ret=$ret"; exit $ret; fi
 #####################################################################################
 # for Centos, auto install tools by yum
 #####################################################################################
@@ -193,7 +193,7 @@ function Centos_prepare()
     echo "Centos install tools success"
     return 0
 }
-Centos_prepare; ret=$?; if [[ 0 -ne $ret ]]; then "CentOS perfapre failed, ret=$ret"; exit $ret; fi
+Centos_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "CentOS prepare failed, ret=$ret"; exit $ret; fi
 
 #####################################################################################
 # st-1.9
