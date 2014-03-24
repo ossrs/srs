@@ -26,9 +26,10 @@ ret=$?; if [[ $ret -ne 0 ]]; then exit $ret; fi
 # check os version
 os_name=`lsb_release --id|awk '{print $3}'` &&
 os_release=`lsb_release --release|awk '{print $2}'` &&
-os_major_version=`echo $os_release|awk -F '.' '{print $1}'`
+os_major_version=`echo $os_release|awk -F '.' '{print $1}'` &&
+os_machine=`uname -m`
 ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "lsb_release get os info failed."; exit $ret; fi
-ok_msg "target os is ${os_name}-${os_major_version} ${os_release}"
+ok_msg "target os is ${os_name}-${os_major_version} ${os_release} ${os_machine}"
 
 # build srs
 # @see https://github.com/winlinvip/simple-rtmp-server/wiki/Build
@@ -53,18 +54,28 @@ ok_msg "start copy extra files to package"
 ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "copy extra files failed"; exit $ret; fi
 ok_msg "copy extra files success"
 
+# generate zip dir and zip filename
+srs_version=`${build_objs}/srs -v 2>/dev/stdout 1>/dev/null` &&
+zip_dir="SRS-${os_name}${os_major_version}-${os_machine}-${srs_version}"
+ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "generate zip filename failed"; exit $ret; fi
+ok_msg "generate zip filename success"
+
 # zip package.
 ok_msg "start zip package"
 (
-    srs_version=`${build_objs}/srs -v 2>/dev/stdout 1>/dev/null` &&
-    zip_dir="SRS-${os_name}${os_major_version}-${srs_version}" &&
     mv $package_dir ${build_objs}/${zip_dir} &&
-    cd ${build_objs} && zip -q -r ${zip_dir}.zip ${zip_dir} &&
+    cd ${build_objs} && rm -rf ${zip_dir}.zip && zip -q -r ${zip_dir}.zip ${zip_dir} &&
     mv ${build_objs}/${zip_dir} $package_dir
 ) >> $log 2>&1
 ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "zip package failed"; exit $ret; fi
 ok_msg "zip package success"
 
 ok_msg "srs package success"
+echo ""
+echo "package: ${build_objs}/${zip_dir}.zip"
+echo "install:"
+echo "      unzip -q ${zip_dir}.zip &&"
+echo "      cd ${zip_dir} &&"
+echo "      sudo bash INSTALL"
 
 exit 0
