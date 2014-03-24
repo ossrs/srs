@@ -10,6 +10,7 @@ SRS(SIMPLE RTMP Server) over state-threads created in 2013.10.
 
 SRS is a simple, [RTMP](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryRTMP)/[HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), 
 [high-performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance), single/multiple(plan) processes, edge(plan)/origin live server, 
+[x86/x64/arm](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm), 
 compile depends on [st](http://sourceforge.net/projects/state-threads)(required), [ssl](http://www.openssl.org/) and [http-parser](https://github.com/joyent/http-parser), 
 use [nginx](http://nginx.org/), [ffmpeg](http://ffmpeg.org/) and [cherrypy](http://www.cherrypy.org/) as external tools. that is, only need st to run srs for 
 minimum run. see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build).
