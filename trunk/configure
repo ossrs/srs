@@ -47,12 +47,15 @@ echo "" >> $SRS_AUTO_HEADERS_H
 # generate auto headers file, depends on the finished of options.sh
 #####################################################################################
 # the arm-ubuntu12 options for make for depends
-SrsArmCC="arm-linux-gnueabi-gcc"
-SrsArmGCC="arm-linux-gnueabi-gcc"
-SrsArmCXX="arm-linux-gnueabi-g++"
-SrsArmAR="arm-linux-gnueabi-ar"
-SrsArmLD="arm-linux-gnueabi-ld"
-SrsArmRANDLIB="arm-linux-gnueabi-ranlib"
+if [[ -z $SrsArmCC ]]; then SrsArmCC="arm-linux-gnueabi-gcc"; fi
+if [[ -z $SrsArmGCC ]]; then SrsArmGCC="arm-linux-gnueabi-gcc"; fi
+if [[ -z $SrsArmCXX ]]; then SrsArmCXX="arm-linux-gnueabi-g++"; fi
+if [[ -z $SrsArmAR ]]; then SrsArmAR="arm-linux-gnueabi-ar"; fi
+if [[ -z $SrsArmLD ]]; then SrsArmLD="arm-linux-gnueabi-ld"; fi
+if [[ -z $SrsArmRANDLIB ]]; then SrsArmRANDLIB="arm-linux-gnueabi-ranlib"; fi
+echo "cc=$SrsArmCC gcc=$SrsArmGCC g++=$SrsArmCXX ar=$SrsArmAR ld=$SrsArmLD randlib=$SrsArmRANDLIB"
+echo "#define SRS_ARM_TOOL_CHAIN \"cc=$SrsArmCC gcc=$SrsArmGCC g++=$SrsArmCXX ar=$SrsArmAR ld=$SrsArmLD randlib=$SrsArmRANDLIB\"" >> $SRS_AUTO_HEADERS_H
+echo "" >> $SRS_AUTO_HEADERS_H
 
 # apply user options.
 . auto/depends.sh

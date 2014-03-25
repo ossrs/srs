@@ -161,6 +161,9 @@ int main(int argc, char** argv)
     srs_trace("uname: "SRS_UNAME);
     srs_trace("build: %s, %s", SRS_BUILD_DATE, srs_is_little_endian()? "little-endian":"big-endian");
     srs_trace("configure: "SRS_CONFIGURE);
+#ifdef SRS_ARM_UBUNTU12
+    srs_trace("arm tool chain: "SRS_ARM_TOOL_CHAIN);
+#endif
     
     if ((ret = _srs_server->initialize()) != ERROR_SUCCESS) {
         return ret;
