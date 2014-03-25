@@ -131,8 +131,6 @@ int main(int argc, char** argv)
 {
     int ret = ERROR_SUCCESS;
     
-    srs_trace("srs(simple-rtmp-server) "RTMP_SIG_SRS_VERSION);
-    
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
 
@@ -153,10 +151,13 @@ int main(int argc, char** argv)
     #endif
 #endif
     
+    // never use srs log(srs_trace, srs_error, etc) before config parse the option,
+    // which will load the log config and apply it.
     if ((ret = _srs_config->parse_options(argc, argv)) != ERROR_SUCCESS) {
         return ret;
     }
-
+    
+    srs_trace("srs(simple-rtmp-server) "RTMP_SIG_SRS_VERSION);
     srs_trace("uname: "SRS_UNAME);
     srs_trace("build: %s, %s", SRS_BUILD_DATE, srs_is_little_endian()? "little-endian":"big-endian");
     srs_trace("configure: "SRS_CONFIGURE);
