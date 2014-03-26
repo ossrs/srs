@@ -97,17 +97,27 @@ int SrsForwarder::on_publish(SrsRequest* req, std::string forward_server)
     tc_url += req->app;
     
     // dead loop check
-    std::string source_ep = req->vhost;
+    std::string source_ep = "rtmp://";
+    source_ep += req->host;
     source_ep += ":";
     source_ep += req->port;
+    source_ep += "?vhost=";
+    source_ep += req->vhost;
     
-    std::string dest_ep = vhost;
+    std::string dest_ep = "rtmp://";
+    if (forward_server == "127.0.0.1") {
+        dest_ep += req->host;
+    } else {
+        dest_ep += forward_server;
+    }
     dest_ep += ":";
     dest_ep += s_port;
+    dest_ep += "?vhost=";
+    dest_ep += vhost;
     
     if (source_ep == dest_ep) {
         ret = ERROR_SYSTEM_FORWARD_LOOP;
-        srs_warn("farder loop detected. src=%s, dest=%s, ret=%d", 
+        srs_warn("forward loop detected. src=%s, dest=%s, ret=%d", 
             source_ep.c_str(), dest_ep.c_str(), ret);
         return ret;
     }

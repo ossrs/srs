@@ -46,8 +46,9 @@ class SrsPlayPacket;
 /**
 * the original request from client.
 */
-struct SrsRequest
+class SrsRequest
 {
+public:
     /**
     * tcUrl: rtmp://request_vhost:port/app/stream
     * support pass vhost in query string, such as:
@@ -61,6 +62,7 @@ struct SrsRequest
     
     std::string schema;
     std::string vhost;
+    std::string host;
     std::string port;
     std::string app;
     std::string stream;

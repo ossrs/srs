@@ -87,6 +87,7 @@ SrsRequest* SrsRequest::copy()
     cp->app = app;
     cp->objectEncoding = objectEncoding;
     cp->pageUrl = pageUrl;
+    cp->host = host;
     cp->port = port;
     cp->schema = schema;
     cp->stream = stream;
@@ -111,19 +112,20 @@ int SrsRequest::discovery_app()
     }
     
     if ((pos = url.find("/")) != std::string::npos) {
-        vhost = url.substr(0, pos);
-        url = url.substr(vhost.length() + 1);
-        srs_verbose("discovery vhost=%s", vhost.c_str());
+        host = url.substr(0, pos);
+        url = url.substr(host.length() + 1);
+        srs_verbose("discovery host=%s", host.c_str());
     }
 
     port = RTMP_DEFAULT_PORT;
-    if ((pos = vhost.find(":")) != std::string::npos) {
-        port = vhost.substr(pos + 1);
-        vhost = vhost.substr(0, pos);
-        srs_verbose("discovery vhost=%s, port=%s", vhost.c_str(), port.c_str());
+    if ((pos = host.find(":")) != std::string::npos) {
+        port = host.substr(pos + 1);
+        host = host.substr(0, pos);
+        srs_verbose("discovery host=%s, port=%s", host.c_str(), port.c_str());
     }
     
     app = url;
+    vhost = host;
     srs_vhost_resolve(vhost, app);
     strip();
     
