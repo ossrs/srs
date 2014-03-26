@@ -1163,7 +1163,7 @@ int SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrs
     // never verify c2, for ffmpeg will failed.
     // it's ok for flash.
     
-    srs_trace("comple handshake with client success");
+    srs_trace("complex handshake with client success");
     
     return ret;
 }

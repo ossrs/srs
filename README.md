@@ -112,13 +112,13 @@ Supported operating systems and hardware:
 26. Support RTMP(play-publish) library: srs-librtmp<br/>
 27. Support ARM([debian armhf, v7cpu](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm)) with rtmp/ssl/hls/librtmp.<br/>
 28. Support [init.d](https://github.com/winlinvip/simple-rtmp-server/wiki/LinuxService) and packge script, log to file. <br/>
-29. [plan] Support system utest<br/>
-30. [plan] Support embeded http server for api and hls(live/vod)<br/>
-31. [plan] Support vod(file to hls stream)<br/>
-32. [plan] Support stream ingester using ffmpeg.<br/>
-33. [plan] Support ingest RTSP(RTP, SDP) stream to RTMP.<br/>
-34. [plan] Support network based cli and json result.<br/>
-35. [plan] Support HLS cluster, use RTMP ATC to generate the TS<br/>
+29. Support RTMP ATC for HLS/HDS to support backup(failover)<br/>
+30. [plan] Support system utest<br/>
+31. [plan] Support embeded http server for api and hls(live/vod)<br/>
+32. [plan] Support vod(file to hls stream)<br/>
+33. [plan] Support stream ingester using ffmpeg.<br/>
+34. [plan] Support ingest RTSP(RTP, SDP) stream to RTMP.<br/>
+35. [plan] Support network based cli and json result.<br/>
 36. [plan] Support RTMP edge server, push/pull stream from any RTMP server<br/>
 37. [plan] Support multiple processes, for both origin and edge<br/>
 38. [no-plan] Support adobe flash refer/token/swf verification.<br/>

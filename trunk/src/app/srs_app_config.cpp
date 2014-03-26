@@ -1340,6 +1340,22 @@ bool SrsConfig::get_gop_cache(string vhost)
     return true;
 }
 
+bool SrsConfig::get_atc(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return true;
+    }
+    
+    conf = conf->get("atc");
+    if (conf && conf->arg0() == "on") {
+        return true;
+    }
+    
+    return false;
+}
+
 double SrsConfig::get_queue_length(string vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);

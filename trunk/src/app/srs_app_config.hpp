@@ -153,6 +153,7 @@ public:
     virtual bool                get_deamon();
     virtual int                 get_max_connections();
     virtual bool                get_gop_cache(std::string vhost);
+    virtual bool                get_atc(std::string vhost);
     virtual double              get_queue_length(std::string vhost);
     virtual SrsConfDirective*   get_forward(std::string vhost);
 private:

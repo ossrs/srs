@@ -268,10 +268,11 @@ int SrsConsumer::enqueue(SrsSharedPtrMessage* msg, int tba, int tbv)
 {
     int ret = ERROR_SUCCESS;
     
-    /* TODO: to support atc */
-    if ((ret = jitter->correct(msg, tba, tbv)) != ERROR_SUCCESS) {
-        srs_freep(msg);
-        return ret;
+    if (!source->is_atc()) {
+        if ((ret = jitter->correct(msg, tba, tbv)) != ERROR_SUCCESS) {
+            srs_freep(msg);
+            return ret;
+        }
     }
     
     if ((ret = queue->enqueue(msg)) != ERROR_SUCCESS) {
@@ -391,6 +392,23 @@ int SrsGopCache::dump(SrsConsumer* consumer, int tba, int tbv)
     return ret;
 }
 
+bool SrsGopCache::empty()
+{
+    return gop_cache.empty();
+}
+
+int64_t SrsGopCache::get_start_time()
+{
+    if (empty()) {
+        return 0;
+    }
+    
+    SrsSharedPtrMessage* msg = gop_cache[0];
+    srs_assert(msg);
+    
+    return msg->header.timestamp;
+}
+
 std::map<std::string, SrsSource*> SrsSource::pool;
 
 SrsSource* SrsSource::find(SrsRequest* req)
@@ -425,6 +443,7 @@ SrsSource::SrsSource(SrsRequest* _req)
     gop_cache = new SrsGopCache();
     
     _srs_config->subscribe(this);
+    atc = _srs_config->get_atc(req->vhost);
 }
 
 SrsSource::~SrsSource()
@@ -774,6 +793,16 @@ int SrsSource::on_audio(SrsCommonMessage* audio)
     }
     srs_verbose("cache gop success.");
     
+    // if atc, update the sequence header to abs time.
+    if (atc) {
+        if (cache_sh_audio) {
+            cache_sh_audio->header.timestamp = msg->header.timestamp;
+        }
+        if (cache_metadata) {
+            cache_metadata->header.timestamp = msg->header.timestamp;
+        }
+    }
+    
     return ret;
 }
 
@@ -840,6 +869,16 @@ int SrsSource::on_video(SrsCommonMessage* video)
         return ret;
     }
     srs_verbose("cache gop success.");
+    
+    // if atc, update the sequence header to abs time.
+    if (atc) {
+        if (cache_sh_video) {
+            cache_sh_video->header.timestamp = msg->header.timestamp;
+        }
+        if (cache_metadata) {
+            cache_metadata->header.timestamp = msg->header.timestamp;
+        }
+    }
     
     return ret;
 }
@@ -921,6 +960,17 @@ void SrsSource::on_unpublish()
     }
     srs_info("dispatch metadata success");
     
+    // if atc, update the sequence header to gop cache time.
+    if (atc && !gop_cache->empty()) {
+        if (cache_sh_video) {
+            cache_sh_video->header.timestamp = gop_cache->get_start_time();
+        }
+        if (cache_sh_audio) {
+            cache_sh_audio->header.timestamp = gop_cache->get_start_time();
+        }
+    }
+    
+    // copy sequence header
     if (cache_sh_video && (ret = consumer->enqueue(cache_sh_video->copy(), sample_rate, frame_rate)) != ERROR_SUCCESS) {
         srs_error("dispatch video sequence header failed. ret=%d", ret);
         return ret;
@@ -933,6 +983,7 @@ void SrsSource::on_unpublish()
     }
     srs_info("dispatch audio sequence header success");
     
+    // copy gop cache to client.
     if ((ret = gop_cache->dump(consumer, sample_rate, frame_rate)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -955,6 +1006,11 @@ void SrsSource::on_consumer_destroy(SrsConsumer* consumer)
 void SrsSource::set_cache(bool enabled)
 {
     gop_cache->set(enabled);
+}
+
+bool SrsSource::is_atc()
+{
+    return atc;
 }
 
 int SrsSource::create_forwarders()

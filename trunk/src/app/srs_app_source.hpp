@@ -191,6 +191,12 @@ public:
     virtual int cache(SrsSharedPtrMessage* msg);
     virtual void clear();
     virtual int dump(SrsConsumer* consumer, int tba, int tbv);
+    /**
+    * used for atc to get the time of gop cache,
+    * the atc will adjust the sequence header timestamp to gop cache.
+    */
+    virtual bool empty();
+    virtual int64_t get_start_time();
 };
 
 /**
@@ -238,6 +244,13 @@ private:
     * can publish, true when is not streaming
     */
     bool _can_publish;
+    /**
+    * atc whether atc(use absolute time and donot adjust time),
+    * directly use msg time and donot adjust if atc is true,
+    * otherwise, adjust msg time to start from 0 to make flash happy.
+    */
+    // TODO: FIXME: to support reload atc.
+    bool atc;
 private:
     SrsSharedPtrMessage* cache_metadata;
     // the cached video sequence header.
@@ -279,6 +292,10 @@ public:
     virtual int create_consumer(SrsConsumer*& consumer);
     virtual void on_consumer_destroy(SrsConsumer* consumer);
     virtual void set_cache(bool enabled);
+// internal
+public:
+    // for consumer, atc feature.
+    virtual bool is_atc();
 private:
     virtual int create_forwarders();
     virtual void destroy_forwarders();
