@@ -469,7 +469,7 @@ int SrsBandCheckClient::send_pub_data()
             std::stringstream seq;
             seq << i;
             std::string play_data = "SrS band check data from client's publishing......";
-            pkt->data->set(seq.str(), new SrsAmf0String(play_data.c_str()));
+            pkt->data->set(seq.str(), SrsAmf0Any::str(play_data.c_str()));
         }
         data_count += 100;
 
@@ -545,8 +545,9 @@ int SrsBandCheckClient::expect_finished()
                 return ret;
             }
 
-            SrsAmf0Object* object;
-            if ((ret = srs_amf0_read_object(stream, object)) != ERROR_SUCCESS) {
+            SrsAmf0Object* object = SrsAmf0Any::object();
+            if ((ret = object->read(stream)) != ERROR_SUCCESS) {
+                srs_freep(object);
                 srs_error("amfo read object error. ret=%d", ret);
                 return ret;
             }
@@ -556,36 +557,24 @@ int SrsBandCheckClient::expect_finished()
 
             SrsAmf0Any* start_time_any = object->get_property("start_time");
             if (start_time_any && start_time_any->is_number()) {
-                SrsAmf0Number* start_time_number = dynamic_cast<SrsAmf0Number*> (start_time_any);
-                if (start_time_number) {
-                    start_time = start_time_number->value;
-                }
+                start_time = start_time_any->to_number();
             }
 
             SrsAmf0Any* end_time_any = object->get_property("end_time");
             if (end_time_any && end_time_any->is_number()) {
-                SrsAmf0Number* end_time_number = dynamic_cast<SrsAmf0Number*> (end_time_any);
-                if (end_time_number) {
-                    end_time = end_time_number->value;
-                }
+                end_time = end_time_any->to_number();
             }
 
             int play_kbps = 0;
             int pub_kbps = 0;
             SrsAmf0Any* play_kbp_any = object->get_property("play_kbps");
             if (play_kbp_any && play_kbp_any->is_number()) {
-                SrsAmf0Number* play_kbps_number = dynamic_cast<SrsAmf0Number*> (play_kbp_any);
-                if (play_kbps_number) {
-                    play_kbps = play_kbps_number->value;
-                }
+                play_kbps = play_kbp_any->to_number();
             }
 
             SrsAmf0Any* pub_kbp_any = object->get_property("publish_kbps");
             if (pub_kbp_any && pub_kbp_any->is_number()) {
-                SrsAmf0Number* pub_kbps_number = dynamic_cast<SrsAmf0Number*> (pub_kbp_any);
-                if (pub_kbps_number) {
-                    pub_kbps = pub_kbps_number->value;
-                }
+                pub_kbps = pub_kbp_any->to_number();
             }
 
             float time_elapsed;

@@ -32,6 +32,9 @@ SRS_ARM_UBUNTU12=RESERVED # armhf(v7cpu) built on ubuntu12
 SRS_PREFIX=/usr/local/srs
 SRS_JOBS=1
 SRS_STATIC=RESERVED
+# private internal
+# dev, open all features for dev, no gperf/prof/arm.
+SRS_DEV=NO
 
 #####################################################################################
 # parse options
@@ -88,6 +91,7 @@ do
         --jobs)                         SRS_JOBS=${value}         ;;
         --prefix)                       SRS_PREFIX=${value}       ;;
         --static)                       SRS_STATIC=YES            ;;
+        --dev)                          SRS_DEV=YES               ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
@@ -116,6 +120,7 @@ if [ $SRS_ARM_UBUNTU12 = YES ]; then
     if [ $SRS_GPERF_CP = RESERVED ]; then SRS_GPERF_CP=NO; fi
     if [ $SRS_GPROF = RESERVED ]; then SRS_GPROF=NO; fi
     if [ $SRS_ARM_UBUNTU12 = RESERVED ]; then SRS_ARM_UBUNTU12=NO; fi
+    if [ $SRS_DEV = RESERVED ]; then SRS_DEV=NO; fi
     # for arm, always set to static link.
     SRS_STATIC=YES
 else
@@ -135,6 +140,28 @@ else
     if [ $SRS_GPROF = RESERVED ]; then SRS_GPROF=NO; fi
     if [ $SRS_ARM_UBUNTU12 = RESERVED ]; then SRS_ARM_UBUNTU12=NO; fi
     if [ $SRS_STATIC = RESERVED ]; then SRS_STATIC=NO; fi
+    if [ $SRS_DEV = RESERVED ]; then SRS_DEV=NO; fi
+fi
+
+# if dev specified, open features if possible.
+if [ $SRS_DEV = YES ]; then
+    SRS_HLS=YES
+    SRS_NGINX=YES
+    SRS_SSL=YES
+    SRS_FFMPEG=YES
+    SRS_HTTP_CALLBACK=YES
+    SRS_LIBRTMP=YES
+    SRS_BWTC=YES
+    SRS_RESEARCH=YES
+    SRS_UTEST=YES
+    SRS_GPERF=NO
+    SRS_GPERF_MC=NO
+    SRS_GPERF_MP=NO
+    SRS_GPERF_CP=NO
+    SRS_GPROF=NO
+    SRS_ARM_UBUNTU12=NO
+    # for arm, always set to static link.
+    SRS_STATIC=NO
 fi
 
 # parse the jobs for make
@@ -190,7 +217,8 @@ if [ $help = yes ]; then
   --static                 whether add '-static' to link options. always set this option for arm.
   --jobs[=N]               Allow N jobs at once; infinite jobs with no arg.
                            used for make in the configure, for example, to make ffmpeg.
-  --prefix=<path>           the absolute install path for srs.
+  --prefix=<path>          the absolute install path for srs.
+  --dev                    for dev, open all features, no gperf/gprof/arm.
 
 END
     exit 0
