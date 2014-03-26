@@ -33,6 +33,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <errno.h>
 #include <sys/uio.h>
 
+#include <srs_kernel_utility.hpp>
+
 #ifndef ST_UTIME_NO_TIMEOUT
     #define ST_UTIME_NO_TIMEOUT -1
 #endif

@@ -268,6 +268,7 @@ int SrsConsumer::enqueue(SrsSharedPtrMessage* msg, int tba, int tbv)
 {
     int ret = ERROR_SUCCESS;
     
+    /* TODO: to support atc */
     if ((ret = jitter->correct(msg, tba, tbv)) != ERROR_SUCCESS) {
         srs_freep(msg);
         return ret;
