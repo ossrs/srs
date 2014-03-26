@@ -358,11 +358,11 @@ to ingest any input to rtmp, push to srs.
 
 <pre>
                         +----------+        +----------+
-               +--ATC->-+  server  +--ATC->-+ packager +-+   +-----------------+
-+----------+   | RTMP   +----------+ RTMP   +----------+ |   |     Reverse     |    +-------+
-| encoder  +->-+                                         +->-+      Proxy      +-->-+  CDN  +
-+----------+   |        +----------+        +----------+ |   | (nginx,varnish) |    +-------+
-               +--ATC->-+  server  +--ATC->-+ packager +-+   +-----------------+
+               +--ATC->-+  server  +--ATC->-+ packager +-+   +---------+
++----------+   | RTMP   +----------+ RTMP   +----------+ |   | Reverse |    +-------+
+| encoder  +->-+                                         +->-+  Proxy  +-->-+  CDN  +
++----------+   |        +----------+        +----------+ |   | (nginx) |    +-------+
+               +--ATC->-+  server  +--ATC->-+ packager +-+   +---------+
                  RTMP   +----------+ RTMP   +----------+
 </pre>
 
