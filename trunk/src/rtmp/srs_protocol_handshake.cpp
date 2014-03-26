@@ -767,7 +767,7 @@ namespace srs
         destroy_blocks();
         
         time = ::time(NULL);
-        version = 0x02070080; // client c1 version
+        version = 0x00000000; // client c1 version
         
         if (_schema == srs_schema0) {
             srs_key_block_init(&block0.key);
@@ -1005,8 +1005,6 @@ int SrsSimpleHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsP
         return ret;
     }
     
-    // plain text required.
-    hs_bytes->s0s1s2[0] = 0x03;
     if ((ret = io->write(hs_bytes->s0s1s2, 3073, &nsize)) != ERROR_SUCCESS) {
         srs_warn("simple handshake send s0s1s2 failed. ret=%d", ret);
         return ret;
@@ -1032,8 +1030,6 @@ int SrsSimpleHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsP
     if ((ret = hs_bytes->create_c0c1()) != ERROR_SUCCESS) {
         return ret;
     }
-    // plain text required.
-    hs_bytes->c0c1[0] = 0x03;
     
     if ((ret = io->write(hs_bytes->c0c1, 1537, &nsize)) != ERROR_SUCCESS) {
         srs_warn("write c0c1 failed. ret=%d", ret);
@@ -1147,8 +1143,6 @@ int SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrs
     if ((ret = hs_bytes->create_s0s1s2()) != ERROR_SUCCESS) {
         return ret;
     }
-    // plain text required.
-    hs_bytes->s0s1s2[0] = 0x03;
     s1.dump(hs_bytes->s0s1s2 + 1);
     s2.dump(hs_bytes->s0s1s2 + 1537);
     if ((ret = io->write(hs_bytes->s0s1s2, 3073, &nsize)) != ERROR_SUCCESS) {
@@ -1191,8 +1185,6 @@ int SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrs
     if ((ret = hs_bytes->create_c0c1()) != ERROR_SUCCESS) {
         return ret;
     }
-    // plain text required.
-    hs_bytes->c0c1[0] = 0x03;
     
     // sign c1
     c1s1 c1;
@@ -1230,10 +1222,10 @@ int SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrs
     if ((ret = s1.parse(hs_bytes->s0s1s2 + 1, c1.schema)) != ERROR_SUCCESS) {
         return ret;
     }
-    if ((ret = s1.s1_validate_digest(is_valid)) != ERROR_SUCCESS || !is_valid) {
-        ret = ERROR_RTMP_TRY_SIMPLE_HS;
-        return ret;
-    }
+    
+    // never verify the s1,
+    // for if forward to nginx-rtmp, verify s1 will failed,
+    // TODO: FIXME: find the handshake schema of nginx-rtmp.
     
     // c2
     if ((ret = hs_bytes->create_c2()) != ERROR_SUCCESS) {
