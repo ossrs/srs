@@ -270,6 +270,11 @@ int SrsHandshakeBytes::create_c0c1()
     c0c1 = new char[1537];
     srs_random_generate(c0c1, 1537);
     
+    // plain text required.
+    c0c1[0] = 0x03;
+    *(int32_t*)(c0c1 + 1) = ::time(NULL);
+    *(int32_t*)(c0c1 + 1 + 4) = 0x00;
+    
     return ret;
 }
 
@@ -284,6 +289,14 @@ int SrsHandshakeBytes::create_s0s1s2()
     s0s1s2 = new char[3073];
     srs_random_generate(s0s1s2, 3073);
     
+    // plain text required.
+    s0s1s2[0] = 0x03;
+    *(int32_t*)(s0s1s2 + 1) = ::time(NULL);
+    // s2 time2 copy from c1
+    if (c0c1) {
+        *(int32_t*)(s0s1s2 + 1 + 4) = *(int32_t*)(c0c1 + 1);
+    }
+    
     return ret;
 }
 
@@ -297,6 +310,13 @@ int SrsHandshakeBytes::create_c2()
     
     c2 = new char[1536];
     srs_random_generate(c2, 1536);
+    
+    // time
+    *(int32_t*)(c2) = ::time(NULL);
+    // c2 time2 copy from s1
+    if (s0s1s2) {
+        *(int32_t*)(c2 + 4) = *(int32_t*)(s0s1s2 + 1);
+    }
     
     return ret;
 }
