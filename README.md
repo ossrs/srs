@@ -354,6 +354,18 @@ Remark:
 to ingest any input to rtmp, push to srs.
 </pre>
 
+### [HDS/HLS origin backup](https://github.com/winlinvip/simple-rtmp-server/wiki/RTMP-ATC)
+
+<pre>
+                        +----------+        +----------+
+               +--ATC->-+  server  +--ATC->-+ packager +-+   +-----------------+
++----------+   | RTMP   +----------+ RTMP   +----------+ |   |     Reverse     |    +-------+
+| encoder  +->-+                                         +->-+      Proxy      +-->-+  CDN  +
++----------+   |        +----------+        +----------+ |   | (nginx,varnish) |    +-------+
+               +--ATC->-+  server  +--ATC->-+ packager +-+   +-----------------+
+                 RTMP   +----------+ RTMP   +----------+
+</pre>
+
 ### (plan) RTMP cluster(origin/edge) Architecture
 
 Remark: cluster over forward, see [Cluster](https://github.com/winlinvip/simple-rtmp-server/wiki/Cluster)
