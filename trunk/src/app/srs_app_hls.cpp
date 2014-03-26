@@ -693,15 +693,17 @@ int SrsHlsMuxer::segment_close(string log_desc)
     
         // close the muxer of finished segment.
         srs_freep(current->muxer);
+        std::string full_path = current->full_path;
+        current = NULL;
+        
         // rename from tmp to real path
-        std::string tmp_file = current->full_path + ".tmp";
-        if (rename(tmp_file.c_str(), current->full_path.c_str()) < 0) {
+        std::string tmp_file = full_path + ".tmp";
+        if (rename(tmp_file.c_str(), full_path.c_str()) < 0) {
             ret = ERROR_HLS_WRITE_FAILED;
             srs_error("rename ts file failed, %s => %s. ret=%d", 
-                tmp_file.c_str(), current->full_path.c_str(), ret);
+                tmp_file.c_str(), full_path.c_str(), ret);
             return ret;
         }
-        current = NULL;
     } else {
         // reuse current segment index.
         file_index--;

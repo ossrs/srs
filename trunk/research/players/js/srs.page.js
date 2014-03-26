@@ -55,7 +55,7 @@ function build_default_rtmp_url() {
     var port = (query.port == undefined)? 1935:query.port;
     var vhost = (query.vhost == undefined)? window.location.hostname:query.vhost;
     var app = (query.app == undefined)? "live":query.app;
-    var stream = (query.stream == undefined)? "livestream":query.stream;
+    var stream = (query.stream == undefined)? "demo":query.stream;
 
     if (server == vhost || vhost == "") {
         return "rtmp://" + server + ":" + port + "/" + app + "/" + stream;
@@ -71,7 +71,7 @@ function build_default_publish_rtmp_url() {
     var port = (query.port == undefined)? 1935:query.port;
     var vhost = (query.vhost == undefined)? window.location.hostname:query.vhost;
     var app = (query.app == undefined)? "live":query.app;
-    var stream = (query.stream == undefined)? "livestream":query.stream;
+    var stream = (query.stream == undefined)? "demo":query.stream;
 
     if (server == vhost || vhost == "") {
         return "rtmp://" + server + ":" + port + "/" + app + "/" + stream;
@@ -114,7 +114,7 @@ function build_default_hls_url() {
     
     var port = (query.hls_port == undefined)? window.location.port:query.hls_port;
     var app = (query.app == undefined)? "live":query.app;
-    var stream = (query.stream == undefined)? "livestream":query.stream;
+    var stream = (query.stream == undefined)? "demo":query.stream;
 
     if (port == "" || port == null || port == undefined) {
         port = 80;
