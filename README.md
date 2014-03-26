@@ -86,9 +86,9 @@ Supported operating systems and hardware:
 ## Summary
 01. Simple: also stable enough.<br/>
 02. [High-performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance): single-thread, async socket, event/st-thread driven.<br/>
-03. With RTMP edge server(plan), support origin server.<br/>
+03. Support RTMP edge server(plan), support origin server.<br/>
 04. RTMP without vod streaming, live streaming only.<br/>
-05. With multiple processes, support single process.<br/>
+05. Support multiple processes, support single process.<br/>
 06. Support vhost, support \_\_defaultVhost\_\_.<br/>
 07. Support adobe rtmp live streaming.<br/>
 08. Support apple [HLS(m3u8)](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS) live streaming.<br/>
