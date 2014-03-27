@@ -39,11 +39,16 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsServer;
 class SrsConnection;
 
+// listener type for server to identify the connection,
+// that is, use different type to process the connection.
 enum SrsListenerType 
 {
-    SrsListenerStream = 0,
-    SrsListenerHttpApi,
-    SrsListenerHttpStream
+    // RTMP client,
+    SrsListenerRtmpStream   = 0,
+    // HTTP api,
+    SrsListenerHttpApi      = 1,
+    // HTTP stream, HDS/HLS/DASH
+    SrsListenerHttpStream   = 2
 };
 
 class SrsListener : public ISrsThreadHandler

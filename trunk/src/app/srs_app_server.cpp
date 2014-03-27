@@ -296,7 +296,7 @@ int SrsServer::listen()
     close_listeners();
     
     for (int i = 0; i < (int)conf->args.size(); i++) {
-        SrsListener* listener = new SrsListener(this, SrsListenerStream);
+        SrsListener* listener = new SrsListener(this, SrsListenerRtmpStream);
         listeners.push_back(listener);
         
         int port = ::atoi(conf->args.at(i).c_str());
@@ -433,8 +433,8 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
     }
     
     SrsConnection* conn = NULL;
-    if (type == SrsListenerStream) {
-        conn = new SrsClient(this, client_stfd);
+    if (type == SrsListenerRtmpStream) {
+        conn = new SrsRtmpConn(this, client_stfd);
     } else if (type == SrsListenerHttpApi) {
     } else if (type == SrsListenerHttpStream) {
     } else {

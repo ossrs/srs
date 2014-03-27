@@ -50,7 +50,7 @@ class SrsBandwidth;
 /**
 * the client provides the main logic control for RTMP clients.
 */
-class SrsClient : public SrsConnection, public ISrsReloadHandler
+class SrsRtmpConn : public SrsConnection, public ISrsReloadHandler
 {
 private:
     char* ip;
@@ -64,8 +64,8 @@ private:
 #endif
     SrsBandwidth* bandwidth;
 public:
-    SrsClient(SrsServer* srs_server, st_netfd_t client_stfd);
-    virtual ~SrsClient();
+    SrsRtmpConn(SrsServer* srs_server, st_netfd_t client_stfd);
+    virtual ~SrsRtmpConn();
 protected:
     virtual int do_cycle();
 // interface ISrsReloadHandler

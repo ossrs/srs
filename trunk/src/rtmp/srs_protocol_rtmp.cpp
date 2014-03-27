@@ -178,12 +178,12 @@ SrsResponse::~SrsResponse()
 {
 }
 
-string srs_client_type_string(SrsClientType type)
+string srs_client_type_string(SrsRtmpConnType type)
 {
     switch (type) {
-        case SrsClientPlay: return "Play";
-        case SrsClientFlashPublish: return "FlashPublish";
-        case SrsClientFMLEPublish: return "FMLEPublish";
+        case SrsRtmpConnPlay: return "Play";
+        case SrsRtmpConnFlashPublish: return "FlashPublish";
+        case SrsRtmpConnFMLEPublish: return "FMLEPublish";
         default: return "Unknown";
     }
     return "Unknown";
@@ -947,9 +947,9 @@ int SrsRtmpServer::on_bw_done()
     return ret;
 }
 
-int SrsRtmpServer::identify_client(int stream_id, SrsClientType& type, string& stream_name)
+int SrsRtmpServer::identify_client(int stream_id, SrsRtmpConnType& type, string& stream_name)
 {
-    type = SrsClientUnknown;
+    type = SrsRtmpConnUnknown;
     int ret = ERROR_SUCCESS;
     
     while (true) {
@@ -1380,7 +1380,7 @@ int SrsRtmpServer::start_flash_publish(int stream_id)
     return ret;
 }
 
-int SrsRtmpServer::identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, string& stream_name)
+int SrsRtmpServer::identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsRtmpConnType& type, string& stream_name)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1433,11 +1433,11 @@ int SrsRtmpServer::identify_create_stream_client(SrsCreateStreamPacket* req, int
     return ret;
 }
 
-int SrsRtmpServer::identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsClientType& type, string& stream_name)
+int SrsRtmpServer::identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsRtmpConnType& type, string& stream_name)
 {
     int ret = ERROR_SUCCESS;
     
-    type = SrsClientFMLEPublish;
+    type = SrsRtmpConnFMLEPublish;
     stream_name = req->stream_name;
     
     // releaseStream response
@@ -1457,21 +1457,21 @@ int SrsRtmpServer::identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsClie
     return ret;
 }
 
-int SrsRtmpServer::identify_flash_publish_client(SrsPublishPacket* req, SrsClientType& type, string& stream_name)
+int SrsRtmpServer::identify_flash_publish_client(SrsPublishPacket* req, SrsRtmpConnType& type, string& stream_name)
 {
     int ret = ERROR_SUCCESS;
     
-    type = SrsClientFlashPublish;
+    type = SrsRtmpConnFlashPublish;
     stream_name = req->stream_name;
     
     return ret;
 }
 
-int SrsRtmpServer::identify_play_client(SrsPlayPacket* req, SrsClientType& type, string& stream_name)
+int SrsRtmpServer::identify_play_client(SrsPlayPacket* req, SrsRtmpConnType& type, string& stream_name)
 {
     int ret = ERROR_SUCCESS;
     
-    type = SrsClientPlay;
+    type = SrsRtmpConnPlay;
     stream_name = req->stream_name;
     
     srs_trace("identity client type=play, stream_name=%s", stream_name.c_str());

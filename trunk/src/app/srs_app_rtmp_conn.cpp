@@ -43,7 +43,7 @@ using namespace std;
 #include <srs_app_bandwidth.hpp>
 #include <srs_app_socket.hpp>
 
-SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
+SrsRtmpConn::SrsRtmpConn(SrsServer* srs_server, st_netfd_t client_stfd)
     : SrsConnection(srs_server, client_stfd)
 {
     ip = NULL;
@@ -60,7 +60,7 @@ SrsClient::SrsClient(SrsServer* srs_server, st_netfd_t client_stfd)
     _srs_config->subscribe(this);
 }
 
-SrsClient::~SrsClient()
+SrsRtmpConn::~SrsRtmpConn()
 {
     _srs_config->unsubscribe(this);
     
@@ -77,7 +77,7 @@ SrsClient::~SrsClient()
 }
 
 // TODO: return detail message when error for client.
-int SrsClient::do_cycle()
+int SrsRtmpConn::do_cycle()
 {
     int ret = ERROR_SUCCESS;
     
@@ -139,7 +139,7 @@ int SrsClient::do_cycle()
     return ret;
 }
 
-int SrsClient::on_reload_vhost_removed(string vhost)
+int SrsRtmpConn::on_reload_vhost_removed(string vhost)
 {
     int ret = ERROR_SUCCESS;
     
@@ -156,7 +156,7 @@ int SrsClient::on_reload_vhost_removed(string vhost)
     return ret;
 }
     
-int SrsClient::service_cycle()
+int SrsRtmpConn::service_cycle()
 {    
     int ret = ERROR_SUCCESS;
     
@@ -232,11 +232,11 @@ int SrsClient::service_cycle()
     return ret;
 }
 
-int SrsClient::stream_service_cycle()
+int SrsRtmpConn::stream_service_cycle()
 {
     int ret = ERROR_SUCCESS;
         
-    SrsClientType type;
+    SrsRtmpConnType type;
     if ((ret = rtmp->identify_client(res->stream_id, type, req->stream)) != ERROR_SUCCESS) {
         srs_error("identify client failed. ret=%d", ret);
         return ret;
@@ -262,7 +262,7 @@ int SrsClient::stream_service_cycle()
     srs_assert(source != NULL);
     
     // check publish available.
-    if (type != SrsClientPlay && !source->can_publish()) {
+    if (type != SrsRtmpConnPlay && !source->can_publish()) {
         ret = ERROR_SYSTEM_STREAM_BUSY;
         srs_warn("stream %s is already publishing. ret=%d", 
             req->get_stream_url().c_str(), ret);
@@ -276,7 +276,7 @@ int SrsClient::stream_service_cycle()
     source->set_cache(enabled_cache);
     
     switch (type) {
-        case SrsClientPlay: {
+        case SrsRtmpConnPlay: {
             srs_verbose("start to play stream %s.", req->stream.c_str());
             
             if ((ret = rtmp->start_play(res->stream_id)) != ERROR_SUCCESS) {
@@ -292,7 +292,7 @@ int SrsClient::stream_service_cycle()
             on_stop();
             return ret;
         }
-        case SrsClientFMLEPublish: {
+        case SrsRtmpConnFMLEPublish: {
             srs_verbose("FMLE start to publish stream %s.", req->stream.c_str());
             
             if ((ret = rtmp->start_fmle_publish(res->stream_id)) != ERROR_SUCCESS) {
@@ -309,7 +309,7 @@ int SrsClient::stream_service_cycle()
             on_unpublish();
             return ret;
         }
-        case SrsClientFlashPublish: {
+        case SrsRtmpConnFlashPublish: {
             srs_verbose("flash start to publish stream %s.", req->stream.c_str());
             
             if ((ret = rtmp->start_flash_publish(res->stream_id)) != ERROR_SUCCESS) {
@@ -336,7 +336,7 @@ int SrsClient::stream_service_cycle()
     return ret;
 }
 
-int SrsClient::check_vhost()
+int SrsRtmpConn::check_vhost()
 {
     int ret = ERROR_SUCCESS;
     
@@ -373,7 +373,7 @@ int SrsClient::check_vhost()
     return ret;
 }
 
-int SrsClient::playing(SrsSource* source)
+int SrsRtmpConn::playing(SrsSource* source)
 {
     int ret = ERROR_SUCCESS;
     
@@ -462,7 +462,7 @@ int SrsClient::playing(SrsSource* source)
     return ret;
 }
 
-int SrsClient::fmle_publish(SrsSource* source)
+int SrsRtmpConn::fmle_publish(SrsSource* source)
 {
     int ret = ERROR_SUCCESS;
     
@@ -531,7 +531,7 @@ int SrsClient::fmle_publish(SrsSource* source)
     return ret;
 }
 
-int SrsClient::flash_publish(SrsSource* source)
+int SrsRtmpConn::flash_publish(SrsSource* source)
 {
     int ret = ERROR_SUCCESS;
     
@@ -595,7 +595,7 @@ int SrsClient::flash_publish(SrsSource* source)
     return ret;
 }
 
-int SrsClient::process_publish_message(SrsSource* source, SrsCommonMessage* msg)
+int SrsRtmpConn::process_publish_message(SrsSource* source, SrsCommonMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -639,7 +639,7 @@ int SrsClient::process_publish_message(SrsSource* source, SrsCommonMessage* msg)
     return ret;
 }
 
-int SrsClient::get_peer_ip()
+int SrsRtmpConn::get_peer_ip()
 {
     int ret = ERROR_SUCCESS;
     
@@ -674,7 +674,7 @@ int SrsClient::get_peer_ip()
     return ret;
 }
 
-int SrsClient::process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage* msg)
+int SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -722,7 +722,7 @@ int SrsClient::process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage*
     return ret;
 }
 
-int SrsClient::on_connect()
+int SrsRtmpConn::on_connect()
 {
     int ret = ERROR_SUCCESS;
     
@@ -746,7 +746,7 @@ int SrsClient::on_connect()
     return ret;
 }
 
-void SrsClient::on_close()
+void SrsRtmpConn::on_close()
 {
 #ifdef SRS_HTTP_CALLBACK
     // whatever the ret code, notify the api hooks.
@@ -764,7 +764,7 @@ void SrsClient::on_close()
 #endif
 }
 
-int SrsClient::on_publish()
+int SrsRtmpConn::on_publish()
 {
     int ret = ERROR_SUCCESS;
     
@@ -788,7 +788,7 @@ int SrsClient::on_publish()
     return ret;
 }
 
-void SrsClient::on_unpublish()
+void SrsRtmpConn::on_unpublish()
 {
 #ifdef SRS_HTTP_CALLBACK
     // whatever the ret code, notify the api hooks.
@@ -806,7 +806,7 @@ void SrsClient::on_unpublish()
 #endif
 }
 
-int SrsClient::on_play()
+int SrsRtmpConn::on_play()
 {
     int ret = ERROR_SUCCESS;
     
@@ -830,7 +830,7 @@ int SrsClient::on_play()
     return ret;
 }
 
-void SrsClient::on_stop()
+void SrsRtmpConn::on_stop()
 {
 #ifdef SRS_HTTP_CALLBACK
     // whatever the ret code, notify the api hooks.

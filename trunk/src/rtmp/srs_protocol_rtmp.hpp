@@ -101,14 +101,14 @@ struct SrsResponse
 /**
 * the rtmp client type.
 */
-enum SrsClientType
+enum SrsRtmpConnType
 {
-    SrsClientUnknown,
-    SrsClientPlay,
-    SrsClientFMLEPublish,
-    SrsClientFlashPublish,
+    SrsRtmpConnUnknown,
+    SrsRtmpConnPlay,
+    SrsRtmpConnFMLEPublish,
+    SrsRtmpConnFlashPublish,
 };
-std::string srs_client_type_string(SrsClientType type);
+std::string srs_client_type_string(SrsRtmpConnType type);
 
 /**
 * store the handshake bytes, 
@@ -223,7 +223,7 @@ public:
     *         the stream_id used to response the createStream request.
     * @type, output the client type.
     */
-    virtual int identify_client(int stream_id, SrsClientType& type, std::string& stream_name);
+    virtual int identify_client(int stream_id, SrsRtmpConnType& type, std::string& stream_name);
     /**
     * set the chunk size when client type identified.
     */
@@ -267,11 +267,11 @@ public:
     */
     virtual int start_flash_publish(int stream_id);
 private:
-    virtual int identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsClientType& type, std::string& stream_name);
-    virtual int identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsClientType& type, std::string& stream_name);
-    virtual int identify_flash_publish_client(SrsPublishPacket* req, SrsClientType& type, std::string& stream_name);
+    virtual int identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsRtmpConnType& type, std::string& stream_name);
+    virtual int identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsRtmpConnType& type, std::string& stream_name);
+    virtual int identify_flash_publish_client(SrsPublishPacket* req, SrsRtmpConnType& type, std::string& stream_name);
 private:
-    virtual int identify_play_client(SrsPlayPacket* req, SrsClientType& type, std::string& stream_name);
+    virtual int identify_play_client(SrsPlayPacket* req, SrsRtmpConnType& type, std::string& stream_name);
 };
 
 #endif
