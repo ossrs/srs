@@ -23,8 +23,27 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_http_api.hpp>
 
-SrsHttpApi::SrsHttpApi() {
+#include <srs_kernel_log.hpp>
+#include <srs_kernel_error.hpp>
+
+SrsHttpApi::SrsHttpApi(SrsServer* srs_server, st_netfd_t client_stfd) 
+    : SrsConnection(srs_server, client_stfd)
+{
 }
 
-SrsHttpApi::~SrsHttpApi() {
+SrsHttpApi::~SrsHttpApi() 
+{
+}
+
+int SrsHttpApi::do_cycle() 
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = get_peer_ip()) != ERROR_SUCCESS) {
+        srs_error("get peer ip failed. ret=%d", ret);
+        return ret;
+    }
+    srs_trace("api get peer ip success. ip=%s", ip);
+    
+    return ret;
 }

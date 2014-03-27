@@ -53,7 +53,6 @@ class SrsBandwidth;
 class SrsRtmpConn : public SrsConnection, public ISrsReloadHandler
 {
 private:
-    char* ip;
     SrsRequest* req;
     SrsResponse* res;
     SrsSocket* skt;
@@ -81,7 +80,6 @@ private:
     virtual int fmle_publish(SrsSource* source);
     virtual int flash_publish(SrsSource* source);
     virtual int process_publish_message(SrsSource* source, SrsCommonMessage* msg);
-    virtual int get_peer_ip();
     virtual int process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage* msg);
 private:
     virtual int on_connect();

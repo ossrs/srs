@@ -36,6 +36,7 @@ class SrsServer;
 class SrsConnection
 {
 protected:
+    char* ip;
     SrsServer* server;
     st_netfd_t stfd;
     int connection_id;
@@ -46,6 +47,8 @@ public:
     virtual int start();
 protected:
     virtual int do_cycle() = 0;
+protected:
+    virtual int get_peer_ip();
 private:
     virtual void cycle();
     static void* cycle_thread(void* arg);

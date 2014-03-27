@@ -38,6 +38,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_config.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_app_http_api.hpp>
+#include <srs_app_http_conn.hpp>
 
 #define SERVER_LISTEN_BACKLOG 512
 #define SRS_TIME_RESOLUTION_MS 500
@@ -436,7 +438,9 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
     if (type == SrsListenerRtmpStream) {
         conn = new SrsRtmpConn(this, client_stfd);
     } else if (type == SrsListenerHttpApi) {
+        conn = new SrsHttpApi(this, client_stfd);
     } else if (type == SrsListenerHttpStream) {
+        conn = new SrsHttpConn(this, client_stfd);
     } else {
         // TODO: FIXME: handler others
     }

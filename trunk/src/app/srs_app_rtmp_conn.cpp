@@ -23,7 +23,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_rtmp_conn.hpp>
 
-#include <arpa/inet.h>
 #include <stdlib.h>
 
 using namespace std;
@@ -46,7 +45,6 @@ using namespace std;
 SrsRtmpConn::SrsRtmpConn(SrsServer* srs_server, st_netfd_t client_stfd)
     : SrsConnection(srs_server, client_stfd)
 {
-    ip = NULL;
     req = new SrsRequest();
     res = new SrsResponse();
     skt = new SrsSocket(client_stfd);
@@ -64,7 +62,6 @@ SrsRtmpConn::~SrsRtmpConn()
 {
     _srs_config->unsubscribe(this);
     
-    srs_freepa(ip);
     srs_freep(req);
     srs_freep(res);
     srs_freep(rtmp);
@@ -85,7 +82,7 @@ int SrsRtmpConn::do_cycle()
         srs_error("get peer ip failed. ret=%d", ret);
         return ret;
     }
-    srs_trace("get peer ip success. ip=%s, send_to=%"PRId64", recv_to=%"PRId64"", 
+    srs_trace("rtmp get peer ip success. ip=%s, send_to=%"PRId64"us, recv_to=%"PRId64"us", 
         ip, SRS_SEND_TIMEOUT_US, SRS_RECV_TIMEOUT_US);
 
     rtmp->set_recv_timeout(SRS_RECV_TIMEOUT_US);
@@ -635,41 +632,6 @@ int SrsRtmpConn::process_publish_message(SrsSource* source, SrsCommonMessage* ms
         srs_trace("ignore AMF0/AMF3 data message.");
         return ret;
     }
-    
-    return ret;
-}
-
-int SrsRtmpConn::get_peer_ip()
-{
-    int ret = ERROR_SUCCESS;
-    
-    int fd = st_netfd_fileno(stfd);
-    
-    // discovery client information
-    sockaddr_in addr;
-    socklen_t addrlen = sizeof(addr);
-    if (getpeername(fd, (sockaddr*)&addr, &addrlen) == -1) {
-        ret = ERROR_SOCKET_GET_PEER_NAME;
-        srs_error("discovery client information failed. ret=%d", ret);
-        return ret;
-    }
-    srs_verbose("get peer name success.");
-
-    // ip v4 or v6
-    char buf[INET6_ADDRSTRLEN];
-    memset(buf, 0, sizeof(buf));
-    
-    if ((inet_ntop(addr.sin_family, &addr.sin_addr, buf, sizeof(buf))) == NULL) {
-        ret = ERROR_SOCKET_GET_PEER_IP;
-        srs_error("convert client information failed. ret=%d", ret);
-        return ret;
-    }
-    srs_verbose("get peer ip of client ip=%s, fd=%d", buf, fd);
-    
-    ip = new char[strlen(buf) + 1];
-    strcpy(ip, buf);
-    
-    srs_verbose("get peer ip success. ip=%s, fd=%d", ip, fd);
     
     return ret;
 }

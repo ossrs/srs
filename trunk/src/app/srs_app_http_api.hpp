@@ -30,11 +30,16 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
-class SrsHttpApi
+#include <srs_app_st.hpp>
+#include <srs_app_conn.hpp>
+
+class SrsHttpApi : public SrsConnection
 {
 public:
-    SrsHttpApi();
+    SrsHttpApi(SrsServer* srs_server, st_netfd_t client_stfd);
     virtual ~SrsHttpApi();
+protected:
+    virtual int do_cycle();
 };
 
 #endif
