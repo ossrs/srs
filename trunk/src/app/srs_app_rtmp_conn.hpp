@@ -21,11 +21,11 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_APP_CLIENT_HPP
-#define SRS_APP_CLIENT_HPP
+#ifndef SRS_APP_RTMP_CONN_HPP
+#define SRS_APP_RTMP_CONN_HPP
 
 /*
-#include <srs_app_client.hpp>
+#include <srs_app_rtmp_conn.hpp>
 */
 
 #include <srs_core.hpp>

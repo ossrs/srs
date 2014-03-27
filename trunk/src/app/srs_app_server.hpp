@@ -42,7 +42,8 @@ class SrsConnection;
 enum SrsListenerType 
 {
     SrsListenerStream = 0,
-    SrsListenerApi
+    SrsListenerHttpApi,
+    SrsListenerHttpStream
 };
 
 class SrsListener : public ISrsThreadHandler

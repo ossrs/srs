@@ -156,6 +156,7 @@ public:
     virtual bool                get_atc(std::string vhost);
     virtual double              get_queue_length(std::string vhost);
     virtual SrsConfDirective*   get_forward(std::string vhost);
+// hls section
 private:
     virtual SrsConfDirective*   get_hls(std::string vhost);
 public:
@@ -163,6 +164,20 @@ public:
     virtual std::string         get_hls_path(std::string vhost);
     virtual double              get_hls_fragment(std::string vhost);
     virtual double              get_hls_window(std::string vhost);
+// http api section
+private:
+    virtual SrsConfDirective*   get_http_api();
+public:
+    virtual bool                get_http_api_enabled();
+    virtual int                 get_http_api_listen();
+// http stream section
+private:
+    virtual SrsConfDirective*   get_http_stream();
+public:
+    virtual bool                get_http_stream_enabled();
+    virtual int                 get_http_stream_listen();
+// others
+public:
     virtual SrsConfDirective*   get_refer(std::string vhost);
     virtual SrsConfDirective*   get_refer_play(std::string vhost);
     virtual SrsConfDirective*   get_refer_publish(std::string vhost);

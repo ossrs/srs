@@ -416,10 +416,11 @@ RTMP_OBJS="${MODULE_OBJS[@]}"
 MODULE_ID="APP" 
 MODULE_DEPENDS=("CORE" "KERNEL" "RTMP") 
 ModuleLibIncs=(${LibSTRoot} ${LibHttpParserRoot} ${SRS_OBJS})
-MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_client" "srs_app_socket" "srs_app_source" 
+MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_rtmp_conn" "srs_app_socket" "srs_app_source" 
         "srs_app_codec" "srs_app_refer" "srs_app_hls" "srs_app_forward" "srs_app_encoder"
         "srs_app_http" "srs_app_thread" "srs_app_bandwidth" "srs_app_st" "srs_app_log"
-        "srs_app_config" "srs_app_pithy_print" "srs_app_reload")
+        "srs_app_config" "srs_app_pithy_print" "srs_app_reload" "srs_app_http_api"
+        "srs_app_http_conn")
 APP_INCS="src/app"; MODULE_DIR=${APP_INCS} . auto/modules.sh
 APP_OBJS="${MODULE_OBJS[@]}"
 #

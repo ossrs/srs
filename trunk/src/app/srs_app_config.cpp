@@ -1466,6 +1466,79 @@ double SrsConfig::get_hls_window(string vhost)
     return ::atof(conf->arg0().c_str());
 }
 
+SrsConfDirective* SrsConfig::get_http_api()
+{
+    return root->get("http_api");
+}
+
+bool SrsConfig::get_http_api_enabled()
+{
+    SrsConfDirective* conf = get_http_api();
+    
+    if (!conf) {
+        return false;
+    }
+    
+    conf = conf->get("enabled");
+    if (conf && conf->arg0() == "on") {
+        return true;
+    }
+    
+    return false;
+}
+
+int SrsConfig::get_http_api_listen()
+{
+    SrsConfDirective* conf = get_http_api();
+    
+    if (conf) {
+        conf = conf->get("listen");
+        
+        if (conf && !conf->arg0().empty()) {
+            return ::atoi(conf->arg0().c_str());
+        }
+    }
+    
+    return 1985;
+}
+
+SrsConfDirective* SrsConfig::get_http_stream()
+{
+    return root->get("http_stream");
+}
+
+bool SrsConfig::get_http_stream_enabled()
+{
+    SrsConfDirective* conf = get_http_stream();
+    
+    if (!conf) {
+        return false;
+    }
+    
+    conf = conf->get("enabled");
+    
+    if (conf && conf->arg0() == "on") {
+        return true;
+    }
+    
+    return false;
+}
+
+int SrsConfig::get_http_stream_listen()
+{
+    SrsConfDirective* conf = get_http_stream();
+    
+    if (conf) {
+        conf = conf->get("listen");
+        
+        if (conf && !conf->arg0().empty()) {
+            return ::atoi(conf->arg0().c_str());
+        }
+    }
+    
+    return 8080;
+}
+
 SrsConfDirective* SrsConfig::get_refer(string vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);

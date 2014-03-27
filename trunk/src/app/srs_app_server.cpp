@@ -35,7 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
-#include <srs_app_client.hpp>
+#include <srs_app_rtmp_conn.hpp>
 #include <srs_app_config.hpp>
 #include <srs_kernel_utility.hpp>
 
@@ -118,7 +118,7 @@ int SrsListener::listen(int _port)
     }
     srs_verbose("create st listen thread success.");
     
-    srs_trace("server started, listen at port=%d, fd=%d", port, fd);
+    srs_trace("server started, listen at port=%d, type=%d, fd=%d", port, type, fd);
     
     return ret;
 }
@@ -301,7 +301,29 @@ int SrsServer::listen()
         
         int port = ::atoi(conf->args.at(i).c_str());
         if ((ret = listener->listen(port)) != ERROR_SUCCESS) {
-            srs_error("listen at port %d failed. ret=%d", port, ret);
+            srs_error("RTMP stream listen at port %d failed. ret=%d", port, ret);
+            return ret;
+        }
+    }
+    
+    if (_srs_config->get_http_api_enabled()) {
+        SrsListener* listener = new SrsListener(this, SrsListenerHttpApi);
+        listeners.push_back(listener);
+        
+        int port = _srs_config->get_http_api_listen();
+        if ((ret = listener->listen(port)) != ERROR_SUCCESS) {
+            srs_error("HTTP api listen at port %d failed. ret=%d", port, ret);
+            return ret;
+        }
+    }
+    
+    if (_srs_config->get_http_stream_enabled()) {
+        SrsListener* listener = new SrsListener(this, SrsListenerHttpStream);
+        listeners.push_back(listener);
+        
+        int port = _srs_config->get_http_stream_listen();
+        if ((ret = listener->listen(port)) != ERROR_SUCCESS) {
+            srs_error("HTTP stream listen at port %d failed. ret=%d", port, ret);
             return ret;
         }
     }
@@ -413,6 +435,8 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
     SrsConnection* conn = NULL;
     if (type == SrsListenerStream) {
         conn = new SrsClient(this, client_stfd);
+    } else if (type == SrsListenerHttpApi) {
+    } else if (type == SrsListenerHttpStream) {
     } else {
         // TODO: FIXME: handler others
     }
