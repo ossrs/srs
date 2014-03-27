@@ -31,11 +31,11 @@ SrsHttpApi::SrsHttpApi(SrsServer* srs_server, st_netfd_t client_stfd)
 {
 }
 
-SrsHttpApi::~SrsHttpApi() 
+SrsHttpApi::~SrsHttpApi()
 {
 }
 
-int SrsHttpApi::do_cycle() 
+int SrsHttpApi::do_cycle()
 {
     int ret = ERROR_SUCCESS;
     

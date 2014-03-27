@@ -31,6 +31,24 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_st.hpp>
 
+// http specification
+namespace srs
+{
+    // CR             = <US-ASCII CR, carriage return (13)>
+    const static char CR = '\r';
+    // LF             = <US-ASCII LF, linefeed (10)>
+    const static char LF = '\n';
+    // SP             = <US-ASCII SP, space (32)>
+    const static char SP = ' ';
+    // HT             = <US-ASCII HT, horizontal-tab (9)>
+    const static char HT = 9;
+    
+    // HTTP/1.1 defines the sequence CR LF as the end-of-line marker for all
+    // protocol elements except the entity-body (see appendix 19.3 for
+    // tolerant applications). 
+    const static char* CRLF = "\r\n";
+};
+
 #ifdef SRS_HTTP_CALLBACK
 
 class SrsRequest;

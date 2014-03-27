@@ -26,6 +26,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef SRS_HTTP_CALLBACK
 
 #include <sstream>
+using namespace std;
 
 #include <stdlib.h>
 #include <sys/socket.h>
@@ -36,6 +37,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_rtmp.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_app_socket.hpp>
+
+using namespace srs;
 
 #define SRS_DEFAULT_HTTP_PORT 80
 #define SRS_HTTP_RESPONSE_OK "0"
@@ -150,13 +153,13 @@ int SrsHttpClient::post(SrsHttpUri* uri, std::string req, std::string& res)
     // POST %s HTTP/1.1\r\nHost: %s\r\nContent-Length: %d\r\n\r\n%s
     std::stringstream ss;
     ss << "POST " << uri->get_path() << " "
-        << "HTTP/1.1\r\n"
-        << "Host: " << uri->get_host() << "\r\n"
-        << "Connection: Keep-Alive" << "\r\n"
-        << "Content-Length: " << std::dec << req.length() << "\r\n"
-        << "User-Agent: " << RTMP_SIG_SRS_NAME << RTMP_SIG_SRS_VERSION << "\r\n"
-        << "Content-Type: text/html" << "\r\n"
-        << "\r\n"
+        << "HTTP/1.1" << CRLF
+        << "Host: " << uri->get_host() << CRLF
+        << "Connection: Keep-Alive" << CRLF
+        << "Content-Length: " << std::dec << req.length() << CRLF
+        << "User-Agent: " << RTMP_SIG_SRS_NAME << RTMP_SIG_SRS_VERSION << CRLF
+        << "Content-Type: text/html" << CRLF
+        << CRLF
         << req;
     
     SrsSocket skt(stfd);
