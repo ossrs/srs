@@ -7,13 +7,46 @@
 # user can config the following configs, then package.
 INSTALL=/usr/local/srs
 # whether build for arm, only for ubuntu12.
+help=NO
 ARM=NO
+DO_BUILD=YES
 
 ##################################################################################
 ##################################################################################
 ##################################################################################
 # parse options.
-if [[ $1 == "arm" ]]; then ARM=YES; fi
+for option
+do
+    case "$option" in
+        -*=*) 
+            value=`echo "$option" | sed -e 's|[-_a-zA-Z0-9/]*=||'` 
+            option=`echo "$option" | sed -e 's|=[-_a-zA-Z0-9/]*||'`
+        ;;
+           *) value="" ;;
+    esac
+    
+    case "$option" in
+        --help)                         help=yes                  ;;
+        
+        --arm)                          ARM=YES                   ;;
+        --no-build)                     DO_BUILD=NO               ;;
+
+        *)
+            echo "$0: error: invalid option \"$option\""
+            exit 1
+        ;;
+    esac
+done
+if [ $help = yes ]; then
+    cat << END
+
+  --help                   print this message
+
+  --arm                    configure with arm and make srs. use arm tools to get info.
+  --no-build               donot build srs, user has builded. only make install.
+END
+    exit 0
+fi
 
 # discover the current work dir, the log and access.
 echo "argv[0]=$0"
@@ -36,28 +69,38 @@ ret=$?; if [[ $ret -ne 0 ]]; then exit $ret; fi
 os_name=`lsb_release --id|awk '{print $3}'` &&
 os_release=`lsb_release --release|awk '{print $2}'` &&
 os_major_version=`echo $os_release|awk -F '.' '{print $1}'` &&
-os_machine=`uname -i`
+os_machine=`uname -i`; if [[ "unknown" == $os_machine ]]; then os_machine=`uname -m`; fi
 ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "lsb_release get os info failed."; exit $ret; fi
 ok_msg "target os is ${os_name}-${os_major_version} ${os_release} ${os_machine}"
 
 # build srs
 # @see https://github.com/winlinvip/simple-rtmp-server/wiki/Build
-ok_msg "start build srs"
-if [ $ARM = YES ]; then
-    (
-        cd $work_dir && 
-        ./configure --with-ssl --with-arm-ubuntu12 --prefix=$INSTALL &&
-        make && rm -rf $package_dir && make DESTDIR=$package_dir install
-    ) >> $log 2>&1
+if [ $DO_BUILD = YES ]; then
+    ok_msg "start build srs"
+    if [ $ARM = YES ]; then
+        (
+            cd $work_dir && 
+            ./configure --with-ssl --with-arm-ubuntu12 --prefix=$INSTALL && make
+        ) >> $log 2>&1
+    else
+        (
+            cd $work_dir && 
+            ./configure --with-ssl --with-hls --with-nginx --with-ffmpeg --with-http-callback --prefix=$INSTALL && make
+        ) >> $log 2>&1
+    fi
+    ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "build srs failed"; exit $ret; fi
+    ok_msg "build srs success"
 else
-    (
-        cd $work_dir && 
-        ./configure --with-ssl --with-hls --with-nginx --with-ffmpeg --with-http-callback --prefix=$INSTALL &&
-        make && rm -rf $package_dir && make DESTDIR=$package_dir install
-    ) >> $log 2>&1
+    ok_msg "user skip build, directly install"
 fi
-ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "build srs failed"; exit $ret; fi
-ok_msg "build srs success"
+
+# install srs
+ok_msg "start install srs"
+(
+    cd $work_dir && rm -rf $package_dir && make DESTDIR=$package_dir install
+) >> $log 2>&1
+ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "install srs failed"; exit $ret; fi
+ok_msg "install srs success"
 
 # copy extra files to package.
 ok_msg "start copy extra files to package"
