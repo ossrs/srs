@@ -178,7 +178,8 @@ See also: [Performance Test Guide](https://github.com/winlinvip/simple-rtmp-serv
 * nginx v1.5.0: 139524 lines <br/>
 
 ## History
-* v1.0, 2014-03-26, Support RTMP ATC for HLS/HDS to support backup(failover).
+* v1.0, 2014-03-29, add release binary package for raspberry-pi.
+* v1.0, 2014-03-26, support RTMP ATC for HLS/HDS to support backup(failover).
 * v1.0, 2014-03-23, support daemon, default start in daemon.
 * v1.0, 2014-03-22, support make install/install-api and uninstall.
 * v1.0, 2014-03-22, add ./etc/init.d/srs, refine to support make clean then make.
