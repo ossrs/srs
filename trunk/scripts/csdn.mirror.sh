@@ -27,8 +27,11 @@ product_dir=$work_dir
 ret=$?; if [[ $ret -ne 0 ]]; then exit $ret; fi
 ok_msg "导入脚本成功"
 
+git remote -v|grep code.csdn.net >/dev/null 2>&1
+ret=$?; if [[ 0 -ne $ret ]]; then failed_msg "当前分支不是CSDN镜像"; exit 0; fi 
+
 for ((;;)); do
-    git checkout srs.master && git pull
+    git checkout srs.master && git pull 
     ret=$?; if [[ 0 -ne $ret ]]; then 
         failed_msg "更新github分支失败，自动重试";
         continue
