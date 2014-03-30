@@ -81,6 +81,8 @@ ok_msg "install init.d scripts success"
 # install system service
 lsb_release --id|grep "CentOS" >/dev/null 2>&1; os_id_centos=$?
 lsb_release --id|grep "Ubuntu" >/dev/null 2>&1; os_id_ubuntu=$?
+lsb_release --id|grep "Debian" >/dev/null 2>&1; os_id_debian=$?
+lsb_release --id|grep "Raspbian" >/dev/null 2>&1; os_id_rasabian=$?
 if [[ 0 -eq $os_id_centos ]]; then
     ok_msg "install system service for CentOS"
     /sbin/chkconfig --add srs && /sbin/chkconfig srs on
@@ -88,6 +90,16 @@ if [[ 0 -eq $os_id_centos ]]; then
     ok_msg "install system service success"
 elif [[ 0 -eq $os_id_ubuntu ]]; then
     ok_msg "install system service for Ubuntu"
+    update-rc.d srs defaults
+    ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "install system service failed"; exit $ret; fi
+    ok_msg "install system service success"
+elif [[ 0 -eq $os_id_debian ]]; then
+    ok_msg "install system service for Debian"
+    update-rc.d srs defaults
+    ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "install system service failed"; exit $ret; fi
+    ok_msg "install system service success"
+elif [[ 0 -eq $os_id_rasabian ]]; then
+    ok_msg "install system service for RaspberryPi"
     update-rc.d srs defaults
     ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "install system service failed"; exit $ret; fi
     ok_msg "install system service success"
