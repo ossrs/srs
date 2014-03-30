@@ -1,7 +1,9 @@
 #!/bin/bash
 
+echo "通用打包脚本，--help查看参数"
+
 # Usage:
-#       bash package.sh [arm]
+#       bash package.sh [--help]
 #           option arm, whether build for arm, requires ubuntu12.
 
 # user can config the following configs, then package.
@@ -69,9 +71,16 @@ ret=$?; if [[ $ret -ne 0 ]]; then exit $ret; fi
 os_name=`lsb_release --id|awk '{print $3}'` &&
 os_release=`lsb_release --release|awk '{print $2}'` &&
 os_major_version=`echo $os_release|awk -F '.' '{print $1}'` &&
-os_machine=`uname -i`; if [[ "unknown" == $os_machine ]]; then os_machine=`uname -m`; fi
+os_machine=`uname -i`
 ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "lsb_release get os info failed."; exit $ret; fi
 ok_msg "target os is ${os_name}-${os_major_version} ${os_release} ${os_machine}"
+
+# for raspberry-pi
+# use rasberry-pi instead all release
+uname -a|grep "raspberrypi"; if [[ 0 -eq $? ]]; then os_name="RaspberryPi"; fi
+if [[ "Raspbian" == $os_name ]]; then os_name="RaspberryPi"; fi
+# check the cpu machine
+if [[ "unknown" == $os_machine ]]; then os_machine=`uname -m`; fi
 
 # build srs
 # @see https://github.com/winlinvip/simple-rtmp-server/wiki/Build

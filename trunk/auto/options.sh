@@ -35,6 +35,8 @@ SRS_STATIC=RESERVED
 # private internal
 # dev, open all features for dev, no gperf/prof/arm.
 SRS_DEV=NO
+# raspberry-pi, open hls/ssl/static
+SRS_PI=NO
 
 #####################################################################################
 # parse options
@@ -92,6 +94,7 @@ do
         --prefix)                       SRS_PREFIX=${value}       ;;
         --static)                       SRS_STATIC=YES            ;;
         --dev)                          SRS_DEV=YES               ;;
+        --pi)                           SRS_PI=YES                ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
@@ -121,6 +124,7 @@ if [ $SRS_ARM_UBUNTU12 = YES ]; then
     if [ $SRS_GPROF = RESERVED ]; then SRS_GPROF=NO; fi
     if [ $SRS_ARM_UBUNTU12 = RESERVED ]; then SRS_ARM_UBUNTU12=NO; fi
     if [ $SRS_DEV = RESERVED ]; then SRS_DEV=NO; fi
+    if [ $SRS_PI = RESERVED ]; then SRS_PI=NO; fi
     # for arm, always set to static link.
     SRS_STATIC=YES
 else
@@ -141,6 +145,7 @@ else
     if [ $SRS_ARM_UBUNTU12 = RESERVED ]; then SRS_ARM_UBUNTU12=NO; fi
     if [ $SRS_STATIC = RESERVED ]; then SRS_STATIC=NO; fi
     if [ $SRS_DEV = RESERVED ]; then SRS_DEV=NO; fi
+    if [ $SRS_PI = RESERVED ]; then SRS_PI=NO; fi
 fi
 
 # if dev specified, open features if possible.
@@ -162,6 +167,27 @@ if [ $SRS_DEV = YES ]; then
     SRS_ARM_UBUNTU12=NO
     # for arm, always set to static link.
     SRS_STATIC=NO
+fi
+
+# if raspberry-pi specified, open ssl/hls/static features
+if [ $SRS_PI = YES ]; then
+    SRS_HLS=YES
+    SRS_NGINX=NO
+    SRS_SSL=YES
+    SRS_FFMPEG=NO
+    SRS_HTTP_CALLBACK=NO
+    SRS_LIBRTMP=NO
+    SRS_BWTC=NO
+    SRS_RESEARCH=NO
+    SRS_UTEST=NO
+    SRS_GPERF=NO
+    SRS_GPERF_MC=NO
+    SRS_GPERF_MP=NO
+    SRS_GPERF_CP=NO
+    SRS_GPROF=NO
+    SRS_ARM_UBUNTU12=NO
+    # for arm, always set to static link.
+    SRS_STATIC=YES
 fi
 
 # parse the jobs for make
@@ -219,6 +245,7 @@ if [ $help = yes ]; then
                            used for make in the configure, for example, to make ffmpeg.
   --prefix=<path>          the absolute install path for srs.
   --dev                    for dev, open all features, no gperf/gprof/arm.
+  --pi                     for raspberry-pi, open features hls/ssl/static.
 
 END
     exit 0
@@ -288,6 +315,8 @@ fi
 
 # regenerate the options for default values.
 SRS_CONFIGURE=""
+if [ $SRS_DEV = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --dev"; fi
+if [ $SRS_PI = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --pi"; fi
 if [ $SRS_HLS = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-hls"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-hls"; fi
 if [ $SRS_NGINX = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-nginx"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-nginx"; fi
 if [ $SRS_SSL = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-ssl"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-ssl"; fi

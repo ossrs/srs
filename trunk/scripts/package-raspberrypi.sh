@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "在Ubuntu12下面交叉编译arm用的脚本"
+echo "在RaspberryPi下直接打包，不编译直接打包（编译慢，手工编译）"
 
 echo "argv[0]=$0"
 if [[ ! -f $0 ]]; then 
@@ -11,4 +11,4 @@ else
     work_dir=`dirname $0`; work_dir=`(cd ${work_dir} && pwd)`
 fi
 
-bash ${work_dir}/package.sh --arm
+bash ${work_dir}/package.sh --no-build
