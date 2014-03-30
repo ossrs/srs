@@ -46,18 +46,12 @@ rtmp([encoder push](https://github.com/winlinvip/simple-rtmp-server/wiki/Deliver
 [HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), [HLS audio only](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS#hlsaudioonly), [transcoding](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), 
 [forward](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), [http hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback).
 
-Release: [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.github.io/simple-rtmp-server) 
-
-Blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) 
-
-CSDN mirror: [https://code.csdn.net/winlinvip/srs-csdn](https://code.csdn.net/winlinvip/srs-csdn)
-
-See also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) 
-
-Github DEMO: [demo with your SRS](http://winlinvip.github.io/simple-rtmp-server/trunk/research/players/srs_player.html?server=192.168.1.170&vhost=192.168.1.170) 
-
-Wiki: [https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki) 
-
+Release: [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.github.io/simple-rtmp-server)  <br/>
+Blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin)  <br/>
+CSDN mirror: [https://code.csdn.net/winlinvip/srs-csdn](https://code.csdn.net/winlinvip/srs-csdn) <br/>
+See also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server)  <br/>
+Github DEMO: [demo with your SRS](http://winlinvip.github.io/simple-rtmp-server/trunk/research/players/srs_player.html?server=192.168.1.170&vhost=192.168.1.170)  <br/>
+Wiki: [https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki)  <br/>
 TencentQQ: [http://url.cn/WAHICw](http://url.cn/WAHICw) (Group: 212189142)
 
 ## AUTHORS
@@ -77,11 +71,11 @@ A big THANK YOU goes to:
 * [chnvideo](chnvideo.com) co-founders([wiseyoung](mailto:wiseyoung@chnvideo.com), [trueice](mailto:trueice@chnvideo.com), [leijian](mailto:leijian@chnvideo.com)) for [big supports](https://github.com/winlinvip/simple-rtmp-server/wiki/Product#bigthanks).
 * Genes amd Mabbott for creating [st](https://github.com/winlinvip/state-threads)([state-threads](http://sourceforge.net/projects/state-threads/)).
 * Michael Talyanksy for introducing us to use st.
-* Roman Arutyunyan for creating [nginx-rtmp](https://github.com/arut/nginx-rtmp-module) for srs to refer to. 
-* Joyent for creating [http-parser](https://github.com/joyent/http-parser) for http-api for srs.
-* Igor Sysoev for creating [nginx](http://nginx.org/) for srs to refer to.
-* [FFMPEG](http://ffmpeg.org/) and [libx264](http://www.videolan.org/) group for srs to use to transcode.
-* Guido van Rossum for creating Python for api-server for srs.
+* Roman Arutyunyan for creating [nginx-rtmp](https://github.com/arut/nginx-rtmp-module) for SRS to refer to. 
+* Joyent for creating [http-parser](https://github.com/joyent/http-parser) for http-api for SRS.
+* Igor Sysoev for creating [nginx](http://nginx.org/) for SRS to refer to.
+* [FFMPEG](http://ffmpeg.org/) and [libx264](http://www.videolan.org/) group for SRS to use to transcode.
+* Guido van Rossum for creating Python for api-server for SRS.
 
 ## Usage
 
@@ -112,7 +106,7 @@ cd simple-rtmp-server/trunk
 * [Usage: How to transode RTMP stream by SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleFFMPEG)
 * [Usage: How to forward stream to other server?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleForward)
 * [Usage: How to deploy low lantency application?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleRealtime)
-* [Usage: How to deploy srs on ARM?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleARM)
+* [Usage: How to deploy SRS on ARM?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleARM)
 * [Usage: How to show the demo of SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleDemo)
 * [Usage: Solution using SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/Sample)
 * [Usage: Why SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/Product)
@@ -169,11 +163,11 @@ Supported operating systems and hardware:
 
 ## Performance
 1.  300 connections, 150Mbps, 500kbps, CPU 18.8%, MEM 5956KB.
-2.  600 connections, 300Mbps, 500kbps, CPU 32.1%, MEM 9808KB.
-3.  900 connections, 450Mbps, 500kbps, CPU 49.9%, MEM 11MB.
-4. 1200 connections, 600Mbps, 500kbps, CPU 72.4%, MEM 15MB.
-5. 1500 connections, 750Mbps, 500kbps, CPU 81.9%, MEM 28MB.
-6. 1800 connections, 900Mbps, 500kbps, CPU 90.2%, MEM 41MB.
+1.  600 connections, 300Mbps, 500kbps, CPU 32.1%, MEM 9808KB.
+1.  900 connections, 450Mbps, 500kbps, CPU 49.9%, MEM 11MB.
+1. 1200 connections, 600Mbps, 500kbps, CPU 72.4%, MEM 15MB.
+1. 1500 connections, 750Mbps, 500kbps, CPU 81.9%, MEM 28MB.
+1. 1800 connections, 900Mbps, 500kbps, CPU 90.2%, MEM 41MB.
 
 <pre>
 [winlin@dev6 srs]$ dstat
@@ -189,8 +183,9 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
  41   6  52   0   0   1|   0  1264k| 116M  116M|   0     0 |  25k   28k
  48   6  45   0   0   1|   0  1272k| 143M  143M|   0     0 |  27k   27k
 </pre>
-See also: [Performance for x86/x64 Test Guide](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance)<br/>
-See also: [Performance for RaspberryPi](https://github.com/winlinvip/simple-rtmp-server/wiki/RaspberryPi)
+
+* See also: [Performance for x86/x64 Test Guide](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance)
+* See also: [Performance for RaspberryPi](https://github.com/winlinvip/simple-rtmp-server/wiki/RaspberryPi)
 
 ## Releases
 * 2013-12-25, [Release v0.9](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.9), support bandwidth test, player/encoder/chat demos. 20926 lines.<br/>
@@ -233,7 +228,7 @@ See also: [Performance for RaspberryPi](https://github.com/winlinvip/simple-rtmp
 * v1.0, 2014-03-06, add gperftools for mem leak detect, mem/cpu profile.
 * v1.0, 2014-03-04, add gest framework for utest, build success.
 * v1.0, 2014-03-02, add wiki [srs-librtmp](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLibrtmp), 
-[srs for arm](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm), 
+[SRS for arm](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm), 
 [product](https://github.com/winlinvip/simple-rtmp-server/wiki/Product)
 * v1.0, 2014-03-02, srs-librtmp, client publish/play library like librtmp.
 * v1.0, 2014-03-01, modularity, extract core/kernel/rtmp/app/main module.
@@ -327,14 +322,14 @@ on_connect/close/publish/unpublish/play/stop.
 
 ## Architecture
 
-srs always use the most simple architecture to support complex transaction.
+SRS always use the most simple architecture to support complex transaction.
 * System arch: the system structure and arch.
-* Modularity arch: the main modularity of srs.
-* Stream arch: the stream dispatch arch of srs.
+* Modularity arch: the main modularity of SRS.
+* Stream arch: the stream dispatch arch of SRS.
 * RTMP cluster arch: the RTMP origin and edge cluster arch.
-* Multiple processes arch (by wenjie): the multiple process of srs.
-* CLI arch: the cli arch for srs, api to manage srs.
-* Bandwidth specification: the bandwidth test specification of srs.
+* Multiple processes arch (by wenjie): the multiple process of SRS.
+* CLI arch: the cli arch for SRS, api to manage SRS.
+* Bandwidth specification: the bandwidth test specification of SRS.
 
 ### System Architecture
 
@@ -393,8 +388,8 @@ srs always use the most simple architecture to support complex transaction.
 Remark:
 (1) Encoder: encoder must push RTMP stream to SRS server.
 (2) MediaSource: any media source, which can be ingest by ffmpeg.
-(3) Ingester: srs will fork a process to run ffmpeg(or your application) 
-to ingest any input to rtmp, push to srs.
+(3) Ingester: SRS will fork a process to run ffmpeg(or your application) 
+to ingest any input to rtmp, push to SRS.
 </pre>
 
 ### [HDS/HLS origin backup](https://github.com/winlinvip/simple-rtmp-server/wiki/RTMP-ATC)
