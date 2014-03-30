@@ -245,7 +245,7 @@ if [ $help = yes ]; then
                            used for make in the configure, for example, to make ffmpeg.
   --prefix=<path>          the absolute install path for srs.
   --dev                    for dev, open all features, no gperf/gprof/arm.
-  --pi                     for raspberry-pi, open features hls/ssl/static.
+  --pi                     for raspberry-pi(directly build), open features hls/ssl/static.
 
 END
     exit 0
