@@ -1,8 +1,20 @@
 #Simple-RTMP-Server
 
-You can [Download Released SRS(下载发布版)](http://winlinvip.github.io/srs.release/releases/)
+[下载发布版(github): Download Released SRS from github](http://winlinvip.github.io/srs.release/releases/)
 
-Or download from [chnvideo mirror(国内镜像)](http://demo.chnvideo.com:8085/srs/releases/)
+[下载发布版(国内阿里云镜像): Download Realeased SRS from chnvideo mirror](http://demo.chnvideo.com:8085/srs/releases/)
+
+[获得源码(github): Checkout SRS source from github](https://github.com/winlinvip/simple-rtmp-server)
+
+```bash
+git clone https://github.com/winlinvip/simple-rtmp-server.git
+```
+
+[获得源码(国内CSDN镜像): Checkout SRS source from CSDN](https://code.csdn.net/winlinvip/srs-csdn/events)
+
+```bash
+git clone https://code.csdn.net/winlinvip/srs-csdn.git
+```
 
 ## About
 

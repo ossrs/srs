@@ -42,13 +42,6 @@ git checkout master && git merge srs.master
 ret=$?; if [[ 0 -ne $ret ]]; then failed_msg "合并github分支失败, ret=$ret"; exit $ret; fi
 ok_msg "合并github分支成功"
 
-git commit -a -m "merge from github.srs"
-ret=$?; if [[ 0 -ne $ret ]]; then 
-    warn_msg "提交CSDN失败，忽略, ret=$ret";
-else
-    ok_msg "提交CSDN成功"
-fi
-
 for ((;;)); do 
     git push
     ret=$?; if [[ 0 -ne $ret ]]; then 
