@@ -4,7 +4,8 @@ echo "更新CSDN镜像的脚本"
 
 # 创建CSDN镜像的过程如下：
 # 1. 在CSDN上创建项目，从https://github.com/winlinvip/simple-rtmp-server拷贝过来。
-# 2. 在本地虚拟机上：git clone git@code.csdn.net:winlinvip/srs-csdn.git  
+# 2. 在本地虚拟机上：
+#       git clone git@code.csdn.net:winlinvip/srs-csdn.git  
 # 3. 创建同步的branch：
 #       git remote add upstream https://github.com/winlinvip/simple-rtmp-server.git
 #       git fetch upstream
@@ -28,7 +29,22 @@ ret=$?; if [[ $ret -ne 0 ]]; then exit $ret; fi
 ok_msg "导入脚本成功"
 
 git remote -v|grep code.csdn.net >/dev/null 2>&1
-ret=$?; if [[ 0 -ne $ret ]]; then failed_msg "当前分支不是CSDN镜像"; exit 0; fi 
+ret=$?; if [[ 0 -ne $ret ]]; then 
+    failed_msg "当前分支不是CSDN镜像"; 
+    cat <<END
+创建CSDN镜像的过程如下：
+1. 在CSDN上创建项目，从https://github.com/winlinvip/simple-rtmp-server拷贝过来。
+2. 在本地虚拟机上：    
+      git clone git@code.csdn.net:winlinvip/srs-csdn.git
+3. 创建同步的branch：    
+      git remote add upstream https://github.com/winlinvip/simple-rtmp-server.git
+      git fetch upstream    
+      git checkout upstream/master -b srs.master
+4. 执行本同步更新脚本，更新。
+      bash scripts/csdn.mirror.sh
+END
+    exit 0; 
+fi 
 
 for ((;;)); do
     git checkout srs.master && git pull 
