@@ -19,11 +19,12 @@ git clone https://github.com/winlinvip/simple-rtmp-server.git
 git clone https://code.csdn.net/winlinvip/srs-csdn.git
 ```
 
-关于SRS(About): [https://github.com/winlinvip/simple-rtmp-server#about](#about) <br/>
-作者信息(Authors): [https://github.com/winlinvip/simple-rtmp-server#authors](#authors) <br/>
+报告问题(BugReport): [https://github.com/winlinvip/simple-rtmp-server/issues/new](https://github.com/winlinvip/simple-rtmp-server/issues/new)<br/>
 中文资料(Wiki): [https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki) <br/>
 使用步骤(Usage): [https://github.com/winlinvip/simple-rtmp-server#usage](#usage) <br/>
 功能摘要(Summary): [https://github.com/winlinvip/simple-rtmp-server#summary](#summary) <br/>
+关于SRS(About): [https://github.com/winlinvip/simple-rtmp-server#about](#about) <br/>
+作者信息(Authors): [https://github.com/winlinvip/simple-rtmp-server#authors](#authors) <br/>
 更新历史(History): [https://github.com/winlinvip/simple-rtmp-server#history](#history) <br/>
 性能报告(Performance): [https://github.com/winlinvip/simple-rtmp-server#performance](#performance) <br/>
 发行分支(Releases): [https://github.com/winlinvip/simple-rtmp-server#releases](#releases) <br/>
