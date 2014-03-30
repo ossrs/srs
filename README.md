@@ -150,7 +150,8 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
  41   6  52   0   0   1|   0  1264k| 116M  116M|   0     0 |  25k   28k
  48   6  45   0   0   1|   0  1272k| 143M  143M|   0     0 |  27k   27k
 </pre>
-See also: [Performance Test Guide](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance)
+See also: [Performance for x86/x64 Test Guide](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance)<br/>
+See also: [Performance for RaspberryPi](https://github.com/winlinvip/simple-rtmp-server/wiki/RaspberryPi)
 
 ## Releases
 * 2013-12-25, [Release v0.9](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.9), support bandwidth test, player/encoder/chat demos. 20926 lines.<br/>
@@ -178,7 +179,8 @@ See also: [Performance Test Guide](https://github.com/winlinvip/simple-rtmp-serv
 * nginx v1.5.0: 139524 lines <br/>
 
 ## History
-* v1.0, 2014-03-29, add release binary package for raspberry-pi.
+* v1.0, 2014-03-29, add wiki [Performance for RaspberryPi](https://github.com/winlinvip/simple-rtmp-server/wiki/RaspberryPi).
+* v1.0, 2014-03-29, add release binary package for raspberry-pi. 
 * v1.0, 2014-03-26, support RTMP ATC for HLS/HDS to support backup(failover).
 * v1.0, 2014-03-23, support daemon, default start in daemon.
 * v1.0, 2014-03-22, support make install/install-api and uninstall.
