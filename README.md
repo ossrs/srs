@@ -131,23 +131,23 @@ Supported operating systems and hardware:
 ## Summary
 1. Simple: also stable enough.<br/>
 1. [High-performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance): single-thread, async socket, event/st-thread driven.<br/>
-03. Support RTMP edge server(plan), support origin server.<br/>
-04. RTMP without vod streaming, live streaming only.<br/>
-05. Support multiple processes, support single process.<br/>
-06. Support vhost, support \_\_defaultVhost\_\_.<br/>
-07. Support adobe rtmp live streaming.<br/>
-08. Support apple [HLS(m3u8)](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS) live streaming.<br/>
-09. Support HLS audio-only live streaming.<br/>
-10. Support reload config to enable changes.<br/>
-11. Support cache last gop for flash player to fast startup.<br/>
-12. Support listen at multiple ports.<br/>
-13. Support long time(>4.6hours) publish/play.<br/>
-14. High performace, 1800 connections(500kbps), 900Mbps, CPU 90.2%, 41MB<br/>
-15. Support forward publish stream to build active-standby [cluster](https://github.com/winlinvip/simple-rtmp-server/wiki/Cluster).<br/>
-16. Support broadcast by forward the stream to other servers(origin/edge).<br/>
-17. Support live stream transcoding by ffmpeg.<br/>
-18. Support live stream forward(acopy/vcopy) by ffmpeg.<br/>
-19. Support ffmpeg filters(logo/overlay/crop), x264 params, copy/vn/an.<br/>
+1. Support RTMP edge server(plan), support origin server.<br/>
+1. RTMP without vod streaming, live streaming only.<br/>
+1. Support multiple processes, support single process.<br/>
+1. Support vhost, support \_\_defaultVhost\_\_.<br/>
+1. Support adobe rtmp live streaming.<br/>
+1. Support apple [HLS(m3u8)](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS) live streaming.<br/>
+1. Support HLS audio-only live streaming.<br/>
+1. Support reload config to enable changes.<br/>
+1. Support cache last gop for flash player to fast startup.<br/>
+1. Support listen at multiple ports.<br/>
+1. Support long time(>4.6hours) publish/play.<br/>
+1. High performace, 1800 connections(500kbps), 900Mbps, CPU 90.2%, 41MB<br/>
+1. Support forward publish stream to build active-standby [cluster](https://github.com/winlinvip/simple-rtmp-server/wiki/Cluster).<br/>
+1. Support broadcast by forward the stream to other servers(origin/edge).<br/>
+1. Support live stream transcoding by ffmpeg.<br/>
+1. Support live stream forward(acopy/vcopy) by ffmpeg.<br/>
+1. Support ffmpeg filters(logo/overlay/crop), x264 params, copy/vn/an.<br/>
 20. Support audio transcode only, speex/mp3 to aac<br/>
 21. Support [http callback api hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback)(for authentication and injection).<br/>
 22. Support bandwidth test api and flash client.<br/>
