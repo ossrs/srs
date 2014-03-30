@@ -52,25 +52,31 @@ rtmp([encoder push](https://github.com/winlinvip/simple-rtmp-server/wiki/Deliver
 [HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), [HLS audio only](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS#hlsaudioonly), [transcoding](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), 
 [forward](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), [http hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback).
 
-Release: [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.github.io/simple-rtmp-server) <br/>
-Blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
-CSDN mirror: [https://code.csdn.net/winlinvip/srs-csdn](https://code.csdn.net/winlinvip/srs-csdn)<br/>
-See also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) <br/>
-Github DEMO: [demo with your SRS](http://winlinvip.github.io/simple-rtmp-server/trunk/research/players/srs_player.html?server=192.168.1.170&vhost=192.168.1.170) <br/>
-Wiki: [https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki) <br/>
+Release: [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.github.io/simple-rtmp-server) 
+
+Blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) 
+
+CSDN mirror: [https://code.csdn.net/winlinvip/srs-csdn](https://code.csdn.net/winlinvip/srs-csdn)
+
+See also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) 
+
+Github DEMO: [demo with your SRS](http://winlinvip.github.io/simple-rtmp-server/trunk/research/players/srs_player.html?server=192.168.1.170&vhost=192.168.1.170) 
+
+Wiki: [https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki) 
+
 TencentQQ: [http://url.cn/WAHICw](http://url.cn/WAHICw) (Group: 212189142)
 
 ## AUTHORS
-The PRIMARY AUTHORS are (and/or have been)(Authors ordered by first contribution): <br/>
-* winlin([winterserver](#)): [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) <br/>
-* wenjie([wenjiegit](https://github.com/wenjiegit/simple-rtmp-server)): [http://blog.chinaunix.net/uid/25006789.html](http://blog.chinaunix.net/uid/25006789.html) <br/>
+The PRIMARY AUTHORS are (and/or have been)(Authors ordered by first contribution): 
+* winlin([winterserver](#)): [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) 
+* wenjie([wenjiegit](https://github.com/wenjiegit/simple-rtmp-server)): [http://blog.chinaunix.net/uid/25006789.html](http://blog.chinaunix.net/uid/25006789.html) 
 
-About the primary AUTHORS: <br/>
-* Contribute important features to SRS. <br/>
-* Names of all PRIMARY AUTHORS response in NetConnection.connect and metadata. <br/>
+About the primary AUTHORS: 
+* Contribute important features to SRS. 
+* Names of all PRIMARY AUTHORS response in NetConnection.connect and metadata. 
 
-And here is an inevitably incomplete list of MUCH-APPRECIATED CONTRIBUTORS --<br/>
-people who have submitted patches, reported bugs, added translations, helped<br/>
+And here is an inevitably incomplete list of MUCH-APPRECIATED CONTRIBUTORS --
+people who have submitted patches, reported bugs, added translations, helped
 answer newbie questions, and generally made SRS that much better: [AUTHORS.txt](https://github.com/winlinvip/simple-rtmp-server/blob/master/AUTHORS.txt)
 
 A big THANK YOU goes to:
@@ -85,31 +91,48 @@ A big THANK YOU goes to:
 
 ## Usage
 
-<strong>Step 1:</strong> get SRS <br/>
+<strong>Step 1:</strong> get SRS 
+
 <pre>
 git clone https://github.com/winlinvip/simple-rtmp-server &&
 cd simple-rtmp-server/trunk
 </pre>
+
 <strong>Step 2:</strong> build SRS,
-<strong>Requires Centos6.x/Ubuntu12 32/64bits, others see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build)</strong><br/>
+<strong>Requires Centos6.x/Ubuntu12 32/64bits, others see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build)</strong>
+
 <pre>
 ./configure && make
 </pre>
-<strong>Step 3:</strong> start SRS <br/>
+
+<strong>Step 3:</strong> start SRS 
+
 <pre>
 ./objs/srs -c conf/srs.conf
 </pre>
-<strong>See also:</strong><br/>
-[Usage: How to delivery RTMP?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleRTMP)<br/>
-[Usage: How to delivery HLS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleHLS)<br/>
-[Usage: How to delivery HLS for other codec?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleTranscode2HLS)<br/>
-[Usage: How to transode RTMP stream by SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleFFMPEG)<br/>
-[Usage: How to forward stream to other server?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleForward)<br/>
-[Usage: How to deploy low lantency application?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleRealtime)<br/>
-[Usage: How to deploy srs on ARM?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleARM)<br/>
-[Usage: How to show the demo of SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleDemo)<br/>
-[Usage: Solution using SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/Sample)<br/>
-[Usage: Why SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/Product)<br/>
+
+<strong>See also:</strong>
+
+[Usage: How to delivery RTMP?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleRTMP)
+
+[Usage: How to delivery HLS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleHLS)
+
+[Usage: How to delivery HLS for other codec?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleTranscode2HLS)
+
+[Usage: How to transode RTMP stream by SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleFFMPEG)
+
+[Usage: How to forward stream to other server?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleForward)
+
+[Usage: How to deploy low lantency application?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleRealtime)
+
+[Usage: How to deploy srs on ARM?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleARM)
+
+[Usage: How to show the demo of SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleDemo)
+
+[Usage: Solution using SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/Sample)
+
+[Usage: Why SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/Product)
+
 
 ## System Requirements
 Supported operating systems and hardware:
@@ -117,7 +140,7 @@ Supported operating systems and hardware:
 * All hardware.
 
 ## Summary
-01. Simple: also stable enough.<br/>
+01. Simple: also stable enough.
 02. [High-performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance): single-thread, async socket, event/st-thread driven.<br/>
 03. Support RTMP edge server(plan), support origin server.<br/>
 04. RTMP without vod streaming, live streaming only.<br/>
