@@ -112,27 +112,16 @@ cd simple-rtmp-server/trunk
 </pre>
 
 <strong>See also:</strong>
-
-[Usage: How to delivery RTMP?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleRTMP)
-
-[Usage: How to delivery HLS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleHLS)
-
-[Usage: How to delivery HLS for other codec?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleTranscode2HLS)
-
-[Usage: How to transode RTMP stream by SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleFFMPEG)
-
-[Usage: How to forward stream to other server?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleForward)
-
-[Usage: How to deploy low lantency application?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleRealtime)
-
-[Usage: How to deploy srs on ARM?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleARM)
-
-[Usage: How to show the demo of SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleDemo)
-
-[Usage: Solution using SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/Sample)
-
-[Usage: Why SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/Product)
-
+* [Usage: How to delivery RTMP?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleRTMP)
+* [Usage: How to delivery HLS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleHLS)
+* [Usage: How to delivery HLS for other codec?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleTranscode2HLS)
+* [Usage: How to transode RTMP stream by SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleFFMPEG)
+* [Usage: How to forward stream to other server?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleForward)
+* [Usage: How to deploy low lantency application?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleRealtime)
+* [Usage: How to deploy srs on ARM?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleARM)
+* [Usage: How to show the demo of SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleDemo)
+* [Usage: Solution using SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/Sample)
+* [Usage: Why SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/Product)
 
 ## System Requirements
 Supported operating systems and hardware:
@@ -140,7 +129,7 @@ Supported operating systems and hardware:
 * All hardware.
 
 ## Summary
-01. Simple: also stable enough.
+01. Simple: also stable enough.<br/>
 02. [High-performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance): single-thread, async socket, event/st-thread driven.<br/>
 03. Support RTMP edge server(plan), support origin server.<br/>
 04. RTMP without vod streaming, live streaming only.<br/>
