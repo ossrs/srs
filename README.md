@@ -1,8 +1,11 @@
 #Simple-RTMP-Server
 
-下载发布版(github): [Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-0.9.30.zip) 其他[more...](http://winlinvip.github.io/srs.release/releases/)
-
-下载发布版(国内阿里云镜像): [Centos6-x86_64](http://demo.chnvideo.com:8085/srs/releases/files/SRS-CentOS6-x86_64-0.9.30.zip) 其他[more...](http://demo.chnvideo.com:8085/srs/releases/)
+下载发布版(github): 
+[Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-0.9.30.zip) 
+其他[more...](http://winlinvip.github.io/srs.release/releases/) <br/>
+下载发布版(国内阿里云镜像): 
+[Centos6-x86_64](http://demo.chnvideo.com:8085/srs/releases/files/SRS-CentOS6-x86_64-0.9.30.zip) 
+其他[more...](http://demo.chnvideo.com:8085/srs/releases/)
 
 获得源码(github): [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server)
 
@@ -16,24 +19,15 @@ git clone https://github.com/winlinvip/simple-rtmp-server.git
 git clone https://code.csdn.net/winlinvip/srs-csdn.git
 ```
 
-关于SRS(About): [https://github.com/winlinvip/simple-rtmp-server#about](#about)
-
-作者信息(Authors): [https://github.com/winlinvip/simple-rtmp-server#authors](#authors)
-
-中文资料(Wiki): [https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki)
-
-使用步骤(Usage): [https://github.com/winlinvip/simple-rtmp-server#usage](#usage)
-
-功能摘要(Summary): [https://github.com/winlinvip/simple-rtmp-server#summary](#summary)
-
-更新历史(History): [https://github.com/winlinvip/simple-rtmp-server#history](#history)
-
-性能报告(Performance): [https://github.com/winlinvip/simple-rtmp-server#performance](#performance)
-
-发行分支(Releases): [https://github.com/winlinvip/simple-rtmp-server#releases](#releases)
-
-横向对比(Compare): [https://github.com/winlinvip/simple-rtmp-server#compare](#compare)
-
+关于SRS(About): [https://github.com/winlinvip/simple-rtmp-server#about](#about) <br/>
+作者信息(Authors): [https://github.com/winlinvip/simple-rtmp-server#authors](#authors) <br/>
+中文资料(Wiki): [https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki) <br/>
+使用步骤(Usage): [https://github.com/winlinvip/simple-rtmp-server#usage](#usage) <br/>
+功能摘要(Summary): [https://github.com/winlinvip/simple-rtmp-server#summary](#summary) <br/>
+更新历史(History): [https://github.com/winlinvip/simple-rtmp-server#history](#history) <br/>
+性能报告(Performance): [https://github.com/winlinvip/simple-rtmp-server#performance](#performance) <br/>
+发行分支(Releases): [https://github.com/winlinvip/simple-rtmp-server#releases](#releases) <br/>
+横向对比(Compare): [https://github.com/winlinvip/simple-rtmp-server#compare](#compare) <br/>
 关键架构(Architecture): [https://github.com/winlinvip/simple-rtmp-server#architecture](#architecture)
 
 ## About
