@@ -129,8 +129,8 @@ Supported operating systems and hardware:
 * All hardware.
 
 ## Summary
-01. Simple: also stable enough.<br/>
-02. [High-performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance): single-thread, async socket, event/st-thread driven.<br/>
+1. Simple: also stable enough.<br/>
+1. [High-performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance): single-thread, async socket, event/st-thread driven.<br/>
 03. Support RTMP edge server(plan), support origin server.<br/>
 04. RTMP without vod streaming, live streaming only.<br/>
 05. Support multiple processes, support single process.<br/>
