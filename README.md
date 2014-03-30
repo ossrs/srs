@@ -129,49 +129,49 @@ Supported operating systems and hardware:
 * All hardware.
 
 ## Summary
-1. Simple: also stable enough.<br/>
-1. [High-performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance): single-thread, async socket, event/st-thread driven.<br/>
-1. Support RTMP edge server(plan), support origin server.<br/>
-1. RTMP without vod streaming, live streaming only.<br/>
-1. Support multiple processes, support single process.<br/>
-1. Support vhost, support \_\_defaultVhost\_\_.<br/>
-1. Support adobe rtmp live streaming.<br/>
-1. Support apple [HLS(m3u8)](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS) live streaming.<br/>
-1. Support HLS audio-only live streaming.<br/>
-1. Support reload config to enable changes.<br/>
-1. Support cache last gop for flash player to fast startup.<br/>
-1. Support listen at multiple ports.<br/>
-1. Support long time(>4.6hours) publish/play.<br/>
-1. High performace, 1800 connections(500kbps), 900Mbps, CPU 90.2%, 41MB<br/>
-1. Support forward publish stream to build active-standby [cluster](https://github.com/winlinvip/simple-rtmp-server/wiki/Cluster).<br/>
-1. Support broadcast by forward the stream to other servers(origin/edge).<br/>
-1. Support live stream transcoding by ffmpeg.<br/>
-1. Support live stream forward(acopy/vcopy) by ffmpeg.<br/>
-1. Support ffmpeg filters(logo/overlay/crop), x264 params, copy/vn/an.<br/>
-20. Support audio transcode only, speex/mp3 to aac<br/>
-21. Support [http callback api hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback)(for authentication and injection).<br/>
-22. Support bandwidth test api and flash client.<br/>
-23. Player, publisher(encoder), and demo pages(jquery+bootstrap). <br/>
-24. Demo video meeting or chat(SRS+cherrypy+jquery+bootstrap). <br/>
-25. Full documents in wiki, in chineses. <br/>
-26. Support RTMP(play-publish) library: srs-librtmp<br/>
-27. Support ARM([debian armhf, v7cpu](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm)) with rtmp/ssl/hls/librtmp.<br/>
-28. Support [init.d](https://github.com/winlinvip/simple-rtmp-server/wiki/LinuxService) and packge script, log to file. <br/>
-29. Support RTMP ATC for HLS/HDS to support backup(failover)<br/>
-30. [plan] Support system utest<br/>
-31. [plan] Support embeded http server for api and hls(live/vod)<br/>
-32. [plan] Support vod(file to hls stream)<br/>
-33. [plan] Support stream ingester using ffmpeg.<br/>
-34. [plan] Support ingest RTSP(RTP, SDP) stream to RTMP.<br/>
-35. [plan] Support network based cli and json result.<br/>
-36. [plan] Support RTMP edge server, push/pull stream from any RTMP server<br/>
-37. [plan] Support multiple processes, for both origin and edge<br/>
-38. [no-plan] Support adobe flash refer/token/swf verification.<br/>
-39. [no-plan] Support adobe amf3 codec.<br/>
-40. [no-plan] Support dvr(record live to vod file)<br/>
-41. [no-plan] Support encryption: RTMPE/RTMPS, HLS DRM<br/>
-42. [no-plan] Support RTMPT, http to tranverse firewalls<br/>
-43. [no-plan] Support file source, transcoding file to live stream<br/>
+1. Simple: also stable enough.
+1. [High-performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance): single-thread, async socket, event/st-thread driven.
+1. Support RTMP edge server(plan), support origin server.
+1. RTMP without vod streaming, live streaming only.
+1. Support multiple processes, support single process.
+1. Support vhost, support \_\_defaultVhost\_\_.
+1. Support adobe rtmp live streaming.
+1. Support apple [HLS(m3u8)](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS) live streaming.
+1. Support HLS audio-only live streaming.
+1. Support reload config to enable changes.
+1. Support cache last gop for flash player to fast startup.
+1. Support listen at multiple ports.
+1. Support long time(>4.6hours) publish/play.
+1. High performace, 1800 connections(500kbps), 900Mbps, CPU 90.2%, 41MB
+1. Support forward publish stream to build active-standby [cluster](https://github.com/winlinvip/simple-rtmp-server/wiki/Cluster).
+1. Support broadcast by forward the stream to other servers(origin/edge).
+1. Support live stream transcoding by ffmpeg.
+1. Support live stream forward(acopy/vcopy) by ffmpeg.
+1. Support ffmpeg filters(logo/overlay/crop), x264 params, copy/vn/an.
+1. Support audio transcode only, speex/mp3 to aac
+1. Support [http callback api hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback)(for authentication and injection).
+1. Support bandwidth test api and flash client.
+1. Player, publisher(encoder), and demo pages(jquery+bootstrap). 
+1. Demo video meeting or chat(SRS+cherrypy+jquery+bootstrap). 
+1. Full documents in wiki, in chineses. 
+1. Support RTMP(play-publish) library: srs-librtmp
+1. Support ARM([debian armhf, v7cpu](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm)) with rtmp/ssl/hls/librtmp.
+1. Support [init.d](https://github.com/winlinvip/simple-rtmp-server/wiki/LinuxService) and packge script, log to file. 
+1. Support RTMP ATC for HLS/HDS to support backup(failover)
+1. [plan] Support system utest
+1. [plan] Support embeded http server for api and hls(live/vod)
+1. [plan] Support vod(file to hls stream)
+1. [plan] Support stream ingester using ffmpeg.
+1. [plan] Support ingest RTSP(RTP, SDP) stream to RTMP.
+1. [plan] Support network based cli and json result.
+1. [plan] Support RTMP edge server, push/pull stream from any RTMP server
+1. [plan] Support multiple processes, for both origin and edge
+1. [no-plan] Support adobe flash refer/token/swf verification.
+1. [no-plan] Support adobe amf3 codec.
+1. [no-plan] Support dvr(record live to vod file)
+1. [no-plan] Support encryption: RTMPE/RTMPS, HLS DRM
+1. [no-plan] Support RTMPT, http to tranverse firewalls
+1. [no-plan] Support file source, transcoding file to live stream
 
 ## Performance
 1.  300 connections, 150Mbps, 500kbps, CPU 18.8%, MEM 5956KB.
