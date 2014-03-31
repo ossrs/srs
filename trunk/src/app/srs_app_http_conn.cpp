@@ -44,6 +44,13 @@ int SrsHttpConn::do_cycle()
         return ret;
     }
     srs_trace("http get peer ip success. ip=%s", ip);
+    
+    char data[] = "HTTP/1.1 200 OK\r\n"
+        "Server: SRS/"RTMP_SIG_SRS_VERSION"\r\n"
+        "Content-Length: 11\r\n"
+        "Content-Type: text/html;charset=utf-8\r\n\r\n"
+        "hello http~";
+    st_write(stfd, data, sizeof(data), -1);
         
     return ret;
 }

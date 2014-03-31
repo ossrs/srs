@@ -10,7 +10,7 @@ fi
 sudo echo "ok" > /dev/null 2>&1; 
 ret=$?; if [[ 0 -ne ${ret} ]]; then echo "you must be sudoer"; exit 1; fi
 
-tar xf graphviz-2.36.0.zip
+unzip -q graphviz-2.36.0.zip
 cd graphviz-2.36.0 && ./configure && make && sudo make install
 ret=$?; if [[ $ret -ne 0 ]]; then echo "build gprof2dot failed."; exit $ret; fi
 
