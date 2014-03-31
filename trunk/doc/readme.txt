@@ -53,5 +53,7 @@ http1.0-rfc1945.txt
     http://www.rfc-editor.org/rfc/rfc1945.txt
 http1.1-rfc2616.txt
     http://www.rfc-editor.org/rfc/rfc2616.txt
+arpa-internet-text-messages-rfc822.txt
+    http://www.rfc-editor.org/rfc/rfc822.txt
 
 Winlin
