@@ -159,11 +159,11 @@ if [ $SRS_DEV = YES ]; then
     SRS_BWTC=YES
     SRS_RESEARCH=YES
     SRS_UTEST=YES
-    SRS_GPERF=NO
-    SRS_GPERF_MC=NO
-    SRS_GPERF_MP=NO
-    SRS_GPERF_CP=NO
-    SRS_GPROF=NO
+    if [ $SRS_GPERF = RESERVED ]; then SRS_GPERF=NO; fi
+    if [ $SRS_GPERF_MC = RESERVED ]; then SRS_GPERF_MC=NO; fi
+    if [ $SRS_GPERF_MP = RESERVED ]; then SRS_GPERF_MP=NO; fi
+    if [ $SRS_GPERF_CP = RESERVED ]; then SRS_GPERF_CP=NO; fi
+    if [ $SRS_GPROF = RESERVED ]; then SRS_GPROF=NO; fi
     SRS_ARM_UBUNTU12=NO
     # for arm, always set to static link.
     SRS_STATIC=NO
@@ -180,11 +180,11 @@ if [ $SRS_PI = YES ]; then
     SRS_BWTC=NO
     SRS_RESEARCH=NO
     SRS_UTEST=NO
-    SRS_GPERF=NO
-    SRS_GPERF_MC=NO
-    SRS_GPERF_MP=NO
-    SRS_GPERF_CP=NO
-    SRS_GPROF=NO
+    if [ $SRS_GPERF = RESERVED ]; then SRS_GPERF=NO; fi
+    if [ $SRS_GPERF_MC = RESERVED ]; then SRS_GPERF_MC=NO; fi
+    if [ $SRS_GPERF_MP = RESERVED ]; then SRS_GPERF_MP=NO; fi
+    if [ $SRS_GPERF_CP = RESERVED ]; then SRS_GPERF_CP=NO; fi
+    if [ $SRS_GPROF = RESERVED ]; then SRS_GPROF=NO; fi
     SRS_ARM_UBUNTU12=NO
     # for arm, always set to static link.
     SRS_STATIC=YES
