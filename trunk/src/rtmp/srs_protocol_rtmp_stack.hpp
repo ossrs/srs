@@ -106,7 +106,8 @@ class ISrsMessage;
 *     4bytes timestamp header,
 * that is, 1+4=5bytes.
 */
-#define RTMP_MAX_FMT3_HEADER_SIZE 5
+// always use fmt0 as cache.
+//#define RTMP_MAX_FMT3_HEADER_SIZE 5
 
 /**
 * the protocol provides the rtmp-message-protocol services,
@@ -141,8 +142,7 @@ private:
     AckWindowSize in_ack_size;
 // peer out
 private:
-    char out_header_fmt0[RTMP_MAX_FMT0_HEADER_SIZE];
-    char out_header_fmt3[RTMP_MAX_FMT3_HEADER_SIZE];
+    char out_header_cache[RTMP_MAX_FMT0_HEADER_SIZE];
     int32_t out_chunk_size;
 public:
     /**

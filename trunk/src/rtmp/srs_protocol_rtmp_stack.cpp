@@ -424,12 +424,10 @@ int SrsProtocol::send_message(ISrsMessage* msg)
     // always write the header event payload is empty.
     do {
         // generate the header.
-        char* pheader = NULL;
-        int header_size = 0;
+        char* pheader = out_header_cache;
         
         if (p == (char*)msg->payload) {
             // write new chunk stream header, fmt is 0
-            pheader = out_header_fmt0;
             *pheader++ = 0x00 | (msg->get_perfer_cid() & 0x3F);
             
             // chunk message header, 11 bytes
@@ -470,12 +468,8 @@ int SrsProtocol::send_message(ISrsMessage* msg)
                 *pheader++ = pp[1];
                 *pheader++ = pp[0];
             }
-            
-            header_size = pheader - out_header_fmt0;
-            pheader = out_header_fmt0;
         } else {
             // write no message header chunk stream, fmt is 3
-            pheader = out_header_fmt3;
             *pheader++ = 0xC0 | (msg->get_perfer_cid() & 0x3F);
             
             // chunk extended timestamp header, 0 or 4 bytes, big-endian
@@ -499,9 +493,6 @@ int SrsProtocol::send_message(ISrsMessage* msg)
                 *pheader++ = pp[1];
                 *pheader++ = pp[0];
             }
-            
-            header_size = pheader - out_header_fmt3;
-            pheader = out_header_fmt3;
         }
         
         // sendout header and payload by writev.
@@ -509,9 +500,13 @@ int SrsProtocol::send_message(ISrsMessage* msg)
         int payload_size = msg->size - (p - (char*)msg->payload);
         payload_size = srs_min(payload_size, out_chunk_size);
         
+        // always has header
+        int header_size = pheader - out_header_cache;
+        srs_assert(header_size > 0);
+        
         // send by writev
         iovec iov[2];
-        iov[0].iov_base = pheader;
+        iov[0].iov_base = out_header_cache;
         iov[0].iov_len = header_size;
         iov[1].iov_base = p;
         iov[1].iov_len = payload_size;
