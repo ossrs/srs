@@ -1752,11 +1752,13 @@ int SrsConnectAppPacket::decode(SrsStream* stream)
         srs_error("amf0 decode connect transaction_id failed. ret=%d", ret);
         return ret;
     }
+    
+    // some client donot send id=1.0, so we only warn user if not match.
     if (transaction_id != 1.0) {
         ret = ERROR_RTMP_AMF0_DECODE;
-        srs_error("amf0 decode connect transaction_id failed. "
+        srs_warn("amf0 decode connect transaction_id failed. "
             "required=%.1f, actual=%.1f, ret=%d", 1.0, transaction_id, ret);
-        return ret;
+        ret = ERROR_SUCCESS;
     }
     
     if ((ret = command_object->read(stream)) != ERROR_SUCCESS) {
@@ -1845,11 +1847,13 @@ int SrsConnectAppResPacket::decode(SrsStream* stream)
         srs_error("amf0 decode connect transaction_id failed. ret=%d", ret);
         return ret;
     }
+    
+    // some client donot send id=1.0, so we only warn user if not match.
     if (transaction_id != 1.0) {
         ret = ERROR_RTMP_AMF0_DECODE;
-        srs_error("amf0 decode connect transaction_id failed. "
+        srs_warn("amf0 decode connect transaction_id failed. "
             "required=%.1f, actual=%.1f, ret=%d", 1.0, transaction_id, ret);
-        return ret;
+        ret = ERROR_SUCCESS;
     }
     
     if ((ret = props->read(stream)) != ERROR_SUCCESS) {
