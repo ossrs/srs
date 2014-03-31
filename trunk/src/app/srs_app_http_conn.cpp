@@ -47,9 +47,9 @@ int SrsHttpConn::do_cycle()
     
     char data[] = "HTTP/1.1 200 OK\r\n"
         "Server: SRS/"RTMP_SIG_SRS_VERSION"\r\n"
-        "Content-Length: 11\r\n"
+        "Content-Length: 15\r\n"
         "Content-Type: text/html;charset=utf-8\r\n\r\n"
-        "hello http~";
+        "hello http/1.1~";
     st_write(stfd, data, sizeof(data), -1);
         
     return ret;
