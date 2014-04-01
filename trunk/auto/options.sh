@@ -34,6 +34,7 @@ SRS_ARM_UBUNTU12=RESERVED # armhf(v7cpu) built on ubuntu12
 SRS_PREFIX=/usr/local/srs
 SRS_JOBS=1
 SRS_STATIC=RESERVED
+SRS_HTTP_PARSER=NO
 # private internal
 # dev, open all features for dev, no gperf/prof/arm.
 SRS_DEV=NO

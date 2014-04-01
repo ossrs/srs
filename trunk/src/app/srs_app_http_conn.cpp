@@ -23,6 +23,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_http_conn.hpp>
 
+#ifdef SRS_HTTP_SERVER
+
 #include <sstream>
 using namespace std;
 
@@ -254,3 +256,5 @@ int SrsHttpConn::on_body(http_parser* parser, const char* at, size_t length)
 
     return 0;
 }
+
+#endif

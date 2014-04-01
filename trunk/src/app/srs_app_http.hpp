@@ -31,6 +31,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_st.hpp>
 
+#ifdef SRS_HTTP_PARSER
+
 // http specification
 namespace srs
 {
@@ -49,6 +51,8 @@ namespace srs
     #define __CRLF "\r\n" // 0x0D0A
     #define __CRLFCRLF "\r\n\r\n" // 0x0D0A0D0A
 };
+
+#endif
 
 #ifdef SRS_HTTP_CALLBACK
 

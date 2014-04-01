@@ -440,7 +440,13 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
     } else if (type == SrsListenerHttpApi) {
         conn = new SrsHttpApi(this, client_stfd);
     } else if (type == SrsListenerHttpStream) {
+#ifdef SRS_HTTP_SERVER
         conn = new SrsHttpConn(this, client_stfd);
+#else
+        srs_warn("close http client for server not support http-server");
+        srs_close_stfd(client_stfd);
+        return ret;
+#endif
     } else {
         // TODO: FIXME: handler others
     }

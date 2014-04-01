@@ -30,6 +30,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+#ifdef SRS_HTTP_SERVER
+
 #include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
 
@@ -80,5 +82,7 @@ private:
     static int on_header_value(http_parser* parser, const char* at, size_t length);
     static int on_body(http_parser* parser, const char* at, size_t length);
 };
+
+#endif
 
 #endif
