@@ -59,6 +59,8 @@ file
 	..\app\srs_app_http_api.cpp,
 	..\app\srs_app_http_conn.hpp,
 	..\app\srs_app_http_conn.cpp,
+	..\app\srs_app_http_hooks.hpp,
+	..\app\srs_app_http_hooks.cpp,
 	..\app\srs_app_log.hpp,
 	..\app\srs_app_log.cpp,
 	..\app\srs_app_refer.hpp,

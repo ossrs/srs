@@ -36,33 +36,10 @@ using namespace std;
 
 #define SRS_HTTP_HEADER_BUFFER        1024
 
-SrsHttpRequest::SrsHttpRequest()
-{
-    body = new SrsBuffer();
-    state = SrsHttpParseStateInit;
-}
-
-SrsHttpRequest::~SrsHttpRequest()
-{
-    srs_freep(body);
-}
-
-void SrsHttpRequest::reset()
-{
-    state = SrsHttpParseStateInit;
-    body->clear();
-    url = "";
-}
-
-bool SrsHttpRequest::is_complete()
-{
-    return state == SrsHttpParseStateComplete;
-}
-
 SrsHttpConn::SrsHttpConn(SrsServer* srs_server, st_netfd_t client_stfd) 
     : SrsConnection(srs_server, client_stfd)
 {
-    req = new SrsHttpRequest();
+    req = new SrsHttpMessage();
 }
 
 SrsHttpConn::~SrsHttpConn()

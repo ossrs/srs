@@ -38,33 +38,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <http_parser.h>
 
 class SrsSocket;
-class SrsBuffer;
-
-enum SrsHttpParseState {
-    SrsHttpParseStateInit = 0, 
-    SrsHttpParseStateStart, 
-    SrsHttpParseStateComplete
-};
-
-class SrsHttpRequest
-{
-public:
-    std::string url;
-    http_parser header;
-    SrsBuffer* body;
-    SrsHttpParseState state;
-    
-    SrsHttpRequest();
-    virtual ~SrsHttpRequest();
-    
-    virtual void reset();
-    virtual bool is_complete();
-};
+class SrsHttpMessage;
 
 class SrsHttpConn : public SrsConnection
 {
 private:
-    SrsHttpRequest* req;
+    SrsHttpMessage* req;
 public:
     SrsHttpConn(SrsServer* srs_server, st_netfd_t client_stfd);
     virtual ~SrsHttpConn();

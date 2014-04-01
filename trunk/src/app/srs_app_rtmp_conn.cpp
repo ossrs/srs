@@ -41,6 +41,7 @@ using namespace std;
 #include <srs_app_http.hpp>
 #include <srs_app_bandwidth.hpp>
 #include <srs_app_socket.hpp>
+#include <srs_app_http_hooks.hpp>
 
 SrsRtmpConn::SrsRtmpConn(SrsServer* srs_server, st_netfd_t client_stfd)
     : SrsConnection(srs_server, client_stfd)
