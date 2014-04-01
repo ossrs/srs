@@ -49,18 +49,34 @@ int SrsBuffer::size()
     return (int)data.size();
 }
 
+bool SrsBuffer::empty()
+{
+    return size() <= 0;
+}
+
 char* SrsBuffer::bytes()
 {
     return &data.at(0);
 }
 
-void SrsBuffer::erase(int size)
+void SrsBuffer::erase(int _size)
 {
-    data.erase(data.begin(), data.begin() + size);
+    if (_size == size()) {
+        clear();
+        return;
+    }
+    
+    data.erase(data.begin(), data.begin() + _size);
 }
 
-void SrsBuffer::append(char* bytes, int size)
+void SrsBuffer::clear()
 {
+    data.clear();
+}
+
+void SrsBuffer::append(const char* bytes, int size)
+{
+    srs_assert(size > 0);
     data.insert(data.end(), bytes, bytes + size);
 }
 

@@ -59,10 +59,11 @@ public:
     virtual ~SrsBuffer();
 public:
     virtual int size();
+    virtual bool empty();
     virtual char* bytes();
     virtual void erase(int size);
-private:
-    virtual void append(char* bytes, int size);
+    virtual void clear();
+    virtual void append(const char* bytes, int size);
 public:
     virtual int ensure_buffer_bytes(ISrsBufferReader* skt, int required_size);
 };
