@@ -17,7 +17,9 @@ SRS_HLS=RESERVED
 SRS_NGINX=RESERVED
 SRS_SSL=RESERVED
 SRS_FFMPEG=RESERVED
+SRS_HTTP_PARSER=RESERVED
 SRS_HTTP_CALLBACK=RESERVED
+SRS_HTTP_SERVER=RESERVED
 SRS_LIBRTMP=RESERVED # srs-librtmp
 SRS_BWTC=RESERVED # srs-bandwidth-test client
 SRS_RESEARCH=RESERVED
@@ -63,6 +65,7 @@ do
         --with-nginx)                   SRS_NGINX=YES             ;;
         --with-ffmpeg)                  SRS_FFMPEG=YES            ;;
         --with-http-callback)           SRS_HTTP_CALLBACK=YES     ;;
+        --with-http-server)             SRS_HTTP_SERVER=YES       ;;
         --with-librtmp)                 SRS_LIBRTMP=YES           ;;
         --with-bwtc)                    SRS_BWTC=YES              ;;
         --with-research)                SRS_RESEARCH=YES          ;;
@@ -79,6 +82,7 @@ do
         --without-nginx)                SRS_NGINX=NO              ;;
         --without-ffmpeg)               SRS_FFMPEG=NO             ;;
         --without-http-callback)        SRS_HTTP_CALLBACK=NO      ;;
+        --without-http-server)          SRS_HTTP_SERVER=NO        ;;
         --without-librtmp)              SRS_LIBRTMP=NO            ;;
         --without-bwtc)                 SRS_BWTC=NO               ;;
         --without-research)             SRS_RESEARCH=NO           ;;
@@ -113,6 +117,7 @@ if [ $SRS_ARM_UBUNTU12 = YES ]; then
     if [ $SRS_SSL = RESERVED ]; then SRS_SSL=NO; fi
     if [ $SRS_FFMPEG = RESERVED ]; then SRS_FFMPEG=NO; fi
     if [ $SRS_HTTP_CALLBACK = RESERVED ]; then SRS_HTTP_CALLBACK=NO; fi
+    if [ $SRS_HTTP_SERVER = RESERVED ]; then SRS_HTTP_SERVER=NO; fi
     if [ $SRS_LIBRTMP = RESERVED ]; then SRS_LIBRTMP=NO; fi
     if [ $SRS_BWTC = RESERVED ]; then SRS_BWTC=NO; fi
     if [ $SRS_RESEARCH = RESERVED ]; then SRS_RESEARCH=NO; fi
@@ -133,6 +138,7 @@ else
     if [ $SRS_SSL = RESERVED ]; then SRS_SSL=YES; fi
     if [ $SRS_FFMPEG = RESERVED ]; then SRS_FFMPEG=NO; fi
     if [ $SRS_HTTP_CALLBACK = RESERVED ]; then SRS_HTTP_CALLBACK=NO; fi
+    if [ $SRS_HTTP_SERVER = RESERVED ]; then SRS_HTTP_SERVER=NO; fi
     if [ $SRS_LIBRTMP = RESERVED ]; then SRS_LIBRTMP=NO; fi
     if [ $SRS_BWTC = RESERVED ]; then SRS_BWTC=NO; fi
     if [ $SRS_RESEARCH = RESERVED ]; then SRS_RESEARCH=NO; fi
@@ -155,6 +161,7 @@ if [ $SRS_DEV = YES ]; then
     SRS_SSL=YES
     SRS_FFMPEG=YES
     SRS_HTTP_CALLBACK=YES
+    SRS_HTTP_SERVER=YES
     SRS_LIBRTMP=YES
     SRS_BWTC=YES
     SRS_RESEARCH=YES
@@ -176,6 +183,7 @@ if [ $SRS_PI = YES ]; then
     SRS_SSL=YES
     SRS_FFMPEG=NO
     SRS_HTTP_CALLBACK=NO
+    SRS_HTTP_SERVER=YES
     SRS_LIBRTMP=NO
     SRS_BWTC=NO
     SRS_RESEARCH=NO
@@ -189,6 +197,10 @@ if [ $SRS_PI = YES ]; then
     # for arm, always set to static link.
     SRS_STATIC=YES
 fi
+
+# if http-xxxx specified, open the SRS_HTTP_PARSER
+if [ $SRS_HTTP_CALLBACK = YES ]; then SRS_HTTP_PARSER=YES; fi
+if [ $SRS_HTTP_SERVER = YES ]; then SRS_HTTP_PARSER=YES; fi
 
 # parse the jobs for make
 if [[ "" -eq SRS_JOBS ]]; then 
@@ -212,7 +224,7 @@ if [ $help = yes ]; then
                            to delivery h264 video and aac audio to flash player.
   --with-hls               enable hls streaming, build nginx as http server for hls.
   --with-http-callback     enable http hooks, build cherrypy as demo api server.
-                           srs will call the http hooks, such as: on_connect.
+  --with-http-server       enable http server to delivery http stream.
   --with-ffmpeg            enable transcoding with ffmpeg.
   --with-librtmp           enable srs-librtmp, library for client.
   --with-bwtc              enable srs bandwidth test client tool.
@@ -228,6 +240,7 @@ if [ $help = yes ]; then
   --without-ssl            disable rtmp complex handshake.
   --without-hls            disable hls, rtmp streaming only.
   --without-http-callback  disable http, http hooks callback.
+  --without-http-server    disable http server, use external server to delivery http stream.
   --without-ffmpeg         disable the ffmpeg transcoding feature.
   --without-librtmp        disable srs-librtmp, library for client.
   --without-bwtc           disable srs bandwidth test client tool.
@@ -297,7 +310,8 @@ if [ $SRS_HLS = RESERVED ]; then echo "you must specifies the hls, see: ./config
 if [ $SRS_NGINX = RESERVED ]; then echo "you must specifies the nginx, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_SSL = RESERVED ]; then echo "you must specifies the ssl, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_FFMPEG = RESERVED ]; then echo "you must specifies the ffmpeg, see: ./configure --help"; __check_ok=NO; fi
-if [ $SRS_HTTP_CALLBACK = RESERVED ]; then echo "you must specifies the http, see: ./configure --help"; __check_ok=NO; fi
+if [ $SRS_HTTP_CALLBACK = RESERVED ]; then echo "you must specifies the http-callback, see: ./configure --help"; __check_ok=NO; fi
+if [ $SRS_HTTP_SERVER = RESERVED ]; then echo "you must specifies the http-server, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_LIBRTMP = RESERVED ]; then echo "you must specifies the librtmp, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_BWTC = RESERVED ]; then echo "you must specifies the bwtc, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_RESEARCH = RESERVED ]; then echo "you must specifies the research, see: ./configure --help"; __check_ok=NO; fi
@@ -322,6 +336,7 @@ if [ $SRS_NGINX = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-nginx"; els
 if [ $SRS_SSL = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-ssl"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-ssl"; fi
 if [ $SRS_FFMPEG = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-ffmpeg"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-ffmpeg"; fi
 if [ $SRS_HTTP_CALLBACK = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-http-callback"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-http-callback"; fi
+if [ $SRS_HTTP_SERVER = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-http-server"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-http-server"; fi
 if [ $SRS_LIBRTMP = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-librtmp"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-librtmp"; fi
 if [ $SRS_BWTC = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-bwtc"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-bwtc"; fi
 if [ $SRS_RESEARCH = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-research"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-research"; fi

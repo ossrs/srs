@@ -242,7 +242,7 @@ if [ ! -f ${SRS_OBJS}/st/libst.so ]; then echo "build st-1.9 failed."; exit -1; 
 #####################################################################################
 # http-parser-2.1
 #####################################################################################
-if [ $SRS_HTTP_CALLBACK = YES ]; then
+if [ $SRS_HTTP_PARSER = YES ]; then
     if [[ -f ${SRS_OBJS}/hp/http_parser.h && -f ${SRS_OBJS}/hp/libhttp_parser.a ]]; then
         echo "http-parser-2.1 is ok.";
     else
@@ -260,6 +260,18 @@ if [ $SRS_HTTP_CALLBACK = YES ]; then
     ret=$?; if [[ $ret -ne 0 ]]; then echo "build http-parser-2.1 failed, ret=$ret"; exit $ret; fi
     if [[ ! -f ${SRS_OBJS}/hp/http_parser.h ]]; then echo "build http-parser-2.1 failed"; exit -1; fi
     if [[ ! -f ${SRS_OBJS}/hp/libhttp_parser.a ]]; then echo "build http-parser-2.1 failed"; exit -1; fi
+fi
+
+if [ $SRS_HTTP_PARSER = YES ]; then
+    echo "#define SRS_HTTP_PARSER" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_HTTP_PARSER" >> $SRS_AUTO_HEADERS_H
+fi
+
+if [ $SRS_HTTP_SERVER = YES ]; then
+    echo "#define SRS_HTTP_SERVER" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_HTTP_SERVER" >> $SRS_AUTO_HEADERS_H
 fi
 
 #####################################################################################

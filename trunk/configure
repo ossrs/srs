@@ -16,7 +16,7 @@ BLACK="\\e[0m"
 
 #####################################################################################
 # parse user options, set the variables like:
-# srs features: SRS_SSL/SRS_HLS/SRS_NGINX/SRS_FFMPEG/SRS_HTTP_CALLBACK/SRS_RESEARCH/SRS_UTEST
+# srs features: SRS_SSL/SRS_HLS/SRS_NGINX/SRS_FFMPEG/SRS_HTTP_CALLBACK/......
 # build options: SRS_JOBS
 #####################################################################################
 SRS_AUTO_HEADERS_H="${SRS_OBJS}/srs_auto_headers.hpp"
@@ -86,6 +86,7 @@ SrsNginxSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_NGINX = YES ]; then SrsN
 SrsSslSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_SSL = YES ]; then SrsSslSummaryColor="\${GREEN}"; fi
 SrsFfmpegSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_FFMPEG = YES ]; then SrsFfmpegSummaryColor="\${GREEN}"; fi
 SrsHttpCallbackSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_HTTP_CALLBACK = YES ]; then SrsHttpCallbackSummaryColor="\${GREEN}"; fi
+SrsHttpServerSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_HTTP_SERVER = YES ]; then SrsHttpServerSummaryColor="\${GREEN}"; fi
 SrsLibrtmpSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_LIBRTMP = YES ]; then SrsLibrtmpSummaryColor="\${GREEN}"; fi
 SrsLibrtmpSSLSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_LIBRTMP = YES ]; then if [ $SRS_SSL = YES ]; then SrsLibrtmpSSLSummaryColor="\${GREEN}"; fi fi
 SrsBWTCSummaryColor="\${GREEN}{disabled} "; if [ $SRS_BWTC = YES ]; then SrsBWTCSummaryColor="\${GREEN}"; fi
@@ -151,8 +152,10 @@ echo -e "     |     ${SrsSslSummaryColor}ssl @see: https://github.com/winlinvip/
 echo -e "     |     ${SrsSslSummaryColor}ssl: support RTMP complex handshake for client required, for instance, flash\${BLACK}"
 echo -e "     |     ${SrsFfmpegSummaryColor}ffmpeg @see: https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG\${BLACK}"
 echo -e "     |     ${SrsFfmpegSummaryColor}ffmpeg: support transcoding RTMP stream with FFMPEG\${BLACK}"
-echo -e "     |     ${SrsHttpCallbackSummaryColor}http @see: https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback\${BLACK}"
-echo -e "     |     ${SrsHttpCallbackSummaryColor}http: support http callback for authentication and event injection\${BLACK}"
+echo -e "     |     ${SrsHttpCallbackSummaryColor}http-callback @see: https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback\${BLACK}"
+echo -e "     |     ${SrsHttpCallbackSummaryColor}http-callback: support http callback for authentication and event injection\${BLACK}"
+echo -e "     |     ${SrsHttpServerSummaryColor}http-server @see: https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPServer\${BLACK}"
+echo -e "     |     ${SrsHttpServerSummaryColor}http-server: support http server to delivery http stream\${BLACK}"
 echo -e "     \${BLACK}+------------------------------------------------------------------------------------\${BLACK}"
 echo -e "\${GREEN}binaries @see: https://github.com/winlinvip/simple-rtmp-server/wiki/Build\${BLACK}"
 END
@@ -375,7 +378,7 @@ END
 LibSTRoot="${SRS_OBJS}/st"; LibSTfile="${LibSTRoot}/libst.a"
 # hp(http-parser) the http request/url parser, for SRS to support HTTP callback.
 LibHttpParserRoot=""; LibHttpParserfile=""
-if [ $SRS_HTTP_CALLBACK = YES ]; then LibHttpParserRoot="${SRS_OBJS}/hp"; LibHttpParserfile="${LibHttpParserRoot}/libhttp_parser.a"; fi
+if [ $SRS_HTTP_PARSER = YES ]; then LibHttpParserRoot="${SRS_OBJS}/hp"; LibHttpParserfile="${LibHttpParserRoot}/libhttp_parser.a"; fi
 # openssl-1.0.1f, for the RTMP complex handshake.
 LibSSLRoot="";LibSSLfile=""
 if [ $SRS_SSL = YES ]; then LibSSLRoot="${SRS_OBJS}/openssl/include"; LibSSLfile="${SRS_OBJS}/openssl/lib/libssl.a ${SRS_OBJS}/openssl/lib/libcrypto.a"; fi
@@ -518,6 +521,11 @@ if [ $SRS_HTTP_CALLBACK = YES ]; then
     echo -e "${GREEN}http hooks callback over CherryPy is enabled${BLACK}"
 else
     echo -e "${YELLOW}warning: without http hooks callback over CherryPy support${BLACK}"
+fi
+if [ $SRS_HTTP_SERVER = YES ]; then
+    echo -e "${GREEN}http server to delivery http stream is enabled${BLACK}"
+else
+    echo -e "${YELLOW}warning: without http server to delivery http stream support${BLACK}"
 fi
 if [ $SRS_LIBRTMP = YES ]; then
     echo -e "${GREEN}srs-librtmp for client is enabled${BLACK}"
