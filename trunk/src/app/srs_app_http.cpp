@@ -38,8 +38,6 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_app_socket.hpp>
 
-using namespace srs;
-
 #define SRS_DEFAULT_HTTP_PORT 80
 #define SRS_HTTP_RESPONSE_OK "0"
 

@@ -34,23 +34,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef SRS_HTTP_PARSER
 
 // http specification
-namespace srs
-{
-    // CR             = <US-ASCII CR, carriage return (13)>
-    #define __CR "\r" // 0x0D
-    // LF             = <US-ASCII LF, linefeed (10)>
-    #define __LF "\n" // 0x0A
-    // SP             = <US-ASCII SP, space (32)>
-    #define __SP " " // 0x20
-    // HT             = <US-ASCII HT, horizontal-tab (9)>
-    #define __HT "\x09" // 0x09
+// CR             = <US-ASCII CR, carriage return (13)>
+#define __CR "\r" // 0x0D
+// LF             = <US-ASCII LF, linefeed (10)>
+#define __LF "\n" // 0x0A
+// SP             = <US-ASCII SP, space (32)>
+#define __SP " " // 0x20
+// HT             = <US-ASCII HT, horizontal-tab (9)>
+#define __HT "\x09" // 0x09
 
-    // HTTP/1.1 defines the sequence CR LF as the end-of-line marker for all
-    // protocol elements except the entity-body (see appendix 19.3 for
-    // tolerant applications). 
-    #define __CRLF "\r\n" // 0x0D0A
-    #define __CRLFCRLF "\r\n\r\n" // 0x0D0A0D0A
-};
+// HTTP/1.1 defines the sequence CR LF as the end-of-line marker for all
+// protocol elements except the entity-body (see appendix 19.3 for
+// tolerant applications). 
+#define __CRLF "\r\n" // 0x0D0A
+#define __CRLFCRLF "\r\n\r\n" // 0x0D0A0D0A
 
 #endif
 
