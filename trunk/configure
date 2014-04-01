@@ -87,6 +87,7 @@ SrsSslSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_SSL = YES ]; then SrsSslSu
 SrsFfmpegSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_FFMPEG = YES ]; then SrsFfmpegSummaryColor="\${GREEN}"; fi
 SrsHttpCallbackSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_HTTP_CALLBACK = YES ]; then SrsHttpCallbackSummaryColor="\${GREEN}"; fi
 SrsHttpServerSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_HTTP_SERVER = YES ]; then SrsHttpServerSummaryColor="\${GREEN}"; fi
+SrsHttpApiSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_HTTP_API = YES ]; then SrsHttpApiSummaryColor="\${GREEN}"; fi
 SrsLibrtmpSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_LIBRTMP = YES ]; then SrsLibrtmpSummaryColor="\${GREEN}"; fi
 SrsLibrtmpSSLSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_LIBRTMP = YES ]; then if [ $SRS_SSL = YES ]; then SrsLibrtmpSSLSummaryColor="\${GREEN}"; fi fi
 SrsBWTCSummaryColor="\${GREEN}{disabled} "; if [ $SRS_BWTC = YES ]; then SrsBWTCSummaryColor="\${GREEN}"; fi
@@ -156,6 +157,8 @@ echo -e "     |     ${SrsHttpCallbackSummaryColor}http-callback @see: https://gi
 echo -e "     |     ${SrsHttpCallbackSummaryColor}http-callback: support http callback for authentication and event injection\${BLACK}"
 echo -e "     |     ${SrsHttpServerSummaryColor}http-server @see: https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPServer\${BLACK}"
 echo -e "     |     ${SrsHttpServerSummaryColor}http-server: support http server to delivery http stream\${BLACK}"
+echo -e "     |     ${SrsHttpApiSummaryColor}http-api @see: https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPApi\${BLACK}"
+echo -e "     |     ${SrsHttpApiSummaryColor}http-api: support http api to manage server\${BLACK}"
 echo -e "     \${BLACK}+------------------------------------------------------------------------------------\${BLACK}"
 echo -e "\${GREEN}binaries @see: https://github.com/winlinvip/simple-rtmp-server/wiki/Build\${BLACK}"
 END
@@ -526,6 +529,11 @@ if [ $SRS_HTTP_SERVER = YES ]; then
     echo -e "${GREEN}http server to delivery http stream is enabled${BLACK}"
 else
     echo -e "${YELLOW}warning: without http server to delivery http stream support${BLACK}"
+fi
+if [ $SRS_HTTP_API = YES ]; then
+    echo -e "${GREEN}http api to manage server is enabled${BLACK}"
+else
+    echo -e "${YELLOW}warning: without http api to manage server support${BLACK}"
 fi
 if [ $SRS_LIBRTMP = YES ]; then
     echo -e "${GREEN}srs-librtmp for client is enabled${BLACK}"

@@ -274,6 +274,12 @@ else
     echo "#undef SRS_HTTP_SERVER" >> $SRS_AUTO_HEADERS_H
 fi
 
+if [ $SRS_HTTP_API = YES ]; then
+    echo "#define SRS_HTTP_API" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_HTTP_API" >> $SRS_AUTO_HEADERS_H
+fi
+
 #####################################################################################
 # nginx for HLS, nginx-1.5.0
 #####################################################################################

@@ -20,6 +20,7 @@ SRS_FFMPEG=RESERVED
 SRS_HTTP_PARSER=RESERVED
 SRS_HTTP_CALLBACK=RESERVED
 SRS_HTTP_SERVER=RESERVED
+SRS_HTTP_API=RESERVED
 SRS_LIBRTMP=RESERVED # srs-librtmp
 SRS_BWTC=RESERVED # srs-bandwidth-test client
 SRS_RESEARCH=RESERVED
@@ -59,47 +60,49 @@ do
     esac
 
     case "$option" in
-        --help)                         help=yes                  ;;
+        --help)                         help=yes                    ;;
         
-        --with-ssl)                     SRS_SSL=YES               ;;
-        --with-hls)                     SRS_HLS=YES               ;;
-        --with-nginx)                   SRS_NGINX=YES             ;;
-        --with-ffmpeg)                  SRS_FFMPEG=YES            ;;
-        --with-http-callback)           SRS_HTTP_CALLBACK=YES     ;;
-        --with-http-server)             SRS_HTTP_SERVER=YES       ;;
-        --with-librtmp)                 SRS_LIBRTMP=YES           ;;
-        --with-bwtc)                    SRS_BWTC=YES              ;;
-        --with-research)                SRS_RESEARCH=YES          ;;
-        --with-utest)                   SRS_UTEST=YES             ;;
-        --with-gperf)                   SRS_GPERF=YES             ;;
-        --with-gmc)                     SRS_GPERF_MC=YES          ;;
-        --with-gmp)                     SRS_GPERF_MP=YES          ;;
-        --with-gcp)                     SRS_GPERF_CP=YES          ;;
-        --with-gprof)                   SRS_GPROF=YES             ;;
-        --with-arm-ubuntu12)            SRS_ARM_UBUNTU12=YES      ;;
-        
-        --without-ssl)                  SRS_SSL=NO                ;;
-        --without-hls)                  SRS_HLS=NO                ;;
-        --without-nginx)                SRS_NGINX=NO              ;;
-        --without-ffmpeg)               SRS_FFMPEG=NO             ;;
-        --without-http-callback)        SRS_HTTP_CALLBACK=NO      ;;
-        --without-http-server)          SRS_HTTP_SERVER=NO        ;;
-        --without-librtmp)              SRS_LIBRTMP=NO            ;;
-        --without-bwtc)                 SRS_BWTC=NO               ;;
-        --without-research)             SRS_RESEARCH=NO           ;;
-        --without-utest)                SRS_UTEST=NO              ;;
-        --without-gperf)                SRS_GPERF=NO              ;;
-        --without-gmc)                  SRS_GPERF_MC=NO           ;;
-        --without-gmp)                  SRS_GPERF_MP=NO           ;;
-        --without-gcp)                  SRS_GPERF_CP=NO           ;;
-        --without-gprof)                SRS_GPROF=NO              ;;
-        --without-arm-ubuntu12)         SRS_ARM_UBUNTU12=NO       ;;
-        
-        --jobs)                         SRS_JOBS=${value}         ;;
-        --prefix)                       SRS_PREFIX=${value}       ;;
-        --static)                       SRS_STATIC=YES            ;;
-        --dev)                          SRS_DEV=YES               ;;
-        --pi)                           SRS_PI=YES                ;;
+        --with-ssl)                     SRS_SSL=YES                 ;;
+        --with-hls)                     SRS_HLS=YES                 ;;
+        --with-nginx)                   SRS_NGINX=YES               ;;
+        --with-ffmpeg)                  SRS_FFMPEG=YES              ;;
+        --with-http-callback)           SRS_HTTP_CALLBACK=YES       ;;
+        --with-http-server)             SRS_HTTP_SERVER=YES         ;;
+        --with-http-api)                SRS_HTTP_API=YES            ;;
+        --with-librtmp)                 SRS_LIBRTMP=YES             ;;
+        --with-bwtc)                    SRS_BWTC=YES                ;;
+        --with-research)                SRS_RESEARCH=YES            ;;
+        --with-utest)                   SRS_UTEST=YES               ;;
+        --with-gperf)                   SRS_GPERF=YES               ;;
+        --with-gmc)                     SRS_GPERF_MC=YES            ;;
+        --with-gmp)                     SRS_GPERF_MP=YES            ;;
+        --with-gcp)                     SRS_GPERF_CP=YES            ;;
+        --with-gprof)                   SRS_GPROF=YES               ;;
+        --with-arm-ubuntu12)            SRS_ARM_UBUNTU12=YES        ;;
+                                                                 
+        --without-ssl)                  SRS_SSL=NO                  ;;
+        --without-hls)                  SRS_HLS=NO                  ;;
+        --without-nginx)                SRS_NGINX=NO                ;;
+        --without-ffmpeg)               SRS_FFMPEG=NO               ;;
+        --without-http-callback)        SRS_HTTP_CALLBACK=NO        ;;
+        --without-http-server)          SRS_HTTP_SERVER=NO          ;;
+        --without-http-api)             SRS_HTTP_API=NO             ;;
+        --without-librtmp)              SRS_LIBRTMP=NO              ;;
+        --without-bwtc)                 SRS_BWTC=NO                 ;;
+        --without-research)             SRS_RESEARCH=NO             ;;
+        --without-utest)                SRS_UTEST=NO                ;;
+        --without-gperf)                SRS_GPERF=NO                ;;
+        --without-gmc)                  SRS_GPERF_MC=NO             ;;
+        --without-gmp)                  SRS_GPERF_MP=NO             ;;
+        --without-gcp)                  SRS_GPERF_CP=NO             ;;
+        --without-gprof)                SRS_GPROF=NO                ;;
+        --without-arm-ubuntu12)         SRS_ARM_UBUNTU12=NO         ;;
+                                                                 
+        --jobs)                         SRS_JOBS=${value}           ;;
+        --prefix)                       SRS_PREFIX=${value}         ;;
+        --static)                       SRS_STATIC=YES              ;;
+        --dev)                          SRS_DEV=YES                 ;;
+        --pi)                           SRS_PI=YES                  ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
@@ -119,6 +122,7 @@ if [ $SRS_ARM_UBUNTU12 = YES ]; then
     if [ $SRS_FFMPEG = RESERVED ]; then SRS_FFMPEG=NO; fi
     if [ $SRS_HTTP_CALLBACK = RESERVED ]; then SRS_HTTP_CALLBACK=NO; fi
     if [ $SRS_HTTP_SERVER = RESERVED ]; then SRS_HTTP_SERVER=NO; fi
+    if [ $SRS_HTTP_API = RESERVED ]; then SRS_HTTP_API=NO; fi
     if [ $SRS_LIBRTMP = RESERVED ]; then SRS_LIBRTMP=NO; fi
     if [ $SRS_BWTC = RESERVED ]; then SRS_BWTC=NO; fi
     if [ $SRS_RESEARCH = RESERVED ]; then SRS_RESEARCH=NO; fi
@@ -140,6 +144,7 @@ else
     if [ $SRS_FFMPEG = RESERVED ]; then SRS_FFMPEG=NO; fi
     if [ $SRS_HTTP_CALLBACK = RESERVED ]; then SRS_HTTP_CALLBACK=NO; fi
     if [ $SRS_HTTP_SERVER = RESERVED ]; then SRS_HTTP_SERVER=NO; fi
+    if [ $SRS_HTTP_API = RESERVED ]; then SRS_HTTP_API=NO; fi
     if [ $SRS_LIBRTMP = RESERVED ]; then SRS_LIBRTMP=NO; fi
     if [ $SRS_BWTC = RESERVED ]; then SRS_BWTC=NO; fi
     if [ $SRS_RESEARCH = RESERVED ]; then SRS_RESEARCH=NO; fi
@@ -163,6 +168,7 @@ if [ $SRS_DEV = YES ]; then
     SRS_FFMPEG=YES
     SRS_HTTP_CALLBACK=YES
     SRS_HTTP_SERVER=YES
+    SRS_HTTP_API=YES
     SRS_LIBRTMP=YES
     SRS_BWTC=YES
     SRS_RESEARCH=YES
@@ -185,6 +191,7 @@ if [ $SRS_PI = YES ]; then
     SRS_FFMPEG=NO
     SRS_HTTP_CALLBACK=NO
     SRS_HTTP_SERVER=YES
+    SRS_HTTP_API=YES
     SRS_LIBRTMP=NO
     SRS_BWTC=NO
     SRS_RESEARCH=NO
@@ -202,6 +209,7 @@ fi
 # if http-xxxx specified, open the SRS_HTTP_PARSER
 if [ $SRS_HTTP_CALLBACK = YES ]; then SRS_HTTP_PARSER=YES; fi
 if [ $SRS_HTTP_SERVER = YES ]; then SRS_HTTP_PARSER=YES; fi
+if [ $SRS_HTTP_API = YES ]; then SRS_HTTP_PARSER=YES; fi
 
 # parse the jobs for make
 if [[ "" -eq SRS_JOBS ]]; then 
@@ -219,47 +227,49 @@ SRS_CONFIGURE="$opt"
 if [ $help = yes ]; then
     cat << END
 
-  --help                   print this message
-
-  --with-ssl               enable rtmp complex handshake, requires openssl-devel installed.
-                           to delivery h264 video and aac audio to flash player.
-  --with-hls               enable hls streaming, build nginx as http server for hls.
-  --with-http-callback     enable http hooks, build cherrypy as demo api server.
-  --with-http-server       enable http server to delivery http stream.
-  --with-ffmpeg            enable transcoding with ffmpeg.
-  --with-librtmp           enable srs-librtmp, library for client.
-  --with-bwtc              enable srs bandwidth test client tool.
-  --with-research          build the research tools.
-  --with-utest             build the utest for srs.
-  --with-gperf             build srs with gperf tools(no gmc/gmp/gcp, with tcmalloc only).
-  --with-gmc               build memory check for srs with gperf tools.
-  --with-gmp               build memory profile for srs with gperf tools.
-  --with-gcp               build cpu profile for srs with gperf tools.
-  --with-gprof             build srs with gprof(GNU profile tool).
-  --with-arm-ubuntu12      build srs on ubuntu12 for armhf(v7cpu).
-
-  --without-ssl            disable rtmp complex handshake.
-  --without-hls            disable hls, rtmp streaming only.
-  --without-http-callback  disable http, http hooks callback.
-  --without-http-server    disable http server, use external server to delivery http stream.
-  --without-ffmpeg         disable the ffmpeg transcoding feature.
-  --without-librtmp        disable srs-librtmp, library for client.
-  --without-bwtc           disable srs bandwidth test client tool.
-  --without-research       do not build the research tools.
-  --without-utest          do not build the utest for srs.
-  --without-gperf          do not build srs with gperf tools(without tcmalloc and gmc/gmp/gcp).
-  --without-gmc            do not build memory check for srs with gperf tools.
-  --without-gmp            do not build memory profile for srs with gperf tools.
-  --without-gcp            do not build cpu profile for srs with gperf tools.
-  --without-gprof          do not build srs with gprof(GNU profile tool).
-  --without-arm-ubuntu12   do not build srs on ubuntu12 for armhf(v7cpu).
-  
-  --static                 whether add '-static' to link options. always set this option for arm.
-  --jobs[=N]               Allow N jobs at once; infinite jobs with no arg.
-                           used for make in the configure, for example, to make ffmpeg.
-  --prefix=<path>          the absolute install path for srs.
-  --dev                    for dev, open all features, no gperf/gprof/arm.
-  --pi                     for raspberry-pi(directly build), open features hls/ssl/static.
+  --help                    print this message
+                          
+  --with-ssl                enable rtmp complex handshake, requires openssl-devel installed.
+                            to delivery h264 video and aac audio to flash player.
+  --with-hls                enable hls streaming, build nginx as http server for hls.
+  --with-http-callback      enable http hooks, build cherrypy as demo api server.
+  --with-http-server        enable http server to delivery http stream.
+  --with-http-api           enable http api, to manage SRS by http api.
+  --with-ffmpeg             enable transcoding with ffmpeg.
+  --with-librtmp            enable srs-librtmp, library for client.
+  --with-bwtc               enable SRS bandwidth test client tool.
+  --with-research           build the research tools.
+  --with-utest              build the utest for SRS.
+  --with-gperf              build SRS with gperf tools(no gmc/gmp/gcp, with tcmalloc only).
+  --with-gmc                build memory check for SRS with gperf tools.
+  --with-gmp                build memory profile for SRS with gperf tools.
+  --with-gcp                build cpu profile for SRS with gperf tools.
+  --with-gprof              build SRS with gprof(GNU profile tool).
+  --with-arm-ubuntu12       build SRS on ubuntu12 for armhf(v7cpu).
+                          
+  --without-ssl             disable rtmp complex handshake.
+  --without-hls             disable hls, rtmp streaming only.
+  --without-http-callback   disable http, http hooks callback.
+  --without-http-server     disable http server, use external server to delivery http stream.
+  --without-http-api        disable http api, only use console to manage SRS process.
+  --without-ffmpeg          disable the ffmpeg transcoding feature.
+  --without-librtmp         disable srs-librtmp, library for client.
+  --without-bwtc            disable SRS bandwidth test client tool.
+  --without-research        do not build the research tools.
+  --without-utest           do not build the utest for SRS.
+  --without-gperf           do not build SRS with gperf tools(without tcmalloc and gmc/gmp/gcp).
+  --without-gmc             do not build memory check for SRS with gperf tools.
+  --without-gmp             do not build memory profile for SRS with gperf tools.
+  --without-gcp             do not build cpu profile for SRS with gperf tools.
+  --without-gprof           do not build srs with gprof(GNU profile tool).
+  --without-arm-ubuntu12    do not build srs on ubuntu12 for armhf(v7cpu).
+                          
+  --static                  whether add '-static' to link options. always set this option for arm.
+  --jobs[=N]                Allow N jobs at once; infinite jobs with no arg.
+                            used for make in the configure, for example, to make ffmpeg.
+  --prefix=<path>           the absolute install path for srs.
+  --dev                     for dev, open all features, no gperf/gprof/arm.
+  --pi                      for raspberry-pi(directly build), open features hls/ssl/static.
 
 END
     exit 0
@@ -313,6 +323,7 @@ if [ $SRS_SSL = RESERVED ]; then echo "you must specifies the ssl, see: ./config
 if [ $SRS_FFMPEG = RESERVED ]; then echo "you must specifies the ffmpeg, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_HTTP_CALLBACK = RESERVED ]; then echo "you must specifies the http-callback, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_HTTP_SERVER = RESERVED ]; then echo "you must specifies the http-server, see: ./configure --help"; __check_ok=NO; fi
+if [ $SRS_HTTP_API = RESERVED ]; then echo "you must specifies the http-api, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_LIBRTMP = RESERVED ]; then echo "you must specifies the librtmp, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_BWTC = RESERVED ]; then echo "you must specifies the bwtc, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_RESEARCH = RESERVED ]; then echo "you must specifies the research, see: ./configure --help"; __check_ok=NO; fi
@@ -338,6 +349,7 @@ if [ $SRS_SSL = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-ssl"; else SR
 if [ $SRS_FFMPEG = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-ffmpeg"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-ffmpeg"; fi
 if [ $SRS_HTTP_CALLBACK = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-http-callback"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-http-callback"; fi
 if [ $SRS_HTTP_SERVER = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-http-server"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-http-server"; fi
+if [ $SRS_HTTP_API = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-http-api"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-http-api"; fi
 if [ $SRS_LIBRTMP = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-librtmp"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-librtmp"; fi
 if [ $SRS_BWTC = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-bwtc"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-bwtc"; fi
 if [ $SRS_RESEARCH = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-research"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-research"; fi

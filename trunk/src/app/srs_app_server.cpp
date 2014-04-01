@@ -438,7 +438,13 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
     if (type == SrsListenerRtmpStream) {
         conn = new SrsRtmpConn(this, client_stfd);
     } else if (type == SrsListenerHttpApi) {
+#ifdef SRS_HTTP_API
         conn = new SrsHttpApi(this, client_stfd);
+#else
+        srs_warn("close http client for server not support http-api");
+        srs_close_stfd(client_stfd);
+        return ret;
+#endif
     } else if (type == SrsListenerHttpStream) {
 #ifdef SRS_HTTP_SERVER
         conn = new SrsHttpConn(this, client_stfd);

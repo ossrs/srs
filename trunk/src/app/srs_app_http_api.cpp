@@ -23,6 +23,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_http_api.hpp>
 
+#ifdef SRS_HTTP_API
+
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 
@@ -47,3 +49,5 @@ int SrsHttpApi::do_cycle()
     
     return ret;
 }
+
+#endif
