@@ -99,23 +99,26 @@ int SrsSocket::read(const void* buf, size_t size, ssize_t* nread)
 {
     int ret = ERROR_SUCCESS;
     
-    *nread = st_read(stfd, (void*)buf, size, recv_timeout);
+    ssize_t nb_read = st_read(stfd, (void*)buf, size, recv_timeout);
+    if (nread) {
+        *nread = nb_read;
+    }
     
     // On success a non-negative integer indicating the number of bytes actually read is returned 
     // (a value of 0 means the network connection is closed or end of file is reached).
-    if (*nread <= 0) {
+    if (nb_read <= 0) {
         if (errno == ETIME) {
             return ERROR_SOCKET_TIMEOUT;
         }
         
-        if (*nread == 0) {
+        if (nb_read == 0) {
             errno = ECONNRESET;
         }
         
         return ERROR_SOCKET_READ;
     }
     
-    recv_bytes += *nread;
+    recv_bytes += nb_read;
         
     return ret;
 }
@@ -124,23 +127,26 @@ int SrsSocket::read_fully(const void* buf, size_t size, ssize_t* nread)
 {
     int ret = ERROR_SUCCESS;
     
-    *nread = st_read_fully(stfd, (void*)buf, size, recv_timeout);
+    ssize_t nb_read = st_read_fully(stfd, (void*)buf, size, recv_timeout);
+    if (nread) {
+        *nread = nb_read;
+    }
     
     // On success a non-negative integer indicating the number of bytes actually read is returned 
     // (a value less than nbyte means the network connection is closed or end of file is reached)
-    if (*nread != (ssize_t)size) {
+    if (nb_read != (ssize_t)size) {
         if (errno == ETIME) {
             return ERROR_SOCKET_TIMEOUT;
         }
         
-        if (*nread >= 0) {
+        if (nb_read >= 0) {
             errno = ECONNRESET;
         }
         
         return ERROR_SOCKET_READ_FULLY;
     }
     
-    recv_bytes += *nread;
+    recv_bytes += nb_read;
     
     return ret;
 }
@@ -149,9 +155,12 @@ int SrsSocket::write(const void* buf, size_t size, ssize_t* nwrite)
 {
     int ret = ERROR_SUCCESS;
     
-    *nwrite = st_write(stfd, (void*)buf, size, send_timeout);
+    ssize_t nb_write = st_write(stfd, (void*)buf, size, send_timeout);
+    if (nwrite) {
+        *nwrite = nb_write;
+    }
     
-    if (*nwrite <= 0) {
+    if (nb_write <= 0) {
         if (errno == ETIME) {
             return ERROR_SOCKET_TIMEOUT;
         }
@@ -159,7 +168,7 @@ int SrsSocket::write(const void* buf, size_t size, ssize_t* nwrite)
         return ERROR_SOCKET_WRITE;
     }
     
-    send_bytes += *nwrite;
+    send_bytes += nb_write;
         
     return ret;
 }
@@ -168,9 +177,12 @@ int SrsSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
 {
     int ret = ERROR_SUCCESS;
     
-    *nwrite = st_writev(stfd, iov, iov_size, send_timeout);
+    ssize_t nb_write = st_writev(stfd, iov, iov_size, send_timeout);
+    if (nwrite) {
+        *nwrite = nb_write;
+    }
     
-    if (*nwrite <= 0) {
+    if (nb_write <= 0) {
         if (errno == ETIME) {
             return ERROR_SOCKET_TIMEOUT;
         }
@@ -178,7 +190,7 @@ int SrsSocket::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
         return ERROR_SOCKET_WRITE;
     }
     
-    send_bytes += *nwrite;
+    send_bytes += nb_write;
     
     return ret;
 }

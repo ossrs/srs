@@ -204,8 +204,9 @@ help:
 	@echo "  uninstall          uninstall srs from prefix path"
 
 clean: 
-	(cd ${SRS_OBJS}; rm -f rm -rf srs bandwidth srs_utest)
-	(cd ${SRS_OBJS}; rm -rf src research include lib utest)
+	(cd ${SRS_OBJS}; rm -rf srs bandwidth srs_utest)
+	(cd ${SRS_OBJS}; rm -rf src research include lib)
+	(cd ${SRS_OBJS}/utest; rm -rf *.o *.a)
 	(cd research/librtmp; make clean)
 	(cd research/api-server/static-dir; rm -rf crossdomain.xml forward live players)
 

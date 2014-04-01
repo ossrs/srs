@@ -33,13 +33,30 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
 
+#include <http_parser.h>
+
+class SrsSocket;
+
 class SrsHttpConn : public SrsConnection
 {
+private:
+    http_parser* http_header;
 public:
     SrsHttpConn(SrsServer* srs_server, st_netfd_t client_stfd);
     virtual ~SrsHttpConn();
 protected:
     virtual int do_cycle();
+private:
+    virtual int process_request(SrsSocket* skt, http_parser* parser, http_parser_settings* settings);
+    virtual int complete_header(SrsSocket* skt, http_parser* header, char* body, int nb_body);
+private:
+    static int on_message_begin(http_parser* parser);
+    static int on_headers_complete(http_parser* parser);
+    static int on_message_complete(http_parser* parser);
+    static int on_url(http_parser* parser, const char* at, size_t length);
+    static int on_header_field(http_parser* parser, const char* at, size_t length);
+    static int on_header_value(http_parser* parser, const char* at, size_t length);
+    static int on_body(http_parser* parser, const char* at, size_t length);
 };
 
 #endif

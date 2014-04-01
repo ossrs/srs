@@ -43,6 +43,9 @@ using namespace srs;
 #define SRS_DEFAULT_HTTP_PORT 80
 #define SRS_HTTP_RESPONSE_OK "0"
 
+#define SRS_HTTP_HEADER_BUFFER        1024
+#define SRS_HTTP_BODY_BUFFER        32 * 1024
+
 SrsHttpUri::SrsHttpUri()
 {
     port = SRS_DEFAULT_HTTP_PORT;
@@ -153,13 +156,13 @@ int SrsHttpClient::post(SrsHttpUri* uri, std::string req, std::string& res)
     // POST %s HTTP/1.1\r\nHost: %s\r\nContent-Length: %d\r\n\r\n%s
     std::stringstream ss;
     ss << "POST " << uri->get_path() << " "
-        << "HTTP/1.1" << CRLF
-        << "Host: " << uri->get_host() << CRLF
-        << "Connection: Keep-Alive" << CRLF
-        << "Content-Length: " << std::dec << req.length() << CRLF
-        << "User-Agent: " << RTMP_SIG_SRS_NAME << RTMP_SIG_SRS_VERSION << CRLF
-        << "Content-Type: text/html" << CRLF
-        << CRLF
+        << "HTTP/1.1" << __CRLF
+        << "Host: " << uri->get_host() << __CRLF
+        << "Connection: Keep-Alive" << __CRLF
+        << "Content-Length: " << std::dec << req.length() << __CRLF
+        << "User-Agent: " << RTMP_SIG_SRS_NAME << RTMP_SIG_SRS_VERSION << __CRLF
+        << "Content-Type: text/html" << __CRLF
+        << __CRLF
         << req;
     
     SrsSocket skt(stfd);
@@ -375,13 +378,13 @@ int SrsHttpClient::parse_response_body_data(SrsHttpUri* uri, SrsSocket* skt, std
 int SrsHttpClient::on_headers_complete(http_parser* parser)
 {
     SrsHttpClient* obj = (SrsHttpClient*)parser->data;
-    obj->comple_header(parser);
+    obj->complete_header(parser);
     
     // see http_parser.c:1570, return 1 to skip body.
     return 1;
 }
 
-void SrsHttpClient::comple_header(http_parser* parser)
+void SrsHttpClient::complete_header(http_parser* parser)
 {
     // save the parser status when header parse completed.
     memcpy(&http_header, parser, sizeof(http_header));

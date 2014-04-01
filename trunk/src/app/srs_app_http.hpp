@@ -35,18 +35,18 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 namespace srs
 {
     // CR             = <US-ASCII CR, carriage return (13)>
-    const static char CR = '\r';
+    #define __CR "\r" // 0x0D
     // LF             = <US-ASCII LF, linefeed (10)>
-    const static char LF = '\n';
+    #define __LF "\n" // 0x0A
     // SP             = <US-ASCII SP, space (32)>
-    const static char SP = ' ';
+    #define __SP " " // 0x20
     // HT             = <US-ASCII HT, horizontal-tab (9)>
-    const static char HT = 9;
-    
+    #define __HT "\x09" // 0x09
+
     // HTTP/1.1 defines the sequence CR LF as the end-of-line marker for all
     // protocol elements except the entity-body (see appendix 19.3 for
     // tolerant applications). 
-    const static char* CRLF = "\r\n";
+    #define __CRLF __CR""__LF // 0x0D0A
 };
 
 #ifdef SRS_HTTP_CALLBACK
@@ -57,9 +57,6 @@ class SrsSocket;
 #include <string>
 
 #include <http_parser.h>
-
-#define SRS_HTTP_HEADER_BUFFER        1024
-#define SRS_HTTP_BODY_BUFFER        32 * 1024
 
 /**
 * used to resolve the http uri.
@@ -124,7 +121,7 @@ private:
     virtual int parse_response_body_data(SrsHttpUri* uri, SrsSocket* skt, std::string* response, size_t body_left, const void* buf, size_t size);
 private:
     static int on_headers_complete(http_parser* parser);
-    virtual void comple_header(http_parser* parser);
+    virtual void complete_header(http_parser* parser);
 };
 
 /**

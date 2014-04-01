@@ -60,8 +60,14 @@ public:
     virtual int get_recv_kbps();
     virtual int get_send_kbps();
 public:
+    /**
+    * @param nread, the actual read bytes, ignore if NULL.
+    */
     virtual int read(const void* buf, size_t size, ssize_t* nread);
     virtual int read_fully(const void* buf, size_t size, ssize_t* nread);
+    /**
+    * @param nwrite, the actual write bytes, ignore if NULL.
+    */
     virtual int write(const void* buf, size_t size, ssize_t* nwrite);
     virtual int writev(const iovec *iov, int iov_size, ssize_t* nwrite);
 };
