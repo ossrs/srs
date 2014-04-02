@@ -40,6 +40,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_utility.hpp>
 #include <srs_app_http_api.hpp>
 #include <srs_app_http_conn.hpp>
+#include <srs_app_http.hpp>
 
 #define SERVER_LISTEN_BACKLOG 512
 #define SRS_TIME_RESOLUTION_MS 500
@@ -160,6 +161,13 @@ SrsServer::SrsServer()
     
     srs_assert(_srs_config);
     _srs_config->subscribe(this);
+    
+#ifdef SRS_HTTP_API
+    http_api_handler = SrsHttpHandler::create_http_api();
+#endif
+#ifdef SRS_HTTP_SERVER
+    http_stream_handler = SrsHttpHandler::create_http_stream();
+#endif
 }
 
 SrsServer::~SrsServer()
@@ -176,11 +184,32 @@ SrsServer::~SrsServer()
     }
     
     close_listeners();
+    
+#ifdef SRS_HTTP_API
+    srs_freep(http_api_handler);
+#endif
+
+#ifdef SRS_HTTP_SERVER
+    srs_freep(http_stream_handler);
+#endif
 }
 
 int SrsServer::initialize()
 {
     int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_HTTP_API
+    if ((ret = http_api_handler->initialize()) != ERROR_SUCCESS) {
+        return ret;
+    }
+#endif
+
+#ifdef SRS_HTTP_SERVER
+    if ((ret = http_stream_handler->initialize()) != ERROR_SUCCESS) {
+        return ret;
+    }
+#endif
+
     return ret;
 }
 
@@ -443,7 +472,7 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
         conn = new SrsRtmpConn(this, client_stfd);
     } else if (type == SrsListenerHttpApi) {
 #ifdef SRS_HTTP_API
-        conn = new SrsHttpApi(this, client_stfd);
+        conn = new SrsHttpApi(this, client_stfd, http_api_handler);
 #else
         srs_warn("close http client for server not support http-api");
         srs_close_stfd(client_stfd);
@@ -451,7 +480,7 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
 #endif
     } else if (type == SrsListenerHttpStream) {
 #ifdef SRS_HTTP_SERVER
-        conn = new SrsHttpConn(this, client_stfd);
+        conn = new SrsHttpConn(this, client_stfd, http_stream_handler);
 #else
         srs_warn("close http client for server not support http-server");
         srs_close_stfd(client_stfd);

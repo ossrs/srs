@@ -285,7 +285,7 @@ fi
 #####################################################################################
 function write_nginx_html5()
 {
-    cat<<END >> ${html_file}
+    cat<<END > ${html_file}
 <video width="640" height="360"
         autoplay controls autobuffer 
         src="${hls_stream}"
@@ -398,7 +398,7 @@ if [ $__SRS_BUILD_NGINX = YES ]; then
         ln -sf `pwd`/research/players/nginx_index.html ${SRS_OBJS}/nginx/html/index.html
     else
         rm -f ${SRS_OBJS}/nginx/html/index.html &&
-        cat<<END >> ${SRS_OBJS}/nginx/html/index.html
+        cat<<END > ${SRS_OBJS}/nginx/html/index.html
 <!DOCTYPE html>
 <html>
 <head>

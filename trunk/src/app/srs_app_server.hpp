@@ -38,6 +38,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsServer;
 class SrsConnection;
+class SrsHttpHandler;
 
 // listener type for server to identify the connection,
 // that is, use different type to process the connection.
@@ -75,6 +76,13 @@ public:
 class SrsServer : public ISrsReloadHandler
 {
     friend class SrsListener;
+private:
+#ifdef SRS_HTTP_API
+    SrsHttpHandler* http_api_handler;
+#endif
+#ifdef SRS_HTTP_SERVER
+    SrsHttpHandler* http_stream_handler;
+#endif
 private:
     std::vector<SrsConnection*> conns;
     std::vector<SrsListener*> listeners;

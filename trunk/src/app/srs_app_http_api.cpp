@@ -34,10 +34,30 @@ using namespace std;
 #include <srs_app_socket.hpp>
 #include <srs_core_autofree.hpp>
 
-SrsHttpApi::SrsHttpApi(SrsServer* srs_server, st_netfd_t client_stfd) 
+SrsApiRoot::SrsApiRoot()
+{
+}
+
+SrsApiRoot::~SrsApiRoot()
+{
+}
+
+bool SrsApiRoot::can_handle(const char* /*path*/, int /*length*/)
+{
+    return true;
+}
+
+int SrsApiRoot::process_request(SrsSocket* /*skt*/, SrsHttpMessage* /*req*/, const char* /*path*/, int /*length*/)
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+SrsHttpApi::SrsHttpApi(SrsServer* srs_server, st_netfd_t client_stfd, SrsHttpHandler* _handler) 
     : SrsConnection(srs_server, client_stfd)
 {
     parser = new SrsHttpParser();
+    handler = _handler;
 }
 
 SrsHttpApi::~SrsHttpApi()
@@ -92,6 +112,28 @@ int SrsHttpApi::do_cycle()
 int SrsHttpApi::process_request(SrsSocket* skt, SrsHttpMessage* req) 
 {
     int ret = ERROR_SUCCESS;
+    
+    // TODO: maybe need to parse the url.
+    std::string uri = req->url();
+    
+    int length = 0;
+    const char* start = NULL;
+    SrsHttpHandler* p = NULL;
+    if ((ret = handler->best_match(uri.data(), uri.length(), &p, &start, &length)) != ERROR_SUCCESS) {
+        srs_warn("failed to find the best match handler for url. ret=%d", ret);
+        return ret;
+    }
+    
+    // if success, p and pstart should be valid.
+    srs_assert(p);
+    srs_assert(start);
+    srs_assert(length <= (int)uri.length());
+    
+    // use handler to process request.
+    if ((ret = p->process_request(skt, req, start, length)) != ERROR_SUCCESS) {
+        srs_warn("handler failed to process http request. ret=%d", ret);
+        return ret;
+    }
     
     if (req->method() == HTTP_OPTIONS) {
         char data[] = "HTTP/1.1 200 OK" __CRLF

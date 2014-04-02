@@ -157,6 +157,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_HTTP_PARSE_URI                800
 #define ERROR_HTTP_DATA_INVLIAD             801
 #define ERROR_HTTP_PARSE_HEADER             802
+#define ERROR_HTTP_HANDLER_MATCH_URL        803
 
 // system control message, 
 // not an error, but special control logic.

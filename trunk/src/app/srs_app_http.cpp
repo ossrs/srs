@@ -32,10 +32,100 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_app_socket.hpp>
+#include <srs_app_http_api.hpp>
+#include <srs_app_http_conn.hpp>
 
 #define SRS_DEFAULT_HTTP_PORT 80
 
-#define SRS_HTTP_HEADER_BUFFER        1024
+#define SRS_HTTP_HEADER_BUFFER 1024
+
+SrsHttpHandler::SrsHttpHandler()
+{
+}
+
+SrsHttpHandler::~SrsHttpHandler()
+{
+    std::vector<SrsHttpHandler*>::iterator it;
+    for (it = handlers.begin(); it != handlers.end(); ++it) {
+        SrsHttpHandler* handler = *it;
+        srs_freep(handler);
+    }
+    handlers.clear();
+}
+
+int SrsHttpHandler::initialize()
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+bool SrsHttpHandler::can_handle(const char* /*path*/, int /*length*/)
+{
+    return false;
+}
+
+int SrsHttpHandler::process_request(SrsSocket* /*skt*/, SrsHttpMessage* /*req*/, const char* /*path*/, int /*length*/)
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+int SrsHttpHandler::best_match(const char* path, int length, SrsHttpHandler** phandler, const char** pstart, int* plength)
+{
+    int ret = ERROR_SUCCESS;
+    
+    for (;;) {
+        // ensure cur is not NULL.
+        // ensure p not NULL and has bytes to parse.
+        if (!path || length <= 0) {
+            break;
+        }
+        
+        const char* p = NULL;
+        for (p = path + 1; p - path < length && *p != __PATH_SEP; p++) {
+        }
+        
+        // whether the handler can handler the node.
+        int node_size = p - path;
+        if (!can_handle(path, node_size)) {
+            break;
+        }
+        
+        *phandler = this;
+        *pstart = path;
+        *plength = node_size;
+        
+        std::vector<SrsHttpHandler*>::iterator it;
+        for (it = handlers.begin(); it != handlers.end(); ++it) {
+            SrsHttpHandler* handler = *it;
+            // matched, donot search.
+            if (handler->best_match(p, length - node_size, phandler, pstart, plength) == ERROR_SUCCESS) {
+                break;
+            }
+        }
+        
+        // whatever, donot loop.
+        break;
+    }
+    
+    if (*phandler == NULL) {
+        ret = ERROR_HTTP_HANDLER_MATCH_URL;
+        return ret;
+    }
+    
+    return ret;
+}
+
+SrsHttpHandler* SrsHttpHandler::create_http_api()
+{
+    return new SrsApiRoot();
+}
+
+SrsHttpHandler* SrsHttpHandler::create_http_stream()
+{
+    // TODO: FIXME: use http stream handler instead.
+    return new SrsHttpHandler();
+}
 
 SrsHttpMessage::SrsHttpMessage()
 {

@@ -40,13 +40,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsSocket;
 class SrsHttpParser;
 class SrsHttpMessage;
+class SrsHttpHandler;
 
 class SrsHttpConn : public SrsConnection
 {
 private:
     SrsHttpParser* parser;
+    SrsHttpHandler* handler;
 public:
-    SrsHttpConn(SrsServer* srs_server, st_netfd_t client_stfd);
+    SrsHttpConn(SrsServer* srs_server, st_netfd_t client_stfd, SrsHttpHandler* _handler);
     virtual ~SrsHttpConn();
 protected:
     virtual int do_cycle();

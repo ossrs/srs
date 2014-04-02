@@ -32,6 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef SRS_HTTP_PARSER
 
 #include <string>
+#include <vector>
 
 #include <http_parser.h>
 
@@ -40,6 +41,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsBuffer;
 class SrsRequest;
 class SrsSocket;
+class SrsHttpMessage;
 
 // http specification
 // CR             = <US-ASCII CR, carriage return (13)>
@@ -57,10 +59,56 @@ class SrsSocket;
 #define __CRLF "\r\n" // 0x0D0A
 #define __CRLFCRLF "\r\n\r\n" // 0x0D0A0D0A
 
+// linux path seprator
+#define __PATH_SEP '/'
+
+// state of message
 enum SrsHttpParseState {
     SrsHttpParseStateInit = 0, 
     SrsHttpParseStateStart, 
     SrsHttpParseStateComplete
+};
+
+/**
+* resource handler for HTTP RESTful api.
+*/
+class SrsHttpHandler
+{
+protected:
+    /**
+    * we use handler chain to process request.
+    */
+    std::vector<SrsHttpHandler*> handlers;
+public:
+    SrsHttpHandler();
+    virtual ~SrsHttpHandler();
+public:
+    /**
+    * initialize the handler.
+    */
+    virtual int initialize();
+    /**
+    * whether current handler can handle the specified path.
+    */
+    virtual bool can_handle(const char* path, int length);
+    /**
+    * use the handler to process the request.
+    */
+    virtual int process_request(SrsSocket* skt, SrsHttpMessage* req, const char* path, int length);
+public:
+    /**
+    * find the best matched handler
+    */
+    virtual int best_match(const char* path, int length, SrsHttpHandler** phandler, const char** pstart, int* plength);
+public:
+    /**
+    * create http api resource handler.
+    */
+    static SrsHttpHandler* create_http_api();
+    /**
+    * create http stream resource handler.
+    */
+    static SrsHttpHandler* create_http_stream();
 };
 
 /**

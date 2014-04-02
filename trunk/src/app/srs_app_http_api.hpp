@@ -35,16 +35,30 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsSocket;
 class SrsHttpMessage;
 class SrsHttpParser;
+class SrsHttpHandler;
 
 #include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
+#include <srs_app_http.hpp>
+
+// for http root.
+class SrsApiRoot : public SrsHttpHandler
+{
+public:
+    SrsApiRoot();
+    virtual ~SrsApiRoot();
+public:
+    virtual bool can_handle(const char* path, int length);
+    virtual int process_request(SrsSocket* skt, SrsHttpMessage* req, const char* path, int length);
+};
 
 class SrsHttpApi : public SrsConnection
 {
 private:
     SrsHttpParser* parser;
+    SrsHttpHandler* handler;
 public:
-    SrsHttpApi(SrsServer* srs_server, st_netfd_t client_stfd);
+    SrsHttpApi(SrsServer* srs_server, st_netfd_t client_stfd, SrsHttpHandler* _handler);
     virtual ~SrsHttpApi();
 protected:
     virtual int do_cycle();

@@ -37,10 +37,11 @@ using namespace std;
 
 #define SRS_HTTP_HEADER_BUFFER        1024
 
-SrsHttpConn::SrsHttpConn(SrsServer* srs_server, st_netfd_t client_stfd) 
+SrsHttpConn::SrsHttpConn(SrsServer* srs_server, st_netfd_t client_stfd, SrsHttpHandler* _handler) 
     : SrsConnection(srs_server, client_stfd)
 {
     parser = new SrsHttpParser();
+    handler = _handler;
 }
 
 SrsHttpConn::~SrsHttpConn()
