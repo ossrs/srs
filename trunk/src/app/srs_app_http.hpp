@@ -68,17 +68,43 @@ enum SrsHttpParseState {
 */
 class SrsHttpMessage
 {
-public:
-    std::string url;
-    http_parser header;
-    SrsBuffer* body;
-    SrsHttpParseState state;
+private:
+    /**
+    * parsed url.
+    */
+    std::string _url;
+    /**
+    * parsed http header.
+    */
+    http_parser _header;
+    /**
+    * body object, in bytes.
+    * @remark, user can get body in string by get_body().
+    */
+    SrsBuffer* _body;
+    /**
+    * parser state
+    * @remark, user can use is_complete() to determine the state.
+    */
+    SrsHttpParseState _state;
     
+public:
     SrsHttpMessage();
     virtual ~SrsHttpMessage();
     
+public:
     virtual void reset();
+public:
     virtual bool is_complete();
+    virtual u_int8_t method();
+    virtual std::string url();
+    virtual std::string body();
+    virtual int64_t body_size();
+    virtual int64_t content_length();
+    virtual void set_url(std::string url);
+    virtual void set_state(SrsHttpParseState state);
+    virtual void set_header(http_parser* header);
+    virtual void append_body(const char* body, int length);
 };
 
 /**
@@ -87,11 +113,39 @@ public:
 */
 class SrsHttpParser
 {
+private:
+    http_parser_settings settings;
+    http_parser parser;
+    SrsHttpMessage* msg;
 public:
     SrsHttpParser();
     virtual ~SrsHttpParser();
 public:
-    //virtual int parse_requst(SrsHttpMessage** ppreq);
+    /**
+    * initialize the http parser with specified type,
+    * one parser can only parse request or response messages.
+    */
+    virtual int initialize(enum http_parser_type type);
+    /**
+    * always parse a http message,
+    * that is, the *ppmsg always NOT-NULL when return success.
+    * or error and *ppmsg must be NULL.
+    * @remark, if success, *ppmsg always NOT-NULL, *ppmsg always is_complete().
+    */
+    virtual int parse_message(SrsSocket* skt, SrsHttpMessage** ppmsg);
+private:
+    /**
+    * parse the HTTP message to member field: msg.
+    */
+    virtual int parse_message_imp(SrsSocket* skt);
+private:
+    static int on_message_begin(http_parser* parser);
+    static int on_headers_complete(http_parser* parser);
+    static int on_message_complete(http_parser* parser);
+    static int on_url(http_parser* parser, const char* at, size_t length);
+    static int on_header_field(http_parser* parser, const char* at, size_t length);
+    static int on_header_value(http_parser* parser, const char* at, size_t length);
+    static int on_body(http_parser* parser, const char* at, size_t length);
 };
 
 /**

@@ -38,28 +38,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <http_parser.h>
 
 class SrsSocket;
+class SrsHttpParser;
 class SrsHttpMessage;
 
 class SrsHttpConn : public SrsConnection
 {
 private:
-    SrsHttpMessage* req;
+    SrsHttpParser* parser;
 public:
     SrsHttpConn(SrsServer* srs_server, st_netfd_t client_stfd);
     virtual ~SrsHttpConn();
 protected:
     virtual int do_cycle();
 private:
-    virtual int parse_request(SrsSocket* skt, http_parser* parser, http_parser_settings* settings);
-    virtual int process_request(SrsSocket* skt);
-private:
-    static int on_message_begin(http_parser* parser);
-    static int on_headers_complete(http_parser* parser);
-    static int on_message_complete(http_parser* parser);
-    static int on_url(http_parser* parser, const char* at, size_t length);
-    static int on_header_field(http_parser* parser, const char* at, size_t length);
-    static int on_header_value(http_parser* parser, const char* at, size_t length);
-    static int on_body(http_parser* parser, const char* at, size_t length);
+    virtual int process_request(SrsSocket* skt, SrsHttpMessage* req);
 };
 
 #endif

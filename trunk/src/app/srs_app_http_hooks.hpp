@@ -36,6 +36,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsHttpUri;
 class SrsSocket;
 class SrsRequest;
+class SrsHttpParser;
 
 #include <srs_app_st.hpp>
 
@@ -47,8 +48,7 @@ class SrsHttpClient
 private:
     bool connected;
     st_netfd_t stfd;
-private:
-    http_parser http_header;
+    SrsHttpParser* parser;
 public:
     SrsHttpClient();
     virtual ~SrsHttpClient();
@@ -62,14 +62,6 @@ public:
 private:
     virtual void disconnect();
     virtual int connect(SrsHttpUri* uri);
-private:
-    virtual int parse_response(SrsHttpUri* uri, SrsSocket* skt, std::string* response);
-    virtual int parse_response_header(SrsSocket* skt, std::string* response, int& body_received);
-    virtual int parse_response_body(SrsHttpUri* uri, SrsSocket* skt, std::string* response, int body_received);
-    virtual int parse_response_body_data(SrsHttpUri* uri, SrsSocket* skt, std::string* response, size_t body_left, const void* buf, size_t size);
-private:
-    static int on_headers_complete(http_parser* parser);
-    virtual void complete_header(http_parser* parser);
 };
 
 /**

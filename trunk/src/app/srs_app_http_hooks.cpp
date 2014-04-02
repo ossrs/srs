@@ -45,16 +45,29 @@ SrsHttpClient::SrsHttpClient()
 {
     connected = false;
     stfd = NULL;
+    parser = NULL;
 }
 
 SrsHttpClient::~SrsHttpClient()
 {
     disconnect();
+    srs_freep(parser);
 }
 
 int SrsHttpClient::post(SrsHttpUri* uri, std::string req, std::string& res)
 {
+    res = "";
+    
     int ret = ERROR_SUCCESS;
+    
+    if (!parser) {
+        parser = new SrsHttpParser();
+        
+        if ((ret = parser->initialize(HTTP_RESPONSE)) != ERROR_SUCCESS) {
+            srs_error("initialize parser failed. ret=%d", ret);
+            return ret;
+        }
+    }
     
     if ((ret = connect(uri)) != ERROR_SUCCESS) {
         srs_error("http connect server failed. ret=%d", ret);
@@ -77,8 +90,7 @@ int SrsHttpClient::post(SrsHttpUri* uri, std::string req, std::string& res)
     SrsSocket skt(stfd);
     
     std::string data = ss.str();
-    ssize_t nwrite;
-    if ((ret = skt.write(data.c_str(), data.length(), &nwrite)) != ERROR_SUCCESS) {
+    if ((ret = skt.write(data.c_str(), data.length(), NULL)) != ERROR_SUCCESS) {
         // disconnect when error.
         disconnect();
         
@@ -86,9 +98,18 @@ int SrsHttpClient::post(SrsHttpUri* uri, std::string req, std::string& res)
         return ret;
     }
     
-    if ((ret = parse_response(uri, &skt, &res)) != ERROR_SUCCESS) {
+    SrsHttpMessage* msg = NULL;
+    if ((ret = parser->parse_message(&skt, &msg)) != ERROR_SUCCESS) {
         srs_error("parse http post response failed. ret=%d", ret);
         return ret;
+    }
+
+    srs_assert(msg);
+    srs_assert(msg->is_complete());
+    
+    // get response body.
+    if (msg->body_size() > 0) {
+        res = msg->body();
     }
     srs_info("parse http post response success.");
     
@@ -151,152 +172,6 @@ int SrsHttpClient::connect(SrsHttpUri* uri)
     connected = true;
     
     return ret;
-}
-
-int SrsHttpClient::parse_response(SrsHttpUri* uri, SrsSocket* skt, std::string* response)
-{
-    int ret = ERROR_SUCCESS;
-
-    int body_received = 0;
-    if ((ret = parse_response_header(skt, response, body_received)) != ERROR_SUCCESS) {
-        srs_error("parse response header failed. ret=%d", ret);
-        return ret;
-    }
-
-    if ((ret = parse_response_body(uri, skt, response, body_received)) != ERROR_SUCCESS) {
-        srs_error("parse response body failed. ret=%d", ret);
-        return ret;
-    }
-
-    srs_info("url %s download, body size=%"PRId64, uri->get_url(), http_header.content_length);
-    
-    return ret;
-}
-
-int SrsHttpClient::parse_response_header(SrsSocket* skt, std::string* response, int& body_received)
-{
-    int ret = ERROR_SUCCESS;
-
-    http_parser_settings settings;
-    
-    memset(&settings, 0, sizeof(settings));
-    settings.on_headers_complete = on_headers_complete;
-    
-    http_parser parser;
-    http_parser_init(&parser, HTTP_RESPONSE);
-    // callback object ptr.
-    parser.data = (void*)this;
-    
-    // reset response header.
-    memset(&http_header, 0, sizeof(http_header));
-    
-    // parser header.
-    char buf[SRS_HTTP_HEADER_BUFFER];
-    for (;;) {
-        ssize_t nread;
-        if ((ret = skt->read(buf, (size_t)sizeof(buf), &nread)) != ERROR_SUCCESS) {
-            srs_error("read body from server failed. ret=%d", ret);
-            return ret;
-        }
-        
-        ssize_t nparsed = http_parser_execute(&parser, &settings, buf, nread);
-        srs_info("read_size=%d, nparsed=%d", (int)nread, (int)nparsed);
-
-        // check header size.
-        if (http_header.nread != 0) {
-            body_received = nread - nparsed;
-            
-            srs_info("http header parsed, size=%d, content-length=%"PRId64", body-received=%d", 
-                http_header.nread, http_header.content_length, body_received);
-                
-            if(response != NULL && body_received > 0){
-                response->append(buf + nparsed, body_received);
-            }
-
-            return ret;
-        }
-        
-        if (nparsed != nread) {
-            ret = ERROR_HTTP_PARSE_HEADER;
-            srs_error("parse response error, parsed(%d)!=read(%d), ret=%d", (int)nparsed, (int)nread, ret);
-            return ret;
-        }
-    }
-    
-    return ret;
-}
-
-int SrsHttpClient::parse_response_body(SrsHttpUri* uri, SrsSocket* skt, std::string* response, int body_received)
-{
-    int ret = ERROR_SUCCESS;
-    
-    srs_assert(uri != NULL);
-    
-    uint64_t body_left = http_header.content_length - body_received;
-    
-    if (body_left <= 0) {
-        return ret;
-    }
-    
-    if (response != NULL) {
-        char buf[SRS_HTTP_BODY_BUFFER];
-        
-        return parse_response_body_data(
-            uri, skt, response, (size_t)body_left, 
-            (const void*)buf, (size_t)SRS_HTTP_BODY_BUFFER
-        );
-    } else {
-        // if ignore response, use shared fast memory.
-        static char buf[SRS_HTTP_BODY_BUFFER];
-        
-        return parse_response_body_data(
-            uri, skt, response, (size_t)body_left, 
-            (const void*)buf, (size_t)SRS_HTTP_BODY_BUFFER
-        );
-    }
-    
-    return ret;
-}
-
-int SrsHttpClient::parse_response_body_data(SrsHttpUri* uri, SrsSocket* skt, std::string* response, size_t body_left, const void* buf, size_t size)
-{
-    int ret = ERROR_SUCCESS;
-    
-    srs_assert(uri != NULL);
-    
-    while (body_left > 0) {
-        ssize_t nread;
-        int size_to_read = srs_min(size, body_left);
-        if ((ret = skt->read(buf, size_to_read, &nread)) != ERROR_SUCCESS) {
-            srs_error("read header from server failed. ret=%d", ret);
-            return ret;
-        }
-        
-        if (response != NULL && nread > 0) {
-            response->append((char*)buf, nread);
-        }
-        
-        body_left -= nread;
-        srs_info("read url(%s) content partial %"PRId64"/%"PRId64"", 
-            uri->get_url(), http_header.content_length - body_left, http_header.content_length);
-    }
-    
-    return ret;
-}
-
-int SrsHttpClient::on_headers_complete(http_parser* parser)
-{
-    SrsHttpClient* obj = (SrsHttpClient*)parser->data;
-    obj->complete_header(parser);
-    
-    // see http_parser.c:1570, return 1 to skip body.
-    return 1;
-}
-
-void SrsHttpClient::complete_header(http_parser* parser)
-{
-    // save the parser status when header parse completed.
-    memcpy(&http_header, parser, sizeof(http_header));
 }
 
 SrsHttpHooks::SrsHttpHooks()

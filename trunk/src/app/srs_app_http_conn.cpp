@@ -33,18 +33,19 @@ using namespace std;
 #include <srs_app_socket.hpp>
 #include <srs_app_http.hpp>
 #include <srs_kernel_buffer.hpp>
+#include <srs_core_autofree.hpp>
 
 #define SRS_HTTP_HEADER_BUFFER        1024
 
 SrsHttpConn::SrsHttpConn(SrsServer* srs_server, st_netfd_t client_stfd) 
     : SrsConnection(srs_server, client_stfd)
 {
-    req = new SrsHttpMessage();
+    parser = new SrsHttpParser();
 }
 
 SrsHttpConn::~SrsHttpConn()
 {
-    srs_freep(req);
+    srs_freep(parser);
 }
 
 int SrsHttpConn::do_cycle()
@@ -56,32 +57,34 @@ int SrsHttpConn::do_cycle()
         return ret;
     }
     srs_trace("http get peer ip success. ip=%s", ip);
-
-    // setup http parser
-    http_parser_settings settings;
     
-    memset(&settings, 0, sizeof(settings));
-    settings.on_message_begin = on_message_begin;
-    settings.on_url = on_url;
-    settings.on_header_field = on_header_field;
-    settings.on_header_value = on_header_value;
-    settings.on_headers_complete = on_headers_complete;
-    settings.on_body = on_body;
-    settings.on_message_complete = on_message_complete;
-    
-    http_parser parser;
-    http_parser_init(&parser, HTTP_REQUEST);
-    // callback object ptr.
-    parser.data = (void*)this;
+    // initialize parser
+    if ((ret = parser->initialize(HTTP_REQUEST)) != ERROR_SUCCESS) {
+        srs_error("initialize http parser failed. ret=%d", ret);
+        return ret;
+    }
     
     // underlayer socket
     SrsSocket skt(stfd);
     
+    // process http messages.
     for (;;) {
-        if ((ret = parse_request(&skt, &parser, &settings)) != ERROR_SUCCESS) {
-            if (!srs_is_client_gracefully_close(ret)) {
-                srs_error("http client cycle failed. ret=%d", ret);
-            }
+        SrsHttpMessage* req = NULL;
+        
+        // get a http message
+        if ((ret = parser->parse_message(&skt, &req)) != ERROR_SUCCESS) {
+            return ret;
+        }
+
+        // if SUCCESS, always NOT-NULL and completed message.
+        srs_assert(req);
+        srs_assert(req->is_complete());
+        
+        // always free it in this scope.
+        SrsAutoFree(SrsHttpMessage, req, false);
+        
+        // ok, handle http request.
+        if ((ret = process_request(&skt, req)) != ERROR_SUCCESS) {
             return ret;
         }
     }
@@ -89,50 +92,11 @@ int SrsHttpConn::do_cycle()
     return ret;
 }
 
-int SrsHttpConn::parse_request(SrsSocket* skt, http_parser* parser, http_parser_settings* settings)
-{
-    int ret = ERROR_SUCCESS;
-
-    // reset response header.
-    req->reset();
-    
-    // parser header.
-    char buf[SRS_HTTP_HEADER_BUFFER];
-    for (;;) {
-        ssize_t nread;
-        if ((ret = skt->read(buf, (size_t)sizeof(buf), &nread)) != ERROR_SUCCESS) {
-            if (!srs_is_client_gracefully_close(ret)) {
-                srs_error("read body from server failed. ret=%d", ret);
-            }
-            return ret;
-        }
-        
-        ssize_t nparsed = http_parser_execute(parser, settings, buf, nread);
-        srs_info("read_size=%d, nparsed=%d", (int)nread, (int)nparsed);
-
-        // check header size.
-        if (req->is_complete()) {
-            srs_trace("http request parsed, method=%d, url=%s, content-length=%"PRId64"", 
-                req->header.method, req->url.c_str(), req->header.content_length);
-            
-            return process_request(skt);
-        }
-        
-        if (nparsed != nread) {
-            ret = ERROR_HTTP_PARSE_HEADER;
-            srs_error("parse response error, parsed(%d)!=read(%d), ret=%d", (int)nparsed, (int)nread, ret);
-            return ret;
-        }
-    }
-    
-    return ret;
-}
-
-int SrsHttpConn::process_request(SrsSocket* skt) 
+int SrsHttpConn::process_request(SrsSocket* skt, SrsHttpMessage* req) 
 {
     int ret = ERROR_SUCCESS;
     
-    if (req->header.method == HTTP_OPTIONS) {
+    if (req->method() == HTTP_OPTIONS) {
         char data[] = "HTTP/1.1 200 OK" __CRLF
             "Content-Length: 0"__CRLF
             "Server: SRS/"RTMP_SIG_SRS_VERSION""__CRLF
@@ -149,89 +113,19 @@ int SrsHttpConn::process_request(SrsSocket* skt)
         
         std::stringstream ss;
         ss << "HTTP/1.1 200 OK " << __CRLF
-            << "Content-Length: "<< tilte.length() + req->body->size() << __CRLF
+            << "Content-Length: "<< tilte.length() + req->body_size() << __CRLF
             << "Server: SRS/"RTMP_SIG_SRS_VERSION"" << __CRLF
             << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF
             << "Access-Control-Allow-Origin: *" << __CRLF
             << "Access-Control-Allow-Methods: GET, POST, HEAD, PUT, DELETE" << __CRLF
             << "Access-Control-Allow-Headers: Cache-Control,X-Proxy-Authorization,X-Requested-With,Content-Type" << __CRLF
             << "Content-Type: text/html;charset=utf-8" << __CRLFCRLF
-            << tilte << (req->body->empty()? "":req->body->bytes())
+            << tilte << req->body().c_str()
             << "";
         return skt->write(ss.str().c_str(), ss.str().length(), NULL);
     }
     
     return ret;
-}
-
-int SrsHttpConn::on_message_begin(http_parser* parser)
-{
-    SrsHttpConn* obj = (SrsHttpConn*)parser->data;
-    obj->req->state = SrsHttpParseStateStart;
-    
-    srs_info("***MESSAGE BEGIN***");
-    
-    return 0;
-}
-
-int SrsHttpConn::on_headers_complete(http_parser* parser)
-{
-    SrsHttpConn* obj = (SrsHttpConn*)parser->data;
-    memcpy(&obj->req->header, parser, sizeof(http_parser));
-    
-    srs_info("***HEADERS COMPLETE***");
-    
-    // see http_parser.c:1570, return 1 to skip body.
-    return 0;
-}
-
-int SrsHttpConn::on_message_complete(http_parser* parser)
-{
-    SrsHttpConn* obj = (SrsHttpConn*)parser->data;
-    // save the parser when header parse completed.
-    obj->req->state = SrsHttpParseStateComplete;
-    
-    srs_info("***MESSAGE COMPLETE***\n");
-    
-    return 0;
-}
-
-int SrsHttpConn::on_url(http_parser* parser, const char* at, size_t length)
-{
-    SrsHttpConn* obj = (SrsHttpConn*)parser->data;
-    
-    if (length > 0) {
-        obj->req->url.append(at, (int)length);
-    }
-    
-    srs_info("Method: %d, Url: %.*s", parser->method, (int)length, at);
-    
-    return 0;
-}
-
-int SrsHttpConn::on_header_field(http_parser* /*parser*/, const char* at, size_t length)
-{
-    srs_info("Header field: %.*s", (int)length, at);
-    return 0;
-}
-
-int SrsHttpConn::on_header_value(http_parser* /*parser*/, const char* at, size_t length)
-{
-    srs_info("Header value: %.*s", (int)length, at);
-    return 0;
-}
-
-int SrsHttpConn::on_body(http_parser* parser, const char* at, size_t length)
-{
-    SrsHttpConn* obj = (SrsHttpConn*)parser->data;
-    
-    if (length > 0) {
-        obj->req->body->append(at, (int)length);
-    }
-    
-    srs_info("Body: %.*s", (int)length, at);
-
-    return 0;
 }
 
 #endif
