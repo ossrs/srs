@@ -307,7 +307,8 @@ int SrsServer::listen()
             return ret;
         }
     }
-    
+
+#ifdef SRS_HTTP_API
     if (_srs_config->get_http_api_enabled()) {
         SrsListener* listener = new SrsListener(this, SrsListenerHttpApi);
         listeners.push_back(listener);
@@ -318,7 +319,9 @@ int SrsServer::listen()
             return ret;
         }
     }
+#endif
     
+#ifdef SRS_HTTP_SERVER
     if (_srs_config->get_http_stream_enabled()) {
         SrsListener* listener = new SrsListener(this, SrsListenerHttpStream);
         listeners.push_back(listener);
@@ -329,6 +332,7 @@ int SrsServer::listen()
             return ret;
         }
     }
+#endif
     
     return ret;
 }
