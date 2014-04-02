@@ -60,7 +60,7 @@ int SrsHttpConn::do_cycle()
     
     // initialize parser
     if ((ret = parser->initialize(HTTP_REQUEST)) != ERROR_SUCCESS) {
-        srs_error("initialize http parser failed. ret=%d", ret);
+        srs_error("http initialize http parser failed. ret=%d", ret);
         return ret;
     }
     
@@ -109,7 +109,7 @@ int SrsHttpConn::process_request(SrsSocket* skt, SrsHttpMessage* req)
         return skt->write(data, sizeof(data), NULL);
     } else {
         std::string tilte = "SRS/"RTMP_SIG_SRS_VERSION;
-        tilte += " hello http/1.1~\n";
+        tilte += " hello http/1.1 server~\n";
         
         std::stringstream ss;
         ss << "HTTP/1.1 200 OK " << __CRLF
