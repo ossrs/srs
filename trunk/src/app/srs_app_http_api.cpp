@@ -36,21 +36,56 @@ using namespace std;
 
 SrsApiRoot::SrsApiRoot()
 {
+    handlers.push_back(new SrsApiApi());
 }
 
 SrsApiRoot::~SrsApiRoot()
 {
 }
 
-bool SrsApiRoot::can_handle(const char* /*path*/, int /*length*/)
+bool SrsApiRoot::can_handle(const char* path, int length, const char** pnext_path)
 {
+    // reset the next path for child to parse.
+    *pnext_path = path;
+    
     return true;
 }
 
-int SrsApiRoot::process_request(SrsSocket* /*skt*/, SrsHttpMessage* /*req*/, const char* /*path*/, int /*length*/)
+int SrsApiRoot::process_request(SrsSocket* skt, SrsHttpMessage* req, const char* /*path*/, int /*length*/)
 {
-    int ret = ERROR_SUCCESS;
-    return ret;
+    if (req->method() == HTTP_OPTIONS) {
+        return res_options(skt);
+    } else {
+        std::string body = "hello, root";
+        return res_text(skt, body);
+    }
+
+    return ERROR_SUCCESS;
+}
+
+SrsApiApi::SrsApiApi()
+{
+}
+
+SrsApiApi::~SrsApiApi()
+{
+}
+
+bool SrsApiApi::can_handle(const char* path, int length, const char** /*pnext_path*/)
+{
+    return !memcmp("/api", path, length);
+}
+
+int SrsApiApi::process_request(SrsSocket* skt, SrsHttpMessage* req, const char* /*path*/, int /*length*/)
+{
+    if (req->method() == HTTP_OPTIONS) {
+        return res_options(skt);
+    } else {
+        std::string body = "hello, api";
+        return res_text(skt, body);
+    }
+
+    return ERROR_SUCCESS;
 }
 
 SrsHttpApi::SrsHttpApi(SrsServer* srs_server, st_netfd_t client_stfd, SrsHttpHandler* _handler) 
@@ -133,35 +168,6 @@ int SrsHttpApi::process_request(SrsSocket* skt, SrsHttpMessage* req)
     if ((ret = p->process_request(skt, req, start, length)) != ERROR_SUCCESS) {
         srs_warn("handler failed to process http request. ret=%d", ret);
         return ret;
-    }
-    
-    if (req->method() == HTTP_OPTIONS) {
-        char data[] = "HTTP/1.1 200 OK" __CRLF
-            "Content-Length: 0"__CRLF
-            "Server: SRS/"RTMP_SIG_SRS_VERSION""__CRLF
-            "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT"__CRLF
-            "Access-Control-Allow-Origin: *"__CRLF
-            "Access-Control-Allow-Methods: GET, POST, HEAD, PUT, DELETE"__CRLF
-            "Access-Control-Allow-Headers: Cache-Control,X-Proxy-Authorization,X-Requested-With,Content-Type"__CRLF
-            "Content-Type: text/html;charset=utf-8"__CRLFCRLF
-            "";
-        return skt->write(data, sizeof(data), NULL);
-    } else {
-        std::string tilte = "SRS/"RTMP_SIG_SRS_VERSION;
-        tilte += " hello http/1.1 api~\n";
-        
-        std::stringstream ss;
-        ss << "HTTP/1.1 200 OK " << __CRLF
-            << "Content-Length: "<< tilte.length() + req->body_size() << __CRLF
-            << "Server: SRS/"RTMP_SIG_SRS_VERSION"" << __CRLF
-            << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF
-            << "Access-Control-Allow-Origin: *" << __CRLF
-            << "Access-Control-Allow-Methods: GET, POST, HEAD, PUT, DELETE" << __CRLF
-            << "Access-Control-Allow-Headers: Cache-Control,X-Proxy-Authorization,X-Requested-With,Content-Type" << __CRLF
-            << "Content-Type: text/html;charset=utf-8" << __CRLFCRLF
-            << tilte << req->body().c_str()
-            << "";
-        return skt->write(ss.str().c_str(), ss.str().length(), NULL);
     }
     
     return ret;

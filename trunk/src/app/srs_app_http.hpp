@@ -33,6 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 #include <vector>
+#include <sstream>
 
 #include <http_parser.h>
 
@@ -89,8 +90,9 @@ public:
     virtual int initialize();
     /**
     * whether current handler can handle the specified path.
+    * @pnext_path set the next path, if needed.
     */
-    virtual bool can_handle(const char* path, int length);
+    virtual bool can_handle(const char* path, int length, const char** pnext_path);
     /**
     * use the handler to process the request.
     */
@@ -100,6 +102,17 @@ public:
     * find the best matched handler
     */
     virtual int best_match(const char* path, int length, SrsHttpHandler** phandler, const char** pstart, int* plength);
+public:
+    virtual SrsHttpHandler* res_status_line(std::stringstream& ss);
+    virtual SrsHttpHandler* res_content_type(std::stringstream& ss);
+    virtual SrsHttpHandler* res_content_length(std::stringstream& ss, int64_t length);
+    virtual SrsHttpHandler* res_enable_crossdomain(std::stringstream& ss);
+    virtual SrsHttpHandler* res_header_eof(std::stringstream& ss);
+    virtual SrsHttpHandler* res_body(std::stringstream& ss, std::string body);
+    virtual int res_flush(SrsSocket* skt, std::stringstream& ss);
+public:
+    virtual int res_options(SrsSocket* skt);
+    virtual int res_text(SrsSocket* skt, std::string body);
 public:
     /**
     * create http api resource handler.

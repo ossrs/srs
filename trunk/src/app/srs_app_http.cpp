@@ -59,7 +59,7 @@ int SrsHttpHandler::initialize()
     return ret;
 }
 
-bool SrsHttpHandler::can_handle(const char* /*path*/, int /*length*/)
+bool SrsHttpHandler::can_handle(const char* /*path*/, int /*length*/, const char** /*pnext_path*/)
 {
     return false;
 }
@@ -86,20 +86,23 @@ int SrsHttpHandler::best_match(const char* path, int length, SrsHttpHandler** ph
         }
         
         // whether the handler can handler the node.
-        int node_size = p - path;
-        if (!can_handle(path, node_size)) {
+        const char* pnext = p;
+        if (!can_handle(path, p - path, &pnext)) {
             break;
         }
         
+        // save current handler, it's ok for current handler atleast.
         *phandler = this;
         *pstart = path;
-        *plength = node_size;
+        *plength = p - path;
         
+        // find the best matched child handler.
         std::vector<SrsHttpHandler*>::iterator it;
         for (it = handlers.begin(); it != handlers.end(); ++it) {
             SrsHttpHandler* handler = *it;
-            // matched, donot search.
-            if (handler->best_match(p, length - node_size, phandler, pstart, plength) == ERROR_SUCCESS) {
+            
+            // matched, donot search more.
+            if (handler->best_match(pnext, length - (pnext - path), phandler, pstart, plength) == ERROR_SUCCESS) {
                 break;
             }
         }
@@ -114,6 +117,76 @@ int SrsHttpHandler::best_match(const char* path, int length, SrsHttpHandler** ph
     }
     
     return ret;
+}
+
+SrsHttpHandler* SrsHttpHandler::res_status_line(std::stringstream& ss)
+{
+    ss << "HTTP/1.1 200 OK " << __CRLF
+       << "Server: SRS/"RTMP_SIG_SRS_VERSION"" << __CRLF;
+    return this;
+}
+
+SrsHttpHandler* SrsHttpHandler::res_content_type(std::stringstream& ss)
+{
+    ss << "Content-Type: text/html;charset=utf-8" << __CRLF
+        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
+    return this;
+}
+
+SrsHttpHandler* SrsHttpHandler::res_content_length(std::stringstream& ss, int64_t length)
+{
+    ss << "Content-Length: "<< length << __CRLF;
+    return this;
+}
+
+SrsHttpHandler* SrsHttpHandler::res_enable_crossdomain(std::stringstream& ss)
+{
+    ss << "Access-Control-Allow-Origin: *" << __CRLF
+        << "Access-Control-Allow-Methods: "
+        << "GET, POST, HEAD, PUT, DELETE" << __CRLF
+        << "Access-Control-Allow-Headers: "
+        << "Cache-Control,X-Proxy-Authorization,X-Requested-With,Content-Type" << __CRLF;
+    return this;
+}
+
+SrsHttpHandler* SrsHttpHandler::res_header_eof(std::stringstream& ss)
+{
+    ss << __CRLF;
+    return this;
+}
+
+SrsHttpHandler* SrsHttpHandler::res_body(std::stringstream& ss, std::string body)
+{
+    ss << body;
+    return this;
+}
+
+int SrsHttpHandler::res_flush(SrsSocket* skt, std::stringstream& ss)
+{
+    return skt->write(ss.str().c_str(), ss.str().length(), NULL);
+}
+
+int SrsHttpHandler::res_options(SrsSocket* skt)
+{
+    std::stringstream ss;
+    
+    res_status_line(ss)->res_content_type(ss)
+        ->res_content_length(ss, 0)->res_enable_crossdomain(ss)
+        ->res_header_eof(ss);
+    
+    return res_flush(skt, ss);
+}
+
+int SrsHttpHandler::res_text(SrsSocket* skt, std::string body)
+{
+    std::stringstream ss;
+    
+    res_status_line(ss)->res_content_type(ss)
+        ->res_content_length(ss, (int)body.length())->res_enable_crossdomain(ss)
+        ->res_header_eof(ss)
+        ->res_body(ss, body);
+    
+    return res_flush(skt, ss);
 }
 
 SrsHttpHandler* SrsHttpHandler::create_http_api()
