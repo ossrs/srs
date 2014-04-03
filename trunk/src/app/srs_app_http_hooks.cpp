@@ -209,7 +209,7 @@ int SrsHttpHooks::on_connect(std::string url, int client_id, std::string ip, Srs
         << JFIELD_STR("ip", ip) << JFIELD_CONT
         << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
         << JFIELD_STR("app", req->app) << JFIELD_CONT
-        << JFIELD_STR("pageUrl", req->pageUrl) << JFIELD_CONT
+        << JFIELD_STR("pageUrl", req->pageUrl)
         << JOBJECT_END;
     std::string data = ss.str();
     std::string res;
@@ -262,7 +262,7 @@ void SrsHttpHooks::on_close(std::string url, int client_id, std::string ip, SrsR
         << JFIELD_STR("ip", ip) << JFIELD_CONT
         << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
         << JFIELD_STR("app", req->app) << JFIELD_CONT
-        << JFIELD_STR("pageUrl", req->pageUrl) << JFIELD_CONT
+        << JFIELD_STR("pageUrl", req->pageUrl)
         << JOBJECT_END;
     std::string data = ss.str();
     std::string res;
@@ -316,7 +316,7 @@ int SrsHttpHooks::on_publish(std::string url, int client_id, std::string ip, Srs
         << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
         << JFIELD_STR("app", req->app) << JFIELD_CONT
         << JFIELD_STR("pageUrl", req->pageUrl) << JFIELD_CONT
-        << JFIELD_STR("stream", req->stream) << JFIELD_CONT
+        << JFIELD_STR("stream", req->stream)
         << JOBJECT_END;
     std::string data = ss.str();
     std::string res;
@@ -370,7 +370,7 @@ void SrsHttpHooks::on_unpublish(std::string url, int client_id, std::string ip, 
         << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
         << JFIELD_STR("app", req->app) << JFIELD_CONT
         << JFIELD_STR("pageUrl", req->pageUrl) << JFIELD_CONT
-        << JFIELD_STR("stream", req->stream) << JFIELD_CONT
+        << JFIELD_STR("stream", req->stream)
         << JOBJECT_END;
     std::string data = ss.str();
     std::string res;
@@ -424,7 +424,7 @@ int SrsHttpHooks::on_play(std::string url, int client_id, std::string ip, SrsReq
         << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
         << JFIELD_STR("app", req->app) << JFIELD_CONT
         << JFIELD_STR("pageUrl", req->pageUrl) << JFIELD_CONT
-        << JFIELD_STR("stream", req->stream) << JFIELD_CONT
+        << JFIELD_STR("stream", req->stream)
         << JOBJECT_END;
     std::string data = ss.str();
     std::string res;
@@ -478,7 +478,7 @@ void SrsHttpHooks::on_stop(std::string url, int client_id, std::string ip, SrsRe
         << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
         << JFIELD_STR("app", req->app) << JFIELD_CONT
         << JFIELD_STR("pageUrl", req->pageUrl) << JFIELD_CONT
-        << JFIELD_STR("stream", req->stream) << JFIELD_CONT
+        << JFIELD_STR("stream", req->stream)
         << JOBJECT_END;
     std::string data = ss.str();
     std::string res;
