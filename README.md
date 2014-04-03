@@ -214,6 +214,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * nginx v1.5.0: 139524 lines <br/>
 
 ## History
+* v1.0, 2014-04-03, implements http framework and api/v1/version.
 * v1.0, 2014-03-30, fix bug for st detecting epoll failed, force st to use epoll.
 * v1.0, 2014-03-29, add wiki [Performance for RaspberryPi](https://github.com/winlinvip/simple-rtmp-server/wiki/RaspberryPi).
 * v1.0, 2014-03-29, add release binary package for raspberry-pi. 
