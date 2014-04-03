@@ -62,6 +62,26 @@ public:
     virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
 };
 
+class SrsApiV1 : public SrsHttpHandler
+{
+public:
+    SrsApiV1();
+    virtual ~SrsApiV1();
+public:
+    virtual bool can_handle(const char* path, int length, const char** pchild);
+    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+};
+
+class SrsApiVersion : public SrsHttpHandler
+{
+public:
+    SrsApiVersion();
+    virtual ~SrsApiVersion();
+public:
+    virtual bool can_handle(const char* path, int length, const char** pchild);
+    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+};
+
 class SrsHttpApi : public SrsConnection
 {
 private:

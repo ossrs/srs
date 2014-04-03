@@ -61,7 +61,7 @@ int SrsApiRoot::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
     ss << JOBJECT_START
         << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
         << JFIELD_ORG("urls", JOBJECT_START)
-            << JFIELD_STR("v1", "the api version 1.0")
+            << JFIELD_STR("api", "the api root")
         << JOBJECT_END
         << JOBJECT_END;
     
@@ -70,6 +70,7 @@ int SrsApiRoot::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
 
 SrsApiApi::SrsApiApi()
 {
+    handlers.push_back(new SrsApiV1());
 }
 
 SrsApiApi::~SrsApiApi()
@@ -83,8 +84,75 @@ bool SrsApiApi::can_handle(const char* path, int length, const char** /*pchild*/
 
 int SrsApiApi::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
 {
-    std::string body = "hello, api";
-    return res_text(skt, body);
+    std::stringstream ss;
+    
+    ss << JOBJECT_START
+        << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
+        << JFIELD_ORG("urls", JOBJECT_START)
+            << JFIELD_STR("v1", "the api version 1.0")
+        << JOBJECT_END
+        << JOBJECT_END;
+    
+    return res_json(skt, ss.str());
+}
+
+SrsApiV1::SrsApiV1()
+{
+    handlers.push_back(new SrsApiVersion());
+}
+
+SrsApiV1::~SrsApiV1()
+{
+}
+
+bool SrsApiV1::can_handle(const char* path, int length, const char** /*pchild*/)
+{
+    return srs_path_equals("/v1", path, length);
+}
+
+int SrsApiV1::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
+{
+    std::stringstream ss;
+    
+    ss << JOBJECT_START
+        << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
+        << JFIELD_ORG("urls", JOBJECT_START)
+            << JFIELD_STR("version", "the version of SRS")
+        << JOBJECT_END
+        << JOBJECT_END;
+    
+    return res_json(skt, ss.str());
+}
+
+SrsApiVersion::SrsApiVersion()
+{
+}
+
+SrsApiVersion::~SrsApiVersion()
+{
+}
+
+bool SrsApiVersion::can_handle(const char* path, int length, const char** /*pchild*/)
+{
+    return srs_path_equals("/version", path, length);
+}
+
+int SrsApiVersion::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
+{
+    std::stringstream ss;
+    
+    ss << JOBJECT_START
+        << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
+        << JFIELD_ORG("data", JOBJECT_START)
+            << JFIELD_ORG("major", VERSION_MAJOR) << JFIELD_CONT
+            << JFIELD_ORG("minor", VERSION_MINOR) << JFIELD_CONT
+            << JFIELD_ORG("revision", VERSION_REVISION) << JFIELD_CONT
+            << JFIELD_STR("version", RTMP_SIG_SRS_VERSION) << JFIELD_CONT
+            << JFIELD_STR("primary_authors", RTMP_SIG_SRS_PRIMARY_AUTHROS)
+        << JOBJECT_END
+        << JOBJECT_END;
+    
+    return res_json(skt, ss.str());
 }
 
 SrsHttpApi::SrsHttpApi(SrsServer* srs_server, st_netfd_t client_stfd, SrsHttpHandler* _handler) 
