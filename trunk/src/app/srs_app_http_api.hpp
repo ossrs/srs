@@ -98,6 +98,7 @@ class SrsHttpApi : public SrsConnection
 private:
     SrsHttpParser* parser;
     SrsHttpHandler* handler;
+    bool requires_crossdomain;
 public:
     SrsHttpApi(SrsServer* srs_server, st_netfd_t client_stfd, SrsHttpHandler* _handler);
     virtual ~SrsHttpApi();

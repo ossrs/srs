@@ -236,9 +236,9 @@ public:
     virtual int res_flush(SrsSocket* skt, std::stringstream& ss);
 public:
     virtual int res_options(SrsSocket* skt);
-    virtual int res_text(SrsSocket* skt, std::string body);
-    virtual int res_json(SrsSocket* skt, std::string json);
-    virtual int res_error(SrsSocket* skt, int code, std::string reason_phrase, std::string body);
+    virtual int res_text(SrsSocket* skt, SrsHttpMessage* req, std::string body);
+    virtual int res_json(SrsSocket* skt, SrsHttpMessage* req, std::string json);
+    virtual int res_error(SrsSocket* skt, SrsHttpMessage* req, int code, std::string reason_phrase, std::string body);
 // object creator
 public:
     /**
@@ -283,6 +283,10 @@ private:
     * best matched handler.
     */
     SrsHttpHandlerMatch* _match;
+    /**
+    * whether the message requires crossdomain.
+    */
+    bool _requires_crossdomain;
 public:
     SrsHttpMessage();
     virtual ~SrsHttpMessage();
@@ -299,10 +303,12 @@ public:
     virtual int64_t body_size();
     virtual int64_t content_length();
     virtual SrsHttpHandlerMatch* match();
+    virtual bool requires_crossdomain();
     virtual void set_url(std::string url);
     virtual void set_state(SrsHttpParseState state);
     virtual void set_header(http_parser* header);
     virtual void set_match(SrsHttpHandlerMatch* match);
+    virtual void set_requires_crossdomain(bool requires_crossdomain);
     virtual void append_body(const char* body, int length);
 };
 

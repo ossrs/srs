@@ -80,7 +80,7 @@ int SrsApiRoot::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
         << JOBJECT_END
         << JOBJECT_END;
     
-    return res_json(skt, ss.str());
+    return res_json(skt, req, ss.str());
 }
 
 SrsApiApi::SrsApiApi()
@@ -108,7 +108,7 @@ int SrsApiApi::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
         << JOBJECT_END
         << JOBJECT_END;
     
-    return res_json(skt, ss.str());
+    return res_json(skt, req, ss.str());
 }
 
 SrsApiV1::SrsApiV1()
@@ -138,7 +138,7 @@ int SrsApiV1::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
         << JOBJECT_END
         << JOBJECT_END;
     
-    return res_json(skt, ss.str());
+    return res_json(skt, req, ss.str());
 }
 
 SrsApiVersion::SrsApiVersion()
@@ -168,7 +168,7 @@ int SrsApiVersion::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
         << JOBJECT_END
         << JOBJECT_END;
     
-    return res_json(skt, ss.str());
+    return res_json(skt, req, ss.str());
 }
 
 SrsApiAuthors::SrsApiAuthors()
@@ -197,7 +197,7 @@ int SrsApiAuthors::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
         << JOBJECT_END
         << JOBJECT_END;
     
-    return res_json(skt, ss.str());
+    return res_json(skt, req, ss.str());
 }
 
 SrsHttpApi::SrsHttpApi(SrsServer* srs_server, st_netfd_t client_stfd, SrsHttpHandler* _handler) 
@@ -205,6 +205,7 @@ SrsHttpApi::SrsHttpApi(SrsServer* srs_server, st_netfd_t client_stfd, SrsHttpHan
 {
     parser = new SrsHttpParser();
     handler = _handler;
+    requires_crossdomain = false;
 }
 
 SrsHttpApi::~SrsHttpApi()
@@ -284,11 +285,16 @@ int SrsHttpApi::process_request(SrsSocket* skt, SrsHttpMessage* req)
     srs_info("best match handler, matched_url=%s", p->matched_url.c_str());
     
     req->set_match(p);
+    req->set_requires_crossdomain(requires_crossdomain);
     
     // use handler to process request.
     if ((ret = p->handler->process_request(skt, req)) != ERROR_SUCCESS) {
         srs_warn("handler failed to process http request. ret=%d", ret);
         return ret;
+    }
+    
+    if (req->requires_crossdomain()) {
+        requires_crossdomain = true;
     }
     
     return ret;

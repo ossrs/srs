@@ -84,6 +84,7 @@ bool SrsHttpHandler::can_handle(const char* /*path*/, int /*length*/, const char
 int SrsHttpHandler::process_request(SrsSocket* skt, SrsHttpMessage* req)
 {
     if (req->method() == HTTP_OPTIONS) {
+        req->set_requires_crossdomain(true);
         return res_options(skt);
     }
 
@@ -101,7 +102,7 @@ int SrsHttpHandler::process_request(SrsSocket* skt, SrsHttpMessage* req)
             << JOBJECT_END
             << JOBJECT_END;
         
-        return res_error(skt, status_code, reason_phrase, ss.str());
+        return res_error(skt, req, status_code, reason_phrase, ss.str());
     }
     
     return do_process_request(skt, req);
@@ -266,37 +267,52 @@ int SrsHttpHandler::res_options(SrsSocket* skt)
     return res_flush(skt, ss);
 }
 
-int SrsHttpHandler::res_text(SrsSocket* skt, std::string body)
+int SrsHttpHandler::res_text(SrsSocket* skt, SrsHttpMessage* req, std::string body)
 {
     std::stringstream ss;
     
     res_status_line(ss)->res_content_type(ss)
-        ->res_content_length(ss, (int)body.length())->res_enable_crossdomain(ss)
-        ->res_header_eof(ss)
+        ->res_content_length(ss, (int)body.length());
+        
+    if (req->requires_crossdomain()) {
+        res_enable_crossdomain(ss);
+    }
+    
+    res_header_eof(ss)
         ->res_body(ss, body);
     
     return res_flush(skt, ss);
 }
 
-int SrsHttpHandler::res_json(SrsSocket* skt, std::string json)
+int SrsHttpHandler::res_json(SrsSocket* skt, SrsHttpMessage* req, std::string json)
 {
     std::stringstream ss;
     
     res_status_line(ss)->res_content_type_json(ss)
-        ->res_content_length(ss, (int)json.length())->res_enable_crossdomain(ss)
-        ->res_header_eof(ss)
+        ->res_content_length(ss, (int)json.length());
+        
+    if (req->requires_crossdomain()) {
+        res_enable_crossdomain(ss);
+    }
+    
+    res_header_eof(ss)
         ->res_body(ss, json);
     
     return res_flush(skt, ss);
 }
 
-int SrsHttpHandler::res_error(SrsSocket* skt, int code, std::string reason_phrase, std::string body)
+int SrsHttpHandler::res_error(SrsSocket* skt, SrsHttpMessage* req, int code, std::string reason_phrase, std::string body)
 {
     std::stringstream ss;
 
     res_status_line_error(ss, code, reason_phrase)->res_content_type_json(ss)
-        ->res_content_length(ss, (int)body.length())->res_enable_crossdomain(ss)
-        ->res_header_eof(ss)
+        ->res_content_length(ss, (int)body.length());
+        
+    if (req->requires_crossdomain()) {
+        res_enable_crossdomain(ss);
+    }
+    
+    res_header_eof(ss)
         ->res_body(ss, body);
     
     return res_flush(skt, ss);
@@ -319,6 +335,7 @@ SrsHttpMessage::SrsHttpMessage()
     _state = SrsHttpParseStateInit;
     _uri = new SrsHttpUri();
     _match = NULL;
+    _requires_crossdomain = false;
 }
 
 SrsHttpMessage::~SrsHttpMessage()
@@ -404,6 +421,11 @@ SrsHttpHandlerMatch* SrsHttpMessage::match()
     return _match;
 }
 
+bool SrsHttpMessage::requires_crossdomain()
+{
+    return _requires_crossdomain;
+}
+
 void SrsHttpMessage::set_url(std::string url)
 {
     _url = url;
@@ -423,6 +445,11 @@ void SrsHttpMessage::set_match(SrsHttpHandlerMatch* match)
 {
     srs_freep(_match);
     _match = match;
+}
+
+void SrsHttpMessage::set_requires_crossdomain(bool requires_crossdomain)
+{
+    _requires_crossdomain = requires_crossdomain;
 }
 
 void SrsHttpMessage::append_body(const char* body, int length)
