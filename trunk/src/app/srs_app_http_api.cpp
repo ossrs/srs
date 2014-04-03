@@ -118,7 +118,7 @@ int SrsApiV1::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
     ss << JOBJECT_START
         << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
         << JFIELD_ORG("urls", JOBJECT_START)
-            << JFIELD_STR("version", "the version of SRS") << JFIELD_CONT
+            << JFIELD_STR("versions", "the version of SRS") << JFIELD_CONT
             << JFIELD_STR("authors", "the primary authors and contributors")
         << JOBJECT_END
         << JOBJECT_END;
@@ -136,7 +136,7 @@ SrsApiVersion::~SrsApiVersion()
 
 bool SrsApiVersion::can_handle(const char* path, int length, const char** /*pchild*/)
 {
-    return srs_path_equals("/version", path, length);
+    return srs_path_equals("/versions", path, length);
 }
 
 int SrsApiVersion::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
