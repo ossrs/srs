@@ -39,6 +39,22 @@ using namespace std;
 
 #define SRS_HTTP_HEADER_BUFFER 1024
 
+bool srs_path_equals(const char* expect, const char* path, int nb_path)
+{
+    int size = strlen(expect);
+    
+    if (size != nb_path) {
+        return false;
+    }
+    
+    return !memcmp(expect, path, size);
+}
+
+SrsHttpHandlerMatch::SrsHttpHandlerMatch()
+{
+    handler = NULL;
+}
+
 SrsHttpHandler::SrsHttpHandler()
 {
 }
@@ -59,20 +75,33 @@ int SrsHttpHandler::initialize()
     return ret;
 }
 
-bool SrsHttpHandler::can_handle(const char* /*path*/, int /*length*/, const char** /*pnext_path*/)
+bool SrsHttpHandler::can_handle(const char* /*path*/, int /*length*/, const char** /*pchild*/)
 {
     return false;
 }
 
-int SrsHttpHandler::process_request(SrsSocket* /*skt*/, SrsHttpMessage* /*req*/, const char* /*path*/, int /*length*/)
+int SrsHttpHandler::process_request(SrsSocket* skt, SrsHttpMessage* req)
+{
+    if (req->method() == HTTP_OPTIONS) {
+        return res_options(skt);
+    }
+    
+    return do_process_request(skt, req);
+}
+
+int SrsHttpHandler::do_process_request(SrsSocket* /*skt*/, SrsHttpMessage* /*req*/)
 {
     int ret = ERROR_SUCCESS;
     return ret;
 }
 
-int SrsHttpHandler::best_match(const char* path, int length, SrsHttpHandler** phandler, const char** pstart, int* plength)
+int SrsHttpHandler::best_match(const char* path, int length, SrsHttpHandlerMatch** ppmatch)
 {
     int ret = ERROR_SUCCESS;
+    
+    SrsHttpHandler* handler = NULL;
+    const char* match_start = NULL;
+    int match_length = 0;
     
     for (;;) {
         // ensure cur is not NULL.
@@ -86,23 +115,23 @@ int SrsHttpHandler::best_match(const char* path, int length, SrsHttpHandler** ph
         }
         
         // whether the handler can handler the node.
-        const char* pnext = p;
-        if (!can_handle(path, p - path, &pnext)) {
+        const char* pchild = p;
+        if (!can_handle(path, p - path, &pchild)) {
             break;
         }
         
         // save current handler, it's ok for current handler atleast.
-        *phandler = this;
-        *pstart = path;
-        *plength = p - path;
+        handler = this;
+        match_start = path;
+        match_length = p - path;
         
         // find the best matched child handler.
         std::vector<SrsHttpHandler*>::iterator it;
         for (it = handlers.begin(); it != handlers.end(); ++it) {
-            SrsHttpHandler* handler = *it;
+            SrsHttpHandler* h = *it;
             
             // matched, donot search more.
-            if (handler->best_match(pnext, length - (pnext - path), phandler, pstart, plength) == ERROR_SUCCESS) {
+            if (h->best_match(pchild, length - (pchild - path), ppmatch) == ERROR_SUCCESS) {
                 break;
             }
         }
@@ -111,10 +140,21 @@ int SrsHttpHandler::best_match(const char* path, int length, SrsHttpHandler** ph
         break;
     }
     
-    if (*phandler == NULL) {
+    // if already matched by child, return.
+    if (*ppmatch) {
+        return ret;
+    }
+    
+    // not matched, error.
+    if (handler == NULL) {
         ret = ERROR_HTTP_HANDLER_MATCH_URL;
         return ret;
     }
+    
+    // matched by this handler.
+    *ppmatch = new SrsHttpHandlerMatch();
+    (*ppmatch)->handler = handler;
+    (*ppmatch)->matched_url.append(match_start, match_length);
     
     return ret;
 }
@@ -129,6 +169,13 @@ SrsHttpHandler* SrsHttpHandler::res_status_line(std::stringstream& ss)
 SrsHttpHandler* SrsHttpHandler::res_content_type(std::stringstream& ss)
 {
     ss << "Content-Type: text/html;charset=utf-8" << __CRLF
+        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
+    return this;
+}
+
+SrsHttpHandler* SrsHttpHandler::res_content_type_json(std::stringstream& ss)
+{
+    ss << "Content-Type: application/json;charset=utf-8" << __CRLF
         << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
     return this;
 }
@@ -189,6 +236,18 @@ int SrsHttpHandler::res_text(SrsSocket* skt, std::string body)
     return res_flush(skt, ss);
 }
 
+int SrsHttpHandler::res_json(SrsSocket* skt, std::string json)
+{
+    std::stringstream ss;
+    
+    res_status_line(ss)->res_content_type_json(ss)
+        ->res_content_length(ss, (int)json.length())->res_enable_crossdomain(ss)
+        ->res_header_eof(ss)
+        ->res_body(ss, json);
+    
+    return res_flush(skt, ss);
+}
+
 SrsHttpHandler* SrsHttpHandler::create_http_api()
 {
     return new SrsApiRoot();
@@ -204,11 +263,15 @@ SrsHttpMessage::SrsHttpMessage()
 {
     _body = new SrsBuffer();
     _state = SrsHttpParseStateInit;
+    _uri = new SrsHttpUri();
+    _match = NULL;
 }
 
 SrsHttpMessage::~SrsHttpMessage()
 {
     srs_freep(_body);
+    srs_freep(_uri);
+    srs_freep(_match);
 }
 
 void SrsHttpMessage::reset()
@@ -216,6 +279,11 @@ void SrsHttpMessage::reset()
     _state = SrsHttpParseStateInit;
     _body->clear();
     _url = "";
+}
+
+int SrsHttpMessage::parse_uri()
+{
+    return _uri->initialize(_url);
 }
 
 bool SrsHttpMessage::is_complete()
@@ -230,7 +298,17 @@ u_int8_t SrsHttpMessage::method()
 
 string SrsHttpMessage::url()
 {
-    return _url;
+    return _uri->get_url();
+}
+
+string SrsHttpMessage::path()
+{
+    return _uri->get_path();
+}
+
+string SrsHttpMessage::query()
+{
+    return _uri->get_query();
 }
 
 string SrsHttpMessage::body()
@@ -254,6 +332,11 @@ int64_t SrsHttpMessage::content_length()
     return _header.content_length;
 }
 
+SrsHttpHandlerMatch* SrsHttpMessage::match()
+{
+    return _match;
+}
+
 void SrsHttpMessage::set_url(std::string url)
 {
     _url = url;
@@ -267,6 +350,12 @@ void SrsHttpMessage::set_state(SrsHttpParseState state)
 void SrsHttpMessage::set_header(http_parser* header)
 {
     memcpy(&_header, header, sizeof(http_parser));
+}
+
+void SrsHttpMessage::set_match(SrsHttpHandlerMatch* match)
+{
+    srs_freep(_match);
+    _match = match;
 }
 
 void SrsHttpMessage::append_body(const char* body, int length)
@@ -489,22 +578,25 @@ int SrsHttpUri::initialize(std::string _url)
     path = get_uri_field(url, &hp_u, UF_PATH);
     srs_info("parse url %s success", purl);
     
+    query = get_uri_field(url, &hp_u, UF_QUERY);
+    srs_trace("parse query %s success", purl);
+    
     return ret;
 }
 
 const char* SrsHttpUri::get_url()
 {
-    return url.c_str();
+    return url.data();
 }
 
 const char* SrsHttpUri::get_schema()
 {
-    return schema.c_str();
+    return schema.data();
 }
 
 const char* SrsHttpUri::get_host()
 {
-    return host.c_str();
+    return host.data();
 }
 
 int SrsHttpUri::get_port()
@@ -514,7 +606,12 @@ int SrsHttpUri::get_port()
 
 const char* SrsHttpUri::get_path()
 {
-    return path.c_str();
+    return path.data();
+}
+
+const char* SrsHttpUri::get_query()
+{
+    return path.data();
 }
 
 std::string SrsHttpUri::get_uri_field(std::string uri, http_parser_url* hp_u, http_parser_url_fields field)

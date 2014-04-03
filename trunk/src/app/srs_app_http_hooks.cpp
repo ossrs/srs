@@ -35,6 +35,7 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_app_socket.hpp>
 #include <srs_app_http.hpp>
+#include <srs_app_json.hpp>
 
 #define SRS_HTTP_RESPONSE_OK "0"
 
@@ -202,32 +203,14 @@ int SrsHttpHooks::on_connect(std::string url, int client_id, std::string ip, Srs
     }
     */
     std::stringstream ss;
-    ss << "{"
-        // action
-        << '"' << "action" << '"' << ':'
-        << '"' << "on_connect" << '"'
-        << ','
-        // client_id
-        << '"' << "client_id" << '"' << ':'
-        << std::dec << client_id
-        << ','
-        // ip
-        << '"' << "ip" << '"' << ':'
-        << '"' << ip << '"'
-        << ','
-        // vhost
-        << '"' << "vhost" << '"' << ':'
-        << '"' << req->vhost << '"'
-        << ','
-        // app
-        << '"' << "app" << '"' << ':'
-        << '"' << req->app << '"'
-        << ','
-        // pageUrl
-        << '"' << "pageUrl" << '"' << ':'
-        << '"' << req->pageUrl << '"'
-        //<< ','
-        << "}";
+    ss << JOBJECT_START
+        << JFIELD_STR("action", "on_connect") << JFIELD_CONT
+        << JFIELD_ORG("client_id", client_id) << JFIELD_CONT
+        << JFIELD_STR("ip", ip) << JFIELD_CONT
+        << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
+        << JFIELD_STR("app", req->app) << JFIELD_CONT
+        << JFIELD_STR("pageUrl", req->pageUrl) << JFIELD_CONT
+        << JOBJECT_END;
     std::string data = ss.str();
     std::string res;
     
@@ -273,28 +256,14 @@ void SrsHttpHooks::on_close(std::string url, int client_id, std::string ip, SrsR
     }
     */
     std::stringstream ss;
-    ss << "{"
-        // action
-        << '"' << "action" << '"' << ':'
-        << '"' << "on_close" << '"'
-        << ','
-        // client_id
-        << '"' << "client_id" << '"' << ':'
-        << std::dec << client_id
-        << ','
-        // ip
-        << '"' << "ip" << '"' << ':'
-        << '"' << ip << '"'
-        << ','
-        // vhost
-        << '"' << "vhost" << '"' << ':'
-        << '"' << req->vhost << '"'
-        << ','
-        // app
-        << '"' << "app" << '"' << ':'
-        << '"' << req->app << '"'
-        //<< ','
-        << "}";
+    ss << JOBJECT_START
+        << JFIELD_STR("action", "on_close") << JFIELD_CONT
+        << JFIELD_ORG("client_id", client_id) << JFIELD_CONT
+        << JFIELD_STR("ip", ip) << JFIELD_CONT
+        << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
+        << JFIELD_STR("app", req->app) << JFIELD_CONT
+        << JFIELD_STR("pageUrl", req->pageUrl) << JFIELD_CONT
+        << JOBJECT_END;
     std::string data = ss.str();
     std::string res;
     
@@ -340,32 +309,15 @@ int SrsHttpHooks::on_publish(std::string url, int client_id, std::string ip, Srs
     }
     */
     std::stringstream ss;
-    ss << "{"
-        // action
-        << '"' << "action" << '"' << ':'
-        << '"' << "on_publish" << '"'
-        << ','
-        // client_id
-        << '"' << "client_id" << '"' << ':'
-        << std::dec << client_id
-        << ','
-        // ip
-        << '"' << "ip" << '"' << ':'
-        << '"' << ip << '"'
-        << ','
-        // vhost
-        << '"' << "vhost" << '"' << ':'
-        << '"' << req->vhost << '"'
-        << ','
-        // app
-        << '"' << "app" << '"' << ':'
-        << '"' << req->app << '"'
-        << ','
-        // stream
-        << '"' << "stream" << '"' << ':'
-        << '"' << req->stream << '"'
-        //<< ','
-        << "}";
+    ss << JOBJECT_START
+        << JFIELD_STR("action", "on_publish") << JFIELD_CONT
+        << JFIELD_ORG("client_id", client_id) << JFIELD_CONT
+        << JFIELD_STR("ip", ip) << JFIELD_CONT
+        << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
+        << JFIELD_STR("app", req->app) << JFIELD_CONT
+        << JFIELD_STR("pageUrl", req->pageUrl) << JFIELD_CONT
+        << JFIELD_STR("stream", req->stream) << JFIELD_CONT
+        << JOBJECT_END;
     std::string data = ss.str();
     std::string res;
     
@@ -411,32 +363,15 @@ void SrsHttpHooks::on_unpublish(std::string url, int client_id, std::string ip, 
     }
     */
     std::stringstream ss;
-    ss << "{"
-        // action
-        << '"' << "action" << '"' << ':'
-        << '"' << "on_unpublish" << '"'
-        << ','
-        // client_id
-        << '"' << "client_id" << '"' << ':'
-        << std::dec << client_id
-        << ','
-        // ip
-        << '"' << "ip" << '"' << ':'
-        << '"' << ip << '"'
-        << ','
-        // vhost
-        << '"' << "vhost" << '"' << ':'
-        << '"' << req->vhost << '"'
-        << ','
-        // app
-        << '"' << "app" << '"' << ':'
-        << '"' << req->app << '"'
-        << ','
-        // stream
-        << '"' << "stream" << '"' << ':'
-        << '"' << req->stream << '"'
-        //<< ','
-        << "}";
+    ss << JOBJECT_START
+        << JFIELD_STR("action", "on_unpublish") << JFIELD_CONT
+        << JFIELD_ORG("client_id", client_id) << JFIELD_CONT
+        << JFIELD_STR("ip", ip) << JFIELD_CONT
+        << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
+        << JFIELD_STR("app", req->app) << JFIELD_CONT
+        << JFIELD_STR("pageUrl", req->pageUrl) << JFIELD_CONT
+        << JFIELD_STR("stream", req->stream) << JFIELD_CONT
+        << JOBJECT_END;
     std::string data = ss.str();
     std::string res;
     
@@ -482,32 +417,15 @@ int SrsHttpHooks::on_play(std::string url, int client_id, std::string ip, SrsReq
     }
     */
     std::stringstream ss;
-    ss << "{"
-        // action
-        << '"' << "action" << '"' << ':'
-        << '"' << "on_play" << '"'
-        << ','
-        // client_id
-        << '"' << "client_id" << '"' << ':'
-        << std::dec << client_id
-        << ','
-        // ip
-        << '"' << "ip" << '"' << ':'
-        << '"' << ip << '"'
-        << ','
-        // vhost
-        << '"' << "vhost" << '"' << ':'
-        << '"' << req->vhost << '"'
-        << ','
-        // app
-        << '"' << "app" << '"' << ':'
-        << '"' << req->app << '"'
-        << ','
-        // stream
-        << '"' << "stream" << '"' << ':'
-        << '"' << req->stream << '"'
-        //<< ','
-        << "}";
+    ss << JOBJECT_START
+        << JFIELD_STR("action", "on_play") << JFIELD_CONT
+        << JFIELD_ORG("client_id", client_id) << JFIELD_CONT
+        << JFIELD_STR("ip", ip) << JFIELD_CONT
+        << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
+        << JFIELD_STR("app", req->app) << JFIELD_CONT
+        << JFIELD_STR("pageUrl", req->pageUrl) << JFIELD_CONT
+        << JFIELD_STR("stream", req->stream) << JFIELD_CONT
+        << JOBJECT_END;
     std::string data = ss.str();
     std::string res;
     
@@ -553,32 +471,15 @@ void SrsHttpHooks::on_stop(std::string url, int client_id, std::string ip, SrsRe
     }
     */
     std::stringstream ss;
-    ss << "{"
-        // action
-        << '"' << "action" << '"' << ':'
-        << '"' << "on_stop" << '"'
-        << ','
-        // client_id
-        << '"' << "client_id" << '"' << ':'
-        << std::dec << client_id
-        << ','
-        // ip
-        << '"' << "ip" << '"' << ':'
-        << '"' << ip << '"'
-        << ','
-        // vhost
-        << '"' << "vhost" << '"' << ':'
-        << '"' << req->vhost << '"'
-        << ','
-        // app
-        << '"' << "app" << '"' << ':'
-        << '"' << req->app << '"'
-        << ','
-        // stream
-        << '"' << "stream" << '"' << ':'
-        << '"' << req->stream << '"'
-        //<< ','
-        << "}";
+    ss << JOBJECT_START
+        << JFIELD_STR("action", "on_stop") << JFIELD_CONT
+        << JFIELD_ORG("client_id", client_id) << JFIELD_CONT
+        << JFIELD_STR("ip", ip) << JFIELD_CONT
+        << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
+        << JFIELD_STR("app", req->app) << JFIELD_CONT
+        << JFIELD_STR("pageUrl", req->pageUrl) << JFIELD_CONT
+        << JFIELD_STR("stream", req->stream) << JFIELD_CONT
+        << JOBJECT_END;
     std::string data = ss.str();
     std::string res;
     

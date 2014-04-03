@@ -42,7 +42,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsBuffer;
 class SrsRequest;
 class SrsSocket;
+class SrsHttpUri;
 class SrsHttpMessage;
+class SrsHttpHandler;
 
 // http specification
 // CR             = <US-ASCII CR, carriage return (13)>
@@ -62,12 +64,30 @@ class SrsHttpMessage;
 
 // linux path seprator
 #define __PATH_SEP '/'
+// query string seprator
+#define __QUERY_SEP '?'
+
+// compare the path.
+// full compare, extractly match.
+extern bool srs_path_equals(const char* expect, const char* path, int nb_path);
 
 // state of message
 enum SrsHttpParseState {
     SrsHttpParseStateInit = 0, 
     SrsHttpParseStateStart, 
     SrsHttpParseStateComplete
+};
+
+/**
+* the matched handler info.
+*/
+class SrsHttpHandlerMatch
+{
+public:
+    SrsHttpHandler* handler;
+    std::string matched_url;
+public:
+    SrsHttpHandlerMatch();
 };
 
 /**
@@ -90,21 +110,29 @@ public:
     virtual int initialize();
     /**
     * whether current handler can handle the specified path.
-    * @pnext_path set the next path, if needed.
+    * @pchild set the next child path, if needed.
+    *       for example, the root handler will reset pchild to path,
+    *       to reparse the path use child handlers.
     */
-    virtual bool can_handle(const char* path, int length, const char** pnext_path);
+    virtual bool can_handle(const char* path, int length, const char** pchild);
     /**
     * use the handler to process the request.
+    * @remark sub classes should override the do_process_request.
     */
-    virtual int process_request(SrsSocket* skt, SrsHttpMessage* req, const char* path, int length);
+    virtual int process_request(SrsSocket* skt, SrsHttpMessage* req);
 public:
     /**
     * find the best matched handler
     */
-    virtual int best_match(const char* path, int length, SrsHttpHandler** phandler, const char** pstart, int* plength);
+    virtual int best_match(const char* path, int length, SrsHttpHandlerMatch** ppmatch);
+// factory methods
+protected:
+    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+// response writer
 public:
     virtual SrsHttpHandler* res_status_line(std::stringstream& ss);
     virtual SrsHttpHandler* res_content_type(std::stringstream& ss);
+    virtual SrsHttpHandler* res_content_type_json(std::stringstream& ss);
     virtual SrsHttpHandler* res_content_length(std::stringstream& ss, int64_t length);
     virtual SrsHttpHandler* res_enable_crossdomain(std::stringstream& ss);
     virtual SrsHttpHandler* res_header_eof(std::stringstream& ss);
@@ -113,6 +141,8 @@ public:
 public:
     virtual int res_options(SrsSocket* skt);
     virtual int res_text(SrsSocket* skt, std::string body);
+    virtual int res_json(SrsSocket* skt, std::string json);
+// object creator
 public:
     /**
     * create http api resource handler.
@@ -148,23 +178,34 @@ private:
     * @remark, user can use is_complete() to determine the state.
     */
     SrsHttpParseState _state;
-    
+    /**
+    * uri parser
+    */
+    SrsHttpUri* _uri;
+    /**
+    * best matched handler.
+    */
+    SrsHttpHandlerMatch* _match;
 public:
     SrsHttpMessage();
     virtual ~SrsHttpMessage();
-    
 public:
     virtual void reset();
+    virtual int parse_uri();
 public:
     virtual bool is_complete();
     virtual u_int8_t method();
     virtual std::string url();
+    virtual std::string path();
+    virtual std::string query();
     virtual std::string body();
     virtual int64_t body_size();
     virtual int64_t content_length();
+    virtual SrsHttpHandlerMatch* match();
     virtual void set_url(std::string url);
     virtual void set_state(SrsHttpParseState state);
     virtual void set_header(http_parser* header);
+    virtual void set_match(SrsHttpHandlerMatch* match);
     virtual void append_body(const char* body, int length);
 };
 
@@ -220,6 +261,7 @@ private:
     std::string host;
     int port;
     std::string path;
+    std::string query;
 public:
     SrsHttpUri();
     virtual ~SrsHttpUri();
@@ -234,6 +276,7 @@ public:
     virtual const char* get_host();
     virtual int get_port();
     virtual const char* get_path();
+    virtual const char* get_query();
 private:
     /**
     * get the parsed url field.

@@ -33,6 +33,7 @@ using namespace std;
 #include <srs_app_http.hpp>
 #include <srs_app_socket.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_app_json.hpp>
 
 SrsApiRoot::SrsApiRoot()
 {
@@ -43,24 +44,28 @@ SrsApiRoot::~SrsApiRoot()
 {
 }
 
-bool SrsApiRoot::can_handle(const char* path, int length, const char** pnext_path)
+bool SrsApiRoot::can_handle(const char* path, int length, const char** pchild)
 {
-    // reset the next path for child to parse.
-    *pnext_path = path;
+    // reset the child path to path,
+    // for child to reparse the path.
+    *pchild = path;
     
-    return true;
+    // only compare the first char.
+    return srs_path_equals("/", path, 1);
 }
 
-int SrsApiRoot::process_request(SrsSocket* skt, SrsHttpMessage* req, const char* /*path*/, int /*length*/)
+int SrsApiRoot::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
 {
-    if (req->method() == HTTP_OPTIONS) {
-        return res_options(skt);
-    } else {
-        std::string body = "hello, root";
-        return res_text(skt, body);
-    }
-
-    return ERROR_SUCCESS;
+    std::stringstream ss;
+    
+    ss << JOBJECT_START
+        << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
+        << JFIELD_ORG("urls", JOBJECT_START)
+            << JFIELD_STR("v1", "the api version 1.0")
+        << JOBJECT_END
+        << JOBJECT_END;
+    
+    return res_json(skt, ss.str());
 }
 
 SrsApiApi::SrsApiApi()
@@ -71,21 +76,15 @@ SrsApiApi::~SrsApiApi()
 {
 }
 
-bool SrsApiApi::can_handle(const char* path, int length, const char** /*pnext_path*/)
+bool SrsApiApi::can_handle(const char* path, int length, const char** /*pchild*/)
 {
-    return !memcmp("/api", path, length);
+    return srs_path_equals("/api", path, length);
 }
 
-int SrsApiApi::process_request(SrsSocket* skt, SrsHttpMessage* req, const char* /*path*/, int /*length*/)
+int SrsApiApi::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
 {
-    if (req->method() == HTTP_OPTIONS) {
-        return res_options(skt);
-    } else {
-        std::string body = "hello, api";
-        return res_text(skt, body);
-    }
-
-    return ERROR_SUCCESS;
+    std::string body = "hello, api";
+    return res_text(skt, body);
 }
 
 SrsHttpApi::SrsHttpApi(SrsServer* srs_server, st_netfd_t client_stfd, SrsHttpHandler* _handler) 
@@ -147,25 +146,31 @@ int SrsHttpApi::do_cycle()
 int SrsHttpApi::process_request(SrsSocket* skt, SrsHttpMessage* req) 
 {
     int ret = ERROR_SUCCESS;
+
+    // parse uri to schema/server:port/path?query
+    if ((ret = req->parse_uri()) != ERROR_SUCCESS) {
+        return ret;
+    }
     
     // TODO: maybe need to parse the url.
-    std::string uri = req->url();
+    std::string url = req->path();
     
-    int length = 0;
-    const char* start = NULL;
-    SrsHttpHandler* p = NULL;
-    if ((ret = handler->best_match(uri.data(), uri.length(), &p, &start, &length)) != ERROR_SUCCESS) {
+    SrsHttpHandlerMatch* p = NULL;
+    if ((ret = handler->best_match(url.data(), url.length(), &p)) != ERROR_SUCCESS) {
         srs_warn("failed to find the best match handler for url. ret=%d", ret);
         return ret;
     }
     
     // if success, p and pstart should be valid.
     srs_assert(p);
-    srs_assert(start);
-    srs_assert(length <= (int)uri.length());
+    srs_assert(p->handler);
+    srs_assert(p->matched_url.length() <= url.length());
+    srs_info("best match handler, matched_url=%s", p->matched_url.c_str());
+    
+    req->set_match(p);
     
     // use handler to process request.
-    if ((ret = p->process_request(skt, req, start, length)) != ERROR_SUCCESS) {
+    if ((ret = p->handler->process_request(skt, req)) != ERROR_SUCCESS) {
         srs_warn("handler failed to process http request. ret=%d", ret);
         return ret;
     }

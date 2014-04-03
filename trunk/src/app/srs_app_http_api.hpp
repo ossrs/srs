@@ -48,8 +48,8 @@ public:
     SrsApiRoot();
     virtual ~SrsApiRoot();
 public:
-    virtual bool can_handle(const char* path, int length, const char** pnext_path);
-    virtual int process_request(SrsSocket* skt, SrsHttpMessage* req, const char* path, int length);
+    virtual bool can_handle(const char* path, int length, const char** pchild);
+    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
 };
 
 class SrsApiApi : public SrsHttpHandler
@@ -58,8 +58,8 @@ public:
     SrsApiApi();
     virtual ~SrsApiApi();
 public:
-    virtual bool can_handle(const char* path, int length, const char** pnext_path);
-    virtual int process_request(SrsSocket* skt, SrsHttpMessage* req, const char* path, int length);
+    virtual bool can_handle(const char* path, int length, const char** pchild);
+    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
 };
 
 class SrsHttpApi : public SrsConnection
