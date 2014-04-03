@@ -294,9 +294,8 @@ int SrsHttpHandler::res_error(SrsSocket* skt, int code, std::string reason_phras
 {
     std::stringstream ss;
 
-    res_status_line_error(ss, code, reason_phrase)
-        ->res_content_type_json(ss)
-        ->res_content_length(ss, (int)body.length())
+    res_status_line_error(ss, code, reason_phrase)->res_content_type_json(ss)
+        ->res_content_length(ss, (int)body.length())->res_enable_crossdomain(ss)
         ->res_header_eof(ss)
         ->res_body(ss, body);
     
