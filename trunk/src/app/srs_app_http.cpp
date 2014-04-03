@@ -293,9 +293,6 @@ int SrsHttpHandler::res_json(SrsSocket* skt, std::string json)
 int SrsHttpHandler::res_error(SrsSocket* skt, int code, std::string reason_phrase, std::string body)
 {
     std::stringstream ss;
-    
-    ss << "HTTP/1.1 " << code << " " << reason_phrase << __CRLF
-       << "Server: SRS/"RTMP_SIG_SRS_VERSION"" << __CRLF;
 
     res_status_line_error(ss, code, reason_phrase)
         ->res_content_type_json(ss)
