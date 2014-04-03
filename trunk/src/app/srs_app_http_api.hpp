@@ -48,6 +48,7 @@ public:
     SrsApiRoot();
     virtual ~SrsApiRoot();
 public:
+    virtual bool is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase);
     virtual bool can_handle(const char* path, int length, const char** pchild);
     virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
 };

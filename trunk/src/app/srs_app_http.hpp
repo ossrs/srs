@@ -62,6 +62,89 @@ class SrsHttpHandler;
 #define __CRLF "\r\n" // 0x0D0A
 #define __CRLFCRLF "\r\n\r\n" // 0x0D0A0D0A
 
+// 6.1.1 Status Code and Reason Phrase
+#define HTTP_Continue                       100
+#define HTTP_SwitchingProtocols             101
+#define HTTP_OK                             200
+#define HTTP_Created                        201
+#define HTTP_Accepted                       202
+#define HTTP_NonAuthoritativeInformation    203
+#define HTTP_NoContent                      204
+#define HTTP_ResetContent                   205
+#define HTTP_PartialContent                 206
+#define HTTP_MultipleChoices                300
+#define HTTP_MovedPermanently               301
+#define HTTP_Found                          302
+#define HTTP_SeeOther                       303
+#define HTTP_NotModified                    304
+#define HTTP_UseProxy                       305
+#define HTTP_TemporaryRedirect              307
+#define HTTP_BadRequest                     400
+#define HTTP_Unauthorized                   401
+#define HTTP_PaymentRequired                402
+#define HTTP_Forbidden                      403
+#define HTTP_NotFound                       404
+#define HTTP_MethodNotAllowed               405
+#define HTTP_NotAcceptable                  406
+#define HTTP_ProxyAuthenticationRequired    407
+#define HTTP_RequestTimeout                 408
+#define HTTP_Conflict                       409
+#define HTTP_Gone                           410
+#define HTTP_LengthRequired                 411
+#define HTTP_PreconditionFailed             412
+#define HTTP_RequestEntityTooLarge          413
+#define HTTP_RequestURITooLarge             414
+#define HTTP_UnsupportedMediaType           415
+#define HTTP_RequestedRangeNotSatisfiable   416
+#define HTTP_ExpectationFailed              417
+#define HTTP_InternalServerError            500
+#define HTTP_NotImplemented                 501
+#define HTTP_BadGateway                     502
+#define HTTP_ServiceUnavailable             503
+#define HTTP_GatewayTimeout                 504
+#define HTTP_HTTPVersionNotSupported        505
+
+#define HTTP_Continue_str                           "Continue"
+#define HTTP_SwitchingProtocols_str                 "Switching Protocols"
+#define HTTP_OK_str                                 "OK"
+#define HTTP_Created_str                            "Created "
+#define HTTP_Accepted_str                           "Accepted"
+#define HTTP_NonAuthoritativeInformation_str        "Non Authoritative Information "
+#define HTTP_NoContent_str                          "No Content "
+#define HTTP_ResetContent_str                       "Reset Content"
+#define HTTP_PartialContent_str                     "Partial Content"
+#define HTTP_MultipleChoices_str                    "Multiple Choices "
+#define HTTP_MovedPermanently_str                   "Moved Permanently"
+#define HTTP_Found_str                              "Found"
+#define HTTP_SeeOther_str                           "See Other"
+#define HTTP_NotModified_str                        "Not Modified "
+#define HTTP_UseProxy_str                           "Use Proxy"
+#define HTTP_TemporaryRedirect_str                  "Temporary Redirect "
+#define HTTP_BadRequest_str                         "Bad Request"
+#define HTTP_Unauthorized_str                       "Unauthorized"
+#define HTTP_PaymentRequired_str                    "Payment Required "
+#define HTTP_Forbidden_str                          "Forbidden "
+#define HTTP_NotFound_str                           "Not Found"
+#define HTTP_MethodNotAllowed_str                   "Method Not Allowed"
+#define HTTP_NotAcceptable_str                      "Not Acceptable "
+#define HTTP_ProxyAuthenticationRequired_str        "Proxy Authentication Required "
+#define HTTP_RequestTimeout_str                     "Request Timeout"
+#define HTTP_Conflict_str                           "Conflict"
+#define HTTP_Gone_str                               "Gone"
+#define HTTP_LengthRequired_str                     "Length Required"
+#define HTTP_PreconditionFailed_str                 "Precondition Failed"
+#define HTTP_RequestEntityTooLarge_str              "Request Entity Too Large "
+#define HTTP_RequestURITooLarge_str                 "Request URI Too Large"
+#define HTTP_UnsupportedMediaType_str               "Unsupported Media Type"
+#define HTTP_RequestedRangeNotSatisfiable_str       "Requested Range Not Satisfiable"
+#define HTTP_ExpectationFailed_str                  "Expectation Failed "
+#define HTTP_InternalServerError_str                "Internal Server Error "
+#define HTTP_NotImplemented_str                     "Not Implemented"
+#define HTTP_BadGateway_str                         "Bad Gateway"
+#define HTTP_ServiceUnavailable_str                 "Service Unavailable"
+#define HTTP_GatewayTimeout_str                     "Gateway Timeout"
+#define HTTP_HTTPVersionNotSupported_str            "HTTP Version Not Supported"
+
 // linux path seprator
 #define __PATH_SEP '/'
 // query string seprator
@@ -86,6 +169,7 @@ class SrsHttpHandlerMatch
 public:
     SrsHttpHandler* handler;
     std::string matched_url;
+    std::string unmatched_url;
 public:
     SrsHttpHandlerMatch();
 };
@@ -127,10 +211,22 @@ public:
     virtual int best_match(const char* path, int length, SrsHttpHandlerMatch** ppmatch);
 // factory methods
 protected:
+    /**
+    * check whether the handler is valid.
+    * for example, user access /apis, actually it's not found,
+    * we will find the root handler to process it.
+    * @remark user can override this method, and should invoke it first.
+    * @see SrsApiRoot::is_handler_valid
+    */
+    virtual bool is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase);
+    /**
+    * do the actual process of request.
+    */
     virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
 // response writer
 public:
     virtual SrsHttpHandler* res_status_line(std::stringstream& ss);
+    virtual SrsHttpHandler* res_status_line_error(std::stringstream& ss, int code, std::string reason_phrase);
     virtual SrsHttpHandler* res_content_type(std::stringstream& ss);
     virtual SrsHttpHandler* res_content_type_json(std::stringstream& ss);
     virtual SrsHttpHandler* res_content_length(std::stringstream& ss, int64_t length);
@@ -142,6 +238,7 @@ public:
     virtual int res_options(SrsSocket* skt);
     virtual int res_text(SrsSocket* skt, std::string body);
     virtual int res_json(SrsSocket* skt, std::string json);
+    virtual int res_error(SrsSocket* skt, int code, std::string reason_phrase, std::string body);
 // object creator
 public:
     /**

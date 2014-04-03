@@ -34,6 +34,7 @@ using namespace std;
 #include <srs_app_socket.hpp>
 #include <srs_app_http_api.hpp>
 #include <srs_app_http_conn.hpp>
+#include <srs_app_json.hpp>
 
 #define SRS_DEFAULT_HTTP_PORT 80
 
@@ -85,8 +86,37 @@ int SrsHttpHandler::process_request(SrsSocket* skt, SrsHttpMessage* req)
     if (req->method() == HTTP_OPTIONS) {
         return res_options(skt);
     }
+
+    int status_code;
+    std::string reason_phrase;
+    if (!is_handler_valid(req, status_code, reason_phrase)) {
+        std::stringstream ss;
+        
+        ss << JOBJECT_START
+            << JFIELD_ERROR(ERROR_HTTP_HANDLER_INVALID) << JFIELD_CONT
+            << JFIELD_ORG("data", JOBJECT_START)
+                << JFIELD_ORG("status_code", status_code) << JFIELD_CONT
+                << JFIELD_STR("reason_phrase", reason_phrase) << JFIELD_CONT
+                << JFIELD_STR("url", req->url())
+            << JOBJECT_END
+            << JOBJECT_END;
+        
+        return res_error(skt, status_code, reason_phrase, ss.str());
+    }
     
     return do_process_request(skt, req);
+}
+
+bool SrsHttpHandler::is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase) 
+{
+    if (!req->match()->unmatched_url.empty()) {
+        status_code = HTTP_NotFound;
+        reason_phrase = HTTP_NotFound_str;
+        
+        return false;
+    }
+    
+    return true;
 }
 
 int SrsHttpHandler::do_process_request(SrsSocket* /*skt*/, SrsHttpMessage* /*req*/)
@@ -156,12 +186,24 @@ int SrsHttpHandler::best_match(const char* path, int length, SrsHttpHandlerMatch
     (*ppmatch)->handler = handler;
     (*ppmatch)->matched_url.append(match_start, match_length);
     
+    int unmatch_length = length - match_length;
+    if (unmatch_length > 0) {
+        (*ppmatch)->unmatched_url.append(match_start + match_length, unmatch_length);
+    }
+    
     return ret;
 }
 
 SrsHttpHandler* SrsHttpHandler::res_status_line(std::stringstream& ss)
 {
     ss << "HTTP/1.1 200 OK " << __CRLF
+       << "Server: SRS/"RTMP_SIG_SRS_VERSION"" << __CRLF;
+    return this;
+}
+
+SrsHttpHandler* SrsHttpHandler::res_status_line_error(std::stringstream& ss, int code, std::string reason_phrase)
+{
+    ss << "HTTP/1.1 " << code << " " << reason_phrase << __CRLF
        << "Server: SRS/"RTMP_SIG_SRS_VERSION"" << __CRLF;
     return this;
 }
@@ -244,6 +286,22 @@ int SrsHttpHandler::res_json(SrsSocket* skt, std::string json)
         ->res_content_length(ss, (int)json.length())->res_enable_crossdomain(ss)
         ->res_header_eof(ss)
         ->res_body(ss, json);
+    
+    return res_flush(skt, ss);
+}
+
+int SrsHttpHandler::res_error(SrsSocket* skt, int code, std::string reason_phrase, std::string body)
+{
+    std::stringstream ss;
+    
+    ss << "HTTP/1.1 " << code << " " << reason_phrase << __CRLF
+       << "Server: SRS/"RTMP_SIG_SRS_VERSION"" << __CRLF;
+
+    res_status_line_error(ss, code, reason_phrase)
+        ->res_content_type_json(ss)
+        ->res_content_length(ss, (int)body.length())
+        ->res_header_eof(ss)
+        ->res_body(ss, body);
     
     return res_flush(skt, ss);
 }

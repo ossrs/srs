@@ -44,6 +44,21 @@ SrsApiRoot::~SrsApiRoot()
 {
 }
 
+bool SrsApiRoot::is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase) 
+{
+    if (!SrsHttpHandler::is_handler_valid(req, status_code, reason_phrase)) {
+        return false;
+    }
+    
+    if (req->match()->matched_url.length() != 1) {
+        status_code = HTTP_NotFound;
+        reason_phrase = HTTP_NotFound_str;
+        return false;
+    }
+    
+    return true;
+}
+
 bool SrsApiRoot::can_handle(const char* path, int length, const char** pchild)
 {
     // reset the child path to path,
