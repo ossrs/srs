@@ -445,9 +445,6 @@ int SrsHttpParser::parse_message_imp(SrsSocket* skt)
 
         // check header size.
         if (msg->is_complete()) {
-            srs_trace("http request parsed, method=%d, url=%s, content-length=%"PRId64"", 
-                msg->method(), msg->url().c_str(), msg->content_length());
-            
             return ret;
         }
         
@@ -579,7 +576,7 @@ int SrsHttpUri::initialize(std::string _url)
     srs_info("parse url %s success", purl);
     
     query = get_uri_field(url, &hp_u, UF_QUERY);
-    srs_trace("parse query %s success", purl);
+    srs_info("parse query %s success", query);
     
     return ret;
 }

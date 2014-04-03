@@ -63,6 +63,7 @@ The PRIMARY AUTHORS are (and/or have been)(Authors ordered by first contribution
 About the primary AUTHORS: 
 * Contribute important features to SRS. 
 * Names of all PRIMARY AUTHORS response in NetConnection.connect and metadata. 
+* Names of all CONTRIBUTORS response in api/v1/authors.
 
 And here is an inevitably incomplete list of MUCH-APPRECIATED CONTRIBUTORS --
 people who have submitted patches, reported bugs, added translations, helped

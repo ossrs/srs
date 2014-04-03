@@ -99,6 +99,7 @@ int SrsApiApi::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
 SrsApiV1::SrsApiV1()
 {
     handlers.push_back(new SrsApiVersion());
+    handlers.push_back(new SrsApiAuthors());
 }
 
 SrsApiV1::~SrsApiV1()
@@ -117,7 +118,8 @@ int SrsApiV1::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
     ss << JOBJECT_START
         << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
         << JFIELD_ORG("urls", JOBJECT_START)
-            << JFIELD_STR("version", "the version of SRS")
+            << JFIELD_STR("version", "the version of SRS") << JFIELD_CONT
+            << JFIELD_STR("authors", "the primary authors and contributors")
         << JOBJECT_END
         << JOBJECT_END;
     
@@ -147,8 +149,36 @@ int SrsApiVersion::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
             << JFIELD_ORG("major", VERSION_MAJOR) << JFIELD_CONT
             << JFIELD_ORG("minor", VERSION_MINOR) << JFIELD_CONT
             << JFIELD_ORG("revision", VERSION_REVISION) << JFIELD_CONT
-            << JFIELD_STR("version", RTMP_SIG_SRS_VERSION) << JFIELD_CONT
-            << JFIELD_STR("primary_authors", RTMP_SIG_SRS_PRIMARY_AUTHROS)
+            << JFIELD_STR("version", RTMP_SIG_SRS_VERSION)
+        << JOBJECT_END
+        << JOBJECT_END;
+    
+    return res_json(skt, ss.str());
+}
+
+SrsApiAuthors::SrsApiAuthors()
+{
+}
+
+SrsApiAuthors::~SrsApiAuthors()
+{
+}
+
+bool SrsApiAuthors::can_handle(const char* path, int length, const char** /*pchild*/)
+{
+    return srs_path_equals("/authors", path, length);
+}
+
+int SrsApiAuthors::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
+{
+    std::stringstream ss;
+    
+    ss << JOBJECT_START
+        << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
+        << JFIELD_ORG("data", JOBJECT_START)
+            << JFIELD_STR("primary_authors", RTMP_SIG_SRS_PRIMARY_AUTHROS) << JFIELD_CONT
+            << JFIELD_STR("contributors_link", RTMP_SIG_SRS_CONTRIBUTORS_URL) << JFIELD_CONT
+            << JFIELD_STR("contributors", SRS_CONSTRIBUTORS)
         << JOBJECT_END
         << JOBJECT_END;
     
@@ -219,6 +249,9 @@ int SrsHttpApi::process_request(SrsSocket* skt, SrsHttpMessage* req)
     if ((ret = req->parse_uri()) != ERROR_SUCCESS) {
         return ret;
     }
+    
+    srs_trace("http request parsed, method=%d, url=%s, content-length=%"PRId64"", 
+        req->method(), req->url().c_str(), req->content_length());
     
     // TODO: maybe need to parse the url.
     std::string url = req->path();

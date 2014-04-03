@@ -576,5 +576,17 @@ echo "" >> $SRS_AUTO_HEADERS_H
 # prefix
 echo "#define SRS_PREFIX \"${SRS_PREFIX}\"" >> $SRS_AUTO_HEADERS_H
 
+echo "" >> $SRS_AUTO_HEADERS_H
+
+#####################################################################################
+# generated the contributors from AUTHORS.txt
+#####################################################################################
+SRS_CONSTRIBUTORS=`cat ../AUTHORS.txt|grep "*"|awk -F '* ' '{print $2}'`
+echo "#define SRS_CONSTRIBUTORS \"\\" >> $SRS_AUTO_HEADERS_H
+for CONTRIBUTOR in $SRS_CONSTRIBUTORS; do
+    echo "${CONTRIBUTOR} \\" >> $SRS_AUTO_HEADERS_H
+done
+echo "\"" >> $SRS_AUTO_HEADERS_H
+
 # new empty line to auto headers file.
 echo "" >> $SRS_AUTO_HEADERS_H
