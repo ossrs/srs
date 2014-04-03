@@ -29,7 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 void srs_vhost_resolve(std::string& vhost, std::string& app)
 {
-    app = srs_replace(app, "...", "?");
+    app = srs_string_replace(app, "...", "?");
     
     size_t pos = 0;
     if ((pos = app.find("?")) == std::string::npos) {

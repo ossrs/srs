@@ -111,11 +111,11 @@ int SrsFFMPEG::initialize(SrsRequest* req, SrsConfDirective* engine)
     
     // output stream, to other/self server
     // ie. rtmp://127.0.0.1:1935/live/livestream_sd
-    output = srs_replace(output, "[vhost]", req->vhost);
-    output = srs_replace(output, "[port]", req->port);
-    output = srs_replace(output, "[app]", req->app);
-    output = srs_replace(output, "[stream]", req->stream);
-    output = srs_replace(output, "[engine]", engine->arg0());
+    output = srs_string_replace(output, "[vhost]", req->vhost);
+    output = srs_string_replace(output, "[port]", req->port);
+    output = srs_string_replace(output, "[app]", req->app);
+    output = srs_string_replace(output, "[stream]", req->stream);
+    output = srs_string_replace(output, "[engine]", engine->arg0());
     
     // write ffmpeg info to log file.
     log_file = _srs_config->get_ffmpeg_log_dir();

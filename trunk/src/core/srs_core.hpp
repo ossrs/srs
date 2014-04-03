@@ -31,7 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // current release version
 #define VERSION_MAJOR "0"
 #define VERSION_MINOR "9"
-#define VERSION_REVISION "43"
+#define VERSION_REVISION "44"
 #define RTMP_SIG_SRS_VERSION VERSION_MAJOR"."VERSION_MINOR"."VERSION_REVISION
 // server info.
 #define RTMP_SIG_SRS_KEY "srs"
@@ -91,8 +91,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SIGNAL_RELOAD SIGHUP
 
 #include <string>
-// replace utility
-extern std::string srs_replace(std::string str, std::string old_str, std::string new_str);
+// replace old_str to new_str of str
+extern std::string srs_string_replace(std::string str, std::string old_str, std::string new_str);
+// trim char in trim_chars of str
+extern std::string srs_string_trim_end(std::string str, std::string trim_chars);
+// remove char in remove_chars of str
+extern std::string srs_string_remove(std::string str, std::string remove_chars);
+
 // dns resolve utility, return the resolved ip address.
 extern std::string srs_dns_resolve(std::string host);
 // whether system is little endian

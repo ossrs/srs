@@ -127,7 +127,11 @@ int SrsRequest::discovery_app()
     app = url;
     vhost = host;
     srs_vhost_resolve(vhost, app);
-    strip();
+
+    // remove the unsupported chars in names.
+    vhost = srs_string_remove(vhost, "/ \n\r\t");
+    app = srs_string_remove(app, " \n\r\t");
+    stream = srs_string_remove(stream, "/ \n\r\t");
     
     return ret;
 }
@@ -143,30 +147,6 @@ string SrsRequest::get_stream_url()
     url += stream;
 
     return url;
-}
-
-void SrsRequest::strip()
-{
-    trim(vhost, "/ \n\r\t");
-    trim(app, "/ \n\r\t");
-    trim(stream, "/ \n\r\t");
-}
-
-string& SrsRequest::trim(string& str, string chs)
-{
-    for (int i = 0; i < (int)chs.length(); i++) {
-        char ch = chs.at(i);
-        
-        for (std::string::iterator it = str.begin(); it != str.end();) {
-            if (ch == *it) {
-                it = str.erase(it);
-            } else {
-                ++it;
-            }
-        }
-    }
-    
-    return str;
 }
 
 SrsResponse::SrsResponse()

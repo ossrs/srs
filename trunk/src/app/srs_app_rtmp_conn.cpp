@@ -239,7 +239,6 @@ int SrsRtmpConn::stream_service_cycle()
         srs_error("identify client failed. ret=%d", ret);
         return ret;
     }
-    req->strip();
     srs_trace("identify client success. type=%s, stream_name=%s", 
         srs_client_type_string(type).c_str(), req->stream.c_str());
 

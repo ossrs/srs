@@ -82,9 +82,6 @@ public:
     */
     virtual int discovery_app();
     virtual std::string get_stream_url();
-    virtual void strip();
-private:
-    std::string& trim(std::string& str, std::string chs);
 };
 
 /**

@@ -27,7 +27,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <netdb.h>
 #include <arpa/inet.h>
 
-std::string srs_replace(std::string str, std::string old_str, std::string new_str)
+using namespace std;
+
+string srs_string_replace(string str, string old_str, string new_str)
 {
     std::string ret = str;
     
@@ -38,13 +40,52 @@ std::string srs_replace(std::string str, std::string old_str, std::string new_st
     size_t pos = 0;
     while ((pos = ret.find(old_str, pos)) != std::string::npos) {
         ret = ret.replace(pos, old_str.length(), new_str);
-        pos += new_str.length();
     }
     
     return ret;
 }
 
-std::string srs_dns_resolve(std::string host)
+string srs_string_trim_end(string str, string trim_chars)
+{
+    std::string ret = str;
+    
+    for (int i = 0; i < (int)trim_chars.length(); i++) {
+        char ch = trim_chars.at(i);
+        
+        while (!ret.empty() && ret.at(ret.length() - 1) == ch) {
+            ret.erase(ret.end() - 1);
+            
+            // ok, matched, should reset the search
+            i = 0;
+        }
+    }
+    
+    return ret;
+}
+
+string srs_string_remove(string str, string remove_chars)
+{
+    std::string ret = str;
+    
+    for (int i = 0; i < (int)remove_chars.length(); i++) {
+        char ch = remove_chars.at(i);
+        
+        for (std::string::iterator it = ret.begin(); it != ret.end();) {
+            if (ch == *it) {
+                it = ret.erase(it);
+                
+                // ok, matched, should reset the search
+                i = 0;
+            } else {
+                ++it;
+            }
+        }
+    }
+    
+    return ret;
+}
+
+string srs_dns_resolve(string host)
 {
     if (inet_addr(host.c_str()) != INADDR_NONE) {
         return host;

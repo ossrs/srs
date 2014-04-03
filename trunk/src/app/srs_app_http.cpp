@@ -338,7 +338,20 @@ void SrsHttpMessage::reset()
 
 int SrsHttpMessage::parse_uri()
 {
-    return _uri->initialize(_url);
+    // filter url according to HTTP specification.
+    
+    // remove the duplicated slash.
+    std::string filtered_url = srs_string_replace(_url, "//", "/");
+    
+    // remove the last / to match resource.
+    filtered_url = srs_string_trim_end(filtered_url, "/");
+    
+    // if empty, use root.
+    if (filtered_url.empty()) {
+        filtered_url = "/";
+    }
+    
+    return _uri->initialize(filtered_url);
 }
 
 bool SrsHttpMessage::is_complete()
