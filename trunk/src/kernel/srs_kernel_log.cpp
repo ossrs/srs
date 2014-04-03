@@ -31,6 +31,15 @@ ISrsLog::~ISrsLog()
 {
 }
 
+int ISrsLog::level()
+{
+    return SrsLogLevel::Trace;
+}
+
+void ISrsLog::set_level(int /*level*/)
+{
+}
+
 void ISrsLog::verbose(const char* /*tag*/, int /*context_id*/, const char* /*fmt*/, ...)
 {
 }

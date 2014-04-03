@@ -149,6 +149,7 @@ public:
     virtual std::string         get_engine_output(SrsConfDirective* engine);
     virtual std::string         get_ffmpeg_log_dir();
     virtual bool                get_srs_log_tank_file();
+    virtual std::string         get_srs_log_level();
     virtual std::string         get_srs_log_file();
     virtual bool                get_deamon();
     virtual int                 get_max_connections();

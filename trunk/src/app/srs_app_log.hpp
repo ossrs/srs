@@ -55,30 +55,13 @@ public:
 };
 
 /**
-* the log level, for example:
-* if specified Debug level, all level messages will be logged.
-* if specified Warn level, only Warn/Error/Fatal level messages will be logged.
-*/
-class SrsLogLevel
-{
-public:
-    // only used for very verbose debug, generally, 
-    // we compile without this level for high performance.
-    static const int Verbose = 0x01;
-    static const int Info = 0x02;
-    static const int Trace = 0x03;
-    static const int Warn = 0x04;
-    static const int Error = 0x05;
-};
-
-/**
 * we use memory/disk cache and donot flush when write log.
 */
 class SrsFastLog : public ISrsLog
 {
 private:
     // defined in SrsLogLevel.
-    int level;
+    int _level;
     char* log_data;
     // log to file if specified srs_log_file
     int fd;
@@ -86,6 +69,8 @@ public:
     SrsFastLog();
     virtual ~SrsFastLog();
 public:
+    virtual int level();
+    virtual void set_level(int level);
     virtual void verbose(const char* tag, int context_id, const char* fmt, ...);
     virtual void info(const char* tag, int context_id, const char* fmt, ...);
     virtual void trace(const char* tag, int context_id, const char* fmt, ...);
@@ -93,7 +78,7 @@ public:
     virtual void error(const char* tag, int context_id, const char* fmt, ...);
 private:
     virtual bool generate_header(const char* tag, int context_id, const char* level_name, int* header_size);
-    virtual void write_log(char* str_log, int size, int _level);
+    static void write_log(int& fd, char* str_log, int size, int level);
 };
 
 #endif

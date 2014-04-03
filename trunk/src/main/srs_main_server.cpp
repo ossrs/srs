@@ -157,6 +157,21 @@ int main(int argc, char** argv)
         return ret;
     }
     
+    // config parsed, initialize log.
+    if ("verbose" == _srs_config->get_srs_log_level()) {
+        _srs_log->set_level(SrsLogLevel::Verbose);
+    } else if ("info" == _srs_config->get_srs_log_level()) {
+        _srs_log->set_level(SrsLogLevel::Info);
+    } else if ("trace" == _srs_config->get_srs_log_level()) {
+        _srs_log->set_level(SrsLogLevel::Trace);
+    } else if ("warn" == _srs_config->get_srs_log_level()) {
+        _srs_log->set_level(SrsLogLevel::Warn);
+    } else if ("error" == _srs_config->get_srs_log_level()) {
+        _srs_log->set_level(SrsLogLevel::Error);
+    } else {
+        _srs_log->set_level(SrsLogLevel::Trace);
+    }
+    
     srs_trace("srs(simple-rtmp-server) "RTMP_SIG_SRS_VERSION);
     srs_trace("uname: "SRS_UNAME);
     srs_trace("build: %s, %s", SRS_BUILD_DATE, srs_is_little_endian()? "little-endian":"big-endian");

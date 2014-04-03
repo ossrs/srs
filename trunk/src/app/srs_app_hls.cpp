@@ -587,8 +587,8 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
         srs_error("open hls muxer failed. ret=%d", ret);
         return ret;
     }
-    srs_info("open HLS muxer success. vhost=%s, path=%s, tmp=%s", 
-        vhost.c_str(), current->full_path.c_str(), tmp_file.c_str());
+    srs_info("open HLS muxer success. path=%s, tmp=%s", 
+        current->full_path.c_str(), tmp_file.c_str());
     
     return ret;
 }

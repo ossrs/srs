@@ -149,8 +149,6 @@ int SrsListener::cycle()
         return ret;
     }
     
-    srs_verbose("accept client finished. conns=%d, ret=%d", (int)conns.size(), ret);
-    
     return ret;
 }
 
@@ -493,13 +491,15 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
     
     // directly enqueue, the cycle thread will remove the client.
     conns.push_back(conn);
-    srs_verbose("add conn from port %d to vector. conns=%d", port, (int)conns.size());
+    srs_verbose("add conn to vector.");
     
     // cycle will start process thread and when finished remove the client.
     if ((ret = conn->start()) != ERROR_SUCCESS) {
         return ret;
     }
-    srs_verbose("conn start finished. ret=%d", ret);
+    srs_verbose("conn started success   .");
+
+    srs_verbose("accept client finished. conns=%d, ret=%d", (int)conns.size(), ret);
     
     return ret;
 }

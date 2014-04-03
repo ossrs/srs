@@ -36,6 +36,23 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string.h>
 
 /**
+* the log level, for example:
+* if specified Debug level, all level messages will be logged.
+* if specified Warn level, only Warn/Error/Fatal level messages will be logged.
+*/
+class SrsLogLevel
+{
+public:
+    // only used for very verbose debug, generally, 
+    // we compile without this level for high performance.
+    static const int Verbose = 0x01;
+    static const int Info = 0x02;
+    static const int Trace = 0x03;
+    static const int Warn = 0x04;
+    static const int Error = 0x05;
+};
+
+/**
 * the log interface provides method to write log.
 * but we provides some macro, which enable us to disable the log when compile.
 * @see also SmtDebug/SmtTrace/SmtWarn/SmtError which is corresponding to Debug/Trace/Warn/Fatal.
@@ -46,6 +63,11 @@ public:
     ISrsLog();
     virtual ~ISrsLog();
 public:
+    /**
+    * defined in SrsLogLevel.
+    */
+    virtual int level();
+    virtual void set_level(int level);
     /**
     * log for verbose, very verbose information.
     */

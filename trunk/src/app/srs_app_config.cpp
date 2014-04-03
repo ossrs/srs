@@ -1288,6 +1288,18 @@ string SrsConfig::get_srs_log_file()
     return conf->arg0();
 }
 
+string SrsConfig::get_srs_log_level()
+{
+    srs_assert(root);
+    
+    SrsConfDirective* conf = root->get("srs_log_level");
+    if (!conf || conf->arg0().empty()) {
+        return "trace";
+    }
+    
+    return conf->arg0();
+}
+
 bool SrsConfig::get_srs_log_tank_file()
 {
     srs_assert(root);

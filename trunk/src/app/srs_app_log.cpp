@@ -61,10 +61,12 @@ int SrsThreadContext::get_id()
 
 SrsFastLog::SrsFastLog()
 {
-    level = SrsLogLevel::Trace;
+    _level = SrsLogLevel::Trace;
     log_data = new char[LOG_MAX_SIZE];
 
     fd = -1;
+    
+    // TODO: support reload.
 }
 
 SrsFastLog::~SrsFastLog()
@@ -77,9 +79,19 @@ SrsFastLog::~SrsFastLog()
     }
 }
 
+int SrsFastLog::level()
+{
+    return _level;
+}
+
+void SrsFastLog::set_level(int level)
+{
+    _level = level;
+}
+
 void SrsFastLog::verbose(const char* tag, int context_id, const char* fmt, ...)
 {
-    if (level > SrsLogLevel::Verbose) {
+    if (_level > SrsLogLevel::Verbose) {
         return;
     }
     
@@ -94,12 +106,12 @@ void SrsFastLog::verbose(const char* tag, int context_id, const char* fmt, ...)
     size += vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
     va_end(ap);
 
-    write_log(log_data, size, SrsLogLevel::Verbose);
+    write_log(fd, log_data, size, SrsLogLevel::Verbose);
 }
 
 void SrsFastLog::info(const char* tag, int context_id, const char* fmt, ...)
 {
-    if (level > SrsLogLevel::Info) {
+    if (_level > SrsLogLevel::Info) {
         return;
     }
     
@@ -114,12 +126,12 @@ void SrsFastLog::info(const char* tag, int context_id, const char* fmt, ...)
     size += vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
     va_end(ap);
 
-    write_log(log_data, size, SrsLogLevel::Info);
+    write_log(fd, log_data, size, SrsLogLevel::Info);
 }
 
 void SrsFastLog::trace(const char* tag, int context_id, const char* fmt, ...)
 {
-    if (level > SrsLogLevel::Trace) {
+    if (_level > SrsLogLevel::Trace) {
         return;
     }
     
@@ -134,12 +146,12 @@ void SrsFastLog::trace(const char* tag, int context_id, const char* fmt, ...)
     size += vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
     va_end(ap);
 
-    write_log(log_data, size, SrsLogLevel::Trace);
+    write_log(fd, log_data, size, SrsLogLevel::Trace);
 }
 
 void SrsFastLog::warn(const char* tag, int context_id, const char* fmt, ...)
 {
-    if (level > SrsLogLevel::Warn) {
+    if (_level > SrsLogLevel::Warn) {
         return;
     }
     
@@ -154,12 +166,12 @@ void SrsFastLog::warn(const char* tag, int context_id, const char* fmt, ...)
     size += vsnprintf(log_data + size, LOG_MAX_SIZE - size, fmt, ap);
     va_end(ap);
 
-    write_log(log_data, size, SrsLogLevel::Warn);
+    write_log(fd, log_data, size, SrsLogLevel::Warn);
 }
 
 void SrsFastLog::error(const char* tag, int context_id, const char* fmt, ...)
 {
-    if (level > SrsLogLevel::Error) {
+    if (_level > SrsLogLevel::Error) {
         return;
     }
     
@@ -177,7 +189,7 @@ void SrsFastLog::error(const char* tag, int context_id, const char* fmt, ...)
     // add strerror() to error msg.
     size += snprintf(log_data + size, LOG_MAX_SIZE - size, "(%s)", strerror(errno));
 
-    write_log(log_data, size, SrsLogLevel::Error);
+    write_log(fd, log_data, size, SrsLogLevel::Error);
 }
 
 bool SrsFastLog::generate_header(const char* tag, int context_id, const char* level_name, int* header_size)
@@ -219,7 +231,7 @@ bool SrsFastLog::generate_header(const char* tag, int context_id, const char* le
     return true;
 }
 
-void SrsFastLog::write_log(char *str_log, int size, int _level)
+void SrsFastLog::write_log(int& fd, char *str_log, int size, int level)
 {
     // ensure the tail and EOF of string
     //      LOG_TAIL_SIZE for the TAIL char.
@@ -227,8 +239,8 @@ void SrsFastLog::write_log(char *str_log, int size, int _level)
     size = srs_min(LOG_MAX_SIZE - 1 - LOG_TAIL_SIZE, size);
     
     // add some to the end of char.
-    log_data[size++] = LOG_TAIL;
-    log_data[size++] = 0;
+    str_log[size++] = LOG_TAIL;
+    str_log[size++] = 0;
     
     if (fd < 0 || !_srs_config->get_srs_log_tank_file()) {
         // if is error msg, then print color msg.
@@ -236,9 +248,9 @@ void SrsFastLog::write_log(char *str_log, int size, int _level)
         // \033[32m : green text code in shell
         // \033[33m : yellow text code in shell
         // \033[0m : normal text code
-        if (_level <= SrsLogLevel::Trace) {
+        if (level <= SrsLogLevel::Trace) {
             printf("%s", str_log);
-        } else if (_level == SrsLogLevel::Warn) {
+        } else if (level == SrsLogLevel::Warn) {
             printf("\033[33m%s\033[0m", str_log);
         } else{
             printf("\033[31m%s\033[0m", str_log);

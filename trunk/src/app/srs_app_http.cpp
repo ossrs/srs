@@ -670,7 +670,7 @@ int SrsHttpUri::initialize(std::string _url)
     srs_info("parse url %s success", purl);
     
     query = get_uri_field(url, &hp_u, UF_QUERY);
-    srs_info("parse query %s success", query);
+    srs_info("parse query %s success", query.c_str());
     
     return ret;
 }
