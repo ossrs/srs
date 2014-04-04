@@ -242,20 +242,42 @@ if [ ! -f ${SRS_OBJS}/st/libst.so ]; then echo "build st-1.9 failed."; exit -1; 
 #####################################################################################
 # http-parser-2.1
 #####################################################################################
+# check the arm flag file, if flag changed, need to rebuild the st.
 if [ $SRS_HTTP_PARSER = YES ]; then
-    if [[ -f ${SRS_OBJS}/hp/http_parser.h && -f ${SRS_OBJS}/hp/libhttp_parser.a ]]; then
-        echo "http-parser-2.1 is ok.";
+    # ok, arm specified, if the flag filed does not exists, need to rebuild.
+    if [ $SRS_ARM_UBUNTU12 = YES ]; then
+        if [[ -f ${SRS_OBJS}/_flag.st.hp.tmp && -f ${SRS_OBJS}/hp/http_parser.h && -f ${SRS_OBJS}/hp/libhttp_parser.a ]]; then
+            echo "http-parser-2.1 for arm is ok.";
+        else
+            echo "build http-parser-2.1 for arm";
+            (
+                rm -rf ${SRS_OBJS}/http-parser-2.1 && cd ${SRS_OBJS} && unzip -q ../3rdparty/http-parser-2.1.zip && 
+                cd http-parser-2.1 && 
+                sed -i "s/CPPFLAGS_FAST +=.*$/CPPFLAGS_FAST = \$\(CPPFLAGS_DEBUG\)/g" Makefile &&
+                sed -i "s/CFLAGS_FAST =.*$/CFLAGS_FAST = \$\(CFLAGS_DEBUG\)/g" Makefile &&
+                make CC=${SrsArmCC} AR=${SrsArmAR} package &&
+                cd .. && rm -rf hp && ln -sf http-parser-2.1 hp &&
+                cd .. && touch ${SRS_OBJS}/_flag.st.hp.tmp
+            )
+        fi
     else
-        echo "build http-parser-2.1";
-        (
-            rm -rf ${SRS_OBJS}/http-parser-2.1 && cd ${SRS_OBJS} && unzip -q ../3rdparty/http-parser-2.1.zip && 
-            cd http-parser-2.1 && 
-            sed -i "s/CPPFLAGS_FAST +=.*$/CPPFLAGS_FAST = \$\(CPPFLAGS_DEBUG\)/g" Makefile &&
-            sed -i "s/CFLAGS_FAST =.*$/CFLAGS_FAST = \$\(CFLAGS_DEBUG\)/g" Makefile &&
-            make package &&
-            cd .. && rm -rf hp && ln -sf http-parser-2.1 hp
-        )
+        # arm not specified, if exists flag, need to rebuild for no-arm platform.
+        if [[ ! -f ${SRS_OBJS}/_flag.st.hp.tmp && -f ${SRS_OBJS}/hp/http_parser.h && -f ${SRS_OBJS}/hp/libhttp_parser.a ]]; then
+            echo "http-parser-2.1 is ok.";
+        else
+            echo "build http-parser-2.1";
+            (
+                rm -rf ${SRS_OBJS}/http-parser-2.1 && cd ${SRS_OBJS} && unzip -q ../3rdparty/http-parser-2.1.zip && 
+                cd http-parser-2.1 && 
+                sed -i "s/CPPFLAGS_FAST +=.*$/CPPFLAGS_FAST = \$\(CPPFLAGS_DEBUG\)/g" Makefile &&
+                sed -i "s/CFLAGS_FAST =.*$/CFLAGS_FAST = \$\(CFLAGS_DEBUG\)/g" Makefile &&
+                make package &&
+                cd .. && rm -rf hp && ln -sf http-parser-2.1 hp &&
+                cd .. && rm -f ${SRS_OBJS}/_flag.st.hp.tmp
+            )
+        fi
     fi
+
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "build http-parser-2.1 failed, ret=$ret"; exit $ret; fi
     if [[ ! -f ${SRS_OBJS}/hp/http_parser.h ]]; then echo "build http-parser-2.1 failed"; exit -1; fi
@@ -581,7 +603,7 @@ echo "" >> $SRS_AUTO_HEADERS_H
 #####################################################################################
 # generated the contributors from AUTHORS.txt
 #####################################################################################
-SRS_CONSTRIBUTORS=`cat ../AUTHORS.txt|grep "*"|awk -F '* ' '{print $2}'`
+SRS_CONSTRIBUTORS=`cat ../AUTHORS.txt|grep "*"|awk -F '\* ' '{print $2}'`
 echo "#define SRS_CONSTRIBUTORS \"\\" >> $SRS_AUTO_HEADERS_H
 for CONTRIBUTOR in $SRS_CONSTRIBUTORS; do
     echo "${CONTRIBUTOR} \\" >> $SRS_AUTO_HEADERS_H

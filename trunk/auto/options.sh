@@ -97,11 +97,13 @@ do
         --without-gcp)                  SRS_GPERF_CP=NO             ;;
         --without-gprof)                SRS_GPROF=NO                ;;
         --without-arm-ubuntu12)         SRS_ARM_UBUNTU12=NO         ;;
-                                                                 
+        
         --jobs)                         SRS_JOBS=${value}           ;;
         --prefix)                       SRS_PREFIX=${value}         ;;
         --static)                       SRS_STATIC=YES              ;;
+        
         --dev)                          SRS_DEV=YES                 ;;
+        --arm)                          SRS_ARM_UBUNTU12=YES        ;;
         --pi)                           SRS_PI=YES                  ;;
 
         *)
@@ -116,13 +118,13 @@ done
 #####################################################################################
 # if arm specified, set some default to disabled.
 if [ $SRS_ARM_UBUNTU12 = YES ]; then
-    if [ $SRS_HLS = RESERVED ]; then SRS_HLS=NO; fi
+    if [ $SRS_HLS = RESERVED ]; then SRS_HLS=YES; fi
     if [ $SRS_NGINX = RESERVED ]; then SRS_NGINX=NO; fi
-    if [ $SRS_SSL = RESERVED ]; then SRS_SSL=NO; fi
+    if [ $SRS_SSL = RESERVED ]; then SRS_SSL=YES; fi
     if [ $SRS_FFMPEG = RESERVED ]; then SRS_FFMPEG=NO; fi
     if [ $SRS_HTTP_CALLBACK = RESERVED ]; then SRS_HTTP_CALLBACK=NO; fi
-    if [ $SRS_HTTP_SERVER = RESERVED ]; then SRS_HTTP_SERVER=NO; fi
-    if [ $SRS_HTTP_API = RESERVED ]; then SRS_HTTP_API=NO; fi
+    if [ $SRS_HTTP_SERVER = RESERVED ]; then SRS_HTTP_SERVER=YES; fi
+    if [ $SRS_HTTP_API = RESERVED ]; then SRS_HTTP_API=YES; fi
     if [ $SRS_LIBRTMP = RESERVED ]; then SRS_LIBRTMP=NO; fi
     if [ $SRS_BWTC = RESERVED ]; then SRS_BWTC=NO; fi
     if [ $SRS_RESEARCH = RESERVED ]; then SRS_RESEARCH=NO; fi
@@ -143,8 +145,8 @@ else
     if [ $SRS_SSL = RESERVED ]; then SRS_SSL=YES; fi
     if [ $SRS_FFMPEG = RESERVED ]; then SRS_FFMPEG=NO; fi
     if [ $SRS_HTTP_CALLBACK = RESERVED ]; then SRS_HTTP_CALLBACK=NO; fi
-    if [ $SRS_HTTP_SERVER = RESERVED ]; then SRS_HTTP_SERVER=NO; fi
-    if [ $SRS_HTTP_API = RESERVED ]; then SRS_HTTP_API=NO; fi
+    if [ $SRS_HTTP_SERVER = RESERVED ]; then SRS_HTTP_SERVER=YES; fi
+    if [ $SRS_HTTP_API = RESERVED ]; then SRS_HTTP_API=YES; fi
     if [ $SRS_LIBRTMP = RESERVED ]; then SRS_LIBRTMP=NO; fi
     if [ $SRS_BWTC = RESERVED ]; then SRS_BWTC=NO; fi
     if [ $SRS_RESEARCH = RESERVED ]; then SRS_RESEARCH=NO; fi
@@ -270,6 +272,7 @@ if [ $help = yes ]; then
   --prefix=<path>           the absolute install path for srs.
   --dev                     for dev, open all features, no gperf/gprof/arm.
   --pi                      for raspberry-pi(directly build), open features hls/ssl/static.
+  --arm                     alias for --with-arm-ubuntu12
 
 END
     exit 0
