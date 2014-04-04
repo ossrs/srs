@@ -765,6 +765,91 @@ void SrsConfig::print_help(char** argv)
         argv[0]);
 }
 
+bool SrsConfig::get_deamon()
+{
+    srs_assert(root);
+    
+    SrsConfDirective* conf = root->get("daemon");
+    if (conf && conf->arg0() == "off") {
+        return false;
+    }
+    
+    return true;
+}
+
+int SrsConfig::get_max_connections()
+{
+    srs_assert(root);
+    
+    SrsConfDirective* conf = root->get("max_connections");
+    if (!conf || conf->arg0().empty()) {
+        return 2000;
+    }
+    
+    return ::atoi(conf->arg0().c_str());
+}
+
+SrsConfDirective* SrsConfig::get_listen()
+{
+    return root->get("listen");
+}
+
+string SrsConfig::get_pid_file()
+{
+    SrsConfDirective* conf = root->get("pid");
+    
+    if (!conf) {
+        return SRS_CONF_DEFAULT_PID_FILE;
+    }
+    
+    return conf->arg0();
+}
+
+int SrsConfig::get_pithy_print_publish()
+{
+    SrsConfDirective* pithy = root->get("pithy_print");
+    if (!pithy) {
+        return SRS_STAGE_PUBLISH_USER_INTERVAL_MS;
+    }
+    
+    pithy = pithy->get("publish");
+    if (!pithy) {
+        return SRS_STAGE_PUBLISH_USER_INTERVAL_MS;
+    }
+    
+    return ::atoi(pithy->arg0().c_str());
+}
+
+int SrsConfig::get_pithy_print_forwarder()
+{
+    SrsConfDirective* pithy = root->get("pithy_print");
+    if (!pithy) {
+        return SRS_STAGE_FORWARDER_INTERVAL_MS;
+    }
+    
+    pithy = pithy->get("forwarder");
+    if (!pithy) {
+        return SRS_STAGE_FORWARDER_INTERVAL_MS;
+    }
+    
+    return ::atoi(pithy->arg0().c_str());
+}
+
+int SrsConfig::get_pithy_print_hls()
+{
+    SrsConfDirective* pithy = root->get("pithy_print");
+    if (!pithy) {
+        return SRS_STAGE_HLS_INTERVAL_MS;
+    }
+    
+    pithy = pithy->get("hls");
+    if (!pithy) {
+        return SRS_STAGE_HLS_INTERVAL_MS;
+    }
+    
+    return ::atoi(pithy->arg0().c_str());
+}
+
 SrsConfDirective* SrsConfig::get_vhost(string vhost)
 {
     srs_assert(root);
@@ -937,6 +1022,205 @@ bool SrsConfig::get_vhost_enabled(SrsConfDirective* vhost)
     }
     
     return true;
+}
+
+bool SrsConfig::get_gop_cache(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return true;
+    }
+    
+    conf = conf->get("gop_cache");
+    if (conf && conf->arg0() == "off") {
+        return false;
+    }
+    
+    return true;
+}
+
+bool SrsConfig::get_atc(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return true;
+    }
+    
+    conf = conf->get("atc");
+    if (conf && conf->arg0() == "on") {
+        return true;
+    }
+    
+    return false;
+}
+
+double SrsConfig::get_queue_length(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return SRS_CONF_DEFAULT_QUEUE_LENGTH;
+    }
+    
+    conf = conf->get("queue_length");
+    if (!conf || conf->arg0().empty()) {
+        return SRS_CONF_DEFAULT_QUEUE_LENGTH;
+    }
+    
+    return ::atoi(conf->arg0().c_str());
+}
+
+SrsConfDirective* SrsConfig::get_forward(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return NULL;
+    }
+    
+    return conf->get("forward");
+}
+
+SrsConfDirective* SrsConfig::get_refer(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return NULL;
+    }
+    
+    return conf->get("refer");
+}
+
+SrsConfDirective* SrsConfig::get_refer_play(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return NULL;
+    }
+    
+    return conf->get("refer_play");
+}
+
+SrsConfDirective* SrsConfig::get_refer_publish(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return NULL;
+    }
+    
+    return conf->get("refer_publish");
+}
+
+int SrsConfig::get_chunk_size(const std::string &vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return SRS_CONF_DEFAULT_CHUNK_SIZE;
+    }
+
+    conf = conf->get("chunk_size");
+    if (!conf) {
+        // vhost does not specify the chunk size,
+        // use the global instead.
+        conf = root->get("chunk_size");
+        if (!conf) {
+            return SRS_CONF_DEFAULT_CHUNK_SIZE;
+        }
+        
+        return ::atoi(conf->arg0().c_str());
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
+bool SrsConfig::get_bw_check_enabled(const string &vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return false;
+    }
+
+    conf = conf->get("bandcheck");
+    if (!conf) {
+        return false;
+    }
+
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0() != "on") {
+        return false;
+    }
+
+    return true;
+}
+
+string SrsConfig::get_bw_check_key(const string &vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return "";
+    }
+
+    conf = conf->get("bandcheck");
+    if (!conf) {
+        return "";
+    }
+    
+    conf = conf->get("key");
+    if (!conf) {
+        return "";
+    }
+
+    return conf->arg0();
+}
+
+int SrsConfig::get_bw_check_interval_ms(const string &vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return SRS_CONF_DEFAULT_BANDWIDTH_INTERVAL;
+    }
+
+    conf = conf->get("bandcheck");
+    if (!conf) {
+        return SRS_CONF_DEFAULT_BANDWIDTH_INTERVAL;
+    }
+    
+    conf = conf->get("interval_ms");
+    if (!conf) {
+        return SRS_CONF_DEFAULT_BANDWIDTH_INTERVAL;
+    }
+
+    return ::atoi(conf->arg0().c_str()) * 1000;
+}
+
+int SrsConfig::get_bw_check_limit_kbps(const string &vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return SRS_CONF_DEFAULT_BANDWIDTH_LIMIT_KBPS;
+    }
+
+    conf = conf->get("bandcheck");
+    if (!conf) {
+        return SRS_CONF_DEFAULT_BANDWIDTH_LIMIT_KBPS;
+    }
+    
+    conf = conf->get("limit_kbps");
+    if (!conf) {
+        return SRS_CONF_DEFAULT_BANDWIDTH_LIMIT_KBPS;
+    }
+
+    return ::atoi(conf->arg0().c_str());
 }
 
 SrsConfDirective* SrsConfig::get_transcode(string vhost, string scope)
@@ -1266,89 +1550,6 @@ string SrsConfig::get_engine_output(SrsConfDirective* engine)
     return conf->arg0();
 }
 
-bool SrsConfig::get_deamon()
-{
-    srs_assert(root);
-    
-    SrsConfDirective* conf = root->get("daemon");
-    if (conf && conf->arg0() == "off") {
-        return false;
-    }
-    
-    return true;
-}
-
-int SrsConfig::get_max_connections()
-{
-    srs_assert(root);
-    
-    SrsConfDirective* conf = root->get("max_connections");
-    if (!conf || conf->arg0().empty()) {
-        return 2000;
-    }
-    
-    return ::atoi(conf->arg0().c_str());
-}
-
-bool SrsConfig::get_gop_cache(string vhost)
-{
-    SrsConfDirective* conf = get_vhost(vhost);
-
-    if (!conf) {
-        return true;
-    }
-    
-    conf = conf->get("gop_cache");
-    if (conf && conf->arg0() == "off") {
-        return false;
-    }
-    
-    return true;
-}
-
-bool SrsConfig::get_atc(string vhost)
-{
-    SrsConfDirective* conf = get_vhost(vhost);
-
-    if (!conf) {
-        return true;
-    }
-    
-    conf = conf->get("atc");
-    if (conf && conf->arg0() == "on") {
-        return true;
-    }
-    
-    return false;
-}
-
-double SrsConfig::get_queue_length(string vhost)
-{
-    SrsConfDirective* conf = get_vhost(vhost);
-
-    if (!conf) {
-        return SRS_CONF_DEFAULT_QUEUE_LENGTH;
-    }
-    
-    conf = conf->get("queue_length");
-    if (!conf || conf->arg0().empty()) {
-        return SRS_CONF_DEFAULT_QUEUE_LENGTH;
-    }
-    
-    return ::atoi(conf->arg0().c_str());
-}
-
-SrsConfDirective* SrsConfig::get_forward(string vhost)
-{
-    SrsConfDirective* conf = get_vhost(vhost);
-
-    if (!conf) {
-        return NULL;
-    }
-    
-    return conf->get("forward");
-}
-
 string SrsConfig::get_srs_log_file()
 {
     srs_assert(root);
@@ -1551,207 +1752,6 @@ int SrsConfig::get_http_stream_listen()
     }
     
     return 8080;
-}
-
-SrsConfDirective* SrsConfig::get_refer(string vhost)
-{
-    SrsConfDirective* conf = get_vhost(vhost);
-
-    if (!conf) {
-        return NULL;
-    }
-    
-    return conf->get("refer");
-}
-
-SrsConfDirective* SrsConfig::get_refer_play(string vhost)
-{
-    SrsConfDirective* conf = get_vhost(vhost);
-
-    if (!conf) {
-        return NULL;
-    }
-    
-    return conf->get("refer_play");
-}
-
-SrsConfDirective* SrsConfig::get_refer_publish(string vhost)
-{
-    SrsConfDirective* conf = get_vhost(vhost);
-
-    if (!conf) {
-        return NULL;
-    }
-    
-    return conf->get("refer_publish");
-}
-
-SrsConfDirective* SrsConfig::get_listen()
-{
-    return root->get("listen");
-}
-
-string SrsConfig::get_pid_file()
-{
-    SrsConfDirective* conf = root->get("pid");
-    
-    if (!conf) {
-        return SRS_CONF_DEFAULT_PID_FILE;
-    }
-    
-    return conf->arg0();
-}
-
-int SrsConfig::get_chunk_size(const std::string &vhost)
-{
-    SrsConfDirective* conf = get_vhost(vhost);
-
-    if (!conf) {
-        return SRS_CONF_DEFAULT_CHUNK_SIZE;
-    }
-
-    conf = conf->get("chunk_size");
-    if (!conf) {
-        // vhost does not specify the chunk size,
-        // use the global instead.
-        conf = root->get("chunk_size");
-        if (!conf) {
-            return SRS_CONF_DEFAULT_CHUNK_SIZE;
-        }
-        
-        return ::atoi(conf->arg0().c_str());
-    }
-
-    return ::atoi(conf->arg0().c_str());
-}
-
-int SrsConfig::get_pithy_print_publish()
-{
-    SrsConfDirective* pithy = root->get("pithy_print");
-    if (!pithy) {
-        return SRS_STAGE_PUBLISH_USER_INTERVAL_MS;
-    }
-    
-    pithy = pithy->get("publish");
-    if (!pithy) {
-        return SRS_STAGE_PUBLISH_USER_INTERVAL_MS;
-    }
-    
-    return ::atoi(pithy->arg0().c_str());
-}
-
-int SrsConfig::get_pithy_print_forwarder()
-{
-    SrsConfDirective* pithy = root->get("pithy_print");
-    if (!pithy) {
-        return SRS_STAGE_FORWARDER_INTERVAL_MS;
-    }
-    
-    pithy = pithy->get("forwarder");
-    if (!pithy) {
-        return SRS_STAGE_FORWARDER_INTERVAL_MS;
-    }
-    
-    return ::atoi(pithy->arg0().c_str());
-}
-
-int SrsConfig::get_pithy_print_hls()
-{
-    SrsConfDirective* pithy = root->get("pithy_print");
-    if (!pithy) {
-        return SRS_STAGE_HLS_INTERVAL_MS;
-    }
-    
-    pithy = pithy->get("hls");
-    if (!pithy) {
-        return SRS_STAGE_HLS_INTERVAL_MS;
-    }
-    
-    return ::atoi(pithy->arg0().c_str());
-}
-
-bool SrsConfig::get_bw_check_enabled(const string &vhost)
-{
-    SrsConfDirective* conf = get_vhost(vhost);
-
-    if (!conf) {
-        return false;
-    }
-
-    conf = conf->get("bandcheck");
-    if (!conf) {
-        return false;
-    }
-
-    conf = conf->get("enabled");
-    if (!conf || conf->arg0() != "on") {
-        return false;
-    }
-
-    return true;
-}
-
-string SrsConfig::get_bw_check_key(const string &vhost)
-{
-    SrsConfDirective* conf = get_vhost(vhost);
-
-    if (!conf) {
-        return "";
-    }
-
-    conf = conf->get("bandcheck");
-    if (!conf) {
-        return "";
-    }
-    
-    conf = conf->get("key");
-    if (!conf) {
-        return "";
-    }
-
-    return conf->arg0();
-}
-
-int SrsConfig::get_bw_check_interval_ms(const string &vhost)
-{
-    SrsConfDirective* conf = get_vhost(vhost);
-
-    if (!conf) {
-        return SRS_CONF_DEFAULT_BANDWIDTH_INTERVAL;
-    }
-
-    conf = conf->get("bandcheck");
-    if (!conf) {
-        return SRS_CONF_DEFAULT_BANDWIDTH_INTERVAL;
-    }
-    
-    conf = conf->get("interval_ms");
-    if (!conf) {
-        return SRS_CONF_DEFAULT_BANDWIDTH_INTERVAL;
-    }
-
-    return ::atoi(conf->arg0().c_str()) * 1000;
-}
-
-int SrsConfig::get_bw_check_limit_kbps(const string &vhost)
-{
-    SrsConfDirective* conf = get_vhost(vhost);
-
-    if (!conf) {
-        return SRS_CONF_DEFAULT_BANDWIDTH_LIMIT_KBPS;
-    }
-
-    conf = conf->get("bandcheck");
-    if (!conf) {
-        return SRS_CONF_DEFAULT_BANDWIDTH_LIMIT_KBPS;
-    }
-    
-    conf = conf->get("limit_kbps");
-    if (!conf) {
-        return SRS_CONF_DEFAULT_BANDWIDTH_LIMIT_KBPS;
-    }
-
-    return ::atoi(conf->arg0().c_str());
 }
 
 int SrsConfig::get_pithy_print_encoder()

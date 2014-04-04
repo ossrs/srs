@@ -116,6 +116,18 @@ private:
     virtual int parse_file(const char* filename);
     virtual int parse_argv(int& i, char** argv);
     virtual void print_help(char** argv);
+// global section
+public:
+    virtual bool                get_deamon();
+    virtual int                 get_max_connections();
+    virtual SrsConfDirective*   get_listen();
+    virtual std::string         get_pid_file();
+    virtual int                 get_pithy_print_publish();
+    virtual int                 get_pithy_print_forwarder();
+    virtual int                 get_pithy_print_encoder();
+    virtual int                 get_pithy_print_hls();
+    virtual int                 get_pithy_print_play();
+// vhost section
 public:
     virtual SrsConfDirective*   get_vhost(std::string vhost);
     virtual bool                get_vhost_enabled(std::string vhost);
@@ -126,6 +138,22 @@ public:
     virtual SrsConfDirective*   get_vhost_on_unpublish(std::string vhost);
     virtual SrsConfDirective*   get_vhost_on_play(std::string vhost);
     virtual SrsConfDirective*   get_vhost_on_stop(std::string vhost);
+    virtual bool                get_gop_cache(std::string vhost);
+    virtual bool                get_atc(std::string vhost);
+    virtual double              get_queue_length(std::string vhost);
+    virtual SrsConfDirective*   get_forward(std::string vhost);
+    virtual SrsConfDirective*   get_refer(std::string vhost);
+    virtual SrsConfDirective*   get_refer_play(std::string vhost);
+    virtual SrsConfDirective*   get_refer_publish(std::string vhost);
+    virtual int                 get_chunk_size(const std::string& vhost);
+// bwct(bandwidth check tool) section
+public:
+    virtual bool                get_bw_check_enabled(const std::string& vhost);
+    virtual std::string         get_bw_check_key(const std::string& vhost);
+    virtual int                 get_bw_check_interval_ms(const std::string& vhost);
+    virtual int                 get_bw_check_limit_kbps(const std::string& vhost);
+// vhost transcode section
+public:
     virtual SrsConfDirective*   get_transcode(std::string vhost, std::string scope);
     virtual bool                get_transcode_enabled(SrsConfDirective* transcode);
     virtual std::string         get_transcode_ffmpeg(SrsConfDirective* transcode);
@@ -147,12 +175,6 @@ public:
     virtual int                 get_engine_achannels(SrsConfDirective* engine);
     virtual void                get_engine_aparams(SrsConfDirective* engine, std::vector<std::string>& aparams);
     virtual std::string         get_engine_output(SrsConfDirective* engine);
-    virtual bool                get_deamon();
-    virtual int                 get_max_connections();
-    virtual bool                get_gop_cache(std::string vhost);
-    virtual bool                get_atc(std::string vhost);
-    virtual double              get_queue_length(std::string vhost);
-    virtual SrsConfDirective*   get_forward(std::string vhost);
 // log section
 public:
     virtual bool                get_srs_log_tank_file();
@@ -179,23 +201,6 @@ private:
 public:
     virtual bool                get_http_stream_enabled();
     virtual int                 get_http_stream_listen();
-// others
-public:
-    virtual SrsConfDirective*   get_refer(std::string vhost);
-    virtual SrsConfDirective*   get_refer_play(std::string vhost);
-    virtual SrsConfDirective*   get_refer_publish(std::string vhost);
-    virtual SrsConfDirective*   get_listen();
-    virtual std::string         get_pid_file();
-    virtual int                 get_chunk_size(const std::string& vhost);
-    virtual int                 get_pithy_print_publish();
-    virtual int                 get_pithy_print_forwarder();
-    virtual int                 get_pithy_print_encoder();
-    virtual int                 get_pithy_print_hls();
-    virtual int                 get_pithy_print_play();
-    virtual bool                get_bw_check_enabled(const std::string& vhost);
-    virtual std::string         get_bw_check_key(const std::string& vhost);
-    virtual int                 get_bw_check_interval_ms(const std::string& vhost);
-    virtual int                 get_bw_check_limit_kbps(const std::string& vhost);
 };
 
 /**
