@@ -52,9 +52,8 @@ SrsHttpRoot::~SrsHttpRoot()
 int SrsHttpRoot::initialize()
 {
     int ret = ERROR_SUCCESS;
-
-    // add root
-    handlers.push_back(new SrsHttpVhost("__http__", "/", _srs_config->get_http_stream_dir()));
+    
+    bool default_root_exists = false;
     
     // add other virtual path
     SrsConfDirective* root = _srs_config->get_root();
@@ -74,6 +73,16 @@ int SrsHttpRoot::initialize()
         std::string dir = _srs_config->get_vhost_http_dir(vhost);
         
         handlers.push_back(new SrsHttpVhost(vhost, mount, dir));
+        
+        if (mount == "/") {
+            default_root_exists = true;
+        }
+    }
+    
+    if (!default_root_exists) {
+        // add root
+        handlers.push_back(new SrsHttpVhost(
+            "__http__", "/", _srs_config->get_http_stream_dir()));
     }
     
     return ret;
@@ -86,7 +95,7 @@ bool SrsHttpRoot::can_handle(const char* path, int length, const char** pchild)
     *pchild = path;
     
     // never handle request for root.
-    return false;
+    return true;
 }
 
 bool SrsHttpRoot::is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase) 
