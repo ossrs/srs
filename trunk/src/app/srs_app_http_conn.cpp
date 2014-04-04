@@ -93,6 +93,7 @@ bool SrsHttpRoot::is_handler_valid(SrsHttpMessage* req, int& status_code, std::s
 {
     status_code = HTTP_InternalServerError;
     reason_phrase = HTTP_InternalServerError_str;
+    
     return false;
 }
 
