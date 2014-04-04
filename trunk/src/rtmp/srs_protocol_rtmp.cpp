@@ -131,7 +131,11 @@ int SrsRequest::discovery_app()
     // remove the unsupported chars in names.
     vhost = srs_string_remove(vhost, "/ \n\r\t");
     app = srs_string_remove(app, " \n\r\t");
-    stream = srs_string_remove(stream, "/ \n\r\t");
+    stream = srs_string_remove(stream, " \n\r\t");
+    
+    // remove end slash of app
+    app = srs_string_trim_end(app, "/");
+    stream = srs_string_trim_end(stream, "/");
     
     return ret;
 }
