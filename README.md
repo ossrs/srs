@@ -148,9 +148,10 @@ Supported operating systems and hardware:
 1. Support ARM([debian armhf, v7cpu](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm)) with rtmp/ssl/hls/librtmp.
 1. Support [init.d](https://github.com/winlinvip/simple-rtmp-server/wiki/LinuxService) and packge script, log to file. 
 1. Support RTMP ATC for HLS/HDS to support backup(failover)
-1. [plan] Support system utest
-1. [plan] Support embeded http server for api and hls(live/vod)
-1. [plan] Support vod(file to hls stream)
+1. [dev] Support http RESTful management api.
+1. [dev] Support embeded http server for hls(live/vod)
+1. [plan] Support file to hls vod stream.
+1. [plan] Support system full utest on gtest.
 1. [plan] Support stream ingester using ffmpeg.
 1. [plan] Support ingest RTSP(RTP, SDP) stream to RTMP.
 1. [plan] Support network based cli and json result.
