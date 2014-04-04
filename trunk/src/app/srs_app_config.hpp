@@ -59,6 +59,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_HTTP_MOUNT "/"
 #define SRS_CONF_DEFAULT_HTTP_DIR SRS_CONF_DEFAULT_HLS_PATH
 
+#define SRS_CONF_DEFAULT_HTTP_STREAM_PORT 8080
+#define SRS_CONF_DEFAULT_HTTP_API_PORT 1985
+
 #define SRS_STAGE_PLAY_USER_INTERVAL_MS 1300
 #define SRS_STAGE_PUBLISH_USER_INTERVAL_MS 1100
 #define SRS_STAGE_FORWARDER_INTERVAL_MS 2000
@@ -207,6 +210,7 @@ private:
 public:
     virtual bool                get_http_stream_enabled();
     virtual int                 get_http_stream_listen();
+    virtual std::string         get_http_stream_dir();
 public:
     virtual bool                get_vhost_http_enabled(std::string vhost);
     virtual std::string         get_vhost_http_mount(std::string vhost);

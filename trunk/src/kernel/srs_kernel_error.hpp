@@ -159,6 +159,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_HTTP_PARSE_HEADER             802
 #define ERROR_HTTP_HANDLER_MATCH_URL        803
 #define ERROR_HTTP_HANDLER_INVALID          804
+#define ERROR_HTTP_OPEN_FILE                805
+#define ERROR_HTTP_READ_FILE                806
 
 // system control message, 
 // not an error, but special control logic.

@@ -49,8 +49,9 @@ public:
     virtual ~SrsHttpRoot();
 public:
     virtual int initialize();
-    virtual bool is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase);
     virtual bool can_handle(const char* path, int length, const char** pchild);
+protected:
+    virtual bool is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase);
     virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
 };
 
@@ -65,6 +66,8 @@ public:
     virtual ~SrsHttpVhost();
 public:
     virtual bool can_handle(const char* path, int length, const char** pchild);
+protected:
+    virtual bool is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase);
     virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
 public:
     virtual std::string vhost();

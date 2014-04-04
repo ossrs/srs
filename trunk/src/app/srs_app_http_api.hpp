@@ -49,6 +49,7 @@ public:
     virtual ~SrsApiRoot();
 public:
     virtual bool is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase);
+protected:
     virtual bool can_handle(const char* path, int length, const char** pchild);
     virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
 };
@@ -60,6 +61,7 @@ public:
     virtual ~SrsApiApi();
 public:
     virtual bool can_handle(const char* path, int length, const char** pchild);
+protected:
     virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
 };
 
@@ -70,6 +72,7 @@ public:
     virtual ~SrsApiV1();
 public:
     virtual bool can_handle(const char* path, int length, const char** pchild);
+protected:
     virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
 };
 
@@ -80,6 +83,7 @@ public:
     virtual ~SrsApiVersion();
 public:
     virtual bool can_handle(const char* path, int length, const char** pchild);
+protected:
     virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
 };
 
@@ -90,6 +94,7 @@ public:
     virtual ~SrsApiAuthors();
 public:
     virtual bool can_handle(const char* path, int length, const char** pchild);
+protected:
     virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
 };
 

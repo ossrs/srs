@@ -85,6 +85,11 @@ string srs_string_remove(string str, string remove_chars)
     return ret;
 }
 
+bool srs_string_ends_with(string str, string flag)
+{
+    return str.rfind(flag) == str.length() - flag.length();
+}
+
 string srs_dns_resolve(string host)
 {
     if (inet_addr(host.c_str()) != INADDR_NONE) {

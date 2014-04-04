@@ -28,6 +28,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sstream>
 using namespace std;
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_app_socket.hpp>
@@ -48,7 +52,11 @@ SrsHttpRoot::~SrsHttpRoot()
 int SrsHttpRoot::initialize()
 {
     int ret = ERROR_SUCCESS;
+
+    // add root
+    handlers.push_back(new SrsHttpVhost("__http__", "/", _srs_config->get_http_stream_dir()));
     
+    // add other virtual path
     SrsConfDirective* root = _srs_config->get_root();
     for (int i = 0; i < (int)root->directives.size(); i++) {
         SrsConfDirective* conf = root->at(i);
@@ -71,6 +79,16 @@ int SrsHttpRoot::initialize()
     return ret;
 }
 
+bool SrsHttpRoot::can_handle(const char* path, int length, const char** pchild)
+{
+    // reset the child path to path,
+    // for child to reparse the path.
+    *pchild = path;
+    
+    // only compare the first char.
+    return srs_path_equals("/", path, 1);
+}
+
 bool SrsHttpRoot::is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase) 
 {
     if (!SrsHttpHandler::is_handler_valid(req, status_code, reason_phrase)) {
@@ -84,16 +102,6 @@ bool SrsHttpRoot::is_handler_valid(SrsHttpMessage* req, int& status_code, std::s
     }
     
     return true;
-}
-
-bool SrsHttpRoot::can_handle(const char* path, int length, const char** pchild)
-{
-    // reset the child path to path,
-    // for child to reparse the path.
-    *pchild = path;
-    
-    // only compare the first char.
-    return srs_path_equals("/", path, 1);
 }
 
 int SrsHttpRoot::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
@@ -139,21 +147,74 @@ SrsHttpVhost::~SrsHttpVhost()
 
 bool SrsHttpVhost::can_handle(const char* path, int length, const char** /*pchild*/)
 {
-    return srs_path_equals("/api", path, length);
+    int min_match = srs_min(length, (int)_mount.length());
+    return srs_path_equals(_mount.c_str(), path, min_match);
+}
+
+bool SrsHttpVhost::is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase) 
+{
+    std::string fullpath = _dir + "/" + req->match()->unmatched_url;
+    if (req->match()->unmatched_url.empty()) {
+        fullpath += req->match()->matched_url;
+    }
+    
+    if (::access(fullpath.c_str(), F_OK | R_OK) < 0) {
+        srs_warn("check file %s does not exists", fullpath.c_str());
+        
+        status_code = HTTP_NotFound;
+        reason_phrase = HTTP_NotFound_str;
+        return false;
+    }
+    
+    return true;
 }
 
 int SrsHttpVhost::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
 {
-    std::stringstream ss;
+    int ret = ERROR_SUCCESS;
     
-    ss << JOBJECT_START
-        << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
-        << JFIELD_ORG("urls", JOBJECT_START)
-            << JFIELD_STR("v1", "the api version 1.0")
-        << JOBJECT_END
-        << JOBJECT_END;
+    std::string fullpath = _dir + "/" + req->match()->unmatched_url;
+    if (req->match()->unmatched_url.empty()) {
+        fullpath += req->match()->matched_url;
+    }
     
-    return res_json(skt, req, ss.str());
+    if (srs_string_ends_with(fullpath, "/")) {
+        fullpath += "index.html";
+    }
+    
+    int fd = ::open(fullpath.c_str(), O_RDONLY);
+    if (fd < 0) {
+        ret = ERROR_HTTP_OPEN_FILE;
+        srs_warn("open file %s failed, ret=%d", fullpath.c_str(), ret);
+        return ret;
+    }
+
+    int64_t length = (int64_t)::lseek(fd, 0, SEEK_END);
+    ::lseek(fd, 0, SEEK_SET);
+    
+    char* buf = new char[length];
+    SrsAutoFree(char, buf, true);
+    
+    if (::read(fd, buf, length) < 0) {
+        ::close(fd);
+        ret = ERROR_HTTP_READ_FILE;
+        srs_warn("read file %s failed, ret=%d", fullpath.c_str(), ret);
+        return ret;
+    }
+    ::close(fd);
+    
+    std::string str;
+    str.append(buf, length);
+    
+    if (srs_string_ends_with(fullpath, ".ts")) {
+        return res_mpegts(skt, req, str);
+    } else if (srs_string_ends_with(fullpath, ".m3u8")) {
+        return res_m3u8(skt, req, str);
+    } else {
+        return res_text(skt, req, str);
+    }
+    
+    return ret;
 }
 
 string SrsHttpVhost::vhost()

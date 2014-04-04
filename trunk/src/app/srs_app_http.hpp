@@ -229,6 +229,8 @@ public:
     virtual SrsHttpHandler* res_status_line_error(std::stringstream& ss, int code, std::string reason_phrase);
     virtual SrsHttpHandler* res_content_type(std::stringstream& ss);
     virtual SrsHttpHandler* res_content_type_json(std::stringstream& ss);
+    virtual SrsHttpHandler* res_content_type_m3u8(std::stringstream& ss);
+    virtual SrsHttpHandler* res_content_type_mpegts(std::stringstream& ss);
     virtual SrsHttpHandler* res_content_length(std::stringstream& ss, int64_t length);
     virtual SrsHttpHandler* res_enable_crossdomain(std::stringstream& ss);
     virtual SrsHttpHandler* res_header_eof(std::stringstream& ss);
@@ -237,6 +239,8 @@ public:
 public:
     virtual int res_options(SrsSocket* skt);
     virtual int res_text(SrsSocket* skt, SrsHttpMessage* req, std::string body);
+    virtual int res_m3u8(SrsSocket* skt, SrsHttpMessage* req, std::string body);
+    virtual int res_mpegts(SrsSocket* skt, SrsHttpMessage* req, std::string body);
     virtual int res_json(SrsSocket* skt, SrsHttpMessage* req, std::string json);
     virtual int res_error(SrsSocket* skt, SrsHttpMessage* req, int code, std::string reason_phrase, std::string body);
 // object creator

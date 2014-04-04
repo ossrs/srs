@@ -1746,15 +1746,16 @@ int SrsConfig::get_http_api_listen()
 {
     SrsConfDirective* conf = get_http_api();
     
-    if (conf) {
-        conf = conf->get("listen");
-        
-        if (conf && !conf->arg0().empty()) {
-            return ::atoi(conf->arg0().c_str());
-        }
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HTTP_API_PORT;
     }
     
-    return 1985;
+    conf = conf->get("listen");
+    if (!conf || conf->arg0().empty()) {
+        return SRS_CONF_DEFAULT_HTTP_API_PORT;
+    }
+
+    return ::atoi(conf->arg0().c_str());
 }
 
 SrsConfDirective* SrsConfig::get_http_stream()
@@ -1765,13 +1766,11 @@ SrsConfDirective* SrsConfig::get_http_stream()
 bool SrsConfig::get_http_stream_enabled()
 {
     SrsConfDirective* conf = get_http_stream();
-    
     if (!conf) {
         return false;
     }
     
     conf = conf->get("enabled");
-    
     if (conf && conf->arg0() == "on") {
         return true;
     }
@@ -1783,15 +1782,35 @@ int SrsConfig::get_http_stream_listen()
 {
     SrsConfDirective* conf = get_http_stream();
     
-    if (conf) {
-        conf = conf->get("listen");
-        
-        if (conf && !conf->arg0().empty()) {
-            return ::atoi(conf->arg0().c_str());
-        }
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HTTP_STREAM_PORT;
     }
     
-    return 8080;
+    conf = conf->get("listen");
+    if (!conf || conf->arg0().empty()) {
+        return SRS_CONF_DEFAULT_HTTP_STREAM_PORT;
+    }
+    
+    return ::atoi(conf->arg0().c_str());
+}
+
+string SrsConfig::get_http_stream_dir()
+{
+    SrsConfDirective* conf = get_http_stream();
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HTTP_DIR;
+    }
+    
+    conf = conf->get("dir");
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HTTP_DIR;
+    }
+    
+    if (conf->arg0().empty()) {
+        return SRS_CONF_DEFAULT_HTTP_DIR;
+    }
+    
+    return conf->arg0();
 }
 
 bool SrsConfig::get_vhost_http_enabled(string vhost)

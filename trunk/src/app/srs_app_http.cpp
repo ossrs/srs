@@ -48,7 +48,8 @@ bool srs_path_equals(const char* expect, const char* path, int nb_path)
         return false;
     }
     
-    return !memcmp(expect, path, size);
+    bool equals = !memcmp(expect, path, size);
+    return equals;
 }
 
 SrsHttpHandlerMatch::SrsHttpHandlerMatch()
@@ -223,6 +224,20 @@ SrsHttpHandler* SrsHttpHandler::res_content_type_json(std::stringstream& ss)
     return this;
 }
 
+SrsHttpHandler* SrsHttpHandler::res_content_type_m3u8(std::stringstream& ss)
+{
+    ss << "Content-Type: application/x-mpegURL;charset=utf-8" << __CRLF
+        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
+    return this;
+}
+
+SrsHttpHandler* SrsHttpHandler::res_content_type_mpegts(std::stringstream& ss)
+{
+    ss << "Content-Type: video/MP2T;charset=utf-8" << __CRLF
+        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
+    return this;
+}
+
 SrsHttpHandler* SrsHttpHandler::res_content_length(std::stringstream& ss, int64_t length)
 {
     ss << "Content-Length: "<< length << __CRLF;
@@ -272,6 +287,40 @@ int SrsHttpHandler::res_text(SrsSocket* skt, SrsHttpMessage* req, std::string bo
     std::stringstream ss;
     
     res_status_line(ss)->res_content_type(ss)
+        ->res_content_length(ss, (int)body.length());
+        
+    if (req->requires_crossdomain()) {
+        res_enable_crossdomain(ss);
+    }
+    
+    res_header_eof(ss)
+        ->res_body(ss, body);
+    
+    return res_flush(skt, ss);
+}
+
+int SrsHttpHandler::res_m3u8(SrsSocket* skt, SrsHttpMessage* req, std::string body)
+{
+    std::stringstream ss;
+    
+    res_status_line(ss)->res_content_type_m3u8(ss)
+        ->res_content_length(ss, (int)body.length());
+        
+    if (req->requires_crossdomain()) {
+        res_enable_crossdomain(ss);
+    }
+    
+    res_header_eof(ss)
+        ->res_body(ss, body);
+    
+    return res_flush(skt, ss);
+}
+
+int SrsHttpHandler::res_mpegts(SrsSocket* skt, SrsHttpMessage* req, std::string body)
+{
+    std::stringstream ss;
+    
+    res_status_line(ss)->res_content_type_mpegts(ss)
         ->res_content_length(ss, (int)body.length());
         
     if (req->requires_crossdomain()) {
