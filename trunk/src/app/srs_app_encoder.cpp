@@ -569,7 +569,7 @@ int SrsEncoder::cycle()
     return ret;
 }
 
-void SrsEncoder::on_leave_loop()
+void SrsEncoder::on_thread_stop()
 {
     // kill ffmpeg when finished and it alive
     std::vector<SrsFFMPEG*>::iterator it;

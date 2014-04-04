@@ -69,7 +69,7 @@ public:
     virtual int listen(int port);
 // interface ISrsThreadHandler.
 public:
-    virtual void on_enter_loop();
+    virtual void on_thread_start();
     virtual int cycle();
 };
 

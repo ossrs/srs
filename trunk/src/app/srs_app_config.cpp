@@ -686,13 +686,15 @@ int SrsConfig::parse_file(const char* filename)
     
     // check log
     std::string log_filename = this->get_srs_log_file();
-    if (this->get_srs_log_tank_file() && log_filename.empty()) {
+    if (get_srs_log_tank_file() && log_filename.empty()) {
         ret = ERROR_SYSTEM_CONFIG_INVALID;
         srs_error("must specifies the file to write log to. ret=%d", ret);
         return ret;
     }
-    if (!log_filename.empty()) {
+    if (get_srs_log_tank_file()) {
         srs_trace("log file is %s", log_filename.c_str());
+    } else {
+        srs_trace("write log to console");
     }
     
     return ret;

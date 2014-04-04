@@ -101,7 +101,7 @@ public:
 // interface ISrsThreadHandler.
 public:
     virtual int cycle();
-    virtual void on_leave_loop();
+    virtual void on_thread_stop();
 private:
     virtual void clear_engines();
     virtual SrsFFMPEG* at(int index);

@@ -126,7 +126,7 @@ int SrsListener::listen(int _port)
     return ret;
 }
 
-void SrsListener::on_enter_loop()
+void SrsListener::on_thread_start()
 {
     srs_trace("listen cycle start, port=%d, type=%d, fd=%d", port, type, fd);
 }

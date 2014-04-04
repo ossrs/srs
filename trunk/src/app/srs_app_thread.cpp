@@ -34,7 +34,7 @@ ISrsThreadHandler::~ISrsThreadHandler()
 {
 }
 
-void ISrsThreadHandler::on_enter_loop()
+void ISrsThreadHandler::on_thread_start()
 {
 }
 
@@ -50,7 +50,7 @@ int ISrsThreadHandler::on_end_cycle()
     return ret;
 }
 
-void ISrsThreadHandler::on_leave_loop()
+void ISrsThreadHandler::on_thread_stop()
 {
 }
 
@@ -114,9 +114,9 @@ void SrsThread::thread_cycle()
     srs_assert(handler);
     
     _srs_context->generate_id();
-    srs_trace("thread cycle start");
+    srs_info("thread cycle start");
 
-    handler->on_end_cycle();
+    handler->on_thread_start();
     
     loop = true;
     while (loop) {
@@ -146,7 +146,7 @@ failed:
         st_usleep(cycle_interval_us);
     }
     
-    handler->on_leave_loop();
+    handler->on_thread_stop();
     srs_trace("thread cycle finished");
 }
 

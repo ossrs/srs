@@ -34,14 +34,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /**
 * the handler for the thread, callback interface.
 * the thread model defines as:
-*     handler->on_enter_loop()
+*     handler->on_thread_start()
 *     while loop:
 *        handler->on_before_cycle()
 *        handler->cycle()
 *        handler->on_end_cycle()
 *        if !loop then break for user stop thread.
 *        sleep(CycleIntervalMilliseconds)
-*     handler->on_leave_loop()
+*     handler->on_thread_stop()
 * when stop, the thread will interrupt the st_thread,
 * which will cause the socket to return error and 
 * terminate the cycle thread.
@@ -69,11 +69,11 @@ public:
     ISrsThreadHandler();
     virtual ~ISrsThreadHandler();
 public:
-    virtual void on_enter_loop();
+    virtual void on_thread_start();
     virtual int on_before_cycle();
     virtual int cycle() = 0;
     virtual int on_end_cycle();
-    virtual void on_leave_loop();
+    virtual void on_thread_stop();
 };
 
 /**
