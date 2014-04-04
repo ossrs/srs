@@ -85,53 +85,21 @@ bool SrsHttpRoot::can_handle(const char* path, int length, const char** pchild)
     // for child to reparse the path.
     *pchild = path;
     
-    // only compare the first char.
-    return srs_path_equals("/", path, 1);
+    // never handle request for root.
+    return false;
 }
 
 bool SrsHttpRoot::is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase) 
 {
-    if (!SrsHttpHandler::is_handler_valid(req, status_code, reason_phrase)) {
-        return false;
-    }
-    
-    if (req->match()->matched_url.length() != 1) {
-        status_code = HTTP_NotFound;
-        reason_phrase = HTTP_NotFound_str;
-        return false;
-    }
-    
-    return true;
+    status_code = HTTP_InternalServerError;
+    reason_phrase = HTTP_InternalServerError_str;
+    return false;
 }
 
 int SrsHttpRoot::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
 {
-    std::stringstream ss;
-    
-    ss << JOBJECT_START
-        << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
-        << JFIELD_ORG("urls", JOBJECT_START);
-
-    vector<SrsHttpHandler*>::iterator it;
-    for (it = handlers.begin(); it != handlers.end(); ++it) {
-        SrsHttpVhost* handler = dynamic_cast<SrsHttpVhost*>(*it);
-        srs_assert(handler);
-        
-        ss << JFIELD_ORG(handler->mount(), JOBJECT_START)
-            << JFIELD_STR("mount", handler->mount()) << JFIELD_CONT
-            << JFIELD_STR("vhost", handler->vhost()) << JFIELD_CONT
-            << JFIELD_STR("dir", handler->dir())
-            << JOBJECT_END;
-            
-        if (it + 1 != handlers.end()) {
-            ss << JFIELD_CONT;
-        }
-    }
-
-    ss << JOBJECT_END
-        << JOBJECT_END;
-    
-    return res_json(skt, req, ss.str());
+    int ret = ERROR_SUCCESS;
+    return ret;
 }
 
 SrsHttpVhost::SrsHttpVhost(std::string vhost, std::string mount, std::string dir)
