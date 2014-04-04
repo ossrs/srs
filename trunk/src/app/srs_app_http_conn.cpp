@@ -32,16 +32,151 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_app_socket.hpp>
 #include <srs_app_http.hpp>
-#include <srs_kernel_buffer.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_app_json.hpp>
+#include <srs_app_config.hpp>
 
-#define SRS_HTTP_HEADER_BUFFER        1024
+SrsHttpRoot::SrsHttpRoot()
+{
+    // TODO: FIXME: support reload vhosts.
+}
+
+SrsHttpRoot::~SrsHttpRoot()
+{
+}
+
+int SrsHttpRoot::initialize()
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsConfDirective* root = _srs_config->get_root();
+    for (int i = 0; i < (int)root->directives.size(); i++) {
+        SrsConfDirective* conf = root->at(i);
+        
+        if (!conf->is_vhost()) {
+            continue;
+        }
+        
+        std::string vhost = conf->arg0();
+        if (!_srs_config->get_vhost_http_enabled(vhost)) {
+            continue;
+        }
+        
+        std::string mount = _srs_config->get_vhost_http_mount(vhost);
+        std::string dir = _srs_config->get_vhost_http_dir(vhost);
+        
+        handlers.push_back(new SrsHttpVhost(vhost, mount, dir));
+    }
+    
+    return ret;
+}
+
+bool SrsHttpRoot::is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase) 
+{
+    if (!SrsHttpHandler::is_handler_valid(req, status_code, reason_phrase)) {
+        return false;
+    }
+    
+    if (req->match()->matched_url.length() != 1) {
+        status_code = HTTP_NotFound;
+        reason_phrase = HTTP_NotFound_str;
+        return false;
+    }
+    
+    return true;
+}
+
+bool SrsHttpRoot::can_handle(const char* path, int length, const char** pchild)
+{
+    // reset the child path to path,
+    // for child to reparse the path.
+    *pchild = path;
+    
+    // only compare the first char.
+    return srs_path_equals("/", path, 1);
+}
+
+int SrsHttpRoot::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
+{
+    std::stringstream ss;
+    
+    ss << JOBJECT_START
+        << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
+        << JFIELD_ORG("urls", JOBJECT_START);
+
+    vector<SrsHttpHandler*>::iterator it;
+    for (it = handlers.begin(); it != handlers.end(); ++it) {
+        SrsHttpVhost* handler = dynamic_cast<SrsHttpVhost*>(*it);
+        srs_assert(handler);
+        
+        ss << JFIELD_ORG(handler->mount(), JOBJECT_START)
+            << JFIELD_STR("mount", handler->mount()) << JFIELD_CONT
+            << JFIELD_STR("vhost", handler->vhost()) << JFIELD_CONT
+            << JFIELD_STR("dir", handler->dir())
+            << JOBJECT_END;
+            
+        if (it + 1 != handlers.end()) {
+            ss << JFIELD_CONT;
+        }
+    }
+
+    ss << JOBJECT_END
+        << JOBJECT_END;
+    
+    return res_json(skt, req, ss.str());
+}
+
+SrsHttpVhost::SrsHttpVhost(std::string vhost, std::string mount, std::string dir)
+{
+    _vhost = vhost;
+    _mount = mount;
+    _dir = dir;
+}
+
+SrsHttpVhost::~SrsHttpVhost()
+{
+}
+
+bool SrsHttpVhost::can_handle(const char* path, int length, const char** /*pchild*/)
+{
+    return srs_path_equals("/api", path, length);
+}
+
+int SrsHttpVhost::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
+{
+    std::stringstream ss;
+    
+    ss << JOBJECT_START
+        << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
+        << JFIELD_ORG("urls", JOBJECT_START)
+            << JFIELD_STR("v1", "the api version 1.0")
+        << JOBJECT_END
+        << JOBJECT_END;
+    
+    return res_json(skt, req, ss.str());
+}
+
+string SrsHttpVhost::vhost()
+{
+    return _vhost;
+}
+
+string SrsHttpVhost::mount()
+{
+    return _mount;
+}
+
+string SrsHttpVhost::dir()
+{
+    return _dir;
+}
 
 SrsHttpConn::SrsHttpConn(SrsServer* srs_server, st_netfd_t client_stfd, SrsHttpHandler* _handler) 
     : SrsConnection(srs_server, client_stfd)
 {
     parser = new SrsHttpParser();
     handler = _handler;
+    requires_crossdomain = false;
 }
 
 SrsHttpConn::~SrsHttpConn()
@@ -96,34 +231,41 @@ int SrsHttpConn::do_cycle()
 int SrsHttpConn::process_request(SrsSocket* skt, SrsHttpMessage* req) 
 {
     int ret = ERROR_SUCCESS;
+
+    // parse uri to schema/server:port/path?query
+    if ((ret = req->parse_uri()) != ERROR_SUCCESS) {
+        return ret;
+    }
     
-    if (req->method() == HTTP_OPTIONS) {
-        char data[] = "HTTP/1.1 200 OK" __CRLF
-            "Content-Length: 0"__CRLF
-            "Server: SRS/"RTMP_SIG_SRS_VERSION""__CRLF
-            "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT"__CRLF
-            "Access-Control-Allow-Origin: *"__CRLF
-            "Access-Control-Allow-Methods: GET, POST, HEAD, PUT, DELETE"__CRLF
-            "Access-Control-Allow-Headers: Cache-Control,X-Proxy-Authorization,X-Requested-With,Content-Type"__CRLF
-            "Content-Type: text/html;charset=utf-8"__CRLFCRLF
-            "";
-        return skt->write(data, sizeof(data), NULL);
-    } else {
-        std::string tilte = "SRS/"RTMP_SIG_SRS_VERSION;
-        tilte += " hello http/1.1 server~\n";
-        
-        std::stringstream ss;
-        ss << "HTTP/1.1 200 OK " << __CRLF
-            << "Content-Length: "<< tilte.length() + req->body_size() << __CRLF
-            << "Server: SRS/"RTMP_SIG_SRS_VERSION"" << __CRLF
-            << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF
-            << "Access-Control-Allow-Origin: *" << __CRLF
-            << "Access-Control-Allow-Methods: GET, POST, HEAD, PUT, DELETE" << __CRLF
-            << "Access-Control-Allow-Headers: Cache-Control,X-Proxy-Authorization,X-Requested-With,Content-Type" << __CRLF
-            << "Content-Type: text/html;charset=utf-8" << __CRLFCRLF
-            << tilte << req->body().c_str()
-            << "";
-        return skt->write(ss.str().c_str(), ss.str().length(), NULL);
+    srs_trace("http request parsed, method=%d, url=%s, content-length=%"PRId64"", 
+        req->method(), req->url().c_str(), req->content_length());
+    
+    // TODO: maybe need to parse the url.
+    std::string url = req->path();
+    
+    SrsHttpHandlerMatch* p = NULL;
+    if ((ret = handler->best_match(url.data(), url.length(), &p)) != ERROR_SUCCESS) {
+        srs_warn("failed to find the best match handler for url. ret=%d", ret);
+        return ret;
+    }
+    
+    // if success, p and pstart should be valid.
+    srs_assert(p);
+    srs_assert(p->handler);
+    srs_assert(p->matched_url.length() <= url.length());
+    srs_info("best match handler, matched_url=%s", p->matched_url.c_str());
+    
+    req->set_match(p);
+    req->set_requires_crossdomain(requires_crossdomain);
+    
+    // use handler to process request.
+    if ((ret = p->handler->process_request(skt, req)) != ERROR_SUCCESS) {
+        srs_warn("handler failed to process http request. ret=%d", ret);
+        return ret;
+    }
+    
+    if (req->requires_crossdomain()) {
+        requires_crossdomain = true;
     }
     
     return ret;

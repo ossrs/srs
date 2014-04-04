@@ -36,5 +36,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define JFIELD_ERROR(ret) "\"" << "code" << "\":" << ret
 #define JFIELD_CONT ","
 #define JOBJECT_END "}"
+#define JARRAY_START "["
+#define JARRAY_END "]"
 
 #endif

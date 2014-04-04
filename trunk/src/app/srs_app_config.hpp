@@ -56,6 +56,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // the interval in seconds for bandwidth check
 #define SRS_CONF_DEFAULT_BANDWIDTH_LIMIT_KBPS 1000
 
+#define SRS_CONF_DEFAULT_HTTP_MOUNT "/"
+#define SRS_CONF_DEFAULT_HTTP_DIR SRS_CONF_DEFAULT_HLS_PATH
+
 #define SRS_STAGE_PLAY_USER_INTERVAL_MS 1300
 #define SRS_STAGE_PUBLISH_USER_INTERVAL_MS 1100
 #define SRS_STAGE_FORWARDER_INTERVAL_MS 2000
@@ -86,6 +89,8 @@ public:
     enum SrsDirectiveType{parse_file, parse_block};
     virtual int parse_conf(SrsFileBuffer* buffer, SrsDirectiveType type);
     virtual int read_token(SrsFileBuffer* buffer, std::vector<std::string>& args);
+public:
+    virtual bool is_vhost();
 };
 
 /**
@@ -118,6 +123,7 @@ private:
     virtual void print_help(char** argv);
 // global section
 public:
+    virtual SrsConfDirective*   get_root();
     virtual bool                get_deamon();
     virtual int                 get_max_connections();
     virtual SrsConfDirective*   get_listen();
@@ -201,6 +207,10 @@ private:
 public:
     virtual bool                get_http_stream_enabled();
     virtual int                 get_http_stream_listen();
+public:
+    virtual bool                get_vhost_http_enabled(std::string vhost);
+    virtual std::string         get_vhost_http_mount(std::string vhost);
+    virtual std::string         get_vhost_http_dir(std::string vhost);
 };
 
 /**

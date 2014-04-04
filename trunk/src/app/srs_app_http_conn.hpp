@@ -34,19 +34,50 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
-
-#include <http_parser.h>
+#include <srs_app_http.hpp>
 
 class SrsSocket;
 class SrsHttpParser;
 class SrsHttpMessage;
 class SrsHttpHandler;
 
+// for http root.
+class SrsHttpRoot : public SrsHttpHandler
+{
+public:
+    SrsHttpRoot();
+    virtual ~SrsHttpRoot();
+public:
+    virtual int initialize();
+    virtual bool is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase);
+    virtual bool can_handle(const char* path, int length, const char** pchild);
+    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+};
+
+class SrsHttpVhost : public SrsHttpHandler
+{
+private:
+    std::string _vhost;
+    std::string _mount;
+    std::string _dir;
+public:
+    SrsHttpVhost(std::string vhost, std::string mount, std::string dir);
+    virtual ~SrsHttpVhost();
+public:
+    virtual bool can_handle(const char* path, int length, const char** pchild);
+    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+public:
+    virtual std::string vhost();
+    virtual std::string mount();
+    virtual std::string dir();
+};
+
 class SrsHttpConn : public SrsConnection
 {
 private:
     SrsHttpParser* parser;
     SrsHttpHandler* handler;
+    bool requires_crossdomain;
 public:
     SrsHttpConn(SrsServer* srs_server, st_netfd_t client_stfd, SrsHttpHandler* _handler);
     virtual ~SrsHttpConn();

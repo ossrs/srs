@@ -325,8 +325,7 @@ SrsHttpHandler* SrsHttpHandler::create_http_api()
 
 SrsHttpHandler* SrsHttpHandler::create_http_stream()
 {
-    // TODO: FIXME: use http stream handler instead.
-    return new SrsHttpHandler();
+    return new SrsHttpRoot();
 }
 
 SrsHttpMessage::SrsHttpMessage()

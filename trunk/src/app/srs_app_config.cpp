@@ -286,7 +286,7 @@ int SrsConfDirective::parse_conf(SrsFileBuffer* buffer, SrsDirectiveType type)
 }
 
 // see: ngx_conf_read_token
-int SrsConfDirective::read_token(SrsFileBuffer* buffer, std::vector<string>& args)
+int SrsConfDirective::read_token(SrsFileBuffer* buffer, vector<string>& args)
 {
     int ret = ERROR_SUCCESS;
 
@@ -425,6 +425,11 @@ int SrsConfDirective::read_token(SrsFileBuffer* buffer, std::vector<string>& arg
     }
     
     return ret;
+}
+
+bool SrsConfDirective::is_vhost()
+{
+    return name == "vhost";
 }
 
 SrsConfig::SrsConfig()
@@ -777,6 +782,11 @@ bool SrsConfig::get_deamon()
     return true;
 }
 
+SrsConfDirective* SrsConfig::get_root()
+{
+    return root;
+}
+
 int SrsConfig::get_max_connections()
 {
     srs_assert(root);
@@ -835,6 +845,21 @@ int SrsConfig::get_pithy_print_forwarder()
     return ::atoi(pithy->arg0().c_str());
 }
 
+int SrsConfig::get_pithy_print_encoder()
+{
+    SrsConfDirective* pithy = root->get("encoder");
+    if (!pithy) {
+        return SRS_STAGE_ENCODER_INTERVAL_MS;
+    }
+    
+    pithy = pithy->get("forwarder");
+    if (!pithy) {
+        return SRS_STAGE_ENCODER_INTERVAL_MS;
+    }
+    
+    return ::atoi(pithy->arg0().c_str());
+}
+
 int SrsConfig::get_pithy_print_hls()
 {
     SrsConfDirective* pithy = root->get("pithy_print");
@@ -850,6 +875,21 @@ int SrsConfig::get_pithy_print_hls()
     return ::atoi(pithy->arg0().c_str());
 }
 
+int SrsConfig::get_pithy_print_play()
+{
+    SrsConfDirective* pithy = root->get("pithy_print");
+    if (!pithy) {
+        return SRS_STAGE_PLAY_USER_INTERVAL_MS;
+    }
+    
+    pithy = pithy->get("play");
+    if (!pithy) {
+        return SRS_STAGE_PLAY_USER_INTERVAL_MS;
+    }
+    
+    return ::atoi(pithy->arg0().c_str());
+}
+
 SrsConfDirective* SrsConfig::get_vhost(string vhost)
 {
     srs_assert(root);
@@ -857,7 +897,7 @@ SrsConfDirective* SrsConfig::get_vhost(string vhost)
     for (int i = 0; i < (int)root->directives.size(); i++) {
         SrsConfDirective* conf = root->at(i);
         
-        if (conf->name != "vhost") {
+        if (!conf->is_vhost()) {
             continue;
         }
         
@@ -1116,7 +1156,7 @@ SrsConfDirective* SrsConfig::get_refer_publish(string vhost)
     return conf->get("refer_publish");
 }
 
-int SrsConfig::get_chunk_size(const std::string &vhost)
+int SrsConfig::get_chunk_size(const string &vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);
 
@@ -1271,7 +1311,7 @@ string SrsConfig::get_transcode_ffmpeg(SrsConfDirective* transcode)
     return conf->arg0();
 }
 
-void SrsConfig::get_transcode_engines(SrsConfDirective* transcode, std::vector<SrsConfDirective*>& engines)
+void SrsConfig::get_transcode_engines(SrsConfDirective* transcode, vector<SrsConfDirective*>& engines)
 {
     if (!transcode) {
         return;
@@ -1414,7 +1454,7 @@ string SrsConfig::get_engine_vpreset(SrsConfDirective* engine)
     return conf->arg0();
 }
 
-void SrsConfig::get_engine_vparams(SrsConfDirective* engine, std::vector<string>& vparams)
+void SrsConfig::get_engine_vparams(SrsConfDirective* engine, vector<string>& vparams)
 {
     if (!engine) {
         return;
@@ -1436,7 +1476,7 @@ void SrsConfig::get_engine_vparams(SrsConfDirective* engine, std::vector<string>
     }
 }
 
-void SrsConfig::get_engine_vfilter(SrsConfDirective* engine, std::vector<string>& vfilter)
+void SrsConfig::get_engine_vfilter(SrsConfDirective* engine, vector<string>& vfilter)
 {
     if (!engine) {
         return;
@@ -1514,7 +1554,7 @@ int SrsConfig::get_engine_achannels(SrsConfDirective* engine)
     return ::atoi(conf->arg0().c_str());
 }
 
-void SrsConfig::get_engine_aparams(SrsConfDirective* engine, std::vector<string>& aparams)
+void SrsConfig::get_engine_aparams(SrsConfDirective* engine, vector<string>& aparams)
 {
     if (!engine) {
         return;
@@ -1754,34 +1794,68 @@ int SrsConfig::get_http_stream_listen()
     return 8080;
 }
 
-int SrsConfig::get_pithy_print_encoder()
+bool SrsConfig::get_vhost_http_enabled(string vhost)
 {
-    SrsConfDirective* pithy = root->get("encoder");
-    if (!pithy) {
-        return SRS_STAGE_ENCODER_INTERVAL_MS;
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return false;
     }
     
-    pithy = pithy->get("forwarder");
-    if (!pithy) {
-        return SRS_STAGE_ENCODER_INTERVAL_MS;
+    conf = conf->get("http");
+    if (!conf) {
+        return false;
     }
     
-    return ::atoi(pithy->arg0().c_str());
+    conf = conf->get("enabled");
+    if (!conf) {
+        return false;
+    }
+    
+    if (conf->arg0() == "on") {
+        return true;
+    }
+    
+    return false;
 }
 
-int SrsConfig::get_pithy_print_play()
+string SrsConfig::get_vhost_http_mount(string vhost)
 {
-    SrsConfDirective* pithy = root->get("pithy_print");
-    if (!pithy) {
-        return SRS_STAGE_PLAY_USER_INTERVAL_MS;
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HTTP_MOUNT;
     }
     
-    pithy = pithy->get("play");
-    if (!pithy) {
-        return SRS_STAGE_PLAY_USER_INTERVAL_MS;
+    conf = conf->get("http");
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HTTP_MOUNT;
     }
     
-    return ::atoi(pithy->arg0().c_str());
+    conf = conf->get("mount");
+    if (!conf || conf->arg0().empty()) {
+        return SRS_CONF_DEFAULT_HTTP_MOUNT;
+    }
+    
+    return conf->arg0();
+}
+
+string SrsConfig::get_vhost_http_dir(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HTTP_DIR;
+    }
+    
+    conf = conf->get("http");
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HTTP_DIR;
+    }
+    
+    conf = conf->get("dir");
+    if (!conf || conf->arg0().empty()) {
+        return SRS_CONF_DEFAULT_HTTP_DIR;
+    }
+    
+    return conf->arg0();
 }
 
 bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b)
