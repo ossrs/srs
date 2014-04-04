@@ -5,7 +5,8 @@
 其他[more...](http://winlinvip.github.io/srs.release/releases/) <br/>
 下载发布版(国内阿里云镜像): 
 [Centos6-x86_64](http://demo.chnvideo.com:8085/srs/releases/files/SRS-CentOS6-x86_64-0.9.30.zip) 
-其他[more...](http://demo.chnvideo.com:8085/srs/releases/)
+其他[more...](http://demo.chnvideo.com:8085/srs/releases/)<br/>
+加入QQ群: [http://url.cn/WAHICw](http://url.cn/WAHICw) (Group: 212189142)
 
 获得源码(github): [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server)
 
