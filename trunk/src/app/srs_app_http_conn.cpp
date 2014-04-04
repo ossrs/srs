@@ -132,8 +132,11 @@ bool SrsHttpVhost::can_handle(const char* path, int length, const char** /*pchil
 bool SrsHttpVhost::is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase) 
 {
     std::string fullpath = _dir + "/" + req->match()->unmatched_url;
-    if (req->match()->unmatched_url.empty()) {
-        fullpath += req->match()->matched_url;
+    if (_mount == "/") {
+        fullpath = _dir + "/" + req->match()->matched_url;
+        if (!req->match()->unmatched_url.empty()) {
+            fullpath += "/" + req->match()->unmatched_url;
+        }
     }
     
     if (::access(fullpath.c_str(), F_OK | R_OK) < 0) {
@@ -152,8 +155,11 @@ int SrsHttpVhost::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
     int ret = ERROR_SUCCESS;
     
     std::string fullpath = _dir + "/" + req->match()->unmatched_url;
-    if (req->match()->unmatched_url.empty()) {
-        fullpath += req->match()->matched_url;
+    if (_mount == "/") {
+        fullpath = _dir + "/" + req->match()->matched_url;
+        if (!req->match()->unmatched_url.empty()) {
+            fullpath += "/" + req->match()->unmatched_url;
+        }
     }
     
     if (srs_string_ends_with(fullpath, "/")) {
