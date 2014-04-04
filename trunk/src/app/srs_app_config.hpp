@@ -147,16 +147,18 @@ public:
     virtual int                 get_engine_achannels(SrsConfDirective* engine);
     virtual void                get_engine_aparams(SrsConfDirective* engine, std::vector<std::string>& aparams);
     virtual std::string         get_engine_output(SrsConfDirective* engine);
-    virtual std::string         get_ffmpeg_log_dir();
-    virtual bool                get_srs_log_tank_file();
-    virtual std::string         get_srs_log_level();
-    virtual std::string         get_srs_log_file();
     virtual bool                get_deamon();
     virtual int                 get_max_connections();
     virtual bool                get_gop_cache(std::string vhost);
     virtual bool                get_atc(std::string vhost);
     virtual double              get_queue_length(std::string vhost);
     virtual SrsConfDirective*   get_forward(std::string vhost);
+// log section
+public:
+    virtual bool                get_srs_log_tank_file();
+    virtual std::string         get_srs_log_level();
+    virtual std::string         get_srs_log_file();
+    virtual std::string         get_ffmpeg_log_dir();
 // hls section
 private:
     virtual SrsConfDirective*   get_hls(std::string vhost);

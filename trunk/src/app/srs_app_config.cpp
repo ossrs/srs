@@ -1266,54 +1266,6 @@ string SrsConfig::get_engine_output(SrsConfDirective* engine)
     return conf->arg0();
 }
 
-string SrsConfig::get_ffmpeg_log_dir()
-{
-    srs_assert(root);
-    
-    SrsConfDirective* conf = root->get("ff_log_dir");
-    if (!conf || conf->arg0().empty()) {
-        return "./objs/logs";
-    }
-    
-    return conf->arg0();
-}
-
-string SrsConfig::get_srs_log_file()
-{
-    srs_assert(root);
-    
-    SrsConfDirective* conf = root->get("srs_log_file");
-    if (!conf || conf->arg0().empty()) {
-        return "./objs/srs.log";
-    }
-    
-    return conf->arg0();
-}
-
-string SrsConfig::get_srs_log_level()
-{
-    srs_assert(root);
-    
-    SrsConfDirective* conf = root->get("srs_log_level");
-    if (!conf || conf->arg0().empty()) {
-        return "trace";
-    }
-    
-    return conf->arg0();
-}
-
-bool SrsConfig::get_srs_log_tank_file()
-{
-    srs_assert(root);
-    
-    SrsConfDirective* conf = root->get("srs_log_tank");
-    if (conf && conf->arg0() == "console") {
-        return false;
-    }
-    
-    return true;
-}
-
 bool SrsConfig::get_deamon()
 {
     srs_assert(root);
@@ -1395,6 +1347,54 @@ SrsConfDirective* SrsConfig::get_forward(string vhost)
     }
     
     return conf->get("forward");
+}
+
+string SrsConfig::get_srs_log_file()
+{
+    srs_assert(root);
+    
+    SrsConfDirective* conf = root->get("srs_log_file");
+    if (!conf || conf->arg0().empty()) {
+        return "./objs/srs.log";
+    }
+    
+    return conf->arg0();
+}
+
+string SrsConfig::get_ffmpeg_log_dir()
+{
+    srs_assert(root);
+    
+    SrsConfDirective* conf = root->get("ff_log_dir");
+    if (!conf || conf->arg0().empty()) {
+        return "./objs/logs";
+    }
+    
+    return conf->arg0();
+}
+
+string SrsConfig::get_srs_log_level()
+{
+    srs_assert(root);
+    
+    SrsConfDirective* conf = root->get("srs_log_level");
+    if (!conf || conf->arg0().empty()) {
+        return "trace";
+    }
+    
+    return conf->arg0();
+}
+
+bool SrsConfig::get_srs_log_tank_file()
+{
+    srs_assert(root);
+    
+    SrsConfDirective* conf = root->get("srs_log_tank");
+    if (conf && conf->arg0() == "console") {
+        return false;
+    }
+    
+    return true;
 }
 
 SrsConfDirective* SrsConfig::get_hls(string vhost)
