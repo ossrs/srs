@@ -117,7 +117,7 @@ function build_default_hls_url() {
     var stream = (query.stream == undefined)? "demo":query.stream;
 
     if (port == "" || port == null || port == undefined) {
-        port = 80;
+        port = 8080;
     }
     
     return "http://" + server + ":" + port + "/" + app + "/" + stream + ".m3u8";
