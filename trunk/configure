@@ -255,6 +255,8 @@ install-api: install
 install:
 	@echo "mkdir \$(DESTDIR)"
 	@mkdir -p \$(DESTDIR)
+	@echo "make the http root dir"
+	@mkdir -p \$(DESTDIR)/objs/nginx/html
 	@echo "copy binary files"
 	@mkdir -p \$(DESTDIR)/objs
 	@cp objs/srs \$(DESTDIR)/objs
