@@ -45,7 +45,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_ENCODER_NO_VIDEO    "vn"
 #define SRS_ENCODER_NO_AUDIO    "an"
 #define SRS_ENCODER_VCODEC     "libx264"
-#define SRS_ENCODER_ACODEC     "libaacplus"
+#define SRS_ENCODER_ACODEC     "aac"
 
 // for encoder to detect the dead loop
 static std::vector<std::string> _transcoded_url;
@@ -191,7 +191,7 @@ int SrsFFMPEG::initialize(SrsRequest* req, SrsConfDirective* engine)
     }
     
     if (acodec != SRS_ENCODER_COPY && acodec != SRS_ENCODER_NO_AUDIO) {
-        if (acodec != SRS_ENCODER_ACODEC) {
+        if (acodec.find(SRS_ENCODER_ACODEC) == std::string::npos) {
             ret = ERROR_ENCODER_ACODEC;
             srs_error("invalid acodec, must be %s, actual %s, ret=%d",
                 SRS_ENCODER_ACODEC, acodec.c_str(), ret);

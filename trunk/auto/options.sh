@@ -233,11 +233,14 @@ if [ $help = yes ]; then
                           
   --with-ssl                enable rtmp complex handshake, requires openssl-devel installed.
                             to delivery h264 video and aac audio to flash player.
-  --with-hls                enable hls streaming, build nginx as http server for hls.
+  --with-hls                enable hls streaming, mux RTMP to m3u8/ts files.
+  --with-nginx              enable delivery HTTP stream with nginx.
+                            build nginx at: ./objs/nginx/sbin/nginx
   --with-http-callback      enable http hooks, build cherrypy as demo api server.
   --with-http-server        enable http server to delivery http stream.
   --with-http-api           enable http api, to manage SRS by http api.
   --with-ffmpeg             enable transcoding with ffmpeg.
+                            build ffmpeg at: ./objs/ffmpeg/bin/ffmpeg
   --with-librtmp            enable srs-librtmp, library for client.
   --with-bwtc               enable SRS bandwidth test client tool.
   --with-research           build the research tools.
@@ -251,6 +254,7 @@ if [ $help = yes ]; then
                           
   --without-ssl             disable rtmp complex handshake.
   --without-hls             disable hls, rtmp streaming only.
+  --with-nginx              disable delivery HTTP stream with nginx.
   --without-http-callback   disable http, http hooks callback.
   --without-http-server     disable http server, use external server to delivery http stream.
   --without-http-api        disable http api, only use console to manage SRS process.
