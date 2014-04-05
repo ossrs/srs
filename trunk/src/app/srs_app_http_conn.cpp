@@ -195,6 +195,8 @@ int SrsHttpVhost::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
         return res_xml(skt, req, str);
     } else if (srs_string_ends_with(fullpath, ".js")) {
         return res_javascript(skt, req, str);
+    } else if (srs_string_ends_with(fullpath, ".json")) {
+        return res_json(skt, req, str);
     } else if (srs_string_ends_with(fullpath, ".swf")) {
         return res_swf(skt, req, str);
     } else if (srs_string_ends_with(fullpath, ".css")) {

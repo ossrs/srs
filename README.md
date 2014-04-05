@@ -110,6 +110,7 @@ cd simple-rtmp-server/trunk
 * [Usage: How to forward stream to other server?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleForward)
 * [Usage: How to deploy low lantency application?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleRealtime)
 * [Usage: How to deploy SRS on ARM?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleARM)
+* [Usage: How to use SRS-HTTP-server to delivery HTTP/HLS stream?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleHTTP)
 * [Usage: How to show the demo of SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleDemo)
 * [Usage: Solution using SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/Sample)
 * [Usage: Why SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/Product)
