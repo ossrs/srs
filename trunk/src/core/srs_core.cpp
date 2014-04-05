@@ -63,6 +63,24 @@ string srs_string_trim_end(string str, string trim_chars)
     return ret;
 }
 
+string srs_string_trim_start(string str, string trim_chars)
+{
+    std::string ret = str;
+    
+    for (int i = 0; i < (int)trim_chars.length(); i++) {
+        char ch = trim_chars.at(i);
+        
+        while (!ret.empty() && ret.at(0) == ch) {
+            ret.erase(ret.begin());
+            
+            // ok, matched, should reset the search
+            i = 0;
+        }
+    }
+    
+    return ret;
+}
+
 string srs_string_remove(string str, string remove_chars)
 {
     std::string ret = str;

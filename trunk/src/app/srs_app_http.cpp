@@ -52,6 +52,13 @@ bool srs_path_equals(const char* expect, const char* path, int nb_path)
     return equals;
 }
 
+bool srs_path_like(const char* expect, const char* path, int nb_path)
+{
+    int size = strlen(expect);
+    bool equals = !strncmp(expect, path, srs_min(size, nb_path));
+    return equals;
+}
+
 SrsHttpHandlerMatch::SrsHttpHandlerMatch()
 {
     handler = NULL;
@@ -217,6 +224,34 @@ SrsHttpHandler* SrsHttpHandler::res_content_type(std::stringstream& ss)
     return this;
 }
 
+SrsHttpHandler* SrsHttpHandler::res_content_type_xml(std::stringstream& ss)
+{
+    ss << "Content-Type: text/xml;charset=utf-8" << __CRLF
+        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
+    return this;
+}
+
+SrsHttpHandler* SrsHttpHandler::res_content_type_javascript(std::stringstream& ss)
+{
+    ss << "Content-Type: text/javascript;charset=utf-8" << __CRLF
+        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
+    return this;
+}
+
+SrsHttpHandler* SrsHttpHandler::res_content_type_swf(std::stringstream& ss)
+{
+    ss << "Content-Type: application/x-shockwave-flash;charset=utf-8" << __CRLF
+        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
+    return this;
+}
+
+SrsHttpHandler* SrsHttpHandler::res_content_type_css(std::stringstream& ss)
+{
+    ss << "Content-Type: text/css;charset=utf-8" << __CRLF
+        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
+    return this;
+}
+
 SrsHttpHandler* SrsHttpHandler::res_content_type_json(std::stringstream& ss)
 {
     ss << "Content-Type: application/json;charset=utf-8" << __CRLF
@@ -287,6 +322,74 @@ int SrsHttpHandler::res_text(SrsSocket* skt, SrsHttpMessage* req, std::string bo
     std::stringstream ss;
     
     res_status_line(ss)->res_content_type(ss)
+        ->res_content_length(ss, (int)body.length());
+        
+    if (req->requires_crossdomain()) {
+        res_enable_crossdomain(ss);
+    }
+    
+    res_header_eof(ss)
+        ->res_body(ss, body);
+    
+    return res_flush(skt, ss);
+}
+
+int SrsHttpHandler::res_xml(SrsSocket* skt, SrsHttpMessage* req, std::string body)
+{
+    std::stringstream ss;
+    
+    res_status_line(ss)->res_content_type_xml(ss)
+        ->res_content_length(ss, (int)body.length());
+        
+    if (req->requires_crossdomain()) {
+        res_enable_crossdomain(ss);
+    }
+    
+    res_header_eof(ss)
+        ->res_body(ss, body);
+    
+    return res_flush(skt, ss);
+}
+
+int SrsHttpHandler::res_javascript(SrsSocket* skt, SrsHttpMessage* req, std::string body)
+{
+    std::stringstream ss;
+    
+    res_status_line(ss)->res_content_type_javascript(ss)
+        ->res_content_length(ss, (int)body.length());
+        
+    if (req->requires_crossdomain()) {
+        res_enable_crossdomain(ss);
+    }
+    
+    res_header_eof(ss)
+        ->res_body(ss, body);
+    
+    return res_flush(skt, ss);
+}
+
+int SrsHttpHandler::res_swf(SrsSocket* skt, SrsHttpMessage* req, std::string body)
+{
+    std::stringstream ss;
+    
+    res_status_line(ss)->res_content_type_swf(ss)
+        ->res_content_length(ss, (int)body.length());
+        
+    if (req->requires_crossdomain()) {
+        res_enable_crossdomain(ss);
+    }
+    
+    res_header_eof(ss)
+        ->res_body(ss, body);
+    
+    return res_flush(skt, ss);
+}
+
+int SrsHttpHandler::res_css(SrsSocket* skt, SrsHttpMessage* req, std::string body)
+{
+    std::stringstream ss;
+    
+    res_status_line(ss)->res_content_type_css(ss)
         ->res_content_length(ss, (int)body.length());
         
     if (req->requires_crossdomain()) {

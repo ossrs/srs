@@ -40,6 +40,8 @@ using namespace std;
 #include <srs_app_json.hpp>
 #include <srs_app_config.hpp>
 
+#define SRS_HTTP_DEFAULT_PAGE "index.html"
+
 SrsHttpRoot::SrsHttpRoot()
 {
     // TODO: FIXME: support reload vhosts.
@@ -88,14 +90,26 @@ int SrsHttpRoot::initialize()
     return ret;
 }
 
-bool SrsHttpRoot::can_handle(const char* path, int length, const char** pchild)
+int SrsHttpRoot::best_match(const char* path, int length, SrsHttpHandlerMatch** ppmatch)
 {
-    // reset the child path to path,
-    // for child to reparse the path.
-    *pchild = path;
+    int ret = ERROR_SUCCESS;
+        
+    // find the best matched child handler.
+    std::vector<SrsHttpHandler*>::iterator it;
+    for (it = handlers.begin(); it != handlers.end(); ++it) {
+        SrsHttpHandler* h = *it;
+        
+        // search all child handlers.
+        h->best_match(path, length, ppmatch);
+    }
     
-    // never handle request for root.
-    return true;
+    // if already matched by child, return.
+    if (*ppmatch) {
+        return ret;
+    }
+    
+    // not matched, error.
+    return ERROR_HTTP_HANDLER_MATCH_URL;
 }
 
 bool SrsHttpRoot::is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase) 
@@ -125,19 +139,12 @@ SrsHttpVhost::~SrsHttpVhost()
 
 bool SrsHttpVhost::can_handle(const char* path, int length, const char** /*pchild*/)
 {
-    int min_match = srs_min(length, (int)_mount.length());
-    return srs_path_equals(_mount.c_str(), path, min_match);
+    return srs_path_like(_mount.c_str(), path, length);
 }
 
 bool SrsHttpVhost::is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase) 
 {
-    std::string fullpath = _dir + "/" + req->match()->unmatched_url;
-    if (_mount == "/") {
-        fullpath = _dir + "/" + req->match()->matched_url;
-        if (!req->match()->unmatched_url.empty()) {
-            fullpath += "/" + req->match()->unmatched_url;
-        }
-    }
+    std::string fullpath = get_request_file(req);
     
     if (::access(fullpath.c_str(), F_OK | R_OK) < 0) {
         srs_warn("check file %s does not exists", fullpath.c_str());
@@ -154,17 +161,7 @@ int SrsHttpVhost::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
 {
     int ret = ERROR_SUCCESS;
     
-    std::string fullpath = _dir + "/" + req->match()->unmatched_url;
-    if (_mount == "/") {
-        fullpath = _dir + "/" + req->match()->matched_url;
-        if (!req->match()->unmatched_url.empty()) {
-            fullpath += "/" + req->match()->unmatched_url;
-        }
-    }
-    
-    if (srs_string_ends_with(fullpath, "/")) {
-        fullpath += "index.html";
-    }
+    std::string fullpath = get_request_file(req);
     
     int fd = ::open(fullpath.c_str(), O_RDONLY);
     if (fd < 0) {
@@ -194,11 +191,44 @@ int SrsHttpVhost::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
         return res_mpegts(skt, req, str);
     } else if (srs_string_ends_with(fullpath, ".m3u8")) {
         return res_m3u8(skt, req, str);
+    } else if (srs_string_ends_with(fullpath, ".xml")) {
+        return res_xml(skt, req, str);
+    } else if (srs_string_ends_with(fullpath, ".js")) {
+        return res_javascript(skt, req, str);
+    } else if (srs_string_ends_with(fullpath, ".swf")) {
+        return res_swf(skt, req, str);
+    } else if (srs_string_ends_with(fullpath, ".css")) {
+        return res_css(skt, req, str);
     } else {
         return res_text(skt, req, str);
     }
     
     return ret;
+}
+
+string SrsHttpVhost::get_request_file(SrsHttpMessage* req)
+{
+    std::string fullpath = _dir + "/"; 
+    
+    // if root, directly use the matched url.
+    if (_mount == "/") {
+        // add the dir
+        fullpath += req->match()->matched_url;
+        // if file speicified, add the file.
+        if (!req->match()->unmatched_url.empty()) {
+            fullpath += "/" + req->match()->unmatched_url;
+        }
+    } else {
+        // virtual path, ignore the virutal path.
+        fullpath += req->match()->unmatched_url;
+    }
+    
+    // add default pages.
+    if (srs_string_ends_with(fullpath, "/")) {
+        fullpath += SRS_HTTP_DEFAULT_PAGE;
+    }
+    
+    return fullpath;
 }
 
 string SrsHttpVhost::vhost()

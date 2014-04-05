@@ -31,6 +31,7 @@ echo "depends tools are ok"
 #####################################################################################
 # for Ubuntu, auto install tools by apt-get
 #####################################################################################
+OS_IS_UBUNTU=NO
 function Ubuntu_prepare()
 {
     uname -v|grep Ubuntu >/dev/null 2>&1
@@ -38,6 +39,7 @@ function Ubuntu_prepare()
         return 0;
     fi
 
+    OS_IS_UBUNTU=YES
     echo "Ubuntu detected, install tools if needed"
     
     gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
@@ -113,12 +115,14 @@ Ubuntu_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "Ubuntu prepare failed, r
 #####################################################################################
 # for Centos, auto install tools by yum
 #####################################################################################
+OS_IS_CENTOS=NO
 function Centos_prepare()
 {
     if [[ ! -f /etc/redhat-release ]]; then
         return 0;
     fi
 
+    OS_IS_CENTOS=YES
     echo "Centos detected, install tools if needed"
     
     gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
@@ -315,6 +319,9 @@ function write_nginx_html5()
 </video>
 END
 }
+# create the nginx dir, for http-server if not build nginx
+mkdir -p ${SRS_OBJS}/nginx
+# make nginx
 __SRS_BUILD_NGINX=NO; if [ $SRS_ARM_UBUNTU12 = NO ]; then if [ $SRS_NGINX = YES ]; then __SRS_BUILD_NGINX=YES; fi fi
 if [ $__SRS_BUILD_NGINX = YES ]; then
     if [[ -f ${SRS_OBJS}/nginx/sbin/nginx ]]; then
@@ -337,28 +344,28 @@ if [ $__SRS_BUILD_NGINX = YES ]; then
     # nginx default use nobody, so cannot read the ts/m3u8 created by srs.
     cp ${SRS_OBJS}/nginx/conf/nginx.conf ${SRS_OBJS}/nginx/conf/nginx.conf.bk
     sed -i "s/^.user  nobody;/user `whoami`;/g" ${SRS_OBJS}/nginx/conf/nginx.conf
-    
-    # create forward dir
-    mkdir -p ${SRS_OBJS}/nginx/html/live &&
-    mkdir -p ${SRS_OBJS}/nginx/html/forward/live
-    
-    # generate default html pages for android.
-    html_file=${SRS_OBJS}/nginx/html/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
-    html_file=${SRS_OBJS}/nginx/html/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
-    html_file=${SRS_OBJS}/nginx/html/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
-    html_file=${SRS_OBJS}/nginx/html/forward/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
-    html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
-    html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
-    
-    # copy players to nginx html dir.
-    rm -rf ${SRS_OBJS}/nginx/html/players &&
-    ln -sf `pwd`/research/players ${SRS_OBJS}/nginx/html/players &&
-    rm -f ${SRS_OBJS}/nginx/crossdomain.xml &&
-    ln -sf `pwd`/research/players/crossdomain.xml ${SRS_OBJS}/nginx/html/crossdomain.xml
-    
-    # nginx.html to detect whether nginx is alive
-    echo "nginx is ok" > ${SRS_OBJS}/nginx/html/nginx.html
 fi
+
+# create forward dir
+mkdir -p ${SRS_OBJS}/nginx/html/live &&
+mkdir -p ${SRS_OBJS}/nginx/html/forward/live
+
+# generate default html pages for android.
+html_file=${SRS_OBJS}/nginx/html/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
+html_file=${SRS_OBJS}/nginx/html/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
+html_file=${SRS_OBJS}/nginx/html/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
+html_file=${SRS_OBJS}/nginx/html/forward/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
+html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
+html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
+
+# copy players to nginx html dir.
+rm -rf ${SRS_OBJS}/nginx/html/players &&
+ln -sf `pwd`/research/players ${SRS_OBJS}/nginx/html/players &&
+rm -f ${SRS_OBJS}/nginx/crossdomain.xml &&
+ln -sf `pwd`/research/players/crossdomain.xml ${SRS_OBJS}/nginx/html/crossdomain.xml
+
+# nginx.html to detect whether nginx is alive
+echo "nginx is ok" > ${SRS_OBJS}/nginx/html/nginx.html
 
 if [ $SRS_NGINX = YES ]; then
     echo "#define SRS_NGINX" >> $SRS_AUTO_HEADERS_H
@@ -411,31 +418,23 @@ mkdir -p `pwd`/${SRS_OBJS}/nginx/html/forward &&
 ln -sf `pwd`/${SRS_OBJS}/nginx/html/forward research/api-server/static-dir/forward
 ret=$?; if [[ $ret -ne 0 ]]; then echo "link players to cherrypy static-dir failed, ret=$ret"; exit $ret; fi
 
-# only when the nginx is ok, 
-# if api-server not enalbed, use nginx as demo.
+#####################################################################################
+# generate demo index.html
+#####################################################################################
+# if nginx enalbed, generate nginx index file.
 if [ $__SRS_BUILD_NGINX = YES ]; then
-    if [ $SRS_HTTP_CALLBACK = YES ]; then
-        # override the default index.
-        rm -f ${SRS_OBJS}/nginx/html/index.html &&
-        ln -sf `pwd`/research/players/nginx_index.html ${SRS_OBJS}/nginx/html/index.html
-    else
-        rm -f ${SRS_OBJS}/nginx/html/index.html &&
-        cat<<END > ${SRS_OBJS}/nginx/html/index.html
-<!DOCTYPE html>
-<html>
-<head>
-    <title>SRS</title>   
-    <meta charset="utf-8">
-</head>
-<body>
-    <script type="text/javascript">
-        setTimeout(function(){
-            window.location.href = "players/index.html" + window.location.search;
-        }, 500);
-    </script>
-</body>
-END
-    fi
+    rm -f ${SRS_OBJS}/nginx/html/index.html &&
+    ln -sf `pwd`/research/players/nginx_index.html ${SRS_OBJS}/nginx/html/index.html
+fi
+# if http-server enalbed, use srs embeded http-server
+if [ $SRS_HTTP_SERVER = YES ]; then
+    rm -f ${SRS_OBJS}/nginx/html/index.html &&
+    ln -sf `pwd`/research/players/srs-http-server_index.html ${SRS_OBJS}/nginx/html/index.html
+fi
+# if api-server enabled, generate for api server.
+if [ $SRS_HTTP_CALLBACK = YES ]; then
+    rm -f ${SRS_OBJS}/nginx/html/index.html &&
+    ln -sf `pwd`/research/players/api-server_index.html ${SRS_OBJS}/nginx/html/index.html
 fi
 
 #####################################################################################
@@ -603,7 +602,11 @@ echo "" >> $SRS_AUTO_HEADERS_H
 #####################################################################################
 # generated the contributors from AUTHORS.txt
 #####################################################################################
-SRS_CONSTRIBUTORS=`cat ../AUTHORS.txt|grep "*"|awk -F '\* ' '{print $2}'`
+if [ $OS_IS_CENTOS = YES ]; then
+    SRS_CONSTRIBUTORS=`cat ../AUTHORS.txt|grep "*"|awk -F '* ' '{print $2}'`
+else
+    SRS_CONSTRIBUTORS=`cat ../AUTHORS.txt|grep "*"|awk -F '\* ' '{print $2}'`
+fi
 echo "#define SRS_CONSTRIBUTORS \"\\" >> $SRS_AUTO_HEADERS_H
 for CONTRIBUTOR in $SRS_CONSTRIBUTORS; do
     echo "${CONTRIBUTOR} \\" >> $SRS_AUTO_HEADERS_H

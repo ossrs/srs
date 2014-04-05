@@ -127,15 +127,8 @@ int SrsRequest::discovery_app()
     app = url;
     vhost = host;
     srs_vhost_resolve(vhost, app);
-
-    // remove the unsupported chars in names.
-    vhost = srs_string_remove(vhost, "/ \n\r\t");
-    app = srs_string_remove(app, " \n\r\t");
-    stream = srs_string_remove(stream, " \n\r\t");
     
-    // remove end slash of app
-    app = srs_string_trim_end(app, "/");
-    stream = srs_string_trim_end(stream, "/");
+    strip();
     
     return ret;
 }
@@ -151,6 +144,22 @@ string SrsRequest::get_stream_url()
     url += stream;
 
     return url;
+}
+
+void SrsRequest::strip()
+{
+    // remove the unsupported chars in names.
+    vhost = srs_string_remove(vhost, "/ \n\r\t");
+    app = srs_string_remove(app, " \n\r\t");
+    stream = srs_string_remove(stream, " \n\r\t");
+    
+    // remove end slash of app/stream
+    app = srs_string_trim_end(app, "/");
+    stream = srs_string_trim_end(stream, "/");
+    
+    // remove start slash of app/stream
+    app = srs_string_trim_start(app, "/");
+    stream = srs_string_trim_start(stream, "/");
 }
 
 SrsResponse::SrsResponse()

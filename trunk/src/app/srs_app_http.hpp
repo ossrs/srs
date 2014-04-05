@@ -152,7 +152,12 @@ class SrsHttpHandler;
 
 // compare the path.
 // full compare, extractly match.
+// used for api match.
 extern bool srs_path_equals(const char* expect, const char* path, int nb_path);
+// compare the path use like,
+// used for http stream to match,
+// if the path like the requires
+extern bool srs_path_like(const char* expect, const char* path, int nb_path);
 
 // state of message
 enum SrsHttpParseState {
@@ -228,6 +233,10 @@ public:
     virtual SrsHttpHandler* res_status_line(std::stringstream& ss);
     virtual SrsHttpHandler* res_status_line_error(std::stringstream& ss, int code, std::string reason_phrase);
     virtual SrsHttpHandler* res_content_type(std::stringstream& ss);
+    virtual SrsHttpHandler* res_content_type_xml(std::stringstream& ss);
+    virtual SrsHttpHandler* res_content_type_javascript(std::stringstream& ss);
+    virtual SrsHttpHandler* res_content_type_swf(std::stringstream& ss);
+    virtual SrsHttpHandler* res_content_type_css(std::stringstream& ss);
     virtual SrsHttpHandler* res_content_type_json(std::stringstream& ss);
     virtual SrsHttpHandler* res_content_type_m3u8(std::stringstream& ss);
     virtual SrsHttpHandler* res_content_type_mpegts(std::stringstream& ss);
@@ -239,6 +248,10 @@ public:
 public:
     virtual int res_options(SrsSocket* skt);
     virtual int res_text(SrsSocket* skt, SrsHttpMessage* req, std::string body);
+    virtual int res_xml(SrsSocket* skt, SrsHttpMessage* req, std::string body);
+    virtual int res_javascript(SrsSocket* skt, SrsHttpMessage* req, std::string body);
+    virtual int res_swf(SrsSocket* skt, SrsHttpMessage* req, std::string body);
+    virtual int res_css(SrsSocket* skt, SrsHttpMessage* req, std::string body);
     virtual int res_m3u8(SrsSocket* skt, SrsHttpMessage* req, std::string body);
     virtual int res_mpegts(SrsSocket* skt, SrsHttpMessage* req, std::string body);
     virtual int res_json(SrsSocket* skt, SrsHttpMessage* req, std::string json);

@@ -15,6 +15,8 @@ function srs_get_version_code() { return "1.19"; }
 function srs_get_player_vhost() { return "players"; }
 // the api server port, for chat room.
 function srs_get_api_server_port() { return 8085; }
+// the srs http server port
+function srs_get_srs_http_server_port() { return 8080; }
 // get the stream published to vhost,
 // generally we need to transcode the stream to support HLS and filters.
 // for example, src_vhost is "players", we transcode stream to vhost "players_pub".
