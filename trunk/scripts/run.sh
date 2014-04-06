@@ -17,8 +17,9 @@ bash scripts/_step.start.srs.sh; ret=$?; if [[ 0 -ne $ret ]]; then exit $ret; fi
 # step 3(optinal): start srs listen at 19350 to forward to
 bash scripts/_step.start.srs.19350.sh; ret=$?; if [[ 0 -ne $ret ]]; then exit $ret; fi
 
+# REMOVED: for we use srs-http-server instead.
 # step 4(optinal): start nginx for HLS 
-bash scripts/_step.start.nginx.sh; ret=$?; if [[ 0 -ne $ret ]]; then exit $ret; fi
+#bash scripts/_step.start.nginx.sh; ret=$?; if [[ 0 -ne $ret ]]; then exit $ret; fi
 
 # step 5(optinal): start http hooks for srs callback 
 bash scripts/_step.start.api.server.sh; ret=$?; if [[ 0 -ne $ret ]]; then exit $ret; fi
@@ -31,18 +32,18 @@ bash scripts/_step.start.ffmpeg.players.sh; ret=$?; if [[ 0 -ne $ret ]]; then ex
 
 # step 8: add server ip to client hosts as demo. 
 ip=`ifconfig|grep "inet"|grep "addr"|grep "Mask"|grep -v "127.0.0.1"|awk 'NR==1 {print $2}'|awk -F ':' '{print $2}'`
+port=8085
 cat<<END
 默认的12路流演示：
-    http://$ip/players
+    http://$ip:$port/players
 默认的播放器流演示：
-    http://$ip/players/srs_player.html?vhost=players
+    http://$ip:$port/players/srs_player.html?vhost=players
 推流（主播）应用演示：
-    http://$ip/players/srs_publisher.html?vhost=players
+    http://$ip:$port/players/srs_publisher.html?vhost=players
 视频会议（聊天室）应用演示：
-    http://$ip/players/srs_chat.html?vhost=players
+    http://$ip:$port/players/srs_chat.html?vhost=players
 默认的测速应用演示:
-	http://$ip/players/srs_bwt.html?key=35c9b402c12a7246868752e2878f7e0e&vhost=bandcheck.srs.com
+    http://$ip:$port/players/srs_bwt.html?key=35c9b402c12a7246868752e2878f7e0e&vhost=bandcheck.srs.com
 END
 echo -e "${GREEN}演示地址：${BLACK}"
-echo -e "${RED}    http://$ip${BLACK}"
-echo -e "${RED}    http://$ip:8085${BLACK}"
+echo -e "${RED}    http://$ip:$port${BLACK}"
