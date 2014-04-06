@@ -29,6 +29,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
+#ifdef SRS_TRANSCODE
+
 #include <string>
 #include <vector>
 
@@ -37,8 +39,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsConfDirective;
 class SrsRequest;
 class SrsPithyPrint;
-
-#ifdef SRS_FFMPEG
 
 /**
 * a transcode engine: ffmepg,

@@ -510,6 +510,12 @@ else
     echo "#undef SRS_FFMPEG" >> $SRS_AUTO_HEADERS_H
 fi
 
+if [ $SRS_TRANSCODE = YES ]; then
+    echo "#define SRS_TRANSCODE" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_TRANSCODE" >> $SRS_AUTO_HEADERS_H
+fi
+
 #####################################################################################
 # build research code
 #####################################################################################

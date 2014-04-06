@@ -82,9 +82,10 @@ if [ $SRS_UTEST = YES ]; then SrsUtestMakeEntry="(cd ${SRS_OBJS}/utest; \$(MAKE)
 #####################################################################################
 # colorful summary
 SrsHlsSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_HLS = YES ]; then SrsHlsSummaryColor="\${GREEN}"; fi
-SrsNginxSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_NGINX = YES ]; then SrsNginxSummaryColor="\${GREEN}"; fi
+SrsNginxSummaryColor="\${GREEN}{disabled} "; if [ $SRS_NGINX = YES ]; then SrsNginxSummaryColor="\${GREEN}"; fi
 SrsSslSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_SSL = YES ]; then SrsSslSummaryColor="\${GREEN}"; fi
 SrsFfmpegSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_FFMPEG = YES ]; then SrsFfmpegSummaryColor="\${GREEN}"; fi
+SrsTranscodeSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_TRANSCODE = YES ]; then SrsTranscodeSummaryColor="\${GREEN}"; fi
 SrsHttpCallbackSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_HTTP_CALLBACK = YES ]; then SrsHttpCallbackSummaryColor="\${GREEN}"; fi
 SrsHttpServerSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_HTTP_SERVER = YES ]; then SrsHttpServerSummaryColor="\${GREEN}"; fi
 SrsHttpApiSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_HTTP_API = YES ]; then SrsHttpApiSummaryColor="\${GREEN}"; fi
@@ -152,7 +153,9 @@ echo -e "     |     ${SrsNginxSummaryColor}nginx: delivery HLS stream by nginx\$
 echo -e "     |     ${SrsSslSummaryColor}ssl @see: https://github.com/winlinvip/simple-rtmp-server/wiki/RTMPHandshake\${BLACK}"
 echo -e "     |     ${SrsSslSummaryColor}ssl: support RTMP complex handshake for client required, for instance, flash\${BLACK}"
 echo -e "     |     ${SrsFfmpegSummaryColor}ffmpeg @see: https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG\${BLACK}"
-echo -e "     |     ${SrsFfmpegSummaryColor}ffmpeg: support transcoding RTMP stream with FFMPEG\${BLACK}"
+echo -e "     |     ${SrsFfmpegSummaryColor}ffmpeg: transcode, mux, ingest tool\${BLACK}"
+echo -e "     |     ${SrsTranscodeSummaryColor}transcode @see: https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG\${BLACK}"
+echo -e "     |     ${SrsTranscodeSummaryColor}transcode: support transcoding RTMP stream\${BLACK}"
 echo -e "     |     ${SrsHttpCallbackSummaryColor}http-callback @see: https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback\${BLACK}"
 echo -e "     |     ${SrsHttpCallbackSummaryColor}http-callback: support http callback for authentication and event injection\${BLACK}"
 echo -e "     |     ${SrsHttpServerSummaryColor}http-server @see: https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPServer\${BLACK}"

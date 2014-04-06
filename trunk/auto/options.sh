@@ -76,6 +76,7 @@ do
         --with-hls)                     SRS_HLS=YES                 ;;
         --with-nginx)                   SRS_NGINX=YES               ;;
         --with-ffmpeg)                  SRS_FFMPEG=YES              ;;
+        --with-transcode)               SRS_TRANSCODE=YES           ;;
         --with-http-callback)           SRS_HTTP_CALLBACK=YES       ;;
         --with-http-server)             SRS_HTTP_SERVER=YES         ;;
         --with-http-api)                SRS_HTTP_API=YES            ;;
@@ -94,6 +95,7 @@ do
         --without-hls)                  SRS_HLS=NO                  ;;
         --without-nginx)                SRS_NGINX=NO                ;;
         --without-ffmpeg)               SRS_FFMPEG=NO               ;;
+        --without-transcode)            SRS_TRANSCODE=NO            ;;
         --without-http-callback)        SRS_HTTP_CALLBACK=NO        ;;
         --without-http-server)          SRS_HTTP_SERVER=NO          ;;
         --without-http-api)             SRS_HTTP_API=NO             ;;
@@ -132,6 +134,7 @@ if [ $SRS_ARM_UBUNTU12 = YES ]; then
     if [ $SRS_NGINX = RESERVED ]; then SRS_NGINX=NO; fi
     if [ $SRS_SSL = RESERVED ]; then SRS_SSL=YES; fi
     if [ $SRS_FFMPEG = RESERVED ]; then SRS_FFMPEG=NO; fi
+    if [ $SRS_TRANSCODE = RESERVED ]; then SRS_TRANSCODE=NO; fi
     if [ $SRS_HTTP_CALLBACK = RESERVED ]; then SRS_HTTP_CALLBACK=NO; fi
     if [ $SRS_HTTP_SERVER = RESERVED ]; then SRS_HTTP_SERVER=YES; fi
     if [ $SRS_HTTP_API = RESERVED ]; then SRS_HTTP_API=YES; fi
@@ -154,6 +157,7 @@ else
     if [ $SRS_NGINX = RESERVED ]; then SRS_NGINX=NO; fi
     if [ $SRS_SSL = RESERVED ]; then SRS_SSL=YES; fi
     if [ $SRS_FFMPEG = RESERVED ]; then SRS_FFMPEG=NO; fi
+    if [ $SRS_TRANSCODE = RESERVED ]; then SRS_TRANSCODE=NO; fi
     if [ $SRS_HTTP_CALLBACK = RESERVED ]; then SRS_HTTP_CALLBACK=NO; fi
     if [ $SRS_HTTP_SERVER = RESERVED ]; then SRS_HTTP_SERVER=YES; fi
     if [ $SRS_HTTP_API = RESERVED ]; then SRS_HTTP_API=YES; fi
@@ -178,6 +182,7 @@ if [ $SRS_DEV = YES ]; then
     SRS_NGINX=NO
     SRS_SSL=YES
     SRS_FFMPEG=YES
+    SRS_TRANSCODE=YES
     SRS_HTTP_CALLBACK=YES
     SRS_HTTP_SERVER=YES
     SRS_HTTP_API=YES
@@ -201,6 +206,7 @@ if [ $SRS_PI = YES ]; then
     SRS_NGINX=NO
     SRS_SSL=YES
     if [ $SRS_FFMPEG = RESERVED ]; then SRS_FFMPEG=NO; fi
+    if [ $SRS_TRANSCODE = RESERVED ]; then SRS_TRANSCODE=NO; fi
     SRS_HTTP_CALLBACK=NO
     SRS_HTTP_SERVER=YES
     SRS_HTTP_API=YES
@@ -222,6 +228,9 @@ fi
 if [ $SRS_HTTP_CALLBACK = YES ]; then SRS_HTTP_PARSER=YES; fi
 if [ $SRS_HTTP_SERVER = YES ]; then SRS_HTTP_PARSER=YES; fi
 if [ $SRS_HTTP_API = YES ]; then SRS_HTTP_PARSER=YES; fi
+
+# if transcode specified, try ffmpeg if possible.
+if [ $SRS_TRANSCODE = YES ]; then if [ $SRS_FFMPEG = RESERVED ]; then SRS_FFMPEG=YES; fi fi
 
 # parse the jobs for make
 if [[ "" -eq SRS_JOBS ]]; then 
@@ -249,8 +258,10 @@ if [ $help = yes ]; then
   --with-http-callback      enable http hooks, build cherrypy as demo api server.
   --with-http-server        enable http server to delivery http stream.
   --with-http-api           enable http api, to manage SRS by http api.
-  --with-ffmpeg             enable transcoding with ffmpeg.
+  --with-ffmpeg             enable transcoding tool ffmpeg.
                             build ffmpeg at: ./objs/ffmpeg/bin/ffmpeg
+  --with-transcode          enable transcoding features.
+                            user must specifies the transcode tools in conf.
   --with-librtmp            enable srs-librtmp, library for client.
   --with-bwtc               enable SRS bandwidth test client tool.
   --with-research           build the research tools.
@@ -268,7 +279,8 @@ if [ $help = yes ]; then
   --without-http-callback   disable http, http hooks callback.
   --without-http-server     disable http server, use external server to delivery http stream.
   --without-http-api        disable http api, only use console to manage SRS process.
-  --without-ffmpeg          disable the ffmpeg transcoding feature.
+  --without-ffmpeg          disable the ffmpeg transcode tool feature.
+  --without-transcode       disable the transcoding feature.
   --without-librtmp         disable srs-librtmp, library for client.
   --without-bwtc            disable SRS bandwidth test client tool.
   --without-research        do not build the research tools.
@@ -364,6 +376,7 @@ if [ $SRS_HLS = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-hls"; else SR
 if [ $SRS_NGINX = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-nginx"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-nginx"; fi
 if [ $SRS_SSL = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-ssl"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-ssl"; fi
 if [ $SRS_FFMPEG = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-ffmpeg"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-ffmpeg"; fi
+if [ $SRS_TRANSCODE = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-transcode"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-transcode"; fi
 if [ $SRS_HTTP_CALLBACK = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-http-callback"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-http-callback"; fi
 if [ $SRS_HTTP_SERVER = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-http-server"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-http-server"; fi
 if [ $SRS_HTTP_API = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-http-api"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-http-api"; fi
