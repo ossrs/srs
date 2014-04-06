@@ -17,25 +17,35 @@ SRS_HLS=RESERVED
 SRS_NGINX=RESERVED
 SRS_SSL=RESERVED
 SRS_FFMPEG=RESERVED
+SRS_TRANSCODE=RESERVED
 SRS_HTTP_PARSER=RESERVED
 SRS_HTTP_CALLBACK=RESERVED
 SRS_HTTP_SERVER=RESERVED
 SRS_HTTP_API=RESERVED
-SRS_LIBRTMP=RESERVED # srs-librtmp
-SRS_BWTC=RESERVED # srs-bandwidth-test client
+SRS_LIBRTMP=RESERVED
+# srs-bandwidth-test client
+SRS_BWTC=RESERVED
 SRS_RESEARCH=RESERVED
 SRS_UTEST=RESERVED
-SRS_GPERF=RESERVED # tcmalloc
-SRS_GPERF_MC=RESERVED # gperf memory check
-SRS_GPERF_MP=RESERVED # gperf memory profile
-SRS_GPERF_CP=RESERVED # gperf cpu profile
-SRS_GPROF=RESERVED # gprof
-SRS_ARM_UBUNTU12=RESERVED # armhf(v7cpu) built on ubuntu12
+# tcmalloc
+SRS_GPERF=RESERVED
+# gperf memory check
+SRS_GPERF_MC=RESERVED
+# gperf memory profile
+SRS_GPERF_MP=RESERVED
+# gperf cpu profile
+SRS_GPERF_CP=RESERVED
+# gprof
+SRS_GPROF=RESERVED
+# armhf(v7cpu) built on ubuntu12
+SRS_ARM_UBUNTU12=RESERVED
+#
 # arguments
 SRS_PREFIX=/usr/local/srs
 SRS_JOBS=1
 SRS_STATIC=RESERVED
 SRS_HTTP_PARSER=NO
+#
 # private internal
 # dev, open all features for dev, no gperf/prof/arm.
 SRS_DEV=NO
@@ -165,7 +175,7 @@ fi
 # if dev specified, open features if possible.
 if [ $SRS_DEV = YES ]; then
     SRS_HLS=YES
-    SRS_NGINX=YES
+    SRS_NGINX=NO
     SRS_SSL=YES
     SRS_FFMPEG=YES
     SRS_HTTP_CALLBACK=YES

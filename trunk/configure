@@ -499,18 +499,14 @@ echo ""
 echo "configure summary:"
 echo "      ${SRS_CONFIGURE}"
 if [ $SRS_HLS = YES ]; then
-    echo -e "${GREEN}HLS over nginx is enabled${BLACK}"
+    echo -e "${GREEN}HLS is enabled${BLACK}"
 else
     echo -e "${YELLOW}warning: without HLS support${BLACK}"
 fi
 if [ $SRS_NGINX = YES ]; then
     echo -e "${GREEN}Nginx http server is enabled${BLACK}"
 else
-    if [ $SRS_HLS = YES ]; then
-        echo -e "${YELLOW}warning: HLS without Nginx support${BLACK}"
-    else
-        echo -e "${GREEN}note: HLS without Nginx support${BLACK}"
-    fi
+    echo -e "${GREEN}note: Nginx http server is disabled${BLACK}"
 fi
 if [ $SRS_SSL = YES ]; then
     echo -e "${GREEN}rtmp complex handshake is enabled${BLACK}"
