@@ -44,7 +44,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_ENCODER_COPY    "copy"
 #define SRS_ENCODER_NO_VIDEO    "vn"
 #define SRS_ENCODER_NO_AUDIO    "an"
+// only support libx264 encoder.
 #define SRS_ENCODER_VCODEC     "libx264"
+// any aac encoder is ok which contains the aac,
+// for example, libaacplus, aac, fdkaac
 #define SRS_ENCODER_ACODEC     "aac"
 
 // for encoder to detect the dead loop
