@@ -152,9 +152,9 @@ Supported operating systems and hardware:
 1. Support RTMP ATC for HLS/HDS to support backup(failover)
 1. Support http RESTful management api.
 1. Support embeded http server for hls(live/vod)
+1. [dev] Support stream ingester using ffmpeg.
 1. [plan] Support file to hls vod stream.
 1. [plan] Support system full utest on gtest.
-1. [plan] Support stream ingester using ffmpeg.
 1. [plan] Support ingest RTSP(RTP, SDP) stream to RTMP.
 1. [plan] Support network based cli and json result.
 1. [plan] Support RTMP edge server, push/pull stream from any RTMP server
