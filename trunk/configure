@@ -86,6 +86,7 @@ SrsNginxSummaryColor="\${GREEN}{disabled} "; if [ $SRS_NGINX = YES ]; then SrsNg
 SrsSslSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_SSL = YES ]; then SrsSslSummaryColor="\${GREEN}"; fi
 SrsFfmpegSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_FFMPEG = YES ]; then SrsFfmpegSummaryColor="\${GREEN}"; fi
 SrsTranscodeSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_TRANSCODE = YES ]; then SrsTranscodeSummaryColor="\${GREEN}"; fi
+SrsIngestSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_INGEST = YES ]; then SrsIngestSummaryColor="\${GREEN}"; fi
 SrsHttpCallbackSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_HTTP_CALLBACK = YES ]; then SrsHttpCallbackSummaryColor="\${GREEN}"; fi
 SrsHttpServerSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_HTTP_SERVER = YES ]; then SrsHttpServerSummaryColor="\${GREEN}"; fi
 SrsHttpApiSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_HTTP_API = YES ]; then SrsHttpApiSummaryColor="\${GREEN}"; fi
@@ -156,6 +157,8 @@ echo -e "     |     ${SrsFfmpegSummaryColor}ffmpeg @see: https://github.com/winl
 echo -e "     |     ${SrsFfmpegSummaryColor}ffmpeg: transcode, mux, ingest tool\${BLACK}"
 echo -e "     |     ${SrsTranscodeSummaryColor}transcode @see: https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG\${BLACK}"
 echo -e "     |     ${SrsTranscodeSummaryColor}transcode: support transcoding RTMP stream\${BLACK}"
+echo -e "     |     ${SrsIngestSummaryColor}ingest @see: https://github.com/winlinvip/simple-rtmp-server/wiki/Ingest\${BLACK}"
+echo -e "     |     ${SrsIngestSummaryColor}ingest: support ingest file/stream/device then push to SRS by RTMP stream\${BLACK}"
 echo -e "     |     ${SrsHttpCallbackSummaryColor}http-callback @see: https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback\${BLACK}"
 echo -e "     |     ${SrsHttpCallbackSummaryColor}http-callback: support http callback for authentication and event injection\${BLACK}"
 echo -e "     |     ${SrsHttpServerSummaryColor}http-server @see: https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPServer\${BLACK}"
@@ -517,9 +520,19 @@ else
     echo -e "${YELLOW}warning: without rtmp complex handshake support, donot support h264/aac to adobe flash player${BLACK}"
 fi
 if [ $SRS_FFMPEG = YES ]; then
-    echo -e "${GREEN}live stream transcoding over FFMPEG is enabled${BLACK}"
+    echo -e "${GREEN}transcode/mux/ingest tool FFMPEG is enabled${BLACK}"
 else
-    echo -e "${YELLOW}warning: without live stream transcoding over FFMPEG support${BLACK}"
+    echo -e "${YELLOW}warning: without transcode/mux/ingest tool FFMPEG support${BLACK}"
+fi
+if [ $SRS_TRANSCODE = YES ]; then
+    echo -e "${GREEN}transcoding RTMP stream is enabled${BLACK}"
+else
+    echo -e "${YELLOW}warning: without transcoding RTMP stream support${BLACK}"
+fi
+if [ $SRS_INGEST = YES ]; then
+    echo -e "${GREEN}ingest file/stream/device is enabled${BLACK}"
+else
+    echo -e "${YELLOW}warning: without ingest file/stream/device support${BLACK}"
 fi
 if [ $SRS_HTTP_CALLBACK = YES ]; then
     echo -e "${GREEN}http hooks callback over CherryPy is enabled${BLACK}"
