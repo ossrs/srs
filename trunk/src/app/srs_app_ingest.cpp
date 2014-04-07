@@ -303,7 +303,9 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
         srs_error("invalid ingest type=%s, ret=%d", input_type.c_str(), ret);
     }
     
-    if (!engine || !_srs_config->get_engine_enabled(engine)) {
+    std::string vcodec = _srs_config->get_engine_vcodec(engine);
+    std::string acodec = _srs_config->get_engine_acodec(engine);
+    if (!engine || !_srs_config->get_engine_enabled(engine) || vcodec.empty() || acodec.empty()) {
         if ((ret = ffmpeg->initialize_copy()) != ERROR_SUCCESS) {
             return ret;
         }
