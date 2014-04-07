@@ -29,6 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_config.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_app_ffmpeg.hpp>
+#include <srs_app_pithy_print.hpp>
 
 // when error, ingester sleep for a while and retry.
 #define SRS_INGESTER_SLEEP_US (int64_t)(3*1000*1000LL)
@@ -37,6 +38,7 @@ SrsIngester::SrsIngester()
 {
     // TODO: FIXME: support reload.
     pthread = new SrsThread(this, SRS_INGESTER_SLEEP_US);
+    pithy_print = new SrsPithyPrint(SRS_STAGE_INGESTER);
 }
 
 SrsIngester::~SrsIngester()
@@ -52,6 +54,17 @@ int SrsIngester::start()
     if ((ret = parse()) != ERROR_SUCCESS) {
         clear_engines();
         ret = ERROR_SUCCESS;
+        return ret;
+    }
+    
+    // return for error or no engine.
+    if (ffmpegs.empty()) {
+        return ret;
+    }
+    
+    // start thread to run all encoding engines.
+    if ((ret = pthread->start()) != ERROR_SUCCESS) {
+        srs_error("st_thread_create failed. ret=%d", ret);
         return ret;
     }
     
@@ -96,7 +109,7 @@ int SrsIngester::parse_engines(SrsConfDirective* vhost, SrsConfDirective* ingest
     _srs_config->get_transcode_engines(ingest, engines);
     if (engines.empty()) {
         SrsFFMPEG* ffmpeg = new SrsFFMPEG(ffmpeg_bin);
-        if ((ret = initialize_ffmpeg(ffmpeg, ingest, NULL)) != ERROR_SUCCESS) {
+        if ((ret = initialize_ffmpeg(ffmpeg, vhost, ingest, NULL)) != ERROR_SUCCESS) {
             srs_freep(ffmpeg);
             if (ret != ERROR_ENCODER_LOOP) {
                 srs_error("invalid ingest engine. ret=%d", ret);
@@ -112,7 +125,7 @@ int SrsIngester::parse_engines(SrsConfDirective* vhost, SrsConfDirective* ingest
     for (int i = 0; i < (int)engines.size(); i++) {
         SrsConfDirective* engine = engines[i];
         SrsFFMPEG* ffmpeg = new SrsFFMPEG(ffmpeg_bin);
-        if ((ret = initialize_ffmpeg(ffmpeg, ingest, engine)) != ERROR_SUCCESS) {
+        if ((ret = initialize_ffmpeg(ffmpeg, vhost, ingest, engine)) != ERROR_SUCCESS) {
             srs_freep(ffmpeg);
             if (ret != ERROR_ENCODER_LOOP) {
                 srs_error("invalid ingest engine: %s %s", ingest->arg0().c_str(), engine->arg0().c_str());
@@ -128,11 +141,35 @@ int SrsIngester::parse_engines(SrsConfDirective* vhost, SrsConfDirective* ingest
 
 void SrsIngester::stop()
 {
+    pthread->stop();
+    clear_engines();
 }
 
 int SrsIngester::cycle()
 {
     int ret = ERROR_SUCCESS;
+    
+    std::vector<SrsFFMPEG*>::iterator it;
+    for (it = ffmpegs.begin(); it != ffmpegs.end(); ++it) {
+        SrsFFMPEG* ffmpeg = *it;
+        
+        // start all ffmpegs.
+        if ((ret = ffmpeg->start()) != ERROR_SUCCESS) {
+            srs_error("ingest ffmpeg start failed. ret=%d", ret);
+            return ret;
+        }
+
+        // check ffmpeg status.
+        if ((ret = ffmpeg->cycle()) != ERROR_SUCCESS) {
+            srs_error("ingest ffmpeg cycle failed. ret=%d", ret);
+            return ret;
+        }
+    }
+
+    // pithy print
+    ingester();
+    pithy_print->elapse(SRS_INGESTER_SLEEP_US / 1000);
+    
     return ret;
 }
 
@@ -170,21 +207,109 @@ int SrsIngester::parse()
     return ret;
 }
 
-int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* ingest, SrsConfDirective* engine)
+int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, SrsConfDirective* ingest, SrsConfDirective* engine)
 {
     int ret = ERROR_SUCCESS;
     
-    std::string input = _srs_config->get_ingest_input(ingest);
-    if (input.empty()) {
-        ret = ERROR_ENCODER_NO_INPUT;
-        srs_trace("empty ingest intput. ret=%d", ret);
+    SrsConfDirective* listen = _srs_config->get_listen();
+    srs_assert(listen->args.size() > 0);
+    std::string port = listen->arg0();
+    
+    std::string output = _srs_config->get_engine_output(engine);
+    // output stream, to other/self server
+    // ie. rtmp://127.0.0.1:1935/live/livestream_sd
+    output = srs_string_replace(output, "[vhost]", vhost->arg0());
+    output = srs_string_replace(output, "[port]", port);
+    if (output.empty()) {
+        ret = ERROR_ENCODER_NO_OUTPUT;
+        srs_trace("empty ingest output url. ret=%d", ret);
         return ret;
     }
     
+    // find the app and stream in rtmp url
+    std::string url = output;
+    std::string app, stream;
+    size_t pos = std::string::npos;
+    if ((pos = url.rfind("/")) != std::string::npos) {
+        stream = url.substr(pos + 1);
+        url = url.substr(0, pos);
+    }
+    if ((pos = url.rfind("/")) != std::string::npos) {
+        app = url.substr(pos + 1);
+        url = url.substr(0, pos);
+    }
+    if ((pos = app.rfind("?")) != std::string::npos) {
+        app = app.substr(0, pos);
+    }
+    
+    std::string log_file;
+    // write ffmpeg info to log file.
+    log_file = _srs_config->get_ffmpeg_log_dir();
+    log_file += "/";
+    log_file += "ingest";
+    log_file += "-";
+    log_file += vhost->arg0();
+    log_file += "-";
+    log_file += app;
+    log_file += "-";
+    log_file += stream;
+    log_file += ".log";
+
+    // stream name: vhost/app/stream for print
+    input_stream_name = vhost->arg0();
+    input_stream_name += "/";
+    input_stream_name += app;
+    input_stream_name += "/";
+    input_stream_name += stream;
+    
+    // input
+    std::string input_type = _srs_config->get_ingest_input_type(ingest);
+    if (input_type.empty()) {
+        ret = ERROR_ENCODER_NO_INPUT;
+        srs_trace("empty ingest intput type. ret=%d", ret);
+        return ret;
+    }
+
+    if (input_type == SRS_INGEST_TYPE_FILE) {
+        std::string input_url = _srs_config->get_ingest_input_url(ingest);
+        if (input_url.empty()) {
+            ret = ERROR_ENCODER_NO_INPUT;
+            srs_trace("empty ingest intput url. ret=%d", ret);
+            return ret;
+        }
+        
+        // for file, set re.
+        ffmpeg->set_iparams("-re");
+    
+        if ((ret = ffmpeg->initialize(input_url, output, log_file)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    } else {
+        ret = ERROR_ENCODER_INPUT_TYPE;
+        srs_error("invalid ingest type=%s, ret=%d", input_type.c_str(), ret);
+    }
+    
     if (!engine || !_srs_config->get_engine_enabled(engine)) {
+        if ((ret = ffmpeg->initialize_copy()) != ERROR_SUCCESS) {
+            return ret;
+        }
+    } else {
+        if ((ret = ffmpeg->initialize_transcode(engine)) != ERROR_SUCCESS) {
+            return ret;
+        }
     }
     
     return ret;
+}
+
+void SrsIngester::ingester()
+{
+    // reportable
+    if (pithy_print->can_print()) {
+        // TODO: FIXME: show more info.
+        srs_trace("-> time=%"PRId64", ingesters=%d, input=%s", 
+            pithy_print->get_age(), (int)ffmpegs.size(), input_stream_name.c_str());
+    }
 }
 
 #endif

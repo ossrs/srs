@@ -847,14 +847,29 @@ int SrsConfig::get_pithy_print_forwarder()
 
 int SrsConfig::get_pithy_print_encoder()
 {
-    SrsConfDirective* pithy = root->get("encoder");
+    SrsConfDirective* pithy = root->get("pithy_print");
     if (!pithy) {
         return SRS_STAGE_ENCODER_INTERVAL_MS;
     }
     
-    pithy = pithy->get("forwarder");
+    pithy = pithy->get("encoder");
     if (!pithy) {
         return SRS_STAGE_ENCODER_INTERVAL_MS;
+    }
+    
+    return ::atoi(pithy->arg0().c_str());
+}
+
+int SrsConfig::get_pithy_print_ingester()
+{
+    SrsConfDirective* pithy = root->get("pithy_print");
+    if (!pithy) {
+        return SRS_STAGE_INGESTER_INTERVAL_MS;
+    }
+    
+    pithy = pithy->get("ingester");
+    if (!pithy) {
+        return SRS_STAGE_INGESTER_INTERVAL_MS;
     }
     
     return ::atoi(pithy->arg0().c_str());
@@ -1645,9 +1660,32 @@ string SrsConfig::get_ingest_ffmpeg(SrsConfDirective* ingest)
     return conf->arg0();
 }
 
-string SrsConfig::get_ingest_input(SrsConfDirective* ingest)
+string SrsConfig::get_ingest_input_type(SrsConfDirective* ingest)
 {
     SrsConfDirective* conf = ingest->get("input");
+    
+    if (!conf) {
+        return SRS_INGEST_TYPE_FILE;
+    }
+
+    conf = conf->get("type");
+    
+    if (!conf) {
+        return SRS_INGEST_TYPE_FILE;
+    }
+    
+    return conf->arg0();
+}
+
+string SrsConfig::get_ingest_input_url(SrsConfDirective* ingest)
+{
+    SrsConfDirective* conf = ingest->get("input");
+    
+    if (!conf) {
+        return "";
+    }
+
+    conf = conf->get("url");
     
     if (!conf) {
         return "";

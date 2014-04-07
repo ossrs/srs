@@ -164,13 +164,13 @@ SrsServer::SrsServer()
     _srs_config->subscribe(this);
     
 #ifdef SRS_HTTP_API
-    http_api_handler = SrsHttpHandler::create_http_api();
+    http_api_handler = NULL;
 #endif
 #ifdef SRS_HTTP_SERVER
-    http_stream_handler = SrsHttpHandler::create_http_stream();
+    http_stream_handler = NULL;
 #endif
 #ifdef SRS_INGEST
-    ingester = new SrsIngester();
+    ingester = NULL;
 #endif
 }
 
@@ -204,6 +204,19 @@ SrsServer::~SrsServer()
 int SrsServer::initialize()
 {
     int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_HTTP_API
+    srs_assert(!http_api_handler);
+    http_api_handler = SrsHttpHandler::create_http_api();
+#endif
+#ifdef SRS_HTTP_SERVER
+    srs_assert(!http_stream_handler);
+    http_stream_handler = SrsHttpHandler::create_http_stream();
+#endif
+#ifdef SRS_INGEST
+    srs_assert(!ingester);
+    ingester = new SrsIngester();
+#endif
     
 #ifdef SRS_HTTP_API
     if ((ret = http_api_handler->initialize()) != ERROR_SUCCESS) {

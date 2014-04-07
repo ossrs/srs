@@ -71,6 +71,10 @@ struct SrsStageInfo : public ISrsReloadHandler
                 pithy_print_time_ms = _srs_config->get_pithy_print_encoder();
                 break;
             }
+            case SRS_STAGE_INGESTER: {
+                pithy_print_time_ms = _srs_config->get_pithy_print_ingester();
+                break;
+            }
             case SRS_STAGE_HLS: {
                 pithy_print_time_ms = _srs_config->get_pithy_print_hls();
                 break;
@@ -108,7 +112,8 @@ int SrsPithyPrint::enter_stage()
     
     std::map<int, SrsStageInfo*>::iterator it = _srs_stages.find(stage_id);
     if (it == _srs_stages.end()) {
-        stage = _srs_stages[stage_id] = new SrsStageInfo(stage_id);
+        stage = new SrsStageInfo(stage_id);
+        _srs_stages[stage_id] = stage;
     } else {
         stage = it->second;
     }

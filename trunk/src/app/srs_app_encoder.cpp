@@ -99,13 +99,13 @@ int SrsEncoder::cycle()
         
         // start all ffmpegs.
         if ((ret = ffmpeg->start()) != ERROR_SUCCESS) {
-            srs_error("ffmpeg start failed. ret=%d", ret);
+            srs_error("transcode ffmpeg start failed. ret=%d", ret);
             return ret;
         }
 
         // check ffmpeg status.
         if ((ret = ffmpeg->cycle()) != ERROR_SUCCESS) {
-            srs_error("ffmpeg cycle failed. ret=%d", ret);
+            srs_error("transcode ffmpeg cycle failed. ret=%d", ret);
             return ret;
         }
     }

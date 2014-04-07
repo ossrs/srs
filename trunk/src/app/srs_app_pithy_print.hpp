@@ -40,6 +40,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_STAGE_ENCODER 4
 // the pithy stage for all hls.
 #define SRS_STAGE_HLS 5
+// the pithy stage for all ingesters.
+#define SRS_STAGE_INGESTER 6
 
 /**
 * the stage is used for a collection of object to do print,

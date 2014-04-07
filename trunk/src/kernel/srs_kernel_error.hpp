@@ -155,6 +155,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_ENCODER_DUP2                  716
 #define ERROR_ENCODER_PARSE                 717
 #define ERROR_ENCODER_NO_INPUT              718
+#define ERROR_ENCODER_NO_OUTPUT             719
+#define ERROR_ENCODER_INPUT_TYPE            720
 
 #define ERROR_HTTP_PARSE_URI                800
 #define ERROR_HTTP_DATA_INVLIAD             801

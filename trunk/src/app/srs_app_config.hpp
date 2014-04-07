@@ -66,7 +66,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_STAGE_PUBLISH_USER_INTERVAL_MS 1100
 #define SRS_STAGE_FORWARDER_INTERVAL_MS 2000
 #define SRS_STAGE_ENCODER_INTERVAL_MS 2000
+#define SRS_STAGE_INGESTER_INTERVAL_MS 2000
 #define SRS_STAGE_HLS_INTERVAL_MS 2000
+
+#define SRS_INGEST_TYPE_FILE "file"
 
 class SrsFileBuffer;
 
@@ -134,6 +137,7 @@ public:
     virtual int                 get_pithy_print_publish();
     virtual int                 get_pithy_print_forwarder();
     virtual int                 get_pithy_print_encoder();
+    virtual int                 get_pithy_print_ingester();
     virtual int                 get_pithy_print_hls();
     virtual int                 get_pithy_print_play();
 // vhost section
@@ -190,7 +194,8 @@ public:
     virtual void                get_ingesters(std::string vhost, std::vector<SrsConfDirective*>& ingeters);
     virtual bool                get_ingest_enabled(SrsConfDirective* ingest);
     virtual std::string         get_ingest_ffmpeg(SrsConfDirective* ingest);
-    virtual std::string         get_ingest_input(SrsConfDirective* ingest);
+    virtual std::string         get_ingest_input_type(SrsConfDirective* ingest);
+    virtual std::string         get_ingest_input_url(SrsConfDirective* ingest);
 // log section
 public:
     virtual bool                get_srs_log_tank_file();

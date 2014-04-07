@@ -51,6 +51,7 @@ private:
     int log_fd;
 private:
     std::string                 ffmpeg;
+    std::string                 _iparams;
     std::vector<std::string>    vfilter;
     std::string                 vcodec;
     int                         vbitrate;
@@ -72,6 +73,7 @@ public:
     SrsFFMPEG(std::string ffmpeg_bin);
     virtual ~SrsFFMPEG();
 public:
+    virtual void set_iparams(std::string iparams);
     virtual std::string output();
 public:
     virtual int initialize(std::string in, std::string out, std::string log);

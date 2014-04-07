@@ -37,6 +37,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsFFMPEG;
 class SrsConfDirective;
+class SrsPithyPrint;
 
 /**
 * ingest file/stream/device, 
@@ -46,9 +47,11 @@ class SrsConfDirective;
 class SrsIngester : public ISrsThreadHandler
 {
 private:
+    std::string input_stream_name;
     std::vector<SrsFFMPEG*> ffmpegs;
 private:
     SrsThread* pthread;
+    SrsPithyPrint* pithy_print;
 public:
     SrsIngester();
     virtual ~SrsIngester();
@@ -64,7 +67,8 @@ private:
     virtual int parse();
     virtual int parse_ingesters(SrsConfDirective* vhost);
     virtual int parse_engines(SrsConfDirective* vhost, SrsConfDirective* ingest);
-    virtual int initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* ingest, SrsConfDirective* engine);
+    virtual int initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, SrsConfDirective* ingest, SrsConfDirective* engine);
+    virtual void ingester();
 };
 
 #endif

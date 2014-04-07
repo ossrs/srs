@@ -73,6 +73,11 @@ SrsFFMPEG::~SrsFFMPEG()
     stop();
 }
 
+void SrsFFMPEG::set_iparams(string iparams)
+{
+    _iparams = iparams;
+}
+
 string SrsFFMPEG::output()
 {
     return _output;
@@ -231,6 +236,11 @@ int SrsFFMPEG::start()
     // The first argument, by convention, should point to 
     // the filename associated  with  the file being executed.
     params.push_back(ffmpeg);
+    
+    // input params
+    if (!_iparams.empty()) {
+        params.push_back(_iparams);
+    }
     
     // input.
     params.push_back("-f");
