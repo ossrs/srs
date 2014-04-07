@@ -45,7 +45,6 @@ SRS_ARM_UBUNTU12=RESERVED
 SRS_PREFIX=/usr/local/srs
 SRS_JOBS=1
 SRS_STATIC=RESERVED
-SRS_HTTP_PARSER=NO
 #
 # private internal
 # dev, open all features for dev, no gperf/prof/arm.
@@ -143,12 +142,13 @@ if [ $SRS_INGEST = YES ]; then if [ $SRS_FFMPEG = RESERVED ]; then SRS_FFMPEG=YE
 # if arm specified, set some default to disabled.
 if [ $SRS_ARM_UBUNTU12 = YES ]; then
     if [ $SRS_HLS = RESERVED ]; then SRS_HLS=YES; fi
-    if [ $SRS_NGINX = RESERVED ]; then SRS_NGINX=NO; fi
+    SRS_NGINX=NO
     if [ $SRS_SSL = RESERVED ]; then SRS_SSL=YES; fi
-    if [ $SRS_FFMPEG = RESERVED ]; then SRS_FFMPEG=NO; fi
-    if [ $SRS_TRANSCODE = RESERVED ]; then SRS_TRANSCODE=NO; fi
-    if [ $SRS_INGEST = RESERVED ]; then SRS_INGEST=NO; fi
-    if [ $SRS_HTTP_CALLBACK = RESERVED ]; then SRS_HTTP_CALLBACK=NO; fi
+    SRS_FFMPEG=NO
+    if [ $SRS_TRANSCODE = RESERVED ]; then SRS_TRANSCODE=YES; fi
+    if [ $SRS_INGEST = RESERVED ]; then SRS_INGEST=YES; fi
+    if [ $SRS_HTTP_PARSER = RESERVED ]; then SRS_HTTP_PARSER=YES; fi
+    if [ $SRS_HTTP_CALLBACK = RESERVED ]; then SRS_HTTP_CALLBACK=YES; fi
     if [ $SRS_HTTP_SERVER = RESERVED ]; then SRS_HTTP_SERVER=YES; fi
     if [ $SRS_HTTP_API = RESERVED ]; then SRS_HTTP_API=YES; fi
     if [ $SRS_LIBRTMP = RESERVED ]; then SRS_LIBRTMP=NO; fi
@@ -172,7 +172,8 @@ else
     if [ $SRS_FFMPEG = RESERVED ]; then SRS_FFMPEG=NO; fi
     if [ $SRS_TRANSCODE = RESERVED ]; then SRS_TRANSCODE=NO; fi
     if [ $SRS_INGEST = RESERVED ]; then SRS_INGEST=NO; fi
-    if [ $SRS_HTTP_CALLBACK = RESERVED ]; then SRS_HTTP_CALLBACK=NO; fi
+    if [ $SRS_HTTP_PARSER = RESERVED ]; then SRS_HTTP_PARSER=YES; fi
+    if [ $SRS_HTTP_CALLBACK = RESERVED ]; then SRS_HTTP_CALLBACK=YES; fi
     if [ $SRS_HTTP_SERVER = RESERVED ]; then SRS_HTTP_SERVER=YES; fi
     if [ $SRS_HTTP_API = RESERVED ]; then SRS_HTTP_API=YES; fi
     if [ $SRS_LIBRTMP = RESERVED ]; then SRS_LIBRTMP=NO; fi
