@@ -26,6 +26,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef SRS_INGEST
 
 #include <srs_kernel_error.hpp>
+#include <srs_app_config.hpp>
+#include <srs_kernel_log.hpp>
+#include <srs_app_ffmpeg.hpp>
 
 // when error, ingester sleep for a while and retry.
 #define SRS_INGESTER_SLEEP_US (int64_t)(3*1000*1000LL)
@@ -39,11 +42,71 @@ SrsIngester::SrsIngester()
 SrsIngester::~SrsIngester()
 {
     srs_freep(pthread);
+    clear_engines();
 }
 
 int SrsIngester::start()
 {
     int ret = ERROR_SUCCESS;
+    
+    // parse ingesters
+    std::vector<SrsConfDirective*> vhosts;
+    _srs_config->get_vhosts(vhosts);
+    
+    for (int i = 0; i < (int)vhosts.size(); i++) {
+        SrsConfDirective* vhost = vhosts[i];
+        if ((ret = parse_ingesters(vhost)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    
+    return ret;
+}
+
+int SrsIngester::parse_ingesters(SrsConfDirective* vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    std::vector<SrsConfDirective*> ingesters;
+    _srs_config->get_ingesters(vhost->arg0(), ingesters);
+    
+    // create engine
+    for (int i = 0; i < (int)ingesters.size(); i++) {
+        SrsConfDirective* ingest = ingesters[i];
+        if (!_srs_config->get_ingest_enabled(ingest)) {
+            continue;
+        }
+        
+        std::string ffmpeg_bin = _srs_config->get_ingest_ffmpeg(ingest);
+        if (ffmpeg_bin.empty()) {
+            srs_trace("ignore the empty ffmpeg ingest: %s", ingest->arg0().c_str());
+            continue;
+        }
+    
+        // get all engines.
+        std::vector<SrsConfDirective*> engines;
+        _srs_config->get_transcode_engines(ingest, engines);
+        if (engines.empty()) {
+            srs_trace("ignore the empty transcode engine: %s", ingest->arg0().c_str());
+            continue;
+        }
+    
+        // create engine
+        for (int i = 0; i < (int)engines.size(); i++) {
+            SrsConfDirective* engine = engines[i];
+            SrsFFMPEG* ffmpeg = new SrsFFMPEG(ffmpeg_bin);
+            if ((ret = initialize_ffmpeg(ffmpeg, ingest, engine)) != ERROR_SUCCESS) {
+                srs_freep(ffmpeg);
+                if (ret != ERROR_ENCODER_LOOP) {
+                    srs_error("invalid ingest engine: %s %s", ingest->arg0().c_str(), engine->arg0().c_str());
+                }
+                return ret;
+            }
+    
+            ffmpegs.push_back(ffmpeg);
+        }
+    }
+    
     return ret;
 }
 
@@ -59,6 +122,28 @@ int SrsIngester::cycle()
 
 void SrsIngester::on_thread_stop()
 {
+}
+
+void SrsIngester::clear_engines()
+{
+    std::vector<SrsFFMPEG*>::iterator it;
+    
+    for (it = ffmpegs.begin(); it != ffmpegs.end(); ++it) {
+        SrsFFMPEG* ffmpeg = *it;
+        srs_freep(ffmpeg);
+    }
+
+    ffmpegs.clear();
+}
+
+int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* ingest, SrsConfDirective* engine)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (!_srs_config->get_engine_enabled(engine)) {
+    }
+    
+    return ret;
 }
 
 #endif

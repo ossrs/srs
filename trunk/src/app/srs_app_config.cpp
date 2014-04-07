@@ -913,6 +913,21 @@ SrsConfDirective* SrsConfig::get_vhost(string vhost)
     return NULL;
 }
 
+void SrsConfig::get_vhosts(std::vector<SrsConfDirective*>& vhosts)
+{
+    srs_assert(root);
+    
+    for (int i = 0; i < (int)root->directives.size(); i++) {
+        SrsConfDirective* conf = root->at(i);
+        
+        if (!conf->is_vhost()) {
+            continue;
+        }
+        
+        vhosts.push_back(conf);
+    }
+}
+
 SrsConfDirective* SrsConfig::get_vhost_on_connect(string vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);
@@ -1606,6 +1621,28 @@ void SrsConfig::get_ingesters(std::string vhost, std::vector<SrsConfDirective*>&
     }
     
     return;
+}
+
+bool SrsConfig::get_ingest_enabled(SrsConfDirective* ingest)
+{
+    SrsConfDirective* conf = ingest->get("enable");
+    
+    if (!conf || conf->arg0() != "on") {
+        return false;
+    }
+    
+    return true;
+}
+
+string SrsConfig::get_ingest_ffmpeg(SrsConfDirective* ingest)
+{
+    SrsConfDirective* conf = ingest->get("ffmpeg");
+    
+    if (!conf) {
+        return "";
+    }
+    
+    return conf->arg0();
 }
 
 string SrsConfig::get_srs_log_file()

@@ -100,6 +100,7 @@ public:
     virtual int acquire_pid_file();
     virtual int initialize_st();
     virtual int listen();
+    virtual int ingest();
     virtual int cycle();
     virtual void remove(SrsConnection* conn);
     virtual void on_signal(int signo);

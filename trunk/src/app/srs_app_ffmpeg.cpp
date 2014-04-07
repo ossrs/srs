@@ -78,7 +78,18 @@ string SrsFFMPEG::output()
     return _output;
 }
 
-int SrsFFMPEG::initialize(string in, string out, string log, SrsConfDirective* engine)
+int SrsFFMPEG::initialize(string in, string out, string log)
+{
+    int ret = ERROR_SUCCESS;
+    
+    input = in;
+    _output = out;
+    log_file = log;
+    
+    return ret;
+}
+
+int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
 {
     int ret = ERROR_SUCCESS;
     
@@ -101,10 +112,6 @@ int SrsFFMPEG::initialize(string in, string out, string log, SrsConfDirective* e
     // ensure the size is even.
     vwidth -= vwidth % 2;
     vheight -= vheight % 2;
-    
-    input = in;
-    _output = out;
-    log_file = log;
     
     if (vcodec == SRS_ENCODER_NO_VIDEO && acodec == SRS_ENCODER_NO_AUDIO) {
         ret = ERROR_ENCODER_VCODEC;
@@ -182,6 +189,22 @@ int SrsFFMPEG::initialize(string in, string out, string log, SrsConfDirective* e
             return ret;
         }
     }
+    if (_output.empty()) {
+        ret = ERROR_ENCODER_OUTPUT;
+        srs_error("invalid empty output, ret=%d", ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsFFMPEG::initialize_copy()
+{
+    int ret = ERROR_SUCCESS;
+    
+    vcodec = SRS_ENCODER_COPY;
+    acodec = SRS_ENCODER_COPY;
+
     if (_output.empty()) {
         ret = ERROR_ENCODER_OUTPUT;
         srs_error("invalid empty output, ret=%d", ret);

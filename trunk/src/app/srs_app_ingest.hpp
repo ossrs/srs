@@ -36,6 +36,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_thread.hpp>
 
 class SrsFFMPEG;
+class SrsConfDirective;
 
 /**
 * ingest file/stream/device, 
@@ -58,6 +59,10 @@ public:
 public:
     virtual int cycle();
     virtual void on_thread_stop();
+private:
+    virtual void clear_engines();
+    virtual int parse_ingesters(SrsConfDirective* vhost);
+    virtual int initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* ingest, SrsConfDirective* engine);
 };
 
 #endif

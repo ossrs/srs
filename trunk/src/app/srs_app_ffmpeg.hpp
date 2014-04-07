@@ -74,7 +74,9 @@ public:
 public:
     virtual std::string output();
 public:
-    virtual int initialize(std::string in, std::string out, std::string log, SrsConfDirective* engine);
+    virtual int initialize(std::string in, std::string out, std::string log);
+    virtual int initialize_transcode(SrsConfDirective* engine);
+    virtual int initialize_copy();
     virtual int start();
     virtual int cycle();
     virtual void stop();

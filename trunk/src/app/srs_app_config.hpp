@@ -139,6 +139,7 @@ public:
 // vhost section
 public:
     virtual SrsConfDirective*   get_vhost(std::string vhost);
+    virtual void                get_vhosts(std::vector<SrsConfDirective*>& vhosts);
     virtual bool                get_vhost_enabled(std::string vhost);
     virtual bool                get_vhost_enabled(SrsConfDirective* vhost);
     virtual SrsConfDirective*   get_vhost_on_connect(std::string vhost);
@@ -184,9 +185,11 @@ public:
     virtual int                 get_engine_achannels(SrsConfDirective* engine);
     virtual void                get_engine_aparams(SrsConfDirective* engine, std::vector<std::string>& aparams);
     virtual std::string         get_engine_output(SrsConfDirective* engine);
-// vhost ingest section
+// ingest section
 public:
     virtual void                get_ingesters(std::string vhost, std::vector<SrsConfDirective*>& ingeters);
+    virtual bool                get_ingest_enabled(SrsConfDirective* ingest);
+    virtual std::string         get_ingest_ffmpeg(SrsConfDirective* ingest);
 // log section
 public:
     virtual bool                get_srs_log_tank_file();

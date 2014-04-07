@@ -373,7 +373,7 @@ int SrsServer::listen()
     return ret;
 }
 
-int SrsServer::cycle()
+int SrsServer::ingest()
 {
     int ret = ERROR_SUCCESS;
     
@@ -383,6 +383,13 @@ int SrsServer::cycle()
         return ret;
     }
 #endif
+
+    return ret;
+}
+
+int SrsServer::cycle()
+{
+    int ret = ERROR_SUCCESS;
     
     // the deamon thread, update the time cache
     while (true) {

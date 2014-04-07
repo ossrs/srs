@@ -309,7 +309,10 @@ int SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDir
     }
     _transcoded_url.push_back(output);
     
-    if ((ret = ffmpeg->initialize(input, output, log_file, engine)) != ERROR_SUCCESS) {
+    if ((ret = ffmpeg->initialize(input, output, log_file)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = ffmpeg->initialize_transcode(engine)) != ERROR_SUCCESS) {
         return ret;
     }
     
