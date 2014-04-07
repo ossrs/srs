@@ -59,6 +59,7 @@ int SrsEncoder::on_publish(SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
 
+    // parse the transcode engines for vhost and app and stream.
     ret = parse_scope_engines(req);
     
     // ignore the loop encoder
