@@ -504,7 +504,10 @@ if [ $SRS_FFMPEG = YES ]; then
     if [ ! -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]; then echo "build ffmpeg-2.1 failed."; exit -1; fi
 fi
 
-if [ $SRS_FFMPEG = YES ]; then
+__SRS_FFMPEG=NO
+if [ $SRS_TRANSCODE = YES ]; then __SRS_FFMPEG=YES; fi
+if [ $SRS_INGEST = YES ]; then __SRS_FFMPEG=YES;fi
+if [ $__SRS_FFMPEG = YES ]; then
     echo "#define SRS_FFMPEG" >> $SRS_AUTO_HEADERS_H
 else
     echo "#undef SRS_FFMPEG" >> $SRS_AUTO_HEADERS_H
