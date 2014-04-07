@@ -164,8 +164,10 @@ int SrsEncoder::parse_scope_engines(SrsRequest* req)
     std::string scope = "";
     if ((conf = _srs_config->get_transcode(req->vhost, scope)) != NULL) {
         if ((ret = parse_ffmpeg(req, conf)) != ERROR_SUCCESS) {
-            srs_error("parse vhost scope=%s transcode engines failed. "
-                "ret=%d", scope.c_str(), ret);
+            if (ret != ERROR_ENCODER_LOOP) {
+                srs_error("parse vhost scope=%s transcode engines failed. "
+                    "ret=%d", scope.c_str(), ret);
+            }
             return ret;
         }
     }
@@ -173,8 +175,10 @@ int SrsEncoder::parse_scope_engines(SrsRequest* req)
     scope = req->app;
     if ((conf = _srs_config->get_transcode(req->vhost, scope)) != NULL) {
         if ((ret = parse_ffmpeg(req, conf)) != ERROR_SUCCESS) {
-            srs_error("parse app scope=%s transcode engines failed. "
-                "ret=%d", scope.c_str(), ret);
+            if (ret != ERROR_ENCODER_LOOP) {
+                srs_error("parse app scope=%s transcode engines failed. "
+                    "ret=%d", scope.c_str(), ret);
+            }
             return ret;
         }
     }
@@ -183,8 +187,10 @@ int SrsEncoder::parse_scope_engines(SrsRequest* req)
     scope += req->stream;
     if ((conf = _srs_config->get_transcode(req->vhost, scope)) != NULL) {
         if ((ret = parse_ffmpeg(req, conf)) != ERROR_SUCCESS) {
-            srs_error("parse stream scope=%s transcode engines failed. "
-                "ret=%d", scope.c_str(), ret);
+            if (ret != ERROR_ENCODER_LOOP) {
+                srs_error("parse stream scope=%s transcode engines failed. "
+                    "ret=%d", scope.c_str(), ret);
+            }
             return ret;
         }
     }
@@ -234,7 +240,9 @@ int SrsEncoder::parse_ffmpeg(SrsRequest* req, SrsConfDirective* conf)
         SrsFFMPEG* ffmpeg = new SrsFFMPEG(ffmpeg_bin);
         if ((ret = initialize_ffmpeg(ffmpeg, req, engine)) != ERROR_SUCCESS) {
             srs_freep(ffmpeg);
-            srs_error("invalid transcode engine: %s %s", conf->arg0().c_str(), engine->arg0().c_str());
+            if (ret != ERROR_ENCODER_LOOP) {
+                srs_error("invalid transcode engine: %s %s", conf->arg0().c_str(), engine->arg0().c_str());
+            }
             return ret;
         }
 
@@ -259,6 +267,13 @@ int SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDir
     input += req->vhost;
     input += "/";
     input += req->stream;
+
+    // stream name: vhost/app/stream for print
+    input_stream_name = req->vhost;
+    input_stream_name += "/";
+    input_stream_name += req->app;
+    input_stream_name += "/";
+    input_stream_name += req->stream;
     
     std::string output = _srs_config->get_engine_output(engine);
     // output stream, to other/self server
@@ -287,7 +302,7 @@ int SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDir
     it = std::find(_transcoded_url.begin(), _transcoded_url.end(), input);
     if (it != _transcoded_url.end()) {
         ret = ERROR_ENCODER_LOOP;
-        srs_info("detect a loop cycle, input=%s, output=%s, ignore it. ret=%d",
+        srs_trace("detect a loop cycle, input=%s, output=%s, ignore it. ret=%d",
             input.c_str(), output.c_str(), ret);
         return ret;
     }
@@ -305,7 +320,8 @@ void SrsEncoder::encoder()
     // reportable
     if (pithy_print->can_print()) {
         // TODO: FIXME: show more info.
-        srs_trace("-> time=%"PRId64", encoders=%d", pithy_print->get_age(), (int)ffmpegs.size());
+        srs_trace("-> time=%"PRId64", encoders=%d, input=%s", 
+            pithy_print->get_age(), (int)ffmpegs.size(), input_stream_name.c_str());
     }
 }
 

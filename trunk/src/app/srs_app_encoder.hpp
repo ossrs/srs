@@ -48,6 +48,7 @@ class SrsFFMPEG;
 class SrsEncoder : public ISrsThreadHandler
 {
 private:
+    std::string input_stream_name;
     std::vector<SrsFFMPEG*> ffmpegs;
 private:
     SrsThread* pthread;
