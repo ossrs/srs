@@ -131,6 +131,15 @@ done
 #####################################################################################
 # apply the default value when user donot specified.
 #####################################################################################
+# if http-xxxx specified, open the SRS_HTTP_PARSER
+if [ $SRS_HTTP_CALLBACK = YES ]; then SRS_HTTP_PARSER=YES; fi
+if [ $SRS_HTTP_SERVER = YES ]; then SRS_HTTP_PARSER=YES; fi
+if [ $SRS_HTTP_API = YES ]; then SRS_HTTP_PARSER=YES; fi
+
+# if transcode specified, try ffmpeg if possible.
+if [ $SRS_TRANSCODE = YES ]; then if [ $SRS_FFMPEG = RESERVED ]; then SRS_FFMPEG=YES; fi fi
+if [ $SRS_INGEST = YES ]; then if [ $SRS_FFMPEG = RESERVED ]; then SRS_FFMPEG=YES; fi fi
+
 # if arm specified, set some default to disabled.
 if [ $SRS_ARM_UBUNTU12 = YES ]; then
     if [ $SRS_HLS = RESERVED ]; then SRS_HLS=YES; fi
@@ -230,15 +239,6 @@ if [ $SRS_PI = YES ]; then
     # for arm, always set to static link.
     SRS_STATIC=YES
 fi
-
-# if http-xxxx specified, open the SRS_HTTP_PARSER
-if [ $SRS_HTTP_CALLBACK = YES ]; then SRS_HTTP_PARSER=YES; fi
-if [ $SRS_HTTP_SERVER = YES ]; then SRS_HTTP_PARSER=YES; fi
-if [ $SRS_HTTP_API = YES ]; then SRS_HTTP_PARSER=YES; fi
-
-# if transcode specified, try ffmpeg if possible.
-if [ $SRS_TRANSCODE = YES ]; then if [ $SRS_FFMPEG = RESERVED ]; then SRS_FFMPEG=YES; fi fi
-if [ $SRS_INGEST = YES ]; then if [ $SRS_FFMPEG = RESERVED ]; then SRS_FFMPEG=YES; fi fi
 
 # parse the jobs for make
 if [[ "" -eq SRS_JOBS ]]; then 

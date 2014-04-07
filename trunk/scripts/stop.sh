@@ -1,34 +1,12 @@
 #!/bin/bash
 
-echo "停止SRS服务器"
-ps aux|grep srs|grep "./objs"|grep "demo.conf"
-pids=`cat ./objs/srs.demo.pid`; for pid in $pids; do echo "结束现有进程：$pid"; kill -s SIGKILL $pid; done
+./etc/init.d/srs-demo stop; ret=$?; if [[ 0 -ne $ret ]]; then echo "错误：停止SRS失败"; exit $ret; fi
+echo "停止SRS服务器成功"
 
-echo "停止SRS转发服务器"
-ps aux|grep srs|grep "./objs"|grep "demo.19350.conf"
-pids=`cat ./objs/srs.demo.19350.pid`; for pid in $pids; do echo "结束现有进程：$pid"; kill -s SIGKILL $pid; done
+./etc/init.d/srs-demo-19350 stop; ret=$?; if [[ 0 -ne $ret ]]; then echo "错误：停止SRS转发服务器失败"; exit $ret; fi
+echo "停止SRS转发服务器成功"
 
-# REMOVED: for we use srs-http-server instead.
-# step 4(optinal): start nginx for HLS 
-#echo "停止NGINX（HLS服务）"
-#ps aux|grep nginx|grep process
-#if [[ -f ./objs/nginx/logs/nginx.pid ]]; then 
-#    pids=`cat ./objs/nginx/logs/nginx.pid`; for pid in $pids; do echo "结束现有进程：$pid"; sudo kill -s SIGTERM $pid; done
-#fi
-
-# step 5(optinal): start http hooks for srs callback 
-echo "停止API服务器"
-ps aux|grep python|grep research|grep "api-server"
-pids=`ps aux|grep python|grep research|grep "api-server"|awk '{print $2}'`; for pid in $pids; do echo "结束现有进程：$pid"; kill -s SIGKILL $pid; done
-
-# step 6: publish demo live stream 
-#echo "停止FFMPEG推送demo流(播放器上12路演示)"
-#ps aux|grep scripts|grep "ffmpeg.demo.sh"
-#pids=`ps aux|grep scripts|grep "/_ffmpeg.demo.sh"|awk '{print $2}'`; for pid in $pids; do echo "结束现有进程：$pid"; kill -s SIGKILL $pid; done
-
-# step 7: publish players live stream 
-#echo "停止FFMPEG推送players流(播放器上演示用)"
-#ps aux|grep scripts|grep "ffmpeg.players.sh"
-#pids=`ps aux|grep scripts|grep "/_ffmpeg.players.sh"|awk '{print $2}'`; for pid in $pids; do echo "结束现有进程：$pid"; kill -s SIGKILL $pid; done
+./etc/init.d/srs-api stop; ret=$?; if [[ 0 -ne $ret ]]; then echo "错误：停止API服务器失败"; exit $ret; fi
+echo "停止API服务器成功"
 
 echo "SRS系统服务均已停止"
