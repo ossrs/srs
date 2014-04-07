@@ -347,7 +347,6 @@ fi fi
 # user should disable all other features
 if [ $SRS_ARM_UBUNTU12 = YES ]; then
     if [ $SRS_FFMPEG = YES ]; then echo "ffmpeg for arm is not available, see: ./configure --help"; __check_ok=NO; fi
-    if [ $SRS_HTTP_CALLBACK = YES ]; then echo "http-callback for arm is not available, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_BWTC = YES ]; then echo "bwtc for arm is not available, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_RESEARCH = YES ]; then echo "research for arm is not available, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_GPERF = YES ]; then echo "gperf for arm is not available, see: ./configure --help"; __check_ok=NO; fi
