@@ -193,6 +193,9 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * See also: [Performance for RaspberryPi](https://github.com/winlinvip/simple-rtmp-server/wiki/RaspberryPi)
 
 ## Releases
+* 2014-04-07, [Release v1.0-mainline](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline), support [arm](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm), 
+[init.d scripts](https://github.com/winlinvip/simple-rtmp-server/wiki/LinuxService), http [server](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPServer) and 
+[api](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPApi), [ingest](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleIngest). 30000 lines.<br/>
 * 2013-12-25, [Release v0.9](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.9), support bandwidth test, player/encoder/chat demos. 20926 lines.<br/>
 * 2013-12-08, [Release v0.8](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.8), support http hooks callback, update [st_load](https://github.com/winlinvip/st-load). 19186 lines.<br/>
 * 2013-12-03, [Release v0.7](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.7), support live stream transcoding. 17605 lines.<br/>
@@ -205,6 +208,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * 2013-10-17, Created.<br/>
 
 ## Compare
+* SRS v1.0-mainline: 30000 lines. support arm, init.d scripts, http server and api, ingest.<br/>
 * SRS v0.9: 20926 lines. player/encoder/chat demos. bandwidth test for encoder/CDN.<br/>
 * SRS v0.8: 19186 lines. implements http hooks refer to [nginx-rtmp](https://github.com/arut/nginx-rtmp-module). <br/>
 * SRS v0.7: 17605 lines. implements transcoding(FFMPEG) feature refer to [wowza](http://www.wowza.com). <br/>
@@ -218,7 +222,8 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * nginx v1.5.0: 139524 lines <br/>
 
 ## History
-* v1.0, 2014-04-06, support [ingest](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleIngest) file/stream/device.
+* v1.0, 2014-04-07, [1.0 mainline(0.9.55)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline) released. 30000 lines.
+* v1.0, 2014-04-07, support [ingest](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleIngest) file/stream/device.
 * v1.0, 2014-04-05, support [http api](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPApi) and [http server](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPServer).
 * v1.0, 2014-04-03, implements http framework and api/v1/version.
 * v1.0, 2014-03-30, fix bug for st detecting epoll failed, force st to use epoll.
