@@ -22,13 +22,13 @@ ps aux|grep python|grep research|grep "api-server"
 pids=`ps aux|grep python|grep research|grep "api-server"|awk '{print $2}'`; for pid in $pids; do echo "结束现有进程：$pid"; kill -s SIGKILL $pid; done
 
 # step 6: publish demo live stream 
-echo "停止FFMPEG推送demo流(播放器上12路演示)"
-ps aux|grep scripts|grep "ffmpeg.demo.sh"
-pids=`ps aux|grep scripts|grep "/_ffmpeg.demo.sh"|awk '{print $2}'`; for pid in $pids; do echo "结束现有进程：$pid"; kill -s SIGKILL $pid; done
+#echo "停止FFMPEG推送demo流(播放器上12路演示)"
+#ps aux|grep scripts|grep "ffmpeg.demo.sh"
+#pids=`ps aux|grep scripts|grep "/_ffmpeg.demo.sh"|awk '{print $2}'`; for pid in $pids; do echo "结束现有进程：$pid"; kill -s SIGKILL $pid; done
 
 # step 7: publish players live stream 
-echo "停止FFMPEG推送players流(播放器上演示用)"
-ps aux|grep scripts|grep "ffmpeg.players.sh"
-pids=`ps aux|grep scripts|grep "/_ffmpeg.players.sh"|awk '{print $2}'`; for pid in $pids; do echo "结束现有进程：$pid"; kill -s SIGKILL $pid; done
+#echo "停止FFMPEG推送players流(播放器上演示用)"
+#ps aux|grep scripts|grep "ffmpeg.players.sh"
+#pids=`ps aux|grep scripts|grep "/_ffmpeg.players.sh"|awk '{print $2}'`; for pid in $pids; do echo "结束现有进程：$pid"; kill -s SIGKILL $pid; done
 
 echo "SRS系统服务均已停止"

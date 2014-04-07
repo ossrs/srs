@@ -25,10 +25,10 @@ bash scripts/_step.start.srs.19350.sh; ret=$?; if [[ 0 -ne $ret ]]; then exit $r
 bash scripts/_step.start.api.server.sh; ret=$?; if [[ 0 -ne $ret ]]; then exit $ret; fi
 
 # step 6: publish demo live stream 
-bash scripts/_step.start.ffmpeg.demo.sh; ret=$?; if [[ 0 -ne $ret ]]; then exit $ret; fi
+#bash scripts/_step.start.ffmpeg.demo.sh; ret=$?; if [[ 0 -ne $ret ]]; then exit $ret; fi
 
 # step 7: publish players live stream 
-bash scripts/_step.start.ffmpeg.players.sh; ret=$?; if [[ 0 -ne $ret ]]; then exit $ret; fi
+#bash scripts/_step.start.ffmpeg.players.sh; ret=$?; if [[ 0 -ne $ret ]]; then exit $ret; fi
 
 # step 8: add server ip to client hosts as demo. 
 ip=`ifconfig|grep "inet"|grep "addr"|grep "Mask"|grep -v "127.0.0.1"|awk 'NR==1 {print $2}'|awk -F ':' '{print $2}'`
