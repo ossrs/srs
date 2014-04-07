@@ -368,6 +368,12 @@ int SrsServer::cycle()
 {
     int ret = ERROR_SUCCESS;
     
+    // ingest streams
+    if ((ret = ingest_streams()) != ERROR_SUCCESS) {
+        srs_error("ingest streams failed. ret=%d", ret);
+        return ret;
+    }
+    
     // the deamon thread, update the time cache
     while (true) {
         st_usleep(SRS_TIME_RESOLUTION_MS * 1000);
@@ -437,6 +443,15 @@ void SrsServer::on_signal(int signo)
         exit(0);
         return;
     }
+}
+
+int SrsServer::ingest_streams()
+{
+    int ret = ERROR_SUCCESS;
+#ifdef SRS_INGEST
+
+#endif
+    return ret;
 }
 
 void SrsServer::close_listeners()

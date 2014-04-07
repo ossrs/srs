@@ -100,6 +100,7 @@ public:
     virtual void remove(SrsConnection* conn);
     virtual void on_signal(int signo);
 private:
+    virtual int ingest_streams();
     virtual void close_listeners();
     virtual int accept_client(SrsListenerType type, st_netfd_t client_stfd);
 public:
