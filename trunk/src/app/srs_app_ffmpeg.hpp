@@ -21,53 +21,62 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_APP_ENCODER_HPP
-#define SRS_APP_ENCODER_HPP
+#ifndef SRS_APP_FFMPEG_HPP
+#define SRS_APP_FFMPEG_HPP
 
 /*
-#include <srs_app_encoder.hpp>
+#include <srs_app_ffmpeg.hpp>
 */
 #include <srs_core.hpp>
 
-#ifdef SRS_TRANSCODE
+#ifdef SRS_FFMPEG
 
 #include <string>
 #include <vector>
 
-#include <srs_app_thread.hpp>
-
 class SrsConfDirective;
 class SrsRequest;
 class SrsPithyPrint;
-class SrsFFMPEG;
 
 /**
-* the encoder for a stream,
-* may use multiple ffmpegs to transcode the specified stream.
+* a transcode engine: ffmepg,
+* used to transcode a stream to another.
 */
-class SrsEncoder : public ISrsThreadHandler
+class SrsFFMPEG
 {
 private:
-    std::vector<SrsFFMPEG*> ffmpegs;
+    bool started;
+    pid_t pid;
 private:
-    SrsThread* pthread;
-    SrsPithyPrint* pithy_print;
+    std::string log_file;
+    int log_fd;
+private:
+    std::string                 ffmpeg;
+    std::vector<std::string>     vfilter;
+    std::string                 vcodec;
+    int                         vbitrate;
+    double                         vfps;
+    int                         vwidth;
+    int                         vheight;
+    int                         vthreads;
+    std::string                 vprofile;
+    std::string                 vpreset;
+    std::vector<std::string>     vparams;
+    std::string                 acodec;
+    int                         abitrate;
+    int                         asample_rate;
+    int                         achannels;
+    std::vector<std::string>     aparams;
+    std::string                 output;
+    std::string                 input;
 public:
-    SrsEncoder();
-    virtual ~SrsEncoder();
+    SrsFFMPEG(std::string ffmpeg_bin);
+    virtual ~SrsFFMPEG();
 public:
-    virtual int on_publish(SrsRequest* req);
-    virtual void on_unpublish();
-// interface ISrsThreadHandler.
-public:
+    virtual int initialize(SrsRequest* req, SrsConfDirective* engine);
+    virtual int start();
     virtual int cycle();
-    virtual void on_thread_stop();
-private:
-    virtual void clear_engines();
-    virtual SrsFFMPEG* at(int index);
-    virtual int parse_scope_engines(SrsRequest* req);
-    virtual int parse_transcode(SrsRequest* req, SrsConfDirective* conf);
-    virtual void encoder();
+    virtual void stop();
 };
 
 #endif

@@ -49,6 +49,8 @@ file
 	..\app\srs_app_config.cpp,
 	..\app\srs_app_encoder.hpp,
 	..\app\srs_app_encoder.cpp,
+	..\app\srs_app_ffmpeg.hpp,
+	..\app\srs_app_ffmpeg.cpp,
 	..\app\srs_app_forward.hpp,
 	..\app\srs_app_forward.cpp,
 	..\app\srs_app_hls.hpp,
