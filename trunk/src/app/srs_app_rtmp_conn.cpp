@@ -43,6 +43,23 @@ using namespace std;
 #include <srs_app_socket.hpp>
 #include <srs_app_http_hooks.hpp>
 
+// when stream is busy, for example, streaming is already
+// publishing, when a new client to request to publish,
+// sleep a while and close the connection.
+#define SRS_STREAM_BUSY_SLEEP_US (int64_t)(3*1000*1000LL)
+
+// the timeout to wait encoder to republish
+// if timeout, close the connection.
+#define SRS_REPUBLISH_SEND_TIMEOUT_US (int64_t)(3*60*1000*1000LL)
+// if timeout, close the connection.
+#define SRS_REPUBLISH_RECV_TIMEOUT_US (int64_t)(3*60*1000*1000LL)
+
+// the timeout to wait client data, when client paused
+// if timeout, close the connection.
+#define SRS_PAUSED_SEND_TIMEOUT_US (int64_t)(30*60*1000*1000LL)
+// if timeout, close the connection.
+#define SRS_PAUSED_RECV_TIMEOUT_US (int64_t)(30*60*1000*1000LL)
+
 SrsRtmpConn::SrsRtmpConn(SrsServer* srs_server, st_netfd_t client_stfd)
     : SrsConnection(srs_server, client_stfd)
 {

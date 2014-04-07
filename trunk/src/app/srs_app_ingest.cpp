@@ -25,4 +25,29 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef SRS_INGEST
 
+#include <srs_kernel_error.hpp>
+
+// when error, ingester sleep for a while and retry.
+#define SRS_INGESTER_SLEEP_US (int64_t)(3*1000*1000LL)
+
+SrsIngester::SrsIngester()
+{
+    pthread = new SrsThread(this, SRS_INGESTER_SLEEP_US);
+}
+
+SrsIngester::~SrsIngester()
+{
+    srs_freep(pthread);
+}
+
+int SrsIngester::cycle()
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+void SrsIngester::on_thread_stop()
+{
+}
+
 #endif

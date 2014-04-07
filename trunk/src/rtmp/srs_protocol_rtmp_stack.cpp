@@ -33,6 +33,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 using namespace std;
 
+// when got a messae header, there must be some data,
+// increase recv timeout to got an entire message.
+#define SRS_MIN_RECV_TIMEOUT_US (int64_t)(60*1000*1000LL)
+
 /****************************************************************************
 *****************************************************************************
 ****************************************************************************/

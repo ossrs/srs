@@ -50,6 +50,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // for example, libaacplus, aac, fdkaac
 #define SRS_ENCODER_ACODEC     "aac"
 
+// when error, encoder sleep for a while and retry.
+#define SRS_ENCODER_SLEEP_US (int64_t)(3*1000*1000LL)
+
 // for encoder to detect the dead loop
 static std::vector<std::string> _transcoded_url;
 

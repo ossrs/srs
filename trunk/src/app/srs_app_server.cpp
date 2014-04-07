@@ -41,6 +41,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_http_api.hpp>
 #include <srs_app_http_conn.hpp>
 #include <srs_app_http.hpp>
+#ifdef SRS_INGEST
+#include <srs_app_ingest.hpp>
+#endif
 
 #define SERVER_LISTEN_BACKLOG 512
 #define SRS_TIME_RESOLUTION_MS 500

@@ -31,5 +31,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef SRS_INGEST
 
+#include <srs_app_thread.hpp>
+
+class SrsIngester : public ISrsThreadHandler
+{
+private:
+    SrsThread* pthread;
+public:
+    SrsIngester();
+    virtual ~SrsIngester();
+// interface ISrsThreadHandler.
+public:
+    virtual int cycle();
+    virtual void on_thread_stop();
+};
+
 #endif
 #endif
