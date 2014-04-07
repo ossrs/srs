@@ -1590,6 +1590,24 @@ string SrsConfig::get_engine_output(SrsConfDirective* engine)
     return conf->arg0();
 }
 
+void SrsConfig::get_ingesters(std::string vhost, std::vector<SrsConfDirective*>& ingeters)
+{
+    SrsConfDirective* vhost_conf = get_vhost(vhost);
+    if (!vhost_conf) {
+        return;
+    }
+    
+    for (int i = 0; i < (int)vhost_conf->directives.size(); i++) {
+        SrsConfDirective* conf = vhost_conf->directives[i];
+        
+        if (conf->name == "ingest") {
+            ingeters.push_back(conf);
+        }
+    }
+    
+    return;
+}
+
 string SrsConfig::get_srs_log_file()
 {
     srs_assert(root);

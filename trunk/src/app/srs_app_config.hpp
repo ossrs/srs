@@ -184,6 +184,9 @@ public:
     virtual int                 get_engine_achannels(SrsConfDirective* engine);
     virtual void                get_engine_aparams(SrsConfDirective* engine, std::vector<std::string>& aparams);
     virtual std::string         get_engine_output(SrsConfDirective* engine);
+// vhost ingest section
+public:
+    virtual void                get_ingesters(std::string vhost, std::vector<SrsConfDirective*>& ingeters);
 // log section
 public:
     virtual bool                get_srs_log_tank_file();
