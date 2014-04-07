@@ -504,6 +504,8 @@ if [ $SRS_FFMPEG = YES ]; then
     if [ ! -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]; then echo "build ffmpeg-2.1 failed."; exit -1; fi
 fi
 
+# whatever the FFMPEG tools, if transcode and ingest specified,
+# srs always compile the FFMPEG tool stub which used to start the FFMPEG process.
 __SRS_FFMPEG=NO
 if [ $SRS_TRANSCODE = YES ]; then __SRS_FFMPEG=YES; fi
 if [ $SRS_INGEST = YES ]; then __SRS_FFMPEG=YES; fi
