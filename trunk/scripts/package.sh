@@ -94,7 +94,10 @@ if [ $DO_BUILD = YES ]; then
     else
         (
             cd $work_dir && 
-            ./configure --with-ssl --with-hls --with-http-server --with-http-api --with-ingest --with-http-callback --prefix=$INSTALL && make
+            ./configure --with-ssl --with-hls \
+                --with-http-server --with-http-api --with-http-callback \
+                --with-ingest --with-transcode \
+                --prefix=$INSTALL && make
         ) >> $log 2>&1
     fi
     ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "build srs failed"; exit $ret; fi
