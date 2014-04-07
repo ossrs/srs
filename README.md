@@ -218,6 +218,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * nginx v1.5.0: 139524 lines <br/>
 
 ## History
+* v1.0, 2014-04-06, support [ingest](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleIngest) file/stream/device.
 * v1.0, 2014-04-05, support [http api](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPApi) and [http server](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPServer).
 * v1.0, 2014-04-03, implements http framework and api/v1/version.
 * v1.0, 2014-03-30, fix bug for st detecting epoll failed, force st to use epoll.
