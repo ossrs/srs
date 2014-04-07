@@ -506,7 +506,7 @@ fi
 
 __SRS_FFMPEG=NO
 if [ $SRS_TRANSCODE = YES ]; then __SRS_FFMPEG=YES; fi
-if [ $SRS_INGEST = YES ]; then __SRS_FFMPEG=YES;fi
+if [ $SRS_INGEST = YES ]; then __SRS_FFMPEG=YES; fi
 if [ $__SRS_FFMPEG = YES ]; then
     echo "#define SRS_FFMPEG" >> $SRS_AUTO_HEADERS_H
 else
