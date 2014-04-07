@@ -153,6 +153,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_ENCODER_LOOP                  714
 #define ERROR_ENCODER_OPEN                  715
 #define ERROR_ENCODER_DUP2                  716
+#define ERROR_ENCODER_PARSE                 717
+#define ERROR_ENCODER_NO_INPUT              718
 
 #define ERROR_HTTP_PARSE_URI                800
 #define ERROR_HTTP_DATA_INVLIAD             801

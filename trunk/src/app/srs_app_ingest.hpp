@@ -61,7 +61,9 @@ public:
     virtual void on_thread_stop();
 private:
     virtual void clear_engines();
+    virtual int parse();
     virtual int parse_ingesters(SrsConfDirective* vhost);
+    virtual int parse_engines(SrsConfDirective* vhost, SrsConfDirective* ingest);
     virtual int initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* ingest, SrsConfDirective* engine);
 };
 

@@ -1645,6 +1645,17 @@ string SrsConfig::get_ingest_ffmpeg(SrsConfDirective* ingest)
     return conf->arg0();
 }
 
+string SrsConfig::get_ingest_input(SrsConfDirective* ingest)
+{
+    SrsConfDirective* conf = ingest->get("input");
+    
+    if (!conf) {
+        return "";
+    }
+    
+    return conf->arg0();
+}
+
 string SrsConfig::get_srs_log_file()
 {
     srs_assert(root);

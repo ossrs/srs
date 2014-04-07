@@ -190,6 +190,7 @@ public:
     virtual void                get_ingesters(std::string vhost, std::vector<SrsConfDirective*>& ingeters);
     virtual bool                get_ingest_enabled(SrsConfDirective* ingest);
     virtual std::string         get_ingest_ffmpeg(SrsConfDirective* ingest);
+    virtual std::string         get_ingest_input(SrsConfDirective* ingest);
 // log section
 public:
     virtual bool                get_srs_log_tank_file();

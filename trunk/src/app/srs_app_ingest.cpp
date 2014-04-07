@@ -49,15 +49,10 @@ int SrsIngester::start()
 {
     int ret = ERROR_SUCCESS;
     
-    // parse ingesters
-    std::vector<SrsConfDirective*> vhosts;
-    _srs_config->get_vhosts(vhosts);
-    
-    for (int i = 0; i < (int)vhosts.size(); i++) {
-        SrsConfDirective* vhost = vhosts[i];
-        if ((ret = parse_ingesters(vhost)) != ERROR_SUCCESS) {
-            return ret;
-        }
+    if ((ret = parse()) != ERROR_SUCCESS) {
+        clear_engines();
+        ret = ERROR_SUCCESS;
+        return ret;
     }
     
     return ret;
@@ -77,34 +72,55 @@ int SrsIngester::parse_ingesters(SrsConfDirective* vhost)
             continue;
         }
         
-        std::string ffmpeg_bin = _srs_config->get_ingest_ffmpeg(ingest);
-        if (ffmpeg_bin.empty()) {
-            srs_trace("ignore the empty ffmpeg ingest: %s", ingest->arg0().c_str());
-            continue;
+        if ((ret = parse_engines(vhost, ingest)) != ERROR_SUCCESS) {
+            return ret;
         }
+    }
     
-        // get all engines.
-        std::vector<SrsConfDirective*> engines;
-        _srs_config->get_transcode_engines(ingest, engines);
-        if (engines.empty()) {
-            srs_trace("ignore the empty transcode engine: %s", ingest->arg0().c_str());
-            continue;
-        }
+    return ret;
+}
+
+int SrsIngester::parse_engines(SrsConfDirective* vhost, SrsConfDirective* ingest)
+{
+    int ret = ERROR_SUCCESS;
+        
+    std::string ffmpeg_bin = _srs_config->get_ingest_ffmpeg(ingest);
+    if (ffmpeg_bin.empty()) {
+        ret = ERROR_ENCODER_PARSE;
+        srs_trace("empty ffmpeg ret=%d", ret);
+        return ret;
+    }
     
-        // create engine
-        for (int i = 0; i < (int)engines.size(); i++) {
-            SrsConfDirective* engine = engines[i];
-            SrsFFMPEG* ffmpeg = new SrsFFMPEG(ffmpeg_bin);
-            if ((ret = initialize_ffmpeg(ffmpeg, ingest, engine)) != ERROR_SUCCESS) {
-                srs_freep(ffmpeg);
-                if (ret != ERROR_ENCODER_LOOP) {
-                    srs_error("invalid ingest engine: %s %s", ingest->arg0().c_str(), engine->arg0().c_str());
-                }
-                return ret;
+    // get all engines.
+    std::vector<SrsConfDirective*> engines;
+    _srs_config->get_transcode_engines(ingest, engines);
+    if (engines.empty()) {
+        SrsFFMPEG* ffmpeg = new SrsFFMPEG(ffmpeg_bin);
+        if ((ret = initialize_ffmpeg(ffmpeg, ingest, NULL)) != ERROR_SUCCESS) {
+            srs_freep(ffmpeg);
+            if (ret != ERROR_ENCODER_LOOP) {
+                srs_error("invalid ingest engine. ret=%d", ret);
             }
-    
-            ffmpegs.push_back(ffmpeg);
+            return ret;
         }
+
+        ffmpegs.push_back(ffmpeg);
+        return ret;
+    }
+
+    // create engine
+    for (int i = 0; i < (int)engines.size(); i++) {
+        SrsConfDirective* engine = engines[i];
+        SrsFFMPEG* ffmpeg = new SrsFFMPEG(ffmpeg_bin);
+        if ((ret = initialize_ffmpeg(ffmpeg, ingest, engine)) != ERROR_SUCCESS) {
+            srs_freep(ffmpeg);
+            if (ret != ERROR_ENCODER_LOOP) {
+                srs_error("invalid ingest engine: %s %s", ingest->arg0().c_str(), engine->arg0().c_str());
+            }
+            return ret;
+        }
+
+        ffmpegs.push_back(ffmpeg);
     }
     
     return ret;
@@ -136,11 +152,36 @@ void SrsIngester::clear_engines()
     ffmpegs.clear();
 }
 
+int SrsIngester::parse()
+{
+    int ret = ERROR_SUCCESS;
+    
+    // parse ingesters
+    std::vector<SrsConfDirective*> vhosts;
+    _srs_config->get_vhosts(vhosts);
+    
+    for (int i = 0; i < (int)vhosts.size(); i++) {
+        SrsConfDirective* vhost = vhosts[i];
+        if ((ret = parse_ingesters(vhost)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    
+    return ret;
+}
+
 int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* ingest, SrsConfDirective* engine)
 {
     int ret = ERROR_SUCCESS;
     
-    if (!_srs_config->get_engine_enabled(engine)) {
+    std::string input = _srs_config->get_ingest_input(ingest);
+    if (input.empty()) {
+        ret = ERROR_ENCODER_NO_INPUT;
+        srs_trace("empty ingest intput. ret=%d", ret);
+        return ret;
+    }
+    
+    if (!engine || !_srs_config->get_engine_enabled(engine)) {
     }
     
     return ret;
