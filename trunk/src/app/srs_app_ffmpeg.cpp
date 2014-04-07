@@ -30,7 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <signal.h>
 #include <sys/types.h>
 
-#include <algorithm>
+using namespace std;
 
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
@@ -49,9 +49,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // any aac encoder is ok which contains the aac,
 // for example, libaacplus, aac, fdkaac
 #define SRS_ENCODER_ACODEC     "aac"
-
-// for encoder to detect the dead loop
-static std::vector<std::string> _transcoded_url;
 
 SrsFFMPEG::SrsFFMPEG(std::string ffmpeg_bin)
 {
@@ -76,7 +73,12 @@ SrsFFMPEG::~SrsFFMPEG()
     stop();
 }
 
-int SrsFFMPEG::initialize(SrsRequest* req, SrsConfDirective* engine)
+string SrsFFMPEG::output()
+{
+    return _output;
+}
+
+int SrsFFMPEG::initialize(string in, string out, string log, SrsConfDirective* engine)
 {
     int ret = ERROR_SUCCESS;
     
@@ -95,53 +97,14 @@ int SrsFFMPEG::initialize(SrsRequest* req, SrsConfDirective* engine)
     asample_rate     = _srs_config->get_engine_asample_rate(engine);
     achannels         = _srs_config->get_engine_achannels(engine);
     _srs_config->get_engine_aparams(engine, aparams);
-    output             = _srs_config->get_engine_output(engine);
     
     // ensure the size is even.
     vwidth -= vwidth % 2;
     vheight -= vheight % 2;
-
-    // input stream, from local.
-    // ie. rtmp://127.0.0.1:1935/live/livestream
-    input = "rtmp://127.0.0.1:";
-    input += req->port;
-    input += "/";
-    input += req->app;
-    input += "?vhost=";
-    input += req->vhost;
-    input += "/";
-    input += req->stream;
     
-    // output stream, to other/self server
-    // ie. rtmp://127.0.0.1:1935/live/livestream_sd
-    output = srs_string_replace(output, "[vhost]", req->vhost);
-    output = srs_string_replace(output, "[port]", req->port);
-    output = srs_string_replace(output, "[app]", req->app);
-    output = srs_string_replace(output, "[stream]", req->stream);
-    output = srs_string_replace(output, "[engine]", engine->arg0());
-    
-    // write ffmpeg info to log file.
-    log_file = _srs_config->get_ffmpeg_log_dir();
-    log_file += "/";
-    log_file += "encoder";
-    log_file += "-";
-    log_file += req->vhost;
-    log_file += "-";
-    log_file += req->app;
-    log_file += "-";
-    log_file += req->stream;
-    log_file += ".log";
-
-    // important: loop check, donot transcode again.
-    std::vector<std::string>::iterator it;
-    it = std::find(_transcoded_url.begin(), _transcoded_url.end(), input);
-    if (it != _transcoded_url.end()) {
-        ret = ERROR_ENCODER_LOOP;
-        srs_info("detect a loop cycle, input=%s, output=%s, ignore it. ret=%d",
-            input.c_str(), output.c_str(), ret);
-        return ret;
-    }
-    _transcoded_url.push_back(output);
+    input = in;
+    _output = out;
+    log_file = log;
     
     if (vcodec == SRS_ENCODER_NO_VIDEO && acodec == SRS_ENCODER_NO_AUDIO) {
         ret = ERROR_ENCODER_VCODEC;
@@ -219,7 +182,7 @@ int SrsFFMPEG::initialize(SrsRequest* req, SrsConfDirective* engine)
             return ret;
         }
     }
-    if (output.empty()) {
+    if (_output.empty()) {
         ret = ERROR_ENCODER_OUTPUT;
         srs_error("invalid empty output, ret=%d", ret);
         return ret;
@@ -352,7 +315,7 @@ int SrsFFMPEG::start()
     params.push_back("flv");
     
     params.push_back("-y");
-    params.push_back(output);
+    params.push_back(_output);
 
     if (true) {
         int pparam_size = 8 * 1024;
@@ -490,12 +453,6 @@ void SrsFFMPEG::stop()
         
         srs_trace("stop the encoder success. pid=%d", pid);
         pid = -1;
-    }
-    
-    std::vector<std::string>::iterator it;
-    it = std::find(_transcoded_url.begin(), _transcoded_url.end(), output);
-    if (it != _transcoded_url.end()) {
-        _transcoded_url.erase(it);
     }
 }
 

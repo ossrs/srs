@@ -35,7 +35,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 
 class SrsConfDirective;
-class SrsRequest;
 class SrsPithyPrint;
 
 /**
@@ -52,28 +51,30 @@ private:
     int log_fd;
 private:
     std::string                 ffmpeg;
-    std::vector<std::string>     vfilter;
+    std::vector<std::string>    vfilter;
     std::string                 vcodec;
     int                         vbitrate;
-    double                         vfps;
+    double                      vfps;
     int                         vwidth;
     int                         vheight;
     int                         vthreads;
     std::string                 vprofile;
     std::string                 vpreset;
-    std::vector<std::string>     vparams;
+    std::vector<std::string>    vparams;
     std::string                 acodec;
     int                         abitrate;
     int                         asample_rate;
     int                         achannels;
-    std::vector<std::string>     aparams;
-    std::string                 output;
+    std::vector<std::string>    aparams;
+    std::string                 _output;
     std::string                 input;
 public:
     SrsFFMPEG(std::string ffmpeg_bin);
     virtual ~SrsFFMPEG();
 public:
-    virtual int initialize(SrsRequest* req, SrsConfDirective* engine);
+    virtual std::string output();
+public:
+    virtual int initialize(std::string in, std::string out, std::string log, SrsConfDirective* engine);
     virtual int start();
     virtual int cycle();
     virtual void stop();

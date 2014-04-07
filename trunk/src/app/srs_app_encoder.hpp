@@ -66,7 +66,8 @@ private:
     virtual void clear_engines();
     virtual SrsFFMPEG* at(int index);
     virtual int parse_scope_engines(SrsRequest* req);
-    virtual int parse_transcode(SrsRequest* req, SrsConfDirective* conf);
+    virtual int parse_ffmpeg(SrsRequest* req, SrsConfDirective* conf);
+    virtual int initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDirective* engine);
     virtual void encoder();
 };
 
