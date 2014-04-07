@@ -169,6 +169,9 @@ SrsServer::SrsServer()
 #ifdef SRS_HTTP_SERVER
     http_stream_handler = SrsHttpHandler::create_http_stream();
 #endif
+#ifdef SRS_INGEST
+    ingester = new SrsIngester();
+#endif
 }
 
 SrsServer::~SrsServer()
@@ -192,6 +195,9 @@ SrsServer::~SrsServer()
 
 #ifdef SRS_HTTP_SERVER
     srs_freep(http_stream_handler);
+#endif
+#ifdef SRS_INGEST
+    srs_freep(ingester);
 #endif
 }
 
@@ -371,11 +377,12 @@ int SrsServer::cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    // ingest streams
-    if ((ret = ingest_streams()) != ERROR_SUCCESS) {
-        srs_error("ingest streams failed. ret=%d", ret);
+#ifdef SRS_INGEST
+    if ((ret = ingester->start()) != ERROR_SUCCESS) {
+        srs_error("start ingest streams failed. ret=%d", ret);
         return ret;
     }
+#endif
     
     // the deamon thread, update the time cache
     while (true) {
@@ -404,6 +411,10 @@ int SrsServer::cycle()
             srs_trace("reload config success.");
         }
     }
+
+#ifdef SRS_INGEST
+    ingester->stop();
+#endif
     
     return ret;
 }
@@ -446,15 +457,6 @@ void SrsServer::on_signal(int signo)
         exit(0);
         return;
     }
-}
-
-int SrsServer::ingest_streams()
-{
-    int ret = ERROR_SUCCESS;
-#ifdef SRS_INGEST
-
-#endif
-    return ret;
 }
 
 void SrsServer::close_listeners()

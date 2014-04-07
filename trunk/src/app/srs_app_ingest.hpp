@@ -31,15 +31,29 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef SRS_INGEST
 
+#include <vector>
+
 #include <srs_app_thread.hpp>
 
+class SrsFFMPEG;
+
+/**
+* ingest file/stream/device, 
+* encode with FFMPEG(optional),
+* push to SRS(or any RTMP server) over RTMP.
+*/
 class SrsIngester : public ISrsThreadHandler
 {
+private:
+    std::vector<SrsFFMPEG*> ffmpegs;
 private:
     SrsThread* pthread;
 public:
     SrsIngester();
     virtual ~SrsIngester();
+public:
+    virtual int start();
+    virtual void stop();
 // interface ISrsThreadHandler.
 public:
     virtual int cycle();

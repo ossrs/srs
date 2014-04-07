@@ -32,12 +32,23 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 SrsIngester::SrsIngester()
 {
+    // TODO: FIXME: support reload.
     pthread = new SrsThread(this, SRS_INGESTER_SLEEP_US);
 }
 
 SrsIngester::~SrsIngester()
 {
     srs_freep(pthread);
+}
+
+int SrsIngester::start()
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+void SrsIngester::stop()
+{
 }
 
 int SrsIngester::cycle()

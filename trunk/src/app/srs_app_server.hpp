@@ -39,6 +39,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsServer;
 class SrsConnection;
 class SrsHttpHandler;
+class SrsIngester;
 
 // listener type for server to identify the connection,
 // that is, use different type to process the connection.
@@ -83,6 +84,9 @@ private:
 #ifdef SRS_HTTP_SERVER
     SrsHttpHandler* http_stream_handler;
 #endif
+#ifdef SRS_INGEST
+    SrsIngester* ingester;
+#endif
 private:
     std::vector<SrsConnection*> conns;
     std::vector<SrsListener*> listeners;
@@ -100,7 +104,6 @@ public:
     virtual void remove(SrsConnection* conn);
     virtual void on_signal(int signo);
 private:
-    virtual int ingest_streams();
     virtual void close_listeners();
     virtual int accept_client(SrsListenerType type, st_netfd_t client_stfd);
 public:
