@@ -675,6 +675,8 @@ int SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsCommonMessag
     }
     srs_info("decode the amf0/amf3 command packet success.");
     
+    // for jwplayer/flowplayer, which send close as pause message.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/6
     SrsCloseStreamPacket* close = dynamic_cast<SrsCloseStreamPacket*>(msg->get_packet());
     if (close) {
         ret = ERROR_CONTROL_RTMP_CLOSE;
