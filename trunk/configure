@@ -16,7 +16,7 @@ BLACK="\\e[0m"
 
 #####################################################################################
 # parse user options, set the variables like:
-# srs features: SRS_SSL/SRS_HLS/SRS_NGINX/SRS_FFMPEG/SRS_HTTP_CALLBACK/......
+# srs features: SRS_SSL/SRS_HLS/SRS_NGINX/SRS_FFMPEG_TOOL/SRS_HTTP_CALLBACK/......
 # build options: SRS_JOBS
 #####################################################################################
 SRS_AUTO_HEADERS_H="${SRS_OBJS}/srs_auto_headers.hpp"
@@ -84,7 +84,7 @@ if [ $SRS_UTEST = YES ]; then SrsUtestMakeEntry="(cd ${SRS_OBJS}/utest; \$(MAKE)
 SrsHlsSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_HLS = YES ]; then SrsHlsSummaryColor="\${GREEN}"; fi
 SrsNginxSummaryColor="\${GREEN}{disabled} "; if [ $SRS_NGINX = YES ]; then SrsNginxSummaryColor="\${GREEN}"; fi
 SrsSslSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_SSL = YES ]; then SrsSslSummaryColor="\${GREEN}"; fi
-SrsFfmpegSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_FFMPEG = YES ]; then SrsFfmpegSummaryColor="\${GREEN}"; fi
+SrsFfmpegSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_FFMPEG_TOOL = YES ]; then SrsFfmpegSummaryColor="\${GREEN}"; fi
 SrsTranscodeSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_TRANSCODE = YES ]; then SrsTranscodeSummaryColor="\${GREEN}"; fi
 SrsIngestSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_INGEST = YES ]; then SrsIngestSummaryColor="\${GREEN}"; fi
 SrsHttpCallbackSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_HTTP_CALLBACK = YES ]; then SrsHttpCallbackSummaryColor="\${GREEN}"; fi
@@ -520,7 +520,7 @@ if [ $SRS_SSL = YES ]; then
 else
     echo -e "${YELLOW}warning: without rtmp complex handshake support, donot support h264/aac to adobe flash player${BLACK}"
 fi
-if [ $SRS_FFMPEG = YES ]; then
+if [ $SRS_FFMPEG_TOOL = YES ]; then
     echo -e "${GREEN}transcode/mux/ingest tool FFMPEG is enabled${BLACK}"
 else
     echo -e "${YELLOW}warning: without transcode/mux/ingest tool FFMPEG support${BLACK}"
@@ -613,7 +613,7 @@ if [ $SRS_NGINX = YES ]; then
     echo "\" sudo ./objs/nginx/sbin/nginx  \" to start the nginx http server for hls"
     echo "\" http://$ip \" rtmp players(OSMF/JWPlayer)"
 fi
-if [ $SRS_FFMPEG = YES ]; then
+if [ $SRS_FFMPEG_TOOL = YES ]; then
     echo -e "\" ./objs/ffmpeg/bin/ffmpeg  \" is used for live stream transcoding"
 fi
 if [ $SRS_HTTP_CALLBACK = YES ]; then

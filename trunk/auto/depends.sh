@@ -487,7 +487,7 @@ fi
 #####################################################################################
 # live transcoding, ffmpeg-2.1, x264-core138, lame-3.99.5, libaacplus-2.0.2.
 #####################################################################################
-if [ $SRS_FFMPEG = YES ]; then
+if [ $SRS_FFMPEG_TOOL = YES ]; then
     if [[ -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]]; then
         echo "ffmpeg-2.1 is ok.";
     else
@@ -506,13 +506,13 @@ fi
 
 # whatever the FFMPEG tools, if transcode and ingest specified,
 # srs always compile the FFMPEG tool stub which used to start the FFMPEG process.
-__SRS_FFMPEG=NO
-if [ $SRS_TRANSCODE = YES ]; then __SRS_FFMPEG=YES; fi
-if [ $SRS_INGEST = YES ]; then __SRS_FFMPEG=YES; fi
-if [ $__SRS_FFMPEG = YES ]; then
-    echo "#define SRS_FFMPEG" >> $SRS_AUTO_HEADERS_H
+__SRS_FFMPEG_STUB=NO
+if [ $SRS_TRANSCODE = YES ]; then __SRS_FFMPEG_STUB=YES; fi
+if [ $SRS_INGEST = YES ]; then __SRS_FFMPEG_STUB=YES; fi
+if [ $__SRS_FFMPEG_STUB = YES ]; then
+    echo "#define SRS_FFMPEG_STUB" >> $SRS_AUTO_HEADERS_H
 else
-    echo "#undef SRS_FFMPEG" >> $SRS_AUTO_HEADERS_H
+    echo "#undef SRS_FFMPEG_STUB" >> $SRS_AUTO_HEADERS_H
 fi
 
 if [ $SRS_TRANSCODE = YES ]; then

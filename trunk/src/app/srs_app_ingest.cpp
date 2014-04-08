@@ -246,7 +246,7 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
     // write ffmpeg info to log file.
     log_file = _srs_config->get_ffmpeg_log_dir();
     log_file += "/";
-    log_file += "ingest";
+    log_file += "ffmpeg-ingest";
     log_file += "-";
     log_file += vhost->arg0();
     log_file += "-";
@@ -305,6 +305,7 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
     
     std::string vcodec = _srs_config->get_engine_vcodec(engine);
     std::string acodec = _srs_config->get_engine_acodec(engine);
+    // whatever the engine config, use copy as default.
     if (!engine || !_srs_config->get_engine_enabled(engine) || vcodec.empty() || acodec.empty()) {
         if ((ret = ffmpeg->initialize_copy()) != ERROR_SUCCESS) {
             return ret;

@@ -163,6 +163,9 @@ SrsServer::SrsServer()
     srs_assert(_srs_config);
     _srs_config->subscribe(this);
     
+    // donot new object in constructor,
+    // for some global instance is not ready now,
+    // new these objects in initialize instead.
 #ifdef SRS_HTTP_API
     http_api_handler = NULL;
 #endif

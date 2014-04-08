@@ -39,7 +39,7 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 
-#ifdef SRS_FFMPEG
+#ifdef SRS_FFMPEG_STUB
 
 #define SRS_ENCODER_COPY    "copy"
 #define SRS_ENCODER_NO_VIDEO    "vn"

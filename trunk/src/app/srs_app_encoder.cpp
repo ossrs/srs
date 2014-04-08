@@ -289,7 +289,7 @@ int SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDir
     // write ffmpeg info to log file.
     log_file = _srs_config->get_ffmpeg_log_dir();
     log_file += "/";
-    log_file += "encoder";
+    log_file += "ffmpeg-encoder";
     log_file += "-";
     log_file += req->vhost;
     log_file += "-";
