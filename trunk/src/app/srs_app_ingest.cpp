@@ -129,7 +129,8 @@ int SrsIngester::parse_engines(SrsConfDirective* vhost, SrsConfDirective* ingest
         if ((ret = initialize_ffmpeg(ffmpeg, vhost, ingest, engine)) != ERROR_SUCCESS) {
             srs_freep(ffmpeg);
             if (ret != ERROR_ENCODER_LOOP) {
-                srs_error("invalid ingest engine: %s %s", ingest->arg0().c_str(), engine->arg0().c_str());
+                srs_error("invalid ingest engine: %s %s, ret=%d", 
+                    ingest->arg0().c_str(), engine->arg0().c_str(), ret);
             }
             return ret;
         }
@@ -223,7 +224,7 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
     output = srs_string_replace(output, "[port]", port);
     if (output.empty()) {
         ret = ERROR_ENCODER_NO_OUTPUT;
-        srs_trace("empty ingest output url. ret=%d", ret);
+        srs_trace("empty output url, ingest=%s. ret=%d", ingest->arg0().c_str(), ret);
         return ret;
     }
     
@@ -267,7 +268,7 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
     std::string input_type = _srs_config->get_ingest_input_type(ingest);
     if (input_type.empty()) {
         ret = ERROR_ENCODER_NO_INPUT;
-        srs_trace("empty ingest intput type. ret=%d", ret);
+        srs_trace("empty intput type, ingest=%s. ret=%d", ingest->arg0().c_str(), ret);
         return ret;
     }
 
@@ -275,7 +276,7 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
         std::string input_url = _srs_config->get_ingest_input_url(ingest);
         if (input_url.empty()) {
             ret = ERROR_ENCODER_NO_INPUT;
-            srs_trace("empty ingest intput url. ret=%d", ret);
+            srs_trace("empty intput url, ingest=%s. ret=%d", ingest->arg0().c_str(), ret);
             return ret;
         }
         
@@ -289,7 +290,7 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
         std::string input_url = _srs_config->get_ingest_input_url(ingest);
         if (input_url.empty()) {
             ret = ERROR_ENCODER_NO_INPUT;
-            srs_trace("empty ingest intput url. ret=%d", ret);
+            srs_trace("empty intput url, ingest=%s. ret=%d", ingest->arg0().c_str(), ret);
             return ret;
         }
         
@@ -301,13 +302,16 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
         }
     } else {
         ret = ERROR_ENCODER_INPUT_TYPE;
-        srs_error("invalid ingest type=%s, ret=%d", input_type.c_str(), ret);
+        srs_error("invalid ingest=%s type=%s, ret=%d", 
+            ingest->arg0().c_str(), input_type.c_str(), ret);
     }
     
     std::string vcodec = _srs_config->get_engine_vcodec(engine);
     std::string acodec = _srs_config->get_engine_acodec(engine);
     // whatever the engine config, use copy as default.
-    if (!engine || !_srs_config->get_engine_enabled(engine) || vcodec.empty() || acodec.empty()) {
+    if (!engine || vcodec.empty() || acodec.empty()
+        || !_srs_config->get_engine_enabled(engine)
+    ) {
         if ((ret = ffmpeg->initialize_copy()) != ERROR_SUCCESS) {
             return ret;
         }
@@ -316,6 +320,9 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
             return ret;
         }
     }
+    
+    srs_trace("parse success, ingest=%s, vhost=%s", 
+        ingest->arg0().c_str(), vhost->arg0().c_str());
     
     return ret;
 }
