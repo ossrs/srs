@@ -32,6 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_pithy_print.hpp>
 
 // when error, ingester sleep for a while and retry.
+// ingest never sleep a long time, for we must start the stream ASAP.
 #define SRS_INGESTER_SLEEP_US (int64_t)(6*100*1000LL)
 
 SrsIngester::SrsIngester()
