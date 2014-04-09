@@ -440,6 +440,9 @@ fi
 #####################################################################################
 # openssl, for rtmp complex handshake
 #####################################################################################
+# @see http://www.openssl.org/news/secadv_20140407.txt
+# Affected users should upgrade to OpenSSL 1.0.1g. Users unable to immediately
+# upgrade can alternatively recompile OpenSSL with -DOPENSSL_NO_HEARTBEATS.
 if [ $SRS_SSL = YES ]; then
     # check the arm flag file, if flag changed, need to rebuild the st.
     if [ $SRS_ARM_UBUNTU12 = YES ]; then
