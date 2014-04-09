@@ -454,8 +454,10 @@ if [ $SRS_SSL = YES ]; then
             (
                 rm -rf ${SRS_OBJS}/openssl-1.0.1f && cd ${SRS_OBJS} && 
                 unzip -q ../3rdparty/openssl-1.0.1f.zip && cd openssl-1.0.1f && 
-                ./Configure --prefix=`pwd`/_release -no-shared no-asm linux-armv4 && 
-                make CC=${SrsArmCC} GCC=${SrsArmGCC} AR="${SrsArmAR} r" LD=${SrsArmLD} LINK=${SrsArmGCC} RANDLIB=${SrsArmRANDLIB} && make install &&
+                ./Configure --prefix=`pwd`/_release -no-shared no-asm linux-armv4 -DOPENSSL_NO_HEARTBEATS && 
+                make CC=${SrsArmCC} GCC=${SrsArmGCC} AR="${SrsArmAR} r" \
+                    LD=${SrsArmLD} LINK=${SrsArmGCC} RANDLIB=${SrsArmRANDLIB} && 
+                make install &&
                 cd .. && rm -rf openssl && ln -sf openssl-1.0.1f/_release openssl &&
                 cd .. && touch ${SRS_OBJS}/_flag.ssl.arm.tmp
             )
@@ -469,7 +471,7 @@ if [ $SRS_SSL = YES ]; then
             (
                 rm -rf ${SRS_OBJS}/openssl-1.0.1f && cd ${SRS_OBJS} && 
                 unzip -q ../3rdparty/openssl-1.0.1f.zip && cd openssl-1.0.1f && 
-                ./config --prefix=`pwd`/_release -no-shared && 
+                ./config --prefix=`pwd`/_release -no-shared -DOPENSSL_NO_HEARTBEATS && 
                 make && make install &&
                 cd .. && rm -rf openssl && ln -sf openssl-1.0.1f/_release openssl &&
                 cd .. && rm -f ${SRS_OBJS}/_flag.ssl.arm.tmp
