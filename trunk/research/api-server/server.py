@@ -320,6 +320,36 @@ class RESTSessions(object):
 
         return code
 
+'''
+the server list
+'''
+class RESTServers(object):
+    exposed = True
+    
+    def __init__(self):
+        self.__server_ip = "192.168.1.142";
+
+    def GET(self):
+        enable_crossdomain()
+        url = "http://%s:8080/live/livestream.html"%(self.__server_ip)
+        raise cherrypy.HTTPRedirect(url)
+        
+    def POST(self):
+        enable_crossdomain()
+        raise cherrypy.HTTPError(405, "Not allowed.")
+
+    def DELETE(self, id):
+        enable_crossdomain()
+        raise cherrypy.HTTPError(405, "Not allowed.")
+
+    def PUT(self, id):
+        enable_crossdomain()
+        raise cherrypy.HTTPError(405, "Not allowed.")
+
+
+    def OPTIONS(self, id=None):
+        enable_crossdomain()
+
 global_chat_id = os.getpid();
 '''
 the chat streams, public chat room.
@@ -453,6 +483,7 @@ class V1(object):
         self.streams = RESTStreams()
         self.sessions = RESTSessions()
         self.chats = RESTChats()
+        self.servers = RESTServers()
 
 '''
 main code start.
