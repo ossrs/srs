@@ -329,9 +329,17 @@ class RESTServers(object):
     def __init__(self):
         self.__server_ip = "192.168.1.142";
 
-    def GET(self):
+    '''
+    id canbe:
+        ingest: the ingest demo.
+        meeting: the meeting demo.
+    '''
+    def GET(self, id=None):
         enable_crossdomain()
-        url = "http://%s:8080/live/livestream.html"%(self.__server_ip)
+        if id == "meeting"
+            url = "http://%s:8085/players/srs_chat.html?port=1935"%(self.__server_ip)
+        else:
+            url = "http://%s:8080/live/livestream.html"%(self.__server_ip)
         raise cherrypy.HTTPRedirect(url)
         
     def POST(self):
