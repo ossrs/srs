@@ -176,6 +176,7 @@ int SrsHttpVhost::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
     char* buf = new char[length];
     SrsAutoFree(char, buf, true);
     
+    // TODO: FIXME: use st_read.
     if (::read(fd, buf, length) < 0) {
         ::close(fd);
         ret = ERROR_HTTP_READ_FILE;
