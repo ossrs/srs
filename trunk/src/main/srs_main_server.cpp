@@ -21,18 +21,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <srs_kernel_log.hpp>
-#include <srs_kernel_error.hpp>
-#include <srs_app_server.hpp>
-#include <srs_app_config.hpp>
-#include <srs_app_log.hpp>
-
-// kernel module.
-ISrsLog* _srs_log = new SrsFastLog();
-ISrsThreadContext* _srs_context = new SrsThreadContext();
-// app module.
-SrsConfig* _srs_config = new SrsConfig();
-SrsServer* _srs_server = new SrsServer();
+#include <srs_core.hpp>
 
 #include <stdlib.h>
 #include <signal.h>
@@ -46,6 +35,19 @@ SrsServer* _srs_server = new SrsServer();
 #ifdef SRS_GPERF_CP
     #include <gperftools/profiler.h>
 #endif
+
+#include <srs_kernel_error.hpp>
+#include <srs_app_server.hpp>
+#include <srs_app_config.hpp>
+#include <srs_app_log.hpp>
+#include <srs_app_utility.hpp>
+
+// kernel module.
+ISrsLog* _srs_log = new SrsFastLog();
+ISrsThreadContext* _srs_context = new SrsThreadContext();
+// app module.
+SrsConfig* _srs_config = new SrsConfig();
+SrsServer* _srs_server = new SrsServer();
 
 void handler(int signo)
 {
