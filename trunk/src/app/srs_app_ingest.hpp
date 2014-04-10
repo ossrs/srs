@@ -40,6 +40,19 @@ class SrsConfDirective;
 class SrsPithyPrint;
 
 /**
+* ingester ffmpeg object.
+*/
+struct SrsIngesterFFMPEG
+{
+    std::string vhost;
+    std::string id;
+    SrsFFMPEG* ffmpeg;
+    
+    SrsIngesterFFMPEG(SrsFFMPEG* _ffmpeg, std::string _vhost, std::string _id);
+    virtual ~SrsIngesterFFMPEG();
+};
+
+/**
 * ingest file/stream/device, 
 * encode with FFMPEG(optional),
 * push to SRS(or any RTMP server) over RTMP.
@@ -48,7 +61,7 @@ class SrsIngester : public ISrsThreadHandler
 {
 private:
     std::string input_stream_name;
-    std::vector<SrsFFMPEG*> ffmpegs;
+    std::vector<SrsIngesterFFMPEG*> ingesters;
 private:
     SrsThread* pthread;
     SrsPithyPrint* pithy_print;

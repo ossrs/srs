@@ -25,6 +25,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef SRS_INGEST
 
+using namespace std;
+
 #include <srs_kernel_error.hpp>
 #include <srs_app_config.hpp>
 #include <srs_kernel_log.hpp>
@@ -34,6 +36,18 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // when error, ingester sleep for a while and retry.
 // ingest never sleep a long time, for we must start the stream ASAP.
 #define SRS_INGESTER_SLEEP_US (int64_t)(6*100*1000LL)
+
+SrsIngesterFFMPEG::SrsIngesterFFMPEG(SrsFFMPEG* _ffmpeg, string _vhost, string _id)
+{
+    ffmpeg = _ffmpeg;
+    vhost = _vhost;
+    id = _id;
+}
+
+SrsIngesterFFMPEG::~SrsIngesterFFMPEG()
+{
+    srs_freep(ffmpeg);
+}
 
 SrsIngester::SrsIngester()
 {
@@ -59,7 +73,7 @@ int SrsIngester::start()
     }
     
     // return for error or no engine.
-    if (ffmpegs.empty()) {
+    if (ingesters.empty()) {
         return ret;
     }
     
@@ -118,7 +132,8 @@ int SrsIngester::parse_engines(SrsConfDirective* vhost, SrsConfDirective* ingest
             return ret;
         }
 
-        ffmpegs.push_back(ffmpeg);
+        SrsIngesterFFMPEG* ingester = new SrsIngesterFFMPEG(ffmpeg, vhost->arg0(), ingest->arg0());
+        ingesters.push_back(ingester);
         return ret;
     }
 
@@ -135,7 +150,8 @@ int SrsIngester::parse_engines(SrsConfDirective* vhost, SrsConfDirective* ingest
             return ret;
         }
 
-        ffmpegs.push_back(ffmpeg);
+        SrsIngesterFFMPEG* ingester = new SrsIngesterFFMPEG(ffmpeg, vhost->arg0(), ingest->arg0());
+        ingesters.push_back(ingester);
     }
     
     return ret;
@@ -151,18 +167,18 @@ int SrsIngester::cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    std::vector<SrsFFMPEG*>::iterator it;
-    for (it = ffmpegs.begin(); it != ffmpegs.end(); ++it) {
-        SrsFFMPEG* ffmpeg = *it;
+    std::vector<SrsIngesterFFMPEG*>::iterator it;
+    for (it = ingesters.begin(); it != ingesters.end(); ++it) {
+        SrsIngesterFFMPEG* ingester = *it;
         
         // start all ffmpegs.
-        if ((ret = ffmpeg->start()) != ERROR_SUCCESS) {
+        if ((ret = ingester->ffmpeg->start()) != ERROR_SUCCESS) {
             srs_error("ingest ffmpeg start failed. ret=%d", ret);
             return ret;
         }
 
         // check ffmpeg status.
-        if ((ret = ffmpeg->cycle()) != ERROR_SUCCESS) {
+        if ((ret = ingester->ffmpeg->cycle()) != ERROR_SUCCESS) {
             srs_error("ingest ffmpeg cycle failed. ret=%d", ret);
             return ret;
         }
@@ -181,14 +197,14 @@ void SrsIngester::on_thread_stop()
 
 void SrsIngester::clear_engines()
 {
-    std::vector<SrsFFMPEG*>::iterator it;
+    std::vector<SrsIngesterFFMPEG*>::iterator it;
     
-    for (it = ffmpegs.begin(); it != ffmpegs.end(); ++it) {
-        SrsFFMPEG* ffmpeg = *it;
-        srs_freep(ffmpeg);
+    for (it = ingesters.begin(); it != ingesters.end(); ++it) {
+        SrsIngesterFFMPEG* ingester = *it;
+        srs_freep(ingester);
     }
 
-    ffmpegs.clear();
+    ingesters.clear();
 }
 
 int SrsIngester::parse()
@@ -333,7 +349,7 @@ void SrsIngester::ingester()
     if (pithy_print->can_print()) {
         // TODO: FIXME: show more info.
         srs_trace("-> time=%"PRId64", ingesters=%d, input=%s", 
-            pithy_print->get_age(), (int)ffmpegs.size(), input_stream_name.c_str());
+            pithy_print->get_age(), (int)ingesters.size(), input_stream_name.c_str());
     }
 }
 
