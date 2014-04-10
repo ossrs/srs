@@ -493,8 +493,36 @@ int SrsConfig::reload()
         srs_trace("reload pithy_print success.");
     }
 
-    // merge config: vhost added, directly supported.
+    // merge config: vhost added
+    for (int i = 0; i < (int)root->directives.size(); i++) {
+        // ingest need to start if specified.
+        // other features, directly supported.
+        SrsConfDirective* new_vhost = root->at(i);
         
+        // only process vhost directives.
+        if (new_vhost->name != "vhost") {
+            continue;
+        }
+        
+        std::string vhost = new_vhost->arg0();
+        
+        // not new added vhost, ignore.
+        if (old_root->get("vhost", vhost)) {
+            continue;
+        }
+        
+        srs_trace("vhost %s added, reload it.", vhost.c_str());
+        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((ret = subscribe->on_reload_vhost_added(vhost)) != ERROR_SUCCESS) {
+                srs_error("notify subscribes pithy_print remove "
+                    "vhost %s failed. ret=%d", vhost.c_str(), ret);
+                return ret;
+            }
+        }
+        srs_trace("reload new vhost %s success.", vhost.c_str());
+    }
+    
     // merge config: vhost removed/disabled/modified.
     for (int i = 0; i < (int)old_root->directives.size(); i++) {
         SrsConfDirective* old_vhost = old_root->at(i);

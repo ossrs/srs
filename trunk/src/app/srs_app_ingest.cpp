@@ -51,13 +51,16 @@ SrsIngesterFFMPEG::~SrsIngesterFFMPEG()
 
 SrsIngester::SrsIngester()
 {
-    // TODO: FIXME: support reload.
+    _srs_config->subscribe(this);
+    
     pthread = new SrsThread(this, SRS_INGESTER_SLEEP_US);
     pithy_print = new SrsPithyPrint(SRS_STAGE_INGESTER);
 }
 
 SrsIngester::~SrsIngester()
 {
+    _srs_config->unsubscribe(this);
+    
     srs_freep(pthread);
     clear_engines();
 }
@@ -72,10 +75,8 @@ int SrsIngester::start()
         return ret;
     }
     
-    // return for error or no engine.
-    if (ingesters.empty()) {
-        return ret;
-    }
+    // even no ingesters, we must also start it,
+    // for the reload may add more ingesters.
     
     // start thread to run all encoding engines.
     if ((ret = pthread->start()) != ERROR_SUCCESS) {
@@ -351,6 +352,18 @@ void SrsIngester::ingester()
         srs_trace("-> time=%"PRId64", ingesters=%d, input=%s", 
             pithy_print->get_age(), (int)ingesters.size(), input_stream_name.c_str());
     }
+}
+
+int SrsIngester::on_reload_vhost_added(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsConfDirective* _vhost = _srs_config->get_vhost(vhost);
+    if ((ret = parse_ingesters(_vhost)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    return ret;
 }
 
 #endif

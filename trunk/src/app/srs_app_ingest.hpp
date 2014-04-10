@@ -34,6 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 
 #include <srs_app_thread.hpp>
+#include <srs_app_reload.hpp>
 
 class SrsFFMPEG;
 class SrsConfDirective;
@@ -57,7 +58,7 @@ struct SrsIngesterFFMPEG
 * encode with FFMPEG(optional),
 * push to SRS(or any RTMP server) over RTMP.
 */
-class SrsIngester : public ISrsThreadHandler
+class SrsIngester : public ISrsThreadHandler, public ISrsReloadHandler
 {
 private:
     std::string input_stream_name;
@@ -82,6 +83,9 @@ private:
     virtual int parse_engines(SrsConfDirective* vhost, SrsConfDirective* ingest);
     virtual int initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, SrsConfDirective* ingest, SrsConfDirective* engine);
     virtual void ingester();
+// interface ISrsReloadHandler.
+public:
+    virtual int on_reload_vhost_added(std::string vhost);
 };
 
 #endif
