@@ -97,15 +97,15 @@ int run()
     
     int pid = fork();
     
-    if(pid == -1){
+    if(pid == -1) {
         srs_error("create process error. ret=-1"); //ret=0
         return -1;
     }
 
     // grandpa
-    if(pid > 0){
+    if(pid > 0) {
         int status = 0;
-        if(waitpid(pid, &status, 0) == -1){
+        if(waitpid(pid, &status, 0) == -1) {
             srs_error("wait child process error! ret=-1"); //ret=0
         }
         srs_trace("grandpa process exit.");
@@ -116,12 +116,12 @@ int run()
     // father
     pid = fork();
     
-    if(pid == -1){
+    if(pid == -1) {
         srs_error("create process error. ret=-1");
         return -1;
     }
 
-    if(pid > 0){
+    if(pid > 0) {
         srs_trace("father process exit. ret=-1");
         exit(0);
         return 0;
