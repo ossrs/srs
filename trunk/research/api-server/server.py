@@ -336,7 +336,7 @@ class RESTServers(object):
     '''
     def GET(self, id=None):
         enable_crossdomain()
-        if id == "meeting"
+        if id == "meeting":
             url = "http://%s:8085/players/srs_chat.html?port=1935"%(self.__server_ip)
         else:
             url = "http://%s:8080/live/livestream.html"%(self.__server_ip)

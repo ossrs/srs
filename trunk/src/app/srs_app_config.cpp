@@ -1933,7 +1933,7 @@ string SrsConfig::get_ffmpeg_log_dir()
     
     SrsConfDirective* conf = root->get("ff_log_dir");
     if (!conf || conf->arg0().empty()) {
-        return "./objs/logs";
+        return "./objs";
     }
     
     return conf->arg0();
