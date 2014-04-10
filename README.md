@@ -159,6 +159,7 @@ Supported operating systems and hardware:
 1. [plan] Support system full utest on gtest.
 1. [plan] Support RTMP edge server, push/pull stream from any RTMP server
 1. [plan] Support multiple processes, for both origin and edge
+1. [no-plan] Support adobe RTMFP(flash p2p) protocol.
 1. [no-plan] Support adobe flash refer/token/swf verification.
 1. [no-plan] Support adobe amf3 codec.
 1. [no-plan] Support dvr(record live to vod file)
