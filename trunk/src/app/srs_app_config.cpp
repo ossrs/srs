@@ -843,7 +843,11 @@ int SrsConfig::reload_ingest(SrsConfDirective* new_vhost, SrsConfDirective* old_
         SrsConfDirective* new_ingester = new_ingesters.at(i);
         std::string ingest_id = new_ingester->arg0();
         SrsConfDirective* old_ingester = old_vhost->get("ingest", ingest_id);
-        srs_assert(old_ingester);
+        
+        // ignore the added ingester.
+        if (!old_ingester) {
+            continue;
+        }
         
         if (srs_directive_equals(new_ingester, old_ingester)) {
             continue;
