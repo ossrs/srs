@@ -612,22 +612,10 @@ int SrsConfig::reload()
                 }
                 srs_trace("vhost %s reload hls success.", vhost.c_str());
             }
-            // TODO: FIXME: there might be many transcoders per vhost.
-            // transcode, only one per vhost
-            if (!srs_directive_equals(new_vhost->get("transcode"), old_vhost->get("transcode"))) {
-                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-                    ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_transcode(vhost)) != ERROR_SUCCESS) {
-                        srs_error("vhost %s notify subscribes transcode failed. ret=%d", vhost.c_str(), ret);
-                        return ret;
-                    }
-                }
-                srs_trace("vhost %s reload transcode success.", vhost.c_str());
-            }
             // transcode, many per vhost.
-            /*if ((ret = reload_transcode(new_vhost, old_vhost)) != ERROR_SUCCESS) {
+            if ((ret = reload_transcode(new_vhost, old_vhost)) != ERROR_SUCCESS) {
                 return ret;
-            }*/
+            }
             // ingest, many per vhost.
             if ((ret = reload_ingest(new_vhost, old_vhost)) != ERROR_SUCCESS) {
                 return ret;
@@ -696,6 +684,90 @@ int SrsConfig::parse_options(int argc, char** argv)
     }
 
     return parse_file(config_file.c_str());
+}
+
+int SrsConfig::reload_transcode(SrsConfDirective* new_vhost, SrsConfDirective* old_vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    std::vector<SrsConfDirective*> old_transcoders;
+    for (int i = 0; i < (int)old_vhost->directives.size(); i++) {
+        SrsConfDirective* conf = old_vhost->at(i);
+        if (conf->name == "transcode") {
+            old_transcoders.push_back(conf);
+        }
+    }
+    
+    std::vector<SrsConfDirective*> new_transcoders;
+    for (int i = 0; i < (int)new_vhost->directives.size(); i++) {
+        SrsConfDirective* conf = new_vhost->at(i);
+        if (conf->name == "transcode") {
+            new_transcoders.push_back(conf);
+        }
+    }
+    
+    std::vector<ISrsReloadHandler*>::iterator it;
+    
+    std::string vhost = new_vhost->arg0();
+    
+    // to be simple:
+    // whatever, once tiny changed of transcode, 
+    // restart all ffmpeg of vhost.
+    bool changed = false;
+    
+    // discovery the removed ffmpeg.
+    for (int i = 0; !changed && i < (int)old_transcoders.size(); i++) {
+        SrsConfDirective* old_transcoder = old_transcoders.at(i);
+        std::string transcoder_id = old_transcoder->arg0();
+        
+        // if transcoder exists in new vhost, not removed, ignore.
+        if (new_vhost->get("transcode", transcoder_id)) {
+            continue;
+        }
+        
+        changed = true;
+    }
+    
+    // discovery the added ffmpeg.
+    for (int i = 0; !changed && i < (int)new_transcoders.size(); i++) {
+        SrsConfDirective* new_transcoder = new_transcoders.at(i);
+        std::string transcoder_id = new_transcoder->arg0();
+        
+        // if transcoder exists in old vhost, not added, ignore.
+        if (old_vhost->get("transcode", transcoder_id)) {
+            continue;
+        }
+        
+        changed = true;
+    }
+    
+    // for updated transcoders, restart them.
+    for (int i = 0; !changed && i < (int)new_transcoders.size(); i++) {
+        SrsConfDirective* new_transcoder = new_transcoders.at(i);
+        std::string transcoder_id = new_transcoder->arg0();
+        SrsConfDirective* old_transcoder = old_vhost->get("transcode", transcoder_id);
+        srs_assert(old_transcoder);
+        
+        if (srs_directive_equals(new_transcoder, old_transcoder)) {
+            continue;
+        }
+        
+        changed = true;
+    }
+    
+    // transcode, many per vhost
+    if (changed) {
+        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((ret = subscribe->on_reload_transcode(vhost)) != ERROR_SUCCESS) {
+                srs_error("vhost %s notify subscribes transcode failed. ret=%d", vhost.c_str(), ret);
+                return ret;
+            }
+        }
+        srs_trace("vhost %s reload transcode success.", vhost.c_str());
+    }
+    
+    return ret;
 }
 
 int SrsConfig::reload_ingest(SrsConfDirective* new_vhost, SrsConfDirective* old_vhost)
@@ -789,7 +861,7 @@ int SrsConfig::reload_ingest(SrsConfDirective* new_vhost, SrsConfDirective* old_
         srs_trace("vhost %s reload ingest=%s updated success.", vhost.c_str(), ingest_id.c_str());
     }
 
-    srs_warn("invalid reload ingest vhost=%s", vhost.c_str());
+    srs_trace("ingest not changed for vhost=%s", vhost.c_str());
     
     return ret;
 }
