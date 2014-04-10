@@ -273,13 +273,6 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
     log_file += "-";
     log_file += stream;
     log_file += ".log";
-
-    // stream name: vhost/app/stream for print
-    input_stream_name = vhost->arg0();
-    input_stream_name += "/";
-    input_stream_name += app;
-    input_stream_name += "/";
-    input_stream_name += stream;
     
     // input
     std::string input_type = _srs_config->get_ingest_input_type(ingest);
@@ -346,12 +339,17 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
 
 void SrsIngester::ingester()
 {
-    // reportable
-    if (pithy_print->can_print()) {
-        // TODO: FIXME: show more info.
-        srs_trace("-> time=%"PRId64", ingesters=%d, input=%s", 
-            pithy_print->get_age(), (int)ingesters.size(), input_stream_name.c_str());
+    if ((int)ingesters.size() <= 0) {
+        return;
     }
+    
+    // reportable
+    if (!pithy_print->can_print()) {
+        return;
+    }
+    
+    // TODO: FIXME: show more info.
+    srs_trace("-> time=%"PRId64", ingesters=%d", pithy_print->get_age(), (int)ingesters.size());
 }
 
 int SrsIngester::on_reload_vhost_added(string vhost)
@@ -361,6 +359,35 @@ int SrsIngester::on_reload_vhost_added(string vhost)
     SrsConfDirective* _vhost = _srs_config->get_vhost(vhost);
     if ((ret = parse_ingesters(_vhost)) != ERROR_SUCCESS) {
         return ret;
+    }
+
+    return ret;
+}
+
+int SrsIngester::on_reload_vhost_removed(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    std::vector<SrsIngesterFFMPEG*>::iterator it;
+    
+    for (it = ingesters.begin(); it != ingesters.end();) {
+        SrsIngesterFFMPEG* ingester = *it;
+        
+        if (ingester->vhost != vhost) {
+            ++it;
+            continue;
+        }
+        
+        // stop the ffmpeg and free it.
+        ingester->ffmpeg->stop();
+        
+        srs_trace("reload stop ingester, "
+            "vhost=%s, id=%s", vhost.c_str(), ingester->id.c_str());
+            
+        srs_freep(ingester);
+        
+        // remove the item from ingesters.
+        it = ingesters.erase(it);
     }
 
     return ret;

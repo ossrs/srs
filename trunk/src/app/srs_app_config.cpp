@@ -562,6 +562,7 @@ int SrsConfig::reload()
                 }
             }
             srs_trace("reload remove vhost %s success.", vhost.c_str());
+            continue;
         }
         
         // merge config: vhost modified.

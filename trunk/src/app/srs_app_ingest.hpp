@@ -61,7 +61,6 @@ struct SrsIngesterFFMPEG
 class SrsIngester : public ISrsThreadHandler, public ISrsReloadHandler
 {
 private:
-    std::string input_stream_name;
     std::vector<SrsIngesterFFMPEG*> ingesters;
 private:
     SrsThread* pthread;
@@ -85,6 +84,7 @@ private:
     virtual void ingester();
 // interface ISrsReloadHandler.
 public:
+    virtual int on_reload_vhost_removed(std::string vhost);
     virtual int on_reload_vhost_added(std::string vhost);
 };
 
