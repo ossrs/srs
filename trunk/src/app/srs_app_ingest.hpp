@@ -86,6 +86,9 @@ private:
 public:
     virtual int on_reload_vhost_removed(std::string vhost);
     virtual int on_reload_vhost_added(std::string vhost);
+    virtual int on_reload_ingest_removed(std::string vhost, std::string ingest_id);
+    virtual int on_reload_ingest_added(std::string vhost, std::string ingest_id);
+    virtual int on_reload_ingest_updated(std::string vhost, std::string ingest_id);
 };
 
 #endif

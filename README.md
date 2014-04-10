@@ -221,6 +221,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * nginx v1.5.0: 139524 lines <br/>
 
 ## History
+* v1.0, 2014-04-10, support reload ingesters(added/removed/updated). change to 0.9.57.
 * v1.0, 2014-04-07, [1.0 mainline(0.9.55)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline) released. 30000 lines.
 * v1.0, 2014-04-07, support [ingest](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleIngest) file/stream/device.
 * v1.0, 2014-04-05, support [http api](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPApi) and [http server](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPServer).

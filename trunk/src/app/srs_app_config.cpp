@@ -568,7 +568,7 @@ int SrsConfig::reload()
         // merge config: vhost modified.
         srs_trace("vhost %s modified, reload its detail.", vhost.c_str());
         if (get_vhost_enabled(new_vhost) && get_vhost_enabled(old_vhost)) {
-            // gop_cache
+            // gop_cache, only one per vhost
             if (!srs_directive_equals(new_vhost->get("gop_cache"), old_vhost->get("gop_cache"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
                     ISrsReloadHandler* subscribe = *it;
@@ -579,7 +579,7 @@ int SrsConfig::reload()
                 }
                 srs_trace("vhost %s reload gop_cache success.", vhost.c_str());
             }
-            // queue_length
+            // queue_length, only one per vhost
             if (!srs_directive_equals(new_vhost->get("queue_length"), old_vhost->get("queue_length"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
                     ISrsReloadHandler* subscribe = *it;
@@ -590,7 +590,7 @@ int SrsConfig::reload()
                 }
                 srs_trace("vhost %s reload queue_length success.", vhost.c_str());
             }
-            // forward
+            // forward, only one per vhost
             if (!srs_directive_equals(new_vhost->get("forward"), old_vhost->get("forward"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
                     ISrsReloadHandler* subscribe = *it;
@@ -601,7 +601,7 @@ int SrsConfig::reload()
                 }
                 srs_trace("vhost %s reload forward success.", vhost.c_str());
             }
-            // hls
+            // hls, only one per vhost
             if (!srs_directive_equals(new_vhost->get("hls"), old_vhost->get("hls"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
                     ISrsReloadHandler* subscribe = *it;
@@ -612,7 +612,8 @@ int SrsConfig::reload()
                 }
                 srs_trace("vhost %s reload hls success.", vhost.c_str());
             }
-            // transcode
+            // TODO: FIXME: there might be many transcoders per vhost.
+            // transcode, only one per vhost
             if (!srs_directive_equals(new_vhost->get("transcode"), old_vhost->get("transcode"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
                     ISrsReloadHandler* subscribe = *it;
@@ -622,6 +623,10 @@ int SrsConfig::reload()
                     }
                 }
                 srs_trace("vhost %s reload transcode success.", vhost.c_str());
+            }
+            // ingest, many per vhost.
+            if ((ret = reload_ingest(new_vhost, old_vhost)) != ERROR_SUCCESS) {
+                return ret;
             }
             // TODO: suppor reload hls/forward/ffmpeg/http
             continue;
@@ -687,6 +692,102 @@ int SrsConfig::parse_options(int argc, char** argv)
     }
 
     return parse_file(config_file.c_str());
+}
+
+int SrsConfig::reload_ingest(SrsConfDirective* new_vhost, SrsConfDirective* old_vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    std::vector<SrsConfDirective*> old_ingesters;
+    for (int i = 0; i < (int)old_vhost->directives.size(); i++) {
+        SrsConfDirective* conf = old_vhost->at(i);
+        if (conf->name == "ingest") {
+            old_ingesters.push_back(conf);
+        }
+    }
+    
+    std::vector<SrsConfDirective*> new_ingesters;
+    for (int i = 0; i < (int)new_vhost->directives.size(); i++) {
+        SrsConfDirective* conf = new_vhost->at(i);
+        if (conf->name == "ingest") {
+            new_ingesters.push_back(conf);
+        }
+    }
+    
+    std::vector<ISrsReloadHandler*>::iterator it;
+    
+    std::string vhost = new_vhost->arg0();
+    
+    // for removed ingesters, stop them.
+    for (int i = 0; i < (int)old_ingesters.size(); i++) {
+        SrsConfDirective* old_ingester = old_ingesters.at(i);
+        std::string ingest_id = old_ingester->arg0();
+        
+        // if ingester exists in new vhost, not removed, ignore.
+        if (new_vhost->get("ingest", ingest_id)) {
+            continue;
+        }
+
+        // notice handler ingester removed.
+        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((ret = subscribe->on_reload_ingest_removed(vhost, ingest_id)) != ERROR_SUCCESS) {
+                srs_error("vhost %s notify subscribes ingest=%s removed failed. ret=%d", 
+                    vhost.c_str(), ingest_id.c_str(), ret);
+                return ret;
+            }
+        }
+        srs_trace("vhost %s reload ingest=%s removed success.", vhost.c_str(), ingest_id.c_str());
+    }
+    
+    // for added ingesters, start them.
+    for (int i = 0; i < (int)new_ingesters.size(); i++) {
+        SrsConfDirective* new_ingester = new_ingesters.at(i);
+        std::string ingest_id = new_ingester->arg0();
+        
+        // if ingester exists in old vhost, not added, ignore.
+        if (old_vhost->get("ingest", ingest_id)) {
+            continue;
+        }
+
+        // notice handler ingester removed.
+        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((ret = subscribe->on_reload_ingest_added(vhost, ingest_id)) != ERROR_SUCCESS) {
+                srs_error("vhost %s notify subscribes ingest=%s added failed. ret=%d", 
+                    vhost.c_str(), ingest_id.c_str(), ret);
+                return ret;
+            }
+        }
+        srs_trace("vhost %s reload ingest=%s added success.", vhost.c_str(), ingest_id.c_str());
+    }
+
+    // for updated ingesters, restart them.
+    for (int i = 0; i < (int)new_ingesters.size(); i++) {
+        SrsConfDirective* new_ingester = new_ingesters.at(i);
+        std::string ingest_id = new_ingester->arg0();
+        SrsConfDirective* old_ingester = old_vhost->get("ingest", ingest_id);
+        srs_assert(old_ingester);
+        
+        if (srs_directive_equals(new_ingester, old_ingester)) {
+            continue;
+        }
+
+        // notice handler ingester removed.
+        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((ret = subscribe->on_reload_ingest_updated(vhost, ingest_id)) != ERROR_SUCCESS) {
+                srs_error("vhost %s notify subscribes ingest=%s updated failed. ret=%d", 
+                    vhost.c_str(), ingest_id.c_str(), ret);
+                return ret;
+            }
+        }
+        srs_trace("vhost %s reload ingest=%s updated success.", vhost.c_str(), ingest_id.c_str());
+    }
+
+    srs_warn("invalid reload ingest vhost=%s", vhost.c_str());
+    
+    return ret;
 }
 
 int SrsConfig::parse_file(const char* filename)
@@ -1665,6 +1766,17 @@ void SrsConfig::get_ingesters(std::string vhost, std::vector<SrsConfDirective*>&
     }
     
     return;
+}
+
+SrsConfDirective* SrsConfig::get_ingest(std::string vhost, std::string ingest_id)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return NULL;
+    }
+    
+    conf = conf->get("ingest", ingest_id);
+    return conf;
 }
 
 bool SrsConfig::get_ingest_enabled(SrsConfDirective* ingest)

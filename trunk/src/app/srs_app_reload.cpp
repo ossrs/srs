@@ -80,3 +80,18 @@ int ISrsReloadHandler::on_reload_transcode(string /*vhost*/)
     return ERROR_SUCCESS;
 }
 
+int ISrsReloadHandler::on_reload_ingest_removed(string /*vhost*/, string /*ingest_id*/)
+{
+    return ERROR_SUCCESS;
+}
+
+int ISrsReloadHandler::on_reload_ingest_added(string /*vhost*/, string /*ingest_id*/)
+{
+    return ERROR_SUCCESS;
+}
+
+int ISrsReloadHandler::on_reload_ingest_updated(string /*vhost*/, string /*ingest_id*/)
+{
+    return ERROR_SUCCESS;
+}
+

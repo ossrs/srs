@@ -125,6 +125,7 @@ public:
 public:
     virtual int parse_options(int argc, char** argv);
 private:
+    virtual int reload_ingest(SrsConfDirective* new_vhost, SrsConfDirective* old_vhost);
     virtual int parse_file(const char* filename);
     virtual int parse_argv(int& i, char** argv);
     virtual void print_help(char** argv);
@@ -193,6 +194,7 @@ public:
 // ingest section
 public:
     virtual void                get_ingesters(std::string vhost, std::vector<SrsConfDirective*>& ingeters);
+    virtual SrsConfDirective*   get_ingest(std::string vhost, std::string ingest_id);
     virtual bool                get_ingest_enabled(SrsConfDirective* ingest);
     virtual std::string         get_ingest_ffmpeg(SrsConfDirective* ingest);
     virtual std::string         get_ingest_input_type(SrsConfDirective* ingest);
