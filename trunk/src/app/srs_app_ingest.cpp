@@ -429,7 +429,7 @@ int SrsIngester::on_reload_ingest_added(string vhost, string ingest_id)
     int ret = ERROR_SUCCESS;
     
     SrsConfDirective* _vhost = _srs_config->get_vhost(vhost);
-    SrsConfDirective* _ingester = _srs_config->get_ingest(vhost, ingest_id);
+    SrsConfDirective* _ingester = _srs_config->get_ingest_by_id(vhost, ingest_id);
     
     if ((ret = parse_engines(_vhost, _ingester)) != ERROR_SUCCESS) {
         return ret;

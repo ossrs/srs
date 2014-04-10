@@ -624,6 +624,10 @@ int SrsConfig::reload()
                 }
                 srs_trace("vhost %s reload transcode success.", vhost.c_str());
             }
+            // transcode, many per vhost.
+            /*if ((ret = reload_transcode(new_vhost, old_vhost)) != ERROR_SUCCESS) {
+                return ret;
+            }*/
             // ingest, many per vhost.
             if ((ret = reload_ingest(new_vhost, old_vhost)) != ERROR_SUCCESS) {
                 return ret;
@@ -1768,7 +1772,7 @@ void SrsConfig::get_ingesters(std::string vhost, std::vector<SrsConfDirective*>&
     return;
 }
 
-SrsConfDirective* SrsConfig::get_ingest(std::string vhost, std::string ingest_id)
+SrsConfDirective* SrsConfig::get_ingest_by_id(std::string vhost, std::string ingest_id)
 {
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {
