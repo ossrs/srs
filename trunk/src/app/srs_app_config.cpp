@@ -447,6 +447,30 @@ SrsConfig::~SrsConfig()
     srs_freep(root);
 }
 
+void SrsConfig::subscribe(ISrsReloadHandler* handler)
+{
+    std::vector<ISrsReloadHandler*>::iterator it;
+    
+    it = std::find(subscribes.begin(), subscribes.end(), handler);
+    if (it != subscribes.end()) {
+        return;
+    }
+    
+    subscribes.push_back(handler);
+}
+
+void SrsConfig::unsubscribe(ISrsReloadHandler* handler)
+{
+    std::vector<ISrsReloadHandler*>::iterator it;
+    
+    it = std::find(subscribes.begin(), subscribes.end(), handler);
+    if (it == subscribes.end()) {
+        return;
+    }
+    
+    subscribes.erase(it);
+}
+
 int SrsConfig::reload()
 {
     int ret = ERROR_SUCCESS;
@@ -628,62 +652,6 @@ int SrsConfig::reload()
     }
     
     return ret;
-}
-
-void SrsConfig::subscribe(ISrsReloadHandler* handler)
-{
-    std::vector<ISrsReloadHandler*>::iterator it;
-    
-    it = std::find(subscribes.begin(), subscribes.end(), handler);
-    if (it != subscribes.end()) {
-        return;
-    }
-    
-    subscribes.push_back(handler);
-}
-
-void SrsConfig::unsubscribe(ISrsReloadHandler* handler)
-{
-    std::vector<ISrsReloadHandler*>::iterator it;
-    
-    it = std::find(subscribes.begin(), subscribes.end(), handler);
-    if (it == subscribes.end()) {
-        return;
-    }
-    
-    subscribes.erase(it);
-}
-
-// see: ngx_get_options
-int SrsConfig::parse_options(int argc, char** argv)
-{
-    int ret = ERROR_SUCCESS;
-    
-    for (int i = 1; i < argc; i++) {
-        if ((ret = parse_argv(i, argv)) != ERROR_SUCCESS) {
-            return ret;
-        }
-    }
-    
-    if (show_help) {
-        print_help(argv);
-    }
-    
-    if (show_version) {
-        fprintf(stderr, "%s\n", RTMP_SIG_SRS_VERSION);
-    }
-    
-    if (show_help || show_version) {
-        exit(0);
-    }
-    
-    if (config_file.empty()) {
-        ret = ERROR_SYSTEM_CONFIG_INVALID;
-        srs_error("config file not specified, see help: %s -h, ret=%d", argv[0], ret);
-        return ret;
-    }
-
-    return parse_file(config_file.c_str());
 }
 
 int SrsConfig::reload_transcode(SrsConfDirective* new_vhost, SrsConfDirective* old_vhost)
@@ -868,6 +836,38 @@ int SrsConfig::reload_ingest(SrsConfDirective* new_vhost, SrsConfDirective* old_
     srs_trace("ingest not changed for vhost=%s", vhost.c_str());
     
     return ret;
+}
+
+// see: ngx_get_options
+int SrsConfig::parse_options(int argc, char** argv)
+{
+    int ret = ERROR_SUCCESS;
+    
+    for (int i = 1; i < argc; i++) {
+        if ((ret = parse_argv(i, argv)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    
+    if (show_help) {
+        print_help(argv);
+    }
+    
+    if (show_version) {
+        fprintf(stderr, "%s\n", RTMP_SIG_SRS_VERSION);
+    }
+    
+    if (show_help || show_version) {
+        exit(0);
+    }
+    
+    if (config_file.empty()) {
+        ret = ERROR_SYSTEM_CONFIG_INVALID;
+        srs_error("config file not specified, see help: %s -h, ret=%d", argv[0], ret);
+        return ret;
+    }
+
+    return parse_file(config_file.c_str());
 }
 
 int SrsConfig::parse_file(const char* filename)

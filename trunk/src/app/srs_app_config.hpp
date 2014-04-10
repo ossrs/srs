@@ -119,14 +119,15 @@ public:
     SrsConfig();
     virtual ~SrsConfig();
 public:
-    virtual int reload();
     virtual void subscribe(ISrsReloadHandler* handler);
     virtual void unsubscribe(ISrsReloadHandler* handler);
+    virtual int reload();
+private:
+    virtual int reload_transcode(SrsConfDirective* new_vhost, SrsConfDirective* old_vhost);
+    virtual int reload_ingest(SrsConfDirective* new_vhost, SrsConfDirective* old_vhost);
 public:
     virtual int parse_options(int argc, char** argv);
 private:
-    virtual int reload_ingest(SrsConfDirective* new_vhost, SrsConfDirective* old_vhost);
-    virtual int reload_transcode(SrsConfDirective* new_vhost, SrsConfDirective* old_vhost);
     virtual int parse_file(const char* filename);
     virtual int parse_argv(int& i, char** argv);
     virtual void print_help(char** argv);
