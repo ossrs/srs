@@ -22,3 +22,23 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
 #include <srs_app_utility.hpp>
+
+#include <srs_kernel_log.hpp>
+#include <srs_app_config.hpp>
+
+int srs_get_log_level(std::string level)
+{
+    if ("verbose" == _srs_config->get_srs_log_level()) {
+        return SrsLogLevel::Verbose;
+    } else if ("info" == _srs_config->get_srs_log_level()) {
+        return SrsLogLevel::Info;
+    } else if ("trace" == _srs_config->get_srs_log_level()) {
+        return SrsLogLevel::Trace;
+    } else if ("warn" == _srs_config->get_srs_log_level()) {
+        return SrsLogLevel::Warn;
+    } else if ("error" == _srs_config->get_srs_log_level()) {
+        return SrsLogLevel::Error;
+    } else {
+        return SrsLogLevel::Trace;
+    }
+}

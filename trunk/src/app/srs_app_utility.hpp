@@ -30,4 +30,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+/**
+* convert level in string to log level in int.
+* @return the log level defined in SrsLogLevel.
+*/
+extern int srs_get_log_level(std::string level);
+
 #endif
