@@ -332,14 +332,37 @@ class RESTServers(object):
     '''
     id canbe:
         ingest: the ingest demo.
-        meeting: the meeting demo.
+            action: canbe play or mgmt, play to play the inest stream, mgmt to get api/v1/versions.
+            stream: the stream to play, for example, live/livestream for http://server:8080/live/livestream.html
+        meeting: the meeting demo. jump to web meeting if index is None.
+            local: whether view the local raspberry-pi stream. if "true", redirect to the local(internal) api server.
+            index: the meeting stream index, dynamic get the streams from root.api.v1.chats.get_url_by_index(index)
     '''
-    def GET(self, id=None):
+    def GET(self, id=None, action="play", stream="live/livestream", index=None, local="false"):
         enable_crossdomain()
         if id == "meeting":
-            url = "http://%s:8085/players/srs_chat.html?port=1935"%(self.__server_ip)
+            if index is None:
+                url = "http://%s:8085"%(self.__server_ip)
+            elif local == "true":
+                url = "http://%s:8085/api/v1/servers?id=%s&index=%s&local=false"%(self.__server_ip, id, index)
+            else:
+                rtmp_url = root.api.v1.chats.get_url_by_index(index)
+                if rtmp_url is None:
+                    return "meeting stream not found"
+                urls = rtmp_url.replace("...vhost...", "?vhost=").replace("rtmp://", "").split("/")
+                hls_url = "http://%s:8080/%s/%s.m3u8"%(urls[0].replace(":1935",""), urls[1].split("?")[0], urls[2])
+                return """
+<video width="640" height="360"
+        autoplay controls autobuffer 
+        src="%s"
+        type="application/vnd.apple.mpegurl">
+</video>"""%(hls_url);
         else:
-            url = "http://%s:8080/live/livestream.html"%(self.__server_ip)
+            if action == "play":
+                url = "http://%s:8080/%s.html"%(self.__server_ip, stream)
+            else:
+                url = "http://%s:8080/api/v1/versions"%(self.__server_ip)
+        #return "id=%s, action=%s, stream=%s, url=%s, index=%s, local=%s"%(id, action, stream, url, index, local)
         raise cherrypy.HTTPRedirect(url)
         
     def POST(self):
@@ -353,7 +376,6 @@ class RESTServers(object):
     def PUT(self, id):
         enable_crossdomain()
         raise cherrypy.HTTPError(405, "Not allowed.")
-
 
     def OPTIONS(self, id=None):
         enable_crossdomain()
@@ -382,6 +404,15 @@ class RESTChats(object):
 
         # dead time in seconds, if exceed, remove the chat.
         self.__dead_time = 15;
+    
+    '''
+    get the rtmp url of chat object. None if overflow.
+    '''
+    def get_url_by_index(self, index):
+        index = int(index)
+        if index is None or index >= len(self.__chats):
+            return None;
+        return self.__chats[index]["url"];
 
     def GET(self):
         enable_crossdomain()
@@ -536,4 +567,6 @@ conf = {
 
 # start cherrypy web engine
 trace("start cherrypy server")
-cherrypy.quickstart(Root(), '/', conf)
+root = Root()
+cherrypy.quickstart(root, '/', conf)
+
