@@ -18,6 +18,7 @@ yasm-1.2.0.tar.gz
 lame-3.99.5.tar.gz
 libaacplus-2.0.2.tar.gz
 libaacplus-patch-26410-800.zip (26410-800.zip)
+speex-1.2rc1.zip
 x264-snapshot-20131129-2245-stable.tar.bz2 (core.138)
     for srs to support live stream transcoding.
     remark: we use *.zip for all linux plantform.
@@ -72,4 +73,7 @@ links:
     gperftools:
         https://code.google.com/p/gperftools/
         https://code.google.com/p/gperftools/downloads/list
+    speex:
+        http://www.speex.org/downloads/
+        http://downloads.xiph.org/releases/speex/speex-1.2rc1.tar.gz
 

@@ -58,6 +58,17 @@ else
     ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build lame-3.99.5 failed"; exit 1; fi
 fi
 
+# speex-1.2rc1
+if [[ -f ${ff_release_dir}/lib/libspeex.a ]]; then
+    echo "libspeex is ok"
+else
+    echo "build speex-1.2rc1"
+    cd $ff_current_dir &&
+    rm -rf speex-1.2rc1 && unzip -q ${ff_src_dir}/speex-1.2rc1.zip &&
+    cd speex-1.2rc1 && ./configure --prefix=${ff_release_dir} --enable-static && make ${SRS_JOBS} && make install
+    ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build speex-1.2rc1 failed"; exit 1; fi
+fi
+
 # x264 core.138
 if [[ -f ${ff_release_dir}/lib/libx264.a ]]; then
     echo "x264 is ok"
@@ -93,7 +104,7 @@ else
         --disable-ffplay --disable-ffprobe --disable-ffserver --disable-doc \
         --enable-postproc --enable-bzlib --enable-zlib --enable-parsers \
         --enable-libfreetype \
-        --enable-libx264 --enable-libmp3lame --enable-libaacplus \
+        --enable-libx264 --enable-libmp3lame --enable-libaacplus --enable-libspeex \
         --enable-pthreads --extra-libs=-lpthread \
         --enable-encoders --enable-decoders --enable-avfilter --enable-muxers --enable-demuxers && 
     make ${SRS_JOBS} && make install
