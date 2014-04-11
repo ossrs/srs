@@ -289,7 +289,7 @@ int SrsRtmpConn::stream_service_cycle()
     }
     
     bool enabled_cache = _srs_config->get_gop_cache(req->vhost);
-    srs_info("source found, url=%s, enabled_cache=%d", req->get_stream_url().c_str(), enabled_cache);
+    srs_trace("source found, url=%s, enabled_cache=%d", req->get_stream_url().c_str(), enabled_cache);
     source->set_cache(enabled_cache);
     
     switch (type) {

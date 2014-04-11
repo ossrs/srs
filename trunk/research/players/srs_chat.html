@@ -82,7 +82,8 @@
                     cameras, microphones,
                     "#sl_cameras", "#sl_microphones", 
                     "#sl_vcodec", "#sl_profile", "#sl_level", "#sl_gop", "#sl_size",
-                    "#sl_fps", "#sl_bitrate"
+                    "#sl_fps", "#sl_bitrate",
+                    "#sl_acodec"
                 );
             };
             srs_publisher.on_publisher_error = function(code, desc) {
@@ -490,7 +491,8 @@
                 vcodec, acodec,
                 "#sl_cameras", "#sl_microphones", 
                 "#sl_vcodec", "#sl_profile", "#sl_level", "#sl_gop", "#sl_size",
-                "#sl_fps", "#sl_bitrate"
+                "#sl_fps", "#sl_bitrate",
+                "#sl_acodec"
             );
             
             var chat = {};
@@ -758,6 +760,17 @@
                     </label>
                     <div class="controls">
                         <select class="span4" id="sl_microphones"></select>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="sl_acodec">
+                        编码
+                        <a id="sl_acodec_tips" href="#" data-toggle="tooltip" data-placement="right" title="">
+                            <img src="img/tooltip.png"/>
+                        </a>
+                    </label>
+                    <div class="controls">
+                        <select class="span2" id="sl_acodec"></select>
                     </div>
                 </div>
             </div>

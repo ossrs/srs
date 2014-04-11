@@ -2,6 +2,9 @@
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
 
+// to query the swf anti cache.
+function srs_get_version_code() { return "1.20"; }
+
 /**
 * player specified size.
 */
@@ -9,8 +12,6 @@ function srs_get_player_modal() { return 740; }
 function srs_get_player_width() { return srs_get_player_modal() - 30; }
 function srs_get_player_height() { return srs_get_player_width() * 9 / 19; }
 
-// to query the swf anti cache.
-function srs_get_version_code() { return "1.19"; }
 // get the default vhost for players.
 function srs_get_player_vhost() { return "players"; }
 // the api server port, for chat room.
@@ -23,7 +24,7 @@ function srs_get_srs_http_server_port() { return 8080; }
 // if not equals to the player vhost, return the orignal vhost.
 function srs_get_player_publish_vhost(src_vhost) { return (src_vhost != srs_get_player_vhost())? src_vhost:(src_vhost + "_pub"); }
 // for chat, use rtmp only vhost, low latecy, without gop cache.
-function srs_get_player_chat_vhost(src_vhost) { return (src_vhost != srs_get_player_vhost())? src_vhost:(src_vhost + "_pub_rtmp"); }
+function srs_get_player_chat_vhost(src_vhost) { return (src_vhost != srs_get_player_vhost())? src_vhost:(src_vhost + "_chat"); }
 
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
@@ -181,7 +182,8 @@ function srs_can_republish() {
 // without default values set.
 function srs_initialize_codec_page(
     cameras, microphones,
-    sl_cameras, sl_microphones, sl_vcodec, sl_profile, sl_level, sl_gop, sl_size, sl_fps, sl_bitrate
+    sl_cameras, sl_microphones, sl_vcodec, sl_profile, sl_level, sl_gop, sl_size, sl_fps, sl_bitrate,
+    sl_acodec
 ) {
     $(sl_cameras).empty();
     for (var i = 0; i < cameras.length; i++) {
@@ -292,17 +294,25 @@ function srs_initialize_codec_page(
     for (i = 0; i < bitrates.length; i++) {
         $(sl_bitrate).append("<option value='" + bitrates[i] + "'>" + bitrates[i] + " kbps</option");
     }
+    
+    $(sl_acodec).empty();
+    var bitrates = ["speex", "nellymoser", "pcma", "pcmu"];
+    for (i = 0; i < bitrates.length; i++) {
+        $(sl_acodec).append("<option value='" + bitrates[i] + "'>" + bitrates[i] + "</option");
+    }
 }
 /**
 * when publisher ready, init the page elements.
 */
 function srs_publisher_initialize_page(
     cameras, microphones,
-    sl_cameras, sl_microphones, sl_vcodec, sl_profile, sl_level, sl_gop, sl_size, sl_fps, sl_bitrate
+    sl_cameras, sl_microphones, sl_vcodec, sl_profile, sl_level, sl_gop, sl_size, sl_fps, sl_bitrate,
+    sl_acodec
 ) {
     srs_initialize_codec_page(
         cameras, microphones,
-        sl_cameras, sl_microphones, sl_vcodec, sl_profile, sl_level, sl_gop, sl_size, sl_fps, sl_bitrate
+        sl_cameras, sl_microphones, sl_vcodec, sl_profile, sl_level, sl_gop, sl_size, sl_fps, sl_bitrate,
+        sl_acodec
     );
     
     //var profiles = ["baseline", "main"];
@@ -327,17 +337,22 @@ function srs_publisher_initialize_page(
     //var bitrates = ["50", "200", "350", "500", "650", "800", 
     //    "950", "1000", "1200", "1500", "1800", "2000", "3000", "5000"];
     $(sl_bitrate + " option[value='500']").attr("selected", true);
+    
+    // speex
+    $(sl_acodec + " option[value='speex']").attr("selected", true);
 }
 /**
 * for chat, use low latecy settings.
 */
 function srs_chat_initialize_page(
     cameras, microphones,
-    sl_cameras, sl_microphones, sl_vcodec, sl_profile, sl_level, sl_gop, sl_size, sl_fps, sl_bitrate
+    sl_cameras, sl_microphones, sl_vcodec, sl_profile, sl_level, sl_gop, sl_size, sl_fps, sl_bitrate,
+    sl_acodec
 ) {
     srs_initialize_codec_page(
         cameras, microphones,
-        sl_cameras, sl_microphones, sl_vcodec, sl_profile, sl_level, sl_gop, sl_size, sl_fps, sl_bitrate
+        sl_cameras, sl_microphones, sl_vcodec, sl_profile, sl_level, sl_gop, sl_size, sl_fps, sl_bitrate,
+        sl_acodec
     );
     
     //var profiles = ["baseline", "main"];
@@ -362,14 +377,19 @@ function srs_chat_initialize_page(
     //var bitrates = ["50", "200", "350", "500", "650", "800", 
     //    "950", "1000", "1200", "1500", "1800", "2000", "3000", "5000"];
     $(sl_bitrate + " option[value='350']").attr("selected", true);
+    
+    // speex
+    $(sl_acodec + " option[value='speex']").attr("selected", true);
 }
 /**
 * get the vcodec and acodec.
 */
 function srs_publiser_get_codec(
     vcodec, acodec,
-    sl_cameras, sl_microphones, sl_vcodec, sl_profile, sl_level, sl_gop, sl_size, sl_fps, sl_bitrate
+    sl_cameras, sl_microphones, sl_vcodec, sl_profile, sl_level, sl_gop, sl_size, sl_fps, sl_bitrate,
+    sl_acodec
 ) {
+    acodec.codec       = $(sl_acodec).val();
     acodec.device_code = $(sl_microphones).val();
     acodec.device_name = $(sl_microphones).text();
     

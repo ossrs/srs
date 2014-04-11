@@ -418,7 +418,7 @@ SrsSource* SrsSource::find(SrsRequest* req)
     
     if (pool.find(stream_url) == pool.end()) {
         pool[stream_url] = new SrsSource(req);
-        srs_verbose("create new source for url=%s, vhost=%s", stream_url.c_str(), vhost.c_str());
+        srs_info("create new source for url=%s, vhost=%s", stream_url.c_str(), vhost.c_str());
     }
     
     return pool[stream_url];

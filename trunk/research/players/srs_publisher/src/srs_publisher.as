@@ -273,7 +273,7 @@ package
             var microRate:int = 22; // 22 === 22050 Hz
             
             trace("[Publish] audio encoding parameters: " 
-                + "audio(microphone) encodeQuality=" + microEncodeQuality
+                + "audio(microphone) codec=" + acodec.codec + "encodeQuality=" + microEncodeQuality
                 + ", rate=" + microRate + "(22050Hz)"
             );
             
@@ -288,7 +288,15 @@ package
             m.rate = microRate;
             
             // see: http://www.adobe.com/cn/devnet/flashplayer/articles/acoustic-echo-cancellation.html
-            m.codec = SoundCodec.SPEEX;
+            if (acodec.codec == "nellymoser") {
+                m.codec = SoundCodec.NELLYMOSER;
+            } else if (acodec.codec == "pcma") {
+                m.codec = SoundCodec.PCMA;
+            } else if (acodec.codec == "pcmu") {
+                m.codec = SoundCodec.PCMU;
+            } else {
+                m.codec = SoundCodec.SPEEX;
+            }
             m.framesPerPacket = 1;
         }
         private function __build_video_codec(stream:NetStream, c:Camera, vcodec:Object):void {

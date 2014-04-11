@@ -189,7 +189,7 @@ int SrsCodec::audio_aac_demux(int8_t* data, int size, SrsCodecSample* sample)
     // only support aac
     if (audio_codec_id != SrsCodecAudioAAC) {
         ret = ERROR_HLS_DECODE_ERROR;
-        srs_error("hls only support audio aac codec. ret=%d", ret);
+        srs_error("hls only support audio aac codec. actual=%d, ret=%d", audio_codec_id, ret);
         return ret;
     }
 
@@ -299,7 +299,7 @@ int SrsCodec::video_avc_demux(int8_t* data, int size, SrsCodecSample* sample)
     // only support h.264/avc
     if (codec_id != SrsCodecVideoAVC) {
         ret = ERROR_HLS_DECODE_ERROR;
-        srs_error("hls only support video h.264/avc codec. ret=%d", ret);
+        srs_error("hls only support video h.264/avc codec. actual=%d, ret=%d", codec_id, ret);
         return ret;
     }
     video_codec_id = codec_id;
