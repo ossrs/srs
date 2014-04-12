@@ -56,17 +56,18 @@ enum SrsListenerType
 class SrsListener : public ISrsThreadHandler
 {
 public:
-    SrsListenerType type;
+    SrsListenerType _type;
 private:
     int fd;
     st_netfd_t stfd;
-    int port;
-    SrsServer* server;
+    int _port;
+    SrsServer* _server;
     SrsThread* pthread;
 public:
-    SrsListener(SrsServer* _server, SrsListenerType _type);
+    SrsListener(SrsServer* _server, SrsListenerType type);
     virtual ~SrsListener();
 public:
+    virtual SrsListenerType type();
     virtual int listen(int port);
 // interface ISrsThreadHandler.
 public:
@@ -106,7 +107,10 @@ public:
     virtual void remove(SrsConnection* conn);
     virtual void on_signal(int signo);
 private:
-    virtual void close_listeners();
+    virtual int listen_rtmp();
+    virtual int listen_http_api();
+    virtual int listen_http_stream();
+    virtual void close_listeners(SrsListenerType type);
     virtual int accept_client(SrsListenerType type, st_netfd_t client_stfd);
 // interface ISrsThreadHandler.
 public:
