@@ -32,6 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_config.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_app_utility.hpp>
 
 SrsThreadContext::SrsThreadContext()
 {
@@ -66,6 +67,7 @@ SrsFastLog::SrsFastLog()
     log_data = new char[LOG_MAX_SIZE];
 
     fd = -1;
+    log_to_file_tank = false;
 }
 
 SrsFastLog::~SrsFastLog()
@@ -76,22 +78,20 @@ SrsFastLog::~SrsFastLog()
         ::close(fd);
         fd = -1;
     }
+
+    _srs_config->unsubscribe(this);
 }
 
 int SrsFastLog::initialize()
 {
-    // TODO: support reload.
-    return ERROR_SUCCESS;
-}
+    int ret = ERROR_SUCCESS;
+    
+    _srs_config->subscribe(this);
 
-int SrsFastLog::level()
-{
-    return _level;
-}
-
-void SrsFastLog::set_level(int level)
-{
-    _level = level;
+    log_to_file_tank = _srs_config->get_srs_log_tank_file();
+    _level = srs_get_log_level(_srs_config->get_srs_log_level());
+    
+    return ret;
 }
 
 void SrsFastLog::verbose(const char* tag, int context_id, const char* fmt, ...)
@@ -197,6 +197,54 @@ void SrsFastLog::error(const char* tag, int context_id, const char* fmt, ...)
     write_log(fd, log_data, size, SrsLogLevel::Error);
 }
 
+int SrsFastLog::on_reload_log_tank()
+{
+    int ret = ERROR_SUCCESS;
+
+    bool tank = log_to_file_tank;
+    log_to_file_tank = _srs_config->get_srs_log_tank_file();
+
+    if (tank) {
+        return ret;
+    }
+
+    if (!log_to_file_tank) {
+        return ret;
+    }
+
+    if (fd > 0) {
+        ::close(fd);
+    }
+    open_log_file();
+    
+    return ret;
+}
+
+int SrsFastLog::on_reload_log_level()
+{
+    int ret = ERROR_SUCCESS;
+    
+    _level = srs_get_log_level(_srs_config->get_srs_log_level());
+    
+    return ret;
+}
+
+int SrsFastLog::on_reload_log_file()
+{
+    int ret = ERROR_SUCCESS;
+
+    if (!log_to_file_tank) {
+        return ret;
+    }
+
+    if (fd > 0) {
+        ::close(fd);
+    }
+    open_log_file();
+    
+    return ret;
+}
+
 bool SrsFastLog::generate_header(const char* tag, int context_id, const char* level_name, int* header_size)
 {
     // clock time
@@ -247,7 +295,8 @@ void SrsFastLog::write_log(int& fd, char *str_log, int size, int level)
     str_log[size++] = LOG_TAIL;
     str_log[size++] = 0;
     
-    if (fd < 0 || !_srs_config->get_srs_log_tank_file()) {
+    // if not to file, to console and return.
+    if (!log_to_file_tank) {
         // if is error msg, then print color msg.
         // \033[31m : red text code in shell
         // \033[32m : green text code in shell
@@ -260,24 +309,35 @@ void SrsFastLog::write_log(int& fd, char *str_log, int size, int level)
         } else{
             printf("\033[31m%s\033[0m", str_log);
         }
+
+        return;
     }
     
     // open log file. if specified
-    if (!_srs_config->get_srs_log_file().empty() && fd < 0) {
-        std::string filename = _srs_config->get_srs_log_file();
-        
-        fd = ::open(filename.c_str(), O_RDWR | O_APPEND);
-        
-        if(fd == -1 && errno == ENOENT) {
-            fd = open(filename.c_str(), 
-                O_RDWR | O_CREAT | O_TRUNC, 
-                S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH
-            );
-        }
+    if (fd < 0) {
+        open_log_file();
     }
     
     // write log to file.
-    if (fd > 0 && _srs_config->get_srs_log_tank_file()) {
+    if (fd > 0) {
         ::write(fd, str_log, size);
+    }
+}
+
+void SrsFastLog::open_log_file()
+{
+    std::string filename = _srs_config->get_srs_log_file();
+    
+    if (filename.empty()) {
+        return;
+    }
+    
+    fd = ::open(filename.c_str(), O_RDWR | O_APPEND);
+    
+    if(fd == -1 && errno == ENOENT) {
+        fd = open(filename.c_str(), 
+            O_RDWR | O_CREAT | O_TRUNC, 
+            S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH
+        );
     }
 }

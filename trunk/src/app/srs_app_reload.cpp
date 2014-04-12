@@ -45,6 +45,21 @@ int ISrsReloadHandler::on_reload_pid()
     return ERROR_SUCCESS;
 }
 
+int ISrsReloadHandler::on_reload_log_tank()
+{
+    return ERROR_SUCCESS;
+}
+
+int ISrsReloadHandler::on_reload_log_level()
+{
+    return ERROR_SUCCESS;
+}
+
+int ISrsReloadHandler::on_reload_log_file()
+{
+    return ERROR_SUCCESS;
+}
+
 int ISrsReloadHandler::on_reload_pithy_print()
 {
     return ERROR_SUCCESS;

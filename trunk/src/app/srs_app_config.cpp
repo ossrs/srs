@@ -516,6 +516,42 @@ int SrsConfig::reload()
         }
         srs_trace("reload pid success.");
     }
+    
+    // merge config: srs_log_tank
+    if (!srs_directive_equals(root->get("srs_log_tank"), old_root->get("srs_log_tank"))) {
+        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((ret = subscribe->on_reload_log_tank()) != ERROR_SUCCESS) {
+                srs_error("notify subscribes reload srs_log_tank failed. ret=%d", ret);
+                return ret;
+            }
+        }
+        srs_trace("reload srs_log_tank success.");
+    }
+    
+    // merge config: srs_log_level
+    if (!srs_directive_equals(root->get("srs_log_level"), old_root->get("srs_log_level"))) {
+        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((ret = subscribe->on_reload_log_level()) != ERROR_SUCCESS) {
+                srs_error("notify subscribes reload srs_log_level failed. ret=%d", ret);
+                return ret;
+            }
+        }
+        srs_trace("reload srs_log_level success.");
+    }
+    
+    // merge config: srs_log_file
+    if (!srs_directive_equals(root->get("srs_log_file"), old_root->get("srs_log_file"))) {
+        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((ret = subscribe->on_reload_log_file()) != ERROR_SUCCESS) {
+                srs_error("notify subscribes reload srs_log_file failed. ret=%d", ret);
+                return ret;
+            }
+        }
+        srs_trace("reload srs_log_file success.");
+    }
 
     // directly supported for reload:
     // chunk_size, ff_log_dir

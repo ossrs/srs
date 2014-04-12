@@ -69,11 +69,6 @@ public:
     virtual int initialize();
 public:
     /**
-    * defined in SrsLogLevel.
-    */
-    virtual int level();
-    virtual void set_level(int level);
-    /**
     * log for verbose, very verbose information.
     */
     virtual void verbose(const char* tag, int context_id, const char* fmt, ...);

@@ -98,7 +98,6 @@ int main(int argc, char** argv)
     if ((ret = _srs_log->initialize()) != ERROR_SUCCESS) {
         return ret;
     }
-    _srs_log->set_level(srs_get_log_level(_srs_config->get_srs_log_level()));
     
     srs_trace("srs(simple-rtmp-server) "RTMP_SIG_SRS_VERSION);
     srs_trace("uname: "SRS_UNAME);
