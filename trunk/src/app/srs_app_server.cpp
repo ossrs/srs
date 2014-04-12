@@ -205,7 +205,7 @@ int SrsServer::initialize()
 {
     int ret = ERROR_SUCCESS;
     
-    // for the main objects(server, config, log),
+    // for the main objects(server, config, log, context),
     // never subscribe handler in constructor,
     // instead, subscribe handler in initialize method.
     srs_assert(_srs_config);

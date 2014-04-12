@@ -42,6 +42,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_log.hpp>
 #include <srs_app_utility.hpp>
 
+// pre-declare
+int run();
+int run_master();
+
+// for the main objects(server, config, log, context),
+// never subscribe handler in constructor,
+// instead, subscribe handler in initialize method.
 // kernel module.
 ISrsLog* _srs_log = new SrsFastLog();
 ISrsThreadContext* _srs_context = new SrsThreadContext();
@@ -49,15 +56,14 @@ ISrsThreadContext* _srs_context = new SrsThreadContext();
 SrsConfig* _srs_config = new SrsConfig();
 SrsServer* _srs_server = new SrsServer();
 
+// signal handler
 void handler(int signo)
 {
     srs_trace("get a signal, signo=%d", signo);
     _srs_server->on_signal(signo);
 }
 
-int run();
-int run_master();
-
+// main entrance.
 int main(int argc, char** argv) 
 {
     int ret = ERROR_SUCCESS;
