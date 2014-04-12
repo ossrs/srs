@@ -484,6 +484,25 @@ SrsSource::~SrsSource()
     srs_freep(req);
 }
 
+int SrsSource::on_reload_atc(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (req->vhost != vhost) {
+        return ret;
+    }
+    
+    // atc changed.
+    bool enabled_atc = _srs_config->get_atc(vhost);
+    
+    srs_warn("vhost %s atc changed to %d, connected client may corrupt.", 
+        vhost.c_str(), enabled_atc);
+    
+    gop_cache->clear();
+    
+    return ret;
+}
+
 int SrsSource::on_reload_gop_cache(string vhost)
 {
     int ret = ERROR_SUCCESS;

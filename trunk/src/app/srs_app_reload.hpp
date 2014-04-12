@@ -49,6 +49,7 @@ public:
     virtual int on_reload_pithy_print();
     virtual int on_reload_vhost_added(std::string vhost);
     virtual int on_reload_vhost_removed(std::string vhost);
+    virtual int on_reload_atc(std::string vhost);
     virtual int on_reload_gop_cache(std::string vhost);
     virtual int on_reload_queue_length(std::string vhost);
     virtual int on_reload_forward(std::string vhost);

@@ -554,7 +554,7 @@ int SrsConfig::reload()
     }
 
     // directly supported for reload:
-    // chunk_size, ff_log_dir
+    // chunk_size, ff_log_dir, max_connections
     
     // merge config: pithy_print
     if (!srs_directive_equals(root->get("pithy_print"), old_root->get("pithy_print"))) {
@@ -643,6 +643,17 @@ int SrsConfig::reload()
         // merge config: vhost modified.
         srs_trace("vhost %s modified, reload its detail.", vhost.c_str());
         if (get_vhost_enabled(new_vhost) && get_vhost_enabled(old_vhost)) {
+            // atc, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("atc"), old_vhost->get("atc"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_atc(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes atc failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload atc success.", vhost.c_str());
+            }
             // gop_cache, only one per vhost
             if (!srs_directive_equals(new_vhost->get("gop_cache"), old_vhost->get("gop_cache"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
