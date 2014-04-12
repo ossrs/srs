@@ -64,6 +64,11 @@ public:
     virtual ~ISrsLog();
 public:
     /**
+    * initialize log utilities.
+    */
+    virtual int initialize();
+public:
+    /**
     * defined in SrsLogLevel.
     */
     virtual int level();

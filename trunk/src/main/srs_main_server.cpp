@@ -55,38 +55,61 @@ void handler(int signo)
     _srs_server->on_signal(signo);
 }
 
-int run_master() 
+int run();
+int run_master();
+
+int main(int argc, char** argv) 
 {
     int ret = ERROR_SUCCESS;
     
-    signal(SIGNAL_RELOAD, handler);
-    signal(SIGTERM, handler);
-    signal(SIGINT, handler);
+    // TODO: support both little and big endian.
+    srs_assert(srs_is_little_endian());
+
+#ifdef SRS_GPERF_MP
+    HeapProfilerStart("gperf.srs.gmp");
+#endif
+#ifdef SRS_GPERF_CP
+    ProfilerStart("gperf.srs.gcp");
+#endif
+
+#ifdef SRS_GPERF_MC
+    #ifdef SRS_GPERF_MP
+    srs_error("option --with-gmc confict with --with-gmp, "
+        "@see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html\n"
+        "Note that since the heap-checker uses the heap-profiling framework internally, "
+        "it is not possible to run both the heap-checker and heap profiler at the same time");
+    return -1;
+    #endif
+#endif
     
-    if ((ret = _srs_server->acquire_pid_file()) != ERROR_SUCCESS) {
+    // never use srs log(srs_trace, srs_error, etc) before config parse the option,
+    // which will load the log config and apply it.
+    if ((ret = _srs_config->parse_options(argc, argv)) != ERROR_SUCCESS) {
         return ret;
     }
     
-    if ((ret = _srs_server->initialize_st()) != ERROR_SUCCESS) {
+    // config parsed, initialize log.
+    if ((ret = _srs_log->initialize()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    _srs_log->set_level(srs_get_log_level(_srs_config->get_srs_log_level()));
+    
+    srs_trace("srs(simple-rtmp-server) "RTMP_SIG_SRS_VERSION);
+    srs_trace("uname: "SRS_UNAME);
+    srs_trace("build: %s, %s", SRS_BUILD_DATE, srs_is_little_endian()? "little-endian":"big-endian");
+    srs_trace("configure: "SRS_CONFIGURE);
+#ifdef SRS_ARM_UBUNTU12
+    srs_trace("arm tool chain: "SRS_ARM_TOOL_CHAIN);
+#endif
+    
+    if ((ret = _srs_server->initialize()) != ERROR_SUCCESS) {
         return ret;
     }
     
-    if ((ret = _srs_server->listen()) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    if ((ret = _srs_server->ingest()) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    if ((ret = _srs_server->cycle()) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    return 0;
+    return run();
 }
 
-int run() 
+int run()
 {
     // if not deamon, directly run master.
     if (!_srs_config->get_deamon()) {
@@ -133,50 +156,33 @@ int run()
     return run_master();
 }
 
-int main(int argc, char** argv) 
+int run_master()
 {
     int ret = ERROR_SUCCESS;
     
-    // TODO: support both little and big endian.
-    srs_assert(srs_is_little_endian());
-
-#ifdef SRS_GPERF_MP
-    HeapProfilerStart("gperf.srs.gmp");
-#endif
-#ifdef SRS_GPERF_CP
-    ProfilerStart("gperf.srs.gcp");
-#endif
-
-#ifdef SRS_GPERF_MC
-    #ifdef SRS_GPERF_MP
-    srs_error("option --with-gmc confict with --with-gmp, "
-        "@see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html\n"
-        "Note that since the heap-checker uses the heap-profiling framework internally, "
-        "it is not possible to run both the heap-checker and heap profiler at the same time");
-    return -1;
-    #endif
-#endif
+    signal(SIGNAL_RELOAD, handler);
+    signal(SIGTERM, handler);
+    signal(SIGINT, handler);
     
-    // never use srs log(srs_trace, srs_error, etc) before config parse the option,
-    // which will load the log config and apply it.
-    if ((ret = _srs_config->parse_options(argc, argv)) != ERROR_SUCCESS) {
+    if ((ret = _srs_server->acquire_pid_file()) != ERROR_SUCCESS) {
         return ret;
     }
     
-    // config parsed, initialize log.
-    _srs_log->set_level(srs_get_log_level(_srs_config->get_srs_log_level()));
-    
-    srs_trace("srs(simple-rtmp-server) "RTMP_SIG_SRS_VERSION);
-    srs_trace("uname: "SRS_UNAME);
-    srs_trace("build: %s, %s", SRS_BUILD_DATE, srs_is_little_endian()? "little-endian":"big-endian");
-    srs_trace("configure: "SRS_CONFIGURE);
-#ifdef SRS_ARM_UBUNTU12
-    srs_trace("arm tool chain: "SRS_ARM_TOOL_CHAIN);
-#endif
-    
-    if ((ret = _srs_server->initialize()) != ERROR_SUCCESS) {
+    if ((ret = _srs_server->initialize_st()) != ERROR_SUCCESS) {
         return ret;
     }
     
-    return run();
+    if ((ret = _srs_server->listen()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = _srs_server->ingest()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = _srs_server->cycle()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return 0;
 }

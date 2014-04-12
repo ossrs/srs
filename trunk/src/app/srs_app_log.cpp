@@ -31,6 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <fcntl.h>
 
 #include <srs_app_config.hpp>
+#include <srs_kernel_error.hpp>
 
 SrsThreadContext::SrsThreadContext()
 {
@@ -65,8 +66,6 @@ SrsFastLog::SrsFastLog()
     log_data = new char[LOG_MAX_SIZE];
 
     fd = -1;
-    
-    // TODO: support reload.
 }
 
 SrsFastLog::~SrsFastLog()
@@ -77,6 +76,12 @@ SrsFastLog::~SrsFastLog()
         ::close(fd);
         fd = -1;
     }
+}
+
+int SrsFastLog::initialize()
+{
+    // TODO: support reload.
+    return ERROR_SUCCESS;
 }
 
 int SrsFastLog::level()

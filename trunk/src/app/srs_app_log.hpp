@@ -69,6 +69,7 @@ public:
     SrsFastLog();
     virtual ~SrsFastLog();
 public:
+    virtual int initialize();
     virtual int level();
     virtual void set_level(int level);
     virtual void verbose(const char* tag, int context_id, const char* fmt, ...);

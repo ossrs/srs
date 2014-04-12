@@ -350,7 +350,7 @@ class RESTServers(object):
                 if rtmp_url is None:
                     return "meeting stream not found"
                 urls = rtmp_url.replace("...vhost...", "?vhost=").replace("rtmp://", "").split("/")
-                hls_url = "http://%s:8080/%s/%s.m3u8"%(urls[0].replace(":1935",""), urls[1].split("?")[0], urls[2])
+                hls_url = "http://%s:8080/%s/%s.m3u8"%(urls[0].strip(":19350").strip(":1935"), urls[1].split("?")[0], urls[2])
                 return """
 <video width="640" height="360"
         autoplay controls autobuffer 

@@ -160,9 +160,6 @@ SrsServer::SrsServer()
     signal_reload = false;
     signal_gmc_stop = false;
     
-    srs_assert(_srs_config);
-    _srs_config->subscribe(this);
-    
     // donot new object in constructor,
     // for some global instance is not ready now,
     // new these objects in initialize instead.
@@ -207,6 +204,12 @@ SrsServer::~SrsServer()
 int SrsServer::initialize()
 {
     int ret = ERROR_SUCCESS;
+    
+    // for the main objects(server, config, log),
+    // never subscribe handler in constructor,
+    // instead, subscribe handler in initialize method.
+    srs_assert(_srs_config);
+    _srs_config->subscribe(this);
     
 #ifdef SRS_HTTP_API
     srs_assert(!http_api_handler);
