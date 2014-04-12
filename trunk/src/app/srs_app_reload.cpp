@@ -40,6 +40,11 @@ int ISrsReloadHandler::on_reload_listen()
     return ERROR_SUCCESS;
 }
 
+int ISrsReloadHandler::on_reload_pid()
+{
+    return ERROR_SUCCESS;
+}
+
 int ISrsReloadHandler::on_reload_pithy_print()
 {
     return ERROR_SUCCESS;

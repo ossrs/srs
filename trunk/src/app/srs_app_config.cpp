@@ -505,6 +505,21 @@ int SrsConfig::reload()
         srs_trace("reload listen success.");
     }
     
+    // merge config: pid
+    if (!srs_directive_equals(root->get("pid"), old_root->get("pid"))) {
+        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((ret = subscribe->on_reload_pid()) != ERROR_SUCCESS) {
+                srs_error("notify subscribes reload pid failed. ret=%d", ret);
+                return ret;
+            }
+        }
+        srs_trace("reload pid success.");
+    }
+
+    // directly supported for reload:
+    // chunk_size, ff_log_dir
+    
     // merge config: pithy_print
     if (!srs_directive_equals(root->get("pithy_print"), old_root->get("pithy_print"))) {
         for (it = subscribes.begin(); it != subscribes.end(); ++it) {

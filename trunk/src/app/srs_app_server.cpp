@@ -159,6 +159,7 @@ SrsServer::SrsServer()
 {
     signal_reload = false;
     signal_gmc_stop = false;
+    pid_fd = -1;
     
     // donot new object in constructor,
     // for some global instance is not ready now,
@@ -188,6 +189,11 @@ SrsServer::~SrsServer()
     }
     
     close_listeners();
+    
+    if (pid_fd > 0) {
+        ::close(pid_fd);
+        pid_fd = -1;
+    }
     
 #ifdef SRS_HTTP_API
     srs_freep(http_api_handler);
@@ -310,6 +316,7 @@ int SrsServer::acquire_pid_file()
     }
     
     srs_trace("write pid=%d to %s success!", pid, pid_file.c_str());
+    pid_fd = fd;
     
     return ret;
 }
@@ -553,4 +560,14 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
 int SrsServer::on_reload_listen()
 {
     return listen();
+}
+
+int SrsServer::on_reload_pid()
+{
+    if (pid_fd > 0) {
+        ::close(pid_fd);
+        pid_fd = -1;
+    }
+    
+    return acquire_pid_file();
 }

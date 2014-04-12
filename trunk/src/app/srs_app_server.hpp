@@ -88,6 +88,7 @@ private:
     SrsIngester* ingester;
 #endif
 private:
+    int pid_fd;
     std::vector<SrsConnection*> conns;
     std::vector<SrsListener*> listeners;
     bool signal_reload;
@@ -107,8 +108,10 @@ public:
 private:
     virtual void close_listeners();
     virtual int accept_client(SrsListenerType type, st_netfd_t client_stfd);
+// interface ISrsThreadHandler.
 public:
     virtual int on_reload_listen();
+    virtual int on_reload_pid();
 };
 
 #endif
