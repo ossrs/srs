@@ -572,6 +572,11 @@ int SrsConfig::reload()
     if ((ret = reload_http_api(old_root)) != ERROR_SUCCESS) {
         return ret;
     }
+    
+    // merge config: http_stream
+    if ((ret = reload_http_stream(old_root)) != ERROR_SUCCESS) {
+        return ret;
+    }
 
     // merge config: vhost
     if ((ret = reload_vhost(old_root)) != ERROR_SUCCESS) {
@@ -642,6 +647,71 @@ int SrsConfig::reload_http_api(SrsConfDirective* old_root)
     }
     
     srs_trace("reload http_api not changed success.");
+    
+    return ret;
+}
+
+int SrsConfig::reload_http_stream(SrsConfDirective* old_root)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // merge config.
+    std::vector<ISrsReloadHandler*>::iterator it;
+    
+    // state graph
+    //      old_http_stream     new_http_stream
+    //      DISABLED    =>      ENABLED
+    //      ENABLED     =>      DISABLED
+    //      ENABLED     =>      ENABLED (modified)
+    
+    SrsConfDirective* new_http_stream = root->get("http_stream");
+    SrsConfDirective* old_http_stream = old_root->get("http_stream");
+
+    // DISABLED    =>      ENABLED
+    if (!get_http_stream_enabled(old_http_stream) && get_http_stream_enabled(new_http_stream)) {
+        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((ret = subscribe->on_reload_http_stream_enabled()) != ERROR_SUCCESS) {
+                srs_error("notify subscribes http_stream disabled=>enabled failed. ret=%d", ret);
+                return ret;
+            }
+        }
+        srs_trace("reload disabled=>enabled http_stream success.");
+        
+        return ret;
+    }
+
+    // ENABLED     =>      DISABLED
+    if (get_http_stream_enabled(old_http_stream) && !get_http_stream_enabled(new_http_stream)) {
+        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((ret = subscribe->on_reload_http_stream_disabled()) != ERROR_SUCCESS) {
+                srs_error("notify subscribes http_stream enabled=>disabled failed. ret=%d", ret);
+                return ret;
+            }
+        }
+        srs_trace("reload enabled=>disabled http_stream success.");
+        
+        return ret;
+    }
+    
+    //      ENABLED     =>  ENABLED (modified)
+    if (get_http_stream_enabled(old_http_stream) && get_http_stream_enabled(new_http_stream)
+        && !srs_directive_equals(old_http_stream, new_http_stream)
+    ) {
+        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((ret = subscribe->on_reload_http_stream_updated()) != ERROR_SUCCESS) {
+                srs_error("notify subscribes http_stream enabled modified failed. ret=%d", ret);
+                return ret;
+            }
+        }
+        srs_trace("reload enabled modified http_stream success.");
+        
+        return ret;
+    }
+    
+    srs_trace("reload http_stream not changed success.");
     
     return ret;
 }
@@ -773,6 +843,17 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                     }
                 }
                 srs_trace("vhost %s reload hls success.", vhost.c_str());
+            }
+            // http, only one per vhost.
+            if (!srs_directive_equals(new_vhost->get("http"), old_vhost->get("http"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_http_updated()) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes http failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload http success.", vhost.c_str());
             }
             // transcode, many per vhost.
             if ((ret = reload_transcode(new_vhost, old_vhost)) != ERROR_SUCCESS) {
@@ -2232,6 +2313,11 @@ SrsConfDirective* SrsConfig::get_http_stream()
 bool SrsConfig::get_http_stream_enabled()
 {
     SrsConfDirective* conf = get_http_stream();
+    return get_http_stream_enabled(conf);
+}
+
+bool SrsConfig::get_http_stream_enabled(SrsConfDirective* conf)
+{
     if (!conf) {
         return false;
     }

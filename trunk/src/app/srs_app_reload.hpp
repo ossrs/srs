@@ -49,6 +49,10 @@ public:
     virtual int on_reload_pithy_print();
     virtual int on_reload_http_api_enabled();
     virtual int on_reload_http_api_disabled();
+    virtual int on_reload_http_stream_enabled();
+    virtual int on_reload_http_stream_disabled();
+    virtual int on_reload_http_stream_updated();
+    virtual int on_reload_vhost_http_updated();
     virtual int on_reload_vhost_added(std::string vhost);
     virtual int on_reload_vhost_removed(std::string vhost);
     virtual int on_reload_atc(std::string vhost);

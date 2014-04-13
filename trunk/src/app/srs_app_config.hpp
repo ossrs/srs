@@ -125,6 +125,7 @@ public:
     virtual int reload();
 private:
     virtual int reload_http_api(SrsConfDirective* old_root);
+    virtual int reload_http_stream(SrsConfDirective* old_root);
     virtual int reload_vhost(SrsConfDirective* old_root);
     virtual int reload_transcode(SrsConfDirective* new_vhost, SrsConfDirective* old_vhost);
     virtual int reload_ingest(SrsConfDirective* new_vhost, SrsConfDirective* old_vhost);
@@ -231,6 +232,7 @@ private:
     virtual SrsConfDirective*   get_http_stream();
 public:
     virtual bool                get_http_stream_enabled();
+    virtual bool                get_http_stream_enabled(SrsConfDirective* conf);
     virtual int                 get_http_stream_listen();
     virtual std::string         get_http_stream_dir();
 public:

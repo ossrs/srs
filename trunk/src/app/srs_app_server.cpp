@@ -618,16 +618,109 @@ int SrsServer::on_reload_pid()
     return acquire_pid_file();
 }
 
+int SrsServer::on_reload_vhost_added(std::string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_HTTP_SERVER
+    if (!_srs_config->get_vhost_http_enabled(vhost)) {
+        return ret;
+    }
+    
+    if ((ret = on_reload_vhost_http_updated()) != ERROR_SUCCESS) {
+        return ret;
+    }
+#endif
+
+    return ret;
+}
+
+int SrsServer::on_reload_vhost_removed(std::string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_HTTP_SERVER
+    if ((ret = on_reload_vhost_http_updated()) != ERROR_SUCCESS) {
+        return ret;
+    }
+#endif
+
+    return ret;
+}
+
+int SrsServer::on_reload_vhost_http_updated()
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_HTTP_SERVER
+    srs_freep(http_stream_handler);
+    http_stream_handler = SrsHttpHandler::create_http_stream();
+
+    if ((ret = http_stream_handler->initialize()) != ERROR_SUCCESS) {
+        return ret;
+    }
+#endif
+
+    return ret;
+}
+
 int SrsServer::on_reload_http_api_enabled()
 {
-    return listen_http_api();
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_HTTP_API
+    ret = listen_http_api();
+#endif
+    
+    return ret;
 }
 
 int SrsServer::on_reload_http_api_disabled()
 {
     int ret = ERROR_SUCCESS;
     
+#ifdef SRS_HTTP_API
     close_listeners(SrsListenerHttpApi);
+#endif
+    
+    return ret;
+}
+
+int SrsServer::on_reload_http_stream_enabled()
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_HTTP_SERVER
+    ret = listen_http_stream();
+#endif
+
+    return ret;
+}
+
+int SrsServer::on_reload_http_stream_disabled()
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_HTTP_SERVER
+    close_listeners(SrsListenerHttpStream);
+#endif
+
+    return ret;
+}
+
+int SrsServer::on_reload_http_stream_updated()
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_HTTP_SERVER
+    if ((ret = on_reload_http_stream_enabled()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = on_reload_vhost_http_updated()) != ERROR_SUCCESS) {
+        return ret;
+    }
+#endif
     
     return ret;
 }
