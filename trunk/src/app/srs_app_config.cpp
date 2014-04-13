@@ -493,6 +493,13 @@ int SrsConfig::reload()
     // merge config.
     std::vector<ISrsReloadHandler*>::iterator it;
 
+    // never support reload:
+    //      daemon
+    //
+    // always support reload without additional code:
+    //      chunk_size, ff_log_dir, max_connections,
+    //      bandcheck, http_hooks
+
     // merge config: listen
     if (!srs_directive_equals(root->get("listen"), old_root->get("listen"))) {
         for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -552,9 +559,6 @@ int SrsConfig::reload()
         }
         srs_trace("reload srs_log_file success.");
     }
-
-    // directly supported for reload:
-    // chunk_size, ff_log_dir, max_connections
     
     // merge config: pithy_print
     if (!srs_directive_equals(root->get("pithy_print"), old_root->get("pithy_print"))) {
