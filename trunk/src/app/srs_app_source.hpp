@@ -46,7 +46,7 @@ class SrsRequest;
 #ifdef SRS_HLS
 class SrsHls;
 #endif
-#ifdef SRS_TRANSCODE
+#ifdef SRS_RTMP_TRANSCODE
 class SrsEncoder;
 #endif
 
@@ -224,7 +224,7 @@ private:
     SrsHls* hls;
 #endif
     // transcoding handler.
-#ifdef SRS_TRANSCODE
+#ifdef SRS_RTMP_TRANSCODE
     SrsEncoder* encoder;
 #endif
     // gop cache for client fast startup.

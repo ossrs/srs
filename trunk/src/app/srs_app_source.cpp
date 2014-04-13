@@ -431,7 +431,7 @@ SrsSource::SrsSource(SrsRequest* _req)
 #ifdef SRS_HLS
     hls = new SrsHls(this);
 #endif
-#ifdef SRS_TRANSCODE
+#ifdef SRS_RTMP_TRANSCODE
     encoder = new SrsEncoder();
 #endif
     
@@ -477,7 +477,7 @@ SrsSource::~SrsSource()
 #ifdef SRS_HLS
     srs_freep(hls);
 #endif
-#ifdef SRS_TRANSCODE
+#ifdef SRS_RTMP_TRANSCODE
     srs_freep(encoder);
 #endif
 
@@ -605,7 +605,7 @@ int SrsSource::on_reload_vhost_transcode(string vhost)
         return ret;
     }
     
-#ifdef SRS_TRANSCODE
+#ifdef SRS_RTMP_TRANSCODE
     encoder->on_unpublish();
     if ((ret = encoder->on_publish(req)) != ERROR_SUCCESS) {
         srs_error("start encoder failed. ret=%d", ret);
@@ -919,7 +919,7 @@ int SrsSource::on_publish(SrsRequest* _req)
         return ret;
     }
     
-#ifdef SRS_TRANSCODE
+#ifdef SRS_RTMP_TRANSCODE
     if ((ret = encoder->on_publish(req)) != ERROR_SUCCESS) {
         srs_error("start encoder failed. ret=%d", ret);
         return ret;
@@ -941,7 +941,7 @@ void SrsSource::on_unpublish()
     // destroy all forwarders
     destroy_forwarders();
 
-#ifdef SRS_TRANSCODE
+#ifdef SRS_RTMP_TRANSCODE
     encoder->on_unpublish();
 #endif
 

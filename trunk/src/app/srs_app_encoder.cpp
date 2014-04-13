@@ -34,7 +34,7 @@ using namespace std;
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_app_ffmpeg.hpp>
 
-#ifdef SRS_TRANSCODE
+#ifdef SRS_RTMP_TRANSCODE
 
 // when error, encoder sleep for a while and retry.
 #define SRS_ENCODER_SLEEP_US (int64_t)(3*1000*1000LL)
