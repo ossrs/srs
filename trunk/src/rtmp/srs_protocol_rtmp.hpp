@@ -67,6 +67,12 @@ public:
     std::string app;
     std::string stream;
     
+    // for play live stream, 
+    // used to specified the stop when exceed the duration.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/45
+    // in ms.
+    double duration;
+    
     SrsRequest();
     virtual ~SrsRequest();
 
@@ -222,8 +228,10 @@ public:
     * @stream_id, client will createStream to play or publish by flash, 
     *         the stream_id used to response the createStream request.
     * @type, output the client type.
+    * @stream_name, output the client publish/play stream name. @see: SrsRequest.stream
+    * @duration, output the play client duration. @see: SrsRequest.duration
     */
-    virtual int identify_client(int stream_id, SrsRtmpConnType& type, std::string& stream_name);
+    virtual int identify_client(int stream_id, SrsRtmpConnType& type, std::string& stream_name, double& duration);
     /**
     * set the chunk size when client type identified.
     */
@@ -267,11 +275,11 @@ public:
     */
     virtual int start_flash_publish(int stream_id);
 private:
-    virtual int identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsRtmpConnType& type, std::string& stream_name);
+    virtual int identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsRtmpConnType& type, std::string& stream_name, double& duration);
     virtual int identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsRtmpConnType& type, std::string& stream_name);
     virtual int identify_flash_publish_client(SrsPublishPacket* req, SrsRtmpConnType& type, std::string& stream_name);
 private:
-    virtual int identify_play_client(SrsPlayPacket* req, SrsRtmpConnType& type, std::string& stream_name);
+    virtual int identify_play_client(SrsPlayPacket* req, SrsRtmpConnType& type, std::string& stream_name, double& duration);
 };
 
 #endif

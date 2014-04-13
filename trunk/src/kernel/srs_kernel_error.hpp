@@ -75,6 +75,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // 1. srs is ok, ignore and turn to simple handshake.
 // 2. srs-librtmp return error, to terminate the program.
 #define ERROR_RTMP_HS_SSL_REQUIRE           318
+#define ERROR_RTMP_DURATION_EXCEED          319
 
 #define ERROR_SYSTEM_STREAM_INIT            400
 #define ERROR_SYSTEM_PACKET_INVALID         401

@@ -254,13 +254,13 @@ int SrsRtmpConn::stream_service_cycle()
     int ret = ERROR_SUCCESS;
         
     SrsRtmpConnType type;
-    if ((ret = rtmp->identify_client(res->stream_id, type, req->stream)) != ERROR_SUCCESS) {
+    if ((ret = rtmp->identify_client(res->stream_id, type, req->stream, req->duration)) != ERROR_SUCCESS) {
         srs_error("identify client failed. ret=%d", ret);
         return ret;
     }
     req->strip();
-    srs_trace("identify client success. type=%s, stream_name=%s", 
-        srs_client_type_string(type).c_str(), req->stream.c_str());
+    srs_trace("identify client success. type=%s, stream_name=%s, duration=%.2f", 
+        srs_client_type_string(type).c_str(), req->stream.c_str(), req->duration);
 
     // client is identified, set the timeout to service timeout.
     rtmp->set_recv_timeout(SRS_RECV_TIMEOUT_US);
@@ -416,6 +416,15 @@ int SrsRtmpConn::playing(SrsSource* source)
 
     while (true) {
         pithy_print.elapse(SRS_PULSE_TIMEOUT_US / 1000);
+        
+        // if duration specified, and exceed it, stop play live.
+        // @see: https://github.com/winlinvip/simple-rtmp-server/issues/45
+        // TODO: maybe the duration should use the stream duration.
+        if (req->duration > 0 && pithy_print.get_age() >= (int64_t)req->duration) {
+            ret = ERROR_RTMP_DURATION_EXCEED;
+            srs_trace("stop live for duration exceed. ret=%d", ret);
+            return ret;
+        }
         
         // switch to other st-threads.
         st_usleep(0);

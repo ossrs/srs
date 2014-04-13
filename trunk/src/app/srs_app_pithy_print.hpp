@@ -54,6 +54,7 @@ class SrsPithyPrint
 private:
     int client_id;
     int stage_id;
+    // in ms.
     int64_t age;
     int64_t printed_age;
 public:
