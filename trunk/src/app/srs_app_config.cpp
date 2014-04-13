@@ -567,82 +567,158 @@ int SrsConfig::reload()
         }
         srs_trace("reload pithy_print success.");
     }
+    
+    // merge config: http_api
+    if ((ret = reload_http_api(old_root)) != ERROR_SUCCESS) {
+        return ret;
+    }
 
-    // merge config: vhost added
-    for (int i = 0; i < (int)root->directives.size(); i++) {
-        // ingest need to start if specified.
-        // other features, directly supported.
-        SrsConfDirective* new_vhost = root->at(i);
-        
-        // only process vhost directives.
-        if (new_vhost->name != "vhost") {
-            continue;
-        }
-        
-        std::string vhost = new_vhost->arg0();
-        
-        // not new added vhost, ignore.
-        if (old_root->get("vhost", vhost)) {
-            continue;
-        }
-        
-        srs_trace("vhost %s added, reload it.", vhost.c_str());
+    // merge config: vhost
+    if ((ret = reload_vhost(old_root)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsConfig::reload_http_api(SrsConfDirective* old_root)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // merge config.
+    std::vector<ISrsReloadHandler*>::iterator it;
+    
+    // state graph
+    //      old_http_api    new_http_api
+    //      DISABLED    =>  ENABLED
+    //      ENABLED     =>  DISABLED
+    //      ENABLED     =>  ENABLED (modified)
+    
+    SrsConfDirective* new_http_api = root->get("http_api");
+    SrsConfDirective* old_http_api = old_root->get("http_api");
+
+    // DISABLED    =>      ENABLED
+    if (!get_http_api_enabled(old_http_api) && get_http_api_enabled(new_http_api)) {
         for (it = subscribes.begin(); it != subscribes.end(); ++it) {
             ISrsReloadHandler* subscribe = *it;
-            if ((ret = subscribe->on_reload_vhost_added(vhost)) != ERROR_SUCCESS) {
-                srs_error("notify subscribes pithy_print remove "
-                    "vhost %s failed. ret=%d", vhost.c_str(), ret);
+            if ((ret = subscribe->on_reload_http_api_enabled()) != ERROR_SUCCESS) {
+                srs_error("notify subscribes http_api disabled=>enabled failed. ret=%d", ret);
                 return ret;
             }
         }
-        srs_trace("reload new vhost %s success.", vhost.c_str());
+        srs_trace("reload disabled=>enabled http_api success.");
+        
+        return ret;
+    }
+
+    // ENABLED     =>      DISABLED
+    if (get_http_api_enabled(old_http_api) && !get_http_api_enabled(new_http_api)) {
+        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((ret = subscribe->on_reload_http_api_disabled()) != ERROR_SUCCESS) {
+                srs_error("notify subscribes http_api enabled=>disabled failed. ret=%d", ret);
+                return ret;
+            }
+        }
+        srs_trace("reload enabled=>disabled http_api success.");
+        
+        return ret;
     }
     
-    // merge config: vhost removed/disabled/modified.
-    for (int i = 0; i < (int)old_root->directives.size(); i++) {
-        SrsConfDirective* old_vhost = old_root->at(i);
-        // only process vhost directives.
-        if (old_vhost->name != "vhost") {
-            continue;
+    //      ENABLED     =>  ENABLED (modified)
+    if (get_http_api_enabled(old_http_api) && get_http_api_enabled(new_http_api)
+        && !srs_directive_equals(old_http_api, new_http_api)
+    ) {
+        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((ret = subscribe->on_reload_http_api_enabled()) != ERROR_SUCCESS) {
+                srs_error("notify subscribes http_api enabled modified failed. ret=%d", ret);
+                return ret;
+            }
         }
+        srs_trace("reload enabled modified http_api success.");
         
-        std::string vhost = old_vhost->arg0();
+        return ret;
+    }
+    
+    srs_trace("reload http_api not changed success.");
+    
+    return ret;
+}
 
+int SrsConfig::reload_vhost(SrsConfDirective* old_root)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // merge config.
+    std::vector<ISrsReloadHandler*>::iterator it;
+    
+    // state graph
+    //      old_vhost       new_vhost
+    //      DISABLED    =>  ENABLED
+    //      ENABLED     =>  DISABLED
+    //      ENABLED     =>  ENABLED (modified)
+
+    // collect all vhost names
+    std::vector<std::string> vhosts;
+    for (int i = 0; i < (int)root->directives.size(); i++) {
+        SrsConfDirective* vhost = root->at(i);
+        if (vhost->name != "vhost") {
+            continue;
+        }
+        vhosts.push_back(vhost->arg0());
+    }
+    for (int i = 0; i < (int)old_root->directives.size(); i++) {
+        SrsConfDirective* vhost = old_root->at(i);
+        if (vhost->name != "vhost") {
+            continue;
+        }
+        if (root->get("vhost", vhost->arg0())) {
+            continue;
+        }
+        vhosts.push_back(vhost->arg0());
+    }
+    
+    // process each vhost
+    for (int i = 0; i < (int)vhosts.size(); i++) {
+        std::string vhost = vhosts.at(i);
+
+        SrsConfDirective* old_vhost = old_root->get("vhost", vhost);
         SrsConfDirective* new_vhost = root->get("vhost", vhost);
-        // ignore if absolutely equal
-        if (new_vhost && srs_directive_equals(old_vhost, new_vhost)) {
-            srs_trace("vhost %s absolutely equal, ignore.", vhost.c_str());
-            continue;
-        }
-        // ignore if enable the new vhost when old vhost is disabled.
-        if (get_vhost_enabled(new_vhost) && !get_vhost_enabled(old_vhost)) {
-            srs_trace("vhost %s disabled=>enabled, ignore.", vhost.c_str());
-            continue;
-        }
-        // ignore if both old and new vhost are disabled.
-        if (!get_vhost_enabled(new_vhost) && !get_vhost_enabled(old_vhost)) {
-            srs_trace("vhost %s disabled=>disabled, ignore.", vhost.c_str());
-            continue;
-        }
-
-        // merge config: vhost removed/disabled.
-        if (!get_vhost_enabled(new_vhost) && get_vhost_enabled(old_vhost)) {
-            srs_trace("vhost %s disabled, reload it.", vhost.c_str());
+        
+        //      DISABLED    =>  ENABLED
+        if (!get_vhost_enabled(old_vhost) && get_vhost_enabled(new_vhost)) {
+            srs_trace("vhost %s added, reload it.", vhost.c_str());
             for (it = subscribes.begin(); it != subscribes.end(); ++it) {
                 ISrsReloadHandler* subscribe = *it;
-                if ((ret = subscribe->on_reload_vhost_removed(vhost)) != ERROR_SUCCESS) {
-                    srs_error("notify subscribes pithy_print remove "
+                if ((ret = subscribe->on_reload_vhost_added(vhost)) != ERROR_SUCCESS) {
+                    srs_error("notify subscribes added "
                         "vhost %s failed. ret=%d", vhost.c_str(), ret);
                     return ret;
                 }
             }
-            srs_trace("reload remove vhost %s success.", vhost.c_str());
+            srs_trace("reload new vhost %s success.", vhost.c_str());
             continue;
         }
         
-        // merge config: vhost modified.
-        srs_trace("vhost %s modified, reload its detail.", vhost.c_str());
+        //      ENABLED     =>  DISABLED
+        if (get_vhost_enabled(old_vhost) && !get_vhost_enabled(new_vhost)) {
+            srs_trace("vhost %s removed, reload it.", vhost.c_str());
+            for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                ISrsReloadHandler* subscribe = *it;
+                if ((ret = subscribe->on_reload_vhost_removed(vhost)) != ERROR_SUCCESS) {
+                    srs_error("notify subscribes removed "
+                        "vhost %s failed. ret=%d", vhost.c_str(), ret);
+                    return ret;
+                }
+            }
+            srs_trace("reload removed vhost %s success.", vhost.c_str());
+            continue;
+        }
+    
+        //      ENABLED     =>  ENABLED (modified)
         if (get_vhost_enabled(new_vhost) && get_vhost_enabled(old_vhost)) {
+            srs_trace("vhost %s modified, reload its detail.", vhost.c_str());
             // atc, only one per vhost
             if (!srs_directive_equals(new_vhost->get("atc"), old_vhost->get("atc"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -706,10 +782,9 @@ int SrsConfig::reload()
             if ((ret = reload_ingest(new_vhost, old_vhost)) != ERROR_SUCCESS) {
                 return ret;
             }
-            // TODO: suppor reload hls/forward/ffmpeg/http
             continue;
         }
-        srs_warn("invalid reload path, enabled old: %d, new: %d", 
+        srs_trace("igreno reload vhost, enabled old: %d, new: %d", 
             get_vhost_enabled(old_vhost), get_vhost_enabled(new_vhost));
     }
     
@@ -2116,7 +2191,11 @@ SrsConfDirective* SrsConfig::get_http_api()
 bool SrsConfig::get_http_api_enabled()
 {
     SrsConfDirective* conf = get_http_api();
-    
+    return get_http_api_enabled(conf);
+}
+
+bool SrsConfig::get_http_api_enabled(SrsConfDirective* conf)
+{
     if (!conf) {
         return false;
     }

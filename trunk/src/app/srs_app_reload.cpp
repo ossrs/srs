@@ -65,6 +65,16 @@ int ISrsReloadHandler::on_reload_pithy_print()
     return ERROR_SUCCESS;
 }
 
+int ISrsReloadHandler::on_reload_http_api_enabled()
+{
+    return ERROR_SUCCESS;
+}
+
+int ISrsReloadHandler::on_reload_http_api_disabled()
+{
+    return ERROR_SUCCESS;
+}
+
 int ISrsReloadHandler::on_reload_vhost_added(string /*vhost*/)
 {
     return ERROR_SUCCESS;

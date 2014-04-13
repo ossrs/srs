@@ -116,6 +116,8 @@ private:
 public:
     virtual int on_reload_listen();
     virtual int on_reload_pid();
+    virtual int on_reload_http_api_enabled();
+    virtual int on_reload_http_api_disabled();
 };
 
 #endif

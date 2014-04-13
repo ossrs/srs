@@ -617,3 +617,17 @@ int SrsServer::on_reload_pid()
     
     return acquire_pid_file();
 }
+
+int SrsServer::on_reload_http_api_enabled()
+{
+    return listen_http_api();
+}
+
+int SrsServer::on_reload_http_api_disabled()
+{
+    int ret = ERROR_SUCCESS;
+    
+    close_listeners(SrsListenerHttpApi);
+    
+    return ret;
+}

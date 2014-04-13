@@ -124,6 +124,8 @@ public:
     virtual void unsubscribe(ISrsReloadHandler* handler);
     virtual int reload();
 private:
+    virtual int reload_http_api(SrsConfDirective* old_root);
+    virtual int reload_vhost(SrsConfDirective* old_root);
     virtual int reload_transcode(SrsConfDirective* new_vhost, SrsConfDirective* old_vhost);
     virtual int reload_ingest(SrsConfDirective* new_vhost, SrsConfDirective* old_vhost);
 // parse options and file
@@ -222,6 +224,7 @@ private:
     virtual SrsConfDirective*   get_http_api();
 public:
     virtual bool                get_http_api_enabled();
+    virtual bool                get_http_api_enabled(SrsConfDirective* conf);
     virtual int                 get_http_api_listen();
 // http stream section
 private:
