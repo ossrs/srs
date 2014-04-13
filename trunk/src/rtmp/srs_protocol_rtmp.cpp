@@ -275,7 +275,7 @@ int SrsHandshakeBytes::create_c0c1()
     return ret;
 }
 
-int SrsHandshakeBytes::create_s0s1s2()
+int SrsHandshakeBytes::create_s0s1s2(const char* c1)
 {
     int ret = ERROR_SUCCESS;
     
@@ -292,6 +292,12 @@ int SrsHandshakeBytes::create_s0s1s2()
     // s2 time2 copy from c1
     if (c0c1) {
         *(int32_t*)(s0s1s2 + 1 + 4) = *(int32_t*)(c0c1 + 1);
+    }
+    
+    // if c1 specified, copy c1 to s2.
+    // @see: https://github.com/winlinvip/simple-rtmp-server/issues/46
+    if (c1) {
+        memcpy(s0s1s2 + 1537, c1, 1536);
     }
     
     return ret;

@@ -137,7 +137,7 @@ public:
     virtual int read_s0s1s2(ISrsProtocolReaderWriter* io);
     virtual int read_c2(ISrsProtocolReaderWriter* io);
     virtual int create_c0c1();
-    virtual int create_s0s1s2();
+    virtual int create_s0s1s2(const char* c1 = NULL);
     virtual int create_c2();
 };
 

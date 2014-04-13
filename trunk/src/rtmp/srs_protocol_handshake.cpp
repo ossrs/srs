@@ -1001,7 +1001,7 @@ int SrsSimpleHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsP
     }
     srs_verbose("check c0 success, required plain text.");
     
-    if ((ret = hs_bytes->create_s0s1s2()) != ERROR_SUCCESS) {
+    if ((ret = hs_bytes->create_s0s1s2(hs_bytes->c0c1 + 1)) != ERROR_SUCCESS) {
         return ret;
     }
     
