@@ -436,6 +436,7 @@ SrsConfig::SrsConfig()
 {
     show_help = false;
     show_version = false;
+    test_conf = false;
     
     root = new SrsConfDirective();
     root->conf_line = 0;
@@ -1073,13 +1074,11 @@ int SrsConfig::parse_options(int argc, char** argv)
     
     if (show_help) {
         print_help(argv);
+        exit(0);
     }
     
     if (show_version) {
         fprintf(stderr, "%s\n", RTMP_SIG_SRS_VERSION);
-    }
-    
-    if (show_help || show_version) {
         exit(0);
     }
     
@@ -1089,7 +1088,19 @@ int SrsConfig::parse_options(int argc, char** argv)
         return ret;
     }
 
-    return parse_file(config_file.c_str());
+    ret = parse_file(config_file.c_str());
+    
+    if (test_conf) {
+        if (ret == ERROR_SUCCESS) {
+            srs_trace("config file is ok");
+            exit(0);
+        } else {
+            srs_error("config file is invalid");
+            exit(ret);
+        }
+    }
+    
+    return ret;
 }
 
 int SrsConfig::parse_file(const char* filename)
@@ -1154,6 +1165,10 @@ int SrsConfig::parse_argv(int& i, char** argv)
             case 'h':
                 show_help = true;
                 break;
+            case 't':
+                show_help = false;
+                test_conf = true;
+                break;
             case 'v':
             case 'V':
                 show_help = false;
@@ -1188,19 +1203,23 @@ void SrsConfig::print_help(char** argv)
         RTMP_SIG_SRS_NAME" "RTMP_SIG_SRS_VERSION" "RTMP_SIG_SRS_COPYRIGHT"\n" 
         "Primary Authors: "RTMP_SIG_SRS_PRIMARY_AUTHROS"\n"
         "Build: "SRS_BUILD_DATE" Configuration:"SRS_CONFIGURE"\n"
-        "Usage: %s [-h?vVt] [-c <filename>]\n" 
+        "Usage: %s [-h?vV] [[-t] -c <filename>]\n" 
         "\n"
         "Options:\n"
-        "   -?, -h              : show help\n"
-        "   -v, -V              : show version and exit\n"
-        "   -t                  : test configuration file\n"
-        "   -c filename         : set configuration file\n"
+        "   -?, -h              : show this help and exit(0)\n"
+        "   -v, -V              : show version and exit(0)\n"
+        "   -t                  : test configuration file, exit(error_code).\n"
+        "   -c filename         : use configuration file for SRS\n"
         "\n"
         RTMP_SIG_SRS_WEB"\n"
         RTMP_SIG_SRS_URL"\n"
         "Email: "RTMP_SIG_SRS_EMAIL"\n"
-        "\n",
-        argv[0]);
+        "\n"
+        "For example:\n"
+        "   %s -v\n"
+        "   %s -t -c "SRS_DEFAULT_CONF"\n"
+        "   %s -c "SRS_DEFAULT_CONF"\n",
+        argv[0], argv[0], argv[0], argv[0]);
 }
 
 bool SrsConfig::get_deamon()

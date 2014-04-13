@@ -39,6 +39,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define SRS_LOCALHOST "127.0.0.1"
 #define SRS_CONF_DEFAULT_PID_FILE "./objs/srs.pid"
+#define SRS_DEFAULT_CONF "conf/srs.conf"
 
 #define SRS_CONF_DEFAULT_HLS_PATH "./objs/nginx/html"
 #define SRS_CONF_DEFAULT_HLS_FRAGMENT 10
@@ -111,6 +112,7 @@ class SrsConfig
 {
 private:
     bool show_help;
+    bool test_conf;
     bool show_version;
     std::string config_file;
     SrsConfDirective* root;
