@@ -1064,6 +1064,7 @@ int SrsConfig::parse_options(int argc, char** argv)
 {
     int ret = ERROR_SUCCESS;
     
+    show_help = true;
     for (int i = 1; i < argc; i++) {
         if ((ret = parse_argv(i, argv)) != ERROR_SUCCESS) {
             return ret;
@@ -1139,13 +1140,11 @@ int SrsConfig::parse_file(const char* filename)
 int SrsConfig::parse_argv(int& i, char** argv)
 {
     int ret = ERROR_SUCCESS;
-
+    
     char* p = argv[i];
         
     if (*p++ != '-') {
-        ret = ERROR_SYSTEM_CONFIG_INVALID;
-        srs_error("invalid options(index=%d, value=%s), "
-            "must starts with -, see help: %s -h, ret=%d", i, argv[i], argv[0], ret);
+        show_help = true;
         return ret;
     }
     
@@ -1157,9 +1156,11 @@ int SrsConfig::parse_argv(int& i, char** argv)
                 break;
             case 'v':
             case 'V':
+                show_help = false;
                 show_version = true;
                 break;
             case 'c':
+                show_help = false;
                 if (*p) {
                     config_file = p;
                     return ret;
@@ -1187,12 +1188,13 @@ void SrsConfig::print_help(char** argv)
         RTMP_SIG_SRS_NAME" "RTMP_SIG_SRS_VERSION" "RTMP_SIG_SRS_COPYRIGHT"\n" 
         "Primary Authors: "RTMP_SIG_SRS_PRIMARY_AUTHROS"\n"
         "Build: "SRS_BUILD_DATE" Configuration:"SRS_CONFIGURE"\n"
-        "Usage: %s [-h?vV] [-c <filename>]\n" 
+        "Usage: %s [-h?vVt] [-c <filename>]\n" 
         "\n"
         "Options:\n"
-        "   -?-h            : show help\n"
-        "   -v-V            : show version and exit\n"
-        "   -c filename     : set configuration file\n"
+        "   -?, -h              : show help\n"
+        "   -v, -V              : show version and exit\n"
+        "   -t                  : test configuration file\n"
+        "   -c filename         : set configuration file\n"
         "\n"
         RTMP_SIG_SRS_WEB"\n"
         RTMP_SIG_SRS_URL"\n"
