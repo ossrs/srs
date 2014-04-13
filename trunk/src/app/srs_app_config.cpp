@@ -477,13 +477,12 @@ int SrsConfig::reload()
 
     SrsConfig conf;
     if ((ret = conf.parse_file(config_file.c_str())) != ERROR_SUCCESS) {
-        srs_error("config reloader parse file failed. ret=%d", ret);
+        srs_error("ignore config reloader parse file failed. ret=%d", ret);
+        ret = ERROR_SUCCESS;
         return ret;
     }
     srs_info("config reloader parse file success.");
     
-    // store current root to old_root,
-    // and reap the root from conf to current root.
     SrsConfDirective* old_root = root;
     SrsAutoFree(SrsConfDirective, old_root, false);
     
@@ -792,7 +791,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
     
         //      ENABLED     =>  ENABLED (modified)
         if (get_vhost_enabled(new_vhost) && get_vhost_enabled(old_vhost)) {
-            srs_trace("vhost %s modified, reload its detail.", vhost.c_str());
+            srs_trace("vhost %s maybe modified, reload its detail.", vhost.c_str());
             // atc, only one per vhost
             if (!srs_directive_equals(new_vhost->get("atc"), old_vhost->get("atc"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
