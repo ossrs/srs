@@ -55,12 +55,12 @@ public:
     virtual int on_reload_vhost_http_updated();
     virtual int on_reload_vhost_added(std::string vhost);
     virtual int on_reload_vhost_removed(std::string vhost);
-    virtual int on_reload_atc(std::string vhost);
-    virtual int on_reload_gop_cache(std::string vhost);
-    virtual int on_reload_queue_length(std::string vhost);
-    virtual int on_reload_forward(std::string vhost);
-    virtual int on_reload_hls(std::string vhost);
-    virtual int on_reload_transcode(std::string vhost);
+    virtual int on_reload_vhost_atc(std::string vhost);
+    virtual int on_reload_vhost_gop_cache(std::string vhost);
+    virtual int on_reload_vhost_queue_length(std::string vhost);
+    virtual int on_reload_vhost_forward(std::string vhost);
+    virtual int on_reload_vhost_hls(std::string vhost);
+    virtual int on_reload_vhost_transcode(std::string vhost);
     virtual int on_reload_ingest_removed(std::string vhost, std::string ingest_id);
     virtual int on_reload_ingest_added(std::string vhost, std::string ingest_id);
     virtual int on_reload_ingest_updated(std::string vhost, std::string ingest_id);

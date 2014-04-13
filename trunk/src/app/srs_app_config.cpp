@@ -793,7 +793,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
             if (!srs_directive_equals(new_vhost->get("atc"), old_vhost->get("atc"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
                     ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_atc(vhost)) != ERROR_SUCCESS) {
+                    if ((ret = subscribe->on_reload_vhost_atc(vhost)) != ERROR_SUCCESS) {
                         srs_error("vhost %s notify subscribes atc failed. ret=%d", vhost.c_str(), ret);
                         return ret;
                     }
@@ -804,7 +804,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
             if (!srs_directive_equals(new_vhost->get("gop_cache"), old_vhost->get("gop_cache"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
                     ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_gop_cache(vhost)) != ERROR_SUCCESS) {
+                    if ((ret = subscribe->on_reload_vhost_gop_cache(vhost)) != ERROR_SUCCESS) {
                         srs_error("vhost %s notify subscribes gop_cache failed. ret=%d", vhost.c_str(), ret);
                         return ret;
                     }
@@ -815,7 +815,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
             if (!srs_directive_equals(new_vhost->get("queue_length"), old_vhost->get("queue_length"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
                     ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_queue_length(vhost)) != ERROR_SUCCESS) {
+                    if ((ret = subscribe->on_reload_vhost_queue_length(vhost)) != ERROR_SUCCESS) {
                         srs_error("vhost %s notify subscribes queue_length failed. ret=%d", vhost.c_str(), ret);
                         return ret;
                     }
@@ -826,7 +826,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
             if (!srs_directive_equals(new_vhost->get("forward"), old_vhost->get("forward"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
                     ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_forward(vhost)) != ERROR_SUCCESS) {
+                    if ((ret = subscribe->on_reload_vhost_forward(vhost)) != ERROR_SUCCESS) {
                         srs_error("vhost %s notify subscribes forward failed. ret=%d", vhost.c_str(), ret);
                         return ret;
                     }
@@ -837,7 +837,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
             if (!srs_directive_equals(new_vhost->get("hls"), old_vhost->get("hls"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
                     ISrsReloadHandler* subscribe = *it;
-                    if ((ret = subscribe->on_reload_hls(vhost)) != ERROR_SUCCESS) {
+                    if ((ret = subscribe->on_reload_vhost_hls(vhost)) != ERROR_SUCCESS) {
                         srs_error("vhost %s notify subscribes hls failed. ret=%d", vhost.c_str(), ret);
                         return ret;
                     }
@@ -945,7 +945,7 @@ int SrsConfig::reload_transcode(SrsConfDirective* new_vhost, SrsConfDirective* o
     if (changed) {
         for (it = subscribes.begin(); it != subscribes.end(); ++it) {
             ISrsReloadHandler* subscribe = *it;
-            if ((ret = subscribe->on_reload_transcode(vhost)) != ERROR_SUCCESS) {
+            if ((ret = subscribe->on_reload_vhost_transcode(vhost)) != ERROR_SUCCESS) {
                 srs_error("vhost %s notify subscribes transcode failed. ret=%d", vhost.c_str(), ret);
                 return ret;
             }
