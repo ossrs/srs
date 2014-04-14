@@ -42,6 +42,8 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_core_autofree.hpp>
 
+#define SRS_WIKI_URL_LOG "https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLog"
+
 #define FILE_OFFSET(fd) lseek(fd, 0, SEEK_CUR)
 
 int64_t FILE_SIZE(int fd)
@@ -308,7 +310,7 @@ int SrsConfDirective::read_token(SrsFileBuffer* buffer, vector<string>& args)
                 srs_error("line %d: unexpected end of file, expecting ; or \"}\"", buffer->line);
                 return ERROR_SYSTEM_CONFIG_INVALID;
             }
-            srs_trace("config parsed EOF");
+            srs_trace("config parse complete");
             
             return ret;
         }
@@ -1140,7 +1142,9 @@ int SrsConfig::parse_file(const char* filename)
         return ret;
     }
     if (get_srs_log_tank_file()) {
-        srs_trace("log file is %s", log_filename.c_str());
+        srs_trace("write log to file %s", log_filename.c_str());
+        srs_trace("you can: tailf %s", log_filename.c_str());
+        srs_trace("@see: %s", SRS_WIKI_URL_LOG);
     } else {
         srs_trace("write log to console");
     }
