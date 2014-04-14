@@ -44,6 +44,10 @@ def trace(msg):
     print "[%s][trace] %s"%(date, msg)
 
 # enable crossdomain access for js-client
+# define the following method:
+#   def OPTIONS(self, *args, **kwargs)
+#       enable_crossdomain()
+# invoke this method to enable js to request crossdomain.
 def enable_crossdomain():
     cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
     cherrypy.response.headers["Access-Control-Allow-Methods"] = "GET, POST, HEAD, PUT, DELETE"
@@ -121,7 +125,7 @@ class RESTClients(object):
 
         return str(code)
 
-    def OPTIONS(self):
+    def OPTIONS(self, *args, **kwargs):
         enable_crossdomain()
 
     def __on_connect(self, req):
@@ -208,7 +212,7 @@ class RESTStreams(object):
 
         return str(code)
 
-    def OPTIONS(self):
+    def OPTIONS(self, *args, **kwargs):
         enable_crossdomain()
 
     def __on_publish(self, req):
@@ -295,7 +299,7 @@ class RESTSessions(object):
 
         return str(code)
 
-    def OPTIONS(self):
+    def OPTIONS(self, *args, **kwargs):
         enable_crossdomain()
 
     def __on_play(self, req):
@@ -377,7 +381,7 @@ class RESTServers(object):
         enable_crossdomain()
         raise cherrypy.HTTPError(405, "Not allowed.")
 
-    def OPTIONS(self, id=None):
+    def OPTIONS(self, *args, **kwargs):
         enable_crossdomain()
 
 global_chat_id = os.getpid();
@@ -502,8 +506,7 @@ class RESTChats(object):
 
         raise cherrypy.HTTPError(405, "Not allowed.")
 
-
-    def OPTIONS(self, id=None):
+    def OPTIONS(self, *args, **kwargs):
         enable_crossdomain()
 
 # HTTP RESTful path.
