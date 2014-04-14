@@ -23,7 +23,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_ingest.hpp>
 
-#ifdef SRS_INGEST
+#ifdef SRS_RTMP_INGEST
 
 using namespace std;
 
@@ -35,7 +35,7 @@ using namespace std;
 
 // when error, ingester sleep for a while and retry.
 // ingest never sleep a long time, for we must start the stream ASAP.
-#define SRS_INGESTER_SLEEP_US (int64_t)(6*100*1000LL)
+#define SRS_RTMP_INGESTER_SLEEP_US (int64_t)(6*100*1000LL)
 
 SrsIngesterFFMPEG::SrsIngesterFFMPEG(SrsFFMPEG* _ffmpeg, string _vhost, string _id)
 {
@@ -53,7 +53,7 @@ SrsIngester::SrsIngester()
 {
     _srs_config->subscribe(this);
     
-    pthread = new SrsThread(this, SRS_INGESTER_SLEEP_US);
+    pthread = new SrsThread(this, SRS_RTMP_INGESTER_SLEEP_US);
     pithy_print = new SrsPithyPrint(SRS_STAGE_INGESTER);
 }
 
@@ -187,7 +187,7 @@ int SrsIngester::cycle()
 
     // pithy print
     ingester();
-    pithy_print->elapse(SRS_INGESTER_SLEEP_US / 1000);
+    pithy_print->elapse(SRS_RTMP_INGESTER_SLEEP_US / 1000);
     
     return ret;
 }
@@ -282,7 +282,7 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
         return ret;
     }
 
-    if (input_type == SRS_INGEST_TYPE_FILE) {
+    if (input_type == SRS_RTMP_INGEST_TYPE_FILE) {
         std::string input_url = _srs_config->get_ingest_input_url(ingest);
         if (input_url.empty()) {
             ret = ERROR_ENCODER_NO_INPUT;
@@ -296,7 +296,7 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
         if ((ret = ffmpeg->initialize(input_url, output, log_file)) != ERROR_SUCCESS) {
             return ret;
         }
-    } else if (input_type == SRS_INGEST_TYPE_STREAM) {
+    } else if (input_type == SRS_RTMP_INGEST_TYPE_STREAM) {
         std::string input_url = _srs_config->get_ingest_input_url(ingest);
         if (input_url.empty()) {
             ret = ERROR_ENCODER_NO_INPUT;

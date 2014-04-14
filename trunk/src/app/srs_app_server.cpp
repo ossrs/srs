@@ -41,12 +41,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_http_api.hpp>
 #include <srs_app_http_conn.hpp>
 #include <srs_app_http.hpp>
-#ifdef SRS_INGEST
+#ifdef SRS_RTMP_INGEST
 #include <srs_app_ingest.hpp>
 #endif
 
 #define SERVER_LISTEN_BACKLOG 512
-#define SRS_TIME_RESOLUTION_MS 500
+#define SRS_SYS_TIME_RESOLUTION_MS 500
 
 SrsListener::SrsListener(SrsServer* server, SrsListenerType type)
 {
@@ -175,7 +175,7 @@ SrsServer::SrsServer()
 #ifdef SRS_HTTP_SERVER
     http_stream_handler = NULL;
 #endif
-#ifdef SRS_INGEST
+#ifdef SRS_RTMP_INGEST
     ingester = NULL;
 #endif
 }
@@ -209,7 +209,7 @@ SrsServer::~SrsServer()
 #ifdef SRS_HTTP_SERVER
     srs_freep(http_stream_handler);
 #endif
-#ifdef SRS_INGEST
+#ifdef SRS_RTMP_INGEST
     srs_freep(ingester);
 #endif
 }
@@ -232,7 +232,7 @@ int SrsServer::initialize()
     srs_assert(!http_stream_handler);
     http_stream_handler = SrsHttpHandler::create_http_stream();
 #endif
-#ifdef SRS_INGEST
+#ifdef SRS_RTMP_INGEST
     srs_assert(!ingester);
     ingester = new SrsIngester();
 #endif
@@ -377,7 +377,7 @@ int SrsServer::ingest()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_INGEST
+#ifdef SRS_RTMP_INGEST
     if ((ret = ingester->start()) != ERROR_SUCCESS) {
         srs_error("start ingest streams failed. ret=%d", ret);
         return ret;
@@ -393,7 +393,7 @@ int SrsServer::cycle()
     
     // the deamon thread, update the time cache
     while (true) {
-        st_usleep(SRS_TIME_RESOLUTION_MS * 1000);
+        st_usleep(SRS_SYS_TIME_RESOLUTION_MS * 1000);
         srs_update_system_time_ms();
         
 // for gperf heap checker,
@@ -419,7 +419,7 @@ int SrsServer::cycle()
         }
     }
 
-#ifdef SRS_INGEST
+#ifdef SRS_RTMP_INGEST
     ingester->stop();
 #endif
     

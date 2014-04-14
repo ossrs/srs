@@ -528,9 +528,9 @@ else
 fi
 
 if [ $SRS_INGEST = YES ]; then
-    echo "#define SRS_INGEST" >> $SRS_AUTO_HEADERS_H
+    echo "#define SRS_RTMP_INGEST" >> $SRS_AUTO_HEADERS_H
 else
-    echo "#undef SRS_INGEST" >> $SRS_AUTO_HEADERS_H
+    echo "#undef SRS_RTMP_INGEST" >> $SRS_AUTO_HEADERS_H
 fi
 
 #####################################################################################

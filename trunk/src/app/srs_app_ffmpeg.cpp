@@ -41,14 +41,14 @@ using namespace std;
 
 #ifdef SRS_FFMPEG_STUB
 
-#define SRS_ENCODER_COPY    "copy"
-#define SRS_ENCODER_NO_VIDEO    "vn"
-#define SRS_ENCODER_NO_AUDIO    "an"
+#define SRS_RTMP_ENCODER_COPY    "copy"
+#define SRS_RTMP_ENCODER_NO_VIDEO    "vn"
+#define SRS_RTMP_ENCODER_NO_AUDIO    "an"
 // only support libx264 encoder.
-#define SRS_ENCODER_VCODEC     "libx264"
+#define SRS_RTMP_ENCODER_VCODEC     "libx264"
 // any aac encoder is ok which contains the aac,
 // for example, libaacplus, aac, fdkaac
-#define SRS_ENCODER_ACODEC     "aac"
+#define SRS_RTMP_ENCODER_ACODEC     "aac"
 
 SrsFFMPEG::SrsFFMPEG(std::string ffmpeg_bin)
 {
@@ -118,17 +118,17 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
     vwidth -= vwidth % 2;
     vheight -= vheight % 2;
     
-    if (vcodec == SRS_ENCODER_NO_VIDEO && acodec == SRS_ENCODER_NO_AUDIO) {
+    if (vcodec == SRS_RTMP_ENCODER_NO_VIDEO && acodec == SRS_RTMP_ENCODER_NO_AUDIO) {
         ret = ERROR_ENCODER_VCODEC;
         srs_warn("video and audio disabled. ret=%d", ret);
         return ret;
     }
     
-    if (vcodec != SRS_ENCODER_COPY && vcodec != SRS_ENCODER_NO_VIDEO) {
-        if (vcodec != SRS_ENCODER_VCODEC) {
+    if (vcodec != SRS_RTMP_ENCODER_COPY && vcodec != SRS_RTMP_ENCODER_NO_VIDEO) {
+        if (vcodec != SRS_RTMP_ENCODER_VCODEC) {
             ret = ERROR_ENCODER_VCODEC;
             srs_error("invalid vcodec, must be %s, actual %s, ret=%d",
-                SRS_ENCODER_VCODEC, vcodec.c_str(), ret);
+                SRS_RTMP_ENCODER_VCODEC, vcodec.c_str(), ret);
             return ret;
         }
         if (vbitrate <= 0) {
@@ -168,11 +168,11 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
         }
     }
     
-    if (acodec != SRS_ENCODER_COPY && acodec != SRS_ENCODER_NO_AUDIO) {
-        if (acodec.find(SRS_ENCODER_ACODEC) == std::string::npos) {
+    if (acodec != SRS_RTMP_ENCODER_COPY && acodec != SRS_RTMP_ENCODER_NO_AUDIO) {
+        if (acodec.find(SRS_RTMP_ENCODER_ACODEC) == std::string::npos) {
             ret = ERROR_ENCODER_ACODEC;
             srs_error("invalid acodec, must be %s, actual %s, ret=%d",
-                SRS_ENCODER_ACODEC, acodec.c_str(), ret);
+                SRS_RTMP_ENCODER_ACODEC, acodec.c_str(), ret);
             return ret;
         }
         if (abitrate <= 0) {
@@ -207,8 +207,8 @@ int SrsFFMPEG::initialize_copy()
 {
     int ret = ERROR_SUCCESS;
     
-    vcodec = SRS_ENCODER_COPY;
-    acodec = SRS_ENCODER_COPY;
+    vcodec = SRS_RTMP_ENCODER_COPY;
+    acodec = SRS_RTMP_ENCODER_COPY;
 
     if (_output.empty()) {
         ret = ERROR_ENCODER_OUTPUT;
@@ -261,7 +261,7 @@ int SrsFFMPEG::start()
     }
     
     // video specified.
-    if (vcodec != SRS_ENCODER_NO_VIDEO) {
+    if (vcodec != SRS_RTMP_ENCODER_NO_VIDEO) {
         params.push_back("-vcodec");
         params.push_back(vcodec);
     } else {
@@ -269,7 +269,7 @@ int SrsFFMPEG::start()
     }
     
     // the codec params is disabled when copy
-    if (vcodec != SRS_ENCODER_COPY && vcodec != SRS_ENCODER_NO_VIDEO) {
+    if (vcodec != SRS_RTMP_ENCODER_COPY && vcodec != SRS_RTMP_ENCODER_NO_VIDEO) {
         params.push_back("-b:v");
         snprintf(tmp, sizeof(tmp), "%d", vbitrate * 1000);
         params.push_back(tmp);
@@ -310,7 +310,7 @@ int SrsFFMPEG::start()
     }
     
     // audio specified.
-    if (acodec != SRS_ENCODER_NO_AUDIO) {
+    if (acodec != SRS_RTMP_ENCODER_NO_AUDIO) {
         params.push_back("-acodec");
         params.push_back(acodec);
     } else {
@@ -318,7 +318,7 @@ int SrsFFMPEG::start()
     }
     
     // the codec params is disabled when copy
-    if (acodec != SRS_ENCODER_COPY && acodec != SRS_ENCODER_NO_AUDIO) {
+    if (acodec != SRS_RTMP_ENCODER_COPY && acodec != SRS_RTMP_ENCODER_NO_AUDIO) {
         params.push_back("-b:a");
         snprintf(tmp, sizeof(tmp), "%d", abitrate * 1000);
         params.push_back(tmp);

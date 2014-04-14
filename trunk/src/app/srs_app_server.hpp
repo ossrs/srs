@@ -85,7 +85,7 @@ private:
 #ifdef SRS_HTTP_SERVER
     SrsHttpHandler* http_stream_handler;
 #endif
-#ifdef SRS_INGEST
+#ifdef SRS_RTMP_INGEST
     SrsIngester* ingester;
 #endif
 private:

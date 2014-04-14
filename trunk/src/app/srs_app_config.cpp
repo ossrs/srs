@@ -2128,13 +2128,13 @@ string SrsConfig::get_ingest_input_type(SrsConfDirective* ingest)
     SrsConfDirective* conf = ingest->get("input");
     
     if (!conf) {
-        return SRS_INGEST_TYPE_FILE;
+        return SRS_RTMP_INGEST_TYPE_FILE;
     }
 
     conf = conf->get("type");
     
     if (!conf) {
-        return SRS_INGEST_TYPE_FILE;
+        return SRS_RTMP_INGEST_TYPE_FILE;
     }
     
     return conf->arg0();
