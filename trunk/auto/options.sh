@@ -288,7 +288,7 @@ if [ $help = yes ]; then
                           
   --without-ssl             disable rtmp complex handshake.
   --without-hls             disable hls, rtmp streaming only.
-  --with-nginx              disable delivery HTTP stream with nginx.
+  --without-nginx           disable delivery HTTP stream with nginx.
   --without-http-callback   disable http, http hooks callback.
   --without-http-server     disable http server, use external server to delivery http stream.
   --without-http-api        disable http api, only use console to manage SRS process.
