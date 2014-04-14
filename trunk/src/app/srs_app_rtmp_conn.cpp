@@ -486,7 +486,6 @@ int SrsRtmpConn::playing(SrsSource* source)
         
         // if duration specified, and exceed it, stop play live.
         // @see: https://github.com/winlinvip/simple-rtmp-server/issues/45
-        // TODO: maybe the duration should use the stream duration.
         if (req->duration > 0 && duration >= (int64_t)req->duration) {
             ret = ERROR_RTMP_DURATION_EXCEED;
             srs_trace("stop live for duration exceed. ret=%d", ret);
