@@ -62,6 +62,10 @@ private:
     SrsHttpHooks* http_hooks;
 #endif
     SrsBandwidth* bandwidth;
+    // elapse duration in ms
+    // for live play duration, for instance, rtmpdump to record.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/47
+    int64_t duration;
 public:
     SrsRtmpConn(SrsServer* srs_server, st_netfd_t client_stfd);
     virtual ~SrsRtmpConn();

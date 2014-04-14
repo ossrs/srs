@@ -72,6 +72,7 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* srs_server, st_netfd_t client_stfd)
     http_hooks = new SrsHttpHooks();
 #endif
     bandwidth = new SrsBandwidth();
+    duration = 0;
     
     _srs_config->subscribe(this);
 }
@@ -414,17 +415,9 @@ int SrsRtmpConn::playing(SrsSource* source)
     
     SrsPithyPrint pithy_print(SRS_STAGE_PLAY_USER);
 
+    int64_t starttime = -1;
     while (true) {
         pithy_print.elapse(SRS_PULSE_TIMEOUT_US / 1000);
-        
-        // if duration specified, and exceed it, stop play live.
-        // @see: https://github.com/winlinvip/simple-rtmp-server/issues/45
-        // TODO: maybe the duration should use the stream duration.
-        if (req->duration > 0 && pithy_print.get_age() >= (int64_t)req->duration) {
-            ret = ERROR_RTMP_DURATION_EXCEED;
-            srs_trace("stop live for duration exceed. ret=%d", ret);
-            return ret;
-        }
         
         // switch to other st-threads.
         st_usleep(0);
@@ -460,8 +453,8 @@ int SrsRtmpConn::playing(SrsSource* source)
 
         // reportable
         if (pithy_print.can_print()) {
-            srs_trace("-> time=%"PRId64", cmr=%d, msgs=%d, obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
-                pithy_print.get_age(), ctl_msg_ret, count, rtmp->get_send_bytes(), rtmp->get_recv_bytes(), rtmp->get_send_kbps(), rtmp->get_recv_kbps());
+            srs_trace("-> time=%"PRId64", duration=%"PRId64", cmr=%d, msgs=%d, obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
+                pithy_print.get_age(), duration, ctl_msg_ret, count, rtmp->get_send_bytes(), rtmp->get_recv_bytes(), rtmp->get_send_kbps(), rtmp->get_recv_kbps());
         }
         
         if (count <= 0) {
@@ -482,6 +475,22 @@ int SrsRtmpConn::playing(SrsSource* source)
                 srs_error("send message to client failed. ret=%d", ret);
                 return ret;
             }
+            
+            // foreach msg, collect the duration.
+            if (starttime < 0 || starttime > msg->header.timestamp) {
+                starttime = msg->header.timestamp;
+            }
+            duration += msg->header.timestamp - starttime;
+            starttime = msg->header.timestamp;
+        }
+        
+        // if duration specified, and exceed it, stop play live.
+        // @see: https://github.com/winlinvip/simple-rtmp-server/issues/45
+        // TODO: maybe the duration should use the stream duration.
+        if (req->duration > 0 && duration >= (int64_t)req->duration) {
+            ret = ERROR_RTMP_DURATION_EXCEED;
+            srs_trace("stop live for duration exceed. ret=%d", ret);
+            return ret;
         }
     }
     
