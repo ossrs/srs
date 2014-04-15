@@ -263,11 +263,15 @@ public:
     /**
     * create http api resource handler.
     */
+#ifdef SRS_AUTO_HTTP_API
     static SrsHttpHandler* create_http_api();
+#endif
     /**
     * create http stream resource handler.
     */
+#ifdef SRS_AUTO_HTTP_SERVER
     static SrsHttpHandler* create_http_stream();
+#endif
 };
 
 /**

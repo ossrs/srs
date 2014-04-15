@@ -494,15 +494,19 @@ int SrsHttpHandler::res_error(SrsSocket* skt, SrsHttpMessage* req, int code, str
     return res_flush(skt, ss);
 }
 
+#ifdef SRS_AUTO_HTTP_API
 SrsHttpHandler* SrsHttpHandler::create_http_api()
 {
     return new SrsApiRoot();
 }
+#endif
 
+#ifdef SRS_AUTO_HTTP_SERVER
 SrsHttpHandler* SrsHttpHandler::create_http_stream()
 {
     return new SrsHttpRoot();
 }
+#endif
 
 SrsHttpMessage::SrsHttpMessage()
 {

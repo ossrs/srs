@@ -155,6 +155,7 @@ Supported operating systems and hardware:
 1. Support embeded http server for hls(live/vod)
 1. Support stream ingester using ffmpeg.
 1. Support ingest RTSP(RTP, SDP) stream to RTMP.
+1. [dev] Support dvr(record live to flv file for vod)
 1. [plan] Support file to hls vod stream.
 1. [plan] Support system full utest on gtest.
 1. [plan] Support RTMP edge server, push/pull stream from any RTMP server
@@ -162,7 +163,6 @@ Supported operating systems and hardware:
 1. [no-plan] Support adobe RTMFP(flash p2p) protocol.
 1. [no-plan] Support adobe flash refer/token/swf verification.
 1. [no-plan] Support adobe amf3 codec.
-1. [no-plan] Support dvr(record live to vod file)
 1. [no-plan] Support encryption: RTMPE/RTMPS, HLS DRM
 1. [no-plan] Support RTMPT, http to tranverse firewalls
 1. [no-plan] Support file source, transcoding file to live stream

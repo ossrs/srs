@@ -25,5 +25,44 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef SRS_AUTO_DVR
 
+#include <srs_kernel_error.hpp>
+
+SrsDvr::SrsDvr(SrsSource* source)
+{
+    _source = source;
+}
+
+SrsDvr::~SrsDvr()
+{
+}
+
+int SrsDvr::on_publish(SrsRequest* req)
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+void SrsDvr::on_unpublish()
+{
+}
+
+int SrsDvr::on_meta_data(SrsAmf0Object* metadata)
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+int SrsDvr::on_audio(SrsSharedPtrMessage* audio)
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+int SrsDvr::on_video(SrsSharedPtrMessage* video)
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
 #endif
 
