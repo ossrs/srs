@@ -32,7 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_rtmp.hpp>
 
-#ifdef SRS_SSL
+#ifdef SRS_AUTO_SSL
 
 using namespace srs;
 
@@ -1070,7 +1070,7 @@ SrsComplexHandshake::~SrsComplexHandshake()
 {
 }
 
-#ifndef SRS_SSL
+#ifndef SRS_AUTO_SSL
 int SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* /*hs_bytes*/, ISrsProtocolReaderWriter* /*io*/)
 {
     srs_trace("directly use simple handshake for ssl disabled.");
@@ -1169,7 +1169,7 @@ int SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrs
 }
 #endif
 
-#ifndef SRS_SSL
+#ifndef SRS_AUTO_SSL
 int SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* /*hs_bytes*/, ISrsProtocolReaderWriter* /*io*/)
 {
     return ERROR_RTMP_TRY_SIMPLE_HS;

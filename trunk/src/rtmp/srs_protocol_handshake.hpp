@@ -34,7 +34,7 @@ class ISrsProtocolReaderWriter;
 class SrsComplexHandshake;
 class SrsHandshakeBytes;
 
-#ifdef SRS_SSL
+#ifdef SRS_AUTO_SSL
 
 namespace srs
 {

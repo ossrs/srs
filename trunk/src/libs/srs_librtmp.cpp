@@ -181,7 +181,7 @@ int srs_simple_handshake(srs_rtmp_t rtmp)
 
 int srs_complex_handshake(srs_rtmp_t rtmp)
 {
-#ifndef SRS_SSL
+#ifndef SRS_AUTO_SSL
     return ERROR_RTMP_HS_SSL_REQUIRE;
 #endif
 
@@ -378,7 +378,7 @@ int srs_write_packet(srs_rtmp_t rtmp, int type, u_int32_t timestamp, char* data,
 
 int srs_ssl_enabled()
 {
-#ifndef SRS_SSL
+#ifndef SRS_AUTO_SSL
     return false;
 #endif
     return true;

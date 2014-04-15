@@ -23,7 +23,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_http_hooks.hpp>
 
-#ifdef SRS_HTTP_CALLBACK
+#ifdef SRS_AUTO_HTTP_CALLBACK
 
 #include <sstream>
 using namespace std;

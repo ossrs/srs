@@ -29,7 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
-#ifdef SRS_RTMP_INGEST
+#ifdef SRS_AUTO_INGEST
 
 #include <vector>
 

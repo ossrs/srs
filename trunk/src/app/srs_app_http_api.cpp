@@ -23,7 +23,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_http_api.hpp>
 
-#ifdef SRS_HTTP_API
+#ifdef SRS_AUTO_HTTP_API
 
 #include <sstream>
 using namespace std;
@@ -193,7 +193,7 @@ int SrsApiAuthors::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
         << JFIELD_ORG("data", JOBJECT_START)
             << JFIELD_STR("primary_authors", RTMP_SIG_SRS_PRIMARY_AUTHROS) << JFIELD_CONT
             << JFIELD_STR("contributors_link", RTMP_SIG_SRS_CONTRIBUTORS_URL) << JFIELD_CONT
-            << JFIELD_STR("contributors", SRS_CONSTRIBUTORS)
+            << JFIELD_STR("contributors", SRS_AUTO_CONSTRIBUTORS)
         << JOBJECT_END
         << JOBJECT_END;
     

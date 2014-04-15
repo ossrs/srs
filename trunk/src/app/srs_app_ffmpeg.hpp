@@ -29,7 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
-#ifdef SRS_FFMPEG_STUB
+#ifdef SRS_AUTO_FFMPEG
 
 #include <string>
 #include <vector>

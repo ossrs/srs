@@ -41,7 +41,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_http_api.hpp>
 #include <srs_app_http_conn.hpp>
 #include <srs_app_http.hpp>
-#ifdef SRS_RTMP_INGEST
+#ifdef SRS_AUTO_INGEST
 #include <srs_app_ingest.hpp>
 #endif
 
@@ -169,13 +169,13 @@ SrsServer::SrsServer()
     // donot new object in constructor,
     // for some global instance is not ready now,
     // new these objects in initialize instead.
-#ifdef SRS_HTTP_API
+#ifdef SRS_AUTO_HTTP_API
     http_api_handler = NULL;
 #endif
-#ifdef SRS_HTTP_SERVER
+#ifdef SRS_AUTO_HTTP_SERVER
     http_stream_handler = NULL;
 #endif
-#ifdef SRS_RTMP_INGEST
+#ifdef SRS_AUTO_INGEST
     ingester = NULL;
 #endif
 }
@@ -202,14 +202,14 @@ SrsServer::~SrsServer()
         pid_fd = -1;
     }
     
-#ifdef SRS_HTTP_API
+#ifdef SRS_AUTO_HTTP_API
     srs_freep(http_api_handler);
 #endif
 
-#ifdef SRS_HTTP_SERVER
+#ifdef SRS_AUTO_HTTP_SERVER
     srs_freep(http_stream_handler);
 #endif
-#ifdef SRS_RTMP_INGEST
+#ifdef SRS_AUTO_INGEST
     srs_freep(ingester);
 #endif
 }
@@ -224,26 +224,26 @@ int SrsServer::initialize()
     srs_assert(_srs_config);
     _srs_config->subscribe(this);
     
-#ifdef SRS_HTTP_API
+#ifdef SRS_AUTO_HTTP_API
     srs_assert(!http_api_handler);
     http_api_handler = SrsHttpHandler::create_http_api();
 #endif
-#ifdef SRS_HTTP_SERVER
+#ifdef SRS_AUTO_HTTP_SERVER
     srs_assert(!http_stream_handler);
     http_stream_handler = SrsHttpHandler::create_http_stream();
 #endif
-#ifdef SRS_RTMP_INGEST
+#ifdef SRS_AUTO_INGEST
     srs_assert(!ingester);
     ingester = new SrsIngester();
 #endif
     
-#ifdef SRS_HTTP_API
+#ifdef SRS_AUTO_HTTP_API
     if ((ret = http_api_handler->initialize()) != ERROR_SUCCESS) {
         return ret;
     }
 #endif
 
-#ifdef SRS_HTTP_SERVER
+#ifdef SRS_AUTO_HTTP_SERVER
     if ((ret = http_stream_handler->initialize()) != ERROR_SUCCESS) {
         return ret;
     }
@@ -377,7 +377,7 @@ int SrsServer::ingest()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_RTMP_INGEST
+#ifdef SRS_AUTO_INGEST
     if ((ret = ingester->start()) != ERROR_SUCCESS) {
         srs_error("start ingest streams failed. ret=%d", ret);
         return ret;
@@ -401,7 +401,7 @@ int SrsServer::cycle()
 // if user interrupt the program, exit to check mem leak.
 // but, if gperf, use reload to ensure main return normally,
 // because directly exit will cause core-dump.
-#ifdef SRS_GPERF_MC
+#ifdef SRS_AUTO_GPERF_MC
         if (signal_gmc_stop) {
             break;
         }
@@ -419,7 +419,7 @@ int SrsServer::cycle()
         }
     }
 
-#ifdef SRS_RTMP_INGEST
+#ifdef SRS_AUTO_INGEST
     ingester->stop();
 #endif
     
@@ -449,7 +449,7 @@ void SrsServer::on_signal(int signo)
     }
     
     if (signo == SIGINT) {
-#ifdef SRS_GPERF_MC
+#ifdef SRS_AUTO_GPERF_MC
         srs_trace("gmc is on, main cycle will terminate normally.");
         signal_gmc_stop = true;
 #else
@@ -494,7 +494,7 @@ int SrsServer::listen_http_api()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_HTTP_API
+#ifdef SRS_AUTO_HTTP_API
     close_listeners(SrsListenerHttpApi);
     if (_srs_config->get_http_api_enabled()) {
         SrsListener* listener = new SrsListener(this, SrsListenerHttpApi);
@@ -515,7 +515,7 @@ int SrsServer::listen_http_stream()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_HTTP_SERVER
+#ifdef SRS_AUTO_HTTP_SERVER
     close_listeners(SrsListenerHttpStream);
     if (_srs_config->get_http_stream_enabled()) {
         SrsListener* listener = new SrsListener(this, SrsListenerHttpStream);
@@ -568,7 +568,7 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
     if (type == SrsListenerRtmpStream) {
         conn = new SrsRtmpConn(this, client_stfd);
     } else if (type == SrsListenerHttpApi) {
-#ifdef SRS_HTTP_API
+#ifdef SRS_AUTO_HTTP_API
         conn = new SrsHttpApi(this, client_stfd, http_api_handler);
 #else
         srs_warn("close http client for server not support http-api");
@@ -576,7 +576,7 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
         return ret;
 #endif
     } else if (type == SrsListenerHttpStream) {
-#ifdef SRS_HTTP_SERVER
+#ifdef SRS_AUTO_HTTP_SERVER
         conn = new SrsHttpConn(this, client_stfd, http_stream_handler);
 #else
         srs_warn("close http client for server not support http-server");
@@ -622,7 +622,7 @@ int SrsServer::on_reload_vhost_added(std::string vhost)
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_HTTP_SERVER
+#ifdef SRS_AUTO_HTTP_SERVER
     if (!_srs_config->get_vhost_http_enabled(vhost)) {
         return ret;
     }
@@ -639,7 +639,7 @@ int SrsServer::on_reload_vhost_removed(std::string vhost)
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_HTTP_SERVER
+#ifdef SRS_AUTO_HTTP_SERVER
     if ((ret = on_reload_vhost_http_updated()) != ERROR_SUCCESS) {
         return ret;
     }
@@ -652,7 +652,7 @@ int SrsServer::on_reload_vhost_http_updated()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_HTTP_SERVER
+#ifdef SRS_AUTO_HTTP_SERVER
     srs_freep(http_stream_handler);
     http_stream_handler = SrsHttpHandler::create_http_stream();
 
@@ -668,7 +668,7 @@ int SrsServer::on_reload_http_api_enabled()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_HTTP_API
+#ifdef SRS_AUTO_HTTP_API
     ret = listen_http_api();
 #endif
     
@@ -679,7 +679,7 @@ int SrsServer::on_reload_http_api_disabled()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_HTTP_API
+#ifdef SRS_AUTO_HTTP_API
     close_listeners(SrsListenerHttpApi);
 #endif
     
@@ -690,7 +690,7 @@ int SrsServer::on_reload_http_stream_enabled()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_HTTP_SERVER
+#ifdef SRS_AUTO_HTTP_SERVER
     ret = listen_http_stream();
 #endif
 
@@ -701,7 +701,7 @@ int SrsServer::on_reload_http_stream_disabled()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_HTTP_SERVER
+#ifdef SRS_AUTO_HTTP_SERVER
     close_listeners(SrsListenerHttpStream);
 #endif
 
@@ -712,7 +712,7 @@ int SrsServer::on_reload_http_stream_updated()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_HTTP_SERVER
+#ifdef SRS_AUTO_HTTP_SERVER
     if ((ret = on_reload_http_stream_enabled()) != ERROR_SUCCESS) {
         return ret;
     }

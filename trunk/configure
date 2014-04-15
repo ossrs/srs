@@ -35,10 +35,10 @@ echo "#ifndef SRS_AUTO_HEADER_HPP" >> $SRS_AUTO_HEADERS_H
 echo "#define SRS_AUTO_HEADER_HPP" >> $SRS_AUTO_HEADERS_H
 echo "" >> $SRS_AUTO_HEADERS_H
 
-echo "#define SRS_BUILD_TS \"`date +%s`\"" >> $SRS_AUTO_HEADERS_H
-echo "#define SRS_BUILD_DATE \"`date \"+%Y-%m-%d %H:%M:%S\"`\"" >> $SRS_AUTO_HEADERS_H
-echo "#define SRS_UNAME \"`uname -a`\"" >> $SRS_AUTO_HEADERS_H
-echo "#define SRS_CONFIGURE \"${SRS_CONFIGURE}\"" >> $SRS_AUTO_HEADERS_H
+echo "#define SRS_AUTO_BUILD_TS \"`date +%s`\"" >> $SRS_AUTO_HEADERS_H
+echo "#define SRS_AUTO_BUILD_DATE \"`date \"+%Y-%m-%d %H:%M:%S\"`\"" >> $SRS_AUTO_HEADERS_H
+echo "#define SRS_AUTO_UNAME \"`uname -a`\"" >> $SRS_AUTO_HEADERS_H
+echo "#define SRS_AUTO_CONFIGURE \"${SRS_AUTO_CONFIGURE}\"" >> $SRS_AUTO_HEADERS_H
 
 # new empty line to auto headers file.
 echo "" >> $SRS_AUTO_HEADERS_H
@@ -54,7 +54,7 @@ if [[ -z $SrsArmAR ]]; then SrsArmAR="arm-linux-gnueabi-ar"; fi
 if [[ -z $SrsArmLD ]]; then SrsArmLD="arm-linux-gnueabi-ld"; fi
 if [[ -z $SrsArmRANDLIB ]]; then SrsArmRANDLIB="arm-linux-gnueabi-ranlib"; fi
 echo "cc=$SrsArmCC gcc=$SrsArmGCC g++=$SrsArmCXX ar=$SrsArmAR ld=$SrsArmLD randlib=$SrsArmRANDLIB"
-echo "#define SRS_ARM_TOOL_CHAIN \"cc=$SrsArmCC gcc=$SrsArmGCC g++=$SrsArmCXX ar=$SrsArmAR ld=$SrsArmLD randlib=$SrsArmRANDLIB\"" >> $SRS_AUTO_HEADERS_H
+echo "#define SRS_AUTO_ARM_TOOL_CHAIN \"cc=$SrsArmCC gcc=$SrsArmGCC g++=$SrsArmCXX ar=$SrsArmAR ld=$SrsArmLD randlib=$SrsArmRANDLIB\"" >> $SRS_AUTO_HEADERS_H
 echo "" >> $SRS_AUTO_HEADERS_H
 
 # apply user options.
@@ -82,6 +82,7 @@ if [ $SRS_UTEST = YES ]; then SrsUtestMakeEntry="(cd ${SRS_OBJS}/utest; \$(MAKE)
 #####################################################################################
 # colorful summary
 SrsHlsSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_HLS = YES ]; then SrsHlsSummaryColor="\${GREEN}"; fi
+SrsDvrSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_DVR = YES ]; then SrsDvrSummaryColor="\${GREEN}"; fi
 SrsNginxSummaryColor="\${GREEN}{disabled} "; if [ $SRS_NGINX = YES ]; then SrsNginxSummaryColor="\${GREEN}"; fi
 SrsSslSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_SSL = YES ]; then SrsSslSummaryColor="\${GREEN}"; fi
 SrsFfmpegSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_FFMPEG_TOOL = YES ]; then SrsFfmpegSummaryColor="\${GREEN}"; fi
@@ -149,6 +150,8 @@ echo -e "     \${BLACK}+--------------------------------------------------------
 echo -e "     |\${GREEN}server: ./objs/srs -c conf/srs.conf, start the srs server\${BLACK}"
 echo -e "     |     ${SrsHlsSummaryColor}hls @see: https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS\${BLACK}"
 echo -e "     |     ${SrsHlsSummaryColor}hls: generate m3u8 and ts from rtmp stream\${BLACK}"
+echo -e "     |     ${SrsDvrSummaryColor}dvr @see: https://github.com/winlinvip/simple-rtmp-server/wiki/DVR\${BLACK}"
+echo -e "     |     ${SrsDvrSummaryColor}dvr: record RTMP stream to flv files.\${BLACK}"
 echo -e "     |     ${SrsNginxSummaryColor}nginx @see: https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS\${BLACK}"
 echo -e "     |     ${SrsNginxSummaryColor}nginx: delivery HLS stream by nginx\${BLACK}"
 echo -e "     |     ${SrsSslSummaryColor}ssl @see: https://github.com/winlinvip/simple-rtmp-server/wiki/RTMPHandshake\${BLACK}"
@@ -436,7 +439,7 @@ MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_rtmp_conn" "srs_app_socke
         "srs_app_http" "srs_app_thread" "srs_app_bandwidth" "srs_app_st" "srs_app_log"
         "srs_app_config" "srs_app_pithy_print" "srs_app_reload" "srs_app_http_api"
         "srs_app_http_conn" "srs_app_http_hooks" "srs_app_json" "srs_app_ingest"
-        "srs_app_ffmpeg" "srs_app_utility")
+        "srs_app_ffmpeg" "srs_app_utility" "srs_app_flv")
 APP_INCS="src/app"; MODULE_DIR=${APP_INCS} . auto/modules.sh
 APP_OBJS="${MODULE_OBJS[@]}"
 #
@@ -504,7 +507,7 @@ mkdir -p ${SRS_OBJS}/logs
 # summary
 echo ""
 echo "configure summary:"
-echo "      ${SRS_CONFIGURE}"
+echo "      ${SRS_AUTO_CONFIGURE}"
 if [ $SRS_HLS = YES ]; then
     echo -e "${GREEN}HLS is enabled${BLACK}"
 else
@@ -514,6 +517,11 @@ if [ $SRS_NGINX = YES ]; then
     echo -e "${GREEN}Nginx http server is enabled${BLACK}"
 else
     echo -e "${GREEN}note: Nginx http server is disabled${BLACK}"
+fi
+if [ $SRS_DVR = YES ]; then
+    echo -e "${GREEN}DVR is enabled${BLACK}"
+else
+    echo -e "${YELLOW}warning: without DVR support${BLACK}"
 fi
 if [ $SRS_SSL = YES ]; then
     echo -e "${GREEN}rtmp complex handshake is enabled${BLACK}"

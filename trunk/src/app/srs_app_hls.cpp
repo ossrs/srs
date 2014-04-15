@@ -23,7 +23,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_hls.hpp>
 
-#ifdef SRS_HLS
+#ifdef SRS_AUTO_HLS
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -45,14 +45,14 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 
 // max PES packets size to flush the video.
-#define SRS_HLS_AUDIO_CACHE_SIZE 1024 * 1024
+#define SRS_AUTO_HLS_AUDIO_CACHE_SIZE 1024 * 1024
 
 // drop the segment when duration of ts too small.
-#define SRS_HLS_SEGMENT_MIN_DURATION_MS 100
+#define SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS 100
 
 // @see: NGX_RTMP_HLS_DELAY, 
 // 63000: 700ms, ts_tbn=90000
-#define SRS_HLS_DELAY 63000
+#define SRS_AUTO_HLS_DELAY 63000
 
 // the mpegts header specifed the video/audio pid.
 #define TS_VIDEO_PID 256
@@ -199,7 +199,7 @@ public:
                     p[-1] |= 0x20; // Both Adaption and Payload
                     *p++ = 7;    // size
                     *p++ = 0x50; // random access + PCR
-                    p = write_pcr(p, frame->dts - SRS_HLS_DELAY);
+                    p = write_pcr(p, frame->dts - SRS_AUTO_HLS_DELAY);
                 }
                 
                 // PES header
@@ -255,11 +255,11 @@ public:
                 *p++ = header_size;
 
                 // pts; // 33bits
-                p = write_pts(p, flags >> 6, frame->pts + SRS_HLS_DELAY);
+                p = write_pts(p, flags >> 6, frame->pts + SRS_AUTO_HLS_DELAY);
                 
                 // dts; // 33bits
                 if (frame->dts != frame->pts) {
-                    p = write_pts(p, 1, frame->dts + SRS_HLS_DELAY);
+                    p = write_pts(p, 1, frame->dts + SRS_AUTO_HLS_DELAY);
                 }
             }
             
@@ -684,7 +684,7 @@ int SrsHlsMuxer::segment_close(string log_desc)
     srs_assert(it == segments.end());
 
     // valid, add to segments if segment duration is ok
-    if (current->duration * 1000 >= SRS_HLS_SEGMENT_MIN_DURATION_MS) {
+    if (current->duration * 1000 >= SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
         segments.push_back(current);
     
         srs_trace("%s reap ts segment, sequence_no=%d, uri=%s, duration=%.2f, start=%"PRId64"",
@@ -1026,7 +1026,7 @@ int SrsHlsCache::write_audio(SrsCodec* codec, SrsHlsMuxer* muxer, int64_t pts, S
     }
     
     // flush if buffer exceed max size.
-    if (ab->size > SRS_HLS_AUDIO_CACHE_SIZE) {
+    if (ab->size > SRS_AUTO_HLS_AUDIO_CACHE_SIZE) {
         if ((ret = muxer->flush_audio(af, ab)) != ERROR_SUCCESS) {
             return ret;
         }

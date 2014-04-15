@@ -14,6 +14,7 @@
 help=no
 
 SRS_HLS=RESERVED
+SRS_DVR=RESERVED
 SRS_NGINX=RESERVED
 SRS_SSL=RESERVED
 SRS_FFMPEG_TOOL=RESERVED
@@ -74,6 +75,7 @@ do
         
         --with-ssl)                     SRS_SSL=YES                 ;;
         --with-hls)                     SRS_HLS=YES                 ;;
+        --with-dvr)                     SRS_DVR=YES                 ;;
         --with-nginx)                   SRS_NGINX=YES               ;;
         --with-ffmpeg)                  SRS_FFMPEG_TOOL=YES              ;;
         --with-transcode)               SRS_TRANSCODE=YES           ;;
@@ -94,6 +96,7 @@ do
                                                                  
         --without-ssl)                  SRS_SSL=NO                  ;;
         --without-hls)                  SRS_HLS=NO                  ;;
+        --without-dvr)                  SRS_DVR=NO                  ;;
         --without-nginx)                SRS_NGINX=NO                ;;
         --without-ffmpeg)               SRS_FFMPEG_TOOL=NO               ;;
         --without-transcode)            SRS_TRANSCODE=NO            ;;
@@ -142,6 +145,7 @@ if [ $SRS_INGEST = YES ]; then if [ $SRS_FFMPEG_TOOL = RESERVED ]; then SRS_FFMP
 # if arm specified, set some default to disabled.
 if [ $SRS_ARM_UBUNTU12 = YES ]; then
     if [ $SRS_HLS = RESERVED ]; then SRS_HLS=YES; fi
+    if [ $SRS_DVR = RESERVED ]; then SRS_DVR=YES; fi
     SRS_NGINX=NO
     if [ $SRS_SSL = RESERVED ]; then SRS_SSL=YES; fi
     SRS_FFMPEG_TOOL=NO
@@ -167,6 +171,7 @@ if [ $SRS_ARM_UBUNTU12 = YES ]; then
     SRS_STATIC=YES
 else
     if [ $SRS_HLS = RESERVED ]; then SRS_HLS=YES; fi
+    if [ $SRS_DVR = RESERVED ]; then SRS_DVR=YES; fi
     if [ $SRS_NGINX = RESERVED ]; then SRS_NGINX=NO; fi
     if [ $SRS_SSL = RESERVED ]; then SRS_SSL=YES; fi
     if [ $SRS_FFMPEG_TOOL = RESERVED ]; then SRS_FFMPEG_TOOL=NO; fi
@@ -194,6 +199,7 @@ fi
 # if dev specified, open features if possible.
 if [ $SRS_DEV = YES ]; then
     SRS_HLS=YES
+    SRS_DVR=YES
     SRS_NGINX=NO
     SRS_SSL=YES
     SRS_FFMPEG_TOOL=YES
@@ -220,6 +226,7 @@ fi
 # if raspberry-pi specified, open ssl/hls/static features
 if [ $SRS_PI = YES ]; then
     SRS_HLS=YES
+    SRS_DVR=YES
     SRS_NGINX=NO
     SRS_SSL=YES
     SRS_FFMPEG_TOOL=NO
@@ -264,6 +271,7 @@ if [ $help = yes ]; then
   --with-ssl                enable rtmp complex handshake, requires openssl-devel installed.
                             to delivery h264 video and aac audio to flash player.
   --with-hls                enable hls streaming, mux RTMP to m3u8/ts files.
+  --with-dvr                enable dvr, mux RTMP to flv files.
   --with-nginx              enable delivery HTTP stream with nginx.
                             build nginx at: ./objs/nginx/sbin/nginx
   --with-http-callback      enable http hooks, build cherrypy as demo api server.
@@ -288,6 +296,7 @@ if [ $help = yes ]; then
                           
   --without-ssl             disable rtmp complex handshake.
   --without-hls             disable hls, rtmp streaming only.
+  --without-dvr             disable dvr, donot support record RTMP stream to flv.
   --without-nginx           disable delivery HTTP stream with nginx.
   --without-http-callback   disable http, http hooks callback.
   --without-http-server     disable http server, use external server to delivery http stream.
@@ -360,6 +369,7 @@ fi
 
 # check variable neccessary
 if [ $SRS_HLS = RESERVED ]; then echo "you must specifies the hls, see: ./configure --help"; __check_ok=NO; fi
+if [ $SRS_DVR = RESERVED ]; then echo "you must specifies the dvr, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_NGINX = RESERVED ]; then echo "you must specifies the nginx, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_SSL = RESERVED ]; then echo "you must specifies the ssl, see: ./configure --help"; __check_ok=NO; fi
 if [ $SRS_FFMPEG_TOOL = RESERVED ]; then echo "you must specifies the ffmpeg, see: ./configure --help"; __check_ok=NO; fi
@@ -386,6 +396,7 @@ SRS_CONFIGURE=""
 if [ $SRS_DEV = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --dev"; fi
 if [ $SRS_PI = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --pi"; fi
 if [ $SRS_HLS = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-hls"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-hls"; fi
+if [ $SRS_DVR = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-dvr"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-dvr"; fi
 if [ $SRS_NGINX = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-nginx"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-nginx"; fi
 if [ $SRS_SSL = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-ssl"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-ssl"; fi
 if [ $SRS_FFMPEG_TOOL = YES ]; then SRS_CONFIGURE="${SRS_CONFIGURE} --with-ffmpeg"; else SRS_CONFIGURE="${SRS_CONFIGURE} --without-ffmpeg"; fi

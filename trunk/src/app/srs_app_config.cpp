@@ -1206,7 +1206,7 @@ void SrsConfig::print_help(char** argv)
     printf(
         RTMP_SIG_SRS_NAME" "RTMP_SIG_SRS_VERSION" "RTMP_SIG_SRS_COPYRIGHT"\n" 
         "Primary Authors: "RTMP_SIG_SRS_PRIMARY_AUTHROS"\n"
-        "Build: "SRS_BUILD_DATE" Configuration:"SRS_CONFIGURE"\n"
+        "Build: "SRS_AUTO_BUILD_DATE" Configuration:"SRS_AUTO_CONFIGURE"\n"
         "Usage: %s [-h?vV] [[-t] -c <filename>]\n" 
         "\n"
         "Options:\n"
@@ -2132,13 +2132,13 @@ string SrsConfig::get_ingest_input_type(SrsConfDirective* ingest)
     SrsConfDirective* conf = ingest->get("input");
     
     if (!conf) {
-        return SRS_RTMP_INGEST_TYPE_FILE;
+        return SRS_AUTO_INGEST_TYPE_FILE;
     }
 
     conf = conf->get("type");
     
     if (!conf) {
-        return SRS_RTMP_INGEST_TYPE_FILE;
+        return SRS_AUTO_INGEST_TYPE_FILE;
     }
     
     return conf->arg0();

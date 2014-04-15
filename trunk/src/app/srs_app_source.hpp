@@ -43,10 +43,10 @@ class SrsOnMetaDataPacket;
 class SrsSharedPtrMessage;
 class SrsForwarder;
 class SrsRequest;
-#ifdef SRS_HLS
+#ifdef SRS_AUTO_HLS
 class SrsHls;
 #endif
-#ifdef SRS_RTMP_TRANSCODE
+#ifdef SRS_AUTO_TRANSCODE
 class SrsEncoder;
 #endif
 
@@ -220,11 +220,11 @@ private:
     // to delivery stream to clients.
     std::vector<SrsConsumer*> consumers;
     // hls handler.
-#ifdef SRS_HLS
+#ifdef SRS_AUTO_HLS
     SrsHls* hls;
 #endif
     // transcoding handler.
-#ifdef SRS_RTMP_TRANSCODE
+#ifdef SRS_AUTO_TRANSCODE
     SrsEncoder* encoder;
 #endif
     // gop cache for client fast startup.

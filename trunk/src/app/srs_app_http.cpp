@@ -23,7 +23,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_http.hpp>
 
-#ifdef SRS_HTTP_PARSER
+#ifdef SRS_AUTO_HTTP_PARSER
 
 #include <stdlib.h>
 

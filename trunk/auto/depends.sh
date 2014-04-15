@@ -289,21 +289,21 @@ if [ $SRS_HTTP_PARSER = YES ]; then
 fi
 
 if [ $SRS_HTTP_PARSER = YES ]; then
-    echo "#define SRS_HTTP_PARSER" >> $SRS_AUTO_HEADERS_H
+    echo "#define SRS_AUTO_HTTP_PARSER" >> $SRS_AUTO_HEADERS_H
 else
-    echo "#undef SRS_HTTP_PARSER" >> $SRS_AUTO_HEADERS_H
+    echo "#undef SRS_AUTO_HTTP_PARSER" >> $SRS_AUTO_HEADERS_H
 fi
 
 if [ $SRS_HTTP_SERVER = YES ]; then
-    echo "#define SRS_HTTP_SERVER" >> $SRS_AUTO_HEADERS_H
+    echo "#define SRS_AUTO_HTTP_SERVER" >> $SRS_AUTO_HEADERS_H
 else
-    echo "#undef SRS_HTTP_SERVER" >> $SRS_AUTO_HEADERS_H
+    echo "#undef SRS_AUTO_HTTP_SERVER" >> $SRS_AUTO_HEADERS_H
 fi
 
 if [ $SRS_HTTP_API = YES ]; then
-    echo "#define SRS_HTTP_API" >> $SRS_AUTO_HEADERS_H
+    echo "#define SRS_AUTO_HTTP_API" >> $SRS_AUTO_HEADERS_H
 else
-    echo "#undef SRS_HTTP_API" >> $SRS_AUTO_HEADERS_H
+    echo "#undef SRS_AUTO_HTTP_API" >> $SRS_AUTO_HEADERS_H
 fi
 
 #####################################################################################
@@ -373,15 +373,21 @@ ln -sf `pwd`/research/api-server/static-dir/favicon.ico ${SRS_OBJS}/nginx/html/f
 echo "nginx is ok" > ${SRS_OBJS}/nginx/html/nginx.html
 
 if [ $SRS_NGINX = YES ]; then
-    echo "#define SRS_NGINX" >> $SRS_AUTO_HEADERS_H
+    echo "#define SRS_AUTO_NGINX" >> $SRS_AUTO_HEADERS_H
 else
-    echo "#undef SRS_NGINX" >> $SRS_AUTO_HEADERS_H
+    echo "#undef SRS_AUTO_NGINX" >> $SRS_AUTO_HEADERS_H
+fi
+
+if [ $SRS_DVR = YES ]; then
+    echo "#define SRS_AUTO_DVR" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_AUTO_DVR" >> $SRS_AUTO_HEADERS_H
 fi
 
 if [ $SRS_HLS = YES ]; then
-    echo "#define SRS_HLS" >> $SRS_AUTO_HEADERS_H
+    echo "#define SRS_AUTO_HLS" >> $SRS_AUTO_HEADERS_H
 else
-    echo "#undef SRS_HLS" >> $SRS_AUTO_HEADERS_H
+    echo "#undef SRS_AUTO_HLS" >> $SRS_AUTO_HEADERS_H
 fi
 
 #####################################################################################
@@ -405,9 +411,9 @@ if [ $SRS_HTTP_CALLBACK = YES ]; then
 fi
 
 if [ $SRS_HTTP_CALLBACK = YES ]; then
-    echo "#define SRS_HTTP_CALLBACK" >> $SRS_AUTO_HEADERS_H
+    echo "#define SRS_AUTO_HTTP_CALLBACK" >> $SRS_AUTO_HEADERS_H
 else
-    echo "#undef SRS_HTTP_CALLBACK" >> $SRS_AUTO_HEADERS_H
+    echo "#undef SRS_AUTO_HTTP_CALLBACK" >> $SRS_AUTO_HEADERS_H
 fi
 
 echo "link players to cherrypy static-dir"
@@ -489,9 +495,9 @@ if [ $SRS_SSL = YES ]; then
 fi
 
 if [ $SRS_SSL = YES ]; then
-    echo "#define SRS_SSL" >> $SRS_AUTO_HEADERS_H
+    echo "#define SRS_AUTO_SSL" >> $SRS_AUTO_HEADERS_H
 else
-    echo "#undef SRS_SSL" >> $SRS_AUTO_HEADERS_H
+    echo "#undef SRS_AUTO_SSL" >> $SRS_AUTO_HEADERS_H
 fi
 
 #####################################################################################
@@ -520,21 +526,21 @@ __SRS_FFMPEG_STUB=NO
 if [ $SRS_TRANSCODE = YES ]; then __SRS_FFMPEG_STUB=YES; fi
 if [ $SRS_INGEST = YES ]; then __SRS_FFMPEG_STUB=YES; fi
 if [ $__SRS_FFMPEG_STUB = YES ]; then
-    echo "#define SRS_FFMPEG_STUB" >> $SRS_AUTO_HEADERS_H
+    echo "#define SRS_AUTO_FFMPEG" >> $SRS_AUTO_HEADERS_H
 else
-    echo "#undef SRS_FFMPEG_STUB" >> $SRS_AUTO_HEADERS_H
+    echo "#undef SRS_AUTO_FFMPEG" >> $SRS_AUTO_HEADERS_H
 fi
 
 if [ $SRS_TRANSCODE = YES ]; then
-    echo "#define SRS_RTMP_TRANSCODE" >> $SRS_AUTO_HEADERS_H
+    echo "#define SRS_AUTO_TRANSCODE" >> $SRS_AUTO_HEADERS_H
 else
-    echo "#undef SRS_RTMP_TRANSCODE" >> $SRS_AUTO_HEADERS_H
+    echo "#undef SRS_AUTO_TRANSCODE" >> $SRS_AUTO_HEADERS_H
 fi
 
 if [ $SRS_INGEST = YES ]; then
-    echo "#define SRS_RTMP_INGEST" >> $SRS_AUTO_HEADERS_H
+    echo "#define SRS_AUTO_INGEST" >> $SRS_AUTO_HEADERS_H
 else
-    echo "#undef SRS_RTMP_INGEST" >> $SRS_AUTO_HEADERS_H
+    echo "#undef SRS_AUTO_INGEST" >> $SRS_AUTO_HEADERS_H
 fi
 
 #####################################################################################
@@ -591,38 +597,38 @@ if [ $SRS_GPERF = YES ]; then
 fi
 
 if [ $SRS_GPERF = YES ]; then
-    echo "#define SRS_GPERF" >> $SRS_AUTO_HEADERS_H
+    echo "#define SRS_AUTO_GPERF" >> $SRS_AUTO_HEADERS_H
 else
-    echo "#undef SRS_GPERF" >> $SRS_AUTO_HEADERS_H
+    echo "#undef SRS_AUTO_GPERF" >> $SRS_AUTO_HEADERS_H
 fi
 if [ $SRS_GPERF_MC = YES ]; then
-    echo "#define SRS_GPERF_MC" >> $SRS_AUTO_HEADERS_H
+    echo "#define SRS_AUTO_GPERF_MC" >> $SRS_AUTO_HEADERS_H
 else
-    echo "#undef SRS_GPERF_MC" >> $SRS_AUTO_HEADERS_H
+    echo "#undef SRS_AUTO_GPERF_MC" >> $SRS_AUTO_HEADERS_H
 fi
 if [ $SRS_GPERF_MP = YES ]; then
-    echo "#define SRS_GPERF_MP" >> $SRS_AUTO_HEADERS_H
+    echo "#define SRS_AUTO_GPERF_MP" >> $SRS_AUTO_HEADERS_H
 else
-    echo "#undef SRS_GPERF_MP" >> $SRS_AUTO_HEADERS_H
+    echo "#undef SRS_AUTO_GPERF_MP" >> $SRS_AUTO_HEADERS_H
 fi
 if [ $SRS_GPERF_CP = YES ]; then
-    echo "#define SRS_GPERF_CP" >> $SRS_AUTO_HEADERS_H
+    echo "#define SRS_AUTO_GPERF_CP" >> $SRS_AUTO_HEADERS_H
 else
-    echo "#undef SRS_GPERF_CP" >> $SRS_AUTO_HEADERS_H
+    echo "#undef SRS_AUTO_GPERF_CP" >> $SRS_AUTO_HEADERS_H
 fi
 
 #####################################################################################
 # for arm.
 #####################################################################################
 if [ $SRS_ARM_UBUNTU12 = YES ]; then
-    echo "#define SRS_ARM_UBUNTU12" >> $SRS_AUTO_HEADERS_H
+    echo "#define SRS_AUTO_ARM_UBUNTU12" >> $SRS_AUTO_HEADERS_H
 else
-    echo "#undef SRS_ARM_UBUNTU12" >> $SRS_AUTO_HEADERS_H
+    echo "#undef SRS_AUTO_ARM_UBUNTU12" >> $SRS_AUTO_HEADERS_H
 fi
 
 echo "" >> $SRS_AUTO_HEADERS_H
 # prefix
-echo "#define SRS_PREFIX \"${SRS_PREFIX}\"" >> $SRS_AUTO_HEADERS_H
+echo "#define SRS_AUTO_PREFIX \"${SRS_PREFIX}\"" >> $SRS_AUTO_HEADERS_H
 
 echo "" >> $SRS_AUTO_HEADERS_H
 
@@ -634,7 +640,7 @@ if [ $OS_IS_CENTOS = YES ]; then
 else
     SRS_CONSTRIBUTORS=`cat ../AUTHORS.txt|grep "*"|awk -F '\* ' '{print $2}'`
 fi
-echo "#define SRS_CONSTRIBUTORS \"\\" >> $SRS_AUTO_HEADERS_H
+echo "#define SRS_AUTO_CONSTRIBUTORS \"\\" >> $SRS_AUTO_HEADERS_H
 for CONTRIBUTOR in $SRS_CONSTRIBUTORS; do
     echo "${CONTRIBUTOR} \\" >> $SRS_AUTO_HEADERS_H
 done

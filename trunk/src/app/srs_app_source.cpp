@@ -428,10 +428,10 @@ SrsSource::SrsSource(SrsRequest* _req)
 {
     req = _req->copy();
     
-#ifdef SRS_HLS
+#ifdef SRS_AUTO_HLS
     hls = new SrsHls(this);
 #endif
-#ifdef SRS_RTMP_TRANSCODE
+#ifdef SRS_AUTO_TRANSCODE
     encoder = new SrsEncoder();
 #endif
     
@@ -474,10 +474,10 @@ SrsSource::~SrsSource()
     
     srs_freep(gop_cache);
     
-#ifdef SRS_HLS
+#ifdef SRS_AUTO_HLS
     srs_freep(hls);
 #endif
-#ifdef SRS_RTMP_TRANSCODE
+#ifdef SRS_AUTO_TRANSCODE
     srs_freep(encoder);
 #endif
 
@@ -585,7 +585,7 @@ int SrsSource::on_reload_vhost_hls(string vhost)
         return ret;
     }
     
-#ifdef SRS_HLS
+#ifdef SRS_AUTO_HLS
     hls->on_unpublish();
     if ((ret = hls->on_publish(req)) != ERROR_SUCCESS) {
         srs_error("hls publish failed. ret=%d", ret);
@@ -605,7 +605,7 @@ int SrsSource::on_reload_vhost_transcode(string vhost)
         return ret;
     }
     
-#ifdef SRS_RTMP_TRANSCODE
+#ifdef SRS_AUTO_TRANSCODE
     encoder->on_unpublish();
     if ((ret = encoder->on_publish(req)) != ERROR_SUCCESS) {
         srs_error("start encoder failed. ret=%d", ret);
@@ -643,7 +643,7 @@ int SrsSource::on_hls_start()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_HLS
+#ifdef SRS_AUTO_HLS
         
     // feed the hls the metadata/sequence header,
     // when reload to enable the hls.
@@ -671,7 +671,7 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_HLS
+#ifdef SRS_AUTO_HLS
     if (metadata && (ret = hls->on_meta_data(metadata->metadata)) != ERROR_SUCCESS) {
         srs_error("hls process onMetaData message failed. ret=%d", ret);
         return ret;
@@ -760,7 +760,7 @@ int SrsSource::on_audio(SrsCommonMessage* audio)
     }
     srs_verbose("initialize shared ptr audio success.");
     
-#ifdef SRS_HLS
+#ifdef SRS_AUTO_HLS
     if ((ret = hls->on_audio(msg->copy())) != ERROR_SUCCESS) {
         srs_warn("hls process audio message failed, ignore and disable hls. ret=%d", ret);
         
@@ -837,7 +837,7 @@ int SrsSource::on_video(SrsCommonMessage* video)
     }
     srs_verbose("initialize shared ptr video success.");
     
-#ifdef SRS_HLS
+#ifdef SRS_AUTO_HLS
     if ((ret = hls->on_video(msg->copy())) != ERROR_SUCCESS) {
         srs_warn("hls process video message failed, ignore and disable hls. ret=%d", ret);
         
@@ -919,14 +919,14 @@ int SrsSource::on_publish(SrsRequest* _req)
         return ret;
     }
     
-#ifdef SRS_RTMP_TRANSCODE
+#ifdef SRS_AUTO_TRANSCODE
     if ((ret = encoder->on_publish(req)) != ERROR_SUCCESS) {
         srs_error("start encoder failed. ret=%d", ret);
         return ret;
     }
 #endif
     
-#ifdef SRS_HLS
+#ifdef SRS_AUTO_HLS
     if ((ret = hls->on_publish(req)) != ERROR_SUCCESS) {
         srs_error("start hls failed. ret=%d", ret);
         return ret;
@@ -941,12 +941,12 @@ void SrsSource::on_unpublish()
     // destroy all forwarders
     destroy_forwarders();
 
-#ifdef SRS_RTMP_TRANSCODE
+#ifdef SRS_AUTO_TRANSCODE
     encoder->on_unpublish();
 #endif
 
     // TODO: HLS should continue previous sequence and stream.
-#ifdef SRS_HLS
+#ifdef SRS_AUTO_HLS
     hls->on_unpublish();
 #endif
 

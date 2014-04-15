@@ -29,10 +29,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#ifdef SRS_GPERF_MP
+#ifdef SRS_AUTO_GPERF_MP
     #include <gperftools/heap-profiler.h>
 #endif
-#ifdef SRS_GPERF_CP
+#ifdef SRS_AUTO_GPERF_CP
     #include <gperftools/profiler.h>
 #endif
 
@@ -71,15 +71,15 @@ int main(int argc, char** argv)
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
 
-#ifdef SRS_GPERF_MP
+#ifdef SRS_AUTO_GPERF_MP
     HeapProfilerStart("gperf.srs.gmp");
 #endif
-#ifdef SRS_GPERF_CP
+#ifdef SRS_AUTO_GPERF_CP
     ProfilerStart("gperf.srs.gcp");
 #endif
 
-#ifdef SRS_GPERF_MC
-    #ifdef SRS_GPERF_MP
+#ifdef SRS_AUTO_GPERF_MC
+    #ifdef SRS_AUTO_GPERF_MP
     srs_error("option --with-gmc confict with --with-gmp, "
         "@see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html\n"
         "Note that since the heap-checker uses the heap-profiling framework internally, "
@@ -100,11 +100,11 @@ int main(int argc, char** argv)
     }
     
     srs_trace("srs(simple-rtmp-server) "RTMP_SIG_SRS_VERSION);
-    srs_trace("uname: "SRS_UNAME);
-    srs_trace("build: %s, %s", SRS_BUILD_DATE, srs_is_little_endian()? "little-endian":"big-endian");
-    srs_trace("configure: "SRS_CONFIGURE);
-#ifdef SRS_ARM_UBUNTU12
-    srs_trace("arm tool chain: "SRS_ARM_TOOL_CHAIN);
+    srs_trace("uname: "SRS_AUTO_UNAME);
+    srs_trace("build: %s, %s", SRS_AUTO_BUILD_DATE, srs_is_little_endian()? "little-endian":"big-endian");
+    srs_trace("configure: "SRS_AUTO_CONFIGURE);
+#ifdef SRS_AUTO_ARM_UBUNTU12
+    srs_trace("arm tool chain: "SRS_AUTO_ARM_TOOL_CHAIN);
 #endif
     
     if ((ret = _srs_server->initialize()) != ERROR_SUCCESS) {

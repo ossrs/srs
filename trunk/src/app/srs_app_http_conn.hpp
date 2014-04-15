@@ -30,7 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
-#ifdef SRS_HTTP_SERVER
+#ifdef SRS_AUTO_HTTP_SERVER
 
 #include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>

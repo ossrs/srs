@@ -79,13 +79,13 @@ class SrsServer : public ISrsReloadHandler
 {
     friend class SrsListener;
 private:
-#ifdef SRS_HTTP_API
+#ifdef SRS_AUTO_HTTP_API
     SrsHttpHandler* http_api_handler;
 #endif
-#ifdef SRS_HTTP_SERVER
+#ifdef SRS_AUTO_HTTP_SERVER
     SrsHttpHandler* http_stream_handler;
 #endif
-#ifdef SRS_RTMP_INGEST
+#ifdef SRS_AUTO_INGEST
     SrsIngester* ingester;
 #endif
 private:

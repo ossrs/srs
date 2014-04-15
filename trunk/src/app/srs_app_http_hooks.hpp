@@ -29,7 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
-#ifdef SRS_HTTP_CALLBACK
+#ifdef SRS_AUTO_HTTP_CALLBACK
 
 #include <http_parser.h>
 
