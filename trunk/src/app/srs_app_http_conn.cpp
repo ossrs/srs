@@ -202,6 +202,8 @@ int SrsHttpVhost::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
         return res_swf(skt, req, str);
     } else if (srs_string_ends_with(fullpath, ".css")) {
         return res_css(skt, req, str);
+    } else if (srs_string_ends_with(fullpath, ".ico")) {
+        return res_ico(skt, req, str);
     } else {
         return res_text(skt, req, str);
     }

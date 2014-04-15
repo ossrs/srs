@@ -116,7 +116,7 @@ int SrsHttpHandler::process_request(SrsSocket* skt, SrsHttpMessage* req)
     return do_process_request(skt, req);
 }
 
-bool SrsHttpHandler::is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase) 
+bool SrsHttpHandler::is_handler_valid(SrsHttpMessage* req, int& status_code, string& reason_phrase) 
 {
     if (!req->match()->unmatched_url.empty()) {
         status_code = HTTP_NotFound;
@@ -203,83 +203,90 @@ int SrsHttpHandler::best_match(const char* path, int length, SrsHttpHandlerMatch
     return ret;
 }
 
-SrsHttpHandler* SrsHttpHandler::res_status_line(std::stringstream& ss)
+SrsHttpHandler* SrsHttpHandler::res_status_line(stringstream& ss)
 {
     ss << "HTTP/1.1 200 OK " << __CRLF
        << "Server: SRS/"RTMP_SIG_SRS_VERSION"" << __CRLF;
     return this;
 }
 
-SrsHttpHandler* SrsHttpHandler::res_status_line_error(std::stringstream& ss, int code, std::string reason_phrase)
+SrsHttpHandler* SrsHttpHandler::res_status_line_error(stringstream& ss, int code, string reason_phrase)
 {
     ss << "HTTP/1.1 " << code << " " << reason_phrase << __CRLF
        << "Server: SRS/"RTMP_SIG_SRS_VERSION"" << __CRLF;
     return this;
 }
 
-SrsHttpHandler* SrsHttpHandler::res_content_type(std::stringstream& ss)
+SrsHttpHandler* SrsHttpHandler::res_content_type(stringstream& ss)
 {
     ss << "Content-Type: text/html;charset=utf-8" << __CRLF
         << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
     return this;
 }
 
-SrsHttpHandler* SrsHttpHandler::res_content_type_xml(std::stringstream& ss)
+SrsHttpHandler* SrsHttpHandler::res_content_type_xml(stringstream& ss)
 {
     ss << "Content-Type: text/xml;charset=utf-8" << __CRLF
         << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
     return this;
 }
 
-SrsHttpHandler* SrsHttpHandler::res_content_type_javascript(std::stringstream& ss)
+SrsHttpHandler* SrsHttpHandler::res_content_type_javascript(stringstream& ss)
 {
-    ss << "Content-Type: text/javascript;charset=utf-8" << __CRLF
+    ss << "Content-Type: text/javascript" << __CRLF
         << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
     return this;
 }
 
-SrsHttpHandler* SrsHttpHandler::res_content_type_swf(std::stringstream& ss)
+SrsHttpHandler* SrsHttpHandler::res_content_type_swf(stringstream& ss)
 {
-    ss << "Content-Type: application/x-shockwave-flash;charset=utf-8" << __CRLF
+    ss << "Content-Type: application/x-shockwave-flash" << __CRLF
         << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
     return this;
 }
 
-SrsHttpHandler* SrsHttpHandler::res_content_type_css(std::stringstream& ss)
+SrsHttpHandler* SrsHttpHandler::res_content_type_css(stringstream& ss)
 {
     ss << "Content-Type: text/css;charset=utf-8" << __CRLF
         << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
     return this;
 }
 
-SrsHttpHandler* SrsHttpHandler::res_content_type_json(std::stringstream& ss)
+SrsHttpHandler* SrsHttpHandler::res_content_type_ico(stringstream& ss)
+{
+    ss << "Content-Type: image/x-icon" << __CRLF
+        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
+    return this;
+}
+
+SrsHttpHandler* SrsHttpHandler::res_content_type_json(stringstream& ss)
 {
     ss << "Content-Type: application/json;charset=utf-8" << __CRLF
         << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
     return this;
 }
 
-SrsHttpHandler* SrsHttpHandler::res_content_type_m3u8(std::stringstream& ss)
+SrsHttpHandler* SrsHttpHandler::res_content_type_m3u8(stringstream& ss)
 {
     ss << "Content-Type: application/x-mpegURL;charset=utf-8" << __CRLF
         << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
     return this;
 }
 
-SrsHttpHandler* SrsHttpHandler::res_content_type_mpegts(std::stringstream& ss)
+SrsHttpHandler* SrsHttpHandler::res_content_type_mpegts(stringstream& ss)
 {
-    ss << "Content-Type: video/MP2T;charset=utf-8" << __CRLF
+    ss << "Content-Type: video/MP2T" << __CRLF
         << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
     return this;
 }
 
-SrsHttpHandler* SrsHttpHandler::res_content_length(std::stringstream& ss, int64_t length)
+SrsHttpHandler* SrsHttpHandler::res_content_length(stringstream& ss, int64_t length)
 {
     ss << "Content-Length: "<< length << __CRLF;
     return this;
 }
 
-SrsHttpHandler* SrsHttpHandler::res_enable_crossdomain(std::stringstream& ss)
+SrsHttpHandler* SrsHttpHandler::res_enable_crossdomain(stringstream& ss)
 {
     ss << "Access-Control-Allow-Origin: *" << __CRLF
         << "Access-Control-Allow-Methods: "
@@ -289,19 +296,19 @@ SrsHttpHandler* SrsHttpHandler::res_enable_crossdomain(std::stringstream& ss)
     return this;
 }
 
-SrsHttpHandler* SrsHttpHandler::res_header_eof(std::stringstream& ss)
+SrsHttpHandler* SrsHttpHandler::res_header_eof(stringstream& ss)
 {
     ss << __CRLF;
     return this;
 }
 
-SrsHttpHandler* SrsHttpHandler::res_body(std::stringstream& ss, std::string body)
+SrsHttpHandler* SrsHttpHandler::res_body(stringstream& ss, string body)
 {
     ss << body;
     return this;
 }
 
-int SrsHttpHandler::res_flush(SrsSocket* skt, std::stringstream& ss)
+int SrsHttpHandler::res_flush(SrsSocket* skt, stringstream& ss)
 {
     return skt->write(ss.str().c_str(), ss.str().length(), NULL);
 }
@@ -317,7 +324,7 @@ int SrsHttpHandler::res_options(SrsSocket* skt)
     return res_flush(skt, ss);
 }
 
-int SrsHttpHandler::res_text(SrsSocket* skt, SrsHttpMessage* req, std::string body)
+int SrsHttpHandler::res_text(SrsSocket* skt, SrsHttpMessage* req, string body)
 {
     std::stringstream ss;
     
@@ -334,7 +341,7 @@ int SrsHttpHandler::res_text(SrsSocket* skt, SrsHttpMessage* req, std::string bo
     return res_flush(skt, ss);
 }
 
-int SrsHttpHandler::res_xml(SrsSocket* skt, SrsHttpMessage* req, std::string body)
+int SrsHttpHandler::res_xml(SrsSocket* skt, SrsHttpMessage* req, string body)
 {
     std::stringstream ss;
     
@@ -351,7 +358,7 @@ int SrsHttpHandler::res_xml(SrsSocket* skt, SrsHttpMessage* req, std::string bod
     return res_flush(skt, ss);
 }
 
-int SrsHttpHandler::res_javascript(SrsSocket* skt, SrsHttpMessage* req, std::string body)
+int SrsHttpHandler::res_javascript(SrsSocket* skt, SrsHttpMessage* req, string body)
 {
     std::stringstream ss;
     
@@ -368,7 +375,7 @@ int SrsHttpHandler::res_javascript(SrsSocket* skt, SrsHttpMessage* req, std::str
     return res_flush(skt, ss);
 }
 
-int SrsHttpHandler::res_swf(SrsSocket* skt, SrsHttpMessage* req, std::string body)
+int SrsHttpHandler::res_swf(SrsSocket* skt, SrsHttpMessage* req, string body)
 {
     std::stringstream ss;
     
@@ -385,7 +392,7 @@ int SrsHttpHandler::res_swf(SrsSocket* skt, SrsHttpMessage* req, std::string bod
     return res_flush(skt, ss);
 }
 
-int SrsHttpHandler::res_css(SrsSocket* skt, SrsHttpMessage* req, std::string body)
+int SrsHttpHandler::res_css(SrsSocket* skt, SrsHttpMessage* req, string body)
 {
     std::stringstream ss;
     
@@ -402,7 +409,24 @@ int SrsHttpHandler::res_css(SrsSocket* skt, SrsHttpMessage* req, std::string bod
     return res_flush(skt, ss);
 }
 
-int SrsHttpHandler::res_m3u8(SrsSocket* skt, SrsHttpMessage* req, std::string body)
+int SrsHttpHandler::res_ico(SrsSocket* skt, SrsHttpMessage* req, string body)
+{
+    std::stringstream ss;
+    
+    res_status_line(ss)->res_content_type_ico(ss)
+        ->res_content_length(ss, (int)body.length());
+        
+    if (req->requires_crossdomain()) {
+        res_enable_crossdomain(ss);
+    }
+    
+    res_header_eof(ss)
+        ->res_body(ss, body);
+    
+    return res_flush(skt, ss);
+}
+
+int SrsHttpHandler::res_m3u8(SrsSocket* skt, SrsHttpMessage* req, string body)
 {
     std::stringstream ss;
     
@@ -419,7 +443,7 @@ int SrsHttpHandler::res_m3u8(SrsSocket* skt, SrsHttpMessage* req, std::string bo
     return res_flush(skt, ss);
 }
 
-int SrsHttpHandler::res_mpegts(SrsSocket* skt, SrsHttpMessage* req, std::string body)
+int SrsHttpHandler::res_mpegts(SrsSocket* skt, SrsHttpMessage* req, string body)
 {
     std::stringstream ss;
     
@@ -436,7 +460,7 @@ int SrsHttpHandler::res_mpegts(SrsSocket* skt, SrsHttpMessage* req, std::string 
     return res_flush(skt, ss);
 }
 
-int SrsHttpHandler::res_json(SrsSocket* skt, SrsHttpMessage* req, std::string json)
+int SrsHttpHandler::res_json(SrsSocket* skt, SrsHttpMessage* req, string json)
 {
     std::stringstream ss;
     
@@ -453,7 +477,7 @@ int SrsHttpHandler::res_json(SrsSocket* skt, SrsHttpMessage* req, std::string js
     return res_flush(skt, ss);
 }
 
-int SrsHttpHandler::res_error(SrsSocket* skt, SrsHttpMessage* req, int code, std::string reason_phrase, std::string body)
+int SrsHttpHandler::res_error(SrsSocket* skt, SrsHttpMessage* req, int code, string reason_phrase, string body)
 {
     std::stringstream ss;
 
@@ -577,7 +601,7 @@ bool SrsHttpMessage::requires_crossdomain()
     return _requires_crossdomain;
 }
 
-void SrsHttpMessage::set_url(std::string url)
+void SrsHttpMessage::set_url(string url)
 {
     _url = url;
 }
@@ -789,7 +813,7 @@ SrsHttpUri::~SrsHttpUri()
 {
 }
 
-int SrsHttpUri::initialize(std::string _url)
+int SrsHttpUri::initialize(string _url)
 {
     int ret = ERROR_SUCCESS;
     
@@ -856,7 +880,7 @@ const char* SrsHttpUri::get_query()
     return path.data();
 }
 
-std::string SrsHttpUri::get_uri_field(std::string uri, http_parser_url* hp_u, http_parser_url_fields field)
+string SrsHttpUri::get_uri_field(string uri, http_parser_url* hp_u, http_parser_url_fields field)
 {
     if((hp_u->field_set & (1 << field)) == 0){
         return "";

@@ -237,6 +237,7 @@ public:
     virtual SrsHttpHandler* res_content_type_javascript(std::stringstream& ss);
     virtual SrsHttpHandler* res_content_type_swf(std::stringstream& ss);
     virtual SrsHttpHandler* res_content_type_css(std::stringstream& ss);
+    virtual SrsHttpHandler* res_content_type_ico(std::stringstream& ss);
     virtual SrsHttpHandler* res_content_type_json(std::stringstream& ss);
     virtual SrsHttpHandler* res_content_type_m3u8(std::stringstream& ss);
     virtual SrsHttpHandler* res_content_type_mpegts(std::stringstream& ss);
@@ -252,6 +253,7 @@ public:
     virtual int res_javascript(SrsSocket* skt, SrsHttpMessage* req, std::string body);
     virtual int res_swf(SrsSocket* skt, SrsHttpMessage* req, std::string body);
     virtual int res_css(SrsSocket* skt, SrsHttpMessage* req, std::string body);
+    virtual int res_ico(SrsSocket* skt, SrsHttpMessage* req, std::string body);
     virtual int res_m3u8(SrsSocket* skt, SrsHttpMessage* req, std::string body);
     virtual int res_mpegts(SrsSocket* skt, SrsHttpMessage* req, std::string body);
     virtual int res_json(SrsSocket* skt, SrsHttpMessage* req, std::string json);

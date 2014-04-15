@@ -365,6 +365,10 @@ ln -sf `pwd`/research/players ${SRS_OBJS}/nginx/html/players &&
 rm -f ${SRS_OBJS}/nginx/crossdomain.xml &&
 ln -sf `pwd`/research/players/crossdomain.xml ${SRS_OBJS}/nginx/html/crossdomain.xml
 
+# for favicon.ico
+rm -rf ${SRS_OBJS}/nginx/html/favicon.ico &&
+ln -sf `pwd`/research/api-server/static-dir/favicon.ico ${SRS_OBJS}/nginx/html/favicon.ico
+
 # nginx.html to detect whether nginx is alive
 echo "nginx is ok" > ${SRS_OBJS}/nginx/html/nginx.html
 
