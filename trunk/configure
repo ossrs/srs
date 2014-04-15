@@ -38,6 +38,7 @@ echo "" >> $SRS_AUTO_HEADERS_H
 echo "#define SRS_AUTO_BUILD_TS \"`date +%s`\"" >> $SRS_AUTO_HEADERS_H
 echo "#define SRS_AUTO_BUILD_DATE \"`date \"+%Y-%m-%d %H:%M:%S\"`\"" >> $SRS_AUTO_HEADERS_H
 echo "#define SRS_AUTO_UNAME \"`uname -a`\"" >> $SRS_AUTO_HEADERS_H
+echo "#define SRS_AUTO_USER_CONFIGURE \"${SRS_AUTO_USER_CONFIGURE}\"" >> $SRS_AUTO_HEADERS_H
 echo "#define SRS_AUTO_CONFIGURE \"${SRS_AUTO_CONFIGURE}\"" >> $SRS_AUTO_HEADERS_H
 
 # new empty line to auto headers file.
@@ -400,7 +401,7 @@ if [ $SRS_SSL = YES ]; then LibSSLRoot="${SRS_OBJS}/openssl/include"; LibSSLfile
 LibGperfRoot=""; LibGperfFile=""
 if [ $SRS_GPERF = YES ]; then LibGperfRoot="${SRS_OBJS}/gperf/include"; LibGperfFile="${SRS_OBJS}/gperf/lib/libtcmalloc_and_profiler.a"; fi
 # the link options, always use static link
-SrsLinkOptions="-ldl"; if [ $SRS_STATIC = YES ]; then SrsLinkOptions="${SrsLinkOptions} -static"; fi
+SrsLinkOptions=""; if [ $SRS_STATIC = YES ]; then SrsLinkOptions="-static"; else SrsLinkOptions="-ldl"; fi
 
 #####################################################################################
 # Modules, compile each module, then link to binary
@@ -507,6 +508,7 @@ mkdir -p ${SRS_OBJS}/logs
 # summary
 echo ""
 echo "configure summary:"
+echo "      ${SRS_AUTO_USER_CONFIGURE}"
 echo "      ${SRS_AUTO_CONFIGURE}"
 if [ $SRS_HLS = YES ]; then
     echo -e "${GREEN}HLS is enabled${BLACK}"
