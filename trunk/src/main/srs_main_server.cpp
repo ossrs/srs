@@ -102,7 +102,8 @@ int main(int argc, char** argv)
     srs_trace("srs(simple-rtmp-server) "RTMP_SIG_SRS_VERSION);
     srs_trace("uname: "SRS_AUTO_UNAME);
     srs_trace("build: %s, %s", SRS_AUTO_BUILD_DATE, srs_is_little_endian()? "little-endian":"big-endian");
-    srs_trace("configure: "SRS_AUTO_CONFIGURE);
+    srs_trace("configure: "SRS_AUTO_USER_CONFIGURE);
+    srs_trace("features: "SRS_AUTO_CONFIGURE);
 #ifdef SRS_AUTO_ARM_UBUNTU12
     srs_trace("arm tool chain: "SRS_AUTO_ARM_TOOL_CHAIN);
 #endif
@@ -125,7 +126,7 @@ int run()
     
     int pid = fork();
     
-    if(pid == -1) {
+    if(pid < 0) {
         srs_error("create process error. ret=-1"); //ret=0
         return -1;
     }
@@ -144,13 +145,13 @@ int run()
     // father
     pid = fork();
     
-    if(pid == -1) {
-        srs_error("create process error. ret=-1");
+    if(pid < 0) {
+        srs_error("create process error. ret=0");
         return -1;
     }
 
     if(pid > 0) {
-        srs_trace("father process exit. ret=-1");
+        srs_trace("father process exit. ret=0");
         exit(0);
         return 0;
     }
