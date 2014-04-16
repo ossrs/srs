@@ -83,6 +83,7 @@ int SrsIngester::start()
         srs_error("st_thread_create failed. ret=%d", ret);
         return ret;
     }
+    srs_trace("ingest thread cid=%d, current_cid=%d", pthread->cid(), _srs_context->get_id());
     
     return ret;
 }

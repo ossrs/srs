@@ -132,6 +132,7 @@ int SrsForwarder::on_publish(SrsRequest* req, std::string forward_server)
         srs_error("start srs thread failed. ret=%d", ret);
         return ret;
     }
+    srs_trace("forward thread cid=%d, current_cid=%d", pthread->cid(), _srs_context->get_id());
     
     return ret;
 }

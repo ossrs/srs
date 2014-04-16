@@ -129,7 +129,9 @@ int SrsListener::listen(int port)
     }
     srs_verbose("create st listen thread success.");
     
-    srs_trace("server started, listen at port=%d, type=%d, fd=%d", _port, _type, fd);
+    srs_trace("listen thread cid=%d, current_cid=%d, "
+        "listen at port=%d, type=%d, fd=%d started success", 
+        pthread->cid(), _srs_context->get_id(), _port, _type, fd);
     
     return ret;
 }
@@ -349,7 +351,7 @@ int SrsServer::initialize_st()
     
     // set current log id.
     _srs_context->generate_id();
-    srs_info("log set id success");
+    srs_trace("server main cid=%d", _srs_context->get_id());
     
     return ret;
 }
