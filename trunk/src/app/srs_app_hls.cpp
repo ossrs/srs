@@ -1295,6 +1295,8 @@ int SrsHls::on_publish(SrsRequest* req)
     }
     
     // notice the source to get the cached sequence header.
+    // when reload to start hls, hls will never get the sequence header in stream,
+    // use the SrsSource.on_hls_start to push the sequence header to HLS.
     if ((ret = source->on_hls_start()) != ERROR_SUCCESS) {
         srs_error("callback source hls start failed. ret=%d", ret);
         return ret;

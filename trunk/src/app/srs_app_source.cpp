@@ -653,7 +653,8 @@ int SrsSource::on_hls_start()
 #ifdef SRS_AUTO_HLS
         
     // feed the hls the metadata/sequence header,
-    // when reload to enable the hls.
+    // when reload to start hls, hls will never get the sequence header in stream,
+    // use the SrsSource.on_hls_start to push the sequence header to HLS.
     // TODO: maybe need to decode the metadata?
     if (cache_sh_video && (ret = hls->on_video(cache_sh_video->copy())) != ERROR_SUCCESS) {
         srs_error("hls process video sequence header message failed. ret=%d", ret);
