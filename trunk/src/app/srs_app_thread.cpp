@@ -122,12 +122,12 @@ void SrsThread::thread_cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    _cid = _srs_context->get_id();
-    srs_assert(handler);
-    
     _srs_context->generate_id();
     srs_info("thread cycle start");
-
+    
+    _cid = _srs_context->get_id();
+    
+    srs_assert(handler);
     handler->on_thread_start();
     
     loop = true;
