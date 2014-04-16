@@ -331,19 +331,35 @@ class RESTServers(object):
     exposed = True
     
     def __init__(self):
+        self.__last_update = datetime.datetime.now();
         self.__server_ip = "192.168.1.142";
 
     '''
+    post to update server ip.
+    request body: the new raspberry-pi server ip. TODO: FIXME: more info.
+    '''
+    def POST(self):
+        enable_crossdomain()
+        
+        req = cherrypy.request.body.read()
+        self.__server_ip = req;
+        self.__last_update = datetime.datetime.now();
+        
+        return self.__server_ip
+    
+    '''
     id canbe:
-        ingest: the ingest demo.
+        pi: the pi demo, raspberry-pi default demo.
             action: canbe play or mgmt, play to play the inest stream, mgmt to get api/v1/versions.
             stream: the stream to play, for example, live/livestream for http://server:8080/live/livestream.html
         meeting: the meeting demo. jump to web meeting if index is None.
             local: whether view the local raspberry-pi stream. if "true", redirect to the local(internal) api server.
             index: the meeting stream index, dynamic get the streams from root.api.v1.chats.get_url_by_index(index)
+        ingest: deprecated, alias for pi.
     '''
     def GET(self, id=None, action="play", stream="live/livestream", index=None, local="false"):
         enable_crossdomain()
+        # demo, srs meeting urls.
         if id == "meeting":
             if index is None:
                 url = "http://%s:8085"%(self.__server_ip)
@@ -355,23 +371,18 @@ class RESTServers(object):
                     return "meeting stream not found"
                 urls = rtmp_url.replace("...vhost...", "?vhost=").replace("rtmp://", "").split("/")
                 hls_url = "http://%s:8080/%s/%s.m3u8"%(urls[0].strip(":19350").strip(":1935"), urls[1].split("?")[0], urls[2])
-                return """
-<video width="640" height="360"
-        autoplay controls autobuffer 
-        src="%s"
-        type="application/vnd.apple.mpegurl">
-</video>"""%(hls_url);
-        else:
+                return self.__generate_hls(hls_url)
+        # raspberry-pi urls.
+        elif id == "ingest" or id == "pi":
             if action == "play":
                 url = "http://%s:8080/%s.html"%(self.__server_ip, stream)
             else:
                 url = "http://%s:8080/api/v1/versions"%(self.__server_ip)
+        # others, default.
+        else:
+            return "raspberry-pi ip: <a href='http://%s:8080' target='_blank'>%s</a>, last update: %s"%(self.__server_ip, self.__server_ip, self.__last_update)
         #return "id=%s, action=%s, stream=%s, url=%s, index=%s, local=%s"%(id, action, stream, url, index, local)
         raise cherrypy.HTTPRedirect(url)
-        
-    def POST(self):
-        enable_crossdomain()
-        raise cherrypy.HTTPError(405, "Not allowed.")
 
     def DELETE(self, id):
         enable_crossdomain()
@@ -383,6 +394,14 @@ class RESTServers(object):
 
     def OPTIONS(self, *args, **kwargs):
         enable_crossdomain()
+    
+    def __generate_hls(self, hls_url):
+        return """
+<video width="640" height="360"
+        autoplay controls autobuffer 
+        src="%s"
+        type="application/vnd.apple.mpegurl">
+</video>"""%(hls_url);
 
 global_chat_id = os.getpid();
 '''
@@ -511,21 +530,63 @@ class RESTChats(object):
 
 # HTTP RESTful path.
 class Root(object):
+    exposed = True
+
     def __init__(self):
         self.api = Api()
+    def GET(self):
+        enable_crossdomain();
+        return json.dumps({"code":Error.success, "urls":{"api":"the api root"}})
+    def OPTIONS(self, *args, **kwargs):
+        enable_crossdomain();
 # HTTP RESTful path.
 class Api(object):
+    exposed = True
+
     def __init__(self):
         self.v1 = V1()
+    def GET(self):
+        enable_crossdomain();
+        return json.dumps({"code":Error.success, 
+            "urls": {
+                "v1": "the api version 1.0"
+            }
+        });
+    def OPTIONS(self, *args, **kwargs):
+        enable_crossdomain();
 # HTTP RESTful path. to access as:
 #   http://127.0.0.1:8085/api/v1/clients
 class V1(object):
+    exposed = True
+
     def __init__(self):
         self.clients = RESTClients()
         self.streams = RESTStreams()
         self.sessions = RESTSessions()
         self.chats = RESTChats()
         self.servers = RESTServers()
+    def GET(self):
+        enable_crossdomain();
+        return json.dumps({"code":Error.success, "urls":{
+            "clients": "for srs http callback, to handle the clients requests: connect/disconnect vhost/app.", 
+            "streams": "for srs http callback, to handle the streams requests: publish/unpublish stream.",
+            "sessions": "for srs http callback, to handle the sessions requests: client play/stop stream",
+            "chats": "for srs demo meeting, the chat streams, public chat room.",
+            "servers": {
+                "summary": "for srs raspberry-pi and meeting demo",
+                "GET": "get the current raspberry-pi servers info",
+                "POST": {
+                    "body": "the new raspberry-pi server ip."
+                },
+                "GET id=ingest&action=play&stream=live/livestream": "play the ingest HLS stream on raspberry-pi",
+                "GET id=ingest&action=mgmt": "open the HTTP api url of raspberry-pi",
+                "GET id=meeting": "redirect to local raspberry-pi meeting url(local ignored)",
+                "GET id=meeting&local=false&index=0": "play the first(index=0) meeting HLS stream on demo.chnvideo.com(not local)",
+                "GET id=meeting&local=true&index=0": "play the first(index=0) meeting HLS stream on local server(local x86/x64 server), warn: raspberry-pi donot support HLS meeting."
+            }
+        }});
+    def OPTIONS(self, *args, **kwargs):
+        enable_crossdomain();
 
 '''
 main code start.
