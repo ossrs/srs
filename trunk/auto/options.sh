@@ -133,14 +133,6 @@ done
 #####################################################################################
 # apply the default value when user donot specified.
 #####################################################################################
-# if http-xxxx specified, open the SRS_HTTP_PARSER
-__compile_http_parser=NO
-if [ $SRS_HTTP_CALLBACK = YES ]; then SRS_HTTP_PARSER=YES;__compile_http_parser=YES; fi
-if [ $SRS_HTTP_SERVER = YES ]; then SRS_HTTP_PARSER=YES;__compile_http_parser=YES; fi
-if [ $SRS_HTTP_API = YES ]; then SRS_HTTP_PARSER=YES;__compile_http_parser=YES; fi
-# if no http specified, disable http parser
-if [ $__compile_http_parser = NO ]; then SRS_HTTP_PARSER=NO; fi
-
 # if transcode specified, try ffmpeg if possible.
 if [ $SRS_TRANSCODE = YES ]; then if [ $SRS_FFMPEG_TOOL = RESERVED ]; then SRS_FFMPEG_TOOL=YES; fi fi
 if [ $SRS_INGEST = YES ]; then if [ $SRS_FFMPEG_TOOL = RESERVED ]; then SRS_FFMPEG_TOOL=YES; fi fi
@@ -253,6 +245,12 @@ if [ $SRS_PI = YES ]; then
     # for arm, always set to static link.
     SRS_STATIC=YES
 fi
+
+# if http-xxxx specified, open the SRS_HTTP_PARSER
+SRS_HTTP_PARSER=NO
+if [ $SRS_HTTP_CALLBACK = YES ]; then SRS_HTTP_PARSER=YES; fi
+if [ $SRS_HTTP_SERVER = YES ]; then SRS_HTTP_PARSER=YES; fi
+if [ $SRS_HTTP_API = YES ]; then SRS_HTTP_PARSER=YES; fi
 
 # parse the jobs for make
 if [[ "" -eq SRS_JOBS ]]; then 

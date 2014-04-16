@@ -63,6 +63,13 @@ function Ubuntu_prepare()
         echo "install make success"
     fi
     
+    patch --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install patch"
+        require_sudoer "sudo apt-get install -y --force-yes patch"
+        sudo apt-get install -y --force-yes patch; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "install patch success"
+    fi
+    
     autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install autoconf"
         require_sudoer "sudo apt-get install -y --force-yes autoconf"
@@ -144,6 +151,13 @@ function Centos_prepare()
         require_sudoer "sudo yum install -y make"
         sudo yum install -y make; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install make success"
+    fi
+    
+    patch --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install patch"
+        require_sudoer "sudo yum install -y patch"
+        sudo yum install -y patch; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "install patch success"
     fi
     
     automake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
