@@ -29,12 +29,6 @@ ok_msg "test ${item}"
 ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
 ok_msg "test ${item} success"
 
-item="preset --dev"
-ok_msg "test ${item}"
-(./configure --dev && make) >>$log 2>&1
-ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
-ok_msg "test ${item} success"
-
 item="preset --fast"
 ok_msg "test ${item}"
 (./configure --fast && make) >>$log 2>&1
@@ -50,5 +44,11 @@ ok_msg "test ${item} success"
 item="preset --rtmp-hls"
 ok_msg "test ${item}"
 (./configure --rtmp-hls && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --dev"
+ok_msg "test ${item}"
+(./configure --dev && make) >>$log 2>&1
 ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
 ok_msg "test ${item} success"
