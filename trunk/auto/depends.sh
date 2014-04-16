@@ -469,43 +469,47 @@ fi
 # Affected users should upgrade to OpenSSL 1.0.1g. Users unable to immediately
 # upgrade can alternatively recompile OpenSSL with -DOPENSSL_NO_HEARTBEATS.
 if [ $SRS_SSL = YES ]; then
-    # check the arm flag file, if flag changed, need to rebuild the st.
-    if [ $SRS_ARM_UBUNTU12 = YES ]; then
-        # ok, arm specified, if the flag filed does not exists, need to rebuild.
-        if [[ -f ${SRS_OBJS}/_flag.ssl.arm.tmp && -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
-            echo "openssl-1.0.1f for arm is ok.";
-        else
-            echo "build openssl-1.0.1f for arm"; 
-            (
-                rm -rf ${SRS_OBJS}/openssl-1.0.1f && cd ${SRS_OBJS} && 
-                unzip -q ../3rdparty/openssl-1.0.1f.zip && cd openssl-1.0.1f && 
-                ./Configure --prefix=`pwd`/_release -no-shared no-asm linux-armv4 -DOPENSSL_NO_HEARTBEATS && 
-                make CC=${SrsArmCC} GCC=${SrsArmGCC} AR="${SrsArmAR} r" \
-                    LD=${SrsArmLD} LINK=${SrsArmGCC} RANDLIB=${SrsArmRANDLIB} && 
-                make install &&
-                cd .. && rm -rf openssl && ln -sf openssl-1.0.1f/_release openssl &&
-                cd .. && touch ${SRS_OBJS}/_flag.ssl.arm.tmp
-            )
-        fi
+    if [ $SRS_USE_SYS_SSL = YES ]; then
+        echo "warning: donot compile ssl, use system ssl"
     else
-        # arm not specified, if exists flag, need to rebuild for no-arm platform.
-        if [[ ! -f ${SRS_OBJS}/_flag.ssl.arm.tmp && -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
-            echo "openssl-1.0.1f is ok.";
+        # check the arm flag file, if flag changed, need to rebuild the st.
+        if [ $SRS_ARM_UBUNTU12 = YES ]; then
+            # ok, arm specified, if the flag filed does not exists, need to rebuild.
+            if [[ -f ${SRS_OBJS}/_flag.ssl.arm.tmp && -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
+                echo "openssl-1.0.1f for arm is ok.";
+            else
+                echo "build openssl-1.0.1f for arm"; 
+                (
+                    rm -rf ${SRS_OBJS}/openssl-1.0.1f && cd ${SRS_OBJS} && 
+                    unzip -q ../3rdparty/openssl-1.0.1f.zip && cd openssl-1.0.1f && 
+                    ./Configure --prefix=`pwd`/_release -no-shared no-asm linux-armv4 -DOPENSSL_NO_HEARTBEATS && 
+                    make CC=${SrsArmCC} GCC=${SrsArmGCC} AR="${SrsArmAR} r" \
+                        LD=${SrsArmLD} LINK=${SrsArmGCC} RANDLIB=${SrsArmRANDLIB} && 
+                    make install &&
+                    cd .. && rm -rf openssl && ln -sf openssl-1.0.1f/_release openssl &&
+                    cd .. && touch ${SRS_OBJS}/_flag.ssl.arm.tmp
+                )
+            fi
         else
-            echo "build openssl-1.0.1f"; 
-            (
-                rm -rf ${SRS_OBJS}/openssl-1.0.1f && cd ${SRS_OBJS} && 
-                unzip -q ../3rdparty/openssl-1.0.1f.zip && cd openssl-1.0.1f && 
-                ./config --prefix=`pwd`/_release -no-shared -DOPENSSL_NO_HEARTBEATS && 
-                make && make install &&
-                cd .. && rm -rf openssl && ln -sf openssl-1.0.1f/_release openssl &&
-                cd .. && rm -f ${SRS_OBJS}/_flag.ssl.arm.tmp
-            )
+            # arm not specified, if exists flag, need to rebuild for no-arm platform.
+            if [[ ! -f ${SRS_OBJS}/_flag.ssl.arm.tmp && -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
+                echo "openssl-1.0.1f is ok.";
+            else
+                echo "build openssl-1.0.1f"; 
+                (
+                    rm -rf ${SRS_OBJS}/openssl-1.0.1f && cd ${SRS_OBJS} && 
+                    unzip -q ../3rdparty/openssl-1.0.1f.zip && cd openssl-1.0.1f && 
+                    ./config --prefix=`pwd`/_release -no-shared -DOPENSSL_NO_HEARTBEATS && 
+                    make && make install &&
+                    cd .. && rm -rf openssl && ln -sf openssl-1.0.1f/_release openssl &&
+                    cd .. && rm -f ${SRS_OBJS}/_flag.ssl.arm.tmp
+                )
+            fi
         fi
+        # check status
+        ret=$?; if [[ $ret -ne 0 ]]; then echo "build openssl-1.0.1f failed, ret=$ret"; exit $ret; fi
+        if [ ! -f ${SRS_OBJS}/openssl/lib/libssl.a ]; then echo "build openssl-1.0.1f failed."; exit -1; fi
     fi
-    # check status
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "build openssl-1.0.1f failed, ret=$ret"; exit $ret; fi
-    if [ ! -f ${SRS_OBJS}/openssl/lib/libssl.a ]; then echo "build openssl-1.0.1f failed."; exit -1; fi
 fi
 
 if [ $SRS_SSL = YES ]; then

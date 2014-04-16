@@ -47,6 +47,10 @@ SRS_PREFIX=/usr/local/srs
 SRS_JOBS=1
 SRS_STATIC=RESERVED
 #
+# experts
+# donot compile ssl, use system ssl(-lssl) if required.
+SRS_USE_SYS_SSL=NO
+#
 # presets
 # for x86/x64 pc/servers
 SRS_X86_X64=NO
@@ -143,6 +147,9 @@ Conflicts:
   4. --arm vs --with-ffmpeg/bwtc/gperf/gmc/gmp/gprof:
         the complex tools not available for arm.
 
+Experts:
+  --use-sys-ssl             donot compile ssl, use system ssl(-lssl) if required.
+
 Workflow:
   1. apply "Presets". if not specified, use default preset.
   2. apply "Options". user specified option will override the preset.
@@ -210,6 +217,8 @@ function parse_user_option() {
         --fast)                         SRS_FAST=YES                ;;
         --pure-rtmp)                    SRS_PURE_RTMP=YES           ;;
         --rtmp-hls)                     SRS_RTMP_HLS=YES            ;;
+        
+        --use-sys-ssl)                  SRS_USE_SYS_SSL=YES         ;;
 
         *)
             echo "$0: error: invalid option \"$option\""

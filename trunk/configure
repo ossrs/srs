@@ -396,12 +396,14 @@ LibHttpParserRoot=""; LibHttpParserfile=""
 if [ $SRS_HTTP_PARSER = YES ]; then LibHttpParserRoot="${SRS_OBJS}/hp"; LibHttpParserfile="${LibHttpParserRoot}/libhttp_parser.a"; fi
 # openssl-1.0.1f, for the RTMP complex handshake.
 LibSSLRoot="";LibSSLfile=""
-if [ $SRS_SSL = YES ]; then LibSSLRoot="${SRS_OBJS}/openssl/include"; LibSSLfile="${SRS_OBJS}/openssl/lib/libssl.a ${SRS_OBJS}/openssl/lib/libcrypto.a"; fi
+if [ $SRS_SSL = YES ]; then if [ $SRS_USE_SYS_SSL = NO ]; then LibSSLRoot="${SRS_OBJS}/openssl/include"; LibSSLfile="${SRS_OBJS}/openssl/lib/libssl.a ${SRS_OBJS}/openssl/lib/libcrypto.a"; fi fi
 # gperftools-2.1, for mem check and mem/cpu profile
 LibGperfRoot=""; LibGperfFile=""
 if [ $SRS_GPERF = YES ]; then LibGperfRoot="${SRS_OBJS}/gperf/include"; LibGperfFile="${SRS_OBJS}/gperf/lib/libtcmalloc_and_profiler.a"; fi
 # the link options, always use static link
-SrsLinkOptions=""; if [ $SRS_STATIC = YES ]; then SrsLinkOptions="-static"; else SrsLinkOptions="-ldl"; fi
+SrsLinkOptions=""; 
+if [ $SRS_SSL = YES ]; then if [ $SRS_USE_SYS_SSL = YES ]; then SrsLinkOptions="-lssl"; fi fi
+if [ $SRS_STATIC = YES ]; then SrsLinkOptions="${SrsLinkOptions} -static"; else SrsLinkOptions="${SrsLinkOptions} -ldl"; fi
 
 #####################################################################################
 # Modules, compile each module, then link to binary
