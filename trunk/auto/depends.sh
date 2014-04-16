@@ -663,3 +663,8 @@ echo "\"" >> $SRS_AUTO_HEADERS_H
 
 # new empty line to auto headers file.
 echo "" >> $SRS_AUTO_HEADERS_H
+
+#####################################################################################
+# generated the test script
+#####################################################################################
+rm -rf ${SRS_OBJS}/srs.test && ln -sf `pwd`/scripts/srs.test objs/srs.test

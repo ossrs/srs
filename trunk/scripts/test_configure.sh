@@ -14,7 +14,7 @@ product_dir=$work_dir
 build_objs=${work_dir}/objs
 package_dir=${build_objs}/package
 
-log="${build_objs}/logs/package.`date +%s`.log" && . ${product_dir}/scripts/_log.sh && check_log
+log="${build_objs}/test.`date +%s`.log" && . ${product_dir}/scripts/_log.sh && check_log
 ret=$?; if [[ $ret -ne 0 ]]; then exit $ret; fi
 
 item="default configure"
