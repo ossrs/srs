@@ -61,11 +61,17 @@ SrsThread::SrsThread(ISrsThreadHandler* thread_handler, int64_t interval_us)
     
     tid = NULL;
     loop = false;
+    _cid = -1;
 }
 
 SrsThread::~SrsThread()
 {
     stop();
+}
+
+int SrsThread::cid()
+{
+    return _cid;
 }
 
 int SrsThread::start()
@@ -81,6 +87,11 @@ int SrsThread::start()
         ret = ERROR_ST_CREATE_CYCLE_THREAD;
         srs_error("st_thread_create failed. ret=%d", ret);
         return ret;
+    }
+    
+    // wait for cid to ready, for parent thread to get the cid.
+    while (_cid < 0) {
+        st_usleep(10 * SRS_TIME_MILLISECONDS);
     }
     
     return ret;
@@ -111,6 +122,7 @@ void SrsThread::thread_cycle()
 {
     int ret = ERROR_SUCCESS;
     
+    _cid = _srs_context->get_id();
     srs_assert(handler);
     
     _srs_context->generate_id();

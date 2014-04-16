@@ -26,6 +26,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef SRS_AUTO_DVR
 
 #include <srs_kernel_error.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 
 SrsDvr::SrsDvr(SrsSource* source)
 {
@@ -55,12 +56,14 @@ int SrsDvr::on_meta_data(SrsAmf0Object* metadata)
 int SrsDvr::on_audio(SrsSharedPtrMessage* audio)
 {
     int ret = ERROR_SUCCESS;
+    srs_freep(audio);
     return ret;
 }
 
 int SrsDvr::on_video(SrsSharedPtrMessage* video)
 {
     int ret = ERROR_SUCCESS;
+    srs_freep(video);
     return ret;
 }
 

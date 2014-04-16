@@ -84,6 +84,7 @@ class SrsThread
 {
 private:
     st_thread_t tid;
+    int _cid;
     bool loop;
 private:
     ISrsThreadHandler* handler;
@@ -97,6 +98,12 @@ public:
     SrsThread(ISrsThreadHandler* thread_handler, int64_t interval_us);
     virtual ~SrsThread();
 public:
+    /**
+    * get the context id. @see: ISrsThreadContext.get_id().
+    * used for parent thread to get the id.
+    * @remark when start thread, parent thread will block and wait for this id ready.
+    */
+    virtual int cid();
     /**
     * start the thread, invoke the cycle of handler util
     * user stop the thread.

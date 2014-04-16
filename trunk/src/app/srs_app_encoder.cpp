@@ -79,6 +79,7 @@ int SrsEncoder::on_publish(SrsRequest* req)
         srs_error("st_thread_create failed. ret=%d", ret);
         return ret;
     }
+    srs_trace("encoder thread cid=%d, current_cid=%d", pthread->cid(), _srs_context->get_id());
     
     return ret;
 }
