@@ -36,6 +36,7 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_app_encoder.hpp>
 #include <srs_protocol_rtmp.hpp>
+#include <srs_app_dvr.hpp>
 
 #define CONST_MAX_JITTER_MS         500
 #define DEFAULT_FRAME_TIME_MS         40
@@ -431,6 +432,9 @@ SrsSource::SrsSource(SrsRequest* _req)
 #ifdef SRS_AUTO_HLS
     hls = new SrsHls(this);
 #endif
+#ifdef SRS_AUTO_DVR
+    dvr = new SrsDvr(this);
+#endif
 #ifdef SRS_AUTO_TRANSCODE
     encoder = new SrsEncoder();
 #endif
@@ -476,6 +480,9 @@ SrsSource::~SrsSource()
     
 #ifdef SRS_AUTO_HLS
     srs_freep(hls);
+#endif
+#ifdef SRS_AUTO_DVR
+    srs_freep(dvr);
 #endif
 #ifdef SRS_AUTO_TRANSCODE
     srs_freep(encoder);
@@ -678,6 +685,13 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
     }
 #endif
     
+#ifdef SRS_AUTO_DVR
+    if (metadata && (ret = dvr->on_meta_data(metadata->metadata)) != ERROR_SUCCESS) {
+        srs_error("dvr process onMetaData message failed. ret=%d", ret);
+        return ret;
+    }
+#endif
+    
     metadata->metadata->set("server", SrsAmf0Any::str(RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
     metadata->metadata->set("contributor", SrsAmf0Any::str(RTMP_SIG_SRS_PRIMARY_AUTHROS));
     
@@ -772,6 +786,18 @@ int SrsSource::on_audio(SrsCommonMessage* audio)
     }
 #endif
     
+#ifdef SRS_AUTO_DVR
+    if ((ret = dvr->on_audio(msg->copy())) != ERROR_SUCCESS) {
+        srs_warn("dvr process audio message failed, ignore and disable dvr. ret=%d", ret);
+        
+        // unpublish, ignore ret.
+        dvr->on_unpublish();
+        
+        // ignore.
+        ret = ERROR_SUCCESS;
+    }
+#endif
+    
     // copy to all consumer
     if (true) {
         std::vector<SrsConsumer*>::iterator it;
@@ -843,6 +869,18 @@ int SrsSource::on_video(SrsCommonMessage* video)
         
         // unpublish, ignore ret.
         hls->on_unpublish();
+        
+        // ignore.
+        ret = ERROR_SUCCESS;
+    }
+#endif
+    
+#ifdef SRS_AUTO_DVR
+    if ((ret = dvr->on_video(msg->copy())) != ERROR_SUCCESS) {
+        srs_warn("dvr process video message failed, ignore and disable dvr. ret=%d", ret);
+        
+        // unpublish, ignore ret.
+        dvr->on_unpublish();
         
         // ignore.
         ret = ERROR_SUCCESS;
@@ -932,6 +970,13 @@ int SrsSource::on_publish(SrsRequest* _req)
         return ret;
     }
 #endif
+    
+#ifdef SRS_AUTO_DVR
+    if ((ret = dvr->on_publish(req)) != ERROR_SUCCESS) {
+        srs_error("start dvr failed. ret=%d", ret);
+        return ret;
+    }
+#endif
 
     return ret;
 }
@@ -945,9 +990,12 @@ void SrsSource::on_unpublish()
     encoder->on_unpublish();
 #endif
 
-    // TODO: HLS should continue previous sequence and stream.
 #ifdef SRS_AUTO_HLS
     hls->on_unpublish();
+#endif
+    
+#ifdef SRS_AUTO_DVR
+    dvr->on_unpublish();
 #endif
 
     gop_cache->clear();

@@ -46,6 +46,9 @@ class SrsRequest;
 #ifdef SRS_AUTO_HLS
 class SrsHls;
 #endif
+#ifdef SRS_AUTO_DVR
+class SrsDvr;
+#endif
 #ifdef SRS_AUTO_TRANSCODE
 class SrsEncoder;
 #endif
@@ -222,6 +225,10 @@ private:
     // hls handler.
 #ifdef SRS_AUTO_HLS
     SrsHls* hls;
+#endif
+    // dvr handler.
+#ifdef SRS_AUTO_DVR
+    SrsDvr* dvr;
 #endif
     // transcoding handler.
 #ifdef SRS_AUTO_TRANSCODE
