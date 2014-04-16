@@ -45,7 +45,7 @@ if [ $help = yes ]; then
   --help                   print this message
 
   --arm                    configure with arm and make srs. use arm tools to get info.
-  --no-build               donot build srs, user has builded. only make install.
+  --no-build               donot build srs, user has builded(./configure --pi && make). only make install.
 END
     exit 0
 fi
@@ -89,15 +89,12 @@ if [ $DO_BUILD = YES ]; then
     if [ $ARM = YES ]; then
         (
             cd $work_dir && 
-            ./configure --with-ssl --with-arm-ubuntu12 --prefix=$INSTALL && make
+            ./configure --arm --prefix=$INSTALL && make
         ) >> $log 2>&1
     else
         (
             cd $work_dir && 
-            ./configure --with-ssl --with-hls \
-                --with-http-server --with-http-api --with-http-callback \
-                --with-ingest --with-transcode \
-                --prefix=$INSTALL && make
+            ./configure --x86-x64 --prefix=$INSTALL && make
         ) >> $log 2>&1
     fi
     ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "build srs failed"; exit $ret; fi
