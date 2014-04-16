@@ -536,10 +536,7 @@ fi
 
 # whatever the FFMPEG tools, if transcode and ingest specified,
 # srs always compile the FFMPEG tool stub which used to start the FFMPEG process.
-__SRS_FFMPEG_STUB=NO
-if [ $SRS_TRANSCODE = YES ]; then __SRS_FFMPEG_STUB=YES; fi
-if [ $SRS_INGEST = YES ]; then __SRS_FFMPEG_STUB=YES; fi
-if [ $__SRS_FFMPEG_STUB = YES ]; then
+if [ $SRS_FFMPEG_STUB = YES ]; then
     echo "#define SRS_AUTO_FFMPEG" >> $SRS_AUTO_HEADERS_H
 else
     echo "#undef SRS_AUTO_FFMPEG" >> $SRS_AUTO_HEADERS_H

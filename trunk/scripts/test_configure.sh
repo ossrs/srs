@@ -17,4 +17,38 @@ package_dir=${build_objs}/package
 log="${build_objs}/logs/package.`date +%s`.log" && . ${product_dir}/scripts/_log.sh && check_log
 ret=$?; if [[ $ret -ne 0 ]]; then exit $ret; fi
 
-# test default configure.
+item="default configure"
+ok_msg "test ${item}"
+(./configure && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --x86-x64"
+ok_msg "test ${item}"
+(./configure --x86-x64 && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --dev"
+ok_msg "test ${item}"
+(./configure --dev && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --fast"
+ok_msg "test ${item}"
+(./configure --fast && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --pure-rtmp"
+ok_msg "test ${item}"
+(./configure --pure-rtmp && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --rtmp-hls"
+ok_msg "test ${item}"
+(./configure --rtmp-hls && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
