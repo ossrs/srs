@@ -199,6 +199,16 @@ void SrsStream::write_4bytes(int32_t value)
     *p++ = pp[0];
 }
 
+void SrsStream::write_3bytes(int32_t value)
+{
+    srs_assert(require(3));
+    
+    pp = (char*)&value;
+    *p++ = pp[2];
+    *p++ = pp[1];
+    *p++ = pp[0];
+}
+
 void SrsStream::write_8bytes(int64_t value)
 {
     srs_assert(require(8));

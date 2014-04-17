@@ -118,6 +118,10 @@ public:
     */
     virtual void write_4bytes(int32_t value);
     /**
+    * write 3bytes int to stream.
+    */
+    virtual void write_3bytes(int32_t value);
+    /**
     * write 8bytes int to stream.
     */
     virtual void write_8bytes(int64_t value);

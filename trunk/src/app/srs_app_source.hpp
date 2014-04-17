@@ -284,6 +284,8 @@ public:
     virtual int on_forwarder_start(SrsForwarder* forwarder);
     // for the SrsHls to callback to request the sequence headers.
     virtual int on_hls_start();
+    // for the SrsDvr to callback to request the sequence headers.
+    virtual int on_dvr_start();
 public:
     virtual bool can_publish();
     virtual int on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);

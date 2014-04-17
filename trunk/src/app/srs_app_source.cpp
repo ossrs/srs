@@ -37,6 +37,7 @@ using namespace std;
 #include <srs_app_encoder.hpp>
 #include <srs_protocol_rtmp.hpp>
 #include <srs_app_dvr.hpp>
+#include <srs_kernel_stream.hpp>
 
 #define CONST_MAX_JITTER_MS         500
 #define DEFAULT_FRAME_TIME_MS         40
@@ -651,7 +652,6 @@ int SrsSource::on_hls_start()
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_HLS
-        
     // feed the hls the metadata/sequence header,
     // when reload to start hls, hls will never get the sequence header in stream,
     // use the SrsSource.on_hls_start to push the sequence header to HLS.
@@ -664,7 +664,49 @@ int SrsSource::on_hls_start()
         srs_error("hls process audio sequence header message failed. ret=%d", ret);
         return ret;
     }
+#endif
     
+    return ret;
+}
+
+int SrsSource::on_dvr_start()
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_AUTO_DVR
+    // feed the dvr the metadata/sequence header,
+    // when reload to start dvr, dvr will never get the sequence header in stream,
+    // use the SrsSource.on_dvr_start to push the sequence header to DVR.
+    if (cache_metadata) {
+        char* payload = (char*)cache_metadata->payload;
+        int size = (int)cache_metadata->size;
+        
+        SrsStream stream;
+        if ((ret = stream.initialize(payload, size)) != ERROR_SUCCESS) {
+            srs_error("dvr decode metadata stream failed. ret=%d", ret);
+            return ret;
+        }
+        
+        SrsOnMetaDataPacket pkt;
+        if ((ret = pkt.decode(&stream)) != ERROR_SUCCESS) {
+            srs_error("dvr decode metadata packet failed.");
+            return ret;
+        }
+        
+        if ((ret = dvr->on_meta_data(&pkt)) != ERROR_SUCCESS) {
+            srs_error("dvr process onMetaData message failed. ret=%d", ret);
+            return ret;
+        }
+    }
+    
+    if (cache_sh_video && (ret = dvr->on_video(cache_sh_video->copy())) != ERROR_SUCCESS) {
+        srs_error("dvr process video sequence header message failed. ret=%d", ret);
+        return ret;
+    }
+    if (cache_sh_audio && (ret = dvr->on_audio(cache_sh_audio->copy())) != ERROR_SUCCESS) {
+        srs_error("dvr process audio sequence header message failed. ret=%d", ret);
+        return ret;
+    }
 #endif
     
     return ret;
@@ -687,7 +729,7 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
 #endif
     
 #ifdef SRS_AUTO_DVR
-    if (metadata && (ret = dvr->on_meta_data(metadata->metadata)) != ERROR_SUCCESS) {
+    if (metadata && (ret = dvr->on_meta_data(metadata)) != ERROR_SUCCESS) {
         srs_error("dvr process onMetaData message failed. ret=%d", ret);
         return ret;
     }

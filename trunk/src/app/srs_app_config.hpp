@@ -44,6 +44,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_HLS_PATH "./objs/nginx/html"
 #define SRS_CONF_DEFAULT_HLS_FRAGMENT 10
 #define SRS_CONF_DEFAULT_HLS_WINDOW 60
+#define SRS_CONF_DEFAULT_DVR_PATH "./objs/nginx/html"
 // in ms, for HLS aac sync time.
 #define SRS_CONF_DEFAULT_AAC_SYNC 100
 // in ms, for HLS aac flush the audio
@@ -222,6 +223,12 @@ public:
     virtual std::string         get_hls_path(std::string vhost);
     virtual double              get_hls_fragment(std::string vhost);
     virtual double              get_hls_window(std::string vhost);
+// dvr section
+private:
+    virtual SrsConfDirective*   get_dvr(std::string vhost);
+public:
+    virtual bool                get_dvr_enabled(std::string vhost);
+    virtual std::string         get_dvr_path(std::string vhost);
 // http api section
 private:
     virtual SrsConfDirective*   get_http_api();

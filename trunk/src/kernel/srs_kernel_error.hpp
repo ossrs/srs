@@ -100,6 +100,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_SYSTEM_PID_WRITE_FILE         420
 #define ERROR_SYSTEM_PID_GET_FILE_INFO      421
 #define ERROR_SYSTEM_PID_SET_FILE_INFO      422
+#define ERROR_SYSTEM_FILE_ALREADY_OPENED    423
+#define ERROR_SYSTEM_FILE_OPENE             424
+#define ERROR_SYSTEM_FILE_CLOSE             425
+#define ERROR_SYSTEM_FILE_READ              426
+#define ERROR_SYSTEM_FILE_WRITE             427
+#define ERROR_SYSTEM_FILE_EOF               428
 
 // see librtmp.
 // failed when open ssl create the dh

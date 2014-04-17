@@ -2109,7 +2109,7 @@ SrsConfDirective* SrsConfig::get_ingest_by_id(std::string vhost, std::string ing
 
 bool SrsConfig::get_ingest_enabled(SrsConfDirective* ingest)
 {
-    SrsConfDirective* conf = ingest->get("enable");
+    SrsConfDirective* conf = ingest->get("enabled");
     
     if (!conf || conf->arg0() != "on") {
         return false;
@@ -2292,6 +2292,55 @@ double SrsConfig::get_hls_window(string vhost)
     }
 
     return ::atof(conf->arg0().c_str());
+}
+
+SrsConfDirective* SrsConfig::get_dvr(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return NULL;
+    }
+    
+    return conf->get("dvr");
+}
+
+bool SrsConfig::get_dvr_enabled(string vhost)
+{
+    SrsConfDirective* dvr = get_dvr(vhost);
+    
+    if (!dvr) {
+        return false;
+    }
+    
+    SrsConfDirective* conf = dvr->get("enabled");
+    
+    if (!conf) {
+        return false;
+    }
+    
+    if (conf->arg0() == "on") {
+        return true;
+    }
+    
+    return false;
+}
+
+string SrsConfig::get_dvr_path(string vhost)
+{
+    SrsConfDirective* dvr = get_dvr(vhost);
+    
+    if (!dvr) {
+        return SRS_CONF_DEFAULT_DVR_PATH;
+    }
+    
+    SrsConfDirective* conf = dvr->get("dvr_path");
+    
+    if (!conf) {
+        return SRS_CONF_DEFAULT_DVR_PATH;
+    }
+    
+    return conf->arg0();
 }
 
 SrsConfDirective* SrsConfig::get_http_api()
