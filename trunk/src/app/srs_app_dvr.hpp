@@ -79,8 +79,6 @@ class SrsFlvEncoder
 private:
     SrsFileStream* _fs;
 private:
-    bool has_audio;
-    bool has_video;
     SrsStream* tag_stream;
 public:
     SrsFlvEncoder();

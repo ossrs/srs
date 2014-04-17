@@ -143,8 +143,6 @@ off_t SrsFileStream::lseek(off_t offset)
 SrsFlvEncoder::SrsFlvEncoder()
 {
     _fs = NULL;
-    has_audio = false;
-    has_video = false;
     tag_stream = new SrsStream();
 }
 
@@ -158,8 +156,6 @@ int SrsFlvEncoder::initialize(SrsFileStream* fs)
     int ret = ERROR_SUCCESS;
     
     _fs = fs;
-    has_audio = true;
-    has_video = true;
     
     return ret;
 }
@@ -179,16 +175,9 @@ int SrsFlvEncoder::write_header()
         (char)0x00, (char)0x00, (char)0x00, (char)0x00// PreviousTagSize0 UI32 Always 0
     };
     
-    // generate audio/video flag.
-    const static int av_index = 4;
-    
-    flv_header[av_index] = 0x00;
-    if (has_audio) {
-        flv_header[av_index] += 4;
-    }
-    if (has_video) {
-        flv_header[av_index] += 1;
-    }
+    // flv specification should set the audio and video flag,
+    // actually in practise, application generally ignore this flag,
+    // so we generally set the audio/video to 0.
     
     // write data.
     if ((ret = _fs->write(flv_header, sizeof(flv_header), NULL)) != ERROR_SUCCESS) {
@@ -229,8 +218,6 @@ int SrsFlvEncoder::write_audio(int32_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
-    has_audio = true;
-    
     static char tag_header[] = {
         (char)8, // TagType UB [5], 8 = audio
         (char)0x00, (char)0x00, (char)0x00, // DataSize UI24 Length of the message.
@@ -259,8 +246,6 @@ int SrsFlvEncoder::write_audio(int32_t timestamp, char* data, int size)
 int SrsFlvEncoder::write_video(int32_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
-    
-    has_video = true;
     
     static char tag_header[] = {
         (char)9, // TagType UB [5], 9 = video
