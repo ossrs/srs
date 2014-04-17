@@ -258,7 +258,7 @@ int SrsFlvEncoder::write_video(int32_t timestamp, char* data, int size)
     return ret;
 }
 
-int SrsFlvEncoder::write_tag(char* header, int header_size, char* data, int size)
+int SrsFlvEncoder::write_tag(char* header, int header_size, char* tag, int tag_size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -269,7 +269,7 @@ int SrsFlvEncoder::write_tag(char* header, int header_size, char* data, int size
     }
     
     // write tag data.
-    if ((ret = _fs->write(data, size, NULL)) != ERROR_SUCCESS) {
+    if ((ret = _fs->write(tag, tag_size, NULL)) != ERROR_SUCCESS) {
         srs_error("write flv tag failed. ret=%d", ret);
         return ret;
     }
@@ -279,7 +279,7 @@ int SrsFlvEncoder::write_tag(char* header, int header_size, char* data, int size
     if ((ret = tag_stream->initialize(pre_size, 4)) != ERROR_SUCCESS) {
         return ret;
     }
-    tag_stream->write_4bytes(size + header_size);
+    tag_stream->write_4bytes(tag_size + header_size);
     if ((ret = _fs->write(pre_size, sizeof(pre_size), NULL)) != ERROR_SUCCESS) {
         srs_error("write flv previous tag size failed. ret=%d", ret);
         return ret;

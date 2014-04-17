@@ -75,24 +75,34 @@ public:
     SrsFlvEncoder();
     virtual ~SrsFlvEncoder();
 public:
+    /**
+    * initialize the underlayer file stream,
+    * user can initialize multiple times to encode multiple flv files.
+    */
     virtual int initialize(SrsFileStream* fs);
 public:
     /**
     * write flv header.
-    * user can invoke this method multiple times,
-    * for example, when get audio/video sequence header.
-    * 
     * write following:
     *   1. E.2 The FLV header
     *   2. PreviousTagSize0 UI32 Always 0
     * that is, 9+4=13bytes.
     */
     virtual int write_header();
+    /**
+    * write flv metadata. 
+    * serialize from:
+    *   AMF0 string: onMetaData,
+    *   AMF0 object: the metadata object.
+    */
     virtual int write_metadata(char* data, int size);
+    /**
+    * write audio/video packet.
+    */
     virtual int write_audio(int32_t timestamp, char* data, int size);
     virtual int write_video(int32_t timestamp, char* data, int size);
 private:
-    virtual int write_tag(char* header, int header_size, char* data, int size);
+    virtual int write_tag(char* header, int header_size, char* tag, int tag_size);
 };
 
 /**
