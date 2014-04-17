@@ -163,6 +163,7 @@ int SrsHttpVhost::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
     
     std::string fullpath = get_request_file(req);
     
+    // TODO: FIXME: refine the file stream.
     int fd = ::open(fullpath.c_str(), O_RDONLY);
     if (fd < 0) {
         ret = ERROR_HTTP_OPEN_FILE;

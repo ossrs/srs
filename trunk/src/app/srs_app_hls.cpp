@@ -152,6 +152,7 @@ public:
     {
         int ret = ERROR_SUCCESS;
         
+        // TODO: FIXME: maybe should use st_write.
         if (::write(fd, mpegts_header, sizeof(mpegts_header)) != sizeof(mpegts_header)) {
             ret = ERROR_HLS_WRITE_FAILED;
             srs_error("write ts file header failed. ret=%d", ret);
@@ -276,6 +277,7 @@ public:
             }
             
             // write ts packet
+            // TODO: FIXME: maybe should use st_write.
             if (::write(fd, packet, sizeof(packet)) != sizeof(packet)) {
                 ret = ERROR_HLS_WRITE_FAILED;
                 srs_error("write ts file failed. ret=%d", ret);
@@ -428,6 +430,7 @@ int SrsTSMuxer::open(string _path)
     
     int flags = O_CREAT|O_WRONLY|O_TRUNC;
     mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
+    // TODO: FIXME: refine the file stream.
     if ((fd = ::open(path.c_str(), flags, mode)) < 0) {
         ret = ERROR_HLS_OPEN_FAILED;
         srs_error("open ts file %s failed. ret=%d", path.c_str(), ret);

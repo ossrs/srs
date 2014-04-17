@@ -37,6 +37,13 @@ class SrsAmf0Object;
 class SrsSharedPtrMessage;
 
 /**
+* encode data to flv file.
+*/
+class SrsFlvEncoder
+{
+};
+
+/**
 * dvr(digital video recorder) to record RTMP stream to flv file.
 * TODO: FIXME: add utest for it.
 */

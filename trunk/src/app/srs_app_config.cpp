@@ -104,6 +104,7 @@ int SrsFileBuffer::fullfill(const char* filename)
     int nread = 0;
     int filesize = 0;
     
+    // TODO: FIXME: refine the file stream.
     if ((fd = ::open(filename, O_RDONLY, 0)) < 0) {
         ret = ERROR_SYSTEM_CONFIG_INVALID;
         srs_error("open conf file error. ret=%d", ret);
