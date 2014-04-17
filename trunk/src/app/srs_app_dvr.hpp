@@ -60,15 +60,6 @@ public:
     * @param pnwrite, return the write size. NULL to ignore.
     */
     virtual int write(void* buf, size_t count, ssize_t* pnwrite);
-public:
-    /**
-    * get size of file.
-    */
-    virtual int64_t size();
-    /**
-    * wrapper for system lseek where whence always use SEEK_SET
-    */
-    virtual off_t lseek(off_t offset);
 };
 
 /**

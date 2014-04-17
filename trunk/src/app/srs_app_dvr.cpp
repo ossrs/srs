@@ -129,17 +129,6 @@ int SrsFileStream::write(void* buf, size_t count, ssize_t* pnwrite)
     return ret;
 }
 
-int64_t SrsFileStream::size()
-{
-    ::lseek(fd, 0, SEEK_SET);
-    return ::lseek(fd, 0, SEEK_END);
-}
-
-off_t SrsFileStream::lseek(off_t offset)
-{
-    return ::lseek(fd, offset, SEEK_SET);
-}
-
 SrsFlvEncoder::SrsFlvEncoder()
 {
     _fs = NULL;
@@ -163,9 +152,6 @@ int SrsFlvEncoder::initialize(SrsFileStream* fs)
 int SrsFlvEncoder::write_header()
 {
     int ret = ERROR_SUCCESS;
-    
-    // seek to header.
-    _fs->lseek(0);
     
     static char flv_header[] = {
         'F', 'L', 'V', // Signatures "FLV"
