@@ -106,6 +106,57 @@ private:
 };
 
 /**
+* the plan for dvr.
+* use to control the following dvr params:
+* 1. filename: the filename for record file.
+* 2. reap flv: when to reap the flv and start new piece.
+*/
+class SrsDvrPlan
+{
+protected:
+    /**
+    * the underlayer dvr stream.
+    * if close, the flv is reap and closed.
+    * if open, new flv file is crote.
+    */
+    SrsFileStream* fs;
+    SrsFlvEncoder* enc;
+    bool dvr_enabled;
+    SrsSource* _source;
+public:
+    SrsDvrPlan();
+    virtual ~SrsDvrPlan();
+public:
+    virtual int initialize(SrsSource* source);
+    virtual int on_publish(SrsRequest* req) = 0;
+    virtual void on_unpublish() = 0;
+    virtual int on_meta_data(SrsOnMetaDataPacket* metadata);
+    virtual int on_audio(SrsSharedPtrMessage* audio);
+    virtual int on_video(SrsSharedPtrMessage* video);
+protected:
+    virtual int flv_open(std::string stream, std::string path);
+    virtual int flv_close();
+public:
+    static SrsDvrPlan* create_plan();
+};
+
+/**
+* default session plan:
+* 1. start dvr when session start(publish).
+* 2. stop dvr when session stop(unpublish).
+* 3. always dvr to file: dvr_path/app/stream.flv
+*/
+class SrsDvrSessionPlan : public SrsDvrPlan
+{
+public:
+    SrsDvrSessionPlan();
+    virtual ~SrsDvrSessionPlan();
+public:
+    virtual int on_publish(SrsRequest* req);
+    virtual void on_unpublish();
+};
+
+/**
 * dvr(digital video recorder) to record RTMP stream to flv file.
 * TODO: FIXME: add utest for it.
 */
@@ -114,13 +165,17 @@ class SrsDvr
 private:
     SrsSource* _source;
 private:
-    bool dvr_enabled;
-    SrsFileStream* fs;
-    SrsFlvEncoder* enc;
+    SrsDvrPlan* plan;
 public:
     SrsDvr(SrsSource* source);
     virtual ~SrsDvr();
 public:
+    /**
+    * initialize dvr, create dvr plan.
+    * when system initialize(encoder publish at first time, or reload),
+    * initialize the dvr will reinitialize the plan, the whole dvr framework.
+    */
+    virtual int initialize();
     /**
     * publish stream event, 
     * when encoder start to publish RTMP stream.

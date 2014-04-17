@@ -276,7 +276,10 @@ int SrsRtmpConn::stream_service_cycle()
     srs_trace("set chunk_size=%d success", chunk_size);
     
     // find a source to serve.
-    SrsSource* source = SrsSource::find(req);
+    SrsSource* source = NULL;
+    if ((ret = SrsSource::find(req, &source)) != ERROR_SUCCESS) {
+        return ret;
+    }
     srs_assert(source != NULL);
     
     // check publish available.

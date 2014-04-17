@@ -213,10 +213,10 @@ public:
     /**
     * find stream by vhost/app/stream.
     * @param req the client request.
-    * @return the matched source, never be NULL.
+    * @param ppsource the matched source, if success never be NULL.
     * @remark stream_url should without port and schema.
     */
-    static SrsSource* find(SrsRequest* req);
+    static int find(SrsRequest* req, SrsSource** ppsource);
 private:
     // deep copy of client request.
     SrsRequest* req;
@@ -271,6 +271,8 @@ public:
     */
     SrsSource(SrsRequest* _req);
     virtual ~SrsSource();
+public:
+    virtual int initialize();
 // interface ISrsReloadHandler
 public:
     virtual int on_reload_vhost_atc(std::string vhost);

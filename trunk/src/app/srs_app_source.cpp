@@ -413,17 +413,27 @@ int64_t SrsGopCache::get_start_time()
 
 std::map<std::string, SrsSource*> SrsSource::pool;
 
-SrsSource* SrsSource::find(SrsRequest* req)
+int SrsSource::find(SrsRequest* req, SrsSource** ppsource)
 {
+    int ret = ERROR_SUCCESS;
+    
     string stream_url = req->get_stream_url();
     string vhost = req->vhost;
     
     if (pool.find(stream_url) == pool.end()) {
-        pool[stream_url] = new SrsSource(req);
+        SrsSource* source = new SrsSource(req);
+        if ((ret = source->initialize()) != ERROR_SUCCESS) {
+            srs_freep(source);
+            return ret;
+        }
+        
+        pool[stream_url] = source;
         srs_info("create new source for url=%s, vhost=%s", stream_url.c_str(), vhost.c_str());
     }
     
-    return pool[stream_url];
+    *ppsource = pool[stream_url];
+    
+    return ret;
 }
 
 SrsSource::SrsSource(SrsRequest* _req)
@@ -490,6 +500,19 @@ SrsSource::~SrsSource()
 #endif
 
     srs_freep(req);
+}
+
+int SrsSource::initialize()
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_AUTO_DVR
+    if ((ret = dvr->initialize()) != ERROR_SUCCESS) {
+        return ret;
+    }
+#endif
+    
+    return ret;
 }
 
 int SrsSource::on_reload_vhost_atc(string vhost)
@@ -614,11 +637,20 @@ int SrsSource::on_reload_vhost_dvr(string vhost)
     }
     
 #ifdef SRS_AUTO_DVR
+    // cleanup dvr
     dvr->on_unpublish();
+
+    // reinitialize the dvr, update plan.
+    if ((ret = dvr->initialize()) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    // start to publish by new plan.
     if ((ret = dvr->on_publish(req)) != ERROR_SUCCESS) {
         srs_error("dvr publish failed. ret=%d", ret);
         return ret;
     }
+    
     srs_trace("vhost %s dvr reload success", vhost.c_str());
 #endif
     
