@@ -278,6 +278,7 @@ public:
     virtual int on_reload_vhost_queue_length(std::string vhost);
     virtual int on_reload_vhost_forward(std::string vhost);
     virtual int on_reload_vhost_hls(std::string vhost);
+    virtual int on_reload_vhost_dvr(std::string vhost);
     virtual int on_reload_vhost_transcode(std::string vhost);
 public:
     // for the SrsForwarder to callback to request the sequence headers.

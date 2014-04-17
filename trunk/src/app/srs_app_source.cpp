@@ -605,6 +605,26 @@ int SrsSource::on_reload_vhost_hls(string vhost)
     return ret;
 }
 
+int SrsSource::on_reload_vhost_dvr(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (req->vhost != vhost) {
+        return ret;
+    }
+    
+#ifdef SRS_AUTO_DVR
+    dvr->on_unpublish();
+    if ((ret = dvr->on_publish(req)) != ERROR_SUCCESS) {
+        srs_error("dvr publish failed. ret=%d", ret);
+        return ret;
+    }
+    srs_trace("vhost %s dvr reload success", vhost.c_str());
+#endif
+    
+    return ret;
+}
+
 int SrsSource::on_reload_vhost_transcode(string vhost)
 {
     int ret = ERROR_SUCCESS;

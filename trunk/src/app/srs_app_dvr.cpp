@@ -364,6 +364,10 @@ int SrsDvr::on_meta_data(SrsOnMetaDataPacket* metadata)
 {
     int ret = ERROR_SUCCESS;
     
+    if (!dvr_enabled) {
+        return ret;
+    }
+    
     int size = 0;
     char* payload = NULL;
     if ((ret = metadata->encode(size, payload)) != ERROR_SUCCESS) {
@@ -382,6 +386,12 @@ int SrsDvr::on_audio(SrsSharedPtrMessage* audio)
 {
     int ret = ERROR_SUCCESS;
     
+    SrsAutoFree(SrsSharedPtrMessage, audio, false);
+    
+    if (!dvr_enabled) {
+        return ret;
+    }
+    
     int32_t timestamp = audio->header.timestamp;
     char* payload = (char*)audio->payload;
     int size = (int)audio->size;
@@ -395,6 +405,12 @@ int SrsDvr::on_audio(SrsSharedPtrMessage* audio)
 int SrsDvr::on_video(SrsSharedPtrMessage* video)
 {
     int ret = ERROR_SUCCESS;
+    
+    SrsAutoFree(SrsSharedPtrMessage, video, false);
+    
+    if (!dvr_enabled) {
+        return ret;
+    }
     
     int32_t timestamp = video->header.timestamp;
     char* payload = (char*)video->payload;

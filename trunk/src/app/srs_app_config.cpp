@@ -851,6 +851,17 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload hls success.", vhost.c_str());
             }
+            // dvr, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("dvr"), old_vhost->get("dvr"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_dvr(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes dvr failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload hls success.", vhost.c_str());
+            }
             // http, only one per vhost.
             if (!srs_directive_equals(new_vhost->get("http"), old_vhost->get("http"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
