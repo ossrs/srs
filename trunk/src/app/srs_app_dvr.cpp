@@ -341,6 +341,9 @@ int SrsDvrPlan::on_publish()
     srs_freep(jitter);
     jitter = new SrsRtmpJitter();
     
+    // always update time cache.
+    srs_update_system_time_ms();
+    
     // new flv file
     std::stringstream path;
     

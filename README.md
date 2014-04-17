@@ -155,7 +155,7 @@ Supported operating systems and hardware:
 1. Support embeded http server for hls(live/vod)
 1. Support stream ingester using ffmpeg.
 1. Support ingest RTSP(RTP, SDP) stream to RTMP.
-1. [dev] Support dvr(record live to flv file for vod)
+1. Support dvr(record live to flv file for vod)
 1. [plan] Support file to hls vod stream.
 1. [plan] Support system full utest on gtest.
 1. [plan] Support RTMP edge server, push/pull stream from any RTMP server
@@ -222,6 +222,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * nginx v1.5.0: 139524 lines <br/>
 
 ## History
+* v1.0, 2014-04-17, support dvr(record live to flv file for vod)
 * v1.0, 2014-04-11, add speex1.2 to transcode flash encoder stream. change to 0.9.58
 * v1.0, 2014-04-10, support reload ingesters(add/remov/update). change to 0.9.57.
 * v1.0, 2014-04-07, [1.0 mainline(0.9.55)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline) released. 30000 lines.
