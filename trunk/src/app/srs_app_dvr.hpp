@@ -34,6 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsSource;
 class SrsRequest;
 class SrsStream;
+class SrsRtmpJitter;
 class SrsOnMetaDataPacket;
 class SrsSharedPtrMessage;
 
@@ -51,6 +52,7 @@ public:
 public:
     virtual int open(std::string file);
     virtual int close();
+    virtual bool is_open();
 public:
     /**
     * @param pnread, return the read size. NULL to ignore.
@@ -123,18 +125,26 @@ protected:
     SrsFlvEncoder* enc;
     bool dvr_enabled;
     SrsSource* _source;
+    SrsRequest* _req;
+    SrsRtmpJitter* jitter;
 public:
     SrsDvrPlan();
     virtual ~SrsDvrPlan();
 public:
     virtual int initialize(SrsSource* source, SrsRequest* req);
-    virtual int on_publish(SrsRequest* req) = 0;
+    virtual int on_publish();
     virtual void on_unpublish() = 0;
     virtual int on_meta_data(SrsOnMetaDataPacket* metadata);
     virtual int on_audio(SrsSharedPtrMessage* audio);
     virtual int on_video(SrsSharedPtrMessage* video);
 protected:
     virtual int flv_open(std::string stream, std::string path);
+    /**
+    * user should override this method.
+    * for the audio/video is corrected by jitter.
+    */
+    virtual int on_audio_msg(SrsSharedPtrMessage* audio);
+    virtual int on_video_msg(SrsSharedPtrMessage* video);
     virtual int flv_close();
 public:
     static SrsDvrPlan* create_plan(std::string vhost);
@@ -149,7 +159,6 @@ public:
     SrsDvrSessionPlan();
     virtual ~SrsDvrSessionPlan();
 public:
-    virtual int on_publish(SrsRequest* req);
     virtual void on_unpublish();
 };
 
@@ -168,10 +177,10 @@ public:
     virtual ~SrsDvrSegmentPlan();
 public:
     virtual int initialize(SrsSource* source, SrsRequest* req);
-    virtual int on_publish(SrsRequest* req);
+    virtual int on_publish();
     virtual void on_unpublish();
-    virtual int on_audio(SrsSharedPtrMessage* audio);
-    virtual int on_video(SrsSharedPtrMessage* video);
+    virtual int on_audio_msg(SrsSharedPtrMessage* audio);
+    virtual int on_video_msg(SrsSharedPtrMessage* video);
 private:
     virtual int update_duration(SrsSharedPtrMessage* msg);
 };

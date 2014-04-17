@@ -1297,6 +1297,9 @@ int SrsHls::on_publish(SrsRequest* req)
         return ret;
     }
     
+    // if enabled, open the muxer.
+    hls_enabled = true;
+    
     // notice the source to get the cached sequence header.
     // when reload to start hls, hls will never get the sequence header in stream,
     // use the SrsSource.on_hls_start to push the sequence header to HLS.
@@ -1304,9 +1307,6 @@ int SrsHls::on_publish(SrsRequest* req)
         srs_error("callback source hls start failed. ret=%d", ret);
         return ret;
     }
-    
-    // if enabled, open the muxer.
-    hls_enabled = true;
 
     return ret;
 }
