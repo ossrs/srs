@@ -127,7 +127,7 @@ public:
     SrsDvrPlan();
     virtual ~SrsDvrPlan();
 public:
-    virtual int initialize(SrsSource* source);
+    virtual int initialize(SrsSource* source, SrsRequest* req);
     virtual int on_publish(SrsRequest* req) = 0;
     virtual void on_unpublish() = 0;
     virtual int on_meta_data(SrsOnMetaDataPacket* metadata);
@@ -137,14 +137,11 @@ protected:
     virtual int flv_open(std::string stream, std::string path);
     virtual int flv_close();
 public:
-    static SrsDvrPlan* create_plan();
+    static SrsDvrPlan* create_plan(std::string vhost);
 };
 
 /**
-* default session plan:
-* 1. start dvr when session start(publish).
-* 2. stop dvr when session stop(unpublish).
-* 3. always dvr to file: dvr_path/app/stream.flv
+* session plan: reap flv when session complete(unpublish)
 */
 class SrsDvrSessionPlan : public SrsDvrPlan
 {
@@ -154,6 +151,29 @@ public:
 public:
     virtual int on_publish(SrsRequest* req);
     virtual void on_unpublish();
+};
+
+/**
+* segment plan: reap flv when duration exceed.
+*/
+class SrsDvrSegmentPlan : public SrsDvrPlan
+{
+private:
+    int64_t duration;
+    int64_t starttime;
+    // in config, in ms
+    int segment_duration;
+public:
+    SrsDvrSegmentPlan();
+    virtual ~SrsDvrSegmentPlan();
+public:
+    virtual int initialize(SrsSource* source, SrsRequest* req);
+    virtual int on_publish(SrsRequest* req);
+    virtual void on_unpublish();
+    virtual int on_audio(SrsSharedPtrMessage* audio);
+    virtual int on_video(SrsSharedPtrMessage* video);
+private:
+    virtual int update_duration(SrsSharedPtrMessage* msg);
 };
 
 /**
@@ -175,7 +195,7 @@ public:
     * when system initialize(encoder publish at first time, or reload),
     * initialize the dvr will reinitialize the plan, the whole dvr framework.
     */
-    virtual int initialize();
+    virtual int initialize(SrsRequest* req);
     /**
     * publish stream event, 
     * when encoder start to publish RTMP stream.

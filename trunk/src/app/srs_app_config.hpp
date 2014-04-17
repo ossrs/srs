@@ -45,6 +45,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_HLS_FRAGMENT 10
 #define SRS_CONF_DEFAULT_HLS_WINDOW 60
 #define SRS_CONF_DEFAULT_DVR_PATH "./objs/nginx/html"
+#define SRS_CONF_DEFAULT_DVR_PLAN_SESSION "session"
+#define SRS_CONF_DEFAULT_DVR_PLAN_SEGMENT "segment"
+#define SRS_CONF_DEFAULT_DVR_PLAN SRS_CONF_DEFAULT_DVR_PLAN_SESSION
+#define SRS_CONF_DEFAULT_DVR_DURATION 30
 // in ms, for HLS aac sync time.
 #define SRS_CONF_DEFAULT_AAC_SYNC 100
 // in ms, for HLS aac flush the audio
@@ -229,6 +233,8 @@ private:
 public:
     virtual bool                get_dvr_enabled(std::string vhost);
     virtual std::string         get_dvr_path(std::string vhost);
+    virtual std::string         get_dvr_plan(std::string vhost);
+    virtual int                 get_dvr_duration(std::string vhost);
 // http api section
 private:
     virtual SrsConfDirective*   get_http_api();

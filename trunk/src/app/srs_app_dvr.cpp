@@ -26,6 +26,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef SRS_AUTO_DVR
 
 #include <fcntl.h>
+#include <sstream>
 using namespace std;
 
 #include <srs_app_config.hpp>
@@ -35,6 +36,7 @@ using namespace std;
 #include <srs_app_source.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_stream.hpp>
+#include <srs_kernel_utility.hpp>
 
 SrsFileStream::SrsFileStream()
 {
@@ -302,7 +304,7 @@ SrsDvrPlan::~SrsDvrPlan()
     srs_freep(enc);
 }
 
-int SrsDvrPlan::initialize(SrsSource* source)
+int SrsDvrPlan::initialize(SrsSource* source, SrsRequest* /*req*/)
 {
     int ret = ERROR_SUCCESS;
     
@@ -401,9 +403,16 @@ int SrsDvrPlan::on_video(SrsSharedPtrMessage* video)
     return ret;
 }
 
-SrsDvrPlan* SrsDvrPlan::create_plan()
+SrsDvrPlan* SrsDvrPlan::create_plan(string vhost)
 {
-    return new SrsDvrSessionPlan();
+    std::string plan = _srs_config->get_dvr_plan(vhost);
+    if (plan == SRS_CONF_DEFAULT_DVR_PLAN_SEGMENT) {
+        return new SrsDvrSegmentPlan();
+    } else if (plan == SRS_CONF_DEFAULT_DVR_PLAN_SESSION) {
+        return new SrsDvrSessionPlan();
+    } else {
+        return new SrsDvrSessionPlan();
+    }
 }
 
 SrsDvrSessionPlan::SrsDvrSessionPlan()
@@ -427,14 +436,13 @@ int SrsDvrSessionPlan::on_publish(SrsRequest* req)
         return ret;
     }
     
-    std::string path = _srs_config->get_dvr_path(req->vhost);
-    path += "/";
-    path += req->app;
-    path += "/";
-    path += req->stream;
-    path += ".flv";
+    std::stringstream path;
     
-    if ((ret = flv_open(req->get_stream_url(), path)) != ERROR_SUCCESS) {
+    path << _srs_config->get_dvr_path(req->vhost)
+        << "/" << req->app << "/" 
+        << req->stream << "." << srs_get_system_time_ms() << ".flv";
+    
+    if ((ret = flv_open(req->get_stream_url(), path.str())) != ERROR_SUCCESS) {
         return ret;
     }
     dvr_enabled = true;
@@ -458,6 +466,132 @@ void SrsDvrSessionPlan::on_unpublish()
     dvr_enabled = false;
 }
 
+SrsDvrSegmentPlan::SrsDvrSegmentPlan()
+{
+    starttime = -1;
+    duration = 0;
+    segment_duration = -1;
+}
+
+SrsDvrSegmentPlan::~SrsDvrSegmentPlan()
+{
+}
+
+int SrsDvrSegmentPlan::initialize(SrsSource* source, SrsRequest* req)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = SrsDvrPlan::initialize(source, req)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    segment_duration = _srs_config->get_dvr_duration(req->vhost);
+    // to ms
+    segment_duration *= 1000;
+    
+    return ret;
+}
+
+int SrsDvrSegmentPlan::on_publish(SrsRequest* req)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // support multiple publish.
+    if (dvr_enabled) {
+        return ret;
+    }
+
+    if (!_srs_config->get_dvr_enabled(req->vhost)) {
+        return ret;
+    }
+    
+    std::stringstream path;
+    
+    path << _srs_config->get_dvr_path(req->vhost)
+        << "/" << req->app << "/" 
+        << req->stream << "." << srs_get_system_time_ms() << ".flv";
+    
+    if ((ret = flv_open(req->get_stream_url(), path.str())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    dvr_enabled = true;
+    
+    return ret;
+}
+
+void SrsDvrSegmentPlan::on_unpublish()
+{
+    // support multiple publish.
+    if (!dvr_enabled) {
+        return;
+    }
+    
+    // ignore error.
+    int ret = flv_close();
+    if (ret != ERROR_SUCCESS) {
+        srs_warn("ignore flv close error. ret=%d", ret);
+    }
+    
+    dvr_enabled = false;
+}
+
+int SrsDvrSegmentPlan::on_audio(SrsSharedPtrMessage* audio)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (!dvr_enabled) {
+        return ret;
+    }
+    
+    if ((ret = update_duration(audio)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = SrsDvrPlan::on_audio(audio)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsDvrSegmentPlan::on_video(SrsSharedPtrMessage* video)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (!dvr_enabled) {
+        return ret;
+    }
+    
+    if ((ret = update_duration(video)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = SrsDvrPlan::on_video(video)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // foreach msg, collect the duration.
+    if (starttime < 0 || starttime > msg->header.timestamp) {
+        starttime = msg->header.timestamp;
+    }
+    duration += msg->header.timestamp - starttime;
+    starttime = msg->header.timestamp;
+    
+    // reap if exceed duration.
+    if (duration > 0 && segment_duration > 0 && duration > segment_duration) {
+        on_unpublish();
+    }
+    
+    return ret;
+}
+
 SrsDvr::SrsDvr(SrsSource* source)
 {
     _source = source;
@@ -469,14 +603,14 @@ SrsDvr::~SrsDvr()
     srs_freep(plan);
 }
 
-int SrsDvr::initialize()
+int SrsDvr::initialize(SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
     
     srs_freep(plan);
-    plan = SrsDvrPlan::create_plan();
+    plan = SrsDvrPlan::create_plan(req->vhost);
 
-    if ((ret = plan->initialize(_source)) != ERROR_SUCCESS) {
+    if ((ret = plan->initialize(_source, req)) != ERROR_SUCCESS) {
         return ret;
     }
     

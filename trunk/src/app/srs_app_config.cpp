@@ -2354,6 +2354,40 @@ string SrsConfig::get_dvr_path(string vhost)
     return conf->arg0();
 }
 
+string SrsConfig::get_dvr_plan(string vhost)
+{
+    SrsConfDirective* dvr = get_dvr(vhost);
+    
+    if (!dvr) {
+        return SRS_CONF_DEFAULT_DVR_PLAN;
+    }
+    
+    SrsConfDirective* conf = dvr->get("dvr_plan");
+    
+    if (!conf) {
+        return SRS_CONF_DEFAULT_DVR_PLAN;
+    }
+    
+    return conf->arg0();
+}
+
+int SrsConfig::get_dvr_duration(string vhost)
+{
+    SrsConfDirective* dvr = get_dvr(vhost);
+    
+    if (!dvr) {
+        return SRS_CONF_DEFAULT_DVR_DURATION;
+    }
+    
+    SrsConfDirective* conf = dvr->get("dvr_duration");
+    
+    if (!conf) {
+        return SRS_CONF_DEFAULT_DVR_DURATION;
+    }
+    
+    return ::atoi(conf->arg0().c_str());
+}
+
 SrsConfDirective* SrsConfig::get_http_api()
 {
     return root->get("http_api");

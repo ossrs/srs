@@ -31,6 +31,10 @@ static int64_t _srs_system_time_us_cache = 0;
 
 int64_t srs_get_system_time_ms()
 {
+    if (_srs_system_time_us_cache <= 0) {
+        srs_update_system_time_ms();
+    }
+    
     return _srs_system_time_us_cache / 1000;
 }
 

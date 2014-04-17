@@ -507,7 +507,7 @@ int SrsSource::initialize()
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_DVR
-    if ((ret = dvr->initialize()) != ERROR_SUCCESS) {
+    if ((ret = dvr->initialize(req)) != ERROR_SUCCESS) {
         return ret;
     }
 #endif
@@ -641,7 +641,7 @@ int SrsSource::on_reload_vhost_dvr(string vhost)
     dvr->on_unpublish();
 
     // reinitialize the dvr, update plan.
-    if ((ret = dvr->initialize()) != ERROR_SUCCESS) {
+    if ((ret = dvr->initialize(req)) != ERROR_SUCCESS) {
         return ret;
     }
 
