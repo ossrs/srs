@@ -168,32 +168,6 @@ Supported operating systems and hardware:
 1. [no-plan] Support RTMPT, http to tranverse firewalls
 1. [no-plan] Support file source, transcoding file to live stream
 
-## Performance
-1.  300 connections, 150Mbps, 500kbps, CPU 18.8%, MEM 5956KB.
-1.  600 connections, 300Mbps, 500kbps, CPU 32.1%, MEM 9808KB.
-1.  900 connections, 450Mbps, 500kbps, CPU 49.9%, MEM 11MB.
-1. 1200 connections, 600Mbps, 500kbps, CPU 72.4%, MEM 15MB.
-1. 1500 connections, 750Mbps, 500kbps, CPU 81.9%, MEM 28MB.
-1. 1800 connections, 900Mbps, 500kbps, CPU 90.2%, MEM 41MB.
-
-<pre>
-[winlin@dev6 srs]$ dstat
-----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
-usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
- 58   9  32   0   0   1|   0  4168k| 277M  277M|   0     0 |  29k   25k
- 61   8  30   0   0   1|   0  1168k| 336M  336M|   0     0 |  29k   24k
- 63   8  27   0   0   1|   0  2240k| 124M  124M|   0     0 |  32k   33k
- 62   8  28   0   0   1|   0  1632k| 110M  110M|   0     0 |  31k   33k
- 53   7  40   0   0   1|   0  1360k| 115M  115M|   0     0 |  24k   26k
- 51   7  41   0   0   1|   0  1184k| 146M  146M|   0     0 |  24k   27k
- 39   6  54   0   0   1|   0  1284k| 105M  105M|   0     0 |  22k   28k
- 41   6  52   0   0   1|   0  1264k| 116M  116M|   0     0 |  25k   28k
- 48   6  45   0   0   1|   0  1272k| 143M  143M|   0     0 |  27k   27k
-</pre>
-
-* See also: [Performance for x86/x64 Test Guide](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance)
-* See also: [Performance for RaspberryPi](https://github.com/winlinvip/simple-rtmp-server/wiki/RaspberryPi)
-
 ## Releases
 * 2014-04-07, [Release v1.0-mainline](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline), support [arm](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm), 
 [init.d](https://github.com/winlinvip/simple-rtmp-server/wiki/LinuxService), http [server](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPServer)/[api](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPApi), [ingest](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleIngest). 30000 lines.<br/>
@@ -208,24 +182,10 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * 2013-10-23, [Release v0.1](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.1), support [rtmp FMLE/FFMPEG publish](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryRTMP), vp6. 8287 lines.<br/>
 * 2013-10-17, Created.<br/>
 
-## Compare
-* SRS v1.0-mainline: 30000 lines. support arm, init.d scripts, http server and api, ingest.<br/>
-* SRS v0.9: 20926 lines. player/encoder/chat demos. bandwidth test for encoder/CDN.<br/>
-* SRS v0.8: 19186 lines. implements http hooks refer to [nginx-rtmp](https://github.com/arut/nginx-rtmp-module). <br/>
-* SRS v0.7: 17605 lines. implements transcoding(FFMPEG) feature refer to [wowza](http://www.wowza.com). <br/>
-* SRS v0.6: 16094 lines. important feature forward for CDN. <br/>
-* SRS v0.5: 14449 lines. implements HLS feature refer to [nginx-rtmp](https://github.com/arut/nginx-rtmp-module). <br/>
-* SRS v0.4: 12500 lines. important feature reload for CDN. <br/>
-* SRS v0.3: 11773 lines. implements vhost feature refer to [FMS](http://www.adobe.com/products/adobe-media-server-family.html). <br/>
-* SRS v0.2: 10125 lines. implements rtmp protocol stack refer to [nginx-rtmp](https://github.com/arut/nginx-rtmp-module). <br/>
-* SRS v0.1: 8287 lines. base on state-threads. <br/>
-* nginx-rtmp v1.0.4: 26786 lines <br/>
-* nginx v1.5.0: 139524 lines <br/>
-
 ## History
-* v1.0, 2014-04-17, support dvr(record live to flv file for vod)
-* v1.0, 2014-04-11, add speex1.2 to transcode flash encoder stream. change to 0.9.58
-* v1.0, 2014-04-10, support reload ingesters(add/remov/update). change to 0.9.57.
+* v1.0, 2014-04-17, support dvr(record live to flv file for vod). 0.9.69
+* v1.0, 2014-04-11, add speex1.2 to transcode flash encoder stream. 0.9.58
+* v1.0, 2014-04-10, support reload ingesters(add/remov/update). 0.9.57
 * v1.0, 2014-04-07, [1.0 mainline(0.9.55)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline) released. 30000 lines.
 * v1.0, 2014-04-07, support [ingest](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleIngest) file/stream/device.
 * v1.0, 2014-04-05, support [http api](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPApi) and [http server](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPServer).
@@ -337,6 +297,46 @@ on_connect/close/publish/unpublish/play/stop.
 * v0.1, 2013-10-20, support FMLE/FFMPEG publish live streaming.
 * v0.1, 2013-10-18, support rtmp message2chunk protocol(send\_message).
 * v0.1, 2013-10-17, support rtmp chunk2message protocol(recv\_message).
+
+## Performance
+1.  300 connections, 150Mbps, 500kbps, CPU 18.8%, MEM 5956KB.
+1.  600 connections, 300Mbps, 500kbps, CPU 32.1%, MEM 9808KB.
+1.  900 connections, 450Mbps, 500kbps, CPU 49.9%, MEM 11MB.
+1. 1200 connections, 600Mbps, 500kbps, CPU 72.4%, MEM 15MB.
+1. 1500 connections, 750Mbps, 500kbps, CPU 81.9%, MEM 28MB.
+1. 1800 connections, 900Mbps, 500kbps, CPU 90.2%, MEM 41MB.
+
+<pre>
+[winlin@dev6 srs]$ dstat
+----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
+usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
+ 58   9  32   0   0   1|   0  4168k| 277M  277M|   0     0 |  29k   25k
+ 61   8  30   0   0   1|   0  1168k| 336M  336M|   0     0 |  29k   24k
+ 63   8  27   0   0   1|   0  2240k| 124M  124M|   0     0 |  32k   33k
+ 62   8  28   0   0   1|   0  1632k| 110M  110M|   0     0 |  31k   33k
+ 53   7  40   0   0   1|   0  1360k| 115M  115M|   0     0 |  24k   26k
+ 51   7  41   0   0   1|   0  1184k| 146M  146M|   0     0 |  24k   27k
+ 39   6  54   0   0   1|   0  1284k| 105M  105M|   0     0 |  22k   28k
+ 41   6  52   0   0   1|   0  1264k| 116M  116M|   0     0 |  25k   28k
+ 48   6  45   0   0   1|   0  1272k| 143M  143M|   0     0 |  27k   27k
+</pre>
+
+* See also: [Performance for x86/x64 Test Guide](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance)
+* See also: [Performance for RaspberryPi](https://github.com/winlinvip/simple-rtmp-server/wiki/RaspberryPi)
+
+## Compare
+* SRS v1.0-mainline: 30000 lines. support arm, init.d scripts, http server and api, ingest.<br/>
+* SRS v0.9: 20926 lines. player/encoder/chat demos. bandwidth test for encoder/CDN.<br/>
+* SRS v0.8: 19186 lines. implements http hooks refer to [nginx-rtmp](https://github.com/arut/nginx-rtmp-module). <br/>
+* SRS v0.7: 17605 lines. implements transcoding(FFMPEG) feature refer to [wowza](http://www.wowza.com). <br/>
+* SRS v0.6: 16094 lines. important feature forward for CDN. <br/>
+* SRS v0.5: 14449 lines. implements HLS feature refer to [nginx-rtmp](https://github.com/arut/nginx-rtmp-module). <br/>
+* SRS v0.4: 12500 lines. important feature reload for CDN. <br/>
+* SRS v0.3: 11773 lines. implements vhost feature refer to [FMS](http://www.adobe.com/products/adobe-media-server-family.html). <br/>
+* SRS v0.2: 10125 lines. implements rtmp protocol stack refer to [nginx-rtmp](https://github.com/arut/nginx-rtmp-module). <br/>
+* SRS v0.1: 8287 lines. base on state-threads. <br/>
+* nginx-rtmp v1.0.4: 26786 lines <br/>
+* nginx v1.5.0: 139524 lines <br/>
 
 ## Architecture
 
