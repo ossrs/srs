@@ -26,6 +26,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_autofree.hpp>
 #include <srs_protocol_utility.hpp>
 
+#ifdef SRS_AUTO_SSL
+
 // verify the sha256
 VOID TEST(HandshakeTest, OpensslSha256)
 {
@@ -237,3 +239,5 @@ VOID TEST(HandshakeTest, BytesEqual)
     EXPECT_TRUE(srs_bytes_equals(a1, a2, 1));
     EXPECT_FALSE(srs_bytes_equals(a1, b2, 1));
 }
+
+#endif
