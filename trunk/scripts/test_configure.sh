@@ -47,6 +47,123 @@ ok_msg "test ${item}"
 ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
 ok_msg "test ${item} success"
 
+item="preset --fast --with-ssl"
+ok_msg "test ${item}"
+(./configure --fast --with-ssl && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --fast --with-hls"
+ok_msg "test ${item}"
+(./configure --fast --with-hls && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --fast --with-dvr"
+ok_msg "test ${item}"
+(./configure --fast --with-dvr && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --fast --with-nginx"
+ok_msg "test ${item}"
+(./configure --fast --with-nginx && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --fast --with-http-callback"
+ok_msg "test ${item}"
+(./configure --fast --with-http-callback && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --fast --with-http-server"
+ok_msg "test ${item}"
+(./configure --fast --with-http-server && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --fast --with-http-api"
+ok_msg "test ${item}"
+(./configure --fast --with-http-api && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --fast --with-ffmpeg"
+ok_msg "test ${item}"
+(./configure --fast --with-ffmpeg && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --fast --with-transcode"
+ok_msg "test ${item}"
+(./configure --fast --with-transcode && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --fast --with-ingest"
+ok_msg "test ${item}"
+(./configure --fast --with-ingest && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --fast --with-librtmp"
+ok_msg "test ${item}"
+(./configure --fast --with-librtmp && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --fast --with-bwtc"
+ok_msg "test ${item}"
+(./configure --fast --with-bwtc && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --fast --with-research"
+ok_msg "test ${item}"
+(./configure --fast --with-research && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --fast --with-utest"
+ok_msg "test ${item}"
+(./configure --fast --with-utest && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --fast --with-gperf"
+ok_msg "test ${item}"
+(./configure --fast --with-gperf && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --fast --with-gperf --with-gmc"
+ok_msg "test ${item}"
+(./configure --fast --with-gperf --with-gmc && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --fast --with-gperf --with-gmp"
+ok_msg "test ${item}"
+(./configure --fast --with-gperf --with-gmp && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --fast --with-gperf --with-gcp"
+ok_msg "test ${item}"
+(./configure --fast --with-gperf --with-gcp && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+item="preset --fast --with-gprof"
+ok_msg "test ${item}"
+(./configure --fast --with-gprof && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test ${item} failed. ret=$ret"; exit $ret; fi
+ok_msg "test ${item} success"
+
+#######################################################################################################
+#######################################################################################################
+#######################################################################################################
 item="preset --dev"
 ok_msg "test ${item}"
 (./configure --dev && make) >>$log 2>&1
