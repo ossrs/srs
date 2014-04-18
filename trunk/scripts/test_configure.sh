@@ -29,6 +29,12 @@ ok_msg "test \" ${item} \""
 ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test \" ${item} \" failed. ret=$ret"; exit $ret; fi
 ok_msg "test \" ${item} \" success"
 
+item="./configure --disable-all"
+ok_msg "test \" ${item} \""
+(./configure --disable-all && make) >>$log 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "test \" ${item} \" failed. ret=$ret"; exit $ret; fi
+ok_msg "test \" ${item} \" success"
+
 item="./configure --fast"
 ok_msg "test \" ${item} \""
 (./configure --fast && make) >>$log 2>&1

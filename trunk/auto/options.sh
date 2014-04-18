@@ -66,6 +66,8 @@ SRS_FAST=NO
 SRS_PURE_RTMP=NO
 # only support RTMP+HLS with ssl.
 SRS_RTMP_HLS=NO
+# the most fast compile, nothing, only support vp6 RTMP.
+SRS_DISABLE_ALL=NO
 
 #####################################################################################
 # menu
@@ -136,6 +138,7 @@ Presets:
   --fast                    the most fast compile, nothing, only support vp6 RTMP.
   --pure-rtmp               only support RTMP with ssl.
   --rtmp-hls                only support RTMP+HLS with ssl.
+  --disable-all             disable all features, only support vp6 RTMP.
   
 Conflicts:
   1. --dev/x86-x64 vs --static: 
@@ -215,6 +218,7 @@ function parse_user_option() {
         --pi)                           SRS_PI=YES                  ;;
         --dev)                          SRS_DEV=YES                 ;;
         --fast)                         SRS_FAST=YES                ;;
+        --disable-all)                  SRS_DISABLE_ALL=YES         ;;
         --pure-rtmp)                    SRS_PURE_RTMP=YES           ;;
         --rtmp-hls)                     SRS_RTMP_HLS=YES            ;;
         
@@ -259,11 +263,13 @@ function apply_user_presets() {
     if [ $SRS_RTMP_HLS = NO ]; then
         if [ $SRS_PURE_RTMP = NO ]; then
             if [ $SRS_FAST = NO ]; then
-                if [ $SRS_DEV = NO ]; then
-                    if [ $SRS_ARM_UBUNTU12 = NO ]; then
-                        if [ $SRS_PI = NO ]; then
-                            if [ $SRS_X86_X64 = NO ]; then
-                                SRS_X86_X64=YES; opt="--x86-x64 $opt";
+                if [ $SRS_DISABLE_ALL = NO ]; then
+                    if [ $SRS_DEV = NO ]; then
+                        if [ $SRS_ARM_UBUNTU12 = NO ]; then
+                            if [ $SRS_PI = NO ]; then
+                                if [ $SRS_X86_X64 = NO ]; then
+                                    SRS_X86_X64=YES; opt="--x86-x64 $opt";
+                                fi
                             fi
                         fi
                     fi
@@ -273,6 +279,31 @@ function apply_user_presets() {
     fi
 
     # all disabled.
+    if [ $SRS_DISABLE_ALL = YES ]; then
+        SRS_HLS=NO
+        SRS_DVR=NO
+        SRS_NGINX=NO
+        SRS_SSL=NO
+        SRS_FFMPEG_TOOL=NO
+        SRS_TRANSCODE=NO
+        SRS_INGEST=NO
+        SRS_HTTP_PARSER=NO
+        SRS_HTTP_CALLBACK=NO
+        SRS_HTTP_SERVER=NO
+        SRS_HTTP_API=NO
+        SRS_LIBRTMP=NO
+        SRS_BWTC=NO
+        SRS_RESEARCH=NO
+        SRS_UTEST=NO
+        SRS_GPERF=NO
+        SRS_GPERF_MC=NO
+        SRS_GPERF_MP=NO
+        SRS_GPERF_CP=NO
+        SRS_GPROF=NO
+        SRS_STATIC=NO
+    fi
+
+    # only rtmp vp6
     if [ $SRS_FAST = YES ]; then
         SRS_HLS=NO
         SRS_DVR=NO
