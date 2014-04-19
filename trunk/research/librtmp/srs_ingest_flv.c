@@ -49,6 +49,9 @@ void close_flv_file(int flv_fd);
 int flv_open_ic(int flv_fd);
 int flv_read_packet(int flv_fd, int* type, u_int32_t* timestamp, char** data, int* size);
 
+int64_t re_create();
+int64_t re_update(int64_t re, u_int32_t time);
+
 int main(int argc, char** argv)
 {
     int ret = 0;
@@ -105,26 +108,12 @@ int main(int argc, char** argv)
     ortmp = srs_rtmp_create(out_rtmp_url);
 
     ret = proxy(flv_fd, ortmp);
-    trace("proxy completed");
+    trace("ingest flv to RTMP completed");
     
     srs_rtmp_destroy(ortmp);
     close_flv_file(flv_fd);
     
     return ret;
-}
-
-int64_t re_create()
-{
-    return 0;
-}
-int64_t re_update(int64_t re, u_int32_t time)
-{
-    if (time - re > 500) {
-        usleep((time - re) * 1000);
-        return time;
-    }
-    
-    return re;
 }
 
 int proxy(int flv_fd, srs_rtmp_t ortmp)
@@ -145,7 +134,7 @@ int proxy(int flv_fd, srs_rtmp_t ortmp)
         return ret;
     }
     
-    trace("start proxy RTMP stream");
+    trace("start ingest flv to RTMP stream");
     for (;;) {
         if ((ret = flv_read_packet(flv_fd, &type, &timestamp, &data, &size)) != 0) {
             trace("irtmp get packet failed. ret=%d", ret);
@@ -190,6 +179,20 @@ int connect_oc(srs_rtmp_t ortmp)
     trace("ortmp publish stream success");
     
     return ret;
+}
+
+int64_t re_create()
+{
+    return 0;
+}
+int64_t re_update(int64_t re, u_int32_t time)
+{
+    if (time - re > 500) {
+        usleep((time - re) * 1000);
+        return time;
+    }
+    
+    return re;
 }
 
 int open_flv_file(char* in_flv_file)
