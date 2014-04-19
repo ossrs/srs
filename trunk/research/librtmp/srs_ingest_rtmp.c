@@ -44,6 +44,7 @@ int proxy(srs_rtmp_t irtmp, srs_rtmp_t ortmp);
 int main(int argc, char** argv)
 {
     int ret = 0;
+    
     // user option parse index.
     int opt = 0;
     // user options.
