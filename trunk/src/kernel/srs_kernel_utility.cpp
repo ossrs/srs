@@ -286,6 +286,84 @@ void srs_update_proc_stat()
     }
 }
 
+SrsMemInfo::SrsMemInfo()
+{
+    ok = false;
+    sample_time = 0;
+    
+    percent_ram = 0;
+    percent_swap = 0;
+    
+    MemActive = 0;
+    RealInUse = 0;
+    NotInUse = 0;
+    MemTotal = 0;
+    MemFree = 0;
+    Buffers = 0;
+    Cached = 0;
+    SwapTotal = 0;
+    SwapFree = 0;
+}
+
+static SrsMemInfo _srs_system_meminfo;
+
+SrsMemInfo* srs_get_meminfo()
+{
+    return &_srs_system_meminfo;
+}
+
+void srs_update_meminfo()
+{
+    FILE* f = fopen("/proc/meminfo", "r");
+    if (f == NULL) {
+        srs_warn("open meminfo failed, ignore");
+        return;
+    }
+    
+    SrsMemInfo& r = _srs_system_meminfo;
+    r.ok = false;
+    
+    for (;;) {
+        static char label[64];
+        static unsigned long value;
+        static char postfix[64];
+        int ret = fscanf(f, "%64s %lu %64s\n", label, &value, postfix);
+        
+        if (ret == EOF) {
+            break;
+        }
+        
+        if (strcmp("MemTotal:", label) == 0) {
+            r.MemTotal = value;
+        } else if (strcmp("MemFree:", label) == 0) {
+            r.MemFree = value;
+        } else if (strcmp("Buffers:", label) == 0) {
+            r.Buffers = value;
+        } else if (strcmp("Cached:", label) == 0) {
+            r.Cached = value;
+        } else if (strcmp("SwapTotal:", label) == 0) {
+            r.SwapTotal = value;
+        } else if (strcmp("SwapFree:", label) == 0) {
+            r.SwapFree = value;
+        }
+    }
+    
+    r.sample_time = srs_get_system_time_ms();
+    r.MemActive = r.MemTotal - r.MemFree;
+    r.RealInUse = r.MemActive - r.Buffers - r.Cached;
+    r.NotInUse = r.MemTotal - r.RealInUse;
+    
+    r.ok = true;
+    if (r.MemTotal > 0) {
+        r.percent_ram = (float)(r.RealInUse / (double)r.MemTotal);
+    }
+    if (r.SwapTotal > 0) {
+        r.percent_swap = (float)((r.SwapTotal - r.SwapFree) / (double)r.SwapTotal);
+    }
+    
+    fclose(f);
+}
+
 SrsCpuInfo::SrsCpuInfo()
 {
     ok = false;

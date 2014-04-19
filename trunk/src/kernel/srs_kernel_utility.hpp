@@ -260,6 +260,42 @@ extern SrsProcSystemStat* srs_get_system_proc_stat();
 // the deamon st-thread will update it.
 extern void srs_update_proc_stat();
 
+// @see: cat /proc/meminfo 
+struct SrsMemInfo
+{
+    // whether the data is ok.
+    bool ok;
+    // the time in ms when sample.
+    int64_t sample_time;
+    // the percent of usage. 0.153 is 15.3%.
+    float percent_ram;
+    float percent_swap;
+    
+    // MemActive = MemTotal - MemFree
+    int64_t MemActive;
+    // RealInUse = MemActive - Buffers - Cached
+    int64_t RealInUse;
+    // NotInUse = MemTotal - RealInUse
+    //          = MemTotal - MemActive + Buffers + Cached
+    //          = MemTotal - MemTotal + MemFree + Buffers + Cached
+    //          = MemFree + Buffers + Cached
+    int64_t NotInUse;
+    
+    int64_t MemTotal;
+    int64_t MemFree;
+    int64_t Buffers;
+    int64_t Cached;
+    int64_t SwapTotal;
+    int64_t SwapFree;
+    
+    SrsMemInfo();
+};
+
+// get system meminfo, use cache to avoid performance problem.
+extern SrsMemInfo* srs_get_meminfo();
+// the deamon st-thread will update it.
+extern void srs_update_meminfo();
+
 // @see: cat /proc/cpuinfo 
 struct SrsCpuInfo
 {

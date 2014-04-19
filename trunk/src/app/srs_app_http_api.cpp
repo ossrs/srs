@@ -120,6 +120,7 @@ SrsApiV1::SrsApiV1()
     handlers.push_back(new SrsApiRusages());
     handlers.push_back(new SrsApiSelfProcStats());
     handlers.push_back(new SrsApiSystemProcStats());
+    handlers.push_back(new SrsApiMemInfos());
     handlers.push_back(new SrsApiAuthors());
 }
 
@@ -144,6 +145,7 @@ int SrsApiV1::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
             << JFIELD_STR("rusages", "the rusage of SRS") << JFIELD_CONT
             << JFIELD_STR("self_proc_stats", "the self process stats") << JFIELD_CONT
             << JFIELD_STR("system_proc_stats", "the system process stats") << JFIELD_CONT
+            << JFIELD_STR("meminfos", "the meminfo of system") << JFIELD_CONT
             << JFIELD_STR("authors", "the primary authors and contributors")
         << JOBJECT_END
         << JOBJECT_END;
@@ -202,23 +204,39 @@ int SrsApiSummaries::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
     SrsProcSelfStat* u = srs_get_self_proc_stat();
     SrsProcSystemStat* s = srs_get_system_proc_stat();
     SrsCpuInfo* c = srs_get_cpuinfo();
+    SrsMemInfo* m = srs_get_meminfo();
+    
+    float self_mem_percent = 0;
+    if (m->MemTotal > 0) {
+        self_mem_percent = (float)(r->r.ru_maxrss / (double)m->MemTotal);
+    }
     
     ss << JOBJECT_START
         << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
         << JFIELD_ORG("data", JOBJECT_START)
-            << JFIELD_ORG("pid", getpid()) << JFIELD_CONT
-            << JFIELD_STR("argv", _srs_config->get_argv()) << JFIELD_CONT
-            << JFIELD_STR("cwd", _srs_config->get_cwd()) << JFIELD_CONT
             << JFIELD_ORG("rusage_ok", (r->ok? "true":"false")) << JFIELD_CONT
             << JFIELD_ORG("self_cpu_stat_ok", (u->ok? "true":"false")) << JFIELD_CONT
             << JFIELD_ORG("system_cpu_stat_ok", (s->ok? "true":"false")) << JFIELD_CONT
             << JFIELD_ORG("cpuinfo_ok", (c->ok? "true":"false")) << JFIELD_CONT
-            << JFIELD_ORG("mem_kbyte", r->r.ru_maxrss) << JFIELD_CONT
-            << JFIELD_ORG("system_cpu", s->percent) << JFIELD_CONT
-            << JFIELD_ORG("self_cpu", u->percent) << JFIELD_CONT
-            << JFIELD_ORG("nb_processors", c->nb_processors) << JFIELD_CONT
-            << JFIELD_ORG("nb_processors_online", c->nb_processors_online) << JFIELD_CONT
-            << JFIELD_ORG("ppid", u->ppid)
+            << JFIELD_ORG("meminfo_ok", (m->ok? "true":"false")) << JFIELD_CONT
+            << JFIELD_ORG("self", JOBJECT_START)
+                << JFIELD_ORG("pid", getpid()) << JFIELD_CONT
+                << JFIELD_ORG("ppid", u->ppid) << JFIELD_CONT
+                << JFIELD_STR("argv", _srs_config->get_argv()) << JFIELD_CONT
+                << JFIELD_STR("cwd", _srs_config->get_cwd()) << JFIELD_CONT
+                << JFIELD_ORG("mem_kbyte", r->r.ru_maxrss) << JFIELD_CONT
+                << JFIELD_ORG("mem_percent", self_mem_percent) << JFIELD_CONT
+                << JFIELD_ORG("cpu_percent", u->percent)
+            << JOBJECT_END << JFIELD_CONT
+            << JFIELD_ORG("system", JOBJECT_START)
+                << JFIELD_ORG("cpu_percent", s->percent) << JFIELD_CONT
+                << JFIELD_ORG("mem_ram_kbyte", m->MemTotal) << JFIELD_CONT
+                << JFIELD_ORG("mem_ram_percent", m->percent_ram) << JFIELD_CONT
+                << JFIELD_ORG("mem_swap_kbyte", m->SwapTotal) << JFIELD_CONT
+                << JFIELD_ORG("mem_swap_percent", m->percent_swap) << JFIELD_CONT
+                << JFIELD_ORG("nb_processors", c->nb_processors) << JFIELD_CONT
+                << JFIELD_ORG("nb_processors_online", c->nb_processors_online)
+            << JOBJECT_END
         << JOBJECT_END
         << JOBJECT_END;
     
@@ -380,6 +398,47 @@ int SrsApiSystemProcStats::do_process_request(SrsSocket* skt, SrsHttpMessage* re
             << JFIELD_ORG("softirq", s->softirq) << JFIELD_CONT
             << JFIELD_ORG("steal", s->steal) << JFIELD_CONT
             << JFIELD_ORG("guest", s->guest)
+        << JOBJECT_END
+        << JOBJECT_END;
+    
+    return res_json(skt, req, ss.str());
+}
+
+SrsApiMemInfos::SrsApiMemInfos()
+{
+}
+
+SrsApiMemInfos::~SrsApiMemInfos()
+{
+}
+
+bool SrsApiMemInfos::can_handle(const char* path, int length, const char** /*pchild*/)
+{
+    return srs_path_equals("/meminfos", path, length);
+}
+
+int SrsApiMemInfos::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
+{
+    std::stringstream ss;
+    
+    SrsMemInfo* m = srs_get_meminfo();
+    
+    ss << JOBJECT_START
+        << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
+        << JFIELD_ORG("data", JOBJECT_START)
+            << JFIELD_ORG("ok", (m->ok? "true":"false")) << JFIELD_CONT
+            << JFIELD_ORG("sample_time", m->sample_time) << JFIELD_CONT
+            << JFIELD_ORG("percent_ram", m->percent_ram) << JFIELD_CONT
+            << JFIELD_ORG("percent_swap", m->percent_swap) << JFIELD_CONT
+            << JFIELD_ORG("MemActive", m->MemActive) << JFIELD_CONT
+            << JFIELD_ORG("RealInUse", m->RealInUse) << JFIELD_CONT
+            << JFIELD_ORG("NotInUse", m->NotInUse) << JFIELD_CONT
+            << JFIELD_ORG("MemTotal", m->MemTotal) << JFIELD_CONT
+            << JFIELD_ORG("MemFree", m->MemFree) << JFIELD_CONT
+            << JFIELD_ORG("Buffers", m->Buffers) << JFIELD_CONT
+            << JFIELD_ORG("Cached", m->Cached) << JFIELD_CONT
+            << JFIELD_ORG("SwapTotal", m->SwapTotal) << JFIELD_CONT
+            << JFIELD_ORG("SwapFree", m->SwapFree)
         << JOBJECT_END
         << JOBJECT_END;
     

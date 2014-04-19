@@ -48,6 +48,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SERVER_LISTEN_BACKLOG 512
 
 // system interval
+// all resolution times should be times togother,
+// for example, system-time is 3(300ms),
+// then rusage can be 3*x, for instance, 3*10=30(3s),
+// the meminfo canbe 30*x, for instance, 30*2=60(6s)
 #define SRS_SYS_CYCLE_INTERVAL 100
 
 // update time interval:
@@ -61,6 +65,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // update rusage interval:
 //      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_CPU_STAT_RESOLUTION_TIMES
 #define SRS_SYS_CPU_STAT_RESOLUTION_TIMES 30
+
+// update rusage interval:
+//      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_MEMINFO_RESOLUTION_TIMES
+#define SRS_SYS_MEMINFO_RESOLUTION_TIMES 60
 
 SrsListener::SrsListener(SrsServer* server, SrsListenerType type)
 {
@@ -411,6 +419,7 @@ int SrsServer::cycle()
     int max = srs_max(0, SRS_SYS_TIME_RESOLUTION_MS_TIMES);
     max = srs_max(max, SRS_SYS_RUSAGE_RESOLUTION_TIMES);
     max = srs_max(max, SRS_SYS_CPU_STAT_RESOLUTION_TIMES);
+    max = srs_max(max, SRS_SYS_MEMINFO_RESOLUTION_TIMES);
     
     // the deamon thread, update the time cache
     while (true) {
@@ -440,14 +449,17 @@ int SrsServer::cycle()
             }
             
             // update the cache time or rusage.
-            if (i == SRS_SYS_TIME_RESOLUTION_MS_TIMES) {
+            if ((i % SRS_SYS_TIME_RESOLUTION_MS_TIMES) == 0) {
                 srs_update_system_time_ms();
             }
-            if (i == SRS_SYS_RUSAGE_RESOLUTION_TIMES) {
+            if ((i % SRS_SYS_RUSAGE_RESOLUTION_TIMES) == 0) {
                 srs_update_system_rusage();
             }
-            if (i == SRS_SYS_CPU_STAT_RESOLUTION_TIMES) {
+            if ((i % SRS_SYS_CPU_STAT_RESOLUTION_TIMES) == 0) {
                 srs_update_proc_stat();
+            }
+            if ((i % SRS_SYS_MEMINFO_RESOLUTION_TIMES) == 0) {
+                srs_update_meminfo();
             }
         }
     }
