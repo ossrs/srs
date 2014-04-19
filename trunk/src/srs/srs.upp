@@ -99,6 +99,8 @@ file
 	..\utest\srs_utest_handshake.hpp,
 	..\utest\srs_utest_handshake.cpp,
 	research readonly separator,
+	..\..\research\librtmp\srs_ingest_flv.c,
+	..\..\research\librtmp\srs_ingest_rtmp.c,
 	..\..\research\librtmp\srs_play.c,
 	..\..\research\librtmp\srs_publish.c,
 	..\..\research\hls\ts_info.cc;

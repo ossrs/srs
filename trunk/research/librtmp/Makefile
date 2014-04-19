@@ -5,15 +5,17 @@ GCC = gcc
 default: help
 
 help:
-	@echo "Usage: make <help>|<clean>|<srs_publish_nossl>|<srs_play_nossl>|<srs_publish_ssl>|<srs_play_ssl>"
+	@echo "Usage: make <help>|<clean>|<srs_publish_nossl>|<srs_play_nossl>|<srs_publish_ssl>|<srs_play_ssl>|<srs_ingest_flv>|<srs_ingest_rtmp>"
 	@echo "     help                display this help"
 	@echo "     clean               cleanup build"
 	@echo "     ssl                 srs_publish_ssl, srs_play_ssl"
-	@echo "     nossl               srs_publish_nossl, srs_play_nossl"
+	@echo "     nossl               srs_publish_nossl, srs_play_nossl, srs_ingest_flv, srs_ingest_rtmp"
 	@echo "     srs_publish_nossl   publish program using srs-librtmp, without ssl(simple handshake)"
 	@echo "     srs_play_nossl      play program using srs-librtmp, without ssl(simple handshake)"
 	@echo "     srs_publish_ssl     publish program using srs-librtmp, with ssl(complex handshake)"
 	@echo "     srs_play_ssl        play program using srs-librtmp, with ssl(complex handshake)"
+	@echo "     srs_ingest_flv      ingest flv file and publish to RTMP server. (simple handshake)"
+	@echo "     srs_ingest_rtmp     ingest RTMP and publish to RTMP server. (simple handshake)"
 	@echo "Remark: about simple/complex handshake, see: http://blog.csdn.net/win_lin/article/details/13006803"
 	@echo "Remark: srs Makefile will auto invoke this by --with/without-ssl, "
 	@echo "     that is, if user specified ssl(by --with-ssl), srs will make this by 'make ssl'"
@@ -22,7 +24,7 @@ help:
 	@echo "Remark: before make this sample, user must make the srs, with/without ssl"
     
 clean:
-	@rm -f srs_publish_nossl srs_play_nossl srs_publish_ssl srs_play_ssl
+	@rm -f srs_publish_nossl srs_play_nossl srs_publish_ssl srs_play_ssl srs_ingest_flv srs_ingest_rtmp
 
 # srs library root
 SRS_OBJS = ../../objs
@@ -34,32 +36,30 @@ SRS_LIBSSL_L = $(SRS_OBJS)/openssl/lib/libssl.a $(SRS_OBJS)/openssl/lib/libcrypt
 
 # for x86/x64 platform
 ifeq ($(GCC), gcc)
-srs_publish_nossl: srs_publish.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
-	$(GCC) srs_publish.c $(SRS_LIBRTMP_L) -g -O0 -lstdc++ -o srs_publish_nossl
-
-srs_play_nossl: srs_play.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
-	$(GCC) srs_play.c $(SRS_LIBRTMP_L) -g -O0 -lstdc++ -o srs_play_nossl
-
-srs_publish_ssl: srs_publish.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
-	$(GCC) srs_publish.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) -g -O0 -ldl -lstdc++ -o srs_publish_ssl
-
-srs_play_ssl: srs_play.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
-	$(GCC) srs_play.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) -g -O0 -ldl -lstdc++ -o srs_play_ssl
+    EXTRA_CXX_FLAG = -g -O0 -ldl -lstdc++
 # for arm.
 else
+    EXTRA_CXX_FLAG = -g -O0 -static -lstdc++
+endif
+
 srs_publish_nossl: srs_publish.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
-	$(GCC) srs_publish.c $(SRS_LIBRTMP_L) -g -O0 -static -lstdc++ -o srs_publish_nossl
+	$(GCC) srs_publish.c $(SRS_LIBRTMP_L) $(EXTRA_CXX_FLAG) -o srs_publish_nossl
 
 srs_play_nossl: srs_play.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
-	$(GCC) srs_play.c $(SRS_LIBRTMP_L) -g -O0 -static -lstdc++ -o srs_play_nossl
+	$(GCC) srs_play.c $(SRS_LIBRTMP_L) $(EXTRA_CXX_FLAG) -o srs_play_nossl
+
+srs_ingest_flv: srs_ingest_flv.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
+	$(GCC) srs_ingest_flv.c $(SRS_LIBRTMP_L) $(EXTRA_CXX_FLAG) -o srs_ingest_flv
+
+srs_ingest_rtmp: srs_ingest_rtmp.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
+	$(GCC) srs_ingest_rtmp.c $(SRS_LIBRTMP_L) $(EXTRA_CXX_FLAG) -o srs_ingest_rtmp
 
 srs_publish_ssl: srs_publish.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
-	$(GCC) srs_publish.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) -g -O0 -static -ldl -lstdc++ -o srs_publish_ssl
+	$(GCC) srs_publish.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o srs_publish_ssl
 
 srs_play_ssl: srs_play.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
-	$(GCC) srs_play.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) -g -O0 -static -ldl -lstdc++ -o srs_play_ssl
-endif
+	$(GCC) srs_play.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o srs_play_ssl
 
 # alias for publish/play with/without ssl
 ssl: srs_publish_ssl srs_play_ssl
-nossl: srs_publish_nossl srs_play_nossl
+nossl: srs_publish_nossl srs_play_nossl srs_ingest_flv srs_ingest_rtmp
