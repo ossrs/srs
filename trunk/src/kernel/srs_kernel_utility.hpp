@@ -52,7 +52,7 @@ extern SrsRusage* srs_get_system_rusage();
 extern void srs_update_system_rusage();
 
 // @see: man 5 proc, /proc/[pid]/stat
-struct SrsCpuSelfStat
+struct SrsProcSelfStat
 {
     // whether the data is ok.
     bool ok;
@@ -195,11 +195,11 @@ struct SrsCpuSelfStat
     //             Guest time of the process’s children, measured in clock ticks (divide by sysconf(_SC_CLK_TCK).
     long cguest_time;
     
-    SrsCpuSelfStat();
+    SrsProcSelfStat();
 };
 
 // @see: man 5 proc, /proc/stat
-struct SrsCpuSystemStat
+struct SrsProcSystemStat
 {
     // whether the data is ok.
     bool ok;
@@ -238,14 +238,14 @@ struct SrsCpuSystemStat
     // operating systems under the control of the Linux kernel.
     unsigned long guest;
 
-    SrsCpuSystemStat();
+    SrsProcSystemStat();
 };
 
 // get system cpu stat, use cache to avoid performance problem.
-extern SrsCpuSelfStat* srs_get_self_cpu_stat();
+extern SrsProcSelfStat* srs_get_self_proc_stat();
 // get system cpu stat, use cache to avoid performance problem.
-extern SrsCpuSystemStat* srs_get_system_cpu_stat();
+extern SrsProcSystemStat* srs_get_system_proc_stat();
 // the deamon st-thread will update it.
-extern void srs_update_system_cpu_stat();
+extern void srs_update_proc_stat();
 
 #endif

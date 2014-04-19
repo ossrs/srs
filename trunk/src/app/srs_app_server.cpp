@@ -447,7 +447,7 @@ int SrsServer::cycle()
                 srs_update_system_rusage();
             }
             if (i == SRS_SYS_CPU_STAT_RESOLUTION_TIMES) {
-                srs_update_system_cpu_stat();
+                srs_update_proc_stat();
             }
         }
     }

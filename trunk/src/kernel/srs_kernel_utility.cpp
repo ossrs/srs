@@ -81,30 +81,30 @@ void srs_update_system_rusage()
     _srs_system_rusage.ok = true;
 }
 
-static SrsCpuSelfStat _srs_system_cpu_self_stat;
-static SrsCpuSystemStat _srs_system_cpu_system_stat;
+static SrsProcSelfStat _srs_system_cpu_self_stat;
+static SrsProcSystemStat _srs_system_cpu_system_stat;
 
-SrsCpuSelfStat::SrsCpuSelfStat()
+SrsProcSelfStat::SrsProcSelfStat()
 {
     ok = false;
 }
 
-SrsCpuSystemStat::SrsCpuSystemStat()
+SrsProcSystemStat::SrsProcSystemStat()
 {
     ok = false;
 }
 
-SrsCpuSelfStat* srs_get_self_cpu_stat()
+SrsProcSelfStat* srs_get_self_proc_stat()
 {
     return &_srs_system_cpu_self_stat;
 }
 
-SrsCpuSystemStat* srs_get_system_cpu_stat()
+SrsProcSystemStat* srs_get_system_proc_stat()
 {
     return &_srs_system_cpu_system_stat;
 }
 
-void srs_update_system_cpu_stat()
+void srs_update_proc_stat()
 {
     // system cpu stat
     if (true) {
@@ -114,7 +114,7 @@ void srs_update_system_cpu_stat()
             return;
         }
         
-        SrsCpuSystemStat& r = _srs_system_cpu_system_stat;
+        SrsProcSystemStat& r = _srs_system_cpu_system_stat;
         for (;;) {
             int ret = fscanf(f, "%4s %lu %lu %lu %lu %lu "
                 "%lu %lu %lu %lu\n", 
@@ -143,7 +143,7 @@ void srs_update_system_cpu_stat()
             return;
         }
         
-        SrsCpuSelfStat& r = _srs_system_cpu_self_stat;
+        SrsProcSelfStat& r = _srs_system_cpu_self_stat;
         int ret = fscanf(f, "%d %32s %c %d %d %d %d "
             "%d %u %lu %lu %lu %lu "
             "%lu %lu %ld %ld %ld %ld "

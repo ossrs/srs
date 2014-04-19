@@ -118,6 +118,8 @@ SrsApiV1::SrsApiV1()
     handlers.push_back(new SrsApiVersion());
     handlers.push_back(new SrsApiSummaries());
     handlers.push_back(new SrsApiRusages());
+    handlers.push_back(new SrsApiSelfProcStats());
+    handlers.push_back(new SrsApiSystemProcStats());
     handlers.push_back(new SrsApiAuthors());
 }
 
@@ -140,7 +142,8 @@ int SrsApiV1::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
             << JFIELD_STR("versions", "the version of SRS") << JFIELD_CONT
             << JFIELD_STR("summaries", "the summary(pid, argv, pwd, cpu, mem) of SRS") << JFIELD_CONT
             << JFIELD_STR("rusages", "the rusage of SRS") << JFIELD_CONT
-            << JFIELD_STR("proc_stats", "the /proc/self/stat of SRS") << JFIELD_CONT
+            << JFIELD_STR("self_proc_stats", "the self process stats") << JFIELD_CONT
+            << JFIELD_STR("system_proc_stats", "the system process stats") << JFIELD_CONT
             << JFIELD_STR("authors", "the primary authors and contributors")
         << JOBJECT_END
         << JOBJECT_END;
@@ -196,8 +199,8 @@ int SrsApiSummaries::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
     std::stringstream ss;
     
     SrsRusage* r = srs_get_system_rusage();
-    SrsCpuSelfStat* u = srs_get_self_cpu_stat();
-    SrsCpuSystemStat* s = srs_get_system_cpu_stat();
+    SrsProcSelfStat* u = srs_get_self_proc_stat();
+    SrsProcSystemStat* s = srs_get_system_proc_stat();
     
     ss << JOBJECT_START
         << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
@@ -255,6 +258,117 @@ int SrsApiRusages::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
             << JFIELD_ORG("ru_nsignals", r->r.ru_nsignals) << JFIELD_CONT
             << JFIELD_ORG("ru_nvcsw", r->r.ru_nvcsw) << JFIELD_CONT
             << JFIELD_ORG("ru_nivcsw", r->r.ru_nivcsw)
+        << JOBJECT_END
+        << JOBJECT_END;
+    
+    return res_json(skt, req, ss.str());
+}
+
+SrsApiSelfProcStats::SrsApiSelfProcStats()
+{
+}
+
+SrsApiSelfProcStats::~SrsApiSelfProcStats()
+{
+}
+
+bool SrsApiSelfProcStats::can_handle(const char* path, int length, const char** /*pchild*/)
+{
+    return srs_path_equals("/self_proc_stats", path, length);
+}
+
+int SrsApiSelfProcStats::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
+{
+    std::stringstream ss;
+    
+    SrsProcSelfStat* u = srs_get_self_proc_stat();
+    
+    ss << JOBJECT_START
+        << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
+        << JFIELD_ORG("data", JOBJECT_START)
+            << JFIELD_ORG("self_cpu_stat_ok", (u->ok? "true":"false")) << JFIELD_CONT
+            << JFIELD_ORG("pid", u->pid) << JFIELD_CONT
+            << JFIELD_STR("comm", u->comm) << JFIELD_CONT
+            << JFIELD_STR("state", u->state) << JFIELD_CONT
+            << JFIELD_ORG("ppid", u->ppid) << JFIELD_CONT
+            << JFIELD_ORG("pgrp", u->pgrp) << JFIELD_CONT
+            << JFIELD_ORG("session", u->session) << JFIELD_CONT
+            << JFIELD_ORG("tty_nr", u->tty_nr) << JFIELD_CONT
+            << JFIELD_ORG("tpgid", u->tpgid) << JFIELD_CONT
+            << JFIELD_ORG("flags", u->flags) << JFIELD_CONT
+            << JFIELD_ORG("minflt", u->minflt) << JFIELD_CONT
+            << JFIELD_ORG("cminflt", u->cminflt) << JFIELD_CONT
+            << JFIELD_ORG("majflt", u->majflt) << JFIELD_CONT
+            << JFIELD_ORG("cmajflt", u->cmajflt) << JFIELD_CONT
+            << JFIELD_ORG("utime", u->utime) << JFIELD_CONT
+            << JFIELD_ORG("stime", u->stime) << JFIELD_CONT
+            << JFIELD_ORG("cutime", u->cutime) << JFIELD_CONT
+            << JFIELD_ORG("cstime", u->cstime) << JFIELD_CONT
+            << JFIELD_ORG("priority", u->priority) << JFIELD_CONT
+            << JFIELD_ORG("nice", u->nice) << JFIELD_CONT
+            << JFIELD_ORG("num_threads", u->num_threads) << JFIELD_CONT
+            << JFIELD_ORG("itrealvalue", u->itrealvalue) << JFIELD_CONT
+            << JFIELD_ORG("starttime", u->starttime) << JFIELD_CONT
+            << JFIELD_ORG("vsize", u->vsize) << JFIELD_CONT
+            << JFIELD_ORG("rss", u->rss) << JFIELD_CONT
+            << JFIELD_ORG("rsslim", u->rsslim) << JFIELD_CONT
+            << JFIELD_ORG("startcode", u->startcode) << JFIELD_CONT
+            << JFIELD_ORG("endcode", u->endcode) << JFIELD_CONT
+            << JFIELD_ORG("startstack", u->startstack) << JFIELD_CONT
+            << JFIELD_ORG("kstkesp", u->kstkesp) << JFIELD_CONT
+            << JFIELD_ORG("kstkeip", u->kstkeip) << JFIELD_CONT
+            << JFIELD_ORG("signal", u->signal) << JFIELD_CONT
+            << JFIELD_ORG("blocked", u->blocked) << JFIELD_CONT
+            << JFIELD_ORG("sigignore", u->sigignore) << JFIELD_CONT
+            << JFIELD_ORG("sigcatch", u->sigcatch) << JFIELD_CONT
+            << JFIELD_ORG("wchan", u->wchan) << JFIELD_CONT
+            << JFIELD_ORG("nswap", u->nswap) << JFIELD_CONT
+            << JFIELD_ORG("cnswap", u->cnswap) << JFIELD_CONT
+            << JFIELD_ORG("exit_signal", u->exit_signal) << JFIELD_CONT
+            << JFIELD_ORG("processor", u->processor) << JFIELD_CONT
+            << JFIELD_ORG("rt_priority", u->rt_priority) << JFIELD_CONT
+            << JFIELD_ORG("policy", u->policy) << JFIELD_CONT
+            << JFIELD_ORG("delayacct_blkio_ticks", u->delayacct_blkio_ticks) << JFIELD_CONT
+            << JFIELD_ORG("guest_time", u->guest_time) << JFIELD_CONT
+            << JFIELD_ORG("cguest_time", u->cguest_time)
+        << JOBJECT_END
+        << JOBJECT_END;
+    
+    return res_json(skt, req, ss.str());
+}
+
+SrsApiSystemProcStats::SrsApiSystemProcStats()
+{
+}
+
+SrsApiSystemProcStats::~SrsApiSystemProcStats()
+{
+}
+
+bool SrsApiSystemProcStats::can_handle(const char* path, int length, const char** /*pchild*/)
+{
+    return srs_path_equals("/system_proc_stats", path, length);
+}
+
+int SrsApiSystemProcStats::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
+{
+    std::stringstream ss;
+    
+    SrsProcSystemStat* s = srs_get_system_proc_stat();
+    
+    ss << JOBJECT_START
+        << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
+        << JFIELD_ORG("data", JOBJECT_START)
+            << JFIELD_ORG("system_cpu_stat_ok", (s->ok? "true":"false")) << JFIELD_CONT
+            << JFIELD_ORG("user", s->user) << JFIELD_CONT
+            << JFIELD_ORG("nice", s->nice) << JFIELD_CONT
+            << JFIELD_ORG("sys", s->sys) << JFIELD_CONT
+            << JFIELD_ORG("idle", s->idle) << JFIELD_CONT
+            << JFIELD_ORG("iowait", s->iowait) << JFIELD_CONT
+            << JFIELD_ORG("irq", s->irq) << JFIELD_CONT
+            << JFIELD_ORG("softirq", s->softirq) << JFIELD_CONT
+            << JFIELD_ORG("steal", s->steal) << JFIELD_CONT
+            << JFIELD_ORG("guest", s->guest)
         << JOBJECT_END
         << JOBJECT_END;
     

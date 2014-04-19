@@ -109,6 +109,28 @@ protected:
     virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
 };
 
+class SrsApiSelfProcStats : public SrsHttpHandler
+{
+public:
+    SrsApiSelfProcStats();
+    virtual ~SrsApiSelfProcStats();
+public:
+    virtual bool can_handle(const char* path, int length, const char** pchild);
+protected:
+    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+};
+
+class SrsApiSystemProcStats : public SrsHttpHandler
+{
+public:
+    SrsApiSystemProcStats();
+    virtual ~SrsApiSystemProcStats();
+public:
+    virtual bool can_handle(const char* path, int length, const char** pchild);
+protected:
+    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+};
+
 class SrsApiAuthors : public SrsHttpHandler
 {
 public:
