@@ -46,7 +46,21 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #define SERVER_LISTEN_BACKLOG 512
-#define SRS_SYS_TIME_RESOLUTION_MS 500
+
+// system interval
+#define SRS_SYS_CYCLE_INTERVAL 100
+
+// update time interval:
+//      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_TIME_RESOLUTION_MS_TIMES
+#define SRS_SYS_TIME_RESOLUTION_MS_TIMES 3
+
+// update rusage interval:
+//      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_RUSAGE_RESOLUTION_TIMES
+#define SRS_SYS_RUSAGE_RESOLUTION_TIMES 15
+
+// update rusage interval:
+//      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_CPU_STAT_RESOLUTION_TIMES
+#define SRS_SYS_CPU_STAT_RESOLUTION_TIMES 15
 
 SrsListener::SrsListener(SrsServer* server, SrsListenerType type)
 {
@@ -393,10 +407,15 @@ int SrsServer::cycle()
 {
     int ret = ERROR_SUCCESS;
     
+    // find the max loop
+    int max = srs_max(0, SRS_SYS_TIME_RESOLUTION_MS_TIMES);
+    max = srs_max(max, SRS_SYS_RUSAGE_RESOLUTION_TIMES);
+    max = srs_max(max, SRS_SYS_CPU_STAT_RESOLUTION_TIMES);
+    
     // the deamon thread, update the time cache
     while (true) {
-        st_usleep(SRS_SYS_TIME_RESOLUTION_MS * 1000);
-        srs_update_system_time_ms();
+        for (int i = 1; i < max + 1; i++) {
+            st_usleep(SRS_SYS_CYCLE_INTERVAL * 1000);
         
 // for gperf heap checker,
 // @see: research/gperftools/heap-checker/heap_checker.cc
@@ -404,20 +423,32 @@ int SrsServer::cycle()
 // but, if gperf, use reload to ensure main return normally,
 // because directly exit will cause core-dump.
 #ifdef SRS_AUTO_GPERF_MC
-        if (signal_gmc_stop) {
-            break;
-        }
+            if (signal_gmc_stop) {
+                break;
+            }
 #endif
         
-        if (signal_reload) {
-            signal_reload = false;
-            srs_info("get signal reload, to reload the config.");
-            
-            if ((ret = _srs_config->reload()) != ERROR_SUCCESS) {
-                srs_error("reload config failed. ret=%d", ret);
-                return ret;
+            if (signal_reload) {
+                signal_reload = false;
+                srs_info("get signal reload, to reload the config.");
+                
+                if ((ret = _srs_config->reload()) != ERROR_SUCCESS) {
+                    srs_error("reload config failed. ret=%d", ret);
+                    return ret;
+                }
+                srs_trace("reload config success.");
             }
-            srs_trace("reload config success.");
+            
+            // update the cache time or rusage.
+            if (i == SRS_SYS_TIME_RESOLUTION_MS_TIMES) {
+                srs_update_system_time_ms();
+            }
+            if (i == SRS_SYS_RUSAGE_RESOLUTION_TIMES) {
+                srs_update_system_rusage();
+            }
+            if (i == SRS_SYS_CPU_STAT_RESOLUTION_TIMES) {
+                srs_update_system_cpu_stat();
+            }
         }
     }
 

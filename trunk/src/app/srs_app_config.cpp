@@ -1079,6 +1079,18 @@ int SrsConfig::parse_options(int argc, char** argv)
 {
     int ret = ERROR_SUCCESS;
     
+    for (int i = 0; i < argc; i++) {
+        _argv.append(argv[i]);
+        
+        if (i < argc - 1) {
+            _argv.append(" ");
+        }
+    }
+    
+    char cwd[256];
+    getcwd(cwd, sizeof(cwd));
+    _cwd = cwd;
+    
     show_help = true;
     for (int i = 1; i < argc; i++) {
         if ((ret = parse_argv(i, argv)) != ERROR_SUCCESS) {
@@ -1237,6 +1249,16 @@ void SrsConfig::print_help(char** argv)
         "   %s -t -c "SRS_DEFAULT_CONF"\n"
         "   %s -c "SRS_DEFAULT_CONF"\n",
         argv[0], argv[0], argv[0], argv[0]);
+}
+
+string SrsConfig::get_cwd()
+{
+    return _cwd;
+}
+
+string SrsConfig::get_argv()
+{
+    return _argv;
 }
 
 bool SrsConfig::get_deamon()

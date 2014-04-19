@@ -120,6 +120,8 @@ private:
     bool test_conf;
     bool show_version;
     std::string config_file;
+    std::string _argv;
+    std::string _cwd;
     SrsConfDirective* root;
     std::vector<ISrsReloadHandler*> subscribes;
 public:
@@ -143,6 +145,9 @@ private:
     virtual int parse_file(const char* filename);
     virtual int parse_argv(int& i, char** argv);
     virtual void print_help(char** argv);
+public:
+    virtual std::string         get_cwd();
+    virtual std::string         get_argv();
 // global section
 public:
     virtual SrsConfDirective*   get_root();
