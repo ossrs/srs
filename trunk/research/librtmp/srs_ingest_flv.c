@@ -229,7 +229,7 @@ int flv_read_packet(int flv_fd, int* type, u_int32_t* timestamp, char** data, in
     char th[11]; // tag header
     char ts[4]; // tag size
     
-    u_int32_t data_size = 0;
+    int32_t data_size = 0;
     u_int32_t time = 0;
     
     char* pp;
@@ -263,16 +263,20 @@ int flv_read_packet(int flv_fd, int* type, u_int32_t* timestamp, char** data, in
     
     *timestamp = time;
     
-    if (data_size > 0) {
-        *size = data_size;
-        *data = (char*)malloc(data_size);
-        
-        // read tag data
-        if (read(flv_fd, *data, data_size) != data_size) {
-            ret = -1;
-            trace("read flv tag data failed. size=%d, ret=%d", data_size, ret);
-            return ret;
-        }
+    // check data size.
+    if (data_size <= 0) {
+        ret = -1;
+        trace("invalid data size. size=%d, ret=%d", data_size, ret);
+        return ret;
+    }
+    
+    // read tag data.
+    *size = data_size;
+    *data = (char*)malloc(data_size);
+    if (read(flv_fd, *data, data_size) != data_size) {
+        ret = -1;
+        trace("read flv tag data failed. size=%d, ret=%d", data_size, ret);
+        return ret;
     }
     
     // ignore 4bytes tag size.
