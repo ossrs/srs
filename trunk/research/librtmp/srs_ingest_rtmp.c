@@ -29,13 +29,7 @@ gcc srs_ingest_rtmp.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_ingest
 #include <unistd.h>
 
 #include "../../objs/include/srs_librtmp.h"
-
-#define trace(msg, ...) printf(msg, ##__VA_ARGS__);printf("\n")
-#define verbose(msg, ...) printf(msg, ##__VA_ARGS__);printf("\n")
-#if 1
-#undef verbose
-#define verbose(msg, ...) (void)0
-#endif
+#include "srs_research_public.h"
 
 int connect_ic(srs_rtmp_t irtmp);
 int connect_oc(srs_rtmp_t ortmp);

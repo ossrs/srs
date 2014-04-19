@@ -33,13 +33,7 @@ gcc srs_ingest_flv.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_ingest_
 #include <fcntl.h>
 
 #include "../../objs/include/srs_librtmp.h"
-
-#define trace(msg, ...) printf(msg, ##__VA_ARGS__);printf("\n")
-#define verbose(msg, ...) printf(msg, ##__VA_ARGS__);printf("\n")
-#if 1
-#undef verbose
-#define verbose(msg, ...) (void)0
-#endif
+#include "srs_research_public.h"
 
 int proxy(int flv_fd, srs_rtmp_t ortmp);
 int connect_oc(srs_rtmp_t ortmp);
@@ -235,8 +229,8 @@ int flv_read_packet(int flv_fd, int* type, u_int32_t* timestamp, char** data, in
     char th[11]; // tag header
     char ts[4]; // tag size
     
-    u_int32_t data_size;
-    u_int32_t time;
+    u_int32_t data_size = 0;
+    u_int32_t time = 0;
     
     char* pp;
     

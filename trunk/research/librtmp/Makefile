@@ -26,7 +26,7 @@ help:
 	@echo "Remark: before make this sample, user must make the srs, with/without ssl"
     
 clean:
-	@rm -f srs_publish_nossl srs_play_nossl srs_publish_ssl srs_play_ssl srs_ingest_flv srs_ingest_rtmp
+	@rm -f srs_publish_nossl srs_play_nossl srs_publish_ssl srs_play_ssl srs_ingest_flv_ssl srs_ingest_rtmp_ssl srs_ingest_flv_nossl srs_ingest_rtmp_nossl
 
 # srs library root
 SRS_OBJS = ../../objs
@@ -35,6 +35,8 @@ SRS_LIBRTMP_I = $(SRS_OBJS)/include/srs_librtmp.h
 SRS_LIBRTMP_L = $(SRS_OBJS)/lib/srs_librtmp.a
 # openssl for complex handshake, built by srs.
 SRS_LIBSSL_L = $(SRS_OBJS)/openssl/lib/libssl.a $(SRS_OBJS)/openssl/lib/libcrypto.a
+# the research public headers
+SRS_RESEARCH_DEPS = Makefile srs_research_public.h
 
 # for x86/x64 platform
 ifeq ($(GCC), gcc)
@@ -44,28 +46,28 @@ else
     EXTRA_CXX_FLAG = -g -O0 -static -lstdc++
 endif
 
-srs_publish_nossl: srs_publish.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
+srs_publish_nossl: srs_publish.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
 	$(GCC) srs_publish.c $(SRS_LIBRTMP_L) $(EXTRA_CXX_FLAG) -o srs_publish_nossl
 
-srs_play_nossl: srs_play.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
+srs_play_nossl: srs_play.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
 	$(GCC) srs_play.c $(SRS_LIBRTMP_L) $(EXTRA_CXX_FLAG) -o srs_play_nossl
 
-srs_ingest_flv_nossl: srs_ingest_flv.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
+srs_ingest_flv_nossl: srs_ingest_flv.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
 	$(GCC) srs_ingest_flv.c $(SRS_LIBRTMP_L) $(EXTRA_CXX_FLAG) -o srs_ingest_flv_nossl
 
-srs_ingest_rtmp_nossl: srs_ingest_rtmp.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
+srs_ingest_rtmp_nossl: srs_ingest_rtmp.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
 	$(GCC) srs_ingest_rtmp.c $(SRS_LIBRTMP_L) $(EXTRA_CXX_FLAG) -o srs_ingest_rtmp_nossl
 
-srs_publish_ssl: srs_publish.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
+srs_publish_ssl: srs_publish.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
 	$(GCC) srs_publish.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o srs_publish_ssl
 
-srs_play_ssl: srs_play.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
+srs_play_ssl: srs_play.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
 	$(GCC) srs_play.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o srs_play_ssl
 
-srs_ingest_flv_ssl: srs_ingest_flv.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
+srs_ingest_flv_ssl: srs_ingest_flv.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
 	$(GCC) srs_ingest_flv.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o srs_ingest_flv_ssl
 
-srs_ingest_rtmp_ssl: srs_ingest_rtmp.c Makefile $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
+srs_ingest_rtmp_ssl: srs_ingest_rtmp.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
 	$(GCC) srs_ingest_rtmp.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o srs_ingest_rtmp_ssl
 
 # alias for publish/play with/without ssl
