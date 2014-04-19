@@ -230,7 +230,7 @@ int flv_read_packet(int flv_fd, int* type, u_int32_t* timestamp, char** data, in
     char ts[4]; // tag size
     
     int32_t data_size = 0;
-    u_int32_t time = 0;
+    u_int32_t time = 0; 
     
     char* pp;
     
