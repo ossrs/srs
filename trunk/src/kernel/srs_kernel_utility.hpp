@@ -40,7 +40,11 @@ extern void srs_update_system_time_ms();
 // @see: man getrusage
 struct SrsRusage
 {
+    // whether the data is ok.
     bool ok;
+    // the time in ms when sample.
+    int64_t sample_time;
+    
     rusage r;
     
     SrsRusage();
@@ -56,6 +60,10 @@ struct SrsProcSelfStat
 {
     // whether the data is ok.
     bool ok;
+    // the time in ms when sample.
+    int64_t sample_time;
+    // the percent of usage. 0.153 is 15.3%.
+    float percent;
     
     // pid %d      The process ID.
     int pid;
@@ -203,6 +211,10 @@ struct SrsProcSystemStat
 {
     // whether the data is ok.
     bool ok;
+    // the time in ms when sample.
+    int64_t sample_time;
+    // the percent of usage. 0.153 is 15.3%.
+    float percent;
     
     // always be cpu
     char label[32];
@@ -247,5 +259,22 @@ extern SrsProcSelfStat* srs_get_self_proc_stat();
 extern SrsProcSystemStat* srs_get_system_proc_stat();
 // the deamon st-thread will update it.
 extern void srs_update_proc_stat();
+
+// @see: cat /proc/cpuinfo 
+struct SrsCpuInfo
+{
+    // whether the data is ok.
+    bool ok;
+    
+    // The number of processors configured.
+    int nb_processors;
+    // The number of processors currently online (available).
+    int nb_processors_online;
+    
+    SrsCpuInfo();
+};
+
+// get system cpu info, use cache to avoid performance problem.
+extern SrsCpuInfo* srs_get_cpuinfo();
 
 #endif

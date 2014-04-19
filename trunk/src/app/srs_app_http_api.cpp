@@ -201,6 +201,7 @@ int SrsApiSummaries::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
     SrsRusage* r = srs_get_system_rusage();
     SrsProcSelfStat* u = srs_get_self_proc_stat();
     SrsProcSystemStat* s = srs_get_system_proc_stat();
+    SrsCpuInfo* c = srs_get_cpuinfo();
     
     ss << JOBJECT_START
         << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
@@ -211,7 +212,12 @@ int SrsApiSummaries::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
             << JFIELD_ORG("rusage_ok", (r->ok? "true":"false")) << JFIELD_CONT
             << JFIELD_ORG("self_cpu_stat_ok", (u->ok? "true":"false")) << JFIELD_CONT
             << JFIELD_ORG("system_cpu_stat_ok", (s->ok? "true":"false")) << JFIELD_CONT
+            << JFIELD_ORG("cpuinfo_ok", (c->ok? "true":"false")) << JFIELD_CONT
             << JFIELD_ORG("mem_kbyte", r->r.ru_maxrss) << JFIELD_CONT
+            << JFIELD_ORG("system_cpu", s->percent) << JFIELD_CONT
+            << JFIELD_ORG("self_cpu", u->percent) << JFIELD_CONT
+            << JFIELD_ORG("nb_processors", c->nb_processors) << JFIELD_CONT
+            << JFIELD_ORG("nb_processors_online", c->nb_processors_online) << JFIELD_CONT
             << JFIELD_ORG("ppid", u->ppid)
         << JOBJECT_END
         << JOBJECT_END;
@@ -241,7 +247,8 @@ int SrsApiRusages::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
     ss << JOBJECT_START
         << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
         << JFIELD_ORG("data", JOBJECT_START)
-            << JFIELD_ORG("rusage_ok", (r->ok? "true":"false")) << JFIELD_CONT
+            << JFIELD_ORG("ok", (r->ok? "true":"false")) << JFIELD_CONT
+            << JFIELD_ORG("sample_time", r->sample_time) << JFIELD_CONT
             << JFIELD_ORG("ru_utime", r->r.ru_utime.tv_sec) << JFIELD_CONT
             << JFIELD_ORG("ru_stime", r->r.ru_stime.tv_sec) << JFIELD_CONT
             << JFIELD_ORG("ru_maxrss", r->r.ru_maxrss) << JFIELD_CONT
@@ -286,7 +293,9 @@ int SrsApiSelfProcStats::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
     ss << JOBJECT_START
         << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
         << JFIELD_ORG("data", JOBJECT_START)
-            << JFIELD_ORG("self_cpu_stat_ok", (u->ok? "true":"false")) << JFIELD_CONT
+            << JFIELD_ORG("ok", (u->ok? "true":"false")) << JFIELD_CONT
+            << JFIELD_ORG("sample_time", u->sample_time) << JFIELD_CONT
+            << JFIELD_ORG("percent", u->percent) << JFIELD_CONT
             << JFIELD_ORG("pid", u->pid) << JFIELD_CONT
             << JFIELD_STR("comm", u->comm) << JFIELD_CONT
             << JFIELD_STR("state", u->state) << JFIELD_CONT
@@ -359,7 +368,9 @@ int SrsApiSystemProcStats::do_process_request(SrsSocket* skt, SrsHttpMessage* re
     ss << JOBJECT_START
         << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
         << JFIELD_ORG("data", JOBJECT_START)
-            << JFIELD_ORG("system_cpu_stat_ok", (s->ok? "true":"false")) << JFIELD_CONT
+            << JFIELD_ORG("ok", (s->ok? "true":"false")) << JFIELD_CONT
+            << JFIELD_ORG("sample_time", s->sample_time) << JFIELD_CONT
+            << JFIELD_ORG("percent", s->percent) << JFIELD_CONT
             << JFIELD_ORG("user", s->user) << JFIELD_CONT
             << JFIELD_ORG("nice", s->nice) << JFIELD_CONT
             << JFIELD_ORG("sys", s->sys) << JFIELD_CONT
