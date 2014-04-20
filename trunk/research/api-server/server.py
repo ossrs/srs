@@ -378,6 +378,11 @@ class RESTServers(object):
                 url = "http://%s:8080/%s.html"%(self.__server_ip, stream)
             elif action == "rtmp":
                 url = "../../players/srs_player.html?server=%s&vhost=%s&app=%s&stream=%s&autostart=true"%(self.__server_ip, self.__server_ip, stream.split("/")[0], stream.split("/")[1])
+            elif action == "hls":
+                hls_url = "http://%s:8080/%s"%(self.__server_ip, stream);
+                if stream.startswith("http://"):
+                    hls_url = stream;
+                return self.__generate_hls(hls_url.replace(".m3u8.m3u8", ".m3u8"))
             else:
                 url = "http://%s:8080/api/v1/versions"%(self.__server_ip)
         # others, default.
@@ -582,6 +587,7 @@ class V1(object):
                 },
                 "GET id=ingest&action=play&stream=live/livestream": "play the ingest HLS stream on raspberry-pi",
                 "GET id=ingest&action=rtmp&stream=live/livestream": "play the ingest RTMP stream on raspberry-pi",
+                "GET id=ingest&action=hls&stream=live/livestream.m3u8": "play the ingest HLS stream on raspberry-pi",
                 "GET id=ingest&action=mgmt": "open the HTTP api url of raspberry-pi",
                 "GET id=meeting": "redirect to local raspberry-pi meeting url(local ignored)",
                 "GET id=meeting&local=false&index=0": "play the first(index=0) meeting HLS stream on demo.chnvideo.com(not local)",
