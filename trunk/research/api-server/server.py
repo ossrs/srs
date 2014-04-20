@@ -63,6 +63,8 @@ class Error:
     system_parse_json = 100
     # request action invalid
     request_invalid_action = 200
+    # cdn node not exists
+    cdn_node_not_exists = 201
 
 '''
 handle the clients requests: connect/disconnect vhost/app.
@@ -403,12 +405,186 @@ class RESTServers(object):
         enable_crossdomain()
     
     def __generate_hls(self, hls_url):
+        return SrsUtility().hls_html(hls_url)
+
+class SrsUtility:
+    def hls_html(self, hls_url):
         return """
+<h1>%s</h1>
 <video width="640" height="360"
         autoplay controls autobuffer 
         src="%s"
         type="application/vnd.apple.mpegurl">
-</video>"""%(hls_url);
+</video>"""%(hls_url, hls_url);
+
+global_cdn_id = os.getpid();
+class CdnNode:
+    def __init__(self):
+        global global_cdn_id
+        global_cdn_id += 1
+        
+        self.id = str(global_cdn_id)
+        self.ip = None
+        self.os = None
+        self.srs_status = None
+        
+        self.public_ip = cherrypy.request.remote.ip
+        self.heartbeat = time.time()
+    
+    def dead(self):
+        dead_time_seconds = 10
+        if time.time() - self.heartbeat > dead_time_seconds:
+            return True
+        return False
+    
+    def json_dump(self):
+        data = {}
+        data["id"] = self.id
+        data["ip"] = self.ip
+        data["os"] = self.os
+        data["srs_status"] = self.srs_status
+        data["public_ip"] = self.public_ip
+        data["heartbeat"] = self.heartbeat
+        data["heartbeat_h"] = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(self.heartbeat))
+        return data
+        
+'''
+the cdn nodes list
+'''
+class RESTNodes(object):
+    exposed = True
+    
+    def __init__(self):
+        self.__nodes = []
+        
+    def __get_node(self, id):
+        for node in self.__nodes:
+            if node.id == id:
+                return node
+        return None
+        
+    def __refresh_nodes(self):
+        has_dead_node = False
+        while True:
+            for node in self.__nodes:
+                if node.dead():
+                    self.__nodes.remove(node)
+                    has_dead_node = True
+            if not has_dead_node:
+                break
+    
+    def __get_peers(self, target_node):
+        peers = []
+        for node in self.__nodes:
+            if node.id == target_node.id:
+                continue
+            if node.public_ip == target_node.public_ip:
+                peers.append(node)
+        return peers
+        
+    def __get_peers_for_play(self, ip):
+        peers = []
+        for node in self.__nodes:
+            if node.public_ip == ip and node.srs_status == "running":
+                peers.append(node)
+        return peers
+
+    def __json_dump_nodes(self, peers):
+        data = []
+        for node in peers:
+            data.append(node.json_dump())
+        return data
+    
+    def GET(self, type=None, format=None, origin=None, vhost=None, port=None, stream=None):
+        enable_crossdomain()
+        
+        self.__refresh_nodes()
+        data = self.__json_dump_nodes(self.__nodes)
+        
+        ip = cherrypy.request.remote.ip
+        if type is not None:
+            server = origin
+            peers = self.__get_peers_for_play(ip)
+            if len(peers) > 0:
+                server = peers[0].ip
+            if type == "hls":
+                hls_url = "http://%s:%s/%s.m3u8"%(server, port, stream)
+                hls_url = hls_url.replace(".m3u8.m3u8", ".m3u8")
+                if format == "html":
+                    return SrsUtility().hls_html(hls_url)
+                else:
+                    #return hls_url
+                    raise cherrypy.HTTPRedirect(hls_url)
+            elif type == "rtmp":
+                rtmp_url = "rtmp://%s:%s/%s?vhost=%s/%s"%(server, port, stream.split("/")[0], vhost, stream.split("/")[1])
+                if format == "html":
+                    html = "%s?server=%s&port=%s&vhost=%s&app=%s&stream=%s&autostart=true"%(
+                        "http://demo.chnvideo.com:8085/srs/trunk/research/players/srs_player.html",
+                        server, port, vhost, stream.split("/")[0], stream.split("/")[1])
+                    #return html
+                    raise cherrypy.HTTPRedirect(html)
+                return rtmp_url
+        
+        return json.dumps({"code":Error.success, "data": data})
+
+    def PUT(self):
+        enable_crossdomain()
+
+        req = cherrypy.request.body.read()
+        trace("put to nodes, req=%s"%(req))
+        try:
+            json_req = json.loads(req)
+        except Exception, ex:
+            code = Error.system_parse_json
+            trace("parse the request to json failed, req=%s, ex=%s, code=%s"%(req, ex, code))
+            return json.dumps({"code":code, "data": None})
+        
+        id = str(json_req["id"])
+        node = self.__get_node(id)
+        if node is None:
+            code = Error.cdn_node_not_exists
+            trace("cdn node not exists, req=%s, id=%s, code=%s"%(req, id, code))
+            return json.dumps({"code":code, "data": None})
+        
+        node.heartbeat = time.time()
+        node.srs_status = str(json_req["srs_status"])
+            
+        self.__refresh_nodes()
+        peers = self.__get_peers(node)
+        peers_data = self.__json_dump_nodes(peers)
+            
+        res = json.dumps({"code":Error.success, "data": {"id":node.id, "peers":peers_data}})
+        trace(res)
+        return res
+
+    def POST(self):
+        enable_crossdomain()
+
+        req = cherrypy.request.body.read()
+        trace("post to nodes, req=%s"%(req))
+        try:
+            json_req = json.loads(req)
+        except Exception, ex:
+            code = Error.system_parse_json
+            trace("parse the request to json failed, req=%s, ex=%s, code=%s"%(req, ex, code))
+            return json.dumps({"code":code, "data": None})
+            
+        node = CdnNode()
+        node.ip = str(json_req["ip"]);
+        node.os = str(json_req["os"]);
+        node.srs_status = str(json_req["srs_status"])
+        self.__nodes.append(node)
+            
+        self.__refresh_nodes()
+        peers = self.__get_peers(node)
+        peers_data = self.__json_dump_nodes(peers)
+        
+        res = json.dumps({"code":Error.success, "data": {"id":node.id, "peers":peers_data}})
+        trace(res)
+        return res
+        
+    def OPTIONS(self, *args, **kwargs):
+        enable_crossdomain()
 
 global_chat_id = os.getpid();
 '''
@@ -572,6 +748,7 @@ class V1(object):
         self.sessions = RESTSessions()
         self.chats = RESTChats()
         self.servers = RESTServers()
+        self.nodes = RESTNodes()
     def GET(self):
         enable_crossdomain();
         return json.dumps({"code":Error.success, "urls":{
@@ -579,15 +756,20 @@ class V1(object):
             "streams": "for srs http callback, to handle the streams requests: publish/unpublish stream.",
             "sessions": "for srs http callback, to handle the sessions requests: client play/stop stream",
             "chats": "for srs demo meeting, the chat streams, public chat room.",
+            "nodes": {
+                "summary": "for srs cdn node",
+                "POST ip=node_ip&os=node_os": "register a new node",
+                "GET": "get the active edge nodes",
+                "GET type=hls&format=html&origin=demo.chnvideo.com&port=8080&stream=live/livestream": "get the play url, html for hls",
+                "GET type=rtmp&format=html&origin=demo.chnvideo.com&vhost=demo.srs.com&port=1935&stream=live/livestream": "get the play url, for rtmp"
+            },
             "servers": {
                 "summary": "for srs raspberry-pi and meeting demo",
                 "GET": "get the current raspberry-pi servers info",
-                "POST": {
-                    "body": "the new raspberry-pi server ip."
-                },
+                "POST body=ip": "the new raspberry-pi server ip.",
                 "GET id=ingest&action=play&stream=live/livestream": "play the ingest HLS stream on raspberry-pi",
                 "GET id=ingest&action=rtmp&stream=live/livestream": "play the ingest RTMP stream on raspberry-pi",
-                "GET id=ingest&action=hls&stream=live/livestream.m3u8": "play the ingest HLS stream on raspberry-pi",
+                "GET id=ingest&action=hls&stream=live/livestream": "play the ingest HLS stream on raspberry-pi",
                 "GET id=ingest&action=mgmt": "open the HTTP api url of raspberry-pi",
                 "GET id=meeting": "redirect to local raspberry-pi meeting url(local ignored)",
                 "GET id=meeting&local=false&index=0": "play the first(index=0) meeting HLS stream on demo.chnvideo.com(not local)",
