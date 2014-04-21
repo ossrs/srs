@@ -326,6 +326,38 @@ class RESTSessions(object):
 
         return code
 
+global_arm_server_id = os.getpid();
+class ArmServer:
+    def __init__(self):
+        global global_arm_server_id
+        global_arm_server_id += 1
+        
+        self.id = str(global_arm_server_id)
+        self.ip = None
+        self.device_id = None
+        
+        self.public_ip = cherrypy.request.remote.ip
+        self.heartbeat = time.time()
+        
+        self.clients = 0
+    
+    def dead(self):
+        dead_time_seconds = 20
+        if time.time() - self.heartbeat > dead_time_seconds:
+            return True
+        return False
+    
+    def json_dump(self):
+        data = {}
+        data["id"] = self.id
+        data["ip"] = self.ip
+        data["device_id"] = self.device_id
+        data["public_ip"] = self.public_ip
+        data["heartbeat"] = self.heartbeat
+        data["heartbeat_h"] = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(self.heartbeat))
+        data["summaries"] = "http://%s:1985/api/v1/summaries"%(self.ip)
+        return data
+        
 '''
 the server list
 '''
@@ -333,8 +365,49 @@ class RESTServers(object):
     exposed = True
     
     def __init__(self):
+        self.__nodes = []
+        
         self.__last_update = datetime.datetime.now();
-        self.__server_ip = "192.168.1.142";
+        server_ip = "192.168.1.142";
+        
+    def __get_node(self, device_id):
+        for node in self.__nodes:
+            if node.device_id == device_id:
+                return node
+        return None
+        
+    def __refresh_nodes(self):
+        has_dead_node = False
+        while True:
+            for node in self.__nodes:
+                if node.dead():
+                    self.__nodes.remove(node)
+                    has_dead_node = True
+            if not has_dead_node:
+                break
+
+    def __json_dump_nodes(self, peers):
+        data = []
+        for node in peers:
+            data.append(node.json_dump())
+        return data
+
+    def __get_peers_for_play(self, device_id):
+        peers = []
+        for node in self.__nodes:
+            if node.device_id == device_id:
+                peers.append(node)
+        return peers
+        
+    def __select_peer(self, peers, device_id):
+        target = None
+        for peer in peers:
+            if target is None or target.clients > peer.clients:
+                target = peer
+        if target is None:
+            return None
+        target.clients += 1
+        return target.ip
 
     '''
     post to update server ip.
@@ -342,31 +415,62 @@ class RESTServers(object):
     '''
     def POST(self):
         enable_crossdomain()
-        
+
         req = cherrypy.request.body.read()
-        self.__server_ip = req;
-        self.__last_update = datetime.datetime.now();
+        trace("post to nodes, req=%s"%(req))
+        try:
+            json_req = json.loads(req)
+        except Exception, ex:
+            code = Error.system_parse_json
+            trace("parse the request to json failed, req=%s, ex=%s, code=%s"%(req, ex, code))
+            return json.dumps({"code":code, "data": None})
+            
+        device_id = json_req["device_id"]
+        node = self.__get_node(device_id)
+        if node is None:
+            node = ArmServer()
+            self.__nodes.append(node)
+            
+        node.ip = json_req["ip"]
+        node.device_id = device_id
+        node.public_ip = cherrypy.request.remote.ip
+        node.heartbeat = time.time()
         
-        return self.__server_ip
+        return json.dumps({"code":Error.success, "data": {"id":node.id}})
     
     '''
     id canbe:
         pi: the pi demo, raspberry-pi default demo.
+            device_id: the id of device to get.
             action: canbe play or mgmt, play to play the inest stream, mgmt to get api/v1/versions.
             stream: the stream to play, for example, live/livestream for http://server:8080/live/livestream.html
         meeting: the meeting demo. jump to web meeting if index is None.
+            device_id: the id of device to get.
             local: whether view the local raspberry-pi stream. if "true", redirect to the local(internal) api server.
             index: the meeting stream index, dynamic get the streams from root.api.v1.chats.get_url_by_index(index)
+        gslb: the gslb to get edge ip
+            device_id: the id of device to get.
         ingest: deprecated, alias for pi.
     '''
-    def GET(self, id=None, action="play", stream="live/livestream", index=None, local="false"):
+    def GET(self, id=None, action="play", stream="live/livestream", index=None, local="false", device_id=None):
         enable_crossdomain()
+        
+        self.__refresh_nodes()
+        data = self.__json_dump_nodes(self.__nodes)
+        
+        server_ip = "demo.chnvideo.com"
+        ip = cherrypy.request.remote.ip
+        if type is not None:
+            peers = self.__get_peers_for_play(device_id)
+            if len(peers) > 0:
+                server_ip = self.__select_peer(peers, device_id)
+        
         # demo, srs meeting urls.
         if id == "meeting":
             if index is None:
-                url = "http://%s:8085"%(self.__server_ip)
+                url = "http://%s:8085"%(server_ip)
             elif local == "true":
-                url = "http://%s:8085/api/v1/servers?id=%s&index=%s&local=false"%(self.__server_ip, id, index)
+                url = "http://%s:8085/api/v1/servers?id=%s&index=%s&local=false"%(server_ip, id, index)
             else:
                 rtmp_url = root.api.v1.chats.get_url_by_index(index)
                 if rtmp_url is None:
@@ -377,19 +481,30 @@ class RESTServers(object):
         # raspberry-pi urls.
         elif id == "ingest" or id == "pi":
             if action == "play":
-                url = "http://%s:8080/%s.html"%(self.__server_ip, stream)
+                url = "http://%s:8080/%s.html"%(server_ip, stream)
             elif action == "rtmp":
-                url = "../../players/srs_player.html?server=%s&vhost=%s&app=%s&stream=%s&autostart=true"%(self.__server_ip, self.__server_ip, stream.split("/")[0], stream.split("/")[1])
+                url = "../../players/srs_player.html?server=%s&vhost=%s&app=%s&stream=%s&autostart=true"%(server_ip, server_ip, stream.split("/")[0], stream.split("/")[1])
             elif action == "hls":
-                hls_url = "http://%s:8080/%s"%(self.__server_ip, stream);
+                hls_url = "http://%s:8080/%s.m3u8"%(server_ip, stream);
                 if stream.startswith("http://"):
                     hls_url = stream;
                 return self.__generate_hls(hls_url.replace(".m3u8.m3u8", ".m3u8"))
             else:
-                url = "http://%s:8080/api/v1/versions"%(self.__server_ip)
+                url = "http://%s:8080/api/v1/versions"%(server_ip)
+        elif id == "gslb":
+            return json.dumps({"code":Error.success, "data": {
+                "edge":server_ip, "client":ip, 
+                "peers":self.__json_dump_nodes(peers),
+                "streams": {
+                    "hls-livestream-sales": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-sales-arm&stream=live/livestream",
+                    "hls-cztv-sales": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-sales-arm&stream=live/rtmp_cztv01-sd",
+                    "hls-livestream-dev": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-dev-arm&stream=live/livestream",
+                    "hls-cztv-dev": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-dev-arm&stream=live/rtmp_cztv01-sd"
+                }
+            }})
         # others, default.
         else:
-            return "raspberry-pi ip: <a href='http://%s:8080' target='_blank'>%s</a>, last update: %s"%(self.__server_ip, self.__server_ip, self.__last_update)
+            return json.dumps(data)
         #return "id=%s, action=%s, stream=%s, url=%s, index=%s, local=%s"%(id, action, stream, url, index, local)
         raise cherrypy.HTTPRedirect(url)
 
@@ -425,6 +540,7 @@ class CdnNode:
         
         self.id = str(global_cdn_id)
         self.ip = None
+        self.origin = None
         self.os = None
         self.srs_status = None
         
@@ -443,6 +559,7 @@ class CdnNode:
         data = {}
         data["id"] = self.id
         data["ip"] = self.ip
+        data["origin"] = self.origin
         data["os"] = self.os
         data["srs_status"] = self.srs_status
         data["public_ip"] = self.public_ip
@@ -482,7 +599,7 @@ class RESTNodes(object):
         for node in self.__nodes:
             if node.id == target_node.id:
                 continue
-            if node.public_ip == target_node.public_ip and node.srs_status == "running":
+            if node.public_ip == target_node.public_ip and node.srs_status == "running" and node.origin != target_node.ip:
                 peers.append(node)
         return peers
         
@@ -576,6 +693,8 @@ class RESTNodes(object):
         node.heartbeat = time.time()
         node.srs_status = str(json_req["srs_status"])
         node.ip = str(json_req["ip"])
+        if "origin" in json_req:
+            node.origin = str(json_req["origin"]);
         node.public_ip = cherrypy.request.remote.ip
         # reset if restart.
         if node.srs_status != "running":
@@ -604,6 +723,8 @@ class RESTNodes(object):
         node = CdnNode()
         node.ip = str(json_req["ip"]);
         node.os = str(json_req["os"]);
+        if "origin" in json_req:
+            node.origin = str(json_req["origin"]);
         node.srs_status = str(json_req["srs_status"])
         self.__nodes.append(node)
             
@@ -799,7 +920,8 @@ class V1(object):
             "servers": {
                 "summary": "for srs raspberry-pi and meeting demo",
                 "GET": "get the current raspberry-pi servers info",
-                "POST body=ip": "the new raspberry-pi server ip.",
+                "GET id=gslb&device_id=chnvideo-sales-arm": "get the gslb edge ip",
+                "POST ip=node_ip&device_id=device_id": "the new raspberry-pi server info.",
                 "GET id=ingest&action=play&stream=live/livestream": "play the ingest HLS stream on raspberry-pi",
                 "GET id=ingest&action=rtmp&stream=live/livestream": "play the ingest RTMP stream on raspberry-pi",
                 "GET id=ingest&action=hls&stream=live/livestream": "play the ingest HLS stream on raspberry-pi",
