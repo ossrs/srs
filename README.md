@@ -184,6 +184,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v1.0, 2014-04-21, support android app to start srs for internal edge. 0.9.72
 * v1.0, 2014-04-19, support tool over srs-librtmp to ingest flv/rtmp. 0.9.71
 * v1.0, 2014-04-17, support dvr(record live to flv file for vod). 0.9.69
 * v1.0, 2014-04-11, add speex1.2 to transcode flash encoder stream. 0.9.58
