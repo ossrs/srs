@@ -430,6 +430,8 @@ class CdnNode:
         
         self.public_ip = cherrypy.request.remote.ip
         self.heartbeat = time.time()
+        
+        self.clients = 0
     
     def dead(self):
         dead_time_seconds = 10
@@ -446,6 +448,7 @@ class CdnNode:
         data["public_ip"] = self.public_ip
         data["heartbeat"] = self.heartbeat
         data["heartbeat_h"] = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(self.heartbeat))
+        data["clients"] = self.clients
         return data
         
 '''
@@ -494,6 +497,16 @@ class RESTNodes(object):
         for node in peers:
             data.append(node.json_dump())
         return data
+        
+    def __select_peer(self, peers, ip):
+        target = None
+        for peer in peers:
+            if target is None or target.clients > peer.clients:
+                target = peer
+        if target is None:
+            return None
+        target.clients += 1
+        return target.ip
     
     def GET(self, type=None, format=None, origin=None, vhost=None, port=None, stream=None):
         enable_crossdomain()
@@ -506,7 +519,7 @@ class RESTNodes(object):
             server = origin
             peers = self.__get_peers_for_play(ip)
             if len(peers) > 0:
-                server = peers[0].ip
+                server = self.__select_peer(peers, ip)
             if type == "hls":
                 hls_url = "http://%s:%s/%s.m3u8"%(server, port, stream)
                 hls_url = hls_url.replace(".m3u8.m3u8", ".m3u8")
@@ -548,6 +561,11 @@ class RESTNodes(object):
         
         node.heartbeat = time.time()
         node.srs_status = str(json_req["srs_status"])
+        node.ip = str(json_req["ip"])
+        node.public_ip = cherrypy.request.remote.ip
+        # reset if restart.
+        if node.srs_status != "running":
+            node.clients = 0
             
         self.__refresh_nodes()
         peers = self.__get_peers(node)
