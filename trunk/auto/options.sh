@@ -391,7 +391,7 @@ function apply_user_presets() {
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
         SRS_HTTP_API=YES
-        SRS_LIBRTMP=NO
+        SRS_LIBRTMP=YES
         SRS_BWTC=NO
         SRS_RESEARCH=NO
         SRS_UTEST=NO
@@ -466,7 +466,7 @@ function apply_user_presets() {
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
         SRS_HTTP_API=YES
-        SRS_LIBRTMP=NO
+        SRS_LIBRTMP=YES
         SRS_BWTC=NO
         SRS_RESEARCH=NO
         SRS_UTEST=NO
