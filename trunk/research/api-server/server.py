@@ -449,6 +449,7 @@ class CdnNode:
         data["heartbeat"] = self.heartbeat
         data["heartbeat_h"] = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(self.heartbeat))
         data["clients"] = self.clients
+        data["summaries"] = "http://%s:1985/api/v1/summaries"%(self.ip)
         return data
         
 '''
@@ -481,7 +482,7 @@ class RESTNodes(object):
         for node in self.__nodes:
             if node.id == target_node.id:
                 continue
-            if node.public_ip == target_node.public_ip:
+            if node.public_ip == target_node.public_ip and node.srs_status == "running":
                 peers.append(node)
         return peers
         
@@ -537,6 +538,19 @@ class RESTNodes(object):
                     #return html
                     raise cherrypy.HTTPRedirect(html)
                 return rtmp_url
+            elif type == "gslb":
+                return json.dumps({"code":Error.success, "data": {
+                    "edge":server, "client":ip, 
+                    "peers":self.__json_dump_nodes(peers),
+                    "streams": {
+                        "hls-cztv-html": "http://demo.chnvideo.com:8085/api/v1/nodes?type=hls&format=html&origin=demo.chnvideo.com&port=8080&stream=live/rtmp_cztv01-sd",
+                        "hls-cztv-m3u8": "http://demo.chnvideo.com:8085/api/v1/nodes?type=hls&format=m3u8&origin=demo.chnvideo.com&port=8080&stream=live/rtmp_cztv01-sd",
+                        "rtmp-cztv-html": "http://demo.chnvideo.com:8085/api/v1/nodes?type=rtmp&format=html&origin=demo.chnvideo.com&vhost=__defaultVhost__&port=1935&stream=live/rtmp_cztv01-sd",
+                        "hls-livestream-html": "http://demo.chnvideo.com:8085/api/v1/nodes?type=hls&format=html&origin=demo.chnvideo.com&port=8080&stream=live/livestream",
+                        "hls-livestream-m3u8": "http://demo.chnvideo.com:8085/api/v1/nodes?type=hls&format=m3u8&origin=demo.chnvideo.com&port=8080&stream=live/livestream",
+                        "rtmp-livestream-html": "http://demo.chnvideo.com:8085/api/v1/nodes?type=rtmp&format=html&origin=demo.chnvideo.com&vhost=demo.srs.com&port=1935&stream=live/livestream"
+                    }
+                }})
         
         return json.dumps({"code":Error.success, "data": data})
 
@@ -778,6 +792,7 @@ class V1(object):
                 "summary": "for srs cdn node",
                 "POST ip=node_ip&os=node_os": "register a new node",
                 "GET": "get the active edge nodes",
+                "GET type=gslb&origin=demo.chnvideo.com": "get the gslb edge ip",
                 "GET type=hls&format=html&origin=demo.chnvideo.com&port=8080&stream=live/livestream": "get the play url, html for hls",
                 "GET type=rtmp&format=html&origin=demo.chnvideo.com&vhost=demo.srs.com&port=1935&stream=live/livestream": "get the play url, for rtmp"
             },
