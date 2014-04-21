@@ -597,7 +597,7 @@ class RESTNodes(object):
     def __get_peers(self, target_node):
         peers = []
         for node in self.__nodes:
-            if node.id == target_node.id:
+            if str(node.id).strip() == str(target_node.id).strip():
                 continue
             if node.public_ip == target_node.public_ip and node.srs_status == "running" and node.origin != target_node.ip:
                 peers.append(node)
@@ -626,7 +626,7 @@ class RESTNodes(object):
         target.clients += 1
         return target.ip
     
-    def GET(self, type=None, format=None, origin=None, vhost=None, port=None, stream=None):
+    def GET(self, type=None, format=None, origin=None, vhost=None, port=None, stream=None, node_id=None):
         enable_crossdomain()
         
         self.__refresh_nodes()
@@ -665,7 +665,8 @@ class RESTNodes(object):
                         "rtmp-cztv-html": "http://demo.chnvideo.com:8085/api/v1/nodes?type=rtmp&format=html&origin=demo.chnvideo.com&vhost=__defaultVhost__&port=1935&stream=live/rtmp_cztv01-sd",
                         "hls-livestream-html": "http://demo.chnvideo.com:8085/api/v1/nodes?type=hls&format=html&origin=demo.chnvideo.com&port=8080&stream=live/livestream",
                         "hls-livestream-m3u8": "http://demo.chnvideo.com:8085/api/v1/nodes?type=hls&format=m3u8&origin=demo.chnvideo.com&port=8080&stream=live/livestream",
-                        "rtmp-livestream-html": "http://demo.chnvideo.com:8085/api/v1/nodes?type=rtmp&format=html&origin=demo.chnvideo.com&vhost=demo.srs.com&port=1935&stream=live/livestream"
+                        "rtmp-livestream-html": "http://demo.chnvideo.com:8085/api/v1/nodes?type=rtmp&format=html&origin=demo.chnvideo.com&vhost=demo.srs.com&port=1935&stream=live/livestream",
+                        "apk": "http://demo.chnvideo.com/android.srs.apk"
                     }
                 }})
         

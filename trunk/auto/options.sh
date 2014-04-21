@@ -475,7 +475,7 @@ function apply_user_presets() {
         SRS_GPERF_MP=NO
         SRS_GPERF_CP=NO
         SRS_GPROF=NO
-        SRS_STATIC=YES
+        SRS_STATIC=NO
     fi
 }
 apply_user_presets
