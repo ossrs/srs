@@ -163,50 +163,106 @@ int SrsHttpVhost::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
     
     std::string fullpath = get_request_file(req);
     
-    // TODO: FIXME: refine the file stream.
-    int fd = ::open(fullpath.c_str(), O_RDONLY);
-    if (fd < 0) {
-        ret = ERROR_HTTP_OPEN_FILE;
-        srs_warn("open file %s failed, ret=%d", fullpath.c_str(), ret);
-        return ret;
-    }
-
-    int64_t length = (int64_t)::lseek(fd, 0, SEEK_END);
-    ::lseek(fd, 0, SEEK_SET);
-    
-    char* buf = new char[length];
-    SrsAutoFree(char, buf, true);
-    
-    // TODO: FIXME: use st_read.
-    if (::read(fd, buf, length) < 0) {
-        ::close(fd);
-        ret = ERROR_HTTP_READ_FILE;
-        srs_warn("read file %s failed, ret=%d", fullpath.c_str(), ret);
-        return ret;
-    }
-    ::close(fd);
-    
-    std::string str;
-    str.append(buf, length);
-    
     if (srs_string_ends_with(fullpath, ".ts")) {
-        return res_mpegts(skt, req, str);
-    } else if (srs_string_ends_with(fullpath, ".m3u8")) {
-        return res_m3u8(skt, req, str);
-    } else if (srs_string_ends_with(fullpath, ".xml")) {
-        return res_xml(skt, req, str);
-    } else if (srs_string_ends_with(fullpath, ".js")) {
-        return res_javascript(skt, req, str);
-    } else if (srs_string_ends_with(fullpath, ".json")) {
-        return res_json(skt, req, str);
-    } else if (srs_string_ends_with(fullpath, ".swf")) {
-        return res_swf(skt, req, str);
-    } else if (srs_string_ends_with(fullpath, ".css")) {
-        return res_css(skt, req, str);
-    } else if (srs_string_ends_with(fullpath, ".ico")) {
-        return res_ico(skt, req, str);
+        // TODO: FIXME: use more advance cache.
+        // for ts video large file, use bytes to write it.
+        int fd = ::open(fullpath.c_str(), O_RDONLY);
+        if (fd < 0) {
+            ret = ERROR_HTTP_OPEN_FILE;
+            srs_warn("open file %s failed, ret=%d", fullpath.c_str(), ret);
+            return ret;
+        }
+    
+        int64_t length = (int64_t)::lseek(fd, 0, SEEK_END);
+        ::lseek(fd, 0, SEEK_SET);
+    
+        // write http header for ts.
+        std::stringstream ss;
+    
+        res_status_line(ss)->res_content_type_mpegts(ss)
+            ->res_content_length(ss, (int)length);
+            
+        if (req->requires_crossdomain()) {
+            res_enable_crossdomain(ss);
+        }
+        
+        res_header_eof(ss);
+        
+        // flush http header to peer
+        if ((ret = res_flush(skt, ss)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        // write body.
+        int64_t left = length;
+        const static int HTTP_PKT_SIZE = 4096;
+        char* buf = new char[HTTP_PKT_SIZE];
+        SrsAutoFree(char, buf, true);
+        
+        while (left > 0) {
+            ssize_t nread = -1;
+            // TODO: FIXME: use st_read.
+            if ((nread = ::read(fd, buf, HTTP_PKT_SIZE)) < 0) {
+                ::close(fd);
+                ret = ERROR_HTTP_READ_FILE;
+                srs_warn("read file %s failed, ret=%d", fullpath.c_str(), ret);
+                return ret;
+            }
+            
+            left -= nread;
+            if ((ret = skt->write(buf, nread, NULL)) != ERROR_SUCCESS) {
+                break;
+            }
+        }
+        ::close(fd);
+        
+        return ret;
     } else {
-        return res_text(skt, req, str);
+        // TODO: FIXME: refine the file stream.
+        int fd = ::open(fullpath.c_str(), O_RDONLY);
+        if (fd < 0) {
+            ret = ERROR_HTTP_OPEN_FILE;
+            srs_warn("open file %s failed, ret=%d", fullpath.c_str(), ret);
+            return ret;
+        }
+    
+        int64_t length = (int64_t)::lseek(fd, 0, SEEK_END);
+        ::lseek(fd, 0, SEEK_SET);
+        
+        char* buf = new char[length];
+        SrsAutoFree(char, buf, true);
+        
+        // TODO: FIXME: use st_read.
+        if (::read(fd, buf, length) < 0) {
+            ::close(fd);
+            ret = ERROR_HTTP_READ_FILE;
+            srs_warn("read file %s failed, ret=%d", fullpath.c_str(), ret);
+            return ret;
+        }
+        ::close(fd);
+        
+        std::string str;
+        str.append(buf, length);
+        
+        if (srs_string_ends_with(fullpath, ".ts")) {
+            return res_mpegts(skt, req, str);
+        } else if (srs_string_ends_with(fullpath, ".m3u8")) {
+            return res_m3u8(skt, req, str);
+        } else if (srs_string_ends_with(fullpath, ".xml")) {
+            return res_xml(skt, req, str);
+        } else if (srs_string_ends_with(fullpath, ".js")) {
+            return res_javascript(skt, req, str);
+        } else if (srs_string_ends_with(fullpath, ".json")) {
+            return res_json(skt, req, str);
+        } else if (srs_string_ends_with(fullpath, ".swf")) {
+            return res_swf(skt, req, str);
+        } else if (srs_string_ends_with(fullpath, ".css")) {
+            return res_css(skt, req, str);
+        } else if (srs_string_ends_with(fullpath, ".ico")) {
+            return res_ico(skt, req, str);
+        } else {
+            return res_text(skt, req, str);
+        }
     }
     
     return ret;
