@@ -195,14 +195,12 @@ int SrsHttpVhost::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
         
         // write body.
         int64_t left = length;
-        const static int HTTP_PKT_SIZE = 4096;
-        char* buf = new char[HTTP_PKT_SIZE];
-        SrsAutoFree(char, buf, true);
+        char* buf = req->http_ts_send_buffer();
         
         while (left > 0) {
             ssize_t nread = -1;
             // TODO: FIXME: use st_read.
-            if ((nread = ::read(fd, buf, HTTP_PKT_SIZE)) < 0) {
+            if ((nread = ::read(fd, buf, HTTP_TS_SEND_BUFFER_SIZE)) < 0) {
                 ::close(fd);
                 ret = ERROR_HTTP_READ_FILE;
                 srs_warn("read file %s failed, ret=%d", fullpath.c_str(), ret);

@@ -145,6 +145,9 @@ class SrsHttpHandler;
 #define HTTP_GatewayTimeout_str                     "Gateway Timeout"
 #define HTTP_HTTPVersionNotSupported_str            "HTTP Version Not Supported"
 
+// @see SrsHttpMessage._http_ts_send_buffer
+#define HTTP_TS_SEND_BUFFER_SIZE 4096
+
 // linux path seprator
 #define __PATH_SEP '/'
 // query string seprator
@@ -310,10 +313,15 @@ private:
     * whether the message requires crossdomain.
     */
     bool _requires_crossdomain;
+    /**
+    * use a buffer to read and send ts file.
+    */
+    char* _http_ts_send_buffer;
 public:
     SrsHttpMessage();
     virtual ~SrsHttpMessage();
 public:
+    virtual char* http_ts_send_buffer();
     virtual void reset();
     virtual int parse_uri();
 public:

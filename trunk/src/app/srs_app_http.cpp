@@ -515,6 +515,7 @@ SrsHttpMessage::SrsHttpMessage()
     _uri = new SrsHttpUri();
     _match = NULL;
     _requires_crossdomain = false;
+    _http_ts_send_buffer = new char[HTTP_TS_SEND_BUFFER_SIZE];
 }
 
 SrsHttpMessage::~SrsHttpMessage()
@@ -522,6 +523,12 @@ SrsHttpMessage::~SrsHttpMessage()
     srs_freep(_body);
     srs_freep(_uri);
     srs_freep(_match);
+    srs_freepa(_http_ts_send_buffer);
+}
+
+char* SrsHttpMessage::http_ts_send_buffer()
+{
+    return _http_ts_send_buffer;
 }
 
 void SrsHttpMessage::reset()
