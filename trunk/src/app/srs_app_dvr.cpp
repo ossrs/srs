@@ -37,6 +37,8 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_app_http_hooks.hpp>
+#include <srs_app_codec.hpp>
 
 SrsFileStream::SrsFileStream()
 {
@@ -364,34 +366,6 @@ int SrsDvrPlan::on_publish()
     return ret;
 }
 
-int SrsDvrPlan::flv_open(string stream, string path)
-{
-    int ret = ERROR_SUCCESS;
-    
-    if ((ret = fs->open(path)) != ERROR_SUCCESS) {
-        srs_error("open file stream for file %s failed. ret=%d", path.c_str(), ret);
-        return ret;
-    }
-    
-    if ((ret = enc->initialize(fs)) != ERROR_SUCCESS) {
-        srs_error("initialize enc by fs for file %s failed. ret=%d", path.c_str(), ret);
-        return ret;
-    }
-    
-    if ((ret = enc->write_header()) != ERROR_SUCCESS) {
-        srs_error("write flv header for file %s failed. ret=%d", path.c_str(), ret);
-        return ret;
-    }
-    
-    srs_trace("dvr stream %s to file %s", stream.c_str(), path.c_str());
-    return ret;
-}
-
-int SrsDvrPlan::flv_close()
-{
-    return fs->close();
-}
-
 int SrsDvrPlan::on_meta_data(SrsOnMetaDataPacket* metadata)
 {
     int ret = ERROR_SUCCESS;
@@ -459,10 +433,43 @@ int SrsDvrPlan::on_video(SrsSharedPtrMessage* video)
         return ret;
     }
     
+#ifdef SRS_AUTO_HTTP_CALLBACK
+    bool is_key_frame = SrsCodec::video_is_keyframe((int8_t*)payload, size);
+    srs_verbose("dvr video is key: %d", is_key_frame);
+    if (is_key_frame) {
+        if ((ret = on_dvr_keyframe()) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+#endif
+    
     if ((ret = on_video_msg(video)) != ERROR_SUCCESS) {
         return ret;
     }
     
+    return ret;
+}
+
+int SrsDvrPlan::flv_open(string stream, string path)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = fs->open(path)) != ERROR_SUCCESS) {
+        srs_error("open file stream for file %s failed. ret=%d", path.c_str(), ret);
+        return ret;
+    }
+    
+    if ((ret = enc->initialize(fs)) != ERROR_SUCCESS) {
+        srs_error("initialize enc by fs for file %s failed. ret=%d", path.c_str(), ret);
+        return ret;
+    }
+    
+    if ((ret = enc->write_header()) != ERROR_SUCCESS) {
+        srs_error("write flv header for file %s failed. ret=%d", path.c_str(), ret);
+        return ret;
+    }
+    
+    srs_trace("dvr stream %s to file %s", stream.c_str(), path.c_str());
     return ret;
 }
 
@@ -475,6 +482,32 @@ int SrsDvrPlan::on_audio_msg(SrsSharedPtrMessage* /*audio*/)
 int SrsDvrPlan::on_video_msg(SrsSharedPtrMessage* /*video*/)
 {
     int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+int SrsDvrPlan::flv_close()
+{
+    return fs->close();
+}
+
+int SrsDvrPlan::on_dvr_keyframe()
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_AUTO_HTTP_CALLBACK
+    // HTTP: on_dvr_keyframe 
+    SrsConfDirective* on_dvr_keyframe = _srs_config->get_vhost_on_dvr_keyframe(_req->vhost);
+    if (!on_dvr_keyframe) {
+        srs_info("ignore the empty http callback: on_dvr_keyframe");
+        return ret;
+    }
+    
+    for (int i = 0; i < (int)on_dvr_keyframe->args.size(); i++) {
+        std::string url = on_dvr_keyframe->args.at(i);
+        SrsHttpHooks::on_dvr_keyframe(url, _req);
+    }
+#endif
+    
     return ret;
 }
 

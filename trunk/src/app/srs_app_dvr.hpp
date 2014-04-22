@@ -146,6 +146,8 @@ protected:
     virtual int on_audio_msg(SrsSharedPtrMessage* audio);
     virtual int on_video_msg(SrsSharedPtrMessage* video);
     virtual int flv_close();
+private:
+    virtual int on_dvr_keyframe();
 public:
     static SrsDvrPlan* create_plan(std::string vhost);
 };

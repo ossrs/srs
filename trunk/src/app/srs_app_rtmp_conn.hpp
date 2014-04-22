@@ -58,9 +58,6 @@ private:
     SrsSocket* skt;
     SrsRtmpServer* rtmp;
     SrsRefer* refer;
-#ifdef SRS_AUTO_HTTP_CALLBACK    
-    SrsHttpHooks* http_hooks;
-#endif
     SrsBandwidth* bandwidth;
     // elapse duration in ms
     // for live play duration, for instance, rtmpdump to record.

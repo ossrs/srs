@@ -55,7 +55,7 @@ SrsHttpClient::~SrsHttpClient()
     srs_freep(parser);
 }
 
-int SrsHttpClient::post(SrsHttpUri* uri, std::string req, std::string& res)
+int SrsHttpClient::post(SrsHttpUri* uri, string req, string& res)
 {
     res = "";
     
@@ -183,7 +183,7 @@ SrsHttpHooks::~SrsHttpHooks()
 {
 }
 
-int SrsHttpHooks::on_connect(std::string url, int client_id, std::string ip, SrsRequest* req)
+int SrsHttpHooks::on_connect(string url, int client_id, string ip, SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
     
@@ -236,7 +236,7 @@ int SrsHttpHooks::on_connect(std::string url, int client_id, std::string ip, Srs
     return ret;
 }
 
-void SrsHttpHooks::on_close(std::string url, int client_id, std::string ip, SrsRequest* req)
+void SrsHttpHooks::on_close(string url, int client_id, string ip, SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
     
@@ -289,7 +289,7 @@ void SrsHttpHooks::on_close(std::string url, int client_id, std::string ip, SrsR
     return;
 }
 
-int SrsHttpHooks::on_publish(std::string url, int client_id, std::string ip, SrsRequest* req)
+int SrsHttpHooks::on_publish(string url, int client_id, string ip, SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
     
@@ -343,7 +343,7 @@ int SrsHttpHooks::on_publish(std::string url, int client_id, std::string ip, Srs
     return ret;
 }
 
-void SrsHttpHooks::on_unpublish(std::string url, int client_id, std::string ip, SrsRequest* req)
+void SrsHttpHooks::on_unpublish(string url, int client_id, string ip, SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
     
@@ -397,7 +397,7 @@ void SrsHttpHooks::on_unpublish(std::string url, int client_id, std::string ip, 
     return;
 }
 
-int SrsHttpHooks::on_play(std::string url, int client_id, std::string ip, SrsRequest* req)
+int SrsHttpHooks::on_play(string url, int client_id, string ip, SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
     
@@ -451,7 +451,7 @@ int SrsHttpHooks::on_play(std::string url, int client_id, std::string ip, SrsReq
     return ret;
 }
 
-void SrsHttpHooks::on_stop(std::string url, int client_id, std::string ip, SrsRequest* req)
+void SrsHttpHooks::on_stop(string url, int client_id, string ip, SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
     
@@ -501,6 +501,56 @@ void SrsHttpHooks::on_stop(std::string url, int client_id, std::string ip, SrsRe
     srs_trace("http hook on_stop success. "
         "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
         client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+    
+    return;
+}
+
+void SrsHttpHooks::on_dvr_keyframe(string url, SrsRequest* req)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsHttpUri uri;
+    if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
+        srs_warn("http uri parse on_dvr_keyframe url failed, ignored. "
+            "url=%s, ret=%d", url.c_str(), ret);
+        return;
+    }
+    
+    /**
+    {
+        "action": "on_dvr_keyframe",
+        "vhost": "video.test.com", "app": "live",
+        "stream": "livestream"
+    }
+    */
+    std::stringstream ss;
+    ss << JOBJECT_START
+        << JFIELD_STR("action", "on_dvr_keyframe") << JFIELD_CONT
+        << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
+        << JFIELD_STR("app", req->app) << JFIELD_CONT
+        << JFIELD_STR("stream", req->stream)
+        << JOBJECT_END;
+    std::string data = ss.str();
+    std::string res;
+    
+    SrsHttpClient http;
+    if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
+        srs_warn("http post on_dvr_keyframe uri failed, ignored. "
+            "url=%s, request=%s, response=%s, ret=%d",
+            url.c_str(), data.c_str(), res.c_str(), ret);
+        return;
+    }
+    
+    if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
+        ret = ERROR_HTTP_DATA_INVLIAD;
+        srs_warn("http hook on_dvr_keyframe validate failed, ignored. "
+            "res=%s, ret=%d", res.c_str(), ret);
+        return;
+    }
+    
+    srs_trace("http hook on_dvr_keyframe success. "
+        "url=%s, request=%s, response=%s, ret=%d",
+        url.c_str(), data.c_str(), res.c_str(), ret);
     
     return;
 }

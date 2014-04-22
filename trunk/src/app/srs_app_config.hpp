@@ -173,6 +173,7 @@ public:
     virtual SrsConfDirective*   get_vhost_on_unpublish(std::string vhost);
     virtual SrsConfDirective*   get_vhost_on_play(std::string vhost);
     virtual SrsConfDirective*   get_vhost_on_stop(std::string vhost);
+    virtual SrsConfDirective*   get_vhost_on_dvr_keyframe(std::string vhost);
     virtual bool                get_gop_cache(std::string vhost);
     virtual bool                get_atc(std::string vhost);
     virtual double              get_queue_length(std::string vhost);

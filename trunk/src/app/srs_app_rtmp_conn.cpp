@@ -68,9 +68,6 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* srs_server, st_netfd_t client_stfd)
     skt = new SrsSocket(client_stfd);
     rtmp = new SrsRtmpServer(skt);
     refer = new SrsRefer();
-#ifdef SRS_AUTO_HTTP_CALLBACK    
-    http_hooks = new SrsHttpHooks();
-#endif
     bandwidth = new SrsBandwidth();
     duration = 0;
     
@@ -86,9 +83,6 @@ SrsRtmpConn::~SrsRtmpConn()
     srs_freep(rtmp);
     srs_freep(skt);
     srs_freep(refer);
-#ifdef SRS_AUTO_HTTP_CALLBACK    
-    srs_freep(http_hooks);
-#endif
     srs_freep(bandwidth);
 }
 
@@ -730,7 +724,7 @@ int SrsRtmpConn::on_connect()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_AUTO_HTTP_CALLBACK    
+#ifdef SRS_AUTO_HTTP_CALLBACK
     // HTTP: on_connect 
     SrsConfDirective* on_connect = _srs_config->get_vhost_on_connect(req->vhost);
     if (!on_connect) {
@@ -740,7 +734,7 @@ int SrsRtmpConn::on_connect()
     
     for (int i = 0; i < (int)on_connect->args.size(); i++) {
         std::string url = on_connect->args.at(i);
-        if ((ret = http_hooks->on_connect(url, connection_id, ip, req)) != ERROR_SUCCESS) {
+        if ((ret = SrsHttpHooks::on_connect(url, connection_id, ip, req)) != ERROR_SUCCESS) {
             srs_error("hook client on_connect failed. url=%s, ret=%d", url.c_str(), ret);
             return ret;
         }
@@ -763,7 +757,7 @@ void SrsRtmpConn::on_close()
     
     for (int i = 0; i < (int)on_close->args.size(); i++) {
         std::string url = on_close->args.at(i);
-        http_hooks->on_close(url, connection_id, ip, req);
+        SrsHttpHooks::on_close(url, connection_id, ip, req);
     }
 #endif
 }
@@ -782,7 +776,7 @@ int SrsRtmpConn::on_publish()
     
     for (int i = 0; i < (int)on_publish->args.size(); i++) {
         std::string url = on_publish->args.at(i);
-        if ((ret = http_hooks->on_publish(url, connection_id, ip, req)) != ERROR_SUCCESS) {
+        if ((ret = SrsHttpHooks::on_publish(url, connection_id, ip, req)) != ERROR_SUCCESS) {
             srs_error("hook client on_publish failed. url=%s, ret=%d", url.c_str(), ret);
             return ret;
         }
@@ -805,7 +799,7 @@ void SrsRtmpConn::on_unpublish()
     
     for (int i = 0; i < (int)on_unpublish->args.size(); i++) {
         std::string url = on_unpublish->args.at(i);
-        http_hooks->on_unpublish(url, connection_id, ip, req);
+        SrsHttpHooks::on_unpublish(url, connection_id, ip, req);
     }
 #endif
 }
@@ -824,7 +818,7 @@ int SrsRtmpConn::on_play()
     
     for (int i = 0; i < (int)on_play->args.size(); i++) {
         std::string url = on_play->args.at(i);
-        if ((ret = http_hooks->on_play(url, connection_id, ip, req)) != ERROR_SUCCESS) {
+        if ((ret = SrsHttpHooks::on_play(url, connection_id, ip, req)) != ERROR_SUCCESS) {
             srs_error("hook client on_play failed. url=%s, ret=%d", url.c_str(), ret);
             return ret;
         }
@@ -847,7 +841,7 @@ void SrsRtmpConn::on_stop()
     
     for (int i = 0; i < (int)on_stop->args.size(); i++) {
         std::string url = on_stop->args.at(i);
-        http_hooks->on_stop(url, connection_id, ip, req);
+        SrsHttpHooks::on_stop(url, connection_id, ip, req);
     }
 #endif
 

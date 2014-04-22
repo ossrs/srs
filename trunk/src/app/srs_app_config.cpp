@@ -1560,6 +1560,27 @@ SrsConfDirective* SrsConfig::get_vhost_on_stop(string vhost)
     return conf->get("on_stop");
 }
 
+SrsConfDirective* SrsConfig::get_vhost_on_dvr_keyframe(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) { 
+        return NULL;
+    }
+    
+    conf = conf->get("http_hooks");
+    if (!conf) {
+        return NULL;
+    }
+    
+    SrsConfDirective* enabled = conf->get("enabled");
+    if (!enabled || enabled->arg0() != "on") {
+        return NULL;
+    }
+    
+    return conf->get("on_dvr_keyframe");
+}
+
 bool SrsConfig::get_vhost_enabled(string vhost)
 {
     SrsConfDirective* vhost_conf = get_vhost(vhost);
