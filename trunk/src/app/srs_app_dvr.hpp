@@ -127,6 +127,10 @@ protected:
     SrsSource* _source;
     SrsRequest* _req;
     SrsRtmpJitter* jitter;
+    /**
+    * current flv file path.
+    */
+    std::string current_flv_path;
 public:
     SrsDvrPlan();
     virtual ~SrsDvrPlan();

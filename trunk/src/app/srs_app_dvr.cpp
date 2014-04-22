@@ -454,7 +454,9 @@ int SrsDvrPlan::flv_open(string stream, string path)
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = fs->open(path)) != ERROR_SUCCESS) {
+    current_flv_path = path;
+    std::string tmp_file = path + ".tmp";
+    if ((ret = fs->open(tmp_file)) != ERROR_SUCCESS) {
         srs_error("open file stream for file %s failed. ret=%d", path.c_str(), ret);
         return ret;
     }
@@ -487,7 +489,21 @@ int SrsDvrPlan::on_video_msg(SrsSharedPtrMessage* /*video*/)
 
 int SrsDvrPlan::flv_close()
 {
-    return fs->close();
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = fs->close()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    std::string tmp_file = current_flv_path + ".tmp";
+    if (rename(tmp_file.c_str(), current_flv_path.c_str()) < 0) {
+        ret = ERROR_SYSTEM_FILE_RENAME;
+        srs_error("rename flv file failed, %s => %s. ret=%d", 
+            tmp_file.c_str(), current_flv_path.c_str(), ret);
+        return ret;
+    }
+    
+    return ret;
 }
 
 int SrsDvrPlan::on_dvr_keyframe()
