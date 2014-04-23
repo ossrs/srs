@@ -108,6 +108,30 @@ private:
 };
 
 /**
+* a piece of flv segment.
+*/
+class SrsFlvSegment
+{
+public:
+    /**
+    * current flv file path.
+    */
+    std::string current_flv_path;
+    /**
+    * whether current segment has keyframe.
+    */
+    bool segment_has_keyframe;
+	/**
+	* current segment duration and starttime.
+	*/
+    int64_t duration;
+    int64_t starttime;
+public:
+    SrsFlvSegment();
+    virtual void reset();
+};
+
+/**
 * the plan for dvr.
 * use to control the following dvr params:
 * 1. filename: the filename for record file.
@@ -127,20 +151,7 @@ protected:
     SrsSource* _source;
     SrsRequest* _req;
     SrsRtmpJitter* jitter;
-protected:
-    /**
-    * current flv file path.
-    */
-    std::string current_flv_path;
-    /**
-    * whether current segment has keyframe.
-    */
-    bool segment_has_keyframe;
-	/**
-	* current segment duration and starttime.
-	*/
-    int64_t duration;
-    int64_t starttime;
+    SrsFlvSegment* segment;
 public:
     SrsDvrPlan();
     virtual ~SrsDvrPlan();
