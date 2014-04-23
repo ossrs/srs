@@ -121,11 +121,15 @@ public:
     * whether current segment has keyframe.
     */
     bool segment_has_keyframe;
-	/**
-	* current segment duration and starttime.
-	*/
+    /**
+    * current segment duration and starttime.
+    */
     int64_t duration;
     int64_t starttime;
+    /**
+    * stream start time, to generate atc pts.
+    */
+    int64_t stream_starttime;
 public:
     SrsFlvSegment();
     virtual void reset();
@@ -137,6 +141,7 @@ public:
 * 1. filename: the filename for record file.
 * 2. reap flv: when to reap the flv and start new piece.
 */
+// TODO: FIXME: the plan is too fat, refine me.
 class SrsDvrPlan
 {
 protected:
@@ -165,12 +170,13 @@ public:
 protected:
     virtual int flv_open(std::string stream, std::string path);
     virtual int flv_close();
+    virtual int open_new_segment();
     virtual int update_duration(SrsSharedPtrMessage* msg);
 private:
-	/**
-	* when srs reap the flv(close the segment),
-	* if has keyframe, notice the api.
-	*/
+    /**
+    * when srs reap the flv(close the segment),
+    * if has keyframe, notice the api.
+    */
     virtual int on_dvr_keyframe();
 public:
     static SrsDvrPlan* create_plan(std::string vhost);

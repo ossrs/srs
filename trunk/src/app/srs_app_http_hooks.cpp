@@ -36,6 +36,7 @@ using namespace std;
 #include <srs_app_socket.hpp>
 #include <srs_app_http.hpp>
 #include <srs_app_json.hpp>
+#include <srs_app_dvr.hpp>
 
 #define SRS_HTTP_RESPONSE_OK "0"
 
@@ -194,14 +195,6 @@ int SrsHttpHooks::on_connect(string url, int client_id, string ip, SrsRequest* r
         return ret;
     }
     
-    /**
-    {
-        "action": "on_connect",
-        "client_id": 1985,
-        "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
-        "pageUrl": "http://www.test.com/live.html"
-    }
-    */
     std::stringstream ss;
     ss << JOBJECT_START
         << JFIELD_STR("action", "on_connect") << JFIELD_CONT
@@ -247,14 +240,6 @@ void SrsHttpHooks::on_close(string url, int client_id, string ip, SrsRequest* re
         return;
     }
     
-    /**
-    {
-        "action": "on_close",
-        "client_id": 1985,
-        "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
-        "stream": "livestream"
-    }
-    */
     std::stringstream ss;
     ss << JOBJECT_START
         << JFIELD_STR("action", "on_close") << JFIELD_CONT
@@ -300,14 +285,6 @@ int SrsHttpHooks::on_publish(string url, int client_id, string ip, SrsRequest* r
         return ret;
     }
     
-    /**
-    {
-        "action": "on_publish",
-        "client_id": 1985,
-        "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
-        "stream": "livestream"
-    }
-    */
     std::stringstream ss;
     ss << JOBJECT_START
         << JFIELD_STR("action", "on_publish") << JFIELD_CONT
@@ -354,14 +331,6 @@ void SrsHttpHooks::on_unpublish(string url, int client_id, string ip, SrsRequest
         return;
     }
     
-    /**
-    {
-        "action": "on_unpublish",
-        "client_id": 1985,
-        "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
-        "stream": "livestream"
-    }
-    */
     std::stringstream ss;
     ss << JOBJECT_START
         << JFIELD_STR("action", "on_unpublish") << JFIELD_CONT
@@ -408,14 +377,6 @@ int SrsHttpHooks::on_play(string url, int client_id, string ip, SrsRequest* req)
         return ret;
     }
     
-    /**
-    {
-        "action": "on_play",
-        "client_id": 1985,
-        "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
-        "stream": "livestream"
-    }
-    */
     std::stringstream ss;
     ss << JOBJECT_START
         << JFIELD_STR("action", "on_play") << JFIELD_CONT
@@ -462,14 +423,6 @@ void SrsHttpHooks::on_stop(string url, int client_id, string ip, SrsRequest* req
         return;
     }
     
-    /**
-    {
-        "action": "on_stop",
-        "client_id": 1985,
-        "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
-        "stream": "livestream"
-    }
-    */
     std::stringstream ss;
     ss << JOBJECT_START
         << JFIELD_STR("action", "on_stop") << JFIELD_CONT
@@ -505,9 +458,14 @@ void SrsHttpHooks::on_stop(string url, int client_id, string ip, SrsRequest* req
     return;
 }
 
-void SrsHttpHooks::on_dvr_keyframe(string url, SrsRequest* req)
+void SrsHttpHooks::on_dvr_keyframe(string url, SrsRequest* req, SrsFlvSegment* segment)
 {
     int ret = ERROR_SUCCESS;
+    
+    srs_trace("flv segment %s, atc_start=%"PRId64", "
+        "has_key=%d, starttime=%"PRId64", duration=%d", 
+        segment->current_flv_path.c_str(), segment->stream_starttime,
+        segment->segment_has_keyframe, segment->starttime, (int)segment->duration);
     
     SrsHttpUri uri;
     if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
@@ -516,13 +474,6 @@ void SrsHttpHooks::on_dvr_keyframe(string url, SrsRequest* req)
         return;
     }
     
-    /**
-    {
-        "action": "on_dvr_keyframe",
-        "vhost": "video.test.com", "app": "live",
-        "stream": "livestream"
-    }
-    */
     std::stringstream ss;
     ss << JOBJECT_START
         << JFIELD_STR("action", "on_dvr_keyframe") << JFIELD_CONT

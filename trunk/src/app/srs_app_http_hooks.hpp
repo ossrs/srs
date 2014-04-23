@@ -37,6 +37,7 @@ class SrsHttpUri;
 class SrsSocket;
 class SrsRequest;
 class SrsHttpParser;
+class SrsFlvSegment;
 
 #include <srs_app_st.hpp>
 
@@ -126,8 +127,9 @@ public:
     * on_dvr_keyframe hook, when dvr get keyframe.
     * @param url the api server url, to process the event. 
     *         ignore if empty.
+    * @param segment the current flv segment.
     */
-    static void on_dvr_keyframe(std::string url, SrsRequest* req);
+    static void on_dvr_keyframe(std::string url, SrsRequest* req, SrsFlvSegment* segment);
 };
 
 #endif

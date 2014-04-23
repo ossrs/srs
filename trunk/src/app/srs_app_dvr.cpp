@@ -303,10 +303,12 @@ SrsFlvSegment::SrsFlvSegment()
     segment_has_keyframe = false;
     duration = 0;
     starttime = -1;
+    stream_starttime = 0;
 }
 
 void SrsFlvSegment::reset()
 {
+    segment_has_keyframe = false;
     duration = 0;
     starttime = -1;
 }
@@ -319,7 +321,7 @@ SrsDvrPlan::SrsDvrPlan()
     dvr_enabled = false;
     fs = new SrsFileStream();
     enc = new SrsFlvEncoder();
-    segment = NULL;
+    segment = new SrsFlvSegment();
 }
 
 SrsDvrPlan::~SrsDvrPlan()
@@ -361,6 +363,22 @@ int SrsDvrPlan::on_publish()
     
     // always update time cache.
     srs_update_system_time_ms();
+    
+    // when republish, stream starting.
+    segment->stream_starttime = srs_get_system_time_ms();
+    
+    if ((ret = open_new_segment()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsDvrPlan::open_new_segment()
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsRequest* req = _req;
     
     // new flv file
     std::stringstream path;
@@ -468,8 +486,7 @@ int SrsDvrPlan::flv_open(string stream, string path)
 {
     int ret = ERROR_SUCCESS;
     
-    srs_freep(segment);
-    segment = new SrsFlvSegment();
+    segment->reset();
     
     std::string tmp_file = path + ".tmp";
     if ((ret = fs->open(tmp_file)) != ERROR_SUCCESS) {
@@ -548,7 +565,7 @@ int SrsDvrPlan::on_dvr_keyframe()
     
     for (int i = 0; i < (int)on_dvr_keyframe->args.size(); i++) {
         std::string url = on_dvr_keyframe->args.at(i);
-        SrsHttpHooks::on_dvr_keyframe(url, _req);
+        SrsHttpHooks::on_dvr_keyframe(url, _req, segment);
     }
 #endif
     
@@ -620,6 +637,9 @@ int SrsDvrSegmentPlan::on_publish()
     int ret = ERROR_SUCCESS;
     
     // if already opened, continue to dvr.
+    // the segment plan maybe keep running longer than the encoder.
+    // for example, segment running, encoder restart,
+    // the segment plan will just continue going and donot open new segment.
     if (fs->is_open()) {
         dvr_enabled = true;
         return ret;
@@ -648,15 +668,14 @@ int SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
     srs_assert(segment);
     
     // reap if exceed duration.
-    if (segment->duration > 0 && segment_duration > 0 && segment->duration > segment_duration) {
-        segment->reset();
-        
+    if (segment_duration > 0 && segment->duration > segment_duration) {
         if ((ret = flv_close()) != ERROR_SUCCESS) {
+            segment->reset();
             return ret;
         }
         on_unpublish();
         
-        if ((ret = on_publish()) != ERROR_SUCCESS) {
+        if ((ret = open_new_segment()) != ERROR_SUCCESS) {
             return ret;
         }
     }
