@@ -305,6 +305,9 @@ SrsDvrPlan::SrsDvrPlan()
     dvr_enabled = false;
     fs = new SrsFileStream();
     enc = new SrsFlvEncoder();
+    segment_has_keyframe = true;
+    starttime = -1;
+    duration = 0;
 }
 
 SrsDvrPlan::~SrsDvrPlan()
@@ -407,7 +410,7 @@ int SrsDvrPlan::on_audio(SrsSharedPtrMessage* audio)
         return ret;
     }
     
-    if ((ret = on_audio_msg(audio)) != ERROR_SUCCESS) {
+    if ((ret = update_duration(audio)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -435,15 +438,13 @@ int SrsDvrPlan::on_video(SrsSharedPtrMessage* video)
     
 #ifdef SRS_AUTO_HTTP_CALLBACK
     bool is_key_frame = SrsCodec::video_is_keyframe((int8_t*)payload, size);
-    srs_verbose("dvr video is key: %d", is_key_frame);
     if (is_key_frame) {
-        if ((ret = on_dvr_keyframe()) != ERROR_SUCCESS) {
-            return ret;
-        }
+        segment_has_keyframe = true;
     }
+    srs_verbose("dvr video is key: %d", is_key_frame);
 #endif
     
-    if ((ret = on_video_msg(video)) != ERROR_SUCCESS) {
+    if ((ret = update_duration(video)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -471,19 +472,9 @@ int SrsDvrPlan::flv_open(string stream, string path)
         return ret;
     }
     
+    segment_has_keyframe = false;
+    
     srs_trace("dvr stream %s to file %s", stream.c_str(), path.c_str());
-    return ret;
-}
-
-int SrsDvrPlan::on_audio_msg(SrsSharedPtrMessage* /*audio*/)
-{
-    int ret = ERROR_SUCCESS;
-    return ret;
-}
-
-int SrsDvrPlan::on_video_msg(SrsSharedPtrMessage* /*video*/)
-{
-    int ret = ERROR_SUCCESS;
     return ret;
 }
 
@@ -502,6 +493,28 @@ int SrsDvrPlan::flv_close()
             tmp_file.c_str(), current_flv_path.c_str(), ret);
         return ret;
     }
+    
+#ifdef SRS_AUTO_HTTP_CALLBACK
+    if (segment_has_keyframe) {
+        if ((ret = on_dvr_keyframe()) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+#endif
+    
+    return ret;
+}
+
+int SrsDvrPlan::update_duration(SrsSharedPtrMessage* msg)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // foreach msg, collect the duration.
+    if (starttime < 0 || starttime > msg->header.timestamp) {
+        starttime = msg->header.timestamp;
+    }
+    duration += msg->header.timestamp - starttime;
+    starttime = msg->header.timestamp;
     
     return ret;
 }
@@ -565,8 +578,6 @@ void SrsDvrSessionPlan::on_unpublish()
 
 SrsDvrSegmentPlan::SrsDvrSegmentPlan()
 {
-    starttime = -1;
-    duration = 0;
     segment_duration = -1;
 }
 
@@ -611,38 +622,13 @@ void SrsDvrSegmentPlan::on_unpublish()
     dvr_enabled = false;
 }
 
-int SrsDvrSegmentPlan::on_audio_msg(SrsSharedPtrMessage* audio)
-{
-    int ret = ERROR_SUCCESS;
-    
-    if ((ret = update_duration(audio)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    return ret;
-}
-
-int SrsDvrSegmentPlan::on_video_msg(SrsSharedPtrMessage* video)
-{
-    int ret = ERROR_SUCCESS;
-    
-    if ((ret = update_duration(video)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    return ret;
-}
-
 int SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
-    // foreach msg, collect the duration.
-    if (starttime < 0 || starttime > msg->header.timestamp) {
-        starttime = msg->header.timestamp;
+    if ((ret = SrsDvrPlan::update_duration(msg)) != ERROR_SUCCESS) {
+        return ret;
     }
-    duration += msg->header.timestamp - starttime;
-    starttime = msg->header.timestamp;
     
     // reap if exceed duration.
     if (duration > 0 && segment_duration > 0 && duration > segment_duration) {

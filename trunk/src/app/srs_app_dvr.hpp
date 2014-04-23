@@ -127,10 +127,20 @@ protected:
     SrsSource* _source;
     SrsRequest* _req;
     SrsRtmpJitter* jitter;
+protected:
     /**
     * current flv file path.
     */
     std::string current_flv_path;
+    /**
+    * whether current segment has keyframe.
+    */
+    bool segment_has_keyframe;
+	/**
+	* current segment duration and starttime.
+	*/
+    int64_t duration;
+    int64_t starttime;
 public:
     SrsDvrPlan();
     virtual ~SrsDvrPlan();
@@ -143,14 +153,13 @@ public:
     virtual int on_video(SrsSharedPtrMessage* video);
 protected:
     virtual int flv_open(std::string stream, std::string path);
-    /**
-    * user should override this method.
-    * for the audio/video is corrected by jitter.
-    */
-    virtual int on_audio_msg(SrsSharedPtrMessage* audio);
-    virtual int on_video_msg(SrsSharedPtrMessage* video);
     virtual int flv_close();
+    virtual int update_duration(SrsSharedPtrMessage* msg);
 private:
+	/**
+	* when srs reap the flv(close the segment),
+	* if has keyframe, notice the api.
+	*/
     virtual int on_dvr_keyframe();
 public:
     static SrsDvrPlan* create_plan(std::string vhost);
@@ -174,8 +183,6 @@ public:
 class SrsDvrSegmentPlan : public SrsDvrPlan
 {
 private:
-    int64_t duration;
-    int64_t starttime;
     // in config, in ms
     int segment_duration;
 public:
@@ -185,8 +192,6 @@ public:
     virtual int initialize(SrsSource* source, SrsRequest* req);
     virtual int on_publish();
     virtual void on_unpublish();
-    virtual int on_audio_msg(SrsSharedPtrMessage* audio);
-    virtual int on_video_msg(SrsSharedPtrMessage* video);
 private:
     virtual int update_duration(SrsSharedPtrMessage* msg);
 };
