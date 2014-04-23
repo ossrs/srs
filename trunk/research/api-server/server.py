@@ -379,7 +379,7 @@ class RESTServers(object):
         
     def __refresh_nodes(self):
         has_dead_node = False
-        while True:
+        while len(self.__nodes) > 0:
             for node in self.__nodes:
                 if node.dead():
                     self.__nodes.remove(node)
@@ -601,7 +601,7 @@ class RESTNodes(object):
         
     def __refresh_nodes(self):
         has_dead_node = False
-        while True:
+        while len(self.__nodes) > 0:
             for node in self.__nodes:
                 if node.dead():
                     self.__nodes.remove(node)
@@ -997,7 +997,7 @@ conf = {
         'tools.encode.on': True,
         'tools.staticdir.on': True,
         'tools.encode.encoding': "utf-8",
-        'server.thread_pool': 2, # single thread server.
+        #'server.thread_pool': 2, # single thread server.
     },
     '/': {
         'tools.staticdir.dir': static_dir,
