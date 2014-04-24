@@ -512,6 +512,20 @@ Remark:
     cli analysis and summary the data, return to user.
 </pre>
 
+### Live FlashP2P
+
+<pre>
+                                  +--DVR------>-(flv file)
++----------+          +-----+     |          
+| encoder  +--RTMP-->-+ SRS +-->--+          
++----------+          +-----+     |          
+                                  |           +------------+
+                                  +---HTTP-->-+ P2P system +
+                                    callback  +------------+
+</pre>
+
+Remark: P2P system provides by [chnvideo.com](http://www.chnvideo.com)
+
 ### Bandwidth Test Workflow
 
 <pre>
