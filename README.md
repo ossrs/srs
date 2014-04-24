@@ -47,7 +47,9 @@ SRS supports [vhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUr
 rtmp([encoder push](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryRTMP), client/edge pull), [ingester(srs pull)](https://github.com/winlinvip/simple-rtmp-server/wiki/Ingest), 
 [HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), [HLS audio only](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS#hlsaudioonly), [transcoding](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), 
 [forward](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), [http hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback), [http api](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPApi), 
-[http server](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPServer) and [dvr](https://github.com/winlinvip/simple-rtmp-server/wiki/DVR).
+[http server](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPServer), [dvr](https://github.com/winlinvip/simple-rtmp-server/wiki/DVR), [FlashP2P](https://github.com/winlinvip/simple-rtmp-server/wiki/FlashP2P).
+
+注意：FlashP2P系统为[chnvideo.com](http://www.chnvideo.com)商业方案，SRS只是支持对接。
 
 Release: [http://winlinvip.github.io/simple-rtmp-server](http://winlinvip.github.io/simple-rtmp-server)  <br/>
 Blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin)  <br/>
@@ -525,6 +527,8 @@ Remark:
 </pre>
 
 Remark: P2P system provides by [chnvideo.com](http://www.chnvideo.com)
+
+注意：FlashP2P系统为[chnvideo.com](http://www.chnvideo.com)商业方案，SRS只是支持对接。
 
 ### Bandwidth Test Workflow
 
