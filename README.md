@@ -157,6 +157,7 @@ Supported operating systems and hardware:
 1. Support stream ingester using ffmpeg.
 1. Support ingest RTSP(RTP, SDP) stream to RTMP.
 1. Support dvr(record live to flv file for vod)
+1. Support live flashP2P(integrated by chnvideo VDN).
 1. [plan] Support file to hls vod stream.
 1. [plan] Support system full utest on gtest.
 1. [plan] Support RTMP edge server, push/pull stream from any RTMP server
@@ -184,6 +185,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v1.0, 2014-04-24, support live flashP2P(integrated by chnvideo VDN). 0.9.75
 * v1.0, 2014-04-21, support android app to start srs for internal edge. 0.9.72
 * v1.0, 2014-04-19, support tool over srs-librtmp to ingest flv/rtmp. 0.9.71
 * v1.0, 2014-04-17, support dvr(record live to flv file for vod). 0.9.69

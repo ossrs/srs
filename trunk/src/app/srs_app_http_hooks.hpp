@@ -124,12 +124,12 @@ public:
     static void on_stop(std::string url, int client_id, std::string ip, SrsRequest* req);
 public:
     /**
-    * on_dvr_keyframe hook, when dvr get keyframe.
+    * on_dvr_reap_flv hook, when dvr close flv file.
     * @param url the api server url, to process the event. 
     *         ignore if empty.
     * @param segment the current flv segment.
     */
-    static void on_dvr_keyframe(std::string url, SrsRequest* req, SrsFlvSegment* segment);
+    static void on_dvr_reap_flv(std::string url, SrsRequest* req, SrsFlvSegment* segment);
 };
 
 #endif

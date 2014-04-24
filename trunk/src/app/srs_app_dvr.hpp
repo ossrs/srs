@@ -62,6 +62,10 @@ public:
     * @param pnwrite, return the write size. NULL to ignore.
     */
     virtual int write(void* buf, size_t count, ssize_t* pnwrite);
+    /**
+    * tell current offset of stream.
+    */
+    virtual int64_t tellg();
 };
 
 /**
@@ -101,8 +105,8 @@ public:
     /**
     * write audio/video packet.
     */
-    virtual int write_audio(int32_t timestamp, char* data, int size);
-    virtual int write_video(int32_t timestamp, char* data, int size);
+    virtual int write_audio(int64_t timestamp, char* data, int size);
+    virtual int write_video(int64_t timestamp, char* data, int size);
 private:
     virtual int write_tag(char* header, int header_size, char* tag, int tag_size);
 };
@@ -121,6 +125,10 @@ public:
     * whether current segment has keyframe.
     */
     bool has_keyframe;
+    /**
+    * sequence header offset in file.
+    */
+    int64_t sequence_header_offset;
     /**
     * current segment starttime, RTMP pkt time.
     */
@@ -184,12 +192,15 @@ protected:
     virtual int flv_close();
     virtual int open_new_segment();
     virtual int update_duration(SrsSharedPtrMessage* msg);
+    virtual int write_flv_header();
+    virtual int on_dvr_request_sh();
+    virtual int on_video_keyframe();
+    virtual int64_t filter_timestamp(int64_t timestamp);
 private:
     /**
-    * when srs reap the flv(close the segment),
-    * if has keyframe, notice the api.
+    * when srs reap the flv(close the segment), notice the api.
     */
-    virtual int on_dvr_keyframe();
+    virtual int on_dvr_reap_flv();
 public:
     static SrsDvrPlan* create_plan(std::string vhost);
 };
@@ -233,8 +244,6 @@ class SrsDvrHssPlan : public SrsDvrPlan
 private:
     // in config, in ms
     int segment_duration;
-    // the deviation of starttime of the nature clock time.
-    int start_deviation;
     int64_t expect_reap_time;
 public:
     SrsDvrHssPlan();
@@ -243,6 +252,12 @@ public:
     virtual int initialize(SrsSource* source, SrsRequest* req);
     virtual int on_publish();
     virtual void on_unpublish();
+    virtual int on_meta_data(SrsOnMetaDataPacket* metadata);
+protected:
+    virtual int write_flv_header();
+    virtual int on_dvr_request_sh();
+    virtual int on_video_keyframe();
+    virtual int64_t filter_timestamp(int64_t timestamp);
 private:
     virtual int update_duration(SrsSharedPtrMessage* msg);
 };

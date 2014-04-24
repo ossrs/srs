@@ -721,14 +721,14 @@ int SrsSource::on_hls_start()
     return ret;
 }
 
-int SrsSource::on_dvr_start()
+int SrsSource::on_dvr_request_sh()
 {
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_DVR
     // feed the dvr the metadata/sequence header,
     // when reload to start dvr, dvr will never get the sequence header in stream,
-    // use the SrsSource.on_dvr_start to push the sequence header to DVR.
+    // use the SrsSource.on_dvr_request_sh to push the sequence header to DVR.
     if (cache_metadata) {
         char* payload = (char*)cache_metadata->payload;
         int size = (int)cache_metadata->size;

@@ -138,6 +138,11 @@ int SrsFileStream::write(void* buf, size_t count, ssize_t* pnwrite)
     return ret;
 }
 
+int64_t SrsFileStream::tellg()
+{
+    return (int64_t)::lseek(fd, 0, SEEK_CUR);
+}
+
 SrsFlvEncoder::SrsFlvEncoder()
 {
     _fs = NULL;
@@ -209,9 +214,11 @@ int SrsFlvEncoder::write_metadata(char* data, int size)
     return ret;
 }
 
-int SrsFlvEncoder::write_audio(int32_t timestamp, char* data, int size)
+int SrsFlvEncoder::write_audio(int64_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
+    
+    timestamp &= 0x7fffffff;
     
     static char tag_header[] = {
         (char)8, // TagType UB [5], 8 = audio
@@ -238,9 +245,11 @@ int SrsFlvEncoder::write_audio(int32_t timestamp, char* data, int size)
     return ret;
 }
 
-int SrsFlvEncoder::write_video(int32_t timestamp, char* data, int size)
+int SrsFlvEncoder::write_video(int64_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
+    
+    timestamp &= 0x7fffffff;
     
     static char tag_header[] = {
         (char)9, // TagType UB [5], 9 = video
@@ -303,6 +312,7 @@ SrsFlvSegment::SrsFlvSegment()
     has_keyframe = false;
     duration = 0;
     starttime = -1;
+    sequence_header_offset = 0;
     stream_starttime = 0;
     stream_previous_pkt_time = -1;
     stream_duration = 0;
@@ -313,6 +323,7 @@ void SrsFlvSegment::reset()
     has_keyframe = false;
     starttime = -1;
     duration = 0;
+    sequence_header_offset = 0;
 }
 
 SrsDvrPlan::SrsDvrPlan()
@@ -396,12 +407,30 @@ int SrsDvrPlan::open_new_segment()
     }
     dvr_enabled = true;
     
+    return ret;
+}
+
+int SrsDvrPlan::on_dvr_request_sh()
+{
+    int ret = ERROR_SUCCESS;
+    
     // the dvr is enabled, notice the source to push the data.
-    if ((ret = _source->on_dvr_start()) != ERROR_SUCCESS) {
+    if ((ret = _source->on_dvr_request_sh()) != ERROR_SUCCESS) {
         return ret;
     }
     
     return ret;
+}
+
+int SrsDvrPlan::on_video_keyframe()
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+int64_t SrsDvrPlan::filter_timestamp(int64_t timestamp)
+{
+    return timestamp;
 }
 
 int SrsDvrPlan::on_meta_data(SrsOnMetaDataPacket* metadata)
@@ -438,9 +467,9 @@ int SrsDvrPlan::on_audio(SrsSharedPtrMessage* audio)
         return ret;
     }
     
-    int32_t timestamp = audio->header.timestamp;
     char* payload = (char*)audio->payload;
     int size = (int)audio->size;
+    int64_t timestamp = filter_timestamp(audio->header.timestamp);
     if ((ret = enc->write_audio(timestamp, payload, size)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -460,24 +489,30 @@ int SrsDvrPlan::on_video(SrsSharedPtrMessage* video)
         return ret;
     }
     
+    char* payload = (char*)video->payload;
+    int size = (int)video->size;
+    
+#ifdef SRS_AUTO_HTTP_CALLBACK
+    bool is_key_frame = SrsCodec::video_is_h264((int8_t*)payload, size) 
+        && SrsCodec::video_is_keyframe((int8_t*)payload, size) 
+        && !SrsCodec::video_is_sequence_header((int8_t*)payload, size);
+    if (is_key_frame) {
+        segment->has_keyframe = true;
+        if ((ret = on_video_keyframe()) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    srs_verbose("dvr video is key: %d", is_key_frame);
+#endif
+    
     if ((jitter->correct(video, 0, 0)) != ERROR_SUCCESS) {
         return ret;
     }
     
-    int32_t timestamp = video->header.timestamp;
-    char* payload = (char*)video->payload;
-    int size = (int)video->size;
+    int32_t timestamp = filter_timestamp(video->header.timestamp);
     if ((ret = enc->write_video(timestamp, payload, size)) != ERROR_SUCCESS) {
         return ret;
     }
-    
-#ifdef SRS_AUTO_HTTP_CALLBACK
-    bool is_key_frame = SrsCodec::video_is_keyframe((int8_t*)payload, size);
-    if (is_key_frame) {
-        segment->has_keyframe = true;
-    }
-    srs_verbose("dvr video is key: %d", is_key_frame);
-#endif
     
     if ((ret = update_duration(video)) != ERROR_SUCCESS) {
         return ret;
@@ -503,8 +538,7 @@ int SrsDvrPlan::flv_open(string stream, string path)
         return ret;
     }
     
-    if ((ret = enc->write_header()) != ERROR_SUCCESS) {
-        srs_error("write flv header for file %s failed. ret=%d", path.c_str(), ret);
+    if ((ret = write_flv_header()) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -531,10 +565,8 @@ int SrsDvrPlan::flv_close()
     }
     
 #ifdef SRS_AUTO_HTTP_CALLBACK
-    if (segment->has_keyframe) {
-        if ((ret = on_dvr_keyframe()) != ERROR_SUCCESS) {
-            return ret;
-        }
+    if ((ret = on_dvr_reap_flv()) != ERROR_SUCCESS) {
+        return ret;
     }
 #endif
     
@@ -568,21 +600,33 @@ int SrsDvrPlan::update_duration(SrsSharedPtrMessage* msg)
     return ret;
 }
 
-int SrsDvrPlan::on_dvr_keyframe()
+int SrsDvrPlan::write_flv_header()
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = enc->write_header()) != ERROR_SUCCESS) {
+        srs_error("write flv header failed. ret=%d", ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsDvrPlan::on_dvr_reap_flv()
 {
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_HTTP_CALLBACK
-    // HTTP: on_dvr_keyframe 
-    SrsConfDirective* on_dvr_keyframe = _srs_config->get_vhost_on_dvr_keyframe(_req->vhost);
-    if (!on_dvr_keyframe) {
-        srs_info("ignore the empty http callback: on_dvr_keyframe");
+    // HTTP: on_dvr_reap_flv 
+    SrsConfDirective* on_dvr_reap_flv = _srs_config->get_vhost_on_dvr_reap_flv(_req->vhost);
+    if (!on_dvr_reap_flv) {
+        srs_info("ignore the empty http callback: on_dvr_reap_flv");
         return ret;
     }
     
-    for (int i = 0; i < (int)on_dvr_keyframe->args.size(); i++) {
-        std::string url = on_dvr_keyframe->args.at(i);
-        SrsHttpHooks::on_dvr_keyframe(url, _req, segment);
+    for (int i = 0; i < (int)on_dvr_reap_flv->args.size(); i++) {
+        std::string url = on_dvr_reap_flv->args.at(i);
+        SrsHttpHooks::on_dvr_reap_flv(url, _req, segment);
     }
 #endif
     
@@ -705,7 +749,6 @@ int SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
 SrsDvrHssPlan::SrsDvrHssPlan()
 {
     segment_duration = -1;
-    start_deviation = 0;
     expect_reap_time = 0;
 }
 
@@ -748,8 +791,6 @@ int SrsDvrHssPlan::on_publish()
     
     // expect reap flv time
     expect_reap_time = segment->stream_starttime + segment_duration;
-    // the start deviation used ensure the segment starttime in nature clock.
-    start_deviation = segment->stream_starttime % 1000;
     
     return ret;
 }
@@ -761,6 +802,44 @@ void SrsDvrHssPlan::on_unpublish()
         return;
     }
     dvr_enabled = false;
+}
+
+int SrsDvrHssPlan::on_meta_data(SrsOnMetaDataPacket* /*metadata*/)
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+int SrsDvrHssPlan::write_flv_header()
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+int SrsDvrHssPlan::on_dvr_request_sh()
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+int SrsDvrHssPlan::on_video_keyframe()
+{
+    int ret = ERROR_SUCCESS;
+    
+    segment->sequence_header_offset = fs->tellg();
+    if ((ret = SrsDvrPlan::on_dvr_request_sh()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int64_t SrsDvrHssPlan::filter_timestamp(int64_t timestamp)
+{
+    //return timestamp;
+    srs_assert(segment);
+    srs_verbose("filter timestamp from %"PRId64" to %"PRId64, timestamp, segment->stream_starttime + timestamp);
+    return segment->stream_starttime + timestamp;
 }
 
 int SrsDvrHssPlan::update_duration(SrsSharedPtrMessage* msg)
@@ -784,10 +863,9 @@ int SrsDvrHssPlan::update_duration(SrsSharedPtrMessage* msg)
     // reap if exceed atc expect time.
     if (segment->stream_starttime + segment->stream_duration > expect_reap_time) {
         srs_verbose("hss reap start=%"PRId64", duration=%"PRId64", expect=%"PRId64
-            ", segment(start=%"PRId64", adjust=%"PRId64", duration=%"PRId64", file=%s", 
+            ", segment(start=%"PRId64", duration=%"PRId64", file=%s", 
             segment->stream_starttime, segment->stream_duration, expect_reap_time,
             segment->stream_starttime + segment->starttime, 
-            segment->stream_starttime + segment->starttime - start_deviation, 
             segment->duration, segment->path.c_str());
             
         // update expect reap time
