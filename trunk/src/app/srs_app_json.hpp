@@ -31,6 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // json encode macros
 #define JOBJECT_START "{"
+#define JFIELD_NAME(k) "\"" << k << "\":"
 #define JFIELD_STR(k, v) "\"" << k << "\":\"" << v << "\""
 #define JFIELD_ORG(k, v) "\"" << k << "\":" << std::dec << v
 #define JFIELD_ERROR(ret) "\"" << "code" << "\":" << ret

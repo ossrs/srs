@@ -783,7 +783,7 @@ int SrsDvrHssPlan::update_duration(SrsSharedPtrMessage* msg)
     
     // reap if exceed atc expect time.
     if (segment->stream_starttime + segment->stream_duration > expect_reap_time) {
-        srs_warn("hss reap start=%"PRId64", duration=%"PRId64", expect=%"PRId64
+        srs_verbose("hss reap start=%"PRId64", duration=%"PRId64", expect=%"PRId64
             ", segment(start=%"PRId64", adjust=%"PRId64", duration=%"PRId64", file=%s", 
             segment->stream_starttime, segment->stream_duration, expect_reap_time,
             segment->stream_starttime + segment->starttime, 

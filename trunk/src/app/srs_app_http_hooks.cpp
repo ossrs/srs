@@ -37,6 +37,7 @@ using namespace std;
 #include <srs_app_http.hpp>
 #include <srs_app_json.hpp>
 #include <srs_app_dvr.hpp>
+#include <srs_app_config.hpp>
 
 #define SRS_HTTP_RESPONSE_OK "0"
 
@@ -463,7 +464,7 @@ void SrsHttpHooks::on_dvr_keyframe(string url, SrsRequest* req, SrsFlvSegment* s
     int ret = ERROR_SUCCESS;
     
     srs_assert(segment);
-    srs_trace("flv segment %s, atc_start=%"PRId64", "
+    srs_verbose("flv segment %s, atc_start=%"PRId64", "
         "has_key=%d, starttime=%"PRId64", duration=%d", 
         segment->path.c_str(), segment->stream_starttime,
         segment->has_keyframe, segment->starttime, (int)segment->duration);
@@ -480,7 +481,14 @@ void SrsHttpHooks::on_dvr_keyframe(string url, SrsRequest* req, SrsFlvSegment* s
         << JFIELD_STR("action", "on_dvr_keyframe") << JFIELD_CONT
         << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
         << JFIELD_STR("app", req->app) << JFIELD_CONT
-        << JFIELD_STR("stream", req->stream)
+        << JFIELD_STR("stream", req->stream) << JFIELD_CONT
+        << JFIELD_NAME("segment") << JOBJECT_START
+            << JFIELD_STR("cwd", _srs_config->get_cwd()) << JFIELD_CONT
+            << JFIELD_STR("path", segment->path) << JFIELD_CONT
+            << JFIELD_ORG("pts", segment->stream_starttime + segment->starttime) << JFIELD_CONT
+            << JFIELD_ORG("duration", segment->duration) << JFIELD_CONT
+            << JFIELD_ORG("offset", 0)
+        << JOBJECT_END
         << JOBJECT_END;
     std::string data = ss.str();
     std::string res;
@@ -500,7 +508,7 @@ void SrsHttpHooks::on_dvr_keyframe(string url, SrsRequest* req, SrsFlvSegment* s
         return;
     }
     
-    srs_trace("http hook on_dvr_keyframe success. "
+    srs_info("http hook on_dvr_keyframe success. "
         "url=%s, request=%s, response=%s, ret=%d",
         url.c_str(), data.c_str(), res.c_str(), ret);
     
