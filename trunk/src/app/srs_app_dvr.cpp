@@ -299,18 +299,20 @@ int SrsFlvEncoder::write_tag(char* header, int header_size, char* tag, int tag_s
 
 SrsFlvSegment::SrsFlvSegment()
 {
-    current_flv_path = "";
-    segment_has_keyframe = false;
+    path = "";
+    has_keyframe = false;
     duration = 0;
     starttime = -1;
     stream_starttime = 0;
+    stream_previous_pkt_time = -1;
+    stream_duration = 0;
 }
 
 void SrsFlvSegment::reset()
 {
-    segment_has_keyframe = false;
-    duration = 0;
+    has_keyframe = false;
     starttime = -1;
+    duration = 0;
 }
 
 SrsDvrPlan::SrsDvrPlan()
@@ -357,7 +359,7 @@ int SrsDvrPlan::on_publish()
         return ret;
     }
     
-    // jitter.
+    // jitter when publish, ensure whole stream start from 0.
     srs_freep(jitter);
     jitter = new SrsRtmpJitter();
     
@@ -365,7 +367,9 @@ int SrsDvrPlan::on_publish()
     srs_update_system_time_ms();
     
     // when republish, stream starting.
+    segment->stream_previous_pkt_time = -1;
     segment->stream_starttime = srs_get_system_time_ms();
+    segment->stream_duration = 0;
     
     if ((ret = open_new_segment()) != ERROR_SUCCESS) {
         return ret;
@@ -470,7 +474,7 @@ int SrsDvrPlan::on_video(SrsSharedPtrMessage* video)
 #ifdef SRS_AUTO_HTTP_CALLBACK
     bool is_key_frame = SrsCodec::video_is_keyframe((int8_t*)payload, size);
     if (is_key_frame) {
-        segment->segment_has_keyframe = true;
+        segment->has_keyframe = true;
     }
     srs_verbose("dvr video is key: %d", is_key_frame);
 #endif
@@ -504,7 +508,7 @@ int SrsDvrPlan::flv_open(string stream, string path)
         return ret;
     }
     
-    segment->current_flv_path = path;
+    segment->path = path;
     
     srs_trace("dvr stream %s to file %s", stream.c_str(), path.c_str());
     return ret;
@@ -518,16 +522,16 @@ int SrsDvrPlan::flv_close()
         return ret;
     }
     
-    std::string tmp_file = segment->current_flv_path + ".tmp";
-    if (rename(tmp_file.c_str(), segment->current_flv_path.c_str()) < 0) {
+    std::string tmp_file = segment->path + ".tmp";
+    if (rename(tmp_file.c_str(), segment->path.c_str()) < 0) {
         ret = ERROR_SYSTEM_FILE_RENAME;
         srs_error("rename flv file failed, %s => %s. ret=%d", 
-            tmp_file.c_str(), segment->current_flv_path.c_str(), ret);
+            tmp_file.c_str(), segment->path.c_str(), ret);
         return ret;
     }
     
 #ifdef SRS_AUTO_HTTP_CALLBACK
-    if (segment->segment_has_keyframe) {
+    if (segment->has_keyframe) {
         if ((ret = on_dvr_keyframe()) != ERROR_SUCCESS) {
             return ret;
         }
@@ -540,13 +544,26 @@ int SrsDvrPlan::flv_close()
 int SrsDvrPlan::update_duration(SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
+
+    // we must assumpt that the stream timestamp is monotonically increase,
+    // that is, always use time jitter to correct the timestamp.
     
-    // foreach msg, collect the duration.
-    if (segment->starttime < 0 || segment->starttime > msg->header.timestamp) {
+    // set the segment starttime at first time
+    if (segment->starttime < 0) {
         segment->starttime = msg->header.timestamp;
     }
-    segment->duration += msg->header.timestamp - segment->starttime;
-    segment->starttime = msg->header.timestamp;
+    
+    // no previous packet or timestamp overflow.
+    if (segment->stream_previous_pkt_time < 0 || segment->stream_previous_pkt_time > msg->header.timestamp) {
+        segment->stream_previous_pkt_time = msg->header.timestamp;
+    }
+    
+    // collect segment and stream duration, timestamp overflow is ok.
+    segment->duration += msg->header.timestamp - segment->stream_previous_pkt_time;
+    segment->stream_duration += msg->header.timestamp - segment->stream_previous_pkt_time;
+    
+    // update previous packet time
+    segment->stream_previous_pkt_time = msg->header.timestamp;
     
     return ret;
 }
@@ -579,6 +596,8 @@ SrsDvrPlan* SrsDvrPlan::create_plan(string vhost)
         return new SrsDvrSegmentPlan();
     } else if (plan == SRS_CONF_DEFAULT_DVR_PLAN_SESSION) {
         return new SrsDvrSessionPlan();
+    } else if (plan == SRS_CONF_DEFAULT_DVR_PLAN_HSS) {
+        return new SrsDvrHssPlan();
     } else {
         return new SrsDvrSessionPlan();
     }
@@ -669,6 +688,111 @@ int SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
     
     // reap if exceed duration.
     if (segment_duration > 0 && segment->duration > segment_duration) {
+        if ((ret = flv_close()) != ERROR_SUCCESS) {
+            segment->reset();
+            return ret;
+        }
+        on_unpublish();
+        
+        if ((ret = open_new_segment()) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    
+    return ret;
+}
+
+SrsDvrHssPlan::SrsDvrHssPlan()
+{
+    segment_duration = -1;
+    start_deviation = 0;
+    expect_reap_time = 0;
+}
+
+SrsDvrHssPlan::~SrsDvrHssPlan()
+{
+}
+
+int SrsDvrHssPlan::initialize(SrsSource* source, SrsRequest* req)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = SrsDvrPlan::initialize(source, req)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // TODO: FIXME: support reload
+    segment_duration = _srs_config->get_dvr_duration(req->vhost);
+    // to ms
+    segment_duration *= 1000;
+    
+    return ret;
+}
+
+int SrsDvrHssPlan::on_publish()
+{
+    int ret = ERROR_SUCCESS;
+    
+    // if already opened, continue to dvr.
+    // the segment plan maybe keep running longer than the encoder.
+    // for example, segment running, encoder restart,
+    // the segment plan will just continue going and donot open new segment.
+    if (fs->is_open()) {
+        dvr_enabled = true;
+        return ret;
+    }
+    
+    if ((ret = SrsDvrPlan::on_publish()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // expect reap flv time
+    expect_reap_time = segment->stream_starttime + segment_duration;
+    // the start deviation used ensure the segment starttime in nature clock.
+    start_deviation = segment->stream_starttime % 1000;
+    
+    return ret;
+}
+
+void SrsDvrHssPlan::on_unpublish()
+{
+    // support multiple publish.
+    if (!dvr_enabled) {
+        return;
+    }
+    dvr_enabled = false;
+}
+
+int SrsDvrHssPlan::update_duration(SrsSharedPtrMessage* msg)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = SrsDvrPlan::update_duration(msg)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    srs_assert(segment);
+    
+    // if not initialized, ignore reap.
+    if (expect_reap_time <= 0 
+        || segment->stream_starttime <= 0 
+        || segment->stream_duration <= 0
+    ) {
+        return ret;
+    }
+    
+    // reap if exceed atc expect time.
+    if (segment->stream_starttime + segment->stream_duration > expect_reap_time) {
+        srs_warn("hss reap start=%"PRId64", duration=%"PRId64", expect=%"PRId64
+            ", segment(start=%"PRId64", adjust=%"PRId64", duration=%"PRId64", file=%s", 
+            segment->stream_starttime, segment->stream_duration, expect_reap_time,
+            segment->stream_starttime + segment->starttime, 
+            segment->stream_starttime + segment->starttime - start_deviation, 
+            segment->duration, segment->path.c_str());
+            
+        // update expect reap time
+        expect_reap_time += segment_duration;
+        
         if ((ret = flv_close()) != ERROR_SUCCESS) {
             segment->reset();
             return ret;

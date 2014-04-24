@@ -114,22 +114,34 @@ class SrsFlvSegment
 {
 public:
     /**
-    * current flv file path.
+    * current segment flv file path.
     */
-    std::string current_flv_path;
+    std::string path;
     /**
     * whether current segment has keyframe.
     */
-    bool segment_has_keyframe;
+    bool has_keyframe;
     /**
-    * current segment duration and starttime.
+    * current segment starttime, RTMP pkt time.
     */
-    int64_t duration;
     int64_t starttime;
     /**
-    * stream start time, to generate atc pts.
+    * current segment duration
+    */
+    int64_t duration;
+    /**
+    * stream start time, to generate atc pts. abs time.
     */
     int64_t stream_starttime;
+    /**
+    * stream duration, to generate atc segment.
+    */
+    int64_t stream_duration;
+    /**
+    * previous stream RTMP pkt time, used to calc the duration.
+    * for the RTMP timestamp will overflow.
+    */
+    int64_t stream_previous_pkt_time;
 public:
     SrsFlvSegment();
     virtual void reset();
@@ -205,6 +217,28 @@ private:
 public:
     SrsDvrSegmentPlan();
     virtual ~SrsDvrSegmentPlan();
+public:
+    virtual int initialize(SrsSource* source, SrsRequest* req);
+    virtual int on_publish();
+    virtual void on_unpublish();
+private:
+    virtual int update_duration(SrsSharedPtrMessage* msg);
+};
+
+/**
+* hss plan: use atc time to reap flv segment
+*/
+class SrsDvrHssPlan : public SrsDvrPlan
+{
+private:
+    // in config, in ms
+    int segment_duration;
+    // the deviation of starttime of the nature clock time.
+    int start_deviation;
+    int64_t expect_reap_time;
+public:
+    SrsDvrHssPlan();
+    virtual ~SrsDvrHssPlan();
 public:
     virtual int initialize(SrsSource* source, SrsRequest* req);
     virtual int on_publish();

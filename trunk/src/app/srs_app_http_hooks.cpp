@@ -462,10 +462,11 @@ void SrsHttpHooks::on_dvr_keyframe(string url, SrsRequest* req, SrsFlvSegment* s
 {
     int ret = ERROR_SUCCESS;
     
+    srs_assert(segment);
     srs_trace("flv segment %s, atc_start=%"PRId64", "
         "has_key=%d, starttime=%"PRId64", duration=%d", 
-        segment->current_flv_path.c_str(), segment->stream_starttime,
-        segment->segment_has_keyframe, segment->starttime, (int)segment->duration);
+        segment->path.c_str(), segment->stream_starttime,
+        segment->has_keyframe, segment->starttime, (int)segment->duration);
     
     SrsHttpUri uri;
     if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
