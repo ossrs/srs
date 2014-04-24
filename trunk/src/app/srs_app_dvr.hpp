@@ -259,6 +259,7 @@ protected:
     virtual int on_video_keyframe();
     virtual int64_t filter_timestamp(int64_t timestamp);
 private:
+    virtual int on_dvr_reap_flv_header(std::string path);
     virtual int update_duration(SrsSharedPtrMessage* msg);
 };
 

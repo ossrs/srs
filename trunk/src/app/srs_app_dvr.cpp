@@ -804,9 +804,49 @@ void SrsDvrHssPlan::on_unpublish()
     dvr_enabled = false;
 }
 
-int SrsDvrHssPlan::on_meta_data(SrsOnMetaDataPacket* /*metadata*/)
+int SrsDvrHssPlan::on_meta_data(SrsOnMetaDataPacket* metadata)
 {
     int ret = ERROR_SUCCESS;
+    
+    SrsRequest* req = _req;
+    
+    // new flv file
+    std::stringstream path;
+    path << _srs_config->get_dvr_path(req->vhost)
+        << "/" << req->app << "/" 
+        << req->stream << ".header.flv";
+        
+    SrsFileStream fs;
+    if ((ret = fs.open(path.str().c_str())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    SrsFlvEncoder enc;
+    if ((ret = enc.initialize(&fs)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = enc.write_header()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    int size = 0;
+    char* payload = NULL;
+    if ((ret = metadata->encode(size, payload)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    SrsAutoFree(char, payload, true);
+    
+    if ((ret = enc.write_metadata(payload, size)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+#ifdef SRS_AUTO_HTTP_CALLBACK
+    if ((ret = on_dvr_reap_flv_header(path.str())) != ERROR_SUCCESS) {
+        return ret;
+    }
+#endif
+    
     return ret;
 }
 
@@ -840,6 +880,27 @@ int64_t SrsDvrHssPlan::filter_timestamp(int64_t timestamp)
     srs_assert(segment);
     srs_verbose("filter timestamp from %"PRId64" to %"PRId64, timestamp, segment->stream_starttime + timestamp);
     return segment->stream_starttime + timestamp;
+}
+
+int SrsDvrHssPlan::on_dvr_reap_flv_header(string path)
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_AUTO_HTTP_CALLBACK
+    // HTTP: on_dvr_reap_flv_header 
+    SrsConfDirective* on_dvr_reap_flv = _srs_config->get_vhost_on_dvr_reap_flv(_req->vhost);
+    if (!on_dvr_reap_flv) {
+        srs_info("ignore the empty http callback: on_dvr_reap_flv");
+        return ret;
+    }
+    
+    for (int i = 0; i < (int)on_dvr_reap_flv->args.size(); i++) {
+        std::string url = on_dvr_reap_flv->args.at(i);
+        SrsHttpHooks::on_dvr_reap_flv_header(url, _req, path);
+    }
+#endif
+    
+    return ret;
 }
 
 int SrsDvrHssPlan::update_duration(SrsSharedPtrMessage* msg)
