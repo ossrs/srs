@@ -1805,6 +1805,22 @@ int SrsConfig::get_bw_check_limit_kbps(const string &vhost)
     return ::atoi(conf->arg0().c_str());
 }
 
+bool SrsConfig::get_vhost_is_edge(std::string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+    
+    if (!conf) {
+        return false;
+    }
+    
+    conf = conf->get("mode");
+    if (!conf || conf->arg0() != "remote") {
+        return false;
+    }
+    
+    return true;
+}
+
 SrsConfDirective* SrsConfig::get_transcode(string vhost, string scope)
 {
     SrsConfDirective* conf = get_vhost(vhost);

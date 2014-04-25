@@ -286,8 +286,10 @@ int SrsRtmpConn::stream_service_cycle()
         return ret;
     }
     
+    bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
     bool enabled_cache = _srs_config->get_gop_cache(req->vhost);
-    srs_trace("source found, url=%s, enabled_cache=%d", req->get_stream_url().c_str(), enabled_cache);
+    srs_trace("source found, url=%s, enabled_cache=%d, edge=%d", 
+        req->get_stream_url().c_str(), enabled_cache, vhost_is_edge);
     source->set_cache(enabled_cache);
     
     switch (type) {

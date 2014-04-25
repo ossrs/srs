@@ -163,7 +163,7 @@ public:
     virtual int                 get_pithy_print_ingester();
     virtual int                 get_pithy_print_hls();
     virtual int                 get_pithy_print_play();
-// vhost section
+// vhost specified section
 public:
     virtual SrsConfDirective*   get_vhost(std::string vhost);
     virtual void                get_vhosts(std::vector<SrsConfDirective*>& vhosts);
@@ -190,6 +190,9 @@ public:
     virtual std::string         get_bw_check_key(const std::string& vhost);
     virtual int                 get_bw_check_interval_ms(const std::string& vhost);
     virtual int                 get_bw_check_limit_kbps(const std::string& vhost);
+// vhost edge section
+public:
+    virtual bool                get_vhost_is_edge(std::string vhost);
 // vhost transcode section
 public:
     virtual SrsConfDirective*   get_transcode(std::string vhost, std::string scope);

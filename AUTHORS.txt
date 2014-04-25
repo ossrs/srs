@@ -5,3 +5,4 @@ Authors ordered by first contribution.
 * xiangcheng.liu<liuxc0116@foxmail.com>
 * naijia.liu<youngcow@youngcow.net>
 * alcoholyi<alcoholyi@qq.com>
+* byteman<wangchen2011@gmail.com>
