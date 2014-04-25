@@ -309,6 +309,8 @@ public:
 public:
     // for consumer, atc feature.
     virtual bool is_atc();
+    // for edge, when play edge stream, check the state
+    virtual int on_edge_play_stream();
 private:
     virtual int create_forwarders();
     virtual void destroy_forwarders();

@@ -296,6 +296,13 @@ int SrsRtmpConn::stream_service_cycle()
         case SrsRtmpConnPlay: {
             srs_verbose("start to play stream %s.", req->stream.c_str());
             
+            if (vhost_is_edge) {
+                if ((ret = source->on_edge_play_stream()) != ERROR_SUCCESS) {
+                    srs_error("notice edge play stream failed. ret=%d", ret);
+                    return ret;
+                }
+            }
+            
             if ((ret = rtmp->start_play(res->stream_id)) != ERROR_SUCCESS) {
                 srs_error("start to play stream failed. ret=%d", ret);
                 return ret;

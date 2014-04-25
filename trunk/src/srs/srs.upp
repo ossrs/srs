@@ -49,6 +49,8 @@ file
 	..\app\srs_app_config.cpp,
 	..\app\srs_app_dvr.hpp,
 	..\app\srs_app_dvr.cpp,
+	..\app\srs_app_edge.hpp,
+	..\app\srs_app_edge.cpp,
 	..\app\srs_app_encoder.hpp,
 	..\app\srs_app_encoder.cpp,
 	..\app\srs_app_ffmpeg.hpp,

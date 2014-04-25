@@ -1175,6 +1175,12 @@ bool SrsSource::is_atc()
     return atc;
 }
 
+int SrsSource::on_edge_play_stream()
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
 int SrsSource::create_forwarders()
 {
     int ret = ERROR_SUCCESS;
