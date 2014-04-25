@@ -30,7 +30,8 @@ git clone https://code.csdn.net/winlinvip/srs-csdn.git
 性能报告(Performance): [https://github.com/winlinvip/simple-rtmp-server#performance](#performance) <br/>
 发行分支(Releases): [https://github.com/winlinvip/simple-rtmp-server#releases](#releases) <br/>
 横向对比(Compare): [https://github.com/winlinvip/simple-rtmp-server#compare](#compare) <br/>
-关键架构(Architecture): [https://github.com/winlinvip/simple-rtmp-server#architecture](#architecture)
+关键架构(Architecture): [https://github.com/winlinvip/simple-rtmp-server#architecture](#architecture)<br/>
+捐款(Donation): [https://me.alipay.com/winlin](https://me.alipay.com/winlin)
 
 ## About
 
@@ -118,6 +119,10 @@ cd simple-rtmp-server/trunk
 * [Usage: How to show the demo of SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleDemo)
 * [Usage: Solution using SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/Sample)
 * [Usage: Why SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/Product)
+
+## Donation
+
+[https://me.alipay.com/winlin](https://me.alipay.com/winlin)
 
 ## System Requirements
 Supported operating systems and hardware:
