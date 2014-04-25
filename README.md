@@ -429,9 +429,10 @@ to ingest any input to rtmp, push to SRS.
                  RTMP   +----------+ RTMP   +----------+
 </pre>
 
-### (plan) RTMP cluster(origin/edge) Architecture
+### [RTMP cluster(origin/edge) Architecture](https://github.com/winlinvip/simple-rtmp-server/wiki/Edge)
 
 Remark: cluster over forward, see [Cluster](https://github.com/winlinvip/simple-rtmp-server/wiki/Cluster)
+Remark: cluster over edge, see [Edge](https://github.com/winlinvip/simple-rtmp-server/wiki/Edge)
 
 <pre>
 +---------+       +-----------------+     +-----------------------+ 
