@@ -37,14 +37,14 @@ git clone https://code.csdn.net/winlinvip/srs-csdn.git
 SRS(SIMPLE RTMP Server) over state-threads created in 2013.10.
 
 SRS is a simple, [RTMP](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryRTMP)/[HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), 
-[high-performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance), single/multiple(plan) processes, edge(plan)/origin live server, 
+[high-performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance), single/multiple(plan) processes, edge/origin live server, 
 [x86/x64/arm](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm), 
 compile depends on [st](http://sourceforge.net/projects/state-threads)(required), [ssl](http://www.openssl.org/) and [http-parser](https://github.com/joyent/http-parser), 
 use [nginx](http://nginx.org/), [ffmpeg](http://ffmpeg.org/) and [cherrypy](http://www.cherrypy.org/) as external tools. that is, only need st to run srs for 
 minimum run. see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build).
 
 SRS supports [vhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUrlVhost), 
-rtmp([encoder push](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryRTMP), client/edge pull), [ingester(srs pull)](https://github.com/winlinvip/simple-rtmp-server/wiki/Ingest), 
+rtmp([encoder push](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryRTMP), client/[edge](https://github.com/winlinvip/simple-rtmp-server/wiki/Edge) pull), [ingester(srs pull)](https://github.com/winlinvip/simple-rtmp-server/wiki/Ingest), 
 [HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), [HLS audio only](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS#hlsaudioonly), [transcoding](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), 
 [forward](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), [http hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback), [http api](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPApi), 
 [http server](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPServer), [dvr](https://github.com/winlinvip/simple-rtmp-server/wiki/DVR), [FlashP2P](https://github.com/winlinvip/simple-rtmp-server/wiki/FlashP2P).
@@ -127,7 +127,7 @@ Supported operating systems and hardware:
 ## Summary
 1. Simple: also stable enough.
 1. [High-performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance): single-thread, async socket, event/st-thread driven.
-1. Support RTMP edge server(plan), support origin server.
+1. Support RTMP [edge](https://github.com/winlinvip/simple-rtmp-server/wiki/Edge) server, support origin server.
 1. RTMP without vod streaming, live streaming only.
 1. Support multiple processes, support single process.
 1. Support vhost, support \_\_defaultVhost\_\_.
@@ -160,9 +160,9 @@ Supported operating systems and hardware:
 1. Support ingest RTSP(RTP, SDP) stream to RTMP.
 1. Support dvr(record live to flv file for vod)
 1. Support live flashP2P(integrated by chnvideo VDN).
+1. [dev] Support RTMP [edge](https://github.com/winlinvip/simple-rtmp-server/wiki/Edge) server, push/pull stream from any RTMP server
 1. [plan] Support file to hls vod stream.
 1. [plan] Support system full utest on gtest.
-1. [plan] Support RTMP edge server, push/pull stream from any RTMP server
 1. [plan] Support multiple processes, for both origin and edge
 1. [no-plan] Support adobe RTMFP(flash p2p) protocol.
 1. [no-plan] Support adobe flash refer/token/swf verification.
