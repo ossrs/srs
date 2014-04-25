@@ -192,6 +192,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v1.0, 2014-04-25, add donation page. 0.9.76
 * v1.0, 2014-04-24, support live flashP2P(integrated by chnvideo VDN). 0.9.75
 * v1.0, 2014-04-21, support android app to start srs for internal edge. 0.9.72
 * v1.0, 2014-04-19, support tool over srs-librtmp to ingest flv/rtmp. 0.9.71
