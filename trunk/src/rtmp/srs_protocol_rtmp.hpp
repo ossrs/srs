@@ -155,6 +155,7 @@ public:
     SrsRtmpClient(ISrsProtocolReaderWriter* skt);
     virtual ~SrsRtmpClient();
 public:
+    virtual SrsProtocol* get_protocol();
     virtual void set_recv_timeout(int64_t timeout_us);
     virtual void set_send_timeout(int64_t timeout_us);
     virtual int64_t get_recv_bytes();

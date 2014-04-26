@@ -30,6 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_config.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_utility.hpp>
 
 #define SRS_STAGE_DEFAULT_INTERVAL_MS 1200
 
@@ -75,6 +76,10 @@ struct SrsStageInfo : public ISrsReloadHandler
                 pithy_print_time_ms = _srs_config->get_pithy_print_ingester();
                 break;
             }
+            case SRS_STAGE_EDGE: {
+                pithy_print_time_ms = _srs_config->get_pithy_print_edge();
+                break;
+            }
             case SRS_STAGE_HLS: {
                 pithy_print_time_ms = _srs_config->get_pithy_print_hls();
                 break;
@@ -98,7 +103,8 @@ SrsPithyPrint::SrsPithyPrint(int _stage_id)
 {
     stage_id = _stage_id;
     client_id = enter_stage();
-    printed_age = age = 0;
+    previous_tick = srs_get_system_time_ms();
+    printed_age = _age = 0;
 }
 
 SrsPithyPrint::~SrsPithyPrint()
@@ -138,9 +144,12 @@ void SrsPithyPrint::leave_stage()
         stage->stage_id, client_id, stage->nb_clients, stage->pithy_print_time_ms);
 }
 
-void SrsPithyPrint::elapse(int64_t time_ms)
+void SrsPithyPrint::elapse()
 {
-    age += time_ms;
+    int64_t diff = srs_get_system_time_ms() - previous_tick;
+    
+    _age += srs_max(0, diff);
+    previous_tick = srs_get_system_time_ms();
 }
 
 bool SrsPithyPrint::can_print()
@@ -148,24 +157,19 @@ bool SrsPithyPrint::can_print()
     SrsStageInfo* stage = _srs_stages[stage_id];
     srs_assert(stage != NULL);
     
-    int64_t alive_age = age - printed_age;
+    int64_t alive_age = _age - printed_age;
     int64_t can_print_age = stage->nb_clients * stage->pithy_print_time_ms;
     
     bool can_print = alive_age >= can_print_age;
     if (can_print) {
-        printed_age = age;
+        printed_age = _age;
     }
     
     return can_print;
 }
 
-int64_t SrsPithyPrint::get_age()
+int64_t SrsPithyPrint::age()
 {
-    return age;
-}
-
-void SrsPithyPrint::set_age(int64_t _age)
-{
-    age = _age;
+    return _age;
 }
 

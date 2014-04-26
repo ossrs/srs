@@ -42,6 +42,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_STAGE_HLS 5
 // the pithy stage for all ingesters.
 #define SRS_STAGE_INGESTER 6
+// the pithy stage for all edge.
+#define SRS_STAGE_EDGE 7
 
 /**
 * the stage is used for a collection of object to do print,
@@ -55,8 +57,9 @@ private:
     int client_id;
     int stage_id;
     // in ms.
-    int64_t age;
+    int64_t _age;
     int64_t printed_age;
+    int64_t previous_tick;
 public:
     /**
     * @param _stage_id defined in SRS_STAGE_xxx, eg. SRS_STAGE_PLAY_USER.
@@ -74,9 +77,9 @@ private:
     virtual void leave_stage();
 public:
     /**
-    * specified client elapse some time.
+    * auto calc the elapse time
     */
-    virtual void elapse(int64_t time_ms);
+    virtual void elapse();
     /**
     * whether current client can print.
     */
@@ -84,8 +87,7 @@ public:
     /**
     * get the elapsed time in ms.
     */
-    virtual int64_t get_age();
-    virtual void set_age(int64_t _age);
+    virtual int64_t age();
 };
 
 #endif

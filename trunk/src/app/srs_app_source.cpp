@@ -515,7 +515,7 @@ int SrsSource::initialize()
     }
 #endif
 
-    if ((ret = edge->initialize(_req)) != ERROR_SUCCESS) {
+    if ((ret = edge->initialize(this, _req)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -1168,6 +1168,10 @@ void SrsSource::on_consumer_destroy(SrsConsumer* consumer)
         consumers.erase(it);
     }
     srs_info("handle consumer destroy success.");
+    
+    if (consumers.empty()) {
+        edge->on_all_client_stop();
+    }
 }
 
 void SrsSource::set_cache(bool enabled)
@@ -1180,7 +1184,7 @@ bool SrsSource::is_atc()
     return atc;
 }
 
-int SrsSource::on_edge_play_stream()
+int SrsSource::on_edge_start_play()
 {
     return edge->on_client_play();
 }

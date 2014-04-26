@@ -1470,10 +1470,10 @@ void SrsHls::hls_mux()
 {
     // reportable
     if (pithy_print->can_print()) {
-        srs_trace("-> time=%"PRId64"", pithy_print->get_age());
+        srs_trace("-> time=%"PRId64"", pithy_print->age());
     }
     
-    pithy_print->elapse(sample->cts);
+    pithy_print->elapse();
 }
 
 #endif

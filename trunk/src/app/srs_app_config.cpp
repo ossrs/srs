@@ -1396,6 +1396,21 @@ int SrsConfig::get_pithy_print_play()
     return ::atoi(pithy->arg0().c_str());
 }
 
+int SrsConfig::get_pithy_print_edge()
+{
+    SrsConfDirective* pithy = root->get("pithy_print");
+    if (!pithy) {
+        return SRS_STAGE_EDGE_INTERVAL_MS;
+    }
+    
+    pithy = pithy->get("edge");
+    if (!pithy) {
+        return SRS_STAGE_EDGE_INTERVAL_MS;
+    }
+    
+    return ::atoi(pithy->arg0().c_str());
+}
+
 SrsConfDirective* SrsConfig::get_vhost(string vhost)
 {
     srs_assert(root);
@@ -1819,6 +1834,17 @@ bool SrsConfig::get_vhost_is_edge(std::string vhost)
     }
     
     return true;
+}
+
+SrsConfDirective* SrsConfig::get_vhost_edge_origin(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+    
+    if (!conf) {
+        return NULL;
+    }
+    
+    return conf->get("origin");
 }
 
 SrsConfDirective* SrsConfig::get_transcode(string vhost, string scope)

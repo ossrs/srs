@@ -113,7 +113,7 @@ int SrsEncoder::cycle()
 
     // pithy print
     encoder();
-    pithy_print->elapse(SRS_RTMP_ENCODER_SLEEP_US / 1000);
+    pithy_print->elapse();
     
     return ret;
 }
@@ -326,7 +326,7 @@ void SrsEncoder::encoder()
     if (pithy_print->can_print()) {
         // TODO: FIXME: show more info.
         srs_trace("-> time=%"PRId64", encoders=%d, input=%s", 
-            pithy_print->get_age(), (int)ffmpegs.size(), input_stream_name.c_str());
+            pithy_print->age(), (int)ffmpegs.size(), input_stream_name.c_str());
     }
 }
 

@@ -83,6 +83,7 @@ int SrsForwarder::on_publish(SrsRequest* req, std::string forward_server)
     std::string s_port = RTMP_DEFAULT_PORT;
     port = ::atoi(RTMP_DEFAULT_PORT);
     
+    // TODO: FIXME: parse complex params
     size_t pos = forward_server.find(":");
     if (pos != std::string::npos) {
         s_port = forward_server.substr(pos + 1);
@@ -310,6 +311,8 @@ int SrsForwarder::forward()
         // switch to other st-threads.
         st_usleep(0);
 
+        pithy_print.elapse();
+
         // read from client.
         if (true) {
             SrsCommonMessage* msg = NULL;
@@ -330,19 +333,18 @@ int SrsForwarder::forward()
             return ret;
         }
         
+        // pithy print
+        if (pithy_print.can_print()) {
+            srs_trace("-> time=%"PRId64", msgs=%d, obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
+                pithy_print.age(), count, client->get_send_bytes(), client->get_recv_bytes(), client->get_send_kbps(), client->get_recv_kbps());
+        }
+        
         // ignore when no messages.
         if (count <= 0) {
             srs_verbose("no packets to forward.");
             continue;
         }
         SrsAutoFree(SrsSharedPtrMessage*, msgs, true);
-
-        // pithy print
-        pithy_print.elapse(SRS_PULSE_TIMEOUT_US / 1000);
-        if (pithy_print.can_print()) {
-            srs_trace("-> time=%"PRId64", msgs=%d, obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
-                pithy_print.get_age(), count, client->get_send_bytes(), client->get_recv_bytes(), client->get_send_kbps(), client->get_recv_kbps());
-        }
     
         // all msgs to forward.
         for (int i = 0; i < count; i++) {

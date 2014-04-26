@@ -76,6 +76,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_STAGE_ENCODER_INTERVAL_MS 2000
 #define SRS_STAGE_INGESTER_INTERVAL_MS 2000
 #define SRS_STAGE_HLS_INTERVAL_MS 2000
+#define SRS_STAGE_EDGE_INTERVAL_MS 2000
 
 #define SRS_AUTO_INGEST_TYPE_FILE "file"
 #define SRS_AUTO_INGEST_TYPE_STREAM "stream"
@@ -163,6 +164,7 @@ public:
     virtual int                 get_pithy_print_ingester();
     virtual int                 get_pithy_print_hls();
     virtual int                 get_pithy_print_play();
+    virtual int                 get_pithy_print_edge();
 // vhost specified section
 public:
     virtual SrsConfDirective*   get_vhost(std::string vhost);
@@ -193,6 +195,7 @@ public:
 // vhost edge section
 public:
     virtual bool                get_vhost_is_edge(std::string vhost);
+    virtual SrsConfDirective*   get_vhost_edge_origin(std::string vhost);
 // vhost transcode section
 public:
     virtual SrsConfDirective*   get_transcode(std::string vhost, std::string scope);

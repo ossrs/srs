@@ -188,7 +188,7 @@ int SrsIngester::cycle()
 
     // pithy print
     ingester();
-    pithy_print->elapse(SRS_AUTO_INGESTER_SLEEP_US / 1000);
+    pithy_print->elapse();
     
     return ret;
 }
@@ -350,7 +350,7 @@ void SrsIngester::ingester()
     }
     
     // TODO: FIXME: show more info.
-    srs_trace("-> time=%"PRId64", ingesters=%d", pithy_print->get_age(), (int)ingesters.size());
+    srs_trace("-> time=%"PRId64", ingesters=%d", pithy_print->age(), (int)ingesters.size());
 }
 
 int SrsIngester::on_reload_vhost_added(string vhost)

@@ -297,8 +297,8 @@ int SrsRtmpConn::stream_service_cycle()
             srs_verbose("start to play stream %s.", req->stream.c_str());
             
             if (vhost_is_edge) {
-                if ((ret = source->on_edge_play_stream()) != ERROR_SUCCESS) {
-                    srs_error("notice edge play stream failed. ret=%d", ret);
+                if ((ret = source->on_edge_start_play()) != ERROR_SUCCESS) {
+                    srs_error("notice edge start play stream failed. ret=%d", ret);
                     return ret;
                 }
             }
@@ -311,9 +311,11 @@ int SrsRtmpConn::stream_service_cycle()
                 srs_error("http hook on_play failed. ret=%d", ret);
                 return ret;
             }
+            
             srs_info("start to play stream %s success", req->stream.c_str());
             ret = playing(source);
             on_stop();
+            
             return ret;
         }
         case SrsRtmpConnFMLEPublish: {
@@ -423,10 +425,10 @@ int SrsRtmpConn::playing(SrsSource* source)
 
     int64_t starttime = -1;
     while (true) {
-        pithy_print.elapse(SRS_PULSE_TIMEOUT_US / 1000);
-        
         // switch to other st-threads.
         st_usleep(0);
+        
+        pithy_print.elapse();
 
         // read from client.
         int ctl_msg_ret = ERROR_SUCCESS;
@@ -460,7 +462,7 @@ int SrsRtmpConn::playing(SrsSource* source)
         // reportable
         if (pithy_print.can_print()) {
             srs_trace("-> time=%"PRId64", duration=%"PRId64", cmr=%d, msgs=%d, obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
-                pithy_print.get_age(), duration, ctl_msg_ret, count, rtmp->get_send_bytes(), rtmp->get_recv_bytes(), rtmp->get_send_kbps(), rtmp->get_recv_kbps());
+                pithy_print.age(), duration, ctl_msg_ret, count, rtmp->get_send_bytes(), rtmp->get_recv_bytes(), rtmp->get_send_kbps(), rtmp->get_recv_kbps());
         }
         
         if (count <= 0) {
@@ -531,14 +533,15 @@ int SrsRtmpConn::fmle_publish(SrsSource* source)
             return ret;
         }
 
+        srs_assert(msg);
         SrsAutoFree(SrsCommonMessage, msg, false);
         
-        pithy_print.set_age(msg->header.timestamp);
+        pithy_print.elapse();
 
         // reportable
         if (pithy_print.can_print()) {
             srs_trace("<- time=%"PRId64", obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
-                pithy_print.get_age(), rtmp->get_send_bytes(), rtmp->get_recv_bytes(), rtmp->get_send_kbps(), rtmp->get_recv_kbps());
+                pithy_print.age(), rtmp->get_send_bytes(), rtmp->get_recv_bytes(), rtmp->get_send_kbps(), rtmp->get_recv_kbps());
         }
     
         // process UnPublish event.
@@ -604,12 +607,12 @@ int SrsRtmpConn::flash_publish(SrsSource* source)
 
         SrsAutoFree(SrsCommonMessage, msg, false);
         
-        pithy_print.set_age(msg->header.timestamp);
+        pithy_print.elapse();
 
         // reportable
         if (pithy_print.can_print()) {
             srs_trace("<- time=%"PRId64", obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
-                pithy_print.get_age(), rtmp->get_send_bytes(), rtmp->get_recv_bytes(), rtmp->get_send_kbps(), rtmp->get_recv_kbps());
+                pithy_print.age(), rtmp->get_send_bytes(), rtmp->get_recv_bytes(), rtmp->get_send_kbps(), rtmp->get_recv_kbps());
         }
     
         // process UnPublish event.

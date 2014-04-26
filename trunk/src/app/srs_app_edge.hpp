@@ -30,10 +30,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+#include <srs_app_st.hpp>
 #include <srs_app_thread.hpp>
 
 class SrsEdge;
+class SrsSource;
 class SrsRequest;
+class SrsRtmpClient;
+class SrsCommonMessage;
+class ISrsProtocolReaderWriter;
 
 /**
 * the state of edge
@@ -43,7 +48,10 @@ enum SrsEdgeState
     SrsEdgeStateInit = 0,
     SrsEdgeStatePlay = 100,
     SrsEdgeStatePublish,
-    SrsEdgeStateConnected,
+    // play stream from origin, ingest stream
+    SrsEdgeStateIngestConnected,
+    // publish stream to edge, forward to origin
+    SrsEdgeStateForwardConnected,
     SrsEdgeStateAborting,
     SrsEdgeStateReloading,
 };
@@ -54,18 +62,31 @@ enum SrsEdgeState
 class SrsEdgeIngester : public ISrsThreadHandler
 {
 private:
+    int stream_id;
+private:
+    SrsSource* _source;
     SrsEdge* _edge;
     SrsRequest* _req;
     SrsThread* pthread;
+    st_netfd_t stfd;
+    ISrsProtocolReaderWriter* io;
+    SrsRtmpClient* client;
+    int origin_index;
 public:
     SrsEdgeIngester();
     virtual ~SrsEdgeIngester();
 public:
-    virtual int initialize(SrsEdge* edge, SrsRequest* req);
+    virtual int initialize(SrsSource* source, SrsEdge* edge, SrsRequest* req);
     virtual int start();
+    virtual void stop();
 // interface ISrsThreadHandler
 public:
     virtual int cycle();
+private:
+    virtual int ingest();
+    virtual void close_underlayer_socket();
+    virtual int connect_server();
+    virtual int process_publish_message(SrsCommonMessage* msg);
 };
 
 /**
@@ -80,11 +101,20 @@ public:
     SrsEdge();
     virtual ~SrsEdge();
 public:
-    virtual int initialize(SrsRequest* req);
+    virtual int initialize(SrsSource* source, SrsRequest* req);
     /**
     * when client play stream on edge.
     */
     virtual int on_client_play();
+    /**
+    * when all client stopped play, disconnect to origin.
+    */
+    virtual void on_all_client_stop();
+public:
+    /**
+    * when ingester start to play stream.
+    */
+    virtual int on_ingest_play();
 };
 
 #endif
