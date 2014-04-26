@@ -38,6 +38,7 @@ using namespace std;
 #include <srs_protocol_rtmp.hpp>
 #include <srs_app_dvr.hpp>
 #include <srs_kernel_stream.hpp>
+#include <srs_app_edge.hpp>
 
 #define CONST_MAX_JITTER_MS         500
 #define DEFAULT_FRAME_TIME_MS         40
@@ -455,6 +456,7 @@ SrsSource::SrsSource(SrsRequest* _req)
     frame_rate = sample_rate = 0;
     _can_publish = true;
     
+    edge = new SrsEdge();
     gop_cache = new SrsGopCache();
     
     _srs_config->subscribe(this);
@@ -487,6 +489,7 @@ SrsSource::~SrsSource()
     srs_freep(cache_sh_video);
     srs_freep(cache_sh_audio);
     
+    srs_freep(edge);
     srs_freep(gop_cache);
     
 #ifdef SRS_AUTO_HLS
@@ -1177,8 +1180,7 @@ bool SrsSource::is_atc()
 
 int SrsSource::on_edge_play_stream()
 {
-    int ret = ERROR_SUCCESS;
-    return ret;
+    return edge->on_client_play();
 }
 
 int SrsSource::create_forwarders()

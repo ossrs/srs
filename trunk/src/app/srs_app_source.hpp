@@ -37,6 +37,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_st.hpp>
 #include <srs_app_reload.hpp>
 
+class SrsEdge;
 class SrsSource;
 class SrsCommonMessage;
 class SrsOnMetaDataPacket;
@@ -234,6 +235,8 @@ private:
 #ifdef SRS_AUTO_TRANSCODE
     SrsEncoder* encoder;
 #endif
+    // edge control service
+    SrsEdge* edge;
     // gop cache for client fast startup.
     SrsGopCache* gop_cache;
     // to forward stream to other servers

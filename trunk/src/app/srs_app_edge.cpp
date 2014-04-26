@@ -23,3 +23,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_edge.hpp>
 
+#include <srs_kernel_error.hpp>
+
+SrsEdge::SrsEdge()
+{
+    state = SrsEdgeStateInit;
+}
+
+SrsEdge::~SrsEdge()
+{
+}
+
+int SrsEdge::on_client_play()
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+

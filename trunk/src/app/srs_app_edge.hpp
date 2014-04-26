@@ -30,4 +30,34 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+/**
+* the state of edge
+*/
+enum SrsEdgeState
+{
+    SrsEdgeStateInit = 0,
+    SrsEdgeStatePlay = 100,
+    SrsEdgeStatePublish,
+    SrsEdgeStateConnected,
+    SrsEdgeStateAborting,
+    SrsEdgeStateReloading,
+};
+
+/**
+* edge control service.
+*/
+class SrsEdge
+{
+private:
+    SrsEdgeState state;
+public:
+    SrsEdge();
+    virtual ~SrsEdge();
+public:
+    /**
+    * when client play stream on edge.
+    */
+    virtual int on_client_play();
+};
+
 #endif

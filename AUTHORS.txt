@@ -6,3 +6,4 @@ Authors ordered by first contribution.
 * naijia.liu<youngcow@youngcow.net>
 * alcoholyi<alcoholyi@qq.com>
 * byteman<wangchen2011@gmail.com>
+* chad.wang<chad.wang.cn@gmail.com>
