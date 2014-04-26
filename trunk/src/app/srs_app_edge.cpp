@@ -309,6 +309,7 @@ int SrsEdgeIngester::connect_server()
 SrsEdge::SrsEdge()
 {
     state = SrsEdgeStateInit;
+    user_state = SrsEdgeUserStateInit;
     ingester = new SrsEdgeIngester();
 }
 
@@ -333,9 +334,10 @@ int SrsEdge::on_client_play()
     int ret = ERROR_SUCCESS;
     
     // error state.
-    if (state == SrsEdgeStateAborting || state == SrsEdgeStateReloading) {
+    if (user_state != SrsEdgeUserStateInit) {
         ret = ERROR_RTMP_EDGE_PLAY_STATE;
-        srs_error("invalid state for client to play stream on edge. state=%d, ret=%d", state, ret);
+        srs_error("invalid state for client to play stream on edge. "
+            "state=%d, user_state=%d, ret=%d", state, user_state, ret);
         return ret;
     }
     
@@ -350,22 +352,32 @@ int SrsEdge::on_client_play()
 
 void SrsEdge::on_all_client_stop()
 {
-    if (state == SrsEdgeStateIngestConnected) {
+    // when all client disconnected,
+    // and edge is ingesting origin stream, abort it.
+    if (state == SrsEdgeStatePlay || state == SrsEdgeStateIngestConnected) {
         ingester->stop();
-    }
     
-    SrsEdgeState pstate = state;
-    state = SrsEdgeStateInit;
-    srs_trace("edge change from %d to state %d (init).", pstate, state);
+        SrsEdgeState pstate = state;
+        state = SrsEdgeStateInit;
+        srs_trace("edge change from %d to state %d (init).", pstate, state);
+        
+        return;
+    }
 }
 
 int SrsEdge::on_ingest_play()
 {
     int ret = ERROR_SUCCESS;
     
+    // when already connected(for instance, reconnect for error), ignore.
+    if (state == SrsEdgeStateIngestConnected) {
+        return ret;
+    }
+    
+    srs_assert(state == SrsEdgeStatePlay);
+    
     SrsEdgeState pstate = state;
     state = SrsEdgeStateIngestConnected;
-    
     srs_trace("edge change from %d to state %d (ingest connected).", pstate, state);
     
     return ret;

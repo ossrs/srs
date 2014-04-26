@@ -89,6 +89,9 @@ int SrsThread::start()
         return ret;
     }
     
+    // we set to loop to true for thread to run.
+    loop = true;
+    
     // wait for cid to ready, for parent thread to get the cid.
     while (_cid < 0) {
         st_usleep(10 * SRS_TIME_MILLISECONDS);
@@ -130,7 +133,6 @@ void SrsThread::thread_cycle()
     srs_assert(handler);
     handler->on_thread_start();
     
-    loop = true;
     while (loop) {
         if ((ret = handler->on_before_cycle()) != ERROR_SUCCESS) {
             srs_warn("thread on before cycle failed, ignored and retry, ret=%d", ret);

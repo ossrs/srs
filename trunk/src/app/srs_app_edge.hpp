@@ -41,7 +41,7 @@ class SrsCommonMessage;
 class ISrsProtocolReaderWriter;
 
 /**
-* the state of edge
+* the state of edge, auto machine
 */
 enum SrsEdgeState
 {
@@ -52,8 +52,15 @@ enum SrsEdgeState
     SrsEdgeStateIngestConnected,
     // publish stream to edge, forward to origin
     SrsEdgeStateForwardConnected,
-    SrsEdgeStateAborting,
-    SrsEdgeStateReloading,
+};
+
+/**
+* the state of edge from user, manual machine
+*/
+enum SrsEdgeUserState
+{
+    SrsEdgeUserStateInit = 0,
+    SrsEdgeUserStateReloading = 100,
 };
 
 /**
@@ -96,6 +103,7 @@ class SrsEdge
 {
 private:
     SrsEdgeState state;
+    SrsEdgeUserState user_state;
     SrsEdgeIngester* ingester;
 public:
     SrsEdge();

@@ -109,6 +109,7 @@ public:
     * user stop the thread.
     * @remark ignore any error of cycle of handler.
     * @remark user can start multiple times, ignore if already started.
+    * @remark wait for the cid is set by thread pfn.
     */
     virtual int start();
     /**
