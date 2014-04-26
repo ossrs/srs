@@ -25,21 +25,63 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_rtmp.hpp>
+#include <srs_kernel_log.hpp>
+
+// when error, edge ingester sleep for a while and retry.
+#define SRS_EDGE_INGESTER_SLEEP_US (int64_t)(3*1000*1000LL)
+
+SrsEdgeIngester::SrsEdgeIngester()
+{
+    _edge = NULL;
+    _req = NULL;
+    pthread = new SrsThread(this, SRS_EDGE_INGESTER_SLEEP_US);
+}
+
+SrsEdgeIngester::~SrsEdgeIngester()
+{
+}
+
+int SrsEdgeIngester::initialize(SrsEdge* edge, SrsRequest* req)
+{
+    int ret = ERROR_SUCCESS;
+    
+    _edge = edge;
+    _req = req;
+    
+    return ret;
+}
+
+int SrsEdgeIngester::start()
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+    //return pthread->start();
+}
+
+int SrsEdgeIngester::cycle()
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
 
 SrsEdge::SrsEdge()
 {
     state = SrsEdgeStateInit;
+    ingester = new SrsEdgeIngester();
 }
 
 SrsEdge::~SrsEdge()
 {
+    srs_freep(ingester);
 }
 
 int SrsEdge::initialize(SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
     
-    _req = req;
+    if ((ret = ingester->initialize(this, req)) != ERROR_SUCCESS) {
+        return ret;
+    }
     
     return ret;
 }
@@ -47,6 +89,20 @@ int SrsEdge::initialize(SrsRequest* req)
 int SrsEdge::on_client_play()
 {
     int ret = ERROR_SUCCESS;
+    
+    // error state.
+    if (state == SrsEdgeStateAborting || state == SrsEdgeStateReloading) {
+        ret = ERROR_RTMP_EDGE_PLAY_STATE;
+        srs_error("invalid state for client to play stream on edge. state=%d, ret=%d", state, ret);
+        return ret;
+    }
+    
+    // start ingest when init state.
+    if (state == SrsEdgeStateInit) {
+        state = SrsEdgeStatePlay;
+        return ingester->start();
+    }
+
     return ret;
 }
 

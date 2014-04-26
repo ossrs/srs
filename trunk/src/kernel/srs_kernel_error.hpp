@@ -76,6 +76,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // 2. srs-librtmp return error, to terminate the program.
 #define ERROR_RTMP_HS_SSL_REQUIRE           318
 #define ERROR_RTMP_DURATION_EXCEED          319
+// edge specified errors
+// invalid state for client to play edge stream.
+#define ERROR_RTMP_EDGE_PLAY_STATE          320
 
 #define ERROR_SYSTEM_STREAM_INIT            400
 #define ERROR_SYSTEM_PACKET_INVALID         401

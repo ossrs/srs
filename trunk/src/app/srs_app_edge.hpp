@@ -30,6 +30,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+#include <srs_app_thread.hpp>
+
+class SrsEdge;
 class SrsRequest;
 
 /**
@@ -46,13 +49,33 @@ enum SrsEdgeState
 };
 
 /**
+* edge used to ingest stream from origin.
+*/
+class SrsEdgeIngester : public ISrsThreadHandler
+{
+private:
+    SrsEdge* _edge;
+    SrsRequest* _req;
+    SrsThread* pthread;
+public:
+    SrsEdgeIngester();
+    virtual ~SrsEdgeIngester();
+public:
+    virtual int initialize(SrsEdge* edge, SrsRequest* req);
+    virtual int start();
+// interface ISrsThreadHandler
+public:
+    virtual int cycle();
+};
+
+/**
 * edge control service.
 */
 class SrsEdge
 {
 private:
-    SrsRequest* _req;
     SrsEdgeState state;
+    SrsEdgeIngester* ingester;
 public:
     SrsEdge();
     virtual ~SrsEdge();
