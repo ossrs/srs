@@ -437,9 +437,9 @@ int SrsSource::find(SrsRequest* req, SrsSource** ppsource)
     return ret;
 }
 
-SrsSource::SrsSource(SrsRequest* _req)
+SrsSource::SrsSource(SrsRequest* req)
 {
-    req = _req->copy();
+    _req = req->copy();
     
 #ifdef SRS_AUTO_HLS
     hls = new SrsHls(this);
@@ -460,7 +460,7 @@ SrsSource::SrsSource(SrsRequest* _req)
     gop_cache = new SrsGopCache();
     
     _srs_config->subscribe(this);
-    atc = _srs_config->get_atc(req->vhost);
+    atc = _srs_config->get_atc(_req->vhost);
 }
 
 SrsSource::~SrsSource()
@@ -502,7 +502,7 @@ SrsSource::~SrsSource()
     srs_freep(encoder);
 #endif
 
-    srs_freep(req);
+    srs_freep(_req);
 }
 
 int SrsSource::initialize()
@@ -510,10 +510,14 @@ int SrsSource::initialize()
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_DVR
-    if ((ret = dvr->initialize(req)) != ERROR_SUCCESS) {
+    if ((ret = dvr->initialize(_req)) != ERROR_SUCCESS) {
         return ret;
     }
 #endif
+
+    if ((ret = edge->initialize(_req)) != ERROR_SUCCESS) {
+        return ret;
+    }
     
     return ret;
 }
@@ -522,7 +526,7 @@ int SrsSource::on_reload_vhost_atc(string vhost)
 {
     int ret = ERROR_SUCCESS;
     
-    if (req->vhost != vhost) {
+    if (_req->vhost != vhost) {
         return ret;
     }
     
@@ -541,7 +545,7 @@ int SrsSource::on_reload_vhost_gop_cache(string vhost)
 {
     int ret = ERROR_SUCCESS;
     
-    if (req->vhost != vhost) {
+    if (_req->vhost != vhost) {
         return ret;
     }
     
@@ -549,7 +553,7 @@ int SrsSource::on_reload_vhost_gop_cache(string vhost)
     bool enabled_cache = _srs_config->get_gop_cache(vhost);
     
     srs_trace("vhost %s gop_cache changed to %d, source url=%s", 
-        vhost.c_str(), enabled_cache, req->get_stream_url().c_str());
+        vhost.c_str(), enabled_cache, _req->get_stream_url().c_str());
     
     set_cache(enabled_cache);
     
@@ -560,11 +564,11 @@ int SrsSource::on_reload_vhost_queue_length(string vhost)
 {
     int ret = ERROR_SUCCESS;
     
-    if (req->vhost != vhost) {
+    if (_req->vhost != vhost) {
         return ret;
     }
 
-    double queue_size = _srs_config->get_queue_length(req->vhost);
+    double queue_size = _srs_config->get_queue_length(_req->vhost);
     
     if (true) {
         std::vector<SrsConsumer*>::iterator it;
@@ -595,7 +599,7 @@ int SrsSource::on_reload_vhost_forward(string vhost)
 {
     int ret = ERROR_SUCCESS;
     
-    if (req->vhost != vhost) {
+    if (_req->vhost != vhost) {
         return ret;
     }
 
@@ -615,13 +619,13 @@ int SrsSource::on_reload_vhost_hls(string vhost)
 {
     int ret = ERROR_SUCCESS;
     
-    if (req->vhost != vhost) {
+    if (_req->vhost != vhost) {
         return ret;
     }
     
 #ifdef SRS_AUTO_HLS
     hls->on_unpublish();
-    if ((ret = hls->on_publish(req)) != ERROR_SUCCESS) {
+    if ((ret = hls->on_publish(_req)) != ERROR_SUCCESS) {
         srs_error("hls publish failed. ret=%d", ret);
         return ret;
     }
@@ -635,7 +639,7 @@ int SrsSource::on_reload_vhost_dvr(string vhost)
 {
     int ret = ERROR_SUCCESS;
     
-    if (req->vhost != vhost) {
+    if (_req->vhost != vhost) {
         return ret;
     }
     
@@ -644,12 +648,12 @@ int SrsSource::on_reload_vhost_dvr(string vhost)
     dvr->on_unpublish();
 
     // reinitialize the dvr, update plan.
-    if ((ret = dvr->initialize(req)) != ERROR_SUCCESS) {
+    if ((ret = dvr->initialize(_req)) != ERROR_SUCCESS) {
         return ret;
     }
 
     // start to publish by new plan.
-    if ((ret = dvr->on_publish(req)) != ERROR_SUCCESS) {
+    if ((ret = dvr->on_publish(_req)) != ERROR_SUCCESS) {
         srs_error("dvr publish failed. ret=%d", ret);
         return ret;
     }
@@ -664,13 +668,13 @@ int SrsSource::on_reload_vhost_transcode(string vhost)
 {
     int ret = ERROR_SUCCESS;
     
-    if (req->vhost != vhost) {
+    if (_req->vhost != vhost) {
         return ret;
     }
     
 #ifdef SRS_AUTO_TRANSCODE
     encoder->on_unpublish();
-    if ((ret = encoder->on_publish(req)) != ERROR_SUCCESS) {
+    if ((ret = encoder->on_publish(_req)) != ERROR_SUCCESS) {
         srs_error("start encoder failed. ret=%d", ret);
         return ret;
     }
@@ -1038,14 +1042,12 @@ int SrsSource::on_video(SrsCommonMessage* video)
     return ret;
 }
 
-int SrsSource::on_publish(SrsRequest* _req)
+int SrsSource::on_publish()
 {
     int ret = ERROR_SUCCESS;
     
     // update the request object.
-    srs_freep(req);
-    req = _req->copy();
-    srs_assert(req);
+    srs_assert(_req);
     
     _can_publish = false;
     
@@ -1056,21 +1058,21 @@ int SrsSource::on_publish(SrsRequest* _req)
     }
     
 #ifdef SRS_AUTO_TRANSCODE
-    if ((ret = encoder->on_publish(req)) != ERROR_SUCCESS) {
+    if ((ret = encoder->on_publish(_req)) != ERROR_SUCCESS) {
         srs_error("start encoder failed. ret=%d", ret);
         return ret;
     }
 #endif
     
 #ifdef SRS_AUTO_HLS
-    if ((ret = hls->on_publish(req)) != ERROR_SUCCESS) {
+    if ((ret = hls->on_publish(_req)) != ERROR_SUCCESS) {
         srs_error("start hls failed. ret=%d", ret);
         return ret;
     }
 #endif
     
 #ifdef SRS_AUTO_DVR
-    if ((ret = dvr->on_publish(req)) != ERROR_SUCCESS) {
+    if ((ret = dvr->on_publish(_req)) != ERROR_SUCCESS) {
         srs_error("start dvr failed. ret=%d", ret);
         return ret;
     }
@@ -1116,7 +1118,7 @@ void SrsSource::on_unpublish()
     consumer = new SrsConsumer(this);
     consumers.push_back(consumer);
     
-    double queue_size = _srs_config->get_queue_length(req->vhost);
+    double queue_size = _srs_config->get_queue_length(_req->vhost);
     consumer->set_queue_size(queue_size);
 
     if (cache_metadata && (ret = consumer->enqueue(cache_metadata->copy(), sample_rate, frame_rate)) != ERROR_SUCCESS) {
@@ -1187,20 +1189,20 @@ int SrsSource::create_forwarders()
 {
     int ret = ERROR_SUCCESS;
     
-    SrsConfDirective* conf = _srs_config->get_forward(req->vhost);
+    SrsConfDirective* conf = _srs_config->get_forward(_req->vhost);
     for (int i = 0; conf && i < (int)conf->args.size(); i++) {
         std::string forward_server = conf->args.at(i);
         
         SrsForwarder* forwarder = new SrsForwarder(this);
         forwarders.push_back(forwarder);
     
-        double queue_size = _srs_config->get_queue_length(req->vhost);
+        double queue_size = _srs_config->get_queue_length(_req->vhost);
         forwarder->set_queue_size(queue_size);
         
-        if ((ret = forwarder->on_publish(req, forward_server)) != ERROR_SUCCESS) {
+        if ((ret = forwarder->on_publish(_req, forward_server)) != ERROR_SUCCESS) {
             srs_error("start forwarder failed. "
                 "vhost=%s, app=%s, stream=%s, forward-to=%s",
-                req->vhost.c_str(), req->app.c_str(), req->stream.c_str(),
+                _req->vhost.c_str(), _req->app.c_str(), _req->stream.c_str(),
                 forward_server.c_str());
             return ret;
         }

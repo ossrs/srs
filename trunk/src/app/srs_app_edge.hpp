@@ -30,6 +30,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+class SrsRequest;
+
 /**
 * the state of edge
 */
@@ -49,11 +51,13 @@ enum SrsEdgeState
 class SrsEdge
 {
 private:
+    SrsRequest* _req;
     SrsEdgeState state;
 public:
     SrsEdge();
     virtual ~SrsEdge();
 public:
+    virtual int initialize(SrsRequest* req);
     /**
     * when client play stream on edge.
     */

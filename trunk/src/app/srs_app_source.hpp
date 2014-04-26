@@ -220,7 +220,7 @@ public:
     static int find(SrsRequest* req, SrsSource** ppsource);
 private:
     // deep copy of client request.
-    SrsRequest* req;
+    SrsRequest* _req;
     // to delivery stream to clients.
     std::vector<SrsConsumer*> consumers;
     // hls handler.
@@ -272,7 +272,7 @@ public:
     * @param _req the client request object, 
     *     this object will deep copy it for reload.
     */
-    SrsSource(SrsRequest* _req);
+    SrsSource(SrsRequest* req);
     virtual ~SrsSource();
 public:
     virtual int initialize();
@@ -302,7 +302,7 @@ public:
     * @param _req the request from client, the source will deep copy it,
     *         for when reload the request of client maybe invalid.
     */
-    virtual int on_publish(SrsRequest* _req);
+    virtual int on_publish();
     virtual void on_unpublish();
 public:
     virtual int create_consumer(SrsConsumer*& consumer);

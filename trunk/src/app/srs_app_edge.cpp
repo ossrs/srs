@@ -24,6 +24,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_edge.hpp>
 
 #include <srs_kernel_error.hpp>
+#include <srs_protocol_rtmp.hpp>
 
 SrsEdge::SrsEdge()
 {
@@ -32,6 +33,15 @@ SrsEdge::SrsEdge()
 
 SrsEdge::~SrsEdge()
 {
+}
+
+int SrsEdge::initialize(SrsRequest* req)
+{
+    int ret = ERROR_SUCCESS;
+    
+    _req = req;
+    
+    return ret;
 }
 
 int SrsEdge::on_client_play()

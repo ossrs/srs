@@ -515,7 +515,7 @@ int SrsRtmpConn::fmle_publish(SrsSource* source)
     SrsPithyPrint pithy_print(SRS_STAGE_PUBLISH_USER);
     
     // notify the hls to prepare when publish start.
-    if ((ret = source->on_publish(req)) != ERROR_SUCCESS) {
+    if ((ret = source->on_publish()) != ERROR_SUCCESS) {
         srs_error("fmle hls on_publish failed. ret=%d", ret);
         return ret;
     }
@@ -584,7 +584,7 @@ int SrsRtmpConn::flash_publish(SrsSource* source)
     SrsPithyPrint pithy_print(SRS_STAGE_PUBLISH_USER);
     
     // notify the hls to prepare when publish start.
-    if ((ret = source->on_publish(req)) != ERROR_SUCCESS) {
+    if ((ret = source->on_publish()) != ERROR_SUCCESS) {
         srs_error("flash hls on_publish failed. ret=%d", ret);
         return ret;
     }
