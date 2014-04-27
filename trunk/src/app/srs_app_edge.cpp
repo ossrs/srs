@@ -313,7 +313,6 @@ SrsEdgeProxyContext::SrsEdgeProxyContext()
     edge_io = NULL;
     edge_rtmp = NULL;
     edge_stfd = NULL;
-    edge_got_message = false;
     
     origin_stream_id = 0;
     origin_io = NULL;
@@ -408,8 +407,6 @@ int SrsEdgeForwarder::proxy(SrsEdgeProxyContext* context)
     context->origin_rtmp->set_recv_timeout(SRS_RECV_TIMEOUT_US);
     context->edge_rtmp->set_recv_timeout(SRS_RECV_TIMEOUT_US);
     
-    context->edge_got_message = false;
-    
     SrsPithyPrint pithy_print(SRS_STAGE_EDGE);
     
     pollfd fds[2];
@@ -478,7 +475,6 @@ int SrsEdgeForwarder::proxy_origin_message(SrsEdgeProxyContext* context)
     srs_assert(msg);
     
     if (msg->size <= 0 
-        || !context->edge_got_message
         || msg->header.is_set_chunk_size()
         || msg->header.is_window_ackledgement_size()
         || msg->header.is_ackledgement()
@@ -510,8 +506,6 @@ int SrsEdgeForwarder::proxy_edge_message(SrsEdgeProxyContext* context)
     }
     
     srs_assert(msg);
-    
-    //context->edge_got_message = true;
     
     if (msg->size <= 0
         || msg->header.is_set_chunk_size()

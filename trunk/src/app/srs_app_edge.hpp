@@ -108,7 +108,6 @@ public:
     st_netfd_t edge_stfd;
     ISrsProtocolReaderWriter* edge_io;
     SrsRtmpServer* edge_rtmp;
-    bool edge_got_message;
 public:
     int origin_stream_id;
     st_netfd_t origin_stfd;
