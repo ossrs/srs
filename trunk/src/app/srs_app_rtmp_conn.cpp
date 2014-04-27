@@ -277,17 +277,21 @@ int SrsRtmpConn::stream_service_cycle()
     }
     srs_assert(source != NULL);
     
-    // check publish available.
-    if (type != SrsRtmpConnPlay && !source->can_publish()) {
-        ret = ERROR_SYSTEM_STREAM_BUSY;
-        srs_warn("stream %s is already publishing. ret=%d", 
-            req->get_stream_url().c_str(), ret);
-        // to delay request
-        st_usleep(SRS_STREAM_BUSY_SLEEP_US);
-        return ret;
+    bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
+    
+    // check publish available
+    // for edge, never check it, for edge use proxy mode.
+    if (!vhost_is_edge) {
+        if (type != SrsRtmpConnPlay && !source->can_publish()) {
+            ret = ERROR_SYSTEM_STREAM_BUSY;
+            srs_warn("stream %s is already publishing. ret=%d", 
+                req->get_stream_url().c_str(), ret);
+            // to delay request
+            st_usleep(SRS_STREAM_BUSY_SLEEP_US);
+            return ret;
+        }
     }
     
-    bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
     bool enabled_cache = _srs_config->get_gop_cache(req->vhost);
     srs_trace("source found, url=%s, enabled_cache=%d, edge=%d", 
         req->get_stream_url().c_str(), enabled_cache, vhost_is_edge);
@@ -338,6 +342,7 @@ int SrsRtmpConn::stream_service_cycle()
             context.edge_io = skt;
             context.edge_stream_id = res->stream_id;
             context.edge_rtmp = rtmp;
+            context.edge_stfd = stfd;
             if (vhost_is_edge) {
                 return source->on_edge_proxy_publish(&context);
             }
@@ -371,6 +376,7 @@ int SrsRtmpConn::stream_service_cycle()
             context.edge_io = skt;
             context.edge_stream_id = res->stream_id;
             context.edge_rtmp = rtmp;
+            context.edge_stfd = stfd;
             if (vhost_is_edge) {
                 return source->on_edge_proxy_publish(&context);
             }

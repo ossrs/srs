@@ -1202,6 +1202,11 @@ bool SrsMessageHeader::is_window_ackledgement_size()
     return message_type == RTMP_MSG_WindowAcknowledgementSize;
 }
 
+bool SrsMessageHeader::is_ackledgement()
+{
+    return message_type == RTMP_MSG_Acknowledgement;
+}
+
 bool SrsMessageHeader::is_set_chunk_size()
 {
     return message_type == RTMP_MSG_SetChunkSize;

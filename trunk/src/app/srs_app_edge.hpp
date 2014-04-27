@@ -105,10 +105,13 @@ class SrsEdgeProxyContext
 {
 public:
     int edge_stream_id;
+    st_netfd_t edge_stfd;
     ISrsProtocolReaderWriter* edge_io;
     SrsRtmpServer* edge_rtmp;
+    bool edge_got_message;
 public:
     int origin_stream_id;
+    st_netfd_t origin_stfd;
     ISrsProtocolReaderWriter* origin_io;
     SrsRtmpClient* origin_rtmp;
 public:
@@ -141,7 +144,8 @@ public:
 public:
     virtual int proxy(SrsEdgeProxyContext* context);
 private:
-    virtual int proxy_message(SrsEdgeProxyContext* context);
+    virtual int proxy_origin_message(SrsEdgeProxyContext* context);
+    virtual int proxy_edge_message(SrsEdgeProxyContext* context);
     virtual void close_underlayer_socket();
     virtual int connect_server();
 };

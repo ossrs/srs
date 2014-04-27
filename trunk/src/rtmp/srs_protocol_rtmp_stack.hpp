@@ -236,6 +236,7 @@ struct SrsMessageHeader
     bool is_amf3_command();
     bool is_amf3_data();
     bool is_window_ackledgement_size();
+    bool is_ackledgement();
     bool is_set_chunk_size();
     bool is_user_control_message();
     

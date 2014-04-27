@@ -166,7 +166,7 @@ int SrsEdgeIngester::ingest()
         // read from client.
         SrsCommonMessage* msg = NULL;
         if ((ret = client->recv_message(&msg)) != ERROR_SUCCESS) {
-            srs_error("recv origin server message failed. ret=%d", ret);
+            srs_error("ingest recv origin server message failed. ret=%d", ret);
             return ret;
         }
         srs_verbose("edge loop recv message. ret=%d", ret);
@@ -312,10 +312,13 @@ SrsEdgeProxyContext::SrsEdgeProxyContext()
     edge_stream_id = 0;
     edge_io = NULL;
     edge_rtmp = NULL;
+    edge_stfd = NULL;
+    edge_got_message = false;
     
     origin_stream_id = 0;
     origin_io = NULL;
     origin_rtmp = NULL;
+    origin_stfd = NULL;
 }
 
 SrsEdgeProxyContext::~SrsEdgeProxyContext()
@@ -400,10 +403,21 @@ int SrsEdgeForwarder::proxy(SrsEdgeProxyContext* context)
     context->origin_io = io;
     context->origin_rtmp = client;
     context->origin_stream_id = stream_id;
+    context->origin_stfd = stfd;
     
-    client->set_recv_timeout(SRS_PULSE_TIMEOUT_US);
+    context->origin_rtmp->set_recv_timeout(SRS_RECV_TIMEOUT_US);
+    context->edge_rtmp->set_recv_timeout(SRS_RECV_TIMEOUT_US);
+    
+    context->edge_got_message = false;
     
     SrsPithyPrint pithy_print(SRS_STAGE_EDGE);
+    
+    pollfd fds[2];
+    fds[0].fd = st_netfd_fileno(context->edge_stfd);
+    fds[0].events = POLLIN;
+    
+    fds[1].fd = st_netfd_fileno(context->origin_stfd);
+    fds[1].events = POLLIN;
 
     while (true) {
         // switch to other st-threads.
@@ -417,58 +431,101 @@ int SrsEdgeForwarder::proxy(SrsEdgeProxyContext* context)
                 pithy_print.age(), client->get_send_bytes(), client->get_recv_bytes(), client->get_send_kbps(), client->get_recv_kbps());
         }
         
-        if ((ret = proxy_message(context)) != ERROR_SUCCESS) {
+        fds[0].revents = 0;
+        fds[1].revents = 0;
+        
+        // Upon successful completion, a non-negative value is returned. 
+        // A positive value indicates the total number of OS file descriptors in pds that have events. 
+        // A value of 0 indicates that the call timed out. 
+        // Upon failure, a value of -1 is returned and errno is set to indicate the error
+        if(st_poll(fds, 2, ST_UTIME_NO_TIMEOUT) <= 0){
+            ret = ERROR_RTMP_EDGE_PROXY_PULL;
+            srs_error("edge wait for st_poll error. ret=%d", ret);
             return ret;
+        }
+        
+        // edge active
+        if(fds[0].revents & POLLIN){
+            if((ret = proxy_edge_message(context)) != ERROR_SUCCESS){
+                return ret;
+            }
+        }
+        
+        // origin active
+        if(fds[1].revents & POLLIN){
+            if((ret = proxy_origin_message(context)) != ERROR_SUCCESS){
+                return ret;
+            }
         }
     }
     
     return ret;
 }
 
-int SrsEdgeForwarder::proxy_message(SrsEdgeProxyContext* context)
+int SrsEdgeForwarder::proxy_origin_message(SrsEdgeProxyContext* context)
 {
     int ret = ERROR_SUCCESS;
 
     SrsCommonMessage* msg = NULL;
     
-    // proxy origin message to client
-    msg = NULL;
+    // process origin message.
     ret = context->origin_rtmp->recv_message(&msg);
     if (ret != ERROR_SUCCESS && ret != ERROR_SOCKET_TIMEOUT) {
-        srs_error("recv origin server message failed. ret=%d", ret);
+        srs_error("forward recv origin server message failed. ret=%d", ret);
         return ret;
     }
     
-    if (msg) {
-        if (msg->size <= 0) {
-            srs_freep(msg);
-        } else {
-            msg->header.stream_id = context->edge_stream_id;
-            if ((ret = context->edge_rtmp->send_message(msg)) != ERROR_SUCCESS) {
-                srs_error("send origin message to client failed. ret=%d", ret);
-                return ret;
-            }
-        }
+    srs_assert(msg);
+    
+    if (msg->size <= 0 
+        || !context->edge_got_message
+        || msg->header.is_set_chunk_size()
+        || msg->header.is_window_ackledgement_size()
+        || msg->header.is_ackledgement()
+    ) {
+        srs_freep(msg);
+        return ret;
     }
     
+    msg->header.stream_id = context->edge_stream_id;
+    if ((ret = context->edge_rtmp->send_message(msg)) != ERROR_SUCCESS) {
+        srs_error("send origin message to client failed. ret=%d", ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsEdgeForwarder::proxy_edge_message(SrsEdgeProxyContext* context)
+{
+    int ret = ERROR_SUCCESS;
+
+    SrsCommonMessage* msg = NULL;
+    
     // proxy client message to origin
-    msg = NULL;
     ret = context->edge_rtmp->recv_message(&msg);
     if (ret != ERROR_SUCCESS && ret != ERROR_SOCKET_TIMEOUT) {
         srs_error("recv client message failed. ret=%d", ret);
         return ret;
     }
     
-    if (msg) {
-        if (msg->size <= 0) {
-            srs_freep(msg);
-        } else {
-            msg->header.stream_id = context->origin_stream_id;
-            if ((ret = context->origin_rtmp->send_message(msg)) != ERROR_SUCCESS) {
-                srs_error("send client message to origin failed. ret=%d", ret);
-                return ret;
-            }
-        }
+    srs_assert(msg);
+    
+    context->edge_got_message = true;
+    
+    if (msg->size <= 0 
+        || msg->header.is_set_chunk_size()
+        || msg->header.is_window_ackledgement_size()
+        || msg->header.is_ackledgement()
+    ) {
+        srs_freep(msg);
+        return ret;
+    }
+    
+    msg->header.stream_id = context->origin_stream_id;
+    if ((ret = context->origin_rtmp->send_message(msg)) != ERROR_SUCCESS) {
+        srs_error("send client message to origin failed. ret=%d", ret);
+        return ret;
     }
     
     return ret;
