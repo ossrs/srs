@@ -42,6 +42,7 @@ using namespace std;
 #include <srs_app_bandwidth.hpp>
 #include <srs_app_socket.hpp>
 #include <srs_app_http_hooks.hpp>
+#include <srs_app_edge.hpp>
 
 // when stream is busy, for example, streaming is already
 // publishing, when a new client to request to publish,
@@ -332,6 +333,15 @@ int SrsRtmpConn::stream_service_cycle()
                 srs_error("start to publish stream failed. ret=%d", ret);
                 return ret;
             }
+            
+            SrsEdgeProxyContext context;
+            context.edge_io = skt;
+            context.edge_stream_id = res->stream_id;
+            context.edge_rtmp = rtmp;
+            if (vhost_is_edge) {
+                return source->on_edge_proxy_publish(&context);
+            }
+            
             if ((ret = on_publish()) != ERROR_SUCCESS) {
                 srs_error("http hook on_publish failed. ret=%d", ret);
                 return ret;
@@ -345,10 +355,26 @@ int SrsRtmpConn::stream_service_cycle()
         case SrsRtmpConnFlashPublish: {
             srs_verbose("flash start to publish stream %s.", req->stream.c_str());
             
+            if (vhost_is_edge) {
+                if ((ret = source->on_edge_start_publish()) != ERROR_SUCCESS) {
+                    srs_error("notice edge start publish stream failed. ret=%d", ret);
+                    return ret;
+                }
+            }
+            
             if ((ret = rtmp->start_flash_publish(res->stream_id)) != ERROR_SUCCESS) {
                 srs_error("flash start to publish stream failed. ret=%d", ret);
                 return ret;
             }
+            
+            SrsEdgeProxyContext context;
+            context.edge_io = skt;
+            context.edge_stream_id = res->stream_id;
+            context.edge_rtmp = rtmp;
+            if (vhost_is_edge) {
+                return source->on_edge_proxy_publish(&context);
+            }
+            
             if ((ret = on_publish()) != ERROR_SUCCESS) {
                 srs_error("http hook on_publish failed. ret=%d", ret);
                 return ret;

@@ -352,6 +352,10 @@ public:
     // TODO: use protocol to decode it.
     virtual int decode_packet(SrsProtocol* protocol);
     /**
+    * whether msg has decoded packet.
+    */
+    virtual bool has_packet();
+    /**
     * get the decoded packet which decoded by decode_packet().
     * @remark, user never free the pkt, the message will auto free it.
     */

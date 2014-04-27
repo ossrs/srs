@@ -45,6 +45,9 @@ class SrsOnMetaDataPacket;
 class SrsSharedPtrMessage;
 class SrsForwarder;
 class SrsRequest;
+class SrsSocket;
+class SrsRtmpServer;
+class SrsEdgeProxyContext;
 #ifdef SRS_AUTO_HLS
 class SrsHls;
 #endif
@@ -318,6 +321,8 @@ public:
     virtual int on_edge_start_play();
     // for edge, when publish edge stream, check the state
     virtual int on_edge_start_publish();
+    // for edge, proxy the publish
+    virtual int on_edge_proxy_publish(SrsEdgeProxyContext* context);
 private:
     virtual int create_forwarders();
     virtual void destroy_forwarders();

@@ -41,12 +41,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_source.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_app_socket.hpp>
 
 // when error, edge ingester sleep for a while and retry.
 #define SRS_EDGE_INGESTER_SLEEP_US (int64_t)(1*1000*1000LL)
 
 // when edge timeout, retry next.
-#define SRS_EDGE_TIMEOUT_US (int64_t)(3*1000*1000LL)
+#define SRS_EDGE_INGESTER_TIMEOUT_US (int64_t)(3*1000*1000LL)
 
 SrsEdgeIngester::SrsEdgeIngester()
 {
@@ -146,7 +147,7 @@ int SrsEdgeIngester::ingest()
 {
     int ret = ERROR_SUCCESS;
     
-    client->set_recv_timeout(SRS_EDGE_TIMEOUT_US);
+    client->set_recv_timeout(SRS_EDGE_INGESTER_TIMEOUT_US);
     
     SrsPithyPrint pithy_print(SRS_STAGE_EDGE);
 
@@ -306,6 +307,21 @@ int SrsEdgeIngester::connect_server()
     return ret;
 }
 
+SrsEdgeProxyContext::SrsEdgeProxyContext()
+{
+    edge_stream_id = 0;
+    edge_io = NULL;
+    edge_rtmp = NULL;
+    
+    origin_stream_id = 0;
+    origin_io = NULL;
+    origin_rtmp = NULL;
+}
+
+SrsEdgeProxyContext::~SrsEdgeProxyContext()
+{
+}
+
 SrsEdgeForwarder::SrsEdgeForwarder()
 {
     io = NULL;
@@ -315,14 +331,11 @@ SrsEdgeForwarder::SrsEdgeForwarder()
     origin_index = 0;
     stream_id = 0;
     stfd = NULL;
-    pthread = new SrsThread(this, SRS_EDGE_INGESTER_SLEEP_US);
 }
 
 SrsEdgeForwarder::~SrsEdgeForwarder()
 {
     stop();
-    
-    srs_freep(pthread);
 }
 
 int SrsEdgeForwarder::initialize(SrsSource* source, SrsPublishEdge* edge, SrsRequest* req)
@@ -337,21 +350,6 @@ int SrsEdgeForwarder::initialize(SrsSource* source, SrsPublishEdge* edge, SrsReq
 }
 
 int SrsEdgeForwarder::start()
-{
-    return pthread->start();
-}
-
-void SrsEdgeForwarder::stop()
-{
-    pthread->stop();
-    
-    close_underlayer_socket();
-    
-    srs_freep(client);
-    srs_freep(io);
-}
-
-int SrsEdgeForwarder::cycle()
 {
     int ret = ERROR_SUCCESS;
     
@@ -378,37 +376,36 @@ int SrsEdgeForwarder::cycle()
         return ret;
     }
     
-    if ((ret = client->play(req->stream, stream_id)) != ERROR_SUCCESS) {
+    if ((ret = client->publish(req->stream, stream_id)) != ERROR_SUCCESS) {
         srs_error("connect with server failed, stream=%s, stream_id=%d. ret=%d", 
             req->stream.c_str(), stream_id, ret);
-        return ret;
-    }
-    
-    if ((ret = _source->on_publish()) != ERROR_SUCCESS) {
-        srs_error("edge ingester play stream then publish to edge failed. ret=%d", ret);
-        return ret;
-    }
-    
-    if ((ret = _edge->on_forward_publish()) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    if ((ret = forward()) != ERROR_SUCCESS) {
         return ret;
     }
     
     return ret;
 }
 
-int SrsEdgeForwarder::forward()
+void SrsEdgeForwarder::stop()
+{
+    close_underlayer_socket();
+    
+    srs_freep(client);
+    srs_freep(io);
+}
+
+int SrsEdgeForwarder::proxy(SrsEdgeProxyContext* context)
 {
     int ret = ERROR_SUCCESS;
     
-    client->set_recv_timeout(SRS_EDGE_TIMEOUT_US);
+    context->origin_io = io;
+    context->origin_rtmp = client;
+    context->origin_stream_id = stream_id;
+    
+    client->set_recv_timeout(SRS_PULSE_TIMEOUT_US);
     
     SrsPithyPrint pithy_print(SRS_STAGE_EDGE);
 
-    while (pthread->can_loop()) {
+    while (true) {
         // switch to other st-threads.
         st_usleep(0);
         
@@ -419,17 +416,59 @@ int SrsEdgeForwarder::forward()
             srs_trace("<- time=%"PRId64", obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
                 pithy_print.age(), client->get_send_bytes(), client->get_recv_bytes(), client->get_send_kbps(), client->get_recv_kbps());
         }
-
-        // read from client.
-        SrsCommonMessage* msg = NULL;
-        if ((ret = client->recv_message(&msg)) != ERROR_SUCCESS) {
-            srs_error("recv origin server message failed. ret=%d", ret);
+        
+        if ((ret = proxy_message(context)) != ERROR_SUCCESS) {
             return ret;
         }
-        srs_verbose("edge loop recv message. ret=%d", ret);
-        
-        srs_assert(msg);
-        SrsAutoFree(SrsCommonMessage, msg, false);
+    }
+    
+    return ret;
+}
+
+int SrsEdgeForwarder::proxy_message(SrsEdgeProxyContext* context)
+{
+    int ret = ERROR_SUCCESS;
+
+    SrsCommonMessage* msg = NULL;
+    
+    // proxy origin message to client
+    msg = NULL;
+    ret = context->origin_rtmp->recv_message(&msg);
+    if (ret != ERROR_SUCCESS && ret != ERROR_SOCKET_TIMEOUT) {
+        srs_error("recv origin server message failed. ret=%d", ret);
+        return ret;
+    }
+    
+    if (msg) {
+        if (msg->size <= 0) {
+            srs_freep(msg);
+        } else {
+            msg->header.stream_id = context->edge_stream_id;
+            if ((ret = context->edge_rtmp->send_message(msg)) != ERROR_SUCCESS) {
+                srs_error("send origin message to client failed. ret=%d", ret);
+                return ret;
+            }
+        }
+    }
+    
+    // proxy client message to origin
+    msg = NULL;
+    ret = context->edge_rtmp->recv_message(&msg);
+    if (ret != ERROR_SUCCESS && ret != ERROR_SOCKET_TIMEOUT) {
+        srs_error("recv client message failed. ret=%d", ret);
+        return ret;
+    }
+    
+    if (msg) {
+        if (msg->size <= 0) {
+            srs_freep(msg);
+        } else {
+            msg->header.stream_id = context->origin_stream_id;
+            if ((ret = context->origin_rtmp->send_message(msg)) != ERROR_SUCCESS) {
+                srs_error("send client message to origin failed. ret=%d", ret);
+                return ret;
+            }
+        }
     }
     
     return ret;
@@ -620,21 +659,33 @@ int SrsPublishEdge::on_client_publish()
     // error state.
     if (user_state != SrsEdgeUserStateInit) {
         ret = ERROR_RTMP_EDGE_PUBLISH_STATE;
-        srs_error("invalid state for client to play stream on edge. "
+        srs_error("invalid state for client to publish stream on edge. "
             "state=%d, user_state=%d, ret=%d", state, user_state, ret);
         return ret;
     }
     
-    // start ingest when init state.
-    if (state == SrsEdgeStateInit) {
-        state = SrsEdgeStatePublish;
+    // error when not init state.
+    if (state != SrsEdgeStateInit) {
+        ret = ERROR_RTMP_EDGE_PUBLISH_STATE;
+        srs_error("invalid state for client to publish stream on edge. "
+            "state=%d, user_state=%d, ret=%d", state, user_state, ret);
+        return ret;
     }
-
-    return ret;
+    
+    SrsEdgeState pstate = state;
+    state = SrsEdgeStatePublish;
+    srs_trace("edge change from %d to state %d (forward publish).", pstate, state);
+    
+    return forwarder->start();
 }
 
-int SrsPublishEdge::on_forward_publish()
+int SrsPublishEdge::on_proxy_publish(SrsEdgeProxyContext* context)
 {
-    int ret = ERROR_SUCCESS;
+    int ret = forwarder->proxy(context);
+    
+    SrsEdgeState pstate = state;
+    state = SrsEdgeStateInit;
+    srs_trace("edge change from %d to state %d (init).", pstate, state);
+    
     return ret;
 }

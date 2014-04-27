@@ -33,6 +33,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_st.hpp>
 #include <srs_app_thread.hpp>
 
+class SrsSocket;
+class SrsRtmpServer;
 class SrsSource;
 class SrsRequest;
 class SrsPlayEdge;
@@ -55,8 +57,6 @@ enum SrsEdgeState
     
     // for publish edge
     SrsEdgeStatePublish = 200,
-    // publish stream to edge, forward to origin
-    SrsEdgeStateForwardConnected,
 };
 
 /**
@@ -101,10 +101,25 @@ private:
     virtual int process_publish_message(SrsCommonMessage* msg);
 };
 
+class SrsEdgeProxyContext
+{
+public:
+    int edge_stream_id;
+    ISrsProtocolReaderWriter* edge_io;
+    SrsRtmpServer* edge_rtmp;
+public:
+    int origin_stream_id;
+    ISrsProtocolReaderWriter* origin_io;
+    SrsRtmpClient* origin_rtmp;
+public:
+    SrsEdgeProxyContext();
+    virtual ~SrsEdgeProxyContext();
+};
+
 /**
 * edge used to forward stream to origin.
 */
-class SrsEdgeForwarder : public ISrsThreadHandler
+class SrsEdgeForwarder
 {
 private:
     int stream_id;
@@ -112,7 +127,6 @@ private:
     SrsSource* _source;
     SrsPublishEdge* _edge;
     SrsRequest* _req;
-    SrsThread* pthread;
     st_netfd_t stfd;
     ISrsProtocolReaderWriter* io;
     SrsRtmpClient* client;
@@ -124,11 +138,10 @@ public:
     virtual int initialize(SrsSource* source, SrsPublishEdge* edge, SrsRequest* req);
     virtual int start();
     virtual void stop();
-// interface ISrsThreadHandler
 public:
-    virtual int cycle();
+    virtual int proxy(SrsEdgeProxyContext* context);
 private:
-    virtual int forward();
+    virtual int proxy_message(SrsEdgeProxyContext* context);
     virtual void close_underlayer_socket();
     virtual int connect_server();
 };
@@ -182,11 +195,10 @@ public:
     * when client publish stream on edge.
     */
     virtual int on_client_publish();
-public:
     /**
-    * when forwarder start to publish stream.
+    * proxy publish stream to edge
     */
-    virtual int on_forward_publish();
+    virtual int on_proxy_publish(SrsEdgeProxyContext* context);
 };
 
 #endif

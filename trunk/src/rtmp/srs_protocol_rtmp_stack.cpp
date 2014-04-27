@@ -652,8 +652,14 @@ int SrsProtocol::on_send_message(ISrsMessage* msg)
     }
     
     SrsCommonMessage* common_msg = dynamic_cast<SrsCommonMessage*>(msg);
-    if (!msg) {
+    if (!common_msg) {
         srs_verbose("ignore the shared ptr message.");
+        return ret;
+    }
+    
+    // for proxy, the common msg is not decoded, ignore.
+    if (!common_msg->has_packet()) {
+        srs_verbose("ignore the proxy common message.");
         return ret;
     }
     
@@ -1459,6 +1465,11 @@ int SrsCommonMessage::decode_packet(SrsProtocol* protocol)
     return ret;
 }
 
+bool SrsCommonMessage::has_packet()
+{
+    return packet != NULL;
+}
+
 SrsPacket* SrsCommonMessage::get_packet()
 {
     if (!packet) {
@@ -1501,6 +1512,14 @@ int SrsCommonMessage::encode_packet()
 {
     int ret = ERROR_SUCCESS;
     
+    // sometimes, for example, the edge proxy,
+    // the payload is not decoded, so directly sent out.
+    if (payload != NULL) {
+        header.payload_length = size;
+        return ret;
+    }
+    
+    // encode packet to payload and size.
     if (packet == NULL) {
         srs_warn("packet is empty, send out empty message.");
         return ret;

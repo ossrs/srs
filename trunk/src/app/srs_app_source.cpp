@@ -1199,6 +1199,11 @@ int SrsSource::on_edge_start_publish()
     return publish_edge->on_client_publish();
 }
 
+int SrsSource::on_edge_proxy_publish(SrsEdgeProxyContext* context)
+{
+    return publish_edge->on_proxy_publish(context);
+}
+
 int SrsSource::create_forwarders()
 {
     int ret = ERROR_SUCCESS;
