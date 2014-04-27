@@ -33,9 +33,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_st.hpp>
 #include <srs_app_thread.hpp>
 
-class SrsEdge;
 class SrsSource;
 class SrsRequest;
+class SrsPlayEdge;
+class SrsPublishEdge;
 class SrsRtmpClient;
 class SrsCommonMessage;
 class ISrsProtocolReaderWriter;
@@ -46,10 +47,14 @@ class ISrsProtocolReaderWriter;
 enum SrsEdgeState
 {
     SrsEdgeStateInit = 0,
+
+    // for play edge
     SrsEdgeStatePlay = 100,
-    SrsEdgeStatePublish,
     // play stream from origin, ingest stream
     SrsEdgeStateIngestConnected,
+    
+    // for publish edge
+    SrsEdgeStatePublish = 200,
     // publish stream to edge, forward to origin
     SrsEdgeStateForwardConnected,
 };
@@ -72,7 +77,7 @@ private:
     int stream_id;
 private:
     SrsSource* _source;
-    SrsEdge* _edge;
+    SrsPlayEdge* _edge;
     SrsRequest* _req;
     SrsThread* pthread;
     st_netfd_t stfd;
@@ -83,7 +88,7 @@ public:
     SrsEdgeIngester();
     virtual ~SrsEdgeIngester();
 public:
-    virtual int initialize(SrsSource* source, SrsEdge* edge, SrsRequest* req);
+    virtual int initialize(SrsSource* source, SrsPlayEdge* edge, SrsRequest* req);
     virtual int start();
     virtual void stop();
 // interface ISrsThreadHandler
@@ -97,17 +102,50 @@ private:
 };
 
 /**
-* edge control service.
+* edge used to forward stream to origin.
 */
-class SrsEdge
+class SrsEdgeForwarder : public ISrsThreadHandler
+{
+private:
+    int stream_id;
+private:
+    SrsSource* _source;
+    SrsPublishEdge* _edge;
+    SrsRequest* _req;
+    SrsThread* pthread;
+    st_netfd_t stfd;
+    ISrsProtocolReaderWriter* io;
+    SrsRtmpClient* client;
+    int origin_index;
+public:
+    SrsEdgeForwarder();
+    virtual ~SrsEdgeForwarder();
+public:
+    virtual int initialize(SrsSource* source, SrsPublishEdge* edge, SrsRequest* req);
+    virtual int start();
+    virtual void stop();
+// interface ISrsThreadHandler
+public:
+    virtual int cycle();
+private:
+    virtual int forward();
+    virtual void close_underlayer_socket();
+    virtual int connect_server();
+};
+
+/**
+* play edge control service.
+* downloading edge speed-up.
+*/
+class SrsPlayEdge
 {
 private:
     SrsEdgeState state;
     SrsEdgeUserState user_state;
     SrsEdgeIngester* ingester;
 public:
-    SrsEdge();
-    virtual ~SrsEdge();
+    SrsPlayEdge();
+    virtual ~SrsPlayEdge();
 public:
     virtual int initialize(SrsSource* source, SrsRequest* req);
     /**
@@ -123,6 +161,32 @@ public:
     * when ingester start to play stream.
     */
     virtual int on_ingest_play();
+};
+
+/**
+* publish edge control service.
+* uploading edge speed-up.
+*/
+class SrsPublishEdge
+{
+private:
+    SrsEdgeState state;
+    SrsEdgeUserState user_state;
+    SrsEdgeForwarder* forwarder;
+public:
+    SrsPublishEdge();
+    virtual ~SrsPublishEdge();
+public:
+    virtual int initialize(SrsSource* source, SrsRequest* req);
+    /**
+    * when client publish stream on edge.
+    */
+    virtual int on_client_publish();
+public:
+    /**
+    * when forwarder start to publish stream.
+    */
+    virtual int on_forward_publish();
 };
 
 #endif

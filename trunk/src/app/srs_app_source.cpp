@@ -456,7 +456,8 @@ SrsSource::SrsSource(SrsRequest* req)
     frame_rate = sample_rate = 0;
     _can_publish = true;
     
-    edge = new SrsEdge();
+    play_edge = new SrsPlayEdge();
+    publish_edge = new SrsPublishEdge();
     gop_cache = new SrsGopCache();
     
     _srs_config->subscribe(this);
@@ -489,7 +490,8 @@ SrsSource::~SrsSource()
     srs_freep(cache_sh_video);
     srs_freep(cache_sh_audio);
     
-    srs_freep(edge);
+    srs_freep(play_edge);
+    srs_freep(publish_edge);
     srs_freep(gop_cache);
     
 #ifdef SRS_AUTO_HLS
@@ -515,7 +517,10 @@ int SrsSource::initialize()
     }
 #endif
 
-    if ((ret = edge->initialize(this, _req)) != ERROR_SUCCESS) {
+    if ((ret = play_edge->initialize(this, _req)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = publish_edge->initialize(this, _req)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -1170,7 +1175,7 @@ void SrsSource::on_consumer_destroy(SrsConsumer* consumer)
     srs_info("handle consumer destroy success.");
     
     if (consumers.empty()) {
-        edge->on_all_client_stop();
+        play_edge->on_all_client_stop();
     }
 }
 
@@ -1186,7 +1191,12 @@ bool SrsSource::is_atc()
 
 int SrsSource::on_edge_start_play()
 {
-    return edge->on_client_play();
+    return play_edge->on_client_play();
+}
+
+int SrsSource::on_edge_start_publish()
+{
+    return publish_edge->on_client_publish();
 }
 
 int SrsSource::create_forwarders()

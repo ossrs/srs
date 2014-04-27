@@ -79,6 +79,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // edge specified errors
 // invalid state for client to play edge stream.
 #define ERROR_RTMP_EDGE_PLAY_STATE          320
+// invalid state for client to publish edge stream.
+#define ERROR_RTMP_EDGE_PUBLISH_STATE       321
 
 #define ERROR_SYSTEM_STREAM_INIT            400
 #define ERROR_SYSTEM_PACKET_INVALID         401

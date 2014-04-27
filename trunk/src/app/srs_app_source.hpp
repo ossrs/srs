@@ -37,7 +37,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_st.hpp>
 #include <srs_app_reload.hpp>
 
-class SrsEdge;
+class SrsPlayEdge;
+class SrsPublishEdge;
 class SrsSource;
 class SrsCommonMessage;
 class SrsOnMetaDataPacket;
@@ -236,7 +237,8 @@ private:
     SrsEncoder* encoder;
 #endif
     // edge control service
-    SrsEdge* edge;
+    SrsPlayEdge* play_edge;
+    SrsPublishEdge* publish_edge;
     // gop cache for client fast startup.
     SrsGopCache* gop_cache;
     // to forward stream to other servers
@@ -314,6 +316,8 @@ public:
     virtual bool is_atc();
     // for edge, when play edge stream, check the state
     virtual int on_edge_start_play();
+    // for edge, when publish edge stream, check the state
+    virtual int on_edge_start_publish();
 private:
     virtual int create_forwarders();
     virtual void destroy_forwarders();
