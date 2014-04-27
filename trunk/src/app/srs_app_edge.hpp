@@ -104,7 +104,7 @@ private:
 /**
 * edge used to forward stream to origin.
 */
-class SrsEdgeForwarder
+class SrsEdgeForwarder : public ISrsThreadHandler
 {
 private:
     int stream_id;
@@ -112,6 +112,7 @@ private:
     SrsSource* _source;
     SrsPublishEdge* _edge;
     SrsRequest* _req;
+    SrsThread* pthread;
     st_netfd_t stfd;
     ISrsProtocolReaderWriter* io;
     SrsRtmpClient* client;
@@ -123,6 +124,9 @@ public:
     virtual int initialize(SrsSource* source, SrsPublishEdge* edge, SrsRequest* req);
     virtual int start();
     virtual void stop();
+// interface ISrsThreadHandler
+public:
+    virtual int cycle();
 public:
     virtual int proxy(SrsCommonMessage* msg);
 private:
@@ -134,6 +138,7 @@ private:
 * play edge control service.
 * downloading edge speed-up.
 */
+// TODO: FIXME: support reload
 class SrsPlayEdge
 {
 private:
@@ -164,6 +169,7 @@ public:
 * publish edge control service.
 * uploading edge speed-up.
 */
+// TODO: FIXME: support reload
 class SrsPublishEdge
 {
 private:

@@ -49,6 +49,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // when edge timeout, retry next.
 #define SRS_EDGE_INGESTER_TIMEOUT_US (int64_t)(3*1000*1000LL)
 
+// when error, edge ingester sleep for a while and retry.
+#define SRS_EDGE_FORWARDER_SLEEP_US (int64_t)(1*1000*1000LL)
+
+// when edge timeout, retry next.
+#define SRS_EDGE_FORWARDER_TIMEOUT_US (int64_t)(3*1000*1000LL)
+
 SrsEdgeIngester::SrsEdgeIngester()
 {
     io = NULL;
@@ -316,6 +322,7 @@ SrsEdgeForwarder::SrsEdgeForwarder()
     origin_index = 0;
     stream_id = 0;
     stfd = NULL;
+    pthread = new SrsThread(this, SRS_EDGE_FORWARDER_SLEEP_US);
 }
 
 SrsEdgeForwarder::~SrsEdgeForwarder()
@@ -367,15 +374,52 @@ int SrsEdgeForwarder::start()
         return ret;
     }
     
-    return ret;
+    return pthread->start();
 }
 
 void SrsEdgeForwarder::stop()
 {
+    pthread->stop();
+    
     close_underlayer_socket();
     
     srs_freep(client);
     srs_freep(io);
+}
+
+int SrsEdgeForwarder::cycle()
+{
+    int ret = ERROR_SUCCESS;
+    
+    client->set_recv_timeout(SRS_EDGE_FORWARDER_TIMEOUT_US);
+    
+    SrsPithyPrint pithy_print(SRS_STAGE_EDGE);
+
+    while (pthread->can_loop()) {
+        // switch to other st-threads.
+        st_usleep(0);
+        
+        pithy_print.elapse();
+        
+        // pithy print
+        if (pithy_print.can_print()) {
+            srs_trace("-> time=%"PRId64", obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
+                pithy_print.age(), client->get_send_bytes(), client->get_recv_bytes(), client->get_send_kbps(), client->get_recv_kbps());
+        }
+
+        // read from client.
+        SrsCommonMessage* msg = NULL;
+        if ((ret = client->recv_message(&msg)) != ERROR_SUCCESS) {
+            srs_info("ignore forwarder recv origin server message failed. ret=%d", ret);
+            continue;
+        }
+        srs_verbose("edge loop recv message. ret=%d", ret);
+        
+        srs_assert(msg);
+        SrsAutoFree(SrsCommonMessage, msg, false);
+    }
+    
+    return ret;
 }
 
 int SrsEdgeForwarder::proxy(SrsCommonMessage* msg)
