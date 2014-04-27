@@ -511,9 +511,9 @@ int SrsEdgeForwarder::proxy_edge_message(SrsEdgeProxyContext* context)
     
     srs_assert(msg);
     
-    context->edge_got_message = true;
+    //context->edge_got_message = true;
     
-    if (msg->size <= 0 
+    if (msg->size <= 0
         || msg->header.is_set_chunk_size()
         || msg->header.is_window_ackledgement_size()
         || msg->header.is_ackledgement()
