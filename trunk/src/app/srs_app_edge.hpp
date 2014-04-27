@@ -101,23 +101,6 @@ private:
     virtual int process_publish_message(SrsCommonMessage* msg);
 };
 
-class SrsEdgeProxyContext
-{
-public:
-    int edge_stream_id;
-    st_netfd_t edge_stfd;
-    ISrsProtocolReaderWriter* edge_io;
-    SrsRtmpServer* edge_rtmp;
-public:
-    int origin_stream_id;
-    st_netfd_t origin_stfd;
-    ISrsProtocolReaderWriter* origin_io;
-    SrsRtmpClient* origin_rtmp;
-public:
-    SrsEdgeProxyContext();
-    virtual ~SrsEdgeProxyContext();
-};
-
 /**
 * edge used to forward stream to origin.
 */
@@ -141,10 +124,8 @@ public:
     virtual int start();
     virtual void stop();
 public:
-    virtual int proxy(SrsEdgeProxyContext* context);
+    virtual int proxy(SrsCommonMessage* msg);
 private:
-    virtual int proxy_origin_message(SrsEdgeProxyContext* context);
-    virtual int proxy_edge_message(SrsEdgeProxyContext* context);
     virtual void close_underlayer_socket();
     virtual int connect_server();
 };
@@ -201,7 +182,11 @@ public:
     /**
     * proxy publish stream to edge
     */
-    virtual int on_proxy_publish(SrsEdgeProxyContext* context);
+    virtual int on_proxy_publish(SrsCommonMessage* msg);
+    /**
+    * proxy unpublish stream to edge.
+    */
+    virtual void on_proxy_unpublish();
 };
 
 #endif

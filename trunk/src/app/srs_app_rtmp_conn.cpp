@@ -145,7 +145,7 @@ int SrsRtmpConn::do_cycle()
         req->app.c_str());
     
     ret = service_cycle();
-    on_close();
+    http_hooks_on_close();
     
     return ret;
 }
@@ -312,14 +312,14 @@ int SrsRtmpConn::stream_service_cycle()
                 srs_error("start to play stream failed. ret=%d", ret);
                 return ret;
             }
-            if ((ret = on_play()) != ERROR_SUCCESS) {
+            if ((ret = http_hooks_on_play()) != ERROR_SUCCESS) {
                 srs_error("http hook on_play failed. ret=%d", ret);
                 return ret;
             }
             
             srs_info("start to play stream %s success", req->stream.c_str());
             ret = playing(source);
-            on_stop();
+            http_hooks_on_stop();
             
             return ret;
         }
@@ -338,23 +338,23 @@ int SrsRtmpConn::stream_service_cycle()
                 return ret;
             }
             
-            SrsEdgeProxyContext context;
-            context.edge_io = skt;
-            context.edge_stream_id = res->stream_id;
-            context.edge_rtmp = rtmp;
-            context.edge_stfd = stfd;
-            if (vhost_is_edge) {
-                return source->on_edge_proxy_publish(&context);
-            }
-            
-            if ((ret = on_publish()) != ERROR_SUCCESS) {
+            if ((ret = http_hooks_on_publish()) != ERROR_SUCCESS) {
                 srs_error("http hook on_publish failed. ret=%d", ret);
                 return ret;
             }
+
             srs_info("start to publish stream %s success", req->stream.c_str());
             ret = fmle_publish(source);
-            source->on_unpublish();
-            on_unpublish();
+
+            // when edge, notice edge to change state.
+            // when origin, notice all service to unpublish.
+            if (vhost_is_edge) {
+                source->on_edge_proxy_unpublish();
+            } else {
+                source->on_unpublish();
+            }
+
+            http_hooks_on_unpublish();
             return ret;
         }
         case SrsRtmpConnFlashPublish: {
@@ -372,23 +372,23 @@ int SrsRtmpConn::stream_service_cycle()
                 return ret;
             }
             
-            SrsEdgeProxyContext context;
-            context.edge_io = skt;
-            context.edge_stream_id = res->stream_id;
-            context.edge_rtmp = rtmp;
-            context.edge_stfd = stfd;
-            if (vhost_is_edge) {
-                return source->on_edge_proxy_publish(&context);
-            }
-            
-            if ((ret = on_publish()) != ERROR_SUCCESS) {
+            if ((ret = http_hooks_on_publish()) != ERROR_SUCCESS) {
                 srs_error("http hook on_publish failed. ret=%d", ret);
                 return ret;
             }
+            
             srs_info("flash start to publish stream %s success", req->stream.c_str());
             ret = flash_publish(source);
-            source->on_unpublish();
-            on_unpublish();
+
+            // when edge, notice edge to change state.
+            // when origin, notice all service to unpublish.
+            if (vhost_is_edge) {
+                source->on_edge_proxy_unpublish();
+            } else {
+                source->on_unpublish();
+            }
+            
+            http_hooks_on_unpublish();
             return ret;
         }
         default: {
@@ -431,7 +431,7 @@ int SrsRtmpConn::check_vhost()
     }
     srs_verbose("check refer success.");
     
-    if ((ret = on_connect()) != ERROR_SUCCESS) {
+    if ((ret = http_hooks_on_connect()) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -562,6 +562,8 @@ int SrsRtmpConn::fmle_publish(SrsSource* source)
     }
     srs_verbose("fmle hls on_publish success.");
     
+    bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
+    
     while (true) {
         // switch to other st-threads.
         st_usleep(0);
@@ -604,7 +606,7 @@ int SrsRtmpConn::fmle_publish(SrsSource* source)
         }
 
         // video, audio, data message
-        if ((ret = process_publish_message(source, msg)) != ERROR_SUCCESS) {
+        if ((ret = process_publish_message(source, msg, vhost_is_edge)) != ERROR_SUCCESS) {
             srs_error("fmle process publish message failed. ret=%d", ret);
             return ret;
         }
@@ -631,6 +633,8 @@ int SrsRtmpConn::flash_publish(SrsSource* source)
         return ret;
     }
     srs_verbose("flash hls on_publish success.");
+    
+    bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
     
     while (true) {
         // switch to other st-threads.
@@ -668,7 +672,7 @@ int SrsRtmpConn::flash_publish(SrsSource* source)
         }
 
         // video, audio, data message
-        if ((ret = process_publish_message(source, msg)) != ERROR_SUCCESS) {
+        if ((ret = process_publish_message(source, msg, vhost_is_edge)) != ERROR_SUCCESS) {
             srs_error("flash process publish message failed. ret=%d", ret);
             return ret;
         }
@@ -677,9 +681,14 @@ int SrsRtmpConn::flash_publish(SrsSource* source)
     return ret;
 }
 
-int SrsRtmpConn::process_publish_message(SrsSource* source, SrsCommonMessage* msg)
+int SrsRtmpConn::process_publish_message(SrsSource* source, SrsCommonMessage* msg, bool vhost_is_edge)
 {
     int ret = ERROR_SUCCESS;
+    
+    // for edge, directly proxy message to origin.
+    if (vhost_is_edge) {
+        return source->on_edge_proxy_publish(msg);
+    }
     
     // process audio packet
     if (msg->header.is_audio()) {
@@ -771,7 +780,7 @@ int SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsCommonMessag
     return ret;
 }
 
-int SrsRtmpConn::on_connect()
+int SrsRtmpConn::http_hooks_on_connect()
 {
     int ret = ERROR_SUCCESS;
     
@@ -795,7 +804,7 @@ int SrsRtmpConn::on_connect()
     return ret;
 }
 
-void SrsRtmpConn::on_close()
+void SrsRtmpConn::http_hooks_on_close()
 {
 #ifdef SRS_AUTO_HTTP_CALLBACK
     // whatever the ret code, notify the api hooks.
@@ -813,7 +822,7 @@ void SrsRtmpConn::on_close()
 #endif
 }
 
-int SrsRtmpConn::on_publish()
+int SrsRtmpConn::http_hooks_on_publish()
 {
     int ret = ERROR_SUCCESS;
     
@@ -837,7 +846,7 @@ int SrsRtmpConn::on_publish()
     return ret;
 }
 
-void SrsRtmpConn::on_unpublish()
+void SrsRtmpConn::http_hooks_on_unpublish()
 {
 #ifdef SRS_AUTO_HTTP_CALLBACK
     // whatever the ret code, notify the api hooks.
@@ -855,7 +864,7 @@ void SrsRtmpConn::on_unpublish()
 #endif
 }
 
-int SrsRtmpConn::on_play()
+int SrsRtmpConn::http_hooks_on_play()
 {
     int ret = ERROR_SUCCESS;
     
@@ -879,7 +888,7 @@ int SrsRtmpConn::on_play()
     return ret;
 }
 
-void SrsRtmpConn::on_stop()
+void SrsRtmpConn::http_hooks_on_stop()
 {
 #ifdef SRS_AUTO_HTTP_CALLBACK
     // whatever the ret code, notify the api hooks.

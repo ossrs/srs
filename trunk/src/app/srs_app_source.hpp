@@ -322,7 +322,9 @@ public:
     // for edge, when publish edge stream, check the state
     virtual int on_edge_start_publish();
     // for edge, proxy the publish
-    virtual int on_edge_proxy_publish(SrsEdgeProxyContext* context);
+    virtual int on_edge_proxy_publish(SrsCommonMessage* msg);
+    // for edge, proxy stop publish
+    virtual void on_edge_proxy_unpublish();
 private:
     virtual int create_forwarders();
     virtual void destroy_forwarders();

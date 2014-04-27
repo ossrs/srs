@@ -80,15 +80,15 @@ private:
     virtual int playing(SrsSource* source);
     virtual int fmle_publish(SrsSource* source);
     virtual int flash_publish(SrsSource* source);
-    virtual int process_publish_message(SrsSource* source, SrsCommonMessage* msg);
+    virtual int process_publish_message(SrsSource* source, SrsCommonMessage* msg, bool vhost_is_edge);
     virtual int process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage* msg);
 private:
-    virtual int on_connect();
-    virtual void on_close();
-    virtual int on_publish();
-    virtual void on_unpublish();
-    virtual int on_play();
-    virtual void on_stop();
+    virtual int http_hooks_on_connect();
+    virtual void http_hooks_on_close();
+    virtual int http_hooks_on_publish();
+    virtual void http_hooks_on_unpublish();
+    virtual int http_hooks_on_play();
+    virtual void http_hooks_on_stop();
 };
 
 #endif
