@@ -10,8 +10,9 @@ echo "通用打包脚本，--help查看参数"
 INSTALL=/usr/local/srs
 # whether build for arm, only for ubuntu12.
 help=NO
+X86_64=YES
 ARM=NO
-DO_BUILD=YES
+PI=NO
 
 ##################################################################################
 ##################################################################################
@@ -30,8 +31,9 @@ do
     case "$option" in
         --help)                         help=yes                  ;;
         
+        --x86-64)                       X86_64=YES                ;;
         --arm)                          ARM=YES                   ;;
-        --no-build)                     DO_BUILD=NO               ;;
+        --pi)                           PI=NO                     ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
@@ -44,8 +46,12 @@ if [ $help = yes ]; then
 
   --help                   print this message
 
-  --arm                    configure with arm and make srs. use arm tools to get info.
-  --no-build               donot build srs, user has builded(./configure --pi && make). only make install.
+  --x86-64                 for x86-64 platform, configure/make/package.
+  --arm                    for arm cross-build platform, configure/make/package.
+  --pi                     for pi platform, configure/make/package.
+  
+default:
+    --x86-64
 END
     exit 0
 fi
@@ -84,24 +90,27 @@ if [[ "unknown" == $os_machine ]]; then os_machine=`uname -m`; fi
 
 # build srs
 # @see https://github.com/winlinvip/simple-rtmp-server/wiki/Build
-if [ $DO_BUILD = YES ]; then
-    ok_msg "start build srs"
-    if [ $ARM = YES ]; then
-        (
-            cd $work_dir && 
-            ./configure --arm --prefix=$INSTALL && make
-        ) >> $log 2>&1
-    else
-        (
-            cd $work_dir && 
-            ./configure --x86-x64 --prefix=$INSTALL && make
-        ) >> $log 2>&1
-    fi
-    ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "build srs failed"; exit $ret; fi
-    ok_msg "build srs success"
+ok_msg "start build srs"
+if [ $X86_64 = YES ]; then
+    (
+        cd $work_dir && 
+        ./configure --x86-x64 --prefix=$INSTALL && make
+    ) >> $log 2>&1
+elif [ $ARM = YES ]; then
+    (
+        cd $work_dir && 
+        ./configure --arm --prefix=$INSTALL && make
+    ) >> $log 2>&1
+elif [ $PI = YES ]; then
+    (
+        cd $work_dir && 
+        ./configure --pi --prefix=$INSTALL && make
+    ) >> $log 2>&1
 else
-    ok_msg "user skip build, directly install"
+    failed_msg "invalid option, must be x86-x64/arm/pi, see --help"; exit 1;
 fi
+ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "build srs failed"; exit $ret; fi
+ok_msg "build srs success"
 
 # install srs
 ok_msg "start install srs"
