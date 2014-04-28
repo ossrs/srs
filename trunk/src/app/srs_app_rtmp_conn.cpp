@@ -500,8 +500,10 @@ int SrsRtmpConn::playing(SrsSource* source)
 
         // reportable
         if (pithy_print.can_print()) {
-            srs_trace("-> time=%"PRId64", duration=%"PRId64", cmr=%d, msgs=%d, obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
-                pithy_print.age(), duration, ctl_msg_ret, count, rtmp->get_send_bytes(), rtmp->get_recv_bytes(), rtmp->get_send_kbps(), rtmp->get_recv_kbps());
+            srs_trace("-> "SRS_LOG_ID_PLAY
+                " time=%"PRId64", duration=%"PRId64", cmr=%d, msgs=%d, obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
+                pithy_print.age(), duration, ctl_msg_ret, count, rtmp->get_send_bytes(), rtmp->get_recv_bytes(), 
+                rtmp->get_send_kbps(), rtmp->get_recv_kbps());
         }
         
         if (count <= 0) {
@@ -581,8 +583,10 @@ int SrsRtmpConn::fmle_publish(SrsSource* source)
 
         // reportable
         if (pithy_print.can_print()) {
-            srs_trace("<- time=%"PRId64", obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
-                pithy_print.age(), rtmp->get_send_bytes(), rtmp->get_recv_bytes(), rtmp->get_send_kbps(), rtmp->get_recv_kbps());
+            srs_trace("<- "SRS_LOG_ID_CLIENT_PUBLISH
+                " time=%"PRId64", obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
+                pithy_print.age(), rtmp->get_send_bytes(), rtmp->get_recv_bytes(), 
+                rtmp->get_send_kbps(), rtmp->get_recv_kbps());
         }
     
         // process UnPublish event.
@@ -654,8 +658,10 @@ int SrsRtmpConn::flash_publish(SrsSource* source)
 
         // reportable
         if (pithy_print.can_print()) {
-            srs_trace("<- time=%"PRId64", obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
-                pithy_print.age(), rtmp->get_send_bytes(), rtmp->get_recv_bytes(), rtmp->get_send_kbps(), rtmp->get_recv_kbps());
+            srs_trace("<- "SRS_LOG_ID_WEB_PUBLISH
+                " time=%"PRId64", obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
+                pithy_print.age(), rtmp->get_send_bytes(), rtmp->get_recv_bytes(), 
+                rtmp->get_send_kbps(), rtmp->get_recv_kbps());
         }
     
         // process UnPublish event.
@@ -687,7 +693,11 @@ int SrsRtmpConn::process_publish_message(SrsSource* source, SrsCommonMessage* ms
     
     // for edge, directly proxy message to origin.
     if (vhost_is_edge) {
-        return source->on_edge_proxy_publish(msg);
+        if ((ret = source->on_edge_proxy_publish(msg)) != ERROR_SUCCESS) {
+            srs_error("edge publish proxy msg failed. ret=%d", ret);
+            return ret;
+        }
+        return ret;
     }
     
     // process audio packet

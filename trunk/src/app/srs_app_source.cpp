@@ -524,6 +524,9 @@ int SrsSource::initialize()
         return ret;
     }
     
+    double queue_size = _srs_config->get_queue_length(_req->vhost);
+    publish_edge->set_queue_size(queue_size);
+    
     return ret;
 }
 
@@ -595,6 +598,11 @@ int SrsSource::on_reload_vhost_queue_length(string vhost)
         }
 
         srs_trace("forwarders reload queue size success.");
+    }
+    
+    if (true) {
+        publish_edge->set_queue_size(queue_size);
+        srs_trace("publish_edge reload queue size success.");
     }
     
     return ret;

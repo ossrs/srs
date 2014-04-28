@@ -144,4 +144,17 @@ extern ISrsThreadContext* _srs_context;
     #define srs_trace(msg, ...) (void)0
 #endif
 
+// downloading speed-up, play to edge, ingest from origin
+#define SRS_LOG_ID_EDGE_PLAY "EIG"
+// uploading speed-up, publish to edge, foward to origin
+#define SRS_LOG_ID_EDGE_PUBLISH "EFW"
+// edge/origin forwarder.
+#define SRS_LOG_ID_FOWARDER "FWR"
+// play stream on edge/origin.
+#define SRS_LOG_ID_PLAY "PLA"
+// client publish to edge/origin
+#define SRS_LOG_ID_CLIENT_PUBLISH "CPB"
+// web/flash publish to edge/origin
+#define SRS_LOG_ID_WEB_PUBLISH "WPB"
+
 #endif

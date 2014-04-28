@@ -323,6 +323,8 @@ int SrsForwarder::forward()
                 srs_error("recv server control message failed. ret=%d", ret);
                 return ret;
             }
+            
+            srs_freep(msg);
         }
         
         // forward all messages.
@@ -335,8 +337,10 @@ int SrsForwarder::forward()
         
         // pithy print
         if (pithy_print.can_print()) {
-            srs_trace("-> time=%"PRId64", msgs=%d, obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
-                pithy_print.age(), count, client->get_send_bytes(), client->get_recv_bytes(), client->get_send_kbps(), client->get_recv_kbps());
+            srs_trace("-> "SRS_LOG_ID_FOWARDER
+                " time=%"PRId64", msgs=%d, obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
+                pithy_print.age(), count, client->get_send_bytes(), client->get_recv_bytes(), 
+                client->get_send_kbps(), client->get_recv_kbps());
         }
         
         // ignore when no messages.

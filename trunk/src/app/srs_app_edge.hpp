@@ -41,6 +41,7 @@ class SrsPlayEdge;
 class SrsPublishEdge;
 class SrsRtmpClient;
 class SrsCommonMessage;
+class SrsMessageQueue;
 class ISrsProtocolReaderWriter;
 
 /**
@@ -117,9 +118,22 @@ private:
     ISrsProtocolReaderWriter* io;
     SrsRtmpClient* client;
     int origin_index;
+    /**
+    * we must ensure one thread one fd principle,
+    * that is, a fd must be write/read by the one thread.
+    * the publish service thread will proxy(msg), and the edge forward thread
+    * will cycle(), so we use queue for cycle to send the msg of proxy.
+    */
+    SrsMessageQueue* queue;
+    /**
+    * error code of send, for edge proxy thread to query.
+    */
+    int send_error_code;
 public:
     SrsEdgeForwarder();
     virtual ~SrsEdgeForwarder();
+public:
+    virtual void set_queue_size(double queue_size);
 public:
     virtual int initialize(SrsSource* source, SrsPublishEdge* edge, SrsRequest* req);
     virtual int start();
@@ -179,6 +193,8 @@ private:
 public:
     SrsPublishEdge();
     virtual ~SrsPublishEdge();
+public:
+    virtual void set_queue_size(double queue_size);
 public:
     virtual int initialize(SrsSource* source, SrsRequest* req);
     /**

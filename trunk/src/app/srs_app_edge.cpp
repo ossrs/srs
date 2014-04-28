@@ -55,6 +55,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // when edge timeout, retry next.
 #define SRS_EDGE_FORWARDER_TIMEOUT_US (int64_t)(3*1000*1000LL)
 
+// when edge error, wait for quit
+#define SRS_EDGE_FORWARDER_ERROR_US (int64_t)(50*1000LL)
+
 SrsEdgeIngester::SrsEdgeIngester()
 {
     io = NULL;
@@ -165,8 +168,10 @@ int SrsEdgeIngester::ingest()
         
         // pithy print
         if (pithy_print.can_print()) {
-            srs_trace("<- time=%"PRId64", obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
-                pithy_print.age(), client->get_send_bytes(), client->get_recv_bytes(), client->get_send_kbps(), client->get_recv_kbps());
+            srs_trace("<- "SRS_LOG_ID_EDGE_PLAY
+                " time=%"PRId64", obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
+                pithy_print.age(), client->get_send_bytes(), client->get_recv_bytes(), 
+                client->get_send_kbps(), client->get_recv_kbps());
         }
 
         // read from client.
@@ -323,11 +328,18 @@ SrsEdgeForwarder::SrsEdgeForwarder()
     stream_id = 0;
     stfd = NULL;
     pthread = new SrsThread(this, SRS_EDGE_FORWARDER_SLEEP_US);
+    queue = new SrsMessageQueue();
+    send_error_code = ERROR_SUCCESS;
 }
 
 SrsEdgeForwarder::~SrsEdgeForwarder()
 {
     stop();
+}
+
+void SrsEdgeForwarder::set_queue_size(double queue_size)
+{
+    return queue->set_queue_size(queue_size);
 }
 
 int SrsEdgeForwarder::initialize(SrsSource* source, SrsPublishEdge* edge, SrsRequest* req)
@@ -344,6 +356,8 @@ int SrsEdgeForwarder::initialize(SrsSource* source, SrsPublishEdge* edge, SrsReq
 int SrsEdgeForwarder::start()
 {
     int ret = ERROR_SUCCESS;
+    
+    send_error_code = ERROR_SUCCESS;
     
     if ((ret = connect_server()) != ERROR_SUCCESS) {
         return ret;
@@ -391,7 +405,7 @@ int SrsEdgeForwarder::cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    client->set_recv_timeout(SRS_EDGE_FORWARDER_TIMEOUT_US);
+    client->set_recv_timeout(SRS_PULSE_TIMEOUT_US);
     
     SrsPithyPrint pithy_print(SRS_STAGE_EDGE);
 
@@ -399,24 +413,63 @@ int SrsEdgeForwarder::cycle()
         // switch to other st-threads.
         st_usleep(0);
         
+        if (send_error_code != ERROR_SUCCESS) {
+            st_usleep(SRS_EDGE_FORWARDER_ERROR_US);
+            continue;
+        }
+
+        // read from client.
+        if (true) {
+            SrsCommonMessage* msg = NULL;
+            ret = client->recv_message(&msg);
+            
+            srs_verbose("edge loop recv message. ret=%d", ret);
+            if (ret != ERROR_SUCCESS && ret != ERROR_SOCKET_TIMEOUT) {
+                srs_error("edge forwarder recv server control message failed. ret=%d", ret);
+                send_error_code = ret;
+                continue;
+            }
+            
+            srs_freep(msg);
+        }
+        
+        // forward all messages.
+        int count = 0;
+        SrsSharedPtrMessage** msgs = NULL;
+        if ((ret = queue->get_packets(0, msgs, count)) != ERROR_SUCCESS) {
+            srs_error("get message to forward to origin failed. ret=%d", ret);
+            return ret;
+        }
+        
         pithy_print.elapse();
         
         // pithy print
         if (pithy_print.can_print()) {
-            srs_trace("-> time=%"PRId64", obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
-                pithy_print.age(), client->get_send_bytes(), client->get_recv_bytes(), client->get_send_kbps(), client->get_recv_kbps());
+            srs_trace("-> "SRS_LOG_ID_EDGE_PUBLISH
+                " time=%"PRId64", msgs=%d, obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
+                pithy_print.age(), count, client->get_send_bytes(), client->get_recv_bytes(), 
+                client->get_send_kbps(), client->get_recv_kbps());
         }
-
-        // read from client.
-        SrsCommonMessage* msg = NULL;
-        if ((ret = client->recv_message(&msg)) != ERROR_SUCCESS) {
-            srs_info("ignore forwarder recv origin server message failed. ret=%d", ret);
+        
+        // ignore when no messages.
+        if (count <= 0) {
+            srs_verbose("no packets to forward.");
             continue;
         }
-        srs_verbose("edge loop recv message. ret=%d", ret);
-        
-        srs_assert(msg);
-        SrsAutoFree(SrsCommonMessage, msg, false);
+        SrsAutoFree(SrsSharedPtrMessage*, msgs, true);
+    
+        // all msgs to forward.
+        for (int i = 0; i < count; i++) {
+            SrsSharedPtrMessage* msg = msgs[i];
+            
+            srs_assert(msg);
+            msgs[i] = NULL;
+            
+            if ((ret = client->send_message(msg)) != ERROR_SUCCESS) {
+                srs_error("edge publish forwarder send message to server failed. ret=%d", ret);
+                return ret;
+            }
+        }
     }
     
     return ret;
@@ -425,6 +478,11 @@ int SrsEdgeForwarder::cycle()
 int SrsEdgeForwarder::proxy(SrsCommonMessage* msg)
 {
     int ret = ERROR_SUCCESS;
+    
+    if ((ret = send_error_code) != ERROR_SUCCESS) {
+        srs_error("publish edge proxy thread send error, ret=%d", ret);
+        return ret;
+    }
     
     // the msg is auto free by source,
     // so we just ignore, or copy then send it.
@@ -445,9 +503,8 @@ int SrsEdgeForwarder::proxy(SrsCommonMessage* msg)
     srs_verbose("initialize shared ptr msg success.");
     
     copy->header.stream_id = stream_id;
-    if ((ret = client->send_message(copy->copy())) != ERROR_SUCCESS) {
-        srs_error("send client message to origin failed. ret=%d", ret);
-        return ret;
+    if ((ret = queue->enqueue(copy->copy())) != ERROR_SUCCESS) {
+        srs_error("enqueue edge publish msg failed. ret=%d", ret);
     }
     
     return ret;
@@ -620,6 +677,11 @@ SrsPublishEdge::~SrsPublishEdge()
     srs_freep(forwarder);
 }
 
+void SrsPublishEdge::set_queue_size(double queue_size)
+{
+    return forwarder->set_queue_size(queue_size);
+}
+
 int SrsPublishEdge::initialize(SrsSource* source, SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
@@ -651,11 +713,15 @@ int SrsPublishEdge::on_client_publish()
         return ret;
     }
     
+    if ((ret = forwarder->start()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     SrsEdgeState pstate = state;
     state = SrsEdgeStatePublish;
     srs_trace("edge change from %d to state %d (forward publish).", pstate, state);
     
-    return forwarder->start();
+    return ret;
 }
 
 int SrsPublishEdge::on_proxy_publish(SrsCommonMessage* msg)
