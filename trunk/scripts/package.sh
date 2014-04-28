@@ -91,12 +91,7 @@ if [[ "unknown" == $os_machine ]]; then os_machine=`uname -m`; fi
 # build srs
 # @see https://github.com/winlinvip/simple-rtmp-server/wiki/Build
 ok_msg "start build srs"
-if [ $X86_64 = YES ]; then
-    (
-        cd $work_dir && 
-        ./configure --x86-x64 --prefix=$INSTALL && make
-    ) >> $log 2>&1
-elif [ $ARM = YES ]; then
+if [ $ARM = YES ]; then
     (
         cd $work_dir && 
         ./configure --arm --prefix=$INSTALL && make
@@ -105,6 +100,11 @@ elif [ $PI = YES ]; then
     (
         cd $work_dir && 
         ./configure --pi --prefix=$INSTALL && make
+    ) >> $log 2>&1
+elif [ $X86_64 = YES ]; then
+    (
+        cd $work_dir && 
+        ./configure --x86-x64 --prefix=$INSTALL && make
     ) >> $log 2>&1
 else
     failed_msg "invalid option, must be x86-x64/arm/pi, see --help"; exit 1;
