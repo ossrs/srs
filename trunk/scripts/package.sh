@@ -10,7 +10,7 @@ echo "通用打包脚本，--help查看参数"
 INSTALL=/usr/local/srs
 # whether build for arm, only for ubuntu12.
 help=NO
-X86_64=NO
+X86_X64=NO
 ARM=NO
 PI=NO
 
@@ -31,9 +31,9 @@ do
     case "$option" in
         --help)                         help=yes                  ;;
         
-        --x86-64)                       X86_64=YES                ;;
+        --x86-x64)                      X86_X64=YES               ;;
         --arm)                          ARM=YES                   ;;
-        --pi)                           PI=NO                     ;;
+        --pi)                           PI=YES                    ;;
 
         *)
             echo "$0: error: invalid option \"$option\", @see $0 --help"
@@ -46,7 +46,7 @@ if [ $help = yes ]; then
 
   --help                   print this message
 
-  --x86-64                 for x86-64 platform, configure/make/package.
+  --x86-x64                for x86-x64 platform, configure/make/package.
   --arm                    for arm cross-build platform, configure/make/package.
   --pi                     for pi platform, configure/make/package.
 END
@@ -98,7 +98,7 @@ elif [ $PI = YES ]; then
         cd $work_dir && 
         ./configure --pi --prefix=$INSTALL && make
     ) >> $log 2>&1
-elif [ $X86_64 = YES ]; then
+elif [ $X86_X64 = YES ]; then
     (
         cd $work_dir && 
         ./configure --x86-x64 --prefix=$INSTALL && make
