@@ -730,7 +730,7 @@ class RESTNodes(object):
                         "streams": {
                             "hls-cztv-html": "http://demo.chnvideo.com:8085/api/v1/nodes?type=hls&format=html&origin=demo.chnvideo.com&port=8080&stream=live/rtmp_cztv01-sd",
                             "hls-cztv-m3u8": "http://demo.chnvideo.com:8085/api/v1/nodes?type=hls&format=m3u8&origin=demo.chnvideo.com&port=8080&stream=live/rtmp_cztv01-sd",
-                            "rtmp-cztv-html": "http://demo.chnvideo.com:8085/api/v1/nodes?type=rtmp&format=html&origin=demo.chnvideo.com&vhost=__defaultVhost__&port=1935&stream=live/rtmp_cztv01-sd",
+                            "rtmp-cztv-html": "http://demo.chnvideo.com:8085/api/v1/nodes?type=rtmp&format=html&origin=demo.chnvideo.com&vhost=android&port=1935&stream=live/rtmp_cztv01-sd",
                             "hls-livestream-html": "http://demo.chnvideo.com:8085/api/v1/nodes?type=hls&format=html&origin=demo.chnvideo.com&port=8080&stream=live/livestream",
                             "hls-livestream-m3u8": "http://demo.chnvideo.com:8085/api/v1/nodes?type=hls&format=m3u8&origin=demo.chnvideo.com&port=8080&stream=live/livestream",
                             "rtmp-livestream-html": "http://demo.chnvideo.com:8085/api/v1/nodes?type=rtmp&format=html&origin=demo.chnvideo.com&vhost=demo.srs.com&port=1935&stream=live/livestream",
