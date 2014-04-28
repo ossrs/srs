@@ -167,8 +167,8 @@ Supported operating systems and hardware:
 1. Support dvr(record live to flv file for vod)
 1. Support live flashP2P(integrated by chnvideo VDN).
 1. Support RTMP [edge](https://github.com/winlinvip/simple-rtmp-server/wiki/Edge) server, push/pull stream from any RTMP server
+1. [dev] Support system full utest on gtest.
 1. [plan] Support file to hls vod stream.
-1. [plan] Support system full utest on gtest.
 1. [plan] Support multiple processes, for both origin and edge
 1. [no-plan] Support adobe RTMFP(flash p2p) protocol.
 1. [no-plan] Support adobe flash refer/token/swf verification.
@@ -179,8 +179,8 @@ Supported operating systems and hardware:
 1. [no-plan] Support RTP/RTSP server.
 
 ## Releases
-* 2014-04-07, [Release v1.0-mainline](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline), support [arm](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm), 
-[init.d](https://github.com/winlinvip/simple-rtmp-server/wiki/LinuxService), http [server](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPServer)/[api](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPApi), [ingest](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleIngest). 30000 lines.<br/>
+* 2014-04-28, [Release v1.0-mainline2](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline2), support [dvr](https://github.com/winlinvip/simple-rtmp-server/wiki/DVR), android, [edge](https://github.com/winlinvip/simple-rtmp-server/wiki/Edge). 35255 lines.<br/>
+* 2014-04-07, [Release v1.0-mainline](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline), support [arm](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm), [init.d](https://github.com/winlinvip/simple-rtmp-server/wiki/LinuxService), http [server](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPServer)/[api](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPApi), [ingest](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleIngest). 30000 lines.<br/>
 * 2013-12-25, [Release v0.9](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.9), support bandwidth test, player/encoder/chat [demos](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleDemo). 20926 lines.<br/>
 * 2013-12-08, [Release v0.8](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.8), support [http hooks callback](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback), update [st_load](https://github.com/winlinvip/st-load). 19186 lines.<br/>
 * 2013-12-03, [Release v0.7](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.7), support [live stream transcoding](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG). 17605 lines.<br/>
@@ -193,6 +193,8 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v1.0, 2014-04-28, [1.0 mainline2(0.9.79)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline2) released. 35255 lines.
+* v1.0, 2014-04-28, support full edge RTMP server. 0.9.79
 * v1.0, 2014-04-27, support basic edge(play/publish) RTMP server. 0.9.78
 * v1.0, 2014-04-25, add donation page. 0.9.76
 * v1.0, 2014-04-24, support live flashP2P(integrated by chnvideo VDN). 0.9.75
@@ -220,26 +222,16 @@ Supported operating systems and hardware:
 * v1.0, 2014-03-12, finish utest for amf0 codec.
 * v1.0, 2014-03-06, add gperftools for mem leak detect, mem/cpu profile.
 * v1.0, 2014-03-04, add gest framework for utest, build success.
-* v1.0, 2014-03-02, add wiki [srs-librtmp](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLibrtmp), 
-[SRS for arm](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm), 
-[product](https://github.com/winlinvip/simple-rtmp-server/wiki/Product)
+* v1.0, 2014-03-02, add wiki [srs-librtmp](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLibrtmp), [SRS for arm](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm), [product](https://github.com/winlinvip/simple-rtmp-server/wiki/Product)
 * v1.0, 2014-03-02, srs-librtmp, client publish/play library like librtmp.
 * v1.0, 2014-03-01, modularity, extract core/kernel/rtmp/app/main module.
 * v1.0, 2014-02-28, support arm build(SRS/ST), add ssl to 3rdparty package.
-* v1.0, 2014-02-28, add wiki [BuildArm](https://github.com/winlinvip/simple-rtmp-server/wiki/Build), 
-[FFMPEG](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), 
-[Reload](https://github.com/winlinvip/simple-rtmp-server/wiki/Reload)
-* v1.0, 2014-02-27, add wiki [LowLatency](https://github.com/winlinvip/simple-rtmp-server/wiki/LowLatency), 
-[HTTPCallback](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback), 
-[ServerSideScript](https://github.com/winlinvip/simple-rtmp-server/wiki/ServerSideScript), 
-[IDE](https://github.com/winlinvip/simple-rtmp-server/wiki/IDE)
+* v1.0, 2014-02-28, add wiki [BuildArm](https://github.com/winlinvip/simple-rtmp-server/wiki/Build), [FFMPEG](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), [Reload](https://github.com/winlinvip/simple-rtmp-server/wiki/Reload)
+* v1.0, 2014-02-27, add wiki [LowLatency](https://github.com/winlinvip/simple-rtmp-server/wiki/LowLatency), [HTTPCallback](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback), [ServerSideScript](https://github.com/winlinvip/simple-rtmp-server/wiki/ServerSideScript), [IDE](https://github.com/winlinvip/simple-rtmp-server/wiki/IDE)
 * v1.0, 2014-01-19, add wiki [DeliveryHLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS)
-* v1.0, 2014-01-12, add wiki [HowToAskQuestion](https://github.com/winlinvip/simple-rtmp-server/wiki/HowToAskQuestion), 
-[RtmpUrlVhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUrlVhost)
+* v1.0, 2014-01-12, add wiki [HowToAskQuestion](https://github.com/winlinvip/simple-rtmp-server/wiki/HowToAskQuestion), [RtmpUrlVhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUrlVhost)
 * v1.0, 2014-01-11, fix jw/flower player pause bug, which send closeStream actually.
-* v1.0, 2014-01-05, add wiki [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build), 
-[Performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance), 
-[Cluster](https://github.com/winlinvip/simple-rtmp-server/wiki/Cluster)
+* v1.0, 2014-01-05, add wiki [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build), [Performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance), [Cluster](https://github.com/winlinvip/simple-rtmp-server/wiki/Cluster)
 * v1.0, 2014-01-01, change listen(512), chunk-size(60000), to improve performance.
 * v1.0, 2013-12-27, merge from wenjie, the bandwidth test feature.
 * v0.9, 2013-12-25, [v0.9](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.9) released. 20926 lines.
@@ -257,8 +249,7 @@ Supported operating systems and hardware:
 * v0.9, 2013-12-14, refine the thread model for the retry threads.
 * v0.9, 2013-12-10, auto install depends tools/libs on centos/ubuntu.
 * v0.8, 2013-12-08, [v0.8](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.8) released. 19186 lines.
-* v0.8, 2013-12-08, support [http hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback): 
-on_connect/close/publish/unpublish/play/stop.
+* v0.8, 2013-12-08, support [http hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback): on_connect/close/publish/unpublish/play/stop.
 * v0.8, 2013-12-08, support multiple http hooks for a event.
 * v0.8, 2013-12-07, support http callback hooks, on_connect.
 * v0.8, 2013-12-07, support network based cli and json result, add CherryPy 3.2.4.
@@ -340,6 +331,7 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * See also: [Performance for RaspberryPi](https://github.com/winlinvip/simple-rtmp-server/wiki/RaspberryPi)
 
 ## Compare
+* SRS v1.0-mainline2: 35255 lines. support android, dvr and edge.<br/>
 * SRS v1.0-mainline: 30000 lines. support arm, init.d scripts, http server and api, ingest.<br/>
 * SRS v0.9: 20926 lines. player/encoder/chat demos. bandwidth test for encoder/CDN.<br/>
 * SRS v0.8: 19186 lines. implements http hooks refer to [nginx-rtmp](https://github.com/arut/nginx-rtmp-module). <br/>
