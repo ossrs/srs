@@ -152,7 +152,6 @@ private:
 * play edge control service.
 * downloading edge speed-up.
 */
-// TODO: FIXME: support reload
 class SrsPlayEdge
 {
 private:
@@ -183,7 +182,6 @@ public:
 * publish edge control service.
 * uploading edge speed-up.
 */
-// TODO: FIXME: support reload
 class SrsPublishEdge
 {
 private:

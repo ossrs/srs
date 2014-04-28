@@ -195,6 +195,7 @@ public:
 // vhost edge section
 public:
     virtual bool                get_vhost_is_edge(std::string vhost);
+    virtual bool                get_vhost_is_edge(SrsConfDirective* vhost);
     virtual SrsConfDirective*   get_vhost_edge_origin(std::string vhost);
 // vhost transcode section
 public:

@@ -34,6 +34,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /**
 * the handler for config reload.
 * when reload callback, the config is updated yet.
+* 
+* features not support reload, 
+* @see: https://github.com/winlinvip/simple-rtmp-server/wiki/Reload#notsupportedfeatures
 */
 class ISrsReloadHandler
 {

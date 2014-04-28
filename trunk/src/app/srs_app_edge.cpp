@@ -252,7 +252,6 @@ int SrsEdgeIngester::connect_server()
     // reopen
     close_underlayer_socket();
     
-    // TODO: FIXME: support reload
     SrsConfDirective* conf = _srs_config->get_vhost_edge_origin(_req->vhost);
     srs_assert(conf);
     
@@ -494,6 +493,7 @@ int SrsEdgeForwarder::proxy(SrsCommonMessage* msg)
         return ret;
     }
     
+    // TODO: FIXME: use utility to copy msg to shared ptr msg.
     SrsSharedPtrMessage* copy = new SrsSharedPtrMessage();
     SrsAutoFree(SrsSharedPtrMessage, copy, false);
     if ((ret = copy->initialize(msg)) != ERROR_SUCCESS) {
@@ -522,7 +522,6 @@ int SrsEdgeForwarder::connect_server()
     // reopen
     close_underlayer_socket();
     
-    // TODO: FIXME: support reload
     SrsConfDirective* conf = _srs_config->get_vhost_edge_origin(_req->vhost);
     srs_assert(conf);
     

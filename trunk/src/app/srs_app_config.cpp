@@ -763,6 +763,18 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
         SrsConfDirective* old_vhost = old_root->get("vhost", vhost);
         SrsConfDirective* new_vhost = root->get("vhost", vhost);
         
+        // mode, never supports reload.
+        // first, for the origin and edge role change is too complex.
+        // second, the vhosts in origin device group normally are all origin,
+        //      they never change to edge sometimes.
+        // third, the origin or upnode device can always be restart,
+        //      edge will retry and the users connected to edge are ok.
+        if (get_vhost_is_edge(old_vhost) != get_vhost_is_edge(new_vhost)) {
+            ret = ERROR_RTMP_EDGE_RELOAD;
+            srs_error("reload never supports mode changed. ret=%d", ret);
+            return ret;
+        }
+        
         //      DISABLED    =>  ENABLED
         if (!get_vhost_enabled(old_vhost) && get_vhost_enabled(new_vhost)) {
             srs_trace("vhost %s added, reload it.", vhost.c_str());
@@ -1823,6 +1835,12 @@ int SrsConfig::get_bw_check_limit_kbps(const string &vhost)
 bool SrsConfig::get_vhost_is_edge(std::string vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);
+    return get_vhost_is_edge(conf);
+}
+
+bool SrsConfig::get_vhost_is_edge(SrsConfDirective* vhost)
+{
+    SrsConfDirective* conf = vhost;
     
     if (!conf) {
         return false;
