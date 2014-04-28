@@ -117,6 +117,8 @@ stop() {
             sleep 0.1
         else
             ok_msg "SRS stopped"
+            # delete the pid file when stop success.
+            rm -f ${pid_file}
             break;
         fi
     done
