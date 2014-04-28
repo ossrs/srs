@@ -10,7 +10,7 @@ echo "通用打包脚本，--help查看参数"
 INSTALL=/usr/local/srs
 # whether build for arm, only for ubuntu12.
 help=NO
-X86_64=YES
+X86_64=NO
 ARM=NO
 PI=NO
 
@@ -36,7 +36,7 @@ do
         --pi)                           PI=NO                     ;;
 
         *)
-            echo "$0: error: invalid option \"$option\""
+            echo "$0: error: invalid option \"$option\", @see $0 --help"
             exit 1
         ;;
     esac
@@ -49,9 +49,6 @@ if [ $help = yes ]; then
   --x86-64                 for x86-64 platform, configure/make/package.
   --arm                    for arm cross-build platform, configure/make/package.
   --pi                     for pi platform, configure/make/package.
-  
-default:
-    --x86-64
 END
     exit 0
 fi
@@ -107,7 +104,7 @@ elif [ $X86_64 = YES ]; then
         ./configure --x86-x64 --prefix=$INSTALL && make
     ) >> $log 2>&1
 else
-    failed_msg "invalid option, must be x86-x64/arm/pi, see --help"; exit 1;
+    failed_msg "invalid option, must be --x86-x64/--arm/--pi, see --help"; exit 1;
 fi
 ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "build srs failed"; exit $ret; fi
 ok_msg "build srs success"
