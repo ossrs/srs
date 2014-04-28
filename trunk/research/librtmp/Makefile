@@ -43,7 +43,7 @@ ifeq ($(GCC), gcc)
     EXTRA_CXX_FLAG = -g -O0 -ldl -lstdc++
 # for arm.
 else
-    EXTRA_CXX_FLAG = -g -O0 -static -lstdc++
+    EXTRA_CXX_FLAG = -g -O0 -ldl -static -lstdc++
 endif
 
 srs_publish_nossl: srs_publish.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
