@@ -36,7 +36,7 @@ class SrsRequest;
 class SrsStream;
 class SrsRtmpJitter;
 class SrsOnMetaDataPacket;
-class SrsSharedPtrMessage;
+class __SrsSharedPtrMessage;
 
 /**
 * file stream to read/write file.
@@ -185,13 +185,13 @@ public:
     virtual int on_publish();
     virtual void on_unpublish() = 0;
     virtual int on_meta_data(SrsOnMetaDataPacket* metadata);
-    virtual int on_audio(SrsSharedPtrMessage* audio);
-    virtual int on_video(SrsSharedPtrMessage* video);
+    virtual int on_audio(__SrsSharedPtrMessage* audio);
+    virtual int on_video(__SrsSharedPtrMessage* video);
 protected:
     virtual int flv_open(std::string stream, std::string path);
     virtual int flv_close();
     virtual int open_new_segment();
-    virtual int update_duration(SrsSharedPtrMessage* msg);
+    virtual int update_duration(__SrsSharedPtrMessage* msg);
     virtual int write_flv_header();
     virtual int on_dvr_request_sh();
     virtual int on_video_keyframe();
@@ -233,7 +233,7 @@ public:
     virtual int on_publish();
     virtual void on_unpublish();
 private:
-    virtual int update_duration(SrsSharedPtrMessage* msg);
+    virtual int update_duration(__SrsSharedPtrMessage* msg);
 };
 
 /**
@@ -260,7 +260,7 @@ protected:
     virtual int64_t filter_timestamp(int64_t timestamp);
 private:
     virtual int on_dvr_reap_flv_header(std::string path);
-    virtual int update_duration(SrsSharedPtrMessage* msg);
+    virtual int update_duration(__SrsSharedPtrMessage* msg);
 };
 
 /**
@@ -300,11 +300,11 @@ public:
     /**
     * mux the audio packets to dvr.
     */
-    virtual int on_audio(SrsSharedPtrMessage* audio);
+    virtual int on_audio(__SrsSharedPtrMessage* audio);
     /**
     * mux the video packets to dvr.
     */
-    virtual int on_video(SrsSharedPtrMessage* video);
+    virtual int on_video(__SrsSharedPtrMessage* video);
 };
 
 #endif

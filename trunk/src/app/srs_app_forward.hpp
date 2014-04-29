@@ -35,7 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_thread.hpp>
 
 class ISrsProtocolReaderWriter;
-class SrsSharedPtrMessage;
+class __SrsSharedPtrMessage;
 class SrsOnMetaDataPacket;
 class SrsMessageQueue;
 class SrsRtmpJitter;
@@ -72,9 +72,9 @@ public:
 public:
     virtual int on_publish(SrsRequest* req, std::string forward_server);
     virtual void on_unpublish();
-    virtual int on_meta_data(SrsSharedPtrMessage* metadata);
-    virtual int on_audio(SrsSharedPtrMessage* msg);
-    virtual int on_video(SrsSharedPtrMessage* msg);
+    virtual int on_meta_data(__SrsSharedPtrMessage* metadata);
+    virtual int on_audio(__SrsSharedPtrMessage* msg);
+    virtual int on_video(__SrsSharedPtrMessage* msg);
 // interface ISrsThreadHandler.
 public:
     virtual int cycle();

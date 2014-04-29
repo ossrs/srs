@@ -40,9 +40,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsPlayEdge;
 class SrsPublishEdge;
 class SrsSource;
-class SrsCommonMessage;
+class __SrsMessage;
 class SrsOnMetaDataPacket;
-class SrsSharedPtrMessage;
+class __SrsSharedPtrMessage;
 class SrsForwarder;
 class SrsRequest;
 class SrsSocket;
@@ -74,7 +74,7 @@ public:
     /**
     * detect the time jitter and correct it.
     */
-    virtual int correct(SrsSharedPtrMessage* msg, int tba, int tbv);
+    virtual int correct(__SrsSharedPtrMessage* msg, int tba, int tbv);
     /**
     * get current client time, the last packet time.
     */
@@ -91,7 +91,7 @@ private:
     int64_t av_start_time;
     int64_t av_end_time;
     int queue_size_ms;
-    std::vector<SrsSharedPtrMessage*> msgs;
+    std::vector<__SrsSharedPtrMessage*> msgs;
 public:
     SrsMessageQueue();
     virtual ~SrsMessageQueue();
@@ -106,14 +106,14 @@ public:
     * enqueue the message, the timestamp always monotonically.
     * @param msg, the msg to enqueue, user never free it whatever the return code.
     */
-    virtual int enqueue(SrsSharedPtrMessage* msg);
+    virtual int enqueue(__SrsSharedPtrMessage* msg);
     /**
     * get packets in consumer queue.
     * @pmsgs SrsMessages*[], output the prt array.
     * @count the count in array.
     * @max_count the max count to dequeue, 0 to dequeue all.
     */
-    virtual int get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& count);
+    virtual int get_packets(int max_count, __SrsSharedPtrMessage**& pmsgs, int& count);
 private:
     /**
     * remove a gop from the front.
@@ -150,14 +150,14 @@ public:
     * @param tbv timebase of video.
     *        used to calc the video time delta if time-jitter detected.
     */
-    virtual int enqueue(SrsSharedPtrMessage* msg, int tba, int tbv);
+    virtual int enqueue(__SrsSharedPtrMessage* msg, int tba, int tbv);
     /**
     * get packets in consumer queue.
     * @pmsgs SrsMessages*[], output the prt array.
     * @count the count in array.
     * @max_count the max count to dequeue, 0 to dequeue all.
     */
-    virtual int get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& count);
+    virtual int get_packets(int max_count, __SrsSharedPtrMessage**& pmsgs, int& count);
     /**
     * when client send the pause message.
     */
@@ -185,7 +185,7 @@ private:
     /**
     * cached gop.
     */
-    std::vector<SrsSharedPtrMessage*> gop_cache;
+    std::vector<__SrsSharedPtrMessage*> gop_cache;
 public:
     SrsGopCache();
     virtual ~SrsGopCache();
@@ -196,7 +196,7 @@ public:
     * 1. cache the gop when got h264 video packet.
     * 2. clear gop when got keyframe.
     */
-    virtual int cache(SrsSharedPtrMessage* msg);
+    virtual int cache(__SrsSharedPtrMessage* msg);
     virtual void clear();
     virtual int dump(SrsConsumer* consumer, int tba, int tbv);
     /**
@@ -267,11 +267,11 @@ private:
     // TODO: FIXME: to support reload atc.
     bool atc;
 private:
-    SrsSharedPtrMessage* cache_metadata;
+    __SrsSharedPtrMessage* cache_metadata;
     // the cached video sequence header.
-    SrsSharedPtrMessage* cache_sh_video;
+    __SrsSharedPtrMessage* cache_sh_video;
     // the cached audio sequence header.
-    SrsSharedPtrMessage* cache_sh_audio;
+    __SrsSharedPtrMessage* cache_sh_audio;
 public:
     /**
     * @param _req the client request object, 
@@ -299,9 +299,9 @@ public:
     virtual int on_dvr_request_sh();
 public:
     virtual bool can_publish();
-    virtual int on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);
-    virtual int on_audio(SrsCommonMessage* audio);
-    virtual int on_video(SrsCommonMessage* video);
+    virtual int on_meta_data(__SrsMessage* msg, SrsOnMetaDataPacket* metadata);
+    virtual int on_audio(__SrsMessage* audio);
+    virtual int on_video(__SrsMessage* video);
     /**
     * publish stream event notify.
     * @param _req the request from client, the source will deep copy it,
@@ -322,7 +322,7 @@ public:
     // for edge, when publish edge stream, check the state
     virtual int on_edge_start_publish();
     // for edge, proxy the publish
-    virtual int on_edge_proxy_publish(SrsCommonMessage* msg);
+    virtual int on_edge_proxy_publish(__SrsMessage* msg);
     // for edge, proxy stop publish
     virtual void on_edge_proxy_unpublish();
 private:

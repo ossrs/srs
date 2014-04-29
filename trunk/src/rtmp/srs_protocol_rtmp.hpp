@@ -42,6 +42,8 @@ class SrsPublishPacket;
 class SrsSharedPtrMessage;
 class SrsOnMetaDataPacket;
 class SrsPlayPacket;
+class __SrsMessage;
+class SrsPacket;
 
 /**
 * the original request from client.
@@ -164,6 +166,10 @@ public:
     virtual int get_send_kbps();
     virtual int recv_message(SrsCommonMessage** pmsg);
     virtual int send_message(ISrsMessage* msg);
+    virtual int __recv_message(__SrsMessage** pmsg);
+    virtual int __decode_message(__SrsMessage* msg, SrsPacket** ppacket);
+    virtual int __send_and_free_message(__SrsMessage* msg);
+    virtual int __send_and_free_packet(SrsPacket* packet, int stream_id);
 public:
     // try complex, then simple handshake.
     virtual int handshake();
@@ -209,6 +215,10 @@ public:
     virtual int get_send_kbps();
     virtual int recv_message(SrsCommonMessage** pmsg);
     virtual int send_message(ISrsMessage* msg);
+    virtual int __recv_message(__SrsMessage** pmsg);
+    virtual int __decode_message(__SrsMessage* msg, SrsPacket** ppacket);
+    virtual int __send_and_free_message(__SrsMessage* msg);
+    virtual int __send_and_free_packet(SrsPacket* packet, int stream_id);
 public:
     virtual int handshake();
     virtual int connect_app(SrsRequest* req);

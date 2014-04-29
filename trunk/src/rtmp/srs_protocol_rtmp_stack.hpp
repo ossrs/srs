@@ -45,6 +45,9 @@ class SrsChunkStream;
 class SrsAmf0Object;
 class SrsAmf0Any;
 class ISrsMessage;
+class SrsMessageHeader;
+class __SrsMessage;
+class __SrsChunkStream;
  
 // the following is the timeout for rtmp protocol, 
 // to avoid death connection.
@@ -110,6 +113,9 @@ private:
 // peer in
 private:
     std::map<int, SrsChunkStream*> chunk_streams;
+    // TODO: FIXME: rename to chunk_streams
+    std::map<int, __SrsChunkStream*> __chunk_streams;
+    SrsStream* decode_stream;
     SrsBuffer* buffer;
     int32_t in_chunk_size;
     AckWindowSize in_ack_size;
@@ -125,6 +131,7 @@ public:
     SrsProtocol(ISrsProtocolReaderWriter* io);
     virtual ~SrsProtocol();
 public:
+    // TODO: FIXME: to private.
     std::string get_request_name(double transcationId);
     /**
     * set the timeout in us.
@@ -138,6 +145,82 @@ public:
     virtual int64_t get_send_bytes();
     virtual int get_recv_kbps();
     virtual int get_send_kbps();
+public:
+    /**
+    * recv a RTMP message, which is bytes oriented.
+    * user can use decode_message to get the decoded RTMP packet.
+    * @param pmsg, set the received message, 
+    *       always NULL if error, 
+    *       NULL for unknown packet but return success.
+    *       never NULL if decode success.
+    */
+    virtual int __recv_message(__SrsMessage** pmsg);
+    /**
+    * decode bytes oriented RTMP message to RTMP packet,
+    * @param ppacket, output decoded packet, 
+    *       always NULL if error, never NULL if success.
+    * @return error when unknown packet, error when decode failed.
+    */
+    virtual int __decode_message(__SrsMessage* msg, SrsPacket** ppacket);
+    /**
+    * send the RTMP message and always free it.
+    * user must never free or use the msg after this method,
+    * for it will always free the msg.
+    * @param msg, the msg to send out, never be NULL.
+    */
+    virtual int __send_and_free_message(__SrsMessage* msg);
+    /**
+    * send the RTMP packet and always free it.
+    * user must never free or use the packet after this method,
+    * for it will always free the packet.
+    * @param packet, the packet to send out, never be NULL.
+    * @param stream_id, the stream id of packet to send over, 0 for control message.
+    */
+    virtual int __send_and_free_packet(SrsPacket* packet, int stream_id);
+private:
+    /**
+    * imp for __send_and_free_message
+    * @param packet the packet of message, NULL for raw message.
+    */
+    virtual int __do_send_and_free_message(__SrsMessage* msg, SrsPacket* packet);
+    /**
+    * imp for __decode_message
+    */
+    virtual int __do_decode_message(SrsMessageHeader& header, SrsStream* stream, SrsPacket** ppacket);
+    /**
+    * recv bytes oriented RTMP message from protocol stack.
+    * return error if error occur and nerver set the pmsg,
+    * return success and pmsg set to NULL if no entire message got,
+    * return success and pmsg set to entire message if got one.
+    */
+    virtual int __recv_interlaced_message(__SrsMessage** pmsg);
+    /**
+    * read the chunk basic header(fmt, cid) from chunk stream.
+    * user can discovery a SrsChunkStream by cid.
+    * @bh_size return the chunk basic header size, to remove the used bytes when finished.
+    */
+    virtual int __read_basic_header(char& fmt, int& cid, int& bh_size);
+    /**
+    * read the chunk message header(timestamp, payload_length, message_type, stream_id) 
+    * from chunk stream and save to SrsChunkStream.
+    * @mh_size return the chunk message header size, to remove the used bytes when finished.
+    */
+    virtual int __read_message_header(__SrsChunkStream* chunk, char fmt, int bh_size, int& mh_size);
+    /**
+    * read the chunk payload, remove the used bytes in buffer,
+    * if got entire message, set the pmsg.
+    * @payload_size read size in this roundtrip, generally a chunk size or left message size.
+    */
+    virtual int __read_message_payload(__SrsChunkStream* chunk, int bh_size, int mh_size, int& payload_size, __SrsMessage** pmsg);
+    /**
+    * when recv message, update the context.
+    */
+    virtual int __on_recv_message(__SrsMessage* msg);
+    /**
+    * when message sentout, update the context.
+    */
+    virtual int __on_send_message(__SrsMessage* msg, SrsPacket* packet);
+public:
     /**
     * recv a message with raw/undecoded payload from peer.
     * the payload is not decoded, use srs_rtmp_expect_message<T> if requires 
@@ -226,6 +309,16 @@ struct SrsMessageHeader
     */
     int64_t timestamp;
     
+public:
+    /**
+    * get the perfered cid(chunk stream id) which sendout over.
+    * set at decoding, and canbe used for directly send message,
+    * for example, dispatch to all connections.
+    * @see: SrsSharedPtrMessage.SrsSharedPtr.perfer_cid
+    */
+    int perfer_cid;
+    
+public:
     SrsMessageHeader();
     virtual ~SrsMessageHeader();
 
@@ -281,6 +374,109 @@ public:
 public:
     SrsChunkStream(int _cid);
     virtual ~SrsChunkStream();
+};
+
+/**
+* incoming chunk stream maybe interlaced,
+* use the chunk stream to cache the input RTMP chunk streams.
+*/
+class __SrsChunkStream
+{
+public:
+    /**
+    * represents the basic header fmt,
+    * which used to identify the variant message header type.
+    */
+    char fmt;
+    /**
+    * represents the basic header cid,
+    * which is the chunk stream id.
+    */
+    int cid;
+    /**
+    * cached message header
+    */
+    SrsMessageHeader header;
+    /**
+    * whether the chunk message header has extended timestamp.
+    */
+    bool extended_timestamp;
+    /**
+    * partially read message.
+    */
+    __SrsMessage* msg;
+    /**
+    * decoded msg count, to identify whether the chunk stream is fresh.
+    */
+    int64_t msg_count;
+public:
+    __SrsChunkStream(int _cid);
+    virtual ~__SrsChunkStream();
+};
+
+/**
+* message is raw data RTMP message, bytes oriented,
+* protcol always recv RTMP message, and can send RTMP message or RTMP packet.
+* the shared-ptr message is a special RTMP message, use ref-count for performance issue.
+*/
+class __SrsMessage
+{
+// 4.1. Message Header
+public:
+    SrsMessageHeader header;
+// 4.2. Message Payload
+public:
+    /**
+    * The other part which is the payload is the actual data that is
+    * contained in the message. For example, it could be some audio samples
+    * or compressed video data. The payload format and interpretation are
+    * beyond the scope of this document.
+    */
+    int32_t size;
+    int8_t* payload;
+public:
+    __SrsMessage();
+    virtual ~__SrsMessage();
+};
+
+/**
+* shared ptr message.
+* for audio/video/data message that need less memory copy.
+* and only for output.
+*/
+class __SrsSharedPtrMessage : public __SrsMessage
+{
+private:
+    struct __SrsSharedPtr
+    {
+        char* payload;
+        int size;
+        int shared_count;
+        
+        __SrsSharedPtr();
+        virtual ~__SrsSharedPtr();
+    };
+    __SrsSharedPtr* ptr;
+public:
+    __SrsSharedPtrMessage();
+    virtual ~__SrsSharedPtrMessage();
+public:
+    /**
+    * set the shared payload.
+    * we will detach the payload of source,
+    * so ensure donot use it before.
+    */
+    virtual int initialize(__SrsMessage* source);
+    /**
+    * set the shared payload.
+    * use source header, and specified param payload.
+    */
+    virtual int initialize(SrsMessageHeader* source, char* payload, int size);
+public:
+    /**
+    * copy current shared ptr message, use ref-count.
+    */
+    virtual __SrsSharedPtrMessage* copy();
 };
 
 /**
@@ -1205,6 +1401,45 @@ int srs_rtmp_expect_message(SrsProtocol* protocol, SrsCommonMessage** pmsg, T** 
             srs_trace("drop message(type=%d, size=%d, time=%"PRId64", sid=%d).", 
                 msg->header.message_type, msg->header.payload_length,
                 msg->header.timestamp, msg->header.stream_id);
+            continue;
+        }
+        
+        *pmsg = msg;
+        *ppacket = pkt;
+        break;
+    }
+    
+    return ret;
+}
+template<class T>
+int __srs_rtmp_expect_message(SrsProtocol* protocol, __SrsMessage** pmsg, T** ppacket)
+{
+    *pmsg = NULL;
+    *ppacket = NULL;
+    
+    int ret = ERROR_SUCCESS;
+    
+    while (true) {
+        __SrsMessage* msg = NULL;
+        if ((ret = protocol->__recv_message(&msg)) != ERROR_SUCCESS) {
+            srs_error("recv message failed. ret=%d", ret);
+            return ret;
+        }
+        srs_verbose("recv message success.");
+        
+        SrsPacket* packet = NULL;
+        if ((ret = protocol->__decode_message(msg, &packet)) != ERROR_SUCCESS) {
+            srs_error("decode message failed. ret=%d", ret);
+            srs_freep(msg);
+            return ret;
+        }
+        
+        T* pkt = dynamic_cast<T*>(packet);
+        if (!pkt) {
+            srs_trace("drop message(type=%d, size=%d, time=%"PRId64", sid=%d).", 
+                msg->header.message_type, msg->header.payload_length,
+                msg->header.timestamp, msg->header.stream_id);
+            srs_freep(msg);
             continue;
         }
         

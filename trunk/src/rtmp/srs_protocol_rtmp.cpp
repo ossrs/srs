@@ -382,6 +382,26 @@ int SrsRtmpClient::send_message(ISrsMessage* msg)
     return protocol->send_message(msg);
 }
 
+int SrsRtmpClient::__recv_message(__SrsMessage** pmsg)
+{
+    return protocol->__recv_message(pmsg);
+}
+
+int SrsRtmpClient::__decode_message(__SrsMessage* msg, SrsPacket** ppacket)
+{
+    return protocol->__decode_message(msg, ppacket);
+}
+
+int SrsRtmpClient::__send_and_free_message(__SrsMessage* msg)
+{
+    return protocol->__send_and_free_message(msg);
+}
+
+int SrsRtmpClient::__send_and_free_packet(SrsPacket* packet, int stream_id)
+{
+    return protocol->__send_and_free_packet(packet, stream_id);
+}
+
 int SrsRtmpClient::handshake()
 {
     int ret = ERROR_SUCCESS;
@@ -768,6 +788,26 @@ int SrsRtmpServer::send_message(ISrsMessage* msg)
     return protocol->send_message(msg);
 }
 
+int SrsRtmpServer::__recv_message(__SrsMessage** pmsg)
+{
+    return protocol->__recv_message(pmsg);
+}
+
+int SrsRtmpServer::__decode_message(__SrsMessage* msg, SrsPacket** ppacket)
+{
+    return protocol->__decode_message(msg, ppacket);
+}
+
+int SrsRtmpServer::__send_and_free_message(__SrsMessage* msg)
+{
+    return protocol->__send_and_free_message(msg);
+}
+
+int SrsRtmpServer::__send_and_free_packet(SrsPacket* packet, int stream_id)
+{
+    return protocol->__send_and_free_packet(packet, stream_id);
+}
+
 int SrsRtmpServer::handshake()
 {
     int ret = ERROR_SUCCESS;
@@ -794,13 +834,13 @@ int SrsRtmpServer::connect_app(SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsCommonMessage* msg = NULL;
+    __SrsMessage* msg = NULL;
     SrsConnectAppPacket* pkt = NULL;
-    if ((ret = srs_rtmp_expect_message<SrsConnectAppPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+    if ((ret = __srs_rtmp_expect_message<SrsConnectAppPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
         srs_error("expect connect app message failed. ret=%d", ret);
         return ret;
     }
-    SrsAutoFree(SrsCommonMessage, msg, false);
+    SrsAutoFree(__SrsMessage, msg, false);
     srs_info("get connect app message");
     
     SrsAmf0Any* prop = NULL;
@@ -833,13 +873,9 @@ int SrsRtmpServer::set_window_ack_size(int ack_size)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsCommonMessage* msg = new SrsCommonMessage();
     SrsSetWindowAckSizePacket* pkt = new SrsSetWindowAckSizePacket();
-    
     pkt->ackowledgement_window_size = ack_size;
-    msg->set_packet(pkt, 0);
-    
-    if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+    if ((ret = protocol->__send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
         srs_error("send ack size message failed. ret=%d", ret);
         return ret;
     }
@@ -852,14 +888,10 @@ int SrsRtmpServer::set_peer_bandwidth(int bandwidth, int type)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsCommonMessage* msg = new SrsCommonMessage();
     SrsSetPeerBandwidthPacket* pkt = new SrsSetPeerBandwidthPacket();
-    
     pkt->bandwidth = bandwidth;
     pkt->type = type;
-    msg->set_packet(pkt, 0);
-    
-    if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+    if ((ret = protocol->__send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
         srs_error("send set bandwidth message failed. ret=%d", ret);
         return ret;
     }
@@ -873,7 +905,6 @@ int SrsRtmpServer::response_connect_app(SrsRequest *req, const char* server_ip)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsCommonMessage* msg = new SrsCommonMessage();
     SrsConnectAppResPacket* pkt = new SrsConnectAppResPacket();
     
     pkt->props->set("fmsVer", SrsAmf0Any::str("FMS/"RTMP_SIG_FMS_VER));
@@ -903,9 +934,7 @@ int SrsRtmpServer::response_connect_app(SrsRequest *req, const char* server_ip)
         data->set("srs_server_ip", SrsAmf0Any::str(server_ip));
     }
     
-    msg->set_packet(pkt, 0);
-    
-    if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+    if ((ret = protocol->__send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
         srs_error("send connect app response message failed. ret=%d", ret);
         return ret;
     }
@@ -939,12 +968,8 @@ int SrsRtmpServer::on_bw_done()
 {
     int ret = ERROR_SUCCESS;
     
-    SrsCommonMessage* msg = new SrsCommonMessage();
     SrsOnBWDonePacket* pkt = new SrsOnBWDonePacket();
-    
-    msg->set_packet(pkt, 0);
-    
-    if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+    if ((ret = protocol->__send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
         srs_error("send onBWDone message failed. ret=%d", ret);
         return ret;
     }
@@ -959,13 +984,13 @@ int SrsRtmpServer::identify_client(int stream_id, SrsRtmpConnType& type, string&
     int ret = ERROR_SUCCESS;
     
     while (true) {
-        SrsCommonMessage* msg = NULL;
-        if ((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS) {
+        __SrsMessage* msg = NULL;
+        if ((ret = protocol->__recv_message(&msg)) != ERROR_SUCCESS) {
             srs_error("recv identify client message failed. ret=%d", ret);
             return ret;
         }
 
-        SrsAutoFree(SrsCommonMessage, msg, false);
+        SrsAutoFree(__SrsMessage, msg, false);
 
         if (!msg->header.is_amf0_command() && !msg->header.is_amf3_command()) {
             srs_trace("identify ignore messages except "
@@ -973,12 +998,14 @@ int SrsRtmpServer::identify_client(int stream_id, SrsRtmpConnType& type, string&
             continue;
         }
         
-        if ((ret = msg->decode_packet(protocol)) != ERROR_SUCCESS) {
+        SrsPacket* pkt = NULL;
+        if ((ret = protocol->__decode_message(msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("identify decode message failed. ret=%d", ret);
             return ret;
         }
         
-        SrsPacket* pkt = msg->get_packet();
+        SrsAutoFree(SrsPacket, pkt, false);
+        
         if (dynamic_cast<SrsCreateStreamPacket*>(pkt)) {
             srs_info("identify client by create stream, play or flash publish.");
             return identify_create_stream_client(dynamic_cast<SrsCreateStreamPacket*>(pkt), stream_id, type, stream_name, duration);
@@ -1002,13 +1029,9 @@ int SrsRtmpServer::set_chunk_size(int chunk_size)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsCommonMessage* msg = new SrsCommonMessage();
     SrsSetChunkSizePacket* pkt = new SrsSetChunkSizePacket();
-    
     pkt->chunk_size = chunk_size;
-    msg->set_packet(pkt, 0);
-    
-    if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+    if ((ret = protocol->__send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
         srs_error("send set chunk size message failed. ret=%d", ret);
         return ret;
     }
@@ -1023,14 +1046,10 @@ int SrsRtmpServer::start_play(int stream_id)
     
     // StreamBegin
     if (true) {
-        SrsCommonMessage* msg = new SrsCommonMessage();
         SrsUserControlPacket* pkt = new SrsUserControlPacket();
-        
         pkt->event_type = SrcPCUCStreamBegin;
         pkt->event_data = stream_id;
-        msg->set_packet(pkt, 0);
-        
-        if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+        if ((ret = protocol->__send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
             srs_error("send PCUC(StreamBegin) message failed. ret=%d", ret);
             return ret;
         }
@@ -1039,7 +1058,6 @@ int SrsRtmpServer::start_play(int stream_id)
     
     // onStatus(NetStream.Play.Reset)
     if (true) {
-        SrsCommonMessage* msg = new SrsCommonMessage();
         SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
         
         pkt->data->set(StatusLevel, SrsAmf0Any::str(StatusLevelStatus));
@@ -1048,9 +1066,7 @@ int SrsRtmpServer::start_play(int stream_id)
         pkt->data->set(StatusDetails, SrsAmf0Any::str("stream"));
         pkt->data->set(StatusClientId, SrsAmf0Any::str(RTMP_SIG_CLIENT_ID));
         
-        msg->set_packet(pkt, stream_id);
-        
-        if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+        if ((ret = protocol->__send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
             srs_error("send onStatus(NetStream.Play.Reset) message failed. ret=%d", ret);
             return ret;
         }
@@ -1059,7 +1075,6 @@ int SrsRtmpServer::start_play(int stream_id)
     
     // onStatus(NetStream.Play.Start)
     if (true) {
-        SrsCommonMessage* msg = new SrsCommonMessage();
         SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
         
         pkt->data->set(StatusLevel, SrsAmf0Any::str(StatusLevelStatus));
@@ -1068,9 +1083,7 @@ int SrsRtmpServer::start_play(int stream_id)
         pkt->data->set(StatusDetails, SrsAmf0Any::str("stream"));
         pkt->data->set(StatusClientId, SrsAmf0Any::str(RTMP_SIG_CLIENT_ID));
         
-        msg->set_packet(pkt, stream_id);
-        
-        if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+        if ((ret = protocol->__send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
             srs_error("send onStatus(NetStream.Play.Reset) message failed. ret=%d", ret);
             return ret;
         }
@@ -1079,12 +1092,8 @@ int SrsRtmpServer::start_play(int stream_id)
     
     // |RtmpSampleAccess(false, false)
     if (true) {
-        SrsCommonMessage* msg = new SrsCommonMessage();
         SrsSampleAccessPacket* pkt = new SrsSampleAccessPacket();
-        
-        msg->set_packet(pkt, stream_id);
-        
-        if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+        if ((ret = protocol->__send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
             srs_error("send |RtmpSampleAccess(false, false) message failed. ret=%d", ret);
             return ret;
         }
@@ -1093,14 +1102,9 @@ int SrsRtmpServer::start_play(int stream_id)
     
     // onStatus(NetStream.Data.Start)
     if (true) {
-        SrsCommonMessage* msg = new SrsCommonMessage();
         SrsOnStatusDataPacket* pkt = new SrsOnStatusDataPacket();
-        
         pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodeDataStart));
-        
-        msg->set_packet(pkt, stream_id);
-        
-        if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+        if ((ret = protocol->__send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
             srs_error("send onStatus(NetStream.Data.Start) message failed. ret=%d", ret);
             return ret;
         }
@@ -1119,16 +1123,13 @@ int SrsRtmpServer::on_play_client_pause(int stream_id, bool is_pause)
     if (is_pause) {
         // onStatus(NetStream.Pause.Notify)
         if (true) {
-            SrsCommonMessage* msg = new SrsCommonMessage();
             SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
             
             pkt->data->set(StatusLevel, SrsAmf0Any::str(StatusLevelStatus));
             pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodeStreamPause));
             pkt->data->set(StatusDescription, SrsAmf0Any::str("Paused stream."));
             
-            msg->set_packet(pkt, stream_id);
-            
-            if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+            if ((ret = protocol->__send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
                 srs_error("send onStatus(NetStream.Pause.Notify) message failed. ret=%d", ret);
                 return ret;
             }
@@ -1136,14 +1137,12 @@ int SrsRtmpServer::on_play_client_pause(int stream_id, bool is_pause)
         }
         // StreamEOF
         if (true) {
-            SrsCommonMessage* msg = new SrsCommonMessage();
             SrsUserControlPacket* pkt = new SrsUserControlPacket();
             
             pkt->event_type = SrcPCUCStreamEOF;
             pkt->event_data = stream_id;
-            msg->set_packet(pkt, 0);
             
-            if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+            if ((ret = protocol->__send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
                 srs_error("send PCUC(StreamEOF) message failed. ret=%d", ret);
                 return ret;
             }
@@ -1152,16 +1151,13 @@ int SrsRtmpServer::on_play_client_pause(int stream_id, bool is_pause)
     } else {
         // onStatus(NetStream.Unpause.Notify)
         if (true) {
-            SrsCommonMessage* msg = new SrsCommonMessage();
             SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
             
             pkt->data->set(StatusLevel, SrsAmf0Any::str(StatusLevelStatus));
             pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodeStreamUnpause));
             pkt->data->set(StatusDescription, SrsAmf0Any::str("Unpaused stream."));
             
-            msg->set_packet(pkt, stream_id);
-            
-            if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+            if ((ret = protocol->__send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
                 srs_error("send onStatus(NetStream.Unpause.Notify) message failed. ret=%d", ret);
                 return ret;
             }
@@ -1169,14 +1165,12 @@ int SrsRtmpServer::on_play_client_pause(int stream_id, bool is_pause)
         }
         // StreanBegin
         if (true) {
-            SrsCommonMessage* msg = new SrsCommonMessage();
             SrsUserControlPacket* pkt = new SrsUserControlPacket();
             
             pkt->event_type = SrcPCUCStreamBegin;
             pkt->event_data = stream_id;
-            msg->set_packet(pkt, 0);
             
-            if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+            if ((ret = protocol->__send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
                 srs_error("send PCUC(StreanBegin) message failed. ret=%d", ret);
                 return ret;
             }
@@ -1194,25 +1188,21 @@ int SrsRtmpServer::start_fmle_publish(int stream_id)
     // FCPublish
     double fc_publish_tid = 0;
     if (true) {
-        SrsCommonMessage* msg = NULL;
+        __SrsMessage* msg = NULL;
         SrsFMLEStartPacket* pkt = NULL;
-        if ((ret = srs_rtmp_expect_message<SrsFMLEStartPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = __srs_rtmp_expect_message<SrsFMLEStartPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("recv FCPublish message failed. ret=%d", ret);
             return ret;
         }
         srs_info("recv FCPublish request message success.");
         
-        SrsAutoFree(SrsCommonMessage, msg, false);
+        SrsAutoFree(__SrsMessage, msg, false);
         fc_publish_tid = pkt->transaction_id;
     }
     // FCPublish response
     if (true) {
-        SrsCommonMessage* msg = new SrsCommonMessage();
         SrsFMLEStartResPacket* pkt = new SrsFMLEStartResPacket(fc_publish_tid);
-        
-        msg->set_packet(pkt, 0);
-        
-        if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+        if ((ret = protocol->__send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
             srs_error("send FCPublish response message failed. ret=%d", ret);
             return ret;
         }
@@ -1222,25 +1212,21 @@ int SrsRtmpServer::start_fmle_publish(int stream_id)
     // createStream
     double create_stream_tid = 0;
     if (true) {
-        SrsCommonMessage* msg = NULL;
+        __SrsMessage* msg = NULL;
         SrsCreateStreamPacket* pkt = NULL;
-        if ((ret = srs_rtmp_expect_message<SrsCreateStreamPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = __srs_rtmp_expect_message<SrsCreateStreamPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("recv createStream message failed. ret=%d", ret);
             return ret;
         }
         srs_info("recv createStream request message success.");
         
-        SrsAutoFree(SrsCommonMessage, msg, false);
+        SrsAutoFree(__SrsMessage, msg, false);
         create_stream_tid = pkt->transaction_id;
     }
     // createStream response
     if (true) {
-        SrsCommonMessage* msg = new SrsCommonMessage();
         SrsCreateStreamResPacket* pkt = new SrsCreateStreamResPacket(create_stream_tid, stream_id);
-        
-        msg->set_packet(pkt, 0);
-        
-        if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+        if ((ret = protocol->__send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
             srs_error("send createStream response message failed. ret=%d", ret);
             return ret;
         }
@@ -1249,28 +1235,25 @@ int SrsRtmpServer::start_fmle_publish(int stream_id)
     
     // publish
     if (true) {
-        SrsCommonMessage* msg = NULL;
+        __SrsMessage* msg = NULL;
         SrsPublishPacket* pkt = NULL;
-        if ((ret = srs_rtmp_expect_message<SrsPublishPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = __srs_rtmp_expect_message<SrsPublishPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("recv publish message failed. ret=%d", ret);
             return ret;
         }
         srs_info("recv publish request message success.");
         
-        SrsAutoFree(SrsCommonMessage, msg, false);
+        SrsAutoFree(__SrsMessage, msg, false);
     }
     // publish response onFCPublish(NetStream.Publish.Start)
     if (true) {
-        SrsCommonMessage* msg = new SrsCommonMessage();
         SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
         
         pkt->command_name = RTMP_AMF0_COMMAND_ON_FC_PUBLISH;
         pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodePublishStart));
         pkt->data->set(StatusDescription, SrsAmf0Any::str("Started publishing stream."));
         
-        msg->set_packet(pkt, stream_id);
-        
-        if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+        if ((ret = protocol->__send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
             srs_error("send onFCPublish(NetStream.Publish.Start) message failed. ret=%d", ret);
             return ret;
         }
@@ -1278,7 +1261,6 @@ int SrsRtmpServer::start_fmle_publish(int stream_id)
     }
     // publish response onStatus(NetStream.Publish.Start)
     if (true) {
-        SrsCommonMessage* msg = new SrsCommonMessage();
         SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
         
         pkt->data->set(StatusLevel, SrsAmf0Any::str(StatusLevelStatus));
@@ -1286,9 +1268,7 @@ int SrsRtmpServer::start_fmle_publish(int stream_id)
         pkt->data->set(StatusDescription, SrsAmf0Any::str("Started publishing stream."));
         pkt->data->set(StatusClientId, SrsAmf0Any::str(RTMP_SIG_CLIENT_ID));
         
-        msg->set_packet(pkt, stream_id);
-        
-        if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+        if ((ret = protocol->__send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
             srs_error("send onStatus(NetStream.Publish.Start) message failed. ret=%d", ret);
             return ret;
         }
@@ -1306,16 +1286,13 @@ int SrsRtmpServer::fmle_unpublish(int stream_id, double unpublish_tid)
     
     // publish response onFCUnpublish(NetStream.unpublish.Success)
     if (true) {
-        SrsCommonMessage* msg = new SrsCommonMessage();
         SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
         
         pkt->command_name = RTMP_AMF0_COMMAND_ON_FC_UNPUBLISH;
         pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodeUnpublishSuccess));
         pkt->data->set(StatusDescription, SrsAmf0Any::str("Stop publishing stream."));
         
-        msg->set_packet(pkt, stream_id);
-        
-        if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+        if ((ret = protocol->__send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
             srs_error("send onFCUnpublish(NetStream.unpublish.Success) message failed. ret=%d", ret);
             return ret;
         }
@@ -1323,12 +1300,8 @@ int SrsRtmpServer::fmle_unpublish(int stream_id, double unpublish_tid)
     }
     // FCUnpublish response
     if (true) {
-        SrsCommonMessage* msg = new SrsCommonMessage();
         SrsFMLEStartResPacket* pkt = new SrsFMLEStartResPacket(unpublish_tid);
-        
-        msg->set_packet(pkt, stream_id);
-        
-        if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+        if ((ret = protocol->__send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
             srs_error("send FCUnpublish response message failed. ret=%d", ret);
             return ret;
         }
@@ -1336,7 +1309,6 @@ int SrsRtmpServer::fmle_unpublish(int stream_id, double unpublish_tid)
     }
     // publish response onStatus(NetStream.Unpublish.Success)
     if (true) {
-        SrsCommonMessage* msg = new SrsCommonMessage();
         SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
         
         pkt->data->set(StatusLevel, SrsAmf0Any::str(StatusLevelStatus));
@@ -1344,9 +1316,7 @@ int SrsRtmpServer::fmle_unpublish(int stream_id, double unpublish_tid)
         pkt->data->set(StatusDescription, SrsAmf0Any::str("Stream is now unpublished"));
         pkt->data->set(StatusClientId, SrsAmf0Any::str(RTMP_SIG_CLIENT_ID));
         
-        msg->set_packet(pkt, stream_id);
-        
-        if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+        if ((ret = protocol->__send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
             srs_error("send onStatus(NetStream.Unpublish.Success) message failed. ret=%d", ret);
             return ret;
         }
@@ -1364,7 +1334,6 @@ int SrsRtmpServer::start_flash_publish(int stream_id)
     
     // publish response onStatus(NetStream.Publish.Start)
     if (true) {
-        SrsCommonMessage* msg = new SrsCommonMessage();
         SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
         
         pkt->data->set(StatusLevel, SrsAmf0Any::str(StatusLevelStatus));
@@ -1372,9 +1341,7 @@ int SrsRtmpServer::start_flash_publish(int stream_id)
         pkt->data->set(StatusDescription, SrsAmf0Any::str("Started publishing stream."));
         pkt->data->set(StatusClientId, SrsAmf0Any::str(RTMP_SIG_CLIENT_ID));
         
-        msg->set_packet(pkt, stream_id);
-        
-        if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+        if ((ret = protocol->__send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
             srs_error("send onStatus(NetStream.Publish.Start) message failed. ret=%d", ret);
             return ret;
         }
@@ -1391,12 +1358,8 @@ int SrsRtmpServer::identify_create_stream_client(SrsCreateStreamPacket* req, int
     int ret = ERROR_SUCCESS;
     
     if (true) {
-        SrsCommonMessage* msg = new SrsCommonMessage();
         SrsCreateStreamResPacket* pkt = new SrsCreateStreamResPacket(req->transaction_id, stream_id);
-        
-        msg->set_packet(pkt, 0);
-        
-        if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+        if ((ret = protocol->__send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
             srs_error("send createStream response message failed. ret=%d", ret);
             return ret;
         }
@@ -1404,13 +1367,13 @@ int SrsRtmpServer::identify_create_stream_client(SrsCreateStreamPacket* req, int
     }
     
     while (true) {
-        SrsCommonMessage* msg = NULL;
-        if ((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS) {
+        __SrsMessage* msg = NULL;
+        if ((ret = protocol->__recv_message(&msg)) != ERROR_SUCCESS) {
             srs_error("recv identify client message failed. ret=%d", ret);
             return ret;
         }
 
-        SrsAutoFree(SrsCommonMessage, msg, false);
+        SrsAutoFree(__SrsMessage, msg, false);
 
         if (!msg->header.is_amf0_command() && !msg->header.is_amf3_command()) {
             srs_trace("identify ignore messages except "
@@ -1418,12 +1381,14 @@ int SrsRtmpServer::identify_create_stream_client(SrsCreateStreamPacket* req, int
             continue;
         }
         
-        if ((ret = msg->decode_packet(protocol)) != ERROR_SUCCESS) {
+        SrsPacket* pkt = NULL;
+        if ((ret = protocol->__decode_message(msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("identify decode message failed. ret=%d", ret);
             return ret;
         }
+
+        SrsAutoFree(SrsPacket, pkt, false);
         
-        SrsPacket* pkt = msg->get_packet();
         if (dynamic_cast<SrsPlayPacket*>(pkt)) {
             srs_info("level1 identify client by play.");
             return identify_play_client(dynamic_cast<SrsPlayPacket*>(pkt), type, stream_name, duration);
@@ -1448,12 +1413,8 @@ int SrsRtmpServer::identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsRtmp
     
     // releaseStream response
     if (true) {
-        SrsCommonMessage* msg = new SrsCommonMessage();
         SrsFMLEStartResPacket* pkt = new SrsFMLEStartResPacket(req->transaction_id);
-        
-        msg->set_packet(pkt, 0);
-        
-        if ((ret = protocol->send_message(msg)) != ERROR_SUCCESS) {
+        if ((ret = protocol->__send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
             srs_error("send releaseStream response message failed. ret=%d", ret);
             return ret;
         }

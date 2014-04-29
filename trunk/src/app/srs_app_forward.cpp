@@ -148,7 +148,7 @@ void SrsForwarder::on_unpublish()
     srs_freep(io);
 }
 
-int SrsForwarder::on_meta_data(SrsSharedPtrMessage* metadata)
+int SrsForwarder::on_meta_data(__SrsSharedPtrMessage* metadata)
 {
     int ret = ERROR_SUCCESS;
     
@@ -164,7 +164,7 @@ int SrsForwarder::on_meta_data(SrsSharedPtrMessage* metadata)
     return ret;
 }
 
-int SrsForwarder::on_audio(SrsSharedPtrMessage* msg)
+int SrsForwarder::on_audio(__SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -180,7 +180,7 @@ int SrsForwarder::on_audio(SrsSharedPtrMessage* msg)
     return ret;
 }
 
-int SrsForwarder::on_video(SrsSharedPtrMessage* msg)
+int SrsForwarder::on_video(__SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -329,7 +329,7 @@ int SrsForwarder::forward()
         
         // forward all messages.
         int count = 0;
-        SrsSharedPtrMessage** msgs = NULL;
+        __SrsSharedPtrMessage** msgs = NULL;
         if ((ret = queue->get_packets(0, msgs, count)) != ERROR_SUCCESS) {
             srs_error("get message to forward failed. ret=%d", ret);
             return ret;
@@ -348,16 +348,16 @@ int SrsForwarder::forward()
             srs_verbose("no packets to forward.");
             continue;
         }
-        SrsAutoFree(SrsSharedPtrMessage*, msgs, true);
+        SrsAutoFree(__SrsSharedPtrMessage*, msgs, true);
     
         // all msgs to forward.
         for (int i = 0; i < count; i++) {
-            SrsSharedPtrMessage* msg = msgs[i];
+            __SrsSharedPtrMessage* msg = msgs[i];
             
             srs_assert(msg);
             msgs[i] = NULL;
             
-            if ((ret = client->send_message(msg)) != ERROR_SUCCESS) {
+            if ((ret = client->__send_and_free_message(msg)) != ERROR_SUCCESS) {
                 srs_error("forwarder send message to server failed. ret=%d", ret);
                 return ret;
             }

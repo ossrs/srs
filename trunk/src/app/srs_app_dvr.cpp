@@ -455,7 +455,7 @@ int SrsDvrPlan::on_meta_data(SrsOnMetaDataPacket* metadata)
     return ret;
 }
 
-int SrsDvrPlan::on_audio(SrsSharedPtrMessage* audio)
+int SrsDvrPlan::on_audio(__SrsSharedPtrMessage* audio)
 {
     int ret = ERROR_SUCCESS;
     
@@ -481,7 +481,7 @@ int SrsDvrPlan::on_audio(SrsSharedPtrMessage* audio)
     return ret;
 }
 
-int SrsDvrPlan::on_video(SrsSharedPtrMessage* video)
+int SrsDvrPlan::on_video(__SrsSharedPtrMessage* video)
 {
     int ret = ERROR_SUCCESS;
     
@@ -573,7 +573,7 @@ int SrsDvrPlan::flv_close()
     return ret;
 }
 
-int SrsDvrPlan::update_duration(SrsSharedPtrMessage* msg)
+int SrsDvrPlan::update_duration(__SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
 
@@ -720,7 +720,7 @@ void SrsDvrSegmentPlan::on_unpublish()
     dvr_enabled = false;
 }
 
-int SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
+int SrsDvrSegmentPlan::update_duration(__SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -903,7 +903,7 @@ int SrsDvrHssPlan::on_dvr_reap_flv_header(string path)
     return ret;
 }
 
-int SrsDvrHssPlan::update_duration(SrsSharedPtrMessage* msg)
+int SrsDvrHssPlan::update_duration(__SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -998,11 +998,11 @@ int SrsDvr::on_meta_data(SrsOnMetaDataPacket* metadata)
     return ret;
 }
 
-int SrsDvr::on_audio(SrsSharedPtrMessage* audio)
+int SrsDvr::on_audio(__SrsSharedPtrMessage* audio)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsAutoFree(SrsSharedPtrMessage, audio, false);
+    SrsAutoFree(__SrsSharedPtrMessage, audio, false);
     
     if ((ret = plan->on_audio(audio)) != ERROR_SUCCESS) {
         return ret;
@@ -1011,11 +1011,11 @@ int SrsDvr::on_audio(SrsSharedPtrMessage* audio)
     return ret;
 }
 
-int SrsDvr::on_video(SrsSharedPtrMessage* video)
+int SrsDvr::on_video(__SrsSharedPtrMessage* video)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsAutoFree(SrsSharedPtrMessage, video, false);
+    SrsAutoFree(__SrsSharedPtrMessage, video, false);
     
     if ((ret = plan->on_video(video)) != ERROR_SUCCESS) {
         return ret;

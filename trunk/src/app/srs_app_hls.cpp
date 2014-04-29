@@ -1379,11 +1379,11 @@ int SrsHls::on_meta_data(SrsAmf0Object* metadata)
     return ret;
 }
 
-int SrsHls::on_audio(SrsSharedPtrMessage* audio)
+int SrsHls::on_audio(__SrsSharedPtrMessage* audio)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsAutoFree(SrsSharedPtrMessage, audio, false);
+    SrsAutoFree(__SrsSharedPtrMessage, audio, false);
     
     if (!hls_enabled) {
         return ret;
@@ -1423,11 +1423,11 @@ int SrsHls::on_audio(SrsSharedPtrMessage* audio)
     return ret;
 }
 
-int SrsHls::on_video(SrsSharedPtrMessage* video)
+int SrsHls::on_video(__SrsSharedPtrMessage* video)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsAutoFree(SrsSharedPtrMessage, video, false);
+    SrsAutoFree(__SrsSharedPtrMessage, video, false);
     
     if (!hls_enabled) {
         return ret;

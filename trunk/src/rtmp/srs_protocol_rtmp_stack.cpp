@@ -297,6 +297,7 @@ SrsProtocol::AckWindowSize::AckWindowSize()
 SrsProtocol::SrsProtocol(ISrsProtocolReaderWriter* io)
 {
     buffer = new SrsBuffer();
+    decode_stream = new SrsStream();
     skt = io;
     
     in_chunk_size = out_chunk_size = RTMP_DEFAULT_CHUNK_SIZE;
@@ -304,15 +305,28 @@ SrsProtocol::SrsProtocol(ISrsProtocolReaderWriter* io)
 
 SrsProtocol::~SrsProtocol()
 {
-    std::map<int, SrsChunkStream*>::iterator it;
+    if (true) {
+        std::map<int, SrsChunkStream*>::iterator it;
+        
+        for (it = chunk_streams.begin(); it != chunk_streams.end(); ++it) {
+            SrsChunkStream* stream = it->second;
+            srs_freep(stream);
+        }
     
-    for (it = chunk_streams.begin(); it != chunk_streams.end(); ++it) {
-        SrsChunkStream* stream = it->second;
-        srs_freep(stream);
+        chunk_streams.clear();
     }
-
-    chunk_streams.clear();
+    if (true) {
+        std::map<int, __SrsChunkStream*>::iterator it;
+        
+        for (it = __chunk_streams.begin(); it != __chunk_streams.end(); ++it) {
+            __SrsChunkStream* stream = it->second;
+            srs_freep(stream);
+        }
     
+        __chunk_streams.clear();
+    }
+    
+    srs_freep(decode_stream);
     srs_freep(buffer);
 }
 
@@ -363,6 +377,982 @@ int SrsProtocol::get_recv_kbps()
 int SrsProtocol::get_send_kbps()
 {
     return skt->get_send_kbps();
+}
+
+int SrsProtocol::__recv_message(__SrsMessage** pmsg)
+{
+    *pmsg = NULL;
+    
+    int ret = ERROR_SUCCESS;
+    
+    while (true) {
+        __SrsMessage* msg = NULL;
+        
+        if ((ret = __recv_interlaced_message(&msg)) != ERROR_SUCCESS) {
+            if (ret != ERROR_SOCKET_TIMEOUT && !srs_is_client_gracefully_close(ret)) {
+                srs_error("recv interlaced message failed. ret=%d", ret);
+            }
+            return ret;
+        }
+        srs_verbose("entire msg received");
+        
+        if (!msg) {
+            continue;
+        }
+        
+        if (msg->size <= 0 || msg->header.payload_length <= 0) {
+            srs_trace("ignore empty message(type=%d, size=%d, time=%"PRId64", sid=%d).",
+                msg->header.message_type, msg->header.payload_length,
+                msg->header.timestamp, msg->header.stream_id);
+            srs_freep(msg);
+            continue;
+        }
+        
+        if ((ret = __on_recv_message(msg)) != ERROR_SUCCESS) {
+            srs_error("hook the received msg failed. ret=%d", ret);
+            srs_freep(msg);
+            return ret;
+        }
+        
+        srs_verbose("get a msg with raw/undecoded payload");
+        *pmsg = msg;
+        break;
+    }
+    
+    return ret;
+}
+
+int SrsProtocol::__decode_message(__SrsMessage* msg, SrsPacket** ppacket)
+{
+    *ppacket = NULL;
+    
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(msg != NULL);
+    srs_assert(msg->payload != NULL);
+    srs_assert(msg->size > 0);
+
+    // initialize the decode stream for all message,
+    // it's ok for the initialize if fast and without memory copy.
+    if ((ret = decode_stream->initialize((char*)(msg->payload), msg->size)) != ERROR_SUCCESS) {
+        srs_error("initialize stream failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("decode stream initialized success");
+    
+    // decode the packet.
+    SrsPacket* packet = NULL;
+    if ((ret = __do_decode_message(msg->header, decode_stream, &packet)) != ERROR_SUCCESS) {
+        srs_freep(packet);
+        return ret;
+    }
+    
+    // set to output ppacket only when success.
+    *ppacket = packet;
+    
+    return ret;
+}
+
+int SrsProtocol::__do_send_and_free_message(__SrsMessage* msg, SrsPacket* packet)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // we donot use the complex basic header,
+    // ensure the basic header is 1bytes.
+    if (msg->header.perfer_cid < 2) {
+        srs_warn("change the chunk_id=%d to default=%d", 
+            msg->header.perfer_cid, RTMP_CID_ProtocolControl);
+        msg->header.perfer_cid = RTMP_CID_ProtocolControl;
+    }
+
+    // p set to current write position,
+    // it's ok when payload is NULL and size is 0.
+    char* p = (char*)msg->payload;
+    
+    // always write the header event payload is empty.
+    do {
+        // generate the header.
+        char* pheader = out_header_cache;
+        
+        if (p == (char*)msg->payload) {
+            // write new chunk stream header, fmt is 0
+            *pheader++ = 0x00 | (msg->header.perfer_cid & 0x3F);
+            
+            // chunk message header, 11 bytes
+            // timestamp, 3bytes, big-endian
+            u_int32_t timestamp = (u_int32_t)msg->header.timestamp;
+            if (timestamp >= RTMP_EXTENDED_TIMESTAMP) {
+                *pheader++ = 0xFF;
+                *pheader++ = 0xFF;
+                *pheader++ = 0xFF;
+            } else {
+                pp = (char*)&timestamp;
+                *pheader++ = pp[2];
+                *pheader++ = pp[1];
+                *pheader++ = pp[0];
+            }
+            
+            // message_length, 3bytes, big-endian
+            pp = (char*)&msg->header.payload_length;
+            *pheader++ = pp[2];
+            *pheader++ = pp[1];
+            *pheader++ = pp[0];
+            
+            // message_type, 1bytes
+            *pheader++ = msg->header.message_type;
+            
+            // message_length, 3bytes, little-endian
+            pp = (char*)&msg->header.stream_id;
+            *pheader++ = pp[0];
+            *pheader++ = pp[1];
+            *pheader++ = pp[2];
+            *pheader++ = pp[3];
+            
+            // chunk extended timestamp header, 0 or 4 bytes, big-endian
+            if(timestamp >= RTMP_EXTENDED_TIMESTAMP){
+                pp = (char*)&timestamp;
+                *pheader++ = pp[3];
+                *pheader++ = pp[2];
+                *pheader++ = pp[1];
+                *pheader++ = pp[0];
+            }
+        } else {
+            // write no message header chunk stream, fmt is 3
+            *pheader++ = 0xC0 | (msg->header.perfer_cid & 0x3F);
+            
+            // chunk extended timestamp header, 0 or 4 bytes, big-endian
+            // 6.1.3. Extended Timestamp
+            // This field is transmitted only when the normal time stamp in the
+            // chunk message header is set to 0x00ffffff. If normal time stamp is
+            // set to any value less than 0x00ffffff, this field MUST NOT be
+            // present. This field MUST NOT be present if the timestamp field is not
+            // present. Type 3 chunks MUST NOT have this field.
+            // adobe changed for Type3 chunk:
+            //        FMLE always sendout the extended-timestamp,
+            //         must send the extended-timestamp to FMS,
+            //        must send the extended-timestamp to flash-player.
+            // @see: ngx_rtmp_prepare_message
+            // @see: http://blog.csdn.net/win_lin/article/details/13363699
+            u_int32_t timestamp = (u_int32_t)msg->header.timestamp;
+            if(timestamp >= RTMP_EXTENDED_TIMESTAMP){
+                pp = (char*)&timestamp; 
+                *pheader++ = pp[3];
+                *pheader++ = pp[2];
+                *pheader++ = pp[1];
+                *pheader++ = pp[0];
+            }
+        }
+        
+        // sendout header and payload by writev.
+        // decrease the sys invoke count to get higher performance.
+        int payload_size = msg->size - (p - (char*)msg->payload);
+        payload_size = srs_min(payload_size, out_chunk_size);
+        
+        // always has header
+        int header_size = pheader - out_header_cache;
+        srs_assert(header_size > 0);
+        
+        // send by writev
+        iovec iov[2];
+        iov[0].iov_base = out_header_cache;
+        iov[0].iov_len = header_size;
+        iov[1].iov_base = p;
+        iov[1].iov_len = payload_size;
+        
+        ssize_t nwrite;
+        if ((ret = skt->writev(iov, 2, &nwrite)) != ERROR_SUCCESS) {
+            srs_error("send with writev failed. ret=%d", ret);
+            return ret;
+        }
+        
+        // consume sendout bytes when not empty packet.
+        if (msg->payload && msg->size > 0) {
+            p += payload_size;
+        }
+    } while (p < (char*)msg->payload + msg->size);
+    
+    if ((ret = __on_send_message(msg, packet)) != ERROR_SUCCESS) {
+        srs_error("hook the send message failed. ret=%d", ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsProtocol::__do_decode_message(SrsMessageHeader& header, SrsStream* stream, SrsPacket** ppacket)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsPacket* packet = NULL;
+    
+    // decode specified packet type
+    if (header.is_amf0_command() || header.is_amf3_command() || header.is_amf0_data() || header.is_amf3_data()) {
+        srs_verbose("start to decode AMF0/AMF3 command message.");
+        
+        // skip 1bytes to decode the amf3 command.
+        if (header.is_amf3_command() && stream->require(1)) {
+            srs_verbose("skip 1bytes to decode AMF3 command");
+            stream->skip(1);
+        }
+        
+        // amf0 command message.
+        // need to read the command name.
+        std::string command;
+        if ((ret = srs_amf0_read_string(stream, command)) != ERROR_SUCCESS) {
+            srs_error("decode AMF0/AMF3 command name failed. ret=%d", ret);
+            return ret;
+        }
+        srs_verbose("AMF0/AMF3 command message, command_name=%s", command.c_str());
+        
+        // result/error packet
+        if (command == RTMP_AMF0_COMMAND_RESULT || command == RTMP_AMF0_COMMAND_ERROR) {
+            double transactionId = 0.0;
+            if ((ret = srs_amf0_read_number(stream, transactionId)) != ERROR_SUCCESS) {
+                srs_error("decode AMF0/AMF3 transcationId failed. ret=%d", ret);
+                return ret;
+            }
+            srs_verbose("AMF0/AMF3 command id, transcationId=%.2f", transactionId);
+            
+            // reset stream, for header read completed.
+            stream->reset();
+            if (header.is_amf3_command()) {
+                stream->skip(1);
+            }
+            
+            std::string request_name = get_request_name(transactionId);
+            if (request_name.empty()) {
+                ret = ERROR_RTMP_NO_REQUEST;
+                srs_error("decode AMF0/AMF3 request failed. ret=%d", ret);
+                return ret;
+            }
+            srs_verbose("AMF0/AMF3 request parsed. request_name=%s", request_name.c_str());
+
+            if (request_name == RTMP_AMF0_COMMAND_CONNECT) {
+                srs_info("decode the AMF0/AMF3 response command(%s message).", request_name.c_str());
+                *ppacket = packet = new SrsConnectAppResPacket();
+                return packet->decode(stream);
+            } else if (request_name == RTMP_AMF0_COMMAND_CREATE_STREAM) {
+                srs_info("decode the AMF0/AMF3 response command(%s message).", request_name.c_str());
+                *ppacket = packet = new SrsCreateStreamResPacket(0, 0);
+                return packet->decode(stream);
+            } else if (request_name == RTMP_AMF0_COMMAND_RELEASE_STREAM
+                || request_name == RTMP_AMF0_COMMAND_FC_PUBLISH
+                || request_name == RTMP_AMF0_COMMAND_UNPUBLISH) {
+                srs_info("decode the AMF0/AMF3 response command(%s message).", request_name.c_str());
+                *ppacket = packet = new SrsFMLEStartResPacket(0);
+                return packet->decode(stream);
+            } else {
+                ret = ERROR_RTMP_NO_REQUEST;
+                srs_error("decode AMF0/AMF3 request failed. "
+                    "request_name=%s, transactionId=%.2f, ret=%d", 
+                    request_name.c_str(), transactionId, ret);
+                return ret;
+            }
+        }
+        
+        // reset to zero(amf3 to 1) to restart decode.
+        stream->reset();
+        if (header.is_amf3_command()) {
+            stream->skip(1);
+        }
+        
+        // decode command object.
+        if (command == RTMP_AMF0_COMMAND_CONNECT) {
+            srs_info("decode the AMF0/AMF3 command(connect vhost/app message).");
+            *ppacket = packet = new SrsConnectAppPacket();
+            return packet->decode(stream);
+        } else if(command == RTMP_AMF0_COMMAND_CREATE_STREAM) {
+            srs_info("decode the AMF0/AMF3 command(createStream message).");
+            *ppacket = packet = new SrsCreateStreamPacket();
+            return packet->decode(stream);
+        } else if(command == RTMP_AMF0_COMMAND_PLAY) {
+            srs_info("decode the AMF0/AMF3 command(paly message).");
+            *ppacket = packet = new SrsPlayPacket();
+            return packet->decode(stream);
+        } else if(command == RTMP_AMF0_COMMAND_PAUSE) {
+            srs_info("decode the AMF0/AMF3 command(pause message).");
+            *ppacket = packet = new SrsPausePacket();
+            return packet->decode(stream);
+        } else if(command == RTMP_AMF0_COMMAND_RELEASE_STREAM) {
+            srs_info("decode the AMF0/AMF3 command(FMLE releaseStream message).");
+            *ppacket = packet = new SrsFMLEStartPacket();
+            return packet->decode(stream);
+        } else if(command == RTMP_AMF0_COMMAND_FC_PUBLISH) {
+            srs_info("decode the AMF0/AMF3 command(FMLE FCPublish message).");
+            *ppacket = packet = new SrsFMLEStartPacket();
+            return packet->decode(stream);
+        } else if(command == RTMP_AMF0_COMMAND_PUBLISH) {
+            srs_info("decode the AMF0/AMF3 command(publish message).");
+            *ppacket = packet = new SrsPublishPacket();
+            return packet->decode(stream);
+        } else if(command == RTMP_AMF0_COMMAND_UNPUBLISH) {
+            srs_info("decode the AMF0/AMF3 command(unpublish message).");
+            *ppacket = packet = new SrsFMLEStartPacket();
+            return packet->decode(stream);
+        } else if(command == RTMP_AMF0_DATA_SET_DATAFRAME || command == RTMP_AMF0_DATA_ON_METADATA) {
+            srs_info("decode the AMF0/AMF3 data(onMetaData message).");
+            *ppacket = packet = new SrsOnMetaDataPacket();
+            return packet->decode(stream);
+        } else if(command == SRS_BW_CHECK_FINISHED
+            || command == SRS_BW_CHECK_PLAYING
+            || command == SRS_BW_CHECK_PUBLISHING
+            || command == SRS_BW_CHECK_STARTING_PLAY
+            || command == SRS_BW_CHECK_STARTING_PUBLISH
+            || command == SRS_BW_CHECK_START_PLAY
+            || command == SRS_BW_CHECK_START_PUBLISH
+            || command == SRS_BW_CHECK_STOPPED_PLAY
+            || command == SRS_BW_CHECK_STOP_PLAY
+            || command == SRS_BW_CHECK_STOP_PUBLISH
+            || command == SRS_BW_CHECK_STOPPED_PUBLISH
+            || command == SRS_BW_CHECK_FLASH_FINAL)
+        {
+            srs_info("decode the AMF0/AMF3 band width check message.");
+            *ppacket = packet = new SrsBandwidthPacket();
+            return packet->decode(stream);
+        } else if (command == RTMP_AMF0_COMMAND_CLOSE_STREAM) {
+            srs_info("decode the AMF0/AMF3 closeStream message.");
+            *ppacket = packet = new SrsCloseStreamPacket();
+            return packet->decode(stream);
+        }
+        
+        // default packet to drop message.
+        srs_trace("drop the AMF0/AMF3 command message, command_name=%s", command.c_str());
+        *ppacket = packet = new SrsPacket();
+        return ret;
+    } else if(header.is_user_control_message()) {
+        srs_verbose("start to decode user control message.");
+        *ppacket = packet = new SrsUserControlPacket();
+        return packet->decode(stream);
+    } else if(header.is_window_ackledgement_size()) {
+        srs_verbose("start to decode set ack window size message.");
+        *ppacket = packet = new SrsSetWindowAckSizePacket();
+        return packet->decode(stream);
+    } else if(header.is_set_chunk_size()) {
+        srs_verbose("start to decode set chunk size message.");
+        *ppacket = packet = new SrsSetChunkSizePacket();
+        return packet->decode(stream);
+    } else {
+        srs_trace("drop unknown message, type=%d", header.message_type);
+    }
+    
+    return ret;
+}
+
+int SrsProtocol::__send_and_free_message(__SrsMessage* msg)
+{
+    srs_assert(msg);
+    SrsAutoFree(__SrsMessage, msg, false);
+    
+    return __do_send_and_free_message(msg, NULL);
+}
+
+int SrsProtocol::__send_and_free_packet(SrsPacket* packet, int stream_id)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(packet);
+    SrsAutoFree(SrsPacket, packet, false);
+    
+    int size = 0;
+    char* payload = NULL;
+    if ((ret = packet->encode(size, payload)) != ERROR_SUCCESS) {
+        srs_error("encode RTMP packet to bytes oriented RTMP message failed. ret=%d", ret);
+        return ret;
+    }
+    
+    // encode packet to payload and size.
+    if (size <= 0 || payload == NULL) {
+        srs_warn("packet is empty, ignore empty message.");
+        return ret;
+    }
+    
+    // to message
+    __SrsMessage* msg = new __SrsMessage();
+    
+    msg->payload = (int8_t*)payload;
+    msg->size = (int32_t)size;
+    
+    msg->header.payload_length = size;
+    msg->header.message_type = packet->get_message_type();
+    msg->header.stream_id = stream_id;
+    msg->header.perfer_cid = packet->get_perfer_cid();
+
+    if ((ret = __do_send_and_free_message(msg, packet)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsProtocol::__recv_interlaced_message(__SrsMessage** pmsg)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // chunk stream basic header.
+    char fmt = 0;
+    int cid = 0;
+    int bh_size = 0;
+    if ((ret = __read_basic_header(fmt, cid, bh_size)) != ERROR_SUCCESS) {
+        if (ret != ERROR_SOCKET_TIMEOUT && !srs_is_client_gracefully_close(ret)) {
+            srs_error("read basic header failed. ret=%d", ret);
+        }
+        return ret;
+    }
+    srs_verbose("read basic header success. fmt=%d, cid=%d, bh_size=%d", fmt, cid, bh_size);
+    
+    // once we got the chunk message header, 
+    // that is there is a real message in cache,
+    // increase the timeout to got it.
+    // For example, in the play loop, we set timeout to 100ms,
+    // when we got a chunk header, we should increase the timeout,
+    // or we maybe timeout and disconnect the client.
+    int64_t timeout_us = skt->get_recv_timeout();
+    if (!skt->is_never_timeout(timeout_us)) {
+        int64_t pkt_timeout_us = srs_max(timeout_us, SRS_MIN_RECV_TIMEOUT_US);
+        skt->set_recv_timeout(pkt_timeout_us);
+        srs_verbose("change recv timeout_us "
+            "from %"PRId64" to %"PRId64"", timeout_us, pkt_timeout_us);
+    }
+    
+    // get the cached chunk stream.
+    __SrsChunkStream* chunk = NULL;
+    
+    if (__chunk_streams.find(cid) == __chunk_streams.end()) {
+        chunk = __chunk_streams[cid] = new __SrsChunkStream(cid);
+        srs_verbose("cache new chunk stream: fmt=%d, cid=%d", fmt, cid);
+    } else {
+        chunk = __chunk_streams[cid];
+        srs_verbose("cached chunk stream: fmt=%d, cid=%d, size=%d, message(type=%d, size=%d, time=%"PRId64", sid=%d)",
+            chunk->fmt, chunk->cid, (chunk->msg? chunk->msg->size : 0), chunk->header.message_type, chunk->header.payload_length,
+            chunk->header.timestamp, chunk->header.stream_id);
+    }
+
+    // chunk stream message header
+    int mh_size = 0;
+    if ((ret = __read_message_header(chunk, fmt, bh_size, mh_size)) != ERROR_SUCCESS) {
+        if (ret != ERROR_SOCKET_TIMEOUT && !srs_is_client_gracefully_close(ret)) {
+            srs_error("read message header failed. ret=%d", ret);
+        }
+        return ret;
+    }
+    srs_verbose("read message header success. "
+            "fmt=%d, mh_size=%d, ext_time=%d, size=%d, message(type=%d, size=%d, time=%"PRId64", sid=%d)", 
+            fmt, mh_size, chunk->extended_timestamp, (chunk->msg? chunk->msg->size : 0), chunk->header.message_type, 
+            chunk->header.payload_length, chunk->header.timestamp, chunk->header.stream_id);
+    
+    // read msg payload from chunk stream.
+    __SrsMessage* msg = NULL;
+    int payload_size = 0;
+    if ((ret = __read_message_payload(chunk, bh_size, mh_size, payload_size, &msg)) != ERROR_SUCCESS) {
+        if (ret != ERROR_SOCKET_TIMEOUT && !srs_is_client_gracefully_close(ret)) {
+            srs_error("read message payload failed. ret=%d", ret);
+        }
+        return ret;
+    }
+    
+    // reset the recv timeout
+    if (!skt->is_never_timeout(timeout_us)) {
+        skt->set_recv_timeout(timeout_us);
+        srs_verbose("reset recv timeout_us to %"PRId64"", timeout_us);
+    }
+    
+    // not got an entire RTMP message, try next chunk.
+    if (!msg) {
+        srs_verbose("get partial message success. chunk_payload_size=%d, size=%d, message(type=%d, size=%d, time=%"PRId64", sid=%d)",
+                payload_size, (msg? msg->size : (chunk->msg? chunk->msg->size : 0)), chunk->header.message_type, chunk->header.payload_length,
+                chunk->header.timestamp, chunk->header.stream_id);
+        return ret;
+    }
+    
+    *pmsg = msg;
+    srs_info("get entire message success. chunk_payload_size=%d, size=%d, message(type=%d, size=%d, time=%"PRId64", sid=%d)",
+            payload_size, (msg? msg->size : (chunk->msg? chunk->msg->size : 0)), chunk->header.message_type, chunk->header.payload_length,
+            chunk->header.timestamp, chunk->header.stream_id);
+            
+    return ret;
+}
+
+int SrsProtocol::__read_basic_header(char& fmt, int& cid, int& bh_size)
+{
+    int ret = ERROR_SUCCESS;
+    
+    int required_size = 1;
+    if ((ret = buffer->ensure_buffer_bytes(skt, required_size)) != ERROR_SUCCESS) {
+        if (ret != ERROR_SOCKET_TIMEOUT && !srs_is_client_gracefully_close(ret)) {
+            srs_error("read 1bytes basic header failed. required_size=%d, ret=%d", required_size, ret);
+        }
+        return ret;
+    }
+    
+    char* p = buffer->bytes();
+    
+    fmt = (*p >> 6) & 0x03;
+    cid = *p & 0x3f;
+    bh_size = 1;
+    
+    if (cid > 1) {
+        srs_verbose("%dbytes basic header parsed. fmt=%d, cid=%d", bh_size, fmt, cid);
+        return ret;
+    }
+
+    if (cid == 0) {
+        required_size = 2;
+        if ((ret = buffer->ensure_buffer_bytes(skt, required_size)) != ERROR_SUCCESS) {
+            if (ret != ERROR_SOCKET_TIMEOUT && !srs_is_client_gracefully_close(ret)) {
+                srs_error("read 2bytes basic header failed. required_size=%d, ret=%d", required_size, ret);
+            }
+            return ret;
+        }
+        
+        cid = 64;
+        cid += *(++p);
+        bh_size = 2;
+        srs_verbose("%dbytes basic header parsed. fmt=%d, cid=%d", bh_size, fmt, cid);
+    } else if (cid == 1) {
+        required_size = 3;
+        if ((ret = buffer->ensure_buffer_bytes(skt, 3)) != ERROR_SUCCESS) {
+            if (ret != ERROR_SOCKET_TIMEOUT && !srs_is_client_gracefully_close(ret)) {
+                srs_error("read 3bytes basic header failed. required_size=%d, ret=%d", required_size, ret);
+            }
+            return ret;
+        }
+        
+        cid = 64;
+        cid += *(++p);
+        cid += *(++p) * 256;
+        bh_size = 3;
+        srs_verbose("%dbytes basic header parsed. fmt=%d, cid=%d", bh_size, fmt, cid);
+    } else {
+        srs_error("invalid path, impossible basic header.");
+        srs_assert(false);
+    }
+    
+    return ret;
+}
+
+int SrsProtocol::__read_message_header(__SrsChunkStream* chunk, char fmt, int bh_size, int& mh_size)
+{
+    int ret = ERROR_SUCCESS;
+    
+    /**
+    * we should not assert anything about fmt, for the first packet.
+    * (when first packet, the chunk->msg is NULL).
+    * the fmt maybe 0/1/2/3, the FMLE will send a 0xC4 for some audio packet.
+    * the previous packet is:
+    *     04             // fmt=0, cid=4
+    *     00 00 1a     // timestamp=26
+    *    00 00 9d     // payload_length=157
+    *     08             // message_type=8(audio)
+    *     01 00 00 00 // stream_id=1
+    * the current packet maybe:
+    *     c4             // fmt=3, cid=4
+    * it's ok, for the packet is audio, and timestamp delta is 26.
+    * the current packet must be parsed as:
+    *     fmt=0, cid=4
+    *     timestamp=26+26=52
+    *     payload_length=157
+    *     message_type=8(audio)
+    *     stream_id=1
+    * so we must update the timestamp even fmt=3 for first packet.
+    */
+    // fresh packet used to update the timestamp even fmt=3 for first packet.
+    bool is_fresh_packet = !chunk->msg;
+    
+    // but, we can ensure that when a chunk stream is fresh, 
+    // the fmt must be 0, a new stream.
+    if (chunk->msg_count == 0 && fmt != RTMP_FMT_TYPE0) {
+        ret = ERROR_RTMP_CHUNK_START;
+        srs_error("chunk stream is fresh, "
+            "fmt must be %d, actual is %d. ret=%d", RTMP_FMT_TYPE0, fmt, ret);
+        return ret;
+    }
+
+    // when exists cache msg, means got an partial message,
+    // the fmt must not be type0 which means new message.
+    if (chunk->msg && fmt == RTMP_FMT_TYPE0) {
+        ret = ERROR_RTMP_CHUNK_START;
+        srs_error("chunk stream exists, "
+            "fmt must not be %d, actual is %d. ret=%d", RTMP_FMT_TYPE0, fmt, ret);
+        return ret;
+    }
+    
+    // create msg when new chunk stream start
+    if (!chunk->msg) {
+        chunk->msg = new __SrsMessage();
+        chunk->msg->header.perfer_cid = chunk->cid;
+        srs_verbose("create message for new chunk, fmt=%d, cid=%d", fmt, chunk->cid);
+    }
+
+    // read message header from socket to buffer.
+    static char mh_sizes[] = {11, 7, 3, 0};
+    mh_size = mh_sizes[(int)fmt];
+    srs_verbose("calc chunk message header size. fmt=%d, mh_size=%d", fmt, mh_size);
+    
+    int required_size = bh_size + mh_size;
+    if ((ret = buffer->ensure_buffer_bytes(skt, required_size)) != ERROR_SUCCESS) {
+        if (ret != ERROR_SOCKET_TIMEOUT && !srs_is_client_gracefully_close(ret)) {
+            srs_error("read %dbytes message header failed. required_size=%d, ret=%d", mh_size, required_size, ret);
+        }
+        return ret;
+    }
+    char* p = buffer->bytes() + bh_size;
+    
+    // parse the message header.
+    // see also: ngx_rtmp_recv
+    if (fmt <= RTMP_FMT_TYPE2) {
+        char* pp = (char*)&chunk->header.timestamp_delta;
+        pp[2] = *p++;
+        pp[1] = *p++;
+        pp[0] = *p++;
+        pp[3] = 0;
+        
+        // fmt: 0
+        // timestamp: 3 bytes
+        // If the timestamp is greater than or equal to 16777215
+        // (hexadecimal 0x00ffffff), this value MUST be 16777215, and the
+        // ‘extended timestamp header’ MUST be present. Otherwise, this value
+        // SHOULD be the entire timestamp.
+        //
+        // fmt: 1 or 2
+        // timestamp delta: 3 bytes
+        // If the delta is greater than or equal to 16777215 (hexadecimal
+        // 0x00ffffff), this value MUST be 16777215, and the ‘extended
+        // timestamp header’ MUST be present. Otherwise, this value SHOULD be
+        // the entire delta.
+        chunk->extended_timestamp = (chunk->header.timestamp_delta >= RTMP_EXTENDED_TIMESTAMP);
+        if (chunk->extended_timestamp) {
+            // Extended timestamp: 0 or 4 bytes
+            // This field MUST be sent when the normal timsestamp is set to
+            // 0xffffff, it MUST NOT be sent if the normal timestamp is set to
+            // anything else. So for values less than 0xffffff the normal
+            // timestamp field SHOULD be used in which case the extended timestamp
+            // MUST NOT be present. For values greater than or equal to 0xffffff
+            // the normal timestamp field MUST NOT be used and MUST be set to
+            // 0xffffff and the extended timestamp MUST be sent.
+            //
+            // if extended timestamp, the timestamp must >= RTMP_EXTENDED_TIMESTAMP
+            // we set the timestamp to RTMP_EXTENDED_TIMESTAMP to identify we
+            // got an extended timestamp.
+            chunk->header.timestamp = RTMP_EXTENDED_TIMESTAMP;
+        } else {
+            if (fmt == RTMP_FMT_TYPE0) {
+                // 6.1.2.1. Type 0
+                // For a type-0 chunk, the absolute timestamp of the message is sent
+                // here.
+                chunk->header.timestamp = chunk->header.timestamp_delta;
+            } else {
+                // 6.1.2.2. Type 1
+                // 6.1.2.3. Type 2
+                // For a type-1 or type-2 chunk, the difference between the previous
+                // chunk's timestamp and the current chunk's timestamp is sent here.
+                chunk->header.timestamp += chunk->header.timestamp_delta;
+            }
+        }
+        
+        if (fmt <= RTMP_FMT_TYPE1) {
+            pp = (char*)&chunk->header.payload_length;
+            pp[2] = *p++;
+            pp[1] = *p++;
+            pp[0] = *p++;
+            pp[3] = 0;
+            
+            // if msg exists in cache, the size must not changed.
+            if (chunk->msg->size > 0 && chunk->msg->size != chunk->header.payload_length) {
+                ret = ERROR_RTMP_PACKET_SIZE;
+                srs_error("msg exists in chunk cache, "
+                    "size=%d cannot change to %d, ret=%d", 
+                    chunk->msg->size, chunk->header.payload_length, ret);
+                return ret;
+            }
+            
+            chunk->header.message_type = *p++;
+            
+            if (fmt == RTMP_FMT_TYPE0) {
+                pp = (char*)&chunk->header.stream_id;
+                pp[0] = *p++;
+                pp[1] = *p++;
+                pp[2] = *p++;
+                pp[3] = *p++;
+                srs_verbose("header read completed. fmt=%d, mh_size=%d, ext_time=%d, time=%"PRId64", payload=%d, type=%d, sid=%d", 
+                    fmt, mh_size, chunk->extended_timestamp, chunk->header.timestamp, chunk->header.payload_length, 
+                    chunk->header.message_type, chunk->header.stream_id);
+            } else {
+                srs_verbose("header read completed. fmt=%d, mh_size=%d, ext_time=%d, time=%"PRId64", payload=%d, type=%d", 
+                    fmt, mh_size, chunk->extended_timestamp, chunk->header.timestamp, chunk->header.payload_length, 
+                    chunk->header.message_type);
+            }
+        } else {
+            srs_verbose("header read completed. fmt=%d, mh_size=%d, ext_time=%d, time=%"PRId64"", 
+                fmt, mh_size, chunk->extended_timestamp, chunk->header.timestamp);
+        }
+    } else {
+        // update the timestamp even fmt=3 for first stream
+        if (is_fresh_packet && !chunk->extended_timestamp) {
+            chunk->header.timestamp += chunk->header.timestamp_delta;
+        }
+        srs_verbose("header read completed. fmt=%d, size=%d, ext_time=%d", 
+            fmt, mh_size, chunk->extended_timestamp);
+    }
+    
+    if (chunk->extended_timestamp) {
+        mh_size += 4;
+        required_size = bh_size + mh_size;
+        srs_verbose("read header ext time. fmt=%d, ext_time=%d, mh_size=%d", fmt, chunk->extended_timestamp, mh_size);
+        if ((ret = buffer->ensure_buffer_bytes(skt, required_size)) != ERROR_SUCCESS) {
+            if (ret != ERROR_SOCKET_TIMEOUT && !srs_is_client_gracefully_close(ret)) {
+                srs_error("read %dbytes message header failed. required_size=%d, ret=%d", mh_size, required_size, ret);
+            }
+            return ret;
+        }
+
+        u_int32_t timestamp = 0x00;
+        char* pp = (char*)&timestamp;
+        pp[3] = *p++;
+        pp[2] = *p++;
+        pp[1] = *p++;
+        pp[0] = *p++;
+        
+        // ffmpeg/librtmp may donot send this filed, need to detect the value.
+        // @see also: http://blog.csdn.net/win_lin/article/details/13363699
+        // compare to the chunk timestamp, which is set by chunk message header
+        // type 0,1 or 2.
+        u_int32_t chunk_timestamp = chunk->header.timestamp;
+        if (chunk_timestamp > RTMP_EXTENDED_TIMESTAMP && chunk_timestamp != timestamp) {
+            mh_size -= 4;
+            srs_verbose("ignore the 4bytes extended timestamp. mh_size=%d", mh_size);
+        } else {
+            chunk->header.timestamp = timestamp;
+        }
+        srs_verbose("header read ext_time completed. time=%"PRId64"", chunk->header.timestamp);
+    }
+    
+    // the extended-timestamp must be unsigned-int,
+    //         24bits timestamp: 0xffffff = 16777215ms = 16777.215s = 4.66h
+    //         32bits timestamp: 0xffffffff = 4294967295ms = 4294967.295s = 1193.046h = 49.71d
+    // because the rtmp protocol says the 32bits timestamp is about "50 days":
+    //         3. Byte Order, Alignment, and Time Format
+    //                Because timestamps are generally only 32 bits long, they will roll
+    //                over after fewer than 50 days.
+    // 
+    // but, its sample says the timestamp is 31bits:
+    //         An application could assume, for example, that all 
+    //        adjacent timestamps are within 2^31 milliseconds of each other, so
+    //        10000 comes after 4000000000, while 3000000000 comes before
+    //        4000000000.
+    // and flv specification says timestamp is 31bits:
+    //        Extension of the Timestamp field to form a SI32 value. This
+    //        field represents the upper 8 bits, while the previous
+    //        Timestamp field represents the lower 24 bits of the time in
+    //        milliseconds.
+    // in a word, 31bits timestamp is ok.
+    // convert extended timestamp to 31bits.
+    chunk->header.timestamp &= 0x7fffffff;
+    
+    // valid message
+    if (chunk->header.payload_length < 0) {
+        ret = ERROR_RTMP_MSG_INVLIAD_SIZE;
+        srs_error("RTMP message size must not be negative. size=%d, ret=%d", 
+            chunk->header.payload_length, ret);
+        return ret;
+    }
+    
+    // copy header to msg
+    chunk->msg->header = chunk->header;
+    
+    // increase the msg count, the chunk stream can accept fmt=1/2/3 message now.
+    chunk->msg_count++;
+    
+    return ret;
+}
+
+int SrsProtocol::__read_message_payload(__SrsChunkStream* chunk, int bh_size, int mh_size, int& payload_size, __SrsMessage** pmsg)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // empty message
+    if (chunk->header.payload_length <= 0) {
+        // need erase the header in buffer.
+        buffer->erase(bh_size + mh_size);
+        
+        srs_trace("get an empty RTMP "
+                "message(type=%d, size=%d, time=%"PRId64", sid=%d)", chunk->header.message_type, 
+                chunk->header.payload_length, chunk->header.timestamp, chunk->header.stream_id);
+        
+        *pmsg = chunk->msg;
+        chunk->msg = NULL;
+                
+        return ret;
+    }
+    srs_assert(chunk->header.payload_length > 0);
+    
+    // the chunk payload size.
+    payload_size = chunk->header.payload_length - chunk->msg->size;
+    payload_size = srs_min(payload_size, in_chunk_size);
+    srs_verbose("chunk payload size is %d, message_size=%d, received_size=%d, in_chunk_size=%d", 
+        payload_size, chunk->header.payload_length, chunk->msg->size, in_chunk_size);
+
+    // create msg payload if not initialized
+    if (!chunk->msg->payload) {
+        chunk->msg->payload = new int8_t[chunk->header.payload_length];
+        memset(chunk->msg->payload, 0, chunk->header.payload_length);
+        srs_verbose("create empty payload for RTMP message. size=%d", chunk->header.payload_length);
+    }
+    
+    // read payload to buffer
+    int required_size = bh_size + mh_size + payload_size;
+    if ((ret = buffer->ensure_buffer_bytes(skt, required_size)) != ERROR_SUCCESS) {
+        if (ret != ERROR_SOCKET_TIMEOUT && !srs_is_client_gracefully_close(ret)) {
+            srs_error("read payload failed. required_size=%d, ret=%d", required_size, ret);
+        }
+        return ret;
+    }
+    memcpy(chunk->msg->payload + chunk->msg->size, buffer->bytes() + bh_size + mh_size, payload_size);
+    buffer->erase(bh_size + mh_size + payload_size);
+    chunk->msg->size += payload_size;
+    
+    srs_verbose("chunk payload read completed. bh_size=%d, mh_size=%d, payload_size=%d", bh_size, mh_size, payload_size);
+    
+    // got entire RTMP message?
+    if (chunk->header.payload_length == chunk->msg->size) {
+        *pmsg = chunk->msg;
+        chunk->msg = NULL;
+        srs_verbose("get entire RTMP message(type=%d, size=%d, time=%"PRId64", sid=%d)", 
+                chunk->header.message_type, chunk->header.payload_length, 
+                chunk->header.timestamp, chunk->header.stream_id);
+        return ret;
+    }
+    
+    srs_verbose("get partial RTMP message(type=%d, size=%d, time=%"PRId64", sid=%d), partial size=%d", 
+            chunk->header.message_type, chunk->header.payload_length, 
+            chunk->header.timestamp, chunk->header.stream_id,
+            chunk->msg->size);
+            
+    return ret;
+}
+
+int SrsProtocol::__on_recv_message(__SrsMessage* msg)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(msg != NULL);
+        
+    // acknowledgement
+    if (in_ack_size.ack_window_size > 0 
+        && skt->get_recv_bytes() - in_ack_size.acked_size > in_ack_size.ack_window_size
+    ) {
+        if ((ret = response_acknowledgement_message()) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    
+    SrsPacket* packet = NULL;
+    switch (msg->header.message_type) {
+        case RTMP_MSG_SetChunkSize:
+        case RTMP_MSG_UserControlMessage:
+        case RTMP_MSG_WindowAcknowledgementSize:
+            if ((ret = __decode_message(msg, &packet)) != ERROR_SUCCESS) {
+                srs_error("decode packet from message payload failed. ret=%d", ret);
+                return ret;
+            }
+            srs_verbose("decode packet from message payload success.");
+            break;
+        default:
+            return ret;
+    }
+    
+    srs_assert(packet);
+    
+    // always free the packet.
+    SrsAutoFree(SrsPacket, packet, false);
+    
+    switch (msg->header.message_type) {
+        case RTMP_MSG_WindowAcknowledgementSize: {
+            SrsSetWindowAckSizePacket* pkt = dynamic_cast<SrsSetWindowAckSizePacket*>(packet);
+            srs_assert(pkt != NULL);
+            
+            if (pkt->ackowledgement_window_size > 0) {
+                in_ack_size.ack_window_size = pkt->ackowledgement_window_size;
+                srs_trace("set ack window size to %d", pkt->ackowledgement_window_size);
+            } else {
+                srs_warn("ignored. set ack window size is %d", pkt->ackowledgement_window_size);
+            }
+            break;
+        }
+        case RTMP_MSG_SetChunkSize: {
+            SrsSetChunkSizePacket* pkt = dynamic_cast<SrsSetChunkSizePacket*>(packet);
+            srs_assert(pkt != NULL);
+            
+            in_chunk_size = pkt->chunk_size;
+            
+            srs_trace("set input chunk size to %d", pkt->chunk_size);
+            break;
+        }
+        case RTMP_MSG_UserControlMessage: {
+            SrsUserControlPacket* pkt = dynamic_cast<SrsUserControlPacket*>(packet);
+            srs_assert(pkt != NULL);
+            
+            if (pkt->event_type == SrcPCUCSetBufferLength) {
+                srs_trace("ignored. set buffer length to %d", pkt->extra_data);
+            }
+            if (pkt->event_type == SrcPCUCPingRequest) {
+                if ((ret = response_ping_message(pkt->event_data)) != ERROR_SUCCESS) {
+                    return ret;
+                }
+            }
+            break;
+        }
+    }
+    
+    return ret;
+}
+
+int SrsProtocol::__on_send_message(__SrsMessage* msg, SrsPacket* packet)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // ignore raw bytes oriented RTMP message.
+    if (!packet) {
+        return ret;
+    }
+    
+    switch (msg->header.message_type) {
+        case RTMP_MSG_SetChunkSize: {
+            SrsSetChunkSizePacket* pkt = dynamic_cast<SrsSetChunkSizePacket*>(packet);
+            srs_assert(pkt != NULL);
+            
+            out_chunk_size = pkt->chunk_size;
+            
+            srs_trace("set output chunk size to %d", pkt->chunk_size);
+            break;
+        }
+        case RTMP_MSG_AMF0CommandMessage:
+        case RTMP_MSG_AMF3CommandMessage: {
+            if (true) {
+                SrsConnectAppPacket* pkt = dynamic_cast<SrsConnectAppPacket*>(packet);
+                if (pkt) {
+                    requests[pkt->transaction_id] = pkt->command_name;
+                    break;
+                }
+            }
+            if (true) {
+                SrsCreateStreamPacket* pkt = dynamic_cast<SrsCreateStreamPacket*>(packet);
+                if (pkt) {
+                    requests[pkt->transaction_id] = pkt->command_name;
+                    break;
+                }
+            }
+            if (true) {
+                SrsFMLEStartPacket* pkt = dynamic_cast<SrsFMLEStartPacket*>(packet);
+                if (pkt) {
+                    requests[pkt->transaction_id] = pkt->command_name;
+                    break;
+                }
+            }
+            break;
+        }
+    }
+    
+    return ret;
 }
 
 int SrsProtocol::recv_message(SrsCommonMessage** pmsg)
@@ -1161,6 +2151,7 @@ SrsMessageHeader::SrsMessageHeader()
     stream_id = 0;
     
     timestamp = 0;
+    perfer_cid = RTMP_CID_ProtocolControl;
 }
 
 SrsMessageHeader::~SrsMessageHeader()
@@ -1256,6 +2247,122 @@ SrsChunkStream::SrsChunkStream(int _cid)
 SrsChunkStream::~SrsChunkStream()
 {
     srs_freep(msg);
+}
+
+__SrsChunkStream::__SrsChunkStream(int _cid)
+{
+    fmt = 0;
+    cid = _cid;
+    extended_timestamp = false;
+    msg = NULL;
+    msg_count = 0;
+}
+
+__SrsChunkStream::~__SrsChunkStream()
+{
+    srs_freep(msg);
+}
+
+__SrsMessage::__SrsMessage()
+{
+    payload = NULL;
+    size = 0;
+}
+
+__SrsMessage::~__SrsMessage()
+{    
+}
+
+__SrsSharedPtrMessage::__SrsSharedPtr::__SrsSharedPtr()
+{
+    payload = NULL;
+    size = 0;
+    shared_count = 0;
+}
+
+__SrsSharedPtrMessage::__SrsSharedPtr::~__SrsSharedPtr()
+{
+    srs_freepa(payload);
+}
+
+__SrsSharedPtrMessage::__SrsSharedPtrMessage()
+{
+    ptr = NULL;
+}
+
+__SrsSharedPtrMessage::~__SrsSharedPtrMessage()
+{
+    if (ptr) {
+        if (ptr->shared_count == 0) {
+            srs_freep(ptr);
+        } else {
+            ptr->shared_count--;
+        }
+    }
+}
+
+int __SrsSharedPtrMessage::initialize(__SrsMessage* source)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = initialize(&source->header, (char*)source->payload, source->size)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // detach the payload from source
+    source->payload = NULL;
+    source->size = 0;
+    
+    return ret;
+}
+
+int __SrsSharedPtrMessage::initialize(SrsMessageHeader* source, char* payload, int size)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(source != NULL);
+    if (ptr) {
+        ret = ERROR_SYSTEM_ASSERT_FAILED;
+        srs_error("should not set the payload twice. ret=%d", ret);
+        srs_assert(false);
+        
+        return ret;
+    }
+    
+    header = *source;
+    header.payload_length = size;
+    
+    ptr = new __SrsSharedPtr();
+    
+    // direct attach the data of common message.
+    ptr->payload = payload;
+    ptr->size = size;
+    
+    __SrsMessage::payload = (int8_t*)ptr->payload;
+    __SrsMessage::size = ptr->size;
+    
+    return ret;
+}
+
+__SrsSharedPtrMessage* __SrsSharedPtrMessage::copy()
+{
+    if (!ptr) {
+        srs_error("invoke initialize to initialize the ptr.");
+        srs_assert(false);
+        return NULL;
+    }
+    
+    __SrsSharedPtrMessage* copy = new __SrsSharedPtrMessage();
+    
+    copy->header = header;
+    
+    copy->ptr = ptr;
+    ptr->shared_count++;
+    
+    copy->payload = (int8_t*)ptr->payload;
+    copy->size = ptr->size;
+    
+    return copy;
 }
 
 ISrsMessage::ISrsMessage()
