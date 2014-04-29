@@ -520,17 +520,20 @@ int SrsRtmpConn::playing(SrsSource* source)
             // so set the msgs[i] to NULL.
             msgs[i] = NULL;
             
-            if ((ret = rtmp->send_message(msg)) != ERROR_SUCCESS) {
-                srs_error("send message to client failed. ret=%d", ret);
-                return ret;
-            }
+            srs_assert(msg);
             
             // foreach msg, collect the duration.
+            // @remark: never use msg when sent it, for the protocol sdk will free it.
             if (starttime < 0 || starttime > msg->header.timestamp) {
                 starttime = msg->header.timestamp;
             }
             duration += msg->header.timestamp - starttime;
             starttime = msg->header.timestamp;
+            
+            if ((ret = rtmp->send_message(msg)) != ERROR_SUCCESS) {
+                srs_error("send message to client failed. ret=%d", ret);
+                return ret;
+            }
         }
         
         // if duration specified, and exceed it, stop play live.
