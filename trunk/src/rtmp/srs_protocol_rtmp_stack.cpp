@@ -301,6 +301,7 @@ SrsProtocol::SrsProtocol(ISrsProtocolReaderWriter* io)
     skt = io;
     
     in_chunk_size = out_chunk_size = RTMP_DEFAULT_CHUNK_SIZE;
+    send_extended_timestamp_for_C3_chunk = true;
 }
 
 SrsProtocol::~SrsProtocol()
@@ -519,13 +520,13 @@ int SrsProtocol::do_send_and_free_message(SrsMessage* msg, SrsPacket* packet)
             // present. Type 3 chunks MUST NOT have this field.
             // adobe changed for Type3 chunk:
             //        FMLE always sendout the extended-timestamp,
-            //         must send the extended-timestamp to FMS,
+            //        must send the extended-timestamp to FMS,
             //        must send the extended-timestamp to flash-player.
             // @see: ngx_rtmp_prepare_message
             // @see: http://blog.csdn.net/win_lin/article/details/13363699
             u_int32_t timestamp = (u_int32_t)msg->header.timestamp;
-            if(timestamp >= RTMP_EXTENDED_TIMESTAMP){
-                pp = (char*)&timestamp; 
+            if(send_extended_timestamp_for_C3_chunk && timestamp >= RTMP_EXTENDED_TIMESTAMP){
+                pp = (char*)&timestamp;
                 *pheader++ = pp[3];
                 *pheader++ = pp[2];
                 *pheader++ = pp[1];
@@ -1086,7 +1087,8 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
             fmt, mh_size, chunk->extended_timestamp);
     }
     
-    if (chunk->extended_timestamp) {
+    // read extended-timestamp
+    if (chunk->extended_timestamp && send_extended_timestamp_for_C3_chunk) {
         mh_size += 4;
         required_size = bh_size + mh_size;
         srs_verbose("read header ext time. fmt=%d, ext_time=%d, mh_size=%d", fmt, chunk->extended_timestamp, mh_size);
@@ -1111,7 +1113,8 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
         u_int32_t chunk_timestamp = chunk->header.timestamp;
         if (chunk_timestamp > RTMP_EXTENDED_TIMESTAMP && chunk_timestamp != timestamp) {
             mh_size -= 4;
-            srs_verbose("ignore the 4bytes extended timestamp. mh_size=%d", mh_size);
+            send_extended_timestamp_for_C3_chunk = false;
+            srs_warn("no 4bytes extended timestamp in the continued chunk");
         } else {
             chunk->header.timestamp = timestamp;
         }
