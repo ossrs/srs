@@ -40,11 +40,8 @@ class ISrsProtocolReaderWriter;
 class SrsBuffer;
 class SrsPacket;
 class SrsStream;
-class SrsCommonMessage;
-class SrsChunkStream;
 class SrsAmf0Object;
 class SrsAmf0Any;
-class ISrsMessage;
 class SrsMessageHeader;
 class __SrsMessage;
 class __SrsChunkStream;
@@ -112,7 +109,6 @@ private:
     std::map<double, std::string> requests;
 // peer in
 private:
-    std::map<int, SrsChunkStream*> chunk_streams;
     // TODO: FIXME: rename to chunk_streams
     std::map<int, __SrsChunkStream*> __chunk_streams;
     SrsStream* decode_stream;
@@ -220,58 +216,9 @@ private:
     * when message sentout, update the context.
     */
     virtual int __on_send_message(__SrsMessage* msg, SrsPacket* packet);
-public:
-    /**
-    * recv a message with raw/undecoded payload from peer.
-    * the payload is not decoded, use srs_rtmp_expect_message<T> if requires 
-    * specifies message.
-    * @pmsg, user must free it. NULL if not success.
-    * @remark, only when success, user can use and must free the pmsg.
-    */
-    virtual int recv_message(SrsCommonMessage** pmsg);
-    /**
-    * send out message with encoded payload to peer.
-    * use the message encode method to encode to payload,
-    * then sendout over socket.
-    * @msg this method will free it whatever return value.
-    */
-    virtual int send_message(ISrsMessage* msg);
 private:
-    /**
-    * when recv message, update the context.
-    */
-    virtual int on_recv_message(SrsCommonMessage* msg);
     virtual int response_acknowledgement_message();
     virtual int response_ping_message(int32_t timestamp);
-    /**
-    * when message sentout, update the context.
-    */
-    virtual int on_send_message(ISrsMessage* msg);
-    /**
-    * try to recv interlaced message from peer,
-    * return error if error occur and nerver set the pmsg,
-    * return success and pmsg set to NULL if no entire message got,
-    * return success and pmsg set to entire message if got one.
-    */
-    virtual int recv_interlaced_message(SrsCommonMessage** pmsg);
-    /**
-    * read the chunk basic header(fmt, cid) from chunk stream.
-    * user can discovery a SrsChunkStream by cid.
-    * @bh_size return the chunk basic header size, to remove the used bytes when finished.
-    */
-    virtual int read_basic_header(char& fmt, int& cid, int& bh_size);
-    /**
-    * read the chunk message header(timestamp, payload_length, message_type, stream_id) 
-    * from chunk stream and save to SrsChunkStream.
-    * @mh_size return the chunk message header size, to remove the used bytes when finished.
-    */
-    virtual int read_message_header(SrsChunkStream* chunk, char fmt, int bh_size, int& mh_size);
-    /**
-    * read the chunk payload, remove the used bytes in buffer,
-    * if got entire message, set the pmsg.
-    * @payload_size read size in this roundtrip, generally a chunk size or left message size.
-    */
-    virtual int read_message_payload(SrsChunkStream* chunk, int bh_size, int mh_size, int& payload_size, SrsCommonMessage** pmsg);
 };
 
 /**
@@ -336,44 +283,6 @@ public:
     void initialize_amf0_script(int size, int stream);
     void initialize_audio(int size, u_int32_t time, int stream);
     void initialize_video(int size, u_int32_t time, int stream);
-};
-
-/**
-* incoming chunk stream maybe interlaced,
-* use the chunk stream to cache the input RTMP chunk streams.
-*/
-class SrsChunkStream
-{
-public:
-    /**
-    * represents the basic header fmt,
-    * which used to identify the variant message header type.
-    */
-    char fmt;
-    /**
-    * represents the basic header cid,
-    * which is the chunk stream id.
-    */
-    int cid;
-    /**
-    * cached message header
-    */
-    SrsMessageHeader header;
-    /**
-    * whether the chunk message header has extended timestamp.
-    */
-    bool extended_timestamp;
-    /**
-    * partially read message.
-    */
-    SrsCommonMessage* msg;
-    /**
-    * decoded msg count, to identify whether the chunk stream is fresh.
-    */
-    int64_t msg_count;
-public:
-    SrsChunkStream(int _cid);
-    virtual ~SrsChunkStream();
 };
 
 /**
@@ -477,156 +386,6 @@ public:
     * copy current shared ptr message, use ref-count.
     */
     virtual __SrsSharedPtrMessage* copy();
-};
-
-/**
-* message to output.
-*/
-class ISrsMessage
-{
-// 4.1. Message Header
-public:
-    SrsMessageHeader header;
-// 4.2. Message Payload
-public:
-    /**
-    * The other part which is the payload is the actual data that is
-    * contained in the message. For example, it could be some audio samples
-    * or compressed video data. The payload format and interpretation are
-    * beyond the scope of this document.
-    */
-    int32_t size;
-    int8_t* payload;
-public:
-    ISrsMessage();
-    virtual ~ISrsMessage();
-public:
-    /**
-    * whether message canbe decoded.
-    * only update the context when message canbe decoded.
-    */
-    virtual bool can_decode() = 0;
-/**
-* encode functions.
-*/
-public:
-    /**
-    * get the perfered cid(chunk stream id) which sendout over.
-    */
-    virtual int get_perfer_cid() = 0;
-    /**
-    * encode the packet to message payload bytes.
-    * @remark there exists empty packet, so maybe the payload is NULL.
-    */
-    virtual int encode_packet() = 0;
-};
-
-/**
-* common RTMP message defines in rtmp.part2.Message-Formats.pdf.
-* cannbe parse and decode.
-*/
-class SrsCommonMessage : public ISrsMessage
-{
-private:
-    disable_default_copy(SrsCommonMessage);
-// decoded message payload.
-private:
-    SrsStream* stream;
-    SrsPacket* packet;
-public:
-    SrsCommonMessage();
-    virtual ~SrsCommonMessage();
-public:
-    virtual bool can_decode();
-/**
-* decode functions.
-*/
-public:
-    /**
-    * decode packet from message payload.
-    */
-    // TODO: use protocol to decode it.
-    virtual int decode_packet(SrsProtocol* protocol);
-    /**
-    * whether msg has decoded packet.
-    */
-    virtual bool has_packet();
-    /**
-    * get the decoded packet which decoded by decode_packet().
-    * @remark, user never free the pkt, the message will auto free it.
-    */
-    virtual SrsPacket* get_packet();
-/**
-* encode functions.
-*/
-public:
-    /**
-    * get the perfered cid(chunk stream id) which sendout over.
-    */
-    virtual int get_perfer_cid();
-    /**
-    * set the encoded packet to encode_packet() to payload.
-    * @stream_id, the id of stream which is created by createStream.
-    * @remark, user never free the pkt, the message will auto free it.
-    * @return message itself.
-    */
-    // TODO: refine the send methods.
-    virtual SrsCommonMessage* set_packet(SrsPacket* pkt, int stream_id);
-    /**
-    * encode the packet to message payload bytes.
-    * @remark there exists empty packet, so maybe the payload is NULL.
-    */
-    virtual int encode_packet();
-};
-
-/**
-* shared ptr message.
-* for audio/video/data message that need less memory copy.
-* and only for output.
-*/
-class SrsSharedPtrMessage : public ISrsMessage
-{
-private:
-    struct SrsSharedPtr
-    {
-        char* payload;
-        int size;
-        int perfer_cid;
-        int shared_count;
-        
-        SrsSharedPtr();
-        virtual ~SrsSharedPtr();
-    };
-    SrsSharedPtr* ptr;
-public:
-    SrsSharedPtrMessage();
-    virtual ~SrsSharedPtrMessage();
-public:
-    virtual bool can_decode();
-public:
-    /**
-    * set the shared payload.
-    * we will detach the payload of source,
-    * so ensure donot use it before.
-    */
-    virtual int initialize(SrsCommonMessage* source);
-    /**
-    * set the shared payload.
-    * use source header, and specified param payload.
-    */
-    virtual int initialize(SrsMessageHeader* source, char* payload, int size);
-    virtual SrsSharedPtrMessage* copy();
-public:
-    /**
-    * get the perfered cid(chunk stream id) which sendout over.
-    */
-    virtual int get_perfer_cid();
-    /**
-    * ignored.
-    * for shared message, nothing should be done.
-    * use initialize() to set the data.
-    */
-    virtual int encode_packet();
 };
 
 /**
@@ -1373,44 +1132,6 @@ protected:
 * user should never recv message and convert it, use this method instead.
 * if need to set timeout, use set timeout of SrsProtocol.
 */
-template<class T>
-int srs_rtmp_expect_message(SrsProtocol* protocol, SrsCommonMessage** pmsg, T** ppacket)
-{
-    *pmsg = NULL;
-    *ppacket = NULL;
-    
-    int ret = ERROR_SUCCESS;
-    
-    while (true) {
-        SrsCommonMessage* msg = NULL;
-        if ((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS) {
-            srs_error("recv message failed. ret=%d", ret);
-            return ret;
-        }
-        srs_verbose("recv message success.");
-        
-        if ((ret = msg->decode_packet(protocol)) != ERROR_SUCCESS) {
-            delete msg;
-            srs_error("decode message failed. ret=%d", ret);
-            return ret;
-        }
-        
-        T* pkt = dynamic_cast<T*>(msg->get_packet());
-        if (!pkt) {
-            delete msg;
-            srs_trace("drop message(type=%d, size=%d, time=%"PRId64", sid=%d).", 
-                msg->header.message_type, msg->header.payload_length,
-                msg->header.timestamp, msg->header.stream_id);
-            continue;
-        }
-        
-        *pmsg = msg;
-        *ppacket = pkt;
-        break;
-    }
-    
-    return ret;
-}
 template<class T>
 int __srs_rtmp_expect_message(SrsProtocol* protocol, __SrsMessage** pmsg, T** ppacket)
 {

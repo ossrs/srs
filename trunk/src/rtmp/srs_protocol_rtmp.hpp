@@ -164,8 +164,6 @@ public:
     virtual int64_t get_send_bytes();
     virtual int get_recv_kbps();
     virtual int get_send_kbps();
-    virtual int recv_message(SrsCommonMessage** pmsg);
-    virtual int send_message(ISrsMessage* msg);
     virtual int __recv_message(__SrsMessage** pmsg);
     virtual int __decode_message(__SrsMessage* msg, SrsPacket** ppacket);
     virtual int __send_and_free_message(__SrsMessage* msg);
@@ -213,8 +211,6 @@ public:
     virtual int64_t get_send_bytes();
     virtual int get_recv_kbps();
     virtual int get_send_kbps();
-    virtual int recv_message(SrsCommonMessage** pmsg);
-    virtual int send_message(ISrsMessage* msg);
     virtual int __recv_message(__SrsMessage** pmsg);
     virtual int __decode_message(__SrsMessage* msg, SrsPacket** ppacket);
     virtual int __send_and_free_message(__SrsMessage* msg);

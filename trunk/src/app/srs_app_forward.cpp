@@ -315,8 +315,8 @@ int SrsForwarder::forward()
 
         // read from client.
         if (true) {
-            SrsCommonMessage* msg = NULL;
-            ret = client->recv_message(&msg);
+            __SrsMessage* msg = NULL;
+            ret = client->__recv_message(&msg);
             
             srs_verbose("play loop recv message. ret=%d", ret);
             if (ret != ERROR_SUCCESS && ret != ERROR_SOCKET_TIMEOUT) {

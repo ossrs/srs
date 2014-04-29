@@ -713,6 +713,7 @@ int SrsRtmpConn::process_publish_message(SrsSource* source, __SrsMessage* msg, b
             srs_error("source process audio message failed. ret=%d", ret);
             return ret;
         }
+        return ret;
     }
     // process video packet
     if (msg->header.is_video()) {
@@ -720,6 +721,7 @@ int SrsRtmpConn::process_publish_message(SrsSource* source, __SrsMessage* msg, b
             srs_error("source process video message failed. ret=%d", ret);
             return ret;
         }
+        return ret;
     }
     
     // process onMetaData
