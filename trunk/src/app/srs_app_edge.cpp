@@ -175,15 +175,15 @@ int SrsEdgeIngester::ingest()
         }
 
         // read from client.
-        __SrsMessage* msg = NULL;
-        if ((ret = client->__recv_message(&msg)) != ERROR_SUCCESS) {
+        SrsMessage* msg = NULL;
+        if ((ret = client->recv_message(&msg)) != ERROR_SUCCESS) {
             srs_error("ingest recv origin server message failed. ret=%d", ret);
             return ret;
         }
         srs_verbose("edge loop recv message. ret=%d", ret);
         
         srs_assert(msg);
-        SrsAutoFree(__SrsMessage, msg, false);
+        SrsAutoFree(SrsMessage, msg, false);
         
         if ((ret = process_publish_message(msg)) != ERROR_SUCCESS) {
             return ret;
@@ -193,7 +193,7 @@ int SrsEdgeIngester::ingest()
     return ret;
 }
 
-int SrsEdgeIngester::process_publish_message(__SrsMessage* msg)
+int SrsEdgeIngester::process_publish_message(SrsMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -218,7 +218,7 @@ int SrsEdgeIngester::process_publish_message(__SrsMessage* msg)
     // process onMetaData
     if (msg->header.is_amf0_data() || msg->header.is_amf3_data()) {
         SrsPacket* pkt = NULL;
-        if ((ret = client->__decode_message(msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = client->decode_message(msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("decode onMetaData message failed. ret=%d", ret);
             return ret;
         }
@@ -420,8 +420,8 @@ int SrsEdgeForwarder::cycle()
 
         // read from client.
         if (true) {
-            __SrsMessage* msg = NULL;
-            ret = client->__recv_message(&msg);
+            SrsMessage* msg = NULL;
+            ret = client->recv_message(&msg);
             
             srs_verbose("edge loop recv message. ret=%d", ret);
             if (ret != ERROR_SUCCESS && ret != ERROR_SOCKET_TIMEOUT) {
@@ -435,7 +435,7 @@ int SrsEdgeForwarder::cycle()
         
         // forward all messages.
         int count = 0;
-        __SrsSharedPtrMessage** msgs = NULL;
+        SrsSharedPtrMessage** msgs = NULL;
         if ((ret = queue->get_packets(0, msgs, count)) != ERROR_SUCCESS) {
             srs_error("get message to forward to origin failed. ret=%d", ret);
             return ret;
@@ -456,16 +456,16 @@ int SrsEdgeForwarder::cycle()
             srs_verbose("no packets to forward.");
             continue;
         }
-        SrsAutoFree(__SrsSharedPtrMessage*, msgs, true);
+        SrsAutoFree(SrsSharedPtrMessage*, msgs, true);
     
         // all msgs to forward.
         for (int i = 0; i < count; i++) {
-            __SrsSharedPtrMessage* msg = msgs[i];
+            SrsSharedPtrMessage* msg = msgs[i];
             
             srs_assert(msg);
             msgs[i] = NULL;
             
-            if ((ret = client->__send_and_free_message(msg)) != ERROR_SUCCESS) {
+            if ((ret = client->send_and_free_message(msg)) != ERROR_SUCCESS) {
                 srs_error("edge publish forwarder send message to server failed. ret=%d", ret);
                 return ret;
             }
@@ -475,7 +475,7 @@ int SrsEdgeForwarder::cycle()
     return ret;
 }
 
-int SrsEdgeForwarder::proxy(__SrsMessage* msg)
+int SrsEdgeForwarder::proxy(SrsMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -495,8 +495,8 @@ int SrsEdgeForwarder::proxy(__SrsMessage* msg)
     }
     
     // TODO: FIXME: use utility to copy msg to shared ptr msg.
-    __SrsSharedPtrMessage* copy = new __SrsSharedPtrMessage();
-    SrsAutoFree(__SrsSharedPtrMessage, copy, false);
+    SrsSharedPtrMessage* copy = new SrsSharedPtrMessage();
+    SrsAutoFree(SrsSharedPtrMessage, copy, false);
     if ((ret = copy->initialize(msg)) != ERROR_SUCCESS) {
         srs_error("initialize the msg failed. ret=%d", ret);
         return ret;
@@ -724,7 +724,7 @@ int SrsPublishEdge::on_client_publish()
     return ret;
 }
 
-int SrsPublishEdge::on_proxy_publish(__SrsMessage* msg)
+int SrsPublishEdge::on_proxy_publish(SrsMessage* msg)
 {
     return forwarder->proxy(msg);
 }

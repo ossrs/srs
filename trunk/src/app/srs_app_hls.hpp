@@ -34,7 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string>
 #include <vector>
 
-class __SrsSharedPtrMessage;
+class SrsSharedPtrMessage;
 class SrsCodecSample;
 class SrsCodecBuffer;
 class SrsMpegtsFrame;
@@ -314,11 +314,11 @@ public:
     /**
     * mux the audio packets to ts.
     */
-    virtual int on_audio(__SrsSharedPtrMessage* audio);
+    virtual int on_audio(SrsSharedPtrMessage* audio);
     /**
     * mux the video packets to ts.
     */
-    virtual int on_video(__SrsSharedPtrMessage* video);
+    virtual int on_video(SrsSharedPtrMessage* video);
 private:
     virtual void hls_mux();
 };

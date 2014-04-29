@@ -203,6 +203,7 @@ static std::string g_vhost = "bandcheck.srs.com";
 
 #define BUILD_VERSION   "srs band check 0.1"
 
+// TODO: FIXME: by winlin, the bandwidth test tool has logic bug.
 int main(int argc ,char* argv[])
 {
     int ret = ERROR_SUCCESS;
@@ -341,13 +342,13 @@ int SrsBandCheckClient::expect_start_play()
     int ret = ERROR_SUCCESS;
 
     // expect connect _result
-    __SrsMessage* msg = NULL;
+    SrsMessage* msg = NULL;
     SrsBandwidthPacket* pkt = NULL;
     if ((ret = __srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
         srs_error("expect bandcheck start play message failed. ret=%d", ret);
         return ret;
     }
-    SrsAutoFree(__SrsMessage, msg, false);
+    SrsAutoFree(SrsMessage, msg, false);
     SrsAutoFree(SrsBandwidthPacket, pkt, false);
     srs_info("get bandcheck start play message");
 
@@ -365,7 +366,7 @@ int SrsBandCheckClient::send_starting_play()
 
     SrsBandwidthPacket* pkt = new SrsBandwidthPacket;
     pkt->command_name = SRS_BW_CHECK_STARTING_PLAY;
-    if ((ret = __send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
+    if ((ret = send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
         srs_error("send starting play msg failed. ret=%d", ret);
         return ret;
     }
@@ -378,13 +379,13 @@ int SrsBandCheckClient::expect_stop_play()
     int ret = ERROR_SUCCESS;
 
     while (true) {
-        __SrsMessage* msg = NULL;
+        SrsMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
         if ((ret = __srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect stop play message failed. ret=%d", ret);
             return ret;
         }
-        SrsAutoFree(__SrsMessage, msg, false);
+        SrsAutoFree(SrsMessage, msg, false);
         SrsAutoFree(SrsBandwidthPacket, pkt, false);
         srs_info("get bandcheck stop play message");
 
@@ -402,7 +403,7 @@ int SrsBandCheckClient::send_stopped_play()
 
     SrsBandwidthPacket* pkt = new SrsBandwidthPacket;
     pkt->command_name = SRS_BW_CHECK_STOPPED_PLAY;
-    if ((ret = __send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
+    if ((ret = send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
         srs_error("send stopped play msg failed. ret=%d", ret);
         return ret;
     }
@@ -415,13 +416,13 @@ int SrsBandCheckClient::expect_start_pub()
     int ret = ERROR_SUCCESS;
 
     while (true) {
-        __SrsMessage* msg = NULL;
+        SrsMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
         if ((ret = __srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect start pub message failed. ret=%d", ret);
             return ret;
         }
-        SrsAutoFree(__SrsMessage, msg, false);
+        SrsAutoFree(SrsMessage, msg, false);
         SrsAutoFree(SrsBandwidthPacket, pkt, false);
         srs_info("get bandcheck start pub message");
 
@@ -439,7 +440,7 @@ int SrsBandCheckClient::send_starting_pub()
 
     SrsBandwidthPacket* pkt = new SrsBandwidthPacket;
     pkt->command_name = SRS_BW_CHECK_STARTING_PUBLISH;
-    if ((ret = __send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
+    if ((ret = send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
         srs_error("send starting play msg failed. ret=%d", ret);
         return ret;
     }
@@ -465,7 +466,7 @@ int SrsBandCheckClient::send_pub_data()
         }
         data_count += 100;
 
-        if ((ret = __send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
+        if ((ret = send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
             srs_error("send publish message failed.ret=%d", ret);
             return ret;
         }
@@ -485,12 +486,12 @@ int SrsBandCheckClient::expect_stop_pub()
     this->set_recv_timeout(1000 * 1000);
     this->set_send_timeout(1000 * 1000);
     
-    __SrsMessage* msg;
+    SrsMessage* msg;
     SrsBandwidthPacket* pkt;
     if ((ret = __srs_rtmp_expect_message<SrsBandwidthPacket>(this->protocol, &msg, &pkt)) != ERROR_SUCCESS) {
         return ret;
     }
-    SrsAutoFree(__SrsMessage, msg, false);
+    SrsAutoFree(SrsMessage, msg, false);
     SrsAutoFree(SrsBandwidthPacket, pkt, false);
     if (pkt->command_name == SRS_BW_CHECK_STOP_PUBLISH) {
         return ret;
@@ -504,13 +505,13 @@ int SrsBandCheckClient::expect_finished()
     int ret = ERROR_SUCCESS;
 
     while (true) {
-        __SrsMessage* msg = NULL;
+        SrsMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
         if ((ret = __srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect finished message failed. ret=%d", ret);
             return ret;
         }
-        SrsAutoFree(__SrsMessage, msg, false);
+        SrsAutoFree(SrsMessage, msg, false);
         SrsAutoFree(SrsBandwidthPacket, pkt, false);
         srs_info("get bandcheck finished message");
 
@@ -593,7 +594,7 @@ int SrsBandCheckClient::send_stopped_pub()
 
     SrsBandwidthPacket* pkt = new SrsBandwidthPacket;
     pkt->command_name = SRS_BW_CHECK_STOPPED_PUBLISH;
-    if ((ret = __send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
+    if ((ret = send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
         srs_error("send stopped pub msg failed. ret=%d", ret);
         return ret;
     }
@@ -608,7 +609,7 @@ int SrsBandCheckClient::send_final()
 
     SrsBandwidthPacket* pkt = new SrsBandwidthPacket;
     pkt->command_name = SRS_BW_CHECK_FLASH_FINAL;
-    if ((ret = __send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
+    if ((ret = send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
         srs_error("send final msg failed. ret=%d", ret);
         return ret;
     }

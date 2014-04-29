@@ -306,14 +306,14 @@ SrsProtocol::SrsProtocol(ISrsProtocolReaderWriter* io)
 SrsProtocol::~SrsProtocol()
 {
     if (true) {
-        std::map<int, __SrsChunkStream*>::iterator it;
+        std::map<int, SrsChunkStream*>::iterator it;
         
-        for (it = __chunk_streams.begin(); it != __chunk_streams.end(); ++it) {
-            __SrsChunkStream* stream = it->second;
+        for (it = chunk_streams.begin(); it != chunk_streams.end(); ++it) {
+            SrsChunkStream* stream = it->second;
             srs_freep(stream);
         }
     
-        __chunk_streams.clear();
+        chunk_streams.clear();
     }
     
     srs_freep(decode_stream);
@@ -369,16 +369,16 @@ int SrsProtocol::get_send_kbps()
     return skt->get_send_kbps();
 }
 
-int SrsProtocol::__recv_message(__SrsMessage** pmsg)
+int SrsProtocol::recv_message(SrsMessage** pmsg)
 {
     *pmsg = NULL;
     
     int ret = ERROR_SUCCESS;
     
     while (true) {
-        __SrsMessage* msg = NULL;
+        SrsMessage* msg = NULL;
         
-        if ((ret = __recv_interlaced_message(&msg)) != ERROR_SUCCESS) {
+        if ((ret = recv_interlaced_message(&msg)) != ERROR_SUCCESS) {
             if (ret != ERROR_SOCKET_TIMEOUT && !srs_is_client_gracefully_close(ret)) {
                 srs_error("recv interlaced message failed. ret=%d", ret);
             }
@@ -398,7 +398,7 @@ int SrsProtocol::__recv_message(__SrsMessage** pmsg)
             continue;
         }
         
-        if ((ret = __on_recv_message(msg)) != ERROR_SUCCESS) {
+        if ((ret = on_recv_message(msg)) != ERROR_SUCCESS) {
             srs_error("hook the received msg failed. ret=%d", ret);
             srs_freep(msg);
             return ret;
@@ -412,7 +412,7 @@ int SrsProtocol::__recv_message(__SrsMessage** pmsg)
     return ret;
 }
 
-int SrsProtocol::__decode_message(__SrsMessage* msg, SrsPacket** ppacket)
+int SrsProtocol::decode_message(SrsMessage* msg, SrsPacket** ppacket)
 {
     *ppacket = NULL;
     
@@ -432,7 +432,7 @@ int SrsProtocol::__decode_message(__SrsMessage* msg, SrsPacket** ppacket)
     
     // decode the packet.
     SrsPacket* packet = NULL;
-    if ((ret = __do_decode_message(msg->header, decode_stream, &packet)) != ERROR_SUCCESS) {
+    if ((ret = do_decode_message(msg->header, decode_stream, &packet)) != ERROR_SUCCESS) {
         srs_freep(packet);
         return ret;
     }
@@ -443,7 +443,7 @@ int SrsProtocol::__decode_message(__SrsMessage* msg, SrsPacket** ppacket)
     return ret;
 }
 
-int SrsProtocol::__do_send_and_free_message(__SrsMessage* msg, SrsPacket* packet)
+int SrsProtocol::do_send_and_free_message(SrsMessage* msg, SrsPacket* packet)
 {
     int ret = ERROR_SUCCESS;
     
@@ -561,7 +561,7 @@ int SrsProtocol::__do_send_and_free_message(__SrsMessage* msg, SrsPacket* packet
         }
     } while (p < (char*)msg->payload + msg->size);
     
-    if ((ret = __on_send_message(msg, packet)) != ERROR_SUCCESS) {
+    if ((ret = on_send_message(msg, packet)) != ERROR_SUCCESS) {
         srs_error("hook the send message failed. ret=%d", ret);
         return ret;
     }
@@ -569,7 +569,7 @@ int SrsProtocol::__do_send_and_free_message(__SrsMessage* msg, SrsPacket* packet
     return ret;
 }
 
-int SrsProtocol::__do_decode_message(SrsMessageHeader& header, SrsStream* stream, SrsPacket** ppacket)
+int SrsProtocol::do_decode_message(SrsMessageHeader& header, SrsStream* stream, SrsPacket** ppacket)
 {
     int ret = ERROR_SUCCESS;
     
@@ -728,15 +728,15 @@ int SrsProtocol::__do_decode_message(SrsMessageHeader& header, SrsStream* stream
     return ret;
 }
 
-int SrsProtocol::__send_and_free_message(__SrsMessage* msg)
+int SrsProtocol::send_and_free_message(SrsMessage* msg)
 {
     srs_assert(msg);
-    SrsAutoFree(__SrsMessage, msg, false);
+    SrsAutoFree(SrsMessage, msg, false);
     
-    return __do_send_and_free_message(msg, NULL);
+    return do_send_and_free_message(msg, NULL);
 }
 
-int SrsProtocol::__send_and_free_packet(SrsPacket* packet, int stream_id)
+int SrsProtocol::send_and_free_packet(SrsPacket* packet, int stream_id)
 {
     int ret = ERROR_SUCCESS;
     
@@ -757,7 +757,7 @@ int SrsProtocol::__send_and_free_packet(SrsPacket* packet, int stream_id)
     }
     
     // to message
-    __SrsMessage* msg = new __SrsMessage();
+    SrsMessage* msg = new SrsMessage();
     
     msg->payload = (int8_t*)payload;
     msg->size = (int32_t)size;
@@ -767,14 +767,14 @@ int SrsProtocol::__send_and_free_packet(SrsPacket* packet, int stream_id)
     msg->header.stream_id = stream_id;
     msg->header.perfer_cid = packet->get_perfer_cid();
 
-    if ((ret = __do_send_and_free_message(msg, packet)) != ERROR_SUCCESS) {
+    if ((ret = do_send_and_free_message(msg, packet)) != ERROR_SUCCESS) {
         return ret;
     }
     
     return ret;
 }
 
-int SrsProtocol::__recv_interlaced_message(__SrsMessage** pmsg)
+int SrsProtocol::recv_interlaced_message(SrsMessage** pmsg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -782,7 +782,7 @@ int SrsProtocol::__recv_interlaced_message(__SrsMessage** pmsg)
     char fmt = 0;
     int cid = 0;
     int bh_size = 0;
-    if ((ret = __read_basic_header(fmt, cid, bh_size)) != ERROR_SUCCESS) {
+    if ((ret = read_basic_header(fmt, cid, bh_size)) != ERROR_SUCCESS) {
         if (ret != ERROR_SOCKET_TIMEOUT && !srs_is_client_gracefully_close(ret)) {
             srs_error("read basic header failed. ret=%d", ret);
         }
@@ -805,16 +805,16 @@ int SrsProtocol::__recv_interlaced_message(__SrsMessage** pmsg)
     }
     
     // get the cached chunk stream.
-    __SrsChunkStream* chunk = NULL;
+    SrsChunkStream* chunk = NULL;
     
-    if (__chunk_streams.find(cid) == __chunk_streams.end()) {
-        chunk = __chunk_streams[cid] = new __SrsChunkStream(cid);
+    if (chunk_streams.find(cid) == chunk_streams.end()) {
+        chunk = chunk_streams[cid] = new SrsChunkStream(cid);
         // set the perfer cid of chunk,
         // which will copy to the message received.
         chunk->header.perfer_cid = cid;
         srs_verbose("cache new chunk stream: fmt=%d, cid=%d", fmt, cid);
     } else {
-        chunk = __chunk_streams[cid];
+        chunk = chunk_streams[cid];
         srs_verbose("cached chunk stream: fmt=%d, cid=%d, size=%d, message(type=%d, size=%d, time=%"PRId64", sid=%d)",
             chunk->fmt, chunk->cid, (chunk->msg? chunk->msg->size : 0), chunk->header.message_type, chunk->header.payload_length,
             chunk->header.timestamp, chunk->header.stream_id);
@@ -822,7 +822,7 @@ int SrsProtocol::__recv_interlaced_message(__SrsMessage** pmsg)
 
     // chunk stream message header
     int mh_size = 0;
-    if ((ret = __read_message_header(chunk, fmt, bh_size, mh_size)) != ERROR_SUCCESS) {
+    if ((ret = read_message_header(chunk, fmt, bh_size, mh_size)) != ERROR_SUCCESS) {
         if (ret != ERROR_SOCKET_TIMEOUT && !srs_is_client_gracefully_close(ret)) {
             srs_error("read message header failed. ret=%d", ret);
         }
@@ -834,9 +834,9 @@ int SrsProtocol::__recv_interlaced_message(__SrsMessage** pmsg)
             chunk->header.payload_length, chunk->header.timestamp, chunk->header.stream_id);
     
     // read msg payload from chunk stream.
-    __SrsMessage* msg = NULL;
+    SrsMessage* msg = NULL;
     int payload_size = 0;
-    if ((ret = __read_message_payload(chunk, bh_size, mh_size, payload_size, &msg)) != ERROR_SUCCESS) {
+    if ((ret = read_message_payload(chunk, bh_size, mh_size, payload_size, &msg)) != ERROR_SUCCESS) {
         if (ret != ERROR_SOCKET_TIMEOUT && !srs_is_client_gracefully_close(ret)) {
             srs_error("read message payload failed. ret=%d", ret);
         }
@@ -865,7 +865,7 @@ int SrsProtocol::__recv_interlaced_message(__SrsMessage** pmsg)
     return ret;
 }
 
-int SrsProtocol::__read_basic_header(char& fmt, int& cid, int& bh_size)
+int SrsProtocol::read_basic_header(char& fmt, int& cid, int& bh_size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -923,7 +923,7 @@ int SrsProtocol::__read_basic_header(char& fmt, int& cid, int& bh_size)
     return ret;
 }
 
-int SrsProtocol::__read_message_header(__SrsChunkStream* chunk, char fmt, int bh_size, int& mh_size)
+int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_size, int& mh_size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -971,7 +971,7 @@ int SrsProtocol::__read_message_header(__SrsChunkStream* chunk, char fmt, int bh
     
     // create msg when new chunk stream start
     if (!chunk->msg) {
-        chunk->msg = new __SrsMessage();
+        chunk->msg = new SrsMessage();
         srs_verbose("create message for new chunk, fmt=%d, cid=%d", fmt, chunk->cid);
     }
 
@@ -1157,7 +1157,7 @@ int SrsProtocol::__read_message_header(__SrsChunkStream* chunk, char fmt, int bh
     return ret;
 }
 
-int SrsProtocol::__read_message_payload(__SrsChunkStream* chunk, int bh_size, int mh_size, int& payload_size, __SrsMessage** pmsg)
+int SrsProtocol::read_message_payload(SrsChunkStream* chunk, int bh_size, int mh_size, int& payload_size, SrsMessage** pmsg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1222,7 +1222,7 @@ int SrsProtocol::__read_message_payload(__SrsChunkStream* chunk, int bh_size, in
     return ret;
 }
 
-int SrsProtocol::__on_recv_message(__SrsMessage* msg)
+int SrsProtocol::on_recv_message(SrsMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1242,7 +1242,7 @@ int SrsProtocol::__on_recv_message(__SrsMessage* msg)
         case RTMP_MSG_SetChunkSize:
         case RTMP_MSG_UserControlMessage:
         case RTMP_MSG_WindowAcknowledgementSize:
-            if ((ret = __decode_message(msg, &packet)) != ERROR_SUCCESS) {
+            if ((ret = decode_message(msg, &packet)) != ERROR_SUCCESS) {
                 srs_error("decode packet from message payload failed. ret=%d", ret);
                 return ret;
             }
@@ -1298,7 +1298,7 @@ int SrsProtocol::__on_recv_message(__SrsMessage* msg)
     return ret;
 }
 
-int SrsProtocol::__on_send_message(__SrsMessage* msg, SrsPacket* packet)
+int SrsProtocol::on_send_message(SrsMessage* msg, SrsPacket* packet)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1353,7 +1353,7 @@ int SrsProtocol::response_acknowledgement_message()
     
     SrsAcknowledgementPacket* pkt = new SrsAcknowledgementPacket();
     in_ack_size.acked_size = pkt->sequence_number = skt->get_recv_bytes();
-    if ((ret = __send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
+    if ((ret = send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
         srs_error("send acknowledgement failed. ret=%d", ret);
         return ret;
     }
@@ -1373,7 +1373,7 @@ int SrsProtocol::response_ping_message(int32_t timestamp)
     pkt->event_type = SrcPCUCPingResponse;
     pkt->event_data = timestamp;
     
-    if ((ret = __send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
+    if ((ret = send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
         srs_error("send ping response failed. ret=%d", ret);
         return ret;
     }
@@ -1474,7 +1474,7 @@ void SrsMessageHeader::initialize_video(int size, u_int32_t time, int stream)
     stream_id = (int32_t)stream;
 }
 
-__SrsChunkStream::__SrsChunkStream(int _cid)
+SrsChunkStream::SrsChunkStream(int _cid)
 {
     fmt = 0;
     cid = _cid;
@@ -1483,39 +1483,39 @@ __SrsChunkStream::__SrsChunkStream(int _cid)
     msg_count = 0;
 }
 
-__SrsChunkStream::~__SrsChunkStream()
+SrsChunkStream::~SrsChunkStream()
 {
     srs_freep(msg);
 }
 
-__SrsMessage::__SrsMessage()
+SrsMessage::SrsMessage()
 {
     payload = NULL;
     size = 0;
 }
 
-__SrsMessage::~__SrsMessage()
+SrsMessage::~SrsMessage()
 {    
 }
 
-__SrsSharedPtrMessage::__SrsSharedPtr::__SrsSharedPtr()
+SrsSharedPtrMessage::__SrsSharedPtr::__SrsSharedPtr()
 {
     payload = NULL;
     size = 0;
     shared_count = 0;
 }
 
-__SrsSharedPtrMessage::__SrsSharedPtr::~__SrsSharedPtr()
+SrsSharedPtrMessage::__SrsSharedPtr::~__SrsSharedPtr()
 {
     srs_freepa(payload);
 }
 
-__SrsSharedPtrMessage::__SrsSharedPtrMessage()
+SrsSharedPtrMessage::SrsSharedPtrMessage()
 {
     ptr = NULL;
 }
 
-__SrsSharedPtrMessage::~__SrsSharedPtrMessage()
+SrsSharedPtrMessage::~SrsSharedPtrMessage()
 {
     if (ptr) {
         if (ptr->shared_count == 0) {
@@ -1526,7 +1526,7 @@ __SrsSharedPtrMessage::~__SrsSharedPtrMessage()
     }
 }
 
-int __SrsSharedPtrMessage::initialize(__SrsMessage* source)
+int SrsSharedPtrMessage::initialize(SrsMessage* source)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1541,7 +1541,7 @@ int __SrsSharedPtrMessage::initialize(__SrsMessage* source)
     return ret;
 }
 
-int __SrsSharedPtrMessage::initialize(SrsMessageHeader* source, char* payload, int size)
+int SrsSharedPtrMessage::initialize(SrsMessageHeader* source, char* payload, int size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1563,13 +1563,13 @@ int __SrsSharedPtrMessage::initialize(SrsMessageHeader* source, char* payload, i
     ptr->payload = payload;
     ptr->size = size;
     
-    __SrsMessage::payload = (int8_t*)ptr->payload;
-    __SrsMessage::size = ptr->size;
+    SrsMessage::payload = (int8_t*)ptr->payload;
+    SrsMessage::size = ptr->size;
     
     return ret;
 }
 
-__SrsSharedPtrMessage* __SrsSharedPtrMessage::copy()
+SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
 {
     if (!ptr) {
         srs_error("invoke initialize to initialize the ptr.");
@@ -1577,7 +1577,7 @@ __SrsSharedPtrMessage* __SrsSharedPtrMessage::copy()
         return NULL;
     }
     
-    __SrsSharedPtrMessage* copy = new __SrsSharedPtrMessage();
+    SrsSharedPtrMessage* copy = new SrsSharedPtrMessage();
     
     copy->header = header;
     
@@ -1619,11 +1619,6 @@ int SrsPacket::get_perfer_cid()
 int SrsPacket::get_message_type()
 {
     return 0;
-}
-
-int SrsPacket::get_payload_length()
-{
-    return get_size();
 }
 
 int SrsPacket::encode(int& psize, char*& ppayload)

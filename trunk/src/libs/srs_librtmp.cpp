@@ -283,15 +283,15 @@ int srs_read_packet(srs_rtmp_t rtmp, int* type, u_int32_t* timestamp, char** dat
     Context* context = (Context*)rtmp;
     
     for (;;) {
-        __SrsMessage* msg = NULL;
-        if ((ret = context->rtmp->__recv_message(&msg)) != ERROR_SUCCESS) {
+        SrsMessage* msg = NULL;
+        if ((ret = context->rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
             return ret;
         }
         if (!msg) {
             continue;
         }
         
-        SrsAutoFree(__SrsMessage, msg, false);
+        SrsAutoFree(SrsMessage, msg, false);
         
         if (msg->header.is_audio()) {
             *type = SRS_RTMP_TYPE_AUDIO;
@@ -332,13 +332,13 @@ int srs_write_packet(srs_rtmp_t rtmp, int type, u_int32_t timestamp, char* data,
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
     
-    __SrsSharedPtrMessage* msg = NULL;
+    SrsSharedPtrMessage* msg = NULL;
     
     if (type == SRS_RTMP_TYPE_AUDIO) {
         SrsMessageHeader header;
         header.initialize_audio(size, timestamp, context->stream_id);
         
-        msg = new __SrsSharedPtrMessage();
+        msg = new SrsSharedPtrMessage();
         if ((ret = msg->initialize(&header, data, size)) != ERROR_SUCCESS) {
             srs_freepa(data);
             return ret;
@@ -347,7 +347,7 @@ int srs_write_packet(srs_rtmp_t rtmp, int type, u_int32_t timestamp, char* data,
         SrsMessageHeader header;
         header.initialize_video(size, timestamp, context->stream_id);
         
-        msg = new __SrsSharedPtrMessage();
+        msg = new SrsSharedPtrMessage();
         if ((ret = msg->initialize(&header, data, size)) != ERROR_SUCCESS) {
             srs_freepa(data);
             return ret;
@@ -356,7 +356,7 @@ int srs_write_packet(srs_rtmp_t rtmp, int type, u_int32_t timestamp, char* data,
         SrsMessageHeader header;
         header.initialize_amf0_script(size, context->stream_id);
         
-        msg = new __SrsSharedPtrMessage();
+        msg = new SrsSharedPtrMessage();
         if ((ret = msg->initialize(&header, data, size)) != ERROR_SUCCESS) {
             srs_freepa(data);
             return ret;
@@ -365,7 +365,7 @@ int srs_write_packet(srs_rtmp_t rtmp, int type, u_int32_t timestamp, char* data,
     
     if (msg) {
         // send out encoded msg.
-        if ((ret = context->rtmp->__send_and_free_message(msg)) != ERROR_SUCCESS) {
+        if ((ret = context->rtmp->send_and_free_message(msg)) != ERROR_SUCCESS) {
             return ret;
         }
     } else {

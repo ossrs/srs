@@ -52,7 +52,7 @@ SrsRtmpJitter::~SrsRtmpJitter()
 {
 }
 
-int SrsRtmpJitter::correct(__SrsSharedPtrMessage* msg, int tba, int tbv)
+int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, int tba, int tbv)
 {
     int ret = ERROR_SUCCESS;
 
@@ -130,7 +130,7 @@ void SrsMessageQueue::set_queue_size(double queue_size)
     queue_size_ms = (int)(queue_size * 1000);
 }
 
-int SrsMessageQueue::enqueue(__SrsSharedPtrMessage* msg)
+int SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -151,7 +151,7 @@ int SrsMessageQueue::enqueue(__SrsSharedPtrMessage* msg)
     return ret;
 }
 
-int SrsMessageQueue::get_packets(int max_count, __SrsSharedPtrMessage**& pmsgs, int& count)
+int SrsMessageQueue::get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& count)
 {
     int ret = ERROR_SUCCESS;
     
@@ -169,13 +169,13 @@ int SrsMessageQueue::get_packets(int max_count, __SrsSharedPtrMessage**& pmsgs, 
         return ret;
     }
     
-    pmsgs = new __SrsSharedPtrMessage*[count];
+    pmsgs = new SrsSharedPtrMessage*[count];
     
     for (int i = 0; i < count; i++) {
         pmsgs[i] = msgs[i];
     }
     
-    __SrsSharedPtrMessage* last = msgs[count - 1];
+    SrsSharedPtrMessage* last = msgs[count - 1];
     av_start_time = last->header.timestamp;
     
     if (count == (int)msgs.size()) {
@@ -196,7 +196,7 @@ void SrsMessageQueue::shrink()
     // for when we shrinked, the first is the iframe,
     // we will directly remove the gop next time.
     for (int i = 1; i < (int)msgs.size(); i++) {
-        __SrsSharedPtrMessage* msg = msgs[i];
+        SrsSharedPtrMessage* msg = msgs[i];
         
         if (msg->header.is_video()) {
             if (SrsCodec::video_is_keyframe(msg->payload, msg->size)) {
@@ -222,7 +222,7 @@ void SrsMessageQueue::shrink()
     
     // remove the first gop from the front
     for (int i = 0; i < iframe_index; i++) {
-        __SrsSharedPtrMessage* msg = msgs[i];
+        SrsSharedPtrMessage* msg = msgs[i];
         srs_freep(msg);
     }
     msgs.erase(msgs.begin(), msgs.begin() + iframe_index);
@@ -230,10 +230,10 @@ void SrsMessageQueue::shrink()
 
 void SrsMessageQueue::clear()
 {
-    std::vector<__SrsSharedPtrMessage*>::iterator it;
+    std::vector<SrsSharedPtrMessage*>::iterator it;
 
     for (it = msgs.begin(); it != msgs.end(); ++it) {
-        __SrsSharedPtrMessage* msg = *it;
+        SrsSharedPtrMessage* msg = *it;
         srs_freep(msg);
     }
 
@@ -267,7 +267,7 @@ int SrsConsumer::get_time()
     return jitter->get_time();
 }
 
-int SrsConsumer::enqueue(__SrsSharedPtrMessage* msg, int tba, int tbv)
+int SrsConsumer::enqueue(SrsSharedPtrMessage* msg, int tba, int tbv)
 {
     int ret = ERROR_SUCCESS;
     
@@ -285,7 +285,7 @@ int SrsConsumer::enqueue(__SrsSharedPtrMessage* msg, int tba, int tbv)
     return ret;
 }
 
-int SrsConsumer::get_packets(int max_count, __SrsSharedPtrMessage**& pmsgs, int& count)
+int SrsConsumer::get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& count)
 {
     // paused, return nothing.
     if (paused) {
@@ -329,7 +329,7 @@ void SrsGopCache::set(bool enabled)
     srs_info("enable gop cache");
 }
 
-int SrsGopCache::cache(__SrsSharedPtrMessage* msg)
+int SrsGopCache::cache(SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -368,9 +368,9 @@ int SrsGopCache::cache(__SrsSharedPtrMessage* msg)
 
 void SrsGopCache::clear()
 {
-    std::vector<__SrsSharedPtrMessage*>::iterator it;
+    std::vector<SrsSharedPtrMessage*>::iterator it;
     for (it = gop_cache.begin(); it != gop_cache.end(); ++it) {
-        __SrsSharedPtrMessage* msg = *it;
+        SrsSharedPtrMessage* msg = *it;
         srs_freep(msg);
     }
     gop_cache.clear();
@@ -382,9 +382,9 @@ int SrsGopCache::dump(SrsConsumer* consumer, int tba, int tbv)
 {
     int ret = ERROR_SUCCESS;
     
-    std::vector<__SrsSharedPtrMessage*>::iterator it;
+    std::vector<SrsSharedPtrMessage*>::iterator it;
     for (it = gop_cache.begin(); it != gop_cache.end(); ++it) {
-        __SrsSharedPtrMessage* msg = *it;
+        SrsSharedPtrMessage* msg = *it;
         if ((ret = consumer->enqueue(msg->copy(), tba, tbv)) != ERROR_SUCCESS) {
             srs_error("dispatch cached gop failed. ret=%d", ret);
             return ret;
@@ -406,7 +406,7 @@ int64_t SrsGopCache::get_start_time()
         return 0;
     }
     
-    __SrsSharedPtrMessage* msg = gop_cache[0];
+    SrsSharedPtrMessage* msg = gop_cache[0];
     srs_assert(msg);
     
     return msg->header.timestamp;
@@ -789,7 +789,7 @@ bool SrsSource::can_publish()
     return _can_publish;
 }
 
-int SrsSource::on_meta_data(__SrsMessage* msg, SrsOnMetaDataPacket* metadata)
+int SrsSource::on_meta_data(SrsMessage* msg, SrsOnMetaDataPacket* metadata)
 {
     int ret = ERROR_SUCCESS;
     
@@ -823,13 +823,7 @@ int SrsSource::on_meta_data(__SrsMessage* msg, SrsOnMetaDataPacket* metadata)
     }
     
     // encode the metadata to payload
-    int size = metadata->get_payload_length();
-    if (size <= 0) {
-        srs_warn("ignore the invalid metadata. size=%d", size);
-        return ret;
-    }
-    srs_verbose("get metadata size success.");
-    
+    int size = 0;
     char* payload = NULL;
     if ((ret = metadata->encode(size, payload)) != ERROR_SUCCESS) {
         srs_error("encode metadata error. ret=%d", ret);
@@ -838,9 +832,14 @@ int SrsSource::on_meta_data(__SrsMessage* msg, SrsOnMetaDataPacket* metadata)
     }
     srs_verbose("encode metadata success.");
     
+    if (size <= 0) {
+        srs_warn("ignore the invalid metadata. size=%d", size);
+        return ret;
+    }
+    
     // create a shared ptr message.
     srs_freep(cache_metadata);
-    cache_metadata = new __SrsSharedPtrMessage();
+    cache_metadata = new SrsSharedPtrMessage();
     
     // dump message to shared ptr message.
     if ((ret = cache_metadata->initialize(&msg->header, payload, size)) != ERROR_SUCCESS) {
@@ -877,12 +876,12 @@ int SrsSource::on_meta_data(__SrsMessage* msg, SrsOnMetaDataPacket* metadata)
     return ret;
 }
 
-int SrsSource::on_audio(__SrsMessage* audio)
+int SrsSource::on_audio(SrsMessage* audio)
 {
     int ret = ERROR_SUCCESS;
     
-    __SrsSharedPtrMessage* msg = new __SrsSharedPtrMessage();
-    SrsAutoFree(__SrsSharedPtrMessage, msg, false);
+    SrsSharedPtrMessage* msg = new SrsSharedPtrMessage();
+    SrsAutoFree(SrsSharedPtrMessage, msg, false);
     if ((ret = msg->initialize(audio)) != ERROR_SUCCESS) {
         srs_error("initialize the audio failed. ret=%d", ret);
         return ret;
@@ -966,12 +965,12 @@ int SrsSource::on_audio(__SrsMessage* audio)
     return ret;
 }
 
-int SrsSource::on_video(__SrsMessage* video)
+int SrsSource::on_video(SrsMessage* video)
 {
     int ret = ERROR_SUCCESS;
     
-    __SrsSharedPtrMessage* msg = new __SrsSharedPtrMessage();
-    SrsAutoFree(__SrsSharedPtrMessage, msg, false);
+    SrsSharedPtrMessage* msg = new SrsSharedPtrMessage();
+    SrsAutoFree(SrsSharedPtrMessage, msg, false);
     if ((ret = msg->initialize(video)) != ERROR_SUCCESS) {
         srs_error("initialize the video failed. ret=%d", ret);
         return ret;
@@ -1207,7 +1206,7 @@ int SrsSource::on_edge_start_publish()
     return publish_edge->on_client_publish();
 }
 
-int SrsSource::on_edge_proxy_publish(__SrsMessage* msg)
+int SrsSource::on_edge_proxy_publish(SrsMessage* msg)
 {
     return publish_edge->on_proxy_publish(msg);
 }

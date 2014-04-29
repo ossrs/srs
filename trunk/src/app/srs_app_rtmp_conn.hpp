@@ -40,7 +40,7 @@ class SrsResponse;
 class SrsSource;
 class SrsRefer;
 class SrsConsumer;
-class __SrsMessage;
+class SrsMessage;
 class SrsSocket;
 #ifdef SRS_AUTO_HTTP_CALLBACK    
 class SrsHttpHooks;
@@ -80,8 +80,8 @@ private:
     virtual int playing(SrsSource* source);
     virtual int fmle_publish(SrsSource* source);
     virtual int flash_publish(SrsSource* source);
-    virtual int process_publish_message(SrsSource* source, __SrsMessage* msg, bool vhost_is_edge);
-    virtual int process_play_control_msg(SrsConsumer* consumer, __SrsMessage* msg);
+    virtual int process_publish_message(SrsSource* source, SrsMessage* msg, bool vhost_is_edge);
+    virtual int process_play_control_msg(SrsConsumer* consumer, SrsMessage* msg);
 private:
     virtual int http_hooks_on_connect();
     virtual void http_hooks_on_close();

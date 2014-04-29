@@ -40,7 +40,7 @@ class SrsRequest;
 class SrsPlayEdge;
 class SrsPublishEdge;
 class SrsRtmpClient;
-class __SrsMessage;
+class SrsMessage;
 class SrsMessageQueue;
 class ISrsProtocolReaderWriter;
 
@@ -99,7 +99,7 @@ private:
     virtual int ingest();
     virtual void close_underlayer_socket();
     virtual int connect_server();
-    virtual int process_publish_message(__SrsMessage* msg);
+    virtual int process_publish_message(SrsMessage* msg);
 };
 
 /**
@@ -142,7 +142,7 @@ public:
 public:
     virtual int cycle();
 public:
-    virtual int proxy(__SrsMessage* msg);
+    virtual int proxy(SrsMessage* msg);
 private:
     virtual void close_underlayer_socket();
     virtual int connect_server();
@@ -202,7 +202,7 @@ public:
     /**
     * proxy publish stream to edge
     */
-    virtual int on_proxy_publish(__SrsMessage* msg);
+    virtual int on_proxy_publish(SrsMessage* msg);
     /**
     * proxy unpublish stream to edge.
     */

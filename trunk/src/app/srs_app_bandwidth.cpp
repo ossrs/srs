@@ -189,21 +189,21 @@ int SrsBandwidth::do_bandwidth_check()
     pkt->data->set("publish_bytes",  SrsAmf0Any::number(publish_bytes));
     pkt->data->set("publish_time",   SrsAmf0Any::number(publish_actual_duration_ms));
 
-    if ((ret = rtmp->__send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
+    if ((ret = rtmp->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
         srs_error("send bandwidth check finish message failed. ret=%d", ret);
         return ret;
     }
     
     // if flash, we notice the result, and expect a final packet.
     while (true) {
-        __SrsMessage* msg = NULL;
+        SrsMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
         if ((ret = __srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
             // info level to ignore and return success.
             srs_info("expect final message failed. ret=%d", ret);
             return ERROR_SUCCESS;
         }
-        SrsAutoFree(__SrsMessage, msg, false);
+        SrsAutoFree(SrsMessage, msg, false);
         SrsAutoFree(SrsBandwidthPacket, pkt, false);
         srs_info("get final message success.");
         
@@ -233,7 +233,7 @@ int SrsBandwidth::check_play(
         pkt->data->set("duration_ms", SrsAmf0Any::number(duration_ms));
         pkt->data->set("interval_ms", SrsAmf0Any::number(interval_ms));
     
-        if ((ret = rtmp->__send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
+        if ((ret = rtmp->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
             srs_error("send bandwidth check start play message failed. ret=%d", ret);
             return ret;
         }
@@ -242,13 +242,13 @@ int SrsBandwidth::check_play(
 
     while (true) {
         // recv client's starting play response
-        __SrsMessage* msg = NULL;
+        SrsMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
         if ((ret = __srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect bandwidth message failed. ret=%d", ret);
             return ret;
         }
-        SrsAutoFree(__SrsMessage, msg, false);
+        SrsAutoFree(SrsMessage, msg, false);
         SrsAutoFree(SrsBandwidthPacket, pkt, false);
         srs_info("get bandwidth message succes.");
         
@@ -281,10 +281,10 @@ int SrsBandwidth::check_play(
         }
         data_count += 2;
 
-        // TODO: FIXME: get length from the rtmp protocol stack.
-        play_bytes += pkt->get_payload_length();
+        // get length from the rtmp protocol stack.
+        play_bytes = rtmp->get_send_bytes();
 
-        if ((ret = rtmp->__send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
+        if ((ret = rtmp->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
             srs_error("send bandwidth check play messages failed. ret=%d", ret);
             return ret;
         }
@@ -314,7 +314,7 @@ int SrsBandwidth::check_play(
         pkt->data->set("duration_delta", SrsAmf0Any::number(actual_duration_ms));
         pkt->data->set("bytes_delta", SrsAmf0Any::number(play_bytes));
 
-        if ((ret = rtmp->__send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
+        if ((ret = rtmp->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
             srs_error("send bandwidth check stop play message failed. ret=%d", ret);
             return ret;
         }
@@ -323,13 +323,13 @@ int SrsBandwidth::check_play(
 
     while (true) {
         // recv client's stop play response.
-        __SrsMessage* msg = NULL;
+        SrsMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
         if ((ret = __srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect bandwidth message failed. ret=%d", ret);
             return ret;
         }
-        SrsAutoFree(__SrsMessage, msg, false);
+        SrsAutoFree(SrsMessage, msg, false);
         SrsAutoFree(SrsBandwidthPacket, pkt, false);
         srs_info("get bandwidth message succes.");
         
@@ -357,7 +357,7 @@ int SrsBandwidth::check_publish(
         pkt->data->set("duration_ms", SrsAmf0Any::number(duration_ms));
         pkt->data->set("interval_ms", SrsAmf0Any::number(interval_ms));
     
-        if ((ret = rtmp->__send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
+        if ((ret = rtmp->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
             srs_error("send bandwidth check start publish message failed. ret=%d", ret);
             return ret;
         }
@@ -366,13 +366,13 @@ int SrsBandwidth::check_publish(
 
     while (true) {
         // read client's notification of starting publish
-        __SrsMessage* msg = NULL;
+        SrsMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
         if ((ret = __srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect bandwidth message failed. ret=%d", ret);
             return ret;
         }
-        SrsAutoFree(__SrsMessage, msg, false);
+        SrsAutoFree(SrsMessage, msg, false);
         SrsAutoFree(SrsBandwidthPacket, pkt, false);
         srs_info("get bandwidth message succes.");
         
@@ -387,15 +387,14 @@ int SrsBandwidth::check_publish(
     while ( (srs_get_system_time_ms() - current_time) < duration_ms ) {
         st_usleep(0);
         
-        __SrsMessage* msg = NULL;
-        if ((ret = rtmp->__recv_message(&msg)) != ERROR_SUCCESS) {
+        SrsMessage* msg = NULL;
+        if ((ret = rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
             srs_error("recv message failed. ret=%d", ret);
             return ret;
         }
-        SrsAutoFree(__SrsMessage, msg, false);
+        SrsAutoFree(SrsMessage, msg, false);
 
-        // TODO: FIXME.
-        publish_bytes += msg->header.payload_length;
+        publish_bytes = rtmp->get_recv_bytes();
 
         int kbps = 0;
         while (true) {
@@ -420,7 +419,7 @@ int SrsBandwidth::check_publish(
         pkt->data->set("duration_delta", SrsAmf0Any::number(actual_duration_ms));
         pkt->data->set("bytes_delta", SrsAmf0Any::number(publish_bytes));
 
-        if ((ret = rtmp->__send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
+        if ((ret = rtmp->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
             srs_error("send bandwidth check stop publish message failed. ret=%d", ret);
             return ret;
         }
@@ -435,13 +434,13 @@ int SrsBandwidth::check_publish(
     // TODO: FIXME: check whether flash client.
     while (false) {
         // recv client's stop publish response.
-        __SrsMessage* msg = NULL;
+        SrsMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
         if ((ret = __srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect bandwidth message failed. ret=%d", ret);
             return ret;
         }
-        SrsAutoFree(__SrsMessage, msg, false);
+        SrsAutoFree(SrsMessage, msg, false);
         SrsAutoFree(SrsBandwidthPacket, pkt, false);
         srs_info("get bandwidth message succes.");
         

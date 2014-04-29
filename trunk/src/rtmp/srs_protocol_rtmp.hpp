@@ -39,10 +39,9 @@ class SrsCommonMessage;
 class SrsCreateStreamPacket;
 class SrsFMLEStartPacket;
 class SrsPublishPacket;
-class SrsSharedPtrMessage;
 class SrsOnMetaDataPacket;
 class SrsPlayPacket;
-class __SrsMessage;
+class SrsMessage;
 class SrsPacket;
 
 /**
@@ -164,10 +163,10 @@ public:
     virtual int64_t get_send_bytes();
     virtual int get_recv_kbps();
     virtual int get_send_kbps();
-    virtual int __recv_message(__SrsMessage** pmsg);
-    virtual int __decode_message(__SrsMessage* msg, SrsPacket** ppacket);
-    virtual int __send_and_free_message(__SrsMessage* msg);
-    virtual int __send_and_free_packet(SrsPacket* packet, int stream_id);
+    virtual int recv_message(SrsMessage** pmsg);
+    virtual int decode_message(SrsMessage* msg, SrsPacket** ppacket);
+    virtual int send_and_free_message(SrsMessage* msg);
+    virtual int send_and_free_packet(SrsPacket* packet, int stream_id);
 public:
     // try complex, then simple handshake.
     virtual int handshake();
@@ -211,10 +210,10 @@ public:
     virtual int64_t get_send_bytes();
     virtual int get_recv_kbps();
     virtual int get_send_kbps();
-    virtual int __recv_message(__SrsMessage** pmsg);
-    virtual int __decode_message(__SrsMessage* msg, SrsPacket** ppacket);
-    virtual int __send_and_free_message(__SrsMessage* msg);
-    virtual int __send_and_free_packet(SrsPacket* packet, int stream_id);
+    virtual int recv_message(SrsMessage** pmsg);
+    virtual int decode_message(SrsMessage* msg, SrsPacket** ppacket);
+    virtual int send_and_free_message(SrsMessage* msg);
+    virtual int send_and_free_packet(SrsPacket* packet, int stream_id);
 public:
     virtual int handshake();
     virtual int connect_app(SrsRequest* req);
