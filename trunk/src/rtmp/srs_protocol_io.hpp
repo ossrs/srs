@@ -47,6 +47,7 @@ public:
     virtual void set_recv_timeout(int64_t timeout_us) = 0;
     virtual int64_t get_recv_timeout() = 0;
     virtual int64_t get_recv_bytes() = 0;
+    // TODO: FIXME: remove this interface.
     virtual int get_recv_kbps() = 0;
 };
 
@@ -63,6 +64,7 @@ public:
     virtual void set_send_timeout(int64_t timeout_us) = 0;
     virtual int64_t get_send_timeout() = 0;
     virtual int64_t get_send_bytes() = 0;
+    // TODO: FIXME: remove this interface.
     virtual int get_send_kbps() = 0;
     virtual int writev(const iovec *iov, int iov_size, ssize_t* nwrite) = 0;
 };

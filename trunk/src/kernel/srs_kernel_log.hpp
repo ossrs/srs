@@ -156,5 +156,7 @@ extern ISrsThreadContext* _srs_context;
 #define SRS_LOG_ID_CLIENT_PUBLISH "CPB"
 // web/flash publish to edge/origin
 #define SRS_LOG_ID_WEB_PUBLISH "WPB"
+// ingester for edge(play)/origin
+#define SRS_LOG_ID_INGESTER "IGS"
 
 #endif

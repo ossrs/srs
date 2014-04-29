@@ -345,12 +345,11 @@ void SrsIngester::ingester()
     }
     
     // reportable
-    if (!pithy_print->can_print()) {
-        return;
+    if (pithy_print->can_print()) {
+        // TODO: FIXME: show more info.
+        srs_trace("-> "SRS_LOG_ID_INGESTER
+            " time=%"PRId64", ingesters=%d", pithy_print->age(), (int)ingesters.size());
     }
-    
-    // TODO: FIXME: show more info.
-    srs_trace("-> time=%"PRId64", ingesters=%d", pithy_print->age(), (int)ingesters.size());
 }
 
 int SrsIngester::on_reload_vhost_added(string vhost)
