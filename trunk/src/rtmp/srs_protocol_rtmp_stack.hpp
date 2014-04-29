@@ -332,7 +332,6 @@ public:
 class SrsCommonMessage : public ISrsMessage
 {
 private:
-    typedef ISrsMessage super;
     disable_default_copy(SrsCommonMessage);
 // decoded message payload.
 private:
@@ -391,8 +390,6 @@ public:
 */
 class SrsSharedPtrMessage : public ISrsMessage
 {
-private:
-    typedef ISrsMessage super;
 private:
     struct SrsSharedPtr
     {
@@ -503,8 +500,6 @@ protected:
 */
 class SrsConnectAppPacket : public SrsPacket
 {
-private:
-    typedef SrsPacket super;
 protected:
     virtual const char* get_class_name()
     {
@@ -532,8 +527,6 @@ protected:
 */
 class SrsConnectAppResPacket : public SrsPacket
 {
-private:
-    typedef SrsPacket super;
 protected:
     virtual const char* get_class_name()
     {
@@ -567,8 +560,6 @@ protected:
 */
 class SrsCreateStreamPacket : public SrsPacket
 {
-private:
-    typedef SrsPacket super;
 protected:
     virtual const char* get_class_name()
     {
@@ -596,8 +587,6 @@ protected:
 */
 class SrsCreateStreamResPacket : public SrsPacket
 {
-private:
-    typedef SrsPacket super;
 protected:
     virtual const char* get_class_name()
     {
@@ -626,8 +615,6 @@ protected:
 */
 class SrsCloseStreamPacket : public SrsPacket
 {
-private:
-    typedef SrsPacket super;
 protected:
     virtual const char* get_class_name()
     {
@@ -649,8 +636,6 @@ public:
 */
 class SrsFMLEStartPacket : public SrsPacket
 {
-private:
-    typedef SrsPacket super;
 protected:
     virtual const char* get_class_name()
     {
@@ -682,8 +667,6 @@ public:
 */
 class SrsFMLEStartResPacket : public SrsPacket
 {
-private:
-    typedef SrsPacket super;
 protected:
     virtual const char* get_class_name()
     {
@@ -717,8 +700,6 @@ protected:
 */
 class SrsPublishPacket : public SrsPacket
 {
-private:
-    typedef SrsPacket super;
 protected:
     virtual const char* get_class_name()
     {
@@ -752,8 +733,6 @@ protected:
 */
 class SrsPausePacket : public SrsPacket
 {
-private:
-    typedef SrsPacket super;
 protected:
     virtual const char* get_class_name()
     {
@@ -778,8 +757,6 @@ public:
 */
 class SrsPlayPacket : public SrsPacket
 {
-private:
-    typedef SrsPacket super;
 protected:
     virtual const char* get_class_name()
     {
@@ -812,8 +789,6 @@ protected:
 */
 class SrsPlayResPacket : public SrsPacket
 {
-private:
-    typedef SrsPacket super;
 protected:
     virtual const char* get_class_name()
     {
@@ -841,8 +816,6 @@ protected:
 */
 class SrsOnBWDonePacket : public SrsPacket
 {
-private:
-    typedef SrsPacket super;
 protected:
     virtual const char* get_class_name()
     {
@@ -870,8 +843,6 @@ protected:
 */
 class SrsOnStatusCallPacket : public SrsPacket
 {
-private:
-    typedef SrsPacket super;
 protected:
     virtual const char* get_class_name()
     {
@@ -903,7 +874,6 @@ protected:
 class SrsBandwidthPacket : public SrsPacket
 {
 private:
-    typedef SrsPacket super;
     disable_default_copy(SrsBandwidthPacket);
 protected:
     virtual const char* get_class_name()
@@ -949,8 +919,6 @@ private:
 */
 class SrsOnStatusDataPacket : public SrsPacket
 {
-private:
-    typedef SrsPacket super;
 protected:
     virtual const char* get_class_name()
     {
@@ -977,8 +945,6 @@ protected:
 */
 class SrsSampleAccessPacket : public SrsPacket
 {
-private:
-    typedef SrsPacket super;
 protected:
     virtual const char* get_class_name()
     {
@@ -1007,8 +973,6 @@ protected:
 */
 class SrsOnMetaDataPacket : public SrsPacket
 {
-private:
-    typedef SrsPacket super;
 protected:
     virtual const char* get_class_name()
     {
@@ -1038,8 +1002,6 @@ protected:
 */
 class SrsSetWindowAckSizePacket : public SrsPacket
 {
-private:
-    typedef SrsPacket super;
 protected:
     virtual const char* get_class_name()
     {
@@ -1068,8 +1030,6 @@ protected:
 */
 class SrsAcknowledgementPacket : public SrsPacket
 {
-private:
-    typedef SrsPacket super;
 protected:
     virtual const char* get_class_name()
     {
@@ -1096,8 +1056,6 @@ protected:
 */
 class SrsSetChunkSizePacket : public SrsPacket
 {
-private:
-    typedef SrsPacket super;
 protected:
     virtual const char* get_class_name()
     {
@@ -1126,8 +1084,6 @@ protected:
 */
 class SrsSetPeerBandwidthPacket : public SrsPacket
 {
-private:
-    typedef SrsPacket super;
 protected:
     virtual const char* get_class_name()
     {
@@ -1179,8 +1135,6 @@ enum SrcPCUCEventType
 */
 class SrsUserControlPacket : public SrsPacket
 {
-private:
-    typedef SrsPacket super;
 protected:
     virtual const char* get_class_name()
     {

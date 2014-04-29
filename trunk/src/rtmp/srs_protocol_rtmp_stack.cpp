@@ -1621,8 +1621,8 @@ int SrsSharedPtrMessage::initialize(SrsMessageHeader* source, char* payload, int
         ptr->perfer_cid = RTMP_CID_OverConnection2;
     }
     
-    super::payload = (int8_t*)ptr->payload;
-    super::size = ptr->size;
+    ISrsMessage::payload = (int8_t*)ptr->payload;
+    ISrsMessage::size = ptr->size;
     
     return ret;
 }
