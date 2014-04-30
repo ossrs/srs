@@ -42,7 +42,7 @@ git clone https://code.csdn.net/winlinvip/srs-csdn.git
     </tr>
     <tr>
         <td>SRS-Linux</td>
-        <td>[winlin](https://github.com/winlinvip/simple-rtmp-server)</td>
+        <td><a href="https://github.com/winlinvip/simple-rtmp-server" target="_blank">winlin</a></td>
         <td>SRS服务器 Linux平台分支</td>
     </tr>
 </table>
