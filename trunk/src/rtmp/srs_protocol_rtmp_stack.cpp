@@ -404,7 +404,7 @@ int SrsProtocol::recv_message(SrsMessage** pmsg)
             return ret;
         }
         
-        srs_warn("got a msg, cid=%d, type=%d, size=%d, time=%"PRId64, 
+        srs_verbose("got a msg, cid=%d, type=%d, size=%d, time=%"PRId64, 
             msg->header.perfer_cid, msg->header.message_type, msg->header.payload_length, 
             msg->header.timestamp);
         *pmsg = msg;
