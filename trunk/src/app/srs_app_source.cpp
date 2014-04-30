@@ -823,6 +823,7 @@ int SrsSource::on_meta_data(SrsMessage* msg, SrsOnMetaDataPacket* metadata)
     }
     
     // if bravo-atc, open atc for vhost.
+    atc = _srs_config->get_atc(_req->vhost);
     if ((prop = metadata->metadata->get_property("bravo_atc")) != NULL) {
         if (prop->is_string() && prop->to_str() == "true") {
             atc = true;
