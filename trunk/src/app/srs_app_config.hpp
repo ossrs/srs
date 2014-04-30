@@ -180,6 +180,7 @@ public:
     virtual SrsConfDirective*   get_vhost_on_dvr_hss_reap_flv(std::string vhost);
     virtual bool                get_gop_cache(std::string vhost);
     virtual bool                get_atc(std::string vhost);
+    virtual bool                get_atc_auto(std::string vhost);
     virtual double              get_queue_length(std::string vhost);
     virtual SrsConfDirective*   get_forward(std::string vhost);
     virtual SrsConfDirective*   get_refer(std::string vhost);

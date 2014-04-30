@@ -1654,7 +1654,7 @@ bool SrsConfig::get_atc(string vhost)
     SrsConfDirective* conf = get_vhost(vhost);
 
     if (!conf) {
-        return true;
+        return false;
     }
     
     conf = conf->get("atc");
@@ -1663,6 +1663,22 @@ bool SrsConfig::get_atc(string vhost)
     }
     
     return false;
+}
+
+bool SrsConfig::get_atc_auto(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return true;
+    }
+    
+    conf = conf->get("atc_auto");
+    if (conf && conf->arg0() == "off") {
+        return false;
+    }
+    
+    return true;
 }
 
 double SrsConfig::get_queue_length(string vhost)
