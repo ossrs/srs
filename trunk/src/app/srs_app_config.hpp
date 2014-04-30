@@ -269,9 +269,6 @@ public:
     virtual bool                get_vhost_http_enabled(std::string vhost);
     virtual std::string         get_vhost_http_mount(std::string vhost);
     virtual std::string         get_vhost_http_dir(std::string vhost);
-// setter in memory
-public:
-    virtual void                set_atc(std::string vhost, bool atc);
 };
 
 /**

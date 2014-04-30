@@ -2656,29 +2656,6 @@ string SrsConfig::get_vhost_http_dir(string vhost)
     return conf->arg0();
 }
 
-void SrsConfig::set_atc(std::string vhost, bool atc)
-{
-    SrsConfDirective* conf = get_vhost(vhost);
-    if (!conf) {
-        return;
-    }
-    
-    // create if not exists
-    if (conf->get("atc") == NULL) {
-        SrsConfDirective* o = new SrsConfDirective();
-        o->name = "atc";
-        conf->directives.push_back(o);
-    }
-    
-    // get the atc node
-    conf = conf->get("atc");
-    srs_assert(conf);
-    
-    // refresh
-    conf->directives.clear();
-    conf->args.push_back((atc? "true":"false"));
-}
-
 bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b)
 {
     // both NULL, equal.
