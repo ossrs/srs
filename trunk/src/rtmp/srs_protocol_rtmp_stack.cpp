@@ -1393,7 +1393,8 @@ SrsMessageHeader::SrsMessageHeader()
     stream_id = 0;
     
     timestamp = 0;
-    perfer_cid = RTMP_CID_ProtocolControl;
+    // we always use the connection chunk-id
+    perfer_cid = RTMP_CID_OverConnection;
 }
 
 SrsMessageHeader::~SrsMessageHeader()
@@ -1457,6 +1458,9 @@ void SrsMessageHeader::initialize_amf0_script(int size, int stream)
     timestamp_delta = (int32_t)0;
     timestamp = (int64_t)0;
     stream_id = (int32_t)stream;
+    
+    // amf0 script use connection2 chunk-id
+    perfer_cid = RTMP_CID_OverConnection2;
 }
 
 void SrsMessageHeader::initialize_audio(int size, u_int32_t time, int stream)
@@ -1466,6 +1470,9 @@ void SrsMessageHeader::initialize_audio(int size, u_int32_t time, int stream)
     timestamp_delta = (int32_t)time;
     timestamp = (int64_t)time;
     stream_id = (int32_t)stream;
+    
+    // audio chunk-id
+    perfer_cid = RTMP_CID_Audio;
 }
 
 void SrsMessageHeader::initialize_video(int size, u_int32_t time, int stream)
@@ -1475,6 +1482,9 @@ void SrsMessageHeader::initialize_video(int size, u_int32_t time, int stream)
     timestamp_delta = (int32_t)time;
     timestamp = (int64_t)time;
     stream_id = (int32_t)stream;
+    
+    // video chunk-id
+    perfer_cid = RTMP_CID_Video;
 }
 
 SrsChunkStream::SrsChunkStream(int _cid)
