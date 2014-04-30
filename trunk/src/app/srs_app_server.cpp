@@ -70,8 +70,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_MEMINFO_RESOLUTION_TIMES
 #define SRS_SYS_MEMINFO_RESOLUTION_TIMES 60
 
-#define SRS_SIGNAL_THREAD_INTERVAL  (int64_t)(100*1000LL)
-
 SrsListener::SrsListener(SrsServer* server, SrsListenerType type)
 {
     fd = -1;
@@ -194,7 +192,7 @@ SrsSignalManager::SrsSignalManager(SrsServer* server)
     
     _server = server;
     sig_pipe[0] = sig_pipe[1] = -1;
-    pthread = new SrsThread(this, SRS_SIGNAL_THREAD_INTERVAL);
+    pthread = new SrsThread(this, 0);
     signal_read_stfd = NULL;
 }
 
