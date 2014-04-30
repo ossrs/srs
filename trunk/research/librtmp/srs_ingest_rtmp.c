@@ -113,14 +113,14 @@ int proxy(srs_rtmp_t irtmp, srs_rtmp_t ortmp)
             trace("irtmp get packet failed. ret=%d", ret);
             return ret;
         }
-        trace("irtmp got packet: type=%s, time=%d, size=%d", 
+        verbose("irtmp got packet: type=%s, time=%d, size=%d", 
             srs_type2string(type), timestamp, size);
         
         if ((ret = srs_write_packet(ortmp, type, timestamp, data, size)) != 0) {
             trace("irtmp get packet failed. ret=%d", ret);
             return ret;
         }
-        trace("ortmp sent packet: type=%s, time=%d, size=%d", 
+        verbose("ortmp sent packet: type=%s, time=%d, size=%d", 
             srs_type2string(type), timestamp, size);
     }
     
