@@ -200,7 +200,7 @@ private:
     /**
     * when srs reap the flv(close the segment), notice the api.
     */
-    virtual int on_dvr_reap_flv();
+    virtual int on_dvr_hss_reap_flv();
 public:
     static SrsDvrPlan* create_plan(std::string vhost);
 };
@@ -259,7 +259,7 @@ protected:
     virtual int on_video_keyframe();
     virtual int64_t filter_timestamp(int64_t timestamp);
 private:
-    virtual int on_dvr_reap_flv_header(std::string path);
+    virtual int on_dvr_hss_reap_flv_header(std::string path);
     virtual int update_duration(SrsSharedPtrMessage* msg);
 };
 

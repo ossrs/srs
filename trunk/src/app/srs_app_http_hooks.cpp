@@ -459,7 +459,7 @@ void SrsHttpHooks::on_stop(string url, int client_id, string ip, SrsRequest* req
     return;
 }
 
-void SrsHttpHooks::on_dvr_reap_flv_header(std::string url, SrsRequest* req, std::string header_file)
+void SrsHttpHooks::on_dvr_hss_reap_flv_header(std::string url, SrsRequest* req, std::string header_file)
 {
     int ret = ERROR_SUCCESS;
     
@@ -467,14 +467,14 @@ void SrsHttpHooks::on_dvr_reap_flv_header(std::string url, SrsRequest* req, std:
     
     SrsHttpUri uri;
     if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
-        srs_warn("http uri parse on_dvr_reap_flv_header url failed, ignored. "
+        srs_warn("http uri parse on_dvr_hss_reap_flv_header url failed, ignored. "
             "url=%s, ret=%d", url.c_str(), ret);
         return;
     }
     
     std::stringstream ss;
     ss << JOBJECT_START
-        << JFIELD_STR("action", "on_dvr_reap_flv_header") << JFIELD_CONT
+        << JFIELD_STR("action", "on_dvr_hss_reap_flv_header") << JFIELD_CONT
         << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
         << JFIELD_STR("app", req->app) << JFIELD_CONT
         << JFIELD_STR("stream", req->stream) << JFIELD_CONT
@@ -488,7 +488,7 @@ void SrsHttpHooks::on_dvr_reap_flv_header(std::string url, SrsRequest* req, std:
     
     SrsHttpClient http;
     if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
-        srs_warn("http post on_dvr_reap_flv_header uri failed, ignored. "
+        srs_warn("http post on_dvr_hss_reap_flv_header uri failed, ignored. "
             "url=%s, request=%s, response=%s, ret=%d",
             url.c_str(), data.c_str(), res.c_str(), ret);
         return;
@@ -496,19 +496,19 @@ void SrsHttpHooks::on_dvr_reap_flv_header(std::string url, SrsRequest* req, std:
     
     if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
         ret = ERROR_HTTP_DATA_INVLIAD;
-        srs_warn("http hook on_dvr_reap_flv_header validate failed, ignored. "
+        srs_warn("http hook on_dvr_hss_reap_flv_header validate failed, ignored. "
             "res=%s, ret=%d", res.c_str(), ret);
         return;
     }
     
-    srs_info("http hook on_dvr_reap_flv_header success. "
+    srs_info("http hook on_dvr_hss_reap_flv_header success. "
         "url=%s, request=%s, response=%s, ret=%d",
         url.c_str(), data.c_str(), res.c_str(), ret);
     
     return;
 }
 
-void SrsHttpHooks::on_dvr_reap_flv(string url, SrsRequest* req, SrsFlvSegment* segment)
+void SrsHttpHooks::on_dvr_hss_reap_flv(string url, SrsRequest* req, SrsFlvSegment* segment)
 {
     int ret = ERROR_SUCCESS;
     
@@ -520,14 +520,14 @@ void SrsHttpHooks::on_dvr_reap_flv(string url, SrsRequest* req, SrsFlvSegment* s
     
     SrsHttpUri uri;
     if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
-        srs_warn("http uri parse on_dvr_reap_flv url failed, ignored. "
+        srs_warn("http uri parse on_dvr_hss_reap_flv url failed, ignored. "
             "url=%s, ret=%d", url.c_str(), ret);
         return;
     }
     
     std::stringstream ss;
     ss << JOBJECT_START
-        << JFIELD_STR("action", "on_dvr_reap_flv") << JFIELD_CONT
+        << JFIELD_STR("action", "on_dvr_hss_reap_flv") << JFIELD_CONT
         << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
         << JFIELD_STR("app", req->app) << JFIELD_CONT
         << JFIELD_STR("stream", req->stream) << JFIELD_CONT
@@ -545,7 +545,7 @@ void SrsHttpHooks::on_dvr_reap_flv(string url, SrsRequest* req, SrsFlvSegment* s
     
     SrsHttpClient http;
     if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
-        srs_warn("http post on_dvr_reap_flv uri failed, ignored. "
+        srs_warn("http post on_dvr_hss_reap_flv uri failed, ignored. "
             "url=%s, request=%s, response=%s, ret=%d",
             url.c_str(), data.c_str(), res.c_str(), ret);
         return;
@@ -553,12 +553,12 @@ void SrsHttpHooks::on_dvr_reap_flv(string url, SrsRequest* req, SrsFlvSegment* s
     
     if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
         ret = ERROR_HTTP_DATA_INVLIAD;
-        srs_warn("http hook on_dvr_reap_flv validate failed, ignored. "
+        srs_warn("http hook on_dvr_hss_reap_flv validate failed, ignored. "
             "res=%s, ret=%d", res.c_str(), ret);
         return;
     }
     
-    srs_info("http hook on_dvr_reap_flv success. "
+    srs_info("http hook on_dvr_hss_reap_flv success. "
         "url=%s, request=%s, response=%s, ret=%d",
         url.c_str(), data.c_str(), res.c_str(), ret);
     

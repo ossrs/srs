@@ -1587,7 +1587,7 @@ SrsConfDirective* SrsConfig::get_vhost_on_stop(string vhost)
     return conf->get("on_stop");
 }
 
-SrsConfDirective* SrsConfig::get_vhost_on_dvr_reap_flv(string vhost)
+SrsConfDirective* SrsConfig::get_vhost_on_dvr_hss_reap_flv(string vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);
 
@@ -1605,7 +1605,7 @@ SrsConfDirective* SrsConfig::get_vhost_on_dvr_reap_flv(string vhost)
         return NULL;
     }
     
-    return conf->get("on_dvr_reap_flv");
+    return conf->get("on_dvr_hss_reap_flv");
 }
 
 bool SrsConfig::get_vhost_enabled(string vhost)

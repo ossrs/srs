@@ -565,7 +565,7 @@ int SrsDvrPlan::flv_close()
     }
     
 #ifdef SRS_AUTO_HTTP_CALLBACK
-    if ((ret = on_dvr_reap_flv()) != ERROR_SUCCESS) {
+    if ((ret = on_dvr_hss_reap_flv()) != ERROR_SUCCESS) {
         return ret;
     }
 #endif
@@ -612,21 +612,21 @@ int SrsDvrPlan::write_flv_header()
     return ret;
 }
 
-int SrsDvrPlan::on_dvr_reap_flv()
+int SrsDvrPlan::on_dvr_hss_reap_flv()
 {
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_HTTP_CALLBACK
-    // HTTP: on_dvr_reap_flv 
-    SrsConfDirective* on_dvr_reap_flv = _srs_config->get_vhost_on_dvr_reap_flv(_req->vhost);
-    if (!on_dvr_reap_flv) {
-        srs_info("ignore the empty http callback: on_dvr_reap_flv");
+    // HTTP: on_dvr_hss_reap_flv 
+    SrsConfDirective* on_dvr_hss_reap_flv = _srs_config->get_vhost_on_dvr_hss_reap_flv(_req->vhost);
+    if (!on_dvr_hss_reap_flv) {
+        srs_info("ignore the empty http callback: on_dvr_hss_reap_flv");
         return ret;
     }
     
-    for (int i = 0; i < (int)on_dvr_reap_flv->args.size(); i++) {
-        std::string url = on_dvr_reap_flv->args.at(i);
-        SrsHttpHooks::on_dvr_reap_flv(url, _req, segment);
+    for (int i = 0; i < (int)on_dvr_hss_reap_flv->args.size(); i++) {
+        std::string url = on_dvr_hss_reap_flv->args.at(i);
+        SrsHttpHooks::on_dvr_hss_reap_flv(url, _req, segment);
     }
 #endif
     
@@ -842,7 +842,7 @@ int SrsDvrHssPlan::on_meta_data(SrsOnMetaDataPacket* metadata)
     }
     
 #ifdef SRS_AUTO_HTTP_CALLBACK
-    if ((ret = on_dvr_reap_flv_header(path.str())) != ERROR_SUCCESS) {
+    if ((ret = on_dvr_hss_reap_flv_header(path.str())) != ERROR_SUCCESS) {
         return ret;
     }
 #endif
@@ -882,21 +882,21 @@ int64_t SrsDvrHssPlan::filter_timestamp(int64_t timestamp)
     return segment->stream_starttime + timestamp;
 }
 
-int SrsDvrHssPlan::on_dvr_reap_flv_header(string path)
+int SrsDvrHssPlan::on_dvr_hss_reap_flv_header(string path)
 {
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_HTTP_CALLBACK
-    // HTTP: on_dvr_reap_flv_header 
-    SrsConfDirective* on_dvr_reap_flv = _srs_config->get_vhost_on_dvr_reap_flv(_req->vhost);
-    if (!on_dvr_reap_flv) {
-        srs_info("ignore the empty http callback: on_dvr_reap_flv");
+    // HTTP: on_dvr_hss_reap_flv_header 
+    SrsConfDirective* on_dvr_hss_reap_flv = _srs_config->get_vhost_on_dvr_hss_reap_flv(_req->vhost);
+    if (!on_dvr_hss_reap_flv) {
+        srs_info("ignore the empty http callback: on_dvr_hss_reap_flv");
         return ret;
     }
     
-    for (int i = 0; i < (int)on_dvr_reap_flv->args.size(); i++) {
-        std::string url = on_dvr_reap_flv->args.at(i);
-        SrsHttpHooks::on_dvr_reap_flv_header(url, _req, path);
+    for (int i = 0; i < (int)on_dvr_hss_reap_flv->args.size(); i++) {
+        std::string url = on_dvr_hss_reap_flv->args.at(i);
+        SrsHttpHooks::on_dvr_hss_reap_flv_header(url, _req, path);
     }
 #endif
     
