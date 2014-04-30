@@ -34,6 +34,14 @@ git clone https://code.csdn.net/winlinvip/srs-csdn.git
 捐款(Donation): [http://winlinvip.github.io/srs.release/donation/](http://winlinvip.github.io/srs.release/donation/index.html) 
 或 [阿里云镜像](http://demo.chnvideo.com:8085/srs/donation/index.html)
 
+<table>
+    <tr>
+        <th>分支</th>
+        <th>维护者</th>
+        <th>说明</th>
+    </tr>
+</table>
+
 ## About
 
 SRS(SIMPLE RTMP Server) over state-threads created in 2013.10.
