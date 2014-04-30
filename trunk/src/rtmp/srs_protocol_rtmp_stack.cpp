@@ -405,7 +405,9 @@ int SrsProtocol::recv_message(SrsMessage** pmsg)
             return ret;
         }
         
-        srs_verbose("get a msg with raw/undecoded payload");
+        srs_verbose("got a msg, cid=%d, type=%d, size=%d, time=%"PRId64, 
+            msg->header.perfer_cid, msg->header.message_type, msg->header.payload_length, 
+            msg->header.timestamp);
         *pmsg = msg;
         break;
     }
