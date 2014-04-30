@@ -107,24 +107,6 @@ private:
     * value: the request command name
     */
     std::map<double, std::string> requests;
-    /**
-    * RTMP specification and ffmpeg/librtmp is false,
-    * but, adobe changed the specification, so flash/FMLE/FMS always true.
-    * default to true to support flash/FMLE/FMS.
-    * 
-    * ffmpeg/librtmp may donot send this filed, need to detect the value.
-    * @see also: http://blog.csdn.net/win_lin/article/details/13363699
-    * compare to the chunk timestamp, which is set by chunk message header
-    * type 0,1 or 2.
-    *
-    * @remark, nginx send the extended-timestamp in sequence-header,
-    * and timestamp delta in continue C1 chunks, and so compatible with ffmpeg,
-    * that is, there is no continue chunks and extended-timestamp in nginx-rtmp.
-    *
-    * @remark, srs always send the extended-timestamp, to keep simple,
-    * and compatible with adobe products.
-    */
-    bool send_extended_timestamp_for_C3_chunk;
 // peer in
 private:
     std::map<int, SrsChunkStream*> chunk_streams;

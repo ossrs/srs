@@ -301,7 +301,6 @@ SrsProtocol::SrsProtocol(ISrsProtocolReaderWriter* io)
     skt = io;
     
     in_chunk_size = out_chunk_size = RTMP_DEFAULT_CHUNK_SIZE;
-    send_extended_timestamp_for_C3_chunk = true;
 }
 
 SrsProtocol::~SrsProtocol()
@@ -405,7 +404,7 @@ int SrsProtocol::recv_message(SrsMessage** pmsg)
             return ret;
         }
         
-        srs_verbose("got a msg, cid=%d, type=%d, size=%d, time=%"PRId64, 
+        srs_warn("got a msg, cid=%d, type=%d, size=%d, time=%"PRId64, 
             msg->header.perfer_cid, msg->header.message_type, msg->header.payload_length, 
             msg->header.timestamp);
         *pmsg = msg;
@@ -527,7 +526,7 @@ int SrsProtocol::do_send_and_free_message(SrsMessage* msg, SrsPacket* packet)
             // @see: ngx_rtmp_prepare_message
             // @see: http://blog.csdn.net/win_lin/article/details/13363699
             u_int32_t timestamp = (u_int32_t)msg->header.timestamp;
-            if(send_extended_timestamp_for_C3_chunk && timestamp >= RTMP_EXTENDED_TIMESTAMP){
+            if(timestamp >= RTMP_EXTENDED_TIMESTAMP){
                 pp = (char*)&timestamp;
                 *pheader++ = pp[3];
                 *pheader++ = pp[2];
@@ -958,8 +957,8 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
     // the fmt must be 0, a new stream.
     if (chunk->msg_count == 0 && fmt != RTMP_FMT_TYPE0) {
         ret = ERROR_RTMP_CHUNK_START;
-        srs_error("chunk stream is fresh, "
-            "fmt must be %d, actual is %d. ret=%d", RTMP_FMT_TYPE0, fmt, ret);
+        srs_error("chunk stream is fresh, fmt must be %d, actual is %d. cid=%d, ret=%d", 
+            RTMP_FMT_TYPE0, fmt, chunk->cid, ret);
         return ret;
     }
 
@@ -973,7 +972,9 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
     }
     
     // create msg when new chunk stream start
+    bool is_first_chunk_of_msg = false;
     if (!chunk->msg) {
+        is_first_chunk_of_msg = true;
         chunk->msg = new SrsMessage();
         srs_verbose("create message for new chunk, fmt=%d, cid=%d", fmt, chunk->cid);
     }
@@ -992,7 +993,13 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
     }
     char* p = buffer->bytes() + bh_size;
     
-    // parse the message header.
+    /**
+    * parse the message header.
+    *   3bytes: timestamp delta,    fmt=0,1,2
+    *   3bytes: payload length,     fmt=0,1
+    *   1bytes: message type,       fmt=0,1
+    *   4bytes: stream id,          fmt=0
+    */
     // see also: ngx_rtmp_recv
     if (fmt <= RTMP_FMT_TYPE2) {
         char* pp = (char*)&chunk->header.timestamp_delta;
@@ -1015,7 +1022,7 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
         // timestamp header’ MUST be present. Otherwise, this value SHOULD be
         // the entire delta.
         chunk->extended_timestamp = (chunk->header.timestamp_delta >= RTMP_EXTENDED_TIMESTAMP);
-        if (chunk->extended_timestamp) {
+        if (!chunk->extended_timestamp) {
             // Extended timestamp: 0 or 4 bytes
             // This field MUST be sent when the normal timsestamp is set to
             // 0xffffff, it MUST NOT be sent if the normal timestamp is set to
@@ -1024,12 +1031,6 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
             // MUST NOT be present. For values greater than or equal to 0xffffff
             // the normal timestamp field MUST NOT be used and MUST be set to
             // 0xffffff and the extended timestamp MUST be sent.
-            //
-            // if extended timestamp, the timestamp must >= RTMP_EXTENDED_TIMESTAMP
-            // we set the timestamp to RTMP_EXTENDED_TIMESTAMP to identify we
-            // got an extended timestamp.
-            chunk->header.timestamp = RTMP_EXTENDED_TIMESTAMP;
-        } else {
             if (fmt == RTMP_FMT_TYPE0) {
                 // 6.1.2.1. Type 0
                 // For a type-0 chunk, the absolute timestamp of the message is sent
@@ -1090,7 +1091,7 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
     }
     
     // read extended-timestamp
-    if (chunk->extended_timestamp && send_extended_timestamp_for_C3_chunk) {
+    if (chunk->extended_timestamp) {
         mh_size += 4;
         required_size = bh_size + mh_size;
         srs_verbose("read header ext time. fmt=%d, ext_time=%d, mh_size=%d", fmt, chunk->extended_timestamp, mh_size);
@@ -1108,14 +1109,35 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
         pp[1] = *p++;
         pp[0] = *p++;
         
-        // ffmpeg/librtmp may donot send this filed, need to detect the value.
-        // @see also: http://blog.csdn.net/win_lin/article/details/13363699
-        // compare to the chunk timestamp, which is set by chunk message header
-        // type 0,1 or 2.
+        /**
+        * RTMP specification and ffmpeg/librtmp is false,
+        * but, adobe changed the specification, so flash/FMLE/FMS always true.
+        * default to true to support flash/FMLE/FMS.
+        * 
+        * ffmpeg/librtmp may donot send this filed, need to detect the value.
+        * @see also: http://blog.csdn.net/win_lin/article/details/13363699
+        * compare to the chunk timestamp, which is set by chunk message header
+        * type 0,1 or 2.
+        *
+        * @remark, nginx send the extended-timestamp in sequence-header,
+        * and timestamp delta in continue C1 chunks, and so compatible with ffmpeg,
+        * that is, there is no continue chunks and extended-timestamp in nginx-rtmp.
+        *
+        * @remark, srs always send the extended-timestamp, to keep simple,
+        * and compatible with adobe products.
+        */
         u_int32_t chunk_timestamp = chunk->header.timestamp;
-        if (chunk_timestamp > RTMP_EXTENDED_TIMESTAMP && chunk_timestamp != timestamp) {
+        
+        /**
+        * if chunk_timestamp<=0, the chunk previous packet has no extended-timestamp,
+        * always use the extended timestamp.
+        */
+        /**
+        * about the is_first_chunk_of_msg.
+        * @remark, for the first chunk of message, always use the extended timestamp.
+        */
+        if (!is_first_chunk_of_msg && chunk_timestamp > 0 && chunk_timestamp != timestamp) {
             mh_size -= 4;
-            send_extended_timestamp_for_C3_chunk = false;
             srs_warn("no 4bytes extended timestamp in the continued chunk");
         } else {
             chunk->header.timestamp = timestamp;
