@@ -53,13 +53,13 @@ git clone https://code.csdn.net/winlinvip/srs-csdn.git
     <tr>
         <td><a href="https://github.com/winlinvip/srs.win" target="_blank">SRS-Windows</a></td>
         <td>SRS服务器 Windows平台分支</td>
-        <td><a href="https://github.com/suhetao" target="_blank">suhetao(suhetao@gmail.com)</a></td>
+        <td><a href="https://github.com/suhetao" target="_blank">suhetao</a></td>
         <td><a href="https://github.com/suhetao" target="_blank">suhetao(suhetao@gmail.com)</a></td>
     </tr>
     <tr>
         <td><a href="https://github.com/winlinvip/srs.librtmp.win" target="_blank">SRS-LIBRTMP-Windows</a></td>
         <td>SRS-LIBRTMP客户端库 Windows平台分支</td>
-        <td><a href="https://github.com/chadwangcn" target="_blank">chad.wang(chad.wang.cn@gmail.com)</a></td>
+        <td><a href="https://github.com/chadwangcn" target="_blank">chad.wang</a></td>
         <td><a href="https://github.com/chadwangcn" target="_blank">chad.wang(chad.wang.cn@gmail.com)</a></td>
     </tr>
 </table>
