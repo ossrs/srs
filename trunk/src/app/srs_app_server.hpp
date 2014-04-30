@@ -64,7 +64,7 @@ private:
     SrsServer* _server;
     SrsThread* pthread;
 public:
-    SrsListener(SrsServer* _server, SrsListenerType type);
+    SrsListener(SrsServer* server, SrsListenerType type);
     virtual ~SrsListener();
 public:
     virtual SrsListenerType type();
@@ -75,9 +75,39 @@ public:
     virtual int cycle();
 };
 
+/**
+* convert signal to io,
+* @see: st-1.9/docs/notes.html
+*/
+class SrsSignalManager : public ISrsThreadHandler
+{
+private:
+    /* Per-process pipe which is used as a signal queue. */
+    /* Up to PIPE_BUF/sizeof(int) signals can be queued up. */
+    int sig_pipe[2];
+    st_netfd_t signal_read_stfd;
+private:
+    SrsServer* _server;
+    SrsThread* pthread;
+public:
+    SrsSignalManager(SrsServer* server);
+    virtual ~SrsSignalManager();
+public:
+    virtual int initialize();
+    virtual int start();
+// interface ISrsThreadHandler.
+public:
+    virtual int cycle();
+private:
+    // global singleton instance
+    static SrsSignalManager* instance;
+    /* Signal catching function. */
+    /* Converts signal event to I/O event. */
+    static void sig_catcher(int signo);
+};
+
 class SrsServer : public ISrsReloadHandler
 {
-    friend class SrsListener;
 private:
 #ifdef SRS_AUTO_HTTP_API
     SrsHttpHandler* http_api_handler;
@@ -92,6 +122,7 @@ private:
     int pid_fd;
     std::vector<SrsConnection*> conns;
     std::vector<SrsListener*> listeners;
+    SrsSignalManager* signal_manager;
     bool signal_reload;
     bool signal_gmc_stop;
 public:
@@ -99,9 +130,11 @@ public:
     virtual ~SrsServer();
 public:
     virtual int initialize();
+    virtual int initialize_signal();
     virtual int acquire_pid_file();
     virtual int initialize_st();
     virtual int listen();
+    virtual int register_signal();
     virtual int ingest();
     virtual int cycle();
     virtual void remove(SrsConnection* conn);
@@ -111,6 +144,8 @@ private:
     virtual int listen_http_api();
     virtual int listen_http_stream();
     virtual void close_listeners(SrsListenerType type);
+// internal only
+public:
     virtual int accept_client(SrsListenerType type, st_netfd_t client_stfd);
 // interface ISrsThreadHandler.
 public:

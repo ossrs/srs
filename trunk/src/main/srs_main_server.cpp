@@ -24,8 +24,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <stdlib.h>
-#include <signal.h>
-
 #include <sys/types.h>
 #include <sys/wait.h>
 
@@ -55,13 +53,6 @@ ISrsThreadContext* _srs_context = new SrsThreadContext();
 // app module.
 SrsConfig* _srs_config = new SrsConfig();
 SrsServer* _srs_server = new SrsServer();
-
-// signal handler
-void handler(int signo)
-{
-    srs_trace("get a signal, signo=%d", signo);
-    _srs_server->on_signal(signo);
-}
 
 // main entrance.
 int main(int argc, char** argv) 
@@ -166,9 +157,9 @@ int run_master()
 {
     int ret = ERROR_SUCCESS;
     
-    signal(SIGNAL_RELOAD, handler);
-    signal(SIGTERM, handler);
-    signal(SIGINT, handler);
+    if ((ret = _srs_server->initialize_signal()) != ERROR_SUCCESS) {
+        return ret;
+    }
     
     if ((ret = _srs_server->acquire_pid_file()) != ERROR_SUCCESS) {
         return ret;
@@ -179,6 +170,10 @@ int run_master()
     }
     
     if ((ret = _srs_server->listen()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = _srs_server->register_signal()) != ERROR_SUCCESS) {
         return ret;
     }
     
