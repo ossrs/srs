@@ -325,6 +325,12 @@ public:
 * message is raw data RTMP message, bytes oriented,
 * protcol always recv RTMP message, and can send RTMP message or RTMP packet.
 * the shared-ptr message is a special RTMP message, use ref-count for performance issue.
+* 
+* @remark, never directly new SrsMessage, the constructor is protected,
+* for in the SrsMessage, we never know whether we should free the message,
+* for SrsCommonMessage, we should free the payload,
+* while for SrsSharedPtrMessage, we should use ref-count to free it.
+* so, use these two concrete message, SrsCommonMessage or SrsSharedPtrMessage instread.
 */
 class SrsMessage
 {
@@ -341,9 +347,20 @@ public:
     */
     int32_t size;
     int8_t* payload;
-public:
+protected:
     SrsMessage();
+public:
     virtual ~SrsMessage();
+};
+
+/**
+* the common message used free the payload in common way.
+*/
+class SrsCommonMessage : public SrsMessage
+{
+public:
+    SrsCommonMessage();
+    virtual ~SrsCommonMessage();
 };
 
 /**

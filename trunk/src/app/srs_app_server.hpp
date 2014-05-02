@@ -140,6 +140,7 @@ public:
     virtual void remove(SrsConnection* conn);
     virtual void on_signal(int signo);
 private:
+    virtual int do_cycle();
     virtual int listen_rtmp();
     virtual int listen_http_api();
     virtual int listen_http_stream();

@@ -759,7 +759,7 @@ int SrsProtocol::send_and_free_packet(SrsPacket* packet, int stream_id)
     }
     
     // to message
-    SrsMessage* msg = new SrsMessage();
+    SrsMessage* msg = new SrsCommonMessage();
     
     msg->payload = (int8_t*)payload;
     msg->size = (int32_t)size;
@@ -975,7 +975,7 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
     bool is_first_chunk_of_msg = false;
     if (!chunk->msg) {
         is_first_chunk_of_msg = true;
-        chunk->msg = new SrsMessage();
+        chunk->msg = new SrsCommonMessage();
         srs_verbose("create message for new chunk, fmt=%d, cid=%d", fmt, chunk->cid);
     }
 
@@ -1532,7 +1532,16 @@ SrsMessage::SrsMessage()
 }
 
 SrsMessage::~SrsMessage()
-{    
+{
+}
+
+SrsCommonMessage::SrsCommonMessage()
+{
+}
+
+SrsCommonMessage::~SrsCommonMessage()
+{
+    srs_freepa(payload);
 }
 
 SrsSharedPtrMessage::__SrsSharedPtr::__SrsSharedPtr()

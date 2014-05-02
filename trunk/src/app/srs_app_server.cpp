@@ -532,55 +532,8 @@ int SrsServer::ingest()
 int SrsServer::cycle()
 {
     int ret = ERROR_SUCCESS;
-    
-    // find the max loop
-    int max = srs_max(0, SRS_SYS_TIME_RESOLUTION_MS_TIMES);
-    max = srs_max(max, SRS_SYS_RUSAGE_RESOLUTION_TIMES);
-    max = srs_max(max, SRS_SYS_CPU_STAT_RESOLUTION_TIMES);
-    max = srs_max(max, SRS_SYS_MEMINFO_RESOLUTION_TIMES);
-    
-    // the deamon thread, update the time cache
-    while (true) {
-        for (int i = 1; i < max + 1; i++) {
-            st_usleep(SRS_SYS_CYCLE_INTERVAL * 1000);
-        
-// for gperf heap checker,
-// @see: research/gperftools/heap-checker/heap_checker.cc
-// if user interrupt the program, exit to check mem leak.
-// but, if gperf, use reload to ensure main return normally,
-// because directly exit will cause core-dump.
-#ifdef SRS_AUTO_GPERF_MC
-            if (signal_gmc_stop) {
-                break;
-            }
-#endif
-        
-            if (signal_reload) {
-                signal_reload = false;
-                srs_info("get signal reload, to reload the config.");
-                
-                if ((ret = _srs_config->reload()) != ERROR_SUCCESS) {
-                    srs_error("reload config failed. ret=%d", ret);
-                    return ret;
-                }
-                srs_trace("reload config success.");
-            }
-            
-            // update the cache time or rusage.
-            if ((i % SRS_SYS_TIME_RESOLUTION_MS_TIMES) == 0) {
-                srs_update_system_time_ms();
-            }
-            if ((i % SRS_SYS_RUSAGE_RESOLUTION_TIMES) == 0) {
-                srs_update_system_rusage();
-            }
-            if ((i % SRS_SYS_CPU_STAT_RESOLUTION_TIMES) == 0) {
-                srs_update_proc_stat();
-            }
-            if ((i % SRS_SYS_MEMINFO_RESOLUTION_TIMES) == 0) {
-                srs_update_meminfo();
-            }
-        }
-    }
+
+    ret = do_cycle();
 
 #ifdef SRS_AUTO_INGEST
     ingester->stop();
@@ -627,6 +580,62 @@ void SrsServer::on_signal(int signo)
         exit(0);
         return;
     }
+}
+
+int SrsServer::do_cycle()
+{
+    int ret = ERROR_SUCCESS;
+    
+    // find the max loop
+    int max = srs_max(0, SRS_SYS_TIME_RESOLUTION_MS_TIMES);
+    max = srs_max(max, SRS_SYS_RUSAGE_RESOLUTION_TIMES);
+    max = srs_max(max, SRS_SYS_CPU_STAT_RESOLUTION_TIMES);
+    max = srs_max(max, SRS_SYS_MEMINFO_RESOLUTION_TIMES);
+    
+    // the deamon thread, update the time cache
+    while (true) {
+        for (int i = 1; i < max + 1; i++) {
+            st_usleep(SRS_SYS_CYCLE_INTERVAL * 1000);
+        
+// for gperf heap checker,
+// @see: research/gperftools/heap-checker/heap_checker.cc
+// if user interrupt the program, exit to check mem leak.
+// but, if gperf, use reload to ensure main return normally,
+// because directly exit will cause core-dump.
+#ifdef SRS_AUTO_GPERF_MC
+            if (signal_gmc_stop) {
+                return ret;
+            }
+#endif
+        
+            if (signal_reload) {
+                signal_reload = false;
+                srs_info("get signal reload, to reload the config.");
+                
+                if ((ret = _srs_config->reload()) != ERROR_SUCCESS) {
+                    srs_error("reload config failed. ret=%d", ret);
+                    return ret;
+                }
+                srs_trace("reload config success.");
+            }
+            
+            // update the cache time or rusage.
+            if ((i % SRS_SYS_TIME_RESOLUTION_MS_TIMES) == 0) {
+                srs_update_system_time_ms();
+            }
+            if ((i % SRS_SYS_RUSAGE_RESOLUTION_TIMES) == 0) {
+                srs_update_system_rusage();
+            }
+            if ((i % SRS_SYS_CPU_STAT_RESOLUTION_TIMES) == 0) {
+                srs_update_proc_stat();
+            }
+            if ((i % SRS_SYS_MEMINFO_RESOLUTION_TIMES) == 0) {
+                srs_update_meminfo();
+            }
+        }
+    }
+
+    return ret;
 }
 
 int SrsServer::listen_rtmp()
