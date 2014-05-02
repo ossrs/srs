@@ -1170,6 +1170,7 @@ int srs_rtmp_expect_message(SrsProtocol* protocol, SrsMessage** pmsg, T** ppacke
         if ((ret = protocol->decode_message(msg, &packet)) != ERROR_SUCCESS) {
             srs_error("decode message failed. ret=%d", ret);
             srs_freep(msg);
+            srs_freep(packet);
             return ret;
         }
         
@@ -1179,6 +1180,7 @@ int srs_rtmp_expect_message(SrsProtocol* protocol, SrsMessage** pmsg, T** ppacke
                 msg->header.message_type, msg->header.payload_length,
                 msg->header.timestamp, msg->header.stream_id);
             srs_freep(msg);
+            srs_freep(packet);
             continue;
         }
         
