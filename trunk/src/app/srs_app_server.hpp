@@ -128,6 +128,7 @@ private:
 public:
     SrsServer();
     virtual ~SrsServer();
+    virtual void destroy();
 public:
     virtual int initialize();
     virtual int initialize_signal();

@@ -311,6 +311,11 @@ SrsServer::SrsServer()
 
 SrsServer::~SrsServer()
 {
+    destroy();
+}
+
+void SrsServer::destroy()
+{
     _srs_config->unsubscribe(this);
     
     if (true) {
@@ -538,6 +543,8 @@ int SrsServer::cycle()
 #ifdef SRS_AUTO_INGEST
     ingester->stop();
 #endif
+
+    destroy();
     
     return ret;
 }
