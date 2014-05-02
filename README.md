@@ -153,7 +153,8 @@ cd simple-rtmp-server/trunk
 
 ## Donation
 
-[https://me.alipay.com/winlin](https://me.alipay.com/winlin)
+[http://winlinvip.github.io/srs.release/donation/](http://winlinvip.github.io/srs.release/donation/index.html) 
+OR [aliyun mirror](http://demo.chnvideo.com:8085/srs/donation/index.html)
 
 ## System Requirements
 Supported operating systems and hardware:
