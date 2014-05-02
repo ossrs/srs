@@ -449,6 +449,10 @@ int SrsProtocol::do_send_and_free_message(SrsMessage* msg, SrsPacket* packet)
 {
     int ret = ERROR_SUCCESS;
     
+    // always free msg.
+    srs_assert(msg);
+    SrsAutoFree(SrsMessage, msg, false);
+    
     // we donot use the complex basic header,
     // ensure the basic header is 1bytes.
     if (msg->header.perfer_cid < 2) {
@@ -732,9 +736,6 @@ int SrsProtocol::do_decode_message(SrsMessageHeader& header, SrsStream* stream, 
 
 int SrsProtocol::send_and_free_message(SrsMessage* msg)
 {
-    srs_assert(msg);
-    SrsAutoFree(SrsMessage, msg, false);
-    
     return do_send_and_free_message(msg, NULL);
 }
 
