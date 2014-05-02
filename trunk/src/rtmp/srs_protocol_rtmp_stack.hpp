@@ -1151,7 +1151,7 @@ protected:
 * if need to set timeout, use set timeout of SrsProtocol.
 */
 template<class T>
-int __srs_rtmp_expect_message(SrsProtocol* protocol, SrsMessage** pmsg, T** ppacket)
+int srs_rtmp_expect_message(SrsProtocol* protocol, SrsMessage** pmsg, T** ppacket)
 {
     *pmsg = NULL;
     *ppacket = NULL;

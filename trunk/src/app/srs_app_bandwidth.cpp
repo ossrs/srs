@@ -198,7 +198,7 @@ int SrsBandwidth::do_bandwidth_check()
     while (true) {
         SrsMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
-        if ((ret = __srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
             // info level to ignore and return success.
             srs_info("expect final message failed. ret=%d", ret);
             return ERROR_SUCCESS;
@@ -244,7 +244,7 @@ int SrsBandwidth::check_play(
         // recv client's starting play response
         SrsMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
-        if ((ret = __srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect bandwidth message failed. ret=%d", ret);
             return ret;
         }
@@ -325,7 +325,7 @@ int SrsBandwidth::check_play(
         // recv client's stop play response.
         SrsMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
-        if ((ret = __srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect bandwidth message failed. ret=%d", ret);
             return ret;
         }
@@ -368,7 +368,7 @@ int SrsBandwidth::check_publish(
         // read client's notification of starting publish
         SrsMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
-        if ((ret = __srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect bandwidth message failed. ret=%d", ret);
             return ret;
         }
@@ -436,7 +436,7 @@ int SrsBandwidth::check_publish(
         // recv client's stop publish response.
         SrsMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
-        if ((ret = __srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect bandwidth message failed. ret=%d", ret);
             return ret;
         }
