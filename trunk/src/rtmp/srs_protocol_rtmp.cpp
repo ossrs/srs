@@ -454,7 +454,6 @@ int SrsRtmpClient::connect_app(string app, string tc_url)
     if (true) {
         SrsConnectAppPacket* pkt = new SrsConnectAppPacket();
         
-        pkt->command_object = SrsAmf0Any::object();
         pkt->command_object->set("app", SrsAmf0Any::str(app.c_str()));
         pkt->command_object->set("swfUrl", SrsAmf0Any::str());
         pkt->command_object->set("tcUrl", SrsAmf0Any::str(tc_url.c_str()));

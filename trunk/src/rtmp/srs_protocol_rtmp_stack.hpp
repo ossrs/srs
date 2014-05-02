@@ -477,6 +477,10 @@ protected:
 public:
     std::string command_name;
     double transaction_id;
+    /**
+    * alloc in packet constructor,
+    * so, directly use it, never alloc again.
+    */
     SrsAmf0Object* command_object;
 public:
     SrsConnectAppPacket();

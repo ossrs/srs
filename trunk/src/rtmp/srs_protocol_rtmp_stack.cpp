@@ -382,6 +382,7 @@ int SrsProtocol::recv_message(SrsMessage** pmsg)
             if (ret != ERROR_SOCKET_TIMEOUT && !srs_is_client_gracefully_close(ret)) {
                 srs_error("recv interlaced message failed. ret=%d", ret);
             }
+            srs_freep(msg);
             return ret;
         }
         srs_verbose("entire msg received");
