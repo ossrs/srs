@@ -32,7 +32,7 @@ git clone https://code.csdn.net/winlinvip/srs-csdn.git
 横向对比(Compare): [https://github.com/winlinvip/simple-rtmp-server#compare](#compare) <br/>
 关键架构(Architecture): [https://github.com/winlinvip/simple-rtmp-server#architecture](#architecture)<br/>
 捐款(Donation): [http://winlinvip.github.io/srs.release/donation/](http://winlinvip.github.io/srs.release/donation/index.html) 
-或 [阿里云镜像](http://demo.chnvideo.com:8085/srs/donation/index.html)
+或 [阿里云镜像](http://demo.chnvideo.com:8085/srs/donation/index.html) [捐献墙](https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt)
 
 <table>
     <tr>
