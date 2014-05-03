@@ -154,7 +154,7 @@ cd simple-rtmp-server/trunk
 
 ## Donation
 
-[http://winlinvip.github.io/srs.release/donation/](http://winlinvip.github.io/srs.release/donation/index.html) 
+[http://winlinvip.github.io/srs.release/donation/index.html](http://winlinvip.github.io/srs.release/donation/index.html) 
 OR [aliyun mirror](http://demo.chnvideo.com:8085/srs/donation/index.html)
 
 Donations:<br/>
