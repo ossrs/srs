@@ -31,10 +31,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <srs_app_st.hpp>
+#include <srs_app_thread.hpp>
 
 class SrsServer;
-class SrsConnection
+class SrsConnection : public ISrsThreadHandler
 {
+private:
+    SrsThread* pthread;
 protected:
     char* ip;
     SrsServer* server;
@@ -45,13 +48,13 @@ public:
     virtual ~SrsConnection();
 public:
     virtual int start();
+    virtual int cycle();
+    virtual void on_thread_stop();
 protected:
     virtual int do_cycle() = 0;
+    virtual void stop();
 protected:
     virtual int get_peer_ip();
-private:
-    virtual void cycle();
-    static void* cycle_thread(void* arg);
 };
 
 #endif

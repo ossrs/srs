@@ -53,6 +53,7 @@ SrsEncoder::~SrsEncoder()
     on_unpublish();
     
     srs_freep(pthread);
+    srs_freep(pithy_print);
 }
 
 int SrsEncoder::on_publish(SrsRequest* req)

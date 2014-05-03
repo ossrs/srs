@@ -121,6 +121,11 @@ bool SrsThread::can_loop()
     return loop;
 }
 
+void SrsThread::stop_loop()
+{
+    loop = false;
+}
+
 void SrsThread::thread_cycle()
 {
     int ret = ERROR_SUCCESS;

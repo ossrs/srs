@@ -79,6 +79,8 @@ SrsRtmpConn::~SrsRtmpConn()
 {
     _srs_config->unsubscribe(this);
     
+    stop();
+    
     srs_freep(req);
     srs_freep(res);
     srs_freep(rtmp);

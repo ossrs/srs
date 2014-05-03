@@ -335,6 +335,9 @@ SrsEdgeForwarder::SrsEdgeForwarder()
 SrsEdgeForwarder::~SrsEdgeForwarder()
 {
     stop();
+    
+    srs_freep(pthread);
+    srs_freep(queue);
 }
 
 void SrsEdgeForwarder::set_queue_size(double queue_size)

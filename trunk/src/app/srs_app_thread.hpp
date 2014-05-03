@@ -49,19 +49,21 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * when thread interrupt, the socket maybe not got EINT,
 * espectially on st_usleep(), so the cycle must check the loop,
 * when handler->cycle() has loop itself, for example:
-*         handler->cycle() is:
-*             while (true):
-*                 st_usleep(0);
-*                 if (read_from_socket(skt) < 0) break;
+*         while (true):
+*             st_usleep(0);
+*             if (read_from_socket(skt) < 0) break;
 * if thread stop when read_from_socket, it's ok, the loop will break,
 * but when thread stop interrupt the s_usleep(0), then the loop is
 * death loop.
 * in a word, the handler->cycle() must:
-*        handler->cycle() is:
-*             while (pthread->can_loop()):
-*                st_usleep(0);
-*                 if (read_from_socket(skt) < 0) break;
+*         while (pthread->can_loop()):
+*             st_usleep(0);
+*             if (read_from_socket(skt) < 0) break;
 * check the loop, then it works.
+*
+* in the thread itself, that is the cycle method,
+* if itself want to terminate the thread, should never use stop(),
+* but use stop_loop() to set the loop to false and terminate normally.
 */
 class ISrsThreadHandler
 {
@@ -117,12 +119,19 @@ public:
     * @remark user can stop multiple times, ignore if already stopped.
     */
     virtual void stop();
+public:
     /**
     * whether the thread should loop,
     * used for handler->cycle() which has a loop method,
     * to check this method, break if false.
     */
     virtual bool can_loop();
+    /**
+    * for the loop thread to stop the loop.
+    * other thread can directly use stop() to stop loop and wait for quit.
+    * this stop loop method only set loop to false.
+    */
+    virtual void stop_loop();
 private:
     virtual void thread_cycle();
     static void* thread_fun(void* arg);

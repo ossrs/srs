@@ -437,6 +437,16 @@ int SrsSource::find(SrsRequest* req, SrsSource** ppsource)
     return ret;
 }
 
+void SrsSource::destroy()
+{
+    std::map<std::string, SrsSource*>::iterator it;
+    for (it = pool.begin(); it != pool.end(); ++it) {
+        SrsSource* source = it->second;
+        srs_freep(source);
+    }
+    pool.clear();
+}
+
 SrsSource::SrsSource(SrsRequest* req)
 {
     _req = req->copy();
@@ -468,14 +478,9 @@ SrsSource::~SrsSource()
 {
     _srs_config->unsubscribe(this);
     
-    if (true) {
-        std::vector<SrsConsumer*>::iterator it;
-        for (it = consumers.begin(); it != consumers.end(); ++it) {
-            SrsConsumer* consumer = *it;
-            srs_freep(consumer);
-        }
-        consumers.clear();
-    }
+    // never free the consumers, 
+    // for all consumers are auto free.
+    consumers.clear();
 
     if (true) {
         std::vector<SrsForwarder*>::iterator it;

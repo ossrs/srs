@@ -44,6 +44,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef SRS_AUTO_INGEST
 #include <srs_app_ingest.hpp>
 #endif
+#include <srs_app_source.hpp>
 
 #define SERVER_LISTEN_BACKLOG 512
 
@@ -251,6 +252,13 @@ int SrsSignalManager::start()
     sa.sa_flags = 0;
     sigaction(SIGINT, &sa, NULL);
     
+    sa.sa_handler = SrsSignalManager::sig_catcher;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGUSR2, &sa, NULL);
+    
+    srs_trace("signal installed");
+    
     return pthread->start();
 }
 
@@ -316,27 +324,17 @@ SrsServer::~SrsServer()
 
 void SrsServer::destroy()
 {
-    _srs_config->unsubscribe(this);
+    srs_warn("start destroy server");
     
-    if (true) {
-        std::vector<SrsConnection*>::iterator it;
-        for (it = conns.begin(); it != conns.end(); ++it) {
-            SrsConnection* conn = *it;
-            srs_freep(conn);
-        }
-        conns.clear();
-    }
+    _srs_config->unsubscribe(this);
     
     close_listeners(SrsListenerRtmpStream);
     close_listeners(SrsListenerHttpApi);
     close_listeners(SrsListenerHttpStream);
-    
-    if (pid_fd > 0) {
-        ::close(pid_fd);
-        pid_fd = -1;
-    }
-    
-    srs_freep(signal_manager);
+
+#ifdef SRS_AUTO_INGEST
+    ingester->stop();
+#endif
     
 #ifdef SRS_AUTO_HTTP_API
     srs_freep(http_api_handler);
@@ -348,6 +346,27 @@ void SrsServer::destroy()
 #ifdef SRS_AUTO_INGEST
     srs_freep(ingester);
 #endif
+    
+    if (pid_fd > 0) {
+        ::close(pid_fd);
+        pid_fd = -1;
+    }
+    
+    srs_freep(signal_manager);
+    
+    for (std::vector<SrsConnection*>::iterator it = conns.begin(); it != conns.end();) {
+        SrsConnection* conn = *it;
+
+        // remove the connection, then free it,
+        // for the free will remove itself from server,
+        // when erased here, the remove of server will ignore.
+        it = conns.erase(it);
+
+        srs_freep(conn);
+    }
+    conns.clear();
+
+    SrsSource::destroy();
 }
 
 int SrsServer::initialize()
@@ -540,11 +559,13 @@ int SrsServer::cycle()
 
     ret = do_cycle();
 
-#ifdef SRS_AUTO_INGEST
-    ingester->stop();
-#endif
-
     destroy();
+    
+#ifdef SRS_AUTO_GPERF_MC
+    srs_warn("sleep a long time for system st-threads to cleanup.");
+    st_usleep(3 * 1000 * 1000);
+    srs_warn("system quit");
+#endif
     
     return ret;
 }
@@ -553,9 +574,13 @@ void SrsServer::remove(SrsConnection* conn)
 {
     std::vector<SrsConnection*>::iterator it = std::find(conns.begin(), conns.end(), conn);
     
-    if (it != conns.end()) {
-        conns.erase(it);
+    // removed by destroy, ignore.
+    if (it == conns.end()) {
+        srs_warn("server moved connection, ignore.");
+        return;
     }
+    
+    conns.erase(it);
     
     srs_info("conn removed. conns=%d", (int)conns.size());
     
@@ -571,7 +596,7 @@ void SrsServer::on_signal(int signo)
         return;
     }
     
-    if (signo == SIGINT) {
+    if (signo == SIGINT || signo == SIGUSR2) {
 #ifdef SRS_AUTO_GPERF_MC
         srs_trace("gmc is on, main cycle will terminate normally.");
         signal_gmc_stop = true;
@@ -611,6 +636,7 @@ int SrsServer::do_cycle()
 // because directly exit will cause core-dump.
 #ifdef SRS_AUTO_GPERF_MC
             if (signal_gmc_stop) {
+                srs_warn("gmc got singal to stop server.");
                 return ret;
             }
 #endif

@@ -222,6 +222,11 @@ public:
     * @remark stream_url should without port and schema.
     */
     static int find(SrsRequest* req, SrsSource** ppsource);
+    /**
+    * when system exit, destroy the sources,
+    * for gmc to analysis mem leaks.
+    */
+    static void destroy();
 private:
     // deep copy of client request.
     SrsRequest* _req;
