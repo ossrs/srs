@@ -98,8 +98,7 @@ int SrsRtmpConn::do_cycle()
         srs_error("get peer ip failed. ret=%d", ret);
         return ret;
     }
-    srs_trace("rtmp get peer ip success. ip=%s, send_to=%"PRId64"us, recv_to=%"PRId64"us", 
-        ip, SRS_SEND_TIMEOUT_US, SRS_RECV_TIMEOUT_US);
+    srs_trace("serve client, peer ip=%s", ip);
 
     rtmp->set_recv_timeout(SRS_RECV_TIMEOUT_US);
     rtmp->set_send_timeout(SRS_SEND_TIMEOUT_US);
@@ -472,10 +471,9 @@ int SrsRtmpConn::playing(SrsSource* source)
         pithy_print.elapse();
 
         // read from client.
-        int ctl_msg_ret = ERROR_SUCCESS;
         if (true) {
             SrsMessage* msg = NULL;
-            ctl_msg_ret = ret = rtmp->recv_message(&msg);
+            ret = rtmp->recv_message(&msg);
             
             srs_verbose("play loop recv message. ret=%d", ret);
             if (ret != ERROR_SUCCESS && ret != ERROR_SOCKET_TIMEOUT) {
@@ -503,8 +501,8 @@ int SrsRtmpConn::playing(SrsSource* source)
         // reportable
         if (pithy_print.can_print()) {
             srs_trace("-> "SRS_LOG_ID_PLAY
-                " time=%"PRId64", duration=%"PRId64", cmr=%d, msgs=%d, obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
-                pithy_print.age(), duration, ctl_msg_ret, count, rtmp->get_send_bytes(), rtmp->get_recv_bytes(), 
+                " time=%"PRId64", duration=%"PRId64", msgs=%d, obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
+                pithy_print.age(), duration, count, rtmp->get_send_bytes(), rtmp->get_recv_bytes(), 
                 rtmp->get_send_kbps(), rtmp->get_recv_kbps());
         }
         
