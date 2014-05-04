@@ -55,6 +55,7 @@ if [ $SRS_ARM_UBUNTU12 = YES ]; then
     __SrsArmLD="arm-linux-gnueabi-ld";
     __SrsArmRANDLIB="arm-linux-gnueabi-ranlib";
 fi
+if [ $SRS_MIPS_UBUNTU12 = YES ]; then
     __SrsArmCC="mipsel-openwrt-linux-gcc";
     __SrsArmGCC="mipsel-openwrt-linux-gcc";
     __SrsArmCXX="mipsel-openwrt-linux-g++";
