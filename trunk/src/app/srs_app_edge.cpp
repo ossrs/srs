@@ -230,11 +230,11 @@ int SrsEdgeIngester::process_publish_message(SrsMessage* msg)
                 srs_error("source process onMetaData message failed. ret=%d", ret);
                 return ret;
             }
-            srs_trace("process onMetaData message success.");
+            srs_info("process onMetaData message success.");
             return ret;
         }
         
-        srs_trace("ignore AMF0/AMF3 data message.");
+        srs_info("ignore AMF0/AMF3 data message.");
         return ret;
     }
     

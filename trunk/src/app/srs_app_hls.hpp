@@ -147,7 +147,7 @@ private:
     int hls_fragment;
     int hls_window;
 private:
-    int file_index;
+    int _sequence_no;
     std::string m3u8;
 private:
     /**
@@ -161,6 +161,8 @@ private:
 public:
     SrsHlsMuxer();
     virtual ~SrsHlsMuxer();
+public:
+    virtual int sequence_no();
 public:
     virtual int update_config(std::string _app, std::string _stream, std::string path, int fragment, int window);
     /**

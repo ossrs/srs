@@ -158,5 +158,9 @@ extern ISrsThreadContext* _srs_context;
 #define SRS_LOG_ID_WEB_PUBLISH "WPB"
 // ingester for edge(play)/origin
 #define SRS_LOG_ID_INGESTER "IGS"
+// hls log id.
+#define SRS_LOG_ID_HLS "HLS"
+// encoder log id.
+#define SRS_LOG_ID_ENCODER "ENC"
 
 #endif

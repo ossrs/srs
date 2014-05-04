@@ -101,7 +101,7 @@ void SrsFastLog::verbose(const char* tag, int context_id, const char* fmt, ...)
     }
     
     int size = 0;
-    if (!generate_header(tag, context_id, "verb", &size)) {
+    if (!generate_header(false, tag, context_id, "verb", &size)) {
         return;
     }
     
@@ -121,7 +121,7 @@ void SrsFastLog::info(const char* tag, int context_id, const char* fmt, ...)
     }
     
     int size = 0;
-    if (!generate_header(tag, context_id, "debug", &size)) {
+    if (!generate_header(false, tag, context_id, "debug", &size)) {
         return;
     }
     
@@ -141,7 +141,7 @@ void SrsFastLog::trace(const char* tag, int context_id, const char* fmt, ...)
     }
     
     int size = 0;
-    if (!generate_header(tag, context_id, "trace", &size)) {
+    if (!generate_header(false, tag, context_id, "trace", &size)) {
         return;
     }
     
@@ -161,7 +161,7 @@ void SrsFastLog::warn(const char* tag, int context_id, const char* fmt, ...)
     }
     
     int size = 0;
-    if (!generate_header(tag, context_id, "warn", &size)) {
+    if (!generate_header(true, tag, context_id, "warn", &size)) {
         return;
     }
     
@@ -181,7 +181,7 @@ void SrsFastLog::error(const char* tag, int context_id, const char* fmt, ...)
     }
     
     int size = 0;
-    if (!generate_header(tag, context_id, "error", &size)) {
+    if (!generate_header(true, tag, context_id, "error", &size)) {
         return;
     }
     
@@ -245,7 +245,7 @@ int SrsFastLog::on_reload_log_file()
     return ret;
 }
 
-bool SrsFastLog::generate_header(const char* tag, int context_id, const char* level_name, int* header_size)
+bool SrsFastLog::generate_header(bool error, const char* tag, int context_id, const char* level_name, int* header_size)
 {
     // clock time
     timeval tv;
@@ -262,16 +262,30 @@ bool SrsFastLog::generate_header(const char* tag, int context_id, const char* le
     // write log header
     int log_header_size = -1;
     
-    if (tag) {
-        log_header_size = snprintf(log_data, LOG_MAX_SIZE, 
-            "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%s][%d][%d] ", 
-            1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000), 
-            level_name, tag, context_id, errno);
+    if (error) {
+        if (tag) {
+            log_header_size = snprintf(log_data, LOG_MAX_SIZE, 
+                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%s][%d][%d] ", 
+                1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000), 
+                level_name, tag, context_id, errno);
+        } else {
+            log_header_size = snprintf(log_data, LOG_MAX_SIZE, 
+                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%d] ", 
+                1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000), 
+                level_name, context_id, errno);
+        }
     } else {
-        log_header_size = snprintf(log_data, LOG_MAX_SIZE, 
-            "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d][%d] ", 
-            1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000), 
-            level_name, context_id, errno);
+        if (tag) {
+            log_header_size = snprintf(log_data, LOG_MAX_SIZE, 
+                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%s][%d] ", 
+                1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000), 
+                level_name, tag, context_id);
+        } else {
+            log_header_size = snprintf(log_data, LOG_MAX_SIZE, 
+                "[%d-%02d-%02d %02d:%02d:%02d.%03d][%s][%d] ", 
+                1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000), 
+                level_name, context_id);
+        }
     }
 
     if (log_header_size == -1) {

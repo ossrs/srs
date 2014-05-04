@@ -517,7 +517,7 @@ SrsHlsAacJitter::SrsHlsAacJitter()
 SrsHlsMuxer::SrsHlsMuxer()
 {
     hls_fragment = hls_window = 0;
-    file_index = 0;
+    _sequence_no = 0;
     current = NULL;
 }
 
@@ -531,6 +531,11 @@ SrsHlsMuxer::~SrsHlsMuxer()
     segments.clear();
     
     srs_freep(current);
+}
+
+int SrsHlsMuxer::sequence_no()
+{
+    return _sequence_no;
 }
 
 int SrsHlsMuxer::update_config(
@@ -567,7 +572,7 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     
     // new segment.
     current = new SrsHlsSegment();
-    current->sequence_no = file_index++;
+    current->sequence_no = _sequence_no++;
     current->segment_start_dts = segment_start_dts;
     
     // generate filename.
@@ -690,7 +695,7 @@ int SrsHlsMuxer::segment_close(string log_desc)
     if (current->duration * 1000 >= SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
         segments.push_back(current);
     
-        srs_trace("%s reap ts segment, sequence_no=%d, uri=%s, duration=%.2f, start=%"PRId64"",
+        srs_info("%s reap ts segment, sequence_no=%d, uri=%s, duration=%.2f, start=%"PRId64"",
             log_desc.c_str(), current->sequence_no, current->uri.c_str(), current->duration, 
             current->segment_start_dts);
     
@@ -709,7 +714,7 @@ int SrsHlsMuxer::segment_close(string log_desc)
         }
     } else {
         // reuse current segment index.
-        file_index--;
+        _sequence_no--;
         
         srs_trace("%s drop ts segment, sequence_no=%d, uri=%s, duration=%.2f, start=%"PRId64"",
             log_desc.c_str(), current->sequence_no, current->uri.c_str(), current->duration, 
@@ -1470,7 +1475,9 @@ void SrsHls::hls_mux()
 {
     // reportable
     if (pithy_print->can_print()) {
-        srs_trace("-> time=%"PRId64"", pithy_print->age());
+        srs_trace("-> "SRS_LOG_ID_HLS
+            " time=%"PRId64", dts=%"PRId64", sequence_no=%d", 
+            pithy_print->age(), stream_dts, muxer->sequence_no());
     }
     
     pithy_print->elapse();

@@ -84,7 +84,7 @@ public:
     virtual int on_reload_log_level();
     virtual int on_reload_log_file();
 private:
-    virtual bool generate_header(const char* tag, int context_id, const char* level_name, int* header_size);
+    virtual bool generate_header(bool error, const char* tag, int context_id, const char* level_name, int* header_size);
     virtual void write_log(int& fd, char* str_log, int size, int level);
     virtual void open_log_file();
 };
