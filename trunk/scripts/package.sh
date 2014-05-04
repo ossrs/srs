@@ -13,6 +13,9 @@ help=NO
 X86_X64=NO
 ARM=NO
 PI=NO
+MIPS=NO
+#
+EMBEDED=NO
 
 ##################################################################################
 ##################################################################################
@@ -32,6 +35,7 @@ do
         --help)                         help=yes                  ;;
         
         --x86-x64)                      X86_X64=YES               ;;
+        --mips)                         MIPS=YES                  ;;
         --arm)                          ARM=YES                   ;;
         --pi)                           PI=YES                    ;;
 
@@ -48,10 +52,15 @@ if [ $help = yes ]; then
 
   --x86-x64                for x86-x64 platform, configure/make/package.
   --arm                    for arm cross-build platform, configure/make/package.
+  --mips                   for mips cross-build platform, configure/make/package.
   --pi                     for pi platform, configure/make/package.
 END
     exit 0
 fi
+
+# embeded(arm/mips)
+if [ $ARM = YES ]; then EMBEDED=YES; fi
+if [ $MIPS = YES ]; then EMBEDED=YES; fi
 
 # discover the current work dir, the log and access.
 echo "argv[0]=$0"
@@ -93,6 +102,11 @@ if [ $ARM = YES ]; then
         cd $work_dir && 
         ./configure --arm --prefix=$INSTALL && make
     ) >> $log 2>&1
+elif [ $MIPS = YES ]; then
+    (
+        cd $work_dir && 
+        ./configure --mips --prefix=$INSTALL && make
+    ) >> $log 2>&1
 elif [ $PI = YES ]; then
     (
         cd $work_dir && 
@@ -104,7 +118,7 @@ elif [ $X86_X64 = YES ]; then
         ./configure --x86-x64 --prefix=$INSTALL && make
     ) >> $log 2>&1
 else
-    failed_msg "invalid option, must be --x86-x64/--arm/--pi, see --help"; exit 1;
+    failed_msg "invalid option, must be --x86-x64/--arm/--mips/--pi, see --help"; exit 1;
 fi
 ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "build srs failed"; exit $ret; fi
 ok_msg "build srs success"
@@ -134,10 +148,13 @@ if [ $ARM = YES ]; then
     arm_cpu=`arm-linux-gnueabi-readelf --arch-specific ${build_objs}/srs|grep Tag_CPU_arch:|awk '{print $2}'`
     os_machine=arm${arm_cpu}cpu
 fi
+if [ $MIPS = YES ]; then
+    os_machine=mips
+fi
 ok_msg "machine: $os_machine"
 
 # generate zip dir and zip filename
-if [ $ARM = YES ]; then
+if [ $EMBEDED = YES ]; then
     srs_version_major=`cat $work_dir/src/core/srs_core.hpp| grep '#define VERSION_MAJOR'| awk '{print $3}'|xargs echo` &&
     srs_version_minor=`cat $work_dir/src/core/srs_core.hpp| grep '#define VERSION_MINOR'| awk '{print $3}'|xargs echo` &&
     srs_version_revision=`cat $work_dir/src/core/srs_core.hpp| grep '#define VERSION_REVISION'| awk '{print $3}'|xargs echo` &&

@@ -107,11 +107,19 @@ function Ubuntu_prepare()
     
     # for arm, install the cross build tool chain.
     if [ $SRS_ARM_UBUNTU12 = YES ]; then
-        arm-linux-gnueabi-gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        `$SrsArmCC` --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "install gcc-arm-linux-gnueabi g++-arm-linux-gnueabi"
             require_sudoer "sudo apt-get install -y --force-yes gcc-arm-linux-gnueabi g++-arm-linux-gnueabi"
             sudo apt-get install -y --force-yes gcc-arm-linux-gnueabi g++-arm-linux-gnueabi; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "install gcc-arm-linux-gnueabi g++-arm-linux-gnueabi success"
+        fi
+    fi
+    
+    # for mips, user must installed the tool chain.
+    if [ $SRS_MIPS_UBUNTU12 = YES ]; then
+        `$SrsArmCC` --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+            echo "user must install the tool chain: $SrsArmCC"
+            return 2
         fi
     fi
     
@@ -203,8 +211,8 @@ function Centos_prepare()
     fi
     
     # for arm, install the cross build tool chain.
-    if [ $SRS_ARM_UBUNTU12 = YES ]; then
-        echo "arm-ubuntu12 is invalid for CentOS"
+    if [ $SRS_EMBEDED_CPU = YES ]; then
+        echo "embeded(arm/mips) is invalid for CentOS"
         return 1
     fi
     
@@ -217,7 +225,7 @@ Centos_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "CentOS prepare failed, r
 # st-1.9
 #####################################################################################
 # check the arm flag file, if flag changed, need to rebuild the st.
-if [ $SRS_ARM_UBUNTU12 = YES ]; then
+if [ $SRS_EMBEDED_CPU = YES ]; then
     # ok, arm specified, if the flag filed does not exists, need to rebuild.
     if [[ -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st/libst.a && -f ${SRS_OBJS}/st/libst.so ]]; then
         echo "st-1.9t for arm is ok.";
@@ -263,7 +271,7 @@ if [ ! -f ${SRS_OBJS}/st/libst.so ]; then echo "build st-1.9 failed."; exit -1; 
 # check the arm flag file, if flag changed, need to rebuild the st.
 if [ $SRS_HTTP_PARSER = YES ]; then
     # ok, arm specified, if the flag filed does not exists, need to rebuild.
-    if [ $SRS_ARM_UBUNTU12 = YES ]; then
+    if [ $SRS_EMBEDED_CPU = YES ]; then
         if [[ -f ${SRS_OBJS}/_flag.st.hp.tmp && -f ${SRS_OBJS}/hp/http_parser.h && -f ${SRS_OBJS}/hp/libhttp_parser.a ]]; then
             echo "http-parser-2.1 for arm is ok.";
         else
@@ -336,7 +344,7 @@ END
 # create the nginx dir, for http-server if not build nginx
 rm -rf ${SRS_OBJS}/nginx && mkdir -p ${SRS_OBJS}/nginx
 # make nginx
-__SRS_BUILD_NGINX=NO; if [ $SRS_ARM_UBUNTU12 = NO ]; then if [ $SRS_NGINX = YES ]; then __SRS_BUILD_NGINX=YES; fi fi
+__SRS_BUILD_NGINX=NO; if [ $SRS_EMBEDED_CPU = NO ]; then if [ $SRS_NGINX = YES ]; then __SRS_BUILD_NGINX=YES; fi fi
 if [ $__SRS_BUILD_NGINX = YES ]; then
     if [[ -f ${SRS_OBJS}/nginx/sbin/nginx ]]; then
         echo "nginx-1.5.7 is ok.";
@@ -473,7 +481,7 @@ if [ $SRS_SSL = YES ]; then
         echo "warning: donot compile ssl, use system ssl"
     else
         # check the arm flag file, if flag changed, need to rebuild the st.
-        if [ $SRS_ARM_UBUNTU12 = YES ]; then
+        if [ $SRS_EMBEDED_CPU = YES ]; then
             # ok, arm specified, if the flag filed does not exists, need to rebuild.
             if [[ -f ${SRS_OBJS}/_flag.ssl.arm.tmp && -f ${SRS_OBJS}/openssl/lib/libssl.a ]]; then
                 echo "openssl-1.0.1f for arm is ok.";
@@ -633,15 +641,30 @@ else
 fi
 
 #####################################################################################
-# for arm.
+# for embeded.
 #####################################################################################
+if [ $SRS_EMBEDED_CPU = YES ]; then
+    echo "#define SRS_AUTO_EMBEDED_CPU" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_AUTO_EMBEDED_CPU" >> $SRS_AUTO_HEADERS_H
+fi
+
+# arm
 if [ $SRS_ARM_UBUNTU12 = YES ]; then
     echo "#define SRS_AUTO_ARM_UBUNTU12" >> $SRS_AUTO_HEADERS_H
 else
     echo "#undef SRS_AUTO_ARM_UBUNTU12" >> $SRS_AUTO_HEADERS_H
 fi
 
+# mips
+if [ $SRS_MIPS_UBUNTU12 = YES ]; then
+    echo "#define SRS_AUTO_MIPS_UBUNTU12" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_AUTO_MIPS_UBUNTU12" >> $SRS_AUTO_HEADERS_H
+fi
+
 echo "" >> $SRS_AUTO_HEADERS_H
+
 # prefix
 echo "#define SRS_AUTO_PREFIX \"${SRS_PREFIX}\"" >> $SRS_AUTO_HEADERS_H
 

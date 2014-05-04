@@ -47,15 +47,35 @@ echo "" >> $SRS_AUTO_HEADERS_H
 #####################################################################################
 # generate auto headers file, depends on the finished of options.sh
 #####################################################################################
+if [ $SRS_ARM_UBUNTU12 = YES ]; then
+    __SrsArmCC="arm-linux-gnueabi-gcc";
+    __SrsArmGCC="arm-linux-gnueabi-gcc";
+    __SrsArmCXX="arm-linux-gnueabi-g++";
+    __SrsArmAR="arm-linux-gnueabi-ar";
+    __SrsArmLD="arm-linux-gnueabi-ld";
+    __SrsArmRANDLIB="arm-linux-gnueabi-ranlib";
+fi
+    __SrsArmCC="mipsel-openwrt-linux-gcc";
+    __SrsArmGCC="mipsel-openwrt-linux-gcc";
+    __SrsArmCXX="mipsel-openwrt-linux-g++";
+    __SrsArmAR="mipsel-openwrt-linux-ar";
+    __SrsArmLD="mipsel-openwrt-linux-ld";
+    __SrsArmRANDLIB="mipsel-openwrt-linux-ranlib";
+fi
 # the arm-ubuntu12 options for make for depends
-if [[ -z $SrsArmCC ]]; then SrsArmCC="arm-linux-gnueabi-gcc"; fi
-if [[ -z $SrsArmGCC ]]; then SrsArmGCC="arm-linux-gnueabi-gcc"; fi
-if [[ -z $SrsArmCXX ]]; then SrsArmCXX="arm-linux-gnueabi-g++"; fi
-if [[ -z $SrsArmAR ]]; then SrsArmAR="arm-linux-gnueabi-ar"; fi
-if [[ -z $SrsArmLD ]]; then SrsArmLD="arm-linux-gnueabi-ld"; fi
-if [[ -z $SrsArmRANDLIB ]]; then SrsArmRANDLIB="arm-linux-gnueabi-ranlib"; fi
-echo "cc=$SrsArmCC gcc=$SrsArmGCC g++=$SrsArmCXX ar=$SrsArmAR ld=$SrsArmLD randlib=$SrsArmRANDLIB"
-echo "#define SRS_AUTO_ARM_TOOL_CHAIN \"cc=$SrsArmCC gcc=$SrsArmGCC g++=$SrsArmCXX ar=$SrsArmAR ld=$SrsArmLD randlib=$SrsArmRANDLIB\"" >> $SRS_AUTO_HEADERS_H
+if [[ -z $SrsArmCC ]]; then SrsArmCC=__SrsArmCC; fi
+if [[ -z $SrsArmGCC ]]; then SrsArmGCC=__SrsArmGCC; fi
+if [[ -z $SrsArmCXX ]]; then SrsArmCXX=__SrsArmCXX; fi
+if [[ -z $SrsArmAR ]]; then SrsArmAR=__SrsArmAR; fi
+if [[ -z $SrsArmLD ]]; then SrsArmLD=__SrsArmLD; fi
+if [[ -z $SrsArmRANDLIB ]]; then SrsArmRANDLIB=__SrsArmRANDLIB; fi
+# write to source file
+if [ $SRS_EMBEDED_CPU = YES ]; then
+    echo "cc=$SrsArmCC gcc=$SrsArmGCC g++=$SrsArmCXX ar=$SrsArmAR ld=$SrsArmLD randlib=$SrsArmRANDLIB"
+    echo "#define SRS_AUTO_EMBEDED_TOOL_CHAIN \"cc=$SrsArmCC gcc=$SrsArmGCC g++=$SrsArmCXX ar=$SrsArmAR ld=$SrsArmLD randlib=$SrsArmRANDLIB\"" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#define SRS_AUTO_EMBEDED_TOOL_CHAIN \"normal x86/x64 gcc\"" >> $SRS_AUTO_HEADERS_H
+fi
 echo "" >> $SRS_AUTO_HEADERS_H
 
 # apply user options.
@@ -185,8 +205,8 @@ DESTDIR=\$(SRS_PREFIX)
 
 END
 
-# arm, ubuntu12, use arm tool chain.
-if [ $SRS_ARM_UBUNTU12 = YES ]; then
+# embeded, ubuntu12, use embeded tool chain.
+if [ $SRS_EMBEDED_CPU = YES ]; then
     cat << END >> ${SRS_MAKEFILE}
 default:
 	\$(MAKE) GCC=${SrsArmGCC} CXX=${SrsArmCXX} AR=${SrsArmAR} LINK=${SrsArmCXX} _default
@@ -401,15 +421,13 @@ if [ $SRS_SSL = YES ]; then if [ $SRS_USE_SYS_SSL = NO ]; then LibSSLRoot="${SRS
 LibGperfRoot=""; LibGperfFile=""
 if [ $SRS_GPERF = YES ]; then LibGperfRoot="${SRS_OBJS}/gperf/include"; LibGperfFile="${SRS_OBJS}/gperf/lib/libtcmalloc_and_profiler.a"; fi
 # the link options, always use static link
-SrsLinkOptions=""; 
-if [ $SRS_SSL = YES ]; then if [ $SRS_USE_SYS_SSL = YES ]; then SrsLinkOptions="-lssl"; fi fi
-if [ $SRS_ARM_UBUNTU12 = YES ]; then 
-    # for arm cross build tool chain, always use static and ldl.
-    SrsLinkOptions="${SrsLinkOptions} -static -ldl"; 
-else
-    # for x86/64/arm directly build, use static or ldl.
-    if [ $SRS_STATIC = YES ]; then SrsLinkOptions="${SrsLinkOptions} -static"; else SrsLinkOptions="${SrsLinkOptions} -ldl"; fi
-fi
+SrsLinkOptions="-ldl"; 
+if [ $SRS_SSL = YES ]; then if [ $SRS_USE_SYS_SSL = YES ]; then SrsLinkOptions="${SrsLinkOptions} -lssl"; fi fi
+# if static specified, add static
+# TODO: FIXME: remove static.
+if [ $SRS_STATIC = YES ]; then SrsLinkOptions="${SrsLinkOptions} -static"; fi
+# if mips, add -lgcc_eh, or stl compile failed.
+if [ $SRS_MIPS_UBUNTU12 = NO ]; then SrsLinkOptions="${SrsLinkOptions} -lgcc_eh"; fi
 
 #####################################################################################
 # Modules, compile each module, then link to binary
@@ -617,6 +635,11 @@ if [ $SRS_ARM_UBUNTU12 = YES ]; then
     echo -e "${GREEN}arm-ubuntu12(armhf, v7cpu) for srs are builded${BLACK}"
 else
     echo -e "${GREEN}note: arm-ubuntu12(armhf, v7cpu) for srs are not builded${BLACK}"
+fi
+if [ $SRS_MIPS_UBUNTU12 = YES ]; then
+    echo -e "${GREEN}mips-ubuntu12 for srs are builded${BLACK}"
+else
+    echo -e "${GREEN}note: mips-ubuntu12 for srs are not builded${BLACK}"
 fi
 
 #####################################################################################

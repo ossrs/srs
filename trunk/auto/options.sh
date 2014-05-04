@@ -56,6 +56,8 @@ SRS_USE_SYS_SSL=NO
 SRS_X86_X64=NO
 # armhf(v7cpu) built on ubuntu12
 SRS_ARM_UBUNTU12=NO
+# mips built on ubuntu12
+SRS_MIPS_UBUNTU12=NO
 # dev, open all features for dev, no gperf/prof/arm.
 SRS_DEV=NO
 # raspberry-pi, open hls/ssl/static
@@ -68,6 +70,10 @@ SRS_PURE_RTMP=NO
 SRS_RTMP_HLS=NO
 # the most fast compile, nothing, only support vp6 RTMP.
 SRS_DISABLE_ALL=NO
+#
+# calc
+# whether embed cpu, arm/mips
+SRS_EMBEDED_CPU=NO
 
 #####################################################################################
 # menu
@@ -187,6 +193,7 @@ function parse_user_option() {
         --with-gcp)                     SRS_GPERF_CP=YES            ;;
         --with-gprof)                   SRS_GPROF=YES               ;;
         --with-arm-ubuntu12)            SRS_ARM_UBUNTU12=YES        ;;
+        --with-mips-ubuntu12)           SRS_MIPS_UBUNTU12=YES       ;;
                                                                  
         --without-ssl)                  SRS_SSL=NO                  ;;
         --without-hls)                  SRS_HLS=NO                  ;;
@@ -208,6 +215,7 @@ function parse_user_option() {
         --without-gcp)                  SRS_GPERF_CP=NO             ;;
         --without-gprof)                SRS_GPROF=NO                ;;
         --without-arm-ubuntu12)         SRS_ARM_UBUNTU12=NO         ;;
+        --without-mips-ubuntu12)        SRS_MIPS_UBUNTU12=NO        ;;
         
         --jobs)                         SRS_JOBS=${value}           ;;
         --prefix)                       SRS_PREFIX=${value}         ;;
@@ -215,6 +223,7 @@ function parse_user_option() {
         
         --x86-x64)                      SRS_X86_X64=YES             ;;
         --arm)                          SRS_ARM_UBUNTU12=YES        ;;
+        --mips)                         SRS_MIPS_UBUNTU12=YES       ;;
         --pi)                           SRS_PI=YES                  ;;
         --dev)                          SRS_DEV=YES                 ;;
         --fast)                         SRS_FAST=YES                ;;
@@ -266,9 +275,11 @@ function apply_user_presets() {
                 if [ $SRS_DISABLE_ALL = NO ]; then
                     if [ $SRS_DEV = NO ]; then
                         if [ $SRS_ARM_UBUNTU12 = NO ]; then
-                            if [ $SRS_PI = NO ]; then
-                                if [ $SRS_X86_X64 = NO ]; then
-                                    SRS_X86_X64=YES; opt="--x86-x64 $opt";
+                            if [ $SRS_MIPS_UBUNTU12 = NO ]; then
+                                if [ $SRS_PI = NO ]; then
+                                    if [ $SRS_X86_X64 = NO ]; then
+                                        SRS_X86_X64=YES; opt="--x86-x64 $opt";
+                                    fi
                                 fi
                             fi
                         fi
@@ -276,6 +287,14 @@ function apply_user_presets() {
                 fi
             fi
         fi
+    fi
+    
+    # whether embeded cpu.
+    if [ $SRS_ARM_UBUNTU12 = YES ]; then
+        SRS_EMBEDED_CPU=YES
+    fi
+    if [ $SRS_MIPS_UBUNTU12 = YES ]; then
+        SRS_EMBEDED_CPU=YES
     fi
 
     # all disabled.
@@ -400,7 +419,33 @@ function apply_user_presets() {
         SRS_GPERF_MP=NO
         SRS_GPERF_CP=NO
         SRS_GPROF=NO
+        # TODO: FIXME: need static? maybe donot.
         SRS_STATIC=YES
+    fi
+
+    # if mips specified, set some default to disabled.
+    if [ $SRS_MIPS_UBUNTU12 = YES ]; then
+        SRS_HLS=YES
+        SRS_DVR=YES
+        SRS_NGINX=NO
+        SRS_SSL=YES
+        SRS_FFMPEG_TOOL=NO
+        SRS_TRANSCODE=YES
+        SRS_INGEST=YES
+        SRS_HTTP_PARSER=YES
+        SRS_HTTP_CALLBACK=YES
+        SRS_HTTP_SERVER=YES
+        SRS_HTTP_API=YES
+        SRS_LIBRTMP=YES
+        SRS_BWTC=NO
+        SRS_RESEARCH=NO
+        SRS_UTEST=NO
+        SRS_GPERF=NO
+        SRS_GPERF_MC=NO
+        SRS_GPERF_MP=NO
+        SRS_GPERF_CP=NO
+        SRS_GPROF=NO
+        SRS_STATIC=NO
     fi
 
     # defaults for x86/x64
@@ -535,6 +580,7 @@ function regenerate_options() {
     if [ $SRS_GPERF_CP = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gcp"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gcp"; fi
     if [ $SRS_GPROF = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-gprof"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-gprof"; fi
     if [ $SRS_ARM_UBUNTU12 = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-arm-ubuntu12"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-arm-ubuntu12"; fi
+    if [ $SRS_MIPS_UBUNTU12 = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-mips-ubuntu12"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-mips-ubuntu12"; fi
     if [ $SRS_STATIC = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --static"; fi
     echo "regenerate config: ${SRS_AUTO_CONFIGURE}"
 }
@@ -568,9 +614,9 @@ function check_option_conflicts() {
         echo "gmc/gmp/gcp not compatible with gprof, see: ./configure --help"; __check_ok=NO; 
     fi fi
 
-    # check arm, if arm enabled, only allow st/ssl/librtmp,
+    # check embeded(arm/mips), if embeded enabled, only allow st/ssl/librtmp,
     # user should disable all other features
-    if [ $SRS_ARM_UBUNTU12 = YES ]; then
+    if [ $SRS_EMBEDED_CPU = YES ]; then
         if [ $SRS_FFMPEG_TOOL = YES ]; then echo "ffmpeg for arm is not available, see: ./configure --help"; __check_ok=NO; fi
         if [ $SRS_BWTC = YES ]; then echo "bwtc for arm is not available, see: ./configure --help"; __check_ok=NO; fi
         if [ $SRS_RESEARCH = YES ]; then echo "research for arm is not available, see: ./configure --help"; __check_ok=NO; fi
@@ -582,11 +628,9 @@ function check_option_conflicts() {
     fi
 
     # if x86/x64 or directly build, never use static
-    if [ $SRS_ARM_UBUNTU12 = NO ]; then
-        if [ $SRS_PI = NO ]; then
-            if [ $SRS_STATIC = YES ]; then
-                echo "x86/x64 should never use static, see: ./configure --help"; __check_ok=NO;
-            fi
+    if [ $SRS_X86_X64 = YES ]; then
+        if [ $SRS_STATIC = YES ]; then
+            echo "x86/x64 should never use static, see: ./configure --help"; __check_ok=NO;
         fi
     fi
 
@@ -609,6 +653,7 @@ function check_option_conflicts() {
     if [ $SRS_GPERF_CP = RESERVED ]; then echo "you must specifies the gperf-cp, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_GPROF = RESERVED ]; then echo "you must specifies the gprof, see: ./configure --help"; __check_ok=NO; fi
     if [ $SRS_ARM_UBUNTU12 = RESERVED ]; then echo "you must specifies the arm-ubuntu12, see: ./configure --help"; __check_ok=NO; fi
+    if [ $SRS_MIPS_UBUNTU12 = RESERVED ]; then echo "you must specifies the mips-ubuntu12, see: ./configure --help"; __check_ok=NO; fi
     if [[ -z $SRS_PREFIX ]]; then echo "you must specifies the prefix, see: ./configure --prefix"; __check_ok=NO; fi
     if [ $__check_ok = NO ]; then
         exit 1;
