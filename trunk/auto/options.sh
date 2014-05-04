@@ -140,6 +140,7 @@ Presets:
   --x86-x64                 [default] for x86/x64 cpu, common pc and servers.
   --pi                      for raspberry-pi(directly build), open features hls/ssl/static.
   --arm                     alias for --with-arm-ubuntu12
+  --mips                    alias for --with-mips-ubuntu12
   --dev                     for dev, open all features, no gperf/gprof/arm.
   --fast                    the most fast compile, nothing, only support vp6 RTMP.
   --pure-rtmp               only support RTMP with ssl.
@@ -147,13 +148,11 @@ Presets:
   --disable-all             disable all features, only support vp6 RTMP.
   
 Conflicts:
-  1. --dev/x86-x64 vs --static: 
-        the --static only for arm cpus.
-  2. --with-gmc vs --with-gmp: 
+  1. --with-gmc vs --with-gmp: 
         @see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html
-  3. --with-gperf/gmc/gmp vs --with-gprof:
+  2. --with-gperf/gmc/gmp vs --with-gprof:
         gperftools not compatible with gprof.
-  4. --arm vs --with-ffmpeg/bwtc/gperf/gmc/gmp/gprof:
+  3. --arm vs --with-ffmpeg/bwtc/gperf/gmc/gmp/gprof:
         the complex tools not available for arm.
 
 Experts:
