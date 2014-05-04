@@ -713,7 +713,7 @@ int SrsProtocol::do_decode_message(SrsMessageHeader& header, SrsStream* stream, 
         }
         
         // default packet to drop message.
-        srs_trace("drop the AMF0/AMF3 command message, command_name=%s", command.c_str());
+        srs_info("drop the AMF0/AMF3 command message, command_name=%s", command.c_str());
         *ppacket = packet = new SrsPacket();
         return ret;
     } else if(header.is_user_control_message()) {

@@ -166,7 +166,7 @@ failed:
     }
     
     handler->on_thread_stop();
-    srs_trace("thread cycle finished");
+    srs_info("thread cycle finished");
 }
 
 void* SrsThread::thread_fun(void* arg)
