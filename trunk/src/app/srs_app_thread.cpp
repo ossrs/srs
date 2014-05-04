@@ -175,6 +175,8 @@ void* SrsThread::thread_fun(void* arg)
     srs_assert(obj);
     
     obj->thread_cycle();
+
+    st_thread_exit(NULL);
     
     return NULL;
 }
