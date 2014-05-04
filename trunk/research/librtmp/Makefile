@@ -41,9 +41,14 @@ SRS_RESEARCH_DEPS = Makefile srs_research_public.h
 # for x86/x64 platform
 ifeq ($(GCC), gcc)
     EXTRA_CXX_FLAG = -g -O0 -ldl -lstdc++
+endif
 # for arm.
-else
+ifeq ($(GCC), arm-linux-gnueabi-gcc)
     EXTRA_CXX_FLAG = -g -O0 -ldl -static -lstdc++
+endif
+# for mips, add -lgcc_eh, or stl compile failed.
+ifeq ($(GCC), mipsel-openwrt-linux-gcc)
+    EXTRA_CXX_FLAG = -g -O0 -ldl -lstdc++ -lgcc_eh
 endif
 
 srs_publish_nossl: srs_publish.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
