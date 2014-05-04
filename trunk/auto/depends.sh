@@ -107,7 +107,7 @@ function Ubuntu_prepare()
     
     # for arm, install the cross build tool chain.
     if [ $SRS_ARM_UBUNTU12 = YES ]; then
-        `$SrsArmCC --help` >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        $SrsArmCC --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "install gcc-arm-linux-gnueabi g++-arm-linux-gnueabi"
             require_sudoer "sudo apt-get install -y --force-yes gcc-arm-linux-gnueabi g++-arm-linux-gnueabi"
             sudo apt-get install -y --force-yes gcc-arm-linux-gnueabi g++-arm-linux-gnueabi; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
@@ -117,7 +117,7 @@ function Ubuntu_prepare()
     
     # for mips, user must installed the tool chain.
     if [ $SRS_MIPS_UBUNTU12 = YES ]; then
-        `$SrsArmCC --help` >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        $SrsArmCC --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "user must install the tool chain: $SrsArmCC"
             return 2
         fi
