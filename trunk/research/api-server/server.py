@@ -555,10 +555,26 @@ class RESTServers(object):
                     "edge":server_ip, "client":ip, 
                     "peers":self.__json_dump_nodes(peers),
                     "streams": {
-                        "hls-livestream-sales": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-sales-arm&stream=live/livestream",
-                        "hls-cztv-sales": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-sales-arm&stream=live/rtmp_cztv01-sd",
-                        "hls-livestream-dev": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-dev-arm&stream=live/livestream",
-                        "hls-cztv-dev": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-dev-arm&stream=live/rtmp_cztv01-sd"
+                        "pi": {
+                            "livestream": {
+                                "sales-pi-hls": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-sales-arm&stream=live/livestream",
+                                "dev-pi-hls": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-dev-arm&stream=live/livestream"
+                            },
+                            "cztv": {
+                                "sales-pi-hls": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-sales-arm&stream=live/rtmp_cztv01-sd",
+                                "dev-pi-hls": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-dev-arm&stream=live/rtmp_cztv01-sd"
+                            }
+                        },
+                        "hiwifi": {
+                            "hls": {
+                                "dev-livestream": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-dev-hiwifi&stream=live/livestream",
+                                "sales-livestream": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-sales-hiwifi&stream=live/livestream"
+                            },
+                            "rtmp":{
+                                "dev-livestream": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-dev-hiwifi&stream=live/livestream",
+                                "sales-livestream": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-sales-hiwifi&stream=live/livestream"
+                            }
+                        }
                     }
                 }})
             # others, default.
