@@ -573,6 +573,26 @@ class RESTServers(object):
                             "rtmp":{
                                 "dev-livestream": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-dev-hiwifi&stream=live/livestream",
                                 "sales-livestream": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-sales-hiwifi&stream=live/livestream"
+                            },
+                            "meiyi": {
+                                "rtmp": {
+                                    "avatar": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-sales-hiwifi&stream=live/avatar",
+                                    "MenInBlack3": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-sales-hiwifi&stream=live/MenInBlack3",
+                                    "skyfall": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-sales-hiwifi&stream=live/skyfall",
+                                    "SpiderMan": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-sales-hiwifi&stream=live/SpiderMan",
+                                    "thehobbit": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-sales-hiwifi&stream=live/thehobbit",
+                                    "thorthedarkworld": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-sales-hiwifi&stream=live/thorthedarkworld",
+                                    "transformers": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-sales-hiwifi&stream=live/transformers"
+                                },
+                                "hls": {
+                                    "avatar": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-sales-hiwifi&stream=live/avatar",
+                                    "MenInBlack3": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-sales-hiwifi&stream=live/MenInBlack3",
+                                    "skyfall": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-sales-hiwifi&stream=live/skyfall",
+                                    "SpiderMan": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-sales-hiwifi&stream=live/SpiderMan",
+                                    "thehobbit": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-sales-hiwifi&stream=live/thehobbit",
+                                    "thorthedarkworld": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-sales-hiwifi&stream=live/thorthedarkworld",
+                                    "transformers": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-sales-hiwifi&stream=live/transformers"
+                                }
                             }
                         }
                     }
