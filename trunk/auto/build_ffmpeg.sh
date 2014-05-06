@@ -77,9 +77,7 @@ else
     cd $ff_current_dir &&
     rm -rf x264-snapshot-20131129-2245-stable && unzip -q ${ff_src_dir}/x264-snapshot-20131129-2245-stable.zip &&
     cd x264-snapshot-20131129-2245-stable && 
-    ./configure --prefix=${ff_release_dir} --disable-opencl --bit-depth=8 --enable-static \
-        --disable-avs --disable-swscale --disable-lavf \
-        --disable-ffms --disable-gpac && 
+    ./configure --prefix=${ff_release_dir} --disable-opencl --bit-depth=8 --enable-static && 
     make ${SRS_JOBS} && make install
     ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build x264 failed"; exit 1; fi
 fi
