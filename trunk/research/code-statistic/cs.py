@@ -51,12 +51,19 @@ def process(f, code_file):
                 is_line_comments = False
             else:
                 verbose("[block][cont] %s"%line)
+            stat_block_comments += 1
             continue
         if line.startswith("/*"):
             verbose("[block][start] %s"%line)
             is_block_comments = True
             is_line_comments = False
             stat_block_comments += 1
+            # inline block comments
+            if is_block_comments:
+                if "*/" in line:
+                    verbose("[block][end] %s"%line)
+                    is_block_comments = False
+                    is_line_comments = False
             continue
         if line.startswith("//"):
             verbose("[line] %s"%line)
