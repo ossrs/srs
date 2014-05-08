@@ -1188,7 +1188,8 @@ int SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrs
     
     // sign c1
     c1s1 c1;
-    if ((ret = c1.c1_create(srs_schema0)) != ERROR_SUCCESS) {
+    // @remark, FMS requires the schema1(digest-key), or connect failed.
+    if ((ret = c1.c1_create(srs_schema1)) != ERROR_SUCCESS) {
         return ret;
     }
     c1.dump(hs_bytes->c0c1 + 1);
