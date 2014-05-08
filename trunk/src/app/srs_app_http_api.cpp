@@ -224,7 +224,7 @@ int SrsApiSummaries::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
             << JFIELD_ORG("cpuinfo_ok", (c->ok? "true":"false")) << JFIELD_CONT
             << JFIELD_ORG("meminfo_ok", (m->ok? "true":"false")) << JFIELD_CONT
             << JFIELD_ORG("platform_ok", (p->ok? "true":"false")) << JFIELD_CONT
-            << JFIELD_ORG("now", now) << JFIELD_CONT
+            << JFIELD_ORG("now_ms", now) << JFIELD_CONT
             << JFIELD_ORG("self", JOBJECT_START)
                 << JFIELD_ORG("pid", getpid()) << JFIELD_CONT
                 << JFIELD_ORG("ppid", u->ppid) << JFIELD_CONT
