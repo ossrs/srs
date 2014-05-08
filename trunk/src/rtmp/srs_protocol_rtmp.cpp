@@ -31,6 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_handshake.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_kernel_stream.hpp>
 
 using namespace std;
 
@@ -268,9 +269,13 @@ int SrsHandshakeBytes::create_c0c1()
     srs_random_generate(c0c1, 1537);
     
     // plain text required.
-    c0c1[0] = 0x03;
-    *(int32_t*)(c0c1 + 1) = ::time(NULL);
-    *(int32_t*)(c0c1 + 1 + 4) = 0x00;
+    static SrsStream stream;
+    if ((ret = stream.initialize(c0c1, 9)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    stream.write_1bytes(0x03);
+    stream.write_4bytes(::time(NULL));
+    stream.write_4bytes(0x00);
     
     return ret;
 }
@@ -287,11 +292,15 @@ int SrsHandshakeBytes::create_s0s1s2(const char* c1)
     srs_random_generate(s0s1s2, 3073);
     
     // plain text required.
-    s0s1s2[0] = 0x03;
-    *(int32_t*)(s0s1s2 + 1) = ::time(NULL);
+    SrsStream stream;
+    if ((ret = stream.initialize(s0s1s2, 9)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    stream.write_1bytes(0x03);
+    stream.write_4bytes(::time(NULL));
     // s2 time2 copy from c1
     if (c0c1) {
-        *(int32_t*)(s0s1s2 + 1 + 4) = *(int32_t*)(c0c1 + 1);
+        stream.write_bytes(c0c1 + 1, 4);
     }
     
     // if c1 specified, copy c1 to s2.
@@ -315,10 +324,14 @@ int SrsHandshakeBytes::create_c2()
     srs_random_generate(c2, 1536);
     
     // time
-    *(int32_t*)(c2) = ::time(NULL);
+    SrsStream stream;
+    if ((ret = stream.initialize(c2, 8)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    stream.write_4bytes(::time(NULL));
     // c2 time2 copy from s1
     if (s0s1s2) {
-        *(int32_t*)(c2 + 4) = *(int32_t*)(s0s1s2 + 1);
+        stream.write_bytes(s0s1s2 + 1, 4);
     }
     
     return ret;
@@ -455,6 +468,7 @@ int SrsRtmpClient::connect_app(string app, string tc_url)
         SrsConnectAppPacket* pkt = new SrsConnectAppPacket();
         
         pkt->command_object->set("app", SrsAmf0Any::str(app.c_str()));
+        pkt->command_object->set("flashVer", SrsAmf0Any::str("WIN 12,0,0,41"));
         pkt->command_object->set("swfUrl", SrsAmf0Any::str());
         pkt->command_object->set("tcUrl", SrsAmf0Any::str(tc_url.c_str()));
         pkt->command_object->set("fpad", SrsAmf0Any::boolean(false));

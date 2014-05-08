@@ -31,6 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_io.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_rtmp.hpp>
+#include <srs_kernel_stream.hpp>
 
 #ifdef SRS_AUTO_SSL
 
@@ -230,6 +231,26 @@ namespace srs
         return ret;
     }
     
+    // read/write stream using SrsStream.
+    void __srs_stream_write_4bytes(char* pp, int32_t value) 
+    {
+        static SrsStream stream;
+        
+        int ret = stream.initialize(pp, 4);
+        srs_assert(ret == ERROR_SUCCESS);
+        
+        stream.write_4bytes(value);
+    }
+    int32_t __srs_stream_read_4bytes(char* pp)
+    {
+        static SrsStream stream;
+        
+        int ret = stream.initialize(pp, 4);
+        srs_assert(ret == ERROR_SUCCESS);
+        
+        return stream.read_4bytes();
+    }
+    
     // calc the offset of key,
     // the key->offset cannot be used as the offset of key.
     int srs_key_block_get_offset(key_block* key)
@@ -282,7 +303,7 @@ namespace srs
         char* pp = c1s1_key_bytes + 764;
         
         pp -= sizeof(int32_t);
-        key->offset = *(int32_t*)pp;
+        key->offset = __srs_stream_read_4bytes(pp);
         
         key->random0 = NULL;
         key->random1 = NULL;
@@ -373,7 +394,7 @@ namespace srs
     
         char* pp = c1s1_digest_bytes;
         
-        digest->offset = *(int32_t*)pp;
+        digest->offset = __srs_stream_read_4bytes(pp);
         pp += sizeof(int32_t);
         
         digest->random0 = NULL;
@@ -416,13 +437,13 @@ namespace srs
     void __srs_time_copy_to(char*& pp, int32_t time)
     {
         // 4bytes time
-        *(int32_t*)pp = time;
+        __srs_stream_write_4bytes(pp, time);
         pp += 4;
     }
     void __srs_version_copy_to(char*& pp, int32_t version)
     {
         // 4bytes version
-        *(int32_t*)pp = version;
+        __srs_stream_write_4bytes(pp, version);
         pp += 4;
     }
     void __srs_key_copy_to(char*& pp, key_block* key)
@@ -441,16 +462,17 @@ namespace srs
         }
         pp += key->random1_size;
         
-        *(int32_t*)pp = key->offset;
+        __srs_stream_write_4bytes(pp, key->offset);
         pp += 4;
     }
     void __srs_digest_copy_to(char*& pp, digest_block* digest, bool with_digest)
     {
         // 732bytes digest block without the 32bytes digest-data
         // nbytes digest block part1
-        *(int32_t*)pp = digest->offset;
+        __srs_stream_write_4bytes(pp, digest->offset);
         pp += 4;
         
+        // digest random padding.
         if (digest->random0_size > 0) {
             memcpy(pp, digest->random0, digest->random0_size);
         }
@@ -720,8 +742,9 @@ namespace srs
         
         destroy_blocks();
         
-        time = *(int32_t*)_c1s1;
-        version = *(int32_t*)(_c1s1 + 4); // client c1 version
+        
+        time = __srs_stream_read_4bytes(_c1s1);
+        version = __srs_stream_read_4bytes(_c1s1 + 4); // client c1 version
         
         if (_schema == srs_schema0) {
             if ((ret = srs_key_block_parse(&block0.key, _c1s1 + 8)) != ERROR_SUCCESS) {
@@ -766,9 +789,11 @@ namespace srs
         
         destroy_blocks();
         
+        // client c1 time and version
         time = ::time(NULL);
-        version = 0x00000000; // client c1 version
+        version = 0x80000702; // client c1 version
         
+        // generate signature by schema
         if (_schema == srs_schema0) {
             srs_key_block_init(&block0.key);
             srs_digest_block_init(&block1.digest);
@@ -779,6 +804,7 @@ namespace srs
         
         schema = _schema;
         
+        // generate digest
         char* digest = NULL;
         
         if ((ret = calc_c1_digest(digest)) != ERROR_SUCCESS) {

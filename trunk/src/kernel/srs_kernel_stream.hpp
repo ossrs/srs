@@ -129,6 +129,10 @@ public:
     * write string to stream
     */
     virtual void write_string(std::string value);
+    /**
+    * write bytes to stream
+    */
+    virtual void write_bytes(char* data, int size);
 };
 
 #endif
