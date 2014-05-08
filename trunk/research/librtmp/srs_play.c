@@ -48,11 +48,19 @@ int main(int argc, char** argv)
         rtmp = srs_rtmp_create("rtmp://127.0.0.1:1935/live/livestream");
     }
     
-     if (srs_simple_handshake(rtmp) != 0) {
-        printf("simple handshake failed.\n");
-        goto rtmp_destroy;
+    if (1) {
+        if (srs_complex_handshake(rtmp) != 0) {
+            printf("complex handshake failed.\n");
+            goto rtmp_destroy;
+        }
+        printf("complex handshake success\n");
+    } else {
+        if (srs_simple_handshake(rtmp) != 0) {
+            printf("simple handshake failed.\n");
+            goto rtmp_destroy;
+        }
+        printf("simple handshake success\n");
     }
-    printf("simple handshake success\n");
     
     if (srs_connect_app(rtmp) != 0) {
         printf("connect vhost/app failed.\n");
