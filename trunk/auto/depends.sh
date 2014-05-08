@@ -690,4 +690,4 @@ echo "" >> $SRS_AUTO_HEADERS_H
 #####################################################################################
 # generated the test script
 #####################################################################################
-rm -rf ${SRS_OBJS}/srs.test && ln -sf `pwd`/scripts/test_configure.sh objs/srs.test
+rm -rf ${SRS_OBJS}/srs.test && ln -sf `pwd`/scripts/srs.test objs/srs.test

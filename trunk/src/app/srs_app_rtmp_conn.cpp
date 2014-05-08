@@ -724,6 +724,15 @@ int SrsRtmpConn::process_publish_message(SrsSource* source, SrsMessage* msg, boo
         return ret;
     }
     
+    // process aggregate packet
+    if (msg->header.is_aggregate()) {
+        if ((ret = source->on_aggregate(msg)) != ERROR_SUCCESS) {
+            srs_error("source process aggregate message failed. ret=%d", ret);
+            return ret;
+        }
+        return ret;
+    }
+    
     // process onMetaData
     if (msg->header.is_amf0_data() || msg->header.is_amf3_data()) {
         SrsPacket* pkt = NULL;

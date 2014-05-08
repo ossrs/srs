@@ -277,6 +277,7 @@ public:
     bool is_ackledgement();
     bool is_set_chunk_size();
     bool is_user_control_message();
+    bool is_aggregate();
     
     void initialize_amf0_script(int size, int stream);
     void initialize_audio(int size, u_int32_t time, int stream);

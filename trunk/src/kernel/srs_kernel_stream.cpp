@@ -23,6 +23,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_stream.hpp>
 
+using namespace std;
+
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 
@@ -160,7 +162,7 @@ int64_t SrsStream::read_8bytes()
     return value;
 }
 
-std::string SrsStream::read_string(int len)
+string SrsStream::read_string(int len)
 {
     srs_assert(require(len));
     
@@ -170,6 +172,15 @@ std::string SrsStream::read_string(int len)
     p += len;
     
     return value;
+}
+
+void SrsStream::read_bytes(char* data, int size)
+{
+    srs_assert(require(size));
+    
+    memcpy(data, p, size);
+    
+    p += size;
 }
 
 void SrsStream::write_1bytes(int8_t value)
@@ -224,7 +235,7 @@ void SrsStream::write_8bytes(int64_t value)
     *p++ = pp[0];
 }
 
-void SrsStream::write_string(std::string value)
+void SrsStream::write_string(string value)
 {
     srs_assert(require(value.length()));
     

@@ -104,6 +104,10 @@ public:
     * get string from stream, length specifies by param len.
     */
     virtual std::string read_string(int len);
+    /**
+    * get bytes from stream, length specifies by param len.
+    */
+    virtual void read_bytes(char* data, int size);
 public:
     /**
     * write 1bytes char to stream.

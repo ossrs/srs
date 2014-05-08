@@ -1477,6 +1477,11 @@ bool SrsMessageHeader::is_user_control_message()
     return message_type == RTMP_MSG_UserControlMessage;
 }
 
+bool SrsMessageHeader::is_aggregate()
+{
+    return message_type == RTMP_MSG_AggregateMessage;
+}
+
 void SrsMessageHeader::initialize_amf0_script(int size, int stream)
 {
     message_type = RTMP_MSG_AMF0DataMessage;

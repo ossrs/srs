@@ -57,6 +57,7 @@ class SrsDvr;
 #ifdef SRS_AUTO_TRANSCODE
 class SrsEncoder;
 #endif
+class SrsStream;
 
 /**
 * time jitter detect and correct,
@@ -251,6 +252,8 @@ private:
     SrsGopCache* gop_cache;
     // to forward stream to other servers
     std::vector<SrsForwarder*> forwarders;
+    // for aggregate message
+    SrsStream* aggregate_stream;
 private:
     /**
     * the sample rate of audio in metadata.
@@ -307,6 +310,7 @@ public:
     virtual int on_meta_data(SrsMessage* msg, SrsOnMetaDataPacket* metadata);
     virtual int on_audio(SrsMessage* audio);
     virtual int on_video(SrsMessage* video);
+    virtual int on_aggregate(SrsMessage* msg);
     /**
     * publish stream event notify.
     * @param _req the request from client, the source will deep copy it,
