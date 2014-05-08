@@ -149,8 +149,8 @@ private:
     virtual int parse_argv(int& i, char** argv);
     virtual void print_help(char** argv);
 public:
-    virtual std::string         get_cwd();
-    virtual std::string         get_argv();
+    virtual std::string         cwd();
+    virtual std::string         argv();
 // global section
 public:
     virtual SrsConfDirective*   get_root();

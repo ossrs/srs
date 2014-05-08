@@ -224,12 +224,12 @@ bool get_proc_self_stat(SrsProcSelfStat& r)
         &r.wchan, &r.nswap, &r.cnswap, &r.exit_signal, &r.processor,
         &r.rt_priority, &r.policy, &r.delayacct_blkio_ticks, 
         &r.guest_time, &r.cguest_time);
+    
+    fclose(f);
         
     if (ret >= 0) {
         r.ok = true;
     }
-    
-    fclose(f);
     
     return r.ok;
 }
@@ -349,6 +349,8 @@ void srs_update_meminfo()
         }
     }
     
+    fclose(f);
+    
     r.sample_time = srs_get_system_time_ms();
     r.MemActive = r.MemTotal - r.MemFree;
     r.RealInUse = r.MemActive - r.Buffers - r.Cached;
@@ -361,8 +363,6 @@ void srs_update_meminfo()
     if (r.SwapTotal > 0) {
         r.percent_swap = (float)((r.SwapTotal - r.SwapFree) / (double)r.SwapTotal);
     }
-    
-    fclose(f);
 }
 
 SrsCpuInfo::SrsCpuInfo()
@@ -387,4 +387,64 @@ SrsCpuInfo* srs_get_cpuinfo()
     cpu->nb_processors_online = sysconf(_SC_NPROCESSORS_ONLN);
     
     return cpu;
+}
+
+SrsPlatformInfo::SrsPlatformInfo()
+{
+    ok = false;
+    
+    srs_startup_time = srs_get_system_time_ms();
+    
+    os_uptime = 0;
+    os_ilde_time = 0;
+    
+    load_one_minutes = 0;
+    load_five_minutes = 0;
+    load_fifteen_minutes = 0;
+}
+
+static SrsPlatformInfo _srs_system_platform_info;
+
+SrsPlatformInfo* srs_get_platform_info()
+{
+    return &_srs_system_platform_info;
+}
+
+void srs_update_platform_info()
+{
+    SrsPlatformInfo& r = _srs_system_platform_info;
+    r.ok = true;
+    
+    if (true) {
+        FILE* f = fopen("/proc/uptime", "r");
+        if (f == NULL) {
+            srs_warn("open uptime failed, ignore");
+            return;
+        }
+        
+        int ret = fscanf(f, "%lf %lf\n", &r.os_uptime, &r.os_ilde_time);
+    
+        fclose(f);
+
+        if (ret < 0) {
+            r.ok = false;
+        }
+    }
+    
+    if (true) {
+        FILE* f = fopen("/proc/loadavg", "r");
+        if (f == NULL) {
+            srs_warn("open loadavg failed, ignore");
+            return;
+        }
+        
+        int ret = fscanf(f, "%lf %lf %lf\n", 
+            &r.load_one_minutes, &r.load_five_minutes, &r.load_fifteen_minutes);
+    
+        fclose(f);
+
+        if (ret < 0) {
+            r.ok = false;
+        }
+    }
 }

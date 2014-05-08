@@ -313,4 +313,30 @@ struct SrsCpuInfo
 // get system cpu info, use cache to avoid performance problem.
 extern SrsCpuInfo* srs_get_cpuinfo();
 
+// platform(os, srs) summary
+struct SrsPlatformInfo
+{
+    // whether the data is ok.
+    bool ok;
+    
+    // srs startup time, in ms.
+    int64_t srs_startup_time;
+    
+    // @see: cat /proc/uptime
+    double os_uptime;
+    double os_ilde_time;
+    
+    // @see: cat /proc/loadavg
+    double load_one_minutes;
+    double load_five_minutes;
+    double load_fifteen_minutes;
+    
+    SrsPlatformInfo();
+};
+
+// get platform info, use cache to avoid performance problem.
+extern SrsPlatformInfo* srs_get_platform_info();
+// the deamon st-thread will update it.
+extern void srs_update_platform_info();
+
 #endif

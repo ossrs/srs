@@ -1263,12 +1263,12 @@ void SrsConfig::print_help(char** argv)
         argv[0], argv[0], argv[0], argv[0]);
 }
 
-string SrsConfig::get_cwd()
+string SrsConfig::cwd()
 {
     return _cwd;
 }
 
-string SrsConfig::get_argv()
+string SrsConfig::argv()
 {
     return _argv;
 }

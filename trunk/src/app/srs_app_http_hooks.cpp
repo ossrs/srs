@@ -479,7 +479,7 @@ void SrsHttpHooks::on_dvr_hss_reap_flv_header(std::string url, SrsRequest* req, 
         << JFIELD_STR("app", req->app) << JFIELD_CONT
         << JFIELD_STR("stream", req->stream) << JFIELD_CONT
         << JFIELD_NAME("segment") << JOBJECT_START
-            << JFIELD_STR("cwd", _srs_config->get_cwd()) << JFIELD_CONT
+            << JFIELD_STR("cwd", _srs_config->cwd()) << JFIELD_CONT
             << JFIELD_STR("path", header_file)
         << JOBJECT_END
         << JOBJECT_END;
@@ -532,7 +532,7 @@ void SrsHttpHooks::on_dvr_hss_reap_flv(string url, SrsRequest* req, SrsFlvSegmen
         << JFIELD_STR("app", req->app) << JFIELD_CONT
         << JFIELD_STR("stream", req->stream) << JFIELD_CONT
         << JFIELD_NAME("segment") << JOBJECT_START
-            << JFIELD_STR("cwd", _srs_config->get_cwd()) << JFIELD_CONT
+            << JFIELD_STR("cwd", _srs_config->cwd()) << JFIELD_CONT
             << JFIELD_STR("path", segment->path) << JFIELD_CONT
             << JFIELD_ORG("duration", segment->duration) << JFIELD_CONT
             << JFIELD_ORG("offset", segment->sequence_header_offset) << JFIELD_CONT
