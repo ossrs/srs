@@ -228,6 +228,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v1.0, 2014-05-08, edge support FMS origin server. 0.9.92
 * v1.0, 2014-04-28, [1.0 mainline2(0.9.79)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline2) released. 35255 lines.
 * v1.0, 2014-04-28, support full edge RTMP server. 0.9.79
 * v1.0, 2014-04-27, support basic edge(play/publish) RTMP server. 0.9.78
@@ -252,7 +253,8 @@ Supported operating systems and hardware:
 * v1.0, 2014-03-21, write pid to ./objs/srs.pid.
 * v1.0, 2014-03-20, refine hls code, support pure audio HLS.
 * v1.0, 2014-03-19, add vn/an for FFMPEG to drop video/audio for radio stream.
-* v1.0, 2014-03-19, refine handshake, client support coplex handshake, add utest.
+* v1.0, 2014-03-19, refine handshake, client support complex handshake, add utest.
+* v1.0, 2014-03-16, fix bug on arm of st, the sp change from 20 to 8, for respberry-pi, @see [commit](https://github.com/winlinvip/simple-rtmp-server/commit/5a4373d4835758188b9a1f03005cea0b6ddc62aa)
 * v1.0, 2014-03-16, support ARM([debian armhf, v7cpu](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm)) with rtmp/ssl/hls/librtmp.
 * v1.0, 2014-03-12, finish utest for amf0 codec.
 * v1.0, 2014-03-06, add gperftools for mem leak detect, mem/cpu profile.
