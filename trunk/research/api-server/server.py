@@ -764,12 +764,14 @@ class RESTNodes(object):
                         "edge":server, "client":ip, 
                         "peers":self.__json_dump_nodes(peers),
                         "streams": {
-                            "hls-cztv-html": "http://demo.chnvideo.com:8085/api/v1/nodes?type=hls&format=html&origin=demo.chnvideo.com&port=8080&stream=live/rtmp_cztv01-sd",
-                            "hls-cztv-m3u8": "http://demo.chnvideo.com:8085/api/v1/nodes?type=hls&format=m3u8&origin=demo.chnvideo.com&port=8080&stream=live/rtmp_cztv01-sd",
-                            "rtmp-cztv-html": "http://demo.chnvideo.com:8085/api/v1/nodes?type=rtmp&format=html&origin=demo.chnvideo.com&vhost=android&port=1935&stream=live/rtmp_cztv01-sd",
-                            "hls-livestream-html": "http://demo.chnvideo.com:8085/api/v1/nodes?type=hls&format=html&origin=demo.chnvideo.com&port=8080&stream=live/livestream",
-                            "hls-livestream-m3u8": "http://demo.chnvideo.com:8085/api/v1/nodes?type=hls&format=m3u8&origin=demo.chnvideo.com&port=8080&stream=live/livestream",
-                            "rtmp-livestream-html": "http://demo.chnvideo.com:8085/api/v1/nodes?type=rtmp&format=html&origin=demo.chnvideo.com&vhost=demo.srs.com&port=1935&stream=live/livestream",
+                            "cztv": {
+                                "hls": "http://demo.chnvideo.com:8085/api/v1/nodes?type=hls&format=html&origin=demo.chnvideo.com&port=8080&stream=live/rtmp_cztv01-sd",
+                                "rtmp": "http://demo.chnvideo.com:8085/api/v1/nodes?type=rtmp&format=html&origin=demo.chnvideo.com&vhost=android&port=1935&stream=live/rtmp_cztv01-sd"
+                            },
+                            "livestream": {
+                                "hls": "http://demo.chnvideo.com:8085/api/v1/nodes?type=hls&format=html&origin=demo.chnvideo.com&port=8080&stream=live/livestream",
+                                "rtmp": "http://demo.chnvideo.com:8085/api/v1/nodes?type=rtmp&format=html&origin=demo.chnvideo.com&vhost=demo.srs.com&port=1935&stream=live/livestream"
+                            },
                             "apk": "http://demo.chnvideo.com/android.srs.apk"
                         }
                     }})
