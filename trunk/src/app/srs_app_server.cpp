@@ -563,12 +563,15 @@ int SrsServer::cycle()
 
     ret = do_cycle();
 
+#ifdef SRS_AUTO_GPERF_MC
     destroy();
     
-#ifdef SRS_AUTO_GPERF_MC
     srs_warn("sleep a long time for system st-threads to cleanup.");
     st_usleep(3 * 1000 * 1000);
     srs_warn("system quit");
+#else
+    srs_warn("main cycle terminated, system quit normally.");
+    exit(0);
 #endif
     
     return ret;
