@@ -53,7 +53,7 @@ ok_msg "old srs backuped"
 # prepare files.
 ok_msg "prepare files"
 (
-    sed -i "s|^ROOT=.*|ROOT=\"${INSTALL}\"|g" $work_dir/etc/init.d/srs
+    sed -i "s|^ROOT=.*|ROOT=\"${INSTALL}\"|g" $work_dir/${INSTALL}/etc/init.d/srs
 ) >> $log 2>&1
 ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "prepare files failed"; exit $ret; fi
 ok_msg "prepare files success"
@@ -62,9 +62,9 @@ ok_msg "prepare files success"
 ok_msg "copy core components"
 (
     mkdir -p $install_root
-    cp -r $work_dir/conf $install_root &&
-    cp -r $work_dir/etc $install_root &&
-    cp -r $work_dir/objs $install_root
+    cp -r $work_dir/${INSTALL}/conf $install_root &&
+    cp -r $work_dir/${INSTALL}/etc $install_root &&
+    cp -r $work_dir/${INSTALL}/objs $install_root
 ) >>$log 2>&1
 ret=$?; if [[ 0 -ne ${ret} ]]; then failed_msg "copy core components failed"; exit $ret; fi
 ok_msg "copy core components success"
