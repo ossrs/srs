@@ -43,6 +43,7 @@ class SrsRtmpClient;
 class SrsMessage;
 class SrsMessageQueue;
 class ISrsProtocolReaderWriter;
+class SrsKbps;
 
 /**
 * the state of edge, auto machine
@@ -83,6 +84,7 @@ private:
     SrsThread* pthread;
     st_netfd_t stfd;
     ISrsProtocolReaderWriter* io;
+    SrsKbps* kbps;
     SrsRtmpClient* client;
     int origin_index;
 public:
@@ -116,6 +118,7 @@ private:
     SrsThread* pthread;
     st_netfd_t stfd;
     ISrsProtocolReaderWriter* io;
+    SrsKbps* kbps;
     SrsRtmpClient* client;
     int origin_index;
     /**

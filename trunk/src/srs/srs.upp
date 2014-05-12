@@ -71,6 +71,8 @@ file
 	..\app\srs_app_ingest.cpp,
 	..\app\srs_app_json.hpp,
 	..\app\srs_app_json.cpp,
+	..\app\srs_app_kbps.hpp,
+	..\app\srs_app_kbps.cpp,
 	..\app\srs_app_log.hpp,
 	..\app\srs_app_log.cpp,
 	..\app\srs_app_refer.hpp,

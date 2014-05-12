@@ -375,16 +375,6 @@ int64_t SrsRtmpClient::get_send_bytes()
     return protocol->get_send_bytes();
 }
 
-int SrsRtmpClient::get_recv_kbps()
-{
-    return protocol->get_recv_kbps();
-}
-
-int SrsRtmpClient::get_send_kbps()
-{
-    return protocol->get_send_kbps();
-}
-
 int SrsRtmpClient::recv_message(SrsMessage** pmsg)
 {
     return protocol->recv_message(pmsg);
@@ -728,16 +718,6 @@ int64_t SrsRtmpServer::get_recv_bytes()
 int64_t SrsRtmpServer::get_send_bytes()
 {
     return protocol->get_send_bytes();
-}
-
-int SrsRtmpServer::get_recv_kbps()
-{
-    return protocol->get_recv_kbps();
-}
-
-int SrsRtmpServer::get_send_kbps()
-{
-    return protocol->get_send_kbps();
 }
 
 int SrsRtmpServer::recv_message(SrsMessage** pmsg)

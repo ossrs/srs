@@ -138,8 +138,6 @@ public:
     virtual int64_t get_send_timeout();
     virtual int64_t get_recv_bytes();
     virtual int64_t get_send_bytes();
-    virtual int get_recv_kbps();
-    virtual int get_send_kbps();
 public:
     /**
     * recv a RTMP message, which is bytes oriented.

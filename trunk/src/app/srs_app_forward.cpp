@@ -39,6 +39,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_rtmp.hpp>
+#include <srs_app_kbps.hpp>
 
 // when error, forwarder sleep for a while and retry.
 #define SRS_FORWARDER_SLEEP_US (int64_t)(3*1000*1000LL)
@@ -50,6 +51,7 @@ SrsForwarder::SrsForwarder(SrsSource* _source)
     io = NULL;
     client = NULL;
     stfd = NULL;
+    kbps = new SrsKbps();
     stream_id = 0;
 
     pthread = new SrsThread(this, SRS_FORWARDER_SLEEP_US);
@@ -64,6 +66,7 @@ SrsForwarder::~SrsForwarder()
     srs_freep(pthread);
     srs_freep(queue);
     srs_freep(jitter);
+    srs_freep(kbps);
 }
 
 void SrsForwarder::set_queue_size(double queue_size)
@@ -146,6 +149,7 @@ void SrsForwarder::on_unpublish()
     
     srs_freep(client);
     srs_freep(io);
+    kbps->set_io(NULL, NULL);
 }
 
 int SrsForwarder::on_meta_data(SrsSharedPtrMessage* metadata)
@@ -275,6 +279,7 @@ int SrsForwarder::connect_server()
     
     io = new SrsSocket(stfd);
     client = new SrsRtmpClient(io);
+    kbps->set_io(io, io);
     
     // connect to server.
     std::string ip = srs_dns_resolve(server);
@@ -338,9 +343,8 @@ int SrsForwarder::forward()
         // pithy print
         if (pithy_print.can_print()) {
             srs_trace("-> "SRS_LOG_ID_FOWARDER
-                " time=%"PRId64", msgs=%d, obytes=%"PRId64", ibytes=%"PRId64", okbps=%d, ikbps=%d", 
-                pithy_print.age(), count, client->get_send_bytes(), client->get_recv_bytes(), 
-                client->get_send_kbps(), client->get_recv_kbps());
+                " time=%"PRId64", msgs=%d, okbps=%d, ikbps=%d", 
+                pithy_print.age(), count, kbps->get_send_kbps(), kbps->get_recv_kbps());
         }
         
         // ignore when no messages.

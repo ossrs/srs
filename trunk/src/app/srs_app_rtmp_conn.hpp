@@ -46,6 +46,7 @@ class SrsSocket;
 class SrsHttpHooks;
 #endif
 class SrsBandwidth;
+class SrsKbps;
 
 /**
 * the client provides the main logic control for RTMP clients.
@@ -63,6 +64,7 @@ private:
     // for live play duration, for instance, rtmpdump to record.
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/47
     int64_t duration;
+    SrsKbps* kbps;
 public:
     SrsRtmpConn(SrsServer* srs_server, st_netfd_t client_stfd);
     virtual ~SrsRtmpConn();

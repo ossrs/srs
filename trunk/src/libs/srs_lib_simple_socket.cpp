@@ -44,9 +44,6 @@ SimpleSocketStream::SimpleSocketStream()
     fd = -1;
     send_timeout = recv_timeout = ST_UTIME_NO_TIMEOUT;
     recv_bytes = send_bytes = 0;
-    
-    srs_update_system_time_ms();
-    start_time_ms = srs_get_system_time_ms();
 }
 
 SimpleSocketStream::~SimpleSocketStream()
@@ -122,18 +119,6 @@ int64_t SimpleSocketStream::get_recv_bytes()
     return recv_bytes;
 }
 
-int SimpleSocketStream::get_recv_kbps()
-{
-    srs_update_system_time_ms();
-    int64_t diff_ms = srs_get_system_time_ms() - start_time_ms;
-    
-    if (diff_ms <= 0) {
-        return 0;
-    }
-    
-    return recv_bytes * 8 / diff_ms;
-}
-
 // ISrsProtocolWriter
 void SimpleSocketStream::set_send_timeout(int64_t timeout_us)
 {
@@ -148,18 +133,6 @@ int64_t SimpleSocketStream::get_send_timeout()
 int64_t SimpleSocketStream::get_send_bytes()
 {
     return send_bytes;
-}
-
-int SimpleSocketStream::get_send_kbps()
-{
-    srs_update_system_time_ms();
-    int64_t diff_ms = srs_get_system_time_ms() - start_time_ms;
-    
-    if (diff_ms <= 0) {
-        return 0;
-    }
-    
-    return send_bytes * 8 / diff_ms;
 }
 
 int SimpleSocketStream::writev(const iovec *iov, int iov_size, ssize_t* nwrite)

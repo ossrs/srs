@@ -42,6 +42,7 @@ class SrsRtmpJitter;
 class SrsRtmpClient;
 class SrsRequest;
 class SrsSource;
+class SrsKbps;
 
 /**
 * forward the stream to other servers.
@@ -61,6 +62,7 @@ private:
 private:
     SrsSource* source;
     ISrsProtocolReaderWriter* io;
+    SrsKbps* kbps;
     SrsRtmpClient* client;
     SrsRtmpJitter* jitter;
     SrsMessageQueue* queue;

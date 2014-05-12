@@ -73,11 +73,6 @@ int64_t MockEmptyIO::get_recv_bytes()
     return -1;
 }
 
-int MockEmptyIO::get_recv_kbps()
-{
-    return 0;
-}
-
 void MockEmptyIO::set_send_timeout(int64_t /*timeout_us*/)
 {
 }
@@ -88,11 +83,6 @@ int64_t MockEmptyIO::get_send_timeout()
 }
 
 int64_t MockEmptyIO::get_send_bytes()
-{
-    return 0;
-}
-
-int MockEmptyIO::get_send_kbps()
 {
     return 0;
 }

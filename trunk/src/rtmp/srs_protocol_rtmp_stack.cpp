@@ -359,16 +359,6 @@ int64_t SrsProtocol::get_send_bytes()
     return skt->get_send_bytes();
 }
 
-int SrsProtocol::get_recv_kbps()
-{
-    return skt->get_recv_kbps();
-}
-
-int SrsProtocol::get_send_kbps()
-{
-    return skt->get_send_kbps();
-}
-
 int SrsProtocol::recv_message(SrsMessage** pmsg)
 {
     *pmsg = NULL;
