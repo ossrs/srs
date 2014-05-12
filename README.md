@@ -229,6 +229,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v1.0, 2014-05-12, refine the kbps calc module. 0.9.93
 * v1.0, 2014-05-08, edge support FMS origin server. 0.9.92
 * v1.0, 2014-04-28, [1.0 mainline2(0.9.79)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline2) released. 35255 lines.
 * v1.0, 2014-04-28, support full edge RTMP server. 0.9.79

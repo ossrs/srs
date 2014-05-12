@@ -34,21 +34,63 @@ class ISrsProtocolReader;
 class ISrsProtocolWriter;
 
 /**
+* a slice of kbps statistic, for input or output.
+*/
+class SrsKbpsSlice
+{
+private:
+    union slice_io {
+        ISrsProtocolReader* in;
+        ISrsProtocolWriter* out;
+    };
+public:
+    slice_io io;
+    int64_t bytes;
+    int64_t starttime;
+    // startup bytes number for io when set it,
+    // the base offset of bytes for io.
+    int64_t io_bytes_base;
+    // last updated bytes number,
+    // cache for io maybe freed.
+    int64_t last_bytes;
+public:
+    SrsKbpsSlice();
+    virtual ~SrsKbpsSlice();
+};
+
+/**
 * to statistic the kbps of io.
 */
 class SrsKbps
 {
 private:
-    ISrsProtocolReader* _in;
-    ISrsProtocolWriter* _out;
+    SrsKbpsSlice is;
+    SrsKbpsSlice os;
 public:
     SrsKbps();
     virtual ~SrsKbps();
 public:
+    /**
+    * set the underlayer reader/writer,
+    * if the io destroied, for instance, the forwarder reconnect,
+    * user must set the io of SrsKbps to NULL to continue to use the kbps object.
+    * @param in the input stream statistic. can be NULL.
+    * @param out the output stream statistic. can be NULL.
+    * @remark if in/out is NULL, use the cached data for kbps.
+    */
     virtual void set_io(ISrsProtocolReader* in, ISrsProtocolWriter* out);
 public:
+    /**
+    * get total kbps, duration is from the startup of io.
+    */
     virtual int get_send_kbps();
     virtual int get_recv_kbps();
+public:
+    /**
+    * get the total send/recv bytes, from the startup of the oldest io.
+    */
+    virtual int64_t get_send_bytes();
+    virtual int64_t get_recv_bytes();
 };
 
 #endif
