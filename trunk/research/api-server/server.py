@@ -594,6 +594,16 @@ class RESTServers(object):
                                     "transformers": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-sales-hiwifi&stream=live/transformers"
                                 }
                             }
+                        },
+                        "cubieboard": {
+                            "meiyi": {
+                                "rtmp": {
+                                    "livesteam": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-meiyi-cubieboard&stream=live/livestream"
+                                },
+                                "hls": {
+                                    "livesteam": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard&stream=live/livestream"
+                                }
+                            }
                         }
                     }
                 }})
