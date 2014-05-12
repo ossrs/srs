@@ -243,7 +243,7 @@ function parse_user_option_to_value_and_option() {
     case "$option" in
         -*=*) 
             value=`echo "$option" | sed -e 's|[-_a-zA-Z0-9/]*=||'` 
-            option=`echo "$option" | sed -e 's|=[-_a-zA-Z0-9/]*||'`
+            option=`echo "$option" | sed -e 's|=[-_a-zA-Z0-9/.]*||'`
         ;;
            *) value="" ;;
     esac
