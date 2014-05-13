@@ -513,9 +513,10 @@ int SrsRtmpConn::playing(SrsSource* source)
             srs_verbose("no packets in queue.");
             continue;
         }
-        SrsAutoFree(SrsSharedPtrMessage*, msgs, true);
         
         // sendout messages
+        // @remark, becareful, all msgs must be free explicitly,
+        //      free by send_and_free_message or srs_freep.
         for (int i = 0; i < count; i++) {
             SrsSharedPtrMessage* msg = msgs[i];
             
@@ -524,6 +525,13 @@ int SrsRtmpConn::playing(SrsSource* source)
             msgs[i] = NULL;
             
             srs_assert(msg);
+            
+            // never use free msgs array, for it will memory leak.
+            // if error, directly free msgs.
+            if (ret != ERROR_SUCCESS) {
+                srs_freep(msg);
+                continue;
+            }
             
             // foreach msg, collect the duration.
             // @remark: never use msg when sent it, for the protocol sdk will free it.
@@ -535,8 +543,13 @@ int SrsRtmpConn::playing(SrsSource* source)
             
             if ((ret = rtmp->send_and_free_message(msg)) != ERROR_SUCCESS) {
                 srs_error("send message to client failed. ret=%d", ret);
-                return ret;
+                break;
             }
+        }
+        // free the array itself.
+        srs_freep(msgs);
+        if (ret != ERROR_SUCCESS) {
+            return ret;
         }
         
         // if duration specified, and exceed it, stop play live.

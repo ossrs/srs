@@ -523,7 +523,7 @@ SrsHttpMessage::~SrsHttpMessage()
     srs_freep(_body);
     srs_freep(_uri);
     srs_freep(_match);
-    srs_freepa(_http_ts_send_buffer);
+    srs_freep(_http_ts_send_buffer);
 }
 
 char* SrsHttpMessage::http_ts_send_buffer()

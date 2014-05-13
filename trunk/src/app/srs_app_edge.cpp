@@ -474,19 +474,32 @@ int SrsEdgeForwarder::cycle()
             srs_verbose("no packets to forward.");
             continue;
         }
-        SrsAutoFree(SrsSharedPtrMessage*, msgs, true);
     
-        // all msgs to forward.
+        // all msgs to forward to origin.
+        // @remark, becareful, all msgs must be free explicitly,
+        //      free by send_and_free_message or srs_freep.
         for (int i = 0; i < count; i++) {
             SrsSharedPtrMessage* msg = msgs[i];
             
             srs_assert(msg);
             msgs[i] = NULL;
             
+            // never use free msgs array, for it will memory leak.
+            // if error, directly free msgs.
+            if (ret != ERROR_SUCCESS) {
+                srs_freep(msg);
+                continue;
+            }
+            
             if ((ret = client->send_and_free_message(msg)) != ERROR_SUCCESS) {
                 srs_error("edge publish forwarder send message to server failed. ret=%d", ret);
-                return ret;
+                break;
             }
+        }
+        // free the array itself.
+        srs_freep(msgs);
+        if (ret != ERROR_SUCCESS) {
+            return ret;
         }
     }
     

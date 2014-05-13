@@ -360,7 +360,7 @@ int SrsFFMPEG::start()
         }
         srs_trace("start transcoder, log: %s, params: %s", 
             log_file.c_str(), pparam);
-        srs_freepa(pparam);
+        srs_freep(pparam);
     }
     
     // TODO: fork or vfork?

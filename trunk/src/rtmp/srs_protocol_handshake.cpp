@@ -336,10 +336,10 @@ namespace srs
     void srs_key_block_free(key_block* key)
     {
         if (key->random0) {
-            srs_freepa(key->random0);
+            srs_freep(key->random0);
         }
         if (key->random1) {
-            srs_freepa(key->random1);
+            srs_freep(key->random1);
         }
     }
     
@@ -427,10 +427,10 @@ namespace srs
     void srs_digest_block_free(digest_block* digest)
     {
         if (digest->random0) {
-            srs_freepa(digest->random0);
+            srs_freep(digest->random0);
         }
         if (digest->random1) {
-            srs_freepa(digest->random1);
+            srs_freep(digest->random1);
         }
     }
     

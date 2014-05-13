@@ -340,7 +340,7 @@ int srs_write_packet(srs_rtmp_t rtmp, int type, u_int32_t timestamp, char* data,
         
         msg = new SrsSharedPtrMessage();
         if ((ret = msg->initialize(&header, data, size)) != ERROR_SUCCESS) {
-            srs_freepa(data);
+            srs_freep(data);
             return ret;
         }
     } else if (type == SRS_RTMP_TYPE_VIDEO) {
@@ -349,7 +349,7 @@ int srs_write_packet(srs_rtmp_t rtmp, int type, u_int32_t timestamp, char* data,
         
         msg = new SrsSharedPtrMessage();
         if ((ret = msg->initialize(&header, data, size)) != ERROR_SUCCESS) {
-            srs_freepa(data);
+            srs_freep(data);
             return ret;
         }
     } else if (type == SRS_RTMP_TYPE_SCRIPT) {
@@ -358,7 +358,7 @@ int srs_write_packet(srs_rtmp_t rtmp, int type, u_int32_t timestamp, char* data,
         
         msg = new SrsSharedPtrMessage();
         if ((ret = msg->initialize(&header, data, size)) != ERROR_SUCCESS) {
-            srs_freepa(data);
+            srs_freep(data);
             return ret;
         }
     }
@@ -370,7 +370,7 @@ int srs_write_packet(srs_rtmp_t rtmp, int type, u_int32_t timestamp, char* data,
         }
     } else {
         // directly free data if not sent out.
-        srs_freepa(data);
+        srs_freep(data);
     }
     
     return ret;

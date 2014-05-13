@@ -50,7 +50,7 @@ void SrsCodecBuffer::append(void* data, int len)
 void SrsCodecBuffer::free()
 {
     size = 0;
-    srs_freepa(bytes);
+    srs_freep(bytes);
 }
 
 SrsCodecSample::SrsCodecSample()
@@ -125,12 +125,12 @@ SrsCodec::SrsCodec()
 
 SrsCodec::~SrsCodec()
 {
-    srs_freepa(avc_extra_data);
-    srs_freepa(aac_extra_data);
+    srs_freep(avc_extra_data);
+    srs_freep(aac_extra_data);
 
     srs_freep(stream);
-    srs_freepa(sequenceParameterSetNALUnit);
-    srs_freepa(pictureParameterSetNALUnit);
+    srs_freep(sequenceParameterSetNALUnit);
+    srs_freep(pictureParameterSetNALUnit);
 }
 
 int SrsCodec::audio_aac_demux(int8_t* data, int size, SrsCodecSample* sample)
@@ -207,7 +207,7 @@ int SrsCodec::audio_aac_demux(int8_t* data, int size, SrsCodecSample* sample)
         // 1.6.2.1 AudioSpecificConfig, in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 33.
         aac_extra_size = stream->left();
         if (aac_extra_size > 0) {
-            srs_freepa(aac_extra_data);
+            srs_freep(aac_extra_data);
             aac_extra_data = new char[aac_extra_size];
             memcpy(aac_extra_data, stream->current(), aac_extra_size);
         }
@@ -321,7 +321,7 @@ int SrsCodec::video_avc_demux(int8_t* data, int size, SrsCodecSample* sample)
         // 5.2.4.1.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
         avc_extra_size = stream->left();
         if (avc_extra_size > 0) {
-            srs_freepa(avc_extra_data);
+            srs_freep(avc_extra_data);
             avc_extra_data = new char[avc_extra_size];
             memcpy(avc_extra_data, stream->current(), avc_extra_size);
         }
@@ -366,7 +366,7 @@ int SrsCodec::video_avc_demux(int8_t* data, int size, SrsCodecSample* sample)
             return ret;
         }
         if (sequenceParameterSetLength > 0) {
-            srs_freepa(sequenceParameterSetNALUnit);
+            srs_freep(sequenceParameterSetNALUnit);
             sequenceParameterSetNALUnit = new char[sequenceParameterSetLength];
             memcpy(sequenceParameterSetNALUnit, stream->current(), sequenceParameterSetLength);
             stream->skip(sequenceParameterSetLength);
@@ -396,7 +396,7 @@ int SrsCodec::video_avc_demux(int8_t* data, int size, SrsCodecSample* sample)
             return ret;
         }
         if (pictureParameterSetLength > 0) {
-            srs_freepa(pictureParameterSetNALUnit);
+            srs_freep(pictureParameterSetNALUnit);
             pictureParameterSetNALUnit = new char[pictureParameterSetLength];
             memcpy(pictureParameterSetNALUnit, stream->current(), pictureParameterSetLength);
             stream->skip(pictureParameterSetLength);

@@ -93,7 +93,7 @@ SrsFileBuffer::SrsFileBuffer()
 
 SrsFileBuffer::~SrsFileBuffer()
 {
-    srs_freepa(start);
+    srs_freep(start);
 }
 
 int SrsFileBuffer::fullfill(const char* filename)
@@ -117,7 +117,7 @@ int SrsFileBuffer::fullfill(const char* filename)
         goto finish;
     }
 
-    srs_freepa(start);
+    srs_freep(start);
     pos = last = start = new char[filesize];
     end = start + filesize;
     
@@ -407,15 +407,15 @@ int SrsConfDirective::read_token(SrsFileBuffer* buffer, vector<string>& args)
             
             if (found) {
                 int len = buffer->pos - pstart;
-                char* word = new char[len];
-                memcpy(word, pstart, len);
-                word[len - 1] = 0;
+                char* aword = new char[len];
+                memcpy(aword, pstart, len);
+                aword[len - 1] = 0;
                 
-                string word_str = word;
+                string word_str = aword;
                 if (!word_str.empty()) {
                     args.push_back(word_str);
                 }
-                srs_freepa(word);
+                srs_freep(aword);
                 
                 if (ch == ';') {
                     return ERROR_SYSTEM_CONFIG_DIRECTIVE;

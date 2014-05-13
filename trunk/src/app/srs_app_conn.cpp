@@ -87,7 +87,7 @@ void SrsConnection::stop()
 {
     srs_close_stfd(stfd);
     srs_freep(pthread);
-    srs_freepa(ip);
+    srs_freep(ip);
 }
 
 int SrsConnection::get_peer_ip()

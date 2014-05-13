@@ -1538,7 +1538,7 @@ SrsCommonMessage::SrsCommonMessage()
 
 SrsCommonMessage::~SrsCommonMessage()
 {
-    srs_freepa(payload);
+    srs_freep(payload);
 }
 
 SrsSharedPtrMessage::__SrsSharedPtr::__SrsSharedPtr()
@@ -1550,7 +1550,7 @@ SrsSharedPtrMessage::__SrsSharedPtr::__SrsSharedPtr()
 
 SrsSharedPtrMessage::__SrsSharedPtr::~__SrsSharedPtr()
 {
-    srs_freepa(payload);
+    srs_freep(payload);
 }
 
 SrsSharedPtrMessage::SrsSharedPtrMessage()
@@ -1678,14 +1678,14 @@ int SrsPacket::encode(int& psize, char*& ppayload)
         
         if ((ret = stream.initialize(payload, size)) != ERROR_SUCCESS) {
             srs_error("initialize the stream failed. ret=%d", ret);
-            srs_freepa(payload);
+            srs_freep(payload);
             return ret;
         }
     }
     
     if ((ret = encode_packet(&stream)) != ERROR_SUCCESS) {
         srs_error("encode the packet failed. ret=%d", ret);
-        srs_freepa(payload);
+        srs_freep(payload);
         return ret;
     }
     

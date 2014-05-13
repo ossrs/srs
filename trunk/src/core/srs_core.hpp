@@ -31,7 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // current release version
 #define VERSION_MAJOR "0"
 #define VERSION_MINOR "9"
-#define VERSION_REVISION "94"
+#define VERSION_REVISION "95"
 #define RTMP_SIG_SRS_VERSION VERSION_MAJOR"."VERSION_MINOR"."VERSION_REVISION
 // server info.
 #define RTMP_SIG_SRS_KEY "srs"
@@ -81,13 +81,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         p = NULL; \
     } \
     (void)0
-// free the p which represents a array
-#define srs_freepa(p) \
-    if (p) { \
-        delete[] p; \
-        p = NULL; \
-    } \
-    (void)0
+// sometimes, the freepa is useless,
+// it's recomments to free each elem explicit.
+// so we remove the srs_freepa utility.
 
 // compare
 #define srs_min(a, b) (((a) < (b))? (a) : (b))

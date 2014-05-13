@@ -192,9 +192,9 @@ SrsHandshakeBytes::SrsHandshakeBytes()
 
 SrsHandshakeBytes::~SrsHandshakeBytes() 
 {
-    srs_freepa(c0c1);
-    srs_freepa(s0s1s2);
-    srs_freepa(c2);
+    srs_freep(c0c1);
+    srs_freep(s0s1s2);
+    srs_freep(c2);
 }
 
 int SrsHandshakeBytes::read_c0c1(ISrsProtocolReaderWriter* io)
