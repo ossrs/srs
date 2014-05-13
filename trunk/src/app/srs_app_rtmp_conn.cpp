@@ -543,7 +543,7 @@ int SrsRtmpConn::playing(SrsSource* source)
             
             if ((ret = rtmp->send_and_free_message(msg)) != ERROR_SUCCESS) {
                 srs_error("send message to client failed. ret=%d", ret);
-                break;
+                continue;
             }
         }
         // free the array itself.

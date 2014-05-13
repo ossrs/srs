@@ -493,7 +493,7 @@ int SrsEdgeForwarder::cycle()
             
             if ((ret = client->send_and_free_message(msg)) != ERROR_SUCCESS) {
                 srs_error("edge publish forwarder send message to server failed. ret=%d", ret);
-                break;
+                continue;
             }
         }
         // free the array itself.
