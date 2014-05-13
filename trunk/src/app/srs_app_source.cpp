@@ -1250,15 +1250,12 @@ void SrsSource::on_unpublish()
     
     double queue_size = _srs_config->get_queue_length(_req->vhost);
     consumer->set_queue_size(queue_size);
-
-    if (cache_metadata && (ret = consumer->enqueue(cache_metadata->copy(), sample_rate, frame_rate)) != ERROR_SUCCESS) {
-        srs_error("dispatch metadata failed. ret=%d", ret);
-        return ret;
-    }
-    srs_info("dispatch metadata success");
     
     // if atc, update the sequence header to gop cache time.
     if (atc && !gop_cache->empty()) {
+        if (cache_metadata) {
+            cache_metadata->header.timestamp = gop_cache->get_start_time();
+        }
         if (cache_sh_video) {
             cache_sh_video->header.timestamp = gop_cache->get_start_time();
         }
@@ -1266,6 +1263,13 @@ void SrsSource::on_unpublish()
             cache_sh_audio->header.timestamp = gop_cache->get_start_time();
         }
     }
+
+    // copy metadata.
+    if (cache_metadata && (ret = consumer->enqueue(cache_metadata->copy(), sample_rate, frame_rate)) != ERROR_SUCCESS) {
+        srs_error("dispatch metadata failed. ret=%d", ret);
+        return ret;
+    }
+    srs_info("dispatch metadata success");
     
     // copy sequence header
     if (cache_sh_video && (ret = consumer->enqueue(cache_sh_video->copy(), sample_rate, frame_rate)) != ERROR_SUCCESS) {
