@@ -64,8 +64,6 @@ SrsFFMPEG::SrsFFMPEG(std::string ffmpeg_bin)
     abitrate         = 0;
     asample_rate     = 0;
     achannels         = 0;
-    
-    log_fd = -1;
 }
 
 SrsFFMPEG::~SrsFFMPEG()
@@ -375,6 +373,7 @@ int SrsFFMPEG::start()
     // child process: ffmpeg encoder engine.
     if (pid == 0) {
         // redirect logs to file.
+        int log_fd = -1;
         int flags = O_CREAT|O_WRONLY|O_APPEND;
         mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
         if ((log_fd = ::open(log_file.c_str(), flags, mode)) < 0) {
@@ -392,6 +391,8 @@ int SrsFFMPEG::start()
             srs_error("dup2 encoder file failed. ret=%d", ret);
             return ret;
         }
+        // close log fd
+        ::close(log_fd);
         // close other fds
         // TODO: do in right way.
         for (int i = 3; i < 1024; i++) {
@@ -456,11 +457,6 @@ int SrsFFMPEG::cycle()
 
 void SrsFFMPEG::stop()
 {
-    if (log_fd > 0) {
-        ::close(log_fd);
-        log_fd = -1;
-    }
-    
     if (!started) {
         return;
     }

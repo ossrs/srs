@@ -48,7 +48,6 @@ private:
     pid_t pid;
 private:
     std::string log_file;
-    int log_fd;
 private:
     std::string                 ffmpeg;
     std::string                 _iparams;
