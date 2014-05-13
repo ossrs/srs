@@ -334,7 +334,7 @@ int SrsEdgeIngester::connect_server()
 SrsEdgeForwarder::SrsEdgeForwarder()
 {
     io = NULL;
-    kbps = NULL;
+    kbps = new SrsKbps();
     client = NULL;
     _edge = NULL;
     _req = NULL;
