@@ -955,6 +955,7 @@ int SrsSource::on_audio(SrsMessage* audio)
     }
 
     // cache the sequence header if h264
+    // donot cache the sequence header to gop_cache, return here.
     if (SrsCodec::audio_is_sequence_header(msg->payload, msg->size)) {
         srs_freep(cache_sh_audio);
         cache_sh_audio = msg->copy();
@@ -1044,6 +1045,7 @@ int SrsSource::on_video(SrsMessage* video)
     }
 
     // cache the sequence header if h264
+    // donot cache the sequence header to gop_cache, return here.
     if (SrsCodec::video_is_sequence_header(msg->payload, msg->size)) {
         srs_freep(cache_sh_video);
         cache_sh_video = msg->copy();
