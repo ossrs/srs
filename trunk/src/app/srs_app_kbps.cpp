@@ -28,6 +28,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_io.hpp>
 #include <srs_kernel_utility.hpp>
 
+SrsKbpsSample::SrsKbpsSample()
+{
+    bytes = time = 0;
+    kbps = 0;
+}
+
 SrsKbpsSlice::SrsKbpsSlice()
 {
     io.in = NULL;
@@ -37,6 +43,59 @@ SrsKbpsSlice::SrsKbpsSlice()
 
 SrsKbpsSlice::~SrsKbpsSlice()
 {
+}
+
+int64_t SrsKbpsSlice::get_total_bytes()
+{
+    return bytes + last_bytes - io_bytes_base;
+}
+
+void SrsKbpsSlice::sample()
+{
+    int64_t now = srs_get_system_time_ms();
+    int64_t total_bytes = get_total_bytes();
+    
+    if (sample_30s.time <= 0) {
+        sample_30s.kbps = 0;
+        sample_30s.time = now;
+        sample_30s.bytes = total_bytes;
+    }
+    if (sample_1m.time <= 0) {
+        sample_1m.kbps = 0;
+        sample_1m.time = now;
+        sample_1m.bytes = total_bytes;
+    }
+    if (sample_5m.time <= 0) {
+        sample_5m.kbps = 0;
+        sample_5m.time = now;
+        sample_5m.bytes = total_bytes;
+    }
+    if (sample_60m.time <= 0) {
+        sample_60m.kbps = 0;
+        sample_60m.time = now;
+        sample_60m.bytes = total_bytes;
+    }
+    
+    if (now - sample_30s.time > 30 * 1000) {
+        sample_30s.kbps = (total_bytes - sample_30s.bytes) * 8 / (now - sample_30s.time);
+        sample_30s.time = now;
+        sample_30s.bytes = total_bytes;
+    }
+    if (now - sample_1m.time > 60 * 1000) {
+        sample_1m.kbps = (total_bytes - sample_1m.bytes) * 8 / (now - sample_1m.time);
+        sample_1m.time = now;
+        sample_1m.bytes = total_bytes;
+    }
+    if (now - sample_5m.time > 300 * 1000) {
+        sample_5m.kbps = (total_bytes - sample_5m.bytes) * 8 / (now - sample_5m.time);
+        sample_5m.time = now;
+        sample_5m.bytes = total_bytes;
+    }
+    if (now - sample_60m.time > 3600 * 1000) {
+        sample_60m.kbps = (total_bytes - sample_60m.bytes) * 8 / (now - sample_60m.time);
+        sample_60m.time = now;
+        sample_60m.bytes = total_bytes;
+    }
 }
 
 SrsKbps::SrsKbps()
@@ -64,6 +123,8 @@ void SrsKbps::set_io(ISrsProtocolReader* in, ISrsProtocolWriter* out)
     if (in) {
         is.last_bytes = is.io_bytes_base = in->get_recv_bytes();
     }
+    // resample
+    is.sample();
     
     // set output stream
     // now, set start time.
@@ -80,41 +141,74 @@ void SrsKbps::set_io(ISrsProtocolReader* in, ISrsProtocolWriter* out)
     if (out) {
         os.last_bytes = os.io_bytes_base = out->get_send_bytes();
     }
+    // resample
+    os.sample();
 }
 
 int SrsKbps::get_send_kbps()
 {
     int64_t duration = srs_get_system_time_ms() - is.starttime;
-    int64_t bytes = get_send_bytes();
     if (duration <= 0) {
         return 0;
     }
+    int64_t bytes = get_send_bytes();
     return bytes * 8 / duration;
 }
 
 int SrsKbps::get_recv_kbps()
 {
     int64_t duration = srs_get_system_time_ms() - os.starttime;
-    int64_t bytes = get_recv_bytes();
     if (duration <= 0) {
         return 0;
     }
+    int64_t bytes = get_recv_bytes();
     return bytes * 8 / duration;
+}
+
+int SrsKbps::get_send_kbps_sample_high()
+{
+    return os.sample_30s.kbps;
+}
+
+int SrsKbps::get_recv_kbps_sample_high()
+{
+    return is.sample_30s.kbps;
+}
+
+int SrsKbps::get_send_kbps_sample_medium()
+{
+    return os.sample_5m.kbps;
+}
+
+int SrsKbps::get_recv_kbps_sample_medium()
+{
+    return is.sample_5m.kbps;
 }
 
 int64_t SrsKbps::get_send_bytes()
 {
-    if (os.io.out) {
-        os.last_bytes = os.io.out->get_send_bytes();
-    }
-    return os.bytes + os.last_bytes - os.io_bytes_base;
+    return os.get_total_bytes();
 }
 
 int64_t SrsKbps::get_recv_bytes()
 {
+    return is.get_total_bytes();
+}
+
+void SrsKbps::sample()
+{
+    if (os.io.out) {
+        os.last_bytes = os.io.out->get_send_bytes();
+    }
+    
+    // resample
+    os.sample();
+    
     if (is.io.in) {
         is.last_bytes = is.io.in->get_recv_bytes();
     }
-    return is.bytes + is.last_bytes - is.io_bytes_base;
+    
+    // resample
+    is.sample();
 }
 

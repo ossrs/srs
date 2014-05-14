@@ -504,9 +504,12 @@ int SrsRtmpConn::playing(SrsSource* source)
 
         // reportable
         if (pithy_print.can_print()) {
+            kbps->sample();
             srs_trace("-> "SRS_LOG_ID_PLAY
-                " time=%"PRId64", duration=%"PRId64", msgs=%d, okbps=%d, ikbps=%d", 
-                pithy_print.age(), duration, count, kbps->get_send_kbps(), kbps->get_recv_kbps());
+                " time=%"PRId64", msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d", 
+                pithy_print.age(), count,
+                kbps->get_send_kbps(), kbps->get_send_kbps_sample_high(), kbps->get_send_kbps_sample_medium(),
+                kbps->get_recv_kbps(), kbps->get_recv_kbps_sample_high(), kbps->get_recv_kbps_sample_medium());
         }
         
         if (count <= 0) {
@@ -590,9 +593,11 @@ int SrsRtmpConn::fmle_publish(SrsSource* source)
 
         // reportable
         if (pithy_print.can_print()) {
+            kbps->sample();
             srs_trace("<- "SRS_LOG_ID_CLIENT_PUBLISH
-                " time=%"PRId64", okbps=%d, ikbps=%d", 
-                pithy_print.age(), kbps->get_send_kbps(), kbps->get_recv_kbps());
+                " time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d", pithy_print.age(), 
+                kbps->get_send_kbps(), kbps->get_send_kbps_sample_high(), kbps->get_send_kbps_sample_medium(),
+                kbps->get_recv_kbps(), kbps->get_recv_kbps_sample_high(), kbps->get_recv_kbps_sample_medium());
         }
     
         // process UnPublish event.
@@ -666,9 +671,12 @@ int SrsRtmpConn::flash_publish(SrsSource* source)
 
         // reportable
         if (pithy_print.can_print()) {
+            kbps->sample();
             srs_trace("<- "SRS_LOG_ID_WEB_PUBLISH
-                " time=%"PRId64", okbps=%d, ikbps=%d", 
-                pithy_print.age(), kbps->get_send_kbps(), kbps->get_recv_kbps());
+                " time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d", 
+                pithy_print.age(),
+                kbps->get_send_kbps(), kbps->get_send_kbps_sample_high(), kbps->get_send_kbps_sample_medium(),
+                kbps->get_recv_kbps(), kbps->get_recv_kbps_sample_high(), kbps->get_recv_kbps_sample_medium());
         }
     
         // process UnPublish event.
