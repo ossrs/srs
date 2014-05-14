@@ -54,7 +54,7 @@ public:
     int pithy_print_time_ms;
     int nb_clients;
 public:
-    int64_t _age;
+    int64_t age;
     int64_t printed_age;
 public:
     SrsStageInfo(int _stage_id);

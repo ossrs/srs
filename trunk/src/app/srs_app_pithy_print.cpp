@@ -38,7 +38,7 @@ SrsStageInfo::SrsStageInfo(int _stage_id)
 {
     stage_id = _stage_id;
     nb_clients = 0;
-    _age = printed_age = 0;
+    age = printed_age = 0;
     
     update_print_time();
     
@@ -90,16 +90,16 @@ void SrsStageInfo::update_print_time()
 
 void SrsStageInfo::elapse(int64_t diff)
 {
-    _age += diff;
+    age += diff;
 }
 
 bool SrsStageInfo::can_print()
 {
     int64_t can_print_age = nb_clients * pithy_print_time_ms;
     
-    bool can_print = _age >= can_print_age;
+    bool can_print = age >= can_print_age;
     if (can_print) {
-        _age = 0;
+        age = 0;
     }
     
     return can_print;
