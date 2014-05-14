@@ -228,7 +228,7 @@ int SrsHttpVhost::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
         ::lseek(fd, 0, SEEK_SET);
         
         char* buf = new char[length];
-        SrsAutoFree(char, buf, true);
+        SrsAutoFree(char, buf);
         
         // TODO: FIXME: use st_read.
         if (::read(fd, buf, length) < 0) {
@@ -352,7 +352,7 @@ int SrsHttpConn::do_cycle()
         srs_assert(req->is_complete());
         
         // always free it in this scope.
-        SrsAutoFree(SrsHttpMessage, req, false);
+        SrsAutoFree(SrsHttpMessage, req);
         
         // ok, handle http request.
         if ((ret = process_request(&skt, req)) != ERROR_SUCCESS) {

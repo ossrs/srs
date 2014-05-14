@@ -186,7 +186,7 @@ int SrsEdgeIngester::ingest()
         srs_verbose("edge loop recv message. ret=%d", ret);
         
         srs_assert(msg);
-        SrsAutoFree(SrsMessage, msg, false);
+        SrsAutoFree(SrsMessage, msg);
         
         if ((ret = process_publish_message(msg)) != ERROR_SUCCESS) {
             return ret;
@@ -234,7 +234,7 @@ int SrsEdgeIngester::process_publish_message(SrsMessage* msg)
             srs_error("decode onMetaData message failed. ret=%d", ret);
             return ret;
         }
-        SrsAutoFree(SrsPacket, pkt, false);
+        SrsAutoFree(SrsPacket, pkt);
     
         if (dynamic_cast<SrsOnMetaDataPacket*>(pkt)) {
             SrsOnMetaDataPacket* metadata = dynamic_cast<SrsOnMetaDataPacket*>(pkt);
@@ -527,7 +527,7 @@ int SrsEdgeForwarder::proxy(SrsMessage* msg)
     
     // TODO: FIXME: use utility to copy msg to shared ptr msg.
     SrsSharedPtrMessage* copy = new SrsSharedPtrMessage();
-    SrsAutoFree(SrsSharedPtrMessage, copy, false);
+    SrsAutoFree(SrsSharedPtrMessage, copy);
     if ((ret = copy->initialize(msg)) != ERROR_SUCCESS) {
         srs_error("initialize the msg failed. ret=%d", ret);
         return ret;

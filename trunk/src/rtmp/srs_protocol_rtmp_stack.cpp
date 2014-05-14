@@ -442,7 +442,7 @@ int SrsProtocol::do_send_and_free_message(SrsMessage* msg, SrsPacket* packet)
     
     // always free msg.
     srs_assert(msg);
-    SrsAutoFree(SrsMessage, msg, false);
+    SrsAutoFree(SrsMessage, msg);
     
     // we donot use the complex basic header,
     // ensure the basic header is 1bytes.
@@ -735,7 +735,7 @@ int SrsProtocol::send_and_free_packet(SrsPacket* packet, int stream_id)
     int ret = ERROR_SUCCESS;
     
     srs_assert(packet);
-    SrsAutoFree(SrsPacket, packet, false);
+    SrsAutoFree(SrsPacket, packet);
     
     int size = 0;
     char* payload = NULL;
@@ -1274,7 +1274,7 @@ int SrsProtocol::on_recv_message(SrsMessage* msg)
     srs_assert(packet);
     
     // always free the packet.
-    SrsAutoFree(SrsPacket, packet, false);
+    SrsAutoFree(SrsPacket, packet);
     
     switch (msg->header.message_type) {
         case RTMP_MSG_WindowAcknowledgementSize: {
@@ -2584,7 +2584,7 @@ int SrsPlayPacket::decode(SrsStream* stream)
         srs_error("amf0 read play reset marker failed. ret=%d", ret);
         return ret;
     }
-    SrsAutoFree(SrsAmf0Any, reset_value, false);
+    SrsAutoFree(SrsAmf0Any, reset_value);
     
     if (reset_value) {
         // check if the value is bool or number
@@ -3160,7 +3160,7 @@ int SrsOnMetaDataPacket::decode(SrsStream* stream)
         return ret;
     }
     
-    SrsAutoFree(SrsAmf0Any, any, false);
+    SrsAutoFree(SrsAmf0Any, any);
     
     if (any->is_ecma_array()) {
         SrsAmf0EcmaArray* arr = any->to_ecma_array();

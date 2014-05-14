@@ -460,7 +460,7 @@ int SrsRtmpConn::playing(SrsSource* source)
     }
     
     srs_assert(consumer != NULL);
-    SrsAutoFree(SrsConsumer, consumer, false);
+    SrsAutoFree(SrsConsumer, consumer);
     srs_verbose("consumer created success.");
     
     rtmp->set_recv_timeout(SRS_PULSE_TIMEOUT_US);
@@ -595,7 +595,7 @@ int SrsRtmpConn::fmle_publish(SrsSource* source)
             return ret;
         }
 
-        SrsAutoFree(SrsMessage, msg, false);
+        SrsAutoFree(SrsMessage, msg);
         
         pithy_print.elapse();
 
@@ -614,7 +614,7 @@ int SrsRtmpConn::fmle_publish(SrsSource* source)
                 return ret;
             }
             
-            SrsAutoFree(SrsPacket, pkt, false);
+            SrsAutoFree(SrsPacket, pkt);
         
             if (dynamic_cast<SrsFMLEStartPacket*>(pkt)) {
                 SrsFMLEStartPacket* unpublish = dynamic_cast<SrsFMLEStartPacket*>(pkt);
@@ -671,7 +671,7 @@ int SrsRtmpConn::flash_publish(SrsSource* source)
             return ret;
         }
 
-        SrsAutoFree(SrsMessage, msg, false);
+        SrsAutoFree(SrsMessage, msg);
         
         pithy_print.elapse();
 
@@ -690,7 +690,7 @@ int SrsRtmpConn::flash_publish(SrsSource* source)
                 return ret;
             }
             
-            SrsAutoFree(SrsPacket, pkt, false);
+            SrsAutoFree(SrsPacket, pkt);
             
             // flash unpublish.
             // TODO: maybe need to support republish.
@@ -754,7 +754,7 @@ int SrsRtmpConn::process_publish_message(SrsSource* source, SrsMessage* msg, boo
             srs_error("decode onMetaData message failed. ret=%d", ret);
             return ret;
         }
-        SrsAutoFree(SrsPacket, pkt, false);
+        SrsAutoFree(SrsPacket, pkt);
     
         if (dynamic_cast<SrsOnMetaDataPacket*>(pkt)) {
             SrsOnMetaDataPacket* metadata = dynamic_cast<SrsOnMetaDataPacket*>(pkt);
@@ -781,7 +781,7 @@ int SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsMessage* msg
         srs_verbose("ignore all empty message.");
         return ret;
     }
-    SrsAutoFree(SrsMessage, msg, false);
+    SrsAutoFree(SrsMessage, msg);
     
     if (!msg->header.is_amf0_command() && !msg->header.is_amf3_command()) {
         srs_info("ignore all message except amf0/amf3 command.");
@@ -795,7 +795,7 @@ int SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsMessage* msg
     }
     srs_info("decode the amf0/amf3 command packet success.");
     
-    SrsAutoFree(SrsPacket, pkt, false);
+    SrsAutoFree(SrsPacket, pkt);
     
     // for jwplayer/flowplayer, which send close as pause message.
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/6

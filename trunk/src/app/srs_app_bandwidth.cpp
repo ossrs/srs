@@ -203,8 +203,8 @@ int SrsBandwidth::do_bandwidth_check()
             srs_info("expect final message failed. ret=%d", ret);
             return ERROR_SUCCESS;
         }
-        SrsAutoFree(SrsMessage, msg, false);
-        SrsAutoFree(SrsBandwidthPacket, pkt, false);
+        SrsAutoFree(SrsMessage, msg);
+        SrsAutoFree(SrsBandwidthPacket, pkt);
         srs_info("get final message success.");
         
         if (pkt->is_flash_final()) {
@@ -248,8 +248,8 @@ int SrsBandwidth::check_play(
             srs_error("expect bandwidth message failed. ret=%d", ret);
             return ret;
         }
-        SrsAutoFree(SrsMessage, msg, false);
-        SrsAutoFree(SrsBandwidthPacket, pkt, false);
+        SrsAutoFree(SrsMessage, msg);
+        SrsAutoFree(SrsBandwidthPacket, pkt);
         srs_info("get bandwidth message succes.");
         
         if (pkt->is_starting_play()) {
@@ -329,8 +329,8 @@ int SrsBandwidth::check_play(
             srs_error("expect bandwidth message failed. ret=%d", ret);
             return ret;
         }
-        SrsAutoFree(SrsMessage, msg, false);
-        SrsAutoFree(SrsBandwidthPacket, pkt, false);
+        SrsAutoFree(SrsMessage, msg);
+        SrsAutoFree(SrsBandwidthPacket, pkt);
         srs_info("get bandwidth message succes.");
         
         if (pkt->is_stopped_play()) {
@@ -372,8 +372,8 @@ int SrsBandwidth::check_publish(
             srs_error("expect bandwidth message failed. ret=%d", ret);
             return ret;
         }
-        SrsAutoFree(SrsMessage, msg, false);
-        SrsAutoFree(SrsBandwidthPacket, pkt, false);
+        SrsAutoFree(SrsMessage, msg);
+        SrsAutoFree(SrsBandwidthPacket, pkt);
         srs_info("get bandwidth message succes.");
         
         if (pkt->is_starting_publish()) {
@@ -392,7 +392,7 @@ int SrsBandwidth::check_publish(
             srs_error("recv message failed. ret=%d", ret);
             return ret;
         }
-        SrsAutoFree(SrsMessage, msg, false);
+        SrsAutoFree(SrsMessage, msg);
 
         publish_bytes = rtmp->get_recv_bytes();
 
@@ -440,8 +440,8 @@ int SrsBandwidth::check_publish(
             srs_error("expect bandwidth message failed. ret=%d", ret);
             return ret;
         }
-        SrsAutoFree(SrsMessage, msg, false);
-        SrsAutoFree(SrsBandwidthPacket, pkt, false);
+        SrsAutoFree(SrsMessage, msg);
+        SrsAutoFree(SrsBandwidthPacket, pkt);
         srs_info("get bandwidth message succes.");
         
         if (pkt->is_stopped_publish()) {

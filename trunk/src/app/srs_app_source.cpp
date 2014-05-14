@@ -898,7 +898,7 @@ int SrsSource::on_audio(SrsMessage* audio)
     int ret = ERROR_SUCCESS;
     
     SrsSharedPtrMessage* msg = new SrsSharedPtrMessage();
-    SrsAutoFree(SrsSharedPtrMessage, msg, false);
+    SrsAutoFree(SrsSharedPtrMessage, msg);
     if ((ret = msg->initialize(audio)) != ERROR_SUCCESS) {
         srs_error("initialize the audio failed. ret=%d", ret);
         return ret;
@@ -988,7 +988,7 @@ int SrsSource::on_video(SrsMessage* video)
     int ret = ERROR_SUCCESS;
     
     SrsSharedPtrMessage* msg = new SrsSharedPtrMessage();
-    SrsAutoFree(SrsSharedPtrMessage, msg, false);
+    SrsAutoFree(SrsSharedPtrMessage, msg);
     if ((ret = msg->initialize(video)) != ERROR_SUCCESS) {
         srs_error("initialize the video failed. ret=%d", ret);
         return ret;

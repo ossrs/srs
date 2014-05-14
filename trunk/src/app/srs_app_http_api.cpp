@@ -532,7 +532,7 @@ int SrsHttpApi::do_cycle()
         srs_assert(req->is_complete());
         
         // always free it in this scope.
-        SrsAutoFree(SrsHttpMessage, req, false);
+        SrsAutoFree(SrsHttpMessage, req);
         
         // ok, handle http request.
         if ((ret = process_request(&skt, req)) != ERROR_SUCCESS) {

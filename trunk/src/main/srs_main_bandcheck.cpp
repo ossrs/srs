@@ -348,8 +348,8 @@ int SrsBandCheckClient::expect_start_play()
         srs_error("expect bandcheck start play message failed. ret=%d", ret);
         return ret;
     }
-    SrsAutoFree(SrsMessage, msg, false);
-    SrsAutoFree(SrsBandwidthPacket, pkt, false);
+    SrsAutoFree(SrsMessage, msg);
+    SrsAutoFree(SrsBandwidthPacket, pkt);
     srs_info("get bandcheck start play message");
 
     if (pkt->command_name != SRS_BW_CHECK_START_PLAY) {
@@ -385,8 +385,8 @@ int SrsBandCheckClient::expect_stop_play()
             srs_error("expect stop play message failed. ret=%d", ret);
             return ret;
         }
-        SrsAutoFree(SrsMessage, msg, false);
-        SrsAutoFree(SrsBandwidthPacket, pkt, false);
+        SrsAutoFree(SrsMessage, msg);
+        SrsAutoFree(SrsBandwidthPacket, pkt);
         srs_info("get bandcheck stop play message");
 
         if (pkt->command_name == SRS_BW_CHECK_STOP_PLAY) {
@@ -422,8 +422,8 @@ int SrsBandCheckClient::expect_start_pub()
             srs_error("expect start pub message failed. ret=%d", ret);
             return ret;
         }
-        SrsAutoFree(SrsMessage, msg, false);
-        SrsAutoFree(SrsBandwidthPacket, pkt, false);
+        SrsAutoFree(SrsMessage, msg);
+        SrsAutoFree(SrsBandwidthPacket, pkt);
         srs_info("get bandcheck start pub message");
 
         if (pkt->command_name == SRS_BW_CHECK_START_PUBLISH) {
@@ -491,8 +491,8 @@ int SrsBandCheckClient::expect_stop_pub()
     if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(this->protocol, &msg, &pkt)) != ERROR_SUCCESS) {
         return ret;
     }
-    SrsAutoFree(SrsMessage, msg, false);
-    SrsAutoFree(SrsBandwidthPacket, pkt, false);
+    SrsAutoFree(SrsMessage, msg);
+    SrsAutoFree(SrsBandwidthPacket, pkt);
     if (pkt->command_name == SRS_BW_CHECK_STOP_PUBLISH) {
         return ret;
     }
@@ -511,13 +511,13 @@ int SrsBandCheckClient::expect_finished()
             srs_error("expect finished message failed. ret=%d", ret);
             return ret;
         }
-        SrsAutoFree(SrsMessage, msg, false);
-        SrsAutoFree(SrsBandwidthPacket, pkt, false);
+        SrsAutoFree(SrsMessage, msg);
+        SrsAutoFree(SrsBandwidthPacket, pkt);
         srs_info("get bandcheck finished message");
 
         if (pkt->command_name == SRS_BW_CHECK_FINISHED) {
             SrsStream *stream = new SrsStream;
-            SrsAutoFree(SrsStream, stream, false);
+            SrsAutoFree(SrsStream, stream);
 
             if ((ret = stream->initialize((char*)msg->payload, msg->size)) != ERROR_SUCCESS) {
                 srs_error("initialize stream error. ret=%d", ret);

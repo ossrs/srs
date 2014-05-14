@@ -813,7 +813,7 @@ namespace srs
         }
         
         srs_assert(digest != NULL);
-        SrsAutoFree(char, digest, true);
+        SrsAutoFree(char, digest);
         
         if (schema == srs_schema0) {
             memcpy(block1.digest.digest, digest, 32);
@@ -837,7 +837,7 @@ namespace srs
         }
         
         srs_assert(c1_digest != NULL);
-        SrsAutoFree(char, c1_digest, true);
+        SrsAutoFree(char, c1_digest);
         
         if (schema == srs_schema0) {
             is_valid = srs_bytes_equals(block1.digest.digest, c1_digest, 32);
@@ -861,7 +861,7 @@ namespace srs
         }
         
         srs_assert(s1_digest != NULL);
-        SrsAutoFree(char, s1_digest, true);
+        SrsAutoFree(char, s1_digest);
         
         if (schema == srs_schema0) {
             is_valid = srs_bytes_equals(block1.digest.digest, s1_digest, 32);
@@ -917,7 +917,7 @@ namespace srs
         srs_verbose("calc s1 digest success.");
         
         srs_assert(s1_digest != NULL);
-        SrsAutoFree(char, s1_digest, true);
+        SrsAutoFree(char, s1_digest);
         
         if (schema == srs_schema0) {
             memcpy(block1.digest.digest, s1_digest, 32);
@@ -944,7 +944,7 @@ namespace srs
         }
         
         srs_assert(c1s1_joined_bytes != NULL);
-        SrsAutoFree(char, c1s1_joined_bytes, true);
+        SrsAutoFree(char, c1s1_joined_bytes);
         
         digest = new char[OpensslHashSize];
         if ((ret = openssl_HMACsha256(c1s1_joined_bytes, 1536 - 32, SrsGenuineFMSKey, 36, digest)) != ERROR_SUCCESS) {
@@ -971,7 +971,7 @@ namespace srs
         }
         
         srs_assert(c1s1_joined_bytes != NULL);
-        SrsAutoFree(char, c1s1_joined_bytes, true);
+        SrsAutoFree(char, c1s1_joined_bytes);
         
         digest = new char[OpensslHashSize];
         if ((ret = openssl_HMACsha256(c1s1_joined_bytes, 1536 - 32, SrsGenuineFPKey, 30, digest)) != ERROR_SUCCESS) {

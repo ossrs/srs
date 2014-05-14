@@ -446,7 +446,7 @@ int SrsDvrPlan::on_meta_data(SrsOnMetaDataPacket* metadata)
     if ((ret = metadata->encode(size, payload)) != ERROR_SUCCESS) {
         return ret;
     }
-    SrsAutoFree(char, payload, true);
+    SrsAutoFree(char, payload);
     
     if ((ret = enc->write_metadata(payload, size)) != ERROR_SUCCESS) {
         return ret;
@@ -835,7 +835,7 @@ int SrsDvrHssPlan::on_meta_data(SrsOnMetaDataPacket* metadata)
     if ((ret = metadata->encode(size, payload)) != ERROR_SUCCESS) {
         return ret;
     }
-    SrsAutoFree(char, payload, true);
+    SrsAutoFree(char, payload);
     
     if ((ret = enc.write_metadata(payload, size)) != ERROR_SUCCESS) {
         return ret;
@@ -1002,7 +1002,7 @@ int SrsDvr::on_audio(SrsSharedPtrMessage* audio)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsAutoFree(SrsSharedPtrMessage, audio, false);
+    SrsAutoFree(SrsSharedPtrMessage, audio);
     
     if ((ret = plan->on_audio(audio)) != ERROR_SUCCESS) {
         return ret;
@@ -1015,7 +1015,7 @@ int SrsDvr::on_video(SrsSharedPtrMessage* video)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsAutoFree(SrsSharedPtrMessage, video, false);
+    SrsAutoFree(SrsSharedPtrMessage, video);
     
     if ((ret = plan->on_video(video)) != ERROR_SUCCESS) {
         return ret;

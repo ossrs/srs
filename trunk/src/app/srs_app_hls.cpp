@@ -1388,7 +1388,7 @@ int SrsHls::on_audio(SrsSharedPtrMessage* audio)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsAutoFree(SrsSharedPtrMessage, audio, false);
+    SrsAutoFree(SrsSharedPtrMessage, audio);
     
     if (!hls_enabled) {
         return ret;
@@ -1432,7 +1432,7 @@ int SrsHls::on_video(SrsSharedPtrMessage* video)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsAutoFree(SrsSharedPtrMessage, video, false);
+    SrsAutoFree(SrsSharedPtrMessage, video);
     
     if (!hls_enabled) {
         return ret;

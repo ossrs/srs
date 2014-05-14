@@ -115,7 +115,7 @@ VOID TEST(HandshakeTest, VerifyFPC0C1)
     // manually validate the c1
     // @see: calc_c1_digest
     char* c1s1_joined_bytes = srs_bytes_join_schema0(c1.time, c1.version, &c1.block0.key, &c1.block1.digest);
-    SrsAutoFree(char, c1s1_joined_bytes, true);
+    SrsAutoFree(char, c1s1_joined_bytes);
     
     bool is_valid;
     ASSERT_EQ(ERROR_SUCCESS, c1.c1_validate_digest(is_valid));

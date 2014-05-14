@@ -33,23 +33,21 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /**
 * auto free the instance in the current scope.
 */
-#define SrsAutoFree(className, instance, is_array) \
-    __SrsAutoFree<className> _auto_free_##instance((className**)&instance, is_array)
+#define SrsAutoFree(className, instance) \
+    __SrsAutoFree<className> _auto_free_##instance((className**)&instance)
     
 template<class T>
 class __SrsAutoFree
 {
 private:
     T** ptr;
-    bool is_array;
 public:
     /**
     * auto delete the ptr.
     * @is_array a bool value indicates whether the ptr is a array.
     */
-    __SrsAutoFree(T** _ptr, bool _is_array){
+    __SrsAutoFree(T** _ptr){
         ptr = _ptr;
-        is_array = _is_array;
     }
     
     virtual ~__SrsAutoFree(){
@@ -57,15 +55,22 @@ public:
             return;
         }
         
-        if (is_array) {
-            delete[] *ptr;
-        } else {
-            delete *ptr;
-        }
+        delete *ptr;
         
         *ptr = NULL;
     }
 };
 
+/**
+* auto free the array ptrs, for example, MyClass* msgs[10],
+* which stores 10 MyClass* objects, this class will:
+* 1. free each MyClass* in array.
+* 2. free the msgs itself.
+* @remark, MyClass* msgs[] equals to MyClass**, the ptr array equals ptr to ptr.
+*/
+template<class T>
+class SrsObjectPtrArrayAutoFree
+{
+};
 
 #endif

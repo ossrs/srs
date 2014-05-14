@@ -488,7 +488,7 @@ int SrsConfig::reload()
     srs_info("config reloader parse file success.");
     
     SrsConfDirective* old_root = root;
-    SrsAutoFree(SrsConfDirective, old_root, false);
+    SrsAutoFree(SrsConfDirective, old_root);
     
     root = conf.root;
     conf.root = NULL;

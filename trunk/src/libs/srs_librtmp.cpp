@@ -291,7 +291,7 @@ int srs_read_packet(srs_rtmp_t rtmp, int* type, u_int32_t* timestamp, char** dat
             continue;
         }
         
-        SrsAutoFree(SrsMessage, msg, false);
+        SrsAutoFree(SrsMessage, msg);
         
         if (msg->header.is_audio()) {
             *type = SRS_RTMP_TYPE_AUDIO;
