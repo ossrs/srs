@@ -29,7 +29,48 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
-// json encode macros
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+/* json encode
+    cout<< JOBJECT_START
+            << JFIELD_STR("name", "srs") << JFIELD_CONT
+            << JFIELD_ORG("version", 100) << JFIELD_CONT
+            << JFIELD_NAME("features") << JOBJECT_START
+                << JFIELD_STR("rtmp", "released") << JFIELD_CONT
+                << JFIELD_STR("hls", "released") << JFIELD_CONT
+                << JFIELD_STR("dash", "plan")
+            << JOBJECT_END << JFIELD_CONT
+            << JFIELD_STR("author", "srs team")
+        << JOBJECT_END
+it's:
+    cont<< "{"
+            << "name:" << "srs" << ","
+            << "version:" << 100 << ","
+            << "features:" << "{"
+                << "rtmp:" << "released" << ","
+                << "hls:" << "released" << ","
+                << "dash:" << "plan"
+            << "}" << ","
+            << "author:" << "srs team"
+        << "}"
+that is:
+    """
+        {
+            "name": "srs",
+            "version": 100,
+            "features": {
+                "rtmp": "released",
+                "hls": "released",
+                "dash": "plan"
+            },
+            "author": "srs team"
+        }
+    """
+*/
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
 #define JOBJECT_START "{"
 #define JFIELD_NAME(k) "\"" << k << "\":"
 #define JFIELD_STR(k, v) "\"" << k << "\":\"" << v << "\""
@@ -39,5 +80,26 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define JOBJECT_END "}"
 #define JARRAY_START "["
 #define JARRAY_END "]"
+
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+// json decode
+// 1. SrsJsonAny: read any from stream
+//        SrsJsonAny* pany = NULL;
+//        if ((ret = srs_json_read_any(stream, &pany)) != ERROR_SUCCESS) {
+//            return ret;
+//         }
+//        srs_assert(pany); // if success, always valid object.
+// 2. SrsJsonAny: convert to specifid type, for instance, string
+//        SrsJsonAny* pany = ...
+//        if (pany->is_string()) {
+//            string v = pany->to_str();
+//        }
+//
+// for detail usage, see interfaces of each object.
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
 
 #endif
