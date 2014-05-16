@@ -598,10 +598,46 @@ class RESTServers(object):
                         "cubieboard": {
                             "meiyi": {
                                 "rtmp": {
-                                    "livesteam": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-meiyi-cubieboard&stream=live/livestream"
+                                    "livesteam": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-meiyi-cubieboard&stream=live/livestream",
+                                    "stream1": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-meiyi-cubieboard&stream=live/stream1",
+                                    "stream2": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-meiyi-cubieboard&stream=live/stream2",
+                                    "stream3": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-meiyi-cubieboard&stream=live/stream3",
+                                    "stream4": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-meiyi-cubieboard&stream=live/stream4",
+                                    "stream5": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-meiyi-cubieboard&stream=live/stream5",
+                                    "stream6": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-meiyi-cubieboard&stream=live/stream6",
+                                    "stream7": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-meiyi-cubieboard&stream=live/stream7"
                                 },
                                 "hls": {
-                                    "livesteam": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard&stream=live/livestream"
+                                    "livesteam": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard&stream=live/livestream",
+                                    "stream1": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard&stream=live/stream1",
+                                    "stream2": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard&stream=live/stream2",
+                                    "stream3": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard&stream=live/stream3",
+                                    "stream4": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard&stream=live/stream4",
+                                    "stream5": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard&stream=live/stream5",
+                                    "stream6": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard&stream=live/stream6",
+                                    "stream7": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard&stream=live/stream7"
+                                }
+                            },
+                            "meiyi-bk": {
+                                "rtmp": {
+                                    "livesteam": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-meiyi-cubieboard-bk&stream=live/livestream",
+                                    "stream1": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-meiyi-cubieboard-bk&stream=live/stream1",
+                                    "stream2": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-meiyi-cubieboard-bk&stream=live/stream2",
+                                    "stream3": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-meiyi-cubieboard-bk&stream=live/stream3",
+                                    "stream4": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-meiyi-cubieboard-bk&stream=live/stream4",
+                                    "stream5": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-meiyi-cubieboard-bk&stream=live/stream5",
+                                    "stream6": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-meiyi-cubieboard-bk&stream=live/stream6",
+                                    "stream7": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-meiyi-cubieboard-bk&stream=live/stream7"
+                                },
+                                "hls": {
+                                    "livesteam": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard-bk&stream=live/livestream",
+                                    "stream1": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard-bk&stream=live/stream1",
+                                    "stream2": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard-bk&stream=live/stream2",
+                                    "stream3": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard-bk&stream=live/stream3",
+                                    "stream4": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard-bk&stream=live/stream4",
+                                    "stream5": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard-bk&stream=live/stream5",
+                                    "stream6": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard-bk&stream=live/stream6",
+                                    "stream7": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard-bk&stream=live/stream7"
                                 }
                             }
                         }
