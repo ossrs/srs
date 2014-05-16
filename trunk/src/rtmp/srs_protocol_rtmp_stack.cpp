@@ -1157,6 +1157,9 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
     //        milliseconds.
     // in a word, 31bits timestamp is ok.
     // convert extended timestamp to 31bits.
+    if (chunk->header.timestamp > 0x7fffffff) {
+        srs_warn("RTMP 31bits timestamp overflow, time=%"PRId64, chunk->header.timestamp);
+    }
     chunk->header.timestamp &= 0x7fffffff;
     
     // valid message
