@@ -90,8 +90,9 @@ class SrsChunkStream;
 class SrsProtocol
 {
 private:
-    struct AckWindowSize
+    class AckWindowSize
     {
+    public:
         int ack_window_size;
         int64_t acked_size;
         
@@ -221,8 +222,9 @@ private:
 /**
 * 4.1. Message Header
 */
-struct SrsMessageHeader
+class SrsMessageHeader
 {
+public:
     /**
     * One byte field to represent the message type. A range of type IDs
     * (1-7) are reserved for protocol control messages.
@@ -370,8 +372,9 @@ public:
 class SrsSharedPtrMessage : public SrsMessage
 {
 private:
-    struct __SrsSharedPtr
+    class __SrsSharedPtr
     {
+    public:
         char* payload;
         int size;
         int shared_count;

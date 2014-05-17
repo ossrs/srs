@@ -39,8 +39,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 extern int srs_get_log_level(std::string level);
 
 // @see: man getrusage
-struct SrsRusage
+class SrsRusage
 {
+public:
     // whether the data is ok.
     bool ok;
     // the time in ms when sample.
@@ -57,8 +58,9 @@ extern SrsRusage* srs_get_system_rusage();
 extern void srs_update_system_rusage();
 
 // @see: man 5 proc, /proc/[pid]/stat
-struct SrsProcSelfStat
+class SrsProcSelfStat
 {
+public:
     // whether the data is ok.
     bool ok;
     // the time in ms when sample.
@@ -208,8 +210,9 @@ struct SrsProcSelfStat
 };
 
 // @see: man 5 proc, /proc/stat
-struct SrsProcSystemStat
+class SrsProcSystemStat
 {
+public:
     // whether the data is ok.
     bool ok;
     // the time in ms when sample.
@@ -262,8 +265,9 @@ extern SrsProcSystemStat* srs_get_system_proc_stat();
 extern void srs_update_proc_stat();
 
 // @see: cat /proc/meminfo 
-struct SrsMemInfo
+class SrsMemInfo
 {
+public:
     // whether the data is ok.
     bool ok;
     // the time in ms when sample.
@@ -298,8 +302,9 @@ extern SrsMemInfo* srs_get_meminfo();
 extern void srs_update_meminfo();
 
 // @see: cat /proc/cpuinfo 
-struct SrsCpuInfo
+class SrsCpuInfo
 {
+public:
     // whether the data is ok.
     bool ok;
     
@@ -315,8 +320,9 @@ struct SrsCpuInfo
 extern SrsCpuInfo* srs_get_cpuinfo();
 
 // platform(os, srs) summary
-struct SrsPlatformInfo
+class SrsPlatformInfo
 {
+public:
     // whether the data is ok.
     bool ok;
     

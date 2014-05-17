@@ -56,8 +56,9 @@ namespace srs
     *     offset: 4bytes
     * @see also: http://blog.csdn.net/win_lin/article/details/13006803
     */
-    struct key_block
+    class key_block
     {
+    public:
         // (offset)bytes
         char* random0;
         int random0_size;
@@ -81,8 +82,9 @@ namespace srs
     *     random-data: (764-4-offset-32)bytes
     * @see also: http://blog.csdn.net/win_lin/article/details/13006803
     */
-    struct digest_block
+    class digest_block
     {
+    public:
         // 4bytes
         int32_t offset;
         
@@ -183,8 +185,9 @@ namespace srs
     *     key: 764bytes
     * @see also: http://blog.csdn.net/win_lin/article/details/13006803
     */
-    struct c1s1
+    class c1s1
     {
+    public:
         union block {
             key_block key; 
             digest_block digest; 
@@ -262,8 +265,9 @@ namespace srs
     * digest-data: 32bytes
     * @see also: http://blog.csdn.net/win_lin/article/details/13006803
     */
-    struct c2s2
+    class c2s2
     {
+    public:
         char random[1504];
         char digest[32];
         

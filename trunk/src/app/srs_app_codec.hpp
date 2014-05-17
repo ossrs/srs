@@ -179,8 +179,9 @@ enum SrsCodecAudioSoundType
 /**
 * buffer indicates the position and size.
 */
-struct SrsCodecBuffer
+class SrsCodecBuffer
 {
+public:
     /**
     * @remark user must manage the bytes.
     */

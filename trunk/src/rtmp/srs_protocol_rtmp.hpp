@@ -97,8 +97,9 @@ public:
 /**
 * the response to client.
 */
-struct SrsResponse
+class SrsResponse
 {
+public:
     int stream_id;
     
     SrsResponse();
