@@ -99,7 +99,11 @@ int SrsForwarder::on_publish(SrsRequest* req, std::string forward_server)
     
     // generate tcUrl
     tc_url = "rtmp://";
-    tc_url += vhost;
+    if (vhost == RTMP_VHOST_DEFAULT) {
+        tc_url += forward_server;
+    } else {
+        tc_url += vhost;
+    }
     tc_url += "/";
     tc_url += req->app;
     
