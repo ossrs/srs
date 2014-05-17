@@ -128,7 +128,7 @@ int SrsForwarder::on_publish(SrsRequest* req, std::string forward_server)
             source_ep.c_str(), dest_ep.c_str(), ret);
         return ret;
     }
-    srs_trace("start forward %s to %s, stream: %s/%s", 
+    srs_trace("start forward %s to %s, tcUrl=%s, stream=%s", 
         source_ep.c_str(), dest_ep.c_str(), tc_url.c_str(), 
         stream_name.c_str());
     

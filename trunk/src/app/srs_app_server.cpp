@@ -45,6 +45,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_ingest.hpp>
 #endif
 #include <srs_app_source.hpp>
+#include <srs_app_utility.hpp>
 
 #define SERVER_LISTEN_BACKLOG 512
 
