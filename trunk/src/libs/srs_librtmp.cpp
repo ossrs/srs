@@ -365,7 +365,7 @@ int srs_write_packet(srs_rtmp_t rtmp, int type, u_int32_t timestamp, char* data,
     
     if (msg) {
         // send out encoded msg.
-        if ((ret = context->rtmp->send_and_free_message(msg)) != ERROR_SUCCESS) {
+        if ((ret = context->rtmp->send_and_free_message(msg, context->stream_id)) != ERROR_SUCCESS) {
             return ret;
         }
     } else {

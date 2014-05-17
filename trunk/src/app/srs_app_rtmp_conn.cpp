@@ -538,7 +538,7 @@ int SrsRtmpConn::playing(SrsSource* source)
             duration += msg->header.timestamp - starttime;
             starttime = msg->header.timestamp;
             
-            if ((ret = rtmp->send_and_free_message(msg)) != ERROR_SUCCESS) {
+            if ((ret = rtmp->send_and_free_message(msg, res->stream_id)) != ERROR_SUCCESS) {
                 srs_error("send message to client failed. ret=%d", ret);
                 return ret;
             }

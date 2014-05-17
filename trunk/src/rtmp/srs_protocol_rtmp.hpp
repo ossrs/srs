@@ -164,7 +164,7 @@ public:
     virtual int64_t get_send_bytes();
     virtual int recv_message(SrsMessage** pmsg);
     virtual int decode_message(SrsMessage* msg, SrsPacket** ppacket);
-    virtual int send_and_free_message(SrsMessage* msg);
+    virtual int send_and_free_message(SrsMessage* msg, int stream_id);
     virtual int send_and_free_packet(SrsPacket* packet, int stream_id);
 public:
     // try complex, then simple handshake.
@@ -209,7 +209,7 @@ public:
     virtual int64_t get_send_bytes();
     virtual int recv_message(SrsMessage** pmsg);
     virtual int decode_message(SrsMessage* msg, SrsPacket** ppacket);
-    virtual int send_and_free_message(SrsMessage* msg);
+    virtual int send_and_free_message(SrsMessage* msg, int stream_id);
     virtual int send_and_free_packet(SrsPacket* packet, int stream_id);
 public:
     virtual int handshake();

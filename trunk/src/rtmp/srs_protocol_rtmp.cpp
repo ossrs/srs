@@ -385,9 +385,9 @@ int SrsRtmpClient::decode_message(SrsMessage* msg, SrsPacket** ppacket)
     return protocol->decode_message(msg, ppacket);
 }
 
-int SrsRtmpClient::send_and_free_message(SrsMessage* msg)
+int SrsRtmpClient::send_and_free_message(SrsMessage* msg, int stream_id)
 {
-    return protocol->send_and_free_message(msg);
+    return protocol->send_and_free_message(msg, stream_id);
 }
 
 int SrsRtmpClient::send_and_free_packet(SrsPacket* packet, int stream_id)
@@ -730,9 +730,9 @@ int SrsRtmpServer::decode_message(SrsMessage* msg, SrsPacket** ppacket)
     return protocol->decode_message(msg, ppacket);
 }
 
-int SrsRtmpServer::send_and_free_message(SrsMessage* msg)
+int SrsRtmpServer::send_and_free_message(SrsMessage* msg, int stream_id)
 {
-    return protocol->send_and_free_message(msg);
+    return protocol->send_and_free_message(msg, stream_id);
 }
 
 int SrsRtmpServer::send_and_free_packet(SrsPacket* packet, int stream_id)

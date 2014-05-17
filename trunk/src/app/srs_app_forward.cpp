@@ -370,7 +370,7 @@ int SrsForwarder::forward()
             srs_assert(msg);
             msgs[i] = NULL;
             
-            if ((ret = client->send_and_free_message(msg)) != ERROR_SUCCESS) {
+            if ((ret = client->send_and_free_message(msg, stream_id)) != ERROR_SUCCESS) {
                 srs_error("forwarder send message to server failed. ret=%d", ret);
                 return ret;
             }

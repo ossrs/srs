@@ -161,8 +161,9 @@ public:
     * user must never free or use the msg after this method,
     * for it will always free the msg.
     * @param msg, the msg to send out, never be NULL.
+    * @param stream_id, the stream id of packet to send over, 0 for control message.
     */
-    virtual int send_and_free_message(SrsMessage* msg);
+    virtual int send_and_free_message(SrsMessage* msg, int stream_id);
     /**
     * send the RTMP packet and always free it.
     * user must never free or use the packet after this method,

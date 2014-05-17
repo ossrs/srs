@@ -725,8 +725,11 @@ int SrsProtocol::do_decode_message(SrsMessageHeader& header, SrsStream* stream, 
     return ret;
 }
 
-int SrsProtocol::send_and_free_message(SrsMessage* msg)
+int SrsProtocol::send_and_free_message(SrsMessage* msg, int stream_id)
 {
+    if (msg) {
+        msg->header.stream_id = stream_id;
+    }
     return do_send_and_free_message(msg, NULL);
 }
 
