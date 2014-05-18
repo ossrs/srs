@@ -215,6 +215,7 @@ Supported operating systems and hardware:
 1. [no-plan] Support RTP/RTSP server.
 
 ## Releases
+* 2014-05-18, [Release v1.0-mainline3](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline3), support mips, fms origin, decode json for http-api. 37594 lines.<br/>
 * 2014-04-28, [Release v1.0-mainline2](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline2), support [dvr](https://github.com/winlinvip/simple-rtmp-server/wiki/DVR), android, [edge](https://github.com/winlinvip/simple-rtmp-server/wiki/Edge). 35255 lines.<br/>
 * 2014-04-07, [Release v1.0-mainline](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline), support [arm](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm), [init.d](https://github.com/winlinvip/simple-rtmp-server/wiki/LinuxService), http [server](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPServer)/[api](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPApi), [ingest](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleIngest). 30000 lines.<br/>
 * 2013-12-25, [Release v0.9](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.9), support bandwidth test, player/encoder/chat [demos](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleDemo). 20926 lines.<br/>
@@ -229,6 +230,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* <strong>v1.0, 2014-05-18, [1.0 mainline3(0.9.105)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline3) released. 37594 lines.</strong>
 * v1.0, 2014-05-18, support http api json, to PUT/POST. 0.9.105
 * v1.0, 2014-05-17, fix [#72](https://github.com/winlinvip/simple-rtmp-server/issues/72), also need stream_id for send_and_free_message. 0.9.101
 * v1.0, 2014-05-17, rename struct to class. 0.9.100
