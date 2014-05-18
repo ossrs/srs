@@ -306,6 +306,10 @@ SrsJsonArray* SrsJsonAny::array()
 #ifdef SRS_JSON_USE_NXJSON
 SrsJsonAny* srs_json_parse_tree_nx_json(const nx_json* node)
 {
+    if (!node) {
+        return NULL;
+    }
+    
     switch (node->type) {
         case NX_JSON_NULL:
             return SrsJsonAny::null();
@@ -338,6 +342,7 @@ SrsJsonAny* srs_json_parse_tree_nx_json(const nx_json* node)
             return arr;
         }
     }
+    
     return NULL;
 }
 
@@ -352,8 +357,13 @@ SrsJsonAny* SrsJsonAny::loads(char* str)
     }
     
     const nx_json* o = nx_json_parse(str, 0);
+    
     SrsJsonAny* json = srs_json_parse_tree_nx_json(o);
-    nx_json_free(o);
+    
+    if (o) {
+        nx_json_free(o);
+    }
+    
     return json;
 }
 #endif
@@ -529,7 +539,7 @@ extern "C" {
 
 // redefine NX_JSON_REPORT_ERROR to use custom error reporting
 #ifndef NX_JSON_REPORT_ERROR
-#define NX_JSON_REPORT_ERROR(msg, p) srs_error("NXJSON PARSE ERROR (%d): " msg " at %s\n", __LINE__, p)
+#define NX_JSON_REPORT_ERROR(msg, p) srs_warn("NXJSON PARSE ERROR (%d): " msg " at %s", __LINE__, p)
 #endif
 
 #define IS_WHITESPACE(c) ((unsigned char)(c)<=(unsigned char)' ')
