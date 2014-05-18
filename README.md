@@ -253,7 +253,7 @@ Supported operating systems and hardware:
 * v1.0, 2014-04-17, support dvr(record live to flv file for vod). 0.9.69
 * v1.0, 2014-04-11, add speex1.2 to transcode flash encoder stream. 0.9.58
 * v1.0, 2014-04-10, support reload ingesters(add/remov/update). 0.9.57
-* v1.0, 2014-04-07, [1.0 mainline(0.9.55)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline) released. 30000 lines.
+* <strong>v1.0, 2014-04-07, [1.0 mainline(0.9.55)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline) released. 30000 lines.</strong>
 * v1.0, 2014-04-07, support [ingest](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleIngest) file/stream/device.
 * v1.0, 2014-04-05, support [http api](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPApi) and [http server](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPServer).
 * v1.0, 2014-04-03, implements http framework and api/v1/version.
@@ -285,7 +285,7 @@ Supported operating systems and hardware:
 * v1.0, 2014-01-05, add wiki [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build), [Performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance), [Cluster](https://github.com/winlinvip/simple-rtmp-server/wiki/Cluster)
 * v1.0, 2014-01-01, change listen(512), chunk-size(60000), to improve performance.
 * v1.0, 2013-12-27, merge from wenjie, the bandwidth test feature.
-* v0.9, 2013-12-25, [v0.9](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.9) released. 20926 lines.
+* <strong>v0.9, 2013-12-25, [v0.9](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.9) released. 20926 lines.</strong>
 * v0.9, 2013-12-25, fix the bitrate bug(in Bps), use enhanced microphone.
 * v0.9, 2013-12-22, demo video meeting or chat(SRS+cherrypy+jquery+bootstrap).
 * v0.9, 2013-12-22, merge from wenjie, support banwidth test.
@@ -299,7 +299,7 @@ Supported operating systems and hardware:
 * v0.9, 2013-12-15, support reload the hls/forwarder/transcoder.
 * v0.9, 2013-12-14, refine the thread model for the retry threads.
 * v0.9, 2013-12-10, auto install depends tools/libs on centos/ubuntu.
-* v0.8, 2013-12-08, [v0.8](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.8) released. 19186 lines.
+* <strong>v0.8, 2013-12-08, [v0.8](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.8) released. 19186 lines.</strong>
 * v0.8, 2013-12-08, support [http hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback): on_connect/close/publish/unpublish/play/stop.
 * v0.8, 2013-12-08, support multiple http hooks for a event.
 * v0.8, 2013-12-07, support http callback hooks, on_connect.
@@ -308,32 +308,32 @@ Supported operating systems and hardware:
 * v0.8, 2013-12-06, support max_connections, drop if exceed.
 * v0.8, 2013-12-05, support log_dir, write ffmpeg log to file.
 * v0.8, 2013-12-05, fix the forward/hls/encoder bug.
-* v0.7, 2013-12-03, [v0.7](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.7) released. 17605 lines.
+* <strong>v0.7, 2013-12-03, [v0.7](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.7) released. 17605 lines.</strong>
 * v0.7, 2013-12-01, support dead-loop detect for forwarder and transcoder.
 * v0.7, 2013-12-01, support all ffmpeg filters and params.
 * v0.7, 2013-11-30, support live stream transcoder by ffmpeg.
 * v0.7, 2013-11-30, support --with/without -ffmpeg, build ffmpeg-2.1.
 * v0.7, 2013-11-30, add ffmpeg-2.1, x264-core138, lame-3.99.5, libaacplus-2.0.2.
-* v0.6, 2013-11-29, [v0.6](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.6) released. 16094 lines.
+* <strong>v0.6, 2013-11-29, [v0.6](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.6) released. 16094 lines.</strong>
 * v0.6, 2013-11-29, add performance summary, 1800 clients, 900Mbps, CPU 90.2%, 41MB.
 * v0.6, 2013-11-29, support forward stream to other edge server.
 * v0.6, 2013-11-29, support forward stream to other origin server.
 * v0.6, 2013-11-28, fix memory leak bug, aac decode bug.
 * v0.6, 2013-11-27, support --with or --without -hls and -ssl options.
 * v0.6, 2013-11-27, support AAC 44100HZ sample rate for iphone, adjust the timestamp.
-* v0.5, 2013-11-26, [v0.5](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.5) released. 14449 lines.
+* <strong>v0.5, 2013-11-26, [v0.5](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.5) released. 14449 lines.</strong>
 * v0.5, 2013-11-24, support HLS(m3u8), fragment and window.
 * v0.5, 2013-11-24, support record to ts file for HLS.
 * v0.5, 2013-11-21, add ts_info tool to demux ts file.
 * v0.5, 2013-11-16, add rtmp players(OSMF/jwplayer5/jwplayer6).
-* v0.4, 2013-11-10, [v0.4](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.4) released. 12500 lines.
+* <strong>v0.4, 2013-11-10, [v0.4](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.4) released. 12500 lines.</strong>
 * v0.4, 2013-11-10, support config and reload the pithy print.
 * v0.4, 2013-11-09, support reload config(vhost and its detail).
 * v0.4, 2013-11-09, support reload config(listen and chunk_size) by SIGHUP(1).
 * v0.4, 2013-11-09, support longtime(>4.6hours) publish/play.
 * v0.4, 2013-11-09, support config the chunk_size.
 * v0.4, 2013-11-09, support pause for live stream.
-* v0.3, 2013-11-04, [v0.3](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.3) released. 11773 lines.
+* <strong>v0.3, 2013-11-04, [v0.3](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.3) released. 11773 lines.</strong>
 * v0.3, 2013-11-04, support refer/play-refer/publish-refer.
 * v0.3, 2013-11-04, support vhosts specified config.
 * v0.3, 2013-11-02, support listen multiple ports.
@@ -341,12 +341,12 @@ Supported operating systems and hardware:
 * v0.3, 2013-10-29, support pithy print log message specified by stage.
 * v0.3, 2013-10-28, support librtmp without extended-timestamp in 0xCX chunk packet.
 * v0.3, 2013-10-27, support cache last gop for client fast startup.
-* v0.2, 2013-10-25, [v0.2](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.2) released. 10125 lines.
+* <strong>v0.2, 2013-10-25, [v0.2](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.2) released. 10125 lines.</strong>
 * v0.2, 2013-10-25, support flash publish.
 * v0.2, 2013-10-25, support h264/avc codec by rtmp complex handshake.
 * v0.2, 2013-10-24, support time jitter detect and correct algorithm
 * v0.2, 2013-10-24, support decode codec type to cache the h264/avc sequence header.
-* v0.1, 2013-10-23, [v0.1](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.1) released. 8287 lines.
+* <strong>v0.1, 2013-10-23, [v0.1](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.1) released. 8287 lines.</strong>
 * v0.1, 2013-10-23, support basic amf0 codec, simplify the api using c-style api.
 * v0.1, 2013-10-23, support shared ptr msg for zero memory copy.
 * v0.1, 2013-10-22, support vp6 codec with rtmp protocol specified simple handshake.
