@@ -238,7 +238,7 @@ Supported operating systems and hardware:
 * v1.0, 2014-05-13, fix mem leak for delete[] SharedPtrMessage array. 0.9.95
 * v1.0, 2014-05-12, refine the kbps calc module. 0.9.93
 * v1.0, 2014-05-12, fix bug [#64](https://github.com/winlinvip/simple-rtmp-server/issues/64): install_dir=DESTDIR+PREFIX
-* v1.0, 2014-05-08, fix [#36](https://github.com/winlinvip/simple-rtmp-server/issues/36): never directly use *(int32_t*) for arm.
+* v1.0, 2014-05-08, fix [#36](https://github.com/winlinvip/simple-rtmp-server/issues/36): never directly use \*(int32_t\*) for arm.
 * v1.0, 2014-05-08, fix [#60](https://github.com/winlinvip/simple-rtmp-server/issues/60): support aggregate message
 * v1.0, 2014-05-08, fix [#59](https://github.com/winlinvip/simple-rtmp-server/issues/59), edge support FMS origin server. 0.9.92
 * v1.0, 2014-05-06, fix [#50](https://github.com/winlinvip/simple-rtmp-server/issues/50), ubuntu14 build error.
