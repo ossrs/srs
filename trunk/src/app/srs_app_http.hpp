@@ -323,6 +323,9 @@ private:
     * use a buffer to read and send ts file.
     */
     char* _http_ts_send_buffer;
+    // http headers
+    typedef std::pair<std::string, std::string> SrsHttpHeaderField;
+    std::vector<SrsHttpHeaderField> headers;
 public:
     SrsHttpMessage();
     virtual ~SrsHttpMessage();
@@ -337,7 +340,9 @@ public:
     virtual bool is_http_put();
     virtual bool is_http_post();
     virtual bool is_http_delete();
+    virtual std::string uri();
     virtual std::string url();
+    virtual std::string host();
     virtual std::string path();
     virtual std::string query();
     virtual std::string body();
@@ -352,6 +357,12 @@ public:
     virtual void set_match(SrsHttpHandlerMatch* match);
     virtual void set_requires_crossdomain(bool requires_crossdomain);
     virtual void append_body(const char* body, int length);
+public:
+    virtual int request_header_count();
+    virtual std::string request_header_key_at(int index);
+    virtual std::string request_header_value_at(int index);
+    virtual void set_request_header(std::string key, std::string value);
+    virtual std::string get_request_header(std::string name);
 };
 
 /**
@@ -364,6 +375,7 @@ private:
     http_parser_settings settings;
     http_parser parser;
     SrsHttpMessage* msg;
+    std::string filed_name;
 public:
     SrsHttpParser();
     virtual ~SrsHttpParser();

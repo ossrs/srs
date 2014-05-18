@@ -31,12 +31,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // current release version
 #define VERSION_MAJOR "0"
 #define VERSION_MINOR "9"
-#define VERSION_REVISION "104"
+#define VERSION_REVISION "105"
 #define RTMP_SIG_SRS_VERSION VERSION_MAJOR"."VERSION_MINOR"."VERSION_REVISION
 // server info.
-#define RTMP_SIG_SRS_KEY "srs"
+#define RTMP_SIG_SRS_KEY "SRS"
 #define RTMP_SIG_SRS_ROLE "origin/edge server"
-#define RTMP_SIG_SRS_NAME RTMP_SIG_SRS_KEY"(simple rtmp server)"
+#define RTMP_SIG_SRS_NAME RTMP_SIG_SRS_KEY"(Simple RTMP Server)"
 #define RTMP_SIG_SRS_URL_SHORT "github.com/winlinvip/simple-rtmp-server"
 #define RTMP_SIG_SRS_URL "https://"RTMP_SIG_SRS_URL_SHORT
 #define RTMP_SIG_SRS_WEB "http://blog.csdn.net/win_lin"

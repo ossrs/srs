@@ -217,7 +217,7 @@ int SrsHttpHandler::best_match(const char* path, int length, SrsHttpHandlerMatch
 SrsHttpHandler* SrsHttpHandler::res_status_line(stringstream& ss)
 {
     ss << "HTTP/1.1 200 OK " << __CRLF
-       << "Server: SRS/"RTMP_SIG_SRS_VERSION"" << __CRLF;
+       << "Server: "RTMP_SIG_SRS_KEY"/"RTMP_SIG_SRS_VERSION"" << __CRLF;
     return this;
 }
 
@@ -597,9 +597,26 @@ bool SrsHttpMessage::is_http_delete()
     return _header.method == HTTP_DELETE;
 }
 
+string SrsHttpMessage::uri()
+{
+    std::string uri = _uri->get_schema();
+    if (uri.empty()) {
+        uri += "http://";
+    }
+    
+    uri += host();
+    uri += path();
+    return uri;
+}
+
 string SrsHttpMessage::url()
 {
     return _uri->get_url();
+}
+
+string SrsHttpMessage::host()
+{
+    return get_request_header("Host");
 }
 
 string SrsHttpMessage::path()
@@ -683,6 +700,46 @@ void SrsHttpMessage::append_body(const char* body, int length)
     _body->append(body, length);
 }
 
+int SrsHttpMessage::request_header_count()
+{
+    return (int)headers.size();
+}
+
+string SrsHttpMessage::request_header_key_at(int index)
+{
+    srs_assert(index < request_header_count());
+    SrsHttpHeaderField item = headers[index];
+    return item.first;
+}
+
+string SrsHttpMessage::request_header_value_at(int index)
+{
+    srs_assert(index < request_header_count());
+    SrsHttpHeaderField item = headers[index];
+    return item.second;
+}
+
+void SrsHttpMessage::set_request_header(string key, string value)
+{
+    headers.push_back(std::make_pair(key, value));
+}
+
+string SrsHttpMessage::get_request_header(string name)
+{
+    std::vector<SrsHttpHeaderField>::iterator it;
+    
+    for (it = headers.begin(); it != headers.end(); ++it) {
+        SrsHttpHeaderField& elem = *it;
+        std::string key = elem.first;
+        std::string value = elem.second;
+        if (key == name) {
+            return value;
+        }
+    }
+    
+    return "";
+}
+
 SrsHttpParser::SrsHttpParser()
 {
     msg = NULL;
@@ -722,6 +779,9 @@ int SrsHttpParser::parse_message(SrsSocket* skt, SrsHttpMessage** ppmsg)
     // the msg must be always NULL
     srs_assert(msg == NULL);
     msg = new SrsHttpMessage();
+    
+    // reset request data.
+    filed_name = "";
     
     // reset response header.
     msg->reset();
@@ -827,14 +887,34 @@ int SrsHttpParser::on_url(http_parser* parser, const char* at, size_t length)
     return 0;
 }
 
-int SrsHttpParser::on_header_field(http_parser* /*parser*/, const char* at, size_t length)
+int SrsHttpParser::on_header_field(http_parser* parser, const char* at, size_t length)
 {
+    SrsHttpParser* obj = (SrsHttpParser*)parser->data;
+    
+    if (length > 0) {
+        srs_assert(obj);
+        obj->filed_name.append(at, (int)length);
+    }
+    
     srs_info("Header field: %.*s", (int)length, at);
     return 0;
 }
 
-int SrsHttpParser::on_header_value(http_parser* /*parser*/, const char* at, size_t length)
+int SrsHttpParser::on_header_value(http_parser* parser, const char* at, size_t length)
 {
+    SrsHttpParser* obj = (SrsHttpParser*)parser->data;
+    
+    if (length > 0) {
+        srs_assert(obj);
+        srs_assert(obj->msg);
+        
+        std::string field_value;
+        field_value.append(at, (int)length);
+
+        obj->msg->set_request_header(obj->filed_name, field_value);
+        obj->filed_name = "";
+    }
+    
     srs_info("Header value: %.*s", (int)length, at);
     return 0;
 }
