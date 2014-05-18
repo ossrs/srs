@@ -23,31 +23,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_json.hpp>
 
-#include <srs_kernel_log.hpp>
+using namespace std;
 
-// whether use nxjson
-// @see: https://bitbucket.org/yarosla/nxjson
-#undef SRS_JSON_USE_NXJSON
-#define SRS_JSON_USE_NXJSON
+#include <srs_kernel_log.hpp>
+#include <srs_kernel_error.hpp>
 
 #ifdef SRS_JSON_USE_NXJSON
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
+
 ////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -117,6 +99,374 @@ const nx_json* nx_json_item(const nx_json* json, int idx); // get array element 
 
 #endif  /* NXJSON_H */
 
+#endif
+
+// Json marker
+#define SRS_JSON_Boolean                   0x01
+#define SRS_JSON_String                    0x02
+#define SRS_JSON_Object                    0x03
+#define SRS_JSON_Integer                   0x04
+#define SRS_JSON_Number                    0x05
+#define SRS_JSON_Null                      0x06
+#define SRS_JSON_Array                     0x07
+
+class __SrsJsonString : public SrsJsonAny
+{
+public:
+    std::string value;
+
+    __SrsJsonString(const char* _value) 
+    {
+        marker = SRS_JSON_String;
+        if (_value) {
+            value = _value;
+        }
+    }
+    virtual ~__SrsJsonString() 
+    {
+    }
+};
+
+class __SrsJsonBoolean : public SrsJsonAny
+{
+public:
+    bool value;
+
+    __SrsJsonBoolean(bool _value) 
+    {
+        marker = SRS_JSON_Boolean;
+        value = _value;
+    }
+    virtual ~__SrsJsonBoolean() 
+    {
+    }
+};
+
+class __SrsJsonInteger : public SrsJsonAny
+{
+public:
+    int64_t value;
+
+    __SrsJsonInteger(int64_t _value) 
+    {
+        marker = SRS_JSON_Integer;
+        value = _value;
+    }
+    virtual ~__SrsJsonInteger() 
+    {
+    }
+};
+
+class __SrsJsonNumber : public SrsJsonAny
+{
+public:
+    double value;
+
+    __SrsJsonNumber(double _value) 
+    {
+        marker = SRS_JSON_Number;
+        value = _value;
+    }
+    virtual ~__SrsJsonNumber() 
+    {
+    }
+};
+
+class __SrsJsonNull : public SrsJsonAny
+{
+public:
+    __SrsJsonNull() {
+        marker = SRS_JSON_Null;
+    }
+    virtual ~__SrsJsonNull() {
+    }
+};
+
+SrsJsonAny::SrsJsonAny()
+{
+    marker = 0;
+}
+
+SrsJsonAny::~SrsJsonAny()
+{
+}
+
+bool SrsJsonAny::is_string()
+{
+    return marker == SRS_JSON_String;
+}
+
+bool SrsJsonAny::is_boolean()
+{
+    return marker == SRS_JSON_Boolean;
+}
+
+bool SrsJsonAny::is_number()
+{
+    return marker == SRS_JSON_Number;
+}
+
+bool SrsJsonAny::is_integer()
+{
+    return marker == SRS_JSON_Integer;
+}
+
+bool SrsJsonAny::is_object()
+{
+    return marker == SRS_JSON_Object;
+}
+
+bool SrsJsonAny::is_array()
+{
+    return marker == SRS_JSON_Array;
+}
+
+bool SrsJsonAny::is_null()
+{
+    return marker == SRS_JSON_Null;
+}
+
+string SrsJsonAny::to_str()
+{
+    __SrsJsonString* p = dynamic_cast<__SrsJsonString*>(this);
+    srs_assert(p != NULL);
+    return p->value;
+}
+
+bool SrsJsonAny::to_boolean()
+{
+    __SrsJsonBoolean* p = dynamic_cast<__SrsJsonBoolean*>(this);
+    srs_assert(p != NULL);
+    return p->value;
+}
+
+int64_t SrsJsonAny::to_integer()
+{
+    __SrsJsonInteger* p = dynamic_cast<__SrsJsonInteger*>(this);
+    srs_assert(p != NULL);
+    return p->value;
+}
+
+double SrsJsonAny::to_number()
+{
+    __SrsJsonNumber* p = dynamic_cast<__SrsJsonNumber*>(this);
+    srs_assert(p != NULL);
+    return p->value;
+}
+
+SrsJsonObject* SrsJsonAny::to_object()
+{
+    SrsJsonObject* p = dynamic_cast<SrsJsonObject*>(this);
+    srs_assert(p != NULL);
+    return p;
+}
+
+SrsJsonArray* SrsJsonAny::to_array()
+{
+    SrsJsonArray* p = dynamic_cast<SrsJsonArray*>(this);
+    srs_assert(p != NULL);
+    return p;
+}
+
+SrsJsonAny* SrsJsonAny::str(const char* value)
+{
+    return new __SrsJsonString(value);
+}
+
+SrsJsonAny* SrsJsonAny::boolean(bool value)
+{
+    return new __SrsJsonBoolean(value);
+}
+
+SrsJsonAny* SrsJsonAny::ingeter(int64_t value)
+{
+    return new __SrsJsonInteger(value);
+}
+
+SrsJsonAny* SrsJsonAny::number(double value)
+{
+    return new __SrsJsonNumber(value);
+}
+
+SrsJsonAny* SrsJsonAny::null()
+{
+    return new __SrsJsonNull();
+}
+
+SrsJsonObject* SrsJsonAny::object()
+{
+    return new SrsJsonObject();
+}
+
+SrsJsonArray* SrsJsonAny::array()
+{
+    return new SrsJsonArray();
+}
+
+#ifdef SRS_JSON_USE_NXJSON
+SrsJsonAny* srs_json_parse_tree_nx_json(const nx_json* node)
+{
+    switch (node->type) {
+        case NX_JSON_NULL:
+            return SrsJsonAny::null();
+        case NX_JSON_STRING:
+            return SrsJsonAny::str(node->text_value);
+        case NX_JSON_INTEGER:
+            return SrsJsonAny::ingeter(node->int_value);
+        case NX_JSON_DOUBLE:
+            return SrsJsonAny::number(node->dbl_value);
+        case NX_JSON_BOOL:
+            return SrsJsonAny::boolean(node->int_value != 0);
+        case NX_JSON_OBJECT: {
+            SrsJsonObject* obj = SrsJsonAny::object();
+            for (nx_json* p = node->child; p != NULL; p = p->next) {
+                SrsJsonAny* value = srs_json_parse_tree_nx_json(p);
+                if (value) {
+                    obj->set(p->key, value);
+                }
+            }
+            return obj;
+        }
+        case NX_JSON_ARRAY: {
+            SrsJsonArray* arr = SrsJsonAny::array();
+            for (nx_json* p = node->child; p != NULL; p = p->next) {
+                SrsJsonAny* value = srs_json_parse_tree_nx_json(p);
+                if (value) {
+                    arr->add(value);
+                }
+            }
+            return arr;
+        }
+    }
+    return NULL;
+}
+
+SrsJsonAny* SrsJsonAny::loads(char* str)
+{
+    srs_assert(str);
+    if (strlen(str) == 0) {
+        return NULL;
+    }
+    
+    const nx_json* o = nx_json_parse(str, 0);
+    SrsJsonAny* json = srs_json_parse_tree_nx_json(o);
+    nx_json_free(o);
+    return json;
+}
+#endif
+
+SrsJsonObject::SrsJsonObject()
+{
+    marker = SRS_JSON_Object;
+}
+
+SrsJsonObject::~SrsJsonObject()
+{
+    std::vector<SrsJsonObjectPropertyType>::iterator it;
+    for (it = properties.begin(); it != properties.end(); ++it) {
+        SrsJsonObjectPropertyType item = *it;
+        SrsJsonAny* obj = item.second;
+        srs_freep(obj);
+    }
+    properties.clear();
+}
+
+int SrsJsonObject::count()
+{
+    return (int)properties.size();
+}
+
+string SrsJsonObject::key_at(int index)
+{
+    srs_assert(index < count());
+    SrsJsonObjectPropertyType& elem = properties[index];
+    return elem.first;
+}
+
+SrsJsonAny* SrsJsonObject::value_at(int index)
+{
+    srs_assert(index < count());
+    SrsJsonObjectPropertyType& elem = properties[index];
+    return elem.second;
+}
+
+void SrsJsonObject::set(string key, SrsJsonAny* value)
+{
+    if (!value) {
+        srs_warn("add a NULL propertity %s", key.c_str());
+        return;
+    }
+    
+    std::vector<SrsJsonObjectPropertyType>::iterator it;
+    
+    for (it = properties.begin(); it != properties.end(); ++it) {
+        SrsJsonObjectPropertyType& elem = *it;
+        std::string name = elem.first;
+        SrsJsonAny* any = elem.second;
+        
+        if (key == name) {
+            srs_freep(any);
+            properties.erase(it);
+            break;
+        }
+    }
+    
+    properties.push_back(std::make_pair(key, value));
+}
+
+SrsJsonAny* SrsJsonObject::get_property(string name)
+{
+    std::vector<SrsJsonObjectPropertyType>::iterator it;
+    
+    for (it = properties.begin(); it != properties.end(); ++it) {
+        SrsJsonObjectPropertyType& elem = *it;
+        std::string key = elem.first;
+        SrsJsonAny* any = elem.second;
+        if (key == name) {
+            return any;
+        }
+    }
+    
+    return NULL;
+}
+
+SrsJsonArray::SrsJsonArray()
+{
+    marker = SRS_JSON_Array;
+}
+
+SrsJsonArray::~SrsJsonArray()
+{
+    std::vector<SrsJsonAny*>::iterator it;
+    for (it = properties.begin(); it != properties.end(); ++it) {
+        SrsJsonAny* item = *it;
+        srs_freep(item);
+    }
+    properties.clear();
+}
+
+int SrsJsonArray::count()
+{
+    return (int)properties.size();
+}
+
+SrsJsonAny* SrsJsonArray::at(int index)
+{
+    srs_assert(index < count());
+    SrsJsonAny* elem = properties[index];
+    return elem;
+}
+
+void SrsJsonArray::add(SrsJsonAny* value)
+{
+    properties.push_back(value);
+}
+
+#ifdef SRS_JSON_USE_NXJSON
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////
 /*
  * Copyright (c) 2013 Yaroslav Stavnichiy <yarosla@gmail.com>
  *
@@ -170,6 +520,7 @@ static const nx_json dummy={ NX_JSON_NULL };
 
 static nx_json* create_json(nx_json_type type, const char* key, nx_json* parent) {
   nx_json* js=(nx_json*)NX_JSON_CALLOC();
+  memset(js, 0, sizeof(nx_json));
   assert(js);
   js->type=type;
   js->key=key;
@@ -475,6 +826,7 @@ const nx_json* nx_json_parse_utf8(char* text) {
 
 const nx_json* nx_json_parse(char* text, nx_json_unicode_encoder encoder) {
   nx_json js;
+  memset(&js, 0, sizeof(nx_json));
   if (!parse_value(&js, 0, text, encoder)) {
     if (js.child) nx_json_free(js.child);
     return 0;
@@ -506,25 +858,10 @@ const nx_json* nx_json_item(const nx_json* json, int idx) {
 #endif
 
 #endif  /* NXJSON_C */
+
 ////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////
+
 #endif
 

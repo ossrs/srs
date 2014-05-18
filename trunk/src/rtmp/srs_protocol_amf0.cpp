@@ -157,8 +157,8 @@ public:
 class __SrsUnSortedHashtable
 {
 private:
-    typedef std::pair<std::string, SrsAmf0Any*> SrsObjectPropertyType;
-    std::vector<SrsObjectPropertyType> properties;
+    typedef std::pair<std::string, SrsAmf0Any*> SrsAmf0ObjectPropertyType;
+    std::vector<SrsAmf0ObjectPropertyType> properties;
 public:
     __SrsUnSortedHashtable();
     virtual ~__SrsUnSortedHashtable();
@@ -399,9 +399,9 @@ __SrsUnSortedHashtable::__SrsUnSortedHashtable()
 
 __SrsUnSortedHashtable::~__SrsUnSortedHashtable()
 {
-    std::vector<SrsObjectPropertyType>::iterator it;
+    std::vector<SrsAmf0ObjectPropertyType>::iterator it;
     for (it = properties.begin(); it != properties.end(); ++it) {
-        SrsObjectPropertyType& elem = *it;
+        SrsAmf0ObjectPropertyType& elem = *it;
         SrsAmf0Any* any = elem.second;
         srs_freep(any);
     }
@@ -421,14 +421,14 @@ void __SrsUnSortedHashtable::clear()
 string __SrsUnSortedHashtable::key_at(int index)
 {
     srs_assert(index < count());
-    SrsObjectPropertyType& elem = properties[index];
+    SrsAmf0ObjectPropertyType& elem = properties[index];
     return elem.first;
 }
 
 SrsAmf0Any* __SrsUnSortedHashtable::value_at(int index)
 {
     srs_assert(index < count());
-    SrsObjectPropertyType& elem = properties[index];
+    SrsAmf0ObjectPropertyType& elem = properties[index];
     return elem.second;
 }
 
@@ -439,10 +439,10 @@ void __SrsUnSortedHashtable::set(string key, SrsAmf0Any* value)
         return;
     }
     
-    std::vector<SrsObjectPropertyType>::iterator it;
+    std::vector<SrsAmf0ObjectPropertyType>::iterator it;
     
     for (it = properties.begin(); it != properties.end(); ++it) {
-        SrsObjectPropertyType& elem = *it;
+        SrsAmf0ObjectPropertyType& elem = *it;
         std::string name = elem.first;
         SrsAmf0Any* any = elem.second;
         
@@ -458,10 +458,10 @@ void __SrsUnSortedHashtable::set(string key, SrsAmf0Any* value)
 
 SrsAmf0Any* __SrsUnSortedHashtable::get_property(string name)
 {
-    std::vector<SrsObjectPropertyType>::iterator it;
+    std::vector<SrsAmf0ObjectPropertyType>::iterator it;
     
     for (it = properties.begin(); it != properties.end(); ++it) {
-        SrsObjectPropertyType& elem = *it;
+        SrsAmf0ObjectPropertyType& elem = *it;
         std::string key = elem.first;
         SrsAmf0Any* any = elem.second;
         if (key == name) {
