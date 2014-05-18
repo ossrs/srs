@@ -343,7 +343,10 @@ SrsJsonAny* srs_json_parse_tree_nx_json(const nx_json* node)
 
 SrsJsonAny* SrsJsonAny::loads(char* str)
 {
-    srs_assert(str);
+    if (!str) {
+        return NULL;
+    }
+    
     if (strlen(str) == 0) {
         return NULL;
     }
@@ -428,6 +431,21 @@ SrsJsonAny* SrsJsonObject::get_property(string name)
     }
     
     return NULL;
+}
+
+SrsJsonAny* SrsJsonObject::ensure_property_string(string name)
+{
+    SrsJsonAny* prop = get_property(name);
+    
+    if (!prop) {
+        return NULL;
+    }
+    
+    if (!prop->is_string()) {
+        return NULL;
+    }
+    
+    return prop;
 }
 
 SrsJsonArray::SrsJsonArray()

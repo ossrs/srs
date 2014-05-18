@@ -228,9 +228,15 @@ protected:
     */
     virtual bool is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase);
     /**
-    * do the actual process of request.
+    * do the actual process of request., format as, for example:
+    * {"code":0, "data":{}}
     */
     virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+    /**
+    * response error, format as, for example:
+    * {"code":100, "desc":"description"}
+    */
+    virtual int response_error(SrsSocket* skt, SrsHttpMessage* req, int code, std::string desc);
 // response writer
 public:
     virtual SrsHttpHandler* res_status_line(std::stringstream& ss);
@@ -327,10 +333,15 @@ public:
 public:
     virtual bool is_complete();
     virtual u_int8_t method();
+    virtual bool is_http_get();
+    virtual bool is_http_put();
+    virtual bool is_http_post();
+    virtual bool is_http_delete();
     virtual std::string url();
     virtual std::string path();
     virtual std::string query();
     virtual std::string body();
+    virtual char* body_raw();
     virtual int64_t body_size();
     virtual int64_t content_length();
     virtual SrsHttpHandlerMatch* match();

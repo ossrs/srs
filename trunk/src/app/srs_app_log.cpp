@@ -88,8 +88,8 @@ int SrsFastLog::initialize()
     
     _srs_config->subscribe(this);
 
-    log_to_file_tank = _srs_config->get_srs_log_tank_file();
-    _level = srs_get_log_level(_srs_config->get_srs_log_level());
+    log_to_file_tank = _srs_config->get_log_tank_file();
+    _level = srs_get_log_level(_srs_config->get_log_level());
     
     return ret;
 }
@@ -202,7 +202,7 @@ int SrsFastLog::on_reload_log_tank()
     int ret = ERROR_SUCCESS;
 
     bool tank = log_to_file_tank;
-    log_to_file_tank = _srs_config->get_srs_log_tank_file();
+    log_to_file_tank = _srs_config->get_log_tank_file();
 
     if (tank) {
         return ret;
@@ -224,7 +224,7 @@ int SrsFastLog::on_reload_log_level()
 {
     int ret = ERROR_SUCCESS;
     
-    _level = srs_get_log_level(_srs_config->get_srs_log_level());
+    _level = srs_get_log_level(_srs_config->get_log_level());
     
     return ret;
 }
@@ -340,7 +340,7 @@ void SrsFastLog::write_log(int& fd, char *str_log, int size, int level)
 
 void SrsFastLog::open_log_file()
 {
-    std::string filename = _srs_config->get_srs_log_file();
+    std::string filename = _srs_config->get_log_file();
     
     if (filename.empty()) {
         return;

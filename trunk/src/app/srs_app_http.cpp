@@ -134,6 +134,17 @@ int SrsHttpHandler::do_process_request(SrsSocket* /*skt*/, SrsHttpMessage* /*req
     return ret;
 }
 
+int SrsHttpHandler::response_error(SrsSocket* skt, SrsHttpMessage* req, int code, string desc)
+{
+    std::stringstream ss;
+    ss << JOBJECT_START
+        << JFIELD_ERROR(code) << JFIELD_CONT
+        << JFIELD_STR("desc", desc)
+        << JOBJECT_END;
+    
+    return res_json(skt, req, ss.str());
+}
+
 int SrsHttpHandler::best_match(const char* path, int length, SrsHttpHandlerMatch** ppmatch)
 {
     int ret = ERROR_SUCCESS;
@@ -566,6 +577,26 @@ u_int8_t SrsHttpMessage::method()
     return (u_int8_t)_header.method;
 }
 
+bool SrsHttpMessage::is_http_get()
+{
+    return _header.method == HTTP_GET;
+}
+
+bool SrsHttpMessage::is_http_put()
+{
+    return _header.method == HTTP_PUT;
+}
+
+bool SrsHttpMessage::is_http_post()
+{
+    return _header.method == HTTP_POST;
+}
+
+bool SrsHttpMessage::is_http_delete()
+{
+    return _header.method == HTTP_DELETE;
+}
+
 string SrsHttpMessage::url()
 {
     return _uri->get_url();
@@ -590,6 +621,15 @@ string SrsHttpMessage::body()
     }
     
     return b;
+}
+
+char* SrsHttpMessage::body_raw()
+{
+    if (_body && !_body->empty()) {
+        return _body->bytes();
+    }
+    
+    return NULL;
 }
 
 int64_t SrsHttpMessage::body_size()

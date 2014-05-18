@@ -31,15 +31,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 int srs_get_log_level(std::string level)
 {
-    if ("verbose" == _srs_config->get_srs_log_level()) {
+    if ("verbose" == _srs_config->get_log_level()) {
         return SrsLogLevel::Verbose;
-    } else if ("info" == _srs_config->get_srs_log_level()) {
+    } else if ("info" == _srs_config->get_log_level()) {
         return SrsLogLevel::Info;
-    } else if ("trace" == _srs_config->get_srs_log_level()) {
+    } else if ("trace" == _srs_config->get_log_level()) {
         return SrsLogLevel::Trace;
-    } else if ("warn" == _srs_config->get_srs_log_level()) {
+    } else if ("warn" == _srs_config->get_log_level()) {
         return SrsLogLevel::Warn;
-    } else if ("error" == _srs_config->get_srs_log_level()) {
+    } else if ("error" == _srs_config->get_log_level()) {
         return SrsLogLevel::Error;
     } else {
         return SrsLogLevel::Trace;

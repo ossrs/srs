@@ -96,6 +96,7 @@ public:
     std::string arg0();
     std::string arg1(); 
     std::string arg2();
+    void set_arg0(std::string value);
     SrsConfDirective* at(int index);
     SrsConfDirective* get(std::string _name);
     SrsConfDirective* get(std::string _name, std::string _arg0);
@@ -135,6 +136,20 @@ public:
     virtual void subscribe(ISrsReloadHandler* handler);
     virtual void unsubscribe(ISrsReloadHandler* handler);
     virtual int reload();
+private:
+    virtual SrsConfDirective* get_or_create(SrsConfDirective* node, std::string name);
+public:
+    /**
+    * dynamic set the config, for instance, for http api to set,
+    * @return ture if config changed and need to reload.
+    */
+    virtual bool set_log_file(std::string file);
+    virtual bool set_log_tank(std::string tank);
+    virtual bool set_log_level(std::string level);
+public:
+    virtual int force_reload_log_file();
+    virtual int force_reload_log_tank();
+    virtual int force_reload_log_level();
 private:
     virtual int reload_http_api(SrsConfDirective* old_root);
     virtual int reload_http_stream(SrsConfDirective* old_root);
@@ -231,9 +246,9 @@ public:
     virtual std::string         get_ingest_input_url(SrsConfDirective* ingest);
 // log section
 public:
-    virtual bool                get_srs_log_tank_file();
-    virtual std::string         get_srs_log_level();
-    virtual std::string         get_srs_log_file();
+    virtual bool                get_log_tank_file();
+    virtual std::string         get_log_level();
+    virtual std::string         get_log_file();
     virtual std::string         get_ffmpeg_log_dir();
 // hls section
 private:

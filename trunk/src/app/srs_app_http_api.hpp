@@ -76,6 +76,29 @@ protected:
     virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
 };
 
+class SrsApiConfigs : public SrsHttpHandler
+{
+public:
+    SrsApiConfigs();
+    virtual ~SrsApiConfigs();
+public:
+    virtual bool can_handle(const char* path, int length, const char** pchild);
+protected:
+    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+};
+
+class SrsApiConfigsLogs : public SrsHttpHandler
+{
+public:
+    SrsApiConfigsLogs();
+    virtual ~SrsApiConfigsLogs();
+public:
+    virtual bool can_handle(const char* path, int length, const char** pchild);
+protected:
+    virtual bool is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase);
+    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+};
+
 class SrsApiVersion : public SrsHttpHandler
 {
 public:
