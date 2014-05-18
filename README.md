@@ -243,7 +243,7 @@ Supported operating systems and hardware:
 * v1.0, 2014-05-04, support mips linux.
 * v1.0, 2014-04-30, fix bug [#34](https://github.com/winlinvip/simple-rtmp-server/issues/34): convert signal to io thread. 0.9.85
 * v1.0, 2014-04-29, refine RTMP protocol completed, to 0.9.81
-* v1.0, 2014-04-28, [1.0 mainline2(0.9.79)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline2) released. 35255 lines.
+* <strong>v1.0, 2014-04-28, [1.0 mainline2(0.9.79)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline2) released. 35255 lines.</strong>
 * v1.0, 2014-04-28, support full edge RTMP server. 0.9.79
 * v1.0, 2014-04-27, support basic edge(play/publish) RTMP server. 0.9.78
 * v1.0, 2014-04-25, add donation page. 0.9.76
