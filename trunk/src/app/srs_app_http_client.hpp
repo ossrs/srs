@@ -29,4 +29,37 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
+#ifdef SRS_AUTO_HTTP_PARSER
+
+#include <srs_app_st.hpp>
+
+class SrsHttpUri;
+class SrsHttpParser;
+
+/**
+* http client to GET/POST/PUT/DELETE uri
+*/
+class SrsHttpClient
+{
+private:
+    bool connected;
+    st_netfd_t stfd;
+    SrsHttpParser* parser;
+public:
+    SrsHttpClient();
+    virtual ~SrsHttpClient();
+public:
+    /**
+    * to post data to the uri.
+    * @param req the data post to uri.
+    * @param res the response data from server.
+    */
+    virtual int post(SrsHttpUri* uri, std::string req, std::string& res);
+private:
+    virtual void disconnect();
+    virtual int connect(SrsHttpUri* uri);
+};
+
+#endif
+
 #endif

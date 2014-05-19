@@ -70,6 +70,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_HTTP_STREAM_PORT 8080
 #define SRS_CONF_DEFAULT_HTTP_API_PORT 1985
 
+#define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_ENABLED false
+#define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_INTERVAL 9.9
+#define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_URL "http://127.0.0.1:8085/api/v1/servers"
+
 #define SRS_STAGE_PLAY_USER_INTERVAL_MS 10000
 #define SRS_STAGE_PUBLISH_USER_INTERVAL_MS 10000
 #define SRS_STAGE_FORWARDER_INTERVAL_MS 10000
@@ -173,7 +177,6 @@ public:
     virtual int                 get_max_connections();
     virtual SrsConfDirective*   get_listen();
     virtual std::string         get_pid_file();
-    virtual std::string         get_heartbeat_url();
     virtual int                 get_pithy_print_publish();
     virtual int                 get_pithy_print_forwarder();
     virtual int                 get_pithy_print_encoder();
@@ -286,6 +289,14 @@ public:
     virtual bool                get_vhost_http_enabled(std::string vhost);
     virtual std::string         get_vhost_http_mount(std::string vhost);
     virtual std::string         get_vhost_http_dir(std::string vhost);
+// http heartbeart section
+private:
+    virtual SrsConfDirective*   get_heartbeart();
+public:
+    virtual bool                get_heartbeat_enabled();
+    virtual int64_t             get_heartbeat_interval();
+    virtual std::string         get_heartbeat_url();
+    virtual std::string         get_heartbeat_device_id();
 };
 
 /**

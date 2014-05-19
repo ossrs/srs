@@ -1422,17 +1422,6 @@ string SrsConfig::get_pid_file()
     return conf->arg0();
 }
 
-string SrsConfig::get_heartbeat_url()
-{
-    SrsConfDirective* conf = root->get("heartbeat");
-    
-    if (!conf) {
-        return "";
-    }
-    
-    return conf->arg0();
-}
-
 int SrsConfig::get_pithy_print_publish()
 {
     SrsConfDirective* pithy = root->get("pithy_print");
@@ -2782,6 +2771,74 @@ string SrsConfig::get_vhost_http_dir(string vhost)
     conf = conf->get("dir");
     if (!conf || conf->arg0().empty()) {
         return SRS_CONF_DEFAULT_HTTP_DIR;
+    }
+    
+    return conf->arg0();
+}
+
+SrsConfDirective* SrsConfig::get_heartbeart()
+{
+    return root->get("heartbeat");
+}
+
+bool SrsConfig::get_heartbeat_enabled()
+{
+    SrsConfDirective* conf = get_heartbeart();
+    
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HTTP_HEAETBEAT_ENABLED;
+    }
+    
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0() != "on") {
+        return SRS_CONF_DEFAULT_HTTP_HEAETBEAT_ENABLED;
+    }
+    
+    return true;
+}
+
+int64_t SrsConfig::get_heartbeat_interval()
+{
+    SrsConfDirective* conf = get_heartbeart();
+    
+    if (!conf) {
+        return (int64_t)(SRS_CONF_DEFAULT_HTTP_HEAETBEAT_INTERVAL * 1000);
+    }
+    conf = conf->get("interval");
+    if (!conf || conf->arg0().empty()) {
+        return (int64_t)(SRS_CONF_DEFAULT_HTTP_HEAETBEAT_INTERVAL * 1000);
+    }
+    
+    return (int64_t)(::atof(conf->arg0().c_str()) * 1000);
+}
+
+string SrsConfig::get_heartbeat_url()
+{
+    SrsConfDirective* conf = get_heartbeart();
+    
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HTTP_HEAETBEAT_URL;
+    }
+    
+    conf = conf->get("url");
+    if (!conf || conf->arg0().empty()) {
+        return SRS_CONF_DEFAULT_HTTP_HEAETBEAT_URL;
+    }
+    
+    return conf->arg0();
+}
+
+string SrsConfig::get_heartbeat_device_id()
+{
+    SrsConfDirective* conf = get_heartbeart();
+    
+    if (!conf) {
+        return "";
+    }
+    
+    conf = conf->get("device_id");
+    if (!conf || conf->arg0().empty()) {
+        return "";
     }
     
     return conf->arg0();

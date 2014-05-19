@@ -40,6 +40,7 @@ class SrsServer;
 class SrsConnection;
 class SrsHttpHandler;
 class SrsIngester;
+class SrsHttpHeartbeat;
 
 // listener type for server to identify the connection,
 // that is, use different type to process the connection.
@@ -114,6 +115,9 @@ private:
 #endif
 #ifdef SRS_AUTO_HTTP_SERVER
     SrsHttpHandler* http_stream_handler;
+#endif
+#ifdef SRS_AUTO_HTTP_PARSER
+    SrsHttpHeartbeat* http_heartbeat;
 #endif
 #ifdef SRS_AUTO_INGEST
     SrsIngester* ingester;

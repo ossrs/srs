@@ -39,32 +39,6 @@ class SrsRequest;
 class SrsHttpParser;
 class SrsFlvSegment;
 
-#include <srs_app_st.hpp>
-
-/**
-* http client to GET/POST/PUT/DELETE uri
-*/
-class SrsHttpClient
-{
-private:
-    bool connected;
-    st_netfd_t stfd;
-    SrsHttpParser* parser;
-public:
-    SrsHttpClient();
-    virtual ~SrsHttpClient();
-public:
-    /**
-    * to post data to the uri.
-    * @param req the data post to uri.
-    * @param res the response data from server.
-    */
-    virtual int post(SrsHttpUri* uri, std::string req, std::string& res);
-private:
-    virtual void disconnect();
-    virtual int connect(SrsHttpUri* uri);
-};
-
 /**
 * the http hooks, http callback api,
 * for some event, such as on_connect, call

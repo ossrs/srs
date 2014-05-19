@@ -23,6 +23,68 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_heartbeat.hpp>
 
+#ifdef SRS_AUTO_HTTP_PARSER
+
+#include <sstream>
+using namespace std;
+
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
+#include <srs_app_config.hpp>
+#include <srs_app_http_client.hpp>
+#include <srs_app_json.hpp>
+#include <srs_app_http.hpp>
+#include <srs_app_utility.hpp>
 
+SrsHttpHeartbeat::SrsHttpHeartbeat()
+{
+}
+
+SrsHttpHeartbeat::~SrsHttpHeartbeat()
+{
+}
+
+void SrsHttpHeartbeat::heartbeat()
+{
+    int ret = ERROR_SUCCESS;
+    
+    std::string url = _srs_config->get_heartbeat_url();
+    
+    SrsHttpUri uri;
+    if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
+        srs_error("http uri parse hartbeart url failed. url=%s, ret=%d", url.c_str(), ret);
+        return;
+    }
+
+    std::string ip = "";
+    std::string device_id = _srs_config->get_heartbeat_device_id();
+    
+    vector<string>& ips = srs_get_local_ipv4_ips();
+    if (!ips.empty()) {
+        ip = ips[0]; // TODO: FIXME: maybe need to config it.
+    }
+    
+    std::stringstream ss;
+    ss << JOBJECT_START
+        << JFIELD_STR("device_id", device_id) << JFIELD_CONT
+        << JFIELD_STR("ip", ip)
+        << JOBJECT_END;
+    std::string data = ss.str();
+    std::string res;
+    
+    SrsHttpClient http;
+    if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
+        srs_error("http post hartbeart uri failed. "
+            "url=%s, request=%s, response=%s, ret=%d",
+            url.c_str(), data.c_str(), res.c_str(), ret);
+        return;
+    }
+    
+    srs_trace("http hook hartbeart success. "
+        "url=%s, request=%s, response=%s, ret=%d",
+        url.c_str(), data.c_str(), res.c_str(), ret);
+    
+    return;
+}
+
+#endif

@@ -23,11 +23,18 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_utility.hpp>
 
+#include <sys/types.h>
 #include <unistd.h>
+#include <ifaddrs.h>
+#include <arpa/inet.h>
+
+using namespace std;
 
 #include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
 #include <srs_kernel_utility.hpp>
+
+#define SRS_LOCAL_LOOP_IP "127.0.0.1"
 
 int srs_get_log_level(std::string level)
 {
@@ -434,4 +441,56 @@ void srs_update_platform_info()
             r.ok = false;
         }
     }
+}
+
+vector<string> _srs_system_ipv4_ips;
+
+void retrieve_local_ipv4_ips()
+{
+    vector<string>& ips = _srs_system_ipv4_ips;
+    
+    ips.clear();
+    
+    ifaddrs* ifap;
+    if (getifaddrs(&ifap) == -1) {
+        srs_warn("retrieve local ips, ini ifaddrs failed.");
+        return;
+    }
+    
+    ifaddrs* p = ifap;
+    while (p != NULL) {
+        sockaddr* addr = p->ifa_addr;
+        
+        // retrieve ipv4 addr
+        if (addr->sa_family == AF_INET) {
+            in_addr* inaddr = &((sockaddr_in*)addr)->sin_addr;
+            
+            char buf[16];
+            memset(buf, 0, sizeof(buf));
+            
+            if ((inet_ntop(addr->sa_family, inaddr, buf, sizeof(buf))) == NULL) {
+                srs_warn("convert local ip failed");
+                break;
+            }
+            
+            std::string ip = buf;
+            if (ip != SRS_LOCAL_LOOP_IP) {
+                srs_trace("retrieve local ipv4 addresses: %s", ip.c_str());
+                ips.push_back(ip);
+            }
+        }
+        
+        p = p->ifa_next;
+    }
+
+    freeifaddrs(ifap);
+}
+
+vector<string>& srs_get_local_ipv4_ips()
+{
+    if (_srs_system_ipv4_ips.empty()) {
+        retrieve_local_ipv4_ips();
+    }
+
+    return _srs_system_ipv4_ips;
 }

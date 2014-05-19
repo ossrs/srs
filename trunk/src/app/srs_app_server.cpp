@@ -41,11 +41,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_http_api.hpp>
 #include <srs_app_http_conn.hpp>
 #include <srs_app_http.hpp>
-#ifdef SRS_AUTO_INGEST
 #include <srs_app_ingest.hpp>
-#endif
 #include <srs_app_source.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_app_heartbeat.hpp>
 
 #define SERVER_LISTEN_BACKLOG 512
 
@@ -74,7 +73,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // update platform info interval:
 //      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_PLATFORM_INFO_RESOLUTION_TIMES
-#define SRS_SYS_PLATFORM_INFO_RESOLUTION_TIMES 80
+#define SRS_SYS_PLATFORM_INFO_RESOLUTION_TIMES 90
 
 SrsListener::SrsListener(SrsServer* server, SrsListenerType type)
 {
@@ -317,6 +316,9 @@ SrsServer::SrsServer()
 #ifdef SRS_AUTO_HTTP_SERVER
     http_stream_handler = NULL;
 #endif
+#ifdef SRS_AUTO_HTTP_PARSER
+    http_heartbeat = NULL;
+#endif
 #ifdef SRS_AUTO_INGEST
     ingester = NULL;
 #endif
@@ -348,6 +350,11 @@ void SrsServer::destroy()
 #ifdef SRS_AUTO_HTTP_SERVER
     srs_freep(http_stream_handler);
 #endif
+
+#ifdef SRS_AUTO_HTTP_PARSER
+    srs_freep(http_heartbeat);
+#endif
+
 #ifdef SRS_AUTO_INGEST
     srs_freep(ingester);
 #endif
@@ -391,6 +398,10 @@ int SrsServer::initialize()
 #ifdef SRS_AUTO_HTTP_SERVER
     srs_assert(!http_stream_handler);
     http_stream_handler = SrsHttpHandler::create_http_stream();
+#endif
+#ifdef SRS_AUTO_HTTP_PARSER
+    srs_assert(!http_heartbeat);
+    http_heartbeat = new SrsHttpHeartbeat();
 #endif
 #ifdef SRS_AUTO_INGEST
     srs_assert(!ingester);
@@ -635,7 +646,14 @@ int SrsServer::do_cycle()
     
     // the deamon thread, update the time cache
     while (true) {
-        for (int i = 1; i < max + 1; i++) {
+        // the interval in config.
+        int64_t heartbeat_max_resolution = _srs_config->get_heartbeat_interval() / 100;
+        
+        // dynamic fetch the max.
+        int __max = max;
+        __max = srs_max(__max, heartbeat_max_resolution);
+        
+        for (int i = 1; i < __max + 1; i++) {
             st_usleep(SRS_SYS_CYCLE_INTERVAL * 1000);
         
 // for gperf heap checker,
@@ -677,6 +695,13 @@ int SrsServer::do_cycle()
             if ((i % SRS_SYS_PLATFORM_INFO_RESOLUTION_TIMES) == 0) {
                 srs_update_platform_info();
             }
+#ifdef SRS_AUTO_HTTP_PARSER
+            if (_srs_config->get_heartbeat_enabled()) {
+                if ((i % heartbeat_max_resolution) == 0) {
+                    http_heartbeat->heartbeat();
+                }
+            }
+#endif
         }
     }
 

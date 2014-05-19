@@ -30,6 +30,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+#include <vector>
+#include <string>
+
 #include <sys/resource.h>
 
 /**
@@ -345,5 +348,9 @@ public:
 extern SrsPlatformInfo* srs_get_platform_info();
 // the deamon st-thread will update it.
 extern void srs_update_platform_info();
+
+// get local ip, fill to @param ips
+extern void srs_retrieve_local_ipv4_ips();
+extern std::vector<std::string>& srs_get_local_ipv4_ips();
 
 #endif
