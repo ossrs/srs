@@ -230,6 +230,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v1.0, 2014-05-19, support http heartbeat, 0.9.107
 * <strong>v1.0, 2014-05-18, [1.0 mainline3(0.9.105)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline3) released. 37594 lines.</strong>
 * v1.0, 2014-05-18, support http api json, to PUT/POST. 0.9.105
 * v1.0, 2014-05-17, fix [#72](https://github.com/winlinvip/simple-rtmp-server/issues/72), also need stream_id for send_and_free_message. 0.9.101
