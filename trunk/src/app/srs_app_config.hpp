@@ -173,6 +173,7 @@ public:
     virtual int                 get_max_connections();
     virtual SrsConfDirective*   get_listen();
     virtual std::string         get_pid_file();
+    virtual std::string         get_heartbeat_url();
     virtual int                 get_pithy_print_publish();
     virtual int                 get_pithy_print_forwarder();
     virtual int                 get_pithy_print_encoder();

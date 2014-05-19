@@ -428,8 +428,8 @@ class RESTServers(object):
         return None
         
     def __refresh_nodes(self):
-        has_dead_node = False
         while len(self.__nodes) > 0:
+            has_dead_node = False
             for node in self.__nodes:
                 if node.dead():
                     self.__nodes.remove(node)
@@ -639,6 +639,22 @@ class RESTServers(object):
                                     "stream6": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard-bk&stream=live/stream6",
                                     "stream7": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard-bk&stream=live/stream7"
                                 }
+                            },
+                            "meiyi-dev1": {
+                                "rtmp": {
+                                    "livesteam": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-meiyi-cubieboard-dev1&stream=live/livestream"
+                                },
+                                "hls": {
+                                    "livesteam": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard-dev1&stream=live/livestream"
+                                }
+                            },
+                            "meiyi-dev2": {
+                                "rtmp": {
+                                    "livesteam": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-meiyi-cubieboard-dev2&stream=live/livestream"
+                                },
+                                "hls": {
+                                    "livesteam": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard-dev2&stream=live/livestream"
+                                }
                             }
                         }
                     }
@@ -732,8 +748,8 @@ class RESTNodes(object):
         return None
         
     def __refresh_nodes(self):
-        has_dead_node = False
         while len(self.__nodes) > 0:
+            has_dead_node = False
             for node in self.__nodes:
                 if node.dead():
                     self.__nodes.remove(node)

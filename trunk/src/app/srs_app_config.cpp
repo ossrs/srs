@@ -509,7 +509,7 @@ int SrsConfig::reload()
     //
     // always support reload without additional code:
     //      chunk_size, ff_log_dir, max_connections,
-    //      bandcheck, http_hooks
+    //      bandcheck, http_hooks, heartbeat
 
     // merge config: listen
     if (!srs_directive_equals(root->get("listen"), old_root->get("listen"))) {
@@ -1417,6 +1417,17 @@ string SrsConfig::get_pid_file()
     
     if (!conf) {
         return SRS_CONF_DEFAULT_PID_FILE;
+    }
+    
+    return conf->arg0();
+}
+
+string SrsConfig::get_heartbeat_url()
+{
+    SrsConfDirective* conf = root->get("heartbeat");
+    
+    if (!conf) {
+        return "";
     }
     
     return conf->arg0();
