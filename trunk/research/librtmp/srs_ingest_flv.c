@@ -190,11 +190,11 @@ int64_t re_create()
     int64_t deviation = re - tools_main_entrance_startup_time;
     trace("deviation is %d ms, pulse is %d ms", (int)(deviation), (int)(RE_PULSE_MS));
     
-    // so, we adjust time to max(0, deviation - pulse/4)
-    // because the last pulse, we never sleep, so we use pulse/4,
+    // so, we adjust time to max(0, deviation - pulse/10)
+    // because the last pulse, we never sleep, so we use pulse/10,
     // for example, when EOF at the 120ms of last pulse, 
     // these bytes is additional data and to fill the deviation.
-    int adjust = (int)(deviation - (RE_PULSE_MS / 4));
+    int adjust = (int)(deviation - (RE_PULSE_MS / 10));
     if (adjust > 0) {
         trace("adjust re time, sub %d ms", adjust);
         re -= adjust;
