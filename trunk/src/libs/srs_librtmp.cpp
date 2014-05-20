@@ -35,6 +35,7 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
+#include <srs_kernel_utility.hpp>
 
 // if user want to define log, define the folowing macro.
 #ifndef SRS_RTMP_USER_DEFINED_LOG
@@ -397,6 +398,12 @@ int srs_version_minor()
 int srs_version_revision()
 {
     return ::atoi(VERSION_REVISION);
+}
+
+int64_t srs_get_time_ms()
+{
+    srs_update_system_time_ms();
+    return srs_get_system_time_ms();
 }
 
 #ifdef __cplusplus

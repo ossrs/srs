@@ -43,12 +43,17 @@ void close_flv_file(int flv_fd);
 int flv_open_ic(int flv_fd);
 int flv_read_packet(int flv_fd, int* type, u_int32_t* timestamp, char** data, int* size);
 
+#define RE_PULSE_MS 300
 int64_t re_create();
-int64_t re_update(int64_t re, u_int32_t time);
+void re_update(int64_t re, u_int32_t time);
 
+int64_t tools_main_entrance_startup_time;
 int main(int argc, char** argv)
 {
     int ret = 0;
+    
+    // main function
+    tools_main_entrance_startup_time = srs_get_time_ms();
     
     // user option parse index.
     int opt = 0;
@@ -118,8 +123,6 @@ int proxy(int flv_fd, srs_rtmp_t ortmp)
     int type, size;
     u_int32_t timestamp = 0;
     char* data = NULL;
-    // re
-    int64_t re = re_create();
     
     if ((ret = flv_open_ic(flv_fd)) != 0) {
         return ret;
@@ -127,6 +130,9 @@ int proxy(int flv_fd, srs_rtmp_t ortmp)
     if ((ret = connect_oc(ortmp)) != 0) {
         return ret;
     }
+    
+    // re
+    int64_t re = re_create();
     
     trace("start ingest flv to RTMP stream");
     for (;;) {
@@ -144,7 +150,7 @@ int proxy(int flv_fd, srs_rtmp_t ortmp)
         verbose("ortmp sent packet: type=%s, time=%d, size=%d", 
             srs_type2string(type), timestamp, size);
         
-        re = re_update(re, timestamp);
+        re_update(re, timestamp);
     }
     
     return ret;
@@ -177,16 +183,34 @@ int connect_oc(srs_rtmp_t ortmp)
 
 int64_t re_create()
 {
-    return 0;
-}
-int64_t re_update(int64_t re, u_int32_t time)
-{
-    if (time - re > 500) {
-        usleep((time - re) * 1000);
-        return time;
+    // if not very precise, we can directly use this as re.
+    int64_t re = srs_get_time_ms();
+    
+    // use the starttime to get the deviation
+    int64_t deviation = re - tools_main_entrance_startup_time;
+    trace("deviation is %d ms, pulse is %d ms", (int)(deviation), (int)(RE_PULSE_MS));
+    
+    // so, we adjust time to max(0, deviation - pulse/4)
+    // because the last pulse, we never sleep, so we use pulse/4,
+    // for example, when EOF at the 120ms of last pulse, 
+    // these bytes is additional data and to fill the deviation.
+    int adjust = (int)(deviation - (RE_PULSE_MS / 4));
+    if (adjust > 0) {
+        trace("adjust re time, sub %d ms", adjust);
+        re -= adjust;
+    } else {
+        trace("no need to adjust re time");
     }
     
     return re;
+}
+void re_update(int64_t re, u_int32_t time)
+{
+    int64_t now = srs_get_time_ms();
+    int64_t diff = time - (now -re);
+    if (diff > RE_PULSE_MS) {
+        usleep(diff * 1000);
+    }
 }
 
 int open_flv_file(char* in_flv_file)

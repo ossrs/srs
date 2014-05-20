@@ -70,39 +70,41 @@ function Ubuntu_prepare()
         echo "install patch success"
     fi
     
-    autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install autoconf"
-        require_sudoer "sudo apt-get install -y --force-yes autoconf"
-        sudo apt-get install -y --force-yes autoconf; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install autoconf success"
-    fi
-    
-    libtool --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install libtool"
-        require_sudoer "sudo apt-get install -y --force-yes libtool"
-        sudo apt-get install -y --force-yes libtool; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install libtool success"
-    fi
-    
-    if [[ ! -f /usr/include/pcre.h ]]; then
-        echo "install libpcre3-dev"
-        require_sudoer "sudo apt-get install -y --force-yes libpcre3-dev"
-        sudo apt-get install -y --force-yes libpcre3-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install libpcre3-dev success"
-    fi
-    
-    if [[ ! -f /usr/include/zlib.h ]]; then
-        echo "install zlib1g-dev"
-        require_sudoer "sudo apt-get install -y --force-yes zlib1g-dev"
-        sudo apt-get install -y --force-yes zlib1g-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install zlib1g-dev success"
-    fi
-    
-    if [[ ! -d /usr/include/freetype2 ]]; then
-        echo "install libfreetype6-dev"
-        require_sudoer "sudo apt-get install -y --force-yes libfreetype6-dev"
-        sudo apt-get install -y --force-yes libfreetype6-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install libfreetype6-dev success"
+    if [ $SRS_FFMPEG_TOOL = YES ]; then
+        autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+            echo "install autoconf"
+            require_sudoer "sudo apt-get install -y --force-yes autoconf"
+            sudo apt-get install -y --force-yes autoconf; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "install autoconf success"
+        fi
+        
+        libtool --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+            echo "install libtool"
+            require_sudoer "sudo apt-get install -y --force-yes libtool"
+            sudo apt-get install -y --force-yes libtool; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "install libtool success"
+        fi
+        
+        if [[ ! -f /usr/include/pcre.h ]]; then
+            echo "install libpcre3-dev"
+            require_sudoer "sudo apt-get install -y --force-yes libpcre3-dev"
+            sudo apt-get install -y --force-yes libpcre3-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "install libpcre3-dev success"
+        fi
+        
+        if [[ ! -f /usr/include/zlib.h ]]; then
+            echo "install zlib1g-dev"
+            require_sudoer "sudo apt-get install -y --force-yes zlib1g-dev"
+            sudo apt-get install -y --force-yes zlib1g-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "install zlib1g-dev success"
+        fi
+        
+        if [[ ! -d /usr/include/freetype2 ]]; then
+            echo "install libfreetype6-dev"
+            require_sudoer "sudo apt-get install -y --force-yes libfreetype6-dev"
+            sudo apt-get install -y --force-yes libfreetype6-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "install libfreetype6-dev success"
+        fi
     fi
     
     # for arm, install the cross build tool chain.
@@ -168,46 +170,48 @@ function Centos_prepare()
         echo "install patch success"
     fi
     
-    automake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install automake"
-        require_sudoer "sudo yum install -y automake"
-        sudo yum install -y automake; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install automake success"
-    fi
-    
-    autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install autoconf"
-        require_sudoer "sudo yum install -y autoconf"
-        sudo yum install -y autoconf; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install autoconf success"
-    fi
-    
-    libtool --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install libtool"
-        require_sudoer "sudo yum install -y libtool"
-        sudo yum install -y libtool; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install libtool success"
-    fi
-    
-    if [[ ! -f /usr/include/pcre.h ]]; then
-        echo "install pcre-devel"
-        require_sudoer "sudo yum install -y pcre-devel"
-        sudo yum install -y pcre-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install pcre-devel success"
-    fi
-    
-    if [[ ! -f /usr/include/zlib.h ]]; then
-        echo "install zlib-devel"
-        require_sudoer "sudo yum install -y zlib-devel"
-        sudo yum install -y zlib-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install zlib-devel success"
-    fi
-    
-    if [[ ! -d /usr/include/freetype2 ]]; then
-        echo "install freetype-devel"
-        require_sudoer "sudo yum install -y freetype-devel"
-        sudo yum install -y freetype-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install freetype-devel success"
+    if [ $SRS_FFMPEG_TOOL = YES ]; then
+        automake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+            echo "install automake"
+            require_sudoer "sudo yum install -y automake"
+            sudo yum install -y automake; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "install automake success"
+        fi
+        
+        autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+            echo "install autoconf"
+            require_sudoer "sudo yum install -y autoconf"
+            sudo yum install -y autoconf; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "install autoconf success"
+        fi
+        
+        libtool --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+            echo "install libtool"
+            require_sudoer "sudo yum install -y libtool"
+            sudo yum install -y libtool; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "install libtool success"
+        fi
+        
+        if [[ ! -f /usr/include/pcre.h ]]; then
+            echo "install pcre-devel"
+            require_sudoer "sudo yum install -y pcre-devel"
+            sudo yum install -y pcre-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "install pcre-devel success"
+        fi
+        
+        if [[ ! -f /usr/include/zlib.h ]]; then
+            echo "install zlib-devel"
+            require_sudoer "sudo yum install -y zlib-devel"
+            sudo yum install -y zlib-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "install zlib-devel success"
+        fi
+        
+        if [[ ! -d /usr/include/freetype2 ]]; then
+            echo "install freetype-devel"
+            require_sudoer "sudo yum install -y freetype-devel"
+            sudo yum install -y freetype-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "install freetype-devel success"
+        fi
     fi
     
     # for arm, install the cross build tool chain.

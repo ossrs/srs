@@ -154,6 +154,11 @@ int srs_version_major();
 int srs_version_minor();
 int srs_version_revision();
 
+/**
+* utilities
+*/
+extern int64_t srs_get_time_ms();
+
 #ifdef __cplusplus
 }
 #endif
