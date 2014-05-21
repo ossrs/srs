@@ -157,7 +157,14 @@ int srs_version_revision();
 /**
 * utilities
 */
-extern int64_t srs_get_time_ms();
+int64_t srs_get_time_ms();
+
+/**
+* amf0 codec
+*/
+// the output handler.
+typedef void* srs_amf0_t;
+srs_amf0_t srs_amf0_parse(char* data, int size);
 
 #ifdef __cplusplus
 }

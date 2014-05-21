@@ -36,6 +36,8 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_kernel_stream.hpp>
+#include <srs_protocol_amf0.hpp>
 
 // if user want to define log, define the folowing macro.
 #ifndef SRS_RTMP_USER_DEFINED_LOG
@@ -404,6 +406,33 @@ int64_t srs_get_time_ms()
 {
     srs_update_system_time_ms();
     return srs_get_system_time_ms();
+}
+
+srs_amf0_t srs_amf0_parse(char* data, int size)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_amf0_t amf0 = NULL;
+    
+    SrsStream stream;
+    if ((ret = stream.initialize(data, size)) != ERROR_SUCCESS) {
+        return amf0;
+    }
+    
+    SrsAmf0Any* any = NULL;
+    if ((ret = SrsAmf0Any::discovery(&stream, &any)) != ERROR_SUCCESS) {
+        return amf0;
+    }
+    
+    stream.reset();
+    if ((ret = any->read(&stream)) != ERROR_SUCCESS) {
+        srs_freep(any);
+        return amf0;
+    }
+    
+    amf0 = (srs_amf0_t)any;
+    
+    return amf0;
 }
 
 #ifdef __cplusplus

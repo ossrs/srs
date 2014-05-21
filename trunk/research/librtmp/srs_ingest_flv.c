@@ -34,14 +34,10 @@ gcc srs_ingest_flv.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_ingest_
 
 #include "../../objs/include/srs_librtmp.h"
 #include "srs_research_public.h"
+#include "srs_flv_codec.h"
 
 int proxy(int flv_fd, srs_rtmp_t ortmp);
 int connect_oc(srs_rtmp_t ortmp);
-
-int open_flv_file(char* in_flv_file);
-void close_flv_file(int flv_fd);
-int flv_open_ic(int flv_fd);
-int flv_read_packet(int flv_fd, int* type, u_int32_t* timestamp, char** data, int* size);
 
 #define RE_PULSE_MS 300
 int64_t re_create();
@@ -233,104 +229,4 @@ void re_cleanup(int64_t re, u_int32_t time)
         trace("re_cleanup sleep for the last pulse for %d ms", (int)diff);
         usleep(diff * 1000);
     }
-}
-
-int open_flv_file(char* in_flv_file)
-{
-    return open(in_flv_file, O_RDONLY);
-}
-
-void close_flv_file(int fd)
-{
-    if (fd > 0) {
-        close(fd);
-    }
-}
-
-int flv_open_ic(int flv_fd)
-{
-    int ret = 0;
-    
-    char h[13]; // 9+4
-    
-    if (read(flv_fd, h, sizeof(h)) != sizeof(h)) {
-        ret = -1;
-        trace("read flv header failed. ret=%d", ret);
-        return ret;
-    }
-    
-    if (h[0] != 'F' || h[1] != 'L' || h[2] != 'V') {
-        ret = -1;
-        trace("input is not a flv file. ret=%d", ret);
-        return ret;
-    }
-    
-    return ret;
-}
-
-int flv_read_packet(int flv_fd, int* type, u_int32_t* timestamp, char** data, int* size)
-{
-    int ret = 0;
-    
-    char th[11]; // tag header
-    char ts[4]; // tag size
-    
-    int32_t data_size = 0;
-    u_int32_t time = 0; 
-    
-    char* pp;
-    
-    // read tag header
-    if (read(flv_fd, th, sizeof(th)) != sizeof(th)) {
-        ret = -1;
-        trace("read flv tag header failed. ret=%d", ret);
-        return ret;
-    }
-    
-    // Reserved UB [2]
-    // Filter UB [1]
-    // TagType UB [5]
-    *type = (int)(th[0] & 0x1F);
-    
-    // DataSize UI24
-    pp = (char*)&data_size;
-    pp[2] = th[1];
-    pp[1] = th[2];
-    pp[0] = th[3];
-    
-    // Timestamp UI24
-    pp = (char*)&time;
-    pp[2] = th[4];
-    pp[1] = th[5];
-    pp[0] = th[6];
-    
-    // TimestampExtended UI8
-    pp[3] = th[7];
-    
-    *timestamp = time;
-    
-    // check data size.
-    if (data_size <= 0) {
-        ret = -1;
-        trace("invalid data size. size=%d, ret=%d", data_size, ret);
-        return ret;
-    }
-    
-    // read tag data.
-    *size = data_size;
-    *data = (char*)malloc(data_size);
-    if (read(flv_fd, *data, data_size) != data_size) {
-        ret = -1;
-        trace("read flv tag data failed. size=%d, ret=%d", data_size, ret);
-        return ret;
-    }
-    
-    // ignore 4bytes tag size.
-    if (read(flv_fd, ts, sizeof(ts)) != sizeof(ts)) {
-        ret = -1;
-        trace("read flv tag size failed. ret=%d", ret);
-        return ret;
-    }
-    
-    return ret;
 }
