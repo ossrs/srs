@@ -325,6 +325,8 @@ void SrsHttpHooks::on_stop(string url, int client_id, string ip, SrsRequest* req
     return;
 }
 
+#ifdef SRS_AUTO_DVR
+
 void SrsHttpHooks::on_dvr_hss_reap_flv_header(std::string url, SrsRequest* req, std::string header_file)
 {
     int ret = ERROR_SUCCESS;
@@ -430,5 +432,7 @@ void SrsHttpHooks::on_dvr_hss_reap_flv(string url, SrsRequest* req, SrsFlvSegmen
     
     return;
 }
+
+#endif
 
 #endif
