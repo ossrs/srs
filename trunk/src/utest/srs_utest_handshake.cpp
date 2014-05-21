@@ -109,8 +109,8 @@ VOID TEST(HandshakeTest, VerifyFPC0C1)
     
     // the schema of data must be schema0: key-digest.
     ASSERT_EQ(ERROR_SUCCESS, c1.parse(c0c1 + 1, srs_schema0));
-    EXPECT_EQ((int32_t)0xd0640f00, c1.time);
-    EXPECT_EQ((int32_t)0x2070080, c1.version);
+    EXPECT_EQ((int32_t)0x000f64d0, c1.time);
+    EXPECT_EQ((int32_t)0x80000702, c1.version);
     
     // manually validate the c1
     // @see: calc_c1_digest
