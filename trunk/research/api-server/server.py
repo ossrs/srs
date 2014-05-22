@@ -618,6 +618,14 @@ class RESTServers(object):
                                     "stream7": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard&stream=live/stream7"
                                 }
                             },
+                            "meiyi-house": {
+                                "rtmp": {
+                                    "livesteam": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-meiyi-cubieboard-house&stream=live/livestream"
+                                },
+                                "hls": {
+                                    "livesteam": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=hls&device_id=chnvideo-meiyi-cubieboard-house&stream=live/livestream"
+                                }
+                            },
                             "meiyi-bk": {
                                 "rtmp": {
                                     "livesteam": "http://demo.chnvideo.com:8085/api/v1/servers?id=ingest&action=rtmp&device_id=chnvideo-meiyi-cubieboard-bk&stream=live/livestream",

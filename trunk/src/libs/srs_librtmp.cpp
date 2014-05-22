@@ -435,6 +435,42 @@ srs_amf0_t srs_amf0_parse(char* data, int size)
     return amf0;
 }
 
+amf0_bool srs_amf0_is_string(srs_amf0_t amf0)
+{
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    return any->is_string();
+}
+
+amf0_bool srs_amf0_is_boolean(srs_amf0_t amf0)
+{
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    return any->is_boolean();
+}
+
+amf0_bool srs_amf0_is_number(srs_amf0_t amf0)
+{
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    return any->is_number();
+}
+
+amf0_bool srs_amf0_is_null(srs_amf0_t amf0)
+{
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    return any->is_null();
+}
+
+amf0_bool srs_amf0_is_object(srs_amf0_t amf0)
+{
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    return any->is_object();
+}
+
+amf0_bool srs_amf0_is_ecma_array(srs_amf0_t amf0)
+{
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    return any->is_ecma_array();
+}
+
 #ifdef __cplusplus
 }
 #endif

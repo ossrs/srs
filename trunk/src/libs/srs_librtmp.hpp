@@ -162,9 +162,21 @@ int64_t srs_get_time_ms();
 /**
 * amf0 codec
 */
-// the output handler.
+/* the output handler. */
 typedef void* srs_amf0_t;
-srs_amf0_t srs_amf0_parse(char* data, int size);
+typedef int amf0_bool;
+extern srs_amf0_t srs_amf0_parse(char* data, int size);
+/* type detecter */
+extern amf0_bool srs_amf0_is_string(srs_amf0_t amf0);
+extern amf0_bool srs_amf0_is_boolean(srs_amf0_t amf0);
+extern amf0_bool srs_amf0_is_number(srs_amf0_t amf0);
+extern amf0_bool srs_amf0_is_null(srs_amf0_t amf0);
+extern amf0_bool srs_amf0_is_object(srs_amf0_t amf0);
+extern amf0_bool srs_amf0_is_ecma_array(srs_amf0_t amf0);
+/* value converter */
+/*const char* srs_amf0_to_string(srs_amf0_t amf0);
+bool srs_amf0_to_boolean(srs_amf0_t amf0);
+double srs_amf0_to_number(srs_amf0_t amf0);*/
 
 #ifdef __cplusplus
 }
