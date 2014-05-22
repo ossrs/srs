@@ -31,10 +31,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <string>
+#include <vector>
 
 class SrsStream;
 class SrsAmf0Object;
 class SrsAmf0EcmaArray;
+class SrsAmf0StrictArray;
 class __SrsUnSortedHashtable;
 class __SrsAmf0ObjectEOF;
 
@@ -96,6 +98,9 @@ public:
     virtual bool is_object();
     virtual bool is_object_eof();
     virtual bool is_ecma_array();
+    virtual bool is_strict_array();
+public:
+    virtual bool is_complex_object();
 public:
     /**
     * get the string of any when is_string() indicates true.
@@ -123,6 +128,7 @@ public:
     * user must ensure the type is a ecma array, or assert failed.
     */
     virtual SrsAmf0EcmaArray* to_ecma_array();
+    virtual SrsAmf0StrictArray* to_strict_array();
 public:
     /**
     * get the size of amf0 any, including the marker size.
@@ -142,6 +148,7 @@ public:
     static SrsAmf0Object* object();
     static SrsAmf0Any* object_eof();
     static SrsAmf0EcmaArray* ecma_array();
+    static SrsAmf0StrictArray* strict_array();
 public:
     static int discovery(SrsStream* stream, SrsAmf0Any** ppvalue);
 };
@@ -226,6 +233,36 @@ public:
 };
 
 /**
+* 2.12 Strict Array Type
+* array-count = U32 
+* strict-array-type = array-count *(value-type)
+*/
+class SrsAmf0StrictArray : public SrsAmf0Any
+{
+private:
+    std::vector<SrsAmf0Any*> properties;
+    int32_t _count;
+
+private:
+    // use SrsAmf0Any::strict_array() to create it.
+    friend class SrsAmf0Any;
+    SrsAmf0StrictArray();
+public:
+    virtual ~SrsAmf0StrictArray();
+
+public:
+    virtual int total_size();
+    virtual int read(SrsStream* stream);
+    virtual int write(SrsStream* stream);
+    
+public:
+    virtual void clear();
+    virtual int count();
+    // @remark: max index is count().
+    virtual SrsAmf0Any* at(int index);
+};
+
+/**
 * the class to get amf0 object size
 */
 class SrsAmf0Size
@@ -240,6 +277,7 @@ public:
     static int object(SrsAmf0Object* obj);
     static int object_eof();
     static int ecma_array(SrsAmf0EcmaArray* arr);
+    static int strict_array(SrsAmf0StrictArray* arr);
     static int any(SrsAmf0Any* o);
 };
 

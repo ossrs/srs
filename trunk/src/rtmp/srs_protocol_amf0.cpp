@@ -251,6 +251,16 @@ bool SrsAmf0Any::is_ecma_array()
     return marker == RTMP_AMF0_EcmaArray;
 }
 
+bool SrsAmf0Any::is_strict_array()
+{
+    return marker == RTMP_AMF0_StrictArray;
+}
+
+bool SrsAmf0Any::is_complex_object()
+{
+    return is_object() || is_object_eof() || is_ecma_array() || is_strict_array();
+}
+
 string SrsAmf0Any::to_str()
 {
     __SrsAmf0String* p = dynamic_cast<__SrsAmf0String*>(this);
@@ -289,6 +299,13 @@ SrsAmf0Object* SrsAmf0Any::to_object()
 SrsAmf0EcmaArray* SrsAmf0Any::to_ecma_array()
 {
     SrsAmf0EcmaArray* p = dynamic_cast<SrsAmf0EcmaArray*>(this);
+    srs_assert(p != NULL);
+    return p;
+}
+
+SrsAmf0StrictArray* SrsAmf0Any::to_strict_array()
+{
+    SrsAmf0StrictArray* p = dynamic_cast<SrsAmf0StrictArray*>(this);
     srs_assert(p != NULL);
     return p;
 }
@@ -336,6 +353,11 @@ SrsAmf0Any* SrsAmf0Any::object_eof()
 SrsAmf0EcmaArray* SrsAmf0Any::ecma_array()
 {
     return new SrsAmf0EcmaArray();
+}
+
+SrsAmf0StrictArray* SrsAmf0Any::strict_array()
+{
+    return new SrsAmf0StrictArray();
 }
 
 int SrsAmf0Any::discovery(SrsStream* stream, SrsAmf0Any** ppvalue)
@@ -388,6 +410,10 @@ int SrsAmf0Any::discovery(SrsStream* stream, SrsAmf0Any** ppvalue)
         }
         case RTMP_AMF0_EcmaArray: {
             *ppvalue = SrsAmf0Any::ecma_array();
+            return ret;
+        }
+        case RTMP_AMF0_StrictArray: {
+            *ppvalue = SrsAmf0Any::strict_array();
             return ret;
         }
         case RTMP_AMF0_Invalid:
@@ -956,6 +982,137 @@ SrsAmf0Any* SrsAmf0EcmaArray::ensure_property_number(string name)
     return properties->ensure_property_number(name);
 }
 
+SrsAmf0StrictArray::SrsAmf0StrictArray()
+{
+    marker = RTMP_AMF0_StrictArray;
+}
+
+SrsAmf0StrictArray::~SrsAmf0StrictArray()
+{
+    std::vector<SrsAmf0Any*>::iterator it;
+    for (it = properties.begin(); it != properties.end(); ++it) {
+        SrsAmf0Any* any = *it;
+        srs_freep(any);
+    }
+    properties.clear();
+}
+
+int SrsAmf0StrictArray::total_size()
+{
+    int size = 1 + 4;
+    
+    for (int i = 0; i < (int)properties.size(); i++){
+        SrsAmf0Any* any = properties[i];
+        size += any->total_size();
+    }
+    
+    return size;
+}
+
+int SrsAmf0StrictArray::read(SrsStream* stream)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // marker
+    if (!stream->require(1)) {
+        ret = ERROR_RTMP_AMF0_DECODE;
+        srs_error("amf0 read strict_array marker failed. ret=%d", ret);
+        return ret;
+    }
+    
+    char marker = stream->read_1bytes();
+    if (marker != RTMP_AMF0_StrictArray) {
+        ret = ERROR_RTMP_AMF0_DECODE;
+        srs_error("amf0 check strict_array marker failed. "
+            "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Object, ret);
+        return ret;
+    }
+    srs_verbose("amf0 read strict_array marker success");
+
+    // count
+    if (!stream->require(4)) {
+        ret = ERROR_RTMP_AMF0_DECODE;
+        srs_error("amf0 read strict_array count failed. ret=%d", ret);
+        return ret;
+    }
+    
+    int32_t count = stream->read_4bytes();
+    srs_verbose("amf0 read strict_array count success. count=%d", count);
+    
+    // value
+    this->_count = count;
+
+    for (int i = 0; i < count && !stream->empty(); i++) {
+        // property-value: any
+        SrsAmf0Any* elem = NULL;
+        if ((ret = srs_amf0_read_any(stream, &elem)) != ERROR_SUCCESS) {
+            srs_error("amf0 strict_array read value failed. ret=%d", ret);
+            return ret;
+        }
+        
+        // add property
+        properties.push_back(elem);
+    }
+    
+    return ret;
+}
+int SrsAmf0StrictArray::write(SrsStream* stream)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // marker
+    if (!stream->require(1)) {
+        ret = ERROR_RTMP_AMF0_ENCODE;
+        srs_error("amf0 write strict_array marker failed. ret=%d", ret);
+        return ret;
+    }
+    
+    stream->write_1bytes(RTMP_AMF0_StrictArray);
+    srs_verbose("amf0 write strict_array marker success");
+
+    // count
+    if (!stream->require(4)) {
+        ret = ERROR_RTMP_AMF0_ENCODE;
+        srs_error("amf0 write strict_array count failed. ret=%d", ret);
+        return ret;
+    }
+    
+    stream->write_4bytes(this->_count);
+    srs_verbose("amf0 write strict_array count success. count=%d", _count);
+    
+    // value
+    for (int i = 0; i < (int)properties.size(); i++) {
+        SrsAmf0Any* any = properties[i];
+        
+        if ((ret = srs_amf0_write_any(stream, any)) != ERROR_SUCCESS) {
+            srs_error("write strict_array property value failed. ret=%d", ret);
+            return ret;
+        }
+        
+        srs_verbose("write amf0 property success. name=%s", name.c_str());
+    }
+    
+    srs_verbose("write strict_array object success.");
+    
+    return ret;
+}
+
+void SrsAmf0StrictArray::clear()
+{
+    properties.clear();
+}
+
+int SrsAmf0StrictArray::count()
+{
+    return properties.size();
+}
+
+SrsAmf0Any* SrsAmf0StrictArray::at(int index)
+{
+    srs_assert(index < (int)properties.size());
+    return properties.at(index);
+}
+
 int SrsAmf0Size::utf8(string value)
 {
     return 2 + value.length();
@@ -1001,6 +1158,15 @@ int SrsAmf0Size::object_eof()
 }
 
 int SrsAmf0Size::ecma_array(SrsAmf0EcmaArray* arr)
+{
+    if (!arr) {
+        return 0;
+    }
+    
+    return arr->total_size();
+}
+
+int SrsAmf0Size::strict_array(SrsAmf0StrictArray* arr)
 {
     if (!arr) {
         return 0;

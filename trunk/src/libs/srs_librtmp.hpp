@@ -176,6 +176,7 @@ amf0_bool srs_amf0_is_number(srs_amf0_t amf0);
 amf0_bool srs_amf0_is_null(srs_amf0_t amf0);
 amf0_bool srs_amf0_is_object(srs_amf0_t amf0);
 amf0_bool srs_amf0_is_ecma_array(srs_amf0_t amf0);
+amf0_bool srs_amf0_is_strict_array(srs_amf0_t amf0);
 /* value converter */
 const char* srs_amf0_to_string(srs_amf0_t amf0);
 amf0_bool srs_amf0_to_boolean(srs_amf0_t amf0);
@@ -184,10 +185,13 @@ amf0_number srs_amf0_to_number(srs_amf0_t amf0);
 int srs_amf0_object_property_count(srs_amf0_t amf0);
 const char* srs_amf0_object_property_name_at(srs_amf0_t amf0, int index);
 srs_amf0_t srs_amf0_object_property_value_at(srs_amf0_t amf0, int index);
-/* array value converter */
-int srs_amf0_array_property_count(srs_amf0_t amf0);
-const char* srs_amf0_array_property_name_at(srs_amf0_t amf0, int index);
-srs_amf0_t srs_amf0_array_property_value_at(srs_amf0_t amf0, int index);
+/* ecma array value converter */
+int srs_amf0_ecma_array_property_count(srs_amf0_t amf0);
+const char* srs_amf0_ecma_array_property_name_at(srs_amf0_t amf0, int index);
+srs_amf0_t srs_amf0_ecma_array_property_value_at(srs_amf0_t amf0, int index);
+/* strict array value converter */
+int srs_amf0_strict_array_property_count(srs_amf0_t amf0);
+srs_amf0_t srs_amf0_strict_array_property_at(srs_amf0_t amf0, int index);
 /* human readable print */
 char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize);
 
