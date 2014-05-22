@@ -133,8 +133,8 @@ class RESTClients(object):
     def __on_connect(self, req):
         code = Error.success
 
-        trace("srs %s: client id=%s, ip=%s, vhost=%s, app=%s, pageUrl=%s"%(
-            req["action"], req["client_id"], req["ip"], req["vhost"], req["app"], req["pageUrl"]
+        trace("srs %s: client id=%s, ip=%s, vhost=%s, app=%s, tcUrl=%s, pageUrl=%s"%(
+            req["action"], req["client_id"], req["ip"], req["vhost"], req["app"], req["tcUrl"], req["pageUrl"]
         ))
 
         # TODO: process the on_connect event

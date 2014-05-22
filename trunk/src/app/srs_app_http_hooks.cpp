@@ -69,6 +69,7 @@ int SrsHttpHooks::on_connect(string url, int client_id, string ip, SrsRequest* r
         << JFIELD_STR("ip", ip) << JFIELD_CONT
         << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
         << JFIELD_STR("app", req->app) << JFIELD_CONT
+        << JFIELD_STR("tcUrl", req->tcUrl) << JFIELD_CONT
         << JFIELD_STR("pageUrl", req->pageUrl)
         << JOBJECT_END;
     std::string data = ss.str();
