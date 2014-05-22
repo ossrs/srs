@@ -26,6 +26,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdlib.h>
 
 #include <string>
+#include <sstream>
 using namespace std;
 
 #include <srs_kernel_error.hpp>
@@ -408,7 +409,7 @@ int64_t srs_get_time_ms()
     return srs_get_system_time_ms();
 }
 
-srs_amf0_t srs_amf0_parse(char* data, int size)
+srs_amf0_t srs_amf0_parse(char* data, int size, int* nparsed)
 {
     int ret = ERROR_SUCCESS;
     
@@ -430,9 +431,21 @@ srs_amf0_t srs_amf0_parse(char* data, int size)
         return amf0;
     }
     
+    *nparsed = stream.pos();
     amf0 = (srs_amf0_t)any;
     
     return amf0;
+}
+
+void srs_amf0_free(srs_amf0_t amf0)
+{
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    srs_freep(any);
+}
+
+void srs_amf0_free_bytes(char* data)
+{
+    srs_freep(data);
 }
 
 amf0_bool srs_amf0_is_string(srs_amf0_t amf0)
@@ -469,6 +482,130 @@ amf0_bool srs_amf0_is_ecma_array(srs_amf0_t amf0)
 {
     SrsAmf0Any* any = (SrsAmf0Any*)amf0;
     return any->is_ecma_array();
+}
+
+const char* srs_amf0_to_string(srs_amf0_t amf0)
+{
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    return any->to_str_raw();
+}
+
+amf0_bool srs_amf0_to_boolean(srs_amf0_t amf0)
+{
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    return any->to_boolean();
+}
+
+amf0_number srs_amf0_to_number(srs_amf0_t amf0)
+{
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    return any->to_number();
+}
+
+int srs_amf0_object_property_count(srs_amf0_t amf0)
+{
+    SrsAmf0Object* obj = (SrsAmf0Object*)amf0;
+    return obj->count();
+}
+
+const char* srs_amf0_object_property_name_at(srs_amf0_t amf0, int index)
+{
+    SrsAmf0Object* obj = (SrsAmf0Object*)amf0;
+    return obj->key_raw_at(index);
+}
+
+srs_amf0_t srs_amf0_object_property_value_at(srs_amf0_t amf0, int index)
+{
+    SrsAmf0Object* obj = (SrsAmf0Object*)amf0;
+    return (srs_amf0_t)obj->value_at(index);
+}
+
+int srs_amf0_array_property_count(srs_amf0_t amf0)
+{
+    SrsAmf0EcmaArray * obj = (SrsAmf0EcmaArray*)amf0;
+    return obj->count();
+}
+
+const char* srs_amf0_array_property_name_at(srs_amf0_t amf0, int index)
+{
+    SrsAmf0EcmaArray* obj = (SrsAmf0EcmaArray*)amf0;
+    return obj->key_raw_at(index);
+}
+
+srs_amf0_t srs_amf0_array_property_value_at(srs_amf0_t amf0, int index)
+{
+    SrsAmf0EcmaArray* obj = (SrsAmf0EcmaArray*)amf0;
+    return (srs_amf0_t)obj->value_at(index);
+}
+
+void __srs_amf0_do_print(SrsAmf0Any* any, stringstream& ss, int& level)
+{
+    if (true) {
+        for (int i = 0; i < level; i++) {
+            ss << "    ";
+        }
+    }
+    
+    if (any->is_boolean()) {
+        ss << "Boolean " << (any->to_boolean()? "true":"false") << endl;
+    } else if (any->is_number()) {
+        ss << "Number " << std::fixed << any->to_number() << endl;
+    } else if (any->is_string()) {
+        ss << "String " << any->to_str() << endl;
+    } else if (any->is_null()) {
+        ss << "Null" << endl;
+    } else if (any->is_ecma_array()) {
+        SrsAmf0EcmaArray* obj = any->to_ecma_array();
+        ss << "EcmaArray " << "(" << obj->count() << " items)" << endl;
+        for (int i = 0; i < obj->count(); i++) {
+            ss << "    Property '" << obj->key_at(i) << "' ";
+            if (obj->value_at(i)->is_object() || obj->value_at(i)->is_ecma_array()) {
+                int next_level = level + 1;
+                __srs_amf0_do_print(obj->value_at(i), ss, next_level);
+            } else {
+                int next_level = 0;
+                __srs_amf0_do_print(obj->value_at(i), ss, next_level);
+            }
+        }
+    } else if (any->is_object()) {
+        SrsAmf0Object* obj = any->to_object();
+        ss << "Object " << "(" << obj->count() << " items)" << endl;
+        for (int i = 0; i < obj->count(); i++) {
+            ss << "    Property '" << obj->key_at(i) << "' ";
+            if (obj->value_at(i)->is_object() || obj->value_at(i)->is_ecma_array()) {
+                int next_level = level + 1;
+                __srs_amf0_do_print(obj->value_at(i), ss, next_level);
+            } else {
+                int next_level = 0;
+                __srs_amf0_do_print(obj->value_at(i), ss, next_level);
+            }
+        }
+    } else {
+        ss << "Unknown" << endl;
+    }
+}
+
+char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize)
+{
+    stringstream ss;
+    
+    ss.precision(1);
+    
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    
+    int level = 0;
+    __srs_amf0_do_print(any, ss, level);
+    
+    string str = ss.str();
+    if (str.empty()) {
+        return NULL;
+    }
+    
+    *pdata = new char[str.length()];
+    *psize = str.length();
+    memcpy(*pdata, str.data(), str.length());
+    
+    return *pdata;
 }
 
 #ifdef __cplusplus

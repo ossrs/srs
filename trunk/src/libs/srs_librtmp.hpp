@@ -165,18 +165,31 @@ int64_t srs_get_time_ms();
 /* the output handler. */
 typedef void* srs_amf0_t;
 typedef int amf0_bool;
-extern srs_amf0_t srs_amf0_parse(char* data, int size);
+typedef double amf0_number;
+srs_amf0_t srs_amf0_parse(char* data, int size, int* nparsed);
+void srs_amf0_free(srs_amf0_t amf0);
+void srs_amf0_free_bytes(char* data);
 /* type detecter */
-extern amf0_bool srs_amf0_is_string(srs_amf0_t amf0);
-extern amf0_bool srs_amf0_is_boolean(srs_amf0_t amf0);
-extern amf0_bool srs_amf0_is_number(srs_amf0_t amf0);
-extern amf0_bool srs_amf0_is_null(srs_amf0_t amf0);
-extern amf0_bool srs_amf0_is_object(srs_amf0_t amf0);
-extern amf0_bool srs_amf0_is_ecma_array(srs_amf0_t amf0);
+amf0_bool srs_amf0_is_string(srs_amf0_t amf0);
+amf0_bool srs_amf0_is_boolean(srs_amf0_t amf0);
+amf0_bool srs_amf0_is_number(srs_amf0_t amf0);
+amf0_bool srs_amf0_is_null(srs_amf0_t amf0);
+amf0_bool srs_amf0_is_object(srs_amf0_t amf0);
+amf0_bool srs_amf0_is_ecma_array(srs_amf0_t amf0);
 /* value converter */
-/*const char* srs_amf0_to_string(srs_amf0_t amf0);
-bool srs_amf0_to_boolean(srs_amf0_t amf0);
-double srs_amf0_to_number(srs_amf0_t amf0);*/
+const char* srs_amf0_to_string(srs_amf0_t amf0);
+amf0_bool srs_amf0_to_boolean(srs_amf0_t amf0);
+amf0_number srs_amf0_to_number(srs_amf0_t amf0);
+/* object value converter */
+int srs_amf0_object_property_count(srs_amf0_t amf0);
+const char* srs_amf0_object_property_name_at(srs_amf0_t amf0, int index);
+srs_amf0_t srs_amf0_object_property_value_at(srs_amf0_t amf0, int index);
+/* array value converter */
+int srs_amf0_array_property_count(srs_amf0_t amf0);
+const char* srs_amf0_array_property_name_at(srs_amf0_t amf0, int index);
+srs_amf0_t srs_amf0_array_property_value_at(srs_amf0_t amf0, int index);
+/* human readable print */
+char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize);
 
 #ifdef __cplusplus
 }

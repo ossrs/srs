@@ -102,6 +102,7 @@ public:
     * user must ensure the type is a string, or assert failed.
     */
     virtual std::string to_str();
+    virtual const char* to_str_raw();
     /**
     * get the boolean of any when is_boolean() indicates true.
     * user must ensure the type is a boolean, or assert failed.
@@ -172,6 +173,7 @@ public:
     virtual int count();
     // @remark: max index is count().
     virtual std::string key_at(int index);
+    virtual const char* key_raw_at(int index);
     // @remark: max index is count().
     virtual SrsAmf0Any* value_at(int index);
     
@@ -212,6 +214,7 @@ public:
     virtual int count();
     // @remark: max index is count().
     virtual std::string key_at(int index);
+    virtual const char* key_raw_at(int index);
     // @remark: max index is count().
     virtual SrsAmf0Any* value_at(int index);
 

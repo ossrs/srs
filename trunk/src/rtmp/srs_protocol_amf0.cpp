@@ -166,6 +166,7 @@ public:
     virtual int count();
     virtual void clear();
     virtual std::string key_at(int index);
+    virtual const char* key_raw_at(int index);
     virtual SrsAmf0Any* value_at(int index);
     virtual void set(std::string key, SrsAmf0Any* value);
     
@@ -255,6 +256,13 @@ string SrsAmf0Any::to_str()
     __SrsAmf0String* p = dynamic_cast<__SrsAmf0String*>(this);
     srs_assert(p != NULL);
     return p->value;
+}
+
+const char* SrsAmf0Any::to_str_raw()
+{
+    __SrsAmf0String* p = dynamic_cast<__SrsAmf0String*>(this);
+    srs_assert(p != NULL);
+    return p->value.data();
 }
 
 bool SrsAmf0Any::to_boolean()
@@ -423,6 +431,13 @@ string __SrsUnSortedHashtable::key_at(int index)
     srs_assert(index < count());
     SrsAmf0ObjectPropertyType& elem = properties[index];
     return elem.first;
+}
+
+const char* __SrsUnSortedHashtable::key_raw_at(int index)
+{
+    srs_assert(index < count());
+    SrsAmf0ObjectPropertyType& elem = properties[index];
+    return elem.first.data();
 }
 
 SrsAmf0Any* __SrsUnSortedHashtable::value_at(int index)
@@ -719,6 +734,11 @@ string SrsAmf0Object::key_at(int index)
     return properties->key_at(index);
 }
 
+const char* SrsAmf0Object::key_raw_at(int index)
+{
+    return properties->key_raw_at(index);
+}
+
 SrsAmf0Any* SrsAmf0Object::value_at(int index)
 {
     return properties->value_at(index);
@@ -904,6 +924,11 @@ int SrsAmf0EcmaArray::count()
 string SrsAmf0EcmaArray::key_at(int index)
 {
     return properties->key_at(index);
+}
+
+const char* SrsAmf0EcmaArray::key_raw_at(int index)
+{
+    return properties->key_raw_at(index);
 }
 
 SrsAmf0Any* SrsAmf0EcmaArray::value_at(int index)

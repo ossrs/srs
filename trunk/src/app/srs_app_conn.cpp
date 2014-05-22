@@ -80,6 +80,7 @@ int SrsConnection::cycle()
 
 void SrsConnection::on_thread_stop()
 {
+    // TODO: FIXME: never remove itself, use isolate thread to do cleanup.
     server->remove(this);
 }
 
