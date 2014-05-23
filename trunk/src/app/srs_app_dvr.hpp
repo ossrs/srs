@@ -37,79 +37,8 @@ class SrsStream;
 class SrsRtmpJitter;
 class SrsOnMetaDataPacket;
 class SrsSharedPtrMessage;
-
-/**
-* file stream to read/write file.
-*/
-class SrsFileStream
-{
-private:
-    std::string _file;
-    int fd;
-public:
-    SrsFileStream();
-    virtual ~SrsFileStream();
-public:
-    virtual int open(std::string file);
-    virtual int close();
-    virtual bool is_open();
-public:
-    /**
-    * @param pnread, return the read size. NULL to ignore.
-    */
-    virtual int read(void* buf, size_t count, ssize_t* pnread);
-    /**
-    * @param pnwrite, return the write size. NULL to ignore.
-    */
-    virtual int write(void* buf, size_t count, ssize_t* pnwrite);
-    /**
-    * tell current offset of stream.
-    */
-    virtual int64_t tellg();
-};
-
-/**
-* encode data to flv file.
-*/
-class SrsFlvEncoder
-{
-private:
-    SrsFileStream* _fs;
-private:
-    SrsStream* tag_stream;
-public:
-    SrsFlvEncoder();
-    virtual ~SrsFlvEncoder();
-public:
-    /**
-    * initialize the underlayer file stream,
-    * user can initialize multiple times to encode multiple flv files.
-    */
-    virtual int initialize(SrsFileStream* fs);
-public:
-    /**
-    * write flv header.
-    * write following:
-    *   1. E.2 The FLV header
-    *   2. PreviousTagSize0 UI32 Always 0
-    * that is, 9+4=13bytes.
-    */
-    virtual int write_header();
-    /**
-    * write flv metadata. 
-    * serialize from:
-    *   AMF0 string: onMetaData,
-    *   AMF0 object: the metadata object.
-    */
-    virtual int write_metadata(char* data, int size);
-    /**
-    * write audio/video packet.
-    */
-    virtual int write_audio(int64_t timestamp, char* data, int size);
-    virtual int write_video(int64_t timestamp, char* data, int size);
-private:
-    virtual int write_tag(char* header, int header_size, char* tag, int tag_size);
-};
+class SrsFileStream;
+class SrsFlvEncoder;
 
 /**
 * a piece of flv segment.

@@ -176,7 +176,9 @@ void* SrsThread::thread_fun(void* arg)
     
     obj->thread_cycle();
 
-    st_thread_exit(NULL);
+    // never use the following exit function,
+    // it will cause the SRS memory leak.
+    //st_thread_exit(NULL);
     
     return NULL;
 }

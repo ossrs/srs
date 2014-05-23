@@ -57,6 +57,8 @@ file
 	..\app\srs_app_encoder.cpp,
 	..\app\srs_app_ffmpeg.hpp,
 	..\app\srs_app_ffmpeg.cpp,
+	..\app\srs_app_flv.hpp,
+	..\app\srs_app_flv.cpp,
 	..\app\srs_app_forward.hpp,
 	..\app\srs_app_forward.cpp,
 	..\app\srs_app_heartbeat.hpp,

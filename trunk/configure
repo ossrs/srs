@@ -468,7 +468,8 @@ MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_rtmp_conn" "srs_app_socke
         "srs_app_thread" "srs_app_bandwidth" "srs_app_st" "srs_app_log" "srs_app_config" 
         "srs_app_pithy_print" "srs_app_reload" "srs_app_http_api" "srs_app_http_conn" "srs_app_http_hooks" 
         "srs_app_json" "srs_app_ingest" "srs_app_ffmpeg" "srs_app_utility" "srs_app_dvr" "srs_app_edge"
-        "srs_app_kbps" "srs_app_heartbeat" "srs_app_empty" "srs_app_http_client")
+        "srs_app_kbps" "srs_app_heartbeat" "srs_app_empty" "srs_app_http_client"
+        "srs_app_flv")
 APP_INCS="src/app"; MODULE_DIR=${APP_INCS} . auto/modules.sh
 APP_OBJS="${MODULE_OBJS[@]}"
 #
