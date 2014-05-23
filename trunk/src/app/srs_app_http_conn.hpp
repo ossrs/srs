@@ -70,6 +70,8 @@ protected:
     virtual bool is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase);
     virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
 private:
+    virtual int response_regular_file(SrsSocket* skt, SrsHttpMessage* req, std::string fullpath);
+    virtual int response_ts_file(SrsSocket* skt, SrsHttpMessage* req, std::string fullpath);
     virtual std::string get_request_file(SrsHttpMessage* req);
 public:
     virtual std::string vhost();
