@@ -165,6 +165,8 @@ int SrsHttpVhost::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
     
     if (srs_string_ends_with(fullpath, ".ts")) {
         return response_ts_file(skt, req, fullpath);
+    } else if (srs_string_ends_with(fullpath, ".flv") || srs_string_ends_with(fullpath, ".fhv")) {
+        return response_flv_file(skt, req, fullpath);
     } else {
         return response_regular_file(skt, req, fullpath);
     }
@@ -225,6 +227,62 @@ int SrsHttpVhost::response_regular_file(SrsSocket* skt, SrsHttpMessage* req, str
     return ret;
 }
 
+int SrsHttpVhost::response_flv_file(SrsSocket* skt, SrsHttpMessage* req, string fullpath)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // TODO: FIXME: use more advance cache.
+    // for ts video large file, use bytes to write it.
+    int fd = ::open(fullpath.c_str(), O_RDONLY);
+    if (fd < 0) {
+        ret = ERROR_HTTP_OPEN_FILE;
+        srs_warn("open file %s failed, ret=%d", fullpath.c_str(), ret);
+        return ret;
+    }
+
+    int64_t length = (int64_t)::lseek(fd, 0, SEEK_END);
+    ::lseek(fd, 0, SEEK_SET);
+
+    // write http header for ts.
+    std::stringstream ss;
+
+    res_status_line(ss)->res_content_type_flv(ss)
+        ->res_content_length(ss, (int)length);
+        
+    if (req->requires_crossdomain()) {
+        res_enable_crossdomain(ss);
+    }
+    
+    res_header_eof(ss);
+    
+    // flush http header to peer
+    if ((ret = res_flush(skt, ss)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // write body.
+    int64_t left = length;
+    char* buf = req->http_ts_send_buffer();
+    
+    while (left > 0) {
+        ssize_t nread = -1;
+        // TODO: FIXME: use st_read.
+        if ((nread = ::read(fd, buf, HTTP_TS_SEND_BUFFER_SIZE)) < 0) {
+            ret = ERROR_HTTP_READ_FILE;
+            srs_warn("read file %s failed, ret=%d", fullpath.c_str(), ret);
+            break;
+        }
+        
+        left -= nread;
+        if ((ret = skt->write(buf, nread, NULL)) != ERROR_SUCCESS) {
+            break;
+        }
+    }
+    ::close(fd);
+    
+    return ret;
+}
+
 int SrsHttpVhost::response_ts_file(SrsSocket* skt, SrsHttpMessage* req, string fullpath)
 {
     int ret = ERROR_SUCCESS;
@@ -266,10 +324,9 @@ int SrsHttpVhost::response_ts_file(SrsSocket* skt, SrsHttpMessage* req, string f
         ssize_t nread = -1;
         // TODO: FIXME: use st_read.
         if ((nread = ::read(fd, buf, HTTP_TS_SEND_BUFFER_SIZE)) < 0) {
-            ::close(fd);
             ret = ERROR_HTTP_READ_FILE;
             srs_warn("read file %s failed, ret=%d", fullpath.c_str(), ret);
-            return ret;
+            break;
         }
         
         left -= nread;

@@ -84,7 +84,7 @@ SrsListener::SrsListener(SrsServer* server, SrsListenerType type)
     _server = server;
     _type = type;
 
-    pthread = new SrsThread(this, 0);
+    pthread = new SrsThread(this, 0, true);
 }
 
 SrsListener::~SrsListener()
@@ -197,7 +197,7 @@ SrsSignalManager::SrsSignalManager(SrsServer* server)
     
     _server = server;
     sig_pipe[0] = sig_pipe[1] = -1;
-    pthread = new SrsThread(this, 0);
+    pthread = new SrsThread(this, 0, true);
     signal_read_stfd = NULL;
 }
 

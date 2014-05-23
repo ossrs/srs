@@ -54,7 +54,7 @@ SrsForwarder::SrsForwarder(SrsSource* _source)
     kbps = new SrsKbps();
     stream_id = 0;
 
-    pthread = new SrsThread(this, SRS_FORWARDER_SLEEP_US);
+    pthread = new SrsThread(this, SRS_FORWARDER_SLEEP_US, true);
     queue = new SrsMessageQueue();
     jitter = new SrsRtmpJitter();
 }

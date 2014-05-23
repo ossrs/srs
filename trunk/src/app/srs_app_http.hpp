@@ -250,6 +250,7 @@ public:
     virtual SrsHttpHandler* res_content_type_json(std::stringstream& ss);
     virtual SrsHttpHandler* res_content_type_m3u8(std::stringstream& ss);
     virtual SrsHttpHandler* res_content_type_mpegts(std::stringstream& ss);
+    virtual SrsHttpHandler* res_content_type_flv(std::stringstream& ss);
     virtual SrsHttpHandler* res_content_length(std::stringstream& ss, int64_t length);
     virtual SrsHttpHandler* res_enable_crossdomain(std::stringstream& ss);
     virtual SrsHttpHandler* res_header_eof(std::stringstream& ss);

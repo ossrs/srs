@@ -53,7 +53,7 @@ SrsIngester::SrsIngester()
 {
     _srs_config->subscribe(this);
     
-    pthread = new SrsThread(this, SRS_AUTO_INGESTER_SLEEP_US);
+    pthread = new SrsThread(this, SRS_AUTO_INGESTER_SLEEP_US, true);
     pithy_print = new SrsPithyPrint(SRS_STAGE_INGESTER);
 }
 

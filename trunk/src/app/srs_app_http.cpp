@@ -291,6 +291,13 @@ SrsHttpHandler* SrsHttpHandler::res_content_type_mpegts(stringstream& ss)
     return this;
 }
 
+SrsHttpHandler* SrsHttpHandler::res_content_type_flv(stringstream& ss)
+{
+    ss << "Content-Type: video/x-flv" << __CRLF
+        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
+    return this;
+}
+
 SrsHttpHandler* SrsHttpHandler::res_content_length(stringstream& ss, int64_t length)
 {
     ss << "Content-Length: "<< length << __CRLF;
@@ -1008,7 +1015,7 @@ const char* SrsHttpUri::get_path()
 
 const char* SrsHttpUri::get_query()
 {
-    return path.data();
+    return query.data();
 }
 
 string SrsHttpUri::get_uri_field(string uri, http_parser_url* hp_u, http_parser_url_fields field)

@@ -231,6 +231,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v1.0, 2014-05-22, fix [#78](https://github.com/winlinvip/simple-rtmp-server/issues/78), st joinable thread must be stop by other threads, 0.9.113
 * v1.0, 2014-05-22, support amf0 StrictArray(0x0a). 0.9.111.
 * v1.0, 2014-05-22, support flv parser, add amf0 to librtmp. 0.9.110
 * v1.0, 2014-05-22, fix [#74](https://github.com/winlinvip/simple-rtmp-server/issues/74), add tcUrl for http callback on_connect, 0.9.109
