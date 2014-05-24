@@ -22,17 +22,8 @@ git clone https://code.csdn.net/winlinvip/srs-csdn.git
 
 报告问题(BugReport): [https://github.com/winlinvip/simple-rtmp-server/issues/new](https://github.com/winlinvip/simple-rtmp-server/issues/new)<br/>
 中文资料(Wiki): [https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki) <br/>
-产品对比(Wiki): [https://github.com/winlinvip/simple-rtmp-server/wiki/Compare](https://github.com/winlinvip/simple-rtmp-server/wiki/Compare) <br/>
 使用步骤(Usage): [https://github.com/winlinvip/simple-rtmp-server#usage](#usage) <br/>
 公用机器(LiveShow): [https://github.com/winlinvip/simple-rtmp-server/wiki/LiveShow](供大家学习和使用的公用服务器) <br/>
-功能摘要(Summary): [https://github.com/winlinvip/simple-rtmp-server#summary](#summary) <br/>
-关于SRS(About): [https://github.com/winlinvip/simple-rtmp-server#about](#about) <br/>
-作者信息(Authors): [https://github.com/winlinvip/simple-rtmp-server#authors](#authors) <br/>
-更新历史(History): [https://github.com/winlinvip/simple-rtmp-server#history](#history) <br/>
-性能报告(Performance): [https://github.com/winlinvip/simple-rtmp-server#performance](#performance) <br/>
-发行版本(Releases): [https://github.com/winlinvip/simple-rtmp-server#releases](#releases) <br/>
-横向对比(Compare): [https://github.com/winlinvip/simple-rtmp-server#compare](#compare) <br/>
-关键架构(Architecture): [https://github.com/winlinvip/simple-rtmp-server#architecture](#architecture)<br/>
 捐款(Donation): [http://winlinvip.github.io/srs.release/donation/index.html](http://winlinvip.github.io/srs.release/donation/index.html) 
 或 [阿里云镜像](http://182.92.80.26:8085/srs/donation/index.html) <br/>
 捐献墙(Donations): [https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt](https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt)
@@ -153,6 +144,12 @@ cd simple-rtmp-server/trunk
 * [Usage: How to show the demo of SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleDemo)
 * [Usage: Solution using SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/Sample)
 * [Usage: Why SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/Product)
+
+## Wiki
+
+Please select your language:
+* [English](https://github.com/winlinvip/simple-rtmp-server/wiki/ENHome)
+* [Chinese](https://github.com/winlinvip/simple-rtmp-server/wiki/CNHome)
 
 ## Donation
 
