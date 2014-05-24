@@ -4,8 +4,8 @@
 [Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-0.9.105.zip) 
 其他[more...](http://winlinvip.github.io/srs.release/releases/) <br/>
 下载发布版(国内阿里云镜像): 
-[Centos6-x86_64](http://www.ossrs.net:8085/srs/releases/files/SRS-CentOS6-x86_64-0.9.105.zip) 
-其他[more...](http://www.ossrs.net:8085/srs/releases/)<br/>
+[Centos6-x86_64](http://182.92.80.26:8085/srs/releases/files/SRS-CentOS6-x86_64-0.9.105.zip) 
+其他[more...](http://182.92.80.26:8085/srs/releases/)<br/>
 加入QQ群: [http://url.cn/WAHICw](http://url.cn/WAHICw) (Group: 212189142)
 
 获得源码(github): [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server)
@@ -25,7 +25,7 @@ git clone https://code.csdn.net/winlinvip/srs-csdn.git
 使用步骤(Usage): [https://github.com/winlinvip/simple-rtmp-server#usage](#usage) <br/>
 公用机器(LiveShow): [https://github.com/winlinvip/simple-rtmp-server/wiki/LiveShow](供大家学习和使用的公用服务器) <br/>
 捐款(Donation): [http://winlinvip.github.io/srs.release/donation/index.html](http://winlinvip.github.io/srs.release/donation/index.html) 
-或 [阿里云镜像](http://www.ossrs.net:8085/srs/donation/index.html) <br/>
+或 [阿里云镜像](http://182.92.80.26:8085/srs/donation/index.html) <br/>
 捐献墙(Donations): [https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt](https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt)
 
 <table>
@@ -154,7 +154,7 @@ Please select your language:
 ## Donation
 
 [http://winlinvip.github.io/srs.release/donation/index.html](http://winlinvip.github.io/srs.release/donation/index.html) 
-OR [aliyun mirror](http://www.ossrs.net:8085/srs/donation/index.html)
+OR [aliyun mirror](http://182.92.80.26:8085/srs/donation/index.html)
 
 Donations:<br/>
 [https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt](https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt)
