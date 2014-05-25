@@ -24,8 +24,8 @@ git clone https://code.csdn.net/winlinvip/srs-csdn.git
 中文资料(Wiki): [https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki) <br/>
 使用步骤(Usage): [https://github.com/winlinvip/simple-rtmp-server#usage](#usage) <br/>
 公用机器(LiveShow): [https://github.com/winlinvip/simple-rtmp-server/wiki/LiveShow](供大家学习和使用的公用服务器) <br/>
-捐款(Donation): [http://winlinvip.github.io/srs.release/donation/index.html](http://winlinvip.github.io/srs.release/donation/index.html) 
-或 [阿里云镜像](http://182.92.80.26:8085/srs/donation/index.html) 
+捐款(Donation): [GitHub](http://winlinvip.github.io/srs.release/donation/index.html) 
+或 [阿里云镜像](http://182.92.80.26:8085/srs/donation/index.html) ，查看
 [捐献墙(Donations)](https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt)<br/>
 
 <table>
