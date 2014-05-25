@@ -228,7 +228,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
-* v1.0, 2014-05-24, Johnny contribute ossrs.net. karthikeyan start to translate wiki to English.
+* v1.0, 2014-05-24, Johnny contribute [ossrs.net](http://ossrs.net). karthikeyan start to translate wiki to English.
 * v1.0, 2014-05-22, fix [#78](https://github.com/winlinvip/simple-rtmp-server/issues/78), st joinable thread must be stop by other threads, 0.9.113
 * v1.0, 2014-05-22, support amf0 StrictArray(0x0a). 0.9.111.
 * v1.0, 2014-05-22, support flv parser, add amf0 to librtmp. 0.9.110
