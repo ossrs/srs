@@ -25,8 +25,8 @@ git clone https://code.csdn.net/winlinvip/srs-csdn.git
 使用步骤(Usage): [https://github.com/winlinvip/simple-rtmp-server#usage](#usage) <br/>
 公用机器(LiveShow): [https://github.com/winlinvip/simple-rtmp-server/wiki/LiveShow](供大家学习和使用的公用服务器) <br/>
 捐款(Donation): [http://winlinvip.github.io/srs.release/donation/index.html](http://winlinvip.github.io/srs.release/donation/index.html) 
-或 [阿里云镜像](http://182.92.80.26:8085/srs/donation/index.html) <br/>
-捐献墙(Donations): [https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt](https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt)
+或 [阿里云镜像](http://182.92.80.26:8085/srs/donation/index.html) 
+[捐献墙(Donations)](https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt)<br/>
 
 <table>
     <tr>
@@ -228,6 +228,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v1.0, 2014-05-24, Johnny contribute ossrs.net. karthikeyan start to translate wiki to English.
 * v1.0, 2014-05-22, fix [#78](https://github.com/winlinvip/simple-rtmp-server/issues/78), st joinable thread must be stop by other threads, 0.9.113
 * v1.0, 2014-05-22, support amf0 StrictArray(0x0a). 0.9.111.
 * v1.0, 2014-05-22, support flv parser, add amf0 to librtmp. 0.9.110
