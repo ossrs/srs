@@ -867,18 +867,6 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
         SrsConfDirective* old_vhost = old_root->get("vhost", vhost);
         SrsConfDirective* new_vhost = root->get("vhost", vhost);
         
-        // mode, never supports reload.
-        // first, for the origin and edge role change is too complex.
-        // second, the vhosts in origin device group normally are all origin,
-        //      they never change to edge sometimes.
-        // third, the origin or upnode device can always be restart,
-        //      edge will retry and the users connected to edge are ok.
-        if (get_vhost_is_edge(old_vhost) != get_vhost_is_edge(new_vhost)) {
-            ret = ERROR_RTMP_EDGE_RELOAD;
-            srs_error("reload never supports mode changed. ret=%d", ret);
-            return ret;
-        }
-        
         //      DISABLED    =>  ENABLED
         if (!get_vhost_enabled(old_vhost) && get_vhost_enabled(new_vhost)) {
             srs_trace("vhost %s added, reload it.", vhost.c_str());
@@ -907,6 +895,19 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
             }
             srs_trace("reload removed vhost %s success.", vhost.c_str());
             continue;
+        }
+        
+        // mode, never supports reload.
+        // first, for the origin and edge role change is too complex.
+        // second, the vhosts in origin device group normally are all origin,
+        //      they never change to edge sometimes.
+        // third, the origin or upnode device can always be restart,
+        //      edge will retry and the users connected to edge are ok.
+        // it's ok to add or remove edge/origin vhost.
+        if (get_vhost_is_edge(old_vhost) != get_vhost_is_edge(new_vhost)) {
+            ret = ERROR_RTMP_EDGE_RELOAD;
+            srs_error("reload never supports mode changed. ret=%d", ret);
+            return ret;
         }
     
         //      ENABLED     =>  ENABLED (modified)
