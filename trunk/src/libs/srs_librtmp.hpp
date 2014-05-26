@@ -66,14 +66,6 @@ void srs_rtmp_destroy(srs_rtmp_t rtmp);
 * not depends on ssl.
 */
 int srs_simple_handshake(srs_rtmp_t rtmp);
-/**
-* complex handshake is specified by adobe Flash player,
-* depends on ssl, user must compile srs with ssl, then
-* link user program libssl.a and libcrypt.a
-* @remark user can use srs_ssl_enabled() to detect 
-* whether ssl is ok.
-*/
-int srs_complex_handshake(srs_rtmp_t rtmp);
 
 /**
 * connect to rtmp vhost/app

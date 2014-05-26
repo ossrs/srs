@@ -183,33 +183,6 @@ int srs_simple_handshake(srs_rtmp_t rtmp)
     return ret;
 }
 
-int srs_complex_handshake(srs_rtmp_t rtmp)
-{
-#ifndef SRS_AUTO_SSL
-    return ERROR_RTMP_HS_SSL_REQUIRE;
-#endif
-
-    int ret = ERROR_SUCCESS;
-    
-    srs_assert(rtmp != NULL);
-    Context* context = (Context*)rtmp;
-    
-    // parse uri, resolve host, connect to server:port
-    if ((ret = srs_librtmp_context_connect(context)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    // complex handshake
-    srs_freep(context->rtmp);
-    context->rtmp = new SrsRtmpClient(context->skt);
-    
-    if ((ret = context->rtmp->complex_handshake()) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    return ret;
-}
-
 int srs_connect_app(srs_rtmp_t rtmp)
 {
     int ret = ERROR_SUCCESS;

@@ -45,8 +45,7 @@ int main(int argc, char** argv)
     
     rtmp = srs_rtmp_create("rtmp://127.0.0.1:1935/live/livestream");
     
-    //if (srs_simple_handshake(rtmp) != 0) {
-    if (srs_complex_handshake(rtmp) != 0) {
+    if (srs_simple_handshake(rtmp) != 0) {
         printf("simple handshake failed.\n");
         goto rtmp_destroy;
     }
