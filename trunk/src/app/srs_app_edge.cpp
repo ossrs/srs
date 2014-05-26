@@ -324,7 +324,7 @@ int SrsEdgeIngester::connect_server()
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = inet_addr(ip.c_str());
     
-    if (st_connect(stfd, (const struct sockaddr*)&addr, sizeof(sockaddr_in), ST_UTIME_NO_TIMEOUT) == -1){
+    if (st_connect(stfd, (const struct sockaddr*)&addr, sizeof(sockaddr_in), SRS_EDGE_INGESTER_TIMEOUT_US) == -1){
         ret = ERROR_ST_CONNECT;
         srs_error("connect to server error. ip=%s, port=%d, ret=%d", ip.c_str(), port, ret);
         return ret;
@@ -605,7 +605,7 @@ int SrsEdgeForwarder::connect_server()
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = inet_addr(ip.c_str());
     
-    if (st_connect(stfd, (const struct sockaddr*)&addr, sizeof(sockaddr_in), ST_UTIME_NO_TIMEOUT) == -1){
+    if (st_connect(stfd, (const struct sockaddr*)&addr, sizeof(sockaddr_in), SRS_EDGE_FORWARDER_TIMEOUT_US) == -1){
         ret = ERROR_ST_CONNECT;
         srs_error("connect to server error. ip=%s, port=%d, ret=%d", ip.c_str(), port, ret);
         return ret;
