@@ -72,6 +72,7 @@ protected:
 private:
     virtual int response_regular_file(SrsSocket* skt, SrsHttpMessage* req, std::string fullpath);
     virtual int response_flv_file(SrsSocket* skt, SrsHttpMessage* req, std::string fullpath);
+    virtual int response_flv_file2(SrsSocket* skt, SrsHttpMessage* req, std::string fullpath, int offset);
     virtual int response_ts_file(SrsSocket* skt, SrsHttpMessage* req, std::string fullpath);
     virtual std::string get_request_file(SrsHttpMessage* req);
 public:

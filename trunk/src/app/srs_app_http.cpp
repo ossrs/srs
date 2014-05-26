@@ -707,6 +707,28 @@ void SrsHttpMessage::append_body(const char* body, int length)
     _body->append(body, length);
 }
 
+string SrsHttpMessage::query_get(string key)
+{
+    std::string q = query();
+    size_t pos = std::string::npos;
+    
+    // must format as key=value&...&keyN=valueN
+    if ((pos = key.find("=")) != key.length() - 1) {
+        key = key + "=";
+    }
+    
+    if ((pos = q.find(key)) == std::string::npos) {
+        return "";
+    }
+    
+    std::string v = q.substr(pos + key.length());
+    if ((pos = v.find("&")) != std::string::npos) {
+        v = v.substr(0, pos);
+    }
+    
+    return v;
+}
+
 int SrsHttpMessage::request_header_count()
 {
     return (int)headers.size();

@@ -44,7 +44,6 @@ g++ -o ts_info ts_info.cc -g -O0 -ansi
 
 #define trace(msg, ...) printf(msg"\n", ##__VA_ARGS__);
 #define srs_freep(p) delete p; p = NULL
-#define srs_freepa(p) delete[] p; p = NULL
 #define srs_assert(p) assert(p)
 #define srs_min(a, b) ((a)<(b)? (a):(b))
 

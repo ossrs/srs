@@ -306,6 +306,7 @@ int SrsRtmpConn::stream_service_cycle()
         case SrsRtmpConnPlay: {
             srs_verbose("start to play stream %s.", req->stream.c_str());
             
+            // notice edge to start for the first client.
             if (vhost_is_edge) {
                 if ((ret = source->on_edge_start_play()) != ERROR_SUCCESS) {
                     srs_error("notice edge start play stream failed. ret=%d", ret);
@@ -313,6 +314,7 @@ int SrsRtmpConn::stream_service_cycle()
                 }
             }
             
+            // response connection start play
             if ((ret = rtmp->start_play(res->stream_id)) != ERROR_SUCCESS) {
                 srs_error("start to play stream failed. ret=%d", ret);
                 return ret;

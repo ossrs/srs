@@ -117,6 +117,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_SYSTEM_FILE_EOF               428
 #define ERROR_SYSTEM_FILE_RENAME            429
 #define ERROR_SYSTEM_CREATE_PIPE            430
+#define ERROR_SYSTEM_FILE_SEEK              431
 
 // see librtmp.
 // failed when open ssl create the dh
@@ -184,6 +185,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_HTTP_OPEN_FILE                805
 #define ERROR_HTTP_READ_FILE                806
 #define ERROR_HTTP_API_LOGS                 807
+#define ERROR_HTTP_FLV_SEQUENCE_HEADER      808
+#define ERROR_HTTP_FLV_OFFSET_OVERFLOW      809
 
 // system control message, 
 // not an error, but special control logic.

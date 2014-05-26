@@ -43,8 +43,9 @@ public:
     SrsFileStream();
     virtual ~SrsFileStream();
 public:
-    virtual int open(std::string file);
-    virtual int close();
+    virtual int open_write(std::string file);
+    virtual int open_read(std::string file);
+    virtual void close();
     virtual bool is_open();
 public:
     /**
@@ -59,6 +60,9 @@ public:
     * tell current offset of stream.
     */
     virtual int64_t tellg();
+    virtual int64_t lseek(int64_t offset);
+    virtual int64_t filesize();
+    virtual void skip(int64_t size);
 };
 
 /**
@@ -102,6 +106,40 @@ public:
     virtual int write_video(int64_t timestamp, char* data, int size);
 private:
     virtual int write_tag(char* header, int header_size, char* tag, int tag_size);
+};
+
+/**
+* decode flv fast by only decoding the header and tag.
+*/
+class SrsFlvFastDecoder
+{
+private:
+    SrsFileStream* _fs;
+private:
+    SrsStream* tag_stream;
+public:
+    SrsFlvFastDecoder();
+    virtual ~SrsFlvFastDecoder();
+public:
+    /**
+    * initialize the underlayer file stream,
+    * user can initialize multiple times to encode multiple flv files.
+    */
+    virtual int initialize(SrsFileStream* fs);
+public:
+    /**
+    * read the flv header and size.
+    */
+    virtual int read_header(char** pdata, int* psize);
+    /**
+    * read the sequence header and size.
+    */
+    virtual int read_sequence_header(int64_t* pstart, int* psize);
+public:
+    /**
+    * for start offset, seed to this position and response flv stream.
+    */
+    virtual int lseek(int64_t offset);
 };
 
 #endif

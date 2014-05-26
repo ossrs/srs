@@ -359,6 +359,13 @@ public:
     virtual void set_requires_crossdomain(bool requires_crossdomain);
     virtual void append_body(const char* body, int length);
 public:
+    /**
+    * get the param in query string,
+    * for instance, query is "start=100&end=200",
+    * then query_get("start") is "100", and query_get("end") is "200"
+    */
+    virtual std::string query_get(std::string key);
+public:
     virtual int request_header_count();
     virtual std::string request_header_key_at(int index);
     virtual std::string request_header_value_at(int index);

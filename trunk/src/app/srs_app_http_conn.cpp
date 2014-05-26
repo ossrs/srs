@@ -25,12 +25,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef SRS_AUTO_HTTP_SERVER
 
-#include <sstream>
-using namespace std;
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <stdlib.h>
+
+#include <sstream>
+using namespace std;
 
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
@@ -39,6 +40,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_app_json.hpp>
 #include <srs_app_config.hpp>
+#include <srs_app_flv.hpp>
 
 #define SRS_HTTP_DEFAULT_PAGE "index.html"
 
@@ -166,7 +168,17 @@ int SrsHttpVhost::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
     if (srs_string_ends_with(fullpath, ".ts")) {
         return response_ts_file(skt, req, fullpath);
     } else if (srs_string_ends_with(fullpath, ".flv") || srs_string_ends_with(fullpath, ".fhv")) {
-        return response_flv_file(skt, req, fullpath);
+        std::string start = req->query_get("start");
+        if (start.empty()) {
+            return response_flv_file(skt, req, fullpath);
+        }
+
+        int offset = ::atoi(start.c_str());
+        if (offset <= 0) {
+            return response_flv_file(skt, req, fullpath);
+        }
+        
+        return response_flv_file2(skt, req, fullpath, offset);
     } else {
         return response_regular_file(skt, req, fullpath);
     }
@@ -279,6 +291,112 @@ int SrsHttpVhost::response_flv_file(SrsSocket* skt, SrsHttpMessage* req, string 
         }
     }
     ::close(fd);
+    
+    return ret;
+}
+
+int SrsHttpVhost::response_flv_file2(SrsSocket* skt, SrsHttpMessage* req, string fullpath, int offset)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsFileStream fs;
+    
+    // open flv file
+    if ((ret = fs.open_read(fullpath)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if (offset > fs.filesize()) {
+        ret = ERROR_HTTP_FLV_OFFSET_OVERFLOW;
+        srs_warn("http flv streaming %s overflow. size=%"PRId64", offset=%d, ret=%d", 
+            fullpath.c_str(), fs.filesize(), offset, ret);
+        return ret;
+    }
+    
+    SrsFlvFastDecoder ffd;
+    
+    // open fast decoder
+    if ((ret = ffd.initialize(&fs)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // save header, send later.
+    char* flv_header = NULL;
+    int flv_size = 0;
+    
+    // send flv header
+    if ((ret = ffd.read_header(&flv_header, &flv_size)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    SrsAutoFree(char, flv_header);
+    
+    // save sequence header, send later
+    char* sh_data = NULL;
+    int sh_size = 0;
+    
+    if (true) {
+        // send sequence header
+        int64_t start = 0;
+        if ((ret = ffd.read_sequence_header(&start, &sh_size)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        if (sh_size <= 0) {
+            ret = ERROR_HTTP_FLV_SEQUENCE_HEADER;
+            srs_warn("http flv streaming no sequence header. size=%d, ret=%d", sh_size, ret);
+            return ret;
+        }
+    }
+    sh_data = new char[sh_size];
+    SrsAutoFree(char, sh_data);
+    if ((ret = fs.read(sh_data, sh_size, NULL)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    // seek to data offset
+    int64_t left = fs.filesize() - offset;
+
+    // write http header for ts.
+    std::stringstream ss;
+
+    res_status_line(ss)->res_content_type_flv(ss)
+        ->res_content_length(ss, (int)(flv_size + sh_size + left));
+        
+    if (req->requires_crossdomain()) {
+        res_enable_crossdomain(ss);
+    }
+    
+    res_header_eof(ss);
+    
+    // flush http header to peer
+    if ((ret = res_flush(skt, ss)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if (flv_size > 0 && (ret = skt->write(flv_header, flv_size, NULL)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if (sh_size > 0 && (ret = skt->write(sh_data, sh_size, NULL)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // write body.
+    char* buf = req->http_ts_send_buffer();
+    if ((ret = ffd.lseek(offset)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // send data
+    while (left > 0) {
+        ssize_t nread = -1;
+        if ((ret = fs.read(buf, HTTP_TS_SEND_BUFFER_SIZE, &nread)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        left -= nread;
+        if ((ret = skt->write(buf, nread, NULL)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
     
     return ret;
 }
