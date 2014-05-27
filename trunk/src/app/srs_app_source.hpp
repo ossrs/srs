@@ -229,6 +229,12 @@ public:
     */
     static void destroy();
 private:
+    // source id,
+    // for publish, it's the publish client id.
+    // for edge, it's the edge ingest id.
+    // when source id changed, for example, the edge reconnect,
+    // invoke the on_source_id_changed() to let all clients know.
+    int _source_id;
     // deep copy of client request.
     SrsRequest* _req;
     // to delivery stream to clients.
@@ -298,6 +304,7 @@ public:
     virtual int on_reload_vhost_hls(std::string vhost);
     virtual int on_reload_vhost_dvr(std::string vhost);
     virtual int on_reload_vhost_transcode(std::string vhost);
+// for the tools callback
 public:
     // for the SrsForwarder to callback to request the sequence headers.
     virtual int on_forwarder_start(SrsForwarder* forwarder);
@@ -305,6 +312,11 @@ public:
     virtual int on_hls_start();
     // for the SrsDvr to callback to request the sequence headers.
     virtual int on_dvr_request_sh();
+    // source id changed.
+    virtual int on_source_id_changed(int id);
+    // get current source id.
+    virtual int source_id();
+// logic data methods
 public:
     virtual bool can_publish();
     virtual int on_meta_data(SrsMessage* msg, SrsOnMetaDataPacket* metadata);
@@ -318,6 +330,7 @@ public:
     */
     virtual int on_publish();
     virtual void on_unpublish();
+// consumer methods
 public:
     virtual int create_consumer(SrsConsumer*& consumer);
     virtual void on_consumer_destroy(SrsConsumer* consumer);

@@ -465,6 +465,7 @@ SrsSource::SrsSource(SrsRequest* req)
     
     frame_rate = sample_rate = 0;
     _can_publish = true;
+    _source_id = -1;
     
     play_edge = new SrsPlayEdge();
     publish_edge = new SrsPublishEdge();
@@ -789,6 +790,24 @@ int SrsSource::on_dvr_request_sh()
 #endif
     
     return ret;
+}
+
+int SrsSource::on_source_id_changed(int id)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (_source_id == id) {
+        return ret;
+    }
+    
+    _source_id = id;
+    
+    return ret;
+}
+
+int SrsSource::source_id()
+{
+    return _source_id;
 }
 
 bool SrsSource::can_publish()
@@ -1181,6 +1200,10 @@ int SrsSource::on_publish()
     
     _can_publish = false;
     
+    // whatever, the publish thread is the source or edge source,
+    // save its id to srouce id.
+    on_source_id_changed(_srs_context->get_id());
+    
     // create forwarders
     if ((ret = create_forwarders()) != ERROR_SUCCESS) {
         srs_error("create forwarders failed. ret=%d", ret);
@@ -1239,6 +1262,7 @@ void SrsSource::on_unpublish()
     srs_trace("clear cache/metadata/sequence-headers when unpublish.");
     
     _can_publish = true;
+    _source_id = -1;
 }
 
  int SrsSource::create_consumer(SrsConsumer*& consumer)

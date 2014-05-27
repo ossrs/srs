@@ -271,7 +271,7 @@ int SrsRtmpConn::stream_service_cycle()
         srs_error("set chunk_size=%d failed. ret=%d", chunk_size, ret);
         return ret;
     }
-    srs_trace("set chunk_size=%d success", chunk_size);
+    srs_info("set chunk_size=%d success", chunk_size);
     
     // find a source to serve.
     SrsSource* source = NULL;
@@ -296,16 +296,16 @@ int SrsRtmpConn::stream_service_cycle()
     }
     
     bool enabled_cache = _srs_config->get_gop_cache(req->vhost);
-    srs_trace("source found, ip=%s, url=%s, enabled_cache=%d, edge=%d", 
-        ip.c_str(), req->get_stream_url().c_str(), enabled_cache, vhost_is_edge);
+    srs_trace("source url=%s, ip=%s, cache=%d, is_edge=%d, id=%d", 
+        req->get_stream_url().c_str(), ip.c_str(), enabled_cache, vhost_is_edge, source->source_id());
     source->set_cache(enabled_cache);
     
     switch (type) {
         case SrsRtmpConnPlay: {
             srs_verbose("start to play stream %s.", req->stream.c_str());
             
-            // notice edge to start for the first client.
             if (vhost_is_edge) {
+                // notice edge to start for the first client.
                 if ((ret = source->on_edge_start_play()) != ERROR_SUCCESS) {
                     srs_error("notice edge start play stream failed. ret=%d", ret);
                     return ret;
@@ -568,14 +568,17 @@ int SrsRtmpConn::fmle_publish(SrsSource* source)
     
     SrsPithyPrint pithy_print(SRS_STAGE_PUBLISH_USER);
     
-    // notify the hls to prepare when publish start.
-    if ((ret = source->on_publish()) != ERROR_SUCCESS) {
-        srs_error("fmle hls on_publish failed. ret=%d", ret);
-        return ret;
-    }
-    srs_verbose("fmle hls on_publish success.");
-    
     bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
+    
+    // when edge, ignore the publish event, directly proxy it.
+    if (vhost_is_edge) {
+        // notify the hls to prepare when publish start.
+        if ((ret = source->on_publish()) != ERROR_SUCCESS) {
+            srs_error("fmle hls on_publish failed. ret=%d", ret);
+            return ret;
+        }
+        srs_verbose("fmle hls on_publish success.");
+    }
     
     while (true) {
         // switch to other st-threads.
@@ -644,14 +647,17 @@ int SrsRtmpConn::flash_publish(SrsSource* source)
     
     SrsPithyPrint pithy_print(SRS_STAGE_PUBLISH_USER);
     
-    // notify the hls to prepare when publish start.
-    if ((ret = source->on_publish()) != ERROR_SUCCESS) {
-        srs_error("flash hls on_publish failed. ret=%d", ret);
-        return ret;
-    }
-    srs_verbose("flash hls on_publish success.");
-    
     bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
+    
+    // when edge, ignore the publish event, directly proxy it.
+    if (vhost_is_edge) {
+        // notify the hls to prepare when publish start.
+        if ((ret = source->on_publish()) != ERROR_SUCCESS) {
+            srs_error("flash hls on_publish failed. ret=%d", ret);
+            return ret;
+        }
+        srs_verbose("flash hls on_publish success.");
+    }
     
     while (true) {
         // switch to other st-threads.

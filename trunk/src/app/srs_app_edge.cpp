@@ -105,6 +105,9 @@ void SrsEdgeIngester::stop()
     srs_freep(client);
     srs_freep(io);
     kbps->set_io(NULL, NULL);
+    
+    // notice to unpublish.
+    _source->on_unpublish();
 }
 
 int SrsEdgeIngester::cycle()
@@ -285,8 +288,8 @@ int SrsEdgeIngester::connect_server()
     }
     
     // open socket.
-    srs_trace("connect edge stream=%s, tcUrl=%s to server=%s, port=%d",
-        _req->stream.c_str(), _req->tcUrl.c_str(), server.c_str(), port);
+    srs_trace("edge connected, can_publish=%d, url=%s/%s, server=%s:%d",
+        _source->can_publish(), _req->tcUrl.c_str(), _req->stream.c_str(), server.c_str(), port);
 
     // TODO: FIXME: extract utility method
     int sock = socket(AF_INET, SOCK_STREAM, 0);
