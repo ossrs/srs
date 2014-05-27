@@ -35,6 +35,7 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_app_utility.hpp>
 
 SrsBandwidth::SrsBandwidth()
 {
@@ -86,52 +87,13 @@ int SrsBandwidth::bandwidth_test(SrsRequest* _req, st_netfd_t stfd, SrsRtmpServe
     // accept and do bandwidth check.
     last_check_time = time_now;
     
-    char* local_ip = 0;
-    if ((ret = get_local_ip(stfd, local_ip)) != ERROR_SUCCESS) {
-        srs_error("get local ip failed. ret = %d", ret);
-        return ret;
-    }
-
-    if ((ret = rtmp->response_connect_app(req, local_ip)) != ERROR_SUCCESS) {
+    std::string local_ip = srs_get_local_ip(st_netfd_fileno(stfd));
+    if ((ret = rtmp->response_connect_app(req, local_ip.c_str())) != ERROR_SUCCESS) {
         srs_error("response connect app failed. ret=%d", ret);
         return ret;
     }
 
     return do_bandwidth_check();
-}
-
-int SrsBandwidth::get_local_ip(st_netfd_t stfd, char *&local_ip)
-{
-    int ret = ERROR_SUCCESS;
-
-    int fd = st_netfd_fileno(stfd);
-
-    // discovery client information
-    sockaddr_in addr;
-    socklen_t addrlen = sizeof(addr);
-    if (getsockname(fd, (sockaddr*)&addr, &addrlen) == -1) {
-        ret = ERROR_SOCKET_GET_LOCAL_IP;
-        srs_error("discovery local ip information failed. ret=%d", ret);
-        return ret;
-    }
-    srs_verbose("get local ip success.");
-
-    // ip v4 or v6
-    char buf[INET6_ADDRSTRLEN];
-    memset(buf, 0, sizeof(buf));
-
-    if ((inet_ntop(addr.sin_family, &addr.sin_addr, buf, sizeof(buf))) == NULL) {
-        ret = ERROR_SOCKET_GET_LOCAL_IP;
-        srs_error("convert local ip information failed. ret=%d", ret);
-        return ret;
-    }
-
-    local_ip = new char[strlen(buf) + 1];
-    strcpy(local_ip, buf);
-
-    srs_verbose("get local ip of client ip=%s, fd=%d", buf, fd);
-
-    return ret;
 }
 
 int SrsBandwidth::do_bandwidth_check()

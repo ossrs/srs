@@ -353,4 +353,10 @@ extern void srs_update_platform_info();
 extern void srs_retrieve_local_ipv4_ips();
 extern std::vector<std::string>& srs_get_local_ipv4_ips();
 
+// get local or peer ip.
+// where local ip is the server ip which client connected.
+std::string srs_get_local_ip(int fd);
+// where peer ip is the client public ip which connected to server.
+std::string srs_get_peer_ip(int fd);
+
 #endif

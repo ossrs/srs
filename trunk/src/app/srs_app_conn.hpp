@@ -30,6 +30,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+#include <string>
+
 #include <srs_app_st.hpp>
 #include <srs_app_thread.hpp>
 
@@ -39,10 +41,10 @@ class SrsConnection : public ISrsThreadHandler
 private:
     SrsThread* pthread;
 protected:
-    char* ip;
     SrsServer* server;
     st_netfd_t stfd;
     int connection_id;
+    std::string ip;
 public:
     SrsConnection(SrsServer* srs_server, st_netfd_t client_stfd);
     virtual ~SrsConnection();
@@ -53,8 +55,6 @@ public:
 protected:
     virtual int do_cycle() = 0;
     virtual void stop();
-protected:
-    virtual int get_peer_ip();
 };
 
 #endif

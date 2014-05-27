@@ -44,6 +44,7 @@ using namespace std;
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_edge.hpp>
 #include <srs_app_kbps.hpp>
+#include <srs_app_utility.hpp>
 
 // when stream is busy, for example, streaming is already
 // publishing, when a new client to request to publish,
@@ -98,11 +99,7 @@ int SrsRtmpConn::do_cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = get_peer_ip()) != ERROR_SUCCESS) {
-        srs_error("get peer ip failed. ret=%d", ret);
-        return ret;
-    }
-    srs_trace("serve client, peer ip=%s", ip);
+    srs_trace("serve client, peer ip=%s", ip.c_str());
 
     rtmp->set_recv_timeout(SRS_RECV_TIMEOUT_US);
     rtmp->set_send_timeout(SRS_SEND_TIMEOUT_US);
@@ -193,7 +190,8 @@ int SrsRtmpConn::service_cycle()
         return bandwidth->bandwidth_test(req, stfd, rtmp);
     }
     
-    if ((ret = rtmp->response_connect_app(req)) != ERROR_SUCCESS) {
+    std::string local_ip = srs_get_local_ip(st_netfd_fileno(stfd));
+    if ((ret = rtmp->response_connect_app(req, local_ip.c_str())) != ERROR_SUCCESS) {
         srs_error("response connect app failed. ret=%d", ret);
         return ret;
     }
@@ -299,7 +297,7 @@ int SrsRtmpConn::stream_service_cycle()
     
     bool enabled_cache = _srs_config->get_gop_cache(req->vhost);
     srs_trace("source found, ip=%s, url=%s, enabled_cache=%d, edge=%d", 
-        ip, req->get_stream_url().c_str(), enabled_cache, vhost_is_edge);
+        ip.c_str(), req->get_stream_url().c_str(), enabled_cache, vhost_is_edge);
     source->set_cache(enabled_cache);
     
     switch (type) {

@@ -514,11 +514,7 @@ int SrsHttpConn::do_cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = get_peer_ip()) != ERROR_SUCCESS) {
-        srs_error("get peer ip failed. ret=%d", ret);
-        return ret;
-    }
-    srs_trace("http get peer ip success. ip=%s", ip);
+    srs_trace("http get peer ip success. ip=%s", ip.c_str());
     
     // initialize parser
     if ((ret = parser->initialize(HTTP_REQUEST)) != ERROR_SUCCESS) {

@@ -33,6 +33,7 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_kernel_error.hpp>
 
 #define SRS_LOCAL_LOOP_IP "127.0.0.1"
 
@@ -493,4 +494,59 @@ vector<string>& srs_get_local_ipv4_ips()
     }
 
     return _srs_system_ipv4_ips;
+}
+
+string srs_get_local_ip(int fd)
+{
+    std::string ip;
+
+    // discovery client information
+    sockaddr_in addr;
+    socklen_t addrlen = sizeof(addr);
+    if (getsockname(fd, (sockaddr*)&addr, &addrlen) == -1) {
+        return ip;
+    }
+    srs_verbose("get local ip success.");
+
+    // ip v4 or v6
+    char buf[INET6_ADDRSTRLEN];
+    memset(buf, 0, sizeof(buf));
+
+    if ((inet_ntop(addr.sin_family, &addr.sin_addr, buf, sizeof(buf))) == NULL) {
+        return ip;
+    }
+
+    ip = buf;
+
+    srs_verbose("get local ip of client ip=%s, fd=%d", buf, fd);
+
+    return ip;
+}
+
+string srs_get_peer_ip(int fd)
+{
+    std::string ip;
+    
+    // discovery client information
+    sockaddr_in addr;
+    socklen_t addrlen = sizeof(addr);
+    if (getpeername(fd, (sockaddr*)&addr, &addrlen) == -1) {
+        return ip;
+    }
+    srs_verbose("get peer name success.");
+
+    // ip v4 or v6
+    char buf[INET6_ADDRSTRLEN];
+    memset(buf, 0, sizeof(buf));
+    
+    if ((inet_ntop(addr.sin_family, &addr.sin_addr, buf, sizeof(buf))) == NULL) {
+        return ip;
+    }
+    srs_verbose("get peer ip of client ip=%s, fd=%d", buf, fd);
+    
+    ip = buf;
+    
+    srs_verbose("get peer ip success. ip=%s, fd=%d", ip, fd);
+    
+    return ip;
 }

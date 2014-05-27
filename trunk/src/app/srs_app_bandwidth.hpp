@@ -84,7 +84,6 @@ public:
     */
     virtual int bandwidth_test(SrsRequest* _req, st_netfd_t stfd, SrsRtmpServer* _rtmp);
 private:
-    virtual int get_local_ip(st_netfd_t stfd, char *&local_ip);
     /**
     * used to process band width check from client.
     */
