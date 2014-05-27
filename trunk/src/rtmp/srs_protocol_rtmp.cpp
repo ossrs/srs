@@ -517,7 +517,7 @@ int SrsRtmpClient::connect_app(string app, string tc_url)
             srs_pid = (int)prop->to_number();
         }
     }
-    srs_trace("connected, version=%s, ip=%s, identity=[%d][%d]", 
+    srs_trace("connected, version=%s, ip=%s, pid=%d, id=%d", 
         srs_version.c_str(), srs_server_ip.c_str(), srs_pid, srs_id);
     
     return ret;
