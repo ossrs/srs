@@ -253,6 +253,7 @@ public:
     virtual bool                get_log_tank_file();
     virtual std::string         get_log_level();
     virtual std::string         get_log_file();
+    virtual bool                get_ffmpeg_log_enabled();
     virtual std::string         get_ffmpeg_log_dir();
 // hls section
 private:

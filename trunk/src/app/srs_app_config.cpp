@@ -2410,6 +2410,12 @@ string SrsConfig::get_log_file()
     return conf->arg0();
 }
 
+bool SrsConfig::get_ffmpeg_log_enabled()
+{
+    string log = get_ffmpeg_log_dir();
+    return log != "/dev/null";
+}
+
 string SrsConfig::get_ffmpeg_log_dir()
 {
     srs_assert(root);

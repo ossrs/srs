@@ -287,18 +287,20 @@ int SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDir
     output = srs_string_replace(output, "[stream]", req->stream);
     output = srs_string_replace(output, "[engine]", engine->arg0());
     
-    std::string log_file;
+    std::string log_file = "/dev/null"; // disabled
     // write ffmpeg info to log file.
-    log_file = _srs_config->get_ffmpeg_log_dir();
-    log_file += "/";
-    log_file += "ffmpeg-encoder";
-    log_file += "-";
-    log_file += req->vhost;
-    log_file += "-";
-    log_file += req->app;
-    log_file += "-";
-    log_file += req->stream;
-    log_file += ".log";
+    if (_srs_config->get_ffmpeg_log_enabled()) {
+        log_file = _srs_config->get_ffmpeg_log_dir();
+        log_file += "/";
+        log_file += "ffmpeg-encoder";
+        log_file += "-";
+        log_file += req->vhost;
+        log_file += "-";
+        log_file += req->app;
+        log_file += "-";
+        log_file += req->stream;
+        log_file += ".log";
+    }
 
     // important: loop check, donot transcode again.
     std::vector<std::string>::iterator it;
