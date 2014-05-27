@@ -134,11 +134,20 @@ private:
     SrsSource* source;
     SrsMessageQueue* queue;
     bool paused;
+    // when source id changed, notice all consumers
+    bool should_update_source_id;
 public:
     SrsConsumer(SrsSource* _source);
     virtual ~SrsConsumer();
 public:
+    /**
+    * set the size of queue.
+    */
     virtual void set_queue_size(double queue_size);
+    /**
+    * when source id changed, notice client to print.
+    */
+    virtual void update_source_id();
 public:
     /**
     * get current client time, the last packet time.

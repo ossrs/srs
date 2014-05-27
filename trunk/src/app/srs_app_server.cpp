@@ -176,7 +176,7 @@ int SrsListener::cycle()
     
     if(client_stfd == NULL){
         // ignore error.
-        srs_warn("ignore accept thread stoppped for accept client error");
+        srs_error("ignore accept thread stoppped for accept client error");
         return ret;
     }
     srs_verbose("get a client. fd=%d", st_netfd_fileno(client_stfd));

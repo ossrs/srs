@@ -571,7 +571,7 @@ int SrsRtmpConn::fmle_publish(SrsSource* source)
     bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
     
     // when edge, ignore the publish event, directly proxy it.
-    if (vhost_is_edge) {
+    if (!vhost_is_edge) {
         // notify the hls to prepare when publish start.
         if ((ret = source->on_publish()) != ERROR_SUCCESS) {
             srs_error("fmle hls on_publish failed. ret=%d", ret);
@@ -650,7 +650,7 @@ int SrsRtmpConn::flash_publish(SrsSource* source)
     bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
     
     // when edge, ignore the publish event, directly proxy it.
-    if (vhost_is_edge) {
+    if (!vhost_is_edge) {
         // notify the hls to prepare when publish start.
         if ((ret = source->on_publish()) != ERROR_SUCCESS) {
             srs_error("flash hls on_publish failed. ret=%d", ret);

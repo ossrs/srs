@@ -248,6 +248,7 @@ SrsConsumer::SrsConsumer(SrsSource* _source)
     paused = false;
     jitter = new SrsRtmpJitter();
     queue = new SrsMessageQueue();
+    should_update_source_id = false;
 }
 
 SrsConsumer::~SrsConsumer()
@@ -260,6 +261,11 @@ SrsConsumer::~SrsConsumer()
 void SrsConsumer::set_queue_size(double queue_size)
 {
     queue->set_queue_size(queue_size);
+}
+
+void SrsConsumer::update_source_id()
+{
+    should_update_source_id = true;
 }
 
 int SrsConsumer::get_time()
@@ -287,6 +293,11 @@ int SrsConsumer::enqueue(SrsSharedPtrMessage* msg, int tba, int tbv)
 
 int SrsConsumer::get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& count)
 {
+    if (should_update_source_id) {
+        srs_trace("update source_id=%d", source->source_id());
+        should_update_source_id = false;
+    }
+    
     // paused, return nothing.
     if (paused) {
         return ERROR_SUCCESS;
@@ -801,6 +812,13 @@ int SrsSource::on_source_id_changed(int id)
     }
     
     _source_id = id;
+    
+    // notice all consumer
+    std::vector<SrsConsumer*>::iterator it;
+    for (it = consumers.begin(); it != consumers.end(); ++it) {
+        SrsConsumer* consumer = *it;
+        consumer->update_source_id();
+    }
     
     return ret;
 }
