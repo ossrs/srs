@@ -132,21 +132,41 @@ package
                 elapTimer.restart();
             }
         }
+        
+        // srs infos
+        private var srs_server:String = null;
+        private var srs_primary_authors:String = null;
+        private var srs_id:String = null;
+        private function update_context_items():void {
+            // for context menu
+            var customItems:Array = [new ContextMenuItem("SrsPlayer")];
+            if (srs_server != null) {
+                customItems.push(new ContextMenuItem("Server: " + srs_server));
+            }
+            if (srs_primary_authors != null) {
+                customItems.push(new ContextMenuItem("PrimaryAuthors: " + srs_primary_authors));
+            }
+            if (srs_id != null) {
+                customItems.push(new ContextMenuItem("SrsId: " + srs_id));
+            }
+            contextMenu.customItems = customItems;
+        }
 		
 		// get NetConnection NetStatusEvent
 		public function onStatus(evt:NetStatusEvent) : void{
 			trace(evt.info.code);
             
             if (evt.info.hasOwnProperty("data") && evt.info.data) {
-                // for context menu
-                var customItems:Array = [new ContextMenuItem("SrsPlayer")];
                 if (evt.info.data.hasOwnProperty("srs_server")) {
-                    customItems.push(new ContextMenuItem("Server: " + evt.info.data.srs_server));
+                    srs_server = evt.info.data.srs_server;
                 }
                 if (evt.info.data.hasOwnProperty("srs_primary_authors")) {
-                    customItems.push(new ContextMenuItem("PrimaryAuthors: " + evt.info.data.srs_primary_authors));
+                    srs_primary_authors = evt.info.data.srs_primary_authors;
                 }
-                contextMenu.customItems = customItems;
+                if (evt.info.data.hasOwnProperty("srs_id")) {
+                    srs_id = evt.info.data.srs_id;
+                }
+                update_context_items();
             }
             
 			switch(evt.info.code){

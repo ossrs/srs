@@ -866,6 +866,8 @@ int SrsRtmpServer::response_connect_app(SrsRequest *req, const char* server_ip)
     if (server_ip) {
         data->set("srs_server_ip", SrsAmf0Any::str(server_ip));
     }
+    // for edge to directly get the id of client.
+    data->set("srs_id", SrsAmf0Any::number(_srs_context->get_id()));
     
     if ((ret = protocol->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
         srs_error("send connect app response message failed. ret=%d", ret);
