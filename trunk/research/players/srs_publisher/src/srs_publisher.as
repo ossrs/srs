@@ -138,6 +138,7 @@ package
         private var srs_server:String = null;
         private var srs_primary_authors:String = null;
         private var srs_id:String = null;
+        private var srs_pid:String = null;
         private function update_context_items():void {
             // for context menu
             var customItems:Array = [new ContextMenuItem("SrsPlayer")];
@@ -146,6 +147,9 @@ package
             }
             if (srs_primary_authors != null) {
                 customItems.push(new ContextMenuItem("PrimaryAuthors: " + srs_primary_authors));
+            }
+            if (srs_pid != null) {
+                customItems.push(new ContextMenuItem("SrsPid: " + srs_pid));
             }
             if (srs_id != null) {
                 customItems.push(new ContextMenuItem("SrsId: " + srs_id));
@@ -214,6 +218,9 @@ package
                     }
                     if (evt.info.data.hasOwnProperty("srs_id")) {
                         srs_id = evt.info.data.srs_id;
+                    }
+                    if (evt.info.data.hasOwnProperty("srs_pid")) {
+                        srs_pid = evt.info.data.srs_pid;
                     }
                     update_context_items();
                 }
