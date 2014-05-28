@@ -640,7 +640,7 @@ TSContext::TSContext()
 
 TSContext::~TSContext()
 {
-    srs_freepa(pids);
+    srs_freep(pids);
     
     std::map<TSPidTable, TSMessage*>::iterator it;
     for (it = msgs.begin(); it != msgs.end(); ++it) {
@@ -683,7 +683,7 @@ void TSContext::push(TSPidTable pid, TSStreamType stream_type, TSPidType type, u
         p[pid_size] = (TSPid){type, stream_type, pid, continuity_counter};
         pid_size++;
         
-        srs_freepa(pids);
+        srs_freep(pids);
         pids = p;
     }
     
@@ -726,7 +726,7 @@ TSMessage::TSMessage()
 
 TSMessage::~TSMessage()
 {
-    srs_freepa(packet_data);
+    srs_freep(packet_data);
 }
 
 void TSMessage::append(u_int8_t*& p, int size)
@@ -802,9 +802,9 @@ TSAdaptionField::TSAdaptionField()
 
 TSAdaptionField::~TSAdaptionField()
 {
-    srs_freepa(transport_private_data);
-    srs_freepa(af_ext_reserved);
-    srs_freepa(af_reserved);
+    srs_freep(transport_private_data);
+    srs_freep(af_ext_reserved);
+    srs_freep(af_reserved);
 }
 
 int TSAdaptionField::get_size()
@@ -966,7 +966,7 @@ TSPayloadReserved::TSPayloadReserved()
 
 TSPayloadReserved::~TSPayloadReserved()
 {
-    srs_freepa(bytes);
+    srs_freep(bytes);
 }
 
 int TSPayloadReserved::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t* last, u_int8_t*& p, TSMessage*& pmsg)
@@ -1003,7 +1003,7 @@ TSPayloadPAT::TSPayloadPAT()
 
 TSPayloadPAT::~TSPayloadPAT()
 {
-    srs_freepa(programs);
+    srs_freep(programs);
 }
 
 int TSPayloadPAT::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t* last, u_int8_t*& p, TSMessage*& pmsg)
@@ -1068,7 +1068,7 @@ TSPMTESInfo::TSPMTESInfo()
 
 TSPMTESInfo::~TSPMTESInfo()
 {
-    srs_freepa(ES_info);
+    srs_freep(ES_info);
 }
 
 TSPayloadPMT::TSPayloadPMT()
@@ -1090,7 +1090,7 @@ TSPayloadPMT::TSPayloadPMT()
 
 TSPayloadPMT::~TSPayloadPMT()
 {
-    srs_freepa(program_info_desc);
+    srs_freep(program_info_desc);
     
     for (std::vector<TSPMTESInfo*>::iterator it = ES_info.begin(); it != ES_info.end(); ++it) {
         TSPMTESInfo* info = *it;
@@ -1251,10 +1251,10 @@ TSPayloadPES::TSPayloadPES()
 
 TSPayloadPES::~TSPayloadPES()
 {
-    srs_freepa(PES_private_data);
-    srs_freepa(pack_field);
-    srs_freepa(PES_extension_field);
-    srs_freepa(stuffing_byte);
+    srs_freep(PES_private_data);
+    srs_freep(pack_field);
+    srs_freep(PES_extension_field);
+    srs_freep(stuffing_byte);
 }
 
 int64_t TSPayloadPES::decode_33bits_int(u_int8_t*& p, int64_t& temp)
