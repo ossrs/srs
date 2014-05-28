@@ -3,7 +3,7 @@ GCC = gcc
 ifeq ($(HANDSHAKE),)
     ST_ALL      = help
 else
-    ST_ALL      = srs_flv_parser srs_publish srs_play srs_ingest_flv srs_ingest_rtmp
+    ST_ALL      = srs_flv_parser srs_flv_injecter srs_publish srs_play srs_ingest_flv srs_ingest_rtmp
 endif
 
 .PHONY: default clean help ssl nossl
@@ -11,12 +11,13 @@ endif
 default: $(ST_ALL)
 
 help:
-	@echo "Usage: make <help>|<clean>|<srs_flv_parser>|<srs_publish>|<srs_play>|<srs_ingest_flv>|<srs_ingest_rtmp>"
+	@echo "Usage: make <help>|<clean>|<srs_flv_parser>|<srs_flv_injecter>|<srs_publish>|<srs_play>|<srs_ingest_flv>|<srs_ingest_rtmp>"
 	@echo "     help                    display this help"
 	@echo "     clean                   cleanup build"
 	@echo "     ssl                     all tools link ssl"
 	@echo "     nossl                   all tools never link ssl"
 	@echo "     srs_flv_parser          parse flv file, print detail info."
+	@echo "     srs_flv_injecter        inject keyframes information to metadata."
 	@echo "     srs_publish             publish program using srs-librtmp"
 	@echo "     srs_play                play program using srs-librtmp"
 	@echo "     srs_ingest_flv          ingest flv file and publish to RTMP server."
@@ -29,7 +30,7 @@ help:
 	@echo "Remark: before make this sample, user must make the srs, with/without ssl"
     
 clean:
-	@rm -f srs_flv_parser srs_publish srs_play srs_ingest_flv srs_ingest_rtmp
+	@rm -f srs_flv_parser srs_flv_injecter srs_publish srs_play srs_ingest_flv srs_ingest_rtmp
 
 # srs library root
 SRS_OBJS = ../../objs
@@ -65,6 +66,9 @@ nossl:
 
 srs_flv_parser: srs_flv_parser.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
 	$(GCC) srs_flv_parser.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o srs_flv_parser
+
+srs_flv_injecter: srs_flv_injecter.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L)
+	$(GCC) srs_flv_injecter.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o srs_flv_injecter
 
 srs_publish: srs_publish.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
 	$(GCC) srs_publish.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o srs_publish

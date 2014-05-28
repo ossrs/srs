@@ -21,22 +21,17 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <srs_app_flv.hpp>
+#include <srs_kernel_flv.hpp>
 
 #include <fcntl.h>
 #include <sstream>
 using namespace std;
 
-#include <srs_app_config.hpp>
+#include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
-#include <srs_protocol_rtmp.hpp>
-#include <srs_protocol_rtmp_stack.hpp>
-#include <srs_app_source.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_app_http_hooks.hpp>
-#include <srs_app_codec.hpp>
 
 #define SRS_FLV_TAG_HEADER_SIZE 11
 #define SRS_FLV_PREVIOUS_TAG_SIZE 4
@@ -509,3 +504,109 @@ int SrsFlvFastDecoder::lseek(int64_t offset)
     
     return ret;
 }
+
+SrsFlvDecoder::SrsFlvDecoder()
+{
+    _fs = NULL;
+    tag_stream = new SrsStream();
+}
+
+SrsFlvDecoder::~SrsFlvDecoder()
+{
+    srs_freep(tag_stream);
+}
+
+int SrsFlvDecoder::initialize(SrsFileStream* fs)
+{
+    int ret = ERROR_SUCCESS;
+    
+    _fs = fs;
+    
+    return ret;
+}
+
+int SrsFlvDecoder::read_header(char header[9])
+{
+    int ret = ERROR_SUCCESS;
+
+    if ((ret = _fs->read(header, 9, NULL)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    char* h = header;
+    if (h[0] != 'F' || h[1] != 'L' || h[2] != 'V') {
+        ret = ERROR_SYSTEM_FLV_HEADER;
+        srs_warn("flv header must start with FLV. ret=%d", ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsFlvDecoder::read_tag_header(char* ptype, int32_t* pdata_size, u_int32_t* ptime)
+{
+    int ret = ERROR_SUCCESS;
+
+    char th[11]; // tag header
+    
+    // read tag header
+    if ((ret = _fs->read(th, 11, NULL)) != ERROR_SUCCESS) {
+        if (ret != ERROR_SYSTEM_FILE_EOF) {
+            srs_error("read flv tag header failed. ret=%d", ret);
+        }
+        return ret;
+    }
+    
+    // Reserved UB [2]
+    // Filter UB [1]
+    // TagType UB [5]
+    *ptype = (int)(th[0] & 0x1F);
+    
+    // DataSize UI24
+    char* pp = (char*)pdata_size;
+    pp[2] = th[1];
+    pp[1] = th[2];
+    pp[0] = th[3];
+    
+    // Timestamp UI24
+    pp = (char*)ptime;
+    pp[2] = th[4];
+    pp[1] = th[5];
+    pp[0] = th[6];
+    
+    // TimestampExtended UI8
+    pp[3] = th[7];
+
+    return ret;
+}
+
+int SrsFlvDecoder::read_tag_data(char* data, int32_t size)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = _fs->read(data, size, NULL)) != ERROR_SUCCESS) {
+        if (ret != ERROR_SYSTEM_FILE_EOF) {
+            srs_error("read flv tag header failed. ret=%d", ret);
+        }
+        return ret;
+    }
+    
+    return ret;
+
+}
+
+int SrsFlvDecoder::read_previous_tag_size(char ts[4])
+{
+    int ret = ERROR_SUCCESS;
+    
+    // ignore 4bytes tag size.
+    if ((ret = _fs->read(ts, 4, NULL)) != ERROR_SUCCESS) {
+        if (ret != ERROR_SYSTEM_FILE_EOF) {
+            srs_error("read flv previous tag size failed. ret=%d", ret);
+        }
+        return ret;
+    }
+    
+    return ret;
+}
+

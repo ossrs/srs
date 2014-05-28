@@ -40,7 +40,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_app_json.hpp>
 #include <srs_app_config.hpp>
-#include <srs_app_flv.hpp>
+#include <srs_kernel_flv.hpp>
 
 #define SRS_HTTP_DEFAULT_PAGE "index.html"
 

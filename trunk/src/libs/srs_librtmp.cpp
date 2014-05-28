@@ -39,6 +39,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_protocol_amf0.hpp>
+#include <srs_kernel_flv.hpp>
 
 // if user want to define log, define the folowing macro.
 #ifndef SRS_RTMP_USER_DEFINED_LOG
@@ -380,6 +381,124 @@ int64_t srs_get_time_ms()
 {
     srs_update_system_time_ms();
     return srs_get_system_time_ms();
+}
+
+struct FlvContext
+{
+    SrsFileStream fs;
+    SrsFlvEncoder enc;
+    SrsFlvDecoder dec;
+};
+
+srs_flv_t srs_flv_open_read(const char* file)
+{
+    int ret = ERROR_SUCCESS;
+    
+    FlvContext* flv = new FlvContext();
+    
+    if ((ret = flv->fs.open_read(file)) != ERROR_SUCCESS) {
+        srs_freep(flv);
+        return NULL;
+    }
+    
+    if ((ret = flv->enc.initialize(&flv->fs)) != ERROR_SUCCESS) {
+        srs_freep(flv);
+        return NULL;
+    }
+    
+    if ((ret = flv->dec.initialize(&flv->fs)) != ERROR_SUCCESS) {
+        srs_freep(flv);
+        return NULL;
+    }
+    
+    return flv;
+}
+
+srs_flv_t srs_flv_open_write(const char* file)
+{
+    int ret = ERROR_SUCCESS;
+    
+    FlvContext* flv = new FlvContext();
+    
+    if ((ret = flv->fs.open_write(file)) != ERROR_SUCCESS) {
+        srs_freep(flv);
+        return NULL;
+    }
+    
+    if ((ret = flv->enc.initialize(&flv->fs)) != ERROR_SUCCESS) {
+        srs_freep(flv);
+        return NULL;
+    }
+    
+    if ((ret = flv->dec.initialize(&flv->fs)) != ERROR_SUCCESS) {
+        srs_freep(flv);
+        return NULL;
+    }
+    
+    return flv;
+}
+
+void srs_flv_close(srs_flv_t flv)
+{
+    FlvContext* context = (FlvContext*)flv;
+    srs_freep(context);
+}
+
+int srs_flv_read_header(srs_flv_t flv, char header[9])
+{
+    int ret = ERROR_SUCCESS;
+    
+    FlvContext* context = (FlvContext*)flv;
+    if ((ret = context->dec.read_header(header)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    char ts[4]; // tag size
+    if ((ret = context->dec.read_previous_tag_size(ts)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int srs_flv_read_tag_header(srs_flv_t flv, char* ptype, int32_t* pdata_size, u_int32_t* ptime)
+{
+    int ret = ERROR_SUCCESS;
+    
+    FlvContext* context = (FlvContext*)flv;
+    if ((ret = context->dec.read_tag_header(ptype, pdata_size, ptime)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int srs_flv_read_tag_data(srs_flv_t flv, char* data, int32_t size)
+{
+    int ret = ERROR_SUCCESS;
+    
+    FlvContext* context = (FlvContext*)flv;
+    if ((ret = context->dec.read_tag_data(data, size)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    char ts[4]; // tag size
+    if ((ret = context->dec.read_previous_tag_size(ts)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int64_t srs_flv_tellg(srs_flv_t flv)
+{
+    FlvContext* context = (FlvContext*)flv;
+    return context->fs.tellg();
+}
+
+flv_bool srs_flv_is_eof(int error_code)
+{
+    return error_code == ERROR_SYSTEM_FILE_EOF;
 }
 
 srs_amf0_t srs_amf0_parse(char* data, int size, int* nparsed)

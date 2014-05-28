@@ -118,6 +118,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_SYSTEM_FILE_RENAME            429
 #define ERROR_SYSTEM_CREATE_PIPE            430
 #define ERROR_SYSTEM_FILE_SEEK              431
+#define ERROR_SYSTEM_FLV_HEADER             432
 
 // see librtmp.
 // failed when open ssl create the dh

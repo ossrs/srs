@@ -36,7 +36,7 @@ gcc srs_ingest_flv.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_ingest_
 #include "srs_research_public.h"
 #include "srs_flv_codec.h"
 
-int parse_flv(int flv_fd);
+int parse_flv(srs_flv_t flv);
 int main(int argc, char** argv)
 {
     int ret = 0;
@@ -44,7 +44,7 @@ int main(int argc, char** argv)
     // user options.
     char* in_flv_file;
     // flv handler
-    int flv_fd;
+    srs_flv_t flv;
     
     if (argc <= 1) {
         printf("parse and show flv file detail\n"
@@ -65,15 +65,14 @@ int main(int argc, char** argv)
     trace("version: %d.%d.%d", srs_version_major(), srs_version_minor(), srs_version_revision());
     trace("input:  %s", in_flv_file);
 
-    flv_fd = open_flv_file(in_flv_file);
-    if (flv_fd <= 0) {
+    if ((flv = srs_flv_open_read(in_flv_file)) == NULL) {
         ret = 2;
         trace("open flv file failed. ret=%d", ret);
         return ret;
     }
     
-    ret = parse_flv(flv_fd);
-    close_flv_file(flv_fd);
+    ret = parse_flv(flv);
+    srs_flv_close(flv);
     
     return ret;
 }
@@ -207,30 +206,44 @@ int parse_video_data(u_int32_t timestamp, char* data, int size, int64_t offset)
     return ret;
 }
 
-int parse_flv(int flv_fd)
+int parse_flv(srs_flv_t flv)
 {
     int ret = 0;
     
-    if ((ret = flv_open_ic(flv_fd)) != 0) {
+    // flv header
+    char header[13];
+    // packet data
+    char type;
+    u_int32_t timestamp = 0;
+    char* data = NULL;
+    int32_t size;
+    int64_t offset = 0;
+    
+    if ((ret = srs_flv_read_header(flv, header)) != 0) {
         return ret;
     }
     
-    // packet data
-    int type, size;
-    u_int32_t timestamp = 0;
-    char* data = NULL;
-    int64_t offset = 0;
-    
     trace("start parse flv");
     for (;;) {
-        offset = lseek(flv_fd, 0, SEEK_CUR);
+        offset = srs_flv_tellg(flv);
         
-        if ((ret = flv_read_packet(flv_fd, &type, &timestamp, &data, &size)) != 0) {
-            if (ret == ERROR_FLV_CODEC_EOF) {
+        // tag header
+        if ((ret = srs_flv_read_tag_header(flv, &type, &size, &timestamp)) != 0) {
+            if (srs_flv_is_eof(ret)) {
                 trace("parse completed.");
                 return 0;
             }
             trace("irtmp get packet failed. ret=%d", ret);
+            return ret;
+        }
+        
+        if (size <= 0) {
+            trace("invalid size=%d", size);
+            break;
+        }
+        
+        data = (char*)malloc(size);
+        if ((ret = srs_flv_read_tag_data(flv, data, size)) != 0) {
             return ret;
         }
         

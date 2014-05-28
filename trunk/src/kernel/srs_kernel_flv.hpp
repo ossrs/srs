@@ -25,7 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_APP_FLV_HPP
 
 /*
-#include <srs_app_flv.hpp>
+#include <srs_kernel_flv.hpp>
 */
 #include <srs_core.hpp>
 
@@ -140,6 +140,31 @@ public:
     * for start offset, seed to this position and response flv stream.
     */
     virtual int lseek(int64_t offset);
+};
+
+/**
+* decode flv file.
+*/
+class SrsFlvDecoder
+{
+private:
+    SrsFileStream* _fs;
+private:
+    SrsStream* tag_stream;
+public:
+    SrsFlvDecoder();
+    virtual ~SrsFlvDecoder();
+public:
+    /**
+    * initialize the underlayer file stream,
+    * user can initialize multiple times to decode multiple flv files.
+    */
+    virtual int initialize(SrsFileStream* fs);
+public:
+    virtual int read_header(char header[9]);
+    virtual int read_tag_header(char* ptype, int32_t* pdata_size, u_int32_t* ptime);
+    virtual int read_tag_data(char* data, int32_t size);
+    virtual int read_previous_tag_size(char ts[4]);
 };
 
 #endif

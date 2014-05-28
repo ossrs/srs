@@ -152,6 +152,25 @@ int srs_version_revision();
 int64_t srs_get_time_ms();
 
 /**
+* flv codec
+*/
+typedef void* srs_flv_t;
+typedef int flv_bool;
+srs_flv_t srs_flv_open_read(const char* file);
+srs_flv_t srs_flv_open_write(const char* file);
+void srs_flv_close(srs_flv_t flv);
+/* read the flv header. 9bytes header. drop the 4bytes zero previous tag size */
+int srs_flv_read_header(srs_flv_t flv, char header[9]);
+/* read the flv tag header, 1bytes tag, 3bytes data_size, 4bytes time, 3bytes stream id. */
+int srs_flv_read_tag_header(srs_flv_t flv, char* ptype, int32_t* pdata_size, u_int32_t* ptime);
+/* read the tag data. drop the 4bytes previous tag size */
+int srs_flv_read_tag_data(srs_flv_t flv, char* data, int32_t size);
+/* file stream tellg to get offset */
+int64_t srs_flv_tellg(srs_flv_t flv);
+/* whether the error code indicates EOF */
+flv_bool srs_flv_is_eof(int error_code);
+
+/**
 * amf0 codec
 */
 /* the output handler. */
@@ -184,7 +203,12 @@ srs_amf0_t srs_amf0_ecma_array_property_value_at(srs_amf0_t amf0, int index);
 /* strict array value converter */
 int srs_amf0_strict_array_property_count(srs_amf0_t amf0);
 srs_amf0_t srs_amf0_strict_array_property_at(srs_amf0_t amf0, int index);
-/* human readable print */
+/**
+* human readable print 
+* @param pdata, output the heap data, 
+* user must use srs_amf0_free_bytes to free it.
+* @return return the *pdata for print.
+*/
 char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize);
 
 #ifdef __cplusplus
