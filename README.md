@@ -1,10 +1,10 @@
 #Simple-RTMP-Server
 
 下载发布版(github): 
-[Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-0.9.105.zip) 
+[Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-0.9.120.zip) 
 其他[more...](http://winlinvip.github.io/srs.release/releases/) <br/>
 下载发布版(国内阿里云镜像): 
-[Centos6-x86_64](http://182.92.80.26:8085/srs/releases/files/SRS-CentOS6-x86_64-0.9.105.zip) 
+[Centos6-x86_64](http://182.92.80.26:8085/srs/releases/files/SRS-CentOS6-x86_64-0.9.120.zip) 
 其他[more...](http://182.92.80.26:8085/srs/releases/)<br/>
 加入QQ群: [http://url.cn/WAHICw](http://url.cn/WAHICw) (Group: 212189142)
 
