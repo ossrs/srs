@@ -92,6 +92,7 @@ public:
     * that is, 9+4=13bytes.
     */
     virtual int write_header();
+    virtual int write_header(char flv_header[9]);
     /**
     * write flv metadata. 
     * serialize from:

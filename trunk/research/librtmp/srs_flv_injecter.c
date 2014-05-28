@@ -34,7 +34,8 @@ gcc srs_flv_injecter.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_flv_i
 
 #include "../../objs/include/srs_librtmp.h"
 #include "srs_research_public.h"
-#include "srs_flv_codec.h"
+
+#define ERROR_INJECTED 10000
 
 int process(const char* in_flv_file, const char* out_flv_file, srs_flv_t* pic, srs_flv_t* poc);
 int inject_flv(srs_flv_t ic, srs_flv_t oc);
@@ -87,7 +88,12 @@ int main(int argc, char** argv)
     
     if (ret != 0) {
         unlink(tmp_file);
-        trace("error, remove tmp file.");
+        if (ret == ERROR_INJECTED) {
+            ret = 0;
+            trace("file already injected.");
+        } else {
+            trace("error, remove tmp file.");
+        }
     } else {
         rename(tmp_file, out_flv_file);
         trace("completed, rename to %s", out_flv_file);
@@ -153,22 +159,118 @@ int inject_flv(srs_flv_t ic, srs_flv_t oc)
     u_int32_t timestamp = 0;
     char* data = NULL;
     int32_t size;
+    int64_t offset = 0;
     
     // metadata
     srs_amf0_t amf0_name = NULL;
+    int amf0_name_size = 0;
     srs_amf0_t amf0_data = NULL;
+    srs_amf0_t keyframes = NULL;
+    srs_amf0_t filepositions = NULL;
+    srs_amf0_t times = NULL;
     
     // reset to generate metadata
     srs_flv_lseek(ic, 0);
     
-    if ((ret = srs_flv_read_header(oc, header)) != 0) {
+    if ((ret = srs_flv_read_header(ic, header)) != 0) {
         return ret;
     }
     
-    trace("start inject flv");
+    trace("build keyframe infos from flv");
+    for (;;) {
+        offset = srs_flv_tellg(ic);
+        
+        // tag header
+        if ((ret = srs_flv_read_tag_header(ic, &type, &size, &timestamp)) != 0) {
+            if (srs_flv_is_eof(ret)) {
+                trace("parse completed.");
+                break;
+            }
+            trace("flv get packet failed. ret=%d", ret);
+            return ret;
+        }
+        
+        if (size <= 0) {
+            trace("invalid size=%d", size);
+            break;
+        }
+        
+        // TODO: FIXME: mem leak when error.
+        data = (char*)malloc(size);
+        if ((ret = srs_flv_read_tag_data(ic, data, size)) != 0) {
+            return ret;
+        }
+        
+        // data tag
+        if (type == SRS_RTMP_TYPE_VIDEO) {
+            if (!srs_flv_is_sequence_header(data, size) && srs_flv_is_keyframe(data, size)) {
+                srs_amf0_strict_array_append(filepositions, srs_amf0_create_number(offset));
+                srs_amf0_strict_array_append(times, srs_amf0_create_number(((double)timestamp)/ 1000));
+            }
+        } else if (type == SRS_RTMP_TYPE_SCRIPT) {
+            if ((ret = parse_metadata(data, size, &amf0_name, &amf0_data)) != 0) {
+                return ret;
+            }
+            
+            if (srs_amf0_is_object(amf0_data)) {
+                keyframes = srs_amf0_object_property(amf0_data, "keyframes");
+                if (keyframes != NULL) {
+                    return 0;
+                }
+                keyframes = srs_amf0_create_ecma_array();
+                srs_amf0_object_property_set(amf0_data, "keyframes", keyframes);
+                filepositions = srs_amf0_create_strict_array();
+                srs_amf0_object_property_set(keyframes, "filepositions", filepositions);
+                times = srs_amf0_create_strict_array();
+                srs_amf0_object_property_set(keyframes, "times", times);
+            } else if (srs_amf0_is_ecma_array(amf0_data)) {
+                keyframes = srs_amf0_ecma_array_property(amf0_data, "keyframes");
+                if (keyframes != NULL) {
+                    return 0;
+                }
+                keyframes = srs_amf0_create_ecma_array();
+                srs_amf0_ecma_array_property_set(amf0_data, "keyframes", keyframes);
+                filepositions = srs_amf0_create_strict_array();
+                srs_amf0_ecma_array_property_set(keyframes, "filepositions", filepositions);
+                times = srs_amf0_create_strict_array();
+                srs_amf0_ecma_array_property_set(keyframes, "times", times);
+            }
+        }
+        
+        free(data);
+    }
+    
+    // reset to write injected file
+    srs_flv_lseek(ic, 0);
+    
+    if ((ret = srs_flv_read_header(ic, header)) != 0) {
+        return ret;
+    }
+    
+    if ((ret = srs_flv_write_header(oc, header)) != 0) {
+        return ret;
+    }
+    
+    // write metadata
+    if (amf0_name != NULL && amf0_data != NULL) {
+        amf0_name_size = srs_amf0_size(amf0_name);
+        size = amf0_name_size + srs_amf0_size(amf0_data);
+        data = (char*)malloc(size);
+        if ((ret = srs_amf0_serialize(amf0_name, data, amf0_name_size)) != 0) {
+            return ret;
+        }
+        if ((ret = srs_amf0_serialize(amf0_data, data + amf0_name_size, size - amf0_name_size)) != 0) {
+            return ret;
+        }
+        if ((ret = srs_flv_write_tag(oc, SRS_RTMP_TYPE_SCRIPT, 0, data, size)) != 0) {
+            return ret;
+        }
+        free(data);
+    }
+    trace("build keyframe infos from flv");
     for (;;) {
         // tag header
-        if ((ret = srs_flv_read_tag_header(oc, &type, &size, &timestamp)) != 0) {
+        if ((ret = srs_flv_read_tag_header(ic, &type, &size, &timestamp)) != 0) {
             if (srs_flv_is_eof(ret)) {
                 trace("parse completed.");
                 return 0;
@@ -184,16 +286,18 @@ int inject_flv(srs_flv_t ic, srs_flv_t oc)
         
         // TODO: FIXME: mem leak when error.
         data = (char*)malloc(size);
-        if ((ret = srs_flv_read_tag_data(oc, data, size)) != 0) {
+        if ((ret = srs_flv_read_tag_data(ic, data, size)) != 0) {
             return ret;
         }
         
         // data tag
-        if (type == SRS_RTMP_TYPE_VIDEO) {
-        } else if (type == SRS_RTMP_TYPE_SCRIPT) {
-            if ((ret = parse_metadata(data, size, &amf0_name, &amf0_data)) != 0) {
-                return ret;
-            }
+        if (type == SRS_RTMP_TYPE_SCRIPT) {
+            continue;
+        }
+        
+        // copy
+        if ((ret = srs_flv_write_tag(oc, type, timestamp, data, size)) != 0) {
+            return ret;
         }
         
         free(data);

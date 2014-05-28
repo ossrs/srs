@@ -260,6 +260,7 @@ public:
     virtual int count();
     // @remark: max index is count().
     virtual SrsAmf0Any* at(int index);
+    virtual void append(SrsAmf0Any* any);
 };
 
 /**

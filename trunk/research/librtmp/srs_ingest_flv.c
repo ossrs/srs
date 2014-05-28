@@ -34,9 +34,8 @@ gcc srs_ingest_flv.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_ingest_
 
 #include "../../objs/include/srs_librtmp.h"
 #include "srs_research_public.h"
-#include "srs_flv_codec.h"
 
-int proxy(int flv_fd, srs_rtmp_t ortmp);
+int proxy(srs_flv_t flv, srs_rtmp_t ortmp);
 int connect_oc(srs_rtmp_t ortmp);
 
 #define RE_PULSE_MS 300
@@ -59,7 +58,7 @@ int main(int argc, char** argv)
     // rtmp handler
     srs_rtmp_t ortmp;
     // flv handler
-    int flv_fd;
+    srs_flv_t flv;
     
     if (argc <= 2) {
         printf("ingest flv file and publish to RTMP server\n"
@@ -94,8 +93,7 @@ int main(int argc, char** argv)
     trace("input:  %s", in_flv_file);
     trace("output: %s", out_rtmp_url);
 
-    flv_fd = open_flv_file(in_flv_file);
-    if (flv_fd <= 0) {
+    if ((flv = srs_flv_open_read(in_flv_file)) == NULL) {
         ret = 2;
         trace("open flv file failed. ret=%d", ret);
         return ret;
@@ -103,31 +101,46 @@ int main(int argc, char** argv)
     
     ortmp = srs_rtmp_create(out_rtmp_url);
 
-    ret = proxy(flv_fd, ortmp);
+    ret = proxy(flv, ortmp);
     trace("ingest flv to RTMP completed");
     
     srs_rtmp_destroy(ortmp);
-    close_flv_file(flv_fd);
+    srs_flv_close(flv);
     
     return ret;
 }
 
-int do_proxy(int flv_fd, srs_rtmp_t ortmp, int64_t re, u_int32_t* ptimestamp)
+int do_proxy(srs_flv_t flv, srs_rtmp_t ortmp, int64_t re, u_int32_t* ptimestamp)
 {
     int ret = 0;
     
     // packet data
-    int type, size;
+    char type;
+    int size;
     char* data = NULL;
     
     trace("start ingest flv to RTMP stream");
     for (;;) {
-        if ((ret = flv_read_packet(flv_fd, &type, ptimestamp, &data, &size)) != 0) {
-            trace("irtmp get packet failed. ret=%d", ret);
+        // tag header
+        if ((ret = srs_flv_read_tag_header(flv, &type, &size, ptimestamp)) != 0) {
+            if (srs_flv_is_eof(ret)) {
+                trace("parse completed.");
+                return 0;
+            }
+            trace("flv get packet failed. ret=%d", ret);
             return ret;
         }
-        verbose("irtmp got packet: type=%s, time=%d, size=%d", 
-            srs_type2string(type), timestamp, size);
+        
+        if (size <= 0) {
+            trace("invalid size=%d", size);
+            break;
+        }
+        
+        // TODO: FIXME: mem leak when error.
+        data = (char*)malloc(size);
+        if ((ret = srs_flv_read_tag_data(flv, data, size)) != 0) {
+            return ret;
+        }
         
         if ((ret = srs_write_packet(ortmp, type, *ptimestamp, data, size)) != 0) {
             trace("irtmp get packet failed. ret=%d", ret);
@@ -142,12 +155,13 @@ int do_proxy(int flv_fd, srs_rtmp_t ortmp, int64_t re, u_int32_t* ptimestamp)
     return ret;
 }
 
-int proxy(int flv_fd, srs_rtmp_t ortmp)
+int proxy(srs_flv_t flv, srs_rtmp_t ortmp)
 {
     int ret = 0;
     u_int32_t timestamp = 0;
     
-    if ((ret = flv_open_ic(flv_fd)) != 0) {
+    char header[13];
+    if ((ret = srs_flv_read_header(flv, header)) != 0) {
         return ret;
     }
     if ((ret = connect_oc(ortmp)) != 0) {
@@ -156,7 +170,7 @@ int proxy(int flv_fd, srs_rtmp_t ortmp)
     
     int64_t re = re_create();
     
-    ret = do_proxy(flv_fd, ortmp, re, &timestamp);
+    ret = do_proxy(flv, ortmp, re, &timestamp);
     
     // for the last pulse, always sleep.
     re_cleanup(re, timestamp);

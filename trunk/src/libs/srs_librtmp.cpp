@@ -491,6 +491,34 @@ int srs_flv_read_tag_data(srs_flv_t flv, char* data, int32_t size)
     return ret;
 }
 
+int srs_flv_write_header(srs_flv_t flv, char header[9])
+{
+    int ret = ERROR_SUCCESS;
+    
+    FlvContext* context = (FlvContext*)flv;
+    if ((ret = context->enc.write_header(header)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int srs_flv_write_tag(srs_flv_t flv, char type, int32_t time, char* data, int size)
+{
+    int ret = ERROR_SUCCESS;
+    
+    FlvContext* context = (FlvContext*)flv;
+    if (type == SRS_RTMP_TYPE_AUDIO) {
+        return context->enc.write_audio(time, data, size);
+    } else if (type == SRS_RTMP_TYPE_VIDEO) {
+        return context->enc.write_video(time, data, size);
+    } else {
+        return context->enc.write_metadata(data, size);
+    }
+
+    return ret;
+}
+
 int64_t srs_flv_tellg(srs_flv_t flv)
 {
     FlvContext* context = (FlvContext*)flv;
@@ -506,6 +534,16 @@ void srs_flv_lseek(srs_flv_t flv, int64_t offset)
 flv_bool srs_flv_is_eof(int error_code)
 {
     return error_code == ERROR_SYSTEM_FILE_EOF;
+}
+
+flv_bool srs_flv_is_sequence_header(char* data, int32_t size)
+{
+    return SrsCodec::video_is_sequence_header((int8_t*)data, (int)size);
+}
+
+flv_bool srs_flv_is_keyframe(char* data, int32_t size)
+{
+    return SrsCodec::video_is_keyframe((int8_t*)data, (int)size);
 }
 
 srs_amf0_t srs_amf0_parse(char* data, int size, int* nparsed)
@@ -536,6 +574,21 @@ srs_amf0_t srs_amf0_parse(char* data, int size, int* nparsed)
     return amf0;
 }
 
+srs_amf0_t srs_amf0_create_number(amf0_number value)
+{
+    return SrsAmf0Any::number(value);
+}
+
+srs_amf0_t srs_amf0_create_ecma_array()
+{
+    return SrsAmf0Any::ecma_array();
+}
+
+srs_amf0_t srs_amf0_create_strict_array()
+{
+    return SrsAmf0Any::strict_array();
+}
+
 void srs_amf0_free(srs_amf0_t amf0)
 {
     SrsAmf0Any* any = (SrsAmf0Any*)amf0;
@@ -545,6 +598,30 @@ void srs_amf0_free(srs_amf0_t amf0)
 void srs_amf0_free_bytes(char* data)
 {
     srs_freep(data);
+}
+
+int srs_amf0_size(srs_amf0_t amf0)
+{
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    return any->total_size();
+}
+
+int srs_amf0_serialize(srs_amf0_t amf0, char* data, int size)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    
+    SrsStream stream;
+    if ((ret = stream.initialize(data, size)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = any->write(&stream)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
 }
 
 amf0_bool srs_amf0_is_string(srs_amf0_t amf0)
@@ -625,6 +702,19 @@ srs_amf0_t srs_amf0_object_property_value_at(srs_amf0_t amf0, int index)
     return (srs_amf0_t)obj->value_at(index);
 }
 
+srs_amf0_t srs_amf0_object_property(srs_amf0_t amf0, const char* name)
+{
+    SrsAmf0Object* obj = (SrsAmf0Object*)amf0;
+    return (srs_amf0_t)obj->get_property(name);
+}
+
+void srs_amf0_object_property_set(srs_amf0_t amf0, const char* name, srs_amf0_t value)
+{
+    SrsAmf0Object* obj = (SrsAmf0Object*)amf0;
+    SrsAmf0Any* any = (SrsAmf0Any*)value;
+    obj->set(name, any);
+}
+
 int srs_amf0_ecma_array_property_count(srs_amf0_t amf0)
 {
     SrsAmf0EcmaArray * obj = (SrsAmf0EcmaArray*)amf0;
@@ -643,16 +733,36 @@ srs_amf0_t srs_amf0_ecma_array_property_value_at(srs_amf0_t amf0, int index)
     return (srs_amf0_t)obj->value_at(index);
 }
 
+srs_amf0_t srs_amf0_ecma_array_property(srs_amf0_t amf0, const char* name)
+{
+    SrsAmf0EcmaArray* obj = (SrsAmf0EcmaArray*)amf0;
+    return (srs_amf0_t)obj->get_property(name);
+}
+
+void srs_amf0_ecma_array_property_set(srs_amf0_t amf0, const char* name, srs_amf0_t value)
+{
+    SrsAmf0EcmaArray* obj = (SrsAmf0EcmaArray*)amf0;
+    SrsAmf0Any* any = (SrsAmf0Any*)value;
+    obj->set(name, any);
+}
+
 int srs_amf0_strict_array_property_count(srs_amf0_t amf0)
 {
-    SrsAmf0EcmaArray * obj = (SrsAmf0EcmaArray*)amf0;
+    SrsAmf0StrictArray * obj = (SrsAmf0StrictArray*)amf0;
     return obj->count();
 }
 
 srs_amf0_t srs_amf0_strict_array_property_at(srs_amf0_t amf0, int index)
 {
-    SrsAmf0EcmaArray* obj = (SrsAmf0EcmaArray*)amf0;
-    return (srs_amf0_t)obj->value_at(index);
+    SrsAmf0StrictArray* obj = (SrsAmf0StrictArray*)amf0;
+    return (srs_amf0_t)obj->at(index);
+}
+
+void srs_amf0_strict_array_append(srs_amf0_t amf0, srs_amf0_t value)
+{
+    SrsAmf0StrictArray* obj = (SrsAmf0StrictArray*)amf0;
+    SrsAmf0Any* any = (SrsAmf0Any*)value;
+    obj->append(any);
 }
 
 void __srs_fill_level_spaces(stringstream& ss, int level)
@@ -735,10 +845,14 @@ char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize)
     memcpy(data, str.data(), str.length());
     data[str.length()] = 0;
     
-    *pdata = data;
-    *psize = str.length();
+    if (pdata) {
+        *pdata = data;
+    }
+    if (psize) {
+        *psize = str.length();
+    }
     
-    return *pdata;
+    return data;
 }
 
 #ifdef __cplusplus

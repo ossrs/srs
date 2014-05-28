@@ -207,17 +207,33 @@ int SrsFlvEncoder::write_header()
         'F', 'L', 'V', // Signatures "FLV"
         (char)0x01, // File version (for example, 0x01 for FLV version 1)
         (char)0x00, // 4, audio; 1, video; 5 audio+video.
-        (char)0x00, (char)0x00, (char)0x00, (char)0x09, // DataOffset UI32 The length of this header in bytes
-        (char)0x00, (char)0x00, (char)0x00, (char)0x00// PreviousTagSize0 UI32 Always 0
+        (char)0x00, (char)0x00, (char)0x00, (char)0x09 // DataOffset UI32 The length of this header in bytes
     };
     
     // flv specification should set the audio and video flag,
     // actually in practise, application generally ignore this flag,
     // so we generally set the audio/video to 0.
     
+    // write 9bytes header.
+    if ((ret = write_header(flv_header)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsFlvEncoder::write_header(char flv_header[9])
+{
+    int ret = ERROR_SUCCESS;
+    
     // write data.
-    if ((ret = _fs->write(flv_header, sizeof(flv_header), NULL)) != ERROR_SUCCESS) {
+    if ((ret = _fs->write(flv_header, 9, NULL)) != ERROR_SUCCESS) {
         srs_error("write flv header failed. ret=%d", ret);
+        return ret;
+    }
+    
+    char pts[] = { 0x00, 0x00, 0x00, 0x00 };
+    if ((ret = _fs->write(pts, 4, NULL)) != ERROR_SUCCESS) {
         return ret;
     }
     

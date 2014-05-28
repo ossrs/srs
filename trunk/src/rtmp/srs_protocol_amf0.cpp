@@ -1113,6 +1113,11 @@ SrsAmf0Any* SrsAmf0StrictArray::at(int index)
     return properties.at(index);
 }
 
+void SrsAmf0StrictArray::append(SrsAmf0Any* any)
+{
+    properties.push_back(any);
+}
+
 int SrsAmf0Size::utf8(string value)
 {
     return 2 + value.length();

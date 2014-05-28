@@ -34,7 +34,6 @@ gcc srs_ingest_flv.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_ingest_
 
 #include "../../objs/include/srs_librtmp.h"
 #include "srs_research_public.h"
-#include "srs_flv_codec.h"
 
 int parse_flv(srs_flv_t flv);
 int main(int argc, char** argv)
