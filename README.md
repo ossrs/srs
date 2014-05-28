@@ -213,6 +213,7 @@ Supported operating systems and hardware:
 1. [no-plan] Support RTP/RTSP server.
 
 ## Releases
+* 2014-05-28, [Release v1.0-mainline4](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline4), support heartbeat, tracable log, fix mem leak and bugs. 39200 lines.<br/>
 * 2014-05-18, [Release v1.0-mainline3](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline3), support mips, fms origin, json(http-api). 37594 lines.<br/>
 * 2014-04-28, [Release v1.0-mainline2](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline2), support [dvr](https://github.com/winlinvip/simple-rtmp-server/wiki/DVR), android, [edge](https://github.com/winlinvip/simple-rtmp-server/wiki/Edge). 35255 lines.<br/>
 * 2014-04-07, [Release v1.0-mainline](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline), support [arm](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm), [init.d](https://github.com/winlinvip/simple-rtmp-server/wiki/LinuxService), http [server](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPServer)/[api](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPApi), [ingest](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleIngest). 30000 lines.<br/>
@@ -228,6 +229,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* <strong>v1.0, 2014-05-28, [1.0 mainline4(0.9.120)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline4) released. 39200 lines.</strong>
 * v1.0, 2014-05-27, fix [#87](https://github.com/winlinvip/simple-rtmp-server/issues/87), add source id for full trackable log. 0.9.120
 * v1.0, 2014-05-27, fix [#84](https://github.com/winlinvip/simple-rtmp-server/issues/84), unpublish when edge disconnect. 0.9.119
 * v1.0, 2014-05-27, fix [#89](https://github.com/winlinvip/simple-rtmp-server/issues/89), config to /dev/null to disable ffmpeg log. 0.9.117
