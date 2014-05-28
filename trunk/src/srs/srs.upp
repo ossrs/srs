@@ -111,7 +111,6 @@ file
 	..\utest\srs_utest_handshake.hpp,
 	..\utest\srs_utest_handshake.cpp,
 	research readonly separator,
-	..\..\research\librtmp\srs_flv_codec.h,
 	..\..\research\librtmp\srs_flv_injecter.c,
 	..\..\research\librtmp\srs_flv_parser.c,
 	..\..\research\librtmp\srs_ingest_flv.c,
