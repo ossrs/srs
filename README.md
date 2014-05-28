@@ -201,6 +201,7 @@ Supported operating systems and hardware:
 1. Support dvr(record live to flv file for vod)
 1. Support live flashP2P(integrated by chnvideo VDN).
 1. Support RTMP [edge](https://github.com/winlinvip/simple-rtmp-server/wiki/Edge) server, push/pull stream from any RTMP server
+1. Support tracable log, session based log.
 1. [dev] Support system full utest on gtest.
 1. [plan] Support RTMP 302 redirect [#92](https://github.com/winlinvip/simple-rtmp-server/issues/92).
 1. [plan] Support file to hls vod stream.
