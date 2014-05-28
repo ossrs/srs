@@ -40,6 +40,7 @@ using namespace std;
 #include <srs_kernel_stream.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_kernel_flv.hpp>
+#include <srs_kernel_codec.hpp>
 
 // if user want to define log, define the folowing macro.
 #ifndef SRS_RTMP_USER_DEFINED_LOG
@@ -494,6 +495,12 @@ int64_t srs_flv_tellg(srs_flv_t flv)
 {
     FlvContext* context = (FlvContext*)flv;
     return context->fs.tellg();
+}
+
+void srs_flv_lseek(srs_flv_t flv, int64_t offset)
+{
+    FlvContext* context = (FlvContext*)flv;
+    context->fs.lseek(offset);
 }
 
 flv_bool srs_flv_is_eof(int error_code)

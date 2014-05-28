@@ -167,6 +167,8 @@ int srs_flv_read_tag_header(srs_flv_t flv, char* ptype, int32_t* pdata_size, u_i
 int srs_flv_read_tag_data(srs_flv_t flv, char* data, int32_t size);
 /* file stream tellg to get offset */
 int64_t srs_flv_tellg(srs_flv_t flv);
+/* seek file stream, offset is form the start of file */
+void srs_flv_lseek(srs_flv_t flv, int64_t offset);
 /* whether the error code indicates EOF */
 flv_bool srs_flv_is_eof(int error_code);
 

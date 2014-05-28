@@ -38,7 +38,7 @@ using namespace std;
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_http_hooks.hpp>
-#include <srs_app_codec.hpp>
+#include <srs_kernel_codec.hpp>
 #include <srs_kernel_flv.hpp>
 
 SrsFlvSegment::SrsFlvSegment()

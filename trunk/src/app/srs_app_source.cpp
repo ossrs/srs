@@ -30,7 +30,7 @@ using namespace std;
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_protocol_amf0.hpp>
-#include <srs_app_codec.hpp>
+#include <srs_kernel_codec.hpp>
 #include <srs_app_hls.hpp>
 #include <srs_app_forward.hpp>
 #include <srs_app_config.hpp>

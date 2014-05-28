@@ -233,7 +233,7 @@ int parse_flv(srs_flv_t flv)
                 trace("parse completed.");
                 return 0;
             }
-            trace("irtmp get packet failed. ret=%d", ret);
+            trace("flv get packet failed. ret=%d", ret);
             return ret;
         }
         
