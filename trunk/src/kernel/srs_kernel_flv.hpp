@@ -105,6 +105,11 @@ public:
     */
     virtual int write_audio(int64_t timestamp, char* data, int size);
     virtual int write_video(int64_t timestamp, char* data, int size);
+    /**
+    * get the tag size,
+    * including the tag header, body, and 4bytes previous tag size.
+    */
+    static int size_tag(int data_size);
 private:
     virtual int write_tag(char* header, int header_size, char* tag, int tag_size);
 };

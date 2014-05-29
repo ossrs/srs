@@ -63,6 +63,11 @@ class __SrsAmf0ObjectEOF;
 //        SrsAmf0Object* obj = SrsAmf0Any::object();
 // 5. SrsAmf0EcmaArray: create the amf0 ecma array.
 //        SrsAmf0EcmaArray* arr = SrsAmf0Any::ecma_array();
+// 6. SrsAmf0Any: set basic type value
+//        SrsAmf0Any* pany = ...
+//        if (pany->is_number()) {
+//            pany->set_number(100.1);
+//        }
 //
 // please carefully the size and count of amf0 any:
 // 1. total_size(): the total memory size the object wrote to buffer.
@@ -131,6 +136,12 @@ public:
     virtual SrsAmf0StrictArray* to_strict_array();
 public:
     /**
+    * set the number of any when is_number() indicates true.
+    * user must ensure the type is a number, or assert failed.
+    */
+    virtual void set_number(double value);
+public:
+    /**
     * get the size of amf0 any, including the marker size.
     */
     virtual int total_size() = 0;
@@ -139,6 +150,7 @@ public:
     */
     virtual int read(SrsStream* stream) = 0;
     virtual int write(SrsStream* stream) = 0;
+    virtual SrsAmf0Any* copy() = 0;
 public:
     static SrsAmf0Any* str(const char* value = NULL); 
     static SrsAmf0Any* boolean(bool value = false);
@@ -175,6 +187,7 @@ public:
     virtual int total_size();
     virtual int read(SrsStream* stream);
     virtual int write(SrsStream* stream);
+    virtual SrsAmf0Any* copy();
     
 public:
     virtual int count();
@@ -215,6 +228,7 @@ public:
     virtual int total_size();
     virtual int read(SrsStream* stream);
     virtual int write(SrsStream* stream);
+    virtual SrsAmf0Any* copy();
     
 public:
     virtual void clear();
@@ -254,6 +268,7 @@ public:
     virtual int total_size();
     virtual int read(SrsStream* stream);
     virtual int write(SrsStream* stream);
+    virtual SrsAmf0Any* copy();
     
 public:
     virtual void clear();

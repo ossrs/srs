@@ -330,6 +330,11 @@ int SrsFlvEncoder::write_video(int64_t timestamp, char* data, int size)
     return ret;
 }
 
+int SrsFlvEncoder::size_tag(int data_size)
+{
+    return SRS_FLV_TAG_HEADER_SIZE + data_size + SRS_FLV_PREVIOUS_TAG_SIZE;
+}
+
 int SrsFlvEncoder::write_tag(char* header, int header_size, char* tag, int tag_size)
 {
     int ret = ERROR_SUCCESS;

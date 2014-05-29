@@ -519,6 +519,11 @@ int srs_flv_write_tag(srs_flv_t flv, char type, int32_t time, char* data, int si
     return ret;
 }
 
+int srs_flv_size_tag(int data_size)
+{
+    return SrsFlvEncoder::size_tag(data_size);
+}
+
 int64_t srs_flv_tellg(srs_flv_t flv)
 {
     FlvContext* context = (FlvContext*)flv;
@@ -684,6 +689,12 @@ amf0_number srs_amf0_to_number(srs_amf0_t amf0)
     return any->to_number();
 }
 
+void srs_amf0_set_number(srs_amf0_t amf0, amf0_number value)
+{
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    any->set_number(value);
+}
+
 int srs_amf0_object_property_count(srs_amf0_t amf0)
 {
     SrsAmf0Object* obj = (SrsAmf0Object*)amf0;
@@ -744,6 +755,12 @@ void srs_amf0_ecma_array_property_set(srs_amf0_t amf0, const char* name, srs_amf
     SrsAmf0EcmaArray* obj = (SrsAmf0EcmaArray*)amf0;
     SrsAmf0Any* any = (SrsAmf0Any*)value;
     obj->set(name, any);
+}
+
+void srs_amf0_ecma_array_clear(srs_amf0_t amf0)
+{
+    SrsAmf0EcmaArray* obj = (SrsAmf0EcmaArray*)amf0;
+    obj->clear();
 }
 
 int srs_amf0_strict_array_property_count(srs_amf0_t amf0)

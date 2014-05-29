@@ -169,6 +169,8 @@ int srs_flv_read_tag_data(srs_flv_t flv, char* data, int32_t size);
 int srs_flv_write_header(srs_flv_t flv, char header[9]);
 /* write flv tag to file, auto write the 4bytes previous tag size */
 int srs_flv_write_tag(srs_flv_t flv, char type, int32_t time, char* data, int size);
+/* get the tag size, for flv injecter to adjust offset, size=tag_header+data+previous_tag */
+int srs_flv_size_tag(int data_size);
 /* file stream */
 /* file stream tellg to get offset */
 int64_t srs_flv_tellg(srs_flv_t flv);
@@ -211,6 +213,8 @@ amf0_bool srs_amf0_is_strict_array(srs_amf0_t amf0);
 const char* srs_amf0_to_string(srs_amf0_t amf0);
 amf0_bool srs_amf0_to_boolean(srs_amf0_t amf0);
 amf0_number srs_amf0_to_number(srs_amf0_t amf0);
+/* value setter */
+void srs_amf0_set_number(srs_amf0_t amf0, amf0_number value);
 /* object value converter */
 int srs_amf0_object_property_count(srs_amf0_t amf0);
 const char* srs_amf0_object_property_name_at(srs_amf0_t amf0, int index);
@@ -223,6 +227,7 @@ const char* srs_amf0_ecma_array_property_name_at(srs_amf0_t amf0, int index);
 srs_amf0_t srs_amf0_ecma_array_property_value_at(srs_amf0_t amf0, int index);
 srs_amf0_t srs_amf0_ecma_array_property(srs_amf0_t amf0, const char* name);
 void srs_amf0_ecma_array_property_set(srs_amf0_t amf0, const char* name, srs_amf0_t value);
+void srs_amf0_ecma_array_clear(srs_amf0_t amf0);
 /* strict array value converter */
 int srs_amf0_strict_array_property_count(srs_amf0_t amf0);
 srs_amf0_t srs_amf0_strict_array_property_at(srs_amf0_t amf0, int index);

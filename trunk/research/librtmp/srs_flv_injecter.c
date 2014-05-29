@@ -38,7 +38,6 @@ gcc srs_flv_injecter.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_flv_i
 #define ERROR_INJECTED 10000
 
 int process(const char* in_flv_file, const char* out_flv_file, srs_flv_t* pic, srs_flv_t* poc);
-int inject_flv(srs_flv_t ic, srs_flv_t oc);
 int main(int argc, char** argv)
 {
     int ret = 0;
@@ -108,21 +107,51 @@ int process(const char* in_flv_file, const char* out_flv_file, srs_flv_t* pic, s
 {
     int ret = 0;
     
-    if ((*pic = srs_flv_open_read(in_flv_file)) == NULL) {
+    srs_flv_t ic;
+    srs_flv_t oc;
+    
+    // to adjust metadata.
+    // the ic metadata end offset, the next tag start offset.
+    // all oc metadata must adjust according to:
+    //      adjust = new_metadata_end_offset - metadata_end_offset
+    int64_t metadata_end_offset = 0;
+    
+    // metadata
+    srs_amf0_t amf0_name = NULL;
+    srs_amf0_t amf0_data = NULL;
+    srs_amf0_t filepositions = NULL;
+    
+    if ((ic = srs_flv_open_read(in_flv_file)) == NULL) {
         ret = 2;
         trace("open input flv file failed. ret=%d", ret);
         return ret;
     }
+    *pic = ic;
     
-    if ((*poc = srs_flv_open_write(out_flv_file)) == NULL) {
+    if ((oc = srs_flv_open_write(out_flv_file)) == NULL) {
         ret = 2;
         trace("open output flv file failed. ret=%d", ret);
         return ret;
     }
+    *poc = oc;
     
-    if ((ret = inject_flv(*pic, *poc)) != 0) {
+    /**
+    * we use two roundtrip to avoid the paddings of metadata,
+    * to support large keyframes videos without padding fields.
+    */
+    // build keyframes offset to metadata.
+    if ((ret = build_keyframes(ic, &amf0_name, &amf0_data, &filepositions, &metadata_end_offset)) != 0) {
         return ret;
     }
+    
+    // inject the metadata to oc.
+    if ((ret = do_inject_flv(ic, oc, amf0_name, amf0_data, filepositions, metadata_end_offset)) != 0) {
+        return ret;
+    }
+    
+    // TODO: FIXME: mem leak when error.
+    srs_amf0_free(amf0_name);
+    srs_amf0_free(amf0_data);
     
     return ret;
 }
@@ -148,12 +177,13 @@ int parse_metadata(char* data, int size, srs_amf0_t* pname, srs_amf0_t* pdata)
     return ret;
 }
 
-int inject_flv(srs_flv_t ic, srs_flv_t oc)
+int build_keyframes(srs_flv_t ic, srs_amf0_t *pname, srs_amf0_t* pdata, srs_amf0_t* pfilepositions, int64_t* pmetadata_end_offset)
 {
     int ret = 0;
     
     // flv header
     char header[13];
+    
     // packet data
     char type;
     u_int32_t timestamp = 0;
@@ -163,8 +193,8 @@ int inject_flv(srs_flv_t ic, srs_flv_t oc)
     
     // metadata
     srs_amf0_t amf0_name = NULL;
-    int amf0_name_size = 0;
     srs_amf0_t amf0_data = NULL;
+    
     srs_amf0_t keyframes = NULL;
     srs_amf0_t filepositions = NULL;
     srs_amf0_t times = NULL;
@@ -184,7 +214,7 @@ int inject_flv(srs_flv_t ic, srs_flv_t oc)
         if ((ret = srs_flv_read_tag_header(ic, &type, &size, &timestamp)) != 0) {
             if (srs_flv_is_eof(ret)) {
                 trace("parse completed.");
-                break;
+                return 0;
             }
             trace("flv get packet failed. ret=%d", ret);
             return ret;
@@ -192,7 +222,7 @@ int inject_flv(srs_flv_t ic, srs_flv_t oc)
         
         if (size <= 0) {
             trace("invalid size=%d", size);
-            break;
+            return ret;
         }
         
         // TODO: FIXME: mem leak when error.
@@ -208,30 +238,40 @@ int inject_flv(srs_flv_t ic, srs_flv_t oc)
                 srs_amf0_strict_array_append(times, srs_amf0_create_number(((double)timestamp)/ 1000));
             }
         } else if (type == SRS_RTMP_TYPE_SCRIPT) {
+            *pmetadata_end_offset = srs_flv_tellg(ic);
             if ((ret = parse_metadata(data, size, &amf0_name, &amf0_data)) != 0) {
                 return ret;
             }
             
+            *pname = amf0_name;
+            *pdata = amf0_data;
+            
             if (srs_amf0_is_object(amf0_data)) {
                 keyframes = srs_amf0_object_property(amf0_data, "keyframes");
-                if (keyframes != NULL) {
-                    return 0;
+                if (keyframes == NULL) {
+                    keyframes = srs_amf0_create_ecma_array();
                 }
-                keyframes = srs_amf0_create_ecma_array();
                 srs_amf0_object_property_set(amf0_data, "keyframes", keyframes);
-                filepositions = srs_amf0_create_strict_array();
+                // always clear the old keyframes.
+                srs_amf0_ecma_array_clear(keyframes);
+                
+                *pfilepositions = filepositions = srs_amf0_create_strict_array();
                 srs_amf0_object_property_set(keyframes, "filepositions", filepositions);
+                
                 times = srs_amf0_create_strict_array();
                 srs_amf0_object_property_set(keyframes, "times", times);
             } else if (srs_amf0_is_ecma_array(amf0_data)) {
                 keyframes = srs_amf0_ecma_array_property(amf0_data, "keyframes");
-                if (keyframes != NULL) {
-                    return 0;
+                if (keyframes == NULL) {
+                    keyframes = srs_amf0_create_ecma_array();
                 }
-                keyframes = srs_amf0_create_ecma_array();
                 srs_amf0_ecma_array_property_set(amf0_data, "keyframes", keyframes);
-                filepositions = srs_amf0_create_strict_array();
+                // always clear the old keyframes.
+                srs_amf0_ecma_array_clear(keyframes);
+                
+                *pfilepositions = filepositions = srs_amf0_create_strict_array();
                 srs_amf0_ecma_array_property_set(keyframes, "filepositions", filepositions);
+                
                 times = srs_amf0_create_strict_array();
                 srs_amf0_ecma_array_property_set(keyframes, "times", times);
             }
@@ -239,6 +279,30 @@ int inject_flv(srs_flv_t ic, srs_flv_t oc)
         
         free(data);
     }
+    
+    return ret;
+}
+
+int do_inject_flv(srs_flv_t ic, srs_flv_t oc, srs_amf0_t amf0_name, srs_amf0_t amf0_data, srs_amf0_t filepositions, int64_t metadata_end_offset)
+{
+    int ret = 0;
+    
+    // flv header
+    char header[13];
+    // packet data
+    char type;
+    u_int32_t timestamp = 0;
+    char* data = NULL;
+    int32_t size;
+    
+    // metadata
+    srs_amf0_t fileposition = NULL;
+    int amf0_name_size = 0;
+    int i;
+    
+    // the metadata end offset, the next tag start offset.
+    int64_t new_metadata_end_offset = 0;
+    int offset_adjust = 0;
     
     // reset to write injected file
     srs_flv_lseek(ic, 0);
@@ -255,7 +319,18 @@ int inject_flv(srs_flv_t ic, srs_flv_t oc)
     if (amf0_name != NULL && amf0_data != NULL) {
         amf0_name_size = srs_amf0_size(amf0_name);
         size = amf0_name_size + srs_amf0_size(amf0_data);
+
+        // adjust all offset of keyframes.
+        new_metadata_end_offset = srs_flv_tellg(oc) + srs_flv_size_tag(size);
+        // the adjust is new offset sub the old offset of metadata end.
+        offset_adjust = new_metadata_end_offset - metadata_end_offset;
+        for (i = 0; i < srs_amf0_strict_array_property_count(filepositions); i++) {
+            fileposition = srs_amf0_strict_array_property_at(filepositions, i);
+            srs_amf0_set_number(fileposition, srs_amf0_to_number(fileposition) + offset_adjust);
+        }
+        
         data = (char*)malloc(size);
+        memset(data, 0, size);
         if ((ret = srs_amf0_serialize(amf0_name, data, amf0_name_size)) != 0) {
             return ret;
         }
@@ -267,6 +342,7 @@ int inject_flv(srs_flv_t ic, srs_flv_t oc)
         }
         free(data);
     }
+    
     trace("build keyframe infos from flv");
     for (;;) {
         // tag header
@@ -302,9 +378,6 @@ int inject_flv(srs_flv_t ic, srs_flv_t oc)
         
         free(data);
     }
-    
-    srs_amf0_free(amf0_name);
-    srs_amf0_free(amf0_data);
     
     return ret;
 }

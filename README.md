@@ -231,6 +231,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v1.0, 2014-05-29, support flv inject and flv http streaming with start=bytes. 0.9.122
 * <strong>v1.0, 2014-05-28, [1.0 mainline4(0.9.120)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline4) released. 39200 lines.</strong>
 * v1.0, 2014-05-27, fix [#87](https://github.com/winlinvip/simple-rtmp-server/issues/87), add source id for full trackable log. 0.9.120
 * v1.0, 2014-05-27, fix [#84](https://github.com/winlinvip/simple-rtmp-server/issues/84), unpublish when edge disconnect. 0.9.119
