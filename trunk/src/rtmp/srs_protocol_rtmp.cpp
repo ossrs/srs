@@ -947,15 +947,22 @@ int SrsRtmpServer::identify_client(int stream_id, SrsRtmpConnType& type, string&
     while (true) {
         SrsMessage* msg = NULL;
         if ((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS) {
-            srs_error("recv identify client message failed. ret=%d", ret);
+            if (!srs_is_client_gracefully_close(ret)) {
+                srs_error("recv identify client message failed. ret=%d", ret);
+            }
             return ret;
         }
 
         SrsAutoFree(SrsMessage, msg);
-
-        if (!msg->header.is_amf0_command() && !msg->header.is_amf3_command()) {
+        SrsMessageHeader& h = msg->header;
+        
+        if (h.is_ackledgement() || h.is_set_chunk_size() || h.is_window_ackledgement_size() || h.is_user_control_message()) {
+            continue;
+        }
+        
+        if (!h.is_amf0_command() && !h.is_amf3_command()) {
             srs_trace("identify ignore messages except "
-                "AMF0/AMF3 command message. type=%#x", msg->header.message_type);
+                "AMF0/AMF3 command message. type=%#x", h.message_type);
             continue;
         }
         
@@ -1335,15 +1342,22 @@ int SrsRtmpServer::identify_create_stream_client(SrsCreateStreamPacket* req, int
     while (true) {
         SrsMessage* msg = NULL;
         if ((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS) {
-            srs_error("recv identify client message failed. ret=%d", ret);
+            if (!srs_is_client_gracefully_close(ret)) {
+                srs_error("recv identify client message failed. ret=%d", ret);
+            }
             return ret;
         }
 
         SrsAutoFree(SrsMessage, msg);
-
-        if (!msg->header.is_amf0_command() && !msg->header.is_amf3_command()) {
+        SrsMessageHeader& h = msg->header;
+        
+        if (h.is_ackledgement() || h.is_set_chunk_size() || h.is_window_ackledgement_size() || h.is_user_control_message()) {
+            continue;
+        }
+    
+        if (!h.is_amf0_command() && !h.is_amf3_command()) {
             srs_trace("identify ignore messages except "
-                "AMF0/AMF3 command message. type=%#x", msg->header.message_type);
+                "AMF0/AMF3 command message. type=%#x", h.message_type);
             continue;
         }
         
@@ -1408,7 +1422,7 @@ int SrsRtmpServer::identify_play_client(SrsPlayPacket* req, SrsRtmpConnType& typ
     stream_name = req->stream_name;
     duration = req->duration;
     
-    srs_trace("identity client type=play, stream_name=%s, duration=%.2f", stream_name.c_str(), duration);
+    srs_info("identity client type=play, stream_name=%s, duration=%.2f", stream_name.c_str(), duration);
 
     return ret;
 }

@@ -249,11 +249,11 @@ int build_keyframes(srs_flv_t ic, srs_amf0_t *pname, srs_amf0_t* pdata, srs_amf0
             if (srs_amf0_is_object(amf0_data)) {
                 keyframes = srs_amf0_object_property(amf0_data, "keyframes");
                 if (keyframes == NULL) {
-                    keyframes = srs_amf0_create_ecma_array();
+                    keyframes = srs_amf0_create_object();
+                    srs_amf0_object_property_set(amf0_data, "keyframes", keyframes);
                 }
-                srs_amf0_object_property_set(amf0_data, "keyframes", keyframes);
                 // always clear the old keyframes.
-                srs_amf0_ecma_array_clear(keyframes);
+                srs_amf0_object_clear(keyframes);
                 
                 *pfilepositions = filepositions = srs_amf0_create_strict_array();
                 srs_amf0_object_property_set(keyframes, "filepositions", filepositions);
@@ -263,17 +263,17 @@ int build_keyframes(srs_flv_t ic, srs_amf0_t *pname, srs_amf0_t* pdata, srs_amf0
             } else if (srs_amf0_is_ecma_array(amf0_data)) {
                 keyframes = srs_amf0_ecma_array_property(amf0_data, "keyframes");
                 if (keyframes == NULL) {
-                    keyframes = srs_amf0_create_ecma_array();
+                    keyframes = srs_amf0_create_object();
+                    srs_amf0_ecma_array_property_set(amf0_data, "keyframes", keyframes);
                 }
-                srs_amf0_ecma_array_property_set(amf0_data, "keyframes", keyframes);
                 // always clear the old keyframes.
-                srs_amf0_ecma_array_clear(keyframes);
+                srs_amf0_object_clear(keyframes);
                 
                 *pfilepositions = filepositions = srs_amf0_create_strict_array();
-                srs_amf0_ecma_array_property_set(keyframes, "filepositions", filepositions);
+                srs_amf0_object_property_set(keyframes, "filepositions", filepositions);
                 
                 times = srs_amf0_create_strict_array();
-                srs_amf0_ecma_array_property_set(keyframes, "times", times);
+                srs_amf0_object_property_set(keyframes, "times", times);
             }
         }
         

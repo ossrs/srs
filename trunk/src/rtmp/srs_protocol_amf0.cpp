@@ -788,6 +788,11 @@ SrsAmf0Any* SrsAmf0Object::copy()
     return copy;
 }
 
+void SrsAmf0Object::clear()
+{
+    properties->clear();
+}
+
 int SrsAmf0Object::count()
 {
     return properties->count();

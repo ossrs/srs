@@ -719,7 +719,9 @@ int SrsProtocol::do_decode_message(SrsMessageHeader& header, SrsStream* stream, 
         *ppacket = packet = new SrsSetChunkSizePacket();
         return packet->decode(stream);
     } else {
-        srs_trace("drop unknown message, type=%d", header.message_type);
+        if (!header.is_set_peer_bandwidth()) {
+            srs_trace("drop unknown message, type=%d", header.message_type);
+        }
     }
     
     return ret;
@@ -1289,7 +1291,10 @@ int SrsProtocol::on_recv_message(SrsMessage* msg)
             
             if (pkt->ackowledgement_window_size > 0) {
                 in_ack_size.ack_window_size = pkt->ackowledgement_window_size;
-                srs_trace("set ack window size to %d", pkt->ackowledgement_window_size);
+                // @remakr, we ignore this message, for user noneed to care.
+                // but it's important for dev, for client/server will block if required 
+                // ack msg not arrived.
+                srs_info("set ack window size to %d", pkt->ackowledgement_window_size);
             } else {
                 srs_warn("ignored. set ack window size is %d", pkt->ackowledgement_window_size);
             }
@@ -1301,7 +1306,7 @@ int SrsProtocol::on_recv_message(SrsMessage* msg)
             
             in_chunk_size = pkt->chunk_size;
             
-            srs_trace("set input chunk size to %d", pkt->chunk_size);
+            srs_trace("input chunk size to %d", pkt->chunk_size);
             break;
         }
         case RTMP_MSG_UserControlMessage: {
@@ -1339,7 +1344,7 @@ int SrsProtocol::on_send_message(SrsMessage* msg, SrsPacket* packet)
             
             out_chunk_size = pkt->chunk_size;
             
-            srs_trace("set output chunk size to %d", pkt->chunk_size);
+            srs_trace("out chunk size to %d", pkt->chunk_size);
             break;
         }
         case RTMP_MSG_AMF0CommandMessage:
@@ -1471,6 +1476,11 @@ bool SrsMessageHeader::is_set_chunk_size()
 bool SrsMessageHeader::is_user_control_message()
 {
     return message_type == RTMP_MSG_UserControlMessage;
+}
+
+bool SrsMessageHeader::is_set_peer_bandwidth()
+{
+    return message_type == RTMP_MSG_SetPeerBandwidth;
 }
 
 bool SrsMessageHeader::is_aggregate()

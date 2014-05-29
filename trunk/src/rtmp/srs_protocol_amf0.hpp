@@ -190,6 +190,7 @@ public:
     virtual SrsAmf0Any* copy();
     
 public:
+    virtual void clear();
     virtual int count();
     // @remark: max index is count().
     virtual std::string key_at(int index);

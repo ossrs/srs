@@ -23,6 +23,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_source.hpp>
 
+#include <sstream>
 #include <algorithm>
 using namespace std;
 
@@ -850,11 +851,28 @@ int SrsSource::on_meta_data(SrsMessage* msg, SrsOnMetaDataPacket* metadata)
         return ret;
     }
 #endif
+
+    SrsAmf0Any* prop = NULL;
     
+    // generate metadata info to print
+    std::stringstream ss;
+    if ((prop = metadata->metadata->ensure_property_number("width")) != NULL) {
+        ss << ", width=" << (int)prop->to_number();
+    }
+    if ((prop = metadata->metadata->ensure_property_number("height")) != NULL) {
+        ss << ", height=" << (int)prop->to_number();
+    }
+    if ((prop = metadata->metadata->ensure_property_number("videocodecid")) != NULL) {
+        ss << ", vcodec=" << (int)prop->to_number();
+    }
+    if ((prop = metadata->metadata->ensure_property_number("audiocodecid")) != NULL) {
+        ss << ", acodec=" << (int)prop->to_number();
+    }
+    
+    // add server info to metadata
     metadata->metadata->set("server", SrsAmf0Any::str(RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
     metadata->metadata->set("authors", SrsAmf0Any::str(RTMP_SIG_SRS_PRIMARY_AUTHROS));
     
-    SrsAmf0Any* prop = NULL;
     if ((prop = metadata->metadata->get_property("audiosamplerate")) != NULL) {
         if (prop->is_number()) {
             sample_rate = (int)prop->to_number();
@@ -912,7 +930,7 @@ int SrsSource::on_meta_data(SrsMessage* msg, SrsOnMetaDataPacket* metadata)
                 return ret;
             }
         }
-        srs_trace("dispatch metadata success.");
+        srs_trace("got metadata%s", ss.str().c_str());
     }
     
     // copy to all forwarders
@@ -996,7 +1014,7 @@ int SrsSource::on_audio(SrsMessage* audio)
     if (SrsCodec::audio_is_sequence_header(msg->payload, msg->size)) {
         srs_freep(cache_sh_audio);
         cache_sh_audio = msg->copy();
-        srs_trace("update audio sequence header success. size=%d", msg->header.payload_length);
+        srs_trace("got audio sh, size=%d", msg->header.payload_length);
         return ret;
     }
     
@@ -1086,7 +1104,7 @@ int SrsSource::on_video(SrsMessage* video)
     if (SrsCodec::video_is_sequence_header(msg->payload, msg->size)) {
         srs_freep(cache_sh_video);
         cache_sh_video = msg->copy();
-        srs_trace("update video sequence header success. size=%d", msg->header.payload_length);
+        srs_trace("got video sh, size=%d", msg->header.payload_length);
         return ret;
     }
 
@@ -1277,7 +1295,8 @@ void SrsSource::on_unpublish()
     srs_freep(cache_sh_video);
     srs_freep(cache_sh_audio);
     
-    srs_trace("clear cache/metadata/sequence-headers when unpublish.");
+    srs_info("clear cache/metadata/sequence-headers when unpublish.");
+    srs_trace("cleanup when unpublish");
     
     _can_publish = true;
     _source_id = -1;

@@ -152,8 +152,10 @@ int SrsEdgeIngester::cycle()
         return ret;
     }
     
-    if ((ret = ingest()) != ERROR_SUCCESS) {
-        return ret;
+    ret = ingest();
+    if (srs_is_client_gracefully_close(ret)) {
+        srs_warn("origin disconnected, retry. ret=%d", ret);
+        ret = ERROR_SUCCESS;
     }
     
     return ret;
@@ -186,7 +188,9 @@ int SrsEdgeIngester::ingest()
         // read from client.
         SrsMessage* msg = NULL;
         if ((ret = client->recv_message(&msg)) != ERROR_SUCCESS) {
-            srs_error("ingest recv origin server message failed. ret=%d", ret);
+            if (!srs_is_client_gracefully_close(ret)) {
+                srs_error("ingest recv origin server message failed. ret=%d", ret);
+            }
             return ret;
         }
         srs_verbose("edge loop recv message. ret=%d", ret);
@@ -286,11 +290,8 @@ int SrsEdgeIngester::connect_server()
         server = server.substr(0, pos);
         port = ::atoi(s_port.c_str());
     }
-    
-    // open socket.
-    srs_trace("edge connected, can_publish=%d, url=%s/%s, server=%s:%d",
-        _source->can_publish(), _req->tcUrl.c_str(), _req->stream.c_str(), server.c_str(), port);
 
+    // open socket.
     // TODO: FIXME: extract utility method
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if(sock == -1){
@@ -332,7 +333,10 @@ int SrsEdgeIngester::connect_server()
         srs_error("connect to server error. ip=%s, port=%d, ret=%d", ip.c_str(), port, ret);
         return ret;
     }
-    srs_trace("connect to server success. server=%s, ip=%s, port=%d", server.c_str(), ip.c_str(), port);
+    srs_info("connect to server success. server=%s, ip=%s, port=%d", server.c_str(), ip.c_str(), port);
+    
+    srs_trace("edge connected, can_publish=%d, url=%s/%s, server=%s:%d",
+        _source->can_publish(), _req->tcUrl.c_str(), _req->stream.c_str(), server.c_str(), port);
     
     return ret;
 }

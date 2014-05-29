@@ -196,6 +196,7 @@ srs_amf0_t srs_amf0_parse(char* data, int size, int* nparsed);
 srs_amf0_t srs_amf0_create_number(amf0_number value);
 srs_amf0_t srs_amf0_create_ecma_array();
 srs_amf0_t srs_amf0_create_strict_array();
+srs_amf0_t srs_amf0_create_object();
 void srs_amf0_free(srs_amf0_t amf0);
 void srs_amf0_free_bytes(char* data);
 /* size and to bytes */
@@ -221,13 +222,13 @@ const char* srs_amf0_object_property_name_at(srs_amf0_t amf0, int index);
 srs_amf0_t srs_amf0_object_property_value_at(srs_amf0_t amf0, int index);
 srs_amf0_t srs_amf0_object_property(srs_amf0_t amf0, const char* name);
 void srs_amf0_object_property_set(srs_amf0_t amf0, const char* name, srs_amf0_t value);
+void srs_amf0_object_clear(srs_amf0_t amf0);
 /* ecma array value converter */
 int srs_amf0_ecma_array_property_count(srs_amf0_t amf0);
 const char* srs_amf0_ecma_array_property_name_at(srs_amf0_t amf0, int index);
 srs_amf0_t srs_amf0_ecma_array_property_value_at(srs_amf0_t amf0, int index);
 srs_amf0_t srs_amf0_ecma_array_property(srs_amf0_t amf0, const char* name);
 void srs_amf0_ecma_array_property_set(srs_amf0_t amf0, const char* name, srs_amf0_t value);
-void srs_amf0_ecma_array_clear(srs_amf0_t amf0);
 /* strict array value converter */
 int srs_amf0_strict_array_property_count(srs_amf0_t amf0);
 srs_amf0_t srs_amf0_strict_array_property_at(srs_amf0_t amf0, int index);

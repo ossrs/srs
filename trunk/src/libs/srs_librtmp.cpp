@@ -594,6 +594,11 @@ srs_amf0_t srs_amf0_create_strict_array()
     return SrsAmf0Any::strict_array();
 }
 
+srs_amf0_t srs_amf0_create_object()
+{
+    return SrsAmf0Any::object();
+}
+
 void srs_amf0_free(srs_amf0_t amf0)
 {
     SrsAmf0Any* any = (SrsAmf0Any*)amf0;
@@ -697,88 +702,130 @@ void srs_amf0_set_number(srs_amf0_t amf0, amf0_number value)
 
 int srs_amf0_object_property_count(srs_amf0_t amf0)
 {
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    srs_assert(any->is_object());
+
     SrsAmf0Object* obj = (SrsAmf0Object*)amf0;
     return obj->count();
 }
 
 const char* srs_amf0_object_property_name_at(srs_amf0_t amf0, int index)
 {
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    srs_assert(any->is_object());
+
     SrsAmf0Object* obj = (SrsAmf0Object*)amf0;
     return obj->key_raw_at(index);
 }
 
 srs_amf0_t srs_amf0_object_property_value_at(srs_amf0_t amf0, int index)
 {
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    srs_assert(any->is_object());
+
     SrsAmf0Object* obj = (SrsAmf0Object*)amf0;
     return (srs_amf0_t)obj->value_at(index);
 }
 
 srs_amf0_t srs_amf0_object_property(srs_amf0_t amf0, const char* name)
 {
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    srs_assert(any->is_object());
+
     SrsAmf0Object* obj = (SrsAmf0Object*)amf0;
     return (srs_amf0_t)obj->get_property(name);
 }
 
 void srs_amf0_object_property_set(srs_amf0_t amf0, const char* name, srs_amf0_t value)
 {
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    srs_assert(any->is_object());
+
     SrsAmf0Object* obj = (SrsAmf0Object*)amf0;
-    SrsAmf0Any* any = (SrsAmf0Any*)value;
+    any = (SrsAmf0Any*)value;
     obj->set(name, any);
+}
+
+void srs_amf0_object_clear(srs_amf0_t amf0)
+{
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    srs_assert(any->is_object());
+
+    SrsAmf0Object* obj = (SrsAmf0Object*)amf0;
+    obj->clear();
 }
 
 int srs_amf0_ecma_array_property_count(srs_amf0_t amf0)
 {
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    srs_assert(any->is_ecma_array());
+
     SrsAmf0EcmaArray * obj = (SrsAmf0EcmaArray*)amf0;
     return obj->count();
 }
 
 const char* srs_amf0_ecma_array_property_name_at(srs_amf0_t amf0, int index)
 {
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    srs_assert(any->is_ecma_array());
+
     SrsAmf0EcmaArray* obj = (SrsAmf0EcmaArray*)amf0;
     return obj->key_raw_at(index);
 }
 
 srs_amf0_t srs_amf0_ecma_array_property_value_at(srs_amf0_t amf0, int index)
 {
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    srs_assert(any->is_ecma_array());
+
     SrsAmf0EcmaArray* obj = (SrsAmf0EcmaArray*)amf0;
     return (srs_amf0_t)obj->value_at(index);
 }
 
 srs_amf0_t srs_amf0_ecma_array_property(srs_amf0_t amf0, const char* name)
 {
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    srs_assert(any->is_ecma_array());
+
     SrsAmf0EcmaArray* obj = (SrsAmf0EcmaArray*)amf0;
     return (srs_amf0_t)obj->get_property(name);
 }
 
 void srs_amf0_ecma_array_property_set(srs_amf0_t amf0, const char* name, srs_amf0_t value)
 {
-    SrsAmf0EcmaArray* obj = (SrsAmf0EcmaArray*)amf0;
-    SrsAmf0Any* any = (SrsAmf0Any*)value;
-    obj->set(name, any);
-}
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    srs_assert(any->is_ecma_array());
 
-void srs_amf0_ecma_array_clear(srs_amf0_t amf0)
-{
     SrsAmf0EcmaArray* obj = (SrsAmf0EcmaArray*)amf0;
-    obj->clear();
+    any = (SrsAmf0Any*)value;
+    obj->set(name, any);
 }
 
 int srs_amf0_strict_array_property_count(srs_amf0_t amf0)
 {
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    srs_assert(any->is_strict_array());
+
     SrsAmf0StrictArray * obj = (SrsAmf0StrictArray*)amf0;
     return obj->count();
 }
 
 srs_amf0_t srs_amf0_strict_array_property_at(srs_amf0_t amf0, int index)
 {
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    srs_assert(any->is_strict_array());
+
     SrsAmf0StrictArray* obj = (SrsAmf0StrictArray*)amf0;
     return (srs_amf0_t)obj->at(index);
 }
 
 void srs_amf0_strict_array_append(srs_amf0_t amf0, srs_amf0_t value)
 {
+    SrsAmf0Any* any = (SrsAmf0Any*)amf0;
+    srs_assert(any->is_strict_array());
+
     SrsAmf0StrictArray* obj = (SrsAmf0StrictArray*)amf0;
-    SrsAmf0Any* any = (SrsAmf0Any*)value;
+    any = (SrsAmf0Any*)value;
     obj->append(any);
 }
 

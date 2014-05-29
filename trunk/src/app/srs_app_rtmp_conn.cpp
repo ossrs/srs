@@ -99,7 +99,7 @@ int SrsRtmpConn::do_cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    srs_trace("serve client, peer ip=%s", ip.c_str());
+    srs_trace("serve client ip=%s", ip.c_str());
 
     rtmp->set_recv_timeout(SRS_RECV_TIMEOUT_US);
     rtmp->set_send_timeout(SRS_SEND_TIMEOUT_US);
@@ -140,7 +140,7 @@ int SrsRtmpConn::do_cycle()
     }
     srs_verbose("check vhost success.");
     
-    srs_trace("rtmp connect app success. "
+    srs_trace("connect app, "
         "tcUrl=%s, pageUrl=%s, swfUrl=%s, schema=%s, vhost=%s, port=%s, app=%s", 
         req->tcUrl.c_str(), req->pageUrl.c_str(), req->swfUrl.c_str(), 
         req->schema.c_str(), req->vhost.c_str(), req->port.c_str(),
@@ -254,11 +254,13 @@ int SrsRtmpConn::stream_service_cycle()
         
     SrsRtmpConnType type;
     if ((ret = rtmp->identify_client(res->stream_id, type, req->stream, req->duration)) != ERROR_SUCCESS) {
-        srs_error("identify client failed. ret=%d", ret);
+        if (!srs_is_client_gracefully_close(ret)) {
+            srs_error("identify client failed. ret=%d", ret);
+        }
         return ret;
     }
     req->strip();
-    srs_trace("identify client success. type=%s, stream_name=%s, duration=%.2f", 
+    srs_trace("client identified, type=%s, stream_name=%s, duration=%.2f", 
         srs_client_type_string(type).c_str(), req->stream.c_str(), req->duration);
 
     // client is identified, set the timeout to service timeout.

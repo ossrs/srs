@@ -1041,7 +1041,7 @@ int SrsSimpleHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrsP
         return ret;
     }
     
-    srs_trace("simple handshake with client success.");
+    srs_trace("simple handshake success.");
     
     return ret;
 }
@@ -1083,7 +1083,7 @@ int SrsSimpleHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsP
     }
     srs_verbose("simple handshake write c2 success.");
     
-    srs_trace("simple handshake with server success.");
+    srs_trace("simple handshake success.");
     
     return ret;
 }
@@ -1189,7 +1189,7 @@ int SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrs
     // never verify c2, for ffmpeg will failed.
     // it's ok for flash.
     
-    srs_trace("complex handshake with client success");
+    srs_trace("complex handshake success");
     
     return ret;
 }
@@ -1269,7 +1269,7 @@ int SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrs
     }
     srs_verbose("complex handshake write c2 success.");
     
-    srs_trace("complex handshake with server success.");
+    srs_trace("complex handshake success.");
     
     return ret;
 }
