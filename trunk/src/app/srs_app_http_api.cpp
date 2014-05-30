@@ -731,8 +731,8 @@ int SrsHttpApi::process_request(SrsSocket* skt, SrsHttpMessage* req)
         return ret;
     }
     
-    srs_trace("http request parsed, method=%d, url=%s, content-length=%"PRId64"", 
-        req->method(), req->url().c_str(), req->content_length());
+    srs_trace("HTTP %s %s, content-length=%"PRId64"", 
+        req->method_str().c_str(), req->url().c_str(), req->content_length());
     
     // TODO: maybe need to parse the url.
     std::string url = req->path();

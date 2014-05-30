@@ -584,6 +584,27 @@ u_int8_t SrsHttpMessage::method()
     return (u_int8_t)_header.method;
 }
 
+string SrsHttpMessage::method_str()
+{
+    if (is_http_get()) {
+        return "GET";
+    }
+    if (is_http_put()) {
+        return "PUT";
+    }
+    if (is_http_post()) {
+        return "POST";
+    }
+    if (is_http_delete()) {
+        return "DELETE";
+    }
+    if (is_http_options()) {
+        return "OPTIONS";
+    }
+    
+    return "OTHER";
+}
+
 bool SrsHttpMessage::is_http_get()
 {
     return _header.method == HTTP_GET;
@@ -602,6 +623,11 @@ bool SrsHttpMessage::is_http_post()
 bool SrsHttpMessage::is_http_delete()
 {
     return _header.method == HTTP_DELETE;
+}
+
+bool SrsHttpMessage::is_http_options()
+{
+    return _header.method == HTTP_OPTIONS;
 }
 
 string SrsHttpMessage::uri()

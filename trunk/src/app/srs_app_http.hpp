@@ -337,10 +337,12 @@ public:
 public:
     virtual bool is_complete();
     virtual u_int8_t method();
+    virtual std::string method_str();
     virtual bool is_http_get();
     virtual bool is_http_put();
     virtual bool is_http_post();
     virtual bool is_http_delete();
+    virtual bool is_http_options();
     virtual std::string uri();
     virtual std::string url();
     virtual std::string host();

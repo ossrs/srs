@@ -514,7 +514,7 @@ int SrsHttpConn::do_cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    srs_trace("http get peer ip success. ip=%s", ip.c_str());
+    srs_trace("HTTP client ip=%s", ip.c_str());
     
     // initialize parser
     if ((ret = parser->initialize(HTTP_REQUEST)) != ERROR_SUCCESS) {
@@ -559,8 +559,8 @@ int SrsHttpConn::process_request(SrsSocket* skt, SrsHttpMessage* req)
         return ret;
     }
     
-    srs_trace("http request parsed, method=%d, url=%s, content-length=%"PRId64"", 
-        req->method(), req->url().c_str(), req->content_length());
+    srs_trace("HTTP %s %s, content-length=%"PRId64"", 
+        req->method_str().c_str(), req->url().c_str(), req->content_length());
     
     // TODO: maybe need to parse the url.
     std::string url = req->path();

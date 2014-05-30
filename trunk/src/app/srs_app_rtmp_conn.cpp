@@ -99,7 +99,7 @@ int SrsRtmpConn::do_cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    srs_trace("serve client ip=%s", ip.c_str());
+    srs_trace("RTMP client ip=%s", ip.c_str());
 
     rtmp->set_recv_timeout(SRS_RECV_TIMEOUT_US);
     rtmp->set_send_timeout(SRS_SEND_TIMEOUT_US);
