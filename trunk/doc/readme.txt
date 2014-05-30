@@ -45,6 +45,9 @@ rtmp.part3.Commands-Messages.pdf
 rtmp_specification_1.0.pdf
     adobe rtmp标准。
     
+rtmfp-rfc7016.pdf
+    adobe RTMFP, http://tools.ietf.org/html/rfc7016.
+    
 flv_v10_1.pdf
 video_file_format_spec_v10_1.pdf
     adobe f4v/flv标准。
