@@ -50,7 +50,7 @@ public:
 * protocol recv data from socket, put into buffer, decode to RTMP message.
 * protocol encode RTMP message to bytes, put into buffer, send to socket.
 */
-class SrsBuffer
+ class SrsBuffer
 {
 private:
     std::vector<char> data;
@@ -58,14 +58,34 @@ public:
     SrsBuffer();
     virtual ~SrsBuffer();
 public:
-    virtual int size();
-    virtual bool empty();
+    /**
+    * get the length of buffer.
+    * never negative, empty if zero.
+    */
+    virtual int length();
+    /**
+    * get the buffer bytes.
+    * @return the bytes, NULL if empty.
+    */
     virtual char* bytes();
+    /**
+    * erase size of bytes from begin.
+    * if size equals to length(), clear buffer.
+    * @param size
+    */
     virtual void erase(int size);
-    virtual void clear();
+    /**
+    * append specified bytes to buffer.
+    * @param size the size of bytes, assert positive.
+    */
     virtual void append(const char* bytes, int size);
 public:
-    virtual int ensure_buffer_bytes(ISrsBufferReader* skt, int required_size);
+    /**
+    * grow buffer to the required size, loop to read from skt to fill.
+    * @param reader, read more bytes from reader to fill the buffer to required size.
+    * @param required_size, loop to fill to ensure buffer size to required.
+    */
+    virtual int grow(ISrsBufferReader* reader, int required_size);
 };
 
 #endif

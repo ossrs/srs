@@ -552,7 +552,7 @@ char* SrsHttpMessage::http_ts_send_buffer()
 void SrsHttpMessage::reset()
 {
     _state = SrsHttpParseStateInit;
-    _body->clear();
+    _body->erase(_body->length());
     _url = "";
 }
 
@@ -666,8 +666,8 @@ string SrsHttpMessage::body()
 {
     std::string b;
     
-    if (_body && !_body->empty()) {
-        b.append(_body->bytes(), _body->size());
+    if (_body && _body->length() > 0) {
+        b.append(_body->bytes(), _body->length());
     }
     
     return b;
@@ -675,16 +675,12 @@ string SrsHttpMessage::body()
 
 char* SrsHttpMessage::body_raw()
 {
-    if (_body && !_body->empty()) {
-        return _body->bytes();
-    }
-    
-    return NULL;
+    return _body? _body->bytes() : NULL;
 }
 
 int64_t SrsHttpMessage::body_size()
 {
-    return (int64_t)_body->size();
+    return (int64_t)_body->length();
 }
 
 int64_t SrsHttpMessage::content_length()

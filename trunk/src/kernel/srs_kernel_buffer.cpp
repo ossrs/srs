@@ -44,43 +44,38 @@ SrsBuffer::~SrsBuffer()
 {
 }
 
-int SrsBuffer::size()
+int SrsBuffer::length()
 {
-    return (int)data.size();
-}
-
-bool SrsBuffer::empty()
-{
-    return size() <= 0;
+    int len = (int)data.size();
+    srs_assert(len >= 0);
+    return len;
 }
 
 char* SrsBuffer::bytes()
 {
-    return &data.at(0);
+    return (length() == 0)? NULL : &data.at(0);
 }
 
-void SrsBuffer::erase(int _size)
+void SrsBuffer::erase(int size)
 {
-    if (_size == size()) {
-        clear();
+    srs_assert(size > 0);
+    
+    if (size == length()) {
+        data.clear();
         return;
     }
     
-    data.erase(data.begin(), data.begin() + _size);
-}
-
-void SrsBuffer::clear()
-{
-    data.clear();
+    data.erase(data.begin(), data.begin() + size);
 }
 
 void SrsBuffer::append(const char* bytes, int size)
 {
     srs_assert(size > 0);
+
     data.insert(data.end(), bytes, bytes + size);
 }
 
-int SrsBuffer::ensure_buffer_bytes(ISrsBufferReader* skt, int required_size)
+int SrsBuffer::grow(ISrsBufferReader* reader, int required_size)
 {
     int ret = ERROR_SUCCESS;
 
@@ -90,11 +85,11 @@ int SrsBuffer::ensure_buffer_bytes(ISrsBufferReader* skt, int required_size)
         return ret;
     }
 
-    while (size() < required_size) {
+    while (length() < required_size) {
         char buffer[SOCKET_READ_SIZE];
         
         ssize_t nread;
-        if ((ret = skt->read(buffer, SOCKET_READ_SIZE, &nread)) != ERROR_SUCCESS) {
+        if ((ret = reader->read(buffer, SOCKET_READ_SIZE, &nread)) != ERROR_SUCCESS) {
             return ret;
         }
         
