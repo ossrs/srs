@@ -1037,6 +1037,7 @@ SrsAmf0Any* SrsAmf0EcmaArray::ensure_property_number(string name)
 SrsAmf0StrictArray::SrsAmf0StrictArray()
 {
     marker = RTMP_AMF0_StrictArray;
+    _count = 0;
 }
 
 SrsAmf0StrictArray::~SrsAmf0StrictArray()
