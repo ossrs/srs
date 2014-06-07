@@ -72,11 +72,11 @@ int64_t SrsSocket::get_send_bytes()
     return send_bytes;
 }
 
-int SrsSocket::read(const void* buf, size_t size, ssize_t* nread)
+int SrsSocket::read(void* buf, size_t size, ssize_t* nread)
 {
     int ret = ERROR_SUCCESS;
     
-    ssize_t nb_read = st_read(stfd, (void*)buf, size, recv_timeout);
+    ssize_t nb_read = st_read(stfd, buf, size, recv_timeout);
     if (nread) {
         *nread = nb_read;
     }
@@ -100,11 +100,11 @@ int SrsSocket::read(const void* buf, size_t size, ssize_t* nread)
     return ret;
 }
 
-int SrsSocket::read_fully(const void* buf, size_t size, ssize_t* nread)
+int SrsSocket::read_fully(void* buf, size_t size, ssize_t* nread)
 {
     int ret = ERROR_SUCCESS;
     
-    ssize_t nb_read = st_read_fully(stfd, (void*)buf, size, recv_timeout);
+    ssize_t nb_read = st_read_fully(stfd, buf, size, recv_timeout);
     if (nread) {
         *nread = nb_read;
     }
@@ -128,11 +128,11 @@ int SrsSocket::read_fully(const void* buf, size_t size, ssize_t* nread)
     return ret;
 }
 
-int SrsSocket::write(const void* buf, size_t size, ssize_t* nwrite)
+int SrsSocket::write(void* buf, size_t size, ssize_t* nwrite)
 {
     int ret = ERROR_SUCCESS;
     
-    ssize_t nb_write = st_write(stfd, (void*)buf, size, send_timeout);
+    ssize_t nb_write = st_write(stfd, buf, size, send_timeout);
     if (nwrite) {
         *nwrite = nb_write;
     }

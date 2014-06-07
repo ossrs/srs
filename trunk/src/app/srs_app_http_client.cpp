@@ -83,7 +83,7 @@ int SrsHttpClient::post(SrsHttpUri* uri, string req, string& res)
     SrsSocket skt(stfd);
     
     std::string data = ss.str();
-    if ((ret = skt.write(data.c_str(), data.length(), NULL)) != ERROR_SUCCESS) {
+    if ((ret = skt.write((void*)data.c_str(), data.length(), NULL)) != ERROR_SUCCESS) {
         // disconnect when error.
         disconnect();
         

@@ -49,12 +49,12 @@ bool MockEmptyIO::is_never_timeout(int64_t /*timeout_us*/)
     return true;
 }
 
-int MockEmptyIO::read_fully(const void* /*buf*/, size_t /*size*/, ssize_t* /*nread*/)
+int MockEmptyIO::read_fully(void* /*buf*/, size_t /*size*/, ssize_t* /*nread*/)
 {
     return ERROR_SUCCESS;
 }
 
-int MockEmptyIO::write(const void* /*buf*/, size_t /*size*/, ssize_t* /*nwrite*/)
+int MockEmptyIO::write(void* /*buf*/, size_t /*size*/, ssize_t* /*nwrite*/)
 {
     return ERROR_SUCCESS;
 }
@@ -92,7 +92,7 @@ int MockEmptyIO::writev(const iovec */*iov*/, int /*iov_size*/, ssize_t* /*nwrit
     return ERROR_SUCCESS;
 }
 
-int MockEmptyIO::read(const void* /*buf*/, size_t /*size*/, ssize_t* /*nread*/)
+int MockEmptyIO::read(void* /*buf*/, size_t /*size*/, ssize_t* /*nread*/)
 {
     return ERROR_SUCCESS;
 }

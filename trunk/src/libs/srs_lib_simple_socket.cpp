@@ -78,11 +78,11 @@ int SimpleSocketStream::connect(const char* server_ip, int port)
 }
 
 // ISrsBufferReader
-int SimpleSocketStream::read(const void* buf, size_t size, ssize_t* nread)
+int SimpleSocketStream::read(void* buf, size_t size, ssize_t* nread)
 {
     int ret = ERROR_SUCCESS;
     
-    *nread = ::recv(fd, (void*)buf, size, 0);
+    *nread = ::recv(fd, buf, size, 0);
     
     // On success a non-negative integer indicating the number of bytes actually read is returned 
     // (a value of 0 means the network connection is closed or end of file is reached).
@@ -160,7 +160,7 @@ bool SimpleSocketStream::is_never_timeout(int64_t timeout_us)
     return timeout_us == (int64_t)ST_UTIME_NO_TIMEOUT;
 }
 
-int SimpleSocketStream::read_fully(const void* buf, size_t size, ssize_t* nread)
+int SimpleSocketStream::read_fully(void* buf, size_t size, ssize_t* nread)
 {
     int ret = ERROR_SUCCESS;
     
@@ -184,7 +184,7 @@ int SimpleSocketStream::read_fully(const void* buf, size_t size, ssize_t* nread)
     return ret;
 }
 
-int SimpleSocketStream::write(const void* buf, size_t size, ssize_t* nwrite)
+int SimpleSocketStream::write(void* buf, size_t size, ssize_t* nwrite)
 {
     int ret = ERROR_SUCCESS;
     

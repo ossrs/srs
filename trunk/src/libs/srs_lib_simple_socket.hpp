@@ -52,7 +52,7 @@ public:
     virtual int connect(const char* server, int port);
 // ISrsBufferReader
 public:
-    virtual int read(const void* buf, size_t size, ssize_t* nread);
+    virtual int read(void* buf, size_t size, ssize_t* nread);
 // ISrsProtocolReader
 public:
     virtual void set_recv_timeout(int64_t timeout_us);
@@ -67,8 +67,8 @@ public:
 // ISrsProtocolReaderWriter
 public:
     virtual bool is_never_timeout(int64_t timeout_us);
-    virtual int read_fully(const void* buf, size_t size, ssize_t* nread);
-    virtual int write(const void* buf, size_t size, ssize_t* nwrite);
+    virtual int read_fully(void* buf, size_t size, ssize_t* nread);
+    virtual int write(void* buf, size_t size, ssize_t* nwrite);
 };
 
 #endif

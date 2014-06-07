@@ -60,7 +60,7 @@ void SrsBuffer::erase(int size)
 {
     srs_assert(size > 0);
     
-    if (size == length()) {
+    if (size >= length()) {
         data.clear();
         return;
     }

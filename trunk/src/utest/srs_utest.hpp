@@ -34,6 +34,21 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // we add an empty macro for upp to show the smart tips.
 #define VOID
 
+// the asserts of gtest:
+//    * {ASSERT|EXPECT}_EQ(expected, actual): Tests that expected == actual
+//    * {ASSERT|EXPECT}_NE(v1, v2):           Tests that v1 != v2
+//    * {ASSERT|EXPECT}_LT(v1, v2):           Tests that v1 < v2
+//    * {ASSERT|EXPECT}_LE(v1, v2):           Tests that v1 <= v2
+//    * {ASSERT|EXPECT}_GT(v1, v2):           Tests that v1 > v2
+//    * {ASSERT|EXPECT}_GE(v1, v2):           Tests that v1 >= v2
+//    * {ASSERT|EXPECT}_STREQ(s1, s2):     Tests that s1 == s2
+//    * {ASSERT|EXPECT}_STRNE(s1, s2):     Tests that s1 != s2
+//    * {ASSERT|EXPECT}_STRCASEEQ(s1, s2): Tests that s1 == s2, ignoring case
+//    * {ASSERT|EXPECT}_STRCASENE(s1, s2): Tests that s1 != s2, ignoring case
+//    * {ASSERT|EXPECT}_FLOAT_EQ(expected, actual): Tests that two float values are almost equal.
+//    * {ASSERT|EXPECT}_DOUBLE_EQ(expected, actual): Tests that two double values are almost equal.
+//    * {ASSERT|EXPECT}_NEAR(v1, v2, abs_error): Tests that v1 and v2 are within the given distance to each other.
+
 #include <srs_protocol_io.hpp>
 
 class MockEmptyIO : public ISrsProtocolReaderWriter
@@ -46,8 +61,8 @@ public:
     virtual bool is_never_timeout(int64_t timeout_us);
 // for handshake.
 public:
-    virtual int read_fully(const void* buf, size_t size, ssize_t* nread);
-    virtual int write(const void* buf, size_t size, ssize_t* nwrite);
+    virtual int read_fully(void* buf, size_t size, ssize_t* nread);
+    virtual int write(void* buf, size_t size, ssize_t* nwrite);
 // for protocol
 public:
     virtual void set_recv_timeout(int64_t timeout_us);
@@ -61,7 +76,7 @@ public:
     virtual int writev(const iovec *iov, int iov_size, ssize_t* nwrite);
 // for protocol/amf0/msg-codec
 public:
-    virtual int read(const void* buf, size_t size, ssize_t* nread);
+    virtual int read(void* buf, size_t size, ssize_t* nread);
 };
 
 #endif

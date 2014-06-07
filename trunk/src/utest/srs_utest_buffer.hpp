@@ -21,52 +21,26 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_APP_SOCKET_HPP
-#define SRS_APP_SOCKET_HPP
+#ifndef SRS_UTEST_BUFFER_HPP
+#define SRS_UTEST_BUFFER_HPP
 
 /*
-#include <srs_app_socket.hpp>
+#include <srs_utest_buffer.hpp>
 */
+#include <srs_utest.hpp>
 
-#include <srs_core.hpp>
+#include <string>
+#include <srs_kernel_buffer.hpp>
 
-#include <srs_app_st.hpp>
-#include <srs_protocol_io.hpp>
-
-/**
-* the socket provides TCP socket over st,
-* that is, the sync socket mechanism.
-*/
-class SrsSocket : public ISrsProtocolReaderWriter
+class MockBufferReader: public ISrsBufferReader
 {
 private:
-    int64_t recv_timeout;
-    int64_t send_timeout;
-    int64_t recv_bytes;
-    int64_t send_bytes;
-    st_netfd_t stfd;
+    std::string str;
 public:
-    SrsSocket(st_netfd_t client_stfd);
-    virtual ~SrsSocket();
+    MockBufferReader(const char* data);
+    virtual ~MockBufferReader();
 public:
-    virtual bool is_never_timeout(int64_t timeout_us);
-    virtual void set_recv_timeout(int64_t timeout_us);
-    virtual int64_t get_recv_timeout();
-    virtual void set_send_timeout(int64_t timeout_us);
-    virtual int64_t get_send_timeout();
-    virtual int64_t get_recv_bytes();
-    virtual int64_t get_send_bytes();
-public:
-    /**
-    * @param nread, the actual read bytes, ignore if NULL.
-    */
     virtual int read(void* buf, size_t size, ssize_t* nread);
-    virtual int read_fully(void* buf, size_t size, ssize_t* nread);
-    /**
-    * @param nwrite, the actual write bytes, ignore if NULL.
-    */
-    virtual int write(void* buf, size_t size, ssize_t* nwrite);
-    virtual int writev(const iovec *iov, int iov_size, ssize_t* nwrite);
 };
 
 #endif

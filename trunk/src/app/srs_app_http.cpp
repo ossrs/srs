@@ -328,7 +328,7 @@ SrsHttpHandler* SrsHttpHandler::res_body(stringstream& ss, string body)
 
 int SrsHttpHandler::res_flush(SrsSocket* skt, stringstream& ss)
 {
-    return skt->write(ss.str().c_str(), ss.str().length(), NULL);
+    return skt->write((void*)ss.str().c_str(), ss.str().length(), NULL);
 }
 
 int SrsHttpHandler::res_options(SrsSocket* skt)

@@ -78,8 +78,8 @@ public:
     virtual bool is_never_timeout(int64_t timeout_us) = 0;
 // for handshake.
 public:
-    virtual int read_fully(const void* buf, size_t size, ssize_t* nread) = 0;
-    virtual int write(const void* buf, size_t size, ssize_t* nwrite) = 0;
+    virtual int read_fully(void* buf, size_t size, ssize_t* nread) = 0;
+    virtual int write(void* buf, size_t size, ssize_t* nwrite) = 0;
 };
 
 #endif

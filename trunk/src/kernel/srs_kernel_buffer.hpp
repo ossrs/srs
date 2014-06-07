@@ -42,15 +42,14 @@ public:
     virtual ~ISrsBufferReader();
 // for protocol/amf0/msg-codec
 public:
-    virtual int read(const void* buf, size_t size, ssize_t* nread) = 0;
+    virtual int read(void* buf, size_t size, ssize_t* nread) = 0;
 };
 
 /**
 * the buffer provices bytes cache for protocol. generally, 
 * protocol recv data from socket, put into buffer, decode to RTMP message.
-* protocol encode RTMP message to bytes, put into buffer, send to socket.
 */
- class SrsBuffer
+class SrsBuffer
 {
 private:
     std::vector<char> data;
@@ -59,8 +58,8 @@ public:
     virtual ~SrsBuffer();
 public:
     /**
-    * get the length of buffer.
-    * never negative, empty if zero.
+    * get the length of buffer. empty if zero.
+    * @remark assert length() is not negative.
     */
     virtual int length();
     /**
@@ -70,20 +69,24 @@ public:
     virtual char* bytes();
     /**
     * erase size of bytes from begin.
-    * if size equals to length(), clear buffer.
-    * @param size
+    * @param size to erase size of bytes. 
+    *       clear if size greater than or equals to length()
+    * @remark assert size is positive.
     */
     virtual void erase(int size);
     /**
     * append specified bytes to buffer.
-    * @param size the size of bytes, assert positive.
+    * @param size the size of bytes
+    * @remark assert size is positive.
     */
     virtual void append(const char* bytes, int size);
 public:
     /**
     * grow buffer to the required size, loop to read from skt to fill.
     * @param reader, read more bytes from reader to fill the buffer to required size.
-    * @param required_size, loop to fill to ensure buffer size to required.
+    * @param required_size, loop to fill to ensure buffer size to required. 
+    * @return an int error code, error if required_size negative.
+    * @remark, we actually maybe read more than required_size, maybe 4k for example.
     */
     virtual int grow(ISrsBufferReader* reader, int required_size);
 };
