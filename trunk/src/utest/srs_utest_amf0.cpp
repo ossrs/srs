@@ -874,6 +874,11 @@ VOID TEST(AMF0Test, ApiAnyAssert)
         SrsAutoFree(SrsAmf0Any, o);
         EXPECT_TRUE(o->is_ecma_array());
     }
+    if (true) {
+        o = SrsAmf0Any::strict_array();
+        SrsAutoFree(SrsAmf0Any, o);
+        EXPECT_TRUE(o->is_strict_array());
+    }
     
     // empty object
     if (true) {
@@ -891,6 +896,15 @@ VOID TEST(AMF0Test, ApiAnyAssert)
         s.reset();
         EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
         EXPECT_EQ(1+4+3, s.pos());
+    }
+    
+    // strict array
+    if (true) {
+        o = SrsAmf0Any::strict_array();
+        SrsAutoFree(SrsAmf0Any, o);
+        s.reset();
+        EXPECT_EQ(ERROR_SUCCESS, o->write(&s));
+        EXPECT_EQ(1+4, s.pos());
     }
 }
 
