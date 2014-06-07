@@ -239,14 +239,19 @@ int srs_publish_stream(srs_rtmp_t rtmp)
 
 const char* srs_type2string(int type)
 {
+    static const char* audio = "Audio";
+    static const char* video = "Video";
+    static const char* data = "Data";
+    static const char* unknown = "Unknown";
+    
     switch (type) {
-        case SRS_RTMP_TYPE_AUDIO: return "Audio";
-        case SRS_RTMP_TYPE_VIDEO: return "Video";
-        case SRS_RTMP_TYPE_SCRIPT: return "Data";
-        default: return "Unknown";
+        case SRS_RTMP_TYPE_AUDIO: return audio;
+        case SRS_RTMP_TYPE_VIDEO: return video;
+        case SRS_RTMP_TYPE_SCRIPT: return data;
+        default: return unknown;
     }
     
-    return "Unknown";
+    return unknown;
 }
 
 int srs_read_packet(srs_rtmp_t rtmp, int* type, u_int32_t* timestamp, char** data, int* size)
@@ -353,14 +358,6 @@ int srs_write_packet(srs_rtmp_t rtmp, int type, u_int32_t timestamp, char* data,
     }
     
     return ret;
-}
-
-int srs_ssl_enabled()
-{
-#ifndef SRS_AUTO_SSL
-    return false;
-#endif
-    return true;
 }
 
 int srs_version_major()

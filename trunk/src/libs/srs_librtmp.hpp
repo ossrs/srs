@@ -109,6 +109,8 @@ int srs_publish_stream(srs_rtmp_t rtmp);
 *     SRS_RTMP_TYPE_VIDEO to "Video"
 *     SRS_RTMP_TYPE_SCRIPT to "Data"
 *     otherwise, "Unknown"
+* @remark user never free the return char*, 
+*   it's static shared const string.
 */
 const char* srs_type2string(int type);
 /**
@@ -130,14 +132,6 @@ const char* srs_type2string(int type);
 */
 int srs_read_packet(srs_rtmp_t rtmp, int* type, u_int32_t* timestamp, char** data, int* size);
 int srs_write_packet(srs_rtmp_t rtmp, int type, u_int32_t timestamp, char* data, int size);
-
-/**
-* whether srs is compiled with ssl,
-* that is, compile srs with ssl: ./configure --with-ssl,.
-* if no ssl, complex handshake always error.
-* @return 0 for false, otherwise, true.
-*/
-int srs_ssl_enabled();
 
 /**
 * get protocol stack version
