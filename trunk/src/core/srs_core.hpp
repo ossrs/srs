@@ -85,30 +85,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // it's recomments to free each elem explicit.
 // so we remove the srs_freepa utility.
 
-// compare
-#define srs_min(a, b) (((a) < (b))? (a) : (b))
-#define srs_max(a, b) (((a) < (b))? (b) : (a))
-
-// signal defines.
-#define SIGNAL_RELOAD SIGHUP
-
-#include <string>
-// replace old_str to new_str of str
-extern std::string srs_string_replace(std::string str, std::string old_str, std::string new_str);
-// trim char in trim_chars of str
-extern std::string srs_string_trim_end(std::string str, std::string trim_chars);
-// trim char in trim_chars of str
-extern std::string srs_string_trim_start(std::string str, std::string trim_chars);
-// remove char in remove_chars of str
-extern std::string srs_string_remove(std::string str, std::string remove_chars);
-// whether string end with
-extern bool srs_string_ends_with(std::string str, std::string flag);
-
-// dns resolve utility, return the resolved ip address.
-extern std::string srs_dns_resolve(std::string host);
-// whether system is little endian
-extern bool srs_is_little_endian();
-
 /**
 * disable copy constructor of class
 */
@@ -119,9 +95,5 @@ extern bool srs_is_little_endian();
         */ \
         className(const className&); \
         className& operator= (const className&)
-
-// const time for st to convert to us
-#define SRS_TIME_MILLISECONDS 1000
-#define SRS_TIME_SECONDS 1000000
 
 #endif

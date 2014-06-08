@@ -26,6 +26,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdlib.h>
 
 #include <srs_kernel_log.hpp>
+#include <srs_kernel_utility.hpp>
 
 void srs_vhost_resolve(std::string& vhost, std::string& app)
 {

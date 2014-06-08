@@ -33,6 +33,7 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_app_ffmpeg.hpp>
+#include <srs_kernel_utility.hpp>
 
 #ifdef SRS_AUTO_TRANSCODE
 

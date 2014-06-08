@@ -23,6 +23,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_utest_buffer.hpp>
 
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_utility.hpp>
 
 MockBufferReader::MockBufferReader(const char* data)
 {

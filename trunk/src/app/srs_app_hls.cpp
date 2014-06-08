@@ -43,6 +43,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_protocol_rtmp.hpp>
 #include <srs_app_pithy_print.hpp>
+#include <srs_kernel_utility.hpp>
 
 // max PES packets size to flush the video.
 #define SRS_AUTO_HLS_AUDIO_CACHE_SIZE 1024 * 1024

@@ -35,6 +35,7 @@ using namespace std;
 #include <srs_app_http_api.hpp>
 #include <srs_app_http_conn.hpp>
 #include <srs_app_json.hpp>
+#include <srs_kernel_utility.hpp>
 
 #define SRS_DEFAULT_HTTP_PORT 80
 

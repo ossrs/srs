@@ -41,6 +41,7 @@ using namespace std;
 #include <srs_app_json.hpp>
 #include <srs_app_config.hpp>
 #include <srs_kernel_flv.hpp>
+#include <srs_kernel_utility.hpp>
 
 #define SRS_HTTP_DEFAULT_PAGE "index.html"
 

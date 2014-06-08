@@ -346,7 +346,7 @@ function write_nginx_html5()
 END
 }
 # create the nginx dir, for http-server if not build nginx
-rm -rf ${SRS_OBJS}/nginx && mkdir -p ${SRS_OBJS}/nginx
+mkdir -p ${SRS_OBJS}/nginx
 # make nginx
 __SRS_BUILD_NGINX=NO; if [ $SRS_EMBEDED_CPU = NO ]; then if [ $SRS_NGINX = YES ]; then __SRS_BUILD_NGINX=YES; fi fi
 if [ $__SRS_BUILD_NGINX = YES ]; then

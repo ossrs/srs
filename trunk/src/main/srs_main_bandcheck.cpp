@@ -38,6 +38,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_config.hpp>
 #include <srs_app_log.hpp>
 #include <srs_app_server.hpp>
+#include <srs_kernel_utility.hpp>
 
 // kernel module.
 ISrsLog* _srs_log = new SrsFastLog();

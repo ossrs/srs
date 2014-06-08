@@ -40,6 +40,7 @@ using namespace std;
 #include <srs_app_dvr.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_app_edge.hpp>
+#include <srs_kernel_utility.hpp>
 
 #define CONST_MAX_JITTER_MS         500
 #define DEFAULT_FRAME_TIME_MS         40

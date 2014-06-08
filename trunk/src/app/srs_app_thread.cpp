@@ -26,6 +26,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 
+// const time for st to convert to us
+#define SRS_TIME_MILLISECONDS 1000
+#define SRS_TIME_SECONDS 1000000
+
 ISrsThreadHandler::ISrsThreadHandler()
 {
 }

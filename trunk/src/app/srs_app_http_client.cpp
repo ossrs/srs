@@ -33,6 +33,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_app_socket.hpp>
+#include <srs_kernel_utility.hpp>
 
 SrsHttpClient::SrsHttpClient()
 {

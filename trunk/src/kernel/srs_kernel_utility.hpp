@@ -30,9 +30,32 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+#include <string>
+
+// compare
+#define srs_min(a, b) (((a) < (b))? (a) : (b))
+#define srs_max(a, b) (((a) < (b))? (b) : (a))
+
 // get current system time in ms, use cache to avoid performance problem
 extern int64_t srs_get_system_time_ms();
 // the deamon st-thread will update it.
 extern void srs_update_system_time_ms();
+
+// dns resolve utility, return the resolved ip address.
+extern std::string srs_dns_resolve(std::string host);
+
+// whether system is little endian
+extern bool srs_is_little_endian();
+
+// replace old_str to new_str of str
+extern std::string srs_string_replace(std::string str, std::string old_str, std::string new_str);
+// trim char in trim_chars of str
+extern std::string srs_string_trim_end(std::string str, std::string trim_chars);
+// trim char in trim_chars of str
+extern std::string srs_string_trim_start(std::string str, std::string trim_chars);
+// remove char in remove_chars of str
+extern std::string srs_string_remove(std::string str, std::string remove_chars);
+// whether string end with
+extern bool srs_string_ends_with(std::string str, std::string flag);
 
 #endif

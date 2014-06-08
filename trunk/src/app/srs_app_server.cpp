@@ -46,6 +46,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_utility.hpp>
 #include <srs_app_heartbeat.hpp>
 
+// signal defines.
+#define SIGNAL_RELOAD SIGHUP
+
 #define SERVER_LISTEN_BACKLOG 512
 
 // system interval

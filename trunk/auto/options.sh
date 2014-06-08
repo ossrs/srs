@@ -70,6 +70,8 @@ SRS_PURE_RTMP=NO
 SRS_RTMP_HLS=NO
 # the most fast compile, nothing, only support vp6 RTMP.
 SRS_DISABLE_ALL=NO
+# all features is on
+SRS_ENABLE_ALL=NO
 #
 # calc
 # whether embed cpu, arm/mips
@@ -146,6 +148,7 @@ Presets:
   --pure-rtmp               only support RTMP with ssl.
   --rtmp-hls                only support RTMP+HLS with ssl.
   --disable-all             disable all features, only support vp6 RTMP.
+  --full                    enable all features.
   
 Conflicts:
   1. --with-gmc vs --with-gmp: 
@@ -229,6 +232,7 @@ function parse_user_option() {
         --disable-all)                  SRS_DISABLE_ALL=YES         ;;
         --pure-rtmp)                    SRS_PURE_RTMP=YES           ;;
         --rtmp-hls)                     SRS_RTMP_HLS=YES            ;;
+        --full)                         SRS_ENABLE_ALL=YES          ;;
         
         --use-sys-ssl)                  SRS_USE_SYS_SSL=YES         ;;
 
@@ -272,12 +276,14 @@ function apply_user_presets() {
         if [ $SRS_PURE_RTMP = NO ]; then
             if [ $SRS_FAST = NO ]; then
                 if [ $SRS_DISABLE_ALL = NO ]; then
-                    if [ $SRS_DEV = NO ]; then
-                        if [ $SRS_ARM_UBUNTU12 = NO ]; then
-                            if [ $SRS_MIPS_UBUNTU12 = NO ]; then
-                                if [ $SRS_PI = NO ]; then
-                                    if [ $SRS_X86_X64 = NO ]; then
-                                        SRS_X86_X64=YES; opt="--x86-x64 $opt";
+                    if [ $SRS_ENABLE_ALL = NO ]; then
+                        if [ $SRS_DEV = NO ]; then
+                            if [ $SRS_ARM_UBUNTU12 = NO ]; then
+                                if [ $SRS_MIPS_UBUNTU12 = NO ]; then
+                                    if [ $SRS_PI = NO ]; then
+                                        if [ $SRS_X86_X64 = NO ]; then
+                                            SRS_X86_X64=YES; opt="--x86-x64 $opt";
+                                        fi
                                     fi
                                 fi
                             fi
@@ -313,6 +319,31 @@ function apply_user_presets() {
         SRS_BWTC=NO
         SRS_RESEARCH=NO
         SRS_UTEST=NO
+        SRS_GPERF=NO
+        SRS_GPERF_MC=NO
+        SRS_GPERF_MP=NO
+        SRS_GPERF_CP=NO
+        SRS_GPROF=NO
+        SRS_STATIC=NO
+    fi
+
+    # all enabled.
+    if [ $SRS_ENABLE_ALL = YES ]; then
+        SRS_HLS=YES
+        SRS_DVR=YES
+        SRS_NGINX=YES
+        SRS_SSL=YES
+        SRS_FFMPEG_TOOL=YES
+        SRS_TRANSCODE=YES
+        SRS_INGEST=YES
+        SRS_HTTP_PARSER=YES
+        SRS_HTTP_CALLBACK=YES
+        SRS_HTTP_SERVER=YES
+        SRS_HTTP_API=YES
+        SRS_LIBRTMP=YES
+        SRS_BWTC=YES
+        SRS_RESEARCH=YES
+        SRS_UTEST=YES
         SRS_GPERF=NO
         SRS_GPERF_MC=NO
         SRS_GPERF_MP=NO
