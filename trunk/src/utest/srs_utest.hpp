@@ -49,34 +49,4 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //    * {ASSERT|EXPECT}_DOUBLE_EQ(expected, actual): Tests that two double values are almost equal.
 //    * {ASSERT|EXPECT}_NEAR(v1, v2, abs_error): Tests that v1 and v2 are within the given distance to each other.
 
-#include <srs_protocol_io.hpp>
-
-class MockEmptyIO : public ISrsProtocolReaderWriter
-{
-public:
-    MockEmptyIO();
-    virtual ~MockEmptyIO();
-// for protocol
-public:
-    virtual bool is_never_timeout(int64_t timeout_us);
-// for handshake.
-public:
-    virtual int read_fully(void* buf, size_t size, ssize_t* nread);
-    virtual int write(void* buf, size_t size, ssize_t* nwrite);
-// for protocol
-public:
-    virtual void set_recv_timeout(int64_t timeout_us);
-    virtual int64_t get_recv_timeout();
-    virtual int64_t get_recv_bytes();
-// for protocol
-public:
-    virtual void set_send_timeout(int64_t timeout_us);
-    virtual int64_t get_send_timeout();
-    virtual int64_t get_send_bytes();
-    virtual int writev(const iovec *iov, int iov_size, ssize_t* nwrite);
-// for protocol/amf0/msg-codec
-public:
-    virtual int read(void* buf, size_t size, ssize_t* nread);
-};
-
 #endif
