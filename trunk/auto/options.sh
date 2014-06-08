@@ -143,12 +143,12 @@ Presets:
   --pi                      for raspberry-pi(directly build), open features hls/ssl/static.
   --arm                     alias for --with-arm-ubuntu12
   --mips                    alias for --with-mips-ubuntu12
-  --dev                     for dev, open all features, no gperf/gprof/arm.
   --fast                    the most fast compile, nothing, only support vp6 RTMP.
   --pure-rtmp               only support RTMP with ssl.
   --rtmp-hls                only support RTMP+HLS with ssl.
   --disable-all             disable all features, only support vp6 RTMP.
-  --full                    enable all features.
+  --dev                     for dev, open all features, no nginx/gperf/gprof/arm.
+  --full                    enable all features, no gperf/gprof/arm.
   
 Conflicts:
   1. --with-gmc vs --with-gmp: 
