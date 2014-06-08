@@ -201,7 +201,7 @@ void SrsMessageQueue::shrink()
         SrsSharedPtrMessage* msg = msgs[i];
         
         if (msg->header.is_video()) {
-            if (SrsCodec::video_is_keyframe(msg->payload, msg->size)) {
+            if (SrsFlvCodec::video_is_keyframe(msg->payload, msg->size)) {
                 // the max frame index to remove.
                 iframe_index = i;
                 
@@ -363,7 +363,7 @@ int SrsGopCache::cache(SrsSharedPtrMessage* msg)
     }
     
     // clear gop cache when got key frame
-    if (msg->header.is_video() && SrsCodec::video_is_keyframe(msg->payload, msg->size)) {
+    if (msg->header.is_video() && SrsFlvCodec::video_is_keyframe(msg->payload, msg->size)) {
         srs_info("clear gop cache when got keyframe. vcount=%d, count=%d",
             cached_video_count, (int)gop_cache.size());
             
@@ -1012,7 +1012,7 @@ int SrsSource::on_audio(SrsMessage* audio)
 
     // cache the sequence header if h264
     // donot cache the sequence header to gop_cache, return here.
-    if (SrsCodec::audio_is_sequence_header(msg->payload, msg->size)) {
+    if (SrsFlvCodec::audio_is_sequence_header(msg->payload, msg->size)) {
         srs_freep(cache_sh_audio);
         cache_sh_audio = msg->copy();
         srs_trace("got audio sh, size=%d", msg->header.payload_length);
@@ -1102,7 +1102,7 @@ int SrsSource::on_video(SrsMessage* video)
 
     // cache the sequence header if h264
     // donot cache the sequence header to gop_cache, return here.
-    if (SrsCodec::video_is_sequence_header(msg->payload, msg->size)) {
+    if (SrsFlvCodec::video_is_sequence_header(msg->payload, msg->size)) {
         srs_freep(cache_sh_video);
         cache_sh_video = msg->copy();
         srs_trace("got video sh, size=%d", msg->header.payload_length);

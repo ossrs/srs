@@ -43,6 +43,8 @@ file
 	..\rtmp\srs_protocol_utility.hpp,
 	..\rtmp\srs_protocol_utility.cpp,
 	app readonly separator,
+	..\app\srs_app_avc_aac.hpp,
+	..\app\srs_app_avc_aac.cpp,
 	..\app\srs_app_bandwidth.hpp,
 	..\app\srs_app_bandwidth.cpp,
 	..\app\srs_app_conn.hpp,

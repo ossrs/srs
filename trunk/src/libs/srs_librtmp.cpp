@@ -540,12 +540,12 @@ flv_bool srs_flv_is_eof(int error_code)
 
 flv_bool srs_flv_is_sequence_header(char* data, int32_t size)
 {
-    return SrsCodec::video_is_sequence_header((int8_t*)data, (int)size);
+    return SrsFlvCodec::video_is_sequence_header((int8_t*)data, (int)size);
 }
 
 flv_bool srs_flv_is_keyframe(char* data, int32_t size)
 {
-    return SrsCodec::video_is_keyframe((int8_t*)data, (int)size);
+    return SrsFlvCodec::video_is_keyframe((int8_t*)data, (int)size);
 }
 
 srs_amf0_t srs_amf0_parse(char* data, int size, int* nparsed)

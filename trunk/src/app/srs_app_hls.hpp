@@ -41,7 +41,7 @@ class SrsMpegtsFrame;
 class SrsAmf0Object;
 class SrsRtmpJitter;
 class SrsTSMuxer;
-class SrsCodec;
+class SrsAvcAacCodec;
 class SrsRequest;
 class SrsPithyPrint;
 class SrsSource;
@@ -247,11 +247,11 @@ public:
     /**
     * write audio to cache, if need to flush, flush to muxer.
     */
-    virtual int write_audio(SrsCodec* codec, SrsHlsMuxer* muxer, int64_t pts, SrsCodecSample* sample);
+    virtual int write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t pts, SrsCodecSample* sample);
     /**
     * write video to muxer.
     */
-    virtual int write_video(SrsCodec* codec, SrsHlsMuxer* muxer, int64_t dts, SrsCodecSample* sample);
+    virtual int write_video(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t dts, SrsCodecSample* sample);
 private:
     /**
     * reopen the muxer for a new hls segment,
@@ -260,8 +260,8 @@ private:
     * so, user must reap_segment then flush_video to hls muxer.
     */
     virtual int reap_segment(std::string log_desc, SrsHlsMuxer* muxer, int64_t segment_start_dts);
-    virtual int cache_audio(SrsCodec* codec, SrsCodecSample* sample);
-    virtual int cache_video(SrsCodec* codec, SrsCodecSample* sample);
+    virtual int cache_audio(SrsAvcAacCodec* codec, SrsCodecSample* sample);
+    virtual int cache_video(SrsAvcAacCodec* codec, SrsCodecSample* sample);
 };
 
 /**
@@ -277,7 +277,7 @@ private:
 private:
     bool hls_enabled;
     SrsSource* source;
-    SrsCodec* codec;
+    SrsAvcAacCodec* codec;
     SrsCodecSample* sample;
     SrsRtmpJitter* jitter;
     SrsPithyPrint* pithy_print;
