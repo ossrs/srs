@@ -30,8 +30,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
-class SrsStream;
-
 // AACPacketType IF SoundFormat == 10 UI8
 // The following values are defined:
 //     0 = AAC sequence header
