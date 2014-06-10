@@ -32,6 +32,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_codec.hpp>
 
+class SrsStream;
+
 #define SRS_MAX_CODEC_SAMPLE 128
 
 // Sampling rate. The following values are defined:

@@ -3,7 +3,7 @@ GCC = gcc
 ifeq ($(HANDSHAKE),)
     ST_ALL      = help
 else
-    ST_ALL      = srs_flv_parser srs_flv_injecter srs_publish srs_play srs_ingest_flv srs_ingest_rtmp
+    ST_ALL      = srs_flv_parser srs_flv_injecter srs_publish srs_play srs_ingest_flv srs_ingest_rtmp srs_detect_rtmp
 endif
 
 .PHONY: default clean help ssl nossl
@@ -11,17 +11,19 @@ endif
 default: $(ST_ALL)
 
 help:
-	@echo "Usage: make <help>|<clean>|<srs_flv_parser>|<srs_flv_injecter>|<srs_publish>|<srs_play>|<srs_ingest_flv>|<srs_ingest_rtmp>"
+	@echo "Usage: make <help>|<clean>|<ssl>|<nossl>"
 	@echo "     help                    display this help"
 	@echo "     clean                   cleanup build"
 	@echo "     ssl                     all tools link ssl"
 	@echo "     nossl                   all tools never link ssl"
+	@echo "ssl/nossl will build the following tools:"
 	@echo "     srs_flv_parser          parse flv file, print detail info."
 	@echo "     srs_flv_injecter        inject keyframes information to metadata."
 	@echo "     srs_publish             publish program using srs-librtmp"
 	@echo "     srs_play                play program using srs-librtmp"
 	@echo "     srs_ingest_flv          ingest flv file and publish to RTMP server."
 	@echo "     srs_ingest_rtmp         ingest RTMP and publish to RTMP server."
+	@echo "     srs_detect_rtmp         detect RTMP stream info."
 	@echo "Remark: about simple/complex handshake, see: http://blog.csdn.net/win_lin/article/details/13006803"
 	@echo "Remark: srs Makefile will auto invoke this by --with/without-ssl, "
 	@echo "     that is, if user specified ssl(by --with-ssl), srs will make this by 'make ssl'"
@@ -30,7 +32,7 @@ help:
 	@echo "Remark: before make this sample, user must make the srs, with/without ssl"
     
 clean:
-	@rm -f srs_flv_parser srs_flv_injecter srs_publish srs_play srs_ingest_flv srs_ingest_rtmp
+	@rm -f srs_flv_parser srs_flv_injecter srs_publish srs_play srs_ingest_flv srs_ingest_rtmp srs_detect_rtmp
 
 # srs library root
 SRS_OBJS = ../../objs
@@ -81,3 +83,6 @@ srs_ingest_flv: srs_ingest_flv.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIB
 
 srs_ingest_rtmp: srs_ingest_rtmp.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
 	$(GCC) srs_ingest_rtmp.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o srs_ingest_rtmp
+
+srs_detect_rtmp: srs_detect_rtmp.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
+	$(GCC) srs_detect_rtmp.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o srs_detect_rtmp
