@@ -51,6 +51,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_SOCKET_WRITE                  209
 #define ERROR_SOCKET_WAIT                   210
 #define ERROR_SOCKET_TIMEOUT                211
+#define ERROR_SOCKET_CONNECT                212
 //#define ERROR_SOCKET_GET_LOCAL_IP           212
 
 #define ERROR_RTMP_PLAIN_REQUIRED           300

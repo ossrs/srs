@@ -57,7 +57,7 @@ SimpleSocketStream::~SimpleSocketStream()
 int SimpleSocketStream::create_socket()
 {
     if((fd = ::socket(AF_INET, SOCK_STREAM, 0)) < 0){
-        return -1;
+        return ERROR_SOCKET_CREATE;
     }
 
     return ERROR_SUCCESS;
@@ -71,7 +71,7 @@ int SimpleSocketStream::connect(const char* server_ip, int port)
     addr.sin_addr.s_addr = inet_addr(server_ip);
     
     if(::connect(fd, (const struct sockaddr*)&addr, sizeof(sockaddr_in)) < 0){
-        return -1;
+        return ERROR_SOCKET_CONNECT;
     }
 
     return ERROR_SUCCESS;
