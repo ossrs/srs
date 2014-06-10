@@ -154,7 +154,8 @@ rtmp_destroy:
         "\"%s\":%d, " // #5
         "\"%s\":%d, " // #6
         "\"%s\":%d, " // #7
-        "%s}",
+        "\"%s\":%d, " // #8
+        "%s%s%s}",
         // total = dns + tcp_connect + start_play + first_packet + last_packet
         "total", (int)(time_cleanup - time_startup), //#1
         "dns", (int)(time_dns_resolve - time_startup), //#2
@@ -162,12 +163,15 @@ rtmp_destroy:
         "start_play", (int)(time_play_stream - time_socket_connect), //#4
         "first_packet", (int)(time_first_packet - time_play_stream), //#5
         "last_packet", (int)(time_cleanup - time_first_packet), //#6
+        "stream", (int)(timestamp), //#7
         // expect = time_cleanup - time_first_packet
-        // actual = timestamp
+        // actual = stream
         // delay = actual - expect
-        "delay", (int)(timestamp - (time_cleanup - time_first_packet)), //#7
+        "delay", (int)(timestamp - (time_cleanup - time_first_packet)), //#8
         // unit in ms.
-        "\"unit\": \"ms\""
+        "\"unit\": \"ms\",",
+        "\"remark0\": \"total = dns + tcp_connect + start_play + first_packet + last_packet\",",
+        "\"remark1\": \"delay = stream - (time_cleanup - time_first_packet)\""
     );
     printf("\n");
     
