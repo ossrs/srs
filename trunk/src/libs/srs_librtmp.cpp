@@ -57,6 +57,7 @@ struct Context
     std::string url;
     std::string tcUrl;
     std::string host;
+    std::string ip;
     std::string port;
     std::string vhost;
     std::string app;
@@ -77,7 +78,7 @@ struct Context
     }
 };
 
-int srs_librtmp_context_connect(Context* context) 
+int srs_librtmp_context_parse_uri(Context* context) 
 {
     int ret = ERROR_SUCCESS;
     
@@ -123,6 +124,13 @@ int srs_librtmp_context_connect(Context* context)
         }
     }
     
+    return ret;
+}
+
+int srs_librtmp_context_resolve_host(Context* context) 
+{
+    int ret = ERROR_SUCCESS;
+    
     // create socket
     srs_freep(context->skt);
     context->skt = new SimpleSocketStream();
@@ -132,11 +140,24 @@ int srs_librtmp_context_connect(Context* context)
     }
     
     // connect to server:port
-    string server = srs_dns_resolve(context->host);
-    if (server.empty()) {
+    context->ip = srs_dns_resolve(context->host);
+    if (context->ip.empty()) {
         return -1;
     }
-    if ((ret = context->skt->connect(server.c_str(), ::atoi(context->port.c_str()))) != ERROR_SUCCESS) {
+    
+    return ret;
+}
+
+int srs_librtmp_context_connect(Context* context) 
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(context->skt);
+    
+    std::string ip = context->ip;
+    int port = ::atoi(context->port.c_str());
+    
+    if ((ret = context->skt->connect(ip.c_str(), port)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -166,13 +187,62 @@ int srs_simple_handshake(srs_rtmp_t rtmp)
 {
     int ret = ERROR_SUCCESS;
     
+    if ((ret = __srs_dns_resolve(rtmp)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = __srs_connect_server(rtmp)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = __srs_do_simple_handshake(rtmp)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int __srs_dns_resolve(srs_rtmp_t rtmp)
+{
+    int ret = ERROR_SUCCESS;
+    
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
     
-    // parse uri, resolve host, connect to server:port
+    // parse uri
+    if ((ret = srs_librtmp_context_parse_uri(context)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    // resolve host
+    if ((ret = srs_librtmp_context_resolve_host(context)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int __srs_connect_server(srs_rtmp_t rtmp)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(rtmp != NULL);
+    Context* context = (Context*)rtmp;
+    
     if ((ret = srs_librtmp_context_connect(context)) != ERROR_SUCCESS) {
         return ret;
     }
+    
+    return ret;
+}
+
+int __srs_do_simple_handshake(srs_rtmp_t rtmp)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(rtmp != NULL);
+    Context* context = (Context*)rtmp;
+    
+    srs_assert(context->skt != NULL);
     
     // simple handshake
     srs_freep(context->rtmp);

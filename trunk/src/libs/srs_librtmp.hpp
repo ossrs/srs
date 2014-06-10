@@ -55,7 +55,7 @@ srs_rtmp_t srs_rtmp_create(const char* url);
 void srs_rtmp_destroy(srs_rtmp_t rtmp);
 
 /**
-* handshake with server
+* connect and handshake with server
 * category: publish/play
 * previous: rtmp-create
 * next: connect-app
@@ -65,7 +65,20 @@ void srs_rtmp_destroy(srs_rtmp_t rtmp);
 * simple handshake specifies in rtmp 1.0,
 * not depends on ssl.
 */
+/**
+* srs_simple_handshake equals to invoke:
+*       __srs_dns_resolve()
+*       __srs_connect_server()
+*       __srs_do_simple_handshake()
+* user can use these functions if needed.
+*/
 int srs_simple_handshake(srs_rtmp_t rtmp);
+// parse uri, create socket, resolve host
+int __srs_dns_resolve(srs_rtmp_t rtmp);
+// connect socket to server
+int __srs_connect_server(srs_rtmp_t rtmp);
+// do simple handshake over socket.
+int __srs_do_simple_handshake(srs_rtmp_t rtmp);
 
 /**
 * connect to rtmp vhost/app
