@@ -43,6 +43,10 @@ int main(int argc, char** argv)
     int64_t time_cleanup = 0;
     // delay = actual - expect time when quit.
     int delay = 0;
+    // bytes
+    int64_t bytes_nsend = 0;
+    int time_duration = 0;
+    int64_t bytes_nrecv = 0;
     
     // packet data
     int type, size;
@@ -145,8 +149,12 @@ int main(int argc, char** argv)
     }
     
 rtmp_destroy:
+    bytes_nsend = srs_get_nsend_bytes(rtmp);
+    bytes_nrecv = srs_get_nrecv_bytes(rtmp);
+    
     srs_rtmp_destroy(rtmp);
     time_cleanup = srs_get_time_ms();
+    time_duration = (int)(time_cleanup - time_startup);
     
     // print result to stderr.
     fprintf(stderr, "{"
@@ -159,10 +167,12 @@ rtmp_destroy:
         "\"%s\":%d, " // #6
         "\"%s\":%d, " // #7
         "\"%s\":%d, " // #8
+        "\"%s\":%d, " // #9
+        "\"%s\":%d, " // #10
         "%s,%s,%s,%s}",
         "code", ret, //#0
         // total = dns + tcp_connect + start_play + first_packet + last_packet
-        "total", (int)(time_cleanup - time_startup), //#1
+        "total", time_duration, //#1
         "dns", (int)(time_dns_resolve - time_startup), //#2
         "tcp_connect", (int)(time_socket_connect - time_dns_resolve), //#3
         "start_play", (int)(time_play_stream - time_socket_connect), //#4
@@ -173,6 +183,8 @@ rtmp_destroy:
         // actual = stream
         // delay = actual - expect
         "delay", (int)(timestamp - (time_cleanup - time_first_packet)), //#8
+        "publish_kbps", (int)((time_duration <= 0)? 0:(bytes_nsend * 8 / time_duration)), //#9
+        "play_kbps", (int)((time_duration <= 0)? 0:(bytes_nrecv * 8 / time_duration)), //#10
         // unit in ms.
         "\"unit\": \"ms\"",
         "\"remark0\": \"total = dns + tcp_connect + start_play + first_packet + last_packet\"",

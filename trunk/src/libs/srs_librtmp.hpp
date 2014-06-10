@@ -157,6 +157,8 @@ int srs_version_revision();
 * utilities
 */
 int64_t srs_get_time_ms();
+int64_t srs_get_nsend_bytes(srs_rtmp_t rtmp);
+int64_t srs_get_nrecv_bytes(srs_rtmp_t rtmp);
 
 /**
 * flv codec

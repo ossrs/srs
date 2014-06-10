@@ -451,6 +451,20 @@ int64_t srs_get_time_ms()
     return srs_get_system_time_ms();
 }
 
+int64_t srs_get_nsend_bytes(srs_rtmp_t rtmp)
+{
+    srs_assert(rtmp != NULL);
+    Context* context = (Context*)rtmp;
+    return context->rtmp->get_send_bytes();
+}
+
+int64_t srs_get_nrecv_bytes(srs_rtmp_t rtmp)
+{
+    srs_assert(rtmp != NULL);
+    Context* context = (Context*)rtmp;
+    return context->rtmp->get_recv_bytes();
+}
+
 struct FlvContext
 {
     SrsFileStream fs;
