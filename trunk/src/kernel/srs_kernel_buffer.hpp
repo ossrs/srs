@@ -71,7 +71,7 @@ public:
     * erase size of bytes from begin.
     * @param size to erase size of bytes. 
     *       clear if size greater than or equals to length()
-    * @remark assert size is positive.
+    * @remark ignore size is not positive.
     */
     virtual void erase(int size);
     /**

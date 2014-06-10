@@ -79,9 +79,17 @@ VOID TEST(BufferTest, EraseBytes)
 {
     SrsBuffer b;
     
+    b.erase(0);
+    b.erase(-1);
+    EXPECT_EQ(0, b.length());
+    
     char winlin[] = "winlin";
     b.append(winlin, strlen(winlin));
     b.erase(b.length());
+    EXPECT_EQ(0, b.length());
+    
+    b.erase(0);
+    b.erase(-1);
     EXPECT_EQ(0, b.length());
     
     b.append(winlin, strlen(winlin));
@@ -89,10 +97,16 @@ VOID TEST(BufferTest, EraseBytes)
     EXPECT_EQ(5, b.length());
     EXPECT_EQ('i', b.bytes()[0]);
     EXPECT_EQ('n', b.bytes()[4]);
+    
     b.erase(2);
     EXPECT_EQ(3, b.length());
     EXPECT_EQ('l', b.bytes()[0]);
     EXPECT_EQ('n', b.bytes()[2]);
+    
+    b.erase(0);
+    b.erase(-1);
+    EXPECT_EQ(3, b.length());
+    
     b.erase(3);
     EXPECT_EQ(0, b.length());
 }

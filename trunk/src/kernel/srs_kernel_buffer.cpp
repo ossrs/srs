@@ -58,7 +58,9 @@ char* SrsBuffer::bytes()
 
 void SrsBuffer::erase(int size)
 {
-    srs_assert(size > 0);
+    if (size <= 0) {
+        return;
+    }
     
     if (size >= length()) {
         data.clear();
