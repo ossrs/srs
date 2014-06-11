@@ -263,7 +263,12 @@ int srs_connect_app(srs_rtmp_t rtmp)
     Context* context = (Context*)rtmp;
     
     string tcUrl = "rtmp://";
-    tcUrl += context->vhost;
+    // TODO: FIXME: extrace shared method
+    if (context->vhost == RTMP_VHOST_DEFAULT) {
+        tcUrl += context->ip;
+    } else {
+        tcUrl += context->vhost;
+    }
     tcUrl += ":";
     tcUrl += context->port;
     tcUrl += "/";

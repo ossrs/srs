@@ -50,6 +50,7 @@ int main(int argc, char** argv)
     
     // packet data
     int type, size;
+    u_int32_t basetime = 0;
     u_int32_t timestamp = 0;
     char* data;
     
@@ -131,8 +132,13 @@ int main(int argc, char** argv)
         }
         printf("got packet: type=%s, time=%d, size=%d\n", srs_type2string(type), timestamp, size);
         
-        if (time_first_packet <= 0) {
-            time_first_packet = srs_get_time_ms();
+        if (SRS_RTMP_TYPE_VIDEO == type || SRS_RTMP_TYPE_AUDIO == type) {
+            if (time_first_packet <= 0) {
+                time_first_packet = srs_get_time_ms();
+            }
+            if (basetime <= 0) {
+                basetime = timestamp;
+            }
         }
         
         free(data);
@@ -142,7 +148,7 @@ int main(int argc, char** argv)
             goto rtmp_destroy;
         }
         
-        if (timestamp > duration * 1000) {
+        if ((timestamp - basetime) > duration * 1000) {
             printf("duration exceed, terminate.\n");
             goto rtmp_destroy;
         }
@@ -178,11 +184,11 @@ rtmp_destroy:
         "start_play", (int)(time_play_stream - time_socket_connect), //#4
         "first_packet", (int)(time_first_packet - time_play_stream), //#5
         "last_packet", (int)(time_cleanup - time_first_packet), //#6
-        "stream", (int)(timestamp), //#7
+        "stream", (int)(timestamp - basetime), //#7
         // expect = time_cleanup - time_first_packet
         // actual = stream
         // delay = actual - expect
-        "delay", (int)(timestamp - (time_cleanup - time_first_packet)), //#8
+        "delay", (int)(timestamp - basetime - (time_cleanup - time_first_packet)), //#8
         "publish_kbps", (int)((time_duration <= 0)? 0:(bytes_nsend * 8 / time_duration)), //#9
         "play_kbps", (int)((time_duration <= 0)? 0:(bytes_nrecv * 8 / time_duration)), //#10
         // unit in ms.

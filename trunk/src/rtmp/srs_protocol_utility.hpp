@@ -31,6 +31,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
+// default vhost for rtmp
+#define RTMP_VHOST_DEFAULT "__defaultVhost__"
+
 #define RTMP_DEFAULT_PORT "1935"
 
 // the default chunk size for system.

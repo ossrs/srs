@@ -34,9 +34,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_reload.hpp>
 
-// default vhost for rtmp
-#define RTMP_VHOST_DEFAULT "__defaultVhost__"
-
 #define SRS_LOCALHOST "127.0.0.1"
 #define SRS_CONF_DEFAULT_PID_FILE "./objs/srs.pid"
 #define SRS_DEFAULT_CONF "conf/srs.conf"
