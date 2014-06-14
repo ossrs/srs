@@ -954,10 +954,23 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
     // but, we can ensure that when a chunk stream is fresh, 
     // the fmt must be 0, a new stream.
     if (chunk->msg_count == 0 && fmt != RTMP_FMT_TYPE0) {
-        ret = ERROR_RTMP_CHUNK_START;
-        srs_error("chunk stream is fresh, fmt must be %d, actual is %d. cid=%d, ret=%d", 
-            RTMP_FMT_TYPE0, fmt, chunk->cid, ret);
-        return ret;
+        // for librtmp, if ping, it will send a fresh stream with fmt=1,
+        // 0x42             where: fmt=1, cid=2, protocol contorl user-control message
+        // 0x00 0x00 0x00   where: timestamp=0
+        // 0x00 0x00 0x06   where: payload_length=6
+        // 0x04             where: message_type=4(protocol control user-control message)
+        // 0x00 0x06            where: event Ping(0x06)
+        // 0x00 0x00 0x0d 0x0f  where: event data 4bytes ping timestamp.
+        // @see: https://github.com/winlinvip/simple-rtmp-server/issues/98
+        if (chunk->cid == RTMP_CID_ProtocolControl && fmt == RTMP_FMT_TYPE1) {
+            srs_warn("accept cid=2, fmt=1 to make librtmp happy.");
+        } else {
+            // must be a RTMP protocol level error.
+            ret = ERROR_RTMP_CHUNK_START;
+            srs_error("chunk stream is fresh, fmt must be %d, actual is %d. cid=%d, ret=%d", 
+                RTMP_FMT_TYPE0, fmt, chunk->cid, ret);
+            return ret;
+        }
     }
 
     // when exists cache msg, means got an partial message,
