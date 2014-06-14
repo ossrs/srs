@@ -24,6 +24,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_flv.hpp>
 
 #include <fcntl.h>
+#include <unistd.h>
 #include <sstream>
 using namespace std;
 
