@@ -1346,9 +1346,10 @@ void SrsConfig::print_help(char** argv)
 {
     printf(
         RTMP_SIG_SRS_NAME" "RTMP_SIG_SRS_VERSION" "RTMP_SIG_SRS_COPYRIGHT"\n" 
+        "license: "RTMP_SIG_SRS_LICENSE"\n"
         "Primary Authors: "RTMP_SIG_SRS_PRIMARY_AUTHROS"\n"
         "Build: "SRS_AUTO_BUILD_DATE" Configuration:"SRS_AUTO_USER_CONFIGURE"\n"
-        "Features:"SRS_AUTO_CONFIGURE"\n"
+        "Features:"SRS_AUTO_CONFIGURE"\n""\n"
         "Usage: %s [-h?vV] [[-t] -c <filename>]\n" 
         "\n"
         "Options:\n"

@@ -92,6 +92,7 @@ int main(int argc, char** argv)
     }
     
     srs_trace("srs(simple-rtmp-server) "RTMP_SIG_SRS_VERSION);
+    srs_trace("license: "RTMP_SIG_SRS_LICENSE);
     srs_trace("uname: "SRS_AUTO_UNAME);
     srs_trace("build: %s, %s", SRS_AUTO_BUILD_DATE, srs_is_little_endian()? "little-endian":"big-endian");
     srs_trace("configure: "SRS_AUTO_USER_CONFIGURE);
