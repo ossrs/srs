@@ -41,8 +41,8 @@ git clone https://code.csdn.net/winlinvip/srs-csdn.git
         <td>SRS服务器<br/>Linux平台分支</td>
         <td><a href="https://github.com/winlinvip/simple-rtmp-server" target="_blank">winlin</a></td>
         <td>
-            <a href="http://blog.csdn.net/win_lin" target="_blank">winlin(winlin@vip.126.com)</a> <br/>
-            <a href="http://blog.chinaunix.net/uid/25006789.html" target="_blank">wenjie.zhao(740936897@qq.com)</a>
+            <a href="http://blog.csdn.net/win_lin" target="_blank">winlin</a> <br/>
+            <a href="http://blog.chinaunix.net/uid/25006789.html" target="_blank">wenjie.zhao</a>
         </td>
         <td>准备发布</td>
     </tr>
@@ -50,14 +50,14 @@ git clone https://code.csdn.net/winlinvip/srs-csdn.git
         <td><a href="https://github.com/winlinvip/srs.win" target="_blank">SRS-Windows</a></td>
         <td>SRS服务器<br/>Windows平台分支</td>
         <td><a href="https://github.com/suhetao" target="_blank">suhetao<br/>(核桃)</a></td>
-        <td><a href="https://github.com/suhetao" target="_blank">suhetao(suhetao@gmail.com)</a></td>
+        <td><a href="https://github.com/suhetao" target="_blank">suhetao</a></td>
         <td>开发中</td>
     </tr>
     <tr>
         <td><a href="https://github.com/winlinvip/srs.librtmp.win" target="_blank">SRS-LIBRTMP-Windows</a></td>
         <td>SRS-LIBRTMP客户端库<br/>Windows平台分支</td>
         <td><a href="https://github.com/chadwangcn" target="_blank">chad.wang<br/>(videoWorker)</a></td>
-        <td><a href="https://github.com/chadwangcn" target="_blank">chad.wang<br/>(chad.wang.cn@gmail.com)</a></td>
+        <td><a href="https://github.com/chadwangcn" target="_blank">chad.wang</a></td>
         <td>停滞</td>
     </tr>
 </table>
