@@ -57,7 +57,7 @@ git clone https://code.csdn.net/winlinvip/srs-csdn.git
         <td><a href="https://github.com/winlinvip/srs.librtmp.win" target="_blank">SRS-LIBRTMP-Windows</a></td>
         <td>SRS-LIBRTMP客户端库<br/>Windows平台分支</td>
         <td><a href="https://github.com/chadwangcn" target="_blank">chad.wang<br/>(videoWorker)</a></td>
-        <td><a href="https://github.com/chadwangcn" target="_blank">chad.wang(chad.wang.cn@gmail.com)</a></td>
+        <td><a href="https://github.com/chadwangcn" target="_blank">chad.wang<br/>(chad.wang.cn@gmail.com)</a></td>
         <td>停滞</td>
     </tr>
 </table>
