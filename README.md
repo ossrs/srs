@@ -62,6 +62,11 @@ git clone https://code.csdn.net/winlinvip/srs-csdn.git
     </tr>
 </table>
 
+对于没有Release的分支：
+* 长期处于停滞状态的分支，以及开发缓慢的分支，更换主作者。
+* 任何人都可以维护这个分支，代替之前的主作者。
+* 分支Release之后，分支的主作者加入SRS主作者。
+
 ## About
 
 SRS(SIMPLE RTMP Server) over state-threads created in 2013.10.
