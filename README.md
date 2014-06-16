@@ -44,7 +44,7 @@ git clone https://code.csdn.net/winlinvip/srs-csdn.git
             <a href="http://blog.csdn.net/win_lin" target="_blank">winlin</a> <br/>
             <a href="http://blog.chinaunix.net/uid/25006789.html" target="_blank">wenjie.zhao</a>
         </td>
-        <td>准备发布</td>
+        <td>测试中</td>
     </tr>
     <tr>
         <td><a href="https://github.com/winlinvip/srs.win" target="_blank">SRS-Windows</a></td>
