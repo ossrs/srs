@@ -444,6 +444,84 @@ void srs_update_platform_info()
     }
 }
 
+SrsNetworkDevices::SrsNetworkDevices()
+{
+    ok = false;
+    
+    memset(name, 0, sizeof(name));
+    sample_time = 0;
+    
+    rbytes = 0;
+    rpackets = 0;
+    rerrs = 0;
+    rdrop = 0;
+    rfifo = 0;
+    rframe = 0;
+    rcompressed = 0;
+    rmulticast = 0;
+    
+    sbytes = 0;
+    spackets = 0;
+    serrs = 0;
+    sdrop = 0;
+    sfifo = 0;
+    scolls = 0;
+    scarrier = 0;
+    scompressed = 0;
+}
+
+#define MAX_NETWORK_DEVICES_COUNT 16
+static SrsNetworkDevices _srs_system_network_devices[MAX_NETWORK_DEVICES_COUNT];
+static int _nb_srs_system_network_devices = -1;
+
+SrsNetworkDevices* srs_get_network_devices()
+{
+    return _srs_system_network_devices;
+}
+
+int srs_get_network_devices_count()
+{
+    return _nb_srs_system_network_devices;
+}
+
+void srs_update_network_devices()
+{
+    if (true) {
+        FILE* f = fopen("/proc/net/dev", "r");
+        if (f == NULL) {
+            srs_warn("open proc network devices failed, ignore");
+            return;
+        }
+        
+        // ignore title.
+        static char buf[1024];
+        fgets(buf, sizeof(buf), f);
+        fgets(buf, sizeof(buf), f);
+    
+        for (int i = 0; i < MAX_NETWORK_DEVICES_COUNT; i++) {
+            SrsNetworkDevices& r = _srs_system_network_devices[i];
+            r.ok = false;
+            r.sample_time = 0;
+    
+            int ret = fscanf(f, "%6[^:]:%llu %lu %lu %lu %lu %lu %lu %lu %llu %lu %lu %lu %lu %lu %lu %lu\n", 
+                r.name, &r.rbytes, &r.rpackets, &r.rerrs, &r.rdrop, &r.rfifo, &r.rframe, &r.rcompressed, &r.rmulticast,
+                &r.sbytes, &r.spackets, &r.serrs, &r.sdrop, &r.sfifo, &r.scolls, &r.scarrier, &r.scompressed);
+                
+            if (ret == 17) {
+                r.ok = true;
+                _nb_srs_system_network_devices = i + 1;
+                r.sample_time = srs_get_system_time_ms();
+            }
+            
+            if (ret == EOF) {
+                break;
+            }
+        }
+    
+        fclose(f);
+    }
+}
+
 vector<string> _srs_system_ipv4_ips;
 
 void retrieve_local_ipv4_ips()

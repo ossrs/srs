@@ -389,6 +389,7 @@ int SrsApiSummaries::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
     SrsCpuInfo* c = srs_get_cpuinfo();
     SrsMemInfo* m = srs_get_meminfo();
     SrsPlatformInfo* p = srs_get_platform_info();
+    SrsNetworkDevices* n = srs_get_network_devices();
     
     float self_mem_percent = 0;
     if (m->MemTotal > 0) {
@@ -397,6 +398,21 @@ int SrsApiSummaries::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
     
     int64_t now = srs_get_system_time_ms();
     double srs_uptime = (now - p->srs_startup_time) / 100 / 10.0;
+    
+    bool n_ok = false;
+    int64_t n_sample_time = 0;
+    int64_t nr_bytes = 0;
+    int64_t ns_bytes = 0;
+    int nb_n = srs_get_network_devices_count();
+    for (int i = 0; i < nb_n; i++) {
+        SrsNetworkDevices& o = n[i];
+        if (o.ok) {
+            n_ok = true;
+            nr_bytes += o.rbytes;
+            ns_bytes += o.sbytes;
+            n_sample_time = o.sample_time;
+        }
+    }
     
     ss << JOBJECT_START
         << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
@@ -407,6 +423,7 @@ int SrsApiSummaries::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
             << JFIELD_ORG("cpuinfo_ok", (c->ok? "true":"false")) << JFIELD_CONT
             << JFIELD_ORG("meminfo_ok", (m->ok? "true":"false")) << JFIELD_CONT
             << JFIELD_ORG("platform_ok", (p->ok? "true":"false")) << JFIELD_CONT
+            << JFIELD_ORG("network_ok", (n_ok? "true":"false")) << JFIELD_CONT
             << JFIELD_ORG("now_ms", now) << JFIELD_CONT
             << JFIELD_ORG("self", JOBJECT_START)
                 << JFIELD_ORG("pid", getpid()) << JFIELD_CONT
@@ -430,7 +447,10 @@ int SrsApiSummaries::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
                 << JFIELD_ORG("ilde_time", p->os_ilde_time) << JFIELD_CONT
                 << JFIELD_ORG("load_1m", p->load_one_minutes) << JFIELD_CONT
                 << JFIELD_ORG("load_5m", p->load_five_minutes) << JFIELD_CONT
-                << JFIELD_ORG("load_15m", p->load_fifteen_minutes)
+                << JFIELD_ORG("load_15m", p->load_fifteen_minutes) << JFIELD_CONT
+                << JFIELD_ORG("net_sample_time", n_sample_time) << JFIELD_CONT
+                << JFIELD_ORG("net_recv_bytes", nr_bytes) << JFIELD_CONT
+                << JFIELD_ORG("net_send_bytes", ns_bytes)
             << JOBJECT_END
         << JOBJECT_END
         << JOBJECT_END;

@@ -349,6 +349,47 @@ extern SrsPlatformInfo* srs_get_platform_info();
 // the deamon st-thread will update it.
 extern void srs_update_platform_info();
 
+// network device summary
+class SrsNetworkDevices
+{
+public:
+    // whether the network device is ok.
+    bool ok;
+    
+    // 6-chars interfaces name
+    char name[7];
+    // the sample time in ms.
+    int64_t sample_time;
+    
+    // data for receive.
+    unsigned long long rbytes;
+    unsigned long rpackets;
+    unsigned long rerrs;
+    unsigned long rdrop;
+    unsigned long rfifo;
+    unsigned long rframe;
+    unsigned long rcompressed;
+    unsigned long rmulticast;
+    
+    // data for transmit
+    unsigned long long sbytes;
+    unsigned long spackets;
+    unsigned long serrs;
+    unsigned long sdrop;
+    unsigned long sfifo;
+    unsigned long scolls;
+    unsigned long scarrier;
+    unsigned long scompressed;
+    
+    SrsNetworkDevices();
+};
+
+// get network devices info, use cache to avoid performance problem.
+extern SrsNetworkDevices* srs_get_network_devices();
+extern int srs_get_network_devices_count();
+// the deamon st-thread will update it.
+extern void srs_update_network_devices();
+
 // get local ip, fill to @param ips
 extern void srs_retrieve_local_ipv4_ips();
 extern std::vector<std::string>& srs_get_local_ipv4_ips();

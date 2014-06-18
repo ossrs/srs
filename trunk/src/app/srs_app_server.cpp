@@ -78,6 +78,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_PLATFORM_INFO_RESOLUTION_TIMES
 #define SRS_SYS_PLATFORM_INFO_RESOLUTION_TIMES 90
 
+// update network devices info interval:
+//      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_NETWORK_DEVICE_RESOLUTION_TIMES
+#define SRS_SYS_NETWORK_DEVICE_RESOLUTION_TIMES 90
+
 SrsListener::SrsListener(SrsServer* server, SrsListenerType type)
 {
     fd = -1;
@@ -646,6 +650,7 @@ int SrsServer::do_cycle()
     max = srs_max(max, SRS_SYS_CPU_STAT_RESOLUTION_TIMES);
     max = srs_max(max, SRS_SYS_MEMINFO_RESOLUTION_TIMES);
     max = srs_max(max, SRS_SYS_PLATFORM_INFO_RESOLUTION_TIMES);
+    max = srs_max(max, SRS_SYS_NETWORK_DEVICE_RESOLUTION_TIMES);
     
     // the deamon thread, update the time cache
     while (true) {
@@ -656,7 +661,7 @@ int SrsServer::do_cycle()
         int __max = max;
         __max = srs_max(__max, heartbeat_max_resolution);
         
-        for (int i = 1; i < __max + 1; i++) {
+        for (int i = 0; i < __max; i++) {
             st_usleep(SRS_SYS_CYCLE_INTERVAL * 1000);
         
 // for gperf heap checker,
@@ -697,6 +702,9 @@ int SrsServer::do_cycle()
             }
             if ((i % SRS_SYS_PLATFORM_INFO_RESOLUTION_TIMES) == 0) {
                 srs_update_platform_info();
+            }
+            if ((i % SRS_SYS_NETWORK_DEVICE_RESOLUTION_TIMES) == 0) {
+                srs_update_network_devices();
             }
 #ifdef SRS_AUTO_HTTP_PARSER
             if (_srs_config->get_heartbeat_enabled()) {
