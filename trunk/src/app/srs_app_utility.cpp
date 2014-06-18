@@ -509,6 +509,7 @@ void srs_update_network_devices()
                 
             if (ret == 17) {
                 r.ok = true;
+                r.name[sizeof(r.name) - 1] = 0;
                 _nb_srs_system_network_devices = i + 1;
                 r.sample_time = srs_get_system_time_ms();
             }

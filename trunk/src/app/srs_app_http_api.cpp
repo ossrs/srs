@@ -406,12 +406,17 @@ int SrsApiSummaries::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
     int nb_n = srs_get_network_devices_count();
     for (int i = 0; i < nb_n; i++) {
         SrsNetworkDevices& o = n[i];
-        if (o.ok) {
-            n_ok = true;
-            nr_bytes += o.rbytes;
-            ns_bytes += o.sbytes;
-            n_sample_time = o.sample_time;
+        
+        // ignore the lo interface.
+        std::string inter = o.name;
+        if (!o.ok || inter == "lo") {
+            continue;
         }
+        
+        n_ok = true;
+        nr_bytes += o.rbytes;
+        ns_bytes += o.sbytes;
+        n_sample_time = o.sample_time;
     }
     
     ss << JOBJECT_START
