@@ -462,7 +462,12 @@ int SrsApiSummaries::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
                 << JFIELD_ORG("srs_recv_bytes", nrs->rbytes) << JFIELD_CONT
                 << JFIELD_ORG("srs_recv_kbps", nrs->rkbps) << JFIELD_CONT
                 << JFIELD_ORG("srs_send_bytes", nrs->sbytes) << JFIELD_CONT
-                << JFIELD_ORG("srs_send_kbps", nrs->skbps)
+                << JFIELD_ORG("srs_send_kbps", nrs->skbps) << JFIELD_CONT
+                << JFIELD_ORG("conn_sys", nrs->nb_conn_sys) << JFIELD_CONT
+                << JFIELD_ORG("conn_sys_et", nrs->nb_conn_sys_et) << JFIELD_CONT
+                << JFIELD_ORG("conn_sys_tw", nrs->nb_conn_sys_tw) << JFIELD_CONT
+                << JFIELD_ORG("conn_sys_ls", nrs->nb_conn_sys_ls) << JFIELD_CONT
+                << JFIELD_ORG("conn_srs", nrs->nb_conn_srs)
             << JOBJECT_END
         << JOBJECT_END
         << JOBJECT_END;

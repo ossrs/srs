@@ -414,13 +414,20 @@ public:
     int skbps_30s;
     int skbps_5m;
     
+    // connections
+    int nb_conn_sys;
+    int nb_conn_sys_et; // established
+    int nb_conn_sys_tw; // time wait
+    int nb_conn_sys_ls; // listen
+    int nb_conn_srs;
+    
     SrsNetworkRtmpServer();
 };
     
 // get network devices info, use cache to avoid performance problem.
 extern SrsNetworkRtmpServer* srs_get_network_rtmp_server();
 // the deamon st-thread will update it.
-extern void srs_update_rtmp_server(SrsKbps* kbps);
+extern void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps);
 
 // get local ip, fill to @param ips
 extern void srs_retrieve_local_ipv4_ips();

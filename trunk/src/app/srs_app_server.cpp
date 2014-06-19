@@ -733,7 +733,7 @@ int SrsServer::do_cycle()
             if ((i % SRS_SYS_NETWORK_RTMP_SERVER_RESOLUTION_TIMES) == 0) {
                 srs_info("update network rtmp server info.");
                 resample_kbps(NULL);
-                srs_update_rtmp_server(kbps);
+                srs_update_rtmp_server((int)conns.size(), kbps);
             }
 #ifdef SRS_AUTO_HTTP_PARSER
             if (_srs_config->get_heartbeat_enabled()) {

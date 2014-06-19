@@ -528,6 +528,8 @@ SrsNetworkRtmpServer::SrsNetworkRtmpServer()
 {
     ok = false;
     sample_time = rbytes = sbytes = 0;
+    nb_conn_sys = nb_conn_srs = 0;
+    nb_conn_sys_et = nb_conn_sys_tw = nb_conn_sys_ls = 0;
 }
 
 static SrsNetworkRtmpServer _srs_network_rtmp_server;
@@ -537,23 +539,90 @@ SrsNetworkRtmpServer* srs_get_network_rtmp_server()
     return &_srs_network_rtmp_server;
 }
 
-void srs_update_rtmp_server(SrsKbps* kbps)
+// @see: http://stackoverflow.com/questions/5992211/list-of-possible-internal-socket-statuses-from-proc
+enum {
+    SYS_TCP_ESTABLISHED = 1,
+    SYS_TCP_SYN_SENT,
+    SYS_TCP_SYN_RECV,
+    SYS_TCP_FIN_WAIT1,
+    SYS_TCP_FIN_WAIT2,
+    SYS_TCP_TIME_WAIT,
+    SYS_TCP_CLOSE,
+    SYS_TCP_CLOSE_WAIT,
+    SYS_TCP_LAST_ACK,
+    SYS_TCP_LISTEN,
+    SYS_TCP_CLOSING,    /* Now a valid state */
+
+    SYS_TCP_MAX_STATES  /* Leave at the end! */
+};
+
+void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
 {
     SrsNetworkRtmpServer& r = _srs_network_rtmp_server;
     
-    r.ok = true;
+    if (true) {
+        FILE* f = fopen("/proc/net/tcp", "r");
+        if (f == NULL) {
+            srs_warn("open proc network tcp failed, ignore");
+            return;
+        }
+        
+        // ignore title.
+        static char buf[1024];
+        fgets(buf, sizeof(buf), f);
     
-    r.sample_time = srs_get_system_time_ms();
+        int nb_conn_sys_established = 0;
+        int nb_conn_sys_time_wait = 0;
+        int nb_conn_sys_listen = 0;
+        int nb_conn_sys_other = 0;
+        for (;;) {
+            int st = 0;
     
-    r.rbytes = kbps->get_recv_bytes();
-    r.rkbps = kbps->get_recv_kbps();
-    r.rkbps_30s = kbps->get_recv_kbps_30s();
-    r.rkbps_5m = kbps->get_recv_kbps_5m();
+            int ret = fscanf(f, "%*s %*s %*s %2x\n", &st);
+            // ignore to end.
+            fgets(buf, sizeof(buf), f);
+                
+            if (ret == 1) {
+                if (st == SYS_TCP_ESTABLISHED) {
+                    nb_conn_sys_established++;
+                } else if (st == SYS_TCP_TIME_WAIT) {
+                    nb_conn_sys_time_wait++;
+                } else if (st == SYS_TCP_LISTEN) {
+                    nb_conn_sys_listen++;
+                } else {
+                    nb_conn_sys_other++;
+                }
+            }
+            
+            if (ret == EOF) {
+                break;
+            }
+        }
+        
+        r.nb_conn_sys = nb_conn_sys_established + nb_conn_sys_time_wait + nb_conn_sys_listen + nb_conn_sys_other;
+        r.nb_conn_sys_et = nb_conn_sys_established;
+        r.nb_conn_sys_tw = nb_conn_sys_time_wait;
+        r.nb_conn_sys_ls = nb_conn_sys_listen;
     
-    r.sbytes = kbps->get_send_bytes();
-    r.skbps = kbps->get_send_kbps();
-    r.skbps_30s = kbps->get_send_kbps_30s();
-    r.skbps_5m = kbps->get_send_kbps_5m();
+        fclose(f);
+    }
+    
+    if (true) {
+        r.ok = true;
+        
+        r.nb_conn_srs = nb_conn;
+        r.sample_time = srs_get_system_time_ms();
+        
+        r.rbytes = kbps->get_recv_bytes();
+        r.rkbps = kbps->get_recv_kbps();
+        r.rkbps_30s = kbps->get_recv_kbps_30s();
+        r.rkbps_5m = kbps->get_recv_kbps_5m();
+        
+        r.sbytes = kbps->get_send_bytes();
+        r.skbps = kbps->get_send_kbps();
+        r.skbps_30s = kbps->get_send_kbps_30s();
+        r.skbps_5m = kbps->get_send_kbps_5m();
+    }
 }
 
 vector<string> _srs_system_ipv4_ips;
