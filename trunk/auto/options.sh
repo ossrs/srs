@@ -62,6 +62,8 @@ SRS_MIPS_UBUNTU12=NO
 SRS_DEV=NO
 # raspberry-pi, open hls/ssl/static
 SRS_PI=NO
+# cubieboard, donot open ffmpeg/nginx.
+SRS_CUBIE=NO
 # the most fast compile, nothing, only support vp6 RTMP.
 SRS_FAST=NO
 # only support RTMP with ssl.
@@ -141,8 +143,9 @@ Options:
 Presets:
   --x86-x64                 [default] for x86/x64 cpu, common pc and servers.
   --pi                      for raspberry-pi(directly build), open features hls/ssl/static.
-  --arm                     alias for --with-arm-ubuntu12
-  --mips                    alias for --with-mips-ubuntu12
+  --cubie                   for cubieboard(directly build), open features except ffmpeg/nginx.
+  --arm                     alias for --with-arm-ubuntu12, for ubuntu12, arm crossbuild
+  --mips                    alias for --with-mips-ubuntu12, for ubuntu12, mips crossbuild
   --fast                    the most fast compile, nothing, only support vp6 RTMP.
   --pure-rtmp               only support RTMP with ssl.
   --rtmp-hls                only support RTMP+HLS with ssl.
@@ -227,6 +230,7 @@ function parse_user_option() {
         --arm)                          SRS_ARM_UBUNTU12=YES        ;;
         --mips)                         SRS_MIPS_UBUNTU12=YES       ;;
         --pi)                           SRS_PI=YES                  ;;
+        --cubie)                        SRS_CUBIE=YES               ;;
         --dev)                          SRS_DEV=YES                 ;;
         --fast)                         SRS_FAST=YES                ;;
         --disable-all)                  SRS_DISABLE_ALL=YES         ;;
@@ -281,8 +285,10 @@ function apply_user_presets() {
                             if [ $SRS_ARM_UBUNTU12 = NO ]; then
                                 if [ $SRS_MIPS_UBUNTU12 = NO ]; then
                                     if [ $SRS_PI = NO ]; then
-                                        if [ $SRS_X86_X64 = NO ]; then
-                                            SRS_X86_X64=YES; opt="--x86-x64 $opt";
+                                        if [ $SRS_CUBIE = NO ]; then
+                                            if [ $SRS_X86_X64 = NO ]; then
+                                                SRS_X86_X64=YES; opt="--x86-x64 $opt";
+                                            fi
                                         fi
                                     fi
                                 fi
@@ -535,6 +541,31 @@ function apply_user_presets() {
         SRS_NGINX=NO
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
+        SRS_TRANSCODE=YES
+        SRS_INGEST=YES
+        SRS_HTTP_PARSER=YES
+        SRS_HTTP_CALLBACK=YES
+        SRS_HTTP_SERVER=YES
+        SRS_HTTP_API=YES
+        SRS_LIBRTMP=YES
+        SRS_BWTC=NO
+        SRS_RESEARCH=NO
+        SRS_UTEST=NO
+        SRS_GPERF=NO
+        SRS_GPERF_MC=NO
+        SRS_GPERF_MP=NO
+        SRS_GPERF_CP=NO
+        SRS_GPROF=NO
+        SRS_STATIC=NO
+    fi
+
+    # if cubieboard specified, open features except ffmpeg/nginx.
+    if [ $SRS_CUBIE = YES ]; then
+        SRS_HLS=YES
+        SRS_DVR=YES
+        SRS_NGINX=NO
+        SRS_SSL=YES
+        SRS_FFMPEG_TOOL=YES
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
         SRS_HTTP_PARSER=YES

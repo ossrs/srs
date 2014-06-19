@@ -106,7 +106,7 @@ SrsKbps::~SrsKbps()
 {
 }
 
-void SrsKbps::set_io(ISrsProtocolReader* in, ISrsProtocolWriter* out)
+void SrsKbps::set_io(ISrsProtocolStatistic* in, ISrsProtocolStatistic* out)
 {
     // set input stream
     // now, set start time.

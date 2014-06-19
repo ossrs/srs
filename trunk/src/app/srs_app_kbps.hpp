@@ -30,8 +30,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
-class ISrsProtocolReader;
-class ISrsProtocolWriter;
+class ISrsProtocolStatistic;
+class ISrsProtocolStatistic;
 
 /**
 * a kbps sample, for example, 1minute kbps, 
@@ -65,8 +65,8 @@ class SrsKbpsSlice
 {
 private:
     union slice_io {
-        ISrsProtocolReader* in;
-        ISrsProtocolWriter* out;
+        ISrsProtocolStatistic* in;
+        ISrsProtocolStatistic* out;
     };
 public:
     slice_io io;
@@ -121,7 +121,7 @@ public:
     * @param out the output stream statistic. can be NULL.
     * @remark if in/out is NULL, use the cached data for kbps.
     */
-    virtual void set_io(ISrsProtocolReader* in, ISrsProtocolWriter* out);
+    virtual void set_io(ISrsProtocolStatistic* in, ISrsProtocolStatistic* out);
 public:
     /**
     * get total kbps, duration is from the startup of io.
