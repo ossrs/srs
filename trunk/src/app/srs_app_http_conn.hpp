@@ -90,6 +90,12 @@ private:
 public:
     SrsHttpConn(SrsServer* srs_server, st_netfd_t client_stfd, SrsHttpHandler* _handler);
     virtual ~SrsHttpConn();
+public:
+    virtual void kbps_resample();
+// interface IKbpsDelta
+public:
+    virtual int64_t get_send_bytes_delta();
+    virtual int64_t get_recv_bytes_delta();
 protected:
     virtual int do_cycle();
 private:

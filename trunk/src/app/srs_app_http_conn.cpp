@@ -511,6 +511,23 @@ SrsHttpConn::~SrsHttpConn()
     srs_freep(parser);
 }
 
+void SrsHttpConn::kbps_resample()
+{
+    // TODO: FIXME: implements it
+}
+
+int64_t SrsHttpConn::get_send_bytes_delta()
+{
+    // TODO: FIXME: implements it
+    return 0;
+}
+
+int64_t SrsHttpConn::get_recv_bytes_delta()
+{
+    // TODO: FIXME: implements it
+    return 0;
+}
+
 int SrsHttpConn::do_cycle()
 {
     int ret = ERROR_SUCCESS;

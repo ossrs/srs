@@ -30,8 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
-class ISrsProtocolStatistic;
-class ISrsProtocolStatistic;
+#include <srs_protocol_io.hpp>
 
 /**
 * a kbps sample, for example, 1minute kbps, 
@@ -59,7 +58,8 @@ public:
 *       send_bytes = bytes + last_bytes - io_bytes_base
 * so, the bytes sent duration current session is:
 *       send_bytes = last_bytes - io_bytes_base
-* @remark user use set_io to start new session.
+* @remark use set_io to start new session.
+* @remakr the slice is a data collection object driven by SrsKbps.
 */
 class SrsKbpsSlice
 {
@@ -69,6 +69,8 @@ private:
         ISrsProtocolStatistic* out;
     };
 public:
+    // the slice io used for SrsKbps to invoke,
+    // the SrsKbpsSlice itself never use it.
     slice_io io;
     // session startup bytes
     // @remark, use total_bytes() to get the total bytes of slice.
@@ -87,6 +89,9 @@ public:
     SrsKbpsSample sample_5m;
     SrsKbpsSample sample_60m;
 public:
+    // for the delta bytes.
+    int64_t delta_bytes;
+public:
     SrsKbpsSlice();
     virtual ~SrsKbpsSlice();
 public:
@@ -101,9 +106,36 @@ public:
 };
 
 /**
-* to statistic the kbps of io.
+* the interface which provices delta of bytes.
 */
-class SrsKbps
+class IKbpsDelta
+{
+public:
+    IKbpsDelta();
+    virtual ~IKbpsDelta();
+public:
+    virtual int64_t get_send_bytes_delta() = 0;
+    virtual int64_t get_recv_bytes_delta() = 0;
+};
+
+/**
+* to statistic the kbps of io.
+* itself can be a statistic source, for example, used for SRS bytes stat.
+* there are two usage scenarios:
+* 1. connections to calc kbps:
+*       set_io(in, out)
+*       sample()
+*       get_xxx_kbps().
+*   the connections know how many bytes already send/recv.
+* 2. server to calc kbps:
+*       set_io(NULL, NULL)
+*       for each connection in connections:
+*           add_delta(connections) // where connection is a IKbpsDelta*
+*       sample()
+*       get_xxx_kbps().
+*   the server never know how many bytes already send/recv, for the connection maybe closed.
+*/
+class SrsKbps : public virtual ISrsProtocolStatistic, public virtual IKbpsDelta
 {
 private:
     SrsKbpsSlice is;
@@ -130,11 +162,11 @@ public:
     virtual int get_send_kbps();
     virtual int get_recv_kbps();
     // 30s
-    virtual int get_send_kbps_sample_high();
-    virtual int get_recv_kbps_sample_high();
+    virtual int get_send_kbps_30s();
+    virtual int get_recv_kbps_30s();
     // 5m
-    virtual int get_send_kbps_sample_medium();
-    virtual int get_recv_kbps_sample_medium();
+    virtual int get_send_kbps_5m();
+    virtual int get_recv_kbps_5m();
 public:
     /**
     * get the total send/recv bytes, from the startup of the oldest io.
@@ -142,9 +174,26 @@ public:
     */
     virtual int64_t get_send_bytes();
     virtual int64_t get_recv_bytes();
+    /**
+    * get the delta of send/recv bytes.
+    * @remark, used for add_delta to calc the total system bytes/kbps.
+    */
+    virtual int64_t get_send_bytes_delta();
+    virtual int64_t get_recv_bytes_delta();
 public:
     /**
-    * resample all samples.
+    * add delta to kbps clac mechenism.
+    * we donot know the total bytes, but know the delta, for instance, 
+    * for rtmp server to calc total bytes and kbps.
+    * @remark user must invoke sample() when invoke this method.
+    * @param delta, assert should never be NULL.
+    */
+    virtual void add_delta(IKbpsDelta* delta);
+    /**
+    * resample all samples, ignore if in/out is NULL.
+    * used for user to calc the kbps, to sample new kbps value.
+    * @remark if user, for instance, the rtmp server to calc the total bytes,
+    *       use the add_delta() is better solutions.
     */
     virtual void sample();
 };

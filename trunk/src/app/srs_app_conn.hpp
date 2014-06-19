@@ -34,9 +34,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_st.hpp>
 #include <srs_app_thread.hpp>
+#include <srs_app_kbps.hpp>
 
 class SrsServer;
-class SrsConnection : public ISrsThreadHandler
+class SrsConnection : public virtual ISrsThreadHandler, public virtual IKbpsDelta
 {
 private:
     SrsThread* pthread;
@@ -52,6 +53,8 @@ public:
     virtual int start();
     virtual int cycle();
     virtual void on_thread_stop();
+public:
+    virtual void kbps_resample() = 0;
 protected:
     virtual int do_cycle() = 0;
     virtual void stop();

@@ -182,8 +182,8 @@ int SrsEdgeIngester::ingest()
             srs_trace("<- "SRS_LOG_ID_EDGE_PLAY
                 " time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d", 
                 pithy_print.age(),
-                kbps->get_send_kbps(), kbps->get_send_kbps_sample_high(), kbps->get_send_kbps_sample_medium(),
-                kbps->get_recv_kbps(), kbps->get_recv_kbps_sample_high(), kbps->get_recv_kbps_sample_medium());
+                kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
+                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m());
         }
 
         // read from client.
@@ -479,8 +479,8 @@ int SrsEdgeForwarder::cycle()
             srs_trace("-> "SRS_LOG_ID_EDGE_PUBLISH
                 " time=%"PRId64", msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d", 
                 pithy_print.age(), count,
-                kbps->get_send_kbps(), kbps->get_send_kbps_sample_high(), kbps->get_send_kbps_sample_medium(),
-                kbps->get_recv_kbps(), kbps->get_recv_kbps_sample_high(), kbps->get_recv_kbps_sample_medium());
+                kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
+                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m());
         }
         
         // ignore when no messages.

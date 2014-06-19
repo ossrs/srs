@@ -240,6 +240,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v1.0, 2014-06-19, add srs bytes and kbps to api summaries. 0.9.126
 * v1.0, 2014-06-18, add network bytes to api summaries. 0.9.125
 * v1.0, 2014-06-14, fix [#98](https://github.com/winlinvip/simple-rtmp-server/issues/98), workaround for librtmp ping(fmt=1,cid=2 fresh stream). 0.9.124
 * v1.0, 2014-05-29, support flv inject and flv http streaming with start=bytes. 0.9.122

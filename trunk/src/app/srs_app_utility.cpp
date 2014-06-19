@@ -34,6 +34,7 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_app_kbps.hpp>
 
 #define SRS_LOCAL_LOOP_IP "127.0.0.1"
 
@@ -521,6 +522,38 @@ void srs_update_network_devices()
     
         fclose(f);
     }
+}
+
+SrsNetworkRtmpServer::SrsNetworkRtmpServer()
+{
+    ok = false;
+    sample_time = rbytes = sbytes = 0;
+}
+
+static SrsNetworkRtmpServer _srs_network_rtmp_server;
+
+SrsNetworkRtmpServer* srs_get_network_rtmp_server()
+{
+    return &_srs_network_rtmp_server;
+}
+
+void srs_update_rtmp_server(SrsKbps* kbps)
+{
+    SrsNetworkRtmpServer& r = _srs_network_rtmp_server;
+    
+    r.ok = true;
+    
+    r.sample_time = srs_get_system_time_ms();
+    
+    r.rbytes = kbps->get_recv_bytes();
+    r.rkbps = kbps->get_recv_kbps();
+    r.rkbps_30s = kbps->get_recv_kbps_30s();
+    r.rkbps_5m = kbps->get_recv_kbps_5m();
+    
+    r.sbytes = kbps->get_send_bytes();
+    r.skbps = kbps->get_send_kbps();
+    r.skbps_30s = kbps->get_send_kbps_30s();
+    r.skbps_5m = kbps->get_send_kbps_5m();
 }
 
 vector<string> _srs_system_ipv4_ips;

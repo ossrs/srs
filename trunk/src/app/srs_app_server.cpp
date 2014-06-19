@@ -45,6 +45,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_source.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_app_heartbeat.hpp>
+#include <srs_app_kbps.hpp>
 
 // signal defines.
 #define SIGNAL_RELOAD SIGHUP
@@ -81,6 +82,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // update network devices info interval:
 //      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_NETWORK_DEVICE_RESOLUTION_TIMES
 #define SRS_SYS_NETWORK_DEVICE_RESOLUTION_TIMES 90
+
+// update network devices info interval:
+//      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_NETWORK_RTMP_SERVER_RESOLUTION_TIMES
+#define SRS_SYS_NETWORK_RTMP_SERVER_RESOLUTION_TIMES 90
 
 SrsListener::SrsListener(SrsServer* server, SrsListenerType type)
 {
@@ -312,7 +317,8 @@ SrsServer::SrsServer()
     signal_gmc_stop = false;
     pid_fd = -1;
     
-    signal_manager = new SrsSignalManager(this);
+    signal_manager = NULL;
+    kbps = NULL;
     
     // donot new object in constructor,
     // for some global instance is not ready now,
@@ -372,6 +378,7 @@ void SrsServer::destroy()
     }
     
     srs_freep(signal_manager);
+    srs_freep(kbps);
     
     for (std::vector<SrsConnection*>::iterator it = conns.begin(); it != conns.end();) {
         SrsConnection* conn = *it;
@@ -397,6 +404,13 @@ int SrsServer::initialize()
     // instead, subscribe handler in initialize method.
     srs_assert(_srs_config);
     _srs_config->subscribe(this);
+    
+    srs_assert(!signal_manager);
+    signal_manager = new SrsSignalManager(this);
+    
+    srs_assert(!kbps);
+    kbps = new SrsKbps();
+    kbps->set_io(NULL, NULL);
     
 #ifdef SRS_AUTO_HTTP_API
     srs_assert(!http_api_handler);
@@ -610,6 +624,9 @@ void SrsServer::remove(SrsConnection* conn)
     
     srs_info("conn removed. conns=%d", (int)conns.size());
     
+    // resample the resource of specified connection.
+    resample_kbps(conn);
+    
     // all connections are created by server,
     // so we free it here.
     srs_freep(conn);
@@ -651,11 +668,12 @@ int SrsServer::do_cycle()
     max = srs_max(max, SRS_SYS_MEMINFO_RESOLUTION_TIMES);
     max = srs_max(max, SRS_SYS_PLATFORM_INFO_RESOLUTION_TIMES);
     max = srs_max(max, SRS_SYS_NETWORK_DEVICE_RESOLUTION_TIMES);
+    max = srs_max(max, SRS_SYS_NETWORK_RTMP_SERVER_RESOLUTION_TIMES);
     
     // the deamon thread, update the time cache
     while (true) {
         // the interval in config.
-        int64_t heartbeat_max_resolution = _srs_config->get_heartbeat_interval() / 100;
+        int heartbeat_max_resolution = (int)(_srs_config->get_heartbeat_interval() / 100);
         
         // dynamic fetch the max.
         int __max = max;
@@ -689,30 +707,43 @@ int SrsServer::do_cycle()
             
             // update the cache time or rusage.
             if ((i % SRS_SYS_TIME_RESOLUTION_MS_TIMES) == 0) {
+                srs_info("update current time cache.");
                 srs_update_system_time_ms();
             }
             if ((i % SRS_SYS_RUSAGE_RESOLUTION_TIMES) == 0) {
+                srs_info("update resource info, rss.");
                 srs_update_system_rusage();
             }
             if ((i % SRS_SYS_CPU_STAT_RESOLUTION_TIMES) == 0) {
+                srs_info("update cpu info, usage.");
                 srs_update_proc_stat();
             }
             if ((i % SRS_SYS_MEMINFO_RESOLUTION_TIMES) == 0) {
+                srs_info("update memory info, usage/free.");
                 srs_update_meminfo();
             }
             if ((i % SRS_SYS_PLATFORM_INFO_RESOLUTION_TIMES) == 0) {
+                srs_info("update platform info, uptime/load.");
                 srs_update_platform_info();
             }
             if ((i % SRS_SYS_NETWORK_DEVICE_RESOLUTION_TIMES) == 0) {
+                srs_info("update network devices info.");
                 srs_update_network_devices();
+            }
+            if ((i % SRS_SYS_NETWORK_RTMP_SERVER_RESOLUTION_TIMES) == 0) {
+                srs_info("update network rtmp server info.");
+                resample_kbps(NULL);
+                srs_update_rtmp_server(kbps);
             }
 #ifdef SRS_AUTO_HTTP_PARSER
             if (_srs_config->get_heartbeat_enabled()) {
                 if ((i % heartbeat_max_resolution) == 0) {
+                    srs_info("do http heartbeat, for internal server to report.");
                     http_heartbeat->heartbeat();
                 }
             }
 #endif
+            srs_info("server main thread loop");
         }
     }
 
@@ -798,6 +829,32 @@ void SrsServer::close_listeners(SrsListenerType type)
         
         srs_freep(listener);
         it = listeners.erase(it);
+    }
+}
+
+void SrsServer::resample_kbps(SrsConnection* conn, bool do_resample)
+{
+    // resample all when conn is NULL.
+    if (!conn) {
+        for (std::vector<SrsConnection*>::iterator it = conns.begin(); it != conns.end(); ++it) {
+            SrsConnection* client = *it;
+            srs_assert(client);
+            
+            // only resample, do resample when all finished.
+            resample_kbps(client, false);
+        }
+        
+        kbps->sample();
+        return;
+    }
+    
+    // resample for connection.
+    conn->kbps_resample();
+    
+    kbps->add_delta(conn);
+    
+    if (do_resample) {
+        kbps->sample();
     }
 }
 

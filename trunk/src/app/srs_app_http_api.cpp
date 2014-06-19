@@ -390,6 +390,7 @@ int SrsApiSummaries::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
     SrsMemInfo* m = srs_get_meminfo();
     SrsPlatformInfo* p = srs_get_platform_info();
     SrsNetworkDevices* n = srs_get_network_devices();
+    SrsNetworkRtmpServer* nrs = srs_get_network_rtmp_server();
     
     float self_mem_percent = 0;
     if (m->MemTotal > 0) {
@@ -429,6 +430,7 @@ int SrsApiSummaries::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
             << JFIELD_ORG("meminfo_ok", (m->ok? "true":"false")) << JFIELD_CONT
             << JFIELD_ORG("platform_ok", (p->ok? "true":"false")) << JFIELD_CONT
             << JFIELD_ORG("network_ok", (n_ok? "true":"false")) << JFIELD_CONT
+            << JFIELD_ORG("network_srs_ok", (nrs->ok? "true":"false")) << JFIELD_CONT
             << JFIELD_ORG("now_ms", now) << JFIELD_CONT
             << JFIELD_ORG("self", JOBJECT_START)
                 << JFIELD_ORG("pid", getpid()) << JFIELD_CONT
@@ -455,7 +457,12 @@ int SrsApiSummaries::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
                 << JFIELD_ORG("load_15m", p->load_fifteen_minutes) << JFIELD_CONT
                 << JFIELD_ORG("net_sample_time", n_sample_time) << JFIELD_CONT
                 << JFIELD_ORG("net_recv_bytes", nr_bytes) << JFIELD_CONT
-                << JFIELD_ORG("net_send_bytes", ns_bytes)
+                << JFIELD_ORG("net_send_bytes", ns_bytes) << JFIELD_CONT
+                << JFIELD_ORG("srs_sample_time", nrs->sample_time) << JFIELD_CONT
+                << JFIELD_ORG("srs_recv_bytes", nrs->rbytes) << JFIELD_CONT
+                << JFIELD_ORG("srs_recv_kbps", nrs->rkbps) << JFIELD_CONT
+                << JFIELD_ORG("srs_send_bytes", nrs->sbytes) << JFIELD_CONT
+                << JFIELD_ORG("srs_send_kbps", nrs->skbps)
             << JOBJECT_END
         << JOBJECT_END
         << JOBJECT_END;
@@ -705,6 +712,23 @@ SrsHttpApi::SrsHttpApi(SrsServer* srs_server, st_netfd_t client_stfd, SrsHttpHan
 SrsHttpApi::~SrsHttpApi()
 {
     srs_freep(parser);
+}
+
+void SrsHttpApi::kbps_resample()
+{
+    // TODO: FIXME: implements it
+}
+
+int64_t SrsHttpApi::get_send_bytes_delta()
+{
+    // TODO: FIXME: implements it
+    return 0;
+}
+
+int64_t SrsHttpApi::get_recv_bytes_delta()
+{
+    // TODO: FIXME: implements it
+    return 0;
 }
 
 int SrsHttpApi::do_cycle()

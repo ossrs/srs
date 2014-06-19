@@ -41,6 +41,7 @@ class SrsConnection;
 class SrsHttpHandler;
 class SrsIngester;
 class SrsHttpHeartbeat;
+class SrsKbps;
 
 // listener type for server to identify the connection,
 // that is, use different type to process the connection.
@@ -107,6 +108,10 @@ private:
     static void sig_catcher(int signo);
 };
 
+/**
+* SRS RTMP server, initialize and listen, 
+* start connection service thread, destroy client.
+*/
 class SrsServer : public ISrsReloadHandler
 {
 private:
@@ -127,6 +132,7 @@ private:
     std::vector<SrsConnection*> conns;
     std::vector<SrsListener*> listeners;
     SrsSignalManager* signal_manager;
+    SrsKbps* kbps;
     bool signal_reload;
     bool signal_gmc_stop;
 public:
@@ -150,6 +156,8 @@ private:
     virtual int listen_http_api();
     virtual int listen_http_stream();
     virtual void close_listeners(SrsListenerType type);
+    // resample the server kbps. resample all when conn is NULL.
+    virtual void resample_kbps(SrsConnection* conn, bool do_resample = true);
 // internal only
 public:
     virtual int accept_client(SrsListenerType type, st_netfd_t client_stfd);

@@ -35,6 +35,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <sys/resource.h>
 
+class SrsKbps;
+
 /**
 * convert level in string to log level in int.
 * @return the log level defined in SrsLogLevel.
@@ -389,6 +391,36 @@ extern SrsNetworkDevices* srs_get_network_devices();
 extern int srs_get_network_devices_count();
 // the deamon st-thread will update it.
 extern void srs_update_network_devices();
+
+// srs rtmp network summary
+class SrsNetworkRtmpServer
+{
+public:
+    // whether the network device is ok.
+    bool ok;
+    
+    // the sample time in ms.
+    int64_t sample_time;
+    
+    // data for receive.
+    int64_t rbytes;
+    int rkbps;
+    int rkbps_30s;
+    int rkbps_5m;
+    
+    // data for transmit
+    int64_t sbytes;
+    int skbps;
+    int skbps_30s;
+    int skbps_5m;
+    
+    SrsNetworkRtmpServer();
+};
+    
+// get network devices info, use cache to avoid performance problem.
+extern SrsNetworkRtmpServer* srs_get_network_rtmp_server();
+// the deamon st-thread will update it.
+extern void srs_update_rtmp_server(SrsKbps* kbps);
 
 // get local ip, fill to @param ips
 extern void srs_retrieve_local_ipv4_ips();

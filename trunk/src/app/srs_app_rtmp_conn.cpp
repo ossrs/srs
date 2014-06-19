@@ -94,6 +94,11 @@ SrsRtmpConn::~SrsRtmpConn()
     srs_freep(kbps);
 }
 
+void SrsRtmpConn::kbps_resample()
+{
+    kbps->sample();
+}
+
 // TODO: return detail message when error for client.
 int SrsRtmpConn::do_cycle()
 {
@@ -167,6 +172,16 @@ int SrsRtmpConn::on_reload_vhost_removed(string vhost)
     srs_close_stfd(stfd);
     
     return ret;
+}
+
+int64_t SrsRtmpConn::get_send_bytes_delta()
+{
+    return kbps->get_send_bytes_delta();
+}
+
+int64_t SrsRtmpConn::get_recv_bytes_delta()
+{
+    return kbps->get_recv_bytes_delta();
 }
     
 int SrsRtmpConn::service_cycle()
@@ -510,8 +525,8 @@ int SrsRtmpConn::playing(SrsSource* source)
             srs_trace("-> "SRS_LOG_ID_PLAY
                 " time=%"PRId64", msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d", 
                 pithy_print.age(), count,
-                kbps->get_send_kbps(), kbps->get_send_kbps_sample_high(), kbps->get_send_kbps_sample_medium(),
-                kbps->get_recv_kbps(), kbps->get_recv_kbps_sample_high(), kbps->get_recv_kbps_sample_medium());
+                kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
+                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m());
         }
         
         if (count <= 0) {
@@ -601,8 +616,8 @@ int SrsRtmpConn::fmle_publish(SrsSource* source)
             kbps->sample();
             srs_trace("<- "SRS_LOG_ID_CLIENT_PUBLISH
                 " time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d", pithy_print.age(), 
-                kbps->get_send_kbps(), kbps->get_send_kbps_sample_high(), kbps->get_send_kbps_sample_medium(),
-                kbps->get_recv_kbps(), kbps->get_recv_kbps_sample_high(), kbps->get_recv_kbps_sample_medium());
+                kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
+                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m());
         }
     
         // process UnPublish event.
@@ -683,8 +698,8 @@ int SrsRtmpConn::flash_publish(SrsSource* source)
             srs_trace("<- "SRS_LOG_ID_WEB_PUBLISH
                 " time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d", 
                 pithy_print.age(),
-                kbps->get_send_kbps(), kbps->get_send_kbps_sample_high(), kbps->get_send_kbps_sample_medium(),
-                kbps->get_recv_kbps(), kbps->get_recv_kbps_sample_high(), kbps->get_recv_kbps_sample_medium());
+                kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
+                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m());
         }
     
         // process UnPublish event.
