@@ -35,9 +35,62 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_buffer.hpp>
 
 /**
+* the system io reader/writer architecture:
++---------------+     +--------------------+      +---------------+
+| IBufferReader |     |    IStatistic      |      | IBufferWriter |
++---------------+     +--------------------+      +---------------+
+| + read()      |     | + get_recv_bytes() |      | + write()     |
++------+--------+     | + get_recv_bytes() |      | + writev()    |
+      / \             +---+--------------+-+      +-------+-------+
+       |                 / \            / \              / \
+       |                  |              |                |
++------+------------------+-+      +-----+----------------+--+
+| IProtocolReader           |      | IProtocolWriter         |
++---------------------------+      +-------------------------+
+| + readfully()             |      | + set_send_timeout()    |
+| + set_recv_timeout()      |      +-------+-----------------+
++------------+--------------+             / \     
+            / \                            |   
+             |                             | 
+          +--+-----------------------------+-+
+          |       IProtocolReaderWriter      |
+          +----------------------------------+
+          | + is_never_timeout()             |
+          +----------------------------------+
+*/
+
+/**
+* the writer for the buffer to write to whatever channel.
+*/
+class ISrsBufferWriter
+{
+public:
+    ISrsBufferWriter();
+    virtual ~ISrsBufferWriter();
+// for protocol
+public:
+    virtual int write(void* buf, size_t size, ssize_t* nwrite) = 0;
+    virtual int writev(const iovec *iov, int iov_size, ssize_t* nwrite) = 0;
+};
+
+/**
+* get the statistic of channel.
+*/
+class ISrsProtocolStatistic
+{
+public:
+    ISrsProtocolStatistic();
+    virtual ~ISrsProtocolStatistic();
+// for protocol
+public:
+    virtual int64_t get_recv_bytes() = 0;
+    virtual int64_t get_send_bytes() = 0;
+};
+
+/**
 * the reader for the protocol to read from whatever channel.
 */
-class ISrsProtocolReader : public ISrsBufferReader
+class ISrsProtocolReader : public virtual ISrsBufferReader, public virtual ISrsProtocolStatistic
 {
 public:
     ISrsProtocolReader();
@@ -46,13 +99,15 @@ public:
 public:
     virtual void set_recv_timeout(int64_t timeout_us) = 0;
     virtual int64_t get_recv_timeout() = 0;
-    virtual int64_t get_recv_bytes() = 0;
+// for handshake.
+public:
+    virtual int read_fully(void* buf, size_t size, ssize_t* nread) = 0;
 };
 
 /**
 * the writer for the protocol to write to whatever channel.
 */
-class ISrsProtocolWriter
+class ISrsProtocolWriter : public virtual ISrsBufferWriter, public virtual ISrsProtocolStatistic
 {
 public:
     ISrsProtocolWriter();
@@ -61,11 +116,12 @@ public:
 public:
     virtual void set_send_timeout(int64_t timeout_us) = 0;
     virtual int64_t get_send_timeout() = 0;
-    virtual int64_t get_send_bytes() = 0;
-    virtual int writev(const iovec *iov, int iov_size, ssize_t* nwrite) = 0;
 };
 
-class ISrsProtocolReaderWriter : public ISrsProtocolReader, public ISrsProtocolWriter
+/**
+* the reader and writer.
+*/
+class ISrsProtocolReaderWriter : public virtual ISrsProtocolReader, public virtual ISrsProtocolWriter
 {
 public:
     ISrsProtocolReaderWriter();
@@ -76,10 +132,6 @@ public:
     * whether the specified timeout_us is never timeout.
     */
     virtual bool is_never_timeout(int64_t timeout_us) = 0;
-// for handshake.
-public:
-    virtual int read_fully(void* buf, size_t size, ssize_t* nread) = 0;
-    virtual int write(void* buf, size_t size, ssize_t* nwrite) = 0;
 };
 
 #endif

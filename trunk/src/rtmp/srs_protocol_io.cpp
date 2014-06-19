@@ -23,6 +23,22 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_protocol_io.hpp>
 
+ISrsBufferWriter::ISrsBufferWriter()
+{
+}
+
+ISrsBufferWriter::~ISrsBufferWriter()
+{
+}
+
+ISrsProtocolStatistic::ISrsProtocolStatistic()
+{
+}
+
+ISrsProtocolStatistic::~ISrsProtocolStatistic()
+{
+}
+
 ISrsProtocolReader::ISrsProtocolReader()
 {
 }
