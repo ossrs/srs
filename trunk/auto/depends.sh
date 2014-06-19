@@ -102,13 +102,6 @@ function Ubuntu_prepare()
             sudo apt-get install -y --force-yes zlib1g-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "install zlib1g-dev success"
         fi
-        
-        if [[ ! -d /usr/include/freetype2 ]]; then
-            echo "install libfreetype6-dev"
-            require_sudoer "sudo apt-get install -y --force-yes libfreetype6-dev"
-            sudo apt-get install -y --force-yes libfreetype6-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install libfreetype6-dev success"
-        fi
     fi
     
     # for arm, install the cross build tool chain.
@@ -208,13 +201,6 @@ function Centos_prepare()
             require_sudoer "sudo yum install -y zlib-devel"
             sudo yum install -y zlib-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "install zlib-devel success"
-        fi
-        
-        if [[ ! -d /usr/include/freetype2 ]]; then
-            echo "install freetype-devel"
-            require_sudoer "sudo yum install -y freetype-devel"
-            sudo yum install -y freetype-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install freetype-devel success"
         fi
     fi
     

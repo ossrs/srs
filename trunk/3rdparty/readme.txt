@@ -35,6 +35,9 @@ gtest-1.6.0.zip
 gperftools-2.1.zip
     google性能分析和测试工具。
     编译和使用参考压缩文件中的README和doc目录。
+    
+freetype-2.4.0
+    ffmpeg用到的字体库，在加文字水印需要用到。
 
 links:
     nginx:
@@ -46,6 +49,9 @@ links:
     ffmpeg: 
         http://ffmpeg.org/ 
         http://ffmpeg.org/releases/ffmpeg-2.1.1.tar.gz
+    freetype:
+        http://www.freetype.org/index.html
+        http://download.savannah.gnu.org/releases/freetype/freetype-2.4.0.tar.bz2
     x264: 
         http://www.videolan.org/ 
         ftp://ftp.videolan.org/pub/videolan/x264/snapshots/x264-snapshot-20131129-2245-stable.tar.bz2

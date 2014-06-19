@@ -69,6 +69,17 @@ else
     ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build speex-1.2rc1 failed"; exit 1; fi
 fi
 
+# freetype-2.4.0
+if [[ -f ${ff_release_dir}/lib/libfreetype.a ]]; then
+    echo "libfreetype is ok"
+else
+    echo "build freetype-2.4.0"
+    cd $ff_current_dir &&
+    rm -rf freetype-2.4.0 && unzip -q ${ff_src_dir}/freetype-2.4.0.zip &&
+    cd freetype-2.4.0 && ./configure --prefix=${ff_release_dir} --enable-static && make ${SRS_JOBS} && make install
+    ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build freetype-2.4.0 failed"; exit 1; fi
+fi
+
 # x264 core.138
 if [[ -f ${ff_release_dir}/lib/libx264.a ]]; then
     echo "x264 is ok"
