@@ -34,9 +34,13 @@ echo "depends tools are ok"
 OS_IS_UBUNTU=NO
 function Ubuntu_prepare()
 {
-    uname -v|grep Ubuntu >/dev/null 2>&1
-    ret=$?; if [[ 0 -ne $ret ]]; then
-        return 0;
+    if [ $SRS_CUBIE = YES ]; then
+        echo "for cubieboard, use ubuntu prepare"
+    else
+        uname -v|grep Ubuntu >/dev/null 2>&1
+        ret=$?; if [[ 0 -ne $ret ]]; then
+            return 0;
+        fi
     fi
 
     OS_IS_UBUNTU=YES
