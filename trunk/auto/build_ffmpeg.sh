@@ -70,6 +70,7 @@ else
 fi
 
 # freetype-2.4.0
+# remark: we must ensure the pkg-config tool installed.
 if [[ -f ${ff_release_dir}/lib/libfreetype.a ]]; then
     echo "libfreetype is ok"
 else
