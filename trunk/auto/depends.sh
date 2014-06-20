@@ -210,14 +210,6 @@ function Centos_prepare()
             sudo yum install -y zlib-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "install zlib-devel success"
         fi
-    
-        # for freetype2
-        pkg-config --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "install pkg-config"
-            require_sudoer "sudo yum install -y pkg-config"
-            sudo yum install -y pkg-config; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install pkg-config success"
-        fi
     fi
     
     # for arm, install the cross build tool chain.
