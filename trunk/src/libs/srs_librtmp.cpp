@@ -915,94 +915,15 @@ void srs_amf0_strict_array_append(srs_amf0_t amf0, srs_amf0_t value)
     obj->append(any);
 }
 
-void __srs_fill_level_spaces(stringstream& ss, int level)
-{
-    for (int i = 0; i < level; i++) {
-        ss << "    ";
-    }
-}
-void __srs_amf0_do_print(SrsAmf0Any* any, stringstream& ss, int level)
-{
-    if (any->is_boolean()) {
-        ss << "Boolean " << (any->to_boolean()? "true":"false") << endl;
-    } else if (any->is_number()) {
-        ss << "Number " << std::fixed << any->to_number() << endl;
-    } else if (any->is_string()) {
-        ss << "String " << any->to_str() << endl;
-    } else if (any->is_null()) {
-        ss << "Null" << endl;
-    } else if (any->is_ecma_array()) {
-        SrsAmf0EcmaArray* obj = any->to_ecma_array();
-        ss << "EcmaArray " << "(" << obj->count() << " items)" << endl;
-        for (int i = 0; i < obj->count(); i++) {
-            __srs_fill_level_spaces(ss, level + 1);
-            ss << "Elem '" << obj->key_at(i) << "' ";
-            if (obj->value_at(i)->is_complex_object()) {
-                __srs_amf0_do_print(obj->value_at(i), ss, level + 1);
-            } else {
-                __srs_amf0_do_print(obj->value_at(i), ss, 0);
-            }
-        }
-    } else if (any->is_strict_array()) {
-        SrsAmf0StrictArray* obj = any->to_strict_array();
-        ss << "StrictArray " << "(" << obj->count() << " items)" << endl;
-        for (int i = 0; i < obj->count(); i++) {
-            __srs_fill_level_spaces(ss, level + 1);
-            ss << "Elem ";
-            if (obj->at(i)->is_complex_object()) {
-                __srs_amf0_do_print(obj->at(i), ss, level + 1);
-            } else {
-                __srs_amf0_do_print(obj->at(i), ss, 0);
-            }
-        }
-    } else if (any->is_object()) {
-        SrsAmf0Object* obj = any->to_object();
-        ss << "Object " << "(" << obj->count() << " items)" << endl;
-        for (int i = 0; i < obj->count(); i++) {
-            __srs_fill_level_spaces(ss, level + 1);
-            ss << "Property '" << obj->key_at(i) << "' ";
-            if (obj->value_at(i)->is_complex_object()) {
-                __srs_amf0_do_print(obj->value_at(i), ss, level + 1);
-            } else {
-                __srs_amf0_do_print(obj->value_at(i), ss, 0);
-            }
-        }
-    } else {
-        ss << "Unknown" << endl;
-    }
-}
-
 char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize)
 {
     if (!amf0) {
         return NULL;
     }
     
-    stringstream ss;
-    
-    ss.precision(1);
-    
     SrsAmf0Any* any = (SrsAmf0Any*)amf0;
     
-    __srs_amf0_do_print(any, ss, 0);
-    
-    string str = ss.str();
-    if (str.empty()) {
-        return NULL;
-    }
-    
-    char* data = new char[str.length() + 1];
-    memcpy(data, str.data(), str.length());
-    data[str.length()] = 0;
-    
-    if (pdata) {
-        *pdata = data;
-    }
-    if (psize) {
-        *psize = str.length();
-    }
-    
-    return data;
+    return any->human_print(pdata, psize);
 }
 
 #ifdef __cplusplus

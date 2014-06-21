@@ -244,9 +244,9 @@ srs_amf0_t srs_amf0_strict_array_property_at(srs_amf0_t amf0, int index);
 void srs_amf0_strict_array_append(srs_amf0_t amf0, srs_amf0_t value);
 /**
 * human readable print 
-* @param pdata, output the heap data, 
+* @param pdata, output the heap data, NULL to ignore.
 * user must use srs_amf0_free_bytes to free it.
-* @return return the *pdata for print.
+* @return return the *pdata for print. NULL to ignore.
 */
 char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize);
 

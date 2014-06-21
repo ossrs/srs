@@ -60,6 +60,8 @@ SRS_ARM_UBUNTU12=NO
 SRS_MIPS_UBUNTU12=NO
 # dev, open all features for dev, no gperf/prof/arm.
 SRS_DEV=NO
+# dev, open main server feature for dev, no bwtc/utest/research/librtmp
+SRS_FAST_DEV=NO
 # raspberry-pi, open hls/ssl/static
 SRS_PI=NO
 # cubieboard, donot open ffmpeg/nginx.
@@ -151,6 +153,7 @@ Presets:
   --rtmp-hls                only support RTMP+HLS with ssl.
   --disable-all             disable all features, only support vp6 RTMP.
   --dev                     for dev, open all features, no nginx/gperf/gprof/arm.
+  --fast-dev                for dev fast compile, the RTMP server, without bwtc/librtmp/utest/research.
   --full                    enable all features, no gperf/gprof/arm.
   
 Conflicts:
@@ -232,6 +235,7 @@ function parse_user_option() {
         --pi)                           SRS_PI=YES                  ;;
         --cubie)                        SRS_CUBIE=YES               ;;
         --dev)                          SRS_DEV=YES                 ;;
+        --fast-dev)                     SRS_FAST_DEV=YES            ;;
         --fast)                         SRS_FAST=YES                ;;
         --disable-all)                  SRS_DISABLE_ALL=YES         ;;
         --pure-rtmp)                    SRS_PURE_RTMP=YES           ;;
@@ -282,12 +286,14 @@ function apply_user_presets() {
                 if [ $SRS_DISABLE_ALL = NO ]; then
                     if [ $SRS_ENABLE_ALL = NO ]; then
                         if [ $SRS_DEV = NO ]; then
-                            if [ $SRS_ARM_UBUNTU12 = NO ]; then
-                                if [ $SRS_MIPS_UBUNTU12 = NO ]; then
-                                    if [ $SRS_PI = NO ]; then
-                                        if [ $SRS_CUBIE = NO ]; then
-                                            if [ $SRS_X86_X64 = NO ]; then
-                                                SRS_X86_X64=YES; opt="--x86-x64 $opt";
+                            if [ $SRS_FAST_DEV = NO ]; then
+                                if [ $SRS_ARM_UBUNTU12 = NO ]; then
+                                    if [ $SRS_MIPS_UBUNTU12 = NO ]; then
+                                        if [ $SRS_PI = NO ]; then
+                                            if [ $SRS_CUBIE = NO ]; then
+                                                if [ $SRS_X86_X64 = NO ]; then
+                                                    SRS_X86_X64=YES; opt="--x86-x64 $opt";
+                                                fi
                                             fi
                                         fi
                                     fi
@@ -526,6 +532,31 @@ function apply_user_presets() {
         SRS_BWTC=YES
         SRS_RESEARCH=YES
         SRS_UTEST=YES
+        SRS_GPERF=NO
+        SRS_GPERF_MC=NO
+        SRS_GPERF_MP=NO
+        SRS_GPERF_CP=NO
+        SRS_GPROF=NO
+        SRS_STATIC=NO
+    fi
+
+    # if fast dev specified, open main server features.
+    if [ $SRS_FAST_DEV = YES ]; then
+        SRS_HLS=YES
+        SRS_DVR=YES
+        SRS_NGINX=NO
+        SRS_SSL=YES
+        SRS_FFMPEG_TOOL=NO
+        SRS_TRANSCODE=YES
+        SRS_INGEST=YES
+        SRS_HTTP_PARSER=YES
+        SRS_HTTP_CALLBACK=YES
+        SRS_HTTP_SERVER=YES
+        SRS_HTTP_API=YES
+        SRS_LIBRTMP=NO
+        SRS_BWTC=NO
+        SRS_RESEARCH=NO
+        SRS_UTEST=NO
         SRS_GPERF=NO
         SRS_GPERF_MC=NO
         SRS_GPERF_MP=NO

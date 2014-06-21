@@ -43,6 +43,7 @@ class SrsOnMetaDataPacket;
 class SrsPlayPacket;
 class SrsMessage;
 class SrsPacket;
+class SrsAmf0Object;
 
 /**
 * the original request from client.
@@ -73,6 +74,11 @@ public:
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/45
     // in ms.
     double duration;
+    
+    // the token in the connect request,
+    // used for edge traverse to origin authentication,
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/104
+    SrsAmf0Object* args;
     
     SrsRequest();
     virtual ~SrsRequest();
@@ -173,7 +179,10 @@ public:
     virtual int simple_handshake();
     // only use complex handshake
     virtual int complex_handshake();
-    virtual int connect_app(std::string app, std::string tc_url);
+    // set req to use the original request of client:
+    //      pageUrl and swfUrl for refer antisuck.
+    //      args for edge to origin traverse auth, @see SrsRequest.args
+    virtual int connect_app(std::string app, std::string tc_url, SrsRequest* req=NULL);
     virtual int create_stream(int& stream_id);
     virtual int play(std::string stream, int stream_id);
     // flash publish schema:

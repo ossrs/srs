@@ -165,6 +165,11 @@ public:
     SrsPlayEdge();
     virtual ~SrsPlayEdge();
 public:
+    /**
+    * always use the req of source,
+    * for we assume all client to edge is invalid,
+    * if auth open, edge must valid it from origin, then service it.
+    */
     virtual int initialize(SrsSource* source, SrsRequest* req);
     /**
     * when client play stream on edge.

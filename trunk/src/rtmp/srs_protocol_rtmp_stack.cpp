@@ -1749,11 +1749,14 @@ SrsConnectAppPacket::SrsConnectAppPacket()
     command_name = RTMP_AMF0_COMMAND_CONNECT;
     transaction_id = 1;
     command_object = SrsAmf0Any::object();
+    // optional
+    args = NULL;
 }
 
 SrsConnectAppPacket::~SrsConnectAppPacket()
 {
     srs_freep(command_object);
+    srs_freep(args);
 }
 
 int SrsConnectAppPacket::decode(SrsStream* stream)
@@ -1789,6 +1792,15 @@ int SrsConnectAppPacket::decode(SrsStream* stream)
         return ret;
     }
     
+    if (!stream->empty()) {
+        srs_freep(args);
+        args = SrsAmf0Any::object();
+        if ((ret = args->read(stream)) != ERROR_SUCCESS) {
+            srs_error("amf0 decode connect args failed. ret=%d", ret);
+            return ret;
+        }
+    }
+    
     srs_info("amf0 decode connect packet success");
     
     return ret;
@@ -1806,8 +1818,16 @@ int SrsConnectAppPacket::get_message_type()
 
 int SrsConnectAppPacket::get_size()
 {
-    return SrsAmf0Size::str(command_name) + SrsAmf0Size::number()
-        + SrsAmf0Size::object(command_object);
+    int size = 0;
+    
+    size += SrsAmf0Size::str(command_name);
+    size += SrsAmf0Size::number();
+    size += SrsAmf0Size::object(command_object);
+    if (args) {
+        size += SrsAmf0Size::object(args);
+    }
+    
+    return size;
 }
 
 int SrsConnectAppPacket::encode_packet(SrsStream* stream)
@@ -1831,6 +1851,12 @@ int SrsConnectAppPacket::encode_packet(SrsStream* stream)
         return ret;
     }
     srs_verbose("encode command_object success.");
+    
+    if (args && (ret = args->write(stream)) != ERROR_SUCCESS) {
+        srs_error("encode args failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("encode args success.");
     
     srs_info("encode connect app request packet success.");
     

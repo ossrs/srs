@@ -152,6 +152,14 @@ public:
     virtual int write(SrsStream* stream) = 0;
     virtual SrsAmf0Any* copy() = 0;
 public:
+    /**
+    * human readable print 
+    * @param pdata, output the heap data, NULL to ignore.
+    * user must use srs_amf0_free_bytes to free it.
+    * @return return the *pdata for print. NULL to ignore.
+    */
+    virtual char* human_print(char** pdata, int* psize);
+public:
     static SrsAmf0Any* str(const char* value = NULL); 
     static SrsAmf0Any* boolean(bool value = false);
     static SrsAmf0Any* number(double value = 0.0);

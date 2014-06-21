@@ -78,10 +78,12 @@ SrsRequest::SrsRequest()
 {
     objectEncoding = RTMP_SIG_AMF0_VER;
     duration = -1;
+    args = NULL;
 }
 
 SrsRequest::~SrsRequest()
 {
+    srs_freep(args);
 }
 
 SrsRequest* SrsRequest::copy()
@@ -99,6 +101,9 @@ SrsRequest* SrsRequest::copy()
     cp->tcUrl = tcUrl;
     cp->vhost = vhost;
     cp->duration = duration;
+    if (args) {
+        cp->args = args->copy()->to_object();
+    }
     
     return cp;
 }
@@ -451,7 +456,7 @@ int SrsRtmpClient::complex_handshake()
     return ret;
 }
 
-int SrsRtmpClient::connect_app(string app, string tc_url)
+int SrsRtmpClient::connect_app(string app, string tc_url, SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
     
@@ -461,15 +466,28 @@ int SrsRtmpClient::connect_app(string app, string tc_url)
         
         pkt->command_object->set("app", SrsAmf0Any::str(app.c_str()));
         pkt->command_object->set("flashVer", SrsAmf0Any::str("WIN 12,0,0,41"));
-        pkt->command_object->set("swfUrl", SrsAmf0Any::str());
+        if (req) {
+            pkt->command_object->set("swfUrl", SrsAmf0Any::str(req->swfUrl.c_str()));
+        } else {
+            pkt->command_object->set("swfUrl", SrsAmf0Any::str());
+        }
         pkt->command_object->set("tcUrl", SrsAmf0Any::str(tc_url.c_str()));
         pkt->command_object->set("fpad", SrsAmf0Any::boolean(false));
         pkt->command_object->set("capabilities", SrsAmf0Any::number(239));
         pkt->command_object->set("audioCodecs", SrsAmf0Any::number(3575));
         pkt->command_object->set("videoCodecs", SrsAmf0Any::number(252));
         pkt->command_object->set("videoFunction", SrsAmf0Any::number(1));
-        pkt->command_object->set("pageUrl", SrsAmf0Any::str());
+        if (req) {
+            pkt->command_object->set("pageUrl", SrsAmf0Any::str(req->pageUrl.c_str()));
+        } else {
+            pkt->command_object->set("pageUrl", SrsAmf0Any::str());
+        }
         pkt->command_object->set("objectEncoding", SrsAmf0Any::number(0));
+        
+        if (req && req->args) {
+            srs_freep(pkt->args);
+            pkt->args = req->args->copy()->to_object();
+        }
         
         if ((ret = protocol->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
             return ret;
@@ -823,6 +841,12 @@ int SrsRtmpServer::connect_app(SrsRequest* req)
     
     if ((prop = pkt->command_object->ensure_property_number("objectEncoding")) != NULL) {
         req->objectEncoding = prop->to_number();
+    }
+    
+    if (pkt->args) {
+        srs_freep(req->args);
+        req->args = pkt->args->copy()->to_object();
+        srs_info("copy edge traverse to origin auth args.");
     }
     
     srs_info("get connect app message params success.");

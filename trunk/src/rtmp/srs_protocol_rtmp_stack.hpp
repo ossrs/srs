@@ -486,6 +486,11 @@ public:
     * so, directly use it, never alloc again.
     */
     SrsAmf0Object* command_object;
+    /**
+    * Object
+    * Any optional information
+    */
+    SrsAmf0Object* args;
 public:
     SrsConnectAppPacket();
     virtual ~SrsConnectAppPacket();

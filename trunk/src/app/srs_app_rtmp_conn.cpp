@@ -146,10 +146,10 @@ int SrsRtmpConn::do_cycle()
     srs_verbose("check vhost success.");
     
     srs_trace("connect app, "
-        "tcUrl=%s, pageUrl=%s, swfUrl=%s, schema=%s, vhost=%s, port=%s, app=%s", 
+        "tcUrl=%s, pageUrl=%s, swfUrl=%s, schema=%s, vhost=%s, port=%s, app=%s, args=%s", 
         req->tcUrl.c_str(), req->pageUrl.c_str(), req->swfUrl.c_str(), 
         req->schema.c_str(), req->vhost.c_str(), req->port.c_str(),
-        req->app.c_str());
+        req->app.c_str(), (req->args? "(obj)":"null"));
     
     ret = service_cycle();
     http_hooks_on_close();

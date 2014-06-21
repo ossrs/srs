@@ -129,7 +129,7 @@ int SrsEdgeIngester::cycle()
         srs_error("handshake with server failed. ret=%d", ret);
         return ret;
     }
-    if ((ret = client->connect_app(req->app, req->tcUrl)) != ERROR_SUCCESS) {
+    if ((ret = client->connect_app(req->app, req->tcUrl, req)) != ERROR_SUCCESS) {
         srs_error("connect with server failed, tcUrl=%s. ret=%d", req->tcUrl.c_str(), ret);
         return ret;
     }

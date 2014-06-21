@@ -25,6 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <utility>
 #include <vector>
+#include <sstream>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
@@ -328,6 +329,90 @@ void SrsAmf0Any::set_number(double value)
 bool SrsAmf0Any::is_object_eof()
 {
     return marker == RTMP_AMF0_ObjectEnd;
+}
+
+void __srs_fill_level_spaces(stringstream& ss, int level)
+{
+    for (int i = 0; i < level; i++) {
+        ss << "    ";
+    }
+}
+void __srs_amf0_do_print(SrsAmf0Any* any, stringstream& ss, int level)
+{
+    if (any->is_boolean()) {
+        ss << "Boolean " << (any->to_boolean()? "true":"false") << endl;
+    } else if (any->is_number()) {
+        ss << "Number " << std::fixed << any->to_number() << endl;
+    } else if (any->is_string()) {
+        ss << "String " << any->to_str() << endl;
+    } else if (any->is_null()) {
+        ss << "Null" << endl;
+    } else if (any->is_ecma_array()) {
+        SrsAmf0EcmaArray* obj = any->to_ecma_array();
+        ss << "EcmaArray " << "(" << obj->count() << " items)" << endl;
+        for (int i = 0; i < obj->count(); i++) {
+            __srs_fill_level_spaces(ss, level + 1);
+            ss << "Elem '" << obj->key_at(i) << "' ";
+            if (obj->value_at(i)->is_complex_object()) {
+                __srs_amf0_do_print(obj->value_at(i), ss, level + 1);
+            } else {
+                __srs_amf0_do_print(obj->value_at(i), ss, 0);
+            }
+        }
+    } else if (any->is_strict_array()) {
+        SrsAmf0StrictArray* obj = any->to_strict_array();
+        ss << "StrictArray " << "(" << obj->count() << " items)" << endl;
+        for (int i = 0; i < obj->count(); i++) {
+            __srs_fill_level_spaces(ss, level + 1);
+            ss << "Elem ";
+            if (obj->at(i)->is_complex_object()) {
+                __srs_amf0_do_print(obj->at(i), ss, level + 1);
+            } else {
+                __srs_amf0_do_print(obj->at(i), ss, 0);
+            }
+        }
+    } else if (any->is_object()) {
+        SrsAmf0Object* obj = any->to_object();
+        ss << "Object " << "(" << obj->count() << " items)" << endl;
+        for (int i = 0; i < obj->count(); i++) {
+            __srs_fill_level_spaces(ss, level + 1);
+            ss << "Property '" << obj->key_at(i) << "' ";
+            if (obj->value_at(i)->is_complex_object()) {
+                __srs_amf0_do_print(obj->value_at(i), ss, level + 1);
+            } else {
+                __srs_amf0_do_print(obj->value_at(i), ss, 0);
+            }
+        }
+    } else {
+        ss << "Unknown" << endl;
+    }
+}
+
+char* SrsAmf0Any::human_print(char** pdata, int* psize)
+{
+    stringstream ss;
+    
+    ss.precision(1);
+    
+    __srs_amf0_do_print(this, ss, 0);
+    
+    string str = ss.str();
+    if (str.empty()) {
+        return NULL;
+    }
+    
+    char* data = new char[str.length() + 1];
+    memcpy(data, str.data(), str.length());
+    data[str.length()] = 0;
+    
+    if (pdata) {
+        *pdata = data;
+    }
+    if (psize) {
+        *psize = str.length();
+    }
+    
+    return data;
 }
 
 SrsAmf0Any* SrsAmf0Any::str(const char* value)
