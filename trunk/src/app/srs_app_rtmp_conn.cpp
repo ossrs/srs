@@ -24,6 +24,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_rtmp_conn.hpp>
 
 #include <stdlib.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 using namespace std;
 
@@ -45,6 +48,8 @@ using namespace std;
 #include <srs_app_edge.hpp>
 #include <srs_app_kbps.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_protocol_utility.hpp>
+#include <srs_kernel_utility.hpp>
 
 // when stream is busy, for example, streaming is already
 // publishing, when a new client to request to publish,
@@ -62,6 +67,9 @@ using namespace std;
 #define SRS_PAUSED_SEND_TIMEOUT_US (int64_t)(30*60*1000*1000LL)
 // if timeout, close the connection.
 #define SRS_PAUSED_RECV_TIMEOUT_US (int64_t)(30*60*1000*1000LL)
+
+// when edge timeout, retry next.
+#define SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT_US (int64_t)(3*1000*1000LL)
 
 SrsRtmpConn::SrsRtmpConn(SrsServer* srs_server, st_netfd_t client_stfd)
     : SrsConnection(srs_server, client_stfd)
@@ -290,14 +298,22 @@ int SrsRtmpConn::stream_service_cycle()
     }
     srs_info("set chunk_size=%d success", chunk_size);
     
+    // do token traverse before serve it.
+    bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
+    bool edge_traverse = _srs_config->get_vhost_edge_token_traverse(req->vhost);
+    if (vhost_is_edge && edge_traverse) {
+        if ((ret = check_edge_token_traverse_auth()) != ERROR_SUCCESS) {
+            srs_warn("token auth failed, ret=%d", ret);
+            return ret;
+        }
+    }
+    
     // find a source to serve.
     SrsSource* source = NULL;
     if ((ret = SrsSource::find(req, &source)) != ERROR_SUCCESS) {
         return ret;
     }
     srs_assert(source != NULL);
-    
-    bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
     
     // check publish available
     // for edge, never check it, for edge use proxy mode.
@@ -842,6 +858,122 @@ int SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsMessage* msg
         return ret;
     }
     srs_info("process pause success, is_pause=%d, time=%d.", pause->is_pause, pause->time_ms);
+    
+    return ret;
+}
+
+int SrsRtmpConn::check_edge_token_traverse_auth()
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(req);
+    
+    st_netfd_t stsock = NULL;
+    SrsConfDirective* conf = _srs_config->get_vhost_edge_origin(req->vhost);
+    for (int i = 0; i < (int)conf->args.size(); i++) {
+        if ((ret = connect_server(i, &stsock)) == ERROR_SUCCESS) {
+            break;
+        }
+    }
+    if (ret != ERROR_SUCCESS) {
+        srs_warn("token traverse connect failed. ret=%d", ret);
+        return ret;
+    }
+    
+    srs_assert(stsock);
+    SrsSocket* io = new SrsSocket(stsock);
+    SrsRtmpClient* client = new SrsRtmpClient(io);
+    
+    ret = do_token_traverse_auth(io, client);
+
+    srs_freep(client);
+    srs_freep(io);
+    srs_close_stfd(stsock);
+
+    return ret;
+}
+
+// TODO: FIXME: refine the connect server serials functions.
+int SrsRtmpConn::connect_server(int origin_index, st_netfd_t* pstsock)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsConfDirective* conf = _srs_config->get_vhost_edge_origin(req->vhost);
+    srs_assert(conf);
+    
+    // select the origin.
+    std::string server = conf->args.at(origin_index % conf->args.size());
+    origin_index = (origin_index + 1) % conf->args.size();
+    
+    std::string s_port = RTMP_DEFAULT_PORT;
+    int port = ::atoi(RTMP_DEFAULT_PORT);
+    size_t pos = server.find(":");
+    if (pos != std::string::npos) {
+        s_port = server.substr(pos + 1);
+        server = server.substr(0, pos);
+        port = ::atoi(s_port.c_str());
+    }
+    
+    // connect to server.
+    std::string ip = srs_dns_resolve(server);
+    if (ip.empty()) {
+        ret = ERROR_SYSTEM_IP_INVALID;
+        srs_error("dns resolve server error, ip empty. ret=%d", ret);
+        return ret;
+    }
+
+    // open socket.
+    // TODO: FIXME: extract utility method
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if(sock == -1){
+        ret = ERROR_SOCKET_CREATE;
+        srs_error("create socket error. ret=%d", ret);
+        return ret;
+    }
+    
+    st_netfd_t stsock = st_netfd_open_socket(sock);
+    if(stsock == NULL){
+        ret = ERROR_ST_OPEN_SOCKET;
+        srs_error("st_netfd_open_socket failed. ret=%d", ret);
+        return ret;
+    }
+    
+    sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = inet_addr(ip.c_str());
+    
+    if (st_connect(stsock, (const struct sockaddr*)&addr, sizeof(sockaddr_in), SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT_US) == -1){
+        ret = ERROR_ST_CONNECT;
+        srs_close_stfd(stsock);
+        srs_error("connect to server error. ip=%s, port=%d, ret=%d", ip.c_str(), port, ret);
+        return ret;
+    }
+    srs_info("edge token auth connected, url=%s/%s, server=%s:%d", req->tcUrl.c_str(), req->stream.c_str(), server.c_str(), port);
+    
+    *pstsock = stsock;
+    return ret;
+}
+
+int SrsRtmpConn::do_token_traverse_auth(SrsSocket* io, SrsRtmpClient* client)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(client);
+
+    client->set_recv_timeout(SRS_RECV_TIMEOUT_US);
+    client->set_send_timeout(SRS_SEND_TIMEOUT_US);
+    
+    if ((ret = client->handshake()) != ERROR_SUCCESS) {
+        srs_error("handshake with server failed. ret=%d", ret);
+        return ret;
+    }
+    if ((ret = client->connect_app(req->app, req->tcUrl, req)) != ERROR_SUCCESS) {
+        srs_error("connect with server failed, tcUrl=%s. ret=%d", req->tcUrl.c_str(), ret);
+        return ret;
+    }
+    
+    srs_trace("edge token auth ok, tcUrl=%s", req->tcUrl.c_str());
     
     return ret;
 }

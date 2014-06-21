@@ -509,7 +509,8 @@ int SrsConfig::reload()
     //
     // always support reload without additional code:
     //      chunk_size, ff_log_dir, max_connections,
-    //      bandcheck, http_hooks, heartbeat
+    //      bandcheck, http_hooks, heartbeat, 
+    //      token_traverse
 
     // merge config: listen
     if (!srs_directive_equals(root->get("listen"), old_root->get("listen"))) {
@@ -1985,6 +1986,22 @@ SrsConfDirective* SrsConfig::get_vhost_edge_origin(string vhost)
     }
     
     return conf->get("origin");
+}
+
+bool SrsConfig::get_vhost_edge_token_traverse(std::string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+    
+    if (!conf) {
+        return false;
+    }
+    
+    conf = conf->get("token_traverse");
+    if (!conf || conf->arg0() != "on") {
+        return false;
+    }
+    
+    return true;
 }
 
 SrsConfDirective* SrsConfig::get_transcode(string vhost, string scope)

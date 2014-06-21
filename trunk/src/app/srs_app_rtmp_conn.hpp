@@ -47,6 +47,7 @@ class SrsHttpHooks;
 #endif
 class SrsBandwidth;
 class SrsKbps;
+class SrsRtmpClient;
 
 /**
 * the client provides the main logic control for RTMP clients.
@@ -90,6 +91,10 @@ private:
     virtual int flash_publish(SrsSource* source);
     virtual int process_publish_message(SrsSource* source, SrsMessage* msg, bool vhost_is_edge);
     virtual int process_play_control_msg(SrsConsumer* consumer, SrsMessage* msg);
+private:
+    virtual int check_edge_token_traverse_auth();
+    virtual int connect_server(int origin_index, st_netfd_t* pstsock);
+    virtual int do_token_traverse_auth(SrsSocket* io, SrsRtmpClient* client);
 private:
     virtual int http_hooks_on_connect();
     virtual void http_hooks_on_close();

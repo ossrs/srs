@@ -214,6 +214,7 @@ public:
     virtual bool                get_vhost_is_edge(std::string vhost);
     virtual bool                get_vhost_is_edge(SrsConfDirective* vhost);
     virtual SrsConfDirective*   get_vhost_edge_origin(std::string vhost);
+    virtual bool                get_vhost_edge_token_traverse(std::string vhost);
 // vhost transcode section
 public:
     virtual SrsConfDirective*   get_transcode(std::string vhost, std::string scope);
