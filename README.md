@@ -212,6 +212,7 @@ Supported operating systems and hardware:
 1. Support RTMP [edge](https://github.com/winlinvip/simple-rtmp-server/wiki/Edge) server, push/pull stream from any RTMP server
 1. Support tracable log, session based log.
 1. Support [vod stream(http flv/hls vod stream)](https://github.com/winlinvip/simple-rtmp-server/wiki/FlvVodStream).
+1. Support DRM [token traverse](https://github.com/winlinvip/simple-rtmp-server/wiki/DRM#tokentraverse) for fms origin authenticate.
 1. [dev] Support system full utest on gtest.
 1. [plan] Support RTMP 302 redirect [#92](https://github.com/winlinvip/simple-rtmp-server/issues/92).
 1. [plan] Support multiple processes, for both origin and edge
@@ -240,7 +241,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
-* v1.0, 2014-06-21, support edge token traverse, fix [#104](https://github.com/winlinvip/simple-rtmp-server/issues/104). 0.9.129
+* v1.0, 2014-06-21, support edge [token traverse](https://github.com/winlinvip/simple-rtmp-server/wiki/DRM#tokentraverse), fix [#104](https://github.com/winlinvip/simple-rtmp-server/issues/104). 0.9.129
 * v1.0, 2014-06-19, add connections count to api summaries. 0.9.127
 * v1.0, 2014-06-19, add srs bytes and kbps to api summaries. 0.9.126
 * v1.0, 2014-06-18, add network bytes to api summaries. 0.9.125
