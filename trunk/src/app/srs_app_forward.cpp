@@ -41,6 +41,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_rtmp.hpp>
 #include <srs_app_kbps.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_protocol_msg_array.hpp>
 
 // when error, forwarder sleep for a while and retry.
 #define SRS_FORWARDER_SLEEP_US (int64_t)(3*1000*1000LL)
@@ -309,6 +310,7 @@ int SrsForwarder::connect_server()
     return ret;
 }
 
+#define SYS_MAX_FORWARD_SEND_MSGS 128
 int SrsForwarder::forward()
 {
     int ret = ERROR_SUCCESS;
@@ -317,6 +319,8 @@ int SrsForwarder::forward()
     
     SrsPithyPrint pithy_print(SRS_STAGE_FORWARDER);
 
+    SrsSharedPtrMessageArray msgs(SYS_MAX_FORWARD_SEND_MSGS);
+    
     while (pthread->can_loop()) {
         // switch to other st-threads.
         st_usleep(0);
@@ -339,8 +343,7 @@ int SrsForwarder::forward()
         
         // forward all messages.
         int count = 0;
-        SrsSharedPtrMessage** msgs = NULL;
-        if ((ret = queue->get_packets(0, msgs, count)) != ERROR_SUCCESS) {
+        if ((ret = queue->dump_packets(msgs.size, msgs.msgs, count)) != ERROR_SUCCESS) {
             srs_error("get message to forward failed. ret=%d", ret);
             return ret;
         }
@@ -360,16 +363,15 @@ int SrsForwarder::forward()
             srs_verbose("no packets to forward.");
             continue;
         }
-        SrsAutoFreeArray(SrsSharedPtrMessage, msgs, count);
     
         // all msgs to forward.
         // @remark, becareful, all msgs must be free explicitly,
         //      free by send_and_free_message or srs_freep.
         for (int i = 0; i < count; i++) {
-            SrsSharedPtrMessage* msg = msgs[i];
+            SrsSharedPtrMessage* msg = msgs.msgs[i];
             
             srs_assert(msg);
-            msgs[i] = NULL;
+            msgs.msgs[i] = NULL;
             
             if ((ret = client->send_and_free_message(msg, stream_id)) != ERROR_SUCCESS) {
                 srs_error("forwarder send message to server failed. ret=%d", ret);

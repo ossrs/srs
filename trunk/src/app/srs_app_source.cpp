@@ -136,7 +136,7 @@ int SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
-    if (msg->header.is_video() || msg->header.is_audio()) {
+    if (msg->header.is_audio() || msg->header.is_video()) {
         if (av_start_time == -1) {
             av_start_time = msg->header.timestamp;
         }
@@ -153,7 +153,7 @@ int SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg)
     return ret;
 }
 
-int SrsMessageQueue::get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& count)
+int SrsMessageQueue::dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count)
 {
     int ret = ERROR_SUCCESS;
     
@@ -161,17 +161,8 @@ int SrsMessageQueue::get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, in
         return ret;
     }
     
-    if (max_count == 0) {
-        count = (int)msgs.size();
-    } else {
-        count = srs_min(max_count, (int)msgs.size());
-    }
-
-    if (count <= 0) {
-        return ret;
-    }
-    
-    pmsgs = new SrsSharedPtrMessage*[count];
+    srs_assert(max_count > 0);
+    count = srs_min(max_count, (int)msgs.size());
     
     for (int i = 0; i < count; i++) {
         pmsgs[i] = msgs[i];
@@ -275,11 +266,11 @@ int SrsConsumer::get_time()
     return jitter->get_time();
 }
 
-int SrsConsumer::enqueue(SrsSharedPtrMessage* msg, int tba, int tbv)
+int SrsConsumer::enqueue(SrsSharedPtrMessage* msg, bool atc, int tba, int tbv)
 {
     int ret = ERROR_SUCCESS;
     
-    if (!source->is_atc()) {
+    if (!atc) {
         if ((ret = jitter->correct(msg, tba, tbv)) != ERROR_SUCCESS) {
             srs_freep(msg);
             return ret;
@@ -293,8 +284,10 @@ int SrsConsumer::enqueue(SrsSharedPtrMessage* msg, int tba, int tbv)
     return ret;
 }
 
-int SrsConsumer::get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& count)
+int SrsConsumer::dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count)
 {
+    srs_assert(max_count > 0);
+    
     if (should_update_source_id) {
         srs_trace("update source_id=%d", source->source_id());
         should_update_source_id = false;
@@ -305,7 +298,7 @@ int SrsConsumer::get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& c
         return ERROR_SUCCESS;
     }
     
-    return queue->get_packets(max_count, pmsgs, count);
+    return queue->dump_packets(max_count, pmsgs, count);
 }
 
 int SrsConsumer::on_play_client_pause(bool is_pause)
@@ -391,14 +384,15 @@ void SrsGopCache::clear()
     cached_video_count = 0;
 }
     
-int SrsGopCache::dump(SrsConsumer* consumer, int tba, int tbv)
+int SrsGopCache::dump(SrsConsumer* consumer, bool atc, int tba, int tbv)
 {
     int ret = ERROR_SUCCESS;
     
     std::vector<SrsSharedPtrMessage*>::iterator it;
     for (it = gop_cache.begin(); it != gop_cache.end(); ++it) {
         SrsSharedPtrMessage* msg = *it;
-        if ((ret = consumer->enqueue(msg->copy(), tba, tbv)) != ERROR_SUCCESS) {
+        SrsSharedPtrMessage* copy = msg->copy();
+        if ((ret = consumer->enqueue(copy, atc, tba, tbv)) != ERROR_SUCCESS) {
             srs_error("dispatch cached gop failed. ret=%d", ret);
             return ret;
         }
@@ -926,7 +920,8 @@ int SrsSource::on_meta_data(SrsMessage* msg, SrsOnMetaDataPacket* metadata)
         std::vector<SrsConsumer*>::iterator it;
         for (it = consumers.begin(); it != consumers.end(); ++it) {
             SrsConsumer* consumer = *it;
-            if ((ret = consumer->enqueue(cache_metadata->copy(), sample_rate, frame_rate)) != ERROR_SUCCESS) {
+            SrsSharedPtrMessage* copy = cache_metadata->copy();
+            if ((ret = consumer->enqueue(copy, atc, sample_rate, frame_rate)) != ERROR_SUCCESS) {
                 srs_error("dispatch the metadata failed. ret=%d", ret);
                 return ret;
             }
@@ -987,17 +982,17 @@ int SrsSource::on_audio(SrsMessage* audio)
     
     // copy to all consumer
     if (true) {
-        std::vector<SrsConsumer*>::iterator it;
-        for (it = consumers.begin(); it != consumers.end(); ++it) {
-            SrsConsumer* consumer = *it;
-            if ((ret = consumer->enqueue(msg->copy(), sample_rate, frame_rate)) != ERROR_SUCCESS) {
+        for (int i = 0; i < (int)consumers.size(); i++) {
+            SrsConsumer* consumer = consumers.at(i);
+            SrsSharedPtrMessage* copy = msg->copy();
+            if ((ret = consumer->enqueue(copy, atc, sample_rate, frame_rate)) != ERROR_SUCCESS) {
                 srs_error("dispatch the audio failed. ret=%d", ret);
                 return ret;
             }
         }
         srs_info("dispatch audio success.");
     }
-
+    
     // copy to all forwarders.
     if (true) {
         std::vector<SrsForwarder*>::iterator it;
@@ -1077,10 +1072,10 @@ int SrsSource::on_video(SrsMessage* video)
     
     // copy to all consumer
     if (true) {
-        std::vector<SrsConsumer*>::iterator it;
-        for (it = consumers.begin(); it != consumers.end(); ++it) {
-            SrsConsumer* consumer = *it;
-            if ((ret = consumer->enqueue(msg->copy(), sample_rate, frame_rate)) != ERROR_SUCCESS) {
+        for (int i = 0; i < (int)consumers.size(); i++) {
+            SrsConsumer* consumer = consumers.at(i);
+            SrsSharedPtrMessage* copy = msg->copy();
+            if ((ret = consumer->enqueue(copy, atc, sample_rate, frame_rate)) != ERROR_SUCCESS) {
                 srs_error("dispatch the video failed. ret=%d", ret);
                 return ret;
             }
@@ -1327,27 +1322,27 @@ void SrsSource::on_unpublish()
     }
 
     // copy metadata.
-    if (cache_metadata && (ret = consumer->enqueue(cache_metadata->copy(), sample_rate, frame_rate)) != ERROR_SUCCESS) {
+    if (cache_metadata && (ret = consumer->enqueue(cache_metadata->copy(), atc, sample_rate, frame_rate)) != ERROR_SUCCESS) {
         srs_error("dispatch metadata failed. ret=%d", ret);
         return ret;
     }
     srs_info("dispatch metadata success");
     
     // copy sequence header
-    if (cache_sh_video && (ret = consumer->enqueue(cache_sh_video->copy(), sample_rate, frame_rate)) != ERROR_SUCCESS) {
+    if (cache_sh_video && (ret = consumer->enqueue(cache_sh_video->copy(), atc, sample_rate, frame_rate)) != ERROR_SUCCESS) {
         srs_error("dispatch video sequence header failed. ret=%d", ret);
         return ret;
     }
     srs_info("dispatch video sequence header success");
     
-    if (cache_sh_audio && (ret = consumer->enqueue(cache_sh_audio->copy(), sample_rate, frame_rate)) != ERROR_SUCCESS) {
+    if (cache_sh_audio && (ret = consumer->enqueue(cache_sh_audio->copy(), atc, sample_rate, frame_rate)) != ERROR_SUCCESS) {
         srs_error("dispatch audio sequence header failed. ret=%d", ret);
         return ret;
     }
     srs_info("dispatch audio sequence header success");
     
     // copy gop cache to client.
-    if ((ret = gop_cache->dump(consumer, sample_rate, frame_rate)) != ERROR_SUCCESS) {
+    if ((ret = gop_cache->dump(consumer, atc, sample_rate, frame_rate)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -1373,11 +1368,6 @@ void SrsSource::on_consumer_destroy(SrsConsumer* consumer)
 void SrsSource::set_cache(bool enabled)
 {
     gop_cache->set(enabled);
-}
-
-bool SrsSource::is_atc()
-{
-    return atc;
 }
 
 int SrsSource::on_edge_start_play()

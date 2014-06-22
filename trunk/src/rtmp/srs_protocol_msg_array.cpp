@@ -21,49 +21,31 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_CORE_AUTO_FREE_HPP
-#define SRS_CORE_AUTO_FREE_HPP
+#include <srs_protocol_msg_array.hpp>
 
-/*
-#include <srs_core_autofree.hpp>
-*/
+#include <srs_protocol_rtmp_stack.hpp>
 
-#include <srs_core.hpp>
-
-/**
-* auto free the instance in the current scope, for instance, MyClass* ptr,
-* which is a ptr and this class will:
-*       1. free the ptr.
-*       2. set ptr to NULL.
-* Usage:
-*       MyClass* po = new MyClass();
-*       // ...... use po
-*       SrsAutoFree(MyClass, po);
-*/
-#define SrsAutoFree(className, instance) \
-    __SrsAutoFree<className> _auto_free_##instance(&instance)
-template<class T>
-class __SrsAutoFree
+SrsSharedPtrMessageArray::SrsSharedPtrMessageArray(int _size)
 {
-private:
-    T** ptr;
-public:
-    /**
-    * auto delete the ptr.
-    */
-    __SrsAutoFree(T** _ptr) {
-        ptr = _ptr;
+    srs_assert(_size > 0);
+    
+    msgs = new SrsSharedPtrMessage*[_size];
+    size = _size;
+    
+    // initialize
+    for (int i = 0; i < _size; i++) {
+        msgs[i] = NULL;
+    }
+}
+
+SrsSharedPtrMessageArray::~SrsSharedPtrMessageArray()
+{
+    // cleanup
+    for (int i = 0; i < size; i++) {
+        SrsSharedPtrMessage* msg = msgs[i];
+        srs_freep(msg);
     }
     
-    virtual ~__SrsAutoFree() {
-        if (ptr == NULL || *ptr == NULL) {
-            return;
-        }
-        
-        delete *ptr;
-        
-        *ptr = NULL;
-    }
-};
+    srs_freep(msgs);
+}
 
-#endif

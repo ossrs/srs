@@ -1403,7 +1403,7 @@ int SrsConfig::get_max_connections()
     
     SrsConfDirective* conf = root->get("max_connections");
     if (!conf || conf->arg0().empty()) {
-        return 2000;
+        return SRS_CONF_DEFAULT_MAX_CONNECTIONS;
     }
     
     return ::atoi(conf->arg0().c_str());

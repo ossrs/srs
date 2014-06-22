@@ -44,6 +44,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_socket.hpp>
 #include <srs_app_kbps.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_protocol_msg_array.hpp>
 
 // when error, edge ingester sleep for a while and retry.
 #define SRS_EDGE_INGESTER_SLEEP_US (int64_t)(1*1000*1000LL)
@@ -431,6 +432,7 @@ void SrsEdgeForwarder::stop()
     kbps->set_io(NULL, NULL);
 }
 
+#define SYS_MAX_EDGE_SEND_MSGS 128
 int SrsEdgeForwarder::cycle()
 {
     int ret = ERROR_SUCCESS;
@@ -438,6 +440,8 @@ int SrsEdgeForwarder::cycle()
     client->set_recv_timeout(SRS_PULSE_TIMEOUT_US);
     
     SrsPithyPrint pithy_print(SRS_STAGE_EDGE);
+    
+    SrsSharedPtrMessageArray msgs(SYS_MAX_EDGE_SEND_MSGS);
 
     while (pthread->can_loop()) {
         // switch to other st-threads.
@@ -465,8 +469,7 @@ int SrsEdgeForwarder::cycle()
         
         // forward all messages.
         int count = 0;
-        SrsSharedPtrMessage** msgs = NULL;
-        if ((ret = queue->get_packets(0, msgs, count)) != ERROR_SUCCESS) {
+        if ((ret = queue->dump_packets(msgs.size, msgs.msgs, count)) != ERROR_SUCCESS) {
             srs_error("get message to forward to origin failed. ret=%d", ret);
             return ret;
         }
@@ -488,16 +491,15 @@ int SrsEdgeForwarder::cycle()
             srs_verbose("no packets to forward.");
             continue;
         }
-        SrsAutoFreeArray(SrsSharedPtrMessage, msgs, count);
     
         // all msgs to forward to origin.
         // @remark, becareful, all msgs must be free explicitly,
         //      free by send_and_free_message or srs_freep.
         for (int i = 0; i < count; i++) {
-            SrsSharedPtrMessage* msg = msgs[i];
+            SrsSharedPtrMessage* msg = msgs.msgs[i];
             
             srs_assert(msg);
-            msgs[i] = NULL;
+            msgs.msgs[i] = NULL;
             
             if ((ret = client->send_and_free_message(msg, stream_id)) != ERROR_SUCCESS) {
                 srs_error("edge publish forwarder send message to server failed. ret=%d", ret);

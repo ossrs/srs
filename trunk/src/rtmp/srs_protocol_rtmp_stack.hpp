@@ -174,10 +174,10 @@ public:
     virtual int send_and_free_packet(SrsPacket* packet, int stream_id);
 private:
     /**
-    * imp for send_and_free_message
+    * send out the message, donot free it, the caller must free the param msg.
     * @param packet the packet of message, NULL for raw message.
     */
-    virtual int do_send_and_free_message(SrsMessage* msg, SrsPacket* packet);
+    virtual int do_send_message(SrsMessage* msg, SrsPacket* packet);
     /**
     * imp for decode_message
     */

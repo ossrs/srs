@@ -110,11 +110,11 @@ public:
     virtual int enqueue(SrsSharedPtrMessage* msg);
     /**
     * get packets in consumer queue.
-    * @pmsgs SrsMessages*[], output the prt array.
-    * @count the count in array.
-    * @max_count the max count to dequeue, 0 to dequeue all.
+    * @pmsgs SrsMessages*[], used to store the msgs, user must alloc it.
+    * @count the count in array, output param.
+    * @max_count the max count to dequeue, must be positive.
     */
-    virtual int get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& count);
+    virtual int dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count);
 private:
     /**
     * remove a gop from the front.
@@ -155,19 +155,20 @@ public:
     virtual int get_time();
     /**
     * enqueue an shared ptr message.
+    * @param whether atc, donot use jitter correct if true.
     * @param tba timebase of audio.
     *         used to calc the audio time delta if time-jitter detected.
     * @param tbv timebase of video.
     *        used to calc the video time delta if time-jitter detected.
     */
-    virtual int enqueue(SrsSharedPtrMessage* msg, int tba, int tbv);
+    virtual int enqueue(SrsSharedPtrMessage* msg, bool atc, int tba, int tbv);
     /**
     * get packets in consumer queue.
-    * @pmsgs SrsMessages*[], output the prt array.
-    * @count the count in array.
-    * @max_count the max count to dequeue, 0 to dequeue all.
+    * @pmsgs SrsMessages*[], used to store the msgs, user must alloc it.
+    * @count the count in array, output param.
+    * @max_count the max count to dequeue, must be positive.
     */
-    virtual int get_packets(int max_count, SrsSharedPtrMessage**& pmsgs, int& count);
+    virtual int dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count);
     /**
     * when client send the pause message.
     */
@@ -208,7 +209,7 @@ public:
     */
     virtual int cache(SrsSharedPtrMessage* msg);
     virtual void clear();
-    virtual int dump(SrsConsumer* consumer, int tba, int tbv);
+    virtual int dump(SrsConsumer* consumer, bool atc, int tba, int tbv);
     /**
     * used for atc to get the time of gop cache,
     * the atc will adjust the sequence header timestamp to gop cache.
@@ -346,8 +347,6 @@ public:
     virtual void set_cache(bool enabled);
 // internal
 public:
-    // for consumer, atc feature.
-    virtual bool is_atc();
     // for edge, when play edge stream, check the state
     virtual int on_edge_start_play();
     // for edge, when publish edge stream, check the state

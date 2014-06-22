@@ -21,49 +21,33 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_CORE_AUTO_FREE_HPP
-#define SRS_CORE_AUTO_FREE_HPP
+#ifndef SRS_RTMP_PROTOCOL_MSG_ARRAY_HPP
+#define SRS_RTMP_PROTOCOL_MSG_ARRAY_HPP
 
 /*
-#include <srs_core_autofree.hpp>
+#include <srs_protocol_msg_array.hpp>
 */
 
 #include <srs_core.hpp>
 
+class SrsSharedPtrMessage;
+
 /**
-* auto free the instance in the current scope, for instance, MyClass* ptr,
-* which is a ptr and this class will:
-*       1. free the ptr.
-*       2. set ptr to NULL.
-* Usage:
-*       MyClass* po = new MyClass();
-*       // ...... use po
-*       SrsAutoFree(MyClass, po);
+* the class to auto free the shared ptr message array.
 */
-#define SrsAutoFree(className, instance) \
-    __SrsAutoFree<className> _auto_free_##instance(&instance)
-template<class T>
-class __SrsAutoFree
+class SrsSharedPtrMessageArray
 {
-private:
-    T** ptr;
 public:
     /**
-    * auto delete the ptr.
+    * when user already send the msg in msgs, please set to NULL,
+    * for instance, msg= msgs.msgs[i], msgs.msgs[i]=NULL, send(msg),
+    * where send(msg) will always send and free it.
     */
-    __SrsAutoFree(T** _ptr) {
-        ptr = _ptr;
-    }
-    
-    virtual ~__SrsAutoFree() {
-        if (ptr == NULL || *ptr == NULL) {
-            return;
-        }
-        
-        delete *ptr;
-        
-        *ptr = NULL;
-    }
+    SrsSharedPtrMessage** msgs;
+    int size;
+public:
+    SrsSharedPtrMessageArray(int _size);
+    virtual ~SrsSharedPtrMessageArray();
 };
 
 #endif

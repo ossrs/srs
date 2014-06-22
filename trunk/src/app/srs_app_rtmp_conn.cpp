@@ -50,6 +50,7 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_protocol_msg_array.hpp>
 
 // when stream is busy, for example, streaming is already
 // publishing, when a new client to request to publish,
@@ -382,7 +383,7 @@ int SrsRtmpConn::stream_service_cycle()
             }
 
             srs_info("start to publish stream %s success", req->stream.c_str());
-            ret = fmle_publish(source);
+            ret = fmle_publishing(source);
 
             // when edge, notice edge to change state.
             // when origin, notice all service to unpublish.
@@ -416,7 +417,7 @@ int SrsRtmpConn::stream_service_cycle()
             }
             
             srs_info("flash start to publish stream %s success", req->stream.c_str());
-            ret = flash_publish(source);
+            ret = flash_publishing(source);
 
             // when edge, notice edge to change state.
             // when origin, notice all service to unpublish.
@@ -476,6 +477,8 @@ int SrsRtmpConn::check_vhost()
     return ret;
 }
 
+#define SYS_MAX_PLAY_SEND_MSGS 128
+
 int SrsRtmpConn::playing(SrsSource* source)
 {
     int ret = ERROR_SUCCESS;
@@ -499,38 +502,43 @@ int SrsRtmpConn::playing(SrsSource* source)
     rtmp->set_recv_timeout(SRS_PULSE_TIMEOUT_US);
     
     SrsPithyPrint pithy_print(SRS_STAGE_PLAY_USER);
+    
+    SrsSharedPtrMessageArray msgs(SYS_MAX_PLAY_SEND_MSGS);
 
+    bool user_specified_duration_to_stop = (req->duration > 0);
     int64_t starttime = -1;
+    
     while (true) {
-        // switch to other st-threads.
-        st_usleep(0);
-        
+        // collect elapse for pithy print.
         pithy_print.elapse();
 
         // read from client.
         if (true) {
             SrsMessage* msg = NULL;
             ret = rtmp->recv_message(&msg);
-            
             srs_verbose("play loop recv message. ret=%d", ret);
-            if (ret != ERROR_SUCCESS && ret != ERROR_SOCKET_TIMEOUT) {
-                if (ret != ERROR_SOCKET_TIMEOUT && !srs_is_client_gracefully_close(ret)) {
+            
+            if (ret == ERROR_SOCKET_TIMEOUT) {
+                // it's ok, do nothing.
+                ret = ERROR_SUCCESS;
+            } else if (ret != ERROR_SUCCESS) {
+                if (!srs_is_client_gracefully_close(ret)) {
                     srs_error("recv client control message failed. ret=%d", ret);
                 }
                 return ret;
-            }
-            if ((ret = process_play_control_msg(consumer, msg)) != ERROR_SUCCESS) {
-                if (!srs_is_system_control_error(ret)) {
-                    srs_error("process play control message failed. ret=%d", ret);
+            } else {
+                if ((ret = process_play_control_msg(consumer, msg)) != ERROR_SUCCESS) {
+                    if (!srs_is_system_control_error(ret)) {
+                        srs_error("process play control message failed. ret=%d", ret);
+                    }
+                    return ret;
                 }
-                return ret;
             }
         }
         
         // get messages from consumer.
-        SrsSharedPtrMessage** msgs = NULL;
         int count = 0;
-        if ((ret = consumer->get_packets(0, msgs, count)) != ERROR_SUCCESS) {
+        if ((ret = consumer->dump_packets(msgs.size, msgs.msgs, count)) != ERROR_SUCCESS) {
             srs_error("get messages from consumer failed. ret=%d", ret);
             return ret;
         }
@@ -545,32 +553,29 @@ int SrsRtmpConn::playing(SrsSource* source)
                 kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m());
         }
         
-        if (count <= 0) {
-            srs_verbose("no packets in queue.");
-            continue;
-        }
-        SrsAutoFreeArray(SrsSharedPtrMessage, msgs, count);
-        
         // sendout messages
         // @remark, becareful, all msgs must be free explicitly,
         //      free by send_and_free_message or srs_freep.
         for (int i = 0; i < count; i++) {
-            SrsSharedPtrMessage* msg = msgs[i];
+            SrsSharedPtrMessage* msg = msgs.msgs[i];
             
             // the send_message will free the msg, 
             // so set the msgs[i] to NULL.
-            msgs[i] = NULL;
+            msgs.msgs[i] = NULL;
             
-            srs_assert(msg);
-            
-            // foreach msg, collect the duration.
-            // @remark: never use msg when sent it, for the protocol sdk will free it.
-            if (starttime < 0 || starttime > msg->header.timestamp) {
+            // only when user specifies the duration, 
+            // we start to collect the durations for each message.
+            if (user_specified_duration_to_stop) {
+                // foreach msg, collect the duration.
+                // @remark: never use msg when sent it, for the protocol sdk will free it.
+                if (starttime < 0 || starttime > msg->header.timestamp) {
+                    starttime = msg->header.timestamp;
+                }
+                duration += msg->header.timestamp - starttime;
                 starttime = msg->header.timestamp;
             }
-            duration += msg->header.timestamp - starttime;
-            starttime = msg->header.timestamp;
             
+            // no need to assert msg, for the rtmp will assert it.
             if ((ret = rtmp->send_and_free_message(msg, res->stream_id)) != ERROR_SUCCESS) {
                 srs_error("send message to client failed. ret=%d", ret);
                 return ret;
@@ -579,17 +584,22 @@ int SrsRtmpConn::playing(SrsSource* source)
         
         // if duration specified, and exceed it, stop play live.
         // @see: https://github.com/winlinvip/simple-rtmp-server/issues/45
-        if (req->duration > 0 && duration >= (int64_t)req->duration) {
-            ret = ERROR_RTMP_DURATION_EXCEED;
-            srs_trace("stop live for duration exceed. ret=%d", ret);
-            return ret;
+        if (user_specified_duration_to_stop) {
+            if (duration >= (int64_t)req->duration) {
+                ret = ERROR_RTMP_DURATION_EXCEED;
+                srs_trace("stop live for duration exceed. ret=%d", ret);
+                return ret;
+            }
         }
+        
+        // switch to other threads, to anti dead loop.
+        st_usleep(0);
     }
     
     return ret;
 }
 
-int SrsRtmpConn::fmle_publish(SrsSource* source)
+int SrsRtmpConn::fmle_publishing(SrsSource* source)
 {
     int ret = ERROR_SUCCESS;
     
@@ -668,7 +678,7 @@ int SrsRtmpConn::fmle_publish(SrsSource* source)
     return ret;
 }
 
-int SrsRtmpConn::flash_publish(SrsSource* source)
+int SrsRtmpConn::flash_publishing(SrsSource* source)
 {
     int ret = ERROR_SUCCESS;
     

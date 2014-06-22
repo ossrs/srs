@@ -36,6 +36,8 @@ file
 	..\rtmp\srs_protocol_handshake.cpp,
 	..\rtmp\srs_protocol_io.hpp,
 	..\rtmp\srs_protocol_io.cpp,
+	..\rtmp\srs_protocol_msg_array.hpp,
+	..\rtmp\srs_protocol_msg_array.cpp,
 	..\rtmp\srs_protocol_rtmp.hpp,
 	..\rtmp\srs_protocol_rtmp.cpp,
 	..\rtmp\srs_protocol_rtmp_stack.hpp,

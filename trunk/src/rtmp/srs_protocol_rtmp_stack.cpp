@@ -437,13 +437,12 @@ int SrsProtocol::decode_message(SrsMessage* msg, SrsPacket** ppacket)
     return ret;
 }
 
-int SrsProtocol::do_send_and_free_message(SrsMessage* msg, SrsPacket* packet)
+int SrsProtocol::do_send_message(SrsMessage* msg, SrsPacket* packet)
 {
     int ret = ERROR_SUCCESS;
     
-    // always free msg.
+    // always not NULL msg.
     srs_assert(msg);
-    SrsAutoFree(SrsMessage, msg);
     
     // we donot use the complex basic header,
     // ensure the basic header is 1bytes.
@@ -497,7 +496,7 @@ int SrsProtocol::do_send_and_free_message(SrsMessage* msg, SrsPacket* packet)
             *pheader++ = pp[3];
             
             // chunk extended timestamp header, 0 or 4 bytes, big-endian
-            if(timestamp >= RTMP_EXTENDED_TIMESTAMP){
+            if(timestamp >= RTMP_EXTENDED_TIMESTAMP) {
                 pp = (char*)&timestamp;
                 *pheader++ = pp[3];
                 *pheader++ = pp[2];
@@ -522,7 +521,7 @@ int SrsProtocol::do_send_and_free_message(SrsMessage* msg, SrsPacket* packet)
             // @see: ngx_rtmp_prepare_message
             // @see: http://blog.csdn.net/win_lin/article/details/13363699
             u_int32_t timestamp = (u_int32_t)msg->header.timestamp;
-            if(timestamp >= RTMP_EXTENDED_TIMESTAMP){
+            if (timestamp >= RTMP_EXTENDED_TIMESTAMP) {
                 pp = (char*)&timestamp;
                 *pheader++ = pp[3];
                 *pheader++ = pp[2];
@@ -733,7 +732,12 @@ int SrsProtocol::send_and_free_message(SrsMessage* msg, int stream_id)
     if (msg) {
         msg->header.stream_id = stream_id;
     }
-    return do_send_and_free_message(msg, NULL);
+    
+    // donot use the auto free to free the msg,
+    // for performance issue.
+    int ret = do_send_message(msg, NULL);
+    srs_freep(msg);
+    return ret;
 }
 
 int SrsProtocol::send_and_free_packet(SrsPacket* packet, int stream_id)
@@ -767,9 +771,10 @@ int SrsProtocol::send_and_free_packet(SrsPacket* packet, int stream_id)
     msg->header.stream_id = stream_id;
     msg->header.perfer_cid = packet->get_perfer_cid();
 
-    if ((ret = do_send_and_free_message(msg, packet)) != ERROR_SUCCESS) {
-        return ret;
-    }
+    // donot use the auto free to free the msg,
+    // for performance issue.
+    ret = do_send_message(msg, packet);
+    srs_freep(msg);
     
     return ret;
 }
