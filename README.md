@@ -241,7 +241,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
-* v1.0, 2014-06-22, performance refine, support 3k+ connections(270kbps). 0.9.130
+* v1.0, 2014-06-22, performance refine, support [3k+](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance#%E6%80%A7%E8%83%BD%E4%BE%8B%E8%A1%8C%E6%8A%A5%E5%91%8A4k) connections(270kbps). 0.9.130
 * v1.0, 2014-06-21, support edge [token traverse](https://github.com/winlinvip/simple-rtmp-server/wiki/DRM#tokentraverse), fix [#104](https://github.com/winlinvip/simple-rtmp-server/issues/104). 0.9.129
 * v1.0, 2014-06-19, add connections count to api summaries. 0.9.127
 * v1.0, 2014-06-19, add srs bytes and kbps to api summaries. 0.9.126
