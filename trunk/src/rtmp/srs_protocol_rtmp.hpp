@@ -89,6 +89,13 @@ public:
     * when reload it, the request maybe invalid, so need to copy it.
     */
     virtual SrsRequest* copy();
+
+    /**
+    * update the auth info of request,
+    * to keep the current request ptr is ok,
+    * for many components use the ptr of request.
+    */
+    virtual void update_auth(SrsRequest* req);
     
     /**
     * disconvery vhost/app from tcUrl.

@@ -439,7 +439,14 @@ int SrsSource::find(SrsRequest* req, SrsSource** ppsource)
         srs_info("create new source for url=%s, vhost=%s", stream_url.c_str(), vhost.c_str());
     }
     
-    *ppsource = pool[stream_url];
+    // we always update the request of resource, 
+    // for origin auth is on, the token in request maybe invalid,
+    // and we only need to update the token of request, it's simple.
+    if (true) {
+        SrsSource* source = pool[stream_url];
+        source->_req->update_auth(req);
+        *ppsource = source;
+    }
     
     return ret;
 }

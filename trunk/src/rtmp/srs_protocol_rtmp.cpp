@@ -108,6 +108,22 @@ SrsRequest* SrsRequest::copy()
     return cp;
 }
 
+void SrsRequest::update_auth(SrsRequest* req)
+{
+    pageUrl = req->pageUrl;
+    swfUrl = req->swfUrl;
+    tcUrl = req->tcUrl;
+    
+    if (args) {
+        srs_freep(args);
+    }
+    if (req->args) {
+        args = req->args->copy()->to_object();
+    }
+    
+    srs_info("update req of soruce for auth ok");
+}
+
 int SrsRequest::discovery_app()
 {
     int ret = ERROR_SUCCESS;
