@@ -61,26 +61,30 @@ void SrsHttpHeartbeat::heartbeat()
     
     vector<string>& ips = srs_get_local_ipv4_ips();
     if (!ips.empty()) {
-        ip = ips[0]; // TODO: FIXME: maybe need to config it.
+        ip = ips[_srs_config->get_heartbeat_device_index() % (int)ips.size()];
     }
     
     std::stringstream ss;
     ss << JOBJECT_START
         << JFIELD_STR("device_id", device_id) << JFIELD_CONT
-        << JFIELD_STR("ip", ip)
-        << JOBJECT_END;
+        << JFIELD_STR("ip", ip);
+    if (_srs_config->get_heartbeat_summaries()) {
+        ss << JFIELD_CONT << JFIELD_ORG("summaries", "");
+        srs_api_dump_summaries(ss);
+    }
+    ss << JOBJECT_END;
     std::string data = ss.str();
     std::string res;
     
     SrsHttpClient http;
     if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
-        srs_error("http post hartbeart uri failed. "
+        srs_info("http post hartbeart uri failed. "
             "url=%s, request=%s, response=%s, ret=%d",
             url.c_str(), data.c_str(), res.c_str(), ret);
         return;
     }
     
-    srs_trace("http hook hartbeart success. "
+    srs_info("http hook hartbeart success. "
         "url=%s, request=%s, response=%s, ret=%d",
         url.c_str(), data.c_str(), res.c_str(), ret);
     

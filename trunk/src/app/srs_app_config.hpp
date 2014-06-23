@@ -71,6 +71,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_ENABLED false
 #define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_INTERVAL 9.9
 #define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_URL "http://127.0.0.1:8085/api/v1/servers"
+#define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_INDEX 0
+#define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_SUMMARIES false
 
 #define SRS_STAGE_PLAY_USER_INTERVAL_MS 10000
 #define SRS_STAGE_PUBLISH_USER_INTERVAL_MS 10000
@@ -297,6 +299,8 @@ public:
     virtual int64_t             get_heartbeat_interval();
     virtual std::string         get_heartbeat_url();
     virtual std::string         get_heartbeat_device_id();
+    virtual int                 get_heartbeat_device_index();
+    virtual bool                get_heartbeat_summaries();
 };
 
 /**

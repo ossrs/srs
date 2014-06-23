@@ -2869,6 +2869,38 @@ string SrsConfig::get_heartbeat_device_id()
     return conf->arg0();
 }
 
+int SrsConfig::get_heartbeat_device_index()
+{
+    SrsConfDirective* conf = get_heartbeart();
+    
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HTTP_HEAETBEAT_INDEX;
+    }
+    
+    conf = conf->get("device_index");
+    if (!conf || conf->arg0().empty()) {
+        return SRS_CONF_DEFAULT_HTTP_HEAETBEAT_INDEX;
+    }
+    
+    return ::atoi(conf->arg0().c_str());
+}
+
+bool SrsConfig::get_heartbeat_summaries()
+{
+    SrsConfDirective* conf = get_heartbeart();
+    
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HTTP_HEAETBEAT_SUMMARIES;
+    }
+    
+    conf = conf->get("summaries");
+    if (!conf || conf->arg0() != "on") {
+        return SRS_CONF_DEFAULT_HTTP_HEAETBEAT_SUMMARIES;
+    }
+    
+    return true;
+}
+
 bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b)
 {
     // both NULL, equal.

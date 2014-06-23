@@ -64,7 +64,7 @@ int SrsHttpClient::post(SrsHttpUri* uri, string req, string& res)
     }
     
     if ((ret = connect(uri)) != ERROR_SUCCESS) {
-        srs_error("http connect server failed. ret=%d", ret);
+        srs_warn("http connect server failed. ret=%d", ret);
         return ret;
     }
     

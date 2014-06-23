@@ -32,6 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <vector>
 #include <string>
+#include <sstream>
 
 #include <sys/resource.h>
 
@@ -438,5 +439,7 @@ extern std::vector<std::string>& srs_get_local_ipv4_ips();
 std::string srs_get_local_ip(int fd);
 // where peer ip is the client public ip which connected to server.
 std::string srs_get_peer_ip(int fd);
+
+void srs_api_dump_summaries(std::stringstream& ss);
 
 #endif
