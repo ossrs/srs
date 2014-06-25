@@ -60,6 +60,20 @@ class SrsEncoder;
 class SrsStream;
 
 /**
+* the time jitter algorithm:
+* 1. full, to ensure stream start at zero, and ensure stream monotonically increasing.
+* 2. zero, only ensure sttream start at zero, ignore timestamp jitter.
+* 3. off, disable the time jitter algorithm, like atc.
+*/
+enum SrsRtmpJitterAlgorithm
+{
+    SrsRtmpJitterAlgorithmFULL = 0x01,
+    SrsRtmpJitterAlgorithmZERO,
+    SrsRtmpJitterAlgorithmOFF
+};
+int _srs_time_jitter_string2int(std::string time_jitter);
+
+/**
 * time jitter detect and correct,
 * to ensure the rtmp stream is monotonically.
 */
@@ -74,8 +88,12 @@ public:
 public:
     /**
     * detect the time jitter and correct it.
+    * @param tba, the audio timebase, used to calc the "right" delta if jitter detected.
+    * @param tbv, the video timebase, used to calc the "right" delta if jitter detected.
+    * @param start_at_zero whether ensure stream start at zero.
+    * @param mono_increasing whether ensure stream is monotonically inscreasing.
     */
-    virtual int correct(SrsSharedPtrMessage* msg, int tba, int tbv);
+    virtual int correct(SrsSharedPtrMessage* msg, int tba, int tbv, SrsRtmpJitterAlgorithm ag);
     /**
     * get current client time, the last packet time.
     */
@@ -160,8 +178,9 @@ public:
     *         used to calc the audio time delta if time-jitter detected.
     * @param tbv timebase of video.
     *        used to calc the video time delta if time-jitter detected.
+    * @param ag the algorithm of time jitter.
     */
-    virtual int enqueue(SrsSharedPtrMessage* msg, bool atc, int tba, int tbv);
+    virtual int enqueue(SrsSharedPtrMessage* msg, bool atc, int tba, int tbv, SrsRtmpJitterAlgorithm ag);
     /**
     * get packets in consumer queue.
     * @pmsgs SrsMessages*[], used to store the msgs, user must alloc it.
@@ -209,7 +228,7 @@ public:
     */
     virtual int cache(SrsSharedPtrMessage* msg);
     virtual void clear();
-    virtual int dump(SrsConsumer* consumer, bool atc, int tba, int tbv);
+    virtual int dump(SrsConsumer* consumer, bool atc, int tba, int tbv, SrsRtmpJitterAlgorithm jitter_algorithm);
     /**
     * used for atc to get the time of gop cache,
     * the atc will adjust the sequence header timestamp to gop cache.
@@ -249,6 +268,8 @@ private:
     SrsRequest* _req;
     // to delivery stream to clients.
     std::vector<SrsConsumer*> consumers;
+    // the time jitter algorithm for vhost.
+    SrsRtmpJitterAlgorithm jitter_algorithm;
     // hls handler.
 #ifdef SRS_AUTO_HLS
     SrsHls* hls;
@@ -310,6 +331,7 @@ public:
     virtual int on_reload_vhost_atc(std::string vhost);
     virtual int on_reload_vhost_gop_cache(std::string vhost);
     virtual int on_reload_vhost_queue_length(std::string vhost);
+    virtual int on_reload_vhost_time_jitter(std::string vhost);
     virtual int on_reload_vhost_forward(std::string vhost);
     virtual int on_reload_vhost_hls(std::string vhost);
     virtual int on_reload_vhost_dvr(std::string vhost);

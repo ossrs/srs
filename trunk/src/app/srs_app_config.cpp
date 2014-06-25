@@ -41,6 +41,7 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_app_source.hpp>
 
 #define SRS_WIKI_URL_LOG "https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLog"
 
@@ -947,6 +948,17 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload queue_length success.", vhost.c_str());
             }
+            // time_jitter, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("time_jitter"), old_vhost->get("time_jitter"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_time_jitter(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes time_jitter failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload time_jitter success.", vhost.c_str());
+            }
             // forward, only one per vhost
             if (!srs_directive_equals(new_vhost->get("forward"), old_vhost->get("forward"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -1786,6 +1798,23 @@ bool SrsConfig::get_atc_auto(string vhost)
     }
     
     return true;
+}
+
+int SrsConfig::get_time_jitter(string vhost)
+{
+    SrsConfDirective* dvr = get_vhost(vhost);
+    
+    std::string time_jitter = SRS_CONF_DEFAULT_TIME_JITTER;
+    
+    if (dvr) {
+        SrsConfDirective* conf = dvr->get("time_jitter");
+    
+        if (conf) {
+            time_jitter = conf->arg0();
+        }
+    }
+    
+    return _srs_time_jitter_string2int(time_jitter);
 }
 
 double SrsConfig::get_queue_length(string vhost)
@@ -2634,6 +2663,23 @@ int SrsConfig::get_dvr_duration(string vhost)
     }
     
     return ::atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_dvr_time_jitter(string vhost)
+{
+    SrsConfDirective* dvr = get_dvr(vhost);
+    
+    std::string time_jitter = SRS_CONF_DEFAULT_TIME_JITTER;
+    
+    if (dvr) {
+        SrsConfDirective* conf = dvr->get("time_jitter");
+    
+        if (conf) {
+            time_jitter = conf->arg0();
+        }
+    }
+    
+    return _srs_time_jitter_string2int(time_jitter);
 }
 
 SrsConfDirective* SrsConfig::get_http_api()

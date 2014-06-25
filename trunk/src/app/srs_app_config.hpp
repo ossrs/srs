@@ -49,6 +49,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_DVR_PLAN_HSS "hss"
 #define SRS_CONF_DEFAULT_DVR_PLAN SRS_CONF_DEFAULT_DVR_PLAN_SESSION
 #define SRS_CONF_DEFAULT_DVR_DURATION 30
+#define SRS_CONF_DEFAULT_TIME_JITTER "full"
 // in ms, for HLS aac sync time.
 #define SRS_CONF_DEFAULT_AAC_SYNC 100
 // in ms, for HLS aac flush the audio
@@ -200,6 +201,7 @@ public:
     virtual bool                get_gop_cache(std::string vhost);
     virtual bool                get_atc(std::string vhost);
     virtual bool                get_atc_auto(std::string vhost);
+    virtual int                 get_time_jitter(std::string vhost);
     virtual double              get_queue_length(std::string vhost);
     virtual SrsConfDirective*   get_forward(std::string vhost);
     virtual SrsConfDirective*   get_refer(std::string vhost);
@@ -272,6 +274,7 @@ public:
     virtual std::string         get_dvr_path(std::string vhost);
     virtual std::string         get_dvr_plan(std::string vhost);
     virtual int                 get_dvr_duration(std::string vhost);
+    virtual int                 get_dvr_time_jitter(std::string vhost);
 // http api section
 private:
     virtual SrsConfDirective*   get_http_api();

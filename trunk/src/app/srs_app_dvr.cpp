@@ -70,10 +70,15 @@ SrsDvrPlan::SrsDvrPlan()
     fs = new SrsFileStream();
     enc = new SrsFlvEncoder();
     segment = new SrsFlvSegment();
+    jitter_algorithm = SrsRtmpJitterAlgorithmOFF;
+    
+    _srs_config->subscribe(this);
 }
 
 SrsDvrPlan::~SrsDvrPlan()
 {
+    _srs_config->unsubscribe(this);
+    
     srs_freep(jitter);
     srs_freep(fs);
     srs_freep(enc);
@@ -86,6 +91,8 @@ int SrsDvrPlan::initialize(SrsSource* source, SrsRequest* req)
     
     _source = source;
     _req = req;
+    
+    jitter_algorithm = (SrsRtmpJitterAlgorithm)_srs_config->get_dvr_time_jitter(_req->vhost);
 
     return ret;
 }
@@ -198,7 +205,7 @@ int SrsDvrPlan::on_audio(SrsSharedPtrMessage* audio)
         return ret;
     }
     
-    if ((jitter->correct(audio, 0, 0)) != ERROR_SUCCESS) {
+    if ((jitter->correct(audio, 0, 0, jitter_algorithm)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -240,7 +247,7 @@ int SrsDvrPlan::on_video(SrsSharedPtrMessage* video)
     srs_verbose("dvr video is key: %d", is_key_frame);
 #endif
     
-    if ((jitter->correct(video, 0, 0)) != ERROR_SUCCESS) {
+    if ((jitter->correct(video, 0, 0, jitter_algorithm)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -252,6 +259,15 @@ int SrsDvrPlan::on_video(SrsSharedPtrMessage* video)
     if ((ret = update_duration(video)) != ERROR_SUCCESS) {
         return ret;
     }
+    
+    return ret;
+}
+
+int SrsDvrPlan::on_reload_vhost_dvr(std::string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    jitter_algorithm = (SrsRtmpJitterAlgorithm)_srs_config->get_dvr_time_jitter(_req->vhost);
     
     return ret;
 }

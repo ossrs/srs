@@ -1411,7 +1411,7 @@ int SrsHls::on_audio(SrsSharedPtrMessage* audio)
         return hls_cache->on_sequence_header(muxer);
     }
     
-    if ((ret = jitter->correct(audio, 0, 0)) != ERROR_SUCCESS) {
+    if ((ret = jitter->correct(audio, 0, 0, SrsRtmpJitterAlgorithmFULL)) != ERROR_SUCCESS) {
         srs_error("rtmp jitter correct audio failed. ret=%d", ret);
         return ret;
     }
@@ -1456,7 +1456,7 @@ int SrsHls::on_video(SrsSharedPtrMessage* video)
         return hls_cache->on_sequence_header(muxer);
     }
     
-    if ((ret = jitter->correct(video, 0, 0)) != ERROR_SUCCESS) {
+    if ((ret = jitter->correct(video, 0, 0, SrsRtmpJitterAlgorithmFULL)) != ERROR_SUCCESS) {
         srs_error("rtmp jitter correct video failed. ret=%d", ret);
         return ret;
     }

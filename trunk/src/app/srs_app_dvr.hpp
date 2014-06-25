@@ -42,6 +42,9 @@ class SrsSharedPtrMessage;
 class SrsFileStream;
 class SrsFlvEncoder;
 
+#include <srs_app_source.hpp>
+#include <srs_app_reload.hpp>
+
 /**
 * a piece of flv segment.
 */
@@ -93,21 +96,23 @@ public:
 * 2. reap flv: when to reap the flv and start new piece.
 */
 // TODO: FIXME: the plan is too fat, refine me.
-class SrsDvrPlan
+class SrsDvrPlan : public ISrsReloadHandler
 {
-protected:
+private:
     /**
     * the underlayer dvr stream.
     * if close, the flv is reap and closed.
     * if open, new flv file is crote.
     */
-    SrsFileStream* fs;
     SrsFlvEncoder* enc;
-    bool dvr_enabled;
     SrsSource* _source;
-    SrsRequest* _req;
     SrsRtmpJitter* jitter;
+    SrsRtmpJitterAlgorithm jitter_algorithm;
+protected:
     SrsFlvSegment* segment;
+    SrsRequest* _req;
+    bool dvr_enabled;
+    SrsFileStream* fs;
 public:
     SrsDvrPlan();
     virtual ~SrsDvrPlan();
@@ -118,6 +123,9 @@ public:
     virtual int on_meta_data(SrsOnMetaDataPacket* metadata);
     virtual int on_audio(SrsSharedPtrMessage* audio);
     virtual int on_video(SrsSharedPtrMessage* video);
+// interface ISrsReloadHandler
+public:
+    virtual int on_reload_vhost_dvr(std::string vhost);
 protected:
     virtual int flv_open(std::string stream, std::string path);
     virtual int flv_close();
