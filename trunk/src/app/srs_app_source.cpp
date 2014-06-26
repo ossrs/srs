@@ -69,25 +69,32 @@ int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, int tba, int tbv, SrsRtmpJi
 {
     int ret = ERROR_SUCCESS;
     
-    // all jitter correct features is disabled, ignore.
-    if (ag == SrsRtmpJitterAlgorithmOFF) {
-        return ret;
-    }
-
-
-    // start at zero, but donot ensure monotonically increasing.
-    if (ag == SrsRtmpJitterAlgorithmZERO) {
-        if (last_pkt_correct_time <= 0) {
-            last_pkt_correct_time = msg->header.timestamp;
+    // for performance issue
+    if (ag != SrsRtmpJitterAlgorithmFULL) {
+        // all jitter correct features is disabled, ignore.
+        if (ag == SrsRtmpJitterAlgorithmOFF) {
+            return ret;
         }
-        msg->header.timestamp -= last_pkt_correct_time;
+    
+        // start at zero, but donot ensure monotonically increasing.
+        if (ag == SrsRtmpJitterAlgorithmZERO) {
+            // for the first time, last_pkt_correct_time is zero.
+            // while when timestamp overflow, the timestamp become smaller, reset the last_pkt_correct_time.
+            if (last_pkt_correct_time <= 0 || last_pkt_correct_time > msg->header.timestamp) {
+                last_pkt_correct_time = msg->header.timestamp;
+            }
+            msg->header.timestamp -= last_pkt_correct_time;
+            return ret;
+        }
+        
+        // other algorithm, ignore.
         return ret;
     }
     
     // full jitter algorithm, do jitter correct.
     
     // set to 0 for metadata.
-    if (!msg->header.is_video() && !msg->header.is_audio()) {
+    if (!msg->header.is_audio() && !msg->header.is_video()) {
         msg->header.timestamp = 0;
         return ret;
     }
