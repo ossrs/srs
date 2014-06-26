@@ -80,6 +80,11 @@ else
     cd freetype-2.4.0 && ./configure --prefix=${ff_release_dir} --enable-static && make ${SRS_JOBS} && make install
     ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build freetype-2.4.0 failed"; exit 1; fi
 fi
+# add pc to pkg-config
+pkg-config --exists --print-errors freetype2 >/dev/null 2>&1
+ret=$?; if [[ 0 -ne ${ret} ]]; then export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:$ff_current_dir/freetype-2.4.0/builds/unix; fi
+pkg-config --exists --print-errors freetype2 >/dev/null 2>&1
+ret=$?; if [[ 0 -ne ${ret} ]]; then echo "oops... pkg-config cannot find the freetype, please report bug."; exit 1; fi
 
 # x264 core.138
 if [[ -f ${ff_release_dir}/lib/libx264.a ]]; then
