@@ -36,6 +36,9 @@ class SrsConfDirective;
 class SrsRefer
 {
 public:
+    SrsRefer();
+    virtual ~SrsRefer();
+public:
     /**
     * to check the refer.
     * @param page_url the client page url.

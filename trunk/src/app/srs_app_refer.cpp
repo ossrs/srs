@@ -27,6 +27,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
 
+SrsRefer::SrsRefer()
+{
+}
+
+SrsRefer::~SrsRefer()
+{
+}
+
 int SrsRefer::check(std::string page_url, SrsConfDirective* refer)
 {
     int ret = ERROR_SUCCESS;
