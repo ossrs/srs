@@ -76,8 +76,7 @@ void srs_update_system_rusage()
         srs_warn("getrusage failed, ignore");
         return;
     }
-        
-    srs_update_system_time_ms();
+    
     _srs_system_rusage.sample_time = srs_get_system_time_ms();
     
     _srs_system_rusage.ok = true;
@@ -233,8 +232,6 @@ bool get_proc_self_stat(SrsProcSelfStat& r)
 
 void srs_update_proc_stat()
 {
-    srs_update_system_time_ms();
-    
     // system cpu stat
     if (true) {
         SrsProcSystemStat r;
@@ -266,7 +263,6 @@ void srs_update_proc_stat()
             return;
         }
         
-        srs_update_system_time_ms();
         r.sample_time = srs_get_system_time_ms();
         
         // calc usage in percent
@@ -390,7 +386,7 @@ SrsPlatformInfo::SrsPlatformInfo()
 {
     ok = false;
     
-    srs_startup_time = srs_get_system_time_ms();
+    srs_startup_time = 0;
     
     os_uptime = 0;
     os_ilde_time = 0;
@@ -411,6 +407,8 @@ void srs_update_platform_info()
 {
     SrsPlatformInfo& r = _srs_system_platform_info;
     r.ok = true;
+    
+    r.srs_startup_time = srs_get_system_startup_time_ms();
     
     if (true) {
         FILE* f = fopen("/proc/uptime", "r");

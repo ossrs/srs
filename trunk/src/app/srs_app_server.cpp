@@ -61,6 +61,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // update time interval:
 //      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_TIME_RESOLUTION_MS_TIMES
+// @see SYS_TIME_RESOLUTION_US
 #define SRS_SYS_TIME_RESOLUTION_MS_TIMES 3
 
 // update rusage interval:
@@ -398,6 +399,9 @@ void SrsServer::destroy()
 int SrsServer::initialize()
 {
     int ret = ERROR_SUCCESS;
+    
+    // ensure the time is ok.
+    srs_update_system_time_ms();
     
     // for the main objects(server, config, log, context),
     // never subscribe handler in constructor,
