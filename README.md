@@ -225,6 +225,7 @@ Supported operating systems and hardware:
 1. [no-plan] Support RTP/RTSP server.
 
 ## Releases
+* 2014-06-27, [Release v1.0-mainline5](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline5), refine perf 3k+ clients, edge token traverse, [srs monitor](http://ossrs.net:1977), 30days online. 41573 lines.<br/>
 * 2014-05-28, [Release v1.0-mainline4](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline4), support heartbeat, tracable log, fix mem leak and bugs. 39200 lines.<br/>
 * 2014-05-18, [Release v1.0-mainline3](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline3), support mips, fms origin, json(http-api). 37594 lines.<br/>
 * 2014-04-28, [Release v1.0-mainline2](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline2), support [dvr](https://github.com/winlinvip/simple-rtmp-server/wiki/DVR), android, [edge](https://github.com/winlinvip/simple-rtmp-server/wiki/Edge). 35255 lines.<br/>
@@ -241,7 +242,9 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
-* v1.0, 2014-06-25, fix [#108](https://github.com/winlinvip/simple-rtmp-server/issues/108), disable the time jitter for encoder non-monotonical stream. 0.9.133
+* <strong>v1.0, 2014-06-27, [1.0 mainline5(0.9.134)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline5) released. 41573 lines.</strong>
+* v1.0, 2014-06-27, SRS online 30days with RTMP/HLS.
+* v1.0, 2014-06-25, fix [#108](https://github.com/winlinvip/simple-rtmp-server/issues/108), support config time jitter for encoder non-monotonical stream. 0.9.133
 * v1.0, 2014-06-23, support report summaries in heartbeat. 0.9.132
 * v1.0, 2014-06-22, performance refine, support [3k+](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance#%E6%80%A7%E8%83%BD%E4%BE%8B%E8%A1%8C%E6%8A%A5%E5%91%8A4k) connections(270kbps). 0.9.130
 * v1.0, 2014-06-21, support edge [token traverse](https://github.com/winlinvip/simple-rtmp-server/wiki/DRM#tokentraverse), fix [#104](https://github.com/winlinvip/simple-rtmp-server/issues/104). 0.9.129
