@@ -534,6 +534,73 @@ protected:
 };
 
 /**
+* 4.1.2. Call
+* The call method of the NetConnection object runs remote procedure
+* calls (RPC) at the receiving end. The called RPC name is passed as a
+* parameter to the call command.
+*/
+class SrsCallPacket : public SrsPacket
+{
+protected:
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsCallPacket);
+    }
+public:
+    std::string command_name;
+    double transaction_id;
+    /**
+    * If there exists any command info this
+    * is set, else this is set to null type.
+    */
+    SrsAmf0Any* command_object;
+    // Any optional arguments to be provided
+    SrsAmf0Any* arguments;
+public:
+    SrsCallPacket();
+    virtual ~SrsCallPacket();
+public:
+    virtual int decode(SrsStream* stream);
+public:
+    virtual int get_perfer_cid();
+public:
+    virtual int get_message_type();
+protected:
+    virtual int get_size();
+    virtual int encode_packet(SrsStream* stream);
+};
+/**
+* response for SrsCallPacket.
+*/
+class SrsCallResPacket : public SrsPacket
+{
+protected:
+    virtual const char* get_class_name()
+    {
+        return CLASS_NAME_STRING(SrsCallResPacket);
+    }
+public:
+    std::string command_name;
+    double transaction_id;
+    // If there exists any command info this
+    // is set, else this is set to null type.
+    SrsAmf0Any* command_object;
+    // Response from the method that was
+    // called.
+    SrsAmf0Any* response;
+public:
+    SrsCallResPacket(double _transaction_id);
+    virtual ~SrsCallResPacket();
+public:
+    virtual int get_perfer_cid();
+public:
+    virtual int get_message_type();
+protected:
+    virtual int get_size();
+    virtual int encode_packet(SrsStream* stream);
+};
+
+/**
 * 4.1.3. createStream
 * The client sends this command to the server to create a logical
 * channel for message communication The publishing of audio, video, and
@@ -592,6 +659,7 @@ protected:
     virtual int get_size();
     virtual int encode_packet(SrsStream* stream);
 };
+
 /**
 * client close stream packet.
 */

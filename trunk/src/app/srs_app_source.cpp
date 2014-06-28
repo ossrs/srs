@@ -926,6 +926,10 @@ int SrsSource::on_meta_data(SrsMessage* msg, SrsOnMetaDataPacket* metadata)
     metadata->metadata->set("server", SrsAmf0Any::str(RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
     metadata->metadata->set("authors", SrsAmf0Any::str(RTMP_SIG_SRS_PRIMARY_AUTHROS));
     
+    // version, for example, 1.0.0
+    // add version to metadata, please donot remove it, for debug.
+    metadata->metadata->set("server_version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
+    
     if ((prop = metadata->metadata->get_property("audiosamplerate")) != NULL) {
         if (prop->is_number()) {
             sample_rate = (int)prop->to_number();

@@ -700,6 +700,10 @@ int SrsProtocol::do_decode_message(SrsMessageHeader& header, SrsStream* stream, 
             srs_info("decode the AMF0/AMF3 closeStream message.");
             *ppacket = packet = new SrsCloseStreamPacket();
             return packet->decode(stream);
+        } else if (header.is_amf0_command() || header.is_amf3_command()) {
+            srs_info("decode the AMF0/AMF3 call message.");
+            *ppacket = packet = new SrsCallPacket();
+            return packet->decode(stream);
         }
         
         // default packet to drop message.
@@ -1972,6 +1976,202 @@ int SrsConnectAppResPacket::encode_packet(SrsStream* stream)
     srs_verbose("encode info success.");
     
     srs_info("encode connect app response packet success.");
+    
+    return ret;
+}
+
+SrsCallPacket::SrsCallPacket()
+{
+    command_name = "";
+    transaction_id = 0;
+    command_object = NULL;
+    arguments = NULL;
+}
+
+SrsCallPacket::~SrsCallPacket()
+{
+    srs_freep(command_object);
+    srs_freep(arguments);
+}
+
+int SrsCallPacket::decode(SrsStream* stream)
+{
+    int ret = ERROR_SUCCESS;
+
+    if ((ret = srs_amf0_read_string(stream, command_name)) != ERROR_SUCCESS) {
+        srs_error("amf0 decode call command_name failed. ret=%d", ret);
+        return ret;
+    }
+    if (command_name.empty()) {
+        ret = ERROR_RTMP_AMF0_DECODE;
+        srs_error("amf0 decode call command_name failed. "
+            "command_name=%s, ret=%d", command_name.c_str(), ret);
+        return ret;
+    }
+    
+    if ((ret = srs_amf0_read_number(stream, transaction_id)) != ERROR_SUCCESS) {
+        srs_error("amf0 decode call transaction_id failed. ret=%d", ret);
+        return ret;
+    }
+    
+    srs_freep(command_object);
+    if ((ret = SrsAmf0Any::discovery(stream, &command_object)) != ERROR_SUCCESS) {
+        srs_error("amf0 discovery call command_object failed. ret=%d", ret);
+        return ret;
+    }
+    if ((ret = command_object->read(stream)) != ERROR_SUCCESS) {
+        srs_error("amf0 decode call command_object failed. ret=%d", ret);
+        return ret;
+    }
+    
+    if (!stream->empty()) {
+        srs_freep(arguments);
+        if ((ret = SrsAmf0Any::discovery(stream, &arguments)) != ERROR_SUCCESS) {
+            srs_error("amf0 discovery call arguments failed. ret=%d", ret);
+            return ret;
+        }
+        if ((ret = arguments->read(stream)) != ERROR_SUCCESS) {
+            srs_error("amf0 decode call arguments failed. ret=%d", ret);
+            return ret;
+        }
+    }
+    
+    srs_info("amf0 decode call packet success");
+    
+    return ret;
+}
+
+int SrsCallPacket::get_perfer_cid()
+{
+    return RTMP_CID_OverConnection;
+}
+
+int SrsCallPacket::get_message_type()
+{
+    return RTMP_MSG_AMF0CommandMessage;
+}
+
+int SrsCallPacket::get_size()
+{
+    int size = 0;
+    
+    size += SrsAmf0Size::str(command_name) + SrsAmf0Size::number();
+    
+    if (command_object) {
+        size += command_object->total_size();
+    }
+    
+    if (arguments) {
+        size += arguments->total_size();
+    }
+    
+    return size;
+}
+
+int SrsCallPacket::encode_packet(SrsStream* stream)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = srs_amf0_write_string(stream, command_name)) != ERROR_SUCCESS) {
+        srs_error("encode command_name failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("encode command_name success.");
+    
+    if ((ret = srs_amf0_write_number(stream, transaction_id)) != ERROR_SUCCESS) {
+        srs_error("encode transaction_id failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("encode transaction_id success.");
+    
+    if (command_object && (ret = command_object->write(stream)) != ERROR_SUCCESS) {
+        srs_error("encode command_object failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("encode command_object success.");
+    
+    if (arguments && (ret = arguments->write(stream)) != ERROR_SUCCESS) {
+        srs_error("encode arguments failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("encode arguments success.");
+    
+    srs_info("encode create stream request packet success.");
+    
+    return ret;
+}
+
+SrsCallResPacket::SrsCallResPacket(double _transaction_id)
+{
+    command_name = RTMP_AMF0_COMMAND_RESULT;
+    transaction_id = _transaction_id;
+    command_object = NULL;
+    response = NULL;
+}
+
+SrsCallResPacket::~SrsCallResPacket()
+{
+    srs_freep(command_object);
+    srs_freep(response);
+}
+
+int SrsCallResPacket::get_perfer_cid()
+{
+    return RTMP_CID_OverConnection;
+}
+
+int SrsCallResPacket::get_message_type()
+{
+    return RTMP_MSG_AMF0CommandMessage;
+}
+
+int SrsCallResPacket::get_size()
+{
+    int size = 0;
+    
+    size += SrsAmf0Size::str(command_name) + SrsAmf0Size::number();
+    
+    if (command_object) {
+        size += command_object->total_size();
+    }
+    
+    if (response) {
+        size += response->total_size();
+    }
+    
+    return size;
+}
+
+int SrsCallResPacket::encode_packet(SrsStream* stream)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = srs_amf0_write_string(stream, command_name)) != ERROR_SUCCESS) {
+        srs_error("encode command_name failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("encode command_name success.");
+    
+    if ((ret = srs_amf0_write_number(stream, transaction_id)) != ERROR_SUCCESS) {
+        srs_error("encode transaction_id failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("encode transaction_id success.");
+    
+    if (command_object && (ret = command_object->write(stream)) != ERROR_SUCCESS) {
+        srs_error("encode command_object failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("encode command_object success.");
+    
+    if (response && (ret = response->write(stream)) != ERROR_SUCCESS) {
+        srs_error("encode response failed. ret=%d", ret);
+        return ret;
+    }
+    srs_verbose("encode response success.");
+    
+    
+    srs_info("encode call response packet success.");
     
     return ret;
 }

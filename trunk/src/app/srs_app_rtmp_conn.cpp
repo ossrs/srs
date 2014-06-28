@@ -51,6 +51,7 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_msg_array.hpp>
+#include <srs_protocol_amf0.hpp>
 
 // when stream is busy, for example, streaming is already
 // publishing, when a new client to request to publish,
@@ -852,6 +853,22 @@ int SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsMessage* msg
         return ret;
     }
     
+    // call msg,
+    // support response null first,
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/106
+    SrsCallPacket* call = dynamic_cast<SrsCallPacket*>(pkt);
+    if (call) {
+        SrsCallResPacket* res = new SrsCallResPacket(call->transaction_id);
+        res->command_object = SrsAmf0Any::null();
+        res->response = SrsAmf0Any::null();
+        if ((ret = rtmp->send_and_free_packet(res, 0)) != ERROR_SUCCESS) {
+            srs_warn("response call failed. ret=%d", ret);
+            return ret;
+        }
+        return ret;
+    }
+    
+    // pause or other msg.
     SrsPausePacket* pause = dynamic_cast<SrsPausePacket*>(pkt);
     if (!pause) {
         srs_info("ignore all amf0/amf3 command except pause.");
