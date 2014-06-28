@@ -907,6 +907,7 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
     srs_verbose("add conn to vector.");
     
     // cycle will start process thread and when finished remove the client.
+    // @remark never use the conn, for it maybe destroyed.
     if ((ret = conn->start()) != ERROR_SUCCESS) {
         return ret;
     }
