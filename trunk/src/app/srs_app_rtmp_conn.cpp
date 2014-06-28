@@ -856,6 +856,7 @@ int SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsMessage* msg
     // call msg,
     // support response null first,
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/106
+    // TODO: FIXME: response in right way, or forward in edge mode.
     SrsCallPacket* call = dynamic_cast<SrsCallPacket*>(pkt);
     if (call) {
         SrsCallResPacket* res = new SrsCallResPacket(call->transaction_id);
