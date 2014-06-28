@@ -51,7 +51,7 @@ int main(int argc, char** argv)
             "   in_flv_file         flv file to parse and show.\n"
             "For example:\n"
             "   %s ../../doc/source.200kbps.768x320.flv\n",
-            argv[0]);
+            argv[0], argv[0]);
         ret = 1;
         exit(ret);
         return ret;

@@ -86,6 +86,8 @@ public:
     int64_t stream_previous_pkt_time;
 public:
     SrsFlvSegment();
+    virtual ~SrsFlvSegment();
+public:
     virtual void reset();
 };
 

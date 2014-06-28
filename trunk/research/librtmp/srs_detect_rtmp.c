@@ -67,7 +67,7 @@ int main(int argc, char** argv)
             "   timeout      how long to timeout, in seconds, system time.\n"
             "For example:\n"
             "   %s rtmp://127.0.0.1:1935/live/livestream 3 10\n",
-            argv[0]);
+            argv[0], argv[0]);
         ret = 1;
         exit(ret);
         return ret;

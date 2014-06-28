@@ -53,7 +53,7 @@ int main(int argc, char** argv)
             "   out_rtmp_url    output rtmp url, publish to this url.\n"
             "For example:\n"
             "   %s -i rtmp://127.0.0.1/live/livestream -y rtmp://127.0.0.1/live/demo\n",
-            argv[0]);
+            argv[0], argv[0]);
         ret = 1;
         exit(ret);
         return ret;

@@ -44,7 +44,7 @@ int main(int argc, char** argv)
             "   rtmp_url     RTMP stream url to play\n"
             "For example:\n"
             "   %s rtmp://127.0.0.1:1935/live/livestream\n",
-            argv[0]);
+            argv[0], argv[0]);
         int ret = 1;
         exit(ret);
         return ret;

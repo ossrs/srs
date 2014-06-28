@@ -60,7 +60,7 @@ int main(int argc, char** argv)
             "   out_flv_file        the inject output file, can be in_flv_file.\n"
             "For example:\n"
             "   %s ../../doc/source.200kbps.768x320.flv injected.flv\n",
-            argv[0]);
+            argv[0], argv[0]);
         ret = 1;
         exit(ret);
         return ret;

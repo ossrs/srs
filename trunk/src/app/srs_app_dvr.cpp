@@ -53,6 +53,10 @@ SrsFlvSegment::SrsFlvSegment()
     stream_duration = 0;
 }
 
+SrsFlvSegment::~SrsFlvSegment()
+{
+}
+
 void SrsFlvSegment::reset()
 {
     has_keyframe = false;
