@@ -88,6 +88,7 @@ private:
     st_thread_t tid;
     int _cid;
     bool loop;
+    bool can_run;
     bool _joinable;
 private:
     ISrsThreadHandler* handler;

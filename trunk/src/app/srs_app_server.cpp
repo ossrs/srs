@@ -910,7 +910,7 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
     if ((ret = conn->start()) != ERROR_SUCCESS) {
         return ret;
     }
-    srs_verbose("conn started success   .");
+    srs_verbose("conn started success.");
 
     srs_verbose("accept client finished. conns=%d, ret=%d", (int)conns.size(), ret);
     
