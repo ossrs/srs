@@ -36,7 +36,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <sys/resource.h>
 
+#include <srs_app_st.hpp>
+
 class SrsKbps;
+
+// client open socket and connect to server.
+extern int srs_socket_connect(std::string server, int port, int64_t timeout, st_netfd_t* pstfd);
 
 /**
 * convert level in string to log level in int.

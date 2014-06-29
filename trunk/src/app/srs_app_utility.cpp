@@ -39,6 +39,58 @@ using namespace std;
 
 #define SRS_LOCAL_LOOP_IP "127.0.0.1"
 
+int srs_socket_connect(std::string server, int port, int64_t timeout, st_netfd_t* pstfd)
+{
+    int ret = ERROR_SUCCESS;
+    
+    *pstfd = NULL;
+    st_netfd_t stfd = NULL;
+    sockaddr_in addr;
+    
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if(sock == -1){
+        ret = ERROR_SOCKET_CREATE;
+        srs_error("create socket error. ret=%d", ret);
+        return ret;
+    }
+    
+    srs_assert(!stfd);
+    stfd = st_netfd_open_socket(sock);
+    if(stfd == NULL){
+        ret = ERROR_ST_OPEN_SOCKET;
+        srs_error("st_netfd_open_socket failed. ret=%d", ret);
+        return ret;
+    }
+    
+    // connect to server.
+    std::string ip = srs_dns_resolve(server);
+    if (ip.empty()) {
+        ret = ERROR_SYSTEM_IP_INVALID;
+        srs_error("dns resolve server error, ip empty. ret=%d", ret);
+        goto failed;
+    }
+    
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = inet_addr(ip.c_str());
+    
+    if (st_connect(stfd, (const struct sockaddr*)&addr, sizeof(sockaddr_in), timeout) == -1){
+        ret = ERROR_ST_CONNECT;
+        srs_error("connect to server error. ip=%s, port=%d, ret=%d", ip.c_str(), port, ret);
+        goto failed;
+    }
+    srs_info("connect ok. server=%s, ip=%s, port=%d", server.c_str(), ip.c_str(), port);
+    
+    *pstfd = stfd;
+    return ret;
+    
+failed:
+    if (stfd) {
+        srs_close_stfd(stfd);
+    }
+    return ret;
+}
+
 int srs_get_log_level(std::string level)
 {
     if ("verbose" == _srs_config->get_log_level()) {

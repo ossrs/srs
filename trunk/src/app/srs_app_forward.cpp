@@ -42,6 +42,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_kbps.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_msg_array.hpp>
+#include <srs_app_utility.hpp>
 
 // when error, forwarder sleep for a while and retry.
 #define SRS_FORWARDER_SLEEP_US (int64_t)(3*1000*1000LL)
@@ -255,50 +256,24 @@ int SrsForwarder::connect_server()
     close_underlayer_socket();
     
     // open socket.
-    srs_trace("forward stream=%s, tcUrl=%s to server=%s, port=%d",
-        stream_name.c_str(), tc_url.c_str(), server.c_str(), port);
-
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if(sock == -1){
-        ret = ERROR_SOCKET_CREATE;
-        srs_error("create socket error. ret=%d", ret);
-        return ret;
-    }
-    
-    srs_assert(!stfd);
-    stfd = st_netfd_open_socket(sock);
-    if(stfd == NULL){
-        ret = ERROR_ST_OPEN_SOCKET;
-        srs_error("st_netfd_open_socket failed. ret=%d", ret);
+    int64_t timeout = SRS_FORWARDER_SLEEP_US;
+    if ((ret = srs_socket_connect(server, port, timeout, &stfd)) != ERROR_SUCCESS) {
+        srs_warn("forward failed, stream=%s, tcUrl=%s to server=%s, port=%d, timeout=%"PRId64", ret=%d",
+            stream_name.c_str(), tc_url.c_str(), server.c_str(), port, timeout, ret);
         return ret;
     }
     
     srs_freep(client);
     srs_freep(io);
     
+    srs_assert(stfd);
     io = new SrsSocket(stfd);
     client = new SrsRtmpClient(io);
+    
     kbps->set_io(io, io);
     
-    // connect to server.
-    std::string ip = srs_dns_resolve(server);
-    if (ip.empty()) {
-        ret = ERROR_SYSTEM_IP_INVALID;
-        srs_error("dns resolve server error, ip empty. ret=%d", ret);
-        return ret;
-    }
-    
-    sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = inet_addr(ip.c_str());
-    
-    if (st_connect(stfd, (const struct sockaddr*)&addr, sizeof(sockaddr_in), SRS_FORWARDER_SLEEP_US) == -1){
-        ret = ERROR_ST_CONNECT;
-        srs_error("connect to server error. ip=%s, port=%d, ret=%d", ip.c_str(), port, ret);
-        return ret;
-    }
-    srs_trace("connect to server success. server=%s, ip=%s, port=%d", server.c_str(), ip.c_str(), port);
+    srs_trace("forward connected, stream=%s, tcUrl=%s to server=%s, port=%d",
+        stream_name.c_str(), tc_url.c_str(), server.c_str(), port);
     
     return ret;
 }

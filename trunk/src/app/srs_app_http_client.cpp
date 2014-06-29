@@ -34,6 +34,10 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_app_socket.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_app_utility.hpp>
+
+// when error, http client sleep for a while and retry.
+#define SRS_HTTP_CLIENT_SLEEP_US (int64_t)(3*1000*1000LL)
 
 SrsHttpClient::SrsHttpClient()
 {
@@ -127,36 +131,14 @@ int SrsHttpClient::connect(SrsHttpUri* uri)
     
     disconnect();
     
-    std::string ip = srs_dns_resolve(uri->get_host());
-    if (ip.empty()) {
-        ret = ERROR_SYSTEM_IP_INVALID;
-        srs_error("dns resolve server error, ip empty. ret=%d", ret);
-        return ret;
-    }
-
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if(sock == -1){
-        ret = ERROR_SOCKET_CREATE;
-        srs_error("create socket error. ret=%d", ret);
-        return ret;
-    }
+    std::string server = uri->get_host();
+    int port = uri->get_port();
     
-    stfd = st_netfd_open_socket(sock);
-    if(stfd == NULL){
-        ret = ERROR_ST_OPEN_SOCKET;
-        srs_error("st_netfd_open_socket failed. ret=%d", ret);
-        return ret;
-    }
-    
-    sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(uri->get_port());
-    addr.sin_addr.s_addr = inet_addr(ip.c_str());
-    
-    if (st_connect(stfd, (const struct sockaddr*)&addr, sizeof(sockaddr_in), ST_UTIME_NO_TIMEOUT) == -1){
-        ret = ERROR_ST_CONNECT;
-        srs_error("connect to server error. "
-            "ip=%s, port=%d, ret=%d", ip.c_str(), uri->get_port(), ret);
+    // open socket.
+    int64_t timeout = SRS_HTTP_CLIENT_SLEEP_US;
+    if ((ret = srs_socket_connect(server, port, timeout, &stfd)) != ERROR_SUCCESS) {
+        srs_warn("http client failed, server=%s, port=%d, timeout=%"PRId64", ret=%d",
+            server.c_str(), port, timeout, ret);
         return ret;
     }
     srs_info("connect to server success. "
