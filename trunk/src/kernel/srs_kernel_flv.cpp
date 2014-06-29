@@ -165,6 +165,11 @@ void SrsFileReader::close()
     return;
 }
 
+bool SrsFileReader::is_open()
+{
+    return fd > 0;
+}
+
 int64_t SrsFileReader::tellg()
 {
     return (int64_t)::lseek(fd, 0, SEEK_CUR);

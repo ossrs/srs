@@ -166,7 +166,8 @@ int64_t srs_get_nrecv_bytes(srs_rtmp_t rtmp);
 typedef void* srs_flv_t;
 typedef int flv_bool;
 /* open flv file for both read/write. */
-srs_flv_t srs_flv_open(const char* file);
+srs_flv_t srs_flv_open_read(const char* file);
+srs_flv_t srs_flv_open_write(const char* file);
 void srs_flv_close(srs_flv_t flv);
 /* read the flv header. 9bytes header. drop the 4bytes zero previous tag size */
 int srs_flv_read_header(srs_flv_t flv, char header[9]);

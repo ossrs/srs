@@ -467,7 +467,26 @@ struct FlvContext
     SrsFlvDecoder dec;
 };
 
-srs_flv_t srs_flv_open(const char* file)
+srs_flv_t srs_flv_open_read(const char* file)
+{
+    int ret = ERROR_SUCCESS;
+    
+    FlvContext* flv = new FlvContext();
+    
+    if ((ret = flv->reader.open(file)) != ERROR_SUCCESS) {
+        srs_freep(flv);
+        return NULL;
+    }
+    
+    if ((ret = flv->dec.initialize(&flv->reader)) != ERROR_SUCCESS) {
+        srs_freep(flv);
+        return NULL;
+    }
+    
+    return flv;
+}
+
+srs_flv_t srs_flv_open_write(const char* file)
 {
     int ret = ERROR_SUCCESS;
     
@@ -479,16 +498,6 @@ srs_flv_t srs_flv_open(const char* file)
     }
     
     if ((ret = flv->enc.initialize(&flv->writer)) != ERROR_SUCCESS) {
-        srs_freep(flv);
-        return NULL;
-    }
-    
-    if ((ret = flv->reader.open(file)) != ERROR_SUCCESS) {
-        srs_freep(flv);
-        return NULL;
-    }
-    
-    if ((ret = flv->dec.initialize(&flv->reader)) != ERROR_SUCCESS) {
         srs_freep(flv);
         return NULL;
     }
@@ -507,6 +516,11 @@ int srs_flv_read_header(srs_flv_t flv, char header[9])
     int ret = ERROR_SUCCESS;
     
     FlvContext* context = (FlvContext*)flv;
+
+    if (!context->reader.is_open()) {
+        return ERROR_SYSTEM_IO_INVALID;
+    }
+    
     if ((ret = context->dec.read_header(header)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -524,6 +538,11 @@ int srs_flv_read_tag_header(srs_flv_t flv, char* ptype, int32_t* pdata_size, u_i
     int ret = ERROR_SUCCESS;
     
     FlvContext* context = (FlvContext*)flv;
+
+    if (!context->reader.is_open()) {
+        return ERROR_SYSTEM_IO_INVALID;
+    }
+    
     if ((ret = context->dec.read_tag_header(ptype, pdata_size, ptime)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -536,6 +555,11 @@ int srs_flv_read_tag_data(srs_flv_t flv, char* data, int32_t size)
     int ret = ERROR_SUCCESS;
     
     FlvContext* context = (FlvContext*)flv;
+
+    if (!context->reader.is_open()) {
+        return ERROR_SYSTEM_IO_INVALID;
+    }
+    
     if ((ret = context->dec.read_tag_data(data, size)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -553,6 +577,11 @@ int srs_flv_write_header(srs_flv_t flv, char header[9])
     int ret = ERROR_SUCCESS;
     
     FlvContext* context = (FlvContext*)flv;
+
+    if (!context->writer.is_open()) {
+        return ERROR_SYSTEM_IO_INVALID;
+    }
+    
     if ((ret = context->enc.write_header(header)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -565,6 +594,11 @@ int srs_flv_write_tag(srs_flv_t flv, char type, int32_t time, char* data, int si
     int ret = ERROR_SUCCESS;
     
     FlvContext* context = (FlvContext*)flv;
+
+    if (!context->writer.is_open()) {
+        return ERROR_SYSTEM_IO_INVALID;
+    }
+    
     if (type == SRS_RTMP_TYPE_AUDIO) {
         return context->enc.write_audio(time, data, size);
     } else if (type == SRS_RTMP_TYPE_VIDEO) {

@@ -69,6 +69,7 @@ public:
     virtual int open(std::string file);
     virtual void close();
 public:
+    virtual bool is_open();
     virtual int64_t tellg();
     virtual void skip(int64_t size);
     virtual int64_t lseek(int64_t offset);
