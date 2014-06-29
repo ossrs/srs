@@ -32,26 +32,37 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string>
 #include <srs_kernel_flv.hpp>
 
-/*
-class MockSrsFileStream : public SrsFileStream
+class MockSrsFileWriter : public SrsFileWriter
 {
 public:
-    MockSrsFileStream();
-    virtual ~MockSrsFileStream();
+    MockSrsFileWriter();
+    virtual ~MockSrsFileWriter();
 public:
-public:
-    virtual int open_write(std::string file);
-    virtual int open_read(std::string file);
+    virtual int open(std::string file);
     virtual void close();
-    virtual bool is_open();
 public:
-    virtual int read(void* buf, size_t count, ssize_t* pnread);
-    virtual int write(void* buf, size_t count, ssize_t* pnwrite);
+    virtual bool is_open();
     virtual int64_t tellg();
+public:
+    virtual int write(void* buf, size_t count, ssize_t* pnwrite);
+};
+
+class MockSrsFileReader : public SrsFileReader
+{
+public:
+    MockSrsFileReader();
+    virtual ~MockSrsFileReader();
+public:
+    virtual int open(std::string file);
+    virtual void close();
+public:
+    virtual bool is_open();
+    virtual int64_t tellg();
+    virtual void skip(int64_t size);
     virtual int64_t lseek(int64_t offset);
     virtual int64_t filesize();
-    virtual void skip(int64_t size);
+public:
+    virtual int read(void* buf, size_t count, ssize_t* pnread);
 };
-*/
 
 #endif

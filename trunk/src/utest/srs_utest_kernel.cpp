@@ -108,3 +108,89 @@ VOID TEST(KernelCodecTest, IsAudioSequenceHeader)
     pp[1] = 0x01;
     EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 2));
 }
+
+MockSrsFileWriter::MockSrsFileWriter()
+{
+}
+
+MockSrsFileWriter::~MockSrsFileWriter()
+{
+}
+
+int MockSrsFileWriter::open(string file)
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+void MockSrsFileWriter::close()
+{
+    int ret = ERROR_SUCCESS;
+    return;
+}
+
+bool MockSrsFileWriter::is_open()
+{
+    return true;
+}
+
+int64_t MockSrsFileWriter::tellg()
+{
+    return 0;
+}
+
+int MockSrsFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+MockSrsFileReader::MockSrsFileReader()
+{
+}
+
+MockSrsFileReader::~MockSrsFileReader()
+{
+}
+
+int MockSrsFileReader::open(string file)
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+void MockSrsFileReader::close()
+{
+    int ret = ERROR_SUCCESS;
+    return;
+}
+
+bool MockSrsFileReader::is_open()
+{
+    return true;
+}
+
+int64_t MockSrsFileReader::tellg()
+{
+    return 0;
+}
+
+void MockSrsFileReader::skip(int64_t size)
+{
+}
+
+int64_t MockSrsFileReader::lseek(int64_t offset)
+{
+    return offset;
+}
+
+int64_t MockSrsFileReader::filesize()
+{
+    return 0;
+}
+
+int MockSrsFileReader::read(void* buf, size_t count, ssize_t* pnread)
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
