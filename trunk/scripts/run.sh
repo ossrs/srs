@@ -8,6 +8,9 @@ GREEN="\\e[32m"
 YELLOW="\\e[33m"
 BLACK="\\e[0m"
 
+sudo ./objs/nginx/sbin/nginx 
+echo "启动nginx"
+
 ./etc/init.d/srs-demo restart; ret=$?; if [[ 0 -ne $ret ]]; then echo "错误：启动SRS失败"; exit $ret; fi
 echo "启动SRS服务器成功"
 

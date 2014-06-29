@@ -24,11 +24,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_utility.hpp>
 
 #include <stdlib.h>
+using namespace std;
 
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
 
-void srs_vhost_resolve(std::string& vhost, std::string& app)
+void srs_vhost_resolve(string& vhost, string& app)
 {
     app = srs_string_replace(app, "...", "?");
     
@@ -70,4 +71,25 @@ void srs_random_generate(char* bytes, int size)
     for (int i = 0; i < size; i++) {
         bytes[i] = cdata[rand() % (sizeof(cdata) - 1)];
     }
+}
+
+string srs_generate_tc_url(string ip, string vhost, string app, string port)
+{
+    string tcUrl = "rtmp://";
+    
+    if (vhost == RTMP_VHOST_DEFAULT) {
+        tcUrl += ip;
+    } else {
+        tcUrl += vhost;
+    }
+    
+    if (port != RTMP_DEFAULT_PORT) {
+        tcUrl += ":";
+        tcUrl += port;
+    }
+    
+    tcUrl += "/";
+    tcUrl += app;
+    
+    return tcUrl;
 }

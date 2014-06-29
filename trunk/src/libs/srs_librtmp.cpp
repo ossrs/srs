@@ -262,18 +262,7 @@ int srs_connect_app(srs_rtmp_t rtmp)
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
     
-    string tcUrl = "rtmp://";
-    // TODO: FIXME: extrace shared method
-    if (context->vhost == RTMP_VHOST_DEFAULT) {
-        tcUrl += context->ip;
-    } else {
-        tcUrl += context->vhost;
-    }
-    tcUrl += ":";
-    tcUrl += context->port;
-    tcUrl += "/";
-    tcUrl += context->app;
-    
+    string tcUrl = srs_generate_tc_url(context->ip, context->vhost, context->app, context->port);
     if ((ret = context->rtmp->connect_app(context->app, tcUrl)) != ERROR_SUCCESS) {
         return ret;
     }

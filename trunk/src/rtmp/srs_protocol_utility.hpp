@@ -31,9 +31,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
-// default vhost for rtmp
+// default vhost of rtmp
 #define RTMP_VHOST_DEFAULT "__defaultVhost__"
-
+// default port of rtmp
 #define RTMP_DEFAULT_PORT "1935"
 
 // the default chunk size for system.
@@ -45,6 +45,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //        app...vhost...request_vhost
 extern void srs_vhost_resolve(std::string& vhost, std::string& app);
 
+// generate ramdom data for handshake.
 extern void srs_random_generate(char* bytes, int size);
+
+// generate the tcUrl.
+extern std::string srs_generate_tc_url(std::string ip, std::string vhost, std::string app, std::string port);
 
 #endif
