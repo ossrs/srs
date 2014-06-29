@@ -100,14 +100,7 @@ int SrsForwarder::on_publish(SrsRequest* req, std::string forward_server)
     port = ::atoi(s_port.c_str());
     
     // generate tcUrl
-    tc_url = "rtmp://";
-    if (vhost == RTMP_VHOST_DEFAULT) {
-        tc_url += forward_server;
-    } else {
-        tc_url += vhost;
-    }
-    tc_url += "/";
-    tc_url += req->app;
+    tc_url = srs_generate_tc_url(forward_server, vhost, req->app, s_port);
     
     // dead loop check
     std::string source_ep = "rtmp://";
