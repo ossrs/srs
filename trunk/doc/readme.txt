@@ -4,11 +4,6 @@ ffmpeg-min.png
 source.flv
     avatar预告片，400kbps。
     
-FreeSerifBold.ttf
-    字体文件，ffmpeg的drawtext filter需要使用。
-    参考：http://ffmpeg.org/ffmpeg-filters.html#drawtext-1
-    下载地址：http://www.fonts2u.com/free-serif.font
-    
 aac-iso-13818-7.pdf
     aac标准，aac的编码等。
     

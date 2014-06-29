@@ -69,23 +69,6 @@ else
     ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build speex-1.2rc1 failed"; exit 1; fi
 fi
 
-# freetype-2.4.0
-# remark: we must ensure the pkg-config tool installed.
-if [[ -f ${ff_release_dir}/lib/libfreetype.a ]]; then
-    echo "libfreetype is ok"
-else
-    echo "build freetype-2.4.0"
-    cd $ff_current_dir &&
-    rm -rf freetype-2.4.0 && unzip -q ${ff_src_dir}/freetype-2.4.0.zip &&
-    cd freetype-2.4.0 && ./configure --prefix=${ff_release_dir} --enable-static && make ${SRS_JOBS} && make install
-    ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build freetype-2.4.0 failed"; exit 1; fi
-fi
-# add pc to pkg-config
-pkg-config --exists --print-errors freetype2 >/dev/null 2>&1
-ret=$?; if [[ 0 -ne ${ret} ]]; then export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:$ff_current_dir/freetype-2.4.0/builds/unix; fi
-pkg-config --exists --print-errors freetype2 >/dev/null 2>&1
-ret=$?; if [[ 0 -ne ${ret} ]]; then echo "oops... pkg-config cannot find the freetype, please report bug."; exit 1; fi
-
 # x264 core.138
 if [[ -f ${ff_release_dir}/lib/libx264.a ]]; then
     echo "x264 is ok"
@@ -122,7 +105,6 @@ else
         --extra-ldflags='-L${ffmpeg_exported_release_dir}/lib -lm -ldl' \
         --disable-ffplay --disable-ffprobe --disable-ffserver --disable-doc \
         --enable-postproc --enable-bzlib --enable-zlib --enable-parsers \
-        --enable-libfreetype \
         --enable-libx264 --enable-libmp3lame --enable-libaacplus --enable-libspeex \
         --enable-pthreads --extra-libs=-lpthread \
         --enable-encoders --enable-decoders --enable-avfilter --enable-muxers --enable-demuxers && 
