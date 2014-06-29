@@ -29,9 +29,43 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
 
+void srs_discovery_tc_url(
+    string tcUrl, 
+    string& schema, string& host, string& vhost, 
+    string& app, string& port
+) {
+    size_t pos = std::string::npos;
+    std::string url = tcUrl;
+    
+    if ((pos = url.find("://")) != std::string::npos) {
+        schema = url.substr(0, pos);
+        url = url.substr(schema.length() + 3);
+        srs_info("discovery schema=%s", schema.c_str());
+    }
+    
+    if ((pos = url.find("/")) != std::string::npos) {
+        host = url.substr(0, pos);
+        url = url.substr(host.length() + 1);
+        srs_info("discovery host=%s", host.c_str());
+    }
+
+    port = RTMP_DEFAULT_PORT;
+    if ((pos = host.find(":")) != std::string::npos) {
+        port = host.substr(pos + 1);
+        host = host.substr(0, pos);
+        srs_info("discovery host=%s, port=%s", host.c_str(), port.c_str());
+    }
+    
+    app = url;
+    vhost = host;
+    srs_vhost_resolve(vhost, app);
+}
+
 void srs_vhost_resolve(string& vhost, string& app)
 {
     app = srs_string_replace(app, "...", "?");
+    app = srs_string_replace(app, "&&", "?");
+    app = srs_string_replace(app, "=", "?");
     
     size_t pos = 0;
     if ((pos = app.find("?")) == std::string::npos) {
@@ -41,14 +75,13 @@ void srs_vhost_resolve(string& vhost, string& app)
     std::string query = app.substr(pos + 1);
     app = app.substr(0, pos);
     
-    if ((pos = query.find("vhost?")) != std::string::npos
-        || (pos = query.find("vhost=")) != std::string::npos
-        || (pos = query.find("Vhost?")) != std::string::npos
-        || (pos = query.find("Vhost=")) != std::string::npos
-    ) {
+    if ((pos = query.find("vhost?")) != std::string::npos) {
         query = query.substr(pos + 6);
         if (!query.empty()) {
             vhost = query;
+        }
+        if ((pos = vhost.find("?")) != std::string::npos) {
+            vhost = vhost.substr(0, pos);
         }
     }
 }

@@ -98,9 +98,8 @@ public:
     virtual void update_auth(SrsRequest* req);
     
     /**
-    * disconvery vhost/app from tcUrl.
+    * get the stream identify, vhost/app/stream.
     */
-    virtual int discovery_app();
     virtual std::string get_stream_url();
     
     // strip url, user must strip when update the url.

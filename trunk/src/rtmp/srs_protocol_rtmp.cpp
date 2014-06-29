@@ -124,41 +124,6 @@ void SrsRequest::update_auth(SrsRequest* req)
     srs_info("update req of soruce for auth ok");
 }
 
-int SrsRequest::discovery_app()
-{
-    int ret = ERROR_SUCCESS;
-    
-    size_t pos = std::string::npos;
-    std::string url = tcUrl;
-    
-    if ((pos = url.find("://")) != std::string::npos) {
-        schema = url.substr(0, pos);
-        url = url.substr(schema.length() + 3);
-        srs_verbose("discovery schema=%s", schema.c_str());
-    }
-    
-    if ((pos = url.find("/")) != std::string::npos) {
-        host = url.substr(0, pos);
-        url = url.substr(host.length() + 1);
-        srs_verbose("discovery host=%s", host.c_str());
-    }
-
-    port = RTMP_DEFAULT_PORT;
-    if ((pos = host.find(":")) != std::string::npos) {
-        port = host.substr(pos + 1);
-        host = host.substr(0, pos);
-        srs_verbose("discovery host=%s, port=%s", host.c_str(), port.c_str());
-    }
-    
-    app = url;
-    vhost = host;
-    srs_vhost_resolve(vhost, app);
-    
-    strip();
-    
-    return ret;
-}
-
 string SrsRequest::get_stream_url()
 {
     std::string url = "";
@@ -867,7 +832,10 @@ int SrsRtmpServer::connect_app(SrsRequest* req)
     
     srs_info("get connect app message params success.");
     
-    return req->discovery_app();
+    srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->port);
+    req->strip();
+    
+    return ret;
 }
 
 int SrsRtmpServer::set_window_ack_size(int ack_size)

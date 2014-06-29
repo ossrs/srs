@@ -21,41 +21,15 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_RTMP_PROTOCOL_CONSTS_HPP
-#define SRS_RTMP_PROTOCOL_CONSTS_HPP
+#ifndef SRS_UTEST_PROTOCOL_HPP
+#define SRS_UTEST_PROTOCOL_HPP
 
 /*
-#include <srs_protocol_utility.hpp>
+#include <srs_utest_protocol.hpp>
 */
-#include <srs_core.hpp>
+#include <srs_utest.hpp>
 
 #include <string>
-
-// default vhost of rtmp
-#define RTMP_VHOST_DEFAULT "__defaultVhost__"
-// default port of rtmp
-#define RTMP_DEFAULT_PORT "1935"
-
-// the default chunk size for system.
-#define SRS_CONF_DEFAULT_CHUNK_SIZE 60000
-
-// parse the tcUrl, output the schema, host, vhost, app and port.
-extern void srs_discovery_tc_url(
-    std::string tcUrl, 
-    std::string& schema, std::string& host, std::string& vhost, 
-    std::string& app, std::string& port
-);
-
-// resolve the vhost in query string
-// @param app, may contains the vhost in query string format:
-//         app?vhost=request_vhost
-//        app...vhost...request_vhost
-extern void srs_vhost_resolve(std::string& vhost, std::string& app);
-
-// generate ramdom data for handshake.
-extern void srs_random_generate(char* bytes, int size);
-
-// generate the tcUrl.
-extern std::string srs_generate_tc_url(std::string ip, std::string vhost, std::string app, std::string port);
+#include <srs_protocol_utility.hpp>
 
 #endif

@@ -116,6 +116,8 @@ file
 	..\utest\srs_utest_buffer.cpp,
 	..\utest\srs_utest_handshake.hpp,
 	..\utest\srs_utest_handshake.cpp,
+	..\utest\srs_utest_protocol.hpp,
+	..\utest\srs_utest_protocol.cpp,
 	research readonly separator,
 	..\..\research\librtmp\srs_detect_rtmp.c,
 	..\..\research\librtmp\srs_flv_injecter.c,
