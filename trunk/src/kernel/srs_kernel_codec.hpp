@@ -160,7 +160,6 @@ public:
     * check codec h264.
     */
     static bool video_is_h264(int8_t* data, int size);
-private:
     /**
     * check codec aac.
     */

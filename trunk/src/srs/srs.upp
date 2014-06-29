@@ -116,6 +116,8 @@ file
 	..\utest\srs_utest_buffer.cpp,
 	..\utest\srs_utest_handshake.hpp,
 	..\utest\srs_utest_handshake.cpp,
+	..\utest\srs_utest_kernel.hpp,
+	..\utest\srs_utest_kernel.cpp,
 	..\utest\srs_utest_protocol.hpp,
 	..\utest\srs_utest_protocol.cpp,
 	research readonly separator,
