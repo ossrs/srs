@@ -473,22 +473,22 @@ srs_flv_t srs_flv_open(const char* file)
     
     FlvContext* flv = new FlvContext();
     
-    if ((ret = flv->reader.open(file)) != ERROR_SUCCESS) {
-        srs_freep(flv);
-        return NULL;
-    }
-    
-    if ((ret = flv->dec.initialize(&flv->reader)) != ERROR_SUCCESS) {
-        srs_freep(flv);
-        return NULL;
-    }
-    
     if ((ret = flv->writer.open(file)) != ERROR_SUCCESS) {
         srs_freep(flv);
         return NULL;
     }
     
     if ((ret = flv->enc.initialize(&flv->writer)) != ERROR_SUCCESS) {
+        srs_freep(flv);
+        return NULL;
+    }
+    
+    if ((ret = flv->reader.open(file)) != ERROR_SUCCESS) {
+        srs_freep(flv);
+        return NULL;
+    }
+    
+    if ((ret = flv->dec.initialize(&flv->reader)) != ERROR_SUCCESS) {
         srs_freep(flv);
         return NULL;
     }
