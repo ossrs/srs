@@ -71,7 +71,7 @@ SrsDvrPlan::SrsDvrPlan()
     _req = NULL;
     jitter = NULL;
     dvr_enabled = false;
-    fs = new SrsFileStream();
+    fs = new SrsFileWriter();
     enc = new SrsFlvEncoder();
     segment = new SrsFlvSegment();
     jitter_algorithm = SrsRtmpJitterAlgorithmOFF;
@@ -283,7 +283,7 @@ int SrsDvrPlan::flv_open(string stream, string path)
     segment->reset();
     
     std::string tmp_file = path + ".tmp";
-    if ((ret = fs->open_write(tmp_file)) != ERROR_SUCCESS) {
+    if ((ret = fs->open(tmp_file)) != ERROR_SUCCESS) {
         srs_error("open file stream for file %s failed. ret=%d", path.c_str(), ret);
         return ret;
     }
@@ -569,8 +569,8 @@ int SrsDvrHssPlan::on_meta_data(SrsOnMetaDataPacket* metadata)
         << "/" << req->app << "/" 
         << req->stream << ".header.flv";
         
-    SrsFileStream fs;
-    if ((ret = fs.open_write(path.str().c_str())) != ERROR_SUCCESS) {
+    SrsFileWriter fs;
+    if ((ret = fs.open(path.str().c_str())) != ERROR_SUCCESS) {
         return ret;
     }
     

@@ -93,7 +93,7 @@ int main(int argc, char** argv)
     trace("input:  %s", in_flv_file);
     trace("output: %s", out_rtmp_url);
 
-    if ((flv = srs_flv_open_read(in_flv_file)) == NULL) {
+    if ((flv = srs_flv_open(in_flv_file)) == NULL) {
         ret = 2;
         trace("open flv file failed. ret=%d", ret);
         return ret;

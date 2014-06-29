@@ -34,37 +34,47 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsStream;
 
 /**
-* file stream to read/write file.
+* file writer, to write to file.
 */
-class SrsFileStream
+class SrsFileWriter
 {
 private:
     std::string _file;
     int fd;
 public:
-    SrsFileStream();
-    virtual ~SrsFileStream();
+    SrsFileWriter();
+    virtual ~SrsFileWriter();
 public:
-    virtual int open_write(std::string file);
-    virtual int open_read(std::string file);
+    virtual int open(std::string file);
     virtual void close();
-    virtual bool is_open();
 public:
-    /**
-    * @param pnread, return the read size. NULL to ignore.
-    */
-    virtual int read(void* buf, size_t count, ssize_t* pnread);
-    /**
-    * @param pnwrite, return the write size. NULL to ignore.
-    */
-    virtual int write(void* buf, size_t count, ssize_t* pnwrite);
-    /**
-    * tell current offset of stream.
-    */
+    virtual bool is_open();
     virtual int64_t tellg();
+public:
+    virtual int write(void* buf, size_t count, ssize_t* pnwrite);
+};
+
+/**
+* file reader, to read from file.
+*/
+class SrsFileReader
+{
+private:
+    std::string _file;
+    int fd;
+public:
+    SrsFileReader();
+    virtual ~SrsFileReader();
+public:
+    virtual int open(std::string file);
+    virtual void close();
+public:
+    virtual int64_t tellg();
+    virtual void skip(int64_t size);
     virtual int64_t lseek(int64_t offset);
     virtual int64_t filesize();
-    virtual void skip(int64_t size);
+public:
+    virtual int read(void* buf, size_t count, ssize_t* pnread);
 };
 
 /**
@@ -73,7 +83,7 @@ public:
 class SrsFlvEncoder
 {
 private:
-    SrsFileStream* _fs;
+    SrsFileWriter* _fs;
 private:
     SrsStream* tag_stream;
 public:
@@ -84,7 +94,7 @@ public:
     * initialize the underlayer file stream,
     * user can initialize multiple times to encode multiple flv files.
     */
-    virtual int initialize(SrsFileStream* fs);
+    virtual int initialize(SrsFileWriter* fs);
 public:
     /**
     * write flv header.
@@ -122,7 +132,7 @@ private:
 class SrsFlvFastDecoder
 {
 private:
-    SrsFileStream* _fs;
+    SrsFileReader* _fs;
 private:
     SrsStream* tag_stream;
 public:
@@ -133,7 +143,7 @@ public:
     * initialize the underlayer file stream,
     * user can initialize multiple times to encode multiple flv files.
     */
-    virtual int initialize(SrsFileStream* fs);
+    virtual int initialize(SrsFileReader* fs);
 public:
     /**
     * read the flv header and size.
@@ -156,7 +166,7 @@ public:
 class SrsFlvDecoder
 {
 private:
-    SrsFileStream* _fs;
+    SrsFileReader* _fs;
 private:
     SrsStream* tag_stream;
 public:
@@ -167,7 +177,7 @@ public:
     * initialize the underlayer file stream,
     * user can initialize multiple times to decode multiple flv files.
     */
-    virtual int initialize(SrsFileStream* fs);
+    virtual int initialize(SrsFileReader* fs);
 public:
     virtual int read_header(char header[9]);
     virtual int read_tag_header(char* ptype, int32_t* pdata_size, u_int32_t* ptime);

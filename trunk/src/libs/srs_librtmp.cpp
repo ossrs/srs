@@ -461,52 +461,34 @@ int64_t srs_get_nrecv_bytes(srs_rtmp_t rtmp)
 
 struct FlvContext
 {
-    SrsFileStream fs;
+    SrsFileReader reader;
+    SrsFileWriter writer;
     SrsFlvEncoder enc;
     SrsFlvDecoder dec;
 };
 
-srs_flv_t srs_flv_open_read(const char* file)
+srs_flv_t srs_flv_open(const char* file)
 {
     int ret = ERROR_SUCCESS;
     
     FlvContext* flv = new FlvContext();
     
-    if ((ret = flv->fs.open_read(file)) != ERROR_SUCCESS) {
+    if ((ret = flv->reader.open(file)) != ERROR_SUCCESS) {
         srs_freep(flv);
         return NULL;
     }
     
-    if ((ret = flv->enc.initialize(&flv->fs)) != ERROR_SUCCESS) {
+    if ((ret = flv->dec.initialize(&flv->reader)) != ERROR_SUCCESS) {
         srs_freep(flv);
         return NULL;
     }
     
-    if ((ret = flv->dec.initialize(&flv->fs)) != ERROR_SUCCESS) {
+    if ((ret = flv->writer.open(file)) != ERROR_SUCCESS) {
         srs_freep(flv);
         return NULL;
     }
     
-    return flv;
-}
-
-srs_flv_t srs_flv_open_write(const char* file)
-{
-    int ret = ERROR_SUCCESS;
-    
-    FlvContext* flv = new FlvContext();
-    
-    if ((ret = flv->fs.open_write(file)) != ERROR_SUCCESS) {
-        srs_freep(flv);
-        return NULL;
-    }
-    
-    if ((ret = flv->enc.initialize(&flv->fs)) != ERROR_SUCCESS) {
-        srs_freep(flv);
-        return NULL;
-    }
-    
-    if ((ret = flv->dec.initialize(&flv->fs)) != ERROR_SUCCESS) {
+    if ((ret = flv->enc.initialize(&flv->writer)) != ERROR_SUCCESS) {
         srs_freep(flv);
         return NULL;
     }
@@ -602,13 +584,13 @@ int srs_flv_size_tag(int data_size)
 int64_t srs_flv_tellg(srs_flv_t flv)
 {
     FlvContext* context = (FlvContext*)flv;
-    return context->fs.tellg();
+    return context->reader.tellg();
 }
 
 void srs_flv_lseek(srs_flv_t flv, int64_t offset)
 {
     FlvContext* context = (FlvContext*)flv;
-    context->fs.lseek(offset);
+    context->reader.lseek(offset);
 }
 
 flv_bool srs_flv_is_eof(int error_code)

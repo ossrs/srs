@@ -39,7 +39,7 @@ class SrsStream;
 class SrsRtmpJitter;
 class SrsOnMetaDataPacket;
 class SrsSharedPtrMessage;
-class SrsFileStream;
+class SrsFileWriter;
 class SrsFlvEncoder;
 
 #include <srs_app_source.hpp>
@@ -114,7 +114,7 @@ protected:
     SrsFlvSegment* segment;
     SrsRequest* _req;
     bool dvr_enabled;
-    SrsFileStream* fs;
+    SrsFileWriter* fs;
 public:
     SrsDvrPlan();
     virtual ~SrsDvrPlan();

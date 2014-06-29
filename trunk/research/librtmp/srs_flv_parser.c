@@ -64,7 +64,7 @@ int main(int argc, char** argv)
     trace("version: %d.%d.%d", srs_version_major(), srs_version_minor(), srs_version_revision());
     trace("input:  %s", in_flv_file);
 
-    if ((flv = srs_flv_open_read(in_flv_file)) == NULL) {
+    if ((flv = srs_flv_open(in_flv_file)) == NULL) {
         ret = 2;
         trace("open flv file failed. ret=%d", ret);
         return ret;

@@ -121,14 +121,14 @@ int process(const char* in_flv_file, const char* out_flv_file, srs_flv_t* pic, s
     srs_amf0_t amf0_data = NULL;
     srs_amf0_t filepositions = NULL;
     
-    if ((ic = srs_flv_open_read(in_flv_file)) == NULL) {
+    if ((ic = srs_flv_open(in_flv_file)) == NULL) {
         ret = 2;
         trace("open input flv file failed. ret=%d", ret);
         return ret;
     }
     *pic = ic;
     
-    if ((oc = srs_flv_open_write(out_flv_file)) == NULL) {
+    if ((oc = srs_flv_open(out_flv_file)) == NULL) {
         ret = 2;
         trace("open output flv file failed. ret=%d", ret);
         return ret;

@@ -300,10 +300,10 @@ int SrsHttpVhost::response_flv_file2(SrsSocket* skt, SrsHttpMessage* req, string
 {
     int ret = ERROR_SUCCESS;
     
-    SrsFileStream fs;
+    SrsFileReader fs;
     
     // open flv file
-    if ((ret = fs.open_read(fullpath)) != ERROR_SUCCESS) {
+    if ((ret = fs.open(fullpath)) != ERROR_SUCCESS) {
         return ret;
     }
     

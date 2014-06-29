@@ -37,17 +37,16 @@ using namespace std;
 #define SRS_FLV_TAG_HEADER_SIZE 11
 #define SRS_FLV_PREVIOUS_TAG_SIZE 4
 
-SrsFileStream::SrsFileStream()
+SrsFileWriter::SrsFileWriter()
 {
-    fd = -1;
 }
 
-SrsFileStream::~SrsFileStream()
+SrsFileWriter::~SrsFileWriter()
 {
     close();
 }
 
-int SrsFileStream::open_write(string file)
+int SrsFileWriter::open(string file)
 {
     int ret = ERROR_SUCCESS;
     
@@ -71,7 +70,63 @@ int SrsFileStream::open_write(string file)
     return ret;
 }
 
-int SrsFileStream::open_read(string file)
+void SrsFileWriter::close()
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (fd < 0) {
+        return;
+    }
+    
+    if (::close(fd) < 0) {
+        ret = ERROR_SYSTEM_FILE_CLOSE;
+        srs_error("close file %s failed. ret=%d", _file.c_str(), ret);
+        return;
+    }
+    fd = -1;
+    
+    return;
+}
+
+bool SrsFileWriter::is_open()
+{
+    return fd > 0;
+}
+
+int64_t SrsFileWriter::tellg()
+{
+    return (int64_t)::lseek(fd, 0, SEEK_CUR);
+}
+
+int SrsFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
+{
+    int ret = ERROR_SUCCESS;
+    
+    ssize_t nwrite;
+    if ((nwrite = ::write(fd, buf, count)) < 0) {
+        ret = ERROR_SYSTEM_FILE_WRITE;
+        srs_error("write to file %s failed. ret=%d", _file.c_str(), ret);
+        return ret;
+    }
+    
+    if (pnwrite != NULL) {
+        *pnwrite = nwrite;
+    }
+    
+    return ret;
+}
+
+SrsFileReader::SrsFileReader()
+{
+    fd = -1;
+}
+
+SrsFileReader::~SrsFileReader()
+{
+    close();
+}
+
+int SrsFileReader::open(string file)
 {
     int ret = ERROR_SUCCESS;
     
@@ -92,7 +147,7 @@ int SrsFileStream::open_read(string file)
     return ret;
 }
 
-void SrsFileStream::close()
+void SrsFileReader::close()
 {
     int ret = ERROR_SUCCESS;
     
@@ -110,12 +165,30 @@ void SrsFileStream::close()
     return;
 }
 
-bool SrsFileStream::is_open()
+int64_t SrsFileReader::tellg()
 {
-    return fd > 0;
+    return (int64_t)::lseek(fd, 0, SEEK_CUR);
 }
 
-int SrsFileStream::read(void* buf, size_t count, ssize_t* pnread)
+void SrsFileReader::skip(int64_t size)
+{
+    ::lseek(fd, size, SEEK_CUR);
+}
+
+int64_t SrsFileReader::lseek(int64_t offset)
+{
+    return (int64_t)::lseek(fd, offset, SEEK_SET);
+}
+
+int64_t SrsFileReader::filesize()
+{
+    int64_t cur = tellg();
+    int64_t size = (int64_t)::lseek(fd, 0, SEEK_END);
+    ::lseek(fd, cur, SEEK_SET);
+    return size;
+}
+
+int SrsFileReader::read(void* buf, size_t count, ssize_t* pnread)
 {
     int ret = ERROR_SUCCESS;
     
@@ -138,47 +211,6 @@ int SrsFileStream::read(void* buf, size_t count, ssize_t* pnread)
     return ret;
 }
 
-int SrsFileStream::write(void* buf, size_t count, ssize_t* pnwrite)
-{
-    int ret = ERROR_SUCCESS;
-    
-    ssize_t nwrite;
-    if ((nwrite = ::write(fd, buf, count)) < 0) {
-        ret = ERROR_SYSTEM_FILE_WRITE;
-        srs_error("write to file %s failed. ret=%d", _file.c_str(), ret);
-        return ret;
-    }
-    
-    if (pnwrite != NULL) {
-        *pnwrite = nwrite;
-    }
-    
-    return ret;
-}
-
-int64_t SrsFileStream::tellg()
-{
-    return (int64_t)::lseek(fd, 0, SEEK_CUR);
-}
-
-int64_t SrsFileStream::lseek(int64_t offset)
-{
-    return (int64_t)::lseek(fd, offset, SEEK_SET);
-}
-
-int64_t SrsFileStream::filesize()
-{
-    int64_t cur = tellg();
-    int64_t size = (int64_t)::lseek(fd, 0, SEEK_END);
-    ::lseek(fd, cur, SEEK_SET);
-    return size;
-}
-
-void SrsFileStream::skip(int64_t size)
-{
-    ::lseek(fd, size, SEEK_CUR);
-}
-
 SrsFlvEncoder::SrsFlvEncoder()
 {
     _fs = NULL;
@@ -190,7 +222,7 @@ SrsFlvEncoder::~SrsFlvEncoder()
     srs_freep(tag_stream);
 }
 
-int SrsFlvEncoder::initialize(SrsFileStream* fs)
+int SrsFlvEncoder::initialize(SrsFileWriter* fs)
 {
     int ret = ERROR_SUCCESS;
     
@@ -377,7 +409,7 @@ SrsFlvFastDecoder::~SrsFlvFastDecoder()
     srs_freep(tag_stream);
 }
 
-int SrsFlvFastDecoder::initialize(SrsFileStream* fs)
+int SrsFlvFastDecoder::initialize(SrsFileReader* fs)
 {
     int ret = ERROR_SUCCESS;
     
@@ -538,7 +570,7 @@ SrsFlvDecoder::~SrsFlvDecoder()
     srs_freep(tag_stream);
 }
 
-int SrsFlvDecoder::initialize(SrsFileStream* fs)
+int SrsFlvDecoder::initialize(SrsFileReader* fs)
 {
     int ret = ERROR_SUCCESS;
     
