@@ -242,6 +242,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v1.0, 2014-06-30, fix [#111](https://github.com/winlinvip/simple-rtmp-server/issues/111), always use 31bits timestamp. 0.9.143.
 * v1.0, 2014-06-28, response the call message with null. 0.9.137
 * v1.0, 2014-06-28, fix [#110](https://github.com/winlinvip/simple-rtmp-server/issues/110), thread start segment fault, thread cycle stop destroy thread. 0.9.136
 * v1.0, 2014-06-27, fix [#109](https://github.com/winlinvip/simple-rtmp-server/issues/109), fix the system jump time, adjust system startup time. 0.9.135

@@ -1128,6 +1128,10 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
         pp[2] = *p++;
         pp[1] = *p++;
         pp[0] = *p++;
+
+        // always use 31bits timestamp, for some server may use 32bits extended timestamp.
+        // @see https://github.com/winlinvip/simple-rtmp-server/issues/111
+        timestamp &= 0x7fffffff;
         
         /**
         * RTMP specification and ffmpeg/librtmp is false,
