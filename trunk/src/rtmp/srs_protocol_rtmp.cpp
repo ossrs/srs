@@ -996,6 +996,21 @@ int SrsRtmpServer::identify_client(int stream_id, SrsRtmpConnType& type, string&
             srs_info("level0 identify client by play.");
             return identify_play_client(dynamic_cast<SrsPlayPacket*>(pkt), type, stream_name, duration);
         }
+        // call msg,
+        // support response null first,
+        // @see https://github.com/winlinvip/simple-rtmp-server/issues/106
+        // TODO: FIXME: response in right way, or forward in edge mode.
+        SrsCallPacket* call = dynamic_cast<SrsCallPacket*>(pkt);
+        if (call) {
+            SrsCallResPacket* res = new SrsCallResPacket(call->transaction_id);
+            res->command_object = SrsAmf0Any::null();
+            res->response = SrsAmf0Any::null();
+            if ((ret = protocol->send_and_free_packet(res, 0)) != ERROR_SUCCESS) {
+                srs_warn("response call failed. ret=%d", ret);
+                return ret;
+            }
+            continue;
+        }
         
         srs_trace("ignore AMF0/AMF3 command message.");
     }
@@ -1386,6 +1401,10 @@ int SrsRtmpServer::identify_create_stream_client(SrsCreateStreamPacket* req, int
         if (dynamic_cast<SrsPublishPacket*>(pkt)) {
             srs_info("identify client by publish, falsh publish.");
             return identify_flash_publish_client(dynamic_cast<SrsPublishPacket*>(pkt), type, stream_name);
+        }
+        if (dynamic_cast<SrsCreateStreamPacket*>(pkt)) {
+            srs_info("identify client by create stream, play or flash publish.");
+            return identify_create_stream_client(dynamic_cast<SrsCreateStreamPacket*>(pkt), stream_id, type, stream_name, duration);
         }
         
         srs_trace("ignore AMF0/AMF3 command message.");
