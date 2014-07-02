@@ -1,5 +1,7 @@
 #Simple-RTMP-Server
 
+SRS定位是运营级的互联网直播服务器，追求更好的概念完整性和最简单实现的代码。
+
 下载发布版(github): 
 [Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-0.9.134.zip) 
 其他[more...](http://winlinvip.github.io/srs.release/releases/) <br/>
@@ -27,45 +29,6 @@ git clone https://code.csdn.net/winlinvip/srs-csdn.git
 捐款(Donation): [GitHub](http://winlinvip.github.io/srs.release/donation/index.html) 
 或 [阿里云镜像](http://www.ossrs.net:8085/srs/donation/index.html) ，查看
 [捐献墙(Donations)](https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt)<br/>
-
-<table>
-    <tr>
-        <th>分支</th>
-        <th>说明</th>
-        <th>维护者</th>
-        <th>主作者</th>
-        <th>状态</th>
-    </tr>
-    <tr>
-        <td><a href="https://github.com/winlinvip/simple-rtmp-server" target="_blank">SRS-Linux</a></td>
-        <td>SRS服务器<br/>Linux平台分支</td>
-        <td><a href="https://github.com/winlinvip/simple-rtmp-server" target="_blank">winlin</a></td>
-        <td>
-            <a href="http://blog.csdn.net/win_lin" target="_blank">winlin</a> <br/>
-            <a href="http://blog.chinaunix.net/uid/25006789.html" target="_blank">wenjie.zhao</a>
-        </td>
-        <td>测试中</td>
-    </tr>
-    <tr>
-        <td><a href="https://github.com/winlinvip/srs.win" target="_blank">SRS-Windows</a></td>
-        <td>SRS服务器<br/>Windows平台分支</td>
-        <td><a href="https://github.com/suhetao" target="_blank">suhetao<br/>(核桃)</a></td>
-        <td><a href="https://github.com/suhetao" target="_blank">suhetao</a></td>
-        <td>开发中</td>
-    </tr>
-    <tr>
-        <td><a href="https://github.com/winlinvip/srs.librtmp.win" target="_blank">SRS-LIBRTMP-Windows</a></td>
-        <td>SRS-LIBRTMP客户端库<br/>Windows平台分支</td>
-        <td><a href="https://github.com/chadwangcn" target="_blank">chad.wang<br/>(videoWorker)</a></td>
-        <td><a href="https://github.com/chadwangcn" target="_blank">chad.wang</a></td>
-        <td>停滞</td>
-    </tr>
-</table>
-
-对于没有Release的分支：
-* 长期处于停滞状态的分支，以及开发缓慢的分支，更换主作者。
-* 任何人都可以维护这个分支，代替之前的主作者。
-* 分支Release之后，分支的主作者加入SRS主作者。
 
 ## About
 
