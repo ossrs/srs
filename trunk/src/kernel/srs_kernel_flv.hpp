@@ -32,51 +32,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string>
 
 class SrsStream;
-
-/**
-* file writer, to write to file.
-*/
-class SrsFileWriter
-{
-private:
-    std::string _file;
-    int fd;
-public:
-    SrsFileWriter();
-    virtual ~SrsFileWriter();
-public:
-    virtual int open(std::string file);
-    virtual void close();
-public:
-    virtual bool is_open();
-    virtual int64_t tellg();
-public:
-    virtual int write(void* buf, size_t count, ssize_t* pnwrite);
-};
-
-/**
-* file reader, to read from file.
-*/
-class SrsFileReader
-{
-private:
-    std::string _file;
-    int fd;
-public:
-    SrsFileReader();
-    virtual ~SrsFileReader();
-public:
-    virtual int open(std::string file);
-    virtual void close();
-public:
-    virtual bool is_open();
-    virtual int64_t tellg();
-    virtual void skip(int64_t size);
-    virtual int64_t lseek(int64_t offset);
-    virtual int64_t filesize();
-public:
-    virtual int read(void* buf, size_t count, ssize_t* pnread);
-};
+class SrsFileWriter;
+class SrsFileReader;
 
 /**
 * encode data to flv file.

@@ -21,38 +21,59 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_UTEST_KERNEL_HPP
-#define SRS_UTEST_KERNEL_HPP
+#ifndef SRS_KERNEL_FILE_HPP
+#define SRS_KERNEL_FILE_HPP
 
 /*
-#include <srs_utest_kernel.hpp>
+#include <srs_kernel_file.hpp>
 */
-#include <srs_utest.hpp>
+#include <srs_core.hpp>
 
 #include <string>
-#include <srs_kernel_file.hpp>
 
-class MockSrsFileWriter : public SrsFileWriter
+/**
+* file writer, to write to file.
+*/
+class SrsFileWriter
 {
+private:
+    std::string _file;
+    int fd;
 public:
-    MockSrsFileWriter();
-    virtual ~MockSrsFileWriter();
+    SrsFileWriter();
+    virtual ~SrsFileWriter();
 public:
+    /**
+    * open file writer, can open then close then open...
+    */
     virtual int open(std::string file);
     virtual void close();
 public:
     virtual bool is_open();
     virtual int64_t tellg();
 public:
+    /**
+    * write to file. 
+    * @param pnwrite the output nb_write, NULL to ignore.
+    */
     virtual int write(void* buf, size_t count, ssize_t* pnwrite);
 };
 
-class MockSrsFileReader : public SrsFileReader
+/**
+* file reader, to read from file.
+*/
+class SrsFileReader
 {
+private:
+    std::string _file;
+    int fd;
 public:
-    MockSrsFileReader();
-    virtual ~MockSrsFileReader();
+    SrsFileReader();
+    virtual ~SrsFileReader();
 public:
+    /**
+    * open file reader, can open then close then open...
+    */
     virtual int open(std::string file);
     virtual void close();
 public:
@@ -62,6 +83,10 @@ public:
     virtual int64_t lseek(int64_t offset);
     virtual int64_t filesize();
 public:
+    /**
+    * read from file. 
+    * @param pnread the output nb_read, NULL to ignore.
+    */
     virtual int read(void* buf, size_t count, ssize_t* pnread);
 };
 

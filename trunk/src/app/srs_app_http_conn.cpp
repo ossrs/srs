@@ -42,6 +42,7 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_kernel_flv.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_kernel_file.hpp>
 
 #define SRS_HTTP_DEFAULT_PAGE "index.html"
 
@@ -191,28 +192,22 @@ int SrsHttpVhost::response_regular_file(SrsSocket* skt, SrsHttpMessage* req, str
 {
     int ret = ERROR_SUCCESS;
 
-    // TODO: FIXME: refine the file stream.
-    int fd = ::open(fullpath.c_str(), O_RDONLY);
-    if (fd < 0) {
-        ret = ERROR_HTTP_OPEN_FILE;
+    SrsFileReader fs;
+    
+    if ((ret = fs.open(fullpath)) != ERROR_SUCCESS) {
         srs_warn("open file %s failed, ret=%d", fullpath.c_str(), ret);
         return ret;
     }
 
-    int64_t length = (int64_t)::lseek(fd, 0, SEEK_END);
-    ::lseek(fd, 0, SEEK_SET);
+    int64_t length = fs.filesize();
     
     char* buf = new char[length];
     SrsAutoFree(char, buf);
     
-    // TODO: FIXME: use st_read.
-    if (::read(fd, buf, length) < 0) {
-        ::close(fd);
-        ret = ERROR_HTTP_READ_FILE;
+    if ((ret = fs.read(buf, length, NULL)) != ERROR_SUCCESS) {
         srs_warn("read file %s failed, ret=%d", fullpath.c_str(), ret);
         return ret;
     }
-    ::close(fd);
     
     std::string str;
     str.append(buf, length);
@@ -243,18 +238,16 @@ int SrsHttpVhost::response_regular_file(SrsSocket* skt, SrsHttpMessage* req, str
 int SrsHttpVhost::response_flv_file(SrsSocket* skt, SrsHttpMessage* req, string fullpath)
 {
     int ret = ERROR_SUCCESS;
+
+    SrsFileReader fs;
     
     // TODO: FIXME: use more advance cache.
-    // for ts video large file, use bytes to write it.
-    int fd = ::open(fullpath.c_str(), O_RDONLY);
-    if (fd < 0) {
-        ret = ERROR_HTTP_OPEN_FILE;
+    if ((ret = fs.open(fullpath)) != ERROR_SUCCESS) {
         srs_warn("open file %s failed, ret=%d", fullpath.c_str(), ret);
         return ret;
     }
 
-    int64_t length = (int64_t)::lseek(fd, 0, SEEK_END);
-    ::lseek(fd, 0, SEEK_SET);
+    int64_t length = fs.filesize();
 
     // write http header for ts.
     std::stringstream ss;
@@ -279,9 +272,7 @@ int SrsHttpVhost::response_flv_file(SrsSocket* skt, SrsHttpMessage* req, string 
     
     while (left > 0) {
         ssize_t nread = -1;
-        // TODO: FIXME: use st_read.
-        if ((nread = ::read(fd, buf, HTTP_TS_SEND_BUFFER_SIZE)) < 0) {
-            ret = ERROR_HTTP_READ_FILE;
+        if ((ret = fs.read(buf, HTTP_TS_SEND_BUFFER_SIZE, &nread)) != ERROR_SUCCESS) {
             srs_warn("read file %s failed, ret=%d", fullpath.c_str(), ret);
             break;
         }
@@ -291,7 +282,6 @@ int SrsHttpVhost::response_flv_file(SrsSocket* skt, SrsHttpMessage* req, string 
             break;
         }
     }
-    ::close(fd);
     
     return ret;
 }
@@ -406,17 +396,15 @@ int SrsHttpVhost::response_ts_file(SrsSocket* skt, SrsHttpMessage* req, string f
 {
     int ret = ERROR_SUCCESS;
     
+    SrsFileReader fs;
+    
     // TODO: FIXME: use more advance cache.
-    // for ts video large file, use bytes to write it.
-    int fd = ::open(fullpath.c_str(), O_RDONLY);
-    if (fd < 0) {
-        ret = ERROR_HTTP_OPEN_FILE;
+    if ((ret = fs.open(fullpath)) != ERROR_SUCCESS) {
         srs_warn("open file %s failed, ret=%d", fullpath.c_str(), ret);
         return ret;
     }
 
-    int64_t length = (int64_t)::lseek(fd, 0, SEEK_END);
-    ::lseek(fd, 0, SEEK_SET);
+    int64_t length = fs.filesize();
 
     // write http header for ts.
     std::stringstream ss;
@@ -441,9 +429,7 @@ int SrsHttpVhost::response_ts_file(SrsSocket* skt, SrsHttpMessage* req, string f
     
     while (left > 0) {
         ssize_t nread = -1;
-        // TODO: FIXME: use st_read.
-        if ((nread = ::read(fd, buf, HTTP_TS_SEND_BUFFER_SIZE)) < 0) {
-            ret = ERROR_HTTP_READ_FILE;
+        if ((ret = fs.read(buf, HTTP_TS_SEND_BUFFER_SIZE, &nread)) != ERROR_SUCCESS) {
             srs_warn("read file %s failed, ret=%d", fullpath.c_str(), ret);
             break;
         }
@@ -453,7 +439,6 @@ int SrsHttpVhost::response_ts_file(SrsSocket* skt, SrsHttpMessage* req, string f
             break;
         }
     }
-    ::close(fd);
     
     return ret;
 }

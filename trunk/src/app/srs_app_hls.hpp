@@ -45,6 +45,7 @@ class SrsAvcAacCodec;
 class SrsRequest;
 class SrsPithyPrint;
 class SrsSource;
+class SrsFileWriter;
 
 /**
 * jitter correct for audio,
@@ -83,7 +84,7 @@ public:
 class SrsTSMuxer
 {
 private:
-    int fd;
+    SrsFileWriter* writer;
     std::string path;
 public:
     SrsTSMuxer();

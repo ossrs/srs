@@ -21,6 +21,8 @@ file
 	..\kernel\srs_kernel_codec.cpp,
 	..\kernel\srs_kernel_error.hpp,
 	..\kernel\srs_kernel_error.cpp,
+	..\kernel\srs_kernel_file.hpp,
+	..\kernel\srs_kernel_file.cpp,
 	..\kernel\srs_kernel_flv.hpp,
 	..\kernel\srs_kernel_flv.cpp,
 	..\kernel\srs_kernel_log.hpp,

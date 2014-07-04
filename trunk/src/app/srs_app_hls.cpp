@@ -45,6 +45,7 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_avc_aac.hpp>
+#include <srs_kernel_file.hpp>
 
 // max PES packets size to flush the video.
 #define SRS_AUTO_HLS_AUDIO_CACHE_SIZE 1024 * 1024
@@ -150,12 +151,11 @@ public:
 class SrsMpegtsWriter
 {
 public:
-    static int write_header(int fd)
+    static int write_header(SrsFileWriter* writer)
     {
         int ret = ERROR_SUCCESS;
         
-        // TODO: FIXME: maybe should use st_write.
-        if (::write(fd, mpegts_header, sizeof(mpegts_header)) != sizeof(mpegts_header)) {
+        if ((ret = writer->write(mpegts_header, sizeof(mpegts_header), NULL)) != ERROR_SUCCESS) {
             ret = ERROR_HLS_WRITE_FAILED;
             srs_error("write ts file header failed. ret=%d", ret);
             return ret;
@@ -163,7 +163,7 @@ public:
 
         return ret;
     }
-    static int write_frame(int fd, SrsMpegtsFrame* frame, SrsCodecBuffer* buffer)
+    static int write_frame(SrsFileWriter* writer, SrsMpegtsFrame* frame, SrsCodecBuffer* buffer)
     {
         int ret = ERROR_SUCCESS;
         
@@ -279,8 +279,7 @@ public:
             }
             
             // write ts packet
-            // TODO: FIXME: maybe should use st_write.
-            if (::write(fd, packet, sizeof(packet)) != sizeof(packet)) {
+            if ((ret = writer->write(packet, sizeof(packet), NULL)) != ERROR_SUCCESS) {
                 ret = ERROR_HLS_WRITE_FAILED;
                 srs_error("write ts file failed. ret=%d", ret);
                 return ret;
@@ -414,12 +413,13 @@ void SrsHlsAacJitter::on_buffer_continue()
 
 SrsTSMuxer::SrsTSMuxer()
 {
-    fd = -1;
+    writer = new SrsFileWriter();
 }
 
 SrsTSMuxer::~SrsTSMuxer()
 {
     close();
+    srs_freep(writer);
 }
 
 int SrsTSMuxer::open(string _path)
@@ -430,17 +430,12 @@ int SrsTSMuxer::open(string _path)
     
     close();
     
-    int flags = O_CREAT|O_WRONLY|O_TRUNC;
-    mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
-    // TODO: FIXME: refine the file stream.
-    if ((fd = ::open(path.c_str(), flags, mode)) < 0) {
-        ret = ERROR_HLS_OPEN_FAILED;
-        srs_error("open ts file %s failed. ret=%d", path.c_str(), ret);
+    if ((ret = writer->open(path)) != ERROR_SUCCESS) {
         return ret;
     }
 
     // write mpegts header
-    if ((ret = SrsMpegtsWriter::write_header(fd)) != ERROR_SUCCESS) {
+    if ((ret = SrsMpegtsWriter::write_header(writer)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -451,7 +446,7 @@ int SrsTSMuxer::write_audio(SrsMpegtsFrame* af, SrsCodecBuffer* ab)
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = SrsMpegtsWriter::write_frame(fd, af, ab)) != ERROR_SUCCESS) {
+    if ((ret = SrsMpegtsWriter::write_frame(writer, af, ab)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -462,7 +457,7 @@ int SrsTSMuxer::write_video(SrsMpegtsFrame* vf, SrsCodecBuffer* vb)
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = SrsMpegtsWriter::write_frame(fd, vf, vb)) != ERROR_SUCCESS) {
+    if ((ret = SrsMpegtsWriter::write_frame(writer, vf, vb)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -471,10 +466,7 @@ int SrsTSMuxer::write_video(SrsMpegtsFrame* vf, SrsCodecBuffer* vb)
 
 void SrsTSMuxer::close()
 {
-    if (fd > 0) {
-        ::close(fd);
-        fd = -1;
-    }
+    writer->close();
 }
 
 SrsHlsSegment::SrsHlsSegment()

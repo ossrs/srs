@@ -41,6 +41,7 @@ using namespace std;
 #include <srs_protocol_amf0.hpp>
 #include <srs_kernel_flv.hpp>
 #include <srs_kernel_codec.hpp>
+#include <srs_kernel_file.hpp>
 
 // if user want to define log, define the folowing macro.
 #ifndef SRS_RTMP_USER_DEFINED_LOG
