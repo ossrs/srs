@@ -225,167 +225,6 @@ int SrsFlvEncoder::write_tag(char* header, int header_size, char* tag, int tag_s
     return ret;
 }
 
-SrsFlvFastDecoder::SrsFlvFastDecoder()
-{
-    _fs = NULL;
-    tag_stream = new SrsStream();
-}
-
-SrsFlvFastDecoder::~SrsFlvFastDecoder()
-{
-    srs_freep(tag_stream);
-}
-
-int SrsFlvFastDecoder::initialize(SrsFileReader* fs)
-{
-    int ret = ERROR_SUCCESS;
-    
-    _fs = fs;
-    
-    return ret;
-}
-
-int SrsFlvFastDecoder::read_header(char** pdata, int* psize)
-{
-    *pdata = NULL;
-    *psize = 0;
-    
-    int ret = ERROR_SUCCESS;
-
-    srs_assert(_fs);
-    
-    // 9bytes header and 4bytes first previous-tag-size
-    int size = 13;
-    char* buf = new char[size];
-    
-    if ((ret = _fs->read(buf, size, NULL)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    *pdata = buf;
-    *psize = size;
-    
-    return ret;
-}
-
-int SrsFlvFastDecoder::read_sequence_header(int64_t* pstart, int* psize)
-{
-    *pstart = 0;
-    *psize = 0;
-    
-    int ret = ERROR_SUCCESS;
-
-    srs_assert(_fs);
-    
-    // simply, the first video/audio must be the sequence header.
-    // and must be a sequence video and audio.
-    
-    // 11bytes tag header
-    static char tag_header[] = {
-        (char)0x00, // TagType UB [5], 9 = video, 8 = audio, 18 = script data
-        (char)0x00, (char)0x00, (char)0x00, // DataSize UI24 Length of the message.
-        (char)0x00, (char)0x00, (char)0x00, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
-        (char)0x00, // TimestampExtended UI8
-        (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
-    };
-    
-    // discovery the sequence header video and audio.
-    // @remark, maybe no video or no audio.
-    bool got_video = false;
-    bool got_audio = false;
-    // audio/video sequence and data offset.
-    int64_t av_sequence_offset_start = -1;
-    int64_t av_sequence_offset_end = -1;
-    for (;;) {
-        if ((ret = _fs->read(tag_header, SRS_FLV_TAG_HEADER_SIZE, NULL)) != ERROR_SUCCESS) {
-            return ret;
-        }
-        
-        if ((ret = tag_stream->initialize(tag_header, SRS_FLV_TAG_HEADER_SIZE)) != ERROR_SUCCESS) {
-            return ret;
-        }
-        
-        int8_t tag_type = tag_stream->read_1bytes();
-        int32_t data_size = tag_stream->read_3bytes();
-        
-        bool is_video = tag_type == 0x09;
-        bool is_audio = tag_type == 0x08;
-        bool is_not_av = !is_video && !is_audio;
-        if (is_not_av) {
-            // skip body and tag size.
-            _fs->skip(data_size + SRS_FLV_PREVIOUS_TAG_SIZE);
-            continue;
-        }
-        
-        // if video duplicated, no audio
-        if (is_video && got_video) {
-            break;
-        }
-        // if audio duplicated, no video
-        if (is_audio && got_audio) {
-            break;
-        }
-        
-        // video
-        if (is_video) {
-            srs_assert(!got_video);
-            got_video = true;
-            
-            if (av_sequence_offset_start < 0) {
-                av_sequence_offset_start = _fs->tellg() - SRS_FLV_TAG_HEADER_SIZE;
-            }
-            av_sequence_offset_end = _fs->tellg() + data_size + SRS_FLV_PREVIOUS_TAG_SIZE;
-            _fs->skip(data_size + SRS_FLV_PREVIOUS_TAG_SIZE);
-        }
-        
-        // audio
-        if (is_audio) {
-            srs_assert(!got_audio);
-            got_audio = true;
-            
-            if (av_sequence_offset_start < 0) {
-                av_sequence_offset_start = _fs->tellg() - SRS_FLV_TAG_HEADER_SIZE;
-            }
-            av_sequence_offset_end = _fs->tellg() + data_size + SRS_FLV_PREVIOUS_TAG_SIZE;
-            _fs->skip(data_size + SRS_FLV_PREVIOUS_TAG_SIZE);
-        }
-    }
-    
-    // seek to the sequence header start offset.
-    if (av_sequence_offset_start > 0) {
-        _fs->lseek(av_sequence_offset_start);
-        *pstart = av_sequence_offset_start;
-        *psize = (int)(av_sequence_offset_end - av_sequence_offset_start);
-    }
-    
-    return ret;
-}
-
-int SrsFlvFastDecoder::lseek(int64_t offset)
-{
-    int ret = ERROR_SUCCESS;
-
-    srs_assert(_fs);
-    
-    if (offset >= _fs->filesize()) {
-        ret = ERROR_SYSTEM_FILE_EOF;
-        srs_warn("flv fast decoder seek overflow file, "
-            "size=%"PRId64", offset=%"PRId64", ret=%d", 
-            _fs->filesize(), offset, ret);
-        return ret;
-    }
-    
-    if (_fs->lseek(offset) < 0) {
-        ret = ERROR_SYSTEM_FILE_SEEK;
-        srs_warn("flv fast decoder seek error, "
-            "size=%"PRId64", offset=%"PRId64", ret=%d", 
-            _fs->filesize(), offset, ret);
-        return ret;
-    }
-    
-    return ret;
-}
-
 SrsFlvDecoder::SrsFlvDecoder()
 {
     _fs = NULL;
@@ -485,6 +324,167 @@ int SrsFlvDecoder::read_previous_tag_size(char ts[4])
         if (ret != ERROR_SYSTEM_FILE_EOF) {
             srs_error("read flv previous tag size failed. ret=%d", ret);
         }
+        return ret;
+    }
+    
+    return ret;
+}
+
+SrsFlvVodStreamDecoder::SrsFlvVodStreamDecoder()
+{
+    _fs = NULL;
+    tag_stream = new SrsStream();
+}
+
+SrsFlvVodStreamDecoder::~SrsFlvVodStreamDecoder()
+{
+    srs_freep(tag_stream);
+}
+
+int SrsFlvVodStreamDecoder::initialize(SrsFileReader* fs)
+{
+    int ret = ERROR_SUCCESS;
+    
+    _fs = fs;
+    
+    return ret;
+}
+
+int SrsFlvVodStreamDecoder::read_header(char** pdata, int* psize)
+{
+    *pdata = NULL;
+    *psize = 0;
+    
+    int ret = ERROR_SUCCESS;
+
+    srs_assert(_fs);
+    
+    // 9bytes header and 4bytes first previous-tag-size
+    int size = 13;
+    char* buf = new char[size];
+    
+    if ((ret = _fs->read(buf, size, NULL)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    *pdata = buf;
+    *psize = size;
+    
+    return ret;
+}
+
+int SrsFlvVodStreamDecoder::read_sequence_header(int64_t* pstart, int* psize)
+{
+    *pstart = 0;
+    *psize = 0;
+    
+    int ret = ERROR_SUCCESS;
+
+    srs_assert(_fs);
+    
+    // simply, the first video/audio must be the sequence header.
+    // and must be a sequence video and audio.
+    
+    // 11bytes tag header
+    static char tag_header[] = {
+        (char)0x00, // TagType UB [5], 9 = video, 8 = audio, 18 = script data
+        (char)0x00, (char)0x00, (char)0x00, // DataSize UI24 Length of the message.
+        (char)0x00, (char)0x00, (char)0x00, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
+        (char)0x00, // TimestampExtended UI8
+        (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
+    };
+    
+    // discovery the sequence header video and audio.
+    // @remark, maybe no video or no audio.
+    bool got_video = false;
+    bool got_audio = false;
+    // audio/video sequence and data offset.
+    int64_t av_sequence_offset_start = -1;
+    int64_t av_sequence_offset_end = -1;
+    for (;;) {
+        if ((ret = _fs->read(tag_header, SRS_FLV_TAG_HEADER_SIZE, NULL)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        if ((ret = tag_stream->initialize(tag_header, SRS_FLV_TAG_HEADER_SIZE)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        int8_t tag_type = tag_stream->read_1bytes();
+        int32_t data_size = tag_stream->read_3bytes();
+        
+        bool is_video = tag_type == 0x09;
+        bool is_audio = tag_type == 0x08;
+        bool is_not_av = !is_video && !is_audio;
+        if (is_not_av) {
+            // skip body and tag size.
+            _fs->skip(data_size + SRS_FLV_PREVIOUS_TAG_SIZE);
+            continue;
+        }
+        
+        // if video duplicated, no audio
+        if (is_video && got_video) {
+            break;
+        }
+        // if audio duplicated, no video
+        if (is_audio && got_audio) {
+            break;
+        }
+        
+        // video
+        if (is_video) {
+            srs_assert(!got_video);
+            got_video = true;
+            
+            if (av_sequence_offset_start < 0) {
+                av_sequence_offset_start = _fs->tellg() - SRS_FLV_TAG_HEADER_SIZE;
+            }
+            av_sequence_offset_end = _fs->tellg() + data_size + SRS_FLV_PREVIOUS_TAG_SIZE;
+            _fs->skip(data_size + SRS_FLV_PREVIOUS_TAG_SIZE);
+        }
+        
+        // audio
+        if (is_audio) {
+            srs_assert(!got_audio);
+            got_audio = true;
+            
+            if (av_sequence_offset_start < 0) {
+                av_sequence_offset_start = _fs->tellg() - SRS_FLV_TAG_HEADER_SIZE;
+            }
+            av_sequence_offset_end = _fs->tellg() + data_size + SRS_FLV_PREVIOUS_TAG_SIZE;
+            _fs->skip(data_size + SRS_FLV_PREVIOUS_TAG_SIZE);
+        }
+    }
+    
+    // seek to the sequence header start offset.
+    if (av_sequence_offset_start > 0) {
+        _fs->lseek(av_sequence_offset_start);
+        *pstart = av_sequence_offset_start;
+        *psize = (int)(av_sequence_offset_end - av_sequence_offset_start);
+    }
+    
+    return ret;
+}
+
+int SrsFlvVodStreamDecoder::lseek(int64_t offset)
+{
+    int ret = ERROR_SUCCESS;
+
+    srs_assert(_fs);
+    
+    if (offset >= _fs->filesize()) {
+        ret = ERROR_SYSTEM_FILE_EOF;
+        srs_warn("flv fast decoder seek overflow file, "
+            "size=%"PRId64", offset=%"PRId64", ret=%d", 
+            _fs->filesize(), offset, ret);
+        return ret;
+    }
+    
+    if (_fs->lseek(offset) < 0) {
+        ret = ERROR_SYSTEM_FILE_SEEK;
+        srs_warn("flv fast decoder seek error, "
+            "size=%"PRId64", offset=%"PRId64", ret=%d", 
+            _fs->filesize(), offset, ret);
         return ret;
     }
     

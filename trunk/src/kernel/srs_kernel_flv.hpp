@@ -49,8 +49,9 @@ public:
     virtual ~SrsFlvEncoder();
 public:
     /**
-    * initialize the underlayer file stream,
-    * user can initialize multiple times to encode multiple flv files.
+    * initialize the underlayer file stream.
+    * @remark user can initialize multiple times to encode multiple flv files.
+    * @remark, user must free the fs, flv encoder never close/free it.
     */
     virtual int initialize(SrsFileWriter* fs);
 public:
@@ -85,21 +86,50 @@ private:
 };
 
 /**
-* decode flv fast by only decoding the header and tag.
+* decode flv file.
 */
-class SrsFlvFastDecoder
+class SrsFlvDecoder
 {
 private:
     SrsFileReader* _fs;
 private:
     SrsStream* tag_stream;
 public:
-    SrsFlvFastDecoder();
-    virtual ~SrsFlvFastDecoder();
+    SrsFlvDecoder();
+    virtual ~SrsFlvDecoder();
 public:
     /**
-    * initialize the underlayer file stream,
-    * user can initialize multiple times to encode multiple flv files.
+    * initialize the underlayer file stream
+    * @remark user can initialize multiple times to decode multiple flv files.
+    * @remark, user must free the fs, flv decoder never close/free it.
+    */
+    virtual int initialize(SrsFileReader* fs);
+public:
+    virtual int read_header(char header[9]);
+    virtual int read_tag_header(char* ptype, int32_t* pdata_size, u_int32_t* ptime);
+    virtual int read_tag_data(char* data, int32_t size);
+    virtual int read_previous_tag_size(char ts[4]);
+};
+
+/**
+* decode flv fast by only decoding the header and tag.
+* used for vod flv stream to read the header and sequence header, 
+* then seek to specified offset.
+*/
+class SrsFlvVodStreamDecoder
+{
+private:
+    SrsFileReader* _fs;
+private:
+    SrsStream* tag_stream;
+public:
+    SrsFlvVodStreamDecoder();
+    virtual ~SrsFlvVodStreamDecoder();
+public:
+    /**
+    * initialize the underlayer file stream
+    * @remark user can initialize multiple times to decode multiple flv files.
+    * @remark, user must free the fs, flv decoder never close/free it.
     */
     virtual int initialize(SrsFileReader* fs);
 public:
@@ -116,31 +146,6 @@ public:
     * for start offset, seed to this position and response flv stream.
     */
     virtual int lseek(int64_t offset);
-};
-
-/**
-* decode flv file.
-*/
-class SrsFlvDecoder
-{
-private:
-    SrsFileReader* _fs;
-private:
-    SrsStream* tag_stream;
-public:
-    SrsFlvDecoder();
-    virtual ~SrsFlvDecoder();
-public:
-    /**
-    * initialize the underlayer file stream,
-    * user can initialize multiple times to decode multiple flv files.
-    */
-    virtual int initialize(SrsFileReader* fs);
-public:
-    virtual int read_header(char header[9]);
-    virtual int read_tag_header(char* ptype, int32_t* pdata_size, u_int32_t* ptime);
-    virtual int read_tag_data(char* data, int32_t size);
-    virtual int read_previous_tag_size(char ts[4]);
 };
 
 #endif

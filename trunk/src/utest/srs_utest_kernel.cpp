@@ -26,88 +26,7 @@ using namespace std;
 
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_codec.hpp>
-
-VOID TEST(KernelCodecTest, IsKeyFrame)
-{
-    int8_t data;
-    
-    data = 0x10;
-    EXPECT_TRUE(SrsFlvCodec::video_is_keyframe(&data, 1));
-    EXPECT_FALSE(SrsFlvCodec::video_is_keyframe(&data, 0));
-    
-    data = 0x20;
-    EXPECT_FALSE(SrsFlvCodec::video_is_keyframe(&data, 1));
-}
-
-VOID TEST(KernelCodecTest, IsH264)
-{
-    int8_t data;
-    
-    EXPECT_FALSE(SrsFlvCodec::video_is_h264(&data, 0));
-    
-    data = 0x17;
-    EXPECT_TRUE(SrsFlvCodec::video_is_h264(&data, 1));
-    
-    data = 0x07;
-    EXPECT_TRUE(SrsFlvCodec::video_is_h264(&data, 1));
-    
-    data = 0x08;
-    EXPECT_FALSE(SrsFlvCodec::video_is_h264(&data, 1));
-}
-
-VOID TEST(KernelCodecTest, IsSequenceHeader)
-{
-    int16_t data;
-    char* pp = (char*)&data;
-    
-    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 0));
-    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 1));
-    
-    pp[0] = 0x17;
-    pp[1] = 0x00;
-    EXPECT_TRUE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 2));
-    pp[0] = 0x18;
-    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 2));
-    pp[0] = 0x27;
-    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 2));
-    pp[0] = 0x17;
-    pp[1] = 0x01;
-    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 2));
-}
-
-VOID TEST(KernelCodecTest, IsAAC)
-{
-    int8_t data;
-    
-    EXPECT_FALSE(SrsFlvCodec::audio_is_aac(&data, 0));
-    
-    data = 0xa0;
-    EXPECT_TRUE(SrsFlvCodec::audio_is_aac(&data, 1));
-    
-    data = 0xa7;
-    EXPECT_TRUE(SrsFlvCodec::audio_is_aac(&data, 1));
-    
-    data = 0x00;
-    EXPECT_FALSE(SrsFlvCodec::audio_is_aac(&data, 1));
-}
-
-VOID TEST(KernelCodecTest, IsAudioSequenceHeader)
-{
-    int16_t data;
-    char* pp = (char*)&data;
-    
-    EXPECT_FALSE(SrsFlvCodec::audio_is_sequence_header((int8_t*)pp, 0));
-    EXPECT_FALSE(SrsFlvCodec::audio_is_sequence_header((int8_t*)pp, 1));
-    
-    pp[0] = 0xa0;
-    pp[1] = 0x00;
-    EXPECT_TRUE(SrsFlvCodec::audio_is_sequence_header((int8_t*)pp, 2));
-    pp[0] = 0x00;
-    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 2));
-    pp[0] = 0xa0;
-    pp[1] = 0x01;
-    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 2));
-}
+#include <srs_kernel_flv.hpp>
 
 MockSrsFileWriter::MockSrsFileWriter()
 {
@@ -193,4 +112,93 @@ int MockSrsFileReader::read(void* buf, size_t count, ssize_t* pnread)
 {
     int ret = ERROR_SUCCESS;
     return ret;
+}
+
+VOID TEST(KernelCodecTest, IsKeyFrame)
+{
+    int8_t data;
+    
+    data = 0x10;
+    EXPECT_TRUE(SrsFlvCodec::video_is_keyframe(&data, 1));
+    EXPECT_FALSE(SrsFlvCodec::video_is_keyframe(&data, 0));
+    
+    data = 0x20;
+    EXPECT_FALSE(SrsFlvCodec::video_is_keyframe(&data, 1));
+}
+
+VOID TEST(KernelCodecTest, IsH264)
+{
+    int8_t data;
+    
+    EXPECT_FALSE(SrsFlvCodec::video_is_h264(&data, 0));
+    
+    data = 0x17;
+    EXPECT_TRUE(SrsFlvCodec::video_is_h264(&data, 1));
+    
+    data = 0x07;
+    EXPECT_TRUE(SrsFlvCodec::video_is_h264(&data, 1));
+    
+    data = 0x08;
+    EXPECT_FALSE(SrsFlvCodec::video_is_h264(&data, 1));
+}
+
+VOID TEST(KernelCodecTest, IsSequenceHeader)
+{
+    int16_t data;
+    char* pp = (char*)&data;
+    
+    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 0));
+    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 1));
+    
+    pp[0] = 0x17;
+    pp[1] = 0x00;
+    EXPECT_TRUE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 2));
+    pp[0] = 0x18;
+    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 2));
+    pp[0] = 0x27;
+    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 2));
+    pp[0] = 0x17;
+    pp[1] = 0x01;
+    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 2));
+}
+
+VOID TEST(KernelCodecTest, IsAAC)
+{
+    int8_t data;
+    
+    EXPECT_FALSE(SrsFlvCodec::audio_is_aac(&data, 0));
+    
+    data = 0xa0;
+    EXPECT_TRUE(SrsFlvCodec::audio_is_aac(&data, 1));
+    
+    data = 0xa7;
+    EXPECT_TRUE(SrsFlvCodec::audio_is_aac(&data, 1));
+    
+    data = 0x00;
+    EXPECT_FALSE(SrsFlvCodec::audio_is_aac(&data, 1));
+}
+
+VOID TEST(KernelCodecTest, IsAudioSequenceHeader)
+{
+    int16_t data;
+    char* pp = (char*)&data;
+    
+    EXPECT_FALSE(SrsFlvCodec::audio_is_sequence_header((int8_t*)pp, 0));
+    EXPECT_FALSE(SrsFlvCodec::audio_is_sequence_header((int8_t*)pp, 1));
+    
+    pp[0] = 0xa0;
+    pp[1] = 0x00;
+    EXPECT_TRUE(SrsFlvCodec::audio_is_sequence_header((int8_t*)pp, 2));
+    pp[0] = 0x00;
+    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 2));
+    pp[0] = 0xa0;
+    pp[1] = 0x01;
+    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 2));
+}
+
+VOID TEST(KernelFlvTest, IsAudioSequenceHeader)
+{
+    MockSrsFileWriter fs;
+    SrsFlvEncoder enc;
+    ASSERT_TRUE(ERROR_SUCCESS == enc.initialize(&fs));
 }

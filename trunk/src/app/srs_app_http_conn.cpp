@@ -304,7 +304,7 @@ int SrsHttpVhost::response_flv_file2(SrsSocket* skt, SrsHttpMessage* req, string
         return ret;
     }
     
-    SrsFlvFastDecoder ffd;
+    SrsFlvVodStreamDecoder ffd;
     
     // open fast decoder
     if ((ret = ffd.initialize(&fs)) != ERROR_SUCCESS) {
