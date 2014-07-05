@@ -66,6 +66,16 @@ using namespace std;
 // ts avc stream id.
 #define TS_VIDEO_AVC 0xe0
 
+// @see: ngx_rtmp_hls_audio
+/* We assume here AAC frame size is 1024
+ * Need to handle AAC frames with frame size of 960 */
+#define _SRS_AAC_SAMPLE_SIZE 1024
+
+// in ms, for HLS aac sync time.
+#define SRS_CONF_DEFAULT_AAC_SYNC 100
+// in ms, for HLS aac flush the audio
+#define SRS_CONF_DEFAULT_AAC_DELAY 300
+
 // @see: ngx_rtmp_mpegts_header
 u_int8_t mpegts_header[] = {
     /* TS */
@@ -391,9 +401,10 @@ int64_t SrsHlsAacJitter::on_buffer_start(int64_t flv_pts, int sample_rate, int a
     }
     
     // @see: ngx_rtmp_hls_audio
-    /* TODO: We assume here AAC frame size is 1024
-     *       Need to handle AAC frames with frame size of 960 */
-    int64_t est_pts = base_pts + nb_samples * 90000LL * 1024LL / flv_sample_rate;
+    // resample for the tbn of ts is 90000, flv is 1000,
+    // we will lost timestamp if use audio packet timestamp,
+    // so we must resample. or audio will corupt in IOS.
+    int64_t est_pts = base_pts + nb_samples * 90000LL * _SRS_AAC_SAMPLE_SIZE / flv_sample_rate;
     int64_t dpts = (int64_t) (est_pts - flv_pts);
 
     if (dpts <= (int64_t) sync_ms * 90 && dpts >= (int64_t) sync_ms * -90) {

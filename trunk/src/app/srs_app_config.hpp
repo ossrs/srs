@@ -50,10 +50,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_DVR_PLAN SRS_CONF_DEFAULT_DVR_PLAN_SESSION
 #define SRS_CONF_DEFAULT_DVR_DURATION 30
 #define SRS_CONF_DEFAULT_TIME_JITTER "full"
-// in ms, for HLS aac sync time.
-#define SRS_CONF_DEFAULT_AAC_SYNC 100
-// in ms, for HLS aac flush the audio
-#define SRS_CONF_DEFAULT_AAC_DELAY 300
 // in seconds, the live queue length.
 #define SRS_CONF_DEFAULT_QUEUE_LENGTH 30
 // in seconds, the paused queue length.
