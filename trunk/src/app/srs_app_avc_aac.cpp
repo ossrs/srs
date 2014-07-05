@@ -218,6 +218,8 @@ int SrsAvcAacCodec::audio_aac_demux(int8_t* data, int size, SrsCodecSample* samp
         // aac_profile = audioObjectType - 1
         aac_profile--;
         
+        // TODO: FIXME: to support aac he/he-v2, see: ngx_rtmp_codec_parse_aac_header
+        // @see: https://github.com/winlinvip/nginx-rtmp-module/commit/3a5f9eea78fc8d11e8be922aea9ac349b9dcbfc2
         if (aac_profile > 3) {
             // Mark all extended profiles as LC
             // to make Android as happy as possible.
