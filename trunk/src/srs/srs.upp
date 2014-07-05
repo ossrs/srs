@@ -116,8 +116,6 @@ file
 	..\utest\srs_utest_amf0.cpp,
 	..\utest\srs_utest_core.hpp,
 	..\utest\srs_utest_core.cpp,
-	..\utest\srs_utest_handshake.hpp,
-	..\utest\srs_utest_handshake.cpp,
 	..\utest\srs_utest_kernel.hpp,
 	..\utest\srs_utest_kernel.cpp,
 	..\utest\srs_utest_protocol.hpp,

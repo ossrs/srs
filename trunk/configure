@@ -516,8 +516,8 @@ if [ $SRS_LIBRTMP = YES ]; then
 fi
 #
 # utest, the unit-test cases of srs, base on gtest1.6
-MODULE_FILES=("srs_utest" "srs_utest_amf0" "srs_utest_handshake" 
-        "srs_utest_protocol" "srs_utest_kernel" "srs_utest_core")
+MODULE_FILES=("srs_utest" "srs_utest_amf0" "srs_utest_protocol" 
+        "srs_utest_kernel" "srs_utest_core")
 ModuleLibIncs=(${SRS_OBJS} ${LibSTRoot})
 ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile} ${LibSSLfile})
 MODULE_DEPENDS=("CORE" "KERNEL" "RTMP" "APP")
