@@ -11,13 +11,13 @@ SRS定位是运营级的互联网直播服务器集群，追求更好的概念�
 加入QQ群: [http://url.cn/WAHICw](http://url.cn/WAHICw) (Group: 212189142)<br/>
 同类产品：[BLS](https://github.com/wenjiegit/Bull-Live-Server), [NGINX-RTMP](https://github.com/arut/nginx-rtmp-module), [CRTMPD](http://www.rtmpd.com/), [RED5](http://www.red5.org/), [WOWZA](http://www.wowza.com/), [FMS/AMS](http://www.adobe.com/products/adobe-media-server-standard.html)
 
-获得源码(github): [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server)
+获得源码(github): [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) [GIT使用方法](https://github.com/winlinvip/simple-rtmp-server/wiki/Git)
 
 ```bash
 git clone https://github.com/winlinvip/simple-rtmp-server.git
 ```
 
-获得源码(国内CSDN镜像): [https://code.csdn.net/winlinvip/srs-csdn](https://code.csdn.net/winlinvip/srs-csdn)
+获得源码(国内CSDN镜像): [https://code.csdn.net/winlinvip/srs-csdn](https://code.csdn.net/winlinvip/srs-csdn) [GIT使用方法](https://github.com/winlinvip/simple-rtmp-server/wiki/Git)
 
 ```bash
 git clone https://code.csdn.net/winlinvip/srs-csdn.git
