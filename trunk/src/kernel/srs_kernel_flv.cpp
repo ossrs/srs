@@ -53,6 +53,8 @@ int SrsFlvEncoder::initialize(SrsFileWriter* fs)
 {
     int ret = ERROR_SUCCESS;
     
+    srs_assert(fs);
+    
     if (!fs->is_open()) {
         ret = ERROR_KERNEL_FLV_STREAM_CLOSED;
         srs_warn("stream is not open for decoder. ret=%d", ret);
@@ -110,6 +112,8 @@ int SrsFlvEncoder::write_metadata(char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
+    srs_assert(data);
+    
     // 11 bytes tag header
     static char tag_header[] = {
         (char)18, // TagType UB [5], 18 = script data
@@ -136,6 +140,8 @@ int SrsFlvEncoder::write_metadata(char* data, int size)
 int SrsFlvEncoder::write_audio(int64_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
+    
+    srs_assert(data);
     
     timestamp &= 0x7fffffff;
     
@@ -169,6 +175,8 @@ int SrsFlvEncoder::write_video(int64_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
+    srs_assert(data);
+    
     timestamp &= 0x7fffffff;
     
     // 11bytes tag header
@@ -199,6 +207,7 @@ int SrsFlvEncoder::write_video(int64_t timestamp, char* data, int size)
 
 int SrsFlvEncoder::size_tag(int data_size)
 {
+    srs_assert(data_size >= 0);
     return SRS_FLV_TAG_HEADER_SIZE + data_size + SRS_FLV_PREVIOUS_TAG_SIZE;
 }
 
@@ -247,6 +256,8 @@ int SrsFlvDecoder::initialize(SrsFileReader* fs)
 {
     int ret = ERROR_SUCCESS;
     
+    srs_assert(fs);
+    
     if (!fs->is_open()) {
         ret = ERROR_KERNEL_FLV_STREAM_CLOSED;
         srs_warn("stream is not open for decoder. ret=%d", ret);
@@ -262,6 +273,8 @@ int SrsFlvDecoder::read_header(char header[9])
 {
     int ret = ERROR_SUCCESS;
 
+    srs_assert(header);
+    
     if ((ret = _fs->read(header, 9, NULL)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -279,6 +292,10 @@ int SrsFlvDecoder::read_header(char header[9])
 int SrsFlvDecoder::read_tag_header(char* ptype, int32_t* pdata_size, u_int32_t* ptime)
 {
     int ret = ERROR_SUCCESS;
+
+    srs_assert(ptype);
+    srs_assert(pdata_size);
+    srs_assert(ptime);
 
     char th[11]; // tag header
     
@@ -316,6 +333,8 @@ int SrsFlvDecoder::read_tag_header(char* ptype, int32_t* pdata_size, u_int32_t* 
 int SrsFlvDecoder::read_tag_data(char* data, int32_t size)
 {
     int ret = ERROR_SUCCESS;
+
+    srs_assert(data);
     
     if ((ret = _fs->read(data, size, NULL)) != ERROR_SUCCESS) {
         if (ret != ERROR_SYSTEM_FILE_EOF) {
@@ -328,12 +347,14 @@ int SrsFlvDecoder::read_tag_data(char* data, int32_t size)
 
 }
 
-int SrsFlvDecoder::read_previous_tag_size(char ts[4])
+int SrsFlvDecoder::read_previous_tag_size(char previous_tag_size[4])
 {
     int ret = ERROR_SUCCESS;
+
+    srs_assert(previous_tag_size);
     
     // ignore 4bytes tag size.
-    if ((ret = _fs->read(ts, 4, NULL)) != ERROR_SUCCESS) {
+    if ((ret = _fs->read(previous_tag_size, 4, NULL)) != ERROR_SUCCESS) {
         if (ret != ERROR_SYSTEM_FILE_EOF) {
             srs_error("read flv previous tag size failed. ret=%d", ret);
         }
@@ -358,6 +379,8 @@ int SrsFlvVodStreamDecoder::initialize(SrsFileReader* fs)
 {
     int ret = ERROR_SUCCESS;
     
+    srs_assert(fs);
+    
     if (!fs->is_open()) {
         ret = ERROR_KERNEL_FLV_STREAM_CLOSED;
         srs_warn("stream is not open for decoder. ret=%d", ret);
@@ -373,7 +396,7 @@ int SrsFlvVodStreamDecoder::read_header_ext(char header[13])
 {
     int ret = ERROR_SUCCESS;
 
-    srs_assert(_fs);
+    srs_assert(header);
     
     // @remark, always false, for sizeof(char[13]) equals to sizeof(char*)
     //srs_assert(13 == sizeof(header));
@@ -390,12 +413,10 @@ int SrsFlvVodStreamDecoder::read_header_ext(char header[13])
 
 int SrsFlvVodStreamDecoder::read_sequence_header_summary(int64_t* pstart, int* psize)
 {
-    *pstart = 0;
-    *psize = 0;
-    
     int ret = ERROR_SUCCESS;
 
-    srs_assert(_fs);
+    srs_assert(pstart);
+    srs_assert(psize);
     
     // simply, the first video/audio must be the sequence header.
     // and must be a sequence video and audio.
@@ -484,8 +505,6 @@ int SrsFlvVodStreamDecoder::read_sequence_header_summary(int64_t* pstart, int* p
 int SrsFlvVodStreamDecoder::lseek(int64_t offset)
 {
     int ret = ERROR_SUCCESS;
-
-    srs_assert(_fs);
     
     if (offset >= _fs->filesize()) {
         ret = ERROR_SYSTEM_FILE_EOF;

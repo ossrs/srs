@@ -176,6 +176,10 @@ void MockSrsFileReader::mock_reset_offset()
     offset = 0;
 }
 
+/**
+* test the codec,
+* whether H.264 keyframe
+*/
 VOID TEST(KernelCodecTest, IsKeyFrame)
 {
     int8_t data;
@@ -188,6 +192,10 @@ VOID TEST(KernelCodecTest, IsKeyFrame)
     EXPECT_FALSE(SrsFlvCodec::video_is_keyframe(&data, 1));
 }
 
+/**
+* test the codec,
+* check whether H.264 video
+*/
 VOID TEST(KernelCodecTest, IsH264)
 {
     int8_t data;
@@ -204,6 +212,10 @@ VOID TEST(KernelCodecTest, IsH264)
     EXPECT_FALSE(SrsFlvCodec::video_is_h264(&data, 1));
 }
 
+/**
+* test the codec,
+* whether H.264 video sequence header
+*/
 VOID TEST(KernelCodecTest, IsSequenceHeader)
 {
     int16_t data;
@@ -224,6 +236,10 @@ VOID TEST(KernelCodecTest, IsSequenceHeader)
     EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 2));
 }
 
+/**
+* test the codec,
+* check whether AAC codec
+*/
 VOID TEST(KernelCodecTest, IsAAC)
 {
     int8_t data;
@@ -240,6 +256,10 @@ VOID TEST(KernelCodecTest, IsAAC)
     EXPECT_FALSE(SrsFlvCodec::audio_is_aac(&data, 1));
 }
 
+/**
+* test the codec,
+* AAC audio sequence header
+*/
 VOID TEST(KernelCodecTest, IsAudioSequenceHeader)
 {
     int16_t data;
@@ -258,6 +278,10 @@ VOID TEST(KernelCodecTest, IsAudioSequenceHeader)
     EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 2));
 }
 
+/**
+* test the flv encoder,
+* exception: file stream not open
+*/
 VOID TEST(KernelFlvTest, FlvEncoderStreamClosed)
 {
     MockSrsFileWriter fs;
@@ -265,6 +289,10 @@ VOID TEST(KernelFlvTest, FlvEncoderStreamClosed)
     ASSERT_TRUE(ERROR_SUCCESS != enc.initialize(&fs));
 }
 
+/**
+* test the flv encoder,
+* write flv header
+*/
 VOID TEST(KernelFlvTest, FlvEncoderWriteHeader)
 {
     MockSrsFileWriter fs;
@@ -301,6 +329,10 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteHeader)
     EXPECT_TRUE(srs_bytes_equals(pts, fs.data + 9, 4));
 }
 
+/**
+* test the flv encoder,
+* write metadata tag
+*/
 VOID TEST(KernelFlvTest, FlvEncoderWriteMetadata)
 {
     MockSrsFileWriter fs;
@@ -331,6 +363,10 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteMetadata)
     EXPECT_TRUE(srs_bytes_equals(pts, fs.data + 19, 4));
 }
 
+/**
+* test the flv encoder,
+* write audio tag
+*/
 VOID TEST(KernelFlvTest, FlvEncoderWriteAudio)
 {
     MockSrsFileWriter fs;
@@ -361,6 +397,10 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteAudio)
     EXPECT_TRUE(srs_bytes_equals(pts, fs.data + 11 + 8, 4));
 }
 
+/**
+* test the flv encoder,
+* write video tag
+*/
 VOID TEST(KernelFlvTest, FlvEncoderWriteVideo)
 {
     MockSrsFileWriter fs;
@@ -391,12 +431,20 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteVideo)
     EXPECT_TRUE(srs_bytes_equals(pts, fs.data + 11 + 8, 4));
 }
 
+/**
+* test the flv encoder,
+* calc the tag size.
+*/
 VOID TEST(KernelFlvTest, FlvEncoderSizeTag)
 {
     EXPECT_EQ(11+4+10, SrsFlvEncoder::size_tag(10));
     EXPECT_EQ(11+4+0, SrsFlvEncoder::size_tag(0));
 }
 
+/**
+* test the flv decoder,
+* exception: file stream not open.
+*/
 VOID TEST(KernelFlvTest, FlvDecoderStreamClosed)
 {
     MockSrsFileReader fs;
@@ -404,6 +452,10 @@ VOID TEST(KernelFlvTest, FlvDecoderStreamClosed)
     ASSERT_TRUE(ERROR_SUCCESS != dec.initialize(&fs));
 }
 
+/**
+* test the flv decoder,
+* decode flv header
+*/
 VOID TEST(KernelFlvTest, FlvDecoderHeader)
 {
     MockSrsFileReader fs;
@@ -432,6 +484,10 @@ VOID TEST(KernelFlvTest, FlvDecoderHeader)
     EXPECT_TRUE(srs_bytes_equals(pts, data, 4));
 }
 
+/**
+* test the flv decoder,
+* decode metadata tag
+*/
 VOID TEST(KernelFlvTest, FlvDecoderMetadata)
 {
     MockSrsFileReader fs;
@@ -474,6 +530,10 @@ VOID TEST(KernelFlvTest, FlvDecoderMetadata)
     EXPECT_TRUE(srs_bytes_equals(pts, data, 4));
 }
 
+/**
+* test the flv decoder,
+* decode audio tag
+*/
 VOID TEST(KernelFlvTest, FlvDecoderAudio)
 {
     MockSrsFileReader fs;
@@ -516,6 +576,10 @@ VOID TEST(KernelFlvTest, FlvDecoderAudio)
     EXPECT_TRUE(srs_bytes_equals(pts, data, 4));
 }
 
+/**
+* test the flv decoder,
+* decode video tag
+*/
 VOID TEST(KernelFlvTest, FlvDecoderVideo)
 {
     MockSrsFileReader fs;
@@ -558,6 +622,10 @@ VOID TEST(KernelFlvTest, FlvDecoderVideo)
     EXPECT_TRUE(srs_bytes_equals(pts, data, 4));
 }
 
+/**
+* test the flv vod stream decoder,
+* exception: file stream not open.
+*/
 VOID TEST(KernelFlvTest, FlvVSDecoderStreamClosed)
 {
     MockSrsFileReader fs;
@@ -565,6 +633,10 @@ VOID TEST(KernelFlvTest, FlvVSDecoderStreamClosed)
     ASSERT_TRUE(ERROR_SUCCESS != dec.initialize(&fs));
 }
 
+/**
+* test the flv vod stream decoder,
+* decode the flv header
+*/
 VOID TEST(KernelFlvTest, FlvVSDecoderHeader)
 {
     MockSrsFileReader fs;
@@ -591,6 +663,11 @@ VOID TEST(KernelFlvTest, FlvVSDecoderHeader)
     EXPECT_TRUE(srs_bytes_equals(flv_header, data, 9));
 }
 
+/**
+* test the flv vod stream decoder,
+* get the start offset and size of sequence header
+* mock data: metadata-audio-video
+*/
 VOID TEST(KernelFlvTest, FlvVSDecoderSequenceHeader)
 {
     MockSrsFileReader fs;
@@ -598,6 +675,7 @@ VOID TEST(KernelFlvTest, FlvVSDecoderSequenceHeader)
     ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
     ASSERT_TRUE(ERROR_SUCCESS == dec.initialize(&fs));
     
+    // push metadata tag
     if (true) {
         // 11 bytes tag header
         char tag_header[] = {
@@ -616,6 +694,7 @@ VOID TEST(KernelFlvTest, FlvVSDecoderSequenceHeader)
         fs.mock_append_data(md, 8);
         fs.mock_append_data(pts, 4);
     }
+    // push audio tag
     if (true) {
         // 11bytes tag header
         char tag_header[] = {
@@ -634,6 +713,7 @@ VOID TEST(KernelFlvTest, FlvVSDecoderSequenceHeader)
         fs.mock_append_data(audio, 8);
         fs.mock_append_data(pts, 4);
     }
+    // push video tag
     if (true) {
         // 11bytes tag header
         char tag_header[] = {
@@ -662,6 +742,90 @@ VOID TEST(KernelFlvTest, FlvVSDecoderSequenceHeader)
     EXPECT_TRUE(46 == size);
 }
 
+/**
+* test the flv vod stream decoder,
+* get the start offset and size of sequence header
+* mock data: metadata-video-audio
+*/
+VOID TEST(KernelFlvTest, FlvVSDecoderSequenceHeader2)
+{
+    MockSrsFileReader fs;
+    SrsFlvVodStreamDecoder dec;
+    ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
+    ASSERT_TRUE(ERROR_SUCCESS == dec.initialize(&fs));
+    
+    // push metadata tag
+    if (true) {
+        // 11 bytes tag header
+        char tag_header[] = {
+            (char)18, // TagType UB [5], 18 = script data
+            (char)0x00, (char)0x00, (char)0x08, // DataSize UI24 Length of the message.
+            (char)0x00, (char)0x00, (char)0x00, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
+            (char)0x00, // TimestampExtended UI8
+            (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
+        };
+        char md[] = {
+            (char)0x01, (char)0x02, (char)0x03, (char)0x04,
+            (char)0x04, (char)0x03, (char)0x02, (char)0x01
+        };
+        char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)19 };
+        fs.mock_append_data(tag_header, 11);
+        fs.mock_append_data(md, 8);
+        fs.mock_append_data(pts, 4);
+    }
+    // push video tag
+    if (true) {
+        // 11bytes tag header
+        char tag_header[] = {
+            (char)9, // TagType UB [5], 9 = video
+            (char)0x00, (char)0x00, (char)0x08, // DataSize UI24 Length of the message.
+            (char)0x00, (char)0x00, (char)0x30, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
+            (char)0x00, // TimestampExtended UI8
+            (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
+        };
+        char video[] = {
+            (char)0x01, (char)0x02, (char)0x03, (char)0x04,
+            (char)0x04, (char)0x03, (char)0x02, (char)0x01
+        };
+        char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)19 };
+        fs.mock_append_data(tag_header, 11);
+        fs.mock_append_data(video, 8);
+        fs.mock_append_data(pts, 4);
+    }
+    // push audio tag
+    if (true) {
+        // 11bytes tag header
+        char tag_header[] = {
+            (char)8, // TagType UB [5], 8 = audio
+            (char)0x00, (char)0x00, (char)0x08, // DataSize UI24 Length of the message.
+            (char)0x00, (char)0x00, (char)0x30, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
+            (char)0x00, // TimestampExtended UI8
+            (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
+        };
+        char audio[] = {
+            (char)0x01, (char)0x02, (char)0x03, (char)0x04,
+            (char)0x04, (char)0x03, (char)0x02, (char)0x01
+        };
+        char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)19 };
+        fs.mock_append_data(tag_header, 11);
+        fs.mock_append_data(audio, 8);
+        fs.mock_append_data(pts, 4);
+    }
+    
+    fs.mock_reset_offset();
+    
+    int64_t start = 0;
+    int size = 0;
+    EXPECT_TRUE(ERROR_SUCCESS == dec.read_sequence_header_summary(&start, &size));
+    EXPECT_TRUE(23 == start);
+    EXPECT_TRUE(46 == size);
+}
+
+/**
+* test the flv vod stream decoder,
+* seek stream after got the offset and start of flv sequence header,
+* to directly response flv data by seek to the offset of file.
+*/
 VOID TEST(KernelFlvTest, FlvVSDecoderSeek)
 {
     MockSrsFileReader fs;

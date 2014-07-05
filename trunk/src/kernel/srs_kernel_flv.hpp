@@ -69,10 +69,12 @@ public:
     * @param data, the amf0 metadata which serialize from:
     *   AMF0 string: onMetaData,
     *   AMF0 object: the metadata object.
+    * @remark assert data is not NULL.
     */
     virtual int write_metadata(char* data, int size);
     /**
     * write audio/video packet.
+    * @remark assert data is not NULL.
     */
     virtual int write_audio(int64_t timestamp, char* data, int size);
     virtual int write_video(int64_t timestamp, char* data, int size);
@@ -80,6 +82,7 @@ public:
     /**
     * get the tag size,
     * including the tag header, body, and 4bytes previous tag size.
+    * @remark assert data_size is not negative.
     */
     static int size_tag(int data_size);
 private:
@@ -106,10 +109,26 @@ public:
     */
     virtual int initialize(SrsFileReader* fs);
 public:
+    /**
+    * read the flv header, donot including the 4bytes previous tag size.
+    * @remark assert header not NULL.
+    */
     virtual int read_header(char header[9]);
+    /**
+    * read the tag header infos.
+    * @remark assert ptype/pdata_size/ptime not NULL.
+    */
     virtual int read_tag_header(char* ptype, int32_t* pdata_size, u_int32_t* ptime);
+    /**
+    * read the tag data.
+    * @remark assert data not NULL.
+    */
     virtual int read_tag_data(char* data, int32_t size);
-    virtual int read_previous_tag_size(char ts[4]);
+    /**
+    * read the 4bytes previous tag size.
+    * @remark assert previous_tag_size not NULL.
+    */
+    virtual int read_previous_tag_size(char previous_tag_size[4]);
 };
 
 /**
@@ -137,6 +156,7 @@ public:
     /**
     * read the flv header and its size.
     * @param header, fill it 13bytes(9bytes header, 4bytes previous tag size).
+    * @remark assert header not NULL.
     */
     virtual int read_header_ext(char header[13]);
     /**
@@ -144,6 +164,7 @@ public:
     * @param pstart, the start offset of sequence header.
     * @param psize, output the size, (tag header)+(tag body)+(4bytes previous tag size).
     * @remark we think the first audio/video is sequence header.
+    * @remark assert pstart/psize not NULL.
     */
     virtual int read_sequence_header_summary(int64_t* pstart, int* psize);
 public:
