@@ -659,7 +659,7 @@ srs_amf0_t srs_amf0_parse(char* data, int size, int* nparsed)
         return amf0;
     }
     
-    stream.reset();
+    stream.skip(-1 * stream.pos());
     if ((ret = any->read(&stream)) != ERROR_SUCCESS) {
         srs_freep(any);
         return amf0;

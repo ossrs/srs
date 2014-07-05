@@ -29,6 +29,7 @@ using namespace std;
 #include <srs_kernel_flv.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_kernel_stream.hpp>
 
 #define MAX_MOCK_DATA_SIZE 1024 * 1024
 
@@ -198,7 +199,7 @@ int MockBufferReader::read(void* buf, size_t size, ssize_t* nread)
     return ERROR_SUCCESS;
 }
 
-VOID TEST(BufferTest, DefaultObject)
+VOID TEST(KernelBufferTest, DefaultObject)
 {
     SrsBuffer b;
     
@@ -206,7 +207,7 @@ VOID TEST(BufferTest, DefaultObject)
     EXPECT_EQ(NULL, b.bytes());
 }
 
-VOID TEST(BufferTest, AppendBytes)
+VOID TEST(KernelBufferTest, AppendBytes)
 {
     SrsBuffer b;
     
@@ -226,7 +227,7 @@ VOID TEST(BufferTest, AppendBytes)
     EXPECT_EQ('n', b.bytes()[11]);
 }
 
-VOID TEST(BufferTest, EraseBytes)
+VOID TEST(KernelBufferTest, EraseBytes)
 {
     SrsBuffer b;
     
@@ -262,7 +263,7 @@ VOID TEST(BufferTest, EraseBytes)
     EXPECT_EQ(0, b.length());
 }
 
-VOID TEST(BufferTest, Grow)
+VOID TEST(KernelBufferTest, Grow)
 {
     SrsBuffer b;
     MockBufferReader r("winlin");
@@ -953,4 +954,558 @@ VOID TEST(KernelFlvTest, FlvVSDecoderSeek)
 
     EXPECT_TRUE(ERROR_SUCCESS == dec.lseek(5));
     EXPECT_TRUE(5 == fs.offset);
+}
+
+/**
+* test the stream utility, bytes from/to basic types.
+*/
+VOID TEST(KernelStreamTest, StreamInitialize)
+{
+    SrsStream s;
+    char data[1024];
+    
+    EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
+    EXPECT_TRUE(ERROR_SUCCESS != s.initialize(NULL, 1024));
+    EXPECT_TRUE(ERROR_SUCCESS != s.initialize(data, 0));
+    EXPECT_TRUE(ERROR_SUCCESS != s.initialize(data, -1));
+}
+
+/**
+* test the stream utility, access data
+*/
+VOID TEST(KernelStreamTest, StreamData)
+{
+    SrsStream s;
+    char data[1024];
+    
+    EXPECT_TRUE(s.data() == NULL);
+    EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
+    EXPECT_TRUE(s.data() == data);
+}
+
+/**
+* test the stream utility, access size
+*/
+VOID TEST(KernelStreamTest, StreamSize)
+{
+    SrsStream s;
+    char data[1024];
+    
+    EXPECT_TRUE(s.size() == 0);
+    EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
+    EXPECT_TRUE(s.size() == 1024);
+}
+
+/**
+* test the stream utility, access pos
+*/
+VOID TEST(KernelStreamTest, StreamPos)
+{
+    SrsStream s;
+    char data[1024];
+    
+    EXPECT_TRUE(s.pos() == 0);
+    EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
+    EXPECT_TRUE(s.pos() == 0);
+    
+    s.read_bytes(data, 1024);
+    EXPECT_TRUE(s.pos() == 1024);
+}
+
+/**
+* test the stream utility, access empty
+*/
+VOID TEST(KernelStreamTest, StreamEmpty)
+{
+    SrsStream s;
+    char data[1024];
+    
+    EXPECT_TRUE(s.empty());
+    EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
+    EXPECT_FALSE(s.empty());
+    
+    s.read_bytes(data, 1024);
+    EXPECT_TRUE(s.empty());
+}
+
+/**
+* test the stream utility, access require
+*/
+VOID TEST(KernelStreamTest, StreamRequire)
+{
+    SrsStream s;
+    char data[1024];
+    
+    EXPECT_FALSE(s.require(1));
+    EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
+    EXPECT_TRUE(s.require(1));
+    EXPECT_TRUE(s.require(1024));
+    
+    s.read_bytes(data, 1000);
+    EXPECT_TRUE(s.require(1));
+    
+    s.read_bytes(data, 24);
+    EXPECT_FALSE(s.require(1));
+}
+
+/**
+* test the stream utility, skip bytes
+*/
+VOID TEST(KernelStreamTest, StreamSkip)
+{
+    SrsStream s;
+    char data[1024];
+    
+    EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
+    EXPECT_EQ(0, s.pos());
+    
+    s.skip(1);
+    EXPECT_EQ(1, s.pos());
+
+    s.skip(-1);
+    EXPECT_EQ(0 , s.pos());
+}
+
+/**
+* test the stream utility, read 1bytes
+*/
+VOID TEST(KernelStreamTest, StreamRead1Bytes)
+{
+    SrsStream s;
+    char data[1024];
+    
+    EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
+    
+    data[0] = 0x12;
+    data[99] = 0x13;
+    data[100] = 0x14;
+    data[101] = 0x15;
+    EXPECT_EQ(0x12, s.read_1bytes());
+    
+    s.skip(-1 * s.pos());
+    s.skip(100);
+    EXPECT_EQ(0x14, s.read_1bytes());
+}
+
+/**
+* test the stream utility, read 2bytes
+*/
+VOID TEST(KernelStreamTest, StreamRead2Bytes)
+{
+    SrsStream s;
+    char data[1024];
+    
+    EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
+    
+    data[0] = 0x01;
+    data[1] = 0x02;
+    data[2] = 0x03;
+    data[3] = 0x04;
+    data[4] = 0x05;
+    data[5] = 0x06;
+    data[6] = 0x07;
+    data[7] = 0x08;
+    data[8] = 0x09;
+    data[9] = 0x0a;
+    
+    EXPECT_EQ(0x0102, s.read_2bytes());
+    EXPECT_EQ(0x0304, s.read_2bytes());
+
+    s.skip(-1 * s.pos());
+    s.skip(3);
+    EXPECT_EQ(0x0405, s.read_2bytes());
+}
+
+/**
+* test the stream utility, read 3bytes
+*/
+VOID TEST(KernelStreamTest, StreamRead3Bytes)
+{
+    SrsStream s;
+    char data[1024];
+    
+    EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
+    
+    data[0] = 0x01;
+    data[1] = 0x02;
+    data[2] = 0x03;
+    data[3] = 0x04;
+    data[4] = 0x05;
+    data[5] = 0x06;
+    data[6] = 0x07;
+    data[7] = 0x08;
+    data[8] = 0x09;
+    data[9] = 0x0a;
+    
+    EXPECT_EQ(0x010203, s.read_3bytes());
+    EXPECT_EQ(0x040506, s.read_3bytes());
+
+    s.skip(-1 * s.pos());
+    s.skip(5);
+    EXPECT_EQ(0x060708, s.read_3bytes());
+}
+
+/**
+* test the stream utility, read 4bytes
+*/
+VOID TEST(KernelStreamTest, StreamRead4Bytes)
+{
+    SrsStream s;
+    char data[1024];
+    
+    EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
+    
+    data[0] = 0x01;
+    data[1] = 0x02;
+    data[2] = 0x03;
+    data[3] = 0x04;
+    data[4] = 0x05;
+    data[5] = 0x06;
+    data[6] = 0x07;
+    data[7] = 0x08;
+    data[8] = 0x09;
+    data[9] = 0x0a;
+    
+    EXPECT_EQ(0x01020304, s.read_4bytes());
+    EXPECT_EQ(0x05060708, s.read_4bytes());
+
+    s.skip(-1 * s.pos());
+    s.skip(5);
+    EXPECT_EQ(0x06070809, s.read_4bytes());
+}
+
+/**
+* test the stream utility, read 8bytes
+*/
+VOID TEST(KernelStreamTest, StreamRead8Bytes)
+{
+    SrsStream s;
+    char data[1024];
+    
+    EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
+    
+    data[0] = 0x01;
+    data[1] = 0x02;
+    data[2] = 0x03;
+    data[3] = 0x04;
+    data[4] = 0x05;
+    data[5] = 0x06;
+    data[6] = 0x07;
+    data[7] = 0x08;
+    data[8] = 0x09;
+    data[9] = 0x0a;
+    data[10] = 0x0b;
+    data[11] = 0x0c;
+    data[12] = 0x0d;
+    data[13] = 0x0e;
+    data[14] = 0x0f;
+    data[15] = 0x10;
+    data[16] = 0x11;
+    data[17] = 0x12;
+    data[18] = 0x13;
+    data[19] = 0x14;
+    
+    EXPECT_EQ(0x0102030405060708, s.read_8bytes());
+    EXPECT_EQ(0x090a0b0c0d0e0f10, s.read_8bytes());
+
+    s.skip(-1 * s.pos());
+    s.skip(5);
+    EXPECT_EQ(0x060708090a0b0c0d, s.read_8bytes());
+}
+
+/**
+* test the stream utility, read string
+*/
+VOID TEST(KernelStreamTest, StreamReadString)
+{
+    SrsStream s;
+    char data[] = "Hello, world!";
+    
+    EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, sizeof(data) - 1));
+    
+    string str = s.read_string(2);
+    EXPECT_STREQ("He", str.c_str());
+    
+    str = s.read_string(2);
+    EXPECT_STREQ("ll", str.c_str());
+    
+    s.skip(3);
+    str = s.read_string(6);
+    EXPECT_STREQ("world!", str.c_str());
+    
+    EXPECT_TRUE(s.empty());
+}
+
+/**
+* test the stream utility, read bytes
+*/
+VOID TEST(KernelStreamTest, StreamReadBytes)
+{
+    SrsStream s;
+    char data[] = "Hello, world!";
+    
+    EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, sizeof(data) - 1));
+    
+    char bytes[64];
+    s.read_bytes(bytes, 2);
+    bytes[2] = 0;
+    EXPECT_STREQ("He", bytes);
+    
+    s.read_bytes(bytes, 2);
+    bytes[2] = 0;
+    EXPECT_STREQ("ll", bytes);
+    
+    s.skip(3);
+    s.read_bytes(bytes, 6);
+    bytes[6] = 0;
+    EXPECT_STREQ("world!", bytes);
+    
+    EXPECT_TRUE(s.empty());
+}
+
+/**
+* test the stream utility, write 1bytes
+*/
+VOID TEST(KernelStreamTest, StreamWrite1Bytes)
+{
+    SrsStream s;
+    char data[1024];
+    
+    EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
+    
+    s.write_1bytes(0x10);
+    s.write_1bytes(0x11);
+    s.write_1bytes(0x12);
+    s.write_1bytes(0x13);
+
+    s.skip(-1 * s.pos());
+    EXPECT_EQ(0x10, s.read_1bytes());
+    s.skip(2);
+    EXPECT_EQ(0x13, s.read_1bytes());
+}
+
+/**
+* test the stream utility, write 2bytes
+*/
+VOID TEST(KernelStreamTest, StreamWrite2Bytes)
+{
+    SrsStream s;
+    char data[1024];
+    
+    EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
+    
+    s.write_2bytes(0x1011);
+    s.write_2bytes(0x1213);
+    s.write_2bytes(0x1415);
+    s.write_2bytes(0x1617);
+    s.write_2bytes(0x1819);
+
+    s.skip(-1 * s.pos());
+    EXPECT_EQ(0x10, s.read_1bytes());
+    s.skip(2);
+    EXPECT_EQ(0x13, s.read_1bytes());
+    s.skip(5);
+    EXPECT_EQ(0x19, s.read_1bytes());
+}
+
+/**
+* test the stream utility, write 3bytes
+*/
+VOID TEST(KernelStreamTest, StreamWrite3Bytes)
+{
+    SrsStream s;
+    char data[1024];
+    
+    EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
+    
+    s.write_3bytes(0x101112);
+    s.write_3bytes(0x131415);
+    s.write_3bytes(0x161718);
+    s.write_3bytes(0x192021);
+
+    s.skip(-1 * s.pos());
+    EXPECT_EQ(0x10, s.read_1bytes());
+    s.skip(2);
+    EXPECT_EQ(0x13, s.read_1bytes());
+    s.skip(5);
+    EXPECT_EQ(0x19, s.read_1bytes());
+}
+
+/**
+* test the stream utility, write 34bytes
+*/
+VOID TEST(KernelStreamTest, StreamWrite4Bytes)
+{
+    SrsStream s;
+    char data[1024];
+    
+    EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
+    
+    s.write_4bytes(0x10111213);
+    s.write_4bytes(0x14151617);
+    s.write_4bytes(0x18192021);
+
+    s.skip(-1 * s.pos());
+    EXPECT_EQ(0x10, s.read_1bytes());
+    s.skip(2);
+    EXPECT_EQ(0x13, s.read_1bytes());
+    s.skip(5);
+    EXPECT_EQ(0x19, s.read_1bytes());
+}
+
+/**
+* test the stream utility, write 8bytes
+*/
+VOID TEST(KernelStreamTest, StreamWrite8Bytes)
+{
+    SrsStream s;
+    char data[1024];
+    
+    EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
+    
+    s.write_8bytes(0x1011121314151617);
+    s.write_8bytes(0x1819202122232425);
+
+    s.skip(-1 * s.pos());
+    EXPECT_EQ(0x10, s.read_1bytes());
+    s.skip(2);
+    EXPECT_EQ(0x13, s.read_1bytes());
+    s.skip(5);
+    EXPECT_EQ(0x19, s.read_1bytes());
+}
+
+/**
+* test the stream utility, write string
+*/
+VOID TEST(KernelStreamTest, StreamWriteString)
+{
+    SrsStream s;
+    char data[1024];
+    
+    EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
+    
+    char str[] = {
+        (char)0x10, (char)0x11, (char)0x12, (char)0x13,
+        (char)0x14, (char)0x15, (char)0x16, (char)0x17, 
+        (char)0x18, (char)0x19, (char)0x20, (char)0x21
+    };
+    string str1;
+    str1.append(str, 12);
+    
+    s.write_string(str1);
+
+    s.skip(-1 * s.pos());
+    EXPECT_EQ(0x10, s.read_1bytes());
+    s.skip(2);
+    EXPECT_EQ(0x13, s.read_1bytes());
+    s.skip(5);
+    EXPECT_EQ(0x19, s.read_1bytes());
+}
+
+/**
+* test the stream utility, write bytes
+*/
+VOID TEST(KernelStreamTest, StreamWriteBytes)
+{
+    SrsStream s;
+    char data[1024];
+    
+    EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
+    
+    char str[] = {
+        (char)0x10, (char)0x11, (char)0x12, (char)0x13,
+        (char)0x14, (char)0x15, (char)0x16, (char)0x17, 
+        (char)0x18, (char)0x19, (char)0x20, (char)0x21
+    };
+    
+    s.write_bytes(str, 12);
+
+    s.skip(-1 * s.pos());
+    EXPECT_EQ(0x10, s.read_1bytes());
+    s.skip(2);
+    EXPECT_EQ(0x13, s.read_1bytes());
+    s.skip(5);
+    EXPECT_EQ(0x19, s.read_1bytes());
+}
+
+/**
+* test the kernel utility, time
+*/
+VOID TEST(KernelUtilityTest, UtilityTime)
+{
+    int64_t time = srs_get_system_time_ms();
+    EXPECT_TRUE(time > 0);
+    
+    int64_t time1 = srs_get_system_time_ms();
+    EXPECT_EQ(time, time1);
+    
+    usleep(1000);
+    srs_update_system_time_ms();
+    time1 = srs_get_system_time_ms();
+    EXPECT_TRUE(time1 > time);
+}
+
+/**
+* test the kernel utility, startup time
+*/
+VOID TEST(KernelUtilityTest, UtilityStartupTime)
+{
+    int64_t time = srs_get_system_startup_time_ms();
+    EXPECT_TRUE(time > 0);
+    
+    int64_t time1 = srs_get_system_startup_time_ms();
+    EXPECT_EQ(time, time1);
+    
+    usleep(1000);
+    srs_update_system_time_ms();
+    time1 = srs_get_system_startup_time_ms();
+    EXPECT_EQ(time, time1);
+}
+
+/**
+* test the kernel utility, little endian
+*/
+VOID TEST(KernelUtilityTest, UtilityLittleEndian)
+{
+    EXPECT_TRUE(srs_is_little_endian());
+}
+
+/**
+* test the kernel utility, string
+*/
+VOID TEST(KernelUtilityTest, UtilityString)
+{
+    string str = "Hello, World! Hello, SRS!";
+    string str1;
+    
+    str1 = srs_string_replace(str, "xxx", "");
+    EXPECT_STREQ("Hello, World! Hello, SRS!", str1.c_str());
+    
+    str1 = srs_string_replace(str, "He", "XX");
+    EXPECT_STREQ("XXllo, World! XXllo, SRS!", str1.c_str());
+    
+    str1 = srs_string_replace(str, "o", "XX");
+    EXPECT_STREQ("HellXX, WXXrld! HellXX, SRS!", str1.c_str());
+    
+    str1 = srs_string_trim_end(str, "x");
+    EXPECT_STREQ("Hello, World! Hello, SRS!", str1.c_str());
+    
+    str1 = srs_string_trim_end(str, "He");
+    EXPECT_STREQ("Hello, World! Hello, SRS!", str1.c_str());
+    
+    str1 = srs_string_trim_end(str, "HeS!R");
+    EXPECT_STREQ("Hello, World! Hello, ", str1.c_str());
+    
+    str1 = srs_string_remove(str, "x");
+    EXPECT_STREQ("Hello, World! Hello, SRS!", str1.c_str());
+    
+    str1 = srs_string_remove(str, "o");
+    EXPECT_STREQ("Hell, Wrld! Hell, SRS!", str1.c_str());
+    
+    str1 = srs_string_remove(str, "ol");
+    EXPECT_STREQ("He, Wrd! He, SRS!", str1.c_str());
+    
+    EXPECT_FALSE(srs_string_ends_with("Hello", "x"));
+    EXPECT_TRUE(srs_string_ends_with("Hello", "o"));
+    EXPECT_TRUE(srs_string_ends_with("Hello", "lo"));
 }

@@ -87,7 +87,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // aggregate message parse failed.
 #define ERROR_RTMP_AGGREGATE                324
 
-#define ERROR_SYSTEM_STREAM_INIT            400
 #define ERROR_SYSTEM_PACKET_INVALID         401
 #define ERROR_SYSTEM_CLIENT_INVALID         402
 #define ERROR_SYSTEM_ASSERT_FAILED          403
@@ -190,6 +189,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define ERROR_KERNEL_FLV_HEADER             900
 #define ERROR_KERNEL_FLV_STREAM_CLOSED      901
+#define ERROR_KERNEL_STREAM_INIT            902
 
 // system control message, 
 // not an error, but special control logic.

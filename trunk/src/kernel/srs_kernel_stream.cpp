@@ -31,8 +31,8 @@ using namespace std;
 
 SrsStream::SrsStream()
 {
-    p = bytes = NULL;
-    size = 0;
+    p = _bytes = NULL;
+    _size = 0;
     
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
@@ -42,61 +42,61 @@ SrsStream::~SrsStream()
 {
 }
 
-int SrsStream::initialize(char* _bytes, int _size)
+int SrsStream::initialize(char* bytes, int size)
 {
     int ret = ERROR_SUCCESS;
     
-    if (!_bytes) {
-        ret = ERROR_SYSTEM_STREAM_INIT;
+    if (!bytes) {
+        ret = ERROR_KERNEL_STREAM_INIT;
         srs_error("stream param bytes must not be NULL. ret=%d", ret);
         return ret;
     }
     
-    if (_size <= 0) {
-        ret = ERROR_SYSTEM_STREAM_INIT;
+    if (size <= 0) {
+        ret = ERROR_KERNEL_STREAM_INIT;
         srs_error("stream param size must be positive. ret=%d", ret);
         return ret;
     }
 
-    size = _size;
-    p = bytes = _bytes;
+    _size = size;
+    p = _bytes = bytes;
+    srs_info("init stream ok, size=%d", size);
 
     return ret;
 }
 
-void SrsStream::reset()
+char* SrsStream::data()
 {
-    p = bytes;
+    return _bytes;
 }
 
-bool SrsStream::empty()
+int SrsStream::size()
 {
-    return !p || !bytes || (p >= bytes + size);
-}
-
-bool SrsStream::require(int required_size)
-{
-    return !empty() && (required_size <= bytes + size - p);
-}
-
-void SrsStream::skip(int size)
-{
-    p += size;
+    return _size;
 }
 
 int SrsStream::pos()
 {
-    return p - bytes;
+    return p - _bytes;
 }
 
-int SrsStream::left()
+bool SrsStream::empty()
 {
-    return size - pos();
+    return !_bytes || (p >= _bytes + _size);
 }
 
-char* SrsStream::current()
+bool SrsStream::require(int required_size)
 {
-    return p;
+    srs_assert(required_size > 0);
+    
+    return required_size <= _size - (p - _bytes);
+}
+
+void SrsStream::skip(int size)
+{
+    srs_assert(p);
+    
+    p += size;
 }
 
 int8_t SrsStream::read_1bytes()

@@ -601,7 +601,7 @@ int SrsProtocol::do_decode_message(SrsMessageHeader& header, SrsStream* stream, 
             srs_verbose("AMF0/AMF3 command id, transcationId=%.2f", transactionId);
             
             // reset stream, for header read completed.
-            stream->reset();
+            stream->skip(-1 * stream->pos());
             if (header.is_amf3_command()) {
                 stream->skip(1);
             }
@@ -638,7 +638,7 @@ int SrsProtocol::do_decode_message(SrsMessageHeader& header, SrsStream* stream, 
         }
         
         // reset to zero(amf3 to 1) to restart decode.
-        stream->reset();
+        stream->skip(-1 * stream->pos());
         if (header.is_amf3_command()) {
             stream->skip(1);
         }

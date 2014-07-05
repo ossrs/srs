@@ -33,52 +33,67 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/types.h>
 #include <string>
 
+/**
+* bytes utility, used to:
+* convert basic types to bytes,
+* build basic types from bytes.
+*/
 class SrsStream
 {
 private:
     char* p;
     char* pp;
-    char* bytes;
-    int size;
+    char* _bytes;
+    int _size;
 public:
     SrsStream();
     virtual ~SrsStream();
 public:
     /**
     * initialize the stream from bytes.
-    * @_bytes, must not be NULL, or return error.
-    * @_size, must be positive, or return error.
-    * @remark, stream never free the _bytes, user must free it.
+    * @bytes, the bytes to convert from/to basic types.
+    * @size, the size of bytes.
+    * @remark, stream never free the bytes, user must free it.
+    * @remark, return error when bytes NULL.
+    * @remark, return error when size is not positive.
     */
-    virtual int initialize(char* _bytes, int _size);
+    virtual int initialize(char* bytes, int size);
+// get the status of stream
+public:
     /**
-    * reset the position to beginning.
+    * get data of stream, set by initialize.
+    * current bytes = data() + pos()
     */
-    virtual void reset();
+    virtual char* data();
     /**
-    * whether stream is empty.
-    * if empty, never read or write.
+    * the total stream size, set by initialize.
+    * left bytes = size() - pos().
     */
-    virtual bool empty();
-    /**
-    * whether required size is ok.
-    * @return true if stream can read/write specified required_size bytes.
-    */
-    virtual bool require(int required_size);
-    /**
-    * to skip some size.
-    * @size can be any value. positive to forward; nagetive to backward.
-    */
-    virtual void skip(int size);
+    virtual int size();
     /**
     * tell the current pos.
     */
     virtual int pos();
     /**
-    * left size of bytes.
+    * whether stream is empty.
+    * if empty, user should never read or write.
     */
-    virtual int left();
-    virtual char* current();
+    virtual bool empty();
+    /**
+    * whether required size is ok.
+    * @return true if stream can read/write specified required_size bytes.
+    * @remark assert required_size positive.
+    */
+    virtual bool require(int required_size);
+// to change stream.
+public:
+    /**
+    * to skip some size.
+    * @param size can be any value. positive to forward; nagetive to backward.
+    * @remark to skip(pos()) to reset stream.
+    * @remark assert initialized, the data() not NULL.
+    */
+    virtual void skip(int size);
 public:
     /**
     * get 1bytes char from stream.

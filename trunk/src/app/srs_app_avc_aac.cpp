@@ -204,11 +204,11 @@ int SrsAvcAacCodec::audio_aac_demux(int8_t* data, int size, SrsCodecSample* samp
     if (aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
         // AudioSpecificConfig
         // 1.6.2.1 AudioSpecificConfig, in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 33.
-        aac_extra_size = stream->left();
+        aac_extra_size = stream->size() - stream->pos();
         if (aac_extra_size > 0) {
             srs_freep(aac_extra_data);
             aac_extra_data = new char[aac_extra_size];
-            memcpy(aac_extra_data, stream->current(), aac_extra_size);
+            memcpy(aac_extra_data, stream->data() + stream->pos(), aac_extra_size);
         }
         
         // only need to decode the first 2bytes:
@@ -253,7 +253,7 @@ int SrsAvcAacCodec::audio_aac_demux(int8_t* data, int size, SrsCodecSample* samp
         
         // Raw AAC frame data in UI8 []
         // 6.3 Raw Data, aac-iso-13818-7.pdf, page 28
-        if ((ret = sample->add_sample(stream->current(), stream->left())) != ERROR_SUCCESS) {
+        if ((ret = sample->add_sample(stream->data() + stream->pos(), stream->size() - stream->pos())) != ERROR_SUCCESS) {
             srs_error("hls add audio sample failed. ret=%d", ret);
             return ret;
         }
@@ -318,11 +318,11 @@ int SrsAvcAacCodec::video_avc_demux(int8_t* data, int size, SrsCodecSample* samp
     if (avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader) {
         // AVCDecoderConfigurationRecord
         // 5.2.4.1.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
-        avc_extra_size = stream->left();
+        avc_extra_size = stream->size() - stream->pos();
         if (avc_extra_size > 0) {
             srs_freep(avc_extra_data);
             avc_extra_data = new char[avc_extra_size];
-            memcpy(avc_extra_data, stream->current(), avc_extra_size);
+            memcpy(avc_extra_data, stream->data() + stream->pos(), avc_extra_size);
         }
         
         if (!stream->require(6)) {
@@ -367,7 +367,7 @@ int SrsAvcAacCodec::video_avc_demux(int8_t* data, int size, SrsCodecSample* samp
         if (sequenceParameterSetLength > 0) {
             srs_freep(sequenceParameterSetNALUnit);
             sequenceParameterSetNALUnit = new char[sequenceParameterSetLength];
-            memcpy(sequenceParameterSetNALUnit, stream->current(), sequenceParameterSetLength);
+            memcpy(sequenceParameterSetNALUnit, stream->data() + stream->pos(), sequenceParameterSetLength);
             stream->skip(sequenceParameterSetLength);
         }
         // 1 pps
@@ -397,7 +397,7 @@ int SrsAvcAacCodec::video_avc_demux(int8_t* data, int size, SrsCodecSample* samp
         if (pictureParameterSetLength > 0) {
             srs_freep(pictureParameterSetNALUnit);
             pictureParameterSetNALUnit = new char[pictureParameterSetLength];
-            memcpy(pictureParameterSetNALUnit, stream->current(), pictureParameterSetLength);
+            memcpy(pictureParameterSetNALUnit, stream->data() + stream->pos(), pictureParameterSetLength);
             stream->skip(pictureParameterSetLength);
         }
     } else if (avc_packet_type == SrsCodecVideoAVCTypeNALU){
@@ -410,7 +410,7 @@ int SrsAvcAacCodec::video_avc_demux(int8_t* data, int size, SrsCodecSample* samp
         
         // One or more NALUs (Full frames are required)
         // 5.3.4.2.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 20
-        int PictureLength = stream->left();
+        int PictureLength = stream->size() - stream->pos();
         for (int i = 0; i < PictureLength;) {
             if (!stream->require(NAL_unit_length + 1)) {
                 ret = ERROR_HLS_DECODE_ERROR;
@@ -434,7 +434,7 @@ int SrsAvcAacCodec::video_avc_demux(int8_t* data, int size, SrsCodecSample* samp
                 return ret;
             }
             // 7.3.1 NAL unit syntax, H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
-            if ((ret = sample->add_sample(stream->current(), NALUnitLength)) != ERROR_SUCCESS) {
+            if ((ret = sample->add_sample(stream->data() + stream->pos(), NALUnitLength)) != ERROR_SUCCESS) {
                 srs_error("hls add video sample failed. ret=%d", ret);
                 return ret;
             }
