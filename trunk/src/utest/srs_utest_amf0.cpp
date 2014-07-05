@@ -30,7 +30,7 @@ using namespace std;
 #include <srs_kernel_stream.hpp>
 
 // user scenario: coding and decoding with amf0
-VOID TEST(AMF0Test, ScenarioMain)
+VOID TEST(ProtocolAMF0Test, ScenarioMain)
 {
     // coded amf0 object
     int nb_bytes = 0;
@@ -171,7 +171,7 @@ VOID TEST(AMF0Test, ScenarioMain)
     }
 }
 
-VOID TEST(AMF0Test, ApiSize) 
+VOID TEST(ProtocolAMF0Test, ApiSize) 
 {
     // size of elem
     EXPECT_EQ(2+6, SrsAmf0Size::utf8("winlin"));
@@ -427,7 +427,7 @@ VOID TEST(AMF0Test, ApiSize)
     }
 }
 
-VOID TEST(AMF0Test, ApiAnyElem) 
+VOID TEST(ProtocolAMF0Test, ApiAnyElem) 
 {
     SrsAmf0Any* o = NULL;
     
@@ -510,7 +510,7 @@ VOID TEST(AMF0Test, ApiAnyElem)
     }
 }
 
-VOID TEST(AMF0Test, ApiAnyIO) 
+VOID TEST(ProtocolAMF0Test, ApiAnyIO) 
 {
     SrsStream s;
     SrsAmf0Any* o = NULL;
@@ -820,7 +820,7 @@ VOID TEST(AMF0Test, ApiAnyIO)
     }
 }
 
-VOID TEST(AMF0Test, ApiAnyAssert) 
+VOID TEST(ProtocolAMF0Test, ApiAnyAssert) 
 {
     SrsStream s;
     SrsAmf0Any* o = NULL;
@@ -908,7 +908,7 @@ VOID TEST(AMF0Test, ApiAnyAssert)
     }
 }
 
-VOID TEST(AMF0Test, ApiObjectProps) 
+VOID TEST(ProtocolAMF0Test, ApiObjectProps) 
 {
     SrsAmf0Object* o = NULL;
     
@@ -986,7 +986,7 @@ VOID TEST(AMF0Test, ApiObjectProps)
     }
 }
 
-VOID TEST(AMF0Test, ApiEcmaArrayProps) 
+VOID TEST(ProtocolAMF0Test, ApiEcmaArrayProps) 
 {
     SrsAmf0EcmaArray* o = NULL;
     
@@ -1064,7 +1064,7 @@ VOID TEST(AMF0Test, ApiEcmaArrayProps)
     }
 }
 
-VOID TEST(AMF0Test, ApiStrictArray)
+VOID TEST(ProtocolAMF0Test, ApiStrictArray)
 {
     SrsStream s;
     
