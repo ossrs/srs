@@ -31,6 +31,18 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 #include <srs_kernel_file.hpp>
+#include <srs_kernel_buffer.hpp>
+
+class MockBufferReader: public ISrsBufferReader
+{
+private:
+    std::string str;
+public:
+    MockBufferReader(const char* data);
+    virtual ~MockBufferReader();
+public:
+    virtual int read(void* buf, size_t size, ssize_t* nread);
+};
 
 class MockSrsFileWriter : public SrsFileWriter
 {
