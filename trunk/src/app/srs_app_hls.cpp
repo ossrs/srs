@@ -401,6 +401,8 @@ int64_t SrsHlsAacJitter::on_buffer_start(int64_t flv_pts, int sample_rate, int a
     }
     
     // @see: ngx_rtmp_hls_audio
+    // drop the rtmp audio packet timestamp, re-calc it by sample rate.
+    // 
     // resample for the tbn of ts is 90000, flv is 1000,
     // we will lost timestamp if use audio packet timestamp,
     // so we must resample. or audio will corupt in IOS.
