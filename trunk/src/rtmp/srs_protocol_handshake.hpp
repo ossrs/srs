@@ -168,11 +168,6 @@ namespace srs
     char* srs_bytes_join_schema1(int32_t time, int32_t version, digest_block* digest, key_block* key);
     
     /**
-    * compare the memory in bytes.
-    */
-    bool srs_bytes_equals(void* pa, void* pb, int size);
-    
-    /**
     * c1s1 schema0
     *     time: 4bytes
     *     version: 4bytes

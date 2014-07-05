@@ -126,3 +126,28 @@ string srs_generate_tc_url(string ip, string vhost, string app, string port)
     
     return tcUrl;
 }
+
+/**
+* compare the memory in bytes.
+*/
+bool srs_bytes_equals(void* pa, void* pb, int size)
+{
+    u_int8_t* a = (u_int8_t*)pa;
+    u_int8_t* b = (u_int8_t*)pb;
+    
+    if (!a && !b) {
+        return true;
+    }
+    
+    if (!a || !b) {
+        return false;
+    }
+    
+    for(int i = 0; i < size; i++){
+        if(a[i] != b[i]){
+            return false;
+        }
+    }
+
+    return true;
+}

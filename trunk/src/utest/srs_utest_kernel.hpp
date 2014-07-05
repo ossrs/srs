@@ -35,6 +35,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class MockSrsFileWriter : public SrsFileWriter
 {
 public:
+    char* data;
+    int offset;
+public:
     MockSrsFileWriter();
     virtual ~MockSrsFileWriter();
 public:
@@ -45,10 +48,17 @@ public:
     virtual int64_t tellg();
 public:
     virtual int write(void* buf, size_t count, ssize_t* pnwrite);
+// for mock
+public:
+    void mock_reset_offset();
 };
 
 class MockSrsFileReader : public SrsFileReader
 {
+public:
+    char* data;
+    int size;
+    int offset;
 public:
     MockSrsFileReader();
     virtual ~MockSrsFileReader();
@@ -63,6 +73,11 @@ public:
     virtual int64_t filesize();
 public:
     virtual int read(void* buf, size_t count, ssize_t* pnread);
+// for mock
+public:
+    // append data to current offset, modify the offset and size.
+    void mock_append_data(const char* _data, int _size);
+    void mock_reset_offset();
 };
 
 #endif

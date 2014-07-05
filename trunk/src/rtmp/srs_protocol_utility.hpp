@@ -58,4 +58,9 @@ extern void srs_random_generate(char* bytes, int size);
 // generate the tcUrl.
 extern std::string srs_generate_tc_url(std::string ip, std::string vhost, std::string app, std::string port);
 
+/**
+* compare the memory in bytes.
+*/
+extern bool srs_bytes_equals(void* pa, void* pb, int size);
+
 #endif

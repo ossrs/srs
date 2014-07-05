@@ -66,7 +66,7 @@ public:
     virtual int write_header(char flv_header[9]);
     /**
     * write flv metadata. 
-    * serialize from:
+    * @param data, the amf0 metadata which serialize from:
     *   AMF0 string: onMetaData,
     *   AMF0 object: the metadata object.
     */
@@ -76,6 +76,7 @@ public:
     */
     virtual int write_audio(int64_t timestamp, char* data, int size);
     virtual int write_video(int64_t timestamp, char* data, int size);
+public:
     /**
     * get the tag size,
     * including the tag header, body, and 4bytes previous tag size.
@@ -134,13 +135,17 @@ public:
     virtual int initialize(SrsFileReader* fs);
 public:
     /**
-    * read the flv header and size.
+    * read the flv header and its size.
+    * @param header, fill it 13bytes(9bytes header, 4bytes previous tag size).
     */
-    virtual int read_header(char** pdata, int* psize);
+    virtual int read_header_ext(char header[13]);
     /**
-    * read the sequence header and size.
+    * read the sequence header tags offset and its size.
+    * @param pstart, the start offset of sequence header.
+    * @param psize, output the size, (tag header)+(tag body)+(4bytes previous tag size).
+    * @remark we think the first audio/video is sequence header.
     */
-    virtual int read_sequence_header(int64_t* pstart, int* psize);
+    virtual int read_sequence_header_summary(int64_t* pstart, int* psize);
 public:
     /**
     * for start offset, seed to this position and response flv stream.

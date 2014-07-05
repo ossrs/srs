@@ -27,91 +27,153 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_flv.hpp>
+#include <srs_kernel_utility.hpp>
+#include <srs_protocol_utility.hpp>
+
+#define MAX_MOCK_DATA_SIZE 1024 * 1024
 
 MockSrsFileWriter::MockSrsFileWriter()
 {
+    data = new char[MAX_MOCK_DATA_SIZE];
+    offset = -1;
 }
 
 MockSrsFileWriter::~MockSrsFileWriter()
 {
+    srs_freep(data);
 }
 
-int MockSrsFileWriter::open(string file)
+int MockSrsFileWriter::open(string /*file*/)
 {
     int ret = ERROR_SUCCESS;
+    
+    offset = 0;
+    
     return ret;
 }
 
 void MockSrsFileWriter::close()
 {
-    int ret = ERROR_SUCCESS;
-    return;
+    offset = 0;
 }
 
 bool MockSrsFileWriter::is_open()
 {
-    return true;
+    return offset >= 0;
 }
 
 int64_t MockSrsFileWriter::tellg()
 {
-    return 0;
+    return offset;
 }
 
 int MockSrsFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
 {
     int ret = ERROR_SUCCESS;
+    
+    int size = srs_min(MAX_MOCK_DATA_SIZE - offset, count);
+    
+    memcpy(data + offset, buf, size);
+
+    if (pnwrite) {
+        *pnwrite = size;
+    }
+    
+    offset += size;
+    
     return ret;
+}
+
+void MockSrsFileWriter::mock_reset_offset()
+{
+    offset = 0;
 }
 
 MockSrsFileReader::MockSrsFileReader()
 {
+    data = new char[MAX_MOCK_DATA_SIZE];
+    size = 0;
+    offset = -1;
 }
 
 MockSrsFileReader::~MockSrsFileReader()
 {
+    srs_freep(data);
 }
 
-int MockSrsFileReader::open(string file)
+int MockSrsFileReader::open(string /*file*/)
 {
     int ret = ERROR_SUCCESS;
+    
+    offset = 0;
+    
     return ret;
 }
 
 void MockSrsFileReader::close()
 {
-    int ret = ERROR_SUCCESS;
-    return;
+    offset = 0;
 }
 
 bool MockSrsFileReader::is_open()
 {
-    return true;
+    return offset >= 0;
 }
 
 int64_t MockSrsFileReader::tellg()
 {
-    return 0;
+    return offset;
 }
 
-void MockSrsFileReader::skip(int64_t size)
+void MockSrsFileReader::skip(int64_t _size)
 {
+    offset += _size;
 }
 
-int64_t MockSrsFileReader::lseek(int64_t offset)
+int64_t MockSrsFileReader::lseek(int64_t _offset)
 {
+    offset = (int)_offset;
     return offset;
 }
 
 int64_t MockSrsFileReader::filesize()
 {
-    return 0;
+    return size;
 }
 
 int MockSrsFileReader::read(void* buf, size_t count, ssize_t* pnread)
 {
     int ret = ERROR_SUCCESS;
+    
+    int s = srs_min(size - offset, (int)count);
+    
+    if (s <= 0) {
+        return ret;
+    }
+    
+    memcpy(buf, data + offset, s);
+
+    if (pnread) {
+        *pnread = s;
+    }
+    
+    offset += s;
+    
     return ret;
+}
+
+void MockSrsFileReader::mock_append_data(const char* _data, int _size)
+{
+    int s = srs_min(MAX_MOCK_DATA_SIZE - offset, _size);
+    memcpy(data + offset, _data, s);
+    
+    offset += s;
+    size += s;
+}
+
+void MockSrsFileReader::mock_reset_offset()
+{
+    offset = 0;
 }
 
 VOID TEST(KernelCodecTest, IsKeyFrame)
@@ -196,9 +258,431 @@ VOID TEST(KernelCodecTest, IsAudioSequenceHeader)
     EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 2));
 }
 
-VOID TEST(KernelFlvTest, IsAudioSequenceHeader)
+VOID TEST(KernelFlvTest, FlvEncoderStreamClosed)
 {
     MockSrsFileWriter fs;
     SrsFlvEncoder enc;
+    ASSERT_TRUE(ERROR_SUCCESS != enc.initialize(&fs));
+}
+
+VOID TEST(KernelFlvTest, FlvEncoderWriteHeader)
+{
+    MockSrsFileWriter fs;
+    SrsFlvEncoder enc;
+    ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
     ASSERT_TRUE(ERROR_SUCCESS == enc.initialize(&fs));
+    
+    // write header, 9bytes
+    char flv_header[] = {
+        'F', 'L', 'V', // Signatures "FLV"
+        (char)0x01, // File version (for example, 0x01 for FLV version 1)
+        (char)0x00, // 4, audio; 1, video; 5 audio+video.
+        (char)0x00, (char)0x00, (char)0x00, (char)0x09 // DataOffset UI32 The length of this header in bytes
+    };
+    char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)0x00 };
+    
+    EXPECT_TRUE(ERROR_SUCCESS == enc.write_header());
+    ASSERT_TRUE(9 + 4 == fs.offset);
+    
+    EXPECT_TRUE(srs_bytes_equals(flv_header, fs.data, 9));
+    EXPECT_TRUE(srs_bytes_equals(pts, fs.data + 9, 4));
+
+    // customer header
+    flv_header[3] = 0xF0;
+    flv_header[4] = 0xF1;
+    flv_header[5] = 0x01;
+    
+    fs.mock_reset_offset();
+    
+    EXPECT_TRUE(ERROR_SUCCESS == enc.write_header(flv_header));
+    ASSERT_TRUE(9 + 4 == fs.offset);
+    
+    EXPECT_TRUE(srs_bytes_equals(flv_header, fs.data, 9));
+    EXPECT_TRUE(srs_bytes_equals(pts, fs.data + 9, 4));
+}
+
+VOID TEST(KernelFlvTest, FlvEncoderWriteMetadata)
+{
+    MockSrsFileWriter fs;
+    EXPECT_TRUE(ERROR_SUCCESS == fs.open(""));
+    SrsFlvEncoder enc;
+    ASSERT_TRUE(ERROR_SUCCESS == enc.initialize(&fs));
+    
+    // 11 bytes tag header
+    char tag_header[] = {
+        (char)18, // TagType UB [5], 18 = script data
+        (char)0x00, (char)0x00, (char)0x08, // DataSize UI24 Length of the message.
+        (char)0x00, (char)0x00, (char)0x00, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
+        (char)0x00, // TimestampExtended UI8
+        (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
+    };
+    char md[] = {
+        (char)0x01, (char)0x02, (char)0x03, (char)0x04,
+        (char)0x04, (char)0x03, (char)0x02, (char)0x01
+    };
+    char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)19 };
+    
+    ASSERT_TRUE(ERROR_SUCCESS == enc.write_metadata(md, 8));
+    ASSERT_TRUE(11 + 8 + 4 == fs.offset);
+    
+    EXPECT_TRUE(srs_bytes_equals(tag_header, fs.data, 11));
+    EXPECT_TRUE(srs_bytes_equals(md, fs.data + 11, 8));
+    EXPECT_TRUE(true); // donot know why, if not add it, the print is disabled.
+    EXPECT_TRUE(srs_bytes_equals(pts, fs.data + 19, 4));
+}
+
+VOID TEST(KernelFlvTest, FlvEncoderWriteAudio)
+{
+    MockSrsFileWriter fs;
+    SrsFlvEncoder enc;
+    ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
+    ASSERT_TRUE(ERROR_SUCCESS == enc.initialize(&fs));
+    
+    // 11bytes tag header
+    char tag_header[] = {
+        (char)8, // TagType UB [5], 8 = audio
+        (char)0x00, (char)0x00, (char)0x08, // DataSize UI24 Length of the message.
+        (char)0x00, (char)0x00, (char)0x30, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
+        (char)0x00, // TimestampExtended UI8
+        (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
+    };
+    char audio[] = {
+        (char)0x01, (char)0x02, (char)0x03, (char)0x04,
+        (char)0x04, (char)0x03, (char)0x02, (char)0x01
+    };
+    char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)19 };
+    
+    ASSERT_TRUE(ERROR_SUCCESS == enc.write_audio(0x30, audio, 8));
+    ASSERT_TRUE(11 + 8 + 4 == fs.offset);
+    
+    EXPECT_TRUE(srs_bytes_equals(tag_header, fs.data, 11));
+    EXPECT_TRUE(srs_bytes_equals(audio, fs.data + 11, 8));
+    EXPECT_TRUE(true); // donot know why, if not add it, the print is disabled.
+    EXPECT_TRUE(srs_bytes_equals(pts, fs.data + 11 + 8, 4));
+}
+
+VOID TEST(KernelFlvTest, FlvEncoderWriteVideo)
+{
+    MockSrsFileWriter fs;
+    SrsFlvEncoder enc;
+    ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
+    ASSERT_TRUE(ERROR_SUCCESS == enc.initialize(&fs));
+    
+    // 11bytes tag header
+    char tag_header[] = {
+        (char)9, // TagType UB [5], 9 = video
+        (char)0x00, (char)0x00, (char)0x08, // DataSize UI24 Length of the message.
+        (char)0x00, (char)0x00, (char)0x30, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
+        (char)0x00, // TimestampExtended UI8
+        (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
+    };
+    char video[] = {
+        (char)0x01, (char)0x02, (char)0x03, (char)0x04,
+        (char)0x04, (char)0x03, (char)0x02, (char)0x01
+    };
+    char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)19 };
+    
+    ASSERT_TRUE(ERROR_SUCCESS == enc.write_video(0x30, video, 8));
+    ASSERT_TRUE(11 + 8 + 4 == fs.offset);
+    
+    EXPECT_TRUE(srs_bytes_equals(tag_header, fs.data, 11));
+    EXPECT_TRUE(srs_bytes_equals(video, fs.data + 11, 8));
+    EXPECT_TRUE(true); // donot know why, if not add it, the print is disabled.
+    EXPECT_TRUE(srs_bytes_equals(pts, fs.data + 11 + 8, 4));
+}
+
+VOID TEST(KernelFlvTest, FlvEncoderSizeTag)
+{
+    EXPECT_EQ(11+4+10, SrsFlvEncoder::size_tag(10));
+    EXPECT_EQ(11+4+0, SrsFlvEncoder::size_tag(0));
+}
+
+VOID TEST(KernelFlvTest, FlvDecoderStreamClosed)
+{
+    MockSrsFileReader fs;
+    SrsFlvDecoder dec;
+    ASSERT_TRUE(ERROR_SUCCESS != dec.initialize(&fs));
+}
+
+VOID TEST(KernelFlvTest, FlvDecoderHeader)
+{
+    MockSrsFileReader fs;
+    SrsFlvDecoder dec;
+    ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
+    ASSERT_TRUE(ERROR_SUCCESS == dec.initialize(&fs));
+    
+    // 9bytes
+    char flv_header[] = {
+        'F', 'L', 'V', // Signatures "FLV"
+        (char)0x01, // File version (for example, 0x01 for FLV version 1)
+        (char)0x00, // 4, audio; 1, video; 5 audio+video.
+        (char)0x00, (char)0x00, (char)0x00, (char)0x09 // DataOffset UI32 The length of this header in bytes
+    };
+    char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)0x00 };
+    fs.mock_append_data(flv_header, 9);
+    fs.mock_append_data(pts, 4);
+    
+    char data[1024];
+    fs.mock_reset_offset();
+    
+    EXPECT_TRUE(ERROR_SUCCESS == dec.read_header(data));
+    EXPECT_TRUE(srs_bytes_equals(flv_header, data, 9));
+    
+    EXPECT_TRUE(ERROR_SUCCESS == dec.read_previous_tag_size(data));
+    EXPECT_TRUE(srs_bytes_equals(pts, data, 4));
+}
+
+VOID TEST(KernelFlvTest, FlvDecoderMetadata)
+{
+    MockSrsFileReader fs;
+    SrsFlvDecoder dec;
+    ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
+    ASSERT_TRUE(ERROR_SUCCESS == dec.initialize(&fs));
+    
+    // 11 bytes tag header
+    char tag_header[] = {
+        (char)18, // TagType UB [5], 18 = script data
+        (char)0x00, (char)0x00, (char)0x08, // DataSize UI24 Length of the message.
+        (char)0x00, (char)0x00, (char)0x00, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
+        (char)0x00, // TimestampExtended UI8
+        (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
+    };
+    char md[] = {
+        (char)0x01, (char)0x02, (char)0x03, (char)0x04,
+        (char)0x04, (char)0x03, (char)0x02, (char)0x01
+    };
+    char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)19 };
+    fs.mock_append_data(tag_header, 11);
+    fs.mock_append_data(md, 8);
+    fs.mock_append_data(pts, 4);
+    
+    char type = 0;
+    int32_t size = 0;
+    u_int32_t time = 0;
+    char data[1024];
+    fs.mock_reset_offset();
+    
+    EXPECT_TRUE(ERROR_SUCCESS == dec.read_tag_header(&type, &size, &time));
+    EXPECT_TRUE(18 == type);
+    EXPECT_TRUE(8 == size);
+    EXPECT_TRUE(0 == time);
+    
+    EXPECT_TRUE(ERROR_SUCCESS == dec.read_tag_data(data, size));
+    EXPECT_TRUE(srs_bytes_equals(md, data, 8));
+    
+    EXPECT_TRUE(ERROR_SUCCESS == dec.read_previous_tag_size(data));
+    EXPECT_TRUE(srs_bytes_equals(pts, data, 4));
+}
+
+VOID TEST(KernelFlvTest, FlvDecoderAudio)
+{
+    MockSrsFileReader fs;
+    SrsFlvDecoder dec;
+    ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
+    ASSERT_TRUE(ERROR_SUCCESS == dec.initialize(&fs));
+    
+    // 11bytes tag header
+    char tag_header[] = {
+        (char)8, // TagType UB [5], 8 = audio
+        (char)0x00, (char)0x00, (char)0x08, // DataSize UI24 Length of the message.
+        (char)0x00, (char)0x00, (char)0x30, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
+        (char)0x00, // TimestampExtended UI8
+        (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
+    };
+    char audio[] = {
+        (char)0x01, (char)0x02, (char)0x03, (char)0x04,
+        (char)0x04, (char)0x03, (char)0x02, (char)0x01
+    };
+    char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)19 };
+    fs.mock_append_data(tag_header, 11);
+    fs.mock_append_data(audio, 8);
+    fs.mock_append_data(pts, 4);
+    
+    char type = 0;
+    int32_t size = 0;
+    u_int32_t time = 0;
+    char data[1024];
+    fs.mock_reset_offset();
+    
+    EXPECT_TRUE(ERROR_SUCCESS == dec.read_tag_header(&type, &size, &time));
+    EXPECT_TRUE(8 == type);
+    EXPECT_TRUE(8 == size);
+    EXPECT_TRUE(0x30 == time);
+    
+    EXPECT_TRUE(ERROR_SUCCESS == dec.read_tag_data(data, size));
+    EXPECT_TRUE(srs_bytes_equals(audio, data, 8));
+    
+    EXPECT_TRUE(ERROR_SUCCESS == dec.read_previous_tag_size(data));
+    EXPECT_TRUE(srs_bytes_equals(pts, data, 4));
+}
+
+VOID TEST(KernelFlvTest, FlvDecoderVideo)
+{
+    MockSrsFileReader fs;
+    SrsFlvDecoder dec;
+    ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
+    ASSERT_TRUE(ERROR_SUCCESS == dec.initialize(&fs));
+    
+    // 11bytes tag header
+    char tag_header[] = {
+        (char)9, // TagType UB [5], 9 = video
+        (char)0x00, (char)0x00, (char)0x08, // DataSize UI24 Length of the message.
+        (char)0x00, (char)0x00, (char)0x30, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
+        (char)0x00, // TimestampExtended UI8
+        (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
+    };
+    char video[] = {
+        (char)0x01, (char)0x02, (char)0x03, (char)0x04,
+        (char)0x04, (char)0x03, (char)0x02, (char)0x01
+    };
+    char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)19 };
+    fs.mock_append_data(tag_header, 11);
+    fs.mock_append_data(video, 8);
+    fs.mock_append_data(pts, 4);
+    
+    char type = 0;
+    int32_t size = 0;
+    u_int32_t time = 0;
+    char data[1024];
+    fs.mock_reset_offset();
+    
+    EXPECT_TRUE(ERROR_SUCCESS == dec.read_tag_header(&type, &size, &time));
+    EXPECT_TRUE(9 == type);
+    EXPECT_TRUE(8 == size);
+    EXPECT_TRUE(0x30 == time);
+    
+    EXPECT_TRUE(ERROR_SUCCESS == dec.read_tag_data(data, size));
+    EXPECT_TRUE(srs_bytes_equals(video, data, 8));
+    
+    EXPECT_TRUE(ERROR_SUCCESS == dec.read_previous_tag_size(data));
+    EXPECT_TRUE(srs_bytes_equals(pts, data, 4));
+}
+
+VOID TEST(KernelFlvTest, FlvVSDecoderStreamClosed)
+{
+    MockSrsFileReader fs;
+    SrsFlvVodStreamDecoder dec;
+    ASSERT_TRUE(ERROR_SUCCESS != dec.initialize(&fs));
+}
+
+VOID TEST(KernelFlvTest, FlvVSDecoderHeader)
+{
+    MockSrsFileReader fs;
+    SrsFlvVodStreamDecoder dec;
+    
+    ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
+    ASSERT_TRUE(ERROR_SUCCESS == dec.initialize(&fs));
+    
+    // 9bytes
+    char flv_header[] = {
+        'F', 'L', 'V', // Signatures "FLV"
+        (char)0x01, // File version (for example, 0x01 for FLV version 1)
+        (char)0x00, // 4, audio; 1, video; 5 audio+video.
+        (char)0x00, (char)0x00, (char)0x00, (char)0x09 // DataOffset UI32 The length of this header in bytes
+    };
+    char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)0x00 };
+    fs.mock_append_data(flv_header, 9);
+    fs.mock_append_data(pts, 4);
+    
+    char data[1024];
+    fs.mock_reset_offset();
+    
+    EXPECT_TRUE(ERROR_SUCCESS == dec.read_header_ext(data));
+    EXPECT_TRUE(srs_bytes_equals(flv_header, data, 9));
+}
+
+VOID TEST(KernelFlvTest, FlvVSDecoderSequenceHeader)
+{
+    MockSrsFileReader fs;
+    SrsFlvVodStreamDecoder dec;
+    ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
+    ASSERT_TRUE(ERROR_SUCCESS == dec.initialize(&fs));
+    
+    if (true) {
+        // 11 bytes tag header
+        char tag_header[] = {
+            (char)18, // TagType UB [5], 18 = script data
+            (char)0x00, (char)0x00, (char)0x08, // DataSize UI24 Length of the message.
+            (char)0x00, (char)0x00, (char)0x00, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
+            (char)0x00, // TimestampExtended UI8
+            (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
+        };
+        char md[] = {
+            (char)0x01, (char)0x02, (char)0x03, (char)0x04,
+            (char)0x04, (char)0x03, (char)0x02, (char)0x01
+        };
+        char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)19 };
+        fs.mock_append_data(tag_header, 11);
+        fs.mock_append_data(md, 8);
+        fs.mock_append_data(pts, 4);
+    }
+    if (true) {
+        // 11bytes tag header
+        char tag_header[] = {
+            (char)8, // TagType UB [5], 8 = audio
+            (char)0x00, (char)0x00, (char)0x08, // DataSize UI24 Length of the message.
+            (char)0x00, (char)0x00, (char)0x30, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
+            (char)0x00, // TimestampExtended UI8
+            (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
+        };
+        char audio[] = {
+            (char)0x01, (char)0x02, (char)0x03, (char)0x04,
+            (char)0x04, (char)0x03, (char)0x02, (char)0x01
+        };
+        char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)19 };
+        fs.mock_append_data(tag_header, 11);
+        fs.mock_append_data(audio, 8);
+        fs.mock_append_data(pts, 4);
+    }
+    if (true) {
+        // 11bytes tag header
+        char tag_header[] = {
+            (char)9, // TagType UB [5], 9 = video
+            (char)0x00, (char)0x00, (char)0x08, // DataSize UI24 Length of the message.
+            (char)0x00, (char)0x00, (char)0x30, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
+            (char)0x00, // TimestampExtended UI8
+            (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
+        };
+        char video[] = {
+            (char)0x01, (char)0x02, (char)0x03, (char)0x04,
+            (char)0x04, (char)0x03, (char)0x02, (char)0x01
+        };
+        char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)19 };
+        fs.mock_append_data(tag_header, 11);
+        fs.mock_append_data(video, 8);
+        fs.mock_append_data(pts, 4);
+    }
+    
+    fs.mock_reset_offset();
+    
+    int64_t start = 0;
+    int size = 0;
+    EXPECT_TRUE(ERROR_SUCCESS == dec.read_sequence_header_summary(&start, &size));
+    EXPECT_TRUE(23 == start);
+    EXPECT_TRUE(46 == size);
+}
+
+VOID TEST(KernelFlvTest, FlvVSDecoderSeek)
+{
+    MockSrsFileReader fs;
+    SrsFlvVodStreamDecoder dec;
+    ASSERT_TRUE(ERROR_SUCCESS == fs.open(""));
+    ASSERT_TRUE(ERROR_SUCCESS == dec.initialize(&fs));
+    
+    // 11bytes tag header
+    char tag_header[] = {
+        (char)8, // TagType UB [5], 8 = audio
+        (char)0x00, (char)0x00, (char)0x08, // DataSize UI24 Length of the message.
+        (char)0x00, (char)0x00, (char)0x30, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
+        (char)0x00, // TimestampExtended UI8
+        (char)0x00, (char)0x00, (char)0x00, // StreamID UI24 Always 0.
+    };
+    fs.mock_append_data(tag_header, 11);
+    EXPECT_TRUE(11 == fs.offset);
+
+    EXPECT_TRUE(ERROR_SUCCESS == dec.lseek(0));
+    EXPECT_TRUE(0 == fs.offset);
+
+    EXPECT_TRUE(ERROR_SUCCESS == dec.lseek(5));
+    EXPECT_TRUE(5 == fs.offset);
 }

@@ -119,8 +119,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_SYSTEM_FILE_RENAME            429
 #define ERROR_SYSTEM_CREATE_PIPE            430
 #define ERROR_SYSTEM_FILE_SEEK              431
-#define ERROR_SYSTEM_FLV_HEADER             432
-#define ERROR_SYSTEM_IO_INVALID             433
+#define ERROR_SYSTEM_IO_INVALID             432
 
 // see librtmp.
 // failed when open ssl create the dh
@@ -189,12 +188,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_HTTP_FLV_SEQUENCE_HEADER      806
 #define ERROR_HTTP_FLV_OFFSET_OVERFLOW      807
 
+#define ERROR_KERNEL_FLV_HEADER             900
+#define ERROR_KERNEL_FLV_STREAM_CLOSED      901
+
 // system control message, 
 // not an error, but special control logic.
 // sys ctl: rtmp close stream, support replay.
-#define ERROR_CONTROL_RTMP_CLOSE            900
+#define ERROR_CONTROL_RTMP_CLOSE            2000
 // FMLE stop publish and republish.
-#define ERROR_CONTROL_REPUBLISH             901
+#define ERROR_CONTROL_REPUBLISH             2001
 
 /**
 * whether the error code is an system control error.

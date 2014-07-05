@@ -312,14 +312,12 @@ int SrsHttpVhost::response_flv_file2(SrsSocket* skt, SrsHttpMessage* req, string
     }
     
     // save header, send later.
-    char* flv_header = NULL;
-    int flv_size = 0;
+    char flv_header[13];
     
     // send flv header
-    if ((ret = ffd.read_header(&flv_header, &flv_size)) != ERROR_SUCCESS) {
+    if ((ret = ffd.read_header_ext(flv_header)) != ERROR_SUCCESS) {
         return ret;
     }
-    SrsAutoFree(char, flv_header);
     
     // save sequence header, send later
     char* sh_data = NULL;
@@ -328,7 +326,7 @@ int SrsHttpVhost::response_flv_file2(SrsSocket* skt, SrsHttpMessage* req, string
     if (true) {
         // send sequence header
         int64_t start = 0;
-        if ((ret = ffd.read_sequence_header(&start, &sh_size)) != ERROR_SUCCESS) {
+        if ((ret = ffd.read_sequence_header_summary(&start, &sh_size)) != ERROR_SUCCESS) {
             return ret;
         }
         if (sh_size <= 0) {
@@ -350,7 +348,7 @@ int SrsHttpVhost::response_flv_file2(SrsSocket* skt, SrsHttpMessage* req, string
     std::stringstream ss;
 
     res_status_line(ss)->res_content_type_flv(ss)
-        ->res_content_length(ss, (int)(flv_size + sh_size + left));
+        ->res_content_length(ss, (int)(sizeof(flv_header) + sh_size + left));
         
     if (req->requires_crossdomain()) {
         res_enable_crossdomain(ss);
@@ -363,7 +361,7 @@ int SrsHttpVhost::response_flv_file2(SrsSocket* skt, SrsHttpMessage* req, string
         return ret;
     }
     
-    if (flv_size > 0 && (ret = skt->write(flv_header, flv_size, NULL)) != ERROR_SUCCESS) {
+    if ((ret = skt->write(flv_header, sizeof(flv_header), NULL)) != ERROR_SUCCESS) {
         return ret;
     }
     if (sh_size > 0 && (ret = skt->write(sh_data, sh_size, NULL)) != ERROR_SUCCESS) {
