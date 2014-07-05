@@ -123,7 +123,6 @@ SrsApiV1::SrsApiV1()
     handlers.push_back(new SrsApiSystemProcStats());
     handlers.push_back(new SrsApiMemInfos());
     handlers.push_back(new SrsApiAuthors());
-    handlers.push_back(new SrsApiConfigs());
     handlers.push_back(new SrsApiRequests());
 }
 
@@ -149,7 +148,6 @@ int SrsApiV1::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
             << JFIELD_STR("self_proc_stats", "the self process stats") << JFIELD_CONT
             << JFIELD_STR("system_proc_stats", "the system process stats") << JFIELD_CONT
             << JFIELD_STR("meminfos", "the meminfo of system") << JFIELD_CONT
-            << JFIELD_STR("configs", "to query or modify the config of srs") << JFIELD_CONT
             << JFIELD_STR("authors", "the primary authors and contributors") << JFIELD_CONT
             << JFIELD_STR("requests", "the request itself, for http debug")
         << JOBJECT_END
@@ -220,120 +218,6 @@ int SrsApiRequests::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
         << JOBJECT_END;
     
     return res_json(skt, req, ss.str());
-}
-
-SrsApiConfigs::SrsApiConfigs()
-{
-    handlers.push_back(new SrsApiConfigsLogs());
-}
-
-SrsApiConfigs::~SrsApiConfigs()
-{
-}
-
-bool SrsApiConfigs::can_handle(const char* path, int length, const char** /*pchild*/)
-{
-    return srs_path_equals("/configs", path, length);
-}
-
-int SrsApiConfigs::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
-{
-    std::stringstream ss;
-    
-    ss << JOBJECT_START
-        << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
-        << JFIELD_ORG("urls", JOBJECT_START)
-            << JFIELD_NAME("logs") << JOBJECT_START
-                << JFIELD_STR("uri", req->uri()+"/logs") << JFIELD_CONT
-                << JFIELD_STR("desc", "system log settings") << JFIELD_CONT
-                << JFIELD_STR("GET", "query logs tank/level/file") << JFIELD_CONT
-                << JFIELD_STR("PUT", "update logs tank/level/file")
-            << JOBJECT_END
-        << JOBJECT_END
-        << JOBJECT_END;
-    
-    return res_json(skt, req, ss.str());
-}
-
-SrsApiConfigsLogs::SrsApiConfigsLogs()
-{
-}
-
-SrsApiConfigsLogs::~SrsApiConfigsLogs()
-{
-}
-
-bool SrsApiConfigsLogs::can_handle(const char* path, int length, const char** /*pchild*/)
-{
-    return srs_path_equals("/logs", path, length);
-}
-
-bool SrsApiConfigsLogs::is_handler_valid(SrsHttpMessage* req, int& status_code, string& reason_phrase) 
-{
-    if (!req->is_http_get() && !req->is_http_put()) {
-        status_code = HTTP_MethodNotAllowed;
-        reason_phrase = HTTP_MethodNotAllowed_str;
-        
-        return false;
-    }
-    
-    return SrsHttpHandler::is_handler_valid(req, status_code, reason_phrase);
-}
-
-int SrsApiConfigsLogs::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
-{
-    int ret = ERROR_SUCCESS;
-    
-    // HTTP GET
-    if (req->is_http_get()) {
-        std::stringstream ss;
-        ss << JOBJECT_START
-            << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
-            << JFIELD_ORG("data", JOBJECT_START)
-                << JFIELD_STR("tank", (_srs_config->get_log_tank_file()? "file":"console")) << JFIELD_CONT
-                << JFIELD_STR("level", _srs_config->get_log_level()) << JFIELD_CONT
-                << JFIELD_STR("cwd", _srs_config->cwd()) << JFIELD_CONT
-                << JFIELD_STR("file", _srs_config->get_log_file())
-            << JOBJECT_END
-            << JOBJECT_END;
-        
-        return res_json(skt, req, ss.str());
-    }
-    
-    // HTTP PUT
-    srs_trace("http api PUT logs, req is: %s", req->body().c_str());
-    
-    SrsJsonAny* json = SrsJsonAny::loads(req->body_raw());
-    SrsAutoFree(SrsJsonAny, json);
-    
-    if (!json) {
-        return response_error(skt, req, ERROR_HTTP_API_LOGS, "invalid PUT json");
-    } else if (!json->is_object()) {
-        return response_error(skt, req, ERROR_HTTP_API_LOGS, "invalid PUT json logs params");
-    }
-    
-    SrsJsonObject* o = json->to_object();
-    SrsJsonAny* prop = NULL;
-    if ((prop = o->ensure_property_string("file")) != NULL && _srs_config->set_log_file(prop->to_str())) {
-        if ((ret = _srs_config->force_reload_log_file()) != ERROR_SUCCESS) {
-            return response_error(skt, req, ret, "reload log file failed");
-        }
-        srs_warn("http api reload log file to %s", prop->to_str().c_str());
-    }
-    if ((prop = o->ensure_property_string("tank")) != NULL && _srs_config->set_log_tank(prop->to_str())) {
-        if ((ret = _srs_config->force_reload_log_tank()) != ERROR_SUCCESS) {
-            return response_error(skt, req, ret, "reload log tank failed");
-        }
-        srs_warn("http api reload log tank to %s", prop->to_str().c_str());
-    }
-    if ((prop = o->ensure_property_string("level")) != NULL && _srs_config->set_log_level(prop->to_str())) {
-        if ((ret = _srs_config->force_reload_log_level()) != ERROR_SUCCESS) {
-            return response_error(skt, req, ret, "reload log level failed");
-        }
-        srs_warn("http api reload log level to %s", prop->to_str().c_str());
-    }
-    
-    return response_error(skt, req, ret, "PUT logs success.");
 }
 
 SrsApiVersion::SrsApiVersion()

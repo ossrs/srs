@@ -539,23 +539,38 @@ int SrsConfig::reload()
     
     // merge config: srs_log_tank
     if (!srs_directive_equals(root->get("srs_log_tank"), old_root->get("srs_log_tank"))) {
-        if ((ret = force_reload_log_tank()) != ERROR_SUCCESS) {
-            return ret;
+        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((ret = subscribe->on_reload_log_tank()) != ERROR_SUCCESS) {
+                srs_error("notify subscribes reload srs_log_tank failed. ret=%d", ret);
+                return ret;
+            }
         }
+        srs_trace("reload srs_log_tank success.");
     }
     
     // merge config: srs_log_level
     if (!srs_directive_equals(root->get("srs_log_level"), old_root->get("srs_log_level"))) {
-        if ((ret = force_reload_log_level()) != ERROR_SUCCESS) {
-            return ret;
+        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((ret = subscribe->on_reload_log_level()) != ERROR_SUCCESS) {
+                srs_error("notify subscribes reload srs_log_level failed. ret=%d", ret);
+                return ret;
+            }
         }
+        srs_trace("reload srs_log_level success.");
     }
     
     // merge config: srs_log_file
     if (!srs_directive_equals(root->get("srs_log_file"), old_root->get("srs_log_file"))) {
-        if ((ret = force_reload_log_file()) != ERROR_SUCCESS) {
-            return ret;
+        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((ret = subscribe->on_reload_log_file()) != ERROR_SUCCESS) {
+                srs_error("notify subscribes reload srs_log_file failed. ret=%d", ret);
+                return ret;
+            }
         }
+        srs_trace("reload srs_log_file success.");
     }
     
     // merge config: pithy_print
@@ -601,102 +616,6 @@ SrsConfDirective* SrsConfig::get_or_create(SrsConfDirective* node, string name)
     }
     
     return conf;
-}
-
-bool SrsConfig::set_log_file(string file)
-{
-    if (file == get_log_file()) {
-        return false;
-    }
-    
-    SrsConfDirective* conf = get_or_create(root, "srs_log_file");
-    srs_assert(conf);
-    conf->set_arg0(file);
-    
-    return true;
-}
-
-bool SrsConfig::set_log_tank(string tank)
-{
-    if (get_log_tank_file() && tank != "console") {
-        return false;
-    }
-    if (!get_log_tank_file() && tank == "console") {
-        return false;
-    }
-    
-    SrsConfDirective* conf = get_or_create(root, "srs_log_tank");
-    srs_assert(conf);
-    conf->set_arg0(tank);
-    
-    return true;
-}
-
-bool SrsConfig::set_log_level(string level)
-{
-    if (level == get_log_level()) {
-        return false;
-    }
-    
-    SrsConfDirective* conf = get_or_create(root, "srs_log_level");
-    srs_assert(conf);
-    conf->set_arg0(level);
-    
-    return true;
-}
-
-int SrsConfig::force_reload_log_file()
-{
-    int ret = ERROR_SUCCESS;
-    
-    std::vector<ISrsReloadHandler*>::iterator it;
-    
-    for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-        ISrsReloadHandler* subscribe = *it;
-        if ((ret = subscribe->on_reload_log_file()) != ERROR_SUCCESS) {
-            srs_error("notify subscribes reload srs_log_file failed. ret=%d", ret);
-            return ret;
-        }
-    }
-    srs_trace("reload srs_log_file success.");
-    
-    return ret;
-}
-
-int SrsConfig::force_reload_log_tank()
-{
-    int ret = ERROR_SUCCESS;
-    
-    std::vector<ISrsReloadHandler*>::iterator it;
-    
-    for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-        ISrsReloadHandler* subscribe = *it;
-        if ((ret = subscribe->on_reload_log_tank()) != ERROR_SUCCESS) {
-            srs_error("notify subscribes reload srs_log_tank failed. ret=%d", ret);
-            return ret;
-        }
-    }
-    srs_trace("reload srs_log_tank success.");
-    
-    return ret;
-}
-
-int SrsConfig::force_reload_log_level()
-{
-    int ret = ERROR_SUCCESS;
-    
-    std::vector<ISrsReloadHandler*>::iterator it;
-    
-    for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-        ISrsReloadHandler* subscribe = *it;
-        if ((ret = subscribe->on_reload_log_level()) != ERROR_SUCCESS) {
-            srs_error("notify subscribes reload srs_log_level failed. ret=%d", ret);
-            return ret;
-        }
-    }
-    srs_trace("reload srs_log_level success.");
-    
-    return ret;
 }
 
 int SrsConfig::reload_http_api(SrsConfDirective* old_root)

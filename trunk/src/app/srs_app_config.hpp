@@ -143,18 +143,6 @@ public:
     virtual int reload();
 private:
     virtual SrsConfDirective* get_or_create(SrsConfDirective* node, std::string name);
-public:
-    /**
-    * dynamic set the config, for instance, for http api to set,
-    * @return ture if config changed and need to reload.
-    */
-    virtual bool set_log_file(std::string file);
-    virtual bool set_log_tank(std::string tank);
-    virtual bool set_log_level(std::string level);
-public:
-    virtual int force_reload_log_file();
-    virtual int force_reload_log_tank();
-    virtual int force_reload_log_level();
 private:
     virtual int reload_http_api(SrsConfDirective* old_root);
     virtual int reload_http_stream(SrsConfDirective* old_root);
