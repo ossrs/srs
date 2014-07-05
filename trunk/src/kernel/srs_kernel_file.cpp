@@ -33,6 +33,7 @@ using namespace std;
 
 SrsFileWriter::SrsFileWriter()
 {
+    fd = -1;
 }
 
 SrsFileWriter::~SrsFileWriter()

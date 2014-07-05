@@ -108,7 +108,7 @@ SrsAvcAacCodec::SrsAvcAacCodec()
     avc_profile             = 0;
     avc_level                 = 0;
     aac_profile                = 0;
-    aac_sample_rate            = 0;
+    aac_sample_rate            = _SRS_AAC_SAMPLE_RATE_UNSET; // sample rate ignored
     aac_channels            = 0;
     avc_extra_size             = 0;
     avc_extra_data             = NULL;
@@ -165,25 +165,6 @@ int SrsAvcAacCodec::audio_aac_demux(int8_t* data, int size, SrsCodecSample* samp
     sample->sound_type = (SrsCodecAudioSoundType)sound_type;
     sample->sound_rate = (SrsCodecAudioSampleRate)sound_rate;
     sample->sound_size = (SrsCodecAudioSampleSize)sound_size;
-    
-    // reset the sample rate by sequence header
-    static int aac_sample_rates[] = {
-        96000, 88200, 64000, 48000,
-        44100, 32000, 24000, 22050,
-        16000, 12000, 11025,  8000,
-        7350,     0,     0,    0
-    };
-    switch (aac_sample_rates[aac_sample_rate]) {
-        case 11025:
-            sample->sound_rate = SrsCodecAudioSampleRate11025;
-            break;
-        case 22050:
-            sample->sound_rate = SrsCodecAudioSampleRate22050;
-            break;
-        case 44100:
-            sample->sound_rate = SrsCodecAudioSampleRate44100;
-            break;
-    };
     
     // only support aac
     if (audio_codec_id != SrsCodecAudioAAC) {
@@ -259,6 +240,27 @@ int SrsAvcAacCodec::audio_aac_demux(int8_t* data, int size, SrsCodecSample* samp
         }
     } else {
         // ignored.
+    }
+    
+    // reset the sample rate by sequence header
+    if (aac_sample_rate != _SRS_AAC_SAMPLE_RATE_UNSET) {
+        static int aac_sample_rates[] = {
+            96000, 88200, 64000, 48000,
+            44100, 32000, 24000, 22050,
+            16000, 12000, 11025,  8000,
+            7350,     0,     0,    0
+        };
+        switch (aac_sample_rates[aac_sample_rate]) {
+            case 11025:
+                sample->sound_rate = SrsCodecAudioSampleRate11025;
+                break;
+            case 22050:
+                sample->sound_rate = SrsCodecAudioSampleRate22050;
+                break;
+            case 44100:
+                sample->sound_rate = SrsCodecAudioSampleRate44100;
+                break;
+        };
     }
     
     srs_info("audio decoded, type=%d, codec=%d, asize=%d, rate=%d, format=%d, size=%d", 

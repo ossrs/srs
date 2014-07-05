@@ -66,9 +66,11 @@ public:
     /**
     * when buffer start, calc the "correct" pts for ts,
     * @param flv_pts, the flv pts calc from flv header timestamp,
+    * @param sample_rate, the sample rate in format(flv/RTMP packet header).
+    * @param aac_sample_rate, the sample rate in codec(sequence header).
     * @return the calc correct pts.
     */
-    virtual int64_t on_buffer_start(int64_t flv_pts, int sample_rate);
+    virtual int64_t on_buffer_start(int64_t flv_pts, int sample_rate, int aac_sample_rate);
     /**
     * when buffer continue, muxer donot write to file,
     * the audio buffer continue grow and donot need a pts,

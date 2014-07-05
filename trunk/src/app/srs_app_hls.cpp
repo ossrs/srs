@@ -365,7 +365,7 @@ SrsHlsAacJitter::~SrsHlsAacJitter()
 {
 }
 
-int64_t SrsHlsAacJitter::on_buffer_start(int64_t flv_pts, int sample_rate)
+int64_t SrsHlsAacJitter::on_buffer_start(int64_t flv_pts, int sample_rate, int aac_sample_rate)
 {
     // 0 = 5.5 kHz = 5512 Hz
     // 1 = 11 kHz = 11025 Hz
@@ -373,6 +373,17 @@ int64_t SrsHlsAacJitter::on_buffer_start(int64_t flv_pts, int sample_rate)
     // 3 = 44 kHz = 44100 Hz
     static int flv_sample_rates[] = {5512, 11025, 22050, 44100};
     int flv_sample_rate = flv_sample_rates[sample_rate & 0x03];
+
+    // reset the sample rate by sequence header
+    if (aac_sample_rate != _SRS_AAC_SAMPLE_RATE_UNSET) {
+        static int aac_sample_rates[] = {
+            96000, 88200, 64000, 48000,
+            44100, 32000, 24000, 22050,
+            16000, 12000, 11025,  8000,
+            7350,     0,     0,    0
+        };
+        flv_sample_rate = aac_sample_rates[aac_sample_rate];
+    }
 
     // sync time set to 0, donot adjust the aac timestamp.
     if (!sync_ms) {
@@ -1016,7 +1027,7 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     
     // start buffer, set the af
     if (ab->size == 0) {
-        pts = aac_jitter->on_buffer_start(pts, sample->sound_rate);
+        pts = aac_jitter->on_buffer_start(pts, sample->sound_rate, codec->aac_sample_rate);
         
         af->dts = af->pts = audio_buffer_start_pts = pts;
         af->pid = TS_AUDIO_PID;

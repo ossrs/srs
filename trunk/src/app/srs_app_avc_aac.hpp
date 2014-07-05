@@ -35,6 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsStream;
 
 #define SRS_MAX_CODEC_SAMPLE 128
+#define _SRS_AAC_SAMPLE_RATE_UNSET 15
 
 // Sampling rate. The following values are defined:
 // 0 = 5.5 kHz = 5512 Hz
