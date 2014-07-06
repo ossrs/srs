@@ -97,8 +97,10 @@ private:
     };
 // peer in/out
 private:
+    /**
+    * underlayer socket object, send/recv bytes.
+    */
     ISrsProtocolReaderWriter* skt;
-    char* pp;
     /**
     * requests sent out, used to build the response.
     * key: transactionId
@@ -107,14 +109,33 @@ private:
     std::map<double, std::string> requests;
 // peer in
 private:
+    /**
+    * chunk stream to decode RTMP messages.
+    */
     std::map<int, SrsChunkStream*> chunk_streams;
-    SrsStream* decode_stream;
-    SrsBuffer* buffer;
+    /**
+    * bytes buffer cache, recv from skt, provide services for stream.
+    */
+    SrsBuffer* in_buffer;
+    /**
+    * input chunk size, default to 128, set by peer packet.
+    */
     int32_t in_chunk_size;
+    /**
+    * input ack size, when to send the acked packet.
+    */
     AckWindowSize in_ack_size;
 // peer out
 private:
+    /**
+    * output header cache.
+    * used for type0, 11bytes(or 15bytes with extended timestamp) header.
+    * or for type3, 1bytes(or 5bytes with extended timestamp) header.
+    */
     char out_header_cache[RTMP_MAX_FMT0_HEADER_SIZE];
+    /**
+    * output chunk size, default to 128, set by config.
+    */
     int32_t out_chunk_size;
 public:
     /**
