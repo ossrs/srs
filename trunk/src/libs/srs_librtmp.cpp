@@ -388,7 +388,7 @@ int srs_write_packet(srs_rtmp_t rtmp, int type, u_int32_t timestamp, char* data,
         header.initialize_audio(size, timestamp, context->stream_id);
         
         msg = new SrsSharedPtrMessage();
-        if ((ret = msg->initialize(&header, data, size)) != ERROR_SUCCESS) {
+        if ((ret = msg->create(&header, data, size)) != ERROR_SUCCESS) {
             srs_freep(data);
             return ret;
         }
@@ -397,7 +397,7 @@ int srs_write_packet(srs_rtmp_t rtmp, int type, u_int32_t timestamp, char* data,
         header.initialize_video(size, timestamp, context->stream_id);
         
         msg = new SrsSharedPtrMessage();
-        if ((ret = msg->initialize(&header, data, size)) != ERROR_SUCCESS) {
+        if ((ret = msg->create(&header, data, size)) != ERROR_SUCCESS) {
             srs_freep(data);
             return ret;
         }
@@ -406,7 +406,7 @@ int srs_write_packet(srs_rtmp_t rtmp, int type, u_int32_t timestamp, char* data,
         header.initialize_amf0_script(size, context->stream_id);
         
         msg = new SrsSharedPtrMessage();
-        if ((ret = msg->initialize(&header, data, size)) != ERROR_SUCCESS) {
+        if ((ret = msg->create(&header, data, size)) != ERROR_SUCCESS) {
             srs_freep(data);
             return ret;
         }

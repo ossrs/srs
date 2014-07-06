@@ -504,17 +504,15 @@ int SrsEdgeForwarder::proxy(SrsMessage* msg)
         return ret;
     }
     
-    // TODO: FIXME: use utility to copy msg to shared ptr msg.
-    SrsSharedPtrMessage* copy = new SrsSharedPtrMessage();
-    SrsAutoFree(SrsSharedPtrMessage, copy);
-    if ((ret = copy->initialize(msg)) != ERROR_SUCCESS) {
+    SrsSharedPtrMessage copy;
+    if ((ret = copy.create(msg)) != ERROR_SUCCESS) {
         srs_error("initialize the msg failed. ret=%d", ret);
         return ret;
     }
     srs_verbose("initialize shared ptr msg success.");
     
-    copy->header.stream_id = stream_id;
-    if ((ret = queue->enqueue(copy->copy())) != ERROR_SUCCESS) {
+    copy.header.stream_id = stream_id;
+    if ((ret = queue->enqueue(copy.copy())) != ERROR_SUCCESS) {
         srs_error("enqueue edge publish msg failed. ret=%d", ret);
     }
     

@@ -1612,26 +1612,28 @@ SrsSharedPtrMessage::~SrsSharedPtrMessage()
     }
 }
 
-int SrsSharedPtrMessage::initialize(SrsMessage* source)
+int SrsSharedPtrMessage::create(SrsMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = initialize(&source->header, (char*)source->payload, source->size)) != ERROR_SUCCESS) {
+    if ((ret = create(&msg->header, (char*)msg->payload, msg->size)) != ERROR_SUCCESS) {
         return ret;
     }
     
-    // detach the payload from source
-    source->payload = NULL;
-    source->size = 0;
+    // to prevent double free of payload:
+    // initialize already attach the payload of msg,
+    // detach the payload to transfer the owner to shared ptr.
+    msg->payload = NULL;
+    msg->size = 0;
     
     return ret;
 }
 
-int SrsSharedPtrMessage::initialize(SrsMessageHeader* source, char* payload, int size)
+int SrsSharedPtrMessage::create(SrsMessageHeader* pheader, char* payload, int size)
 {
     int ret = ERROR_SUCCESS;
     
-    srs_assert(source != NULL);
+    srs_assert(pheader != NULL);
     if (ptr) {
         ret = ERROR_SYSTEM_ASSERT_FAILED;
         srs_error("should not set the payload twice. ret=%d", ret);
@@ -1640,28 +1642,31 @@ int SrsSharedPtrMessage::initialize(SrsMessageHeader* source, char* payload, int
         return ret;
     }
     
-    header = *source;
+    header = *pheader;
     header.payload_length = size;
     
     ptr = new __SrsSharedPtr();
     
-    // direct attach the data of common message.
+    // direct attach the data.
     ptr->payload = payload;
     ptr->size = size;
     
+    // message can access it.
     SrsMessage::payload = (int8_t*)ptr->payload;
     SrsMessage::size = ptr->size;
     
     return ret;
 }
 
+int SrsSharedPtrMessage::count()
+{
+    srs_assert(ptr);
+    return ptr->shared_count;
+}
+
 SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
 {
-    if (!ptr) {
-        srs_error("invoke initialize to initialize the ptr.");
-        srs_assert(false);
-        return NULL;
-    }
+    srs_assert(ptr);
     
     SrsSharedPtrMessage* copy = new SrsSharedPtrMessage();
     

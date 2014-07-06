@@ -27,6 +27,8 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_protocol_msg_array.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 
 MockEmptyIO::MockEmptyIO()
 {
@@ -389,3 +391,27 @@ VOID TEST(ProtocolUtilityTest, GenerateTcUrl)
     tcUrl = srs_generate_tc_url(ip, vhost, app, port);
     EXPECT_STREQ("rtmp://demo:19351/live", tcUrl.c_str());
 }
+
+VOID TEST(ProtocolMsgArrayTest, MessageArray)
+{
+    SrsMessageHeader header;
+    SrsSharedPtrMessage msg;
+    char* payload = new char[1024];
+    EXPECT_TRUE(ERROR_SUCCESS == msg.create(&header, payload, 1024));
+    EXPECT_EQ(0, msg.count());
+    
+    if (true) {
+        SrsSharedPtrMessageArray arr(3);
+        
+        arr.msgs[0] = msg.copy();
+        EXPECT_EQ(1, msg.count());
+        
+        arr.msgs[1] = msg.copy();
+        EXPECT_EQ(2, msg.count());
+        
+        arr.msgs[2] = msg.copy();
+        EXPECT_EQ(3, msg.count());
+    }
+    EXPECT_EQ(0, msg.count());
+}
+

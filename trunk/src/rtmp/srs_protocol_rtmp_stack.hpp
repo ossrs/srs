@@ -370,6 +370,13 @@ public:
 * shared ptr message.
 * for audio/video/data message that need less memory copy.
 * and only for output.
+*
+* create first object by constructor and create(),
+* use copy if need reference count message.
+* 
+* Usage:
+*       SrsSharedPtrMessage msg;
+*       
 */
 class SrsSharedPtrMessage : public SrsMessage
 {
@@ -390,19 +397,30 @@ public:
     virtual ~SrsSharedPtrMessage();
 public:
     /**
-    * set the shared payload.
-    * we will detach the payload of source,
-    * so ensure donot use it before.
+    * create shared ptr message, 
+    * copy header, manage the payload of msg,
+    * set the payload to NULL to prevent double free.
+    * @remark payload of msg set to NULL if success.
     */
-    virtual int initialize(SrsMessage* source);
+    virtual int create(SrsMessage* msg);
     /**
-    * set the shared payload.
-    * use source header, and specified param payload.
+    * create shared ptr message,
+    * from the header and payload.
+    * @remark user should never free the payload.
     */
-    virtual int initialize(SrsMessageHeader* source, char* payload, int size);
+    virtual int create(SrsMessageHeader* pheader, char* payload, int size);
+    /**
+    * get current reference count.
+    * when this object created, count set to 0.
+    * if copy() this object, count increase 1.
+    * if this or copy deleted, free payload when count is 0, or count--.
+    * @remark, assert object is created.
+    */
+    virtual int count();
 public:
     /**
     * copy current shared ptr message, use ref-count.
+    * @remark, assert object is created.
     */
     virtual SrsSharedPtrMessage* copy();
 };

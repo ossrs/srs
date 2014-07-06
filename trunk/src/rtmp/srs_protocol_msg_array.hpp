@@ -34,6 +34,10 @@ class SrsSharedPtrMessage;
 
 /**
 * the class to auto free the shared ptr message array.
+* when need to get some messages, for instance, from Consumer queue,
+* create a message array, whose msgs can used to accept the msgs,
+* then send each message and set to NULL.
+* @remark: when error, the message array will free the msg not sent out.
 */
 class SrsSharedPtrMessageArray
 {
