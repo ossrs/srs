@@ -32,6 +32,8 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_stream.hpp>
 
+using namespace _srs_internal;
+
 // AMF0 marker
 #define RTMP_AMF0_Number                     0x00
 #define RTMP_AMF0_Boolean                     0x01
@@ -57,164 +59,6 @@ using namespace std;
 
 // User defined
 #define RTMP_AMF0_Invalid                     0x3F
-
-/**
-* read amf0 string from stream.
-* 2.4 String Type
-* string-type = string-marker UTF-8
-* @return default value is empty string.
-* @remark: use SrsAmf0Any::str() to create it.
-*/
-class __SrsAmf0String : public SrsAmf0Any
-{
-public:
-    std::string value;
-
-    __SrsAmf0String(const char* _value);
-    virtual ~__SrsAmf0String();
-    
-    virtual int total_size();
-    virtual int read(SrsStream* stream);
-    virtual int write(SrsStream* stream);
-    virtual SrsAmf0Any* copy();
-};
-
-/**
-* read amf0 boolean from stream.
-* 2.4 String Type
-* boolean-type = boolean-marker U8
-*         0 is false, <> 0 is true
-* @return default value is false.
-*/
-class __SrsAmf0Boolean : public SrsAmf0Any
-{
-public:
-    bool value;
-
-    __SrsAmf0Boolean(bool _value);
-    virtual ~__SrsAmf0Boolean();
-    
-    virtual int total_size();
-    virtual int read(SrsStream* stream);
-    virtual int write(SrsStream* stream);
-    virtual SrsAmf0Any* copy();
-};
-
-/**
-* read amf0 number from stream.
-* 2.2 Number Type
-* number-type = number-marker DOUBLE
-* @return default value is 0.
-*/
-class __SrsAmf0Number : public SrsAmf0Any
-{
-public:
-    double value;
-
-    __SrsAmf0Number(double _value);
-    virtual ~__SrsAmf0Number();
-    
-    virtual int total_size();
-    virtual int read(SrsStream* stream);
-    virtual int write(SrsStream* stream);
-    virtual SrsAmf0Any* copy();
-};
-
-/**
-* read amf0 null from stream.
-* 2.7 null Type
-* null-type = null-marker
-*/
-class __SrsAmf0Null : public SrsAmf0Any
-{
-public:
-    __SrsAmf0Null();
-    virtual ~__SrsAmf0Null();
-    
-    virtual int total_size();
-    virtual int read(SrsStream* stream);
-    virtual int write(SrsStream* stream);
-    virtual SrsAmf0Any* copy();
-};
-
-/**
-* read amf0 undefined from stream.
-* 2.8 undefined Type
-* undefined-type = undefined-marker
-*/
-class __SrsAmf0Undefined : public SrsAmf0Any
-{
-public:
-    __SrsAmf0Undefined();
-    virtual ~__SrsAmf0Undefined();
-    
-    virtual int total_size();
-    virtual int read(SrsStream* stream);
-    virtual int write(SrsStream* stream);
-    virtual SrsAmf0Any* copy();
-};
-
-/**
-* to ensure in inserted order.
-* for the FMLE will crash when AMF0Object is not ordered by inserted,
-* if ordered in map, the string compare order, the FMLE will creash when
-* get the response of connect app.
-*/
-class __SrsUnSortedHashtable
-{
-private:
-    typedef std::pair<std::string, SrsAmf0Any*> SrsAmf0ObjectPropertyType;
-    std::vector<SrsAmf0ObjectPropertyType> properties;
-public:
-    __SrsUnSortedHashtable();
-    virtual ~__SrsUnSortedHashtable();
-    
-    virtual int count();
-    virtual void clear();
-    virtual std::string key_at(int index);
-    virtual const char* key_raw_at(int index);
-    virtual SrsAmf0Any* value_at(int index);
-    virtual void set(std::string key, SrsAmf0Any* value);
-    
-    virtual SrsAmf0Any* get_property(std::string name);
-    virtual SrsAmf0Any* ensure_property_string(std::string name);
-    virtual SrsAmf0Any* ensure_property_number(std::string name);
-
-    virtual void copy(__SrsUnSortedHashtable* src);
-};
-
-/**
-* 2.11 Object End Type
-* object-end-type = UTF-8-empty object-end-marker
-* 0x00 0x00 0x09
-*/
-class __SrsAmf0ObjectEOF : public SrsAmf0Any
-{
-public:
-    int16_t utf8_empty;
-
-    __SrsAmf0ObjectEOF();
-    virtual ~__SrsAmf0ObjectEOF();
-    
-    virtual int total_size();
-    virtual int read(SrsStream* stream);
-    virtual int write(SrsStream* stream);
-    virtual SrsAmf0Any* copy();
-};
-
-/**
-* read amf0 utf8 string from stream.
-* 1.3.1 Strings and UTF-8
-* UTF-8 = U16 *(UTF8-char)
-* UTF8-char = UTF8-1 | UTF8-2 | UTF8-3 | UTF8-4
-* UTF8-1 = %x00-7F
-* @remark only support UTF8-1 char.
-*/
-extern int srs_amf0_read_utf8(SrsStream* stream, std::string& value);
-extern int srs_amf0_write_utf8(SrsStream* stream, std::string value);
-
-bool srs_amf0_is_object_eof(SrsStream* stream);
-int srs_amf0_write_any(SrsStream* stream, SrsAmf0Any* value);
 
 SrsAmf0Any::SrsAmf0Any()
 {
@@ -804,7 +648,7 @@ int SrsAmf0Object::read(SrsStream* stream)
         
         // property-name: utf8 string
         std::string property_name;
-        if ((ret =srs_amf0_read_utf8(stream, property_name)) != ERROR_SUCCESS) {
+        if ((ret = srs_amf0_read_utf8(stream, property_name)) != ERROR_SUCCESS) {
             srs_error("amf0 object read property name failed. ret=%d", ret);
             return ret;
         }
@@ -1517,88 +1361,6 @@ int srs_amf0_read_any(SrsStream* stream, SrsAmf0Any** ppvalue)
     return ret;
 }
 
-int srs_amf0_write_any(SrsStream* stream, SrsAmf0Any* value)
-{
-    srs_assert(value != NULL);
-    return value->write(stream);
-}
-
-int srs_amf0_read_utf8(SrsStream* stream, string& value)
-{
-    int ret = ERROR_SUCCESS;
-    
-    // len
-    if (!stream->require(2)) {
-        ret = ERROR_RTMP_AMF0_DECODE;
-        srs_error("amf0 read string length failed. ret=%d", ret);
-        return ret;
-    }
-    int16_t len = stream->read_2bytes();
-    srs_verbose("amf0 read string length success. len=%d", len);
-    
-    // empty string
-    if (len <= 0) {
-        srs_verbose("amf0 read empty string. ret=%d", ret);
-        return ret;
-    }
-    
-    // data
-    if (!stream->require(len)) {
-        ret = ERROR_RTMP_AMF0_DECODE;
-        srs_error("amf0 read string data failed. ret=%d", ret);
-        return ret;
-    }
-    std::string str = stream->read_string(len);
-    
-    // support utf8-1 only
-    // 1.3.1 Strings and UTF-8
-    // UTF8-1 = %x00-7F
-    // TODO: support other utf-8 strings
-    /*for (int i = 0; i < len; i++) {
-        char ch = *(str.data() + i);
-        if ((ch & 0x80) != 0) {
-            ret = ERROR_RTMP_AMF0_DECODE;
-            srs_error("ignored. only support utf8-1, 0x00-0x7F, actual is %#x. ret=%d", (int)ch, ret);
-            ret = ERROR_SUCCESS;
-        }
-    }*/
-    
-    value = str;
-    srs_verbose("amf0 read string data success. str=%s", str.c_str());
-    
-    return ret;
-}
-int srs_amf0_write_utf8(SrsStream* stream, string value)
-{
-    int ret = ERROR_SUCCESS;
-    
-    // len
-    if (!stream->require(2)) {
-        ret = ERROR_RTMP_AMF0_ENCODE;
-        srs_error("amf0 write string length failed. ret=%d", ret);
-        return ret;
-    }
-    stream->write_2bytes(value.length());
-    srs_verbose("amf0 write string length success. len=%d", (int)value.length());
-    
-    // empty string
-    if (value.length() <= 0) {
-        srs_verbose("amf0 write empty string. ret=%d", ret);
-        return ret;
-    }
-    
-    // data
-    if (!stream->require(value.length())) {
-        ret = ERROR_RTMP_AMF0_ENCODE;
-        srs_error("amf0 write string data failed. ret=%d", ret);
-        return ret;
-    }
-    stream->write_string(value);
-    srs_verbose("amf0 write string data success. str=%s", value.c_str());
-    
-    return ret;
-}
-
 int srs_amf0_read_string(SrsStream* stream, string& value)
 {
     int ret = ERROR_SUCCESS;
@@ -1849,44 +1611,130 @@ int srs_amf0_write_undefined(SrsStream* stream)
     return ret;
 }
 
-bool srs_amf0_is_object_eof(SrsStream* stream) 
-{
-    // detect the object-eof specially
-    if (stream->require(3)) {
-        int32_t flag = stream->read_3bytes();
-        stream->skip(-3);
-        
-        return 0x09 == flag;
-    }
-    
-    return false;
-}
 
-int srs_amf0_write_object_eof(SrsStream* stream, __SrsAmf0ObjectEOF* value)
+namespace _srs_internal
 {
-    int ret = ERROR_SUCCESS;
-    
-    srs_assert(value != NULL);
-    
-    // value
-    if (!stream->require(2)) {
-        ret = ERROR_RTMP_AMF0_ENCODE;
-        srs_error("amf0 write object eof value failed. ret=%d", ret);
+    int srs_amf0_read_utf8(SrsStream* stream, string& value)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        // len
+        if (!stream->require(2)) {
+            ret = ERROR_RTMP_AMF0_DECODE;
+            srs_error("amf0 read string length failed. ret=%d", ret);
+            return ret;
+        }
+        int16_t len = stream->read_2bytes();
+        srs_verbose("amf0 read string length success. len=%d", len);
+        
+        // empty string
+        if (len <= 0) {
+            srs_verbose("amf0 read empty string. ret=%d", ret);
+            return ret;
+        }
+        
+        // data
+        if (!stream->require(len)) {
+            ret = ERROR_RTMP_AMF0_DECODE;
+            srs_error("amf0 read string data failed. ret=%d", ret);
+            return ret;
+        }
+        std::string str = stream->read_string(len);
+        
+        // support utf8-1 only
+        // 1.3.1 Strings and UTF-8
+        // UTF8-1 = %x00-7F
+        // TODO: support other utf-8 strings
+        /*for (int i = 0; i < len; i++) {
+            char ch = *(str.data() + i);
+            if ((ch & 0x80) != 0) {
+                ret = ERROR_RTMP_AMF0_DECODE;
+                srs_error("ignored. only support utf8-1, 0x00-0x7F, actual is %#x. ret=%d", (int)ch, ret);
+                ret = ERROR_SUCCESS;
+            }
+        }*/
+        
+        value = str;
+        srs_verbose("amf0 read string data success. str=%s", str.c_str());
+        
         return ret;
     }
-    stream->write_2bytes(0x00);
-    srs_verbose("amf0 write object eof value success");
-    
-    // marker
-    if (!stream->require(1)) {
-        ret = ERROR_RTMP_AMF0_ENCODE;
-        srs_error("amf0 write object eof marker failed. ret=%d", ret);
+    int srs_amf0_write_utf8(SrsStream* stream, string value)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        // len
+        if (!stream->require(2)) {
+            ret = ERROR_RTMP_AMF0_ENCODE;
+            srs_error("amf0 write string length failed. ret=%d", ret);
+            return ret;
+        }
+        stream->write_2bytes(value.length());
+        srs_verbose("amf0 write string length success. len=%d", (int)value.length());
+        
+        // empty string
+        if (value.length() <= 0) {
+            srs_verbose("amf0 write empty string. ret=%d", ret);
+            return ret;
+        }
+        
+        // data
+        if (!stream->require(value.length())) {
+            ret = ERROR_RTMP_AMF0_ENCODE;
+            srs_error("amf0 write string data failed. ret=%d", ret);
+            return ret;
+        }
+        stream->write_string(value);
+        srs_verbose("amf0 write string data success. str=%s", value.c_str());
+        
         return ret;
     }
     
-    stream->write_1bytes(RTMP_AMF0_ObjectEnd);
+    bool srs_amf0_is_object_eof(SrsStream* stream) 
+    {
+        // detect the object-eof specially
+        if (stream->require(3)) {
+            int32_t flag = stream->read_3bytes();
+            stream->skip(-3);
+            
+            return 0x09 == flag;
+        }
+        
+        return false;
+    }
     
-    srs_verbose("amf0 read object eof success");
-    
-    return ret;
+    int srs_amf0_write_object_eof(SrsStream* stream, __SrsAmf0ObjectEOF* value)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        srs_assert(value != NULL);
+        
+        // value
+        if (!stream->require(2)) {
+            ret = ERROR_RTMP_AMF0_ENCODE;
+            srs_error("amf0 write object eof value failed. ret=%d", ret);
+            return ret;
+        }
+        stream->write_2bytes(0x00);
+        srs_verbose("amf0 write object eof value success");
+        
+        // marker
+        if (!stream->require(1)) {
+            ret = ERROR_RTMP_AMF0_ENCODE;
+            srs_error("amf0 write object eof marker failed. ret=%d", ret);
+            return ret;
+        }
+        
+        stream->write_1bytes(RTMP_AMF0_ObjectEnd);
+        
+        srs_verbose("amf0 read object eof success");
+        
+        return ret;
+    }
+
+    int srs_amf0_write_any(SrsStream* stream, SrsAmf0Any* value)
+    {
+        srs_assert(value != NULL);
+        return value->write(stream);
+    }
 }

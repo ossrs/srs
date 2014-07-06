@@ -37,8 +37,13 @@ class SrsStream;
 class SrsAmf0Object;
 class SrsAmf0EcmaArray;
 class SrsAmf0StrictArray;
-class __SrsUnSortedHashtable;
-class __SrsAmf0ObjectEOF;
+
+// internal objects, user should never use it.
+namespace _srs_internal
+{
+    class __SrsUnSortedHashtable;
+    class __SrsAmf0ObjectEOF;
+}
 
 /*
 ////////////////////////////////////////////////////////////////////////
@@ -312,8 +317,8 @@ public:
 class SrsAmf0Object : public SrsAmf0Any
 {
 private:
-    __SrsUnSortedHashtable* properties;
-    __SrsAmf0ObjectEOF* eof;
+    _srs_internal::__SrsUnSortedHashtable* properties;
+    _srs_internal::__SrsAmf0ObjectEOF* eof;
 private:
     friend class SrsAmf0Any;
     /**
@@ -394,8 +399,8 @@ public:
 class SrsAmf0EcmaArray : public SrsAmf0Any
 {
 private:
-    __SrsUnSortedHashtable* properties;
-    __SrsAmf0ObjectEOF* eof;
+    _srs_internal::__SrsUnSortedHashtable* properties;
+    _srs_internal::__SrsAmf0ObjectEOF* eof;
     int32_t _count;
 private:
     friend class SrsAmf0Any;
@@ -584,5 +589,169 @@ extern int srs_amf0_write_null(SrsStream* stream);
 */
 extern int srs_amf0_read_undefined(SrsStream* stream);
 extern int srs_amf0_write_undefined(SrsStream* stream);
+
+// internal objects, user should never use it.
+namespace _srs_internal
+{
+    /**
+    * read amf0 string from stream.
+    * 2.4 String Type
+    * string-type = string-marker UTF-8
+    * @return default value is empty string.
+    * @remark: use SrsAmf0Any::str() to create it.
+    */
+    class __SrsAmf0String : public SrsAmf0Any
+    {
+    public:
+        std::string value;
+    public:
+        __SrsAmf0String(const char* _value);
+        virtual ~__SrsAmf0String();
+    public:
+        virtual int total_size();
+        virtual int read(SrsStream* stream);
+        virtual int write(SrsStream* stream);
+        virtual SrsAmf0Any* copy();
+    };
+    
+    /**
+    * read amf0 boolean from stream.
+    * 2.4 String Type
+    * boolean-type = boolean-marker U8
+    *         0 is false, <> 0 is true
+    * @return default value is false.
+    */
+    class __SrsAmf0Boolean : public SrsAmf0Any
+    {
+    public:
+        bool value;
+    public:
+        __SrsAmf0Boolean(bool _value);
+        virtual ~__SrsAmf0Boolean();
+    public:
+        virtual int total_size();
+        virtual int read(SrsStream* stream);
+        virtual int write(SrsStream* stream);
+        virtual SrsAmf0Any* copy();
+    };
+    
+    /**
+    * read amf0 number from stream.
+    * 2.2 Number Type
+    * number-type = number-marker DOUBLE
+    * @return default value is 0.
+    */
+    class __SrsAmf0Number : public SrsAmf0Any
+    {
+    public:
+        double value;
+    public:
+        __SrsAmf0Number(double _value);
+        virtual ~__SrsAmf0Number();
+    public:
+        virtual int total_size();
+        virtual int read(SrsStream* stream);
+        virtual int write(SrsStream* stream);
+        virtual SrsAmf0Any* copy();
+    };
+    
+    /**
+    * read amf0 null from stream.
+    * 2.7 null Type
+    * null-type = null-marker
+    */
+    class __SrsAmf0Null : public SrsAmf0Any
+    {
+    public:
+        __SrsAmf0Null();
+        virtual ~__SrsAmf0Null();
+    public:
+        virtual int total_size();
+        virtual int read(SrsStream* stream);
+        virtual int write(SrsStream* stream);
+        virtual SrsAmf0Any* copy();
+    };
+    
+    /**
+    * read amf0 undefined from stream.
+    * 2.8 undefined Type
+    * undefined-type = undefined-marker
+    */
+    class __SrsAmf0Undefined : public SrsAmf0Any
+    {
+    public:
+        __SrsAmf0Undefined();
+        virtual ~__SrsAmf0Undefined();
+    public:
+        virtual int total_size();
+        virtual int read(SrsStream* stream);
+        virtual int write(SrsStream* stream);
+        virtual SrsAmf0Any* copy();
+    };
+    
+    /**
+    * to ensure in inserted order.
+    * for the FMLE will crash when AMF0Object is not ordered by inserted,
+    * if ordered in map, the string compare order, the FMLE will creash when
+    * get the response of connect app.
+    */
+    class __SrsUnSortedHashtable
+    {
+    private:
+        typedef std::pair<std::string, SrsAmf0Any*> SrsAmf0ObjectPropertyType;
+        std::vector<SrsAmf0ObjectPropertyType> properties;
+    public:
+        __SrsUnSortedHashtable();
+        virtual ~__SrsUnSortedHashtable();
+    public:
+        virtual int count();
+        virtual void clear();
+        virtual std::string key_at(int index);
+        virtual const char* key_raw_at(int index);
+        virtual SrsAmf0Any* value_at(int index);
+        virtual void set(std::string key, SrsAmf0Any* value);
+    public:
+        virtual SrsAmf0Any* get_property(std::string name);
+        virtual SrsAmf0Any* ensure_property_string(std::string name);
+        virtual SrsAmf0Any* ensure_property_number(std::string name);
+    public:
+        virtual void copy(__SrsUnSortedHashtable* src);
+    };
+    
+    /**
+    * 2.11 Object End Type
+    * object-end-type = UTF-8-empty object-end-marker
+    * 0x00 0x00 0x09
+    */
+    class __SrsAmf0ObjectEOF : public SrsAmf0Any
+    {
+    public:
+        int16_t utf8_empty;
+    
+        __SrsAmf0ObjectEOF();
+        virtual ~__SrsAmf0ObjectEOF();
+        
+        virtual int total_size();
+        virtual int read(SrsStream* stream);
+        virtual int write(SrsStream* stream);
+        virtual SrsAmf0Any* copy();
+    };
+
+    /**
+    * read amf0 utf8 string from stream.
+    * 1.3.1 Strings and UTF-8
+    * UTF-8 = U16 *(UTF8-char)
+    * UTF8-char = UTF8-1 | UTF8-2 | UTF8-3 | UTF8-4
+    * UTF8-1 = %x00-7F
+    * @remark only support UTF8-1 char.
+    */
+    extern int srs_amf0_read_utf8(SrsStream* stream, std::string& value);
+    extern int srs_amf0_write_utf8(SrsStream* stream, std::string value);
+    
+    extern bool srs_amf0_is_object_eof(SrsStream* stream);
+    extern int srs_amf0_write_object_eof(SrsStream* stream, __SrsAmf0ObjectEOF* value);
+    
+    extern int srs_amf0_write_any(SrsStream* stream, SrsAmf0Any* value);
+};
 
 #endif
