@@ -1086,6 +1086,12 @@ int SrsRtmpServer::start_play(int stream_id)
     // |RtmpSampleAccess(false, false)
     if (true) {
         SrsSampleAccessPacket* pkt = new SrsSampleAccessPacket();
+
+        // allow audio/video sample.
+        // @see: https://github.com/winlinvip/simple-rtmp-server/issues/49
+        pkt->audio_sample_access = true;
+        pkt->video_sample_access = true;
+        
         if ((ret = protocol->send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
             srs_error("send |RtmpSampleAccess(false, false) message failed. ret=%d", ret);
             return ret;
