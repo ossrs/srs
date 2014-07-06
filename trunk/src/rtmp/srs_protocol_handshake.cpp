@@ -35,7 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef SRS_AUTO_SSL
 
-using namespace srs;
+using namespace _srs_internal;
 
 // for openssl_HMACsha256
 #include <openssl/evp.h>
@@ -43,7 +43,7 @@ using namespace srs;
 // for __openssl_generate_key
 #include <openssl/dh.h>
 
-namespace srs
+namespace _srs_internal
 {
     // 68bytes FMS key which is used to sign the sever packet.
     u_int8_t SrsGenuineFMSKey[] = {

@@ -29,7 +29,10 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_stream.hpp>
 
-// user scenario: coding and decoding with amf0
+/**
+* main scenario to use amf0.
+* user scenario: coding and decoding with amf0
+*/
 VOID TEST(ProtocolAMF0Test, ScenarioMain)
 {
     // coded amf0 object
@@ -171,6 +174,9 @@ VOID TEST(ProtocolAMF0Test, ScenarioMain)
     }
 }
 
+/**
+* to calc the size of amf0 instances.
+*/
 VOID TEST(ProtocolAMF0Test, ApiSize) 
 {
     // size of elem
@@ -427,6 +433,9 @@ VOID TEST(ProtocolAMF0Test, ApiSize)
     }
 }
 
+/**
+* about the AMF0 any.
+*/
 VOID TEST(ProtocolAMF0Test, ApiAnyElem) 
 {
     SrsAmf0Any* o = NULL;
@@ -510,6 +519,9 @@ VOID TEST(ProtocolAMF0Test, ApiAnyElem)
     }
 }
 
+/**
+* about the stream to serialize/deserialize AMF0 instance.
+*/
 VOID TEST(ProtocolAMF0Test, ApiAnyIO) 
 {
     SrsStream s;
@@ -820,7 +832,10 @@ VOID TEST(ProtocolAMF0Test, ApiAnyIO)
     }
 }
 
-VOID TEST(ProtocolAMF0Test, ApiAnyAssert) 
+/**
+* to get the type identity
+*/
+VOID TEST(ProtocolAMF0Test, ApiAnyTypeAssert) 
 {
     SrsStream s;
     SrsAmf0Any* o = NULL;
@@ -908,6 +923,9 @@ VOID TEST(ProtocolAMF0Test, ApiAnyAssert)
     }
 }
 
+/**
+* object property get/set
+*/
 VOID TEST(ProtocolAMF0Test, ApiObjectProps) 
 {
     SrsAmf0Object* o = NULL;
@@ -986,6 +1004,9 @@ VOID TEST(ProtocolAMF0Test, ApiObjectProps)
     }
 }
 
+/**
+* ecma array properties.
+*/
 VOID TEST(ProtocolAMF0Test, ApiEcmaArrayProps) 
 {
     SrsAmf0EcmaArray* o = NULL;
@@ -1064,6 +1085,9 @@ VOID TEST(ProtocolAMF0Test, ApiEcmaArrayProps)
     }
 }
 
+/**
+* strict array.
+*/
 VOID TEST(ProtocolAMF0Test, ApiStrictArray)
 {
     SrsStream s;
@@ -1132,6 +1156,9 @@ VOID TEST(ProtocolAMF0Test, ApiStrictArray)
     }
 }
 
+/**
+* object has object property, 
+*/
 VOID TEST(ProtocolAMF0Test, ObjectObjectObject)
 {
     SrsAmf0Any* obj = SrsAmf0Any::object();
@@ -1155,4 +1182,89 @@ VOID TEST(ProtocolAMF0Test, ObjectObjectObject)
     EXPECT_EQ(1, child1->to_object()->count());
     EXPECT_EQ(1, child2->to_object()->count());
     EXPECT_EQ(0, child3->to_object()->count());
+}
+
+/**
+* ecma array has ecma array property, 
+*/
+VOID TEST(ProtocolAMF0Test, EcmaEcmaEcma)
+{
+    SrsAmf0Any* arr = SrsAmf0Any::ecma_array();
+    SrsAutoFree(SrsAmf0Any, arr);
+    EXPECT_EQ(0, arr->to_ecma_array()->count());
+    
+    SrsAmf0Any* arr1 = SrsAmf0Any::ecma_array();
+    arr->to_ecma_array()->set("child1", arr1);
+    EXPECT_EQ(1, arr->to_ecma_array()->count());
+    EXPECT_EQ(0, arr1->to_ecma_array()->count());
+    
+    SrsAmf0Any* arr2 = SrsAmf0Any::ecma_array();
+    arr1->to_ecma_array()->set("child2", arr2);
+    EXPECT_EQ(1, arr->to_ecma_array()->count());
+    EXPECT_EQ(1, arr1->to_ecma_array()->count());
+    EXPECT_EQ(0, arr2->to_ecma_array()->count());
+    
+    SrsAmf0Any* arr3 = SrsAmf0Any::ecma_array();
+    arr2->to_ecma_array()->set("child3", arr3);
+    EXPECT_EQ(1, arr->to_ecma_array()->count());
+    EXPECT_EQ(1, arr1->to_ecma_array()->count());
+    EXPECT_EQ(1, arr2->to_ecma_array()->count());
+    EXPECT_EQ(0, arr3->to_ecma_array()->count());
+}
+
+/**
+* strict array contains strict array
+*/
+VOID TEST(ProtocolAMF0Test, StrictStrictStrict)
+{
+    SrsAmf0Any* arr = SrsAmf0Any::strict_array();
+    SrsAutoFree(SrsAmf0Any, arr);
+    EXPECT_EQ(0, arr->to_strict_array()->count());
+    
+    SrsAmf0Any* arr1 = SrsAmf0Any::strict_array();
+    arr->to_strict_array()->append(arr1);
+    EXPECT_EQ(1, arr->to_strict_array()->count());
+    EXPECT_EQ(0, arr1->to_strict_array()->count());
+    
+    SrsAmf0Any* arr2 = SrsAmf0Any::strict_array();
+    arr1->to_strict_array()->append(arr2);
+    EXPECT_EQ(1, arr->to_strict_array()->count());
+    EXPECT_EQ(1, arr1->to_strict_array()->count());
+    EXPECT_EQ(0, arr2->to_strict_array()->count());
+    
+    SrsAmf0Any* arr3 = SrsAmf0Any::strict_array();
+    arr2->to_strict_array()->append(arr3);
+    EXPECT_EQ(1, arr->to_strict_array()->count());
+    EXPECT_EQ(1, arr1->to_strict_array()->count());
+    EXPECT_EQ(1, arr2->to_strict_array()->count());
+    EXPECT_EQ(0, arr3->to_strict_array()->count());
+}
+
+/**
+* object has ecma array property,
+* where ecma array contains strict array.
+*/
+VOID TEST(ProtocolAMF0Test, ObjectEcmaStrict)
+{
+    SrsAmf0Any* obj = SrsAmf0Any::object();
+    SrsAutoFree(SrsAmf0Any, obj);
+    EXPECT_EQ(0, obj->to_object()->count());
+    
+    SrsAmf0Any* arr1 = SrsAmf0Any::ecma_array();
+    obj->to_object()->set("child1", arr1);
+    EXPECT_EQ(1, obj->to_object()->count());
+    EXPECT_EQ(0, arr1->to_ecma_array()->count());
+    
+    SrsAmf0Any* arr2 = SrsAmf0Any::strict_array();
+    arr1->to_ecma_array()->set("child2", arr2);
+    EXPECT_EQ(1, obj->to_object()->count());
+    EXPECT_EQ(1, arr1->to_ecma_array()->count());
+    EXPECT_EQ(0, arr2->to_strict_array()->count());
+    
+    SrsAmf0Any* arr3 = SrsAmf0Any::ecma_array();
+    arr2->to_strict_array()->append(arr3);
+    EXPECT_EQ(1, obj->to_object()->count());
+    EXPECT_EQ(1, arr1->to_ecma_array()->count());
+    EXPECT_EQ(1, arr2->to_strict_array()->count());
+    EXPECT_EQ(0, arr3->to_ecma_array()->count());
 }

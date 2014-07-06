@@ -36,7 +36,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_handshake.hpp>
 
 #ifdef SRS_AUTO_SSL
-using namespace srs;
+using namespace _srs_internal;
 #endif
 
 #include <srs_protocol_io.hpp>

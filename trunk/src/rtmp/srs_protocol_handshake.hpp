@@ -36,7 +36,7 @@ class SrsHandshakeBytes;
 
 #ifdef SRS_AUTO_SSL
 
-namespace srs
+namespace _srs_internal
 {
     /**
     * the schema type.
