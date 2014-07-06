@@ -447,8 +447,7 @@ int SrsProtocol::do_send_message(SrsMessage* msg, SrsPacket* packet)
     // we donot use the complex basic header,
     // ensure the basic header is 1bytes.
     if (msg->header.perfer_cid < 2) {
-        srs_warn("change the chunk_id=%d to default=%d", 
-            msg->header.perfer_cid, RTMP_CID_ProtocolControl);
+        srs_warn("change the chunk_id=%d to default=%d", msg->header.perfer_cid, RTMP_CID_ProtocolControl);
         msg->header.perfer_cid = RTMP_CID_ProtocolControl;
     }
 
@@ -1689,29 +1688,6 @@ SrsPacket::~SrsPacket()
 {
 }
 
-int SrsPacket::decode(SrsStream* stream)
-{
-    int ret = ERROR_SUCCESS;
-    
-    srs_assert(stream != NULL);
-
-    ret = ERROR_SYSTEM_PACKET_INVALID;
-    srs_error("current packet is not support to decode. "
-        "paket=%s, ret=%d", get_class_name(), ret);
-    
-    return ret;
-}
-
-int SrsPacket::get_perfer_cid()
-{
-    return 0;
-}
-
-int SrsPacket::get_message_type()
-{
-    return 0;
-}
-
 int SrsPacket::encode(int& psize, char*& ppayload)
 {
     int ret = ERROR_SUCCESS;
@@ -1744,6 +1720,28 @@ int SrsPacket::encode(int& psize, char*& ppayload)
     return ret;
 }
 
+int SrsPacket::decode(SrsStream* stream)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(stream != NULL);
+
+    ret = ERROR_SYSTEM_PACKET_INVALID;
+    srs_error("current packet is not support to decode. ret=%d", ret);
+    
+    return ret;
+}
+
+int SrsPacket::get_perfer_cid()
+{
+    return 0;
+}
+
+int SrsPacket::get_message_type()
+{
+    return 0;
+}
+
 int SrsPacket::get_size()
 {
     return 0;
@@ -1756,8 +1754,7 @@ int SrsPacket::encode_packet(SrsStream* stream)
     srs_assert(stream != NULL);
 
     ret = ERROR_SYSTEM_PACKET_INVALID;
-    srs_error("current packet is not support to encode. "
-        "paket=%s, ret=%d", get_class_name(), ret);
+    srs_error("current packet is not support to encode. ret=%d", ret);
     
     return ret;
 }
@@ -3141,6 +3138,32 @@ SrsBandwidthPacket::~SrsBandwidthPacket()
     srs_freep(data);
 }
 
+int SrsBandwidthPacket::decode(SrsStream *stream)
+{
+    int ret = ERROR_SUCCESS;
+
+    if ((ret = srs_amf0_read_string(stream, command_name)) != ERROR_SUCCESS) {
+        srs_error("amf0 decode play command_name failed. ret=%d", ret);
+        return ret;
+    }
+
+    if ((ret = srs_amf0_read_number(stream, transaction_id)) != ERROR_SUCCESS) {
+        srs_error("amf0 decode play transaction_id failed. ret=%d", ret);
+        return ret;
+    }
+
+    if ((ret = srs_amf0_read_null(stream)) != ERROR_SUCCESS) {
+        srs_error("amf0 decode play command_object failed. ret=%d", ret);
+        return ret;
+    }
+    
+    // @remark, for bandwidth test, ignore the data field.
+
+    srs_info("decode SrsBandwidthPacket success.");
+
+    return ret;
+}
+
 int SrsBandwidthPacket::get_perfer_cid()
 {
     return RTMP_CID_OverStream;
@@ -3187,32 +3210,6 @@ int SrsBandwidthPacket::encode_packet(SrsStream* stream)
     
     srs_info("encode onStatus(Call) packet success.");
     
-    return ret;
-}
-
-int SrsBandwidthPacket::decode(SrsStream *stream)
-{
-    int ret = ERROR_SUCCESS;
-
-    if ((ret = srs_amf0_read_string(stream, command_name)) != ERROR_SUCCESS) {
-        srs_error("amf0 decode play command_name failed. ret=%d", ret);
-        return ret;
-    }
-
-    if ((ret = srs_amf0_read_number(stream, transaction_id)) != ERROR_SUCCESS) {
-        srs_error("amf0 decode play transaction_id failed. ret=%d", ret);
-        return ret;
-    }
-
-    if ((ret = srs_amf0_read_null(stream)) != ERROR_SUCCESS) {
-        srs_error("amf0 decode play command_object failed. ret=%d", ret);
-        return ret;
-    }
-    
-    // @remark, for bandwidth test, ignore the data field.
-
-    srs_info("decode SrsBandwidthPacket success.");
-
     return ret;
 }
 

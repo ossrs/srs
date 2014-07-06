@@ -62,9 +62,6 @@ class SrsChunkStream;
 // generally, it's the pulse time for data seding.
 #define SRS_PULSE_TIMEOUT_US (int64_t)(200*1000LL)
 
-// convert class name to string.
-#define CLASS_NAME_STRING(className) #className
-
 /**
 * max rtmp header size:
 *     1bytes basic header,
@@ -435,36 +432,10 @@ public:
 */
 class SrsPacket
 {
-protected:
-    /**
-    * subpacket must override to provide the right class name.
-    */
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsPacket);
-    }
 public:
     SrsPacket();
     virtual ~SrsPacket();
-/**
-* decode functions.
-*/
 public:
-    /**
-    * subpacket must override to decode packet from stream.
-    * @remark never invoke the super.decode, it always failed.
-    */
-    virtual int decode(SrsStream* stream);
-/**
-* encode functions.
-*/
-public:
-    virtual int get_perfer_cid();
-public:
-    /**
-    * subpacket must override to provide the right message type.
-    */
-    virtual int get_message_type();
     /**
     * the subpacket can override this encode,
     * for example, video and audio will directly set the payload withou memory copy,
@@ -472,6 +443,27 @@ public:
     * get_size and encode_packet.
     */
     virtual int encode(int& size, char*& payload);
+// decode functions for concrete packet to override.
+public:
+    /**
+    * subpacket must override to decode packet from stream.
+    * @remark never invoke the super.decode, it always failed.
+    */
+    virtual int decode(SrsStream* stream);
+// encode functions for concrete packet to override.
+public:
+    /**
+    * the cid(chunk id) specifies the chunk to send data over.
+    * generally, each message perfer some cid, for example, 
+    * all protocol control messages perfer RTMP_CID_ProtocolControl,
+    * SrsSetWindowAckSizePacket is protocol control message.
+    */
+    virtual int get_perfer_cid();
+    /**
+    * subpacket must override to provide the right message type.
+    * the message type set the RTMP message type in header.
+    */
+    virtual int get_message_type();
 protected:
     /**
     * subpacket can override to calc the packet size.
@@ -491,11 +483,6 @@ protected:
 */
 class SrsConnectAppPacket : public SrsPacket
 {
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsConnectAppPacket);
-    }
 public:
     std::string command_name;
     double transaction_id;
@@ -512,11 +499,12 @@ public:
 public:
     SrsConnectAppPacket();
     virtual ~SrsConnectAppPacket();
+// decode functions for concrete packet to override.
 public:
     virtual int decode(SrsStream* stream);
+// encode functions for concrete packet to override.
 public:
     virtual int get_perfer_cid();
-public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -527,11 +515,6 @@ protected:
 */
 class SrsConnectAppResPacket : public SrsPacket
 {
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsConnectAppResPacket);
-    }
 public:
     std::string command_name;
     double transaction_id;
@@ -540,11 +523,12 @@ public:
 public:
     SrsConnectAppResPacket();
     virtual ~SrsConnectAppResPacket();
+// decode functions for concrete packet to override.
 public:
     virtual int decode(SrsStream* stream);
+// encode functions for concrete packet to override.
 public:
     virtual int get_perfer_cid();
-public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -559,11 +543,6 @@ protected:
 */
 class SrsCallPacket : public SrsPacket
 {
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsCallPacket);
-    }
 public:
     std::string command_name;
     double transaction_id;
@@ -577,11 +556,12 @@ public:
 public:
     SrsCallPacket();
     virtual ~SrsCallPacket();
+// decode functions for concrete packet to override.
 public:
     virtual int decode(SrsStream* stream);
+// encode functions for concrete packet to override.
 public:
     virtual int get_perfer_cid();
-public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -592,11 +572,6 @@ protected:
 */
 class SrsCallResPacket : public SrsPacket
 {
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsCallResPacket);
-    }
 public:
     std::string command_name;
     double transaction_id;
@@ -609,9 +584,9 @@ public:
 public:
     SrsCallResPacket(double _transaction_id);
     virtual ~SrsCallResPacket();
+// encode functions for concrete packet to override.
 public:
     virtual int get_perfer_cid();
-public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -627,11 +602,6 @@ protected:
 */
 class SrsCreateStreamPacket : public SrsPacket
 {
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsCreateStreamPacket);
-    }
 public:
     std::string command_name;
     double transaction_id;
@@ -639,11 +609,12 @@ public:
 public:
     SrsCreateStreamPacket();
     virtual ~SrsCreateStreamPacket();
+// decode functions for concrete packet to override.
 public:
     virtual int decode(SrsStream* stream);
+// encode functions for concrete packet to override.
 public:
     virtual int get_perfer_cid();
-public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -654,11 +625,6 @@ protected:
 */
 class SrsCreateStreamResPacket : public SrsPacket
 {
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsCreateStreamResPacket);
-    }
 public:
     std::string command_name;
     double transaction_id;
@@ -667,11 +633,12 @@ public:
 public:
     SrsCreateStreamResPacket(double _transaction_id, double _stream_id);
     virtual ~SrsCreateStreamResPacket();
+// decode functions for concrete packet to override.
 public:
     virtual int decode(SrsStream* stream);
+// encode functions for concrete packet to override.
 public:
     virtual int get_perfer_cid();
-public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -683,11 +650,6 @@ protected:
 */
 class SrsCloseStreamPacket : public SrsPacket
 {
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsCloseStreamPacket);
-    }
 public:
     std::string command_name;
     double transaction_id;
@@ -695,6 +657,7 @@ public:
 public:
     SrsCloseStreamPacket();
     virtual ~SrsCloseStreamPacket();
+// decode functions for concrete packet to override.
 public:
     virtual int decode(SrsStream* stream);
 };
@@ -704,11 +667,6 @@ public:
 */
 class SrsFMLEStartPacket : public SrsPacket
 {
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsFMLEStartPacket);
-    }
 public:
     std::string command_name;
     double transaction_id;
@@ -717,15 +675,17 @@ public:
 public:
     SrsFMLEStartPacket();
     virtual ~SrsFMLEStartPacket();
+// decode functions for concrete packet to override.
 public:
     virtual int decode(SrsStream* stream);
+// encode functions for concrete packet to override.
 public:
     virtual int get_perfer_cid();
-public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
     virtual int encode_packet(SrsStream* stream);
+// factory method to create specified FMLE packet.
 public:
     static SrsFMLEStartPacket* create_release_stream(std::string stream);
     static SrsFMLEStartPacket* create_FC_publish(std::string stream);
@@ -735,11 +695,6 @@ public:
 */
 class SrsFMLEStartResPacket : public SrsPacket
 {
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsFMLEStartResPacket);
-    }
 public:
     std::string command_name;
     double transaction_id;
@@ -748,11 +703,12 @@ public:
 public:
     SrsFMLEStartResPacket(double _transaction_id);
     virtual ~SrsFMLEStartResPacket();
+// decode functions for concrete packet to override.
 public:
     virtual int decode(SrsStream* stream);
+// encode functions for concrete packet to override.
 public:
     virtual int get_perfer_cid();
-public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -768,11 +724,6 @@ protected:
 */
 class SrsPublishPacket : public SrsPacket
 {
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsPublishPacket);
-    }
 public:
     std::string command_name;
     double transaction_id;
@@ -783,11 +734,12 @@ public:
 public:
     SrsPublishPacket();
     virtual ~SrsPublishPacket();
+// decode functions for concrete packet to override.
 public:
     virtual int decode(SrsStream* stream);
+// encode functions for concrete packet to override.
 public:
     virtual int get_perfer_cid();
-public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -801,11 +753,6 @@ protected:
 */
 class SrsPausePacket : public SrsPacket
 {
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsPausePacket);
-    }
 public:
     std::string command_name;
     double transaction_id;
@@ -815,6 +762,7 @@ public:
 public:
     SrsPausePacket();
     virtual ~SrsPausePacket();
+// decode functions for concrete packet to override.
 public:
     virtual int decode(SrsStream* stream);
 };
@@ -825,11 +773,6 @@ public:
 */
 class SrsPlayPacket : public SrsPacket
 {
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsPlayPacket);
-    }
 public:
     std::string command_name;
     double transaction_id;
@@ -841,11 +784,12 @@ public:
 public:
     SrsPlayPacket();
     virtual ~SrsPlayPacket();
+// decode functions for concrete packet to override.
 public:
     virtual int decode(SrsStream* stream);
+// encode functions for concrete packet to override.
 public:
     virtual int get_perfer_cid();
-public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -857,11 +801,6 @@ protected:
 */
 class SrsPlayResPacket : public SrsPacket
 {
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsPlayResPacket);
-    }
 public:
     std::string command_name;
     double transaction_id;
@@ -870,9 +809,9 @@ public:
 public:
     SrsPlayResPacket();
     virtual ~SrsPlayResPacket();
+// encode functions for concrete packet to override.
 public:
     virtual int get_perfer_cid();
-public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -884,11 +823,6 @@ protected:
 */
 class SrsOnBWDonePacket : public SrsPacket
 {
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsOnBWDonePacket);
-    }
 public:
     std::string command_name;
     double transaction_id;
@@ -896,9 +830,9 @@ public:
 public:
     SrsOnBWDonePacket();
     virtual ~SrsOnBWDonePacket();
+// encode functions for concrete packet to override.
 public:
     virtual int get_perfer_cid();
-public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -911,11 +845,6 @@ protected:
 */
 class SrsOnStatusCallPacket : public SrsPacket
 {
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsOnStatusCallPacket);
-    }
 public:
     std::string command_name;
     double transaction_id;
@@ -924,9 +853,9 @@ public:
 public:
     SrsOnStatusCallPacket();
     virtual ~SrsOnStatusCallPacket();
+// encode functions for concrete packet to override.
 public:
     virtual int get_perfer_cid();
-public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -943,11 +872,6 @@ class SrsBandwidthPacket : public SrsPacket
 {
 private:
     disable_default_copy(SrsBandwidthPacket);
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsBandwidthPacket);
-    }
 public:
     std::string command_name;
     double transaction_id;
@@ -956,15 +880,17 @@ public:
 public:
     SrsBandwidthPacket();
     virtual ~SrsBandwidthPacket();
+// decode functions for concrete packet to override.
+public:
+    virtual int decode(SrsStream* stream);
+// encode functions for concrete packet to override.
 public:
     virtual int get_perfer_cid();
-public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
     virtual int encode_packet(SrsStream* stream);
-public:
-    virtual int decode(SrsStream* stream);
+// help function for bandwidth packet.
 public:
     virtual bool is_starting_play();
     virtual bool is_stopped_play();
@@ -987,20 +913,15 @@ private:
 */
 class SrsOnStatusDataPacket : public SrsPacket
 {
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsOnStatusDataPacket);
-    }
 public:
     std::string command_name;
     SrsAmf0Object* data;
 public:
     SrsOnStatusDataPacket();
     virtual ~SrsOnStatusDataPacket();
+// encode functions for concrete packet to override.
 public:
     virtual int get_perfer_cid();
-public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -1013,11 +934,6 @@ protected:
 */
 class SrsSampleAccessPacket : public SrsPacket
 {
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsSampleAccessPacket);
-    }
 public:
     std::string command_name;
     bool video_sample_access;
@@ -1025,9 +941,9 @@ public:
 public:
     SrsSampleAccessPacket();
     virtual ~SrsSampleAccessPacket();
+// encode functions for concrete packet to override.
 public:
     virtual int get_perfer_cid();
-public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -1041,22 +957,18 @@ protected:
 */
 class SrsOnMetaDataPacket : public SrsPacket
 {
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsOnMetaDataPacket);
-    }
 public:
     std::string name;
     SrsAmf0Object* metadata;
 public:
     SrsOnMetaDataPacket();
     virtual ~SrsOnMetaDataPacket();
+// decode functions for concrete packet to override.
 public:
     virtual int decode(SrsStream* stream);
+// encode functions for concrete packet to override.
 public:
     virtual int get_perfer_cid();
-public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -1070,21 +982,17 @@ protected:
 */
 class SrsSetWindowAckSizePacket : public SrsPacket
 {
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsSetWindowAckSizePacket);
-    }
 public:
     int32_t ackowledgement_window_size;
 public:
     SrsSetWindowAckSizePacket();
     virtual ~SrsSetWindowAckSizePacket();
+// decode functions for concrete packet to override.
 public:
     virtual int decode(SrsStream* stream);
+// encode functions for concrete packet to override.
 public:
     virtual int get_perfer_cid();
-public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -1098,19 +1006,14 @@ protected:
 */
 class SrsAcknowledgementPacket : public SrsPacket
 {
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsAcknowledgementPacket);
-    }
 public:
     int32_t sequence_number;
 public:
     SrsAcknowledgementPacket();
     virtual ~SrsAcknowledgementPacket();
+// encode functions for concrete packet to override.
 public:
     virtual int get_perfer_cid();
-public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -1124,21 +1027,17 @@ protected:
 */
 class SrsSetChunkSizePacket : public SrsPacket
 {
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsSetChunkSizePacket);
-    }
 public:
     int32_t chunk_size;
 public:
     SrsSetChunkSizePacket();
     virtual ~SrsSetChunkSizePacket();
+// decode functions for concrete packet to override.
 public:
     virtual int decode(SrsStream* stream);
+// encode functions for concrete packet to override.
 public:
     virtual int get_perfer_cid();
-public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -1152,20 +1051,15 @@ protected:
 */
 class SrsSetPeerBandwidthPacket : public SrsPacket
 {
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsSetPeerBandwidthPacket);
-    }
 public:
     int32_t bandwidth;
     int8_t type;
 public:
     SrsSetPeerBandwidthPacket();
     virtual ~SrsSetPeerBandwidthPacket();
+// encode functions for concrete packet to override.
 public:
     virtual int get_perfer_cid();
-public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -1203,11 +1097,6 @@ enum SrcPCUCEventType
 */
 class SrsUserControlPacket : public SrsPacket
 {
-protected:
-    virtual const char* get_class_name()
-    {
-        return CLASS_NAME_STRING(SrsUserControlPacket);
-    }
 public:
     // @see: SrcPCUCEventType
     int16_t event_type;
@@ -1219,11 +1108,12 @@ public:
 public:
     SrsUserControlPacket();
     virtual ~SrsUserControlPacket();
+// decode functions for concrete packet to override.
 public:
     virtual int decode(SrsStream* stream);
+// encode functions for concrete packet to override.
 public:
     virtual int get_perfer_cid();
-public:
     virtual int get_message_type();
 protected:
     virtual int get_size();
