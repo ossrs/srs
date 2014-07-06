@@ -1256,6 +1256,19 @@ int SrsHlsCache::cache_video(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         if (nal_unit_type == 1) {
             sps_pps_sent = false;
         }
+        
+        // 6: Supplemental enhancement information (SEI) sei_rbsp( ), page 61
+        // @see: ngx_rtmp_hls_append_aud
+        if (!aud_sent) {
+            if (nal_unit_type == 9) {
+                aud_sent = true;
+            }
+            if (nal_unit_type == 1 || nal_unit_type == 5 || nal_unit_type == 6) {
+                // for type 6, append a aud with type 9.
+                vb->append(aud_nal, sizeof(aud_nal));
+            }
+        }
+        
         // 5: Coded slice of an IDR picture.
         // insert sps/pps before IDR or key frame is ok.
         if (nal_unit_type == 5 && !sps_pps_sent) {
@@ -1276,12 +1289,7 @@ int SrsHlsCache::cache_video(SrsAvcAacCodec* codec, SrsCodecSample* sample)
                 vb->append(codec->pictureParameterSetNALUnit, codec->pictureParameterSetLength);
             }
         }
-        // 6: Supplemental enhancement information (SEI) sei_rbsp( ), page 61
-        // @see: ngx_rtmp_hls_append_aud
-        if (nal_unit_type == 6 && !aud_sent) {
-            // for type 6, append a aud with type 9.
-            vb->append(aud_nal, sizeof(aud_nal));
-        }
+        
         // 7-9, ignore, @see: ngx_rtmp_hls_video
         if (nal_unit_type >= 7 && nal_unit_type <= 9) {
             continue;
