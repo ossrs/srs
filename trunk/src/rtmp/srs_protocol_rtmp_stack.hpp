@@ -124,16 +124,21 @@ public:
     SrsProtocol(ISrsProtocolReaderWriter* io);
     virtual ~SrsProtocol();
 public:
-    // TODO: FIXME: to private.
-    std::string get_request_name(double transcationId);
     /**
-    * set the timeout in us.
+    * set/get the recv timeout in us.
     * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
     */
     virtual void set_recv_timeout(int64_t timeout_us);
     virtual int64_t get_recv_timeout();
+    /**
+    * set/get the send timeout in us.
+    * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
+    */
     virtual void set_send_timeout(int64_t timeout_us);
     virtual int64_t get_send_timeout();
+    /**
+    * get recv/send bytes.
+    */
     virtual int64_t get_recv_bytes();
     virtual int64_t get_send_bytes();
 public:
@@ -213,7 +218,13 @@ private:
     */
     virtual int on_send_message(SrsMessage* msg, SrsPacket* packet);
 private:
+    /**
+    * auto response the ack message.
+    */
     virtual int response_acknowledgement_message();
+    /**
+    * auto response the ping message.
+    */
     virtual int response_ping_message(int32_t timestamp);
 };
 
@@ -252,7 +263,6 @@ public:
     * @remark, we use 64bits for large time for jitter detect and hls.
     */
     int64_t timestamp;
-    
 public:
     /**
     * get the perfered cid(chunk stream id) which sendout over.
@@ -260,11 +270,10 @@ public:
     * for example, dispatch to all connections.
     */
     int perfer_cid;
-    
 public:
     SrsMessageHeader();
     virtual ~SrsMessageHeader();
-
+public:
     bool is_audio();
     bool is_video();
     bool is_amf0_command();
@@ -277,9 +286,18 @@ public:
     bool is_user_control_message();
     bool is_set_peer_bandwidth();
     bool is_aggregate();
-    
+public:
+    /**
+    * create a amf0 script header, set the size and stream_id.
+    */
     void initialize_amf0_script(int size, int stream);
+    /**
+    * create a audio header, set the size, timestamp and stream_id.
+    */
     void initialize_audio(int size, u_int32_t time, int stream);
+    /**
+    * create a video header, set the size, timestamp and stream_id.
+    */
     void initialize_video(int size, u_int32_t time, int stream);
 };
 

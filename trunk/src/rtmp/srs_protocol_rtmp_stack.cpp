@@ -321,15 +321,6 @@ SrsProtocol::~SrsProtocol()
     srs_freep(buffer);
 }
 
-string SrsProtocol::get_request_name(double transcationId)
-{
-    if (requests.find(transcationId) == requests.end()) {
-        return "";
-    }
-    
-    return requests[transcationId];
-}
-
 void SrsProtocol::set_recv_timeout(int64_t timeout_us)
 {
     return skt->set_recv_timeout(timeout_us);
@@ -605,12 +596,14 @@ int SrsProtocol::do_decode_message(SrsMessageHeader& header, SrsStream* stream, 
                 stream->skip(1);
             }
             
-            std::string request_name = get_request_name(transactionId);
-            if (request_name.empty()) {
+            // find the call name
+            if (requests.find(transactionId) == requests.end()) {
                 ret = ERROR_RTMP_NO_REQUEST;
                 srs_error("decode AMF0/AMF3 request failed. ret=%d", ret);
                 return ret;
             }
+            
+            std::string request_name = requests[transactionId];
             srs_verbose("AMF0/AMF3 request parsed. request_name=%s", request_name.c_str());
 
             if (request_name == RTMP_AMF0_COMMAND_CONNECT) {
