@@ -69,7 +69,15 @@ public:
     virtual ~ISrsBufferWriter();
 // for protocol
 public:
+    /**
+    * write bytes over writer.
+    * @nwrite the actual written bytes. NULL to ignore.
+    */
     virtual int write(void* buf, size_t size, ssize_t* nwrite) = 0;
+    /**
+    * write iov over writer.
+    * @nwrite the actual written bytes. NULL to ignore.
+    */
     virtual int writev(const iovec *iov, int iov_size, ssize_t* nwrite) = 0;
 };
 
@@ -83,7 +91,13 @@ public:
     virtual ~ISrsProtocolStatistic();
 // for protocol
 public:
+    /**
+    * get the total recv bytes over underlay fd.
+    */
     virtual int64_t get_recv_bytes() = 0;
+    /**
+    * get the total send bytes over underlay fd.
+    */
     virtual int64_t get_send_bytes() = 0;
 };
 
@@ -97,10 +111,21 @@ public:
     virtual ~ISrsProtocolReader();
 // for protocol
 public:
+    /**
+    * set the recv timeout in us, recv will error when timeout.
+    * @remark, if not set, use ST_UTIME_NO_TIMEOUT, never timeout.
+    */
     virtual void set_recv_timeout(int64_t timeout_us) = 0;
+    /**
+    * get the recv timeout in us.
+    */
     virtual int64_t get_recv_timeout() = 0;
 // for handshake.
 public:
+    /**
+    * read specified size bytes of data
+    * @param nread, the actually read size, NULL to ignore.
+    */
     virtual int read_fully(void* buf, size_t size, ssize_t* nread) = 0;
 };
 
@@ -114,7 +139,14 @@ public:
     virtual ~ISrsProtocolWriter();
 // for protocol
 public:
+    /**
+    * set the send timeout in us, send will error when timeout.
+    * @remark, if not set, use ST_UTIME_NO_TIMEOUT, never timeout.
+    */
     virtual void set_send_timeout(int64_t timeout_us) = 0;
+    /**
+    * get the send timeout in us.
+    */
     virtual int64_t get_send_timeout() = 0;
 };
 
