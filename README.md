@@ -207,7 +207,8 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
-* v1.0, 2014-07-05, fix [#81](https://github.com/winlinvip/simple-rtmp-server/issues/81), support all aac sample rate. 0.9.150.
+* v1.0, 2014-07-05, fix [#81](https://github.com/winlinvip/simple-rtmp-server/issues/81), fix HLS codec info, IOS ok. 0.9.153.
+* v1.0, 2014-07-05, fix [#103](https://github.com/winlinvip/simple-rtmp-server/issues/103), support all aac sample rate. 0.9.150.
 * v1.0, 2014-07-05, complete kernel utest. 0.9.149
 * v1.0, 2014-06-30, fix [#111](https://github.com/winlinvip/simple-rtmp-server/issues/111), always use 31bits timestamp. 0.9.143.
 * v1.0, 2014-06-28, response the call message with null. 0.9.137
