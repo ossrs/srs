@@ -1172,15 +1172,19 @@ class SrsSampleAccessPacket : public SrsPacket
 {
 public:
     /**
-    * 
+    * Name of command. Set to "|RtmpSampleAccess".
     */
     std::string command_name;
     /**
-    * 
+    * whether allow access the sample of video.
+    * @see: https://github.com/winlinvip/simple-rtmp-server/issues/49
+    * @see: http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/net/NetStream.html#videoSampleAccess
     */
     bool video_sample_access;
     /**
-    * 
+    * whether allow access the sample of audio.
+    * @see: https://github.com/winlinvip/simple-rtmp-server/issues/49
+    * @see: http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/net/NetStream.html#audioSampleAccess
     */
     bool audio_sample_access;
 public:
@@ -1203,7 +1207,13 @@ protected:
 class SrsOnMetaDataPacket : public SrsPacket
 {
 public:
+    /**
+    * Name of metadata. Set to "onMetaData"
+    */
     std::string name;
+    /**
+    * Metadata of stream.
+    */
     SrsAmf0Object* metadata;
 public:
     SrsOnMetaDataPacket();
@@ -1273,6 +1283,10 @@ protected:
 class SrsSetChunkSizePacket : public SrsPacket
 {
 public:
+    /**
+    * The maximum chunk size can be 65536 bytes. The chunk size is
+    * maintained independently for each direction.
+    */
     int32_t chunk_size;
 public:
     SrsSetChunkSizePacket();
@@ -1325,14 +1339,16 @@ enum SrcPCUCEventType
 };
 
 /**
+* 5.4. User Control Message (4)
+* 
 * for the EventData is 4bytes.
-* Stream Begin(=0)            4-bytes stream ID
-* Stream EOF(=1)            4-bytes stream ID
-* StreamDry(=2)                4-bytes stream ID
-* SetBufferLength(=3)        8-bytes 4bytes stream ID, 4bytes buffer length.
-* StreamIsRecorded(=4)        4-bytes stream ID
-* PingRequest(=6)            4-bytes timestamp local server time
-* PingResponse(=7)            4-bytes timestamp received ping request.
+* Stream Begin(=0)              4-bytes stream ID
+* Stream EOF(=1)                4-bytes stream ID
+* StreamDry(=2)                 4-bytes stream ID
+* SetBufferLength(=3)           8-bytes 4bytes stream ID, 4bytes buffer length.
+* StreamIsRecorded(=4)          4-bytes stream ID
+* PingRequest(=6)               4-bytes timestamp local server time
+* PingResponse(=7)              4-bytes timestamp received ping request.
 * 
 * 3.7. User Control message
 * +------------------------------+-------------------------
@@ -1343,7 +1359,10 @@ enum SrcPCUCEventType
 class SrsUserControlPacket : public SrsPacket
 {
 public:
-    // @see: SrcPCUCEventType
+    /**
+    * Event type is followed by Event data.
+    * @see: SrcPCUCEventType
+    */
     int16_t event_type;
     int32_t event_data;
     /**

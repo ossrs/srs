@@ -72,7 +72,7 @@ int MockSrsFileWriter::write(void* buf, size_t count, ssize_t* pnwrite)
 {
     int ret = ERROR_SUCCESS;
     
-    int size = srs_min(MAX_MOCK_DATA_SIZE - offset, count);
+    int size = srs_min(MAX_MOCK_DATA_SIZE - offset, (int)count);
     
     memcpy(data + offset, buf, size);
 
