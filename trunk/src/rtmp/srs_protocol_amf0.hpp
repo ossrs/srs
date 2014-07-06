@@ -41,8 +41,8 @@ class SrsAmf0StrictArray;
 // internal objects, user should never use it.
 namespace _srs_internal
 {
-    class __SrsUnSortedHashtable;
-    class __SrsAmf0ObjectEOF;
+    class SrsUnSortedHashtable;
+    class SrsAmf0ObjectEOF;
 }
 
 /*
@@ -317,8 +317,8 @@ public:
 class SrsAmf0Object : public SrsAmf0Any
 {
 private:
-    _srs_internal::__SrsUnSortedHashtable* properties;
-    _srs_internal::__SrsAmf0ObjectEOF* eof;
+    _srs_internal::SrsUnSortedHashtable* properties;
+    _srs_internal::SrsAmf0ObjectEOF* eof;
 private:
     friend class SrsAmf0Any;
     /**
@@ -399,8 +399,8 @@ public:
 class SrsAmf0EcmaArray : public SrsAmf0Any
 {
 private:
-    _srs_internal::__SrsUnSortedHashtable* properties;
-    _srs_internal::__SrsAmf0ObjectEOF* eof;
+    _srs_internal::SrsUnSortedHashtable* properties;
+    _srs_internal::SrsAmf0ObjectEOF* eof;
     int32_t _count;
 private:
     friend class SrsAmf0Any;
@@ -600,13 +600,19 @@ namespace _srs_internal
     * @return default value is empty string.
     * @remark: use SrsAmf0Any::str() to create it.
     */
-    class __SrsAmf0String : public SrsAmf0Any
+    class SrsAmf0String : public SrsAmf0Any
     {
     public:
         std::string value;
+    private:
+        friend class SrsAmf0Any;
+        /**
+        * make amf0 string to private,
+        * use should never declare it, use SrsAmf0Any::str() to create it.
+        */
+        SrsAmf0String(const char* _value);
     public:
-        __SrsAmf0String(const char* _value);
-        virtual ~__SrsAmf0String();
+        virtual ~SrsAmf0String();
     public:
         virtual int total_size();
         virtual int read(SrsStream* stream);
@@ -621,13 +627,19 @@ namespace _srs_internal
     *         0 is false, <> 0 is true
     * @return default value is false.
     */
-    class __SrsAmf0Boolean : public SrsAmf0Any
+    class SrsAmf0Boolean : public SrsAmf0Any
     {
     public:
         bool value;
+    private:
+        friend class SrsAmf0Any;
+        /**
+        * make amf0 boolean to private,
+        * use should never declare it, use SrsAmf0Any::boolean() to create it.
+        */
+        SrsAmf0Boolean(bool _value);
     public:
-        __SrsAmf0Boolean(bool _value);
-        virtual ~__SrsAmf0Boolean();
+        virtual ~SrsAmf0Boolean();
     public:
         virtual int total_size();
         virtual int read(SrsStream* stream);
@@ -641,13 +653,19 @@ namespace _srs_internal
     * number-type = number-marker DOUBLE
     * @return default value is 0.
     */
-    class __SrsAmf0Number : public SrsAmf0Any
+    class SrsAmf0Number : public SrsAmf0Any
     {
     public:
         double value;
+    private:
+        friend class SrsAmf0Any;
+        /**
+        * make amf0 number to private,
+        * use should never declare it, use SrsAmf0Any::number() to create it.
+        */
+        SrsAmf0Number(double _value);
     public:
-        __SrsAmf0Number(double _value);
-        virtual ~__SrsAmf0Number();
+        virtual ~SrsAmf0Number();
     public:
         virtual int total_size();
         virtual int read(SrsStream* stream);
@@ -660,11 +678,17 @@ namespace _srs_internal
     * 2.7 null Type
     * null-type = null-marker
     */
-    class __SrsAmf0Null : public SrsAmf0Any
+    class SrsAmf0Null : public SrsAmf0Any
     {
+    private:
+        friend class SrsAmf0Any;
+        /**
+        * make amf0 null to private,
+        * use should never declare it, use SrsAmf0Any::null() to create it.
+        */
+        SrsAmf0Null();
     public:
-        __SrsAmf0Null();
-        virtual ~__SrsAmf0Null();
+        virtual ~SrsAmf0Null();
     public:
         virtual int total_size();
         virtual int read(SrsStream* stream);
@@ -677,11 +701,17 @@ namespace _srs_internal
     * 2.8 undefined Type
     * undefined-type = undefined-marker
     */
-    class __SrsAmf0Undefined : public SrsAmf0Any
+    class SrsAmf0Undefined : public SrsAmf0Any
     {
+    private:
+        friend class SrsAmf0Any;
+        /**
+        * make amf0 undefined to private,
+        * use should never declare it, use SrsAmf0Any::undefined() to create it.
+        */
+        SrsAmf0Undefined();
     public:
-        __SrsAmf0Undefined();
-        virtual ~__SrsAmf0Undefined();
+        virtual ~SrsAmf0Undefined();
     public:
         virtual int total_size();
         virtual int read(SrsStream* stream);
@@ -695,14 +725,14 @@ namespace _srs_internal
     * if ordered in map, the string compare order, the FMLE will creash when
     * get the response of connect app.
     */
-    class __SrsUnSortedHashtable
+    class SrsUnSortedHashtable
     {
     private:
         typedef std::pair<std::string, SrsAmf0Any*> SrsAmf0ObjectPropertyType;
         std::vector<SrsAmf0ObjectPropertyType> properties;
     public:
-        __SrsUnSortedHashtable();
-        virtual ~__SrsUnSortedHashtable();
+        SrsUnSortedHashtable();
+        virtual ~SrsUnSortedHashtable();
     public:
         virtual int count();
         virtual void clear();
@@ -715,7 +745,7 @@ namespace _srs_internal
         virtual SrsAmf0Any* ensure_property_string(std::string name);
         virtual SrsAmf0Any* ensure_property_number(std::string name);
     public:
-        virtual void copy(__SrsUnSortedHashtable* src);
+        virtual void copy(SrsUnSortedHashtable* src);
     };
     
     /**
@@ -723,14 +753,14 @@ namespace _srs_internal
     * object-end-type = UTF-8-empty object-end-marker
     * 0x00 0x00 0x09
     */
-    class __SrsAmf0ObjectEOF : public SrsAmf0Any
+    class SrsAmf0ObjectEOF : public SrsAmf0Any
     {
     public:
         int16_t utf8_empty;
-    
-        __SrsAmf0ObjectEOF();
-        virtual ~__SrsAmf0ObjectEOF();
-        
+    public:
+        SrsAmf0ObjectEOF();
+        virtual ~SrsAmf0ObjectEOF();
+    public:
         virtual int total_size();
         virtual int read(SrsStream* stream);
         virtual int write(SrsStream* stream);
@@ -749,7 +779,7 @@ namespace _srs_internal
     extern int srs_amf0_write_utf8(SrsStream* stream, std::string value);
     
     extern bool srs_amf0_is_object_eof(SrsStream* stream);
-    extern int srs_amf0_write_object_eof(SrsStream* stream, __SrsAmf0ObjectEOF* value);
+    extern int srs_amf0_write_object_eof(SrsStream* stream, SrsAmf0ObjectEOF* value);
     
     extern int srs_amf0_write_any(SrsStream* stream, SrsAmf0Any* value);
 };
