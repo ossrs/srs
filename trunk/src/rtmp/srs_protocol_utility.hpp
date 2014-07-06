@@ -39,27 +39,50 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // the default chunk size for system.
 #define SRS_CONF_DEFAULT_CHUNK_SIZE 60000
 
-// parse the tcUrl, output the schema, host, vhost, app and port.
+/**
+* parse the tcUrl, output the schema, host, vhost, app and port.
+* @param tcUrl, the input tcUrl, for example, 
+*       rtmp://192.168.1.10:19350/live?vhost=vhost.ossrs.net
+* @param schema, for example, rtmp
+* @param host, for example, 192.168.1.10
+* @param vhost, for example, vhost.ossrs.net.
+*       vhost default to host, when user not set vhost in query of app.
+* @param app, for example, live
+* @param port, for example, 19350
+*       default to 1935 if not specified.
+*/
 extern void srs_discovery_tc_url(
     std::string tcUrl, 
     std::string& schema, std::string& host, std::string& vhost, 
     std::string& app, std::string& port
 );
 
-// resolve the vhost in query string
-// @param app, may contains the vhost in query string format:
-//         app?vhost=request_vhost
-//        app...vhost...request_vhost
+/**
+* resolve the vhost in query string
+* @param app, may contains the vhost in query string format:
+*   app?vhost=request_vhost
+*   app...vhost...request_vhost
+*/ 
 extern void srs_vhost_resolve(std::string& vhost, std::string& app);
 
-// generate ramdom data for handshake.
+/**
+* generate ramdom data for handshake.
+*/
 extern void srs_random_generate(char* bytes, int size);
 
-// generate the tcUrl.
-extern std::string srs_generate_tc_url(std::string ip, std::string vhost, std::string app, std::string port);
+/**
+* generate the tcUrl.
+* @return the tcUrl generated from ip/vhost/app/port.
+* @remark when vhost equals to __defaultVhost__, use ip as vhost.
+* @remark ignore port if port equals to default port 1935.
+*/
+extern std::string srs_generate_tc_url(
+    std::string ip, std::string vhost, std::string app, std::string port
+);
 
 /**
 * compare the memory in bytes.
+* @return true if completely equal; otherwise, false.
 */
 extern bool srs_bytes_equals(void* pa, void* pb, int size);
 
