@@ -40,44 +40,76 @@ class SrsAmf0StrictArray;
 class __SrsUnSortedHashtable;
 class __SrsAmf0ObjectEOF;
 
+/*
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
-// amf0 codec
-// 1. SrsAmf0Any: read any from stream
-//        SrsAmf0Any* pany = NULL;
-//        if ((ret = srs_amf0_read_any(stream, &pany)) != ERROR_SUCCESS) {
-//            return ret;
-//         }
-//        srs_assert(pany); // if success, always valid object.
-// 2. SrsAmf0Any: convert to specifid type, for instance, string
-//        SrsAmf0Any* pany = ...
-//        if (pany->is_string()) {
-//            string v = pany->to_str();
-//        }
-// 3. SrsAmf0Any: parse specified type to any, for instance, string
-//        SrsAmf0Any* pany = SrsAmf0Any::str("winlin");
-// 4. SrsAmf0Size: get amf0 instance size
-//        int size = SrsAmf0Size::str("winlin");
-// 5. SrsAmf0Object: create the amf0 object.
-//        SrsAmf0Object* obj = SrsAmf0Any::object();
-// 5. SrsAmf0EcmaArray: create the amf0 ecma array.
-//        SrsAmf0EcmaArray* arr = SrsAmf0Any::ecma_array();
-// 6. SrsAmf0Any: set basic type value
-//        SrsAmf0Any* pany = ...
-//        if (pany->is_number()) {
-//            pany->set_number(100.1);
-//        }
-//
-// please carefully the size and count of amf0 any:
-// 1. total_size(): the total memory size the object wrote to buffer.
-// 2. count(): the total element count of object, for instance, the properties
-//        of amf0 object, used for key_at/value_at loop.
-//
-// for detail usage, see interfaces of each object.
+Usages:
+
+1. the bytes proxy: SrsStream
+    // when we got some bytes from file or network,
+    // use SrsStream proxy to read/write bytes
+    
+    // for example, read bytes from file or network.
+    char* bytes = ...; 
+    
+    // initialize the stream, proxy for bytes.
+    SrsStream stream;
+    stream.initialize(bytes);
+    
+    // use stream instead.
+
+2. directly read AMF0 any instance from stream:
+    SrsAmf0Any* pany = NULL;
+    srs_amf0_read_any(&stream, &pany);
+
+3. use SrsAmf0Any to discovery instance from stream:
+    SrsAmf0Any* pany = NULL;
+    SrsAmf0Any::discovery(&stream, &pany);
+
+4. directly read specified AMF0 instance value from stream:
+    string value;
+    srs_amf0_read_string(&stream, value);
+    
+5. directly read specified AMF0 instance from stream:
+    SrsAmf0Any* str = SrsAmf0Any::str();
+    str->read(&stream);
+
+6. get value from AMF0 instance:
+    // parse or set by other user
+    SrsAmf0Any* any = ...;
+    
+    if (any->is_string()) {
+        string str = any->to_string();
+    }
+
+7. get complex object from AMF0 insance:
+    // parse or set by other user
+    SrsAmf0Any* any = ...;
+    
+    if (any->is_object()) {
+        SrsAmf0Object* obj = any->to_object();
+        obj->set("width", SrsAmf0Any::number(1024));
+        obj->set("height", SrsAmf0Any::number(576));
+    }
+
+8. serialize AMF0 instance to bytes:
+    // parse or set by other user
+    SrsAmf0Any* any = ...;
+    
+    char* bytes = new char[any->total_size()];
+    
+    SrsStream stream;
+    stream.initialize(bytes);
+    
+    any->write(&stream);
+
+@remark: for detail usage, see interfaces of each object.
+@remark: all examples ignore the error process.
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
+*/
 
 /**
 * any amf0 value.
@@ -94,82 +126,181 @@ public:
 public:
     SrsAmf0Any();
     virtual ~SrsAmf0Any();
-public:
-    virtual bool is_string();
-    virtual bool is_boolean();
-    virtual bool is_number();
-    virtual bool is_null();
-    virtual bool is_undefined();
-    virtual bool is_object();
-    virtual bool is_object_eof();
-    virtual bool is_ecma_array();
-    virtual bool is_strict_array();
-public:
-    virtual bool is_complex_object();
+// type identify, user should identify the type then convert from/to value.
 public:
     /**
-    * get the string of any when is_string() indicates true.
-    * user must ensure the type is a string, or assert failed.
+    * whether current instance is an AMF0 string.
+    * @return true if instance is an AMF0 string; otherwise, false.
+    * @remark, if true, use to_string() to get its value.
+    */
+    virtual bool is_string();
+    /**
+    * whether current instance is an AMF0 boolean.
+    * @return true if instance is an AMF0 boolean; otherwise, false.
+    * @remark, if true, use to_boolean() to get its value.
+    */
+    virtual bool is_boolean();
+    /**
+    * whether current instance is an AMF0 number.
+    * @return true if instance is an AMF0 number; otherwise, false.
+    * @remark, if true, use to_number() to get its value.
+    */
+    virtual bool is_number();
+    /**
+    * whether current instance is an AMF0 null.
+    * @return true if instance is an AMF0 null; otherwise, false.
+    */
+    virtual bool is_null();
+    /**
+    * whether current instance is an AMF0 undefined.
+    * @return true if instance is an AMF0 undefined; otherwise, false.
+    */
+    virtual bool is_undefined();
+    /**
+    * whether current instance is an AMF0 object.
+    * @return true if instance is an AMF0 object; otherwise, false.
+    * @remark, if true, use to_object() to get its value.
+    */
+    virtual bool is_object();
+    /**
+    * whether current instance is an AMF0 object-EOF.
+    * @return true if instance is an AMF0 object-EOF; otherwise, false.
+    */
+    virtual bool is_object_eof();
+    /**
+    * whether current instance is an AMF0 ecma-array.
+    * @return true if instance is an AMF0 ecma-array; otherwise, false.
+    * @remark, if true, use to_ecma_array() to get its value.
+    */
+    virtual bool is_ecma_array();
+    /**
+    * whether current instance is an AMF0 strict-array.
+    * @return true if instance is an AMF0 strict-array; otherwise, false.
+    * @remark, if true, use to_strict_array() to get its value.
+    */
+    virtual bool is_strict_array();
+    /**
+    * whether current instance is an AMF0 object, object-EOF, ecma-array or strict-array.
+    */
+    virtual bool is_complex_object();
+// get value of instance
+public:
+    /**
+    * get a string copy of instance.
+    * @remark assert is_string(), user must ensure the type then convert.
     */
     virtual std::string to_str();
+    /**
+    * get the raw str of instance,
+    * user can directly set the content of str.
+    * @remark assert is_string(), user must ensure the type then convert.
+    */
     virtual const char* to_str_raw();
     /**
-    * get the boolean of any when is_boolean() indicates true.
-    * user must ensure the type is a boolean, or assert failed.
+    * convert instance to amf0 boolean,
+    * @remark assert is_boolean(), user must ensure the type then convert.
     */
     virtual bool to_boolean();
     /**
-    * get the number of any when is_number() indicates true.
-    * user must ensure the type is a number, or assert failed.
+    * convert instance to amf0 number,
+    * @remark assert is_number(), user must ensure the type then convert.
     */
     virtual double to_number();
     /**
-    * get the object of any when is_object() indicates true.
-    * user must ensure the type is a object, or assert failed.
+    * convert instance to amf0 object,
+    * @remark assert is_object(), user must ensure the type then convert.
     */
     virtual SrsAmf0Object* to_object();
     /**
-    * get the ecma array of any when is_ecma_array() indicates true.
-    * user must ensure the type is a ecma array, or assert failed.
+    * convert instance to ecma array,
+    * @remark assert is_ecma_array(), user must ensure the type then convert.
     */
     virtual SrsAmf0EcmaArray* to_ecma_array();
+    /**
+    * convert instance to strict array,
+    * @remark assert is_strict_array(), user must ensure the type then convert.
+    */
     virtual SrsAmf0StrictArray* to_strict_array();
+// set value of instance
 public:
     /**
     * set the number of any when is_number() indicates true.
     * user must ensure the type is a number, or assert failed.
     */
     virtual void set_number(double value);
+// serialize/deseriaize instance.
 public:
     /**
     * get the size of amf0 any, including the marker size.
+    * the size is the bytes which instance serialized to.
     */
     virtual int total_size() = 0;
     /**
-    * read elem from stream
+    * read AMF0 instance from stream.
     */
     virtual int read(SrsStream* stream) = 0;
+    /**
+    * write AMF0 instance to stream.
+    */
     virtual int write(SrsStream* stream) = 0;
+    /**
+    * copy current AMF0 instance.
+    */
     virtual SrsAmf0Any* copy() = 0;
-public:
     /**
     * human readable print 
     * @param pdata, output the heap data, NULL to ignore.
-    * user must use srs_amf0_free_bytes to free it.
     * @return return the *pdata for print. NULL to ignore.
+    * @remark user must free the data returned or output by pdata.
     */
     virtual char* human_print(char** pdata, int* psize);
+// create AMF0 instance.
 public:
+    /**
+    * create an AMF0 string instance, set string content by value.
+    */
     static SrsAmf0Any* str(const char* value = NULL); 
+    /**
+    * create an AMF0 boolean instance, set boolean content by value.
+    */
     static SrsAmf0Any* boolean(bool value = false);
+    /**
+    * create an AMF0 number instance, set number content by value.
+    */
     static SrsAmf0Any* number(double value = 0.0);
+    /**
+    * create an AMF0 null instance
+    */
     static SrsAmf0Any* null();
+    /**
+    * create an AMF0 undefined instance
+    */
     static SrsAmf0Any* undefined();
+    /**
+    * create an AMF0 empty object instance
+    */
     static SrsAmf0Object* object();
+    /**
+    * create an AMF0 object-EOF instance
+    */
     static SrsAmf0Any* object_eof();
+    /**
+    * create an AMF0 empty ecma-array instance
+    */
     static SrsAmf0EcmaArray* ecma_array();
+    /**
+    * create an AMF0 empty strict-array instance
+    */
     static SrsAmf0StrictArray* strict_array();
+// discovery instance from stream
 public:
+    /**
+    * discovery AMF0 instance from stream
+    * @param ppvalue, output the discoveried AMF0 instance.
+    *       NULL if error.
+    * @remark, instance is created without read from stream, user must
+    *       use (*ppvalue)->read(stream) to get the instance.
+    */
     static int discovery(SrsStream* stream, SrsAmf0Any** ppvalue);
 };
 
@@ -183,33 +314,74 @@ class SrsAmf0Object : public SrsAmf0Any
 private:
     __SrsUnSortedHashtable* properties;
     __SrsAmf0ObjectEOF* eof;
-
 private:
-    // use SrsAmf0Any::object() to create it.
     friend class SrsAmf0Any;
+    /**
+    * make amf0 object to private,
+    * use should never declare it, use SrsAmf0Any::object() to create it.
+    */
     SrsAmf0Object();
 public:
     virtual ~SrsAmf0Object();
-
+// serialize/deserialize to/from stream.
 public:
     virtual int total_size();
     virtual int read(SrsStream* stream);
     virtual int write(SrsStream* stream);
     virtual SrsAmf0Any* copy();
-    
+// properties iteration
 public:
+    /**
+    * clear all propergies.
+    */
     virtual void clear();
+    /**
+    * get the count of properties(key:value).
+    */
     virtual int count();
-    // @remark: max index is count().
+    /**
+    * get the property(key:value) key at index.
+    * @remark: max index is count().
+    */
     virtual std::string key_at(int index);
+    /**
+    * get the property(key:value) key raw bytes at index.
+    * user can directly set the key bytes.
+    * @remark: max index is count().
+    */
     virtual const char* key_raw_at(int index);
-    // @remark: max index is count().
+    /**
+    * get the property(key:value) value at index.
+    * @remark: max index is count().
+    */
     virtual SrsAmf0Any* value_at(int index);
-    
+// property set/get.
 public:
+    /**
+    * set the property(key:value) of object,
+    * @param key, string property name.
+    * @param value, an AMF0 instance property value.
+    * @remark user should never free the value, this instance will manage it.
+    */
     virtual void set(std::string key, SrsAmf0Any* value);
+    /**
+    * get the property(key:value) of object,
+    * @param name, the property name/key
+    * @return the property AMF0 value, NULL if not found.
+    * @remark user should never free the returned value, copy it if needed.
+    */
     virtual SrsAmf0Any* get_property(std::string name);
+    /**
+    * get the string property, ensure the property is_string().
+    * @return the property AMF0 value, NULL if not found, or not a string.
+    * @remark user should never free the returned value, copy it if needed.
+    */
     virtual SrsAmf0Any* ensure_property_string(std::string name);
+    /**
+    * get the number property, ensure the property is_number().
+    * @return the property AMF0 value, NULL if not found, or not a number.
+    * @remark user should never free the returned value, copy it if needed.
+    */
     virtual SrsAmf0Any* ensure_property_number(std::string name);
 };
 
@@ -225,33 +397,74 @@ private:
     __SrsUnSortedHashtable* properties;
     __SrsAmf0ObjectEOF* eof;
     int32_t _count;
-
 private:
-    // use SrsAmf0Any::ecma_array() to create it.
     friend class SrsAmf0Any;
+    /**
+    * make amf0 object to private,
+    * use should never declare it, use SrsAmf0Any::ecma_array() to create it.
+    */
     SrsAmf0EcmaArray();
 public:
     virtual ~SrsAmf0EcmaArray();
-
+// serialize/deserialize to/from stream.
 public:
     virtual int total_size();
     virtual int read(SrsStream* stream);
     virtual int write(SrsStream* stream);
     virtual SrsAmf0Any* copy();
-    
+// properties iteration
 public:
+    /**
+    * clear all propergies.
+    */
     virtual void clear();
+    /**
+    * get the count of properties(key:value).
+    */
     virtual int count();
-    // @remark: max index is count().
+    /**
+    * get the property(key:value) key at index.
+    * @remark: max index is count().
+    */
     virtual std::string key_at(int index);
+    /**
+    * get the property(key:value) key raw bytes at index.
+    * user can directly set the key bytes.
+    * @remark: max index is count().
+    */
     virtual const char* key_raw_at(int index);
-    // @remark: max index is count().
+    /**
+    * get the property(key:value) value at index.
+    * @remark: max index is count().
+    */
     virtual SrsAmf0Any* value_at(int index);
-
+// property set/get.
 public:
+    /**
+    * set the property(key:value) of array,
+    * @param key, string property name.
+    * @param value, an AMF0 instance property value.
+    * @remark user should never free the value, this instance will manage it.
+    */
     virtual void set(std::string key, SrsAmf0Any* value);
+    /**
+    * get the property(key:value) of array,
+    * @param name, the property name/key
+    * @return the property AMF0 value, NULL if not found.
+    * @remark user should never free the returned value, copy it if needed.
+    */
     virtual SrsAmf0Any* get_property(std::string name);
+    /**
+    * get the string property, ensure the property is_string().
+    * @return the property AMF0 value, NULL if not found, or not a string.
+    * @remark user should never free the returned value, copy it if needed.
+    */
     virtual SrsAmf0Any* ensure_property_string(std::string name);
+    /**
+    * get the number property, ensure the property is_number().
+    * @return the property AMF0 value, NULL if not found, or not a number.
+    * @remark user should never free the returned value, copy it if needed.
+    */
     virtual SrsAmf0Any* ensure_property_number(std::string name);
 };
 
@@ -265,25 +478,43 @@ class SrsAmf0StrictArray : public SrsAmf0Any
 private:
     std::vector<SrsAmf0Any*> properties;
     int32_t _count;
-
 private:
-    // use SrsAmf0Any::strict_array() to create it.
     friend class SrsAmf0Any;
+    /**
+    * make amf0 object to private,
+    * use should never declare it, use SrsAmf0Any::strict_array() to create it.
+    */
     SrsAmf0StrictArray();
 public:
     virtual ~SrsAmf0StrictArray();
-
+// serialize/deserialize to/from stream.
 public:
     virtual int total_size();
     virtual int read(SrsStream* stream);
     virtual int write(SrsStream* stream);
     virtual SrsAmf0Any* copy();
-    
+// properties iteration
 public:
+    /**
+    * clear all elements.
+    */
     virtual void clear();
+    /**
+    * get the count of elements
+    */
     virtual int count();
-    // @remark: max index is count().
+    /**
+    * get the elements key at index.
+    * @remark: max index is count().
+    */
     virtual SrsAmf0Any* at(int index);
+// property set/get.
+public:
+    /**
+    * append new element to array
+    * @param any, an AMF0 instance property value.
+    * @remark user should never free the any, this instance will manage it.
+    */
     virtual void append(SrsAmf0Any* any);
 };
 

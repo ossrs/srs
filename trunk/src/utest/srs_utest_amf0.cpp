@@ -1131,3 +1131,28 @@ VOID TEST(ProtocolAMF0Test, ApiStrictArray)
         EXPECT_EQ(5 + SrsAmf0Size::number(), s.pos());
     }
 }
+
+VOID TEST(ProtocolAMF0Test, ObjectObjectObject)
+{
+    SrsAmf0Any* obj = SrsAmf0Any::object();
+    SrsAutoFree(SrsAmf0Any, obj);
+    EXPECT_EQ(0, obj->to_object()->count());
+    
+    SrsAmf0Any* child1 = SrsAmf0Any::object();
+    obj->to_object()->set("child1", child1);
+    EXPECT_EQ(1, obj->to_object()->count());
+    EXPECT_EQ(0, child1->to_object()->count());
+    
+    SrsAmf0Any* child2 = SrsAmf0Any::object();
+    child1->to_object()->set("child2", child2);
+    EXPECT_EQ(1, obj->to_object()->count());
+    EXPECT_EQ(1, child1->to_object()->count());
+    EXPECT_EQ(0, child2->to_object()->count());
+    
+    SrsAmf0Any* child3 = SrsAmf0Any::object();
+    child2->to_object()->set("child3", child3);
+    EXPECT_EQ(1, obj->to_object()->count());
+    EXPECT_EQ(1, child1->to_object()->count());
+    EXPECT_EQ(1, child2->to_object()->count());
+    EXPECT_EQ(0, child3->to_object()->count());
+}
