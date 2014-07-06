@@ -74,7 +74,7 @@ using namespace std;
 // in ms, for HLS aac sync time.
 #define SRS_CONF_DEFAULT_AAC_SYNC 100
 // in ms, for HLS aac flush the audio
-#define SRS_CONF_DEFAULT_AAC_DELAY 300
+#define SRS_CONF_DEFAULT_AAC_DELAY 100
 
 // @see: ngx_rtmp_mpegts_header
 u_int8_t mpegts_header[] = {
@@ -1266,13 +1266,13 @@ int SrsHlsCache::cache_video(SrsAvcAacCodec* codec, SrsCodecSample* sample)
             if (nal_unit_type == 1 || nal_unit_type == 5 || nal_unit_type == 6) {
                 // for type 6, append a aud with type 9.
                 vb->append(aud_nal, sizeof(aud_nal));
+                aud_sent = true;
             }
         }
         
         // 5: Coded slice of an IDR picture.
         // insert sps/pps before IDR or key frame is ok.
         if (nal_unit_type == 5 && !sps_pps_sent) {
-        //if (vf->key && !sps_pps_sent) {
             sps_pps_sent = true;
             
             // @see: ngx_rtmp_hls_append_sps_pps
