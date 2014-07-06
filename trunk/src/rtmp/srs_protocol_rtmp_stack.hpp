@@ -484,15 +484,21 @@ protected:
 class SrsConnectAppPacket : public SrsPacket
 {
 public:
+    /**
+    * Name of the command. Set to “connect”.
+    */
     std::string command_name;
+    /**
+    * Always set to 1.
+    */
     double transaction_id;
     /**
-    * alloc in packet constructor,
-    * so, directly use it, never alloc again.
+    * Command information object which has the name-value pairs.
+    * @remark: alloc in packet constructor, user can directly use it, 
+    *       user should never alloc it again which will cause memory leak.
     */
     SrsAmf0Object* command_object;
     /**
-    * Object
     * Any optional information
     */
     SrsAmf0Object* args;
@@ -516,9 +522,22 @@ protected:
 class SrsConnectAppResPacket : public SrsPacket
 {
 public:
+    /**
+    * _result or _error; indicates whether the response is result or error.
+    */
     std::string command_name;
+    /**
+    * Transaction ID is 1 for call connect responses
+    */
     double transaction_id;
+    /**
+    * Name-value pairs that describe the properties(fmsver etc.) of the connection.
+    */
     SrsAmf0Object* props;
+    /**
+    * Name-value pairs that describe the response from|the server. ‘code’,
+    * ‘level’, ‘description’ are names of few among such information.
+    */
     SrsAmf0Object* info;
 public:
     SrsConnectAppResPacket();
@@ -544,14 +563,22 @@ protected:
 class SrsCallPacket : public SrsPacket
 {
 public:
+    /**
+    * Name of the remote procedure that is called.
+    */
     std::string command_name;
+    /**
+    * If a response is expected we give a transaction Id. Else we pass a value of 0
+    */
     double transaction_id;
     /**
     * If there exists any command info this
     * is set, else this is set to null type.
     */
     SrsAmf0Any* command_object;
-    // Any optional arguments to be provided
+    /**
+    * Any optional arguments to be provided
+    */
     SrsAmf0Any* arguments;
 public:
     SrsCallPacket();
@@ -573,13 +600,21 @@ protected:
 class SrsCallResPacket : public SrsPacket
 {
 public:
+    /**
+    * Name of the command. 
+    */
     std::string command_name;
+    /**
+    * ID of the command, to which the response belongs to
+    */
     double transaction_id;
-    // If there exists any command info this
-    // is set, else this is set to null type.
+    /**
+    * If there exists any command info this is set, else this is set to null type.
+    */
     SrsAmf0Any* command_object;
-    // Response from the method that was
-    // called.
+    /**
+    * Response from the method that was called.
+    */
     SrsAmf0Any* response;
 public:
     SrsCallResPacket(double _transaction_id);
@@ -603,8 +638,17 @@ protected:
 class SrsCreateStreamPacket : public SrsPacket
 {
 public:
+    /**
+    * Name of the command. Set to “createStream”.
+    */
     std::string command_name;
+    /**
+    * Transaction ID of the command.
+    */
     double transaction_id;
+    /**
+    * If there exists any command info this is set, else this is set to null type.
+    */
     SrsAmf0Any* command_object; // null
 public:
     SrsCreateStreamPacket();
@@ -626,9 +670,21 @@ protected:
 class SrsCreateStreamResPacket : public SrsPacket
 {
 public:
+    /**
+    * _result or _error; indicates whether the response is result or error.
+    */
     std::string command_name;
+    /**
+    * ID of the command that response belongs to.
+    */
     double transaction_id;
+    /**
+    * If there exists any command info this is set, else this is set to null type.
+    */
     SrsAmf0Any* command_object; // null
+    /**
+    * The return value is either a stream ID or an error information object.
+    */
     double stream_id;
 public:
     SrsCreateStreamResPacket(double _transaction_id, double _stream_id);
@@ -651,8 +707,17 @@ protected:
 class SrsCloseStreamPacket : public SrsPacket
 {
 public:
+    /**
+    * Name of the command, set to “closeStream”.
+    */
     std::string command_name;
+    /**
+    * Transaction ID set to 0.
+    */
     double transaction_id;
+    /**
+    * Command information object does not exist. Set to null type.
+    */
     SrsAmf0Any* command_object; // null
 public:
     SrsCloseStreamPacket();
@@ -668,9 +733,21 @@ public:
 class SrsFMLEStartPacket : public SrsPacket
 {
 public:
+    /**
+    * Name of the command
+    */
     std::string command_name;
+    /**
+    * the transaction ID to get the response.
+    */
     double transaction_id;
+    /**
+    * If there exists any command info this is set, else this is set to null type.
+    */
     SrsAmf0Any* command_object; // null
+    /**
+    * the stream name to start publish or release.
+    */
     std::string stream_name;
 public:
     SrsFMLEStartPacket();
@@ -696,9 +773,21 @@ public:
 class SrsFMLEStartResPacket : public SrsPacket
 {
 public:
+    /**
+    * Name of the command
+    */
     std::string command_name;
+    /**
+    * the transaction ID to get the response.
+    */
     double transaction_id;
+    /**
+    * If there exists any command info this is set, else this is set to null type.
+    */
     SrsAmf0Any* command_object; // null
+    /**
+    * the optional args, set to undefined.
+    */
     SrsAmf0Any* args; // undefined
 public:
     SrsFMLEStartResPacket(double _transaction_id);
@@ -725,11 +814,34 @@ protected:
 class SrsPublishPacket : public SrsPacket
 {
 public:
+    /**
+    * Name of the command, set to “publish”.
+    */
     std::string command_name;
+    /**
+    * Transaction ID set to 0.
+    */
     double transaction_id;
+    /**
+    * Command information object does not exist. Set to null type.
+    */
     SrsAmf0Any* command_object; // null
+    /**
+    * Name with which the stream is published.
+    */
     std::string stream_name;
-    // optional, default to live.
+    /**
+    * Type of publishing. Set to “live”, “record”, or “append”.
+    *   record: The stream is published and the data is recorded to a new file.The file
+    *           is stored on the server in a subdirectory within the directory that
+    *           contains the server application. If the file already exists, it is 
+    *           overwritten.
+    *   append: The stream is published and the data is appended to a file. If no file
+    *           is found, it is created.
+    *   live: Live data is published without recording it in a file.
+    * @remark, SRS only support live.
+    * @remark, optional, default to live.
+    */
     std::string type;
 public:
     SrsPublishPacket();
@@ -754,10 +866,28 @@ protected:
 class SrsPausePacket : public SrsPacket
 {
 public:
+    /**
+    * Name of the command, set to “pause”.
+    */
     std::string command_name;
+    /**
+    * There is no transaction ID for this command. Set to 0.
+    */
     double transaction_id;
+    /**
+    * Command information object does not exist. Set to null type.
+    */
     SrsAmf0Any* command_object; // null
+    /**
+    * true or false, to indicate pausing or resuming play
+    */
     bool is_pause;
+    /**
+    * Number of milliseconds at which the the stream is paused or play resumed.
+    * This is the current stream time at the Client when stream was paused. When the
+    * playback is resumed, the server will only send messages with timestamps
+    * greater than this value.
+    */
     double time_ms;
 public:
     SrsPausePacket();
@@ -774,12 +904,61 @@ public:
 class SrsPlayPacket : public SrsPacket
 {
 public:
+    /**
+    * Name of the command. Set to “play”.
+    */
     std::string command_name;
+    /**
+    * Transaction ID set to 0.
+    */
     double transaction_id;
+    /**
+    * Command information does not exist. Set to null type.
+    */
     SrsAmf0Any* command_object; // null
+    /**
+    * Name of the stream to play.
+    * To play video (FLV) files, specify the name of the stream without a file
+    *       extension (for example, "sample").
+    * To play back MP3 or ID3 tags, you must precede the stream name with mp3:
+    *       (for example, "mp3:sample".)
+    * To play H.264/AAC files, you must precede the stream name with mp4: and specify the
+    *       file extension. For example, to play the file sample.m4v, specify 
+    *       "mp4:sample.m4v"
+    */
     std::string stream_name;
+    /**
+    * An optional parameter that specifies the start time in seconds.
+    * The default value is -2, which means the subscriber first tries to play the live 
+    *       stream specified in the Stream Name field. If a live stream of that name is 
+    *       not found, it plays the recorded stream specified in the Stream Name field.
+    * If you pass -1 in the Start field, only the live stream specified in the Stream 
+    *       Name field is played.
+    * If you pass 0 or a positive number in the Start field, a recorded stream specified 
+    *       in the Stream Name field is played beginning from the time specified in the 
+    *       Start field.
+    * If no recorded stream is found, the next item in the playlist is played.
+    */
     double start;
+    /**
+    * An optional parameter that specifies the duration of playback in seconds.
+    * The default value is -1. The -1 value means a live stream is played until it is no
+    *       longer available or a recorded stream is played until it ends.
+    * If u pass 0, it plays the single frame since the time specified in the Start field 
+    *       from the beginning of a recorded stream. It is assumed that the value specified 
+    *       in the Start field is equal to or greater than 0.
+    * If you pass a positive number, it plays a live stream for the time period specified 
+    *       in the Duration field. After that it becomes available or plays a recorded 
+    *       stream for the time specified in the Duration field. (If a stream ends before the
+    *       time specified in the Duration field, playback ends when the stream ends.)
+    * If you pass a negative number other than -1 in the Duration field, it interprets the 
+    *       value as if it were -1.
+    */
     double duration;
+    /**
+    * An optional Boolean value or number that specifies whether to flush any
+    * previous playlist.
+    */
     bool reset;
 public:
     SrsPlayPacket();
@@ -802,9 +981,24 @@ protected:
 class SrsPlayResPacket : public SrsPacket
 {
 public:
+    /**
+    * Name of the command. If the play command is successful, the command
+    * name is set to onStatus.
+    */
     std::string command_name;
+    /**
+    * Transaction ID set to 0.
+    */
     double transaction_id;
+    /**
+    * Command information does not exist. Set to null type.
+    */
     SrsAmf0Any* command_object; // null
+    /**
+    * If the play command is successful, the client receives OnStatus message from
+    * server which is NetStream.Play.Start. If the specified stream is not found,
+    * NetStream.Play.StreamNotFound is received.
+    */
     SrsAmf0Object* desc;
 public:
     SrsPlayResPacket();
@@ -824,8 +1018,17 @@ protected:
 class SrsOnBWDonePacket : public SrsPacket
 {
 public:
+    /**
+    * Name of command. Set to "onBWDone"
+    */
     std::string command_name;
+    /**
+    * Transaction ID set to 0.
+    */
     double transaction_id;
+    /**
+    * Command information does not exist. Set to null type.
+    */
     SrsAmf0Any* args; // null
 public:
     SrsOnBWDonePacket();
@@ -846,9 +1049,22 @@ protected:
 class SrsOnStatusCallPacket : public SrsPacket
 {
 public:
+    /**
+    * Name of command. Set to "onStatus"
+    */
     std::string command_name;
+    /**
+    * Transaction ID set to 0.
+    */
     double transaction_id;
+    /**
+    * Command information does not exist. Set to null type.
+    */
     SrsAmf0Any* args; // null
+    /**
+    * Name-value pairs that describe the response from the server. 
+    * ‘code’,‘level’, ‘description’ are names of few among such information.
+    */
     SrsAmf0Object* data;
 public:
     SrsOnStatusCallPacket();
@@ -873,9 +1089,22 @@ class SrsBandwidthPacket : public SrsPacket
 private:
     disable_default_copy(SrsBandwidthPacket);
 public:
+    /**
+    * Name of command. 
+    */
     std::string command_name;
+    /**
+    * Transaction ID set to 0.
+    */
     double transaction_id;
+    /**
+    * Command information does not exist. Set to null type.
+    */
     SrsAmf0Any* args; // null
+    /**
+    * Name-value pairs that describe the response from the server.
+    * ‘code’,‘level’, ‘description’ are names of few among such information.
+    */
     SrsAmf0Object* data;
 public:
     SrsBandwidthPacket();
@@ -914,7 +1143,14 @@ private:
 class SrsOnStatusDataPacket : public SrsPacket
 {
 public:
+    /**
+    * Name of command. Set to "onStatus"
+    */
     std::string command_name;
+    /**
+    * Name-value pairs that describe the response from the server.
+    * ‘code’, are names of few among such information.
+    */
     SrsAmf0Object* data;
 public:
     SrsOnStatusDataPacket();
@@ -935,8 +1171,17 @@ protected:
 class SrsSampleAccessPacket : public SrsPacket
 {
 public:
+    /**
+    * 
+    */
     std::string command_name;
+    /**
+    * 
+    */
     bool video_sample_access;
+    /**
+    * 
+    */
     bool audio_sample_access;
 public:
     SrsSampleAccessPacket();
