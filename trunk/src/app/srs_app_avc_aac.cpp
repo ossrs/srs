@@ -220,12 +220,15 @@ int SrsAvcAacCodec::audio_aac_demux(int8_t* data, int size, SrsCodecSample* samp
         
         // TODO: FIXME: to support aac he/he-v2, see: ngx_rtmp_codec_parse_aac_header
         // @see: https://github.com/winlinvip/nginx-rtmp-module/commit/3a5f9eea78fc8d11e8be922aea9ac349b9dcbfc2
-        if (aac_profile > 3) {
+        // 
+        // donot force to LC, @see: https://github.com/winlinvip/simple-rtmp-server/issues/81
+        // the source will print the sequence header info.
+        //if (aac_profile > 3) {
             // Mark all extended profiles as LC
             // to make Android as happy as possible.
             // @see: ngx_rtmp_hls_parse_aac_header
-            aac_profile = 1;
-        }
+            //aac_profile = 1;
+        //}
     } else if (aac_packet_type == SrsCodecAudioTypeRawData) {
         // ensure the sequence header demuxed
         if (aac_extra_size <= 0 || !aac_extra_data) {
@@ -335,10 +338,14 @@ int SrsAvcAacCodec::video_avc_demux(int8_t* data, int size, SrsCodecSample* samp
             return ret;
         }
         //int8_t configurationVersion = stream->read_1bytes();
+        stream->read_1bytes();
         //int8_t AVCProfileIndication = stream->read_1bytes();
+        avc_profile = stream->read_1bytes();
         //int8_t profile_compatibility = stream->read_1bytes();
+        stream->read_1bytes();
         //int8_t AVCLevelIndication = stream->read_1bytes();
-        stream->skip(4);
+        avc_level = stream->read_1bytes();
+        
         // parse the NALU size.
         int8_t lengthSizeMinusOne = stream->read_1bytes();
         lengthSizeMinusOne &= 0x03;

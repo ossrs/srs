@@ -1497,8 +1497,8 @@ void SrsHls::hls_mux()
     // reportable
     if (pithy_print->can_print()) {
         srs_trace("-> "SRS_LOG_ID_HLS
-            " time=%"PRId64", dts=%"PRId64", sequence_no=%d", 
-            pithy_print->age(), stream_dts, muxer->sequence_no());
+            " time=%"PRId64", dts=%"PRId64"(%"PRId64"ms), sequence_no=%d", 
+            pithy_print->age(), stream_dts, stream_dts / 90, muxer->sequence_no());
     }
     
     pithy_print->elapse();

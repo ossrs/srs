@@ -44,7 +44,8 @@ class SrsStream;
 // 3 = 44 kHz = 44100 Hz
 enum SrsCodecAudioSampleRate
 {
-    SrsCodecAudioSampleRateReserved                    = -1,
+    // set to the max value to reserved, for array map.
+    SrsCodecAudioSampleRateReserved                    = 4,
     
     SrsCodecAudioSampleRate5512                     = 0,
     SrsCodecAudioSampleRate11025                     = 1,
@@ -59,7 +60,8 @@ enum SrsCodecAudioSampleRate
 // 1 = 16-bit samples
 enum SrsCodecAudioSampleSize
 {
-    SrsCodecAudioSampleSizeReserved                    = -1,
+    // set to the max value to reserved, for array map.
+    SrsCodecAudioSampleSizeReserved                    = 2,
     
     SrsCodecAudioSampleSize8bit                     = 0,
     SrsCodecAudioSampleSize16bit                     = 1,
@@ -70,7 +72,8 @@ enum SrsCodecAudioSampleSize
 // 1 = Stereo sound
 enum SrsCodecAudioSoundType
 {
-    SrsCodecAudioSoundTypeReserved                    = -1, 
+    // set to the max value to reserved, for array map.
+    SrsCodecAudioSoundTypeReserved                    = 2, 
     
     SrsCodecAudioSoundTypeMono                         = 0,
     SrsCodecAudioSoundTypeStereo                     = 1,

@@ -41,6 +41,7 @@ using namespace std;
 #include <srs_kernel_stream.hpp>
 #include <srs_app_edge.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_app_avc_aac.hpp>
 
 #define CONST_MAX_JITTER_MS         500
 #define DEFAULT_FRAME_TIME_MS         40
@@ -1072,7 +1073,32 @@ int SrsSource::on_audio(SrsMessage* audio)
     if (SrsFlvCodec::audio_is_sequence_header(msg->payload, msg->size)) {
         srs_freep(cache_sh_audio);
         cache_sh_audio = msg->copy();
-        srs_trace("got audio sh, size=%d", msg->header.payload_length);
+        
+        // parse detail audio codec
+        SrsAvcAacCodec codec;
+        SrsCodecSample sample;
+        if ((ret = codec.audio_aac_demux(msg->payload, msg->size, &sample)) != ERROR_SUCCESS) {
+            srs_error("codec demux audio failed. ret=%d", ret);
+            return ret;
+        }
+        
+        static int flv_sample_rates[] = {5512, 11025, 22050, 44100, 0};
+        static int flv_sample_sizes[] = {8, 16, 0};
+        static int flv_sound_types[] = {1, 2, 0};
+        static int aac_sample_rates[] = {
+            96000, 88200, 64000, 48000,
+            44100, 32000, 24000, 22050,
+            16000, 12000, 11025,  8000,
+            7350,     0,     0,    0
+        };
+        srs_trace("%dB audio sh, "
+            "codec(%d, profile=%d, %dchannels, %dkbps, %dHZ), "
+            "flv(%dbits, %dchannels, %dHZ)", 
+            msg->header.payload_length, codec.audio_codec_id,
+            codec.aac_profile, codec.aac_channels, 
+            codec.audio_data_rate / 1000, aac_sample_rates[codec.aac_sample_rate], 
+            flv_sample_sizes[sample.sound_size], flv_sound_types[sample.sound_type], 
+            flv_sample_rates[sample.sound_rate]);
         return ret;
     }
     
@@ -1162,7 +1188,20 @@ int SrsSource::on_video(SrsMessage* video)
     if (SrsFlvCodec::video_is_sequence_header(msg->payload, msg->size)) {
         srs_freep(cache_sh_video);
         cache_sh_video = msg->copy();
-        srs_trace("got video sh, size=%d", msg->header.payload_length);
+        
+        // parse detail audio codec
+        SrsAvcAacCodec codec;
+        SrsCodecSample sample;
+        if ((ret = codec.video_avc_demux(msg->payload, msg->size, &sample)) != ERROR_SUCCESS) {
+            srs_error("codec demux video failed. ret=%d", ret);
+            return ret;
+        }
+        
+        srs_trace("%dB video sh, "
+            "codec(%d, profile=%d, level=%d, %dx%d, %dkbps, %dfps, %ds)",
+            msg->header.payload_length, codec.video_codec_id,
+            codec.avc_profile, codec.avc_level, codec.width, codec.height,
+            codec.video_data_rate / 1000, codec.frame_rate, codec.duration);
         return ret;
     }
 
