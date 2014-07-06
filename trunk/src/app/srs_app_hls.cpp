@@ -76,6 +76,22 @@ using namespace std;
 // in ms, for HLS aac flush the audio
 #define SRS_CONF_DEFAULT_AAC_DELAY 100
 
+// 0 = 5.5 kHz = 5512 Hz
+// 1 = 11 kHz = 11025 Hz
+// 2 = 22 kHz = 22050 Hz
+// 3 = 44 kHz = 44100 Hz
+int flv_sample_rates[] = {5512, 11025, 22050, 44100};
+
+// the sample rates in the codec,
+// in the sequence header.
+int aac_sample_rates[] = 
+{
+    96000, 88200, 64000, 48000,
+    44100, 32000, 24000, 22050,
+    16000, 12000, 11025,  8000,
+    7350,     0,     0,    0
+};
+
 // @see: ngx_rtmp_mpegts_header
 u_int8_t mpegts_header[] = {
     /* TS */
@@ -377,21 +393,11 @@ SrsHlsAacJitter::~SrsHlsAacJitter()
 
 int64_t SrsHlsAacJitter::on_buffer_start(int64_t flv_pts, int sample_rate, int aac_sample_rate)
 {
-    // 0 = 5.5 kHz = 5512 Hz
-    // 1 = 11 kHz = 11025 Hz
-    // 2 = 22 kHz = 22050 Hz
-    // 3 = 44 kHz = 44100 Hz
-    static int flv_sample_rates[] = {5512, 11025, 22050, 44100};
+    // use sample rate in flv/RTMP.
     int flv_sample_rate = flv_sample_rates[sample_rate & 0x03];
 
-    // reset the sample rate by sequence header
+    // override the sample rate by sequence header
     if (aac_sample_rate != _SRS_AAC_SAMPLE_RATE_UNSET) {
-        static int aac_sample_rates[] = {
-            96000, 88200, 64000, 48000,
-            44100, 32000, 24000, 22050,
-            16000, 12000, 11025,  8000,
-            7350,     0,     0,    0
-        };
         flv_sample_rate = aac_sample_rates[aac_sample_rate];
     }
 

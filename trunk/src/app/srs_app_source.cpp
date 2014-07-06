@@ -1082,15 +1082,8 @@ int SrsSource::on_audio(SrsMessage* audio)
             return ret;
         }
         
-        static int flv_sample_rates[] = {5512, 11025, 22050, 44100, 0};
         static int flv_sample_sizes[] = {8, 16, 0};
         static int flv_sound_types[] = {1, 2, 0};
-        static int aac_sample_rates[] = {
-            96000, 88200, 64000, 48000,
-            44100, 32000, 24000, 22050,
-            16000, 12000, 11025,  8000,
-            7350,     0,     0,    0
-        };
         srs_trace("%dB audio sh, "
             "codec(%d, profile=%d, %dchannels, %dkbps, %dHZ), "
             "flv(%dbits, %dchannels, %dHZ)", 

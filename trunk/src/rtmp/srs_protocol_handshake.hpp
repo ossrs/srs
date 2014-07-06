@@ -41,11 +41,21 @@ namespace _srs_internal
     /**
     * the schema type.
     */
-    enum srs_schema_type {
-        srs_schema0 = 0, // key-digest sequence
-        // @remark, FMS requires the schema1(digest-key), or connect failed.
-        srs_schema1 = 1, // digest-key sequence
+    enum srs_schema_type 
+    {
         srs_schema_invalid = 2,
+        
+        /**
+        * key-digest sequence
+        */
+        srs_schema0 = 0,
+        
+        /**
+        * digest-key sequence
+        * @remark, FMS requires the schema1(digest-key), or connect failed.
+        */
+        // 
+        srs_schema1 = 1,
     };
     
     /**

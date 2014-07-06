@@ -48,6 +48,16 @@ class SrsSource;
 class SrsFileWriter;
 
 /**
+* the flv sample rate map
+*/
+extern int flv_sample_rates[];
+
+/**
+* the aac sample rate map
+*/
+extern int aac_sample_rates[];
+
+/**
 * jitter correct for audio,
 * the sample rate 44100/32000 will lost precise,
 * when mp4/ts(tbn=90000) covert to flv/rtmp(1000),
