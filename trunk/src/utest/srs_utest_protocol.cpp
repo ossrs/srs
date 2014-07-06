@@ -413,5 +413,16 @@ VOID TEST(ProtocolMsgArrayTest, MessageArray)
         EXPECT_EQ(3, msg.count());
     }
     EXPECT_EQ(0, msg.count());
+    
+    if (true) {
+        SrsSharedPtrMessageArray arr(3);
+        
+        arr.msgs[0] = msg.copy();
+        EXPECT_EQ(1, msg.count());
+        
+        arr.msgs[2] = msg.copy();
+        EXPECT_EQ(2, msg.count());
+    }
+    EXPECT_EQ(0, msg.count());
 }
 

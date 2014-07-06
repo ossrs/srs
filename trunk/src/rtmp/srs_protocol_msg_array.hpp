@@ -50,7 +50,13 @@ public:
     SrsSharedPtrMessage** msgs;
     int size;
 public:
+    /**
+    * create msg array, initialize array to NULL ptrs.
+    */
     SrsSharedPtrMessageArray(int _size);
+    /**
+    * free the msgs not sent out(not NULL).
+    */
     virtual ~SrsSharedPtrMessageArray();
 };
 
