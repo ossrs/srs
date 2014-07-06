@@ -1214,10 +1214,19 @@ int SrsHlsCache::cache_video(SrsAvcAacCodec* codec, SrsCodecSample* sample)
 {
     int ret = ERROR_SUCCESS;
     
+    // for type1/5/6, insert aud packet.
     static u_int8_t aud_nal[] = { 0x00, 0x00, 0x00, 0x01, 0x09, 0xf0 };
-    vb->append(aud_nal, sizeof(aud_nal));
     
     bool sps_pps_sent = false;
+    bool aud_sent = false;
+    /**
+    * a ts sample is format as:
+    * 00 00 00 01 // header
+    *       xxxxxxx // data bytes
+    * 00 00 01 // continue header
+    *       xxxxxxx // data bytes.
+    * so, for each sample, we append header in aud_nal, then appends the bytes in sample.
+    */
     for (int i = 0; i < sample->nb_buffers; i++) {
         SrsCodecBuffer* buf = &sample->buffers[i];
         int32_t size = buf->size;
@@ -1228,12 +1237,20 @@ int SrsHlsCache::cache_video(SrsAvcAacCodec* codec, SrsCodecSample* sample)
             return ret;
         }
         
+        /**
+        * step 1:
+        * first, before each "real" sample, 
+        * we add some packets according to the nal_unit_type,
+        * for example, when got nal_unit_type=5, insert SPS/PPS before sample.
+        */
+        
         // 5bits, 7.3.1 NAL unit syntax, 
         // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
         u_int8_t nal_unit_type;
         nal_unit_type = *buf->bytes;
         nal_unit_type &= 0x1f;
         
+        // @see: ngx_rtmp_hls_video
         // Table 7-1 – NAL unit type codes, page 61
         // 1: Coded slice
         if (nal_unit_type == 1) {
@@ -1245,27 +1262,43 @@ int SrsHlsCache::cache_video(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         //if (vf->key && !sps_pps_sent) {
             sps_pps_sent = true;
             
-            // ngx_rtmp_hls_append_sps_pps
+            // @see: ngx_rtmp_hls_append_sps_pps
             if (codec->sequenceParameterSetLength > 0) {
-                // AnnexB prefix
+                // AnnexB prefix, for sps always 4 bytes header
                 vb->append(aud_nal, 4);
                 // sps
                 vb->append(codec->sequenceParameterSetNALUnit, codec->sequenceParameterSetLength);
             }
             if (codec->pictureParameterSetLength > 0) {
-                // AnnexB prefix
+                // AnnexB prefix, for pps always 4 bytes header
                 vb->append(aud_nal, 4);
                 // pps
                 vb->append(codec->pictureParameterSetNALUnit, codec->pictureParameterSetLength);
             }
         }
+        // 6: Supplemental enhancement information (SEI) sei_rbsp( ), page 61
+        // @see: ngx_rtmp_hls_append_aud
+        if (nal_unit_type == 6 && !aud_sent) {
+            // for type 6, append a aud with type 9.
+            vb->append(aud_nal, sizeof(aud_nal));
+        }
+        // 7-9, ignore, @see: ngx_rtmp_hls_video
+        if (nal_unit_type >= 7 && nal_unit_type <= 9) {
+            continue;
+        }
+        
+        /**
+        * step 2:
+        * output the "real" sample, in buf.
+        * when we output some special assist packets according to nal_unit_type
+        */
         
         // sample start prefix, '00 00 00 01' or '00 00 01'
         u_int8_t* p = aud_nal + 1;
         u_int8_t* end = p + 3;
         
         // first AnnexB prefix is long (4 bytes)
-        if (i == 0) {
+        if (vb->size == 0) {
             p = aud_nal;
         }
         vb->append(p, end - p);
@@ -1496,8 +1529,11 @@ void SrsHls::hls_mux()
 {
     // reportable
     if (pithy_print->can_print()) {
+        // the run time is not equals to stream time,
+        // @see: https://github.com/winlinvip/simple-rtmp-server/issues/81#issuecomment-48100994
+        // it's ok.
         srs_trace("-> "SRS_LOG_ID_HLS
-            " time=%"PRId64", dts=%"PRId64"(%"PRId64"ms), sequence_no=%d", 
+            " time=%"PRId64", stream dts=%"PRId64"(%"PRId64"ms), sequence_no=%d", 
             pithy_print->age(), stream_dts, stream_dts / 90, muxer->sequence_no());
     }
     
