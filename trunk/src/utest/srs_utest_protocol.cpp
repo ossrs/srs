@@ -560,7 +560,7 @@ VOID TEST(ProtocolStackTest, ProtocolBytes)
     EXPECT_TRUE(0 == proto.get_send_bytes());
     
     SrsConnectAppPacket* pkt = new SrsConnectAppPacket();
-    proto.send_and_free_packet(pkt, 0);
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
     EXPECT_TRUE(0 < proto.get_send_bytes());
 }
 
