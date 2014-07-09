@@ -61,48 +61,47 @@ public:
     std::string pageUrl;
     std::string swfUrl;
     double objectEncoding;
-    
+// data discovery from request.
+public:
+    // discovery from tcUrl and play/publish.
     std::string schema;
     std::string vhost;
     std::string host;
     std::string port;
     std::string app;
     std::string stream;
-    
     // for play live stream, 
     // used to specified the stop when exceed the duration.
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/45
     // in ms.
     double duration;
-    
     // the token in the connect request,
     // used for edge traverse to origin authentication,
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/104
     SrsAmf0Object* args;
-    
+public:
     SrsRequest();
     virtual ~SrsRequest();
-
+public:
     /**
     * deep copy the request, for source to use it to support reload,
     * for when initialize the source, the request is valid,
     * when reload it, the request maybe invalid, so need to copy it.
     */
     virtual SrsRequest* copy();
-
     /**
     * update the auth info of request,
     * to keep the current request ptr is ok,
     * for many components use the ptr of request.
     */
     virtual void update_auth(SrsRequest* req);
-    
     /**
     * get the stream identify, vhost/app/stream.
     */
     virtual std::string get_stream_url();
-    
-    // strip url, user must strip when update the url.
+    /**
+    * strip url, user must strip when update the url.
+    */
     virtual void strip();
 };
 
@@ -112,8 +111,11 @@ public:
 class SrsResponse
 {
 public:
+    /**
+    * the stream id to response client createStream.
+    */
     int stream_id;
-    
+public:
     SrsResponse();
     virtual ~SrsResponse();
 };

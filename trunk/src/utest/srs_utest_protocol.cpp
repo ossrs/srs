@@ -29,6 +29,8 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_msg_array.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
+#include <srs_kernel_utility.hpp>
+#include <srs_app_st.hpp>
 
 MockEmptyIO::MockEmptyIO()
 {
@@ -88,6 +90,114 @@ int MockEmptyIO::writev(const iovec */*iov*/, int /*iov_size*/, ssize_t* /*nwrit
 
 int MockEmptyIO::read(void* /*buf*/, size_t /*size*/, ssize_t* /*nread*/)
 {
+    return ERROR_SUCCESS;
+}
+
+MockBufferIO::MockBufferIO()
+{
+    recv_timeout = send_timeout = ST_UTIME_NO_TIMEOUT;
+    recv_bytes = send_bytes = 0;
+}
+
+MockBufferIO::~MockBufferIO()
+{
+}
+
+bool MockBufferIO::is_never_timeout(int64_t timeout_us)
+{
+    return (int64_t)ST_UTIME_NO_TIMEOUT == timeout_us;
+}
+
+int MockBufferIO::read_fully(void* buf, size_t size, ssize_t* nread)
+{
+    if (in_buffer.length() < (int)size) {
+        return ERROR_SOCKET_READ;
+    }
+    memcpy(buf, in_buffer.bytes(), size);
+    
+    recv_bytes += size;
+    if (nread) {
+        *nread = size;
+    }
+    in_buffer.erase(size);
+    return ERROR_SUCCESS;
+}
+
+int MockBufferIO::write(void* buf, size_t size, ssize_t* nwrite)
+{
+    send_bytes += size;
+    if (nwrite) {
+        *nwrite = size;
+    }
+    out_buffer.append((char*)buf, size);
+    return ERROR_SUCCESS;
+}
+
+void MockBufferIO::set_recv_timeout(int64_t timeout_us)
+{
+    recv_timeout = timeout_us;
+}
+
+int64_t MockBufferIO::get_recv_timeout()
+{
+    return recv_timeout;
+}
+
+int64_t MockBufferIO::get_recv_bytes()
+{
+    return recv_bytes;
+}
+
+void MockBufferIO::set_send_timeout(int64_t timeout_us)
+{
+    send_timeout = timeout_us;
+}
+
+int64_t MockBufferIO::get_send_timeout()
+{
+    return send_timeout;
+}
+
+int64_t MockBufferIO::get_send_bytes()
+{
+    return send_bytes;
+}
+
+int MockBufferIO::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
+{
+    int ret = ERROR_SUCCESS;
+    
+    ssize_t total = 0;
+    for (int i = 0; i <iov_size; i++) {
+        const iovec& pi = iov[i];
+        
+        ssize_t writen = 0;
+        if ((ret = write(pi.iov_base, pi.iov_len, &writen)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        total += writen;
+    }
+    
+    if (nwrite) {
+        *nwrite = total;
+    }
+    return ret;
+}
+
+int MockBufferIO::read(void* buf, size_t size, ssize_t* nread)
+{
+    if (in_buffer.length() <= 0) {
+        return ERROR_SOCKET_READ;
+    }
+    
+    size_t available = srs_min(in_buffer.length(), (int)size);
+    memcpy(buf, in_buffer.bytes(), available);
+    
+    recv_bytes += available;
+    if (nread) {
+        *nread = available;
+    }
+    in_buffer.erase(available);
     return ERROR_SUCCESS;
 }
 
@@ -424,5 +534,33 @@ VOID TEST(ProtocolMsgArrayTest, MessageArray)
         EXPECT_EQ(2, msg.count());
     }
     EXPECT_EQ(0, msg.count());
+}
+
+VOID TEST(ProtocolStackTest, ProtocolTimeout)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    EXPECT_TRUE((int64_t)ST_UTIME_NO_TIMEOUT == proto.get_recv_timeout());
+    EXPECT_TRUE((int64_t)ST_UTIME_NO_TIMEOUT == proto.get_send_timeout());
+    
+    proto.set_recv_timeout(10);
+    EXPECT_TRUE(10 == proto.get_recv_timeout());
+    
+    proto.set_send_timeout(10);
+    EXPECT_TRUE(10 == proto.get_send_timeout());
+}
+
+VOID TEST(ProtocolStackTest, ProtocolBytes)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    EXPECT_TRUE(0 == proto.get_recv_bytes());
+    EXPECT_TRUE(0 == proto.get_send_bytes());
+    
+    SrsConnectAppPacket* pkt = new SrsConnectAppPacket();
+    proto.send_and_free_packet(pkt, 0);
+    EXPECT_TRUE(0 < proto.get_send_bytes());
 }
 
