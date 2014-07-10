@@ -868,6 +868,50 @@ int SrsProtocol::recv_interlaced_message(SrsMessage** pmsg)
     return ret;
 }
 
+/**
+* 6.1.1. Chunk Basic Header
+* The Chunk Basic Header encodes the chunk stream ID and the chunk
+* type(represented by fmt field in the figure below). Chunk type
+* determines the format of the encoded message header. Chunk Basic
+* Header field may be 1, 2, or 3 bytes, depending on the chunk stream
+* ID.
+* 
+* The bits 0–5 (least significant) in the chunk basic header represent
+* the chunk stream ID.
+*
+* Chunk stream IDs 2-63 can be encoded in the 1-byte version of this
+* field.
+*    0 1 2 3 4 5 6 7
+*   +-+-+-+-+-+-+-+-+
+*   |fmt|   cs id   |
+*   +-+-+-+-+-+-+-+-+
+*   Figure 6 Chunk basic header 1
+*
+* Chunk stream IDs 64-319 can be encoded in the 2-byte version of this
+* field. ID is computed as (the second byte + 64).
+*   0                   1
+*   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+*   |fmt|    0      | cs id - 64    |
+*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+*   Figure 7 Chunk basic header 2
+*
+* Chunk stream IDs 64-65599 can be encoded in the 3-byte version of
+* this field. ID is computed as ((the third byte)*256 + the second byte
+* + 64).
+*    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3
+*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+*   |fmt|     1     |         cs id - 64            |
+*   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+*   Figure 8 Chunk basic header 3
+*
+* cs id: 6 bits
+* fmt: 2 bits
+* cs id - 64: 8 or 16 bits
+* 
+* Chunk stream IDs with values 64-319 could be represented by both 2-
+* byte version and 3-byte version of this field.
+*/
 int SrsProtocol::read_basic_header(char& fmt, int& cid, int& bh_size)
 {
     int ret = ERROR_SUCCESS;
@@ -886,11 +930,13 @@ int SrsProtocol::read_basic_header(char& fmt, int& cid, int& bh_size)
     cid = *p & 0x3f;
     bh_size = 1;
     
+    // 2-63, 1B chunk header
     if (cid > 1) {
         srs_verbose("%dbytes basic header parsed. fmt=%d, cid=%d", bh_size, fmt, cid);
         return ret;
     }
 
+    // 64-319, 2B chunk header
     if (cid == 0) {
         required_size = 2;
         if ((ret = in_buffer->grow(skt, required_size)) != ERROR_SUCCESS) {
@@ -901,9 +947,10 @@ int SrsProtocol::read_basic_header(char& fmt, int& cid, int& bh_size)
         }
         
         cid = 64;
-        cid += *(++p);
+        cid += (u_int8_t)*(++p);
         bh_size = 2;
         srs_verbose("%dbytes basic header parsed. fmt=%d, cid=%d", bh_size, fmt, cid);
+    // 64-65599, 3B chunk header
     } else if (cid == 1) {
         required_size = 3;
         if ((ret = in_buffer->grow(skt, 3)) != ERROR_SUCCESS) {
@@ -914,8 +961,8 @@ int SrsProtocol::read_basic_header(char& fmt, int& cid, int& bh_size)
         }
         
         cid = 64;
-        cid += *(++p);
-        cid += *(++p) * 256;
+        cid += (u_int8_t)*(++p);
+        cid += ((u_int8_t)*(++p)) * 256;
         bh_size = 3;
         srs_verbose("%dbytes basic header parsed. fmt=%d, cid=%d", bh_size, fmt, cid);
     } else {
@@ -926,6 +973,18 @@ int SrsProtocol::read_basic_header(char& fmt, int& cid, int& bh_size)
     return ret;
 }
 
+/**
+* parse the message header.
+*   3bytes: timestamp delta,    fmt=0,1,2
+*   3bytes: payload length,     fmt=0,1
+*   1bytes: message type,       fmt=0,1
+*   4bytes: stream id,          fmt=0
+* where:
+*   fmt=0, 0x0X
+*   fmt=1, 0x4X
+*   fmt=2, 0x8X
+*   fmt=3, 0xCX
+*/
 int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_size, int& mh_size)
 {
     int ret = ERROR_SUCCESS;
