@@ -9,7 +9,7 @@ SRS定位是运营级的互联网直播服务器集群，追求更好的概念�
 [Centos6-x86_64](http://www.ossrs.net:8085/srs/releases/files/SRS-CentOS6-x86_64-0.9.134.zip) 
 其他[more...](http://www.ossrs.net:8085/srs/releases/)<br/>
 加入QQ群: [http://url.cn/WAHICw](http://url.cn/WAHICw) (Group: 212189142)<br/>
-同类产品：[BLS](https://github.com/wenjiegit/Bull-Live-Server), [NGINX-RTMP](https://github.com/arut/nginx-rtmp-module), [CRTMPD](http://www.rtmpd.com/), [RED5](http://www.red5.org/), [WOWZA](http://www.wowza.com/), [FMS/AMS](http://www.adobe.com/products/adobe-media-server-standard.html)
+同类产品：[BLS](https://github.com/wenjiegit/Bull-Live-Server)/[BLE](https://github.com/wenjiegit/Bull-Live-Encoder), [NGINX-RTMP](https://github.com/arut/nginx-rtmp-module), [CRTMPD](http://www.rtmpd.com/), [RED5](http://www.red5.org/), [WOWZA](http://www.wowza.com/), [FMS/AMS](http://www.adobe.com/products/adobe-media-server-standard.html)
 
 获得源码(github): [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) [GIT使用方法](https://github.com/winlinvip/simple-rtmp-server/wiki/Git)
 
@@ -57,7 +57,7 @@ See also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/w
 Github DEMO: [demo with your SRS](http://winlinvip.github.io/srs.release/trunk/research/players/srs_player.html?server=192.168.1.170&vhost=192.168.1.170)  <br/>
 Wiki: [https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki)  <br/>
 TencentQQ: [http://url.cn/WAHICw](http://url.cn/WAHICw) (Group: 212189142) <br/>
-StreamServers：[BLS](https://github.com/wenjiegit/Bull-Live-Server), [NGINX-RTMP](https://github.com/arut/nginx-rtmp-module), [CRTMPD](http://www.rtmpd.com/), [RED5](http://www.red5.org/), [WOWZA](http://www.wowza.com/), [FMS/AMS](http://www.adobe.com/products/adobe-media-server-standard.html)
+StreamServers：[BLS](https://github.com/wenjiegit/Bull-Live-Server)/[BLE](https://github.com/wenjiegit/Bull-Live-Encoder), [NGINX-RTMP](https://github.com/arut/nginx-rtmp-module), [CRTMPD](http://www.rtmpd.com/), [RED5](http://www.red5.org/), [WOWZA](http://www.wowza.com/), [FMS/AMS](http://www.adobe.com/products/adobe-media-server-standard.html)
 
 ## AUTHORS
 The PRIMARY AUTHORS are (and/or have been)(Authors ordered by first contribution): 
