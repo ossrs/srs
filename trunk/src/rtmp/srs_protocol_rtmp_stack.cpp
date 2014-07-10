@@ -952,7 +952,8 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
     * so we must update the timestamp even fmt=3 for first packet.
     */
     // fresh packet used to update the timestamp even fmt=3 for first packet.
-    bool is_fresh_packet = !chunk->msg;
+    // fresh packet always means the chunk is the first one of message.
+    bool is_first_chunk_of_msg = !chunk->msg;
     
     // but, we can ensure that when a chunk stream is fresh, 
     // the fmt must be 0, a new stream.
@@ -986,9 +987,7 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
     }
     
     // create msg when new chunk stream start
-    bool is_first_chunk_of_msg = false;
     if (!chunk->msg) {
-        is_first_chunk_of_msg = true;
         chunk->msg = new SrsCommonMessage();
         srs_verbose("create message for new chunk, fmt=%d, cid=%d", fmt, chunk->cid);
     }
@@ -1072,10 +1071,11 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
             pp[0] = *p++;
             pp[3] = 0;
             
-            // if msg exists in cache, the size must not changed.
-            // always use the actual msg size, for the cache payload length can changed,
-            // for the fmt type1(stream_id not changed), user can change the payload length.
-            if (chunk->msg->size > 0 && chunk->header.payload_length != payload_length) {
+            // for a message, if msg exists in cache, the size must not changed.
+            // always use the actual msg size to compare, for the cache payload length can changed,
+            // for the fmt type1(stream_id not changed), user can change the payload 
+            // length(it's not allowed in the continue chunks).
+            if (!is_first_chunk_of_msg && chunk->header.payload_length != payload_length) {
                 ret = ERROR_RTMP_PACKET_SIZE;
                 srs_error("msg exists in chunk cache, "
                     "size=%d cannot change to %d, ret=%d", 
@@ -1105,8 +1105,8 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
                 fmt, mh_size, chunk->extended_timestamp, chunk->header.timestamp);
         }
     } else {
-        // update the timestamp even fmt=3 for first stream
-        if (is_fresh_packet && !chunk->extended_timestamp) {
+        // update the timestamp even fmt=3 for first chunk packet
+        if (is_first_chunk_of_msg && !chunk->extended_timestamp) {
             chunk->header.timestamp += chunk->header.timestamp_delta;
         }
         srs_verbose("header read completed. fmt=%d, size=%d, ext_time=%d", 
