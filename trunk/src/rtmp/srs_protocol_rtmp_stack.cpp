@@ -50,13 +50,13 @@ reserved for usage with RTM Chunk Stream protocol. Protocol messages
 with IDs 3-6 are reserved for usage of RTMP. Protocol message with ID
 7 is used between edge server and origin server.
 */
-#define RTMP_MSG_SetChunkSize                 0x01
-#define RTMP_MSG_AbortMessage                 0x02
-#define RTMP_MSG_Acknowledgement             0x03
-#define RTMP_MSG_UserControlMessage         0x04
-#define RTMP_MSG_WindowAcknowledgementSize     0x05
-#define RTMP_MSG_SetPeerBandwidth             0x06
-#define RTMP_MSG_EdgeAndOriginServerCommand 0x07
+#define RTMP_MSG_SetChunkSize                   0x01
+#define RTMP_MSG_AbortMessage                   0x02
+#define RTMP_MSG_Acknowledgement                0x03
+#define RTMP_MSG_UserControlMessage             0x04
+#define RTMP_MSG_WindowAcknowledgementSize      0x05
+#define RTMP_MSG_SetPeerBandwidth               0x06
+#define RTMP_MSG_EdgeAndOriginServerCommand     0x07
 /**
 3. Types of messages
 The server and the client send messages over the network to
@@ -76,8 +76,8 @@ contains related parameters. A client or a server can request Remote
 Procedure Calls (RPC) over streams that are communicated using the
 command messages to the peer.
 */
-#define RTMP_MSG_AMF3CommandMessage         17 // 0x11
-#define RTMP_MSG_AMF0CommandMessage         20 // 0x14
+#define RTMP_MSG_AMF3CommandMessage             17 // 0x11
+#define RTMP_MSG_AMF0CommandMessage             20 // 0x14
 /**
 3.2. Data message
 The client or the server sends this message to send Metadata or any
@@ -86,8 +86,8 @@ data(audio, video etc.) like creation time, duration, theme and so
 on. These messages have been assigned message type value of 18 for
 AMF0 and message type value of 15 for AMF3.        
 */
-#define RTMP_MSG_AMF0DataMessage             18 // 0x12
-#define RTMP_MSG_AMF3DataMessage             15 // 0x0F
+#define RTMP_MSG_AMF0DataMessage                18 // 0x12
+#define RTMP_MSG_AMF3DataMessage                15 // 0x0F
 /**
 3.3. Shared object message
 A shared object is a Flash object (a collection of name value pairs)
@@ -96,14 +96,14 @@ so on. The message types kMsgContainer=19 for AMF0 and
 kMsgContainerEx=16 for AMF3 are reserved for shared object events.
 Each message can contain multiple events.
 */
-#define RTMP_MSG_AMF3SharedObject             16 // 0x10
-#define RTMP_MSG_AMF0SharedObject             19 // 0x13
+#define RTMP_MSG_AMF3SharedObject               16 // 0x10
+#define RTMP_MSG_AMF0SharedObject               19 // 0x13
 /**
 3.4. Audio message
 The client or the server sends this message to send audio data to the
 peer. The message type value of 8 is reserved for audio messages.
 */
-#define RTMP_MSG_AudioMessage                 8 // 0x08
+#define RTMP_MSG_AudioMessage                   8 // 0x08
 /* *
 3.5. Video message
 The client or the server sends this message to send video data to the
@@ -112,14 +112,14 @@ These messages are large and can delay the sending of other type of
 messages. To avoid such a situation, the video message is assigned
 the lowest priority.
 */
-#define RTMP_MSG_VideoMessage                 9 // 0x09
+#define RTMP_MSG_VideoMessage                   9 // 0x09
 /**
 3.6. Aggregate message
 An aggregate message is a single message that contains a list of submessages.
 The message type value of 22 is reserved for aggregate
 messages.
 */
-#define RTMP_MSG_AggregateMessage             22 // 0x16
+#define RTMP_MSG_AggregateMessage               22 // 0x16
 
 /****************************************************************************
 *****************************************************************************
@@ -133,21 +133,21 @@ messages.
 // Chunks of Type 0 are 11 bytes long. This type MUST be used at the
 // start of a chunk stream, and whenever the stream timestamp goes
 // backward (e.g., because of a backward seek).
-#define RTMP_FMT_TYPE0                         0
+#define RTMP_FMT_TYPE0                          0
 // 6.1.2.2. Type 1
 // Chunks of Type 1 are 7 bytes long. The message stream ID is not
 // included; this chunk takes the same stream ID as the preceding chunk.
 // Streams with variable-sized messages (for example, many video
 // formats) SHOULD use this format for the first chunk of each new
 // message after the first.
-#define RTMP_FMT_TYPE1                         1
+#define RTMP_FMT_TYPE1                          1
 // 6.1.2.3. Type 2
 // Chunks of Type 2 are 3 bytes long. Neither the stream ID nor the
 // message length is included; this chunk has the same stream ID and
 // message length as the preceding chunk. Streams with constant-sized
 // messages (for example, some audio and data formats) SHOULD use this
 // format for the first chunk of each message after the first.
-#define RTMP_FMT_TYPE2                         2
+#define RTMP_FMT_TYPE2                          2
 // 6.1.2.4. Type 3
 // Chunks of Type 3 have no header. Stream ID, message length and
 // timestamp delta are not present; chunks of this type take values from
@@ -162,7 +162,7 @@ messages.
 // need for a chunk of type 2 to register the delta. If Type 3 chunk
 // follows a Type 0 chunk, then timestamp delta for this Type 3 chunk is
 // the same as the timestamp of Type 0 chunk.
-#define RTMP_FMT_TYPE3                         3
+#define RTMP_FMT_TYPE3                          3
 
 /****************************************************************************
 *****************************************************************************
@@ -177,9 +177,9 @@ messages.
 * good for high-bit rate streaming. Chunk size is maintained
 * independently for each direction.
 */
-#define RTMP_DEFAULT_CHUNK_SIZE             128
-#define RTMP_MIN_CHUNK_SIZE                 128
-#define RTMP_MAX_CHUNK_SIZE                    65536
+#define RTMP_DEFAULT_CHUNK_SIZE                 128
+#define RTMP_MIN_CHUNK_SIZE                     128
+#define RTMP_MAX_CHUNK_SIZE                     65536
 
 /**
 * 6.1. Chunk Format
@@ -192,7 +192,7 @@ messages.
 * the normal timestamp field MUST NOT be used and MUST be set to
 * 0xffffff and the extended timestamp MUST be sent.
 */
-#define RTMP_EXTENDED_TIMESTAMP             0xFFFFFF
+#define RTMP_EXTENDED_TIMESTAMP                 0xFFFFFF
 
 /****************************************************************************
 *****************************************************************************
@@ -200,22 +200,22 @@ messages.
 /**
 * amf0 command message, command name macros
 */
-#define RTMP_AMF0_COMMAND_CONNECT            "connect"
-#define RTMP_AMF0_COMMAND_CREATE_STREAM        "createStream"
-#define RTMP_AMF0_COMMAND_CLOSE_STREAM      "closeStream"
-#define RTMP_AMF0_COMMAND_PLAY                "play"
-#define RTMP_AMF0_COMMAND_PAUSE                "pause"
-#define RTMP_AMF0_COMMAND_ON_BW_DONE        "onBWDone"
-#define RTMP_AMF0_COMMAND_ON_STATUS            "onStatus"
-#define RTMP_AMF0_COMMAND_RESULT            "_result"
-#define RTMP_AMF0_COMMAND_ERROR                "_error"
-#define RTMP_AMF0_COMMAND_RELEASE_STREAM    "releaseStream"
-#define RTMP_AMF0_COMMAND_FC_PUBLISH        "FCPublish"
-#define RTMP_AMF0_COMMAND_UNPUBLISH            "FCUnpublish"
-#define RTMP_AMF0_COMMAND_PUBLISH            "publish"
-#define RTMP_AMF0_DATA_SAMPLE_ACCESS        "|RtmpSampleAccess"
-#define RTMP_AMF0_DATA_SET_DATAFRAME        "@setDataFrame"
-#define RTMP_AMF0_DATA_ON_METADATA            "onMetaData"
+#define RTMP_AMF0_COMMAND_CONNECT               "connect"
+#define RTMP_AMF0_COMMAND_CREATE_STREAM         "createStream"
+#define RTMP_AMF0_COMMAND_CLOSE_STREAM          "closeStream"
+#define RTMP_AMF0_COMMAND_PLAY                  "play"
+#define RTMP_AMF0_COMMAND_PAUSE                 "pause"
+#define RTMP_AMF0_COMMAND_ON_BW_DONE            "onBWDone"
+#define RTMP_AMF0_COMMAND_ON_STATUS             "onStatus"
+#define RTMP_AMF0_COMMAND_RESULT                "_result"
+#define RTMP_AMF0_COMMAND_ERROR                 "_error"
+#define RTMP_AMF0_COMMAND_RELEASE_STREAM        "releaseStream"
+#define RTMP_AMF0_COMMAND_FC_PUBLISH            "FCPublish"
+#define RTMP_AMF0_COMMAND_UNPUBLISH             "FCUnpublish"
+#define RTMP_AMF0_COMMAND_PUBLISH               "publish"
+#define RTMP_AMF0_DATA_SAMPLE_ACCESS            "|RtmpSampleAccess"
+#define RTMP_AMF0_DATA_SET_DATAFRAME            "@setDataFrame"
+#define RTMP_AMF0_DATA_ON_METADATA              "onMetaData"
 
 /**
 * band width check method name, which will be invoked by client.
@@ -223,28 +223,28 @@ messages.
 * so ensure you set command name when you use it.
 */
 // server play control
-#define SRS_BW_CHECK_START_PLAY         "onSrsBandCheckStartPlayBytes"
-#define SRS_BW_CHECK_STARTING_PLAY      "onSrsBandCheckStartingPlayBytes"
-#define SRS_BW_CHECK_STOP_PLAY          "onSrsBandCheckStopPlayBytes"
-#define SRS_BW_CHECK_STOPPED_PLAY       "onSrsBandCheckStoppedPlayBytes"
+#define SRS_BW_CHECK_START_PLAY                 "onSrsBandCheckStartPlayBytes"
+#define SRS_BW_CHECK_STARTING_PLAY              "onSrsBandCheckStartingPlayBytes"
+#define SRS_BW_CHECK_STOP_PLAY                  "onSrsBandCheckStopPlayBytes"
+#define SRS_BW_CHECK_STOPPED_PLAY               "onSrsBandCheckStoppedPlayBytes"
 
 // server publish control
-#define SRS_BW_CHECK_START_PUBLISH      "onSrsBandCheckStartPublishBytes"
-#define SRS_BW_CHECK_STARTING_PUBLISH   "onSrsBandCheckStartingPublishBytes"
-#define SRS_BW_CHECK_STOP_PUBLISH       "onSrsBandCheckStopPublishBytes"
-#define SRS_BW_CHECK_STOPPED_PUBLISH    "onSrsBandCheckStoppedPublishBytes"
+#define SRS_BW_CHECK_START_PUBLISH              "onSrsBandCheckStartPublishBytes"
+#define SRS_BW_CHECK_STARTING_PUBLISH           "onSrsBandCheckStartingPublishBytes"
+#define SRS_BW_CHECK_STOP_PUBLISH               "onSrsBandCheckStopPublishBytes"
+#define SRS_BW_CHECK_STOPPED_PUBLISH            "onSrsBandCheckStoppedPublishBytes"
 
 // EOF control.
-#define SRS_BW_CHECK_FINISHED           "onSrsBandCheckFinished"
+#define SRS_BW_CHECK_FINISHED                   "onSrsBandCheckFinished"
 // for flash, it will sendout a final call, 
 // used to confirm got the report.
 // actually, client send out this packet and close the connection,
 // so server may cannot got this packet, ignore is ok.
-#define SRS_BW_CHECK_FLASH_FINAL        "finalClientPacket"
+#define SRS_BW_CHECK_FLASH_FINAL                "finalClientPacket"
 
 // client only
-#define SRS_BW_CHECK_PLAYING            "onSrsBandCheckPlaying"
-#define SRS_BW_CHECK_PUBLISHING         "onSrsBandCheckPublishing"
+#define SRS_BW_CHECK_PLAYING                    "onSrsBandCheckPlaying"
+#define SRS_BW_CHECK_PUBLISHING                 "onSrsBandCheckPublishing"
 
 /****************************************************************************
 *****************************************************************************
@@ -253,38 +253,38 @@ messages.
 * the chunk stream id used for some under-layer message,
 * for example, the PC(protocol control) message.
 */
-#define RTMP_CID_ProtocolControl 0x02
+#define RTMP_CID_ProtocolControl                0x02
 /**
 * the AMF0/AMF3 command message, invoke method and return the result, over NetConnection.
 * generally use 0x03.
 */
-#define RTMP_CID_OverConnection 0x03
+#define RTMP_CID_OverConnection                 0x03
 /**
 * the AMF0/AMF3 command message, invoke method and return the result, over NetConnection, 
 * the midst state(we guess).
 * rarely used, e.g. onStatus(NetStream.Play.Reset).
 */
-#define RTMP_CID_OverConnection2 0x04
+#define RTMP_CID_OverConnection2                0x04
 /**
 * the stream message(amf0/amf3), over NetStream.
 * generally use 0x05.
 */
-#define RTMP_CID_OverStream 0x05
+#define RTMP_CID_OverStream                     0x05
 /**
 * the stream message(amf0/amf3), over NetStream, the midst state(we guess).
 * rarely used, e.g. play("mp4:mystram.f4v")
 */
-#define RTMP_CID_OverStream2 0x08
+#define RTMP_CID_OverStream2                    0x08
 /**
 * the stream message(video), over NetStream
 * generally use 0x06.
 */
-#define RTMP_CID_Video 0x06
+#define RTMP_CID_Video                          0x06
 /**
 * the stream message(audio), over NetStream.
 * generally use 0x07.
 */
-#define RTMP_CID_Audio 0x07
+#define RTMP_CID_Audio                          0x07
 
 /****************************************************************************
 *****************************************************************************
@@ -935,11 +935,11 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
     * (when first packet, the chunk->msg is NULL).
     * the fmt maybe 0/1/2/3, the FMLE will send a 0xC4 for some audio packet.
     * the previous packet is:
-    *     04             // fmt=0, cid=4
-    *     00 00 1a     // timestamp=26
-    *    00 00 9d     // payload_length=157
-    *     08             // message_type=8(audio)
-    *     01 00 00 00 // stream_id=1
+    *     04                // fmt=0, cid=4
+    *     00 00 1a          // timestamp=26
+    *     00 00 9d          // payload_length=157
+    *     08                // message_type=8(audio)
+    *     01 00 00 00       // stream_id=1
     * the current packet maybe:
     *     c4             // fmt=3, cid=4
     * it's ok, for the packet is audio, and timestamp delta is 26.
@@ -1013,6 +1013,11 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
     *   3bytes: payload length,     fmt=0,1
     *   1bytes: message type,       fmt=0,1
     *   4bytes: stream id,          fmt=0
+    * where:
+    *   fmt=0, 0x0X
+    *   fmt=1, 0x4X
+    *   fmt=2, 0x8X
+    *   fmt=3, 0xCX
     */
     // see also: ngx_rtmp_recv
     if (fmt <= RTMP_FMT_TYPE2) {
@@ -1060,21 +1065,25 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
         }
         
         if (fmt <= RTMP_FMT_TYPE1) {
-            pp = (char*)&chunk->header.payload_length;
+            int32_t payload_length = 0;
+            pp = (char*)&payload_length;
             pp[2] = *p++;
             pp[1] = *p++;
             pp[0] = *p++;
             pp[3] = 0;
             
             // if msg exists in cache, the size must not changed.
-            if (chunk->msg->size > 0 && chunk->msg->size != chunk->header.payload_length) {
+            // always use the actual msg size, for the cache payload length can changed,
+            // for the fmt type1(stream_id not changed), user can change the payload length.
+            if (chunk->msg->size > 0 && chunk->header.payload_length != payload_length) {
                 ret = ERROR_RTMP_PACKET_SIZE;
                 srs_error("msg exists in chunk cache, "
                     "size=%d cannot change to %d, ret=%d", 
-                    chunk->msg->size, chunk->header.payload_length, ret);
+                    chunk->header.payload_length, payload_length, ret);
                 return ret;
             }
             
+            chunk->header.payload_length = payload_length;
             chunk->header.message_type = *p++;
             
             if (fmt == RTMP_FMT_TYPE0) {

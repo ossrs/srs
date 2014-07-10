@@ -256,23 +256,27 @@ class SrsMessageHeader
 {
 public:
     /**
-    * One byte field to represent the message type. A range of type IDs
-    * (1-7) are reserved for protocol control messages.
-    */
-    int8_t message_type;
-    /**
-    * Three-byte field that represents the size of the payload in bytes.
-    * It is set in big-endian format.
-    */
-    int32_t payload_length;
-    /**
+    * 3bytes.
     * Three-byte field that contains a timestamp delta of the message.
     * The 4 bytes are packed in the big-endian order.
     * @remark, only used for decoding message from chunk stream.
     */
     int32_t timestamp_delta;
     /**
-    * Three-byte field that identifies the stream of the message. These
+    * 3bytes.
+    * Three-byte field that represents the size of the payload in bytes.
+    * It is set in big-endian format.
+    */
+    int32_t payload_length;
+    /**
+    * 1byte.
+    * One byte field to represent the message type. A range of type IDs
+    * (1-7) are reserved for protocol control messages.
+    */
+    int8_t message_type;
+    /**
+    * 4bytes.
+    * Four-byte field that identifies the stream of the message. These
     * bytes are set in big-endian format.
     */
     int32_t stream_id;
@@ -379,12 +383,17 @@ public:
 // 4.2. Message Payload
 public:
     /**
-    * The other part which is the payload is the actual data that is
-    * contained in the message. For example, it could be some audio samples
-    * or compressed video data. The payload format and interpretation are
-    * beyond the scope of this document.
+    * current message parsed size,
+    *       size <= header.payload_length
+    * for the payload maybe sent in multiple chunks.
     */
     int32_t size;
+    /**
+    * the payload of message, the SrsMessage never know about the detail of payload,
+    * user must use SrsProtocol.decode_message to get concrete packet.
+    * @remark, not all message payload can be decoded to packet. for example, 
+    *       video/audio packet use raw bytes, no video/audio packet.
+    */
     int8_t* payload;
 protected:
     SrsMessage();
