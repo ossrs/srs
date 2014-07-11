@@ -39,7 +39,7 @@ SrsFlvCodec::~SrsFlvCodec()
 {
 }
 
-bool SrsFlvCodec::video_is_keyframe(int8_t* data, int size)
+bool SrsFlvCodec::video_is_keyframe(char* data, int size)
 {
     // 2bytes required.
     if (size < 1) {
@@ -52,7 +52,7 @@ bool SrsFlvCodec::video_is_keyframe(int8_t* data, int size)
     return frame_type == SrsCodecVideoAVCFrameKeyFrame;
 }
 
-bool SrsFlvCodec::video_is_sequence_header(int8_t* data, int size)
+bool SrsFlvCodec::video_is_sequence_header(char* data, int size)
 {
     // sequence header only for h264
     if (!video_is_h264(data, size)) {
@@ -73,7 +73,7 @@ bool SrsFlvCodec::video_is_sequence_header(int8_t* data, int size)
         && avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader;
 }
 
-bool SrsFlvCodec::audio_is_sequence_header(int8_t* data, int size)
+bool SrsFlvCodec::audio_is_sequence_header(char* data, int size)
 {
     // sequence header only for aac
     if (!audio_is_aac(data, size)) {
@@ -90,7 +90,7 @@ bool SrsFlvCodec::audio_is_sequence_header(int8_t* data, int size)
     return aac_packet_type == SrsCodecAudioTypeSequenceHeader;
 }
 
-bool SrsFlvCodec::video_is_h264(int8_t* data, int size)
+bool SrsFlvCodec::video_is_h264(char* data, int size)
 {
     // 1bytes required.
     if (size < 1) {
@@ -103,7 +103,7 @@ bool SrsFlvCodec::video_is_h264(int8_t* data, int size)
     return codec_id == SrsCodecVideoAVC;
 }
 
-bool SrsFlvCodec::audio_is_aac(int8_t* data, int size)
+bool SrsFlvCodec::audio_is_aac(char* data, int size)
 {
     // 1bytes required.
     if (size < 1) {

@@ -1294,8 +1294,8 @@ int SrsSource::on_aggregate(SrsMessage* msg)
 
         if (data_size > 0) {
             o.size = data_size;
-            o.payload = new int8_t[o.size];
-            stream->read_bytes((char*)o.payload, o.size);
+            o.payload = new char[o.size];
+            stream->read_bytes(o.payload, o.size);
         }
         
         if (!stream->require(4)) {

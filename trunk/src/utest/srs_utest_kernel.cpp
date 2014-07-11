@@ -287,7 +287,7 @@ VOID TEST(KernelBufferTest, Grow)
 */
 VOID TEST(KernelCodecTest, IsKeyFrame)
 {
-    int8_t data;
+    char data;
     
     data = 0x10;
     EXPECT_TRUE(SrsFlvCodec::video_is_keyframe(&data, 1));
@@ -303,7 +303,7 @@ VOID TEST(KernelCodecTest, IsKeyFrame)
 */
 VOID TEST(KernelCodecTest, IsH264)
 {
-    int8_t data;
+    char data;
     
     EXPECT_FALSE(SrsFlvCodec::video_is_h264(&data, 0));
     
@@ -326,19 +326,19 @@ VOID TEST(KernelCodecTest, IsSequenceHeader)
     int16_t data;
     char* pp = (char*)&data;
     
-    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 0));
-    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 1));
+    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((char*)pp, 0));
+    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((char*)pp, 1));
     
     pp[0] = 0x17;
     pp[1] = 0x00;
-    EXPECT_TRUE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 2));
+    EXPECT_TRUE(SrsFlvCodec::video_is_sequence_header((char*)pp, 2));
     pp[0] = 0x18;
-    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 2));
+    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((char*)pp, 2));
     pp[0] = 0x27;
-    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 2));
+    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((char*)pp, 2));
     pp[0] = 0x17;
     pp[1] = 0x01;
-    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 2));
+    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((char*)pp, 2));
 }
 
 /**
@@ -347,7 +347,7 @@ VOID TEST(KernelCodecTest, IsSequenceHeader)
 */
 VOID TEST(KernelCodecTest, IsAAC)
 {
-    int8_t data;
+    char data;
     
     EXPECT_FALSE(SrsFlvCodec::audio_is_aac(&data, 0));
     
@@ -370,17 +370,17 @@ VOID TEST(KernelCodecTest, IsAudioSequenceHeader)
     int16_t data;
     char* pp = (char*)&data;
     
-    EXPECT_FALSE(SrsFlvCodec::audio_is_sequence_header((int8_t*)pp, 0));
-    EXPECT_FALSE(SrsFlvCodec::audio_is_sequence_header((int8_t*)pp, 1));
+    EXPECT_FALSE(SrsFlvCodec::audio_is_sequence_header((char*)pp, 0));
+    EXPECT_FALSE(SrsFlvCodec::audio_is_sequence_header((char*)pp, 1));
     
     pp[0] = 0xa0;
     pp[1] = 0x00;
-    EXPECT_TRUE(SrsFlvCodec::audio_is_sequence_header((int8_t*)pp, 2));
+    EXPECT_TRUE(SrsFlvCodec::audio_is_sequence_header((char*)pp, 2));
     pp[0] = 0x00;
-    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 2));
+    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((char*)pp, 2));
     pp[0] = 0xa0;
     pp[1] = 0x01;
-    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((int8_t*)pp, 2));
+    EXPECT_FALSE(SrsFlvCodec::video_is_sequence_header((char*)pp, 2));
 }
 
 /**

@@ -158,23 +158,23 @@ public:
     /**
     * only check the frame_type, not check the codec type.
     */
-    static bool video_is_keyframe(int8_t* data, int size);
+    static bool video_is_keyframe(char* data, int size);
     /**
     * check codec h264, keyframe, sequence header
     */
-    static bool video_is_sequence_header(int8_t* data, int size);
+    static bool video_is_sequence_header(char* data, int size);
     /**
     * check codec aac, sequence header
     */
-    static bool audio_is_sequence_header(int8_t* data, int size);
+    static bool audio_is_sequence_header(char* data, int size);
     /**
     * check codec h264.
     */
-    static bool video_is_h264(int8_t* data, int size);
+    static bool video_is_h264(char* data, int size);
     /**
     * check codec aac.
     */
-    static bool audio_is_aac(int8_t* data, int size);
+    static bool audio_is_aac(char* data, int size);
 };
 
 #endif

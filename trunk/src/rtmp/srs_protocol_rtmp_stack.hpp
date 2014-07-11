@@ -388,14 +388,14 @@ public:
     *       size <= header.payload_length
     * for the payload maybe sent in multiple chunks.
     */
-    int32_t size;
+    int size;
     /**
     * the payload of message, the SrsMessage never know about the detail of payload,
     * user must use SrsProtocol.decode_message to get concrete packet.
     * @remark, not all message payload can be decoded to packet. for example, 
     *       video/audio packet use raw bytes, no video/audio packet.
     */
-    int8_t* payload;
+    char* payload;
 protected:
     SrsMessage();
 public:
@@ -1023,6 +1023,7 @@ protected:
     virtual int get_size();
     virtual int encode_packet(SrsStream* stream);
 };
+
 /**
 * response for SrsPlayPacket.
 * @remark, user must set the stream_id in header.
@@ -1352,6 +1353,16 @@ protected:
     virtual int encode_packet(SrsStream* stream);
 };
 
+// 5.6. Set Peer Bandwidth (6)
+enum SrsPeerBandwidthType
+{
+    // The sender can mark this message hard (0), soft (1), or dynamic (2)
+    // using the Limit type field.
+    SrsPeerBandwidthHard = 0,
+    SrsPeerBandwidthSoft = 1,
+    SrsPeerBandwidthDynamic = 2,
+};
+
 /**
 * 5.6. Set Peer Bandwidth (6)
 * The client or the server sends this message to update the output
@@ -1361,6 +1372,7 @@ class SrsSetPeerBandwidthPacket : public SrsPacket
 {
 public:
     int32_t bandwidth;
+    // @see: SrsPeerBandwidthType
     int8_t type;
 public:
     SrsSetPeerBandwidthPacket();

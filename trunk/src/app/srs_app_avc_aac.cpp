@@ -132,7 +132,7 @@ SrsAvcAacCodec::~SrsAvcAacCodec()
     srs_freep(pictureParameterSetNALUnit);
 }
 
-int SrsAvcAacCodec::audio_aac_demux(int8_t* data, int size, SrsCodecSample* sample)
+int SrsAvcAacCodec::audio_aac_demux(char* data, int size, SrsCodecSample* sample)
 {
     int ret = ERROR_SUCCESS;
     
@@ -274,7 +274,7 @@ int SrsAvcAacCodec::audio_aac_demux(int8_t* data, int size, SrsCodecSample* samp
     return ret;
 }
 
-int SrsAvcAacCodec::video_avc_demux(int8_t* data, int size, SrsCodecSample* sample)
+int SrsAvcAacCodec::video_avc_demux(char* data, int size, SrsCodecSample* sample)
 {
     int ret = ERROR_SUCCESS;
     

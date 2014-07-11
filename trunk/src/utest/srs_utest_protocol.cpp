@@ -31,6 +31,7 @@ using namespace std;
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_st.hpp>
+#include <srs_protocol_amf0.hpp>
 
 MockEmptyIO::MockEmptyIO()
 {
@@ -4461,5 +4462,665 @@ VOID TEST(ProtocolStackTest, ProtocolRecvV0LenMessage)
     EXPECT_TRUE(msg->header.is_video());
     // protocol stack will ignore the empty video message.
     EXPECT_EQ(4, msg->header.payload_length);
+}
+
+/**
+* send a video message
+*/
+VOID TEST(ProtocolStackTest, ProtocolSendVMessage)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    char data[] = {0x01, 0x02, 0x03, 0x04};
+    
+    SrsMessage* msg = new SrsCommonMessage();
+    msg->size = sizeof(data);
+    msg->payload = new char[msg->size];
+    memcpy(msg->payload, data, msg->size);
+    
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_message(msg, 0));
+    EXPECT_EQ(16, bio.out_buffer.length());
+}
+
+/**
+* send a SrsConnectAppPacket packet
+*/
+VOID TEST(ProtocolStackTest, ProtocolSendSrsConnectAppPacket)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    SrsConnectAppPacket* pkt = new SrsConnectAppPacket();
+    pkt->command_object = SrsAmf0Any::object();
+    pkt->args = SrsAmf0Any::object();
+    
+    pkt->command_object->set("version", SrsAmf0Any::str("1.0.0"));
+    pkt->command_object->set("build", SrsAmf0Any::number(150));
+    SrsAmf0Object* data = SrsAmf0Any::object();
+    pkt->command_object->set("data", data);
+    
+    data->set("server", SrsAmf0Any::str("SRS"));
+    data->set("signature", SrsAmf0Any::str("simple-rtmp-server"));
+    
+    pkt->args->set("info", SrsAmf0Any::str("NetStream.Status.Info"));
+    pkt->args->set("desc", SrsAmf0Any::str("connected"));
+    pkt->args->set("data", SrsAmf0Any::ecma_array());
+    
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
+    char buf[] = {
+        (char)0x03, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0xb2, (char)0x14,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x02, (char)0x00, (char)0x07, (char)0x63,
+        (char)0x6f, (char)0x6e, (char)0x6e, (char)0x65, (char)0x63, (char)0x74, (char)0x00, (char)0x3f,
+        (char)0xf0, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x03,
+        (char)0x00, (char)0x07, (char)0x76, (char)0x65, (char)0x72, (char)0x73, (char)0x69, (char)0x6f,
+        (char)0x6e, (char)0x02, (char)0x00, (char)0x05, (char)0x31, (char)0x2e, (char)0x30, (char)0x2e,
+        (char)0x30, (char)0x00, (char)0x05, (char)0x62, (char)0x75, (char)0x69, (char)0x6c, (char)0x64,
+        (char)0x00, (char)0x40, (char)0x62, (char)0xc0, (char)0x00, (char)0x00, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x00, (char)0x04, (char)0x64, (char)0x61, (char)0x74, (char)0x61, (char)0x03,
+        (char)0x00, (char)0x06, (char)0x73, (char)0x65, (char)0x72, (char)0x76, (char)0x65, (char)0x72,
+        (char)0x02, (char)0x00, (char)0x03, (char)0x53, (char)0x52, (char)0x53, (char)0x00, (char)0x09,
+        (char)0x73, (char)0x69, (char)0x67, (char)0x6e, (char)0x61, (char)0x74, (char)0x75, (char)0x72,
+        (char)0x65, (char)0x02, (char)0x00, (char)0x12, (char)0x73, (char)0x69, (char)0x6d, (char)0x70,
+        (char)0x6c, (char)0x65, (char)0x2d, (char)0x72, (char)0x74, (char)0x6d, (char)0x70, (char)0x2d,
+        (char)0x73, (char)0x65, (char)0x72, (char)0x76, (char)0x65, (char)0x72, (char)0x00, (char)0x00,
+        (char)0x09, (char)0x00, (char)0x00, (char)0x09, (char)0x03, (char)0x00, (char)0x04, (char)0x69,
+        (char)0x6e, (char)0x66, (char)0x6f, (char)0x02, (char)0x00, (char)0x15, (char)0x4e, (char)0x65,
+        (char)0x74, (char)0x53, (char)0x74, (char)0x72, (char)0xc3, (char)0x65, (char)0x61, (char)0x6d,
+        (char)0x2e, (char)0x53, (char)0x74, (char)0x61, (char)0x74, (char)0x75, (char)0x73, (char)0x2e,
+        (char)0x49, (char)0x6e, (char)0x66, (char)0x6f, (char)0x00, (char)0x04, (char)0x64, (char)0x65,
+        (char)0x73, (char)0x63, (char)0x02, (char)0x00, (char)0x09, (char)0x63, (char)0x6f, (char)0x6e,
+        (char)0x6e, (char)0x65, (char)0x63, (char)0x74, (char)0x65, (char)0x64, (char)0x00, (char)0x04,
+        (char)0x64, (char)0x61, (char)0x74, (char)0x61, (char)0x08, (char)0x00, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x09, (char)0x00, (char)0x00, (char)0x09
+    };
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+}
+
+/**
+* send a SrsConnectAppResPacket packet
+*/
+VOID TEST(ProtocolStackTest, ProtocolSendSrsConnectAppResPacket)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    SrsConnectAppResPacket* pkt = new SrsConnectAppResPacket();
+    pkt->props = SrsAmf0Any::object();
+    pkt->info = SrsAmf0Any::object();
+    
+    pkt->props->set("version", SrsAmf0Any::str("1.0.0"));
+    pkt->props->set("build", SrsAmf0Any::number(150));
+    SrsAmf0Object* data = SrsAmf0Any::object();
+    pkt->props->set("data", data);
+    
+    data->set("server", SrsAmf0Any::str("SRS"));
+    data->set("signature", SrsAmf0Any::str("simple-rtmp-server"));
+    
+    pkt->info->set("info", SrsAmf0Any::str("NetStream.Status.Info"));
+    pkt->info->set("desc", SrsAmf0Any::str("connected"));
+    pkt->info->set("data", SrsAmf0Any::ecma_array());
+    
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
+    char buf[] = {
+        (char)0x03, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0xb2, (char)0x14,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x02, (char)0x00, (char)0x07, (char)0x5f,
+        (char)0x72, (char)0x65, (char)0x73, (char)0x75, (char)0x6c, (char)0x74, (char)0x00, (char)0x3f,
+        (char)0xf0, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x03,
+        (char)0x00, (char)0x07, (char)0x76, (char)0x65, (char)0x72, (char)0x73, (char)0x69, (char)0x6f,
+        (char)0x6e, (char)0x02, (char)0x00, (char)0x05, (char)0x31, (char)0x2e, (char)0x30, (char)0x2e,
+        (char)0x30, (char)0x00, (char)0x05, (char)0x62, (char)0x75, (char)0x69, (char)0x6c, (char)0x64,
+        (char)0x00, (char)0x40, (char)0x62, (char)0xc0, (char)0x00, (char)0x00, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x00, (char)0x04, (char)0x64, (char)0x61, (char)0x74, (char)0x61, (char)0x03,
+        (char)0x00, (char)0x06, (char)0x73, (char)0x65, (char)0x72, (char)0x76, (char)0x65, (char)0x72,
+        (char)0x02, (char)0x00, (char)0x03, (char)0x53, (char)0x52, (char)0x53, (char)0x00, (char)0x09,
+        (char)0x73, (char)0x69, (char)0x67, (char)0x6e, (char)0x61, (char)0x74, (char)0x75, (char)0x72,
+        (char)0x65, (char)0x02, (char)0x00, (char)0x12, (char)0x73, (char)0x69, (char)0x6d, (char)0x70,
+        (char)0x6c, (char)0x65, (char)0x2d, (char)0x72, (char)0x74, (char)0x6d, (char)0x70, (char)0x2d,
+        (char)0x73, (char)0x65, (char)0x72, (char)0x76, (char)0x65, (char)0x72, (char)0x00, (char)0x00,
+        (char)0x09, (char)0x00, (char)0x00, (char)0x09, (char)0x03, (char)0x00, (char)0x04, (char)0x69,
+        (char)0x6e, (char)0x66, (char)0x6f, (char)0x02, (char)0x00, (char)0x15, (char)0x4e, (char)0x65,
+        (char)0x74, (char)0x53, (char)0x74, (char)0x72, (char)0xc3, (char)0x65, (char)0x61, (char)0x6d,
+        (char)0x2e, (char)0x53, (char)0x74, (char)0x61, (char)0x74, (char)0x75, (char)0x73, (char)0x2e,
+        (char)0x49, (char)0x6e, (char)0x66, (char)0x6f, (char)0x00, (char)0x04, (char)0x64, (char)0x65,
+        (char)0x73, (char)0x63, (char)0x02, (char)0x00, (char)0x09, (char)0x63, (char)0x6f, (char)0x6e,
+        (char)0x6e, (char)0x65, (char)0x63, (char)0x74, (char)0x65, (char)0x64, (char)0x00, (char)0x04,
+        (char)0x64, (char)0x61, (char)0x74, (char)0x61, (char)0x08, (char)0x00, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x09, (char)0x00, (char)0x00, (char)0x09
+    };
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+}
+
+/**
+* send a SrsCallPacket packet
+*/
+VOID TEST(ProtocolStackTest, ProtocolSendSrsCallPacket)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    SrsAmf0Object* args = SrsAmf0Any::object();
+    
+    SrsCallPacket* pkt = new SrsCallPacket();
+    pkt->command_name = "my_call";
+    pkt->command_object = SrsAmf0Any::null();
+    pkt->arguments = args;
+    
+    args->set("video_id", SrsAmf0Any::number(100));
+    args->set("url", SrsAmf0Any::str("http://ossrs.net/api/v1/videos/100"));
+    args->set("date", SrsAmf0Any::str("2014-07-11 16:20:10.2984"));
+    
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
+    char buf[] = {
+        (char)0x03, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x76, (char)0x14,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x02, (char)0x00, (char)0x07, (char)0x6d,
+        (char)0x79, (char)0x5f, (char)0x63, (char)0x61, (char)0x6c, (char)0x6c, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x05,
+        (char)0x03, (char)0x00, (char)0x08, (char)0x76, (char)0x69, (char)0x64, (char)0x65, (char)0x6f,
+        (char)0x5f, (char)0x69, (char)0x64, (char)0x00, (char)0x40, (char)0x59, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x03, (char)0x75, (char)0x72,
+        (char)0x6c, (char)0x02, (char)0x00, (char)0x22, (char)0x68, (char)0x74, (char)0x74, (char)0x70,
+        (char)0x3a, (char)0x2f, (char)0x2f, (char)0x6f, (char)0x73, (char)0x73, (char)0x72, (char)0x73,
+        (char)0x2e, (char)0x6e, (char)0x65, (char)0x74, (char)0x2f, (char)0x61, (char)0x70, (char)0x69,
+        (char)0x2f, (char)0x76, (char)0x31, (char)0x2f, (char)0x76, (char)0x69, (char)0x64, (char)0x65,
+        (char)0x6f, (char)0x73, (char)0x2f, (char)0x31, (char)0x30, (char)0x30, (char)0x00, (char)0x04,
+        (char)0x64, (char)0x61, (char)0x74, (char)0x65, (char)0x02, (char)0x00, (char)0x18, (char)0x32,
+        (char)0x30, (char)0x31, (char)0x34, (char)0x2d, (char)0x30, (char)0x37, (char)0x2d, (char)0x31,
+        (char)0x31, (char)0x20, (char)0x31, (char)0x36, (char)0x3a, (char)0x32, (char)0x30, (char)0x3a,
+        (char)0x31, (char)0x30, (char)0x2e, (char)0x32, (char)0x39, (char)0x38, (char)0x34, (char)0x00,
+        (char)0x00, (char)0x09
+    };
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+}
+
+/**
+* send a SrsCallResPacket packet
+*/
+VOID TEST(ProtocolStackTest, ProtocolSendSrsCallResPacket)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    SrsAmf0Object* args = SrsAmf0Any::object();
+    
+    SrsCallResPacket* pkt = new SrsCallResPacket(0);
+    pkt->command_name = "_result";
+    pkt->command_object = SrsAmf0Any::null();
+    pkt->response = args;
+    
+    args->set("video_id", SrsAmf0Any::number(100));
+    args->set("url", SrsAmf0Any::str("http://ossrs.net/api/v1/videos/100"));
+    args->set("date", SrsAmf0Any::str("2014-07-11 16:20:10.2984"));
+    
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
+    char buf[] = {
+        (char)0x03, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x76, (char)0x14,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x02, (char)0x00, (char)0x07, (char)0x5f,
+        (char)0x72, (char)0x65, (char)0x73, (char)0x75, (char)0x6c, (char)0x74, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x05,
+        (char)0x03, (char)0x00, (char)0x08, (char)0x76, (char)0x69, (char)0x64, (char)0x65, (char)0x6f,
+        (char)0x5f, (char)0x69, (char)0x64, (char)0x00, (char)0x40, (char)0x59, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x03, (char)0x75, (char)0x72,
+        (char)0x6c, (char)0x02, (char)0x00, (char)0x22, (char)0x68, (char)0x74, (char)0x74, (char)0x70,
+        (char)0x3a, (char)0x2f, (char)0x2f, (char)0x6f, (char)0x73, (char)0x73, (char)0x72, (char)0x73,
+        (char)0x2e, (char)0x6e, (char)0x65, (char)0x74, (char)0x2f, (char)0x61, (char)0x70, (char)0x69,
+        (char)0x2f, (char)0x76, (char)0x31, (char)0x2f, (char)0x76, (char)0x69, (char)0x64, (char)0x65,
+        (char)0x6f, (char)0x73, (char)0x2f, (char)0x31, (char)0x30, (char)0x30, (char)0x00, (char)0x04,
+        (char)0x64, (char)0x61, (char)0x74, (char)0x65, (char)0x02, (char)0x00, (char)0x18, (char)0x32,
+        (char)0x30, (char)0x31, (char)0x34, (char)0x2d, (char)0x30, (char)0x37, (char)0x2d, (char)0x31,
+        (char)0x31, (char)0x20, (char)0x31, (char)0x36, (char)0x3a, (char)0x32, (char)0x30, (char)0x3a,
+        (char)0x31, (char)0x30, (char)0x2e, (char)0x32, (char)0x39, (char)0x38, (char)0x34, (char)0x00,
+        (char)0x00, (char)0x09
+    };
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+}
+
+/**
+* send a SrsCreateStreamPacket packet
+*/
+VOID TEST(ProtocolStackTest, ProtocolSendSrsCreateStreamPacket)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    SrsCreateStreamPacket* pkt = new SrsCreateStreamPacket();
+    pkt->command_object = SrsAmf0Any::null();
+    
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
+    char buf[] = {
+        (char)0x03, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x19, (char)0x14,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x02, (char)0x00, (char)0x0c, (char)0x63,
+        (char)0x72, (char)0x65, (char)0x61, (char)0x74, (char)0x65, (char)0x53, (char)0x74, (char)0x72,
+        (char)0x65, (char)0x61, (char)0x6d, (char)0x00, (char)0x40, (char)0x00, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x05
+    };
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+}
+
+/**
+* send a SrsFMLEStartPacket packet
+*/
+VOID TEST(ProtocolStackTest, ProtocolSendSrsFMLEStartPacket)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    SrsFMLEStartPacket* pkt = new SrsFMLEStartPacket();
+    pkt->command_name = "FMLEStart";
+    pkt->command_object = SrsAmf0Any::null();
+    pkt->stream_name = "livestream";
+    
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
+    char buf[] = {
+        (char)0x03, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x23, (char)0x14,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x02, (char)0x00, (char)0x09, (char)0x46,
+        (char)0x4d, (char)0x4c, (char)0x45, (char)0x53, (char)0x74, (char)0x61, (char)0x72, (char)0x74,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x05, (char)0x02, (char)0x00, (char)0x0a, (char)0x6c, (char)0x69, (char)0x76,
+        (char)0x65, (char)0x73, (char)0x74, (char)0x72, (char)0x65, (char)0x61, (char)0x6d
+    };
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+}
+
+/**
+* send a SrsFMLEStartResPacket packet
+*/
+VOID TEST(ProtocolStackTest, ProtocolSendSrsFMLEStartResPacket)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    SrsAmf0Object* args = SrsAmf0Any::object();
+    
+    SrsFMLEStartResPacket* pkt = new SrsFMLEStartResPacket(1);
+    pkt->command_name = "FMLEStart";
+    pkt->command_object = SrsAmf0Any::null();
+    pkt->args = args;
+    
+    args->set("stream" , SrsAmf0Any::str("livestream"));
+    args->set("start" , SrsAmf0Any::number(0));
+    
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
+    char buf[] = {
+        (char)0x03, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x17, (char)0x14,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x02, (char)0x00, (char)0x09, (char)0x46,
+        (char)0x4d, (char)0x4c, (char)0x45, (char)0x53, (char)0x74, (char)0x61, (char)0x72, (char)0x74,
+        (char)0x00, (char)0x3f, (char)0xf0, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x05, (char)0x06
+    };
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+}
+
+/**
+* send a SrsPublishPacket packet
+*/
+VOID TEST(ProtocolStackTest, ProtocolSendSrsPublishPacket)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    SrsPublishPacket* pkt = new SrsPublishPacket();
+    pkt->command_name = "publish";
+    pkt->command_object = SrsAmf0Any::null();
+    pkt->stream_name = "livestream";
+    pkt->type = "live";
+    
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
+    char buf[] = {
+        (char)0x05, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x28, (char)0x14,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x02, (char)0x00, (char)0x07, (char)0x70,
+        (char)0x75, (char)0x62, (char)0x6c, (char)0x69, (char)0x73, (char)0x68, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x05,
+        (char)0x02, (char)0x00, (char)0x0a, (char)0x6c, (char)0x69, (char)0x76, (char)0x65, (char)0x73,
+        (char)0x74, (char)0x72, (char)0x65, (char)0x61, (char)0x6d, (char)0x02, (char)0x00, (char)0x04,
+        (char)0x6c, (char)0x69, (char)0x76, (char)0x65
+    };
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+}
+
+/**
+* send a SrsPlayPacket packet
+*/
+VOID TEST(ProtocolStackTest, ProtocolSendSrsPlayPacket)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    SrsPlayPacket* pkt = new SrsPlayPacket();
+    pkt->command_name = "play";
+    pkt->command_object = SrsAmf0Any::null();
+    pkt->stream_name = "livestream";
+    pkt->start = 0;
+    pkt->duration = 0;
+    pkt->reset = true;
+    
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
+    char buf[] = {
+        (char)0x05, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x32, (char)0x14,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x02, (char)0x00, (char)0x04, (char)0x70,
+        (char)0x6c, (char)0x61, (char)0x79, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x05, (char)0x02, (char)0x00, (char)0x0a,
+        (char)0x6c, (char)0x69, (char)0x76, (char)0x65, (char)0x73, (char)0x74, (char)0x72, (char)0x65,
+        (char)0x61, (char)0x6d, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x01, (char)0x01
+    };
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+}
+
+/**
+* send a SrsPlayResPacket packet
+*/
+VOID TEST(ProtocolStackTest, ProtocolSendSrsPlayResPacket)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    SrsAmf0Object* args = SrsAmf0Any::object();
+    
+    SrsPlayResPacket* pkt = new SrsPlayResPacket();
+    pkt->command_name = "_result";
+    pkt->command_object = SrsAmf0Any::null();
+    pkt->desc = args;
+    
+    args->set("stream" , SrsAmf0Any::str("livestream"));
+    args->set("start" , SrsAmf0Any::number(0));
+    
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
+    char buf[] = {
+        (char)0x05, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x3d, (char)0x14,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x02, (char)0x00, (char)0x07, (char)0x5f,
+        (char)0x72, (char)0x65, (char)0x73, (char)0x75, (char)0x6c, (char)0x74, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x05,
+        (char)0x03, (char)0x00, (char)0x06, (char)0x73, (char)0x74, (char)0x72, (char)0x65, (char)0x61,
+        (char)0x6d, (char)0x02, (char)0x00, (char)0x0a, (char)0x6c, (char)0x69, (char)0x76, (char)0x65,
+        (char)0x73, (char)0x74, (char)0x72, (char)0x65, (char)0x61, (char)0x6d, (char)0x00, (char)0x05,
+        (char)0x73, (char)0x74, (char)0x61, (char)0x72, (char)0x74, (char)0x00, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00,
+        (char)0x09
+    };
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+}
+
+/**
+* send a SrsOnBWDonePacket packet
+*/
+VOID TEST(ProtocolStackTest, ProtocolSendSrsOnBWDonePacket)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    SrsOnBWDonePacket* pkt = new SrsOnBWDonePacket();
+    pkt->command_name = "onBWDone";
+    pkt->args = SrsAmf0Any::null();
+    
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
+    char buf[] = {
+        (char)0x03, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x15, (char)0x14,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x02, (char)0x00, (char)0x08, (char)0x6f,
+        (char)0x6e, (char)0x42, (char)0x57, (char)0x44, (char)0x6f, (char)0x6e, (char)0x65, (char)0x00,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00,
+        (char)0x05
+    };
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+}
+
+/**
+* send a SrsOnStatusCallPacket packet
+*/
+VOID TEST(ProtocolStackTest, ProtocolSendSrsOnStatusCallPacket)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    SrsAmf0Object* args = SrsAmf0Any::object();
+    
+    args->set("stream" , SrsAmf0Any::str("livestream"));
+    args->set("start" , SrsAmf0Any::number(0));
+    
+    SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
+    pkt->command_name = "onStatus";
+    pkt->args = SrsAmf0Any::null();
+    pkt->data = args;
+    
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
+    char buf[] = {
+        (char)0x05, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x3e, (char)0x14,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x02, (char)0x00, (char)0x08, (char)0x6f,
+        (char)0x6e, (char)0x53, (char)0x74, (char)0x61, (char)0x74, (char)0x75, (char)0x73, (char)0x00,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00,
+        (char)0x05, (char)0x03, (char)0x00, (char)0x06, (char)0x73, (char)0x74, (char)0x72, (char)0x65,
+        (char)0x61, (char)0x6d, (char)0x02, (char)0x00, (char)0x0a, (char)0x6c, (char)0x69, (char)0x76,
+        (char)0x65, (char)0x73, (char)0x74, (char)0x72, (char)0x65, (char)0x61, (char)0x6d, (char)0x00,
+        (char)0x05, (char)0x73, (char)0x74, (char)0x61, (char)0x72, (char)0x74, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x09
+    };
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+}
+
+/**
+* send a SrsBandwidthPacket packet
+*/
+VOID TEST(ProtocolStackTest, ProtocolSendSrsBandwidthPacket)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    SrsAmf0Object* args = SrsAmf0Any::object();
+    
+    args->set("stream" , SrsAmf0Any::str("livestream"));
+    args->set("start" , SrsAmf0Any::number(0));
+    
+    SrsBandwidthPacket* pkt = new SrsBandwidthPacket();
+    pkt->command_name = "startPublish";
+    pkt->args = SrsAmf0Any::null();
+    pkt->data = args;
+    
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
+    char buf[] = {
+        (char)0x05, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x42, (char)0x14,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x02, (char)0x00, (char)0x0c, (char)0x73,
+        (char)0x74, (char)0x61, (char)0x72, (char)0x74, (char)0x50, (char)0x75, (char)0x62, (char)0x6c,
+        (char)0x69, (char)0x73, (char)0x68, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x05, (char)0x03, (char)0x00, (char)0x06,
+        (char)0x73, (char)0x74, (char)0x72, (char)0x65, (char)0x61, (char)0x6d, (char)0x02, (char)0x00,
+        (char)0x0a, (char)0x6c, (char)0x69, (char)0x76, (char)0x65, (char)0x73, (char)0x74, (char)0x72,
+        (char)0x65, (char)0x61, (char)0x6d, (char)0x00, (char)0x05, (char)0x73, (char)0x74, (char)0x61,
+        (char)0x72, (char)0x74, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x09
+    };
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+}
+
+/**
+* send a SrsOnStatusDataPacket packet
+*/
+VOID TEST(ProtocolStackTest, ProtocolSendSrsOnStatusDataPacket)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    SrsAmf0Object* args = SrsAmf0Any::object();
+    
+    args->set("stream" , SrsAmf0Any::str("livestream"));
+    args->set("start" , SrsAmf0Any::number(0));
+    
+    SrsOnStatusDataPacket* pkt = new SrsOnStatusDataPacket();
+    pkt->command_name = "onData";
+    pkt->data = args;
+    
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
+    char buf[] = {
+        (char)0x05, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x32, (char)0x12,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x02, (char)0x00, (char)0x06, (char)0x6f,
+        (char)0x6e, (char)0x44, (char)0x61, (char)0x74, (char)0x61, (char)0x03, (char)0x00, (char)0x06,
+        (char)0x73, (char)0x74, (char)0x72, (char)0x65, (char)0x61, (char)0x6d, (char)0x02, (char)0x00,
+        (char)0x0a, (char)0x6c, (char)0x69, (char)0x76, (char)0x65, (char)0x73, (char)0x74, (char)0x72,
+        (char)0x65, (char)0x61, (char)0x6d, (char)0x00, (char)0x05, (char)0x73, (char)0x74, (char)0x61,
+        (char)0x72, (char)0x74, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x09
+    };
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+}
+
+/**
+* send a SrsSampleAccessPacket packet
+*/
+VOID TEST(ProtocolStackTest, ProtocolSendSrsSampleAccessPacket)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    SrsSampleAccessPacket* pkt = new SrsSampleAccessPacket();
+    pkt->command_name = "|RtmpSampleAccess";
+    pkt->video_sample_access = true;
+    pkt->audio_sample_access = true;
+    
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
+    char buf[] = {
+        (char)0x05, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x18, (char)0x12,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x02, (char)0x00, (char)0x11, (char)0x7c,
+        (char)0x52, (char)0x74, (char)0x6d, (char)0x70, (char)0x53, (char)0x61, (char)0x6d, (char)0x70,
+        (char)0x6c, (char)0x65, (char)0x41, (char)0x63, (char)0x63, (char)0x65, (char)0x73, (char)0x73,
+        (char)0x01, (char)0x01, (char)0x01, (char)0x01
+    };
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+}
+
+/**
+* send a SrsOnMetaDataPacket packet
+*/
+VOID TEST(ProtocolStackTest, ProtocolSendSrsOnMetaDataPacket)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    SrsAmf0Object* args = SrsAmf0Any::object();
+    
+    args->set("width" , SrsAmf0Any::number(1024));
+    args->set("height" , SrsAmf0Any::number(576));
+    
+    SrsOnMetaDataPacket* pkt = new SrsOnMetaDataPacket();
+    pkt->name = "onMetaData";
+    pkt->metadata = args;
+    
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
+    char buf[] = {
+        (char)0x04, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x32, (char)0x12,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x02, (char)0x00, (char)0x0a, (char)0x6f,
+        (char)0x6e, (char)0x4d, (char)0x65, (char)0x74, (char)0x61, (char)0x44, (char)0x61, (char)0x74,
+        (char)0x61, (char)0x03, (char)0x00, (char)0x05, (char)0x77, (char)0x69, (char)0x64, (char)0x74,
+        (char)0x68, (char)0x00, (char)0x40, (char)0x90, (char)0x00, (char)0x00, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x06, (char)0x68, (char)0x65, (char)0x69, (char)0x67,
+        (char)0x68, (char)0x74, (char)0x00, (char)0x40, (char)0x82, (char)0x00, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x09
+    };
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+}
+
+/**
+* send a SrsSetWindowAckSizePacket packet
+*/
+VOID TEST(ProtocolStackTest, ProtocolSendSrsSetWindowAckSizePacket)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    SrsSetWindowAckSizePacket* pkt = new SrsSetWindowAckSizePacket();
+    pkt->ackowledgement_window_size = 102400;
+    
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
+    char buf[] = {
+        (char)0x02, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x04, (char)0x05,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x01, (char)0x90, (char)0x00
+    };
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+}
+
+/**
+* send a SrsAcknowledgementPacket packet
+*/
+VOID TEST(ProtocolStackTest, ProtocolSendSrsAcknowledgementPacket)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    SrsAcknowledgementPacket* pkt = new SrsAcknowledgementPacket();
+    pkt->sequence_number = 1024;
+    
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
+    char buf[] = {
+        (char)0x02, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x04, (char)0x03,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x04, (char)0x00
+    };
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+}
+
+/**
+* send a SrsSetChunkSizePacket packet
+*/
+VOID TEST(ProtocolStackTest, ProtocolSendSrsSetChunkSizePacket)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    SrsSetChunkSizePacket* pkt = new SrsSetChunkSizePacket();
+    pkt->chunk_size = 1024;
+    
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
+    char buf[] = {
+        (char)0x02, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x04, (char)0x01,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x04, (char)0x00
+    };
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+}
+
+/**
+* send a SrsSetPeerBandwidthPacket packet
+*/
+VOID TEST(ProtocolStackTest, ProtocolSendSrsSetPeerBandwidthPacket)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    SrsSetPeerBandwidthPacket* pkt = new SrsSetPeerBandwidthPacket();
+    pkt->type = SrsPeerBandwidthSoft;
+    pkt->bandwidth = 1024;
+    
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
+    char buf[] = {
+        (char)0x02, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x05, (char)0x06, 
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x04, (char)0x00, 
+        (char)0x01 
+    };
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+}
+
+/**
+* send a SrsUserControlPacket packet
+*/
+VOID TEST(ProtocolStackTest, ProtocolSendSrsUserControlPacket)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    SrsUserControlPacket* pkt = new SrsUserControlPacket();
+    pkt->event_type = SrcPCUCSetBufferLength;
+    pkt->event_data = 0x01;
+    pkt->extra_data = 0x10;
+    
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
+    char buf[] = {
+        (char)0x02, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x0a, (char)0x04,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x03, (char)0x00, (char)0x00,
+        (char)0x00, (char)0x01, (char)0x00, (char)0x00, (char)0x00, (char)0x10
+    };
+    
+    __srs_bytes_print(bio.out_buffer.bytes(), bio.out_buffer.length());
+    __srs_bytes_print(buf, sizeof(buf));
+    
+    EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
+    EXPECT_TRUE(true);
 }
 

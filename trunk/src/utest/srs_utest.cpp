@@ -36,6 +36,15 @@ ISrsThreadContext* _srs_context = new ISrsThreadContext();
 SrsConfig* _srs_config = NULL;
 SrsServer* _srs_server = NULL;
 
+void __srs_bytes_print(char* pa, int size)
+{
+    for(int i = 0; i < size; i++) {
+        char v = pa[i];
+        printf("%#x ", v);
+    }
+    printf("\n");
+}
+
 // basic test and samples.
 VOID TEST(SampleTest, FastSampleInt64Test) 
 {

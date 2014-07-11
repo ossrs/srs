@@ -240,9 +240,9 @@ int SrsDvrPlan::on_video(SrsSharedPtrMessage* video)
     int size = (int)video->size;
     
 #ifdef SRS_AUTO_HTTP_CALLBACK
-    bool is_key_frame = SrsFlvCodec::video_is_h264((int8_t*)payload, size) 
-        && SrsFlvCodec::video_is_keyframe((int8_t*)payload, size) 
-        && !SrsFlvCodec::video_is_sequence_header((int8_t*)payload, size);
+    bool is_key_frame = SrsFlvCodec::video_is_h264(payload, size) 
+        && SrsFlvCodec::video_is_keyframe(payload, size) 
+        && !SrsFlvCodec::video_is_sequence_header(payload, size);
     if (is_key_frame) {
         segment->has_keyframe = true;
         if ((ret = on_video_keyframe()) != ERROR_SUCCESS) {

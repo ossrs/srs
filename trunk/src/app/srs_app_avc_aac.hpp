@@ -197,8 +197,8 @@ public:
     virtual ~SrsAvcAacCodec();
 // the following function used for hls to build the codec info.
 public:
-    virtual int audio_aac_demux(int8_t* data, int size, SrsCodecSample* sample);
-    virtual int video_avc_demux(int8_t* data, int size, SrsCodecSample* sample);
+    virtual int audio_aac_demux(char* data, int size, SrsCodecSample* sample);
+    virtual int video_avc_demux(char* data, int size, SrsCodecSample* sample);
 };
 
 #endif

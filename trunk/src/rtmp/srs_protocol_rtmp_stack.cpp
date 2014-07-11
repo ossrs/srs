@@ -764,8 +764,8 @@ int SrsProtocol::send_and_free_packet(SrsPacket* packet, int stream_id)
     // to message
     SrsMessage* msg = new SrsCommonMessage();
     
-    msg->payload = (int8_t*)payload;
-    msg->size = (int32_t)size;
+    msg->payload = payload;
+    msg->size = size;
     
     msg->header.payload_length = size;
     msg->header.message_type = packet->get_message_type();
@@ -1297,7 +1297,7 @@ int SrsProtocol::read_message_payload(SrsChunkStream* chunk, int bh_size, int mh
 
     // create msg payload if not initialized
     if (!chunk->msg->payload) {
-        chunk->msg->payload = new int8_t[chunk->header.payload_length];
+        chunk->msg->payload = new char[chunk->header.payload_length];
         memset(chunk->msg->payload, 0, chunk->header.payload_length);
         srs_verbose("create empty payload for RTMP message. size=%d", chunk->header.payload_length);
     }
@@ -1708,7 +1708,7 @@ int SrsSharedPtrMessage::create(SrsMessageHeader* pheader, char* payload, int si
     ptr->size = size;
     
     // message can access it.
-    SrsMessage::payload = (int8_t*)ptr->payload;
+    SrsMessage::payload = ptr->payload;
     SrsMessage::size = ptr->size;
     
     return ret;
@@ -1731,7 +1731,7 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
     copy->ptr = ptr;
     ptr->shared_count++;
     
-    copy->payload = (int8_t*)ptr->payload;
+    copy->payload = ptr->payload;
     copy->size = ptr->size;
     
     return copy;
@@ -3708,7 +3708,7 @@ int SrsSetChunkSizePacket::encode_packet(SrsStream* stream)
 SrsSetPeerBandwidthPacket::SrsSetPeerBandwidthPacket()
 {
     bandwidth = 0;
-    type = 2;
+    type = SrsPeerBandwidthDynamic;
 }
 
 SrsSetPeerBandwidthPacket::~SrsSetPeerBandwidthPacket()
@@ -3824,7 +3824,7 @@ int SrsUserControlPacket::encode_packet(SrsStream* stream)
     // when event type is set buffer length,
     // write the extra buffer length.
     if (event_type == SrcPCUCSetBufferLength) {
-        stream->write_2bytes(extra_data);
+        stream->write_4bytes(extra_data);
         srs_verbose("user control message, buffer_length=%d", extra_data);
     }
     
