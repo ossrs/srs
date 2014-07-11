@@ -170,6 +170,7 @@ public:
     *       always NULL if error, 
     *       NULL for unknown packet but return success.
     *       never NULL if decode success.
+    * @remark, drop message when msg is empty or payload length is empty.
     */
     virtual int recv_message(SrsMessage** pmsg);
     /**
@@ -237,7 +238,7 @@ private:
     /**
     * when message sentout, update the context.
     */
-    virtual int on_send_message(SrsMessage* msg, SrsPacket* packet);
+    virtual int on_send_packet(SrsMessage* msg, SrsPacket* packet);
 private:
     /**
     * auto response the ack message.

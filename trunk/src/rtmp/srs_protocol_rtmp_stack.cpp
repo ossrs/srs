@@ -497,6 +497,8 @@ int SrsProtocol::do_send_message(SrsMessage* msg, SrsPacket* packet)
             }
         } else {
             // write no message header chunk stream, fmt is 3
+            // @remark, if perfer_cid > 0x3F, that is, use 2B/3B chunk header,
+            // SRS will rollback to 1B chunk header.
             *pheader++ = 0xC0 | (msg->header.perfer_cid & 0x3F);
             
             // chunk extended timestamp header, 0 or 4 bytes, big-endian
@@ -550,7 +552,8 @@ int SrsProtocol::do_send_message(SrsMessage* msg, SrsPacket* packet)
         }
     } while (p < (char*)msg->payload + msg->size);
     
-    if ((ret = on_send_message(msg, packet)) != ERROR_SUCCESS) {
+    // only process the callback event when with packet
+    if (packet && (ret = on_send_packet(msg, packet)) != ERROR_SUCCESS) {
         srs_error("hook the send message failed. ret=%d", ret);
         return ret;
     }
@@ -1224,7 +1227,7 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
         */
         if (!is_first_chunk_of_msg && chunk_timestamp > 0 && chunk_timestamp != timestamp) {
             mh_size -= 4;
-            srs_warn("no 4bytes extended timestamp in the continued chunk");
+            srs_info("no 4bytes extended timestamp in the continued chunk");
         } else {
             chunk->header.timestamp = timestamp;
         }
@@ -1251,18 +1254,11 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
     //        milliseconds.
     // in a word, 31bits timestamp is ok.
     // convert extended timestamp to 31bits.
-    if (chunk->header.timestamp > 0x7fffffff) {
-        srs_warn("RTMP 31bits timestamp overflow, time=%"PRId64, chunk->header.timestamp);
-    }
     chunk->header.timestamp &= 0x7fffffff;
     
-    // valid message
-    if (chunk->header.payload_length < 0) {
-        ret = ERROR_RTMP_MSG_INVLIAD_SIZE;
-        srs_error("RTMP message size must not be negative. size=%d, ret=%d", 
-            chunk->header.payload_length, ret);
-        return ret;
-    }
+    // valid message, the payload_length is 24bits,
+    // so it should never be negative.
+    srs_assert(chunk->header.payload_length >= 0);
     
     // copy header to msg
     chunk->msg->header = chunk->header;
@@ -1417,14 +1413,12 @@ int SrsProtocol::on_recv_message(SrsMessage* msg)
     return ret;
 }
 
-int SrsProtocol::on_send_message(SrsMessage* msg, SrsPacket* packet)
+int SrsProtocol::on_send_packet(SrsMessage* msg, SrsPacket* packet)
 {
     int ret = ERROR_SUCCESS;
     
-    // ignore raw bytes oriented RTMP message.
-    if (!packet) {
-        return ret;
-    }
+    // should never be raw bytes oriented RTMP message.
+    srs_assert(packet);
     
     switch (msg->header.message_type) {
         case RTMP_MSG_SetChunkSize: {

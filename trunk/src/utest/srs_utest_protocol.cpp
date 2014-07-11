@@ -4425,3 +4425,41 @@ VOID TEST(ProtocolStackTest, ProtocolRecvVCid3BMax)
     EXPECT_EQ(65599, msg->header.perfer_cid);
 }
 
+/**
+* recv a zero length video message.
+*/
+VOID TEST(ProtocolStackTest, ProtocolRecvV0LenMessage)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    // video message
+    char data[] = {
+        // video #1
+        // 12bytes header, 1byts chunk header, 11bytes msg heder
+        (char)0x03, 
+        (char)0x00, (char)0x00, (char)0x00, // timestamp
+        (char)0x00, (char)0x00, (char)0x00, // length
+        (char)0x09, // message_type
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, // stream_id
+        
+        // video #2
+        // 12bytes header, 1byts chunk header, 11bytes msg heder
+        (char)0x03, 
+        (char)0x00, (char)0x00, (char)0x00, // timestamp
+        (char)0x00, (char)0x00, (char)0x04, // length
+        (char)0x09, // message_type
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, // stream_id
+        // msg payload start
+        (char)0x00, (char)0x00, (char)0x07, (char)0x63
+    };
+    bio.in_buffer.append(data, sizeof(data));
+    
+    SrsMessage* msg = NULL;
+    ASSERT_TRUE(ERROR_SUCCESS == proto.recv_message(&msg));
+    SrsAutoFree(SrsMessage, msg);
+    EXPECT_TRUE(msg->header.is_video());
+    // protocol stack will ignore the empty video message.
+    EXPECT_EQ(4, msg->header.payload_length);
+}
+
