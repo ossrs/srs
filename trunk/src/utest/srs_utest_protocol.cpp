@@ -5117,10 +5117,202 @@ VOID TEST(ProtocolStackTest, ProtocolSendSrsUserControlPacket)
         (char)0x00, (char)0x01, (char)0x00, (char)0x00, (char)0x00, (char)0x10
     };
     
-    __srs_bytes_print(bio.out_buffer.bytes(), bio.out_buffer.length());
-    __srs_bytes_print(buf, sizeof(buf));
-    
     EXPECT_TRUE(srs_bytes_equals(bio.out_buffer.bytes(), buf, sizeof(buf)));
     EXPECT_TRUE(true);
 }
 
+/**
+* recv video message from multiple chunks,
+* the next chunks must not be fmt=0 which means new msg.
+*/
+// when exists cache msg, means got an partial message,
+// the fmt must not be type0 which means new message.
+VOID TEST(ProtocolStackTest, ProtocolRecvVMessageFmtInvalid)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    // video message
+    char data[] = {
+        // 12bytes header, 1byts chunk header, 11bytes msg heder
+        (char)0x03, 
+        (char)0x00, (char)0x00, (char)0x00, // timestamp
+        (char)0x00, (char)0x01, (char)0x10, // length, 272
+        (char)0x09, // message_type
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, // stream_id
+        // msg payload start
+        (char)0x02, (char)0x00, (char)0x07, (char)0x63,
+        (char)0x6f, (char)0x6e, (char)0x6e, (char)0x65, (char)0x63, (char)0x74, (char)0x00, (char)0x3f, (char)0xf0, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x03,
+        (char)0x00, (char)0x03, (char)0x61, (char)0x70, (char)0x70, (char)0x02, (char)0x00, (char)0x04, (char)0x6c, (char)0x69, (char)0x76, (char)0x65, (char)0x00, (char)0x08, (char)0x66, (char)0x6c,
+        (char)0x61, (char)0x73, (char)0x68, (char)0x56, (char)0x65, (char)0x72, (char)0x02, (char)0x00, (char)0x0d, (char)0x57, (char)0x49, (char)0x4e, (char)0x20, (char)0x31, (char)0x32, (char)0x2c,
+        (char)0x30, (char)0x2c, (char)0x30, (char)0x2c, (char)0x34, (char)0x31, (char)0x00, (char)0x06, (char)0x73, (char)0x77, (char)0x66, (char)0x55, (char)0x72, (char)0x6c, (char)0x02, (char)0x00,
+        (char)0x51, (char)0x68, (char)0x74, (char)0x74, (char)0x70, (char)0x3a, (char)0x2f, (char)0x2f, (char)0x77, (char)0x77, (char)0x77, (char)0x2e, (char)0x6f, (char)0x73, (char)0x73, (char)0x72,
+        (char)0x73, (char)0x2e, (char)0x6e, (char)0x65, (char)0x74, (char)0x3a, (char)0x38, (char)0x30, (char)0x38, (char)0x35, (char)0x2f, (char)0x70, (char)0x6c, (char)0x61, (char)0x79, (char)0x65,
+        (char)0x72, (char)0x73, (char)0x2f, (char)0x73, (char)0x72, (char)0x73, (char)0x5f, (char)0x70, (char)0x6c, (char)0x61, (char)0x79, (char)0x65, (char)0x72, (char)0x2f, (char)0x72, (char)0x65,
+        (char)0x6c, (char)0x65, (char)0x61, (char)0x73, (char)0x65, (char)0x2f, (char)0x73, (char)0x72, (char)0x73, (char)0x5f, (char)0x70, (char)0x6c, 
+        (char)0x03, /*next chunk.*/         (char)0x61, (char)0x79, (char)0x65, (char)0x72,
+        (char)0x2e, (char)0x73, (char)0x77, (char)0x66, (char)0x3f, (char)0x5f, (char)0x76, (char)0x65, (char)0x72, (char)0x73, (char)0x69, (char)0x6f, (char)0x6e, (char)0x3d, (char)0x31, (char)0x2e,
+        (char)0x32, (char)0x33, (char)0x00, (char)0x05, (char)0x74, (char)0x63, (char)0x55, (char)0x72, (char)0x6c, (char)0x02, (char)0x00, (char)0x14, (char)0x72, (char)0x74, (char)0x6d, (char)0x70,
+        (char)0x3a, (char)0x2f, (char)0x2f, (char)0x64, (char)0x65, (char)0x76, (char)0x3a, (char)0x31, (char)0x39, (char)0x33, (char)0x35, (char)0x2f, (char)0x6c, (char)0x69, (char)0x76, (char)0x65,
+        (char)0x00, (char)0x04, (char)0x66, (char)0x70, (char)0x61, (char)0x64, (char)0x01, (char)0x00, (char)0x00, (char)0x0c, (char)0x63, (char)0x61, (char)0x70, (char)0x61, (char)0x62, (char)0x69,
+        (char)0x6c, (char)0x69, (char)0x74, (char)0x69, (char)0x65, (char)0x73, (char)0x00, (char)0x40, (char)0x6d, (char)0xe0, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00,
+        (char)0x0b, (char)0x61, (char)0x75, (char)0x64, (char)0x69, (char)0x6f, (char)0x43, (char)0x6f, (char)0x64, (char)0x65, (char)0x63, (char)0x73, (char)0x00, (char)0x40, (char)0xab, (char)0xee,
+        (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x0b, (char)0x76, (char)0x69, (char)0x64, (char)0x65, (char)0x6f, (char)0x43, (char)0x6f, (char)0x64, (char)0x65,
+        (char)0x63, (char)0x73, (char)0x00, (char)0x40, (char)0x6f, (char)0x80, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, (char)0x00, 
+        (char)0xC3, /*next chunk.*/
+        (char)0x2e, (char)0x73, (char)0x77, (char)0x66, (char)0x3f, (char)0x5f, (char)0x76, (char)0x65, (char)0x72, (char)0x73, (char)0x69, (char)0x6f, (char)0x6e, (char)0x3d, (char)0x31, (char)0x2e
+    };
+    bio.in_buffer.append(data, sizeof(data));
+    
+    SrsMessage* msg = NULL;
+    EXPECT_FALSE(ERROR_SUCCESS == proto.recv_message(&msg));
+}
+
+/**
+* when recv bytes archive the ack-size, server must response a acked-size auto.
+*/
+VOID TEST(ProtocolStackTest, ProtocolAckSizeFlow)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    if (true) {
+        SrsSetWindowAckSizePacket* pkt = new SrsSetWindowAckSizePacket();
+        pkt->ackowledgement_window_size = 512;
+        
+        EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
+    }
+    
+    if (true) {
+        SrsMessage* msg = new SrsCommonMessage();
+        msg->header.payload_length = msg->size = 4096;
+        msg->payload = new char[msg->size];
+        
+        msg->header.message_type = 9;
+        EXPECT_TRUE(msg->header.is_video());
+
+        EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_message(msg, 1));
+    }
+    
+    // copy output to input
+    if (true) {
+        bio.in_buffer.append(bio.out_buffer.bytes(), bio.out_buffer.length());
+        bio.out_buffer.erase(bio.out_buffer.length());
+    }
+    
+    // recv SrsSetWindowAckSizePacket
+    if (true) {
+        SrsMessage* msg = NULL;
+        ASSERT_TRUE(ERROR_SUCCESS == proto.recv_message(&msg));
+        SrsAutoFree(SrsMessage, msg);
+        ASSERT_TRUE(msg->header.is_window_ackledgement_size());
+    }
+    // recv video
+    if (true) {
+        SrsMessage* msg = NULL;
+        ASSERT_TRUE(ERROR_SUCCESS == proto.recv_message(&msg));
+        SrsAutoFree(SrsMessage, msg);
+        ASSERT_TRUE(msg->header.is_video());
+    }
+    
+    // copy output to input
+    if (true) {
+        bio.in_buffer.append(bio.out_buffer.bytes(), bio.out_buffer.length());
+        bio.out_buffer.erase(bio.out_buffer.length());
+    }
+    // recv auto send acked size. #1
+    if (true) {
+        SrsMessage* msg = NULL;
+        ASSERT_TRUE(ERROR_SUCCESS == proto.recv_message(&msg));
+        SrsAutoFree(SrsMessage, msg);
+        ASSERT_TRUE(msg->header.is_ackledgement());
+    }
+    
+    // send again
+    if (true) {
+        SrsMessage* msg = new SrsCommonMessage();
+        msg->header.payload_length = msg->size = 4096;
+        msg->payload = new char[msg->size];
+        
+        msg->header.message_type = 9;
+        EXPECT_TRUE(msg->header.is_video());
+
+        EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_message(msg, 1));
+    }
+    // copy output to input
+    if (true) {
+        bio.in_buffer.append(bio.out_buffer.bytes(), bio.out_buffer.length());
+        bio.out_buffer.erase(bio.out_buffer.length());
+    }
+    // recv video
+    if (true) {
+        SrsMessage* msg = NULL;
+        ASSERT_TRUE(ERROR_SUCCESS == proto.recv_message(&msg));
+        SrsAutoFree(SrsMessage, msg);
+        ASSERT_TRUE(msg->header.is_video());
+    }
+    
+    // copy output to input
+    if (true) {
+        bio.in_buffer.append(bio.out_buffer.bytes(), bio.out_buffer.length());
+        bio.out_buffer.erase(bio.out_buffer.length());
+    }
+    // recv auto send acked size. #2
+    if (true) {
+        SrsMessage* msg = NULL;
+        ASSERT_TRUE(ERROR_SUCCESS == proto.recv_message(&msg));
+        SrsAutoFree(SrsMessage, msg);
+        ASSERT_TRUE(msg->header.is_ackledgement());
+    }
+}
+
+/**
+* when recv ping message, server will response it auto.
+*/
+VOID TEST(ProtocolStackTest, ProtocolPingFlow)
+{
+    MockBufferIO bio;
+    SrsProtocol proto(&bio);
+    
+    // ping request
+    if (true) {
+        SrsUserControlPacket* pkt = new SrsUserControlPacket();
+        pkt->event_type = SrcPCUCPingRequest;
+        pkt->event_data = 0x3456;
+        EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_packet(pkt, 0));
+    }
+    // copy output to input
+    if (true) {
+        bio.in_buffer.append(bio.out_buffer.bytes(), bio.out_buffer.length());
+        bio.out_buffer.erase(bio.out_buffer.length());
+    }
+    // recv ping
+    if (true) {
+        SrsMessage* msg = NULL;
+        ASSERT_TRUE(ERROR_SUCCESS == proto.recv_message(&msg));
+        SrsAutoFree(SrsMessage, msg);
+        EXPECT_TRUE(msg->header.is_user_control_message());
+    }
+    
+    // recv the server auto send ping response message
+    // copy output to input
+    if (true) {
+        bio.in_buffer.append(bio.out_buffer.bytes(), bio.out_buffer.length());
+        bio.out_buffer.erase(bio.out_buffer.length());
+    }
+    // recv ping
+    if (true) {
+        SrsMessage* msg = NULL;
+        ASSERT_TRUE(ERROR_SUCCESS == proto.recv_message(&msg));
+        SrsAutoFree(SrsMessage, msg);
+        ASSERT_TRUE(msg->header.is_user_control_message());
+        
+        SrsPacket* pkt = NULL;
+        ASSERT_TRUE(ERROR_SUCCESS == proto.decode_message(msg, &pkt));
+        SrsUserControlPacket* spkt = dynamic_cast<SrsUserControlPacket*>(pkt);
+        ASSERT_TRUE(spkt != NULL);
+        
+        EXPECT_TRUE(SrcPCUCPingResponse == spkt->event_type);
+        EXPECT_TRUE(0x3456 == spkt->event_data);
+    }
+}

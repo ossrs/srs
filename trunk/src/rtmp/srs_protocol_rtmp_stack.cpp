@@ -460,15 +460,15 @@ int SrsProtocol::do_send_message(SrsMessage* msg, SrsPacket* packet)
             // chunk message header, 11 bytes
             // timestamp, 3bytes, big-endian
             u_int32_t timestamp = (u_int32_t)msg->header.timestamp;
-            if (timestamp >= RTMP_EXTENDED_TIMESTAMP) {
-                *pheader++ = 0xFF;
-                *pheader++ = 0xFF;
-                *pheader++ = 0xFF;
-            } else {
+            if (timestamp < RTMP_EXTENDED_TIMESTAMP) {
                 pp = (char*)&timestamp;
                 *pheader++ = pp[2];
                 *pheader++ = pp[1];
                 *pheader++ = pp[0];
+            } else {
+                *pheader++ = 0xFF;
+                *pheader++ = 0xFF;
+                *pheader++ = 0xFF;
             }
             
             // message_length, 3bytes, big-endian
