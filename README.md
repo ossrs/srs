@@ -365,26 +365,31 @@ Supported operating systems and hardware:
 * v0.1, 2013-10-17, support rtmp chunk2message protocol(recv\_message).
 
 ## Performance
-1.  300 connections, 150Mbps, 500kbps, CPU 18.8%, MEM 5956KB.
-1.  600 connections, 300Mbps, 500kbps, CPU 32.1%, MEM 9808KB.
-1.  900 connections, 450Mbps, 500kbps, CPU 49.9%, MEM 11MB.
-1. 1200 connections, 600Mbps, 500kbps, CPU 72.4%, MEM 15MB.
-1. 1500 connections, 750Mbps, 500kbps, CPU 81.9%, MEM 28MB.
-1. 1800 connections, 900Mbps, 500kbps, CPU 90.2%, MEM 41MB.
+
+Performance benchmark history:
+* 2014-07-12, SRS 0.9.156, virtual box, virtual box, 1800 clients, 68%CPU, 38MB
+* 2013-11-28, [SRS 0.5.0](https://github.com/winlinvip/simple-rtmp-server/commit/023e23bc8261bec15a70a7ae932098fb4f82b679), virtual box, 1800 clients, 90%CPU, 41MB
+
+1.  300 connections,  150Mbps, 500kbps, CPU 5.7%, MEM 9208KB.
+1.  600 connections,  300Mbps, 500kbps, CPU 18.3%, MEM 13MB.
+1.  900 connections,  450Mbps, 500kbps, CPU 27.9%, MEM 20MB.
+1. 1200 connections,  600Mbps, 500kbps, CPU 43.9%, MEM 26MB.
+1. 1500 connections,  750Mbps, 500kbps, CPU 55.2%, MEM 32MB.
+1. 1800 connections,  900Mbps, 500kbps, CPU 68.8%, MEM 38MB.
 
 <pre>
 [winlin@dev6 srs]$ dstat
 ----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
 usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
- 58   9  32   0   0   1|   0  4168k| 277M  277M|   0     0 |  29k   25k
- 61   8  30   0   0   1|   0  1168k| 336M  336M|   0     0 |  29k   24k
- 63   8  27   0   0   1|   0  2240k| 124M  124M|   0     0 |  32k   33k
- 62   8  28   0   0   1|   0  1632k| 110M  110M|   0     0 |  31k   33k
- 53   7  40   0   0   1|   0  1360k| 115M  115M|   0     0 |  24k   26k
- 51   7  41   0   0   1|   0  1184k| 146M  146M|   0     0 |  24k   27k
- 39   6  54   0   0   1|   0  1284k| 105M  105M|   0     0 |  22k   28k
- 41   6  52   0   0   1|   0  1264k| 116M  116M|   0     0 |  25k   28k
- 48   6  45   0   0   1|   0  1272k| 143M  143M|   0     0 |  27k   27k
+ 20  12  57   0   0  10|   0  2048B| 101M  101M|   0     0 |3487  1299 
+ 22  14  52   0   0  12|   0   273B| 137M  137M|   0     0 |3301   954 
+ 27  17  43   0   0  14|   0   819B| 126M  126M|   0     0 |3221   817 
+ 22  13  54   0   0  11|   0   137B| 119M  119M|   0     0 |3292   964 
+ 22  13  55   0   0  10|   0  3413B| 125M  125M|   0     0 |3410  1127 
+ 24  13  52   0   0  11|   0  1502B| 124M  124M|   0     0 |3868  2028 
+ 24  14  50   0   0  13|   0  3140B| 116M  116M|   0     0 |4009  2266 
+ 24  14  50   0   0  13|   0  1502B| 110M  110M|   0     0 |3959  2206 
+ 23  14  52   0   0  12|   0  2048B| 138M  138M|   0     0 |3832  1873 
 </pre>
 
 * See also: [Performance for x86/x64 Test Guide](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance)

@@ -5442,3 +5442,4 @@ VOID TEST(ProtocolRTMPTest, RTMPHandshakeBytes)
     EXPECT_TRUE(ERROR_SUCCESS == bytes.read_s0s1s2(&bio));
     EXPECT_TRUE(bytes.s0s1s2 != NULL);
 }
+
