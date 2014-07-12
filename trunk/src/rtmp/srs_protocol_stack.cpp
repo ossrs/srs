@@ -720,7 +720,7 @@ int SrsProtocol::do_decode_message(SrsMessageHeader& header, SrsStream* stream, 
         *ppacket = packet = new SrsSetChunkSizePacket();
         return packet->decode(stream);
     } else {
-        if (!header.is_set_peer_bandwidth()) {
+        if (!header.is_set_peer_bandwidth() && !header.is_ackledgement()) {
             srs_trace("drop unknown message, type=%d", header.message_type);
         }
     }

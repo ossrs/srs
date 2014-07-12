@@ -223,7 +223,9 @@ public:
         while (true) {
             SrsMessage* msg = NULL;
             if ((ret = recv_message(&msg)) != ERROR_SUCCESS) {
-                srs_error("recv message failed. ret=%d", ret);
+                if (ret != ERROR_SOCKET_TIMEOUT && !srs_is_client_gracefully_close(ret)) {
+                    srs_error("recv message failed. ret=%d", ret);
+                }
                 return ret;
             }
             srs_verbose("recv message success.");

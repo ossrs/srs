@@ -35,6 +35,7 @@
         
         function on_click_play() {
             $("#check_status").text("");
+            $("#check_info").text("");
             $("#progress_bar").width("0%");
             $("#main_modal").modal({show:true, keyboard:false});
         }
@@ -61,7 +62,13 @@
             bandwidth.on_update_status = function(status) {
                 $("#check_status").text(status);
             }
-            bandwidth.start(url);
+            bandwidth.on_srs_info = function(srs_server, srs_primary_authors, srs_id, srs_pid, srs_server_ip) {
+                $("#check_info").text(
+                    "server:" + srs_server + ", authors:" + srs_primary_authors +
+                    ", srs_id:" + srs_id + ", srs_pid:" + srs_pid + ", ip:" + srs_server_ip
+                );
+            }
+            bandwidth.render(url);
         }
         function on_stop_bandwidth_test() {
             bandwidth.stop();
@@ -112,7 +119,8 @@
                 </div>
                 <div class="span1"></div>
             </div>
-            <span id="check_status">status</span>
+            <div id="check_status">status</div>
+            <div id="check_info">info</div>
          </div>
          <div class="modal-footer">
              <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true"> 关闭 </button>

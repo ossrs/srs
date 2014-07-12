@@ -67,10 +67,10 @@ class SrsRtmpServer;
 *        |  final(2)------------>   | finalClientPacket
 *        |          <END>           |
 *
-* 1. when flash client, server ignore the publish stopped result,
-*   and directly send the report to flash client.
-* 2. flash client only. when got report, flash client should send out
-*   a final packet and close the connection immediately.
+* 1. when flash client, server never wait the stop publish response,
+*   for the flash client queue is fullfill with other packets.
+* 2. when flash client, server never wait the final packet,
+*   for the flash client directly close when got report packet.
 */
 class SrsBandwidth
 {
