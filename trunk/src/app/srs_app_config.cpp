@@ -1866,20 +1866,20 @@ int SrsConfig::get_bw_check_interval_ms(const string &vhost)
     SrsConfDirective* conf = get_vhost(vhost);
 
     if (!conf) {
-        return SRS_CONF_DEFAULT_BANDWIDTH_INTERVAL;
+        return SRS_CONF_DEFAULT_BANDWIDTH_INTERVAL * 1000;
     }
 
     conf = conf->get("bandcheck");
     if (!conf) {
-        return SRS_CONF_DEFAULT_BANDWIDTH_INTERVAL;
+        return SRS_CONF_DEFAULT_BANDWIDTH_INTERVAL * 1000;
     }
     
-    conf = conf->get("interval_ms");
+    conf = conf->get("interval");
     if (!conf) {
-        return SRS_CONF_DEFAULT_BANDWIDTH_INTERVAL;
+        return SRS_CONF_DEFAULT_BANDWIDTH_INTERVAL * 1000;
     }
 
-    return ::atoi(conf->arg0().c_str()) * 1000;
+    return ::atof(conf->arg0().c_str()) * 1000;
 }
 
 int SrsConfig::get_bw_check_limit_kbps(const string &vhost)

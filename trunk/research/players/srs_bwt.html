@@ -41,6 +41,7 @@
         }
         function on_start_bandwidth_test() {
             $("#div_container").remove();
+            $("#progress_bar").removeClass("bar-danger");
 
             var div_container = $("<div/>");
             $(div_container).attr("id", "div_container");
@@ -67,6 +68,9 @@
                     "server:" + srs_server + ", authors:" + srs_primary_authors +
                     ", srs_id:" + srs_id + ", srs_pid:" + srs_pid + ", ip:" + srs_server_ip
                 );
+            }
+            bandwidth.on_error = function(code) {
+                $("#progress_bar").addClass("bar-danger");
             }
             bandwidth.render(url);
         }

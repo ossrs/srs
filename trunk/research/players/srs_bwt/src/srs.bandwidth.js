@@ -49,8 +49,8 @@ function SrsBandwidth(container, width, height, private_object) {
     // the callback set data.
     this.percent = 0;
     this.status = "";
-    this.report = "";
     this.server = "";
+    this.completed = false;
 }
 /**
 * user can set some callback, then start the bandwidth.
@@ -106,6 +106,12 @@ SrsBandwidth.prototype.check_bandwidth = function(url) {
     this.stop();
     SrsBandwidth.__bandwidths.push(this);
     
+    // the callback set data.
+    this.percent = 0;
+    this.status = "";
+    this.server = "";
+    this.completed = false;
+    
     if (url) {
         this.stream_url = url;
     }
@@ -136,6 +142,8 @@ SrsBandwidth.prototype.on_srs_info = function(srs_server, srs_primary_authors, s
 }
 SrsBandwidth.prototype.on_complete = function(start_time, end_time, play_kbps, publish_kbps, play_bytes, publish_bytes, play_time, publish_time) {
 }
+SrsBandwidth.prototype.on_error = function(code) {
+}
 function __srs_find_bandwidth(id) {
     for (var i = 0; i < SrsBandwidth.__bandwidths.length; i++) {
         var bandwidth = SrsBandwidth.__bandwidths[i];
@@ -164,24 +172,36 @@ function __srs_on_update_status(id, code, data) {
     var status = "";
     switch(code){
         case "NetConnection.Connect.Failed":
+            if (bandwidth.completed) {
+                return;
+            }
+            bandwidth.on_error(code);
             status = "连接服务器失败！";
             break;
         case "NetConnection.Connect.Rejected":
-            status = "服务器拒绝连接！";
+            if (bandwidth.completed) {
+                return;
+            }
+            bandwidth.completed = true;
+            bandwidth.on_update_progress(100);
+            bandwidth.on_error(code);
+            status = "服务器拒绝连接，测速过于频繁！";
             break;
         case "NetConnection.Connect.Success":
             status = "连接服务器成功!";
             break;
         case "NetConnection.Connect.Closed":
-            if (bandwidth.report) {
+            if (bandwidth.completed) {
                 return;
             }
+            bandwidth.on_error(code);
             status = "连接已断开!";
             break;
         case "srs.bwtc.play.start":
             status = "开始测试下行带宽";
             break;
         case "srs.bwtc.play.stop":
+            bandwidth.completed = true;
             status = "下行带宽测试完毕，" + data + "kbps，开始测试上行带宽。";
             break;
         default:
@@ -202,7 +222,7 @@ function __srs_on_complete(id, start_time, end_time, play_kbps, publish_kbps, pl
     
     var status = "检测结束: " + bandwidth.server + " 上行: " + publish_kbps + " kbps" + " 下行: " + play_kbps + " kbps"
                 + " 测试时间: " + Number((end_time - start_time) / 1000).toFixed(1) + " 秒";
-    bandwidth.report = status;
+    bandwidth.status = status;
     bandwidth.on_update_status(status);
     
     bandwidth.on_complete(start_time, end_time, play_kbps, publish_kbps, play_bytes, publish_bytes, play_time, publish_time);

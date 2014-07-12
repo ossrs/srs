@@ -78,7 +78,7 @@ int SrsBandwidth::bandwidth_check(SrsRtmpServer* rtmp, SrsRequest* req, string l
     // reject the connection in the interval window.
     if (last_check_time > 0 && time_now - last_check_time < interval_ms) {
         ret = ERROR_SYSTEM_BANDWIDTH_DENIED;
-        srs_trace("bandcheck denied, "
+        srs_trace("reject, "
             "last_check=%"PRId64", now=%"PRId64", interval=%d",
             last_check_time, time_now, interval_ms);
             

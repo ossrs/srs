@@ -40,39 +40,39 @@ using namespace std;
 /**
 * the signature for packets to client.
 */
-#define RTMP_SIG_FMS_VER                     "3,5,3,888"
-#define RTMP_SIG_AMF0_VER                     0
-#define RTMP_SIG_CLIENT_ID                     "ASAICiss"
+#define RTMP_SIG_FMS_VER                        "3,5,3,888"
+#define RTMP_SIG_AMF0_VER                       0
+#define RTMP_SIG_CLIENT_ID                      "ASAICiss"
 
 /**
 * onStatus consts.
 */
-#define StatusLevel                         "level"
-#define StatusCode                             "code"
-#define StatusDescription                     "description"
-#define StatusDetails                         "details"
-#define StatusClientId                         "clientid"
+#define StatusLevel                             "level"
+#define StatusCode                              "code"
+#define StatusDescription                       "description"
+#define StatusDetails                           "details"
+#define StatusClientId                          "clientid"
 // status value
-#define StatusLevelStatus                     "status"
+#define StatusLevelStatus                       "status"
 // status error
-#define StatusLevelError                    "error"
+#define StatusLevelError                        "error"
 // code value
-#define StatusCodeConnectSuccess             "NetConnection.Connect.Success"
-#define StatusCodeConnectRejected             "NetConnection.Connect.Rejected"
-#define StatusCodeStreamReset                 "NetStream.Play.Reset"
-#define StatusCodeStreamStart                 "NetStream.Play.Start"
-#define StatusCodeStreamPause                 "NetStream.Pause.Notify"
-#define StatusCodeStreamUnpause             "NetStream.Unpause.Notify"
-#define StatusCodePublishStart                 "NetStream.Publish.Start"
-#define StatusCodeDataStart                 "NetStream.Data.Start"
-#define StatusCodeUnpublishSuccess             "NetStream.Unpublish.Success"
+#define StatusCodeConnectSuccess                "NetConnection.Connect.Success"
+#define StatusCodeConnectRejected               "NetConnection.Connect.Rejected"
+#define StatusCodeStreamReset                   "NetStream.Play.Reset"
+#define StatusCodeStreamStart                   "NetStream.Play.Start"
+#define StatusCodeStreamPause                   "NetStream.Pause.Notify"
+#define StatusCodeStreamUnpause                 "NetStream.Unpause.Notify"
+#define StatusCodePublishStart                  "NetStream.Publish.Start"
+#define StatusCodeDataStart                     "NetStream.Data.Start"
+#define StatusCodeUnpublishSuccess              "NetStream.Unpublish.Success"
 
 // FMLE
-#define RTMP_AMF0_COMMAND_ON_FC_PUBLISH        "onFCPublish"
-#define RTMP_AMF0_COMMAND_ON_FC_UNPUBLISH    "onFCUnpublish"
+#define RTMP_AMF0_COMMAND_ON_FC_PUBLISH         "onFCPublish"
+#define RTMP_AMF0_COMMAND_ON_FC_UNPUBLISH       "onFCUnpublish"
 
 // default stream id for response the createStream request.
-#define SRS_DEFAULT_SID                     1
+#define SRS_DEFAULT_SID                         1
 
 SrsRequest::SrsRequest()
 {
@@ -910,12 +910,10 @@ void SrsRtmpServer::response_connect_reject(SrsRequest *req, const char* desc)
 {
     int ret = ERROR_SUCCESS;
 
-    SrsConnectAppResPacket* pkt = new SrsConnectAppResPacket();
-    pkt->command_name = "_error";
-    pkt->props->set(StatusLevel, SrsAmf0Any::str(StatusLevelError));
-    pkt->props->set(StatusCode, SrsAmf0Any::str(StatusCodeConnectRejected));
-    pkt->props->set(StatusDescription, SrsAmf0Any::str(desc));
-    //pkt->props->set("objectEncoding", SrsAmf0Any::number(req->objectEncoding));
+    SrsOnStatusCallPacket* pkt = new SrsOnStatusCallPacket();
+    pkt->data->set(StatusLevel, SrsAmf0Any::str(StatusLevelError));
+    pkt->data->set(StatusCode, SrsAmf0Any::str(StatusCodeConnectRejected));
+    pkt->data->set(StatusDescription, SrsAmf0Any::str(desc));
 
     if ((ret = protocol->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
         srs_error("send connect app response rejected message failed. ret=%d", ret);
