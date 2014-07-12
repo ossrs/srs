@@ -708,11 +708,6 @@ SrsRtmpServer::~SrsRtmpServer()
     srs_freep(hs_bytes);
 }
 
-SrsProtocol* SrsRtmpServer::get_protocol()
-{
-    return protocol;
-}
-
 void SrsRtmpServer::set_recv_timeout(int64_t timeout_us)
 {
     protocol->set_recv_timeout(timeout_us);
