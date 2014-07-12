@@ -6,7 +6,7 @@
 * @param private_object [optional] an object that used as private object, 
 *       for example, the logic chat object which owner this bandwidth.
 * Usage:
-    var bandwidth = new SrsBandwidth("player_id", 100, 1);
+    var bandwidth = new SrsBandwidth("container_id", 100, 1);
     bandwidth.on_bandwidth_ready = function() {
         // auto start check bandwidth when tool is ready.
         this.check_bandwidth(url);
@@ -24,6 +24,9 @@
         //);
     }
     bandwidth.render("rtmp://dev:1935/app?key=35c9b402c12a7246868752e2878f7e0e&vhost=bandcheck.srs.com");
+* where the HTML page must contains an element:
+    <div id="container_id"></div>
+* this js will directly erase the container by swfobject.
 */
 function SrsBandwidth(container, width, height, private_object) {
     if (!SrsBandwidth.__id) {
