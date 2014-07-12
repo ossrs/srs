@@ -370,7 +370,7 @@ Performance benchmark history, on virtual box:
 
 * 2014-07-12, SRS 0.9.156, 2700clients, 89%CPU, 61MB. [benchmark](https://github.com/winlinvip/simple-rtmp-server/commit/6d12280b7cc54c465b1caf8b1402149e77c4c7d9)
 * 2014-07-12, SRS 0.9.156, 1800clients, 68%CPU, 38MB. [benchmark](https://github.com/winlinvip/simple-rtmp-server/commit/e2d273f4939348374bf9644df9d54c4293b39c1a)
-* 2014-07-12, SRS 0.9.156, 1800clients, 68%CPU, 38MB. [benchmark](https://github.com/winlinvip/simple-rtmp-server/commit/e2d273f4939348374bf9644df9d54c4293b39c1a)
+* 2013-11-28, SRS 0.5.0, 1800clients, 90%CPU, 41MB. [benchmark](https://github.com/winlinvip/simple-rtmp-server/commit/023e23bc8261bec15a70a7ae932098fb4f82b679)
 
 Latest benchmark:
 
