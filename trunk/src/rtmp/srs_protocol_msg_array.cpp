@@ -23,7 +23,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_protocol_msg_array.hpp>
 
-#include <srs_protocol_rtmp_stack.hpp>
+#include <srs_protocol_stack.hpp>
 
 SrsSharedPtrMessageArray::SrsSharedPtrMessageArray(int _size)
 {

@@ -37,7 +37,7 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_protocol_rtmp.hpp>
 #include <srs_app_pithy_print.hpp>
-#include <srs_protocol_rtmp_stack.hpp>
+#include <srs_protocol_stack.hpp>
 
 #ifdef SRS_AUTO_FFMPEG
 

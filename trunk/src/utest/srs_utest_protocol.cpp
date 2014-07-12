@@ -28,10 +28,11 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_protocol_msg_array.hpp>
-#include <srs_protocol_rtmp_stack.hpp>
+#include <srs_protocol_stack.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_st.hpp>
 #include <srs_protocol_amf0.hpp>
+#include <srs_protocol_rtmp.hpp>
 
 MockEmptyIO::MockEmptyIO()
 {
@@ -5315,4 +5316,75 @@ VOID TEST(ProtocolStackTest, ProtocolPingFlow)
         EXPECT_TRUE(SrcPCUCPingResponse == spkt->event_type);
         EXPECT_TRUE(0x3456 == spkt->event_data);
     }
+}
+
+VOID TEST(ProtocolRTMPTest, RTMPRequest)
+{
+    SrsRequest req;
+    
+    req.stream = "livestream";
+    srs_discovery_tc_url("rtmp://std.ossrs.net/live", 
+        req.schema, req.host, req.vhost, req.app, req.port);
+    req.strip();
+    EXPECT_STREQ("rtmp", req.schema.c_str());
+    EXPECT_STREQ("std.ossrs.net", req.host.c_str());
+    EXPECT_STREQ("std.ossrs.net", req.vhost.c_str());
+    EXPECT_STREQ("live", req.app.c_str());
+    EXPECT_STREQ("1935", req.port.c_str());
+    
+    req.stream = "livestream";
+    srs_discovery_tc_url("rtmp://s td.os srs.n et/li v e", 
+        req.schema, req.host, req.vhost, req.app, req.port);
+    req.strip();
+    EXPECT_STREQ("rtmp", req.schema.c_str());
+    EXPECT_STREQ("std.ossrs.net", req.host.c_str());
+    EXPECT_STREQ("std.ossrs.net", req.vhost.c_str());
+    EXPECT_STREQ("live", req.app.c_str());
+    EXPECT_STREQ("1935", req.port.c_str());
+    
+    req.stream = "livestream";
+    srs_discovery_tc_url("rtmp://s\ntd.o\rssrs.ne\nt/li\nve", 
+        req.schema, req.host, req.vhost, req.app, req.port);
+    req.strip();
+    EXPECT_STREQ("rtmp", req.schema.c_str());
+    EXPECT_STREQ("std.ossrs.net", req.host.c_str());
+    EXPECT_STREQ("std.ossrs.net", req.vhost.c_str());
+    EXPECT_STREQ("live", req.app.c_str());
+    EXPECT_STREQ("1935", req.port.c_str());
+    
+    req.stream = "livestream";
+    srs_discovery_tc_url("rtmp://std.ossrs.net/live ", 
+        req.schema, req.host, req.vhost, req.app, req.port);
+    req.strip();
+    EXPECT_STREQ("rtmp", req.schema.c_str());
+    EXPECT_STREQ("std.ossrs.net", req.host.c_str());
+    EXPECT_STREQ("std.ossrs.net", req.vhost.c_str());
+    EXPECT_STREQ("live", req.app.c_str());
+    EXPECT_STREQ("1935", req.port.c_str());
+    
+    EXPECT_TRUE(NULL == req.args);
+    SrsRequest req1;
+    req1.args = SrsAmf0Any::object();
+    req.update_auth(&req1);
+    EXPECT_TRUE(NULL != req.args);
+    EXPECT_TRUE(req1.args != req.args);
+}
+
+VOID TEST(ProtocolRTMPTest, RTMPHandshakeBytes)
+{
+    MockBufferIO bio;
+    SrsHandshakeBytes bytes;
+    
+    char hs[3073];
+    bio.in_buffer.append(hs, sizeof(hs));
+    bio.in_buffer.append(hs, sizeof(hs));
+    
+    EXPECT_TRUE(ERROR_SUCCESS == bytes.read_c0c1(&bio));
+    EXPECT_TRUE(bytes.c0c1 != NULL);
+    
+    EXPECT_TRUE(ERROR_SUCCESS == bytes.read_c2(&bio));
+    EXPECT_TRUE(bytes.c2 != NULL);
+    
+    EXPECT_TRUE(ERROR_SUCCESS == bytes.read_s0s1s2(&bio));
+    EXPECT_TRUE(bytes.s0s1s2 != NULL);
 }

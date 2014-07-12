@@ -29,7 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_io.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_protocol_handshake.hpp>
-#include <srs_protocol_rtmp_stack.hpp>
+#include <srs_protocol_stack.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_utility.hpp>
@@ -140,6 +140,7 @@ string SrsRequest::get_stream_url()
 void SrsRequest::strip()
 {
     // remove the unsupported chars in names.
+    host = srs_string_remove(host, "/ \n\r\t");
     vhost = srs_string_remove(vhost, "/ \n\r\t");
     app = srs_string_remove(app, " \n\r\t");
     stream = srs_string_remove(stream, " \n\r\t");
@@ -338,11 +339,6 @@ SrsRtmpClient::~SrsRtmpClient()
     srs_freep(hs_bytes);
 }
 
-SrsProtocol* SrsRtmpClient::get_protocol()
-{
-    return protocol;
-}
-
 void SrsRtmpClient::set_recv_timeout(int64_t timeout_us)
 {
     protocol->set_recv_timeout(timeout_us);
@@ -487,7 +483,7 @@ int SrsRtmpClient::connect_app(string app, string tc_url, SrsRequest* req)
     // expect connect _result
     SrsMessage* msg = NULL;
     SrsConnectAppResPacket* pkt = NULL;
-    if ((ret = srs_rtmp_expect_message<SrsConnectAppResPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+    if ((ret = expect_message<SrsConnectAppResPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
         srs_error("expect connect app response message failed. ret=%d", ret);
         return ret;
     }
@@ -540,7 +536,7 @@ int SrsRtmpClient::create_stream(int& stream_id)
     if (true) {
         SrsMessage* msg = NULL;
         SrsCreateStreamResPacket* pkt = NULL;
-        if ((ret = srs_rtmp_expect_message<SrsCreateStreamResPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = expect_message<SrsCreateStreamResPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect create stream response message failed. ret=%d", ret);
             return ret;
         }
@@ -674,7 +670,7 @@ int SrsRtmpClient::fmle_publish(string stream, int& stream_id)
     if (true) {
         SrsMessage* msg = NULL;
         SrsCreateStreamResPacket* pkt = NULL;
-        if ((ret = srs_rtmp_expect_message<SrsCreateStreamResPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = expect_message<SrsCreateStreamResPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect create stream response message failed. ret=%d", ret);
             return ret;
         }
@@ -795,7 +791,7 @@ int SrsRtmpServer::connect_app(SrsRequest* req)
     
     SrsMessage* msg = NULL;
     SrsConnectAppPacket* pkt = NULL;
-    if ((ret = srs_rtmp_expect_message<SrsConnectAppPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+    if ((ret = expect_message<SrsConnectAppPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
         srs_error("expect connect app message failed. ret=%d", ret);
         return ret;
     }
@@ -1189,7 +1185,7 @@ int SrsRtmpServer::start_fmle_publish(int stream_id)
     if (true) {
         SrsMessage* msg = NULL;
         SrsFMLEStartPacket* pkt = NULL;
-        if ((ret = srs_rtmp_expect_message<SrsFMLEStartPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = expect_message<SrsFMLEStartPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("recv FCPublish message failed. ret=%d", ret);
             return ret;
         }
@@ -1215,7 +1211,7 @@ int SrsRtmpServer::start_fmle_publish(int stream_id)
     if (true) {
         SrsMessage* msg = NULL;
         SrsCreateStreamPacket* pkt = NULL;
-        if ((ret = srs_rtmp_expect_message<SrsCreateStreamPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = expect_message<SrsCreateStreamPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("recv createStream message failed. ret=%d", ret);
             return ret;
         }
@@ -1240,7 +1236,7 @@ int SrsRtmpServer::start_fmle_publish(int stream_id)
     if (true) {
         SrsMessage* msg = NULL;
         SrsPublishPacket* pkt = NULL;
-        if ((ret = srs_rtmp_expect_message<SrsPublishPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = expect_message<SrsPublishPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("recv publish message failed. ret=%d", ret);
             return ret;
         }

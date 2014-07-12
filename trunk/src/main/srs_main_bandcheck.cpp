@@ -29,7 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <stdlib.h>
 
 #include <srs_protocol_rtmp.hpp>
-#include <srs_protocol_rtmp_stack.hpp>
+#include <srs_protocol_stack.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_core_autofree.hpp>
@@ -345,7 +345,7 @@ int SrsBandCheckClient::expect_start_play()
     // expect connect _result
     SrsMessage* msg = NULL;
     SrsBandwidthPacket* pkt = NULL;
-    if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+    if ((ret = expect_message<SrsBandwidthPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
         srs_error("expect bandcheck start play message failed. ret=%d", ret);
         return ret;
     }
@@ -382,7 +382,7 @@ int SrsBandCheckClient::expect_stop_play()
     while (true) {
         SrsMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
-        if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = expect_message<SrsBandwidthPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect stop play message failed. ret=%d", ret);
             return ret;
         }
@@ -419,7 +419,7 @@ int SrsBandCheckClient::expect_start_pub()
     while (true) {
         SrsMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
-        if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = expect_message<SrsBandwidthPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect start pub message failed. ret=%d", ret);
             return ret;
         }
@@ -489,7 +489,7 @@ int SrsBandCheckClient::expect_stop_pub()
     
     SrsMessage* msg;
     SrsBandwidthPacket* pkt;
-    if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(this->protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+    if ((ret = expect_message<SrsBandwidthPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
         return ret;
     }
     SrsAutoFree(SrsMessage, msg);
@@ -508,7 +508,7 @@ int SrsBandCheckClient::expect_finished()
     while (true) {
         SrsMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
-        if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = expect_message<SrsBandwidthPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect finished message failed. ret=%d", ret);
             return ret;
         }

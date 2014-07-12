@@ -32,6 +32,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
+#include <srs_protocol_stack.hpp>
+
 class SrsProtocol;
 class ISrsProtocolReaderWriter;
 class ISrsMessage;
@@ -171,7 +173,6 @@ public:
     SrsRtmpClient(ISrsProtocolReaderWriter* skt);
     virtual ~SrsRtmpClient();
 public:
-    virtual SrsProtocol* get_protocol();
     virtual void set_recv_timeout(int64_t timeout_us);
     virtual void set_send_timeout(int64_t timeout_us);
     virtual int64_t get_recv_bytes();
@@ -199,6 +200,27 @@ public:
     // FMLE publish schema:
     // connect-app => FMLE publish
     virtual int fmle_publish(std::string stream, int& stream_id);
+public:
+    /**
+    * expect a specified message, drop others util got specified one.
+    * @pmsg, user must free it. NULL if not success.
+    * @ppacket, store in the pmsg, user must never free it. NULL if not success.
+    * @remark, only when success, user can use and must free the pmsg/ppacket.
+    * for example:
+             SrsCommonMessage* msg = NULL;
+            SrsConnectAppResPacket* pkt = NULL;
+            if ((ret = srs_rtmp_expect_message<SrsConnectAppResPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+                return ret;
+            }
+            // use pkt
+    * user should never recv message and convert it, use this method instead.
+    * if need to set timeout, use set timeout of SrsProtocol.
+    */
+    template<class T>
+    int expect_message(SrsMessage** pmsg, T** ppacket)
+    {
+        return protocol->expect_message<T>(pmsg, ppacket);
+    }
 };
 
 /**
@@ -206,7 +228,6 @@ public:
 * a high level protocol, media stream oriented services,
 * such as connect to vhost/app, play stream, get audio/video data.
 */
-// TODO: FIXME: rename to SrsRtmpServer
 class SrsRtmpServer
 {
 private:
@@ -294,6 +315,27 @@ public:
     * onStatus(NetStream.Publish.Start)
     */
     virtual int start_flash_publish(int stream_id);
+public:
+    /**
+    * expect a specified message, drop others util got specified one.
+    * @pmsg, user must free it. NULL if not success.
+    * @ppacket, store in the pmsg, user must never free it. NULL if not success.
+    * @remark, only when success, user can use and must free the pmsg/ppacket.
+    * for example:
+             SrsCommonMessage* msg = NULL;
+            SrsConnectAppResPacket* pkt = NULL;
+            if ((ret = srs_rtmp_expect_message<SrsConnectAppResPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+                return ret;
+            }
+            // use pkt
+    * user should never recv message and convert it, use this method instead.
+    * if need to set timeout, use set timeout of SrsProtocol.
+    */
+    template<class T>
+    int expect_message(SrsMessage** pmsg, T** ppacket)
+    {
+        return protocol->expect_message<T>(pmsg, ppacket);
+    }
 private:
     virtual int identify_create_stream_client(SrsCreateStreamPacket* req, int stream_id, SrsRtmpConnType& type, std::string& stream_name, double& duration);
     virtual int identify_fmle_publish_client(SrsFMLEStartPacket* req, SrsRtmpConnType& type, std::string& stream_name);

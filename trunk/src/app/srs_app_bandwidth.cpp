@@ -31,7 +31,7 @@ using namespace std;
 #include <srs_protocol_rtmp.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_amf0.hpp>
-#include <srs_protocol_rtmp_stack.hpp>
+#include <srs_protocol_stack.hpp>
 #include <srs_app_config.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_utility.hpp>
@@ -99,8 +99,6 @@ int SrsBandwidth::bandwidth_test(SrsRequest* _req, st_netfd_t stfd, SrsRtmpServe
 int SrsBandwidth::do_bandwidth_check()
 {
     int ret = ERROR_SUCCESS;
-    
-    SrsProtocol* protocol = rtmp->get_protocol();
 
     int play_duration_ms        = 3000;
     int play_interval_ms        = 0;
@@ -160,7 +158,7 @@ int SrsBandwidth::do_bandwidth_check()
     while (true) {
         SrsMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
-        if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = rtmp->expect_message<SrsBandwidthPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
             // info level to ignore and return success.
             srs_info("expect final message failed. ret=%d", ret);
             return ERROR_SUCCESS;
@@ -185,8 +183,6 @@ int SrsBandwidth::check_play(
     int& play_bytes, int max_play_kbps)
 {
     int ret = ERROR_SUCCESS;
-    
-    SrsProtocol* protocol = rtmp->get_protocol();
 
     if (true) {
         // send start play command to client
@@ -206,7 +202,7 @@ int SrsBandwidth::check_play(
         // recv client's starting play response
         SrsMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
-        if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = rtmp->expect_message<SrsBandwidthPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect bandwidth message failed. ret=%d", ret);
             return ret;
         }
@@ -287,7 +283,7 @@ int SrsBandwidth::check_play(
         // recv client's stop play response.
         SrsMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
-        if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = rtmp->expect_message<SrsBandwidthPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect bandwidth message failed. ret=%d", ret);
             return ret;
         }
@@ -309,8 +305,6 @@ int SrsBandwidth::check_publish(
     int& publish_bytes, int max_pub_kbps)
 {
     int ret = ERROR_SUCCESS;
-    
-    SrsProtocol* protocol = rtmp->get_protocol();
 
     if (true) {
         // notify client to start publish
@@ -330,7 +324,7 @@ int SrsBandwidth::check_publish(
         // read client's notification of starting publish
         SrsMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
-        if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = rtmp->expect_message<SrsBandwidthPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect bandwidth message failed. ret=%d", ret);
             return ret;
         }
@@ -398,7 +392,7 @@ int SrsBandwidth::check_publish(
         // recv client's stop publish response.
         SrsMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
-        if ((ret = srs_rtmp_expect_message<SrsBandwidthPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+        if ((ret = rtmp->expect_message<SrsBandwidthPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect bandwidth message failed. ret=%d", ret);
             return ret;
         }

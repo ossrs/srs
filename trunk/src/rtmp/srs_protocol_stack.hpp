@@ -21,11 +21,11 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_RTMP_PROTOCOL_RTMP_STACK_HPP
-#define SRS_RTMP_PROTOCOL_RTMP_STACK_HPP
+#ifndef SRS_RTMP_PROTOCOL_STACK_HPP
+#define SRS_RTMP_PROTOCOL_STACK_HPP
 
 /*
-#include <srs_protocol_rtmp_stack.hpp>
+#include <srs_protocol_stack.hpp>
 */
 
 #include <srs_core.hpp>
@@ -196,6 +196,63 @@ public:
     * @param stream_id, the stream id of packet to send over, 0 for control message.
     */
     virtual int send_and_free_packet(SrsPacket* packet, int stream_id);
+public:
+    /**
+    * expect a specified message, drop others util got specified one.
+    * @pmsg, user must free it. NULL if not success.
+    * @ppacket, store in the pmsg, user must never free it. NULL if not success.
+    * @remark, only when success, user can use and must free the pmsg/ppacket.
+    * for example:
+             SrsCommonMessage* msg = NULL;
+            SrsConnectAppResPacket* pkt = NULL;
+            if ((ret = srs_rtmp_expect_message<SrsConnectAppResPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
+                return ret;
+            }
+            // use pkt
+    * user should never recv message and convert it, use this method instead.
+    * if need to set timeout, use set timeout of SrsProtocol.
+    */
+    template<class T>
+    int expect_message(SrsMessage** pmsg, T** ppacket)
+    {
+        *pmsg = NULL;
+        *ppacket = NULL;
+        
+        int ret = ERROR_SUCCESS;
+        
+        while (true) {
+            SrsMessage* msg = NULL;
+            if ((ret = recv_message(&msg)) != ERROR_SUCCESS) {
+                srs_error("recv message failed. ret=%d", ret);
+                return ret;
+            }
+            srs_verbose("recv message success.");
+            
+            SrsPacket* packet = NULL;
+            if ((ret = decode_message(msg, &packet)) != ERROR_SUCCESS) {
+                srs_error("decode message failed. ret=%d", ret);
+                srs_freep(msg);
+                srs_freep(packet);
+                return ret;
+            }
+            
+            T* pkt = dynamic_cast<T*>(packet);
+            if (!pkt) {
+                srs_info("drop message(type=%d, size=%d, time=%"PRId64", sid=%d).", 
+                    msg->header.message_type, msg->header.payload_length,
+                    msg->header.timestamp, msg->header.stream_id);
+                srs_freep(msg);
+                srs_freep(packet);
+                continue;
+            }
+            
+            *pmsg = msg;
+            *ppacket = pkt;
+            break;
+        }
+        
+        return ret;
+    }
 private:
     /**
     * send out the message, donot free it, the caller must free the param msg.
@@ -1508,62 +1565,5 @@ protected:
     virtual int get_size();
     virtual int encode_packet(SrsStream* stream);
 };
-
-/**
-* expect a specified message, drop others util got specified one.
-* @pmsg, user must free it. NULL if not success.
-* @ppacket, store in the pmsg, user must never free it. NULL if not success.
-* @remark, only when success, user can use and must free the pmsg/ppacket.
-* for example:
-         SrsCommonMessage* msg = NULL;
-        SrsConnectAppResPacket* pkt = NULL;
-        if ((ret = srs_rtmp_expect_message<SrsConnectAppResPacket>(protocol, &msg, &pkt)) != ERROR_SUCCESS) {
-            return ret;
-        }
-        // use pkt
-* user should never recv message and convert it, use this method instead.
-* if need to set timeout, use set timeout of SrsProtocol.
-*/
-template<class T>
-int srs_rtmp_expect_message(SrsProtocol* protocol, SrsMessage** pmsg, T** ppacket)
-{
-    *pmsg = NULL;
-    *ppacket = NULL;
-    
-    int ret = ERROR_SUCCESS;
-    
-    while (true) {
-        SrsMessage* msg = NULL;
-        if ((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS) {
-            srs_error("recv message failed. ret=%d", ret);
-            return ret;
-        }
-        srs_verbose("recv message success.");
-        
-        SrsPacket* packet = NULL;
-        if ((ret = protocol->decode_message(msg, &packet)) != ERROR_SUCCESS) {
-            srs_error("decode message failed. ret=%d", ret);
-            srs_freep(msg);
-            srs_freep(packet);
-            return ret;
-        }
-        
-        T* pkt = dynamic_cast<T*>(packet);
-        if (!pkt) {
-            srs_info("drop message(type=%d, size=%d, time=%"PRId64", sid=%d).", 
-                msg->header.message_type, msg->header.payload_length,
-                msg->header.timestamp, msg->header.stream_id);
-            srs_freep(msg);
-            srs_freep(packet);
-            continue;
-        }
-        
-        *pmsg = msg;
-        *ppacket = pkt;
-        break;
-    }
-    
-    return ret;
-}
 
 #endif
