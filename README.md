@@ -399,21 +399,6 @@ usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw
 * See also: [Performance for x86/x64 Test Guide](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance)
 * See also: [Performance for RaspberryPi](https://github.com/winlinvip/simple-rtmp-server/wiki/RaspberryPi)
 
-## Compare
-* SRS v1.0-mainline2: 35255 lines. support android, dvr and edge.<br/>
-* SRS v1.0-mainline: 30000 lines. support arm, init.d scripts, http server and api, ingest.<br/>
-* SRS v0.9: 20926 lines. player/encoder/chat demos. bandwidth test for encoder/CDN.<br/>
-* SRS v0.8: 19186 lines. implements http hooks refer to [nginx-rtmp](https://github.com/arut/nginx-rtmp-module). <br/>
-* SRS v0.7: 17605 lines. implements transcoding(FFMPEG) feature refer to [wowza](http://www.wowza.com). <br/>
-* SRS v0.6: 16094 lines. important feature forward for CDN. <br/>
-* SRS v0.5: 14449 lines. implements HLS feature refer to [nginx-rtmp](https://github.com/arut/nginx-rtmp-module). <br/>
-* SRS v0.4: 12500 lines. important feature reload for CDN. <br/>
-* SRS v0.3: 11773 lines. implements vhost feature refer to [FMS](http://www.adobe.com/products/adobe-media-server-family.html). <br/>
-* SRS v0.2: 10125 lines. implements rtmp protocol stack refer to [nginx-rtmp](https://github.com/arut/nginx-rtmp-module). <br/>
-* SRS v0.1: 8287 lines. base on state-threads. <br/>
-* nginx-rtmp v1.0.4: 26786 lines <br/>
-* nginx v1.5.0: 139524 lines <br/>
-
 ## Architecture
 
 SRS always use the most simple architecture to support complex transaction.
