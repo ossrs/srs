@@ -90,10 +90,10 @@ public:
     */
     int size;
     char* bytes;
-    
+public:
     SrsCodecBuffer();
     void append(void* data, int len);
-    
+public:
     /**
     * free the bytes, 
     * user can invoke it to free the bytes,

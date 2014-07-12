@@ -211,12 +211,14 @@ int SrsRtmpConn::service_cycle()
     }
     srs_verbose("set peer bandwidth success");
 
+    // get the ip which client connected.
+    std::string local_ip = srs_get_local_ip(st_netfd_fileno(stfd));
+    
     // do bandwidth test if connect to the vhost which is for bandwidth check.
     if (_srs_config->get_bw_check_enabled(req->vhost)) {
-        return bandwidth->bandwidth_test(req, stfd, rtmp);
+        return bandwidth->bandwidth_check(rtmp, req, local_ip);
     }
     
-    std::string local_ip = srs_get_local_ip(st_netfd_fileno(stfd));
     if ((ret = rtmp->response_connect_app(req, local_ip.c_str())) != ERROR_SUCCESS) {
         srs_error("response connect app failed. ret=%d", ret);
         return ret;

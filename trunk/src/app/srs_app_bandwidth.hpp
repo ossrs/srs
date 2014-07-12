@@ -29,6 +29,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
+#include <string>
+
 #include <srs_app_st.hpp>
 
 class SrsRequest;
@@ -73,16 +75,19 @@ class SrsRtmpServer;
 class SrsBandwidth
 {
 private:
-    SrsRequest* req;
-    SrsRtmpServer* rtmp;
+    SrsRequest* _req;
+    SrsRtmpServer* _rtmp;
 public:
     SrsBandwidth();
     virtual ~SrsBandwidth();
 public:
     /**
-    * do the bandwidth test.
+    * do the bandwidth check.
+    * @param rtmp, server RTMP protocol object, send/recv RTMP packet to/from client.
+    * @param req, client request object, specifies the request info from client.
+    * @param local_ip, the ip of server which client connected at
     */
-    virtual int bandwidth_test(SrsRequest* _req, st_netfd_t stfd, SrsRtmpServer* _rtmp);
+    virtual int bandwidth_check(SrsRtmpServer* rtmp, SrsRequest* req, std::string local_ip);
 private:
     /**
     * used to process band width check from client.
