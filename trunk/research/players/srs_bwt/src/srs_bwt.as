@@ -16,8 +16,6 @@ package
 	import flash.utils.Timer;
 	import flash.utils.setTimeout;
 	
-	import srs.SrsBandwidth;
-
 	public class srs_bwt extends Sprite
     {
         /**

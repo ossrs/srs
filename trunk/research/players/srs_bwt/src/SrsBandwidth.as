@@ -1,4 +1,4 @@
-package srs
+package 
 {
     import flash.events.NetStatusEvent;
     import flash.external.ExternalInterface;
