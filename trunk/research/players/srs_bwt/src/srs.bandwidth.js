@@ -1,10 +1,29 @@
 /**
-* the SrsBandwidth object.
+* the SrsBandwidth library for js to do bandwidth test.
 * @param container the html container id.
 * @param width a float value specifies the width of bandwidth.
 * @param height a float value specifies the height of bandwidth.
 * @param private_object [optional] an object that used as private object, 
 *       for example, the logic chat object which owner this bandwidth.
+* Usage:
+    var bandwidth = new SrsBandwidth("player_id", 100, 1);
+    bandwidth.on_bandwidth_ready = function() {
+        // auto start check bandwidth when tool is ready.
+        this.check_bandwidth(url);
+    }
+    bandwidth.on_update_progress = function(percent) {
+        // console.log(percent + "%");
+    }
+    bandwidth.on_update_status = function(status) {
+        // console.log(status);
+    }
+    bandwidth.on_srs_info = function(srs_server, srs_primary_authors, srs_id, srs_pid, srs_server_ip) {
+        // console.log(
+        //    "server:" + srs_server + ", authors:" + srs_primary_authors +
+        //    ", srs_id:" + srs_id + ", srs_pid:" + srs_pid + ", ip:" + srs_server_ip
+        //);
+    }
+    bandwidth.render("rtmp://dev:1935/app?key=35c9b402c12a7246868752e2878f7e0e&vhost=bandcheck.srs.com");
 */
 function SrsBandwidth(container, width, height, private_object) {
     if (!SrsBandwidth.__id) {
