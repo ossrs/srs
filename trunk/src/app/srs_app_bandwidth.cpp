@@ -68,9 +68,9 @@ void SrsBandwidthSample::calc_kbps(int _bytes, int _duration)
 * recv bandwidth helper.
 */
 typedef bool (*_CheckPacketType)(SrsBandwidthPacket* pkt);
-bool _bandwidth_is_flash_final(SrsBandwidthPacket* pkt)
+bool _bandwidth_is_final(SrsBandwidthPacket* pkt)
 {
-    return pkt->is_flash_final();
+    return pkt->is_final();
 }
 bool _bandwidth_is_starting_play(SrsBandwidthPacket* pkt)
 {
@@ -183,7 +183,12 @@ int SrsBandwidth::do_bandwidth_check(SrsKbpsLimit* limit)
 
     SrsBandwidthSample play_sample;
     SrsBandwidthSample publish_sample;
+    
+    // timeout for a packet.
+    _rtmp->set_send_timeout(play_sample.duration_ms * 1000);
+    _rtmp->set_recv_timeout(publish_sample.duration_ms * 1000);
 
+    // start test.
     int64_t start_time = srs_get_system_time_ms();
     
     // sample play
@@ -254,7 +259,7 @@ int SrsBandwidth::play_start(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
             return ret;
         }
     }
-    srs_info("BW check begin.");
+    srs_info("BW check play begin.");
 
     if ((ret = _srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_starting_play)) != ERROR_SUCCESS) {
         return ret;
@@ -424,7 +429,6 @@ int SrsBandwidth::finial(SrsBandwidthSample& play_sample, SrsBandwidthSample& pu
     // flash client will close connection when got this packet,
     // for the publish queue may contains packets.
     SrsBandwidthPacket* pkt = SrsBandwidthPacket::create_finish();
-    pkt->data->set("code",           SrsAmf0Any::number(ERROR_SUCCESS));
     pkt->data->set("start_time",     SrsAmf0Any::number(start_time));
     pkt->data->set("end_time",       SrsAmf0Any::number(end_time));
     pkt->data->set("play_kbps",      SrsAmf0Any::number(play_sample.kbps));
@@ -445,7 +449,7 @@ int SrsBandwidth::finial(SrsBandwidthSample& play_sample, SrsBandwidthSample& pu
     bool is_flash = (_req->swfUrl != "");
     if (!is_flash) {
         // ignore any error.
-        _srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_flash_final);
+        _srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_final);
         srs_info("BW check recv flash final response.");
     }
     

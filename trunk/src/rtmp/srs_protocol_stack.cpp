@@ -232,17 +232,16 @@ messages.
 #define SRS_BW_CHECK_START_PUBLISH              "onSrsBandCheckStartPublishBytes"
 #define SRS_BW_CHECK_STARTING_PUBLISH           "onSrsBandCheckStartingPublishBytes"
 #define SRS_BW_CHECK_STOP_PUBLISH               "onSrsBandCheckStopPublishBytes"
+// @remark, flash never send out this packet, for its queue is full.
 #define SRS_BW_CHECK_STOPPED_PUBLISH            "onSrsBandCheckStoppedPublishBytes"
 
 // EOF control.
+// the report packet when check finished.
 #define SRS_BW_CHECK_FINISHED                   "onSrsBandCheckFinished"
-// for flash, it will sendout a final call, 
-// used to confirm got the report.
-// actually, client send out this packet and close the connection,
-// so server may cannot got this packet, ignore is ok.
-#define SRS_BW_CHECK_FLASH_FINAL                "finalClientPacket"
+// @remark, flash never send out this packet, for its queue is full.
+#define SRS_BW_CHECK_FINAL                      "finalClientPacket"
 
-// client only
+// data packets
 #define SRS_BW_CHECK_PLAYING                    "onSrsBandCheckPlaying"
 #define SRS_BW_CHECK_PUBLISHING                 "onSrsBandCheckPublishing"
 
@@ -688,7 +687,7 @@ int SrsProtocol::do_decode_message(SrsMessageHeader& header, SrsStream* stream, 
             || command == SRS_BW_CHECK_STOP_PLAY
             || command == SRS_BW_CHECK_STOP_PUBLISH
             || command == SRS_BW_CHECK_STOPPED_PUBLISH
-            || command == SRS_BW_CHECK_FLASH_FINAL)
+            || command == SRS_BW_CHECK_FINAL)
         {
             srs_info("decode the AMF0/AMF3 band width check message.");
             *ppacket = packet = new SrsBandwidthPacket();
@@ -3270,9 +3269,19 @@ int SrsBandwidthPacket::encode_packet(SrsStream* stream)
     return ret;
 }
 
+bool SrsBandwidthPacket::is_start_play()
+{
+    return command_name == SRS_BW_CHECK_START_PLAY;
+}
+
 bool SrsBandwidthPacket::is_starting_play()
 {
     return command_name == SRS_BW_CHECK_STARTING_PLAY;
+}
+
+bool SrsBandwidthPacket::is_stop_play()
+{
+    return command_name == SRS_BW_CHECK_STOP_PLAY;
 }
 
 bool SrsBandwidthPacket::is_stopped_play()
@@ -3280,9 +3289,19 @@ bool SrsBandwidthPacket::is_stopped_play()
     return command_name == SRS_BW_CHECK_STOPPED_PLAY;
 }
 
+bool SrsBandwidthPacket::is_start_publish()
+{
+    return command_name == SRS_BW_CHECK_START_PUBLISH;
+}
+
 bool SrsBandwidthPacket::is_starting_publish()
 {
     return command_name == SRS_BW_CHECK_STARTING_PUBLISH;
+}
+
+bool SrsBandwidthPacket::is_stop_publish()
+{
+    return command_name == SRS_BW_CHECK_STOP_PUBLISH;
 }
 
 bool SrsBandwidthPacket::is_stopped_publish()
@@ -3290,21 +3309,26 @@ bool SrsBandwidthPacket::is_stopped_publish()
     return command_name == SRS_BW_CHECK_STOPPED_PUBLISH;
 }
 
-bool SrsBandwidthPacket::is_flash_final()
+bool SrsBandwidthPacket::is_finish()
 {
-    return command_name == SRS_BW_CHECK_FLASH_FINAL;
+    return command_name == SRS_BW_CHECK_FINISHED;
 }
 
-SrsBandwidthPacket* SrsBandwidthPacket::create_finish()
+bool SrsBandwidthPacket::is_final()
 {
-    SrsBandwidthPacket* pkt = new SrsBandwidthPacket();
-    return pkt->set_command(SRS_BW_CHECK_FINISHED);
+    return command_name == SRS_BW_CHECK_FINAL;
 }
 
 SrsBandwidthPacket* SrsBandwidthPacket::create_start_play()
 {
     SrsBandwidthPacket* pkt = new SrsBandwidthPacket();
     return pkt->set_command(SRS_BW_CHECK_START_PLAY);
+}
+
+SrsBandwidthPacket* SrsBandwidthPacket::create_starting_play()
+{
+    SrsBandwidthPacket* pkt = new SrsBandwidthPacket();
+    return pkt->set_command(SRS_BW_CHECK_STARTING_PLAY);
 }
 
 SrsBandwidthPacket* SrsBandwidthPacket::create_playing()
@@ -3325,10 +3349,34 @@ SrsBandwidthPacket* SrsBandwidthPacket::create_start_publish()
     return pkt->set_command(SRS_BW_CHECK_START_PUBLISH);
 }
 
+SrsBandwidthPacket* SrsBandwidthPacket::create_starting_publish()
+{
+    SrsBandwidthPacket* pkt = new SrsBandwidthPacket();
+    return pkt->set_command(SRS_BW_CHECK_STARTING_PUBLISH);
+}
+
+SrsBandwidthPacket* SrsBandwidthPacket::create_publishing()
+{
+    SrsBandwidthPacket* pkt = new SrsBandwidthPacket();
+    return pkt->set_command(SRS_BW_CHECK_PUBLISHING);
+}
+
 SrsBandwidthPacket* SrsBandwidthPacket::create_stop_publish()
 {
     SrsBandwidthPacket* pkt = new SrsBandwidthPacket();
     return pkt->set_command(SRS_BW_CHECK_STOP_PUBLISH);
+}
+
+SrsBandwidthPacket* SrsBandwidthPacket::create_finish()
+{
+    SrsBandwidthPacket* pkt = new SrsBandwidthPacket();
+    return pkt->set_command(SRS_BW_CHECK_FINISHED);
+}
+
+SrsBandwidthPacket* SrsBandwidthPacket::create_final()
+{
+    SrsBandwidthPacket* pkt = new SrsBandwidthPacket();
+    return pkt->set_command(SRS_BW_CHECK_FINAL);
 }
 
 SrsBandwidthPacket* SrsBandwidthPacket::set_command(string command)

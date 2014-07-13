@@ -42,6 +42,7 @@ using namespace std;
 #include <srs_kernel_flv.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_file.hpp>
+#include <srs_lib_bandwidth.hpp>
 
 // if user want to define log, define the folowing macro.
 #ifndef SRS_RTMP_USER_DEFINED_LOG
@@ -63,6 +64,7 @@ struct Context
     std::string vhost;
     std::string app;
     std::string stream;
+    std::string param;
     
     SrsRtmpClient* rtmp;
     SimpleSocketStream* skt;
@@ -91,39 +93,11 @@ int srs_librtmp_context_parse_uri(Context* context)
         context->stream = uri.substr(pos + 1);
         context->tcUrl = uri = uri.substr(0, pos);
     }
-    // schema
-    if ((pos = uri.find("rtmp://")) != string::npos) {
-        uri = uri.substr(pos + 7);
-    }
-    // host/vhost/port
-    if ((pos = uri.find(":")) != string::npos) {
-        context->vhost = context->host = uri.substr(0, pos);
-        uri = uri.substr(pos + 1);
-        
-        if ((pos = uri.find("/")) != string::npos) {
-            context->port = uri.substr(0, pos);
-            uri = uri.substr(pos + 1);
-        }
-    } else {
-        if ((pos = uri.find("/")) != string::npos) {
-            context->vhost = context->host = uri.substr(0, pos);
-            uri = uri.substr(pos + 1);
-        }
-        context->port = RTMP_DEFAULT_PORT;
-    }
-    // app
-    context->app = uri;
-    // query of app
-    if ((pos = uri.find("?")) != string::npos) {
-        context->app = uri.substr(0, pos);
-        string query = uri.substr(pos + 1);
-        if ((pos = query.find("vhost=")) != string::npos) {
-            context->vhost = query.substr(pos + 6);
-            if ((pos = context->vhost.find("&")) != string::npos) {
-                context->vhost = context->vhost.substr(pos);
-            }
-        }
-    }
+    
+    std::string schema;
+    srs_discovery_tc_url(context->tcUrl, 
+        schema, context->host, context->vhost, context->app, context->port,
+        context->param);
     
     return ret;
 }
@@ -173,6 +147,18 @@ srs_rtmp_t srs_rtmp_create(const char* url)
 {
     Context* context = new Context();
     context->url = url;
+    return context;
+}
+
+srs_rtmp_t srs_rtmp_create2(const char* url)
+{
+    Context* context = new Context();
+    
+    // use url as tcUrl.
+    context->url = url;
+    // auto append stream.
+    context->url += "/livestream";
+    
     return context;
 }
 
@@ -263,7 +249,10 @@ int srs_connect_app(srs_rtmp_t rtmp)
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
     
-    string tcUrl = srs_generate_tc_url(context->ip, context->vhost, context->app, context->port);
+    string tcUrl = srs_generate_tc_url(
+        context->ip, context->vhost, context->app, context->port,
+        context->param
+    );
     if ((ret = context->rtmp->connect_app(context->app, tcUrl)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -317,6 +306,52 @@ const char* srs_type2string(int type)
     }
     
     return unknown;
+}
+
+int srs_bandwidth_check(srs_rtmp_t rtmp, 
+    char srs_server[128], char srs_primary_authors[128], 
+    char srs_id[64], char srs_pid[64], char srs_server_ip[128],
+    int64_t* start_time, int64_t* end_time, 
+    int* play_kbps, int* publish_kbps,
+    int* play_bytes, int* publish_bytes,
+    int* play_duration, int* publish_duration
+) {
+    srs_server[0] = 0;
+    srs_primary_authors[0] = 0;
+    srs_id[0] = 0;
+    srs_pid[0] = 0;
+    srs_server_ip[0] = 0;
+    
+    *start_time = 0;
+    *end_time = 0;
+    *play_kbps = 0;
+    *publish_kbps = 0;
+    *play_bytes = 0;
+    *publish_bytes = 0;
+    *play_duration = 0;
+    *publish_duration = 0;
+    
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(rtmp != NULL);
+    Context* context = (Context*)rtmp;
+    
+    SrsBandwidthClient client;
+
+    if ((ret = client.initialize(context->rtmp)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = client.bandwidth_check(
+        srs_server, srs_primary_authors, 
+        srs_id, srs_pid, srs_server_ip,
+        start_time, end_time, play_kbps, publish_kbps,
+        play_bytes, publish_bytes, play_duration, publish_duration)) != ERROR_SUCCESS
+    ) {
+        return ret;
+    }
+    
+    return ret;
 }
 
 int srs_read_packet(srs_rtmp_t rtmp, int* type, u_int32_t* timestamp, char** data, int* size)

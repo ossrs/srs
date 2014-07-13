@@ -97,11 +97,10 @@ int SrsForwarder::on_publish(SrsRequest* req, std::string forward_server)
     }
     // discovery vhost
     std::string vhost = req->vhost;
-    srs_vhost_resolve(vhost, s_port);
     port = ::atoi(s_port.c_str());
     
     // generate tcUrl
-    tc_url = srs_generate_tc_url(forward_server, vhost, req->app, s_port);
+    tc_url = srs_generate_tc_url(forward_server, vhost, req->app, s_port, req->param);
     
     // dead loop check
     std::string source_ep = "rtmp://";

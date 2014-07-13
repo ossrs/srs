@@ -429,8 +429,7 @@ package
                 publish_timeout_handler = 0;
             }
         }
-        private function onSrsBandCheckFinished(evt:Object):void{			
-            var code:Number = evt.code;
+        private function onSrsBandCheckFinished(evt:Object):void{
             var start_time:Number = evt.start_time;
             var end_time:Number = evt.end_time;
             var play_kbps:Number = evt.play_kbps;

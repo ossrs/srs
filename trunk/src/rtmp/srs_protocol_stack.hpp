@@ -1230,17 +1230,26 @@ protected:
     virtual int encode_packet(SrsStream* stream);
 // help function for bandwidth packet.
 public:
+    virtual bool is_start_play();
     virtual bool is_starting_play();
+    virtual bool is_stop_play();
     virtual bool is_stopped_play();
+    virtual bool is_start_publish();
     virtual bool is_starting_publish();
+    virtual bool is_stop_publish();
     virtual bool is_stopped_publish();
-    virtual bool is_flash_final();
-    static SrsBandwidthPacket* create_finish();
+    virtual bool is_finish();
+    virtual bool is_final();
     static SrsBandwidthPacket* create_start_play();
+    static SrsBandwidthPacket* create_starting_play();
     static SrsBandwidthPacket* create_playing();
     static SrsBandwidthPacket* create_stop_play();
     static SrsBandwidthPacket* create_start_publish();
+    static SrsBandwidthPacket* create_starting_publish();
+    static SrsBandwidthPacket* create_publishing();
     static SrsBandwidthPacket* create_stop_publish();
+    static SrsBandwidthPacket* create_finish();
+    static SrsBandwidthPacket* create_final();
 private:
     virtual SrsBandwidthPacket* set_command(std::string command);
 };

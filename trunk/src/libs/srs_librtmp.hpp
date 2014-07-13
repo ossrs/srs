@@ -52,6 +52,18 @@ typedef void* srs_rtmp_t;
 * @return a rtmp handler, or NULL if error occured.
 */
 srs_rtmp_t srs_rtmp_create(const char* url);
+/**
+* create rtmp with url, used for connection specified application.
+* @param url the tcUrl, for exmple:
+*         rtmp://127.0.0.1/live
+* @remark this is used to create application connection-oriented,
+*       for example, the bandwidth client used this, no stream specified.
+*/
+srs_rtmp_t srs_rtmp_create2(const char* url);
+/**
+* close and destroy the rtmp stack.
+* @remark, user should use the rtmp again.
+*/
 void srs_rtmp_destroy(srs_rtmp_t rtmp);
 
 /**
@@ -106,6 +118,35 @@ int srs_play_stream(srs_rtmp_t rtmp);
 * @return 0, success; otherwise, failed.
 */
 int srs_publish_stream(srs_rtmp_t rtmp);
+
+/**
+* do bandwidth check with srs server.
+* 
+* SRS debug info:
+* @param srs_server, 128bytes, server info.
+* @param srs_primary_authors, 128bytes, primary authors.
+* @param srs_id, 64bytes, debug info, client id in server log.
+* @param srs_pid, 64bytes, debug info, server pid in log.
+* @param srs_server_ip, 128bytes, debug info, server ip client connected at.
+* 
+* bandwidth info:
+* @param start_time, output the start time, in ms.
+* @param end_time, output the end time, in ms.
+* @param play_kbps, output the play/download kbps.
+* @param publish_kbps, output the publish/upload kbps.
+* @param play_bytes, output the play/download bytes.
+* @param publish_bytes, output the publish/upload bytes.
+* @param play_duration, output the play/download test duration, in ms.
+* @param publish_duration, output the publish/upload test duration, in ms.
+*/
+int srs_bandwidth_check(srs_rtmp_t rtmp, 
+    char srs_server[128], char srs_primary_authors[128], 
+    char srs_id[64], char srs_pid[64], char srs_server_ip[128],
+    int64_t* start_time, int64_t* end_time, 
+    int* play_kbps, int* publish_kbps,
+    int* play_bytes, int* publish_bytes,
+    int* play_duration, int* publish_duration
+);
 
 /**
 * E.4.1 FLV Tag, page 75

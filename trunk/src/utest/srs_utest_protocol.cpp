@@ -429,27 +429,28 @@ VOID TEST(ProtocolUtilityTest, VhostResolve)
 {
     std::string vhost = "vhost";
     std::string app = "app";
-    srs_vhost_resolve(vhost, app);
+    std::string param;
+    srs_vhost_resolve(vhost, app, param);
     EXPECT_STREQ("vhost", vhost.c_str());
     EXPECT_STREQ("app", app.c_str());
     
     app = "app?vhost=changed";
-    srs_vhost_resolve(vhost, app);
+    srs_vhost_resolve(vhost, app, param);
     EXPECT_STREQ("changed", vhost.c_str());
     EXPECT_STREQ("app", app.c_str());
     
     app = "app?vhost=changed1&&query=true";
-    srs_vhost_resolve(vhost, app);
+    srs_vhost_resolve(vhost, app, param);
     EXPECT_STREQ("changed1", vhost.c_str());
     EXPECT_STREQ("app", app.c_str());
     
     app = "app?other=true&&vhost=changed2&&query=true";
-    srs_vhost_resolve(vhost, app);
+    srs_vhost_resolve(vhost, app, param);
     EXPECT_STREQ("changed2", vhost.c_str());
     EXPECT_STREQ("app", app.c_str());
     
     app = "app...other...true...vhost...changed3...query...true";
-    srs_vhost_resolve(vhost, app);
+    srs_vhost_resolve(vhost, app, param);
     EXPECT_STREQ("changed3", vhost.c_str());
     EXPECT_STREQ("app", app.c_str());
 }
@@ -461,10 +462,10 @@ VOID TEST(ProtocolUtilityTest, DiscoveryTcUrl)
 {
     std::string tcUrl; 
     std::string schema; std::string host; std::string vhost; 
-    std::string app; std::string port;
+    std::string app; std::string port; std::string param;
     
     tcUrl = "rtmp://127.0.0.1:1935/live";
-    srs_discovery_tc_url(tcUrl, schema, host, vhost, app, port);
+    srs_discovery_tc_url(tcUrl, schema, host, vhost, app, port, param);
     EXPECT_STREQ("rtmp", schema.c_str());
     EXPECT_STREQ("127.0.0.1", host.c_str());
     EXPECT_STREQ("127.0.0.1", vhost.c_str());
@@ -472,7 +473,7 @@ VOID TEST(ProtocolUtilityTest, DiscoveryTcUrl)
     EXPECT_STREQ("1935", port.c_str());
     
     tcUrl = "rtmp://127.0.0.1:19351/live";
-    srs_discovery_tc_url(tcUrl, schema, host, vhost, app, port);
+    srs_discovery_tc_url(tcUrl, schema, host, vhost, app, port, param);
     EXPECT_STREQ("rtmp", schema.c_str());
     EXPECT_STREQ("127.0.0.1", host.c_str());
     EXPECT_STREQ("127.0.0.1", vhost.c_str());
@@ -480,7 +481,7 @@ VOID TEST(ProtocolUtilityTest, DiscoveryTcUrl)
     EXPECT_STREQ("19351", port.c_str());
     
     tcUrl = "rtmp://127.0.0.1:19351/live?vhost=demo";
-    srs_discovery_tc_url(tcUrl, schema, host, vhost, app, port);
+    srs_discovery_tc_url(tcUrl, schema, host, vhost, app, port, param);
     EXPECT_STREQ("rtmp", schema.c_str());
     EXPECT_STREQ("127.0.0.1", host.c_str());
     EXPECT_STREQ("demo", vhost.c_str());
@@ -488,7 +489,7 @@ VOID TEST(ProtocolUtilityTest, DiscoveryTcUrl)
     EXPECT_STREQ("19351", port.c_str());
     
     tcUrl = "rtmp://127.0.0.1:19351/live/show?vhost=demo";
-    srs_discovery_tc_url(tcUrl, schema, host, vhost, app, port);
+    srs_discovery_tc_url(tcUrl, schema, host, vhost, app, port, param);
     EXPECT_STREQ("rtmp", schema.c_str());
     EXPECT_STREQ("127.0.0.1", host.c_str());
     EXPECT_STREQ("demo", vhost.c_str());
@@ -501,18 +502,18 @@ VOID TEST(ProtocolUtilityTest, DiscoveryTcUrl)
 */
 VOID TEST(ProtocolUtilityTest, GenerateTcUrl)
 {
-    string ip; string vhost; string app; string port; string tcUrl;
+    string ip; string vhost; string app; string port; string tcUrl; string param;
     
     ip = "127.0.0.1"; vhost = "__defaultVhost__"; app = "live"; port = "1935";
-    tcUrl = srs_generate_tc_url(ip, vhost, app, port);
+    tcUrl = srs_generate_tc_url(ip, vhost, app, port, param);
     EXPECT_STREQ("rtmp://127.0.0.1/live", tcUrl.c_str());
     
     ip = "127.0.0.1"; vhost = "demo"; app = "live"; port = "1935";
-    tcUrl = srs_generate_tc_url(ip, vhost, app, port);
+    tcUrl = srs_generate_tc_url(ip, vhost, app, port, param);
     EXPECT_STREQ("rtmp://demo/live", tcUrl.c_str());
     
     ip = "127.0.0.1"; vhost = "demo"; app = "live"; port = "19351";
-    tcUrl = srs_generate_tc_url(ip, vhost, app, port);
+    tcUrl = srs_generate_tc_url(ip, vhost, app, port, param);
     EXPECT_STREQ("rtmp://demo:19351/live", tcUrl.c_str());
 }
 
@@ -5375,10 +5376,11 @@ VOID TEST(ProtocolStackTest, ProtocolExcpectMessage)
 VOID TEST(ProtocolRTMPTest, RTMPRequest)
 {
     SrsRequest req;
+    std::string param;
     
     req.stream = "livestream";
     srs_discovery_tc_url("rtmp://std.ossrs.net/live", 
-        req.schema, req.host, req.vhost, req.app, req.port);
+        req.schema, req.host, req.vhost, req.app, req.port, param);
     req.strip();
     EXPECT_STREQ("rtmp", req.schema.c_str());
     EXPECT_STREQ("std.ossrs.net", req.host.c_str());
@@ -5388,7 +5390,7 @@ VOID TEST(ProtocolRTMPTest, RTMPRequest)
     
     req.stream = "livestream";
     srs_discovery_tc_url("rtmp://s td.os srs.n et/li v e", 
-        req.schema, req.host, req.vhost, req.app, req.port);
+        req.schema, req.host, req.vhost, req.app, req.port, param);
     req.strip();
     EXPECT_STREQ("rtmp", req.schema.c_str());
     EXPECT_STREQ("std.ossrs.net", req.host.c_str());
@@ -5398,7 +5400,7 @@ VOID TEST(ProtocolRTMPTest, RTMPRequest)
     
     req.stream = "livestream";
     srs_discovery_tc_url("rtmp://s\ntd.o\rssrs.ne\nt/li\nve", 
-        req.schema, req.host, req.vhost, req.app, req.port);
+        req.schema, req.host, req.vhost, req.app, req.port, param);
     req.strip();
     EXPECT_STREQ("rtmp", req.schema.c_str());
     EXPECT_STREQ("std.ossrs.net", req.host.c_str());
@@ -5408,7 +5410,7 @@ VOID TEST(ProtocolRTMPTest, RTMPRequest)
     
     req.stream = "livestream";
     srs_discovery_tc_url("rtmp://std.ossrs.net/live ", 
-        req.schema, req.host, req.vhost, req.app, req.port);
+        req.schema, req.host, req.vhost, req.app, req.port, param);
     req.strip();
     EXPECT_STREQ("rtmp", req.schema.c_str());
     EXPECT_STREQ("std.ossrs.net", req.host.c_str());

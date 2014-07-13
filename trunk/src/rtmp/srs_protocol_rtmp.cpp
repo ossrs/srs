@@ -95,6 +95,7 @@ SrsRequest* SrsRequest::copy()
     cp->pageUrl = pageUrl;
     cp->host = host;
     cp->port = port;
+    cp->param = param;
     cp->schema = schema;
     cp->stream = stream;
     cp->swfUrl = swfUrl;
@@ -823,7 +824,9 @@ int SrsRtmpServer::connect_app(SrsRequest* req)
     
     srs_info("get connect app message params success.");
     
-    srs_discovery_tc_url(req->tcUrl, req->schema, req->host, req->vhost, req->app, req->port);
+    srs_discovery_tc_url(req->tcUrl, 
+        req->schema, req->host, req->vhost, req->app, req->port,
+        req->param);
     req->strip();
     
     return ret;

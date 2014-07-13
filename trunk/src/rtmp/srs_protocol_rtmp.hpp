@@ -67,10 +67,17 @@ public:
 public:
     // discovery from tcUrl and play/publish.
     std::string schema;
+    // the vhost in tcUrl.
     std::string vhost;
+    // the host in tcUrl.
     std::string host;
+    // the port in tcUrl.
     std::string port;
+    // the app in tcUrl, without param.
     std::string app;
+    // the param in tcUrl(app).
+    std::string param;
+    // the stream in play/publish
     std::string stream;
     // for play live stream, 
     // used to specified the stop when exceed the duration.

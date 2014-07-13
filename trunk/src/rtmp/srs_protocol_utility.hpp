@@ -50,20 +50,23 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * @param app, for example, live
 * @param port, for example, 19350
 *       default to 1935 if not specified.
+* param param, for example, vhost=vhost.ossrs.net
 */
 extern void srs_discovery_tc_url(
     std::string tcUrl, 
     std::string& schema, std::string& host, std::string& vhost, 
-    std::string& app, std::string& port
+    std::string& app, std::string& port, std::string& param
 );
 
 /**
 * resolve the vhost in query string
+* @pram vhost, update the vhost if query contains the vhost.
 * @param app, may contains the vhost in query string format:
 *   app?vhost=request_vhost
 *   app...vhost...request_vhost
+* @param param, the query, for example, ?vhost=xxx
 */ 
-extern void srs_vhost_resolve(std::string& vhost, std::string& app);
+extern void srs_vhost_resolve(std::string& vhost, std::string& app, std::string& param);
 
 /**
 * generate ramdom data for handshake.
@@ -72,12 +75,14 @@ extern void srs_random_generate(char* bytes, int size);
 
 /**
 * generate the tcUrl.
+* @param param, the app parameters in tcUrl. for example, ?key=xxx,vhost=xxx
 * @return the tcUrl generated from ip/vhost/app/port.
 * @remark when vhost equals to __defaultVhost__, use ip as vhost.
 * @remark ignore port if port equals to default port 1935.
 */
 extern std::string srs_generate_tc_url(
-    std::string ip, std::string vhost, std::string app, std::string port
+    std::string ip, std::string vhost, std::string app, std::string port,
+    std::string param
 );
 
 /**

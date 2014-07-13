@@ -32,7 +32,7 @@ using namespace std;
 void srs_discovery_tc_url(
     string tcUrl, 
     string& schema, string& host, string& vhost, 
-    string& app, string& port
+    string& app, string& port, std::string& param
 ) {
     size_t pos = std::string::npos;
     std::string url = tcUrl;
@@ -58,16 +58,23 @@ void srs_discovery_tc_url(
     
     app = url;
     vhost = host;
-    srs_vhost_resolve(vhost, app);
+    srs_vhost_resolve(vhost, app, param);
 }
 
-void srs_vhost_resolve(string& vhost, string& app)
+void srs_vhost_resolve(string& vhost, string& app, string& param)
 {
+    // get original param
+    size_t pos = 0;
+    if ((pos = app.find("?")) != std::string::npos) {
+        param = app.substr(pos);
+    }
+    
+    // filter tcUrl
+    app = srs_string_replace(app, ",", "?");
     app = srs_string_replace(app, "...", "?");
     app = srs_string_replace(app, "&&", "?");
     app = srs_string_replace(app, "=", "?");
     
-    size_t pos = 0;
     if ((pos = app.find("?")) == std::string::npos) {
         return;
     }
@@ -106,7 +113,7 @@ void srs_random_generate(char* bytes, int size)
     }
 }
 
-string srs_generate_tc_url(string ip, string vhost, string app, string port)
+string srs_generate_tc_url(string ip, string vhost, string app, string port, string param)
 {
     string tcUrl = "rtmp://";
     
@@ -123,6 +130,7 @@ string srs_generate_tc_url(string ip, string vhost, string app, string port)
     
     tcUrl += "/";
     tcUrl += app;
+    tcUrl += param;
     
     return tcUrl;
 }
