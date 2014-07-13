@@ -65,7 +65,7 @@ int main(int argc, char** argv)
     if (argc <= 1) {
         printf("RTMP bandwidth check/test with server.\n"
             "Usage: %s <rtmp_url>\n"
-            "   rtmp_url     RTMP bandwidth url to check. format: rtmp://server:port/app?key=xxx&&vhost=xxx\n"
+            "   rtmp_url     RTMP bandwidth url to check. format: rtmp://server:port/app?key=xxx,vhost=xxx\n"
             "For example:\n"
             "   %s rtmp://127.0.0.1:1935/app?key=35c9b402c12a7246868752e2878f7e0e,vhost=bandcheck.srs.com\n"
             "   %s rtmp://127.0.0.1:1935/app?key=35c9b402c12a7246868752e2878f7e0e,vhost=bandcheck.srs.com>/dev/null\n"
