@@ -53,6 +53,7 @@ public:
     * the plan, interval for each check/test packet, in ms
     */
     int interval_ms;
+public:
     /**
     * the actual test duration, in ms.
     */
@@ -70,9 +71,11 @@ public:
     virtual ~SrsBandwidthSample();
 public:
     /**
-    * use current sample data to calc the kbps.
+    * update the bytes and actual duration, then calc the kbps.
+    * @param _bytes update the sample bytes.
+    * @param _duration update the actual duration, in ms.
     */
-    virtual void calc_kbps();
+    virtual void calc_kbps(int _bytes, int _duration);
 };
 
 /**
