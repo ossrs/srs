@@ -29,6 +29,22 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
+/**
+* the public data, event HLS disable, others can use it.
+*/
+/**
+* the flv sample rate map
+*/
+extern int flv_sample_rates[];
+
+/**
+* the aac sample rate map
+*/
+extern int aac_sample_rates[];
+
+/**
+* the HLS section, only available when HLS enabled.
+*/
 #ifdef SRS_AUTO_HLS
 
 #include <string>
@@ -46,16 +62,6 @@ class SrsRequest;
 class SrsPithyPrint;
 class SrsSource;
 class SrsFileWriter;
-
-/**
-* the flv sample rate map
-*/
-extern int flv_sample_rates[];
-
-/**
-* the aac sample rate map
-*/
-extern int aac_sample_rates[];
 
 /**
 * jitter correct for audio,

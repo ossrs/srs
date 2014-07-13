@@ -23,6 +23,28 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_hls.hpp>
 
+/**
+* the public data, event HLS disable, others can use it.
+*/
+// 0 = 5.5 kHz = 5512 Hz
+// 1 = 11 kHz = 11025 Hz
+// 2 = 22 kHz = 22050 Hz
+// 3 = 44 kHz = 44100 Hz
+int flv_sample_rates[] = {5512, 11025, 22050, 44100};
+
+// the sample rates in the codec,
+// in the sequence header.
+int aac_sample_rates[] = 
+{
+    96000, 88200, 64000, 48000,
+    44100, 32000, 24000, 22050,
+    16000, 12000, 11025,  8000,
+    7350,     0,     0,    0
+};
+
+/**
+* the HLS section, only available when HLS enabled.
+*/
 #ifdef SRS_AUTO_HLS
 
 #include <sys/types.h>
@@ -75,22 +97,6 @@ using namespace std;
 #define SRS_CONF_DEFAULT_AAC_SYNC 100
 // in ms, for HLS aac flush the audio
 #define SRS_CONF_DEFAULT_AAC_DELAY 100
-
-// 0 = 5.5 kHz = 5512 Hz
-// 1 = 11 kHz = 11025 Hz
-// 2 = 22 kHz = 22050 Hz
-// 3 = 44 kHz = 44100 Hz
-int flv_sample_rates[] = {5512, 11025, 22050, 44100};
-
-// the sample rates in the codec,
-// in the sequence header.
-int aac_sample_rates[] = 
-{
-    96000, 88200, 64000, 48000,
-    44100, 32000, 24000, 22050,
-    16000, 12000, 11025,  8000,
-    7350,     0,     0,    0
-};
 
 // @see: ngx_rtmp_mpegts_header
 u_int8_t mpegts_header[] = {
