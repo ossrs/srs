@@ -138,13 +138,21 @@ private:
     */
     virtual int do_bandwidth_check(SrsKbpsLimit* limit);
     /**
-    * play sample under specified kbps limit.
+    * play check/test, downloading bandwidth kbps.
     */
-    virtual int check_play(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
+    virtual int play_start(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
+    virtual int play_checking(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
+    virtual int play_stop(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
     /**
-    * publish sample under specified kbps limit.
+    * publish check/test, publishing bandwidth kbps.
     */
-    virtual int check_publish(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
+    virtual int publish_start(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
+    virtual int publish_checking(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
+    virtual int publish_stop(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
+    /**
+    * report and final packet
+    */
+    virtual int finial(SrsBandwidthSample& play_sample, SrsBandwidthSample& publish_sample, int64_t start_time, int64_t& end_time);
 };
 
 #endif

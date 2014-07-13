@@ -188,8 +188,16 @@ int SrsBandwidth::do_bandwidth_check(SrsKbpsLimit* limit)
     // sample play
     srs_info("start play test.");
     
-    if ((ret = check_play(&play_sample, limit)) != ERROR_SUCCESS) {
-        srs_error("band width play check failed. ret=%d", ret);
+    if ((ret = play_start(&play_sample, limit)) != ERROR_SUCCESS) {
+        srs_error("bandwidth play check failed. ret=%d", ret);
+        return ret;
+    }
+    if ((ret = play_checking(&play_sample, limit)) != ERROR_SUCCESS) {
+        srs_error("bandwidth play check failed. ret=%d", ret);
+        return ret;
+    }
+    if ((ret = play_stop(&play_sample, limit)) != ERROR_SUCCESS) {
+        srs_error("bandwidth play check failed. ret=%d", ret);
         return ret;
     }
     
@@ -198,8 +206,16 @@ int SrsBandwidth::do_bandwidth_check(SrsKbpsLimit* limit)
     // sample publish
     srs_info("start publish test.");
     
-    if ((ret = check_publish(&publish_sample, limit)) != ERROR_SUCCESS) {
-        srs_error("band width publish check failed. ret=%d", ret);
+    if ((ret = publish_start(&publish_sample, limit)) != ERROR_SUCCESS) {
+        srs_error("bandwidth publish check failed. ret=%d", ret);
+        return ret;
+    }
+    if ((ret = publish_checking(&publish_sample, limit)) != ERROR_SUCCESS) {
+        srs_error("bandwidth publish check failed. ret=%d", ret);
+        return ret;
+    }
+    if ((ret = publish_stop(&publish_sample, limit)) != ERROR_SUCCESS) {
+        srs_error("bandwidth publish check failed. ret=%d", ret);
         return ret;
     }
     
@@ -212,45 +228,19 @@ int SrsBandwidth::do_bandwidth_check(SrsKbpsLimit* limit)
         (int)(end_time - start_time), play_sample.actual_duration_ms, 
         publish_sample.actual_duration_ms, play_sample.kbps, 
         publish_sample.kbps);
-
-    // send finished msg,
-    // flash client will close connection when got this packet,
-    // for the publish queue may contains packets.
-    SrsBandwidthPacket* pkt = SrsBandwidthPacket::create_finish();
-    pkt->data->set("code",           SrsAmf0Any::number(ERROR_SUCCESS));
-    pkt->data->set("start_time",     SrsAmf0Any::number(start_time));
-    pkt->data->set("end_time",       SrsAmf0Any::number(end_time));
-    pkt->data->set("play_kbps",      SrsAmf0Any::number(play_sample.kbps));
-    pkt->data->set("publish_kbps",   SrsAmf0Any::number(publish_sample.kbps));
-    pkt->data->set("play_bytes",     SrsAmf0Any::number(play_sample.bytes));
-    pkt->data->set("publish_bytes",  SrsAmf0Any::number(publish_sample.bytes));
-    pkt->data->set("play_time",      SrsAmf0Any::number(play_sample.actual_duration_ms));
-    pkt->data->set("publish_time",   SrsAmf0Any::number(publish_sample.actual_duration_ms));
-
-    if ((ret = _rtmp->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
-        srs_error("send bandwidth check finish message failed. ret=%d", ret);
+    
+    if ((ret = finial(play_sample, publish_sample, start_time, end_time)) != ERROR_SUCCESS) {
         return ret;
     }
-    srs_info("send finish packet.");
-    
-    // we notice the result, and expect a final packet if not flash.
-    // if flash client, client will disconnect when got finish packet.
-    bool is_flash = (_req->swfUrl != "");
-    if (!is_flash) {
-        // ignore any error.
-        _srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_flash_final);
-        srs_info("BW check recv flash final response.");
-    }
-    
     srs_info("BW check finished.");
 
     return ret;
 }
 
-int SrsBandwidth::check_play(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
+int SrsBandwidth::play_start(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
 {
     int ret = ERROR_SUCCESS;
-
+    
     if (true) {
         // send start play command to client
         SrsBandwidthPacket* pkt = SrsBandwidthPacket::create_start_play();
@@ -269,6 +259,13 @@ int SrsBandwidth::check_play(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
         return ret;
     }
     srs_info("BW check recv play begin response.");
+    
+    return ret;
+}
+
+int SrsBandwidth::play_checking(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
+{
+    int ret = ERROR_SUCCESS;
 
     // send play data to client
     int size = 1024; // TODO: FIXME: magic number
@@ -301,6 +298,13 @@ int SrsBandwidth::check_play(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
     }
     sample->calc_kbps(_rtmp->get_send_bytes(), srs_get_system_time_ms() - starttime);
     srs_info("BW check send play bytes over.");
+    
+    return ret;
+}
+
+int SrsBandwidth::play_stop(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
+{
+    int ret = ERROR_SUCCESS;
 
     if (true) {
         // notify client to stop play
@@ -322,11 +326,11 @@ int SrsBandwidth::check_play(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
         return ret;
     }
     srs_info("BW check recv stop play response.");
-
+    
     return ret;
 }
 
-int SrsBandwidth::check_publish(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
+int SrsBandwidth::publish_start(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
 {
     int ret = ERROR_SUCCESS;
 
@@ -348,6 +352,13 @@ int SrsBandwidth::check_publish(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
         return ret;
     }
     srs_info("BW check recv publish begin response.");
+    
+    return ret;
+}
+
+int SrsBandwidth::publish_checking(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
+{
+    int ret = ERROR_SUCCESS;
 
     // recv publish msgs until @duration_ms ms
     int64_t starttime = srs_get_system_time_ms();
@@ -365,6 +376,13 @@ int SrsBandwidth::check_publish(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
     }
     sample->calc_kbps(_rtmp->get_recv_bytes(), srs_get_system_time_ms() - starttime);
     srs_info("BW check recv publish data over.");
+    
+    return ret;
+}
+
+int SrsBandwidth::publish_stop(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
+{
+    int ret = ERROR_SUCCESS;
 
     if (true) {
         // notify client to stop publish
@@ -393,6 +411,44 @@ int SrsBandwidth::check_publish(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
         }
         srs_info("BW check recv stop publish response.");
     }
+    
+    return ret;
+}
+
+int SrsBandwidth::finial(SrsBandwidthSample& play_sample, SrsBandwidthSample& publish_sample, int64_t start_time, int64_t& end_time)
+{
+    int ret = ERROR_SUCCESS;
+
+    // send finished msg,
+    // flash client will close connection when got this packet,
+    // for the publish queue may contains packets.
+    SrsBandwidthPacket* pkt = SrsBandwidthPacket::create_finish();
+    pkt->data->set("code",           SrsAmf0Any::number(ERROR_SUCCESS));
+    pkt->data->set("start_time",     SrsAmf0Any::number(start_time));
+    pkt->data->set("end_time",       SrsAmf0Any::number(end_time));
+    pkt->data->set("play_kbps",      SrsAmf0Any::number(play_sample.kbps));
+    pkt->data->set("publish_kbps",   SrsAmf0Any::number(publish_sample.kbps));
+    pkt->data->set("play_bytes",     SrsAmf0Any::number(play_sample.bytes));
+    pkt->data->set("publish_bytes",  SrsAmf0Any::number(publish_sample.bytes));
+    pkt->data->set("play_time",      SrsAmf0Any::number(play_sample.actual_duration_ms));
+    pkt->data->set("publish_time",   SrsAmf0Any::number(publish_sample.actual_duration_ms));
+
+    if ((ret = _rtmp->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
+        srs_error("send bandwidth check finish message failed. ret=%d", ret);
+        return ret;
+    }
+    srs_info("send finish packet.");
+    
+    // we notice the result, and expect a final packet if not flash.
+    // if flash client, client will disconnect when got finish packet.
+    bool is_flash = (_req->swfUrl != "");
+    if (!is_flash) {
+        // ignore any error.
+        _srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_flash_final);
+        srs_info("BW check recv flash final response.");
+    }
+    
+    srs_info("BW check finished.");
 
     return ret;
 }
