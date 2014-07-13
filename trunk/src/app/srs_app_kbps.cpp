@@ -28,6 +28,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_io.hpp>
 #include <srs_kernel_utility.hpp>
 
+#define _SRS_BANDWIDTH_LIMIT_INTERVAL_MS 100
+
 SrsKbpsSample::SrsKbpsSample()
 {
     bytes = time = 0;
@@ -242,5 +244,31 @@ void SrsKbps::sample()
     // resample
     is.sample();
     os.sample();
+}
+
+SrsKbpsLimit::SrsKbpsLimit(SrsKbps* kbps, int limit_kbps)
+{
+    _kbps = kbps;
+    _limit_kbps = limit_kbps;
+}
+
+SrsKbpsLimit::~SrsKbpsLimit()
+{
+}
+
+void SrsKbpsLimit::recv_limit()
+{
+    while (_kbps->get_recv_kbps() > _limit_kbps) {
+        _kbps->sample();
+        st_usleep(_SRS_BANDWIDTH_LIMIT_INTERVAL_MS * 1000);
+    }
+}
+
+void SrsKbpsLimit::send_limit()
+{
+    while (_kbps->get_send_kbps() > _limit_kbps) {
+        _kbps->sample();
+        st_usleep(_SRS_BANDWIDTH_LIMIT_INTERVAL_MS * 1000);
+    }
 }
 

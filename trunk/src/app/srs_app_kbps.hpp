@@ -198,4 +198,26 @@ public:
     virtual void sample();
 };
 
+/**
+* the kbps limit, if exceed the kbps, slow down.
+*/
+class SrsKbpsLimit
+{
+private:
+    int _limit_kbps;
+    SrsKbps* _kbps;
+public:
+    SrsKbpsLimit(SrsKbps* kbps, int limit_kbps);
+    virtual ~SrsKbpsLimit();
+public:
+    /**
+    * limit the recv bandwidth.
+    */
+    virtual void recv_limit();
+    /**
+    * limit the send bandwidth.
+    */
+    virtual void send_limit();
+};
+
 #endif

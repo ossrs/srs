@@ -216,7 +216,7 @@ int SrsRtmpConn::service_cycle()
     
     // do bandwidth test if connect to the vhost which is for bandwidth check.
     if (_srs_config->get_bw_check_enabled(req->vhost)) {
-        return bandwidth->bandwidth_check(rtmp, req, local_ip);
+        return bandwidth->bandwidth_check(rtmp, io, req, local_ip);
     }
     
     if ((ret = rtmp->response_connect_app(req, local_ip.c_str())) != ERROR_SUCCESS) {

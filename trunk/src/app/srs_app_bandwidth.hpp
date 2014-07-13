@@ -35,6 +35,36 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsRequest;
 class SrsRtmpServer;
+class SrsKbpsLimit;
+class ISrsProtocolStatistic;
+
+/**
+* bandwidth check/test sample.
+*/
+class SrsBandwidthSample
+{
+public:
+    /**
+    * the plan, how long to do the test, in ms,
+    * if exceed the duration, abort the test.
+    */
+    int duration_ms;
+    /**
+    * the plan, interval for each check/test packet, in ms
+    */
+    int interval_ms;
+    /**
+    * the actual test duration, in ms.
+    */
+    int actual_duration_ms;
+    /**
+    * the actual test bytes
+    */
+    int bytes;
+public:
+    SrsBandwidthSample();
+    virtual ~SrsBandwidthSample();
+};
 
 /**
 * bandwidth test agent which provides the interfaces for bandwidth check.
@@ -84,15 +114,17 @@ public:
     /**
     * do the bandwidth check.
     * @param rtmp, server RTMP protocol object, send/recv RTMP packet to/from client.
+    * @param io_stat, the underlayer io statistic, provides send/recv bytes count.
     * @param req, client request object, specifies the request info from client.
     * @param local_ip, the ip of server which client connected at
     */
-    virtual int bandwidth_check(SrsRtmpServer* rtmp, SrsRequest* req, std::string local_ip);
+    virtual int bandwidth_check(SrsRtmpServer* rtmp, ISrsProtocolStatistic* io_stat, SrsRequest* req, std::string local_ip);
 private:
     /**
     * used to process band width check from client.
+    * @param limit, the bandwidth limit object, to slowdown if exceed the kbps.
     */
-    virtual int do_bandwidth_check();
+    virtual int do_bandwidth_check(SrsKbpsLimit* limit);
     virtual int check_play(int duration_ms, int interval_ms, int& actual_duration_ms, int& play_bytes, int max_play_kbps);
     virtual int check_publish(int duration_ms, int interval_ms, int& actual_duration_ms, int& publish_bytes, int max_pub_kbps);
 };

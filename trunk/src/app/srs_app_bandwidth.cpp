@@ -36,6 +36,17 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_app_kbps.hpp>
+
+SrsBandwidthSample::SrsBandwidthSample()
+{
+    duration_ms = 3000;
+    interval_ms = actual_duration_ms = bytes = 0;
+}
+
+SrsBandwidthSample::~SrsBandwidthSample()
+{
+}
 
 SrsBandwidth::SrsBandwidth()
 {
@@ -47,7 +58,7 @@ SrsBandwidth::~SrsBandwidth()
 {
 }
 
-int SrsBandwidth::bandwidth_check(SrsRtmpServer* rtmp, SrsRequest* req, string local_ip)
+int SrsBandwidth::bandwidth_check(SrsRtmpServer* rtmp, ISrsProtocolStatistic* io_stat, SrsRequest* req, string local_ip)
 {
     int ret = ERROR_SUCCESS;
     
@@ -68,7 +79,7 @@ int SrsBandwidth::bandwidth_check(SrsRtmpServer* rtmp, SrsRequest* req, string l
     }
     
     // shared global last check time,
-    // to avoid attach by bandwidth check,
+    // to prevent bandwidth check attack,
     // if client request check in the window(specifeid by interval),
     // directly reject the request.
     static int64_t last_check_time = 0;
@@ -93,25 +104,23 @@ int SrsBandwidth::bandwidth_check(SrsRtmpServer* rtmp, SrsRequest* req, string l
         srs_error("response connect app failed. ret=%d", ret);
         return ret;
     }
+    
+    // create a limit object.
+    SrsKbps kbps;
+    kbps.set_io(io_stat, io_stat);
 
-    return do_bandwidth_check();
+    int limit_kbps = _srs_config->get_bw_check_limit_kbps(_req->vhost);
+    SrsKbpsLimit limit(&kbps, limit_kbps);
+    
+    return do_bandwidth_check(&limit);
 }
 
-int SrsBandwidth::do_bandwidth_check()
+int SrsBandwidth::do_bandwidth_check(SrsKbpsLimit* limit)
 {
     int ret = ERROR_SUCCESS;
 
-    int play_duration_ms        = 3000;
-    int play_interval_ms        = 0;
-    int play_actual_duration_ms = 0;
-    int play_bytes              = 0;
-
-    int publish_duration_ms        = 3000;
-    int publish_interval_ms        = 0;
-    int publish_actual_duration_ms = 0;
-    int publish_bytes              = 0;
-    
-    int limit_kbps = _srs_config->get_bw_check_limit_kbps(_req->vhost);
+    SrsBandwidthSample play_sample;
+    SrsBandwidthSample publish_sample;
 
     int64_t start_time = srs_get_system_time_ms();
     
