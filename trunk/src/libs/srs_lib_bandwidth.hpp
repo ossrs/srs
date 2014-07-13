@@ -73,11 +73,11 @@ private:
     */
     virtual int play_start();
     virtual int play_checking();
-    virtual int play_stop(int& duration_delta, int& bytes_delta);
+    virtual int play_stop();
     /**
     * publish check/test, publishing bandwidth kbps.
     */
-    virtual int publish_start(int& duration_ms);
+    virtual int publish_start(int& duration_ms, int& play_kbps);
     virtual int publish_checking(int duration_ms, int play_kbps);
     virtual int publish_stop();
     /**

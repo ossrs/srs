@@ -130,29 +130,20 @@ int SrsBandwidthClient::bandwidth_check(
     *start_time = srs_get_system_time_ms();
     
     // play
-    int duration_delta = 0;
-    int bytes_delta = 0;
     if ((ret = play_start()) != ERROR_SUCCESS) {
         return ret;
     }
     if ((ret = play_checking()) != ERROR_SUCCESS) {
         return ret;
     }
-    if ((ret = play_stop(duration_delta, bytes_delta)) != ERROR_SUCCESS) {
+    if ((ret = play_stop()) != ERROR_SUCCESS) {
         return ret;
     }
     
-    // play kbps used to refer for publish
-    int actual_play_kbps = 0;
-    if (duration_delta > 0) {
-        actual_play_kbps = bytes_delta * 8 / duration_delta;
-    }
-    // max publish kbps, we set to 1.2*play_kbps:
-    actual_play_kbps = (int)(actual_play_kbps * 1.2);
-    
     // publish
     int duration_ms = 0;
-    if ((ret = publish_start(duration_ms)) != ERROR_SUCCESS) {
+    int actual_play_kbps = 0;
+    if ((ret = publish_start(duration_ms, actual_play_kbps)) != ERROR_SUCCESS) {
         return ret;
     }
     if ((ret = publish_checking(duration_ms, actual_play_kbps)) != ERROR_SUCCESS) {
@@ -226,24 +217,12 @@ int SrsBandwidthClient::play_checking()
     return ret;
 }
 
-int SrsBandwidthClient::play_stop(int& duration_delta, int& bytes_delta)
+int SrsBandwidthClient::play_stop()
 {
     int ret = ERROR_SUCCESS;
 
-    if (true) {
-        SrsBandwidthPacket* pkt = NULL;
-        if ((ret = _srs_expect_bandwidth_packet2(_rtmp, _bandwidth_is_stop_play, &pkt)) != ERROR_SUCCESS) {
-            return ret;
-        }
-        SrsAutoFree(SrsBandwidthPacket, pkt);
-        
-        SrsAmf0Any* prop = NULL;
-        if ((prop = pkt->data->ensure_property_number("duration_delta")) != NULL) {
-            duration_delta = (int)prop->to_number();
-        }
-        if ((prop = pkt->data->ensure_property_number("bytes_delta")) != NULL) {
-            bytes_delta = (int)prop->to_number();
-        }
+    if ((ret = _srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_stop_play)) != ERROR_SUCCESS) {
+        return ret;
     }
     srs_info("BW check recv play stop request.");
     
@@ -261,7 +240,7 @@ int SrsBandwidthClient::play_stop(int& duration_delta, int& bytes_delta)
     return ret;
 }
 
-int SrsBandwidthClient::publish_start(int& duration_ms)
+int SrsBandwidthClient::publish_start(int& duration_ms, int& play_kbps)
 {
     int ret = ERROR_SUCCESS;
 
@@ -275,6 +254,9 @@ int SrsBandwidthClient::publish_start(int& duration_ms)
         SrsAmf0Any* prop = NULL;
         if ((prop = pkt->data->ensure_property_number("duration_ms")) != NULL) {
             duration_ms = (int)prop->to_number();
+        }
+        if ((prop = pkt->data->ensure_property_number("limit_kbps")) != NULL) {
+            play_kbps = (int)prop->to_number();
         }
     }
     srs_info("BW check recv publish begin request.");

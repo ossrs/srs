@@ -211,6 +211,10 @@ public:
     virtual ~SrsKbpsLimit();
 public:
     /**
+    * get the system limit kbps.
+    */
+    virtual int limit_kbps();
+    /**
     * limit the recv bandwidth.
     */
     virtual void recv_limit();

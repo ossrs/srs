@@ -42,6 +42,9 @@ using namespace std;
 // default sample duration, in ms
 #define _SRS_BANDWIDTH_SAMPLE_DURATION_MS 3000
 
+// wait for a while for flash to got all packets.
+#define _SRS_BANDWIDTH_FINAL_WAIT_MS 600
+
 SrsBandwidthSample::SrsBandwidthSample()
 {
     duration_ms = _SRS_BANDWIDTH_SAMPLE_DURATION_MS;
@@ -241,6 +244,8 @@ int SrsBandwidth::do_bandwidth_check(SrsKbpsLimit* limit)
     if ((ret = finial(play_sample, publish_sample, start_time, end_time)) != ERROR_SUCCESS) {
         return ret;
     }
+    
+    st_usleep(_SRS_BANDWIDTH_FINAL_WAIT_MS * 1000);
     srs_info("BW check finished.");
 
     return ret;
@@ -254,6 +259,7 @@ int SrsBandwidth::play_start(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
         // send start play command to client
         SrsBandwidthPacket* pkt = SrsBandwidthPacket::create_start_play();
     
+        pkt->data->set("limit_kbps", SrsAmf0Any::number(limit->limit_kbps()));
         pkt->data->set("duration_ms", SrsAmf0Any::number(sample->duration_ms));
         pkt->data->set("interval_ms", SrsAmf0Any::number(sample->interval_ms));
     
@@ -349,6 +355,7 @@ int SrsBandwidth::publish_start(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
         // notify client to start publish
         SrsBandwidthPacket* pkt = SrsBandwidthPacket::create_start_publish();
     
+        pkt->data->set("limit_kbps", SrsAmf0Any::number(limit->limit_kbps()));
         pkt->data->set("duration_ms", SrsAmf0Any::number(sample->duration_ms));
         pkt->data->set("interval_ms", SrsAmf0Any::number(sample->interval_ms));
     

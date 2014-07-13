@@ -394,7 +394,27 @@ package
         private function publisher():void{
             var data:Array = new Array();
             
-            var data_size:int = 100;
+            /**
+            * the data size cannot too large, it will increase the test time.
+            * server need atleast got one packet, then timeout to stop the publish.
+            * 
+            * cannot too small neither, it will limit the max publish kbps.
+            * 
+            * the test values:
+            *                                               test_s             test_s
+            *       data_size        max_publish_kbps       (no limit)      (limit upload to 5KBps)
+            *       100                 2116                  6.5               7.3
+            *       200                 4071                  6.5               7.7
+            *       300                 6438                  6.5               10.3
+            *       400                 9328                  6.5               10.2
+            *       500                 10377                 6.5               10.0
+            *       600                 13737                 6.5               10.8
+            *       700                 15635                 6.5               12.0
+            *       800                 18103                 6.5               14.0
+            *       900                 20484                 6.5               14.2
+            *       1000                21447                 6.5               16.8
+            */
+            var data_size:int = 900;
             for(var i:int; i < data_size; i++) {
                 data.push("SrS band check data from client's publishing......");
             }

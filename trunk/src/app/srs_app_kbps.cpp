@@ -257,6 +257,11 @@ SrsKbpsLimit::~SrsKbpsLimit()
 {
 }
 
+int SrsKbpsLimit::limit_kbps()
+{
+    return _limit_kbps;
+}
+
 void SrsKbpsLimit::recv_limit()
 {
     _kbps->sample();
