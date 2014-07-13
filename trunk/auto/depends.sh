@@ -571,6 +571,10 @@ if [ $SRS_RESEARCH = YES ]; then
 
     (cd research/ffempty && make ${SRS_JOBS} && mv ffempty ../../${SRS_OBJS}/research)
     ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/ffempty failed, ret=$ret"; exit $ret; fi
+    
+    # librtmp
+    (cd research/librtmp && mkdir -p objs && ln -sf `pwd`/objs ../../${SRS_OBJS}/research/librtmp)
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "link research/librtmp failed, ret=$ret"; exit $ret; fi
 fi
 
 #####################################################################################

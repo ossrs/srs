@@ -157,7 +157,7 @@ echo -e "     |     ${SrsGprofSummaryColor}rm -f gmon.out; ./objs/srs -c conf/sr
 echo -e "     |     ${SrsGprofSummaryColor}killall -2 srs # or CTRL+C to stop gprof\${BLACK}"
 echo -e "     |     ${SrsGprofSummaryColor}gprof -b ./objs/srs gmon.out > gprof.srs.log && rm -f gmon.out # gprof report to gprof.srs.log\${BLACK}"
 echo -e "     \${BLACK}+------------------------------------------------------------------------------------\${BLACK}"
-echo -e "     |${SrsResearchSummaryColor}research: ./objs/research, api server, players, ts info.\${BLACK}"
+echo -e "     |${SrsResearchSummaryColor}research: ./objs/research, api server, players, ts info, librtmp.\${BLACK}"
 echo -e "     \${BLACK}+------------------------------------------------------------------------------------\${BLACK}"
 echo -e "     |${SrsBWTCSummaryColor}bandwidth: ./objs/bandwidth, the bandwidth test client\${BLACK}"
 echo -e "     \${BLACK}+------------------------------------------------------------------------------------\${BLACK}"
@@ -176,10 +176,12 @@ echo -e "     |     ${SrsDvrSummaryColor}dvr @see: https://github.com/winlinvip/
 echo -e "     |     ${SrsDvrSummaryColor}dvr: record RTMP stream to flv files.\${BLACK}"
 echo -e "     |     ${SrsNginxSummaryColor}nginx @see: https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS\${BLACK}"
 echo -e "     |     ${SrsNginxSummaryColor}nginx: delivery HLS stream by nginx\${BLACK}"
+echo -e "     |     ${SrsNginxSummaryColor}nginx: sudo ./objs/nginx/sbin/nginx\${BLACK}"
 echo -e "     |     ${SrsSslSummaryColor}ssl @see: https://github.com/winlinvip/simple-rtmp-server/wiki/RTMPHandshake\${BLACK}"
 echo -e "     |     ${SrsSslSummaryColor}ssl: support RTMP complex handshake for client required, for instance, flash\${BLACK}"
 echo -e "     |     ${SrsFfmpegSummaryColor}ffmpeg @see: https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG\${BLACK}"
 echo -e "     |     ${SrsFfmpegSummaryColor}ffmpeg: transcode, mux, ingest tool\${BLACK}"
+echo -e "     |     ${SrsFfmpegSummaryColor}ffmpeg: ./objs/ffmpeg/bin/ffmpeg\${BLACK}"
 echo -e "     |     ${SrsTranscodeSummaryColor}transcode @see: https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG\${BLACK}"
 echo -e "     |     ${SrsTranscodeSummaryColor}transcode: support transcoding RTMP stream\${BLACK}"
 echo -e "     |     ${SrsIngestSummaryColor}ingest @see: https://github.com/winlinvip/simple-rtmp-server/wiki/Ingest\${BLACK}"
@@ -192,6 +194,10 @@ echo -e "     |     ${SrsHttpApiSummaryColor}http-api @see: https://github.com/w
 echo -e "     |     ${SrsHttpApiSummaryColor}http-api: support http api to manage server\${BLACK}"
 echo -e "     \${BLACK}+------------------------------------------------------------------------------------\${BLACK}"
 echo -e "\${GREEN}binaries @see: https://github.com/winlinvip/simple-rtmp-server/wiki/Build\${BLACK}"
+
+echo "you can:"
+echo "      ./objs/srs -c conf/srs.conf"
+echo "                  to start the srs server, with config file."
 END
 
 #####################################################################################
@@ -651,12 +657,9 @@ fi
 #####################################################################################
 ip=`ifconfig|grep "inet addr"| grep -v "127.0.0.1"|awk '{print $2}'|awk -F ':' 'NR==1 {print $2}'`
 echo ""
-echo "you can:"
-echo "\" make \" to build the srs(simple rtmp server)."
-echo "\" make help \" to get the usage of make"
+echo "to run 3rdparty application:"
 if [ $SRS_NGINX = YES ]; then
     echo "\" sudo ./objs/nginx/sbin/nginx  \" to start the nginx http server for hls"
-    echo "\" http://$ip \" rtmp players(OSMF/JWPlayer)"
 fi
 if [ $SRS_FFMPEG_TOOL = YES ]; then
     echo -e "\" ./objs/ffmpeg/bin/ffmpeg  \" is used for live stream transcoding"
@@ -664,5 +667,7 @@ fi
 if [ $SRS_HTTP_CALLBACK = YES ]; then
     echo -e "\" python ./research/api-server/server.py 8085  \" to start the api-server"
 fi
-echo "\" ./objs/srs -c conf/srs.conf \" to start the srs live server"
-echo "\" ./objs/srs.test \" to test srs"
+echo ""
+echo "to build:"
+echo "\" make \" to build the srs(simple rtmp server)."
+echo "\" make help \" to get the usage of make"

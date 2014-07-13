@@ -11,3 +11,16 @@
 *.lai
 *.la
 *.a
+
+# by winlin
+*.pyc
+*.swp
+/trunk/Makefile
+/trunk/objs
+/trunk/research/librtmp/objs
+/trunk/3rdparty/ccache/ccache-3.1.9
+/trunk/3rdparty/gprof/graphviz-2.36.0
+/trunk/research/api-server/static-dir/crossdomain.xml
+/trunk/research/api-server/static-dir/forward
+/trunk/research/api-server/static-dir/live
+/trunk/research/api-server/static-dir/players

@@ -42,7 +42,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 extern "C"{
 #endif
 
-// the output handler.
+// the RTMP handler.
 typedef void* srs_rtmp_t;
 
 /**
