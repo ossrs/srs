@@ -140,7 +140,7 @@ Options:
   --without-arm-ubuntu12    do not build srs on ubuntu12 for armhf(v7cpu).
                           
   --prefix=<path>           the absolute install path for srs.
-  --static                  whether add '-static' to link options. always set this option for arm.
+  --static                  whether add '-static' to link options.
   --jobs[=N]                Allow N jobs at once; infinite jobs with no arg.
                             used for make in the configure, for example, to make ffmpeg.
 
