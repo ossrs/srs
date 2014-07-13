@@ -1,7 +1,6 @@
 file
 	main readonly separator,
 	..\main\srs_main_server.cpp,
-	..\main\srs_main_bandcheck.cpp,
 	auto readonly separator,
 	..\..\objs\srs_auto_headers.hpp,
 	libs readonly separator,

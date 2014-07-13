@@ -436,8 +436,6 @@ int SrsRtmpClient::complex_handshake()
 
 int SrsRtmpClient::connect_app(string app, string tc_url, SrsRequest* req)
 {
-    int ret = ERROR_SUCCESS;
-    
     std::string srs_server_ip;
     std::string srs_server;
     std::string srs_primary_authors;
