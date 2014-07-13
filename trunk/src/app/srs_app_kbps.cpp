@@ -259,16 +259,22 @@ SrsKbpsLimit::~SrsKbpsLimit()
 
 void SrsKbpsLimit::recv_limit()
 {
+    _kbps->sample();
+    
     while (_kbps->get_recv_kbps() > _limit_kbps) {
         _kbps->sample();
+        
         st_usleep(_SRS_BANDWIDTH_LIMIT_INTERVAL_MS * 1000);
     }
 }
 
 void SrsKbpsLimit::send_limit()
 {
+    _kbps->sample();
+    
     while (_kbps->get_send_kbps() > _limit_kbps) {
         _kbps->sample();
+        
         st_usleep(_SRS_BANDWIDTH_LIMIT_INTERVAL_MS * 1000);
     }
 }

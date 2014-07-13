@@ -63,6 +63,52 @@ void SrsBandwidthSample::calc_kbps(int _bytes, int _duration)
     kbps = bytes * 8 / actual_duration_ms;
 }
 
+/**
+* recv bandwidth helper.
+*/
+typedef bool (*_CheckPacketType)(SrsBandwidthPacket* pkt);
+bool _bandwidth_is_flash_final(SrsBandwidthPacket* pkt)
+{
+    return pkt->is_flash_final();
+}
+bool _bandwidth_is_starting_play(SrsBandwidthPacket* pkt)
+{
+    return pkt->is_starting_play();
+}
+bool _bandwidth_is_stopped_play(SrsBandwidthPacket* pkt)
+{
+    return pkt->is_stopped_play();
+}
+bool _bandwidth_is_starting_publish(SrsBandwidthPacket* pkt)
+{
+    return pkt->is_starting_publish();
+}
+bool _bandwidth_is_stopped_publish(SrsBandwidthPacket* pkt)
+{
+    return pkt->is_stopped_publish();
+}
+int _srs_expect_bandwidth_packet(SrsRtmpServer* rtmp, _CheckPacketType pfn)
+{
+    int ret = ERROR_SUCCESS;
+    
+    while (true) {
+        SrsMessage* msg = NULL;
+        SrsBandwidthPacket* pkt = NULL;
+        if ((ret = rtmp->expect_message<SrsBandwidthPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        SrsAutoFree(SrsMessage, msg);
+        SrsAutoFree(SrsBandwidthPacket, pkt);
+        srs_info("get final message success.");
+        
+        if (pfn(pkt)) {
+            return ret;
+        }
+    }
+    
+    return ret;
+}
+
 SrsBandwidth::SrsBandwidth()
 {
     _req = NULL;
@@ -190,22 +236,10 @@ int SrsBandwidth::do_bandwidth_check(SrsKbpsLimit* limit)
     // we notice the result, and expect a final packet if not flash.
     // if flash client, client will disconnect when got finish packet.
     bool is_flash = (_req->swfUrl != "");
-    while (!is_flash) {
-        SrsMessage* msg = NULL;
-        SrsBandwidthPacket* pkt = NULL;
-        if ((ret = _rtmp->expect_message<SrsBandwidthPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
-            // info level to ignore and return success.
-            srs_info("expect final message failed. ret=%d", ret);
-            return ERROR_SUCCESS;
-        }
-        SrsAutoFree(SrsMessage, msg);
-        SrsAutoFree(SrsBandwidthPacket, pkt);
-        srs_info("get final message success.");
-        
-        if (pkt->is_flash_final()) {
-            srs_info("BW check recv flash final response.");
-            break;
-        }
+    if (!is_flash) {
+        // ignore any error.
+        _srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_flash_final);
+        srs_info("BW check recv flash final response.");
     }
     
     srs_info("BW check finished.");
@@ -231,21 +265,8 @@ int SrsBandwidth::check_play(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
     }
     srs_info("BW check begin.");
 
-    while (true) {
-        // recv client's starting play response
-        SrsMessage* msg = NULL;
-        SrsBandwidthPacket* pkt = NULL;
-        if ((ret = _rtmp->expect_message<SrsBandwidthPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
-            srs_error("expect bandwidth message failed. ret=%d", ret);
-            return ret;
-        }
-        SrsAutoFree(SrsMessage, msg);
-        SrsAutoFree(SrsBandwidthPacket, pkt);
-        srs_info("get bandwidth message succes.");
-        
-        if (pkt->is_starting_play()) {
-            break;
-        }
+    if ((ret = _srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_starting_play)) != ERROR_SUCCESS) {
+        return ret;
     }
     srs_info("BW check recv play begin response.");
 
@@ -297,21 +318,8 @@ int SrsBandwidth::check_play(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
     }
     srs_info("BW check stop play bytes.");
 
-    while (true) {
-        // recv client's stop play response.
-        SrsMessage* msg = NULL;
-        SrsBandwidthPacket* pkt = NULL;
-        if ((ret = _rtmp->expect_message<SrsBandwidthPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
-            srs_error("expect bandwidth message failed. ret=%d", ret);
-            return ret;
-        }
-        SrsAutoFree(SrsMessage, msg);
-        SrsAutoFree(SrsBandwidthPacket, pkt);
-        srs_info("get bandwidth message succes.");
-        
-        if (pkt->is_stopped_play()) {
-            break;
-        }
+    if ((ret = _srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_stopped_play)) != ERROR_SUCCESS) {
+        return ret;
     }
     srs_info("BW check recv stop play response.");
 
@@ -336,21 +344,8 @@ int SrsBandwidth::check_publish(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
     }
     srs_info("BW check publish begin.");
 
-    while (true) {
-        // read client's notification of starting publish
-        SrsMessage* msg = NULL;
-        SrsBandwidthPacket* pkt = NULL;
-        if ((ret = _rtmp->expect_message<SrsBandwidthPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
-            srs_error("expect bandwidth message failed. ret=%d", ret);
-            return ret;
-        }
-        SrsAutoFree(SrsMessage, msg);
-        SrsAutoFree(SrsBandwidthPacket, pkt);
-        srs_info("get bandwidth message succes.");
-        
-        if (pkt->is_starting_publish()) {
-            break;
-        }
+    if ((ret = _srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_starting_publish)) != ERROR_SUCCESS) {
+        return ret;
     }
     srs_info("BW check recv publish begin response.");
 
@@ -392,23 +387,12 @@ int SrsBandwidth::check_publish(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
     // there are many many packets in the queue.
     // we just ignore the packet and send the bandwidth test data.
     bool is_flash = (_req->swfUrl != "");
-    while (!is_flash) {
-        // recv client's stop publish response.
-        SrsMessage* msg = NULL;
-        SrsBandwidthPacket* pkt = NULL;
-        if ((ret = _rtmp->expect_message<SrsBandwidthPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
-            srs_error("expect bandwidth message failed. ret=%d", ret);
+    if (!is_flash) {
+        if ((ret = _srs_expect_bandwidth_packet(_rtmp, _bandwidth_is_stopped_publish)) != ERROR_SUCCESS) {
             return ret;
         }
-        SrsAutoFree(SrsMessage, msg);
-        SrsAutoFree(SrsBandwidthPacket, pkt);
-        srs_info("get bandwidth message succes.");
-        
-        if (pkt->is_stopped_publish()) {
-            break;
-        }
+        srs_info("BW check recv stop publish response.");
     }
-    srs_info("BW check recv stop publish response.");
 
     return ret;
 }
