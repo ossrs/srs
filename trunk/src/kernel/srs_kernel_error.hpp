@@ -86,6 +86,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_RTMP_EDGE_RELOAD              323
 // aggregate message parse failed.
 #define ERROR_RTMP_AGGREGATE                324
+#define ERROR_RTMP_BWTC_DATA                325
 
 #define ERROR_SYSTEM_PACKET_INVALID         401
 #define ERROR_SYSTEM_CLIENT_INVALID         402

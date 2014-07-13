@@ -40,16 +40,27 @@ int main(int argc, char** argv)
     char* data;
     
     // srs debug info.
+    char srs_server_ip[128];
     char srs_server[128];
     char srs_primary_authors[128];
-    char srs_id[64];
-    char srs_pid[64];
-    char srs_server_ip[128];
+    char srs_version[32];
+    int srs_id = 0;
+    int srs_pid = 0;
     // bandwidth test data.
-    int64_t start_time, end_time;
-    int play_kbps, publish_kbps;
-    int play_bytes, publish_bytes;
-    int play_duration, publish_duration;
+    int64_t start_time = 0;
+    int64_t end_time = 0;
+    int play_kbps = 0;
+    int publish_kbps = 0;
+    int play_bytes = 0;
+    int publish_bytes = 0;
+    int play_duration = 0;
+    int publish_duration = 0;
+    
+    // set to zero.
+    srs_server_ip[0] = 0;
+    srs_server[0] = 0;
+    srs_primary_authors[0] = 0;
+    srs_version[0] = 0;
     
     if (argc <= 1) {
         printf("RTMP bandwidth check/test with server.\n"
@@ -57,8 +68,9 @@ int main(int argc, char** argv)
             "   rtmp_url     RTMP bandwidth url to check. format: rtmp://server:port/app?key=xxx&&vhost=xxx\n"
             "For example:\n"
             "   %s rtmp://127.0.0.1:1935/app?key=35c9b402c12a7246868752e2878f7e0e,vhost=bandcheck.srs.com\n"
+            "   %s rtmp://127.0.0.1:1935/app?key=35c9b402c12a7246868752e2878f7e0e,vhost=bandcheck.srs.com>/dev/null\n"
             "@remark, output text to stdout, while json to stderr.\n",
-            argv[0], argv[0]);
+            argv[0], argv[0], argv[0]);
         ret = 1;
         exit(ret);
         return ret;
@@ -77,15 +89,14 @@ int main(int argc, char** argv)
     }
     printf("simple handshake success\n");
     
-    if ((ret = srs_connect_app(rtmp)) != 0) {
+    if ((ret = srs_connect_app2(rtmp, 
+        srs_server_ip, srs_server, srs_primary_authors, srs_version, &srs_id, &srs_pid)) != 0) {
         printf("connect vhost/app failed.\n");
         goto rtmp_destroy;
     }
     printf("connect vhost/app success\n");
     
     if ((ret = srs_bandwidth_check(rtmp, 
-        srs_server, srs_primary_authors, 
-        srs_id, srs_pid, srs_server_ip,
         &start_time, &end_time, &play_kbps, &publish_kbps,
         &play_bytes, &publish_bytes, &play_duration, &publish_duration)) != 0
     ) {
@@ -95,12 +106,12 @@ int main(int argc, char** argv)
     printf("bandwidth check/test success\n");
     
     printf("\n%s, %s\n"
-        "%s, srs_pid=%s, srs_id=%s\n"
+        "%s, %s, srs_pid=%d, srs_id=%d\n"
         "duration: %dms(%d+%d)\n"
         "play: %dkbps\n"
         "publish: %dkbps\n\n", 
         (char*)srs_server, (char*)srs_primary_authors,
-        (char*)srs_server_ip, (char*)srs_pid, (char*)srs_id,
+        (char*)srs_server_ip, (char*)srs_version, srs_pid, srs_id,
         (int)(end_time - start_time), play_duration, publish_duration,
         play_kbps, 
         publish_kbps);
@@ -108,6 +119,24 @@ int main(int argc, char** argv)
 rtmp_destroy:
     srs_rtmp_destroy(rtmp);
     
-    printf("terminate with ret=%d\n", ret);
+    printf("terminate with ret=%d\n\n", ret);
+    
+    fprintf(stderr, "{\"code\":%d,"
+        "\"srs_server\":\"%s\", "
+        "\"srs_primary_authors\":\"%s\", "
+        "\"srs_server_ip\":\"%s\", "
+        "\"srs_version\":\"%s\", "
+        "\"srs_pid\":%d, "
+        "\"srs_id\":%d, "
+        "\"duration\":%d, "
+        "\"play_duration\":%d, "
+        "\"play_kbps\":%d, "
+        "\"publish_kbps\":%d"
+        "}",
+        ret,
+        (char*)srs_server, (char*)srs_primary_authors,
+        (char*)srs_server_ip, (char*)srs_version, srs_pid, srs_id,
+        (int)(end_time - start_time), play_duration, publish_duration,
+        play_kbps, publish_kbps);
     return ret;
 }

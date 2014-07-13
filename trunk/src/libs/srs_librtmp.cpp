@@ -260,6 +260,42 @@ int srs_connect_app(srs_rtmp_t rtmp)
     return ret;
 }
 
+int srs_connect_app2(srs_rtmp_t rtmp,
+    char srs_server_ip[128],char srs_server[128], char srs_primary_authors[128], 
+    char srs_version[32], int* srs_id, int* srs_pid
+) {
+    srs_server_ip[0] = 0;
+    srs_server[0] = 0;
+    srs_primary_authors[0] = 0;
+    srs_version[0] = 0;
+    *srs_id = 0;
+    *srs_pid = 0;
+
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(rtmp != NULL);
+    Context* context = (Context*)rtmp;
+    
+    string tcUrl = srs_generate_tc_url(
+        context->ip, context->vhost, context->app, context->port,
+        context->param
+    );
+    
+    std::string sip, sserver, sauthors, sversion;
+    
+    if ((ret = context->rtmp->connect_app2(context->app, tcUrl, NULL, 
+        sip, sserver, sauthors, sversion, *srs_id, *srs_pid)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    snprintf(srs_server_ip, 128, "%s", sip.c_str());
+    snprintf(srs_server, 128, "%s", sserver.c_str());
+    snprintf(srs_primary_authors, 128, "%s", sauthors.c_str());
+    snprintf(srs_version, 32, "%s", sversion.c_str());
+    
+    return ret;
+}
+
 int srs_play_stream(srs_rtmp_t rtmp)
 {
     int ret = ERROR_SUCCESS;
@@ -309,19 +345,11 @@ const char* srs_type2string(int type)
 }
 
 int srs_bandwidth_check(srs_rtmp_t rtmp, 
-    char srs_server[128], char srs_primary_authors[128], 
-    char srs_id[64], char srs_pid[64], char srs_server_ip[128],
     int64_t* start_time, int64_t* end_time, 
     int* play_kbps, int* publish_kbps,
     int* play_bytes, int* publish_bytes,
     int* play_duration, int* publish_duration
 ) {
-    srs_server[0] = 0;
-    srs_primary_authors[0] = 0;
-    srs_id[0] = 0;
-    srs_pid[0] = 0;
-    srs_server_ip[0] = 0;
-    
     *start_time = 0;
     *end_time = 0;
     *play_kbps = 0;
@@ -343,8 +371,6 @@ int srs_bandwidth_check(srs_rtmp_t rtmp,
     }
     
     if ((ret = client.bandwidth_check(
-        srs_server, srs_primary_authors, 
-        srs_id, srs_pid, srs_server_ip,
         start_time, end_time, play_kbps, publish_kbps,
         play_bytes, publish_bytes, play_duration, publish_duration)) != ERROR_SUCCESS
     ) {

@@ -3199,21 +3199,28 @@ int SrsBandwidthPacket::decode(SrsStream *stream)
     int ret = ERROR_SUCCESS;
 
     if ((ret = srs_amf0_read_string(stream, command_name)) != ERROR_SUCCESS) {
-        srs_error("amf0 decode play command_name failed. ret=%d", ret);
+        srs_error("amf0 decode bwtc command_name failed. ret=%d", ret);
         return ret;
     }
 
     if ((ret = srs_amf0_read_number(stream, transaction_id)) != ERROR_SUCCESS) {
-        srs_error("amf0 decode play transaction_id failed. ret=%d", ret);
+        srs_error("amf0 decode bwtc transaction_id failed. ret=%d", ret);
         return ret;
     }
 
     if ((ret = srs_amf0_read_null(stream)) != ERROR_SUCCESS) {
-        srs_error("amf0 decode play command_object failed. ret=%d", ret);
+        srs_error("amf0 decode bwtc command_object failed. ret=%d", ret);
         return ret;
     }
     
     // @remark, for bandwidth test, ignore the data field.
+    // only decode the stop-play, start-publish and finish packet.
+    if (is_stop_play() || is_start_publish() || is_finish()) {
+        if ((ret = data->read(stream)) != ERROR_SUCCESS) {
+            srs_error("amf0 decode bwtc command_object failed. ret=%d", ret);
+            return ret;
+        }
+    }
 
     srs_info("decode SrsBandwidthPacket success.");
 
@@ -3343,6 +3350,12 @@ SrsBandwidthPacket* SrsBandwidthPacket::create_stop_play()
     return pkt->set_command(SRS_BW_CHECK_STOP_PLAY);
 }
 
+SrsBandwidthPacket* SrsBandwidthPacket::create_stopped_play()
+{
+    SrsBandwidthPacket* pkt = new SrsBandwidthPacket();
+    return pkt->set_command(SRS_BW_CHECK_STOPPED_PLAY);
+}
+
 SrsBandwidthPacket* SrsBandwidthPacket::create_start_publish()
 {
     SrsBandwidthPacket* pkt = new SrsBandwidthPacket();
@@ -3365,6 +3378,12 @@ SrsBandwidthPacket* SrsBandwidthPacket::create_stop_publish()
 {
     SrsBandwidthPacket* pkt = new SrsBandwidthPacket();
     return pkt->set_command(SRS_BW_CHECK_STOP_PUBLISH);
+}
+
+SrsBandwidthPacket* SrsBandwidthPacket::create_stopped_publish()
+{
+    SrsBandwidthPacket* pkt = new SrsBandwidthPacket();
+    return pkt->set_command(SRS_BW_CHECK_STOPPED_PUBLISH);
 }
 
 SrsBandwidthPacket* SrsBandwidthPacket::create_finish()

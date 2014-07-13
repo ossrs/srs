@@ -102,7 +102,7 @@ public:
 *        |                          |
 *        |  <-call(start publish)   | onSrsBandCheckStartPublishBytes
 *        |  result(publishing)-->   | onSrsBandCheckStartingPublishBytes
-*        |  data(publishing)---->   | onSrsBandCheckStartingPublishBytes
+*        |  data(publishing)(3)->   | onSrsBandCheckStartingPublishBytes
 *        |  <--call(stop publish)   | onSrsBandCheckStopPublishBytes
 *        |  result(stopped)(1)-->   | onSrsBandCheckStoppedPublishBytes
 *        |                          |
@@ -114,6 +114,9 @@ public:
 *   for the flash client queue is fullfill with other packets.
 * 2. when flash client, server never wait the final packet,
 *   for the flash client directly close when got report packet.
+* 3. for linux client, it will send the publish data then send a stop publish,
+*   for the linux client donot know when to stop the publish.
+*   when server got publishing and stop publish, stop publish.
 */
 class SrsBandwidth
 {

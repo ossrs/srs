@@ -102,6 +102,22 @@ int __srs_do_simple_handshake(srs_rtmp_t rtmp);
 int srs_connect_app(srs_rtmp_t rtmp);
 
 /**
+* connect to server, get the debug srs info.
+* 
+* SRS debug info:
+* @param srs_server_ip, 128bytes, debug info, server ip client connected at.
+* @param srs_server, 128bytes, server info.
+* @param srs_primary_authors, 128bytes, primary authors.
+* @param srs_version, 32bytes, server version.
+* @param srs_id, int, debug info, client id in server log.
+* @param srs_pid, int, debug info, server pid in log.
+*/
+int srs_connect_app2(srs_rtmp_t rtmp,
+    char srs_server_ip[128], char srs_server[128], char srs_primary_authors[128], 
+    char srs_version[32], int* srs_id, int* srs_pid
+);
+
+/**
 * play a live/vod stream.
 * category: play
 * previous: connect-app
@@ -122,13 +138,6 @@ int srs_publish_stream(srs_rtmp_t rtmp);
 /**
 * do bandwidth check with srs server.
 * 
-* SRS debug info:
-* @param srs_server, 128bytes, server info.
-* @param srs_primary_authors, 128bytes, primary authors.
-* @param srs_id, 64bytes, debug info, client id in server log.
-* @param srs_pid, 64bytes, debug info, server pid in log.
-* @param srs_server_ip, 128bytes, debug info, server ip client connected at.
-* 
 * bandwidth info:
 * @param start_time, output the start time, in ms.
 * @param end_time, output the end time, in ms.
@@ -140,8 +149,6 @@ int srs_publish_stream(srs_rtmp_t rtmp);
 * @param publish_duration, output the publish/upload test duration, in ms.
 */
 int srs_bandwidth_check(srs_rtmp_t rtmp, 
-    char srs_server[128], char srs_primary_authors[128], 
-    char srs_id[64], char srs_pid[64], char srs_server_ip[128],
     int64_t* start_time, int64_t* end_time, 
     int* play_kbps, int* publish_kbps,
     int* play_bytes, int* publish_bytes,

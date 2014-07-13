@@ -100,7 +100,7 @@ int _srs_expect_bandwidth_packet(SrsRtmpServer* rtmp, _CheckPacketType pfn)
         }
         SrsAutoFree(SrsMessage, msg);
         SrsAutoFree(SrsBandwidthPacket, pkt);
-        srs_info("get final message success.");
+        srs_info("get bwtc message success.");
         
         if (pfn(pkt)) {
             return ret;
@@ -147,6 +147,7 @@ int SrsBandwidth::bandwidth_check(SrsRtmpServer* rtmp, ISrsProtocolStatistic* io
     static int64_t last_check_time = 0;
     int interval_ms = _srs_config->get_bw_check_interval_ms(_req->vhost);
     
+    srs_update_system_time_ms();
     int64_t time_now = srs_get_system_time_ms();
     // reject the connection in the interval window.
     if (last_check_time > 0 && time_now - last_check_time < interval_ms) {
@@ -185,10 +186,11 @@ int SrsBandwidth::do_bandwidth_check(SrsKbpsLimit* limit)
     SrsBandwidthSample publish_sample;
     
     // timeout for a packet.
-    _rtmp->set_send_timeout(play_sample.duration_ms * 1000);
-    _rtmp->set_recv_timeout(publish_sample.duration_ms * 1000);
+    _rtmp->set_send_timeout(play_sample.duration_ms * 1000 * 2);
+    _rtmp->set_recv_timeout(publish_sample.duration_ms * 1000 * 2);
 
     // start test.
+    srs_update_system_time_ms();
     int64_t start_time = srs_get_system_time_ms();
     
     // sample play
@@ -228,6 +230,7 @@ int SrsBandwidth::do_bandwidth_check(SrsKbpsLimit* limit)
     srs_info("stop publish test. kbps=%d", publish_sample.kbps);
 
     // stop test.
+    srs_update_system_time_ms();
     int64_t end_time = srs_get_system_time_ms();
 
     srs_trace("bandwidth ok. duartion=%dms(%d+%d), play=%dkbps, publish=%dkbps", 
@@ -279,6 +282,7 @@ int SrsBandwidth::play_checking(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
     memset(random_data, 'A', size);
 
     int data_count = 1;
+    srs_update_system_time_ms();
     int64_t starttime = srs_get_system_time_ms();
     while ((srs_get_system_time_ms() - starttime) < sample->duration_ms) {
         st_usleep(sample->interval_ms);
@@ -302,6 +306,7 @@ int SrsBandwidth::play_checking(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
         
         limit->send_limit();
     }
+    srs_update_system_time_ms();
     sample->calc_kbps(_rtmp->get_send_bytes(), srs_get_system_time_ms() - starttime);
     srs_info("BW check send play bytes over.");
     
@@ -367,19 +372,26 @@ int SrsBandwidth::publish_checking(SrsBandwidthSample* sample, SrsKbpsLimit* lim
     int ret = ERROR_SUCCESS;
 
     // recv publish msgs until @duration_ms ms
+    srs_update_system_time_ms();
     int64_t starttime = srs_get_system_time_ms();
     while ((srs_get_system_time_ms() - starttime) < sample->duration_ms) {
-        st_usleep(sample->interval_ms);
-        
         SrsMessage* msg = NULL;
-        if ((ret = _rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
-            srs_error("recv message failed. ret=%d", ret);
+        SrsBandwidthPacket* pkt = NULL;
+        if ((ret = _rtmp->expect_message<SrsBandwidthPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
             return ret;
         }
         SrsAutoFree(SrsMessage, msg);
+        SrsAutoFree(SrsBandwidthPacket, pkt);
+        srs_info("get publish message success.");
+        
+        // client requires to stop.
+        if (pkt->is_stop_publish()) {
+            break;
+        }
         
         limit->recv_limit();
     }
+    srs_update_system_time_ms();
     sample->calc_kbps(_rtmp->get_recv_bytes(), srs_get_system_time_ms() - starttime);
     srs_info("BW check recv publish data over.");
     

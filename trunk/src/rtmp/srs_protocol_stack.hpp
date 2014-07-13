@@ -1244,10 +1244,12 @@ public:
     static SrsBandwidthPacket* create_starting_play();
     static SrsBandwidthPacket* create_playing();
     static SrsBandwidthPacket* create_stop_play();
+    static SrsBandwidthPacket* create_stopped_play();
     static SrsBandwidthPacket* create_start_publish();
     static SrsBandwidthPacket* create_starting_publish();
     static SrsBandwidthPacket* create_publishing();
     static SrsBandwidthPacket* create_stop_publish();
+    static SrsBandwidthPacket* create_stopped_publish();
     static SrsBandwidthPacket* create_finish();
     static SrsBandwidthPacket* create_final();
 private:

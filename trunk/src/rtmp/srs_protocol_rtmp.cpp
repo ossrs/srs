@@ -438,6 +438,25 @@ int SrsRtmpClient::connect_app(string app, string tc_url, SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
     
+    std::string srs_server_ip;
+    std::string srs_server;
+    std::string srs_primary_authors;
+    std::string srs_version;
+    int srs_id = 0;
+    int srs_pid = 0;
+    
+    return connect_app2(app, tc_url, req, 
+        srs_server_ip, srs_server, srs_primary_authors, 
+        srs_version, srs_id, srs_pid);
+}
+
+int SrsRtmpClient::connect_app2(
+    string app, string tc_url, SrsRequest* req, 
+    string& srs_server_ip, string& srs_server, string& srs_primary_authors, 
+    string& srs_version, int& srs_id, int& srs_pid
+){
+    int ret = ERROR_SUCCESS;
+    
     // Connect(vhost, app)
     if (true) {
         SrsConnectAppPacket* pkt = new SrsConnectAppPacket();
@@ -492,21 +511,22 @@ int SrsRtmpClient::connect_app(string app, string tc_url, SrsRequest* req)
     SrsAutoFree(SrsConnectAppResPacket, pkt);
     
     // server info
-    std::string srs_version;
-    std::string srs_server_ip;
-    int srs_id = 0;
-    int srs_pid = 0;
-    
     SrsAmf0Any* data = pkt->info->get_property("data");
     if (data && data->is_ecma_array()) {
         SrsAmf0EcmaArray* arr = data->to_ecma_array();
         
         SrsAmf0Any* prop = NULL;
+        if ((prop = arr->ensure_property_string("srs_primary_authors")) != NULL) {
+            srs_primary_authors = prop->to_str();
+        }
         if ((prop = arr->ensure_property_string("srs_version")) != NULL) {
             srs_version = prop->to_str();
         }
         if ((prop = arr->ensure_property_string("srs_server_ip")) != NULL) {
             srs_server_ip = prop->to_str();
+        }
+        if ((prop = arr->ensure_property_string("srs_server")) != NULL) {
+            srs_server = prop->to_str();
         }
         if ((prop = arr->ensure_property_number("srs_id")) != NULL) {
             srs_id = (int)prop->to_number();

@@ -31,6 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 class SrsRtmpClient;
+class SrsBandwidthPacket;
 
 /**
 * bandwith client library for srs-librtmp.
@@ -50,13 +51,6 @@ public:
     /**
     * do bandwidth check.
     * 
-    * SRS debug info:
-    * @param srs_server, 128bytes, server info.
-    * @param srs_primary_authors, 128bytes, primary authors.
-    * @param srs_id, 64bytes, debug info, client id in server log.
-    * @param srs_pid, 64bytes, debug info, server pid in log.
-    * @param srs_server_ip, 128bytes, debug info, server ip client connected at.
-    * 
     * bandwidth info:
     * @param start_time, output the start time, in ms.
     * @param end_time, output the end time, in ms.
@@ -68,8 +62,6 @@ public:
     * @param publish_duration, output the publish/upload test duration, in ms.
     */
     virtual int bandwidth_check(
-        char srs_server[128], char srs_primary_authors[128], 
-        char srs_id[64], char srs_pid[64], char srs_server_ip[128],
         int64_t* start_time, int64_t* end_time, 
         int* play_kbps, int* publish_kbps,
         int* play_bytes, int* publish_bytes,
@@ -81,17 +73,17 @@ private:
     */
     virtual int play_start();
     virtual int play_checking();
-    virtual int play_stop();
+    virtual int play_stop(int& duration_delta, int& bytes_delta);
     /**
     * publish check/test, publishing bandwidth kbps.
     */
-    virtual int publish_start();
-    virtual int publish_checking();
+    virtual int publish_start(int& duration_ms);
+    virtual int publish_checking(int duration_ms, int play_kbps);
     virtual int publish_stop();
     /**
     * report and final packet
     */
-    virtual int finial();
+    virtual int final(SrsBandwidthPacket** ppkt);
 };
 
 #endif

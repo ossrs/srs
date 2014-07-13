@@ -249,6 +249,25 @@ public:
     */
     virtual int connect_app(std::string app, std::string tc_url, SrsRequest* req=NULL);
     /**
+    * connect to server, get the debug srs info.
+    * 
+    * @param app, the app to connect at.
+    * @param tc_url, the tcUrl to connect at.
+    * @param req, the optional req object, use the swfUrl/pageUrl if specified. NULL to ignore.
+    * 
+    * SRS debug info:
+    * @param srs_server_ip, debug info, server ip client connected at.
+    * @param srs_server, server info.
+    * @param srs_primary_authors, primary authors.
+    * @param srs_id, int, debug info, client id in server log.
+    * @param srs_pid, int, debug info, server pid in log.
+    */
+    virtual int connect_app2(
+        std::string app, std::string tc_url, SrsRequest* req, 
+        std::string& srs_server_ip, std::string& srs_server, std::string& srs_primary_authors, 
+        std::string& srs_version, int& srs_id, int& srs_pid
+    );
+    /**
     * create a stream, then play/publish data over this stream.
     */
     virtual int create_stream(int& stream_id);
