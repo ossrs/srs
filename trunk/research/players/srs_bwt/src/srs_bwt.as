@@ -1,22 +1,44 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2013-2014 winlin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
 package
-{	
-	import flash.display.LoaderInfo;
-	import flash.display.Sprite;
-	import flash.display.StageAlign;
-	import flash.display.StageScaleMode;
-	import flash.events.Event;
-	import flash.events.NetStatusEvent;
-	import flash.events.TimerEvent;
-	import flash.external.ExternalInterface;
-	import flash.net.NetConnection;
-	import flash.net.ObjectEncoding;
-	import flash.system.System;
-	import flash.ui.ContextMenu;
-	import flash.ui.ContextMenuItem;
-	import flash.utils.Timer;
-	import flash.utils.setTimeout;
-	
-	public class srs_bwt extends Sprite
+{
+    import flash.display.LoaderInfo;
+    import flash.display.Sprite;
+    import flash.display.StageAlign;
+    import flash.display.StageScaleMode;
+    import flash.events.Event;
+    import flash.events.NetStatusEvent;
+    import flash.events.TimerEvent;
+    import flash.external.ExternalInterface;
+    import flash.net.NetConnection;
+    import flash.net.ObjectEncoding;
+    import flash.system.System;
+    import flash.ui.ContextMenu;
+    import flash.ui.ContextMenuItem;
+    import flash.utils.Timer;
+    import flash.utils.setTimeout;
+    
+    public class srs_bwt extends Sprite
     {
         /**
         * the SRS bandwidth check/test library object.
@@ -27,9 +49,9 @@ package
         * when not specifies any param, directly run the swf.
         */
         private var default_url:String = "rtmp://dev:1935/app?key=35c9b402c12a7246868752e2878f7e0e&vhost=bandcheck.srs.com";
-		
-		public function srs_bwt()
-		{
+        
+        public function srs_bwt()
+        {
             if (!this.stage) {
                 this.addEventListener(Event.ADDED_TO_STAGE, this.system_on_add_to_stage);
             } else {
@@ -37,8 +59,8 @@ package
             }
         }
         private function system_on_add_to_stage(evt:Event):void {
-			this.stage.scaleMode = StageScaleMode.NO_SCALE;
-			this.stage.align = StageAlign.TOP_LEFT;
+            this.stage.scaleMode = StageScaleMode.NO_SCALE;
+            this.stage.align = StageAlign.TOP_LEFT;
             
             // init context menu
             var myMenu:ContextMenu  = new ContextMenu();
@@ -52,7 +74,7 @@ package
         private function check_bandwidth():void {
             // closure
             var self:srs_bwt = this;
-			
+            
             /////////////////////////////////////////////////////////////////////
             // initialize the bandwidth check/test library
             /////////////////////////////////////////////////////////////////////
@@ -130,18 +152,18 @@ package
             }
             contextMenu.customItems = customItems;
         }
-		public function on_status_change(code:String, data:String): void {
-			trace(code);
-			switch(code){
-				case "NetConnection.Connect.Failed":
+        public function on_status_change(code:String, data:String): void {
+            trace(code);
+            switch(code){
+                case "NetConnection.Connect.Failed":
                     trace("连接服务器失败！");
-					break;
-				case "NetConnection.Connect.Rejected":
+                    break;
+                case "NetConnection.Connect.Rejected":
                     trace("服务器拒绝连接！");
-					break;
-				case "NetConnection.Connect.Success":
+                    break;
+                case "NetConnection.Connect.Success":
                     trace("连接服务器成功!");
-					break;
+                    break;
                 case SrsBandwidth.StatusSrsBwtcPlayStart:
                     trace("开始测试下行带宽");
                     break;
@@ -154,11 +176,11 @@ package
                 case SrsBandwidth.StatusSrsBwtcPublishStop:
                     trace("上行带宽测试完毕，" + data + "kbps，");
                     break;
-				case "NetConnection.Connect.Closed":
-					trace("连接已断开!");
-					break;
-			}
-		}
+                case "NetConnection.Connect.Closed":
+                    trace("连接已断开!");
+                    break;
+            }
+        }
         private function on_complete(
             start_time:Number, end_time:Number, play_kbps:Number, publish_kbps:Number, 
             play_bytes:Number, publish_bytes:Number, play_time:Number, publish_time:Number
@@ -167,5 +189,5 @@ package
                 + " 测试时间: " + Number((end_time - start_time) / 1000).toFixed(1) + " 秒";
             trace(status);
         }
-	}
+    }
 }
