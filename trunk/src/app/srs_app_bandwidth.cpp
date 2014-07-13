@@ -38,14 +38,26 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_app_kbps.hpp>
 
+// default sample duration, in ms
+#define _SRS_BANDWIDTH_SAMPLE_DURATION_MS 3000
+
 SrsBandwidthSample::SrsBandwidthSample()
 {
-    duration_ms = 3000;
-    interval_ms = actual_duration_ms = bytes = 0;
+    duration_ms = _SRS_BANDWIDTH_SAMPLE_DURATION_MS;
+    kbps = interval_ms = actual_duration_ms = bytes = 0;
 }
 
 SrsBandwidthSample::~SrsBandwidthSample()
 {
+}
+
+void SrsBandwidthSample::calc_kbps()
+{
+    if (actual_duration_ms <= 0) {
+        return;
+    }
+    
+    kbps = bytes * 8 / actual_duration_ms;
 }
 
 SrsBandwidth::SrsBandwidth()
@@ -124,32 +136,35 @@ int SrsBandwidth::do_bandwidth_check(SrsKbpsLimit* limit)
 
     int64_t start_time = srs_get_system_time_ms();
     
+    // sample play
     srs_info("start play test.");
-    ret = check_play(play_duration_ms, 
-        play_interval_ms, play_actual_duration_ms, play_bytes, limit_kbps);
-    if (ret != ERROR_SUCCESS) {
+    
+    if ((ret = check_play(&play_sample, limit)) != ERROR_SUCCESS) {
         srs_error("band width play check failed. ret=%d", ret);
         return ret;
     }
-    srs_info("stop play test.");
     
+    play_sample.calc_kbps();
+    srs_info("stop play test. kbps=%d", play_sample.kbps);
+    
+    // sample publish
     srs_info("start publish test.");
-    ret = check_publish(publish_duration_ms, 
-        publish_interval_ms, publish_actual_duration_ms, publish_bytes, limit_kbps);
-    if (ret != ERROR_SUCCESS) {
+    
+    if ((ret = check_publish(&publish_sample, limit)) != ERROR_SUCCESS) {
         srs_error("band width publish check failed. ret=%d", ret);
         return ret;
     }
-    srs_info("stop publish test.");
+    
+    publish_sample.calc_kbps();
+    srs_info("stop publish test. kbps=%d", publish_sample.kbps);
 
+    // stop test.
     int64_t end_time = srs_get_system_time_ms();
-    int play_kbps = play_bytes * 8 / play_actual_duration_ms;
-    int publish_kbps = publish_bytes * 8 / publish_actual_duration_ms;
 
-    srs_trace("bandwidth check finished. start=%"PRId64"ms, end=%"PRId64"ms, "
-        "duartion=%dms, play=%dkbps, publish=%dkbps, tcUrl=%s, ret=%#x", 
-        start_time, end_time, (int)(end_time - start_time), play_kbps, publish_kbps, 
-        _req->tcUrl.c_str(), ret);
+    srs_trace("bandwidth ok. duartion=%dms(%d+%d), play=%dkbps, publish=%dkbps", 
+        (int)(end_time - start_time), play_sample.actual_duration_ms, 
+        publish_sample.actual_duration_ms, play_sample.kbps, 
+        publish_sample.kbps);
 
     // send finished msg,
     // flash client will close connection when got this packet,
@@ -158,12 +173,12 @@ int SrsBandwidth::do_bandwidth_check(SrsKbpsLimit* limit)
     pkt->data->set("code",           SrsAmf0Any::number(ERROR_SUCCESS));
     pkt->data->set("start_time",     SrsAmf0Any::number(start_time));
     pkt->data->set("end_time",       SrsAmf0Any::number(end_time));
-    pkt->data->set("play_kbps",      SrsAmf0Any::number(play_kbps));
-    pkt->data->set("publish_kbps",   SrsAmf0Any::number(publish_kbps));
-    pkt->data->set("play_bytes",     SrsAmf0Any::number(play_bytes));
-    pkt->data->set("play_time",      SrsAmf0Any::number(play_actual_duration_ms));
-    pkt->data->set("publish_bytes",  SrsAmf0Any::number(publish_bytes));
-    pkt->data->set("publish_time",   SrsAmf0Any::number(publish_actual_duration_ms));
+    pkt->data->set("play_kbps",      SrsAmf0Any::number(play_sample.kbps));
+    pkt->data->set("publish_kbps",   SrsAmf0Any::number(publish_sample.kbps));
+    pkt->data->set("play_bytes",     SrsAmf0Any::number(play_sample.bytes));
+    pkt->data->set("publish_bytes",  SrsAmf0Any::number(publish_sample.bytes));
+    pkt->data->set("play_time",      SrsAmf0Any::number(play_sample.actual_duration_ms));
+    pkt->data->set("publish_time",   SrsAmf0Any::number(publish_sample.actual_duration_ms));
 
     if ((ret = _rtmp->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
         srs_error("send bandwidth check finish message failed. ret=%d", ret);
@@ -197,9 +212,7 @@ int SrsBandwidth::do_bandwidth_check(SrsKbpsLimit* limit)
     return ret;
 }
 
-int SrsBandwidth::check_play(
-    int duration_ms, int interval_ms, int& actual_duration_ms,
-    int& play_bytes, int max_play_kbps)
+int SrsBandwidth::check_play(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
 {
     int ret = ERROR_SUCCESS;
 
@@ -207,8 +220,8 @@ int SrsBandwidth::check_play(
         // send start play command to client
         SrsBandwidthPacket* pkt = SrsBandwidthPacket::create_start_play();
     
-        pkt->data->set("duration_ms", SrsAmf0Any::number(duration_ms));
-        pkt->data->set("interval_ms", SrsAmf0Any::number(interval_ms));
+        pkt->data->set("duration_ms", SrsAmf0Any::number(sample->duration_ms));
+        pkt->data->set("interval_ms", SrsAmf0Any::number(sample->interval_ms));
     
         if ((ret = _rtmp->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
             srs_error("send bandwidth check start play message failed. ret=%d", ret);
@@ -319,9 +332,7 @@ int SrsBandwidth::check_play(
     return ret;
 }
 
-int SrsBandwidth::check_publish(
-    int duration_ms, int interval_ms, int& actual_duration_ms,
-    int& publish_bytes, int max_pub_kbps)
+int SrsBandwidth::check_publish(SrsBandwidthSample* sample, SrsKbpsLimit* limit)
 {
     int ret = ERROR_SUCCESS;
 

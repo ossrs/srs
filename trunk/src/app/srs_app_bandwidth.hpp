@@ -61,9 +61,18 @@ public:
     * the actual test bytes
     */
     int bytes;
+    /**
+    * the actual test kbps
+    */
+    int kbps;
 public:
     SrsBandwidthSample();
     virtual ~SrsBandwidthSample();
+public:
+    /**
+    * use current sample data to calc the kbps.
+    */
+    virtual void calc_kbps();
 };
 
 /**
@@ -125,8 +134,14 @@ private:
     * @param limit, the bandwidth limit object, to slowdown if exceed the kbps.
     */
     virtual int do_bandwidth_check(SrsKbpsLimit* limit);
-    virtual int check_play(int duration_ms, int interval_ms, int& actual_duration_ms, int& play_bytes, int max_play_kbps);
-    virtual int check_publish(int duration_ms, int interval_ms, int& actual_duration_ms, int& publish_bytes, int max_pub_kbps);
+    /**
+    * play sample under specified kbps limit.
+    */
+    virtual int check_play(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
+    /**
+    * publish sample under specified kbps limit.
+    */
+    virtual int check_publish(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
 };
 
 #endif
