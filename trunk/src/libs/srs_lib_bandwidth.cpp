@@ -23,6 +23,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_lib_bandwidth.hpp>
 
+#include <unistd.h>
+
 #include <sstream>
 using namespace std;
 
@@ -373,11 +375,8 @@ int SrsBandwidthClient::final(SrsBandwidthPacket** ppkt)
 {
     int ret = ERROR_SUCCESS;
 
-    if (true) {
-        SrsBandwidthPacket* pkt = NULL;
-        if ((ret = _srs_expect_bandwidth_packet2(_rtmp, _bandwidth_is_finish, ppkt)) != ERROR_SUCCESS) {
-            return ret;
-        }
+    if ((ret = _srs_expect_bandwidth_packet2(_rtmp, _bandwidth_is_finish, ppkt)) != ERROR_SUCCESS) {
+        return ret;
     }
     srs_info("BW check recv finish/report request.");
     
