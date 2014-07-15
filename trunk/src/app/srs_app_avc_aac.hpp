@@ -48,12 +48,12 @@ class SrsStream;
 enum SrsCodecAudioSampleRate
 {
     // set to the max value to reserved, for array map.
-    SrsCodecAudioSampleRateReserved                    = 4,
+    SrsCodecAudioSampleRateReserved                 = 4,
     
     SrsCodecAudioSampleRate5512                     = 0,
-    SrsCodecAudioSampleRate11025                     = 1,
-    SrsCodecAudioSampleRate22050                     = 2,
-    SrsCodecAudioSampleRate44100                     = 3,
+    SrsCodecAudioSampleRate11025                    = 1,
+    SrsCodecAudioSampleRate22050                    = 2,
+    SrsCodecAudioSampleRate44100                    = 3,
 };
 
 /**
@@ -67,10 +67,10 @@ enum SrsCodecAudioSampleRate
 enum SrsCodecAudioSampleSize
 {
     // set to the max value to reserved, for array map.
-    SrsCodecAudioSampleSizeReserved                    = 2,
+    SrsCodecAudioSampleSizeReserved                 = 2,
     
     SrsCodecAudioSampleSize8bit                     = 0,
-    SrsCodecAudioSampleSize16bit                     = 1,
+    SrsCodecAudioSampleSize16bit                    = 1,
 };
 
 /**
@@ -82,10 +82,10 @@ enum SrsCodecAudioSampleSize
 enum SrsCodecAudioSoundType
 {
     // set to the max value to reserved, for array map.
-    SrsCodecAudioSoundTypeReserved                    = 2, 
+    SrsCodecAudioSoundTypeReserved                  = 2, 
     
-    SrsCodecAudioSoundTypeMono                         = 0,
-    SrsCodecAudioSoundTypeStereo                     = 1,
+    SrsCodecAudioSoundTypeMono                      = 0,
+    SrsCodecAudioSoundTypeStereo                    = 1,
 };
 
 /**
@@ -134,6 +134,9 @@ public:
     int nb_sample_units;
     SrsCodecSampleUnit sample_units[SRS_MAX_CODEC_SAMPLE];
 public:
+    /**
+    * whether the sample is video sample which demux from video packet.
+    */
     bool is_video;
     /**
     * CompositionTime, video_file_format_spec_v10_1.pdf, page 78.
@@ -191,50 +194,54 @@ private:
     SrsStream* stream;
 public:
     /**
+    * metadata specified
+    */
+    int             duration;
+    int             width;
+    int             height;
+    int             frame_rate;
+    // @see: SrsCodecVideo
+    int             video_codec_id;
+    int             video_data_rate; // in bps
+    // @see: SrsCod ecAudioType
+    int             audio_codec_id;
+    int             audio_data_rate; // in bps
+public:
+    /**
     * video specified
     */
-    // @see: SrsCodecVideo
-    int            video_codec_id;
     // profile_idc, H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
-    u_int8_t    avc_profile; 
+    u_int8_t        avc_profile; 
     // level_idc, H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
-    u_int8_t    avc_level; 
-    int            width;
-    int            height;
-    int            video_data_rate; // in bps
-    int            frame_rate;
-    int            duration;
+    u_int8_t        avc_level; 
     // lengthSizeMinusOne, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
-    int8_t         NAL_unit_length;
-    u_int16_t     sequenceParameterSetLength;
-    char*         sequenceParameterSetNALUnit;
-    u_int16_t     pictureParameterSetLength;
-    char*         pictureParameterSetNALUnit;
+    int8_t          NAL_unit_length;
+    u_int16_t       sequenceParameterSetLength;
+    char*           sequenceParameterSetNALUnit;
+    u_int16_t       pictureParameterSetLength;
+    char*           pictureParameterSetNALUnit;
 public:
     /**
     * audio specified
     */
-    // @see: SrsCodecAudioType
-    int            audio_codec_id;
-    int            audio_data_rate; // in bps
     // 1.6.2.1 AudioSpecificConfig, in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 33.
     // audioObjectType, value defines in 7.1 Profiles, aac-iso-13818-7.pdf, page 40.
-    u_int8_t    aac_profile; 
+    u_int8_t        aac_profile; 
     // samplingFrequencyIndex
-    u_int8_t    aac_sample_rate;
+    u_int8_t        aac_sample_rate;
     // channelConfiguration
-    u_int8_t    aac_channels;
+    u_int8_t        aac_channels;
 public:
     // the avc extra data, the AVC sequence header,
     // without the flv codec header,
     // @see: ffmpeg, AVCodecContext::extradata
-    int         avc_extra_size;
-    char*        avc_extra_data;
+    int             avc_extra_size;
+    char*           avc_extra_data;
     // the aac extra data, the AAC sequence header,
     // without the flv codec header,
     // @see: ffmpeg, AVCodecContext::extradata
-    int         aac_extra_size;
-    char*        aac_extra_data;
+    int             aac_extra_size;
+    char*           aac_extra_data;
 public:
     SrsAvcAacCodec();
     virtual ~SrsAvcAacCodec();
