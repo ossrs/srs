@@ -89,30 +89,38 @@ enum SrsCodecAudioSoundType
 };
 
 /**
-* buffer indicates the position and size.
+* the codec sample unit.
+* for h.264 video packet, a NALU is a sample unit.
+* for aac raw audio packet, a NALU is the entire aac raw data.
+* for sequence header, it's not a sample unit.
 */
-class SrsCodecBuffer
+class SrsCodecSampleUnit
 {
 public:
     /**
-    * @remark user must manage the bytes.
+    * the sample bytes is directly ptr to packet bytes,
+    * user should never use it when packet destroyed.
     */
     int size;
     char* bytes;
 public:
-    SrsCodecBuffer();
-    void append(void* data, int len);
-public:
-    /**
-    * free the bytes, 
-    * user can invoke it to free the bytes,
-    * the SrsCodecBuffer never free automatically.
-    */
-    void free();
+    SrsCodecSampleUnit();
+    virtual ~SrsCodecSampleUnit();
 };
 
 /**
 * the samples in the flv audio/video packet.
+* the sample used to analysis a video/audio packet,
+* split the h.264 NALUs to buffers, or aac raw data to a buffer,
+* and decode the video/audio specified infos.
+* 
+* the sample unit:
+*       a video packet codec in h.264 contains many NALUs, each is a sample unit.
+*       a audio packet codec in aac is a sample unit.
+* @remark, the video/audio sequence header is not sample unit,
+*       all sequence header stores as extra data, 
+*       @see SrsAvcAacCodec.avc_extra_data and SrsAvcAacCodec.aac_extra_data
+* @remark, user must clear all samples before decode a new video/audio packet.
 */
 class SrsCodecSample
 {
@@ -123,12 +131,14 @@ public:
     * generally, aac audio packet corresponding to one buffer,
     * where avc/h264 video packet may contains multiple buffer.
     */
-    int nb_buffers;
-    SrsCodecBuffer buffers[SRS_MAX_CODEC_SAMPLE];
+    int nb_sample_units;
+    SrsCodecSampleUnit sample_units[SRS_MAX_CODEC_SAMPLE];
 public:
     bool is_video;
-    // CompositionTime, video_file_format_spec_v10_1.pdf, page 78.
-    // cts = pts - dts, where dts = flvheader->timestamp.
+    /**
+    * CompositionTime, video_file_format_spec_v10_1.pdf, page 78.
+    * cts = pts - dts, where dts = flvheader->timestamp.
+    */
     int32_t cts;
 public:
     // video specified
@@ -143,13 +153,37 @@ public:
 public:
     SrsCodecSample();
     virtual ~SrsCodecSample();
+public:
+    /**
+    * clear all samples.
+    * the sample units never copy the bytes, it directly use the ptr,
+    * so when video/audio packet is destroyed, the sample must be clear.
+    * in a word, user must clear sample before demux it.
+    * @remark demux sample use SrsAvcAacCodec.audio_aac_demux or video_avc_demux.
+    */
     void clear();
-    int add_sample(char* bytes, int size);
+    /**
+    * add the a sample unit, it's a h.264 NALU or aac raw data.
+    * the sample unit directly use the ptr of packet bytes,
+    * so user must never use sample unit when packet is destroyed.
+    * in a word, user must clear sample before demux it.
+    */
+    int add_sample_unit(char* bytes, int size);
 };
 
 /**
 * the h264/avc and aac codec, for media stream.
-* to decode the stream of avc/aac for hls.
+*
+* to demux the FLV/RTMP video/audio packet to sample,
+* add each NALUs of h.264 as a sample unit to sample,
+* while the entire aac raw data as a sample unit.
+*
+* for sequence header,
+* demux it and save it in the avc_extra_data and aac_extra_data,
+* 
+* for the codec info, such as audio sample rate,
+* decode from FLV/RTMP header, then use codec info in sequence 
+* header to override it.
 */
 class SrsAvcAacCodec
 {

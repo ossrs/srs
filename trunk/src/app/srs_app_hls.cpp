@@ -68,6 +68,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_app_avc_aac.hpp>
 #include <srs_kernel_file.hpp>
+#include <srs_kernel_buffer.hpp>
 
 // max PES packets size to flush the video.
 #define SRS_AUTO_HLS_AUDIO_CACHE_SIZE 1024 * 1024
@@ -195,16 +196,16 @@ public:
 
         return ret;
     }
-    static int write_frame(SrsFileWriter* writer, SrsMpegtsFrame* frame, SrsCodecBuffer* buffer)
+    static int write_frame(SrsFileWriter* writer, SrsMpegtsFrame* frame, SrsBuffer* buffer)
     {
         int ret = ERROR_SUCCESS;
         
-        if (!buffer->bytes || buffer->size <= 0) {
+        if (!buffer->bytes() || buffer->length() <= 0) {
             return ret;
         }
         
-        char* last = buffer->bytes + buffer->size;
-        char* pos = buffer->bytes;
+        char* last = buffer->bytes() + buffer->length();
+        char* pos = buffer->bytes();
         
         bool first = true;
         while (pos < last) {
@@ -478,7 +479,7 @@ int SrsTSMuxer::open(string _path)
     return ret;
 }
 
-int SrsTSMuxer::write_audio(SrsMpegtsFrame* af, SrsCodecBuffer* ab)
+int SrsTSMuxer::write_audio(SrsMpegtsFrame* af, SrsBuffer* ab)
 {
     int ret = ERROR_SUCCESS;
     
@@ -489,7 +490,7 @@ int SrsTSMuxer::write_audio(SrsMpegtsFrame* af, SrsCodecBuffer* ab)
     return ret;
 }
 
-int SrsTSMuxer::write_video(SrsMpegtsFrame* vf, SrsCodecBuffer* vb)
+int SrsTSMuxer::write_video(SrsMpegtsFrame* vf, SrsBuffer* vb)
 {
     int ret = ERROR_SUCCESS;
     
@@ -651,7 +652,7 @@ bool SrsHlsMuxer::is_segment_overflow()
     return current->duration >= hls_fragment;
 }
 
-int SrsHlsMuxer::flush_audio(SrsMpegtsFrame* af, SrsCodecBuffer* ab)
+int SrsHlsMuxer::flush_audio(SrsMpegtsFrame* af, SrsBuffer* ab)
 {
     int ret = ERROR_SUCCESS;
 
@@ -661,7 +662,7 @@ int SrsHlsMuxer::flush_audio(SrsMpegtsFrame* af, SrsCodecBuffer* ab)
         return ret;
     }
     
-    if (ab->size <= 0) {
+    if (ab->length() <= 0) {
         return ret;
     }
     
@@ -673,13 +674,12 @@ int SrsHlsMuxer::flush_audio(SrsMpegtsFrame* af, SrsCodecBuffer* ab)
     }
     
     // write success, clear and free the buffer
-    ab->free();
+    ab->erase(ab->length());
 
     return ret;
 }
 
-int SrsHlsMuxer::flush_video(
-    SrsMpegtsFrame* af, SrsCodecBuffer* ab, SrsMpegtsFrame* vf, SrsCodecBuffer* vb)
+int SrsHlsMuxer::flush_video(SrsMpegtsFrame* af, SrsBuffer* ab, SrsMpegtsFrame* vf, SrsBuffer* vb)
 {
     int ret = ERROR_SUCCESS;
 
@@ -699,7 +699,7 @@ int SrsHlsMuxer::flush_video(
     }
     
     // write success, clear and free the buffer
-    vb->free();
+    vb->erase(vb->length());
     
     return ret;
 }
@@ -962,8 +962,8 @@ SrsHlsCache::SrsHlsCache()
 {
     aac_jitter = new SrsHlsAacJitter();
     
-    ab = new SrsCodecBuffer();
-    vb = new SrsCodecBuffer();
+    ab = new SrsBuffer();
+    vb = new SrsBuffer();
     
     af = new SrsMpegtsFrame();
     vf = new SrsMpegtsFrame();
@@ -975,8 +975,8 @@ SrsHlsCache::~SrsHlsCache()
 {
     srs_freep(aac_jitter);
     
-    ab->free();
-    vb->free();
+    ab->erase(ab->length());
+    vb->erase(vb->length());
     
     srs_freep(ab);
     srs_freep(vb);
@@ -1051,7 +1051,7 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     int ret = ERROR_SUCCESS;
     
     // start buffer, set the af
-    if (ab->size == 0) {
+    if (ab->length() == 0) {
         pts = aac_jitter->on_buffer_start(pts, sample->sound_rate, codec->aac_sample_rate);
         
         af->dts = af->pts = audio_buffer_start_pts = pts;
@@ -1067,7 +1067,7 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     }
     
     // flush if buffer exceed max size.
-    if (ab->size > SRS_AUTO_HLS_AUDIO_CACHE_SIZE) {
+    if (ab->length() > SRS_AUTO_HLS_AUDIO_CACHE_SIZE) {
         if ((ret = muxer->flush_audio(af, ab)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -1159,11 +1159,11 @@ int SrsHlsCache::cache_audio(SrsAvcAacCodec* codec, SrsCodecSample* sample)
 {
     int ret = ERROR_SUCCESS;
     
-    for (int i = 0; i < sample->nb_buffers; i++) {
-        SrsCodecBuffer* buf = &sample->buffers[i];
-        int32_t size = buf->size;
+    for (int i = 0; i < sample->nb_sample_units; i++) {
+        SrsCodecSampleUnit* sample_unit = &sample->sample_units[i];
+        int32_t size = sample_unit->size;
         
-        if (!buf->bytes || size <= 0 || size > 0x1fff) {
+        if (!sample_unit->bytes || size <= 0 || size > 0x1fff) {
             ret = ERROR_HLS_AAC_FRAME_LENGTH;
             srs_error("invalid aac frame length=%d, ret=%d", size, ret);
             return ret;
@@ -1215,8 +1215,8 @@ int SrsHlsCache::cache_audio(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         adts_header[5] |= 0x1f;
 
         // copy to audio buffer
-        ab->append(adts_header, sizeof(adts_header));
-        ab->append(buf->bytes, buf->size);
+        ab->append((const char*)adts_header, sizeof(adts_header));
+        ab->append(sample_unit->bytes, sample_unit->size);
     }
     
     return ret;
@@ -1239,11 +1239,11 @@ int SrsHlsCache::cache_video(SrsAvcAacCodec* codec, SrsCodecSample* sample)
     *       xxxxxxx // data bytes.
     * so, for each sample, we append header in aud_nal, then appends the bytes in sample.
     */
-    for (int i = 0; i < sample->nb_buffers; i++) {
-        SrsCodecBuffer* buf = &sample->buffers[i];
-        int32_t size = buf->size;
+    for (int i = 0; i < sample->nb_sample_units; i++) {
+        SrsCodecSampleUnit* sample_unit = &sample->sample_units[i];
+        int32_t size = sample_unit->size;
         
-        if (!buf->bytes || size <= 0) {
+        if (!sample_unit->bytes || size <= 0) {
             ret = ERROR_HLS_AVC_SAMPLE_SIZE;
             srs_error("invalid avc sample length=%d, ret=%d", size, ret);
             return ret;
@@ -1259,7 +1259,7 @@ int SrsHlsCache::cache_video(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         // 5bits, 7.3.1 NAL unit syntax, 
         // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
         u_int8_t nal_unit_type;
-        nal_unit_type = *buf->bytes;
+        nal_unit_type = *sample_unit->bytes;
         nal_unit_type &= 0x1f;
         
         // @see: ngx_rtmp_hls_video
@@ -1277,7 +1277,7 @@ int SrsHlsCache::cache_video(SrsAvcAacCodec* codec, SrsCodecSample* sample)
             }
             if (nal_unit_type == 1 || nal_unit_type == 5 || nal_unit_type == 6) {
                 // for type 6, append a aud with type 9.
-                vb->append(aud_nal, sizeof(aud_nal));
+                vb->append((const char*)aud_nal, sizeof(aud_nal));
                 aud_sent = true;
             }
         }
@@ -1290,13 +1290,13 @@ int SrsHlsCache::cache_video(SrsAvcAacCodec* codec, SrsCodecSample* sample)
             // @see: ngx_rtmp_hls_append_sps_pps
             if (codec->sequenceParameterSetLength > 0) {
                 // AnnexB prefix, for sps always 4 bytes header
-                vb->append(aud_nal, 4);
+                vb->append((const char*)aud_nal, 4);
                 // sps
                 vb->append(codec->sequenceParameterSetNALUnit, codec->sequenceParameterSetLength);
             }
             if (codec->pictureParameterSetLength > 0) {
                 // AnnexB prefix, for pps always 4 bytes header
-                vb->append(aud_nal, 4);
+                vb->append((const char*)aud_nal, 4);
                 // pps
                 vb->append(codec->pictureParameterSetNALUnit, codec->pictureParameterSetLength);
             }
@@ -1318,13 +1318,13 @@ int SrsHlsCache::cache_video(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         u_int8_t* end = p + 3;
         
         // first AnnexB prefix is long (4 bytes)
-        if (vb->size == 0) {
+        if (vb->length() == 0) {
             p = aud_nal;
         }
-        vb->append(p, end - p);
+        vb->append((const char*)p, end - p);
         
         // sample data
-        vb->append(buf->bytes, buf->size);
+        vb->append(sample_unit->bytes, sample_unit->size);
     }
     
     return ret;

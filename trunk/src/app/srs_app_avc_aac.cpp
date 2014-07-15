@@ -30,26 +30,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_stream.hpp>
 
-SrsCodecBuffer::SrsCodecBuffer()
+SrsCodecSampleUnit::SrsCodecSampleUnit()
 {
     size = 0;
     bytes = NULL;
 }
 
-void SrsCodecBuffer::append(void* data, int len)
+SrsCodecSampleUnit::~SrsCodecSampleUnit()
 {
-    srs_assert(data);
-    srs_assert(len > 0);
-
-    bytes = (char*)realloc(bytes, size + len);
-    memcpy(bytes + size, data, len);
-    size += len;
-}
-
-void SrsCodecBuffer::free()
-{
-    size = 0;
-    srs_freep(bytes);
 }
 
 SrsCodecSample::SrsCodecSample()
@@ -64,7 +52,7 @@ SrsCodecSample::~SrsCodecSample()
 void SrsCodecSample::clear()
 {
     is_video = false;
-    nb_buffers = 0;
+    nb_sample_units = 0;
 
     cts = 0;
     frame_type = SrsCodecVideoAVCFrameReserved;
@@ -76,20 +64,20 @@ void SrsCodecSample::clear()
     aac_packet_type = SrsCodecAudioTypeReserved;
 }
 
-int SrsCodecSample::add_sample(char* bytes, int size)
+int SrsCodecSample::add_sample_unit(char* bytes, int size)
 {
     int ret = ERROR_SUCCESS;
     
-    if (nb_buffers >= SRS_MAX_CODEC_SAMPLE) {
+    if (nb_sample_units >= SRS_MAX_CODEC_SAMPLE) {
         ret = ERROR_HLS_DECODE_ERROR;
         srs_error("hls decode samples error, "
             "exceed the max count: %d, ret=%d", SRS_MAX_CODEC_SAMPLE, ret);
         return ret;
     }
     
-    SrsCodecBuffer* buf = &buffers[nb_buffers++];
-    buf->bytes = bytes;
-    buf->size = size;
+    SrsCodecSampleUnit* sample_unit = &sample_units[nb_sample_units++];
+    sample_unit->bytes = bytes;
+    sample_unit->size = size;
     
     return ret;
 }
@@ -239,7 +227,7 @@ int SrsAvcAacCodec::audio_aac_demux(char* data, int size, SrsCodecSample* sample
         
         // Raw AAC frame data in UI8 []
         // 6.3 Raw Data, aac-iso-13818-7.pdf, page 28
-        if ((ret = sample->add_sample(stream->data() + stream->pos(), stream->size() - stream->pos())) != ERROR_SUCCESS) {
+        if ((ret = sample->add_sample_unit(stream->data() + stream->pos(), stream->size() - stream->pos())) != ERROR_SUCCESS) {
             srs_error("hls add audio sample failed. ret=%d", ret);
             return ret;
         }
@@ -445,7 +433,7 @@ int SrsAvcAacCodec::video_avc_demux(char* data, int size, SrsCodecSample* sample
                 return ret;
             }
             // 7.3.1 NAL unit syntax, H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
-            if ((ret = sample->add_sample(stream->data() + stream->pos(), NALUnitLength)) != ERROR_SUCCESS) {
+            if ((ret = sample->add_sample_unit(stream->data() + stream->pos(), NALUnitLength)) != ERROR_SUCCESS) {
                 srs_error("hls add video sample failed. ret=%d", ret);
                 return ret;
             }
