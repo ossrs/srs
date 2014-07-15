@@ -37,11 +37,14 @@ class SrsStream;
 #define SRS_MAX_CODEC_SAMPLE 128
 #define _SRS_AAC_SAMPLE_RATE_UNSET 15
 
-// Sampling rate. The following values are defined:
-// 0 = 5.5 kHz = 5512 Hz
-// 1 = 11 kHz = 11025 Hz
-// 2 = 22 kHz = 22050 Hz
-// 3 = 44 kHz = 44100 Hz
+/**
+* the FLV/RTMP supported audio sample rate.
+* Sampling rate. The following values are defined:
+* 0 = 5.5 kHz = 5512 Hz
+* 1 = 11 kHz = 11025 Hz
+* 2 = 22 kHz = 22050 Hz
+* 3 = 44 kHz = 44100 Hz
+*/
 enum SrsCodecAudioSampleRate
 {
     // set to the max value to reserved, for array map.
@@ -53,11 +56,14 @@ enum SrsCodecAudioSampleRate
     SrsCodecAudioSampleRate44100                     = 3,
 };
 
-// Size of each audio sample. This parameter only pertains to
-// uncompressed formats. Compressed formats always decode
-// to 16 bits internally.
-// 0 = 8-bit samples
-// 1 = 16-bit samples
+/**
+* the FLV/RTMP supported audio sample size.
+* Size of each audio sample. This parameter only pertains to
+* uncompressed formats. Compressed formats always decode
+* to 16 bits internally.
+* 0 = 8-bit samples
+* 1 = 16-bit samples
+*/
 enum SrsCodecAudioSampleSize
 {
     // set to the max value to reserved, for array map.
@@ -67,9 +73,12 @@ enum SrsCodecAudioSampleSize
     SrsCodecAudioSampleSize16bit                     = 1,
 };
 
-// Mono or stereo sound
-// 0 = Mono sound
-// 1 = Stereo sound
+/**
+* the FLV/RTMP supported audio sound type/channel.
+* Mono or stereo sound
+* 0 = Mono sound
+* 1 = Stereo sound
+*/
 enum SrsCodecAudioSoundType
 {
     // set to the max value to reserved, for array map.
