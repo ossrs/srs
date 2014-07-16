@@ -33,6 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_codec.hpp>
 
 class SrsStream;
+class SrsAmf0Object;
 
 #define SRS_MAX_CODEC_SAMPLE 128
 #define _SRS_AAC_SAMPLE_RATE_UNSET 15
@@ -223,31 +224,59 @@ public:
 public:
     /**
     * audio specified
+    * 1.6.2.1 AudioSpecificConfig, in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 33.
+    * audioObjectType, value defines in 7.1 Profiles, aac-iso-13818-7.pdf, page 40.
     */
-    // 1.6.2.1 AudioSpecificConfig, in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 33.
-    // audioObjectType, value defines in 7.1 Profiles, aac-iso-13818-7.pdf, page 40.
     u_int8_t        aac_profile; 
-    // samplingFrequencyIndex
+    /**
+    * samplingFrequencyIndex
+    */
     u_int8_t        aac_sample_rate;
-    // channelConfiguration
+    /**
+    * channelConfiguration
+    */
     u_int8_t        aac_channels;
 public:
-    // the avc extra data, the AVC sequence header,
-    // without the flv codec header,
-    // @see: ffmpeg, AVCodecContext::extradata
+    /**
+    * the avc extra data, the AVC sequence header,
+    * without the flv codec header,
+    * @see: ffmpeg, AVCodecContext::extradata
+    */
     int             avc_extra_size;
     char*           avc_extra_data;
-    // the aac extra data, the AAC sequence header,
-    // without the flv codec header,
-    // @see: ffmpeg, AVCodecContext::extradata
+    /**
+    * the aac extra data, the AAC sequence header,
+    * without the flv codec header,
+    * @see: ffmpeg, AVCodecContext::extradata
+    */
     int             aac_extra_size;
     char*           aac_extra_data;
 public:
     SrsAvcAacCodec();
     virtual ~SrsAvcAacCodec();
-// the following function used for hls to build the codec info.
+// the following function used for hls to build the sample and codec.
 public:
+    /**
+    * demux the metadata, to to get the stream info,
+    * for instance, the width/height, sample rate.
+    * @param metadata, the metadata amf0 object. assert not NULL.
+    */
+    virtual int metadata_demux(SrsAmf0Object* metadata);
+    /**
+    * demux the audio packet in aac codec.
+    * the packet mux in FLV/RTMP format defined in flv specification.
+    * demux the audio speicified data(sound_format, sound_size, ...) to sample.
+    * demux the aac specified data(aac_profile, ...) to codec from sequence header.
+    * demux the aac raw to sample units.
+    */
     virtual int audio_aac_demux(char* data, int size, SrsCodecSample* sample);
+    /**
+    * demux the video packet in h.264 codec.
+    * the packet mux in FLV/RTMP format defined in flv specification.
+    * demux the video specified data(frame_type, codec_id, ...) to sample.
+    * demux the h.264 sepcified data(avc_profile, ...) to codec from sequence header.
+    * demux the h.264 NALUs to sampe units.
+    */
     virtual int video_avc_demux(char* data, int size, SrsCodecSample* sample);
 };
 

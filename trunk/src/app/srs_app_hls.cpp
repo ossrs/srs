@@ -1415,45 +1415,14 @@ int SrsHls::on_meta_data(SrsAmf0Object* metadata)
         return ret;
     }
     
-    SrsAmf0Object* obj = metadata;
-    if (obj->count() <= 0) {
+    if (metadata->count() <= 0) {
         srs_trace("no metadata persent, hls ignored it.");
         return ret;
     }
     
-    //    finger out the codec info from metadata if possible.
-    SrsAmf0Any* prop = NULL;
-
-    if ((prop = obj->get_property("duration")) != NULL && prop->is_number()) {
-        codec->duration = (int)prop->to_number();
+    if ((ret = codec->metadata_demux(metadata)) != ERROR_SUCCESS) {
+        return ret;
     }
-    if ((prop = obj->get_property("width")) != NULL && prop->is_number()) {
-        codec->width = (int)prop->to_number();
-    }
-    if ((prop = obj->get_property("height")) != NULL && prop->is_number()) {
-        codec->height = (int)prop->to_number();
-    }
-    if ((prop = obj->get_property("framerate")) != NULL && prop->is_number()) {
-        codec->frame_rate = (int)prop->to_number();
-    }
-    if ((prop = obj->get_property("videocodecid")) != NULL && prop->is_number()) {
-        codec->video_codec_id = (int)prop->to_number();
-    }
-    if ((prop = obj->get_property("videodatarate")) != NULL && prop->is_number()) {
-        codec->video_data_rate = (int)(1000 * prop->to_number());
-    }
-    
-    if ((prop = obj->get_property("audiocodecid")) != NULL && prop->is_number()) {
-        codec->audio_codec_id = (int)prop->to_number();
-    }
-    if ((prop = obj->get_property("audiodatarate")) != NULL && prop->is_number()) {
-        codec->audio_data_rate = (int)(1000 * prop->to_number());
-    }
-    
-    // ignore the following, for each flv/rtmp packet contains them:
-    // audiosamplerate, sample->sound_rate
-    // audiosamplesize, sample->sound_size
-    // stereo,             sample->sound_type
     
     return ret;
 }

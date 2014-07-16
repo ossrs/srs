@@ -29,6 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_stream.hpp>
+#include <srs_protocol_amf0.hpp>
 
 SrsCodecSampleUnit::SrsCodecSampleUnit()
 {
@@ -120,6 +121,51 @@ SrsAvcAacCodec::~SrsAvcAacCodec()
     srs_freep(pictureParameterSetNALUnit);
 }
 
+int SrsAvcAacCodec::metadata_demux(SrsAmf0Object* metadata)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(metadata);
+    
+    SrsAmf0Object* obj = metadata;
+    
+    //    finger out the codec info from metadata if possible.
+    SrsAmf0Any* prop = NULL;
+
+    if ((prop = obj->get_property("duration")) != NULL && prop->is_number()) {
+        duration = (int)prop->to_number();
+    }
+    if ((prop = obj->get_property("width")) != NULL && prop->is_number()) {
+        width = (int)prop->to_number();
+    }
+    if ((prop = obj->get_property("height")) != NULL && prop->is_number()) {
+        height = (int)prop->to_number();
+    }
+    if ((prop = obj->get_property("framerate")) != NULL && prop->is_number()) {
+        frame_rate = (int)prop->to_number();
+    }
+    if ((prop = obj->get_property("videocodecid")) != NULL && prop->is_number()) {
+        video_codec_id = (int)prop->to_number();
+    }
+    if ((prop = obj->get_property("videodatarate")) != NULL && prop->is_number()) {
+        video_data_rate = (int)(1000 * prop->to_number());
+    }
+    
+    if ((prop = obj->get_property("audiocodecid")) != NULL && prop->is_number()) {
+        audio_codec_id = (int)prop->to_number();
+    }
+    if ((prop = obj->get_property("audiodatarate")) != NULL && prop->is_number()) {
+        audio_data_rate = (int)(1000 * prop->to_number());
+    }
+    
+    // ignore the following, for each flv/rtmp packet contains them:
+    // audiosamplerate, sample->sound_rate
+    // audiosamplesize, sample->sound_size
+    // stereo,             sample->sound_type
+    
+    return ret;
+}
+
 int SrsAvcAacCodec::audio_aac_demux(char* data, int size, SrsCodecSample* sample)
 {
     int ret = ERROR_SUCCESS;
@@ -142,6 +188,7 @@ int SrsAvcAacCodec::audio_aac_demux(char* data, int size, SrsCodecSample* sample
         return ret;
     }
     
+    // @see: E.4.2 Audio Tags, video_file_format_spec_v10_1.pdf, page 76
     int8_t sound_format = stream->read_1bytes();
     
     int8_t sound_type = sound_format & 0x01;
