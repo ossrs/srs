@@ -522,21 +522,6 @@ int SrsConfig::reload()
     return ret;
 }
 
-SrsConfDirective* SrsConfig::get_or_create(SrsConfDirective* node, string name)
-{
-    srs_assert(node);
-    
-    SrsConfDirective* conf = node->get(name);
-    
-    if (!conf) {
-        conf = new SrsConfDirective();
-        conf->name = name;
-        node->directives.push_back(conf);
-    }
-    
-    return conf;
-}
-
 int SrsConfig::reload_http_api(SrsConfDirective* old_root)
 {
     int ret = ERROR_SUCCESS;

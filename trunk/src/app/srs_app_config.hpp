@@ -142,8 +142,6 @@ public:
     virtual void unsubscribe(ISrsReloadHandler* handler);
     virtual int reload();
 private:
-    virtual SrsConfDirective* get_or_create(SrsConfDirective* node, std::string name);
-private:
     virtual int reload_http_api(SrsConfDirective* old_root);
     virtual int reload_http_stream(SrsConfDirective* old_root);
     virtual int reload_vhost(SrsConfDirective* old_root);
