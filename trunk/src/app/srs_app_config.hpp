@@ -82,7 +82,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_AUTO_INGEST_TYPE_FILE "file"
 #define SRS_AUTO_INGEST_TYPE_STREAM "stream"
 
-class SrsFileBuffer;
+namespace _srs_internal
+{
+    class SrsFileBuffer;
+};
 
 class SrsConfDirective
 {
@@ -94,19 +97,20 @@ public:
 public:
     SrsConfDirective();
     virtual ~SrsConfDirective();
-    std::string arg0();
-    std::string arg1(); 
-    std::string arg2();
-    void set_arg0(std::string value);
-    SrsConfDirective* at(int index);
-    SrsConfDirective* get(std::string _name);
-    SrsConfDirective* get(std::string _name, std::string _arg0);
+public:
+    virtual std::string arg0();
+    virtual std::string arg1(); 
+    virtual std::string arg2();
+    virtual void set_arg0(std::string value);
+    virtual SrsConfDirective* at(int index);
+    virtual SrsConfDirective* get(std::string _name);
+    virtual SrsConfDirective* get(std::string _name, std::string _arg0);
 public:
     virtual int parse(const char* filename);
 public:
     enum SrsDirectiveType{parse_file, parse_block};
-    virtual int parse_conf(SrsFileBuffer* buffer, SrsDirectiveType type);
-    virtual int read_token(SrsFileBuffer* buffer, std::vector<std::string>& args);
+    virtual int parse_conf(_srs_internal::SrsFileBuffer* buffer, SrsDirectiveType type);
+    virtual int read_token(_srs_internal::SrsFileBuffer* buffer, std::vector<std::string>& args);
 public:
     virtual bool is_vhost();
 };
@@ -288,6 +292,31 @@ public:
     virtual std::string         get_heartbeat_device_id();
     virtual int                 get_heartbeat_device_index();
     virtual bool                get_heartbeat_summaries();
+};
+
+namespace _srs_internal
+{
+    // TODO: FIXME: use SrsFileReader.
+    class SrsFileBuffer
+    {
+    private:
+        // last available position.
+        char* last;
+        // end of buffer.
+        char* end;
+        // start of buffer.
+        char* start;
+    public:
+        // current consumed position.
+        char* pos;
+        // current parsed line.
+        int line;
+        
+        SrsFileBuffer();
+        virtual ~SrsFileBuffer();
+        virtual int fullfill(const char* filename);
+        virtual bool empty();
+    };
 };
 
 /**

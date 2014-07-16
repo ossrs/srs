@@ -63,87 +63,6 @@ bool is_common_space(char ch)
     return (ch == ' ' || ch == '\t' || ch == CR || ch == LF);
 }
 
-class SrsFileBuffer
-{
-private:
-    // last available position.
-    char* last;
-    // end of buffer.
-    char* end;
-    // start of buffer.
-    char* start;
-public:
-    // current consumed position.
-    char* pos;
-    // current parsed line.
-    int line;
-    
-    SrsFileBuffer();
-    virtual ~SrsFileBuffer();
-    virtual int fullfill(const char* filename);
-    virtual bool empty();
-};
-
-SrsFileBuffer::SrsFileBuffer()
-{
-    line = 0;
-
-    pos = last = start = NULL;
-    end = start;
-}
-
-SrsFileBuffer::~SrsFileBuffer()
-{
-    srs_freep(start);
-}
-
-int SrsFileBuffer::fullfill(const char* filename)
-{
-    int ret = ERROR_SUCCESS;
-    
-    int fd = -1;
-    int nread = 0;
-    int filesize = 0;
-    
-    // TODO: FIXME: refine the file stream.
-    if ((fd = ::open(filename, O_RDONLY, 0)) < 0) {
-        ret = ERROR_SYSTEM_CONFIG_INVALID;
-        srs_error("open conf file error. ret=%d", ret);
-        goto finish;
-    }
-    
-    if ((filesize = FILE_SIZE(fd) - FILE_OFFSET(fd)) <= 0) {
-        ret = ERROR_SYSTEM_CONFIG_EOF;
-        srs_error("read conf file error. ret=%d", ret);
-        goto finish;
-    }
-
-    srs_freep(start);
-    pos = last = start = new char[filesize];
-    end = start + filesize;
-    
-    if ((nread = read(fd, start, filesize)) != filesize) {
-        ret = ERROR_SYSTEM_CONFIG_INVALID;
-        srs_error("read file read error. expect %d, actual %d bytes, ret=%d", 
-            filesize, nread, ret);
-        goto finish;
-    }
-    
-    line = 1;
-    
-finish:
-    if (fd > 0) {
-        ::close(fd);
-    }
-    
-    return ret;
-}
-
-bool SrsFileBuffer::empty()
-{
-    return pos >= end;
-}
-
 SrsConfDirective::SrsConfDirective()
 {
 }
@@ -228,7 +147,7 @@ int SrsConfDirective::parse(const char* filename)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsFileBuffer buffer;
+    _srs_internal::SrsFileBuffer buffer;
     
     if ((ret = buffer.fullfill(filename)) != ERROR_SUCCESS) {
         return ret;
@@ -238,7 +157,7 @@ int SrsConfDirective::parse(const char* filename)
 }
 
 // see: ngx_conf_parse
-int SrsConfDirective::parse_conf(SrsFileBuffer* buffer, SrsDirectiveType type)
+int SrsConfDirective::parse_conf(_srs_internal::SrsFileBuffer* buffer, SrsDirectiveType type)
 {
     int ret = ERROR_SUCCESS;
     
@@ -298,7 +217,7 @@ int SrsConfDirective::parse_conf(SrsFileBuffer* buffer, SrsDirectiveType type)
 }
 
 // see: ngx_conf_read_token
-int SrsConfDirective::read_token(SrsFileBuffer* buffer, vector<string>& args)
+int SrsConfDirective::read_token(_srs_internal::SrsFileBuffer* buffer, vector<string>& args)
 {
     int ret = ERROR_SUCCESS;
 
@@ -2865,6 +2784,69 @@ bool SrsConfig::get_heartbeat_summaries()
     
     return true;
 }
+
+namespace _srs_internal
+{
+    SrsFileBuffer::SrsFileBuffer()
+    {
+        line = 0;
+    
+        pos = last = start = NULL;
+        end = start;
+    }
+    
+    SrsFileBuffer::~SrsFileBuffer()
+    {
+        srs_freep(start);
+    }
+    
+    int SrsFileBuffer::fullfill(const char* filename)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        int fd = -1;
+        int nread = 0;
+        int filesize = 0;
+        
+        // TODO: FIXME: refine the file stream.
+        if ((fd = ::open(filename, O_RDONLY, 0)) < 0) {
+            ret = ERROR_SYSTEM_CONFIG_INVALID;
+            srs_error("open conf file error. ret=%d", ret);
+            goto finish;
+        }
+        
+        if ((filesize = FILE_SIZE(fd) - FILE_OFFSET(fd)) <= 0) {
+            ret = ERROR_SYSTEM_CONFIG_EOF;
+            srs_error("read conf file error. ret=%d", ret);
+            goto finish;
+        }
+    
+        srs_freep(start);
+        pos = last = start = new char[filesize];
+        end = start + filesize;
+        
+        if ((nread = read(fd, start, filesize)) != filesize) {
+            ret = ERROR_SYSTEM_CONFIG_INVALID;
+            srs_error("read file read error. expect %d, actual %d bytes, ret=%d", 
+                filesize, nread, ret);
+            goto finish;
+        }
+        
+        line = 1;
+        
+    finish:
+        if (fd > 0) {
+            ::close(fd);
+        }
+        
+        return ret;
+    }
+    
+    bool SrsFileBuffer::empty()
+    {
+        return pos >= end;
+    }
+};
 
 bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b)
 {
