@@ -331,6 +331,7 @@ int SrsAvcAacCodec::video_avc_demux(char* data, int size, SrsCodecSample* sample
         return ret;
     }
     
+    // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
     int8_t frame_type = stream->read_1bytes();
     int8_t codec_id = frame_type & 0x0f;
     frame_type = (frame_type >> 4) & 0x0f;
