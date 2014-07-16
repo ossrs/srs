@@ -141,20 +141,60 @@ private:
     * @param limit, the bandwidth limit object, to slowdown if exceed the kbps.
     */
     virtual int do_bandwidth_check(SrsKbpsLimit* limit);
+// play check/test, downloading bandwidth kbps.
+private:
     /**
-    * play check/test, downloading bandwidth kbps.
+    * start play/download bandwidth check/test,
+    * send start-play command to client, client must response starting-play
+    * to start the test.
     */
     virtual int play_start(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
-    virtual int play_checking(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
-    virtual int play_stop(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
     /**
-    * publish check/test, publishing bandwidth kbps.
+    * do play/download bandwidth check/test,
+    * server send call messages to client in specified time,
+    * calc the time and bytes sent, then we got the kbps.
+    */
+    virtual int play_checking(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
+    /**
+    * stop play/download bandwidth check/test,
+    * send stop-play command to client, client must response stopped-play
+    * to stop the test.
+    */
+    virtual int play_stop(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
+// publish check/test, publishing bandwidth kbps.
+private:
+    /**
+    * start publish/upload bandwidth check/test,
+    * send start-publish command to client, client must response starting-publish
+    * to start the test.
     */
     virtual int publish_start(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
+    /**
+    * do publish/upload bandwidth check/test,
+    * client send call messages to client in specified time,
+    * server calc the time and bytes received, then we got the kbps.
+    * @remark, for linux client, it will send a stop publish client, server will stop publishing.
+    *       then enter the publish-stop stage with client.
+    * @remark, for flash client, it will send many many call messages, that is,
+    *       the send queue is fullfill with call messages, so we should never expect the 
+    *       response message in the publish-stop stage.
+    */
     virtual int publish_checking(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
+    /**
+    * stop publish/upload bandwidth check/test,
+    * send stop-publish command to client, 
+    * for linux client, always expect a stopped-publish response from client,
+    * for flash client, the sent queue is fullfill with publishing call messages, 
+    *       so server never expect the stopped-publish from it.
+    */
     virtual int publish_stop(SrsBandwidthSample* sample, SrsKbpsLimit* limit);
+private:
     /**
     * report and final packet
+    * report a finish packet, with the bytes/time/kbps bandwidth check/test result,
+    * for linux client, server always expect a final packet from client,
+    * for flash client, the sent queue is fullfill with publishing call messages, 
+    *       so server never expect the final packet from it.
     */
     virtual int finial(SrsBandwidthSample& play_sample, SrsBandwidthSample& publish_sample, int64_t start_time, int64_t& end_time);
 };
