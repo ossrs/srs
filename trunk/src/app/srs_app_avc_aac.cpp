@@ -85,28 +85,28 @@ int SrsCodecSample::add_sample_unit(char* bytes, int size)
 
 SrsAvcAacCodec::SrsAvcAacCodec()
 {
-    width                     = 0;
-    height                     = 0;
-    duration                 = 0;
-    NAL_unit_length            = 0;
-    frame_rate                 = 0;
-    video_data_rate         = 0;
-    video_codec_id             = 0;
-    audio_data_rate         = 0;
-    audio_codec_id             = 0;
-    avc_profile             = 0;
-    avc_level                 = 0;
-    aac_profile                = 0;
-    aac_sample_rate            = _SRS_AAC_SAMPLE_RATE_UNSET; // sample rate ignored
-    aac_channels            = 0;
-    avc_extra_size             = 0;
-    avc_extra_data             = NULL;
-    aac_extra_size             = 0;
-    aac_extra_data             = NULL;
-    sequenceParameterSetLength = 0;
+    width                       = 0;
+    height                      = 0;
+    duration                    = 0;
+    NAL_unit_length             = 0;
+    frame_rate                  = 0;
+    video_data_rate             = 0;
+    video_codec_id              = 0;
+    audio_data_rate             = 0;
+    audio_codec_id              = 0;
+    avc_profile                 = 0;
+    avc_level                   = 0;
+    aac_profile                 = 0;
+    aac_sample_rate             = _SRS_AAC_SAMPLE_RATE_UNSET; // sample rate ignored
+    aac_channels                = 0;
+    avc_extra_size              = 0;
+    avc_extra_data              = NULL;
+    aac_extra_size              = 0;
+    aac_extra_data              = NULL;
+    sequenceParameterSetLength  = 0;
     sequenceParameterSetNALUnit = NULL;
-    pictureParameterSetLength = 0;
-    pictureParameterSetNALUnit = NULL;
+    pictureParameterSetLength   = 0;
+    pictureParameterSetNALUnit  = NULL;
 
     stream = new SrsStream();
 }
