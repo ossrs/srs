@@ -857,6 +857,7 @@ void SrsServer::resample_kbps(SrsConnection* conn, bool do_resample)
     
     kbps->add_delta(conn);
     
+    // resample for server.
     if (do_resample) {
         kbps->sample();
     }

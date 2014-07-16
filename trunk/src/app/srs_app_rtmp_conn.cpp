@@ -94,8 +94,6 @@ SrsRtmpConn::~SrsRtmpConn()
 {
     _srs_config->unsubscribe(this);
     
-    stop();
-    
     srs_freep(req);
     srs_freep(res);
     srs_freep(rtmp);
@@ -993,6 +991,7 @@ int SrsRtmpConn::http_hooks_on_connect()
         return ret;
     }
     
+    int connection_id = _srs_context->get_id();
     for (int i = 0; i < (int)on_connect->args.size(); i++) {
         std::string url = on_connect->args.at(i);
         if ((ret = SrsHttpHooks::on_connect(url, connection_id, ip, req)) != ERROR_SUCCESS) {
@@ -1016,6 +1015,7 @@ void SrsRtmpConn::http_hooks_on_close()
         return;
     }
     
+    int connection_id = _srs_context->get_id();
     for (int i = 0; i < (int)on_close->args.size(); i++) {
         std::string url = on_close->args.at(i);
         SrsHttpHooks::on_close(url, connection_id, ip, req);
@@ -1035,6 +1035,7 @@ int SrsRtmpConn::http_hooks_on_publish()
         return ret;
     }
     
+    int connection_id = _srs_context->get_id();
     for (int i = 0; i < (int)on_publish->args.size(); i++) {
         std::string url = on_publish->args.at(i);
         if ((ret = SrsHttpHooks::on_publish(url, connection_id, ip, req)) != ERROR_SUCCESS) {
@@ -1058,6 +1059,7 @@ void SrsRtmpConn::http_hooks_on_unpublish()
         return;
     }
     
+    int connection_id = _srs_context->get_id();
     for (int i = 0; i < (int)on_unpublish->args.size(); i++) {
         std::string url = on_unpublish->args.at(i);
         SrsHttpHooks::on_unpublish(url, connection_id, ip, req);
@@ -1077,6 +1079,7 @@ int SrsRtmpConn::http_hooks_on_play()
         return ret;
     }
     
+    int connection_id = _srs_context->get_id();
     for (int i = 0; i < (int)on_play->args.size(); i++) {
         std::string url = on_play->args.at(i);
         if ((ret = SrsHttpHooks::on_play(url, connection_id, ip, req)) != ERROR_SUCCESS) {
@@ -1100,6 +1103,7 @@ void SrsRtmpConn::http_hooks_on_stop()
         return;
     }
     
+    int connection_id = _srs_context->get_id();
     for (int i = 0; i < (int)on_stop->args.size(); i++) {
         std::string url = on_stop->args.at(i);
         SrsHttpHooks::on_stop(url, connection_id, ip, req);

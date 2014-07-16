@@ -34,7 +34,7 @@ SrsConnection::SrsConnection(SrsServer* srs_server, st_netfd_t client_stfd)
 {
     server = srs_server;
     stfd = client_stfd;
-    connection_id = 0;
+    
     // the client thread should reap itself, 
     // so we never use joinable.
     // TODO: FIXME: maybe other thread need to stop it.
@@ -57,7 +57,6 @@ int SrsConnection::cycle()
     int ret = ERROR_SUCCESS;
     
     _srs_context->generate_id();
-    connection_id = _srs_context->get_id();
     ip = srs_get_peer_ip(st_netfd_fileno(stfd));
     
     ret = do_cycle();
