@@ -357,7 +357,8 @@ extern SrsPlatformInfo* srs_get_platform_info();
 // the deamon st-thread will update it.
 extern void srs_update_platform_info();
 
-// network device summary
+// network device summary for each network device,
+// for example, eth0, eth1, ethN
 class SrsNetworkDevices
 {
 public:
@@ -398,7 +399,7 @@ extern int srs_get_network_devices_count();
 // the deamon st-thread will update it.
 extern void srs_update_network_devices();
 
-// srs rtmp network summary
+// system connections, and srs rtmp network summary
 class SrsNetworkRtmpServer
 {
 public:
