@@ -210,7 +210,7 @@ private:
 };
 
 /**
-* the config parser.
+* the config service provider.
 * for the config supports reload, so never keep the reference cross st-thread,
 * that is, never save the SrsConfDirective* get by any api of config,
 * for it maybe free in the reload st-thread cycle.
@@ -248,6 +248,13 @@ private:
     virtual int parse_argv(int& i, char** argv);
     virtual void print_help(char** argv);
     virtual int parse_file(const char* filename);
+protected:
+    /**
+    * parse config from the buffer.
+    * @param buffer, the config buffer, user must delete it.
+    * @remark, protected for the utest to override with mock.
+    */
+    virtual int parse_buffer(_srs_internal::SrsConfigBuffer* buffer);
 public:
     virtual std::string         cwd();
     virtual std::string         argv();

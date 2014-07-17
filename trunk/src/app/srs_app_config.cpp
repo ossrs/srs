@@ -1161,7 +1161,14 @@ int SrsConfig::parse_file(const char* filename)
         return ret;
     }
     
-    if ((ret = root->parse(&buffer)) != ERROR_SUCCESS) {
+    return parse_buffer(&buffer);
+}
+
+int SrsConfig::parse_buffer(_srs_internal::SrsConfigBuffer* buffer)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = root->parse(buffer)) != ERROR_SUCCESS) {
         return ret;
     }
     
