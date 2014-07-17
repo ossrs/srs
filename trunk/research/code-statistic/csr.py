@@ -39,10 +39,10 @@ if len(sys.argv) <= 1:
     print "Usage: python %s <dir> [filters] [except_filters]"%(sys.argv[0])
     print "     dir: the dir contains the files to stat"
     print "     filters: the file filters, default: *.*pp,*.h,*.c,*.cc"
-    print "     filters: the except file filters, default: utest,doc"
+    print "     except_filters: the except file filters, default: utest,doc"
     print "Example:"
     print "     python %s src"%(sys.argv[0])
-    print "     python %s src *.*pp,*.cc utest"%(sys.argv[0])
+    print "     python %s src *.*pp,*.cc utest,doc"%(sys.argv[0])
     sys.exit(-1)
     
 dir = sys.argv[1]
