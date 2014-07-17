@@ -42,6 +42,7 @@ using namespace std;
 #include <srs_protocol_utility.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_app_source.hpp>
+#include <srs_kernel_file.hpp>
 
 #define SRS_WIKI_URL_LOG "https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLog"
 
@@ -104,16 +105,9 @@ string SrsConfDirective::arg2()
     return "";
 }
 
-void SrsConfDirective::set_arg0(string value)
-{
-    if (args.size() > 0) {
-        args[0] = value;
-    }
-    args.push_back(value);
-}
-
 SrsConfDirective* SrsConfDirective::at(int index)
 {
+    srs_assert(index < (int)directives.size());
     return directives.at(index);
 }
 
@@ -143,21 +137,18 @@ SrsConfDirective* SrsConfDirective::get(string _name, string _arg0)
     return NULL;
 }
 
-int SrsConfDirective::parse(const char* filename)
+bool SrsConfDirective::is_vhost()
 {
-    int ret = ERROR_SUCCESS;
-    
-    _srs_internal::SrsFileBuffer buffer;
-    
-    if ((ret = buffer.fullfill(filename)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    return parse_conf(&buffer, parse_file);
+    return name == "vhost";
+}
+
+int SrsConfDirective::parse(_srs_internal::SrsConfigBuffer* buffer)
+{
+    return parse_conf(buffer, parse_file);
 }
 
 // see: ngx_conf_parse
-int SrsConfDirective::parse_conf(_srs_internal::SrsFileBuffer* buffer, SrsDirectiveType type)
+int SrsConfDirective::parse_conf(_srs_internal::SrsConfigBuffer* buffer, SrsDirectiveType type)
 {
     int ret = ERROR_SUCCESS;
     
@@ -167,11 +158,11 @@ int SrsConfDirective::parse_conf(_srs_internal::SrsFileBuffer* buffer, SrsDirect
         
         /**
         * ret maybe:
-        * ERROR_SYSTEM_CONFIG_INVALID         error.
-        * ERROR_SYSTEM_CONFIG_DIRECTIVE        directive terminated by ';' found
-        * ERROR_SYSTEM_CONFIG_BLOCK_START    token terminated by '{' found
-        * ERROR_SYSTEM_CONFIG_BLOCK_END        the '}' found
-        * ERROR_SYSTEM_CONFIG_EOF            the config file is done
+        * ERROR_SYSTEM_CONFIG_INVALID           error.
+        * ERROR_SYSTEM_CONFIG_DIRECTIVE         directive terminated by ';' found
+        * ERROR_SYSTEM_CONFIG_BLOCK_START       token terminated by '{' found
+        * ERROR_SYSTEM_CONFIG_BLOCK_END         the '}' found
+        * ERROR_SYSTEM_CONFIG_EOF               the config file is done
         */
         if (ret == ERROR_SYSTEM_CONFIG_INVALID) {
             return ret;
@@ -217,7 +208,7 @@ int SrsConfDirective::parse_conf(_srs_internal::SrsFileBuffer* buffer, SrsDirect
 }
 
 // see: ngx_conf_read_token
-int SrsConfDirective::read_token(_srs_internal::SrsFileBuffer* buffer, vector<string>& args)
+int SrsConfDirective::read_token(_srs_internal::SrsConfigBuffer* buffer, vector<string>& args)
 {
     int ret = ERROR_SUCCESS;
 
@@ -356,11 +347,6 @@ int SrsConfDirective::read_token(_srs_internal::SrsFileBuffer* buffer, vector<st
     }
     
     return ret;
-}
-
-bool SrsConfDirective::is_vhost()
-{
-    return name == "vhost";
 }
 
 SrsConfig::SrsConfig()
@@ -1092,7 +1078,13 @@ int SrsConfig::parse_file(const char* filename)
         return ERROR_SYSTEM_CONFIG_INVALID;
     }
     
-    if ((ret = root->parse(config_file.c_str())) != ERROR_SUCCESS) {
+    _srs_internal::SrsConfigBuffer buffer;
+    
+    if ((ret = buffer.fullfill(config_file.c_str())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = root->parse(&buffer)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -2772,7 +2764,7 @@ bool SrsConfig::get_heartbeat_summaries()
 
 namespace _srs_internal
 {
-    SrsFileBuffer::SrsFileBuffer()
+    SrsConfigBuffer::SrsConfigBuffer()
     {
         line = 0;
     
@@ -2780,54 +2772,43 @@ namespace _srs_internal
         end = start;
     }
     
-    SrsFileBuffer::~SrsFileBuffer()
+    SrsConfigBuffer::~SrsConfigBuffer()
     {
         srs_freep(start);
     }
     
-    int SrsFileBuffer::fullfill(const char* filename)
+    int SrsConfigBuffer::fullfill(const char* filename)
     {
         int ret = ERROR_SUCCESS;
         
-        int fd = -1;
-        int nread = 0;
-        int filesize = 0;
+        SrsFileReader reader;
         
-        // TODO: FIXME: refine the file stream.
-        if ((fd = ::open(filename, O_RDONLY, 0)) < 0) {
-            ret = ERROR_SYSTEM_CONFIG_INVALID;
+        // open file reader.
+        if ((ret = reader.open(filename)) != ERROR_SUCCESS) {
             srs_error("open conf file error. ret=%d", ret);
-            goto finish;
+            return ret;
         }
         
-        if ((filesize = FILE_SIZE(fd) - FILE_OFFSET(fd)) <= 0) {
-            ret = ERROR_SYSTEM_CONFIG_EOF;
-            srs_error("read conf file error. ret=%d", ret);
-            goto finish;
-        }
-    
+        // read all.
+        int filesize = (int)reader.filesize();
+        
+        // create buffer
         srs_freep(start);
         pos = last = start = new char[filesize];
         end = start + filesize;
         
-        if ((nread = read(fd, start, filesize)) != filesize) {
-            ret = ERROR_SYSTEM_CONFIG_INVALID;
+        // read total content from file.
+        ssize_t nread = 0;
+        if ((ret = reader.read(start, filesize, &nread)) != ERROR_SUCCESS) {
             srs_error("read file read error. expect %d, actual %d bytes, ret=%d", 
                 filesize, nread, ret);
-            goto finish;
-        }
-        
-        line = 1;
-        
-    finish:
-        if (fd > 0) {
-            ::close(fd);
+            return ret;
         }
         
         return ret;
     }
     
-    bool SrsFileBuffer::empty()
+    bool SrsConfigBuffer::empty()
     {
         return pos >= end;
     }

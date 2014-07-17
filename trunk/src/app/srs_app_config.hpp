@@ -84,35 +84,129 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 namespace _srs_internal
 {
-    class SrsFileBuffer;
+    class SrsConfigBuffer;
 };
 
+/**
+* the config directive.
+* the config file is a group of directives,
+* all directive has name, args and child-directives.
+* for example, the following config text:
+        vhost vhost.ossrs.net {
+            enabled         on;
+            ingest livestream {
+                enabled      on;
+                ffmpeg       /bin/ffmpeg;
+            }
+        }
+* will be parsed to:
+*       SrsConfDirective: name="vhost", arg0="vhost.ossrs.net", child-directives=[
+*           SrsConfDirective: name="enabled", arg0="on", child-directives=[]
+*           SrsConfDirective: name="ingest", arg0="livestream", child-directives=[
+*               SrsConfDirective: name="enabled", arg0="on", child-directives=[]
+*               SrsConfDirective: name="ffmpeg", arg0="/bin/ffmpeg", child-directives=[]
+*           ]
+*       ]
+*/
 class SrsConfDirective
 {
 public:
+    /**
+    * the line of config file in which the directive from
+    */
     int conf_line;
+    /**
+    * the name of directive, for example, the following config text:
+    *       enabled     on;
+    * will be parsed to a directive, its name is "enalbed"
+    */
     std::string name;
+    /**
+    * the args of directive, for example, the following config text:
+    *       listen      1935 1936;
+    * will be parsed to a directive, its args is ["1935", "1936"].
+    */
     std::vector<std::string> args;
+    /**
+    * the child directives, for example, the following config text:
+    *       vhost vhost.ossrs.net {
+    *           enabled         on;
+    *       }
+    * will be parsed to a directive, its directives is a vector contains 
+    * a directive, which is:
+    *       name:"enalbed", args:["on"], directives:[]
+    * 
+    * @remark, the directives can contains directives.
+    */
     std::vector<SrsConfDirective*> directives;
 public:
     SrsConfDirective();
     virtual ~SrsConfDirective();
+// args
 public:
+    /**
+    * get the args0,1,2, if user want to get more args,
+    * directly use the args.at(index).
+    */
     virtual std::string arg0();
-    virtual std::string arg1(); 
+    virtual std::string arg1();
     virtual std::string arg2();
-    virtual void set_arg0(std::string value);
+// directives
+public:
+    /**
+    * get the directive by index.
+    * @remark, assert the index<directives.size().
+    */
     virtual SrsConfDirective* at(int index);
+    /**
+    * get the directive by name, return the first match.
+    */
     virtual SrsConfDirective* get(std::string _name);
+    /**
+    * get the directive by name and its arg0, return the first match.
+    */
     virtual SrsConfDirective* get(std::string _name, std::string _arg0);
+// help utilities
 public:
-    virtual int parse(const char* filename);
-public:
-    enum SrsDirectiveType{parse_file, parse_block};
-    virtual int parse_conf(_srs_internal::SrsFileBuffer* buffer, SrsDirectiveType type);
-    virtual int read_token(_srs_internal::SrsFileBuffer* buffer, std::vector<std::string>& args);
-public:
+    /**
+    * whether current directive is vhost.
+    */
     virtual bool is_vhost();
+// parse utilities
+public:
+    /**
+    * parse config directive from file buffer.
+    */
+    virtual int parse(_srs_internal::SrsConfigBuffer* buffer);
+// private parse.
+private:
+    /**
+    * the directive parsing type.
+    */
+    enum SrsDirectiveType {
+        /**
+        * the root directives, parsing file.
+        */
+        parse_file, 
+        /**
+        * for each direcitve, parsing text block.
+        */
+        parse_block
+    };
+    /**
+    * parse the conf from buffer. the work flow:
+    * 1. read a token(directive args and a ret flag), 
+    * 2. initialize the directive by args, args[0] is name, args[1-N] is args of directive,
+    * 3. if ret flag indicates there are child-directives, read_conf(directive, block) recursively.
+    */
+    virtual int parse_conf(_srs_internal::SrsConfigBuffer* buffer, SrsDirectiveType type);
+    /**
+    * read a token from buffer.
+    * a token, is the directive args and a flag indicates whether has child-directives.
+    * @param args, the output directive args, the first is the directive name, left is the args.
+    * @return, an error code indicates error or has child-directives.
+    */
+    virtual int read_token(_srs_internal::SrsConfigBuffer* buffer, std::vector<std::string>& args);
 };
 
 /**
@@ -294,10 +388,12 @@ public:
 
 namespace _srs_internal
 {
-    // TODO: FIXME: use SrsFileReader.
-    class SrsFileBuffer
+    /**
+    * the buffer of config content.
+    */
+    class SrsConfigBuffer
     {
-    private:
+    protected:
         // last available position.
         char* last;
         // end of buffer.
@@ -309,10 +405,17 @@ namespace _srs_internal
         char* pos;
         // current parsed line.
         int line;
-        
-        SrsFileBuffer();
-        virtual ~SrsFileBuffer();
+    public:
+        SrsConfigBuffer();
+        virtual ~SrsConfigBuffer();
+    public:
+        /**
+        * fullfill the buffer with content of file specified by filename.
+        */
         virtual int fullfill(const char* filename);
+        /**
+        * whether buffer is empty.
+        */
         virtual bool empty();
     };
 };
