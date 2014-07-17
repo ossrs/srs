@@ -338,136 +338,444 @@ public:
     virtual std::string         argv();
 // global section
 public:
+    /**
+    * get the directive root, corresponding to the config file.
+    * the root directive, no name and args, contains directives.
+    * all directive parsed can retrieve from root.
+    */
     virtual SrsConfDirective*   get_root();
+    /**
+    * 
+    */
     virtual bool                get_deamon();
+    /**
+    * 
+    */
     virtual int                 get_max_connections();
+    /**
+    * 
+    */
     virtual SrsConfDirective*   get_listen();
+    /**
+    * 
+    */
     virtual std::string         get_pid_file();
+    /**
+    * 
+    */
     virtual int                 get_pithy_print_publish();
+    /**
+    * 
+    */
     virtual int                 get_pithy_print_forwarder();
+    /**
+    * 
+    */
     virtual int                 get_pithy_print_encoder();
+    /**
+    * 
+    */
     virtual int                 get_pithy_print_ingester();
+    /**
+    * 
+    */
     virtual int                 get_pithy_print_hls();
+    /**
+    * 
+    */
     virtual int                 get_pithy_print_play();
+    /**
+    * 
+    */
     virtual int                 get_pithy_print_edge();
 // vhost specified section
 public:
     virtual SrsConfDirective*   get_vhost(std::string vhost);
+    /**
+    * 
+    */
     virtual void                get_vhosts(std::vector<SrsConfDirective*>& vhosts);
+    /**
+    * 
+    */
     virtual bool                get_vhost_enabled(std::string vhost);
+    /**
+    * 
+    */
     virtual bool                get_vhost_enabled(SrsConfDirective* vhost);
+    /**
+    * 
+    */
     virtual SrsConfDirective*   get_vhost_on_connect(std::string vhost);
+    /**
+    * 
+    */
     virtual SrsConfDirective*   get_vhost_on_close(std::string vhost);
+    /**
+    * 
+    */
     virtual SrsConfDirective*   get_vhost_on_publish(std::string vhost);
+    /**
+    * 
+    */
     virtual SrsConfDirective*   get_vhost_on_unpublish(std::string vhost);
+    /**
+    * 
+    */
     virtual SrsConfDirective*   get_vhost_on_play(std::string vhost);
+    /**
+    * 
+    */
     virtual SrsConfDirective*   get_vhost_on_stop(std::string vhost);
+    /**
+    * 
+    */
     virtual SrsConfDirective*   get_vhost_on_dvr_hss_reap_flv(std::string vhost);
+    /**
+    * 
+    */
     virtual bool                get_gop_cache(std::string vhost);
+    /**
+    * 
+    */
     virtual bool                get_atc(std::string vhost);
+    /**
+    * 
+    */
     virtual bool                get_atc_auto(std::string vhost);
+    /**
+    * 
+    */
     virtual int                 get_time_jitter(std::string vhost);
+    /**
+    * 
+    */
     virtual double              get_queue_length(std::string vhost);
+    /**
+    * 
+    */
     virtual SrsConfDirective*   get_forward(std::string vhost);
+    /**
+    * 
+    */
     virtual SrsConfDirective*   get_refer(std::string vhost);
+    /**
+    * 
+    */
     virtual SrsConfDirective*   get_refer_play(std::string vhost);
+    /**
+    * 
+    */
     virtual SrsConfDirective*   get_refer_publish(std::string vhost);
+    /**
+    * 
+    */
     virtual int                 get_chunk_size(const std::string& vhost);
 // bwct(bandwidth check tool) section
 public:
+    /**
+    * 
+    */
     virtual bool                get_bw_check_enabled(const std::string& vhost);
+    /**
+    * 
+    */
     virtual std::string         get_bw_check_key(const std::string& vhost);
+    /**
+    * 
+    */
     virtual int                 get_bw_check_interval_ms(const std::string& vhost);
+    /**
+    * 
+    */
     virtual int                 get_bw_check_limit_kbps(const std::string& vhost);
 // vhost edge section
 public:
+    /**
+    * 
+    */
     virtual bool                get_vhost_is_edge(std::string vhost);
+    /**
+    * 
+    */
     virtual bool                get_vhost_is_edge(SrsConfDirective* vhost);
+    /**
+    * 
+    */
     virtual SrsConfDirective*   get_vhost_edge_origin(std::string vhost);
+    /**
+    * 
+    */
     virtual bool                get_vhost_edge_token_traverse(std::string vhost);
 // vhost transcode section
 public:
+    /**
+    * 
+    */
     virtual SrsConfDirective*   get_transcode(std::string vhost, std::string scope);
+    /**
+    * 
+    */
     virtual bool                get_transcode_enabled(SrsConfDirective* transcode);
+    /**
+    * 
+    */
     virtual std::string         get_transcode_ffmpeg(SrsConfDirective* transcode);
+    /**
+    * 
+    */
     virtual void                get_transcode_engines(SrsConfDirective* transcode, std::vector<SrsConfDirective*>& engines);
+    /**
+    * 
+    */
     virtual bool                get_engine_enabled(SrsConfDirective* engine);
+    /**
+    * 
+    */
     virtual std::string         get_engine_vcodec(SrsConfDirective* engine);
+    /**
+    * 
+    */
     virtual int                 get_engine_vbitrate(SrsConfDirective* engine);
+    /**
+    * 
+    */
     virtual double              get_engine_vfps(SrsConfDirective* engine);
+    /**
+    * 
+    */
     virtual int                 get_engine_vwidth(SrsConfDirective* engine);
+    /**
+    * 
+    */
     virtual int                 get_engine_vheight(SrsConfDirective* engine);
+    /**
+    * 
+    */
     virtual int                 get_engine_vthreads(SrsConfDirective* engine);
+    /**
+    * 
+    */
     virtual std::string         get_engine_vprofile(SrsConfDirective* engine);
+    /**
+    * 
+    */
     virtual std::string         get_engine_vpreset(SrsConfDirective* engine);
+    /**
+    * 
+    */
     virtual void                get_engine_vparams(SrsConfDirective* engine, std::vector<std::string>& vparams);
+    /**
+    * 
+    */
     virtual void                get_engine_vfilter(SrsConfDirective* engine, std::vector<std::string>& vfilter);
+    /**
+    * 
+    */
     virtual std::string         get_engine_acodec(SrsConfDirective* engine);
+    /**
+    * 
+    */
     virtual int                 get_engine_abitrate(SrsConfDirective* engine);
+    /**
+    * 
+    */
     virtual int                 get_engine_asample_rate(SrsConfDirective* engine);
+    /**
+    * 
+    */
     virtual int                 get_engine_achannels(SrsConfDirective* engine);
+    /**
+    * 
+    */
     virtual void                get_engine_aparams(SrsConfDirective* engine, std::vector<std::string>& aparams);
+    /**
+    * 
+    */
     virtual std::string         get_engine_output(SrsConfDirective* engine);
 // ingest section
 public:
+    /**
+    * 
+    */
     virtual void                get_ingesters(std::string vhost, std::vector<SrsConfDirective*>& ingeters);
+    /**
+    * 
+    */
     virtual SrsConfDirective*   get_ingest_by_id(std::string vhost, std::string ingest_id);
+    /**
+    * 
+    */
     virtual bool                get_ingest_enabled(SrsConfDirective* ingest);
+    /**
+    * 
+    */
     virtual std::string         get_ingest_ffmpeg(SrsConfDirective* ingest);
+    /**
+    * 
+    */
     virtual std::string         get_ingest_input_type(SrsConfDirective* ingest);
+    /**
+    * 
+    */
     virtual std::string         get_ingest_input_url(SrsConfDirective* ingest);
 // log section
 public:
+    /**
+    * 
+    */
     virtual bool                get_log_tank_file();
+    /**
+    * 
+    */
     virtual std::string         get_log_level();
+    /**
+    * 
+    */
     virtual std::string         get_log_file();
+    /**
+    * 
+    */
     virtual bool                get_ffmpeg_log_enabled();
+    /**
+    * 
+    */
     virtual std::string         get_ffmpeg_log_dir();
 // hls section
 private:
+    /**
+    * 
+    */
     virtual SrsConfDirective*   get_hls(std::string vhost);
 public:
+    /**
+    * 
+    */
     virtual bool                get_hls_enabled(std::string vhost);
+    /**
+    * 
+    */
     virtual std::string         get_hls_path(std::string vhost);
+    /**
+    * 
+    */
     virtual double              get_hls_fragment(std::string vhost);
+    /**
+    * 
+    */
     virtual double              get_hls_window(std::string vhost);
 // dvr section
 private:
+    /**
+    * 
+    */
     virtual SrsConfDirective*   get_dvr(std::string vhost);
 public:
+    /**
+    * 
+    */
     virtual bool                get_dvr_enabled(std::string vhost);
+    /**
+    * 
+    */
     virtual std::string         get_dvr_path(std::string vhost);
+    /**
+    * 
+    */
     virtual std::string         get_dvr_plan(std::string vhost);
+    /**
+    * 
+    */
     virtual int                 get_dvr_duration(std::string vhost);
+    /**
+    * 
+    */
     virtual int                 get_dvr_time_jitter(std::string vhost);
 // http api section
 private:
+    /**
+    * 
+    */
     virtual SrsConfDirective*   get_http_api();
 public:
+    /**
+    * 
+    */
     virtual bool                get_http_api_enabled();
+    /**
+    * 
+    */
     virtual bool                get_http_api_enabled(SrsConfDirective* conf);
+    /**
+    * 
+    */
     virtual int                 get_http_api_listen();
 // http stream section
 private:
+    /**
+    * 
+    */
     virtual SrsConfDirective*   get_http_stream();
 public:
+    /**
+    * 
+    */
     virtual bool                get_http_stream_enabled();
+    /**
+    * 
+    */
     virtual bool                get_http_stream_enabled(SrsConfDirective* conf);
+    /**
+    * 
+    */
     virtual int                 get_http_stream_listen();
+    /**
+    * 
+    */
     virtual std::string         get_http_stream_dir();
 public:
+    /**
+    * 
+    */
     virtual bool                get_vhost_http_enabled(std::string vhost);
+    /**
+    * 
+    */
     virtual std::string         get_vhost_http_mount(std::string vhost);
+    /**
+    * 
+    */
     virtual std::string         get_vhost_http_dir(std::string vhost);
 // http heartbeart section
 private:
+    /**
+    * 
+    */
     virtual SrsConfDirective*   get_heartbeart();
 public:
+    /**
+    * 
+    */
     virtual bool                get_heartbeat_enabled();
+    /**
+    * 
+    */
     virtual int64_t             get_heartbeat_interval();
+    /**
+    * 
+    */
     virtual std::string         get_heartbeat_url();
+    /**
+    * 
+    */
     virtual std::string         get_heartbeat_device_id();
+    /**
+    * 
+    */
     virtual int                 get_heartbeat_device_index();
+    /**
+    * 
+    */
     virtual bool                get_heartbeat_summaries();
 };
 

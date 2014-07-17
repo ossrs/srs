@@ -1184,11 +1184,23 @@ int SrsConfig::parse_buffer(_srs_internal::SrsConfigBuffer* buffer)
         return ret;
     }
     
-    // TODO: check the hls.
-    // TODO: check forward.
-    // TODO: check ffmpeg.
-    // TODO: check http.
-    // TODO: check pid.
+    // check root directives.
+    for (int i = 0; i < (int)root->directives.size(); i++) {
+        SrsConfDirective* conf = root->at(i);
+        std::string n = conf->name;
+        if (n != "listen" && n != "pid" && n != "chunk_size" && n != "ff_log_dir" 
+            && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_file"
+            && n != "max_connections" && n != "daemon" && n != "heartbeat"
+            && n != "http_api" && n != "http_stream" && n != "vhost"
+            && n != "pithy_print") 
+        {
+            ret = ERROR_SYSTEM_CONFIG_INVALID;
+            srs_error("unsupported directive %s, ret=%d", n.c_str(), ret);
+            return ret;
+        }
+    }
+    
+    // TODO: FIXME: check others.
     
     // check log
     std::string log_filename = this->get_log_file();
