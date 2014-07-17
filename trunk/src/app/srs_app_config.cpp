@@ -1019,6 +1019,7 @@ int SrsConfig::parse_options(int argc, char** argv)
 {
     int ret = ERROR_SUCCESS;
     
+    // argv
     for (int i = 0; i < argc; i++) {
         _argv.append(argv[i]);
         
@@ -1027,10 +1028,12 @@ int SrsConfig::parse_options(int argc, char** argv)
         }
     }
     
+    // cwd
     char cwd[256];
     getcwd(cwd, sizeof(cwd));
     _cwd = cwd;
     
+    // config
     show_help = true;
     for (int i = 1; i < argc; i++) {
         if ((ret = parse_argv(i, argv)) != ERROR_SUCCESS) {

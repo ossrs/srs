@@ -218,35 +218,106 @@ private:
 */
 class SrsConfig
 {
+// user command
 private:
+    /**
+    * whether show help and exit.
+    */
     bool show_help;
+    /**
+    * whether test config file and exit.
+    */
     bool test_conf;
+    /**
+    * whether show SRS version and exit.
+    */
     bool show_version;
-    std::string config_file;
+// global env variables.
+private:
+    /**
+    * the user parameters, the argc and argv.
+    * the argv is " ".join(argv), where argv is from main(argc, argv).
+    */
     std::string _argv;
+    /**
+    * current working directory.
+    */
     std::string _cwd;
+// config section
+private:
+    /**
+    * the last parsed config file.
+    * if reload, reload the config file.
+    */
+    std::string config_file;
+    /**
+    * the directive root.
+    */
     SrsConfDirective* root;
+// reload section
+private:
+    /**
+    * the reload subscribers, when reload, callback all handlers.
+    */
     std::vector<ISrsReloadHandler*> subscribes;
 public:
     SrsConfig();
     virtual ~SrsConfig();
 // reload
 public:
+    /**
+    * for reload handler to register itself,
+    * when config service do the reload, callback the handler.
+    */
     virtual void subscribe(ISrsReloadHandler* handler);
+    /**
+    * for reload handler to unregister itself.
+    */
     virtual void unsubscribe(ISrsReloadHandler* handler);
+    /**
+    * reload the config file.
+    * @remark, user can test the config before reload it.
+    */
     virtual int reload();
 private:
+    /**
+    * reload the http_api section of config.
+    */
     virtual int reload_http_api(SrsConfDirective* old_root);
+    /**
+    * reload the http_stream section of config.
+    */
     virtual int reload_http_stream(SrsConfDirective* old_root);
+    /**
+    * reload the vhost section of config.
+    */
     virtual int reload_vhost(SrsConfDirective* old_root);
+    /**
+    * reload the transcode section of vhost of config.
+    */
     virtual int reload_transcode(SrsConfDirective* new_vhost, SrsConfDirective* old_vhost);
+    /**
+    * reload the ingest section of vhost of config.
+    */
     virtual int reload_ingest(SrsConfDirective* new_vhost, SrsConfDirective* old_vhost);
 // parse options and file
 public:
+    /**
+    * parse the cli, the main(argc,argv) function.
+    */
     virtual int parse_options(int argc, char** argv);
 private:
+    /**
+    * parse each argv.
+    */
     virtual int parse_argv(int& i, char** argv);
+    /**
+    * print help and exit.
+    */
     virtual void print_help(char** argv);
+    /**
+    * parse the config file, which is specified by cli.
+    */
     virtual int parse_file(const char* filename);
 protected:
     /**
@@ -255,8 +326,15 @@ protected:
     * @remark, protected for the utest to override with mock.
     */
     virtual int parse_buffer(_srs_internal::SrsConfigBuffer* buffer);
+// global env
 public:
+    /**
+    * get the current work directory.
+    */
     virtual std::string         cwd();
+    /**
+    * get the cli, the main(argc,argv), program start command.
+    */
     virtual std::string         argv();
 // global section
 public:
