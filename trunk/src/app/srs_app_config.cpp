@@ -154,6 +154,7 @@ int SrsConfDirective::parse_conf(_srs_internal::SrsConfigBuffer* buffer, SrsDire
     
     while (true) {
         std::vector<string> args;
+        
         ret = read_token(buffer, args);
         
         /**
@@ -169,21 +170,21 @@ int SrsConfDirective::parse_conf(_srs_internal::SrsConfigBuffer* buffer, SrsDire
         }
         if (ret == ERROR_SYSTEM_CONFIG_BLOCK_END) {
             if (type != parse_block) {
-                srs_error("line %d: unexpected \"}\"", buffer->line);
+                srs_error("line %d: unexpected \"}\"", buffer->line + 1);
                 return ret;
             }
             return ERROR_SUCCESS;
         }
         if (ret == ERROR_SYSTEM_CONFIG_EOF) {
             if (type == parse_block) {
-                srs_error("line %d: unexpected end of file, expecting \"}\"", buffer->line);
+                srs_error("line %d: unexpected end of file, expecting \"}\"", conf_line + 1);
                 return ret;
             }
             return ERROR_SUCCESS;
         }
         
         if (args.empty()) {
-            srs_error("line %d: empty directive.", buffer->line);
+            srs_error("line %d: empty directive.", conf_line + 1);
             return ret;
         }
         
@@ -258,7 +259,7 @@ int SrsConfDirective::read_token(_srs_internal::SrsConfigBuffer* buffer, vector<
             if (ch == '{') {
                 return ERROR_SYSTEM_CONFIG_BLOCK_START;
             }
-            srs_error("line %d: unexpected '%c'", buffer->line, ch);
+            srs_error("line %d: unexpected '%c'", buffer->line + 1, ch);
             return ERROR_SYSTEM_CONFIG_INVALID; 
         }
         
@@ -271,19 +272,19 @@ int SrsConfDirective::read_token(_srs_internal::SrsConfigBuffer* buffer, vector<
             switch (ch) {
                 case ';':
                     if (args.size() == 0) {
-                        srs_error("line %d: unexpected ';'", buffer->line);
+                        srs_error("line %d: unexpected ';'", buffer->line + 1);
                         return ERROR_SYSTEM_CONFIG_INVALID;
                     }
                     return ERROR_SYSTEM_CONFIG_DIRECTIVE;
                 case '{':
                     if (args.size() == 0) {
-                        srs_error("line %d: unexpected '{'", buffer->line);
+                        srs_error("line %d: unexpected '{'", buffer->line + 1);
                         return ERROR_SYSTEM_CONFIG_INVALID;
                     }
                     return ERROR_SYSTEM_CONFIG_BLOCK_START;
                 case '}':
                     if (args.size() != 0) {
-                        srs_error("line %d: unexpected '}'", buffer->line);
+                        srs_error("line %d: unexpected '}'", buffer->line + 1);
                         return ERROR_SYSTEM_CONFIG_INVALID;
                     }
                     return ERROR_SYSTEM_CONFIG_BLOCK_END;
@@ -1068,59 +1069,6 @@ int SrsConfig::parse_options(int argc, char** argv)
     return ret;
 }
 
-int SrsConfig::parse_file(const char* filename)
-{
-    int ret = ERROR_SUCCESS;
-    
-    config_file = filename;
-    
-    if (config_file.empty()) {
-        return ERROR_SYSTEM_CONFIG_INVALID;
-    }
-    
-    _srs_internal::SrsConfigBuffer buffer;
-    
-    if ((ret = buffer.fullfill(config_file.c_str())) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    if ((ret = root->parse(&buffer)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    SrsConfDirective* conf = NULL;
-    // check rtmp port specified by directive listen.
-    if ((conf = get_listen()) == NULL || conf->args.size() == 0) {
-        ret = ERROR_SYSTEM_CONFIG_INVALID;
-        srs_error("line %d: conf error, "
-            "directive \"listen\" is empty, ret=%d", (conf? conf->conf_line:0), ret);
-        return ret;
-    }
-    
-    // TODO: check the hls.
-    // TODO: check forward.
-    // TODO: check ffmpeg.
-    // TODO: check http.
-    // TODO: check pid.
-    
-    // check log
-    std::string log_filename = this->get_log_file();
-    if (get_log_tank_file() && log_filename.empty()) {
-        ret = ERROR_SYSTEM_CONFIG_INVALID;
-        srs_error("must specifies the file to write log to. ret=%d", ret);
-        return ret;
-    }
-    if (get_log_tank_file()) {
-        srs_trace("write log to file %s", log_filename.c_str());
-        srs_trace("you can: tailf %s", log_filename.c_str());
-        srs_trace("@see: %s", SRS_WIKI_URL_LOG);
-    } else {
-        srs_trace("write log to console");
-    }
-    
-    return ret;
-}
-
 int SrsConfig::parse_argv(int& i, char** argv)
 {
     int ret = ERROR_SUCCESS;
@@ -1195,6 +1143,59 @@ void SrsConfig::print_help(char** argv)
         "   %s -t -c "SRS_DEFAULT_CONF"\n"
         "   %s -c "SRS_DEFAULT_CONF"\n",
         argv[0], argv[0], argv[0], argv[0]);
+}
+
+int SrsConfig::parse_file(const char* filename)
+{
+    int ret = ERROR_SUCCESS;
+    
+    config_file = filename;
+    
+    if (config_file.empty()) {
+        return ERROR_SYSTEM_CONFIG_INVALID;
+    }
+    
+    _srs_internal::SrsConfigBuffer buffer;
+    
+    if ((ret = buffer.fullfill(config_file.c_str())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = root->parse(&buffer)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    SrsConfDirective* conf = NULL;
+    // check rtmp port specified by directive listen.
+    if ((conf = get_listen()) == NULL || conf->args.size() == 0) {
+        ret = ERROR_SYSTEM_CONFIG_INVALID;
+        srs_error("line %d: conf error, "
+            "directive \"listen\" is empty, ret=%d", (conf? conf->conf_line:0), ret);
+        return ret;
+    }
+    
+    // TODO: check the hls.
+    // TODO: check forward.
+    // TODO: check ffmpeg.
+    // TODO: check http.
+    // TODO: check pid.
+    
+    // check log
+    std::string log_filename = this->get_log_file();
+    if (get_log_tank_file() && log_filename.empty()) {
+        ret = ERROR_SYSTEM_CONFIG_INVALID;
+        srs_error("must specifies the file to write log to. ret=%d", ret);
+        return ret;
+    }
+    if (get_log_tank_file()) {
+        srs_trace("write log to file %s", log_filename.c_str());
+        srs_trace("you can: tailf %s", log_filename.c_str());
+        srs_trace("@see: %s", SRS_WIKI_URL_LOG);
+    } else {
+        srs_trace("write log to console");
+    }
+    
+    return ret;
 }
 
 string SrsConfig::cwd()

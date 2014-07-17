@@ -245,9 +245,9 @@ private:
 public:
     virtual int parse_options(int argc, char** argv);
 private:
-    virtual int parse_file(const char* filename);
     virtual int parse_argv(int& i, char** argv);
     virtual void print_help(char** argv);
+    virtual int parse_file(const char* filename);
 public:
     virtual std::string         cwd();
     virtual std::string         argv();
