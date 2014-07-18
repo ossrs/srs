@@ -1412,9 +1412,11 @@ SrsConfDirective* SrsConfig::get_vhost(string vhost)
     return NULL;
 }
 
-void SrsConfig::get_vhosts(std::vector<SrsConfDirective*>& vhosts)
+vector<SrsConfDirective*> SrsConfig::get_vhosts()
 {
     srs_assert(root);
+    
+    std::vector<SrsConfDirective*> vhosts;
     
     for (int i = 0; i < (int)root->directives.size(); i++) {
         SrsConfDirective* conf = root->at(i);
@@ -1425,6 +1427,8 @@ void SrsConfig::get_vhosts(std::vector<SrsConfDirective*>& vhosts)
         
         vhosts.push_back(conf);
     }
+    
+    return vhosts;
 }
 
 SrsConfDirective* SrsConfig::get_vhost_on_connect(string vhost)

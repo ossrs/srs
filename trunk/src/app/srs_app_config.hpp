@@ -366,44 +366,61 @@ public:
     */
     virtual std::vector<std::string>        get_listen();
     /**
-    * 
+    * get the pid file path.
+    * the pid file is used to save the pid of SRS,
+    * use file lock to prevent multiple SRS starting.
+    * @remark, if user need to run multiple SRS instance,
+    *       for example, to start multiple SRS for multiple CPUs,
+    *       user can use different pid file for each process.
     */
     virtual std::string         get_pid_file();
     /**
-    * 
+    * get the pithy print interval for publish, in ms,
+    * the publish(flash/FMLE) message print.
     */
     virtual int                 get_pithy_print_publish();
     /**
-    * 
+    * get the pithy print interval for forwarder, in ms,
+    * the forwarder message print, for SRS forward stream to other servers.
     */
     virtual int                 get_pithy_print_forwarder();
     /**
-    * 
+    * get the pithy print interval for encoder, in ms,
+    * the encoder message print, for FFMPEG transcoder.
     */
     virtual int                 get_pithy_print_encoder();
     /**
-    * 
+    * get the pithy print interval for ingester, in ms,
+    * the ingest used FFMPEG, or your tools, to read and transcode other stream 
+    * to RTMP to SRS.
     */
     virtual int                 get_pithy_print_ingester();
     /**
-    * 
+    * get the pithy print interval for HLS, in ms,
+    * the HLS used for IOS/android/PC, SRS will mux RTMP to HLS.
     */
     virtual int                 get_pithy_print_hls();
     /**
-    * 
+    * get the pithy print interval for Play, in ms,
+    * the play is client or edge playing RTMP stream
     */
     virtual int                 get_pithy_print_play();
     /**
-    * 
+    * get the pithy print interval for edge, in ms,
+    * the edge will get stream from upnode.
     */
     virtual int                 get_pithy_print_edge();
 // vhost specified section
 public:
+    /**
+    * get the vhost directive by vhost name.
+    * @param vhost, the name of vhost to get.
+    */
     virtual SrsConfDirective*   get_vhost(std::string vhost);
     /**
-    * 
+    * get all vhosts in config file.
     */
-    virtual void                get_vhosts(std::vector<SrsConfDirective*>& vhosts);
+    virtual std::vector<SrsConfDirective*>  get_vhosts();
     /**
     * 
     */
