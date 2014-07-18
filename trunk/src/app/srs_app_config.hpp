@@ -457,25 +457,29 @@ public:
     */
     virtual int                 get_time_jitter(std::string vhost);
     /**
-    * 
+    * get the cache queue length, in seconds.
+    * when exceed the queue length, drop packet util I frame.
     */
     virtual double              get_queue_length(std::string vhost);
     /**
-    * 
+    * get the refer antisuck directive.
+    * each args of directive is a refer config.
+    * when the client refer(pageUrl) not match the refer config,
+    * SRS will reject the connection.
     */
     virtual SrsConfDirective*   get_refer(std::string vhost);
     /**
-    * 
+    * get the play refer, refer for play clients.
     */
     virtual SrsConfDirective*   get_refer_play(std::string vhost);
     /**
-    * 
+    * get the publish refer, refer for publish clients.
     */
     virtual SrsConfDirective*   get_refer_publish(std::string vhost);
     /**
-    * 
+    * get the chunk size of vhost.
     */
-    virtual int                 get_chunk_size(const std::string& vhost);
+    virtual int                 get_chunk_size(std::string vhost);
 // forward section
 public:
     /**
@@ -524,19 +528,19 @@ public:
     /**
     * 
     */
-    virtual bool                get_bw_check_enabled(const std::string& vhost);
+    virtual bool                get_bw_check_enabled(std::string vhost);
     /**
     * 
     */
-    virtual std::string         get_bw_check_key(const std::string& vhost);
+    virtual std::string         get_bw_check_key(std::string vhost);
     /**
     * 
     */
-    virtual int                 get_bw_check_interval_ms(const std::string& vhost);
+    virtual int                 get_bw_check_interval_ms(std::string vhost);
     /**
     * 
     */
-    virtual int                 get_bw_check_limit_kbps(const std::string& vhost);
+    virtual int                 get_bw_check_limit_kbps(std::string vhost);
 // vhost edge section
 public:
     /**

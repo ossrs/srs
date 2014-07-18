@@ -1570,7 +1570,7 @@ SrsConfDirective* SrsConfig::get_refer_publish(string vhost)
     return conf->get("refer_publish");
 }
 
-int SrsConfig::get_chunk_size(const string &vhost)
+int SrsConfig::get_chunk_size(string vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);
 
@@ -1751,7 +1751,7 @@ SrsConfDirective* SrsConfig::get_vhost_on_dvr_hss_reap_flv(string vhost)
     return conf->get("on_dvr_hss_reap_flv");
 }
 
-bool SrsConfig::get_bw_check_enabled(const string &vhost)
+bool SrsConfig::get_bw_check_enabled(string vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);
 
@@ -1772,7 +1772,7 @@ bool SrsConfig::get_bw_check_enabled(const string &vhost)
     return true;
 }
 
-string SrsConfig::get_bw_check_key(const string &vhost)
+string SrsConfig::get_bw_check_key(string vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);
 
@@ -1793,7 +1793,7 @@ string SrsConfig::get_bw_check_key(const string &vhost)
     return conf->arg0();
 }
 
-int SrsConfig::get_bw_check_interval_ms(const string &vhost)
+int SrsConfig::get_bw_check_interval_ms(string vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);
 
@@ -1814,7 +1814,7 @@ int SrsConfig::get_bw_check_interval_ms(const string &vhost)
     return ::atof(conf->arg0().c_str()) * 1000;
 }
 
-int SrsConfig::get_bw_check_limit_kbps(const string &vhost)
+int SrsConfig::get_bw_check_limit_kbps(string vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);
 
