@@ -1835,7 +1835,7 @@ int SrsConfig::get_bw_check_limit_kbps(string vhost)
     return ::atoi(conf->arg0().c_str());
 }
 
-bool SrsConfig::get_vhost_is_edge(std::string vhost)
+bool SrsConfig::get_vhost_is_edge(string vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);
     return get_vhost_is_edge(conf);
@@ -1868,7 +1868,7 @@ SrsConfDirective* SrsConfig::get_vhost_edge_origin(string vhost)
     return conf->get("origin");
 }
 
-bool SrsConfig::get_vhost_edge_token_traverse(std::string vhost)
+bool SrsConfig::get_vhost_edge_token_traverse(string vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);
     
@@ -1963,6 +1963,32 @@ bool SrsConfig::get_engine_enabled(SrsConfDirective* engine)
     }
     
     return true;
+}
+
+vector<string> SrsConfig::get_engine_vfilter(SrsConfDirective* engine)
+{
+    vector<string> vfilter;
+    
+    if (!engine) {
+        return vfilter;
+    }
+    
+    SrsConfDirective* conf = engine->get("vfilter");
+    if (!conf) {
+        return vfilter;
+    }
+    
+    for (int i = 0; i < (int)conf->directives.size(); i++) {
+        SrsConfDirective* p = conf->directives[i];
+        if (!p) {
+            continue;
+        }
+        
+        vfilter.push_back("-" + p->name);
+        vfilter.push_back(p->arg0());
+    }
+    
+    return vfilter;
 }
 
 string SrsConfig::get_engine_vcodec(SrsConfDirective* engine)
@@ -2077,15 +2103,17 @@ string SrsConfig::get_engine_vpreset(SrsConfDirective* engine)
     return conf->arg0();
 }
 
-void SrsConfig::get_engine_vparams(SrsConfDirective* engine, vector<string>& vparams)
+vector<string> SrsConfig::get_engine_vparams(SrsConfDirective* engine)
 {
+    vector<string> vparams;
+
     if (!engine) {
-        return;
+        return vparams;
     }
     
     SrsConfDirective* conf = engine->get("vparams");
     if (!conf) {
-        return;
+        return vparams;
     }
     
     for (int i = 0; i < (int)conf->directives.size(); i++) {
@@ -2097,28 +2125,8 @@ void SrsConfig::get_engine_vparams(SrsConfDirective* engine, vector<string>& vpa
         vparams.push_back("-" + p->name);
         vparams.push_back(p->arg0());
     }
-}
-
-void SrsConfig::get_engine_vfilter(SrsConfDirective* engine, vector<string>& vfilter)
-{
-    if (!engine) {
-        return;
-    }
     
-    SrsConfDirective* conf = engine->get("vfilter");
-    if (!conf) {
-        return;
-    }
-    
-    for (int i = 0; i < (int)conf->directives.size(); i++) {
-        SrsConfDirective* p = conf->directives[i];
-        if (!p) {
-            continue;
-        }
-        
-        vfilter.push_back("-" + p->name);
-        vfilter.push_back(p->arg0());
-    }
+    return vparams;
 }
 
 string SrsConfig::get_engine_acodec(SrsConfDirective* engine)
@@ -2177,15 +2185,17 @@ int SrsConfig::get_engine_achannels(SrsConfDirective* engine)
     return ::atoi(conf->arg0().c_str());
 }
 
-void SrsConfig::get_engine_aparams(SrsConfDirective* engine, vector<string>& aparams)
+vector<string> SrsConfig::get_engine_aparams(SrsConfDirective* engine)
 {
+    vector<string> aparams;
+    
     if (!engine) {
-        return;
+        return aparams;
     }
     
     SrsConfDirective* conf = engine->get("aparams");
     if (!conf) {
-        return;
+        return aparams;
     }
     
     for (int i = 0; i < (int)conf->directives.size(); i++) {
@@ -2197,6 +2207,8 @@ void SrsConfig::get_engine_aparams(SrsConfDirective* engine, vector<string>& apa
         aparams.push_back("-" + p->name);
         aparams.push_back(p->arg0());
     }
+    
+    return aparams;
 }
 
 string SrsConfig::get_engine_output(SrsConfDirective* engine)
@@ -2213,11 +2225,13 @@ string SrsConfig::get_engine_output(SrsConfDirective* engine)
     return conf->arg0();
 }
 
-void SrsConfig::get_ingesters(std::string vhost, std::vector<SrsConfDirective*>& ingeters)
+vector<SrsConfDirective*> SrsConfig::get_ingesters(string vhost)
 {
+    vector<SrsConfDirective*> ingeters;
+    
     SrsConfDirective* vhost_conf = get_vhost(vhost);
     if (!vhost_conf) {
-        return;
+        return ingeters;
     }
     
     for (int i = 0; i < (int)vhost_conf->directives.size(); i++) {
@@ -2228,10 +2242,10 @@ void SrsConfig::get_ingesters(std::string vhost, std::vector<SrsConfDirective*>&
         }
     }
     
-    return;
+    return ingeters;
 }
 
-SrsConfDirective* SrsConfig::get_ingest_by_id(std::string vhost, std::string ingest_id)
+SrsConfDirective* SrsConfig::get_ingest_by_id(string vhost, string ingest_id)
 {
     SrsConfDirective* conf = get_vhost(vhost);
     if (!conf) {

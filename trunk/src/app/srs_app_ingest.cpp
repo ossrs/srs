@@ -93,8 +93,7 @@ int SrsIngester::parse_ingesters(SrsConfDirective* vhost)
 {
     int ret = ERROR_SUCCESS;
     
-    std::vector<SrsConfDirective*> ingesters;
-    _srs_config->get_ingesters(vhost->arg0(), ingesters);
+    std::vector<SrsConfDirective*> ingesters = _srs_config->get_ingesters(vhost->arg0());
     
     // create engine
     for (int i = 0; i < (int)ingesters.size(); i++) {

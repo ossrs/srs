@@ -601,97 +601,112 @@ public:
     */
     virtual std::vector<SrsConfDirective*>      get_transcode_engines(SrsConfDirective* transcode);
     /**
-    * 
+    * whether the engine is enabled.
     */
     virtual bool                get_engine_enabled(SrsConfDirective* engine);
     /**
-    * 
+    * get the vfilter of engine,
+    * the video filter set before the vcodec of FFMPEG.
+    */
+    virtual std::vector<std::string> get_engine_vfilter(SrsConfDirective* engine);
+    /**
+    * get the vcodec of engine,
+    * the codec of video, copy or libx264
     */
     virtual std::string         get_engine_vcodec(SrsConfDirective* engine);
     /**
-    * 
+    * get the vbitrate of engine,
+    * the bitrate in kbps of video, for example, 800kbps
     */
     virtual int                 get_engine_vbitrate(SrsConfDirective* engine);
     /**
-    * 
+    * get the vfps of engine.
+    * the video fps, for example, 25fps
     */
     virtual double              get_engine_vfps(SrsConfDirective* engine);
     /**
-    * 
+    * get the vwidth of engine,
+    * the video width, for example, 1024
     */
     virtual int                 get_engine_vwidth(SrsConfDirective* engine);
     /**
-    * 
+    * get the vheight of engine,
+    * the video height, for example, 576
     */
     virtual int                 get_engine_vheight(SrsConfDirective* engine);
     /**
-    * 
+    * get the vthreads of engine,
+    * the video transcode libx264 threads, for instance, 8
     */
     virtual int                 get_engine_vthreads(SrsConfDirective* engine);
     /**
-    * 
+    * get the vprofile of engine,
+    * the libx264 profile, can be high,main,baseline
     */
     virtual std::string         get_engine_vprofile(SrsConfDirective* engine);
     /**
-    * 
+    * get the vpreset of engine,
+    * the libx264 preset, can be ultrafast,superfast,veryfast,faster,fast,medium,slow,slower,veryslow,placebo
     */
     virtual std::string         get_engine_vpreset(SrsConfDirective* engine);
     /**
-    * 
+    * get the additional video params.
     */
-    virtual void                get_engine_vparams(SrsConfDirective* engine, std::vector<std::string>& vparams);
+    virtual std::vector<std::string> get_engine_vparams(SrsConfDirective* engine);
     /**
-    * 
-    */
-    virtual void                get_engine_vfilter(SrsConfDirective* engine, std::vector<std::string>& vfilter);
-    /**
-    * 
+    * get the acodec of engine,
+    * the audio codec can be copy or libaacplus
     */
     virtual std::string         get_engine_acodec(SrsConfDirective* engine);
     /**
-    * 
+    * get the abitrate of engine,
+    * the audio bitrate in kbps, for instance, 64kbps.
     */
     virtual int                 get_engine_abitrate(SrsConfDirective* engine);
     /**
-    * 
+    * get the asample_rate of engine,
+    * the audio sample_rate, for instance, 44100HZ
     */
     virtual int                 get_engine_asample_rate(SrsConfDirective* engine);
     /**
-    * 
+    * get the achannels of engine,
+    * the audio channel, for instance, 1 for mono, 2 for stereo.
     */
     virtual int                 get_engine_achannels(SrsConfDirective* engine);
     /**
-    * 
+    * get the aparams of engine,
+    * the audio additional params.
     */
-    virtual void                get_engine_aparams(SrsConfDirective* engine, std::vector<std::string>& aparams);
+    virtual std::vector<std::string> get_engine_aparams(SrsConfDirective* engine);
     /**
-    * 
+    * get the output of engine, for example, rtmp://127.0.0.1/live/livestream,
+    * @remark, we will use some variable, for instance, [vhost] to substitude with vhost.
     */
     virtual std::string         get_engine_output(SrsConfDirective* engine);
 // ingest section
 public:
     /**
-    * 
+    * get the ingest directives of vhost.
     */
-    virtual void                get_ingesters(std::string vhost, std::vector<SrsConfDirective*>& ingeters);
+    virtual std::vector<SrsConfDirective*> get_ingesters(std::string vhost);
     /**
-    * 
+    * get specified ingest.
     */
     virtual SrsConfDirective*   get_ingest_by_id(std::string vhost, std::string ingest_id);
     /**
-    * 
+    * whether ingest is enalbed.
     */
     virtual bool                get_ingest_enabled(SrsConfDirective* ingest);
     /**
-    * 
+    * get the ingest ffmpeg tool
     */
     virtual std::string         get_ingest_ffmpeg(SrsConfDirective* ingest);
     /**
-    * 
+    * get the ingest input type, file or stream.
     */
     virtual std::string         get_ingest_input_type(SrsConfDirective* ingest);
     /**
-    * 
+    * get the ingest input url.
     */
     virtual std::string         get_ingest_input_url(SrsConfDirective* ingest);
 // log section

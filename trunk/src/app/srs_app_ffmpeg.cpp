@@ -96,21 +96,21 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
 {
     int ret = ERROR_SUCCESS;
     
-    _srs_config->get_engine_vfilter(engine, vfilter);
-    vcodec             = _srs_config->get_engine_vcodec(engine);
-    vbitrate         = _srs_config->get_engine_vbitrate(engine);
-    vfps             = _srs_config->get_engine_vfps(engine);
-    vwidth             = _srs_config->get_engine_vwidth(engine);
-    vheight         = _srs_config->get_engine_vheight(engine);
-    vthreads         = _srs_config->get_engine_vthreads(engine);
-    vprofile         = _srs_config->get_engine_vprofile(engine);
-    vpreset         = _srs_config->get_engine_vpreset(engine);
-    _srs_config->get_engine_vparams(engine, vparams);
-    acodec             = _srs_config->get_engine_acodec(engine);
-    abitrate         = _srs_config->get_engine_abitrate(engine);
-    asample_rate     = _srs_config->get_engine_asample_rate(engine);
-    achannels         = _srs_config->get_engine_achannels(engine);
-    _srs_config->get_engine_aparams(engine, aparams);
+    vfilter             = _srs_config->get_engine_vfilter(engine);
+    vcodec              = _srs_config->get_engine_vcodec(engine);
+    vbitrate            = _srs_config->get_engine_vbitrate(engine);
+    vfps                = _srs_config->get_engine_vfps(engine);
+    vwidth              = _srs_config->get_engine_vwidth(engine);
+    vheight             = _srs_config->get_engine_vheight(engine);
+    vthreads            = _srs_config->get_engine_vthreads(engine);
+    vprofile            = _srs_config->get_engine_vprofile(engine);
+    vpreset             = _srs_config->get_engine_vpreset(engine);
+    vparams             = _srs_config->get_engine_vparams(engine);
+    acodec              = _srs_config->get_engine_acodec(engine);
+    abitrate            = _srs_config->get_engine_abitrate(engine);
+    asample_rate        = _srs_config->get_engine_asample_rate(engine);
+    achannels           = _srs_config->get_engine_achannels(engine);
+    aparams             = _srs_config->get_engine_aparams(engine);
     
     // ensure the size is even.
     vwidth -= vwidth % 2;
