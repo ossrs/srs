@@ -345,17 +345,26 @@ public:
     */
     virtual SrsConfDirective*   get_root();
     /**
-    * 
+    * get the deamon config.
+    * if true, SRS will run in deamon mode, fork and fork to reap the 
+    * grand-child process to init process.
     */
     virtual bool                get_deamon();
     /**
-    * 
+    * get the max connections limit of system.
+    * if exceed the max connection, SRS will disconnect the connection.
+    * @remark, linux will limit the connections of each process, 
+    *       for example, when you need SRS to service 10000+ connections,
+    *       user must use "ulimit -HSn 10000" and config the max connections
+    *       of SRS.
     */
     virtual int                 get_max_connections();
     /**
-    * 
+    * get the listen port of SRS.
+    * user can specifies multiple listen ports,
+    * each args of directive is a listen port.
     */
-    virtual SrsConfDirective*   get_listen();
+    virtual std::vector<std::string>        get_listen();
     /**
     * 
     */

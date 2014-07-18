@@ -1175,15 +1175,6 @@ int SrsConfig::parse_buffer(_srs_internal::SrsConfigBuffer* buffer)
         return ret;
     }
     
-    SrsConfDirective* conf = NULL;
-    // check rtmp port specified by directive listen.
-    if ((conf = get_listen()) == NULL || conf->args.size() == 0) {
-        ret = ERROR_SYSTEM_CONFIG_INVALID;
-        srs_error("line %d: conf error, "
-            "directive \"listen\" is empty, ret=%d", (conf? conf->conf_line:0), ret);
-        return ret;
-    }
-    
     // check root directives.
     for (int i = 0; i < (int)root->directives.size(); i++) {
         SrsConfDirective* conf = root->at(i);
@@ -1198,6 +1189,13 @@ int SrsConfig::parse_buffer(_srs_internal::SrsConfigBuffer* buffer)
             srs_error("unsupported directive %s, ret=%d", n.c_str(), ret);
             return ret;
         }
+    }
+    
+    // check rtmp port specified by directive listen.
+    if (_srs_config->get_listen().size() <= 0) {
+        ret = ERROR_SYSTEM_CONFIG_INVALID;
+        srs_error("directive \"listen\" is empty, ret=%d", ret);
+        return ret;
     }
     
     // TODO: FIXME: check others.
@@ -1259,9 +1257,20 @@ int SrsConfig::get_max_connections()
     return ::atoi(conf->arg0().c_str());
 }
 
-SrsConfDirective* SrsConfig::get_listen()
+vector<string> SrsConfig::get_listen()
 {
-    return root->get("listen");
+    std::vector<string> ports;
+    
+    SrsConfDirective* conf = root->get("listen");
+    if (!conf) {
+        return ports;
+    }
+    
+    for (int i = 0; i < (int)conf->args.size(); i++) {
+        ports.push_back(conf->args.at(i));
+    }
+    
+    return ports;
 }
 
 string SrsConfig::get_pid_file()

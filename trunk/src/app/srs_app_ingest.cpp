@@ -232,9 +232,9 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
 {
     int ret = ERROR_SUCCESS;
     
-    SrsConfDirective* listen = _srs_config->get_listen();
-    srs_assert(listen->args.size() > 0);
-    std::string port = listen->arg0();
+    std::vector<std::string> ports = _srs_config->get_listen();
+    srs_assert(ports.size() > 0);
+    std::string port = ports[0];
     
     std::string output = _srs_config->get_engine_output(engine);
     // output stream, to other/self server
