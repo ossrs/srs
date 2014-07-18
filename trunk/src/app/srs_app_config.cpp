@@ -1431,6 +1431,179 @@ vector<SrsConfDirective*> SrsConfig::get_vhosts()
     return vhosts;
 }
 
+bool SrsConfig::get_vhost_enabled(string vhost)
+{
+    SrsConfDirective* vhost_conf = get_vhost(vhost);
+    
+    return get_vhost_enabled(vhost_conf);
+}
+
+bool SrsConfig::get_vhost_enabled(SrsConfDirective* vhost)
+{
+    if (!vhost) {
+        return false;
+    }
+    
+    SrsConfDirective* conf = vhost->get("enabled");
+    if (!conf) {
+        return true;
+    }
+    
+    if (conf->arg0() == "off") {
+        return false;
+    }
+    
+    return true;
+}
+
+bool SrsConfig::get_gop_cache(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return true;
+    }
+    
+    conf = conf->get("gop_cache");
+    if (conf && conf->arg0() == "off") {
+        return false;
+    }
+    
+    return true;
+}
+
+bool SrsConfig::get_atc(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return false;
+    }
+    
+    conf = conf->get("atc");
+    if (conf && conf->arg0() == "on") {
+        return true;
+    }
+    
+    return false;
+}
+
+bool SrsConfig::get_atc_auto(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return true;
+    }
+    
+    conf = conf->get("atc_auto");
+    if (conf && conf->arg0() == "off") {
+        return false;
+    }
+    
+    return true;
+}
+
+int SrsConfig::get_time_jitter(string vhost)
+{
+    SrsConfDirective* dvr = get_vhost(vhost);
+    
+    std::string time_jitter = SRS_CONF_DEFAULT_TIME_JITTER;
+    
+    if (dvr) {
+        SrsConfDirective* conf = dvr->get("time_jitter");
+    
+        if (conf) {
+            time_jitter = conf->arg0();
+        }
+    }
+    
+    return _srs_time_jitter_string2int(time_jitter);
+}
+
+double SrsConfig::get_queue_length(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return SRS_CONF_DEFAULT_QUEUE_LENGTH;
+    }
+    
+    conf = conf->get("queue_length");
+    if (!conf || conf->arg0().empty()) {
+        return SRS_CONF_DEFAULT_QUEUE_LENGTH;
+    }
+    
+    return ::atoi(conf->arg0().c_str());
+}
+
+SrsConfDirective* SrsConfig::get_refer(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return NULL;
+    }
+    
+    return conf->get("refer");
+}
+
+SrsConfDirective* SrsConfig::get_refer_play(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return NULL;
+    }
+    
+    return conf->get("refer_play");
+}
+
+SrsConfDirective* SrsConfig::get_refer_publish(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return NULL;
+    }
+    
+    return conf->get("refer_publish");
+}
+
+int SrsConfig::get_chunk_size(const string &vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return SRS_CONF_DEFAULT_CHUNK_SIZE;
+    }
+
+    conf = conf->get("chunk_size");
+    if (!conf) {
+        // vhost does not specify the chunk size,
+        // use the global instead.
+        conf = root->get("chunk_size");
+        if (!conf) {
+            return SRS_CONF_DEFAULT_CHUNK_SIZE;
+        }
+        
+        return ::atoi(conf->arg0().c_str());
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
+SrsConfDirective* SrsConfig::get_forward(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return NULL;
+    }
+    
+    return conf->get("forward");
+}
+
 SrsConfDirective* SrsConfig::get_vhost_on_connect(string vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);
@@ -1576,179 +1749,6 @@ SrsConfDirective* SrsConfig::get_vhost_on_dvr_hss_reap_flv(string vhost)
     }
     
     return conf->get("on_dvr_hss_reap_flv");
-}
-
-bool SrsConfig::get_vhost_enabled(string vhost)
-{
-    SrsConfDirective* vhost_conf = get_vhost(vhost);
-    
-    return get_vhost_enabled(vhost_conf);
-}
-
-bool SrsConfig::get_vhost_enabled(SrsConfDirective* vhost)
-{
-    if (!vhost) {
-        return false;
-    }
-    
-    SrsConfDirective* conf = vhost->get("enabled");
-    if (!conf) {
-        return true;
-    }
-    
-    if (conf->arg0() == "off") {
-        return false;
-    }
-    
-    return true;
-}
-
-bool SrsConfig::get_gop_cache(string vhost)
-{
-    SrsConfDirective* conf = get_vhost(vhost);
-
-    if (!conf) {
-        return true;
-    }
-    
-    conf = conf->get("gop_cache");
-    if (conf && conf->arg0() == "off") {
-        return false;
-    }
-    
-    return true;
-}
-
-bool SrsConfig::get_atc(string vhost)
-{
-    SrsConfDirective* conf = get_vhost(vhost);
-
-    if (!conf) {
-        return false;
-    }
-    
-    conf = conf->get("atc");
-    if (conf && conf->arg0() == "on") {
-        return true;
-    }
-    
-    return false;
-}
-
-bool SrsConfig::get_atc_auto(string vhost)
-{
-    SrsConfDirective* conf = get_vhost(vhost);
-
-    if (!conf) {
-        return true;
-    }
-    
-    conf = conf->get("atc_auto");
-    if (conf && conf->arg0() == "off") {
-        return false;
-    }
-    
-    return true;
-}
-
-int SrsConfig::get_time_jitter(string vhost)
-{
-    SrsConfDirective* dvr = get_vhost(vhost);
-    
-    std::string time_jitter = SRS_CONF_DEFAULT_TIME_JITTER;
-    
-    if (dvr) {
-        SrsConfDirective* conf = dvr->get("time_jitter");
-    
-        if (conf) {
-            time_jitter = conf->arg0();
-        }
-    }
-    
-    return _srs_time_jitter_string2int(time_jitter);
-}
-
-double SrsConfig::get_queue_length(string vhost)
-{
-    SrsConfDirective* conf = get_vhost(vhost);
-
-    if (!conf) {
-        return SRS_CONF_DEFAULT_QUEUE_LENGTH;
-    }
-    
-    conf = conf->get("queue_length");
-    if (!conf || conf->arg0().empty()) {
-        return SRS_CONF_DEFAULT_QUEUE_LENGTH;
-    }
-    
-    return ::atoi(conf->arg0().c_str());
-}
-
-SrsConfDirective* SrsConfig::get_forward(string vhost)
-{
-    SrsConfDirective* conf = get_vhost(vhost);
-
-    if (!conf) {
-        return NULL;
-    }
-    
-    return conf->get("forward");
-}
-
-SrsConfDirective* SrsConfig::get_refer(string vhost)
-{
-    SrsConfDirective* conf = get_vhost(vhost);
-
-    if (!conf) {
-        return NULL;
-    }
-    
-    return conf->get("refer");
-}
-
-SrsConfDirective* SrsConfig::get_refer_play(string vhost)
-{
-    SrsConfDirective* conf = get_vhost(vhost);
-
-    if (!conf) {
-        return NULL;
-    }
-    
-    return conf->get("refer_play");
-}
-
-SrsConfDirective* SrsConfig::get_refer_publish(string vhost)
-{
-    SrsConfDirective* conf = get_vhost(vhost);
-
-    if (!conf) {
-        return NULL;
-    }
-    
-    return conf->get("refer_publish");
-}
-
-int SrsConfig::get_chunk_size(const string &vhost)
-{
-    SrsConfDirective* conf = get_vhost(vhost);
-
-    if (!conf) {
-        return SRS_CONF_DEFAULT_CHUNK_SIZE;
-    }
-
-    conf = conf->get("chunk_size");
-    if (!conf) {
-        // vhost does not specify the chunk size,
-        // use the global instead.
-        conf = root->get("chunk_size");
-        if (!conf) {
-            return SRS_CONF_DEFAULT_CHUNK_SIZE;
-        }
-        
-        return ::atoi(conf->arg0().c_str());
-    }
-
-    return ::atoi(conf->arg0().c_str());
 }
 
 bool SrsConfig::get_bw_check_enabled(const string &vhost)

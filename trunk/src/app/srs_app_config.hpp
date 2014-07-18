@@ -422,65 +422,44 @@ public:
     */
     virtual std::vector<SrsConfDirective*>  get_vhosts();
     /**
-    * 
+    * whether vhost is enabled
+    * @param vhost, the vhost name.
+    * @return true when vhost is ok; otherwise, false.
     */
     virtual bool                get_vhost_enabled(std::string vhost);
     /**
-    * 
+    * whether vhost is enabled
+    * @param vhost, the vhost directive.
+    * @return true when vhost is ok; otherwise, false.
     */
     virtual bool                get_vhost_enabled(SrsConfDirective* vhost);
     /**
-    * 
-    */
-    virtual SrsConfDirective*   get_vhost_on_connect(std::string vhost);
-    /**
-    * 
-    */
-    virtual SrsConfDirective*   get_vhost_on_close(std::string vhost);
-    /**
-    * 
-    */
-    virtual SrsConfDirective*   get_vhost_on_publish(std::string vhost);
-    /**
-    * 
-    */
-    virtual SrsConfDirective*   get_vhost_on_unpublish(std::string vhost);
-    /**
-    * 
-    */
-    virtual SrsConfDirective*   get_vhost_on_play(std::string vhost);
-    /**
-    * 
-    */
-    virtual SrsConfDirective*   get_vhost_on_stop(std::string vhost);
-    /**
-    * 
-    */
-    virtual SrsConfDirective*   get_vhost_on_dvr_hss_reap_flv(std::string vhost);
-    /**
-    * 
+    * whether gop_cache is enabled of vhost.
+    * gop_cache used to cache last gop, for client to fast startup.
+    * @return true when gop_cache is ok; otherwise, false.
     */
     virtual bool                get_gop_cache(std::string vhost);
     /**
-    * 
+    * whether atc is enabled of vhost.
+    * atc always use encoder timestamp, SRS never adjust the time.
+    * @return true when atc is ok; otherwise, false.
     */
     virtual bool                get_atc(std::string vhost);
     /**
-    * 
+    * whether atc_auto is enabled of vhost.
+    * atc_auto used to auto enable atc, when metadata specified the bravo_atc.
+    * @return true when atc_auto is ok; otherwise, false.
     */
     virtual bool                get_atc_auto(std::string vhost);
     /**
-    * 
+    * get the time_jitter algorithm.
+    * @return the time_jitter algorithm, defined in SrsRtmpJitterAlgorithm.
     */
     virtual int                 get_time_jitter(std::string vhost);
     /**
     * 
     */
     virtual double              get_queue_length(std::string vhost);
-    /**
-    * 
-    */
-    virtual SrsConfDirective*   get_forward(std::string vhost);
     /**
     * 
     */
@@ -497,6 +476,49 @@ public:
     * 
     */
     virtual int                 get_chunk_size(const std::string& vhost);
+// forward section
+public:
+    /**
+    * 
+    */
+    virtual SrsConfDirective*   get_forward(std::string vhost);
+// http_hooks section
+public:
+    /**
+    * get the on_connect callbacks of vhost.
+    * @return the on_connect callback directive, the args is the url to callback.
+    */
+    virtual SrsConfDirective*   get_vhost_on_connect(std::string vhost);
+    /**
+    * get the on_close callbacks of vhost.
+    * @return the on_close callback directive, the args is the url to callback.
+    */
+    virtual SrsConfDirective*   get_vhost_on_close(std::string vhost);
+    /**
+    * get the on_publish callbacks of vhost.
+    * @return the on_publish callback directive, the args is the url to callback.
+    */
+    virtual SrsConfDirective*   get_vhost_on_publish(std::string vhost);
+    /**
+    * get the on_unpublish callbacks of vhost.
+    * @return the on_unpublish callback directive, the args is the url to callback.
+    */
+    virtual SrsConfDirective*   get_vhost_on_unpublish(std::string vhost);
+    /**
+    * get the on_play callbacks of vhost.
+    * @return the on_play callback directive, the args is the url to callback.
+    */
+    virtual SrsConfDirective*   get_vhost_on_play(std::string vhost);
+    /**
+    * get the on_stop callbacks of vhost.
+    * @return the on_stop callback directive, the args is the url to callback.
+    */
+    virtual SrsConfDirective*   get_vhost_on_stop(std::string vhost);
+    /**
+    * get the on_dvr_hss_reap_flv callbacks of vhost.
+    * @return the on_dvr_hss_reap_flv callback directive, the args is the url to callback.
+    */
+    virtual SrsConfDirective*   get_vhost_on_dvr_hss_reap_flv(std::string vhost);
 // bwct(bandwidth check tool) section
 public:
     /**
