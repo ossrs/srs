@@ -224,8 +224,7 @@ int SrsEncoder::parse_ffmpeg(SrsRequest* req, SrsConfDirective* conf)
     }
     
     // get all engines.
-    std::vector<SrsConfDirective*> engines;
-    _srs_config->get_transcode_engines(conf, engines);
+    std::vector<SrsConfDirective*> engines = _srs_config->get_transcode_engines(conf);
     if (engines.empty()) {
         srs_trace("ignore the empty transcode engine: %s", 
             conf->arg0().c_str());

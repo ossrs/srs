@@ -123,8 +123,7 @@ int SrsIngester::parse_engines(SrsConfDirective* vhost, SrsConfDirective* ingest
     }
     
     // get all engines.
-    std::vector<SrsConfDirective*> engines;
-    _srs_config->get_transcode_engines(ingest, engines);
+    std::vector<SrsConfDirective*> engines = _srs_config->get_transcode_engines(ingest);
     if (engines.empty()) {
         SrsFFMPEG* ffmpeg = new SrsFFMPEG(ffmpeg_bin);
         if ((ret = initialize_ffmpeg(ffmpeg, vhost, ingest, NULL)) != ERROR_SUCCESS) {

@@ -1932,10 +1932,12 @@ string SrsConfig::get_transcode_ffmpeg(SrsConfDirective* transcode)
     return conf->arg0();
 }
 
-void SrsConfig::get_transcode_engines(SrsConfDirective* transcode, vector<SrsConfDirective*>& engines)
+vector<SrsConfDirective*> SrsConfig::get_transcode_engines(SrsConfDirective* transcode)
 {
+    vector<SrsConfDirective*> engines;
+    
     if (!transcode) {
-        return;
+        return engines;
     }
     
     for (int i = 0; i < (int)transcode->directives.size(); i++) {
@@ -1946,7 +1948,7 @@ void SrsConfig::get_transcode_engines(SrsConfDirective* transcode, vector<SrsCon
         }
     }
     
-    return;
+    return engines;
 }
 
 bool SrsConfig::get_engine_enabled(SrsConfDirective* engine)

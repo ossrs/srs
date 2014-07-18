@@ -526,57 +526,80 @@ public:
 // bwct(bandwidth check tool) section
 public:
     /**
-    * 
+    * whether bw check enabled for vhost.
+    * if enabled, serve all clients with bandwidth check services.
+    * oterwise, serve all cleints with stream.
     */
     virtual bool                get_bw_check_enabled(std::string vhost);
     /**
-    * 
+    * the key of server, if client key mot match, reject.
     */
     virtual std::string         get_bw_check_key(std::string vhost);
     /**
-    * 
+    * the check interval, in ms.
+    * if the client request check in very short time(in the interval),
+    * SRS will reject client.
+    * @remark this is used to prevent the bandwidth check attack.
     */
     virtual int                 get_bw_check_interval_ms(std::string vhost);
     /**
-    * 
+    * the max kbps that user can test,
+    * if exceed the kbps, server will slowdown the send-recv.
+    * @remark this is used to protect the service bandwidth.
     */
     virtual int                 get_bw_check_limit_kbps(std::string vhost);
 // vhost edge section
 public:
     /**
-    * 
+    * whether vhost is edge mode.
+    * for edge, publish client will be proxyed to upnode,
+    * for edge, play client will share a connection to get stream from upnode.
     */
     virtual bool                get_vhost_is_edge(std::string vhost);
     /**
-    * 
+    * whether vhost is edge mode.
+    * for edge, publish client will be proxyed to upnode,
+    * for edge, play client will share a connection to get stream from upnode.
     */
     virtual bool                get_vhost_is_edge(SrsConfDirective* vhost);
     /**
-    * 
+    * get the origin config of edge,
+    * specifies the origin ip address, port.
     */
     virtual SrsConfDirective*   get_vhost_edge_origin(std::string vhost);
     /**
-    * 
+    * whether edge token tranverse is enabled,
+    * if true, edge will send connect origin to verfy the token of client.
+    * for example, we verify all clients on the origin FMS by server-side as,
+    * all clients connected to edge must be tranverse to origin to verify.
     */
     virtual bool                get_vhost_edge_token_traverse(std::string vhost);
 // vhost transcode section
 public:
     /**
-    * 
+    * get the transcode directive of vhost in specified scope.
+    * @param vhost, the vhost name to get the transcode directive.
+    * @param scope, the scope, empty to get all. for example, user can transcode
+    *       the app scope stream, by config with app:
+    *                   transcode live {...}
+    *       when the scope is "live", this directive is matched.
+    *       the scope can be: empty for all, app, app/stream.
+    * @remark, please see the samples of full.conf, the app.transcode.srs.com
+    *       and stream.transcode.srs.com.
     */
     virtual SrsConfDirective*   get_transcode(std::string vhost, std::string scope);
     /**
-    * 
+    * whether the transcode directive is enabled.
     */
     virtual bool                get_transcode_enabled(SrsConfDirective* transcode);
     /**
-    * 
+    * get the ffmpeg tool path of transcode.
     */
     virtual std::string         get_transcode_ffmpeg(SrsConfDirective* transcode);
     /**
-    * 
+    * get the engines of transcode.
     */
-    virtual void                get_transcode_engines(SrsConfDirective* transcode, std::vector<SrsConfDirective*>& engines);
+    virtual std::vector<SrsConfDirective*>      get_transcode_engines(SrsConfDirective* transcode);
     /**
     * 
     */
