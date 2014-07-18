@@ -2549,15 +2549,15 @@ int SrsConfig::get_dvr_time_jitter(string vhost)
     return _srs_time_jitter_string2int(time_jitter);
 }
 
-SrsConfDirective* SrsConfig::get_http_api()
-{
-    return root->get("http_api");
-}
-
 bool SrsConfig::get_http_api_enabled()
 {
     SrsConfDirective* conf = get_http_api();
     return get_http_api_enabled(conf);
+}
+
+SrsConfDirective* SrsConfig::get_http_api()
+{
+    return root->get("http_api");
 }
 
 bool SrsConfig::get_http_api_enabled(SrsConfDirective* conf)
@@ -2590,15 +2590,15 @@ int SrsConfig::get_http_api_listen()
     return ::atoi(conf->arg0().c_str());
 }
 
-SrsConfDirective* SrsConfig::get_http_stream()
-{
-    return root->get("http_stream");
-}
-
 bool SrsConfig::get_http_stream_enabled()
 {
     SrsConfDirective* conf = get_http_stream();
     return get_http_stream_enabled(conf);
+}
+
+SrsConfDirective* SrsConfig::get_http_stream()
+{
+    return root->get("http_stream");
 }
 
 bool SrsConfig::get_http_stream_enabled(SrsConfDirective* conf)

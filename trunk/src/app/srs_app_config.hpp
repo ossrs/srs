@@ -712,159 +712,171 @@ public:
 // log section
 public:
     /**
-    * 
+    * whether log to file.
     */
     virtual bool                get_log_tank_file();
     /**
-    * 
+    * get the log level.
     */
     virtual std::string         get_log_level();
     /**
-    * 
+    * get the log file path.
     */
     virtual std::string         get_log_file();
     /**
-    * 
+    * whether ffmpeg log enabled
     */
     virtual bool                get_ffmpeg_log_enabled();
     /**
-    * 
+    * the ffmpeg log dir.
+    * @remark, /dev/null to disable it.
     */
     virtual std::string         get_ffmpeg_log_dir();
 // hls section
 private:
     /**
-    * 
+    * get the hls directive of vhost.
     */
     virtual SrsConfDirective*   get_hls(std::string vhost);
 public:
     /**
-    * 
+    * whether HLS is enabled.
     */
     virtual bool                get_hls_enabled(std::string vhost);
     /**
-    * 
+    * get the HLS ts/m3u8 file store path.
     */
     virtual std::string         get_hls_path(std::string vhost);
     /**
-    * 
+    * get the hls fragment time, in seconds.
+    * a fragment is a ts file.
     */
     virtual double              get_hls_fragment(std::string vhost);
     /**
-    * 
+    * get the hls window time, in seconds.
+    * a window is a set of ts, the ts collection in m3u8.
+    * @remark SRS will delete the ts exceed the window.
     */
     virtual double              get_hls_window(std::string vhost);
 // dvr section
 private:
     /**
-    * 
+    * get the dvr directive.
     */
     virtual SrsConfDirective*   get_dvr(std::string vhost);
 public:
     /**
-    * 
+    * whether dvr is enabled.
     */
     virtual bool                get_dvr_enabled(std::string vhost);
     /**
-    * 
+    * get the dvr path, the flv file to save in.
     */
     virtual std::string         get_dvr_path(std::string vhost);
     /**
-    * 
+    * get the plan of dvr, how to reap the flv file.
     */
     virtual std::string         get_dvr_plan(std::string vhost);
     /**
-    * 
+    * get the duration of dvr flv, for segment plan.
     */
     virtual int                 get_dvr_duration(std::string vhost);
     /**
-    * 
+    * get the time_jitter algorithm for dvr.
     */
     virtual int                 get_dvr_time_jitter(std::string vhost);
 // http api section
 private:
     /**
-    * 
+    * get the http api directive.
     */
     virtual SrsConfDirective*   get_http_api();
+    /**
+    * whether http api enabled
+    */
+    virtual bool                get_http_api_enabled(SrsConfDirective* conf);
 public:
     /**
-    * 
+    * whether http api enabled.
     */
     virtual bool                get_http_api_enabled();
     /**
-    * 
-    */
-    virtual bool                get_http_api_enabled(SrsConfDirective* conf);
-    /**
-    * 
+    * get the http api listen port.
     */
     virtual int                 get_http_api_listen();
 // http stream section
 private:
     /**
-    * 
+    * get the http stream directive.
     */
     virtual SrsConfDirective*   get_http_stream();
+    /**
+    * whether http stream enabled.
+    */
+    virtual bool                get_http_stream_enabled(SrsConfDirective* conf);
 public:
     /**
-    * 
+    * whether http stream enabled.
     */
     virtual bool                get_http_stream_enabled();
     /**
-    * 
-    */
-    virtual bool                get_http_stream_enabled(SrsConfDirective* conf);
-    /**
-    * 
+    * get the http stream listen port.
     */
     virtual int                 get_http_stream_listen();
     /**
-    * 
+    * get the http stream root dir.
     */
     virtual std::string         get_http_stream_dir();
 public:
     /**
-    * 
+    * get whether vhost enabled http stream
     */
     virtual bool                get_vhost_http_enabled(std::string vhost);
     /**
-    * 
+    * get the http mount point for vhost,
+    * vhost can use sub dir of http.
+    * for example, http://server/vhost1/live/livestream
+    * where the vhost1 is mount point for vhost1.
     */
     virtual std::string         get_vhost_http_mount(std::string vhost);
     /**
-    * 
+    * get the http dir for vhost.
+    * the http dir of vhost will mount to the mount point of vhost.
+    * for example, http://server/vhost1/live/livestream
+    * where the vhost1 is mount point for vhost1,
+    * and vhost1 dir is specified by this http dir.
     */
     virtual std::string         get_vhost_http_dir(std::string vhost);
 // http heartbeart section
 private:
     /**
-    * 
+    * get the heartbeat directive.
     */
     virtual SrsConfDirective*   get_heartbeart();
 public:
     /**
-    * 
+    * whether heartbeat enabled.
     */
     virtual bool                get_heartbeat_enabled();
     /**
-    * 
+    * get the heartbeat interval, in ms.
     */
     virtual int64_t             get_heartbeat_interval();
     /**
-    * 
+    * get the heartbeat report url.
     */
     virtual std::string         get_heartbeat_url();
     /**
-    * 
+    * get the device id of heartbeat, to report to server.
     */
     virtual std::string         get_heartbeat_device_id();
     /**
-    * 
+    * get the network device index, to report to server.
+    * for example, 0 means the eth0 maybe.
     */
     virtual int                 get_heartbeat_device_index();
     /**
-    * 
+    * whether report with summaries of http api: /api/v1/summaries.
     */
     virtual bool                get_heartbeat_summaries();
 };
