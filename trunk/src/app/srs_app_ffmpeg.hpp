@@ -51,6 +51,8 @@ private:
 private:
     std::string                 ffmpeg;
     std::string                 _iparams;
+    std::string                 iformat;
+    std::string                 input;
     std::vector<std::string>    vfilter;
     std::string                 vcodec;
     int                         vbitrate;
@@ -66,8 +68,8 @@ private:
     int                         asample_rate;
     int                         achannels;
     std::vector<std::string>    aparams;
+    std::string                 oformat;
     std::string                 _output;
-    std::string                 input;
 public:
     SrsFFMPEG(std::string ffmpeg_bin);
     virtual ~SrsFFMPEG();

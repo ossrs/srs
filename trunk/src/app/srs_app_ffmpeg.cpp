@@ -96,6 +96,7 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
 {
     int ret = ERROR_SUCCESS;
     
+    iformat             = _srs_config->get_engine_iformat(engine);
     vfilter             = _srs_config->get_engine_vfilter(engine);
     vcodec              = _srs_config->get_engine_vcodec(engine);
     vbitrate            = _srs_config->get_engine_vbitrate(engine);
@@ -111,6 +112,7 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
     asample_rate        = _srs_config->get_engine_asample_rate(engine);
     achannels           = _srs_config->get_engine_achannels(engine);
     aparams             = _srs_config->get_engine_aparams(engine);
+    oformat             = _srs_config->get_engine_oformat(engine);
     
     // ensure the size is even.
     vwidth -= vwidth % 2;
@@ -241,8 +243,10 @@ int SrsFFMPEG::start()
     }
     
     // input.
-    params.push_back("-f");
-    params.push_back("flv");
+    if (iformat != "off") {
+        params.push_back("-f");
+        params.push_back(iformat);
+    }
     
     params.push_back("-i");
     params.push_back(input);
@@ -342,8 +346,10 @@ int SrsFFMPEG::start()
     }
 
     // output
-    params.push_back("-f");
-    params.push_back("flv");
+    if (oformat != "off") {
+        params.push_back("-f");
+        params.push_back(oformat);
+    }
     
     params.push_back("-y");
     params.push_back(_output);

@@ -1965,6 +1965,20 @@ bool SrsConfig::get_engine_enabled(SrsConfDirective* engine)
     return true;
 }
 
+string SrsConfig::get_engine_iformat(SrsConfDirective* engine)
+{
+    if (!engine) {
+        return "flv";
+    }
+    
+    SrsConfDirective* conf = engine->get("iformat");
+    if (!conf) {
+        return "flv";
+    }
+    
+    return conf->arg0();
+}
+
 vector<string> SrsConfig::get_engine_vfilter(SrsConfDirective* engine)
 {
     vector<string> vfilter;
@@ -2209,6 +2223,20 @@ vector<string> SrsConfig::get_engine_aparams(SrsConfDirective* engine)
     }
     
     return aparams;
+}
+
+string SrsConfig::get_engine_oformat(SrsConfDirective* engine)
+{
+    if (!engine) {
+        return "flv";
+    }
+    
+    SrsConfDirective* conf = engine->get("oformat");
+    if (!conf) {
+        return "flv";
+    }
+    
+    return conf->arg0();
 }
 
 string SrsConfig::get_engine_output(SrsConfDirective* engine)

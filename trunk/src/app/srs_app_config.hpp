@@ -605,6 +605,10 @@ public:
     */
     virtual bool                get_engine_enabled(SrsConfDirective* engine);
     /**
+    * get the iformat of engine
+    */
+    virtual std::string         get_engine_iformat(SrsConfDirective* engine);
+    /**
     * get the vfilter of engine,
     * the video filter set before the vcodec of FFMPEG.
     */
@@ -678,6 +682,10 @@ public:
     * the audio additional params.
     */
     virtual std::vector<std::string> get_engine_aparams(SrsConfDirective* engine);
+    /**
+    * get the oformat of engine
+    */
+    virtual std::string         get_engine_oformat(SrsConfDirective* engine);
     /**
     * get the output of engine, for example, rtmp://127.0.0.1/live/livestream,
     * @remark, we will use some variable, for instance, [vhost] to substitude with vhost.
