@@ -317,12 +317,14 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
             ingest->arg0().c_str(), input_type.c_str(), ret);
     }
     
+    // set output format to flv for RTMP
+    ffmpeg->set_oformat("flv");
+    
     std::string vcodec = _srs_config->get_engine_vcodec(engine);
     std::string acodec = _srs_config->get_engine_acodec(engine);
     // whatever the engine config, use copy as default.
-    if (!engine || vcodec.empty() || acodec.empty()
-        || !_srs_config->get_engine_enabled(engine)
-    ) {
+    bool engine_disabled = !engine || !_srs_config->get_engine_enabled(engine);
+    if (engine_disabled || vcodec.empty() || acodec.empty()) {
         if ((ret = ffmpeg->initialize_copy()) != ERROR_SUCCESS) {
             return ret;
         }

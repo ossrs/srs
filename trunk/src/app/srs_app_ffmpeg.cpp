@@ -76,6 +76,11 @@ void SrsFFMPEG::set_iparams(string iparams)
     _iparams = iparams;
 }
 
+void SrsFFMPEG::set_oformat(string format)
+{
+    oformat = format;
+}
+
 string SrsFFMPEG::output()
 {
     return _output;
@@ -243,7 +248,7 @@ int SrsFFMPEG::start()
     }
     
     // input.
-    if (iformat != "off") {
+    if (iformat != "off" && !iformat.empty()) {
         params.push_back("-f");
         params.push_back(iformat);
     }
@@ -346,7 +351,7 @@ int SrsFFMPEG::start()
     }
 
     // output
-    if (oformat != "off") {
+    if (oformat != "off" && !oformat.empty()) {
         params.push_back("-f");
         params.push_back(oformat);
     }

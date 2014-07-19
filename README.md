@@ -208,6 +208,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v1.0, 2014-07-19, fix [#119](https://github.com/winlinvip/simple-rtmp-server/issues/119), use iformat and oformat for ffmpeg transcode. 0.9.163.
 * <strong>v1.0, 2014-07-13, [1.0 mainline6(0.9.160)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline8) released. 50029 lines.</strong>
 * v1.0, 2014-07-13, refine the bandwidth check/test, add as/js library, use srs-librtmp for linux tool. 0.9.159
 * v1.0, 2014-07-12, complete rtmp stack utest. 0.9.156

@@ -75,6 +75,7 @@ public:
     virtual ~SrsFFMPEG();
 public:
     virtual void set_iparams(std::string iparams);
+    virtual void set_oformat(std::string format);
     virtual std::string output();
 public:
     virtual int initialize(std::string in, std::string out, std::string log);
