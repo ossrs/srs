@@ -42,4 +42,13 @@ public:
     virtual int fullfill(const char* filename);
 };
 
+class MockSrsConfig : public SrsConfig
+{
+public:
+    MockSrsConfig();
+    virtual ~MockSrsConfig();
+public:
+    virtual int parse(std::string buf);
+};
+
 #endif

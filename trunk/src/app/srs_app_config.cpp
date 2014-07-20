@@ -1182,6 +1182,13 @@ int SrsConfig::parse_buffer(_srs_internal::SrsConfigBuffer* buffer)
     if ((ret = root->parse(buffer)) != ERROR_SUCCESS) {
         return ret;
     }
+
+    // check empty
+    if (root->directives.size() == 0) {
+        ret = ERROR_SYSTEM_CONFIG_INVALID;
+        srs_error("conf is empty, ret=%d", ret);
+        return ret;
+    }
     
     // check root directives.
     for (int i = 0; i < (int)root->directives.size(); i++) {
@@ -1200,7 +1207,7 @@ int SrsConfig::parse_buffer(_srs_internal::SrsConfigBuffer* buffer)
     }
     
     // check rtmp port specified by directive listen.
-    if (_srs_config->get_listen().size() <= 0) {
+    if (get_listen().size() <= 0) {
         ret = ERROR_SYSTEM_CONFIG_INVALID;
         srs_error("directive \"listen\" is empty, ret=%d", ret);
         return ret;

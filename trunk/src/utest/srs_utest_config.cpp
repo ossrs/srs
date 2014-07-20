@@ -53,6 +53,20 @@ int MockSrsConfigBuffer::fullfill(const char* /*filename*/)
     return ERROR_SUCCESS;
 }
 
+MockSrsConfig::MockSrsConfig()
+{
+}
+
+MockSrsConfig::~MockSrsConfig()
+{
+}
+
+int MockSrsConfig::parse(string buf)
+{
+    MockSrsConfigBuffer buffer(buf);
+    return parse_buffer(&buffer);
+}
+
 VOID TEST(ConfigTest, CheckMacros)
 {
 #ifndef SRS_CONSTS_LOCALHOST
@@ -776,4 +790,10 @@ VOID TEST(ConfigDirectiveTest, ParseLineNormal)
     EXPECT_STREQ("arg2", dir2.arg0().c_str());
     EXPECT_EQ(0, (int)dir2.directives.size());
     EXPECT_EQ(3, (int)dir2.conf_line);
+}
+
+VOID TEST(ConfigMainTest, ParseEmpty)
+{
+    MockSrsConfig conf;
+    EXPECT_TRUE(ERROR_SUCCESS != conf.parse(""));
 }
