@@ -169,7 +169,7 @@ int SrsHttpHandler::best_match(const char* path, int length, SrsHttpHandlerMatch
         }
         
         const char* p = NULL;
-        for (p = path + 1; p - path < length && *p != __PATH_SEP; p++) {
+        for (p = path + 1; p - path < length && *p != SRS_CONSTS_HTTP_PATH_SEP; p++) {
         }
         
         // whether the handler can handler the node.
@@ -541,7 +541,7 @@ SrsHttpMessage::SrsHttpMessage()
     _uri = new SrsHttpUri();
     _match = NULL;
     _requires_crossdomain = false;
-    _http_ts_send_buffer = new char[SRS_CONSTS_HTTP_TS_SEND_BUFFER_SIZE];
+    _http_ts_send_buffer = new char[__SRS_HTTP_TS_SEND_BUFFER_SIZE];
 }
 
 SrsHttpMessage::~SrsHttpMessage()

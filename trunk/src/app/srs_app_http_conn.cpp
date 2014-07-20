@@ -272,7 +272,7 @@ int SrsHttpVhost::response_flv_file(SrsSocket* skt, SrsHttpMessage* req, string 
     
     while (left > 0) {
         ssize_t nread = -1;
-        if ((ret = fs.read(buf, SRS_CONSTS_HTTP_TS_SEND_BUFFER_SIZE, &nread)) != ERROR_SUCCESS) {
+        if ((ret = fs.read(buf, __SRS_HTTP_TS_SEND_BUFFER_SIZE, &nread)) != ERROR_SUCCESS) {
             srs_warn("read file %s failed, ret=%d", fullpath.c_str(), ret);
             break;
         }
@@ -377,7 +377,7 @@ int SrsHttpVhost::response_flv_file2(SrsSocket* skt, SrsHttpMessage* req, string
     // send data
     while (left > 0) {
         ssize_t nread = -1;
-        if ((ret = fs.read(buf, SRS_CONSTS_HTTP_TS_SEND_BUFFER_SIZE, &nread)) != ERROR_SUCCESS) {
+        if ((ret = fs.read(buf, __SRS_HTTP_TS_SEND_BUFFER_SIZE, &nread)) != ERROR_SUCCESS) {
             return ret;
         }
         
@@ -427,7 +427,7 @@ int SrsHttpVhost::response_ts_file(SrsSocket* skt, SrsHttpMessage* req, string f
     
     while (left > 0) {
         ssize_t nread = -1;
-        if ((ret = fs.read(buf, SRS_CONSTS_HTTP_TS_SEND_BUFFER_SIZE, &nread)) != ERROR_SUCCESS) {
+        if ((ret = fs.read(buf, __SRS_HTTP_TS_SEND_BUFFER_SIZE, &nread)) != ERROR_SUCCESS) {
             srs_warn("read file %s failed, ret=%d", fullpath.c_str(), ret);
             break;
         }

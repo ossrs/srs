@@ -63,12 +63,7 @@ class SrsHttpHandler;
 #define __SRS_CRLFCRLF "\r\n\r\n" // 0x0D0A0D0A
 
 // @see SrsHttpMessage._http_ts_send_buffer
-#define SRS_CONSTS_HTTP_TS_SEND_BUFFER_SIZE 4096
-
-// linux path seprator
-#define __PATH_SEP '/'
-// query string seprator
-#define __QUERY_SEP '?'
+#define __SRS_HTTP_TS_SEND_BUFFER_SIZE 4096
 
 // compare the path.
 // full compare, extractly match.

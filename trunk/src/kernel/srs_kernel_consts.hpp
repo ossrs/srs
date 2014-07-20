@@ -160,6 +160,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ///////////////////////////////////////////////////////////
 // HTTP consts values
 ///////////////////////////////////////////////////////////
+// linux path seprator
+#define SRS_CONSTS_HTTP_PATH_SEP '/'
+// query string seprator
+#define SRS_CONSTS_HTTP_QUERY_SEP '?'
+
 // 6.1.1 Status Code and Reason Phrase
 #define SRS_CONSTS_HTTP_Continue                       100
 #define SRS_CONSTS_HTTP_SwitchingProtocols             101

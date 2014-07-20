@@ -34,8 +34,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // whether use nxjson
 // @see: https://bitbucket.org/yarosla/nxjson
-#undef SRS_JSON_USE_NXJSON
-#define SRS_JSON_USE_NXJSON
+#undef __SRS_JSON_USE_NXJSON
+#define __SRS_JSON_USE_NXJSON
 
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
