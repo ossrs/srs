@@ -1288,12 +1288,12 @@ int SrsConfig::get_pithy_print_publish()
 {
     SrsConfDirective* pithy = root->get("pithy_print");
     if (!pithy) {
-        return SRS_STAGE_PUBLISH_USER_INTERVAL_MS;
+        return SRS_CONF_DEFAULT_STAGE_PUBLISH_USER_INTERVAL_MS;
     }
     
     pithy = pithy->get("publish");
     if (!pithy) {
-        return SRS_STAGE_PUBLISH_USER_INTERVAL_MS;
+        return SRS_CONF_DEFAULT_STAGE_PUBLISH_USER_INTERVAL_MS;
     }
     
     return ::atoi(pithy->arg0().c_str());
@@ -1303,12 +1303,12 @@ int SrsConfig::get_pithy_print_forwarder()
 {
     SrsConfDirective* pithy = root->get("pithy_print");
     if (!pithy) {
-        return SRS_STAGE_FORWARDER_INTERVAL_MS;
+        return SRS_CONF_DEFAULT_STAGE_FORWARDER_INTERVAL_MS;
     }
     
     pithy = pithy->get("forwarder");
     if (!pithy) {
-        return SRS_STAGE_FORWARDER_INTERVAL_MS;
+        return SRS_CONF_DEFAULT_STAGE_FORWARDER_INTERVAL_MS;
     }
     
     return ::atoi(pithy->arg0().c_str());
@@ -1318,12 +1318,12 @@ int SrsConfig::get_pithy_print_encoder()
 {
     SrsConfDirective* pithy = root->get("pithy_print");
     if (!pithy) {
-        return SRS_STAGE_ENCODER_INTERVAL_MS;
+        return SRS_CONF_DEFAULT_STAGE_ENCODER_INTERVAL_MS;
     }
     
     pithy = pithy->get("encoder");
     if (!pithy) {
-        return SRS_STAGE_ENCODER_INTERVAL_MS;
+        return SRS_CONF_DEFAULT_STAGE_ENCODER_INTERVAL_MS;
     }
     
     return ::atoi(pithy->arg0().c_str());
@@ -1333,12 +1333,12 @@ int SrsConfig::get_pithy_print_ingester()
 {
     SrsConfDirective* pithy = root->get("pithy_print");
     if (!pithy) {
-        return SRS_STAGE_INGESTER_INTERVAL_MS;
+        return SRS_CONF_DEFAULT_STAGE_INGESTER_INTERVAL_MS;
     }
     
     pithy = pithy->get("ingester");
     if (!pithy) {
-        return SRS_STAGE_INGESTER_INTERVAL_MS;
+        return SRS_CONF_DEFAULT_STAGE_INGESTER_INTERVAL_MS;
     }
     
     return ::atoi(pithy->arg0().c_str());
@@ -1348,12 +1348,12 @@ int SrsConfig::get_pithy_print_hls()
 {
     SrsConfDirective* pithy = root->get("pithy_print");
     if (!pithy) {
-        return SRS_STAGE_HLS_INTERVAL_MS;
+        return SRS_CONF_DEFAULT_STAGE_HLS_INTERVAL_MS;
     }
     
     pithy = pithy->get("hls");
     if (!pithy) {
-        return SRS_STAGE_HLS_INTERVAL_MS;
+        return SRS_CONF_DEFAULT_STAGE_HLS_INTERVAL_MS;
     }
     
     return ::atoi(pithy->arg0().c_str());
@@ -1363,12 +1363,12 @@ int SrsConfig::get_pithy_print_play()
 {
     SrsConfDirective* pithy = root->get("pithy_print");
     if (!pithy) {
-        return SRS_STAGE_PLAY_USER_INTERVAL_MS;
+        return SRS_CONF_DEFAULT_STAGE_PLAY_USER_INTERVAL_MS;
     }
     
     pithy = pithy->get("play");
     if (!pithy) {
-        return SRS_STAGE_PLAY_USER_INTERVAL_MS;
+        return SRS_CONF_DEFAULT_STAGE_PLAY_USER_INTERVAL_MS;
     }
     
     return ::atoi(pithy->arg0().c_str());
@@ -1378,12 +1378,12 @@ int SrsConfig::get_pithy_print_edge()
 {
     SrsConfDirective* pithy = root->get("pithy_print");
     if (!pithy) {
-        return SRS_STAGE_EDGE_INTERVAL_MS;
+        return SRS_CONF_DEFAULT_STAGE_EDGE_INTERVAL_MS;
     }
     
     pithy = pithy->get("edge");
     if (!pithy) {
-        return SRS_STAGE_EDGE_INTERVAL_MS;
+        return SRS_CONF_DEFAULT_STAGE_EDGE_INTERVAL_MS;
     }
     
     return ::atoi(pithy->arg0().c_str());
@@ -2311,13 +2311,13 @@ string SrsConfig::get_ingest_input_type(SrsConfDirective* ingest)
     SrsConfDirective* conf = ingest->get("input");
     
     if (!conf) {
-        return SRS_AUTO_INGEST_TYPE_FILE;
+        return SRS_CONF_DEFAULT_INGEST_TYPE_FILE;
     }
 
     conf = conf->get("type");
     
     if (!conf) {
-        return SRS_AUTO_INGEST_TYPE_FILE;
+        return SRS_CONF_DEFAULT_INGEST_TYPE_FILE;
     }
     
     return conf->arg0();
