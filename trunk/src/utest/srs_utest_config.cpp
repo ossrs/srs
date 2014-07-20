@@ -797,3 +797,25 @@ VOID TEST(ConfigMainTest, ParseEmpty)
     MockSrsConfig conf;
     EXPECT_TRUE(ERROR_SUCCESS != conf.parse(""));
 }
+
+VOID TEST(ConfigMainTest, ParseMinConf)
+{
+    MockSrsConfig conf;
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse("listen 1935;"));
+    
+    vector<string> listens = conf.get_listen();
+    EXPECT_EQ(1, (int)listens.size());
+    EXPECT_STREQ("1935", listens.at(0).c_str());
+}
+
+VOID TEST(ConfigMainTest, ParseInvalidDirective)
+{
+    MockSrsConfig conf;
+    EXPECT_TRUE(ERROR_SUCCESS != conf.parse("listens 1935;"));
+}
+
+VOID TEST(ConfigMainTest, ParseInvalidDirective2)
+{
+    MockSrsConfig conf;
+    EXPECT_TRUE(ERROR_SUCCESS != conf.parse("chunk_size 4096;"));
+}
