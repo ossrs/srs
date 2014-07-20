@@ -548,7 +548,7 @@ int SrsRtmpConn::playing(SrsSource* source)
         // reportable
         if (pithy_print.can_print()) {
             kbps->sample();
-            srs_trace("-> "SRS_LOG_ID_PLAY
+            srs_trace("-> "SRS_CONSTS_LOG_PLAY
                 " time=%"PRId64", msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d", 
                 pithy_print.age(), count,
                 kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
@@ -642,7 +642,7 @@ int SrsRtmpConn::fmle_publishing(SrsSource* source)
         // reportable
         if (pithy_print.can_print()) {
             kbps->sample();
-            srs_trace("<- "SRS_LOG_ID_CLIENT_PUBLISH
+            srs_trace("<- "SRS_CONSTS_LOG_CLIENT_PUBLISH
                 " time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d", pithy_print.age(), 
                 kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
                 kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m());
@@ -723,7 +723,7 @@ int SrsRtmpConn::flash_publishing(SrsSource* source)
         // reportable
         if (pithy_print.can_print()) {
             kbps->sample();
-            srs_trace("<- "SRS_LOG_ID_WEB_PUBLISH
+            srs_trace("<- "SRS_CONSTS_LOG_WEB_PUBLISH
                 " time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d", 
                 pithy_print.age(),
                 kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),

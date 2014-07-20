@@ -181,7 +181,7 @@ int SrsEdgeIngester::ingest()
         // pithy print
         if (pithy_print.can_print()) {
             kbps->sample();
-            srs_trace("<- "SRS_LOG_ID_EDGE_PLAY
+            srs_trace("<- "SRS_CONSTS_LOG_EDGE_PLAY
                 " time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d", 
                 pithy_print.age(),
                 kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
@@ -453,7 +453,7 @@ int SrsEdgeForwarder::cycle()
         // pithy print
         if (pithy_print.can_print()) {
             kbps->sample();
-            srs_trace("-> "SRS_LOG_ID_EDGE_PUBLISH
+            srs_trace("-> "SRS_CONSTS_LOG_EDGE_PUBLISH
                 " time=%"PRId64", msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d", 
                 pithy_print.age(), count,
                 kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),

@@ -331,7 +331,7 @@ void SrsEncoder::encoder()
     // reportable
     if (pithy_print->can_print()) {
         // TODO: FIXME: show more info.
-        srs_trace("-> "SRS_LOG_ID_ENCODER" time=%"PRId64", encoders=%d, input=%s", 
+        srs_trace("-> "SRS_CONSTS_LOG_ENCODER" time=%"PRId64", encoders=%d, input=%s", 
             pithy_print->age(), (int)ffmpegs.size(), input_stream_name.c_str());
     }
 }

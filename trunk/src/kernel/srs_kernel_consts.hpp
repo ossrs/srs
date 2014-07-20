@@ -31,6 +31,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 ///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////
 // RTMP consts values
 ///////////////////////////////////////////////////////////
 // default vhost of rtmp
@@ -42,12 +49,81 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONSTS_RTMP_SRS_CHUNK_SIZE 60000
 // 6. Chunking, RTMP protocol default chunk size.
 #define SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE 128
+ 
+// the following is the timeout for rtmp protocol, 
+// to avoid death connection.
+
+// the timeout to wait client data,
+// if timeout, close the connection.
+#define SRS_SEND_TIMEOUT_US (int64_t)(30*1000*1000LL)
+
+// the timeout to send data to client,
+// if timeout, close the connection.
+#define SRS_RECV_TIMEOUT_US (int64_t)(30*1000*1000LL)
+
+// the timeout to wait for client control message,
+// if timeout, we generally ignore and send the data to client,
+// generally, it's the pulse time for data seding.
+#define SRS_PULSE_TIMEOUT_US (int64_t)(200*1000LL)
+
+/**
+* max rtmp header size:
+*     1bytes basic header,
+*     11bytes message header,
+*     4bytes timestamp header,
+* that is, 1+11+4=16bytes.
+*/
+#define RTMP_MAX_FMT0_HEADER_SIZE 16
+/**
+* max rtmp header size:
+*     1bytes basic header,
+*     4bytes timestamp header,
+* that is, 1+4=5bytes.
+*/
+// always use fmt0 as cache.
+//#define RTMP_MAX_FMT3_HEADER_SIZE 5
+
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////
 // SRS consts values
 ///////////////////////////////////////////////////////////
 #define SRS_CONSTS_NULL_FILE "/dev/null"
 #define SRS_CONSTS_LOCALHOST "127.0.0.1"
+
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////
+// log consts values
+///////////////////////////////////////////////////////////
+// downloading speed-up, play to edge, ingest from origin
+#define SRS_CONSTS_LOG_EDGE_PLAY "EIG"
+// uploading speed-up, publish to edge, foward to origin
+#define SRS_CONSTS_LOG_EDGE_PUBLISH "EFW"
+// edge/origin forwarder.
+#define SRS_CONSTS_LOG_FOWARDER "FWR"
+// play stream on edge/origin.
+#define SRS_CONSTS_LOG_PLAY "PLA"
+// client publish to edge/origin
+#define SRS_CONSTS_LOG_CLIENT_PUBLISH "CPB"
+// web/flash publish to edge/origin
+#define SRS_CONSTS_LOG_WEB_PUBLISH "WPB"
+// ingester for edge(play)/origin
+#define SRS_CONSTS_LOG_INGESTER "IGS"
+// hls log id.
+#define SRS_CONSTS_LOG_HLS "HLS"
+// encoder log id.
+#define SRS_CONSTS_LOG_ENCODER "ENC"
 
 
 #endif

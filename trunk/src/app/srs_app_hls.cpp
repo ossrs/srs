@@ -1521,7 +1521,7 @@ void SrsHls::hls_mux()
         // the run time is not equals to stream time,
         // @see: https://github.com/winlinvip/simple-rtmp-server/issues/81#issuecomment-48100994
         // it's ok.
-        srs_trace("-> "SRS_LOG_ID_HLS
+        srs_trace("-> "SRS_CONSTS_LOG_HLS
             " time=%"PRId64", stream dts=%"PRId64"(%"PRId64"ms), sequence_no=%d", 
             pithy_print->age(), stream_dts, stream_dts / 90, muxer->sequence_no());
     }

@@ -318,7 +318,7 @@ int SrsForwarder::forward()
         // pithy print
         if (pithy_print.can_print()) {
             kbps->sample();
-            srs_trace("-> "SRS_LOG_ID_FOWARDER
+            srs_trace("-> "SRS_CONSTS_LOG_FOWARDER
                 " time=%"PRId64", msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d", 
                 pithy_print.age(), count,
                 kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),

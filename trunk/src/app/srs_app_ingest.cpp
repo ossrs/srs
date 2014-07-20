@@ -350,7 +350,7 @@ void SrsIngester::ingester()
     // reportable
     if (pithy_print->can_print()) {
         // TODO: FIXME: show more info.
-        srs_trace("-> "SRS_LOG_ID_INGESTER
+        srs_trace("-> "SRS_CONSTS_LOG_INGESTER
             " time=%"PRId64", ingesters=%d", pithy_print->age(), (int)ingesters.size());
     }
 }

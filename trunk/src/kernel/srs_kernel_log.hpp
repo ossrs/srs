@@ -35,6 +35,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <errno.h>
 #include <string.h>
 
+#include <srs_kernel_consts.hpp>
+
 /**
 * the log level, for example:
 * if specified Debug level, all level messages will be logged.
@@ -143,24 +145,5 @@ extern ISrsThreadContext* _srs_context;
     #undef srs_trace
     #define srs_trace(msg, ...) (void)0
 #endif
-
-// downloading speed-up, play to edge, ingest from origin
-#define SRS_LOG_ID_EDGE_PLAY "EIG"
-// uploading speed-up, publish to edge, foward to origin
-#define SRS_LOG_ID_EDGE_PUBLISH "EFW"
-// edge/origin forwarder.
-#define SRS_LOG_ID_FOWARDER "FWR"
-// play stream on edge/origin.
-#define SRS_LOG_ID_PLAY "PLA"
-// client publish to edge/origin
-#define SRS_LOG_ID_CLIENT_PUBLISH "CPB"
-// web/flash publish to edge/origin
-#define SRS_LOG_ID_WEB_PUBLISH "WPB"
-// ingester for edge(play)/origin
-#define SRS_LOG_ID_INGESTER "IGS"
-// hls log id.
-#define SRS_LOG_ID_HLS "HLS"
-// encoder log id.
-#define SRS_LOG_ID_ENCODER "ENC"
 
 #endif
