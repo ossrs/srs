@@ -31,13 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
-// default vhost of rtmp
-#define RTMP_VHOST_DEFAULT "__defaultVhost__"
-// default port of rtmp
-#define RTMP_DEFAULT_PORT "1935"
-
-// the default chunk size for system.
-#define SRS_CONF_DEFAULT_CHUNK_SIZE 60000
+#include <srs_kernel_consts.hpp>
 
 /**
 * parse the tcUrl, output the schema, host, vhost, app and port.

@@ -49,7 +49,7 @@ void srs_discovery_tc_url(
         srs_info("discovery host=%s", host.c_str());
     }
 
-    port = RTMP_DEFAULT_PORT;
+    port = SRS_CONSTS_RTMP_DEFAULT_PORT;
     if ((pos = host.find(":")) != std::string::npos) {
         port = host.substr(pos + 1);
         host = host.substr(0, pos);
@@ -117,13 +117,13 @@ string srs_generate_tc_url(string ip, string vhost, string app, string port, str
 {
     string tcUrl = "rtmp://";
     
-    if (vhost == RTMP_VHOST_DEFAULT) {
+    if (vhost == SRS_CONSTS_RTMP_DEFAULT_VHOST) {
         tcUrl += ip;
     } else {
         tcUrl += vhost;
     }
     
-    if (port != RTMP_DEFAULT_PORT) {
+    if (port != SRS_CONSTS_RTMP_DEFAULT_PORT) {
         tcUrl += ":";
         tcUrl += port;
     }

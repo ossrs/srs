@@ -33,6 +33,7 @@ using namespace std;
 #include <srs_app_ffmpeg.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_kernel_consts.hpp>
 
 // when error, ingester sleep for a while and retry.
 // ingest never sleep a long time, for we must start the stream ASAP.

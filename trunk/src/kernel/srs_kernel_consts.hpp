@@ -30,4 +30,24 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+///////////////////////////////////////////////////////////
+// RTMP consts values
+///////////////////////////////////////////////////////////
+// default vhost of rtmp
+#define SRS_CONSTS_RTMP_DEFAULT_VHOST "__defaultVhost__"
+// default port of rtmp
+#define SRS_CONSTS_RTMP_DEFAULT_PORT "1935"
+
+// the default chunk size for system.
+#define SRS_CONSTS_RTMP_SRS_CHUNK_SIZE 60000
+// 6. Chunking, RTMP protocol default chunk size.
+#define SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE 128
+
+///////////////////////////////////////////////////////////
+// SRS consts values
+///////////////////////////////////////////////////////////
+#define SRS_CONSTS_NULL_FILE "/dev/null"
+#define SRS_CONSTS_LOCALHOST "127.0.0.1"
+
+
 #endif

@@ -933,8 +933,8 @@ int SrsRtmpConn::connect_server(int origin_index, st_netfd_t* pstsock)
     std::string server = conf->args.at(origin_index % conf->args.size());
     origin_index = (origin_index + 1) % conf->args.size();
     
-    std::string s_port = RTMP_DEFAULT_PORT;
-    int port = ::atoi(RTMP_DEFAULT_PORT);
+    std::string s_port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+    int port = ::atoi(SRS_CONSTS_RTMP_DEFAULT_PORT);
     size_t pos = server.find(":");
     if (pos != std::string::npos) {
         s_port = server.substr(pos + 1);

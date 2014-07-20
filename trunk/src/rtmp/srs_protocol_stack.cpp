@@ -31,6 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_stream.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_kernel_consts.hpp>
 
 using namespace std;
 
@@ -177,7 +178,6 @@ messages.
 * good for high-bit rate streaming. Chunk size is maintained
 * independently for each direction.
 */
-#define RTMP_DEFAULT_CHUNK_SIZE                 128
 #define RTMP_MIN_CHUNK_SIZE                     128
 #define RTMP_MAX_CHUNK_SIZE                     65536
 
@@ -299,7 +299,7 @@ SrsProtocol::SrsProtocol(ISrsProtocolReaderWriter* io)
     in_buffer = new SrsBuffer();
     skt = io;
     
-    in_chunk_size = out_chunk_size = RTMP_DEFAULT_CHUNK_SIZE;
+    in_chunk_size = out_chunk_size = SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE;
 }
 
 SrsProtocol::~SrsProtocol()
@@ -3704,7 +3704,7 @@ int SrsAcknowledgementPacket::encode_packet(SrsStream* stream)
 
 SrsSetChunkSizePacket::SrsSetChunkSizePacket()
 {
-    chunk_size = RTMP_DEFAULT_CHUNK_SIZE;
+    chunk_size = SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE;
 }
 
 SrsSetChunkSizePacket::~SrsSetChunkSizePacket()

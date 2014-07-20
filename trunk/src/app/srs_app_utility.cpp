@@ -36,6 +36,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_app_kbps.hpp>
 #include <srs_app_json.hpp>
+#include <srs_kernel_consts.hpp>
 
 int srs_socket_connect(std::string server, int port, int64_t timeout, st_netfd_t* pstfd)
 {

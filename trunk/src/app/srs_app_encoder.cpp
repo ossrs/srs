@@ -34,6 +34,7 @@ using namespace std;
 #include <srs_protocol_stack.hpp>
 #include <srs_app_ffmpeg.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_kernel_consts.hpp>
 
 #ifdef SRS_AUTO_TRANSCODE
 

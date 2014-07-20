@@ -1405,8 +1405,8 @@ SrsConfDirective* SrsConfig::get_vhost(string vhost)
         }
     }
     
-    if (vhost != RTMP_VHOST_DEFAULT) {
-        return get_vhost(RTMP_VHOST_DEFAULT);
+    if (vhost != SRS_CONSTS_RTMP_DEFAULT_VHOST) {
+        return get_vhost(SRS_CONSTS_RTMP_DEFAULT_VHOST);
     }
     
     return NULL;
@@ -1575,7 +1575,7 @@ int SrsConfig::get_chunk_size(string vhost)
     SrsConfDirective* conf = get_vhost(vhost);
 
     if (!conf) {
-        return SRS_CONF_DEFAULT_CHUNK_SIZE;
+        return SRS_CONSTS_RTMP_SRS_CHUNK_SIZE;
     }
 
     conf = conf->get("chunk_size");
@@ -1584,7 +1584,7 @@ int SrsConfig::get_chunk_size(string vhost)
         // use the global instead.
         conf = root->get("chunk_size");
         if (!conf) {
-            return SRS_CONF_DEFAULT_CHUNK_SIZE;
+            return SRS_CONSTS_RTMP_SRS_CHUNK_SIZE;
         }
         
         return ::atoi(conf->arg0().c_str());

@@ -605,11 +605,11 @@ int SrsRtmpClient::play(string stream, int stream_id)
     // SetChunkSize
     if (true) {
         SrsSetChunkSizePacket* pkt = new SrsSetChunkSizePacket();
-        pkt->chunk_size = SRS_CONF_DEFAULT_CHUNK_SIZE;
+        pkt->chunk_size = SRS_CONSTS_RTMP_SRS_CHUNK_SIZE;
         if ((ret = protocol->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
             srs_error("send set chunk size failed. "
                 "stream=%s, chunk_size=%d, ret=%d", 
-                stream.c_str(), SRS_CONF_DEFAULT_CHUNK_SIZE, ret);
+                stream.c_str(), SRS_CONSTS_RTMP_SRS_CHUNK_SIZE, ret);
             return ret;
         }
     }
@@ -624,11 +624,11 @@ int SrsRtmpClient::publish(string stream, int stream_id)
     // SetChunkSize
     if (true) {
         SrsSetChunkSizePacket* pkt = new SrsSetChunkSizePacket();
-        pkt->chunk_size = SRS_CONF_DEFAULT_CHUNK_SIZE;
+        pkt->chunk_size = SRS_CONSTS_RTMP_SRS_CHUNK_SIZE;
         if ((ret = protocol->send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
             srs_error("send set chunk size failed. "
                 "stream=%s, chunk_size=%d, ret=%d", 
-                stream.c_str(), SRS_CONF_DEFAULT_CHUNK_SIZE, ret);
+                stream.c_str(), SRS_CONSTS_RTMP_SRS_CHUNK_SIZE, ret);
             return ret;
         }
     }

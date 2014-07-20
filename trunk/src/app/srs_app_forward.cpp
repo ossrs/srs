@@ -86,8 +86,8 @@ int SrsForwarder::on_publish(SrsRequest* req, std::string forward_server)
     
     stream_name = req->stream;
     server = forward_server;
-    std::string s_port = RTMP_DEFAULT_PORT;
-    port = ::atoi(RTMP_DEFAULT_PORT);
+    std::string s_port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+    port = ::atoi(SRS_CONSTS_RTMP_DEFAULT_PORT);
     
     // TODO: FIXME: parse complex params
     size_t pos = forward_server.find(":");
