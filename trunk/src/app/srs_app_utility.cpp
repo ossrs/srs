@@ -821,56 +821,56 @@ void srs_api_dump_summaries(std::stringstream& ss)
         n_sample_time = o.sample_time;
     }
     
-    ss << JOBJECT_START
-        << JFIELD_ERROR(ERROR_SUCCESS) << JFIELD_CONT
-        << JFIELD_ORG("data", JOBJECT_START)
-            << JFIELD_ORG("rusage_ok", (r->ok? "true":"false")) << JFIELD_CONT
-            << JFIELD_ORG("self_cpu_stat_ok", (u->ok? "true":"false")) << JFIELD_CONT
-            << JFIELD_ORG("system_cpu_stat_ok", (s->ok? "true":"false")) << JFIELD_CONT
-            << JFIELD_ORG("cpuinfo_ok", (c->ok? "true":"false")) << JFIELD_CONT
-            << JFIELD_ORG("meminfo_ok", (m->ok? "true":"false")) << JFIELD_CONT
-            << JFIELD_ORG("platform_ok", (p->ok? "true":"false")) << JFIELD_CONT
-            << JFIELD_ORG("network_ok", (n_ok? "true":"false")) << JFIELD_CONT
-            << JFIELD_ORG("network_srs_ok", (nrs->ok? "true":"false")) << JFIELD_CONT
-            << JFIELD_ORG("now_ms", now) << JFIELD_CONT
-            << JFIELD_ORG("self", JOBJECT_START)
-                << JFIELD_STR("version", RTMP_SIG_SRS_VERSION) << JFIELD_CONT
-                << JFIELD_ORG("pid", getpid()) << JFIELD_CONT
-                << JFIELD_ORG("ppid", u->ppid) << JFIELD_CONT
-                << JFIELD_STR("argv", _srs_config->argv()) << JFIELD_CONT
-                << JFIELD_STR("cwd", _srs_config->cwd()) << JFIELD_CONT
-                << JFIELD_ORG("mem_kbyte", r->r.ru_maxrss) << JFIELD_CONT
-                << JFIELD_ORG("mem_percent", self_mem_percent) << JFIELD_CONT
-                << JFIELD_ORG("cpu_percent", u->percent) << JFIELD_CONT
-                << JFIELD_ORG("srs_uptime", srs_uptime)
-            << JOBJECT_END << JFIELD_CONT
-            << JFIELD_ORG("system", JOBJECT_START)
-                << JFIELD_ORG("cpu_percent", s->percent) << JFIELD_CONT
-                << JFIELD_ORG("mem_ram_kbyte", m->MemTotal) << JFIELD_CONT
-                << JFIELD_ORG("mem_ram_percent", m->percent_ram) << JFIELD_CONT
-                << JFIELD_ORG("mem_swap_kbyte", m->SwapTotal) << JFIELD_CONT
-                << JFIELD_ORG("mem_swap_percent", m->percent_swap) << JFIELD_CONT
-                << JFIELD_ORG("cpus", c->nb_processors) << JFIELD_CONT
-                << JFIELD_ORG("cpus_online", c->nb_processors_online) << JFIELD_CONT
-                << JFIELD_ORG("uptime", p->os_uptime) << JFIELD_CONT
-                << JFIELD_ORG("ilde_time", p->os_ilde_time) << JFIELD_CONT
-                << JFIELD_ORG("load_1m", p->load_one_minutes) << JFIELD_CONT
-                << JFIELD_ORG("load_5m", p->load_five_minutes) << JFIELD_CONT
-                << JFIELD_ORG("load_15m", p->load_fifteen_minutes) << JFIELD_CONT
-                << JFIELD_ORG("net_sample_time", n_sample_time) << JFIELD_CONT
-                << JFIELD_ORG("net_recv_bytes", nr_bytes) << JFIELD_CONT
-                << JFIELD_ORG("net_send_bytes", ns_bytes) << JFIELD_CONT
-                << JFIELD_ORG("srs_sample_time", nrs->sample_time) << JFIELD_CONT
-                << JFIELD_ORG("srs_recv_bytes", nrs->rbytes) << JFIELD_CONT
-                << JFIELD_ORG("srs_recv_kbps", nrs->rkbps) << JFIELD_CONT
-                << JFIELD_ORG("srs_send_bytes", nrs->sbytes) << JFIELD_CONT
-                << JFIELD_ORG("srs_send_kbps", nrs->skbps) << JFIELD_CONT
-                << JFIELD_ORG("conn_sys", nrs->nb_conn_sys) << JFIELD_CONT
-                << JFIELD_ORG("conn_sys_et", nrs->nb_conn_sys_et) << JFIELD_CONT
-                << JFIELD_ORG("conn_sys_tw", nrs->nb_conn_sys_tw) << JFIELD_CONT
-                << JFIELD_ORG("conn_sys_ls", nrs->nb_conn_sys_ls) << JFIELD_CONT
-                << JFIELD_ORG("conn_srs", nrs->nb_conn_srs)
-            << JOBJECT_END
-        << JOBJECT_END
-        << JOBJECT_END;
+    ss << __SRS_JOBJECT_START
+        << __SRS_JFIELD_ERROR(ERROR_SUCCESS) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_ORG("data", __SRS_JOBJECT_START)
+            << __SRS_JFIELD_ORG("rusage_ok", (r->ok? "true":"false")) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_ORG("self_cpu_stat_ok", (u->ok? "true":"false")) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_ORG("system_cpu_stat_ok", (s->ok? "true":"false")) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_ORG("cpuinfo_ok", (c->ok? "true":"false")) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_ORG("meminfo_ok", (m->ok? "true":"false")) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_ORG("platform_ok", (p->ok? "true":"false")) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_ORG("network_ok", (n_ok? "true":"false")) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_ORG("network_srs_ok", (nrs->ok? "true":"false")) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_ORG("now_ms", now) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_ORG("self", __SRS_JOBJECT_START)
+                << __SRS_JFIELD_STR("version", RTMP_SIG_SRS_VERSION) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("pid", getpid()) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("ppid", u->ppid) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_STR("argv", _srs_config->argv()) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_STR("cwd", _srs_config->cwd()) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("mem_kbyte", r->r.ru_maxrss) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("mem_percent", self_mem_percent) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("cpu_percent", u->percent) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("srs_uptime", srs_uptime)
+            << __SRS_JOBJECT_END << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_ORG("system", __SRS_JOBJECT_START)
+                << __SRS_JFIELD_ORG("cpu_percent", s->percent) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("mem_ram_kbyte", m->MemTotal) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("mem_ram_percent", m->percent_ram) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("mem_swap_kbyte", m->SwapTotal) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("mem_swap_percent", m->percent_swap) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("cpus", c->nb_processors) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("cpus_online", c->nb_processors_online) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("uptime", p->os_uptime) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("ilde_time", p->os_ilde_time) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("load_1m", p->load_one_minutes) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("load_5m", p->load_five_minutes) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("load_15m", p->load_fifteen_minutes) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("net_sample_time", n_sample_time) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("net_recv_bytes", nr_bytes) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("net_send_bytes", ns_bytes) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("srs_sample_time", nrs->sample_time) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("srs_recv_bytes", nrs->rbytes) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("srs_recv_kbps", nrs->rkbps) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("srs_send_bytes", nrs->sbytes) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("srs_send_kbps", nrs->skbps) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("conn_sys", nrs->nb_conn_sys) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("conn_sys_et", nrs->nb_conn_sys_et) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("conn_sys_tw", nrs->nb_conn_sys_tw) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("conn_sys_ls", nrs->nb_conn_sys_ls) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("conn_srs", nrs->nb_conn_srs)
+            << __SRS_JOBJECT_END
+        << __SRS_JOBJECT_END
+        << __SRS_JOBJECT_END;
 }

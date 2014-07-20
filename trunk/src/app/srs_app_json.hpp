@@ -172,16 +172,16 @@ public:
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 /* json encode
-    cout<< JOBJECT_START
-            << JFIELD_STR("name", "srs") << JFIELD_CONT
-            << JFIELD_ORG("version", 100) << JFIELD_CONT
-            << JFIELD_NAME("features") << JOBJECT_START
-                << JFIELD_STR("rtmp", "released") << JFIELD_CONT
-                << JFIELD_STR("hls", "released") << JFIELD_CONT
-                << JFIELD_STR("dash", "plan")
-            << JOBJECT_END << JFIELD_CONT
-            << JFIELD_STR("author", "srs team")
-        << JOBJECT_END
+    cout<< __SRS_JOBJECT_START
+            << __SRS_JFIELD_STR("name", "srs") << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_ORG("version", 100) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_NAME("features") << __SRS_JOBJECT_START
+                << __SRS_JFIELD_STR("rtmp", "released") << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_STR("hls", "released") << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_STR("dash", "plan")
+            << __SRS_JOBJECT_END << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_STR("author", "srs team")
+        << __SRS_JOBJECT_END
 it's:
     cont<< "{"
             << "name:" << "srs" << ","
@@ -210,14 +210,14 @@ that is:
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
-#define JOBJECT_START "{"
-#define JFIELD_NAME(k) "\"" << k << "\":"
-#define JFIELD_STR(k, v) "\"" << k << "\":\"" << v << "\""
-#define JFIELD_ORG(k, v) "\"" << k << "\":" << std::dec << v
-#define JFIELD_ERROR(ret) "\"" << "code" << "\":" << ret
-#define JFIELD_CONT ","
-#define JOBJECT_END "}"
-#define JARRAY_START "["
-#define JARRAY_END "]"
+#define __SRS_JOBJECT_START "{"
+#define __SRS_JFIELD_NAME(k) "\"" << k << "\":"
+#define __SRS_JFIELD_STR(k, v) "\"" << k << "\":\"" << v << "\""
+#define __SRS_JFIELD_ORG(k, v) "\"" << k << "\":" << std::dec << v
+#define __SRS_JFIELD_ERROR(ret) "\"" << "code" << "\":" << ret
+#define __SRS_JFIELD_CONT ","
+#define __SRS_JOBJECT_END "}"
+#define __SRS_JARRAY_START "["
+#define __SRS_JARRAY_END "]"
 
 #endif

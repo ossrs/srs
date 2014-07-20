@@ -404,7 +404,7 @@ int64_t SrsHlsAacJitter::on_buffer_start(int64_t flv_pts, int sample_rate, int a
     int flv_sample_rate = flv_sample_rates[sample_rate & 0x03];
 
     // override the sample rate by sequence header
-    if (aac_sample_rate != _SRS_AAC_SAMPLE_RATE_UNSET) {
+    if (aac_sample_rate != __SRS_AAC_SAMPLE_RATE_UNSET) {
         flv_sample_rate = aac_sample_rates[aac_sample_rate];
     }
 

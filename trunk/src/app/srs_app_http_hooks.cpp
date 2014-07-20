@@ -63,15 +63,15 @@ int SrsHttpHooks::on_connect(string url, int client_id, string ip, SrsRequest* r
     }
     
     std::stringstream ss;
-    ss << JOBJECT_START
-        << JFIELD_STR("action", "on_connect") << JFIELD_CONT
-        << JFIELD_ORG("client_id", client_id) << JFIELD_CONT
-        << JFIELD_STR("ip", ip) << JFIELD_CONT
-        << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
-        << JFIELD_STR("app", req->app) << JFIELD_CONT
-        << JFIELD_STR("tcUrl", req->tcUrl) << JFIELD_CONT
-        << JFIELD_STR("pageUrl", req->pageUrl)
-        << JOBJECT_END;
+    ss << __SRS_JOBJECT_START
+        << __SRS_JFIELD_STR("action", "on_connect") << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_ORG("client_id", client_id) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("ip", ip) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("vhost", req->vhost) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("app", req->app) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("tcUrl", req->tcUrl) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("pageUrl", req->pageUrl)
+        << __SRS_JOBJECT_END;
     std::string data = ss.str();
     std::string res;
     
@@ -109,14 +109,14 @@ void SrsHttpHooks::on_close(string url, int client_id, string ip, SrsRequest* re
     }
     
     std::stringstream ss;
-    ss << JOBJECT_START
-        << JFIELD_STR("action", "on_close") << JFIELD_CONT
-        << JFIELD_ORG("client_id", client_id) << JFIELD_CONT
-        << JFIELD_STR("ip", ip) << JFIELD_CONT
-        << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
-        << JFIELD_STR("app", req->app) << JFIELD_CONT
-        << JFIELD_STR("pageUrl", req->pageUrl)
-        << JOBJECT_END;
+    ss << __SRS_JOBJECT_START
+        << __SRS_JFIELD_STR("action", "on_close") << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_ORG("client_id", client_id) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("ip", ip) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("vhost", req->vhost) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("app", req->app) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("pageUrl", req->pageUrl)
+        << __SRS_JOBJECT_END;
     std::string data = ss.str();
     std::string res;
     
@@ -154,15 +154,15 @@ int SrsHttpHooks::on_publish(string url, int client_id, string ip, SrsRequest* r
     }
     
     std::stringstream ss;
-    ss << JOBJECT_START
-        << JFIELD_STR("action", "on_publish") << JFIELD_CONT
-        << JFIELD_ORG("client_id", client_id) << JFIELD_CONT
-        << JFIELD_STR("ip", ip) << JFIELD_CONT
-        << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
-        << JFIELD_STR("app", req->app) << JFIELD_CONT
-        << JFIELD_STR("pageUrl", req->pageUrl) << JFIELD_CONT
-        << JFIELD_STR("stream", req->stream)
-        << JOBJECT_END;
+    ss << __SRS_JOBJECT_START
+        << __SRS_JFIELD_STR("action", "on_publish") << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_ORG("client_id", client_id) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("ip", ip) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("vhost", req->vhost) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("app", req->app) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("pageUrl", req->pageUrl) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("stream", req->stream)
+        << __SRS_JOBJECT_END;
     std::string data = ss.str();
     std::string res;
     
@@ -200,15 +200,15 @@ void SrsHttpHooks::on_unpublish(string url, int client_id, string ip, SrsRequest
     }
     
     std::stringstream ss;
-    ss << JOBJECT_START
-        << JFIELD_STR("action", "on_unpublish") << JFIELD_CONT
-        << JFIELD_ORG("client_id", client_id) << JFIELD_CONT
-        << JFIELD_STR("ip", ip) << JFIELD_CONT
-        << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
-        << JFIELD_STR("app", req->app) << JFIELD_CONT
-        << JFIELD_STR("pageUrl", req->pageUrl) << JFIELD_CONT
-        << JFIELD_STR("stream", req->stream)
-        << JOBJECT_END;
+    ss << __SRS_JOBJECT_START
+        << __SRS_JFIELD_STR("action", "on_unpublish") << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_ORG("client_id", client_id) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("ip", ip) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("vhost", req->vhost) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("app", req->app) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("pageUrl", req->pageUrl) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("stream", req->stream)
+        << __SRS_JOBJECT_END;
     std::string data = ss.str();
     std::string res;
     
@@ -246,15 +246,15 @@ int SrsHttpHooks::on_play(string url, int client_id, string ip, SrsRequest* req)
     }
     
     std::stringstream ss;
-    ss << JOBJECT_START
-        << JFIELD_STR("action", "on_play") << JFIELD_CONT
-        << JFIELD_ORG("client_id", client_id) << JFIELD_CONT
-        << JFIELD_STR("ip", ip) << JFIELD_CONT
-        << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
-        << JFIELD_STR("app", req->app) << JFIELD_CONT
-        << JFIELD_STR("pageUrl", req->pageUrl) << JFIELD_CONT
-        << JFIELD_STR("stream", req->stream)
-        << JOBJECT_END;
+    ss << __SRS_JOBJECT_START
+        << __SRS_JFIELD_STR("action", "on_play") << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_ORG("client_id", client_id) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("ip", ip) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("vhost", req->vhost) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("app", req->app) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("pageUrl", req->pageUrl) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("stream", req->stream)
+        << __SRS_JOBJECT_END;
     std::string data = ss.str();
     std::string res;
     
@@ -292,15 +292,15 @@ void SrsHttpHooks::on_stop(string url, int client_id, string ip, SrsRequest* req
     }
     
     std::stringstream ss;
-    ss << JOBJECT_START
-        << JFIELD_STR("action", "on_stop") << JFIELD_CONT
-        << JFIELD_ORG("client_id", client_id) << JFIELD_CONT
-        << JFIELD_STR("ip", ip) << JFIELD_CONT
-        << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
-        << JFIELD_STR("app", req->app) << JFIELD_CONT
-        << JFIELD_STR("pageUrl", req->pageUrl) << JFIELD_CONT
-        << JFIELD_STR("stream", req->stream)
-        << JOBJECT_END;
+    ss << __SRS_JOBJECT_START
+        << __SRS_JFIELD_STR("action", "on_stop") << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_ORG("client_id", client_id) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("ip", ip) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("vhost", req->vhost) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("app", req->app) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("pageUrl", req->pageUrl) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("stream", req->stream)
+        << __SRS_JOBJECT_END;
     std::string data = ss.str();
     std::string res;
     
@@ -342,16 +342,16 @@ void SrsHttpHooks::on_dvr_hss_reap_flv_header(std::string url, SrsRequest* req, 
     }
     
     std::stringstream ss;
-    ss << JOBJECT_START
-        << JFIELD_STR("action", "on_dvr_hss_reap_flv_header") << JFIELD_CONT
-        << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
-        << JFIELD_STR("app", req->app) << JFIELD_CONT
-        << JFIELD_STR("stream", req->stream) << JFIELD_CONT
-        << JFIELD_NAME("segment") << JOBJECT_START
-            << JFIELD_STR("cwd", _srs_config->cwd()) << JFIELD_CONT
-            << JFIELD_STR("path", header_file)
-        << JOBJECT_END
-        << JOBJECT_END;
+    ss << __SRS_JOBJECT_START
+        << __SRS_JFIELD_STR("action", "on_dvr_hss_reap_flv_header") << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("vhost", req->vhost) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("app", req->app) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("stream", req->stream) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_NAME("segment") << __SRS_JOBJECT_START
+            << __SRS_JFIELD_STR("cwd", _srs_config->cwd()) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_STR("path", header_file)
+        << __SRS_JOBJECT_END
+        << __SRS_JOBJECT_END;
     std::string data = ss.str();
     std::string res;
     
@@ -395,20 +395,20 @@ void SrsHttpHooks::on_dvr_hss_reap_flv(string url, SrsRequest* req, SrsFlvSegmen
     }
     
     std::stringstream ss;
-    ss << JOBJECT_START
-        << JFIELD_STR("action", "on_dvr_hss_reap_flv") << JFIELD_CONT
-        << JFIELD_STR("vhost", req->vhost) << JFIELD_CONT
-        << JFIELD_STR("app", req->app) << JFIELD_CONT
-        << JFIELD_STR("stream", req->stream) << JFIELD_CONT
-        << JFIELD_NAME("segment") << JOBJECT_START
-            << JFIELD_STR("cwd", _srs_config->cwd()) << JFIELD_CONT
-            << JFIELD_STR("path", segment->path) << JFIELD_CONT
-            << JFIELD_ORG("duration", segment->duration) << JFIELD_CONT
-            << JFIELD_ORG("offset", segment->sequence_header_offset) << JFIELD_CONT
-            << JFIELD_ORG("has_keyframe", (segment->has_keyframe? "true":"false")) << JFIELD_CONT
-            << JFIELD_ORG("pts", segment->stream_starttime + segment->starttime)
-        << JOBJECT_END
-        << JOBJECT_END;
+    ss << __SRS_JOBJECT_START
+        << __SRS_JFIELD_STR("action", "on_dvr_hss_reap_flv") << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("vhost", req->vhost) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("app", req->app) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("stream", req->stream) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_NAME("segment") << __SRS_JOBJECT_START
+            << __SRS_JFIELD_STR("cwd", _srs_config->cwd()) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_STR("path", segment->path) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_ORG("duration", segment->duration) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_ORG("offset", segment->sequence_header_offset) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_ORG("has_keyframe", (segment->has_keyframe? "true":"false")) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_ORG("pts", segment->stream_starttime + segment->starttime)
+        << __SRS_JOBJECT_END
+        << __SRS_JOBJECT_END;
     std::string data = ss.str();
     std::string res;
     

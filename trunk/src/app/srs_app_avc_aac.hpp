@@ -35,8 +35,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsStream;
 class SrsAmf0Object;
 
-#define SRS_MAX_CODEC_SAMPLE 128
-#define _SRS_AAC_SAMPLE_RATE_UNSET 15
+#define __SRS_SRS_MAX_CODEC_SAMPLE 128
+#define __SRS_AAC_SAMPLE_RATE_UNSET 15
 
 /**
 * the FLV/RTMP supported audio sample rate.
@@ -133,7 +133,7 @@ public:
     * where avc/h264 video packet may contains multiple buffer.
     */
     int nb_sample_units;
-    SrsCodecSampleUnit sample_units[SRS_MAX_CODEC_SAMPLE];
+    SrsCodecSampleUnit sample_units[__SRS_SRS_MAX_CODEC_SAMPLE];
 public:
     /**
     * whether the sample is video sample which demux from video packet.

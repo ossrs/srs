@@ -109,14 +109,14 @@ int SrsHttpHandler::process_request(SrsSocket* skt, SrsHttpMessage* req)
     if (!is_handler_valid(req, status_code, reason_phrase)) {
         std::stringstream ss;
         
-        ss << JOBJECT_START
-            << JFIELD_ERROR(ERROR_HTTP_HANDLER_INVALID) << JFIELD_CONT
-            << JFIELD_ORG("data", JOBJECT_START)
-                << JFIELD_ORG("status_code", status_code) << JFIELD_CONT
-                << JFIELD_STR("reason_phrase", reason_phrase) << JFIELD_CONT
-                << JFIELD_STR("url", req->url())
-            << JOBJECT_END
-            << JOBJECT_END;
+        ss << __SRS_JOBJECT_START
+            << __SRS_JFIELD_ERROR(ERROR_HTTP_HANDLER_INVALID) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_ORG("data", __SRS_JOBJECT_START)
+                << __SRS_JFIELD_ORG("status_code", status_code) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_STR("reason_phrase", reason_phrase) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_STR("url", req->url())
+            << __SRS_JOBJECT_END
+            << __SRS_JOBJECT_END;
         
         return res_error(skt, req, status_code, reason_phrase, ss.str());
     }
@@ -145,10 +145,10 @@ int SrsHttpHandler::do_process_request(SrsSocket* /*skt*/, SrsHttpMessage* /*req
 int SrsHttpHandler::response_error(SrsSocket* skt, SrsHttpMessage* req, int code, string desc)
 {
     std::stringstream ss;
-    ss << JOBJECT_START
-        << JFIELD_ERROR(code) << JFIELD_CONT
-        << JFIELD_STR("desc", desc)
-        << JOBJECT_END;
+    ss << __SRS_JOBJECT_START
+        << __SRS_JFIELD_ERROR(code) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("desc", desc)
+        << __SRS_JOBJECT_END;
     
     return res_json(skt, req, ss.str());
 }
