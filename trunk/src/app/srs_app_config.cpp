@@ -154,8 +154,8 @@ int SrsConfDirective::parse_conf(_srs_internal::SrsConfigBuffer* buffer, SrsDire
     
     while (true) {
         std::vector<string> args;
-        
-        ret = read_token(buffer, args);
+        int line_start = 0;
+        ret = read_token(buffer, args, line_start);
         
         /**
         * ret maybe:
@@ -170,14 +170,14 @@ int SrsConfDirective::parse_conf(_srs_internal::SrsConfigBuffer* buffer, SrsDire
         }
         if (ret == ERROR_SYSTEM_CONFIG_BLOCK_END) {
             if (type != parse_block) {
-                srs_error("line %d: unexpected \"}\", ret=%d", buffer->line + 1, ret);
+                srs_error("line %d: unexpected \"}\", ret=%d", buffer->line, ret);
                 return ret;
             }
             return ERROR_SUCCESS;
         }
         if (ret == ERROR_SYSTEM_CONFIG_EOF) {
             if (type == parse_block) {
-                srs_error("line %d: unexpected end of file, expecting \"}\", ret=%d", conf_line + 1, ret);
+                srs_error("line %d: unexpected end of file, expecting \"}\", ret=%d", conf_line, ret);
                 return ret;
             }
             return ERROR_SUCCESS;
@@ -185,14 +185,14 @@ int SrsConfDirective::parse_conf(_srs_internal::SrsConfigBuffer* buffer, SrsDire
         
         if (args.empty()) {
             ret = ERROR_SYSTEM_CONFIG_INVALID;
-            srs_error("line %d: empty directive. ret=%d", conf_line + 1, ret);
+            srs_error("line %d: empty directive. ret=%d", conf_line, ret);
             return ret;
         }
         
         // build directive tree.
         SrsConfDirective* directive = new SrsConfDirective();
 
-        directive->conf_line = buffer->line;
+        directive->conf_line = line_start;
         directive->name = args[0];
         args.erase(args.begin());
         directive->args.swap(args);
@@ -210,7 +210,7 @@ int SrsConfDirective::parse_conf(_srs_internal::SrsConfigBuffer* buffer, SrsDire
 }
 
 // see: ngx_conf_read_token
-int SrsConfDirective::read_token(_srs_internal::SrsConfigBuffer* buffer, vector<string>& args)
+int SrsConfDirective::read_token(_srs_internal::SrsConfigBuffer* buffer, vector<string>& args, int& line_start)
 {
     int ret = ERROR_SUCCESS;
 
@@ -260,7 +260,7 @@ int SrsConfDirective::read_token(_srs_internal::SrsConfigBuffer* buffer, vector<
             if (ch == '{') {
                 return ERROR_SYSTEM_CONFIG_BLOCK_START;
             }
-            srs_error("line %d: unexpected '%c'", buffer->line + 1, ch);
+            srs_error("line %d: unexpected '%c'", buffer->line, ch);
             return ERROR_SYSTEM_CONFIG_INVALID; 
         }
         
@@ -273,19 +273,19 @@ int SrsConfDirective::read_token(_srs_internal::SrsConfigBuffer* buffer, vector<
             switch (ch) {
                 case ';':
                     if (args.size() == 0) {
-                        srs_error("line %d: unexpected ';'", buffer->line + 1);
+                        srs_error("line %d: unexpected ';'", buffer->line);
                         return ERROR_SYSTEM_CONFIG_INVALID;
                     }
                     return ERROR_SYSTEM_CONFIG_DIRECTIVE;
                 case '{':
                     if (args.size() == 0) {
-                        srs_error("line %d: unexpected '{'", buffer->line + 1);
+                        srs_error("line %d: unexpected '{'", buffer->line);
                         return ERROR_SYSTEM_CONFIG_INVALID;
                     }
                     return ERROR_SYSTEM_CONFIG_BLOCK_START;
                 case '}':
                     if (args.size() != 0) {
-                        srs_error("line %d: unexpected '}'", buffer->line + 1);
+                        srs_error("line %d: unexpected '}'", buffer->line);
                         return ERROR_SYSTEM_CONFIG_INVALID;
                     }
                     return ERROR_SYSTEM_CONFIG_BLOCK_END;
@@ -308,6 +308,10 @@ int SrsConfDirective::read_token(_srs_internal::SrsConfigBuffer* buffer, vector<
             }
         } else {
         // last charecter is not space
+            if (line_start == 0) {
+                line_start = buffer->line;
+            }
+            
             bool found = false;
             if (d_quoted) {
                 if (ch == '"') {
@@ -2847,7 +2851,7 @@ namespace _srs_internal
 {
     SrsConfigBuffer::SrsConfigBuffer()
     {
-        line = 0;
+        line = 1;
     
         pos = last = start = NULL;
         end = start;

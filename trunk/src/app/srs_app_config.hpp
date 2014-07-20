@@ -215,9 +215,10 @@ private:
     * read a token from buffer.
     * a token, is the directive args and a flag indicates whether has child-directives.
     * @param args, the output directive args, the first is the directive name, left is the args.
+    * @param line_start, the actual start line of directive.
     * @return, an error code indicates error or has child-directives.
     */
-    virtual int read_token(_srs_internal::SrsConfigBuffer* buffer, std::vector<std::string>& args);
+    virtual int read_token(_srs_internal::SrsConfigBuffer* buffer, std::vector<std::string>& args, int& line_start);
 };
 
 /**
