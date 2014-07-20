@@ -57,14 +57,14 @@ int64_t FILE_SIZE(int fd)
 }
 
 // '\n'
-#define LF (char)0x0a
+#define __LF (char)0x0a
 
 // '\r'
-#define CR (char)0x0d
+#define __CR (char)0x0d
 
 bool is_common_space(char ch)
 {
-    return (ch == ' ' || ch == '\t' || ch == CR || ch == LF);
+    return (ch == ' ' || ch == '\t' || ch == __CR || ch == __LF);
 }
 
 SrsConfDirective::SrsConfDirective()
@@ -242,7 +242,7 @@ int SrsConfDirective::read_token(_srs_internal::SrsConfigBuffer* buffer, vector<
         
         char ch = *buffer->pos++;
         
-        if (ch == LF) {
+        if (ch == __LF) {
             buffer->line++;
             sharp_comment = false;
         }
