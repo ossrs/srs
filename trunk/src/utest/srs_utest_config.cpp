@@ -25,6 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 using namespace std;
 
 #include <srs_app_config.hpp>
+#include <srs_kernel_consts.hpp>
 
 VOID TEST(ConfigTest, CheckMacros)
 {
@@ -155,42 +156,6 @@ VOID TEST(ConfigTest, CheckMacros)
     EXPECT_TRUE(false);
 #endif
 #ifndef SRS_CONF_DEFAULT_LOG_TANK_CONSOLE
-    EXPECT_TRUE(false);
-#endif
-#ifndef xxxxxxxxxxxxxxxxxxxxxxxx
-    EXPECT_TRUE(false);
-#endif
-#ifndef xxxxxxxxxxxxxxxxxxxxxxxx
-    EXPECT_TRUE(false);
-#endif
-#ifndef xxxxxxxxxxxxxxxxxxxxxxxx
-    EXPECT_TRUE(false);
-#endif
-#ifndef xxxxxxxxxxxxxxxxxxxxxxxx
-    EXPECT_TRUE(false);
-#endif
-#ifndef xxxxxxxxxxxxxxxxxxxxxxxx
-    EXPECT_TRUE(false);
-#endif
-#ifndef xxxxxxxxxxxxxxxxxxxxxxxx
-    EXPECT_TRUE(false);
-#endif
-#ifndef xxxxxxxxxxxxxxxxxxxxxxxx
-    EXPECT_TRUE(false);
-#endif
-#ifndef xxxxxxxxxxxxxxxxxxxxxxxx
-    EXPECT_TRUE(false);
-#endif
-#ifndef xxxxxxxxxxxxxxxxxxxxxxxx
-    EXPECT_TRUE(false);
-#endif
-#ifndef xxxxxxxxxxxxxxxxxxxxxxxx
-    EXPECT_TRUE(false);
-#endif
-#ifndef xxxxxxxxxxxxxxxxxxxxxxxx
-    EXPECT_TRUE(false);
-#endif
-#ifndef xxxxxxxxxxxxxxxxxxxxxxxx
     EXPECT_TRUE(false);
 #endif
 }
