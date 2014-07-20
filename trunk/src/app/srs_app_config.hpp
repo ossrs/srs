@@ -34,9 +34,21 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_reload.hpp>
 
-#define SRS_LOCALHOST "127.0.0.1"
+///////////////////////////////////////////////////////////
+// the value consts
+///////////////////////////////////////////////////////////
+#define SRS_CONSTS_NULL_FILE "/dev/null"
+#define SRS_CONSTS_LOCALHOST "127.0.0.1"
+
+///////////////////////////////////////////////////////////
+// default consts values
+///////////////////////////////////////////////////////////
 #define SRS_CONF_DEFAULT_PID_FILE "./objs/srs.pid"
-#define SRS_DEFAULT_CONF "conf/srs.conf"
+#define SRS_CONF_DEFAULT_LOG_FILE "./objs/srs.log"
+#define SRS_CONF_DEFAULT_LOG_LEVEL "trace"
+#define SRS_CONF_DEFAULT_LOG_TANK_CONSOLE "console"
+#define SRS_CONF_DEFAULT_COFNIG_FILE "conf/srs.conf"
+#define SRS_CONF_DEFAULT_FF_LOG_DIR "./objs"
 
 #define SRS_CONF_DEFAULT_MAX_CONNECTIONS 12345
 #define SRS_CONF_DEFAULT_HLS_PATH "./objs/nginx/html"
@@ -67,7 +79,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_ENABLED false
 #define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_INTERVAL 9.9
-#define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_URL "http://127.0.0.1:8085/api/v1/servers"
+#define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_URL "http://"SRS_CONSTS_LOCALHOST":8085/api/v1/servers"
 #define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_INDEX 0
 #define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_SUMMARIES false
 
@@ -81,6 +93,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define SRS_AUTO_INGEST_TYPE_FILE "file"
 #define SRS_AUTO_INGEST_TYPE_STREAM "stream"
+
+#define SRS_CONF_DEFAULT_TRANSCODE_IFORMAT "flv"
+#define SRS_CONF_DEFAULT_TRANSCODE_OFORMAT "flv"
 
 namespace _srs_internal
 {
@@ -687,7 +702,7 @@ public:
     */
     virtual std::string         get_engine_oformat(SrsConfDirective* engine);
     /**
-    * get the output of engine, for example, rtmp://127.0.0.1/live/livestream,
+    * get the output of engine, for example, rtmp://localhost/live/livestream,
     * @remark, we will use some variable, for instance, [vhost] to substitude with vhost.
     */
     virtual std::string         get_engine_output(SrsConfDirective* engine);

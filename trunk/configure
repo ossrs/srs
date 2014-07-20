@@ -422,7 +422,8 @@ MODULE_ID="KERNEL"
 MODULE_DEPENDS=("CORE") 
 ModuleLibIncs=(${SRS_OBJS})
 MODULE_FILES=("srs_kernel_error" "srs_kernel_log" "srs_kernel_stream" "srs_kernel_buffer" 
-        "srs_kernel_utility" "srs_kernel_flv" "srs_kernel_codec" "srs_kernel_file")
+        "srs_kernel_utility" "srs_kernel_flv" "srs_kernel_codec" "srs_kernel_file" 
+        "srs_kernel_consts")
 KERNEL_INCS="src/kernel"; MODULE_DIR=${KERNEL_INCS} . auto/modules.sh
 KERNEL_OBJS="${MODULE_OBJS[@]}"
 #
@@ -488,7 +489,7 @@ fi
 #
 # utest, the unit-test cases of srs, base on gtest1.6
 MODULE_FILES=("srs_utest" "srs_utest_amf0" "srs_utest_protocol" 
-        "srs_utest_kernel" "srs_utest_core")
+        "srs_utest_kernel" "srs_utest_core" "srs_utest_config")
 ModuleLibIncs=(${SRS_OBJS} ${LibSTRoot})
 ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile} ${LibSSLfile})
 MODULE_DEPENDS=("CORE" "KERNEL" "RTMP" "APP")

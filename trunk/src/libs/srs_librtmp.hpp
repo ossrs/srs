@@ -48,14 +48,14 @@ typedef void* srs_rtmp_t;
 /**
 * create/destroy a rtmp protocol stack.
 * @url rtmp url, for example: 
-*         rtmp://127.0.0.1/live/livestream
+*         rtmp://localhost/live/livestream
 * @return a rtmp handler, or NULL if error occured.
 */
 srs_rtmp_t srs_rtmp_create(const char* url);
 /**
 * create rtmp with url, used for connection specified application.
 * @param url the tcUrl, for exmple:
-*         rtmp://127.0.0.1/live
+*         rtmp://localhost/live
 * @remark this is used to create application connection-oriented,
 *       for example, the bandwidth client used this, no stream specified.
 */

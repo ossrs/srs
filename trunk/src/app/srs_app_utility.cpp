@@ -37,8 +37,6 @@ using namespace std;
 #include <srs_app_kbps.hpp>
 #include <srs_app_json.hpp>
 
-#define SRS_LOCAL_LOOP_IP "127.0.0.1"
-
 int srs_socket_connect(std::string server, int port, int64_t timeout, st_netfd_t* pstfd)
 {
     int ret = ERROR_SUCCESS;
@@ -707,7 +705,7 @@ void retrieve_local_ipv4_ips()
             }
             
             std::string ip = buf;
-            if (ip != SRS_LOCAL_LOOP_IP) {
+            if (ip != SRS_CONSTS_LOCALHOST) {
                 srs_trace("retrieve local ipv4 addresses: %s", ip.c_str());
                 ips.push_back(ip);
             }

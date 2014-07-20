@@ -261,8 +261,10 @@ int SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDir
 
     std::string input;
     // input stream, from local.
-    // ie. rtmp://127.0.0.1:1935/live/livestream
-    input = "rtmp://127.0.0.1:";
+    // ie. rtmp://localhost:1935/live/livestream
+    input = "rtmp://";
+    input += SRS_CONSTS_LOCALHOST;
+    input += ":";
     input += req->port;
     input += "/";
     input += req->app;
@@ -280,14 +282,14 @@ int SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDir
     
     std::string output = _srs_config->get_engine_output(engine);
     // output stream, to other/self server
-    // ie. rtmp://127.0.0.1:1935/live/livestream_sd
+    // ie. rtmp://localhost:1935/live/livestream_sd
     output = srs_string_replace(output, "[vhost]", req->vhost);
     output = srs_string_replace(output, "[port]", req->port);
     output = srs_string_replace(output, "[app]", req->app);
     output = srs_string_replace(output, "[stream]", req->stream);
     output = srs_string_replace(output, "[engine]", engine->arg0());
     
-    std::string log_file = "/dev/null"; // disabled
+    std::string log_file = SRS_CONSTS_NULL_FILE; // disabled
     // write ffmpeg info to log file.
     if (_srs_config->get_ffmpeg_log_enabled()) {
         log_file = _srs_config->get_ffmpeg_log_dir();

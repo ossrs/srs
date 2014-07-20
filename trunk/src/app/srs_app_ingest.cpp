@@ -235,7 +235,7 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
     
     std::string output = _srs_config->get_engine_output(engine);
     // output stream, to other/self server
-    // ie. rtmp://127.0.0.1:1935/live/livestream_sd
+    // ie. rtmp://localhost:1935/live/livestream_sd
     output = srs_string_replace(output, "[vhost]", vhost->arg0());
     output = srs_string_replace(output, "[port]", port);
     if (output.empty()) {
@@ -260,7 +260,7 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
         app = app.substr(0, pos);
     }
     
-    std::string log_file = "/dev/null"; // disabled
+    std::string log_file = SRS_CONSTS_NULL_FILE; // disabled
     // write ffmpeg info to log file.
     if (_srs_config->get_ffmpeg_log_enabled()) {
         log_file = _srs_config->get_ffmpeg_log_dir();

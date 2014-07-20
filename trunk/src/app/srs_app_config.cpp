@@ -1143,8 +1143,8 @@ void SrsConfig::print_help(char** argv)
         "\n"
         "For example:\n"
         "   %s -v\n"
-        "   %s -t -c "SRS_DEFAULT_CONF"\n"
-        "   %s -c "SRS_DEFAULT_CONF"\n",
+        "   %s -t -c "SRS_CONF_DEFAULT_COFNIG_FILE"\n"
+        "   %s -c "SRS_CONF_DEFAULT_COFNIG_FILE"\n",
         argv[0], argv[0], argv[0], argv[0]);
 }
 
@@ -1968,12 +1968,12 @@ bool SrsConfig::get_engine_enabled(SrsConfDirective* engine)
 string SrsConfig::get_engine_iformat(SrsConfDirective* engine)
 {
     if (!engine) {
-        return "flv";
+        return SRS_CONF_DEFAULT_TRANSCODE_IFORMAT;
     }
     
     SrsConfDirective* conf = engine->get("iformat");
     if (!conf) {
-        return "flv";
+        return SRS_CONF_DEFAULT_TRANSCODE_IFORMAT;
     }
     
     return conf->arg0();
@@ -2228,12 +2228,12 @@ vector<string> SrsConfig::get_engine_aparams(SrsConfDirective* engine)
 string SrsConfig::get_engine_oformat(SrsConfDirective* engine)
 {
     if (!engine) {
-        return "flv";
+        return SRS_CONF_DEFAULT_TRANSCODE_OFORMAT;
     }
     
     SrsConfDirective* conf = engine->get("oformat");
     if (!conf) {
-        return "flv";
+        return SRS_CONF_DEFAULT_TRANSCODE_OFORMAT;
     }
     
     return conf->arg0();
@@ -2346,7 +2346,7 @@ string SrsConfig::get_log_file()
     
     SrsConfDirective* conf = root->get("srs_log_file");
     if (!conf || conf->arg0().empty()) {
-        return "./objs/srs.log";
+        return SRS_CONF_DEFAULT_LOG_FILE;
     }
     
     return conf->arg0();
@@ -2355,7 +2355,7 @@ string SrsConfig::get_log_file()
 bool SrsConfig::get_ffmpeg_log_enabled()
 {
     string log = get_ffmpeg_log_dir();
-    return log != "/dev/null";
+    return log != SRS_CONSTS_NULL_FILE;
 }
 
 string SrsConfig::get_ffmpeg_log_dir()
@@ -2364,7 +2364,7 @@ string SrsConfig::get_ffmpeg_log_dir()
     
     SrsConfDirective* conf = root->get("ff_log_dir");
     if (!conf || conf->arg0().empty()) {
-        return "./objs";
+        return SRS_CONF_DEFAULT_FF_LOG_DIR;
     }
     
     return conf->arg0();
@@ -2376,7 +2376,7 @@ string SrsConfig::get_log_level()
     
     SrsConfDirective* conf = root->get("srs_log_level");
     if (!conf || conf->arg0().empty()) {
-        return "trace";
+        return SRS_CONF_DEFAULT_LOG_LEVEL;
     }
     
     return conf->arg0();
@@ -2387,7 +2387,7 @@ bool SrsConfig::get_log_tank_file()
     srs_assert(root);
     
     SrsConfDirective* conf = root->get("srs_log_tank");
-    if (conf && conf->arg0() == "console") {
+    if (conf && conf->arg0() == SRS_CONF_DEFAULT_LOG_TANK_CONSOLE) {
         return false;
     }
     

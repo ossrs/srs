@@ -111,7 +111,7 @@ int SrsForwarder::on_publish(SrsRequest* req, std::string forward_server)
     source_ep += req->vhost;
     
     std::string dest_ep = "rtmp://";
-    if (forward_server == "127.0.0.1") {
+    if (forward_server == SRS_CONSTS_LOCALHOST) {
         dest_ep += req->host;
     } else {
         dest_ep += forward_server;
