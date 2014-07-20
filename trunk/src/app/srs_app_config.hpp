@@ -116,6 +116,8 @@ namespace _srs_internal
 *               SrsConfDirective: name="ffmpeg", arg0="/bin/ffmpeg", child-directives=[]
 *           ]
 *       ]
+* @remark, allow empty directive, for example: "dir0 {}"
+* @remark, don't allow empty name, for example: ";" or "{dir0 arg0;}
 */
 class SrsConfDirective
 {

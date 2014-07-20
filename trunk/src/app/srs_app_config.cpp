@@ -170,21 +170,22 @@ int SrsConfDirective::parse_conf(_srs_internal::SrsConfigBuffer* buffer, SrsDire
         }
         if (ret == ERROR_SYSTEM_CONFIG_BLOCK_END) {
             if (type != parse_block) {
-                srs_error("line %d: unexpected \"}\"", buffer->line + 1);
+                srs_error("line %d: unexpected \"}\", ret=%d", buffer->line + 1, ret);
                 return ret;
             }
             return ERROR_SUCCESS;
         }
         if (ret == ERROR_SYSTEM_CONFIG_EOF) {
             if (type == parse_block) {
-                srs_error("line %d: unexpected end of file, expecting \"}\"", conf_line + 1);
+                srs_error("line %d: unexpected end of file, expecting \"}\", ret=%d", conf_line + 1, ret);
                 return ret;
             }
             return ERROR_SUCCESS;
         }
         
         if (args.empty()) {
-            srs_error("line %d: empty directive.", conf_line + 1);
+            ret = ERROR_SYSTEM_CONFIG_INVALID;
+            srs_error("line %d: empty directive. ret=%d", conf_line + 1, ret);
             return ret;
         }
         
