@@ -55,16 +55,16 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // the timeout to wait client data,
 // if timeout, close the connection.
-#define SRS_SEND_TIMEOUT_US (int64_t)(30*1000*1000LL)
+#define SRS_CONSTS_RTMP_SEND_TIMEOUT_US (int64_t)(30*1000*1000LL)
 
 // the timeout to send data to client,
 // if timeout, close the connection.
-#define SRS_RECV_TIMEOUT_US (int64_t)(30*1000*1000LL)
+#define SRS_CONSTS_RTMP_RECV_TIMEOUT_US (int64_t)(30*1000*1000LL)
 
 // the timeout to wait for client control message,
 // if timeout, we generally ignore and send the data to client,
 // generally, it's the pulse time for data seding.
-#define SRS_PULSE_TIMEOUT_US (int64_t)(200*1000LL)
+#define SRS_CONSTS_RTMP_PULSE_TIMEOUT_US (int64_t)(200*1000LL)
 
 /**
 * max rtmp header size:
@@ -73,7 +73,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *     4bytes timestamp header,
 * that is, 1+11+4=16bytes.
 */
-#define RTMP_MAX_FMT0_HEADER_SIZE 16
+#define SRS_CONSTS_RTMP_MAX_FMT0_HEADER_SIZE 16
 /**
 * max rtmp header size:
 *     1bytes basic header,
@@ -81,7 +81,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * that is, 1+4=5bytes.
 */
 // always use fmt0 as cache.
-//#define RTMP_MAX_FMT3_HEADER_SIZE 5
+//#define SRS_CONSTS_RTMP_MAX_FMT3_HEADER_SIZE 5
 
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////

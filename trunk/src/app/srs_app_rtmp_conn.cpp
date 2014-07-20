@@ -115,8 +115,8 @@ int SrsRtmpConn::do_cycle()
     
     srs_trace("RTMP client ip=%s", ip.c_str());
 
-    rtmp->set_recv_timeout(SRS_RECV_TIMEOUT_US);
-    rtmp->set_send_timeout(SRS_SEND_TIMEOUT_US);
+    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
+    rtmp->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
     
     if ((ret = rtmp->handshake()) != ERROR_SUCCESS) {
         srs_error("rtmp handshake failed. ret=%d", ret);
@@ -290,8 +290,8 @@ int SrsRtmpConn::stream_service_cycle()
         srs_client_type_string(type).c_str(), req->stream.c_str(), req->duration);
 
     // client is identified, set the timeout to service timeout.
-    rtmp->set_recv_timeout(SRS_RECV_TIMEOUT_US);
-    rtmp->set_send_timeout(SRS_SEND_TIMEOUT_US);
+    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
+    rtmp->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
     
     // set chunk size to larger.
     int chunk_size = _srs_config->get_chunk_size(req->vhost);
@@ -501,7 +501,7 @@ int SrsRtmpConn::playing(SrsSource* source)
     SrsAutoFree(SrsConsumer, consumer);
     srs_verbose("consumer created success.");
     
-    rtmp->set_recv_timeout(SRS_PULSE_TIMEOUT_US);
+    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
     
     SrsPithyPrint pithy_print(SRS_STAGE_PLAY_USER);
     
@@ -962,8 +962,8 @@ int SrsRtmpConn::do_token_traverse_auth(SrsSocket* io, SrsRtmpClient* client)
     
     srs_assert(client);
 
-    client->set_recv_timeout(SRS_RECV_TIMEOUT_US);
-    client->set_send_timeout(SRS_SEND_TIMEOUT_US);
+    client->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
+    client->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
     
     if ((ret = client->handshake()) != ERROR_SUCCESS) {
         srs_error("handshake with server failed. ret=%d", ret);

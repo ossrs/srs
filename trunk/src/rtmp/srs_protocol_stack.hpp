@@ -100,7 +100,7 @@ private:
     * used for type0, 11bytes(or 15bytes with extended timestamp) header.
     * or for type3, 1bytes(or 5bytes with extended timestamp) header.
     */
-    char out_header_cache[RTMP_MAX_FMT0_HEADER_SIZE];
+    char out_header_cache[SRS_CONSTS_RTMP_MAX_FMT0_HEADER_SIZE];
     /**
     * output chunk size, default to 128, set by config.
     */

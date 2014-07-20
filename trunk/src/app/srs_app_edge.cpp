@@ -122,8 +122,8 @@ int SrsEdgeIngester::cycle()
     }
     srs_assert(client);
 
-    client->set_recv_timeout(SRS_RECV_TIMEOUT_US);
-    client->set_send_timeout(SRS_SEND_TIMEOUT_US);
+    client->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
+    client->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
 
     SrsRequest* req = _req;
     
@@ -368,8 +368,8 @@ int SrsEdgeForwarder::start()
     }
     srs_assert(client);
 
-    client->set_recv_timeout(SRS_RECV_TIMEOUT_US);
-    client->set_send_timeout(SRS_SEND_TIMEOUT_US);
+    client->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
+    client->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
 
     SrsRequest* req = _req;
     
@@ -411,7 +411,7 @@ int SrsEdgeForwarder::cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    client->set_recv_timeout(SRS_PULSE_TIMEOUT_US);
+    client->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
     
     SrsPithyPrint pithy_print(SRS_STAGE_EDGE);
     
