@@ -56,7 +56,10 @@ int64_t FILE_SIZE(int fd)
     return pos;
 }
 
+// '\n'
 #define LF (char)0x0a
+
+// '\r'
 #define CR (char)0x0d
 
 bool is_common_space(char ch)
