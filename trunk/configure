@@ -198,7 +198,7 @@ echo -e "\${GREEN}binaries @see: https://github.com/winlinvip/simple-rtmp-server
 
 echo "you can:"
 echo "      ./objs/srs -c conf/srs.conf"
-echo "                  to start the srs server, with config file."
+echo "                  to start the srs server, with config conf/srs.conf."
 END
 
 #####################################################################################
