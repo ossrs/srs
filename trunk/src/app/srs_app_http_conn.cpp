@@ -118,8 +118,8 @@ int SrsHttpRoot::best_match(const char* path, int length, SrsHttpHandlerMatch** 
 
 bool SrsHttpRoot::is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase) 
 {
-    status_code = HTTP_InternalServerError;
-    reason_phrase = HTTP_InternalServerError_str;
+    status_code = SRS_CONSTS_HTTP_InternalServerError;
+    reason_phrase = SRS_CONSTS_HTTP_InternalServerError_str;
     
     return false;
 }
@@ -153,8 +153,8 @@ bool SrsHttpVhost::is_handler_valid(SrsHttpMessage* req, int& status_code, std::
     if (::access(fullpath.c_str(), F_OK | R_OK) < 0) {
         srs_warn("check file %s does not exists", fullpath.c_str());
         
-        status_code = HTTP_NotFound;
-        reason_phrase = HTTP_NotFound_str;
+        status_code = SRS_CONSTS_HTTP_NotFound;
+        reason_phrase = SRS_CONSTS_HTTP_NotFound_str;
         return false;
     }
     
@@ -272,7 +272,7 @@ int SrsHttpVhost::response_flv_file(SrsSocket* skt, SrsHttpMessage* req, string 
     
     while (left > 0) {
         ssize_t nread = -1;
-        if ((ret = fs.read(buf, HTTP_TS_SEND_BUFFER_SIZE, &nread)) != ERROR_SUCCESS) {
+        if ((ret = fs.read(buf, SRS_CONSTS_HTTP_TS_SEND_BUFFER_SIZE, &nread)) != ERROR_SUCCESS) {
             srs_warn("read file %s failed, ret=%d", fullpath.c_str(), ret);
             break;
         }
@@ -377,7 +377,7 @@ int SrsHttpVhost::response_flv_file2(SrsSocket* skt, SrsHttpMessage* req, string
     // send data
     while (left > 0) {
         ssize_t nread = -1;
-        if ((ret = fs.read(buf, HTTP_TS_SEND_BUFFER_SIZE, &nread)) != ERROR_SUCCESS) {
+        if ((ret = fs.read(buf, SRS_CONSTS_HTTP_TS_SEND_BUFFER_SIZE, &nread)) != ERROR_SUCCESS) {
             return ret;
         }
         
@@ -427,7 +427,7 @@ int SrsHttpVhost::response_ts_file(SrsSocket* skt, SrsHttpMessage* req, string f
     
     while (left > 0) {
         ssize_t nread = -1;
-        if ((ret = fs.read(buf, HTTP_TS_SEND_BUFFER_SIZE, &nread)) != ERROR_SUCCESS) {
+        if ((ret = fs.read(buf, SRS_CONSTS_HTTP_TS_SEND_BUFFER_SIZE, &nread)) != ERROR_SUCCESS) {
             srs_warn("read file %s failed, ret=%d", fullpath.c_str(), ret);
             break;
         }

@@ -41,6 +41,13 @@ using namespace std;
 
 #define SRS_HTTP_HEADER_BUFFER 1024
 
+// for http parser macros
+#define SRS_CONSTS_HTTP_OPTIONS HTTP_OPTIONS
+#define SRS_CONSTS_HTTP_GET HTTP_GET
+#define SRS_CONSTS_HTTP_POST HTTP_POST
+#define SRS_CONSTS_HTTP_PUT HTTP_PUT
+#define SRS_CONSTS_HTTP_DELETE HTTP_DELETE
+
 bool srs_path_equals(const char* expect, const char* path, int nb_path)
 {
     int size = strlen(expect);
@@ -92,7 +99,7 @@ bool SrsHttpHandler::can_handle(const char* /*path*/, int /*length*/, const char
 
 int SrsHttpHandler::process_request(SrsSocket* skt, SrsHttpMessage* req)
 {
-    if (req->method() == HTTP_OPTIONS) {
+    if (req->method() == SRS_CONSTS_HTTP_OPTIONS) {
         req->set_requires_crossdomain(true);
         return res_options(skt);
     }
@@ -120,8 +127,8 @@ int SrsHttpHandler::process_request(SrsSocket* skt, SrsHttpMessage* req)
 bool SrsHttpHandler::is_handler_valid(SrsHttpMessage* req, int& status_code, string& reason_phrase) 
 {
     if (!req->match()->unmatched_url.empty()) {
-        status_code = HTTP_NotFound;
-        reason_phrase = HTTP_NotFound_str;
+        status_code = SRS_CONSTS_HTTP_NotFound;
+        reason_phrase = SRS_CONSTS_HTTP_NotFound_str;
         
         return false;
     }
@@ -534,7 +541,7 @@ SrsHttpMessage::SrsHttpMessage()
     _uri = new SrsHttpUri();
     _match = NULL;
     _requires_crossdomain = false;
-    _http_ts_send_buffer = new char[HTTP_TS_SEND_BUFFER_SIZE];
+    _http_ts_send_buffer = new char[SRS_CONSTS_HTTP_TS_SEND_BUFFER_SIZE];
 }
 
 SrsHttpMessage::~SrsHttpMessage()
@@ -608,27 +615,27 @@ string SrsHttpMessage::method_str()
 
 bool SrsHttpMessage::is_http_get()
 {
-    return _header.method == HTTP_GET;
+    return _header.method == SRS_CONSTS_HTTP_GET;
 }
 
 bool SrsHttpMessage::is_http_put()
 {
-    return _header.method == HTTP_PUT;
+    return _header.method == SRS_CONSTS_HTTP_PUT;
 }
 
 bool SrsHttpMessage::is_http_post()
 {
-    return _header.method == HTTP_POST;
+    return _header.method == SRS_CONSTS_HTTP_POST;
 }
 
 bool SrsHttpMessage::is_http_delete()
 {
-    return _header.method == HTTP_DELETE;
+    return _header.method == SRS_CONSTS_HTTP_DELETE;
 }
 
 bool SrsHttpMessage::is_http_options()
 {
-    return _header.method == HTTP_OPTIONS;
+    return _header.method == SRS_CONSTS_HTTP_OPTIONS;
 }
 
 string SrsHttpMessage::uri()

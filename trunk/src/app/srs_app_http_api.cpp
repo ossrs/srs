@@ -54,8 +54,8 @@ bool SrsApiRoot::is_handler_valid(SrsHttpMessage* req, int& status_code, std::st
     }
     
     if (req->match()->matched_url.length() != 1) {
-        status_code = HTTP_NotFound;
-        reason_phrase = HTTP_NotFound_str;
+        status_code = SRS_CONSTS_HTTP_NotFound;
+        reason_phrase = SRS_CONSTS_HTTP_NotFound_str;
         return false;
     }
     
