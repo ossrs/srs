@@ -32,21 +32,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_reload.hpp>
 
-// the pithy stage for all play clients.
-#define SRS_STAGE_PLAY_USER 1
-// the pithy stage for all publish clients.
-#define SRS_STAGE_PUBLISH_USER 2
-// the pithy stage for all forward clients.
-#define SRS_STAGE_FORWARDER 3
-// the pithy stage for all encoders.
-#define SRS_STAGE_ENCODER 4
-// the pithy stage for all hls.
-#define SRS_STAGE_HLS 5
-// the pithy stage for all ingesters.
-#define SRS_STAGE_INGESTER 6
-// the pithy stage for all edge.
-#define SRS_STAGE_EDGE 7
-
 class SrsStageInfo : public ISrsReloadHandler
 {
 public:
@@ -83,7 +68,7 @@ private:
     int64_t previous_tick;
 public:
     /**
-    * @param _stage_id defined in SRS_STAGE_xxx, eg. SRS_STAGE_PLAY_USER.
+    * @param _stage_id defined in SRS_CONSTS_STAGE_xxx, eg. SRS_CONSTS_STAGE_PLAY_USER.
     */
     SrsPithyPrint(int _stage_id);
     virtual ~SrsPithyPrint();

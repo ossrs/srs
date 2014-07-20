@@ -217,107 +217,107 @@ int SrsHttpHandler::best_match(const char* path, int length, SrsHttpHandlerMatch
 
 SrsHttpHandler* SrsHttpHandler::res_status_line(stringstream& ss)
 {
-    ss << "HTTP/1.1 200 OK " << __CRLF
-       << "Server: "RTMP_SIG_SRS_KEY"/"RTMP_SIG_SRS_VERSION"" << __CRLF;
+    ss << "HTTP/1.1 200 OK " << __SRS_CRLF
+       << "Server: "RTMP_SIG_SRS_KEY"/"RTMP_SIG_SRS_VERSION"" << __SRS_CRLF;
     return this;
 }
 
 SrsHttpHandler* SrsHttpHandler::res_status_line_error(stringstream& ss, int code, string reason_phrase)
 {
-    ss << "HTTP/1.1 " << code << " " << reason_phrase << __CRLF
-       << "Server: SRS/"RTMP_SIG_SRS_VERSION"" << __CRLF;
+    ss << "HTTP/1.1 " << code << " " << reason_phrase << __SRS_CRLF
+       << "Server: SRS/"RTMP_SIG_SRS_VERSION"" << __SRS_CRLF;
     return this;
 }
 
 SrsHttpHandler* SrsHttpHandler::res_content_type(stringstream& ss)
 {
-    ss << "Content-Type: text/html;charset=utf-8" << __CRLF
-        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
+    ss << "Content-Type: text/html;charset=utf-8" << __SRS_CRLF
+        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __SRS_CRLF;
     return this;
 }
 
 SrsHttpHandler* SrsHttpHandler::res_content_type_xml(stringstream& ss)
 {
-    ss << "Content-Type: text/xml;charset=utf-8" << __CRLF
-        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
+    ss << "Content-Type: text/xml;charset=utf-8" << __SRS_CRLF
+        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __SRS_CRLF;
     return this;
 }
 
 SrsHttpHandler* SrsHttpHandler::res_content_type_javascript(stringstream& ss)
 {
-    ss << "Content-Type: text/javascript" << __CRLF
-        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
+    ss << "Content-Type: text/javascript" << __SRS_CRLF
+        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __SRS_CRLF;
     return this;
 }
 
 SrsHttpHandler* SrsHttpHandler::res_content_type_swf(stringstream& ss)
 {
-    ss << "Content-Type: application/x-shockwave-flash" << __CRLF
-        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
+    ss << "Content-Type: application/x-shockwave-flash" << __SRS_CRLF
+        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __SRS_CRLF;
     return this;
 }
 
 SrsHttpHandler* SrsHttpHandler::res_content_type_css(stringstream& ss)
 {
-    ss << "Content-Type: text/css;charset=utf-8" << __CRLF
-        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
+    ss << "Content-Type: text/css;charset=utf-8" << __SRS_CRLF
+        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __SRS_CRLF;
     return this;
 }
 
 SrsHttpHandler* SrsHttpHandler::res_content_type_ico(stringstream& ss)
 {
-    ss << "Content-Type: image/x-icon" << __CRLF
-        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
+    ss << "Content-Type: image/x-icon" << __SRS_CRLF
+        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __SRS_CRLF;
     return this;
 }
 
 SrsHttpHandler* SrsHttpHandler::res_content_type_json(stringstream& ss)
 {
-    ss << "Content-Type: application/json;charset=utf-8" << __CRLF
-        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
+    ss << "Content-Type: application/json;charset=utf-8" << __SRS_CRLF
+        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __SRS_CRLF;
     return this;
 }
 
 SrsHttpHandler* SrsHttpHandler::res_content_type_m3u8(stringstream& ss)
 {
-    ss << "Content-Type: application/x-mpegURL;charset=utf-8" << __CRLF
-        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
+    ss << "Content-Type: application/x-mpegURL;charset=utf-8" << __SRS_CRLF
+        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __SRS_CRLF;
     return this;
 }
 
 SrsHttpHandler* SrsHttpHandler::res_content_type_mpegts(stringstream& ss)
 {
-    ss << "Content-Type: video/MP2T" << __CRLF
-        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
+    ss << "Content-Type: video/MP2T" << __SRS_CRLF
+        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __SRS_CRLF;
     return this;
 }
 
 SrsHttpHandler* SrsHttpHandler::res_content_type_flv(stringstream& ss)
 {
-    ss << "Content-Type: video/x-flv" << __CRLF
-        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __CRLF;
+    ss << "Content-Type: video/x-flv" << __SRS_CRLF
+        << "Allow: DELETE, GET, HEAD, OPTIONS, POST, PUT" << __SRS_CRLF;
     return this;
 }
 
 SrsHttpHandler* SrsHttpHandler::res_content_length(stringstream& ss, int64_t length)
 {
-    ss << "Content-Length: "<< length << __CRLF;
+    ss << "Content-Length: "<< length << __SRS_CRLF;
     return this;
 }
 
 SrsHttpHandler* SrsHttpHandler::res_enable_crossdomain(stringstream& ss)
 {
-    ss << "Access-Control-Allow-Origin: *" << __CRLF
+    ss << "Access-Control-Allow-Origin: *" << __SRS_CRLF
         << "Access-Control-Allow-Methods: "
-        << "GET, POST, HEAD, PUT, DELETE" << __CRLF
+        << "GET, POST, HEAD, PUT, DELETE" << __SRS_CRLF
         << "Access-Control-Allow-Headers: "
-        << "Cache-Control,X-Proxy-Authorization,X-Requested-With,Content-Type" << __CRLF;
+        << "Cache-Control,X-Proxy-Authorization,X-Requested-With,Content-Type" << __SRS_CRLF;
     return this;
 }
 
 SrsHttpHandler* SrsHttpHandler::res_header_eof(stringstream& ss)
 {
-    ss << __CRLF;
+    ss << __SRS_CRLF;
     return this;
 }
 

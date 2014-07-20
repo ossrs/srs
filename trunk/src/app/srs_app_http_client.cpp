@@ -76,13 +76,13 @@ int SrsHttpClient::post(SrsHttpUri* uri, string req, string& res)
     // POST %s HTTP/1.1\r\nHost: %s\r\nContent-Length: %d\r\n\r\n%s
     std::stringstream ss;
     ss << "POST " << uri->get_path() << " "
-        << "HTTP/1.1" << __CRLF
-        << "Host: " << uri->get_host() << __CRLF
-        << "Connection: Keep-Alive" << __CRLF
-        << "Content-Length: " << std::dec << req.length() << __CRLF
-        << "User-Agent: " << RTMP_SIG_SRS_NAME << RTMP_SIG_SRS_VERSION << __CRLF
-        << "Content-Type: text/html" << __CRLF
-        << __CRLF
+        << "HTTP/1.1" << __SRS_CRLF
+        << "Host: " << uri->get_host() << __SRS_CRLF
+        << "Connection: Keep-Alive" << __SRS_CRLF
+        << "Content-Length: " << std::dec << req.length() << __SRS_CRLF
+        << "User-Agent: " << RTMP_SIG_SRS_NAME << RTMP_SIG_SRS_VERSION << __SRS_CRLF
+        << "Content-Type: text/html" << __SRS_CRLF
+        << __SRS_CRLF
         << req;
     
     SrsSocket skt(stfd);

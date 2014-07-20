@@ -503,7 +503,7 @@ int SrsRtmpConn::playing(SrsSource* source)
     
     rtmp->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
     
-    SrsPithyPrint pithy_print(SRS_STAGE_PLAY_USER);
+    SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_PLAY_USER);
     
     SrsSharedPtrMessageArray msgs(SYS_MAX_PLAY_SEND_MSGS);
 
@@ -611,7 +611,7 @@ int SrsRtmpConn::fmle_publishing(SrsSource* source)
     }
     srs_verbose("fmle check publish_refer success.");
     
-    SrsPithyPrint pithy_print(SRS_STAGE_PUBLISH_USER);
+    SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_PUBLISH_USER);
     
     bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
     
@@ -690,7 +690,7 @@ int SrsRtmpConn::flash_publishing(SrsSource* source)
     }
     srs_verbose("flash check publish_refer success.");
     
-    SrsPithyPrint pithy_print(SRS_STAGE_PUBLISH_USER);
+    SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_PUBLISH_USER);
     
     bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
     

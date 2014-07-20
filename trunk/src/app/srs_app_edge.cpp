@@ -170,7 +170,7 @@ int SrsEdgeIngester::ingest()
     
     client->set_recv_timeout(SRS_EDGE_INGESTER_TIMEOUT_US);
     
-    SrsPithyPrint pithy_print(SRS_STAGE_EDGE);
+    SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_EDGE);
 
     while (pthread->can_loop()) {
         // switch to other st-threads.
@@ -413,7 +413,7 @@ int SrsEdgeForwarder::cycle()
     
     client->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
     
-    SrsPithyPrint pithy_print(SRS_STAGE_EDGE);
+    SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_EDGE);
     
     SrsSharedPtrMessageArray msgs(SYS_MAX_EDGE_SEND_MSGS);
 

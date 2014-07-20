@@ -284,7 +284,7 @@ int SrsForwarder::forward()
     
     client->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
     
-    SrsPithyPrint pithy_print(SRS_STAGE_FORWARDER);
+    SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_FORWARDER);
 
     SrsSharedPtrMessageArray msgs(SYS_MAX_FORWARD_SEND_MSGS);
     

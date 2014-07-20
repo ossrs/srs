@@ -32,7 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_utility.hpp>
 
-#define SRS_STAGE_DEFAULT_INTERVAL_MS 1200
+#define SRS_CONSTS_STAGE_DEFAULT_INTERVAL_MS 1200
 
 SrsStageInfo::SrsStageInfo(int _stage_id)
 {
@@ -53,36 +53,36 @@ SrsStageInfo::~SrsStageInfo()
 void SrsStageInfo::update_print_time()
 {
     switch (stage_id) {
-        case SRS_STAGE_PLAY_USER: {
+        case SRS_CONSTS_STAGE_PLAY_USER: {
             pithy_print_time_ms = _srs_config->get_pithy_print_play();
             break;
         }
-        case SRS_STAGE_PUBLISH_USER: {
+        case SRS_CONSTS_STAGE_PUBLISH_USER: {
             pithy_print_time_ms = _srs_config->get_pithy_print_publish();
             break;
         }
-        case SRS_STAGE_FORWARDER: {
+        case SRS_CONSTS_STAGE_FORWARDER: {
             pithy_print_time_ms = _srs_config->get_pithy_print_forwarder();
             break;
         }
-        case SRS_STAGE_ENCODER: {
+        case SRS_CONSTS_STAGE_ENCODER: {
             pithy_print_time_ms = _srs_config->get_pithy_print_encoder();
             break;
         }
-        case SRS_STAGE_INGESTER: {
+        case SRS_CONSTS_STAGE_INGESTER: {
             pithy_print_time_ms = _srs_config->get_pithy_print_ingester();
             break;
         }
-        case SRS_STAGE_EDGE: {
+        case SRS_CONSTS_STAGE_EDGE: {
             pithy_print_time_ms = _srs_config->get_pithy_print_edge();
             break;
         }
-        case SRS_STAGE_HLS: {
+        case SRS_CONSTS_STAGE_HLS: {
             pithy_print_time_ms = _srs_config->get_pithy_print_hls();
             break;
         }
         default: {
-            pithy_print_time_ms = SRS_STAGE_DEFAULT_INTERVAL_MS;
+            pithy_print_time_ms = SRS_CONSTS_STAGE_DEFAULT_INTERVAL_MS;
             break;
         }
     }

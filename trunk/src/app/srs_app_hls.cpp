@@ -1342,7 +1342,7 @@ SrsHls::SrsHls(SrsSource* _source)
     muxer = new SrsHlsMuxer();
     hls_cache = new SrsHlsCache();
 
-    pithy_print = new SrsPithyPrint(SRS_STAGE_HLS);
+    pithy_print = new SrsPithyPrint(SRS_CONSTS_STAGE_HLS);
     stream_dts = 0;
 }
 
