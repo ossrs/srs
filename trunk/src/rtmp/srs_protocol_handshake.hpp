@@ -111,7 +111,7 @@ namespace _srs_internal
     };
     
     // the digest key generate size.
-    #define SRS_CONSTS_OpensslHashSize 512
+    #define __SRS_OpensslHashSize 512
     extern u_int8_t SrsGenuineFMSKey[];
     extern u_int8_t SrsGenuineFPKey[];
     int openssl_HMACsha256(const void* data, int data_size, const void* key, int key_size, void* digest);
