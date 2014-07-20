@@ -150,4 +150,97 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // the pithy stage for all edge.
 #define SRS_CONSTS_STAGE_EDGE 7
 
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////
+// HTTP consts values
+///////////////////////////////////////////////////////////
+// 6.1.1 Status Code and Reason Phrase
+#define SRS_CONSTS_HTTP_Continue                       100
+#define SRS_CONSTS_HTTP_SwitchingProtocols             101
+#define SRS_CONSTS_HTTP_OK                             200
+#define SRS_CONSTS_HTTP_Created                        201
+#define SRS_CONSTS_HTTP_Accepted                       202
+#define SRS_CONSTS_HTTP_NonAuthoritativeInformation    203
+#define SRS_CONSTS_HTTP_NoContent                      204
+#define SRS_CONSTS_HTTP_ResetContent                   205
+#define SRS_CONSTS_HTTP_PartialContent                 206
+#define SRS_CONSTS_HTTP_MultipleChoices                300
+#define SRS_CONSTS_HTTP_MovedPermanently               301
+#define SRS_CONSTS_HTTP_Found                          302
+#define SRS_CONSTS_HTTP_SeeOther                       303
+#define SRS_CONSTS_HTTP_NotModified                    304
+#define SRS_CONSTS_HTTP_UseProxy                       305
+#define SRS_CONSTS_HTTP_TemporaryRedirect              307
+#define SRS_CONSTS_HTTP_BadRequest                     400
+#define SRS_CONSTS_HTTP_Unauthorized                   401
+#define SRS_CONSTS_HTTP_PaymentRequired                402
+#define SRS_CONSTS_HTTP_Forbidden                      403
+#define SRS_CONSTS_HTTP_NotFound                       404
+#define SRS_CONSTS_HTTP_MethodNotAllowed               405
+#define SRS_CONSTS_HTTP_NotAcceptable                  406
+#define SRS_CONSTS_HTTP_ProxyAuthenticationRequired    407
+#define SRS_CONSTS_HTTP_RequestTimeout                 408
+#define SRS_CONSTS_HTTP_Conflict                       409
+#define SRS_CONSTS_HTTP_Gone                           410
+#define SRS_CONSTS_HTTP_LengthRequired                 411
+#define SRS_CONSTS_HTTP_PreconditionFailed             412
+#define SRS_CONSTS_HTTP_RequestEntityTooLarge          413
+#define SRS_CONSTS_HTTP_RequestURITooLarge             414
+#define SRS_CONSTS_HTTP_UnsupportedMediaType           415
+#define SRS_CONSTS_HTTP_RequestedRangeNotSatisfiable   416
+#define SRS_CONSTS_HTTP_ExpectationFailed              417
+#define SRS_CONSTS_HTTP_InternalServerError            500
+#define SRS_CONSTS_HTTP_NotImplemented                 501
+#define SRS_CONSTS_HTTP_BadGateway                     502
+#define SRS_CONSTS_HTTP_ServiceUnavailable             503
+#define SRS_CONSTS_HTTP_GatewayTimeout                 504
+#define SRS_CONSTS_HTTP_HTTPVersionNotSupported        505
+
+#define SRS_CONSTS_HTTP_Continue_str                           "Continue"
+#define SRS_CONSTS_HTTP_SwitchingProtocols_str                 "Switching Protocols"
+#define SRS_CONSTS_HTTP_OK_str                                 "OK"
+#define SRS_CONSTS_HTTP_Created_str                            "Created "
+#define SRS_CONSTS_HTTP_Accepted_str                           "Accepted"
+#define SRS_CONSTS_HTTP_NonAuthoritativeInformation_str        "Non Authoritative Information "
+#define SRS_CONSTS_HTTP_NoContent_str                          "No Content "
+#define SRS_CONSTS_HTTP_ResetContent_str                       "Reset Content"
+#define SRS_CONSTS_HTTP_PartialContent_str                     "Partial Content"
+#define SRS_CONSTS_HTTP_MultipleChoices_str                    "Multiple Choices "
+#define SRS_CONSTS_HTTP_MovedPermanently_str                   "Moved Permanently"
+#define SRS_CONSTS_HTTP_Found_str                              "Found"
+#define SRS_CONSTS_HTTP_SeeOther_str                           "See Other"
+#define SRS_CONSTS_HTTP_NotModified_str                        "Not Modified "
+#define SRS_CONSTS_HTTP_UseProxy_str                           "Use Proxy"
+#define SRS_CONSTS_HTTP_TemporaryRedirect_str                  "Temporary Redirect "
+#define SRS_CONSTS_HTTP_BadRequest_str                         "Bad Request"
+#define SRS_CONSTS_HTTP_Unauthorized_str                       "Unauthorized"
+#define SRS_CONSTS_HTTP_PaymentRequired_str                    "Payment Required "
+#define SRS_CONSTS_HTTP_Forbidden_str                          "Forbidden "
+#define SRS_CONSTS_HTTP_NotFound_str                           "Not Found"
+#define SRS_CONSTS_HTTP_MethodNotAllowed_str                   "Method Not Allowed"
+#define SRS_CONSTS_HTTP_NotAcceptable_str                      "Not Acceptable "
+#define SRS_CONSTS_HTTP_ProxyAuthenticationRequired_str        "Proxy Authentication Required "
+#define SRS_CONSTS_HTTP_RequestTimeout_str                     "Request Timeout"
+#define SRS_CONSTS_HTTP_Conflict_str                           "Conflict"
+#define SRS_CONSTS_HTTP_Gone_str                               "Gone"
+#define SRS_CONSTS_HTTP_LengthRequired_str                     "Length Required"
+#define SRS_CONSTS_HTTP_PreconditionFailed_str                 "Precondition Failed"
+#define SRS_CONSTS_HTTP_RequestEntityTooLarge_str              "Request Entity Too Large "
+#define SRS_CONSTS_HTTP_RequestURITooLarge_str                 "Request URI Too Large"
+#define SRS_CONSTS_HTTP_UnsupportedMediaType_str               "Unsupported Media Type"
+#define SRS_CONSTS_HTTP_RequestedRangeNotSatisfiable_str       "Requested Range Not Satisfiable"
+#define SRS_CONSTS_HTTP_ExpectationFailed_str                  "Expectation Failed "
+#define SRS_CONSTS_HTTP_InternalServerError_str                "Internal Server Error "
+#define SRS_CONSTS_HTTP_NotImplemented_str                     "Not Implemented"
+#define SRS_CONSTS_HTTP_BadGateway_str                         "Bad Gateway"
+#define SRS_CONSTS_HTTP_ServiceUnavailable_str                 "Service Unavailable"
+#define SRS_CONSTS_HTTP_GatewayTimeout_str                     "Gateway Timeout"
+#define SRS_CONSTS_HTTP_HTTPVersionNotSupported_str            "HTTP Version Not Supported"
+
 #endif
