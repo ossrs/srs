@@ -26,6 +26,32 @@ using namespace std;
 
 #include <srs_app_config.hpp>
 #include <srs_kernel_consts.hpp>
+#include <srs_kernel_error.hpp>
+
+MockSrsConfigBuffer::MockSrsConfigBuffer(string buf)
+{
+    // read all.
+    int filesize = (int)buf.length();
+    
+    if (filesize <= 0) {
+        return;
+    }
+    
+    // create buffer
+    pos = last = start = new char[filesize];
+    end = start + filesize;
+    
+    memcpy(start, buf.data(), filesize);
+}
+
+MockSrsConfigBuffer::~MockSrsConfigBuffer()
+{
+}
+
+int MockSrsConfigBuffer::fullfill(const char* /*filename*/)
+{
+    return ERROR_SUCCESS;
+}
 
 VOID TEST(ConfigTest, CheckMacros)
 {
@@ -158,4 +184,209 @@ VOID TEST(ConfigTest, CheckMacros)
 #ifndef SRS_CONF_DEFAULT_LOG_TANK_CONSOLE
     EXPECT_TRUE(false);
 #endif
+}
+
+VOID TEST(ConfigDirectiveTest, ParseEmpty)
+{
+    MockSrsConfigBuffer buf("");
+    SrsConfDirective conf;
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(&buf));
+    EXPECT_EQ(0, (int)conf.name.length());
+    EXPECT_EQ(0, (int)conf.args.size());
+    EXPECT_EQ(0, (int)conf.directives.size());
+}
+
+VOID TEST(ConfigDirectiveTest, ParseNameOnly)
+{
+    MockSrsConfigBuffer buf("winlin;");
+    SrsConfDirective conf;
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(&buf));
+    EXPECT_EQ(0, (int)conf.name.length());
+    EXPECT_EQ(0, (int)conf.args.size());
+    EXPECT_EQ(1, (int)conf.directives.size());
+    
+    SrsConfDirective& dir = *conf.directives.at(0);
+    EXPECT_STREQ("winlin", dir.name.c_str());
+    EXPECT_EQ(0, (int)dir.args.size());
+    EXPECT_EQ(0, (int)dir.directives.size());
+}
+
+VOID TEST(ConfigDirectiveTest, ParseNameArg0Only)
+{
+    MockSrsConfigBuffer buf("winlin arg0;");
+    SrsConfDirective conf;
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(&buf));
+    EXPECT_EQ(0, (int)conf.name.length());
+    EXPECT_EQ(0, (int)conf.args.size());
+    EXPECT_EQ(1, (int)conf.directives.size());
+    
+    SrsConfDirective& dir = *conf.directives.at(0);
+    EXPECT_STREQ("winlin", dir.name.c_str());
+    EXPECT_EQ(1, (int)dir.args.size());
+    EXPECT_STREQ("arg0", dir.arg0().c_str());
+    EXPECT_EQ(0, (int)dir.directives.size());
+}
+
+VOID TEST(ConfigDirectiveTest, ParseNameArg1Only)
+{
+    MockSrsConfigBuffer buf("winlin arg0 arg1;");
+    SrsConfDirective conf;
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(&buf));
+    EXPECT_EQ(0, (int)conf.name.length());
+    EXPECT_EQ(0, (int)conf.args.size());
+    EXPECT_EQ(1, (int)conf.directives.size());
+    
+    SrsConfDirective& dir = *conf.directives.at(0);
+    EXPECT_STREQ("winlin", dir.name.c_str());
+    EXPECT_EQ(2, (int)dir.args.size());
+    EXPECT_STREQ("arg0", dir.arg0().c_str());
+    EXPECT_STREQ("arg1", dir.arg1().c_str());
+    EXPECT_EQ(0, (int)dir.directives.size());
+}
+
+VOID TEST(ConfigDirectiveTest, ParseNameArg2Only)
+{
+    MockSrsConfigBuffer buf("winlin arg0 arg1 arg2;");
+    SrsConfDirective conf;
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(&buf));
+    EXPECT_EQ(0, (int)conf.name.length());
+    EXPECT_EQ(0, (int)conf.args.size());
+    EXPECT_EQ(1, (int)conf.directives.size());
+    
+    SrsConfDirective& dir = *conf.directives.at(0);
+    EXPECT_STREQ("winlin", dir.name.c_str());
+    EXPECT_EQ(3, (int)dir.args.size());
+    EXPECT_STREQ("arg0", dir.arg0().c_str());
+    EXPECT_STREQ("arg1", dir.arg1().c_str());
+    EXPECT_STREQ("arg2", dir.arg2().c_str());
+    EXPECT_EQ(0, (int)dir.directives.size());
+}
+
+VOID TEST(ConfigDirectiveTest, ParseNameArg2Dir0)
+{
+    MockSrsConfigBuffer buf("winlin arg0 arg1 arg2 {dir0;}");
+    SrsConfDirective conf;
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(&buf));
+    EXPECT_EQ(0, (int)conf.name.length());
+    EXPECT_EQ(0, (int)conf.args.size());
+    EXPECT_EQ(1, (int)conf.directives.size());
+    
+    SrsConfDirective& dir = *conf.directives.at(0);
+    EXPECT_STREQ("winlin", dir.name.c_str());
+    EXPECT_EQ(3, (int)dir.args.size());
+    EXPECT_STREQ("arg0", dir.arg0().c_str());
+    EXPECT_STREQ("arg1", dir.arg1().c_str());
+    EXPECT_STREQ("arg2", dir.arg2().c_str());
+    EXPECT_EQ(1, (int)dir.directives.size());
+    
+    SrsConfDirective& dir0 = *dir.directives.at(0);
+    EXPECT_STREQ("dir0", dir0.name.c_str());
+    EXPECT_EQ(0, (int)dir0.args.size());
+    EXPECT_EQ(0, (int)dir0.directives.size());
+}
+
+VOID TEST(ConfigDirectiveTest, ParseNameArg2Dir0NoEmpty)
+{
+    MockSrsConfigBuffer buf("winlin arg0 arg1 arg2{dir0;}");
+    SrsConfDirective conf;
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(&buf));
+    EXPECT_EQ(0, (int)conf.name.length());
+    EXPECT_EQ(0, (int)conf.args.size());
+    EXPECT_EQ(1, (int)conf.directives.size());
+    
+    SrsConfDirective& dir = *conf.directives.at(0);
+    EXPECT_STREQ("winlin", dir.name.c_str());
+    EXPECT_EQ(3, (int)dir.args.size());
+    EXPECT_STREQ("arg0", dir.arg0().c_str());
+    EXPECT_STREQ("arg1", dir.arg1().c_str());
+    EXPECT_STREQ("arg2", dir.arg2().c_str());
+    EXPECT_EQ(1, (int)dir.directives.size());
+    
+    SrsConfDirective& dir0 = *dir.directives.at(0);
+    EXPECT_STREQ("dir0", dir0.name.c_str());
+    EXPECT_EQ(0, (int)dir0.args.size());
+    EXPECT_EQ(0, (int)dir0.directives.size());
+}
+
+VOID TEST(ConfigDirectiveTest, ParseNameArg2_Dir0Arg0)
+{
+    MockSrsConfigBuffer buf("winlin arg0 arg1 arg2 {dir0 dir_arg0;}");
+    SrsConfDirective conf;
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(&buf));
+    EXPECT_EQ(0, (int)conf.name.length());
+    EXPECT_EQ(0, (int)conf.args.size());
+    EXPECT_EQ(1, (int)conf.directives.size());
+    
+    SrsConfDirective& dir = *conf.directives.at(0);
+    EXPECT_STREQ("winlin", dir.name.c_str());
+    EXPECT_EQ(3, (int)dir.args.size());
+    EXPECT_STREQ("arg0", dir.arg0().c_str());
+    EXPECT_STREQ("arg1", dir.arg1().c_str());
+    EXPECT_STREQ("arg2", dir.arg2().c_str());
+    EXPECT_EQ(1, (int)dir.directives.size());
+    
+    SrsConfDirective& dir0 = *dir.directives.at(0);
+    EXPECT_STREQ("dir0", dir0.name.c_str());
+    EXPECT_EQ(1, (int)dir0.args.size());
+    EXPECT_STREQ("dir_arg0", dir0.arg0().c_str());
+    EXPECT_EQ(0, (int)dir0.directives.size());
+}
+
+VOID TEST(ConfigDirectiveTest, ParseNameArg2_Dir0Arg0_Dir0)
+{
+    MockSrsConfigBuffer buf("winlin arg0 arg1 arg2 {dir0 dir_arg0 {ddir0;}}");
+    SrsConfDirective conf;
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(&buf));
+    EXPECT_EQ(0, (int)conf.name.length());
+    EXPECT_EQ(0, (int)conf.args.size());
+    EXPECT_EQ(1, (int)conf.directives.size());
+    
+    SrsConfDirective& dir = *conf.directives.at(0);
+    EXPECT_STREQ("winlin", dir.name.c_str());
+    EXPECT_EQ(3, (int)dir.args.size());
+    EXPECT_STREQ("arg0", dir.arg0().c_str());
+    EXPECT_STREQ("arg1", dir.arg1().c_str());
+    EXPECT_STREQ("arg2", dir.arg2().c_str());
+    EXPECT_EQ(1, (int)dir.directives.size());
+    
+    SrsConfDirective& dir0 = *dir.directives.at(0);
+    EXPECT_STREQ("dir0", dir0.name.c_str());
+    EXPECT_EQ(1, (int)dir0.args.size());
+    EXPECT_STREQ("dir_arg0", dir0.arg0().c_str());
+    EXPECT_EQ(1, (int)dir0.directives.size());
+    
+    SrsConfDirective& ddir0 = *dir0.directives.at(0);
+    EXPECT_STREQ("ddir0", ddir0.name.c_str());
+    EXPECT_EQ(0, (int)ddir0.args.size());
+    EXPECT_EQ(0, (int)ddir0.directives.size());
+}
+
+VOID TEST(ConfigDirectiveTest, ParseNameArg2_Dir0Arg0_Dir0Arg0)
+{
+    MockSrsConfigBuffer buf("winlin arg0 arg1 arg2 {dir0 dir_arg0 {ddir0 ddir_arg0;}}");
+    SrsConfDirective conf;
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(&buf));
+    EXPECT_EQ(0, (int)conf.name.length());
+    EXPECT_EQ(0, (int)conf.args.size());
+    EXPECT_EQ(1, (int)conf.directives.size());
+    
+    SrsConfDirective& dir = *conf.directives.at(0);
+    EXPECT_STREQ("winlin", dir.name.c_str());
+    EXPECT_EQ(3, (int)dir.args.size());
+    EXPECT_STREQ("arg0", dir.arg0().c_str());
+    EXPECT_STREQ("arg1", dir.arg1().c_str());
+    EXPECT_STREQ("arg2", dir.arg2().c_str());
+    EXPECT_EQ(1, (int)dir.directives.size());
+    
+    SrsConfDirective& dir0 = *dir.directives.at(0);
+    EXPECT_STREQ("dir0", dir0.name.c_str());
+    EXPECT_EQ(1, (int)dir0.args.size());
+    EXPECT_STREQ("dir_arg0", dir0.arg0().c_str());
+    EXPECT_EQ(1, (int)dir0.directives.size());
+    
+    SrsConfDirective& ddir0 = *dir0.directives.at(0);
+    EXPECT_STREQ("ddir0", ddir0.name.c_str());
+    EXPECT_EQ(1, (int)ddir0.args.size());
+    EXPECT_STREQ("ddir_arg0", ddir0.arg0().c_str());
+    EXPECT_EQ(0, (int)ddir0.directives.size());
 }

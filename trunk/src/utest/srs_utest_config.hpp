@@ -31,4 +31,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
+#include <srs_app_config.hpp>
+
+class MockSrsConfigBuffer : public _srs_internal::SrsConfigBuffer
+{
+public:
+    MockSrsConfigBuffer(std::string buf);
+    virtual ~MockSrsConfigBuffer();
+public:
+    virtual int fullfill(const char* filename);
+};
+
 #endif
