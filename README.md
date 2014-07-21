@@ -179,7 +179,7 @@ Supported operating systems and hardware:
 1. Support [vod stream(http flv/hls vod stream)](https://github.com/winlinvip/simple-rtmp-server/wiki/FlvVodStream).
 1. Support DRM [token traverse](https://github.com/winlinvip/simple-rtmp-server/wiki/DRM#tokentraverse) for fms origin authenticate.
 1. [dev] Support system full utest on gtest.
-1. [plan] Support <500ms latency, use io to substitude timeout.
+1. [plan] Support <500ms latency, FRSC(fast RTMP-compatible stream channel tech).
 1. [plan] Support RTMP 302 redirect [#92](https://github.com/winlinvip/simple-rtmp-server/issues/92).
 1. [plan] Support multiple processes, for both origin and edge
 1. [no-plan] Support adobe RTMFP(flash p2p) protocol.
