@@ -27,6 +27,7 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_kernel_consts.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_app_source.hpp>
 
 MockSrsConfigBuffer::MockSrsConfigBuffer(string buf)
 {
@@ -1837,6 +1838,14 @@ VOID TEST(ConfigMainTest, ParseFullConf)
     EXPECT_EQ(8080, conf.get_http_stream_listen());
     EXPECT_STREQ("./objs/nginx/html", conf.get_http_stream_dir().c_str());
     
+    EXPECT_EQ(10000, conf.get_pithy_print_publish());
+    EXPECT_EQ(10000, conf.get_pithy_print_play());
+    EXPECT_EQ(10000, conf.get_pithy_print_forwarder());
+    EXPECT_EQ(10000, conf.get_pithy_print_encoder());
+    EXPECT_EQ(10000, conf.get_pithy_print_ingester());
+    EXPECT_EQ(10000, conf.get_pithy_print_hls());
+    EXPECT_EQ(10000, conf.get_pithy_print_edge());
+    
     EXPECT_TRUE(NULL != conf.get_vhost("__defaultVhost__"));
     EXPECT_TRUE(NULL != conf.get_vhost("same.edge.srs.com"));
     EXPECT_TRUE(NULL != conf.get_vhost("change.edge.srs.com"));
@@ -1865,4 +1874,71 @@ VOID TEST(ConfigMainTest, ParseFullConf)
     EXPECT_TRUE(NULL != conf.get_vhost("jitter.srs.com"));
     EXPECT_TRUE(NULL != conf.get_vhost("atc.srs.com"));
     EXPECT_TRUE(NULL != conf.get_vhost("removed.srs.com"));
+    
+    string vhost = "__defaultVhost__";
+    EXPECT_TRUE(conf.get_vhost_enabled(vhost));
+    EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
+    EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_FALSE(conf.get_atc(vhost));
+    EXPECT_TRUE(conf.get_atc_auto(vhost));
+    EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
+    EXPECT_FLOAT_EQ(30, conf.get_queue_length(vhost));
+    EXPECT_TRUE(NULL == conf.get_refer(vhost));
+    EXPECT_TRUE(NULL == conf.get_refer_play(vhost));
+    EXPECT_TRUE(NULL == conf.get_refer_publish(vhost));
+    EXPECT_EQ(60000, conf.get_chunk_size(vhost));
+    EXPECT_TRUE(NULL == conf.get_forward(vhost));
+    EXPECT_TRUE(NULL == conf.get_vhost_on_connect(vhost));
+    EXPECT_TRUE(NULL == conf.get_vhost_on_close(vhost));
+    EXPECT_TRUE(NULL == conf.get_vhost_on_publish(vhost));
+    EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
+    EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
+    EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
+    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
+    EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
+    EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
+    EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
+    EXPECT_EQ(1000, conf.get_bw_check_limit_kbps(vhost));
+    EXPECT_FALSE(conf.get_vhost_is_edge(vhost));
+    EXPECT_FALSE(conf.get_vhost_is_edge(conf.get_vhost(vhost)));
+    EXPECT_TRUE(NULL == conf.get_vhost_edge_origin(vhost));
+    EXPECT_FALSE(conf.get_vhost_edge_token_traverse(vhost));
+    EXPECT_TRUE(NULL == conf.get_transcode(vhost, ""));
+    EXPECT_FALSE(conf.get_transcode_enabled(NULL));
+    EXPECT_TRUE(conf.get_transcode_ffmpeg(NULL).empty());
+    EXPECT_TRUE(conf.get_transcode_engines(NULL).size() == 0);
+    EXPECT_FALSE(conf.get_engine_enabled(NULL));
+    EXPECT_STREQ("flv", conf.get_engine_iformat(NULL).c_str());
+    EXPECT_TRUE(conf.get_engine_vfilter(NULL).size() == 0);
+    EXPECT_TRUE(conf.get_engine_vcodec(NULL).empty());
+    EXPECT_TRUE(conf.get_engine_vbitrate(NULL) == 0);
+    EXPECT_TRUE(conf.get_engine_vfps(NULL) == 0);
+    EXPECT_TRUE(conf.get_engine_vwidth(NULL) == 0);
+    EXPECT_TRUE(conf.get_engine_vheight(NULL) == 0);
+    EXPECT_TRUE(conf.get_engine_vthreads(NULL) == 0);
+    EXPECT_TRUE(conf.get_engine_vprofile(NULL).empty());
+    EXPECT_TRUE(conf.get_engine_vpreset(NULL).empty());
+    EXPECT_TRUE(conf.get_engine_vparams(NULL).size() == 0);
+    EXPECT_TRUE(conf.get_engine_acodec(NULL).empty());
+    EXPECT_TRUE(conf.get_engine_abitrate(NULL) == 0);
+    EXPECT_TRUE(conf.get_engine_asample_rate(NULL) == 0);
+    EXPECT_TRUE(conf.get_engine_achannels(NULL) == 0);
+    EXPECT_TRUE(conf.get_engine_aparams(NULL).size() == 0);
+    EXPECT_STREQ("flv", conf.get_engine_oformat(NULL).c_str());
+    EXPECT_TRUE(conf.get_engine_output(NULL).empty());
+    EXPECT_TRUE(conf.get_ingesters(vhost).size() == 0);
+    EXPECT_TRUE(NULL == conf.get_ingest_by_id(vhost, ""));
+    EXPECT_FALSE(conf.get_ingest_enabled(NULL));
+    EXPECT_TRUE(conf.get_ingest_ffmpeg(NULL).empty());
+    EXPECT_STREQ("file", conf.get_ingest_input_type(NULL).c_str());
+    EXPECT_TRUE(conf.get_ingest_input_url(NULL).empty());
+    EXPECT_FALSE(conf.get_hls_enabled(vhost));
+    EXPECT_STREQ("./objs/nginx/html", conf.get_hls_path(vhost).c_str());
+    EXPECT_EQ(10, conf.get_hls_fragment(vhost));
+    EXPECT_EQ(60, conf.get_hls_window(vhost));
+    EXPECT_FALSE(conf.get_dvr_enabled(vhost));
+    EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
+    EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
+    EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
 }

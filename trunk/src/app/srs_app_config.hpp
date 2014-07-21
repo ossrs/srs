@@ -449,28 +449,33 @@ public:
     * whether gop_cache is enabled of vhost.
     * gop_cache used to cache last gop, for client to fast startup.
     * @return true when gop_cache is ok; otherwise, false.
+    * @remark, default true.
     */
     virtual bool                get_gop_cache(std::string vhost);
     /**
     * whether atc is enabled of vhost.
     * atc always use encoder timestamp, SRS never adjust the time.
     * @return true when atc is ok; otherwise, false.
+    * @remark, default false.
     */
     virtual bool                get_atc(std::string vhost);
     /**
     * whether atc_auto is enabled of vhost.
     * atc_auto used to auto enable atc, when metadata specified the bravo_atc.
     * @return true when atc_auto is ok; otherwise, false.
+    * @remark, default true.
     */
     virtual bool                get_atc_auto(std::string vhost);
     /**
     * get the time_jitter algorithm.
     * @return the time_jitter algorithm, defined in SrsRtmpJitterAlgorithm.
+    * @remark, default full.
     */
     virtual int                 get_time_jitter(std::string vhost);
     /**
     * get the cache queue length, in seconds.
     * when exceed the queue length, drop packet util I frame.
+    * @remark, default 10.
     */
     virtual double              get_queue_length(std::string vhost);
     /**
@@ -478,20 +483,24 @@ public:
     * each args of directive is a refer config.
     * when the client refer(pageUrl) not match the refer config,
     * SRS will reject the connection.
+    * @remark, default NULL.
     */
     virtual SrsConfDirective*   get_refer(std::string vhost);
     /**
     * get the play refer, refer for play clients.
+    * @remark, default NULL.
     */
     virtual SrsConfDirective*   get_refer_play(std::string vhost);
     /**
     * get the publish refer, refer for publish clients.
+    * @remark, default NULL.
     */
     virtual SrsConfDirective*   get_refer_publish(std::string vhost);
     /**
     * get the chunk size of vhost.
     * @param vhost, the vhost to get the chunk size. use global if not specified.
     *       empty string to get the global.
+    * @remark, default 60000.
     */
     virtual int                 get_chunk_size(std::string vhost);
 private:

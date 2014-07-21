@@ -2312,6 +2312,10 @@ SrsConfDirective* SrsConfig::get_ingest_by_id(string vhost, string ingest_id)
 
 bool SrsConfig::get_ingest_enabled(SrsConfDirective* ingest)
 {
+    if (!ingest) {
+        return false;
+    }
+    
     SrsConfDirective* conf = ingest->get("enabled");
     
     if (!conf || conf->arg0() != "on") {
@@ -2323,6 +2327,10 @@ bool SrsConfig::get_ingest_enabled(SrsConfDirective* ingest)
 
 string SrsConfig::get_ingest_ffmpeg(SrsConfDirective* ingest)
 {
+    if (!ingest) {
+        return "";
+    }
+    
     SrsConfDirective* conf = ingest->get("ffmpeg");
     
     if (!conf) {
@@ -2334,6 +2342,10 @@ string SrsConfig::get_ingest_ffmpeg(SrsConfDirective* ingest)
 
 string SrsConfig::get_ingest_input_type(SrsConfDirective* ingest)
 {
+    if (!ingest) {
+        return SRS_CONF_DEFAULT_INGEST_TYPE_FILE;
+    }
+    
     SrsConfDirective* conf = ingest->get("input");
     
     if (!conf) {
@@ -2351,6 +2363,10 @@ string SrsConfig::get_ingest_input_type(SrsConfDirective* ingest)
 
 string SrsConfig::get_ingest_input_url(SrsConfDirective* ingest)
 {
+    if (!ingest) {
+        return "";
+    }
+    
     SrsConfDirective* conf = ingest->get("input");
     
     if (!conf) {
