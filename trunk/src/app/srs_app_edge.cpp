@@ -147,7 +147,7 @@ int SrsEdgeIngester::cycle()
     }
     
     if ((ret = _source->on_publish()) != ERROR_SUCCESS) {
-        srs_error("edge ingester play stream then publish to edge failed. ret=%d", ret);
+        srs_error("edge pull stream then publish to edge failed. ret=%d", ret);
         return ret;
     }
     
@@ -192,7 +192,7 @@ int SrsEdgeIngester::ingest()
         SrsMessage* msg = NULL;
         if ((ret = client->recv_message(&msg)) != ERROR_SUCCESS) {
             if (!srs_is_client_gracefully_close(ret)) {
-                srs_error("ingest recv origin server message failed. ret=%d", ret);
+                srs_error("pull origin server message failed. ret=%d", ret);
             }
             return ret;
         }
@@ -297,7 +297,7 @@ int SrsEdgeIngester::connect_server()
     // open socket.
     int64_t timeout = SRS_EDGE_INGESTER_TIMEOUT_US;
     if ((ret = srs_socket_connect(server, port, timeout, &stfd)) != ERROR_SUCCESS) {
-        srs_warn("edge ingester failed, stream=%s, tcUrl=%s to server=%s, port=%d, timeout=%"PRId64", ret=%d",
+        srs_warn("edge pull failed, stream=%s, tcUrl=%s to server=%s, port=%d, timeout=%"PRId64", ret=%d",
             _req->stream.c_str(), _req->tcUrl.c_str(), server.c_str(), port, timeout, ret);
         return ret;
     }
@@ -433,7 +433,7 @@ int SrsEdgeForwarder::cycle()
             
             srs_verbose("edge loop recv message. ret=%d", ret);
             if (ret != ERROR_SUCCESS && ret != ERROR_SOCKET_TIMEOUT) {
-                srs_error("edge forwarder recv server control message failed. ret=%d", ret);
+                srs_error("edge push get server control message failed. ret=%d", ret);
                 send_error_code = ret;
                 continue;
             }
@@ -444,7 +444,7 @@ int SrsEdgeForwarder::cycle()
         // forward all messages.
         int count = 0;
         if ((ret = queue->dump_packets(msgs.size, msgs.msgs, count)) != ERROR_SUCCESS) {
-            srs_error("get message to forward to origin failed. ret=%d", ret);
+            srs_error("get message to push to origin failed. ret=%d", ret);
             return ret;
         }
         
@@ -462,7 +462,7 @@ int SrsEdgeForwarder::cycle()
         
         // ignore when no messages.
         if (count <= 0) {
-            srs_verbose("no packets to forward.");
+            srs_verbose("no packets to push.");
             continue;
         }
     
@@ -476,7 +476,7 @@ int SrsEdgeForwarder::cycle()
             msgs.msgs[i] = NULL;
             
             if ((ret = client->send_and_free_message(msg, stream_id)) != ERROR_SUCCESS) {
-                srs_error("edge publish forwarder send message to server failed. ret=%d", ret);
+                srs_error("edge publish push message to server failed. ret=%d", ret);
                 return ret;
             }
         }
@@ -550,7 +550,7 @@ int SrsEdgeForwarder::connect_server()
     // open socket.
     int64_t timeout = SRS_EDGE_FORWARDER_TIMEOUT_US;
     if ((ret = srs_socket_connect(server, port, timeout, &stfd)) != ERROR_SUCCESS) {
-        srs_warn("edge forwarder failed, stream=%s, tcUrl=%s to server=%s, port=%d, timeout=%"PRId64", ret=%d",
+        srs_warn("edge push failed, stream=%s, tcUrl=%s to server=%s, port=%d, timeout=%"PRId64", ret=%d",
             _req->stream.c_str(), _req->tcUrl.c_str(), server.c_str(), port, timeout, ret);
         return ret;
     }
@@ -592,7 +592,7 @@ int SrsPlayEdge::on_client_play()
     // error state.
     if (user_state != SrsEdgeUserStateInit) {
         ret = ERROR_RTMP_EDGE_PLAY_STATE;
-        srs_error("invalid state for client to play stream on edge. "
+        srs_error("invalid state for client to pull stream on edge. "
             "state=%d, user_state=%d, ret=%d", state, user_state, ret);
         return ret;
     }
@@ -634,7 +634,7 @@ int SrsPlayEdge::on_ingest_play()
     
     SrsEdgeState pstate = state;
     state = SrsEdgeStateIngestConnected;
-    srs_trace("edge change from %d to state %d (ingest connected).", pstate, state);
+    srs_trace("edge change from %d to state %d (pull).", pstate, state);
     
     return ret;
 }
@@ -693,7 +693,7 @@ int SrsPublishEdge::on_client_publish()
     
     SrsEdgeState pstate = state;
     state = SrsEdgeStatePublish;
-    srs_trace("edge change from %d to state %d (forward publish).", pstate, state);
+    srs_trace("edge change from %d to state %d (push).", pstate, state);
     
     return ret;
 }
