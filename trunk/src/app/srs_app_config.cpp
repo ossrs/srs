@@ -1587,24 +1587,35 @@ SrsConfDirective* SrsConfig::get_refer_publish(string vhost)
 
 int SrsConfig::get_chunk_size(string vhost)
 {
+    if (vhost.empty()) {
+        return get_global_chunk_size();
+    }
+    
     SrsConfDirective* conf = get_vhost(vhost);
 
     if (!conf) {
-        return SRS_CONSTS_RTMP_SRS_CHUNK_SIZE;
+        // vhost does not specify the chunk size,
+        // use the global instead.
+        return get_global_chunk_size();
     }
 
     conf = conf->get("chunk_size");
     if (!conf) {
         // vhost does not specify the chunk size,
         // use the global instead.
-        conf = root->get("chunk_size");
-        if (!conf) {
-            return SRS_CONSTS_RTMP_SRS_CHUNK_SIZE;
-        }
-        
-        return ::atoi(conf->arg0().c_str());
+        return get_global_chunk_size();
     }
 
+    return ::atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_global_chunk_size()
+{
+    SrsConfDirective* conf = root->get("chunk_size");
+    if (!conf) {
+        return SRS_CONSTS_RTMP_SRS_CHUNK_SIZE;
+    }
+    
     return ::atoi(conf->arg0().c_str());
 }
 

@@ -490,12 +490,19 @@ public:
     virtual SrsConfDirective*   get_refer_publish(std::string vhost);
     /**
     * get the chunk size of vhost.
+    * @param vhost, the vhost to get the chunk size. use global if not specified.
+    *       empty string to get the global.
     */
     virtual int                 get_chunk_size(std::string vhost);
+private:
+    /**
+    * get the global chunk size.
+    */
+    virtual int                 get_global_chunk_size();
 // forward section
 public:
     /**
-    * 
+    * get the forward directive of vhost.
     */
     virtual SrsConfDirective*   get_forward(std::string vhost);
 // http_hooks section
