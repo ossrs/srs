@@ -515,7 +515,17 @@ public:
     */
     virtual SrsConfDirective*   get_forward(std::string vhost);
 // http_hooks section
+private:
+    /**
+    * get the http_hooks directive of vhost.
+    */
+    virtual SrsConfDirective*   get_vhost_http_hooks(std::string vhost);
 public:
+    /**
+    * whether vhost http-hooks enabled.
+    * @remark, if not enabled, donot callback all http hooks.
+    */
+    virtual bool                get_vhost_http_hooks_enabled(std::string vhost);
     /**
     * get the on_connect callbacks of vhost.
     * @return the on_connect callback directive, the args is the url to callback.

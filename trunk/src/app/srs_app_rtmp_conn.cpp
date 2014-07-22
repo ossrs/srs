@@ -984,19 +984,21 @@ int SrsRtmpConn::http_hooks_on_connect()
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_HTTP_CALLBACK
-    // HTTP: on_connect 
-    SrsConfDirective* on_connect = _srs_config->get_vhost_on_connect(req->vhost);
-    if (!on_connect) {
-        srs_info("ignore the empty http callback: on_connect");
-        return ret;
-    }
-    
-    int connection_id = _srs_context->get_id();
-    for (int i = 0; i < (int)on_connect->args.size(); i++) {
-        std::string url = on_connect->args.at(i);
-        if ((ret = SrsHttpHooks::on_connect(url, connection_id, ip, req)) != ERROR_SUCCESS) {
-            srs_error("hook client on_connect failed. url=%s, ret=%d", url.c_str(), ret);
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        // HTTP: on_connect 
+        SrsConfDirective* on_connect = _srs_config->get_vhost_on_connect(req->vhost);
+        if (!on_connect) {
+            srs_info("ignore the empty http callback: on_connect");
             return ret;
+        }
+        
+        int connection_id = _srs_context->get_id();
+        for (int i = 0; i < (int)on_connect->args.size(); i++) {
+            std::string url = on_connect->args.at(i);
+            if ((ret = SrsHttpHooks::on_connect(url, connection_id, ip, req)) != ERROR_SUCCESS) {
+                srs_error("hook client on_connect failed. url=%s, ret=%d", url.c_str(), ret);
+                return ret;
+            }
         }
     }
 #endif
@@ -1007,18 +1009,20 @@ int SrsRtmpConn::http_hooks_on_connect()
 void SrsRtmpConn::http_hooks_on_close()
 {
 #ifdef SRS_AUTO_HTTP_CALLBACK
-    // whatever the ret code, notify the api hooks.
-    // HTTP: on_close 
-    SrsConfDirective* on_close = _srs_config->get_vhost_on_close(req->vhost);
-    if (!on_close) {
-        srs_info("ignore the empty http callback: on_close");
-        return;
-    }
-    
-    int connection_id = _srs_context->get_id();
-    for (int i = 0; i < (int)on_close->args.size(); i++) {
-        std::string url = on_close->args.at(i);
-        SrsHttpHooks::on_close(url, connection_id, ip, req);
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        // whatever the ret code, notify the api hooks.
+        // HTTP: on_close 
+        SrsConfDirective* on_close = _srs_config->get_vhost_on_close(req->vhost);
+        if (!on_close) {
+            srs_info("ignore the empty http callback: on_close");
+            return;
+        }
+        
+        int connection_id = _srs_context->get_id();
+        for (int i = 0; i < (int)on_close->args.size(); i++) {
+            std::string url = on_close->args.at(i);
+            SrsHttpHooks::on_close(url, connection_id, ip, req);
+        }
     }
 #endif
 }
@@ -1027,20 +1031,22 @@ int SrsRtmpConn::http_hooks_on_publish()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_AUTO_HTTP_CALLBACK    
-    // HTTP: on_publish 
-    SrsConfDirective* on_publish = _srs_config->get_vhost_on_publish(req->vhost);
-    if (!on_publish) {
-        srs_info("ignore the empty http callback: on_publish");
-        return ret;
-    }
-    
-    int connection_id = _srs_context->get_id();
-    for (int i = 0; i < (int)on_publish->args.size(); i++) {
-        std::string url = on_publish->args.at(i);
-        if ((ret = SrsHttpHooks::on_publish(url, connection_id, ip, req)) != ERROR_SUCCESS) {
-            srs_error("hook client on_publish failed. url=%s, ret=%d", url.c_str(), ret);
+#ifdef SRS_AUTO_HTTP_CALLBACK
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        // HTTP: on_publish 
+        SrsConfDirective* on_publish = _srs_config->get_vhost_on_publish(req->vhost);
+        if (!on_publish) {
+            srs_info("ignore the empty http callback: on_publish");
             return ret;
+        }
+        
+        int connection_id = _srs_context->get_id();
+        for (int i = 0; i < (int)on_publish->args.size(); i++) {
+            std::string url = on_publish->args.at(i);
+            if ((ret = SrsHttpHooks::on_publish(url, connection_id, ip, req)) != ERROR_SUCCESS) {
+                srs_error("hook client on_publish failed. url=%s, ret=%d", url.c_str(), ret);
+                return ret;
+            }
         }
     }
 #endif
@@ -1051,18 +1057,20 @@ int SrsRtmpConn::http_hooks_on_publish()
 void SrsRtmpConn::http_hooks_on_unpublish()
 {
 #ifdef SRS_AUTO_HTTP_CALLBACK
-    // whatever the ret code, notify the api hooks.
-    // HTTP: on_unpublish 
-    SrsConfDirective* on_unpublish = _srs_config->get_vhost_on_unpublish(req->vhost);
-    if (!on_unpublish) {
-        srs_info("ignore the empty http callback: on_unpublish");
-        return;
-    }
-    
-    int connection_id = _srs_context->get_id();
-    for (int i = 0; i < (int)on_unpublish->args.size(); i++) {
-        std::string url = on_unpublish->args.at(i);
-        SrsHttpHooks::on_unpublish(url, connection_id, ip, req);
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        // whatever the ret code, notify the api hooks.
+        // HTTP: on_unpublish 
+        SrsConfDirective* on_unpublish = _srs_config->get_vhost_on_unpublish(req->vhost);
+        if (!on_unpublish) {
+            srs_info("ignore the empty http callback: on_unpublish");
+            return;
+        }
+        
+        int connection_id = _srs_context->get_id();
+        for (int i = 0; i < (int)on_unpublish->args.size(); i++) {
+            std::string url = on_unpublish->args.at(i);
+            SrsHttpHooks::on_unpublish(url, connection_id, ip, req);
+        }
     }
 #endif
 }
@@ -1071,20 +1079,22 @@ int SrsRtmpConn::http_hooks_on_play()
 {
     int ret = ERROR_SUCCESS;
     
-#ifdef SRS_AUTO_HTTP_CALLBACK    
-    // HTTP: on_play 
-    SrsConfDirective* on_play = _srs_config->get_vhost_on_play(req->vhost);
-    if (!on_play) {
-        srs_info("ignore the empty http callback: on_play");
-        return ret;
-    }
-    
-    int connection_id = _srs_context->get_id();
-    for (int i = 0; i < (int)on_play->args.size(); i++) {
-        std::string url = on_play->args.at(i);
-        if ((ret = SrsHttpHooks::on_play(url, connection_id, ip, req)) != ERROR_SUCCESS) {
-            srs_error("hook client on_play failed. url=%s, ret=%d", url.c_str(), ret);
+#ifdef SRS_AUTO_HTTP_CALLBACK
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        // HTTP: on_play 
+        SrsConfDirective* on_play = _srs_config->get_vhost_on_play(req->vhost);
+        if (!on_play) {
+            srs_info("ignore the empty http callback: on_play");
             return ret;
+        }
+        
+        int connection_id = _srs_context->get_id();
+        for (int i = 0; i < (int)on_play->args.size(); i++) {
+            std::string url = on_play->args.at(i);
+            if ((ret = SrsHttpHooks::on_play(url, connection_id, ip, req)) != ERROR_SUCCESS) {
+                srs_error("hook client on_play failed. url=%s, ret=%d", url.c_str(), ret);
+                return ret;
+            }
         }
     }
 #endif
@@ -1095,18 +1105,20 @@ int SrsRtmpConn::http_hooks_on_play()
 void SrsRtmpConn::http_hooks_on_stop()
 {
 #ifdef SRS_AUTO_HTTP_CALLBACK
-    // whatever the ret code, notify the api hooks.
-    // HTTP: on_stop 
-    SrsConfDirective* on_stop = _srs_config->get_vhost_on_stop(req->vhost);
-    if (!on_stop) {
-        srs_info("ignore the empty http callback: on_stop");
-        return;
-    }
-    
-    int connection_id = _srs_context->get_id();
-    for (int i = 0; i < (int)on_stop->args.size(); i++) {
-        std::string url = on_stop->args.at(i);
-        SrsHttpHooks::on_stop(url, connection_id, ip, req);
+    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        // whatever the ret code, notify the api hooks.
+        // HTTP: on_stop 
+        SrsConfDirective* on_stop = _srs_config->get_vhost_on_stop(req->vhost);
+        if (!on_stop) {
+            srs_info("ignore the empty http callback: on_stop");
+            return;
+        }
+        
+        int connection_id = _srs_context->get_id();
+        for (int i = 0; i < (int)on_stop->args.size(); i++) {
+            std::string url = on_stop->args.at(i);
+            SrsHttpHooks::on_stop(url, connection_id, ip, req);
+        }
     }
 #endif
 

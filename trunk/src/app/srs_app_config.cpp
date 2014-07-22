@@ -1630,7 +1630,7 @@ SrsConfDirective* SrsConfig::get_forward(string vhost)
     return conf->get("forward");
 }
 
-SrsConfDirective* SrsConfig::get_vhost_on_connect(string vhost)
+SrsConfDirective* SrsConfig::get_vhost_http_hooks(string vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);
 
@@ -1638,13 +1638,30 @@ SrsConfDirective* SrsConfig::get_vhost_on_connect(string vhost)
         return NULL;
     }
     
-    conf = conf->get("http_hooks");
-    if (!conf) {
-        return NULL;
+    return conf->get("http_hooks");
+}
+
+bool SrsConfig::get_vhost_http_hooks_enabled(string vhost)
+{
+    SrsConfDirective* conf = get_vhost_http_hooks(vhost);
+
+    if (!conf) { 
+        return false;
     }
     
     SrsConfDirective* enabled = conf->get("enabled");
     if (!enabled || enabled->arg0() != "on") {
+        return false;
+    }
+    
+    return true;
+}
+
+SrsConfDirective* SrsConfig::get_vhost_on_connect(string vhost)
+{
+    SrsConfDirective* conf = get_vhost_http_hooks(vhost);
+
+    if (!conf) { 
         return NULL;
     }
     
@@ -1653,19 +1670,9 @@ SrsConfDirective* SrsConfig::get_vhost_on_connect(string vhost)
 
 SrsConfDirective* SrsConfig::get_vhost_on_close(string vhost)
 {
-    SrsConfDirective* conf = get_vhost(vhost);
+    SrsConfDirective* conf = get_vhost_http_hooks(vhost);
 
     if (!conf) { 
-        return NULL;
-    }
-    
-    conf = conf->get("http_hooks");
-    if (!conf) {
-        return NULL;
-    }
-    
-    SrsConfDirective* enabled = conf->get("enabled");
-    if (!enabled || enabled->arg0() != "on") {
         return NULL;
     }
     
@@ -1674,19 +1681,9 @@ SrsConfDirective* SrsConfig::get_vhost_on_close(string vhost)
 
 SrsConfDirective* SrsConfig::get_vhost_on_publish(string vhost)
 {
-    SrsConfDirective* conf = get_vhost(vhost);
+    SrsConfDirective* conf = get_vhost_http_hooks(vhost);
 
     if (!conf) { 
-        return NULL;
-    }
-    
-    conf = conf->get("http_hooks");
-    if (!conf) {
-        return NULL;
-    }
-    
-    SrsConfDirective* enabled = conf->get("enabled");
-    if (!enabled || enabled->arg0() != "on") {
         return NULL;
     }
     
@@ -1695,19 +1692,9 @@ SrsConfDirective* SrsConfig::get_vhost_on_publish(string vhost)
 
 SrsConfDirective* SrsConfig::get_vhost_on_unpublish(string vhost)
 {
-    SrsConfDirective* conf = get_vhost(vhost);
+    SrsConfDirective* conf = get_vhost_http_hooks(vhost);
 
     if (!conf) { 
-        return NULL;
-    }
-    
-    conf = conf->get("http_hooks");
-    if (!conf) {
-        return NULL;
-    }
-    
-    SrsConfDirective* enabled = conf->get("enabled");
-    if (!enabled || enabled->arg0() != "on") {
         return NULL;
     }
     
@@ -1716,19 +1703,9 @@ SrsConfDirective* SrsConfig::get_vhost_on_unpublish(string vhost)
 
 SrsConfDirective* SrsConfig::get_vhost_on_play(string vhost)
 {
-    SrsConfDirective* conf = get_vhost(vhost);
+    SrsConfDirective* conf = get_vhost_http_hooks(vhost);
 
     if (!conf) { 
-        return NULL;
-    }
-    
-    conf = conf->get("http_hooks");
-    if (!conf) {
-        return NULL;
-    }
-    
-    SrsConfDirective* enabled = conf->get("enabled");
-    if (!enabled || enabled->arg0() != "on") {
         return NULL;
     }
     
@@ -1737,19 +1714,9 @@ SrsConfDirective* SrsConfig::get_vhost_on_play(string vhost)
 
 SrsConfDirective* SrsConfig::get_vhost_on_stop(string vhost)
 {
-    SrsConfDirective* conf = get_vhost(vhost);
+    SrsConfDirective* conf = get_vhost_http_hooks(vhost);
 
     if (!conf) { 
-        return NULL;
-    }
-    
-    conf = conf->get("http_hooks");
-    if (!conf) {
-        return NULL;
-    }
-    
-    SrsConfDirective* enabled = conf->get("enabled");
-    if (!enabled || enabled->arg0() != "on") {
         return NULL;
     }
     
@@ -1758,19 +1725,9 @@ SrsConfDirective* SrsConfig::get_vhost_on_stop(string vhost)
 
 SrsConfDirective* SrsConfig::get_vhost_on_dvr_hss_reap_flv(string vhost)
 {
-    SrsConfDirective* conf = get_vhost(vhost);
+    SrsConfDirective* conf = get_vhost_http_hooks(vhost);
 
     if (!conf) { 
-        return NULL;
-    }
-    
-    conf = conf->get("http_hooks");
-    if (!conf) {
-        return NULL;
-    }
-    
-    SrsConfDirective* enabled = conf->get("enabled");
-    if (!enabled || enabled->arg0() != "on") {
         return NULL;
     }
     
