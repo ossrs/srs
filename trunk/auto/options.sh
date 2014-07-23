@@ -13,6 +13,8 @@
 #####################################################################################
 help=no
 
+################################################################
+# feature options
 SRS_HLS=RESERVED
 SRS_DVR=RESERVED
 SRS_NGINX=RESERVED
@@ -37,6 +39,7 @@ SRS_GPERF_CP=RESERVED
 # gprof
 SRS_GPROF=RESERVED
 # 
+################################################################
 # libraries
 SRS_FFMPEG_STUB=RESERVED
 SRS_HTTP_PARSER=RESERVED
@@ -44,11 +47,18 @@ SRS_HTTP_PARSER=RESERVED
 SRS_PREFIX=/usr/local/srs
 SRS_JOBS=1
 SRS_STATIC=RESERVED
+# whether enable the log verbose/info/trace level.
+# always enable the warn/error level.
+SRS_LOG_VERBOSE=RESERVED
+SRS_LOG_INFO=RESERVED
+SRS_LOG_TRACE=RESERVED
 #
+################################################################
 # experts
 # donot compile ssl, use system ssl(-lssl) if required.
 SRS_USE_SYS_SSL=NO
 #
+################################################################
 # presets
 # for x86/x64 pc/servers
 SRS_X86_X64=NO
@@ -77,6 +87,7 @@ SRS_DISABLE_ALL=NO
 # all features is on
 SRS_ENABLE_ALL=NO
 #
+################################################################
 # calc
 # whether embed cpu, arm/mips
 SRS_EMBEDED_CPU=NO
@@ -141,6 +152,9 @@ Options:
   --static                  whether add '-static' to link options.
   --jobs[=N]                Allow N jobs at once; infinite jobs with no arg.
                             used for make in the configure, for example, to make ffmpeg.
+  --log-verbose             whether enable the log verbose level. default: no.
+  --log-info                whether enable the log info level. default: no.
+  --log-trace               whether enable the log trace level. default: yes.
 
 Presets:
   --x86-x64                 [default] for x86/x64 cpu, common pc and servers.
@@ -227,6 +241,9 @@ function parse_user_option() {
         --jobs)                         SRS_JOBS=${value}           ;;
         --prefix)                       SRS_PREFIX=${value}         ;;
         --static)                       SRS_STATIC=YES              ;;
+        --log-verbose)                  SRS_LOG_VERBOSE=YES         ;;
+        --log-info)                     SRS_LOG_INFO=YES            ;;
+        --log-trace)                    SRS_LOG_TRACE=YES           ;;
         
         --x86-x64)                      SRS_X86_X64=YES             ;;
         --arm)                          SRS_ARM_UBUNTU12=YES        ;;
@@ -279,6 +296,11 @@ if [ $help = yes ]; then
 fi
 
 function apply_user_presets() {
+    # always set the log level for all presets.
+    SRS_LOG_VERBOSE=NO
+    SRS_LOG_INFO=NO
+    SRS_LOG_TRACE=YES
+    
     # set default preset if not specifies
     if [ $SRS_RTMP_HLS = NO ]; then
         if [ $SRS_PURE_RTMP = NO ]; then
@@ -687,6 +709,9 @@ function regenerate_options() {
     if [ $SRS_ARM_UBUNTU12 = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-arm-ubuntu12"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-arm-ubuntu12"; fi
     if [ $SRS_MIPS_UBUNTU12 = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --with-mips-ubuntu12"; else SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --without-mips-ubuntu12"; fi
     if [ $SRS_STATIC = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --static"; fi
+    if [ $SRS_LOG_VERBOSE = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-verbose"; fi
+    if [ $SRS_LOG_INFO = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-info"; fi
+    if [ $SRS_LOG_TRACE = YES ]; then SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --log-trace"; fi
     echo "regenerate config: ${SRS_AUTO_CONFIGURE}"
 }
 regenerate_options

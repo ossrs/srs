@@ -667,7 +667,25 @@ fi
 
 echo "" >> $SRS_AUTO_HEADERS_H
 
+# for log level compile settings
+if [ $SRS_LOG_VERBOSE = YES ]; then
+    echo "#define SRS_AUTO_VERBOSE" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_AUTO_VERBOSE" >> $SRS_AUTO_HEADERS_H
+fi
+if [ $SRS_LOG_INFO = YES ]; then
+    echo "#define SRS_AUTO_INFO" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_AUTO_INFO" >> $SRS_AUTO_HEADERS_H
+fi
+if [ $SRS_LOG_TRACE = YES ]; then
+    echo "#define SRS_AUTO_TRACE" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_AUTO_TRACE" >> $SRS_AUTO_HEADERS_H
+fi
+
 # prefix
+echo "" >> $SRS_AUTO_HEADERS_H
 echo "#define SRS_AUTO_PREFIX \"${SRS_PREFIX}\"" >> $SRS_AUTO_HEADERS_H
 
 echo "" >> $SRS_AUTO_HEADERS_H
