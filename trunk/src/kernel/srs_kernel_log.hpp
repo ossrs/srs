@@ -133,11 +133,12 @@ extern ISrsThreadContext* _srs_context;
     #define srs_error(msg, ...)   _srs_log->error(__PRETTY_FUNCTION__, _srs_context->get_id(), msg, ##__VA_ARGS__)
 #endif
 
-#if 0
+// TODO: FIXME: add more verbose and info logs.
+#if 1
     #undef srs_verbose
     #define srs_verbose(msg, ...) (void)0
 #endif
-#if 0
+#if 1
     #undef srs_info
     #define srs_info(msg, ...) (void)0
 #endif
