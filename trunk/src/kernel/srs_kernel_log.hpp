@@ -133,11 +133,11 @@ extern ISrsThreadContext* _srs_context;
     #define srs_error(msg, ...)   _srs_log->error(__PRETTY_FUNCTION__, _srs_context->get_id(), msg, ##__VA_ARGS__)
 #endif
 
-#if 1
+#if 0
     #undef srs_verbose
     #define srs_verbose(msg, ...) (void)0
 #endif
-#if 1
+#if 0
     #undef srs_info
     #define srs_info(msg, ...) (void)0
 #endif

@@ -289,6 +289,128 @@ messages.
 *****************************************************************************
 ****************************************************************************/
 
+SrsMessageHeader::SrsMessageHeader()
+{
+    message_type = 0;
+    payload_length = 0;
+    timestamp_delta = 0;
+    stream_id = 0;
+    
+    timestamp = 0;
+    // we always use the connection chunk-id
+    perfer_cid = RTMP_CID_OverConnection;
+}
+
+SrsMessageHeader::~SrsMessageHeader()
+{
+}
+
+bool SrsMessageHeader::is_audio()
+{
+    return message_type == RTMP_MSG_AudioMessage;
+}
+
+bool SrsMessageHeader::is_video()
+{
+    return message_type == RTMP_MSG_VideoMessage;
+}
+
+bool SrsMessageHeader::is_amf0_command()
+{
+    return message_type == RTMP_MSG_AMF0CommandMessage;
+}
+
+bool SrsMessageHeader::is_amf0_data()
+{
+    return message_type == RTMP_MSG_AMF0DataMessage;
+}
+
+bool SrsMessageHeader::is_amf3_command()
+{
+    return message_type == RTMP_MSG_AMF3CommandMessage;
+}
+
+bool SrsMessageHeader::is_amf3_data()
+{
+    return message_type == RTMP_MSG_AMF3DataMessage;
+}
+
+bool SrsMessageHeader::is_window_ackledgement_size()
+{
+    return message_type == RTMP_MSG_WindowAcknowledgementSize;
+}
+
+bool SrsMessageHeader::is_ackledgement()
+{
+    return message_type == RTMP_MSG_Acknowledgement;
+}
+
+bool SrsMessageHeader::is_set_chunk_size()
+{
+    return message_type == RTMP_MSG_SetChunkSize;
+}
+
+bool SrsMessageHeader::is_user_control_message()
+{
+    return message_type == RTMP_MSG_UserControlMessage;
+}
+
+bool SrsMessageHeader::is_set_peer_bandwidth()
+{
+    return message_type == RTMP_MSG_SetPeerBandwidth;
+}
+
+bool SrsMessageHeader::is_aggregate()
+{
+    return message_type == RTMP_MSG_AggregateMessage;
+}
+
+void SrsMessageHeader::initialize_amf0_script(int size, int stream)
+{
+    message_type = RTMP_MSG_AMF0DataMessage;
+    payload_length = (int32_t)size;
+    timestamp_delta = (int32_t)0;
+    timestamp = (int64_t)0;
+    stream_id = (int32_t)stream;
+    
+    // amf0 script use connection2 chunk-id
+    perfer_cid = RTMP_CID_OverConnection2;
+}
+
+void SrsMessageHeader::initialize_audio(int size, u_int32_t time, int stream)
+{
+    message_type = RTMP_MSG_AudioMessage;
+    payload_length = (int32_t)size;
+    timestamp_delta = (int32_t)time;
+    timestamp = (int64_t)time;
+    stream_id = (int32_t)stream;
+    
+    // audio chunk-id
+    perfer_cid = RTMP_CID_Audio;
+}
+
+void SrsMessageHeader::initialize_video(int size, u_int32_t time, int stream)
+{
+    message_type = RTMP_MSG_VideoMessage;
+    payload_length = (int32_t)size;
+    timestamp_delta = (int32_t)time;
+    timestamp = (int64_t)time;
+    stream_id = (int32_t)stream;
+    
+    // video chunk-id
+    perfer_cid = RTMP_CID_Video;
+}
+
+SrsMessage::SrsMessage()
+{
+    payload = NULL;
+    size = 0;
+}
+
+SrsMessage::~SrsMessage()
+{
+}
+
 SrsProtocol::AckWindowSize::AckWindowSize()
 {
     ack_window_size = acked_size = 0;
@@ -1494,118 +1616,6 @@ int SrsProtocol::response_ping_message(int32_t timestamp)
     return ret;
 }
 
-SrsMessageHeader::SrsMessageHeader()
-{
-    message_type = 0;
-    payload_length = 0;
-    timestamp_delta = 0;
-    stream_id = 0;
-    
-    timestamp = 0;
-    // we always use the connection chunk-id
-    perfer_cid = RTMP_CID_OverConnection;
-}
-
-SrsMessageHeader::~SrsMessageHeader()
-{
-}
-
-bool SrsMessageHeader::is_audio()
-{
-    return message_type == RTMP_MSG_AudioMessage;
-}
-
-bool SrsMessageHeader::is_video()
-{
-    return message_type == RTMP_MSG_VideoMessage;
-}
-
-bool SrsMessageHeader::is_amf0_command()
-{
-    return message_type == RTMP_MSG_AMF0CommandMessage;
-}
-
-bool SrsMessageHeader::is_amf0_data()
-{
-    return message_type == RTMP_MSG_AMF0DataMessage;
-}
-
-bool SrsMessageHeader::is_amf3_command()
-{
-    return message_type == RTMP_MSG_AMF3CommandMessage;
-}
-
-bool SrsMessageHeader::is_amf3_data()
-{
-    return message_type == RTMP_MSG_AMF3DataMessage;
-}
-
-bool SrsMessageHeader::is_window_ackledgement_size()
-{
-    return message_type == RTMP_MSG_WindowAcknowledgementSize;
-}
-
-bool SrsMessageHeader::is_ackledgement()
-{
-    return message_type == RTMP_MSG_Acknowledgement;
-}
-
-bool SrsMessageHeader::is_set_chunk_size()
-{
-    return message_type == RTMP_MSG_SetChunkSize;
-}
-
-bool SrsMessageHeader::is_user_control_message()
-{
-    return message_type == RTMP_MSG_UserControlMessage;
-}
-
-bool SrsMessageHeader::is_set_peer_bandwidth()
-{
-    return message_type == RTMP_MSG_SetPeerBandwidth;
-}
-
-bool SrsMessageHeader::is_aggregate()
-{
-    return message_type == RTMP_MSG_AggregateMessage;
-}
-
-void SrsMessageHeader::initialize_amf0_script(int size, int stream)
-{
-    message_type = RTMP_MSG_AMF0DataMessage;
-    payload_length = (int32_t)size;
-    timestamp_delta = (int32_t)0;
-    timestamp = (int64_t)0;
-    stream_id = (int32_t)stream;
-    
-    // amf0 script use connection2 chunk-id
-    perfer_cid = RTMP_CID_OverConnection2;
-}
-
-void SrsMessageHeader::initialize_audio(int size, u_int32_t time, int stream)
-{
-    message_type = RTMP_MSG_AudioMessage;
-    payload_length = (int32_t)size;
-    timestamp_delta = (int32_t)time;
-    timestamp = (int64_t)time;
-    stream_id = (int32_t)stream;
-    
-    // audio chunk-id
-    perfer_cid = RTMP_CID_Audio;
-}
-
-void SrsMessageHeader::initialize_video(int size, u_int32_t time, int stream)
-{
-    message_type = RTMP_MSG_VideoMessage;
-    payload_length = (int32_t)size;
-    timestamp_delta = (int32_t)time;
-    timestamp = (int64_t)time;
-    stream_id = (int32_t)stream;
-    
-    // video chunk-id
-    perfer_cid = RTMP_CID_Video;
-}
-
 SrsChunkStream::SrsChunkStream(int _cid)
 {
     fmt = 0;
@@ -1618,16 +1628,6 @@ SrsChunkStream::SrsChunkStream(int _cid)
 SrsChunkStream::~SrsChunkStream()
 {
     srs_freep(msg);
-}
-
-SrsMessage::SrsMessage()
-{
-    payload = NULL;
-    size = 0;
-}
-
-SrsMessage::~SrsMessage()
-{
 }
 
 SrsCommonMessage::SrsCommonMessage()

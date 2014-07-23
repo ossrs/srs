@@ -48,6 +48,120 @@ class SrsMessage;
 class SrsChunkStream;
 
 /**
+* 4.1. Message Header
+*/
+class SrsMessageHeader
+{
+public:
+    /**
+    * 3bytes.
+    * Three-byte field that contains a timestamp delta of the message.
+    * The 4 bytes are packed in the big-endian order.
+    * @remark, only used for decoding message from chunk stream.
+    */
+    int32_t timestamp_delta;
+    /**
+    * 3bytes.
+    * Three-byte field that represents the size of the payload in bytes.
+    * It is set in big-endian format.
+    */
+    int32_t payload_length;
+    /**
+    * 1byte.
+    * One byte field to represent the message type. A range of type IDs
+    * (1-7) are reserved for protocol control messages.
+    */
+    int8_t message_type;
+    /**
+    * 4bytes.
+    * Four-byte field that identifies the stream of the message. These
+    * bytes are set in big-endian format.
+    */
+    int32_t stream_id;
+    
+    /**
+    * Four-byte field that contains a timestamp of the message.
+    * The 4 bytes are packed in the big-endian order.
+    * @remark, used as calc timestamp when decode and encode time.
+    * @remark, we use 64bits for large time for jitter detect and hls.
+    */
+    int64_t timestamp;
+public:
+    /**
+    * get the perfered cid(chunk stream id) which sendout over.
+    * set at decoding, and canbe used for directly send message,
+    * for example, dispatch to all connections.
+    */
+    int perfer_cid;
+public:
+    SrsMessageHeader();
+    virtual ~SrsMessageHeader();
+public:
+    bool is_audio();
+    bool is_video();
+    bool is_amf0_command();
+    bool is_amf0_data();
+    bool is_amf3_command();
+    bool is_amf3_data();
+    bool is_window_ackledgement_size();
+    bool is_ackledgement();
+    bool is_set_chunk_size();
+    bool is_user_control_message();
+    bool is_set_peer_bandwidth();
+    bool is_aggregate();
+public:
+    /**
+    * create a amf0 script header, set the size and stream_id.
+    */
+    void initialize_amf0_script(int size, int stream);
+    /**
+    * create a audio header, set the size, timestamp and stream_id.
+    */
+    void initialize_audio(int size, u_int32_t time, int stream);
+    /**
+    * create a video header, set the size, timestamp and stream_id.
+    */
+    void initialize_video(int size, u_int32_t time, int stream);
+};
+
+/**
+* message is raw data RTMP message, bytes oriented,
+* protcol always recv RTMP message, and can send RTMP message or RTMP packet.
+* the shared-ptr message is a special RTMP message, use ref-count for performance issue.
+* 
+* @remark, never directly new SrsMessage, the constructor is protected,
+* for in the SrsMessage, we never know whether we should free the message,
+* for SrsCommonMessage, we should free the payload,
+* while for SrsSharedPtrMessage, we should use ref-count to free it.
+* so, use these two concrete message, SrsCommonMessage or SrsSharedPtrMessage instread.
+*/
+class SrsMessage
+{
+// 4.1. Message Header
+public:
+    SrsMessageHeader header;
+// 4.2. Message Payload
+public:
+    /**
+    * current message parsed size,
+    *       size <= header.payload_length
+    * for the payload maybe sent in multiple chunks.
+    */
+    int size;
+    /**
+    * the payload of message, the SrsMessage never know about the detail of payload,
+    * user must use SrsProtocol.decode_message to get concrete packet.
+    * @remark, not all message payload can be decoded to packet. for example, 
+    *       video/audio packet use raw bytes, no video/audio packet.
+    */
+    char* payload;
+protected:
+    SrsMessage();
+public:
+    virtual ~SrsMessage();
+};
+
+/**
 * the protocol provides the rtmp-message-protocol services,
 * to recv RTMP message from RTMP chunk stream,
 * and to send out RTMP message over RTMP chunk stream.
@@ -278,83 +392,6 @@ private:
 };
 
 /**
-* 4.1. Message Header
-*/
-class SrsMessageHeader
-{
-public:
-    /**
-    * 3bytes.
-    * Three-byte field that contains a timestamp delta of the message.
-    * The 4 bytes are packed in the big-endian order.
-    * @remark, only used for decoding message from chunk stream.
-    */
-    int32_t timestamp_delta;
-    /**
-    * 3bytes.
-    * Three-byte field that represents the size of the payload in bytes.
-    * It is set in big-endian format.
-    */
-    int32_t payload_length;
-    /**
-    * 1byte.
-    * One byte field to represent the message type. A range of type IDs
-    * (1-7) are reserved for protocol control messages.
-    */
-    int8_t message_type;
-    /**
-    * 4bytes.
-    * Four-byte field that identifies the stream of the message. These
-    * bytes are set in big-endian format.
-    */
-    int32_t stream_id;
-    
-    /**
-    * Four-byte field that contains a timestamp of the message.
-    * The 4 bytes are packed in the big-endian order.
-    * @remark, used as calc timestamp when decode and encode time.
-    * @remark, we use 64bits for large time for jitter detect and hls.
-    */
-    int64_t timestamp;
-public:
-    /**
-    * get the perfered cid(chunk stream id) which sendout over.
-    * set at decoding, and canbe used for directly send message,
-    * for example, dispatch to all connections.
-    */
-    int perfer_cid;
-public:
-    SrsMessageHeader();
-    virtual ~SrsMessageHeader();
-public:
-    bool is_audio();
-    bool is_video();
-    bool is_amf0_command();
-    bool is_amf0_data();
-    bool is_amf3_command();
-    bool is_amf3_data();
-    bool is_window_ackledgement_size();
-    bool is_ackledgement();
-    bool is_set_chunk_size();
-    bool is_user_control_message();
-    bool is_set_peer_bandwidth();
-    bool is_aggregate();
-public:
-    /**
-    * create a amf0 script header, set the size and stream_id.
-    */
-    void initialize_amf0_script(int size, int stream);
-    /**
-    * create a audio header, set the size, timestamp and stream_id.
-    */
-    void initialize_audio(int size, u_int32_t time, int stream);
-    /**
-    * create a video header, set the size, timestamp and stream_id.
-    */
-    void initialize_video(int size, u_int32_t time, int stream);
-};
-
-/**
 * incoming chunk stream maybe interlaced,
 * use the chunk stream to cache the input RTMP chunk streams.
 */
@@ -390,43 +427,6 @@ public:
 public:
     SrsChunkStream(int _cid);
     virtual ~SrsChunkStream();
-};
-
-/**
-* message is raw data RTMP message, bytes oriented,
-* protcol always recv RTMP message, and can send RTMP message or RTMP packet.
-* the shared-ptr message is a special RTMP message, use ref-count for performance issue.
-* 
-* @remark, never directly new SrsMessage, the constructor is protected,
-* for in the SrsMessage, we never know whether we should free the message,
-* for SrsCommonMessage, we should free the payload,
-* while for SrsSharedPtrMessage, we should use ref-count to free it.
-* so, use these two concrete message, SrsCommonMessage or SrsSharedPtrMessage instread.
-*/
-class SrsMessage
-{
-// 4.1. Message Header
-public:
-    SrsMessageHeader header;
-// 4.2. Message Payload
-public:
-    /**
-    * current message parsed size,
-    *       size <= header.payload_length
-    * for the payload maybe sent in multiple chunks.
-    */
-    int size;
-    /**
-    * the payload of message, the SrsMessage never know about the detail of payload,
-    * user must use SrsProtocol.decode_message to get concrete packet.
-    * @remark, not all message payload can be decoded to packet. for example, 
-    *       video/audio packet use raw bytes, no video/audio packet.
-    */
-    char* payload;
-protected:
-    SrsMessage();
-public:
-    virtual ~SrsMessage();
 };
 
 /**

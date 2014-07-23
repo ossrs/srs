@@ -141,9 +141,8 @@ int SrsHttpClient::connect(SrsHttpUri* uri)
             server.c_str(), port, timeout, ret);
         return ret;
     }
-    srs_info("connect to server success. "
-        "http url=%s, server=%s, ip=%s, port=%d", 
-        uri->get_url(), uri->get_host(), ip.c_str(), uri->get_port());
+    srs_info("connect to server success. http url=%s, server=%s, port=%d", 
+        uri->get_url(), uri->get_host(), uri->get_port());
     
     connected = true;
     

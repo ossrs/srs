@@ -1071,7 +1071,7 @@ int SrsAmf0StrictArray::write(SrsStream* stream)
             return ret;
         }
         
-        srs_verbose("write amf0 property success. name=%s", name.c_str());
+        srs_verbose("write amf0 property success.");
     }
     
     srs_verbose("write strict_array object success.");
