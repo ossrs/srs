@@ -311,7 +311,7 @@ int SrsEdgeIngester::connect_server()
     
     kbps->set_io(io, io);
     
-    srs_trace("edge connected, can_publish=%d, url=%s/%s, server=%s:%d",
+    srs_trace("edge pull connected, can_publish=%d, url=%s/%s, server=%s:%d",
         _source->can_publish(), _req->tcUrl.c_str(), _req->stream.c_str(), server.c_str(), port);
     
     return ret;
@@ -555,8 +555,17 @@ int SrsEdgeForwarder::connect_server()
         return ret;
     }
     
+    srs_freep(client);
+    srs_freep(io);
+    
+    srs_assert(stfd);
+    io = new SrsSocket(stfd);
+    client = new SrsRtmpClient(io);
+    
+    kbps->set_io(io, io);
+    
     // open socket.
-    srs_trace("connect edge stream=%s, tcUrl=%s to server=%s, port=%d",
+    srs_trace("edge push connected, stream=%s, tcUrl=%s to server=%s, port=%d",
         _req->stream.c_str(), _req->tcUrl.c_str(), server.c_str(), port);
     
     return ret;
