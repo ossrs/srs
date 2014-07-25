@@ -169,19 +169,6 @@ messages.
 *****************************************************************************
 ****************************************************************************/
 /**
-* 6. Chunking
-* The chunk size is configurable. It can be set using a control
-* message(Set Chunk Size) as described in section 7.1. The maximum
-* chunk size can be 65536 bytes and minimum 128 bytes. Larger values
-* reduce CPU usage, but also commit to larger writes that can delay
-* other content on lower bandwidth connections. Smaller chunks are not
-* good for high-bit rate streaming. Chunk size is maintained
-* independently for each direction.
-*/
-#define RTMP_MIN_CHUNK_SIZE                     128
-#define RTMP_MAX_CHUNK_SIZE                     65536
-
-/**
 * 6.1. Chunk Format
 * Extended timestamp: 0 or 4 bytes
 * This field MUST be sent when the normal timsestamp is set to
@@ -3724,16 +3711,16 @@ int SrsSetChunkSizePacket::decode(SrsStream* stream)
     chunk_size = stream->read_4bytes();
     srs_info("decode chunk size success. chunk_size=%d", chunk_size);
     
-    if (chunk_size < RTMP_MIN_CHUNK_SIZE) {
+    if (chunk_size < SRS_CONSTS_RTMP_MIN_CHUNK_SIZE) {
         ret = ERROR_RTMP_CHUNK_SIZE;
         srs_error("invalid chunk size. min=%d, actual=%d, ret=%d", 
             ERROR_RTMP_CHUNK_SIZE, chunk_size, ret);
         return ret;
     }
-    if (chunk_size > RTMP_MAX_CHUNK_SIZE) {
+    if (chunk_size > SRS_CONSTS_RTMP_MAX_CHUNK_SIZE) {
         ret = ERROR_RTMP_CHUNK_SIZE;
         srs_error("invalid chunk size. max=%d, actual=%d, ret=%d", 
-            RTMP_MAX_CHUNK_SIZE, chunk_size, ret);
+            SRS_CONSTS_RTMP_MAX_CHUNK_SIZE, chunk_size, ret);
         return ret;
     }
     

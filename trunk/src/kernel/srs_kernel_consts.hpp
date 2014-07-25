@@ -49,6 +49,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONSTS_RTMP_SRS_CHUNK_SIZE 60000
 // 6. Chunking, RTMP protocol default chunk size.
 #define SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE 128
+
+/**
+* 6. Chunking
+* The chunk size is configurable. It can be set using a control
+* message(Set Chunk Size) as described in section 7.1. The maximum
+* chunk size can be 65536 bytes and minimum 128 bytes. Larger values
+* reduce CPU usage, but also commit to larger writes that can delay
+* other content on lower bandwidth connections. Smaller chunks are not
+* good for high-bit rate streaming. Chunk size is maintained
+* independently for each direction.
+*/
+#define SRS_CONSTS_RTMP_MIN_CHUNK_SIZE 128
+#define SRS_CONSTS_RTMP_MAX_CHUNK_SIZE 65536
+
  
 // the following is the timeout for rtmp protocol, 
 // to avoid death connection.

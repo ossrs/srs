@@ -1180,6 +1180,8 @@ int SrsConfig::parse_file(const char* filename)
 int SrsConfig::check_config()
 {
     int ret = ERROR_SUCCESS;
+    
+    vector<SrsConfDirective*> vhosts = get_vhosts();
 
     ////////////////////////////////////////////////////////////////////////
     // check empty
@@ -1256,7 +1258,6 @@ int SrsConfig::check_config()
         }
     }
     if (true) {
-        vector<SrsConfDirective*> vhosts = get_vhosts();
         for (int i = 0; i < (int)vhosts.size(); i++) {
             SrsConfDirective* conf = vhosts[i];
             for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
@@ -1441,7 +1442,30 @@ int SrsConfig::check_config()
         return ret;
     }
     
-    // TODO: FIXME: check others.
+    ////////////////////////////////////////////////////////////////////////
+    // check chunk size
+    ////////////////////////////////////////////////////////////////////////
+    if (get_global_chunk_size() < SRS_CONSTS_RTMP_MIN_CHUNK_SIZE 
+        || get_global_chunk_size() > SRS_CONSTS_RTMP_MAX_CHUNK_SIZE
+    ) {
+        ret = ERROR_SYSTEM_CONFIG_INVALID;
+        srs_error("directive chunk_size invalid, chunk_size=%d, must in [%d, %d], ret=%d", 
+            get_global_chunk_size(), SRS_CONSTS_RTMP_MIN_CHUNK_SIZE, 
+            SRS_CONSTS_RTMP_MAX_CHUNK_SIZE, ret);
+        return ret;
+    }
+    for (int i = 0; i < (int)vhosts.size(); i++) {
+        SrsConfDirective* vhost = vhosts[i];
+        if (get_chunk_size(vhost->arg0()) < SRS_CONSTS_RTMP_MIN_CHUNK_SIZE 
+            || get_chunk_size(vhost->arg0()) > SRS_CONSTS_RTMP_MAX_CHUNK_SIZE
+        ) {
+            ret = ERROR_SYSTEM_CONFIG_INVALID;
+            srs_error("directive vhost %s chunk_size invalid, chunk_size=%d, must in [%d, %d], ret=%d", 
+                vhost->arg0().c_str(), get_chunk_size(vhost->arg0()), SRS_CONSTS_RTMP_MIN_CHUNK_SIZE, 
+                SRS_CONSTS_RTMP_MAX_CHUNK_SIZE, ret);
+            return ret;
+        }
+    }
     
     ////////////////////////////////////////////////////////////////////////
     // check log name and level
@@ -1475,7 +1499,6 @@ int SrsConfig::check_config()
         srs_warn("http_api is disabled by configure");
     }
 #endif
-    vector<SrsConfDirective*> vhosts = get_vhosts();
     for (int i = 0; i < (int)vhosts.size(); i++) {
         SrsConfDirective* vhost = vhosts[i];
         srs_assert(vhost != NULL);
