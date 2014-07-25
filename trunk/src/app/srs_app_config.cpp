@@ -1257,120 +1257,118 @@ int SrsConfig::check_config()
             }
         }
     }
-    if (true) {
-        for (int i = 0; i < (int)vhosts.size(); i++) {
-            SrsConfDirective* conf = vhosts[i];
-            for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
-                SrsConfDirective* conf0 = conf->at(i);
-                string n = conf0->name;
-                if (n != "enabled" && n != "chunk_size"
-                    && n != "mode" && n != "origin" && n != "token_traverse"
-                    && n != "dvr" && n != "ingest" && n != "http" && n != "hls" && n != "http_hooks"
-                    && n != "gop_cache" && n != "queue_length"
-                    && n != "refer" && n != "refer_publish" && n != "refer_play"
-                    && n != "forward" && n != "transcode" && n != "bandcheck"
-                    && n != "time_jitter" 
-                    && n != "atc" && n != "atc_auto"
-                ) {
-                    ret = ERROR_SYSTEM_CONFIG_INVALID;
-                    srs_error("unsupported vhost directive %s, ret=%d", n.c_str(), ret);
-                    return ret;
+    for (int i = 0; i < (int)vhosts.size(); i++) {
+        SrsConfDirective* conf = vhosts[i];
+        for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
+            SrsConfDirective* conf0 = conf->at(i);
+            string n = conf0->name;
+            if (n != "enabled" && n != "chunk_size"
+                && n != "mode" && n != "origin" && n != "token_traverse"
+                && n != "dvr" && n != "ingest" && n != "http" && n != "hls" && n != "http_hooks"
+                && n != "gop_cache" && n != "queue_length"
+                && n != "refer" && n != "refer_publish" && n != "refer_play"
+                && n != "forward" && n != "transcode" && n != "bandcheck"
+                && n != "time_jitter" 
+                && n != "atc" && n != "atc_auto"
+            ) {
+                ret = ERROR_SYSTEM_CONFIG_INVALID;
+                srs_error("unsupported vhost directive %s, ret=%d", n.c_str(), ret);
+                return ret;
+            }
+            // for each sub directives of vhost.
+            if (n == "dvr") {
+                for (int j = 0; j < (int)conf0->directives.size(); j++) {
+                    string m = conf0->at(j)->name.c_str();
+                    if (m != "enabled" && m != "dvr_path" && m != "dvr_plan"
+                        && m != "dvr_duration" && m != "time_jitter"
+                    ) {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost dvr directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
+                    }
                 }
-                // for each sub directives of vhost.
-                if (n == "dvr") {
-                    for (int j = 0; j < (int)conf0->directives.size(); j++) {
-                        string m = conf0->at(j)->name.c_str();
-                        if (m != "enabled" && m != "dvr_path" && m != "dvr_plan"
-                            && m != "dvr_duration" && m != "time_jitter"
-                        ) {
-                            ret = ERROR_SYSTEM_CONFIG_INVALID;
-                            srs_error("unsupported vhost dvr directive %s, ret=%d", m.c_str(), ret);
-                            return ret;
-                        }
+            } else if (n == "ingest") {
+                for (int j = 0; j < (int)conf0->directives.size(); j++) {
+                    string m = conf0->at(j)->name.c_str();
+                    if (m != "enabled" && m != "input" && m != "ffmpeg"
+                        && m != "engine"
+                    ) {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost ingest directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
                     }
-                } else if (n == "ingest") {
-                    for (int j = 0; j < (int)conf0->directives.size(); j++) {
-                        string m = conf0->at(j)->name.c_str();
-                        if (m != "enabled" && m != "input" && m != "ffmpeg"
-                            && m != "engine"
-                        ) {
-                            ret = ERROR_SYSTEM_CONFIG_INVALID;
-                            srs_error("unsupported vhost ingest directive %s, ret=%d", m.c_str(), ret);
-                            return ret;
-                        }
+                }
+            } else if (n == "http") {
+                for (int j = 0; j < (int)conf0->directives.size(); j++) {
+                    string m = conf0->at(j)->name.c_str();
+                    if (m != "enabled" && m != "mount" && m != "dir") {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost http directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
                     }
-                } else if (n == "http") {
-                    for (int j = 0; j < (int)conf0->directives.size(); j++) {
-                        string m = conf0->at(j)->name.c_str();
-                        if (m != "enabled" && m != "mount" && m != "dir") {
-                            ret = ERROR_SYSTEM_CONFIG_INVALID;
-                            srs_error("unsupported vhost http directive %s, ret=%d", m.c_str(), ret);
-                            return ret;
-                        }
+                }
+            } else if (n == "hls") {
+                for (int j = 0; j < (int)conf0->directives.size(); j++) {
+                    string m = conf0->at(j)->name.c_str();
+                    if (m != "enabled" && m != "hls_path" && m != "hls_fragment" && m != "hls_window") {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost hls directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
                     }
-                } else if (n == "hls") {
-                    for (int j = 0; j < (int)conf0->directives.size(); j++) {
-                        string m = conf0->at(j)->name.c_str();
-                        if (m != "enabled" && m != "hls_path" && m != "hls_fragment" && m != "hls_window") {
-                            ret = ERROR_SYSTEM_CONFIG_INVALID;
-                            srs_error("unsupported vhost hls directive %s, ret=%d", m.c_str(), ret);
-                            return ret;
-                        }
+                }
+            } else if (n == "http_hooks") {
+                for (int j = 0; j < (int)conf0->directives.size(); j++) {
+                    string m = conf0->at(j)->name.c_str();
+                    if (m != "enabled" && m != "on_connect" && m != "on_close" && m != "on_publish"
+                        && m != "on_unpublish" && m != "on_play" && m != "on_stop" && m != "on_dvr_hss_reap_flv"
+                    ) {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost http_hooks directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
                     }
-                } else if (n == "http_hooks") {
-                    for (int j = 0; j < (int)conf0->directives.size(); j++) {
-                        string m = conf0->at(j)->name.c_str();
-                        if (m != "enabled" && m != "on_connect" && m != "on_close" && m != "on_publish"
-                            && m != "on_unpublish" && m != "on_play" && m != "on_stop" && m != "on_dvr_hss_reap_flv"
-                        ) {
-                            ret = ERROR_SYSTEM_CONFIG_INVALID;
-                            srs_error("unsupported vhost http_hooks directive %s, ret=%d", m.c_str(), ret);
-                            return ret;
-                        }
+                }
+            } else if (n == "forward") {
+                // TODO: FIXME: implements it.
+                /*for (int j = 0; j < (int)conf0->directives.size(); j++) {
+                    string m = conf0->at(j)->name.c_str();
+                    if (m != "enabled" && m != "vhost" && m != "refer") {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost forward directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
                     }
-                } else if (n == "forward") {
-                    // TODO: FIXME: implements it.
-                    /*for (int j = 0; j < (int)conf0->directives.size(); j++) {
-                        string m = conf0->at(j)->name.c_str();
-                        if (m != "enabled" && m != "vhost" && m != "refer") {
-                            ret = ERROR_SYSTEM_CONFIG_INVALID;
-                            srs_error("unsupported vhost forward directive %s, ret=%d", m.c_str(), ret);
-                            return ret;
-                        }
-                    }*/
-                } else if (n == "transcode") {
-                    for (int j = 0; j < (int)conf0->directives.size(); j++) {
-                        SrsConfDirective* conf1 = conf0->at(j);
-                        string m = conf1->name.c_str();
-                        if (m != "enabled" && m != "ffmpeg" && m != "engine") {
-                            ret = ERROR_SYSTEM_CONFIG_INVALID;
-                            srs_error("unsupported vhost transcode directive %s, ret=%d", m.c_str(), ret);
-                            return ret;
-                        }
-                        if (m == "engine") {
-                            for (int k = 0; k < (int)conf1->directives.size(); k++) {
-                                string e = conf1->at(k)->name;
-                                if (e != "enabled" && e != "vfilter" && e != "vcodec"
-                                    && e != "vbitrate" && e != "vfps" && e != "vwidth" && e != "vheight"
-                                    && e != "vthreads" && e != "vprofile" && e != "vpreset" && e != "vparams"
-                                    && e != "acodec" && e != "abitrate" && e != "asample_rate" && e != "achannels"
-                                    && e != "aparams" && e != "output"
-                                ) {
-                                    ret = ERROR_SYSTEM_CONFIG_INVALID;
-                                    srs_error("unsupported vhost transcode engine directive %s, ret=%d", e.c_str(), ret);
-                                    return ret;
-                                }
+                }*/
+            } else if (n == "transcode") {
+                for (int j = 0; j < (int)conf0->directives.size(); j++) {
+                    SrsConfDirective* conf1 = conf0->at(j);
+                    string m = conf1->name.c_str();
+                    if (m != "enabled" && m != "ffmpeg" && m != "engine") {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost transcode directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
+                    }
+                    if (m == "engine") {
+                        for (int k = 0; k < (int)conf1->directives.size(); k++) {
+                            string e = conf1->at(k)->name;
+                            if (e != "enabled" && e != "vfilter" && e != "vcodec"
+                                && e != "vbitrate" && e != "vfps" && e != "vwidth" && e != "vheight"
+                                && e != "vthreads" && e != "vprofile" && e != "vpreset" && e != "vparams"
+                                && e != "acodec" && e != "abitrate" && e != "asample_rate" && e != "achannels"
+                                && e != "aparams" && e != "output"
+                            ) {
+                                ret = ERROR_SYSTEM_CONFIG_INVALID;
+                                srs_error("unsupported vhost transcode engine directive %s, ret=%d", e.c_str(), ret);
+                                return ret;
                             }
                         }
                     }
-                } else if (n == "bandcheck") {
-                    for (int j = 0; j < (int)conf0->directives.size(); j++) {
-                        string m = conf0->at(j)->name.c_str();
-                        if (m != "enabled" && m != "key" && m != "interval" && m != "limit_kbps") {
-                            ret = ERROR_SYSTEM_CONFIG_INVALID;
-                            srs_error("unsupported vhost bandcheck directive %s, ret=%d", m.c_str(), ret);
-                            return ret;
-                        }
+                }
+            } else if (n == "bandcheck") {
+                for (int j = 0; j < (int)conf0->directives.size(); j++) {
+                    string m = conf0->at(j)->name.c_str();
+                    if (m != "enabled" && m != "key" && m != "interval" && m != "limit_kbps") {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost bandcheck directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
                     }
                 }
             }
