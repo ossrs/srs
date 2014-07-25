@@ -1181,14 +1181,18 @@ int SrsConfig::check_config()
 {
     int ret = ERROR_SUCCESS;
 
+    ////////////////////////////////////////////////////////////////////////
     // check empty
+    ////////////////////////////////////////////////////////////////////////
     if (root->directives.size() == 0) {
         ret = ERROR_SYSTEM_CONFIG_INVALID;
         srs_error("conf is empty, ret=%d", ret);
         return ret;
     }
     
+    ////////////////////////////////////////////////////////////////////////
     // check root directives.
+    ////////////////////////////////////////////////////////////////////////
     for (int i = 0; i < (int)root->directives.size(); i++) {
         SrsConfDirective* conf = root->at(i);
         std::string n = conf->name;
@@ -1203,32 +1207,228 @@ int SrsConfig::check_config()
             return ret;
         }
     }
+    if (true) {
+        SrsConfDirective* conf = get_http_api();
+        for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
+            string n = conf->at(i)->name;
+            if (n != "enabled" && n != "listen") {
+                ret = ERROR_SYSTEM_CONFIG_INVALID;
+                srs_error("unsupported http_api directive %s, ret=%d", n.c_str(), ret);
+                return ret;
+            }
+        }
+    }
+    if (true) {
+        SrsConfDirective* conf = get_http_stream();
+        for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
+            string n = conf->at(i)->name;
+            if (n != "enabled" && n != "listen" && n != "dir") {
+                ret = ERROR_SYSTEM_CONFIG_INVALID;
+                srs_error("unsupported http_stream directive %s, ret=%d", n.c_str(), ret);
+                return ret;
+            }
+        }
+    }
+    if (true) {
+        SrsConfDirective* conf = get_heartbeart();
+        for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
+            string n = conf->at(i)->name;
+            if (n != "enabled" && n != "interval" && n != "url" 
+                && n != "device_id" && n != "device_index" && n != "summaries"
+            ) {
+                ret = ERROR_SYSTEM_CONFIG_INVALID;
+                srs_error("unsupported heartbeat directive %s, ret=%d", n.c_str(), ret);
+                return ret;
+            }
+        }
+    }
+    if (true) {
+        SrsConfDirective* conf = get_pithy_print();
+        for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
+            string n = conf->at(i)->name;
+            if (n != "publish" && n != "play" && n != "forwarder" 
+                && n != "encoder" && n != "ingester" && n != "hls" && n != "edge"
+            ) {
+                ret = ERROR_SYSTEM_CONFIG_INVALID;
+                srs_error("unsupported pithy_print directive %s, ret=%d", n.c_str(), ret);
+                return ret;
+            }
+        }
+    }
+    if (true) {
+        vector<SrsConfDirective*> vhosts = get_vhosts();
+        for (int i = 0; i < (int)vhosts.size(); i++) {
+            SrsConfDirective* conf = vhosts[i];
+            for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
+                SrsConfDirective* conf0 = conf->at(i);
+                string n = conf0->name;
+                if (n != "enabled" && n != "chunk_size"
+                    && n != "mode" && n != "origin" && n != "token_traverse"
+                    && n != "dvr" && n != "ingest" && n != "http" && n != "hls" && n != "http_hooks"
+                    && n != "gop_cache" && n != "queue_length"
+                    && n != "refer" && n != "refer_publish" && n != "refer_play"
+                    && n != "forward" && n != "transcode" && n != "bandcheck"
+                    && n != "time_jitter" 
+                    && n != "atc" && n != "atc_auto"
+                ) {
+                    ret = ERROR_SYSTEM_CONFIG_INVALID;
+                    srs_error("unsupported vhost directive %s, ret=%d", n.c_str(), ret);
+                    return ret;
+                }
+                // for each sub directives of vhost.
+                if (n == "dvr") {
+                    for (int j = 0; j < (int)conf0->directives.size(); j++) {
+                        string m = conf0->at(j)->name.c_str();
+                        if (m != "enabled" && m != "dvr_path" && m != "dvr_plan"
+                            && m != "dvr_duration" && m != "time_jitter"
+                        ) {
+                            ret = ERROR_SYSTEM_CONFIG_INVALID;
+                            srs_error("unsupported vhost dvr directive %s, ret=%d", m.c_str(), ret);
+                            return ret;
+                        }
+                    }
+                } else if (n == "ingest") {
+                    for (int j = 0; j < (int)conf0->directives.size(); j++) {
+                        string m = conf0->at(j)->name.c_str();
+                        if (m != "enabled" && m != "input" && m != "ffmpeg"
+                            && m != "engine"
+                        ) {
+                            ret = ERROR_SYSTEM_CONFIG_INVALID;
+                            srs_error("unsupported vhost ingest directive %s, ret=%d", m.c_str(), ret);
+                            return ret;
+                        }
+                    }
+                } else if (n == "http") {
+                    for (int j = 0; j < (int)conf0->directives.size(); j++) {
+                        string m = conf0->at(j)->name.c_str();
+                        if (m != "enabled" && m != "mount" && m != "dir") {
+                            ret = ERROR_SYSTEM_CONFIG_INVALID;
+                            srs_error("unsupported vhost http directive %s, ret=%d", m.c_str(), ret);
+                            return ret;
+                        }
+                    }
+                } else if (n == "hls") {
+                    for (int j = 0; j < (int)conf0->directives.size(); j++) {
+                        string m = conf0->at(j)->name.c_str();
+                        if (m != "enabled" && m != "hls_path" && m != "hls_fragment" && m != "hls_window") {
+                            ret = ERROR_SYSTEM_CONFIG_INVALID;
+                            srs_error("unsupported vhost hls directive %s, ret=%d", m.c_str(), ret);
+                            return ret;
+                        }
+                    }
+                } else if (n == "http_hooks") {
+                    for (int j = 0; j < (int)conf0->directives.size(); j++) {
+                        string m = conf0->at(j)->name.c_str();
+                        if (m != "enabled" && m != "on_connect" && m != "on_close" && m != "on_publish"
+                            && m != "on_unpublish" && m != "on_play" && m != "on_stop" && m != "on_dvr_hss_reap_flv"
+                        ) {
+                            ret = ERROR_SYSTEM_CONFIG_INVALID;
+                            srs_error("unsupported vhost http_hooks directive %s, ret=%d", m.c_str(), ret);
+                            return ret;
+                        }
+                    }
+                } else if (n == "forward") {
+                    // TODO: FIXME: implements it.
+                    /*for (int j = 0; j < (int)conf0->directives.size(); j++) {
+                        string m = conf0->at(j)->name.c_str();
+                        if (m != "enabled" && m != "vhost" && m != "refer") {
+                            ret = ERROR_SYSTEM_CONFIG_INVALID;
+                            srs_error("unsupported vhost forward directive %s, ret=%d", m.c_str(), ret);
+                            return ret;
+                        }
+                    }*/
+                } else if (n == "transcode") {
+                    for (int j = 0; j < (int)conf0->directives.size(); j++) {
+                        SrsConfDirective* conf1 = conf0->at(j);
+                        string m = conf1->name.c_str();
+                        if (m != "enabled" && m != "ffmpeg" && m != "engine") {
+                            ret = ERROR_SYSTEM_CONFIG_INVALID;
+                            srs_error("unsupported vhost transcode directive %s, ret=%d", m.c_str(), ret);
+                            return ret;
+                        }
+                        if (m == "engine") {
+                            for (int k = 0; k < (int)conf1->directives.size(); k++) {
+                                string e = conf1->at(k)->name;
+                                if (e != "enabled" && e != "vfilter" && e != "vcodec"
+                                    && e != "vbitrate" && e != "vfps" && e != "vwidth" && e != "vheight"
+                                    && e != "vthreads" && e != "vprofile" && e != "vpreset" && e != "vparams"
+                                    && e != "acodec" && e != "abitrate" && e != "asample_rate" && e != "achannels"
+                                    && e != "aparams" && e != "output"
+                                ) {
+                                    ret = ERROR_SYSTEM_CONFIG_INVALID;
+                                    srs_error("unsupported vhost transcode engine directive %s, ret=%d", e.c_str(), ret);
+                                    return ret;
+                                }
+                            }
+                        }
+                    }
+                } else if (n == "bandcheck") {
+                    for (int j = 0; j < (int)conf0->directives.size(); j++) {
+                        string m = conf0->at(j)->name.c_str();
+                        if (m != "enabled" && m != "key" && m != "interval" && m != "limit_kbps") {
+                            ret = ERROR_SYSTEM_CONFIG_INVALID;
+                            srs_error("unsupported vhost bandcheck directive %s, ret=%d", m.c_str(), ret);
+                            return ret;
+                        }
+                    }
+                }
+            }
+        }
+    }
     
-    // check rtmp port specified by directive listen.
-    if (get_listen().size() <= 0) {
+    ////////////////////////////////////////////////////////////////////////
+    // check listen for rtmp.
+    ////////////////////////////////////////////////////////////////////////
+    if (true) {
+        vector<string> listens = get_listen();
+        if (listens.size() <= 0) {
+            ret = ERROR_SYSTEM_CONFIG_INVALID;
+            srs_error("directive \"listen\" is empty, ret=%d", ret);
+            return ret;
+        }
+        for (int i = 0; i < (int)listens.size(); i++) {
+            string port = listens[i];
+            if (port.empty() || ::atoi(port.c_str()) <= 0) {
+                ret = ERROR_SYSTEM_CONFIG_INVALID;
+                srs_error("directive listen invalid, port=%s, ret=%d", port.c_str(), ret);
+                return ret;
+            }
+        }
+    }
+    
+    ////////////////////////////////////////////////////////////////////////
+    // check max connections
+    ////////////////////////////////////////////////////////////////////////
+    if (get_max_connections() <= 0) {
         ret = ERROR_SYSTEM_CONFIG_INVALID;
-        srs_error("directive \"listen\" is empty, ret=%d", ret);
+        srs_error("directive max_connections invalid, max_connections=%d, ret=%d", get_max_connections(), ret);
         return ret;
     }
     
     // TODO: FIXME: check others.
     
-    // check log
-    std::string log_filename = this->get_log_file();
-    if (get_log_tank_file() && log_filename.empty()) {
-        ret = ERROR_SYSTEM_CONFIG_INVALID;
-        srs_error("must specifies the file to write log to. ret=%d", ret);
-        return ret;
-    }
-    if (get_log_tank_file()) {
-        srs_trace("write log to file %s", log_filename.c_str());
-        srs_trace("you can: tailf %s", log_filename.c_str());
-        srs_trace("@see: %s", SRS_WIKI_URL_LOG);
-    } else {
-        srs_trace("write log to console");
+    ////////////////////////////////////////////////////////////////////////
+    // check log name and level
+    ////////////////////////////////////////////////////////////////////////
+    if (true) {
+        std::string log_filename = this->get_log_file();
+        if (get_log_tank_file() && log_filename.empty()) {
+            ret = ERROR_SYSTEM_CONFIG_INVALID;
+            srs_error("must specifies the file to write log to. ret=%d", ret);
+            return ret;
+        }
+        if (get_log_tank_file()) {
+            srs_trace("write log to file %s", log_filename.c_str());
+            srs_trace("you can: tailf %s", log_filename.c_str());
+            srs_trace("@see: %s", SRS_WIKI_URL_LOG);
+        } else {
+            srs_trace("write log to console");
+        }
     }
     
+    ////////////////////////////////////////////////////////////////////////
     // check features
+    ////////////////////////////////////////////////////////////////////////
 #ifndef SRS_AUTO_HTTP_SERVER
     if (get_http_stream_enabled()) {
         srs_warn("http_stream is disabled by configure");
@@ -1242,6 +1442,7 @@ int SrsConfig::check_config()
     vector<SrsConfDirective*> vhosts = get_vhosts();
     for (int i = 0; i < (int)vhosts.size(); i++) {
         SrsConfDirective* vhost = vhosts[i];
+        srs_assert(vhost != NULL);
 #ifndef SRS_AUTO_DVR
         if (get_dvr_enabled(vhost->arg0())) {
             srs_warn("dvr of vhost %s is disabled by configure", vhost->arg0().c_str());
@@ -1355,9 +1556,14 @@ string SrsConfig::get_pid_file()
     return conf->arg0();
 }
 
+SrsConfDirective* SrsConfig::get_pithy_print()
+{
+    return root->get("pithy_print");
+}
+
 int SrsConfig::get_pithy_print_publish()
 {
-    SrsConfDirective* pithy = root->get("pithy_print");
+    SrsConfDirective* pithy = get_pithy_print();
     if (!pithy) {
         return SRS_CONF_DEFAULT_STAGE_PUBLISH_USER_INTERVAL_MS;
     }
@@ -1372,7 +1578,7 @@ int SrsConfig::get_pithy_print_publish()
 
 int SrsConfig::get_pithy_print_forwarder()
 {
-    SrsConfDirective* pithy = root->get("pithy_print");
+    SrsConfDirective* pithy = get_pithy_print();
     if (!pithy) {
         return SRS_CONF_DEFAULT_STAGE_FORWARDER_INTERVAL_MS;
     }
@@ -1387,7 +1593,7 @@ int SrsConfig::get_pithy_print_forwarder()
 
 int SrsConfig::get_pithy_print_encoder()
 {
-    SrsConfDirective* pithy = root->get("pithy_print");
+    SrsConfDirective* pithy = get_pithy_print();
     if (!pithy) {
         return SRS_CONF_DEFAULT_STAGE_ENCODER_INTERVAL_MS;
     }
@@ -1402,7 +1608,7 @@ int SrsConfig::get_pithy_print_encoder()
 
 int SrsConfig::get_pithy_print_ingester()
 {
-    SrsConfDirective* pithy = root->get("pithy_print");
+    SrsConfDirective* pithy = get_pithy_print();
     if (!pithy) {
         return SRS_CONF_DEFAULT_STAGE_INGESTER_INTERVAL_MS;
     }
@@ -1417,7 +1623,7 @@ int SrsConfig::get_pithy_print_ingester()
 
 int SrsConfig::get_pithy_print_hls()
 {
-    SrsConfDirective* pithy = root->get("pithy_print");
+    SrsConfDirective* pithy = get_pithy_print();
     if (!pithy) {
         return SRS_CONF_DEFAULT_STAGE_HLS_INTERVAL_MS;
     }
@@ -1432,7 +1638,7 @@ int SrsConfig::get_pithy_print_hls()
 
 int SrsConfig::get_pithy_print_play()
 {
-    SrsConfDirective* pithy = root->get("pithy_print");
+    SrsConfDirective* pithy = get_pithy_print();
     if (!pithy) {
         return SRS_CONF_DEFAULT_STAGE_PLAY_USER_INTERVAL_MS;
     }
@@ -1447,7 +1653,7 @@ int SrsConfig::get_pithy_print_play()
 
 int SrsConfig::get_pithy_print_edge()
 {
-    SrsConfDirective* pithy = root->get("pithy_print");
+    SrsConfDirective* pithy = get_pithy_print();
     if (!pithy) {
         return SRS_CONF_DEFAULT_STAGE_EDGE_INTERVAL_MS;
     }

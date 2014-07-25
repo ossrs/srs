@@ -391,6 +391,10 @@ public:
     *       user can use different pid file for each process.
     */
     virtual std::string         get_pid_file();
+// pithy print
+private:
+    virtual SrsConfDirective*   get_pithy_print();
+public:
     /**
     * get the pithy print interval for publish, in ms,
     * the publish(flash/FMLE) message print.
