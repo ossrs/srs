@@ -1405,6 +1405,42 @@ int SrsConfig::check_config()
         return ret;
     }
     
+    ////////////////////////////////////////////////////////////////////////
+    // check heartbeat
+    ////////////////////////////////////////////////////////////////////////
+    if (get_heartbeat_interval() <= 0) {
+        ret = ERROR_SYSTEM_CONFIG_INVALID;
+        srs_error("directive heartbeat interval invalid, interval=%"PRId64", ret=%d", 
+            get_heartbeat_interval(), ret);
+        return ret;
+    }
+    if (get_heartbeat_device_index() < 0) {
+        ret = ERROR_SYSTEM_CONFIG_INVALID;
+        srs_error("directive heartbeat device_index invalid, device_index=%d, ret=%d", 
+            get_heartbeat_device_index(), ret);
+        return ret;
+    }
+    
+    ////////////////////////////////////////////////////////////////////////
+    // check http api
+    ////////////////////////////////////////////////////////////////////////
+    if (get_http_api_listen() <= 0) {
+        ret = ERROR_SYSTEM_CONFIG_INVALID;
+        srs_error("directive http_api listen invalid, listen=%d, ret=%d", 
+            get_http_api_listen(), ret);
+        return ret;
+    }
+    
+    ////////////////////////////////////////////////////////////////////////
+    // check http stream
+    ////////////////////////////////////////////////////////////////////////
+    if (get_http_stream_listen() <= 0) {
+        ret = ERROR_SYSTEM_CONFIG_INVALID;
+        srs_error("directive http_stream listen invalid, listen=%d, ret=%d", 
+            get_http_stream_listen(), ret);
+        return ret;
+    }
+    
     // TODO: FIXME: check others.
     
     ////////////////////////////////////////////////////////////////////////
