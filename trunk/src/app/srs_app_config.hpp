@@ -338,6 +338,11 @@ protected:
     * @remark, protected for the utest to override with mock.
     */
     virtual int parse_buffer(_srs_internal::SrsConfigBuffer* buffer);
+private:
+    /**
+    * check the parsed config.
+    */
+    virtual int check_config();
 // global env
 public:
     /**

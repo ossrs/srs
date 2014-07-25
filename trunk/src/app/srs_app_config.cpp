@@ -44,6 +44,8 @@ using namespace std;
 #include <srs_app_source.hpp>
 #include <srs_kernel_file.hpp>
 
+using namespace _srs_internal;
+
 #define SRS_WIKI_URL_LOG "https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLog"
 
 #define FILE_OFFSET(fd) lseek(fd, 0, SEEK_CUR)
@@ -145,13 +147,13 @@ bool SrsConfDirective::is_vhost()
     return name == "vhost";
 }
 
-int SrsConfDirective::parse(_srs_internal::SrsConfigBuffer* buffer)
+int SrsConfDirective::parse(SrsConfigBuffer* buffer)
 {
     return parse_conf(buffer, parse_file);
 }
 
 // see: ngx_conf_parse
-int SrsConfDirective::parse_conf(_srs_internal::SrsConfigBuffer* buffer, SrsDirectiveType type)
+int SrsConfDirective::parse_conf(SrsConfigBuffer* buffer, SrsDirectiveType type)
 {
     int ret = ERROR_SUCCESS;
     
@@ -213,7 +215,7 @@ int SrsConfDirective::parse_conf(_srs_internal::SrsConfigBuffer* buffer, SrsDire
 }
 
 // see: ngx_conf_read_token
-int SrsConfDirective::read_token(_srs_internal::SrsConfigBuffer* buffer, vector<string>& args, int& line_start)
+int SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>& args, int& line_start)
 {
     int ret = ERROR_SUCCESS;
 
@@ -1166,7 +1168,7 @@ int SrsConfig::parse_file(const char* filename)
         return ERROR_SYSTEM_CONFIG_INVALID;
     }
     
-    _srs_internal::SrsConfigBuffer buffer;
+    SrsConfigBuffer buffer;
     
     if ((ret = buffer.fullfill(config_file.c_str())) != ERROR_SUCCESS) {
         return ret;
@@ -1175,13 +1177,9 @@ int SrsConfig::parse_file(const char* filename)
     return parse_buffer(&buffer);
 }
 
-int SrsConfig::parse_buffer(_srs_internal::SrsConfigBuffer* buffer)
+int SrsConfig::check_config()
 {
     int ret = ERROR_SUCCESS;
-    
-    if ((ret = root->parse(buffer)) != ERROR_SUCCESS) {
-        return ret;
-    }
 
     // check empty
     if (root->directives.size() == 0) {
@@ -1230,7 +1228,65 @@ int SrsConfig::parse_buffer(_srs_internal::SrsConfigBuffer* buffer)
         srs_trace("write log to console");
     }
     
+    // check features
+#ifndef SRS_AUTO_HTTP_SERVER
+    if (get_http_stream_enabled()) {
+        srs_warn("http_stream is disabled by configure");
+    }
+#endif
+#ifndef SRS_AUTO_HTTP_API
+    if (get_http_api_enabled()) {
+        srs_warn("http_api is disabled by configure");
+    }
+#endif
+    vector<SrsConfDirective*> vhosts = get_vhosts();
+    for (int i = 0; i < (int)vhosts.size(); i++) {
+        SrsConfDirective* vhost = vhosts[i];
+#ifndef SRS_AUTO_DVR
+        if (get_dvr_enabled(vhost->arg0())) {
+            srs_warn("dvr of vhost %s is disabled by configure", vhost->arg0().c_str());
+        }
+#endif
+#ifndef SRS_AUTO_HLS
+        if (get_hls_enabled(vhost->arg0())) {
+            srs_warn("hls of vhost %s is disabled by configure", vhost->arg0().c_str());
+        }
+#endif
+#ifndef SRS_AUTO_HTTP_CALLBACK
+        if (get_vhost_http_hooks_enabled(vhost->arg0())) {
+            srs_warn("http_hooks of vhost %s is disabled by configure", vhost->arg0().c_str());
+        }
+#endif
+#ifndef SRS_AUTO_TRANSCODE
+        if (get_transcode_enabled(get_transcode(vhost->arg0(), ""))) {
+            srs_warn("transcode of vhost %s is disabled by configure", vhost->arg0().c_str());
+        }
+#endif
+#ifndef SRS_AUTO_INGEST
+        vector<SrsConfDirective*> ingesters = get_ingesters(vhost->arg0());
+        for (int j = 0; j < (int)ingesters.size(); j++) {
+            SrsConfDirective* ingest = ingesters[j];
+            if (get_ingest_enabled(ingest)) {
+                srs_warn("ingest %s of vhost %s is disabled by configure", 
+                    ingest->arg0().c_str(), vhost->arg0().c_str()
+                );
+            }
+        }
+#endif
+    }
+    
     return ret;
+}
+
+int SrsConfig::parse_buffer(SrsConfigBuffer* buffer)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = root->parse(buffer)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return check_config();
 }
 
 string SrsConfig::cwd()
