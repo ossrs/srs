@@ -4611,7 +4611,7 @@ VOID TEST(ConfigMainTest, CheckConf_vhost)
 {
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{}"));
     }
     
     if (true) {
@@ -4624,32 +4624,32 @@ VOID TEST(ConfigMainTest, CheckConf_vhost_edge)
 {
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{mode remote;}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{mode remote;}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{modes remote;}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{modes remote;}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{origin 127.0.0.1:1935 localhost:1935;}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{origin 127.0.0.1:1935 localhost:1935;}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{origins 127.0.0.1:1935 localhost:1935;}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{origins 127.0.0.1:1935 localhost:1935;}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{token_traverse off;}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{token_traverse off;}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{token_traverses off;}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{token_traverses off;}"));
     }
 }
 
@@ -4657,62 +4657,62 @@ VOID TEST(ConfigMainTest, CheckConf_vhost_dvr)
 {
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{dvr{}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{dvr{}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{dvrs{}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{dvrs{}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{dvr{enabled on;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{dvr{enabled on;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{dvr{enableds on;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{dvr{enableds on;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{dvr{dvr_path ./objs/nginx/html;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{dvr{dvr_path ./objs/nginx/html;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{dvr{dvr_paths ./objs/nginx/html;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{dvr{dvr_paths ./objs/nginx/html;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{dvr{dvr_plan session;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{dvr{dvr_plan session;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{dvr{dvr_plans session;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{dvr{dvr_plans session;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{dvr{dvr_duration 30;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{dvr{dvr_duration 30;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{dvr{dvr_durations 30;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{dvr{dvr_durations 30;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{dvr{time_jitter full;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{dvr{time_jitter full;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{dvr{time_jitters full;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{dvr{time_jitters full;}}"));
     }
 }
 
@@ -4720,52 +4720,52 @@ VOID TEST(ConfigMainTest, CheckConf_vhost_ingest)
 {
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{ingest{}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{ingest{}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{ingests{}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{ingests{}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{ingest{enabled on;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{ingest{enabled on;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{ingest{enableds on;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{ingest{enableds on;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{ingest{input{}}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{ingest{input{}}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{ingest{inputs{}}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{ingest{inputs{}}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{ingest{ffmpeg ./objs/ffmpeg/bin/ffmpeg;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{ingest{ffmpeg ./objs/ffmpeg/bin/ffmpeg;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{ingest{ffmpegs ./objs/ffmpeg/bin/ffmpeg;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{ingest{ffmpegs ./objs/ffmpeg/bin/ffmpeg;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{ingest{engine{}}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{ingest{engine{}}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{ingest{engines{}}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{ingest{engines{}}}"));
     }
 }
 
@@ -4773,42 +4773,42 @@ VOID TEST(ConfigMainTest, CheckConf_vhost_http)
 {
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{http{}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{http{}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{https{}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{https{}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{http{enabled on;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{http{enabled on;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{http{enableds on;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{http{enableds on;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{http{mount /hls;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{http{mount /hls;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{http{mounts /hls;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{http{mounts /hls;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{http{dir ./objs/nginx/html/hls;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{http{dir ./objs/nginx/html/hls;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{http{dirs ./objs/nginx/html/hls;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{http{dirs ./objs/nginx/html/hls;}}"));
     }
 }
 
@@ -4816,52 +4816,52 @@ VOID TEST(ConfigMainTest, CheckConf_vhost_hls)
 {
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{hls{}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{hls{}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{hlss{}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{hlss{}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{hls{enabled on;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{hls{enabled on;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{hls{enableds on;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{hls{enableds on;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{hls{hls_path ./objs/nginx/html;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{hls{hls_path ./objs/nginx/html;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{hls{hls_paths ./objs/nginx/html;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{hls{hls_paths ./objs/nginx/html;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{hls{hls_fragment 10;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{hls{hls_fragment 10;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{hls{hls_fragments 10;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{hls{hls_fragments 10;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{hls{hls_window 60;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{hls{hls_window 60;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{hls{hls_windows 60;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{hls{hls_windows 60;}}"));
     }
 }
 
@@ -4869,92 +4869,92 @@ VOID TEST(ConfigMainTest, CheckConf_hooks)
 {
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{http_hooks{}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{http_hooks{}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{http_hookss{}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{http_hookss{}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{http_hooks{enabled on;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{http_hooks{enabled on;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{http_hooks{enableds on;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{http_hooks{enableds on;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{http_hooks{on_connect http://127.0.0.1:8085/api/v1/clients http://localhost:8085/api/v1/clients;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{http_hooks{on_connect http://127.0.0.1:8085/api/v1/clients http://localhost:8085/api/v1/clients;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{http_hooks{on_connects http://127.0.0.1:8085/api/v1/clients http://localhost:8085/api/v1/clients;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{http_hooks{on_connects http://127.0.0.1:8085/api/v1/clients http://localhost:8085/api/v1/clients;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{http_hooks{on_close http://127.0.0.1:8085/api/v1/clients http://localhost:8085/api/v1/clients;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{http_hooks{on_close http://127.0.0.1:8085/api/v1/clients http://localhost:8085/api/v1/clients;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{http_hooks{on_closes http://127.0.0.1:8085/api/v1/clients http://localhost:8085/api/v1/clients;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{http_hooks{on_closes http://127.0.0.1:8085/api/v1/clients http://localhost:8085/api/v1/clients;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{http_hooks{on_publish http://127.0.0.1:8085/api/v1/streams http://localhost:8085/api/v1/streams;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{http_hooks{on_publish http://127.0.0.1:8085/api/v1/streams http://localhost:8085/api/v1/streams;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{http_hooks{on_publishs http://127.0.0.1:8085/api/v1/streams http://localhost:8085/api/v1/streams;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{http_hooks{on_publishs http://127.0.0.1:8085/api/v1/streams http://localhost:8085/api/v1/streams;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{http_hooks{on_unpublish http://127.0.0.1:8085/api/v1/streams http://localhost:8085/api/v1/streams;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{http_hooks{on_unpublish http://127.0.0.1:8085/api/v1/streams http://localhost:8085/api/v1/streams;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{http_hooks{on_unpublishs http://127.0.0.1:8085/api/v1/streams http://localhost:8085/api/v1/streams;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{http_hooks{on_unpublishs http://127.0.0.1:8085/api/v1/streams http://localhost:8085/api/v1/streams;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{http_hooks{on_play http://127.0.0.1:8085/api/v1/sessions http://localhost:8085/api/v1/sessions;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{http_hooks{on_play http://127.0.0.1:8085/api/v1/sessions http://localhost:8085/api/v1/sessions;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{http_hooks{on_plays http://127.0.0.1:8085/api/v1/sessions http://localhost:8085/api/v1/sessions;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{http_hooks{on_plays http://127.0.0.1:8085/api/v1/sessions http://localhost:8085/api/v1/sessions;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{http_hooks{on_stop http://127.0.0.1:8085/api/v1/sessions http://localhost:8085/api/v1/sessions;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{http_hooks{on_stop http://127.0.0.1:8085/api/v1/sessions http://localhost:8085/api/v1/sessions;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{http_hooks{on_stops http://127.0.0.1:8085/api/v1/sessions http://localhost:8085/api/v1/sessions;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{http_hooks{on_stops http://127.0.0.1:8085/api/v1/sessions http://localhost:8085/api/v1/sessions;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{http_hooks{on_dvr_hss_reap_flv http://127.0.0.1:8085/api/v1/dvrs http://localhost:8085/api/v1/dvrs;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{http_hooks{on_dvr_hss_reap_flv http://127.0.0.1:8085/api/v1/dvrs http://localhost:8085/api/v1/dvrs;}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{http_hooks{on_dvr_hss_reap_flvs http://127.0.0.1:8085/api/v1/dvrs http://localhost:8085/api/v1/dvrs;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{http_hooks{on_dvr_hss_reap_flvs http://127.0.0.1:8085/api/v1/dvrs http://localhost:8085/api/v1/dvrs;}}"));
     }
 }
 
@@ -4962,22 +4962,22 @@ VOID TEST(ConfigMainTest, CheckConf_gop_cache)
 {
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{gop_cache off;}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{gop_cache off;}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{gop_caches off;}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{gop_caches off;}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{queue_length 10;}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{queue_length 10;}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{queue_lengths 10;}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{queue_lengths 10;}"));
     }
 }
 
@@ -4985,54 +4985,477 @@ VOID TEST(ConfigMainTest, CheckConf_refer)
 {
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{refer github.com github.io;}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{refer github.com github.io;}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{refers github.com github.io;}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{refers github.com github.io;}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{refer_publish github.com github.io;}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{refer_publish github.com github.io;}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{refer_publishs github.com github.io;}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{refer_publishs github.com github.io;}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{refer_play github.com github.io;}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{refer_play github.com github.io;}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{refer_plays github.com github.io;}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{refer_plays github.com github.io;}"));
     }
 }
 
-VOID TEST(ConfigMainTest, CheckConf_)
+VOID TEST(ConfigMainTest, CheckConf_forward)
 {
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{hls{}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{forward 127.0.0.1:1936;}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{hlss{}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{forwards 127.0.0.1:1936;}"));
+    }
+}
+
+VOID TEST(ConfigMainTest, CheckConf_transcode)
+{
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{transcode{}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost{hls{enabled on;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{transcodes{}}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost{hls{enableds on;}}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{transcode{enabled on;}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{transcode{enableds on;}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{transcode{ffmpeg ./objs/ffmpeg/bin/ffmpeg;}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{transcode{ffmpegs ./objs/ffmpeg/bin/ffmpeg;}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{transcode{engines {}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {enabled on;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {enableds on;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {vfilter {}}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {vfilters {}}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {vcodec libx264;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {vcodecs libx264;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {vbitrate 300;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {vbitrates 300;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {vfps 20;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {vfpss 20;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {vwidth 768;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {vwidths 768;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {vheight 320;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {vheights 320;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {vthreads 2;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {vthreadss 2;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {vprofile baseline;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {vprofiles baseline;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {vpreset superfast;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {vpresets superfast;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {vparams {}}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {vparamss {}}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {acodec libaacplus;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {acodecs libaacplus;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {abitrate 45;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {abitrates 45;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {asample_rate 44100;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {asample_rates 44100;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {achannels 2;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {achannelss 2;}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {aparams {}}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {aparamss {}}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {output rtmp://127.0.0.1:[port]/[app]?vhost=[vhost]/[stream]_[engine];}}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{transcode{engine {outputs rtmp://127.0.0.1:[port]/[app]?vhost=[vhost]/[stream]_[engine];}}}"));
+    }
+}
+
+VOID TEST(ConfigMainTest, CheckConf_bandcheck)
+{
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{bandcheck{}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{bandchecks{}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{bandcheck{enabled on;}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{bandcheck{enableds on;}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{bandcheck{key \"35c9b402c12a7246868752e2878f7e0e\";}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{bandcheck{keys \"35c9b402c12a7246868752e2878f7e0e\";}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{bandcheck{interval 30;}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{bandcheck{intervals 30;}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{bandcheck{limit_kbps 4000;}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{bandcheck{limit_kbpss 4000;}}"));
+    }
+}
+
+VOID TEST(ConfigMainTest, CheckConf_chunk_size2)
+{
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{chunk_size 128;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{chunk_sizes 128;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{chunk_size 127;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{chunk_size 0;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{chunk_size -1;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{chunk_size -128;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{chunk_size 65537;}"));
+    }
+}
+
+VOID TEST(ConfigMainTest, CheckConf_jitter)
+{
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{time_jitter full;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{time_jitters full;}"));
+    }
+}
+
+VOID TEST(ConfigMainTest, CheckConf_atc)
+{
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{atc on;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{atcs on;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{atc_auto on;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{atc_autos on;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{enabled on;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{enableds on;}"));
+    }
+}
+
+VOID TEST(ConfigMainTest, CheckConf_pithy_print)
+{
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"pithy_print{}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"pithy_prints{}"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"pithy_print{publish 10000;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"pithy_print{publishs 10000;}"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"pithy_print{play 10000;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"pithy_print{plays 10000;}"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"pithy_print{forwarder 10000;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"pithy_print{forwarders 10000;}"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"pithy_print{encoder 10000;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"pithy_print{encoders 10000;}"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"pithy_print{ingester 10000;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"pithy_print{ingesters 10000;}"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"pithy_print{hls 10000;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"pithy_print{hlss 10000;}"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"pithy_print{edge 10000;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"pithy_print{edges 10000;}"));
     }
 }
