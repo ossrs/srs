@@ -213,6 +213,19 @@ private:
     */
     int cached_video_count;
     /**
+    * when user disabled video when publishing, and gop cache enalbed,
+    * we will cache the audio/video for we already got video, but we never
+    * know when to clear the gop cache, for there is no video in future,
+    * so we must guess whether user disabled the video.
+    * when we got some audios after laster video, for instance, 600 audio packets,
+    * about 3s(26ms per packet) 115 audio packets, clear gop cache.
+    * 
+    * @remark, it is ok for performance, for when we clear the gop cache,
+    *       gop cache is disabled for pure audio stream.
+    * @see: https://github.com/winlinvip/simple-rtmp-server/issues/124
+    */
+    int audio_count_after_last_video;
+    /**
     * cached gop.
     */
     std::vector<SrsSharedPtrMessage*> gop_cache;

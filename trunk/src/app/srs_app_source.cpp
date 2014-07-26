@@ -46,6 +46,10 @@ using namespace std;
 #define CONST_MAX_JITTER_MS         500
 #define DEFAULT_FRAME_TIME_MS         40
 
+// for 26ms per audio packet,
+// 115 packets is 3s.
+#define __SRS_PURE_AUDIO_GUESS_COUNT 115
+
 int _srs_time_jitter_string2int(std::string time_jitter)
 {
     if (time_jitter == "full") {
@@ -351,6 +355,7 @@ SrsGopCache::SrsGopCache()
 {
     cached_video_count = 0;
     enable_gop_cache = true;
+    audio_count_after_last_video = 0;
 }
 
 SrsGopCache::~SrsGopCache()
@@ -383,11 +388,24 @@ int SrsGopCache::cache(SrsSharedPtrMessage* msg)
     // got video, update the video count if acceptable
     if (msg->header.is_video()) {
         cached_video_count++;
+        audio_count_after_last_video = 0;
     }
     
     // no acceptable video or pure audio, disable the cache.
     if (cached_video_count == 0) {
         srs_verbose("ignore any frame util got a h264 video frame.");
+        return ret;
+    }
+    
+    // ok, gop cache enabled, and got an audio.
+    if (msg->header.is_audio()) {
+        audio_count_after_last_video++;
+    }
+    
+    // clear gop cache when pure audio count overflow
+    if (audio_count_after_last_video > __SRS_PURE_AUDIO_GUESS_COUNT) {
+        srs_warn("clear gop cache for guess pure audio overflow");
+        clear();
         return ret;
     }
     
