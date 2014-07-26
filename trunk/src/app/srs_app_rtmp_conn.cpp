@@ -43,7 +43,7 @@ using namespace std;
 #include <srs_app_hls.hpp>
 #include <srs_app_http.hpp>
 #include <srs_app_bandwidth.hpp>
-#include <srs_app_socket.hpp>
+#include <srs_app_st_socket.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_edge.hpp>
 #include <srs_app_kbps.hpp>

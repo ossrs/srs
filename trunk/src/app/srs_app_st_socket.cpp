@@ -21,7 +21,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <srs_app_socket.hpp>
+#include <srs_app_st_socket.hpp>
 
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_utility.hpp>
