@@ -244,7 +244,9 @@ void SrsMessageQueue::shrink()
         }
     }
     
-    // no iframe, clear the queue.
+    // no iframe, for audio, clear the queue.
+    // it is ok to clear for audio, for the shrink tell us the queue is full.
+    // @see: https://github.com/winlinvip/simple-rtmp-server/issues/134
     if (iframe_index < 0) {
         clear();
         return;
