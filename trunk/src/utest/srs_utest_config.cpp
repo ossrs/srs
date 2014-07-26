@@ -4341,3 +4341,26 @@ VOID TEST(ConfigMainTest, ParseFullConf_removed)
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
     EXPECT_STREQ("./objs/nginx/html", conf.get_vhost_http_dir(vhost).c_str());
 }
+
+VOID TEST(ConfigMainTest, CheckConf_listen)
+{
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse("listens 1935;"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse("listen 0;"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse("listen -1;"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse("listen -1935;"));
+    }
+}

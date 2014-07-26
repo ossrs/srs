@@ -31,6 +31,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "gtest/gtest.h"
 
+#include <srs_app_log.hpp>
+
 // we add an empty macro for upp to show the smart tips.
 #define VOID
 
@@ -51,5 +53,18 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // print the bytes.
 void __srs_bytes_print(char* pa, int size);
+
+class MockEmptyLog : public SrsFastLog
+{
+private:
+    int _level;
+public:
+    MockEmptyLog(int level);
+    virtual ~MockEmptyLog();
+public:
+    virtual int on_reload_log_tank();
+    virtual int on_reload_log_level();
+    virtual int on_reload_log_file();
+};
 
 #endif

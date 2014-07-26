@@ -60,7 +60,8 @@ public:
 */
 class SrsFastLog : public ISrsLog, public ISrsReloadHandler
 {
-private:
+// for utest to override
+protected:
     // defined in SrsLogLevel.
     int _level;
     char* log_data;

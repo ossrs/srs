@@ -80,17 +80,21 @@ SrsFastLog::~SrsFastLog()
         fd = -1;
     }
 
-    _srs_config->unsubscribe(this);
+    if (_srs_config) {
+        _srs_config->unsubscribe(this);
+    }
 }
 
 int SrsFastLog::initialize()
 {
     int ret = ERROR_SUCCESS;
     
-    _srs_config->subscribe(this);
-
-    log_to_file_tank = _srs_config->get_log_tank_file();
-    _level = srs_get_log_level(_srs_config->get_log_level());
+    if (_srs_config) {
+        _srs_config->subscribe(this);
+    
+        log_to_file_tank = _srs_config->get_log_tank_file();
+        _level = srs_get_log_level(_srs_config->get_log_level());
+    }
     
     return ret;
 }

@@ -52,6 +52,8 @@ public:
     static const int Trace = 0x03;
     static const int Warn = 0x04;
     static const int Error = 0x05;
+    // specified the disabled level, no log, for utest.
+    static const int Disabled = 0x06;
 };
 
 /**

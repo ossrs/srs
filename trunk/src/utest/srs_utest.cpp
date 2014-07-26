@@ -30,11 +30,35 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_log.hpp>
 
 // kernel module.
-ISrsLog* _srs_log = new ISrsLog();
+ISrsLog* _srs_log = new MockEmptyLog(SrsLogLevel::Disabled);
 ISrsThreadContext* _srs_context = new ISrsThreadContext();
 // app module.
 SrsConfig* _srs_config = NULL;
 SrsServer* _srs_server = NULL;
+
+MockEmptyLog::MockEmptyLog(int level)
+{
+    _level = level;
+}
+
+MockEmptyLog::~MockEmptyLog()
+{
+}
+
+int MockEmptyLog::on_reload_log_tank()
+{
+    return ERROR_SUCCESS;
+}
+
+int MockEmptyLog::on_reload_log_level()
+{
+    return ERROR_SUCCESS;
+}
+
+int MockEmptyLog::on_reload_log_file()
+{
+    return ERROR_SUCCESS;
+}
 
 void __srs_bytes_print(char* pa, int size)
 {
