@@ -56,8 +56,6 @@ void __srs_bytes_print(char* pa, int size);
 
 class MockEmptyLog : public SrsFastLog
 {
-private:
-    int _level;
 public:
     MockEmptyLog(int level);
     virtual ~MockEmptyLog();

@@ -1354,6 +1354,7 @@ int SrsConfig::check_config()
                                 && e != "vthreads" && e != "vprofile" && e != "vpreset" && e != "vparams"
                                 && e != "acodec" && e != "abitrate" && e != "asample_rate" && e != "achannels"
                                 && e != "aparams" && e != "output"
+                                && e != "iformat" && e != "oformat"
                             ) {
                                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                                 srs_error("unsupported vhost transcode engine directive %s, ret=%d", e.c_str(), ret);
