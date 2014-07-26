@@ -47,6 +47,7 @@ class SrsKbps;
 /**
 * forward the stream to other servers.
 */
+// TODO: FIXME: refine the error log, comments it.
 class SrsForwarder : public ISrsThreadHandler
 {
 private:
