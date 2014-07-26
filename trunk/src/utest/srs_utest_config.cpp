@@ -29,6 +29,8 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_app_source.hpp>
 
+#define _MIN_OK_CONF "listen 1935; "
+
 // full.conf
 std::string __full_conf = ""
     "# all config for srs                                                                                                                   \n"
@@ -1787,13 +1789,11 @@ VOID TEST(ConfigMainTest, ParseEmpty)
 VOID TEST(ConfigMainTest, ParseMinConf)
 {
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse("listen 1935; max_connections 1000;"));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF));
     
     vector<string> listens = conf.get_listen();
     EXPECT_EQ(1, (int)listens.size());
     EXPECT_STREQ("1935", listens.at(0).c_str());
-    
-    EXPECT_EQ(1000, conf.get_max_connections());
 }
 
 VOID TEST(ConfigMainTest, ParseInvalidDirective)
@@ -4348,6 +4348,11 @@ VOID TEST(ConfigMainTest, CheckConf_listen)
 {
     if (true) {
         MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
         EXPECT_TRUE(ERROR_SUCCESS != conf.parse("listens 1935;"));
     }
     
@@ -4371,7 +4376,7 @@ VOID TEST(ConfigMainTest, CheckConf_pid)
 {
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse("pids ./objs/srs.pid;"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"pids ./objs/srs.pid;"));
     }
 }
 
@@ -4379,37 +4384,42 @@ VOID TEST(ConfigMainTest, CheckConf_chunk_size)
 {
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse("chunk_sizes 60000;"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"chunk_size 60000;"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse("chunk_size 0;"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"chunk_sizes 60000;"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse("chunk_size 1;"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"chunk_size 0;"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse("chunk_size 127;"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"chunk_size 1;"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse("chunk_size -1;"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"chunk_size 127;"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse("chunk_size -4096;"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"chunk_size -1;"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse("chunk_size 65536;"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"chunk_size -4096;"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"chunk_size 65537;"));
     }
 }
 
@@ -4417,7 +4427,12 @@ VOID TEST(ConfigMainTest, CheckConf_ff_log_dir)
 {
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse("ff_log_dirs ./objs;"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"ff_log_dir ./objs;"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"ff_log_dirs ./objs;"));
     }
 }
 
@@ -4425,7 +4440,12 @@ VOID TEST(ConfigMainTest, CheckConf_srs_log_level)
 {
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse("srs_log_levels trace;"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"srs_log_level trace;"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"srs_log_levels trace;"));
     }
 }
 
@@ -4433,7 +4453,12 @@ VOID TEST(ConfigMainTest, CheckConf_srs_log_file)
 {
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse("srs_log_files ./objs/srs.log;"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"srs_log_file ./objs/srs.log;"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"srs_log_files ./objs/srs.log;"));
     }
 }
 
@@ -4441,12 +4466,106 @@ VOID TEST(ConfigMainTest, CheckConf_max_connections)
 {
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse("max_connectionss 1000;"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"max_connections 1000;"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse("max_connections 0;"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"max_connectionss 1000;"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"max_connections 0;"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"max_connections 1000000;"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"max_connections -1;"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"max_connections -1024;"));
+    }
+}
+
+VOID TEST(ConfigMainTest, CheckConf_daemon)
+{
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"daemon on;"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"daemons on;"));
+    }
+}
+
+VOID TEST(ConfigMainTest, CheckConf_heartbeat)
+{
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"heartbeat{}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"heartbeats{}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"heartbeat{enableds on;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"heartbeat{intervals 9;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"heartbeat{urls http://127.0.0.1:8085/api/v1/servers;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"heartbeat{device_ids 0;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"heartbeat{device_indexs 0;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"heartbeat{device_index -1;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"heartbeat{summariess on;}"));
+    }
+}
+
+VOID TEST(ConfigMainTest, CheckConf_http_api)
+{
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"http_api{}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"http_apis{}"));
     }
 }
 
@@ -4454,6 +4573,11 @@ VOID TEST(ConfigMainTest, CheckConf_)
 {
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse("listens 1935;"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF""));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"http_apis{}"));
     }
 }
