@@ -246,6 +246,8 @@ void SrsMessageQueue::shrink()
     
     // no iframe, for audio, clear the queue.
     // it is ok to clear for audio, for the shrink tell us the queue is full.
+    // for video, we clear util the I-Frame, for the decoding must start from I-frame,
+    // for audio, it's ok to clear any data, also we can clear the whole queue.
     // @see: https://github.com/winlinvip/simple-rtmp-server/issues/134
     if (iframe_index < 0) {
         clear();
