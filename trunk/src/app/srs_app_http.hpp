@@ -41,7 +41,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsBuffer;
 class SrsRequest;
-class SrsSocket;
+class SrsStSocket;
 class SrsHttpUri;
 class SrsHttpMessage;
 class SrsHttpHandler;
@@ -123,7 +123,7 @@ public:
     * use the handler to process the request.
     * @remark sub classes should override the do_process_request.
     */
-    virtual int process_request(SrsSocket* skt, SrsHttpMessage* req);
+    virtual int process_request(SrsStSocket* skt, SrsHttpMessage* req);
 public:
     /**
     * find the best matched handler
@@ -143,12 +143,12 @@ protected:
     * do the actual process of request., format as, for example:
     * {"code":0, "data":{}}
     */
-    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
     /**
     * response error, format as, for example:
     * {"code":100, "desc":"description"}
     */
-    virtual int response_error(SrsSocket* skt, SrsHttpMessage* req, int code, std::string desc);
+    virtual int response_error(SrsStSocket* skt, SrsHttpMessage* req, int code, std::string desc);
 // response writer
 public:
     virtual SrsHttpHandler* res_status_line(std::stringstream& ss);
@@ -167,19 +167,19 @@ public:
     virtual SrsHttpHandler* res_enable_crossdomain(std::stringstream& ss);
     virtual SrsHttpHandler* res_header_eof(std::stringstream& ss);
     virtual SrsHttpHandler* res_body(std::stringstream& ss, std::string body);
-    virtual int res_flush(SrsSocket* skt, std::stringstream& ss);
+    virtual int res_flush(SrsStSocket* skt, std::stringstream& ss);
 public:
-    virtual int res_options(SrsSocket* skt);
-    virtual int res_text(SrsSocket* skt, SrsHttpMessage* req, std::string body);
-    virtual int res_xml(SrsSocket* skt, SrsHttpMessage* req, std::string body);
-    virtual int res_javascript(SrsSocket* skt, SrsHttpMessage* req, std::string body);
-    virtual int res_swf(SrsSocket* skt, SrsHttpMessage* req, std::string body);
-    virtual int res_css(SrsSocket* skt, SrsHttpMessage* req, std::string body);
-    virtual int res_ico(SrsSocket* skt, SrsHttpMessage* req, std::string body);
-    virtual int res_m3u8(SrsSocket* skt, SrsHttpMessage* req, std::string body);
-    virtual int res_mpegts(SrsSocket* skt, SrsHttpMessage* req, std::string body);
-    virtual int res_json(SrsSocket* skt, SrsHttpMessage* req, std::string json);
-    virtual int res_error(SrsSocket* skt, SrsHttpMessage* req, int code, std::string reason_phrase, std::string body);
+    virtual int res_options(SrsStSocket* skt);
+    virtual int res_text(SrsStSocket* skt, SrsHttpMessage* req, std::string body);
+    virtual int res_xml(SrsStSocket* skt, SrsHttpMessage* req, std::string body);
+    virtual int res_javascript(SrsStSocket* skt, SrsHttpMessage* req, std::string body);
+    virtual int res_swf(SrsStSocket* skt, SrsHttpMessage* req, std::string body);
+    virtual int res_css(SrsStSocket* skt, SrsHttpMessage* req, std::string body);
+    virtual int res_ico(SrsStSocket* skt, SrsHttpMessage* req, std::string body);
+    virtual int res_m3u8(SrsStSocket* skt, SrsHttpMessage* req, std::string body);
+    virtual int res_mpegts(SrsStSocket* skt, SrsHttpMessage* req, std::string body);
+    virtual int res_json(SrsStSocket* skt, SrsHttpMessage* req, std::string json);
+    virtual int res_error(SrsStSocket* skt, SrsHttpMessage* req, int code, std::string reason_phrase, std::string body);
 // object creator
 public:
     /**
@@ -313,12 +313,12 @@ public:
     * or error and *ppmsg must be NULL.
     * @remark, if success, *ppmsg always NOT-NULL, *ppmsg always is_complete().
     */
-    virtual int parse_message(SrsSocket* skt, SrsHttpMessage** ppmsg);
+    virtual int parse_message(SrsStSocket* skt, SrsHttpMessage** ppmsg);
 private:
     /**
     * parse the HTTP message to member field: msg.
     */
-    virtual int parse_message_imp(SrsSocket* skt);
+    virtual int parse_message_imp(SrsStSocket* skt);
 private:
     static int on_message_begin(http_parser* parser);
     static int on_headers_complete(http_parser* parser);

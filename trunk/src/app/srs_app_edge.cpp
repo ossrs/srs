@@ -306,7 +306,7 @@ int SrsEdgeIngester::connect_server()
     srs_freep(io);
     
     srs_assert(stfd);
-    io = new SrsSocket(stfd);
+    io = new SrsStSocket(stfd);
     client = new SrsRtmpClient(io);
     
     kbps->set_io(io, io);
@@ -559,7 +559,7 @@ int SrsEdgeForwarder::connect_server()
     srs_freep(io);
     
     srs_assert(stfd);
-    io = new SrsSocket(stfd);
+    io = new SrsStSocket(stfd);
     client = new SrsRtmpClient(io);
     
     kbps->set_io(io, io);

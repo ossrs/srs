@@ -45,7 +45,7 @@ class SrsOnMetaDataPacket;
 class SrsSharedPtrMessage;
 class SrsForwarder;
 class SrsRequest;
-class SrsSocket;
+class SrsStSocket;
 class SrsRtmpServer;
 class SrsEdgeProxyContext;
 #ifdef SRS_AUTO_HLS

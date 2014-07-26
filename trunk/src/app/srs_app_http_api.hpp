@@ -32,7 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef SRS_AUTO_HTTP_API
 
-class SrsSocket;
+class SrsStSocket;
 class SrsHttpMessage;
 class SrsHttpParser;
 class SrsHttpHandler;
@@ -51,7 +51,7 @@ public:
     virtual bool is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase);
 protected:
     virtual bool can_handle(const char* path, int length, const char** pchild);
-    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
 };
 
 class SrsApiApi : public SrsHttpHandler
@@ -62,7 +62,7 @@ public:
 public:
     virtual bool can_handle(const char* path, int length, const char** pchild);
 protected:
-    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
 };
 
 class SrsApiV1 : public SrsHttpHandler
@@ -73,7 +73,7 @@ public:
 public:
     virtual bool can_handle(const char* path, int length, const char** pchild);
 protected:
-    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
 };
 
 class SrsApiRequests : public SrsHttpHandler
@@ -84,7 +84,7 @@ public:
 public:
     virtual bool can_handle(const char* path, int length, const char** pchild);
 protected:
-    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
 };
 
 class SrsApiVersion : public SrsHttpHandler
@@ -95,7 +95,7 @@ public:
 public:
     virtual bool can_handle(const char* path, int length, const char** pchild);
 protected:
-    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
 };
 
 class SrsApiSummaries : public SrsHttpHandler
@@ -106,7 +106,7 @@ public:
 public:
     virtual bool can_handle(const char* path, int length, const char** pchild);
 protected:
-    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
 };
 
 class SrsApiRusages : public SrsHttpHandler
@@ -117,7 +117,7 @@ public:
 public:
     virtual bool can_handle(const char* path, int length, const char** pchild);
 protected:
-    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
 };
 
 class SrsApiSelfProcStats : public SrsHttpHandler
@@ -128,7 +128,7 @@ public:
 public:
     virtual bool can_handle(const char* path, int length, const char** pchild);
 protected:
-    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
 };
 
 class SrsApiSystemProcStats : public SrsHttpHandler
@@ -139,7 +139,7 @@ public:
 public:
     virtual bool can_handle(const char* path, int length, const char** pchild);
 protected:
-    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
 };
 
 class SrsApiMemInfos : public SrsHttpHandler
@@ -150,7 +150,7 @@ public:
 public:
     virtual bool can_handle(const char* path, int length, const char** pchild);
 protected:
-    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
 };
 
 class SrsApiAuthors : public SrsHttpHandler
@@ -161,7 +161,7 @@ public:
 public:
     virtual bool can_handle(const char* path, int length, const char** pchild);
 protected:
-    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
 };
 
 class SrsHttpApi : public SrsConnection
@@ -182,7 +182,7 @@ public:
 protected:
     virtual int do_cycle();
 private:
-    virtual int process_request(SrsSocket* skt, SrsHttpMessage* req);
+    virtual int process_request(SrsStSocket* skt, SrsHttpMessage* req);
 };
 
 #endif

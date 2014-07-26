@@ -37,7 +37,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * the socket provides TCP socket over st,
 * that is, the sync socket mechanism.
 */
-class SrsSocket : public ISrsProtocolReaderWriter
+class SrsStSocket : public ISrsProtocolReaderWriter
 {
 private:
     int64_t recv_timeout;
@@ -46,8 +46,8 @@ private:
     int64_t send_bytes;
     st_netfd_t stfd;
 public:
-    SrsSocket(st_netfd_t client_stfd);
-    virtual ~SrsSocket();
+    SrsStSocket(st_netfd_t client_stfd);
+    virtual ~SrsStSocket();
 public:
     virtual bool is_never_timeout(int64_t timeout_us);
     virtual void set_recv_timeout(int64_t timeout_us);

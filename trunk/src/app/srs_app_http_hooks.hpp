@@ -36,7 +36,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <http_parser.h>
 
 class SrsHttpUri;
-class SrsSocket;
+class SrsStSocket;
 class SrsRequest;
 class SrsHttpParser;
 class SrsFlvSegment;

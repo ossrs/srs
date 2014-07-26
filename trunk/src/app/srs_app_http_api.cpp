@@ -72,7 +72,7 @@ bool SrsApiRoot::can_handle(const char* path, int length, const char** pchild)
     return srs_path_equals("/", path, 1);
 }
 
-int SrsApiRoot::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
+int SrsApiRoot::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
 {
     std::stringstream ss;
     
@@ -100,7 +100,7 @@ bool SrsApiApi::can_handle(const char* path, int length, const char** /*pchild*/
     return srs_path_equals("/api", path, length);
 }
 
-int SrsApiApi::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
+int SrsApiApi::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
 {
     std::stringstream ss;
     
@@ -135,7 +135,7 @@ bool SrsApiV1::can_handle(const char* path, int length, const char** /*pchild*/)
     return srs_path_equals("/v1", path, length);
 }
 
-int SrsApiV1::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
+int SrsApiV1::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
 {
     std::stringstream ss;
     
@@ -169,7 +169,7 @@ bool SrsApiRequests::can_handle(const char* path, int length, const char** /*pch
     return srs_path_equals("/requests", path, length);
 }
 
-int SrsApiRequests::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
+int SrsApiRequests::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
 {
     std::stringstream ss;
     
@@ -233,7 +233,7 @@ bool SrsApiVersion::can_handle(const char* path, int length, const char** /*pchi
     return srs_path_equals("/versions", path, length);
 }
 
-int SrsApiVersion::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
+int SrsApiVersion::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
 {
     std::stringstream ss;
     
@@ -263,7 +263,7 @@ bool SrsApiSummaries::can_handle(const char* path, int length, const char** /*pc
     return srs_path_equals("/summaries", path, length);
 }
 
-int SrsApiSummaries::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
+int SrsApiSummaries::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
 {
     std::stringstream ss;
     srs_api_dump_summaries(ss);
@@ -283,7 +283,7 @@ bool SrsApiRusages::can_handle(const char* path, int length, const char** /*pchi
     return srs_path_equals("/rusages", path, length);
 }
 
-int SrsApiRusages::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
+int SrsApiRusages::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
 {
     std::stringstream ss;
     
@@ -329,7 +329,7 @@ bool SrsApiSelfProcStats::can_handle(const char* path, int length, const char** 
     return srs_path_equals("/self_proc_stats", path, length);
 }
 
-int SrsApiSelfProcStats::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
+int SrsApiSelfProcStats::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
 {
     std::stringstream ss;
     
@@ -404,7 +404,7 @@ bool SrsApiSystemProcStats::can_handle(const char* path, int length, const char*
     return srs_path_equals("/system_proc_stats", path, length);
 }
 
-int SrsApiSystemProcStats::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
+int SrsApiSystemProcStats::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
 {
     std::stringstream ss;
     
@@ -444,7 +444,7 @@ bool SrsApiMemInfos::can_handle(const char* path, int length, const char** /*pch
     return srs_path_equals("/meminfos", path, length);
 }
 
-int SrsApiMemInfos::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
+int SrsApiMemInfos::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
 {
     std::stringstream ss;
     
@@ -485,7 +485,7 @@ bool SrsApiAuthors::can_handle(const char* path, int length, const char** /*pchi
     return srs_path_equals("/authors", path, length);
 }
 
-int SrsApiAuthors::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
+int SrsApiAuthors::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
 {
     std::stringstream ss;
     
@@ -544,7 +544,7 @@ int SrsHttpApi::do_cycle()
     }
     
     // underlayer socket
-    SrsSocket skt(stfd);
+    SrsStSocket skt(stfd);
     
     // process http messages.
     for (;;) {
@@ -571,7 +571,7 @@ int SrsHttpApi::do_cycle()
     return ret;
 }
 
-int SrsHttpApi::process_request(SrsSocket* skt, SrsHttpMessage* req) 
+int SrsHttpApi::process_request(SrsStSocket* skt, SrsHttpMessage* req) 
 {
     int ret = ERROR_SUCCESS;
 

@@ -33,7 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_st.hpp>
 #include <srs_app_thread.hpp>
 
-class SrsSocket;
+class SrsStSocket;
 class SrsRtmpServer;
 class SrsSource;
 class SrsRequest;

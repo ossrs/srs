@@ -36,7 +36,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_conn.hpp>
 #include <srs_app_http.hpp>
 
-class SrsSocket;
+class SrsStSocket;
 class SrsHttpParser;
 class SrsHttpMessage;
 class SrsHttpHandler;
@@ -52,7 +52,7 @@ public:
     virtual int best_match(const char* path, int length, SrsHttpHandlerMatch** ppmatch);
 protected:
     virtual bool is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase);
-    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
 };
 
 class SrsHttpVhost : public SrsHttpHandler
@@ -68,12 +68,12 @@ public:
     virtual bool can_handle(const char* path, int length, const char** pchild);
 protected:
     virtual bool is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase);
-    virtual int do_process_request(SrsSocket* skt, SrsHttpMessage* req);
+    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
 private:
-    virtual int response_regular_file(SrsSocket* skt, SrsHttpMessage* req, std::string fullpath);
-    virtual int response_flv_file(SrsSocket* skt, SrsHttpMessage* req, std::string fullpath);
-    virtual int response_flv_file2(SrsSocket* skt, SrsHttpMessage* req, std::string fullpath, int offset);
-    virtual int response_ts_file(SrsSocket* skt, SrsHttpMessage* req, std::string fullpath);
+    virtual int response_regular_file(SrsStSocket* skt, SrsHttpMessage* req, std::string fullpath);
+    virtual int response_flv_file(SrsStSocket* skt, SrsHttpMessage* req, std::string fullpath);
+    virtual int response_flv_file2(SrsStSocket* skt, SrsHttpMessage* req, std::string fullpath, int offset);
+    virtual int response_ts_file(SrsStSocket* skt, SrsHttpMessage* req, std::string fullpath);
     virtual std::string get_request_file(SrsHttpMessage* req);
 public:
     virtual std::string vhost();
@@ -99,7 +99,7 @@ public:
 protected:
     virtual int do_cycle();
 private:
-    virtual int process_request(SrsSocket* skt, SrsHttpMessage* req);
+    virtual int process_request(SrsStSocket* skt, SrsHttpMessage* req);
 };
 
 #endif

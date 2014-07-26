@@ -124,7 +124,7 @@ bool SrsHttpRoot::is_handler_valid(SrsHttpMessage* req, int& status_code, std::s
     return false;
 }
 
-int SrsHttpRoot::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
+int SrsHttpRoot::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
 {
     int ret = ERROR_SUCCESS;
     return ret;
@@ -161,7 +161,7 @@ bool SrsHttpVhost::is_handler_valid(SrsHttpMessage* req, int& status_code, std::
     return true;
 }
 
-int SrsHttpVhost::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
+int SrsHttpVhost::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
 {
     int ret = ERROR_SUCCESS;
     
@@ -188,7 +188,7 @@ int SrsHttpVhost::do_process_request(SrsSocket* skt, SrsHttpMessage* req)
     return ret;
 }
 
-int SrsHttpVhost::response_regular_file(SrsSocket* skt, SrsHttpMessage* req, string fullpath)
+int SrsHttpVhost::response_regular_file(SrsStSocket* skt, SrsHttpMessage* req, string fullpath)
 {
     int ret = ERROR_SUCCESS;
 
@@ -235,7 +235,7 @@ int SrsHttpVhost::response_regular_file(SrsSocket* skt, SrsHttpMessage* req, str
     return ret;
 }
 
-int SrsHttpVhost::response_flv_file(SrsSocket* skt, SrsHttpMessage* req, string fullpath)
+int SrsHttpVhost::response_flv_file(SrsStSocket* skt, SrsHttpMessage* req, string fullpath)
 {
     int ret = ERROR_SUCCESS;
 
@@ -286,7 +286,7 @@ int SrsHttpVhost::response_flv_file(SrsSocket* skt, SrsHttpMessage* req, string 
     return ret;
 }
 
-int SrsHttpVhost::response_flv_file2(SrsSocket* skt, SrsHttpMessage* req, string fullpath, int offset)
+int SrsHttpVhost::response_flv_file2(SrsStSocket* skt, SrsHttpMessage* req, string fullpath, int offset)
 {
     int ret = ERROR_SUCCESS;
     
@@ -390,7 +390,7 @@ int SrsHttpVhost::response_flv_file2(SrsSocket* skt, SrsHttpMessage* req, string
     return ret;
 }
 
-int SrsHttpVhost::response_ts_file(SrsSocket* skt, SrsHttpMessage* req, string fullpath)
+int SrsHttpVhost::response_ts_file(SrsStSocket* skt, SrsHttpMessage* req, string fullpath)
 {
     int ret = ERROR_SUCCESS;
     
@@ -524,7 +524,7 @@ int SrsHttpConn::do_cycle()
     }
     
     // underlayer socket
-    SrsSocket skt(stfd);
+    SrsStSocket skt(stfd);
     
     // process http messages.
     for (;;) {
@@ -551,7 +551,7 @@ int SrsHttpConn::do_cycle()
     return ret;
 }
 
-int SrsHttpConn::process_request(SrsSocket* skt, SrsHttpMessage* req) 
+int SrsHttpConn::process_request(SrsStSocket* skt, SrsHttpMessage* req) 
 {
     int ret = ERROR_SUCCESS;
 

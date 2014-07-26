@@ -97,7 +97,7 @@ bool SrsHttpHandler::can_handle(const char* /*path*/, int /*length*/, const char
     return false;
 }
 
-int SrsHttpHandler::process_request(SrsSocket* skt, SrsHttpMessage* req)
+int SrsHttpHandler::process_request(SrsStSocket* skt, SrsHttpMessage* req)
 {
     if (req->method() == SRS_CONSTS_HTTP_OPTIONS) {
         req->set_requires_crossdomain(true);
@@ -136,13 +136,13 @@ bool SrsHttpHandler::is_handler_valid(SrsHttpMessage* req, int& status_code, str
     return true;
 }
 
-int SrsHttpHandler::do_process_request(SrsSocket* /*skt*/, SrsHttpMessage* /*req*/)
+int SrsHttpHandler::do_process_request(SrsStSocket* /*skt*/, SrsHttpMessage* /*req*/)
 {
     int ret = ERROR_SUCCESS;
     return ret;
 }
 
-int SrsHttpHandler::response_error(SrsSocket* skt, SrsHttpMessage* req, int code, string desc)
+int SrsHttpHandler::response_error(SrsStSocket* skt, SrsHttpMessage* req, int code, string desc)
 {
     std::stringstream ss;
     ss << __SRS_JOBJECT_START
@@ -334,12 +334,12 @@ SrsHttpHandler* SrsHttpHandler::res_body(stringstream& ss, string body)
     return this;
 }
 
-int SrsHttpHandler::res_flush(SrsSocket* skt, stringstream& ss)
+int SrsHttpHandler::res_flush(SrsStSocket* skt, stringstream& ss)
 {
     return skt->write((void*)ss.str().c_str(), ss.str().length(), NULL);
 }
 
-int SrsHttpHandler::res_options(SrsSocket* skt)
+int SrsHttpHandler::res_options(SrsStSocket* skt)
 {
     std::stringstream ss;
     
@@ -350,7 +350,7 @@ int SrsHttpHandler::res_options(SrsSocket* skt)
     return res_flush(skt, ss);
 }
 
-int SrsHttpHandler::res_text(SrsSocket* skt, SrsHttpMessage* req, string body)
+int SrsHttpHandler::res_text(SrsStSocket* skt, SrsHttpMessage* req, string body)
 {
     std::stringstream ss;
     
@@ -367,7 +367,7 @@ int SrsHttpHandler::res_text(SrsSocket* skt, SrsHttpMessage* req, string body)
     return res_flush(skt, ss);
 }
 
-int SrsHttpHandler::res_xml(SrsSocket* skt, SrsHttpMessage* req, string body)
+int SrsHttpHandler::res_xml(SrsStSocket* skt, SrsHttpMessage* req, string body)
 {
     std::stringstream ss;
     
@@ -384,7 +384,7 @@ int SrsHttpHandler::res_xml(SrsSocket* skt, SrsHttpMessage* req, string body)
     return res_flush(skt, ss);
 }
 
-int SrsHttpHandler::res_javascript(SrsSocket* skt, SrsHttpMessage* req, string body)
+int SrsHttpHandler::res_javascript(SrsStSocket* skt, SrsHttpMessage* req, string body)
 {
     std::stringstream ss;
     
@@ -401,7 +401,7 @@ int SrsHttpHandler::res_javascript(SrsSocket* skt, SrsHttpMessage* req, string b
     return res_flush(skt, ss);
 }
 
-int SrsHttpHandler::res_swf(SrsSocket* skt, SrsHttpMessage* req, string body)
+int SrsHttpHandler::res_swf(SrsStSocket* skt, SrsHttpMessage* req, string body)
 {
     std::stringstream ss;
     
@@ -418,7 +418,7 @@ int SrsHttpHandler::res_swf(SrsSocket* skt, SrsHttpMessage* req, string body)
     return res_flush(skt, ss);
 }
 
-int SrsHttpHandler::res_css(SrsSocket* skt, SrsHttpMessage* req, string body)
+int SrsHttpHandler::res_css(SrsStSocket* skt, SrsHttpMessage* req, string body)
 {
     std::stringstream ss;
     
@@ -435,7 +435,7 @@ int SrsHttpHandler::res_css(SrsSocket* skt, SrsHttpMessage* req, string body)
     return res_flush(skt, ss);
 }
 
-int SrsHttpHandler::res_ico(SrsSocket* skt, SrsHttpMessage* req, string body)
+int SrsHttpHandler::res_ico(SrsStSocket* skt, SrsHttpMessage* req, string body)
 {
     std::stringstream ss;
     
@@ -452,7 +452,7 @@ int SrsHttpHandler::res_ico(SrsSocket* skt, SrsHttpMessage* req, string body)
     return res_flush(skt, ss);
 }
 
-int SrsHttpHandler::res_m3u8(SrsSocket* skt, SrsHttpMessage* req, string body)
+int SrsHttpHandler::res_m3u8(SrsStSocket* skt, SrsHttpMessage* req, string body)
 {
     std::stringstream ss;
     
@@ -469,7 +469,7 @@ int SrsHttpHandler::res_m3u8(SrsSocket* skt, SrsHttpMessage* req, string body)
     return res_flush(skt, ss);
 }
 
-int SrsHttpHandler::res_mpegts(SrsSocket* skt, SrsHttpMessage* req, string body)
+int SrsHttpHandler::res_mpegts(SrsStSocket* skt, SrsHttpMessage* req, string body)
 {
     std::stringstream ss;
     
@@ -486,7 +486,7 @@ int SrsHttpHandler::res_mpegts(SrsSocket* skt, SrsHttpMessage* req, string body)
     return res_flush(skt, ss);
 }
 
-int SrsHttpHandler::res_json(SrsSocket* skt, SrsHttpMessage* req, string json)
+int SrsHttpHandler::res_json(SrsStSocket* skt, SrsHttpMessage* req, string json)
 {
     std::stringstream ss;
     
@@ -503,7 +503,7 @@ int SrsHttpHandler::res_json(SrsSocket* skt, SrsHttpMessage* req, string json)
     return res_flush(skt, ss);
 }
 
-int SrsHttpHandler::res_error(SrsSocket* skt, SrsHttpMessage* req, int code, string reason_phrase, string body)
+int SrsHttpHandler::res_error(SrsStSocket* skt, SrsHttpMessage* req, int code, string reason_phrase, string body)
 {
     std::stringstream ss;
 
@@ -829,7 +829,7 @@ int SrsHttpParser::initialize(enum http_parser_type type)
     return ret;
 }
 
-int SrsHttpParser::parse_message(SrsSocket* skt, SrsHttpMessage** ppmsg)
+int SrsHttpParser::parse_message(SrsStSocket* skt, SrsHttpMessage** ppmsg)
 {
     *ppmsg = NULL;
     
@@ -861,7 +861,7 @@ int SrsHttpParser::parse_message(SrsSocket* skt, SrsHttpMessage** ppmsg)
     return ret;
 }
 
-int SrsHttpParser::parse_message_imp(SrsSocket* skt)
+int SrsHttpParser::parse_message_imp(SrsStSocket* skt)
 {
     int ret = ERROR_SUCCESS;
     

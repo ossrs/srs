@@ -85,7 +85,7 @@ int SrsHttpClient::post(SrsHttpUri* uri, string req, string& res)
         << __SRS_CRLF
         << req;
     
-    SrsSocket skt(stfd);
+    SrsStSocket skt(stfd);
     
     std::string data = ss.str();
     if ((ret = skt.write((void*)data.c_str(), data.length(), NULL)) != ERROR_SUCCESS) {

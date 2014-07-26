@@ -79,7 +79,7 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* srs_server, st_netfd_t client_stfd)
 {
     req = new SrsRequest();
     res = new SrsResponse();
-    skt = new SrsSocket(client_stfd);
+    skt = new SrsStSocket(client_stfd);
     rtmp = new SrsRtmpServer(skt);
     refer = new SrsRefer();
     bandwidth = new SrsBandwidth();
@@ -910,7 +910,7 @@ int SrsRtmpConn::check_edge_token_traverse_auth()
     }
     
     srs_assert(stsock);
-    SrsSocket* io = new SrsSocket(stsock);
+    SrsStSocket* io = new SrsStSocket(stsock);
     SrsRtmpClient* client = new SrsRtmpClient(io);
     
     ret = do_token_traverse_auth(io, client);
@@ -956,7 +956,7 @@ int SrsRtmpConn::connect_server(int origin_index, st_netfd_t* pstsock)
     return ret;
 }
 
-int SrsRtmpConn::do_token_traverse_auth(SrsSocket* io, SrsRtmpClient* client)
+int SrsRtmpConn::do_token_traverse_auth(SrsStSocket* io, SrsRtmpClient* client)
 {
     int ret = ERROR_SUCCESS;
     

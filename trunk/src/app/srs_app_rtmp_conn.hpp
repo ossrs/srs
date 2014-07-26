@@ -41,7 +41,7 @@ class SrsSource;
 class SrsRefer;
 class SrsConsumer;
 class SrsMessage;
-class SrsSocket;
+class SrsStSocket;
 #ifdef SRS_AUTO_HTTP_CALLBACK    
 class SrsHttpHooks;
 #endif
@@ -58,7 +58,7 @@ class SrsRtmpConn : public virtual SrsConnection, public virtual ISrsReloadHandl
 private:
     SrsRequest* req;
     SrsResponse* res;
-    SrsSocket* skt;
+    SrsStSocket* skt;
     SrsRtmpServer* rtmp;
     SrsRefer* refer;
     SrsBandwidth* bandwidth;
@@ -95,7 +95,7 @@ private:
 private:
     virtual int check_edge_token_traverse_auth();
     virtual int connect_server(int origin_index, st_netfd_t* pstsock);
-    virtual int do_token_traverse_auth(SrsSocket* io, SrsRtmpClient* client);
+    virtual int do_token_traverse_auth(SrsStSocket* io, SrsRtmpClient* client);
 private:
     virtual int http_hooks_on_connect();
     virtual void http_hooks_on_close();
