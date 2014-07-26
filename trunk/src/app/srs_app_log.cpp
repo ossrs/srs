@@ -197,7 +197,9 @@ void SrsFastLog::error(const char* tag, int context_id, const char* fmt, ...)
     va_end(ap);
 
     // add strerror() to error msg.
-    size += snprintf(log_data + size, LOG_MAX_SIZE - size, "(%s)", strerror(errno));
+    if (errno != 0) {
+        size += snprintf(log_data + size, LOG_MAX_SIZE - size, "(%s)", strerror(errno));
+    }
 
     write_log(fd, log_data, size, SrsLogLevel::Error);
 }

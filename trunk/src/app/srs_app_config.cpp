@@ -23,6 +23,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_config.hpp>
 
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -1403,6 +1404,18 @@ int SrsConfig::check_config()
         ret = ERROR_SYSTEM_CONFIG_INVALID;
         srs_error("directive max_connections invalid, max_connections=%d, ret=%d", get_max_connections(), ret);
         return ret;
+    }
+    
+    // check max connections of system limits
+    if (true) {
+        int max_open_files = sysconf(_SC_OPEN_MAX);
+        if (get_max_connections() > max_open_files) {
+            ret = ERROR_SYSTEM_CONFIG_INVALID;
+            srs_error("invalid max_connections=%d, system limit to %d, ret=%d. "
+                "you can login as root and set the limit: ulimit -HSn %d", get_max_connections(), max_open_files,
+                ret, get_max_connections());
+            return ret;
+        }
     }
     
     ////////////////////////////////////////////////////////////////////////
