@@ -45,21 +45,6 @@ MockEmptyLog::~MockEmptyLog()
 {
 }
 
-int MockEmptyLog::on_reload_log_tank()
-{
-    return ERROR_SUCCESS;
-}
-
-int MockEmptyLog::on_reload_log_level()
-{
-    return ERROR_SUCCESS;
-}
-
-int MockEmptyLog::on_reload_log_file()
-{
-    return ERROR_SUCCESS;
-}
-
 void __srs_bytes_print(char* pa, int size)
 {
     for(int i = 0; i < size; i++) {

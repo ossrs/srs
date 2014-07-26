@@ -61,10 +61,6 @@ private:
 public:
     MockEmptyLog(int level);
     virtual ~MockEmptyLog();
-public:
-    virtual int on_reload_log_tank();
-    virtual int on_reload_log_level();
-    virtual int on_reload_log_file();
 };
 
 #endif
