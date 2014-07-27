@@ -526,7 +526,7 @@ void srs_update_disk_stat()
             unsigned int ticks = r.ticks - o.ticks;
             
             // busy in [0, 1], where 0.1532 means 15.32%
-            r.busy = srs_min(1, (float)(ticks / delta_ms));
+            r.busy = (float)(ticks / delta_ms);
         }
     }
     
