@@ -194,7 +194,6 @@ SrsProcSystemStat::SrsProcSystemStat()
     sample_time = 0;
     percent = 0;
     total_delta = 0;
-    memset(label, 0, sizeof(label));
     user = 0;
     nice = 0;
     sys = 0;
@@ -229,21 +228,29 @@ bool get_proc_system_stat(SrsProcSystemStat& r)
         return false;
     }
     
-    for (;;) {
-        int ret = fscanf(f, "%4s %lu %lu %lu %lu %lu "
-            "%lu %lu %lu %lu\n", 
-            r.label, &r.user, &r.nice, &r.sys, &r.idle, &r.iowait,
+    r.ok = false;
+    
+    static char buf[1024];
+    while (fgets(buf, sizeof(buf), f)) {
+        if (strncmp(buf, "cpu ", 4) != 0) {
+            continue;
+        }
+        
+        int ret = sscanf(buf, "cpu %llu %llu %llu %llu %llu "
+            "%llu %llu %llu %llu\n", 
+            &r.user, &r.nice, &r.sys, &r.idle, &r.iowait,
             &r.irq, &r.softirq, &r.steal, &r.guest);
-        r.ok = false;
+        srs_assert(ret == 9);
+
+        // matched ok.
+        r.ok = true;
         
-        if (ret == EOF) {
-            break;
-        }
-        
-        if (strcmp("cpu", r.label) == 0) {
-            r.ok = true;
-            break;
-        }
+        // @see: http://tester-higkoo.googlecode.com/svn-history/r14/trunk/Tools/iostat/iostat.c
+        // add the interrupts to sys.
+        // TODO: FIXME: check out it.
+        r.sys += r.irq + r.softirq;
+
+        break;
     }
     
     fclose(f);
@@ -358,6 +365,14 @@ SrsDiskStat::SrsDiskStat()
     
     pgpgin = 0;
     pgpgout = 0;
+    
+    rd_ios = rd_merges = 0;
+    rd_sectors = 0;
+    rd_ticks = 0;
+    
+    wr_ios = wr_merges = 0;
+    wr_sectors = 0;
+    wr_ticks = nb_current = ticks = aveq = 0;
 }
 
 static SrsDiskStat _srs_disk_stat;
@@ -403,6 +418,64 @@ bool srs_get_disk_vmstat_stat(SrsDiskStat& r)
 
 bool srs_get_disk_diskstats_stat(SrsDiskStat& r)
 {
+    // %4d %4d %31s %u
+    // 
+    FILE* f = fopen("/proc/diskstats", "r");
+    if (f == NULL) {
+        srs_warn("open vmstat failed, ignore");
+        return false;
+    }
+    
+    r.ok = false;
+    r.sample_time = srs_get_system_time_ms();
+    
+    static char buf[1024];
+    
+    while (fgets(buf, sizeof(buf), f)) {
+        unsigned int major = 0;
+        unsigned int minor = 0;
+        static char name[32];
+        unsigned int rd_ios = 0;
+        unsigned int rd_merges = 0;
+        unsigned long long rd_sectors = 0;
+        unsigned int rd_ticks = 0;
+        unsigned int wr_ios = 0;
+        unsigned int wr_merges = 0;
+        unsigned long long wr_sectors = 0;
+        unsigned int wr_ticks = 0;
+        unsigned int nb_current = 0;
+        unsigned int ticks = 0;
+        unsigned int aveq = 0;
+        memset(name, sizeof(name), 0);
+        int ret = sscanf(buf, 
+            "%4d %4d %31s %u %u %llu %u %u %u %llu %u %u %u %u", 
+            &major, &minor, name, &rd_ios, &rd_merges,
+            &rd_sectors, &rd_ticks, &wr_ios, &wr_merges,
+            &wr_sectors, &wr_ticks, &nb_current, &ticks, &aveq);
+        
+        if (ret == EOF) {
+            break;
+        }
+        
+        if (strcmp("sda", name) == 0) {
+            r.rd_ios += rd_ios;
+            r.rd_merges += rd_merges;
+            r.rd_sectors += rd_sectors;
+            r.rd_ticks += rd_ticks;
+            r.wr_ios += wr_ios;
+            r.wr_merges += wr_merges;
+            r.wr_sectors += wr_sectors;
+            r.wr_ticks += wr_ticks;
+            r.nb_current += nb_current;
+            r.ticks += ticks;
+            r.aveq += aveq;
+        }
+    }
+    
+    fclose(f);
+    
+    r.ok = true;
+    
     return true;
 }
 

@@ -273,9 +273,6 @@ public:
     //          previous cpu total = this->total() - total_delta
     int64_t total_delta;
     
-    // always be cpu
-    char label[32];
-    
 // data of /proc/stat
 public:
     // The amount of time, measured in units  of  USER_HZ  
@@ -283,32 +280,32 @@ public:
     // sysconf(_SC_CLK_TCK)  to  obtain  the  right value)
     //
     // the system spent in user mode, 
-    unsigned long user;
+    unsigned long long user;
     // user mode with low priority (nice), 
-    unsigned long nice;
+    unsigned long long nice;
     // system mode, 
-    unsigned long sys;
+    unsigned long long sys;
     // and the idle task, respectively.
-    unsigned long idle;
+    unsigned long long idle;
 
     // In  Linux 2.6 this line includes three additional columns:
     //
     // iowait - time waiting for I/O to complete (since 2.5.41);
-    unsigned long iowait;
+    unsigned long long iowait;
     // irq - time servicing interrupts (since 2.6.0-test4); 
-    unsigned long irq;
+    unsigned long long irq;
     // softirq  -  time  servicing  softirqs  (since 2.6.0-test4).
-    unsigned long softirq;
+    unsigned long long softirq;
     
     // Since  Linux 2.6.11, there is an eighth column,
     // steal - stolen time, which is the time spent in other oper-
     // ating systems when running in a virtualized environment
-    unsigned long steal;
+    unsigned long long steal;
     
     // Since Linux 2.6.24, there is a ninth column, 
     // guest, which is the time spent running a virtual CPU for guest
     // operating systems under the control of the Linux kernel.
-    unsigned long guest;
+    unsigned long long guest;
 
 public:
     SrsProcSystemStat();
@@ -350,46 +347,56 @@ public:
     unsigned long pgpgout;
     
     // @see: https://www.kernel.org/doc/Documentation/iostats.txt
+    // @see: http://tester-higkoo.googlecode.com/svn-history/r14/trunk/Tools/iostat/iostat.c
     // @see: cat /proc/diskstats
     //
     // Number of issued reads. 
     // This is the total number of reads completed successfully.
-    unsigned long long nb_read;
+    // Read I/O operations
+    unsigned int rd_ios;
     // Number of reads merged
-    unsigned long long nb_mread;
+    // Reads merged
+    unsigned int rd_merges;
     // Number of sectors read. 
     // This is the total number of sectors read successfully.
-    unsigned long long nb_sread;
+    // Sectors read
+    unsigned long long rd_sectors;
     // Number of milliseconds spent reading. 
     // This is the total number of milliseconds spent by all reads 
     // (as measured from __make_request() to end_that_request_last()).
-    unsigned long long ms_read;
+    // Time in queue + service for read
+    unsigned int rd_ticks;
     //
     // Number of writes completed. 
     // This is the total number of writes completed successfully
-    unsigned long long nb_write;
+    // Write I/O operations
+    unsigned int wr_ios;
     // Number of writes merged Reads and writes which are adjacent 
     // to each other may be merged for efficiency. Thus two 4K 
     // reads may become one 8K read before it is ultimately 
     // handed to the disk, and so it will be counted (and queued) 
     // as only one I/O. This field lets you know how often this was done.
-    unsigned long long nb_mwrite;
+    // Writes merged
+    unsigned int wr_merges;
     // Number of sectors written. 
     // This is the total number of sectors written successfully.
-    unsigned long long nb_swrite;
+    // Sectors written
+    unsigned long long wr_sectors;
     // Number of milliseconds spent writing . 
     // This is the total number of milliseconds spent by all writes 
     // (as measured from __make_request() to end_that_request_last()).
-    unsigned long long ms_write;
+    // Time in queue + service for write
+    unsigned int wr_ticks;
     //
     // Number of I/Os currently in progress. 
     // The only field that should go to zero. 
     // Incremented as requests are given to appropriate request_queue_t 
     // and decremented as they finish.
-    unsigned long long nb_current;
+    unsigned int nb_current;
     // Number of milliseconds spent doing I/Os. 
     // This field is increased so long as field 9 is nonzero.
-    unsigned long long ms_total;
+    // Time of requests in queue
+    unsigned int ticks;
     // Number of milliseconds spent doing I/Os. 
     // This field is incremented at each I/O start, I/O completion, 
     // I/O merge, or read of these stats by the number of I/Os in 
@@ -397,8 +404,8 @@ public:
     // doing I/O since the last update of this field. This can 
     // provide an easy measure of both I/O completion time and 
     // the backlog that may be accumulating.
-    // weighting total.
-    unsigned long long ms_wtotal;
+    // Average queue length
+    unsigned int aveq;
 
 public:
     SrsDiskStat();
