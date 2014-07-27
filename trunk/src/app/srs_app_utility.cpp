@@ -193,6 +193,7 @@ SrsProcSystemStat::SrsProcSystemStat()
     ok = false;
     sample_time = 0;
     percent = 0;
+    total_delta = 0;
     memset(label, 0, sizeof(label));
     user = 0;
     nice = 0;
@@ -203,6 +204,11 @@ SrsProcSystemStat::SrsProcSystemStat()
     softirq = 0;
     steal = 0;
     guest = 0;
+}
+
+int64_t SrsProcSystemStat::total()
+{
+    return user + nice + sys + idle + iowait + irq + softirq + steal + guest;
 }
 
 SrsProcSelfStat* srs_get_self_proc_stat()
@@ -307,11 +313,13 @@ void srs_update_proc_stat()
         SrsProcSystemStat& o = _srs_system_cpu_system_stat;
         
         // @see: http://blog.csdn.net/nineday/article/details/1928847
-        int64_t total = (r.user + r.nice + r.sys + r.idle + r.iowait + r.irq + r.softirq + r.steal + r.guest) 
-            - (o.user + o.nice + o.sys + o.idle + o.iowait + o.irq + o.softirq + o.steal + o.guest);
-        int64_t idle = r.idle - o.idle;
-        if (total > 0) {
-            r.percent = (float)(1 - idle / (double)total);
+        // @see: http://stackoverflow.com/questions/16011677/calculating-cpu-usage-using-proc-files
+        if (o.total() > 0) {
+            r.total_delta = r.total() - o.total();
+        }
+        if (r.total_delta > 0) {
+            int64_t idle = r.idle - o.idle;
+            r.percent = (float)(1 - idle / (double)r.total_delta);
         }
         
         // upate cache.

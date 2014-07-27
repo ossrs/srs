@@ -238,6 +238,20 @@ public:
 *           = 523331687 * 1/100 (seconds)
 *           = 5233316.87 seconds
 * the cpu total seconds almost the uptime, the delta is more precise.
+* 
+* we run the command about 26minutes:
+*       [winlin@SRS ~]$ cat /proc/uptime && cat /proc/stat
+*           5276739.83 4701090.76
+*           cpu  43514105 973 8548948 466278556 4150480 190899 804937 0 0
+* where the uptime is 5276739.83s
+* cpu total = 43514105+973+8548948+466278556+4150480+190899+804937+0+0 (USER_HZ)
+*           = 523488898 (USER_HZ)
+*           = 523488898 * 1/100 (seconds)
+*           = 5234888.98 seconds
+* where:
+*       uptime delta = 1586.82s
+*       cpu total delta = 1572.11s
+* the deviation is more smaller.
 */
 class SrsProcSystemStat
 {
@@ -248,10 +262,16 @@ public:
     int64_t sample_time;
     // the percent of usage. 0.153 is 15.3%.
     float percent;
+    // the total cpu time units
+    // @remark, zero for the previous total() is zero.
+    //          the usaged_cpu_delta = total_delta * percent
+    //          previous cpu total = this->total() - total_delta
+    int64_t total_delta;
     
     // always be cpu
     char label[32];
     
+public:
     // The amount of time, measured in units  of  USER_HZ  
     // (1/100ths  of  a  second  on  most  architectures,  use
     // sysconf(_SC_CLK_TCK)  to  obtain  the  right value)
@@ -285,6 +305,9 @@ public:
     unsigned long guest;
 
     SrsProcSystemStat();
+    
+    // get total cpu units.
+    int64_t total();
 };
 
 // get system cpu stat, use cache to avoid performance problem.
