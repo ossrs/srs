@@ -415,14 +415,21 @@ bool srs_get_disk_vmstat_stat(SrsDiskStat& r)
 
 bool srs_get_disk_diskstats_stat(SrsDiskStat& r)
 {
+    r.ok = false;
+    r.sample_time = srs_get_system_time_ms();
+    
+    // if disabled, ignore all devices.
+    SrsConfDirective* conf = _srs_config->get_stats_disk_device();
+    if (conf == NULL) {
+        r.ok = true;
+        return true;
+    }
+    
     FILE* f = fopen("/proc/diskstats", "r");
     if (f == NULL) {
         srs_warn("open vmstat failed, ignore");
         return false;
     }
-    
-    r.ok = false;
-    r.sample_time = srs_get_system_time_ms();
     
     static char buf[1024];
     while (fgets(buf, sizeof(buf), f)) {
@@ -447,9 +454,14 @@ bool srs_get_disk_diskstats_stat(SrsDiskStat& r)
             &rd_sectors, &rd_ticks, &wr_ios, &wr_merges,
             &wr_sectors, &wr_ticks, &nb_current, &ticks, &aveq);
         srs_assert(ret == 14);
-        
-        // TODO: FIMXE: config it.
-        if (strcmp("sda", name) == 0) {
+
+        for (int i = 0; i < (int)conf->args.size(); i++) {
+            string name_ok = conf->args.at(i);
+            
+            if (strcmp(name_ok.c_str(), name) != 0) {
+                continue;
+            }
+            
             r.rd_ios += rd_ios;
             r.rd_merges += rd_merges;
             r.rd_sectors += rd_sectors;
@@ -461,6 +473,8 @@ bool srs_get_disk_diskstats_stat(SrsDiskStat& r)
             r.nb_current += nb_current;
             r.ticks += ticks;
             r.aveq += aveq;
+            
+            break;
         }
     }
     
@@ -477,9 +491,18 @@ void srs_update_disk_stat()
     if (!srs_get_disk_vmstat_stat(r)) {
         return;
     }
+    if (!srs_get_disk_diskstats_stat(r)) {
+        return;
+    }
     
     SrsDiskStat& o = _srs_disk_stat;
-    if (o.ok) {
+    if (!o.ok) {
+        _srs_disk_stat = r;
+        return;
+    }
+    
+    // vmstat
+    if (true) {
         int64_t duration_ms = r.sample_time - o.sample_time;
         
         if (o.pgpgin > 0 && r.pgpgin > o.pgpgin && duration_ms > 0) {
@@ -492,8 +515,6 @@ void srs_update_disk_stat()
             r.out_KBps = (r.pgpgout - o.pgpgout) * 1000 / duration_ms;
         }
     }
-    
-    _srs_disk_stat = r;
 }
 
 SrsMemInfo::SrsMemInfo()

@@ -156,6 +156,9 @@ std::string __full_conf = ""
     "    # we may retrieve more than one network device.                                                                                    \n"
     "    # default: 0                                                                                                                       \n"
     "    network_device_index    0;                                                                                                         \n"
+    "    # the device name to stat the disk iops.                                                                                           \n"
+    "    # ignore the device of /proc/diskstats if not configed.                                                                            \n"
+    "    disk_device_name sda sdb xvda xvdb;                                                                                                \n"
     "}                                                                                                                                      \n"
     "                                                                                                                                       \n"
     "#############################################################################################                                          \n"
@@ -1839,8 +1842,11 @@ VOID TEST(ConfigMainTest, ParseFullConf)
     EXPECT_EQ(9300, conf.get_heartbeat_interval());
     EXPECT_STREQ("http://127.0.0.1:8085/api/v1/servers", conf.get_heartbeat_url().c_str());
     EXPECT_STREQ("my-srs-device", conf.get_heartbeat_device_id().c_str());
-    EXPECT_EQ(0, conf.get_stats_network_device_index());
     EXPECT_FALSE(conf.get_heartbeat_summaries());
+
+    EXPECT_EQ(0, conf.get_stats_network_device_index());
+    ASSERT_TRUE(conf.get_stats_disk_device() != NULL);
+    EXPECT_EQ(4, (int)conf.get_stats_disk_device()->args.size());
     
     EXPECT_TRUE(conf.get_http_api_enabled());
     EXPECT_EQ(1985, conf.get_http_api_listen());
@@ -4632,6 +4638,16 @@ VOID TEST(ConfigMainTest, CheckConf_stats)
     if (true) {
         MockSrsConfig conf;
         EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"stats{network_device_index -1;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"stats{disk_device_name sda;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"stats{disk_device_names sda;}"));
     }
 }
 

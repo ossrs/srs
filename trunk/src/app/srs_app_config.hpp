@@ -943,6 +943,12 @@ public:
     * for example, 0 means the eth0 maybe.
     */
     virtual int                 get_stats_network_device_index();
+    /**
+    * get the disk stat device name list.
+    * the device name configed in args of directive.
+    * @return the disk device name to stat. NULL if not configed.
+    */
+    virtual SrsConfDirective*   get_stats_disk_device();
 };
 
 namespace _srs_internal
