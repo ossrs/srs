@@ -942,7 +942,7 @@ public:
     * for heartbeat to report to server, or to get the local ip.
     * for example, 0 means the eth0 maybe.
     */
-    virtual int                 get_stats_network_device_index();
+    virtual int                 get_stats_network();
     /**
     * get the disk stat device name list.
     * the device name configed in args of directive.

@@ -149,13 +149,13 @@ std::string __full_conf = ""
     "# the main cycle will retrieve the system stat,                                                                                        \n"
     "# for example, the cpu/mem/network/disk-io data,                                                                                       \n"
     "# the http api, for instance, /api/v1/summaries will show these data.                                                                  \n"
-    "# @remark the heartbeat depends on the network_device_index,                                                                           \n"
+    "# @remark the heartbeat depends on the network,                                                                           \n"
     "#       for example, the eth0 maybe the device which index is 0.                                                                       \n"
     "stats {                                                                                                                                \n"
     "    # the index of device ip.                                                                                                          \n"
     "    # we may retrieve more than one network device.                                                                                    \n"
     "    # default: 0                                                                                                                       \n"
-    "    network_device_index    0;                                                                                                         \n"
+    "    network    0;                                                                                                         \n"
     "    # the device name to stat the disk iops.                                                                                           \n"
     "    # ignore the device of /proc/diskstats if not configed.                                                                            \n"
     "    disk_device_name sda sdb xvda xvdb;                                                                                                \n"
@@ -1844,7 +1844,7 @@ VOID TEST(ConfigMainTest, ParseFullConf)
     EXPECT_STREQ("my-srs-device", conf.get_heartbeat_device_id().c_str());
     EXPECT_FALSE(conf.get_heartbeat_summaries());
 
-    EXPECT_EQ(0, conf.get_stats_network_device_index());
+    EXPECT_EQ(0, conf.get_stats_network());
     ASSERT_TRUE(conf.get_stats_disk_device() != NULL);
     EXPECT_EQ(4, (int)conf.get_stats_disk_device()->args.size());
     
@@ -4622,22 +4622,22 @@ VOID TEST(ConfigMainTest, CheckConf_stats)
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"stats{network_device_index 0;}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"stats{network 0;}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"stats{network_device_indexs 0;}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"stats{networks 0;}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"stats{network_device_index -100;}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"stats{network -100;}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"stats{network_device_index -1;}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"stats{network -1;}"));
     }
     
     if (true) {

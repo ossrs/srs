@@ -1249,7 +1249,7 @@ int SrsConfig::check_config()
         SrsConfDirective* conf = get_stats();
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
-            if (n != "network_device_index" && n != "disk_device_name") {
+            if (n != "network" && n != "disk_device_name") {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported stats directive %s, ret=%d", n.c_str(), ret);
                 return ret;
@@ -1442,10 +1442,10 @@ int SrsConfig::check_config()
     ////////////////////////////////////////////////////////////////////////
     // check stats
     ////////////////////////////////////////////////////////////////////////
-    if (get_stats_network_device_index() < 0) {
+    if (get_stats_network() < 0) {
         ret = ERROR_SYSTEM_CONFIG_INVALID;
-        srs_error("directive stats network_device_index invalid, network_device_index=%d, ret=%d", 
-            get_stats_network_device_index(), ret);
+        srs_error("directive stats network invalid, network=%d, ret=%d", 
+            get_stats_network(), ret);
         return ret;
     }
     
@@ -3178,7 +3178,7 @@ SrsConfDirective* SrsConfig::get_stats()
     return root->get("stats");
 }
 
-int SrsConfig::get_stats_network_device_index()
+int SrsConfig::get_stats_network()
 {
     SrsConfDirective* conf = get_stats();
     
@@ -3186,7 +3186,7 @@ int SrsConfig::get_stats_network_device_index()
         return SRS_CONF_DEFAULT_STATS_NETWORK_DEVICE_INDEX;
     }
     
-    conf = conf->get("network_device_index");
+    conf = conf->get("network");
     if (!conf || conf->arg0().empty()) {
         return SRS_CONF_DEFAULT_STATS_NETWORK_DEVICE_INDEX;
     }
