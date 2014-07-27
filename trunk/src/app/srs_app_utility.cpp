@@ -490,6 +490,9 @@ void srs_update_disk_stat()
     if (!srs_get_disk_diskstats_stat(r)) {
         return;
     }
+    if (!get_proc_system_stat(r.cpu)) {
+        return;
+    }
     
     SrsDiskStat& o = _srs_disk_stat;
     if (!o.ok) {
@@ -513,16 +516,16 @@ void srs_update_disk_stat()
     }
     
     // diskstats
-    if (true) {
-        SrsProcSystemStat* cpu = srs_get_system_proc_stat();
+    if (r.cpu.ok && o.cpu.ok) {
         SrsCpuInfo* cpuinfo = srs_get_cpuinfo();
+        r.cpu.total_delta = r.cpu.total() - o.cpu.total();
         
-        if (cpu->ok && cpu->total_delta > 0 
+        if (r.cpu.ok && r.cpu.total_delta > 0
             && cpuinfo->ok && cpuinfo->nb_processors > 0
             && o.ticks < r.ticks
         ) {
             // @see: print_partition_stats() of iostat.c
-            double delta_ms = cpu->total_delta * 10 / cpuinfo->nb_processors;
+            double delta_ms = r.cpu.total_delta * 10 / cpuinfo->nb_processors;
             unsigned int ticks = r.ticks - o.ticks;
             
             // busy in [0, 1], where 0.1532 means 15.32%

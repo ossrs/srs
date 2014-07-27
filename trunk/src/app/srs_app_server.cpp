@@ -74,9 +74,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // update the disk iops interval:
 //      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_DISK_STAT_RESOLUTION_TIMES
-// @remark, depends on SRS_SYS_CPU_STAT_RESOLUTION_TIMES, for the disk util
-//      depends on cpu time, so the disk stat times must be times of cpu stat time.
-//      for example, when cpu is 30, disk must be 30*1 or 30*2 ..., 30*N is ok.
 #define SRS_SYS_DISK_STAT_RESOLUTION_TIMES 60
 
 // update rusage interval:

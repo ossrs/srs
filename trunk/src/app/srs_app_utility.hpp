@@ -341,6 +341,8 @@ public:
     // @see: print_partition_stats() of iostat.c
     // but its value is [0, +], for instance, 0.1532 means 15.32%.
     float busy;
+    // for stat the busy%
+    SrsProcSystemStat cpu;
     
 public:
     // @see: cat /proc/vmstat
