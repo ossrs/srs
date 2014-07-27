@@ -304,9 +304,10 @@ OSX_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "OSX prepare failed, ret=$re
 # st-1.9
 #####################################################################################
 # check the arm flag file, if flag changed, need to rebuild the st.
+_ST_MAKE=linux-debug
 if [ $SRS_EMBEDED_CPU = YES ]; then
     # ok, arm specified, if the flag filed does not exists, need to rebuild.
-    if [[ -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st/libst.a && -f ${SRS_OBJS}/st/libst.so ]]; then
+    if [[ -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st/libst.a ]]; then
         echo "st-1.9t for arm is ok.";
     else
         # TODO: FIXME: patch the bug.
@@ -316,55 +317,34 @@ if [ $SRS_EMBEDED_CPU = YES ]; then
             rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
             unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && 
             patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
-            make CC=${SrsArmCC} AR=${SrsArmAR} LD=${SrsArmLD} RANDLIB=${SrsArmRANDLIB} EXTRA_CFLAGS="-DMD_HAVE_EPOLL" linux-debug &&
+            make CC=${SrsArmCC} AR=${SrsArmAR} LD=${SrsArmLD} RANDLIB=${SrsArmRANDLIB} EXTRA_CFLAGS="-DMD_HAVE_EPOLL" ${_ST_MAKE} &&
             cd .. && rm -rf st && ln -sf st-1.9/obj st &&
             cd .. && touch ${SRS_OBJS}/_flag.st.arm.tmp
         )
     fi
 else
-    if [ $OS_IS_OSX = YES ]; then
-        if [[ ! -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st/libst.a && -f ${SRS_OBJS}/st/libst.so ]]; then
-            echo "st-1.9t is ok.";
-        else
-            echo "build st-1.9t"; 
-            (
-                rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
-                unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && 
-                echo "we alaways patch the st, for we may build srs under arm directly" &&
-                echo "the 1.st.arm.patch is ok for x86 because it's only modify code under macro linux arm" &&
-                patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
-                make darwin-debug &&
-                cd .. && rm -rf st && ln -sf st-1.9/obj st &&
-                cd .. && rm -f ${SRS_OBJS}/_flag.st.arm.tmp
-            )
-        fi
+    if [ $SRS_OSX = YES ]; then 
+        _ST_MAKE=darwin-debug
+    fi
+    if [[ ! -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st/libst.a ]]; then
+        echo "st-1.9t is ok.";
     else
-        # arm not specified, if exists flag, need to rebuild for no-arm platform.
-        if [[ ! -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st/libst.a && -f ${SRS_OBJS}/st/libst.so ]]; then
-            echo "st-1.9t is ok.";
-        else
-            echo "build st-1.9t"; 
-            (
-                rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
-                unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && 
-                echo "we alaways patch the st, for we may build srs under arm directly" &&
-                echo "the 1.st.arm.patch is ok for x86 because it's only modify code under macro linux arm" &&
-                patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
-                make EXTRA_CFLAGS="-DMD_HAVE_EPOLL" linux-debug &&
-                cd .. && rm -rf st && ln -sf st-1.9/obj st &&
-                cd .. && rm -f ${SRS_OBJS}/_flag.st.arm.tmp
-            )
-        fi
+        echo "build st-1.9t"; 
+        (
+            rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
+            unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && 
+            echo "we alaways patch the st, for we may build srs under arm directly" &&
+            echo "the 1.st.arm.patch is ok for x86 because it's only modify code under macro linux arm" &&
+            patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
+            make ${_ST_MAKE} &&
+            cd .. && rm -rf st && ln -sf st-1.9/obj st &&
+            cd .. && rm -f ${SRS_OBJS}/_flag.st.arm.tmp
+        )
     fi
 fi
 # check status
 ret=$?; if [[ $ret -ne 0 ]]; then echo "build st-1.9 failed, ret=$ret"; exit $ret; fi
 if [ ! -f ${SRS_OBJS}/st/libst.a ]; then echo "build st-1.9 static lib failed."; exit -1; fi
-if [ OS_IS_OSX = Darwin ] then
-    if [ ! -f ${SRS_OBJS}/st/libst.dylib ]; then echo "build st-1.9 shared lib failed."; exit -1; fi
-else
-    if [ ! -f ${SRS_OBJS}/st/libst.so ]; then echo "build st-1.9 shared lib failed."; exit -1; fi
-fi
 
 #####################################################################################
 # http-parser-2.1
