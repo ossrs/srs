@@ -4530,7 +4530,17 @@ VOID TEST(ConfigMainTest, CheckConf_heartbeat)
     
     if (true) {
         MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"heartbeat{enabled on;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
         EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"heartbeat{enableds on;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"heartbeat{interval 9;}"));
     }
     
     if (true) {
@@ -4540,7 +4550,17 @@ VOID TEST(ConfigMainTest, CheckConf_heartbeat)
     
     if (true) {
         MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"heartbeat{url http://127.0.0.1:8085/api/v1/servers;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
         EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"heartbeat{urls http://127.0.0.1:8085/api/v1/servers;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"heartbeat{device_id 0;}"));
     }
     
     if (true) {
@@ -4550,12 +4570,7 @@ VOID TEST(ConfigMainTest, CheckConf_heartbeat)
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"heartbeat{device_indexs 0;}"));
-    }
-    
-    if (true) {
-        MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"heartbeat{device_index -1;}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"heartbeat{summaries on;}"));
     }
     
     if (true) {
@@ -4584,6 +4599,39 @@ VOID TEST(ConfigMainTest, CheckConf_http_api)
     if (true) {
         MockSrsConfig conf;
         EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"http_api{listens 1985;}"));
+    }
+}
+
+VOID TEST(ConfigMainTest, CheckConf_stats)
+{
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"stats{}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"statss{}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"stats{network_device_index 0;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"stats{network_device_indexs 0;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"stats{network_device_index -100;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"stats{network_device_index -1;}"));
     }
 }
 
