@@ -325,6 +325,10 @@ extern void srs_update_proc_stat();
 // @see: http://stackoverflow.com/questions/4458183/how-the-util-of-iostat-is-computed
 // for total disk io, @see: cat /proc/vmstat |grep pgpg
 // for device disk io, @see: cat /proc/diskstats
+// @remark, user can use command to test the disk io:
+//      time dd if=/dev/zero bs=1M count=2048 of=file_2G
+// @remark, the iotop is right, the iostat and dstat result seems not ok.
+//      where the dd command will give the write MBps, it's absolutely right.
 class SrsDiskStat
 {
 public:
