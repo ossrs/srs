@@ -350,6 +350,82 @@ void srs_update_proc_stat()
     }
 }
 
+SrsDiskStat::SrsDiskStat()
+{
+    ok = false;
+    sample_time = 0;
+    in_KBps = out_KBps = 0;
+    
+    pgpgin = 0;
+    pgpgout = 0;
+}
+
+static SrsDiskStat _srs_disk_stat;
+
+SrsDiskStat* srs_get_disk_stat()
+{
+    return &_srs_disk_stat;
+}
+
+bool srs_get_disk_stat(SrsDiskStat& r)
+{
+    FILE* f = fopen("/proc/vmstat", "r");
+    if (f == NULL) {
+        srs_warn("open vmstat failed, ignore");
+        return false;
+    }
+    
+    r.ok = false;
+    r.sample_time = srs_get_system_time_ms();
+    
+    for (;;) {
+        static char label[64];
+        static unsigned long value;
+        int ret = fscanf(f, "%64s %lu\n", label, &value);
+        
+        if (ret == EOF) {
+            break;
+        }
+        
+        if (strcmp("pgpgin", label) == 0) {
+            r.pgpgin = value;
+        } else if (strcmp("pgpgout", label) == 0) {
+            r.pgpgout = value;
+        }
+    }
+    
+    fclose(f);
+    
+    r.ok = true;
+    
+    return true;
+}
+
+void srs_update_disk_stat()
+{
+    SrsDiskStat r;
+    if (!srs_get_disk_stat(r)) {
+        return;
+    }
+    
+    SrsDiskStat& o = _srs_disk_stat;
+    if (o.ok) {
+        int64_t duration_ms = r.sample_time - o.sample_time;
+        
+        if (o.pgpgin > 0 && r.pgpgin > o.pgpgin && duration_ms > 0) {
+            // KBps = KB * 1000 / ms = KB/s
+            r.in_KBps = (r.pgpgin - o.pgpgin) * 1000 / duration_ms;
+        }
+        
+        if (o.pgpgout > 0 && r.pgpgout > o.pgpgout && duration_ms > 0) {
+            // KBps = KB * 1000 / ms = KB/s
+            r.out_KBps = (r.pgpgout - o.pgpgout) * 1000 / duration_ms;
+        }
+    }
+    
+    _srs_disk_stat = r;
+}
+
 SrsMemInfo::SrsMemInfo()
 {
     ok = false;
@@ -610,19 +686,19 @@ SrsNetworkRtmpServer* srs_get_network_rtmp_server()
 
 // @see: http://stackoverflow.com/questions/5992211/list-of-possible-internal-socket-statuses-from-proc
 enum {
-    SYS_TCP_ESTABLISHED = 1,
-    SYS_TCP_SYN_SENT,
-    SYS_TCP_SYN_RECV,
-    SYS_TCP_FIN_WAIT1,
-    SYS_TCP_FIN_WAIT2,
-    SYS_TCP_TIME_WAIT,
-    SYS_TCP_CLOSE,
-    SYS_TCP_CLOSE_WAIT,
-    SYS_TCP_LAST_ACK,
-    SYS_TCP_LISTEN,
-    SYS_TCP_CLOSING,    /* Now a valid state */
+    SYS_TCP_ESTABLISHED =      0x01,
+    SYS_TCP_SYN_SENT,       // 0x02
+    SYS_TCP_SYN_RECV,       // 0x03
+    SYS_TCP_FIN_WAIT1,      // 0x04
+    SYS_TCP_FIN_WAIT2,      // 0x05
+    SYS_TCP_TIME_WAIT,      // 0x06
+    SYS_TCP_CLOSE,          // 0x07
+    SYS_TCP_CLOSE_WAIT,     // 0x08
+    SYS_TCP_LAST_ACK,       // 0x09
+    SYS_TCP_LISTEN,         // 0x0A
+    SYS_TCP_CLOSING,        // 0x0B /* Now a valid state */
 
-    SYS_TCP_MAX_STATES  /* Leave at the end! */
+    SYS_TCP_MAX_STATES      // 0x0C /* Leave at the end! */
 };
 
 void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
@@ -811,6 +887,7 @@ void srs_api_dump_summaries(std::stringstream& ss)
     SrsPlatformInfo* p = srs_get_platform_info();
     SrsNetworkDevices* n = srs_get_network_devices();
     SrsNetworkRtmpServer* nrs = srs_get_network_rtmp_server();
+    SrsDiskStat* d = srs_get_disk_stat();
     
     float self_mem_percent = 0;
     if (m->MemTotal > 0) {
@@ -847,6 +924,7 @@ void srs_api_dump_summaries(std::stringstream& ss)
             << __SRS_JFIELD_ORG("self_cpu_stat_ok", (u->ok? "true":"false")) << __SRS_JFIELD_CONT
             << __SRS_JFIELD_ORG("system_cpu_stat_ok", (s->ok? "true":"false")) << __SRS_JFIELD_CONT
             << __SRS_JFIELD_ORG("cpuinfo_ok", (c->ok? "true":"false")) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_ORG("disk_ok", (d->ok? "true":"false")) << __SRS_JFIELD_CONT
             << __SRS_JFIELD_ORG("meminfo_ok", (m->ok? "true":"false")) << __SRS_JFIELD_CONT
             << __SRS_JFIELD_ORG("platform_ok", (p->ok? "true":"false")) << __SRS_JFIELD_CONT
             << __SRS_JFIELD_ORG("network_ok", (n_ok? "true":"false")) << __SRS_JFIELD_CONT
@@ -865,6 +943,8 @@ void srs_api_dump_summaries(std::stringstream& ss)
             << __SRS_JOBJECT_END << __SRS_JFIELD_CONT
             << __SRS_JFIELD_ORG("system", __SRS_JOBJECT_START)
                 << __SRS_JFIELD_ORG("cpu_percent", s->percent) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("disk_in_KBps", d->in_KBps) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("disk_out_KBps", d->out_KBps) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_ORG("mem_ram_kbyte", m->MemTotal) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_ORG("mem_ram_percent", m->percent_ram) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_ORG("mem_swap_kbyte", m->SwapTotal) << __SRS_JFIELD_CONT

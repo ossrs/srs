@@ -72,6 +72,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_CPU_STAT_RESOLUTION_TIMES
 #define SRS_SYS_CPU_STAT_RESOLUTION_TIMES 30
 
+// update the disk iops interval:
+//      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_DISK_STAT_RESOLUTION_TIMES
+// @remark, depends on SRS_SYS_CPU_STAT_RESOLUTION_TIMES, for the disk util
+//      depends on cpu time, so the disk stat times must be times of cpu stat time.
+//      for example, when cpu is 30, disk must be 30*1 or 30*2 ..., 30*N is ok.
+#define SRS_SYS_DISK_STAT_RESOLUTION_TIMES 60
+
 // update rusage interval:
 //      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_MEMINFO_RESOLUTION_TIMES
 #define SRS_SYS_MEMINFO_RESOLUTION_TIMES 60
@@ -669,6 +676,7 @@ int SrsServer::do_cycle()
     int max = srs_max(0, SRS_SYS_TIME_RESOLUTION_MS_TIMES);
     max = srs_max(max, SRS_SYS_RUSAGE_RESOLUTION_TIMES);
     max = srs_max(max, SRS_SYS_CPU_STAT_RESOLUTION_TIMES);
+    max = srs_max(max, SRS_SYS_DISK_STAT_RESOLUTION_TIMES);
     max = srs_max(max, SRS_SYS_MEMINFO_RESOLUTION_TIMES);
     max = srs_max(max, SRS_SYS_PLATFORM_INFO_RESOLUTION_TIMES);
     max = srs_max(max, SRS_SYS_NETWORK_DEVICE_RESOLUTION_TIMES);
@@ -719,8 +727,12 @@ int SrsServer::do_cycle()
                 srs_update_system_rusage();
             }
             if ((i % SRS_SYS_CPU_STAT_RESOLUTION_TIMES) == 0) {
-                srs_info("update cpu info, usage.");
+                srs_info("update cpu info, cpu usage.");
                 srs_update_proc_stat();
+            }
+            if ((i % SRS_SYS_DISK_STAT_RESOLUTION_TIMES) == 0) {
+                srs_info("update disk info, disk iops.");
+                srs_update_disk_stat();
             }
             if ((i % SRS_SYS_MEMINFO_RESOLUTION_TIMES) == 0) {
                 srs_info("update memory info, usage/free.");

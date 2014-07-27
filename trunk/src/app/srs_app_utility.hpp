@@ -59,8 +59,10 @@ public:
     // the time in ms when sample.
     int64_t sample_time;
     
+public:
     rusage r;
     
+public:
     SrsRusage();
 };
 
@@ -81,6 +83,8 @@ public:
     // the percent of usage. 0.153 is 15.3%.
     float percent;
     
+// data of /proc/[pid]/stat
+public:
     // pid %d      The process ID.
     int pid;
     // comm %s     The  filename  of  the  executable,  in parentheses. This is visible whether or not the executable is
@@ -219,6 +223,7 @@ public:
     //             Guest time of the process’s children, measured in clock ticks (divide by sysconf(_SC_CLK_TCK).
     long cguest_time;
     
+public:
     SrsProcSelfStat();
 };
 
@@ -271,6 +276,7 @@ public:
     // always be cpu
     char label[32];
     
+// data of /proc/stat
 public:
     // The amount of time, measured in units  of  USER_HZ  
     // (1/100ths  of  a  second  on  most  architectures,  use
@@ -304,6 +310,7 @@ public:
     // operating systems under the control of the Linux kernel.
     unsigned long guest;
 
+public:
     SrsProcSystemStat();
     
     // get total cpu units.
@@ -316,6 +323,40 @@ extern SrsProcSelfStat* srs_get_self_proc_stat();
 extern SrsProcSystemStat* srs_get_system_proc_stat();
 // the deamon st-thread will update it.
 extern void srs_update_proc_stat();
+
+// stat disk iops
+// @see: http://stackoverflow.com/questions/4458183/how-the-util-of-iostat-is-computed
+// for total disk io, @see: cat /proc/vmstat |grep pgpg
+// for device disk io, @see: cat /proc/diskstats
+class SrsDiskStat
+{
+public:
+    // whether the data is ok.
+    bool ok;
+    // the time in ms when sample.
+    int64_t sample_time;
+    // input(read) KBytes per seconds
+    int in_KBps;
+    // output(write) KBytes per seconds
+    int out_KBps;
+    
+public:
+    // @see: cat /proc/vmstat
+    // the in(read) page count, pgpgin*1024 is the read bytes.
+    // Total number of kilobytes the system paged in from disk per second.
+    unsigned long pgpgin;
+    // the out(write) page count, pgpgout*1024 is the write bytes.
+    // Total number of kilobytes the system paged out to disk per second.
+    unsigned long pgpgout;
+
+public:
+    SrsDiskStat();
+};
+
+// get disk stat, use cache to avoid performance problem.
+extern SrsDiskStat* srs_get_disk_stat();
+// the deamon st-thread will update it.
+extern void srs_update_disk_stat();
 
 // stat system memory info
 // @see: cat /proc/meminfo 
@@ -330,6 +371,8 @@ public:
     float percent_ram;
     float percent_swap;
     
+// data of /proc/meminfo
+public:
     // MemActive = MemTotal - MemFree
     int64_t MemActive;
     // RealInUse = MemActive - Buffers - Cached
@@ -347,6 +390,7 @@ public:
     int64_t SwapTotal;
     int64_t SwapFree;
     
+public:
     SrsMemInfo();
 };
 
@@ -357,17 +401,21 @@ extern void srs_update_meminfo();
 
 // system cpu hardware info.
 // @see: cat /proc/cpuinfo 
+// @remark, we use sysconf(_SC_NPROCESSORS_CONF) to get the cpu count.
 class SrsCpuInfo
 {
 public:
     // whether the data is ok.
     bool ok;
     
+// data of /proc/cpuinfo
+public:
     // The number of processors configured.
     int nb_processors;
     // The number of processors currently online (available).
     int nb_processors_online;
     
+public:
     SrsCpuInfo();
 };
 
@@ -384,6 +432,7 @@ public:
     // srs startup time, in ms.
     int64_t srs_startup_time;
     
+public:
     // @see: cat /proc/uptime
     // system startup time in seconds.
     double os_uptime;
@@ -397,6 +446,7 @@ public:
     double load_five_minutes;
     double load_fifteen_minutes;
     
+public:
     SrsPlatformInfo();
 };
 
@@ -418,6 +468,7 @@ public:
     // the sample time in ms.
     int64_t sample_time;
     
+public:
     // data for receive.
     unsigned long long rbytes;
     unsigned long rpackets;
@@ -438,6 +489,7 @@ public:
     unsigned long scarrier;
     unsigned long scompressed;
     
+public:
     SrsNetworkDevices();
 };
 
@@ -457,6 +509,7 @@ public:
     // the sample time in ms.
     int64_t sample_time;
     
+public:
     // data for receive.
     int64_t rbytes;
     int rkbps;
@@ -476,6 +529,7 @@ public:
     int nb_conn_sys_ls; // listen
     int nb_conn_srs;
     
+public:
     SrsNetworkRtmpServer();
 };
     
