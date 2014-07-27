@@ -610,7 +610,6 @@ extern SrsNetworkRtmpServer* srs_get_network_rtmp_server();
 extern void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps);
 
 // get local ip, fill to @param ips
-extern void srs_retrieve_local_ipv4_ips();
 extern std::vector<std::string>& srs_get_local_ipv4_ips();
 
 // get local or peer ip.

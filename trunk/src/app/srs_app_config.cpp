@@ -44,6 +44,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_app_source.hpp>
 #include <srs_kernel_file.hpp>
+#include <srs_app_utility.hpp>
 
 using namespace _srs_internal;
 
@@ -1447,6 +1448,30 @@ int SrsConfig::check_config()
         srs_error("directive stats network invalid, network=%d, ret=%d", 
             get_stats_network(), ret);
         return ret;
+    }
+    if (true) {
+        vector<std::string> ips = srs_get_local_ipv4_ips();
+        int index = get_stats_network();
+        if (index >= (int)ips.size()) {
+            ret = ERROR_SYSTEM_CONFIG_INVALID;
+            srs_error("stats network invalid, total local ip count=%d, index=%d, ret=%d",
+                (int)ips.size(), index, ret);
+            return ret;
+        }
+        srs_warn("stats network use index=%d, ip=%s", index, ips.at(index).c_str());
+    }
+    if (true) {
+        SrsConfDirective* conf = get_stats_disk_device();
+        if (conf == NULL || (int)conf->args.size() <= 0) {
+            srs_warn("stats disk not configed, disk iops disabled.");
+        } else {
+            string disks;
+            for (int i = 0; i < (int)conf->args.size(); i++) {
+                disks += conf->args.at(i);
+                disks += " ";
+            }
+            srs_warn("stats disk list: %s", disks.c_str());
+        }
     }
     
     ////////////////////////////////////////////////////////////////////////

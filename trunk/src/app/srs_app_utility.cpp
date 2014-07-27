@@ -943,7 +943,7 @@ void retrieve_local_ipv4_ips()
             
             std::string ip = buf;
             if (ip != SRS_CONSTS_LOCALHOST) {
-                srs_trace("retrieve local ipv4 addresses: %s", ip.c_str());
+                srs_trace("retrieve local ipv4 ip=%s, index=%d", ip.c_str(), (int)ips.size());
                 ips.push_back(ip);
             }
         }
