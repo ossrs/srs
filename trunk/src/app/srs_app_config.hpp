@@ -74,8 +74,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_ENABLED false
 #define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_INTERVAL 9.9
 #define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_URL "http://"SRS_CONSTS_LOCALHOST":8085/api/v1/servers"
-#define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_INDEX 0
 #define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_SUMMARIES false
+
+#define SRS_CONF_DEFAULT_STATS_NETWORK_DEVICE_INDEX 0
 
 #define SRS_CONF_DEFAULT_STAGE_PLAY_USER_INTERVAL_MS 10000
 #define SRS_CONF_DEFAULT_STAGE_PUBLISH_USER_INTERVAL_MS 10000
@@ -926,14 +927,22 @@ public:
     */
     virtual std::string         get_heartbeat_device_id();
     /**
-    * get the network device index, to report to server.
-    * for example, 0 means the eth0 maybe.
-    */
-    virtual int                 get_heartbeat_device_index();
-    /**
     * whether report with summaries of http api: /api/v1/summaries.
     */
     virtual bool                get_heartbeat_summaries();
+// stats section
+private:
+    /**
+    * get the stats directive.
+    */
+    virtual SrsConfDirective*   get_stats();
+public:
+    /**
+    * get the network device index, used to retrieve the ip of device,
+    * for heartbeat to report to server, or to get the local ip.
+    * for example, 0 means the eth0 maybe.
+    */
+    virtual int                 get_stats_network_device_index();
 };
 
 namespace _srs_internal

@@ -1202,7 +1202,7 @@ int SrsConfig::check_config()
         if (n != "listen" && n != "pid" && n != "chunk_size" && n != "ff_log_dir" 
             && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_file"
             && n != "max_connections" && n != "daemon" && n != "heartbeat"
-            && n != "http_api" && n != "http_stream" && n != "vhost"
+            && n != "http_api" && n != "http_stream" && n != "stats" && n != "vhost"
             && n != "pithy_print") 
         {
             ret = ERROR_SYSTEM_CONFIG_INVALID;
@@ -1237,10 +1237,21 @@ int SrsConfig::check_config()
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
             if (n != "enabled" && n != "interval" && n != "url" 
-                && n != "device_id" && n != "device_index" && n != "summaries"
+                && n != "device_id" && n != "summaries"
             ) {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported heartbeat directive %s, ret=%d", n.c_str(), ret);
+                return ret;
+            }
+        }
+    }
+    if (true) {
+        SrsConfDirective* conf = get_stats();
+        for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
+            string n = conf->at(i)->name;
+            if (n != "network_device_index") {
+                ret = ERROR_SYSTEM_CONFIG_INVALID;
+                srs_error("unsupported stats directive %s, ret=%d", n.c_str(), ret);
                 return ret;
             }
         }
@@ -1427,10 +1438,14 @@ int SrsConfig::check_config()
             get_heartbeat_interval(), ret);
         return ret;
     }
-    if (get_heartbeat_device_index() < 0) {
+    
+    ////////////////////////////////////////////////////////////////////////
+    // check stats
+    ////////////////////////////////////////////////////////////////////////
+    if (get_stats_network_device_index() < 0) {
         ret = ERROR_SYSTEM_CONFIG_INVALID;
-        srs_error("directive heartbeat device_index invalid, device_index=%d, ret=%d", 
-            get_heartbeat_device_index(), ret);
+        srs_error("directive stats network_device_index invalid, network_device_index=%d, ret=%d", 
+            get_stats_network_device_index(), ret);
         return ret;
     }
     
@@ -3142,22 +3157,6 @@ string SrsConfig::get_heartbeat_device_id()
     return conf->arg0();
 }
 
-int SrsConfig::get_heartbeat_device_index()
-{
-    SrsConfDirective* conf = get_heartbeart();
-    
-    if (!conf) {
-        return SRS_CONF_DEFAULT_HTTP_HEAETBEAT_INDEX;
-    }
-    
-    conf = conf->get("device_index");
-    if (!conf || conf->arg0().empty()) {
-        return SRS_CONF_DEFAULT_HTTP_HEAETBEAT_INDEX;
-    }
-    
-    return ::atoi(conf->arg0().c_str());
-}
-
 bool SrsConfig::get_heartbeat_summaries()
 {
     SrsConfDirective* conf = get_heartbeart();
@@ -3172,6 +3171,27 @@ bool SrsConfig::get_heartbeat_summaries()
     }
     
     return true;
+}
+
+SrsConfDirective* SrsConfig::get_stats()
+{
+    return root->get("stats");
+}
+
+int SrsConfig::get_stats_network_device_index()
+{
+    SrsConfDirective* conf = get_stats();
+    
+    if (!conf) {
+        return SRS_CONF_DEFAULT_STATS_NETWORK_DEVICE_INDEX;
+    }
+    
+    conf = conf->get("network_device_index");
+    if (!conf || conf->arg0().empty()) {
+        return SRS_CONF_DEFAULT_STATS_NETWORK_DEVICE_INDEX;
+    }
+    
+    return ::atoi(conf->arg0().c_str());
 }
 
 namespace _srs_internal

@@ -96,10 +96,6 @@ std::string __full_conf = ""
     "    url             http://127.0.0.1:8085/api/v1/servers;                                                                              \n"
     "    # the id of devide.                                                                                                                \n"
     "    device_id       \"my-srs-device\";                                                                                                 \n"
-    "    # the index of device ip.                                                                                                          \n"
-    "    # we may retrieve more than one network device.                                                                                    \n"
-    "    # default: 0                                                                                                                       \n"
-    "    device_index    0;                                                                                                                 \n"
     "    # whether report with summaries                                                                                                    \n"
     "    # if true, put /api/v1/summaries to the request data:                                                                              \n"
     "    #   {                                                                                                                              \n"
@@ -148,6 +144,18 @@ std::string __full_conf = ""
     "    # the default dir for http root.                                                                                                   \n"
     "    # default: ./objs/nginx/html                                                                                                       \n"
     "    dir             ./objs/nginx/html;                                                                                                 \n"
+    "}                                                                                                                                      \n"
+    "# system statistics section.                                                                                                           \n"
+    "# the main cycle will retrieve the system stat,                                                                                        \n"
+    "# for example, the cpu/mem/network/disk-io data,                                                                                       \n"
+    "# the http api, for instance, /api/v1/summaries will show these data.                                                                  \n"
+    "# @remark the heartbeat depends on the network_device_index,                                                                           \n"
+    "#       for example, the eth0 maybe the device which index is 0.                                                                       \n"
+    "stats {                                                                                                                                \n"
+    "    # the index of device ip.                                                                                                          \n"
+    "    # we may retrieve more than one network device.                                                                                    \n"
+    "    # default: 0                                                                                                                       \n"
+    "    network_device_index    0;                                                                                                         \n"
     "}                                                                                                                                      \n"
     "                                                                                                                                       \n"
     "#############################################################################################                                          \n"
@@ -1132,10 +1140,10 @@ VOID TEST(ConfigTest, CheckMacros)
 #ifndef SRS_CONF_DEFAULT_HTTP_HEAETBEAT_URL
     EXPECT_TRUE(false);
 #endif
-#ifndef SRS_CONF_DEFAULT_HTTP_HEAETBEAT_INDEX
+#ifndef SRS_CONF_DEFAULT_HTTP_HEAETBEAT_SUMMARIES
     EXPECT_TRUE(false);
 #endif
-#ifndef SRS_CONF_DEFAULT_HTTP_HEAETBEAT_SUMMARIES
+#ifndef SRS_CONF_DEFAULT_STATS_NETWORK_DEVICE_INDEX
     EXPECT_TRUE(false);
 #endif
 #ifndef SRS_CONF_DEFAULT_STAGE_PLAY_USER_INTERVAL_MS
@@ -1831,7 +1839,7 @@ VOID TEST(ConfigMainTest, ParseFullConf)
     EXPECT_EQ(9300, conf.get_heartbeat_interval());
     EXPECT_STREQ("http://127.0.0.1:8085/api/v1/servers", conf.get_heartbeat_url().c_str());
     EXPECT_STREQ("my-srs-device", conf.get_heartbeat_device_id().c_str());
-    EXPECT_EQ(0, conf.get_heartbeat_device_index());
+    EXPECT_EQ(0, conf.get_stats_network_device_index());
     EXPECT_FALSE(conf.get_heartbeat_summaries());
     
     EXPECT_TRUE(conf.get_http_api_enabled());

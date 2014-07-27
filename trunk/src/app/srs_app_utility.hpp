@@ -348,6 +348,8 @@ public:
     // the out(write) page count, pgpgout*1024 is the write bytes.
     // Total number of kilobytes the system paged out to disk per second.
     unsigned long pgpgout;
+    
+    // @see: https://www.kernel.org/doc/Documentation/iostats.txt
 
 public:
     SrsDiskStat();

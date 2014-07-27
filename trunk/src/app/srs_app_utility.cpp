@@ -367,7 +367,7 @@ SrsDiskStat* srs_get_disk_stat()
     return &_srs_disk_stat;
 }
 
-bool srs_get_disk_stat(SrsDiskStat& r)
+bool srs_get_disk_vmstat_stat(SrsDiskStat& r)
 {
     FILE* f = fopen("/proc/vmstat", "r");
     if (f == NULL) {
@@ -401,10 +401,15 @@ bool srs_get_disk_stat(SrsDiskStat& r)
     return true;
 }
 
+bool srs_get_disk_diskstats_stat(SrsDiskStat& r)
+{
+    return true;
+}
+
 void srs_update_disk_stat()
 {
     SrsDiskStat r;
-    if (!srs_get_disk_stat(r)) {
+    if (!srs_get_disk_vmstat_stat(r)) {
         return;
     }
     
