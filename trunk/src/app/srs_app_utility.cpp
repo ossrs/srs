@@ -680,6 +680,7 @@ SrsNetworkRtmpServer::SrsNetworkRtmpServer()
     sample_time = rbytes = sbytes = 0;
     nb_conn_sys = nb_conn_srs = 0;
     nb_conn_sys_et = nb_conn_sys_tw = nb_conn_sys_ls = 0;
+    nb_conn_sys_udp = 0;
 }
 
 static SrsNetworkRtmpServer _srs_network_rtmp_server;
@@ -710,6 +711,9 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
 {
     SrsNetworkRtmpServer& r = _srs_network_rtmp_server;
     
+    // reset total.
+    r.nb_conn_sys = 0;
+    
     if (true) {
         FILE* f = fopen("/proc/net/tcp", "r");
         if (f == NULL) {
@@ -725,13 +729,12 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
         int nb_conn_sys_time_wait = 0;
         int nb_conn_sys_listen = 0;
         int nb_conn_sys_other = 0;
-        for (;;) {
+        
+        // @see: http://tester-higkoo.googlecode.com/svn-history/r14/trunk/Tools/iostat/iostat.c
+        while (fgets(buf, sizeof(buf), f)) {
             int st = 0;
-    
-            int ret = fscanf(f, "%*s %*s %*s %2x\n", &st);
-            // ignore to end.
-            fgets(buf, sizeof(buf), f);
-                
+            int ret = sscanf(buf, "%*s %*s %*s %2x\n", &st);
+            
             if (ret == 1) {
                 if (st == SYS_TCP_ESTABLISHED) {
                     nb_conn_sys_established++;
@@ -753,6 +756,38 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
         r.nb_conn_sys_et = nb_conn_sys_established;
         r.nb_conn_sys_tw = nb_conn_sys_time_wait;
         r.nb_conn_sys_ls = nb_conn_sys_listen;
+    
+        fclose(f);
+    }
+    
+    if (true) {
+        FILE* f = fopen("/proc/net/udp", "r");
+        if (f == NULL) {
+            srs_warn("open proc network udp failed, ignore");
+            return;
+        }
+        
+        // ignore title.
+        static char buf[1024];
+        fgets(buf, sizeof(buf), f);
+    
+        // all udp is close state.
+        int nb_conn_sys_close = 0;
+        
+        // @see: http://tester-higkoo.googlecode.com/svn-history/r14/trunk/Tools/iostat/iostat.c
+        while (fgets(buf, sizeof(buf), f)) {
+            int st = 0;
+            int ret = sscanf(buf, "%*s %*s %*s %2x\n", &st);
+            
+            if (ret == EOF) {
+                break;
+            }
+            
+            nb_conn_sys_close++;
+        }
+        
+        r.nb_conn_sys += nb_conn_sys_close;
+        r.nb_conn_sys_udp = nb_conn_sys_close;
     
         fclose(f);
     }
@@ -973,6 +1008,7 @@ void srs_api_dump_summaries(std::stringstream& ss)
                 << __SRS_JFIELD_ORG("conn_sys_et", nrs->nb_conn_sys_et) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_ORG("conn_sys_tw", nrs->nb_conn_sys_tw) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_ORG("conn_sys_ls", nrs->nb_conn_sys_ls) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("conn_sys_udp", nrs->nb_conn_sys_udp) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_ORG("conn_srs", nrs->nb_conn_srs)
             << __SRS_JOBJECT_END
         << __SRS_JOBJECT_END
