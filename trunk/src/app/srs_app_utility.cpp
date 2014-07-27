@@ -283,6 +283,17 @@ bool get_proc_self_stat(SrsProcSelfStat& r)
 
 void srs_update_proc_stat()
 {
+    // always assert the USER_HZ is 1/100ths
+    // @see: http://stackoverflow.com/questions/7298646/calculating-user-nice-sys-idle-iowait-irq-and-sirq-from-proc-stat/7298711
+    static bool user_hz_assert = false;
+    if (!user_hz_assert) {
+        user_hz_assert = true;
+        
+        int USER_HZ = sysconf(_SC_CLK_TCK);
+        srs_trace("USER_HZ=%d", USER_HZ);
+        srs_assert(USER_HZ == 100);
+    }
+    
     // system cpu stat
     if (true) {
         SrsProcSystemStat r;

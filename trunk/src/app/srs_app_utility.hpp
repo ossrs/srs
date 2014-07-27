@@ -49,6 +49,7 @@ extern int srs_socket_connect(std::string server, int port, int64_t timeout, st_
 */
 extern int srs_get_log_level(std::string level);
 
+// current process resouce usage.
 // @see: man getrusage
 class SrsRusage
 {
@@ -68,6 +69,7 @@ extern SrsRusage* srs_get_system_rusage();
 // the deamon st-thread will update it.
 extern void srs_update_system_rusage();
 
+// to stat the process info.
 // @see: man 5 proc, /proc/[pid]/stat
 class SrsProcSelfStat
 {
@@ -220,7 +222,23 @@ public:
     SrsProcSelfStat();
 };
 
+// to stat the cpu time.
 // @see: man 5 proc, /proc/stat
+/**
+* about the cpu time, @see: http://stackoverflow.com/questions/16011677/calculating-cpu-usage-using-proc-files
+* for example, for ossrs.net, a single cpu machine:
+*       [winlin@SRS ~]$ cat /proc/uptime && cat /proc/stat
+*           5275153.01 4699624.99
+*           cpu  43506750 973 8545744 466133337 4149365 190852 804666 0 0
+* where the uptime is 5275153.01s
+* generally, USER_HZ sysconf(_SC_CLK_TCK)=100, which means the unit of /proc/stat is "1/100ths seconds"
+*       that is, USER_HZ=1/100 seconds
+* cpu total = 43506750+973+8545744+466133337+4149365+190852+804666+0+0 (USER_HZ)
+*           = 523331687 (USER_HZ)
+*           = 523331687 * 1/100 (seconds)
+*           = 5233316.87 seconds
+* the cpu total seconds almost the uptime, the delta is more precise.
+*/
 class SrsProcSystemStat
 {
 public:
@@ -234,7 +252,8 @@ public:
     // always be cpu
     char label[32];
     
-    //The amount of time, measured in units  of  USER_HZ  (1/100ths  of  a  second  on  most  architectures,  use
+    // The amount of time, measured in units  of  USER_HZ  
+    // (1/100ths  of  a  second  on  most  architectures,  use
     // sysconf(_SC_CLK_TCK)  to  obtain  the  right value)
     //
     // the system spent in user mode, 
@@ -275,6 +294,7 @@ extern SrsProcSystemStat* srs_get_system_proc_stat();
 // the deamon st-thread will update it.
 extern void srs_update_proc_stat();
 
+// stat system memory info
 // @see: cat /proc/meminfo 
 class SrsMemInfo
 {
@@ -312,6 +332,7 @@ extern SrsMemInfo* srs_get_meminfo();
 // the deamon st-thread will update it.
 extern void srs_update_meminfo();
 
+// system cpu hardware info.
 // @see: cat /proc/cpuinfo 
 class SrsCpuInfo
 {
@@ -330,7 +351,7 @@ public:
 // get system cpu info, use cache to avoid performance problem.
 extern SrsCpuInfo* srs_get_cpuinfo();
 
-// platform(os, srs) summary
+// platform(os, srs) uptime/load summary
 class SrsPlatformInfo
 {
 public:
@@ -341,7 +362,11 @@ public:
     int64_t srs_startup_time;
     
     // @see: cat /proc/uptime
+    // system startup time in seconds.
     double os_uptime;
+    // system all cpu idle time in seconds.
+    // @remark to cal the cpu ustime percent:
+    //      os_ilde_time % (os_uptime * SrsCpuInfo.nb_processors_online)
     double os_ilde_time;
     
     // @see: cat /proc/loadavg
@@ -446,6 +471,7 @@ std::string srs_get_local_ip(int fd);
 // where peer ip is the client public ip which connected to server.
 std::string srs_get_peer_ip(int fd);
 
+// dump summaries for /api/v1/summaries.
 void srs_api_dump_summaries(std::stringstream& ss);
 
 #endif
