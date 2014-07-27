@@ -158,7 +158,7 @@ std::string __full_conf = ""
     "    network    0;                                                                                                         \n"
     "    # the device name to stat the disk iops.                                                                                           \n"
     "    # ignore the device of /proc/diskstats if not configed.                                                                            \n"
-    "    disk_device_name sda sdb xvda xvdb;                                                                                                \n"
+    "    disk sda sdb xvda xvdb;                                                                                                \n"
     "}                                                                                                                                      \n"
     "                                                                                                                                       \n"
     "#############################################################################################                                          \n"
@@ -4642,12 +4642,12 @@ VOID TEST(ConfigMainTest, CheckConf_stats)
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"stats{disk_device_name sda;}"));
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"stats{disk sda;}"));
     }
     
     if (true) {
         MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"stats{disk_device_names sda;}"));
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"stats{disks sda;}"));
     }
 }
 

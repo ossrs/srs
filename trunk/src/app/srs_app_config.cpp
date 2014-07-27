@@ -1249,7 +1249,7 @@ int SrsConfig::check_config()
         SrsConfDirective* conf = get_stats();
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
-            if (n != "network" && n != "disk_device_name") {
+            if (n != "network" && n != "disk") {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported stats directive %s, ret=%d", n.c_str(), ret);
                 return ret;
@@ -3202,7 +3202,7 @@ SrsConfDirective* SrsConfig::get_stats_disk_device()
         return NULL;
     }
     
-    conf = conf->get("disk_device_name");
+    conf = conf->get("disk");
     if (!conf || conf->args.size() == 0) {
         return NULL;
     }
