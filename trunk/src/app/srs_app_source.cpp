@@ -212,8 +212,13 @@ int SrsMessageQueue::dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, in
     av_start_time = last->header.timestamp;
     
     if (count == (int)msgs.size()) {
+        // the pmsgs is big enough and clear msgs at most time.
         msgs.clear();
     } else {
+        // erase some vector elements may cause memory copy,
+        // maybe can use more efficient vector.swap to avoid copy.
+        // @remark for the pmsgs is big enough, for instance, SYS_MAX_PLAY_SEND_MSGS 128,
+        //      the rtmp play client will get 128msgs once, so this branch rarely execute.
         msgs.erase(msgs.begin(), msgs.begin() + count);
     }
     
