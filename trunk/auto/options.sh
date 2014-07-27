@@ -252,6 +252,7 @@ function parse_user_option() {
         --cubie)                        SRS_CUBIE=YES               ;;
         --dev)                          SRS_DEV=YES                 ;;
         --fast-dev)                     SRS_FAST_DEV=YES            ;;
+        --osx-dev)                      SRS_OSX_DEV=YES             ;;
         --demo)                         SRS_DEMO=YES                ;;
         --fast)                         SRS_FAST=YES                ;;
         --disable-all)                  SRS_DISABLE_ALL=YES         ;;
@@ -578,6 +579,32 @@ function apply_user_presets() {
         SRS_GPROF=NO
         SRS_STATIC=NO
     fi
+
+    # if osx dev specified, open main server features.
+    if [ $SRS_OSX_DEV = YES ]; then
+        SRS_HLS=YES
+        SRS_DVR=YES
+        SRS_NGINX=NO
+        SRS_SSL=NO
+        SRS_FFMPEG_TOOL=NO
+        SRS_TRANSCODE=YES
+        SRS_INGEST=NO
+        SRS_HTTP_PARSER=NO
+        SRS_HTTP_CALLBACK=NO
+        SRS_HTTP_SERVER=NO
+        SRS_HTTP_API=NO
+        SRS_LIBRTMP=NO
+        SRS_RESEARCH=NO
+        SRS_UTEST=NO
+        SRS_GPERF=NO
+        SRS_GPERF_MC=NO
+        SRS_GPERF_MP=NO
+        SRS_GPERF_CP=NO
+        SRS_GPROF=NO
+        SRS_STATIC=NO
+    fi
+
+
 
     # for srs demo
     if [ $SRS_DEMO = YES ]; then

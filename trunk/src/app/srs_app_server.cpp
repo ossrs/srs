@@ -476,7 +476,7 @@ int SrsServer::acquire_pid_file()
     }
     
     // require write lock
-    flock lock;
+    struct flock lock;
 
     lock.l_type = F_WRLCK; // F_RDLCK, F_WRLCK, F_UNLCK
     lock.l_start = 0; // type offset, relative to l_whence
