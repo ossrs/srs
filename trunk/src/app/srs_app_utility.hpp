@@ -327,7 +327,8 @@ extern void srs_update_proc_stat();
 // for device disk io, @see: cat /proc/diskstats
 // @remark, user can use command to test the disk io:
 //      time dd if=/dev/zero bs=1M count=2048 of=file_2G
-// @remark, the iotop is right, the iostat and dstat result seems not ok.
+// @remark, the iotop is right, the dstat result seems not ok,
+//      while the iostat only show the number of writes, not the bytes,
 //      where the dd command will give the write MBps, it's absolutely right.
 class SrsDiskStat
 {
