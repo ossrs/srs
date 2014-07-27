@@ -332,10 +332,15 @@ public:
     bool ok;
     // the time in ms when sample.
     int64_t sample_time;
+    
     // input(read) KBytes per seconds
     int in_KBps;
     // output(write) KBytes per seconds
     int out_KBps;
+    
+    // @see: print_partition_stats() of iostat.c
+    // but its value is [0, 1], for instance, 0.1532 means 15.32%.
+    float busy;
     
 public:
     // @see: cat /proc/vmstat

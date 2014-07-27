@@ -244,11 +244,6 @@ bool get_proc_system_stat(SrsProcSystemStat& r)
 
         // matched ok.
         r.ok = true;
-        
-        // @see: http://tester-higkoo.googlecode.com/svn-history/r14/trunk/Tools/iostat/iostat.c
-        // add the interrupts to sys.
-        // TODO: FIXME: check out it.
-        r.sys += r.irq + r.softirq;
 
         break;
     }
@@ -362,6 +357,7 @@ SrsDiskStat::SrsDiskStat()
     ok = false;
     sample_time = 0;
     in_KBps = out_KBps = 0;
+    busy = 0;
     
     pgpgin = 0;
     pgpgout = 0;
@@ -515,6 +511,26 @@ void srs_update_disk_stat()
             r.out_KBps = (r.pgpgout - o.pgpgout) * 1000 / duration_ms;
         }
     }
+    
+    // diskstats
+    if (true) {
+        SrsProcSystemStat* cpu = srs_get_system_proc_stat();
+        SrsCpuInfo* cpuinfo = srs_get_cpuinfo();
+        
+        if (cpu->ok && cpu->total_delta > 0 
+            && cpuinfo->ok && cpuinfo->nb_processors > 0
+            && o.ticks < r.ticks
+        ) {
+            // @see: print_partition_stats() of iostat.c
+            double delta_ms = cpu->total_delta * 10 / cpuinfo->nb_processors;
+            unsigned int ticks = r.ticks - o.ticks;
+            
+            // busy in [0, 1], where 0.1532 means 15.32%
+            r.busy = srs_min(1, (float)(ticks / delta_ms));
+        }
+    }
+    
+    _srs_disk_stat = r;
 }
 
 SrsMemInfo::SrsMemInfo()
@@ -1065,8 +1081,9 @@ void srs_api_dump_summaries(std::stringstream& ss)
             << __SRS_JOBJECT_END << __SRS_JFIELD_CONT
             << __SRS_JFIELD_ORG("system", __SRS_JOBJECT_START)
                 << __SRS_JFIELD_ORG("cpu_percent", s->percent) << __SRS_JFIELD_CONT
-                << __SRS_JFIELD_ORG("disk_in_KBps", d->in_KBps) << __SRS_JFIELD_CONT
-                << __SRS_JFIELD_ORG("disk_out_KBps", d->out_KBps) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("disk_read_KBps", d->in_KBps) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("disk_write_KBps", d->out_KBps) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("disk_busy_percent", d->busy) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_ORG("mem_ram_kbyte", m->MemTotal) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_ORG("mem_ram_percent", m->percent_ram) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_ORG("mem_swap_kbyte", m->SwapTotal) << __SRS_JFIELD_CONT
