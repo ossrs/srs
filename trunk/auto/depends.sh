@@ -214,6 +214,91 @@ function Centos_prepare()
     return 0
 }
 Centos_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "CentOS prepare failed, ret=$ret"; exit $ret; fi
+#####################################################################################
+# for OSX, auto install tools by brew
+#####################################################################################
+OS_IS_OSX=NO
+function OSX_prepare()
+{
+    SYS_NAME=`uname -s`
+    if [ $SYS_NAME != Darwin ]; then
+        echo "This is not Darwin OSX"
+        return 0;
+    fi
+
+    OS_IS_OSX=YES
+    echo "OSX detected, install tools if needed"
+    
+    gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install gcc"
+        require_sudoer "sudo brew install gcc"
+        sudo brew install gcc; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "install gcc success"
+    fi
+    
+    g++ --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install gcc-c++"
+        require_sudoer "sudo brew install gcc-c++"
+        sudo brew install gcc-c++; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "install gcc-c++ success"
+    fi
+    
+    make --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install make"
+        require_sudoer "sudo brew install make"
+        sudo brew install make; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "install make success"
+    fi
+    
+    patch --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install patch"
+        require_sudoer "sudo brew install patch"
+        sudo brew install patch; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "install patch success"
+    fi
+    
+    if [ $SRS_FFMPEG_TOOL = YES ]; then
+        automake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+            echo "install automake"
+            require_sudoer "sudo brew install automake"
+            sudo brew install automake; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "install automake success"
+        fi
+        
+        autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+            echo "install autoconf"
+            require_sudoer "sudo brew install autoconf"
+            sudo brew install autoconf; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "install autoconf success"
+        fi
+        
+        libtool --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+            echo "install libtool"
+            require_sudoer "sudo brew install libtool"
+            sudo brew install libtool; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "install libtool success"
+        fi
+        
+        if [[ ! -f /usr/include/pcre.h ]]; then
+            echo "install pcre-devel"
+            require_sudoer "sudo brew install pcre-devel"
+            sudo brew install pcre-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "install pcre-devel success"
+        fi
+        
+        if [[ ! -f /usr/include/zlib.h ]]; then
+            echo "install zlib-devel"
+            require_sudoer "sudo brew install zlib-devel"
+            sudo brew install zlib-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "install zlib-devel success"
+        fi
+    fi
+    
+    echo "OSX install tools success"
+    return 0
+}
+OSX_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "OSX prepare failed, ret=$ret"; exit $ret; fi
+
 
 #####################################################################################
 # st-1.9
@@ -237,27 +322,49 @@ if [ $SRS_EMBEDED_CPU = YES ]; then
         )
     fi
 else
-    # arm not specified, if exists flag, need to rebuild for no-arm platform.
-    if [[ ! -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st/libst.a && -f ${SRS_OBJS}/st/libst.so ]]; then
-        echo "st-1.9t is ok.";
+    if [ $OS_IS_OSX = YES ]; then
+        if [[ ! -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st/libst.a && -f ${SRS_OBJS}/st/libst.so ]]; then
+            echo "st-1.9t is ok.";
+        else
+            echo "build st-1.9t"; 
+            (
+                rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
+                unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && 
+                echo "we alaways patch the st, for we may build srs under arm directly" &&
+                echo "the 1.st.arm.patch is ok for x86 because it's only modify code under macro linux arm" &&
+                patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
+                make darwin-debug &&
+                cd .. && rm -rf st && ln -sf st-1.9/obj st &&
+                cd .. && rm -f ${SRS_OBJS}/_flag.st.arm.tmp
+            )
+        fi
     else
-        echo "build st-1.9t"; 
-        (
-            rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
-            unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && 
-            echo "we alaways patch the st, for we may build srs under arm directly" &&
-            echo "the 1.st.arm.patch is ok for x86 because it's only modify code under macro linux arm" &&
-            patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
-            make EXTRA_CFLAGS="-DMD_HAVE_EPOLL" linux-debug &&
-            cd .. && rm -rf st && ln -sf st-1.9/obj st &&
-            cd .. && rm -f ${SRS_OBJS}/_flag.st.arm.tmp
-        )
+        # arm not specified, if exists flag, need to rebuild for no-arm platform.
+        if [[ ! -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st/libst.a && -f ${SRS_OBJS}/st/libst.so ]]; then
+            echo "st-1.9t is ok.";
+        else
+            echo "build st-1.9t"; 
+            (
+                rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
+                unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && 
+                echo "we alaways patch the st, for we may build srs under arm directly" &&
+                echo "the 1.st.arm.patch is ok for x86 because it's only modify code under macro linux arm" &&
+                patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
+                make EXTRA_CFLAGS="-DMD_HAVE_EPOLL" linux-debug &&
+                cd .. && rm -rf st && ln -sf st-1.9/obj st &&
+                cd .. && rm -f ${SRS_OBJS}/_flag.st.arm.tmp
+            )
+        fi
     fi
 fi
 # check status
 ret=$?; if [[ $ret -ne 0 ]]; then echo "build st-1.9 failed, ret=$ret"; exit $ret; fi
-if [ ! -f ${SRS_OBJS}/st/libst.a ]; then echo "build st-1.9 failed."; exit -1; fi
-if [ ! -f ${SRS_OBJS}/st/libst.so ]; then echo "build st-1.9 failed."; exit -1; fi
+if [ ! -f ${SRS_OBJS}/st/libst.a ]; then echo "build st-1.9 static lib failed."; exit -1; fi
+if [ OS_IS_OSX = Darwin ] then
+    if [ ! -f ${SRS_OBJS}/st/libst.dylib ]; then echo "build st-1.9 shared lib failed."; exit -1; fi
+else
+    if [ ! -f ${SRS_OBJS}/st/libst.so ]; then echo "build st-1.9 shared lib failed."; exit -1; fi
+fi
 
 #####################################################################################
 # http-parser-2.1
