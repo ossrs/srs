@@ -393,18 +393,15 @@ bool srs_get_disk_vmstat_stat(SrsDiskStat& r)
     r.ok = false;
     r.sample_time = srs_get_system_time_ms();
     
-    for (;;) {
-        static char label[64];
-        static unsigned long value;
-        int ret = fscanf(f, "%64s %lu\n", label, &value);
-        
-        if (ret == EOF) {
-            break;
-        }
-        
-        if (strcmp("pgpgin", label) == 0) {
+    static char buf[1024];
+    while (fgets(buf, sizeof(buf), f)) {
+        unsigned long value = 0;
+        int ret = sscanf(buf, "%*s %lu\n", &value);
+        srs_assert(ret == 1);
+
+        if (strncmp(buf, "pgpgin ", 7) == 0) {
             r.pgpgin = value;
-        } else if (strcmp("pgpgout", label) == 0) {
+        } else if (strncmp(buf, "pgpgout ", 8) == 0) {
             r.pgpgout = value;
         }
     }
@@ -418,8 +415,6 @@ bool srs_get_disk_vmstat_stat(SrsDiskStat& r)
 
 bool srs_get_disk_diskstats_stat(SrsDiskStat& r)
 {
-    // %4d %4d %31s %u
-    // 
     FILE* f = fopen("/proc/diskstats", "r");
     if (f == NULL) {
         srs_warn("open vmstat failed, ignore");
@@ -430,7 +425,6 @@ bool srs_get_disk_diskstats_stat(SrsDiskStat& r)
     r.sample_time = srs_get_system_time_ms();
     
     static char buf[1024];
-    
     while (fgets(buf, sizeof(buf), f)) {
         unsigned int major = 0;
         unsigned int minor = 0;
@@ -452,11 +446,9 @@ bool srs_get_disk_diskstats_stat(SrsDiskStat& r)
             &major, &minor, name, &rd_ios, &rd_merges,
             &rd_sectors, &rd_ticks, &wr_ios, &wr_merges,
             &wr_sectors, &wr_ticks, &nb_current, &ticks, &aveq);
+        srs_assert(ret == 14);
         
-        if (ret == EOF) {
-            break;
-        }
-        
+        // TODO: FIMXE: config it.
         if (strcmp("sda", name) == 0) {
             r.rd_ios += rd_ios;
             r.rd_merges += rd_merges;
@@ -541,27 +533,23 @@ void srs_update_meminfo()
     SrsMemInfo& r = _srs_system_meminfo;
     r.ok = false;
     
-    for (;;) {
-        static char label[64];
+    static char buf[1024];
+    while (fgets(buf, sizeof(buf), f)) {
         static unsigned long value;
-        static char postfix[64];
-        int ret = fscanf(f, "%64s %lu %64s\n", label, &value, postfix);
+        int ret = sscanf(buf, "%*s %lu", &value);
+        srs_assert(ret == 1);
         
-        if (ret == EOF) {
-            break;
-        }
-        
-        if (strcmp("MemTotal:", label) == 0) {
+        if (strncmp(buf, "MemTotal:", 9) == 0) {
             r.MemTotal = value;
-        } else if (strcmp("MemFree:", label) == 0) {
+        } else if (strncmp(buf, "MemFree:", 8) == 0) {
             r.MemFree = value;
-        } else if (strcmp("Buffers:", label) == 0) {
+        } else if (strncmp(buf, "Buffers:", 8) == 0) {
             r.Buffers = value;
-        } else if (strcmp("Cached:", label) == 0) {
+        } else if (strncmp(buf, "Cached:", 7) == 0) {
             r.Cached = value;
-        } else if (strcmp("SwapTotal:", label) == 0) {
+        } else if (strncmp(buf, "SwapTotal:", 10) == 0) {
             r.SwapTotal = value;
-        } else if (strcmp("SwapFree:", label) == 0) {
+        } else if (strncmp(buf, "SwapFree:", 9) == 0) {
             r.SwapFree = value;
         }
     }
