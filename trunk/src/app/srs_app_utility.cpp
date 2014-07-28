@@ -525,6 +525,7 @@ void srs_update_disk_stat()
             && o.ticks < r.ticks
         ) {
             // @see: print_partition_stats() of iostat.c
+            // TODO: FIXME: the USER_HZ assert to 100, so the total_delta ticks *10 is ms.
             double delta_ms = r.cpu.total_delta * 10 / cpuinfo->nb_processors;
             unsigned int ticks = r.ticks - o.ticks;
             
