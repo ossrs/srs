@@ -266,6 +266,8 @@ public:
     // the time in ms when sample.
     int64_t sample_time;
     // the percent of usage. 0.153 is 15.3%.
+    // the percent is in [0, 1], where 1 is 100%.
+    // for multiple core cpu, max also is 100%.
     float percent;
     // the total cpu time units
     // @remark, zero for the previous total() is zero.
