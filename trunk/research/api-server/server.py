@@ -325,56 +325,6 @@ class RESTSessions(object):
         # TODO: process the on_stop event
 
         return code
-        
-# the rest dvrs, when dvr got keyframe, call this api.
-class RESTDvrs(object):
-    exposed = True
-    def __init__(self):
-        pass
-    # the dvrs POST api specified in following.
-    #
-    # when dvr got an keyframe, call the hook,
-    # the request in the POST data string is a object encode by json:
-    #       {
-    #           "action": "on_dvr_keyframe",
-    #           "vhost": "video.test.com", "app": "live",
-    #           "stream": "livestream"
-    #       }
-    #
-    # if valid, the hook must return HTTP code 200(Stauts OK) and response
-    # an int value specifies the error code(0 corresponding to success):
-    #       0
-    def POST(self):
-        enable_crossdomain()
-
-        req = cherrypy.request.body.read()
-        trace("post to sessions, req=%s"%(req))
-        try:
-            json_req = json.loads(req)
-        except Exception, ex:
-            code = Error.system_parse_json
-            trace("parse the request to json failed, req=%s, ex=%s, code=%s"%(req, ex, code))
-            return str(code)
-            
-        action = json_req["action"]
-        if action == "on_dvr_keyframe":
-            code = self.__on_dvr_keyframe(json_req)
-        else:
-            code = Errors.request_invalid_action
-            trace("invalid request action: %s, code=%s"%(json_req["action"], code))
-            
-        return str(code)
-        
-    def __on_dvr_keyframe(self, req):
-        code = Error.success
-
-        trace("srs %s: vhost=%s, app=%s, stream=%s"%(
-            req["action"], req["vhost"], req["app"], req["stream"]
-        ))
-
-        # TODO: process the on_dvr_keyframe event
-
-        return code
 
 global_arm_server_id = os.getpid();
 class ArmServer:
@@ -1088,7 +1038,6 @@ class V1(object):
         self.clients = RESTClients()
         self.streams = RESTStreams()
         self.sessions = RESTSessions()
-        self.dvrs = RESTDvrs()
         self.chats = RESTChats()
         self.servers = RESTServers()
         self.nodes = RESTNodes()

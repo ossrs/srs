@@ -98,23 +98,6 @@ public:
     *         ignore if empty.
     */
     static void on_stop(std::string url, int client_id, std::string ip, SrsRequest* req);
-#ifdef SRS_AUTO_DVR
-public:
-    /**
-    * on_dvr_hss_reap_flv_header hook, when dvr write flv file header.
-    * @param url the api server url, to process the event. 
-    *         ignore if empty.
-    * @param header_file the flv header file.
-    */
-    static void on_dvr_hss_reap_flv_header(std::string url, SrsRequest* req, std::string header_file);
-    /**
-    * on_dvr_hss_reap_flv hook, when dvr close flv file.
-    * @param url the api server url, to process the event. 
-    *         ignore if empty.
-    * @param segment the current flv segment.
-    */
-    static void on_dvr_hss_reap_flv(std::string url, SrsRequest* req, SrsFlvSegment* segment);
-#endif
 };
 
 #endif

@@ -208,7 +208,6 @@ std::string __full_conf = ""
     "    # start to record to file when encoder publish,                                                                                    \n"
     "    # reap flv according by specified dvr_plan.                                                                                        \n"
     "    # http callbacks:                                                                                                                  \n"
-    "    # @see http callback on_dvr_hss_reap_flv on http_hooks section.                                                                    \n"
     "    dvr {                                                                                                                              \n"
     "        # whether enabled dvr features                                                                                                 \n"
     "        # default: off                                                                                                                 \n"
@@ -228,7 +227,6 @@ std::string __full_conf = ""
     "        # the dvr plan. canbe:                                                                                                         \n"
     "        #   session reap flv when session end(unpublish).                                                                              \n"
     "        #   segment reap flv when flv duration exceed the specified dvr_duration.                                                      \n"
-    "        #   hss     reap flv required by bravo(chnvideo.com) p2p system.                                                               \n"
     "        # default: session                                                                                                             \n"
     "        dvr_plan        session;                                                                                                       \n"
     "        # the param for plan(segment), in seconds.                                                                                     \n"
@@ -433,38 +431,6 @@ std::string __full_conf = ""
     "        # support multiple api hooks, format:                                                                                          \n"
     "        #       on_stop http://xxx/api0 http://xxx/api1 http://xxx/apiN                                                                \n"
     "        on_stop         http://127.0.0.1:8085/api/v1/sessions http://localhost:8085/api/v1/sessions;                                   \n"
-    "        #                                                                                                                              \n"
-    "        # for dvr(dvr_plan is hss).                                                                                                    \n"
-    "        # when dvr got flv header, call the hook,                                                                                      \n"
-    "        # the request in the POST data string is a object encode by json:                                                              \n"
-    "        #       {                                                                                                                      \n"
-    "        #           \"action\": \"on_dvr_hss_reap_flv_header\",                                                                        \n"
-    "        #           \"vhost\": \"video.test.com\", \"app\": \"live\",                                                                  \n"
-    "        #           \"stream\": \"livestream\",                                                                                        \n"
-    "        #           \"segment\": {                                                                                                     \n"
-    "        #               \"cwd\": \"/usr/local/srs\",                                                                                   \n"
-    "        #               \"path\": \"./objs/nginx/html/live/livestream.header.flv\"                                                     \n"
-    "        #           }                                                                                                                  \n"
-    "        #       }                                                                                                                      \n"
-    "        # when dvr reap flv file, call the hook,                                                                                       \n"
-    "        # the request in the POST data string is a object encode by json:                                                              \n"
-    "        #       {                                                                                                                      \n"
-    "        #           \"action\": \"on_dvr_hss_reap_flv\",                                                                               \n"
-    "        #           \"vhost\": \"video.test.com\", \"app\": \"live\",                                                                  \n"
-    "        #           \"stream\": \"livestream\",                                                                                        \n"
-    "        #           \"segment\": {                                                                                                     \n"
-    "        #               \"cwd\": \"/usr/local/srs\",                                                                                   \n"
-    "        #               \"path\": \"./objs/nginx/html/live/livestream.1398315892865.flv\",                                             \n"
-    "        #               \"duration\": 1001, \"offset\":0,                                                                              \n"
-    "        #               \"has_keyframe\": true, \"pts\":1398315895958                                                                  \n"
-    "        #           }                                                                                                                  \n"
-    "        #       }                                                                                                                      \n"
-    "        # if valid, the hook must return HTTP code 200(Stauts OK) and response                                                         \n"
-    "        # an int value specifies the error code(0 corresponding to success):                                                           \n"
-    "        #       0                                                                                                                      \n"
-    "        # support multiple api hooks, format:                                                                                          \n"
-    "        #       on_stop http://xxx/api0 http://xxx/api1 http://xxx/apiN                                                                \n"
-    "        on_dvr_hss_reap_flv     http://127.0.0.1:8085/api/v1/dvrs http://localhost:8085/api/v1/dvrs;                                   \n"
     "    }                                                                                                                                  \n"
     "}                                                                                                                                      \n"
     "                                                                                                                                       \n"
@@ -1096,9 +1062,6 @@ VOID TEST(ConfigTest, CheckMacros)
     EXPECT_TRUE(false);
 #endif
 #ifndef SRS_CONF_DEFAULT_DVR_PLAN_SEGMENT
-    EXPECT_TRUE(false);
-#endif
-#ifndef SRS_CONF_DEFAULT_DVR_PLAN_HSS
     EXPECT_TRUE(false);
 #endif
 #ifndef SRS_CONF_DEFAULT_DVR_PLAN
@@ -1917,7 +1880,6 @@ VOID TEST(ConfigMainTest, ParseFullConf)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -1997,7 +1959,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_same_edge)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -2077,7 +2038,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_change_edge)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -2151,7 +2111,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_dvr)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -2225,7 +2184,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_ingest)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -2320,7 +2278,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_http)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -2397,7 +2354,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_hls_enabled)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -2474,7 +2430,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_hls_disabled)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -2582,12 +2537,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_http_hooks)
         EXPECT_STREQ("http://127.0.0.1:8085/api/v1/sessions", callback->arg0().c_str());
         EXPECT_STREQ("http://localhost:8085/api/v1/sessions", callback->arg1().c_str());
     }
-    EXPECT_TRUE(NULL != conf.get_vhost_on_dvr_hss_reap_flv(vhost));
-    if (true) {
-        SrsConfDirective* callback = conf.get_vhost_on_dvr_hss_reap_flv(vhost);
-        EXPECT_STREQ("http://127.0.0.1:8085/api/v1/dvrs", callback->arg0().c_str());
-        EXPECT_STREQ("http://localhost:8085/api/v1/dvrs", callback->arg1().c_str());
-    }
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -2665,7 +2614,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_min_delay)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -2758,7 +2706,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_refer_anti_suck)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -2841,7 +2788,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_forward_same_vhost)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -2920,7 +2866,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_forward_change_vhost)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -2998,7 +2943,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_mirror)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -3087,7 +3031,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_crop)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -3176,7 +3119,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_logo)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -3265,7 +3207,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_audio)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -3348,7 +3289,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_vn)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -3431,7 +3371,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_copy)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -3510,7 +3449,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_all)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -3727,7 +3665,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_ffempty)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -3816,7 +3753,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_app)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -3905,7 +3841,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_stream)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -3994,7 +3929,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_bandcheck)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_TRUE(conf.get_bw_check_enabled(vhost));
     EXPECT_STREQ("35c9b402c12a7246868752e2878f7e0e", conf.get_bw_check_key(vhost).c_str());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -4072,7 +4006,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_chunksize)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -4150,7 +4083,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_jitter)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -4228,7 +4160,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_atc)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -4306,7 +4237,6 @@ VOID TEST(ConfigMainTest, ParseFullConf_removed)
     EXPECT_TRUE(NULL == conf.get_vhost_on_unpublish(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_play(vhost));
     EXPECT_TRUE(NULL == conf.get_vhost_on_stop(vhost));
-    EXPECT_TRUE(NULL == conf.get_vhost_on_dvr_hss_reap_flv(vhost));
     EXPECT_FALSE(conf.get_bw_check_enabled(vhost));
     EXPECT_TRUE(conf.get_bw_check_key(vhost).empty());
     EXPECT_EQ(30000, conf.get_bw_check_interval_ms(vhost));
@@ -5017,16 +4947,6 @@ VOID TEST(ConfigMainTest, CheckConf_hooks)
     if (true) {
         MockSrsConfig conf;
         EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{http_hooks{on_stops http://127.0.0.1:8085/api/v1/sessions http://localhost:8085/api/v1/sessions;}}"));
-    }
-    
-    if (true) {
-        MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{http_hooks{on_dvr_hss_reap_flv http://127.0.0.1:8085/api/v1/dvrs http://localhost:8085/api/v1/dvrs;}}"));
-    }
-    
-    if (true) {
-        MockSrsConfig conf;
-        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{http_hooks{on_dvr_hss_reap_flvs http://127.0.0.1:8085/api/v1/dvrs http://localhost:8085/api/v1/dvrs;}}"));
     }
 }
 

@@ -318,12 +318,6 @@ int SrsDvrPlan::flv_close()
         return ret;
     }
     
-#ifdef SRS_AUTO_HTTP_CALLBACK
-    if ((ret = on_dvr_hss_reap_flv()) != ERROR_SUCCESS) {
-        return ret;
-    }
-#endif
-    
     return ret;
 }
 
@@ -366,29 +360,6 @@ int SrsDvrPlan::write_flv_header()
     return ret;
 }
 
-int SrsDvrPlan::on_dvr_hss_reap_flv()
-{
-    int ret = ERROR_SUCCESS;
-    
-#ifdef SRS_AUTO_HTTP_CALLBACK
-    if (!_srs_config->get_vhost_http_hooks_enabled(_req->vhost)) {
-        // HTTP: on_dvr_hss_reap_flv 
-        SrsConfDirective* on_dvr_hss_reap_flv = _srs_config->get_vhost_on_dvr_hss_reap_flv(_req->vhost);
-        if (!on_dvr_hss_reap_flv) {
-            srs_info("ignore the empty http callback: on_dvr_hss_reap_flv");
-            return ret;
-        }
-        
-        for (int i = 0; i < (int)on_dvr_hss_reap_flv->args.size(); i++) {
-            std::string url = on_dvr_hss_reap_flv->args.at(i);
-            SrsHttpHooks::on_dvr_hss_reap_flv(url, _req, segment);
-        }
-    }
-#endif
-    
-    return ret;
-}
-
 SrsDvrPlan* SrsDvrPlan::create_plan(string vhost)
 {
     std::string plan = _srs_config->get_dvr_plan(vhost);
@@ -396,8 +367,6 @@ SrsDvrPlan* SrsDvrPlan::create_plan(string vhost)
         return new SrsDvrSegmentPlan();
     } else if (plan == SRS_CONF_DEFAULT_DVR_PLAN_SESSION) {
         return new SrsDvrSessionPlan();
-    } else if (plan == SRS_CONF_DEFAULT_DVR_PLAN_HSS) {
-        return new SrsDvrHssPlan();
     } else {
         return new SrsDvrSessionPlan();
     }
@@ -488,208 +457,6 @@ int SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
     
     // reap if exceed duration.
     if (segment_duration > 0 && segment->duration > segment_duration) {
-        if ((ret = flv_close()) != ERROR_SUCCESS) {
-            segment->reset();
-            return ret;
-        }
-        on_unpublish();
-        
-        if ((ret = open_new_segment()) != ERROR_SUCCESS) {
-            return ret;
-        }
-    }
-    
-    return ret;
-}
-
-SrsDvrHssPlan::SrsDvrHssPlan()
-{
-    segment_duration = -1;
-    expect_reap_time = 0;
-}
-
-SrsDvrHssPlan::~SrsDvrHssPlan()
-{
-}
-
-int SrsDvrHssPlan::initialize(SrsSource* source, SrsRequest* req)
-{
-    int ret = ERROR_SUCCESS;
-    
-    if ((ret = SrsDvrPlan::initialize(source, req)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    // TODO: FIXME: support reload
-    segment_duration = _srs_config->get_dvr_duration(req->vhost);
-    // to ms
-    segment_duration *= 1000;
-    
-    return ret;
-}
-
-int SrsDvrHssPlan::on_publish()
-{
-    int ret = ERROR_SUCCESS;
-    
-    // if already opened, continue to dvr.
-    // the segment plan maybe keep running longer than the encoder.
-    // for example, segment running, encoder restart,
-    // the segment plan will just continue going and donot open new segment.
-    if (fs->is_open()) {
-        dvr_enabled = true;
-        return ret;
-    }
-    
-    if ((ret = SrsDvrPlan::on_publish()) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    // expect reap flv time
-    expect_reap_time = segment->stream_starttime + segment_duration;
-    
-    return ret;
-}
-
-void SrsDvrHssPlan::on_unpublish()
-{
-    // support multiple publish.
-    if (!dvr_enabled) {
-        return;
-    }
-    dvr_enabled = false;
-}
-
-int SrsDvrHssPlan::on_meta_data(SrsOnMetaDataPacket* metadata)
-{
-    int ret = ERROR_SUCCESS;
-    
-    SrsRequest* req = _req;
-    
-    // new flv file
-    std::stringstream path;
-    path << _srs_config->get_dvr_path(req->vhost)
-        << "/" << req->app << "/" 
-        << req->stream << ".header.flv";
-        
-    SrsFileWriter fs;
-    if ((ret = fs.open(path.str().c_str())) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    SrsFlvEncoder enc;
-    if ((ret = enc.initialize(&fs)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    if ((ret = enc.write_header()) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    int size = 0;
-    char* payload = NULL;
-    if ((ret = metadata->encode(size, payload)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    SrsAutoFree(char, payload);
-    
-    if ((ret = enc.write_metadata(payload, size)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-#ifdef SRS_AUTO_HTTP_CALLBACK
-    if ((ret = on_dvr_hss_reap_flv_header(path.str())) != ERROR_SUCCESS) {
-        return ret;
-    }
-#endif
-    
-    return ret;
-}
-
-int SrsDvrHssPlan::write_flv_header()
-{
-    int ret = ERROR_SUCCESS;
-    return ret;
-}
-
-int SrsDvrHssPlan::on_dvr_request_sh()
-{
-    int ret = ERROR_SUCCESS;
-    return ret;
-}
-
-int SrsDvrHssPlan::on_video_keyframe()
-{
-    int ret = ERROR_SUCCESS;
-    
-    segment->sequence_header_offset = fs->tellg();
-    if ((ret = SrsDvrPlan::on_dvr_request_sh()) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    return ret;
-}
-
-int64_t SrsDvrHssPlan::filter_timestamp(int64_t timestamp)
-{
-    //return timestamp;
-    srs_assert(segment);
-    srs_verbose("filter timestamp from %"PRId64" to %"PRId64, timestamp, segment->stream_starttime + timestamp);
-    return segment->stream_starttime + timestamp;
-}
-
-int SrsDvrHssPlan::on_dvr_hss_reap_flv_header(string path)
-{
-    int ret = ERROR_SUCCESS;
-    
-#ifdef SRS_AUTO_HTTP_CALLBACK
-    if (!_srs_config->get_vhost_http_hooks_enabled(_req->vhost)) {
-        // HTTP: on_dvr_hss_reap_flv_header 
-        SrsConfDirective* on_dvr_hss_reap_flv = _srs_config->get_vhost_on_dvr_hss_reap_flv(_req->vhost);
-        if (!on_dvr_hss_reap_flv) {
-            srs_info("ignore the empty http callback: on_dvr_hss_reap_flv");
-            return ret;
-        }
-        
-        for (int i = 0; i < (int)on_dvr_hss_reap_flv->args.size(); i++) {
-            std::string url = on_dvr_hss_reap_flv->args.at(i);
-            SrsHttpHooks::on_dvr_hss_reap_flv_header(url, _req, path);
-        }
-    }
-#endif
-    
-    return ret;
-}
-
-int SrsDvrHssPlan::update_duration(SrsSharedPtrMessage* msg)
-{
-    int ret = ERROR_SUCCESS;
-    
-    if ((ret = SrsDvrPlan::update_duration(msg)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    srs_assert(segment);
-    
-    // if not initialized, ignore reap.
-    if (expect_reap_time <= 0 
-        || segment->stream_starttime <= 0 
-        || segment->stream_duration <= 0
-    ) {
-        return ret;
-    }
-    
-    // reap if exceed atc expect time.
-    if (segment->stream_starttime + segment->stream_duration > expect_reap_time) {
-        srs_verbose("hss reap start=%"PRId64", duration=%"PRId64", expect=%"PRId64
-            ", segment(start=%"PRId64", duration=%"PRId64", file=%s", 
-            segment->stream_starttime, segment->stream_duration, expect_reap_time,
-            segment->stream_starttime + segment->starttime, 
-            segment->duration, segment->path.c_str());
-            
-        // update expect reap time
-        expect_reap_time += segment_duration;
-        
         if ((ret = flv_close()) != ERROR_SUCCESS) {
             segment->reset();
             return ret;

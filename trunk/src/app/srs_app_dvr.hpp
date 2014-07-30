@@ -137,11 +137,6 @@ protected:
     virtual int on_dvr_request_sh();
     virtual int on_video_keyframe();
     virtual int64_t filter_timestamp(int64_t timestamp);
-private:
-    /**
-    * when srs reap the flv(close the segment), notice the api.
-    */
-    virtual int on_dvr_hss_reap_flv();
 public:
     static SrsDvrPlan* create_plan(std::string vhost);
 };
@@ -174,33 +169,6 @@ public:
     virtual int on_publish();
     virtual void on_unpublish();
 private:
-    virtual int update_duration(SrsSharedPtrMessage* msg);
-};
-
-/**
-* hss plan: use atc time to reap flv segment
-*/
-class SrsDvrHssPlan : public SrsDvrPlan
-{
-private:
-    // in config, in ms
-    int segment_duration;
-    int64_t expect_reap_time;
-public:
-    SrsDvrHssPlan();
-    virtual ~SrsDvrHssPlan();
-public:
-    virtual int initialize(SrsSource* source, SrsRequest* req);
-    virtual int on_publish();
-    virtual void on_unpublish();
-    virtual int on_meta_data(SrsOnMetaDataPacket* metadata);
-protected:
-    virtual int write_flv_header();
-    virtual int on_dvr_request_sh();
-    virtual int on_video_keyframe();
-    virtual int64_t filter_timestamp(int64_t timestamp);
-private:
-    virtual int on_dvr_hss_reap_flv_header(std::string path);
     virtual int update_duration(SrsSharedPtrMessage* msg);
 };
 

@@ -46,9 +46,7 @@ SRS supports [vhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUr
 rtmp([encoder push](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryRTMP), client/[edge](https://github.com/winlinvip/simple-rtmp-server/wiki/Edge) pull), [ingester(srs pull)](https://github.com/winlinvip/simple-rtmp-server/wiki/Ingest), 
 [HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), [HLS audio only](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS#hlsaudioonly), [transcoding](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), 
 [forward](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), [http hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback), [http api](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPApi), 
-[http server](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPServer), [dvr](https://github.com/winlinvip/simple-rtmp-server/wiki/DVR), [FlashP2P](https://github.com/winlinvip/simple-rtmp-server/wiki/FlashP2P).
-
-注意：FlashP2P系统为[chnvideo.com](http://www.chnvideo.com)商业方案，SRS只是支持对接。
+[http server](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPServer), [dvr](https://github.com/winlinvip/simple-rtmp-server/wiki/DVR).
 
 Release: [http://winlinvip.github.io/srs.release](http://winlinvip.github.io/srs.release)  <br/>
 Blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin)  <br/>
@@ -266,7 +264,6 @@ Supported operating systems and hardware:
 * v1.0, 2014-04-28, support full edge RTMP server. 0.9.79
 * v1.0, 2014-04-27, support basic edge(play/publish) RTMP server. 0.9.78
 * v1.0, 2014-04-25, add donation page. 0.9.76
-* v1.0, 2014-04-24, support live flashP2P(integrated by chnvideo VDN). 0.9.75
 * v1.0, 2014-04-21, support android app to start srs for internal edge. 0.9.72
 * v1.0, 2014-04-19, support tool over srs-librtmp to ingest flv/rtmp. 0.9.71
 * v1.0, 2014-04-17, support dvr(record live to flv file for vod). 0.9.69
@@ -581,22 +578,6 @@ Remark:
 (5) cli connect to each stream/back-source process to get api data,
     cli analysis and summary the data, return to user.
 </pre>
-
-### Live FlashP2P
-
-<pre>
-                                  +--DVR------>-(flv file)
-+----------+          +-----+     |          
-| encoder  +--RTMP-->-+ SRS +-->--+          
-+----------+          +-----+     |          
-                                  |           +------------+
-                                  +---HTTP-->-+ P2P system +
-                                    callback  +------------+
-</pre>
-
-Remark: P2P system provides by [chnvideo.com](http://www.chnvideo.com)
-
-注意：FlashP2P系统为[chnvideo.com](http://www.chnvideo.com)商业方案，SRS只是支持对接。
 
 ### Bandwidth Test Workflow
 

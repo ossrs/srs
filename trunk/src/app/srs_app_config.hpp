@@ -51,8 +51,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_DVR_PATH "./objs/nginx/html"
 #define SRS_CONF_DEFAULT_DVR_PLAN_SESSION "session"
 #define SRS_CONF_DEFAULT_DVR_PLAN_SEGMENT "segment"
-// chnvideo hss
-#define SRS_CONF_DEFAULT_DVR_PLAN_HSS "hss"
 #define SRS_CONF_DEFAULT_DVR_PLAN SRS_CONF_DEFAULT_DVR_PLAN_SESSION
 #define SRS_CONF_DEFAULT_DVR_DURATION 30
 #define SRS_CONF_DEFAULT_TIME_JITTER "full"
@@ -566,11 +564,6 @@ public:
     * @return the on_stop callback directive, the args is the url to callback.
     */
     virtual SrsConfDirective*   get_vhost_on_stop(std::string vhost);
-    /**
-    * get the on_dvr_hss_reap_flv callbacks of vhost.
-    * @return the on_dvr_hss_reap_flv callback directive, the args is the url to callback.
-    */
-    virtual SrsConfDirective*   get_vhost_on_dvr_hss_reap_flv(std::string vhost);
 // bwct(bandwidth check tool) section
 public:
     /**
