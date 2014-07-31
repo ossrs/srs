@@ -207,6 +207,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v1.0, 2014-07-31, fix [#141](https://github.com/winlinvip/simple-rtmp-server/issues/141), support tun0(vpn network device) ip retrieve. 0.9.179.
 * v1.0, 2014-07-27, support build on OSX(Darwin). 0.9.177
 * v1.0, 2014-07-27, api connections add udp, add disk iops. 0.9.176
 * v1.0, 2014-07-26, complete config utest. 0.9.173
