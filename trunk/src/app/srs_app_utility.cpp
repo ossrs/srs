@@ -930,15 +930,11 @@ void retrieve_local_ipv4_ips()
     while (p != NULL) {
         sockaddr* addr = p->ifa_addr;
         
+        // retrieve ipv4 addr
         // ignore the tun0 network device, 
         // which addr is NULL.
         // @see: https://github.com/winlinvip/simple-rtmp-server/issues/141
-        if (!addr) {
-            continue;
-        }
-        
-        // retrieve ipv4 addr
-        if (addr->sa_family == AF_INET) {
+        if (addr && addr->sa_family == AF_INET) {
             in_addr* inaddr = &((sockaddr_in*)addr)->sin_addr;
             
             char buf[16];
