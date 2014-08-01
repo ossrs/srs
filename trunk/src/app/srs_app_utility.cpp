@@ -840,9 +840,9 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
             // there are maybe many many connections,
             // for example, when srs used for monitor other process,
             // like nginx, there are maybe many TIME_WAIT conections.
-            // we sleep 1ms when read 1000 records, so 100ms for 10w connections.
+            // we sleep 10ms when read 1000 records, so 1000ms for 10w connections.
             if ((i % 1000) == 0) {
-                st_usleep(1000);
+                st_usleep(10 * 1000);
             }
             
             if (ret == 1) {
