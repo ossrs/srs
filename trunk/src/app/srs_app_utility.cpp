@@ -833,17 +833,9 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
         int nb_conn_sys_other = 0;
         
         // @see: http://tester-higkoo.googlecode.com/svn-history/r14/trunk/Tools/iostat/iostat.c
-        for (int i = 0; fgets(buf, sizeof(buf), f); i++) {
+        while (fgets(buf, sizeof(buf), f)) {
             int st = 0;
             int ret = sscanf(buf, "%*s %*s %*s %2x\n", &st);
-            
-            // there are maybe many many connections,
-            // for example, when srs used for monitor other process,
-            // like nginx, there are maybe many TIME_WAIT conections.
-            // we sleep 10ms when read 1000 records, so 1000ms for 10w connections.
-            if ((i % 1000) == 0) {
-                st_usleep(10 * 1000);
-            }
             
             if (ret == 1) {
                 if (st == SYS_TCP_ESTABLISHED) {
