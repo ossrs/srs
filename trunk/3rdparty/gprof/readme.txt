@@ -14,7 +14,7 @@ gprof2dot.py:
 0. 若需要图形化，编译dot：
     cd 3rdparty/gprof && bash build_gprof2dot.sh
 1. srs配置时: 
-    ./configure --with-pg
+    ./configure --with-gprof
     脚本会加入编译参数"-pg -lc_p"，gcc -g -pg -lc_p -c xxx -o xxx.o，即在configure中打开 Performance="-pg -lc_p"
     链接时，加入链接选项"-pg"，否则无法工作：gcc -pg -o srs xxxx.o，即在configure中打开 PerformanceLink="-pg"
 2. 编译和启动程序：make && ./objs/srs -c conf/srs.conf
