@@ -781,7 +781,7 @@ SrsNetworkRtmpServer::SrsNetworkRtmpServer()
     ok = false;
     sample_time = rbytes = sbytes = 0;
     nb_conn_sys = nb_conn_srs = 0;
-    nb_conn_sys_et = nb_conn_sys_tw = nb_conn_sys_ls = 0;
+    nb_conn_sys_et = nb_conn_sys_tw = 0;
     nb_conn_sys_udp = 0;
 }
 
@@ -812,86 +812,86 @@ enum {
 void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
 {
     SrsNetworkRtmpServer& r = _srs_network_rtmp_server;
-    
-    // reset total.
-    r.nb_conn_sys = 0;
+        
+    int nb_socks = 0;
+    int nb_tcp4_hashed = 0;
+    int nb_tcp_orphans = 0;
+    int nb_tcp_tws = 0;
+    int nb_tcp_total = 0;
+    int nb_tcp_mem = 0;
+    int nb_udp4 = 0;
     
     if (true) {
-        FILE* f = fopen("/proc/net/tcp", "r");
+        FILE* f = fopen("/proc/net/sockstat", "r");
         if (f == NULL) {
-            srs_warn("open proc network tcp failed, ignore");
+            srs_warn("open proc network sockstat failed, ignore");
             return;
         }
         
         // ignore title.
         static char buf[1024];
         fgets(buf, sizeof(buf), f);
-    
-        int nb_conn_sys_established = 0;
-        int nb_conn_sys_time_wait = 0;
-        int nb_conn_sys_listen = 0;
-        int nb_conn_sys_other = 0;
         
-        // @see: http://tester-higkoo.googlecode.com/svn-history/r14/trunk/Tools/iostat/iostat.c
+        // @see: https://github.com/shemminger/iproute2/blob/master/misc/ss.c
         while (fgets(buf, sizeof(buf), f)) {
-            int st = 0;
-            int ret = sscanf(buf, "%*s %*s %*s %2x\n", &st);
-            
-            if (ret == 1) {
-                if (st == SYS_TCP_ESTABLISHED) {
-                    nb_conn_sys_established++;
-                } else if (st == SYS_TCP_TIME_WAIT) {
-                    nb_conn_sys_time_wait++;
-                } else if (st == SYS_TCP_LISTEN) {
-                    nb_conn_sys_listen++;
-                } else {
-                    nb_conn_sys_other++;
-                }
-            }
-            
-            if (ret == EOF) {
-                break;
+            // @see: get_sockstat_line()
+            if (strncmp(buf, "sockets: used ", 14) == 0) {
+                int ret = sscanf(buf, "%*s %*s %d\n", &nb_socks);
+                srs_assert(ret == 1);
+            } else if (strncmp(buf, "TCP: ", 5) == 0) {
+                int ret = sscanf(buf, "%*s %*s %d %*s %d %*s %d %*s %d %*s %d\n", 
+                    &nb_tcp4_hashed, &nb_tcp_orphans, &nb_tcp_tws, &nb_tcp_total, &nb_tcp_mem);
+                srs_assert(ret == 5);
+            } else if (strncmp(buf, "UDP: ", 5) == 0) {
+                int ret = sscanf(buf, "%*s %*s %d\n", &nb_udp4);
+                srs_assert(ret == 1);
             }
         }
-        
-        r.nb_conn_sys = nb_conn_sys_established + nb_conn_sys_time_wait + nb_conn_sys_listen + nb_conn_sys_other;
-        r.nb_conn_sys_et = nb_conn_sys_established;
-        r.nb_conn_sys_tw = nb_conn_sys_time_wait;
-        r.nb_conn_sys_ls = nb_conn_sys_listen;
     
         fclose(f);
     }
     
+    int nb_tcp_estab = 0;
+    
     if (true) {
-        FILE* f = fopen("/proc/net/udp", "r");
+        FILE* f = fopen("/proc/net/snmp", "r");
         if (f == NULL) {
-            srs_warn("open proc network udp failed, ignore");
+            srs_warn("open proc network snmp failed, ignore");
             return;
         }
         
         // ignore title.
         static char buf[1024];
         fgets(buf, sizeof(buf), f);
-    
-        // all udp is close state.
-        int nb_conn_sys_close = 0;
         
-        // @see: http://tester-higkoo.googlecode.com/svn-history/r14/trunk/Tools/iostat/iostat.c
+        // @see: https://github.com/shemminger/iproute2/blob/master/misc/ss.c
         while (fgets(buf, sizeof(buf), f)) {
-            int st = 0;
-            int ret = sscanf(buf, "%*s %*s %*s %2x\n", &st);
-            
-            if (ret == EOF) {
-                break;
+            // @see: get_snmp_int("Tcp:", "CurrEstab", &sn.tcp_estab)
+            // tcp stat title
+            if (strncmp(buf, "Tcp: ", 5) == 0) {
+                // read tcp stat data
+                if (!fgets(buf, sizeof(buf), f)) {
+                    break;
+                }
+                // parse tcp stat data
+                if (strncmp(buf, "Tcp: ", 5) == 0) {
+                    int ret = sscanf(buf, "%*s %*d %*d %*d %*d %*d %*d %*d %*d %d\n", &nb_tcp_estab);
+                    srs_assert(ret == 1);
+                }
             }
-            
-            nb_conn_sys_close++;
         }
-        
-        r.nb_conn_sys += nb_conn_sys_close;
-        r.nb_conn_sys_udp = nb_conn_sys_close;
     
         fclose(f);
+    }
+    
+    // @see: https://github.com/shemminger/iproute2/blob/master/misc/ss.c
+    // TODO: FIXME: ignore the slabstat, @see: get_slabstat()
+    if (true) {
+        // @see: print_summary()
+        r.nb_conn_sys = nb_tcp_total + nb_tcp_tws;
+        r.nb_conn_sys_et = nb_tcp_estab;
+        r.nb_conn_sys_tw = nb_tcp_tws;
+        r.nb_conn_sys_udp = nb_udp4;
     }
     
     if (true) {
@@ -1113,7 +1113,6 @@ void srs_api_dump_summaries(std::stringstream& ss)
                 << __SRS_JFIELD_ORG("conn_sys", nrs->nb_conn_sys) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_ORG("conn_sys_et", nrs->nb_conn_sys_et) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_ORG("conn_sys_tw", nrs->nb_conn_sys_tw) << __SRS_JFIELD_CONT
-                << __SRS_JFIELD_ORG("conn_sys_ls", nrs->nb_conn_sys_ls) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_ORG("conn_sys_udp", nrs->nb_conn_sys_udp) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_ORG("conn_srs", nrs->nb_conn_srs)
             << __SRS_JOBJECT_END

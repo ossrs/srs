@@ -595,11 +595,14 @@ public:
     int skbps_5m;
     
     // connections
+    // @see: /proc/net/snmp
+    // @see: /proc/net/sockstat
     int nb_conn_sys;
     int nb_conn_sys_et; // established
     int nb_conn_sys_tw; // time wait
-    int nb_conn_sys_ls; // listen
     int nb_conn_sys_udp; // udp
+
+    // retrieve from srs interface
     int nb_conn_srs;
     
 public:
