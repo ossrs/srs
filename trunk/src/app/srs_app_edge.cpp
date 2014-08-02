@@ -722,3 +722,4 @@ void SrsPublishEdge::on_proxy_unpublish()
     state = SrsEdgeStateInit;
     srs_trace("edge change from %d to state %d (init).", pstate, state);
 }
+

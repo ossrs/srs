@@ -60,3 +60,4 @@ extern std::string srs_string_remove(std::string str, std::string remove_chars);
 extern bool srs_string_ends_with(std::string str, std::string flag);
 
 #endif
+

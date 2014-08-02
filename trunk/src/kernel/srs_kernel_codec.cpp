@@ -115,3 +115,4 @@ bool SrsFlvCodec::audio_is_aac(char* data, int size)
     
     return sound_format == SrsCodecAudioAAC;
 }
+

@@ -36,3 +36,4 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 extern void srs_close_stfd(st_netfd_t& stfd);
 
 #endif
+

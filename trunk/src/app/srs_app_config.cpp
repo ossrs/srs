@@ -2156,7 +2156,7 @@ int SrsConfig::get_bw_check_interval_ms(string vhost)
         return SRS_CONF_DEFAULT_BANDWIDTH_INTERVAL * 1000;
     }
 
-    return ::atof(conf->arg0().c_str()) * 1000;
+    return (int)(::atof(conf->arg0().c_str()) * 1000);
 }
 
 int SrsConfig::get_bw_check_limit_kbps(string vhost)
@@ -3316,3 +3316,4 @@ bool srs_directive_equals(SrsConfDirective* a, SrsConfDirective* b)
     
     return true;
 }
+

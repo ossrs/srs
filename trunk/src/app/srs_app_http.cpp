@@ -1089,3 +1089,4 @@ string SrsHttpUri::get_uri_field(string uri, http_parser_url* hp_u, http_parser_
 }
 
 #endif
+

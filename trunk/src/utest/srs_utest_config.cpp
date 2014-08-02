@@ -5451,3 +5451,4 @@ VOID TEST(ConfigMainTest, CheckConf_pithy_print)
         EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"pithy_print{edges 10000;}"));
     }
 }
+

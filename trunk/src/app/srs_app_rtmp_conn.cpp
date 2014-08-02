@@ -197,13 +197,13 @@ int SrsRtmpConn::service_cycle()
 {    
     int ret = ERROR_SUCCESS;
     
-    if ((ret = rtmp->set_window_ack_size(2.5 * 1000 * 1000)) != ERROR_SUCCESS) {
+    if ((ret = rtmp->set_window_ack_size((int)(2.5 * 1000 * 1000))) != ERROR_SUCCESS) {
         srs_error("set window acknowledgement size failed. ret=%d", ret);
         return ret;
     }
     srs_verbose("set window acknowledgement size success");
         
-    if ((ret = rtmp->set_peer_bandwidth(2.5 * 1000 * 1000, 2)) != ERROR_SUCCESS) {
+    if ((ret = rtmp->set_peer_bandwidth((int)(2.5 * 1000 * 1000), 2)) != ERROR_SUCCESS) {
         srs_error("set peer bandwidth failed. ret=%d", ret);
         return ret;
     }
@@ -1124,3 +1124,4 @@ void SrsRtmpConn::http_hooks_on_stop()
 
     return;
 }
+

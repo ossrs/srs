@@ -66,3 +66,4 @@ VOID TEST(CoreMacroseTest, Check)
     EXPECT_TRUE(false);
 #endif
 }
+

@@ -215,3 +215,4 @@ bool srs_string_ends_with(string str, string flag)
 {
     return str.rfind(flag) == str.length() - flag.length();
 }
+

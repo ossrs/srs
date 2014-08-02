@@ -49,3 +49,4 @@ SrsSharedPtrMessageArray::~SrsSharedPtrMessageArray()
     srs_freep(msgs);
 }
 
+

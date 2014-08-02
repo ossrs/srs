@@ -84,3 +84,4 @@ VOID TEST(SampleTest, FastSampleMacrosTest)
     EXPECT_DOUBLE_EQ(1.0, 1.0000000000000001);
     EXPECT_NEAR(10, 15, 5);
 }
+

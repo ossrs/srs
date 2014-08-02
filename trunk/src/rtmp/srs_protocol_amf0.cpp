@@ -1738,3 +1738,4 @@ namespace _srs_internal
         return value->write(stream);
     }
 }
+

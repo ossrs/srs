@@ -993,8 +993,8 @@ int SrsHlsCache::on_publish(SrsHlsMuxer* muxer, SrsRequest* req, int64_t segment
     std::string stream = req->stream;
     std::string app = req->app;
     
-    int hls_fragment = _srs_config->get_hls_fragment(vhost);
-    int hls_window = _srs_config->get_hls_window(vhost);
+    int hls_fragment = (int)_srs_config->get_hls_fragment(vhost);
+    int hls_window = (int)_srs_config->get_hls_window(vhost);
     
     // get the hls path config
     std::string hls_path = _srs_config->get_hls_path(vhost);
@@ -1530,4 +1530,5 @@ void SrsHls::hls_mux()
 }
 
 #endif
+
 

@@ -378,3 +378,4 @@ void SrsFastLog::open_log_file()
         );
     }
 }
+

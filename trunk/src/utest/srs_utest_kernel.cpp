@@ -1509,3 +1509,4 @@ VOID TEST(KernelUtilityTest, UtilityString)
     EXPECT_TRUE(srs_string_ends_with("Hello", "o"));
     EXPECT_TRUE(srs_string_ends_with("Hello", "lo"));
 }
+

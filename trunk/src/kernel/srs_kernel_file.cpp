@@ -212,3 +212,4 @@ int SrsFileReader::read(void* buf, size_t count, ssize_t* pnread)
     
     return ret;
 }
+

@@ -1268,3 +1268,4 @@ VOID TEST(ProtocolAMF0Test, ObjectEcmaStrict)
     EXPECT_EQ(1, arr2->to_strict_array()->count());
     EXPECT_EQ(0, arr3->to_ecma_array()->count());
 }
+
