@@ -984,7 +984,7 @@ int SrsRtmpConn::http_hooks_on_connect()
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_HTTP_CALLBACK
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
         // HTTP: on_connect 
         SrsConfDirective* on_connect = _srs_config->get_vhost_on_connect(req->vhost);
         if (!on_connect) {
@@ -1009,7 +1009,7 @@ int SrsRtmpConn::http_hooks_on_connect()
 void SrsRtmpConn::http_hooks_on_close()
 {
 #ifdef SRS_AUTO_HTTP_CALLBACK
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
         // whatever the ret code, notify the api hooks.
         // HTTP: on_close 
         SrsConfDirective* on_close = _srs_config->get_vhost_on_close(req->vhost);
@@ -1032,7 +1032,7 @@ int SrsRtmpConn::http_hooks_on_publish()
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_HTTP_CALLBACK
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
         // HTTP: on_publish 
         SrsConfDirective* on_publish = _srs_config->get_vhost_on_publish(req->vhost);
         if (!on_publish) {
@@ -1057,7 +1057,7 @@ int SrsRtmpConn::http_hooks_on_publish()
 void SrsRtmpConn::http_hooks_on_unpublish()
 {
 #ifdef SRS_AUTO_HTTP_CALLBACK
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
         // whatever the ret code, notify the api hooks.
         // HTTP: on_unpublish 
         SrsConfDirective* on_unpublish = _srs_config->get_vhost_on_unpublish(req->vhost);
@@ -1080,7 +1080,7 @@ int SrsRtmpConn::http_hooks_on_play()
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_HTTP_CALLBACK
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
         // HTTP: on_play 
         SrsConfDirective* on_play = _srs_config->get_vhost_on_play(req->vhost);
         if (!on_play) {
@@ -1105,7 +1105,7 @@ int SrsRtmpConn::http_hooks_on_play()
 void SrsRtmpConn::http_hooks_on_stop()
 {
 #ifdef SRS_AUTO_HTTP_CALLBACK
-    if (!_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+    if (_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
         // whatever the ret code, notify the api hooks.
         // HTTP: on_stop 
         SrsConfDirective* on_stop = _srs_config->get_vhost_on_stop(req->vhost);
