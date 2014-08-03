@@ -189,6 +189,7 @@ Supported operating systems and hardware:
 1. [no-plan] Support RTP/RTSP server.
 
 ## Releases
+* 2014-08-03, [Release v1.0-mainline7](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline7), config utest, support osx(darwin), all bug fixed. 57432 lines.<br/>
 * 2014-07-13, [Release v1.0-mainline6](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline6), core/kernel/rtmp utest, refine bandwidth(as/js/srslibrtmp library). 50029 lines.<br/>
 * 2014-06-27, [Release v1.0-mainline5](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline5), refine perf 3k+ clients, edge token traverse, [srs monitor](http://ossrs.net:1977), 30days online. 41573 lines.<br/>
 * 2014-05-28, [Release v1.0-mainline4](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline4), support heartbeat, tracable log, fix mem leak and bugs. 39200 lines.<br/>
@@ -207,6 +208,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* <strong>v1.0, 2014-08-03, [1.0 mainline7(0.9.189)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline7) released. 57432 lines.</strong>
 * v1.0, 2014-08-03, fix [#79](https://github.com/winlinvip/simple-rtmp-server/issues/79), fix the reload remove edge assert bug. 0.9.189.
 * v1.0, 2014-08-03, fix [#57](https://github.com/winlinvip/simple-rtmp-server/issues/57), use lock(acquire/release publish) to avoid duplicated publishing. 0.9.188.
 * v1.0, 2014-08-03, fix [#85](https://github.com/winlinvip/simple-rtmp-server/issues/85), fix the segment-dvr sequence header missing. 0.9.187.
@@ -221,7 +223,7 @@ Supported operating systems and hardware:
 * v1.0, 2014-07-26, fix [#124](https://github.com/winlinvip/simple-rtmp-server/issues/124), gop cache support disable video in publishing. 0.9.171.
 * v1.0, 2014-07-23, fix [#121](https://github.com/winlinvip/simple-rtmp-server/issues/121), srs_info detail log compile failed. 0.9.168.
 * v1.0, 2014-07-19, fix [#119](https://github.com/winlinvip/simple-rtmp-server/issues/119), use iformat and oformat for ffmpeg transcode. 0.9.163.
-* <strong>v1.0, 2014-07-13, [1.0 mainline6(0.9.160)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline8) released. 50029 lines.</strong>
+* <strong>v1.0, 2014-07-13, [1.0 mainline6(0.9.160)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline6) released. 50029 lines.</strong>
 * v1.0, 2014-07-13, refine the bandwidth check/test, add as/js library, use srs-librtmp for linux tool. 0.9.159
 * v1.0, 2014-07-12, complete rtmp stack utest. 0.9.156
 * v1.0, 2014-07-06, fix [#81](https://github.com/winlinvip/simple-rtmp-server/issues/81), fix HLS codec info, IOS ok. 0.9.153.
