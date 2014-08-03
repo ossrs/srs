@@ -228,29 +228,33 @@ bool get_proc_system_stat(SrsProcSystemStat& r)
         return false;
     }
     
-    r.ok = false;
-    
     static char buf[1024];
     while (fgets(buf, sizeof(buf), f)) {
         if (strncmp(buf, "cpu ", 4) != 0) {
             continue;
         }
         
-        int ret = sscanf(buf, "cpu %llu %llu %llu %llu %llu "
-            "%llu %llu %llu %llu\n", 
-            &r.user, &r.nice, &r.sys, &r.idle, &r.iowait,
-            &r.irq, &r.softirq, &r.steal, &r.guest);
-        srs_assert(ret == 9);
-
-        // matched ok.
-        r.ok = true;
+        // @see: read_stat_cpu() from https://github.com/sysstat/sysstat/blob/master/rd_stats.c#L88
+        // @remark, ignore the filed 10 cpu_guest_nice
+        sscanf(buf + 5, "%llu %llu %llu %llu %llu %llu %llu %llu %llu\n", 
+            &r.user, 
+            &r.nice, 
+            &r.sys, 
+            &r.idle, 
+            &r.iowait, 
+            &r.irq, 
+            &r.softirq, 
+            &r.steal, 
+            &r.guest);
 
         break;
     }
     
     fclose(f);
+
+    r.ok = true;
     
-    return r.ok;
+    return true;
 }
 
 bool get_proc_self_stat(SrsProcSelfStat& r)
@@ -261,7 +265,7 @@ bool get_proc_self_stat(SrsProcSelfStat& r)
         return false;
     }
     
-    int ret = fscanf(f, "%d %32s %c %d %d %d %d "
+    fscanf(f, "%d %32s %c %d %d %d %d "
         "%d %u %lu %lu %lu %lu "
         "%lu %lu %ld %ld %ld %ld "
         "%ld %ld %llu %lu %ld "
@@ -281,12 +285,10 @@ bool get_proc_self_stat(SrsProcSelfStat& r)
         &r.guest_time, &r.cguest_time);
     
     fclose(f);
-        
-    if (ret >= 0) {
-        r.ok = true;
-    }
     
-    return r.ok;
+    r.ok = true;
+    
+    return true;
 }
 
 void srs_update_proc_stat()
@@ -386,19 +388,15 @@ bool srs_get_disk_vmstat_stat(SrsDiskStat& r)
         return false;
     }
     
-    r.ok = false;
     r.sample_time = srs_get_system_time_ms();
     
     static char buf[1024];
     while (fgets(buf, sizeof(buf), f)) {
-        unsigned long value = 0;
-        int ret = sscanf(buf, "%*s %lu\n", &value);
-        srs_assert(ret == 1);
-
+        // @see: read_vmstat_paging() from https://github.com/sysstat/sysstat/blob/master/rd_stats.c#L495
         if (strncmp(buf, "pgpgin ", 7) == 0) {
-            r.pgpgin = value;
+            sscanf(buf + 7, "%lu\n", &r.pgpgin);
         } else if (strncmp(buf, "pgpgout ", 8) == 0) {
-            r.pgpgout = value;
+            sscanf(buf + 8, "%lu\n", &r.pgpgout);
         }
     }
     
@@ -411,13 +409,12 @@ bool srs_get_disk_vmstat_stat(SrsDiskStat& r)
 
 bool srs_get_disk_diskstats_stat(SrsDiskStat& r)
 {
-    r.ok = false;
+    r.ok = true;
     r.sample_time = srs_get_system_time_ms();
     
     // if disabled, ignore all devices.
     SrsConfDirective* conf = _srs_config->get_stats_disk_device();
     if (conf == NULL) {
-        r.ok = true;
         return true;
     }
     
@@ -444,12 +441,22 @@ bool srs_get_disk_diskstats_stat(SrsDiskStat& r)
         unsigned int ticks = 0;
         unsigned int aveq = 0;
         memset(name, sizeof(name), 0);
-        int ret = sscanf(buf, 
-            "%4d %4d %31s %u %u %llu %u %u %u %llu %u %u %u %u", 
-            &major, &minor, name, &rd_ios, &rd_merges,
-            &rd_sectors, &rd_ticks, &wr_ios, &wr_merges,
-            &wr_sectors, &wr_ticks, &nb_current, &ticks, &aveq);
-        srs_assert(ret == 14);
+        
+        sscanf(buf, "%4d %4d %31s %u %u %llu %u %u %u %llu %u %u %u %u", 
+            &major, 
+            &minor, 
+            name, 
+            &rd_ios, 
+            &rd_merges,
+            &rd_sectors, 
+            &rd_ticks, 
+            &wr_ios, 
+            &wr_merges,
+            &wr_sectors, 
+            &wr_ticks, 
+            &nb_current, 
+            &ticks, 
+            &aveq);
 
         for (int i = 0; i < (int)conf->args.size(); i++) {
             string name_ok = conf->args.at(i);
@@ -524,7 +531,7 @@ void srs_update_disk_stat()
             && cpuinfo->ok && cpuinfo->nb_processors > 0
             && o.ticks < r.ticks
         ) {
-            // @see: print_partition_stats() of iostat.c
+            // @see: write_ext_stat() from https://github.com/sysstat/sysstat/blob/master/iostat.c#L979
             // TODO: FIXME: the USER_HZ assert to 100, so the total_delta ticks *10 is ms.
             double delta_ms = r.cpu.total_delta * 10 / cpuinfo->nb_processors;
             unsigned int ticks = r.ticks - o.ticks;
@@ -572,26 +579,22 @@ void srs_update_meminfo()
     }
     
     SrsMemInfo& r = _srs_system_meminfo;
-    r.ok = false;
     
     static char buf[1024];
     while (fgets(buf, sizeof(buf), f)) {
-        static unsigned long value;
-        int ret = sscanf(buf, "%*s %lu", &value);
-        srs_assert(ret == 1);
-        
+        // @see: read_meminfo() from https://github.com/sysstat/sysstat/blob/master/rd_stats.c#L227
         if (strncmp(buf, "MemTotal:", 9) == 0) {
-            r.MemTotal = value;
+            sscanf(buf + 9, "%lu", &r.MemTotal);
         } else if (strncmp(buf, "MemFree:", 8) == 0) {
-            r.MemFree = value;
+            sscanf(buf + 8, "%lu", &r.MemFree);
         } else if (strncmp(buf, "Buffers:", 8) == 0) {
-            r.Buffers = value;
+            sscanf(buf + 8, "%lu", &r.Buffers);
         } else if (strncmp(buf, "Cached:", 7) == 0) {
-            r.Cached = value;
+            sscanf(buf + 7, "%lu", &r.Cached);
         } else if (strncmp(buf, "SwapTotal:", 10) == 0) {
-            r.SwapTotal = value;
+            sscanf(buf + 10, "%lu", &r.SwapTotal);
         } else if (strncmp(buf, "SwapFree:", 9) == 0) {
-            r.SwapFree = value;
+            sscanf(buf + 9, "%lu", &r.SwapFree);
         }
     }
     
@@ -602,13 +605,14 @@ void srs_update_meminfo()
     r.RealInUse = r.MemActive - r.Buffers - r.Cached;
     r.NotInUse = r.MemTotal - r.RealInUse;
     
-    r.ok = true;
     if (r.MemTotal > 0) {
         r.percent_ram = (float)(r.RealInUse / (double)r.MemTotal);
     }
     if (r.SwapTotal > 0) {
         r.percent_swap = (float)((r.SwapTotal - r.SwapFree) / (double)r.SwapTotal);
     }
+    
+    r.ok = true;
 }
 
 SrsCpuInfo::SrsCpuInfo()
@@ -659,7 +663,6 @@ SrsPlatformInfo* srs_get_platform_info()
 void srs_update_platform_info()
 {
     SrsPlatformInfo& r = _srs_system_platform_info;
-    r.ok = true;
     
     r.srs_startup_time = srs_get_system_startup_time_ms();
     
@@ -670,13 +673,9 @@ void srs_update_platform_info()
             return;
         }
         
-        int ret = fscanf(f, "%lf %lf\n", &r.os_uptime, &r.os_ilde_time);
+        fscanf(f, "%lf %lf\n", &r.os_uptime, &r.os_ilde_time);
     
         fclose(f);
-
-        if (ret < 0) {
-            r.ok = false;
-        }
     }
     
     if (true) {
@@ -686,15 +685,17 @@ void srs_update_platform_info()
             return;
         }
         
-        int ret = fscanf(f, "%lf %lf %lf\n", 
-            &r.load_one_minutes, &r.load_five_minutes, &r.load_fifteen_minutes);
+        // @see: read_loadavg() from https://github.com/sysstat/sysstat/blob/master/rd_stats.c#L402
+        // @remark, we use our algorithm, not sysstat.
+        fscanf(f, "%lf %lf %lf\n", 
+            &r.load_one_minutes, 
+            &r.load_five_minutes, 
+            &r.load_fifteen_minutes);
     
         fclose(f);
-
-        if (ret < 0) {
-            r.ok = false;
-        }
     }
+    
+    r.ok = true;
 }
 
 SrsNetworkDevices::SrsNetworkDevices()
@@ -752,24 +753,23 @@ void srs_update_network_devices()
         fgets(buf, sizeof(buf), f);
     
         for (int i = 0; i < MAX_NETWORK_DEVICES_COUNT; i++) {
+            if (!fgets(buf, sizeof(buf), f)) {
+                break;
+            }
+            
             SrsNetworkDevices& r = _srs_system_network_devices[i];
-            r.ok = false;
-            r.sample_time = 0;
     
-            int ret = fscanf(f, "%6[^:]:%llu %lu %lu %lu %lu %lu %lu %lu %llu %lu %lu %lu %lu %lu %lu %lu\n", 
+            // @see: read_net_dev() from https://github.com/sysstat/sysstat/blob/master/rd_stats.c#L786
+            // @remark, we use our algorithm, not sysstat.
+            sscanf(buf, "%6[^:]:%llu %lu %lu %lu %lu %lu %lu %lu %llu %lu %lu %lu %lu %lu %lu %lu\n", 
                 r.name, &r.rbytes, &r.rpackets, &r.rerrs, &r.rdrop, &r.rfifo, &r.rframe, &r.rcompressed, &r.rmulticast,
                 &r.sbytes, &r.spackets, &r.serrs, &r.sdrop, &r.sfifo, &r.scolls, &r.scarrier, &r.scompressed);
                 
-            if (ret == 17) {
-                r.ok = true;
-                r.name[sizeof(r.name) - 1] = 0;
-                _nb_srs_system_network_devices = i + 1;
-                r.sample_time = srs_get_system_time_ms();
-            }
+            r.name[sizeof(r.name) - 1] = 0;
+            _nb_srs_system_network_devices = i + 1;
             
-            if (ret == EOF) {
-                break;
-            }
+            r.sample_time = srs_get_system_time_ms();
+            r.ok = true;
         }
     
         fclose(f);
@@ -832,19 +832,19 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
         static char buf[1024];
         fgets(buf, sizeof(buf), f);
         
-        // @see: https://github.com/shemminger/iproute2/blob/master/misc/ss.c
         while (fgets(buf, sizeof(buf), f)) {
-            // @see: get_sockstat_line()
+            // @see: et_sockstat_line() from https://github.com/shemminger/iproute2/blob/master/misc/ss.c
             if (strncmp(buf, "sockets: used ", 14) == 0) {
-                int ret = sscanf(buf, "%*s %*s %d\n", &nb_socks);
-                srs_assert(ret == 1);
+                sscanf(buf + 14, "%d\n", &nb_socks);
             } else if (strncmp(buf, "TCP: ", 5) == 0) {
-                int ret = sscanf(buf, "%*s %*s %d %*s %d %*s %d %*s %d %*s %d\n", 
-                    &nb_tcp4_hashed, &nb_tcp_orphans, &nb_tcp_tws, &nb_tcp_total, &nb_tcp_mem);
-                srs_assert(ret == 5);
+                sscanf(buf + 5, "%*s %d %*s %d %*s %d %*s %d %*s %d\n", 
+                    &nb_tcp4_hashed, 
+                    &nb_tcp_orphans, 
+                    &nb_tcp_tws, 
+                    &nb_tcp_total, 
+                    &nb_tcp_mem);
             } else if (strncmp(buf, "UDP: ", 5) == 0) {
-                int ret = sscanf(buf, "%*s %*s %d\n", &nb_udp4);
-                srs_assert(ret == 1);
+                sscanf(buf + 5, "%*s %d\n", &nb_udp4);
             }
         }
     
@@ -875,8 +875,7 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
                 }
                 // parse tcp stat data
                 if (strncmp(buf, "Tcp: ", 5) == 0) {
-                    int ret = sscanf(buf, "%*s %*d %*d %*d %*d %*d %*d %*d %*d %d\n", &nb_tcp_estab);
-                    srs_assert(ret == 1);
+                    sscanf(buf + 5, "%*d %*d %*d %*d %*d %*d %*d %*d %d\n", &nb_tcp_estab);
                 }
             }
         }

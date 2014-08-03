@@ -207,6 +207,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v1.0, 2014-08-02, fix [#143](https://github.com/winlinvip/simple-rtmp-server/issues/143), fix retrieve sys stat bug for all linux. 0.9.185.
 * v1.0, 2014-08-02, fix [#138](https://github.com/winlinvip/simple-rtmp-server/issues/138), fix http hooks bug, regression bug. 0.9.184.
 * v1.0, 2014-08-02, fix [#142](https://github.com/winlinvip/simple-rtmp-server/issues/142), fix tcp stat slow bug, use /proc/net/sockstat instead, refer to 'ss -s'. 0.9.183.
 * v1.0, 2014-07-31, fix [#141](https://github.com/winlinvip/simple-rtmp-server/issues/141), support tun0(vpn network device) ip retrieve. 0.9.179.
