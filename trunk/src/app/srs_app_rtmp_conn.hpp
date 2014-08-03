@@ -89,7 +89,9 @@ private:
     virtual int check_vhost();
     virtual int playing(SrsSource* source);
     virtual int fmle_publishing(SrsSource* source);
+    virtual int do_fmle_publishing(SrsSource* source);
     virtual int flash_publishing(SrsSource* source);
+    virtual int do_flash_publishing(SrsSource* source);
     virtual int process_publish_message(SrsSource* source, SrsMessage* msg, bool vhost_is_edge);
     virtual int process_play_control_msg(SrsConsumer* consumer, SrsMessage* msg);
 private:

@@ -369,6 +369,13 @@ public:
     virtual int on_video(SrsMessage* video);
     virtual int on_aggregate(SrsMessage* msg);
     /**
+    * the pre-publish is we are very sure we are
+    * trying to publish stream, please lock the resource,
+    * and we use release_publish() to release the resource.
+    */
+    virtual int acquire_publish();
+    virtual void release_publish();
+    /**
     * publish stream event notify.
     * @param _req the request from client, the source will deep copy it,
     *         for when reload the request of client maybe invalid.

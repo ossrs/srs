@@ -74,6 +74,9 @@ using namespace std;
 // when edge timeout, retry next.
 #define SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT_US (int64_t)(3*1000*1000LL)
 
+// to get msgs then totally send out.
+#define SYS_MAX_PLAY_SEND_MSGS 128
+
 SrsRtmpConn::SrsRtmpConn(SrsServer* srs_server, st_netfd_t client_stfd)
     : SrsConnection(srs_server, client_stfd)
 {
@@ -318,10 +321,11 @@ int SrsRtmpConn::stream_service_cycle()
     }
     srs_assert(source != NULL);
     
-    // check publish available
-    // for edge, never check it, for edge use proxy mode.
-    if (!vhost_is_edge) {
-        if (type != SrsRtmpConnPlay && !source->can_publish()) {
+    // check ASAP, to fail it faster if invalid.
+    if (type != SrsRtmpConnPlay && !vhost_is_edge) {
+        // check publish available
+        // for edge, never check it, for edge use proxy mode.
+        if (!source->can_publish()) {
             ret = ERROR_SYSTEM_STREAM_BUSY;
             srs_warn("stream %s is already publishing. ret=%d", 
                 req->get_stream_url().c_str(), ret);
@@ -379,23 +383,18 @@ int SrsRtmpConn::stream_service_cycle()
                 return ret;
             }
             
-            if ((ret = http_hooks_on_publish()) != ERROR_SUCCESS) {
-                srs_error("http hook on_publish failed. ret=%d", ret);
-                return ret;
+            if (!vhost_is_edge) {
+                if ((ret = source->acquire_publish()) != ERROR_SUCCESS) {
+                    return ret;
+                }
             }
-
-            srs_info("start to publish stream %s success", req->stream.c_str());
+            
             ret = fmle_publishing(source);
-
-            // when edge, notice edge to change state.
-            // when origin, notice all service to unpublish.
-            if (vhost_is_edge) {
-                source->on_edge_proxy_unpublish();
-            } else {
-                source->on_unpublish();
+            
+            if (!vhost_is_edge) {
+                source->release_publish();
             }
-
-            http_hooks_on_unpublish();
+            
             return ret;
         }
         case SrsRtmpConnFlashPublish: {
@@ -413,23 +412,18 @@ int SrsRtmpConn::stream_service_cycle()
                 return ret;
             }
             
-            if ((ret = http_hooks_on_publish()) != ERROR_SUCCESS) {
-                srs_error("http hook on_publish failed. ret=%d", ret);
-                return ret;
+            if (!vhost_is_edge) {
+                if ((ret = source->acquire_publish()) != ERROR_SUCCESS) {
+                    return ret;
+                }
             }
             
-            srs_info("flash start to publish stream %s success", req->stream.c_str());
             ret = flash_publishing(source);
-
-            // when edge, notice edge to change state.
-            // when origin, notice all service to unpublish.
-            if (vhost_is_edge) {
-                source->on_edge_proxy_unpublish();
-            } else {
-                source->on_unpublish();
+            
+            if (!vhost_is_edge) {
+                source->release_publish();
             }
             
-            http_hooks_on_unpublish();
             return ret;
         }
         default: {
@@ -478,8 +472,6 @@ int SrsRtmpConn::check_vhost()
     
     return ret;
 }
-
-#define SYS_MAX_PLAY_SEND_MSGS 128
 
 int SrsRtmpConn::playing(SrsSource* source)
 {
@@ -605,6 +597,33 @@ int SrsRtmpConn::fmle_publishing(SrsSource* source)
 {
     int ret = ERROR_SUCCESS;
     
+    bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
+            
+    if ((ret = http_hooks_on_publish()) != ERROR_SUCCESS) {
+        srs_error("http hook on_publish failed. ret=%d", ret);
+        return ret;
+    }
+
+    srs_info("start to publish stream %s success", req->stream.c_str());
+    ret = do_fmle_publishing(source);
+
+    // when edge, notice edge to change state.
+    // when origin, notice all service to unpublish.
+    if (vhost_is_edge) {
+        source->on_edge_proxy_unpublish();
+    } else {
+        source->on_unpublish();
+    }
+
+    http_hooks_on_unpublish();
+    
+    return ret;
+}
+
+int SrsRtmpConn::do_fmle_publishing(SrsSource* source)
+{
+    int ret = ERROR_SUCCESS;
+    
     if ((ret = refer->check(req->pageUrl, _srs_config->get_refer_publish(req->vhost))) != ERROR_SUCCESS) {
         srs_error("fmle check publish_refer failed. ret=%d", ret);
         return ret;
@@ -681,6 +700,33 @@ int SrsRtmpConn::fmle_publishing(SrsSource* source)
 }
 
 int SrsRtmpConn::flash_publishing(SrsSource* source)
+{
+    int ret = ERROR_SUCCESS;
+    
+    bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
+            
+    if ((ret = http_hooks_on_publish()) != ERROR_SUCCESS) {
+        srs_error("http hook on_publish failed. ret=%d", ret);
+        return ret;
+    }
+    
+    srs_info("flash start to publish stream %s success", req->stream.c_str());
+    ret = do_flash_publishing(source);
+
+    // when edge, notice edge to change state.
+    // when origin, notice all service to unpublish.
+    if (vhost_is_edge) {
+        source->on_edge_proxy_unpublish();
+    } else {
+        source->on_unpublish();
+    }
+    
+    http_hooks_on_unpublish();
+    
+    return ret;
+}
+
+int SrsRtmpConn::do_flash_publishing(SrsSource* source)
 {
     int ret = ERROR_SUCCESS;
     
