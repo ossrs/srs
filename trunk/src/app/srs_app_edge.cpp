@@ -279,7 +279,15 @@ int SrsEdgeIngester::connect_server()
     close_underlayer_socket();
     
     SrsConfDirective* conf = _srs_config->get_vhost_edge_origin(_req->vhost);
-    srs_assert(conf);
+    
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/79
+    // when origin is error, for instance, server is shutdown,
+    // then user remove the vhost then reload, the conf is empty.
+    if (!conf) {
+        ret = ERROR_EDGE_VHOST_REMOVED;
+        srs_warn("vhost %s removed. ret=%d", _req->vhost.c_str(), ret);
+        return ret;
+    }
     
     // select the origin.
     std::string server = conf->args.at(origin_index % conf->args.size());

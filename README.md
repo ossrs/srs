@@ -207,6 +207,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v1.0, 2014-08-03, fix [#79](https://github.com/winlinvip/simple-rtmp-server/issues/79), fix the reload remove edge assert bug. 0.9.189.
 * v1.0, 2014-08-03, fix [#57](https://github.com/winlinvip/simple-rtmp-server/issues/57), use lock(acquire/release publish) to avoid duplicated publishing. 0.9.188.
 * v1.0, 2014-08-03, fix [#85](https://github.com/winlinvip/simple-rtmp-server/issues/85), fix the segment-dvr sequence header missing. 0.9.187.
 * v1.0, 2014-08-03, fix [#145](https://github.com/winlinvip/simple-rtmp-server/issues/145), refine ffmpeg log, check abitrate for libaacplus. 0.9.186.

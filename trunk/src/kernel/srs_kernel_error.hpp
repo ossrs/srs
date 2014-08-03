@@ -180,6 +180,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_KERNEL_FLV_HEADER             3036
 #define ERROR_KERNEL_FLV_STREAM_CLOSED      3037
 #define ERROR_KERNEL_STREAM_INIT            3038
+#define ERROR_EDGE_VHOST_REMOVED            3039
 
 /**
 * whether the error code is an system control error.
