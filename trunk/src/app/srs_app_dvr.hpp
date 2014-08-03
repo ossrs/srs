@@ -161,6 +161,8 @@ class SrsDvrSegmentPlan : public SrsDvrPlan
 private:
     // in config, in ms
     int segment_duration;
+    SrsSharedPtrMessage* sh_audio;
+    SrsSharedPtrMessage* sh_video;
 public:
     SrsDvrSegmentPlan();
     virtual ~SrsDvrSegmentPlan();
@@ -168,6 +170,8 @@ public:
     virtual int initialize(SrsSource* source, SrsRequest* req);
     virtual int on_publish();
     virtual void on_unpublish();
+    virtual int on_audio(SrsSharedPtrMessage* audio);
+    virtual int on_video(SrsSharedPtrMessage* video);
 private:
     virtual int update_duration(SrsSharedPtrMessage* msg);
 };

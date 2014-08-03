@@ -399,10 +399,13 @@ void SrsDvrSessionPlan::on_unpublish()
 SrsDvrSegmentPlan::SrsDvrSegmentPlan()
 {
     segment_duration = -1;
+    sh_video = sh_audio = NULL;
 }
 
 SrsDvrSegmentPlan::~SrsDvrSegmentPlan()
 {
+    srs_freep(sh_video);
+    srs_freep(sh_audio);
 }
 
 int SrsDvrSegmentPlan::initialize(SrsSource* source, SrsRequest* req)
@@ -445,6 +448,26 @@ void SrsDvrSegmentPlan::on_unpublish()
     dvr_enabled = false;
 }
 
+int SrsDvrSegmentPlan::on_audio(SrsSharedPtrMessage* audio)
+{
+    if (SrsFlvCodec::audio_is_sequence_header(audio->payload, audio->size)) {
+        srs_freep(sh_audio);
+        sh_audio = audio->copy();
+    }
+    
+    return SrsDvrPlan::on_audio(audio);
+}
+
+int SrsDvrSegmentPlan::on_video(SrsSharedPtrMessage* video)
+{
+    if (SrsFlvCodec::video_is_sequence_header(video->payload, video->size)) {
+        srs_freep(sh_video);
+        sh_video = video->copy();
+    }
+    
+    return SrsDvrPlan::on_video(video);
+}
+
 int SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
@@ -463,7 +486,16 @@ int SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
         }
         on_unpublish();
         
+        // open new flv file
         if ((ret = open_new_segment()) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        // update sequence header
+        if (sh_video && (ret = SrsDvrPlan::on_video(sh_video)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        if (sh_audio && (ret = SrsDvrPlan::on_audio(sh_audio)) != ERROR_SUCCESS) {
             return ret;
         }
     }
