@@ -41,14 +41,15 @@ using namespace std;
 
 #ifdef SRS_AUTO_FFMPEG
 
-#define SRS_RTMP_ENCODER_COPY    "copy"
-#define SRS_RTMP_ENCODER_NO_VIDEO    "vn"
-#define SRS_RTMP_ENCODER_NO_AUDIO    "an"
+#define SRS_RTMP_ENCODER_COPY           "copy"
+#define SRS_RTMP_ENCODER_NO_VIDEO       "vn"
+#define SRS_RTMP_ENCODER_NO_AUDIO       "an"
 // only support libx264 encoder.
-#define SRS_RTMP_ENCODER_VCODEC     "libx264"
+#define SRS_RTMP_ENCODER_VCODEC         "libx264"
 // any aac encoder is ok which contains the aac,
 // for example, libaacplus, aac, fdkaac
-#define SRS_RTMP_ENCODER_ACODEC     "aac"
+#define SRS_RTMP_ENCODER_ACODEC         "aac"
+#define SRS_RTMP_ENCODER_LIBAACPLUS     "libaacplus"
 
 SrsFFMPEG::SrsFFMPEG(std::string ffmpeg_bin)
 {
@@ -173,6 +174,15 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
         }
     }
     
+    // @see, https://github.com/winlinvip/simple-rtmp-server/issues/145
+    if (acodec == SRS_RTMP_ENCODER_LIBAACPLUS) {
+        if (abitrate < 16 || abitrate > 72) {
+            ret = ERROR_ENCODER_ABITRATE;
+            srs_error("invalid abitrate for aac: %d, must in [16, 72], ret=%d", abitrate, ret);
+            return ret;
+        }
+    }
+    
     if (acodec != SRS_RTMP_ENCODER_COPY && acodec != SRS_RTMP_ENCODER_NO_AUDIO) {
         if (acodec.find(SRS_RTMP_ENCODER_ACODEC) == std::string::npos) {
             ret = ERROR_ENCODER_ACODEC;
@@ -182,20 +192,17 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
         }
         if (abitrate <= 0) {
             ret = ERROR_ENCODER_ABITRATE;
-            srs_error("invalid abitrate: %d, ret=%d", 
-                abitrate, ret);
+            srs_error("invalid abitrate: %d, ret=%d", abitrate, ret);
             return ret;
         }
         if (asample_rate <= 0) {
             ret = ERROR_ENCODER_ASAMPLE_RATE;
-            srs_error("invalid sample rate: %d, ret=%d", 
-                asample_rate, ret);
+            srs_error("invalid sample rate: %d, ret=%d", asample_rate, ret);
             return ret;
         }
         if (achannels != 1 && achannels != 2) {
             ret = ERROR_ENCODER_ACHANNELS;
-            srs_error("invalid achannels, must be 1 or 2, actual %d, ret=%d", 
-                achannels, ret);
+            srs_error("invalid achannels, must be 1 or 2, actual %d, ret=%d", achannels, ret);
             return ret;
         }
     }
@@ -359,20 +366,20 @@ int SrsFFMPEG::start()
     params.push_back("-y");
     params.push_back(_output);
 
+    std::string cli;
     if (true) {
-        int pparam_size = 8 * 1024;
-        char* pparam = new char[pparam_size];
-        char* p = pparam;
-        char* last = pparam + pparam_size;
         for (int i = 0; i < (int)params.size(); i++) {
             std::string ffp = params[i];
-            snprintf(p, last - p, "%s ", ffp.c_str());
-            p += ffp.length() + 1;
+            cli += ffp;
+            if (i < (int)params.size() - 1) {
+                cli += " ";
+            }
         }
-        srs_trace("start transcoder, log: %s, params: %s", 
-            log_file.c_str(), pparam);
-        srs_freep(pparam);
+        srs_trace("start ffmpeg, log: %s, params: %s", log_file.c_str(), cli.c_str());
     }
+    
+    // for log
+    int cid = _srs_context->get_id();
     
     // TODO: fork or vfork?
     if ((pid = fork()) < 0) {
@@ -392,6 +399,19 @@ int SrsFFMPEG::start()
             srs_error("open encoder file %s failed. ret=%d", log_file.c_str(), ret);
             return ret;
         }
+        
+        // log basic info
+        if (true) {
+            char buf[4096];
+            int pos = 0;
+            pos += snprintf(buf + pos, sizeof(buf) - pos, "\n");
+            pos += snprintf(buf + pos, sizeof(buf) - pos, "ffmpeg cid=%d\n", cid);
+            pos += snprintf(buf + pos, sizeof(buf) - pos, "log=%s\n", log_file.c_str());
+            pos += snprintf(buf + pos, sizeof(buf) - pos, "params: %s\n", cli.c_str());
+            ::write(log_fd, buf, pos);
+        }
+        
+        // dup to stdout and stderr.
         if (dup2(log_fd, STDOUT_FILENO) < 0) {
             ret = ERROR_ENCODER_DUP2;
             srs_error("dup2 encoder file failed. ret=%d", ret);
@@ -402,6 +422,7 @@ int SrsFFMPEG::start()
             srs_error("dup2 encoder file failed. ret=%d", ret);
             return ret;
         }
+        
         // close log fd
         ::close(log_fd);
         // close other fds
