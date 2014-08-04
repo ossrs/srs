@@ -682,7 +682,7 @@ int SrsServer::do_cycle()
     // the deamon thread, update the time cache
     while (true) {
         // the interval in config.
-        int heartbeat_max_resolution = (int)(_srs_config->get_heartbeat_interval() / 100);
+        int heartbeat_max_resolution = (int)(_srs_config->get_heartbeat_interval() / SRS_SYS_CYCLE_INTERVAL);
         
         // dynamic fetch the max.
         int __max = max;
