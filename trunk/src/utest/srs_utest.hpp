@@ -44,7 +44,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 // disable some for fast dev, compile and startup.
-#if 1
+#if 0
     #undef ENABLE_UTEST_AMF0
     #undef ENABLE_UTEST_CONFIG
     #undef ENABLE_UTEST_CORE
