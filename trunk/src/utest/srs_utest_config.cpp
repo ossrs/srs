@@ -29,6 +29,47 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_app_source.hpp>
 
+MockSrsConfigBuffer::MockSrsConfigBuffer(string buf)
+{
+    // read all.
+    int filesize = (int)buf.length();
+    
+    if (filesize <= 0) {
+        return;
+    }
+    
+    // create buffer
+    pos = last = start = new char[filesize];
+    end = start + filesize;
+    
+    memcpy(start, buf.data(), filesize);
+}
+
+MockSrsConfigBuffer::~MockSrsConfigBuffer()
+{
+}
+
+int MockSrsConfigBuffer::fullfill(const char* /*filename*/)
+{
+    return ERROR_SUCCESS;
+}
+
+MockSrsConfig::MockSrsConfig()
+{
+}
+
+MockSrsConfig::~MockSrsConfig()
+{
+}
+
+int MockSrsConfig::parse(string buf)
+{
+    MockSrsConfigBuffer buffer(buf);
+    return parse_buffer(&buffer);
+}
+
+#ifdef ENABLE_UTEST_CONFIG
+
 #define _MIN_OK_CONF "listen 1935; "
 
 // full.conf
@@ -992,45 +1033,6 @@ std::string __full_conf = ""
     "    edge            10000;                                                                                                             \n"
     "}                                                                                                                                      \n"
 ;
-
-MockSrsConfigBuffer::MockSrsConfigBuffer(string buf)
-{
-    // read all.
-    int filesize = (int)buf.length();
-    
-    if (filesize <= 0) {
-        return;
-    }
-    
-    // create buffer
-    pos = last = start = new char[filesize];
-    end = start + filesize;
-    
-    memcpy(start, buf.data(), filesize);
-}
-
-MockSrsConfigBuffer::~MockSrsConfigBuffer()
-{
-}
-
-int MockSrsConfigBuffer::fullfill(const char* /*filename*/)
-{
-    return ERROR_SUCCESS;
-}
-
-MockSrsConfig::MockSrsConfig()
-{
-}
-
-MockSrsConfig::~MockSrsConfig()
-{
-}
-
-int MockSrsConfig::parse(string buf)
-{
-    MockSrsConfigBuffer buffer(buf);
-    return parse_buffer(&buffer);
-}
 
 VOID TEST(ConfigTest, CheckMacros)
 {
@@ -5451,4 +5453,6 @@ VOID TEST(ConfigMainTest, CheckConf_pithy_print)
         EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"pithy_print{edges 10000;}"));
     }
 }
+
+#endif
 

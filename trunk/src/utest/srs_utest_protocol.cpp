@@ -203,6 +203,8 @@ int MockBufferIO::read(void* buf, size_t size, ssize_t* nread)
     return ERROR_SUCCESS;
 }
 
+#ifdef ENABLE_UTEST_PROTOCOL
+
 #ifdef SRS_AUTO_SSL
 
 // verify the sha256
@@ -5598,4 +5600,5 @@ VOID TEST(ProtocolRTMPTest, RTMPHandshakeBytes)
     EXPECT_TRUE(bytes.s0s1s2 != NULL);
 }
 
+#endif
 

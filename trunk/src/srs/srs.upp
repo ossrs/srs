@@ -125,6 +125,8 @@ file
 	..\utest\srs_utest_kernel.cpp,
 	..\utest\srs_utest_protocol.hpp,
 	..\utest\srs_utest_protocol.cpp,
+	..\utest\srs_utest_reload.hpp,
+	..\utest\srs_utest_reload.cpp,
 	research readonly separator,
 	..\..\research\librtmp\srs_bandwidth_check.c,
 	..\..\research\librtmp\srs_detect_rtmp.c,
@@ -139,5 +141,4 @@ file
 
 mainconfig
 	"" = "MAIN";
-
 

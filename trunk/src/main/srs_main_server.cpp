@@ -101,6 +101,11 @@ int main(int argc, char** argv)
     srs_trace("arm tool chain: "SRS_AUTO_EMBEDED_TOOL_CHAIN);
 #endif
     
+    /**
+    * we do nothing in the constructor of server,
+    * and use initialize to create members, set hooks for instance the reload handler,
+    * all initialize will done in this stage.
+    */
     if ((ret = _srs_server->initialize()) != ERROR_SUCCESS) {
         return ret;
     }

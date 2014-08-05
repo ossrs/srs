@@ -20,54 +20,10 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
-#include <srs_utest_core.hpp>
 
-#ifdef ENABLE_UTEST_CORE
+#include <srs_utest_reload.hpp>
 
-using namespace std;
-
-#include <srs_core_autofree.hpp>
-
-VOID TEST(CoreAutoFreeTest, Free)
-{
-    char* data = new char[32];
-    srs_freep(data);
-    EXPECT_TRUE(data == NULL);
-
-    if (true) {
-        data = new char[32];
-        SrsAutoFree(char, data);
-    }
-    EXPECT_TRUE(data == NULL);
-}
-
-VOID TEST(CoreMacroseTest, Check)
-{
-#ifndef SRS_AUTO_BUILD_TS
-    EXPECT_TRUE(false);
-#endif
-#ifndef SRS_AUTO_BUILD_DATE
-    EXPECT_TRUE(false);
-#endif
-#ifndef SRS_AUTO_UNAME
-    EXPECT_TRUE(false);
-#endif
-#ifndef SRS_AUTO_USER_CONFIGURE
-    EXPECT_TRUE(false);
-#endif
-#ifndef SRS_AUTO_CONFIGURE
-    EXPECT_TRUE(false);
-#endif
-#ifndef SRS_AUTO_EMBEDED_TOOL_CHAIN
-    EXPECT_TRUE(false);
-#endif
-#ifndef SRS_AUTO_PREFIX
-    EXPECT_TRUE(false);
-#endif
-#ifndef SRS_AUTO_CONSTRIBUTORS
-    EXPECT_TRUE(false);
-#endif
-}
+#ifdef ENABLE_UTEST_RELOAD
 
 #endif
 

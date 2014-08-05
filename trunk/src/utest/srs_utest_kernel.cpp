@@ -199,6 +199,8 @@ int MockBufferReader::read(void* buf, size_t size, ssize_t* nread)
     return ERROR_SUCCESS;
 }
 
+#ifdef ENABLE_UTEST_KERNEL
+
 VOID TEST(KernelBufferTest, DefaultObject)
 {
     SrsBuffer b;
@@ -1509,4 +1511,6 @@ VOID TEST(KernelUtilityTest, UtilityString)
     EXPECT_TRUE(srs_string_ends_with("Hello", "o"));
     EXPECT_TRUE(srs_string_ends_with("Hello", "lo"));
 }
+
+#endif
 

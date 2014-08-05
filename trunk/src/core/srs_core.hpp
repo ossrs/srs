@@ -86,7 +86,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // so we remove the srs_freepa utility.
 
 /**
-* disable copy constructor of class
+* disable copy constructor of class,
+* to avoid the memory leak or corrupt by copy instance.
 */
 #define disable_default_copy(className)\
     private:\

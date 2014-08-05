@@ -22,6 +22,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_utest_amf0.hpp>
 
+#ifdef ENABLE_UTEST_AMF0
+
 #include <string>
 using namespace std;
 
@@ -1268,4 +1270,6 @@ VOID TEST(ProtocolAMF0Test, ObjectEcmaStrict)
     EXPECT_EQ(1, arr2->to_strict_array()->count());
     EXPECT_EQ(0, arr3->to_ecma_array()->count());
 }
+
+#endif
 
