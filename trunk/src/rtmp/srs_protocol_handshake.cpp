@@ -97,17 +97,8 @@ namespace _srs_internal
             "E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED" \
             "EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381" \
             "FFFFFFFFFFFFFFFF"
-    int __openssl_generate_key(
-        u_int8_t* _private_key, u_int8_t* _public_key, int32_t& size,
-        DH*& pdh, int32_t& bits_count, u_int8_t*& shared_key, int32_t& shared_key_length, BIGNUM*& peer_public_key
-    ){
+    int __openssl_initialize_dh(DH* pdh, int32_t bits_count){
         int ret = ERROR_SUCCESS;
-    
-        //1. Create the DH
-        if ((pdh = DH_new()) == NULL) {
-            ret = ERROR_OpenSslCreateDH; 
-            return ret;
-        }
     
         //2. Create his internal p and g
         if ((pdh->p = BN_new()) == NULL) {
@@ -119,7 +110,7 @@ namespace _srs_internal
             return ret;
         }
     
-        //3. initialize p, g and key length
+        //3. initialize p and g
         if (BN_hex2bn(&pdh->p, RFC2409_PRIME_1024) == 0) {
             ret = ERROR_OpenSslParseP1024; 
             return ret;
@@ -137,74 +128,33 @@ namespace _srs_internal
             ret = ERROR_OpenSslGenerateDHKeys;
             return ret;
         }
-    
-        // CreateSharedKey
-        if (pdh == NULL) {
-            ret = ERROR_OpenSslGenerateDHKeys;
-            return ret;
-        }
-    
-        if (shared_key_length != 0 || shared_key != NULL) {
-            ret = ERROR_OpenSslShareKeyComputed;
-            return ret;
-        }
-    
-        shared_key_length = DH_size(pdh);
-        if (shared_key_length <= 0 || shared_key_length > 1024) {
-            ret = ERROR_OpenSslGetSharedKeySize;
-            return ret;
-        }
-        shared_key = new u_int8_t[shared_key_length];
-        memset(shared_key, 0, shared_key_length);
-    
-        peer_public_key = BN_bin2bn(_private_key, size, 0);
-        if (peer_public_key == NULL) {
-            ret = ERROR_OpenSslGetPeerPublicKey;
-            return ret;
-        }
-    
-        if (DH_compute_key(shared_key, peer_public_key, pdh) == -1) {
-            ret = ERROR_OpenSslComputeSharedKey;
-            return ret;
-        }
-    
-        // CopyPublicKey
-        if (pdh == NULL) {
-            ret = ERROR_OpenSslComputeSharedKey;
+        
+        return ret;
+    }
+    int __openssl_copy_key(DH* pdh, char* public_key, int32_t size)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        int32_t bits_count = 1024; 
+        
+        // 2. generate the g, p, private/public key.
+        if ((ret = __openssl_initialize_dh(pdh, bits_count)) != ERROR_SUCCESS) {
             return ret;
         }
         
-        int32_t keySize = BN_num_bytes(pdh->pub_key);
-        if ((keySize <= 0) || (size <= 0) || (keySize > size)) {
-            //("CopyPublicKey failed due to either invalid DH state or invalid call"); return ret;
-            ret = ERROR_OpenSslInvalidDHState; 
-            return ret;
-        }
-    
-        if (BN_bn2bin(pdh->pub_key, _public_key) != keySize) {
+        // copy public key to bytes.
+        srs_assert(BN_num_bytes(pdh->pub_key) == size);
+        
+        if (BN_bn2bin(pdh->pub_key, (unsigned char*)public_key) != size) {
             //("Unable to copy key"); return ret;
-            ret = ERROR_OpenSslCopyKey; 
+            ret = ERROR_OpenSslCopyKey;
             return ret;
         }
         
         return ret;
     }
-    int openssl_generate_key(char* _private_key, char* _public_key, int32_t size)
+    void __openssl_free(DH* pdh)
     {
-        int ret = ERROR_SUCCESS;
-    
-        // Initialize
-        DH* pdh = NULL;
-        int32_t bits_count = 1024; 
-        u_int8_t* shared_key = NULL;
-        int32_t shared_key_length = 0;
-        BIGNUM* peer_public_key = NULL;
-        
-        ret = __openssl_generate_key(
-            (u_int8_t*)_private_key, (u_int8_t*)_public_key, size,
-            pdh, bits_count, shared_key, shared_key_length, peer_public_key
-        );
-        
         if (pdh != NULL) {
             if (pdh->p != NULL) {
                 BN_free(pdh->p);
@@ -217,16 +167,25 @@ namespace _srs_internal
             DH_free(pdh);
             pdh = NULL;
         }
+    }
+    int openssl_generate_key(char* public_key, int32_t size)
+    {
+        int ret = ERROR_SUCCESS;
     
-        if (shared_key != NULL) {
-            delete[] shared_key;
-            shared_key = NULL;
-        }
+        // Initialize
+        DH* pdh = NULL;
     
-        if (peer_public_key != NULL) {
-            BN_free(peer_public_key);
-            peer_public_key = NULL;
+        //1. Create the DH
+        if ((pdh = DH_new()) == NULL) {
+            ret = ERROR_OpenSslCreateDH; 
+            return ret;
         }
+        
+        // generate and copy key.
+        ret = __openssl_copy_key(pdh, public_key, size);
+        
+        // cleanup
+        __openssl_free(pdh);
     
         return ret;
     }
@@ -867,7 +826,9 @@ namespace _srs_internal
             srs_key_block_init(&block0.key);
             srs_digest_block_init(&block1.digest);
             
-            if ((ret = openssl_generate_key(c1->block0.key.key, block0.key.key, 128)) != ERROR_SUCCESS) {
+            // directly generate the public key.
+            // @see: https://github.com/winlinvip/simple-rtmp-server/issues/148
+            if ((ret = openssl_generate_key(block0.key.key, 128)) != ERROR_SUCCESS) {
                 srs_error("calc s1 key failed. ret=%d", ret);
                 return ret;
             }
@@ -875,7 +836,9 @@ namespace _srs_internal
             srs_digest_block_init(&block0.digest);
             srs_key_block_init(&block1.key);
             
-            if ((ret = openssl_generate_key(c1->block1.key.key, block1.key.key, 128)) != ERROR_SUCCESS) {
+            // directly generate the public key.
+            // @see: https://github.com/winlinvip/simple-rtmp-server/issues/148
+            if ((ret = openssl_generate_key(block1.key.key, 128)) != ERROR_SUCCESS) {
                 srs_error("calc s1 key failed. ret=%d", ret);
                 return ret;
             }
