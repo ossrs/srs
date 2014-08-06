@@ -866,17 +866,15 @@ namespace _srs_internal
         if (schema == srs_schema0) {
             srs_key_block_init(&block0.key);
             srs_digest_block_init(&block1.digest);
-        } else {
-            srs_digest_block_init(&block0.digest);
-            srs_key_block_init(&block1.key);
-        }
-        
-        if (schema == srs_schema0) {
+            
             if ((ret = openssl_generate_key(c1->block0.key.key, block0.key.key, 128)) != ERROR_SUCCESS) {
                 srs_error("calc s1 key failed. ret=%d", ret);
                 return ret;
             }
         } else {
+            srs_digest_block_init(&block0.digest);
+            srs_key_block_init(&block1.key);
+            
             if ((ret = openssl_generate_key(c1->block1.key.key, block1.key.key, 128)) != ERROR_SUCCESS) {
                 srs_error("calc s1 key failed. ret=%d", ret);
                 return ret;

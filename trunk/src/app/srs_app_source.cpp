@@ -338,7 +338,7 @@ int SrsConsumer::dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& c
     srs_assert(max_count > 0);
     
     if (should_update_source_id) {
-        srs_trace("update source_id=%d", source->source_id());
+        srs_trace("update source_id=%d[%d]", source->source_id(), source->source_id());
         should_update_source_id = false;
     }
     
