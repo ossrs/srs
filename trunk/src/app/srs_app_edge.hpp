@@ -101,6 +101,7 @@ private:
     virtual int ingest();
     virtual void close_underlayer_socket();
     virtual int connect_server();
+    virtual int connect_app();
     virtual int process_publish_message(SrsMessage* msg);
 };
 

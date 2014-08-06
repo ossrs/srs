@@ -46,6 +46,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_msg_array.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_protocol_amf0.hpp>
 
 // when error, edge ingester sleep for a while and retry.
 #define SRS_EDGE_INGESTER_SLEEP_US (int64_t)(1*1000*1000LL)
@@ -131,8 +132,7 @@ int SrsEdgeIngester::cycle()
         srs_error("handshake with server failed. ret=%d", ret);
         return ret;
     }
-    if ((ret = client->connect_app(req->app, req->tcUrl, req)) != ERROR_SUCCESS) {
-        srs_error("connect with server failed, tcUrl=%s. ret=%d", req->tcUrl.c_str(), ret);
+    if ((ret = connect_app()) != ERROR_SUCCESS) {
         return ret;
     }
     if ((ret = client->create_stream(stream_id)) != ERROR_SUCCESS) {
@@ -204,6 +204,49 @@ int SrsEdgeIngester::ingest()
         if ((ret = process_publish_message(msg)) != ERROR_SUCCESS) {
             return ret;
         }
+    }
+    
+    return ret;
+}
+
+int SrsEdgeIngester::connect_app()
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsRequest* req = _req;
+    
+    // args of request takes the srs info.
+    if (req->args == NULL) {
+        req->args = SrsAmf0Any::object();
+    }
+    
+    // notify server the edge identity,
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/147
+    SrsAmf0Object* data = req->args;
+    data->set("srs_sig", SrsAmf0Any::str(RTMP_SIG_SRS_KEY));
+    data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
+    data->set("srs_license", SrsAmf0Any::str(RTMP_SIG_SRS_LICENSE));
+    data->set("srs_role", SrsAmf0Any::str(RTMP_SIG_SRS_ROLE));
+    data->set("srs_url", SrsAmf0Any::str(RTMP_SIG_SRS_URL));
+    data->set("srs_version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
+    data->set("srs_site", SrsAmf0Any::str(RTMP_SIG_SRS_WEB));
+    data->set("srs_email", SrsAmf0Any::str(RTMP_SIG_SRS_EMAIL));
+    data->set("srs_copyright", SrsAmf0Any::str(RTMP_SIG_SRS_COPYRIGHT));
+    data->set("srs_primary_authors", SrsAmf0Any::str(RTMP_SIG_SRS_PRIMARY_AUTHROS));
+    // for edge to directly get the id of client.
+    data->set("srs_pid", SrsAmf0Any::number(getpid()));
+    data->set("srs_id", SrsAmf0Any::number(_srs_context->get_id()));
+    
+    // local ip of edge
+    std::vector<std::string> ips = srs_get_local_ipv4_ips();
+    assert(_srs_config->get_stats_network() < (int)ips.size());
+    std::string local_ip = ips[_srs_config->get_stats_network()];
+    data->set("srs_server_ip", SrsAmf0Any::str(local_ip.c_str()));
+    
+    // upnode server identity will show in the connect_app of client.
+    if ((ret = client->connect_app(req->app, req->tcUrl, req)) != ERROR_SUCCESS) {
+        srs_error("connect with server failed, tcUrl=%s. ret=%d", req->tcUrl.c_str(), ret);
+        return ret;
     }
     
     return ret;

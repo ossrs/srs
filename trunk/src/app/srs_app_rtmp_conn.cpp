@@ -163,6 +163,35 @@ int SrsRtmpConn::do_cycle()
         req->schema.c_str(), req->vhost.c_str(), req->port.c_str(),
         req->app.c_str(), (req->args? "(obj)":"null"));
     
+    // show client identity
+    if(req->args) {
+        std::string srs_version;
+        std::string srs_server_ip;
+        int srs_pid = 0;
+        int srs_id = 0;
+        
+        SrsAmf0Any* prop = NULL;
+        if ((prop = req->args->ensure_property_string("srs_version")) != NULL) {
+            srs_version = prop->to_str();
+        }
+        if ((prop = req->args->ensure_property_string("srs_server_ip")) != NULL) {
+            srs_server_ip = prop->to_str();
+        }
+        if ((prop = req->args->ensure_property_number("srs_pid")) != NULL) {
+            srs_pid = (int)prop->to_number();
+        }
+        if ((prop = req->args->ensure_property_number("srs_id")) != NULL) {
+            srs_id = (int)prop->to_number();
+        }
+        
+        srs_info("edge-srs ip=%s, version=%s, pid=%d, id=%d", 
+            srs_server_ip.c_str(), srs_version.c_str(), srs_pid, srs_id);
+        if (srs_pid > 0) {
+            srs_trace("edge-srs ip=%s, version=%s, pid=%d, id=%d", 
+                srs_server_ip.c_str(), srs_version.c_str(), srs_pid, srs_id);
+        }
+    }
+    
     ret = service_cycle();
     http_hooks_on_close();
     
