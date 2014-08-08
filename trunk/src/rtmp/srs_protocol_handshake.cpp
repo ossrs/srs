@@ -145,6 +145,9 @@ namespace _srs_internal
             "E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED" \
             "EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381" \
             "FFFFFFFFFFFFFFFF"
+    /**
+    * initialize DH, create the public/private key.
+    */
     int __openssl_initialize_dh(DH* pdh, int32_t bits_count) 
     {
         int ret = ERROR_SUCCESS;
@@ -180,6 +183,9 @@ namespace _srs_internal
         
         return ret;
     }
+    /**
+    * create DH and copy the 128bytes public key.
+    */
     int __openssl_copy_key(DH* pdh, char* public_key, int32_t size)
     {
         int ret = ERROR_SUCCESS;
@@ -202,19 +208,20 @@ namespace _srs_internal
         
         return ret;
     }
-    int __openssl_compute_key(DH* pdh, const char* peer_pub_key, int ppk_size, char* secret)
+    /**
+    * create DH and copy the 128bytes public key,
+    * generate and copy the shared key.
+    */
+    int __openssl_compute_key(DH* pdh, const char* peer_pub_key, int ppk_size, char* public_key, char* shared_key)
     {
         int ret = ERROR_SUCCESS;
         
         int32_t bits_count = 1024; 
         
-        // 2. generate the g, p, private/public key.
-        if ((ret = __openssl_initialize_dh(pdh, bits_count)) != ERROR_SUCCESS) {
+        // create DH and copy the 128bytes public key
+        if ((ret = __openssl_copy_key(pdh, public_key, ppk_size)) != ERROR_SUCCESS) {
             return ret;
         }
-        
-        // copy public key to bytes.
-        srs_assert(BN_num_bytes(pdh->pub_key) == ppk_size);
         
         BIGNUM* ppk = NULL;
         if ((ppk = BN_bin2bn((const unsigned char*)peer_pub_key, ppk_size, 0)) == NULL) {
@@ -223,7 +230,7 @@ namespace _srs_internal
         }
         
         // if failed, donot return, do cleanup.
-        if (DH_compute_key((unsigned char*)secret, ppk, pdh) < 0) {
+        if (DH_compute_key((unsigned char*)shared_key, ppk, pdh) < 0) {
             ret = ERROR_OpenSslComputeSharedKey;
         }
         
