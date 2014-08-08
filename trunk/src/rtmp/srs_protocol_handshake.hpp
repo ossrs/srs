@@ -114,8 +114,8 @@ namespace _srs_internal
     #define __SRS_OpensslHashSize 512
     extern u_int8_t SrsGenuineFMSKey[];
     extern u_int8_t SrsGenuineFPKey[];
-    int openssl_HMACsha256(const void* data, int data_size, const void* key, int key_size, void* digest);
-    int openssl_generate_key(char* _private_key, char* _public_key, int32_t size);
+    int openssl_HMACsha256(const void* key, int key_size, const void* data, int data_size, void* digest);
+    int openssl_generate_key(char* public_key, int32_t size);
     
     // calc the offset of key,
     // the key->offset cannot be used as the offset of key.
