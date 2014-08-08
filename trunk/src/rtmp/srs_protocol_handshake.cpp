@@ -202,6 +202,37 @@ namespace _srs_internal
         
         return ret;
     }
+    int __openssl_compute_key(DH* pdh, const char* peer_pub_key, int ppk_size, char* secret)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        int32_t bits_count = 1024; 
+        
+        // 2. generate the g, p, private/public key.
+        if ((ret = __openssl_initialize_dh(pdh, bits_count)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        // copy public key to bytes.
+        srs_assert(BN_num_bytes(pdh->pub_key) == ppk_size);
+        
+        BIGNUM* ppk = NULL;
+        if ((ppk = BN_bin2bn((const unsigned char*)peer_pub_key, ppk_size, 0)) == NULL) {
+            ret = ERROR_OpenSslGetPeerPublicKey;
+            return ret;
+        }
+        
+        // if failed, donot return, do cleanup.
+        if (DH_compute_key((unsigned char*)secret, ppk, pdh) < 0) {
+            ret = ERROR_OpenSslComputeSharedKey;
+        }
+        
+        if (ppk) {
+            BN_free(ppk);
+        }
+        
+        return ret;
+    }
     void __openssl_free(DH* pdh)
     {
         if (pdh != NULL) {
