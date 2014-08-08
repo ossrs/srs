@@ -70,7 +70,7 @@ namespace _srs_internal
         0x93, 0xB8, 0xE6, 0x36, 0xCF, 0xEB, 0x31, 0xAE
     }; // 62
     
-    int __openssl_HMACsha256(HMAC_CTX* ctx, const void* data, int data_size, const void* key, int key_size, void* digest, unsigned int* digest_size) 
+    int __openssl_HMACsha256(HMAC_CTX* ctx, const void* data, int data_size, void* digest, unsigned int* digest_size) 
     {
         int ret = ERROR_SUCCESS;
         
@@ -104,7 +104,7 @@ namespace _srs_internal
             // use data to digest.
             // @see ./crypto/sha/sha256t.c
             // @see ./crypto/evp/digest.c
-            if (EVP_Digest(data, data_size, __key, &digest_size, EVP_sha256(), NULL) < 0)
+            if (EVP_Digest(data, data_size, __digest, &digest_size, EVP_sha256(), NULL) < 0)
             {
                 ret = ERROR_OpenSslSha256EvpDigest;
                 return ret;
@@ -122,7 +122,7 @@ namespace _srs_internal
                 return ret;
             }
             
-            ret = __openssl_HMACsha256(&ctx, data, data_size, __key, key_size, __digest, &digest_size);
+            ret = __openssl_HMACsha256(&ctx, data, data_size, __digest, &digest_size);
             HMAC_CTX_cleanup(&ctx);
             
             if (ret != ERROR_SUCCESS) {
