@@ -123,13 +123,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_OpenSslParseP1024             2029
 #define ERROR_OpenSslSetG                   2030
 #define ERROR_OpenSslGenerateDHKeys         2031
-#define ERROR_OpenSslShareKeyComputed       2032
-#define ERROR_OpenSslGetSharedKeySize       2033
-#define ERROR_OpenSslGetPeerPublicKey       2034
-#define ERROR_OpenSslComputeSharedKey       2035
-#define ERROR_OpenSslInvalidDHState         2036
-#define ERROR_OpenSslCopyKey                2037
-#define ERROR_OpenSslSha256DigestSize       2038
+#define ERROR_OpenSslCopyKey                2032
+#define ERROR_OpenSslSha256Update           2033
+#define ERROR_OpenSslSha256Init             2034
+#define ERROR_OpenSslSha256Final            2035
+#define ERROR_OpenSslSha256EvpDigest        2036
+#define ERROR_OpenSslSha256DigestSize       2037
 //                                           
 // system control message, 
 // not an error, but special control logic.

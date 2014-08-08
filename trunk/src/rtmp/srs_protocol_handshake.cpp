@@ -70,24 +70,72 @@ namespace _srs_internal
         0x93, 0xB8, 0xE6, 0x36, 0xCF, 0xEB, 0x31, 0xAE
     }; // 62
     
-    int openssl_HMACsha256(const void* data, int data_size, const void* key, int key_size, void* digest) 
+    int __openssl_HMACsha256(HMAC_CTX* ctx, const void* data, int data_size, const void* key, int key_size, void* digest, unsigned int* digest_size) 
     {
-        HMAC_CTX ctx;
+        int ret = ERROR_SUCCESS;
         
-        HMAC_CTX_init(&ctx);
-        HMAC_Init_ex(&ctx, (unsigned char*) key, key_size, EVP_sha256(), NULL);
-        HMAC_Update(&ctx, (unsigned char *) data, data_size);
+        if (HMAC_Update(ctx, (unsigned char *) data, data_size) < 0) {
+            ret = ERROR_OpenSslSha256Update;
+            return ret;
+        }
     
-        unsigned int digest_size;
-        HMAC_Final(&ctx, (unsigned char *) digest, &digest_size);
-        
-        HMAC_CTX_cleanup(&ctx);
-        
-        if (digest_size != 32) {
-            return ERROR_OpenSslSha256DigestSize;
+        if (HMAC_Final(ctx, (unsigned char *) digest, digest_size) < 0) {
+            ret = ERROR_OpenSslSha256Final;
+            return ret;
         }
         
-        return ERROR_SUCCESS;
+        return ret;
+    }
+    /**
+    * sha256 digest algorithm.
+    * @param key the sha256 key, NULL to use EVP_Digest, for instance,
+    *       hashlib.sha256(data).digest().
+    */
+    int openssl_HMACsha256(const void* key, int key_size, const void* data, int data_size, void* digest) 
+    {
+        int ret = ERROR_SUCCESS;
+        
+        unsigned int digest_size = 0;
+        
+        unsigned char* __key = (unsigned char*)key;
+        unsigned char* __digest = (unsigned char*)digest;
+        
+        if (key == NULL) {
+            // use data to digest.
+            // @see ./crypto/sha/sha256t.c
+            // @see ./crypto/evp/digest.c
+            if (EVP_Digest(data, data_size, __key, &digest_size, EVP_sha256(), NULL) < 0)
+            {
+                ret = ERROR_OpenSslSha256EvpDigest;
+                return ret;
+            }
+        } else {
+            // use key-data to digest.
+            HMAC_CTX ctx;
+            
+            // @remark, if no key, use EVP_Digest to digest,
+            // for instance, in python, hashlib.sha256(data).digest().
+            HMAC_CTX_init(&ctx);
+            
+            if (HMAC_Init_ex(&ctx, __key, key_size, EVP_sha256(), NULL) < 0) {
+                ret = ERROR_OpenSslSha256Init;
+                return ret;
+            }
+            
+            ret = __openssl_HMACsha256(&ctx, data, data_size, __key, key_size, __digest, &digest_size);
+            HMAC_CTX_cleanup(&ctx);
+            
+            if (ret != ERROR_SUCCESS) {
+                return ret;
+            }
+        }
+        
+        if (digest_size != 32) {
+            ret = ERROR_OpenSslSha256DigestSize;
+            return ret;
+        }
+        
+        return ret;
     }
     
     #define RFC2409_PRIME_1024 \
@@ -97,7 +145,8 @@ namespace _srs_internal
             "E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED" \
             "EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381" \
             "FFFFFFFFFFFFFFFF"
-    int __openssl_initialize_dh(DH* pdh, int32_t bits_count){
+    int __openssl_initialize_dh(DH* pdh, int32_t bits_count) 
+    {
         int ret = ERROR_SUCCESS;
     
         //2. Create his internal p and g
@@ -543,14 +592,14 @@ namespace _srs_internal
         int ret = ERROR_SUCCESS;
         
         char temp_key[__SRS_OpensslHashSize];
-        if ((ret = openssl_HMACsha256(s1->get_digest(), 32, SrsGenuineFPKey, 62, temp_key)) != ERROR_SUCCESS) {
+        if ((ret = openssl_HMACsha256(SrsGenuineFPKey, 62, s1->get_digest(), 32, temp_key)) != ERROR_SUCCESS) {
             srs_error("create c2 temp key failed. ret=%d", ret);
             return ret;
         }
         srs_verbose("generate c2 temp key success.");
         
         char _digest[__SRS_OpensslHashSize];
-        if ((ret = openssl_HMACsha256(random, 1504, temp_key, 32, _digest)) != ERROR_SUCCESS) {
+        if ((ret = openssl_HMACsha256(temp_key, 32, random, 1504, _digest)) != ERROR_SUCCESS) {
             srs_error("create c2 digest failed. ret=%d", ret);
             return ret;
         }
@@ -567,14 +616,14 @@ namespace _srs_internal
         int ret = ERROR_SUCCESS;
         
         char temp_key[__SRS_OpensslHashSize];
-        if ((ret = openssl_HMACsha256(s1->get_digest(), 32, SrsGenuineFPKey, 62, temp_key)) != ERROR_SUCCESS) {
+        if ((ret = openssl_HMACsha256(SrsGenuineFPKey, 62, s1->get_digest(), 32, temp_key)) != ERROR_SUCCESS) {
             srs_error("create c2 temp key failed. ret=%d", ret);
             return ret;
         }
         srs_verbose("generate c2 temp key success.");
         
         char _digest[__SRS_OpensslHashSize];
-        if ((ret = openssl_HMACsha256(random, 1504, temp_key, 32, _digest)) != ERROR_SUCCESS) {
+        if ((ret = openssl_HMACsha256(temp_key, 32, random, 1504, _digest)) != ERROR_SUCCESS) {
             srs_error("create c2 digest failed. ret=%d", ret);
             return ret;
         }
@@ -590,14 +639,14 @@ namespace _srs_internal
         int ret = ERROR_SUCCESS;
         
         char temp_key[__SRS_OpensslHashSize];
-        if ((ret = openssl_HMACsha256(c1->get_digest(), 32, SrsGenuineFMSKey, 68, temp_key)) != ERROR_SUCCESS) {
+        if ((ret = openssl_HMACsha256(SrsGenuineFMSKey, 68, c1->get_digest(), 32, temp_key)) != ERROR_SUCCESS) {
             srs_error("create s2 temp key failed. ret=%d", ret);
             return ret;
         }
         srs_verbose("generate s2 temp key success.");
         
         char _digest[__SRS_OpensslHashSize];
-        if ((ret = openssl_HMACsha256(random, 1504, temp_key, 32, _digest)) != ERROR_SUCCESS) {
+        if ((ret = openssl_HMACsha256(temp_key, 32, random, 1504, _digest)) != ERROR_SUCCESS) {
             srs_error("create s2 digest failed. ret=%d", ret);
             return ret;
         }
@@ -614,14 +663,14 @@ namespace _srs_internal
         int ret = ERROR_SUCCESS;
         
         char temp_key[__SRS_OpensslHashSize];
-        if ((ret = openssl_HMACsha256(c1->get_digest(), 32, SrsGenuineFMSKey, 68, temp_key)) != ERROR_SUCCESS) {
+        if ((ret = openssl_HMACsha256(SrsGenuineFMSKey, 68, c1->get_digest(), 32, temp_key)) != ERROR_SUCCESS) {
             srs_error("create s2 temp key failed. ret=%d", ret);
             return ret;
         }
         srs_verbose("generate s2 temp key success.");
         
         char _digest[__SRS_OpensslHashSize];
-        if ((ret = openssl_HMACsha256(random, 1504, temp_key, 32, _digest)) != ERROR_SUCCESS) {
+        if ((ret = openssl_HMACsha256(temp_key, 32, random, 1504, _digest)) != ERROR_SUCCESS) {
             srs_error("create s2 digest failed. ret=%d", ret);
             return ret;
         }
@@ -883,7 +932,7 @@ namespace _srs_internal
         SrsAutoFree(char, c1s1_joined_bytes);
         
         digest = new char[__SRS_OpensslHashSize];
-        if ((ret = openssl_HMACsha256(c1s1_joined_bytes, 1536 - 32, SrsGenuineFMSKey, 36, digest)) != ERROR_SUCCESS) {
+        if ((ret = openssl_HMACsha256(SrsGenuineFMSKey, 36, c1s1_joined_bytes, 1536 - 32, digest)) != ERROR_SUCCESS) {
             srs_error("calc digest for s1 failed. ret=%d", ret);
             return ret;
         }
@@ -910,7 +959,7 @@ namespace _srs_internal
         SrsAutoFree(char, c1s1_joined_bytes);
         
         digest = new char[__SRS_OpensslHashSize];
-        if ((ret = openssl_HMACsha256(c1s1_joined_bytes, 1536 - 32, SrsGenuineFPKey, 30, digest)) != ERROR_SUCCESS) {
+        if ((ret = openssl_HMACsha256(SrsGenuineFPKey, 30, c1s1_joined_bytes, 1536 - 32, digest)) != ERROR_SUCCESS) {
             srs_error("calc digest for c1 failed. ret=%d", ret);
             return ret;
         }
