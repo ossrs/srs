@@ -216,8 +216,6 @@ namespace _srs_internal
     {
         int ret = ERROR_SUCCESS;
         
-        int32_t bits_count = 1024; 
-        
         // create DH and copy the 128bytes public key
         if ((ret = __openssl_copy_key(pdh, public_key, ppk_size)) != ERROR_SUCCESS) {
             return ret;
