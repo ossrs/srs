@@ -198,14 +198,39 @@ namespace _srs_internal
         }
         
         // copy public key to bytes.
-        // TODO: FIXME: please finger it out.
+        // sometimes, the key_size is 127, seems ok.
         int32_t key_size = BN_num_bytes(pdh->pub_key);
-        srs_assert(key_size == size);
+        srs_assert(key_size > 0);
         
         if (BN_bn2bin(pdh->pub_key, (unsigned char*)public_key) != size) {
             //("Unable to copy key"); return ret;
             ret = ERROR_OpenSslCopyKey;
             return ret;
+        }
+        
+        return ret;
+    }
+    /**
+    * use exists DH to create and copy the 128bytes shared key.
+    * the peer public key used to generate the shared key.
+    */
+    int __openssl_copy_shared_key(DH* pdh, const char* peer_pub_key, int ppk_size, char* shared_key)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        BIGNUM* ppk = NULL;
+        if ((ppk = BN_bin2bn((const unsigned char*)peer_pub_key, ppk_size, 0)) == NULL) {
+            ret = ERROR_OpenSslGetPeerPublicKey;
+            return ret;
+        }
+        
+        // if failed, donot return, do cleanup.
+        if (DH_compute_key((unsigned char*)shared_key, ppk, pdh) < 0) {
+            ret = ERROR_OpenSslComputeSharedKey;
+        }
+        
+        if (ppk) {
+            BN_free(ppk);
         }
         
         return ret;
@@ -223,19 +248,9 @@ namespace _srs_internal
             return ret;
         }
         
-        BIGNUM* ppk = NULL;
-        if ((ppk = BN_bin2bn((const unsigned char*)peer_pub_key, ppk_size, 0)) == NULL) {
-            ret = ERROR_OpenSslGetPeerPublicKey;
+        // generate and copy the shared key
+        if ((ret = __openssl_copy_shared_key(pdh, peer_pub_key, ppk_size, shared_key)) != ERROR_SUCCESS) {
             return ret;
-        }
-        
-        // if failed, donot return, do cleanup.
-        if (DH_compute_key((unsigned char*)shared_key, ppk, pdh) < 0) {
-            ret = ERROR_OpenSslComputeSharedKey;
-        }
-        
-        if (ppk) {
-            BN_free(ppk);
         }
         
         return ret;
