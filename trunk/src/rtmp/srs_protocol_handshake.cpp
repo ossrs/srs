@@ -198,7 +198,9 @@ namespace _srs_internal
         }
         
         // copy public key to bytes.
-        srs_assert(BN_num_bytes(pdh->pub_key) == size);
+        // TODO: FIXME: please finger it out.
+        int32_t key_size = BN_num_bytes(pdh->pub_key);
+        srs_assert(key_size == size);
         
         if (BN_bn2bin(pdh->pub_key, (unsigned char*)public_key) != size) {
             //("Unable to copy key"); return ret;
