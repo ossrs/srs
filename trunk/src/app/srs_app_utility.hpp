@@ -619,12 +619,14 @@ extern std::vector<std::string>& srs_get_local_ipv4_ips();
 
 // get local or peer ip.
 // where local ip is the server ip which client connected.
-std::string srs_get_local_ip(int fd);
+extern std::string srs_get_local_ip(int fd);
+// get the local id port.
+extern int srs_get_local_port(int fd);
 // where peer ip is the client public ip which connected to server.
-std::string srs_get_peer_ip(int fd);
+extern std::string srs_get_peer_ip(int fd);
 
 // dump summaries for /api/v1/summaries.
-void srs_api_dump_summaries(std::stringstream& ss);
+extern void srs_api_dump_summaries(std::stringstream& ss);
 
 #endif
 

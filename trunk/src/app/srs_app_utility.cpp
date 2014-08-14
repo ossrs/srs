@@ -993,6 +993,25 @@ string srs_get_local_ip(int fd)
     return ip;
 }
 
+int srs_get_local_port(int fd)
+{
+    std::string ip;
+
+    // discovery client information
+    sockaddr_in addr;
+    socklen_t addrlen = sizeof(addr);
+    if (getsockname(fd, (sockaddr*)&addr, &addrlen) == -1) {
+        return 0;
+    }
+    srs_verbose("get local ip success.");
+    
+    int port = ntohs(addr.sin_port);
+
+    srs_verbose("get local ip of client port=%s, fd=%d", port, fd);
+
+    return port;
+}
+
 string srs_get_peer_ip(int fd)
 {
     std::string ip;

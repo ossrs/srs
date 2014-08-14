@@ -151,7 +151,7 @@ Supported operating systems and hardware:
 1. Support listen at multiple ports.
 1. Support long time(>4.6hours) publish/play.
 1. High performace, 1800 connections(500kbps), 900Mbps, CPU 90.2%, 41MB
-1. Support forward publish stream to build active-standby [cluster](https://github.com/winlinvip/simple-rtmp-server/wiki/Cluster).
+1. Support forward publish stream to build active-standby [Forward](https://github.com/winlinvip/simple-rtmp-server/wiki/Forward).
 1. Support broadcast by forward the stream to other servers(origin/edge).
 1. Support live stream transcoding by ffmpeg.
 1. Support live stream forward(acopy/vcopy) by ffmpeg.
@@ -199,7 +199,7 @@ Supported operating systems and hardware:
 * 2013-12-25, [Release v0.9](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.9), support bandwidth test, player/encoder/chat [demos](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleDemo). 20926 lines.<br/>
 * 2013-12-08, [Release v0.8](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.8), support [http hooks callback](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback), update [st_load](https://github.com/winlinvip/st-load). 19186 lines.<br/>
 * 2013-12-03, [Release v0.7](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.7), support [live stream transcoding](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG). 17605 lines.<br/>
-* 2013-11-29, [Release v0.6](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.6), support [forward](https://github.com/winlinvip/simple-rtmp-server/wiki/Cluster) stream to origin/edge. 16094 lines.<br/>
+* 2013-11-29, [Release v0.6](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.6), support [forward](https://github.com/winlinvip/simple-rtmp-server/wiki/Forward) stream to origin/edge. 16094 lines.<br/>
 * 2013-11-26, [Release v0.5](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.5), support [HLS(m3u8)](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), fragment and window. 14449 lines.<br/>
 * 2013-11-10, [Release v0.4](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.4), support [reload](https://github.com/winlinvip/simple-rtmp-server/wiki/Reload) config, pause, longtime publish/play. 12500 lines.<br/>
 * 2013-11-04, [Release v0.3](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.3), support [vhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUrlVhost), refer, gop cache, listen multiple ports. 11773 lines.<br/>
@@ -310,7 +310,7 @@ Supported operating systems and hardware:
 * v1.0, 2014-01-19, add wiki [DeliveryHLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS)
 * v1.0, 2014-01-12, add wiki [HowToAskQuestion](https://github.com/winlinvip/simple-rtmp-server/wiki/HowToAskQuestion), [RtmpUrlVhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUrlVhost)
 * v1.0, 2014-01-11, fix jw/flower player pause bug, which send closeStream actually.
-* v1.0, 2014-01-05, add wiki [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build), [Performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance), [Cluster](https://github.com/winlinvip/simple-rtmp-server/wiki/Cluster)
+* v1.0, 2014-01-05, add wiki [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build), [Performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance), [Forward](https://github.com/winlinvip/simple-rtmp-server/wiki/Forward)
 * v1.0, 2014-01-01, change listen(512), chunk-size(60000), to improve performance.
 * v1.0, 2013-12-27, merge from wenjie, the bandwidth test feature.
 * <strong>v0.9, 2013-12-25, [v0.9](https://github.com/winlinvip/simple-rtmp-server/releases/tag/0.9) released. 20926 lines.</strong>
@@ -507,8 +507,8 @@ to ingest any input to rtmp, push to SRS.
 
 ### [RTMP cluster(origin/edge) Architecture](https://github.com/winlinvip/simple-rtmp-server/wiki/Edge)
 
-Remark: cluster over forward, see [Cluster](https://github.com/winlinvip/simple-rtmp-server/wiki/Cluster)
 Remark: cluster over edge, see [Edge](https://github.com/winlinvip/simple-rtmp-server/wiki/Edge)
+Remark: cluster over forward, see [Forward](https://github.com/winlinvip/simple-rtmp-server/wiki/Forward)
 
 <pre>
 +---------+       +-----------------+     +-----------------------+ 
