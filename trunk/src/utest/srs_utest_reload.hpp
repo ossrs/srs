@@ -29,5 +29,83 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_core.hpp>
 
+#include <srs_utest_config.hpp>
+#include <srs_app_reload.hpp>
+
+class MockReloadHandler : public ISrsReloadHandler
+{
+public:
+    bool listen_reloaded;
+    bool pid_reloaded;
+    bool log_tank_reloaded;
+    bool log_level_reloaded;
+    bool log_file_reloaded;
+    bool pithy_print_reloaded;
+    bool http_api_enabled_reloaded;
+    bool http_api_disabled_reloaded;
+    bool http_stream_enabled_reloaded;
+    bool http_stream_disabled_reloaded;
+    bool http_stream_updated_reloaded;
+    bool vhost_http_updated_reloaded;
+    bool vhost_added_reloaded;
+    bool vhost_removed_reloaded;
+    bool vhost_atc_reloaded;
+    bool vhost_gop_cache_reloaded;
+    bool vhost_queue_length_reloaded;
+    bool vhost_time_jitter_reloaded;
+    bool vhost_forward_reloaded;
+    bool vhost_hls_reloaded;
+    bool vhost_dvr_reloaded;
+    bool vhost_transcode_reloaded;
+    bool ingest_removed_reloaded;
+    bool ingest_added_reloaded;
+    bool ingest_updated_reloaded;
+public:
+    MockReloadHandler();
+    virtual ~MockReloadHandler();
+public:
+    virtual void reset();
+    virtual bool all_false();
+    virtual bool all_true();
+    virtual int count_total();
+    virtual int count_true();
+    virtual int count_false();
+public:
+    virtual int on_reload_listen();
+    virtual int on_reload_pid();
+    virtual int on_reload_log_tank();
+    virtual int on_reload_log_level();
+    virtual int on_reload_log_file();
+    virtual int on_reload_pithy_print();
+    virtual int on_reload_http_api_enabled();
+    virtual int on_reload_http_api_disabled();
+    virtual int on_reload_http_stream_enabled();
+    virtual int on_reload_http_stream_disabled();
+    virtual int on_reload_http_stream_updated();
+    virtual int on_reload_vhost_http_updated();
+    virtual int on_reload_vhost_added(std::string vhost);
+    virtual int on_reload_vhost_removed(std::string vhost);
+    virtual int on_reload_vhost_atc(std::string vhost);
+    virtual int on_reload_vhost_gop_cache(std::string vhost);
+    virtual int on_reload_vhost_queue_length(std::string vhost);
+    virtual int on_reload_vhost_time_jitter(std::string vhost);
+    virtual int on_reload_vhost_forward(std::string vhost);
+    virtual int on_reload_vhost_hls(std::string vhost);
+    virtual int on_reload_vhost_dvr(std::string vhost);
+    virtual int on_reload_vhost_transcode(std::string vhost);
+    virtual int on_reload_ingest_removed(std::string vhost, std::string ingest_id);
+    virtual int on_reload_ingest_added(std::string vhost, std::string ingest_id);
+    virtual int on_reload_ingest_updated(std::string vhost, std::string ingest_id);
+};
+
+class MockSrsReloadConfig : public MockSrsConfig
+{
+public:
+    MockSrsReloadConfig();
+    virtual ~MockSrsReloadConfig();
+public:
+    virtual int reload(std::string buf);
+};
+
 #endif
 

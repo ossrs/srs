@@ -414,11 +414,18 @@ int SrsConfig::reload()
     }
     srs_info("config reloader parse file success.");
     
+    return reload_conf(&conf);
+}
+
+int SrsConfig::reload_conf(SrsConfig* conf)
+{
+    int ret = ERROR_SUCCESS;
+    
     SrsConfDirective* old_root = root;
     SrsAutoFree(SrsConfDirective, old_root);
     
-    root = conf.root;
-    conf.root = NULL;
+    root = conf->root;
+    conf->root = NULL;
     
     // merge config.
     std::vector<ISrsReloadHandler*>::iterator it;
@@ -954,44 +961,41 @@ int SrsConfig::reload_ingest(SrsConfDirective* new_vhost, SrsConfDirective* old_
     for (int i = 0; i < (int)old_ingesters.size(); i++) {
         SrsConfDirective* old_ingester = old_ingesters.at(i);
         std::string ingest_id = old_ingester->arg0();
+        SrsConfDirective* new_ingester = new_vhost->get("ingest", ingest_id);
         
-        // if ingester exists in new vhost, not removed, ignore.
-        if (new_vhost->get("ingest", ingest_id)) {
-            continue;
-        }
-
-        // notice handler ingester removed.
-        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-            ISrsReloadHandler* subscribe = *it;
-            if ((ret = subscribe->on_reload_ingest_removed(vhost, ingest_id)) != ERROR_SUCCESS) {
-                srs_error("vhost %s notify subscribes ingest=%s removed failed. ret=%d", 
-                    vhost.c_str(), ingest_id.c_str(), ret);
-                return ret;
+        // ENABLED => DISABLED
+        if (get_ingest_enabled(old_ingester) && !get_ingest_enabled(new_ingester)) {
+            // notice handler ingester removed.
+            for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                ISrsReloadHandler* subscribe = *it;
+                if ((ret = subscribe->on_reload_ingest_removed(vhost, ingest_id)) != ERROR_SUCCESS) {
+                    srs_error("vhost %s notify subscribes ingest=%s removed failed. ret=%d", 
+                        vhost.c_str(), ingest_id.c_str(), ret);
+                    return ret;
+                }
             }
+            srs_trace("vhost %s reload ingest=%s removed success.", vhost.c_str(), ingest_id.c_str());
         }
-        srs_trace("vhost %s reload ingest=%s removed success.", vhost.c_str(), ingest_id.c_str());
     }
     
     // for added ingesters, start them.
     for (int i = 0; i < (int)new_ingesters.size(); i++) {
         SrsConfDirective* new_ingester = new_ingesters.at(i);
         std::string ingest_id = new_ingester->arg0();
+        SrsConfDirective* old_ingester = old_vhost->get("ingest", ingest_id);
         
-        // if ingester exists in old vhost, not added, ignore.
-        if (old_vhost->get("ingest", ingest_id)) {
-            continue;
-        }
-
-        // notice handler ingester removed.
-        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-            ISrsReloadHandler* subscribe = *it;
-            if ((ret = subscribe->on_reload_ingest_added(vhost, ingest_id)) != ERROR_SUCCESS) {
-                srs_error("vhost %s notify subscribes ingest=%s added failed. ret=%d", 
-                    vhost.c_str(), ingest_id.c_str(), ret);
-                return ret;
+        // DISABLED => ENABLED
+        if (!get_ingest_enabled(old_ingester) && get_ingest_enabled(new_ingester)) {
+            for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                ISrsReloadHandler* subscribe = *it;
+                if ((ret = subscribe->on_reload_ingest_added(vhost, ingest_id)) != ERROR_SUCCESS) {
+                    srs_error("vhost %s notify subscribes ingest=%s added failed. ret=%d", 
+                        vhost.c_str(), ingest_id.c_str(), ret);
+                    return ret;
+                }
             }
+            srs_trace("vhost %s reload ingest=%s added success.", vhost.c_str(), ingest_id.c_str());
         }
-        srs_trace("vhost %s reload ingest=%s added success.", vhost.c_str(), ingest_id.c_str());
     }
 
     // for updated ingesters, restart them.
@@ -1000,25 +1004,23 @@ int SrsConfig::reload_ingest(SrsConfDirective* new_vhost, SrsConfDirective* old_
         std::string ingest_id = new_ingester->arg0();
         SrsConfDirective* old_ingester = old_vhost->get("ingest", ingest_id);
         
-        // ignore the added ingester.
-        if (!old_ingester) {
-            continue;
-        }
-        
-        if (srs_directive_equals(new_ingester, old_ingester)) {
-            continue;
-        }
-
-        // notice handler ingester removed.
-        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
-            ISrsReloadHandler* subscribe = *it;
-            if ((ret = subscribe->on_reload_ingest_updated(vhost, ingest_id)) != ERROR_SUCCESS) {
-                srs_error("vhost %s notify subscribes ingest=%s updated failed. ret=%d", 
-                    vhost.c_str(), ingest_id.c_str(), ret);
-                return ret;
+        // ENABLED => ENABLED
+        if (get_ingest_enabled(old_ingester) && get_ingest_enabled(new_ingester)) {
+            if (srs_directive_equals(new_ingester, old_ingester)) {
+                continue;
             }
+    
+            // notice handler ingester removed.
+            for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                ISrsReloadHandler* subscribe = *it;
+                if ((ret = subscribe->on_reload_ingest_updated(vhost, ingest_id)) != ERROR_SUCCESS) {
+                    srs_error("vhost %s notify subscribes ingest=%s updated failed. ret=%d", 
+                        vhost.c_str(), ingest_id.c_str(), ret);
+                    return ret;
+                }
+            }
+            srs_trace("vhost %s reload ingest=%s updated success.", vhost.c_str(), ingest_id.c_str());
         }
-        srs_trace("vhost %s reload ingest=%s updated success.", vhost.c_str(), ingest_id.c_str());
     }
 
     srs_trace("ingest not changed for vhost=%s", vhost.c_str());
@@ -1270,11 +1272,11 @@ int SrsConfig::check_config()
             }
         }
     }
-    for (int i = 0; i < (int)vhosts.size(); i++) {
-        SrsConfDirective* conf = vhosts[i];
-        for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
-            SrsConfDirective* conf0 = conf->at(i);
-            string n = conf0->name;
+    for (int n = 0; n < (int)vhosts.size(); n++) {
+        SrsConfDirective* vhost = vhosts[n];
+        for (int i = 0; vhost && i < (int)vhost->directives.size(); i++) {
+            SrsConfDirective* conf = vhost->at(i);
+            string n = conf->name;
             if (n != "enabled" && n != "chunk_size"
                 && n != "mode" && n != "origin" && n != "token_traverse"
                 && n != "dvr" && n != "ingest" && n != "http" && n != "hls" && n != "http_hooks"
@@ -1290,8 +1292,8 @@ int SrsConfig::check_config()
             }
             // for each sub directives of vhost.
             if (n == "dvr") {
-                for (int j = 0; j < (int)conf0->directives.size(); j++) {
-                    string m = conf0->at(j)->name.c_str();
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name.c_str();
                     if (m != "enabled" && m != "dvr_path" && m != "dvr_plan"
                         && m != "dvr_duration" && m != "time_jitter"
                     ) {
@@ -1301,8 +1303,8 @@ int SrsConfig::check_config()
                     }
                 }
             } else if (n == "ingest") {
-                for (int j = 0; j < (int)conf0->directives.size(); j++) {
-                    string m = conf0->at(j)->name.c_str();
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name.c_str();
                     if (m != "enabled" && m != "input" && m != "ffmpeg"
                         && m != "engine"
                     ) {
@@ -1312,8 +1314,8 @@ int SrsConfig::check_config()
                     }
                 }
             } else if (n == "http") {
-                for (int j = 0; j < (int)conf0->directives.size(); j++) {
-                    string m = conf0->at(j)->name.c_str();
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name.c_str();
                     if (m != "enabled" && m != "mount" && m != "dir") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost http directive %s, ret=%d", m.c_str(), ret);
@@ -1321,8 +1323,8 @@ int SrsConfig::check_config()
                     }
                 }
             } else if (n == "hls") {
-                for (int j = 0; j < (int)conf0->directives.size(); j++) {
-                    string m = conf0->at(j)->name.c_str();
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name.c_str();
                     if (m != "enabled" && m != "hls_path" && m != "hls_fragment" && m != "hls_window") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost hls directive %s, ret=%d", m.c_str(), ret);
@@ -1330,8 +1332,8 @@ int SrsConfig::check_config()
                     }
                 }
             } else if (n == "http_hooks") {
-                for (int j = 0; j < (int)conf0->directives.size(); j++) {
-                    string m = conf0->at(j)->name.c_str();
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name.c_str();
                     if (m != "enabled" && m != "on_connect" && m != "on_close" && m != "on_publish"
                         && m != "on_unpublish" && m != "on_play" && m != "on_stop"
                     ) {
@@ -1342,8 +1344,8 @@ int SrsConfig::check_config()
                 }
             } else if (n == "forward") {
                 // TODO: FIXME: implements it.
-                /*for (int j = 0; j < (int)conf0->directives.size(); j++) {
-                    string m = conf0->at(j)->name.c_str();
+                /*for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name.c_str();
                     if (m != "enabled" && m != "vhost" && m != "refer") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost forward directive %s, ret=%d", m.c_str(), ret);
@@ -1351,17 +1353,17 @@ int SrsConfig::check_config()
                     }
                 }*/
             } else if (n == "transcode") {
-                for (int j = 0; j < (int)conf0->directives.size(); j++) {
-                    SrsConfDirective* conf1 = conf0->at(j);
-                    string m = conf1->name.c_str();
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    SrsConfDirective* trans = conf->at(j);
+                    string m = trans->name.c_str();
                     if (m != "enabled" && m != "ffmpeg" && m != "engine") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost transcode directive %s, ret=%d", m.c_str(), ret);
                         return ret;
                     }
                     if (m == "engine") {
-                        for (int k = 0; k < (int)conf1->directives.size(); k++) {
-                            string e = conf1->at(k)->name;
+                        for (int k = 0; k < (int)trans->directives.size(); k++) {
+                            string e = trans->at(k)->name;
                             if (e != "enabled" && e != "vfilter" && e != "vcodec"
                                 && e != "vbitrate" && e != "vfps" && e != "vwidth" && e != "vheight"
                                 && e != "vthreads" && e != "vprofile" && e != "vpreset" && e != "vparams"
@@ -1377,8 +1379,8 @@ int SrsConfig::check_config()
                     }
                 }
             } else if (n == "bandcheck") {
-                for (int j = 0; j < (int)conf0->directives.size(); j++) {
-                    string m = conf0->at(j)->name.c_str();
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name.c_str();
                     if (m != "enabled" && m != "key" && m != "interval" && m != "limit_kbps") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost bandcheck directive %s, ret=%d", m.c_str(), ret);
@@ -1386,6 +1388,29 @@ int SrsConfig::check_config()
                     }
                 }
             }
+        }
+    }
+    // check ingest id unique.
+    for (int i = 0; i < (int)vhosts.size(); i++) {
+        SrsConfDirective* vhost = vhosts[i];
+        std::vector<std::string> ids;
+        
+        for (int j = 0; j < (int)vhost->directives.size(); j++) {
+            SrsConfDirective* conf = vhost->at(j);
+            if (conf->name != "ingest") {
+                continue;
+            }
+            
+            std::string id = conf->arg0();
+            for (int k = 0; k < (int)ids.size(); k++) {
+                if (id == ids.at(k)) {
+                    ret = ERROR_SYSTEM_CONFIG_INVALID;
+                    srs_error("directive \"ingest\" id duplicated, vhost=%s, id=%s, ret=%d", 
+                        vhost->name.c_str(), id.c_str(), ret);
+                    return ret;
+                }
+            }
+            ids.push_back(id);
         }
     }
     

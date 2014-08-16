@@ -33,6 +33,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_config.hpp>
 
+#define _MIN_OK_CONF "listen 1935; "
+
 class MockSrsConfigBuffer : public _srs_internal::SrsConfigBuffer
 {
 public:

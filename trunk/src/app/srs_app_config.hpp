@@ -290,6 +290,12 @@ public:
     * @remark, user can test the config before reload it.
     */
     virtual int reload();
+protected:
+    /**
+    * reload from the config.
+    * @remark, use protected for the utest to override with mock.
+    */
+    virtual int reload_conf(SrsConfig* conf);
 private:
     /**
     * reload the http_api section of config.
@@ -334,7 +340,7 @@ protected:
     /**
     * parse config from the buffer.
     * @param buffer, the config buffer, user must delete it.
-    * @remark, protected for the utest to override with mock.
+    * @remark, use protected for the utest to override with mock.
     */
     virtual int parse_buffer(_srs_internal::SrsConfigBuffer* buffer);
 private:

@@ -70,8 +70,6 @@ int MockSrsConfig::parse(string buf)
 
 #ifdef ENABLE_UTEST_CONFIG
 
-#define _MIN_OK_CONF "listen 1935; "
-
 // full.conf
 std::string __full_conf = ""
     "# all config for srs                                                                                                                   \n"
@@ -5452,6 +5450,14 @@ VOID TEST(ConfigMainTest, CheckConf_pithy_print)
         MockSrsConfig conf;
         EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"pithy_print{edges 10000;}"));
     }
+}
+
+VOID TEST(ConfigMainTest, CheckConf_vhost_ingest_id)
+{
+    MockSrsConfig conf;
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{ingest id{}}"));
+    EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{ingest id{} ingest id{}}"));
+    EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{ingest{} ingest{}}"));
 }
 
 #endif
