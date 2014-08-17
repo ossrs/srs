@@ -189,7 +189,7 @@ Supported operating systems and hardware:
 1. [no-plan] Support RTP/RTSP server.
 
 ## Releases
-* 2014-08-03, [Release v1.0-mainline7](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline7), config utest, support osx(darwin), all bug fixed. 57432 lines.<br/>
+* 2014-08-03, [Release v1.0-mainline7](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline7), config utest, all bug fixed. 57432 lines.<br/>
 * 2014-07-13, [Release v1.0-mainline6](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline6), core/kernel/rtmp utest, refine bandwidth(as/js/srslibrtmp library). 50029 lines.<br/>
 * 2014-06-27, [Release v1.0-mainline5](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline5), refine perf 3k+ clients, edge token traverse, [srs monitor](http://ossrs.net:1977), 30days online. 41573 lines.<br/>
 * 2014-05-28, [Release v1.0-mainline4](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline4), support heartbeat, tracable log, fix mem leak and bugs. 39200 lines.<br/>
@@ -219,7 +219,7 @@ Supported operating systems and hardware:
 * v1.0, 2014-08-02, fix [#138](https://github.com/winlinvip/simple-rtmp-server/issues/138), fix http hooks bug, regression bug. 0.9.184.
 * v1.0, 2014-08-02, fix [#142](https://github.com/winlinvip/simple-rtmp-server/issues/142), fix tcp stat slow bug, use /proc/net/sockstat instead, refer to 'ss -s'. 0.9.183.
 * v1.0, 2014-07-31, fix [#141](https://github.com/winlinvip/simple-rtmp-server/issues/141), support tun0(vpn network device) ip retrieve. 0.9.179.
-* v1.0, 2014-07-27, support build on OSX(Darwin). 0.9.177
+* v1.0, 2014-07-27, support partially build on OSX(Darwin). 0.9.177
 * v1.0, 2014-07-27, api connections add udp, add disk iops. 0.9.176
 * v1.0, 2014-07-26, complete config utest. 0.9.173
 * v1.0, 2014-07-26, fix [#124](https://github.com/winlinvip/simple-rtmp-server/issues/124), gop cache support disable video in publishing. 0.9.171.
