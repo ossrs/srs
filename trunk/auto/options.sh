@@ -590,7 +590,7 @@ function apply_user_presets() {
         SRS_HLS=YES
         SRS_DVR=YES
         SRS_NGINX=NO
-        SRS_SSL=NO
+        SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
         SRS_TRANSCODE=YES
         SRS_INGEST=NO
