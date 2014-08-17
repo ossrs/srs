@@ -208,6 +208,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v1.0, 2014-08-17, for [#155](https://github.com/winlinvip/simple-rtmp-server/issues/155), refine for osx, with ssl/http, disable statistics. 0.9.198.
 * v1.0, 2014-08-06, fix [#148](https://github.com/winlinvip/simple-rtmp-server/issues/148), simplify the RTMP handshake key generation. 0.9.191.
 * v1.0, 2014-08-06, fix [#147](https://github.com/winlinvip/simple-rtmp-server/issues/147), support identify the srs edge. 0.9.190.
 * <strong>v1.0, 2014-08-03, [1.0 mainline7(0.9.189)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline7) released. 57432 lines.</strong>

@@ -593,11 +593,11 @@ function apply_user_presets() {
         SRS_SSL=YES
         SRS_FFMPEG_TOOL=NO
         SRS_TRANSCODE=YES
-        SRS_INGEST=NO
-        SRS_HTTP_PARSER=NO
-        SRS_HTTP_CALLBACK=NO
-        SRS_HTTP_SERVER=NO
-        SRS_HTTP_API=NO
+        SRS_INGEST=YES
+        SRS_HTTP_PARSER=YES
+        SRS_HTTP_CALLBACK=YES
+        SRS_HTTP_SERVER=YES
+        SRS_HTTP_API=YES
         SRS_LIBRTMP=NO
         SRS_RESEARCH=NO
         SRS_UTEST=NO
@@ -794,6 +794,21 @@ function check_option_conflicts() {
             echo "x86/x64 should never use static, see: ./configure --help"; __check_ok=NO;
         fi
     fi
+    
+    # for darwin, must use --osx, vice versa
+    if [ $SRS_OSX = YES ]; then 
+        if [ `uname -s` = Darwin ]; then
+            echo "osx(darwin) is ok"
+        else
+            echo "--osx is for darwin(your os is not), see: ./configure --help"; __check_ok=NO;
+        fi
+    else
+        if [ `uname -s` = Darwin ]; then
+            echo "use --osx for darwin, see: ./configure --help"; __check_ok=NO;
+        fi
+    fi
+    
+    # TODO: FIXME: check more os.
 
     # check variable neccessary
     if [ $SRS_HLS = RESERVED ]; then echo "you must specifies the hls, see: ./configure --help"; __check_ok=NO; fi

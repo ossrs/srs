@@ -351,8 +351,21 @@ if [ ! -f ${SRS_OBJS}/st/libst.a ]; then echo "build st-1.9 static lib failed.";
 #####################################################################################
 # check the arm flag file, if flag changed, need to rebuild the st.
 if [ $SRS_HTTP_PARSER = YES ]; then
+    # for osx(darwin), donot use sed.
+    if [ $SRS_OSX = YES ]; then 
+        if [[ -f ${SRS_OBJS}/hp/http_parser.h && -f ${SRS_OBJS}/hp/libhttp_parser.a ]]; then
+            echo "http-parser-2.1 is ok.";
+        else
+            echo "build http-parser-2.1 for osx(darwin)";
+            (
+                rm -rf ${SRS_OBJS}/http-parser-2.1 && cd ${SRS_OBJS} && unzip -q ../3rdparty/http-parser-2.1.zip && 
+                cd http-parser-2.1 && 
+                make package &&
+                cd .. && rm -rf hp && ln -sf http-parser-2.1 hp
+            )
+        fi
     # ok, arm specified, if the flag filed does not exists, need to rebuild.
-    if [ $SRS_EMBEDED_CPU = YES ]; then
+    elif [ $SRS_EMBEDED_CPU = YES ]; then
         if [[ -f ${SRS_OBJS}/_flag.st.hp.tmp && -f ${SRS_OBJS}/hp/http_parser.h && -f ${SRS_OBJS}/hp/libhttp_parser.a ]]; then
             echo "http-parser-2.1 for arm is ok.";
         else
@@ -795,14 +808,21 @@ echo "#define SRS_AUTO_PREFIX \"${SRS_PREFIX}\"" >> $SRS_AUTO_HEADERS_H
 
 echo "" >> $SRS_AUTO_HEADERS_H
 
+# os specified
+echo "" >> $SRS_AUTO_HEADERS_H
+
+if [ $SRS_OSX = YES ]; then
+    echo "#define SRS_AUTO_OSX" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_AUTO_OSX" >> $SRS_AUTO_HEADERS_H
+fi
+
+echo "" >> $SRS_AUTO_HEADERS_H
+
 #####################################################################################
 # generated the contributors from AUTHORS.txt
 #####################################################################################
-if [ $OS_IS_CENTOS = YES ]; then
-    SRS_CONSTRIBUTORS=`cat ../AUTHORS.txt|grep "*"|awk -F '* ' '{print $2}'`
-else
-    SRS_CONSTRIBUTORS=`cat ../AUTHORS.txt|grep "*"|awk -F '\* ' '{print $2}'`
-fi
+SRS_CONSTRIBUTORS=`cat ../AUTHORS.txt|grep "*"|awk '{print $2}'`
 echo "#define SRS_AUTO_CONSTRIBUTORS \"\\" >> $SRS_AUTO_HEADERS_H
 for CONTRIBUTOR in $SRS_CONSTRIBUTORS; do
     echo "${CONTRIBUTOR} \\" >> $SRS_AUTO_HEADERS_H
