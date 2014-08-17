@@ -672,7 +672,7 @@ int SrsServer::do_cycle()
     // find the max loop
     int max = srs_max(0, SRS_SYS_TIME_RESOLUTION_MS_TIMES);
     
-#ifndef SRS_AUTO_OSX
+#ifdef SRS_AUTO_STAT
     max = srs_max(max, SRS_SYS_RUSAGE_RESOLUTION_TIMES);
     max = srs_max(max, SRS_SYS_CPU_STAT_RESOLUTION_TIMES);
     max = srs_max(max, SRS_SYS_DISK_STAT_RESOLUTION_TIMES);
@@ -723,7 +723,7 @@ int SrsServer::do_cycle()
                 srs_update_system_time_ms();
             }
             
-#ifndef SRS_AUTO_OSX
+#ifdef SRS_AUTO_STAT
             if ((i % SRS_SYS_RUSAGE_RESOLUTION_TIMES) == 0) {
                 srs_info("update resource info, rss.");
                 srs_update_system_rusage();

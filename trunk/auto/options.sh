@@ -22,6 +22,7 @@ SRS_SSL=RESERVED
 SRS_FFMPEG_TOOL=RESERVED
 SRS_TRANSCODE=RESERVED
 SRS_INGEST=RESERVED
+SRS_STAT=RESERVED
 SRS_HTTP_CALLBACK=RESERVED
 SRS_HTTP_SERVER=RESERVED
 SRS_HTTP_API=RESERVED
@@ -118,6 +119,7 @@ Options:
                             user must specifies the transcode tools in conf.
   --with-ingest             enable ingest features.
                             user must specifies the ingest tools in conf.
+  --with-stat               enable the data statistic, for http api.
   --with-librtmp            enable srs-librtmp, library for client.
   --with-bwtc               enable SRS bandwidth test client tool.
   --with-research           build the research tools.
@@ -139,6 +141,7 @@ Options:
   --without-ffmpeg          disable the ffmpeg transcode tool feature.
   --without-transcode       disable the transcoding feature.
   --without-ingest          disable the ingest feature.
+  --without-stat            disable the data statistic feature.
   --without-librtmp         disable srs-librtmp, library for client.
   --without-bwtc            disable SRS bandwidth test client tool.
   --without-research        do not build the research tools.
@@ -203,9 +206,10 @@ function parse_user_option() {
         --with-hls)                     SRS_HLS=YES                 ;;
         --with-dvr)                     SRS_DVR=YES                 ;;
         --with-nginx)                   SRS_NGINX=YES               ;;
-        --with-ffmpeg)                  SRS_FFMPEG_TOOL=YES              ;;
+        --with-ffmpeg)                  SRS_FFMPEG_TOOL=YES         ;;
         --with-transcode)               SRS_TRANSCODE=YES           ;;
         --with-ingest)                  SRS_INGEST=YES              ;;
+        --with-stat)                    SRS_STAT=YES                ;;
         --with-http-callback)           SRS_HTTP_CALLBACK=YES       ;;
         --with-http-server)             SRS_HTTP_SERVER=YES         ;;
         --with-http-api)                SRS_HTTP_API=YES            ;;
@@ -224,9 +228,10 @@ function parse_user_option() {
         --without-hls)                  SRS_HLS=NO                  ;;
         --without-dvr)                  SRS_DVR=NO                  ;;
         --without-nginx)                SRS_NGINX=NO                ;;
-        --without-ffmpeg)               SRS_FFMPEG_TOOL=NO               ;;
+        --without-ffmpeg)               SRS_FFMPEG_TOOL=NO          ;;
         --without-transcode)            SRS_TRANSCODE=NO            ;;
         --without-ingest)               SRS_INGEST=NO               ;;
+        --without-stat)                 SRS_STAT=NO                 ;;
         --without-http-callback)        SRS_HTTP_CALLBACK=NO        ;;
         --without-http-server)          SRS_HTTP_SERVER=NO          ;;
         --without-http-api)             SRS_HTTP_API=NO             ;;
@@ -353,6 +358,7 @@ function apply_user_presets() {
         SRS_FFMPEG_TOOL=NO
         SRS_TRANSCODE=NO
         SRS_INGEST=NO
+        SRS_STAT=NO
         SRS_HTTP_PARSER=NO
         SRS_HTTP_CALLBACK=NO
         SRS_HTTP_SERVER=NO
@@ -377,6 +383,7 @@ function apply_user_presets() {
         SRS_FFMPEG_TOOL=YES
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
+        SRS_STAT=YES
         SRS_HTTP_PARSER=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
@@ -401,6 +408,7 @@ function apply_user_presets() {
         SRS_FFMPEG_TOOL=NO
         SRS_TRANSCODE=NO
         SRS_INGEST=NO
+        SRS_STAT=NO
         SRS_HTTP_PARSER=NO
         SRS_HTTP_CALLBACK=NO
         SRS_HTTP_SERVER=NO
@@ -425,6 +433,7 @@ function apply_user_presets() {
         SRS_FFMPEG_TOOL=NO
         SRS_TRANSCODE=NO
         SRS_INGEST=NO
+        SRS_STAT=NO
         SRS_HTTP_PARSER=NO
         SRS_HTTP_CALLBACK=NO
         SRS_HTTP_SERVER=NO
@@ -449,6 +458,7 @@ function apply_user_presets() {
         SRS_FFMPEG_TOOL=NO
         SRS_TRANSCODE=NO
         SRS_INGEST=NO
+        SRS_STAT=NO
         SRS_HTTP_PARSER=NO
         SRS_HTTP_CALLBACK=NO
         SRS_HTTP_SERVER=NO
@@ -473,6 +483,7 @@ function apply_user_presets() {
         SRS_FFMPEG_TOOL=NO
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
+        SRS_STAT=YES
         SRS_HTTP_PARSER=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
@@ -498,6 +509,7 @@ function apply_user_presets() {
         SRS_FFMPEG_TOOL=NO
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
+        SRS_STAT=YES
         SRS_HTTP_PARSER=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
@@ -522,6 +534,7 @@ function apply_user_presets() {
         SRS_FFMPEG_TOOL=NO
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
+        SRS_STAT=YES
         SRS_HTTP_PARSER=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
@@ -546,6 +559,7 @@ function apply_user_presets() {
         SRS_FFMPEG_TOOL=YES
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
+        SRS_STAT=YES
         SRS_HTTP_PARSER=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
@@ -570,6 +584,7 @@ function apply_user_presets() {
         SRS_FFMPEG_TOOL=NO
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
+        SRS_STAT=YES
         SRS_HTTP_PARSER=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
@@ -594,6 +609,7 @@ function apply_user_presets() {
         SRS_FFMPEG_TOOL=NO
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
+        SRS_STAT=NO
         SRS_HTTP_PARSER=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
@@ -620,6 +636,7 @@ function apply_user_presets() {
         SRS_FFMPEG_TOOL=YES
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
+        SRS_STAT=YES
         SRS_HTTP_PARSER=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
@@ -644,6 +661,7 @@ function apply_user_presets() {
         SRS_FFMPEG_TOOL=NO
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
+        SRS_STAT=YES
         SRS_HTTP_PARSER=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
@@ -668,6 +686,7 @@ function apply_user_presets() {
         SRS_FFMPEG_TOOL=YES
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
+        SRS_STAT=YES
         SRS_HTTP_PARSER=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
@@ -794,12 +813,17 @@ function check_option_conflicts() {
             echo "x86/x64 should never use static, see: ./configure --help"; __check_ok=NO;
         fi
     fi
+
+    # for darwin, not support stat yet.
+    if [ $SRS_OSX = YES ]; then
+        if [ $SRS_STAT = YES ]; then
+            echo "osx should never use stat, see: ./configure --help"; __check_ok=NO;
+        fi
+    fi
     
     # for darwin, must use --osx, vice versa
     if [ $SRS_OSX = YES ]; then 
-        if [ `uname -s` = Darwin ]; then
-            echo "osx(darwin) is ok"
-        else
+        if [ `uname -s` != Darwin ]; then
             echo "--osx is for darwin(your os is not), see: ./configure --help"; __check_ok=NO;
         fi
     else

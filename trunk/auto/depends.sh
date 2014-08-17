@@ -678,6 +678,13 @@ else
     echo "#undef SRS_AUTO_INGEST" >> $SRS_AUTO_HEADERS_H
 fi
 
+# for statistic.
+if [ $SRS_STAT = YES ]; then
+    echo "#define SRS_AUTO_STAT" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_AUTO_STAT" >> $SRS_AUTO_HEADERS_H
+fi
+
 #####################################################################################
 # build research code, librtmp
 #####################################################################################
@@ -805,17 +812,6 @@ fi
 # prefix
 echo "" >> $SRS_AUTO_HEADERS_H
 echo "#define SRS_AUTO_PREFIX \"${SRS_PREFIX}\"" >> $SRS_AUTO_HEADERS_H
-
-echo "" >> $SRS_AUTO_HEADERS_H
-
-# os specified
-echo "" >> $SRS_AUTO_HEADERS_H
-
-if [ $SRS_OSX = YES ]; then
-    echo "#define SRS_AUTO_OSX" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_OSX" >> $SRS_AUTO_HEADERS_H
-fi
 
 echo "" >> $SRS_AUTO_HEADERS_H
 
