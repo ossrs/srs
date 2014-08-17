@@ -555,8 +555,10 @@ fi
 # openssl, for rtmp complex handshake
 #####################################################################################
 # extra configure options
+CONFIGURE_TOOL="./config"
 EXTRA_CONFIGURE=""
 if [ $SRS_OSX = YES ]; then
+    CONFIGURE_TOOL="./Configure"
     arch=`uname -m` && echo "OSX $arch";
     if [ $arch = x86_64 ]; then
         echo "configure 64bit openssl";
@@ -565,7 +567,10 @@ if [ $SRS_OSX = YES ]; then
         echo "configure 32bit openssl";
         EXTRA_CONFIGURE=darwin-i386-cc
     fi
-    echo "openssl extra config options: $EXTRA_CONFIGURE"
+    echo "openssl extra config: $CONFIGURE_TOOL $EXTRA_CONFIGURE"
+fi
+if [ $SRS_EMBEDED_CPU = YES ]; then
+    CONFIGURE_TOOL="./Configure"
 fi
 # @see http://www.openssl.org/news/secadv_20140407.txt
 # Affected users should upgrade to OpenSSL 1.0.1g. Users unable to immediately
@@ -584,7 +589,7 @@ if [ $SRS_SSL = YES ]; then
                 (
                     rm -rf ${SRS_OBJS}/openssl-1.0.1f && cd ${SRS_OBJS} && 
                     unzip -q ../3rdparty/openssl-1.0.1f.zip && cd openssl-1.0.1f && 
-                    ./Configure --prefix=`pwd`/_release -no-shared no-asm linux-armv4 -DOPENSSL_NO_HEARTBEATS ${EXTRA_CONFIGURE} && 
+                    $CONFIGURE_TOOL --prefix=`pwd`/_release -no-shared no-asm linux-armv4 -DOPENSSL_NO_HEARTBEATS ${EXTRA_CONFIGURE} && 
                     make CC=${SrsArmCC} GCC=${SrsArmGCC} AR="${SrsArmAR} r" \
                         LD=${SrsArmLD} LINK=${SrsArmGCC} RANDLIB=${SrsArmRANDLIB} && 
                     make install_sw &&
@@ -601,7 +606,7 @@ if [ $SRS_SSL = YES ]; then
                 (
                     rm -rf ${SRS_OBJS}/openssl-1.0.1f && cd ${SRS_OBJS} && 
                     unzip -q ../3rdparty/openssl-1.0.1f.zip && cd openssl-1.0.1f && 
-                    ./Configure --prefix=`pwd`/_release -no-shared -DOPENSSL_NO_HEARTBEATS ${EXTRA_CONFIGURE} && 
+                    $CONFIGURE_TOOL --prefix=`pwd`/_release -no-shared -DOPENSSL_NO_HEARTBEATS ${EXTRA_CONFIGURE} && 
                     make && make install_sw &&
                     cd .. && rm -rf openssl && ln -sf openssl-1.0.1f/_release openssl &&
                     cd .. && rm -f ${SRS_OBJS}/_flag.ssl.arm.tmp
