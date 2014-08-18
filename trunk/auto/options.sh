@@ -71,7 +71,7 @@ SRS_ARM_UBUNTU12=NO
 SRS_MIPS_UBUNTU12=NO
 # dev, open all features for dev, no gperf/prof/arm.
 SRS_DEV=NO
-# dev, open main server feature for dev, no bwtc/utest/research/librtmp
+# dev, open main server feature for dev, no utest/research/librtmp
 SRS_FAST_DEV=NO
 # demo, for the demo of srs, @see: https://github.com/winlinvip/simple-rtmp-server/wiki/SampleDemo
 SRS_DEMO=NO
@@ -121,7 +121,6 @@ Options:
                             user must specifies the ingest tools in conf.
   --with-stat               enable the data statistic, for http api.
   --with-librtmp            enable srs-librtmp, library for client.
-  --with-bwtc               enable SRS bandwidth test client tool.
   --with-research           build the research tools.
   --with-utest              build the utest for SRS.
   --with-gperf              build SRS with gperf tools(no gmc/gmp/gcp, with tcmalloc only).
@@ -143,7 +142,6 @@ Options:
   --without-ingest          disable the ingest feature.
   --without-stat            disable the data statistic feature.
   --without-librtmp         disable srs-librtmp, library for client.
-  --without-bwtc            disable SRS bandwidth test client tool.
   --without-research        do not build the research tools.
   --without-utest           do not build the utest for SRS.
   --without-gperf           do not build SRS with gperf tools(without tcmalloc and gmc/gmp/gcp).
@@ -173,7 +171,7 @@ Presets:
   --rtmp-hls                only support RTMP+HLS with ssl.
   --disable-all             disable all features, only support vp6 RTMP.
   --dev                     for dev, open all features, no nginx/gperf/gprof/arm.
-  --fast-dev                for dev fast compile, the RTMP server, without bwtc/librtmp/utest/research.
+  --fast-dev                for dev fast compile, the RTMP server, without librtmp/utest/research.
   --demo                    for srs demo, @see: https://github.com/winlinvip/simple-rtmp-server/wiki/SampleDemo
   --full                    enable all features, no gperf/gprof/arm.
   
@@ -182,7 +180,7 @@ Conflicts:
         @see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html
   2. --with-gperf/gmc/gmp vs --with-gprof:
         gperftools not compatible with gprof.
-  3. --arm vs --with-ffmpeg/bwtc/gperf/gmc/gmp/gprof:
+  3. --arm vs --with-ffmpeg/gperf/gmc/gmp/gprof:
         the complex tools not available for arm.
 
 Experts:
