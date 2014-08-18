@@ -1080,18 +1080,14 @@ void srs_api_dump_summaries(std::stringstream& ss)
         n_sample_time = o.sample_time;
     }
     
+    // all data is ok?
+    bool ok = (r->ok && u->ok && s->ok && c->ok 
+        && d->ok && m->ok && p->ok && n_ok && nrs->ok);
+    
     ss << __SRS_JOBJECT_START
         << __SRS_JFIELD_ERROR(ERROR_SUCCESS) << __SRS_JFIELD_CONT
         << __SRS_JFIELD_ORG("data", __SRS_JOBJECT_START)
-            << __SRS_JFIELD_ORG("rusage_ok", (r->ok? "true":"false")) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("self_cpu_stat_ok", (u->ok? "true":"false")) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("system_cpu_stat_ok", (s->ok? "true":"false")) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("cpuinfo_ok", (c->ok? "true":"false")) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("disk_ok", (d->ok? "true":"false")) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("meminfo_ok", (m->ok? "true":"false")) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("platform_ok", (p->ok? "true":"false")) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("network_ok", (n_ok? "true":"false")) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("network_srs_ok", (nrs->ok? "true":"false")) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_ORG("ok", (ok? "true":"false")) << __SRS_JFIELD_CONT
             << __SRS_JFIELD_ORG("now_ms", now) << __SRS_JFIELD_CONT
             << __SRS_JFIELD_ORG("self", __SRS_JOBJECT_START)
                 << __SRS_JFIELD_STR("version", RTMP_SIG_SRS_VERSION) << __SRS_JFIELD_CONT
