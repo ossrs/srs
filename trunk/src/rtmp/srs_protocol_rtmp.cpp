@@ -536,8 +536,8 @@ int SrsRtmpClient::connect_app2(
             srs_pid = (int)prop->to_number();
         }
     }
-    srs_trace("connected, version=%s, ip=%s, pid=%d, id=%d", 
-        srs_version.c_str(), srs_server_ip.c_str(), srs_pid, srs_id);
+    srs_trace("connected, version=%s, ip=%s, pid=%d, id=%d, dsu=%d", 
+        srs_version.c_str(), srs_server_ip.c_str(), srs_pid, srs_id, debug_srs_upnode);
     
     return ret;
 }
