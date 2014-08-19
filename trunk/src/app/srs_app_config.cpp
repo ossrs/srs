@@ -436,7 +436,7 @@ int SrsConfig::reload_conf(SrsConfig* conf)
     // always support reload without additional code:
     //      chunk_size, ff_log_dir, max_connections,
     //      bandcheck, http_hooks, heartbeat, 
-    //      token_traverse
+    //      token_traverse, debug_srs_upnode
 
     // merge config: listen
     if (!srs_directive_equals(root->get("listen"), old_root->get("listen"))) {
@@ -1285,6 +1285,7 @@ int SrsConfig::check_config()
                 && n != "forward" && n != "transcode" && n != "bandcheck"
                 && n != "time_jitter" 
                 && n != "atc" && n != "atc_auto"
+                && n != "debug_srs_upnode"
             ) {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported vhost directive %s, ret=%d", n.c_str(), ret);
@@ -1878,6 +1879,22 @@ bool SrsConfig::get_gop_cache(string vhost)
     }
     
     conf = conf->get("gop_cache");
+    if (conf && conf->arg0() == "off") {
+        return false;
+    }
+    
+    return true;
+}
+
+bool SrsConfig::get_debug_srs_upnode(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return true;
+    }
+    
+    conf = conf->get("debug_srs_upnode");
     if (conf && conf->arg0() == "off") {
         return false;
     }

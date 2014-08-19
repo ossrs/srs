@@ -283,7 +283,7 @@ int srs_connect_app2(srs_rtmp_t rtmp,
     
     std::string sip, sserver, sauthors, sversion;
     
-    if ((ret = context->rtmp->connect_app2(context->app, tcUrl, NULL, 
+    if ((ret = context->rtmp->connect_app2(context->app, tcUrl, NULL, true,
         sip, sserver, sauthors, sversion, *srs_id, *srs_pid)) != ERROR_SUCCESS) {
         return ret;
     }

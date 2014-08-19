@@ -53,6 +53,7 @@ class SrsForwarder : public ISrsThreadHandler
 private:
     std::string app;
     std::string tc_url;
+    std::string vhost;
     std::string stream_name;
     int stream_id;
     std::string server;
@@ -83,6 +84,7 @@ public:
     virtual int cycle();
 private:
     virtual void close_underlayer_socket();
+    // TODO: FIXME: take debug info for srs, @see SrsEdgeForwarder.connect_server.
     virtual int connect_server();
     virtual int forward();
 };

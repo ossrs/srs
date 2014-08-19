@@ -81,8 +81,10 @@ int SrsForwarder::on_publish(SrsRequest* req, std::string forward_server)
 {
     int ret = ERROR_SUCCESS;
     
+    // TODO: FIXME: directly use the req object.
     // forward app
     app = req->app;
+    vhost = req->vhost;
     
     stream_name = req->stream;
     server = forward_server;
@@ -215,7 +217,11 @@ int SrsForwarder::cycle()
         srs_error("handshake with server failed. ret=%d", ret);
         return ret;
     }
-    if ((ret = client->connect_app(app, tc_url)) != ERROR_SUCCESS) {
+    // TODO: FIXME: take debug info for srs, @see SrsEdgeForwarder.connect_server.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/160
+    // the debug_srs_upnode is config in vhost and default to true.
+    bool debug_srs_upnode = _srs_config->get_debug_srs_upnode(vhost);
+    if ((ret = client->connect_app(app, tc_url, NULL, debug_srs_upnode)) != ERROR_SUCCESS) {
         srs_error("connect with server failed, tcUrl=%s. ret=%d", tc_url.c_str(), ret);
         return ret;
     }

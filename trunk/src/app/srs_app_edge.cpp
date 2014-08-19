@@ -28,6 +28,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+using namespace std;
+
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_rtmp.hpp>
 #include <srs_kernel_log.hpp>
@@ -118,7 +120,8 @@ int SrsEdgeIngester::cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = connect_server()) != ERROR_SUCCESS) {
+    std::string ep_server, ep_port;
+    if ((ret = connect_server(ep_server, ep_port)) != ERROR_SUCCESS) {
         return ret;
     }
     srs_assert(client);
@@ -132,7 +135,7 @@ int SrsEdgeIngester::cycle()
         srs_error("handshake with server failed. ret=%d", ret);
         return ret;
     }
-    if ((ret = connect_app()) != ERROR_SUCCESS) {
+    if ((ret = connect_app(ep_server, ep_port)) != ERROR_SUCCESS) {
         return ret;
     }
     if ((ret = client->create_stream(stream_id)) != ERROR_SUCCESS) {
@@ -209,7 +212,7 @@ int SrsEdgeIngester::ingest()
     return ret;
 }
 
-int SrsEdgeIngester::connect_app()
+int SrsEdgeIngester::connect_app(string ep_server, string ep_port)
 {
     int ret = ERROR_SUCCESS;
     
@@ -243,9 +246,16 @@ int SrsEdgeIngester::connect_app()
     std::string local_ip = ips[_srs_config->get_stats_network()];
     data->set("srs_server_ip", SrsAmf0Any::str(local_ip.c_str()));
     
+    // generate the tcUrl
+    std::string param = "";
+    std::string tc_url = srs_generate_tc_url(ep_server, req->vhost, req->app, ep_port, param);
+    
     // upnode server identity will show in the connect_app of client.
-    if ((ret = client->connect_app(req->app, req->tcUrl, req)) != ERROR_SUCCESS) {
-        srs_error("connect with server failed, tcUrl=%s. ret=%d", req->tcUrl.c_str(), ret);
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/160
+    // the debug_srs_upnode is config in vhost and default to true.
+    bool debug_srs_upnode = _srs_config->get_debug_srs_upnode(req->vhost);
+    if ((ret = client->connect_app(req->app, tc_url, req, debug_srs_upnode)) != ERROR_SUCCESS) {
+        srs_error("connect with server failed, tcUrl=%s. ret=%d", tc_url.c_str(), ret);
         return ret;
     }
     
@@ -314,7 +324,7 @@ void SrsEdgeIngester::close_underlayer_socket()
     srs_close_stfd(stfd);
 }
 
-int SrsEdgeIngester::connect_server()
+int SrsEdgeIngester::connect_server(string& ep_server, string& ep_port)
 {
     int ret = ERROR_SUCCESS;
     
@@ -344,6 +354,10 @@ int SrsEdgeIngester::connect_server()
         server = server.substr(0, pos);
         port = ::atoi(s_port.c_str());
     }
+    
+    // output the connected server and port.
+    ep_server = server;
+    ep_port = s_port;
     
     // open socket.
     int64_t timeout = SRS_EDGE_INGESTER_TIMEOUT_US;
@@ -414,7 +428,8 @@ int SrsEdgeForwarder::start()
     
     send_error_code = ERROR_SUCCESS;
     
-    if ((ret = connect_server()) != ERROR_SUCCESS) {
+    std::string ep_server, ep_port;
+    if ((ret = connect_server(ep_server, ep_port)) != ERROR_SUCCESS) {
         return ret;
     }
     srs_assert(client);
@@ -428,8 +443,8 @@ int SrsEdgeForwarder::start()
         srs_error("handshake with server failed. ret=%d", ret);
         return ret;
     }
-    if ((ret = client->connect_app(req->app, req->tcUrl)) != ERROR_SUCCESS) {
-        srs_error("connect with server failed, tcUrl=%s. ret=%d", req->tcUrl.c_str(), ret);
+    if ((ret = connect_app(ep_server, ep_port)) != ERROR_SUCCESS) {
+        srs_error("connect with server failed. ret=%d", ret);
         return ret;
     }
     if ((ret = client->create_stream(stream_id)) != ERROR_SUCCESS) {
@@ -575,7 +590,7 @@ void SrsEdgeForwarder::close_underlayer_socket()
     srs_close_stfd(stfd);
 }
 
-int SrsEdgeForwarder::connect_server()
+int SrsEdgeForwarder::connect_server(string& ep_server, string& ep_port)
 {
     int ret = ERROR_SUCCESS;
     
@@ -598,6 +613,10 @@ int SrsEdgeForwarder::connect_server()
         port = ::atoi(s_port.c_str());
     }
     
+    // output the connected server and port.
+    ep_server = server;
+    ep_port = s_port;
+    
     // open socket.
     int64_t timeout = SRS_EDGE_FORWARDER_TIMEOUT_US;
     if ((ret = srs_socket_connect(server, port, timeout, &stfd)) != ERROR_SUCCESS) {
@@ -618,6 +637,56 @@ int SrsEdgeForwarder::connect_server()
     // open socket.
     srs_trace("edge push connected, stream=%s, tcUrl=%s to server=%s, port=%d",
         _req->stream.c_str(), _req->tcUrl.c_str(), server.c_str(), port);
+    
+    return ret;
+}
+
+int SrsEdgeForwarder::connect_app(string ep_server, string ep_port)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsRequest* req = _req;
+    
+    // args of request takes the srs info.
+    if (req->args == NULL) {
+        req->args = SrsAmf0Any::object();
+    }
+    
+    // notify server the edge identity,
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/147
+    SrsAmf0Object* data = req->args;
+    data->set("srs_sig", SrsAmf0Any::str(RTMP_SIG_SRS_KEY));
+    data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
+    data->set("srs_license", SrsAmf0Any::str(RTMP_SIG_SRS_LICENSE));
+    data->set("srs_role", SrsAmf0Any::str(RTMP_SIG_SRS_ROLE));
+    data->set("srs_url", SrsAmf0Any::str(RTMP_SIG_SRS_URL));
+    data->set("srs_version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
+    data->set("srs_site", SrsAmf0Any::str(RTMP_SIG_SRS_WEB));
+    data->set("srs_email", SrsAmf0Any::str(RTMP_SIG_SRS_EMAIL));
+    data->set("srs_copyright", SrsAmf0Any::str(RTMP_SIG_SRS_COPYRIGHT));
+    data->set("srs_primary_authors", SrsAmf0Any::str(RTMP_SIG_SRS_PRIMARY_AUTHROS));
+    // for edge to directly get the id of client.
+    data->set("srs_pid", SrsAmf0Any::number(getpid()));
+    data->set("srs_id", SrsAmf0Any::number(_srs_context->get_id()));
+    
+    // local ip of edge
+    std::vector<std::string> ips = srs_get_local_ipv4_ips();
+    assert(_srs_config->get_stats_network() < (int)ips.size());
+    std::string local_ip = ips[_srs_config->get_stats_network()];
+    data->set("srs_server_ip", SrsAmf0Any::str(local_ip.c_str()));
+    
+    // generate the tcUrl
+    std::string param = "";
+    std::string tc_url = srs_generate_tc_url(ep_server, req->vhost, req->app, ep_port, param);
+    
+    // upnode server identity will show in the connect_app of client.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/160
+    // the debug_srs_upnode is config in vhost and default to true.
+    bool debug_srs_upnode = _srs_config->get_debug_srs_upnode(req->vhost);
+    if ((ret = client->connect_app(req->app, tc_url, req, debug_srs_upnode)) != ERROR_SUCCESS) {
+        srs_error("connect with server failed, tcUrl=%s. ret=%d", tc_url.c_str(), ret);
+        return ret;
+    }
     
     return ret;
 }

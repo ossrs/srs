@@ -33,6 +33,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_st.hpp>
 #include <srs_app_thread.hpp>
 
+#include <string>
+
 class SrsStSocket;
 class SrsRtmpServer;
 class SrsSource;
@@ -100,8 +102,8 @@ public:
 private:
     virtual int ingest();
     virtual void close_underlayer_socket();
-    virtual int connect_server();
-    virtual int connect_app();
+    virtual int connect_server(std::string& ep_server, std::string& ep_port);
+    virtual int connect_app(std::string ep_server, std::string ep_port);
     virtual int process_publish_message(SrsMessage* msg);
 };
 
@@ -149,7 +151,8 @@ public:
     virtual int proxy(SrsMessage* msg);
 private:
     virtual void close_underlayer_socket();
-    virtual int connect_server();
+    virtual int connect_server(std::string& ep_server, std::string& ep_port);
+    virtual int connect_app(std::string ep_server, std::string ep_port);
 };
 
 /**

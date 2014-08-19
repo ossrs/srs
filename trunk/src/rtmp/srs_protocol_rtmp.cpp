@@ -434,7 +434,7 @@ int SrsRtmpClient::complex_handshake()
     return ret;
 }
 
-int SrsRtmpClient::connect_app(string app, string tc_url, SrsRequest* req)
+int SrsRtmpClient::connect_app(string app, string tc_url, SrsRequest* req, bool debug_srs_upnode)
 {
     std::string srs_server_ip;
     std::string srs_server;
@@ -443,13 +443,13 @@ int SrsRtmpClient::connect_app(string app, string tc_url, SrsRequest* req)
     int srs_id = 0;
     int srs_pid = 0;
     
-    return connect_app2(app, tc_url, req, 
+    return connect_app2(app, tc_url, req, debug_srs_upnode,
         srs_server_ip, srs_server, srs_primary_authors, 
         srs_version, srs_id, srs_pid);
 }
 
 int SrsRtmpClient::connect_app2(
-    string app, string tc_url, SrsRequest* req, 
+    string app, string tc_url, SrsRequest* req, bool debug_srs_upnode,
     string& srs_server_ip, string& srs_server, string& srs_primary_authors, 
     string& srs_version, int& srs_id, int& srs_pid
 ){
@@ -479,7 +479,9 @@ int SrsRtmpClient::connect_app2(
         }
         pkt->command_object->set("objectEncoding", SrsAmf0Any::number(0));
         
-        if (req && req->args) {
+        // @see https://github.com/winlinvip/simple-rtmp-server/issues/160
+        // the debug_srs_upnode is config in vhost and default to true.
+        if (debug_srs_upnode && req && req->args) {
             srs_freep(pkt->args);
             pkt->args = req->args->copy()->to_object();
         }

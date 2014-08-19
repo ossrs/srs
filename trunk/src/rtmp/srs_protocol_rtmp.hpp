@@ -247,7 +247,8 @@ public:
     *      pageUrl and swfUrl for refer antisuck.
     *      args for edge to origin traverse auth, @see SrsRequest.args
     */
-    virtual int connect_app(std::string app, std::string tc_url, SrsRequest* req=NULL);
+    virtual int connect_app(std::string app, std::string tc_url, 
+        SrsRequest* req=NULL, bool debug_srs_upnode=true);
     /**
     * connect to server, get the debug srs info.
     * 
@@ -263,7 +264,7 @@ public:
     * @param srs_pid, int, debug info, server pid in log.
     */
     virtual int connect_app2(
-        std::string app, std::string tc_url, SrsRequest* req, 
+        std::string app, std::string tc_url, SrsRequest* req, bool debug_srs_upnode,
         std::string& srs_server_ip, std::string& srs_server, std::string& srs_primary_authors, 
         std::string& srs_version, int& srs_id, int& srs_pid
     );

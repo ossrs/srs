@@ -1496,6 +1496,17 @@ int SrsProtocol::on_recv_message(SrsMessage* msg)
         case RTMP_MSG_SetChunkSize: {
             SrsSetChunkSizePacket* pkt = dynamic_cast<SrsSetChunkSizePacket*>(packet);
             srs_assert(pkt != NULL);
+
+            // for some server, the actual chunk size can greater than the max value(65536),
+            // so we just warning the invalid chunk size, and actually use it is ok,
+            // @see: https://github.com/winlinvip/simple-rtmp-server/issues/160
+            if (pkt->chunk_size < SRS_CONSTS_RTMP_MIN_CHUNK_SIZE 
+                || pkt->chunk_size > SRS_CONSTS_RTMP_MAX_CHUNK_SIZE) 
+            {
+                srs_warn("accept chunk size %d, but should in [%d, %d]",
+                    pkt->chunk_size, SRS_CONSTS_RTMP_MIN_CHUNK_SIZE, 
+                    SRS_CONSTS_RTMP_MAX_CHUNK_SIZE);
+            }
             
             in_chunk_size = pkt->chunk_size;
             
@@ -3710,19 +3721,6 @@ int SrsSetChunkSizePacket::decode(SrsStream* stream)
     
     chunk_size = stream->read_4bytes();
     srs_info("decode chunk size success. chunk_size=%d", chunk_size);
-    
-    if (chunk_size < SRS_CONSTS_RTMP_MIN_CHUNK_SIZE) {
-        ret = ERROR_RTMP_CHUNK_SIZE;
-        srs_error("invalid chunk size. min=%d, actual=%d, ret=%d", 
-            ERROR_RTMP_CHUNK_SIZE, chunk_size, ret);
-        return ret;
-    }
-    if (chunk_size > SRS_CONSTS_RTMP_MAX_CHUNK_SIZE) {
-        ret = ERROR_RTMP_CHUNK_SIZE;
-        srs_error("invalid chunk size. max=%d, actual=%d, ret=%d", 
-            SRS_CONSTS_RTMP_MAX_CHUNK_SIZE, chunk_size, ret);
-        return ret;
-    }
     
     return ret;
 }

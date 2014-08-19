@@ -491,6 +491,17 @@ std::string __full_conf = ""
     "    queue_length    10;                                                                                                                \n"
     "}                                                                                                                                      \n"
     "                                                                                                                                       \n"
+    "# the vhost for srs debug info, whether send args in connect(tcUrl).                                                                   \n"
+    "vhost debug.srs.com {                                                                                                                  \n"
+    "    # when upnode(forward to, edge push to, edge pull from) is srs,                                                                    \n"
+    "    # it's strongly recommend to open the debug_srs_upnode,                                                                            \n"
+    "    # when connect to upnode, it will take the debug info,                                                                             \n"
+    "    # for example, the id, source id, pid.                                                                                             \n"
+    "    # please see: https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLog                                                          \n"
+    "    # default: on                                                                                                                      \n"
+    "    debug_srs_upnode    on;                                                                                                            \n"
+    "}                                                                                                                                      \n"
+    "                                                                                                                                       \n"
     "# the vhost for antisuck.                                                                                                              \n"
     "vhost refer.anti_suck.com {                                                                                                            \n"
     "    # the common refer for play and publish.                                                                                           \n"
@@ -1864,6 +1875,7 @@ VOID TEST(ConfigMainTest, ParseFullConf)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -1944,6 +1956,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_same_edge)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -2023,6 +2036,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_change_edge)
     /*EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -2096,6 +2110,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_dvr)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -2169,6 +2184,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_ingest)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -2263,6 +2279,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_http)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -2339,6 +2356,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_hls_enabled)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -2415,6 +2433,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_hls_disabled)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -2491,6 +2510,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_http_hooks)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -2598,6 +2618,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_min_delay)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_FALSE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -2675,6 +2696,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_refer_anti_suck)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -2767,6 +2789,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_forward_same_vhost)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -2850,6 +2873,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_forward_change_vhost)
     /*EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -2927,6 +2951,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_mirror)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -3015,6 +3040,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_crop)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -3103,6 +3129,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_logo)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -3191,6 +3218,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_audio)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -3273,6 +3301,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_vn)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -3355,6 +3384,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_copy)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -3433,6 +3463,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_all)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -3649,6 +3680,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_ffempty)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -3737,6 +3769,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_app)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -3825,6 +3858,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_stream)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -3913,6 +3947,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_bandcheck)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -3990,6 +4025,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_chunksize)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -4067,6 +4103,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_jitter)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -4144,6 +4181,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_atc)
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
     EXPECT_TRUE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_TRUE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -4221,6 +4259,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_removed)
     EXPECT_FALSE(conf.get_vhost_enabled(vhost));
     EXPECT_FALSE(conf.get_vhost_enabled(conf.get_vhost(vhost)));
     EXPECT_TRUE(conf.get_gop_cache(vhost));
+    EXPECT_TRUE(conf.get_debug_srs_upnode(vhost));
     EXPECT_FALSE(conf.get_atc(vhost));
     EXPECT_TRUE(conf.get_atc_auto(vhost));
     EXPECT_TRUE(conf.get_time_jitter(vhost) == SrsRtmpJitterAlgorithmFULL);
@@ -4970,6 +5009,19 @@ VOID TEST(ConfigMainTest, CheckConf_gop_cache)
     if (true) {
         MockSrsConfig conf;
         EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{queue_lengths 10;}"));
+    }
+}
+
+VOID TEST(ConfigMainTest, CheckConf_debug_srs_upnode)
+{
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{debug_srs_upnode off;}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{debug_srs_upnodes off;}"));
     }
 }
 
