@@ -1564,6 +1564,9 @@ int SrsConfig::check_config()
         }
     }
     
+    // show important args.
+    srs_trace("conf: %s, limit: %d", config_file.c_str(), get_max_connections());
+    
     ////////////////////////////////////////////////////////////////////////
     // check features
     ////////////////////////////////////////////////////////////////////////
