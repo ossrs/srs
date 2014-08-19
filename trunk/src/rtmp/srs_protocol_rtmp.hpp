@@ -248,7 +248,7 @@ public:
     *      args for edge to origin traverse auth, @see SrsRequest.args
     */
     virtual int connect_app(std::string app, std::string tc_url, 
-        SrsRequest* req=NULL, bool debug_srs_upnode=true);
+        SrsRequest* req, bool debug_srs_upnode);
     /**
     * connect to server, get the debug srs info.
     * 

@@ -253,7 +253,10 @@ int srs_connect_app(srs_rtmp_t rtmp)
         context->ip, context->vhost, context->app, context->port,
         context->param
     );
-    if ((ret = context->rtmp->connect_app(context->app, tcUrl)) != ERROR_SUCCESS) {
+    
+    if ((ret = context->rtmp->connect_app(
+        context->app, tcUrl, NULL, true)) != ERROR_SUCCESS) 
+    {
         return ret;
     }
     

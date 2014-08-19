@@ -212,6 +212,7 @@ int SrsEdgeIngester::ingest()
     return ret;
 }
 
+// TODO: FIXME: refine the connect_app.
 int SrsEdgeIngester::connect_app(string ep_server, string ep_port)
 {
     int ret = ERROR_SUCCESS;
@@ -641,6 +642,7 @@ int SrsEdgeForwarder::connect_server(string& ep_server, string& ep_port)
     return ret;
 }
 
+// TODO: FIXME: refine the connect_app.
 int SrsEdgeForwarder::connect_app(string ep_server, string ep_port)
 {
     int ret = ERROR_SUCCESS;

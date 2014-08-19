@@ -434,7 +434,8 @@ int SrsRtmpClient::complex_handshake()
     return ret;
 }
 
-int SrsRtmpClient::connect_app(string app, string tc_url, SrsRequest* req, bool debug_srs_upnode)
+int SrsRtmpClient::connect_app(string app, string tc_url, 
+    SrsRequest* req, bool debug_srs_upnode)
 {
     std::string srs_server_ip;
     std::string srs_server;

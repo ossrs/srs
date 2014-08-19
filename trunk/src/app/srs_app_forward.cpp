@@ -28,6 +28,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+using namespace std;
+
 #include <srs_app_source.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_app_st_socket.hpp>
@@ -43,6 +45,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_msg_array.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_protocol_amf0.hpp>
 
 // when error, forwarder sleep for a while and retry.
 #define SRS_FORWARDER_SLEEP_US (int64_t)(3*1000*1000LL)
@@ -51,6 +54,7 @@ SrsForwarder::SrsForwarder(SrsSource* _source)
 {
     source = _source;
     
+    _req = NULL;
     io = NULL;
     client = NULL;
     stfd = NULL;
@@ -72,37 +76,34 @@ SrsForwarder::~SrsForwarder()
     srs_freep(kbps);
 }
 
+int SrsForwarder::initialize(SrsRequest* req, string ep_forward)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // it's ok to use the request object,
+    // SrsSource already copy it and never delete it.
+    _req = req;
+    
+    // the ep(endpoint) to forward to
+    _ep_forward = ep_forward;
+    
+    return ret;
+}
+
 void SrsForwarder::set_queue_size(double queue_size)
 {
     queue->set_queue_size(queue_size);
 }
 
-int SrsForwarder::on_publish(SrsRequest* req, std::string forward_server)
+int SrsForwarder::on_publish()
 {
     int ret = ERROR_SUCCESS;
     
-    // TODO: FIXME: directly use the req object.
-    // forward app
-    app = req->app;
-    vhost = req->vhost;
+    SrsRequest* req = _req;
     
-    stream_name = req->stream;
-    server = forward_server;
-    std::string s_port = SRS_CONSTS_RTMP_DEFAULT_PORT;
-    port = ::atoi(SRS_CONSTS_RTMP_DEFAULT_PORT);
-    
-    // TODO: FIXME: parse complex params
-    size_t pos = forward_server.find(":");
-    if (pos != std::string::npos) {
-        s_port = forward_server.substr(pos + 1);
-        server = forward_server.substr(0, pos);
-    }
-    // discovery vhost
-    std::string vhost = req->vhost;
-    port = ::atoi(s_port.c_str());
-    
-    // generate tcUrl
-    tc_url = srs_generate_tc_url(forward_server, vhost, req->app, s_port, req->param);
+    // discovery the server port and tcUrl from req and ep_forward.
+    std::string server, port, tc_url;
+    discovery_ep(server, port, tc_url);
     
     // dead loop check
     std::string source_ep = "rtmp://";
@@ -113,15 +114,15 @@ int SrsForwarder::on_publish(SrsRequest* req, std::string forward_server)
     source_ep += req->vhost;
     
     std::string dest_ep = "rtmp://";
-    if (forward_server == SRS_CONSTS_LOCALHOST) {
+    if (_ep_forward == SRS_CONSTS_LOCALHOST) {
         dest_ep += req->host;
     } else {
-        dest_ep += forward_server;
+        dest_ep += _ep_forward;
     }
     dest_ep += ":";
-    dest_ep += s_port;
+    dest_ep += port;
     dest_ep += "?vhost=";
-    dest_ep += vhost;
+    dest_ep += req->vhost;
     
     if (source_ep == dest_ep) {
         ret = ERROR_SYSTEM_FORWARD_LOOP;
@@ -131,7 +132,7 @@ int SrsForwarder::on_publish(SrsRequest* req, std::string forward_server)
     }
     srs_trace("start forward %s to %s, tcUrl=%s, stream=%s", 
         source_ep.c_str(), dest_ep.c_str(), tc_url.c_str(), 
-        stream_name.c_str());
+        req->stream.c_str());
     
     if ((ret = pthread->start()) != ERROR_SUCCESS) {
         srs_error("start srs thread failed. ret=%d", ret);
@@ -205,7 +206,8 @@ int SrsForwarder::cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = connect_server()) != ERROR_SUCCESS) {
+    std::string ep_server, ep_port;
+    if ((ret = connect_server(ep_server, ep_port)) != ERROR_SUCCESS) {
         return ret;
     }
     srs_assert(client);
@@ -217,12 +219,8 @@ int SrsForwarder::cycle()
         srs_error("handshake with server failed. ret=%d", ret);
         return ret;
     }
-    // TODO: FIXME: take debug info for srs, @see SrsEdgeForwarder.connect_server.
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/160
-    // the debug_srs_upnode is config in vhost and default to true.
-    bool debug_srs_upnode = _srs_config->get_debug_srs_upnode(vhost);
-    if ((ret = client->connect_app(app, tc_url, NULL, debug_srs_upnode)) != ERROR_SUCCESS) {
-        srs_error("connect with server failed, tcUrl=%s. ret=%d", tc_url.c_str(), ret);
+    if ((ret = connect_app(ep_server, ep_port)) != ERROR_SUCCESS) {
+        srs_error("connect with server failed. ret=%d", ret);
         return ret;
     }
     if ((ret = client->create_stream(stream_id)) != ERROR_SUCCESS) {
@@ -230,9 +228,9 @@ int SrsForwarder::cycle()
         return ret;
     }
     
-    if ((ret = client->publish(stream_name, stream_id)) != ERROR_SUCCESS) {
+    if ((ret = client->publish(_req->stream, stream_id)) != ERROR_SUCCESS) {
         srs_error("connect with server failed, stream_name=%s, stream_id=%d. ret=%d", 
-            stream_name.c_str(), stream_id, ret);
+            _req->stream.c_str(), stream_id, ret);
         return ret;
     }
     
@@ -253,18 +251,45 @@ void SrsForwarder::close_underlayer_socket()
     srs_close_stfd(stfd);
 }
 
-int SrsForwarder::connect_server()
+void SrsForwarder::discovery_ep(string& server, string& port, string& tc_url)
+{
+    SrsRequest* req = _req;
+    
+    server = _ep_forward;
+    port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+    
+    // TODO: FIXME: parse complex params
+    size_t pos = _ep_forward.find(":");
+    if (pos != std::string::npos) {
+        port = _ep_forward.substr(pos + 1);
+        server = _ep_forward.substr(0, pos);
+    }
+    
+    // generate tcUrl
+    tc_url = srs_generate_tc_url(server, req->vhost, req->app, port, req->param);
+}
+
+int SrsForwarder::connect_server(string& ep_server, string& ep_port)
 {
     int ret = ERROR_SUCCESS;
     
     // reopen
     close_underlayer_socket();
     
+    // discovery the server port and tcUrl from req and ep_forward.
+    std::string server, s_port, tc_url;
+    discovery_ep(server, s_port, tc_url);
+    int port = ::atoi(s_port.c_str());
+    
+    // output the connected server and port.
+    ep_server = server;
+    ep_port = s_port;
+    
     // open socket.
     int64_t timeout = SRS_FORWARDER_SLEEP_US;
-    if ((ret = srs_socket_connect(server, port, timeout, &stfd)) != ERROR_SUCCESS) {
+    if ((ret = srs_socket_connect(ep_server, port, timeout, &stfd)) != ERROR_SUCCESS) {
         srs_warn("forward failed, stream=%s, tcUrl=%s to server=%s, port=%d, timeout=%"PRId64", ret=%d",
-            stream_name.c_str(), tc_url.c_str(), server.c_str(), port, timeout, ret);
+            _req->stream.c_str(), _req->tcUrl.c_str(), server.c_str(), port, timeout, ret);
         return ret;
     }
     
@@ -278,7 +303,58 @@ int SrsForwarder::connect_server()
     kbps->set_io(io, io);
     
     srs_trace("forward connected, stream=%s, tcUrl=%s to server=%s, port=%d",
-        stream_name.c_str(), tc_url.c_str(), server.c_str(), port);
+        _req->stream.c_str(), _req->tcUrl.c_str(), server.c_str(), port);
+    
+    return ret;
+}
+
+// TODO: FIXME: refine the connect_app.
+int SrsForwarder::connect_app(string ep_server, string ep_port)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsRequest* req = _req;
+    
+    // args of request takes the srs info.
+    if (req->args == NULL) {
+        req->args = SrsAmf0Any::object();
+    }
+    
+    // notify server the edge identity,
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/147
+    SrsAmf0Object* data = req->args;
+    data->set("srs_sig", SrsAmf0Any::str(RTMP_SIG_SRS_KEY));
+    data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
+    data->set("srs_license", SrsAmf0Any::str(RTMP_SIG_SRS_LICENSE));
+    data->set("srs_role", SrsAmf0Any::str(RTMP_SIG_SRS_ROLE));
+    data->set("srs_url", SrsAmf0Any::str(RTMP_SIG_SRS_URL));
+    data->set("srs_version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
+    data->set("srs_site", SrsAmf0Any::str(RTMP_SIG_SRS_WEB));
+    data->set("srs_email", SrsAmf0Any::str(RTMP_SIG_SRS_EMAIL));
+    data->set("srs_copyright", SrsAmf0Any::str(RTMP_SIG_SRS_COPYRIGHT));
+    data->set("srs_primary_authors", SrsAmf0Any::str(RTMP_SIG_SRS_PRIMARY_AUTHROS));
+    // for edge to directly get the id of client.
+    data->set("srs_pid", SrsAmf0Any::number(getpid()));
+    data->set("srs_id", SrsAmf0Any::number(_srs_context->get_id()));
+    
+    // local ip of edge
+    std::vector<std::string> ips = srs_get_local_ipv4_ips();
+    assert(_srs_config->get_stats_network() < (int)ips.size());
+    std::string local_ip = ips[_srs_config->get_stats_network()];
+    data->set("srs_server_ip", SrsAmf0Any::str(local_ip.c_str()));
+    
+    // generate the tcUrl
+    std::string param = "";
+    std::string tc_url = srs_generate_tc_url(ep_server, req->vhost, req->app, ep_port, param);
+    
+    // upnode server identity will show in the connect_app of client.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/160
+    // the debug_srs_upnode is config in vhost and default to true.
+    bool debug_srs_upnode = _srs_config->get_debug_srs_upnode(req->vhost);
+    if ((ret = client->connect_app(req->app, tc_url, req, debug_srs_upnode)) != ERROR_SUCCESS) {
+        srs_error("connect with server failed, tcUrl=%s. ret=%d", tc_url.c_str(), ret);
+        return ret;
+    }
     
     return ret;
 }

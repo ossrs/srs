@@ -1386,6 +1386,7 @@ int SrsSource::on_publish()
         return ret;
     }
     
+    // TODO: FIXME: use initialize to set req.
 #ifdef SRS_AUTO_TRANSCODE
     if ((ret = encoder->on_publish(_req)) != ERROR_SUCCESS) {
         srs_error("start encoder failed. ret=%d", ret);
@@ -1393,6 +1394,7 @@ int SrsSource::on_publish()
     }
 #endif
     
+    // TODO: FIXME: use initialize to set req.
 #ifdef SRS_AUTO_HLS
     if ((ret = hls->on_publish(_req)) != ERROR_SUCCESS) {
         srs_error("start hls failed. ret=%d", ret);
@@ -1400,6 +1402,7 @@ int SrsSource::on_publish()
     }
 #endif
     
+    // TODO: FIXME: use initialize to set req.
 #ifdef SRS_AUTO_DVR
     if ((ret = dvr->on_publish(_req)) != ERROR_SUCCESS) {
         srs_error("start dvr failed. ret=%d", ret);
@@ -1548,11 +1551,16 @@ int SrsSource::create_forwarders()
         
         SrsForwarder* forwarder = new SrsForwarder(this);
         forwarders.push_back(forwarder);
+        
+        // initialize the forwarder with request.
+        if ((ret = forwarder->initialize(_req, forward_server)) != ERROR_SUCCESS) {
+            return ret;
+        }
     
         double queue_size = _srs_config->get_queue_length(_req->vhost);
         forwarder->set_queue_size(queue_size);
         
-        if ((ret = forwarder->on_publish(_req, forward_server)) != ERROR_SUCCESS) {
+        if ((ret = forwarder->on_publish()) != ERROR_SUCCESS) {
             srs_error("start forwarder failed. "
                 "vhost=%s, app=%s, stream=%s, forward-to=%s",
                 _req->vhost.c_str(), _req->app.c_str(), _req->stream.c_str(),

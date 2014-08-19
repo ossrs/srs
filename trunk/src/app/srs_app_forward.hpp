@@ -51,13 +51,10 @@ class SrsKbps;
 class SrsForwarder : public ISrsThreadHandler
 {
 private:
-    std::string app;
-    std::string tc_url;
-    std::string vhost;
-    std::string stream_name;
+    // the ep to forward, server[:port].
+    std::string _ep_forward;
+    SrsRequest* _req;
     int stream_id;
-    std::string server;
-    int port;
 private:
     st_netfd_t stfd;
     SrsThread* pthread;
@@ -72,9 +69,10 @@ public:
     SrsForwarder(SrsSource* _source);
     virtual ~SrsForwarder();
 public:
+    virtual int initialize(SrsRequest* req, std::string ep_forward);
     virtual void set_queue_size(double queue_size);
 public:
-    virtual int on_publish(SrsRequest* req, std::string forward_server);
+    virtual int on_publish();
     virtual void on_unpublish();
     virtual int on_meta_data(SrsSharedPtrMessage* metadata);
     virtual int on_audio(SrsSharedPtrMessage* msg);
@@ -84,8 +82,9 @@ public:
     virtual int cycle();
 private:
     virtual void close_underlayer_socket();
-    // TODO: FIXME: take debug info for srs, @see SrsEdgeForwarder.connect_server.
-    virtual int connect_server();
+    virtual void discovery_ep(std::string& server, std::string& port, std::string& tc_url);
+    virtual int connect_server(std::string& ep_server, std::string& ep_port);
+    virtual int connect_app(std::string ep_server, std::string ep_port);
     virtual int forward();
 };
 
