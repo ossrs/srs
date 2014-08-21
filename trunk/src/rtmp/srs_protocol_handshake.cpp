@@ -343,6 +343,7 @@ namespace _srs_internal
         if (key->random0_size > 0) {
             key->random0 = new char[key->random0_size];
             srs_random_generate(key->random0, key->random0_size);
+            snprintf(key->random0, key->random0_size, "%s", RTMP_SIG_SRS_HANDSHAKE);
         }
         
         srs_random_generate(key->key, sizeof(key->key));
@@ -351,6 +352,7 @@ namespace _srs_internal
         if (key->random1_size > 0) {
             key->random1 = new char[key->random1_size];
             srs_random_generate(key->random1, key->random1_size);
+            snprintf(key->random1, key->random1_size, "%s", RTMP_SIG_SRS_HANDSHAKE);
         }
     }
     
@@ -435,6 +437,7 @@ namespace _srs_internal
         if (digest->random0_size > 0) {
             digest->random0 = new char[digest->random0_size];
             srs_random_generate(digest->random0, digest->random0_size);
+            snprintf(digest->random0, digest->random0_size, "%s", RTMP_SIG_SRS_HANDSHAKE);
         }
         
         srs_random_generate(digest->digest, sizeof(digest->digest));
@@ -443,6 +446,7 @@ namespace _srs_internal
         if (digest->random1_size > 0) {
             digest->random1 = new char[digest->random1_size];
             srs_random_generate(digest->random1, digest->random1_size);
+            snprintf(digest->random1, digest->random1_size, "%s", RTMP_SIG_SRS_HANDSHAKE);
         }
     }
 
@@ -621,6 +625,11 @@ namespace _srs_internal
     c2s2::c2s2()
     {
         srs_random_generate(random, 1504);
+        
+        int size = snprintf(random, 1504, "%s", RTMP_SIG_SRS_HANDSHAKE);
+        srs_assert(++size < 1504);
+        snprintf(random + 1504 - size, size, "%s", RTMP_SIG_SRS_HANDSHAKE);
+        
         srs_random_generate(digest, 32);
     }
     
