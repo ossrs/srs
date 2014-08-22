@@ -190,7 +190,7 @@ namespace _srs_internal
         return ret;
     }
     
-    int SrsDH::copy_public_key(char* pkey, int32_t* ppkey_size)
+    int SrsDH::copy_public_key(char* pkey, int32_t& pkey_size)
     {
         int ret = ERROR_SUCCESS;
         
@@ -199,20 +199,21 @@ namespace _srs_internal
         int32_t key_size = BN_num_bytes(pdh->pub_key);
         srs_assert(key_size > 0);
         
+        // maybe the key_size is 127, but dh will write all 128bytes pkey,
+        // so, donot need to set/initialize the pkey.
+        // @see https://github.com/winlinvip/simple-rtmp-server/issues/165
         key_size = BN_bn2bin(pdh->pub_key, (unsigned char*)pkey);
         srs_assert(key_size > 0);
         
-        if (ppkey_size != NULL) {
-            // output the size of public key.
-            // @see https://github.com/winlinvip/simple-rtmp-server/issues/165
-            srs_assert(key_size <= *ppkey_size);
-            *ppkey_size = key_size;
-        }
+        // output the size of public key.
+        // @see https://github.com/winlinvip/simple-rtmp-server/issues/165
+        srs_assert(key_size <= pkey_size);
+        pkey_size = key_size;
         
         return ret;
     }
     
-    int SrsDH::copy_shared_key(const char* ppkey, int32_t ppkey_size, char* skey, int32_t* pskey_size)
+    int SrsDH::copy_shared_key(const char* ppkey, int32_t ppkey_size, char* skey, int32_t& skey_size)
     {
         int ret = ERROR_SUCCESS;
         
@@ -223,22 +224,19 @@ namespace _srs_internal
         }
         
         // if failed, donot return, do cleanup, @see ./test/dhtest.c:168
+        // maybe the key_size is 127, but dh will write all 128bytes skey,
+        // so, donot need to set/initialize the skey.
+        // @see https://github.com/winlinvip/simple-rtmp-server/issues/165
         int32_t key_size = DH_compute_key((unsigned char*)skey, ppk, pdh);
         
         if (key_size < ppkey_size) {
             srs_warn("shared key size=%d, ppk_size=%d", key_size, ppkey_size);
         }
         
-        if (key_size < 0) {
+        if (key_size < 0 || key_size > skey_size) {
             ret = ERROR_OpenSslComputeSharedKey;
         } else {
-            if (pskey_size != NULL) {
-                if (key_size > *pskey_size) {
-                    ret = ERROR_OpenSslComputeSharedKey;
-                } else {
-                    *pskey_size = key_size;
-                }
-            }
+            skey_size = key_size;
         }
         
         if (ppk) {
@@ -936,29 +934,36 @@ namespace _srs_internal
         version = 0x01000504; // server s1 version
         
         SrsDH dh;
+        
+        // ensure generate 128bytes public key.
         if ((ret = dh.initialize(true)) != ERROR_SUCCESS) {
             return ret;
         }
+        
         if (schema == srs_schema0) {
             srs_key_block_init(&block0.key);
             srs_digest_block_init(&block1.digest);
             
             // directly generate the public key.
             // @see: https://github.com/winlinvip/simple-rtmp-server/issues/148
-            if ((ret = dh.copy_public_key((char*)block0.key.key, NULL)) != ERROR_SUCCESS) {
+            int pkey_size = 128;
+            if ((ret = dh.copy_public_key((char*)block0.key.key, pkey_size)) != ERROR_SUCCESS) {
                 srs_error("calc s1 key failed. ret=%d", ret);
                 return ret;
             }
+            srs_assert(pkey_size == 128);
         } else {
             srs_digest_block_init(&block0.digest);
             srs_key_block_init(&block1.key);
             
             // directly generate the public key.
             // @see: https://github.com/winlinvip/simple-rtmp-server/issues/148
-            if ((ret = dh.copy_public_key((char*)block1.key.key, NULL)) != ERROR_SUCCESS) {
+            int pkey_size = 128;
+            if ((ret = dh.copy_public_key((char*)block1.key.key, pkey_size)) != ERROR_SUCCESS) {
                 srs_error("calc s1 key failed. ret=%d", ret);
                 return ret;
             }
+            srs_assert(pkey_size == 128);
         }
         srs_verbose("calc s1 key success.");
             

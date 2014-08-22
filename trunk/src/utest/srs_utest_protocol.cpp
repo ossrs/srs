@@ -243,10 +243,13 @@ VOID TEST(ProtocolHandshakeTest, DHKey)
     ASSERT_TRUE(ERROR_SUCCESS == dh.initialize(true));
     
     char pub_key1[128];
-    EXPECT_TRUE(ERROR_SUCCESS == dh.copy_public_key(pub_key1, NULL));
+    int pkey_size = 128;
+    EXPECT_TRUE(ERROR_SUCCESS == dh.copy_public_key(pub_key1, pkey_size));
+    ASSERT_EQ(128, pkey_size);
     
     char pub_key2[128];
-    EXPECT_TRUE(ERROR_SUCCESS == dh.copy_public_key(pub_key2, NULL));
+    EXPECT_TRUE(ERROR_SUCCESS == dh.copy_public_key(pub_key2, pkey_size));
+    ASSERT_EQ(128, pkey_size);
     
     EXPECT_TRUE(srs_bytes_equals(pub_key1, pub_key2, 128));
     
@@ -255,7 +258,8 @@ VOID TEST(ProtocolHandshakeTest, DHKey)
     
     ASSERT_TRUE(ERROR_SUCCESS == dh0.initialize(true));
     
-    EXPECT_TRUE(ERROR_SUCCESS == dh0.copy_public_key(pub_key2, NULL));
+    EXPECT_TRUE(ERROR_SUCCESS == dh0.copy_public_key(pub_key2, pkey_size));
+    ASSERT_EQ(128, pkey_size);
     
     EXPECT_FALSE(srs_bytes_equals(pub_key1, pub_key2, 128));
 }

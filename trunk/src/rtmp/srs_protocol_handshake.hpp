@@ -141,21 +141,21 @@ namespace _srs_internal
         /**
         * copy the public key.
         * @param pkey the bytes to copy the public key.
-        * @param ppkey_size the max public key size, output the actual public key size.
-        *       NULL to ignore.
+        * @param pkey_size the max public key size, output the actual public key size.
+        *       user should never ignore this size.
         * @remark, when ensure_128bytes_public_key, the size always 128.
         */
-        virtual int copy_public_key(char* pkey, int32_t* ppkey_size);
+        virtual int copy_public_key(char* pkey, int32_t& pkey_size);
         /**
         * generate and copy the shared key.
         * generate the shared key with peer public key.
         * @param ppkey peer public key.
         * @param ppkey_size the size of ppkey.
         * @param skey the computed shared key.
-        * @param pskey_size the max shared key size, output the actual shared key size.
-        *       NULL to ignore.
+        * @param skey_size the max shared key size, output the actual shared key size.
+        *       user should never ignore this size.
         */
-        virtual int copy_shared_key(const char* ppkey, int32_t ppkey_size, char* skey, int32_t* pskey_size);
+        virtual int copy_shared_key(const char* ppkey, int32_t ppkey_size, char* skey, int32_t& skey_size);
     private:
         virtual int do_initialize();
     };
