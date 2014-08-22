@@ -238,11 +238,24 @@ VOID TEST(ProtocolHandshakeTest, OpensslSha256)
 // verify the dh key
 VOID TEST(ProtocolHandshakeTest, DHKey)
 {
+    _srs_internal::SrsDH dh;
+    
+    ASSERT_TRUE(ERROR_SUCCESS == dh.initialize(true));
+    
     char pub_key1[128];
-    openssl_generate_key(pub_key1, 128);
+    EXPECT_TRUE(ERROR_SUCCESS == dh.copy_public_key(pub_key1, NULL));
     
     char pub_key2[128];
-    openssl_generate_key(pub_key2, 128);
+    EXPECT_TRUE(ERROR_SUCCESS == dh.copy_public_key(pub_key2, NULL));
+    
+    EXPECT_TRUE(srs_bytes_equals(pub_key1, pub_key2, 128));
+    
+    // another dh
+    _srs_internal::SrsDH dh0;
+    
+    ASSERT_TRUE(ERROR_SUCCESS == dh0.initialize(true));
+    
+    EXPECT_TRUE(ERROR_SUCCESS == dh0.copy_public_key(pub_key2, NULL));
     
     EXPECT_FALSE(srs_bytes_equals(pub_key1, pub_key2, 128));
 }

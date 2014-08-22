@@ -36,6 +36,9 @@ class SrsHandshakeBytes;
 
 #ifdef SRS_AUTO_SSL
 
+// for openssl.
+#include <openssl/hmac.h>
+
 namespace _srs_internal
 {
     /**
@@ -116,6 +119,46 @@ namespace _srs_internal
     extern u_int8_t SrsGenuineFPKey[];
     int openssl_HMACsha256(const void* key, int key_size, const void* data, int data_size, void* digest);
     int openssl_generate_key(char* public_key, int32_t size);
+    
+    /**
+    * the DH wrapper.
+    */
+    class SrsDH
+    {
+    private:
+        DH* pdh;
+    public:
+        SrsDH();
+        virtual ~SrsDH();
+    public:
+        /**
+        * initialize dh, generate the public and private key.
+        * @param ensure_128bytes_public_key whether ensure public key is 128bytes,
+        *       sometimes openssl generate 127bytes public key.
+        *       default to false to donot ensure.
+        */
+        virtual int initialize(bool ensure_128bytes_public_key = false);
+        /**
+        * copy the public key.
+        * @param pkey the bytes to copy the public key.
+        * @param ppkey_size the max public key size, output the actual public key size.
+        *       NULL to ignore.
+        * @remark, when ensure_128bytes_public_key, the size always 128.
+        */
+        virtual int copy_public_key(char* pkey, int32_t* ppkey_size);
+        /**
+        * generate and copy the shared key.
+        * generate the shared key with peer public key.
+        * @param ppkey peer public key.
+        * @param ppkey_size the size of ppkey.
+        * @param skey the computed shared key.
+        * @param pskey_size the max shared key size, output the actual shared key size.
+        *       NULL to ignore.
+        */
+        virtual int copy_shared_key(const char* ppkey, int32_t ppkey_size, char* skey, int32_t* pskey_size);
+    private:
+        virtual int do_initialize();
+    };
     
     // calc the offset of key,
     // the key->offset cannot be used as the offset of key.
