@@ -46,6 +46,7 @@ using namespace std;
 #include <srs_protocol_msg_array.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_protocol_amf0.hpp>
+#include <srs_kernel_codec.hpp>
 
 // when error, forwarder sleep for a while and retry.
 #define SRS_FORWARDER_SLEEP_US (int64_t)(3*1000*1000LL)
@@ -64,6 +65,8 @@ SrsForwarder::SrsForwarder(SrsSource* _source)
     pthread = new SrsThread(this, SRS_FORWARDER_SLEEP_US, true);
     queue = new SrsMessageQueue();
     jitter = new SrsRtmpJitter();
+    
+    sh_video = sh_audio = NULL;
 }
 
 SrsForwarder::~SrsForwarder()
@@ -74,6 +77,9 @@ SrsForwarder::~SrsForwarder()
     srs_freep(queue);
     srs_freep(jitter);
     srs_freep(kbps);
+    
+    srs_freep(sh_video);
+    srs_freep(sh_audio);
 }
 
 int SrsForwarder::initialize(SrsRequest* req, string ep_forward)
@@ -179,6 +185,11 @@ int SrsForwarder::on_audio(SrsSharedPtrMessage* msg)
         return ret;
     }
     
+    if (SrsFlvCodec::audio_is_sequence_header(msg->payload, msg->size)) {
+        srs_freep(sh_audio);
+        sh_audio = msg->copy();
+    }
+    
     if ((ret = queue->enqueue(msg)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -193,6 +204,11 @@ int SrsForwarder::on_video(SrsSharedPtrMessage* msg)
     if ((ret = jitter->correct(msg, 0, 0, SrsRtmpJitterAlgorithmFULL)) != ERROR_SUCCESS) {
         srs_freep(msg);
         return ret;
+    }
+    
+    if (SrsFlvCodec::video_is_sequence_header(msg->payload, msg->size)) {
+        srs_freep(sh_video);
+        sh_video = msg->copy();
     }
     
     if ((ret = queue->enqueue(msg)) != ERROR_SUCCESS) {
@@ -370,6 +386,21 @@ int SrsForwarder::forward()
     SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_FORWARDER);
 
     SrsSharedPtrMessageArray msgs(SYS_MAX_FORWARD_SEND_MSGS);
+    
+    // update sequence header
+    // TODO: FIXME: maybe need to zero the sequence header timestamp.
+    if (sh_video) {
+        if ((ret = client->send_and_free_message(sh_video->copy(), stream_id)) != ERROR_SUCCESS) {
+            srs_error("forwarder send sh_video to server failed. ret=%d", ret);
+            return ret;
+        }
+    }
+    if (sh_audio) {
+        if ((ret = client->send_and_free_message(sh_audio->copy(), stream_id)) != ERROR_SUCCESS) {
+            srs_error("forwarder send sh_audio to server failed. ret=%d", ret);
+            return ret;
+        }
+    }
     
     while (pthread->can_loop()) {
         // switch to other st-threads.

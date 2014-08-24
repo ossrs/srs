@@ -65,6 +65,12 @@ private:
     SrsRtmpClient* client;
     SrsRtmpJitter* jitter;
     SrsMessageQueue* queue;
+    /**
+    * cache the sequence header for retry when slave is failed.
+    * @see https://github.com/winlinvip/simple-rtmp-server/issues/150
+    */
+    SrsSharedPtrMessage* sh_audio;
+    SrsSharedPtrMessage* sh_video;
 public:
     SrsForwarder(SrsSource* _source);
     virtual ~SrsForwarder();
