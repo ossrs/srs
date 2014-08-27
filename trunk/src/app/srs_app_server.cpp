@@ -545,14 +545,22 @@ int SrsServer::initialize_st()
     }
     srs_verbose("st_set_eventsys use linux epoll success");
     
-    // @remark, st alloc segment use mmap, which only support 32757 threads,
-    // if need to support more, for instance, 100k threads, define the macro MALLOC_STACK.
     if(st_init() != 0){
         ret = ERROR_ST_INITIALIZE;
         srs_error("st_init failed. ret=%d", ret);
         return ret;
     }
     srs_verbose("st_init success");
+    
+    // @remark, st alloc segment use mmap, which only support 32757 threads,
+    // if need to support more, for instance, 100k threads, define the macro MALLOC_STACK.
+    if (_srs_config->get_max_connections() > 32756) {
+        ret = ERROR_ST_EXCEED_THREADS;
+        srs_error("st mmap for stack allocation must <= %d threads, "
+            "@see Makefile of st for MALLOC_STACK, please build st manually by "
+            "\"make EXTRA_CFLAGS=-DMALLOC_STACK linux-debug\", ret=%d", ret);
+        return ret;
+    }
     
     // set current log id.
     _srs_context->generate_id();
