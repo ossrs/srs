@@ -283,7 +283,7 @@ install-api: install
 	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" \$(__REAL_INSTALL)/etc/init.d/srs-api
 	@echo ""
 	@echo "api installed, to link and start api:"
-	@echo "     sudo ln -sf /usr/local/srs/etc/init.d/srs-api /etc/init.d/srs-api"
+	@echo "     sudo ln -sf \$(SRS_PREFIX)/etc/init.d/srs-api /etc/init.d/srs-api"
 	@echo "     /etc/init.d/srs-api start"
 	@echo "     http://\$(shell bash auto/local_ip.sh):8085"
 	@echo "@see: https://github.com/winlinvip/simple-rtmp-server/wiki/LinuxService"
@@ -306,7 +306,7 @@ install:
 	@sed -i "s|^ROOT=.*|ROOT=\"\$(SRS_PREFIX)\"|g" \$(__REAL_INSTALL)/etc/init.d/srs
 	@echo ""
 	@echo "srs installed, to link and start srs:"
-	@echo "     sudo ln -sf /usr/local/srs/etc/init.d/srs /etc/init.d/srs"
+	@echo "     sudo ln -sf \$(SRS_PREFIX)/etc/init.d/srs /etc/init.d/srs"
 	@echo "     /etc/init.d/srs start"
 	@echo "@see: https://github.com/winlinvip/simple-rtmp-server/wiki/LinuxService"
 

@@ -2746,6 +2746,30 @@ string SrsConfig::get_ingest_input_url(SrsConfDirective* ingest)
     return conf->arg0();
 }
 
+bool SrsConfig::get_log_tank_file()
+{
+    srs_assert(root);
+    
+    SrsConfDirective* conf = root->get("srs_log_tank");
+    if (conf && conf->arg0() == SRS_CONF_DEFAULT_LOG_TANK_CONSOLE) {
+        return false;
+    }
+    
+    return true;
+}
+
+string SrsConfig::get_log_level()
+{
+    srs_assert(root);
+    
+    SrsConfDirective* conf = root->get("srs_log_level");
+    if (!conf || conf->arg0().empty()) {
+        return SRS_CONF_DEFAULT_LOG_LEVEL;
+    }
+    
+    return conf->arg0();
+}
+
 string SrsConfig::get_log_file()
 {
     srs_assert(root);
@@ -2774,30 +2798,6 @@ string SrsConfig::get_ffmpeg_log_dir()
     }
     
     return conf->arg0();
-}
-
-string SrsConfig::get_log_level()
-{
-    srs_assert(root);
-    
-    SrsConfDirective* conf = root->get("srs_log_level");
-    if (!conf || conf->arg0().empty()) {
-        return SRS_CONF_DEFAULT_LOG_LEVEL;
-    }
-    
-    return conf->arg0();
-}
-
-bool SrsConfig::get_log_tank_file()
-{
-    srs_assert(root);
-    
-    SrsConfDirective* conf = root->get("srs_log_tank");
-    if (conf && conf->arg0() == SRS_CONF_DEFAULT_LOG_TANK_CONSOLE) {
-        return false;
-    }
-    
-    return true;
 }
 
 SrsConfDirective* SrsConfig::get_hls(string vhost)
