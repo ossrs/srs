@@ -491,7 +491,7 @@ fi
 MODULE_FILES=("srs_utest" "srs_utest_amf0" "srs_utest_protocol" 
         "srs_utest_kernel" "srs_utest_core" "srs_utest_config" 
         "srs_utest_reload")
-ModuleLibIncs=(${SRS_OBJS} ${LibSTRoot})
+ModuleLibIncs=(${SRS_OBJS} ${LibSTRoot} ${LibSSLRoot})
 ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile} ${LibSSLfile})
 MODULE_DEPENDS=("CORE" "KERNEL" "RTMP" "APP")
 MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${RTMP_OBJS[@]} ${APP_OBJS[@]}"

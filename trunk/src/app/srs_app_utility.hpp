@@ -446,21 +446,21 @@ public:
 // data of /proc/meminfo
 public:
     // MemActive = MemTotal - MemFree
-    int64_t MemActive;
+    u_int64_t MemActive;
     // RealInUse = MemActive - Buffers - Cached
-    int64_t RealInUse;
+    u_int64_t RealInUse;
     // NotInUse = MemTotal - RealInUse
     //          = MemTotal - MemActive + Buffers + Cached
     //          = MemTotal - MemTotal + MemFree + Buffers + Cached
     //          = MemFree + Buffers + Cached
-    int64_t NotInUse;
+    u_int64_t NotInUse;
     
-    int64_t MemTotal;
-    int64_t MemFree;
-    int64_t Buffers;
-    int64_t Cached;
-    int64_t SwapTotal;
-    int64_t SwapFree;
+    u_int64_t MemTotal;
+    u_int64_t MemFree;
+    u_int64_t Buffers;
+    u_int64_t Cached;
+    u_int64_t SwapTotal;
+    u_int64_t SwapFree;
     
 public:
     SrsMemInfo();

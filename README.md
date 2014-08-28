@@ -208,6 +208,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v1.0, 2014-08-28, fix [#167](https://github.com/winlinvip/simple-rtmp-server/issues/167), add openssl includes to utest. 0.9.209.
 * v1.0, 2014-08-27, max connections is 32756, for st use mmap default. 0.9.209
 * v1.0, 2014-08-24, fix [#150](https://github.com/winlinvip/simple-rtmp-server/issues/150), forward should forward the sequence header when retry. 0.9.208.
 * v1.0, 2014-08-22, for [#165](https://github.com/winlinvip/simple-rtmp-server/issues/165), refine dh wrapper, ensure public key is 128bytes. 0.9.206.
