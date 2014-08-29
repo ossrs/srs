@@ -1086,6 +1086,11 @@ int SrsConfig::parse_options(int argc, char** argv)
     return ret;
 }
 
+string SrsConfig::config()
+{
+    return config_file;
+}
+
 int SrsConfig::parse_argv(int& i, char** argv)
 {
     int ret = ERROR_SUCCESS;
@@ -1563,9 +1568,6 @@ int SrsConfig::check_config()
             srs_trace("write log to console");
         }
     }
-    
-    // show important args.
-    srs_trace("conf: %s, limit: %d", config_file.c_str(), get_max_connections());
     
     ////////////////////////////////////////////////////////////////////////
     // check features

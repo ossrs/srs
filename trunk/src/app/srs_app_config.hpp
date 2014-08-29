@@ -323,6 +323,10 @@ public:
     * parse the cli, the main(argc,argv) function.
     */
     virtual int parse_options(int argc, char** argv);
+    /**
+    * get the config file path.
+    */
+    virtual std::string config();
 private:
     /**
     * parse each argv.
