@@ -1035,7 +1035,7 @@ string srs_get_peer_ip(int fd)
     
     ip = buf;
     
-    srs_verbose("get peer ip success. ip=%s, fd=%d", ip, fd);
+    srs_verbose("get peer ip success. ip=%s, fd=%d", ip.c_str(), fd);
     
     return ip;
 }
