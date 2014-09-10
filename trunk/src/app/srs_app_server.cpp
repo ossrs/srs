@@ -385,7 +385,8 @@ void SrsServer::destroy()
     srs_freep(signal_manager);
     srs_freep(kbps);
     
-    for (std::vector<SrsConnection*>::iterator it = conns.begin(); it != conns.end();) {
+    // never destroy the connections, for it's still alive.
+    /*for (std::vector<SrsConnection*>::iterator it = conns.begin(); it != conns.end();) {
         SrsConnection* conn = *it;
 
         // remove the connection, then free it,
@@ -395,9 +396,12 @@ void SrsServer::destroy()
 
         srs_freep(conn);
     }
-    conns.clear();
+    conns.clear();*/
 
-    SrsSource::destroy();
+    // never destroy the source, 
+    // when we free all sources, the fmle publish may retry
+    // and segment fault.
+    //SrsSource::destroy();
 }
 
 int SrsServer::initialize()
