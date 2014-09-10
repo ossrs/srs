@@ -618,6 +618,7 @@ int SrsServer::cycle()
 #ifdef SRS_AUTO_GPERF_MC
     destroy();
     
+    // remark, for gmc, never invoke the exit().
     srs_warn("sleep a long time for system st-threads to cleanup.");
     st_usleep(3 * 1000 * 1000);
     srs_warn("system quit");
