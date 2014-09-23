@@ -55,6 +55,81 @@ ISrsThreadContext* _srs_context = new SrsThreadContext();
 SrsConfig* _srs_config = new SrsConfig();
 SrsServer* _srs_server = new SrsServer();
 
+void show_features()
+{
+#ifdef SRS_AUTO_SSL
+    srs_trace("rtmp handshake: on");
+#else
+    srs_warn("rtmp handshake: off");
+#endif
+
+#ifdef SRS_AUTO_HLS
+    srs_trace("hls: on");
+#else
+    srs_warn("hls: off");
+#endif
+
+#ifdef SRS_AUTO_HTTP_CALLBACK
+    srs_trace("http callback: on");
+#else
+    srs_warn("http callback: off");
+#endif
+
+#ifdef SRS_AUTO_HTTP_API
+    srs_trace("http api: on");
+#else
+    srs_warn("http api: off");
+#endif
+
+#ifdef SRS_AUTO_HTTP_SERVER
+    srs_trace("http server: on");
+#else
+    srs_warn("http server: off");
+#endif
+
+#ifdef SRS_AUTO_HTTP_PARSER
+    srs_trace("http parser: on");
+#else
+    srs_warn("http parser: off");
+#endif
+
+#ifdef SRS_AUTO_DVR
+    srs_trace("dvr: on");
+#else
+    srs_warn("dvr: off");
+#endif
+
+#ifdef SRS_AUTO_TRANSCODE
+    srs_trace("transcode: on");
+#else
+    srs_warn("transcode: off");
+#endif
+
+#ifdef SRS_AUTO_INGEST
+    srs_trace("ingest: on");
+#else
+    srs_warn("ingest: off");
+#endif
+
+#ifdef SRS_AUTO_STAT
+    srs_trace("system stat: on");
+#else
+    srs_warn("system stat: off");
+#endif
+
+#ifdef SRS_AUTO_NGINX
+    srs_trace("compile nginx: on");
+#else
+    srs_warn("compile nginx: off");
+#endif
+
+#ifdef SRS_AUTO_FFMPEG
+    srs_trace("compile ffmpeg: on");
+#else
+    srs_warn("compile ffmpeg: off");
+#endif
+}
+
 // main entrance.
 int main(int argc, char** argv) 
 {
@@ -93,6 +168,8 @@ int main(int argc, char** argv)
     
     srs_trace("srs(simple-rtmp-server) "RTMP_SIG_SRS_VERSION);
     srs_trace("license: "RTMP_SIG_SRS_LICENSE);
+    srs_trace("authors: "RTMP_SIG_SRS_PRIMARY_AUTHROS);
+    srs_trace("contributors: "SRS_AUTO_CONSTRIBUTORS);
     srs_trace("uname: "SRS_AUTO_UNAME);
     srs_trace("build: %s, %s", SRS_AUTO_BUILD_DATE, srs_is_little_endian()? "little-endian":"big-endian");
     srs_trace("configure: "SRS_AUTO_USER_CONFIGURE);
@@ -101,6 +178,9 @@ int main(int argc, char** argv)
     srs_trace("arm tool chain: "SRS_AUTO_EMBEDED_TOOL_CHAIN);
 #endif
     srs_trace("conf: %s, limit: %d", _srs_config->config().c_str(), _srs_config->get_max_connections());
+    
+    // features
+    show_features();
     
     /**
     * we do nothing in the constructor of server,
