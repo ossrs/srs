@@ -850,6 +850,10 @@ public:
     */
     virtual int                 get_dvr_duration(std::string vhost);
     /**
+    * whether wait keyframe to reap segment, for segment plan.
+    */
+    virtual bool                get_dvr_wait_keyframe(std::string vhost);
+    /**
     * get the time_jitter algorithm for dvr.
     */
     virtual int                 get_dvr_time_jitter(std::string vhost);

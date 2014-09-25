@@ -256,12 +256,14 @@ int SrsDvrPlan::on_video(SrsSharedPtrMessage* video)
         return ret;
     }
     
-    int32_t timestamp = filter_timestamp(video->header.timestamp);
-    if ((ret = enc->write_video(timestamp, payload, size)) != ERROR_SUCCESS) {
+    // update segment duration, session plan just update the duration,
+    // the segment plan will reap segment if exceed, this video will write to next segment.
+    if ((ret = update_duration(video)) != ERROR_SUCCESS) {
         return ret;
     }
     
-    if ((ret = update_duration(video)) != ERROR_SUCCESS) {
+    int32_t timestamp = filter_timestamp(video->header.timestamp);
+    if ((ret = enc->write_video(timestamp, payload, size)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -478,26 +480,46 @@ int SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
     
     srs_assert(segment);
     
-    // reap if exceed duration.
-    if (segment_duration > 0 && segment->duration > segment_duration) {
-        if ((ret = flv_close()) != ERROR_SUCCESS) {
-            segment->reset();
+    // ignore if duration ok.
+    if (segment_duration <= 0 || segment->duration < segment_duration) {
+        return ret;
+    }
+    
+    // when wait keyframe, ignore if no frame arrived.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/177
+    if (_srs_config->get_dvr_wait_keyframe(_req->vhost)) {
+        if (!msg->header.is_video()) {
             return ret;
         }
-        on_unpublish();
         
-        // open new flv file
-        if ((ret = open_new_segment()) != ERROR_SUCCESS) {
+        char* payload = (char*)msg->payload;
+        int size = (int)msg->size;
+        bool is_key_frame = SrsFlvCodec::video_is_h264(payload, size) 
+            && SrsFlvCodec::video_is_keyframe(payload, size) 
+            && !SrsFlvCodec::video_is_sequence_header(payload, size);
+        if (!is_key_frame) {
             return ret;
         }
-        
-        // update sequence header
-        if (sh_video && (ret = SrsDvrPlan::on_video(sh_video)) != ERROR_SUCCESS) {
-            return ret;
-        }
-        if (sh_audio && (ret = SrsDvrPlan::on_audio(sh_audio)) != ERROR_SUCCESS) {
-            return ret;
-        }
+    }
+    
+    // reap segment
+    if ((ret = flv_close()) != ERROR_SUCCESS) {
+        segment->reset();
+        return ret;
+    }
+    on_unpublish();
+    
+    // open new flv file
+    if ((ret = open_new_segment()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // update sequence header
+    if (sh_video && (ret = SrsDvrPlan::on_video(sh_video)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if (sh_audio && (ret = SrsDvrPlan::on_audio(sh_audio)) != ERROR_SUCCESS) {
+        return ret;
     }
     
     return ret;

@@ -1301,7 +1301,7 @@ int SrsConfig::check_config()
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name.c_str();
                     if (m != "enabled" && m != "dvr_path" && m != "dvr_plan"
-                        && m != "dvr_duration" && m != "time_jitter"
+                        && m != "dvr_duration" && m != "dvr_wait_keyframe" && m != "time_jitter"
                     ) {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost dvr directive %s, ret=%d", m.c_str(), ret);
@@ -2966,6 +2966,23 @@ int SrsConfig::get_dvr_duration(string vhost)
     }
     
     return ::atoi(conf->arg0().c_str());
+}
+
+bool SrsConfig::get_dvr_wait_keyframe(string vhost)
+{
+    SrsConfDirective* dvr = get_dvr(vhost);
+    
+    if (!dvr) {
+        return true;
+    }
+    
+    SrsConfDirective* conf = dvr->get("dvr_wait_keyframe");
+    
+    if (!conf || conf->arg0() != "off") {
+        return true;
+    }
+    
+    return false;
 }
 
 int SrsConfig::get_dvr_time_jitter(string vhost)

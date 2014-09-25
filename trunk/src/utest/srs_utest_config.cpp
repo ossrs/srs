@@ -271,6 +271,7 @@ std::string __full_conf = ""
     "        # the param for plan(segment), in seconds.                                                                                     \n"
     "        # default: 30                                                                                                                  \n"
     "        dvr_duration    30;                                                                                                            \n"
+    "        dvr_wait_keyframe       on;                                                                                                    \n"
     "        # about the stream monotonically increasing:                                                                                   \n"
     "        #   1. video timestamp is monotonically increasing,                                                                            \n"
     "        #   2. audio timestamp is monotonically increasing,                                                                            \n"
@@ -1937,6 +1938,7 @@ VOID TEST(ConfigMainTest, ParseFullConf)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_FALSE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
@@ -2022,6 +2024,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_same_edge)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
 }
 
@@ -2097,6 +2100,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_change_edge)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));*/
 }
 
@@ -2171,6 +2175,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_dvr)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
 }
 
@@ -2266,6 +2271,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_ingest)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
 }
 
@@ -2340,6 +2346,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_http)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_TRUE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/hls", conf.get_vhost_http_mount(vhost).c_str());
@@ -2417,6 +2424,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_hls_enabled)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_FALSE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
@@ -2494,6 +2502,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_hls_disabled)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_FALSE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
@@ -2602,6 +2611,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_http_hooks)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_FALSE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
@@ -2680,6 +2690,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_min_delay)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_FALSE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
@@ -2773,6 +2784,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_refer_anti_suck)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_FALSE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
@@ -2856,6 +2868,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_forward_same_vhost)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_FALSE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
@@ -2935,6 +2948,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_forward_change_vhost)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_FALSE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
@@ -3024,6 +3038,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_mirror)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_FALSE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
@@ -3113,6 +3128,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_crop)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_FALSE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
@@ -3202,6 +3218,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_logo)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_FALSE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
@@ -3285,6 +3302,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_audio)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_FALSE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
@@ -3368,6 +3386,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_vn)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_FALSE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
@@ -3447,6 +3466,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_copy)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_FALSE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
@@ -3664,6 +3684,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_all)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_FALSE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
@@ -3753,6 +3774,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_ffempty)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_FALSE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
@@ -3842,6 +3864,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_app)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_FALSE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
@@ -3931,6 +3954,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_stream)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_FALSE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
@@ -4009,6 +4033,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_bandcheck)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_FALSE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
@@ -4087,6 +4112,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_chunksize)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_FALSE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
@@ -4165,6 +4191,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_jitter)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_FALSE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
@@ -4243,6 +4270,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_atc)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_FALSE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
@@ -4321,6 +4349,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_removed)
     EXPECT_STREQ("./objs/nginx/html", conf.get_dvr_path(vhost).c_str());
     EXPECT_STREQ("session", conf.get_dvr_plan(vhost).c_str());
     EXPECT_EQ(30, conf.get_dvr_duration(vhost));
+    EXPECT_TRUE(conf.get_dvr_wait_keyframe(vhost));
     EXPECT_TRUE(SrsRtmpJitterAlgorithmFULL == conf.get_dvr_time_jitter(vhost));
     EXPECT_FALSE(conf.get_vhost_http_enabled(vhost));
     EXPECT_STREQ("/", conf.get_vhost_http_mount(vhost).c_str());
@@ -4744,6 +4773,16 @@ VOID TEST(ConfigMainTest, CheckConf_vhost_dvr)
     if (true) {
         MockSrsConfig conf;
         EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{dvr{dvr_durations 30;}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"vhost v{dvr{dvr_wait_keyframe on;}}"));
+    }
+    
+    if (true) {
+        MockSrsConfig conf;
+        EXPECT_TRUE(ERROR_SUCCESS != conf.parse(_MIN_OK_CONF"vhost v{dvr{dvr_wait_keyframes on;}}"));
     }
     
     if (true) {
