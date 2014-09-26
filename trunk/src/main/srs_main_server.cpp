@@ -55,7 +55,10 @@ ISrsThreadContext* _srs_context = new SrsThreadContext();
 SrsConfig* _srs_config = new SrsConfig();
 SrsServer* _srs_server = new SrsServer();
 
-void show_features()
+/**
+* show the features by macro, the actual macro values.
+*/
+void show_macro_features()
 {
 #ifdef SRS_AUTO_SSL
     srs_trace("rtmp handshake: on");
@@ -130,11 +133,13 @@ void show_features()
 #endif
 }
 
-// main entrance.
+/**
+* main entrance.
+*/
 int main(int argc, char** argv) 
 {
     int ret = ERROR_SUCCESS;
-    
+
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
 
@@ -180,7 +185,7 @@ int main(int argc, char** argv)
     srs_trace("conf: %s, limit: %d", _srs_config->config().c_str(), _srs_config->get_max_connections());
     
     // features
-    show_features();
+    show_macro_features();
     
     /**
     * we do nothing in the constructor of server,
