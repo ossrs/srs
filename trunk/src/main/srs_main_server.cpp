@@ -222,7 +222,6 @@ int run()
         }
         srs_trace("grandpa process exit.");
         exit(0);
-        return 0;
     }
 
     // father
@@ -236,7 +235,6 @@ int run()
     if(pid > 0) {
         srs_trace("father process exit. ret=0");
         exit(0);
-        return 0;
     }
 
     // son

@@ -302,8 +302,6 @@ int SrsRtmpConn::service_cycle()
         srs_error("control message(%d) reject as error. ret=%d", ret, ret);
         return ret;
     }
-    
-    return ret;
 }
 
 int SrsRtmpConn::stream_service_cycle()
@@ -462,7 +460,7 @@ int SrsRtmpConn::stream_service_cycle()
             return ret;
         }
     }
-    
+
     return ret;
 }
 

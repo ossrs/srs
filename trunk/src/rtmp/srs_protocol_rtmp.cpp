@@ -172,7 +172,6 @@ string srs_client_type_string(SrsRtmpConnType type)
         case SrsRtmpConnFMLEPublish: return "publish(FMLEPublish)";
         default: return "Unknown";
     }
-    return "Unknown";
 }
 
 SrsHandshakeBytes::SrsHandshakeBytes() 

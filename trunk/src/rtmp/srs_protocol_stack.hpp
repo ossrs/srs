@@ -534,7 +534,7 @@ public:
     * all protocol control messages perfer RTMP_CID_ProtocolControl,
     * SrsSetWindowAckSizePacket is protocol control message.
     */
-    virtual int get_perfer_cid();
+    virtual int get_prefer_cid();
     /**
     * subpacket must override to provide the right message type.
     * the message type set the RTMP message type in header.
@@ -1311,7 +1311,7 @@ public:
     virtual int decode(SrsStream* stream);
 // encode functions for concrete packet to override.
 public:
-    virtual int get_perfer_cid();
+    virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -1335,7 +1335,7 @@ public:
     virtual int decode(SrsStream* stream);
 // encode functions for concrete packet to override.
 public:
-    virtual int get_perfer_cid();
+    virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -1356,7 +1356,7 @@ public:
     virtual ~SrsAcknowledgementPacket();
 // encode functions for concrete packet to override.
 public:
-    virtual int get_perfer_cid();
+    virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -1384,7 +1384,7 @@ public:
     virtual int decode(SrsStream* stream);
 // encode functions for concrete packet to override.
 public:
-    virtual int get_perfer_cid();
+    virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -1417,7 +1417,7 @@ public:
     virtual ~SrsSetPeerBandwidthPacket();
 // encode functions for concrete packet to override.
 public:
-    virtual int get_perfer_cid();
+    virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();
@@ -1540,7 +1540,7 @@ public:
     virtual int decode(SrsStream* stream);
 // encode functions for concrete packet to override.
 public:
-    virtual int get_perfer_cid();
+    virtual int get_prefer_cid();
     virtual int get_message_type();
 protected:
     virtual int get_size();

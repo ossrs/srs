@@ -141,10 +141,10 @@ void SrsEncoder::clear_engines()
     
         std::string output = ffmpeg->output();
         
-        std::vector<std::string>::iterator it;
-        it = std::find(_transcoded_url.begin(), _transcoded_url.end(), output);
-        if (it != _transcoded_url.end()) {
-            _transcoded_url.erase(it);
+        std::vector<std::string>::iterator tu_it;
+        tu_it = std::find(_transcoded_url.begin(), _transcoded_url.end(), output);
+        if (tu_it != _transcoded_url.end()) {
+            _transcoded_url.erase(tu_it);
         }
         
         srs_freep(ffmpeg);

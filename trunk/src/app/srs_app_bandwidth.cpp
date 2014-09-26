@@ -57,8 +57,8 @@ SrsBandwidthSample::~SrsBandwidthSample()
 
 void SrsBandwidthSample::calc_kbps(int _bytes, int _duration)
 {
-    bytes = (int)_bytes;
-    actual_duration_ms = (int)_duration;
+    bytes = _bytes;
+    actual_duration_ms = _duration;
     
     if (actual_duration_ms <= 0) {
         return;

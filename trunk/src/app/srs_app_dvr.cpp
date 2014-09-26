@@ -214,8 +214,8 @@ int SrsDvrPlan::on_audio(SrsSharedPtrMessage* audio)
         return ret;
     }
     
-    char* payload = (char*)audio->payload;
-    int size = (int)audio->size;
+    char* payload = audio->payload;
+    int size = audio->size;
     int64_t timestamp = filter_timestamp(audio->header.timestamp);
     if ((ret = enc->write_audio(timestamp, payload, size)) != ERROR_SUCCESS) {
         return ret;
@@ -236,8 +236,8 @@ int SrsDvrPlan::on_video(SrsSharedPtrMessage* video)
         return ret;
     }
     
-    char* payload = (char*)video->payload;
-    int size = (int)video->size;
+    char* payload = video->payload;
+    int size = video->size;
     
 #ifdef SRS_AUTO_HTTP_CALLBACK
     bool is_key_frame = SrsFlvCodec::video_is_h264(payload, size) 
@@ -492,8 +492,8 @@ int SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
             return ret;
         }
         
-        char* payload = (char*)msg->payload;
-        int size = (int)msg->size;
+        char* payload = msg->payload;
+        int size = msg->size;
         bool is_key_frame = SrsFlvCodec::video_is_h264(payload, size) 
             && SrsFlvCodec::video_is_keyframe(payload, size) 
             && !SrsFlvCodec::video_is_sequence_header(payload, size);

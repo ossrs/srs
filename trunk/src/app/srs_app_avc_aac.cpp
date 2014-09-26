@@ -177,7 +177,7 @@ int SrsAvcAacCodec::audio_aac_demux(char* data, int size, SrsCodecSample* sample
         return ret;
     }
     
-    if ((ret = stream->initialize((char*)data, size)) != ERROR_SUCCESS) {
+    if ((ret = stream->initialize(data, size)) != ERROR_SUCCESS) {
         return ret;
     }
 
@@ -300,6 +300,8 @@ int SrsAvcAacCodec::audio_aac_demux(char* data, int size, SrsCodecSample* sample
             case 44100:
                 sample->sound_rate = SrsCodecAudioSampleRate44100;
                 break;
+            default:
+                break;
         };
     }
     
@@ -320,7 +322,7 @@ int SrsAvcAacCodec::video_avc_demux(char* data, int size, SrsCodecSample* sample
         return ret;
     }
     
-    if ((ret = stream->initialize((char*)data, size)) != ERROR_SUCCESS) {
+    if ((ret = stream->initialize(data, size)) != ERROR_SUCCESS) {
         return ret;
     }
 
@@ -467,9 +469,9 @@ int SrsAvcAacCodec::video_avc_demux(char* data, int size, SrsCodecSample* sample
             int32_t NALUnitLength = 0;
             if (NAL_unit_length == 3) {
                 NALUnitLength = stream->read_4bytes();
-            } else if (NALUnitLength == 2) {
+            } else if (NAL_unit_length == 2) {
                 NALUnitLength = stream->read_3bytes();
-            } else if (NALUnitLength == 1) {
+            } else if (NAL_unit_length == 1) {
                 NALUnitLength = stream->read_2bytes();
             } else {
                 NALUnitLength = stream->read_1bytes();

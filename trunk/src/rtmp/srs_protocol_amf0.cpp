@@ -367,8 +367,6 @@ int SrsAmf0Any::discovery(SrsStream* stream, SrsAmf0Any** ppvalue)
             return ret;
         }
     }
-    
-    return ret;
 }
 
 SrsUnSortedHashtable::SrsUnSortedHashtable()
@@ -1428,11 +1426,7 @@ int srs_amf0_read_boolean(SrsStream* stream, bool& value)
         return ret;
     }
 
-    if (stream->read_1bytes() == 0) {
-        value = false;
-    } else {
-        value = true;
-    }
+    value = (stream->read_1bytes() != 0);
     
     srs_verbose("amf0 read bool value success. value=%d", value);
     

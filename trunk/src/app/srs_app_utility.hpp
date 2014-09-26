@@ -93,7 +93,7 @@ public:
     // state %c    One character from the string "RSDZTW" where R is running, S is sleeping in an interruptible  wait,  D
     //             is  waiting in uninterruptible disk sleep, Z is zombie, T is traced or stopped (on a signal), and W is
     //             paging.
-    char state;
+    unsigned char state;
     // ppid %d     The PID of the parent.
     int ppid;
     // pgrp %d     The process group ID of the process.
@@ -455,12 +455,12 @@ public:
     //          = MemFree + Buffers + Cached
     u_int64_t NotInUse;
     
-    u_int64_t MemTotal;
-    u_int64_t MemFree;
-    u_int64_t Buffers;
-    u_int64_t Cached;
-    u_int64_t SwapTotal;
-    u_int64_t SwapFree;
+    unsigned long MemTotal;
+    unsigned long MemFree;
+    unsigned long Buffers;
+    unsigned long Cached;
+    unsigned long SwapTotal;
+    unsigned long SwapFree;
     
 public:
     SrsMemInfo();

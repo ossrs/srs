@@ -947,7 +947,7 @@ namespace _srs_internal
             // directly generate the public key.
             // @see: https://github.com/winlinvip/simple-rtmp-server/issues/148
             int pkey_size = 128;
-            if ((ret = dh.copy_public_key((char*)block0.key.key, pkey_size)) != ERROR_SUCCESS) {
+            if ((ret = dh.copy_public_key(block0.key.key, pkey_size)) != ERROR_SUCCESS) {
                 srs_error("calc s1 key failed. ret=%d", ret);
                 return ret;
             }
@@ -959,7 +959,7 @@ namespace _srs_internal
             // directly generate the public key.
             // @see: https://github.com/winlinvip/simple-rtmp-server/issues/148
             int pkey_size = 128;
-            if ((ret = dh.copy_public_key((char*)block1.key.key, pkey_size)) != ERROR_SUCCESS) {
+            if ((ret = dh.copy_public_key(block1.key.key, pkey_size)) != ERROR_SUCCESS) {
                 srs_error("calc s1 key failed. ret=%d", ret);
                 return ret;
             }

@@ -46,7 +46,7 @@ bool SrsFlvCodec::video_is_keyframe(char* data, int size)
         return false;
     }
 
-    char frame_type = *(char*)data;
+    char frame_type = data[0];
     frame_type = (frame_type >> 4) & 0x0F;
     
     return frame_type == SrsCodecVideoAVCFrameKeyFrame;
@@ -64,10 +64,10 @@ bool SrsFlvCodec::video_is_sequence_header(char* data, int size)
         return false;
     }
 
-    char frame_type = *(char*)data;
+    char frame_type = data[0];
     frame_type = (frame_type >> 4) & 0x0F;
 
-    char avc_packet_type = *(char*)(data + 1);
+    char avc_packet_type = data[1];
     
     return frame_type == SrsCodecVideoAVCFrameKeyFrame 
         && avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader;
@@ -85,7 +85,7 @@ bool SrsFlvCodec::audio_is_sequence_header(char* data, int size)
         return false;
     }
     
-    char aac_packet_type = *(char*)(data + 1);
+    char aac_packet_type = data[1];
     
     return aac_packet_type == SrsCodecAudioTypeSequenceHeader;
 }
@@ -97,7 +97,7 @@ bool SrsFlvCodec::video_is_h264(char* data, int size)
         return false;
     }
 
-    char codec_id = *(char*)data;
+    char codec_id = data[0];
     codec_id = codec_id & 0x0F;
     
     return codec_id == SrsCodecVideoAVC;
@@ -110,7 +110,7 @@ bool SrsFlvCodec::audio_is_aac(char* data, int size)
         return false;
     }
     
-    char sound_format = *(char*)data;
+    char sound_format = data[0];
     sound_format = (sound_format >> 4) & 0x0F;
     
     return sound_format == SrsCodecAudioAAC;

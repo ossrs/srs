@@ -163,8 +163,6 @@ bool SrsHttpVhost::is_handler_valid(SrsHttpMessage* req, int& status_code, std::
 
 int SrsHttpVhost::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
 {
-    int ret = ERROR_SUCCESS;
-    
     std::string fullpath = get_request_file(req);
     
     // TODO: FIXME: support mp4, @see https://github.com/winlinvip/simple-rtmp-server/issues/174
@@ -182,11 +180,9 @@ int SrsHttpVhost::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
         }
         
         return response_flv_file2(skt, req, fullpath, offset);
-    } else {
-        return response_regular_file(skt, req, fullpath);
     }
-    
-    return ret;
+
+    return response_regular_file(skt, req, fullpath);
 }
 
 int SrsHttpVhost::response_regular_file(SrsStSocket* skt, SrsHttpMessage* req, string fullpath)

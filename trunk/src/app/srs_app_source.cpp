@@ -851,8 +851,8 @@ int SrsSource::on_dvr_request_sh()
     // when reload to start dvr, dvr will never get the sequence header in stream,
     // use the SrsSource.on_dvr_request_sh to push the sequence header to DVR.
     if (cache_metadata) {
-        char* payload = (char*)cache_metadata->payload;
-        int size = (int)cache_metadata->size;
+        char* payload = cache_metadata->payload;
+        int size = cache_metadata->size;
         
         SrsStream stream;
         if ((ret = stream.initialize(payload, size)) != ERROR_SUCCESS) {
@@ -1253,7 +1253,7 @@ int SrsSource::on_aggregate(SrsMessage* msg)
     int ret = ERROR_SUCCESS;
     
     SrsStream* stream = aggregate_stream;
-    if ((ret = stream->initialize((char*)msg->payload, msg->size)) != ERROR_SUCCESS) {
+    if ((ret = stream->initialize(msg->payload, msg->size)) != ERROR_SUCCESS) {
         return ret;
     }
     

@@ -42,8 +42,6 @@ public:
     virtual ~SrsHttpHeartbeat();
 public:
     virtual void heartbeat();
-public:
-    static void update_local_ipv4_ips();
 };
 
 #endif
