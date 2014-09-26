@@ -169,6 +169,11 @@ int main(int argc, char** argv)
     if ((ret = _srs_log->initialize()) != ERROR_SUCCESS) {
         return ret;
     }
+
+    // we check the config when the log initialized.
+    if ((ret = _srs_config->check_config()) != ERROR_SUCCESS) {
+        return ret;
+    }
     
     srs_trace("srs(simple-rtmp-server) "RTMP_SIG_SRS_VERSION);
     srs_trace("license: "RTMP_SIG_SRS_LICENSE);

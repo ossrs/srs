@@ -50,16 +50,6 @@ using namespace _srs_internal;
 
 #define SRS_WIKI_URL_LOG "https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLog"
 
-#define FILE_OFFSET(fd) lseek(fd, 0, SEEK_CUR)
-
-int64_t FILE_SIZE(int fd)
-{
-    int64_t pre = FILE_OFFSET(fd);
-    int64_t pos = lseek(fd, 0, SEEK_END);
-    lseek(fd, pre, SEEK_SET);
-    return pos;
-}
-
 // '\n'
 #define __LF (char)0x0a
 
@@ -407,12 +397,19 @@ int SrsConfig::reload()
     int ret = ERROR_SUCCESS;
 
     SrsConfig conf;
+
     if ((ret = conf.parse_file(config_file.c_str())) != ERROR_SUCCESS) {
         srs_error("ignore config reloader parse file failed. ret=%d", ret);
         ret = ERROR_SUCCESS;
         return ret;
     }
     srs_info("config reloader parse file success.");
+
+    if ((ret = conf.check_config()) != ERROR_SUCCESS) {
+        srs_error("ignore config reloader check config failed. ret=%d", ret);
+        ret = ERROR_SUCCESS;
+        return ret;
+    }
     
     return reload_conf(&conf);
 }
@@ -1074,12 +1071,37 @@ int SrsConfig::parse_options(int argc, char** argv)
     ret = parse_file(config_file.c_str());
     
     if (test_conf) {
+        // the parse_file never check the config,
+        // we check it when user requires check config file.
+        if (ret == ERROR_SUCCESS) {
+            ret = check_config();
+        }
+
         if (ret == ERROR_SUCCESS) {
             srs_trace("config file is ok");
             exit(0);
         } else {
             srs_error("config file is invalid");
             exit(ret);
+        }
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+    // check log name and level
+    ////////////////////////////////////////////////////////////////////////
+    if (true) {
+        std::string log_filename = this->get_log_file();
+        if (get_log_tank_file() && log_filename.empty()) {
+            ret = ERROR_SYSTEM_CONFIG_INVALID;
+            srs_error("must specifies the file to write log to. ret=%d", ret);
+            return ret;
+        }
+        if (get_log_tank_file()) {
+            srs_trace("write log to file %s", log_filename.c_str());
+            srs_trace("you can: tailf %s", log_filename.c_str());
+            srs_trace("@see: %s", SRS_WIKI_URL_LOG);
+        } else {
+            srs_trace("write log to console");
         }
     }
     
@@ -1189,6 +1211,8 @@ int SrsConfig::parse_file(const char* filename)
 int SrsConfig::check_config()
 {
     int ret = ERROR_SUCCESS;
+
+    srs_trace("srs checking config...");
     
     vector<SrsConfDirective*> vhosts = get_vhosts();
 
@@ -1628,8 +1652,8 @@ int SrsConfig::parse_buffer(SrsConfigBuffer* buffer)
     if ((ret = root->parse(buffer)) != ERROR_SUCCESS) {
         return ret;
     }
-    
-    return check_config();
+
+    return ret;
 }
 
 string SrsConfig::cwd()

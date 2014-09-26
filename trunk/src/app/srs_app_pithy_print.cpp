@@ -38,7 +38,7 @@ SrsStageInfo::SrsStageInfo(int _stage_id)
 {
     stage_id = _stage_id;
     nb_clients = 0;
-    age = printed_age = 0;
+    age = 0;
     
     update_print_time();
     

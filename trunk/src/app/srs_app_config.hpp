@@ -340,6 +340,11 @@ private:
     * parse the config file, which is specified by cli.
     */
     virtual int parse_file(const char* filename);
+public:
+    /**
+    * check the parsed config.
+    */
+    virtual int check_config();
 protected:
     /**
     * parse config from the buffer.
@@ -347,11 +352,6 @@ protected:
     * @remark, use protected for the utest to override with mock.
     */
     virtual int parse_buffer(_srs_internal::SrsConfigBuffer* buffer);
-private:
-    /**
-    * check the parsed config.
-    */
-    virtual int check_config();
 // global env
 public:
     /**

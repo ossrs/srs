@@ -208,6 +208,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v1.0, 2014-09-26, fix hls bug, refine config and log, according to clion of jetbrains. 0.9.216. 
 * v1.0, 2014-09-25, fix [#177](https://github.com/winlinvip/simple-rtmp-server/issues/177), dvr segment add config dvr_wait_keyframe. 0.9.213.
 * v1.0, 2014-08-28, fix [#167](https://github.com/winlinvip/simple-rtmp-server/issues/167), add openssl includes to utest. 0.9.209.
 * v1.0, 2014-08-27, max connections is 32756, for st use mmap default. 0.9.209
