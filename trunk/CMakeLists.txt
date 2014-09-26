@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.6.4)
 project(srs CXX)
 
-INCLUDE_DIRECTORIES(objs objs/st objs/hp src/core src/kernel src/rtmp src/app)
+INCLUDE_DIRECTORIES(objs objs/st objs/hp objs/openssl src/core src/kernel src/rtmp src/app)
 
 set(SOURCE_FILES src/main/srs_main_server.cpp)
 AUX_SOURCE_DIRECTORY(src/core SOURCE_FILES)
