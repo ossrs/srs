@@ -48,7 +48,6 @@ SrsFlvSegment::SrsFlvSegment()
     has_keyframe = false;
     duration = 0;
     starttime = -1;
-    sequence_header_offset = 0;
     stream_starttime = 0;
     stream_previous_pkt_time = -1;
     stream_duration = 0;
@@ -63,7 +62,6 @@ void SrsFlvSegment::reset()
     has_keyframe = false;
     starttime = -1;
     duration = 0;
-    sequence_header_offset = 0;
 }
 
 SrsDvrPlan::SrsDvrPlan()

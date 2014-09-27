@@ -60,10 +60,6 @@ public:
     */
     bool has_keyframe;
     /**
-    * sequence header offset in file.
-    */
-    int64_t sequence_header_offset;
-    /**
     * current segment starttime, RTMP pkt time.
     */
     int64_t starttime;
