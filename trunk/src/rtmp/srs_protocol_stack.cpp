@@ -1879,7 +1879,7 @@ int SrsConnectAppPacket::decode(SrsStream* stream)
     return ret;
 }
 
-int SrsConnectAppPacket::get_perfer_cid()
+int SrsConnectAppPacket::get_prefer_cid()
 {
     return RTMP_CID_OverConnection;
 }
@@ -1993,7 +1993,7 @@ int SrsConnectAppResPacket::decode(SrsStream* stream)
     return ret;
 }
 
-int SrsConnectAppResPacket::get_perfer_cid()
+int SrsConnectAppResPacket::get_prefer_cid()
 {
     return RTMP_CID_OverConnection;
 }
@@ -2105,7 +2105,7 @@ int SrsCallPacket::decode(SrsStream* stream)
     return ret;
 }
 
-int SrsCallPacket::get_perfer_cid()
+int SrsCallPacket::get_prefer_cid()
 {
     return RTMP_CID_OverConnection;
 }
@@ -2179,7 +2179,7 @@ SrsCallResPacket::~SrsCallResPacket()
     srs_freep(response);
 }
 
-int SrsCallResPacket::get_perfer_cid()
+int SrsCallResPacket::get_prefer_cid()
 {
     return RTMP_CID_OverConnection;
 }
@@ -2282,7 +2282,7 @@ int SrsCreateStreamPacket::decode(SrsStream* stream)
     return ret;
 }
 
-int SrsCreateStreamPacket::get_perfer_cid()
+int SrsCreateStreamPacket::get_prefer_cid()
 {
     return RTMP_CID_OverConnection;
 }
@@ -2373,7 +2373,7 @@ int SrsCreateStreamResPacket::decode(SrsStream* stream)
     return ret;
 }
 
-int SrsCreateStreamResPacket::get_perfer_cid()
+int SrsCreateStreamResPacket::get_prefer_cid()
 {
     return RTMP_CID_OverConnection;
 }
@@ -2509,7 +2509,7 @@ int SrsFMLEStartPacket::decode(SrsStream* stream)
     return ret;
 }
 
-int SrsFMLEStartPacket::get_perfer_cid()
+int SrsFMLEStartPacket::get_prefer_cid()
 {
     return RTMP_CID_OverConnection;
 }
@@ -2630,7 +2630,7 @@ int SrsFMLEStartResPacket::decode(SrsStream* stream)
     return ret;
 }
 
-int SrsFMLEStartResPacket::get_perfer_cid()
+int SrsFMLEStartResPacket::get_prefer_cid()
 {
     return RTMP_CID_OverConnection;
 }
@@ -2733,7 +2733,7 @@ int SrsPublishPacket::decode(SrsStream* stream)
     return ret;
 }
 
-int SrsPublishPacket::get_perfer_cid()
+int SrsPublishPacket::get_prefer_cid()
 {
     return RTMP_CID_OverStream;
 }
@@ -2931,7 +2931,7 @@ int SrsPlayPacket::decode(SrsStream* stream)
     return ret;
 }
 
-int SrsPlayPacket::get_perfer_cid()
+int SrsPlayPacket::get_prefer_cid()
 {
     return RTMP_CID_OverStream;
 }
@@ -3014,7 +3014,7 @@ SrsPlayResPacket::~SrsPlayResPacket()
     srs_freep(desc);
 }
 
-int SrsPlayResPacket::get_perfer_cid()
+int SrsPlayResPacket::get_prefer_cid()
 {
     return RTMP_CID_OverStream;
 }
@@ -3076,7 +3076,7 @@ SrsOnBWDonePacket::~SrsOnBWDonePacket()
     srs_freep(args);
 }
 
-int SrsOnBWDonePacket::get_perfer_cid()
+int SrsOnBWDonePacket::get_prefer_cid()
 {
     return RTMP_CID_OverConnection;
 }
@@ -3133,7 +3133,7 @@ SrsOnStatusCallPacket::~SrsOnStatusCallPacket()
     srs_freep(data);
 }
 
-int SrsOnStatusCallPacket::get_perfer_cid()
+int SrsOnStatusCallPacket::get_prefer_cid()
 {
     return RTMP_CID_OverStream;
 }
@@ -3229,7 +3229,7 @@ int SrsBandwidthPacket::decode(SrsStream *stream)
     return ret;
 }
 
-int SrsBandwidthPacket::get_perfer_cid()
+int SrsBandwidthPacket::get_prefer_cid()
 {
     return RTMP_CID_OverStream;
 }
@@ -3418,7 +3418,7 @@ SrsOnStatusDataPacket::~SrsOnStatusDataPacket()
     srs_freep(data);
 }
 
-int SrsOnStatusDataPacket::get_perfer_cid()
+int SrsOnStatusDataPacket::get_prefer_cid()
 {
     return RTMP_CID_OverStream;
 }
@@ -3465,7 +3465,7 @@ SrsSampleAccessPacket::~SrsSampleAccessPacket()
 {
 }
 
-int SrsSampleAccessPacket::get_perfer_cid()
+int SrsSampleAccessPacket::get_prefer_cid()
 {
     return RTMP_CID_OverStream;
 }

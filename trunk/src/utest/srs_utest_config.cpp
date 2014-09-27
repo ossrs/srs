@@ -64,8 +64,15 @@ MockSrsConfig::~MockSrsConfig()
 
 int MockSrsConfig::parse(string buf)
 {
+    int ret = ERROR_SUCCESS;
+
     MockSrsConfigBuffer buffer(buf);
-    return parse_buffer(&buffer);
+
+    if ((ret = parse_buffer(&buffer)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    return check_config();
 }
 
 #ifdef ENABLE_UTEST_CONFIG
