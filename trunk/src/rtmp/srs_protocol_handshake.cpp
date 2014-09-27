@@ -1262,13 +1262,18 @@ int SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* /*hs_bytes*/, 
 int SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrsProtocolReaderWriter* io)
 {
     int ret = ERROR_SUCCESS;
-    
+
+    // TODO: FIXME: check memory corrupt, for https://github.com/winlinvip/simple-rtmp-server/issues/180
+    SrsHandshakeBytes* ptr = hs_bytes;
+
     ssize_t nsize;
     
     // complex handshake
     if ((ret = hs_bytes->create_c0c1()) != ERROR_SUCCESS) {
         return ret;
     }
+    // TODO: FIXME: check memory corrupt, for https://github.com/winlinvip/simple-rtmp-server/issues/180
+    srs_assert(ptr == hs_bytes);
     
     // sign c1
     c1s1 c1;
@@ -1277,23 +1282,32 @@ int SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrs
         return ret;
     }
     c1.dump(hs_bytes->c0c1 + 1);
+    // TODO: FIXME: check memory corrupt, for https://github.com/winlinvip/simple-rtmp-server/issues/180
+    srs_assert(ptr == hs_bytes);
+
     // verify c1
     bool is_valid;
     if ((ret = c1.c1_validate_digest(is_valid)) != ERROR_SUCCESS || !is_valid) {
         ret = ERROR_RTMP_TRY_SIMPLE_HS;
         return ret;
     }
+    // TODO: FIXME: check memory corrupt, for https://github.com/winlinvip/simple-rtmp-server/issues/180
+    srs_assert(ptr == hs_bytes);
     
     if ((ret = io->write(hs_bytes->c0c1, 1537, &nsize)) != ERROR_SUCCESS) {
         srs_warn("write c0c1 failed. ret=%d", ret);
         return ret;
     }
     srs_verbose("write c0c1 success.");
+    // TODO: FIXME: check memory corrupt, for https://github.com/winlinvip/simple-rtmp-server/issues/180
+    srs_assert(ptr == hs_bytes);
     
     // s0s1s2
     if ((ret = hs_bytes->read_s0s1s2(io)) != ERROR_SUCCESS) {
         return ret;
     }
+    // TODO: FIXME: check memory corrupt, for https://github.com/winlinvip/simple-rtmp-server/issues/180
+    srs_assert(ptr == hs_bytes);
     
     // plain text required.
     if (hs_bytes->s0s1s2[0] != 0x03) {
@@ -1301,12 +1315,16 @@ int SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrs
         srs_warn("handshake failed, plain text required. ret=%d", ret);
         return ret;
     }
+    // TODO: FIXME: check memory corrupt, for https://github.com/winlinvip/simple-rtmp-server/issues/180
+    srs_assert(ptr == hs_bytes);
     
     // verify s1s2
     c1s1 s1;
     if ((ret = s1.parse(hs_bytes->s0s1s2 + 1, c1.schema)) != ERROR_SUCCESS) {
         return ret;
     }
+    // TODO: FIXME: check memory corrupt, for https://github.com/winlinvip/simple-rtmp-server/issues/180
+    srs_assert(ptr == hs_bytes);
     
     // never verify the s1,
     // for if forward to nginx-rtmp, verify s1 will failed,
@@ -1316,16 +1334,24 @@ int SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrs
     if ((ret = hs_bytes->create_c2()) != ERROR_SUCCESS) {
         return ret;
     }
+    // TODO: FIXME: check memory corrupt, for https://github.com/winlinvip/simple-rtmp-server/issues/180
+    srs_assert(ptr == hs_bytes);
+
     c2s2 c2;
     if ((ret = c2.c2_create(&s1)) != ERROR_SUCCESS) {
         return ret;
     }
+    // TODO: FIXME: check memory corrupt, for https://github.com/winlinvip/simple-rtmp-server/issues/180
+    srs_assert(ptr == hs_bytes);
+
     c2.dump(hs_bytes->c2);
     if ((ret = io->write(hs_bytes->c2, 1536, &nsize)) != ERROR_SUCCESS) {
         srs_warn("complex handshake write c2 failed. ret=%d", ret);
         return ret;
     }
     srs_verbose("complex handshake write c2 success.");
+    // TODO: FIXME: check memory corrupt, for https://github.com/winlinvip/simple-rtmp-server/issues/180
+    srs_assert(ptr == hs_bytes);
     
     srs_trace("complex handshake success.");
     
