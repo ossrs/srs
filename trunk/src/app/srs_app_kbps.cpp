@@ -23,9 +23,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_kbps.hpp>
 
-#include <srs_kernel_error.hpp>
-#include <srs_kernel_log.hpp>
-#include <srs_protocol_io.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_st.hpp>
 

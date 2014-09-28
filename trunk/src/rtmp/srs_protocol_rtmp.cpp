@@ -24,12 +24,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_rtmp.hpp>
 
 #include <srs_core_autofree.hpp>
-#include <srs_kernel_log.hpp>
-#include <srs_kernel_error.hpp>
 #include <srs_protocol_io.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_protocol_handshake.hpp>
-#include <srs_protocol_stack.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_utility.hpp>
@@ -929,7 +926,7 @@ int SrsRtmpServer::response_connect_app(SrsRequest *req, const char* server_ip)
     return ret;
 }
 
-void SrsRtmpServer::response_connect_reject(SrsRequest *req, const char* desc)
+void SrsRtmpServer::response_connect_reject(SrsRequest* /*req*/, const char* desc)
 {
     int ret = ERROR_SUCCESS;
 

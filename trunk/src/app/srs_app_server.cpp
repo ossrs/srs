@@ -40,12 +40,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_utility.hpp>
 #include <srs_app_http_api.hpp>
 #include <srs_app_http_conn.hpp>
-#include <srs_app_http.hpp>
 #include <srs_app_ingest.hpp>
 #include <srs_app_source.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_app_heartbeat.hpp>
-#include <srs_app_kbps.hpp>
 
 // signal defines.
 #define SIGNAL_RELOAD SIGHUP
@@ -971,7 +969,7 @@ int SrsServer::on_reload_vhost_added(std::string vhost)
     return ret;
 }
 
-int SrsServer::on_reload_vhost_removed(std::string vhost)
+int SrsServer::on_reload_vhost_removed(std::string /*vhost*/)
 {
     int ret = ERROR_SUCCESS;
     

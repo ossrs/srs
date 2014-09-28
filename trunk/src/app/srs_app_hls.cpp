@@ -679,7 +679,7 @@ int SrsHlsMuxer::flush_audio(SrsMpegtsFrame* af, SrsBuffer* ab)
     return ret;
 }
 
-int SrsHlsMuxer::flush_video(SrsMpegtsFrame* af, SrsBuffer* ab, SrsMpegtsFrame* vf, SrsBuffer* vb)
+int SrsHlsMuxer::flush_video(SrsMpegtsFrame* /*af*/, SrsBuffer* /*ab*/, SrsMpegtsFrame* vf, SrsBuffer* vb)
 {
     int ret = ERROR_SUCCESS;
 

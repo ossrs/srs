@@ -33,7 +33,6 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_protocol_rtmp.hpp>
-#include <srs_protocol_stack.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_app_source.hpp>
 #include <srs_app_server.hpp>
@@ -46,13 +45,9 @@ using namespace std;
 #include <srs_app_st_socket.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_edge.hpp>
-#include <srs_app_kbps.hpp>
 #include <srs_app_utility.hpp>
-#include <srs_protocol_utility.hpp>
-#include <srs_kernel_utility.hpp>
 #include <srs_protocol_msg_array.hpp>
 #include <srs_protocol_amf0.hpp>
-#include <srs_app_utility.hpp>
 
 // when stream is busy, for example, streaming is already
 // publishing, when a new client to request to publish,
@@ -987,7 +982,7 @@ int SrsRtmpConn::check_edge_token_traverse_auth()
     SrsStSocket* io = new SrsStSocket(stsock);
     SrsRtmpClient* client = new SrsRtmpClient(io);
     
-    ret = do_token_traverse_auth(io, client);
+    ret = do_token_traverse_auth(client);
 
     srs_freep(client);
     srs_freep(io);
@@ -1030,7 +1025,7 @@ int SrsRtmpConn::connect_server(int origin_index, st_netfd_t* pstsock)
     return ret;
 }
 
-int SrsRtmpConn::do_token_traverse_auth(SrsStSocket* io, SrsRtmpClient* client)
+int SrsRtmpConn::do_token_traverse_auth(SrsRtmpClient* client)
 {
     int ret = ERROR_SUCCESS;
     

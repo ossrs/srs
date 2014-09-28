@@ -30,12 +30,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 using namespace std;
 
 #include <srs_app_config.hpp>
-#include <srs_kernel_error.hpp>
 #include <srs_protocol_rtmp.hpp>
-#include <srs_protocol_stack.hpp>
-#include <srs_app_source.hpp>
 #include <srs_core_autofree.hpp>
-#include <srs_kernel_stream.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_kernel_codec.hpp>
@@ -268,7 +264,7 @@ int SrsDvrPlan::on_video(SrsSharedPtrMessage* video)
     return ret;
 }
 
-int SrsDvrPlan::on_reload_vhost_dvr(std::string vhost)
+int SrsDvrPlan::on_reload_vhost_dvr(std::string /*vhost*/)
 {
     int ret = ERROR_SUCCESS;
     

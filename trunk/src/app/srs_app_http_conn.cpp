@@ -36,9 +36,7 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_app_st_socket.hpp>
-#include <srs_app_http.hpp>
 #include <srs_core_autofree.hpp>
-#include <srs_app_json.hpp>
 #include <srs_app_config.hpp>
 #include <srs_kernel_flv.hpp>
 #include <srs_kernel_utility.hpp>
@@ -116,7 +114,7 @@ int SrsHttpRoot::best_match(const char* path, int length, SrsHttpHandlerMatch** 
     return ERROR_HTTP_HANDLER_MATCH_URL;
 }
 
-bool SrsHttpRoot::is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase) 
+bool SrsHttpRoot::is_handler_valid(SrsHttpMessage* /*req*/, int& status_code, std::string& reason_phrase)
 {
     status_code = SRS_CONSTS_HTTP_InternalServerError;
     reason_phrase = SRS_CONSTS_HTTP_InternalServerError_str;
@@ -124,7 +122,7 @@ bool SrsHttpRoot::is_handler_valid(SrsHttpMessage* req, int& status_code, std::s
     return false;
 }
 
-int SrsHttpRoot::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
+int SrsHttpRoot::do_process_request(SrsStSocket* /*skt*/, SrsHttpMessage* /*req*/)
 {
     int ret = ERROR_SUCCESS;
     return ret;

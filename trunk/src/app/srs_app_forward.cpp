@@ -31,18 +31,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 using namespace std;
 
 #include <srs_app_source.hpp>
-#include <srs_core_autofree.hpp>
 #include <srs_app_st_socket.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_protocol_rtmp.hpp>
-#include <srs_protocol_stack.hpp>
 #include <srs_protocol_utility.hpp>
-#include <srs_protocol_rtmp.hpp>
 #include <srs_app_kbps.hpp>
-#include <srs_kernel_utility.hpp>
 #include <srs_protocol_msg_array.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_protocol_amf0.hpp>

@@ -36,7 +36,6 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_app_kbps.hpp>
 #include <srs_app_json.hpp>
-#include <srs_kernel_consts.hpp>
 
 int srs_socket_connect(std::string server, int port, int64_t timeout, st_netfd_t* pstfd)
 {
@@ -92,18 +91,18 @@ failed:
 
 int srs_get_log_level(std::string level)
 {
-    if ("verbose" == _srs_config->get_log_level()) {
+    if ("verbose" == level) {
         return SrsLogLevel::Verbose;
-    } else if ("info" == _srs_config->get_log_level()) {
+    } else if ("info" == level) {
         return SrsLogLevel::Info;
-    } else if ("trace" == _srs_config->get_log_level()) {
+    } else if ("trace" == level) {
         return SrsLogLevel::Trace;
-    } else if ("warn" == _srs_config->get_log_level()) {
+    } else if ("warn" == level) {
         return SrsLogLevel::Warn;
-    } else if ("error" == _srs_config->get_log_level()) {
+    } else if ("error" == level) {
         return SrsLogLevel::Error;
     } else {
-        return SrsLogLevel::Trace;
+        return SrsLogLevel::Disabled;
     }
 }
 
@@ -995,8 +994,6 @@ string srs_get_local_ip(int fd)
 
 int srs_get_local_port(int fd)
 {
-    std::string ip;
-
     // discovery client information
     sockaddr_in addr;
     socklen_t addrlen = sizeof(addr);

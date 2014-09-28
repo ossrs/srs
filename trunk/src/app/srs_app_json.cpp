@@ -26,7 +26,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 using namespace std;
 
 #include <srs_kernel_log.hpp>
-#include <srs_kernel_error.hpp>
 
 #ifdef __SRS_JSON_USE_NXJSON
 

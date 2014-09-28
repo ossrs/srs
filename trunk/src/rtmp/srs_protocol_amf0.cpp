@@ -499,7 +499,6 @@ void SrsUnSortedHashtable::copy(SrsUnSortedHashtable* src)
 SrsAmf0ObjectEOF::SrsAmf0ObjectEOF()
 {
     marker = RTMP_AMF0_ObjectEnd;
-    utf8_empty = 0x00;
 }
 
 SrsAmf0ObjectEOF::~SrsAmf0ObjectEOF()

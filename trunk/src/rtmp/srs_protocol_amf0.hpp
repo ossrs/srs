@@ -756,8 +756,6 @@ namespace _srs_internal
     class SrsAmf0ObjectEOF : public SrsAmf0Any
     {
     public:
-        int16_t utf8_empty;
-    public:
         SrsAmf0ObjectEOF();
         virtual ~SrsAmf0ObjectEOF();
     public:
