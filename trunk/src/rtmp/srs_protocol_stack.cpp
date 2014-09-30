@@ -1499,7 +1499,8 @@ int SrsProtocol::on_recv_message(SrsMessage* msg)
             if (pkt->chunk_size < SRS_CONSTS_RTMP_MIN_CHUNK_SIZE 
                 || pkt->chunk_size > SRS_CONSTS_RTMP_MAX_CHUNK_SIZE) 
             {
-                srs_warn("accept chunk size %d, but should in [%d, %d]",
+                srs_warn("accept chunk size %d, but should in [%d, %d], "
+                    "@see: https://github.com/winlinvip/simple-rtmp-server/issues/160",
                     pkt->chunk_size, SRS_CONSTS_RTMP_MIN_CHUNK_SIZE, 
                     SRS_CONSTS_RTMP_MAX_CHUNK_SIZE);
             }
