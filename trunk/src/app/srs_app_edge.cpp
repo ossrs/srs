@@ -814,13 +814,25 @@ int SrsPublishEdge::on_client_publish()
         return ret;
     }
     
-    if ((ret = forwarder->start()) != ERROR_SUCCESS) {
-        return ret;
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/180
+    // to avoid multiple publish the same stream on the same edge,
+    // directly enter the publish stage.
+    if (true) {
+        SrsEdgeState pstate = state;
+        state = SrsEdgeStatePublish;
+        srs_trace("edge change from %d to state %d (push).", pstate, state);
     }
     
-    SrsEdgeState pstate = state;
-    state = SrsEdgeStatePublish;
-    srs_trace("edge change from %d to state %d (push).", pstate, state);
+    // start to forward stream to origin.
+    ret = forwarder->start();
+    
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/180
+    // when failed, revert to init
+    if (ret != ERROR_SUCCESS) {
+        SrsEdgeState pstate = state;
+        state = SrsEdgeStateInit;
+        srs_trace("edge revert from %d to state %d (push). ret=%d", pstate, state, ret);
+    }
     
     return ret;
 }

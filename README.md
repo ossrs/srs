@@ -208,6 +208,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v1.0, 2014-09-30, fix [#180](https://github.com/winlinvip/simple-rtmp-server/issues/180), crash for multiple edge publishing the same stream. 0.9.220.
 * v1.0, 2014-09-26, fix hls bug, refine config and log, according to clion of jetbrains. 0.9.216. 
 * v1.0, 2014-09-25, fix [#177](https://github.com/winlinvip/simple-rtmp-server/issues/177), dvr segment add config dvr_wait_keyframe. 0.9.213.
 * v1.0, 2014-08-28, fix [#167](https://github.com/winlinvip/simple-rtmp-server/issues/167), add openssl includes to utest. 0.9.209.

@@ -57,7 +57,7 @@ enum SrsEdgeState
     // for play edge
     SrsEdgeStatePlay = 100,
     // play stream from origin, ingest stream
-    SrsEdgeStateIngestConnected,
+    SrsEdgeStateIngestConnected = 101,
     
     // for publish edge
     SrsEdgeStatePublish = 200,
