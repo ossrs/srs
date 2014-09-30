@@ -190,6 +190,12 @@ int main(int argc, char** argv)
     
     // features
     show_macro_features();
+
+    // for special features.
+#ifdef SRS_AUTO_HTTP_SERVER
+    srs_warn("http server is dev feature, "
+        "@see https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPServer#feature");
+#endif
     
     /**
     * we do nothing in the constructor of server,
