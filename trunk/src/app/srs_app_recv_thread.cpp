@@ -218,12 +218,12 @@ int SrsQueueRecvThread::handle(SrsCommonMessage* msg)
 
 void SrsQueueRecvThread::on_recv_error(int ret)
 {
+    recv_error_code = ret;
 #ifdef SRS_PERF_QUEUE_COND_WAIT
     if (_consumer) {
         _consumer->on_dispose();
     }
 #endif
-    recv_error_code = ret;
 }
 
 void SrsQueueRecvThread::on_thread_start()
