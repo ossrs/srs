@@ -42,6 +42,7 @@ class SrsCommonMessage;
 class SrsRtmpConn;
 class SrsSource;
 class SrsRequest;
+class SrsConsumer;
 
 /**
  * for the recv thread to handle the message.
@@ -112,6 +113,7 @@ private:
     SrsRtmpServer* rtmp;
     // the recv thread error code.
     int recv_error_code;
+    SrsConsumer *_consumer;
 public:
     SrsQueueRecvThread(SrsRtmpServer* rtmp_sdk, int timeout_ms);
     virtual ~SrsQueueRecvThread();
@@ -130,6 +132,8 @@ public:
 public:
     virtual void on_thread_start();
     virtual void on_thread_stop();
+public:
+    virtual void set_consumer(SrsConsumer *consumer);
 };
 
 /**

@@ -595,6 +595,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
     // when mw_sleep changed, resize the socket send buffer.
     mw_enabled = true;
     change_mw_sleep(_srs_config->get_mw_sleep_ms(req->vhost));
+    trd->set_consumer(consumer);
     
     while (true) {
         // to use isolate thread to recv, can improve about 33% performance.
