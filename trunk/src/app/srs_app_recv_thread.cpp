@@ -198,13 +198,7 @@ bool SrsQueueRecvThread::can_handle()
     // for the message may cause the thread to stop,
     // when stop, the thread is freed, so the messages
     // are dropped.
-    bool e = empty();
-#ifdef SRS_PERF_QUEUE_COND_WAIT
-    if (_consumer && !e) {
-        _consumer->on_dispose();
-    }
-#endif
-    return e;
+    return empty();
 }
 
 int SrsQueueRecvThread::handle(SrsCommonMessage* msg)
@@ -212,7 +206,11 @@ int SrsQueueRecvThread::handle(SrsCommonMessage* msg)
     // put into queue, the send thread will get and process it,
     // @see SrsRtmpConn::process_play_control_msg
     queue.push_back(msg);
-
+#ifdef SRS_PERF_QUEUE_COND_WAIT
+    if (_consumer) {
+        _consumer->on_dispose();
+    }
+#endif
     return ERROR_SUCCESS;
 }
 
