@@ -528,20 +528,11 @@ int SrsServer::initialize_st()
 {
     int ret = ERROR_SUCCESS;
     
-    // use linux epoll.
-    if (st_set_eventsys(ST_EVENTSYS_ALT) == -1) {
-        ret = ERROR_ST_SET_EPOLL;
-        srs_error("st_set_eventsys use linux epoll failed. ret=%d", ret);
+    // init st
+    if ((ret = srs_init_st()) != ERROR_SUCCESS) {
+        srs_error("init st failed. ret=%d", ret);
         return ret;
     }
-    srs_verbose("st_set_eventsys use linux epoll success");
-    
-    if(st_init() != 0){
-        ret = ERROR_ST_INITIALIZE;
-        srs_error("st_init failed. ret=%d", ret);
-        return ret;
-    }
-    srs_verbose("st_init success");
     
     // @remark, st alloc segment use mmap, which only support 32757 threads,
     // if need to support more, for instance, 100k threads, define the macro MALLOC_STACK.
