@@ -224,7 +224,7 @@ private:
     *       gop cache is disabled for pure audio stream.
     * @see: https://github.com/winlinvip/simple-rtmp-server/issues/124
     */
-    int audio_count_after_last_video;
+    int audio_after_last_video_count;
     /**
     * cached gop.
     */
@@ -233,6 +233,9 @@ public:
     SrsGopCache();
     virtual ~SrsGopCache();
 public:
+    /**
+    * to enable or disable the gop cache.
+    */
     virtual void set(bool enabled);
     /**
     * only for h264 codec
@@ -240,14 +243,26 @@ public:
     * 2. clear gop when got keyframe.
     */
     virtual int cache(SrsSharedPtrMessage* msg);
+    /**
+    * clear the gop cache.
+    */
     virtual void clear();
-    virtual int dump(SrsConsumer* consumer, bool atc, int tba, int tbv, SrsRtmpJitterAlgorithm jitter_algorithm);
+    /**
+    * dump the cached gop to consumer.
+    */
+    virtual int dump(SrsConsumer* consumer, 
+        bool atc, int tba, int tbv, SrsRtmpJitterAlgorithm jitter_algorithm
+    );
     /**
     * used for atc to get the time of gop cache,
     * the atc will adjust the sequence header timestamp to gop cache.
     */
     virtual bool empty();
-    virtual int64_t get_start_time();
+    /**
+    * get the start time of gop cache, in ms.
+    * @return 0 if no packets.
+    */
+    virtual int64_t start_time();
 };
 
 /**

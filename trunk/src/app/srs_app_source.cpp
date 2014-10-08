@@ -363,7 +363,7 @@ SrsGopCache::SrsGopCache()
 {
     cached_video_count = 0;
     enable_gop_cache = true;
-    audio_count_after_last_video = 0;
+    audio_after_last_video_count = 0;
 }
 
 SrsGopCache::~SrsGopCache()
@@ -396,7 +396,7 @@ int SrsGopCache::cache(SrsSharedPtrMessage* msg)
     // got video, update the video count if acceptable
     if (msg->header.is_video()) {
         cached_video_count++;
-        audio_count_after_last_video = 0;
+        audio_after_last_video_count = 0;
     }
     
     // no acceptable video or pure audio, disable the cache.
@@ -407,11 +407,11 @@ int SrsGopCache::cache(SrsSharedPtrMessage* msg)
     
     // ok, gop cache enabled, and got an audio.
     if (msg->header.is_audio()) {
-        audio_count_after_last_video++;
+        audio_after_last_video_count++;
     }
     
     // clear gop cache when pure audio count overflow
-    if (audio_count_after_last_video > __SRS_PURE_AUDIO_GUESS_COUNT) {
+    if (audio_after_last_video_count > __SRS_PURE_AUDIO_GUESS_COUNT) {
         srs_warn("clear gop cache for guess pure audio overflow");
         clear();
         return ret;
@@ -444,6 +444,7 @@ void SrsGopCache::clear()
     gop_cache.clear();
 
     cached_video_count = 0;
+    audio_after_last_video_count = 0;
 }
     
 int SrsGopCache::dump(SrsConsumer* consumer, bool atc, int tba, int tbv, SrsRtmpJitterAlgorithm jitter_algorithm)
@@ -469,7 +470,7 @@ bool SrsGopCache::empty()
     return gop_cache.empty();
 }
 
-int64_t SrsGopCache::get_start_time()
+int64_t SrsGopCache::start_time()
 {
     if (empty()) {
         return 0;
@@ -1457,13 +1458,13 @@ void SrsSource::on_unpublish()
     // if atc, update the sequence header to gop cache time.
     if (atc && !gop_cache->empty()) {
         if (cache_metadata) {
-            cache_metadata->header.timestamp = gop_cache->get_start_time();
+            cache_metadata->header.timestamp = gop_cache->start_time();
         }
         if (cache_sh_video) {
-            cache_sh_video->header.timestamp = gop_cache->get_start_time();
+            cache_sh_video->header.timestamp = gop_cache->start_time();
         }
         if (cache_sh_audio) {
-            cache_sh_audio->header.timestamp = gop_cache->get_start_time();
+            cache_sh_audio->header.timestamp = gop_cache->start_time();
         }
     }
 
