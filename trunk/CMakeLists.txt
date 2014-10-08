@@ -47,3 +47,5 @@ MESSAGE(STATUS "only for jetbrains IDE, @see https://github.com/winlinvip/simple
 MESSAGE(STATUS "only for jetbrains IDE, @see https://github.com/winlinvip/simple-rtmp-server/wiki/IDE#jetbrains")
 MESSAGE(STATUS "only for jetbrains IDE, @see https://github.com/winlinvip/simple-rtmp-server/wiki/IDE#jetbrains")
 MESSAGE(STATUS "only for jetbrains IDE, @see https://github.com/winlinvip/simple-rtmp-server/wiki/IDE#jetbrains")
+MESSAGE(STATUS "use ./configure && make, @see https://github.com/winlinvip/simple-rtmp-server#usage")
+
