@@ -263,6 +263,11 @@ public:
     * @return 0 if no packets.
     */
     virtual int64_t start_time();
+    /**
+    * whether current stream is pure audio,
+    * when no video in gop cache, the stream is pure audio right now.
+    */
+    virtual bool pure_audio();
 };
 
 /**

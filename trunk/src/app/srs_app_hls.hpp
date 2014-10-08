@@ -239,14 +239,6 @@ private:
     int64_t audio_buffer_start_pts;
     // time jitter for aac
     SrsHlsAacJitter* aac_jitter;
-private:
-    /**
-    * for pure audio HLS application,
-    * the video count used to count the video,
-    * if zero and audio buffer overflow, reap the ts,
-    * just like we got a keyframe.
-    */
-    u_int32_t video_count;
 public:
     SrsHlsCache();
     virtual ~SrsHlsCache();

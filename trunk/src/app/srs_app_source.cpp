@@ -400,7 +400,7 @@ int SrsGopCache::cache(SrsSharedPtrMessage* msg)
     }
     
     // no acceptable video or pure audio, disable the cache.
-    if (cached_video_count == 0) {
+    if (pure_audio()) {
         srs_verbose("ignore any frame util got a h264 video frame.");
         return ret;
     }
@@ -480,6 +480,11 @@ int64_t SrsGopCache::start_time()
     srs_assert(msg);
     
     return msg->header.timestamp;
+}
+
+bool SrsGopCache::pure_audio()
+{
+    return cached_video_count == 0;
 }
 
 std::map<std::string, SrsSource*> SrsSource::pool;

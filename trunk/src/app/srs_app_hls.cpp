@@ -135,6 +135,8 @@ u_int8_t mpegts_header[] = {
     /* PMT */
     0xe1, 0x00,
     0xf0, 0x00,
+    // must generate header with/without video, @see:
+    // https://github.com/winlinvip/simple-rtmp-server/issues/40
     0x1b, 0xe1, 0x00, 0xf0, 0x00, /* h264, pid=0x100=256 */
     0x0f, 0xe1, 0x01, 0xf0, 0x00, /* aac, pid=0x101=257 */
     /*0x03, 0xe1, 0x01, 0xf0, 0x00,*/ /* mp3 */
@@ -967,8 +969,6 @@ SrsHlsCache::SrsHlsCache()
     
     af = new SrsMpegtsFrame();
     vf = new SrsMpegtsFrame();
-
-    video_count = 0;
 }
 
 SrsHlsCache::~SrsHlsCache()
@@ -998,9 +998,6 @@ int SrsHlsCache::on_publish(SrsHlsMuxer* muxer, SrsRequest* req, int64_t segment
     
     // get the hls path config
     std::string hls_path = _srs_config->get_hls_path(vhost);
-    
-    // reset video count for new publish session.
-    video_count = 0;
     
     // TODO: FIXME: support load exists m3u8, to continue publish stream.
     // for the HLS donot requires the EXT-X-MEDIA-SEQUENCE be monotonically increase.
@@ -1082,9 +1079,13 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
         }
     }
     
-    // for pure audio
-    // start new segment when duration overflow.
-    if (video_count == 0 && muxer->is_segment_overflow()) {
+    // reap when current source is pure audio.
+    // it maybe changed when stream info changed,
+    // for example, pure audio when start, audio/video when publishing,
+    // pure audio again for audio disabled.
+    // so we reap event when the audio incoming when segment overflow.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/151
+    if (muxer->is_segment_overflow()) {
         if ((ret = reap_segment("audio", muxer, af->pts)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -1097,8 +1098,6 @@ int SrsHlsCache::write_video(
     SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t dts, SrsCodecSample* sample)
 {
     int ret = ERROR_SUCCESS;
-    
-    video_count++;
     
     // write video to cache.
     if ((ret = cache_video(codec, sample)) != ERROR_SUCCESS) {
