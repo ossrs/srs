@@ -189,6 +189,7 @@ Supported operating systems and hardware:
 1. [no-plan] Support RTP/RTSP server.
 
 ## Releases
+* 2014-10-09, [Release v1.0-beta](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.beta), all bug fixed, 1.0.0, 59316 lines.<br/>
 * 2014-08-03, [Release v1.0-mainline7](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline7), config utest, all bug fixed. 57432 lines.<br/>
 * 2014-07-13, [Release v1.0-mainline6](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline6), core/kernel/rtmp utest, refine bandwidth(as/js/srslibrtmp library). 50029 lines.<br/>
 * 2014-06-27, [Release v1.0-mainline5](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline5), refine perf 3k+ clients, edge token traverse, [srs monitor](http://ossrs.net:1977), 30days online. 41573 lines.<br/>
