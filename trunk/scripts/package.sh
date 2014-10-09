@@ -79,6 +79,15 @@ package_dir=${build_objs}/package
 log="${build_objs}/logs/package.`date +%s`.log" && . ${product_dir}/scripts/_log.sh && check_log
 ret=$?; if [[ $ret -ne 0 ]]; then exit $ret; fi
 
+# check lsb_release
+lsb_release -a >/dev/null 2>&1
+ret=$?; if [[ $ret -ne 0 ]]; then 
+	failed_msg "lsb_release not found. to install on centos/debian(ubuntu/respberry-pi):"; 
+	failed_msg "	sudo yum install -y lsb-release"; 
+	failed_msg "	sudo aptitude install -y lsb-release"; 
+	exit $ret; 
+fi
+
 # check os version
 os_name=`lsb_release --id|awk '{print $3}'` &&
 os_release=`lsb_release --release|awk '{print $2}'` &&
@@ -89,10 +98,13 @@ ok_msg "target os is ${os_name}-${os_major_version} ${os_release} ${os_machine}"
 
 # for raspberry-pi
 # use rasberry-pi instead all release
-uname -a|grep "raspberrypi"; if [[ 0 -eq $? ]]; then os_name="RaspberryPi"; fi
-if [[ "Raspbian" == $os_name ]]; then os_name="RaspberryPi"; fi
-# check the cpu machine
-if [[ "unknown" == $os_machine ]]; then os_machine=`uname -m`; fi
+if [ $PI = YES ]; then
+	uname -a|grep "raspberrypi"; if [[ 0 -eq $? ]]; then os_name="RaspberryPi"; fi
+	if [[ "Raspbian" == $os_name ]]; then os_name="RaspberryPi"; fi
+	# check the cpu machine
+	if [[ "unknown" == $os_machine ]]; then os_machine=`uname -m`; fi
+fi
+ok_msg "real os is ${os_name}-${os_major_version} ${os_release} ${os_machine}"
 
 # build srs
 # @see https://github.com/winlinvip/simple-rtmp-server/wiki/Build
