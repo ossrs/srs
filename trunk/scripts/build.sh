@@ -10,3 +10,5 @@ echo "编译SRS"
 ret=$?; if [[ 0 -ne $ret ]]; then echo "错误：编译SRS失败"; exit $ret; fi
 
 echo "编译SRS成功"
+echo "你可以启动SRS："
+echo "    bash scripts/run.sh"

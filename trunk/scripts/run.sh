@@ -17,7 +17,7 @@ echo "启动SRS转发服务器成功"
 ./etc/init.d/srs-api restart; ret=$?; if [[ 0 -ne $ret ]]; then echo "错误：启动API服务器失败"; exit $ret; fi
 echo "启动API服务器成功"
 
-ip=`ifconfig|grep "inet "|grep -v "127.0.0.1"|awk 'NR==1 {print $2}'|awk -F ':' '{print $2}'`
+ip=`ifconfig|grep "inet "|grep -v "127.0.0.1"|awk -F 'inet ' 'NR==1 {print $2}'|awk '{print $1}'|sed "s/addr://g"`
 port=8085
 cat<<END
 默认的12路流演示：
