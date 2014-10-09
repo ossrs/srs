@@ -137,46 +137,41 @@ Supported operating systems and hardware:
 * All hardware.
 
 ## Summary
-1. Simple: also stable enough.
-1. [High-performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance): single-thread, async socket, event/st-thread driven.
-1. Support RTMP [edge](https://github.com/winlinvip/simple-rtmp-server/wiki/Edge) server, support origin server.
-1. RTMP without vod streaming, live streaming only.
-1. Support multiple processes, support single process.
-1. Support vhost, support \_\_defaultVhost\_\_.
-1. Support adobe rtmp live streaming.
-1. Support apple [HLS(m3u8)](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS) live streaming.
-1. Support HLS audio-only live streaming.
-1. Support reload config to enable changes.
-1. Support cache last gop for flash player to fast startup.
-1. Support listen at multiple ports.
-1. Support long time(>4.6hours) publish/play.
-1. High performace, 1800 connections(500kbps), 900Mbps, CPU 90.2%, 41MB
-1. Support forward publish stream to build active-standby [Forward](https://github.com/winlinvip/simple-rtmp-server/wiki/Forward).
-1. Support broadcast by forward the stream to other servers(origin/edge).
-1. Support live stream transcoding by ffmpeg.
-1. Support live stream forward(acopy/vcopy) by ffmpeg.
-1. Support ffmpeg filters(logo/overlay/crop), x264 params, copy/vn/an.
-1. Support audio transcode only, speex/mp3 to aac
-1. Support [http callback api hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback)(for authentication and injection).
-1. Support bandwidth test api and flash client.
-1. Player, publisher(encoder), and demo pages(jquery+bootstrap). 
-1. Demo video meeting or chat(SRS+cherrypy+jquery+bootstrap). 
-1. Full documents in wiki, in chineses. 
-1. Support RTMP(play-publish) library: srs-librtmp
-1. Support ARM([debian armhf, v7cpu](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm)) with rtmp/ssl/hls/librtmp.
-1. Support [init.d](https://github.com/winlinvip/simple-rtmp-server/wiki/LinuxService) and packge script, log to file. 
-1. Support RTMP ATC for HLS/HDS to support backup(failover)
-1. Support http RESTful management api.
-1. Support embeded http server for hls(live/vod)
-1. Support stream ingester using ffmpeg.
-1. Support ingest RTSP(RTP, SDP) stream to RTMP.
-1. Support dvr(record live to flv file for vod)
-1. Support live flashP2P(integrated by chnvideo VDN).
-1. Support RTMP [edge](https://github.com/winlinvip/simple-rtmp-server/wiki/Edge) server, push/pull stream from any RTMP server
-1. Support tracable log, session based log.
-1. Support [vod stream(http flv/hls vod stream)](https://github.com/winlinvip/simple-rtmp-server/wiki/FlvVodStream).
-1. Support DRM [token traverse](https://github.com/winlinvip/simple-rtmp-server/wiki/DRM#tokentraverse) for fms origin authenticate.
-1. Support system full utest on gtest.
+1. 简洁稳定：Simple, also stable enough.
+1. 高性能：[High-performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance): single-thread, async socket, event/st-thread driven.
+1. 高并发：[High-concurrency](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance), 1800 connections(500kbps), 900Mbps, CPU 90.2%, 41MB
+1. RTMP源站：Support [RTMP Origin Server](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryRTMP).
+1. CDN边缘(上下行加速)：Support [RTMP Edge Server](https://github.com/winlinvip/simple-rtmp-server/wiki/Edge) for CDN, push/pull stream from any RTMP server
+1. 单进程(无多进程)：Support single process; no multiple processes.
+1. 支持Vhost：Support [Vhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUrlVhost), support \_\_defaultVhost\_\_.
+1. 直播(无点播)：Support [RTMP](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryRTMP) live streaming; no vod streaming.
+1. 苹果HLS：Support Apple [HLS(m3u8)](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS) live streaming.
+1. 支持纯音频HLS：Support [HLS audio-only](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS#hlsaudioonly) live streaming.
+1. 支持Reload：Support [Reload](https://github.com/winlinvip/simple-rtmp-server/wiki/Reload) config to enable changes.
+1. 支持GopCache：Support [cache last gop](https://github.com/winlinvip/simple-rtmp-server/wiki/LowLatency#gop-cache) for flash player to fast startup.
+1. 侦听多端口：Support listen at multiple ports.
+1. 长时间推流：Support long time(>4.6hours) publish/play.
+1. 转发流：Support [Forward](https://github.com/winlinvip/simple-rtmp-server/wiki/Forward) in master-slave mode.
+1. 流转码：Support live stream [Transcoding](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG) by ffmpeg.
+1. 支持FFMPEG滤镜：Support [ffmpeg](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG) filters(logo/overlay/crop), x264 params, copy/vn/an.
+1. 只转码音频：Support audio [transcode](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG) only, speex/mp3 to aac
+1. 支持HTTP回调：Support [http callback api hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback)(for authentication and injection).
+1. 带宽测速：Support [bandwidth test](https://github.com/winlinvip/simple-rtmp-server/wiki/BandwidthTestTool) api and flash client.
+1. 演示页面：Player, publisher(encoder), and [demo pages(jquery+bootstrap)](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleDemo). 
+1. 视频会议演示：[Demo](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleDemo) video meeting or chat(SRS+cherrypy+jquery+bootstrap). 
+1. 中文Wiki：Full documents in [wiki](https://github.com/winlinvip/simple-rtmp-server/wiki/CNHome), in Chineses. 
+1. 客户端库：Support RTMP(play-publish) library: [srs-librtmp](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLibrtmp)
+1. 支持ARM平台：Support ARM([debian armhf, v7cpu](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm)) with rtmp/ssl/hls/librtmp.
+1. 支持Init.d脚本：Support [init.d](https://github.com/winlinvip/simple-rtmp-server/wiki/LinuxService) and packge script, log to file. 
+1. 支持ATC：Support [RTMP ATC](https://github.com/winlinvip/simple-rtmp-server/wiki/RTMP-ATC) for HLS/HDS to support backup(failover)
+1. 支持HTTP-RESTful-API：Support [HTTP RESTful management api](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPApi).
+1. 采集流：Support [Ingest](https://github.com/winlinvip/simple-rtmp-server/wiki/Ingest) FILE/HTTP/RTMP/RTSP(RTP, SDP) to RTMP using external tools(e.g ffmepg).
+1. 支持录制：Support [DVR](https://github.com/winlinvip/simple-rtmp-server/wiki/DVR), record live to flv file for vod.
+1. 可追溯日志：Support [tracable log, session based log](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLog).
+1. 支持FMS-Token穿越：Support DRM [token traverse](https://github.com/winlinvip/simple-rtmp-server/wiki/DRM#tokentraverse) for fms origin authenticate.
+1. 全面的Utest：Support system full utest on gtest.
+1. (不稳定)内嵌HTTP服务器：[experiment] Support embeded [HTTP server](https://github.com/winlinvip/simple-rtmp-server/wiki/SampleHTTP) for hls(live/vod)
+1. (不稳定)FLV点播流：[experiment] Support [vod stream(http flv/hls vod stream)](https://github.com/winlinvip/simple-rtmp-server/wiki/FlvVodStream).
 1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
 1. [no-plan] Support RTMP 302 redirect [#92](https://github.com/winlinvip/simple-rtmp-server/issues/92).
 1. [no-plan] Support multiple processes, for both origin and edge
