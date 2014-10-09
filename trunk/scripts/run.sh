@@ -39,10 +39,12 @@ if [[ `getenforce` != 'Disabled' ]]; then
 	echo -e "${RED}    重启系统：sudo reboot${BLACK}";
 fi
 
-sudo /etc/init.d/iptables status >/dev/null 2>&1;
-if [[ $? -ne 3 ]]; then
-	echo -e "${RED}请关闭防火墙：${BLACK}";
-	echo -e "${RED}    sudo /etc/init.d/iptables stop${BLACK}";
+if [[ -f /etc/init.d/iptables ]]; then
+	sudo /etc/init.d/iptables status >/dev/null 2>&1;
+	if [[ $? -ne 3 ]]; then
+		echo -e "${RED}请关闭防火墙：${BLACK}";
+		echo -e "${RED}    sudo /etc/init.d/iptables stop${BLACK}";
+	fi
 fi
 
 echo -e "${GREEN}请在hosts中添加一行：${BLACK}"
