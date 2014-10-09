@@ -82,7 +82,8 @@ ret=$?; if [[ $ret -ne 0 ]]; then exit $ret; fi
 # check lsb_release
 lsb_release -a >/dev/null 2>&1
 ret=$?; if [[ $ret -ne 0 ]]; then 
-	failed_msg "lsb_release not found. to install on centos/debian(ubuntu/respberry-pi):"; 
+	failed_msg "lsb_release not found. "
+	failed_msg "to install on centos/debian(ubuntu/respberry-pi):"; 
 	failed_msg "	sudo yum install -y lsb-release"; 
 	failed_msg "	sudo aptitude install -y lsb-release"; 
 	exit $ret; 
