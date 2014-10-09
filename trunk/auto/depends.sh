@@ -658,12 +658,19 @@ if [ $SRS_FFMPEG_TOOL = YES ]; then
     if [ ! -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]; then echo "build ffmpeg-2.1 failed."; exit -1; fi
 fi
 
+# whether compile ffmpeg tool
+if [ $SRS_FFMPEG_TOOL = YES ]; then
+    echo "#define SRS_AUTO_FFMPEG_TOOL" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_AUTO_FFMPEG_TOOL" >> $SRS_AUTO_HEADERS_H
+fi
+
 # whatever the FFMPEG tools, if transcode and ingest specified,
 # srs always compile the FFMPEG tool stub which used to start the FFMPEG process.
 if [ $SRS_FFMPEG_STUB = YES ]; then
-    echo "#define SRS_AUTO_FFMPEG" >> $SRS_AUTO_HEADERS_H
+    echo "#define SRS_AUTO_FFMPEG_STUB" >> $SRS_AUTO_HEADERS_H
 else
-    echo "#undef SRS_AUTO_FFMPEG" >> $SRS_AUTO_HEADERS_H
+    echo "#undef SRS_AUTO_FFMPEG_STUB" >> $SRS_AUTO_HEADERS_H
 fi
 
 if [ $SRS_TRANSCODE = YES ]; then

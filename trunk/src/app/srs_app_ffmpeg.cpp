@@ -36,7 +36,7 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
 
-#ifdef SRS_AUTO_FFMPEG
+#ifdef SRS_AUTO_FFMPEG_STUB
 
 #define SRS_RTMP_ENCODER_COPY           "copy"
 #define SRS_RTMP_ENCODER_NO_VIDEO       "vn"

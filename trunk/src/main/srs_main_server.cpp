@@ -125,7 +125,7 @@ void show_macro_features()
     srs_warn("compile nginx: off");
 #endif
 
-#ifdef SRS_AUTO_FFMPEG
+#ifdef SRS_AUTO_FFMPEG_TOOL
     srs_trace("compile ffmpeg: on");
 #else
     srs_warn("compile ffmpeg: off");
