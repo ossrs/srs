@@ -31,5 +31,9 @@ cat<<END
 默认的测速应用演示:
     http://$ip:$port/players/srs_bwt.html?key=35c9b402c12a7246868752e2878f7e0e&vhost=bandcheck.srs.com
 END
+
+echo -e "@see https://github.com/winlinvip/simple-rtmp-server/wiki/SampleDemo"
+echo -e "${GREEN}请在hosts中添加一行：${BLACK}"
+echo -e "${RED}    $ip demo.srs.com${BLACK}"
 echo -e "${GREEN}演示地址：${BLACK}"
 echo -e "${RED}    http://$ip:$port${BLACK}"
