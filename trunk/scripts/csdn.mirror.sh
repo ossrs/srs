@@ -39,30 +39,53 @@ ret=$?; if [[ 0 -ne $ret ]]; then
 1. 在CSDN上创建项目，从https://github.com/winlinvip/simple-rtmp-server拷贝过来。
 2. 在本地虚拟机上：    
       git clone git@code.csdn.net:winlinvip/srs-csdn.git
+	  git checkout master && git branch 1.0release && git push origin 1.0release
 3. 创建同步的branch：    
       git remote add upstream https://github.com/winlinvip/simple-rtmp-server.git
       git fetch upstream    
       git checkout upstream/master -b srs.master
+	  git checkout upstream/1.0release -b srs.1.0release
 4. 执行本同步更新脚本，更新。
       bash scripts/csdn.mirror.sh
 END
     exit 0; 
 fi 
 
+#############################################
+# branch master
+#############################################
 for ((;;)); do
     git checkout srs.master && git pull 
     ret=$?; if [[ 0 -ne $ret ]]; then 
-        failed_msg "更新github分支失败，自动重试";
+        failed_msg "(master)更新github分支失败，自动重试";
         continue
     else
-        ok_msg "更新github分支成功"
+        ok_msg "(master)更新github分支成功"
     fi
     break
 done
 
-git checkout master && git merge srs.master
-ret=$?; if [[ 0 -ne $ret ]]; then failed_msg "合并github分支失败, ret=$ret"; exit $ret; fi
-ok_msg "合并github分支成功"
+#############################################
+# branch 1.0release
+#############################################
+for ((;;)); do
+    git checkout srs.1.0release && git pull 
+    ret=$?; if [[ 0 -ne $ret ]]; then 
+        failed_msg "(1.0release)更新github分支失败，自动重试";
+        continue
+    else
+        ok_msg "(1.0release)更新github分支成功"
+    fi
+    break
+done
+
+git checkout 1.0release && git merge srs.1.0release
+ret=$?; if [[ 0 -ne $ret ]]; then failed_msg "(1.0release)合并github分支失败, ret=$ret"; exit $ret; fi
+ok_msg "(1.0release)合并github分支成功"
+
+#############################################
+# push
+#############################################
 
 for ((;;)); do 
     git push
