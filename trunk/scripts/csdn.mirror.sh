@@ -65,6 +65,10 @@ for ((;;)); do
     break
 done
 
+git checkout master && git merge srs.master
+ret=$?; if [[ 0 -ne $ret ]]; then failed_msg "(master)合并github分支失败, ret=$ret"; exit $ret; fi
+ok_msg "(master)合并github分支成功"
+
 #############################################
 # branch 1.0release
 #############################################
