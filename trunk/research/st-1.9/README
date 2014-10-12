@@ -1,0 +1,394 @@
+WELCOME!
+
+The State Threads Library is a small application library which provides
+a foundation for writing fast and highly scalable Internet applications
+(such as web servers, proxy servers, mail transfer agents, and so on,
+really any network-data-driven application) on UNIX-like platforms.  It
+combines the simplicity of the multithreaded programming paradigm, in
+which one thread supports each simultaneous connection, with the
+performance and scalability of an event-driven state machine
+architecture.  In other words, this library offers a threading API for
+structuring an Internet application as a state machine.  For more
+details, please see the library documentation in the "docs" directory or
+on-line at
+
+    http://state-threads.sourceforge.net/docs/
+
+The State Threads Project is an open source project for maintaining and
+enhancing the State Threads Library.  For more information about this
+project, please see
+
+    http://state-threads.sourceforge.net/
+
+
+BUILDING
+
+To build the library by hand, use the GNU make utility.  Run the make
+command (e.g., `gmake') with no arguments to display all supported
+targets.
+
+To build more or less automatically, first set the CONFIG_GUESS_PATH
+variable in either osguess.sh or your environment then run "make
+default" which guesses your OS and builds.  Requires the "config.guess"
+utility from GNU autoconf (not included with ST).  You can use one from
+a larger "main" software project or just use any config.guess available
+on your system.  You can also get it directly from GNU:
+ftp://ftp.gnu.org/gnu/autoconf/
+
+To build rpms (RedHat Linux 6.2 or later, Linux/Mandrake, Solaris with
+gnome, etc.):
+    download the latest st-x.y.tar.gz
+    # rpm -ta st-x.y.tar.gz
+The .rpms will land in /usr/src/RPMS/<arch>.  Install them with:
+    # rpm -i libst*.rpm
+Requires GNU automake and rpm 3.0.3 or later.
+
+Debian users:
+  If you run potato, please upgrade to woody.
+  If you run woody, "apt-get install libst-dev" will get you v1.3.
+  If you run testing/unstable, you will get the newest available version.
+  If you *must* have the newest libst in woody, you may follow these
+  not-recommended instructions:
+    1. Add "deb-src <your-favourite-debian-mirror> unstable main" to your
+       /etc/apt/sources.list
+    2. apt-get update
+    3. apt-get source st
+    4. cd st-1.4 (or whatever version you got)
+    5. debuild
+    6. dpkg -i ../*.deb
+
+If your application uses autoconf to search for dependencies and you
+want to search for a given version of libst, you can simply add
+        PKG_CHECK_MODULES(MYAPP, st >= 1.3 mumble >= 0.2.23)
+to your configure.ac/in.  This will define @MYAPP_LIBS@ and
+@MYAPP_CFLAGS@ which you may then use in your Makefile.am/in files to
+link against mumble and st.
+
+
+LICENSE
+
+The State Threads library is a derivative of the Netscape Portable
+Runtime library (NSPR).  All source code in this directory is
+distributed under the terms of the Mozilla Public License (MPL) version
+1.1 or the GNU General Public License (GPL) version 2 or later.  For
+more information about these licenses please see
+http://www.mozilla.org/MPL/ and http://www.gnu.org/copyleft/.
+
+All source code in the "examples" directory is distributed under the BSD
+style license.
+
+
+PLATFORMS
+
+Please see the "docs/notes.html" file for the list of currently
+supported platforms.
+
+
+DEBUGGER SUPPORT
+
+It's almost impossible to print SP and PC in a portable way.  The only
+way to see thread's stack platform-independently is to actually jump to
+the saved context.  That's what the _st_iterate_threads() function does.
+Do the following to iterate over all threads:
+
+- set the _st_iterate_threads_flag to 1 in debugger
+- set breakpoint at the _st_show_thread_stack() function
+  (which does nothing)
+- call the _st_iterate_threads() function which jumps to the
+  next thread
+- at each break you can explore thread's stack
+- continue
+- when iteration is complete, you return to the original
+  point (you can see thread id and a message as arguments of
+  the _st_show_thread_stack() function).
+
+You can call _st_iterate_threads() in three ways:
+
+- Insert it into your source code at the point you want to
+  go over threads.
+- Just run application and this function will be called at
+  the first context switch.
+- Call it directly from the debugger at any point.
+
+This works with gdb and dbx.
+
+Example using gdb:
+
+(gdb) set _st_iterate_threads_flag = 1
+(gdb) b _st_show_thread_stack
+...
+(gdb) call _st_iterate_threads()
+...
+(gdb) bt
+...
+(gdb) c
+...
+(gdb) bt
+...
+(gdb) c
+...
+and so on...
+
+_st_iterate_threads_flag will be set to 0 automatically
+after iteration is over or you can set it to 0 at any time
+to stop iteration.
+
+Sometimes gdb complains about SIGSEGV when you call a function
+directly at gdb command-line.  It can be ignored -- just call the
+same function right away again, it works just fine.  For example:
+
+(gdb) set _st_iterate_threads_flag = 1
+(gdb) b _st_show_thread_stack
+Breakpoint 1 at 0x809bbbb: file sched.c, line 856.
+(gdb) call _st_iterate_threads()
+Program received signal SIGSEGV, Segmentation fault.
+....
+(gdb) # just call the function again:
+(gdb) call _st_iterate_threads()
+Breakpoint 1, _st_show_thread_stack (thread=0x4017aee4, messg=0x80ae7a2
+"Iteration started")    at sched.c:856
+856     }
+....
+
+You can use simple gdb command-line scripting to display
+all threads and their stack traces at once:
+
+(gdb) while _st_iterate_threads_flag
+ >bt
+ >c
+ >end
+....
+
+Another script to stop at the thread with the specific thread id
+(e.g., 0x40252ee4):
+
+(gdb) # set the flag again:
+(gdb) set _st_iterate_threads_flag = 1
+(gdb) call _st_iterate_threads()
+Breakpoint 1, _st_show_thread_stack (thread=0x4017aee4, messg=0x80ae7a2
+"Iteration started")    at sched.c:856
+856     }
+....
+(gdb) while thread != 0x40252ee4
+ >c
+ >end
+....
+....
+Breakpoint 1, _st_show_thread_stack (thread=0x40252ee4, messg=0x0) at
+sched.c:856
+856     }
+(gdb) bt
+....
+(gdb) # don't want to continue iteration, unset the flag:
+(gdb) set _st_iterate_threads_flag = 0
+(gdb) c
+Continuing.
+Breakpoint 1, _st_show_thread_stack (thread=0x0, messg=0x80ae78e "Iteration
+completed")
+    at sched.c:856
+856     }
+(gdb) c
+Continuing.
+(gdb) return
+Make selected stack frame return now? (y or n) y
+#0  0x4011254e in __select ()
+   from /lib/libc.so.6
+(gdb) detach
+
+
+CHANGE LOG
+
+Changes from 1.8 to 1.9.
+------------------------
+o  Support 32-bit and 64-bit Intel Macs.
+
+o  Added ST_VERSION string, and ST_VERSION_MAJOR and ST_VERSION_MINOR
+   [bug 1796801].
+
+o  Fixed some compiler warnings, based on a patch from Brian Wellington
+   [bug 1932741].
+
+
+Changes from 1.7 to 1.8.
+--------------------------
+o  Added support for kqueue and epoll on platforms that support them.
+   Added ability to choose the event notification system at program
+   startup.
+
+o  Long-overdue public definitions of ST_UTIME_NO_TIMEOUT (-1ULL) and
+   ST_UTIME_NO_WAIT (0) [bug 1514436].
+
+o  Documentation patch for st_utime() [bug 1514484].
+
+o  Documentation patch for st_timecache_set() [bug 1514486].
+
+o  Documentation patch for st_netfd_serialize_accept() [bug 1514494].
+
+o  Added st_writev_resid() [rfe 1538344].
+
+o  Added st_readv_resid() [rfe 1538768] and, for symmetry, st_readv().
+
+
+Changes from 1.6 to 1.7.
+------------------------
+o  Support glibc 2.4, which breaks programs that manipulate jump buffers.
+   Replaced Linux IA64 special cases with new md.S that covers all
+   Linux.
+
+
+Changes from 1.5.2 to 1.6.
+--------------------------
+none
+
+
+Changes from 1.5.1 to 1.5.2.
+----------------------------
+o  Alfred Perlstein's context switch callback feature.
+
+o  Claus Assmann's st_recvmsg/st_sendmsg wrappers.
+
+o  Extra stack padding for platforms that need it.
+
+o  Ron Arts's timeout clarifications in the reference manual.
+
+o  Raymond Bero and Anton Berezin's AMD64 FreeBSD port.
+
+o  Claus Assmann's AMD64 SunOS 5.10 port.
+
+o  Claus Assmann's AMD64 OpenBSD port.
+
+o  Michael Abd-El-Malek's Mac OS X port.
+
+o  Michael Abd-El-Malek's stack printing patch.
+
+
+Changes from 1.5.0 to 1.5.1.
+----------------------------
+o  Andreas Gustafsson's USE_POLL fix.
+
+o  Gene's st_set_utime_function() enhancement.
+
+
+Changes from 1.4 to 1.5.0.
+--------------------------
+o  Andreas Gustafsson's performance patch.
+
+o  New extensions:  Improved DNS resolver, generic LRU cache, in-process
+   DNS cache, and a program to test the resolver and cache.
+
+o  Support for AMD Opteron 64-bit CPUs under Linux.
+
+o  Support for SPARC-64 under Solaris.
+
+o  Andreas Gustafsson's support for VAX under NetBSD.
+
+o  Changed unportable #warning directives in md.h to #error.
+
+
+Changes from 1.3 to 1.4.
+------------------------
+o  Andreas Gustafsson's NetBSD port.
+
+o  Wesley W. Terpstra's Darwin (MacOS X) port.
+
+o  Support for many CPU architectures under Linux and *BSD.
+
+o  Renamed private typedefs so they don't conflict with public ones any
+   more.
+
+o  common.h now includes public.h for strict prototyping.
+
+o  Joshua Levy's recommendation to make st_connect() and st_sendto()
+   accept const struct sockaddr pointers, as the originals do.
+
+o  Clarified the documentation regarding blocking vs. non-blocking I/O.
+
+o  Cygwin support.
+
+o  Created the extensions directory.
+
+o  Fixed warnings from ia64asm.S.
+
+
+Changes from 1.2 to 1.3.
+------------------------
+o  Added st_read_resid() and st_write_resid() to allow the caller to know
+   how much data was transferred before an error occurred.  Updated
+   documentation.
+
+o  Updated project link, copyrights, and documentation regarding
+   timeouts.  Added comment to st_connect().
+
+o  Optimized the _st_add_sleep_q() function in sched.c.  Now we walk the
+   sleep queue *backward* when inserting a thread into it.  When you
+   have lots (hundreds) of threads and several timeout values, it takes
+   a while to insert a thread at the appropriate point in the sleep
+   queue.  The idea is that often this appropriate point is closer to
+   the end of the queue rather than the beginning.  Measurements show
+   performance improves with this change.  In any case this change
+   should do no harm.
+
+o  Added a hint of when to define USE_POLL and when not to, to the
+   Makefile.
+
+o  Added debugging support (files common.h and sched.c).   See above.
+
+o  Decreased the number of reallocations of _ST_POLLFDS in sched.c.
+   Inspired by Lev Walkin.
+
+o  Fixed st_usleep(-1) and st_sleep(-1), and added a warning to the
+   documentation about too-large timeouts.
+
+o  Linux/*BSD Alpha port.
+
+o  Wesley W. Terpstra modernized the build process:
+   - properly build relocatable libraries under bsd and linux
+   - use library versioning
+   - added rpm spec file
+   - added debian/ files
+   See above for build instructions.
+
+
+Changes from 1.1 to 1.2.
+------------------------
+o  Added st_randomize_stacks().
+
+o  Added a patch contributed by Sascha Schumann.
+
+
+Changes from 1.0 to 1.1.
+------------------------
+o  Relicensed under dual MPL-GPL.
+
+o  OpenBSD port.
+
+o  Compile-time option to use poll() instead of select() for
+   event polling (see Makefile).
+   This is useful if you want to support a large number of open
+   file descriptors (larger than FD_SETSIZE) within a single
+   process.
+
+o  Linux IA-64 port.
+   Two issues make IA-64 different from other platforms:
+
+   - Besides the traditional call stack in memory, IA-64 uses the
+     general register stack.  Thus each thread needs a backing store
+     for the register stack in addition to the memory stack.
+
+   - Current implementation of setjmp()/longjmp() can not be used
+     for thread context-switching since it assumes that only one
+     register stack exists.  Using special assembly functions for
+     context-switching is unavoidable.
+    
+o  Thread stack capping on IRIX.
+   This allows some profiling tools (such as SpeedShop) to know when
+   to stop unwinding the stack.  Without this libexc, used by SpeedShop,
+   traces right off the stack and crashes.
+
+o  Miscellaneous documentation additions.
+
+
+COPYRIGHTS
+
+Portions created by SGI are Copyright (C) 2000 Silicon Graphics, Inc.
+All Rights Reserved.
