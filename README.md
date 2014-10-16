@@ -1,6 +1,10 @@
 #Simple-RTMP-Server
 
-SRS is industrial-strength live streaming cluster, for the best conceptual integrity and the simplest implementation.
+SRS is industrial-strength live streaming cluster, 
+for the best conceptual integrity and the simplest implementation, 
+which delivering rtmp/hls/http live/vod on x86/x64/arm/mips linux, 
+supports origin/edge/vhost and transcode/ingest/dvr/forward/http-api/http-callback/reload 
+with wiki and the most simple arch.
 
 ## About
 
