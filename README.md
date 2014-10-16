@@ -53,7 +53,6 @@ CSDN mirror: [https://code.csdn.net/winlinvip/srs-csdn](https://code.csdn.net/wi
 See also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server)  <br/>
 Github DEMO: [demo with your SRS](http://winlinvip.github.io/srs.release/trunk/research/players/srs_player.html?server=192.168.1.170&vhost=192.168.1.170)  <br/>
 Wiki: [https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki)  <br/>
-TencentQQ: [http://url.cn/WAHICw](http://url.cn/WAHICw) (Group: 212189142) <br/>
 StreamServers：[BLS](https://github.com/wenjiegit/Bull-Live-Server)/[BLE](https://github.com/wenjiegit/Bull-Live-Encoder), [NGINX-RTMP](https://github.com/arut/nginx-rtmp-module), [CRTMPD](http://www.rtmpd.com/), [RED5](http://www.red5.org/), [WOWZA](http://www.wowza.com/), [FMS/AMS](http://www.adobe.com/products/adobe-media-server-standard.html)
 
 ## AUTHORS
