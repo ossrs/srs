@@ -3,8 +3,9 @@
 SRS is industrial-strength live streaming cluster, 
 for the best conceptual integrity and the simplest implementation, 
 which delivering rtmp/hls/http live/vod on x86/x64/arm/mips linux, 
-supports origin/edge/vhost and transcode/ingest/dvr/forward/http-api/http-callback/reload 
-with wiki and the most simple arch.
+supports origin/edge/vhost and transcode/ingest and dvr/forward 
+and http-api/http-callback/reload, with wiki and the most 
+simple arch.
 
 ## About
 
@@ -100,19 +101,20 @@ Please select your language:
 
 ## Donation
 
-[http://winlinvip.github.io/srs.release/donation/index.html](http://winlinvip.github.io/srs.release/donation/index.html) 
-OR [aliyun mirror](http://www.ossrs.net/srs.release/donation/index.html)
+Donation:<br/>
+[http://winlinvip.github.io/srs.release/donation/index.html](http://winlinvip.github.io/srs.release/donation/index.html) OR <br/>
+[http://www.ossrs.net/srs.release/donation/index.html](http://www.ossrs.net/srs.release/donation/index.html)
 
 Donations:<br/>
 [https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt](https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt)
 
 ## Download
 
-From github.io: <br/>
+From github.io: 
 [Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.0.zip) 
 [more...](http://winlinvip.github.io/srs.release/releases/) <br/>
 
-From ossrs.net: <br/>
+From ossrs.net: 
 [Centos6-x86_64](http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.0.zip) 
 [more...](http://www.ossrs.net/srs.release/releases/)
 
