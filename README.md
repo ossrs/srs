@@ -201,7 +201,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
-* v1.0, 2014-10-18, remove supports for OSX. 2.0.1.
+* v1.0, 2014-10-18, remove supports for OSX(darwin). 2.0.1.
 * v1.0, 2014-10-16, revert github srs README to English. 2.0.0.
 * <strong>v1.0, 2014-10-09, [1.0 beta(1.0.0)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.beta) released. 59316 lines.</strong>
 * v1.0, 2014-10-08, fix [#151](https://github.com/winlinvip/simple-rtmp-server/issues/151), always reap ts whatever audio or video packet. 0.9.223.
