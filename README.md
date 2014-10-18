@@ -572,6 +572,7 @@ Remark:
 (b) The CLI architecture is similar to this, instead, cli process
     will collect informations from all stream process, master process
     only send signals to child processes.
+(c) Maybe multiple thread is ok? By winlin.
 </pre>
 
 ### Bandwidth Test Workflow
