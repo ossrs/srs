@@ -1,5 +1,7 @@
 file
 	main readonly separator,
+	..\srs.c,
+	st readonly separator,
 	..\common.h,
 	..\event.c,
 	..\io.c,
