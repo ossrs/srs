@@ -214,91 +214,6 @@ function Centos_prepare()
     return 0
 }
 Centos_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "CentOS prepare failed, ret=$ret"; exit $ret; fi
-#####################################################################################
-# for OSX, auto install tools by brew
-#####################################################################################
-OS_IS_OSX=NO
-function OSX_prepare()
-{
-    SYS_NAME=`uname -s`
-    if [ $SYS_NAME != Darwin ]; then
-        echo "This is not Darwin OSX"
-        return 0;
-    fi
-
-    OS_IS_OSX=YES
-    echo "OSX detected, install tools if needed"
-    
-    gcc --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install gcc"
-        require_sudoer "sudo brew install gcc"
-        sudo brew install gcc; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install gcc success"
-    fi
-    
-    g++ --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install gcc-c++"
-        require_sudoer "sudo brew install gcc-c++"
-        sudo brew install gcc-c++; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install gcc-c++ success"
-    fi
-    
-    make --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install make"
-        require_sudoer "sudo brew install make"
-        sudo brew install make; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install make success"
-    fi
-    
-    patch --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-        echo "install patch"
-        require_sudoer "sudo brew install patch"
-        sudo brew install patch; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-        echo "install patch success"
-    fi
-    
-    if [ $SRS_FFMPEG_TOOL = YES ]; then
-        automake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "install automake"
-            require_sudoer "sudo brew install automake"
-            sudo brew install automake; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install automake success"
-        fi
-        
-        autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "install autoconf"
-            require_sudoer "sudo brew install autoconf"
-            sudo brew install autoconf; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install autoconf success"
-        fi
-        
-        libtool --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
-            echo "install libtool"
-            require_sudoer "sudo brew install libtool"
-            sudo brew install libtool; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install libtool success"
-        fi
-        
-        if [[ ! -f /usr/include/pcre.h ]]; then
-            echo "install pcre-devel"
-            require_sudoer "sudo brew install pcre-devel"
-            sudo brew install pcre-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install pcre-devel success"
-        fi
-        
-        if [[ ! -f /usr/include/zlib.h ]]; then
-            echo "install zlib-devel"
-            require_sudoer "sudo brew install zlib-devel"
-            sudo brew install zlib-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install zlib-devel success"
-        fi
-    fi
-    
-    echo "OSX install tools success"
-    return 0
-}
-OSX_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "OSX prepare failed, ret=$ret"; exit $ret; fi
-
 
 #####################################################################################
 # st-1.9
@@ -323,9 +238,6 @@ if [ $SRS_EMBEDED_CPU = YES ]; then
         )
     fi
 else
-    if [ $SRS_OSX = YES ]; then 
-        _ST_MAKE=darwin-debug
-    fi
     if [[ ! -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st/libst.a ]]; then
         echo "st-1.9t is ok.";
     else
@@ -351,21 +263,8 @@ if [ ! -f ${SRS_OBJS}/st/libst.a ]; then echo "build st-1.9 static lib failed.";
 #####################################################################################
 # check the arm flag file, if flag changed, need to rebuild the st.
 if [ $SRS_HTTP_PARSER = YES ]; then
-    # for osx(darwin), donot use sed.
-    if [ $SRS_OSX = YES ]; then 
-        if [[ -f ${SRS_OBJS}/hp/http_parser.h && -f ${SRS_OBJS}/hp/libhttp_parser.a ]]; then
-            echo "http-parser-2.1 is ok.";
-        else
-            echo "build http-parser-2.1 for osx(darwin)";
-            (
-                rm -rf ${SRS_OBJS}/http-parser-2.1 && cd ${SRS_OBJS} && unzip -q ../3rdparty/http-parser-2.1.zip && 
-                cd http-parser-2.1 && 
-                make package &&
-                cd .. && rm -rf hp && ln -sf http-parser-2.1 hp
-            )
-        fi
     # ok, arm specified, if the flag filed does not exists, need to rebuild.
-    elif [ $SRS_EMBEDED_CPU = YES ]; then
+    if [ $SRS_EMBEDED_CPU = YES ]; then
         if [[ -f ${SRS_OBJS}/_flag.st.hp.tmp && -f ${SRS_OBJS}/hp/http_parser.h && -f ${SRS_OBJS}/hp/libhttp_parser.a ]]; then
             echo "http-parser-2.1 for arm is ok.";
         else
@@ -570,18 +469,6 @@ fi
 # extra configure options
 CONFIGURE_TOOL="./config"
 EXTRA_CONFIGURE=""
-if [ $SRS_OSX = YES ]; then
-    CONFIGURE_TOOL="./Configure"
-    arch=`uname -m` && echo "OSX $arch";
-    if [ $arch = x86_64 ]; then
-        echo "configure 64bit openssl";
-        EXTRA_CONFIGURE=darwin64-x86_64-cc
-    else
-        echo "configure 32bit openssl";
-        EXTRA_CONFIGURE=darwin-i386-cc
-    fi
-    echo "openssl extra config: $CONFIGURE_TOOL $EXTRA_CONFIGURE"
-fi
 if [ $SRS_EMBEDED_CPU = YES ]; then
     CONFIGURE_TOOL="./Configure"
 fi

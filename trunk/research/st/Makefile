@@ -112,6 +112,7 @@ OBJS        = $(TARGETDIR)/sched.o 	\
 OBJS        += $(EXTRA_OBJS)
 SRS    		= $(TARGETDIR)/srs
 
+linux-debug: all
 all: $(TARGETDIR) $(SRS)
 
 $(TARGETDIR):
