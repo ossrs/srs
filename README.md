@@ -7,6 +7,14 @@ supports origin/edge/vhost and transcode/ingest and dvr/forward
 and http-api/http-callback/reload, with wiki and the most 
 simple architecture.
 
+Download from github.io: 
+[Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.0.zip) 
+[more...](http://winlinvip.github.io/srs.release/releases/)
+
+Download from ossrs.net: 
+[Centos6-x86_64](http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.0.zip) 
+[more...](http://www.ossrs.net/srs.release/releases/)
+
 ## About
 
 SRS(SIMPLE RTMP Server) over state-threads created in 2013.10.
@@ -107,16 +115,6 @@ Donation:<br/>
 
 Donations:<br/>
 [https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt](https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt)
-
-## Download
-
-From github.io: 
-[Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.0.zip) 
-[more...](http://winlinvip.github.io/srs.release/releases/) <br/>
-
-From ossrs.net: 
-[Centos6-x86_64](http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.0.zip) 
-[more...](http://www.ossrs.net/srs.release/releases/)
 
 ## Mirrors
 
