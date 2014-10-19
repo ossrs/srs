@@ -473,6 +473,15 @@ int SrsAvcAacCodec::video_avc_demux(char* data, int size, SrsCodecSample* sample
             } else {
                 NALUnitLength = stream->read_1bytes();
             }
+            
+            // maybe stream is AnnexB format.
+            // see: https://github.com/winlinvip/simple-rtmp-server/issues/183
+            if (NALUnitLength < 0) {
+                ret = ERROR_HLS_DECODE_ERROR;
+                srs_error("maybe stream is AnnexB format. ret=%d", ret);
+                return ret;
+            }
+            
             // NALUnit
             if (!stream->require(NALUnitLength)) {
                 ret = ERROR_HLS_DECODE_ERROR;
