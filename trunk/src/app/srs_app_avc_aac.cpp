@@ -27,6 +27,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_protocol_amf0.hpp>
+#include <srs_app_utility.hpp>
 
 SrsCodecSampleUnit::SrsCodecSampleUnit()
 {
@@ -358,93 +359,8 @@ int SrsAvcAacCodec::video_avc_demux(char* data, int size, SrsCodecSample* sample
     sample->avc_packet_type = (SrsCodecVideoAVCType)avc_packet_type;
     
     if (avc_packet_type == SrsCodecVideoAVCTypeSequenceHeader) {
-        // AVCDecoderConfigurationRecord
-        // 5.2.4.1.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
-        avc_extra_size = stream->size() - stream->pos();
-        if (avc_extra_size > 0) {
-            srs_freep(avc_extra_data);
-            avc_extra_data = new char[avc_extra_size];
-            memcpy(avc_extra_data, stream->data() + stream->pos(), avc_extra_size);
-        }
-        
-        if (!stream->require(6)) {
-            ret = ERROR_HLS_DECODE_ERROR;
-            srs_error("hls decode video avc sequenc header failed. ret=%d", ret);
+        if ((ret = avc_demux_sps_pps(stream)) != ERROR_SUCCESS) {
             return ret;
-        }
-        //int8_t configurationVersion = stream->read_1bytes();
-        stream->read_1bytes();
-        //int8_t AVCProfileIndication = stream->read_1bytes();
-        avc_profile = stream->read_1bytes();
-        //int8_t profile_compatibility = stream->read_1bytes();
-        stream->read_1bytes();
-        //int8_t AVCLevelIndication = stream->read_1bytes();
-        avc_level = stream->read_1bytes();
-        
-        // parse the NALU size.
-        int8_t lengthSizeMinusOne = stream->read_1bytes();
-        lengthSizeMinusOne &= 0x03;
-        NAL_unit_length = lengthSizeMinusOne;
-        
-        // 1 sps
-        if (!stream->require(1)) {
-            ret = ERROR_HLS_DECODE_ERROR;
-            srs_error("hls decode video avc sequenc header sps failed. ret=%d", ret);
-            return ret;
-        }
-        int8_t numOfSequenceParameterSets = stream->read_1bytes();
-        numOfSequenceParameterSets &= 0x1f;
-        if (numOfSequenceParameterSets != 1) {
-            ret = ERROR_HLS_DECODE_ERROR;
-            srs_error("hls decode video avc sequenc header sps failed. ret=%d", ret);
-            return ret;
-        }
-        if (!stream->require(2)) {
-            ret = ERROR_HLS_DECODE_ERROR;
-            srs_error("hls decode video avc sequenc header sps size failed. ret=%d", ret);
-            return ret;
-        }
-        sequenceParameterSetLength = stream->read_2bytes();
-        if (!stream->require(sequenceParameterSetLength)) {
-            ret = ERROR_HLS_DECODE_ERROR;
-            srs_error("hls decode video avc sequenc header sps data failed. ret=%d", ret);
-            return ret;
-        }
-        if (sequenceParameterSetLength > 0) {
-            srs_freep(sequenceParameterSetNALUnit);
-            sequenceParameterSetNALUnit = new char[sequenceParameterSetLength];
-            memcpy(sequenceParameterSetNALUnit, stream->data() + stream->pos(), sequenceParameterSetLength);
-            stream->skip(sequenceParameterSetLength);
-        }
-        // 1 pps
-        if (!stream->require(1)) {
-            ret = ERROR_HLS_DECODE_ERROR;
-            srs_error("hls decode video avc sequenc header pps failed. ret=%d", ret);
-            return ret;
-        }
-        int8_t numOfPictureParameterSets = stream->read_1bytes();
-        numOfPictureParameterSets &= 0x1f;
-        if (numOfPictureParameterSets != 1) {
-            ret = ERROR_HLS_DECODE_ERROR;
-            srs_error("hls decode video avc sequenc header pps failed. ret=%d", ret);
-            return ret;
-        }
-        if (!stream->require(2)) {
-            ret = ERROR_HLS_DECODE_ERROR;
-            srs_error("hls decode video avc sequenc header pps size failed. ret=%d", ret);
-            return ret;
-        }
-        pictureParameterSetLength = stream->read_2bytes();
-        if (!stream->require(pictureParameterSetLength)) {
-            ret = ERROR_HLS_DECODE_ERROR;
-            srs_error("hls decode video avc sequenc header pps data failed. ret=%d", ret);
-            return ret;
-        }
-        if (pictureParameterSetLength > 0) {
-            srs_freep(pictureParameterSetNALUnit);
-            pictureParameterSetNALUnit = new char[pictureParameterSetLength];
-            memcpy(pictureParameterSetNALUnit, stream->data() + stream->pos(), pictureParameterSetLength);
-            stream->skip(pictureParameterSetLength);
         }
     } else if (avc_packet_type == SrsCodecVideoAVCTypeNALU){
         // ensure the sequence header demuxed
@@ -455,38 +371,18 @@ int SrsAvcAacCodec::video_avc_demux(char* data, int size, SrsCodecSample* sample
         }
         
         // One or more NALUs (Full frames are required)
-        // 5.3.4.2.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 20
-        int PictureLength = stream->size() - stream->pos();
-        for (int i = 0; i < PictureLength;) {
-            if (!stream->require(NAL_unit_length + 1)) {
-                ret = ERROR_HLS_DECODE_ERROR;
-                srs_error("hls decode video avc NALU size failed. ret=%d", ret);
+        // try  "AnnexB" from H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
+        if ((ret = avc_demux_annexb_format(stream, sample)) != ERROR_SUCCESS) {
+            // stop try when system error.
+            if (ret != ERROR_HLS_AVC_TRY_OTHERS) {
+                srs_error("avc demux for annexb failed. ret=%d", ret);
                 return ret;
             }
-            int32_t NALUnitLength = 0;
-            if (NAL_unit_length == 3) {
-                NALUnitLength = stream->read_4bytes();
-            } else if (NAL_unit_length == 2) {
-                NALUnitLength = stream->read_3bytes();
-            } else if (NAL_unit_length == 1) {
-                NALUnitLength = stream->read_2bytes();
-            } else {
-                NALUnitLength = stream->read_1bytes();
-            }
-            // NALUnit
-            if (!stream->require(NALUnitLength)) {
-                ret = ERROR_HLS_DECODE_ERROR;
-                srs_error("hls decode video avc NALU data failed. ret=%d", ret);
-                return ret;
-            }
-            // 7.3.1 NAL unit syntax, H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
-            if ((ret = sample->add_sample_unit(stream->data() + stream->pos(), NALUnitLength)) != ERROR_SUCCESS) {
-                srs_error("hls add video sample failed. ret=%d", ret);
-                return ret;
-            }
-            stream->skip(NALUnitLength);
             
-            i += NAL_unit_length + 1 + NALUnitLength;
+            // try "ISO Base Media File Format" from H.264-AVC-ISO_IEC_14496-15.pdf, page 20
+            if ((ret = avc_demux_ibmf_format(stream, sample)) != ERROR_SUCCESS) {
+                return ret;
+            }
         }
     } else {
         // ignored.
@@ -494,6 +390,223 @@ int SrsAvcAacCodec::video_avc_demux(char* data, int size, SrsCodecSample* sample
     
     srs_info("video decoded, type=%d, codec=%d, avc=%d, time=%d, size=%d", 
         frame_type, video_codec_id, avc_packet_type, composition_time, size);
+    
+    return ret;
+}
+
+int SrsAvcAacCodec::avc_demux_sps_pps(SrsStream* stream)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // AVCDecoderConfigurationRecord
+    // 5.2.4.1.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
+    avc_extra_size = stream->size() - stream->pos();
+    if (avc_extra_size > 0) {
+        srs_freep(avc_extra_data);
+        avc_extra_data = new char[avc_extra_size];
+        memcpy(avc_extra_data, stream->data() + stream->pos(), avc_extra_size);
+    }
+    
+    if (!stream->require(6)) {
+        ret = ERROR_HLS_DECODE_ERROR;
+        srs_error("hls decode video avc sequenc header failed. ret=%d", ret);
+        return ret;
+    }
+    //int8_t configurationVersion = stream->read_1bytes();
+    stream->read_1bytes();
+    //int8_t AVCProfileIndication = stream->read_1bytes();
+    avc_profile = stream->read_1bytes();
+    //int8_t profile_compatibility = stream->read_1bytes();
+    stream->read_1bytes();
+    //int8_t AVCLevelIndication = stream->read_1bytes();
+    avc_level = stream->read_1bytes();
+    
+    // parse the NALU size.
+    int8_t lengthSizeMinusOne = stream->read_1bytes();
+    lengthSizeMinusOne &= 0x03;
+    NAL_unit_length = lengthSizeMinusOne;
+    
+    // 5.3.4.2.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
+    // 5.2.4.1 AVC decoder configuration record
+    // 5.2.4.1.2 Semantics
+    // The value of this field shall be one of 0, 1, or 3 corresponding to a
+    // length encoded with 1, 2, or 4 bytes, respectively.
+    if (NAL_unit_length == 2) {
+        ret = ERROR_HLS_DECODE_ERROR;
+        srs_error("sps lengthSizeMinusOne should never be 2. ret=%d", ret);
+        return ret;
+    }
+    
+    // 1 sps
+    if (!stream->require(1)) {
+        ret = ERROR_HLS_DECODE_ERROR;
+        srs_error("hls decode video avc sequenc header sps failed. ret=%d", ret);
+        return ret;
+    }
+    int8_t numOfSequenceParameterSets = stream->read_1bytes();
+    numOfSequenceParameterSets &= 0x1f;
+    if (numOfSequenceParameterSets != 1) {
+        ret = ERROR_HLS_DECODE_ERROR;
+        srs_error("hls decode video avc sequenc header sps failed. ret=%d", ret);
+        return ret;
+    }
+    if (!stream->require(2)) {
+        ret = ERROR_HLS_DECODE_ERROR;
+        srs_error("hls decode video avc sequenc header sps size failed. ret=%d", ret);
+        return ret;
+    }
+    sequenceParameterSetLength = stream->read_2bytes();
+    if (!stream->require(sequenceParameterSetLength)) {
+        ret = ERROR_HLS_DECODE_ERROR;
+        srs_error("hls decode video avc sequenc header sps data failed. ret=%d", ret);
+        return ret;
+    }
+    if (sequenceParameterSetLength > 0) {
+        srs_freep(sequenceParameterSetNALUnit);
+        sequenceParameterSetNALUnit = new char[sequenceParameterSetLength];
+        memcpy(sequenceParameterSetNALUnit, stream->data() + stream->pos(), sequenceParameterSetLength);
+        stream->skip(sequenceParameterSetLength);
+    }
+    // 1 pps
+    if (!stream->require(1)) {
+        ret = ERROR_HLS_DECODE_ERROR;
+        srs_error("hls decode video avc sequenc header pps failed. ret=%d", ret);
+        return ret;
+    }
+    int8_t numOfPictureParameterSets = stream->read_1bytes();
+    numOfPictureParameterSets &= 0x1f;
+    if (numOfPictureParameterSets != 1) {
+        ret = ERROR_HLS_DECODE_ERROR;
+        srs_error("hls decode video avc sequenc header pps failed. ret=%d", ret);
+        return ret;
+    }
+    if (!stream->require(2)) {
+        ret = ERROR_HLS_DECODE_ERROR;
+        srs_error("hls decode video avc sequenc header pps size failed. ret=%d", ret);
+        return ret;
+    }
+    pictureParameterSetLength = stream->read_2bytes();
+    if (!stream->require(pictureParameterSetLength)) {
+        ret = ERROR_HLS_DECODE_ERROR;
+        srs_error("hls decode video avc sequenc header pps data failed. ret=%d", ret);
+        return ret;
+    }
+    if (pictureParameterSetLength > 0) {
+        srs_freep(pictureParameterSetNALUnit);
+        pictureParameterSetNALUnit = new char[pictureParameterSetLength];
+        memcpy(pictureParameterSetNALUnit, stream->data() + stream->pos(), pictureParameterSetLength);
+        stream->skip(pictureParameterSetLength);
+    }
+    
+    return ret;
+}
+
+int SrsAvcAacCodec::avc_demux_annexb_format(SrsStream* stream, SrsCodecSample* sample)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // not annexb, try others
+    if (!srs_avc_startswith_annexb(stream, NULL)) {
+        return ERROR_HLS_AVC_TRY_OTHERS;
+    }
+    
+    // AnnexB
+    // B.1.1 Byte stream NAL unit syntax,
+    // H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
+    while (!stream->empty()) {
+        // find start code
+        int nb_start_code = 0;
+        if (!srs_avc_startswith_annexb(stream, &nb_start_code)) {
+            return ret;
+        }
+
+        // skip the start code.
+        if (nb_start_code > 0) {
+            stream->skip(nb_start_code);
+        }
+        
+        // the NALU start bytes.
+        char* p = stream->data() + stream->pos();
+        
+        // get the last matched NALU
+        while (!stream->empty()) {
+            if (srs_avc_startswith_annexb(stream, &nb_start_code)) {
+                break;
+            }
+            
+            stream->skip(1);
+        }
+        
+        char* pp = stream->data() + stream->pos();
+        
+        // skip the empty.
+        if (pp - p <= 0) {
+            continue;
+        }
+        
+        // got the NALU.
+        if ((ret = sample->add_sample_unit(p, pp - p)) != ERROR_SUCCESS) {
+            srs_error("annexb add video sample failed. ret=%d", ret);
+            return ret;
+        }
+    }
+    
+    return ret;
+}
+
+int SrsAvcAacCodec::avc_demux_ibmf_format(SrsStream* stream, SrsCodecSample* sample)
+{
+    int ret = ERROR_SUCCESS;
+    
+    int PictureLength = stream->size() - stream->pos();
+    
+    // 5.3.4.2.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
+    // 5.2.4.1 AVC decoder configuration record
+    // 5.2.4.1.2 Semantics
+    // The value of this field shall be one of 0, 1, or 3 corresponding to a
+    // length encoded with 1, 2, or 4 bytes, respectively.
+    srs_assert(NAL_unit_length != 2);
+    
+    // 5.3.4.2.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 20
+    for (int i = 0; i < PictureLength;) {
+        // unsigned int((NAL_unit_length+1)*8) NALUnitLength;
+        if (!stream->require(NAL_unit_length + 1)) {
+            ret = ERROR_HLS_DECODE_ERROR;
+            srs_error("hls decode video avc NALU size failed. ret=%d", ret);
+            return ret;
+        }
+        int32_t NALUnitLength = 0;
+        if (NAL_unit_length == 3) {
+            NALUnitLength = stream->read_4bytes();
+        } else if (NAL_unit_length == 1) {
+            NALUnitLength = stream->read_2bytes();
+        } else {
+            NALUnitLength = stream->read_1bytes();
+        }
+        
+        // maybe stream is invalid format.
+        // see: https://github.com/winlinvip/simple-rtmp-server/issues/183
+        if (NALUnitLength < 0) {
+            ret = ERROR_HLS_DECODE_ERROR;
+            srs_error("maybe stream is AnnexB format. ret=%d", ret);
+            return ret;
+        }
+        
+        // NALUnit
+        if (!stream->require(NALUnitLength)) {
+            ret = ERROR_HLS_DECODE_ERROR;
+            srs_error("hls decode video avc NALU data failed. ret=%d", ret);
+            return ret;
+        }
+        // 7.3.1 NAL unit syntax, H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+        if ((ret = sample->add_sample_unit(stream->data() + stream->pos(), NALUnitLength)) != ERROR_SUCCESS) {
+            srs_error("hls add video sample failed. ret=%d", ret);
+            return ret;
+        }
+        stream->skip(NALUnitLength);
+        
+        i += NAL_unit_length + 1 + NALUnitLength;
+    }
     
     return ret;
 }

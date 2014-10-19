@@ -278,6 +278,22 @@ public:
     * demux the h.264 NALUs to sampe units.
     */
     virtual int video_avc_demux(char* data, int size, SrsCodecSample* sample);
+private:
+    /**
+    * when avc packet type is SrsCodecVideoAVCTypeSequenceHeader,
+    * decode the sps and pps.
+    */
+    virtual int avc_demux_sps_pps(SrsStream* stream);
+    /**
+    * demux the avc NALU in "AnnexB" 
+    * from H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
+    */
+    virtual int avc_demux_annexb_format(SrsStream* stream, SrsCodecSample* sample);
+    /**
+    * demux the avc NALU in "ISO Base Media File Format" 
+    * from H.264-AVC-ISO_IEC_14496-15.pdf, page 20
+    */
+    virtual int avc_demux_ibmf_format(SrsStream* stream, SrsCodecSample* sample);
 };
 
 #endif
