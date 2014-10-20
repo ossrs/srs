@@ -19,18 +19,33 @@ Download from ossrs.net:
 
 SRS(SIMPLE RTMP Server) over state-threads created in 2013.10.
 
-SRS is a simple, [RTMP](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryRTMP)/[HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), 
-[high-performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance), single/multiple(plan) processes, edge/origin live server, 
+SRS focus on small problem domain, which is the most complex for all software(see OOAD). 
+Because of lack of deveoper resource, SRS only provides features which is the most popular 
+for internet. SRS is simple for and only for problem domain is simplified.
+
+SRS is a simple, [RTMP](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryRTMP)/
+[HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), 
+[high-performance](https://github.com/winlinvip/simple-rtmp-server/wiki/Performance), 
+single/multiple(plan) processes, edge/origin live server, 
 [x86/x64/arm](https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm), 
-compile depends on [st](http://sourceforge.net/projects/state-threads)(required), [ssl](http://www.openssl.org/) and [http-parser](https://github.com/joyent/http-parser), 
-use [nginx](http://nginx.org/), [ffmpeg](http://ffmpeg.org/) and [cherrypy](http://www.cherrypy.org/) as external tools. that is, only need st to run srs for 
+compile depends on [st](http://sourceforge.net/projects/state-threads)(required), 
+[ssl](http://www.openssl.org/) and [http-parser](https://github.com/joyent/http-parser), 
+use [nginx](http://nginx.org/), [ffmpeg](http://ffmpeg.org/) and 
+[cherrypy](http://www.cherrypy.org/) as external tools. that is, only need st to run srs for 
 minimum run. see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/Build).
 
 SRS supports [vhost](https://github.com/winlinvip/simple-rtmp-server/wiki/RtmpUrlVhost), 
-rtmp([encoder push](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryRTMP), client/[edge](https://github.com/winlinvip/simple-rtmp-server/wiki/Edge) pull), [ingester(srs pull)](https://github.com/winlinvip/simple-rtmp-server/wiki/Ingest), 
-[HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), [HLS audio only](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS#hlsaudioonly), [transcoding](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), 
-[forward](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), [http hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback), [http api](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPApi), 
-[http server](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPServer), [dvr](https://github.com/winlinvip/simple-rtmp-server/wiki/DVR).
+rtmp([encoder push](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryRTMP), 
+client/[edge](https://github.com/winlinvip/simple-rtmp-server/wiki/Edge) pull), 
+[ingester(srs pull)](https://github.com/winlinvip/simple-rtmp-server/wiki/Ingest), 
+[HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS), 
+[HLS audio only](https://github.com/winlinvip/simple-rtmp-server/wiki/DeliveryHLS#hlsaudioonly), 
+[transcoding](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), 
+[forward](https://github.com/winlinvip/simple-rtmp-server/wiki/FFMPEG), 
+[http hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPCallback), 
+[http api](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPApi), 
+[http server](https://github.com/winlinvip/simple-rtmp-server/wiki/HTTPServer), 
+[dvr](https://github.com/winlinvip/simple-rtmp-server/wiki/DVR).
 
 WebSite: [http://ossrs.net](http://ossrs.net) <br/>
 Release: [http://winlinvip.github.io/srs.release](http://winlinvip.github.io/srs.release)  <br/>
@@ -39,7 +54,10 @@ CSDN mirror: [https://code.csdn.net/winlinvip/srs-csdn](https://code.csdn.net/wi
 See also: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server)  <br/>
 Github DEMO: [demo with your SRS](http://winlinvip.github.io/srs.release/trunk/research/players/srs_player.html?server=192.168.1.170&vhost=192.168.1.170)  <br/>
 Wiki: [https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki)  <br/>
-StreamServers：[BLS](https://github.com/wenjiegit/Bull-Live-Server)/[BLE](https://github.com/wenjiegit/Bull-Live-Encoder), [NGINX-RTMP](https://github.com/arut/nginx-rtmp-module), [CRTMPD](http://www.rtmpd.com/), [RED5](http://www.red5.org/), [WOWZA](http://www.wowza.com/), [FMS/AMS](http://www.adobe.com/products/adobe-media-server-standard.html)
+StreamServers：[BLS](https://github.com/wenjiegit/Bull-Live-Server)/[BLE](https://github.com/wenjiegit/Bull-Live-Encoder), 
+[NGINX-RTMP](https://github.com/arut/nginx-rtmp-module), [CRTMPD](http://www.rtmpd.com/), 
+[RED5](http://www.red5.org/), [WOWZA](http://www.wowza.com/), 
+[FMS/AMS](http://www.adobe.com/products/adobe-media-server-standard.html)
 
 ## AUTHORS
 The PRIMARY AUTHORS are (and/or have been)(Authors ordered by first contribution): 
@@ -53,7 +71,8 @@ About the primary AUTHORS:
 
 And here is an inevitably incomplete list of MUCH-APPRECIATED CONTRIBUTORS --
 people who have submitted patches, reported bugs, added translations, helped
-answer newbie questions, and generally made SRS that much better: [AUTHORS.txt](https://github.com/winlinvip/simple-rtmp-server/blob/master/AUTHORS.txt)
+answer newbie questions, and generally made SRS that much better: 
+[AUTHORS.txt](https://github.com/winlinvip/simple-rtmp-server/blob/master/AUTHORS.txt)
 
 A big THANK YOU goes to:
 * [chnvideo](chnvideo.com) co-founders([wiseyoung](mailto:wiseyoung@chnvideo.com), [trueice](mailto:trueice@chnvideo.com), [leijian](mailto:leijian@chnvideo.com)) for [big supports](https://github.com/winlinvip/simple-rtmp-server/wiki/Product#bigthanks).
