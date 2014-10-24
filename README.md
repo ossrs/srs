@@ -119,7 +119,7 @@ cd simple-rtmp-server/trunk
 
 Please select your language:
 * [English](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_ENHome)
-* [Chinese](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CNHome)
+* [Chinese](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Home)
 
 ## Donation
 
@@ -157,7 +157,7 @@ Supported operating systems and hardware:
 1. 带宽测速：Support [bandwidth test](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_BandwidthTestTool) api and flash client.
 1. 演示页面：Player, publisher(encoder), and [demo pages(jquery+bootstrap)](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_SampleDemo). 
 1. 视频会议演示：[Demo](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_SampleDemo) video meeting or chat(SRS+cherrypy+jquery+bootstrap). 
-1. 中文Wiki：Full documents in [wiki](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CNHome), in Chineses. 
+1. 中文Wiki：Full documents in [wiki](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Home), in Chineses. 
 1. 客户端库：Support RTMP(play-publish) library: [srs-librtmp](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_SrsLibrtmp)
 1. 支持ARM平台：Support ARM([debian armhf, v7cpu](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_SrsLinuxArm)) with rtmp/ssl/hls/librtmp.
 1. 支持Init.d脚本：Support [init.d](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_LinuxService) and packge script, log to file. 
