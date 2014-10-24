@@ -1877,6 +1877,7 @@ int SrsConnectAppPacket::decode(SrsStream* stream)
         // read the instance
         if ((ret = any->read(stream)) != ERROR_SUCCESS) {
             srs_error("amf0 decode connect args failed. ret=%d", ret);
+            srs_freep(any);
             return ret;
         }
         
