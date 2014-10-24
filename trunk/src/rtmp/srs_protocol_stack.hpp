@@ -572,10 +572,12 @@ public:
     * Command information object which has the name-value pairs.
     * @remark: alloc in packet constructor, user can directly use it, 
     *       user should never alloc it again which will cause memory leak.
+    * @remark, never be NULL.
     */
     SrsAmf0Object* command_object;
     /**
     * Any optional information
+    * @remark, optional, init to and maybe NULL.
     */
     SrsAmf0Object* args;
 public:
@@ -608,11 +610,13 @@ public:
     double transaction_id;
     /**
     * Name-value pairs that describe the properties(fmsver etc.) of the connection.
+    * @remark, never be NULL.
     */
     SrsAmf0Object* props;
     /**
     * Name-value pairs that describe the response from|the server. ‘code’,
     * ‘level’, ‘description’ are names of few among such information.
+    * @remark, never be NULL.
     */
     SrsAmf0Object* info;
 public:
@@ -650,10 +654,12 @@ public:
     /**
     * If there exists any command info this
     * is set, else this is set to null type.
+    * @remark, optional, init to and maybe NULL.
     */
     SrsAmf0Any* command_object;
     /**
     * Any optional arguments to be provided
+    * @remark, optional, init to and maybe NULL.
     */
     SrsAmf0Any* arguments;
 public:
@@ -686,10 +692,12 @@ public:
     double transaction_id;
     /**
     * If there exists any command info this is set, else this is set to null type.
+    * @remark, optional, init to and maybe NULL.
     */
     SrsAmf0Any* command_object;
     /**
     * Response from the method that was called.
+    * @remark, optional, init to and maybe NULL.
     */
     SrsAmf0Any* response;
 public:
@@ -724,6 +732,7 @@ public:
     double transaction_id;
     /**
     * If there exists any command info this is set, else this is set to null type.
+    * @remark, never be NULL, an AMF0 null instance.
     */
     SrsAmf0Any* command_object; // null
 public:
@@ -756,6 +765,7 @@ public:
     double transaction_id;
     /**
     * If there exists any command info this is set, else this is set to null type.
+    * @remark, never be NULL, an AMF0 null instance.
     */
     SrsAmf0Any* command_object; // null
     /**
@@ -793,6 +803,7 @@ public:
     double transaction_id;
     /**
     * Command information object does not exist. Set to null type.
+    * @remark, never be NULL, an AMF0 null instance.
     */
     SrsAmf0Any* command_object; // null
 public:
@@ -819,6 +830,7 @@ public:
     double transaction_id;
     /**
     * If there exists any command info this is set, else this is set to null type.
+    * @remark, never be NULL, an AMF0 null instance.
     */
     SrsAmf0Any* command_object; // null
     /**
@@ -859,10 +871,12 @@ public:
     double transaction_id;
     /**
     * If there exists any command info this is set, else this is set to null type.
+    * @remark, never be NULL, an AMF0 null instance.
     */
     SrsAmf0Any* command_object; // null
     /**
     * the optional args, set to undefined.
+    * @remark, never be NULL, an AMF0 undefined instance.
     */
     SrsAmf0Any* args; // undefined
 public:
@@ -900,6 +914,7 @@ public:
     double transaction_id;
     /**
     * Command information object does not exist. Set to null type.
+    * @remark, never be NULL, an AMF0 null instance.
     */
     SrsAmf0Any* command_object; // null
     /**
@@ -952,6 +967,7 @@ public:
     double transaction_id;
     /**
     * Command information object does not exist. Set to null type.
+    * @remark, never be NULL, an AMF0 null instance.
     */
     SrsAmf0Any* command_object; // null
     /**
@@ -990,6 +1006,7 @@ public:
     double transaction_id;
     /**
     * Command information does not exist. Set to null type.
+    * @remark, never be NULL, an AMF0 null instance.
     */
     SrsAmf0Any* command_object; // null
     /**
@@ -1069,12 +1086,14 @@ public:
     double transaction_id;
     /**
     * Command information does not exist. Set to null type.
+    * @remark, never be NULL, an AMF0 null instance.
     */
     SrsAmf0Any* command_object; // null
     /**
     * If the play command is successful, the client receives OnStatus message from
     * server which is NetStream.Play.Start. If the specified stream is not found,
     * NetStream.Play.StreamNotFound is received.
+    * @remark, never be NULL, an AMF0 object instance.
     */
     SrsAmf0Object* desc;
 public:
@@ -1105,6 +1124,7 @@ public:
     double transaction_id;
     /**
     * Command information does not exist. Set to null type.
+    * @remark, never be NULL, an AMF0 null instance.
     */
     SrsAmf0Any* args; // null
 public:
@@ -1136,11 +1156,13 @@ public:
     double transaction_id;
     /**
     * Command information does not exist. Set to null type.
+    * @remark, never be NULL, an AMF0 null instance.
     */
     SrsAmf0Any* args; // null
     /**
     * Name-value pairs that describe the response from the server. 
     * ‘code’,‘level’, ‘description’ are names of few among such information.
+    * @remark, never be NULL, an AMF0 object instance.
     */
     SrsAmf0Object* data;
 public:
@@ -1176,11 +1198,13 @@ public:
     double transaction_id;
     /**
     * Command information does not exist. Set to null type.
+    * @remark, never be NULL, an AMF0 null instance.
     */
     SrsAmf0Any* args; // null
     /**
     * Name-value pairs that describe the response from the server.
     * ‘code’,‘level’, ‘description’ are names of few among such information.
+    * @remark, never be NULL, an AMF0 object instance.
     */
     SrsAmf0Object* data;
 public:
@@ -1238,6 +1262,7 @@ public:
     /**
     * Name-value pairs that describe the response from the server.
     * ‘code’, are names of few among such information.
+    * @remark, never be NULL, an AMF0 object instance.
     */
     SrsAmf0Object* data;
 public:
@@ -1301,6 +1326,7 @@ public:
     std::string name;
     /**
     * Metadata of stream.
+    * @remark, never be NULL, an AMF0 object instance.
     */
     SrsAmf0Object* metadata;
 public:
