@@ -108,7 +108,7 @@ fi
 ok_msg "real os is ${os_name}-${os_major_version} ${os_release} ${os_machine}"
 
 # build srs
-# @see https://github.com/winlinvip/simple-rtmp-server/wiki/v1_Build
+# @see https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Build
 ok_msg "start build srs"
 if [ $ARM = YES ]; then
     (
