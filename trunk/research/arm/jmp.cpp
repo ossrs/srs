@@ -1,5 +1,5 @@
 /*
-# see: https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm
+# see: https://github.com/winlinvip/simple-rtmp-server/wiki/v1_SrsLinuxArm
  arm-linux-gnueabi-g++ -o jmp jmp.cpp -static
  arm-linux-gnueabi-strip jmp
 */

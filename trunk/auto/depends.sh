@@ -226,7 +226,7 @@ if [ $SRS_EMBEDED_CPU = YES ]; then
         echo "st-1.9t for arm is ok.";
     else
         # TODO: FIXME: patch the bug.
-        # patch st for arm, @see: https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLinuxArm#st-arm-bug-fix
+        # patch st for arm, @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v1_SrsLinuxArm#st-arm-bug-fix
         echo "build st-1.9t for arm"; 
         (
             rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 

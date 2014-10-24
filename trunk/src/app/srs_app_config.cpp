@@ -48,7 +48,7 @@ using namespace std;
 
 using namespace _srs_internal;
 
-#define SRS_WIKI_URL_LOG "https://github.com/winlinvip/simple-rtmp-server/wiki/SrsLog"
+#define SRS_WIKI_URL_LOG "https://github.com/winlinvip/simple-rtmp-server/wiki/v1_SrsLog"
 
 // '\n'
 #define __LF (char)0x0a
