@@ -1869,10 +1869,16 @@ int SrsConnectAppPacket::decode(SrsStream* stream)
         // the args maybe any amf0, for instance, a string. we should drop if not object.
         SrsAmf0Any* any = NULL;
         if ((ret = SrsAmf0Any::discovery(stream, &any)) != ERROR_SUCCESS) {
-            srs_error("amf0 decode connect args failed. ret=%d", ret);
+            srs_error("amf0 find connect args failed. ret=%d", ret);
             return ret;
         }
         srs_assert(any);
+        
+        // read the instance
+        if ((ret = any->read(stream)) != ERROR_SUCCESS) {
+            srs_error("amf0 decode connect args failed. ret=%d", ret);
+            return ret;
+        }
         
         // drop when not an AMF0 object.
         if (!any->is_object()) {
