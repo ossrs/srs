@@ -1864,10 +1864,22 @@ int SrsConnectAppPacket::decode(SrsStream* stream)
     
     if (!stream->empty()) {
         srs_freep(args);
-        args = SrsAmf0Any::object();
-        if ((ret = args->read(stream)) != ERROR_SUCCESS) {
+        
+        // see: https://github.com/winlinvip/simple-rtmp-server/issues/186
+        // the args maybe any amf0, for instance, a string. we should drop if not object.
+        SrsAmf0Any* any = NULL;
+        if ((ret = SrsAmf0Any::discovery(stream, &any)) != ERROR_SUCCESS) {
             srs_error("amf0 decode connect args failed. ret=%d", ret);
             return ret;
+        }
+        srs_assert(any);
+        
+        // drop when not an AMF0 object.
+        if (!any->is_object()) {
+            srs_warn("drop the args, see: '4.1.1. connect', marker=%#x", any->marker);
+            srs_freep(any);
+        } else {
+            args = any->to_object();
         }
     }
     

@@ -220,6 +220,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2014-10-24, fix [#186](https://github.com/winlinvip/simple-rtmp-server/issues/186), hotfix for bug #186, drop connect args when not object. 2.0.4.
 * v2.0, 2014-10-24, rename wiki/xxx to wiki/v1_xxx. 2.0.3.
 * v2.0, 2014-10-19, fix [#184](https://github.com/winlinvip/simple-rtmp-server/issues/184), support AnnexB in RTMP body for HLS. 2.0.2
 * v2.0, 2014-10-18, remove supports for OSX(darwin). 2.0.1.
