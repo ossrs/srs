@@ -109,6 +109,11 @@ bool SrsAmf0Any::is_strict_array()
     return marker == RTMP_AMF0_StrictArray;
 }
 
+bool SrsAmf0Any::is_date()
+{
+    return marker == RTMP_AMF0_Date;
+}
+
 bool SrsAmf0Any::is_complex_object()
 {
     return is_object() || is_object_eof() || is_ecma_array() || is_strict_array();
@@ -140,6 +145,20 @@ double SrsAmf0Any::to_number()
     SrsAmf0Number* p = dynamic_cast<SrsAmf0Number*>(this);
     srs_assert(p != NULL);
     return p->value;
+}
+
+int64_t SrsAmf0Any::to_date()
+{
+    SrsAmf0Date* p = dynamic_cast<SrsAmf0Date*>(this);
+    srs_assert(p != NULL);
+    return p->date();
+}
+
+int16_t SrsAmf0Any::to_date_time_zone()
+{
+    SrsAmf0Date* p = dynamic_cast<SrsAmf0Date*>(this);
+    srs_assert(p != NULL);
+    return p->time_zone();
 }
 
 SrsAmf0Object* SrsAmf0Any::to_object()
@@ -189,6 +208,9 @@ void __srs_amf0_do_print(SrsAmf0Any* any, stringstream& ss, int level)
         ss << "Number " << std::fixed << any->to_number() << endl;
     } else if (any->is_string()) {
         ss << "String " << any->to_str() << endl;
+    } else if (any->is_date()) {
+        ss << "Date " << std::hex << any->to_date() 
+            << "/" << std::hex << any->to_date_time_zone() << endl;
     } else if (any->is_null()) {
         ss << "Null" << endl;
     } else if (any->is_ecma_array()) {
@@ -304,6 +326,11 @@ SrsAmf0StrictArray* SrsAmf0Any::strict_array()
     return new SrsAmf0StrictArray();
 }
 
+SrsAmf0Any* SrsAmf0Any::date(int64_t value)
+{
+    return new SrsAmf0Date(value);
+}
+
 int SrsAmf0Any::discovery(SrsStream* stream, SrsAmf0Any** ppvalue)
 {
     int ret = ERROR_SUCCESS;
@@ -358,6 +385,10 @@ int SrsAmf0Any::discovery(SrsStream* stream, SrsAmf0Any** ppvalue)
         }
         case RTMP_AMF0_StrictArray: {
             *ppvalue = SrsAmf0Any::strict_array();
+            return ret;
+        }
+        case RTMP_AMF0_Date: {
+            *ppvalue = SrsAmf0Any::date();
             return ret;
         }
         case RTMP_AMF0_Invalid:
@@ -805,7 +836,7 @@ int SrsAmf0EcmaArray::read(SrsStream* stream)
     if (marker != RTMP_AMF0_EcmaArray) {
         ret = ERROR_RTMP_AMF0_DECODE;
         srs_error("amf0 check ecma_array marker failed. "
-            "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Object, ret);
+            "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_EcmaArray, ret);
         return ret;
     }
     srs_verbose("amf0 read ecma_array marker success");
@@ -1003,7 +1034,7 @@ int SrsAmf0StrictArray::read(SrsStream* stream)
     if (marker != RTMP_AMF0_StrictArray) {
         ret = ERROR_RTMP_AMF0_DECODE;
         srs_error("amf0 check strict_array marker failed. "
-            "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Object, ret);
+            "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_StrictArray, ret);
         return ret;
     }
     srs_verbose("amf0 read strict_array marker success");
@@ -1125,6 +1156,11 @@ int SrsAmf0Size::str(string value)
 int SrsAmf0Size::number()
 {
     return 1 + 8;
+}
+
+int SrsAmf0Size::date()
+{
+    return 1 + 8 + 2;
 }
 
 int SrsAmf0Size::null()
@@ -1276,6 +1312,130 @@ SrsAmf0Any* SrsAmf0Number::copy()
 {
     SrsAmf0Number* copy = new SrsAmf0Number(value);
     return copy;
+}
+
+SrsAmf0Date::SrsAmf0Date(int64_t value)
+{
+    marker = RTMP_AMF0_Date;
+    _date_value = value;
+    _time_zone = 0;
+}
+
+SrsAmf0Date::~SrsAmf0Date()
+{
+}
+
+int SrsAmf0Date::total_size()
+{
+    return SrsAmf0Size::date();
+}
+
+int SrsAmf0Date::read(SrsStream* stream)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // marker
+    if (!stream->require(1)) {
+        ret = ERROR_RTMP_AMF0_DECODE;
+        srs_error("amf0 read date marker failed. ret=%d", ret);
+        return ret;
+    }
+    
+    char marker = stream->read_1bytes();
+    if (marker != RTMP_AMF0_Date) {
+        ret = ERROR_RTMP_AMF0_DECODE;
+        srs_error("amf0 check date marker failed. "
+            "marker=%#x, required=%#x, ret=%d", marker, RTMP_AMF0_Date, ret);
+        return ret;
+    }
+    srs_verbose("amf0 read date marker success");
+
+    // date value
+    // An ActionScript Date is serialized as the number of milliseconds 
+    // elapsed since the epoch of midnight on 1st Jan 1970 in the UTC 
+    // time zone.
+    if (!stream->require(8)) {
+        ret = ERROR_RTMP_AMF0_DECODE;
+        srs_error("amf0 read date failed. ret=%d", ret);
+        return ret;
+    }
+    
+    _date_value = stream->read_8bytes();
+    srs_verbose("amf0 read date success. date=%"PRId64, _date_value);
+    
+    // time zone
+    // While the design of this type reserves room for time zone offset 
+    // information, it should not be filled in, nor used, as it is unconventional 
+    // to change time zones when serializing dates on a network. It is suggested 
+    // that the time zone be queried independently as needed.
+    if (!stream->require(2)) {
+        ret = ERROR_RTMP_AMF0_DECODE;
+        srs_error("amf0 read time zone failed. ret=%d", ret);
+        return ret;
+    }
+    
+    _time_zone = stream->read_2bytes();
+    srs_verbose("amf0 read time zone success. zone=%d", _time_zone);
+    
+    return ret;
+}
+int SrsAmf0Date::write(SrsStream* stream)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // marker
+    if (!stream->require(1)) {
+        ret = ERROR_RTMP_AMF0_ENCODE;
+        srs_error("amf0 write date marker failed. ret=%d", ret);
+        return ret;
+    }
+    
+    stream->write_1bytes(RTMP_AMF0_Date);
+    srs_verbose("amf0 write date marker success");
+
+    // date value
+    if (!stream->require(8)) {
+        ret = ERROR_RTMP_AMF0_ENCODE;
+        srs_error("amf0 write date failed. ret=%d", ret);
+        return ret;
+    }
+    
+    stream->write_8bytes(_date_value);
+    srs_verbose("amf0 write date success. date=%"PRId64, _date_value);
+
+    // time zone
+    if (!stream->require(2)) {
+        ret = ERROR_RTMP_AMF0_ENCODE;
+        srs_error("amf0 write time zone failed. ret=%d", ret);
+        return ret;
+    }
+    
+    stream->write_2bytes(_time_zone);
+    srs_verbose("amf0 write time zone success. date=%d", _time_zone);
+    
+    srs_verbose("write date object success.");
+    
+    return ret;
+}
+
+SrsAmf0Any* SrsAmf0Date::copy()
+{
+    SrsAmf0Date* copy = new SrsAmf0Date(0);
+    
+    copy->_date_value = _date_value;
+    copy->_time_zone = _time_zone;
+    
+    return copy;
+}
+
+int64_t SrsAmf0Date::date()
+{
+    return _date_value;
+}
+
+int16_t SrsAmf0Date::time_zone()
+{
+    return _time_zone;
 }
 
 SrsAmf0Null::SrsAmf0Null()
