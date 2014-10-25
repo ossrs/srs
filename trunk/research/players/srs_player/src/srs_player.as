@@ -377,7 +377,7 @@ package
                 this.media_conn.connect(null);
             } else {
                 var tcUrl:String = this.user_url.substr(0, this.user_url.lastIndexOf("/"));
-                this.media_conn.connect(tcUrl, new Date());
+                this.media_conn.connect(tcUrl);
             }
         }
         
