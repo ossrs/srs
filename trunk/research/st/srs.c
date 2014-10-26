@@ -8,6 +8,7 @@
 st_mutex_t sync_start = NULL;
 st_cond_t sync_cond = NULL;
 st_mutex_t sync_mutex = NULL;
+st_cond_t sync_end = NULL;
 
 void* sync_master(void* arg)
 {
@@ -50,11 +51,15 @@ void* sync_slave(void* arg)
     st_cond_wait(sync_cond);
     srs_trace("4. st is ok");
     
+    st_cond_signal(sync_end);
+    
     return NULL;
 }
 
 int sync_test()
 {
+    srs_trace("sync test: start");
+    
     if ((sync_start = st_mutex_new()) == NULL) {
         srs_trace("st_mutex_new sync_start failed");
         return -1;
@@ -63,6 +68,11 @@ int sync_test()
 
     if ((sync_cond = st_cond_new()) == NULL) {
         srs_trace("st_cond_new cond failed");
+        return -1;
+    }
+
+    if ((sync_end = st_cond_new()) == NULL) {
+        srs_trace("st_cond_new end failed");
         return -1;
     }
     
@@ -83,6 +93,9 @@ int sync_test()
     
     // run all threads.
     st_mutex_unlock(sync_start);
+    
+    st_cond_wait(sync_end);
+    srs_trace("sync test: end");
     
     return 0;
 }
