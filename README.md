@@ -22,6 +22,12 @@ git clone https://github.com/winlinvip/simple-rtmp-server.git
 git clone https://code.csdn.net/winlinvip/srs-csdn.git
 ```
 
+获得源码(国内OSChina镜像): [http://git.oschina.net/winlinvip/srs.oschina](http://git.oschina.net/winlinvip/srs.oschina) [GIT使用方法](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Git)
+
+```bash
+git clone https://git.oschina.net/winlinvip/srs.oschina.git
+```
+
 报告问题(BugReport): [https://github.com/winlinvip/simple-rtmp-server/issues/new](https://github.com/winlinvip/simple-rtmp-server/issues/new)<br/>
 中文资料(Wiki): [https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki) <br/>
 使用步骤(Usage): [https://github.com/winlinvip/simple-rtmp-server#usage](#usage) <br/>
