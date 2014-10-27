@@ -1,0 +1,127 @@
+#!/bin/bash
+
+### BEGIN INIT INFO
+# Provides:          simple-rtmp-server-api(srs-api)
+# RequiRED-Start:    $all
+# RequiRED-Stop:     $all
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: simple-rtmp-server-api(srs-api)
+# Description:       https://github.com/winlinvip/simple-rtmp-server
+### END INIT INFO
+
+# the config of ROOT, user must modify it when start srs from other directory,
+# it's ok to use the script by command ./etc/init.d/simple-rtmp-server
+ROOT="./"
+APP="python ./research/api-server/server.py"
+CONFIG="8085"
+
+########################################################################
+# utility functions
+########################################################################
+RED="\\e[31m"
+GREEN="\\e[32m"
+YELLOW="\\e[33m"
+BLACK="\\e[0m"
+POS="\\e[60G"
+
+ok_msg(){
+    echo -e "${1}${POS}${BLACK}[${GREEN}  OK  ${BLACK}]"
+}
+
+failed_msg(){
+    echo -e "${1}${POS}${BLACK}[${RED}FAILED${BLACK}]"
+}
+
+# load process info of srs-api
+# @set variable $srs_api_id to the process id.
+# @return 0, if process exists; otherwise:
+#       1, for srs-api not exists.
+# @set variable $error_msg if error.
+load_process_info() {
+    srs_api_id=`ps aux|grep python|grep research|grep "api-server"|awk '{print $2}'`
+    if [[ -z $srs_api_id ]]; then error_msg="srs-api process does not exists"; return 1; fi
+    
+    return 0;
+}
+
+start() {
+    # if exists, exit.
+    load_process_info
+    if [[ 0 -eq $? ]]; then failed_msg "SRS-api started(pid ${srs_api_id}), should not start it again."; return 0; fi
+    
+    # not exists, start server
+    ok_msg "Starting SRS-api..."
+    # TODO: FIXME: set limit by, for instance, "ulimit -HSn 10000"
+    # TODO: FIXME: write log to, for instance, the same dir of log.
+    # TODO: FIXME: support deamon, without nohup.
+    (cd ${ROOT}; nohup ${APP} ${CONFIG} >/dev/null 2>&1 &)
+    
+    # check again after start server
+    load_process_info
+    ret=$?; if [[ 0 -eq $? ]]; then ok_msg "SRS-api started(pid ${srs_api_id})"; return 0; fi
+    
+    failed_msg "SRS-api not started"
+    return $ret
+}
+
+stop() {
+    # not start, exit
+    load_process_info
+    if [[ 0 -ne $? ]]; then failed_msg "SRS-api not start."; return 0; fi
+    
+    ok_msg "Stopping SRS-api(pid ${srs_api_id})..."
+    
+    # process exists, kill util stop
+    for((;;)); do
+        load_process_info
+        if [[ 0 -eq $? ]]; then
+            kill -s SIGKILL ${srs_api_id} 2>/dev/null
+            ret=$?; if [[ 0 -ne $ret ]]; then failed_msg "send signal SIGKILL failed ret=$ret"; return $ret; fi
+            sleep 0.1
+        else
+            ok_msg "SRS-api stopped"
+            break;
+        fi
+    done
+    
+    sleep 0.1
+    return 0
+}
+
+# get the status of srs-api process
+# @return 0 if srs-api is running; otherwise, 1 for stopped.
+status() {
+    load_process_info
+    ret=$?; if [[ 0 -eq $ret ]]; then echo "SRS-api(pid ${srs_api_id}) is running."; return 0; fi
+    
+    echo "SRS-api is stopped"
+    return 1
+}
+
+menu() {
+    case "$1" in
+        start)
+            start
+            ;;
+        stop)
+            stop
+            ;;
+        restart)
+            stop
+            start
+            ;;
+        status)
+            status
+            ;;
+        *)
+            echo "Usage: $0 {start|stop|status|restart}"
+            return 1
+            ;;
+    esac
+}
+
+menu $1
+
+code=$?
+exit ${code}
