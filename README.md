@@ -151,6 +151,13 @@ CSDN: [https://code.csdn.net/winlinvip/srs-csdn](https://code.csdn.net/winlinvip
 git clone https://code.csdn.net/winlinvip/srs-csdn.git
 ```
 
+OSChina: [http://git.oschina.net/winlinvip/srs.oschina](http://git.oschina.net/winlinvip/srs.oschina) 
+[Git Usage](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Git)
+
+```bash
+git clone https://git.oschina.net/winlinvip/srs.oschina.git
+```
+
 ## System Requirements
 Supported operating systems and hardware:
 * All Linux , both 32 and 64 bits
