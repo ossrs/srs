@@ -91,6 +91,7 @@ for ((;;)); do
     break
 done
 
+git checkout master
 ok_msg "CSDN同步git成功"
 
 exit 0
