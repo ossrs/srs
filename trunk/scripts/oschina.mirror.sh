@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "更新CSDN镜像的脚本"
+echo "更新OSChina镜像的脚本"
 
 echo "argv[0]=$0"
 if [[ ! -f $0 ]]; then 
@@ -22,16 +22,16 @@ ok_msg "导入脚本成功"
 
 source $work_dir/scripts/_mirror.utils.sh
 
-git remote -v|grep code.csdn.net >/dev/null 2>&1
+git remote -v|grep git.oschina.net >/dev/null 2>&1
 ret=$?; if [[ 0 -ne $ret ]]; then 
-    first_checkout "CSDN" \
-        "git@code.csdn.net:winlinvip/srs-csdn.git" \
-        "srs-csdn" "$work_dir/scripts/csdn.mirror.sh"
+    first_checkout "OSChina" \
+        "git@git.oschina.net:winlinvip/srs.oschina.git" \
+        "srs.oschina" "$work_dir/scripts/oschina.mirror.sh"
     exit 0; 
 fi 
 
 sync_master
 sync_1_0_release
-sync_push "CSDN"
+sync_push "OSChina"
 
 exit 0

@@ -84,6 +84,29 @@ A big THANK YOU goes to:
 * [FFMPEG](http://ffmpeg.org/) and [libx264](http://www.videolan.org/) group for SRS to use to transcode.
 * Guido van Rossum for creating Python for api-server for SRS.
 
+## Mirrors
+
+Github: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) 
+[Git Usage](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Git)
+
+```bash
+git clone https://github.com/winlinvip/simple-rtmp-server.git
+```
+
+CSDN: [https://code.csdn.net/winlinvip/srs-csdn](https://code.csdn.net/winlinvip/srs-csdn) 
+[Git Usage](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Git)
+
+```bash
+git clone https://code.csdn.net/winlinvip/srs-csdn.git
+```
+
+OSChina: [http://git.oschina.net/winlinvip/srs.oschina](http://git.oschina.net/winlinvip/srs.oschina) 
+[Git Usage](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Git)
+
+```bash
+git clone https://git.oschina.net/winlinvip/srs.oschina.git
+```
+
 ## Usage
 
 <strong>Step 1:</strong> get SRS 
@@ -133,23 +156,8 @@ Donation:<br/>
 [http://www.ossrs.net/srs.release/donation/index.html](http://www.ossrs.net/srs.release/donation/index.html)
 
 Donations:<br/>
-[https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt](https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt)
-
-## Mirrors
-
-Github: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) 
-[Git Usage](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Git)
-
-```bash
-git clone https://github.com/winlinvip/simple-rtmp-server.git
-```
-
-CSDN: [https://code.csdn.net/winlinvip/srs-csdn](https://code.csdn.net/winlinvip/srs-csdn) 
-[Git Usage](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Git)
-
-```bash
-git clone https://code.csdn.net/winlinvip/srs-csdn.git
-```
+[https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt]
+(https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt)
 
 ## System Requirements
 Supported operating systems and hardware:
