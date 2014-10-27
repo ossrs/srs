@@ -88,7 +88,8 @@ function sync_push()
         fi
         break
     done
-
+    
     git checkout master
     ok_msg "${mirror_name}同步git成功"
 }
+
