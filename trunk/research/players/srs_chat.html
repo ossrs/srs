@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SRS</title>   
+    <meta charset="utf-8">
+    <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css"/>
+    <script type="text/javascript" src="js/jquery-1.10.2.min.js"></script>
+    <script type="text/javascript" src="js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="js/swfobject.js"></script>
+    <script type="text/javascript" src="js/json2.js"></script>
+    <script type="text/javascript" src="js/srs.page.js"></script>
+    <script type="text/javascript" src="js/srs.log.js"></script>
+    <script type="text/javascript" src="js/srs.player.js"></script>
+    <script type="text/javascript" src="js/srs.publisher.js"></script>
+    <script type="text/javascript" src="js/srs.utility.js"></script>
+    <style>
+        body{
+            padding-top: 55px;
+        }
+        .accordion-group {
+            width: 310px;
+        }
+    </style>
+    <script type="text/javascript">
+        var srs_publisher = null;
+        var realtime_player = null;
+        var api_server = null;
+        var self_chat = null;
+        var global_chat_user_id = 200;
+        var previous_chats = [];
+        var no_play = false;
+        
+        var query = parse_query_string();
+        $(function(){
+            // get the vhost and port to set the default url.
+            // for example: http://192.168.1.213/players/jwplayer6.html?port=1935&vhost=demo
+            // url set to: rtmp://demo:1935/live/livestream
+            srs_init_publish("#txt_url");
+            
+            // support 5x3+1 users
+            for (var i = 0; i < 5; i++) {
+                var tr = $("<tr></tr>").hide();
+                $("#lst_chats").append(tr);
+                
+                for (var j = 0; j < 3; j++) {
+                    tr.append($("<td></td>").attr("id", "td_" + ((i+1) * 8 + j)));
+                }
+            }
+            // remove border of row.
+            $("#lst_chats").find("td").css("border", "none").css("padding", "2px")
+                .css("padding-left", "0px").css("width", "327px");
+            
+            if (query.agent == "true") {
+                document.write(navigator.userAgent);
+                return;
+            }
+            
+            $("#realtime_player_url").tooltip({
+                title: "右键复制RTMP地址"
+            });
+            
+            // if no play specified, donot show the player, for debug the publisher.
+            if (query.no_play == "true") {
+                no_play = true;
+            }
+            
+            $("#btn_video_settings").click(function(){
+                $("#video_modal").modal({show:true});
+            });
+            $("#btn_audio_settings").click(function(){
+                $("#audio_modal").modal({show:true});
+            });
+            $("#btn_join").click(on_user_publish);
+
+            // for publish, we use randome stream name.
+            $("#txt_url").val($("#txt_url").val() + "." + new Date().getTime());
+            
+            // start the publisher.
+            srs_publisher = new SrsPublisher("local_publisher", 280, 180);
+            srs_publisher.on_publisher_ready = function(cameras, microphones) {
+                srs_chat_initialize_page(
+                    cameras, microphones,
+                    "#sl_cameras", "#sl_microphones", 
+                    "#sl_vcodec", "#sl_profile", "#sl_level", "#sl_gop", "#sl_size",
+                    "#sl_fps", "#sl_bitrate",
+                    "#sl_acodec"
+                );
+            };
+            srs_publisher.on_publisher_error = function(code, desc) {
+                if (!on_publish_stop()) {
+                    return;
+                }
+                
+                error(code, desc + "请重试。");
+            };
+            srs_publisher.on_publisher_warn = function(code, desc) {
+                warn(code, desc);
+            };
+            srs_publisher.start();
+            
+            update_play_url();
+            
+            if (!no_play) {
+                // start the realtime player.
+                realtime_player = new SrsPlayer("realtime_player", 280, 180);
+                realtime_player.on_player_ready = function() {
+                    this.set_bt(0.5);
+                };
+                realtime_player.on_player_metadata = function(metadata) {
+                    this.set_dar(0, 0);
+                    this.set_fs("screen", 100);
+                    
+                    info("推流到服务器成功。请戴耳机聊天，否则音箱的声音会进入麦克风造成回声。");
+                }
+                realtime_player.start();
+            }
+            
+            $("#txt_name").focus();
+            
+            api_server = "http://" + query.hostname + ":" + srs_get_api_server_port() + "/api/v1/chats";
+            refresh();
+        });
+        
+        function on_publish_stop() {
+            if (!srs_can_republish()) {
+                $("#btn_join").attr("disabled", true);
+                error(0, "您使用的浏览器很弱，请关闭页面后重新打开页面（刷新也不管用）。<br/>推荐使用Chrome/Firefox/Safari/Opera浏览器，支持重试");
+                
+                srs_log_disabled = true;
+                return false;
+            }
+            
+            return true;
+        }
+        
+        function update_play_url() {
+            var url = $("#txt_url").val();
+            
+            $("#realtime_player_url").attr("href", url).attr("target", "_blank");
+        }
+        
+        function refresh() {
+            if (!self_chat) {
+                setTimeout(refresh, 1000);
+                return;
+            }
+            
+            $.ajax({
+                type       : "GET",
+                async      : true,
+                url        : api_server,
+                contentType: "text/html",
+                data       : "",
+                dataType   : "json",
+                complete   : function() {
+                },
+                error      : function(ret) {
+                    setTimeout(refresh, 5000);
+                    warn(101, "查询会议室失败：" + JSON.stringify(ret));
+                },
+                success    : function(ret) {
+                    if(0 != ret["code"]) {
+                        warn(102, "查询会议室失败: " + JSON.stringify(ret));
+                        setTimeout(refresh, 5000);
+                        return;
+                    }
+
+                    var chats = ret["data"]["chats"];
+                    var server_time = ret["now"];
+                    
+                    on_get_chats(chats);
+                    setTimeout(refresh, 5000);
+                }
+            });
+        }
+        function on_get_chats(chats) {
+            if (!self_chat) {
+                return;
+            }
+            
+            // get self, check self is valid?
+            var _self_chat = null;
+            for (var i = 0; i < chats.length; i++) {
+                var chat = chats[i];
+                if (self_chat && self_chat.id == chat.id) {
+                    _self_chat = chat;
+                    break;
+                }
+            }
+            // rejoin if invalid.
+            if (!_self_chat) {
+                on_user_exit_chat(function(){
+                    on_user_join_chat(function(){
+                        info("重新加入会议室成功");
+                    });
+                });
+                return;
+            }
+            
+            render_chat_room(chats);
+            
+            if (!self_chat) {
+                return;
+            }
+            
+            // update self heartbeat.
+            var url = api_server + "/" + self_chat.id;
+            
+            var chat = {};
+            chat.localtime = new Date().getTime();
+            
+            // publish to api server to requires an id.
+            $.ajax({
+                type       : "PUT",
+                async      : true,
+                url        : url,
+                contentType: "text/html",
+                data       : JSON.stringify(chat),
+                dataType   : "json",
+                complete   : function() {
+                },
+                error      : function(ret) {
+                    warn(105, "更新会议室信息失败：" + JSON.stringify(ret));
+                },
+                success    : function(ret) {
+                    if(0 != ret["code"]) {
+                        warn(106, "更新会议室信息失败：: " + JSON.stringify(ret));
+                        return;
+                    }
+                }
+            });
+        }
+        function render_chat_room(original_chats) {
+            if (!self_chat) {
+                return;
+            }
+            
+            var chats = [];
+            for (var i = 0; i < original_chats.length; i++) {
+                var chat = original_chats[i];
+                
+                // ignore the self.
+                if (self_chat && self_chat.id == chat.id) {
+                    continue;
+                }
+                
+                chats.push(chat);
+            }
+            
+            // new added chat
+            for (var i = 0; i < chats.length; i++) {
+                var chat = chats[i];
+                
+                // if previous exists, ignore, only add new here.
+                var previous_chat = get_previous_chat_user(previous_chats, chat.id);
+                if (previous_chat) {
+                    // update reference.
+                    chat.ui = previous_chat.ui;
+                    chat.parent = previous_chat.parent;
+                    chat.player = previous_chat.player;
+                    if (chat.player) {
+                        chat.player.private_object = chat;
+                    }
+                    continue;
+                }
+            }
+            
+            // removed chat
+            for (var i = 0; i < previous_chats.length; i++) {
+                var chat = previous_chats[i];
+                
+                var new_chat = get_previous_chat_user(chats, chat.id);
+                if (new_chat) {
+                    continue;
+                }
+                
+                if (chat.player) {
+                    chat.player.stop();
+                }
+                $("#div_" + chat.id).remove();
+            }
+            
+            // hide empty rows.
+            $("#lst_chats").find("tr").each(function(){
+                var empty = true;
+                
+                $(this).find("td").each(function(){
+                    if ($(this).html() != "") {
+                        empty = false;
+                        return false; // abort each
+                    }
+                    return true;
+                });
+                
+                if (empty) {
+                    $(this).hide();
+                }
+            });
+            
+            // render the chat
+            for (var i = 0; i < chats.length; i++) {
+                var chat = chats[i];
+                
+                // if redered, ignore.
+                if (chat.parent) {
+                    continue;
+                }
+                
+                // generate the ui of chat
+                if (!chat.ui) {
+                    global_chat_user_id++;
+                    
+                    // username: a str indicates the user name.
+                    // url: a str indicates the url of user stream.
+                    // join_date: a str indicates the join timestamp in seconds.
+                    // join_date_str: friendly formated time.
+                    var obj = $("<div/>").html($("#template").html());
+                    if (true) {
+                        // save current ui object to the chat.
+                        chat.ui = obj;
+                        
+                        $(obj).attr("chat_id", chat.id);
+                        $(obj).attr("id", "div_" + chat.id); // for specifed chat: $("#div_" + chat_id)
+                        $(obj).attr("class", "div_chat"); // for all chats: $(".div_chat")
+                        $(obj).find("#chat_player").attr("id", "rp_" + chat.id); // for specifed player: $("#rp_" + chat_id)
+                        $(obj).find("#chat_player_raw").attr("id", "rp_raw_" + chat.id); // for specifed player: $("#rp_raw_" + chat_id)
+                        $(obj).find("#user_name").text(chat.username);
+                        $(obj).find("#user_player_url").attr("href", chat.url);
+                        $(obj).find("#join_date").text(chat.join_date_str.split(" ")[1]);
+                        $(obj).find("#collapseM").attr("id", "collapse_" + global_chat_user_id);
+                        $(obj).find("#headerN").attr("href", "#collapse_" + global_chat_user_id);
+                    }
+                }
+                
+                // find a idle td to render the chat.
+                var parent = null;
+                $("#lst_chats").find("td").each(function(){
+                    if ($(this).html() != "") {
+                        return true;
+                    }
+                    
+                    parent = $(this);
+                    return false; // abort each
+                });
+                
+                if (!parent) {
+                    warn("没有可用的位置展示流。");
+                    break;
+                }
+                $(parent).append(chat.ui);
+                $(parent).parent().show();
+                
+                // when ui elements appent to the page,
+                // create the player, or flash will failed.
+                if (!chat.parent) {
+                    chat.parent = $(parent);
+                    
+                    if (!no_play) {
+                        // start the realtime player.
+                        var _player = new SrsPlayer("rp_raw_" + chat.id, 240, 180, chat);
+                        _player.on_player_ready = function() {
+                            this.set_bt(0.5);
+                            this.play();
+                        };
+                        _player.on_player_metadata = function(metadata) {
+                            this.set_dar(0, 0);
+                            this.set_fs("screen", 100);
+                        }
+                        _player.start(chat.url);
+                        
+                        chat.player = _player;
+                    } else {
+                        chat.player = null;
+                    }
+                    
+                    $(obj).find("#collapse_main").on('hidden', function(){
+                        var id = $(this).parent().attr("chat_id");
+                        var chat = get_previous_chat_user(previous_chats, id);
+                        if (!chat || !chat.player) {
+                            return;
+                        }
+                        chat.player.stop();
+                    });
+                    $(obj).find("#collapse_main").on('shown', function(){
+                        var id = $(this).parent().attr("chat_id");
+                        var chat = get_previous_chat_user(previous_chats, id);
+                        if (!chat || !chat.player) {
+                            return;
+                        }
+                        chat.player.play();
+                    });
+                }
+            }
+            
+            previous_chats = chats;
+        }
+        function get_previous_chat_user(arr, id) {
+            for (var i = 0; i < arr.length; i++) {
+                var chat = arr[i];
+                if (id == chat.id) {
+                    return chat;
+                }
+            }
+            return null;
+        }
+        
+        function on_user_publish() {
+            if ($("#txt_name").val() == "") {
+                $("#txt_name").focus().parent().parent().addClass("error");
+                warn(100, "请输入您的名字");
+                return;
+            }
+            
+            $("#txt_name").parent().parent().removeClass("error");
+            
+            // join chat.
+            if (!self_chat) {
+                on_user_join_chat();
+            } else {
+                on_user_exit_chat();
+            }
+        }
+        function on_user_exit_chat(complete_pfn) {
+            srs_publisher.stop();
+            $("#btn_join").text("加入会议");
+                
+            if (realtime_player) {
+                realtime_player.stop();
+            }
+            
+            if (!self_chat) {
+                return;
+            }
+            
+            // removed chat
+            for (var i = 0; i < previous_chats.length; i++) {
+                var chat = previous_chats[i];
+                
+                if (chat.player) {
+                    chat.player.stop();
+                }
+                $("#div_" + chat.id).remove();
+            }
+            previous_chats = [];
+            
+            var url = api_server + "/" + self_chat.id;
+            // whatever, cleanup local chat.
+            self_chat = null;
+            
+            $("#btn_join").attr("disabled", true);
+            
+            // publish to api server to requires an id.
+            $.ajax({
+                type       : "DELETE",
+                async      : true,
+                url        : url,
+                contentType: "text/html",
+                data       : "",
+                dataType   : "json",
+                complete   : function() {
+                    if (!on_publish_stop()) {
+                        return;
+                    }
+            
+                    $("#btn_join").attr("disabled", false);
+                    if (complete_pfn) {
+                        complete_pfn();
+                    }
+                },
+                error      : function(ret) {
+                    warn(103, "退出会议室失败");
+                },
+                success    : function(ret) {
+                    if(0 != ret["code"]) {
+                        warn(104, "退出会议室失败");
+                        return;
+                    }
+                    info("退出会议室成功");
+                }
+            });
+        }
+        function on_user_join_chat(complete_pfn) {
+            if (self_chat) {
+                return;
+            }
+            
+            var url = $("#txt_url").val();
+            var vcodec = {};
+            var acodec = {};
+            srs_publiser_get_codec(
+                vcodec, acodec,
+                "#sl_cameras", "#sl_microphones", 
+                "#sl_vcodec", "#sl_profile", "#sl_level", "#sl_gop", "#sl_size",
+                "#sl_fps", "#sl_bitrate",
+                "#sl_acodec"
+            );
+            
+            var chat = {};
+            chat.id = -1;
+            chat.username = $("#txt_name").val();
+            chat.agent = navigator.userAgent;
+            chat.url = url;
+            chat.vcodec = vcodec;
+            chat.acodec = acodec;
+            
+            $("#btn_join").attr("disabled", true);
+            
+            // publish to api server to requires an id.
+            $.ajax({
+                type       : "POST",
+                async      : true,
+                url        : api_server,
+                contentType: "text/html",
+                data       : JSON.stringify(chat),
+                dataType   : "json",
+                complete   : function() {
+                    $("#btn_join").attr("disabled", false);
+                    if (complete_pfn) {
+                        complete_pfn();
+                    }
+                },
+                error      : function(ret) {
+                    warn(105, "创建会议室失败：" + JSON.stringify(ret));
+                },
+                success    : function(ret) {
+                    if(0 != ret["code"]) {
+                        warn(106, "创建会议室失败: " + JSON.stringify(ret));
+                        return;
+                    }
+
+                    chat.id = ret["data"];
+                    
+                    // success, start publish.
+                    self_chat = chat;
+                    
+                    $("#btn_join").text("退出会议");
+                
+                    info("开始推流到服务器。请戴耳机聊天，否则音箱的声音会进入麦克风造成回声。");
+                    srs_publisher.publish(url, vcodec, acodec);
+                
+                    if (realtime_player) {
+                        // directly play the url for the realtime player.
+                        realtime_player.stop();
+                        realtime_player.play(url, 0);
+                    }
+                }
+            });
+        }
+    </script>
+</head>
+<body>
+<div class="navbar navbar-fixed-top">
+    <div class="navbar-inner">
+        <div class="container">
+            <a id="srs_index" class="brand" href="#">SRS</a>
+            <div class="nav-collapse collapse">
+                <ul class="nav">
+                    <li><a id="nav_srs_player" href="srs_player.html">SRS播放器</a></li>
+                    <li><a id="nav_srs_publisher" href="srs_publisher.html">SRS编码器</a></li>
+                    <li class="active"><a id="nav_srs_chat" href="srs_chat.html">SRS会议</a></li>
+                    <li><a id="nav_srs_bwt" href="srs_bwt.html">SRS测网速</a></li>
+                    <li><a id="nav_jwplayer6" href="jwplayer6.html">JWPlayer6播放器</a></li>
+                    <li><a id="nav_osmf" href="osmf.html">AdobeOSMF播放器</a></li>
+                    <li><a id="nav_vlc" href="vlc.html">VLC播放器</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="container">
+    <!-- for the log -->
+    <div class="alert alert-info fade in" id="txt_log">
+        <button type="button" class="close" data-dismiss="alert">×</button>
+        <strong><span id="txt_log_title">Usage:</span></strong>
+        <span id="txt_log_msg">输入名字，设点“加入会议”按钮</span>
+    </div>
+    
+    <div class="control-group">
+        <div class="form-inline">
+            <button class="btn input-small" id="btn_video_settings">摄像头</button>
+            <button class="btn input-small" id="btn_audio_settings">麦克风</button>
+            <input type="text" id="txt_name" class="input-large" placeholder="请输入您的名字..." value=""></input>
+            <button class="btn input-small" id="btn_join">加入会议</button>
+            <input type="text" id="txt_url" class="input-mini hide" value=""></input>
+        </div>
+    </div>
+    <table id="lst_chats" class="table">
+        <tr>
+            <td id="td_0">
+                <div class="accordion-group">
+                    <div class="accordion-heading">
+                        <span class="accordion-toggle">
+                            <strong>[我的] 本地摄像头</strong>
+                        </span>
+                    </div>
+                    <div class="accordion-body collapse in">
+                        <div class="accordion-inner">
+                            <div id="local_publisher"></div>
+                        </div>
+                    </div>
+                </div>
+            </td>
+            <td id="td_1">
+                <div class="accordion-group">
+                    <div class="accordion-heading">
+                        <span class="accordion-toggle">
+                            <strong>[我的] 远程服务器流</strong>
+                            <a id="realtime_player_url" href="#" data-toggle="tooltip" data-placement="top" title="">
+                                播放地址<img src="img/tooltip.png"/>
+                            </a>
+                        </span>
+                    </div>
+                    <div class="accordion-body collapse in">
+                        <div class="accordion-inner">
+                            <div id="realtime_player"></div>
+                        </div>
+                    </div>
+                </div>
+            </td>
+            <td id="td_2"></td>
+        </tr>
+    </table>
+    <div class="container hide" id="template">
+        <div class="accordion-group" id="collapse_main">
+            <div class="accordion-heading" title="点击展开或收起，收起后停止播放流，展开时从服务器请求流">
+                <span id="headerN" class="accordion-toggle" data-toggle="collapse" href="#collapseN">
+                    <strong>[<a href="#"><span id="user_name">XX</span></a>]</strong>
+                    <strong>加入时间</strong>[<span id="join_date"></span>]
+                    <a id="user_player_url" href="#" data-toggle="tooltip" data-placement="top" title="">
+                        播放地址<img src="img/tooltip.png"/>
+                    </a>
+                </span>
+            </div>
+            <div id="collapseM" class="accordion-body collapse in">
+                <div class="accordion-inner">
+                    <div id="chat_player">
+                        <div id="chat_player_raw">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <table class="table">
+    </table>
+    <div id="video_modal" class="modal hide fade">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+            <h3>视频编码</h3>
+        </div>
+        <div class="modal-body">
+            <div class="form-horizontal">
+                <div class="control-group">
+                    <label class="control-label" for="sl_cameras">
+                        摄像头
+                        <a id="sl_cameras_tips" href="#" data-toggle="tooltip" data-placement="right" title="">
+                            <img src="img/tooltip.png"/>
+                        </a>
+                    </label>
+                    <div class="controls">
+                        <select class="span4" id="sl_cameras"></select>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="sl_vcodec">
+                        Codec
+                        <a id="sl_cameras_tips" href="#" data-toggle="tooltip" data-placement="right" title="">
+                            <img src="img/tooltip.png"/>
+                        </a>
+                    </label>
+                    <div class="controls">
+                        <select class="span2" id="sl_vcodec"></select>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="sl_profile">
+                        Profile
+                        <a id="sl_profile_tips" href="#" data-toggle="tooltip" data-placement="right" title="">
+                            <img src="img/tooltip.png"/>
+                        </a>
+                    </label>
+                    <div class="controls">
+                        <select class="span2" id="sl_profile"></select>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="sl_level">
+                        Level
+                        <a id="sl_level_tips" href="#" data-toggle="tooltip" data-placement="right" title="">
+                            <img src="img/tooltip.png"/>
+                        </a>
+                    </label>
+                    <div class="controls">
+                        <select class="span2" id="sl_level"></select>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="sl_gop">
+                        GOP
+                        <a id="sl_gop_tips" href="#" data-toggle="tooltip" data-placement="right" title="">
+                            <img src="img/tooltip.png"/>
+                        </a>
+                    </label>
+                    <div class="controls">
+                        <select class="span2" id="sl_gop"></select>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="sl_size">
+                        尺寸
+                        <a id="sl_size_tips" href="#" data-toggle="tooltip" data-placement="right" title="">
+                            <img src="img/tooltip.png"/>
+                        </a>
+                    </label>
+                    <div class="controls">
+                        <select class="span2" id="sl_size"></select>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="sl_fps">
+                        帧率
+                        <a id="sl_fps_tips" href="#" data-toggle="tooltip" data-placement="right" title="">
+                            <img src="img/tooltip.png"/>
+                        </a>
+                    </label>
+                    <div class="controls">
+                        <select class="span2" id="sl_fps"></select>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="sl_bitrate">
+                        码率
+                        <a id="sl_bitrate_tips" href="#" data-toggle="tooltip" data-placement="right" title="">
+                            <img src="img/tooltip.png"/>
+                        </a>
+                    </label>
+                    <div class="controls">
+                        <select class="span2" id="sl_bitrate"></select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true">设置</button>
+        </div>
+    </div>
+    <div id="audio_modal" class="modal hide fade">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+            <h3>音频编码</h3>
+        </div>
+        <div class="modal-body">
+            <div class="form-horizontal">
+                <div class="control-group">
+                    <label class="control-label" for="sl_microphones">
+                        麦克风
+                        <a id="worker_id_tips" href="#" data-toggle="tooltip" data-placement="right" title="">
+                            <img src="img/tooltip.png"/>
+                        </a>
+                    </label>
+                    <div class="controls">
+                        <select class="span4" id="sl_microphones"></select>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="sl_acodec">
+                        编码
+                        <a id="sl_acodec_tips" href="#" data-toggle="tooltip" data-placement="right" title="">
+                            <img src="img/tooltip.png"/>
+                        </a>
+                    </label>
+                    <div class="controls">
+                        <select class="span2" id="sl_acodec"></select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" data-dismiss="modal" aria-hidden="true">设置</button>
+        </div>
+    </div>
+    <hr/>
+    <footer>
+        <p><a href="https://github.com/winlinvip/simple-rtmp-server">SRS Team &copy; 2013</a></p>
+    </footer>
+</div>
+</body>
+
