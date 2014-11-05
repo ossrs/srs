@@ -1,9 +1,19 @@
 #include <unistd.h>
 #include <stdio.h>
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 #include "public.h"
 
 #define srs_trace(msg, ...)   printf(msg, ##__VA_ARGS__);printf("\n")
+
+int io_port = 1990;
 
 st_mutex_t sync_start = NULL;
 st_cond_t sync_cond = NULL;
@@ -58,6 +68,7 @@ void* sync_slave(void* arg)
 
 int sync_test()
 {
+    srs_trace("===================================================");
     srs_trace("sync test: start");
     
     if ((sync_start = st_mutex_new()) == NULL) {
@@ -100,6 +111,110 @@ int sync_test()
     return 0;
 }
 
+void* io_client(void* arg)
+{
+    
+    int fd;
+    if ((fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+        srs_trace("create linux socket error.");
+        return NULL;
+    }
+    srs_trace("6. client create linux socket success. fd=%d", fd);
+    
+    st_netfd_t stfd;
+    if ((stfd = st_netfd_open_socket(fd)) == NULL){
+        srs_trace("st_netfd_open_socket open socket failed.");
+        return NULL;
+    }
+    srs_trace("7. client st open socket success. fd=%d", fd);
+    
+    struct sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(io_port);
+    addr.sin_addr.s_addr = INADDR_ANY;
+    if (st_connect(stfd, (const struct sockaddr*)&addr, sizeof(struct sockaddr_in), ST_UTIME_NO_TIMEOUT) == -1) {
+        srs_trace("bind socket error.");
+        return NULL;
+    }
+    
+    char buf[1024];
+    if (st_read_fully(stfd, buf, sizeof(buf), ST_UTIME_NO_TIMEOUT) != sizeof(buf)) {
+        srs_trace("st_read_fully failed");
+        return NULL;
+    }
+    if (st_write(stfd, buf, sizeof(buf), ST_UTIME_NO_TIMEOUT) != sizeof(buf)) {
+        srs_trace("st_write failed");
+        return NULL;
+    }
+    
+    return NULL;
+}
+
+int io_test()
+{
+    srs_trace("===================================================");
+    srs_trace("io test: start, port=%d", io_port);
+    
+    int fd;
+    if ((fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+        srs_trace("create linux socket error.");
+        return -1;
+    }
+    srs_trace("1. server create linux socket success. fd=%d", fd);
+    
+    int reuse_socket = 1;
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse_socket, sizeof(int)) == -1) {
+        srs_trace("setsockopt reuse-addr error.");
+        return -1;
+    }
+    srs_trace("2. server setsockopt reuse-addr success. fd=%d", fd);
+    
+    struct sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(io_port);
+    addr.sin_addr.s_addr = INADDR_ANY;
+    if (bind(fd, (const struct sockaddr*)&addr, sizeof(struct sockaddr_in)) == -1) {
+        srs_trace("bind socket error.");
+        return -1;
+    }
+    srs_trace("3. server bind socket success. fd=%d", fd);
+    
+    if (listen(fd, 10) == -1) {
+        srs_trace("listen socket error.");
+        return -1;
+    }
+    srs_trace("4. server listen socket success. fd=%d", fd);
+    
+    st_netfd_t stfd;
+    if ((stfd = st_netfd_open_socket(fd)) == NULL){
+        srs_trace("st_netfd_open_socket open socket failed.");
+        return -1;
+    }
+    srs_trace("5. server st open socket success. fd=%d", fd);
+    
+    if (!st_thread_create(io_client, NULL, 0, 0)) {
+        srs_trace("st_thread_create failed");
+        return -1;
+    }
+    
+    st_netfd_t client_stfd = st_accept(stfd, NULL, NULL, ST_UTIME_NO_TIMEOUT);
+    srs_trace("8. server get a client. fd=%d", st_netfd_fileno(client_stfd));
+    
+    char buf[1024];
+    if (st_write(client_stfd, buf, sizeof(buf), ST_UTIME_NO_TIMEOUT) != sizeof(buf)) {
+        srs_trace("st_write failed");
+        return -1;
+    }
+    if (st_read_fully(client_stfd, buf, sizeof(buf), ST_UTIME_NO_TIMEOUT) != sizeof(buf)) {
+        srs_trace("st_read_fully failed");
+        return -1;
+    }
+    srs_trace("9. server io completed.");
+    
+    srs_trace("io test: end");
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     if (st_set_eventsys(ST_EVENTSYS_ALT) < 0) {
@@ -114,6 +229,11 @@ int main(int argc, char** argv)
     
     if (sync_test() < 0) {
         srs_trace("sync_test failed");
+        return -1;
+    }
+    
+    if (io_test() < 0) {
+        srs_trace("io_test failed");
         return -1;
     }
     
