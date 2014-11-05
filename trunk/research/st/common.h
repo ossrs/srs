@@ -61,7 +61,7 @@
 #ifdef DEBUG
 #define ST_HIDDEN   /*nothing*/
 #else
-#define	ST_HIDDEN   static
+#define    ST_HIDDEN   static
 #endif
 
 #include "public.h"
@@ -78,21 +78,21 @@ typedef struct _st_clist {
 } _st_clist_t;
 
 /* Insert element "_e" into the list, before "_l" */
-#define ST_INSERT_BEFORE(_e,_l)	 \
-    ST_BEGIN_MACRO		 \
-	(_e)->next = (_l);	 \
-	(_e)->prev = (_l)->prev; \
-	(_l)->prev->next = (_e); \
-	(_l)->prev = (_e);	 \
+#define ST_INSERT_BEFORE(_e,_l)     \
+    ST_BEGIN_MACRO    	 \
+    (_e)->next = (_l);	 \
+    (_e)->prev = (_l)->prev; \
+    (_l)->prev->next = (_e); \
+    (_l)->prev = (_e);	 \
     ST_END_MACRO
 
 /* Insert element "_e" into the list, after "_l" */
-#define ST_INSERT_AFTER(_e,_l)	 \
-    ST_BEGIN_MACRO		 \
-	(_e)->next = (_l)->next; \
-	(_e)->prev = (_l);	 \
-	(_l)->next->prev = (_e); \
-	(_l)->next = (_e);	 \
+#define ST_INSERT_AFTER(_e,_l)     \
+    ST_BEGIN_MACRO    	 \
+    (_e)->next = (_l)->next; \
+    (_e)->prev = (_l);	 \
+    (_l)->next->prev = (_e); \
+    (_l)->next = (_e);	 \
     ST_END_MACRO
 
 /* Return the element following element "_e" */
@@ -109,10 +109,10 @@ typedef struct _st_clist {
 #define ST_LIST_TAIL(_l) (_l)->prev
 
 /* Remove the element "_e" from it's circular list */
-#define ST_REMOVE_LINK(_e)	       \
-    ST_BEGIN_MACRO		       \
-	(_e)->prev->next = (_e)->next; \
-	(_e)->next->prev = (_e)->prev; \
+#define ST_REMOVE_LINK(_e)           \
+    ST_BEGIN_MACRO    	       \
+    (_e)->prev->next = (_e)->next; \
+    (_e)->next->prev = (_e)->prev; \
     ST_END_MACRO
 
 /* Return non-zero if the given circular list "_l" is empty, */
@@ -122,9 +122,9 @@ typedef struct _st_clist {
 
 /* Initialize a circular list */
 #define ST_INIT_CLIST(_l)  \
-    ST_BEGIN_MACRO	   \
-	(_l)->next = (_l); \
-	(_l)->prev = (_l); \
+    ST_BEGIN_MACRO       \
+    (_l)->next = (_l); \
+    (_l)->prev = (_l); \
     ST_END_MACRO
 
 #define ST_INIT_STATIC_CLIST(_l) \
@@ -153,7 +153,7 @@ typedef struct _st_stack {
 
 
 typedef struct _st_cond {
-  _st_clist_t wait_q;	      /* Condition variable wait queue */
+  _st_clist_t wait_q;          /* Condition variable wait queue */
 } _st_cond_t;
 
 
@@ -167,7 +167,7 @@ struct _st_thread {
   void *arg;                  /* Argument of the start function */
   void *retval;               /* Return value of the start function */
 
-  _st_stack_t *stack;	      /* Info about thread's stack */
+  _st_stack_t *stack;          /* Info about thread's stack */
 
   _st_clist_t links;          /* For putting on run/sleep/zombie queue */
   _st_clist_t wait_links;     /* For putting on mutex/condvar wait queue */
@@ -177,7 +177,7 @@ struct _st_thread {
 
   st_utime_t due;             /* Wakeup time when thread is sleeping */
   _st_thread_t *left;         /* For putting in timeout heap */
-  _st_thread_t *right;	      /* -- see docs/timeout_heap.txt for details */
+  _st_thread_t *right;          /* -- see docs/timeout_heap.txt for details */
   int heap_index;
 
   void **private_data;        /* Per thread private data */
@@ -229,11 +229,11 @@ typedef struct _st_vp {
   int pagesize;
 
   _st_thread_t *sleep_q;      /* sleep queue for this vp */
-  int sleepq_size;	      /* number of threads on sleep queue */
+  int sleepq_size;          /* number of threads on sleep queue */
 
 #ifdef ST_SWITCH_CB
-  st_switch_cb_t switch_out_cb;	/* called when a thread is switched out */
-  st_switch_cb_t switch_in_cb;	/* called when a thread is switched in */
+  st_switch_cb_t switch_out_cb;    /* called when a thread is switched out */
+  st_switch_cb_t switch_in_cb;    /* called when a thread is switched in */
 #endif
 } _st_vp_t;
 
@@ -252,7 +252,7 @@ typedef struct _st_netfd {
  * Current vp, thread, and event system
  */
 
-extern _st_vp_t	    _st_this_vp;
+extern _st_vp_t        _st_this_vp;
 extern _st_thread_t *_st_this_thread;
 extern _st_eventsys_t *_st_eventsys;
 
@@ -287,7 +287,7 @@ extern _st_eventsys_t *_st_eventsys;
 #define _ST_DEL_RUNQ(_thr)  ST_REMOVE_LINK(&(_thr)->links)
 
 #define _ST_ADD_SLEEPQ(_thr, _timeout)  _st_add_sleep_q(_thr, _timeout)
-#define _ST_DEL_SLEEPQ(_thr)		_st_del_sleep_q(_thr)
+#define _ST_DEL_SLEEPQ(_thr)    	_st_del_sleep_q(_thr)
 
 #define _ST_ADD_ZOMBIEQ(_thr)  ST_APPEND_LINK(&(_thr)->links, &_ST_ZOMBIEQ)
 #define _ST_DEL_ZOMBIEQ(_thr)  ST_REMOVE_LINK(&(_thr)->links)
@@ -379,17 +379,17 @@ void _st_iterate_threads(void);
 #endif
 
 #ifdef ST_SWITCH_CB
-#define ST_SWITCH_OUT_CB(_thread)		\
-    if (_st_this_vp.switch_out_cb != NULL &&	\
-        _thread != _st_this_vp.idle_thread &&	\
-        _thread->state != _ST_ST_ZOMBIE) {	\
-      _st_this_vp.switch_out_cb();		\
+#define ST_SWITCH_OUT_CB(_thread)    	\
+    if (_st_this_vp.switch_out_cb != NULL &&    \
+        _thread != _st_this_vp.idle_thread &&    \
+        _thread->state != _ST_ST_ZOMBIE) {    \
+      _st_this_vp.switch_out_cb();    	\
     }
-#define ST_SWITCH_IN_CB(_thread)		\
-    if (_st_this_vp.switch_in_cb != NULL &&	\
-	_thread != _st_this_vp.idle_thread &&	\
-	_thread->state != _ST_ST_ZOMBIE) {	\
-      _st_this_vp.switch_in_cb();		\
+#define ST_SWITCH_IN_CB(_thread)    	\
+    if (_st_this_vp.switch_in_cb != NULL &&    \
+    _thread != _st_this_vp.idle_thread &&	\
+    _thread->state != _ST_ST_ZOMBIE) {	\
+      _st_this_vp.switch_in_cb();    	\
     }
 #else
 #define ST_SWITCH_OUT_CB(_thread)
@@ -457,10 +457,10 @@ int st_cond_timedwait(_st_cond_t *cvar, st_utime_t timeout);
 int st_cond_signal(_st_cond_t *cvar);
 ssize_t st_read(_st_netfd_t *fd, void *buf, size_t nbyte, st_utime_t timeout);
 ssize_t st_write(_st_netfd_t *fd, const void *buf, size_t nbyte,
-		 st_utime_t timeout);
+    	 st_utime_t timeout);
 int st_poll(struct pollfd *pds, int npds, st_utime_t timeout);
 _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg,
-			      int joinable, int stk_size);
+    		      int joinable, int stk_size);
 
 #endif /* !__ST_COMMON_H__ */
 

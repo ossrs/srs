@@ -143,7 +143,7 @@ int st_usleep(st_utime_t usecs)
 int st_sleep(int secs)
 {
   return st_usleep((secs >= 0) ? secs * (st_utime_t) 1000000LL :
-				 ST_UTIME_NO_TIMEOUT);
+    			 ST_UTIME_NO_TIMEOUT);
 }
 
 
@@ -230,13 +230,13 @@ static int _st_cond_signal(_st_cond_t *cvar, int broadcast)
     thread = _ST_THREAD_WAITQ_PTR(q);
     if (thread->state == _ST_ST_COND_WAIT) {
       if (thread->flags & _ST_FL_ON_SLEEPQ)
-	_ST_DEL_SLEEPQ(thread);
+    _ST_DEL_SLEEPQ(thread);
 
       /* Make thread runnable */
       thread->state = _ST_ST_RUNNABLE;
       _ST_ADD_RUNQ(thread);
       if (!broadcast)
-	break;
+    break;
     }
   }
 
