@@ -43,15 +43,15 @@
 #define __ST_MD_H__
 
 #if defined(ETIMEDOUT) && !defined(ETIME)
-#define ETIME ETIMEDOUT
+    #define ETIME ETIMEDOUT
 #endif
 
 #if defined(MAP_ANONYMOUS) && !defined(MAP_ANON)
-#define MAP_ANON MAP_ANONYMOUS
+    #define MAP_ANON MAP_ANONYMOUS
 #endif
 
 #ifndef MAP_FAILED
-#define MAP_FAILED -1
+    #define MAP_FAILED -1
 #endif
 
 /*****************************************
@@ -59,35 +59,33 @@
  */
 
 #if defined (AIX)
-
-#define MD_STACK_GROWS_DOWN
-#define MD_USE_SYSV_ANON_MMAP
-#define MD_ACCEPT_NB_INHERITED
-#define MD_ALWAYS_UNSERIALIZED_ACCEPT
-
-#ifndef MD_HAVE_SOCKLEN_T
-#define MD_HAVE_SOCKLEN_T
-#define socklen_t unsigned long
-#endif
-
-#define MD_SETJMP(env) _setjmp(env)
-#define MD_LONGJMP(env, val) _longjmp(env, val)
-
-#define MD_INIT_CONTEXT(_thread, _sp, _main) \
-  ST_BEGIN_MACRO                             \
-  if (MD_SETJMP((_thread)->context))         \
-    _main();                                 \
-  (_thread)->context[3] = (long) (_sp);      \
-  ST_END_MACRO
-
-#define MD_GET_UTIME()                        \
-  timebasestruct_t rt;                        \
-  (void) read_real_time(&rt, TIMEBASE_SZ);    \
-  (void) time_base_to_time(&rt, TIMEBASE_SZ); \
-  return (rt.tb_high * 1000000LL + rt.tb_low / 1000)
+    #define MD_STACK_GROWS_DOWN
+    #define MD_USE_SYSV_ANON_MMAP
+    #define MD_ACCEPT_NB_INHERITED
+    #define MD_ALWAYS_UNSERIALIZED_ACCEPT
+    
+    #ifndef MD_HAVE_SOCKLEN_T
+        #define MD_HAVE_SOCKLEN_T
+        #define socklen_t unsigned long
+    #endif
+    
+    #define MD_SETJMP(env) _setjmp(env)
+    #define MD_LONGJMP(env, val) _longjmp(env, val)
+    
+    #define MD_INIT_CONTEXT(_thread, _sp, _main) \
+        ST_BEGIN_MACRO                             \
+        if (MD_SETJMP((_thread)->context))         \
+        _main();                                 \
+        (_thread)->context[3] = (long) (_sp);      \
+        ST_END_MACRO
+    
+    #define MD_GET_UTIME()                        \
+        timebasestruct_t rt;                        \
+        (void) read_real_time(&rt, TIMEBASE_SZ);    \
+        (void) time_base_to_time(&rt, TIMEBASE_SZ); \
+        return (rt.tb_high * 1000000LL + rt.tb_low / 1000)
 
 #elif defined (CYGWIN)
-
 #define MD_STACK_GROWS_DOWN
 #define MD_USE_BSD_ANON_MMAP
 #define MD_ACCEPT_NB_NOT_INHERITED

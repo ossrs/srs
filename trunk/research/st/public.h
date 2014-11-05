@@ -129,8 +129,7 @@ extern "C" {
     extern void st_netfd_free(st_netfd_t fd);
     extern int st_netfd_close(st_netfd_t fd);
     extern int st_netfd_fileno(st_netfd_t fd);
-    extern void st_netfd_setspecific(st_netfd_t fd, void *value,
-                     void (*destructor)(void *));
+    extern void st_netfd_setspecific(st_netfd_t fd, void *value, void (*destructor)(void *));
     extern void *st_netfd_getspecific(st_netfd_t fd);
     extern int st_netfd_serialize_accept(st_netfd_t fd);
     extern int st_netfd_poll(st_netfd_t fd, int how, st_utime_t timeout);
