@@ -187,7 +187,7 @@ int st_netfd_fileno(_st_netfd_t *fd)
 
 
 void st_netfd_setspecific(_st_netfd_t *fd, void *value,
-    		  _st_destructor_t destructor)
+              _st_destructor_t destructor)
 {
   if (value != fd->private_data) {
     /* Free up previously set non-NULL data value */
@@ -248,7 +248,7 @@ static void _st_netfd_free_aux_data(_st_netfd_t *fd)
 }
 
 _st_netfd_t *st_accept(_st_netfd_t *fd, struct sockaddr *addr, int *addrlen,
-    	       st_utime_t timeout)
+               st_utime_t timeout)
 {
   int osfd, err;
   _st_netfd_t *newfd;
@@ -335,7 +335,7 @@ static void _st_netfd_free_aux_data(_st_netfd_t *fd)
 }
 
 _st_netfd_t *st_accept(_st_netfd_t *fd, struct sockaddr *addr, int *addrlen,
-    	       st_utime_t timeout)
+               st_utime_t timeout)
 {
   int osfd, err;
   _st_netfd_t *newfd;
@@ -415,7 +415,7 @@ int st_connect(_st_netfd_t *fd, const struct sockaddr *addr, int addrlen,
       /* Try to find out whether the connection setup succeeded or failed */
       n = sizeof(int);
       if (getsockopt(fd->osfd, SOL_SOCKET, SO_ERROR, (char *)&err,
-    	     (socklen_t *)&n) < 0)
+             (socklen_t *)&n) < 0)
     return -1;
       if (err) {
     errno = err;
@@ -449,7 +449,7 @@ ssize_t st_read(_st_netfd_t *fd, void *buf, size_t nbyte, st_utime_t timeout)
 
 
 int st_read_resid(_st_netfd_t *fd, void *buf, size_t *resid,
-    	  st_utime_t timeout)
+          st_utime_t timeout)
 {
   struct iovec iov, *riov;
   int riov_size, rv;
@@ -465,7 +465,7 @@ int st_read_resid(_st_netfd_t *fd, void *buf, size_t *resid,
 
 
 ssize_t st_readv(_st_netfd_t *fd, const struct iovec *iov, int iov_size,
-    	 st_utime_t timeout)
+         st_utime_t timeout)
 {
   ssize_t n;
 
@@ -483,7 +483,7 @@ ssize_t st_readv(_st_netfd_t *fd, const struct iovec *iov, int iov_size,
 }
 
 int st_readv_resid(_st_netfd_t *fd, struct iovec **iov, int *iov_size,
-    	   st_utime_t timeout)
+           st_utime_t timeout)
 {
   ssize_t n;
 
@@ -524,7 +524,7 @@ int st_readv_resid(_st_netfd_t *fd, struct iovec **iov, int *iov_size,
 
 
 ssize_t st_read_fully(_st_netfd_t *fd, void *buf, size_t nbyte,
-    	      st_utime_t timeout)
+              st_utime_t timeout)
 {
   size_t resid = nbyte;
   return st_read_resid(fd, buf, &resid, timeout) == 0 ?
@@ -533,7 +533,7 @@ ssize_t st_read_fully(_st_netfd_t *fd, void *buf, size_t nbyte,
 
 
 int st_write_resid(_st_netfd_t *fd, const void *buf, size_t *resid,
-    	   st_utime_t timeout)
+           st_utime_t timeout)
 {
   struct iovec iov, *riov;
   int riov_size, rv;
@@ -549,7 +549,7 @@ int st_write_resid(_st_netfd_t *fd, const void *buf, size_t *resid,
 
 
 ssize_t st_write(_st_netfd_t *fd, const void *buf, size_t nbyte,
-    	 st_utime_t timeout)
+         st_utime_t timeout)
 {
   size_t resid = nbyte;
   return st_write_resid(fd, buf, &resid, timeout) == 0 ?
@@ -558,7 +558,7 @@ ssize_t st_write(_st_netfd_t *fd, const void *buf, size_t nbyte,
 
 
 ssize_t st_writev(_st_netfd_t *fd, const struct iovec *iov, int iov_size,
-    	  st_utime_t timeout)
+          st_utime_t timeout)
 {
   ssize_t n, rv;
   size_t nleft, nbyte;
@@ -634,7 +634,7 @@ ssize_t st_writev(_st_netfd_t *fd, const struct iovec *iov, int iov_size,
 
 
 int st_writev_resid(_st_netfd_t *fd, struct iovec **iov, int *iov_size,
-    	    st_utime_t timeout)
+            st_utime_t timeout)
 {
   ssize_t n;
 
@@ -676,7 +676,7 @@ int st_writev_resid(_st_netfd_t *fd, struct iovec **iov, int *iov_size,
  * Simple I/O functions for UDP.
  */
 int st_recvfrom(_st_netfd_t *fd, void *buf, int len, struct sockaddr *from,
-    	int *fromlen, st_utime_t timeout)
+        int *fromlen, st_utime_t timeout)
 {
   int n;
 
