@@ -165,7 +165,7 @@ int st_init(void)
    * Create idle thread
    */
   _st_this_vp.idle_thread = st_thread_create(_st_idle_thread_start,
-    				     NULL, 0, 0);
+                         NULL, 0, 0);
   if (!_st_this_vp.idle_thread)
     return -1;
   _st_this_vp.idle_thread->flags = _ST_FL_IDLE_THREAD;
@@ -176,7 +176,7 @@ int st_init(void)
    * Initialize primordial thread
    */
   thread = (_st_thread_t *) calloc(1, sizeof(_st_thread_t) +
-    			   (ST_KEYS_MAX * sizeof(void *)));
+                   (ST_KEYS_MAX * sizeof(void *)));
   if (!thread)
     return -1;
   thread->private_data = (void **) (thread + 1);
@@ -518,7 +518,7 @@ void st_thread_interrupt(_st_thread_t *thread)
 
 
 _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg,
-    		       int joinable, int stk_size)
+                   int joinable, int stk_size)
 {
   _st_thread_t *thread;
   _st_stack_t *stack;

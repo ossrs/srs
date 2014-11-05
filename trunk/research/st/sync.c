@@ -143,7 +143,7 @@ int st_usleep(st_utime_t usecs)
 int st_sleep(int secs)
 {
   return st_usleep((secs >= 0) ? secs * (st_utime_t) 1000000LL :
-    			 ST_UTIME_NO_TIMEOUT);
+                 ST_UTIME_NO_TIMEOUT);
 }
 
 
