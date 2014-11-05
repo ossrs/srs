@@ -50,7 +50,7 @@
 
 /* Enable assertions only if DEBUG is defined */
 #ifndef DEBUG
-#define NDEBUG
+    #define NDEBUG
 #endif
 #include <assert.h>
 #define ST_ASSERT(expr) assert(expr)
@@ -59,22 +59,21 @@
 #define ST_END_MACRO    }
 
 #ifdef DEBUG
-#define ST_HIDDEN   /*nothing*/
+    #define ST_HIDDEN   /*nothing*/
 #else
-#define    ST_HIDDEN   static
+    #define    ST_HIDDEN   static
 #endif
 
 #include "public.h"
 #include "md.h"
-
 
 /*****************************************
  * Circular linked list definitions
  */
 
 typedef struct _st_clist {
-  struct _st_clist *next;
-  struct _st_clist *prev;
+    struct _st_clist *next;
+    struct _st_clist *prev;
 } _st_clist_t;
 
 /* Insert element "_e" into the list, before "_l" */
@@ -137,114 +136,113 @@ typedef struct _st_clist {
 
 typedef void  (*_st_destructor_t)(void *);
 
-
 typedef struct _st_stack {
-  _st_clist_t links;
-  char *vaddr;                /* Base of stack's allocated memory */
-  int  vaddr_size;            /* Size of stack's allocated memory */
-  int  stk_size;              /* Size of usable portion of the stack */
-  char *stk_bottom;           /* Lowest address of stack's usable portion */
-  char *stk_top;              /* Highest address of stack's usable portion */
-  void *sp;                   /* Stack pointer from C's point of view */
-#ifdef __ia64__
-  void *bsp;                  /* Register stack backing store pointer */
-#endif
+    _st_clist_t links;
+    char *vaddr;                /* Base of stack's allocated memory */
+    int  vaddr_size;            /* Size of stack's allocated memory */
+    int  stk_size;              /* Size of usable portion of the stack */
+    char *stk_bottom;           /* Lowest address of stack's usable portion */
+    char *stk_top;              /* Highest address of stack's usable portion */
+    void *sp;                   /* Stack pointer from C's point of view */
+    #ifdef __ia64__
+    void *bsp;                  /* Register stack backing store pointer */
+    #endif
 } _st_stack_t;
 
 
 typedef struct _st_cond {
-  _st_clist_t wait_q;          /* Condition variable wait queue */
+    _st_clist_t wait_q;          /* Condition variable wait queue */
 } _st_cond_t;
 
 
 typedef struct _st_thread _st_thread_t;
 
 struct _st_thread {
-  int state;                  /* Thread's state */
-  int flags;                  /* Thread's flags */
+    int state;                  /* Thread's state */
+    int flags;                  /* Thread's flags */
 
-  void *(*start)(void *arg);  /* The start function of the thread */
-  void *arg;                  /* Argument of the start function */
-  void *retval;               /* Return value of the start function */
+    void *(*start)(void *arg);  /* The start function of the thread */
+    void *arg;                  /* Argument of the start function */
+    void *retval;               /* Return value of the start function */
 
-  _st_stack_t *stack;          /* Info about thread's stack */
+    _st_stack_t *stack;          /* Info about thread's stack */
+    
+    _st_clist_t links;          /* For putting on run/sleep/zombie queue */
+    _st_clist_t wait_links;     /* For putting on mutex/condvar wait queue */
+    #ifdef DEBUG
+    _st_clist_t tlink;          /* For putting on thread queue */
+    #endif
 
-  _st_clist_t links;          /* For putting on run/sleep/zombie queue */
-  _st_clist_t wait_links;     /* For putting on mutex/condvar wait queue */
-#ifdef DEBUG
-  _st_clist_t tlink;          /* For putting on thread queue */
-#endif
-
-  st_utime_t due;             /* Wakeup time when thread is sleeping */
-  _st_thread_t *left;         /* For putting in timeout heap */
-  _st_thread_t *right;          /* -- see docs/timeout_heap.txt for details */
-  int heap_index;
-
-  void **private_data;        /* Per thread private data */
-
-  _st_cond_t *term;           /* Termination condition variable for join */
-
-  jmp_buf context;            /* Thread's context */
+    st_utime_t due;             /* Wakeup time when thread is sleeping */
+    _st_thread_t *left;         /* For putting in timeout heap */
+    _st_thread_t *right;          /* -- see docs/timeout_heap.txt for details */
+    int heap_index;
+    
+    void **private_data;        /* Per thread private data */
+    
+    _st_cond_t *term;           /* Termination condition variable for join */
+    
+    jmp_buf context;            /* Thread's context */
 };
 
 
 typedef struct _st_mutex {
-  _st_thread_t *owner;        /* Current mutex owner */
-  _st_clist_t  wait_q;        /* Mutex wait queue */
+    _st_thread_t *owner;        /* Current mutex owner */
+    _st_clist_t  wait_q;        /* Mutex wait queue */
 } _st_mutex_t;
 
 
 typedef struct _st_pollq {
-  _st_clist_t links;          /* For putting on io queue */
-  _st_thread_t  *thread;      /* Polling thread */
-  struct pollfd *pds;         /* Array of poll descriptors */
-  int npds;                   /* Length of the array */
-  int on_ioq;                 /* Is it on ioq? */
+    _st_clist_t links;          /* For putting on io queue */
+    _st_thread_t  *thread;      /* Polling thread */
+    struct pollfd *pds;         /* Array of poll descriptors */
+    int npds;                   /* Length of the array */
+    int on_ioq;                 /* Is it on ioq? */
 } _st_pollq_t;
 
 
 typedef struct _st_eventsys_ops {
-  const char *name;                          /* Name of this event system */
-  int  val;                                  /* Type of this event system */
-  int  (*init)(void);                        /* Initialization */
-  void (*dispatch)(void);                    /* Dispatch function */
-  int  (*pollset_add)(struct pollfd *, int); /* Add descriptor set */
-  void (*pollset_del)(struct pollfd *, int); /* Delete descriptor set */
-  int  (*fd_new)(int);                       /* New descriptor allocated */
-  int  (*fd_close)(int);                     /* Descriptor closed */
-  int  (*fd_getlimit)(void);                 /* Descriptor hard limit */
+    const char *name;                          /* Name of this event system */
+    int  val;                                  /* Type of this event system */
+    int  (*init)(void);                        /* Initialization */
+    void (*dispatch)(void);                    /* Dispatch function */
+    int  (*pollset_add)(struct pollfd *, int); /* Add descriptor set */
+    void (*pollset_del)(struct pollfd *, int); /* Delete descriptor set */
+    int  (*fd_new)(int);                       /* New descriptor allocated */
+    int  (*fd_close)(int);                     /* Descriptor closed */
+    int  (*fd_getlimit)(void);                 /* Descriptor hard limit */
 } _st_eventsys_t;
 
 
 typedef struct _st_vp {
-  _st_thread_t *idle_thread;  /* Idle thread for this vp */
-  st_utime_t last_clock;      /* The last time we went into vp_check_clock() */
-
-  _st_clist_t run_q;          /* run queue for this vp */
-  _st_clist_t io_q;           /* io queue for this vp */
-  _st_clist_t zombie_q;       /* zombie queue for this vp */
-#ifdef DEBUG
-  _st_clist_t thread_q;       /* all threads of this vp */
-#endif
-  int pagesize;
-
-  _st_thread_t *sleep_q;      /* sleep queue for this vp */
-  int sleepq_size;          /* number of threads on sleep queue */
-
-#ifdef ST_SWITCH_CB
-  st_switch_cb_t switch_out_cb;    /* called when a thread is switched out */
-  st_switch_cb_t switch_in_cb;    /* called when a thread is switched in */
-#endif
+    _st_thread_t *idle_thread;  /* Idle thread for this vp */
+    st_utime_t last_clock;      /* The last time we went into vp_check_clock() */
+    
+    _st_clist_t run_q;          /* run queue for this vp */
+    _st_clist_t io_q;           /* io queue for this vp */
+    _st_clist_t zombie_q;       /* zombie queue for this vp */
+    #ifdef DEBUG
+    _st_clist_t thread_q;       /* all threads of this vp */
+    #endif
+    int pagesize;
+    
+    _st_thread_t *sleep_q;      /* sleep queue for this vp */
+    int sleepq_size;          /* number of threads on sleep queue */
+    
+    #ifdef ST_SWITCH_CB
+    st_switch_cb_t switch_out_cb;    /* called when a thread is switched out */
+    st_switch_cb_t switch_in_cb;    /* called when a thread is switched in */
+    #endif
 } _st_vp_t;
 
 
 typedef struct _st_netfd {
-  int osfd;                   /* Underlying OS file descriptor */
-  int inuse;                  /* In-use flag */
-  void *private_data;         /* Per descriptor private data */
-  _st_destructor_t destructor; /* Private data destructor function */
-  void *aux_data;             /* Auxiliary data for internal use */
-  struct _st_netfd *next;     /* For putting on the free list */
+    int osfd;                   /* Underlying OS file descriptor */
+    int inuse;                  /* In-use flag */
+    void *private_data;         /* Per descriptor private data */
+    _st_destructor_t destructor; /* Private data destructor function */
+    void *aux_data;             /* Auxiliary data for internal use */
+    struct _st_netfd *next;     /* For putting on the free list */
 } _st_netfd_t;
 
 
@@ -265,7 +263,7 @@ extern _st_eventsys_t *_st_eventsys;
 #define _ST_IOQ                         (_st_this_vp.io_q)
 #define _ST_ZOMBIEQ                     (_st_this_vp.zombie_q)
 #ifdef DEBUG
-#define _ST_THREADQ                     (_st_this_vp.thread_q)
+    #define _ST_THREADQ                     (_st_this_vp.thread_q)
 #endif
 
 #define _ST_PAGE_SIZE                   (_st_this_vp.pagesize)
@@ -293,8 +291,8 @@ extern _st_eventsys_t *_st_eventsys;
 #define _ST_DEL_ZOMBIEQ(_thr)  ST_REMOVE_LINK(&(_thr)->links)
 
 #ifdef DEBUG
-#define _ST_ADD_THREADQ(_thr)  ST_APPEND_LINK(&(_thr)->tlink, &_ST_THREADQ)
-#define _ST_DEL_THREADQ(_thr)  ST_REMOVE_LINK(&(_thr)->tlink)
+    #define _ST_ADD_THREADQ(_thr)  ST_APPEND_LINK(&(_thr)->tlink, &_ST_THREADQ)
+    #define _ST_DEL_THREADQ(_thr)  ST_REMOVE_LINK(&(_thr)->tlink)
 #endif
 
 
@@ -317,13 +315,12 @@ extern _st_eventsys_t *_st_eventsys;
 #define _ST_FL_INTERRUPT    0x08
 #define _ST_FL_TIMEDOUT     0x10
 
-
 /*****************************************
  * Pointer conversion
  */
 
 #ifndef offsetof
-#define offsetof(type, identifier) ((size_t)&(((type *)0)->identifier))
+    #define offsetof(type, identifier) ((size_t)&(((type *)0)->identifier))
 #endif
 
 #define _ST_THREAD_PTR(_qp)         \
@@ -339,8 +336,8 @@ extern _st_eventsys_t *_st_eventsys;
     ((_st_pollq_t *)((char *)(_qp) - offsetof(_st_pollq_t, links)))
 
 #ifdef DEBUG
-#define _ST_THREAD_THREADQ_PTR(_qp) \
-    ((_st_thread_t *)((char *)(_qp) - offsetof(_st_thread_t, tlink)))
+    #define _ST_THREAD_THREADQ_PTR(_qp) \
+        ((_st_thread_t *)((char *)(_qp) - offsetof(_st_thread_t, tlink)))
 #endif
 
 
@@ -349,21 +346,21 @@ extern _st_eventsys_t *_st_eventsys;
  */
 
 #ifndef ST_UTIME_NO_TIMEOUT
-#define ST_UTIME_NO_TIMEOUT ((st_utime_t) -1LL)
+    #define ST_UTIME_NO_TIMEOUT ((st_utime_t) -1LL)
 #endif
 
 #ifndef __ia64__
-#define ST_DEFAULT_STACK_SIZE (64*1024)
+    #define ST_DEFAULT_STACK_SIZE (64*1024)
 #else
-#define ST_DEFAULT_STACK_SIZE (128*1024)  /* Includes register stack size */
+    #define ST_DEFAULT_STACK_SIZE (128*1024)  /* Includes register stack size */
 #endif
 
 #ifndef ST_KEYS_MAX
-#define ST_KEYS_MAX 16
+    #define ST_KEYS_MAX 16
 #endif
 
 #ifndef ST_MIN_POLLFDS_SIZE
-#define ST_MIN_POLLFDS_SIZE 64
+    #define ST_MIN_POLLFDS_SIZE 64
 #endif
 
 
@@ -372,28 +369,28 @@ extern _st_eventsys_t *_st_eventsys;
  */
 
 #ifdef DEBUG
-void _st_iterate_threads(void);
-#define ST_DEBUG_ITERATE_THREADS() _st_iterate_threads()
+    void _st_iterate_threads(void);
+    #define ST_DEBUG_ITERATE_THREADS() _st_iterate_threads()
 #else
-#define ST_DEBUG_ITERATE_THREADS()
+    #define ST_DEBUG_ITERATE_THREADS()
 #endif
 
 #ifdef ST_SWITCH_CB
-#define ST_SWITCH_OUT_CB(_thread)        \
-    if (_st_this_vp.switch_out_cb != NULL &&    \
+    #define ST_SWITCH_OUT_CB(_thread)        \
+        if (_st_this_vp.switch_out_cb != NULL &&    \
+            _thread != _st_this_vp.idle_thread &&    \
+            _thread->state != _ST_ST_ZOMBIE) {    \
+          _st_this_vp.switch_out_cb();        \
+        }
+    #define ST_SWITCH_IN_CB(_thread)        \
+        if (_st_this_vp.switch_in_cb != NULL &&    \
         _thread != _st_this_vp.idle_thread &&    \
         _thread->state != _ST_ST_ZOMBIE) {    \
-      _st_this_vp.switch_out_cb();        \
-    }
-#define ST_SWITCH_IN_CB(_thread)        \
-    if (_st_this_vp.switch_in_cb != NULL &&    \
-    _thread != _st_this_vp.idle_thread &&    \
-    _thread->state != _ST_ST_ZOMBIE) {    \
-      _st_this_vp.switch_in_cb();        \
-    }
+          _st_this_vp.switch_in_cb();        \
+        }
 #else
-#define ST_SWITCH_OUT_CB(_thread)
-#define ST_SWITCH_IN_CB(_thread)
+    #define ST_SWITCH_OUT_CB(_thread)
+    #define ST_SWITCH_IN_CB(_thread)
 #endif
 
 /*
@@ -424,9 +421,9 @@ void _st_iterate_threads(void);
  * Initialize the thread context preparing it to execute _main
  */
 #ifdef MD_INIT_CONTEXT
-#define _ST_INIT_CONTEXT MD_INIT_CONTEXT
+    #define _ST_INIT_CONTEXT MD_INIT_CONTEXT
 #else
-#error Unknown OS
+    #error Unknown OS
 #endif
 
 /*
@@ -456,11 +453,9 @@ int st_cond_destroy(_st_cond_t *cvar);
 int st_cond_timedwait(_st_cond_t *cvar, st_utime_t timeout);
 int st_cond_signal(_st_cond_t *cvar);
 ssize_t st_read(_st_netfd_t *fd, void *buf, size_t nbyte, st_utime_t timeout);
-ssize_t st_write(_st_netfd_t *fd, const void *buf, size_t nbyte,
-         st_utime_t timeout);
+ssize_t st_write(_st_netfd_t *fd, const void *buf, size_t nbyte, st_utime_t timeout);
 int st_poll(struct pollfd *pds, int npds, st_utime_t timeout);
-_st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg,
-                  int joinable, int stk_size);
+_st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinable, int stk_size);
 
 #endif /* !__ST_COMMON_H__ */
 
