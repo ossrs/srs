@@ -95,7 +95,7 @@ _st_md_cxt_save:
         ;;
         stf.spill.nta [r8] = f2,32
         stf.spill.nta [r9] = f3,32
-	mov r15 = rp
+    mov r15 = rp
         ;;
         stf.spill.nta [r8] = f4,32
         stf.spill.nta [r9] = f5,32
@@ -143,7 +143,7 @@ _st_md_cxt_save:
         ;;
         st8.nta [r2] = r18,16         // b2
         st8.nta [r3] = r19,16         // b3
-	mov r26 = ar.rsc
+    mov r26 = ar.rsc
         ;;
         st8.nta [r2] = r20,16         // b4
         st8.nta [r3] = r21,16         // b5
@@ -158,18 +158,18 @@ _st_md_cxt_save:
         st8.nta [r3] = in0,16         // &__jmp_buf (just in case)
         ;;
         st8.nta [r2] = r26            // ar.rsc
-	;;
-	flushrs                       // flush dirty regs to backing store
+    ;;
+    flushrs                       // flush dirty regs to backing store
         ;;
-	and r27 = ~0x3,r26            // clear ar.rsc.mode
-	;;
-	mov ar.rsc = r27              // put RSE in enforced lazy mode
-	;;
-	mov r28 = ar.rnat
-	;;
-	st8.nta [r3] = r28            // ar.rnat
-	mov ar.rsc = r26              // restore ar.rsc
-	;;
+    and r27 = ~0x3,r26            // clear ar.rsc.mode
+    ;;
+    mov ar.rsc = r27              // put RSE in enforced lazy mode
+    ;;
+    mov r28 = ar.rnat
+    ;;
+    st8.nta [r3] = r28            // ar.rnat
+    mov ar.rsc = r26              // restore ar.rsc
+    ;;
         mov r8 = 0
         br.ret.sptk.few b0
         .endp _st_md_cxt_save
@@ -183,31 +183,31 @@ _st_md_cxt_save:
 _st_md_cxt_restore:
         alloc r8 = ar.pfs,2,0,0,0
         add r2 = 0x88,in0             // r2 <- &jmpbuf.ar_bsp
-	mov r16 = ar.rsc
-	;;
-	flushrs                       // flush dirty regs to backing store
+    mov r16 = ar.rsc
+    ;;
+    flushrs                       // flush dirty regs to backing store
         ;;
-	and r17 = ~0x3,r16            // clear ar.rsc.mode
-	;;
-	mov ar.rsc = r17              // put RSE in enforced lazy mode
+    and r17 = ~0x3,r16            // clear ar.rsc.mode
+    ;;
+    mov ar.rsc = r17              // put RSE in enforced lazy mode
         ;;
-	invala                        // invalidate the ALAT
-	;;
+    invala                        // invalidate the ALAT
+    ;;
         ld8 r23 = [r2],8              // r23 <- jmpbuf.ar_bsp
         ;;
-	mov ar.bspstore = r23         // write BSPSTORE
+    mov ar.bspstore = r23         // write BSPSTORE
         ld8 r25 = [r2],24             // r25 <- jmpbuf.ar_unat
-	;;
-	ld8 r26 = [r2],-8             // r26 <- jmpbuf.ar_rnat
+    ;;
+    ld8 r26 = [r2],-8             // r26 <- jmpbuf.ar_rnat
         ;;
-	mov ar.rnat = r26             // write RNAT
-	ld8 r27 = [r2]                // r27 <- jmpbuf.ar_rsc
-	;;
-	mov ar.rsc = r27              // write RSE control
+    mov ar.rnat = r26             // write RNAT
+    ld8 r27 = [r2]                // r27 <- jmpbuf.ar_rsc
+    ;;
+    mov ar.rsc = r27              // write RSE control
         mov r2 = in0
-	;;
-	mov ar.unat = r25             // write ar.unat
-	add r3 = 8,in0
+    ;;
+    mov ar.unat = r25             // write ar.unat
+    add r3 = 8,in0
         ;;
         ld8.fill.nta sp = [r2],16     // r12 (sp)
         ld8.fill.nta gp = [r3],16     // r1  (gp)

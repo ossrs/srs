@@ -94,7 +94,7 @@ int st_poll(struct pollfd *pds, int npds, st_utime_t timeout)
     /* Count the number of ready descriptors */
     for (pd = pds; pd < epd; pd++) {
       if (pd->revents)
-	n++;
+    n++;
     }
   }
 
@@ -165,7 +165,7 @@ int st_init(void)
    * Create idle thread
    */
   _st_this_vp.idle_thread = st_thread_create(_st_idle_thread_start,
-					     NULL, 0, 0);
+    				     NULL, 0, 0);
   if (!_st_this_vp.idle_thread)
     return -1;
   _st_this_vp.idle_thread->flags = _ST_FL_IDLE_THREAD;
@@ -176,7 +176,7 @@ int st_init(void)
    * Initialize primordial thread
    */
   thread = (_st_thread_t *) calloc(1, sizeof(_st_thread_t) +
-				   (ST_KEYS_MAX * sizeof(void *)));
+    			   (ST_KEYS_MAX * sizeof(void *)));
   if (!thread)
     return -1;
   thread->private_data = (void **) (thread + 1);
@@ -414,33 +414,33 @@ static void heap_delete(_st_thread_t *thread) {
       _st_thread_t *y; /* The younger child */
       int index_tmp;
       if (t->left == NULL)
-	break;
+    break;
       else if (t->right == NULL)
-	y = t->left;
+    y = t->left;
       else if (t->left->due < t->right->due)
-	y = t->left;
+    y = t->left;
       else
-	y = t->right;
+    y = t->right;
       if (t->due > y->due) {
-	_st_thread_t *tl = y->left;
-	_st_thread_t *tr = y->right;
-	*p = y;
-	if (y == t->left) {
-	  y->left = t;
-	  y->right = t->right;
-	  p = &y->left;
-	} else {
-	  y->left = t->left;
-	  y->right = t;
-	  p = &y->right;
-	}
-	t->left = tl;
-	t->right = tr;
-	index_tmp = t->heap_index;
-	t->heap_index = y->heap_index;
-	y->heap_index = index_tmp;
+    _st_thread_t *tl = y->left;
+    _st_thread_t *tr = y->right;
+    *p = y;
+    if (y == t->left) {
+      y->left = t;
+      y->right = t->right;
+      p = &y->left;
+    } else {
+      y->left = t->left;
+      y->right = t;
+      p = &y->right;
+    }
+    t->left = tl;
+    t->right = tr;
+    index_tmp = t->heap_index;
+    t->heap_index = y->heap_index;
+    y->heap_index = index_tmp;
       } else {
-	break;
+    break;
       }
     }
   }
@@ -518,7 +518,7 @@ void st_thread_interrupt(_st_thread_t *thread)
 
 
 _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg,
-			       int joinable, int stk_size)
+    		       int joinable, int stk_size)
 {
   _st_thread_t *thread;
   _st_stack_t *stack;

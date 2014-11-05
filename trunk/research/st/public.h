@@ -45,7 +45,7 @@
 #include <errno.h>
 #include <poll.h>
 
-#define ST_VERSION	    "1.9"
+#define ST_VERSION        "1.9"
 #define ST_VERSION_MAJOR    1
 #define ST_VERSION_MINOR    9
 
@@ -99,7 +99,7 @@ extern void st_thread_exit(void *retval);
 extern int st_thread_join(st_thread_t thread, void **retvalp);
 extern void st_thread_interrupt(st_thread_t thread);
 extern st_thread_t st_thread_create(void *(*start)(void *arg), void *arg,
-				    int joinable, int stack_size);
+    			    int joinable, int stack_size);
 extern int st_randomize_stacks(int on);
 extern int st_set_utime_function(st_utime_t (*func)(void));
 
@@ -132,43 +132,43 @@ extern void st_netfd_free(st_netfd_t fd);
 extern int st_netfd_close(st_netfd_t fd);
 extern int st_netfd_fileno(st_netfd_t fd);
 extern void st_netfd_setspecific(st_netfd_t fd, void *value,
-				 void (*destructor)(void *));
+    			 void (*destructor)(void *));
 extern void *st_netfd_getspecific(st_netfd_t fd);
 extern int st_netfd_serialize_accept(st_netfd_t fd);
 extern int st_netfd_poll(st_netfd_t fd, int how, st_utime_t timeout);
 
 extern int st_poll(struct pollfd *pds, int npds, st_utime_t timeout);
 extern st_netfd_t st_accept(st_netfd_t fd, struct sockaddr *addr, int *addrlen,
-			    st_utime_t timeout);
+    		    st_utime_t timeout);
 extern int st_connect(st_netfd_t fd, const struct sockaddr *addr, int addrlen,
-		      st_utime_t timeout);
+    	      st_utime_t timeout);
 extern ssize_t st_read(st_netfd_t fd, void *buf, size_t nbyte,
-		       st_utime_t timeout);
+    	       st_utime_t timeout);
 extern ssize_t st_read_fully(st_netfd_t fd, void *buf, size_t nbyte,
-			     st_utime_t timeout);
+    		     st_utime_t timeout);
 extern int st_read_resid(st_netfd_t fd, void *buf, size_t *resid,
-			 st_utime_t timeout);
+    		 st_utime_t timeout);
 extern ssize_t st_readv(st_netfd_t fd, const struct iovec *iov, int iov_size,
-			st_utime_t timeout);
+    		st_utime_t timeout);
 extern int st_readv_resid(st_netfd_t fd, struct iovec **iov, int *iov_size,
-			  st_utime_t timeout);
+    		  st_utime_t timeout);
 extern ssize_t st_write(st_netfd_t fd, const void *buf, size_t nbyte,
-			st_utime_t timeout);
+    		st_utime_t timeout);
 extern int st_write_resid(st_netfd_t fd, const void *buf, size_t *resid,
-			  st_utime_t timeout);
+    		  st_utime_t timeout);
 extern ssize_t st_writev(st_netfd_t fd, const struct iovec *iov, int iov_size,
-			 st_utime_t timeout);
+    		 st_utime_t timeout);
 extern int st_writev_resid(st_netfd_t fd, struct iovec **iov, int *iov_size,
-			   st_utime_t timeout);
+    		   st_utime_t timeout);
 extern int st_recvfrom(st_netfd_t fd, void *buf, int len,
-		       struct sockaddr *from, int *fromlen,
-		       st_utime_t timeout);
+    	       struct sockaddr *from, int *fromlen,
+    	       st_utime_t timeout);
 extern int st_sendto(st_netfd_t fd, const void *msg, int len,
-		     const struct sockaddr *to, int tolen, st_utime_t timeout);
+    	     const struct sockaddr *to, int tolen, st_utime_t timeout);
 extern int st_recvmsg(st_netfd_t fd, struct msghdr *msg, int flags,
-		      st_utime_t timeout);
+    	      st_utime_t timeout);
 extern int st_sendmsg(st_netfd_t fd, const struct msghdr *msg, int flags,
-		      st_utime_t timeout);
+    	      st_utime_t timeout);
 extern st_netfd_t st_open(const char *path, int oflags, mode_t mode);
 
 #ifdef DEBUG
