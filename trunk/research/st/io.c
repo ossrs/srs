@@ -52,7 +52,6 @@
 #include <errno.h>
 #include "common.h"
 
-
 #if EAGAIN != EWOULDBLOCK
     #define _IO_NOT_READY_ERROR  ((errno == EAGAIN) || (errno == EWOULDBLOCK))
 #else
@@ -100,12 +99,10 @@ int _st_io_init(void)
     return 0;
 }
 
-
 int st_getfdlimit(void)
 {
     return _st_osfd_limit;
 }
-
 
 void st_netfd_free(_st_netfd_t *fd)
 {
@@ -125,7 +122,6 @@ void st_netfd_free(_st_netfd_t *fd)
     fd->next = _st_netfd_freelist;
     _st_netfd_freelist = fd;
 }
-
 
 static _st_netfd_t *_st_netfd_new(int osfd, int nonblock, int is_socket)
 {
@@ -165,18 +161,15 @@ static _st_netfd_t *_st_netfd_new(int osfd, int nonblock, int is_socket)
     return fd;
 }
 
-
 _st_netfd_t *st_netfd_open(int osfd)
 {
     return _st_netfd_new(osfd, 1, 0);
 }
 
-
 _st_netfd_t *st_netfd_open_socket(int osfd)
 {
     return _st_netfd_new(osfd, 1, 1);
 }
-
 
 int st_netfd_close(_st_netfd_t *fd)
 {
@@ -188,12 +181,10 @@ int st_netfd_close(_st_netfd_t *fd)
     return close(fd->osfd);
 }
 
-
 int st_netfd_fileno(_st_netfd_t *fd)
 {
     return (fd->osfd);
 }
-
 
 void st_netfd_setspecific(_st_netfd_t *fd, void *value, _st_destructor_t destructor)
 {
@@ -207,12 +198,10 @@ void st_netfd_setspecific(_st_netfd_t *fd, void *value, _st_destructor_t destruc
     fd->destructor = destructor;
 }
 
-
 void *st_netfd_getspecific(_st_netfd_t *fd)
 {
     return (fd->private_data);
 }
-
 
 /*
  * Wait for I/O on a single descriptor.
@@ -407,7 +396,6 @@ _st_netfd_t *st_accept(_st_netfd_t *fd, struct sockaddr *addr, int *addrlen, st_
 }
 #endif /* MD_ALWAYS_UNSERIALIZED_ACCEPT */
 
-
 int st_connect(_st_netfd_t *fd, const struct sockaddr *addr, int addrlen, st_utime_t timeout)
 {
     int n, err = 0;
@@ -446,7 +434,6 @@ int st_connect(_st_netfd_t *fd, const struct sockaddr *addr, int addrlen, st_uti
     return 0;
 }
 
-
 ssize_t st_read(_st_netfd_t *fd, void *buf, size_t nbyte, st_utime_t timeout)
 {
     ssize_t n;
@@ -467,7 +454,6 @@ ssize_t st_read(_st_netfd_t *fd, void *buf, size_t nbyte, st_utime_t timeout)
     return n;
 }
 
-
 int st_read_resid(_st_netfd_t *fd, void *buf, size_t *resid, st_utime_t timeout)
 {
     struct iovec iov, *riov;
@@ -481,7 +467,6 @@ int st_read_resid(_st_netfd_t *fd, void *buf, size_t *resid, st_utime_t timeout)
     *resid = iov.iov_len;
     return rv;
 }
-
 
 ssize_t st_readv(_st_netfd_t *fd, const struct iovec *iov, int iov_size, st_utime_t timeout)
 {
@@ -740,7 +725,6 @@ int st_sendto(_st_netfd_t *fd, const void *msg, int len, const struct sockaddr *
     
     return n;
 }
-
 
 int st_recvmsg(_st_netfd_t *fd, struct msghdr *msg, int flags, st_utime_t timeout)
 {

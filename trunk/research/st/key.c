@@ -43,13 +43,11 @@
 #include <errno.h>
 #include "common.h"
 
-
 /*
  * Destructor table for per-thread private data
  */
 static _st_destructor_t _st_destructors[ST_KEYS_MAX];
 static int key_max = 0;
-
 
 /*
  * Return a key to be used for thread specific data
@@ -67,12 +65,10 @@ int st_key_create(int *keyp, _st_destructor_t destructor)
     return 0;
 }
 
-
 int st_key_getlimit(void)
 {
     return ST_KEYS_MAX;
 }
-
 
 int st_thread_setspecific(int key, void *value)
 {
@@ -94,7 +90,6 @@ int st_thread_setspecific(int key, void *value)
     return 0;
 }
 
-
 void *st_thread_getspecific(int key)
 {
     if (key < 0 || key >= key_max) {
@@ -103,7 +98,6 @@ void *st_thread_getspecific(int key)
     
     return ((_ST_CURRENT_THREAD())->private_data[key]);
 }
-
 
 /*
  * Free up all per-thread private data
