@@ -72,13 +72,13 @@
 #elif defined (IRIX)
     #error "IRIX not supported"
 #elif defined (NETBSD)
-    #error "IRIX not supported"
+    #error "NETBSD not supported"
 #elif defined (OPENBSD)
-    #error "IRIX not supported"
+    #error "OPENBSD not supported"
 #elif defined (OSF1)
-    #error "IRIX not supported"
+    #error "OSF1 not supported"
 #elif defined (SOLARIS)
-    #error "IRIX not supported"
+    #error "SOLARIS not supported"
 #else
     #error "Unknown OS"
 #endif /* OS */
