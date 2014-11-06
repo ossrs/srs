@@ -132,6 +132,13 @@ void show_macro_features()
 #endif
 }
 
+void check_macro_features()
+{
+#if VERSION_MAJOR > 1
+    srs_warn("SRS %s is develop branch, please use %s instead", RTMP_SIG_SRS_VERSION, RTMP_SIG_SRS_RELEASE);
+#endif
+}
+
 /**
 * main entrance.
 */
@@ -149,14 +156,12 @@ int main(int argc, char** argv)
     ProfilerStart("gperf.srs.gcp");
 #endif
 
-#ifdef SRS_AUTO_GPERF_MC
-    #ifdef SRS_AUTO_GPERF_MP
+#if defined(SRS_AUTO_GPERF_MC) && defined(SRS_AUTO_GPERF_MP)
     srs_error("option --with-gmc confict with --with-gmp, "
         "@see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html\n"
         "Note that since the heap-checker uses the heap-profiling framework internally, "
         "it is not possible to run both the heap-checker and heap profiler at the same time");
     return -1;
-    #endif
 #endif
     
     // never use srs log(srs_trace, srs_error, etc) before config parse the option,
@@ -190,6 +195,7 @@ int main(int argc, char** argv)
     
     // features
     show_macro_features();
+    check_macro_features();
 
     // for special features.
 #ifdef SRS_AUTO_HTTP_SERVER
