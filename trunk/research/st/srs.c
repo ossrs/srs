@@ -147,6 +147,8 @@ void* io_client(void* arg)
         return NULL;
     }
     
+    st_netfd_close(stfd);
+    
     return NULL;
 }
 
@@ -211,7 +213,56 @@ int io_test()
     }
     srs_trace("9. server io completed.");
     
+    st_netfd_close(stfd);
+    st_netfd_close(client_stfd);
+    
     srs_trace("io test: end");
+    return 0;
+}
+
+int pipe_test()
+{
+    srs_trace("===================================================");
+    srs_trace("pipe test: start");
+    
+    int fds[2];
+    if (pipe(fds) < 0) {
+        srs_trace("pipe failed");
+        return -1;
+    }
+    srs_trace("1. pipe ok, %d=>%d", fds[1], fds[0]);
+    
+    st_netfd_t fdw;
+    if ((fdw = st_netfd_open_socket(fds[1])) == NULL) {
+        srs_trace("st_netfd_open_socket open socket failed.");
+        return -1;
+    }
+    srs_trace("2. open write fd ok");
+    
+    st_netfd_t fdr;
+    if ((fdr = st_netfd_open_socket(fds[0])) == NULL) {
+        srs_trace("st_netfd_open_socket open socket failed.");
+        return -1;
+    }
+    srs_trace("3. open read fd ok");
+    
+    char buf[1024];
+    if (st_write(fdw, buf, sizeof(buf), ST_UTIME_NO_TIMEOUT) < 0) {
+        srs_trace("st_write socket failed.");
+        return -1;
+    }
+    srs_trace("4. write to pipe ok");
+    
+    if (st_read(fdr, buf, sizeof(buf), ST_UTIME_NO_TIMEOUT) < 0) {
+        srs_trace("st_read socket failed.");
+        return -1;
+    }
+    srs_trace("5. read from pipe ok");
+    
+    st_netfd_close(fdw);
+    st_netfd_close(fdr);
+    
+    srs_trace("pipe test: end");
     return 0;
 }
 
@@ -234,6 +285,11 @@ int main(int argc, char** argv)
     
     if (io_test() < 0) {
         srs_trace("io_test failed");
+        return -1;
+    }
+    
+    if (pipe_test() < 0) {
+        srs_trace("pipe_test failed");
         return -1;
     }
     
