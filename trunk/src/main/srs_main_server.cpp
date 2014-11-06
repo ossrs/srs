@@ -140,6 +140,7 @@ void check_macro_features()
 #endif
 
 #if VERSION_MAJOR > 1
+    #warning "using develop SRS, please use release instead."
     srs_warn("SRS %s is develop branch, please use %s instead", RTMP_SIG_SRS_VERSION, RTMP_SIG_SRS_RELEASE);
 #endif
 }

@@ -11,10 +11,8 @@
 
 #include "public.h"
 
-#if !defined(__ia64__)
+#if defined(__ia64__)
     #error "IA64 not supported"
-#else
-    #error "Only IA64 supported"
 #endif
 
 #define srs_trace(msg, ...)   printf(msg, ##__VA_ARGS__);printf("\n")
