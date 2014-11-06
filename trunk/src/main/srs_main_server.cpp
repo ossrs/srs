@@ -60,75 +60,87 @@ SrsServer* _srs_server = new SrsServer();
 void show_macro_features()
 {
 #ifdef SRS_AUTO_SSL
-    srs_trace("rtmp handshake: on");
+    srs_trace("check feature rtmp handshake: on");
 #else
-    srs_warn("rtmp handshake: off");
+    srs_warn("check feature rtmp handshake: off");
 #endif
 
 #ifdef SRS_AUTO_HLS
-    srs_trace("hls: on");
+    srs_trace("check feature hls: on");
 #else
-    srs_warn("hls: off");
+    srs_warn("check feature hls: off");
 #endif
 
 #ifdef SRS_AUTO_HTTP_CALLBACK
-    srs_trace("http callback: on");
+    srs_trace("check feature http callback: on");
 #else
-    srs_warn("http callback: off");
+    srs_warn("check feature http callback: off");
 #endif
 
 #ifdef SRS_AUTO_HTTP_API
-    srs_trace("http api: on");
+    srs_trace("check feature http api: on");
 #else
-    srs_warn("http api: off");
+    srs_warn("check feature http api: off");
 #endif
 
 #ifdef SRS_AUTO_HTTP_SERVER
-    srs_trace("http server: on");
+    srs_trace("check feature http server: on");
 #else
-    srs_warn("http server: off");
+    srs_warn("check feature http server: off");
 #endif
 
 #ifdef SRS_AUTO_HTTP_PARSER
-    srs_trace("http parser: on");
+    srs_trace("check feature http parser: on");
 #else
-    srs_warn("http parser: off");
+    srs_warn("check feature http parser: off");
 #endif
 
 #ifdef SRS_AUTO_DVR
-    srs_trace("dvr: on");
+    srs_trace("check feature dvr: on");
 #else
-    srs_warn("dvr: off");
+    srs_warn("check feature dvr: off");
 #endif
 
 #ifdef SRS_AUTO_TRANSCODE
-    srs_trace("transcode: on");
+    srs_trace("check feature transcode: on");
 #else
-    srs_warn("transcode: off");
+    srs_warn("check feature transcode: off");
 #endif
 
 #ifdef SRS_AUTO_INGEST
-    srs_trace("ingest: on");
+    srs_trace("check feature ingest: on");
 #else
-    srs_warn("ingest: off");
+    srs_warn("check feature ingest: off");
 #endif
 
 #ifdef SRS_AUTO_STAT
-    srs_trace("system stat: on");
+    srs_trace("check feature system stat: on");
 #else
-    srs_warn("system stat: off");
+    srs_warn("check feature system stat: off");
 #endif
 
 #ifdef SRS_AUTO_NGINX
-    srs_trace("compile nginx: on");
+    srs_trace("check feature compile nginx: on");
 #else
-    srs_warn("compile nginx: off");
+    srs_warn("check feature compile nginx: off");
 #endif
 
 #ifdef SRS_AUTO_FFMPEG_TOOL
-    srs_trace("compile ffmpeg: on");
+    srs_trace("check feature compile ffmpeg: on");
 #else
-    srs_warn("compile ffmpeg: off");
+    srs_warn("check feature compile ffmpeg: off");
+#endif
+}
+
+void check_macro_features()
+{
+    // for special features.
+#ifdef SRS_AUTO_HTTP_SERVER
+    srs_warn("http server is dev feature, @see %s", RTMP_SIG_SRS_HTTP_SERVER);
+#endif
+
+#if VERSION_MAJOR > 1
+    srs_warn("SRS %s is develop branch, please use %s instead", RTMP_SIG_SRS_VERSION, RTMP_SIG_SRS_RELEASE);
 #endif
 }
 
@@ -149,14 +161,12 @@ int main(int argc, char** argv)
     ProfilerStart("gperf.srs.gcp");
 #endif
 
-#ifdef SRS_AUTO_GPERF_MC
-    #ifdef SRS_AUTO_GPERF_MP
+#if defined(SRS_AUTO_GPERF_MC) && defined(SRS_AUTO_GPERF_MP)
     srs_error("option --with-gmc confict with --with-gmp, "
         "@see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html\n"
         "Note that since the heap-checker uses the heap-profiling framework internally, "
         "it is not possible to run both the heap-checker and heap profiler at the same time");
     return -1;
-    #endif
 #endif
     
     // never use srs log(srs_trace, srs_error, etc) before config parse the option,
@@ -190,12 +200,7 @@ int main(int argc, char** argv)
     
     // features
     show_macro_features();
-
-    // for special features.
-#ifdef SRS_AUTO_HTTP_SERVER
-    srs_warn("http server is dev feature, "
-        "@see https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_HTTPServer#feature");
-#endif
+    check_macro_features();
     
     /**
     * we do nothing in the constructor of server,

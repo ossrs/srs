@@ -29,10 +29,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
 // current release version
-#define VERSION_MAJOR "2"
-#define VERSION_MINOR "0"
-#define VERSION_REVISION "7"
-#define RTMP_SIG_SRS_VERSION VERSION_MAJOR"."VERSION_MINOR"."VERSION_REVISION
+#define VERSION_MAJOR       2
+#define VERSION_MINOR       0
+#define VERSION_REVISION    8
 // server info.
 #define RTMP_SIG_SRS_KEY "SRS"
 #define RTMP_SIG_SRS_ROLE "origin/edge server"
@@ -46,6 +45,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RTMP_SIG_SRS_PRIMARY_AUTHROS "winlin,wenjie.zhao"
 #define RTMP_SIG_SRS_CONTRIBUTORS_URL RTMP_SIG_SRS_URL"/blob/master/AUTHORS.txt"
 #define RTMP_SIG_SRS_HANDSHAKE RTMP_SIG_SRS_KEY"("RTMP_SIG_SRS_VERSION")"
+#define RTMP_SIG_SRS_RELEASE "https://github.com/winlinvip/simple-rtmp-server/tree/1.0release"
+#define RTMP_SIG_SRS_HTTP_SERVER "https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_HTTPServer#feature"
+#define RTMP_SIG_SRS_VERSION __SRS_XSTR(VERSION_MAJOR)"."__SRS_XSTR(VERSION_MINOR)"."__SRS_XSTR(VERSION_REVISION)
+
+// internal macros, covert macro values to str,
+// see: read https://gcc.gnu.org/onlinedocs/cpp/Stringification.html#Stringification
+#define __SRS_XSTR(v) __SRS_STR(v)
+#define __SRS_STR(v) #v
 
 /**
 * the core provides the common defined macros, utilities,
