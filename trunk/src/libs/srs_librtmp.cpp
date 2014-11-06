@@ -491,17 +491,17 @@ int srs_write_packet(srs_rtmp_t rtmp, int type, u_int32_t timestamp, char* data,
 
 int srs_version_major()
 {
-    return ::atoi(VERSION_MAJOR);
+    return VERSION_MAJOR;
 }
 
 int srs_version_minor()
 {
-    return ::atoi(VERSION_MINOR);
+    return VERSION_MINOR;
 }
 
 int srs_version_revision()
 {
-    return ::atoi(VERSION_REVISION);
+    return VERSION_REVISION;
 }
 
 int64_t srs_get_time_ms()

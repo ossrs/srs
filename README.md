@@ -208,6 +208,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v1.0, 2014-11-06, use number for macro VERSION_MAJOR, VERSION_MINOR and VERSION_REVISION. 1.0.5.
 * v1.0, 2014-10-24, fix [#186](https://github.com/winlinvip/simple-rtmp-server/issues/186), hotfix for bug #186, drop connect args when not object. 1.0.3.
 * v1.0, 2014-10-24, rename wiki/xxx to wiki/v1_CN_xxx. 1.0.2.
 * v1.0, 2014-10-19, fix [#183](https://github.com/winlinvip/simple-rtmp-server/issues/183), hotfix for bug #183, donot support AnnexB when decoding RTMP body for HLS. 1.0.1.
