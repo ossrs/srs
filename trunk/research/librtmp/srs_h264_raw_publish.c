@@ -171,8 +171,13 @@ int main(int argc, char** argv)
         if (srs_write_packet(rtmp, type, timestamp, rtmp_data, rtmp_size) != 0) {
             goto rtmp_destroy;
         }
-        srs_trace("sent packet: type=%s, time=%d, size=%d, fps=%d", 
-            srs_type2string(type), timestamp, rtmp_size, fps);
+        
+        // 5bits, 7.3.1 NAL unit syntax, 
+        // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+        u_int8_t nut = (char)data[0] & 0x1f;
+        srs_trace("sent packet: type=%s, time=%d, size=%d, fps=%d, b[0]=%#x(%s)", 
+            srs_type2string(type), timestamp, rtmp_size, fps, nut,
+            (nut == 7? "SPS":(nut == 8? "PPS":(nut == 5? "I":(nut == 1? "P":"Unknown")))));
         
         // @remark, when use encode device, it not need to sleep.
         usleep(1000 / fps * 1000);
