@@ -28,6 +28,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_stream.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_protocol_utility.hpp>
 
 SrsCodecSampleUnit::SrsCodecSampleUnit()
 {

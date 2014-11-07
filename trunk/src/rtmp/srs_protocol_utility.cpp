@@ -28,6 +28,7 @@ using namespace std;
 
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_kernel_stream.hpp>
 
 void srs_discovery_tc_url(
     string tcUrl, 
@@ -153,5 +154,34 @@ bool srs_bytes_equals(void* pa, void* pb, int size)
     }
 
     return true;
+}
+
+bool srs_avc_startswith_annexb(SrsStream* stream, int* pnb_start_code)
+{
+    char* bytes = stream->data() + stream->pos();
+    char* p = bytes;
+    
+    for (;;) {
+        if (!stream->require(p - bytes + 3)) {
+            return false;
+        }
+        
+        // not match
+        if (p[0] != 0x00 || p[1] != 0x00) {
+            return false;
+        }
+        
+        // match N[00] 00 00 01, where N>=0
+        if (p[2] == 0x01) {
+            if (pnb_start_code) {
+                *pnb_start_code = (int)(p - bytes) + 3;
+            }
+            return true;
+        }
+        
+        p++;
+    }
+    
+    return false;
 }
 

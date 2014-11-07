@@ -37,6 +37,40 @@ gcc srs_h264_raw_publish.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_h
 
 #define srs_trace(msg, ...) printf(msg, ##__VA_ARGS__);printf("\n")
 
+int read_h264_frame(char* data, int size, char** p, int fps,
+    char** frame, int* frame_size, int* dts, int* pts)
+{
+    // @remark, for this demo, to publish h264 raw file to SRS,
+    // we search the h264 frame from the buffer which cached the h264 data.
+    // please get h264 raw data from device, it always a encoded frame.
+    int pnb_start_code = 0;
+    if (!srs_h264_startswith_annexb(*p, size - (*p - data), &pnb_start_code)) {
+        srs_trace("h264 raw data invalid.");
+        return -1;
+    }
+    *p += pnb_start_code;
+    
+    *frame = *p;
+    for (;*p < data + size; *p = *p + 1) {
+        if (srs_h264_startswith_annexb(*p, size - (*p - data), &pnb_start_code)) {
+            break;
+        }
+    }
+    *frame_size = *p - *frame;
+    if (*frame_size <= 0) {
+        srs_trace("h264 raw data invalid.");
+        return -1;
+    }
+    
+    // @remark, please get the dts and pts from device,
+    // we assume there is no B frame, and the fps can guess the fps and dts,
+    // while the dts and pts must read from encode lib or device.
+    *dts += 1000 / fps;
+    *pts = *dts;
+
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     srs_trace("publish raw h.264 as rtmp stream to server like FMLE/FFMPEG/Encoder");
@@ -107,24 +141,22 @@ int main(int argc, char** argv)
     }
     srs_trace("publish stream success");
     
+    u_int32_t dts = 0;
+    u_int32_t pts = 0;
     // @remark, the dts and pts if read from device, for instance, the encode lib,
     // so we assume the fps is 25, and each h264 frame is 1000ms/25fps=40ms/f.
     u_int32_t fps = 25;
-    u_int32_t dts = 0;
-    u_int32_t pts = 0;
-    for (;;) {
-        // get h264 raw data from device, whatever.
-        int size = 4096;
-        char* data = (char*)malloc(4096);
-        if ((size = read(raw_fd, data, size)) < 0) {
-            srs_trace("read h264 raw data failed. nread=%d", size);
+    // @remark, to decode the file.
+    char* p = h264_raw;
+    for (;p < h264_raw + file_size;) {
+        // @remark, read a frame from file buffer.
+        char* data = NULL;
+        int size = 0;
+        if (read_h264_frame(h264_raw, file_size, &p, fps, &data, &size, &dts, &pts) < 0) {
+            srs_trace("read a frame from file buffer failed.");
             goto rtmp_destroy;
         }
-        if (size == 0) {
-            srs_trace("publish h264 raw data completed.");
-            goto rtmp_destroy;
-        }
-
+        
         // convert the h264 packet to rtmp packet.
         char* rtmp_data = NULL;
         int rtmp_size = 0;
@@ -142,15 +174,10 @@ int main(int argc, char** argv)
         srs_trace("sent packet: type=%s, time=%d, size=%d, fps=%d", 
             srs_type2string(type), timestamp, rtmp_size, fps);
         
-        // @remark, please get the dts and pts from device,
-        // we assume there is no B frame, and the fps can guess the fps and dts,
-        // while the dts and pts must read from encode lib or device.
-        dts += 1000 / fps;
-        pts = dts;
-        
         // @remark, when use encode device, it not need to sleep.
         usleep(1000 / fps * 1000);
     }
+    srs_trace("h264 raw data completed");
     
 rtmp_destroy:
     srs_rtmp_destroy(rtmp);

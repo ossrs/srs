@@ -998,9 +998,22 @@ char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize)
 
 int srs_h264_to_rtmp(char* h264_raw_data, int h264_raw_size, u_int32_t dts, u_int32_t pts, char** prtmp_data, int* prtmp_size, u_int32_t* ptimestamp)
 {
-    *prtmp_data = h264_raw_data;
+    *prtmp_data = new char[h264_raw_size];
+    memcpy(*prtmp_data, h264_raw_data, h264_raw_size);
+    
     *prtmp_size = h264_raw_size;
+    
     return 0;
+}
+
+int srs_h264_startswith_annexb(char* h264_raw_data, int h264_raw_size, int* pnb_start_code)
+{
+    SrsStream stream;
+    if (stream.initialize(h264_raw_data, h264_raw_size) != ERROR_SUCCESS) {
+        return false;
+    }
+    
+    return srs_avc_startswith_annexb(&stream, pnb_start_code);
 }
 
 #ifdef __cplusplus

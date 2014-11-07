@@ -337,21 +337,36 @@ extern char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize);
 **************************************************************
 *************************************************************/
 /**
-convert h264 stream data to rtmp packet.
-@param h264_raw_data the input h264 raw data, a encoded h.264 I/P/B frame data.
-@paam h264_raw_size the size of h264 raw data.
-@param dts the dts of h.264 raw data.
-@param pts the pts of h.264 raw data.
-@param prtmp_data the output rtmp format packet, which can be send by srs_write_packet.
-@param prtmp_size the size of rtmp packet, for srs_write_packet.
-@param ptimestamp the timestamp of rtmp packet, for srs_write_packet.
-@remark, user should never free the h264_raw_data.
-@remark, user should free the prtmp_data if success.
-@return 0, success; otherswise, failed.
+* convert h264 stream data to rtmp packet.
+* @param h264_raw_data the input h264 raw data, a encoded h.264 I/P/B frame data.
+* @paam h264_raw_size the size of h264 raw data.
+* @param dts the dts of h.264 raw data.
+* @param pts the pts of h.264 raw data.
+* @param prtmp_data the output rtmp format packet, which can be send by srs_write_packet.
+* @param prtmp_size the size of rtmp packet, for srs_write_packet.
+* @param ptimestamp the timestamp of rtmp packet, for srs_write_packet.
+* @remark, user should free the h264_raw_data.
+* @remark, user should free the prtmp_data if success.
+* 
+* @return 0, success; otherswise, failed.
 */
 extern int srs_h264_to_rtmp(
     char* h264_raw_data, int h264_raw_size, u_int32_t dts, u_int32_t pts,
     char** prtmp_data, int* prtmp_size, u_int32_t* ptimestamp
+);
+/**
+* whether h264 raw data starts with the annexb,
+* which bytes sequence matches N[00] 00 00 01, where N>=0.
+* @param h264_raw_data the input h264 raw data, a encoded h.264 I/P/B frame data.
+* @paam h264_raw_size the size of h264 raw data.
+* @param pnb_start_code output the size of start code, must >=3. 
+*       NULL to ignore.
+*
+* @return 0 false; otherwise, true.
+*/
+extern int srs_h264_startswith_annexb(
+    char* h264_raw_data, int h264_raw_size, 
+    int* pnb_start_code
 );
 
 #ifdef __cplusplus
