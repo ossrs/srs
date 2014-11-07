@@ -50,15 +50,6 @@ extern int srs_socket_connect(std::string server, int port, int64_t timeout, st_
 */
 extern int srs_get_log_level(std::string level);
 
-/**
-* whether stream starts with the avc NALU in "AnnexB" 
-* from H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
-* start code must be "N[00] 00 00 01" where N>=0
-* @param pnb_start_code output the size of start code, must >=3. 
-*       NULL to ignore.
-*/
-extern bool srs_avc_startswith_annexb(SrsStream* stream, int* pnb_start_code = NULL);
-
 // current process resouce usage.
 // @see: man getrusage
 class SrsRusage

@@ -33,6 +33,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_consts.hpp>
 
+class SrsStream;
+
 /**
 * parse the tcUrl, output the schema, host, vhost, app and port.
 * @param tcUrl, the input tcUrl, for example, 
@@ -84,6 +86,15 @@ extern std::string srs_generate_tc_url(
 * @return true if completely equal; otherwise, false.
 */
 extern bool srs_bytes_equals(void* pa, void* pb, int size);
+
+/**
+* whether stream starts with the avc NALU in "AnnexB" 
+* from H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
+* start code must be "N[00] 00 00 01" where N>=0
+* @param pnb_start_code output the size of start code, must >=3. 
+*       NULL to ignore.
+*/
+extern bool srs_avc_startswith_annexb(SrsStream* stream, int* pnb_start_code = NULL);
 
 #endif
 

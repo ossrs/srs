@@ -107,35 +107,6 @@ int srs_get_log_level(string level)
     }
 }
 
-bool srs_avc_startswith_annexb(SrsStream* stream, int* pnb_start_code)
-{
-    char* bytes = stream->data() + stream->pos();
-    char* p = bytes;
-    
-    for (;;) {
-        if (!stream->require(p - bytes + 3)) {
-            return false;
-        }
-        
-        // not match
-        if (p[0] != 0x00 || p[1] != 0x00) {
-            return false;
-        }
-        
-        // match N[00] 00 00 01, where N>=0
-        if (p[2] == 0x01) {
-            if (pnb_start_code) {
-                *pnb_start_code = (int)(p - bytes) + 3;
-            }
-            return true;
-        }
-        
-        p++;
-    }
-    
-    return false;
-}
-
 static SrsRusage _srs_system_rusage;
 
 SrsRusage::SrsRusage()
