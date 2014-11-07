@@ -65,6 +65,27 @@ int main(int argc, char** argv)
         goto rtmp_destroy;
     }
     
+    off_t file_size = lseek(raw_fd, 0, SEEK_END);
+    if (file_size <= 0) {
+        srs_trace("h264 raw file %s empty.", raw_file);
+        goto rtmp_destroy;
+    }
+    srs_trace("read entirely h264 raw file, size=%dKB", (int)(file_size / 1024));
+    
+    char* h264_raw = (char*)malloc(file_size);
+    if (!h264_raw) {
+        srs_trace("alloc raw buffer failed for file %s.", raw_file);
+        goto rtmp_destroy;
+    }
+    
+    lseek(raw_fd, 0, SEEK_SET);
+    ssize_t nb_read = 0;
+    if ((nb_read = read(raw_fd, h264_raw, file_size)) != file_size) {
+        srs_trace("buffer %s failed, expect=%dKB, actual=%dKB.", 
+            raw_file, (int)(file_size / 1024), (int)(nb_read / 1024));
+        goto rtmp_destroy;
+    }
+    
     // connect rtmp context
     srs_rtmp_t rtmp = srs_rtmp_create(rtmp_url);
     
@@ -86,10 +107,13 @@ int main(int argc, char** argv)
     }
     srs_trace("publish stream success");
     
+    // @remark, the dts and pts if read from device, for instance, the encode lib,
+    // so we assume the fps is 25, and each h264 frame is 1000ms/25fps=40ms/f.
+    u_int32_t fps = 25;
     u_int32_t dts = 0;
     u_int32_t pts = 0;
     for (;;) {
-        // read from file, or get h264 raw data from device, whatever.
+        // get h264 raw data from device, whatever.
         int size = 4096;
         char* data = (char*)malloc(4096);
         if ((size = read(raw_fd, data, size)) < 0) {
@@ -101,26 +125,37 @@ int main(int argc, char** argv)
             goto rtmp_destroy;
         }
 
+        // convert the h264 packet to rtmp packet.
         char* rtmp_data = NULL;
         int rtmp_size = 0;
         u_int32_t timestamp = 0;
-        if (srs_h264_to_rtmp(data, size, dts, pts, &rtmp_data, &rtmp_size, &timestamp) < 0) {
+        if (srs_h264_to_rtmp(data, size, dts, pts, &rtmp_data, &rtmp_size, &timestamp) != 0) {
             srs_trace("h264 raw data to rtmp data failed.");
             goto rtmp_destroy;
         }
         
+        // send out the rtmp packet.
         int type = SRS_RTMP_TYPE_VIDEO;
         if (srs_write_packet(rtmp, type, timestamp, rtmp_data, rtmp_size) != 0) {
             goto rtmp_destroy;
         }
-        srs_trace("sent packet: type=%s, time=%d, size=%d", srs_type2string(type), timestamp, rtmp_size);
+        srs_trace("sent packet: type=%s, time=%d, size=%d, fps=%d", 
+            srs_type2string(type), timestamp, rtmp_size, fps);
         
-        usleep(40 * 1000);
+        // @remark, please get the dts and pts from device,
+        // we assume there is no B frame, and the fps can guess the fps and dts,
+        // while the dts and pts must read from encode lib or device.
+        dts += 1000 / fps;
+        pts = dts;
+        
+        // @remark, when use encode device, it not need to sleep.
+        usleep(1000 / fps * 1000);
     }
     
 rtmp_destroy:
     srs_rtmp_destroy(rtmp);
     close(raw_fd);
+    free(h264_raw);
     
     return 0;
 }
