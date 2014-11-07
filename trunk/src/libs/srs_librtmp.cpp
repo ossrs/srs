@@ -996,6 +996,13 @@ char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize)
     return any->human_print(pdata, psize);
 }
 
+int srs_h264_to_rtmp(char* h264_raw_data, int h264_raw_size, u_int32_t dts, u_int32_t pts, char** prtmp_data, int* prtmp_size, u_int32_t* ptimestamp)
+{
+    *prtmp_data = h264_raw_data;
+    *prtmp_size = h264_raw_size;
+    return 0;
+}
+
 #ifdef __cplusplus
 }
 #endif

@@ -28,24 +28,45 @@ gcc srs_h264_raw_publish.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_h
 #include <stdlib.h>
 #include <unistd.h>
 
+// for open h264 raw file.
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+       
 #include "../../objs/include/srs_librtmp.h"
 
 #define srs_trace(msg, ...) printf(msg, ##__VA_ARGS__);printf("\n")
 
 int main(int argc, char** argv)
 {
-    srs_rtmp_t rtmp;
-    
-    // packet data
-    int type, size;
-    u_int32_t timestamp = 0;
-    char* data;
-    
     srs_trace("publish raw h.264 as rtmp stream to server like FMLE/FFMPEG/Encoder");
     srs_trace("srs(simple-rtmp-server) client librtmp library.");
-    srs_trace("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
+    srs_trace("version: %d.%d.%d", srs_version_major(), srs_version_minor(), srs_version_revision());
     
-    rtmp = srs_rtmp_create("rtmp://127.0.0.1:1935/live/livestream");
+    if (argc <= 2) {
+        srs_trace("Usage: %s <h264_raw_file> <rtmp_publish_url>", argv[0]);
+        srs_trace("     h264_raw_file: the h264 raw steam file.");
+        srs_trace("     rtmp_publish_url: the rtmp publish url.");
+        srs_trace("For example:");
+        srs_trace("     %s ./720p.h264.raw rtmp://127.0.0.1:1935/live/livestream", argv[0]);
+        srs_trace("Where the file: http://winlinvip.github.io/srs.release/3rdparty/720p.h264.raw");
+        srs_trace("See: https://github.com/winlinvip/simple-rtmp-server/issues/66");
+        exit(-1);
+    }
+    
+    const char* raw_file = argv[1];
+    const char* rtmp_url = argv[2];
+    srs_trace("raw_file=%s, rtmp_url=%s", raw_file, rtmp_url);
+    
+    // open file
+    int raw_fd = open(raw_file, O_RDONLY);
+    if (raw_fd < 0) {
+        srs_trace("open h264 raw file %s failed.", raw_fd);
+        goto rtmp_destroy;
+    }
+    
+    // connect rtmp context
+    srs_rtmp_t rtmp = srs_rtmp_create(rtmp_url);
     
     if (srs_simple_handshake(rtmp) != 0) {
         srs_trace("simple handshake failed.");
@@ -65,22 +86,42 @@ int main(int argc, char** argv)
     }
     srs_trace("publish stream success");
     
+    u_int32_t dts = 0;
+    u_int32_t pts = 0;
     for (;;) {
-        type = SRS_RTMP_TYPE_VIDEO;
-        timestamp += 40;
-        size = 4096;
-        data = (char*)malloc(4096);
-        
-        if (srs_write_packet(rtmp, type, timestamp, data, size) != 0) {
+        // read from file, or get h264 raw data from device, whatever.
+        int size = 4096;
+        char* data = (char*)malloc(4096);
+        if ((size = read(raw_fd, data, size)) < 0) {
+            srs_trace("read h264 raw data failed. nread=%d", size);
             goto rtmp_destroy;
         }
-        srs_trace("sent packet: type=%s, time=%d, size=%d", srs_type2string(type), timestamp, size);
+        if (size == 0) {
+            srs_trace("publish h264 raw data completed.");
+            goto rtmp_destroy;
+        }
+
+        char* rtmp_data = NULL;
+        int rtmp_size = 0;
+        u_int32_t timestamp = 0;
+        if (srs_h264_to_rtmp(data, size, dts, pts, &rtmp_data, &rtmp_size, &timestamp) < 0) {
+            srs_trace("h264 raw data to rtmp data failed.");
+            goto rtmp_destroy;
+        }
+        
+        int type = SRS_RTMP_TYPE_VIDEO;
+        if (srs_write_packet(rtmp, type, timestamp, rtmp_data, rtmp_size) != 0) {
+            goto rtmp_destroy;
+        }
+        srs_trace("sent packet: type=%s, time=%d, size=%d", srs_type2string(type), timestamp, rtmp_size);
         
         usleep(40 * 1000);
     }
     
 rtmp_destroy:
     srs_rtmp_destroy(rtmp);
+    close(raw_fd);
     
     return 0;
 }
+
