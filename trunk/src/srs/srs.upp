@@ -132,6 +132,7 @@ file
 	..\..\research\librtmp\srs_detect_rtmp.c,
 	..\..\research\librtmp\srs_flv_injecter.c,
 	..\..\research\librtmp\srs_flv_parser.c,
+	..\..\research\librtmp\srs_h264_raw_publish.c,
 	..\..\research\librtmp\srs_ingest_flv.c,
 	..\..\research\librtmp\srs_ingest_rtmp.c,
 	..\..\research\librtmp\srs_play.c,
