@@ -339,14 +339,16 @@ extern char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize);
 /**
 * convert h264 stream data to rtmp packet.
 * @param h264_raw_data the input h264 raw data, a encoded h.264 I/P/B frame data.
-* @paam h264_raw_size the size of h264 raw data.
+* @paam h264_raw_size the size of h264 raw data. assert > 0.
 * @param dts the dts of h.264 raw data.
 * @param pts the pts of h.264 raw data.
 * @param prtmp_data the output rtmp format packet, which can be send by srs_write_packet.
 * @param prtmp_size the size of rtmp packet, for srs_write_packet.
 * @param ptimestamp the timestamp of rtmp packet, for srs_write_packet.
+* 
 * @remark, user should free the h264_raw_data.
 * @remark, user should free the prtmp_data if success.
+* @remark, the tbn of dts/pts is 1/1000 for RTMP, that is, in ms.
 * 
 * @return 0, success; otherswise, failed.
 */

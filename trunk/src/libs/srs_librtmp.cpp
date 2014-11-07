@@ -998,10 +998,53 @@ char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize)
 
 int srs_h264_to_rtmp(char* h264_raw_data, int h264_raw_size, u_int32_t dts, u_int32_t pts, char** prtmp_data, int* prtmp_size, u_int32_t* ptimestamp)
 {
-    *prtmp_data = new char[h264_raw_size];
-    memcpy(*prtmp_data, h264_raw_data, h264_raw_size);
+    srs_assert(h264_raw_size > 0);
     
-    *prtmp_size = h264_raw_size;
+    // the timestamp in rtmp message header is dts.
+    *ptimestamp = dts;
+    
+    // for h264 in RTMP video payload, there is 5bytes header:
+    //      1bytes, FrameType | CodecID
+    //      1bytes, AVCPacketType
+    //      3bytes, CompositionTime, the cts.
+    // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
+    *prtmp_size = h264_raw_size + 5;
+    char* p = new char[*prtmp_size];
+    memcpy(p + 5, h264_raw_data, h264_raw_size);
+    *prtmp_data = p;
+    
+    // 5bits, 7.3.1 NAL unit syntax, 
+    // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+    //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
+    u_int8_t nal_unit_type = (char)h264_raw_data[0] & 0x1f;
+    
+    // Frame Type, Type of video frame.
+    // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
+    int8_t frame_type = SrsCodecVideoAVCFrameInterFrame;
+    if (nal_unit_type != 1) {
+        frame_type = SrsCodecVideoAVCFrameKeyFrame;
+    }
+    // CodecID, Codec Identifier.
+    int8_t codec_id = SrsCodecVideoAVC;
+    // set the rtmp header
+    *p++ = (frame_type << 4) | codec_id;
+    
+    // AVCPacketType
+    if (nal_unit_type == 7 || nal_unit_type == 8) {
+        *p++ = SrsCodecVideoAVCTypeSequenceHeader;
+    } else {
+        *p++ = SrsCodecVideoAVCTypeNALU;
+    }
+
+    // CompositionTime
+    // pts = dts + cts, or 
+    // cts = pts - dts.
+    // where cts is the header in rtmp video packet payload header.
+    u_int32_t cts = pts - dts;
+    char* pp = (char*)&cts;
+    *p++ = pp[2];
+    *p++ = pp[1];
+    *p++ = pp[0];
     
     return 0;
 }
