@@ -1,4 +1,5 @@
 /*
+# see: https://github.com/winlinvip/simple-rtmp-server/issues/190
 # see: https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SrsLinuxArm
     g++ -g -O0 -o jmp_sp jmp_sp.cpp
     arm-linux-gnueabi-g++ -g -o jmp_sp jmp_sp.cpp -static
@@ -14,15 +15,13 @@ void func1()
 {
 #if defined(__amd64__) || defined(__x86_64__)
     register long int rsp0 asm("rsp");
-    printf("in func1, rsp=%#lx, longjmp to func0\n", rsp0);
     
-    longjmp(env_func1, 0x101);
-    
-    printf("func1 terminated\n");
+    int ret = setjmp(env_func1);
+    printf("setjmp func0 ret=%d, rsp=%#lx\n", ret, rsp0);
 #endif
 }
 
-void func0(int* pv0, int* pv1)
+void func0()
 {
     /**
     the definition of jmp_buf:
@@ -63,6 +62,8 @@ void func0(int* pv0, int* pv1)
         printf("env[%d]=%#x, ", i, (int)env_func1[0].__jmpbuf[i]);
     }
     printf("\n");
+    
+    func1();
 #else
     /**
         /usr/arm-linux-gnueabi/include/bits/setjmp.h
@@ -83,6 +84,24 @@ void func0(int* pv0, int* pv1)
             9: pc
             10-26: d8-d15 17words
             27: fpscr
+    */
+    /**
+    For example, on raspberry-pi, armv6 cpu:
+        (gdb) x /64 env_func1[0].__jmpbuf
+            v1, 0:  0x00	0x00	0x00	0x00	
+            v2, 1:  0x00	0x00	0x00	0x00
+            v3, 2:  0x2c	0x84	0x00	0x00	
+            v4, 3:  0x00	0x00	0x00	0x00
+            v5, 4:  0x00	0x00	0x00	0x00	
+            v6, 5:  0x00	0x00	0x00	0x00
+            sl, 6:  0x00	0xf0	0xff	0xb6	
+            fp, 7:  0x9c	0xfb	0xff	0xbe
+            sp, 8:  0x88	0xfb	0xff	0xbe	
+            pc, 9:  0x08	0x85	0x00	0x00
+        (gdb) p /x $sp
+        $5 = 0xbefffb88
+        (gdb) p /x $pc
+        $4 = 0x850c
     */
     int ret = setjmp(env_func1);
     printf("setjmp func1 ret=%d\n", ret);
@@ -105,10 +124,7 @@ int main(int argc, char** argv) {
         (int)sizeof(long int), (int)sizeof(long), (int)sizeof(int));
 #endif
 
-    int pv0 = 0xf0;
-    int pv1 = 0xf1;
-    func0(&pv0, &pv1);
-    func1();
+    func0();
     
     printf("terminated\n");
 
