@@ -269,10 +269,10 @@ extern flv_bool srs_flv_is_keyframe(char* data, int32_t size);
 *************************************************************/
 /* the output handler. */
 typedef void* srs_amf0_t;
-typedef int amf0_bool;
-typedef double amf0_number;
+typedef int srs_amf0_bool;
+typedef double srs_amf0_number;
 extern srs_amf0_t srs_amf0_parse(char* data, int size, int* nparsed);
-extern srs_amf0_t srs_amf0_create_number(amf0_number value);
+extern srs_amf0_t srs_amf0_create_number(srs_amf0_number value);
 extern srs_amf0_t srs_amf0_create_ecma_array();
 extern srs_amf0_t srs_amf0_create_strict_array();
 extern srs_amf0_t srs_amf0_create_object();
@@ -282,19 +282,19 @@ extern void srs_amf0_free_bytes(char* data);
 extern int srs_amf0_size(srs_amf0_t amf0);
 extern int srs_amf0_serialize(srs_amf0_t amf0, char* data, int size);
 /* type detecter */
-extern amf0_bool srs_amf0_is_string(srs_amf0_t amf0);
-extern amf0_bool srs_amf0_is_boolean(srs_amf0_t amf0);
-extern amf0_bool srs_amf0_is_number(srs_amf0_t amf0);
-extern amf0_bool srs_amf0_is_null(srs_amf0_t amf0);
-extern amf0_bool srs_amf0_is_object(srs_amf0_t amf0);
-extern amf0_bool srs_amf0_is_ecma_array(srs_amf0_t amf0);
-extern amf0_bool srs_amf0_is_strict_array(srs_amf0_t amf0);
+extern srs_amf0_bool srs_amf0_is_string(srs_amf0_t amf0);
+extern srs_amf0_bool srs_amf0_is_boolean(srs_amf0_t amf0);
+extern srs_amf0_bool srs_amf0_is_number(srs_amf0_t amf0);
+extern srs_amf0_bool srs_amf0_is_null(srs_amf0_t amf0);
+extern srs_amf0_bool srs_amf0_is_object(srs_amf0_t amf0);
+extern srs_amf0_bool srs_amf0_is_ecma_array(srs_amf0_t amf0);
+extern srs_amf0_bool srs_amf0_is_strict_array(srs_amf0_t amf0);
 /* value converter */
 extern const char* srs_amf0_to_string(srs_amf0_t amf0);
-extern amf0_bool srs_amf0_to_boolean(srs_amf0_t amf0);
-extern amf0_number srs_amf0_to_number(srs_amf0_t amf0);
+extern srs_amf0_bool srs_amf0_to_boolean(srs_amf0_t amf0);
+extern srs_amf0_number srs_amf0_to_number(srs_amf0_t amf0);
 /* value setter */
-extern void srs_amf0_set_number(srs_amf0_t amf0, amf0_number value);
+extern void srs_amf0_set_number(srs_amf0_t amf0, srs_amf0_number value);
 /* object value converter */
 extern int srs_amf0_object_property_count(srs_amf0_t amf0);
 extern const char* srs_amf0_object_property_name_at(srs_amf0_t amf0, int index);

@@ -735,7 +735,7 @@ srs_amf0_t srs_amf0_parse(char* data, int size, int* nparsed)
     return amf0;
 }
 
-srs_amf0_t srs_amf0_create_number(amf0_number value)
+srs_amf0_t srs_amf0_create_number(srs_amf0_number value)
 {
     return SrsAmf0Any::number(value);
 }
@@ -790,43 +790,43 @@ int srs_amf0_serialize(srs_amf0_t amf0, char* data, int size)
     return ret;
 }
 
-amf0_bool srs_amf0_is_string(srs_amf0_t amf0)
+srs_amf0_bool srs_amf0_is_string(srs_amf0_t amf0)
 {
     SrsAmf0Any* any = (SrsAmf0Any*)amf0;
     return any->is_string();
 }
 
-amf0_bool srs_amf0_is_boolean(srs_amf0_t amf0)
+srs_amf0_bool srs_amf0_is_boolean(srs_amf0_t amf0)
 {
     SrsAmf0Any* any = (SrsAmf0Any*)amf0;
     return any->is_boolean();
 }
 
-amf0_bool srs_amf0_is_number(srs_amf0_t amf0)
+srs_amf0_bool srs_amf0_is_number(srs_amf0_t amf0)
 {
     SrsAmf0Any* any = (SrsAmf0Any*)amf0;
     return any->is_number();
 }
 
-amf0_bool srs_amf0_is_null(srs_amf0_t amf0)
+srs_amf0_bool srs_amf0_is_null(srs_amf0_t amf0)
 {
     SrsAmf0Any* any = (SrsAmf0Any*)amf0;
     return any->is_null();
 }
 
-amf0_bool srs_amf0_is_object(srs_amf0_t amf0)
+srs_amf0_bool srs_amf0_is_object(srs_amf0_t amf0)
 {
     SrsAmf0Any* any = (SrsAmf0Any*)amf0;
     return any->is_object();
 }
 
-amf0_bool srs_amf0_is_ecma_array(srs_amf0_t amf0)
+srs_amf0_bool srs_amf0_is_ecma_array(srs_amf0_t amf0)
 {
     SrsAmf0Any* any = (SrsAmf0Any*)amf0;
     return any->is_ecma_array();
 }
 
-amf0_bool srs_amf0_is_strict_array(srs_amf0_t amf0)
+srs_amf0_bool srs_amf0_is_strict_array(srs_amf0_t amf0)
 {
     SrsAmf0Any* any = (SrsAmf0Any*)amf0;
     return any->is_strict_array();
@@ -838,19 +838,19 @@ const char* srs_amf0_to_string(srs_amf0_t amf0)
     return any->to_str_raw();
 }
 
-amf0_bool srs_amf0_to_boolean(srs_amf0_t amf0)
+srs_amf0_bool srs_amf0_to_boolean(srs_amf0_t amf0)
 {
     SrsAmf0Any* any = (SrsAmf0Any*)amf0;
     return any->to_boolean();
 }
 
-amf0_number srs_amf0_to_number(srs_amf0_t amf0)
+srs_amf0_number srs_amf0_to_number(srs_amf0_t amf0)
 {
     SrsAmf0Any* any = (SrsAmf0Any*)amf0;
     return any->to_number();
 }
 
-void srs_amf0_set_number(srs_amf0_t amf0, amf0_number value)
+void srs_amf0_set_number(srs_amf0_t amf0, srs_amf0_number value)
 {
     SrsAmf0Any* any = (SrsAmf0Any*)amf0;
     any->set_number(value);
