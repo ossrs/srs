@@ -54,6 +54,7 @@ typedef void* srs_rtmp_t;
 * create/destroy a rtmp protocol stack.
 * @url rtmp url, for example: 
 *         rtmp://localhost/live/livestream
+*
 * @return a rtmp handler, or NULL if error occured.
 */
 extern srs_rtmp_t srs_rtmp_create(const char* url);
@@ -63,6 +64,8 @@ extern srs_rtmp_t srs_rtmp_create(const char* url);
 *         rtmp://localhost/live
 * @remark this is used to create application connection-oriented,
 *       for example, the bandwidth client used this, no stream specified.
+*
+* @return a rtmp handler, or NULL if error occured.
 */
 extern srs_rtmp_t srs_rtmp_create2(const char* url);
 /**
@@ -81,7 +84,8 @@ extern void srs_rtmp_destroy(srs_rtmp_t rtmp);
 * category: publish/play
 * previous: rtmp-create
 * next: connect-app
-* @return 0, success; otherwise, failed.
+*
+* @return 0, success; otherswise, failed.
 */
 /**
 * simple handshake specifies in rtmp 1.0,
@@ -107,7 +111,8 @@ extern int __srs_do_simple_handshake(srs_rtmp_t rtmp);
 * category: publish/play
 * previous: handshake
 * next: publish or play
-* @return 0, success; otherwise, failed.
+*
+* @return 0, success; otherswise, failed.
 */
 extern int srs_connect_app(srs_rtmp_t rtmp);
 
@@ -121,6 +126,8 @@ extern int srs_connect_app(srs_rtmp_t rtmp);
 * @param srs_version, 32bytes, server version.
 * @param srs_id, int, debug info, client id in server log.
 * @param srs_pid, int, debug info, server pid in log.
+*
+* @return 0, success; otherswise, failed.
 */
 extern int srs_connect_app2(srs_rtmp_t rtmp,
     char srs_server_ip[128], char srs_server[128], char srs_primary_authors[128], 
@@ -157,6 +164,8 @@ extern int srs_publish_stream(srs_rtmp_t rtmp);
 * @param publish_bytes, output the publish/upload bytes.
 * @param play_duration, output the play/download test duration, in ms.
 * @param publish_duration, output the publish/upload test duration, in ms.
+*
+* @return 0, success; otherswise, failed.
 */
 extern int srs_bandwidth_check(srs_rtmp_t rtmp, 
     int64_t* start_time, int64_t* end_time, 
@@ -200,6 +209,8 @@ extern const char* srs_type2string(int type);
 *
 * @remark: for read, user must free the data.
 * @remark: for write, user should never free the data, even if error.
+*
+* @return 0, success; otherswise, failed.
 */
 extern int srs_read_packet(srs_rtmp_t rtmp, 
     int* type, u_int32_t* timestamp, char** data, int* size
@@ -334,6 +345,9 @@ convert h264 stream data to rtmp packet.
 @param prtmp_data the output rtmp format packet, which can be send by srs_write_packet.
 @param prtmp_size the size of rtmp packet, for srs_write_packet.
 @param ptimestamp the timestamp of rtmp packet, for srs_write_packet.
+@remark, user should never free the h264_raw_data.
+@remark, user should free the prtmp_data if success.
+@return 0, success; otherswise, failed.
 */
 extern int srs_h264_to_rtmp(
     char* h264_raw_data, int h264_raw_size, u_int32_t dts, u_int32_t pts,
