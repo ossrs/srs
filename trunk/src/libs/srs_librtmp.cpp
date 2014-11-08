@@ -73,6 +73,9 @@ struct Context
     // for h264 raw stream, 
     // see: https://github.com/winlinvip/simple-rtmp-server/issues/66#issuecomment-62240521
     SrsStream raw_stream;
+    // about SPS, @see: 7.3.2.1.1, H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 62
+    std::string h264_sps;
+    std::string h264_pps;
     
     Context() {
         rtmp = NULL;
@@ -999,14 +1002,16 @@ char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize)
     
     return any->human_print(pdata, psize);
 }
-    
-    /*// 5bits, 7.3.1 NAL unit syntax, 
-    // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
-    //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
-    u_int8_t nal_unit_type = (char)frame[0] & 0x1f;
-    
-    // the RTMP packet header
-    
+
+/**
+* write h264 packet, with rtmp header.
+* @param frame_type, SrsCodecVideoAVCFrameKeyFrame or SrsCodecVideoAVCFrameInterFrame.
+* @param avc_packet_type, SrsCodecVideoAVCTypeSequenceHeader or SrsCodecVideoAVCTypeNALU.
+*/
+int __srs_write_h264_packet(Context* context, 
+    int8_t frame_type, int8_t avc_packet_type, 
+    char* h264_raw_data, int h264_raw_size, u_int32_t dts, u_int32_t pts
+) {
     // the timestamp in rtmp message header is dts.
     u_int32_t timestamp = dts;
     
@@ -1018,24 +1023,16 @@ char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize)
     int size = h264_raw_size + 5;
     char* data = new char[size];
     memcpy(data + 5, h264_raw_data, h264_raw_size);
+    char* p = data;
     
-    // Frame Type, Type of video frame.
     // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
-    int8_t frame_type = SrsCodecVideoAVCFrameInterFrame;
-    if (nal_unit_type != 1) {
-        frame_type = SrsCodecVideoAVCFrameKeyFrame;
-    }
+    // Frame Type, Type of video frame.
     // CodecID, Codec Identifier.
-    int8_t codec_id = SrsCodecVideoAVC;
     // set the rtmp header
-    *p++ = (frame_type << 4) | codec_id;
+    *p++ = (frame_type << 4) | SrsCodecVideoAVC;
     
     // AVCPacketType
-    if (nal_unit_type == 7 || nal_unit_type == 8) {
-        *p++ = SrsCodecVideoAVCTypeSequenceHeader;
-    } else {
-        *p++ = SrsCodecVideoAVCTypeNALU;
-    }
+    *p++ = avc_packet_type;
 
     // CompositionTime
     // pts = dts + cts, or 
@@ -1045,19 +1042,211 @@ char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize)
     char* pp = (char*)&cts;
     *p++ = pp[2];
     *p++ = pp[1];
-    *p++ = pp[0];*/
-
-int srs_write_h264_raw_frame(Context* context, char* frame, int frame_size, u_int32_t dts, u_int32_t pts)
-{
-    int ret = ERROR_SUCCESS;
-    return ret;
+    *p++ = pp[0];
+    
+    return srs_write_packet(context, SRS_RTMP_TYPE_VIDEO, timestamp, data, size);
 }
 
-int srs_write_h264_raw_frames(srs_rtmp_t rtmp, char* frames, int frames_size, u_int32_t dts, u_int32_t pts)
+/**
+* write the h264 sps/pps in context over RTMP.
+*/
+int __srs_write_h264_sps_pps(Context* context, u_int32_t dts, u_int32_t pts)
 {
     int ret = ERROR_SUCCESS;
     
-    srs_assert(frames_size > 1);
+    // when pps or sps not ready, ignore.
+    if (context->h264_pps.empty() || context->h264_sps.empty()) {
+        return ret;
+    }
+    
+    // 5bytes sps/pps header:
+    //      configurationVersion, AVCProfileIndication, profile_compatibility,
+    //      AVCLevelIndication, lengthSizeMinusOne
+    // 3bytes size of sps:
+    //      numOfSequenceParameterSets, sequenceParameterSetLength(2B)
+    // Nbytes of sps.
+    //      sequenceParameterSetNALUnit
+    // 3bytes size of pps:
+    //      numOfPictureParameterSets, pictureParameterSetLength
+    // Nbytes of pps:
+    //      pictureParameterSetNALUnit
+    int nb_packet = 5 
+        + 3 + (int)context->h264_sps.length() 
+        + 3 + (int)context->h264_pps.length();
+    char* packet = new char[nb_packet];
+    
+    // use stream to generate the h264 packet.
+    SrsStream stream;
+    if ((ret = stream.initialize(packet, nb_packet)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // decode the SPS: 
+    // @see: 7.3.2.1.1, H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 62
+    if (true) {
+        srs_assert((int)context->h264_sps.length() >= 4);
+        char* frame = (char*)context->h264_sps.data();
+    
+        // @see: Annex A Profiles and levels, H.264-AVC-ISO_IEC_14496-10.pdf, page 205
+        //      Baseline profile profile_idc is 66(0x42).
+        //      Baseline profile profile_idc is 77(0x4d).
+        //      Extended profile profile_idc is 88(0x58).
+        u_int8_t profile_idc = frame[1];
+        //u_int8_t constraint_set = frame[2];
+        u_int8_t level_idc = frame[3];
+        
+        // generate the sps/pps header
+        // 5.3.4.2.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
+        // configurationVersion
+        stream.write_1bytes(0x01);
+        // AVCProfileIndication
+        stream.write_1bytes(profile_idc);
+        // profile_compatibility
+        stream.write_1bytes(0x00);
+        // AVCLevelIndication
+        stream.write_1bytes(level_idc);
+        // lengthSizeMinusOne, or NAL_unit_length, always use 4bytes size,
+        // so we always set it to 0x03.
+        stream.write_1bytes(0x03);
+    }
+    
+    // sps
+    if (true) {
+        // 5.3.4.2.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
+        // numOfSequenceParameterSets, always 1
+        stream.write_1bytes(0x01);
+        // sequenceParameterSetLength
+        stream.write_2bytes(context->h264_sps.length());
+        // sequenceParameterSetNALUnit
+        stream.write_string(context->h264_sps);
+    }
+    
+    // pps
+    if (true) {
+        // 5.3.4.2.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
+        // numOfPictureParameterSets, always 1
+        stream.write_1bytes(0x01);
+        // pictureParameterSetLength
+        stream.write_2bytes(context->h264_pps.length());
+        // pictureParameterSetNALUnit
+        stream.write_string(context->h264_pps);
+    }
+    
+    // TODO: FIXME: for more profile.
+    // 5.3.4.2.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
+    // profile_idc == 100 || profile_idc == 110 || profile_idc == 122 || profile_idc == 144
+    
+    // send out h264 packet.
+    int8_t frame_type = SrsCodecVideoAVCFrameKeyFrame;
+    int8_t avc_packet_type = SrsCodecVideoAVCTypeSequenceHeader;
+    return __srs_write_h264_packet(
+        context, frame_type, avc_packet_type,
+        packet, nb_packet, dts, pts
+    );
+}
+
+/**
+* write h264 IPB-frame.
+*/
+int __srs_write_h264_ipb_frame(Context* context, 
+    char* data, int size, u_int32_t dts, u_int32_t pts
+) {
+    int ret = ERROR_SUCCESS;
+    
+    // 5bits, 7.3.1 NAL unit syntax, 
+    // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+    //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
+    u_int8_t nal_unit_type = (char)data[0] & 0x1f;
+    
+    // 4bytes size of nalu:
+    //      NALUnitLength
+    // Nbytes of nalu.
+    //      NALUnit
+    int nb_packet = 4 + size;
+    char* packet = new char[nb_packet];
+    
+    // use stream to generate the h264 packet.
+    SrsStream stream;
+    if ((ret = stream.initialize(packet, nb_packet)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    // 5.3.4.2.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
+    // lengthSizeMinusOne, or NAL_unit_length, always use 4bytes size
+    u_int32_t NAL_unit_length = size;
+    
+    // mux the avc NALU in "ISO Base Media File Format" 
+    // from H.264-AVC-ISO_IEC_14496-15.pdf, page 20
+    // NALUnitLength
+    stream.write_4bytes(NAL_unit_length);
+    // NALUnit
+    stream.write_bytes(data, size);
+    
+    // send out h264 packet.
+    int8_t frame_type = SrsCodecVideoAVCFrameInterFrame;
+    if (nal_unit_type != 1) {
+        frame_type = SrsCodecVideoAVCFrameKeyFrame;
+    }
+    int8_t avc_packet_type = SrsCodecVideoAVCTypeNALU;
+    return __srs_write_h264_packet(
+        context, frame_type, avc_packet_type,
+        packet, nb_packet, dts, pts
+    );
+    
+    return ret;
+}
+
+/**
+* write h264 raw frame, maybe sps/pps/IPB-frame.
+*/
+int __srs_write_h264_raw_frame(Context* context, 
+    char* frame, int frame_size, u_int32_t dts, u_int32_t pts
+) {
+    int ret = ERROR_SUCCESS;
+    
+    // ignore invalid frame,
+    // atleast 1bytes for SPS to decode the type
+    if (frame_size < 1) {
+        return ret;
+    }
+    
+    // 5bits, 7.3.1 NAL unit syntax, 
+    // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+    //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
+    u_int8_t nal_unit_type = (char)frame[0] & 0x1f;
+    
+    if (nal_unit_type == 7) {
+        // atleast 1bytes for SPS to decode the type, profile, constrain and level.
+        if (frame_size < 4) {
+            return ret;
+        }
+        
+        context->h264_sps = "";
+        context->h264_sps.append(frame, frame_size);
+        
+        return __srs_write_h264_sps_pps(context, dts, pts);
+    } else if (nal_unit_type == 8) {
+        context->h264_pps = "";
+        context->h264_pps.append(frame, frame_size);
+        
+        return __srs_write_h264_sps_pps(context, dts, pts);
+    } else {
+        return __srs_write_h264_ipb_frame(context, frame, frame_size, dts, pts);
+    }
+    
+    return ret;
+}
+
+/**
+* write h264 multiple frames, in annexb format.
+*/
+int srs_write_h264_raw_frames(srs_rtmp_t rtmp, 
+    char* frames, int frames_size, u_int32_t dts, u_int32_t pts
+) {
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(frames != NULL);
+    srs_assert(frames_size > 0);
     
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
@@ -1088,7 +1277,7 @@ int srs_write_h264_raw_frames(srs_rtmp_t rtmp, char* frames, int frames_size, u_
         
         // send out the frame.
         char* frame = context->raw_stream.data() + start;
-        if ((ret = srs_write_h264_raw_frame(context, frame, size, dts, pts)) != ERROR_SUCCESS) {
+        if ((ret = __srs_write_h264_raw_frame(context, frame, size, dts, pts)) != ERROR_SUCCESS) {
             return ret;
         }
     }
