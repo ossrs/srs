@@ -1,7 +1,8 @@
 # generate the module info to Makefile
 #
 # params:
-#     $SRS_OBJS the objs directory. ie. objs
+#     $SRS_OBJS the objs directory to store the Makefile. ie. ./objs
+#     $SRS_OBJS_DIR the objs directory for Makefile. ie. objs
 #     $SRS_MAKEFILE the makefile name. ie. Makefile
 #
 #     $MODULE_DIR the module dir. ie. src/os/linux
@@ -73,7 +74,7 @@ echo "# OBJ for ${MODULE_ID}, each object file" >> ${FILE}
 MODULE_OBJS=()
 for item in ${MODULE_FILES[*]}; do
     CPP_FILE="${MODULE_DIR}/${item}.cpp"
-    OBJ_FILE="${SRS_OBJS}/${MODULE_DIR}/${item}.o"
+    OBJ_FILE="${SRS_OBJS_DIR}/${MODULE_DIR}/${item}.o"
     MODULE_OBJS="${MODULE_OBJS[@]} ${CPP_FILE}"
     if [ -f ${CPP_FILE} ]; then
         echo "${OBJ_FILE}: \$(${DEPS_NAME}) ${CPP_FILE} " >> ${FILE}
@@ -84,6 +85,6 @@ done
 echo "" >> ${FILE}
 
 # parent Makefile, to create module output dir before compile it.
-echo "	mkdir -p ${SRS_OBJS}/${MODULE_DIR}" >> ${SRS_MAKEFILE}
+echo "	mkdir -p ${SRS_OBJS_DIR}/${MODULE_DIR}" >> ${SRS_MAKEFILE}
 
 echo -n "generate module ${MODULE_ID} ok"; echo '!';

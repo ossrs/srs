@@ -1,7 +1,8 @@
 # generate utest Makefile
 #
 # params:
-#     $SRS_OBJS the objs directory. ie. objs
+#     $SRS_OBJS the objs directory to store the Makefile. ie. ./objs
+#     $SRS_OBJS_DIR the objs directory for Makefile. ie. objs
 #     $SRS_MAKEFILE the makefile name. ie. Makefile
 #
 #     $APP_NAME the app name to output. ie. srs_utest
@@ -17,10 +18,10 @@ mkdir -p ${SRS_OBJS}/utest
 # trunk of srs, which contains the src dir, relative to objs/utest, it's trunk
 SRS_TRUNK_PREFIX=../..
 # gest dir, relative to objs/utest, it's trunk/objs/gtest
-GTEST_DIR=${SRS_TRUNK_PREFIX}/${SRS_OBJS}/gtest
+GTEST_DIR=${SRS_TRUNK_PREFIX}/${SRS_OBJS_DIR}/gtest
 
 cat << END > ${FILE}
-# user must run make the ${SRS_OBJS}/utest dir
+# user must run make the ${SRS_OBJS_DIR}/utest dir
 # at the same dir of Makefile.
 
 # A sample Makefile for building Google Test and using it in user
@@ -52,7 +53,7 @@ CXXFLAGS += -g -Wall -Wextra -O0
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.
-TESTS = ${SRS_TRUNK_PREFIX}/${SRS_OBJS}/${APP_NAME}
+TESTS = ${SRS_TRUNK_PREFIX}/${SRS_OBJS_DIR}/${APP_NAME}
 
 # All Google Test headers.  Usually you shouldn't change this
 # definition.
@@ -129,7 +130,7 @@ echo "# Depends, the depends objects" >> ${FILE}
 echo -n "SRS_UTEST_DEPS = " >> ${FILE}
 for item in ${MODULE_OBJS[*]}; do
     FILE_NAME=${item%.*}
-    echo -n "${SRS_TRUNK_PREFIX}/${SRS_OBJS}/${FILE_NAME}.o " >> ${FILE}
+    echo -n "${SRS_TRUNK_PREFIX}/${SRS_OBJS_DIR}/${FILE_NAME}.o " >> ${FILE}
 done
 echo "" >> ${FILE}; echo "" >> ${FILE}
 #
@@ -169,12 +170,12 @@ echo "" >> ${FILE}; echo "" >> ${FILE}
 #
 echo "# generate the utest binary" >> ${FILE}
 cat << END >> ${FILE}
-${SRS_TRUNK_PREFIX}/${SRS_OBJS}/${APP_NAME} : \$(SRS_UTEST_DEPS) ${MODULE_OBJS} gtest_main.a
+${SRS_TRUNK_PREFIX}/${SRS_OBJS_DIR}/${APP_NAME} : \$(SRS_UTEST_DEPS) ${MODULE_OBJS} gtest_main.a
 	\$(CXX) -o \$@ \$(CPPFLAGS) \$(CXXFLAGS) \$^ \$(DEPS_LIBRARIES_FILES) ${LINK_OPTIONS}
 END
 
 #####################################################################################
 # parent Makefile, to create module output dir before compile it.
-echo "	mkdir -p ${SRS_OBJS}/utest" >> ${SRS_MAKEFILE}
+echo "	mkdir -p ${SRS_OBJS_DIR}/utest" >> ${SRS_MAKEFILE}
 
 echo -n "generate utest ok"; echo '!';
