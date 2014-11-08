@@ -237,8 +237,8 @@ extern int64_t srs_get_nrecv_bytes(srs_rtmp_t rtmp);
 
 // log to console, for use srs-librtmp application.
 extern const char* srs_format_time();
-#define srs_trace(msg, ...) printf("[%s] ", srs_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
-#define srs_verbose(msg, ...) printf("[%s] ", srs_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
+#define srs_lib_trace(msg, ...) printf("[%s] ", srs_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
+#define srs_lib_verbose(msg, ...) printf("[%s] ", srs_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
 
 /*************************************************************
 **************************************************************
