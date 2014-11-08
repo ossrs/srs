@@ -44,7 +44,7 @@ int read_h264_frame(char* data, int size, char** pp, int* pnb_start_code, int fp
     // we search the h264 frame from the buffer which cached the h264 data.
     // please get h264 raw data from device, it always a encoded frame.
     if (!srs_h264_startswith_annexb(p, size - (p - data), pnb_start_code)) {
-        srs_trace("h264 raw data invalid.");
+        srs_lib_trace("h264 raw data invalid.");
         return -1;
     }
     
@@ -63,7 +63,7 @@ int read_h264_frame(char* data, int size, char** pp, int* pnb_start_code, int fp
     *pp = p;
     *frame_size = p - *frame;
     if (*frame_size <= 0) {
-        srs_trace("h264 raw data invalid.");
+        srs_lib_trace("h264 raw data invalid.");
         return -1;
     }
     
@@ -95,32 +95,32 @@ int main(int argc, char** argv)
     
     const char* raw_file = argv[1];
     const char* rtmp_url = argv[2];
-    srs_trace("raw_file=%s, rtmp_url=%s", raw_file, rtmp_url);
+    srs_lib_trace("raw_file=%s, rtmp_url=%s", raw_file, rtmp_url);
     
     // open file
     int raw_fd = open(raw_file, O_RDONLY);
     if (raw_fd < 0) {
-        srs_trace("open h264 raw file %s failed.", raw_fd);
+        srs_lib_trace("open h264 raw file %s failed.", raw_fd);
         goto rtmp_destroy;
     }
     
     off_t file_size = lseek(raw_fd, 0, SEEK_END);
     if (file_size <= 0) {
-        srs_trace("h264 raw file %s empty.", raw_file);
+        srs_lib_trace("h264 raw file %s empty.", raw_file);
         goto rtmp_destroy;
     }
-    srs_trace("read entirely h264 raw file, size=%dKB", (int)(file_size / 1024));
+    srs_lib_trace("read entirely h264 raw file, size=%dKB", (int)(file_size / 1024));
     
     char* h264_raw = (char*)malloc(file_size);
     if (!h264_raw) {
-        srs_trace("alloc raw buffer failed for file %s.", raw_file);
+        srs_lib_trace("alloc raw buffer failed for file %s.", raw_file);
         goto rtmp_destroy;
     }
     
     lseek(raw_fd, 0, SEEK_SET);
     ssize_t nb_read = 0;
     if ((nb_read = read(raw_fd, h264_raw, file_size)) != file_size) {
-        srs_trace("buffer %s failed, expect=%dKB, actual=%dKB.", 
+        srs_lib_trace("buffer %s failed, expect=%dKB, actual=%dKB.", 
             raw_file, (int)(file_size / 1024), (int)(nb_read / 1024));
         goto rtmp_destroy;
     }
@@ -129,22 +129,22 @@ int main(int argc, char** argv)
     srs_rtmp_t rtmp = srs_rtmp_create(rtmp_url);
     
     if (srs_simple_handshake(rtmp) != 0) {
-        srs_trace("simple handshake failed.");
+        srs_lib_trace("simple handshake failed.");
         goto rtmp_destroy;
     }
-    srs_trace("simple handshake success");
+    srs_lib_trace("simple handshake success");
     
     if (srs_connect_app(rtmp) != 0) {
-        srs_trace("connect vhost/app failed.");
+        srs_lib_trace("connect vhost/app failed.");
         goto rtmp_destroy;
     }
-    srs_trace("connect vhost/app success");
+    srs_lib_trace("connect vhost/app success");
     
     if (srs_publish_stream(rtmp) != 0) {
-        srs_trace("publish stream failed.");
+        srs_lib_trace("publish stream failed.");
         goto rtmp_destroy;
     }
-    srs_trace("publish stream success");
+    srs_lib_trace("publish stream success");
     
     u_int32_t dts = 0;
     u_int32_t pts = 0;
@@ -161,27 +161,27 @@ int main(int argc, char** argv)
         if (read_h264_frame(h264_raw, file_size, &p, &nb_start_code, fps, 
             &data, &size, &dts, &pts) < 0
         ) {
-            srs_trace("read a frame from file buffer failed.");
+            srs_lib_trace("read a frame from file buffer failed.");
             goto rtmp_destroy;
         }
         
         // send out the h264 packet over RTMP
         if (srs_write_h264_raw_frames(rtmp, data, size, dts, pts) != 0) {
-            srs_trace("send h264 raw data failed.");
+            srs_lib_trace("send h264 raw data failed.");
             goto rtmp_destroy;
         }
         
         // 5bits, 7.3.1 NAL unit syntax, 
         // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
         u_int8_t nut = (char)data[nb_start_code] & 0x1f;
-        srs_trace("sent packet: type=%s, time=%d, size=%d, fps=%d, b[%d]=%#x(%s)", 
+        srs_lib_trace("sent packet: type=%s, time=%d, size=%d, fps=%d, b[%d]=%#x(%s)", 
             srs_type2string(SRS_RTMP_TYPE_VIDEO), dts, size, fps, nb_start_code, (char)data[nb_start_code],
             (nut == 7? "SPS":(nut == 8? "PPS":(nut == 5? "I":(nut == 1? "P":"Unknown")))));
         
         // @remark, when use encode device, it not need to sleep.
         usleep(1000 / fps * 1000);
     }
-    srs_trace("h264 raw data completed");
+    srs_lib_trace("h264 raw data completed");
     
 rtmp_destroy:
     srs_rtmp_destroy(rtmp);

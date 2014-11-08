@@ -47,31 +47,31 @@ int main(int argc, char** argv)
     
     // warn it .
     // @see: https://github.com/winlinvip/simple-rtmp-server/issues/126
-    srs_trace("\033[33m%s\033[0m", 
+    srs_lib_trace("\033[33m%s\033[0m", 
         "[warning] it's only a sample to use librtmp. "
         "please never use it to publish and test forward/transcode/edge/HLS whatever. "
         "you should refer to this tool to use the srs-librtmp to publish the real media stream."
         "read about: https://github.com/winlinvip/simple-rtmp-server/issues/126");
-    srs_trace("rtmp url: %s", argv[1]);
+    srs_lib_trace("rtmp url: %s", argv[1]);
     srs_rtmp_t rtmp = srs_rtmp_create(argv[1]);
     
     if (srs_simple_handshake(rtmp) != 0) {
-        srs_trace("simple handshake failed.");
+        srs_lib_trace("simple handshake failed.");
         goto rtmp_destroy;
     }
-    srs_trace("simple handshake success");
+    srs_lib_trace("simple handshake success");
     
     if (srs_connect_app(rtmp) != 0) {
-        srs_trace("connect vhost/app failed.");
+        srs_lib_trace("connect vhost/app failed.");
         goto rtmp_destroy;
     }
-    srs_trace("connect vhost/app success");
+    srs_lib_trace("connect vhost/app success");
     
     if (srs_publish_stream(rtmp) != 0) {
-        srs_trace("publish stream failed.");
+        srs_lib_trace("publish stream failed.");
         goto rtmp_destroy;
     }
-    srs_trace("publish stream success");
+    srs_lib_trace("publish stream success");
     
     u_int32_t timestamp = 0;
     for (;;) {
@@ -84,7 +84,7 @@ int main(int argc, char** argv)
         if (srs_write_packet(rtmp, type, timestamp, data, size) != 0) {
             goto rtmp_destroy;
         }
-        srs_trace("sent packet: type=%s, time=%d, size=%d", 
+        srs_lib_trace("sent packet: type=%s, time=%d, size=%d", 
             srs_type2string(type), timestamp, size);
         
         usleep(40 * 1000);

@@ -58,8 +58,10 @@ SRS_LOG_TRACE=RESERVED
 # experts
 # donot compile ssl, use system ssl(-lssl) if required.
 SRS_USE_SYS_SSL=NO
-# export the srs-librtmp to specified path, NO to disable it.
-SRS_EXPORT_LIBRTMP=NO
+# export the srs-librtmp to specified project, NO to disable it.
+SRS_EXPORT_LIBRTMP_PROJECT=NO
+# export the srs-librtmp to a single .h and .c, NO to disable it.
+SRS_EXPORT_LIBRTMP_SINGLE=NO
 #
 ################################################################
 # presets
@@ -183,8 +185,9 @@ Conflicts:
         the complex tools not available for arm.
 
 Experts:
-  --use-sys-ssl             donot compile ssl, use system ssl(-lssl) if required.
-  --export-librtmp=<path>   export srs-librtmp to specified path.
+  --use-sys-ssl                     donot compile ssl, use system ssl(-lssl) if required.
+  --export-librtmp-project=<path>   export srs-librtmp to specified project in path.
+  --export-librtmp-single=<path>    export srs-librtmp to a single file(.h+.cpp) in path.
 
 Workflow:
   1. apply "Presets". if not specified, use default preset.
@@ -266,7 +269,8 @@ function parse_user_option() {
         --full)                         SRS_ENABLE_ALL=YES          ;;
         
         --use-sys-ssl)                  SRS_USE_SYS_SSL=YES         ;;
-        --export-librtmp)               SRS_EXPORT_LIBRTMP=${value} ;;
+        --export-librtmp-project)       SRS_EXPORT_LIBRTMP_PROJECT=${value}     ;;
+        --export-librtmp-single)        SRS_EXPORT_LIBRTMP_SINGLE=${value}      ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
@@ -701,8 +705,13 @@ function apply_user_detail_options() {
         export SRS_JOBS="--jobs=${SRS_JOBS}"
     fi
     
+    # if specified export single file, export project first.
+    if [ $SRS_EXPORT_LIBRTMP_SINGLE != NO ]; then
+        SRS_EXPORT_LIBRTMP_PROJECT=$SRS_EXPORT_LIBRTMP_SINGLE
+    fi
+    
     # disable almost all features for export srs-librtmp.
-    if [ $SRS_EXPORT_LIBRTMP != NO ]; then
+    if [ $SRS_EXPORT_LIBRTMP_PROJECT != NO ]; then
         SRS_HLS=NO
         SRS_DVR=NO
         SRS_NGINX=NO

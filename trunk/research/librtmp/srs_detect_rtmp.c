@@ -79,55 +79,55 @@ int main(int argc, char** argv)
     duration = atoi(argv[2]);
     timeout = atoi(argv[3]);
     
-    srs_trace("rtmp url: %s", rtmp_url);
-    srs_trace("duration: %ds, timeout:%ds", duration, timeout);
+    srs_lib_trace("rtmp url: %s", rtmp_url);
+    srs_lib_trace("duration: %ds, timeout:%ds", duration, timeout);
     
     if (duration <= 0 || timeout <= 0) {
-        srs_trace("duration and timeout must be positive.");
+        srs_lib_trace("duration and timeout must be positive.");
         exit(-2);
     }
     
     rtmp = srs_rtmp_create(rtmp_url);
     
     if ((ret = __srs_dns_resolve(rtmp)) != 0) {
-        srs_trace("dns resolve failed. ret=%d", ret);
+        srs_lib_trace("dns resolve failed. ret=%d", ret);
         goto rtmp_destroy;
     }
-    srs_trace("dns resolve success");
+    srs_lib_trace("dns resolve success");
     time_dns_resolve = srs_get_time_ms();
     
     if ((ret = __srs_connect_server(rtmp)) != 0) {
-        srs_trace("socket connect failed. ret=%d", ret);
+        srs_lib_trace("socket connect failed. ret=%d", ret);
         goto rtmp_destroy;
     }
-    srs_trace("socket connect success");
+    srs_lib_trace("socket connect success");
     time_socket_connect = srs_get_time_ms();
     
     if ((ret = __srs_do_simple_handshake(rtmp)) != 0) {
-        srs_trace("do simple handshake failed. ret=%d", ret);
+        srs_lib_trace("do simple handshake failed. ret=%d", ret);
         goto rtmp_destroy;
     }
-    srs_trace("do simple handshake success");
+    srs_lib_trace("do simple handshake success");
     
     if ((ret = srs_connect_app(rtmp)) != 0) {
-        srs_trace("connect vhost/app failed. ret=%d", ret);
+        srs_lib_trace("connect vhost/app failed. ret=%d", ret);
         goto rtmp_destroy;
     }
-    srs_trace("connect vhost/app success");
+    srs_lib_trace("connect vhost/app success");
     
     if ((ret = srs_play_stream(rtmp)) != 0) {
-        srs_trace("play stream failed. ret=%d", ret);
+        srs_lib_trace("play stream failed. ret=%d", ret);
         goto rtmp_destroy;
     }
-    srs_trace("play stream success");
+    srs_lib_trace("play stream success");
     time_play_stream = srs_get_time_ms();
     
     for (;;) {
         if ((ret = srs_read_packet(rtmp, &type, &timestamp, &data, &size)) != 0) {
-            srs_trace("read packet failed. ret=%d", ret);
+            srs_lib_trace("read packet failed. ret=%d", ret);
             goto rtmp_destroy;
         }
-        srs_trace("got packet: type=%s, time=%d, size=%d", 
+        srs_lib_trace("got packet: type=%s, time=%d, size=%d", 
             srs_type2string(type), timestamp, size);
         
         if (SRS_RTMP_TYPE_VIDEO == type || SRS_RTMP_TYPE_AUDIO == type) {
@@ -142,12 +142,12 @@ int main(int argc, char** argv)
         free(data);
         
         if (srs_get_time_ms() - time_startup > timeout * 1000) {
-            srs_trace("timeout, terminate.");
+            srs_lib_trace("timeout, terminate.");
             goto rtmp_destroy;
         }
         
         if ((timestamp - basetime) > duration * 1000) {
-            srs_trace("duration exceed, terminate.");
+            srs_lib_trace("duration exceed, terminate.");
             goto rtmp_destroy;
         }
     }
@@ -196,8 +196,8 @@ rtmp_destroy:
         "\"remark2\": \"if code is not 0, user must ignore all data\""
     );
     
-    srs_trace("");
-    srs_trace("completed");
+    srs_lib_trace("");
+    srs_lib_trace("completed");
     
     return ret;
 }

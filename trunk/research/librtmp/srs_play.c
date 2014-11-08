@@ -44,26 +44,26 @@ int main(int argc, char** argv)
         exit(-1);
     }
     
-    srs_trace("rtmp url: %s", argv[1]);
+    srs_lib_trace("rtmp url: %s", argv[1]);
     srs_rtmp_t rtmp = srs_rtmp_create(argv[1]);
     
     if (srs_simple_handshake(rtmp) != 0) {
-        srs_trace("simple handshake failed.");
+        srs_lib_trace("simple handshake failed.");
         goto rtmp_destroy;
     }
-    srs_trace("simple handshake success");
+    srs_lib_trace("simple handshake success");
     
     if (srs_connect_app(rtmp) != 0) {
-        srs_trace("connect vhost/app failed.");
+        srs_lib_trace("connect vhost/app failed.");
         goto rtmp_destroy;
     }
-    srs_trace("connect vhost/app success");
+    srs_lib_trace("connect vhost/app success");
     
     if (srs_play_stream(rtmp) != 0) {
-        srs_trace("play stream failed.");
+        srs_lib_trace("play stream failed.");
         goto rtmp_destroy;
     }
-    srs_trace("play stream success");
+    srs_lib_trace("play stream success");
     
     for (;;) {
         int type, size;
@@ -73,7 +73,7 @@ int main(int argc, char** argv)
         if (srs_read_packet(rtmp, &type, &timestamp, &data, &size) != 0) {
             goto rtmp_destroy;
         }
-        srs_trace("got packet: type=%s, time=%d, size=%d", 
+        srs_lib_trace("got packet: type=%s, time=%d, size=%d", 
             srs_type2string(type), timestamp, size);
         
         free(data);

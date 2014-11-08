@@ -126,7 +126,7 @@ function Ubuntu_prepare()
     return 0
 }
 # donot prepare tools, for srs-librtmp depends only gcc and g++.
-if [ $SRS_EXPORT_LIBRTMP = NO ]; then
+if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     Ubuntu_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "Ubuntu prepare failed, ret=$ret"; exit $ret; fi
 fi
 #####################################################################################
@@ -217,14 +217,14 @@ function Centos_prepare()
     return 0
 }
 # donot prepare tools, for srs-librtmp depends only gcc and g++.
-if [ $SRS_EXPORT_LIBRTMP = NO ]; then
+if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     Centos_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "CentOS prepare failed, ret=$ret"; exit $ret; fi
 fi
 
 #####################################################################################
 # st-1.9
 #####################################################################################
-if [ $SRS_EXPORT_LIBRTMP = NO ]; then
+if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # check the arm flag file, if flag changed, need to rebuild the st.
     _ST_MAKE=linux-debug
     if [ $SRS_EMBEDED_CPU = YES ]; then
@@ -343,7 +343,7 @@ function write_nginx_html5()
 END
 }
 # create the nginx dir, for http-server if not build nginx
-if [ $SRS_EXPORT_LIBRTMP = NO ]; then
+if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     mkdir -p ${SRS_OBJS}/nginx
 fi
 # make nginx
@@ -372,7 +372,7 @@ if [ $__SRS_BUILD_NGINX = YES ]; then
 fi
 
 # the demo dir.
-if [ $SRS_EXPORT_LIBRTMP = NO ]; then
+if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # create forward dir
     mkdir -p ${SRS_OBJS}/nginx/html/live &&
     mkdir -p ${SRS_OBJS}/nginx/html/forward/live
@@ -595,7 +595,7 @@ fi
 #####################################################################################
 # build research code, librtmp
 #####################################################################################
-if [ $SRS_EXPORT_LIBRTMP = NO ]; then
+if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     if [ $SRS_RESEARCH = YES ]; then
         mkdir -p ${SRS_OBJS}/research
 
