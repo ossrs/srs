@@ -1163,6 +1163,10 @@ int __srs_write_h264_sps_pps(Context* context, u_int32_t dts, u_int32_t pts)
         stream.write_string(context->h264_pps);
     }
     
+    // reset sps and pps.
+    context->h264_pps = "";
+    context->h264_sps = "";
+    
     // TODO: FIXME: for more profile.
     // 5.3.4.2.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
     // profile_idc == 100 || profile_idc == 110 || profile_idc == 122 || profile_idc == 144
