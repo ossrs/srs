@@ -237,8 +237,8 @@ extern int64_t srs_get_nrecv_bytes(srs_rtmp_t rtmp);
 
 // log to console, for use srs-librtmp application.
 extern const char* srs_format_time();
-#define srs_trace(msg, ...) printf("[%s]", srs_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
-#define srs_verbose(msg, ...) printf("[%s]", srs_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
+#define srs_trace(msg, ...) printf("[%s] ", srs_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
+#define srs_verbose(msg, ...) printf("[%s] ", srs_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
 
 /*************************************************************
 **************************************************************
@@ -338,7 +338,7 @@ extern void srs_amf0_strict_array_append(srs_amf0_t amf0, srs_amf0_t value);
 /**
 * human readable print 
 * @param pdata, output the heap data, NULL to ignore.
-* user must use srs_amf0_free_bytes to free it.
+*       user must use srs_amf0_free_bytes to free it.
 * @return return the *pdata for print. NULL to ignore.
 */
 extern char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize);
