@@ -184,6 +184,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_KERNEL_STREAM_INIT            3038
 #define ERROR_EDGE_VHOST_REMOVED            3039
 #define ERROR_HLS_AVC_TRY_OTHERS            3040
+#define ERROR_H264_API_NO_PREFIXED          3041
 
 /**
 * whether the error code is an system control error.

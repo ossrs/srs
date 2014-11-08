@@ -37,7 +37,7 @@ gcc srs_h264_raw_publish.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_h
 
 #define srs_trace(msg, ...) printf(msg, ##__VA_ARGS__);printf("\n")
 
-int read_h264_frame(char* data, int size, char** pp, int fps,
+int read_h264_frame(char* data, int size, char** pp, int* pnb_start_code, int fps,
     char** frame, int* frame_size, int* dts, int* pts)
 {
     char* p = *pp;
@@ -45,8 +45,7 @@ int read_h264_frame(char* data, int size, char** pp, int fps,
     // @remark, for this demo, to publish h264 raw file to SRS,
     // we search the h264 frame from the buffer which cached the h264 data.
     // please get h264 raw data from device, it always a encoded frame.
-    int pnb_start_code = 0;
-    if (!srs_h264_startswith_annexb(p, size - (p - data), &pnb_start_code)) {
+    if (!srs_h264_startswith_annexb(p, size - (p - data), pnb_start_code)) {
         srs_trace("h264 raw data invalid.");
         return -1;
     }
@@ -55,10 +54,10 @@ int read_h264_frame(char* data, int size, char** pp, int fps,
     // each frame prefixed h.264 annexb header, by N[00] 00 00 01, where N>=0, 
     // for instance, frame = header(00 00 00 01) + payload(67 42 80 29 95 A0 14 01 6E 40)
     *frame = p;
-    p += pnb_start_code;
+    p += *pnb_start_code;
     
     for (;p < data + size; p++) {
-        if (srs_h264_startswith_annexb(p, size - (p - data), &pnb_start_code)) {
+        if (srs_h264_startswith_annexb(p, size - (p - data), NULL)) {
             break;
         }
     }
@@ -160,7 +159,10 @@ int main(int argc, char** argv)
         // @remark, read a frame from file buffer.
         char* data = NULL;
         int size = 0;
-        if (read_h264_frame(h264_raw, file_size, &p, fps, &data, &size, &dts, &pts) < 0) {
+        int nb_start_code = 0;
+        if (read_h264_frame(h264_raw, file_size, &p, &nb_start_code, fps, 
+            &data, &size, &dts, &pts) < 0
+        ) {
             srs_trace("read a frame from file buffer failed.");
             goto rtmp_destroy;
         }
@@ -173,9 +175,9 @@ int main(int argc, char** argv)
         
         // 5bits, 7.3.1 NAL unit syntax, 
         // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
-        u_int8_t nut = (char)data[0] & 0x1f;
-        srs_trace("sent packet: type=%s, time=%d, size=%d, fps=%d, b[0]=%#x(%s)", 
-            srs_type2string(SRS_RTMP_TYPE_VIDEO), dts, size, fps, (char)data[0],
+        u_int8_t nut = (char)data[nb_start_code] & 0x1f;
+        srs_trace("sent packet: type=%s, time=%d, size=%d, fps=%d, b[%d]=%#x(%s)", 
+            srs_type2string(SRS_RTMP_TYPE_VIDEO), dts, size, fps, nb_start_code, (char)data[nb_start_code],
             (nut == 7? "SPS":(nut == 8? "PPS":(nut == 5? "I":(nut == 1? "P":"Unknown")))));
         
         // @remark, when use encode device, it not need to sleep.

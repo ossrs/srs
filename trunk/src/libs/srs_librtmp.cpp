@@ -70,6 +70,10 @@ struct Context
     SimpleSocketStream* skt;
     int stream_id;
     
+    // for h264 raw stream, 
+    // see: https://github.com/winlinvip/simple-rtmp-server/issues/66#issuecomment-62240521
+    SrsStream raw_stream;
+    
     Context() {
         rtmp = NULL;
         skt = NULL;
@@ -995,15 +999,6 @@ char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize)
     
     return any->human_print(pdata, psize);
 }
-
-int srs_write_h264_raw_frames(srs_rtmp_t rtmp, char* frames, int frames_size, u_int32_t dts, u_int32_t pts)
-{
-    int ret = ERROR_SUCCESS;
-    
-    srs_assert(frames_size > 1);
-    
-    srs_assert(rtmp != NULL);
-    Context* context = (Context*)rtmp;
     
     /*// 5bits, 7.3.1 NAL unit syntax, 
     // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
@@ -1051,6 +1046,52 @@ int srs_write_h264_raw_frames(srs_rtmp_t rtmp, char* frames, int frames_size, u_
     *p++ = pp[2];
     *p++ = pp[1];
     *p++ = pp[0];*/
+
+int srs_write_h264_raw_frame(Context* context, char* frame, int frame_size, u_int32_t dts, u_int32_t pts)
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+int srs_write_h264_raw_frames(srs_rtmp_t rtmp, char* frames, int frames_size, u_int32_t dts, u_int32_t pts)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(frames_size > 1);
+    
+    srs_assert(rtmp != NULL);
+    Context* context = (Context*)rtmp;
+    
+    if ((ret = context->raw_stream.initialize(frames, frames_size)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // send each frame.
+    while (!context->raw_stream.empty()) {
+        // each frame must prefixed by annexb format.
+        // about annexb, @see H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
+        int pnb_start_code = 0;
+        if (!srs_avc_startswith_annexb(&context->raw_stream, &pnb_start_code)) {
+            return ERROR_H264_API_NO_PREFIXED;
+        }
+        int start = context->raw_stream.pos() + pnb_start_code;
+        
+        // find the last frame prefixed by annexb format.
+        context->raw_stream.skip(pnb_start_code);
+        while (!context->raw_stream.empty()) {
+            if (srs_avc_startswith_annexb(&context->raw_stream, NULL)) {
+                break;
+            }
+            context->raw_stream.skip(1);
+        }
+        int size = context->raw_stream.pos() - start;
+        
+        // send out the frame.
+        char* frame = context->raw_stream.data() + start;
+        if ((ret = srs_write_h264_raw_frame(context, frame, size, dts, pts)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
     
     return ret;
 }
