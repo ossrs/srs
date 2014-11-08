@@ -58,6 +58,8 @@ SRS_LOG_TRACE=RESERVED
 # experts
 # donot compile ssl, use system ssl(-lssl) if required.
 SRS_USE_SYS_SSL=NO
+# export the srs-librtmp to specified path, NO to disable it.
+SRS_EXPORT_LIBRTMP=NO
 #
 ################################################################
 # presets
@@ -182,6 +184,7 @@ Conflicts:
 
 Experts:
   --use-sys-ssl             donot compile ssl, use system ssl(-lssl) if required.
+  --export-librtmp=<path>   export srs-librtmp to specified path.
 
 Workflow:
   1. apply "Presets". if not specified, use default preset.
@@ -263,6 +266,7 @@ function parse_user_option() {
         --full)                         SRS_ENABLE_ALL=YES          ;;
         
         --use-sys-ssl)                  SRS_USE_SYS_SSL=YES         ;;
+        --export-librtmp)               SRS_EXPORT_LIBRTMP=${value} ;;
 
         *)
             echo "$0: error: invalid option \"$option\""
@@ -695,6 +699,31 @@ function apply_user_detail_options() {
         export SRS_JOBS="--jobs=1" 
     else
         export SRS_JOBS="--jobs=${SRS_JOBS}"
+    fi
+    
+    # disable almost all features for export srs-librtmp.
+    if [ $SRS_EXPORT_LIBRTMP != NO ]; then
+        SRS_HLS=NO
+        SRS_DVR=NO
+        SRS_NGINX=NO
+        SRS_SSL=NO
+        SRS_FFMPEG_TOOL=NO
+        SRS_TRANSCODE=NO
+        SRS_INGEST=NO
+        SRS_STAT=NO
+        SRS_HTTP_PARSER=NO
+        SRS_HTTP_CALLBACK=NO
+        SRS_HTTP_SERVER=NO
+        SRS_HTTP_API=NO
+        SRS_LIBRTMP=YES
+        SRS_RESEARCH=YES
+        SRS_UTEST=NO
+        SRS_GPERF=NO
+        SRS_GPERF_MC=NO
+        SRS_GPERF_MP=NO
+        SRS_GPERF_CP=NO
+        SRS_GPROF=NO
+        SRS_STATIC=NO
     fi
 }
 apply_user_detail_options
