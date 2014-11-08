@@ -30,10 +30,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sstream>
 using namespace std;
 
-// undefine the log of librtmp for the srs use its log.
-#undef srs_trace
-#undef srs_verbose
-
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_rtmp.hpp>
 #include <srs_lib_simple_socket.hpp>
@@ -48,7 +44,7 @@ using namespace std;
 #include <srs_kernel_file.hpp>
 #include <srs_lib_bandwidth.hpp>
 
-// if user want to define log, define the folowing macro.
+// if want to use your log, define the folowing macro.
 #ifndef SRS_RTMP_USER_DEFINED_LOG
     // kernel module.
     ISrsLog* _srs_log = new ISrsLog();

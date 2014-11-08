@@ -21,7 +21,7 @@ SrsGperfMPSummaryColor="\${GREEN}{disabled} "; if [ $SRS_GPERF_MP = YES ]; then 
 SrsGperfCPSummaryColor="\${GREEN}{disabled} "; if [ $SRS_GPERF_CP = YES ]; then SrsGperfCPSummaryColor="\${YELLOW}"; fi
 SrsGprofSummaryColor="\${GREEN}{disabled} "; if [ $SRS_GPROF = YES ]; then SrsGprofSummaryColor="\${YELLOW}"; fi
 
-if [ $SRS_EXPORT_LIBRTMP = NO ]; then
+if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     cat <<END > ${SRS_OBJS}/${SRS_BUILD_SUMMARY}
 #!/bin/bash
 

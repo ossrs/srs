@@ -228,7 +228,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
-* v2.0, 2014-11-08, fix [#191](https://github.com/winlinvip/simple-rtmp-server/issues/191), configure --export-librtmp. 2.0.10.
+* v2.0, 2014-11-08, fix [#191](https://github.com/winlinvip/simple-rtmp-server/issues/191), configure --export-librtmp-project and --export-librtmp-single. 2.0.11.
 * v2.0, 2014-11-08, fix [#66](https://github.com/winlinvip/simple-rtmp-server/issues/66), srs-librtmp support write h264 raw packet. 2.0.9.
 * v2.0, 2014-10-25, fix [#185](https://github.com/winlinvip/simple-rtmp-server/issues/185), AMF0 support 0x0B the date type codec. 2.0.7.
 * v2.0, 2014-10-24, fix [#186](https://github.com/winlinvip/simple-rtmp-server/issues/186), hotfix for bug #186, drop connect args when not object. 2.0.6.
