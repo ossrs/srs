@@ -234,7 +234,14 @@ extern int srs_version_revision();
 extern int64_t srs_get_time_ms();
 extern int64_t srs_get_nsend_bytes(srs_rtmp_t rtmp);
 extern int64_t srs_get_nrecv_bytes(srs_rtmp_t rtmp);
-
+// log to console.
+extern const char* srs_format_time();
+#ifndef srs_trace
+    #define srs_trace(msg, ...) printf("[%s]", srs_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
+#endif
+#ifndef srs_verbose
+    #define srs_verbose(msg, ...) printf("[%s]", srs_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
+#endif
 
 /*************************************************************
 **************************************************************

@@ -29,7 +29,6 @@ gcc srs_ingest_rtmp.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_ingest
 #include <unistd.h>
 
 #include "../../objs/include/srs_librtmp.h"
-#include "srs_research_public.h"
 
 int connect_ic(srs_rtmp_t irtmp);
 int connect_oc(srs_rtmp_t ortmp);
@@ -73,17 +72,17 @@ int main(int argc, char** argv)
         }
     }
     
-    trace("ingest RTMP and publish to RTMP server like edge.");
-    trace("srs(simple-rtmp-server) client librtmp library.");
-    trace("version: %d.%d.%d", srs_version_major(), srs_version_minor(), srs_version_revision());
-    trace("input:  %s", in_rtmp_url);
-    trace("output: %s", out_rtmp_url);
+    srs_trace("ingest RTMP and publish to RTMP server like edge.");
+    srs_trace("srs(simple-rtmp-server) client librtmp library.");
+    srs_trace("version: %d.%d.%d", srs_version_major(), srs_version_minor(), srs_version_revision());
+    srs_trace("input:  %s", in_rtmp_url);
+    srs_trace("output: %s", out_rtmp_url);
     
     irtmp = srs_rtmp_create(in_rtmp_url);
     ortmp = srs_rtmp_create(out_rtmp_url);
 
     ret = proxy(irtmp, ortmp);
-    trace("proxy completed");
+    srs_trace("proxy completed");
     
     srs_rtmp_destroy(irtmp);
     srs_rtmp_destroy(ortmp);
@@ -107,20 +106,20 @@ int proxy(srs_rtmp_t irtmp, srs_rtmp_t ortmp)
         return ret;
     }
     
-    trace("start proxy RTMP stream");
+    srs_trace("start proxy RTMP stream");
     for (;;) {
         if ((ret = srs_read_packet(irtmp, &type, &timestamp, &data, &size)) != 0) {
-            trace("irtmp get packet failed. ret=%d", ret);
+            srs_trace("irtmp get packet failed. ret=%d", ret);
             return ret;
         }
-        verbose("irtmp got packet: type=%s, time=%d, size=%d", 
+        srs_verbose("irtmp got packet: type=%s, time=%d, size=%d", 
             srs_type2string(type), timestamp, size);
         
         if ((ret = srs_write_packet(ortmp, type, timestamp, data, size)) != 0) {
-            trace("irtmp get packet failed. ret=%d", ret);
+            srs_trace("irtmp get packet failed. ret=%d", ret);
             return ret;
         }
-        verbose("ortmp sent packet: type=%s, time=%d, size=%d", 
+        srs_verbose("ortmp sent packet: type=%s, time=%d, size=%d", 
             srs_type2string(type), timestamp, size);
     }
     
@@ -132,22 +131,22 @@ int connect_ic(srs_rtmp_t irtmp)
     int ret = 0;
     
     if ((ret = srs_simple_handshake(irtmp)) != 0) {
-        trace("irtmp simple handshake failed. ret=%d", ret);
+        srs_trace("irtmp simple handshake failed. ret=%d", ret);
         return ret;
     }
-    trace("irtmp simple handshake success");
+    srs_trace("irtmp simple handshake success");
     
     if ((ret = srs_connect_app(irtmp)) != 0) {
-        trace("irtmp connect vhost/app failed. ret=%d", ret);
+        srs_trace("irtmp connect vhost/app failed. ret=%d", ret);
         return ret;
     }
-    trace("irtmp connect vhost/app success");
+    srs_trace("irtmp connect vhost/app success");
     
     if ((ret = srs_play_stream(irtmp)) != 0) {
-        trace("irtmp play stream failed. ret=%d", ret);
+        srs_trace("irtmp play stream failed. ret=%d", ret);
         return ret;
     }
-    trace("irtmp play stream success");
+    srs_trace("irtmp play stream success");
     
     return ret;
 }
@@ -157,22 +156,22 @@ int connect_oc(srs_rtmp_t ortmp)
     int ret = 0;
     
     if ((ret = srs_simple_handshake(ortmp)) != 0) {
-        trace("ortmp simple handshake failed. ret=%d", ret);
+        srs_trace("ortmp simple handshake failed. ret=%d", ret);
         return ret;
     }
-    trace("ortmp simple handshake success");
+    srs_trace("ortmp simple handshake success");
     
     if ((ret = srs_connect_app(ortmp)) != 0) {
-        trace("ortmp connect vhost/app failed. ret=%d", ret);
+        srs_trace("ortmp connect vhost/app failed. ret=%d", ret);
         return ret;
     }
-    trace("ortmp connect vhost/app success");
+    srs_trace("ortmp connect vhost/app success");
     
     if ((ret = srs_publish_stream(ortmp)) != 0) {
-        trace("ortmp publish stream failed. ret=%d", ret);
+        srs_trace("ortmp publish stream failed. ret=%d", ret);
         return ret;
     }
-    trace("ortmp publish stream success");
+    srs_trace("ortmp publish stream success");
     
     return ret;
 }
