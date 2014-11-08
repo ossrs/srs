@@ -4,8 +4,9 @@
 # the main output dir, all configure and make output are in this dir.
 #####################################################################################
 # create the main objs
-SRS_WORKDIR="./"
-SRS_OBJS="${SRS_WORKDIR}/objs"
+SRS_WORKDIR="."
+SRS_OBJS_DIR="objs"
+SRS_OBJS="${SRS_WORKDIR}/${SRS_OBJS_DIR}"
 mkdir -p ${SRS_OBJS}
 
 #####################################################################################
@@ -30,10 +31,12 @@ if [ $SRS_EXPORT_LIBRTMP != NO ]; then
         exit 1
     fi
     # create target
-    SRS_WORKDIR=${SRS_EXPORT_LIBRTMP} && SRS_OBJS=${SRS_WORKDIR}/objs && mkdir -p ${SRS_OBJS} &&
+    SRS_WORKDIR=${SRS_EXPORT_LIBRTMP} && SRS_OBJS=${SRS_WORKDIR}/${SRS_OBJS_DIR} && mkdir -p ${SRS_OBJS} &&
     # copy src to target
     _CPT=${SRS_EXPORT_LIBRTMP}/3rdparty && mkdir -p ${_CPT} && cp 3rdparty/st-1.9.zip ${_CPT} &&
     _CPT=${SRS_EXPORT_LIBRTMP}/3rdparty/patches && mkdir -p ${_CPT} && cp 3rdparty/patches/1.st.arm.patch ${_CPT} &&
+    _CPT=${SRS_EXPORT_LIBRTMP}/research/librtmp && mkdir -p ${_CPT} && cp research/librtmp/*.c ${_CPT} && cp research/librtmp/Makefile ${_CPT} &&
+    _CPT=${SRS_EXPORT_LIBRTMP}/src/core && mkdir -p ${_CPT} && cp src/core/* ${_CPT}
     # check ret
     ret=$?; if [[ $ret -ne 0 ]]; then echo "export src failed, ret=$ret"; exit $ret; fi
 fi
@@ -119,7 +122,7 @@ SrsLibrtmpSampleEntry="nossl"
 if [ $SRS_SSL = YES ]; then SrsLibrtmpSampleEntry="ssl";fi
 # utest make entry, (cd utest; make)
 SrsUtestMakeEntry="@echo -e \"ignore utest for it's disabled\""
-if [ $SRS_UTEST = YES ]; then SrsUtestMakeEntry="(cd ${SRS_OBJS}/utest; \$(MAKE))"; fi
+if [ $SRS_UTEST = YES ]; then SrsUtestMakeEntry="(cd ${SRS_OBJS_DIR}/utest; \$(MAKE))"; fi
 
 #####################################################################################
 # generate colorful summary script
@@ -172,9 +175,9 @@ help:
 	@echo "  uninstall          uninstall srs from prefix path"
 
 clean: 
-	(cd ${SRS_OBJS}; rm -rf srs srs_utest)
-	(cd ${SRS_OBJS}; rm -rf src research include lib)
-	(cd ${SRS_OBJS}/utest; rm -rf *.o *.a)
+	(cd ${SRS_OBJS_DIR}; rm -rf srs srs_utest)
+	(cd ${SRS_OBJS_DIR}; rm -rf src research include lib)
+	(cd ${SRS_OBJS_DIR}/utest; rm -rf *.o *.a)
 	(cd research/librtmp; make clean)
 	(cd research/api-server/static-dir; rm -rf crossdomain.xml forward live players)
 
@@ -191,7 +194,7 @@ else
     cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 server: _prepare_dir
 	@echo "build the srs(simple rtmp server) over st(state-threads)"
-	\$(MAKE) -f ${SRS_OBJS}/${SRS_MAKEFILE} srs
+	\$(MAKE) -f ${SRS_OBJS_DIR}/${SRS_MAKEFILE} srs
 
 END
 fi
@@ -269,7 +272,7 @@ if [ $SRS_LIBRTMP = YES ]; then
     cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 librtmp: server
 	@echo "build the client publish/play library."
-	\$(MAKE) -f ${SRS_OBJS}/${SRS_MAKEFILE} librtmp
+	\$(MAKE) -f ${SRS_OBJS_DIR}/${SRS_MAKEFILE} librtmp
 	@echo "build the srs-librtmp sample"
 	(cd research/librtmp; \$(MAKE) ${SrsLibrtmpSampleEntry})
 
@@ -301,7 +304,7 @@ fi
 cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 # the ./configure will generate it.
 _prepare_dir:
-	@mkdir -p ${SRS_OBJS}
+	@mkdir -p ${SRS_OBJS_DIR}
 END
 
 #####################################################################################
@@ -340,16 +343,16 @@ END
 # library(.a): add to ModuleLibFiles if binary need the specifeid library. for example, LibSTfile
 #
 # st(state-threads) the basic network library for SRS.
-LibSTRoot="${SRS_OBJS}/st"; LibSTfile="${LibSTRoot}/libst.a"
+LibSTRoot="${SRS_OBJS_DIR}/st"; LibSTfile="${LibSTRoot}/libst.a"
 # hp(http-parser) the http request/url parser, for SRS to support HTTP callback.
 LibHttpParserRoot=""; LibHttpParserfile=""
-if [ $SRS_HTTP_PARSER = YES ]; then LibHttpParserRoot="${SRS_OBJS}/hp"; LibHttpParserfile="${LibHttpParserRoot}/libhttp_parser.a"; fi
+if [ $SRS_HTTP_PARSER = YES ]; then LibHttpParserRoot="${SRS_OBJS_DIR}/hp"; LibHttpParserfile="${LibHttpParserRoot}/libhttp_parser.a"; fi
 # openssl-1.0.1f, for the RTMP complex handshake.
 LibSSLRoot="";LibSSLfile=""
-if [ $SRS_SSL = YES ]; then if [ $SRS_USE_SYS_SSL = NO ]; then LibSSLRoot="${SRS_OBJS}/openssl/include"; LibSSLfile="${SRS_OBJS}/openssl/lib/libssl.a ${SRS_OBJS}/openssl/lib/libcrypto.a"; fi fi
+if [ $SRS_SSL = YES ]; then if [ $SRS_USE_SYS_SSL = NO ]; then LibSSLRoot="${SRS_OBJS_DIR}/openssl/include"; LibSSLfile="${SRS_OBJS_DIR}/openssl/lib/libssl.a ${SRS_OBJS_DIR}/openssl/lib/libcrypto.a"; fi fi
 # gperftools-2.1, for mem check and mem/cpu profile
 LibGperfRoot=""; LibGperfFile=""
-if [ $SRS_GPERF = YES ]; then LibGperfRoot="${SRS_OBJS}/gperf/include"; LibGperfFile="${SRS_OBJS}/gperf/lib/libtcmalloc_and_profiler.a"; fi
+if [ $SRS_GPERF = YES ]; then LibGperfRoot="${SRS_OBJS_DIR}/gperf/include"; LibGperfFile="${SRS_OBJS_DIR}/gperf/lib/libtcmalloc_and_profiler.a"; fi
 # the link options, always use static link
 SrsLinkOptions="-ldl"; 
 if [ $SRS_SSL = YES ]; then if [ $SRS_USE_SYS_SSL = YES ]; then SrsLinkOptions="${SrsLinkOptions} -lssl"; fi fi
@@ -365,7 +368,7 @@ if [ $SRS_MIPS_UBUNTU12 = YES ]; then SrsLinkOptions="${SrsLinkOptions} -lgcc_eh
 #Core, depends only on system apis.
 MODULE_ID="CORE"
 MODULE_DEPENDS=()
-ModuleLibIncs=(${SRS_OBJS})
+ModuleLibIncs=(${SRS_OBJS_DIR})
 MODULE_FILES=("srs_core" "srs_core_autofree")
 CORE_INCS="src/core"; MODULE_DIR=${CORE_INCS} . auto/modules.sh
 CORE_OBJS="${MODULE_OBJS[@]}"
@@ -373,7 +376,7 @@ CORE_OBJS="${MODULE_OBJS[@]}"
 #Kernel, depends on core, provides error/log/config, nothing about stream information.
 MODULE_ID="KERNEL" 
 MODULE_DEPENDS=("CORE") 
-ModuleLibIncs=(${SRS_OBJS})
+ModuleLibIncs=(${SRS_OBJS_DIR})
 MODULE_FILES=("srs_kernel_error" "srs_kernel_log" "srs_kernel_stream" "srs_kernel_buffer" 
         "srs_kernel_utility" "srs_kernel_flv" "srs_kernel_codec" "srs_kernel_file" 
         "srs_kernel_consts")
@@ -383,7 +386,7 @@ KERNEL_OBJS="${MODULE_OBJS[@]}"
 #RTMP Protocol, depends on core/kernel, provides rtmp/htttp protocol features.
 MODULE_ID="RTMP" 
 MODULE_DEPENDS=("CORE" "KERNEL") 
-ModuleLibIncs=(${SRS_OBJS} ${LibSSLRoot})
+ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSSLRoot})
 MODULE_FILES=("srs_protocol_amf0" "srs_protocol_io" "srs_protocol_stack" "srs_protocol_rtmp"
         "srs_protocol_handshake" "srs_protocol_utility" "srs_protocol_msg_array")
 RTMP_INCS="src/rtmp"; MODULE_DIR=${RTMP_INCS} . auto/modules.sh
@@ -393,7 +396,7 @@ RTMP_OBJS="${MODULE_OBJS[@]}"
 if [ $SRS_EXPORT_LIBRTMP = NO ]; then
     MODULE_ID="APP" 
     MODULE_DEPENDS=("CORE" "KERNEL" "RTMP") 
-    ModuleLibIncs=(${LibSTRoot} ${LibHttpParserRoot} ${SRS_OBJS})
+    ModuleLibIncs=(${LibSTRoot} ${LibHttpParserRoot} ${SRS_OBJS_DIR})
     MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_rtmp_conn" "srs_app_st_socket" "srs_app_source" 
             "srs_app_refer" "srs_app_hls" "srs_app_forward" "srs_app_encoder" "srs_app_http" 
             "srs_app_thread" "srs_app_bandwidth" "srs_app_st" "srs_app_log" "srs_app_config" 
@@ -407,7 +410,7 @@ fi
 #LIBS Module, build libsrs.a for static link.
 MODULE_ID="LIBS" 
 MODULE_DEPENDS=("CORE" "KERNEL" "RTMP") 
-ModuleLibIncs=(${SRS_OBJS})
+ModuleLibIncs=(${SRS_OBJS_DIR})
 MODULE_FILES=("srs_librtmp" "srs_lib_simple_socket" "srs_lib_bandwidth")
 LIBS_INCS="src/libs"; MODULE_DIR=${LIBS_INCS} . auto/modules.sh
 LIBS_OBJS="${MODULE_OBJS[@]}"
@@ -416,7 +419,7 @@ LIBS_OBJS="${MODULE_OBJS[@]}"
 if [ $SRS_EXPORT_LIBRTMP = NO ]; then
     MODULE_ID="MAIN" 
     MODULE_DEPENDS=("CORE" "KERNEL" "RTMP" "APP")
-    ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS} ${LibGperfRoot})
+    ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot})
     MODULE_FILES=("srs_main_server")
     MAIN_INCS="src/main"; MODULE_DIR=${MAIN_INCS} . auto/modules.sh
     MAIN_OBJS="${MODULE_OBJS[@]}"
@@ -452,7 +455,7 @@ if [ $SRS_UTEST = YES ]; then
     MODULE_FILES=("srs_utest" "srs_utest_amf0" "srs_utest_protocol" 
             "srs_utest_kernel" "srs_utest_core" "srs_utest_config" 
             "srs_utest_reload")
-    ModuleLibIncs=(${SRS_OBJS} ${LibSTRoot} ${LibSSLRoot})
+    ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibSSLRoot})
     ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile} ${LibSSLfile})
     MODULE_DEPENDS=("CORE" "KERNEL" "RTMP" "APP")
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${RTMP_OBJS[@]} ${APP_OBJS[@]}"

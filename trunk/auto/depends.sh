@@ -582,21 +582,23 @@ fi
 #####################################################################################
 # build research code, librtmp
 #####################################################################################
-if [ $SRS_RESEARCH = YES ]; then
-    mkdir -p ${SRS_OBJS}/research
+if [ $SRS_EXPORT_LIBRTMP = NO ]; then
+    if [ $SRS_RESEARCH = YES ]; then
+        mkdir -p ${SRS_OBJS}/research
 
-    (cd research/hls && make ${SRS_JOBS} && mv ts_info ../../${SRS_OBJS}/research)
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/hls failed, ret=$ret"; exit $ret; fi
+        (cd ${SRS_WORKDIR}/research/hls && make ${SRS_JOBS} && mv ts_info ../../${SRS_OBJS_DIR}/research)
+        ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/hls failed, ret=$ret"; exit $ret; fi
 
-    (cd research/ffempty && make ${SRS_JOBS} && mv ffempty ../../${SRS_OBJS}/research)
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/ffempty failed, ret=$ret"; exit $ret; fi
+        (cd research/ffempty && make ${SRS_JOBS} && mv ffempty ../../${SRS_OBJS_DIR}/research)
+        ret=$?; if [[ $ret -ne 0 ]]; then echo "build research/ffempty failed, ret=$ret"; exit $ret; fi
+    fi
 fi
 
 if [ $SRS_LIBRTMP = YES ]; then
     mkdir -p ${SRS_OBJS}/research
     
     # librtmp
-    (cd research/librtmp && mkdir -p objs && ln -sf `pwd`/objs ../../${SRS_OBJS}/research/librtmp)
+    (cd ${SRS_WORKDIR}/research/librtmp && mkdir -p objs && ln -sf `pwd`/objs ../../${SRS_OBJS_DIR}/research/librtmp)
     ret=$?; if [[ $ret -ne 0 ]]; then echo "link research/librtmp failed, ret=$ret"; exit $ret; fi
 fi
 

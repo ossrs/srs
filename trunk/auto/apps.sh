@@ -1,7 +1,8 @@
 # generate the binary
 #
 # params:
-#     $SRS_OBJS the objs directory. ie. objs
+#     $SRS_OBJS the objs directory to store the Makefile. ie. ./objs
+#     $SRS_OBJS_DIR the objs directory for Makefile. ie. objs
 #     $SRS_MAKEFILE the makefile name. ie. Makefile
 #
 #     $MAIN_ENTRANCES array, disable all except the $APP_MAIN itself. ie. ["srs_main_server" "srs_main_bandcheck"]
@@ -14,7 +15,7 @@
 
 FILE=${SRS_OBJS}/${SRS_MAKEFILE}
 
-APP_TARGET="${SRS_OBJS}/${APP_NAME}"
+APP_TARGET="${SRS_OBJS_DIR}/${APP_NAME}"
 
 echo "generate app ${APP_NAME} depends...";
 
@@ -45,7 +46,7 @@ for item in ${MODULE_OBJS[*]}; do
         continue;
     fi
     
-    OBJ_FILE=${SRS_OBJS}/$item
+    OBJ_FILE=${SRS_OBJS_DIR}/$item
     OBJ_FILE="${OBJ_FILE%.*}.o"
     echo -n "${OBJ_FILE} " >> ${FILE}
 done
@@ -76,7 +77,7 @@ for item in ${MODULE_OBJS[*]}; do
         continue;
     fi
     
-    OBJ_FILE=${SRS_OBJS}/$item
+    OBJ_FILE=${SRS_OBJS_DIR}/$item
     OBJ_FILE="${OBJ_FILE%.*}.o"
     echo -n "${OBJ_FILE} " >> ${FILE}
 done

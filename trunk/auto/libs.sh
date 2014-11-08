@@ -1,7 +1,8 @@
 # generate the library for static link.
 #
 # params:
-#     $SRS_OBJS the objs directory. ie. objs
+#     $SRS_OBJS the objs directory to store the Makefile. ie. ./objs
+#     $SRS_OBJS_DIR the objs directory for Makefile. ie. objs
 #     $SRS_MAKEFILE the makefile name. ie. Makefile
 #
 #     $BUILD_KEY a string indicates the build key for Makefile. ie. dump
@@ -10,7 +11,7 @@
 
 FILE=${SRS_OBJS}/${SRS_MAKEFILE}
 
-LIB_TARGET="${SRS_OBJS}/${LIB_NAME}"
+LIB_TARGET="${SRS_OBJS_DIR}/${LIB_NAME}"
 LIB_TAGET_STATIC="${LIB_TARGET}.a"
 
 echo "generate lib ${LIB_NAME} depends..."
@@ -29,14 +30,14 @@ for item in ${MODULE_OBJS[*]}; do
         continue;
     fi
     
-    OBJ_FILE=${SRS_OBJS}/$item
+    OBJ_FILE=${SRS_OBJS_DIR}/$item
     OBJ_FILE="${OBJ_FILE%.*}.o"
     echo -n "${OBJ_FILE} " >> ${FILE}
 done
 echo "" >> ${FILE}
 
 # build header file
-echo -n "	@bash auto/generate_header.sh ${SRS_OBJS}" >> ${FILE}
+echo -n "	@bash auto/generate_header.sh ${SRS_OBJS_DIR}" >> ${FILE}
 echo "" >> ${FILE}
 
 # archive librtmp.a
@@ -49,14 +50,14 @@ for item in ${MODULE_OBJS[*]}; do
         continue;
     fi
     
-    OBJ_FILE=${SRS_OBJS}/$item
+    OBJ_FILE=${SRS_OBJS_DIR}/$item
     OBJ_FILE="${OBJ_FILE%.*}.o"
     echo -n "${OBJ_FILE} " >> ${FILE}
 done
 echo "" >> ${FILE}
 
 # parent Makefile, to create module output dir before compile it.
-echo "	mkdir -p ${SRS_OBJS}/include" >> ${SRS_MAKEFILE}
-echo "	mkdir -p ${SRS_OBJS}/lib" >> ${SRS_MAKEFILE}
+echo "	mkdir -p ${SRS_OBJS_DIR}/include" >> ${SRS_MAKEFILE}
+echo "	mkdir -p ${SRS_OBJS_DIR}/lib" >> ${SRS_MAKEFILE}
 
 echo -n "generate lib ${LIB_NAME} ok"; echo '!';
