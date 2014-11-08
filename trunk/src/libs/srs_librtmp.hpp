@@ -337,24 +337,22 @@ extern char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize);
 **************************************************************
 *************************************************************/
 /**
-* convert h264 stream data to rtmp packet.
-* @param h264_raw_data the input h264 raw data, a encoded h.264 I/P/B frame data.
-* @paam h264_raw_size the size of h264 raw data. assert > 0.
+* write h.264 raw frame over RTMP to rtmp server.
+* @param frame the input h264 raw data, an encoded h.264 I/P/B frame data.
+*       the frame without h.264 annexb header, by N[00] 00 00 01, where N>=0, 
+*       for instance, header(00 00 00 01) + frame(67 42 80 29 95 A0 14 01 6E 40)
+* @paam frame_size the size of h264 raw data. 
+*       assert frame_size > 1, at least has 1 bytes header.
 * @param dts the dts of h.264 raw data.
 * @param pts the pts of h.264 raw data.
-* @param prtmp_data the output rtmp format packet, which can be send by srs_write_packet.
-* @param prtmp_size the size of rtmp packet, for srs_write_packet.
-* @param ptimestamp the timestamp of rtmp packet, for srs_write_packet.
 * 
-* @remark, user should free the h264_raw_data.
-* @remark, user should free the prtmp_data if success.
+* @remark, user should free the frame.
 * @remark, the tbn of dts/pts is 1/1000 for RTMP, that is, in ms.
 * 
 * @return 0, success; otherswise, failed.
 */
-extern int srs_h264_to_rtmp(
-    char* h264_raw_data, int h264_raw_size, u_int32_t dts, u_int32_t pts,
-    char** prtmp_data, int* prtmp_size, u_int32_t* ptimestamp
+extern int srs_write_h264_raw_frame(srs_rtmp_t rtmp, 
+    char* frame, int frame_size, u_int32_t dts, u_int32_t pts
 );
 /**
 * whether h264 raw data starts with the annexb,
