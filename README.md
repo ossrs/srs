@@ -4,8 +4,8 @@ SRS is industrial-strength live streaming cluster,
 for the best conceptual integrity and the simplest implementation, 
 which delivering rtmp/hls/http live on x86/x64/arm/mips linux, 
 supports origin/edge/vhost and transcode/ingest and dvr/forward 
-and http-api/http-callback/reload, with wiki and the most 
-simple architecture.
+and http-api/http-callback/reload and srs-librtmp, with wiki and 
+the most simple architecture.
 
 Download from github.io: 
 [Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.0.zip) 
@@ -46,6 +46,15 @@ client/[edge](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Edge) p
 [http api](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_HTTPApi), 
 [http server](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_HTTPServer), 
 [dvr](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DVR).
+
+[SRS-librtmp](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp) 
+is a client library, only depends on c++ and socket, with 
+[examples](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#srs-librtmp-examples)(to play, 
+publish, ingest flv/rtmp, inject flv, 
+[publish h264 raw stream](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data)), 
+[exported as seperate project or single cpp file by configure](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#export-srs-librtmp). 
+SRS-librtmp provides api about RTMP, FLV, AMF0 and 
+[h.264 raw stream](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data).
 
 WebSite: [http://ossrs.net](http://ossrs.net) <br/>
 Release: [http://winlinvip.github.io/srs.release](http://winlinvip.github.io/srs.release)  <br/>
@@ -200,6 +209,7 @@ Supported operating systems and hardware:
 1. Support system full utest on gtest.
 1. [experiment] Support embeded [HTTP server](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleHTTP) for hls(live/vod)
 1. [experiment] Support [vod stream(http flv/hls vod stream)](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_FlvVodStream).
+1. Support [publish h264 raw stream](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data) by srs-librtmp.
 1. [dev] Suppport [English wiki](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_v1_ENHome).
 1. [dev] Research and simplify st, [bug #182](https://github.com/winlinvip/simple-rtmp-server/issues/182).
 1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).

@@ -98,7 +98,7 @@ cat << END >$FILE
 /**
 # Example to use srs-librtmp
 # see: https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp
-${COMPILE}
+    ${COMPILE}
 */
 #include <stdio.h>
 #include "srs_librtmp.h"
