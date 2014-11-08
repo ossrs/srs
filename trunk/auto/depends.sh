@@ -444,18 +444,20 @@ else
     echo "#undef SRS_AUTO_HTTP_CALLBACK" >> $SRS_AUTO_HEADERS_H
 fi
 
-echo "link players to cherrypy static-dir"
-rm -rf research/api-server/static-dir/players &&
-ln -sf `pwd`/research/players research/api-server/static-dir/players &&
-rm -f research/api-server/static-dir/crossdomain.xml &&
-ln -sf `pwd`/research/players/crossdomain.xml research/api-server/static-dir/crossdomain.xml &&
-rm -rf research/api-server/static-dir/live && 
-mkdir -p `pwd`/${SRS_OBJS}/nginx/html/live &&
-ln -sf `pwd`/${SRS_OBJS}/nginx/html/live research/api-server/static-dir/live &&
-rm -rf research/api-server/static-dir/forward && 
-mkdir -p `pwd`/${SRS_OBJS}/nginx/html/forward &&
-ln -sf `pwd`/${SRS_OBJS}/nginx/html/forward research/api-server/static-dir/forward
-ret=$?; if [[ $ret -ne 0 ]]; then echo "link players to cherrypy static-dir failed, ret=$ret"; exit $ret; fi
+if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
+    echo "link players to cherrypy static-dir"
+    rm -rf research/api-server/static-dir/players &&
+    ln -sf `pwd`/research/players research/api-server/static-dir/players &&
+    rm -f research/api-server/static-dir/crossdomain.xml &&
+    ln -sf `pwd`/research/players/crossdomain.xml research/api-server/static-dir/crossdomain.xml &&
+    rm -rf research/api-server/static-dir/live && 
+    mkdir -p `pwd`/${SRS_OBJS}/nginx/html/live &&
+    ln -sf `pwd`/${SRS_OBJS}/nginx/html/live research/api-server/static-dir/live &&
+    rm -rf research/api-server/static-dir/forward && 
+    mkdir -p `pwd`/${SRS_OBJS}/nginx/html/forward &&
+    ln -sf `pwd`/${SRS_OBJS}/nginx/html/forward research/api-server/static-dir/forward
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "link players to cherrypy static-dir failed, ret=$ret"; exit $ret; fi
+fi
 
 #####################################################################################
 # generate demo index.html
