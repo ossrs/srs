@@ -20,7 +20,9 @@ SrsGperfMCSummaryColor="\${GREEN}{disabled} "; if [ $SRS_GPERF_MC = YES ]; then 
 SrsGperfMPSummaryColor="\${GREEN}{disabled} "; if [ $SRS_GPERF_MP = YES ]; then SrsGperfMPSummaryColor="\${YELLOW}"; fi
 SrsGperfCPSummaryColor="\${GREEN}{disabled} "; if [ $SRS_GPERF_CP = YES ]; then SrsGperfCPSummaryColor="\${YELLOW}"; fi
 SrsGprofSummaryColor="\${GREEN}{disabled} "; if [ $SRS_GPROF = YES ]; then SrsGprofSummaryColor="\${YELLOW}"; fi
-cat <<END > ${SRS_OBJS}/${SRS_BUILD_SUMMARY}
+
+if [ $SRS_EXPORT_LIBRTMP = NO ]; then
+    cat <<END > ${SRS_OBJS}/${SRS_BUILD_SUMMARY}
 #!/bin/bash
 
 #####################################################################################
@@ -94,7 +96,26 @@ echo -e "     |     ${SrsHttpApiSummaryColor}http-api: support http api to manag
 echo -e "     \${BLACK}+------------------------------------------------------------------------------------\${BLACK}"
 echo -e "\${GREEN}binaries @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Build\${BLACK}"
 
-echo "you can:"
+echo "You can:"
 echo "      ./objs/srs -c conf/srs.conf"
 echo "                  to start the srs server, with config conf/srs.conf."
 END
+else
+    cat <<END > ${SRS_OBJS}/${SRS_BUILD_SUMMARY}
+#!/bin/bash
+
+#####################################################################################
+# linux shell color support.
+RED="\\${RED}"
+GREEN="\\${GREEN}"
+YELLOW="\\${YELLOW}"
+BLACK="\\${BLACK}"
+
+echo -e "\${BLACK}You can use srs-librtmp at:\${BLACK}"
+echo -e "\${GREEN}      objs/include/srs_librtmp.h\${BLACK}"
+echo -e "\${GREEN}      objs/lib/srs_librtmp.a\${BLACK}"
+echo -e "\${BLACK}Examples for srs-librtmp at:\${BLACK}"
+echo -e "\${GREEN}      objs/research/librtmp\${BLACK}"
+echo -e "\${GREEN}      Examples: https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#srs-librtmp-examples\${BLACK}"
+END
+fi

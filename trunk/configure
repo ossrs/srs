@@ -33,10 +33,12 @@ if [ $SRS_EXPORT_LIBRTMP != NO ]; then
     # create target
     SRS_WORKDIR=${SRS_EXPORT_LIBRTMP} && SRS_OBJS=${SRS_WORKDIR}/${SRS_OBJS_DIR} && mkdir -p ${SRS_OBJS} &&
     # copy src to target
-    _CPT=${SRS_EXPORT_LIBRTMP}/3rdparty && mkdir -p ${_CPT} && cp 3rdparty/st-1.9.zip ${_CPT} &&
-    _CPT=${SRS_EXPORT_LIBRTMP}/3rdparty/patches && mkdir -p ${_CPT} && cp 3rdparty/patches/1.st.arm.patch ${_CPT} &&
-    _CPT=${SRS_EXPORT_LIBRTMP}/research/librtmp && mkdir -p ${_CPT} && cp research/librtmp/*.c ${_CPT} && cp research/librtmp/Makefile ${_CPT} &&
-    _CPT=${SRS_EXPORT_LIBRTMP}/src/core && mkdir -p ${_CPT} && cp src/core/* ${_CPT}
+    _CPT=${SRS_EXPORT_LIBRTMP}/research/librtmp && mkdir -p ${_CPT} && cp research/librtmp/*.c research/librtmp/Makefile ${_CPT} &&
+    _CPT=${SRS_EXPORT_LIBRTMP}/auto && mkdir -p ${_CPT} && cp auto/generate_header.sh ${_CPT} &&
+    _CPT=${SRS_EXPORT_LIBRTMP}/src/core && mkdir -p ${_CPT} && cp src/core/* ${_CPT} &&
+    _CPT=${SRS_EXPORT_LIBRTMP}/src/kernel && mkdir -p ${_CPT} && cp src/kernel/* ${_CPT} &&
+    _CPT=${SRS_EXPORT_LIBRTMP}/src/rtmp && mkdir -p ${_CPT} && cp src/rtmp/* ${_CPT} &&
+    _CPT=${SRS_EXPORT_LIBRTMP}/src/libs && mkdir -p ${_CPT} && cp src/libs/* ${_CPT}
     # check ret
     ret=$?; if [[ $ret -ne 0 ]]; then echo "export src failed, ret=$ret"; exit $ret; fi
 fi
@@ -468,7 +470,9 @@ echo 'configure ok! '
 # when configure success, prepare build
 #####################################################################################
 # create objs/logs for ffmpeg to write log.
-mkdir -p ${SRS_OBJS}/logs
+if [ $SRS_EXPORT_LIBRTMP = NO ]; then
+    mkdir -p ${SRS_OBJS}/logs
+fi
 
 #####################################################################################
 # configure summary
