@@ -996,21 +996,23 @@ char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize)
     return any->human_print(pdata, psize);
 }
 
-int srs_write_h264_raw_frame(srs_rtmp_t rtmp, char* frame, int frame_size, u_int32_t dts, u_int32_t pts)
+int srs_write_h264_raw_frames(srs_rtmp_t rtmp, char* frames, int frames_size, u_int32_t dts, u_int32_t pts)
 {
     int ret = ERROR_SUCCESS;
     
-    srs_assert(frame_size > 1);
+    srs_assert(frames_size > 1);
     
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
     
-    // 5bits, 7.3.1 NAL unit syntax, 
+    /*// 5bits, 7.3.1 NAL unit syntax, 
     // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
     //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
     u_int8_t nal_unit_type = (char)frame[0] & 0x1f;
     
-    /*// the timestamp in rtmp message header is dts.
+    // the RTMP packet header
+    
+    // the timestamp in rtmp message header is dts.
     u_int32_t timestamp = dts;
     
     // for h264 in RTMP video payload, there is 5bytes header:

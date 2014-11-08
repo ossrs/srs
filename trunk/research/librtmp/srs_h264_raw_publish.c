@@ -50,9 +50,13 @@ int read_h264_frame(char* data, int size, char** pp, int fps,
         srs_trace("h264 raw data invalid.");
         return -1;
     }
+    
+    // @see srs_write_h264_raw_frames
+    // each frame prefixed h.264 annexb header, by N[00] 00 00 01, where N>=0, 
+    // for instance, frame = header(00 00 00 01) + payload(67 42 80 29 95 A0 14 01 6E 40)
+    *frame = p;
     p += pnb_start_code;
     
-    *frame = p;
     for (;p < data + size; p++) {
         if (srs_h264_startswith_annexb(p, size - (p - data), &pnb_start_code)) {
             break;
@@ -162,7 +166,7 @@ int main(int argc, char** argv)
         }
         
         // send out the h264 packet over RTMP
-        if (srs_write_h264_raw_frame(rtmp, data, size, dts, pts) != 0) {
+        if (srs_write_h264_raw_frames(rtmp, data, size, dts, pts) != 0) {
             srs_trace("send h264 raw data failed.");
             goto rtmp_destroy;
         }
