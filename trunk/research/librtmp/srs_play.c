@@ -52,34 +52,35 @@ int main(int argc, char** argv)
     
     rtmp = srs_rtmp_create(argv[1]);
     
-    printf("suck rtmp stream like rtmpdump\n");
-    printf("srs(simple-rtmp-server) client librtmp library.\n");
-    printf("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
-    printf("rtmp url: %s\n", argv[1]);
+    srs_trace("suck rtmp stream like rtmpdump");
+    srs_trace("srs(simple-rtmp-server) client librtmp library.");
+    srs_trace("version: %d.%d.%d", srs_version_major(), srs_version_minor(), srs_version_revision());
+    srs_trace("rtmp url: %s", argv[1]);
     
     if (srs_simple_handshake(rtmp) != 0) {
-        printf("simple handshake failed.\n");
+        srs_trace("simple handshake failed.");
         goto rtmp_destroy;
     }
-    printf("simple handshake success\n");
+    srs_trace("simple handshake success");
     
     if (srs_connect_app(rtmp) != 0) {
-        printf("connect vhost/app failed.\n");
+        srs_trace("connect vhost/app failed.");
         goto rtmp_destroy;
     }
-    printf("connect vhost/app success\n");
+    srs_trace("connect vhost/app success");
     
     if (srs_play_stream(rtmp) != 0) {
-        printf("play stream failed.\n");
+        srs_trace("play stream failed.");
         goto rtmp_destroy;
     }
-    printf("play stream success\n");
+    srs_trace("play stream success");
     
     for (;;) {
         if (srs_read_packet(rtmp, &type, &timestamp, &data, &size) != 0) {
             goto rtmp_destroy;
         }
-        printf("got packet: type=%s, time=%d, size=%d\n", srs_type2string(type), timestamp, size);
+        srs_trace("got packet: type=%s, time=%d, size=%d", 
+            srs_type2string(type), timestamp, size);
         
         free(data);
     }

@@ -30,6 +30,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sstream>
 using namespace std;
 
+// undefine the log of librtmp for the srs use its log.
+#undef srs_trace
+#undef srs_verbose
+
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_rtmp.hpp>
 #include <srs_lib_simple_socket.hpp>
