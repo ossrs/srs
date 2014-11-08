@@ -344,12 +344,13 @@ extern char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize);
 *       for instance, frame = header(00 00 00 01) + payload(67 42 80 29 95 A0 14 01 6E 40)
 *       about annexb, @see H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
 * @paam frames_size the size of h264 raw data. 
-*       assert frames_size > 1, at least has 1 bytes header.
+*       assert frames_size > 0, at least has 1 bytes header.
 * @param dts the dts of h.264 raw data.
 * @param pts the pts of h.264 raw data.
 * 
 * @remark, user should free the frames.
 * @remark, the tbn of dts/pts is 1/1000 for RTMP, that is, in ms.
+* @remark, cts = pts - dts
 * 
 * @return 0, success; otherswise, failed.
 */
