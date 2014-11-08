@@ -110,7 +110,7 @@ int main(int argc, char** argv)
     printf("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
     
     srs_rtmp_t rtmp = srs_rtmp_create("rtmp://ossrs.net/live/livestream");
-    srs_trace("create rtmp success");
+    srs_lib_trace("create rtmp success");
     srs_rtmp_destroy(rtmp);
     
     return 0;
