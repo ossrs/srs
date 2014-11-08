@@ -209,6 +209,8 @@ extern const char* srs_type2string(int type);
 *
 * @remark: for read, user must free the data.
 * @remark: for write, user should never free the data, even if error.
+* @example /trunk/research/librtmp/srs_play.c
+* @example /trunk/research/librtmp/srs_publish.c
 *
 * @return 0, success; otherswise, failed.
 */
@@ -237,6 +239,10 @@ extern int64_t srs_get_nrecv_bytes(srs_rtmp_t rtmp);
 /*************************************************************
 **************************************************************
 * flv codec
+* @example /trunk/research/librtmp/srs_flv_injecter.c
+* @example /trunk/research/librtmp/srs_flv_parser.c
+* @example /trunk/research/librtmp/srs_ingest_flv.c
+* @example /trunk/research/librtmp/srs_ingest_rtmp.c
 **************************************************************
 *************************************************************/
 typedef void* srs_flv_t;
@@ -276,6 +282,8 @@ extern flv_bool srs_flv_is_keyframe(char* data, int32_t size);
 /*************************************************************
 **************************************************************
 * amf0 codec
+* @example /trunk/research/librtmp/srs_ingest_flv.c
+* @example /trunk/research/librtmp/srs_ingest_rtmp.c
 **************************************************************
 *************************************************************/
 /* the output handler. */
@@ -351,6 +359,8 @@ extern char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize);
 * @remark, user should free the frames.
 * @remark, the tbn of dts/pts is 1/1000 for RTMP, that is, in ms.
 * @remark, cts = pts - dts
+* @remark, use srs_h264_startswith_annexb to check whether frame is annexb format.
+* @example /trunk/research/librtmp/srs_h264_raw_publish.c
 * 
 * @return 0, success; otherswise, failed.
 */
@@ -393,6 +403,9 @@ extern int srs_write_h264_raw_frames(srs_rtmp_t rtmp,
 * @paam h264_raw_size the size of h264 raw data.
 * @param pnb_start_code output the size of start code, must >=3. 
 *       NULL to ignore.
+*
+* @reamrk used to check whether current frame is in annexb format.
+* @example /trunk/research/librtmp/srs_h264_raw_publish.c
 *
 * @return 0 false; otherwise, true.
 */
