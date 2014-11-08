@@ -448,20 +448,6 @@ if [ $SRS_UTEST = YES ]; then
     LINK_OPTIONS="-lpthread ${SrsLinkOptions}" MODULE_DIR="src/utest" APP_NAME="srs_utest" . auto/utest.sh
 fi
 
-# for srs-librtmp single file, 
-# package the whole project to srs_librtmp.h and srs_librtmp.cpp
-if [ $SRS_EXPORT_LIBRTMP_SINGLE != NO ]; then
-    echo "package the whole project to srs_librtmp.h and srs_librtmp.cpp"
-    . $SRS_EXPORT_LIBRTMP_SINGLE/auto/generate-srs-librtmp-single.sh
-    echo -e "${GREEN}Please use the srs-librtmp files: ${BLACK}"
-    echo -e "${GREEN}       $SRS_EXPORT_LIBRTMP_PROJECT/srs_librtmp.h ${BLACK}"
-    echo -e "${GREEN}       $SRS_EXPORT_LIBRTMP_PROJECT/srs_librtmp.cpp ${BLACK}"
-    echo -e "${GREEN}       $SRS_EXPORT_LIBRTMP_PROJECT/example.c ${BLACK}"
-elif [ $SRS_EXPORT_LIBRTMP_PROJECT != NO ]; then
-    echo -e "${GREEN}Please use the srs-librtmp project: ${BLACK}"
-    echo -e "${GREEN}       cd $SRS_EXPORT_LIBRTMP_PROJECT && make ${BLACK}"
-fi
-
 echo 'configure ok! '
 
 #####################################################################################
@@ -603,4 +589,19 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     echo "to build:"
     echo "\" make \" to build the srs(simple rtmp server)."
     echo "\" make help \" to get the usage of make"
+else
+    # for srs-librtmp single file, 
+    # package the whole project to srs_librtmp.h and srs_librtmp.cpp
+    if [ $SRS_EXPORT_LIBRTMP_SINGLE != NO ]; then
+        echo "package the whole project to srs_librtmp.h and srs_librtmp.cpp"
+        . $SRS_EXPORT_LIBRTMP_SINGLE/auto/generate-srs-librtmp-single.sh
+        echo -e "${GREEN}Please use the srs-librtmp files: ${BLACK}"
+        echo -e "${GREEN}       $SRS_EXPORT_LIBRTMP_PROJECT/srs_librtmp.h ${BLACK}"
+        echo -e "${GREEN}       $SRS_EXPORT_LIBRTMP_PROJECT/srs_librtmp.cpp ${BLACK}"
+        echo -e "${GREEN}       $SRS_EXPORT_LIBRTMP_PROJECT/example.c ${BLACK}"
+    # for srs-librtmp project.
+    else
+        echo -e "${GREEN}Please use the srs-librtmp project: ${BLACK}"
+        echo -e "${GREEN}       cd $SRS_EXPORT_LIBRTMP_PROJECT && make ${BLACK}"
+    fi
 fi
