@@ -531,7 +531,7 @@ int SrsAvcAacCodec::avc_demux_annexb_format(SrsStream* stream, SrsCodecSample* s
         
         // get the last matched NALU
         while (!stream->empty()) {
-            if (srs_avc_startswith_annexb(stream, &nb_start_code)) {
+            if (srs_avc_startswith_annexb(stream, NULL)) {
                 break;
             }
             
