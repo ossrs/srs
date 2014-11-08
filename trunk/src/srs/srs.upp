@@ -137,7 +137,6 @@ file
 	..\..\research\librtmp\srs_ingest_rtmp.c,
 	..\..\research\librtmp\srs_play.c,
 	..\..\research\librtmp\srs_publish.c,
-	..\..\research\librtmp\srs_research_public.h,
 	..\..\research\hls\ts_info.cc;
 
 mainconfig

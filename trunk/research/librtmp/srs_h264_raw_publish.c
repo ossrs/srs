@@ -35,8 +35,6 @@ gcc srs_h264_raw_publish.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_h
        
 #include "../../objs/include/srs_librtmp.h"
 
-#define srs_trace(msg, ...) printf(msg, ##__VA_ARGS__);printf("\n")
-
 int read_h264_frame(char* data, int size, char** pp, int* pnb_start_code, int fps,
     char** frame, int* frame_size, int* dts, int* pts)
 {
@@ -80,18 +78,18 @@ int read_h264_frame(char* data, int size, char** pp, int* pnb_start_code, int fp
 
 int main(int argc, char** argv)
 {
-    srs_trace("publish raw h.264 as rtmp stream to server like FMLE/FFMPEG/Encoder");
-    srs_trace("srs(simple-rtmp-server) client librtmp library.");
-    srs_trace("version: %d.%d.%d", srs_version_major(), srs_version_minor(), srs_version_revision());
+    printf("publish raw h.264 as rtmp stream to server like FMLE/FFMPEG/Encoder\n");
+    printf("SRS(simple-rtmp-server) client librtmp library.\n");
+    printf("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
     
     if (argc <= 2) {
-        srs_trace("Usage: %s <h264_raw_file> <rtmp_publish_url>", argv[0]);
-        srs_trace("     h264_raw_file: the h264 raw steam file.");
-        srs_trace("     rtmp_publish_url: the rtmp publish url.");
-        srs_trace("For example:");
-        srs_trace("     %s ./720p.h264.raw rtmp://127.0.0.1:1935/live/livestream", argv[0]);
-        srs_trace("Where the file: http://winlinvip.github.io/srs.release/3rdparty/720p.h264.raw");
-        srs_trace("See: https://github.com/winlinvip/simple-rtmp-server/issues/66");
+        printf("Usage: %s <h264_raw_file> <rtmp_publish_url>\n", argv[0]);
+        printf("     h264_raw_file: the h264 raw steam file.\n");
+        printf("     rtmp_publish_url: the rtmp publish url.\n");
+        printf("For example:\n");
+        printf("     %s ./720p.h264.raw rtmp://127.0.0.1:1935/live/livestream\n", argv[0]);
+        printf("Where the file: http://winlinvip.github.io/srs.release/3rdparty/720p.h264.raw\n");
+        printf("See: https://github.com/winlinvip/simple-rtmp-server/issues/66\n");
         exit(-1);
     }
     

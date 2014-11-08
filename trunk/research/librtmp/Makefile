@@ -46,8 +46,8 @@ SRS_LIBRTMP_I = $(SRS_OBJS)/include/srs_librtmp.h
 SRS_LIBRTMP_L = $(SRS_OBJS)/lib/srs_librtmp.a
 # openssl for complex handshake, built by srs.
 SRS_LIBSSL_L =
-# the research public headers
-SRS_RESEARCH_DEPS = Makefile srs_research_public.h
+# public depends, the Makefile or public headers.
+SRS_RESEARCH_DEPS = Makefile
 
 # for x86/x64 platform
 ifeq ($(GCC), gcc)

@@ -24,6 +24,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_librtmp.hpp>
 
 #include <stdlib.h>
+#include <sys/time.h>
 
 #include <string>
 #include <sstream>
@@ -32,7 +33,6 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_rtmp.hpp>
 #include <srs_lib_simple_socket.hpp>
-#include <srs_kernel_log.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_protocol_stack.hpp>
@@ -529,6 +529,33 @@ int64_t srs_get_nrecv_bytes(srs_rtmp_t rtmp)
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
     return context->rtmp->get_recv_bytes();
+}
+
+const char* srs_format_time()
+{
+    struct timeval tv;
+    static char buf[23];
+    
+    memset(buf, 0, sizeof(buf));
+    
+    // clock time
+    if (gettimeofday(&tv, NULL) == -1) {
+        return buf;
+    }
+    
+    // to calendar time
+    struct tm* tm;
+    if ((tm = localtime(&tv.tv_sec)) == NULL) {
+        return buf;
+    }
+    
+    snprintf(buf, sizeof(buf), 
+        "%d-%02d-%02d %02d:%02d:%02d.%03d", 
+        1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, 
+        tm->tm_hour, tm->tm_min, tm->tm_sec, 
+        (int)(tv.tv_usec / 1000));
+    
+    return buf;
 }
 
 struct FlvContext

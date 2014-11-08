@@ -33,7 +33,6 @@ gcc srs_flv_injecter.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_flv_i
 #include <fcntl.h>
 
 #include "../../objs/include/srs_librtmp.h"
-#include "srs_research_public.h"
 
 #define ERROR_INJECTED 10000
 
@@ -73,12 +72,12 @@ int main(int argc, char** argv)
     tmp_file = (char*)malloc(tmp_file_size);
     snprintf(tmp_file, tmp_file_size, "%s.tmp", out_flv_file);
     
-    trace("inject flv file keyframes to metadata.");
-    trace("srs(simple-rtmp-server) client librtmp library.");
-    trace("version: %d.%d.%d", srs_version_major(), srs_version_minor(), srs_version_revision());
-    trace("input:  %s", in_flv_file);
-    trace("output:  %s", out_flv_file);
-    trace("tmp_file:  %s", tmp_file);
+    srs_trace("inject flv file keyframes to metadata.");
+    srs_trace("srs(simple-rtmp-server) client librtmp library.");
+    srs_trace("version: %d.%d.%d", srs_version_major(), srs_version_minor(), srs_version_revision());
+    srs_trace("input:  %s", in_flv_file);
+    srs_trace("output:  %s", out_flv_file);
+    srs_trace("tmp_file:  %s", tmp_file);
 
     ret = process(in_flv_file, tmp_file, &ic, &oc);
     
@@ -89,13 +88,13 @@ int main(int argc, char** argv)
         unlink(tmp_file);
         if (ret == ERROR_INJECTED) {
             ret = 0;
-            trace("file already injected.");
+            srs_trace("file already injected.");
         } else {
-            trace("error, remove tmp file.");
+            srs_trace("error, remove tmp file.");
         }
     } else {
         rename(tmp_file, out_flv_file);
-        trace("completed, rename to %s", out_flv_file);
+        srs_trace("completed, rename to %s", out_flv_file);
     }
     
     free(tmp_file);
@@ -123,14 +122,14 @@ int process(const char* in_flv_file, const char* out_flv_file, srs_flv_t* pic, s
     
     if ((ic = srs_flv_open_read(in_flv_file)) == NULL) {
         ret = 2;
-        trace("open input flv file failed. ret=%d", ret);
+        srs_trace("open input flv file failed. ret=%d", ret);
         return ret;
     }
     *pic = ic;
     
     if ((oc = srs_flv_open_write(out_flv_file)) == NULL) {
         ret = 2;
-        trace("open output flv file failed. ret=%d", ret);
+        srs_trace("open output flv file failed. ret=%d", ret);
         return ret;
     }
     *poc = oc;
@@ -164,13 +163,13 @@ int parse_metadata(char* data, int size, srs_amf0_t* pname, srs_amf0_t* pdata)
     *pname = srs_amf0_parse(data, size, &nparsed);
     
     if (*pname == NULL || nparsed >= size) {
-        trace("invalid amf0 name data.");
+        srs_trace("invalid amf0 name data.");
         return -1;
     }
     
     *pdata = srs_amf0_parse(data + nparsed, size - nparsed, &nparsed);
     if (*pdata == NULL || nparsed > size) {
-        trace("invalid amf0 value data");
+        srs_trace("invalid amf0 value data");
         return -1;
     }
     
@@ -206,22 +205,22 @@ int build_keyframes(srs_flv_t ic, srs_amf0_t *pname, srs_amf0_t* pdata, srs_amf0
         return ret;
     }
     
-    trace("build keyframe infos from flv");
+    srs_trace("build keyframe infos from flv");
     for (;;) {
         offset = srs_flv_tellg(ic);
         
         // tag header
         if ((ret = srs_flv_read_tag_header(ic, &type, &size, &timestamp)) != 0) {
             if (srs_flv_is_eof(ret)) {
-                trace("parse completed.");
+                srs_trace("parse completed.");
                 return 0;
             }
-            trace("flv get packet failed. ret=%d", ret);
+            srs_trace("flv get packet failed. ret=%d", ret);
             return ret;
         }
         
         if (size <= 0) {
-            trace("invalid size=%d", size);
+            srs_trace("invalid size=%d", size);
             return ret;
         }
         
@@ -343,20 +342,20 @@ int do_inject_flv(srs_flv_t ic, srs_flv_t oc, srs_amf0_t amf0_name, srs_amf0_t a
         free(data);
     }
     
-    trace("build keyframe infos from flv");
+    srs_trace("build keyframe infos from flv");
     for (;;) {
         // tag header
         if ((ret = srs_flv_read_tag_header(ic, &type, &size, &timestamp)) != 0) {
             if (srs_flv_is_eof(ret)) {
-                trace("parse completed.");
+                srs_trace("parse completed.");
                 return 0;
             }
-            trace("flv get packet failed. ret=%d", ret);
+            srs_trace("flv get packet failed. ret=%d", ret);
             return ret;
         }
         
         if (size <= 0) {
-            trace("invalid size=%d", size);
+            srs_trace("invalid size=%d", size);
             break;
         }
         
