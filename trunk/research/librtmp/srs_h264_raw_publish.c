@@ -37,26 +37,30 @@ gcc srs_h264_raw_publish.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_h
 
 #define srs_trace(msg, ...) printf(msg, ##__VA_ARGS__);printf("\n")
 
-int read_h264_frame(char* data, int size, char** p, int fps,
+int read_h264_frame(char* data, int size, char** pp, int fps,
     char** frame, int* frame_size, int* dts, int* pts)
 {
+    char* p = *pp;
+    
     // @remark, for this demo, to publish h264 raw file to SRS,
     // we search the h264 frame from the buffer which cached the h264 data.
     // please get h264 raw data from device, it always a encoded frame.
     int pnb_start_code = 0;
-    if (!srs_h264_startswith_annexb(*p, size - (*p - data), &pnb_start_code)) {
+    if (!srs_h264_startswith_annexb(p, size - (p - data), &pnb_start_code)) {
         srs_trace("h264 raw data invalid.");
         return -1;
     }
-    *p += pnb_start_code;
+    p += pnb_start_code;
     
-    *frame = *p;
-    for (;*p < data + size; *p = *p + 1) {
-        if (srs_h264_startswith_annexb(*p, size - (*p - data), &pnb_start_code)) {
+    *frame = p;
+    for (;p < data + size; p++) {
+        if (srs_h264_startswith_annexb(p, size - (p - data), &pnb_start_code)) {
             break;
         }
     }
-    *frame_size = *p - *frame;
+    
+    *pp = p;
+    *frame_size = p - *frame;
     if (*frame_size <= 0) {
         srs_trace("h264 raw data invalid.");
         return -1;
@@ -167,7 +171,7 @@ int main(int argc, char** argv)
         // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
         u_int8_t nut = (char)data[0] & 0x1f;
         srs_trace("sent packet: type=%s, time=%d, size=%d, fps=%d, b[0]=%#x(%s)", 
-            srs_type2string(SRS_RTMP_TYPE_VIDEO), dts, size, fps, nut,
+            srs_type2string(SRS_RTMP_TYPE_VIDEO), dts, size, fps, (char)data[0],
             (nut == 7? "SPS":(nut == 8? "PPS":(nut == 5? "I":(nut == 1? "P":"Unknown")))));
         
         // @remark, when use encode device, it not need to sleep.

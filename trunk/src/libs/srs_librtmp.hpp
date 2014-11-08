@@ -337,11 +337,12 @@ extern char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize);
 **************************************************************
 *************************************************************/
 /**
-* write h.264 raw frame to rtmp server.
+* write h.264 raw frame over RTMP to rtmp server.
 * @param frame the input h264 raw data, an encoded h.264 I/P/B frame data.
-*       it must be prefixed by h.264 annexb format, by N[00] 00 00 01, where N>=0, 
-*       for instance, 00 00 00 01 67 42 80 29 95 A0 14 01 6E 40
-* @paam frame_size the size of h264 raw data. assert frame_size > 0.
+*       the frame without h.264 annexb header, by N[00] 00 00 01, where N>=0, 
+*       for instance, header(00 00 00 01) + frame(67 42 80 29 95 A0 14 01 6E 40)
+* @paam frame_size the size of h264 raw data. 
+*       assert frame_size > 1, at least has 1 bytes header.
 * @param dts the dts of h.264 raw data.
 * @param pts the pts of h.264 raw data.
 * 

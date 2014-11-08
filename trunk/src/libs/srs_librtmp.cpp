@@ -70,9 +70,6 @@ struct Context
     SimpleSocketStream* skt;
     int stream_id;
     
-    // for h264 raw stream
-    SrsStream raw_stream;
-    
     Context() {
         rtmp = NULL;
         skt = NULL;
@@ -1003,15 +1000,15 @@ int srs_write_h264_raw_frame(srs_rtmp_t rtmp, char* frame, int frame_size, u_int
 {
     int ret = ERROR_SUCCESS;
     
-    srs_assert(frame_size > 0);
+    srs_assert(frame_size > 1);
     
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
     
-    if ((ret = context->raw_stream.initialize(frame, frame_size)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
+    // 5bits, 7.3.1 NAL unit syntax, 
+    // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+    //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
+    u_int8_t nal_unit_type = (char)frame[0] & 0x1f;
     
     /*// the timestamp in rtmp message header is dts.
     u_int32_t timestamp = dts;
@@ -1024,11 +1021,6 @@ int srs_write_h264_raw_frame(srs_rtmp_t rtmp, char* frame, int frame_size, u_int
     int size = h264_raw_size + 5;
     char* data = new char[size];
     memcpy(data + 5, h264_raw_data, h264_raw_size);
-    
-    // 5bits, 7.3.1 NAL unit syntax, 
-    // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
-    //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
-    u_int8_t nal_unit_type = (char)h264_raw_data[0] & 0x1f;
     
     // Frame Type, Type of video frame.
     // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
