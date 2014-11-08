@@ -45,23 +45,22 @@ int main(int argc, char** argv)
     // flv handler
     srs_flv_t flv;
     
+    printf("parse and show flv file detail.\n");
+    printf("srs(simple-rtmp-server) client librtmp library.\n");
+    printf("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
+    
     if (argc <= 1) {
         printf("parse and show flv file detail\n"
             "Usage: %s in_flv_file\n"
             "   in_flv_file         flv file to parse and show.\n"
             "For example:\n"
+            "   %s doc/source.200kbps.768x320.flv\n"
             "   %s ../../doc/source.200kbps.768x320.flv\n",
-            argv[0], argv[0]);
-        ret = 1;
-        exit(ret);
-        return ret;
+            argv[0], argv[0], argv[0]);
+        exit(-1);
     }
     
     in_flv_file = argv[1];
-    
-    srs_trace("parse and show flv file detail.");
-    srs_trace("srs(simple-rtmp-server) client librtmp library.");
-    srs_trace("version: %d.%d.%d", srs_version_major(), srs_version_minor(), srs_version_revision());
     srs_trace("input:  %s", in_flv_file);
 
     if ((flv = srs_flv_open_read(in_flv_file)) == NULL) {

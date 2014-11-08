@@ -31,31 +31,21 @@ gcc srs_play.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_play
 
 int main(int argc, char** argv)
 {
-    srs_rtmp_t rtmp;
-    
-    // packet data
-    int type, size;
-    u_int32_t timestamp = 0;
-    char* data;
+    printf("suck rtmp stream like rtmpdump\n");
+    printf("srs(simple-rtmp-server) client librtmp library.\n");
+    printf("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
     
     if (argc <= 1) {
-        printf("play stream on RTMP server\n"
-            "Usage: %s <rtmp_url>\n"
+        printf("Usage: %s <rtmp_url>\n"
             "   rtmp_url     RTMP stream url to play\n"
             "For example:\n"
             "   %s rtmp://127.0.0.1:1935/live/livestream\n",
             argv[0], argv[0]);
-        int ret = 1;
-        exit(ret);
-        return ret;
+        exit(-1);
     }
     
-    rtmp = srs_rtmp_create(argv[1]);
-    
-    srs_trace("suck rtmp stream like rtmpdump");
-    srs_trace("srs(simple-rtmp-server) client librtmp library.");
-    srs_trace("version: %d.%d.%d", srs_version_major(), srs_version_minor(), srs_version_revision());
     srs_trace("rtmp url: %s", argv[1]);
+    srs_rtmp_t rtmp = srs_rtmp_create(argv[1]);
     
     if (srs_simple_handshake(rtmp) != 0) {
         srs_trace("simple handshake failed.");
@@ -76,6 +66,10 @@ int main(int argc, char** argv)
     srs_trace("play stream success");
     
     for (;;) {
+        int type, size;
+        u_int32_t timestamp = 0;
+        char* data;
+        
         if (srs_read_packet(rtmp, &type, &timestamp, &data, &size) != 0) {
             goto rtmp_destroy;
         }

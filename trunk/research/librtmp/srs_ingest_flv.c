@@ -59,17 +59,20 @@ int main(int argc, char** argv)
     // flv handler
     srs_flv_t flv;
     
+    printf("ingest flv file and publish to RTMP server like FFMPEG.\n");
+    printf("srs(simple-rtmp-server) client librtmp library.\n");
+    printf("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
+    
     if (argc <= 2) {
         printf("ingest flv file and publish to RTMP server\n"
             "Usage: %s <-i in_flv_file> <-y out_rtmp_url>\n"
             "   in_flv_file     input flv file, ingest from this file.\n"
             "   out_rtmp_url    output rtmp url, publish to this url.\n"
             "For example:\n"
-            "   %s -i ../../doc/source.200kbps.768x320.flv -y rtmp://127.0.0.1/live/demo\n",
-            argv[0], argv[0]);
-        ret = 1;
-        exit(ret);
-        return ret;
+            "   %s -i doc/source.200kbps.768x320.flv -y rtmp://127.0.0.1/live/livestream\n"
+            "   %s -i ../../doc/source.200kbps.768x320.flv -y rtmp://127.0.0.1/live/livestream\n",
+            argv[0], argv[0], argv[0]);
+        exit(-1);
     }
     
     // parse options in FFMPEG format.
@@ -86,9 +89,6 @@ int main(int argc, char** argv)
         }
     }
     
-    srs_trace("ingest flv file and publish to RTMP server like FFMPEG.");
-    srs_trace("srs(simple-rtmp-server) client librtmp library.");
-    srs_trace("version: %d.%d.%d", srs_version_major(), srs_version_minor(), srs_version_revision());
     srs_trace("input:  %s", in_flv_file);
     srs_trace("output: %s", out_rtmp_url);
 

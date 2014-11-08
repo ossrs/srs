@@ -52,6 +52,10 @@ int main(int argc, char** argv)
     // temp variables.
     int tmp_file_size = 0;
     char* tmp_file;
+
+    printf("inject flv file keyframes to metadata.\n");
+    printf("srs(simple-rtmp-server) client librtmp library.\n");
+    printf("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
     
     if (argc <= 2) {
         printf("inject flv file keyframes to metadata\n"
@@ -59,11 +63,10 @@ int main(int argc, char** argv)
             "   in_flv_file         input flv file to inject.\n"
             "   out_flv_file        the inject output file, can be in_flv_file.\n"
             "For example:\n"
+            "   %s doc/source.200kbps.768x320.flv injected.flv\n"
             "   %s ../../doc/source.200kbps.768x320.flv injected.flv\n",
-            argv[0], argv[0]);
-        ret = 1;
-        exit(ret);
-        return ret;
+            argv[0], argv[0], argv[0]);
+        exit(-1);
     }
     
     in_flv_file = argv[1];
@@ -73,9 +76,6 @@ int main(int argc, char** argv)
     tmp_file = (char*)malloc(tmp_file_size);
     snprintf(tmp_file, tmp_file_size, "%s.tmp", out_flv_file);
     
-    srs_trace("inject flv file keyframes to metadata.");
-    srs_trace("srs(simple-rtmp-server) client librtmp library.");
-    srs_trace("version: %d.%d.%d", srs_version_major(), srs_version_minor(), srs_version_revision());
     srs_trace("input:  %s", in_flv_file);
     srs_trace("output:  %s", out_flv_file);
     srs_trace("tmp_file:  %s", tmp_file);

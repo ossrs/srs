@@ -45,6 +45,10 @@ int main(int argc, char** argv)
     // rtmp handler
     srs_rtmp_t irtmp, ortmp;
     
+    printf("ingest RTMP and publish to RTMP server like edge.\n");
+    printf("srs(simple-rtmp-server) client librtmp library.\n");
+    printf("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
+    
     if (argc <= 2) {
         printf("ingest RTMP and publish to RTMP server\n"
             "Usage: %s <-i in_rtmp_url> <-y out_rtmp_url>\n"
@@ -53,9 +57,7 @@ int main(int argc, char** argv)
             "For example:\n"
             "   %s -i rtmp://127.0.0.1/live/livestream -y rtmp://127.0.0.1/live/demo\n",
             argv[0], argv[0]);
-        ret = 1;
-        exit(ret);
-        return ret;
+        exit(-1);
     }
     
     // parse options in FFMPEG format.
@@ -72,9 +74,6 @@ int main(int argc, char** argv)
         }
     }
     
-    srs_trace("ingest RTMP and publish to RTMP server like edge.");
-    srs_trace("srs(simple-rtmp-server) client librtmp library.");
-    srs_trace("version: %d.%d.%d", srs_version_major(), srs_version_minor(), srs_version_revision());
     srs_trace("input:  %s", in_rtmp_url);
     srs_trace("output: %s", out_rtmp_url);
     
