@@ -84,7 +84,7 @@ int main(int argc, char** argv)
     
     if (duration <= 0 || timeout <= 0) {
         srs_trace("duration and timeout must be positive.");
-        exit(-1);
+        exit(-2);
     }
     
     rtmp = srs_rtmp_create(rtmp_url);
