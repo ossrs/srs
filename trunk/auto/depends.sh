@@ -125,7 +125,10 @@ function Ubuntu_prepare()
     echo "Ubuntu install tools success"
     return 0
 }
-Ubuntu_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "Ubuntu prepare failed, ret=$ret"; exit $ret; fi
+# donot prepare tools, for srs-librtmp depends only gcc and g++.
+if [ $SRS_EXPORT_LIBRTMP = NO ]; then
+    Ubuntu_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "Ubuntu prepare failed, ret=$ret"; exit $ret; fi
+fi
 #####################################################################################
 # for Centos, auto install tools by yum
 #####################################################################################
@@ -213,50 +216,55 @@ function Centos_prepare()
     echo "Centos install tools success"
     return 0
 }
-Centos_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "CentOS prepare failed, ret=$ret"; exit $ret; fi
+# donot prepare tools, for srs-librtmp depends only gcc and g++.
+if [ $SRS_EXPORT_LIBRTMP = NO ]; then
+    Centos_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "CentOS prepare failed, ret=$ret"; exit $ret; fi
+fi
 
 #####################################################################################
 # st-1.9
 #####################################################################################
-# check the arm flag file, if flag changed, need to rebuild the st.
-_ST_MAKE=linux-debug
-if [ $SRS_EMBEDED_CPU = YES ]; then
-    # ok, arm specified, if the flag filed does not exists, need to rebuild.
-    if [[ -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st/libst.a ]]; then
-        echo "st-1.9t for arm is ok.";
+if [ $SRS_EXPORT_LIBRTMP = NO ]; then
+    # check the arm flag file, if flag changed, need to rebuild the st.
+    _ST_MAKE=linux-debug
+    if [ $SRS_EMBEDED_CPU = YES ]; then
+        # ok, arm specified, if the flag filed does not exists, need to rebuild.
+        if [[ -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st/libst.a ]]; then
+            echo "st-1.9t for arm is ok.";
+        else
+            # TODO: FIXME: patch the bug.
+            # patch st for arm, @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SrsLinuxArm#st-arm-bug-fix
+            echo "build st-1.9t for arm"; 
+            (
+                rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
+                unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && 
+                patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
+                make CC=${SrsArmCC} AR=${SrsArmAR} LD=${SrsArmLD} RANDLIB=${SrsArmRANDLIB} EXTRA_CFLAGS="-DMD_HAVE_EPOLL" ${_ST_MAKE} &&
+                cd .. && rm -rf st && ln -sf st-1.9/obj st &&
+                cd .. && touch ${SRS_OBJS}/_flag.st.arm.tmp
+            )
+        fi
     else
-        # TODO: FIXME: patch the bug.
-        # patch st for arm, @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SrsLinuxArm#st-arm-bug-fix
-        echo "build st-1.9t for arm"; 
-        (
-            rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
-            unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && 
-            patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
-            make CC=${SrsArmCC} AR=${SrsArmAR} LD=${SrsArmLD} RANDLIB=${SrsArmRANDLIB} EXTRA_CFLAGS="-DMD_HAVE_EPOLL" ${_ST_MAKE} &&
-            cd .. && rm -rf st && ln -sf st-1.9/obj st &&
-            cd .. && touch ${SRS_OBJS}/_flag.st.arm.tmp
-        )
+        if [[ ! -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st/libst.a ]]; then
+            echo "st-1.9t is ok.";
+        else
+            echo "build st-1.9t"; 
+            (
+                rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
+                unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && 
+                echo "we alaways patch the st, for we may build srs under arm directly" &&
+                echo "the 1.st.arm.patch is ok for x86 because it's only modify code under macro linux arm" &&
+                patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
+                make ${_ST_MAKE} &&
+                cd .. && rm -rf st && ln -sf st-1.9/obj st &&
+                cd .. && rm -f ${SRS_OBJS}/_flag.st.arm.tmp
+            )
+        fi
     fi
-else
-    if [[ ! -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st/libst.a ]]; then
-        echo "st-1.9t is ok.";
-    else
-        echo "build st-1.9t"; 
-        (
-            rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
-            unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && 
-            echo "we alaways patch the st, for we may build srs under arm directly" &&
-            echo "the 1.st.arm.patch is ok for x86 because it's only modify code under macro linux arm" &&
-            patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
-            make ${_ST_MAKE} &&
-            cd .. && rm -rf st && ln -sf st-1.9/obj st &&
-            cd .. && rm -f ${SRS_OBJS}/_flag.st.arm.tmp
-        )
-    fi
+    # check status
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "build st-1.9 failed, ret=$ret"; exit $ret; fi
+    if [ ! -f ${SRS_OBJS}/st/libst.a ]; then echo "build st-1.9 static lib failed."; exit -1; fi
 fi
-# check status
-ret=$?; if [[ $ret -ne 0 ]]; then echo "build st-1.9 failed, ret=$ret"; exit $ret; fi
-if [ ! -f ${SRS_OBJS}/st/libst.a ]; then echo "build st-1.9 static lib failed."; exit -1; fi
 
 #####################################################################################
 # http-parser-2.1
@@ -335,7 +343,9 @@ function write_nginx_html5()
 END
 }
 # create the nginx dir, for http-server if not build nginx
-mkdir -p ${SRS_OBJS}/nginx
+if [ $SRS_EXPORT_LIBRTMP = NO ]; then
+    mkdir -p ${SRS_OBJS}/nginx
+fi
 # make nginx
 __SRS_BUILD_NGINX=NO; if [ $SRS_EMBEDED_CPU = NO ]; then if [ $SRS_NGINX = YES ]; then __SRS_BUILD_NGINX=YES; fi fi
 if [ $__SRS_BUILD_NGINX = YES ]; then
@@ -361,31 +371,34 @@ if [ $__SRS_BUILD_NGINX = YES ]; then
     sed -i "s/^.user  nobody;/user `whoami`;/g" ${SRS_OBJS}/nginx/conf/nginx.conf
 fi
 
-# create forward dir
-mkdir -p ${SRS_OBJS}/nginx/html/live &&
-mkdir -p ${SRS_OBJS}/nginx/html/forward/live
+# the demo dir.
+if [ $SRS_EXPORT_LIBRTMP = NO ]; then
+    # create forward dir
+    mkdir -p ${SRS_OBJS}/nginx/html/live &&
+    mkdir -p ${SRS_OBJS}/nginx/html/forward/live
 
-# generate default html pages for android.
-html_file=${SRS_OBJS}/nginx/html/live/demo.html && hls_stream=demo.m3u8 && write_nginx_html5
-html_file=${SRS_OBJS}/nginx/html/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
-html_file=${SRS_OBJS}/nginx/html/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
-html_file=${SRS_OBJS}/nginx/html/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
-html_file=${SRS_OBJS}/nginx/html/forward/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
-html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
-html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
+    # generate default html pages for android.
+    html_file=${SRS_OBJS}/nginx/html/live/demo.html && hls_stream=demo.m3u8 && write_nginx_html5
+    html_file=${SRS_OBJS}/nginx/html/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
+    html_file=${SRS_OBJS}/nginx/html/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
+    html_file=${SRS_OBJS}/nginx/html/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
+    html_file=${SRS_OBJS}/nginx/html/forward/live/livestream.html && hls_stream=livestream.m3u8 && write_nginx_html5
+    html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_ld.html && hls_stream=livestream_ld.m3u8 && write_nginx_html5
+    html_file=${SRS_OBJS}/nginx/html/forward/live/livestream_sd.html && hls_stream=livestream_sd.m3u8 && write_nginx_html5
 
-# copy players to nginx html dir.
-rm -rf ${SRS_OBJS}/nginx/html/players &&
-ln -sf `pwd`/research/players ${SRS_OBJS}/nginx/html/players &&
-rm -f ${SRS_OBJS}/nginx/crossdomain.xml &&
-ln -sf `pwd`/research/players/crossdomain.xml ${SRS_OBJS}/nginx/html/crossdomain.xml
+    # copy players to nginx html dir.
+    rm -rf ${SRS_OBJS}/nginx/html/players &&
+    ln -sf `pwd`/research/players ${SRS_OBJS}/nginx/html/players &&
+    rm -f ${SRS_OBJS}/nginx/crossdomain.xml &&
+    ln -sf `pwd`/research/players/crossdomain.xml ${SRS_OBJS}/nginx/html/crossdomain.xml
 
-# for favicon.ico
-rm -rf ${SRS_OBJS}/nginx/html/favicon.ico &&
-ln -sf `pwd`/research/api-server/static-dir/favicon.ico ${SRS_OBJS}/nginx/html/favicon.ico
+    # for favicon.ico
+    rm -rf ${SRS_OBJS}/nginx/html/favicon.ico &&
+    ln -sf `pwd`/research/api-server/static-dir/favicon.ico ${SRS_OBJS}/nginx/html/favicon.ico
 
-# nginx.html to detect whether nginx is alive
-echo "nginx is ok" > ${SRS_OBJS}/nginx/html/nginx.html
+    # nginx.html to detect whether nginx is alive
+    echo "nginx is ok" > ${SRS_OBJS}/nginx/html/nginx.html
+fi
 
 if [ $SRS_NGINX = YES ]; then
     echo "#define SRS_AUTO_NGINX" >> $SRS_AUTO_HEADERS_H
