@@ -338,21 +338,51 @@ extern char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize);
 *************************************************************/
 /**
 * write h.264 raw frame over RTMP to rtmp server.
-* @param frame the input h264 raw data, an encoded h.264 I/P/B frame data.
-*       the frame without h.264 annexb header, by N[00] 00 00 01, where N>=0, 
-*       for instance, header(00 00 00 01) + frame(67 42 80 29 95 A0 14 01 6E 40)
-* @paam frame_size the size of h264 raw data. 
-*       assert frame_size > 1, at least has 1 bytes header.
+* @param frames the input h264 raw data, encoded h.264 I/P/B frames data.
+*       frames can be one or more than one frame,
+*       each frame prefixed h.264 annexb header, by N[00] 00 00 01, where N>=0, 
+*       for instance, frame = header(00 00 00 01) + payload(67 42 80 29 95 A0 14 01 6E 40)
+* @paam frames_size the size of h264 raw data. 
+*       assert frames_size > 1, at least has 1 bytes header.
 * @param dts the dts of h.264 raw data.
 * @param pts the pts of h.264 raw data.
 * 
-* @remark, user should free the frame.
+* @remark, user should free the frames.
 * @remark, the tbn of dts/pts is 1/1000 for RTMP, that is, in ms.
 * 
 * @return 0, success; otherswise, failed.
 */
-extern int srs_write_h264_raw_frame(srs_rtmp_t rtmp, 
-    char* frame, int frame_size, u_int32_t dts, u_int32_t pts
+/**
+For the example file: 
+    http://winlinvip.github.io/srs.release/3rdparty/720p.h264.raw
+The data sequence is:
+    // SPS
+    000000016742802995A014016E40
+    // PPS
+    0000000168CE3880
+    // IFrame
+    0000000165B8041014C038008B0D0D3A071.....
+    // PFrame
+    0000000141E02041F8CDDC562BBDEFAD2F.....
+User can send the SPS+PPS, then each frame:
+    // SPS+PPS
+    srs_write_h264_raw_frame('000000016742802995A014016E400000000168CE3880', size, dts, pts)
+    // IFrame
+    srs_write_h264_raw_frame('0000000165B8041014C038008B0D0D3A071......', size, dts, pts)
+    // PFrame
+    srs_write_h264_raw_frame('0000000141E02041F8CDDC562BBDEFAD2F......', size, dts, pts)
+User also can send one by one:
+    // SPS
+    srs_write_h264_raw_frame('000000016742802995A014016E4', size, dts, pts)
+    // PPS
+    srs_write_h264_raw_frame('00000000168CE3880', size, dts, pts)
+    // IFrame
+    srs_write_h264_raw_frame('0000000165B8041014C038008B0D0D3A071......', size, dts, pts)
+    // PFrame
+    srs_write_h264_raw_frame('0000000141E02041F8CDDC562BBDEFAD2F......', size, dts, pts) 
+*/
+extern int srs_write_h264_raw_frames(srs_rtmp_t rtmp, 
+    char* frames, int frames_size, u_int32_t dts, u_int32_t pts
 );
 /**
 * whether h264 raw data starts with the annexb,
