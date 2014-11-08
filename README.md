@@ -44,8 +44,9 @@ client/[edge](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Edge) p
 [forward](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_FFMPEG), 
 [http hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_HTTPCallback), 
 [http api](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_HTTPApi), 
-[http server](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_HTTPServer), 
-[dvr](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DVR).
+[http server](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_HTTPServer),
+[dvr](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DVR) and
+[SRS-librtmp](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp).
 
 [SRS-librtmp](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp) 
 is a client library, only depends on c++ and socket, with 
@@ -53,7 +54,8 @@ is a client library, only depends on c++ and socket, with
 publish, ingest flv/rtmp, inject flv, 
 [publish h264 raw stream](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data)), 
 [exported as seperate project or single cpp file by configure](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#export-srs-librtmp). 
-SRS-librtmp provides api about RTMP, FLV, AMF0 and 
+[SRS-librtmp](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp) 
+provides apis to support RTMP, FLV, AMF0 and 
 [h.264 raw stream](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data).
 
 WebSite: [http://ossrs.net](http://ossrs.net) <br/>
