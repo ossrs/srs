@@ -252,10 +252,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             (
                 rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
                 unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && 
-                echo "we alaways patch the st, for we may build srs under arm directly" &&
-                echo "the 1.st.arm.patch is ok for x86 because it's only modify code under macro linux arm" &&
-                patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
-                make ${_ST_MAKE} &&
+                make ${_ST_MAKE} EXTRA_CFLAGS="-DMD_HAVE_EPOLL" &&
                 cd .. && rm -rf st && ln -sf st-1.9/obj st &&
                 cd .. && rm -f ${SRS_OBJS}/_flag.st.arm.tmp
             )
