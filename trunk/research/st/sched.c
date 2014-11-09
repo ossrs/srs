@@ -532,9 +532,6 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     _st_stack_t *stack;
     void **ptds;
     char *sp;
-#ifdef __ia64__
-    char *bsp;
-#endif
     
     /* Adjust stack size */
     if (stk_size == 0) {
@@ -549,22 +546,6 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     /* Allocate thread object and per-thread data off the stack */
 #if defined (MD_STACK_GROWS_DOWN)
     sp = stack->stk_top;
-    #ifdef __ia64__
-    /*
-    * The stack segment is split in the middle. The upper half is used
-    * as backing store for the register stack which grows upward.
-    * The lower half is used for the traditional memory stack which
-    * grows downward. Both stacks start in the middle and grow outward
-    * from each other.
-    */
-    sp -= (stk_size >> 1);
-    bsp = sp;
-    /* Make register stack 64-byte aligned */
-    if ((unsigned long)bsp & 0x3f) {
-        bsp = bsp + (0x40 - ((unsigned long)bsp & 0x3f));
-    }
-    stack->bsp = bsp + _ST_STACK_PAD_SIZE;
-    #endif
     sp = sp - (ST_KEYS_MAX * sizeof(void *));
     ptds = (void **) sp;
     sp = sp - sizeof(_st_thread_t);
@@ -600,11 +581,7 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     thread->start = start;
     thread->arg = arg;
     
-#ifndef __ia64__
     _ST_INIT_CONTEXT(thread, stack->sp, _st_thread_main);
-#else
-    _ST_INIT_CONTEXT(thread, stack->sp, stack->bsp, _st_thread_main);
-#endif
     
     /* If thread is joinable, allocate a termination condition variable */
     if (joinable) {

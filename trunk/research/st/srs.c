@@ -11,10 +11,6 @@
 
 #include "public.h"
 
-#if defined(__ia64__)
-    #error "IA64 not supported"
-#endif
-
 #define srs_trace(msg, ...)   printf(msg, ##__VA_ARGS__);printf("\n")
 
 int io_port = 1990;

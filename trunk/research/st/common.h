@@ -144,9 +144,6 @@ typedef struct _st_stack {
     char *stk_bottom;           /* Lowest address of stack's usable portion */
     char *stk_top;              /* Highest address of stack's usable portion */
     void *sp;                   /* Stack pointer from C's point of view */
-    #ifdef __ia64__
-    void *bsp;                  /* Register stack backing store pointer */
-    #endif
 } _st_stack_t;
 
 
@@ -349,11 +346,7 @@ extern _st_eventsys_t *_st_eventsys;
     #define ST_UTIME_NO_TIMEOUT ((st_utime_t) -1LL)
 #endif
 
-#ifndef __ia64__
-    #define ST_DEFAULT_STACK_SIZE (64*1024)
-#else
-    #define ST_DEFAULT_STACK_SIZE (128*1024)  /* Includes register stack size */
-#endif
+#define ST_DEFAULT_STACK_SIZE (64*1024)
 
 #ifndef ST_KEYS_MAX
     #define ST_KEYS_MAX 16
