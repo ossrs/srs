@@ -556,18 +556,6 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
         sp = sp - ((unsigned long)sp & 0x3f);
     }
     stack->sp = sp - _ST_STACK_PAD_SIZE;
-#elif defined (MD_STACK_GROWS_UP)
-    sp = stack->stk_bottom;
-    thread = (_st_thread_t *) sp;
-    sp = sp + sizeof(_st_thread_t);
-    ptds = (void **) sp;
-    sp = sp + (ST_KEYS_MAX * sizeof(void *));
-    
-    /* Make stack 64-byte aligned */
-    if ((unsigned long)sp & 0x3f) {
-        sp = sp + (0x40 - ((unsigned long)sp & 0x3f));
-    }
-    stack->sp = sp + _ST_STACK_PAD_SIZE;
 #else
     #error Unknown OS
 #endif
