@@ -124,7 +124,7 @@ $(SRS): $(OBJS)
 $(TARGETDIR)/md.o: md.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(TARGETDIR)/%.o: %.c common.h md.h
+$(TARGETDIR)/%.o: %.c common.h md.h Makefile
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
