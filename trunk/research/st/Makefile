@@ -51,7 +51,7 @@ EXTRA_OBJS  = $(TARGETDIR)/md.o
 
 CFLAGS      =
 OTHER_FLAGS += -Wall -g -O0
-DEFINES     = -D$(OS) -DDEBUG -DMD_HAVE_EPOLL
+DEFINES     = -D$(OS) -DDEBUG -DMD_HAVE_EPOLL -DMALLOC_STACK
 
 ##########################
 # Other possible defines:

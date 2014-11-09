@@ -33,25 +33,20 @@ void func0()
         };
     */
 #if defined(__amd64__) || defined(__x86_64__)
-    /**
-    here, the __jmp_buf is 8*8=64 bytes
-        # if __WORDSIZE == 64
-            typedef long int __jmp_buf[8];
-    */
-    /**
-    the layout for setjmp of x86_64
-        #
-        # The jmp_buf is assumed to contain the following, in order:
-        #       %rbx
-        #       %rsp (post-return)
-        #       %rbp
-        #       %r12
-        #       %r13
-        #       %r14
-        #       %r15
-        #       <return address>
-        #
-    */
+    // http://ftp.gnu.org/gnu/glibc/glibc-2.12.2.tar.xz
+    // http://ftp.gnu.org/gnu/glibc/glibc-2.12.1.tar.gz
+    /*
+     * Starting with glibc 2.4, JB_SP definitions are not public anymore.
+     * They, however, can still be found in glibc source tree in
+     * architecture-specific "jmpbuf-offsets.h" files.
+     * Most importantly, the content of jmp_buf is mangled by setjmp to make
+     * it completely opaque (the mangling can be disabled by setting the
+     * LD_POINTER_GUARD environment variable before application execution).
+     * Therefore we will use built-in _st_md_cxt_save/_st_md_cxt_restore
+     * functions as a setjmp/longjmp replacement wherever they are available
+     * unless USE_LIBC_SETJMP is defined.
+     */
+     // for glibc 2.4+, it's not possible to get and set the sp in jmp_buf
     register long int rsp0 asm("rsp");
     
     int ret = setjmp(env_func1);
@@ -64,7 +59,9 @@ void func0()
     printf("\n");
     
     func1();
-#else
+#endif
+
+#if defined(__arm__)
     /**
         /usr/arm-linux-gnueabi/include/bits/setjmp.h
         #ifndef _ASM
@@ -115,13 +112,18 @@ void func0()
 #endif
 }
 
+extern uintptr_t _jmpbuf_sp (__jmp_buf regs);
 int main(int argc, char** argv) {
 #if defined(__amd64__) || defined(__x86_64__)
-    printf("x86_64 sizeof(long int)=%d, sizeof(long)=%d, sizeof(int)=%d, __WORDSIZE=%d\n", 
-        (int)sizeof(long int), (int)sizeof(long), (int)sizeof(int), (int)__WORDSIZE);
+    printf("x86_64 sizeof(long int)=%d, sizeof(long)=%d, "
+        "sizeof(int)=%d, __WORDSIZE=%d, __GLIBC__=%d, __GLIBC_MINOR__=%d\n", 
+        (int)sizeof(long int), (int)sizeof(long), (int)sizeof(int), 
+        (int)__WORDSIZE, (int)__GLIBC__, (int)__GLIBC_MINOR__);
 #else
-    printf("arm sizeof(long int)=%d, sizeof(long)=%d, sizeof(int)=%d\n", 
-        (int)sizeof(long int), (int)sizeof(long), (int)sizeof(int));
+    printf("arm sizeof(long int)=%d, sizeof(long)=%d, "
+        "sizeof(int)=%d, __GLIBC__=%d,__GLIBC_MINOR__=%d\n", 
+        (int)sizeof(long int), (int)sizeof(long), (int)sizeof(int), 
+        (int)__GLIBC__, (int)__GLIBC_MINOR__);
 #endif
 
     func0();
