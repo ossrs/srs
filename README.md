@@ -158,7 +158,7 @@ cd simple-rtmp-server/trunk
 ## Wiki
 
 Please select your language:
-* [English](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN__Home)
+* [English](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Home)
 * [Chinese](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Home)
 
 ## Donation
