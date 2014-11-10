@@ -122,28 +122,7 @@ static char *_st_new_stk_segment(int size)
 #ifdef MALLOC_STACK
     void *vaddr = malloc(size);
 #else
-    static int zero_fd = -1;
-    int mmap_flags = MAP_PRIVATE;
-    void *vaddr;
-    
-    #if defined (MD_USE_SYSV_ANON_MMAP)
-    if (zero_fd < 0) {
-        if ((zero_fd = open("/dev/zero", O_RDWR, 0)) < 0) {
-            return NULL;
-        }
-        fcntl(zero_fd, F_SETFD, FD_CLOEXEC);
-    }
-    #elif defined (MD_USE_BSD_ANON_MMAP)
-    mmap_flags |= MAP_ANON;
-    #else
-        #error Unknown OS
-    #endif
-    
-    vaddr = mmap(NULL, size, PROT_READ | PROT_WRITE, mmap_flags, zero_fd, 0);
-    if (vaddr == (void *)MAP_FAILED) {
-        return NULL;
-    }
-    
+    #error Unknown Stack Malloc
 #endif
     
     return (char *)vaddr;
@@ -156,7 +135,7 @@ void _st_delete_stk_segment(char *vaddr, int size)
 #ifdef MALLOC_STACK
     free(vaddr);
 #else
-    (void) munmap(vaddr, size);
+    #error Unknown Stack Malloc
 #endif
 }
 #endif
