@@ -564,7 +564,7 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     }
     stack->sp = sp - _ST_STACK_PAD_SIZE;
 #else
-    #error Unknown Stack Grown
+    #error "Only Supports Stack Grown Down"
 #endif
     
     memset(trd, 0, sizeof(_st_thread_t));
