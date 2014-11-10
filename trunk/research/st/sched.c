@@ -557,7 +557,7 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     }
     stack->sp = sp - _ST_STACK_PAD_SIZE;
 #else
-    #error Unknown OS
+    #error Unknown Stack Grown
 #endif
     
     memset(thread, 0, sizeof(_st_thread_t));
