@@ -596,8 +596,7 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     trd->context[0].__jmpbuf[0].__pc = (__ptr_t) _st_thread_main;
     trd->context[0].__jmpbuf[0].__sp = stack->sp;
 #else
-    int ret_setjmp = 0;
-    if ((ret_setjmp = MD_SETJMP((trd)->context)) != 0) {
+    if (MD_SETJMP((trd)->context)) {
         _st_thread_main();
     }
     MD_GET_SP(trd) = (long) (stack->sp);
