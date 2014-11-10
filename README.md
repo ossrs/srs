@@ -3,12 +3,6 @@
 SRS is industrial-strength live streaming cluster, 
 for the best conceptual integrity and the simplest implementation.
 
-SRS delivers rtmp/hls live on x86/x64/arm/mips linux, 
-supports origin/edge/vhost and transcode/ingest and dvr/forward 
-and http-api/http-callback/reload, introduces tracable 
-session-oriented log, exports client srs-librtmp, 
-provides EN/CN wiki and the most simple architecture.
-
 Download from github.io: 
 [Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.0.zip) 
 [more...](http://winlinvip.github.io/srs.release/releases/)
@@ -20,6 +14,12 @@ Download from ossrs.net:
 ## About
 
 SRS(SIMPLE RTMP Server) over state-threads created in 2013.10.
+
+SRS delivers rtmp/hls live on x86/x64/arm/mips linux, 
+supports origin/edge/vhost and transcode/ingest and dvr/forward 
+and http-api/http-callback/reload, introduces tracable 
+session-oriented log, exports client srs-librtmp, 
+provides EN/CN wiki and the most simple architecture.
 
 SRS focus on small problem domain, which is the most complex for all software(see OOAD). 
 Because of lack of deveoper resource, SRS only provides features which is the most popular 
