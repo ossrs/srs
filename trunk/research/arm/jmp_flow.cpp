@@ -1,4 +1,5 @@
 /*
+# http://blog.csdn.net/win_lin/article/details/40948277
 # for all supports setjmp and longjmp:
     g++ -g -O0 -o jmp_flow jmp_flow.cpp
 */
