@@ -83,9 +83,6 @@ int thread_test()
     st_thread_join(trd, NULL);
     srs_trace("3. thread joined");
     
-    st_thread_exit(NULL);
-    srs_trace("4. all thread completed");
-    
     srs_trace("thread test: end");
     
     return 0;
@@ -385,7 +382,13 @@ int main(int argc, char** argv)
     }
     
     // cleanup.
+    srs_trace("wait for all thread completed");
     st_thread_exit(NULL);
+    // the following never enter, 
+    // the above code will exit when all thread exit,
+    // current is a primordial st-thread, when all thread exit,
+    // the st idle thread will exit(0), see _st_idle_thread_start()
+    srs_trace("all thread completed");
     
     return 0;
 }
