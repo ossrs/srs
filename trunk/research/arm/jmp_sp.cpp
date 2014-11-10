@@ -9,15 +9,20 @@
 #include <stdlib.h>
 #include <setjmp.h>
 
-jmp_buf env_func1;
+jmp_buf context;
 
 void func1()
 {
 #if defined(__amd64__) || defined(__x86_64__)
     register long int rsp0 asm("rsp");
     
-    int ret = setjmp(env_func1);
-    printf("setjmp func0 ret=%d, rsp=%#lx\n", ret, rsp0);
+    int ret = setjmp(context);
+    printf("setjmp func1 ret=%d, rsp=%#lx\n", ret, rsp0);
+    // enter by longjmp
+    if (ret != 0) {
+        printf("call by longjmp.\n");
+        exit(0);
+    }
 #endif
 }
 
@@ -49,15 +54,15 @@ void func0()
     // for glibc 2.4+, it's not possible to get and set the sp in jmp_buf
     /**
     for example, the following is show the jmp_buf when setjmp:
-        (gdb) x /64xb env_func1[0].__jmpbuf
-        0x600ca0 <env_func1>:	0x00	0x00	0x00	0x00	0x00	0x00	0x00	0x00
-        0x600ca8 <env_func1+8>:	0xf8	0xc1	0x71	0xe5	0xa8	0x88	0xb4	0x15
-        0x600cb0 <env_func1+16>:	0xa0	0x05	0x40	0x00	0x00	0x00	0x00	0x00
-        0x600cb8 <env_func1+24>:	0x90	0xe4	0xff	0xff	0xff	0x7f	0x00	0x00
-        0x600cc0 <env_func1+32>:	0x00	0x00	0x00	0x00	0x00	0x00	0x00	0x00
-        0x600cc8 <env_func1+40>:	0x00	0x00	0x00	0x00	0x00	0x00	0x00	0x00
-        0x600cd0 <env_func1+48>:	0xf8	0xc1	0x51	0xe5	0xa8	0x88	0xb4	0x15
-        0x600cd8 <env_func1+56>:	0xf8	0xc1	0xd9	0x2f	0xd7	0x77	0x4b	0xea
+        (gdb) x /64xb context[0].__jmpbuf
+        0x600ca0 <context>:	0x00	0x00	0x00	0x00	0x00	0x00	0x00	0x00
+        0x600ca8 <context+8>:	0xf8	0xc1	0x71	0xe5	0xa8	0x88	0xb4	0x15
+        0x600cb0 <context+16>:	0xa0	0x05	0x40	0x00	0x00	0x00	0x00	0x00
+        0x600cb8 <context+24>:	0x90	0xe4	0xff	0xff	0xff	0x7f	0x00	0x00
+        0x600cc0 <context+32>:	0x00	0x00	0x00	0x00	0x00	0x00	0x00	0x00
+        0x600cc8 <context+40>:	0x00	0x00	0x00	0x00	0x00	0x00	0x00	0x00
+        0x600cd0 <context+48>:	0xf8	0xc1	0x51	0xe5	0xa8	0x88	0xb4	0x15
+        0x600cd8 <context+56>:	0xf8	0xc1	0xd9	0x2f	0xd7	0x77	0x4b	0xea
         (gdb) p /x $sp
         $4 = 0x7fffffffe380
     we cannot finger the sp out.
@@ -65,12 +70,12 @@ void func0()
     */
     register long int rsp0 asm("rsp");
     
-    int ret = setjmp(env_func1);
+    int ret = setjmp(context);
     printf("setjmp func0 ret=%d, rsp=%#lx\n", ret, rsp0);
     
     printf("after setjmp: ");
     for (int i = 0; i < 8; i++) {
-        printf("env[%d]=%#x, ", i, (int)env_func1[0].__jmpbuf[i]);
+        printf("env[%d]=%#x, ", i, (int)context[0].__jmpbuf[i]);
     }
     printf("\n");
     
@@ -100,7 +105,7 @@ void func0()
     */
     /**
     For example, on raspberry-pi, armv6 cpu:
-        (gdb) x /64 env_func1[0].__jmpbuf
+        (gdb) x /64 context[0].__jmpbuf
             v1, 0:  0x00	0x00	0x00	0x00	
             v2, 1:  0x00	0x00	0x00	0x00
             v3, 2:  0x2c	0x84	0x00	0x00	
@@ -116,19 +121,18 @@ void func0()
         (gdb) p /x $pc
         $4 = 0x850c
     */
-    int ret = setjmp(env_func1);
+    int ret = setjmp(context);
     printf("setjmp func1 ret=%d\n", ret);
     
     printf("after setjmp: ");
     for (int i = 0; i < 64; i++) {
-        printf("env[%d]=%#x, ", i, (int)env_func1[0].__jmpbuf[i]);
+        printf("env[%d]=%#x, ", i, (int)context[0].__jmpbuf[i]);
     }
     
     printf("func0 terminated\n");
 #endif
 }
 
-extern uintptr_t _jmpbuf_sp (__jmp_buf regs);
 int main(int argc, char** argv) {
 #if defined(__amd64__) || defined(__x86_64__)
     printf("x86_64 sizeof(long int)=%d, sizeof(long)=%d, "
@@ -143,6 +147,7 @@ int main(int argc, char** argv) {
 #endif
 
     func0();
+    longjmp(context, 1);
     
     printf("terminated\n");
 

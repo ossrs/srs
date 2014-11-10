@@ -411,15 +411,6 @@ extern _st_eventsys_t *_st_eventsys;
     ST_END_MACRO
 
 /*
- * Initialize the thread context preparing it to execute _main
- */
-#ifdef MD_INIT_CONTEXT
-    #define _ST_INIT_CONTEXT MD_INIT_CONTEXT
-#else
-    #error Unknown OS
-#endif
-
-/*
  * Number of bytes reserved under the stack "bottom"
  */
 #define _ST_STACK_PAD_SIZE MD_STACK_PAD_SIZE
