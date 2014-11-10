@@ -55,12 +55,28 @@ int _st_randomize_stacks = 0;
 
 static char *_st_new_stk_segment(int size);
 
+/**
+The below comments is by winlin:
+The stack memory struct:
+    | REDZONE |          stack         |  extra  | REDZONE |
+    +---------+------------------------+---------+---------+
+    |    4k   |                        |   4k/0  |    4k   |
+    +---------+------------------------+---------+---------+
+    vaddr     bottom                   top
+When _st_randomize_stacks is on, by st_randomize_stacks(),
+the bottom and top will random movided in the extra:
+        long offset = (random() % extra) & ~0xf;
+        ts->stk_bottom += offset;
+        ts->stk_top += offset;
+Both REDZONE are protected by mprotect when DEBUG is on.
+*/
 _st_stack_t *_st_stack_new(int stack_size)
 {
     _st_clist_t *qp;
     _st_stack_t *ts;
     int extra;
     
+    // TODO: WINLIN: remove the stack reuse.
     for (qp = _st_free_stacks.next; qp != &_st_free_stacks; qp = qp->next) {
         ts = _ST_THREAD_STACK_PTR(qp);
         if (ts->stk_size >= stack_size) {
