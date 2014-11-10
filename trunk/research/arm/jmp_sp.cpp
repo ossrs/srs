@@ -133,7 +133,8 @@ void func0()
 #endif
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv) 
+{
 #if defined(__amd64__) || defined(__x86_64__)
     printf("x86_64 sizeof(long int)=%d, sizeof(long)=%d, "
         "sizeof(int)=%d, __WORDSIZE=%d, __GLIBC__=%d, __GLIBC_MINOR__=%d\n", 
