@@ -1,4 +1,5 @@
 #include <unistd.h>
+#include <stdlib.h>
 #include <stdio.h>
 
 #include <sys/types.h>
@@ -14,6 +15,64 @@
 #define srs_trace(msg, ...)   printf(msg, ##__VA_ARGS__);printf("\n")
 
 int io_port = 1990;
+int sleep_ms = 100;
+
+void stack_print(long int previous_sp, int level)
+{
+    if (level <= 0) {
+        return;
+    }
+    
+    register long int rsp asm("sp");
+    char buf[level * 1024];
+    
+    stack_print(rsp, level - 1);
+    
+    srs_trace("%d. psp=%#lx, sp=%#lx, size=%dB(%dB+%dKB)", 
+        level, previous_sp, rsp, (int)(previous_sp - rsp), 
+        (int)(previous_sp - rsp - sizeof(buf)), (int)(sizeof(buf) / 1024));
+}
+
+int huge_stack_test()
+{
+    srs_trace("===================================================");
+    srs_trace("huge_stack test: start");
+    
+    register long int rsp asm("sp");
+    stack_print(rsp, 10);
+    
+    srs_trace("huge_stack test: end");
+    
+    return 0;
+}
+
+void* thread_func(void* arg)
+{
+    srs_trace("1. thread run");
+    st_usleep(sleep_ms * 1000);
+    srs_trace("2. thread completed");
+    return NULL;
+}
+
+int thread_test()
+{
+    srs_trace("===================================================");
+    srs_trace("thread test: start");
+    
+    st_thread_t trd = st_thread_create(thread_func, NULL, 1, 0);
+    if (trd == NULL) {
+        srs_trace("st_thread_create failed");
+        return -1;
+    }
+    
+    st_thread_join(trd, NULL);
+    srs_trace("3. thread joined");
+    
+    srs_trace("thread test: end");
+    exit(0);
+    
+    return 0;
+}
 
 st_mutex_t sync_start = NULL;
 st_cond_t sync_cond = NULL;
@@ -26,14 +85,14 @@ void* sync_master(void* arg)
     st_mutex_lock(sync_start);
     st_mutex_unlock(sync_start);
     
-    st_usleep(100 * 1000);
+    st_usleep(sleep_ms * 1000);
     st_cond_signal(sync_cond);
     
     st_mutex_lock(sync_mutex);
     srs_trace("2. st mutex is ok");
     st_mutex_unlock(sync_mutex);
     
-    st_usleep(100 * 1000);
+    st_usleep(sleep_ms * 1000);
     srs_trace("3. st thread is ok");
     st_cond_signal(sync_cond);
     
@@ -54,7 +113,7 @@ void* sync_slave(void* arg)
     srs_trace("1. st cond is ok");
     
     // release mutex to control thread
-    st_usleep(100 * 1000);
+    st_usleep(sleep_ms * 1000);
     st_mutex_unlock(sync_mutex);
     
     // wait thread to exit.
@@ -275,6 +334,16 @@ int main(int argc, char** argv)
     
     if (st_init() < 0) {
         srs_trace("st_init failed");
+        return -1;
+    }
+    
+    if (huge_stack_test() < 0) {
+        srs_trace("huge_stack_test failed");
+        return -1;
+    }
+    
+    if (thread_test() < 0) {
+        srs_trace("thread_test failed");
         return -1;
     }
     
