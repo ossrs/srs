@@ -46,6 +46,21 @@ int huge_stack_test()
     return 0;
 }
 
+int sleep_test()
+{
+    srs_trace("===================================================");
+    srs_trace("sleep test: start");
+    
+    srs_trace("1. sleep...");
+    
+    st_usleep(sleep_ms * 1000);
+    srs_trace("2. sleep ok");
+    
+    srs_trace("sleep test: end");
+    
+    return 0;
+}
+
 void* thread_func(void* arg)
 {
     srs_trace("1. thread run");
@@ -68,8 +83,10 @@ int thread_test()
     st_thread_join(trd, NULL);
     srs_trace("3. thread joined");
     
+    st_thread_exit(NULL);
+    srs_trace("4. all thread completed");
+    
     srs_trace("thread test: end");
-    exit(0);
     
     return 0;
 }
@@ -339,6 +356,11 @@ int main(int argc, char** argv)
     
     if (huge_stack_test() < 0) {
         srs_trace("huge_stack_test failed");
+        return -1;
+    }
+    
+    if (sleep_test() < 0) {
+        srs_trace("sleep_test failed");
         return -1;
     }
     

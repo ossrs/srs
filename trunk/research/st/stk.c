@@ -138,7 +138,7 @@ static char *_st_new_stk_segment(int size)
 #ifdef MALLOC_STACK
     void *vaddr = malloc(size);
 #else
-    #error Unknown Stack Malloc
+    #error "Only Supports Malloc Stack"
 #endif
     
     return (char *)vaddr;

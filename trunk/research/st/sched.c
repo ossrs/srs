@@ -553,6 +553,20 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     * grows downward. Both stacks start in the middle and grow outward
     * from each other.
     */
+    /**
+    The below comments is by winlin:
+    The Stack public structure:
+        +--------------------------------------------------------------+
+        |                         stack                                |
+        +--------------------------------------------------------------+
+       bottom                                                         top
+    The code bellow use the stack as:
+        +-----------------+-----------------+-------------+------------+
+        | stack of thread |pad+align(128B+) |thread(336B) | keys(128B) |
+        +-----------------+-----------------+-------------+------------+
+       bottom            sp                trd           ptds         top
+               (context[0].__jmpbuf.sp)             (private_data)
+    */
     sp = sp - (ST_KEYS_MAX * sizeof(void *));
     ptds = (void **) sp;
     sp = sp - sizeof(_st_thread_t);
@@ -564,7 +578,7 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     }
     stack->sp = sp - _ST_STACK_PAD_SIZE;
 #else
-    #error Unknown Stack Grown
+    #error "Only Supports Stack Grown Down"
 #endif
     
     memset(trd, 0, sizeof(_st_thread_t));
@@ -575,8 +589,19 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     trd->stack = stack;
     trd->start = start;
     trd->arg = arg;
-    
-    _ST_INIT_CONTEXT(trd, stack->sp, _st_thread_main);
+
+// by winlin, expand macro MD_INIT_CONTEXT
+#if defined(__mips__)
+    MD_SETJMP((trd)->context);
+    trd->context[0].__jmpbuf[0].__pc = (__ptr_t) _st_thread_main;
+    trd->context[0].__jmpbuf[0].__sp = stack->sp;
+#else
+    int ret_setjmp = 0;
+    if ((ret_setjmp = MD_SETJMP((trd)->context)) != 0) {
+        _st_thread_main();
+    }
+    MD_GET_SP(trd) = (long) (stack->sp);
+#endif
     
     /* If thread is joinable, allocate a termination condition variable */
     if (joinable) {

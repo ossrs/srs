@@ -107,13 +107,6 @@
 
 #if defined(__mips__)
     #define MD_STACK_GROWS_DOWN
-    
-    #define MD_INIT_CONTEXT(_thread, _sp, _main)               \
-        ST_BEGIN_MACRO                                           \
-        MD_SETJMP((_thread)->context);                           \
-        _thread->context[0].__jmpbuf[0].__pc = (__ptr_t) _main;  \
-        _thread->context[0].__jmpbuf[0].__sp = _sp;              \
-        ST_END_MACRO
 #else /* Not or mips */
     /*
      * On linux, there are a few styles of jmpbuf format.  These vary based
@@ -166,13 +159,6 @@
     #else
         #error "Unknown CPU architecture"
     #endif /* Cases with common MD_INIT_CONTEXT and different SP locations */
-    
-    #define MD_INIT_CONTEXT(_thread, _sp, _main) \
-        ST_BEGIN_MACRO                             \
-        if (MD_SETJMP((_thread)->context))         \
-        _main();                                 \
-        MD_GET_SP(_thread) = (long) (_sp);         \
-        ST_END_MACRO
 #endif /* Cases with different MD_INIT_CONTEXT */
 
 #if defined(MD_USE_BUILTIN_SETJMP) && !defined(USE_LIBC_SETJMP)
