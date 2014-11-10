@@ -110,21 +110,21 @@ int st_poll(struct pollfd *pds, int npds, st_utime_t timeout)
 
 void _st_vp_schedule(void)
 {
-    _st_thread_t *thread;
+    _st_thread_t *trd;
     
     if (_ST_RUNQ.next != &_ST_RUNQ) {
         /* Pull thread off of the run queue */
-        thread = _ST_THREAD_PTR(_ST_RUNQ.next);
-        _ST_DEL_RUNQ(thread);
+        trd = _ST_THREAD_PTR(_ST_RUNQ.next);
+        _ST_DEL_RUNQ(trd);
     } else {
         /* If there are no threads to run, switch to the idle thread */
-        thread = _st_this_vp.idle_thread;
+        trd = _st_this_vp.idle_thread;
     }
-    ST_ASSERT(thread->state == _ST_ST_RUNNABLE);
+    ST_ASSERT(trd->state == _ST_ST_RUNNABLE);
     
     /* Resume the thread */
-    thread->state = _ST_ST_RUNNING;
-    _ST_RESTORE_CONTEXT(thread);
+    trd->state = _ST_ST_RUNNING;
+    _ST_RESTORE_CONTEXT(trd);
 }
 
 /*
@@ -132,7 +132,7 @@ void _st_vp_schedule(void)
  */
 int st_init(void)
 {
-    _st_thread_t *thread;
+    _st_thread_t *trd;
     
     if (_st_active_count) {
         /* Already initialized */
@@ -176,18 +176,18 @@ int st_init(void)
     /*
     * Initialize primordial thread
     */
-    thread = (_st_thread_t *) calloc(1, sizeof(_st_thread_t) +
+    trd = (_st_thread_t *) calloc(1, sizeof(_st_thread_t) +
     (ST_KEYS_MAX * sizeof(void *)));
-    if (!thread) {
+    if (!trd) {
         return -1;
     }
-    thread->private_data = (void **) (thread + 1);
-    thread->state = _ST_ST_RUNNING;
-    thread->flags = _ST_FL_PRIMORDIAL;
-    _ST_SET_CURRENT_THREAD(thread);
+    trd->private_data = (void **) (trd + 1);
+    trd->state = _ST_ST_RUNNING;
+    trd->flags = _ST_FL_PRIMORDIAL;
+    _ST_SET_CURRENT_THREAD(trd);
     _st_active_count++;
 #ifdef DEBUG
-    _ST_ADD_THREADQ(thread);
+    _ST_ADD_THREADQ(trd);
 #endif
     
     return 0;
@@ -237,50 +237,50 @@ void *_st_idle_thread_start(void *arg)
 
 void st_thread_exit(void *retval)
 {
-    _st_thread_t *thread = _ST_CURRENT_THREAD();
+    _st_thread_t *trd = _ST_CURRENT_THREAD();
     
-    thread->retval = retval;
-    _st_thread_cleanup(thread);
+    trd->retval = retval;
+    _st_thread_cleanup(trd);
     _st_active_count--;
-    if (thread->term) {
+    if (trd->term) {
         /* Put thread on the zombie queue */
-        thread->state = _ST_ST_ZOMBIE;
-        _ST_ADD_ZOMBIEQ(thread);
+        trd->state = _ST_ST_ZOMBIE;
+        _ST_ADD_ZOMBIEQ(trd);
         
         /* Notify on our termination condition variable */
-        st_cond_signal(thread->term);
+        st_cond_signal(trd->term);
         
         /* Switch context and come back later */
-        _ST_SWITCH_CONTEXT(thread);
+        _ST_SWITCH_CONTEXT(trd);
         
         /* Continue the cleanup */
-        st_cond_destroy(thread->term);
-        thread->term = NULL;
+        st_cond_destroy(trd->term);
+        trd->term = NULL;
     }
     
 #ifdef DEBUG
-    _ST_DEL_THREADQ(thread);
+    _ST_DEL_THREADQ(trd);
 #endif
     
-    if (!(thread->flags & _ST_FL_PRIMORDIAL)) {
-        _st_stack_free(thread->stack);
+    if (!(trd->flags & _ST_FL_PRIMORDIAL)) {
+        _st_stack_free(trd->stack);
     }
     
     /* Find another thread to run */
-    _ST_SWITCH_CONTEXT(thread);
+    _ST_SWITCH_CONTEXT(trd);
     /* Not going to land here */
 }
 
-int st_thread_join(_st_thread_t *thread, void **retvalp)
+int st_thread_join(_st_thread_t *trd, void **retvalp)
 {
-    _st_cond_t *term = thread->term;
+    _st_cond_t *term = trd->term;
     
     /* Can't join a non-joinable thread */
     if (term == NULL) {
         errno = EINVAL;
         return -1;
     }
-    if (_ST_CURRENT_THREAD() == thread) {
+    if (_ST_CURRENT_THREAD() == trd) {
         errno = EDEADLK;
         return -1;
     }
@@ -291,43 +291,43 @@ int st_thread_join(_st_thread_t *thread, void **retvalp)
         return -1;
     }
     
-    while (thread->state != _ST_ST_ZOMBIE) {
+    while (trd->state != _ST_ST_ZOMBIE) {
         if (st_cond_timedwait(term, ST_UTIME_NO_TIMEOUT) != 0) {
             return -1;
         }
     }
     
     if (retvalp) {
-        *retvalp = thread->retval;
+        *retvalp = trd->retval;
     }
     
     /*
     * Remove target thread from the zombie queue and make it runnable.
     * When it gets scheduled later, it will do the clean up.
     */
-    thread->state = _ST_ST_RUNNABLE;
-    _ST_DEL_ZOMBIEQ(thread);
-    _ST_ADD_RUNQ(thread);
+    trd->state = _ST_ST_RUNNABLE;
+    _ST_DEL_ZOMBIEQ(trd);
+    _ST_ADD_RUNQ(trd);
     
     return 0;
 }
 
 void _st_thread_main(void)
 {
-    _st_thread_t *thread = _ST_CURRENT_THREAD();
+    _st_thread_t *trd = _ST_CURRENT_THREAD();
     
     /*
     * Cap the stack by zeroing out the saved return address register
     * value. This allows some debugging/profiling tools to know when
     * to stop unwinding the stack. It's a no-op on most platforms.
     */
-    MD_CAP_STACK(&thread);
+    MD_CAP_STACK(&trd);
     
     /* Run thread main */
-    thread->retval = (*thread->start)(thread->arg);
+    trd->retval = (*trd->start)(trd->arg);
     
     /* All done, time to go away */
-    st_thread_exit(thread->retval);
+    st_thread_exit(trd->retval);
 }
 
 /*
@@ -335,9 +335,9 @@ void _st_thread_main(void)
  * specified by thread->heap_index.  See docs/timeout_heap.txt
  * for details about the timeout heap.
  */
-static _st_thread_t **heap_insert(_st_thread_t *thread)
+static _st_thread_t **heap_insert(_st_thread_t *trd)
 {
-    int target = thread->heap_index;
+    int target = trd->heap_index;
     int s = target;
     _st_thread_t **p = &_ST_SLEEPQ;
     int bits = 0;
@@ -350,13 +350,13 @@ static _st_thread_t **heap_insert(_st_thread_t *thread)
     }
     
     for (bit = bits - 2; bit >= 0; bit--) {
-        if (thread->due < (*p)->due) {
+        if (trd->due < (*p)->due) {
             _st_thread_t *t = *p;
-            thread->left = t->left;
-            thread->right = t->right;
-            *p = thread;
-            thread->heap_index = index;
-            thread = t;
+            trd->left = t->left;
+            trd->right = t->right;
+            *p = trd;
+            trd->heap_index = index;
+            trd = t;
         }
         index <<= 1;
         if (target & (1 << bit)) {
@@ -367,9 +367,9 @@ static _st_thread_t **heap_insert(_st_thread_t *thread)
         }
     }
     
-    thread->heap_index = index;
-    *p = thread;
-    thread->left = thread->right = NULL;
+    trd->heap_index = index;
+    *p = trd;
+    trd->left = trd->right = NULL;
     
     return p;
 }
@@ -377,7 +377,7 @@ static _st_thread_t **heap_insert(_st_thread_t *thread)
 /*
  * Delete "thread" from the timeout heap.
  */
-static void heap_delete(_st_thread_t *thread) 
+static void heap_delete(_st_thread_t *trd) 
 {
     _st_thread_t *t, **p;
     int bits = 0;
@@ -402,15 +402,15 @@ static void heap_delete(_st_thread_t *thread)
     t = *p;
     *p = NULL;
     --_ST_SLEEPQ_SIZE;
-    if (t != thread) {
+    if (t != trd) {
         /*
         * Insert the unlinked last element in place of the element we are deleting
         */
-        t->heap_index = thread->heap_index;
+        t->heap_index = trd->heap_index;
         p = heap_insert(t);
         t = *p;
-        t->left = thread->left;
-        t->right = thread->right;
+        t->left = trd->left;
+        t->right = trd->right;
         
         /*
         * Reestablish the heap invariant.
@@ -453,26 +453,26 @@ static void heap_delete(_st_thread_t *thread)
         }
     }
     
-    thread->left = thread->right = NULL;
+    trd->left = trd->right = NULL;
 }
 
-void _st_add_sleep_q(_st_thread_t *thread, st_utime_t timeout)
+void _st_add_sleep_q(_st_thread_t *trd, st_utime_t timeout)
 {
-    thread->due = _ST_LAST_CLOCK + timeout;
-    thread->flags |= _ST_FL_ON_SLEEPQ;
-    thread->heap_index = ++_ST_SLEEPQ_SIZE;
-    heap_insert(thread);
+    trd->due = _ST_LAST_CLOCK + timeout;
+    trd->flags |= _ST_FL_ON_SLEEPQ;
+    trd->heap_index = ++_ST_SLEEPQ_SIZE;
+    heap_insert(trd);
 }
 
-void _st_del_sleep_q(_st_thread_t *thread)
+void _st_del_sleep_q(_st_thread_t *trd)
 {
-    heap_delete(thread);
-    thread->flags &= ~_ST_FL_ON_SLEEPQ;
+    heap_delete(trd);
+    trd->flags &= ~_ST_FL_ON_SLEEPQ;
 }
 
 void _st_vp_check_clock(void)
 {
-    _st_thread_t *thread;
+    _st_thread_t *trd;
     st_utime_t elapsed, now;
     
     now = st_utime();
@@ -485,50 +485,50 @@ void _st_vp_check_clock(void)
     }
     
     while (_ST_SLEEPQ != NULL) {
-        thread = _ST_SLEEPQ;
-        ST_ASSERT(thread->flags & _ST_FL_ON_SLEEPQ);
-        if (thread->due > now) {
+        trd = _ST_SLEEPQ;
+        ST_ASSERT(trd->flags & _ST_FL_ON_SLEEPQ);
+        if (trd->due > now) {
             break;
         }
-        _ST_DEL_SLEEPQ(thread);
+        _ST_DEL_SLEEPQ(trd);
         
         /* If thread is waiting on condition variable, set the time out flag */
-        if (thread->state == _ST_ST_COND_WAIT) {
-            thread->flags |= _ST_FL_TIMEDOUT;
+        if (trd->state == _ST_ST_COND_WAIT) {
+            trd->flags |= _ST_FL_TIMEDOUT;
         }
         
         /* Make thread runnable */
-        ST_ASSERT(!(thread->flags & _ST_FL_IDLE_THREAD));
-        thread->state = _ST_ST_RUNNABLE;
-        _ST_ADD_RUNQ(thread);
+        ST_ASSERT(!(trd->flags & _ST_FL_IDLE_THREAD));
+        trd->state = _ST_ST_RUNNABLE;
+        _ST_ADD_RUNQ(trd);
     }
 }
 
-void st_thread_interrupt(_st_thread_t *thread)
+void st_thread_interrupt(_st_thread_t* trd)
 {
     /* If thread is already dead */
-    if (thread->state == _ST_ST_ZOMBIE) {
+    if (trd->state == _ST_ST_ZOMBIE) {
         return;
     }
     
-    thread->flags |= _ST_FL_INTERRUPT;
+    trd->flags |= _ST_FL_INTERRUPT;
     
-    if (thread->state == _ST_ST_RUNNING || thread->state == _ST_ST_RUNNABLE) {
+    if (trd->state == _ST_ST_RUNNING || trd->state == _ST_ST_RUNNABLE) {
         return;
     }
     
-    if (thread->flags & _ST_FL_ON_SLEEPQ) {
-        _ST_DEL_SLEEPQ(thread);
+    if (trd->flags & _ST_FL_ON_SLEEPQ) {
+        _ST_DEL_SLEEPQ(trd);
     }
     
     /* Make thread runnable */
-    thread->state = _ST_ST_RUNNABLE;
-    _ST_ADD_RUNQ(thread);
+    trd->state = _ST_ST_RUNNABLE;
+    _ST_ADD_RUNQ(trd);
 }
 
 _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinable, int stk_size)
 {
-    _st_thread_t *thread;
+    _st_thread_t *trd;
     _st_stack_t *stack;
     void **ptds;
     char *sp;
@@ -549,7 +549,7 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     sp = sp - (ST_KEYS_MAX * sizeof(void *));
     ptds = (void **) sp;
     sp = sp - sizeof(_st_thread_t);
-    thread = (_st_thread_t *) sp;
+    trd = (_st_thread_t *) sp;
     
     /* Make stack 64-byte aligned */
     if ((unsigned long)sp & 0x3f) {
@@ -560,35 +560,35 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     #error Unknown Stack Grown
 #endif
     
-    memset(thread, 0, sizeof(_st_thread_t));
+    memset(trd, 0, sizeof(_st_thread_t));
     memset(ptds, 0, ST_KEYS_MAX * sizeof(void *));
     
     /* Initialize thread */
-    thread->private_data = ptds;
-    thread->stack = stack;
-    thread->start = start;
-    thread->arg = arg;
+    trd->private_data = ptds;
+    trd->stack = stack;
+    trd->start = start;
+    trd->arg = arg;
     
-    _ST_INIT_CONTEXT(thread, stack->sp, _st_thread_main);
+    _ST_INIT_CONTEXT(trd, stack->sp, _st_thread_main);
     
     /* If thread is joinable, allocate a termination condition variable */
     if (joinable) {
-        thread->term = st_cond_new();
-        if (thread->term == NULL) {
-            _st_stack_free(thread->stack);
+        trd->term = st_cond_new();
+        if (trd->term == NULL) {
+            _st_stack_free(trd->stack);
             return NULL;
         }
     }
     
     /* Make thread runnable */
-    thread->state = _ST_ST_RUNNABLE;
+    trd->state = _ST_ST_RUNNABLE;
     _st_active_count++;
-    _ST_ADD_RUNQ(thread);
+    _ST_ADD_RUNQ(trd);
 #ifdef DEBUG
-    _ST_ADD_THREADQ(thread);
+    _ST_ADD_THREADQ(trd);
 #endif
     
-    return thread;
+    return trd;
 }
 
 _st_thread_t *st_thread_self(void)
@@ -598,7 +598,7 @@ _st_thread_t *st_thread_self(void)
 
 #ifdef DEBUG
 /* ARGSUSED */
-void _st_show_thread_stack(_st_thread_t *thread, const char *messg)
+void _st_show_thread_stack(_st_thread_t *trd, const char *messg)
 {
 }
 
@@ -607,43 +607,43 @@ int _st_iterate_threads_flag = 0;
 
 void _st_iterate_threads(void)
 {
-    static _st_thread_t *thread = NULL;
+    static _st_thread_t *trd = NULL;
     static jmp_buf orig_jb, save_jb;
     _st_clist_t *q;
     
     if (!_st_iterate_threads_flag) {
-        if (thread) {
-            memcpy(thread->context, save_jb, sizeof(jmp_buf));
+        if (trd) {
+            memcpy(trd->context, save_jb, sizeof(jmp_buf));
             MD_LONGJMP(orig_jb, 1);
         }
         return;
     }
     
-    if (thread) {
-        memcpy(thread->context, save_jb, sizeof(jmp_buf));
-        _st_show_thread_stack(thread, NULL);
+    if (trd) {
+        memcpy(trd->context, save_jb, sizeof(jmp_buf));
+        _st_show_thread_stack(trd, NULL);
     } else {
         if (MD_SETJMP(orig_jb)) {
             _st_iterate_threads_flag = 0;
-            thread = NULL;
-            _st_show_thread_stack(thread, "Iteration completed");
+            trd = NULL;
+            _st_show_thread_stack(trd, "Iteration completed");
             return;
         }
-        thread = _ST_CURRENT_THREAD();
-        _st_show_thread_stack(thread, "Iteration started");
+        trd = _ST_CURRENT_THREAD();
+        _st_show_thread_stack(trd, "Iteration started");
     }
     
-    q = thread->tlink.next;
+    q = trd->tlink.next;
     if (q == &_ST_THREADQ) {
         q = q->next;
     }
     ST_ASSERT(q != &_ST_THREADQ);
-    thread = _ST_THREAD_THREADQ_PTR(q);
-    if (thread == _ST_CURRENT_THREAD()) {
+    trd = _ST_THREAD_THREADQ_PTR(q);
+    if (trd == _ST_CURRENT_THREAD()) {
         MD_LONGJMP(orig_jb, 1);
     }
-    memcpy(save_jb, thread->context, sizeof(jmp_buf));
-    MD_LONGJMP(thread->context, 1);
+    memcpy(save_jb, trd->context, sizeof(jmp_buf));
+    MD_LONGJMP(trd->context, 1);
 }
 #endif /* DEBUG */
 

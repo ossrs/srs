@@ -95,8 +95,8 @@ extern "C" {
     
     extern st_thread_t st_thread_self(void);
     extern void st_thread_exit(void *retval);
-    extern int st_thread_join(st_thread_t thread, void **retvalp);
-    extern void st_thread_interrupt(st_thread_t thread);
+    extern int st_thread_join(st_thread_t trd, void **retvalp);
+    extern void st_thread_interrupt(st_thread_t trd);
     extern st_thread_t st_thread_create(void *(*start)(void *arg), void *arg, int joinable, int stack_size);
     extern int st_randomize_stacks(int on);
     extern int st_set_utime_function(st_utime_t (*func)(void));
