@@ -546,6 +546,13 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     /* Allocate thread object and per-thread data off the stack */
 #if defined (MD_STACK_GROWS_DOWN)
     sp = stack->stk_top;
+    /*
+    * The stack segment is split in the middle. The upper half is used
+    * as backing store for the register stack which grows upward.
+    * The lower half is used for the traditional memory stack which
+    * grows downward. Both stacks start in the middle and grow outward
+    * from each other.
+    */
     sp = sp - (ST_KEYS_MAX * sizeof(void *));
     ptds = (void **) sp;
     sp = sp - sizeof(_st_thread_t);
