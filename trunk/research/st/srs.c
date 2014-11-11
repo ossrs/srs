@@ -52,8 +52,8 @@ int sleep_test()
     srs_trace("sleep test: start");
     
     srs_trace("1. sleep...");
-    
     st_usleep(sleep_ms * 1000);
+    
     srs_trace("2. sleep ok");
     
     srs_trace("sleep test: end");
