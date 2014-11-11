@@ -177,10 +177,6 @@
 /*****************************************
  * Other defines
  */
-#if !defined(MD_HAVE_POLL) && !defined(MD_DONT_HAVE_POLL)
-    #define MD_HAVE_POLL
-#endif
-
 #ifndef MD_STACK_PAD_SIZE
     #define MD_STACK_PAD_SIZE 128
 #endif
