@@ -81,7 +81,7 @@ int SrsPipe::active()
     int ret = ERROR_SUCCESS;
     
     int v = 0;
-    if (st_write(write_stfd, &v, sizeof(int), ST_UTIME_NO_TIMEOUT) != sizeof(int)) {
+    if (st_write(read_stfd, &v, sizeof(int), ST_UTIME_NO_TIMEOUT) != sizeof(int)) {
         ret = ERROR_SYSTEM_WRITE_PIPE;
         srs_error("write pipe failed. ret=%d", ret);
         return ret;
