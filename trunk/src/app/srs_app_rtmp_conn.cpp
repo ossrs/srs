@@ -608,9 +608,6 @@ int SrsRtmpConn::playing(SrsSource* source)
                 return ret;
             }
         }
-        
-        // switch to other threads, to anti dead loop.
-        st_usleep(0);
     }
     
     return ret;
@@ -668,9 +665,6 @@ int SrsRtmpConn::do_fmle_publishing(SrsSource* source)
     }
     
     while (true) {
-        // switch to other st-threads.
-        st_usleep(0);
-        
         SrsMessage* msg = NULL;
         if ((ret = rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
             srs_error("fmle recv identify client message failed. ret=%d", ret);
@@ -774,9 +768,6 @@ int SrsRtmpConn::do_flash_publishing(SrsSource* source)
     }
     
     while (true) {
-        // switch to other st-threads.
-        st_usleep(0);
-        
         SrsMessage* msg = NULL;
         if ((ret = rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
             if (!srs_is_client_gracefully_close(ret)) {
