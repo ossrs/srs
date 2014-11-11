@@ -46,7 +46,8 @@ class SrsPoll : public ISrsThreadHandler
 {
 private:
     SrsThread* pthread;
-    std::map<st_netfd_t, SrsPollFD*> fds;
+    pollfd* _pds;
+    std::map<int, SrsPollFD*> fds;
 public:
     SrsPoll();
     virtual ~SrsPoll();
@@ -59,6 +60,15 @@ public:
     * start an cycle thread.
     */
     virtual int cycle();
+public:
+    /**
+    * add the fd to poll.
+    */
+    virtual int add(st_netfd_t stfd, SrsPollFD* owner);
+    /**
+    * remove the fd to poll, ignore any error.
+    */
+    virtual void remove(st_netfd_t stfd, SrsPollFD* owner);
 // singleton
 private:
     static SrsPoll* _instance;
@@ -73,6 +83,8 @@ class SrsPollFD
 {
 private:
     st_netfd_t _stfd;
+    // whether current fd is active.
+    bool _active;
 public:
     SrsPollFD();
     virtual ~SrsPollFD();
@@ -82,6 +94,15 @@ public:
     * @param stfd the fd to poll.
     */
     virtual int initialize(st_netfd_t stfd);
+    /**
+    * whether fd is active.
+    */
+    virtual bool active();
+    /**
+    * the poll will set to fd active when got data to read,
+    * the connection will set to deactive when data read.
+    */
+    virtual void set_active(bool v);
 };
 
 #endif
