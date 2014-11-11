@@ -44,6 +44,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_source.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_app_heartbeat.hpp>
+#include <srs_app_poll.hpp>
 
 // signal defines.
 #define SIGNAL_RELOAD SIGHUP
@@ -663,6 +664,14 @@ void SrsServer::on_signal(int signo)
 int SrsServer::do_cycle()
 {
     int ret = ERROR_SUCCESS;
+    
+    // start the poll for play clients.
+    // performance issue, @see: https://github.com/winlinvip/simple-rtmp-server/issues/194
+    SrsPoll* poll = SrsPoll::instance();
+    if ((ret = poll->start()) != ERROR_SUCCESS) {
+        srs_error("start poll failed. ret=%d", ret);
+        return ret;
+    }
     
     // find the max loop
     int max = srs_max(0, SRS_SYS_TIME_RESOLUTION_MS_TIMES);
