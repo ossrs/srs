@@ -170,9 +170,6 @@ int SrsEdgeIngester::ingest()
     SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_EDGE);
 
     while (pthread->can_loop()) {
-        // switch to other st-threads.
-        st_usleep(0);
-        
         pithy_print.elapse();
         
         // pithy print
@@ -480,9 +477,6 @@ int SrsEdgeForwarder::cycle()
     SrsSharedPtrMessageArray msgs(SYS_MAX_EDGE_SEND_MSGS);
 
     while (pthread->can_loop()) {
-        // switch to other st-threads.
-        st_usleep(0);
-        
         if (send_error_code != ERROR_SUCCESS) {
             st_usleep(SRS_EDGE_FORWARDER_ERROR_US);
             continue;

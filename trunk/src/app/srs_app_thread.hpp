@@ -50,14 +50,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * espectially on st_usleep(), so the cycle must check the loop,
 * when handler->cycle() has loop itself, for example:
 *         while (true):
-*             st_usleep(0);
 *             if (read_from_socket(skt) < 0) break;
 * if thread stop when read_from_socket, it's ok, the loop will break,
 * but when thread stop interrupt the s_usleep(0), then the loop is
 * death loop.
 * in a word, the handler->cycle() must:
 *         while (pthread->can_loop()):
-*             st_usleep(0);
 *             if (read_from_socket(skt) < 0) break;
 * check the loop, then it works.
 *

@@ -399,9 +399,6 @@ int SrsForwarder::forward()
     }
     
     while (pthread->can_loop()) {
-        // switch to other st-threads.
-        st_usleep(0);
-
         pithy_print.elapse();
 
         // read from client.
