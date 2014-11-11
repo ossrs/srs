@@ -1475,38 +1475,12 @@ int SrsConfig::check_config()
     
     // check max connections of system limits
     if (true) {
-        int nb_consumed_fds = (int)get_listen().size();
-        if (get_http_api_listen() > 0) {
-            nb_consumed_fds++;
-        }
-        if (get_http_stream_listen() > 0) {
-            nb_consumed_fds++;
-        }
-        if (get_log_tank_file()) {
-            nb_consumed_fds++;
-        }
-        // 0, 1, 2 for stdin, stdout and stderr.
-        nb_consumed_fds += 3;
-        
-        int nb_connections = get_max_connections();
-        int nb_pipes = nb_connections * 2;
-        int nb_reserved = 10; // reserved
-        int nb_total = nb_connections + nb_pipes + nb_consumed_fds + nb_reserved;
-        
         int max_open_files = sysconf(_SC_OPEN_MAX);
-        int nb_canbe = (max_open_files - (nb_consumed_fds + nb_reserved)) / 3 - 1;
-
-        // for each play connections, we open a pipe(2fds) to convert SrsConsumver to io,
-        // refine performance, @see: https://github.com/winlinvip/simple-rtmp-server/issues/194
-        if (nb_total >= max_open_files) {
+        if (get_max_connections() > max_open_files) {
             ret = ERROR_SYSTEM_CONFIG_INVALID;
-            srs_error("invalid max_connections=%d, required=%d, system limit to %d, "
-                "total=%d(max_connections=%d, nb_pipes=%d, nb_consumed_fds=%d, nb_reserved=%d), ret=%d. "
-                "you can change max_connections from %d to %d, or "
-                "you can login as root and set the limit: ulimit -HSn %d", 
-                nb_connections, nb_total, max_open_files, 
-                nb_total, nb_connections, nb_pipes, nb_consumed_fds, nb_reserved,
-                ret, nb_connections, nb_canbe, nb_total);
+            srs_error("invalid max_connections=%d, system limit to %d, ret=%d. "
+                "you can login as root and set the limit: ulimit -HSn %d", get_max_connections(), max_open_files,
+                ret, get_max_connections());
             return ret;
         }
     }
