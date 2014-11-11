@@ -308,6 +308,8 @@ ST_HIDDEN void _st_epoll_dispatch(void)
         timeout = (int) (min_timeout / 1000);
     }
 
+    // TODO: WINLIN: remove it for bug introduced.
+    // @see: https://github.com/winlinvip/simple-rtmp-server/issues/193
     if (_st_epoll_data->pid != getpid()) {
         /* We probably forked, reinitialize epoll set */
         close(_st_epoll_data->epfd);
