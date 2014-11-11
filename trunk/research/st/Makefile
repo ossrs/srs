@@ -55,21 +55,6 @@ DEFINES     = -D$(OS) -DDEBUG -DMD_HAVE_EPOLL -DMALLOC_STACK
 
 ##########################
 # Other possible defines:
-# To use poll(2) instead of select(2) for events checking:
-# DEFINES += -DUSE_POLL
-# You may prefer to use select for applications that have many threads
-# using one file descriptor, and poll for applications that have many
-# different file descriptors.  With USE_POLL poll() is called with at
-# least one pollfd per I/O-blocked thread, so 1000 threads sharing one
-# descriptor will poll 1000 identical pollfds and select would be more
-# efficient.  But if the threads all use different descriptors poll()
-# may be better depending on your operating system's implementation of
-# poll and select.  Really, it's up to you.  Oh, and on some platforms
-# poll() fails with more than a few dozen descriptors.
-#
-# Some platforms allow to define FD_SETSIZE (if select() is used), e.g.:
-# DEFINES += -DFD_SETSIZE=4096
-#
 # To use malloc(3) instead of mmap(2) for stack allocation:
 # DEFINES += -DMALLOC_STACK
 #
@@ -77,24 +62,8 @@ DEFINES     = -D$(OS) -DDEBUG -DMD_HAVE_EPOLL -DMALLOC_STACK
 # (but not too many!):
 # DEFINES += -DST_KEYS_MAX=<n>
 #
-# To start with more than the default 64 initial pollfd slots
-# (but the table grows dynamically anyway):
-# DEFINES += -DST_MIN_POLLFDS_SIZE=<n>
-#
 # Note that you can also add these defines by specifying them as
 # make/gmake arguments (without editing this Makefile). For example:
-#
-# make EXTRA_CFLAGS=-DUSE_POLL <target>
-#
-# (replace make with gmake if needed).
-#
-# You can also modify the default selection of an alternative event
-# notification mechanism. E.g., to enable kqueue(2) support (if it's not
-# enabled by default):
-#
-# gmake EXTRA_CFLAGS=-DMD_HAVE_KQUEUE <target>
-#
-# or to disable default epoll(4) support:
 #
 # make EXTRA_CFLAGS=-UMD_HAVE_EPOLL <target>
 #
