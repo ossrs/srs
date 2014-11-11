@@ -58,7 +58,6 @@ class SrsDvr;
 class SrsEncoder;
 #endif
 class SrsStream;
-class SrsPipe;
 
 /**
 * the time jitter algorithm:
@@ -123,10 +122,6 @@ public:
     virtual void set_queue_size(double queue_size);
 public:
     /**
-    * whether queue is empty.
-    */
-    virtual bool empty();
-    /**
     * enqueue the message, the timestamp always monotonically.
     * @param msg, the msg to enqueue, user never free it whatever the return code.
     */
@@ -153,7 +148,6 @@ private:
 class SrsConsumer
 {
 private:
-    SrsPipe* pipe;
     SrsRtmpJitter* jitter;
     SrsSource* source;
     SrsMessageQueue* queue;
@@ -163,16 +157,6 @@ private:
 public:
     SrsConsumer(SrsSource* _source);
     virtual ~SrsConsumer();
-public:
-    /**
-    * initialize the consumer.
-    */
-    virtual int initialize();
-    /**
-    * source can use this fd to poll with the read event,
-    * for performance issue, @see: https://github.com/winlinvip/simple-rtmp-server/issues/194
-    */
-    virtual st_netfd_t pipe_fd();
 public:
     /**
     * set the size of queue.
