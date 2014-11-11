@@ -48,6 +48,7 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_protocol_msg_array.hpp>
 #include <srs_protocol_amf0.hpp>
+#include <srs_app_poll.hpp>
 
 // when stream is busy, for example, streaming is already
 // publishing, when a new client to request to publish,
@@ -524,6 +525,11 @@ int SrsRtmpConn::playing(SrsSource* source)
 
     bool user_specified_duration_to_stop = (req->duration > 0);
     int64_t starttime = -1;
+    
+    SrsPollFD poll;
+    if ((ret = poll.initialize(stfd)) != ERROR_SUCCESS) {
+        return ret;
+    }
     
     while (true) {
         // collect elapse for pithy print.
