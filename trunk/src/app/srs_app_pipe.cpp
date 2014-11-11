@@ -66,6 +66,11 @@ int SrsPipe::initialize()
     return ret;
 }
 
+st_netfd_t SrsPipe::rfd()
+{
+    return read_stfd;
+}
+
 bool SrsPipe::already_written()
 {
     return _already_written;

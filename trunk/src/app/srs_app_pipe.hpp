@@ -57,6 +57,10 @@ public:
     * initialize pipes, open fds.
     */
     virtual int initialize();
+    /**
+    * get the read fd to poll.
+    */
+    virtual st_netfd_t rfd();
 public:
     /**
     * for event based service, whether already writen data.
