@@ -308,26 +308,10 @@ ST_HIDDEN void _st_epoll_dispatch(void)
         timeout = (int) (min_timeout / 1000);
     }
 
-    // TODO: WINLIN: remove it for bug introduced.
-    // @see: https://github.com/winlinvip/simple-rtmp-server/issues/193
     if (_st_epoll_data->pid != getpid()) {
-        /* We probably forked, reinitialize epoll set */
-        close(_st_epoll_data->epfd);
-        _st_epoll_data->epfd = epoll_create(_st_epoll_data->fd_hint);
-        if (_st_epoll_data->epfd < 0) {
-            /* There is nothing we can do here, will retry later */
-            return;
-        }
-        fcntl(_st_epoll_data->epfd, F_SETFD, FD_CLOEXEC);
-        _st_epoll_data->pid = getpid();
-
-        /* Put all descriptors on ioq into new epoll set */
-        memset(_st_epoll_data->fd_data, 0, _st_epoll_data->fd_data_size * sizeof(_epoll_fd_data_t));
-        _st_epoll_data->evtlist_cnt = 0;
-        for (q = _ST_IOQ.next; q != &_ST_IOQ; q = q->next) {
-            pq = _ST_POLLQUEUE_PTR(q);
-            _st_epoll_pollset_add(pq->pds, pq->npds);
-        }
+        // WINLIN: remove it for bug introduced.
+        // @see: https://github.com/winlinvip/simple-rtmp-server/issues/193
+        exit(-1);
     }
 
     /* Check for I/O operations */
