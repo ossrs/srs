@@ -26,6 +26,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 
+// the interval in us to refresh the poll for all fds.
+// for performance refine, @see: https://github.com/winlinvip/simple-rtmp-server/issues/194
+#define SRS_POLL_CYCLE_INTERVAL 10 * 1000 * 1000
+
 SrsPoll::SrsPoll()
 {
     _pds = NULL;
@@ -54,10 +58,8 @@ int SrsPoll::cycle()
     }
     
     int nb_pds = (int)fds.size();
-
-st_usleep(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
-return ret;
     
+    // TODO: FIXME: use more efficient way for the poll.
     srs_freep(_pds);
     _pds = new pollfd[nb_pds];
     
@@ -77,7 +79,10 @@ return ret;
         srs_assert(index == (int)fds.size());
     }
 
-    if (st_poll(_pds, nb_pds, ST_UTIME_NO_TIMEOUT) <= 0) {
+    // Upon successful completion, a non-negative value is returned. 
+    // A positive value indicates the total number of OS file descriptors in pds that have events. 
+    // A value of 0 indicates that the call timed out.
+    if (st_poll(_pds, nb_pds, SRS_POLL_CYCLE_INTERVAL) < 0) {
         srs_warn("ignore st_poll failed, size=%d", nb_pds);
         return ret;
     }
