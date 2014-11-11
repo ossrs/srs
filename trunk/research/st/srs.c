@@ -52,11 +52,60 @@ int sleep_test()
     srs_trace("sleep test: start");
     
     srs_trace("1. sleep...");
+    st_utime_t start = st_utime();
     st_usleep(sleep_ms * 1000);
+    st_utime_t end = st_utime();
     
-    srs_trace("2. sleep ok");
-    
+    srs_trace("2. sleep ok, sleep=%dus, deviation=%dus", 
+        (int)(sleep_ms * 1000), (int)(end - start - sleep_ms * 1000));
+
     srs_trace("sleep test: end");
+    
+    return 0;
+}
+
+st_mutex_t sleep_work_cond = NULL;
+void* sleep_deviation_func(void* arg)
+{
+    st_mutex_lock(sleep_work_cond);
+    srs_trace("2. work thread start.");
+
+    int64_t i;
+    for (i = 0; i < 3000000000ULL; i++) {
+    }
+    
+    st_mutex_unlock(sleep_work_cond);
+    srs_trace("3. work thread end.");
+    
+    return NULL;
+}
+
+int sleep_deviation_test()
+{
+    srs_trace("===================================================");
+    srs_trace("sleep deviation test: start");
+    
+    sleep_work_cond = st_mutex_new();
+    
+    st_thread_create(sleep_deviation_func, NULL, 0, 0);
+    st_mutex_lock(sleep_work_cond);
+    
+    srs_trace("1. sleep...");
+    st_utime_t start = st_utime();
+    
+    // other thread to do some complex work.
+    st_mutex_unlock(sleep_work_cond);
+    st_usleep(1000 * 1000);
+    
+    st_utime_t end = st_utime();
+    
+    srs_trace("4. sleep ok, sleep=%dus, deviation=%dus", 
+        (int)(sleep_ms * 1000), (int)(end - start - sleep_ms * 1000));
+
+    st_mutex_lock(sleep_work_cond);
+    srs_trace("sleep deviation test: end");
+    
+    st_mutex_destroy(sleep_work_cond);
     
     return 0;
 }
@@ -358,6 +407,11 @@ int main(int argc, char** argv)
     
     if (sleep_test() < 0) {
         srs_trace("sleep_test failed");
+        return -1;
+    }
+    
+    if (sleep_deviation_test() < 0) {
+        srs_trace("sleep_deviation_test failed");
         return -1;
     }
     
