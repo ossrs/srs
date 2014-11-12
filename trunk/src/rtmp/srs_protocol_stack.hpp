@@ -32,6 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <map>
 #include <string>
+#include <sys/uio.h>
 
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
@@ -214,7 +215,11 @@ private:
     * used for type0, 11bytes(or 15bytes with extended timestamp) header.
     * or for type3, 1bytes(or 5bytes with extended timestamp) header.
     */
-    char out_header_cache[SRS_CONSTS_RTMP_MAX_FMT0_HEADER_SIZE];
+    char out_c0_cache[SRS_CONSTS_RTMP_MAX_FMT0_HEADER_SIZE];
+    /**
+    * output iovec cache.
+    */
+    iovec iov[2];
     /**
     * output chunk size, default to 128, set by config.
     */
@@ -339,10 +344,19 @@ public:
     }
 private:
     /**
-    * send out the message, donot free it, the caller must free the param msg.
-    * @param packet the packet of message, NULL for raw message.
+    * send out the message, donot free it, 
+    * the caller must free the param msg.
     */
-    virtual int do_send_message(SrsMessage* msg, SrsPacket* packet);
+    virtual int do_send_message(SrsMessage* msg);
+    /**
+    * generate the chunk header for msg.
+    * @param mh, the header of msg to send.
+    * @param c0, whether the first chunk, the c0 chunk.
+    * @param pnbh, output the size of header.
+    * @param ph, output the header cache.
+    *       user should never free it, it's cached header.
+    */
+    virtual void generate_chunk_header(SrsMessageHeader* mh, bool c0, int* pnbh, char** ph);
     /**
     * imp for decode_message
     */
