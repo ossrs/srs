@@ -242,6 +242,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2014-11-08, fix [#194](https://github.com/winlinvip/simple-rtmp-server/issues/194), optmized st for timeout recv. pulse to 500ms. 2.0.14.
 * v2.0, 2014-11-08, fix [#195](https://github.com/winlinvip/simple-rtmp-server/issues/195), remove the confuse code st_usleep(0). 2.0.13.
 * v2.0, 2014-11-08, fix [#191](https://github.com/winlinvip/simple-rtmp-server/issues/191), configure --export-librtmp-project and --export-librtmp-single. 2.0.11.
 * v2.0, 2014-11-08, fix [#66](https://github.com/winlinvip/simple-rtmp-server/issues/66), srs-librtmp support write h264 raw packet. 2.0.9.
@@ -442,10 +443,12 @@ Supported operating systems and hardware:
 
 Performance benchmark history, on virtual box:
 
-* 2013-11-28, SRS 0.5.0, 1800clients, 90%CPU, 41MB. [benchmark](https://github.com/winlinvip/simple-rtmp-server/commit/023e23bc8261bec15a70a7ae932098fb4f82b679)
+* 2013-11-28, SRS 0.5.0,   1800clients, 90%CPU, 41MB. [benchmark](https://github.com/winlinvip/simple-rtmp-server/commit/023e23bc8261bec15a70a7ae932098fb4f82b679)
 * 2014-07-12, SRS 0.9.156, 1800clients, 68%CPU, 38MB. [benchmark](https://github.com/winlinvip/simple-rtmp-server/commit/e2d273f4939348374bf9644df9d54c4293b39c1a)
 * 2014-07-12, SRS 0.9.156, 2700clients, 89%CPU, 61MB. [benchmark](https://github.com/winlinvip/simple-rtmp-server/commit/6d12280b7cc54c465b1caf8b1402149e77c4c7d9)
-* 2014-11-11, SRS 1.0.5/2.0.12, 2700clients, 85%CPU, 66MB.
+* 2014-11-11, SRS 1.0.5,   2700clients, 85%CPU, 66MB. (1.0 equals 2.0.12)
+* 2014-11-12, SRS 2.0.14,  2700clients, 69%CPU, 59MB.
+* 2014-11-12, SRS 2.0.14,  3500clients, 95%CPU, 78MB.
 
 Latest benchmark(2014-07-12):
 

@@ -67,18 +67,18 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // the following is the timeout for rtmp protocol, 
 // to avoid death connection.
 
-// the timeout to wait client data,
+// the timeout to send data to client,
 // if timeout, close the connection.
 #define SRS_CONSTS_RTMP_SEND_TIMEOUT_US (int64_t)(30*1000*1000LL)
 
-// the timeout to send data to client,
+// the timeout to wait client data,
 // if timeout, close the connection.
 #define SRS_CONSTS_RTMP_RECV_TIMEOUT_US (int64_t)(30*1000*1000LL)
 
 // the timeout to wait for client control message,
 // if timeout, we generally ignore and send the data to client,
 // generally, it's the pulse time for data seding.
-#define SRS_CONSTS_RTMP_PULSE_TIMEOUT_US (int64_t)(200*1000LL)
+#define SRS_CONSTS_RTMP_PULSE_TIMEOUT_US (int64_t)(500*1000LL)
 
 /**
 * max rtmp header size:
