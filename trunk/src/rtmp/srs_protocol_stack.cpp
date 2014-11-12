@@ -564,21 +564,21 @@ int SrsProtocol::do_send_message(SrsMessage* msg)
         srs_assert(nbh > 0);
         
         // header iov
-        iov[0].iov_base = header;
-        iov[0].iov_len = nbh;
+        out_iov[0].iov_base = header;
+        out_iov[0].iov_len = nbh;
         
         // payload iov
         int payload_size = pend - p;
         if (payload_size > out_chunk_size) {
             payload_size = out_chunk_size;
         }
-        iov[1].iov_base = p;
-        iov[1].iov_len = payload_size;
+        out_iov[1].iov_base = p;
+        out_iov[1].iov_len = payload_size;
         
         // send by writev
         // sendout header and payload by writev.
         // decrease the sys invoke count to get higher performance.
-        if ((ret = skt->writev(iov, 2, NULL)) != ERROR_SUCCESS) {
+        if ((ret = skt->writev(out_iov, 2, NULL)) != ERROR_SUCCESS) {
             srs_error("send with writev failed. ret=%d", ret);
             return ret;
         }
@@ -592,7 +592,7 @@ int SrsProtocol::do_send_message(SrsMessage* msg)
 
 void SrsProtocol::generate_chunk_header(SrsMessageHeader* mh, bool c0, int* pnbh, char** ph) 
 {
-    char* cache = out_c0_cache;
+    char* cache = out_c0c3_cache;
     
     // to directly set the field.
     char* pp = NULL;
