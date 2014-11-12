@@ -215,11 +215,11 @@ private:
     * used for type0, 11bytes(or 15bytes with extended timestamp) header.
     * or for type3, 1bytes(or 5bytes with extended timestamp) header.
     */
-    char out_c0_cache[SRS_CONSTS_RTMP_MAX_FMT0_HEADER_SIZE];
+    char out_c0c3_cache[SRS_CONSTS_RTMP_MAX_FMT0_HEADER_SIZE];
     /**
     * output iovec cache.
     */
-    iovec iov[2];
+    iovec out_iov[2];
     /**
     * output chunk size, default to 128, set by config.
     */
