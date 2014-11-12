@@ -35,59 +35,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_st.hpp>
 #include <srs_app_thread.hpp>
 
-class SrsPollFD;
-
-/**
-* the poll for all play clients to finger the active fd out.
-* for performance issue, @see: https://github.com/winlinvip/simple-rtmp-server/issues/194
-* the poll is shared by all SrsPollFD, and we start an isolate thread to finger the active fds.
-*/
-class SrsPoll : public ISrsThreadHandler
-{
-private:
-    SrsThread* pthread;
-    pollfd* _pds;
-    std::map<int, SrsPollFD*> fds;
-public:
-    SrsPoll();
-    virtual ~SrsPoll();
-public:
-    /**
-    * start the poll thread.
-    */
-    virtual int start();
-    /**
-    * start an cycle thread.
-    */
-    virtual int cycle();
-public:
-    /**
-    * add the fd to poll.
-    */
-    virtual int add(st_netfd_t stfd, SrsPollFD* owner);
-    /**
-    * remove the fd to poll, ignore any error.
-    */
-    virtual void remove(st_netfd_t stfd, SrsPollFD* owner);
-// singleton
-private:
-    static SrsPoll* _instance;
-public:
-    static SrsPoll* instance();
-};
-
 /**
 * the poll fd to check whether the specified fd is active.
+* we start new thread to covert the fd status to async.
+* for performance issue, @see: https://github.com/winlinvip/simple-rtmp-server/issues/194
 */
-class SrsPollFD
+class SrsPoll
 {
 private:
     st_netfd_t _stfd;
     // whether current fd is active.
     bool _active;
 public:
-    SrsPollFD();
-    virtual ~SrsPollFD();
+    SrsPoll();
+    virtual ~SrsPoll();
 public:
     /**
     * initialize the poll.

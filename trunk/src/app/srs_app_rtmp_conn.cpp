@@ -518,7 +518,7 @@ int SrsRtmpConn::playing(SrsSource* source)
     srs_verbose("consumer created success.");
     
     // use poll fd to manage the connection, read when active.
-    SrsPollFD poll_fd;
+    SrsPoll poll_fd;
     if ((ret = poll_fd.initialize(stfd)) != ERROR_SUCCESS) {
         return ret;
     }
