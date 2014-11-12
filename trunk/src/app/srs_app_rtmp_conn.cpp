@@ -516,10 +516,7 @@ int SrsRtmpConn::playing(SrsSource* source)
     SrsAutoFree(SrsConsumer, consumer);
     srs_verbose("consumer created success.");
     
-    // TODO: FIXME: remove following.
     rtmp->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
-    //rtmp->set_recv_timeout(ST_UTIME_NO_TIMEOUT);
-    //rtmp->set_send_timeout(ST_UTIME_NO_TIMEOUT);
     
     // initialize other components
     SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_PLAY_USER);
@@ -531,6 +528,8 @@ int SrsRtmpConn::playing(SrsSource* source)
         // collect elapse for pithy print.
         pithy_print.elapse();
 
+        // read message when no data to send.
+        // @see: https://github.com/winlinvip/simple-rtmp-server/issues/194
         // read from client.
         if (true) {
             SrsMessage* msg = NULL;
@@ -561,13 +560,6 @@ int SrsRtmpConn::playing(SrsSource* source)
             srs_error("get messages from consumer failed. ret=%d", ret);
             return ret;
         }
-        
-        // no data, sleep a while.
-        // for the poll_fd maybe not active, and no message.
-        // @see: https://github.com/winlinvip/simple-rtmp-server/issues/194
-        //if (count <= 0) {
-        //    st_usleep(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
-        //}
 
         // reportable
         if (pithy_print.can_print()) {
