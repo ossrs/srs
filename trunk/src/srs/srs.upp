@@ -92,8 +92,6 @@ file
 	..\app\srs_app_kbps.cpp,
 	..\app\srs_app_log.hpp,
 	..\app\srs_app_log.cpp,
-	..\app\srs_app_poll.hpp,
-	..\app\srs_app_poll.cpp,
 	..\app\srs_app_refer.hpp,
 	..\app\srs_app_refer.cpp,
 	..\app\srs_app_reload.hpp,

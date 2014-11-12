@@ -48,7 +48,6 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_protocol_msg_array.hpp>
 #include <srs_protocol_amf0.hpp>
-#include <srs_app_poll.hpp>
 
 // when stream is busy, for example, streaming is already
 // publishing, when a new client to request to publish,
@@ -517,16 +516,10 @@ int SrsRtmpConn::playing(SrsSource* source)
     SrsAutoFree(SrsConsumer, consumer);
     srs_verbose("consumer created success.");
     
-    // use poll fd to manage the connection, read when active.
-    SrsPoll poll_fd;
-    if ((ret = poll_fd.initialize(stfd)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
     // TODO: FIXME: remove following.
-    //rtmp->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
-    rtmp->set_recv_timeout(ST_UTIME_NO_TIMEOUT);
-    rtmp->set_send_timeout(ST_UTIME_NO_TIMEOUT);
+    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
+    //rtmp->set_recv_timeout(ST_UTIME_NO_TIMEOUT);
+    //rtmp->set_send_timeout(ST_UTIME_NO_TIMEOUT);
     
     // initialize other components
     SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_PLAY_USER);
@@ -539,9 +532,7 @@ int SrsRtmpConn::playing(SrsSource* source)
         pithy_print.elapse();
 
         // read from client.
-        if (poll_fd.active()) {
-            poll_fd.set_active(false);
-            
+        if (true) {
             SrsMessage* msg = NULL;
             ret = rtmp->recv_message(&msg);
             srs_verbose("play loop recv message. ret=%d", ret);
@@ -574,9 +565,9 @@ int SrsRtmpConn::playing(SrsSource* source)
         // no data, sleep a while.
         // for the poll_fd maybe not active, and no message.
         // @see: https://github.com/winlinvip/simple-rtmp-server/issues/194
-        if (count <= 0) {
-            st_usleep(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
-        }
+        //if (count <= 0) {
+        //    st_usleep(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
+        //}
 
         // reportable
         if (pithy_print.can_print()) {
