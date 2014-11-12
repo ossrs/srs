@@ -528,8 +528,8 @@ int SrsRtmpConn::playing(SrsSource* source)
         // collect elapse for pithy print.
         pithy_print.elapse();
 
-        // read message when no data to send.
-        // @see: https://github.com/winlinvip/simple-rtmp-server/issues/194
+        // to use isolate thread to recv, can improve about 5% performance.
+        // @see: https://github.com/winlinvip/simple-rtmp-server/issues/196
         // read from client.
         if (true) {
             SrsMessage* msg = NULL;

@@ -227,6 +227,8 @@ fi
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # check the arm flag file, if flag changed, need to rebuild the st.
     _ST_MAKE=linux-debug
+    # memory leak for linux-optimized
+    # @see: https://github.com/winlinvip/simple-rtmp-server/issues/197
     if [ $SRS_EMBEDED_CPU = YES ]; then
         # ok, arm specified, if the flag filed does not exists, need to rebuild.
         if [[ -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st/libst.a ]]; then
