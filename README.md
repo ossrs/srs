@@ -213,7 +213,9 @@ Supported operating systems and hardware:
 1. Support system full utest on gtest.
 1. [experiment] Support embeded [HTTP server](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleHTTP) for hls(live/vod)
 1. [experiment] Support [vod stream(http flv/hls vod stream)](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_FlvVodStream).
+1. Stable [1.0release branch](https://github.com/winlinvip/simple-rtmp-server/tree/1.0release) and [2.0dev branch](https://github.com/winlinvip/simple-rtmp-server/tree/master).
 1. Support [publish h264 raw stream](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data) by srs-librtmp.
+1. Support [6k+ clients](https://github.com/winlinvip/simple-rtmp-server/issues/194), 4Gbps per process.
 1. [dev] Suppport [English wiki](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_v1_ENHome).
 1. [dev] Research and simplify st, [bug #182](https://github.com/winlinvip/simple-rtmp-server/issues/182).
 1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
