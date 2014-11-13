@@ -50,12 +50,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define SERVER_LISTEN_BACKLOG 512
 
-// system interval
+// system interval in ms,
 // all resolution times should be times togother,
 // for example, system-time is 3(300ms),
 // then rusage can be 3*x, for instance, 3*10=30(3s),
 // the meminfo canbe 30*x, for instance, 30*2=60(6s)
 // for performance refine, @see: https://github.com/winlinvip/simple-rtmp-server/issues/194
+// @remark, recomment to 1000ms.
 #define SRS_SYS_CYCLE_INTERVAL 1000
 
 // update time interval:
