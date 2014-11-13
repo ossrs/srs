@@ -212,7 +212,9 @@ private:
 // peer out
 private:
     /**
-    * cache for multiple messages send
+    * cache for multiple messages send,
+    * initialize to iovec[SRS_CONSTS_IOVS_MAX] and realloc when consumed,
+    * it's ok to realloc the iovs cache, for all ptr is ok.
     */
     iovec* out_iovs;
     int nb_out_iovs;

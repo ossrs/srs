@@ -513,13 +513,18 @@ int SrsRtmpConn::playing(SrsSource* source)
     SrsAutoFree(SrsConsumer, consumer);
     srs_verbose("consumer created success.");
     
-    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
-    
     // initialize other components
     SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_PLAY_USER);
     SrsMessageArray msgs(SYS_CONSTS_MAX_PLAY_SEND_MSGS);
     bool user_specified_duration_to_stop = (req->duration > 0);
     int64_t starttime = -1;
+    
+    // TODO: use isolate thread to recv, 
+    // @see: https://github.com/winlinvip/simple-rtmp-server/issues/196
+    // the performance bottleneck not in the timeout recv, but 
+    // in the multiple messages send, so it's ok for timeout recv,
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/194
+    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
     
     while (true) {
         // TODO: to use isolate thread to recv, can improve about 5% performance.
