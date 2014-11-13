@@ -474,7 +474,7 @@ int SrsEdgeForwarder::cycle()
     
     SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_EDGE);
     
-    SrsSharedPtrMessageArray msgs(SYS_MAX_EDGE_SEND_MSGS);
+    SrsMessageArray msgs(SYS_MAX_EDGE_SEND_MSGS);
 
     while (pthread->can_loop()) {
         if (send_error_code != ERROR_SUCCESS) {
@@ -526,7 +526,7 @@ int SrsEdgeForwarder::cycle()
         // @remark, becareful, all msgs must be free explicitly,
         //      free by send_and_free_message or srs_freep.
         for (int i = 0; i < count; i++) {
-            SrsSharedPtrMessage* msg = msgs.msgs[i];
+            SrsMessage* msg = msgs.msgs[i];
             
             srs_assert(msg);
             msgs.msgs[i] = NULL;

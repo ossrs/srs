@@ -413,7 +413,7 @@ SrsProtocol::SrsProtocol(ISrsProtocolReaderWriter* io)
     // each chunk consumers atleast 2 iovs
     srs_assert(nb_out_iovs >= 2);
     
-    warned_c0c3_caches = false;
+    warned_c0c3_cry = false;
 }
 
 SrsProtocol::~SrsProtocol()
@@ -547,65 +547,7 @@ int SrsProtocol::decode_message(SrsMessage* msg, SrsPacket** ppacket)
     return ret;
 }
 
-int SrsProtocol::do_send_message(SrsMessage* msg)
-{
-    int ret = ERROR_SUCCESS;
-    
-    // ignore empty message.
-    if (!msg->payload || msg->size <= 0) {
-        srs_info("ignore empty message.");
-        return ret;
-    }
-    
-    // we donot use the complex basic header,
-    // ensure the basic header is 1bytes.
-    if (msg->header.perfer_cid < 2) {
-        srs_warn("change the chunk_id=%d to default=%d", 
-            msg->header.perfer_cid, RTMP_CID_ProtocolControl);
-        msg->header.perfer_cid = RTMP_CID_ProtocolControl;
-    }
-
-    // p set to current write position,
-    // it's ok when payload is NULL and size is 0.
-    char* p = msg->payload;
-    char* pend = msg->payload + msg->size;
-    
-    // always write the header event payload is empty.
-    while (p < pend) {
-        // always has header
-        int nbh = 0;
-        char* header = NULL;
-        generate_chunk_header(out_c0c3_cache, &msg->header, p == msg->payload, &nbh, &header);
-        srs_assert(nbh > 0);
-        
-        // header iov
-        out_iov[0].iov_base = header;
-        out_iov[0].iov_len = nbh;
-        
-        // payload iov
-        int payload_size = pend - p;
-        if (payload_size > out_chunk_size) {
-            payload_size = out_chunk_size;
-        }
-        out_iov[1].iov_base = p;
-        out_iov[1].iov_len = payload_size;
-        
-        // send by writev
-        // sendout header and payload by writev.
-        // decrease the sys invoke count to get higher performance.
-        if ((ret = skt->writev(out_iov, 2, NULL)) != ERROR_SUCCESS) {
-            srs_error("send with writev failed. ret=%d", ret);
-            return ret;
-        }
-        
-        // consume sendout bytes.
-        p += payload_size;
-    }
-    
-    return ret;
-}
-
-int SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
+int SrsProtocol::do_send_messages(SrsMessage** msgs, int nb_msgs)
 {
     int ret = ERROR_SUCCESS;
     
@@ -686,10 +628,10 @@ int SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
             int c0c3_left = SRS_CONSTS_C0C3_HEADERS_MAX - c0c3_cache_index;
             if (c0c3_left < SRS_CONSTS_RTMP_MAX_FMT0_HEADER_SIZE) {
                 // only warn once for a connection.
-                if (!warned_c0c3_caches) {
+                if (!warned_c0c3_cry) {
                     srs_warn("c0c3 cache header too small, recoment to %d", 
                         SRS_CONSTS_C0C3_HEADERS_MAX + SRS_CONSTS_RTMP_MAX_FMT0_HEADER_SIZE);
-                    warned_c0c3_caches = true;
+                    warned_c0c3_cry = true;
                 }
                 
                 // when c0c3 cache dry,
@@ -977,21 +919,10 @@ int SrsProtocol::do_decode_message(SrsMessageHeader& header, SrsStream* stream, 
 
 int SrsProtocol::send_and_free_message(SrsMessage* msg, int stream_id)
 {
-    // always not NULL msg.
-    srs_assert(msg);
-    
-    // update the stream id in header.
-    msg->header.stream_id = stream_id;
-    
-    // donot use the auto free to free the msg,
-    // for performance issue.
-    int ret = do_send_message(msg);
-    srs_freep(msg);
-    
-    return ret;
+    return send_and_free_messages(&msg, 1, stream_id);
 }
 
-int SrsProtocol::send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, int stream_id)
+int SrsProtocol::send_and_free_messages(SrsMessage** msgs, int nb_msgs, int stream_id)
 {
     // always not NULL msg.
     srs_assert(msgs);
@@ -1052,7 +983,7 @@ int SrsProtocol::send_and_free_packet(SrsPacket* packet, int stream_id)
 
     // donot use the auto free to free the msg,
     // for performance issue.
-    ret = do_send_message(msg);
+    ret = do_send_messages(&msg, 1);
     if (ret == ERROR_SUCCESS) {
         ret = on_send_packet(msg, packet);
     }

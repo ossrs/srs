@@ -212,24 +212,21 @@ private:
 // peer out
 private:
     /**
-    * output header cache.
-    * used for type0, 11bytes(or 15bytes with extended timestamp) header.
-    * or for type3, 1bytes(or 5bytes with extended timestamp) header.
-    */
-    char out_c0c3_cache[SRS_CONSTS_RTMP_MAX_FMT0_HEADER_SIZE];
-    /**
-    * output iovec cache.
-    */
-    iovec out_iov[2];
-    /**
     * cache for multiple messages send
     */
     iovec* out_iovs;
     int nb_out_iovs;
-    // the c0c3 cache cannot be realloc.
+    /**
+    * output header cache.
+    * used for type0, 11bytes(or 15bytes with extended timestamp) header.
+    * or for type3, 1bytes(or 5bytes with extended timestamp) header.
+    * the c0c3 caches must use unit SRS_CONSTS_RTMP_MAX_FMT0_HEADER_SIZE bytes.
+    * 
+    * @remark, the c0c3 cache cannot be realloc.
+    */
     char out_c0c3_caches[SRS_CONSTS_C0C3_HEADERS_MAX];
     // whether warned user to increase the c0c3 header cache.
-    bool warned_c0c3_caches;
+    bool warned_c0c3_cry;
     /**
     * output chunk size, default to 128, set by config.
     */
@@ -293,7 +290,7 @@ public:
     * @param nb_msgs, the size of msgs to send out.
     * @param stream_id, the stream id of packet to send over, 0 for control message.
     */
-    virtual int send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, int stream_id);
+    virtual int send_and_free_messages(SrsMessage** msgs, int nb_msgs, int stream_id);
     /**
     * send the RTMP packet and always free it.
     * user must never free or use the packet after this method,
@@ -363,15 +360,10 @@ public:
     }
 private:
     /**
-    * send out the message, donot free it, 
-    * the caller must free the param msg.
-    */
-    virtual int do_send_message(SrsMessage* msg);
-    /**
     * send out the messages, donot free it, 
     * the caller must free the param msgs.
     */
-    virtual int do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs);
+    virtual int do_send_messages(SrsMessage** msgs, int nb_msgs);
     /**
     * generate the chunk header for msg.
     * @param mh, the header of msg to send.

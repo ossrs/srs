@@ -25,11 +25,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_protocol_stack.hpp>
 
-SrsSharedPtrMessageArray::SrsSharedPtrMessageArray(int _size)
+SrsMessageArray::SrsMessageArray(int _size)
 {
     srs_assert(_size > 0);
     
-    msgs = new SrsSharedPtrMessage*[_size];
+    msgs = new SrsMessage*[_size];
     size = _size;
     
     // initialize
@@ -38,11 +38,11 @@ SrsSharedPtrMessageArray::SrsSharedPtrMessageArray(int _size)
     }
 }
 
-SrsSharedPtrMessageArray::~SrsSharedPtrMessageArray()
+SrsMessageArray::~SrsMessageArray()
 {
     // cleanup
     for (int i = 0; i < size; i++) {
-        SrsSharedPtrMessage* msg = msgs[i];
+        SrsMessage* msg = msgs[i];
         srs_freep(msg);
     }
     
