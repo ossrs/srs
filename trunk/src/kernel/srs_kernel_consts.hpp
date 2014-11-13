@@ -97,6 +97,19 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // always use fmt0 as cache.
 //#define SRS_CONSTS_RTMP_MAX_FMT3_HEADER_SIZE 5
 
+/**
+* for performance issue, 
+* the iovs cache, @see https://github.com/winlinvip/simple-rtmp-server/issues/194
+* iovs cache for multiple messages for each connections.
+*/
+#define SRS_CONSTS_IOVS_MAX 1024
+/**
+* for performance issue, 
+* the c0c3 cache, @see https://github.com/winlinvip/simple-rtmp-server/issues/194
+* c0c3 cache for multiple messages for each connections.
+*/
+#define SRS_CONSTS_C0C3_HEADERS_MAX 4096
+
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
