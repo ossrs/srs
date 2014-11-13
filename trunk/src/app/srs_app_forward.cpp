@@ -381,7 +381,7 @@ int SrsForwarder::forward()
     
     SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_FORWARDER);
 
-    SrsSharedPtrMessageArray msgs(SYS_MAX_FORWARD_SEND_MSGS);
+    SrsMessageArray msgs(SYS_MAX_FORWARD_SEND_MSGS);
     
     // update sequence header
     // TODO: FIXME: maybe need to zero the sequence header timestamp.
@@ -442,7 +442,7 @@ int SrsForwarder::forward()
         // @remark, becareful, all msgs must be free explicitly,
         //      free by send_and_free_message or srs_freep.
         for (int i = 0; i < count; i++) {
-            SrsSharedPtrMessage* msg = msgs.msgs[i];
+            SrsMessage* msg = msgs.msgs[i];
             
             srs_assert(msg);
             msgs.msgs[i] = NULL;

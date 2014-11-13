@@ -517,7 +517,7 @@ int SrsRtmpConn::playing(SrsSource* source)
     
     // initialize other components
     SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_PLAY_USER);
-    SrsSharedPtrMessageArray msgs(SYS_CONSTS_MAX_PLAY_SEND_MSGS);
+    SrsMessageArray msgs(SYS_CONSTS_MAX_PLAY_SEND_MSGS);
     bool user_specified_duration_to_stop = (req->duration > 0);
     int64_t starttime = -1;
     
@@ -574,7 +574,7 @@ int SrsRtmpConn::playing(SrsSource* source)
         // we start to collect the durations for each message.
         if (user_specified_duration_to_stop) {
             for (int i = 0; i < count; i++) {
-                SrsSharedPtrMessage* msg = msgs.msgs[i];
+                SrsMessage* msg = msgs.msgs[i];
                 
                 // foreach msg, collect the duration.
                 // @remark: never use msg when sent it, for the protocol sdk will free it.

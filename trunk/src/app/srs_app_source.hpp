@@ -132,7 +132,7 @@ public:
     * @count the count in array, output param.
     * @max_count the max count to dequeue, must be positive.
     */
-    virtual int dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count);
+    virtual int dump_packets(int max_count, SrsMessage** pmsgs, int& count);
 private:
     /**
     * remove a gop from the front.
@@ -187,7 +187,7 @@ public:
     * @count the count in array, output param.
     * @max_count the max count to dequeue, must be positive.
     */
-    virtual int dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count);
+    virtual int dump_packets(int max_count, SrsMessage** pmsgs, int& count);
     /**
     * when client send the pause message.
     */

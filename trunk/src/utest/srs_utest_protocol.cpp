@@ -529,7 +529,7 @@ VOID TEST(ProtocolMsgArrayTest, MessageArray)
     EXPECT_EQ(0, msg.count());
     
     if (true) {
-        SrsSharedPtrMessageArray arr(3);
+        SrsMessageArray arr(3);
         
         arr.msgs[0] = msg.copy();
         EXPECT_EQ(1, msg.count());
@@ -543,7 +543,7 @@ VOID TEST(ProtocolMsgArrayTest, MessageArray)
     EXPECT_EQ(0, msg.count());
     
     if (true) {
-        SrsSharedPtrMessageArray arr(3);
+        SrsMessageArray arr(3);
         
         arr.msgs[0] = msg.copy();
         EXPECT_EQ(1, msg.count());

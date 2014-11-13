@@ -378,7 +378,7 @@ public:
     * @remark performance issue, to support 6k+ 250kbps client,
     *       @see https://github.com/winlinvip/simple-rtmp-server/issues/194
     */
-    virtual int send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, int stream_id);
+    virtual int send_and_free_messages(SrsMessage** msgs, int nb_msgs, int stream_id);
     /**
     * send the RTMP packet and always free it.
     * user must never free or use the packet after this method,

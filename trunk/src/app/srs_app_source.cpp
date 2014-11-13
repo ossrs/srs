@@ -192,7 +192,7 @@ int SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg)
     return ret;
 }
 
-int SrsMessageQueue::dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count)
+int SrsMessageQueue::dump_packets(int max_count, SrsMessage** pmsgs, int& count)
 {
     int ret = ERROR_SUCCESS;
     
@@ -207,7 +207,7 @@ int SrsMessageQueue::dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, in
         pmsgs[i] = msgs[i];
     }
     
-    SrsSharedPtrMessage* last = msgs[count - 1];
+    SrsMessage* last = msgs[count - 1];
     av_start_time = last->header.timestamp;
     
     if (count == (int)msgs.size()) {
@@ -332,7 +332,7 @@ int SrsConsumer::enqueue(SrsSharedPtrMessage* msg, bool atc, int tba, int tbv, S
     return ret;
 }
 
-int SrsConsumer::dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count)
+int SrsConsumer::dump_packets(int max_count, SrsMessage** pmsgs, int& count)
 {
     srs_assert(max_count > 0);
     
