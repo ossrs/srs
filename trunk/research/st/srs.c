@@ -101,7 +101,7 @@ int sleep2_test()
     st_thread_join(trd1, NULL);
 
     srs_trace("sleep test: end");
-    exit(0);
+    
     return 0;
 }
 
@@ -431,6 +431,8 @@ int pipe_test()
 
 int main(int argc, char** argv)
 {
+    srs_trace("ETIME=%d", ETIME);
+    
     if (st_set_eventsys(ST_EVENTSYS_ALT) < 0) {
         srs_trace("st_set_eventsys failed");
         return -1;
