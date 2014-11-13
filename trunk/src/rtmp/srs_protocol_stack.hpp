@@ -226,7 +226,7 @@ private:
     */
     char out_c0c3_caches[SRS_CONSTS_C0C3_HEADERS_MAX];
     // whether warned user to increase the c0c3 header cache.
-    bool warned_c0c3_cry;
+    bool warned_c0c3_cache_dry;
     /**
     * output chunk size, default to 128, set by config.
     */

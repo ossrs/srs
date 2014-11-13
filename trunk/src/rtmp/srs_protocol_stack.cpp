@@ -413,7 +413,7 @@ SrsProtocol::SrsProtocol(ISrsProtocolReaderWriter* io)
     // each chunk consumers atleast 2 iovs
     srs_assert(nb_out_iovs >= 2);
     
-    warned_c0c3_cry = false;
+    warned_c0c3_cache_dry = false;
 }
 
 SrsProtocol::~SrsProtocol()
@@ -628,10 +628,10 @@ int SrsProtocol::do_send_messages(SrsMessage** msgs, int nb_msgs)
             int c0c3_left = SRS_CONSTS_C0C3_HEADERS_MAX - c0c3_cache_index;
             if (c0c3_left < SRS_CONSTS_RTMP_MAX_FMT0_HEADER_SIZE) {
                 // only warn once for a connection.
-                if (!warned_c0c3_cry) {
+                if (!warned_c0c3_cache_dry) {
                     srs_warn("c0c3 cache header too small, recoment to %d", 
                         SRS_CONSTS_C0C3_HEADERS_MAX + SRS_CONSTS_RTMP_MAX_FMT0_HEADER_SIZE);
-                    warned_c0c3_cry = true;
+                    warned_c0c3_cache_dry = true;
                 }
                 
                 // when c0c3 cache dry,
