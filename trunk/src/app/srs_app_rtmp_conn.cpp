@@ -534,6 +534,10 @@ int SrsRtmpConn::playing(SrsSource* source)
                 // it's ok, do nothing.
                 ret = ERROR_SUCCESS;
                 srs_verbose("recv timeout, ignore. ret=%d", ret);
+                
+                // TODO: FIXME: the timeout may caused some dead loop.
+                // @see: https://github.com/winlinvip/simple-rtmp-server/issues/161
+                st_usleep(0);
             } else if (ret != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
                     srs_error("recv client control message failed. ret=%d", ret);

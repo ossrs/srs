@@ -48,6 +48,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // signal defines.
 #define SIGNAL_RELOAD SIGHUP
 
+// nginx also set to 512
 #define SERVER_LISTEN_BACKLOG 512
 
 // system interval in ms,

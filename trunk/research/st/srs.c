@@ -64,6 +64,47 @@ int sleep_test()
     return 0;
 }
 
+void* sleep2_func0(void* arg)
+{
+    int sleep_ms = 100;
+    st_utime_t start = st_utime();
+    st_usleep(sleep_ms * 1000);
+    st_utime_t end = st_utime();
+    
+    srs_trace("sleep ok, sleep=%dus, deviation=%dus", 
+        (int)(sleep_ms * 1000), (int)(end - start - sleep_ms * 1000));
+        
+    return NULL;
+}
+
+void* sleep2_func1(void* arg)
+{
+    int sleep_ms = 250;
+    st_utime_t start = st_utime();
+    st_usleep(sleep_ms * 1000);
+    st_utime_t end = st_utime();
+    
+    srs_trace("sleep ok, sleep=%dus, deviation=%dus", 
+        (int)(sleep_ms * 1000), (int)(end - start - sleep_ms * 1000));
+        
+    return NULL;
+}
+
+int sleep2_test()
+{
+    srs_trace("===================================================");
+    srs_trace("sleep2 test: start");
+    
+    st_thread_t trd0 = st_thread_create(sleep2_func0, NULL, 1, 0);
+    st_thread_t trd1 = st_thread_create(sleep2_func1, NULL, 1, 0);
+    st_thread_join(trd0, NULL);
+    st_thread_join(trd1, NULL);
+
+    srs_trace("sleep test: end");
+    exit(0);
+    return 0;
+}
+
 st_mutex_t sleep_work_cond = NULL;
 void* sleep_deviation_func(void* arg)
 {
@@ -400,8 +441,8 @@ int main(int argc, char** argv)
         return -1;
     }
     
-    if (huge_stack_test() < 0) {
-        srs_trace("huge_stack_test failed");
+    if (sleep2_test() < 0) {
+        srs_trace("sleep2_test failed");
         return -1;
     }
     
@@ -412,6 +453,11 @@ int main(int argc, char** argv)
     
     if (sleep_deviation_test() < 0) {
         srs_trace("sleep_deviation_test failed");
+        return -1;
+    }
+    
+    if (huge_stack_test() < 0) {
+        srs_trace("huge_stack_test failed");
         return -1;
     }
     
