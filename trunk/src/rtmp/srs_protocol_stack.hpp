@@ -47,6 +47,7 @@ class SrsAmf0Any;
 class SrsMessageHeader;
 class SrsMessage;
 class SrsChunkStream;
+class SrsSharedPtrMessage;
 
 /**
 * 4.1. Message Header
@@ -221,6 +222,15 @@ private:
     */
     iovec out_iov[2];
     /**
+    * cache for multiple messages send
+    */
+    iovec* out_iovs;
+    int nb_out_iovs;
+    // the c0c3 cache cannot be realloc.
+    char out_c0c3_caches[SRS_CONSTS_C0C3_HEADERS_MAX];
+    // whether warned user to increase the c0c3 header cache.
+    bool warned_c0c3_caches;
+    /**
     * output chunk size, default to 128, set by config.
     */
     int32_t out_chunk_size;
@@ -275,6 +285,15 @@ public:
     * @param stream_id, the stream id of packet to send over, 0 for control message.
     */
     virtual int send_and_free_message(SrsMessage* msg, int stream_id);
+    /**
+    * send the RTMP message and always free it.
+    * user must never free or use the msg after this method,
+    * for it will always free the msg.
+    * @param msgs, the msgs to send out, never be NULL.
+    * @param nb_msgs, the size of msgs to send out.
+    * @param stream_id, the stream id of packet to send over, 0 for control message.
+    */
+    virtual int send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, int stream_id);
     /**
     * send the RTMP packet and always free it.
     * user must never free or use the packet after this method,
@@ -349,6 +368,11 @@ private:
     */
     virtual int do_send_message(SrsMessage* msg);
     /**
+    * send out the messages, donot free it, 
+    * the caller must free the param msgs.
+    */
+    virtual int do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs);
+    /**
     * generate the chunk header for msg.
     * @param mh, the header of msg to send.
     * @param c0, whether the first chunk, the c0 chunk.
@@ -356,7 +380,7 @@ private:
     * @param ph, output the header cache.
     *       user should never free it, it's cached header.
     */
-    virtual void generate_chunk_header(SrsMessageHeader* mh, bool c0, int* pnbh, char** ph);
+    virtual void generate_chunk_header(char* cache, SrsMessageHeader* mh, bool c0, int* pnbh, char** ph);
     /**
     * imp for decode_message
     */

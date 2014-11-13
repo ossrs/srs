@@ -771,6 +771,11 @@ int SrsRtmpServer::send_and_free_message(SrsMessage* msg, int stream_id)
     return protocol->send_and_free_message(msg, stream_id);
 }
 
+int SrsRtmpServer::send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, int stream_id)
+{
+    return protocol->send_and_free_messages(msgs, nb_msgs, stream_id);
+}
+
 int SrsRtmpServer::send_and_free_packet(SrsPacket* packet, int stream_id)
 {
     return protocol->send_and_free_packet(packet, stream_id);

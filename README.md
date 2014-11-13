@@ -242,6 +242,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2014-11-08, fix [#194](https://github.com/winlinvip/simple-rtmp-server/issues/194), writev multiple msgs, support 6k+ 250kbps clients. 2.0.15.
 * v2.0, 2014-11-08, fix [#194](https://github.com/winlinvip/simple-rtmp-server/issues/194), optmized st for timeout recv. pulse to 500ms. 2.0.14.
 * v2.0, 2014-11-08, fix [#195](https://github.com/winlinvip/simple-rtmp-server/issues/195), remove the confuse code st_usleep(0). 2.0.13.
 * v2.0, 2014-11-08, fix [#191](https://github.com/winlinvip/simple-rtmp-server/issues/191), configure --export-librtmp-project and --export-librtmp-single. 2.0.11.
@@ -449,6 +450,7 @@ Performance benchmark history, on virtual box:
 * 2014-11-11, SRS 1.0.5,   2700clients, 85%CPU, 66MB. (1.0 equals 2.0.12)
 * 2014-11-12, SRS 2.0.14,  2700clients, 69%CPU, 59MB.
 * 2014-11-12, SRS 2.0.14,  3500clients, 95%CPU, 78MB.
+* 2014-11-13, SRS 2.0.15,  6000clients, 82%CPU, 203MB.
 
 Latest benchmark(2014-07-12):
 
