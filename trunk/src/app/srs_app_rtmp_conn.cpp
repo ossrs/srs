@@ -69,9 +69,6 @@ using namespace std;
 // when edge timeout, retry next.
 #define SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT_US (int64_t)(3*1000*1000LL)
 
-// to get msgs then totally send out.
-#define SYS_MAX_PLAY_SEND_MSGS 128
-
 SrsRtmpConn::SrsRtmpConn(SrsServer* srs_server, st_netfd_t client_stfd)
     : SrsConnection(srs_server, client_stfd)
 {
@@ -520,7 +517,7 @@ int SrsRtmpConn::playing(SrsSource* source)
     
     // initialize other components
     SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_PLAY_USER);
-    SrsSharedPtrMessageArray msgs(SYS_MAX_PLAY_SEND_MSGS);
+    SrsSharedPtrMessageArray msgs(SYS_CONSTS_MAX_PLAY_SEND_MSGS);
     bool user_specified_duration_to_stop = (req->duration > 0);
     int64_t starttime = -1;
     

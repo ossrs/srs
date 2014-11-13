@@ -374,6 +374,9 @@ public:
     * @param msgs, the msgs to send out, never be NULL.
     * @param nb_msgs, the size of msgs to send out.
     * @param stream_id, the stream id of packet to send over, 0 for control message.
+    *
+    * @remark performance issue, to support 6k+ 250kbps client,
+    *       @see https://github.com/winlinvip/simple-rtmp-server/issues/194
     */
     virtual int send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, int stream_id);
     /**

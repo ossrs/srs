@@ -78,6 +78,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // the timeout to wait for client control message,
 // if timeout, we generally ignore and send the data to client,
 // generally, it's the pulse time for data seding.
+// @remark, recomment to 500ms.
 #define SRS_CONSTS_RTMP_PULSE_TIMEOUT_US (int64_t)(500*1000LL)
 
 /**
@@ -98,17 +99,41 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //#define SRS_CONSTS_RTMP_MAX_FMT3_HEADER_SIZE 5
 
 /**
+* how many msgs can be send entirely.
+* for play clients to get msgs then totally send out.
+* for example, 25fps video, 40ms per video packet, 
+* while audio is 20ms per audio packet where 2/3 is audios,
+* when SYS_CONSTS_MAX_PLAY_SEND_MSGS is 128, then
+* we will send all 128*40ms/3=1706ms packets in a time,
+* which should greater than the SRS_CONSTS_RTMP_PULSE_TIMEOUT_US
+* (for example, 500ms), that is, we should:
+*       SYS_CONSTS_MAX_PLAY_SEND_MSGS * 40 / 3 >= SRS_CONSTS_RTMP_PULSE_TIMEOUT_US
+* @remark, recomment to 128.
+*/
+#define SYS_CONSTS_MAX_PLAY_SEND_MSGS 128
+/**
 * for performance issue, 
 * the iovs cache, @see https://github.com/winlinvip/simple-rtmp-server/issues/194
 * iovs cache for multiple messages for each connections.
+* each iovc is 16bytes, sizeof(iovec)=16, suppose the chunk size is 64k,
+* each message send in a chunk which needs only 2 iovec,
+* so the iovs max should be (SYS_CONSTS_MAX_PLAY_SEND_MSGS * 16 * 2)
+*
+* @remark, SRS will realloc when the iovs not enough.
 */
-#define SRS_CONSTS_IOVS_MAX 1024
+#define SRS_CONSTS_IOVS_MAX (SYS_CONSTS_MAX_PLAY_SEND_MSGS * 32)
 /**
 * for performance issue, 
 * the c0c3 cache, @see https://github.com/winlinvip/simple-rtmp-server/issues/194
 * c0c3 cache for multiple messages for each connections.
+* each c0 <= 16byes, suppose the chunk size is 64k,
+* each message send in a chunk which needs only a c0 header,
+* so the c0c3 cache should be (SYS_CONSTS_MAX_PLAY_SEND_MSGS * 16)
+*
+* @remark, SRS will try another loop when c0c3 cache dry, for we cannot realloc it.
+*       so we use larger c0c3 cache, that is (SYS_CONSTS_MAX_PLAY_SEND_MSGS * 32)
 */
-#define SRS_CONSTS_C0C3_HEADERS_MAX 4096
+#define SRS_CONSTS_C0C3_HEADERS_MAX (SYS_CONSTS_MAX_PLAY_SEND_MSGS * 32)
 
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////
