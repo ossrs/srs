@@ -143,17 +143,25 @@ int SimpleSocketStream::writev(const iovec *iov, int iov_size, ssize_t* nwrite)
 {
     int ret = ERROR_SUCCESS;
     
-    *nwrite = ::writev(fd, iov, iov_size);
+    ssize_t nb_write = ::writev(fd, iov, iov_size);
     
-    if (*nwrite <= 0) {
-        if (errno == ETIME) {
+    if (nwrite) {
+        *nwrite = nb_write;
+    }
+    
+    // On  success,  the  readv()  function  returns the number of bytes read; 
+    // the writev() function returns the number of bytes written.  On error, -1 is
+    // returned, and errno is set appropriately.
+    if (nb_write <= 0) {
+        // @see https://github.com/winlinvip/simple-rtmp-server/issues/200
+        if (nb_write < 0 && errno == ETIME) {
             return ERROR_SOCKET_TIMEOUT;
         }
         
         return ERROR_SOCKET_WRITE;
     }
     
-    send_bytes += *nwrite;
+    send_bytes += nb_write;
     
     return ret;
 }
@@ -202,6 +210,7 @@ int SimpleSocketStream::write(void* buf, size_t size, ssize_t* nwrite)
     }
     
     if (nb_write <= 0) {
+        // @see https://github.com/winlinvip/simple-rtmp-server/issues/200
         if (nb_write < 0 && errno == ETIME) {
             return ERROR_SOCKET_TIMEOUT;
         }
