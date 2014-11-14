@@ -25,27 +25,21 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_protocol_stack.hpp>
 
-SrsMessageArray::SrsMessageArray(int _size)
+SrsMessageArray::SrsMessageArray(int max_msgs)
 {
-    srs_assert(_size > 0);
+    srs_assert(max_msgs > 0);
     
-    msgs = new SrsMessage*[_size];
-    size = _size;
+    msgs = new SrsMessage*[max_msgs];
+    max = max_msgs;
     
     // initialize
-    for (int i = 0; i < _size; i++) {
+    for (int i = 0; i < max_msgs; i++) {
         msgs[i] = NULL;
     }
 }
 
 SrsMessageArray::~SrsMessageArray()
 {
-    // cleanup
-    for (int i = 0; i < size; i++) {
-        SrsMessage* msg = msgs[i];
-        srs_freep(msg);
-    }
-    
     srs_freep(msgs);
 }
 
