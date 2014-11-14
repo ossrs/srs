@@ -559,7 +559,7 @@ int SrsRtmpConn::playing(SrsSource* source)
         
         // get messages from consumer.
         int count = 0;
-        if ((ret = consumer->dump_packets(msgs.size, msgs.msgs, count)) != ERROR_SUCCESS) {
+        if ((ret = consumer->dump_packets(msgs.max, msgs.msgs, count)) != ERROR_SUCCESS) {
             srs_error("get messages from consumer failed. ret=%d", ret);
             return ret;
         }
@@ -596,16 +596,10 @@ int SrsRtmpConn::playing(SrsSource* source)
         //      free by send_and_free_message or srs_freep.
         if (count > 0) {
             // no need to assert msg, for the rtmp will assert it.
-            ret = rtmp->send_and_free_messages(msgs.msgs, count, res->stream_id);
-        }
-        for (int i = 0; i < count; i++) {
-            // the send_message will free the msg, 
-            // so set the msgs[i] to NULL.
-            msgs.msgs[i] = NULL;
-        }
-        if (ret != ERROR_SUCCESS) {
-            srs_error("send messages to client failed. ret=%d", ret);
-            return ret;
+            if ((ret = rtmp->send_and_free_messages(msgs.msgs, count, res->stream_id)) != ERROR_SUCCESS) {
+                srs_error("send messages to client failed. ret=%d", ret);
+                return ret;
+            }
         }
         
         // if duration specified, and exceed it, stop play live.

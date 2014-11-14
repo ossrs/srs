@@ -37,7 +37,9 @@ class SrsMessage;
 * when need to get some messages, for instance, from Consumer queue,
 * create a message array, whose msgs can used to accept the msgs,
 * then send each message and set to NULL.
-* @remark: when error, the message array will free the msg not sent out.
+*
+* @remark: user must free all msgs in array, for the SRS2.0 protocol stack
+*       provides an api to send messages, @see send_and_free_messages
 */
 class SrsMessageArray
 {
@@ -48,12 +50,12 @@ public:
     * where send(msg) will always send and free it.
     */
     SrsMessage** msgs;
-    int size;
+    int max;
 public:
     /**
     * create msg array, initialize array to NULL ptrs.
     */
-    SrsMessageArray(int _size);
+    SrsMessageArray(int max_msgs);
     /**
     * free the msgs not sent out(not NULL).
     */
