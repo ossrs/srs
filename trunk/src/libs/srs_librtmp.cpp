@@ -1075,6 +1075,7 @@ char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize)
 * write h264 packet, with rtmp header.
 * @param frame_type, SrsCodecVideoAVCFrameKeyFrame or SrsCodecVideoAVCFrameInterFrame.
 * @param avc_packet_type, SrsCodecVideoAVCTypeSequenceHeader or SrsCodecVideoAVCTypeNALU.
+* @param h264_raw_data the h.264 raw data, user must free it.
 */
 int __srs_write_h264_packet(Context* context, 
     int8_t frame_type, int8_t avc_packet_type, 
@@ -1142,6 +1143,7 @@ int __srs_write_h264_sps_pps(Context* context, u_int32_t dts, u_int32_t pts)
         + 3 + (int)context->h264_sps.length() 
         + 3 + (int)context->h264_pps.length();
     char* packet = new char[nb_packet];
+    SrsAutoFree(char, packet);
     
     // use stream to generate the h264 packet.
     SrsStream stream;
@@ -1236,6 +1238,7 @@ int __srs_write_h264_ipb_frame(Context* context,
     //      NALUnit
     int nb_packet = 4 + size;
     char* packet = new char[nb_packet];
+    SrsAutoFree(char, packet);
     
     // use stream to generate the h264 packet.
     SrsStream stream;
