@@ -1159,7 +1159,7 @@ int __srs_write_h264_sps_pps(Context* context, u_int32_t dts, u_int32_t pts)
     
         // @see: Annex A Profiles and levels, H.264-AVC-ISO_IEC_14496-10.pdf, page 205
         //      Baseline profile profile_idc is 66(0x42).
-        //      Baseline profile profile_idc is 77(0x4d).
+        //      Main profile profile_idc is 77(0x4d).
         //      Extended profile profile_idc is 88(0x58).
         u_int8_t profile_idc = frame[1];
         //u_int8_t constraint_set = frame[2];
