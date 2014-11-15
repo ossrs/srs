@@ -153,6 +153,7 @@ cd simple-rtmp-server/trunk
 * [Usage: How to ingest file/stream/device to SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleIngest)
 * [Usage: How to use SRS-HTTP-server to delivery HTTP/HLS stream?](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleHTTP)
 * [Usage: How to show the demo of SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleDemo)
+* [Usage: How to publish h.264 raw stream to SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data)
 * [Usage: Solution using SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Sample)
 * [Usage: Why SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Product)
 
