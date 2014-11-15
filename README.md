@@ -174,25 +174,31 @@ A big THANK YOU goes to:
 
 ## Mirrors
 
-Github: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) 
+Github: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server),
+the GIT usage(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Git), 
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Git)
+)
 
 ```bash
 git clone https://github.com/winlinvip/simple-rtmp-server.git
 ```
 
-CSDN: [https://code.csdn.net/winlinvip/srs-csdn](https://code.csdn.net/winlinvip/srs-csdn) 
+CSDN: [https://code.csdn.net/winlinvip/srs-csdn](https://code.csdn.net/winlinvip/srs-csdn) ,
+the GIT usage(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Git), 
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Git)
+)
 
 ```bash
 git clone https://code.csdn.net/winlinvip/srs-csdn.git
 ```
 
-OSChina: [http://git.oschina.net/winlinvip/srs.oschina](http://git.oschina.net/winlinvip/srs.oschina) 
+OSChina: [http://git.oschina.net/winlinvip/srs.oschina](http://git.oschina.net/winlinvip/srs.oschina) ,
+the GIT usage(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Git), 
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Git)
+)
 
 ```bash
 git clone https://git.oschina.net/winlinvip/srs.oschina.git
@@ -228,24 +234,68 @@ cd simple-rtmp-server/trunk
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleRTMP),
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_SampleRTMP)
 )
-* [Usage: How to delivery HLS?](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleHLS)
-* [Usage: How to delivery HLS for other codec?](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleTranscode2HLS)
-* [Usage: How to transode RTMP stream by SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleFFMPEG)
-* [Usage: How to forward stream to other server?](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleForward)
-* [Usage: How to deploy low lantency application?](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleRealtime)
-* [Usage: How to deploy SRS on ARM?](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleARM)
-* [Usage: How to ingest file/stream/device to SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleIngest)
-* [Usage: How to use SRS-HTTP-server to delivery HTTP/HLS stream?](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleHTTP)
-* [Usage: How to show the demo of SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleDemo)
-* [Usage: How to publish h.264 raw stream to SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data)
-* [Usage: Solution using SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Sample)
-* [Usage: Why SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Product)
+* Usage: How to delivery HLS?(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleHLS),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_SampleHLS)
+)
+* Usage: How to delivery HLS for other codec?(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleTranscode2HLS),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_SampleTranscode2HLS)
+)
+* Usage: How to transode RTMP stream by SRS?(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleFFMPEG),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_SampleFFMPEG)
+)
+* Usage: How to forward stream to other server?(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleForward),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_SampleForward)
+)
+* Usage: How to deploy low lantency application?(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleRealtime),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_SampleRealtime)
+)
+* Usage: How to deploy SRS on ARM?(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleARM),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_SampleARM)
+)
+* Usage: How to ingest file/stream/device to SRS?(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleIngest),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_SampleIngest)
+)
+* Usage: How to use SRS-HTTP-server to delivery HTTP/HLS stream?(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleHTTP),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_SampleHTTP)
+)
+* Usage: How to show the demo of SRS?(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleDemo),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_SampleDemo)
+)
+* Usage: How to publish h.264 raw stream to SRS?(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_SrsLibrtmp#publish-h264-raw-data)
+)
+* Usage: Solution using SRS?(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Sample),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Sample)
+)
+* Usage: Why SRS?(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Product),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Product)
+)
 
 ## Wiki
 
+SRS 1.0 wiki
+
 Please select your language:
-* [English](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Home)
-* [Chinese](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Home)
+* [SRS 1.0 English](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Home)
+* [SRS 1.0 Chinese](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Home)
+
+SRS 2.0 wiki
+
+Please select your language:
+* [SRS 2.0 English](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_Home)
+* [SRS 2.0 Chinese](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_Home)
 
 ## Donation
 
