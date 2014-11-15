@@ -72,7 +72,7 @@ struct Context
     
     // for h264 raw stream, 
     // see: https://github.com/winlinvip/simple-rtmp-server/issues/66#issuecomment-62240521
-    SrsStream raw_stream;
+    SrsStream h264_raw_stream;
     // about SPS, @see: 7.3.2.1.1, H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 62
     std::string h264_sps;
     std::string h264_pps;
@@ -1337,32 +1337,32 @@ int srs_h264_write_raw_frames(srs_rtmp_t rtmp,
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
     
-    if ((ret = context->raw_stream.initialize(frames, frames_size)) != ERROR_SUCCESS) {
+    if ((ret = context->h264_raw_stream.initialize(frames, frames_size)) != ERROR_SUCCESS) {
         return ret;
     }
     
     // send each frame.
-    while (!context->raw_stream.empty()) {
+    while (!context->h264_raw_stream.empty()) {
         // each frame must prefixed by annexb format.
         // about annexb, @see H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
         int pnb_start_code = 0;
-        if (!srs_avc_startswith_annexb(&context->raw_stream, &pnb_start_code)) {
+        if (!srs_avc_startswith_annexb(&context->h264_raw_stream, &pnb_start_code)) {
             return ERROR_H264_API_NO_PREFIXED;
         }
-        int start = context->raw_stream.pos() + pnb_start_code;
+        int start = context->h264_raw_stream.pos() + pnb_start_code;
         
         // find the last frame prefixed by annexb format.
-        context->raw_stream.skip(pnb_start_code);
-        while (!context->raw_stream.empty()) {
-            if (srs_avc_startswith_annexb(&context->raw_stream, NULL)) {
+        context->h264_raw_stream.skip(pnb_start_code);
+        while (!context->h264_raw_stream.empty()) {
+            if (srs_avc_startswith_annexb(&context->h264_raw_stream, NULL)) {
                 break;
             }
-            context->raw_stream.skip(1);
+            context->h264_raw_stream.skip(1);
         }
-        int size = context->raw_stream.pos() - start;
+        int size = context->h264_raw_stream.pos() - start;
         
         // send out the frame.
-        char* frame = context->raw_stream.data() + start;
+        char* frame = context->h264_raw_stream.data() + start;
         if ((ret = __srs_write_h264_raw_frame(context, frame, size, dts, pts)) != ERROR_SUCCESS) {
             return ret;
         }
