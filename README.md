@@ -314,7 +314,10 @@ Supported operating systems and hardware:
 
 ## Summary
 1. Simple, also stable enough.
-1. [High-performance](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Performance): single-thread, async socket, event/st-thread driven.
+1. High-performance(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Performance),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Performance)
+): single-thread, async socket, event/st-thread driven.
 1. [High-concurrency](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Performance), 1800 connections(500kbps), 900Mbps, CPU 90.2%, 41MB
 1. Support [RTMP Origin Server](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryRTMP).
 1. Support [RTMP Edge Server](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Edge) for CDN, push/pull stream from any RTMP server
