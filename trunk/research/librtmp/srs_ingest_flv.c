@@ -39,8 +39,8 @@ int connect_oc(srs_rtmp_t ortmp);
 
 #define RE_PULSE_MS 300
 int64_t re_create();
-void re_update(int64_t re, u_int32_t time);
-void re_cleanup(int64_t re, u_int32_t time);
+void re_update(int64_t re, int32_t starttime, u_int32_t time);
+void re_cleanup(int64_t re, int32_t starttime, u_int32_t time);
 
 int64_t tools_main_entrance_startup_time;
 int main(int argc, char** argv)
@@ -109,7 +109,7 @@ int main(int argc, char** argv)
     return ret;
 }
 
-int do_proxy(srs_flv_t flv, srs_rtmp_t ortmp, int64_t re, u_int32_t* ptimestamp)
+int do_proxy(srs_flv_t flv, srs_rtmp_t ortmp, int64_t re, int32_t* pstarttime, u_int32_t* ptimestamp)
 {
     int ret = 0;
     
@@ -147,8 +147,12 @@ int do_proxy(srs_flv_t flv, srs_rtmp_t ortmp, int64_t re, u_int32_t* ptimestamp)
         }
         srs_lib_verbose("ortmp sent packet: type=%s, time=%d, size=%d", 
             srs_type2string(type), *ptimestamp, size);
+            
+        if (*pstarttime < 0) {
+            *pstarttime = *ptimestamp;
+        }
         
-        re_update(re, *ptimestamp);
+        re_update(re, *pstarttime, *ptimestamp);
     }
     
     return ret;
@@ -158,6 +162,7 @@ int proxy(srs_flv_t flv, srs_rtmp_t ortmp)
 {
     int ret = 0;
     u_int32_t timestamp = 0;
+    int32_t starttime = -1;
     
     char header[13];
     if ((ret = srs_flv_read_header(flv, header)) != 0) {
@@ -169,10 +174,10 @@ int proxy(srs_flv_t flv, srs_rtmp_t ortmp)
     
     int64_t re = re_create();
     
-    ret = do_proxy(flv, ortmp, re, &timestamp);
+    ret = do_proxy(flv, ortmp, re, &starttime, &timestamp);
     
     // for the last pulse, always sleep.
-    re_cleanup(re, timestamp);
+    re_cleanup(re, starttime, timestamp);
     
     return ret;
 }
@@ -223,23 +228,24 @@ int64_t re_create()
     
     return re;
 }
-void re_update(int64_t re, u_int32_t time)
+void re_update(int64_t re, int32_t starttime, u_int32_t time)
 {
     // send by pulse algorithm.
     int64_t now = srs_get_time_ms();
-    int64_t diff = time - (now -re);
+    int64_t diff = time - starttime - (now -re);
     if (diff > RE_PULSE_MS) {
         usleep(diff * 1000);
     }
 }
-void re_cleanup(int64_t re, u_int32_t time)
+void re_cleanup(int64_t re, int32_t starttime, u_int32_t time)
 {
     // for the last pulse, always sleep.
     // for the virtual live encoder long time publishing.
     int64_t now = srs_get_time_ms();
-    int64_t diff = time - (now -re);
+    int64_t diff = time - starttime - (now -re);
     if (diff > 0) {
-        srs_lib_trace("re_cleanup sleep for the last pulse for %d ms", (int)diff);
+        srs_lib_trace("re_cleanup, diff=%d, start=%d, last=%d ms", 
+            (int)diff, starttime, time);
         usleep(diff * 1000);
     }
 }
