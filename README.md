@@ -28,7 +28,7 @@ for internet. SRS is simple for and only for problem domain is simplified.
 SRS is a simple, RTMP(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryRTMP), 
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_DeliveryRTMP)
-)/
+),
 HLS(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryHLS), 
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_DeliveryHLS)
@@ -37,13 +37,22 @@ high-performance(6k+ clients)(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Performance), 
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Performance)
 ),
-single/multiple(plan) processes, edge/origin live server, 
-[x86/x64/arm](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SrsLinuxArm), 
-compile depends on [st](http://sourceforge.net/projects/state-threads)(required), 
+single processes, edge/origin live server, 
+x86/x64/arm(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SrsLinuxArm), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_SrsLinuxArm)
+),
+compile depends on st(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Architecture), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Architecture)
+)(required),
 [ssl](http://www.openssl.org/) and [http-parser](https://github.com/joyent/http-parser), 
 use [nginx](http://nginx.org/), [ffmpeg](http://ffmpeg.org/) and 
 [cherrypy](http://www.cherrypy.org/) as external tools. that is, only need st to run srs for 
-minimum run. see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Build).
+minimum run. see Build(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Build), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Build)
+).
 
 SRS supports [vhost](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_RtmpUrlVhost), 
 rtmp([encoder push](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryRTMP), 
