@@ -66,15 +66,19 @@ int main(int argc, char** argv)
     srs_lib_trace("play stream success");
     
     for (;;) {
-        int type, size;
-        u_int32_t timestamp = 0;
+        int size;
+        char type;
         char* data;
+        u_int32_t timestamp, pts;
         
         if (srs_read_packet(rtmp, &type, &timestamp, &data, &size) != 0) {
             goto rtmp_destroy;
         }
-        srs_lib_trace("got packet: type=%s, time=%d, size=%d", 
-            srs_type2string(type), timestamp, size);
+        if (srs_parse_timestamp(timestamp, type, data, size, &pts) != 0) {
+            goto rtmp_destroy;
+        }
+        srs_lib_trace("got packet: type=%s, dts=%d, pts=%d, size=%d", 
+            srs_type2string(type), timestamp, pts, size);
         
         free(data);
     }

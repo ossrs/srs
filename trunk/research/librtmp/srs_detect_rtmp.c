@@ -49,10 +49,11 @@ int main(int argc, char** argv)
     int64_t bytes_nrecv = 0;
     
     // packet data
-    int type, size;
-    u_int32_t basetime = 0;
-    u_int32_t timestamp = 0;
+    int size;
+    char type;
     char* data;
+    u_int32_t timestamp;
+    u_int32_t basetime = 0;
     
     // user options
     const char* rtmp_url = NULL;
