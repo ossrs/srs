@@ -76,11 +76,15 @@ struct Context
     // about SPS, @see: 7.3.2.1.1, H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 62
     std::string h264_sps;
     std::string h264_pps;
+    // whether the sps and pps sent,
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/203
+    bool h264_sps_pps_sent;
     
     Context() {
         rtmp = NULL;
         skt = NULL;
         stream_id = 0;
+        h264_sps_pps_sent = false;
     }
     virtual ~Context() {
         srs_freep(rtmp);
@@ -767,17 +771,17 @@ void srs_flv_lseek(srs_flv_t flv, int64_t offset)
     context->reader.lseek(offset);
 }
 
-flv_bool srs_flv_is_eof(int error_code)
+srs_flv_bool srs_flv_is_eof(int error_code)
 {
     return error_code == ERROR_SYSTEM_FILE_EOF;
 }
 
-flv_bool srs_flv_is_sequence_header(char* data, int32_t size)
+srs_flv_bool srs_flv_is_sequence_header(char* data, int32_t size)
 {
     return SrsFlvCodec::video_is_sequence_header(data, (int)size);
 }
 
-flv_bool srs_flv_is_keyframe(char* data, int32_t size)
+srs_flv_bool srs_flv_is_keyframe(char* data, int32_t size)
 {
     return SrsFlvCodec::video_is_keyframe(data, (int)size);
 }
@@ -1205,6 +1209,7 @@ int __srs_write_h264_sps_pps(Context* context, u_int32_t dts, u_int32_t pts)
     // reset sps and pps.
     context->h264_pps = "";
     context->h264_sps = "";
+    context->h264_sps_pps_sent = true;
     
     // TODO: FIXME: for more profile.
     // 5.3.4.2.1 Syntax, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
@@ -1226,6 +1231,12 @@ int __srs_write_h264_ipb_frame(Context* context,
     char* data, int size, u_int32_t dts, u_int32_t pts
 ) {
     int ret = ERROR_SUCCESS;
+    
+    // when sps or pps not sent, ignore the packet.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/203
+    if (!context->h264_sps_pps_sent) {
+        return ERROR_H264_DROP_BEFORE_SPS_PPS;
+    }
     
     // 5bits, 7.3.1 NAL unit syntax, 
     // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
@@ -1315,7 +1326,7 @@ int __srs_write_h264_raw_frame(Context* context,
 /**
 * write h264 multiple frames, in annexb format.
 */
-int srs_write_h264_raw_frames(srs_rtmp_t rtmp, 
+int srs_h264_write_raw_frames(srs_rtmp_t rtmp, 
     char* frames, int frames_size, u_int32_t dts, u_int32_t pts
 ) {
     int ret = ERROR_SUCCESS;
@@ -1358,6 +1369,11 @@ int srs_write_h264_raw_frames(srs_rtmp_t rtmp,
     }
     
     return ret;
+}
+
+srs_h264_bool srs_h264_is_dvbsp_error(int error_code)
+{
+    return error_code == ERROR_H264_DROP_BEFORE_SPS_PPS;
 }
 
 int srs_h264_startswith_annexb(char* h264_raw_data, int h264_raw_size, int* pnb_start_code)

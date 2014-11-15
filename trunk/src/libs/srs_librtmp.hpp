@@ -269,7 +269,7 @@ extern const char* srs_format_time();
 **************************************************************
 *************************************************************/
 typedef void* srs_flv_t;
-typedef int flv_bool;
+typedef int srs_flv_bool;
 /* open flv file for both read/write. */
 extern srs_flv_t srs_flv_open_read(const char* file);
 extern srs_flv_t srs_flv_open_write(const char* file);
@@ -344,20 +344,20 @@ extern int64_t srs_flv_tellg(srs_flv_t flv);
 extern void srs_flv_lseek(srs_flv_t flv, int64_t offset);
 /* error code */
 /* whether the error code indicates EOF */
-extern flv_bool srs_flv_is_eof(int error_code);
+extern srs_flv_bool srs_flv_is_eof(int error_code);
 /* media codec */
 /**
 * whether the video body is sequence header 
 * @param data, the data of tag, read by srs_flv_read_tag_data().
 * @param size, the size of tag, read by srs_flv_read_tag_data().
 */
-extern flv_bool srs_flv_is_sequence_header(char* data, int32_t size);
+extern srs_flv_bool srs_flv_is_sequence_header(char* data, int32_t size);
 /**
 * whether the video body is keyframe 
 * @param data, the data of tag, read by srs_flv_read_tag_data().
 * @param size, the size of tag, read by srs_flv_read_tag_data().
 */
-extern flv_bool srs_flv_is_keyframe(char* data, int32_t size);
+extern srs_flv_bool srs_flv_is_keyframe(char* data, int32_t size);
 
 /*************************************************************
 **************************************************************
@@ -424,6 +424,7 @@ extern char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize);
 * h264 raw codec
 **************************************************************
 *************************************************************/
+typedef int srs_h264_bool;
 /**
 * write h.264 raw frame over RTMP to rtmp server.
 * @param frames the input h264 raw data, encoded h.264 I/P/B frames data.
@@ -441,8 +442,10 @@ extern char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize);
 * @remark, cts = pts - dts
 * @remark, use srs_h264_startswith_annexb to check whether frame is annexb format.
 * @example /trunk/research/librtmp/srs_h264_raw_publish.c
+* @see https://github.com/winlinvip/simple-rtmp-server/issues/66
 * 
 * @return 0, success; otherswise, failed.
+*       for dvbsp error, check by srs_h264_is_dvbsp_error(error_code).
 */
 /**
 For the example file: 
@@ -458,24 +461,35 @@ The data sequence is:
     0000000141E02041F8CDDC562BBDEFAD2F.....
 User can send the SPS+PPS, then each frame:
     // SPS+PPS
-    srs_write_h264_raw_frame('000000016742802995A014016E400000000168CE3880', size, dts, pts)
+    srs_h264_write_raw_frames('000000016742802995A014016E400000000168CE3880', size, dts, pts)
     // IFrame
-    srs_write_h264_raw_frame('0000000165B8041014C038008B0D0D3A071......', size, dts, pts)
+    srs_h264_write_raw_frames('0000000165B8041014C038008B0D0D3A071......', size, dts, pts)
     // PFrame
-    srs_write_h264_raw_frame('0000000141E02041F8CDDC562BBDEFAD2F......', size, dts, pts)
+    srs_h264_write_raw_frames('0000000141E02041F8CDDC562BBDEFAD2F......', size, dts, pts)
 User also can send one by one:
     // SPS
-    srs_write_h264_raw_frame('000000016742802995A014016E4', size, dts, pts)
+    srs_h264_write_raw_frames('000000016742802995A014016E4', size, dts, pts)
     // PPS
-    srs_write_h264_raw_frame('00000000168CE3880', size, dts, pts)
+    srs_h264_write_raw_frames('00000000168CE3880', size, dts, pts)
     // IFrame
-    srs_write_h264_raw_frame('0000000165B8041014C038008B0D0D3A071......', size, dts, pts)
+    srs_h264_write_raw_frames('0000000165B8041014C038008B0D0D3A071......', size, dts, pts)
     // PFrame
-    srs_write_h264_raw_frame('0000000141E02041F8CDDC562BBDEFAD2F......', size, dts, pts) 
+    srs_h264_write_raw_frames('0000000141E02041F8CDDC562BBDEFAD2F......', size, dts, pts) 
 */
-extern int srs_write_h264_raw_frames(srs_rtmp_t rtmp, 
+extern int srs_h264_write_raw_frames(srs_rtmp_t rtmp, 
     char* frames, int frames_size, u_int32_t dts, u_int32_t pts
 );
+/**
+* whether error_code is dvbsp(drop video before sps/pps/sequence-header) error.
+*
+* @see https://github.com/winlinvip/simple-rtmp-server/issues/203
+* @example /trunk/research/librtmp/srs_h264_raw_publish.c
+* @remark why drop video?
+*       some encoder, for example, ipcamera, will send sps/pps before each IFrame,
+*       so, when error and reconnect the rtmp, the first video is not sps/pps(sequence header),
+*       this will cause SRS server to disable HLS.
+*/
+extern srs_h264_bool srs_h264_is_dvbsp_error(int error_code);
 /**
 * whether h264 raw data starts with the annexb,
 * which bytes sequence matches N[00] 00 00 01, where N>=0.
