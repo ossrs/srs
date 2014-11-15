@@ -244,6 +244,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2014-11-15, fix [#202](https://github.com/winlinvip/simple-rtmp-server/issues/202), fix memory leak of h.264 raw packet send in srs-librtmp. 2.0.20.
 * v2.0, 2014-11-13, fix [#200](https://github.com/winlinvip/simple-rtmp-server/issues/200), deadloop when read/write 0 and ETIME. 2.0.16.
 * v2.0, 2014-11-13, fix [#194](https://github.com/winlinvip/simple-rtmp-server/issues/194), writev multiple msgs, support 6k+ 250kbps clients. 2.0.15.
 * v2.0, 2014-11-12, fix [#194](https://github.com/winlinvip/simple-rtmp-server/issues/194), optmized st for timeout recv. pulse to 500ms. 2.0.14.
