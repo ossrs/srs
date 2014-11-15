@@ -170,6 +170,10 @@ int main(int argc, char** argv)
         if (error != 0) {
             if (srs_h264_is_dvbsp_error(error)) {
                 srs_lib_trace("ignore drop video error, code=%d", error);
+            } else if (srs_h264_is_duplicated_sps_error(error)) {
+                srs_lib_trace("ignore duplicated sps, code=%d", error);
+            } else if (srs_h264_is_duplicated_pps_error(error)) {
+                srs_lib_trace("ignore duplicated pps, code=%d", error);
             } else {
                 srs_lib_trace("send h264 raw data failed.");
                 goto rtmp_destroy;

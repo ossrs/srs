@@ -445,7 +445,9 @@ typedef int srs_h264_bool;
 * @see https://github.com/winlinvip/simple-rtmp-server/issues/66
 * 
 * @return 0, success; otherswise, failed.
-*       for dvbsp error, check by srs_h264_is_dvbsp_error(error_code).
+*       for dvbsp error, @see srs_h264_is_dvbsp_error().
+*       for duplictated sps error, @see srs_h264_is_duplicated_sps_error().
+*       for duplictated pps error, @see srs_h264_is_duplicated_pps_error().
 */
 /**
 For the example file: 
@@ -490,6 +492,20 @@ extern int srs_h264_write_raw_frames(srs_rtmp_t rtmp,
 *       this will cause SRS server to disable HLS.
 */
 extern srs_h264_bool srs_h264_is_dvbsp_error(int error_code);
+/**
+* whether error_code is duplicated sps error.
+* 
+* @see https://github.com/winlinvip/simple-rtmp-server/issues/204
+* @example /trunk/research/librtmp/srs_h264_raw_publish.c
+*/
+extern srs_h264_bool srs_h264_is_duplicated_sps_error(int error_code);
+/**
+* whether error_code is duplicated pps error.
+* 
+* @see https://github.com/winlinvip/simple-rtmp-server/issues/204
+* @example /trunk/research/librtmp/srs_h264_raw_publish.c
+*/
+extern srs_h264_bool srs_h264_is_duplicated_pps_error(int error_code);
 /**
 * whether h264 raw data starts with the annexb,
 * which bytes sequence matches N[00] 00 00 01, where N>=0.
