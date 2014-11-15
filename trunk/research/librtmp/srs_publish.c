@@ -75,7 +75,7 @@ int main(int argc, char** argv)
     
     u_int32_t timestamp = 0;
     for (;;) {
-        int type = SRS_RTMP_TYPE_VIDEO;
+        char type = SRS_RTMP_TYPE_VIDEO;
         int size = 4096;
         char* data = (char*)malloc(4096);
         

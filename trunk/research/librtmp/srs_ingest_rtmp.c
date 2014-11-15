@@ -94,9 +94,10 @@ int proxy(srs_rtmp_t irtmp, srs_rtmp_t ortmp)
     int ret = 0;
     
     // packet data
-    int type, size;
-    u_int32_t timestamp = 0;
-    char* data = NULL;
+    int size;
+    char type;
+    char* data;
+    u_int32_t timestamp;
 
     if ((ret = connect_ic(irtmp)) != 0) {
         return ret;

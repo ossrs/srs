@@ -35,9 +35,10 @@ int main(int argc, char** argv)
     srs_rtmp_t rtmp;
     
     // packet data
-    int type, size;
-    u_int32_t timestamp = 0;
+    int size;
+    char type;
     char* data;
+    u_int32_t timestamp;
     
     // srs debug info.
     char srs_server_ip[128];

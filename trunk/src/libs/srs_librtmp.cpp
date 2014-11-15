@@ -337,7 +337,7 @@ int srs_publish_stream(srs_rtmp_t rtmp)
     return ret;
 }
 
-const char* srs_type2string(int type)
+const char* srs_type2string(char type)
 {
     static const char* audio = "Audio";
     static const char* video = "Video";
@@ -390,7 +390,7 @@ int srs_bandwidth_check(srs_rtmp_t rtmp,
     return ret;
 }
 
-int srs_read_packet(srs_rtmp_t rtmp, int* type, u_int32_t* timestamp, char** data, int* size)
+int srs_read_packet(srs_rtmp_t rtmp, char* type, u_int32_t* timestamp, char** data, int* size)
 {
     *type = 0;
     *timestamp = 0;
@@ -445,7 +445,7 @@ int srs_read_packet(srs_rtmp_t rtmp, int* type, u_int32_t* timestamp, char** dat
     return ret;
 }
 
-int srs_write_packet(srs_rtmp_t rtmp, int type, u_int32_t timestamp, char* data, int size)
+int srs_write_packet(srs_rtmp_t rtmp, char type, u_int32_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -529,6 +529,47 @@ int64_t srs_get_nrecv_bytes(srs_rtmp_t rtmp)
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
     return context->rtmp->get_recv_bytes();
+}
+
+int srs_parse_timestamp(
+    u_int32_t time, char type, char* data, int size,
+    u_int32_t* ppts
+) {
+    int ret = ERROR_SUCCESS;
+    
+    if (type != SRS_RTMP_TYPE_VIDEO) {
+        *ppts = time;
+        return ret;
+    }
+
+    if (!SrsFlvCodec::video_is_h264(data, size)) {
+        return ERROR_FLV_INVALID_VIDEO_TAG;
+    }
+
+    if (SrsFlvCodec::video_is_sequence_header(data, size)) {
+        *ppts = time;
+        return ret;
+    }
+    
+    // 1bytes, frame type and codec id.
+    // 1bytes, avc packet type.
+    // 3bytes, cts, composition time,
+    //      pts = dts + cts, or 
+    //      cts = pts - dts.
+    if (size < 5) {
+        return ERROR_FLV_INVALID_VIDEO_TAG;
+    }
+    
+    u_int32_t cts = 0;
+    char* p = data + 2;
+    char* pp = (char*)&cts;
+    pp[2] = *p++;
+    pp[1] = *p++;
+    pp[0] = *p++;
+
+    *ppts = time + cts;
+    
+    return ret;
 }
 
 const char* srs_format_time()

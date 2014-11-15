@@ -192,7 +192,7 @@ extern int srs_bandwidth_check(srs_rtmp_t rtmp,
 * @remark user never free the return char*, 
 *   it's static shared const string.
 */
-extern const char* srs_type2string(int type);
+extern const char* srs_type2string(char type);
 /**
 * read a audio/video/script-data packet from rtmp stream.
 * @param type, output the packet type, macros:
@@ -215,10 +215,10 @@ extern const char* srs_type2string(int type);
 * @return 0, success; otherswise, failed.
 */
 extern int srs_read_packet(srs_rtmp_t rtmp, 
-    int* type, u_int32_t* timestamp, char** data, int* size
+    char* type, u_int32_t* timestamp, char** data, int* size
 );
 extern int srs_write_packet(srs_rtmp_t rtmp, 
-    int type, u_int32_t timestamp, char* data, int size
+    char type, u_int32_t timestamp, char* data, int size
 );
 
 // get protocol stack version
@@ -234,6 +234,25 @@ extern int srs_version_revision();
 extern int64_t srs_get_time_ms();
 extern int64_t srs_get_nsend_bytes(srs_rtmp_t rtmp);
 extern int64_t srs_get_nrecv_bytes(srs_rtmp_t rtmp);
+/**
+* parse the dts and pts by time in header and data in tag,
+* or to parse the RTMP packet by srs_read_packet().
+*
+* @param time, the timestamp of tag, read by srs_flv_read_tag_header().
+* @param type, the type of tag, read by srs_flv_read_tag_header().
+* @param data, the data of tag, read by srs_flv_read_tag_data().
+* @param size, the size of tag, read by srs_flv_read_tag_header().
+* @param ppts, output the pts in ms,
+*
+* @return 0, success; otherswise, failed.
+* @remark, the dts always equals to @param time.
+* @remark, the pts=dts for audio or data.
+* @remark, video only support h.264.
+*/
+extern int srs_parse_timestamp(
+    u_int32_t time, char type, char* data, int size,
+    u_int32_t* ppts
+);
 
 // log to console, for use srs-librtmp application.
 extern const char* srs_format_time();
@@ -255,19 +274,68 @@ typedef int flv_bool;
 extern srs_flv_t srs_flv_open_read(const char* file);
 extern srs_flv_t srs_flv_open_write(const char* file);
 extern void srs_flv_close(srs_flv_t flv);
-/* read the flv header. 9bytes header. drop the 4bytes zero previous tag size */
+/**
+* read the flv header. 9bytes header. 
+* @param header, @see E.2 The FLV header, flv_v10_1.pdf in SRS doc.
+*   3bytes, signature, "FLV",
+*   1bytes, version, 0x01,
+*   1bytes, flags, UB[5] 0, UB[1] audio present, UB[1] 0, UB[1] video present.
+*   4bytes, dataoffset, 0x09, The length of this header in bytes
+*
+* @return 0, success; otherswise, failed.
+* @remark, drop the 4bytes zero previous tag size.
+*/
 extern int srs_flv_read_header(srs_flv_t flv, char header[9]);
-/* read the flv tag header, 1bytes tag, 3bytes data_size, 4bytes time, 3bytes stream id. */
+/**
+* read the flv tag header, 1bytes tag, 3bytes data_size, 
+* 4bytes time, 3bytes stream id. 
+* @param ptype, output the type of tag, macros:
+*            SRS_RTMP_TYPE_AUDIO, FlvTagAudio
+*            SRS_RTMP_TYPE_VIDEO, FlvTagVideo
+*            SRS_RTMP_TYPE_SCRIPT, FlvTagScript
+* @param pdata_size, output the size of tag data.
+* @param ptime, output the time of tag, the dts in ms.
+*
+* @return 0, success; otherswise, failed.
+* @remark, user must ensure the next is a tag, srs never check it.
+*/
 extern int srs_flv_read_tag_header(srs_flv_t flv, 
     char* ptype, int32_t* pdata_size, u_int32_t* ptime
 );
-/* read the tag data. drop the 4bytes previous tag size */
+/**
+* read the tag data. drop the 4bytes previous tag size 
+* @param data, the data to read, user alloc and free it.
+* @param size, the size of data to read, get by srs_flv_read_tag_header().
+* @remark, srs will ignore and drop the 4bytes previous tag size.
+*/
 extern int srs_flv_read_tag_data(srs_flv_t flv, char* data, int32_t size);
-/* write flv header to file, auto write the 4bytes zero previous tag size. */
+/**
+* write the flv header. 9bytes header. 
+* @param header, @see E.2 The FLV header, flv_v10_1.pdf in SRS doc.
+*   3bytes, signature, "FLV",
+*   1bytes, version, 0x01,
+*   1bytes, flags, UB[5] 0, UB[1] audio present, UB[1] 0, UB[1] video present.
+*   4bytes, dataoffset, 0x09, The length of this header in bytes
+*
+* @return 0, success; otherswise, failed.
+* @remark, auto write the 4bytes zero previous tag size.
+*/
 extern int srs_flv_write_header(srs_flv_t flv, char header[9]);
+/**
+* write the flv tag to file.
+*
+* @return 0, success; otherswise, failed.
+* @remark, auto write the 4bytes zero previous tag size.
+*/
 /* write flv tag to file, auto write the 4bytes previous tag size */
-extern int srs_flv_write_tag(srs_flv_t flv, char type, int32_t time, char* data, int size);
-/* get the tag size, for flv injecter to adjust offset, size=tag_header+data+previous_tag */
+extern int srs_flv_write_tag(srs_flv_t flv, 
+    char type, int32_t time, char* data, int size
+);
+/**
+* get the tag size, for flv injecter to adjust offset, 
+*       size = tag_header(11B) + data_size + previous_tag(4B)
+* @return the size of tag.
+*/
 extern int srs_flv_size_tag(int data_size);
 /* file stream */
 /* file stream tellg to get offset */
@@ -278,9 +346,17 @@ extern void srs_flv_lseek(srs_flv_t flv, int64_t offset);
 /* whether the error code indicates EOF */
 extern flv_bool srs_flv_is_eof(int error_code);
 /* media codec */
-/* whether the video body is sequence header */
+/**
+* whether the video body is sequence header 
+* @param data, the data of tag, read by srs_flv_read_tag_data().
+* @param size, the size of tag, read by srs_flv_read_tag_data().
+*/
 extern flv_bool srs_flv_is_sequence_header(char* data, int32_t size);
-/* whether the video body is keyframe */
+/**
+* whether the video body is keyframe 
+* @param data, the data of tag, read by srs_flv_read_tag_data().
+* @param size, the size of tag, read by srs_flv_read_tag_data().
+*/
 extern flv_bool srs_flv_is_keyframe(char* data, int32_t size);
 
 /*************************************************************
