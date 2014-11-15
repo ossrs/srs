@@ -25,9 +25,18 @@ SRS focus on small problem domain, which is the most complex for all software(se
 Because of lack of deveoper resource, SRS only provides features which is the most popular 
 for internet. SRS is simple for and only for problem domain is simplified.
 
-SRS is a simple, [RTMP](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryRTMP)/
-[HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryHLS), 
-[high-performance(6k+ clients)](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Performance), 
+SRS is a simple, RTMP(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryRTMP), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_DeliveryRTMP)
+)/
+HLS(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryHLS), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_DeliveryHLS)
+), 
+high-performance(6k+ clients)(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Performance), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Performance)
+),
 single/multiple(plan) processes, edge/origin live server, 
 [x86/x64/arm](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SrsLinuxArm), 
 compile depends on [st](http://sourceforge.net/projects/state-threads)(required), 
