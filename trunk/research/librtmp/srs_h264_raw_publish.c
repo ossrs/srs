@@ -166,9 +166,14 @@ int main(int argc, char** argv)
         }
         
         // send out the h264 packet over RTMP
-        if (srs_write_h264_raw_frames(rtmp, data, size, dts, pts) != 0) {
-            srs_lib_trace("send h264 raw data failed.");
-            goto rtmp_destroy;
+        int error = srs_h264_write_raw_frames(rtmp, data, size, dts, pts);
+        if (error != 0) {
+            if (srs_h264_is_dvbsp_error(error)) {
+                srs_lib_trace("ignore drop video error, code=%d", error);
+            } else {
+                srs_lib_trace("send h264 raw data failed.");
+                goto rtmp_destroy;
+            }
         }
         
         // 5bits, 7.3.1 NAL unit syntax, 
