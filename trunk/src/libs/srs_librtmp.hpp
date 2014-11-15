@@ -269,7 +269,7 @@ extern const char* srs_format_time();
 **************************************************************
 *************************************************************/
 typedef void* srs_flv_t;
-typedef int flv_bool;
+typedef int srs_flv_bool;
 /* open flv file for both read/write. */
 extern srs_flv_t srs_flv_open_read(const char* file);
 extern srs_flv_t srs_flv_open_write(const char* file);
@@ -344,20 +344,20 @@ extern int64_t srs_flv_tellg(srs_flv_t flv);
 extern void srs_flv_lseek(srs_flv_t flv, int64_t offset);
 /* error code */
 /* whether the error code indicates EOF */
-extern flv_bool srs_flv_is_eof(int error_code);
+extern srs_flv_bool srs_flv_is_eof(int error_code);
 /* media codec */
 /**
 * whether the video body is sequence header 
 * @param data, the data of tag, read by srs_flv_read_tag_data().
 * @param size, the size of tag, read by srs_flv_read_tag_data().
 */
-extern flv_bool srs_flv_is_sequence_header(char* data, int32_t size);
+extern srs_flv_bool srs_flv_is_sequence_header(char* data, int32_t size);
 /**
 * whether the video body is keyframe 
 * @param data, the data of tag, read by srs_flv_read_tag_data().
 * @param size, the size of tag, read by srs_flv_read_tag_data().
 */
-extern flv_bool srs_flv_is_keyframe(char* data, int32_t size);
+extern srs_flv_bool srs_flv_is_keyframe(char* data, int32_t size);
 
 /*************************************************************
 **************************************************************

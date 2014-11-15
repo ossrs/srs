@@ -767,17 +767,17 @@ void srs_flv_lseek(srs_flv_t flv, int64_t offset)
     context->reader.lseek(offset);
 }
 
-flv_bool srs_flv_is_eof(int error_code)
+srs_flv_bool srs_flv_is_eof(int error_code)
 {
     return error_code == ERROR_SYSTEM_FILE_EOF;
 }
 
-flv_bool srs_flv_is_sequence_header(char* data, int32_t size)
+srs_flv_bool srs_flv_is_sequence_header(char* data, int32_t size)
 {
     return SrsFlvCodec::video_is_sequence_header(data, (int)size);
 }
 
-flv_bool srs_flv_is_keyframe(char* data, int32_t size)
+srs_flv_bool srs_flv_is_keyframe(char* data, int32_t size)
 {
     return SrsFlvCodec::video_is_keyframe(data, (int)size);
 }
