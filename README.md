@@ -215,8 +215,8 @@ cd simple-rtmp-server/trunk
 
 <strong>Step 2:</strong> build SRS,
 <strong>Requires Centos6.x/Ubuntu12 32/64bits, others see Build(
-[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Build),
-[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Build)
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_Build),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_Build)
 ).</strong>
 
 <pre>
@@ -318,7 +318,10 @@ Supported operating systems and hardware:
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Performance),
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Performance)
 ): single-thread, async socket, event/st-thread driven.
-1. [High-concurrency](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Performance), 1800 connections(500kbps), 900Mbps, CPU 90.2%, 41MB
+1. High-concurrency(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Performance),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Performance)
+), 6000+ connections(500kbps), 900Mbps, CPU 90.2%, 41MB
 1. Support [RTMP Origin Server](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryRTMP).
 1. Support [RTMP Edge Server](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Edge) for CDN, push/pull stream from any RTMP server
 1. Support single process; no multiple processes.
