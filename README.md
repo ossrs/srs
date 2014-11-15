@@ -28,7 +28,7 @@ for internet. SRS is simple for and only for problem domain is simplified.
 SRS is a simple, RTMP(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryRTMP), 
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_DeliveryRTMP)
-)/
+),
 HLS(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryHLS), 
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_DeliveryHLS)
@@ -37,37 +37,103 @@ high-performance(6k+ clients)(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Performance), 
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Performance)
 ),
-single/multiple(plan) processes, edge/origin live server, 
-[x86/x64/arm](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SrsLinuxArm), 
-compile depends on [st](http://sourceforge.net/projects/state-threads)(required), 
+single processes, edge/origin live server, 
+x86/x64/arm(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SrsLinuxArm), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_SrsLinuxArm)
+),
+compile depends on st(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Architecture), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Architecture)
+)(required),
 [ssl](http://www.openssl.org/) and [http-parser](https://github.com/joyent/http-parser), 
 use [nginx](http://nginx.org/), [ffmpeg](http://ffmpeg.org/) and 
 [cherrypy](http://www.cherrypy.org/) as external tools. that is, only need st to run srs for 
-minimum run. see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Build).
+minimum run. see Build(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Build), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Build)
+).
 
-SRS supports [vhost](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_RtmpUrlVhost), 
-rtmp([encoder push](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryRTMP), 
-client/[edge](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Edge) pull), 
-[ingester(srs pull)](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Ingest), 
-[HLS](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryHLS), 
-[HLS audio only](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryHLS#hlsaudioonly), 
-[transcoding](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_FFMPEG), 
-[forward](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_FFMPEG), 
-[http hooks](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_HTTPCallback), 
-[http api](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_HTTPApi), 
-[http server](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_HTTPServer),
-[dvr](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DVR) and
-[SRS-librtmp](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp).
+SRS supports vhost(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_RtmpUrlVhost), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_RtmpUrlVhost)
+),
+rtmp(encoder push(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryRTMP), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_DeliveryRTMP)
+),
+client/edge(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Edge),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Edge),
+) pull), 
+ingester(srs pull)(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Ingest), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Ingest)
+),
+HLS(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryHLS), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_DeliveryHLS)
+),
+HLS audio only(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryHLS#hlsaudioonly), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_DeliveryHLS#hlsaudioonly)
+),
+transcoding(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_FFMPEG), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_FFMPEG)
+),
+forward(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_FFMPEG), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_FFMPEG)
+),
+http hooks(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_HTTPCallback), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_HTTPCallback)
+),
+http api(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_HTTPApi), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_HTTPApi)
+),
+http server(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_HTTPServer),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_HTTPServer)
+),
+dvr(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DVR), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_DVR)
+) and
+SRS-librtmp(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_SrsLibrtmp)
+).
 
-[SRS-librtmp](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp) 
+SRS-librtmp(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_SrsLibrtmp)
+)
 is a client library, only depends on c++ and socket, with 
-[examples](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#srs-librtmp-examples)(to play, 
+examples(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#srs-librtmp-examples),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_SrsLibrtmp#srs-librtmp-examples)
+)(to play, 
 publish, ingest flv/rtmp, inject flv, 
-[publish h264 raw stream](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data)), 
-[exported as seperate project or single cpp file by configure](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#export-srs-librtmp). 
-[SRS-librtmp](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp) 
+publish h264 raw stream(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_SrsLibrtmp#publish-h264-raw-data)
+),
+exported as seperate project or single cpp file by configure(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#export-srs-librtmp),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_SrsLibrtmp#export-srs-librtmp)
+).
+SRS-librtmp(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_SrsLibrtmp)
+)
 provides apis to support RTMP, FLV, AMF0 and 
-[h.264 raw stream](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data).
+h.264 raw stream(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_SrsLibrtmp#publish-h264-raw-data)
+).
 
 WebSite: [http://ossrs.net](http://ossrs.net) <br/>
 Release: [http://winlinvip.github.io/srs.release](http://winlinvip.github.io/srs.release)  <br/>
@@ -109,21 +175,24 @@ A big THANK YOU goes to:
 ## Mirrors
 
 Github: [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) 
-[Git Usage](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Git)
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Git), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Git)
 
 ```bash
 git clone https://github.com/winlinvip/simple-rtmp-server.git
 ```
 
 CSDN: [https://code.csdn.net/winlinvip/srs-csdn](https://code.csdn.net/winlinvip/srs-csdn) 
-[Git Usage](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Git)
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Git), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Git)
 
 ```bash
 git clone https://code.csdn.net/winlinvip/srs-csdn.git
 ```
 
 OSChina: [http://git.oschina.net/winlinvip/srs.oschina](http://git.oschina.net/winlinvip/srs.oschina) 
-[Git Usage](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Git)
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Git), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Git)
 
 ```bash
 git clone https://git.oschina.net/winlinvip/srs.oschina.git
@@ -139,7 +208,10 @@ cd simple-rtmp-server/trunk
 </pre>
 
 <strong>Step 2:</strong> build SRS,
-<strong>Requires Centos6.x/Ubuntu12 32/64bits, others see [Build](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Build)</strong>
+<strong>Requires Centos6.x/Ubuntu12 32/64bits, others see Build(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Build),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Build)
+).</strong>
 
 <pre>
 ./configure && make
@@ -152,7 +224,10 @@ cd simple-rtmp-server/trunk
 </pre>
 
 <strong>See also:</strong>
-* [Usage: How to delivery RTMP?](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleRTMP)
+* Usage: How to delivery RTMP?(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleRTMP),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_SampleRTMP)
+)
 * [Usage: How to delivery HLS?](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleHLS)
 * [Usage: How to delivery HLS for other codec?](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleTranscode2HLS)
 * [Usage: How to transode RTMP stream by SRS?](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleFFMPEG)
