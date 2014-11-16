@@ -93,12 +93,12 @@ SRS_LIBRTMP_OBJS="${LIBS_OBJS[@]}" && build_module_cpp
 
 # create example.cpp
 FILE=$SRS_EXPORT_LIBRTMP_SINGLE/example.c
-COMPILE='gcc example.c srs_librtmp.cpp -g -O0 -lstdc++ -o example'
+SRS_SINGLE_LIBRTMP_COMPILE='gcc example.c srs_librtmp.cpp -g -O0 -lstdc++ -o example'
 cat << END >$FILE
 /**
 # Example to use srs-librtmp
 # see: https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp
-    ${COMPILE}
+    ${SRS_SINGLE_LIBRTMP_COMPILE}
 */
 #include <stdio.h>
 #include "srs_librtmp.h"
@@ -119,9 +119,10 @@ int main(int argc, char** argv)
 END
 
 # compile the example
-(cd $SRS_EXPORT_LIBRTMP_SINGLE && `${COMPILE}` && ./example && rm -f example)
+(cd $SRS_EXPORT_LIBRTMP_SINGLE && echo "${SRS_SINGLE_LIBRTMP_COMPILE}" && 
+`${SRS_SINGLE_LIBRTMP_COMPILE}` && ./example && rm -f example)
 ret=$?; if [[ $ret -ne 0 ]]; then 
-    echo "(cd $SRS_EXPORT_LIBRTMP_SINGLE && ${COMPILE} && ./example && rm -f example)"
+    echo "(cd $SRS_EXPORT_LIBRTMP_SINGLE && ${SRS_SINGLE_LIBRTMP_COMPILE} && ./example && rm -f example)"
     echo -e "${RED}failed to compile example.${BLACK}"
     exit $ret
 fi

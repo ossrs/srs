@@ -599,6 +599,8 @@ else
         echo -e "${GREEN}       $SRS_EXPORT_LIBRTMP_PROJECT/srs_librtmp.h ${BLACK}"
         echo -e "${GREEN}       $SRS_EXPORT_LIBRTMP_PROJECT/srs_librtmp.cpp ${BLACK}"
         echo -e "${GREEN}       $SRS_EXPORT_LIBRTMP_PROJECT/example.c ${BLACK}"
+        echo -e "${GREEN}To compile the example: ${BLACK}"
+        echo -e "${GREEN}       cd $SRS_EXPORT_LIBRTMP_PROJECT && $SRS_SINGLE_LIBRTMP_COMPILE ${BLACK}"
     # for srs-librtmp project.
     else
         echo -e "${GREEN}Please use the srs-librtmp project: ${BLACK}"
