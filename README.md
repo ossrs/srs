@@ -58,7 +58,7 @@ HLS(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryHLS), 
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_DeliveryHLS)
 ), 
-high-performance(6k+ clients)(
+high-performance(2.7k+ clients)(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Performance), 
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Performance)
 ),
@@ -349,20 +349,8 @@ Supported operating systems and hardware:
 1. 可追溯日志：Support [tracable log, session based log](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SrsLog).
 1. 支持FMS-Token穿越：Support DRM [token traverse](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DRM#tokentraverse) for fms origin authenticate.
 1. 全面的Utest：Support system full utest on gtest.
-1. (不稳定)内嵌HTTP服务器：[experiment] Support embeded [HTTP server](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleHTTP) for hls(live/vod)
-1. (不稳定)FLV点播流：[experiment] Support [vod stream(http flv/hls vod stream)](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_FlvVodStream).
 1. Stable [1.0release branch](https://github.com/winlinvip/simple-rtmp-server/tree/1.0release) and 
 [2.0dev branch](https://github.com/winlinvip/simple-rtmp-server/tree/master).
-1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
-1. [no-plan] Support RTMP 302 redirect [#92](https://github.com/winlinvip/simple-rtmp-server/issues/92).
-1. [no-plan] Support multiple processes, for both origin and edge
-1. [no-plan] Support adobe RTMFP(flash p2p) protocol.
-1. [no-plan] Support adobe flash refer/token/swf verification.
-1. [no-plan] Support adobe amf3 codec.
-1. [no-plan] Support encryption: RTMPE/RTMPS, HLS DRM
-1. [no-plan] Support RTMPT, http to tranverse firewalls
-1. [no-plan] Support file source, transcoding file to live stream
-1. [no-plan] Support RTP/RTSP server.
 
 ## Releases
 * 2014-10-09, [Release v1.0-beta](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.beta), all bug fixed, 1.0.0, 59316 lines.<br/>
