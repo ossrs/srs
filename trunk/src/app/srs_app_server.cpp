@@ -130,18 +130,18 @@ int SrsListener::listen(int port)
     
     if ((fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         ret = ERROR_SOCKET_CREATE;
-        srs_error("create linux socket error. ret=%d", ret);
+        srs_error("create linux socket error. port=%d, ret=%d", port, ret);
         return ret;
     }
-    srs_verbose("create linux socket success. fd=%d", fd);
+    srs_verbose("create linux socket success. port=%d, fd=%d", port, fd);
     
     int reuse_socket = 1;
     if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse_socket, sizeof(int)) == -1) {
         ret = ERROR_SOCKET_SETREUSE;
-        srs_error("setsockopt reuse-addr error. ret=%d", ret);
+        srs_error("setsockopt reuse-addr error. port=%d, ret=%d", port, ret);
         return ret;
     }
-    srs_verbose("setsockopt reuse-addr success. fd=%d", fd);
+    srs_verbose("setsockopt reuse-addr success. port=%d, fd=%d", port, fd);
     
     sockaddr_in addr;
     addr.sin_family = AF_INET;
@@ -149,34 +149,34 @@ int SrsListener::listen(int port)
     addr.sin_addr.s_addr = INADDR_ANY;
     if (bind(fd, (const sockaddr*)&addr, sizeof(sockaddr_in)) == -1) {
         ret = ERROR_SOCKET_BIND;
-        srs_error("bind socket error. ret=%d", ret);
+        srs_error("bind socket error. port=%d, ret=%d", port, ret);
         return ret;
     }
-    srs_verbose("bind socket success. fd=%d", fd);
+    srs_verbose("bind socket success. port=%d, fd=%d", port, fd);
     
     if (::listen(fd, SERVER_LISTEN_BACKLOG) == -1) {
         ret = ERROR_SOCKET_LISTEN;
-        srs_error("listen socket error. ret=%d", ret);
+        srs_error("listen socket error. port=%d, ret=%d", port, ret);
         return ret;
     }
-    srs_verbose("listen socket success. fd=%d", fd);
+    srs_verbose("listen socket success. port=%d, fd=%d", port, fd);
     
     if ((stfd = st_netfd_open_socket(fd)) == NULL){
         ret = ERROR_ST_OPEN_SOCKET;
-        srs_error("st_netfd_open_socket open socket failed. ret=%d", ret);
+        srs_error("st_netfd_open_socket open socket failed. port=%d, ret=%d", port, ret);
         return ret;
     }
-    srs_verbose("st open socket success. fd=%d", fd);
+    srs_verbose("st open socket success. port=%d, fd=%d", port, fd);
     
     if ((ret = pthread->start()) != ERROR_SUCCESS) {
-        srs_error("st_thread_create listen thread error. ret=%d", ret);
+        srs_error("st_thread_create listen thread error. port=%d, ret=%d", port, ret);
         return ret;
     }
-    srs_verbose("create st listen thread success.");
+    srs_verbose("create st listen thread success, port=%d", port);
     
     srs_trace("listen thread cid=%d, current_cid=%d, "
-        "listen at port=%d, type=%d, fd=%d started success", 
-        pthread->cid(), _srs_context->get_id(), _port, _type, fd);
+        "listen at port=%d, type=%d, fd=%d started success, port=%d", 
+        pthread->cid(), _srs_context->get_id(), _port, _type, fd, port);
     
     return ret;
 }
