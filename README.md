@@ -374,6 +374,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v1.0, 2014-11-18, all wiki translated to English. 1.0.7.
 * v1.0, 2014-11-13, hotfix [#200](https://github.com/winlinvip/simple-rtmp-server/issues/200), deadloop when read/write 0 and ETIME. 1.0.6.
 * v1.0, 2014-11-06, use number for macro VERSION_MAJOR, VERSION_MINOR and VERSION_REVISION. 1.0.5.
 * v1.0, 2014-10-24, hotfix [#186](https://github.com/winlinvip/simple-rtmp-server/issues/186), drop connect args when not object. 1.0.3.
