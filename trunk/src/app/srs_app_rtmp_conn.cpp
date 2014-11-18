@@ -922,15 +922,17 @@ int SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsMessage* msg
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/106
     // TODO: FIXME: response in right way, or forward in edge mode.
     SrsCallPacket* call = dynamic_cast<SrsCallPacket*>(pkt);
-    // only response it when transaction id not zero,
-    // for the zero means donot need response.
-    if (call && call->transaction_id > 0) {
-        SrsCallResPacket* res = new SrsCallResPacket(call->transaction_id);
-        res->command_object = SrsAmf0Any::null();
-        res->response = SrsAmf0Any::null();
-        if ((ret = rtmp->send_and_free_packet(res, 0)) != ERROR_SUCCESS) {
-            srs_warn("response call failed. ret=%d", ret);
-            return ret;
+    if (call) {
+        // only response it when transaction id not zero,
+        // for the zero means donot need response.
+        if (call->transaction_id > 0) {
+            SrsCallResPacket* res = new SrsCallResPacket(call->transaction_id);
+            res->command_object = SrsAmf0Any::null();
+            res->response = SrsAmf0Any::null();
+            if ((ret = rtmp->send_and_free_packet(res, 0)) != ERROR_SUCCESS) {
+                srs_warn("response call failed. ret=%d", ret);
+                return ret;
+            }
         }
         return ret;
     }
