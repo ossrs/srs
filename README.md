@@ -692,7 +692,7 @@ Performance benchmark history, on virtual box:
 * 2014-11-11, SRS 1.0.5,   2700clients, 85%CPU, 66MB. (1.0 equals 2.0.12)
 * 2014-11-12, SRS 2.0.14,  2700clients, 69%CPU, 59MB.
 * 2014-11-12, SRS 2.0.14,  3500clients, 95%CPU, 78MB.
-* 2014-11-13, SRS 2.0.15,  6000clients, 82%CPU, 203MB.
+* 2014-11-13, SRS 2.0.15,  6000clients, 82%CPU, 203MB. (500 publishers).
 
 Latest benchmark(2014-07-12):
 
