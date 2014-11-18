@@ -479,6 +479,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2014-11-18, all wiki translated to English. 2.0.23.
 * v2.0, 2014-11-15, fix [#204](https://github.com/winlinvip/simple-rtmp-server/issues/204), srs-librtmp drop duplicated sps/pps(sequence header). 2.0.22.
 * v2.0, 2014-11-15, fix [#203](https://github.com/winlinvip/simple-rtmp-server/issues/203), srs-librtmp drop any video before sps/pps(sequence header). 2.0.21.
 * v2.0, 2014-11-15, fix [#202](https://github.com/winlinvip/simple-rtmp-server/issues/202), fix memory leak of h.264 raw packet send in srs-librtmp. 2.0.20.
