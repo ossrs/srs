@@ -137,6 +137,7 @@ h.264 raw stream(
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_SrsLibrtmp#publish-h264-raw-data)
 ).
 
+Report Bug: [https://github.com/winlinvip/simple-rtmp-server/issues/new](https://github.com/winlinvip/simple-rtmp-server/issues/new)  <br/>
 WebSite: [http://ossrs.net](http://ossrs.net) <br/>
 Release: [http://winlinvip.github.io/srs.release](http://winlinvip.github.io/srs.release)  <br/>
 Blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin)  <br/>
