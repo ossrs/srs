@@ -31,7 +31,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_utility.hpp>
 
+// for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
+#ifndef _WIN32
 #include <unistd.h>
+#endif
+
 using namespace std;
 
 /**
@@ -260,7 +264,7 @@ int SrsHandshakeBytes::create_c0c1()
         return ret;
     }
     stream.write_1bytes(0x03);
-    stream.write_4bytes(::time(NULL));
+    stream.write_4bytes((int32_t)::time(NULL));
     stream.write_4bytes(0x00);
     
     return ret;
@@ -283,7 +287,7 @@ int SrsHandshakeBytes::create_s0s1s2(const char* c1)
         return ret;
     }
     stream.write_1bytes(0x03);
-    stream.write_4bytes(::time(NULL));
+    stream.write_4bytes((int32_t)::time(NULL));
     // s2 time2 copy from c1
     if (c0c1) {
         stream.write_bytes(c0c1 + 1, 4);
@@ -314,7 +318,7 @@ int SrsHandshakeBytes::create_c2()
     if ((ret = stream.initialize(c2, 8)) != ERROR_SUCCESS) {
         return ret;
     }
-    stream.write_4bytes(::time(NULL));
+    stream.write_4bytes((int32_t)::time(NULL));
     // c2 time2 copy from s1
     if (s0s1s2) {
         stream.write_bytes(s0s1s2 + 1, 4);

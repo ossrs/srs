@@ -30,7 +30,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+// for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
+#ifndef _WIN32
 #include <sys/uio.h>
+#endif
 
 #include <srs_kernel_buffer.hpp>
 

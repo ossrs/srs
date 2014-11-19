@@ -446,8 +446,10 @@ Supported operating systems and hardware:
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_SrsLibrtmp#publish-h264-raw-data)
 ) by srs-librtmp.
 1. Support [6k+ clients](https://github.com/winlinvip/simple-rtmp-server/issues/194), 4Gbps per process.
-1. [dev] Suppport [English wiki](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Home).
-1. [dev] Research and simplify st, [bug #182](https://github.com/winlinvip/simple-rtmp-server/issues/182).
+1. Suppport [English wiki](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Home).
+1. Research and simplify st, [bug #182](https://github.com/winlinvip/simple-rtmp-server/issues/182).
+1. Support compile [srs-librtmp on windows](https://github.com/winlinvip/srs.librtmp), 
+[bug #213](https://github.com/winlinvip/simple-rtmp-server/issues/213).
 1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
 1. [no-plan] Support RTMP 302 redirect [#92](https://github.com/winlinvip/simple-rtmp-server/issues/92).
 1. [no-plan] Support multiple processes, for both origin and edge
@@ -480,6 +482,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2014-11-19, fix [#213](https://github.com/winlinvip/simple-rtmp-server/issues/213), support compile [srs-librtmp on windows](https://github.com/winlinvip/srs.librtmp), [bug #213](https://github.com/winlinvip/simple-rtmp-server/issues/213). 2.0.26
 * v2.0, 2014-11-18, all wiki translated to English. 2.0.23.
 * v2.0, 2014-11-15, fix [#204](https://github.com/winlinvip/simple-rtmp-server/issues/204), srs-librtmp drop duplicated sps/pps(sequence header). 2.0.22.
 * v2.0, 2014-11-15, fix [#203](https://github.com/winlinvip/simple-rtmp-server/issues/203), srs-librtmp drop any video before sps/pps(sequence header). 2.0.21.

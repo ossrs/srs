@@ -31,7 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // current release version
 #define VERSION_MAJOR       2
 #define VERSION_MINOR       0
-#define VERSION_REVISION    25
+#define VERSION_REVISION    26
 // server info.
 #define RTMP_SIG_SRS_KEY "SRS"
 #define RTMP_SIG_SRS_ROLE "origin/edge server"
@@ -70,7 +70,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef __STDC_FORMAT_MACROS
     #define __STDC_FORMAT_MACROS
 #endif
+
+// for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
+#ifndef _WIN32
 #include <inttypes.h>
+#endif
 
 #include <assert.h>
 #define srs_assert(expression) assert(expression)
