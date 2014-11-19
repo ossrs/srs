@@ -558,6 +558,7 @@ int SrsRtmpConn::playing(SrsSource* source)
         pithy_print.elapse();
         
         // get messages from consumer.
+        // each msg in msgs.msgs must be free, for the SrsMessageArray never free them.
         int count = 0;
         if ((ret = consumer->dump_packets(msgs.max, msgs.msgs, count)) != ERROR_SUCCESS) {
             srs_error("get messages from consumer failed. ret=%d", ret);
@@ -591,9 +592,7 @@ int SrsRtmpConn::playing(SrsSource* source)
             }
         }
         
-        // sendout messages
-        // @remark, becareful, all msgs must be free explicitly,
-        //      free by send_and_free_message or srs_freep.
+        // sendout messages, all messages are freed by send_and_free_messages().
         if (count > 0) {
             // no need to assert msg, for the rtmp will assert it.
             if ((ret = rtmp->send_and_free_messages(msgs.msgs, count, res->stream_id)) != ERROR_SUCCESS) {

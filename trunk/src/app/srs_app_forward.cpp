@@ -416,6 +416,7 @@ int SrsForwarder::forward()
         }
         
         // forward all messages.
+        // each msg in msgs.msgs must be free, for the SrsMessageArray never free them.
         int count = 0;
         if ((ret = queue->dump_packets(msgs.max, msgs.msgs, count)) != ERROR_SUCCESS) {
             srs_error("get message to forward failed. ret=%d", ret);
@@ -438,7 +439,7 @@ int SrsForwarder::forward()
             continue;
         }
     
-        // all msgs to forward.
+        // sendout messages, all messages are freed by send_and_free_messages().
         if ((ret = client->send_and_free_messages(msgs.msgs, count, stream_id)) != ERROR_SUCCESS) {
             srs_error("forwarder messages to server failed. ret=%d", ret);
             return ret;

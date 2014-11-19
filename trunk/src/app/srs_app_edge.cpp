@@ -498,6 +498,7 @@ int SrsEdgeForwarder::cycle()
         }
         
         // forward all messages.
+        // each msg in msgs.msgs must be free, for the SrsMessageArray never free them.
         int count = 0;
         if ((ret = queue->dump_packets(msgs.max, msgs.msgs, count)) != ERROR_SUCCESS) {
             srs_error("get message to push to origin failed. ret=%d", ret);
@@ -522,7 +523,7 @@ int SrsEdgeForwarder::cycle()
             continue;
         }
     
-        // all msgs to forward to origin.
+        // sendout messages, all messages are freed by send_and_free_messages().
         if ((ret = client->send_and_free_messages(msgs.msgs, count, stream_id)) != ERROR_SUCCESS) {
             srs_error("edge publish push message to server failed. ret=%d", ret);
             return ret;

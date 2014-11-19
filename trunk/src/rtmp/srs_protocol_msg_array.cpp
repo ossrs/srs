@@ -40,6 +40,9 @@ SrsMessageArray::SrsMessageArray(int max_msgs)
 
 SrsMessageArray::~SrsMessageArray()
 {
+    // we just free the msgs itself,
+    // both delete and delete[] is ok,
+    // for each msg in msgs is already freed by send_and_free_messages.
     srs_freep(msgs);
 }
 
