@@ -25,13 +25,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_error.hpp>
 
+// for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
+#ifndef _WIN32
 #include <unistd.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <errno.h>
 #include <sys/uio.h>
+#endif
+
+#include <sys/types.h>
+#include <errno.h>
 
 #include <srs_kernel_utility.hpp>
 
@@ -82,7 +86,7 @@ int SimpleSocketStream::read(void* buf, size_t size, ssize_t* nread)
 {
     int ret = ERROR_SUCCESS;
     
-    ssize_t nb_read = ::recv(fd, buf, size, 0);
+    ssize_t nb_read = ::recv(fd, (char*)buf, size, 0);
     
     if (nread) {
         *nread = nb_read;
@@ -188,7 +192,7 @@ int SimpleSocketStream::read_fully(void* buf, size_t size, ssize_t* nread)
         }
         
         nb_read += this_nread;
-        left -= this_nread;
+        left -= (size_t)this_nread;
     }
     
     if (nread) {
@@ -203,7 +207,7 @@ int SimpleSocketStream::write(void* buf, size_t size, ssize_t* nwrite)
 {
     int ret = ERROR_SUCCESS;
     
-    ssize_t nb_write = ::send(fd, (void*)buf, size, 0);
+    ssize_t nb_write = ::send(fd, (char*)buf, size, 0);
     
     if (nwrite) {
         *nwrite = nb_write;

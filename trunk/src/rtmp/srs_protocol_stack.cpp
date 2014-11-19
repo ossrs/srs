@@ -397,7 +397,8 @@ SrsMessage::~SrsMessage()
 
 SrsProtocol::AckWindowSize::AckWindowSize()
 {
-    ack_window_size = acked_size = 0;
+    ack_window_size = 0;
+    acked_size = 0;
 }
 
 SrsProtocol::SrsProtocol(ISrsProtocolReaderWriter* io)
@@ -1427,7 +1428,7 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt, int bh_siz
         * @remark, srs always send the extended-timestamp, to keep simple,
         * and compatible with adobe products.
         */
-        u_int32_t chunk_timestamp = chunk->header.timestamp;
+        u_int32_t chunk_timestamp = (u_int32_t)chunk->header.timestamp;
         
         /**
         * if chunk_timestamp<=0, the chunk previous packet has no extended-timestamp,
@@ -1695,7 +1696,8 @@ int SrsProtocol::response_acknowledgement_message()
     int ret = ERROR_SUCCESS;
     
     SrsAcknowledgementPacket* pkt = new SrsAcknowledgementPacket();
-    in_ack_size.acked_size = pkt->sequence_number = skt->get_recv_bytes();
+    in_ack_size.acked_size = skt->get_recv_bytes();
+    pkt->sequence_number = (int32_t)in_ack_size.acked_size;
     if ((ret = send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
         srs_error("send acknowledgement failed. ret=%d", ret);
         return ret;

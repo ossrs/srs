@@ -23,8 +23,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_flv.hpp>
 
-#include <fcntl.h>
+// for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
+#ifndef _WIN32
 #include <unistd.h>
+#endif
+
+#include <fcntl.h>
 #include <sstream>
 using namespace std;
 
@@ -157,7 +161,7 @@ int SrsFlvEncoder::write_audio(int64_t timestamp, char* data, int size)
         return ret;
     }
     tag_stream->write_3bytes(size);
-    tag_stream->write_3bytes(timestamp);
+    tag_stream->write_3bytes((int32_t)timestamp);
     // default to little-endian
     tag_stream->write_1bytes((timestamp >> 24) & 0xFF);
     
@@ -191,7 +195,7 @@ int SrsFlvEncoder::write_video(int64_t timestamp, char* data, int size)
         return ret;
     }
     tag_stream->write_3bytes(size);
-    tag_stream->write_3bytes(timestamp);
+    tag_stream->write_3bytes((int32_t)timestamp);
     // default to little-endian
     tag_stream->write_1bytes((timestamp >> 24) & 0xFF);
     

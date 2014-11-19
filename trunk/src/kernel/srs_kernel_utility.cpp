@@ -23,11 +23,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_utility.hpp>
 
+// for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
+#ifndef _WIN32
 #include <unistd.h>
-#include <string.h>
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <sys/time.h>
+#endif
+
+#include <string.h>
 
 using namespace std;
 
