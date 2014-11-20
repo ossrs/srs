@@ -1439,6 +1439,46 @@ char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize)
 }
 
 /**
+* write audio raw frame to SRS.
+*/
+int srs_audio_write_raw_frame(srs_rtmp_t rtmp, 
+    char sound_format, char sound_rate, char sound_size, char sound_type,
+    char aac_packet_type, char* frame, int frame_size, u_int32_t timestamp
+) {
+    int ret = ERROR_SUCCESS;
+    
+    Context* context = (Context*)rtmp;
+    srs_assert(context);
+
+    // TODO: FIXME: for aac, must send the sequence header first.
+    
+    // for audio frame, there is 1 or 2 bytes header:
+    //      1bytes, SoundFormat|SoundRate|SoundSize|SoundType
+    //      1bytes, AACPacketType for SoundFormat == 10
+    int size = frame_size + 1;
+    if (aac_packet_type == SrsCodecAudioAAC) {
+        size += 1;
+    }
+    char* data = new char[size];
+    char* p = data;
+    
+    u_int8_t audio_header = sound_type & 0x01;
+    audio_header |= (sound_size << 1) & 0x02;
+    audio_header |= (sound_rate << 2) & 0x0c;
+    audio_header |= (sound_format << 4) & 0xf0;
+    
+    *p++ = audio_header;
+    
+    if (aac_packet_type == SrsCodecAudioAAC) {
+        *p++ = aac_packet_type;
+    }
+    
+    memcpy(p, frame, frame_size);
+    
+    return srs_write_packet(context, SRS_RTMP_TYPE_AUDIO, timestamp, data, size);
+}
+
+/**
 * write h264 packet, with rtmp header.
 * @param frame_type, SrsCodecVideoAVCFrameKeyFrame or SrsCodecVideoAVCFrameInterFrame.
 * @param avc_packet_type, SrsCodecVideoAVCTypeSequenceHeader or SrsCodecVideoAVCTypeNALU.
@@ -1458,7 +1498,6 @@ int __srs_write_h264_packet(Context* context,
     // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
     int size = h264_raw_size + 5;
     char* data = new char[size];
-    memcpy(data + 5, h264_raw_data, h264_raw_size);
     char* p = data;
     
     // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
@@ -1479,6 +1518,9 @@ int __srs_write_h264_packet(Context* context,
     *p++ = pp[2];
     *p++ = pp[1];
     *p++ = pp[0];
+    
+    // h.264 raw data.
+    memcpy(p, h264_raw_data, h264_raw_size);
     
     return srs_write_packet(context, SRS_RTMP_TYPE_VIDEO, timestamp, data, size);
 }

@@ -463,6 +463,64 @@ extern char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize);
 
 /*************************************************************
 **************************************************************
+* audio raw codec
+**************************************************************
+*************************************************************/
+/**
+* write an audio raw frame to srs.
+* not similar to h.264 video, the audio never aggregated, always
+* encoded one frame by one, so this api is used to write a frame.
+*
+* @param sound_format Format of SoundData. The following values are defined:
+*               0 = Linear PCM, platform endian
+*               1 = ADPCM
+*               2 = MP3
+*               3 = Linear PCM, little endian
+*               4 = Nellymoser 16 kHz mono
+*               5 = Nellymoser 8 kHz mono
+*               6 = Nellymoser
+*               7 = G.711 A-law logarithmic PCM
+*               8 = G.711 mu-law logarithmic PCM
+*               9 = reserved
+*               10 = AAC
+*               11 = Speex
+*               14 = MP3 8 kHz
+*               15 = Device-specific sound
+*               Formats 7, 8, 14, and 15 are reserved.
+*               AAC is supported in Flash Player 9,0,115,0 and higher.
+*               Speex is supported in Flash Player 10 and higher.
+* @param sound_rate Sampling rate. The following values are defined:
+*               0 = 5.5 kHz
+*               1 = 11 kHz
+*               2 = 22 kHz
+*               3 = 44 kHz
+* @param sound_size Size of each audio sample. This parameter only pertains to
+*               uncompressed formats. Compressed formats always decode
+*               to 16 bits internally.
+*               0 = 8-bit samples
+*               1 = 16-bit samples
+* @param sound_type Mono or stereo sound
+*               0 = Mono sound
+*               1 = Stereo sound
+* @param aac_packet_type The following values are defined:
+*               0 = AAC sequence header
+*               1 = AAC raw
+* @param timestamp The timestamp of audio.
+*
+* @remark Ignore aac_packet_type if not aac(sound_format!=10).
+*
+* @see https://github.com/winlinvip/simple-rtmp-server/issues/212
+* @see E.4.2.1 AUDIODATA of video_file_format_spec_v10_1.pdf
+* 
+* @return 0, success; otherswise, failed.
+*/
+extern int srs_audio_write_raw_frame(srs_rtmp_t rtmp, 
+    char sound_format, char sound_rate, char sound_size, char sound_type,
+    char aac_packet_type, char* frame, int frame_size, u_int32_t timestamp
+);
+
+/*************************************************************
+**************************************************************
 * h264 raw codec
 **************************************************************
 *************************************************************/
@@ -474,7 +532,7 @@ typedef int srs_h264_bool;
 *       each frame prefixed h.264 annexb header, by N[00] 00 00 01, where N>=0, 
 *       for instance, frame = header(00 00 00 01) + payload(67 42 80 29 95 A0 14 01 6E 40)
 *       about annexb, @see H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
-* @paam frames_size the size of h264 raw data. 
+* @param frames_size the size of h264 raw data. 
 *       assert frames_size > 0, at least has 1 bytes header.
 * @param dts the dts of h.264 raw data.
 * @param pts the pts of h.264 raw data.

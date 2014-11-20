@@ -6,7 +6,8 @@ else
     ST_ALL      = objs/srs_flv_parser \
                 objs/srs_flv_injecter objs/srs_publish objs/srs_play \
                 objs/srs_ingest_flv objs/srs_ingest_rtmp objs/srs_detect_rtmp \
-                objs/srs_bandwidth_check objs/srs_h264_raw_publish
+                objs/srs_bandwidth_check objs/srs_h264_raw_publish \
+                objs/srs_audio_raw_publish
 endif
 
 .PHONY: default clean help ssl nossl
@@ -24,6 +25,7 @@ help:
 	@echo "     srs_flv_injecter        inject keyframes information to metadata."
 	@echo "     srs_publish             publish program using srs-librtmp"
 	@echo "     srs_h264_raw_publish    publish raw h.264 stream to SSR by srs-librtmp"
+	@echo "     srs_audio_raw_publish   publish raw audio stream to SSR by srs-librtmp"
 	@echo "     srs_play                play program using srs-librtmp"
 	@echo "     srs_ingest_flv          ingest flv file and publish to RTMP server."
 	@echo "     srs_ingest_rtmp         ingest RTMP and publish to RTMP server."
@@ -84,6 +86,9 @@ objs/srs_publish: srs_publish.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBR
 
 objs/srs_h264_raw_publish: srs_h264_raw_publish.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
 	$(GCC) srs_h264_raw_publish.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_h264_raw_publish
+
+objs/srs_audio_raw_publish: srs_audio_raw_publish.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
+	$(GCC) srs_audio_raw_publish.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_audio_raw_publish
 
 objs/srs_play: srs_play.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
 	$(GCC) srs_play.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_play

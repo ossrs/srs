@@ -482,6 +482,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2014-11-20, fix [#212](https://github.com/winlinvip/simple-rtmp-server/issues/212), support publish audio raw frames. 2.0.27
 * v2.0, 2014-11-19, fix [#213](https://github.com/winlinvip/simple-rtmp-server/issues/213), support compile [srs-librtmp on windows](https://github.com/winlinvip/srs.librtmp), [bug #213](https://github.com/winlinvip/simple-rtmp-server/issues/213). 2.0.26
 * v2.0, 2014-11-18, all wiki translated to English. 2.0.23.
 * v2.0, 2014-11-15, fix [#204](https://github.com/winlinvip/simple-rtmp-server/issues/204), srs-librtmp drop duplicated sps/pps(sequence header). 2.0.22.
