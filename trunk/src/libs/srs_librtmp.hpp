@@ -226,16 +226,6 @@ extern int srs_bandwidth_check(srs_rtmp_t rtmp,
 // 18 = script data
 #define SRS_RTMP_TYPE_SCRIPT 18
 /**
-* convert the flv tag type to string.
-*     SRS_RTMP_TYPE_AUDIO to "Audio"
-*     SRS_RTMP_TYPE_VIDEO to "Video"
-*     SRS_RTMP_TYPE_SCRIPT to "Data"
-*     otherwise, "Unknown"
-* @remark user never free the return char*, 
-*   it's static shared const string.
-*/
-extern const char* srs_type2string(char type);
-/**
 * read a audio/video/script-data packet from rtmp stream.
 * @param type, output the packet type, macros:
 *            SRS_RTMP_TYPE_AUDIO, FlvTagAudio
@@ -323,20 +313,6 @@ extern int srs_parse_timestamp(
 extern char srs_get_codec_id(char* data, int size);
 
 /**
-* get the codec id string.
-*           H.263 = Sorenson H.263
-*           Screen = Screen video
-*           VP6 = On2 VP6
-*           VP6Alpha = On2 VP6 with alpha channel
-*           Screen2 = Screen video version 2
-*           H.264 = AVC
-*           otherwise, "Unknown"
-* @remark user never free the return char*, 
-*   it's static shared const string.
-*/
-extern const char* srs_code_id2string(char codec_id);
-
-/**
 * get the AVCPacketType of video tag.
 * The following values are defined:
 *           0 = AVC sequence header
@@ -346,17 +322,6 @@ extern const char* srs_code_id2string(char codec_id);
 * @return the avc packet type. -1(0xff) for error.
 */
 extern char srs_get_avc_packet_type(char* data, int size);
-
-/**
-* get the avc packet type string.
-*           SpsPps = AVC sequence header
-*           Nalu = AVC NALU
-*           SpsPpsEnd = AVC end of sequence
-*           otherwise, "Unknown"
-* @remark user never free the return char*, 
-*   it's static shared const string.
-*/
-extern const char* srs_avc_packet2string(char avc_packet_type);
 
 /**
 * get the FrameType of video tag.
@@ -369,32 +334,6 @@ extern const char* srs_avc_packet2string(char avc_packet_type);
 * @return the frame type. 0 for error.
 */
 extern char srs_get_frame_type(char* data, int size);
-
-/**
-* get the frame type string.
-*           I = key frame (for AVC, a seekable frame)
-*           P/B = inter frame (for AVC, a non-seekable frame)
-*           DI = disposable inter frame (H.263 only)
-*           GI = generated key frame (reserved for server use only)
-*           VI = video info/command frame
-*           otherwise, "Unknown"
-* @remark user never free the return char*, 
-*   it's static shared const string.
-*/
-extern const char* srs_frame_type2string(char frame_type);
-
-/**
-* print the rtmp packet, use srs_lib_trace/srs_lib_verbose for packet,
-* and use srs_raw_trace for script data body.
-* @return an error code for parse the timetstamp to dts and pts.
-*/
-extern int srs_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int size);
-
-// log to console, for use srs-librtmp application.
-extern const char* srs_format_time();
-#define srs_lib_trace(msg, ...) printf("[%s] ", srs_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
-#define srs_lib_verbose(msg, ...) printf("[%s] ", srs_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
-#define srs_raw_trace(msg, ...) printf(msg, ##__VA_ARGS__)
 
 /*************************************************************
 **************************************************************
@@ -553,6 +492,12 @@ extern void srs_amf0_ecma_array_property_set(srs_amf0_t amf0, const char* name, 
 extern int srs_amf0_strict_array_property_count(srs_amf0_t amf0);
 extern srs_amf0_t srs_amf0_strict_array_property_at(srs_amf0_t amf0, int index);
 extern void srs_amf0_strict_array_append(srs_amf0_t amf0, srs_amf0_t value);
+
+/*************************************************************
+**************************************************************
+* human readable print.
+**************************************************************
+*************************************************************/
 /**
 * human readable print 
 * @param pdata, output the heap data, NULL to ignore.
@@ -560,6 +505,67 @@ extern void srs_amf0_strict_array_append(srs_amf0_t amf0, srs_amf0_t value);
 * @return return the *pdata for print. NULL to ignore.
 */
 extern char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize);
+/**
+* convert the flv tag type to string.
+*     SRS_RTMP_TYPE_AUDIO to "Audio"
+*     SRS_RTMP_TYPE_VIDEO to "Video"
+*     SRS_RTMP_TYPE_SCRIPT to "Data"
+*     otherwise, "Unknown"
+* @remark user never free the return char*, 
+*   it's static shared const string.
+*/
+extern const char* srs_type2string(char type);
+
+/**
+* get the codec id string.
+*           H.263 = Sorenson H.263
+*           Screen = Screen video
+*           VP6 = On2 VP6
+*           VP6Alpha = On2 VP6 with alpha channel
+*           Screen2 = Screen video version 2
+*           H.264 = AVC
+*           otherwise, "Unknown"
+* @remark user never free the return char*, 
+*   it's static shared const string.
+*/
+extern const char* srs_code_id2string(char codec_id);
+
+/**
+* get the avc packet type string.
+*           SpsPps = AVC sequence header
+*           Nalu = AVC NALU
+*           SpsPpsEnd = AVC end of sequence
+*           otherwise, "Unknown"
+* @remark user never free the return char*, 
+*   it's static shared const string.
+*/
+extern const char* srs_avc_packet2string(char avc_packet_type);
+
+/**
+* get the frame type string.
+*           I = key frame (for AVC, a seekable frame)
+*           P/B = inter frame (for AVC, a non-seekable frame)
+*           DI = disposable inter frame (H.263 only)
+*           GI = generated key frame (reserved for server use only)
+*           VI = video info/command frame
+*           otherwise, "Unknown"
+* @remark user never free the return char*, 
+*   it's static shared const string.
+*/
+extern const char* srs_frame_type2string(char frame_type);
+
+/**
+* print the rtmp packet, use srs_lib_trace/srs_lib_verbose for packet,
+* and use srs_raw_trace for script data body.
+* @return an error code for parse the timetstamp to dts and pts.
+*/
+extern int srs_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int size);
+
+// log to console, for use srs-librtmp application.
+extern const char* srs_format_time();
+#define srs_lib_trace(msg, ...) printf("[%s] ", srs_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
+#define srs_lib_verbose(msg, ...) printf("[%s] ", srs_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
+#define srs_raw_trace(msg, ...) printf(msg, ##__VA_ARGS__)
 
 /*************************************************************
 **************************************************************

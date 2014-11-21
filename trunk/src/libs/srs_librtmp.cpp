@@ -701,23 +701,6 @@ int srs_publish_stream(srs_rtmp_t rtmp)
     return ret;
 }
 
-const char* srs_type2string(char type)
-{
-    static const char* audio = "Audio";
-    static const char* video = "Video";
-    static const char* data = "Data";
-    static const char* unknown = "Unknown";
-    
-    switch (type) {
-        case SRS_RTMP_TYPE_AUDIO: return audio;
-        case SRS_RTMP_TYPE_VIDEO: return video;
-        case SRS_RTMP_TYPE_SCRIPT: return data;
-        default: return unknown;
-    }
-    
-    return unknown;
-}
-
 int srs_bandwidth_check(srs_rtmp_t rtmp, 
     int64_t* start_time, int64_t* end_time, 
     int* play_kbps, int* publish_kbps,
@@ -948,29 +931,6 @@ char srs_get_codec_id(char* data, int size)
     return codec_id;
 }
 
-const char* srs_code_id2string(char codec_id)
-{
-    static const char* h263 = "H.263";
-    static const char* screen = "Screen";
-    static const char* vp6 = "VP6";
-    static const char* vp6_alpha = "VP6Alpha";
-    static const char* screen2 = "Screen2";
-    static const char* h264 = "H.264";
-    static const char* unknown = "Unknown";
-    
-    switch (codec_id) {
-        case 2: return h263;
-        case 3: return screen;
-        case 4: return vp6;
-        case 5: return vp6_alpha;
-        case 6: return screen2;
-        case 7: return h264;
-        default: return unknown;
-    }
-    
-    return unknown;
-}
-
 char srs_get_avc_packet_type(char* data, int size)
 {
     if (size < 2) {
@@ -990,23 +950,6 @@ char srs_get_avc_packet_type(char* data, int size)
     return avc_packet_type;
 }
 
-const char* srs_avc_packet2string(char avc_packet_type)
-{
-    static const char* sps_pps = "SpsPps";
-    static const char* nalu = "Nalu";
-    static const char* sps_pps_end = "SpsPpsEnd";
-    static const char* unknown = "Unknown";
-    
-    switch (avc_packet_type) {
-        case 0: return sps_pps;
-        case 1: return nalu;
-        case 2: return sps_pps_end;
-        default: return unknown;
-    }
-    
-    return unknown;
-}
-
 char srs_get_frame_type(char* data, int size)
 {
     if (size < 1) {
@@ -1024,101 +967,6 @@ char srs_get_frame_type(char* data, int size)
     }
     
     return frame_type;
-}
-
-const char* srs_frame_type2string(char frame_type)
-{
-    static const char* keyframe = "I";
-    static const char* interframe = "P/B";
-    static const char* disposable_interframe = "DI";
-    static const char* generated_keyframe = "GI";
-    static const char* video_infoframe = "VI";
-    static const char* unknown = "Unknown";
-    
-    switch (frame_type) {
-        case 1: return keyframe;
-        case 2: return interframe;
-        case 3: return disposable_interframe;
-        case 4: return generated_keyframe;
-        case 5: return video_infoframe;
-        default: return unknown;
-    }
-    
-    return unknown;
-}
-
-int srs_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int size)
-{
-    int ret = ERROR_SUCCESS;
-    
-    u_int32_t pts;
-    if (srs_parse_timestamp(timestamp, type, data, size, &pts) != 0) {
-        return ret;
-    }
-    
-    if (type == SRS_RTMP_TYPE_VIDEO) {
-        srs_lib_trace("Video packet type=%s, dts=%d, pts=%d, size=%d, %s(%s,%s)", 
-            srs_type2string(type), timestamp, pts, size,
-            srs_code_id2string(srs_get_codec_id(data, size)),
-            srs_avc_packet2string(srs_get_avc_packet_type(data, size)),
-            srs_frame_type2string(srs_get_frame_type(data, size))
-        );
-    } else if (type == SRS_RTMP_TYPE_AUDIO) {
-        srs_lib_trace("Audio packet type=%s, dts=%d, pts=%d, size=%d", 
-            srs_type2string(type), timestamp, pts, size);
-    } else if (type == SRS_RTMP_TYPE_SCRIPT) {
-        srs_lib_verbose("Data packet type=%s, time=%d, size=%d", 
-            srs_type2string(type), timestamp, size);
-        int nparsed = 0;
-        while (nparsed < size) {
-            int nb_parsed_this = 0;
-            srs_amf0_t amf0 = srs_amf0_parse(data + nparsed, size - nparsed, &nb_parsed_this);
-            if (amf0 == NULL) {
-                break;
-            }
-            
-            nparsed += nb_parsed_this;
-            
-            char* amf0_str = NULL;
-            srs_raw_trace("%s", srs_amf0_human_print(amf0, &amf0_str, NULL));
-            srs_amf0_free_bytes(amf0_str);
-        }
-    } else {
-        srs_lib_trace("Unknown packet type=%s, dts=%d, pts=%d, size=%d", 
-            srs_type2string(type), timestamp, pts, size);
-    }
-    
-    return ret;
-}
-
-const char* srs_format_time()
-{
-    struct timeval tv;
-    static char buf[23];
-    
-    memset(buf, 0, sizeof(buf));
-    
-    // clock time
-    if (gettimeofday(&tv, NULL) == -1) {
-        return buf;
-    }
-    
-    // to calendar time
-    struct tm* tm;
-    if ((tm = localtime((const time_t*)&tv.tv_sec)) == NULL) {
-        return buf;
-    }
-    
-    snprintf(buf, sizeof(buf), 
-        "%d-%02d-%02d %02d:%02d:%02d.%03d", 
-        1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, 
-        tm->tm_hour, tm->tm_min, tm->tm_sec, 
-        (int)(tv.tv_usec / 1000));
-        
-    // for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
-    buf[sizeof(buf) - 1] = 0;
-    
-    return buf;
 }
 
 struct FlvContext
@@ -1593,6 +1441,158 @@ char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize)
     SrsAmf0Any* any = (SrsAmf0Any*)amf0;
     
     return any->human_print(pdata, psize);
+}
+
+const char* srs_type2string(char type)
+{
+    static const char* audio = "Audio";
+    static const char* video = "Video";
+    static const char* data = "Data";
+    static const char* unknown = "Unknown";
+    
+    switch (type) {
+        case SRS_RTMP_TYPE_AUDIO: return audio;
+        case SRS_RTMP_TYPE_VIDEO: return video;
+        case SRS_RTMP_TYPE_SCRIPT: return data;
+        default: return unknown;
+    }
+    
+    return unknown;
+}
+
+const char* srs_code_id2string(char codec_id)
+{
+    static const char* h263 = "H.263";
+    static const char* screen = "Screen";
+    static const char* vp6 = "VP6";
+    static const char* vp6_alpha = "VP6Alpha";
+    static const char* screen2 = "Screen2";
+    static const char* h264 = "H.264";
+    static const char* unknown = "Unknown";
+    
+    switch (codec_id) {
+        case 2: return h263;
+        case 3: return screen;
+        case 4: return vp6;
+        case 5: return vp6_alpha;
+        case 6: return screen2;
+        case 7: return h264;
+        default: return unknown;
+    }
+    
+    return unknown;
+}
+
+const char* srs_avc_packet2string(char avc_packet_type)
+{
+    static const char* sps_pps = "SpsPps";
+    static const char* nalu = "Nalu";
+    static const char* sps_pps_end = "SpsPpsEnd";
+    static const char* unknown = "Unknown";
+    
+    switch (avc_packet_type) {
+        case 0: return sps_pps;
+        case 1: return nalu;
+        case 2: return sps_pps_end;
+        default: return unknown;
+    }
+    
+    return unknown;
+}
+
+const char* srs_frame_type2string(char frame_type)
+{
+    static const char* keyframe = "I";
+    static const char* interframe = "P/B";
+    static const char* disposable_interframe = "DI";
+    static const char* generated_keyframe = "GI";
+    static const char* video_infoframe = "VI";
+    static const char* unknown = "Unknown";
+    
+    switch (frame_type) {
+        case 1: return keyframe;
+        case 2: return interframe;
+        case 3: return disposable_interframe;
+        case 4: return generated_keyframe;
+        case 5: return video_infoframe;
+        default: return unknown;
+    }
+    
+    return unknown;
+}
+
+int srs_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int size)
+{
+    int ret = ERROR_SUCCESS;
+    
+    u_int32_t pts;
+    if (srs_parse_timestamp(timestamp, type, data, size, &pts) != 0) {
+        return ret;
+    }
+    
+    if (type == SRS_RTMP_TYPE_VIDEO) {
+        srs_lib_trace("Video packet type=%s, dts=%d, pts=%d, size=%d, %s(%s,%s)", 
+            srs_type2string(type), timestamp, pts, size,
+            srs_code_id2string(srs_get_codec_id(data, size)),
+            srs_avc_packet2string(srs_get_avc_packet_type(data, size)),
+            srs_frame_type2string(srs_get_frame_type(data, size))
+        );
+    } else if (type == SRS_RTMP_TYPE_AUDIO) {
+        srs_lib_trace("Audio packet type=%s, dts=%d, pts=%d, size=%d", 
+            srs_type2string(type), timestamp, pts, size);
+    } else if (type == SRS_RTMP_TYPE_SCRIPT) {
+        srs_lib_verbose("Data packet type=%s, time=%d, size=%d", 
+            srs_type2string(type), timestamp, size);
+        int nparsed = 0;
+        while (nparsed < size) {
+            int nb_parsed_this = 0;
+            srs_amf0_t amf0 = srs_amf0_parse(data + nparsed, size - nparsed, &nb_parsed_this);
+            if (amf0 == NULL) {
+                break;
+            }
+            
+            nparsed += nb_parsed_this;
+            
+            char* amf0_str = NULL;
+            srs_raw_trace("%s", srs_amf0_human_print(amf0, &amf0_str, NULL));
+            srs_amf0_free_bytes(amf0_str);
+        }
+    } else {
+        srs_lib_trace("Unknown packet type=%s, dts=%d, pts=%d, size=%d", 
+            srs_type2string(type), timestamp, pts, size);
+    }
+    
+    return ret;
+}
+
+const char* srs_format_time()
+{
+    struct timeval tv;
+    static char buf[23];
+    
+    memset(buf, 0, sizeof(buf));
+    
+    // clock time
+    if (gettimeofday(&tv, NULL) == -1) {
+        return buf;
+    }
+    
+    // to calendar time
+    struct tm* tm;
+    if ((tm = localtime((const time_t*)&tv.tv_sec)) == NULL) {
+        return buf;
+    }
+    
+    snprintf(buf, sizeof(buf), 
+        "%d-%02d-%02d %02d:%02d:%02d.%03d", 
+        1900 + tm->tm_year, 1 + tm->tm_mon, tm->tm_mday, 
+        tm->tm_hour, tm->tm_min, tm->tm_sec, 
+        (int)(tv.tv_usec / 1000));
+        
+    // for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
+    buf[sizeof(buf) - 1] = 0;
+    
+    return buf;
 }
 
 /**
