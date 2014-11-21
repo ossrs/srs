@@ -48,7 +48,7 @@ int main(int argc, char** argv)
     int ret = 0;
     
     // main function
-    tools_main_entrance_startup_time = srs_utils_get_time_ms();
+    tools_main_entrance_startup_time = srs_utils_time_ms();
     
     // user option parse index.
     int opt = 0;
@@ -215,7 +215,7 @@ int connect_oc(srs_rtmp_t ortmp)
 int64_t re_create()
 {
     // if not very precise, we can directly use this as re.
-    int64_t re = srs_utils_get_time_ms();
+    int64_t re = srs_utils_time_ms();
     
     // use the starttime to get the deviation
     int64_t deviation = re - tools_main_entrance_startup_time;
@@ -236,7 +236,7 @@ int64_t re_create()
 void re_update(int64_t re, int32_t starttime, u_int32_t time)
 {
     // send by pulse algorithm.
-    int64_t now = srs_utils_get_time_ms();
+    int64_t now = srs_utils_time_ms();
     int64_t diff = time - starttime - (now -re);
     if (diff > RE_PULSE_MS) {
         usleep(diff * 1000);
@@ -246,7 +246,7 @@ void re_cleanup(int64_t re, int32_t starttime, u_int32_t time)
 {
     // for the last pulse, always sleep.
     // for the virtual live encoder long time publishing.
-    int64_t now = srs_utils_get_time_ms();
+    int64_t now = srs_utils_time_ms();
     int64_t diff = time - starttime - (now -re);
     if (diff > 0) {
         srs_human_trace("re_cleanup, diff=%d, start=%d, last=%d ms", 

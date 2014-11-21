@@ -35,7 +35,7 @@ int main(int argc, char** argv)
     srs_rtmp_t rtmp;
     
     // time
-    int64_t time_startup = srs_utils_get_time_ms();
+    int64_t time_startup = srs_utils_time_ms();
     int64_t time_dns_resolve = 0;
     int64_t time_socket_connect = 0;
     int64_t time_play_stream = 0;
@@ -95,14 +95,14 @@ int main(int argc, char** argv)
         goto rtmp_destroy;
     }
     srs_human_trace("dns resolve success");
-    time_dns_resolve = srs_utils_get_time_ms();
+    time_dns_resolve = srs_utils_time_ms();
     
     if ((ret = __srs_rtmp_connect_server(rtmp)) != 0) {
         srs_human_trace("socket connect failed. ret=%d", ret);
         goto rtmp_destroy;
     }
     srs_human_trace("socket connect success");
-    time_socket_connect = srs_utils_get_time_ms();
+    time_socket_connect = srs_utils_time_ms();
     
     if ((ret = __srs_rtmp_do_simple_handshake(rtmp)) != 0) {
         srs_human_trace("do simple handshake failed. ret=%d", ret);
@@ -121,7 +121,7 @@ int main(int argc, char** argv)
         goto rtmp_destroy;
     }
     srs_human_trace("play stream success");
-    time_play_stream = srs_utils_get_time_ms();
+    time_play_stream = srs_utils_time_ms();
     
     for (;;) {
         if ((ret = srs_rtmp_read_packet(rtmp, &type, &timestamp, &data, &size)) != 0) {
@@ -133,7 +133,7 @@ int main(int argc, char** argv)
         
         if (SRS_RTMP_TYPE_VIDEO == type || SRS_RTMP_TYPE_AUDIO == type) {
             if (time_first_packet <= 0) {
-                time_first_packet = srs_utils_get_time_ms();
+                time_first_packet = srs_utils_time_ms();
             }
             if (basetime <= 0) {
                 basetime = timestamp;
@@ -142,7 +142,7 @@ int main(int argc, char** argv)
         
         free(data);
         
-        if (srs_utils_get_time_ms() - time_startup > timeout * 1000) {
+        if (srs_utils_time_ms() - time_startup > timeout * 1000) {
             srs_human_trace("timeout, terminate.");
             goto rtmp_destroy;
         }
@@ -154,11 +154,11 @@ int main(int argc, char** argv)
     }
     
 rtmp_destroy:
-    bytes_nsend = srs_utils_get_send_bytes(rtmp);
-    bytes_nrecv = srs_utils_get_recv_bytes(rtmp);
+    bytes_nsend = srs_utils_send_bytes(rtmp);
+    bytes_nrecv = srs_utils_recv_bytes(rtmp);
     
     srs_rtmp_destroy(rtmp);
-    time_cleanup = srs_utils_get_time_ms();
+    time_cleanup = srs_utils_time_ms();
     time_duration = (int)(time_cleanup - time_startup);
     
     // print result to stderr.
