@@ -90,33 +90,33 @@ int main(int argc, char** argv)
     
     rtmp = srs_rtmp_create(rtmp_url);
     
-    if ((ret = __srs_dns_resolve(rtmp)) != 0) {
+    if ((ret = __srs_rtmp_dns_resolve(rtmp)) != 0) {
         srs_human_trace("dns resolve failed. ret=%d", ret);
         goto rtmp_destroy;
     }
     srs_human_trace("dns resolve success");
     time_dns_resolve = srs_utils_get_time_ms();
     
-    if ((ret = __srs_connect_server(rtmp)) != 0) {
+    if ((ret = __srs_rtmp_connect_server(rtmp)) != 0) {
         srs_human_trace("socket connect failed. ret=%d", ret);
         goto rtmp_destroy;
     }
     srs_human_trace("socket connect success");
     time_socket_connect = srs_utils_get_time_ms();
     
-    if ((ret = __srs_do_simple_handshake(rtmp)) != 0) {
+    if ((ret = __srs_rtmp_do_simple_handshake(rtmp)) != 0) {
         srs_human_trace("do simple handshake failed. ret=%d", ret);
         goto rtmp_destroy;
     }
     srs_human_trace("do simple handshake success");
     
-    if ((ret = srs_connect_app(rtmp)) != 0) {
+    if ((ret = srs_rtmp_connect_app(rtmp)) != 0) {
         srs_human_trace("connect vhost/app failed. ret=%d", ret);
         goto rtmp_destroy;
     }
     srs_human_trace("connect vhost/app success");
     
-    if ((ret = srs_play_stream(rtmp)) != 0) {
+    if ((ret = srs_rtmp_play_stream(rtmp)) != 0) {
         srs_human_trace("play stream failed. ret=%d", ret);
         goto rtmp_destroy;
     }
@@ -124,7 +124,7 @@ int main(int argc, char** argv)
     time_play_stream = srs_utils_get_time_ms();
     
     for (;;) {
-        if ((ret = srs_read_packet(rtmp, &type, &timestamp, &data, &size)) != 0) {
+        if ((ret = srs_rtmp_read_packet(rtmp, &type, &timestamp, &data, &size)) != 0) {
             srs_human_trace("read packet failed. ret=%d", ret);
             goto rtmp_destroy;
         }

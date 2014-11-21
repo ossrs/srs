@@ -86,6 +86,15 @@ extern "C"{
 
 /*************************************************************
 **************************************************************
+* srs-librtmp version
+**************************************************************
+*************************************************************/
+extern int srs_version_major();
+extern int srs_version_minor();
+extern int srs_version_revision();
+
+/*************************************************************
+**************************************************************
 * RTMP protocol context
 **************************************************************
 *************************************************************/
@@ -134,19 +143,19 @@ extern void srs_rtmp_destroy(srs_rtmp_t rtmp);
 * not depends on ssl.
 */
 /**
-* srs_simple_handshake equals to invoke:
-*       __srs_dns_resolve()
-*       __srs_connect_server()
-*       __srs_do_simple_handshake()
+* srs_rtmp_handshake equals to invoke:
+*       __srs_rtmp_dns_resolve()
+*       __srs_rtmp_connect_server()
+*       __srs_rtmp_do_simple_handshake()
 * user can use these functions if needed.
 */
-extern int srs_simple_handshake(srs_rtmp_t rtmp);
+extern int srs_rtmp_handshake(srs_rtmp_t rtmp);
 // parse uri, create socket, resolve host
-extern int __srs_dns_resolve(srs_rtmp_t rtmp);
+extern int __srs_rtmp_dns_resolve(srs_rtmp_t rtmp);
 // connect socket to server
-extern int __srs_connect_server(srs_rtmp_t rtmp);
+extern int __srs_rtmp_connect_server(srs_rtmp_t rtmp);
 // do simple handshake over socket.
-extern int __srs_do_simple_handshake(srs_rtmp_t rtmp);
+extern int __srs_rtmp_do_simple_handshake(srs_rtmp_t rtmp);
 
 /**
 * connect to rtmp vhost/app
@@ -156,7 +165,7 @@ extern int __srs_do_simple_handshake(srs_rtmp_t rtmp);
 *
 * @return 0, success; otherswise, failed.
 */
-extern int srs_connect_app(srs_rtmp_t rtmp);
+extern int srs_rtmp_connect_app(srs_rtmp_t rtmp);
 
 /**
 * connect to server, get the debug srs info.
@@ -171,7 +180,7 @@ extern int srs_connect_app(srs_rtmp_t rtmp);
 *
 * @return 0, success; otherswise, failed.
 */
-extern int srs_connect_app2(srs_rtmp_t rtmp,
+extern int srs_rtmp_connect_app2(srs_rtmp_t rtmp,
     char srs_server_ip[128], char srs_server[128], char srs_primary_authors[128], 
     char srs_version[32], int* srs_id, int* srs_pid
 );
@@ -183,7 +192,7 @@ extern int srs_connect_app2(srs_rtmp_t rtmp,
 * next: destroy
 * @return 0, success; otherwise, failed.
 */
-extern int srs_play_stream(srs_rtmp_t rtmp);
+extern int srs_rtmp_play_stream(srs_rtmp_t rtmp);
 
 /**
 * publish a live stream.
@@ -192,7 +201,7 @@ extern int srs_play_stream(srs_rtmp_t rtmp);
 * next: destroy
 * @return 0, success; otherwise, failed.
 */
-extern int srs_publish_stream(srs_rtmp_t rtmp);
+extern int srs_rtmp_publish_stream(srs_rtmp_t rtmp);
 
 /**
 * do bandwidth check with srs server.
@@ -209,7 +218,7 @@ extern int srs_publish_stream(srs_rtmp_t rtmp);
 *
 * @return 0, success; otherswise, failed.
 */
-extern int srs_bandwidth_check(srs_rtmp_t rtmp, 
+extern int srs_rtmp_bandwidth_check(srs_rtmp_t rtmp, 
     int64_t* start_time, int64_t* end_time, 
     int* play_kbps, int* publish_kbps,
     int* play_bytes, int* publish_bytes,
@@ -246,22 +255,12 @@ extern int srs_bandwidth_check(srs_rtmp_t rtmp,
 *
 * @return 0, success; otherswise, failed.
 */
-extern int srs_read_packet(srs_rtmp_t rtmp, 
+extern int srs_rtmp_read_packet(srs_rtmp_t rtmp, 
     char* type, u_int32_t* timestamp, char** data, int* size
 );
-extern int srs_write_packet(srs_rtmp_t rtmp, 
+extern int srs_rtmp_write_packet(srs_rtmp_t rtmp, 
     char type, u_int32_t timestamp, char* data, int size
 );
-
-/*************************************************************
-**************************************************************
-* version apis
-**************************************************************
-*************************************************************/
-// get protocol stack version
-extern int srs_version_major();
-extern int srs_version_minor();
-extern int srs_version_revision();
 
 /*************************************************************
 **************************************************************
@@ -607,7 +606,7 @@ extern int64_t srs_utils_get_recv_bytes(srs_rtmp_t rtmp);
 
 /**
 * parse the dts and pts by time in header and data in tag,
-* or to parse the RTMP packet by srs_read_packet().
+* or to parse the RTMP packet by srs_rtmp_read_packet().
 *
 * @param time, the timestamp of tag, read by srs_flv_read_tag_header().
 * @param type, the type of tag, read by srs_flv_read_tag_header().

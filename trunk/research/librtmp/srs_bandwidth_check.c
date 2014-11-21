@@ -21,7 +21,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 /**
-gcc srs_bandwidth_check.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_bandwidth_check
+gcc srs_rtmp_bandwidth_check.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_rtmp_bandwidth_check
 */
 
 #include <stdio.h>
@@ -83,20 +83,20 @@ int main(int argc, char** argv)
     
     srs_human_trace("bandwidth check/test url: %s", argv[1]);
     
-    if ((ret = srs_simple_handshake(rtmp)) != 0) {
+    if ((ret = srs_rtmp_handshake(rtmp)) != 0) {
         srs_human_trace("simple handshake failed.");
         goto rtmp_destroy;
     }
     srs_human_trace("simple handshake success");
     
-    if ((ret = srs_connect_app2(rtmp, 
+    if ((ret = srs_rtmp_connect_app2(rtmp, 
         srs_server_ip, srs_server, srs_primary_authors, srs_version, &srs_id, &srs_pid)) != 0) {
         srs_human_trace("connect vhost/app failed.");
         goto rtmp_destroy;
     }
     srs_human_trace("connect vhost/app success");
     
-    if ((ret = srs_bandwidth_check(rtmp, 
+    if ((ret = srs_rtmp_bandwidth_check(rtmp, 
         &start_time, &end_time, &play_kbps, &publish_kbps,
         &play_bytes, &publish_bytes, &play_duration, &publish_duration)) != 0
     ) {

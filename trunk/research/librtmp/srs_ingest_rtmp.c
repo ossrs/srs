@@ -108,7 +108,7 @@ int proxy(srs_rtmp_t irtmp, srs_rtmp_t ortmp)
     
     srs_human_trace("start proxy RTMP stream");
     for (;;) {
-        if ((ret = srs_read_packet(irtmp, &type, &timestamp, &data, &size)) != 0) {
+        if ((ret = srs_rtmp_read_packet(irtmp, &type, &timestamp, &data, &size)) != 0) {
             srs_human_trace("irtmp get packet failed. ret=%d", ret);
             return ret;
         }
@@ -118,7 +118,7 @@ int proxy(srs_rtmp_t irtmp, srs_rtmp_t ortmp)
             return ret;
         }
         
-        if ((ret = srs_write_packet(ortmp, type, timestamp, data, size)) != 0) {
+        if ((ret = srs_rtmp_write_packet(ortmp, type, timestamp, data, size)) != 0) {
             srs_human_trace("irtmp get packet failed. ret=%d", ret);
             return ret;
         }
@@ -133,19 +133,19 @@ int connect_ic(srs_rtmp_t irtmp)
 {
     int ret = 0;
     
-    if ((ret = srs_simple_handshake(irtmp)) != 0) {
+    if ((ret = srs_rtmp_handshake(irtmp)) != 0) {
         srs_human_trace("irtmp simple handshake failed. ret=%d", ret);
         return ret;
     }
     srs_human_trace("irtmp simple handshake success");
     
-    if ((ret = srs_connect_app(irtmp)) != 0) {
+    if ((ret = srs_rtmp_connect_app(irtmp)) != 0) {
         srs_human_trace("irtmp connect vhost/app failed. ret=%d", ret);
         return ret;
     }
     srs_human_trace("irtmp connect vhost/app success");
     
-    if ((ret = srs_play_stream(irtmp)) != 0) {
+    if ((ret = srs_rtmp_play_stream(irtmp)) != 0) {
         srs_human_trace("irtmp play stream failed. ret=%d", ret);
         return ret;
     }
@@ -158,19 +158,19 @@ int connect_oc(srs_rtmp_t ortmp)
 {
     int ret = 0;
     
-    if ((ret = srs_simple_handshake(ortmp)) != 0) {
+    if ((ret = srs_rtmp_handshake(ortmp)) != 0) {
         srs_human_trace("ortmp simple handshake failed. ret=%d", ret);
         return ret;
     }
     srs_human_trace("ortmp simple handshake success");
     
-    if ((ret = srs_connect_app(ortmp)) != 0) {
+    if ((ret = srs_rtmp_connect_app(ortmp)) != 0) {
         srs_human_trace("ortmp connect vhost/app failed. ret=%d", ret);
         return ret;
     }
     srs_human_trace("ortmp connect vhost/app success");
     
-    if ((ret = srs_publish_stream(ortmp)) != 0) {
+    if ((ret = srs_rtmp_publish_stream(ortmp)) != 0) {
         srs_human_trace("ortmp publish stream failed. ret=%d", ret);
         return ret;
     }

@@ -514,6 +514,21 @@ int srs_librtmp_context_connect(Context* context)
 extern "C"{
 #endif
 
+int srs_version_major()
+{
+    return VERSION_MAJOR;
+}
+
+int srs_version_minor()
+{
+    return VERSION_MINOR;
+}
+
+int srs_version_revision()
+{
+    return VERSION_REVISION;
+}
+
 srs_rtmp_t srs_rtmp_create(const char* url)
 {
     Context* context = new Context();
@@ -541,26 +556,26 @@ void srs_rtmp_destroy(srs_rtmp_t rtmp)
     srs_freep(context);
 }
 
-int srs_simple_handshake(srs_rtmp_t rtmp)
+int srs_rtmp_handshake(srs_rtmp_t rtmp)
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = __srs_dns_resolve(rtmp)) != ERROR_SUCCESS) {
+    if ((ret = __srs_rtmp_dns_resolve(rtmp)) != ERROR_SUCCESS) {
         return ret;
     }
     
-    if ((ret = __srs_connect_server(rtmp)) != ERROR_SUCCESS) {
+    if ((ret = __srs_rtmp_connect_server(rtmp)) != ERROR_SUCCESS) {
         return ret;
     }
     
-    if ((ret = __srs_do_simple_handshake(rtmp)) != ERROR_SUCCESS) {
+    if ((ret = __srs_rtmp_do_simple_handshake(rtmp)) != ERROR_SUCCESS) {
         return ret;
     }
     
     return ret;
 }
 
-int __srs_dns_resolve(srs_rtmp_t rtmp)
+int __srs_rtmp_dns_resolve(srs_rtmp_t rtmp)
 {
     int ret = ERROR_SUCCESS;
     
@@ -579,7 +594,7 @@ int __srs_dns_resolve(srs_rtmp_t rtmp)
     return ret;
 }
 
-int __srs_connect_server(srs_rtmp_t rtmp)
+int __srs_rtmp_connect_server(srs_rtmp_t rtmp)
 {
     int ret = ERROR_SUCCESS;
     
@@ -593,7 +608,7 @@ int __srs_connect_server(srs_rtmp_t rtmp)
     return ret;
 }
 
-int __srs_do_simple_handshake(srs_rtmp_t rtmp)
+int __srs_rtmp_do_simple_handshake(srs_rtmp_t rtmp)
 {
     int ret = ERROR_SUCCESS;
     
@@ -613,7 +628,7 @@ int __srs_do_simple_handshake(srs_rtmp_t rtmp)
     return ret;
 }
 
-int srs_connect_app(srs_rtmp_t rtmp)
+int srs_rtmp_connect_app(srs_rtmp_t rtmp)
 {
     int ret = ERROR_SUCCESS;
     
@@ -634,7 +649,7 @@ int srs_connect_app(srs_rtmp_t rtmp)
     return ret;
 }
 
-int srs_connect_app2(srs_rtmp_t rtmp,
+int srs_rtmp_connect_app2(srs_rtmp_t rtmp,
     char srs_server_ip[128],char srs_server[128], char srs_primary_authors[128], 
     char srs_version[32], int* srs_id, int* srs_pid
 ) {
@@ -670,7 +685,7 @@ int srs_connect_app2(srs_rtmp_t rtmp,
     return ret;
 }
 
-int srs_play_stream(srs_rtmp_t rtmp)
+int srs_rtmp_play_stream(srs_rtmp_t rtmp)
 {
     int ret = ERROR_SUCCESS;
     
@@ -687,7 +702,7 @@ int srs_play_stream(srs_rtmp_t rtmp)
     return ret;
 }
 
-int srs_publish_stream(srs_rtmp_t rtmp)
+int srs_rtmp_publish_stream(srs_rtmp_t rtmp)
 {
     int ret = ERROR_SUCCESS;
     
@@ -701,7 +716,7 @@ int srs_publish_stream(srs_rtmp_t rtmp)
     return ret;
 }
 
-int srs_bandwidth_check(srs_rtmp_t rtmp, 
+int srs_rtmp_bandwidth_check(srs_rtmp_t rtmp, 
     int64_t* start_time, int64_t* end_time, 
     int* play_kbps, int* publish_kbps,
     int* play_bytes, int* publish_bytes,
@@ -737,7 +752,7 @@ int srs_bandwidth_check(srs_rtmp_t rtmp,
     return ret;
 }
 
-int srs_read_packet(srs_rtmp_t rtmp, char* type, u_int32_t* timestamp, char** data, int* size)
+int srs_rtmp_read_packet(srs_rtmp_t rtmp, char* type, u_int32_t* timestamp, char** data, int* size)
 {
     *type = 0;
     *timestamp = 0;
@@ -792,7 +807,7 @@ int srs_read_packet(srs_rtmp_t rtmp, char* type, u_int32_t* timestamp, char** da
     return ret;
 }
 
-int srs_write_packet(srs_rtmp_t rtmp, char type, u_int32_t timestamp, char* data, int size)
+int srs_rtmp_write_packet(srs_rtmp_t rtmp, char type, u_int32_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -841,21 +856,6 @@ int srs_write_packet(srs_rtmp_t rtmp, char type, u_int32_t timestamp, char* data
     }
     
     return ret;
-}
-
-int srs_version_major()
-{
-    return VERSION_MAJOR;
-}
-
-int srs_version_minor()
-{
-    return VERSION_MINOR;
-}
-
-int srs_version_revision()
-{
-    return VERSION_REVISION;
 }
 
 struct FlvContext
@@ -1356,7 +1356,7 @@ int srs_audio_write_raw_frame(srs_rtmp_t rtmp,
     
     memcpy(p, frame, frame_size);
     
-    return srs_write_packet(context, SRS_RTMP_TYPE_AUDIO, timestamp, data, size);
+    return srs_rtmp_write_packet(context, SRS_RTMP_TYPE_AUDIO, timestamp, data, size);
 }
 
 /**
@@ -1403,7 +1403,7 @@ int __srs_write_h264_packet(Context* context,
     // h.264 raw data.
     memcpy(p, h264_raw_data, h264_raw_size);
     
-    return srs_write_packet(context, SRS_RTMP_TYPE_VIDEO, timestamp, data, size);
+    return srs_rtmp_write_packet(context, SRS_RTMP_TYPE_VIDEO, timestamp, data, size);
 }
 
 /**

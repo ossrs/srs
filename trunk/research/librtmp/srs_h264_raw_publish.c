@@ -128,19 +128,19 @@ int main(int argc, char** argv)
     // connect rtmp context
     srs_rtmp_t rtmp = srs_rtmp_create(rtmp_url);
     
-    if (srs_simple_handshake(rtmp) != 0) {
+    if (srs_rtmp_handshake(rtmp) != 0) {
         srs_human_trace("simple handshake failed.");
         goto rtmp_destroy;
     }
     srs_human_trace("simple handshake success");
     
-    if (srs_connect_app(rtmp) != 0) {
+    if (srs_rtmp_connect_app(rtmp) != 0) {
         srs_human_trace("connect vhost/app failed.");
         goto rtmp_destroy;
     }
     srs_human_trace("connect vhost/app success");
     
-    if (srs_publish_stream(rtmp) != 0) {
+    if (srs_rtmp_publish_stream(rtmp) != 0) {
         srs_human_trace("publish stream failed.");
         goto rtmp_destroy;
     }

@@ -47,19 +47,19 @@ int main(int argc, char** argv)
     srs_human_trace("rtmp url: %s", argv[1]);
     srs_rtmp_t rtmp = srs_rtmp_create(argv[1]);
     
-    if (srs_simple_handshake(rtmp) != 0) {
+    if (srs_rtmp_handshake(rtmp) != 0) {
         srs_human_trace("simple handshake failed.");
         goto rtmp_destroy;
     }
     srs_human_trace("simple handshake success");
     
-    if (srs_connect_app(rtmp) != 0) {
+    if (srs_rtmp_connect_app(rtmp) != 0) {
         srs_human_trace("connect vhost/app failed.");
         goto rtmp_destroy;
     }
     srs_human_trace("connect vhost/app success");
     
-    if (srs_play_stream(rtmp) != 0) {
+    if (srs_rtmp_play_stream(rtmp) != 0) {
         srs_human_trace("play stream failed.");
         goto rtmp_destroy;
     }
@@ -71,7 +71,7 @@ int main(int argc, char** argv)
         char* data;
         u_int32_t timestamp;
         
-        if (srs_read_packet(rtmp, &type, &timestamp, &data, &size) != 0) {
+        if (srs_rtmp_read_packet(rtmp, &type, &timestamp, &data, &size) != 0) {
             goto rtmp_destroy;
         }
         

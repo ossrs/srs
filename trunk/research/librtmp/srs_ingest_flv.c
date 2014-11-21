@@ -148,7 +148,7 @@ int do_proxy(srs_flv_t flv, srs_rtmp_t ortmp, int64_t re, int32_t* pstarttime, u
             return ret;
         }
         
-        if ((ret = srs_write_packet(ortmp, type, *ptimestamp, data, size)) != 0) {
+        if ((ret = srs_rtmp_write_packet(ortmp, type, *ptimestamp, data, size)) != 0) {
             srs_human_trace("irtmp get packet failed. ret=%d", ret);
             return ret;
         }
@@ -191,19 +191,19 @@ int connect_oc(srs_rtmp_t ortmp)
 {
     int ret = 0;
     
-    if ((ret = srs_simple_handshake(ortmp)) != 0) {
+    if ((ret = srs_rtmp_handshake(ortmp)) != 0) {
         srs_human_trace("ortmp simple handshake failed. ret=%d", ret);
         return ret;
     }
     srs_human_trace("ortmp simple handshake success");
     
-    if ((ret = srs_connect_app(ortmp)) != 0) {
+    if ((ret = srs_rtmp_connect_app(ortmp)) != 0) {
         srs_human_trace("ortmp connect vhost/app failed. ret=%d", ret);
         return ret;
     }
     srs_human_trace("ortmp connect vhost/app success");
     
-    if ((ret = srs_publish_stream(ortmp)) != 0) {
+    if ((ret = srs_rtmp_publish_stream(ortmp)) != 0) {
         srs_human_trace("ortmp publish stream failed. ret=%d", ret);
         return ret;
     }
