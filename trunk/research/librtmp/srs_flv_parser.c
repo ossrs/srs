@@ -61,11 +61,11 @@ int main(int argc, char** argv)
     }
     
     in_flv_file = argv[1];
-    srs_lib_trace("input:  %s", in_flv_file);
+    srs_human_trace("input:  %s", in_flv_file);
 
     if ((flv = srs_flv_open_read(in_flv_file)) == NULL) {
         ret = 2;
-        srs_lib_trace("open flv file failed. ret=%d", ret);
+        srs_human_trace("open flv file failed. ret=%d", ret);
         return ret;
     }
     
@@ -141,44 +141,44 @@ int parse_flv(srs_flv_t flv)
         return ret;
     }
     
-    srs_lib_trace("start parse flv");
+    srs_human_trace("start parse flv");
     for (;;) {
         offset = srs_flv_tellg(flv);
         
         // tag header
         if ((ret = srs_flv_read_tag_header(flv, &type, &size, &timestamp)) != 0) {
             if (srs_flv_is_eof(ret)) {
-                srs_lib_trace("parse completed.");
+                srs_human_trace("parse completed.");
                 return 0;
             }
-            srs_lib_trace("flv get packet failed. ret=%d", ret);
+            srs_human_trace("flv get packet failed. ret=%d", ret);
             return ret;
         }
         
         if (size <= 0) {
-            srs_lib_trace("invalid size=%d", size);
+            srs_human_trace("invalid size=%d", size);
             break;
         }
         
         data = (char*)malloc(size);
         
         if ((ret = srs_flv_read_tag_data(flv, data, size)) == 0) {
-            if ((ret = srs_print_rtmp_packet(type, timestamp, data, size)) == 0) {
+            if ((ret = srs_human_print_rtmp_packet(type, timestamp, data, size)) == 0) {
                 char hbuf[48]; char tbuf[48];
                 parse_bytes(data, size, hbuf, sizeof(hbuf), tbuf, sizeof(tbuf), 16);
-                srs_raw_trace("offset=%d, first and last 16 bytes:\n"
+                srs_human_raw("offset=%d, first and last 16 bytes:\n"
                     "[+00, +15] %s\n[-15, EOF] %s\n", (int)offset, hbuf, tbuf);
             } else {
-                srs_lib_trace("print packet failed. ret=%d", ret);
+                srs_human_trace("print packet failed. ret=%d", ret);
             }
         } else {
-            srs_lib_trace("read flv failed. ret=%d", ret);
+            srs_human_trace("read flv failed. ret=%d", ret);
         }
         
         free(data);
         
         if (ret != 0) {
-            srs_lib_trace("parse failed, ret=%d", ret);
+            srs_human_trace("parse failed, ret=%d", ret);
             return ret;
         }
     }
