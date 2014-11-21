@@ -265,83 +265,6 @@ extern int srs_version_revision();
 
 /*************************************************************
 **************************************************************
-* utilities
-**************************************************************
-*************************************************************/
-/**
-* get the current system time in ms.
-* use gettimeofday() to get system time.
-*/
-extern int64_t srs_utils_get_time_ms();
-
-/**
-* get the send bytes.
-*/
-extern int64_t srs_utils_get_send_bytes(srs_rtmp_t rtmp);
-
-/**
-* get the recv bytes.
-*/
-extern int64_t srs_utils_get_recv_bytes(srs_rtmp_t rtmp);
-
-/**
-* parse the dts and pts by time in header and data in tag,
-* or to parse the RTMP packet by srs_read_packet().
-*
-* @param time, the timestamp of tag, read by srs_flv_read_tag_header().
-* @param type, the type of tag, read by srs_flv_read_tag_header().
-* @param data, the data of tag, read by srs_flv_read_tag_data().
-* @param size, the size of tag, read by srs_flv_read_tag_header().
-* @param ppts, output the pts in ms,
-*
-* @return 0, success; otherswise, failed.
-* @remark, the dts always equals to @param time.
-* @remark, the pts=dts for audio or data.
-* @remark, video only support h.264.
-*/
-extern int srs_utils_parse_timestamp(
-    u_int32_t time, char type, char* data, int size,
-    u_int32_t* ppts
-);
-
-/**
-* get the CodecID of video tag.
-* Codec Identifier. The following values are defined:
-*           2 = Sorenson H.263
-*           3 = Screen video
-*           4 = On2 VP6
-*           5 = On2 VP6 with alpha channel
-*           6 = Screen video version 2
-*           7 = AVC
-* @return the code id. 0 for error.
-*/
-extern char srs_utils_get_flv_video_codec_id(char* data, int size);
-
-/**
-* get the AVCPacketType of video tag.
-* The following values are defined:
-*           0 = AVC sequence header
-*           1 = AVC NALU
-*           2 = AVC end of sequence (lower level NALU sequence ender is
-*               not required or supported)
-* @return the avc packet type. -1(0xff) for error.
-*/
-extern char srs_utils_get_flv_video_avc_packet_type(char* data, int size);
-
-/**
-* get the FrameType of video tag.
-* Type of video frame. The following values are defined:
-*           1 = key frame (for AVC, a seekable frame)
-*           2 = inter frame (for AVC, a non-seekable frame)
-*           3 = disposable inter frame (H.263 only)
-*           4 = generated key frame (reserved for server use only)
-*           5 = video info/command frame
-* @return the frame type. 0 for error.
-*/
-extern char srs_utils_get_flv_video_frame_type(char* data, int size);
-
-/*************************************************************
-**************************************************************
 * flv codec
 * @example /trunk/research/librtmp/srs_flv_injecter.c
 * @example /trunk/research/librtmp/srs_flv_parser.c
@@ -497,80 +420,6 @@ extern void srs_amf0_ecma_array_property_set(srs_amf0_t amf0, const char* name, 
 extern int srs_amf0_strict_array_property_count(srs_amf0_t amf0);
 extern srs_amf0_t srs_amf0_strict_array_property_at(srs_amf0_t amf0, int index);
 extern void srs_amf0_strict_array_append(srs_amf0_t amf0, srs_amf0_t value);
-
-/*************************************************************
-**************************************************************
-* human readable print.
-**************************************************************
-*************************************************************/
-/**
-* human readable print 
-* @param pdata, output the heap data, NULL to ignore.
-*       user must use srs_amf0_free_bytes to free it.
-* @return return the *pdata for print. NULL to ignore.
-*/
-extern char* srs_human_amf0_print(srs_amf0_t amf0, char** pdata, int* psize);
-/**
-* convert the flv tag type to string.
-*     SRS_RTMP_TYPE_AUDIO to "Audio"
-*     SRS_RTMP_TYPE_VIDEO to "Video"
-*     SRS_RTMP_TYPE_SCRIPT to "Data"
-*     otherwise, "Unknown"
-* @remark user never free the return char*, 
-*   it's static shared const string.
-*/
-extern const char* srs_human_flv_tag_type2string(char type);
-
-/**
-* get the codec id string.
-*           H.263 = Sorenson H.263
-*           Screen = Screen video
-*           VP6 = On2 VP6
-*           VP6Alpha = On2 VP6 with alpha channel
-*           Screen2 = Screen video version 2
-*           H.264 = AVC
-*           otherwise, "Unknown"
-* @remark user never free the return char*, 
-*   it's static shared const string.
-*/
-extern const char* srs_human_flv_video_codec_id2string(char codec_id);
-
-/**
-* get the avc packet type string.
-*           SpsPps = AVC sequence header
-*           Nalu = AVC NALU
-*           SpsPpsEnd = AVC end of sequence
-*           otherwise, "Unknown"
-* @remark user never free the return char*, 
-*   it's static shared const string.
-*/
-extern const char* srs_human_flv_video_avc_packet_type2string(char avc_packet_type);
-
-/**
-* get the frame type string.
-*           I = key frame (for AVC, a seekable frame)
-*           P/B = inter frame (for AVC, a non-seekable frame)
-*           DI = disposable inter frame (H.263 only)
-*           GI = generated key frame (reserved for server use only)
-*           VI = video info/command frame
-*           otherwise, "Unknown"
-* @remark user never free the return char*, 
-*   it's static shared const string.
-*/
-extern const char* srs_human_flv_video_frame_type2string(char frame_type);
-
-/**
-* print the rtmp packet, use srs_human_trace/srs_human_verbose for packet,
-* and use srs_human_raw for script data body.
-* @return an error code for parse the timetstamp to dts and pts.
-*/
-extern int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int size);
-
-// log to console, for use srs-librtmp application.
-extern const char* srs_human_format_time();
-#define srs_human_trace(msg, ...) printf("[%s] ", srs_human_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
-#define srs_human_verbose(msg, ...) printf("[%s] ", srs_human_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
-#define srs_human_raw(msg, ...) printf(msg, ##__VA_ARGS__)
 
 /*************************************************************
 **************************************************************
@@ -734,6 +583,157 @@ extern int srs_h264_startswith_annexb(
     char* h264_raw_data, int h264_raw_size, 
     int* pnb_start_code
 );
+
+/*************************************************************
+**************************************************************
+* utilities
+**************************************************************
+*************************************************************/
+/**
+* get the current system time in ms.
+* use gettimeofday() to get system time.
+*/
+extern int64_t srs_utils_get_time_ms();
+
+/**
+* get the send bytes.
+*/
+extern int64_t srs_utils_get_send_bytes(srs_rtmp_t rtmp);
+
+/**
+* get the recv bytes.
+*/
+extern int64_t srs_utils_get_recv_bytes(srs_rtmp_t rtmp);
+
+/**
+* parse the dts and pts by time in header and data in tag,
+* or to parse the RTMP packet by srs_read_packet().
+*
+* @param time, the timestamp of tag, read by srs_flv_read_tag_header().
+* @param type, the type of tag, read by srs_flv_read_tag_header().
+* @param data, the data of tag, read by srs_flv_read_tag_data().
+* @param size, the size of tag, read by srs_flv_read_tag_header().
+* @param ppts, output the pts in ms,
+*
+* @return 0, success; otherswise, failed.
+* @remark, the dts always equals to @param time.
+* @remark, the pts=dts for audio or data.
+* @remark, video only support h.264.
+*/
+extern int srs_utils_parse_timestamp(
+    u_int32_t time, char type, char* data, int size,
+    u_int32_t* ppts
+);
+
+/**
+* get the CodecID of video tag.
+* Codec Identifier. The following values are defined:
+*           2 = Sorenson H.263
+*           3 = Screen video
+*           4 = On2 VP6
+*           5 = On2 VP6 with alpha channel
+*           6 = Screen video version 2
+*           7 = AVC
+* @return the code id. 0 for error.
+*/
+extern char srs_utils_get_flv_video_codec_id(char* data, int size);
+
+/**
+* get the AVCPacketType of video tag.
+* The following values are defined:
+*           0 = AVC sequence header
+*           1 = AVC NALU
+*           2 = AVC end of sequence (lower level NALU sequence ender is
+*               not required or supported)
+* @return the avc packet type. -1(0xff) for error.
+*/
+extern char srs_utils_get_flv_video_avc_packet_type(char* data, int size);
+
+/**
+* get the FrameType of video tag.
+* Type of video frame. The following values are defined:
+*           1 = key frame (for AVC, a seekable frame)
+*           2 = inter frame (for AVC, a non-seekable frame)
+*           3 = disposable inter frame (H.263 only)
+*           4 = generated key frame (reserved for server use only)
+*           5 = video info/command frame
+* @return the frame type. 0 for error.
+*/
+extern char srs_utils_get_flv_video_frame_type(char* data, int size);
+
+/*************************************************************
+**************************************************************
+* human readable print.
+**************************************************************
+*************************************************************/
+/**
+* human readable print 
+* @param pdata, output the heap data, NULL to ignore.
+*       user must use srs_amf0_free_bytes to free it.
+* @return return the *pdata for print. NULL to ignore.
+*/
+extern char* srs_human_amf0_print(srs_amf0_t amf0, char** pdata, int* psize);
+/**
+* convert the flv tag type to string.
+*     SRS_RTMP_TYPE_AUDIO to "Audio"
+*     SRS_RTMP_TYPE_VIDEO to "Video"
+*     SRS_RTMP_TYPE_SCRIPT to "Data"
+*     otherwise, "Unknown"
+* @remark user never free the return char*, 
+*   it's static shared const string.
+*/
+extern const char* srs_human_flv_tag_type2string(char type);
+
+/**
+* get the codec id string.
+*           H.263 = Sorenson H.263
+*           Screen = Screen video
+*           VP6 = On2 VP6
+*           VP6Alpha = On2 VP6 with alpha channel
+*           Screen2 = Screen video version 2
+*           H.264 = AVC
+*           otherwise, "Unknown"
+* @remark user never free the return char*, 
+*   it's static shared const string.
+*/
+extern const char* srs_human_flv_video_codec_id2string(char codec_id);
+
+/**
+* get the avc packet type string.
+*           SpsPps = AVC sequence header
+*           Nalu = AVC NALU
+*           SpsPpsEnd = AVC end of sequence
+*           otherwise, "Unknown"
+* @remark user never free the return char*, 
+*   it's static shared const string.
+*/
+extern const char* srs_human_flv_video_avc_packet_type2string(char avc_packet_type);
+
+/**
+* get the frame type string.
+*           I = key frame (for AVC, a seekable frame)
+*           P/B = inter frame (for AVC, a non-seekable frame)
+*           DI = disposable inter frame (H.263 only)
+*           GI = generated key frame (reserved for server use only)
+*           VI = video info/command frame
+*           otherwise, "Unknown"
+* @remark user never free the return char*, 
+*   it's static shared const string.
+*/
+extern const char* srs_human_flv_video_frame_type2string(char frame_type);
+
+/**
+* print the rtmp packet, use srs_human_trace/srs_human_verbose for packet,
+* and use srs_human_raw for script data body.
+* @return an error code for parse the timetstamp to dts and pts.
+*/
+extern int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int size);
+
+// log to console, for use srs-librtmp application.
+extern const char* srs_human_format_time();
+#define srs_human_trace(msg, ...) printf("[%s] ", srs_human_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
+#define srs_human_verbose(msg, ...) printf("[%s] ", srs_human_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
+#define srs_human_raw(msg, ...) printf(msg, ##__VA_ARGS__)
 
 #ifdef __cplusplus
 }
