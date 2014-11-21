@@ -592,17 +592,17 @@ extern void srs_amf0_strict_array_append(srs_amf0_t amf0, srs_amf0_t value);
 * get the current system time in ms.
 * use gettimeofday() to get system time.
 */
-extern int64_t srs_utils_get_time_ms();
+extern int64_t srs_utils_time_ms();
 
 /**
 * get the send bytes.
 */
-extern int64_t srs_utils_get_send_bytes(srs_rtmp_t rtmp);
+extern int64_t srs_utils_send_bytes(srs_rtmp_t rtmp);
 
 /**
 * get the recv bytes.
 */
-extern int64_t srs_utils_get_recv_bytes(srs_rtmp_t rtmp);
+extern int64_t srs_utils_recv_bytes(srs_rtmp_t rtmp);
 
 /**
 * parse the dts and pts by time in header and data in tag,
@@ -635,7 +635,7 @@ extern int srs_utils_parse_timestamp(
 *           7 = AVC
 * @return the code id. 0 for error.
 */
-extern char srs_utils_get_flv_video_codec_id(char* data, int size);
+extern char srs_utils_flv_video_codec_id(char* data, int size);
 
 /**
 * get the AVCPacketType of video tag.
@@ -646,7 +646,7 @@ extern char srs_utils_get_flv_video_codec_id(char* data, int size);
 *               not required or supported)
 * @return the avc packet type. -1(0xff) for error.
 */
-extern char srs_utils_get_flv_video_avc_packet_type(char* data, int size);
+extern char srs_utils_flv_video_avc_packet_type(char* data, int size);
 
 /**
 * get the FrameType of video tag.
@@ -658,7 +658,7 @@ extern char srs_utils_get_flv_video_avc_packet_type(char* data, int size);
 *           5 = video info/command frame
 * @return the frame type. 0 for error.
 */
-extern char srs_utils_get_flv_video_frame_type(char* data, int size);
+extern char srs_utils_flv_video_frame_type(char* data, int size);
 
 /*************************************************************
 **************************************************************
