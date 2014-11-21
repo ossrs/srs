@@ -141,12 +141,17 @@ int do_proxy(srs_flv_t flv, srs_rtmp_t ortmp, int64_t re, int32_t* pstarttime, u
             return ret;
         }
         
+        u_int32_t timestamp = *ptimestamp;
+        
+        if ((ret = srs_print_rtmp_packet(type, timestamp, data, size)) != 0) {
+            srs_lib_trace("print packet failed. ret=%d", ret);
+            return ret;
+        }
+        
         if ((ret = srs_write_packet(ortmp, type, *ptimestamp, data, size)) != 0) {
             srs_lib_trace("irtmp get packet failed. ret=%d", ret);
             return ret;
         }
-        srs_lib_verbose("ortmp sent packet: type=%s, time=%d, size=%d", 
-            srs_type2string(type), *ptimestamp, size);
             
         if (*pstarttime < 0) {
             *pstarttime = *ptimestamp;

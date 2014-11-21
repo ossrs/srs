@@ -112,8 +112,11 @@ int proxy(srs_rtmp_t irtmp, srs_rtmp_t ortmp)
             srs_lib_trace("irtmp get packet failed. ret=%d", ret);
             return ret;
         }
-        srs_lib_verbose("irtmp got packet: type=%s, time=%d, size=%d", 
-            srs_type2string(type), timestamp, size);
+        
+        if ((ret = srs_print_rtmp_packet(type, timestamp, data, size)) != 0) {
+            srs_lib_trace("print packet failed. ret=%d", ret);
+            return ret;
+        }
         
         if ((ret = srs_write_packet(ortmp, type, timestamp, data, size)) != 0) {
             srs_lib_trace("irtmp get packet failed. ret=%d", ret);

@@ -124,86 +124,6 @@ int parse_bytes(char* data, int size, char* hbuf, int hsize, char* tbuf, int tsi
     }
 }
 
-#define FLV_HEADER_SIZE 11
-int parse_script_data(u_int32_t timestamp, u_int32_t pts, char* data, int size, int64_t offset)
-{
-    int ret = 0;
-    
-    char hbuf[48];
-    char tbuf[48];
-    
-    int amf0_size = 0;
-    int nparsed = 0;
-    
-    srs_amf0_t amf0_name;
-    char* amf0_name_str = NULL;
-    
-    srs_amf0_t amf0_data;
-    char* amf0_data_str = NULL;
-    
-    // bytes
-    parse_bytes(data, size, hbuf, sizeof(hbuf), tbuf, sizeof(tbuf), 16);
-    
-    // amf0
-    amf0_name = srs_amf0_parse(data, size, &nparsed);
-    if (amf0_name == NULL || nparsed >= size) {
-        srs_lib_trace("invalid amf0 name data.");
-        return -1;
-    }
-    amf0_data = srs_amf0_parse(data + nparsed, size - nparsed, &nparsed);
-    
-    srs_lib_trace("packet type=%s, dts=%d, pts=%d, size=%d, data-size=%d, \n"
-        "offset=%d\n[+00, +15] %s\n[-15, EOF] %s\n%s%s", 
-        srs_type2string(SRS_RTMP_TYPE_SCRIPT), timestamp, pts, 
-        size + FLV_HEADER_SIZE, size, (int)offset, hbuf, tbuf, 
-        srs_amf0_human_print(amf0_name, &amf0_name_str, &amf0_size), 
-        srs_amf0_human_print(amf0_data, &amf0_data_str, &amf0_size));
-    
-    srs_amf0_free(amf0_name);
-    srs_amf0_free_bytes(amf0_name_str);
-    
-    srs_amf0_free(amf0_data);
-    srs_amf0_free_bytes(amf0_data_str);
-
-    return ret;
-}
-
-int parse_audio_data(u_int32_t timestamp, u_int32_t pts, char* data, int size, int64_t offset)
-{
-    int ret = 0;
-    
-    char hbuf[48];
-    char tbuf[48];
-    
-    // bytes
-    parse_bytes(data, size, hbuf, sizeof(hbuf), tbuf, sizeof(tbuf), 16);
-    
-    srs_lib_trace("packet type=%s, dts=%d, pts=%d, size=%d, data-size=%d, \n"
-        "offset=%d\n[+00, +15] %s\n[-15, EOF] %s\n", 
-        srs_type2string(SRS_RTMP_TYPE_AUDIO), timestamp, pts, 
-        size + FLV_HEADER_SIZE, size, (int)offset, hbuf, tbuf);
-    
-    return ret;
-}
-
-int parse_video_data(u_int32_t timestamp, u_int32_t pts, char* data, int size, int64_t offset)
-{
-    int ret = 0;
-    
-    char hbuf[48];
-    char tbuf[48];
-    
-    // bytes
-    parse_bytes(data, size, hbuf, sizeof(hbuf), tbuf, sizeof(tbuf), 16);
-    
-    srs_lib_trace("packet type=%s, dts=%d, pts=%d, size=%d, data-size=%d, \n"
-        "offset=%d\n[+00, +15] %s\n[-15, EOF] %s\n", 
-        srs_type2string(SRS_RTMP_TYPE_VIDEO), timestamp, pts, 
-        size + FLV_HEADER_SIZE, size, (int)offset, hbuf, tbuf);
-        
-    return ret;
-}
-
 int parse_flv(srs_flv_t flv)
 {
     int ret = 0;
@@ -240,19 +160,19 @@ int parse_flv(srs_flv_t flv)
             break;
         }
         
-        u_int32_t pts = 0;
         data = (char*)malloc(size);
         
-        if ((ret = srs_flv_read_tag_data(flv, data, size)) == 0
-            && (ret = srs_parse_timestamp(timestamp, type, data, size, &pts)) == 0
-        ) {
-            if (type == SRS_RTMP_TYPE_AUDIO) {
-                ret = parse_audio_data(timestamp, pts, data, size, offset);
-            } else if (type == SRS_RTMP_TYPE_VIDEO) {
-                ret = parse_video_data(timestamp, pts, data, size, offset);
+        if ((ret = srs_flv_read_tag_data(flv, data, size)) == 0) {
+            if ((ret = srs_print_rtmp_packet(type, timestamp, data, size)) == 0) {
+                char hbuf[48]; char tbuf[48];
+                parse_bytes(data, size, hbuf, sizeof(hbuf), tbuf, sizeof(tbuf), 16);
+                srs_raw_trace("offset=%d, first and last 16 bytes:\n"
+                    "[+00, +15] %s\n[-15, EOF] %s\n", (int)offset, hbuf, tbuf);
             } else {
-                ret = parse_script_data(timestamp, pts, data, size, offset);
+                srs_lib_trace("print packet failed. ret=%d", ret);
             }
+        } else {
+            srs_lib_trace("read flv failed. ret=%d", ret);
         }
         
         free(data);
