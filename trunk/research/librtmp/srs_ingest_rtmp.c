@@ -74,14 +74,14 @@ int main(int argc, char** argv)
         }
     }
     
-    srs_lib_trace("input:  %s", in_rtmp_url);
-    srs_lib_trace("output: %s", out_rtmp_url);
+    srs_human_trace("input:  %s", in_rtmp_url);
+    srs_human_trace("output: %s", out_rtmp_url);
     
     irtmp = srs_rtmp_create(in_rtmp_url);
     ortmp = srs_rtmp_create(out_rtmp_url);
 
     ret = proxy(irtmp, ortmp);
-    srs_lib_trace("proxy completed");
+    srs_human_trace("proxy completed");
     
     srs_rtmp_destroy(irtmp);
     srs_rtmp_destroy(ortmp);
@@ -106,24 +106,24 @@ int proxy(srs_rtmp_t irtmp, srs_rtmp_t ortmp)
         return ret;
     }
     
-    srs_lib_trace("start proxy RTMP stream");
+    srs_human_trace("start proxy RTMP stream");
     for (;;) {
         if ((ret = srs_read_packet(irtmp, &type, &timestamp, &data, &size)) != 0) {
-            srs_lib_trace("irtmp get packet failed. ret=%d", ret);
+            srs_human_trace("irtmp get packet failed. ret=%d", ret);
             return ret;
         }
         
-        if ((ret = srs_print_rtmp_packet(type, timestamp, data, size)) != 0) {
-            srs_lib_trace("print packet failed. ret=%d", ret);
+        if ((ret = srs_human_print_rtmp_packet(type, timestamp, data, size)) != 0) {
+            srs_human_trace("print packet failed. ret=%d", ret);
             return ret;
         }
         
         if ((ret = srs_write_packet(ortmp, type, timestamp, data, size)) != 0) {
-            srs_lib_trace("irtmp get packet failed. ret=%d", ret);
+            srs_human_trace("irtmp get packet failed. ret=%d", ret);
             return ret;
         }
-        srs_lib_verbose("ortmp sent packet: type=%s, time=%d, size=%d", 
-            srs_type2string(type), timestamp, size);
+        srs_human_verbose("ortmp sent packet: type=%s, time=%d, size=%d", 
+            srs_human_flv_tag_type2string(type), timestamp, size);
     }
     
     return ret;
@@ -134,22 +134,22 @@ int connect_ic(srs_rtmp_t irtmp)
     int ret = 0;
     
     if ((ret = srs_simple_handshake(irtmp)) != 0) {
-        srs_lib_trace("irtmp simple handshake failed. ret=%d", ret);
+        srs_human_trace("irtmp simple handshake failed. ret=%d", ret);
         return ret;
     }
-    srs_lib_trace("irtmp simple handshake success");
+    srs_human_trace("irtmp simple handshake success");
     
     if ((ret = srs_connect_app(irtmp)) != 0) {
-        srs_lib_trace("irtmp connect vhost/app failed. ret=%d", ret);
+        srs_human_trace("irtmp connect vhost/app failed. ret=%d", ret);
         return ret;
     }
-    srs_lib_trace("irtmp connect vhost/app success");
+    srs_human_trace("irtmp connect vhost/app success");
     
     if ((ret = srs_play_stream(irtmp)) != 0) {
-        srs_lib_trace("irtmp play stream failed. ret=%d", ret);
+        srs_human_trace("irtmp play stream failed. ret=%d", ret);
         return ret;
     }
-    srs_lib_trace("irtmp play stream success");
+    srs_human_trace("irtmp play stream success");
     
     return ret;
 }
@@ -159,22 +159,22 @@ int connect_oc(srs_rtmp_t ortmp)
     int ret = 0;
     
     if ((ret = srs_simple_handshake(ortmp)) != 0) {
-        srs_lib_trace("ortmp simple handshake failed. ret=%d", ret);
+        srs_human_trace("ortmp simple handshake failed. ret=%d", ret);
         return ret;
     }
-    srs_lib_trace("ortmp simple handshake success");
+    srs_human_trace("ortmp simple handshake success");
     
     if ((ret = srs_connect_app(ortmp)) != 0) {
-        srs_lib_trace("ortmp connect vhost/app failed. ret=%d", ret);
+        srs_human_trace("ortmp connect vhost/app failed. ret=%d", ret);
         return ret;
     }
-    srs_lib_trace("ortmp connect vhost/app success");
+    srs_human_trace("ortmp connect vhost/app success");
     
     if ((ret = srs_publish_stream(ortmp)) != 0) {
-        srs_lib_trace("ortmp publish stream failed. ret=%d", ret);
+        srs_human_trace("ortmp publish stream failed. ret=%d", ret);
         return ret;
     }
-    srs_lib_trace("ortmp publish stream success");
+    srs_human_trace("ortmp publish stream success");
     
     return ret;
 }

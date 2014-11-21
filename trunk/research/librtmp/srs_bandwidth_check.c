@@ -81,31 +81,31 @@ int main(int argc, char** argv)
     
     rtmp = srs_rtmp_create2(argv[1]);
     
-    srs_lib_trace("bandwidth check/test url: %s", argv[1]);
+    srs_human_trace("bandwidth check/test url: %s", argv[1]);
     
     if ((ret = srs_simple_handshake(rtmp)) != 0) {
-        srs_lib_trace("simple handshake failed.");
+        srs_human_trace("simple handshake failed.");
         goto rtmp_destroy;
     }
-    srs_lib_trace("simple handshake success");
+    srs_human_trace("simple handshake success");
     
     if ((ret = srs_connect_app2(rtmp, 
         srs_server_ip, srs_server, srs_primary_authors, srs_version, &srs_id, &srs_pid)) != 0) {
-        srs_lib_trace("connect vhost/app failed.");
+        srs_human_trace("connect vhost/app failed.");
         goto rtmp_destroy;
     }
-    srs_lib_trace("connect vhost/app success");
+    srs_human_trace("connect vhost/app success");
     
     if ((ret = srs_bandwidth_check(rtmp, 
         &start_time, &end_time, &play_kbps, &publish_kbps,
         &play_bytes, &publish_bytes, &play_duration, &publish_duration)) != 0
     ) {
-        srs_lib_trace("bandwidth check/test failed.");
+        srs_human_trace("bandwidth check/test failed.");
         goto rtmp_destroy;
     }
-    srs_lib_trace("bandwidth check/test success");
+    srs_human_trace("bandwidth check/test success");
     
-    srs_lib_trace("\n%s, %s\n"
+    srs_human_trace("\n%s, %s\n"
         "%s, %s, srs_pid=%d, srs_id=%d\n"
         "duration: %dms(%d+%d)\n"
         "play: %dkbps\n"
@@ -137,8 +137,8 @@ rtmp_destroy:
         (int)(end_time - start_time), play_duration, publish_duration,
         play_kbps, publish_kbps);
     
-    srs_lib_trace("");
-    srs_lib_trace("completed");
+    srs_human_trace("");
+    srs_human_trace("completed");
     
     return ret;
 }

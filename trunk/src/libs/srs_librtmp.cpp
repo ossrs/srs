@@ -1432,7 +1432,7 @@ void srs_amf0_strict_array_append(srs_amf0_t amf0, srs_amf0_t value)
     obj->append(any);
 }
 
-char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize)
+char* srs_human_amf0_print(srs_amf0_t amf0, char** pdata, int* psize)
 {
     if (!amf0) {
         return NULL;
@@ -1443,7 +1443,7 @@ char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize)
     return any->human_print(pdata, psize);
 }
 
-const char* srs_type2string(char type)
+const char* srs_human_flv_tag_type2string(char type)
 {
     static const char* audio = "Audio";
     static const char* video = "Video";
@@ -1460,7 +1460,7 @@ const char* srs_type2string(char type)
     return unknown;
 }
 
-const char* srs_code_id2string(char codec_id)
+const char* srs_human_flv_video_codec_id2string(char codec_id)
 {
     static const char* h263 = "H.263";
     static const char* screen = "Screen";
@@ -1483,7 +1483,7 @@ const char* srs_code_id2string(char codec_id)
     return unknown;
 }
 
-const char* srs_avc_packet2string(char avc_packet_type)
+const char* srs_human_flv_video_avc_packet_type2string(char avc_packet_type)
 {
     static const char* sps_pps = "SpsPps";
     static const char* nalu = "Nalu";
@@ -1500,7 +1500,7 @@ const char* srs_avc_packet2string(char avc_packet_type)
     return unknown;
 }
 
-const char* srs_frame_type2string(char frame_type)
+const char* srs_human_flv_video_frame_type2string(char frame_type)
 {
     static const char* keyframe = "I";
     static const char* interframe = "P/B";
@@ -1521,7 +1521,7 @@ const char* srs_frame_type2string(char frame_type)
     return unknown;
 }
 
-int srs_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int size)
+int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1531,18 +1531,18 @@ int srs_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int size)
     }
     
     if (type == SRS_RTMP_TYPE_VIDEO) {
-        srs_lib_trace("Video packet type=%s, dts=%d, pts=%d, size=%d, %s(%s,%s)", 
-            srs_type2string(type), timestamp, pts, size,
-            srs_code_id2string(srs_get_codec_id(data, size)),
-            srs_avc_packet2string(srs_get_avc_packet_type(data, size)),
-            srs_frame_type2string(srs_get_frame_type(data, size))
+        srs_human_trace("Video packet type=%s, dts=%d, pts=%d, size=%d, %s(%s,%s)", 
+            srs_human_flv_tag_type2string(type), timestamp, pts, size,
+            srs_human_flv_video_codec_id2string(srs_get_codec_id(data, size)),
+            srs_human_flv_video_avc_packet_type2string(srs_get_avc_packet_type(data, size)),
+            srs_human_flv_video_frame_type2string(srs_get_frame_type(data, size))
         );
     } else if (type == SRS_RTMP_TYPE_AUDIO) {
-        srs_lib_trace("Audio packet type=%s, dts=%d, pts=%d, size=%d", 
-            srs_type2string(type), timestamp, pts, size);
+        srs_human_trace("Audio packet type=%s, dts=%d, pts=%d, size=%d", 
+            srs_human_flv_tag_type2string(type), timestamp, pts, size);
     } else if (type == SRS_RTMP_TYPE_SCRIPT) {
-        srs_lib_verbose("Data packet type=%s, time=%d, size=%d", 
-            srs_type2string(type), timestamp, size);
+        srs_human_verbose("Data packet type=%s, time=%d, size=%d", 
+            srs_human_flv_tag_type2string(type), timestamp, size);
         int nparsed = 0;
         while (nparsed < size) {
             int nb_parsed_this = 0;
@@ -1554,18 +1554,18 @@ int srs_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int size)
             nparsed += nb_parsed_this;
             
             char* amf0_str = NULL;
-            srs_raw_trace("%s", srs_amf0_human_print(amf0, &amf0_str, NULL));
+            srs_human_raw("%s", srs_human_amf0_print(amf0, &amf0_str, NULL));
             srs_amf0_free_bytes(amf0_str);
         }
     } else {
-        srs_lib_trace("Unknown packet type=%s, dts=%d, pts=%d, size=%d", 
-            srs_type2string(type), timestamp, pts, size);
+        srs_human_trace("Unknown packet type=%s, dts=%d, pts=%d, size=%d", 
+            srs_human_flv_tag_type2string(type), timestamp, pts, size);
     }
     
     return ret;
 }
 
-const char* srs_format_time()
+const char* srs_human_format_time()
 {
     struct timeval tv;
     static char buf[23];

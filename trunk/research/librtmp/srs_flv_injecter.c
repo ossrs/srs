@@ -76,9 +76,9 @@ int main(int argc, char** argv)
     tmp_file = (char*)malloc(tmp_file_size);
     snprintf(tmp_file, tmp_file_size, "%s.tmp", out_flv_file);
     
-    srs_lib_trace("input:  %s", in_flv_file);
-    srs_lib_trace("output:  %s", out_flv_file);
-    srs_lib_trace("tmp_file:  %s", tmp_file);
+    srs_human_trace("input:  %s", in_flv_file);
+    srs_human_trace("output:  %s", out_flv_file);
+    srs_human_trace("tmp_file:  %s", tmp_file);
 
     ret = process(in_flv_file, tmp_file, &ic, &oc);
     
@@ -89,13 +89,13 @@ int main(int argc, char** argv)
         unlink(tmp_file);
         if (ret == ERROR_INJECTED) {
             ret = 0;
-            srs_lib_trace("file already injected.");
+            srs_human_trace("file already injected.");
         } else {
-            srs_lib_trace("error, remove tmp file.");
+            srs_human_trace("error, remove tmp file.");
         }
     } else {
         rename(tmp_file, out_flv_file);
-        srs_lib_trace("completed, rename to %s", out_flv_file);
+        srs_human_trace("completed, rename to %s", out_flv_file);
     }
     
     free(tmp_file);
@@ -123,14 +123,14 @@ int process(const char* in_flv_file, const char* out_flv_file, srs_flv_t* pic, s
     
     if ((ic = srs_flv_open_read(in_flv_file)) == NULL) {
         ret = 2;
-        srs_lib_trace("open input flv file failed. ret=%d", ret);
+        srs_human_trace("open input flv file failed. ret=%d", ret);
         return ret;
     }
     *pic = ic;
     
     if ((oc = srs_flv_open_write(out_flv_file)) == NULL) {
         ret = 2;
-        srs_lib_trace("open output flv file failed. ret=%d", ret);
+        srs_human_trace("open output flv file failed. ret=%d", ret);
         return ret;
     }
     *poc = oc;
@@ -164,13 +164,13 @@ int parse_metadata(char* data, int size, srs_amf0_t* pname, srs_amf0_t* pdata)
     *pname = srs_amf0_parse(data, size, &nparsed);
     
     if (*pname == NULL || nparsed >= size) {
-        srs_lib_trace("invalid amf0 name data.");
+        srs_human_trace("invalid amf0 name data.");
         return -1;
     }
     
     *pdata = srs_amf0_parse(data + nparsed, size - nparsed, &nparsed);
     if (*pdata == NULL || nparsed > size) {
-        srs_lib_trace("invalid amf0 value data");
+        srs_human_trace("invalid amf0 value data");
         return -1;
     }
     
@@ -206,22 +206,22 @@ int build_keyframes(srs_flv_t ic, srs_amf0_t *pname, srs_amf0_t* pdata, srs_amf0
         return ret;
     }
     
-    srs_lib_trace("build keyframe infos from flv");
+    srs_human_trace("build keyframe infos from flv");
     for (;;) {
         offset = srs_flv_tellg(ic);
         
         // tag header
         if ((ret = srs_flv_read_tag_header(ic, &type, &size, &timestamp)) != 0) {
             if (srs_flv_is_eof(ret)) {
-                srs_lib_trace("parse completed.");
+                srs_human_trace("parse completed.");
                 return 0;
             }
-            srs_lib_trace("flv get packet failed. ret=%d", ret);
+            srs_human_trace("flv get packet failed. ret=%d", ret);
             return ret;
         }
         
         if (size <= 0) {
-            srs_lib_trace("invalid size=%d", size);
+            srs_human_trace("invalid size=%d", size);
             return ret;
         }
         
@@ -343,20 +343,20 @@ int do_inject_flv(srs_flv_t ic, srs_flv_t oc, srs_amf0_t amf0_name, srs_amf0_t a
         free(data);
     }
     
-    srs_lib_trace("build keyframe infos from flv");
+    srs_human_trace("build keyframe infos from flv");
     for (;;) {
         // tag header
         if ((ret = srs_flv_read_tag_header(ic, &type, &size, &timestamp)) != 0) {
             if (srs_flv_is_eof(ret)) {
-                srs_lib_trace("parse completed.");
+                srs_human_trace("parse completed.");
                 return 0;
             }
-            srs_lib_trace("flv get packet failed. ret=%d", ret);
+            srs_human_trace("flv get packet failed. ret=%d", ret);
             return ret;
         }
         
         if (size <= 0) {
-            srs_lib_trace("invalid size=%d", size);
+            srs_human_trace("invalid size=%d", size);
             break;
         }
         

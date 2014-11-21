@@ -46,7 +46,7 @@ int read_audio_frame(char* audio_raw, int file_size, char** pp, char** pdata, in
     char* p = *pp;
     
     if (file_size - (p - audio_raw) < 168) {
-        srs_lib_trace("audio must be 160+8 bytes. left %d bytes.", 
+        srs_human_trace("audio must be 160+8 bytes. left %d bytes.", 
             file_size - (p - audio_raw));
         return - 1;
     }
@@ -83,32 +83,32 @@ int main(int argc, char** argv)
     
     const char* raw_file = argv[1];
     const char* rtmp_url = argv[2];
-    srs_lib_trace("raw_file=%s, rtmp_url=%s", raw_file, rtmp_url);
+    srs_human_trace("raw_file=%s, rtmp_url=%s", raw_file, rtmp_url);
     
     // open file
     int raw_fd = open(raw_file, O_RDONLY);
     if (raw_fd < 0) {
-        srs_lib_trace("open audio raw file %s failed.", raw_fd);
+        srs_human_trace("open audio raw file %s failed.", raw_fd);
         goto rtmp_destroy;
     }
     
     off_t file_size = lseek(raw_fd, 0, SEEK_END);
     if (file_size <= 0) {
-        srs_lib_trace("audio raw file %s empty.", raw_file);
+        srs_human_trace("audio raw file %s empty.", raw_file);
         goto rtmp_destroy;
     }
-    srs_lib_trace("read entirely audio raw file, size=%dKB", (int)(file_size / 1024));
+    srs_human_trace("read entirely audio raw file, size=%dKB", (int)(file_size / 1024));
     
     char* audio_raw = (char*)malloc(file_size);
     if (!audio_raw) {
-        srs_lib_trace("alloc raw buffer failed for file %s.", raw_file);
+        srs_human_trace("alloc raw buffer failed for file %s.", raw_file);
         goto rtmp_destroy;
     }
     
     lseek(raw_fd, 0, SEEK_SET);
     ssize_t nb_read = 0;
     if ((nb_read = read(raw_fd, audio_raw, file_size)) != file_size) {
-        srs_lib_trace("buffer %s failed, expect=%dKB, actual=%dKB.", 
+        srs_human_trace("buffer %s failed, expect=%dKB, actual=%dKB.", 
             raw_file, (int)(file_size / 1024), (int)(nb_read / 1024));
         goto rtmp_destroy;
     }
@@ -117,22 +117,22 @@ int main(int argc, char** argv)
     srs_rtmp_t rtmp = srs_rtmp_create(rtmp_url);
     
     if (srs_simple_handshake(rtmp) != 0) {
-        srs_lib_trace("simple handshake failed.");
+        srs_human_trace("simple handshake failed.");
         goto rtmp_destroy;
     }
-    srs_lib_trace("simple handshake success");
+    srs_human_trace("simple handshake success");
     
     if (srs_connect_app(rtmp) != 0) {
-        srs_lib_trace("connect vhost/app failed.");
+        srs_human_trace("connect vhost/app failed.");
         goto rtmp_destroy;
     }
-    srs_lib_trace("connect vhost/app success");
+    srs_human_trace("connect vhost/app success");
     
     if (srs_publish_stream(rtmp) != 0) {
-        srs_lib_trace("publish stream failed.");
+        srs_human_trace("publish stream failed.");
         goto rtmp_destroy;
     }
-    srs_lib_trace("publish stream success");
+    srs_human_trace("publish stream success");
     
     u_int32_t timestamp = 0;
     u_int32_t time_delta = 17;
@@ -143,7 +143,7 @@ int main(int argc, char** argv)
         char* data = NULL;
         int size = 0;
         if (read_audio_frame(audio_raw, file_size, &p, &data, &size) < 0) {
-            srs_lib_trace("read a frame from file buffer failed.");
+            srs_human_trace("read a frame from file buffer failed.");
             goto rtmp_destroy;
         }
         
@@ -168,12 +168,12 @@ int main(int argc, char** argv)
             sound_format, sound_rate, sound_size, sound_type,
             0, data, size, timestamp) != 0
         ) {
-            srs_lib_trace("send audio raw data failed.");
+            srs_human_trace("send audio raw data failed.");
             goto rtmp_destroy;
         }
         
-        srs_lib_trace("sent packet: type=%s, time=%d, size=%d, codec=%d, rate=%d, sample=%d, channel=%d", 
-            srs_type2string(SRS_RTMP_TYPE_AUDIO), timestamp, size, sound_format, sound_rate, sound_size,
+        srs_human_trace("sent packet: type=%s, time=%d, size=%d, codec=%d, rate=%d, sample=%d, channel=%d", 
+            srs_human_flv_tag_type2string(SRS_RTMP_TYPE_AUDIO), timestamp, size, sound_format, sound_rate, sound_size,
             sound_type);
         
         // @remark, when use encode device, it not need to sleep.

@@ -504,7 +504,7 @@ extern void srs_amf0_strict_array_append(srs_amf0_t amf0, srs_amf0_t value);
 *       user must use srs_amf0_free_bytes to free it.
 * @return return the *pdata for print. NULL to ignore.
 */
-extern char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize);
+extern char* srs_human_amf0_print(srs_amf0_t amf0, char** pdata, int* psize);
 /**
 * convert the flv tag type to string.
 *     SRS_RTMP_TYPE_AUDIO to "Audio"
@@ -514,7 +514,7 @@ extern char* srs_amf0_human_print(srs_amf0_t amf0, char** pdata, int* psize);
 * @remark user never free the return char*, 
 *   it's static shared const string.
 */
-extern const char* srs_type2string(char type);
+extern const char* srs_human_flv_tag_type2string(char type);
 
 /**
 * get the codec id string.
@@ -528,7 +528,7 @@ extern const char* srs_type2string(char type);
 * @remark user never free the return char*, 
 *   it's static shared const string.
 */
-extern const char* srs_code_id2string(char codec_id);
+extern const char* srs_human_flv_video_codec_id2string(char codec_id);
 
 /**
 * get the avc packet type string.
@@ -539,7 +539,7 @@ extern const char* srs_code_id2string(char codec_id);
 * @remark user never free the return char*, 
 *   it's static shared const string.
 */
-extern const char* srs_avc_packet2string(char avc_packet_type);
+extern const char* srs_human_flv_video_avc_packet_type2string(char avc_packet_type);
 
 /**
 * get the frame type string.
@@ -552,20 +552,20 @@ extern const char* srs_avc_packet2string(char avc_packet_type);
 * @remark user never free the return char*, 
 *   it's static shared const string.
 */
-extern const char* srs_frame_type2string(char frame_type);
+extern const char* srs_human_flv_video_frame_type2string(char frame_type);
 
 /**
-* print the rtmp packet, use srs_lib_trace/srs_lib_verbose for packet,
-* and use srs_raw_trace for script data body.
+* print the rtmp packet, use srs_human_trace/srs_human_verbose for packet,
+* and use srs_human_raw for script data body.
 * @return an error code for parse the timetstamp to dts and pts.
 */
-extern int srs_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int size);
+extern int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int size);
 
 // log to console, for use srs-librtmp application.
-extern const char* srs_format_time();
-#define srs_lib_trace(msg, ...) printf("[%s] ", srs_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
-#define srs_lib_verbose(msg, ...) printf("[%s] ", srs_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
-#define srs_raw_trace(msg, ...) printf(msg, ##__VA_ARGS__)
+extern const char* srs_human_format_time();
+#define srs_human_trace(msg, ...) printf("[%s] ", srs_human_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
+#define srs_human_verbose(msg, ...) printf("[%s] ", srs_human_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
+#define srs_human_raw(msg, ...) printf(msg, ##__VA_ARGS__)
 
 /*************************************************************
 **************************************************************
