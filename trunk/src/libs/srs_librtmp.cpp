@@ -1823,6 +1823,85 @@ char srs_utils_flv_video_frame_type(char* data, int size)
     return frame_type;
 }
 
+char srs_utils_flv_audio_sound_format(char* data, int size)
+{
+    if (size < 1) {
+        return -1;
+    }
+    
+    u_int8_t sound_format = data[0];
+    sound_format = (sound_format >> 4) & 0x0f;
+    if (sound_format > 15 || sound_format == 12 || sound_format == 13) {
+        return -1;
+    }
+    
+    return sound_format;
+}
+
+char srs_utils_flv_audio_sound_rate(char* data, int size)
+{
+    if (size < 1) {
+        return -1;
+    }
+    
+    u_int8_t sound_rate = data[0];
+    sound_rate = (sound_rate >> 2) & 0x03;
+    if (sound_rate > 3) {
+        return -1;
+    }
+    
+    return sound_rate;
+}
+
+char srs_utils_flv_audio_sound_size(char* data, int size)
+{
+    if (size < 1) {
+        return -1;
+    }
+    
+    u_int8_t sound_size = data[0];
+    sound_size = (sound_size >> 1) & 0x01;
+    if (sound_size > 1) {
+        return -1;
+    }
+    
+    return sound_size;
+}
+
+char srs_utils_flv_audio_sound_type(char* data, int size)
+{
+    if (size < 1) {
+        return -1;
+    }
+    
+    u_int8_t sound_type = data[0];
+    sound_type = sound_type & 0x01;
+    if (sound_type > 1) {
+        return -1;
+    }
+    
+    return sound_type;
+}
+
+char srs_utils_flv_audio_aac_packet_type(char* data, int size)
+{
+    if (size < 2) {
+        return -1;
+    }
+    
+    if (srs_utils_flv_audio_sound_format(data, size) != 10) {
+        return -1;
+    }
+    
+    u_int8_t aac_packet_type = data[1];
+    aac_packet_type = aac_packet_type;
+    if (aac_packet_type > 1) {
+        return -1;
+    }
+    
+    return aac_packet_type;
+}
+
 char* srs_human_amf0_print(srs_amf0_t amf0, char** pdata, int* psize)
 {
     if (!amf0) {
@@ -1876,7 +1955,7 @@ const char* srs_human_flv_video_codec_id2string(char codec_id)
 
 const char* srs_human_flv_video_avc_packet_type2string(char avc_packet_type)
 {
-    static const char* sps_pps = "SpsPps";
+    static const char* sps_pps = "SH";
     static const char* nalu = "Nalu";
     static const char* sps_pps_end = "SpsPpsEnd";
     static const char* unknown = "Unknown";
@@ -1912,6 +1991,109 @@ const char* srs_human_flv_video_frame_type2string(char frame_type)
     return unknown;
 }
 
+const char* srs_human_flv_audio_sound_format2string(char sound_format)
+{
+    static const char* linear_pcm = "LinearPCM";
+    static const char* ad_pcm = "ADPCM";
+    static const char* mp3 = "MP3";
+    static const char* linear_pcm_le = "LinearPCMLe";
+    static const char* nellymoser_16khz = "NellymoserKHz16";
+    static const char* nellymoser_8khz = "NellymoserKHz8";
+    static const char* nellymoser = "Nellymoser";
+    static const char* g711_a_pcm = "G711APCM";
+    static const char* g711_mu_pcm = "G711MuPCM";
+    static const char* reserved = "Reserved";
+    static const char* aac = "AAC";
+    static const char* speex = "Speex";
+    static const char* mp3_8khz = "MP3KHz8";
+    static const char* device_specific = "DeviceSpecific";
+    static const char* unknown = "Unknown";
+    
+    switch (sound_format) {
+        case 0: return linear_pcm;
+        case 1: return ad_pcm;
+        case 2: return mp3;
+        case 3: return linear_pcm_le;
+        case 4: return nellymoser_16khz;
+        case 5: return nellymoser_8khz;
+        case 6: return nellymoser;
+        case 7: return g711_a_pcm;
+        case 8: return g711_mu_pcm;
+        case 9: return reserved;
+        case 10: return aac;
+        case 11: return speex;
+        case 14: return mp3_8khz;
+        case 15: return device_specific;
+        default: return unknown;
+    }
+    
+    return unknown;
+}
+
+const char* srs_human_flv_audio_sound_rate2string(char sound_rate)
+{
+    static const char* khz_5_5 = "5.5KHz";
+    static const char* khz_11 = "11KHz";
+    static const char* khz_22 = "22KHz";
+    static const char* khz_44 = "44KHz";
+    static const char* unknown = "Unknown";
+    
+    switch (sound_rate) {
+        case 0: return khz_5_5;
+        case 1: return khz_11;
+        case 2: return khz_22;
+        case 3: return khz_44;
+        default: return unknown;
+    }
+    
+    return unknown;
+}
+
+const char* srs_human_flv_audio_sound_size2string(char sound_size)
+{
+    static const char* bit_8 = "8bit";
+    static const char* bit_16 = "16bit";
+    static const char* unknown = "Unknown";
+    
+    switch (sound_size) {
+        case 0: return bit_8;
+        case 1: return bit_16;
+        default: return unknown;
+    }
+    
+    return unknown;
+}
+
+const char* srs_human_flv_audio_sound_type2string(char sound_type)
+{
+    static const char* mono = "Mono";
+    static const char* stereo = "Stereo";
+    static const char* unknown = "Unknown";
+    
+    switch (sound_type) {
+        case 0: return mono;
+        case 1: return stereo;
+        default: return unknown;
+    }
+    
+    return unknown;
+}
+
+const char* srs_human_flv_audio_aac_packet_type2string(char aac_packet_type)
+{
+    static const char* sps_pps = "SH";
+    static const char* raw = "Raw";
+    static const char* unknown = "Unknown";
+    
+    switch (aac_packet_type) {
+        case 0: return sps_pps;
+        case 1: return raw;
+        default: return unknown;
+    }
+    
+    return unknown;
+}
+
 int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
@@ -1929,8 +2111,14 @@ int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int 
             srs_human_flv_video_frame_type2string(srs_utils_flv_video_frame_type(data, size))
         );
     } else if (type == SRS_RTMP_TYPE_AUDIO) {
-        srs_human_trace("Audio packet type=%s, dts=%d, pts=%d, size=%d", 
-            srs_human_flv_tag_type2string(type), timestamp, pts, size);
+        srs_human_trace("Audio packet type=%s, dts=%d, pts=%d, size=%d, %s(%s,%s,%s,%s)", 
+            srs_human_flv_tag_type2string(type), timestamp, pts, size,
+            srs_human_flv_audio_sound_format2string(srs_utils_flv_audio_sound_format(data, size)),
+            srs_human_flv_audio_sound_rate2string(srs_utils_flv_audio_sound_rate(data, size)),
+            srs_human_flv_audio_sound_size2string(srs_utils_flv_audio_sound_size(data, size)),
+            srs_human_flv_audio_sound_type2string(srs_utils_flv_audio_sound_type(data, size)),
+            srs_human_flv_audio_aac_packet_type2string(srs_utils_flv_audio_aac_packet_type(data, size))
+        );
     } else if (type == SRS_RTMP_TYPE_SCRIPT) {
         srs_human_verbose("Data packet type=%s, time=%d, size=%d", 
             srs_human_flv_tag_type2string(type), timestamp, size);

@@ -660,6 +660,70 @@ extern char srs_utils_flv_video_avc_packet_type(char* data, int size);
 */
 extern char srs_utils_flv_video_frame_type(char* data, int size);
 
+/**
+* get the SoundFormat of audio tag.
+* Format of SoundData. The following values are defined:
+*               0 = Linear PCM, platform endian
+*               1 = ADPCM
+*               2 = MP3
+*               3 = Linear PCM, little endian
+*               4 = Nellymoser 16 kHz mono
+*               5 = Nellymoser 8 kHz mono
+*               6 = Nellymoser
+*               7 = G.711 A-law logarithmic PCM
+*               8 = G.711 mu-law logarithmic PCM
+*               9 = reserved
+*               10 = AAC
+*               11 = Speex
+*               14 = MP3 8 kHz
+*               15 = Device-specific sound
+*               Formats 7, 8, 14, and 15 are reserved.
+*               AAC is supported in Flash Player 9,0,115,0 and higher.
+*               Speex is supported in Flash Player 10 and higher.
+* @return the sound format. -1(0xff) for error.
+*/
+extern char srs_utils_flv_audio_sound_format(char* data, int size);
+
+/**
+* get the SoundRate of audio tag.
+* Sampling rate. The following values are defined:
+*               0 = 5.5 kHz
+*               1 = 11 kHz
+*               2 = 22 kHz
+*               3 = 44 kHz
+* @return the sound rate. -1(0xff) for error.
+*/
+extern char srs_utils_flv_audio_sound_rate(char* data, int size);
+
+/**
+* get the SoundSize of audio tag.
+* Size of each audio sample. This parameter only pertains to
+* uncompressed formats. Compressed formats always decode
+* to 16 bits internally.
+*               0 = 8-bit samples
+*               1 = 16-bit samples
+* @return the sound size. -1(0xff) for error.
+*/
+extern char srs_utils_flv_audio_sound_size(char* data, int size);
+
+/**
+* get the SoundType of audio tag.
+* Mono or stereo sound
+*               0 = Mono sound
+*               1 = Stereo sound
+* @return the sound type. -1(0xff) for error.
+*/
+extern char srs_utils_flv_audio_sound_type(char* data, int size);
+
+/**
+* get the AACPacketType of audio tag.
+* The following values are defined:
+*               0 = AAC sequence header
+*               1 = AAC raw
+* @return the aac packet type. -1(0xff) for error.
+*/
+extern char srs_utils_flv_audio_aac_packet_type(char* data, int size);
+
 /*************************************************************
 **************************************************************
 * human readable print.
@@ -699,7 +763,7 @@ extern const char* srs_human_flv_video_codec_id2string(char codec_id);
 
 /**
 * get the avc packet type string.
-*           SpsPps = AVC sequence header
+*           SH = AVC sequence header
 *           Nalu = AVC NALU
 *           SpsPpsEnd = AVC end of sequence
 *           otherwise, "Unknown"
@@ -720,6 +784,77 @@ extern const char* srs_human_flv_video_avc_packet_type2string(char avc_packet_ty
 *   it's static shared const string.
 */
 extern const char* srs_human_flv_video_frame_type2string(char frame_type);
+
+/**
+* get the SoundFormat string.
+* Format of SoundData. The following values are defined:
+*               LinearPCM = Linear PCM, platform endian
+*               ADPCM = ADPCM
+*               MP3 = MP3
+*               LinearPCMLe = Linear PCM, little endian
+*               NellymoserKHz16 = Nellymoser 16 kHz mono
+*               NellymoserKHz8 = Nellymoser 8 kHz mono
+*               Nellymoser = Nellymoser
+*               G711APCM = G.711 A-law logarithmic PCM
+*               G711MuPCM = G.711 mu-law logarithmic PCM
+*               Reserved = reserved
+*               AAC = AAC
+*               Speex = Speex
+*               MP3KHz8 = MP3 8 kHz
+*               DeviceSpecific = Device-specific sound
+*               otherwise, "Unknown"
+* @remark user never free the return char*, 
+*   it's static shared const string.
+*/
+extern const char* srs_human_flv_audio_sound_format2string(char sound_format);
+
+/**
+* get the SoundRate of audio tag.
+* Sampling rate. The following values are defined:
+*               5.5KHz = 5.5 kHz
+*               11KHz = 11 kHz
+*               22KHz = 22 kHz
+*               44KHz = 44 kHz
+*               otherwise, "Unknown"
+* @remark user never free the return char*, 
+*   it's static shared const string.
+*/
+extern const char* srs_human_flv_audio_sound_rate2string(char sound_rate);
+
+/**
+* get the SoundSize of audio tag.
+* Size of each audio sample. This parameter only pertains to
+* uncompressed formats. Compressed formats always decode
+* to 16 bits internally.
+*               8bit = 8-bit samples
+*               16bit = 16-bit samples
+*               otherwise, "Unknown"
+* @remark user never free the return char*, 
+*   it's static shared const string.
+*/
+extern const char* srs_human_flv_audio_sound_size2string(char sound_size);
+
+/**
+* get the SoundType of audio tag.
+* Mono or stereo sound
+*               Mono = Mono sound
+*               Stereo = Stereo sound
+*               otherwise, "Unknown"
+* @remark user never free the return char*, 
+*   it's static shared const string.
+*/
+extern const char* srs_human_flv_audio_sound_type2string(char sound_type);
+
+/**
+* get the AACPacketType of audio tag.
+* The following values are defined:
+*               SH = AAC sequence header
+*               Raw = AAC raw
+*               otherwise, "Unknown"
+* @remark user never free the return char*, 
+*   it's static shared const string.
+*/
+extern const char* srs_human_flv_audio_aac_packet_type2string(char aac_packet_type);
 
 /**
 * print the rtmp packet, use srs_human_trace/srs_human_verbose for packet,
