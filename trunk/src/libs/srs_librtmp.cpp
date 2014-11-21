@@ -858,27 +858,27 @@ int srs_version_revision()
     return VERSION_REVISION;
 }
 
-int64_t srs_get_time_ms()
+int64_t srs_utils_get_time_ms()
 {
     srs_update_system_time_ms();
     return srs_get_system_time_ms();
 }
 
-int64_t srs_get_nsend_bytes(srs_rtmp_t rtmp)
+int64_t srs_utils_get_send_bytes(srs_rtmp_t rtmp)
 {
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
     return context->rtmp->get_send_bytes();
 }
 
-int64_t srs_get_nrecv_bytes(srs_rtmp_t rtmp)
+int64_t srs_utils_get_recv_bytes(srs_rtmp_t rtmp)
 {
     srs_assert(rtmp != NULL);
     Context* context = (Context*)rtmp;
     return context->rtmp->get_recv_bytes();
 }
 
-int srs_parse_timestamp(
+int srs_utils_parse_timestamp(
     u_int32_t time, char type, char* data, int size,
     u_int32_t* ppts
 ) {
@@ -919,7 +919,7 @@ int srs_parse_timestamp(
     return ret;
 }
 
-char srs_get_codec_id(char* data, int size)
+char srs_utils_get_flv_video_codec_id(char* data, int size)
 {
     if (size < 1) {
         return 0;
@@ -931,7 +931,7 @@ char srs_get_codec_id(char* data, int size)
     return codec_id;
 }
 
-char srs_get_avc_packet_type(char* data, int size)
+char srs_utils_get_flv_video_avc_packet_type(char* data, int size)
 {
     if (size < 2) {
         return -1;
@@ -950,7 +950,7 @@ char srs_get_avc_packet_type(char* data, int size)
     return avc_packet_type;
 }
 
-char srs_get_frame_type(char* data, int size)
+char srs_utils_get_flv_video_frame_type(char* data, int size)
 {
     if (size < 1) {
         return -1;
@@ -1526,16 +1526,16 @@ int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int 
     int ret = ERROR_SUCCESS;
     
     u_int32_t pts;
-    if (srs_parse_timestamp(timestamp, type, data, size, &pts) != 0) {
+    if (srs_utils_parse_timestamp(timestamp, type, data, size, &pts) != 0) {
         return ret;
     }
     
     if (type == SRS_RTMP_TYPE_VIDEO) {
         srs_human_trace("Video packet type=%s, dts=%d, pts=%d, size=%d, %s(%s,%s)", 
             srs_human_flv_tag_type2string(type), timestamp, pts, size,
-            srs_human_flv_video_codec_id2string(srs_get_codec_id(data, size)),
-            srs_human_flv_video_avc_packet_type2string(srs_get_avc_packet_type(data, size)),
-            srs_human_flv_video_frame_type2string(srs_get_frame_type(data, size))
+            srs_human_flv_video_codec_id2string(srs_utils_get_flv_video_codec_id(data, size)),
+            srs_human_flv_video_avc_packet_type2string(srs_utils_get_flv_video_avc_packet_type(data, size)),
+            srs_human_flv_video_frame_type2string(srs_utils_get_flv_video_frame_type(data, size))
         );
     } else if (type == SRS_RTMP_TYPE_AUDIO) {
         srs_human_trace("Audio packet type=%s, dts=%d, pts=%d, size=%d", 

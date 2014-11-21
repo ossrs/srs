@@ -253,6 +253,11 @@ extern int srs_write_packet(srs_rtmp_t rtmp,
     char type, u_int32_t timestamp, char* data, int size
 );
 
+/*************************************************************
+**************************************************************
+* version apis
+**************************************************************
+*************************************************************/
 // get protocol stack version
 extern int srs_version_major();
 extern int srs_version_minor();
@@ -267,17 +272,17 @@ extern int srs_version_revision();
 * get the current system time in ms.
 * use gettimeofday() to get system time.
 */
-extern int64_t srs_get_time_ms();
+extern int64_t srs_utils_get_time_ms();
 
 /**
 * get the send bytes.
 */
-extern int64_t srs_get_nsend_bytes(srs_rtmp_t rtmp);
+extern int64_t srs_utils_get_send_bytes(srs_rtmp_t rtmp);
 
 /**
 * get the recv bytes.
 */
-extern int64_t srs_get_nrecv_bytes(srs_rtmp_t rtmp);
+extern int64_t srs_utils_get_recv_bytes(srs_rtmp_t rtmp);
 
 /**
 * parse the dts and pts by time in header and data in tag,
@@ -294,7 +299,7 @@ extern int64_t srs_get_nrecv_bytes(srs_rtmp_t rtmp);
 * @remark, the pts=dts for audio or data.
 * @remark, video only support h.264.
 */
-extern int srs_parse_timestamp(
+extern int srs_utils_parse_timestamp(
     u_int32_t time, char type, char* data, int size,
     u_int32_t* ppts
 );
@@ -310,7 +315,7 @@ extern int srs_parse_timestamp(
 *           7 = AVC
 * @return the code id. 0 for error.
 */
-extern char srs_get_codec_id(char* data, int size);
+extern char srs_utils_get_flv_video_codec_id(char* data, int size);
 
 /**
 * get the AVCPacketType of video tag.
@@ -321,7 +326,7 @@ extern char srs_get_codec_id(char* data, int size);
 *               not required or supported)
 * @return the avc packet type. -1(0xff) for error.
 */
-extern char srs_get_avc_packet_type(char* data, int size);
+extern char srs_utils_get_flv_video_avc_packet_type(char* data, int size);
 
 /**
 * get the FrameType of video tag.
@@ -333,7 +338,7 @@ extern char srs_get_avc_packet_type(char* data, int size);
 *           5 = video info/command frame
 * @return the frame type. 0 for error.
 */
-extern char srs_get_frame_type(char* data, int size);
+extern char srs_utils_get_flv_video_frame_type(char* data, int size);
 
 /*************************************************************
 **************************************************************
