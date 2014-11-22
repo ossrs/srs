@@ -498,21 +498,11 @@ int SrsRtmpConn::playing(SrsSource* source)
 {
     int ret = ERROR_SUCCESS;
     
-    // the multiple messages writev improve performance large,
-    // but the timeout recv will cause 33% sys call performance,
-    // to use isolate thread to recv, can improve about 33% performance.
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/194
-    // @see: https://github.com/winlinvip/simple-rtmp-server/issues/217
-    //rtmp->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
-    rtmp->set_recv_timeout(ST_UTIME_NO_TIMEOUT);
-    
-    // disable the protocol auto response, 
-    // for the isolate recv thread should never send any messages.
-    rtmp->set_auto_response(false);
-    
     // use isolate thread to recv, 
-    // start isolate recv thread.
+    // @see: https://github.com/winlinvip/simple-rtmp-server/issues/217
     SrsRecvThread trd(rtmp);
+    
+    // start isolate recv thread.
     if ((ret = trd.start()) != ERROR_SUCCESS) {
         srs_error("start isolate recv thread failed. ret=%d", ret);
         return ret;
@@ -523,10 +513,6 @@ int SrsRtmpConn::playing(SrsSource* source)
     
     // stop isolate recv thread
     trd.stop();
-    
-    // enable the protocol auto response,
-    // for the isolate recv thread terminated.
-    rtmp->set_auto_response(true);
     
     return ret;
 }

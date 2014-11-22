@@ -59,6 +59,9 @@ public:
     virtual int start();
     virtual void stop();
     virtual int cycle();
+public:
+    virtual void on_thread_start();
+    virtual void on_thread_stop();
 };
 
 #endif
