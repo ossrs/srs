@@ -54,6 +54,11 @@ bool SrsRecvThread::empty()
     return queue.empty();
 }
 
+int SrsRecvThread::size()
+{
+    return (int)queue.size();
+}
+
 SrsMessage* SrsRecvThread::pump()
 {
     srs_assert(!queue.empty());
@@ -79,6 +84,15 @@ int SrsRecvThread::cycle()
 {
     int ret = ERROR_SUCCESS;
     
+    // we only recv one message and then process it,
+    // for the message may cause the thread to stop,
+    // when stop, the thread is freed, so the messages
+    // are dropped.
+    if (!queue.empty()) {
+        st_usleep(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
+        return ret;
+    }
+    
     SrsMessage* msg = NULL;
     
     if ((ret = rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
@@ -92,6 +106,10 @@ int SrsRecvThread::cycle()
         return ret;
     }
     srs_verbose("play loop recv message. ret=%d", ret);
+    
+    // put into queue, the send thread will get and process it,
+    // @see SrsRtmpConn::process_play_control_msg
+    queue.push_back(msg);
     
     return ret;
 }
