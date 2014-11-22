@@ -35,7 +35,7 @@ HLS(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryHLS), 
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_DeliveryHLS)
 ), 
-high-performance(6k+ clients)(
+high-performance(7.5k+ clients)(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Performance), 
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Performance)
 ),
@@ -695,14 +695,14 @@ Supported operating systems and hardware:
 
 Performance benchmark history, on virtual box:
 
-* 2013-11-28, SRS 0.5.0,   1800clients, 90%CPU, 41MB. [benchmark](https://github.com/winlinvip/simple-rtmp-server/commit/023e23bc8261bec15a70a7ae932098fb4f82b679)
-* 2014-07-12, SRS 0.9.156, 1800clients, 68%CPU, 38MB. [benchmark](https://github.com/winlinvip/simple-rtmp-server/commit/e2d273f4939348374bf9644df9d54c4293b39c1a)
-* 2014-07-12, SRS 0.9.156, 2700clients, 89%CPU, 61MB. [benchmark](https://github.com/winlinvip/simple-rtmp-server/commit/6d12280b7cc54c465b1caf8b1402149e77c4c7d9)
-* 2014-11-11, SRS 1.0.5,   2700clients, 85%CPU, 66MB. (1.0 equals 2.0.12)
-* 2014-11-12, SRS 2.0.14,  2700clients, 69%CPU, 59MB.
-* 2014-11-12, SRS 2.0.14,  3500clients, 95%CPU, 78MB.
-* 2014-11-13, SRS 2.0.15,  6000clients, 82%CPU, 203MB. (500 publishers).
-* 2014-11-22, SRS 2.0.30,  7500clients, 87%CPU, 320MB. 
+* 2013-11-28, SRS 0.5.0,   1.8k(1800)clients, 90%CPU, 41MB. [benchmark](https://github.com/winlinvip/simple-rtmp-server/commit/023e23bc8261bec15a70a7ae932098fb4f82b679)
+* 2014-07-12, SRS 0.9.156, 1.8k(1800)clients, 68%CPU, 38MB. [benchmark](https://github.com/winlinvip/simple-rtmp-server/commit/e2d273f4939348374bf9644df9d54c4293b39c1a)
+* 2014-07-12, SRS 0.9.156, 2.7k(2700)clients, 89%CPU, 61MB. [benchmark](https://github.com/winlinvip/simple-rtmp-server/commit/6d12280b7cc54c465b1caf8b1402149e77c4c7d9)
+* 2014-11-11, SRS 1.0.5,   2.7k(2700)clients, 85%CPU, 66MB. (1.0 equals 2.0.12)
+* 2014-11-12, SRS 2.0.14,  2.7k(2700)clients, 69%CPU, 59MB.
+* 2014-11-12, SRS 2.0.14,  3.5k(3500)clients, 95%CPU, 78MB.
+* 2014-11-13, SRS 2.0.15,  6.0k(6000)clients, 82%CPU, 203MB. (500 publishers).
+* 2014-11-22, SRS 2.0.30,  7.5k(7500)clients, 87%CPU, 320MB. 
 
 Latest benchmark(2014-07-12):
 
