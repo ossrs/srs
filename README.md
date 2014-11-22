@@ -445,11 +445,12 @@ Supported operating systems and hardware:
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data),
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_SrsLibrtmp#publish-h264-raw-data)
 ) by srs-librtmp.
-1. Support [6k+ clients](https://github.com/winlinvip/simple-rtmp-server/issues/194), 4Gbps per process.
+1. Support [6k+ clients](https://github.com/winlinvip/simple-rtmp-server/issues/194), 3Gbps per process.
 1. Suppport [English wiki](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Home).
 1. Research and simplify st, [bug #182](https://github.com/winlinvip/simple-rtmp-server/issues/182).
 1. Support compile [srs-librtmp on windows](https://github.com/winlinvip/srs.librtmp), 
 [bug #213](https://github.com/winlinvip/simple-rtmp-server/issues/213).
+1. Support [7.5k+ clients](https://github.com/winlinvip/simple-rtmp-server/issues/217), 4Gbps per process.
 1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
 1. [no-plan] Support RTMP 302 redirect [#92](https://github.com/winlinvip/simple-rtmp-server/issues/92).
 1. [no-plan] Support multiple processes, for both origin and edge
@@ -482,6 +483,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2014-11-22, fix [#217](https://github.com/winlinvip/simple-rtmp-server/issues/217), remove timeout recv, support 7.5k+ 250kbps clients. 2.0.30.
 * v2.0, 2014-11-21, srs-librtmp add rtmp prefix for rtmp/utils/human apis. 2.0.29.
 * v2.0, 2014-11-21, refine examples of srs-librtmp, add srs_print_rtmp_packet. 2.0.28.
 * v2.0, 2014-11-20, fix [#212](https://github.com/winlinvip/simple-rtmp-server/issues/212), support publish audio raw frames. 2.0.27
@@ -700,6 +702,7 @@ Performance benchmark history, on virtual box:
 * 2014-11-12, SRS 2.0.14,  2700clients, 69%CPU, 59MB.
 * 2014-11-12, SRS 2.0.14,  3500clients, 95%CPU, 78MB.
 * 2014-11-13, SRS 2.0.15,  6000clients, 82%CPU, 203MB. (500 publishers).
+* 2014-11-22, SRS 2.0.30,  7500clients, 87%CPU, 320MB. 
 
 Latest benchmark(2014-07-12):
 

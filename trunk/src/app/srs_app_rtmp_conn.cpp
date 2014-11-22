@@ -48,6 +48,7 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_protocol_msg_array.hpp>
 #include <srs_protocol_amf0.hpp>
+#include <srs_app_recv_thread.hpp>
 
 // when stream is busy, for example, streaming is already
 // publishing, when a new client to request to publish,
@@ -493,76 +494,6 @@ int SrsRtmpConn::check_vhost()
     return ret;
 }
 
-class IsolateRecvThread : public ISrsThreadHandler
-{
-private:
-    SrsThread* trd;
-    SrsRtmpServer* rtmp;
-    std::vector<SrsMessage*> queue;
-public:
-    IsolateRecvThread(SrsRtmpServer* rtmp_sdk)
-    {
-        rtmp = rtmp_sdk;
-        trd = new SrsThread(this, 0, true);
-    }
-    virtual ~IsolateRecvThread()
-    {
-        // stop recv thread.
-        stop();
-        
-        // destroy the thread.
-        srs_freep(trd);
-        
-        // clear all messages.
-        std::vector<SrsMessage*>::iterator it;
-        for (it = queue.begin(); it != queue.end(); ++it) {
-            SrsMessage* msg = *it;
-            srs_freep(msg);
-        }
-        queue.clear();
-    }
-public:
-    virtual bool empty()
-    {
-        return queue.empty();
-    }
-    virtual SrsMessage* pump()
-    {
-        SrsMessage* msg = *queue.begin();
-        queue.erase(queue.begin());
-        return msg;
-    }
-public:
-    virtual int start()
-    {
-        return trd->start();
-    }
-    virtual void stop()
-    {
-        trd->stop();
-    }
-    virtual int cycle()
-    {
-        int ret = ERROR_SUCCESS;
-        
-        SrsMessage* msg = NULL;
-        
-        if ((ret = rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
-            if (!srs_is_client_gracefully_close(ret)) {
-                srs_error("recv client control message failed. ret=%d", ret);
-            }
-            
-            // we use no timeout to recv, should never got any error.
-            trd->stop_loop();
-            
-            return ret;
-        }
-        srs_verbose("play loop recv message. ret=%d", ret);
-        
-        return ret;
-    }
-};
-
 int SrsRtmpConn::playing(SrsSource* source)
 {
     int ret = ERROR_SUCCESS;
@@ -581,7 +512,7 @@ int SrsRtmpConn::playing(SrsSource* source)
     
     // use isolate thread to recv, 
     // start isolate recv thread.
-    IsolateRecvThread trd(rtmp);
+    SrsRecvThread trd(rtmp);
     if ((ret = trd.start()) != ERROR_SUCCESS) {
         srs_error("start isolate recv thread failed. ret=%d", ret);
         return ret;
@@ -600,7 +531,7 @@ int SrsRtmpConn::playing(SrsSource* source)
     return ret;
 }
 
-int SrsRtmpConn::do_playing(SrsSource* source, IsolateRecvThread* trd)
+int SrsRtmpConn::do_playing(SrsSource* source, SrsRecvThread* trd)
 {
     int ret = ERROR_SUCCESS;
     
