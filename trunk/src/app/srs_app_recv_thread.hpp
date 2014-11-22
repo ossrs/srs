@@ -54,6 +54,7 @@ public:
     virtual ~SrsRecvThread();
 public:
     virtual bool empty();
+    virtual int size();
     virtual SrsMessage* pump();
 public:
     virtual int start();

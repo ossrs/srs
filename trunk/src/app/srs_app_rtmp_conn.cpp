@@ -514,6 +514,11 @@ int SrsRtmpConn::playing(SrsSource* source)
     // stop isolate recv thread
     trd.stop();
     
+    // warn for the message is dropped.
+    if (!trd.empty()) {
+        srs_warn("drop the received %d messages", trd.size());
+    }
+    
     return ret;
 }
 
@@ -549,7 +554,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsRecvThread* trd)
         // @see: https://github.com/winlinvip/simple-rtmp-server/issues/217
         while (!trd->empty()) {
             SrsMessage* msg = trd->pump();
-            srs_warn("pump client message to process.");
+            srs_verbose("pump client message to process.");
             
             if ((ret = process_play_control_msg(consumer, msg)) != ERROR_SUCCESS) {
                 if (!srs_is_system_control_error(ret)) {
