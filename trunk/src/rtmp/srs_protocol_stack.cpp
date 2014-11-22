@@ -415,6 +415,7 @@ SrsProtocol::SrsProtocol(ISrsProtocolReaderWriter* io)
     srs_assert(nb_out_iovs >= 2);
     
     warned_c0c3_cache_dry = false;
+    auto_response_when_recv = true;
 }
 
 SrsProtocol::~SrsProtocol()
@@ -430,6 +431,15 @@ SrsProtocol::~SrsProtocol()
         chunk_streams.clear();
     }
     
+    if (true) {
+        std::vector<SrsPacket*>::iterator it;
+        for (it = manual_response_queue.begin(); it != manual_response_queue.end(); ++it) {
+            SrsPacket* pkt = *it;
+            srs_freep(pkt);
+        }
+        manual_response_queue.clear();
+    }
+    
     srs_freep(in_buffer);
     
     // alloc by malloc, use free directly.
@@ -437,6 +447,35 @@ SrsProtocol::~SrsProtocol()
         free(out_iovs);
         out_iovs = NULL;
     }
+}
+
+void SrsProtocol::set_auto_response(bool v)
+{
+    auto_response_when_recv = v;
+}
+
+int SrsProtocol::manual_response_flush()
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (manual_response_queue.empty()) {
+        return ret;
+    }
+    
+    std::vector<SrsPacket*>::iterator it;
+    for (it = manual_response_queue.begin(); it != manual_response_queue.end();) {
+        SrsPacket* pkt = *it;
+        
+        // erase this packet, the send api always free it.
+        it = manual_response_queue.erase(it);
+        
+        // use underlayer api to send, donot flush again.
+        if ((ret = do_send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    
+    return ret;
 }
 
 void SrsProtocol::set_recv_timeout(int64_t timeout_us)
@@ -638,7 +677,9 @@ int SrsProtocol::do_send_messages(SrsMessage** msgs, int nb_msgs)
                 // when c0c3 cache dry,
                 // sendout all messages and reset the cache, then send again.
                 if ((ret = skt->writev(out_iovs, iov_index, NULL)) != ERROR_SUCCESS) {
-                    srs_error("send with writev failed. ret=%d", ret);
+                    if (!srs_is_client_gracefully_close(ret)) {
+                        srs_error("send with writev failed. ret=%d", ret);
+                    }
                     return ret;
                 }
     
@@ -663,9 +704,53 @@ int SrsProtocol::do_send_messages(SrsMessage** msgs, int nb_msgs)
     // sendout header and payload by writev.
     // decrease the sys invoke count to get higher performance.
     if ((ret = skt->writev(out_iovs, iov_index, NULL)) != ERROR_SUCCESS) {
-        srs_error("send with writev failed. ret=%d", ret);
+        if (!srs_is_client_gracefully_close(ret)) {
+            srs_error("send with writev failed. ret=%d", ret);
+        }
         return ret;
     }
+    
+    return ret;
+}
+
+int SrsProtocol::do_send_and_free_packet(SrsPacket* packet, int stream_id)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(packet);
+    SrsAutoFree(SrsPacket, packet);
+    
+    int size = 0;
+    char* payload = NULL;
+    if ((ret = packet->encode(size, payload)) != ERROR_SUCCESS) {
+        srs_error("encode RTMP packet to bytes oriented RTMP message failed. ret=%d", ret);
+        return ret;
+    }
+    
+    // encode packet to payload and size.
+    if (size <= 0 || payload == NULL) {
+        srs_warn("packet is empty, ignore empty message.");
+        return ret;
+    }
+    
+    // to message
+    SrsMessage* msg = new SrsCommonMessage();
+    
+    msg->payload = payload;
+    msg->size = size;
+    
+    msg->header.payload_length = size;
+    msg->header.message_type = packet->get_message_type();
+    msg->header.stream_id = stream_id;
+    msg->header.perfer_cid = packet->get_prefer_cid();
+
+    // donot use the auto free to free the msg,
+    // for performance issue.
+    ret = do_send_messages(&msg, 1);
+    if (ret == ERROR_SUCCESS) {
+        ret = on_send_packet(msg, packet);
+    }
+    srs_freep(msg);
     
     return ret;
 }
@@ -948,6 +1033,16 @@ int SrsProtocol::send_and_free_messages(SrsMessage** msgs, int nb_msgs, int stre
         srs_freep(msg);
     }
     
+    // donot flush when send failed
+    if (ret != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // flush messages in manual queue
+    if ((ret = manual_response_flush()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     return ret;
 }
 
@@ -955,40 +1050,14 @@ int SrsProtocol::send_and_free_packet(SrsPacket* packet, int stream_id)
 {
     int ret = ERROR_SUCCESS;
     
-    srs_assert(packet);
-    SrsAutoFree(SrsPacket, packet);
-    
-    int size = 0;
-    char* payload = NULL;
-    if ((ret = packet->encode(size, payload)) != ERROR_SUCCESS) {
-        srs_error("encode RTMP packet to bytes oriented RTMP message failed. ret=%d", ret);
+    if ((ret = do_send_and_free_packet(packet, stream_id)) != ERROR_SUCCESS) {
         return ret;
     }
     
-    // encode packet to payload and size.
-    if (size <= 0 || payload == NULL) {
-        srs_warn("packet is empty, ignore empty message.");
+    // flush messages in manual queue
+    if ((ret = manual_response_flush()) != ERROR_SUCCESS) {
         return ret;
     }
-    
-    // to message
-    SrsMessage* msg = new SrsCommonMessage();
-    
-    msg->payload = payload;
-    msg->size = size;
-    
-    msg->header.payload_length = size;
-    msg->header.message_type = packet->get_message_type();
-    msg->header.stream_id = stream_id;
-    msg->header.perfer_cid = packet->get_prefer_cid();
-
-    // donot use the auto free to free the msg,
-    // for performance issue.
-    ret = do_send_messages(&msg, 1);
-    if (ret == ERROR_SUCCESS) {
-        ret = on_send_packet(msg, packet);
-    }
-    srs_freep(msg);
     
     return ret;
 }
@@ -1698,7 +1767,15 @@ int SrsProtocol::response_acknowledgement_message()
     SrsAcknowledgementPacket* pkt = new SrsAcknowledgementPacket();
     in_ack_size.acked_size = skt->get_recv_bytes();
     pkt->sequence_number = (int32_t)in_ack_size.acked_size;
-    if ((ret = send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
+    
+    // cache the message and use flush to send.
+    if (!auto_response_when_recv) {
+        manual_response_queue.push_back(pkt);
+        return ret;
+    }
+    
+    // use underlayer api to send, donot flush again.
+    if ((ret = do_send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
         srs_error("send acknowledgement failed. ret=%d", ret);
         return ret;
     }
@@ -1718,7 +1795,14 @@ int SrsProtocol::response_ping_message(int32_t timestamp)
     pkt->event_type = SrcPCUCPingResponse;
     pkt->event_data = timestamp;
     
-    if ((ret = send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
+    // cache the message and use flush to send.
+    if (!auto_response_when_recv) {
+        manual_response_queue.push_back(pkt);
+        return ret;
+    }
+    
+    // use underlayer api to send, donot flush again.
+    if ((ret = do_send_and_free_packet(pkt, 0)) != ERROR_SUCCESS) {
         srs_error("send ping response failed. ret=%d", ret);
         return ret;
     }
