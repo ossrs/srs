@@ -493,7 +493,114 @@ int SrsRtmpConn::check_vhost()
     return ret;
 }
 
+class IsolateRecvThread : public ISrsThreadHandler
+{
+private:
+    SrsThread* trd;
+    SrsRtmpServer* rtmp;
+    std::vector<SrsMessage*> queue;
+public:
+    IsolateRecvThread(SrsRtmpServer* rtmp_sdk)
+    {
+        rtmp = rtmp_sdk;
+        trd = new SrsThread(this, 0, true);
+    }
+    virtual ~IsolateRecvThread()
+    {
+        // stop recv thread.
+        stop();
+        
+        // destroy the thread.
+        srs_freep(trd);
+        
+        // clear all messages.
+        std::vector<SrsMessage*>::iterator it;
+        for (it = queue.begin(); it != queue.end(); ++it) {
+            SrsMessage* msg = *it;
+            srs_freep(msg);
+        }
+        queue.clear();
+    }
+public:
+    virtual bool empty()
+    {
+        return queue.empty();
+    }
+    virtual SrsMessage* pump()
+    {
+        SrsMessage* msg = *queue.begin();
+        queue.erase(queue.begin());
+        return msg;
+    }
+public:
+    virtual int start()
+    {
+        return trd->start();
+    }
+    virtual void stop()
+    {
+        trd->stop();
+    }
+    virtual int cycle()
+    {
+        int ret = ERROR_SUCCESS;
+        
+        SrsMessage* msg = NULL;
+        
+        if ((ret = rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
+            if (!srs_is_client_gracefully_close(ret)) {
+                srs_error("recv client control message failed. ret=%d", ret);
+            }
+            
+            // we use no timeout to recv, should never got any error.
+            trd->stop_loop();
+            
+            return ret;
+        }
+        srs_verbose("play loop recv message. ret=%d", ret);
+        
+        return ret;
+    }
+};
+
 int SrsRtmpConn::playing(SrsSource* source)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // the multiple messages writev improve performance large,
+    // but the timeout recv will cause 33% sys call performance,
+    // to use isolate thread to recv, can improve about 33% performance.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/194
+    // @see: https://github.com/winlinvip/simple-rtmp-server/issues/217
+    //rtmp->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
+    rtmp->set_recv_timeout(ST_UTIME_NO_TIMEOUT);
+    
+    // disable the protocol auto response, 
+    // for the isolate recv thread should never send any messages.
+    rtmp->set_auto_response(false);
+    
+    // use isolate thread to recv, 
+    // start isolate recv thread.
+    IsolateRecvThread trd(rtmp);
+    if ((ret = trd.start()) != ERROR_SUCCESS) {
+        srs_error("start isolate recv thread failed. ret=%d", ret);
+        return ret;
+    }
+    
+    // delivery messages for clients playing stream.
+    ret = do_playing(source, &trd);
+    
+    // stop isolate recv thread
+    trd.stop();
+    
+    // enable the protocol auto response,
+    // for the isolate recv thread terminated.
+    rtmp->set_auto_response(true);
+    
+    return ret;
+}
+
+int SrsRtmpConn::do_playing(SrsSource* source, IsolateRecvThread* trd)
 {
     int ret = ERROR_SUCCESS;
     
@@ -519,38 +626,19 @@ int SrsRtmpConn::playing(SrsSource* source)
     bool user_specified_duration_to_stop = (req->duration > 0);
     int64_t starttime = -1;
     
-    // TODO: use isolate thread to recv, 
-    // @see: https://github.com/winlinvip/simple-rtmp-server/issues/196
-    // the performance bottleneck not in the timeout recv, but 
-    // in the multiple messages send, so it's ok for timeout recv,
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/194
-    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
-    
     while (true) {
-        // TODO: to use isolate thread to recv, can improve about 5% performance.
+        // to use isolate thread to recv, can improve about 33% performance.
         // @see: https://github.com/winlinvip/simple-rtmp-server/issues/196
-        // read from client.
-        if (true) {
-            SrsMessage* msg = NULL;
-            ret = rtmp->recv_message(&msg);
-            srs_verbose("play loop recv message. ret=%d", ret);
+        // @see: https://github.com/winlinvip/simple-rtmp-server/issues/217
+        while (!trd->empty()) {
+            SrsMessage* msg = trd->pump();
+            srs_warn("pump client message to process.");
             
-            if (ret == ERROR_SOCKET_TIMEOUT) {
-                // it's ok, do nothing.
-                ret = ERROR_SUCCESS;
-                srs_verbose("recv timeout, ignore. ret=%d", ret);
-            } else if (ret != ERROR_SUCCESS) {
-                if (!srs_is_client_gracefully_close(ret)) {
-                    srs_error("recv client control message failed. ret=%d", ret);
+            if ((ret = process_play_control_msg(consumer, msg)) != ERROR_SUCCESS) {
+                if (!srs_is_system_control_error(ret)) {
+                    srs_error("process play control message failed. ret=%d", ret);
                 }
                 return ret;
-            } else {
-                if ((ret = process_play_control_msg(consumer, msg)) != ERROR_SUCCESS) {
-                    if (!srs_is_system_control_error(ret)) {
-                        srs_error("process play control message failed. ret=%d", ret);
-                    }
-                    return ret;
-                }
             }
         }
         
@@ -563,6 +651,12 @@ int SrsRtmpConn::playing(SrsSource* source)
         if ((ret = consumer->dump_packets(msgs.max, msgs.msgs, count)) != ERROR_SUCCESS) {
             srs_error("get messages from consumer failed. ret=%d", ret);
             return ret;
+        }
+        
+        // no message to send, sleep a while.
+        if (count <= 0) {
+            srs_verbose("sleep for no messages to send");
+            st_usleep(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
         }
 
         // reportable
@@ -596,7 +690,9 @@ int SrsRtmpConn::playing(SrsSource* source)
         if (count > 0) {
             // no need to assert msg, for the rtmp will assert it.
             if ((ret = rtmp->send_and_free_messages(msgs.msgs, count, res->stream_id)) != ERROR_SUCCESS) {
-                srs_error("send messages to client failed. ret=%d", ret);
+                if (!srs_is_client_gracefully_close(ret)) {
+                    srs_error("send messages to client failed. ret=%d", ret);
+                }
                 return ret;
             }
         }

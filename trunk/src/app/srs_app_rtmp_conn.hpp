@@ -49,6 +49,7 @@ class SrsBandwidth;
 class SrsKbps;
 class SrsRtmpClient;
 class SrsSharedPtrMessage;
+class IsolateRecvThread;
 
 /**
 * the client provides the main logic control for RTMP clients.
@@ -88,6 +89,7 @@ private:
     virtual int stream_service_cycle();
     virtual int check_vhost();
     virtual int playing(SrsSource* source);
+    virtual int do_playing(SrsSource* source, IsolateRecvThread* trd);
     virtual int fmle_publishing(SrsSource* source);
     virtual int do_fmle_publishing(SrsSource* source);
     virtual int flash_publishing(SrsSource* source);

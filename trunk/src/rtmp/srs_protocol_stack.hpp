@@ -31,6 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <map>
+#include <vector>
 #include <string>
 
 // for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
@@ -213,6 +214,16 @@ private:
     * input ack size, when to send the acked packet.
     */
     AckWindowSize in_ack_size;
+    /**
+    * whether auto response when recv messages.
+    * default to true for it's very easy to use the protocol stack.
+    * @see: https://github.com/winlinvip/simple-rtmp-server/issues/217
+    */
+    bool auto_response_when_recv;
+    /**
+    * when not auto response message, manual flush the messages in queue.
+    */
+    std::vector<SrsPacket*> manual_response_queue;
 // peer out
 private:
     /**
@@ -244,6 +255,20 @@ public:
     */
     SrsProtocol(ISrsProtocolReaderWriter* io);
     virtual ~SrsProtocol();
+public:
+    /**
+    * set the auto response message when recv for protocol stack.
+    * @param v, whether auto response message when recv message.
+    * @see: https://github.com/winlinvip/simple-rtmp-server/issues/217
+    */
+    virtual void set_auto_response(bool v);
+    /**
+    * flush for manual response when the auto response is disabled
+    * by set_auto_response(false), we default use auto response, so donot
+    * need to call this api(the protocol sdk will auto send message).
+    * @see the auto_response_when_recv and manual_response_queue.
+    */
+    virtual int manual_response_flush();
 public:
     /**
     * set/get the recv timeout in us.
@@ -370,6 +395,10 @@ private:
     * the caller must free the param msgs.
     */
     virtual int do_send_messages(SrsMessage** msgs, int nb_msgs);
+    /**
+    * underlayer api for send and free packet.
+    */
+    virtual int do_send_and_free_packet(SrsPacket* packet, int stream_id);
     /**
     * generate the chunk header for msg.
     * @param mh, the header of msg to send.

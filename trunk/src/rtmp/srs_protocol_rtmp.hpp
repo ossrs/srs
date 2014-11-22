@@ -335,6 +335,12 @@ public:
 // protocol methods proxy
 public:
     /**
+    * set the auto response message when recv for protocol stack.
+    * @param v, whether auto response message when recv message.
+    * @see: https://github.com/winlinvip/simple-rtmp-server/issues/217
+    */
+    virtual void set_auto_response(bool v);
+    /**
     * set/get the recv timeout in us.
     * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
     */
