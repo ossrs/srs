@@ -166,16 +166,16 @@ int main(int argc, char** argv)
         }
         
         // send out the h264 packet over RTMP
-        int error = srs_h264_write_raw_frames(rtmp, data, size, dts, pts);
-        if (error != 0) {
-            if (srs_h264_is_dvbsp_error(error)) {
-                srs_human_trace("ignore drop video error, code=%d", error);
-            } else if (srs_h264_is_duplicated_sps_error(error)) {
-                srs_human_trace("ignore duplicated sps, code=%d", error);
-            } else if (srs_h264_is_duplicated_pps_error(error)) {
-                srs_human_trace("ignore duplicated pps, code=%d", error);
+        int ret = srs_h264_write_raw_frames(rtmp, data, size, dts, pts);
+        if (ret != 0) {
+            if (srs_h264_is_dvbsp_error(ret)) {
+                srs_human_trace("ignore drop video error, code=%d", ret);
+            } else if (srs_h264_is_duplicated_sps_error(ret)) {
+                srs_human_trace("ignore duplicated sps, code=%d", ret);
+            } else if (srs_h264_is_duplicated_pps_error(ret)) {
+                srs_human_trace("ignore duplicated pps, code=%d", ret);
             } else {
-                srs_human_trace("send h264 raw data failed.");
+                srs_human_trace("send h264 raw data failed. ret=%d", ret);
                 goto rtmp_destroy;
             }
         }

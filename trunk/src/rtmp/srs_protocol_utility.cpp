@@ -167,12 +167,12 @@ bool srs_avc_startswith_annexb(SrsStream* stream, int* pnb_start_code)
         }
         
         // not match
-        if (p[0] != 0x00 || p[1] != 0x00) {
+        if (p[0] != (char)0x00 || p[1] != (char)0x00) {
             return false;
         }
         
         // match N[00] 00 00 01, where N>=0
-        if (p[2] == 0x01) {
+        if (p[2] == (char)0x01) {
             if (pnb_start_code) {
                 *pnb_start_code = (int)(p - bytes) + 3;
             }
@@ -183,5 +183,23 @@ bool srs_avc_startswith_annexb(SrsStream* stream, int* pnb_start_code)
     }
     
     return false;
+}
+
+bool srs_aac_startswith_adts(SrsStream* stream)
+{
+    char* bytes = stream->data() + stream->pos();
+    char* p = bytes;
+    
+    if (!stream->require(p - bytes + 2)) {
+        return false;
+    }
+    
+    // matched 12bits 0xFFF,
+    // @remark, we must cast the 0xff to char to compare.
+    if (p[0] != (char)0xff || (char)(p[1] & 0xf0) != (char)0xf0) {
+        return false;
+    }
+    
+    return true;
 }
 

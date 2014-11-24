@@ -21,7 +21,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 /**
-gcc srs_audio_raw_publish.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_audio_raw_publish
+gcc srs_aac_raw_publish.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_aac_raw_publish
 */
 
 #include <stdio.h>
@@ -41,25 +41,32 @@ gcc srs_audio_raw_publish.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_
 //      It's captured using SDK callback method. I have filtered out h264 video, so it's audio only now.
 //      For every frame, it's a 8 bytes vendor specific header, following 160 bytes audio frame. 
 //      The header part can be ignored.
-int read_audio_frame(char* audio_raw, int file_size, char** pp, char** pdata, int* psize) 
+int read_audio_frame(char* data, int size, char** pp, char** frame, int* frame_size) 
 {
     char* p = *pp;
     
-    if (file_size - (p - audio_raw) < 168) {
-        srs_human_trace("audio must be 160+8 bytes. left %d bytes.", 
-            file_size - (p - audio_raw));
-        return - 1;
+    // @remark, for this demo, to publish aac raw file to SRS,
+    // we search the adts frame from the buffer which cached the aac data.
+    // please get aac adts raw data from device, it always a encoded frame.
+    if (!srs_aac_is_adts(p, size - (p - data))) {
+        srs_human_trace("aac adts raw data invalid.");
+        return -1;
     }
     
-    // ignore 8bytes vendor specific header.
-    p += 8;
+    // @see srs_audio_write_raw_frame
+    // each frame prefixed aac adts header, '1111 1111 1111'B, that is 0xFFF., 
+    // for instance, frame = FF F1 5C 80 13 A0 FC 00 D0 33 83 E8 5B
+    *frame = p;
+    // skip some data. 
+    // @remark, user donot need to do this.
+    p += srs_aac_adts_frame_size(p, size - (p - data));
     
-    // 160 bytes audio frame
-    *pdata = p;
-    *psize = 160;
-    
-    // next frame.
-    *pp = p + *psize;
+    *pp = p;
+    *frame_size = p - *frame;
+    if (*frame_size <= 0) {
+        srs_human_trace("aac adts raw data invalid.");
+        return -1;
+    }
     
     return 0;
 }
@@ -75,8 +82,8 @@ int main(int argc, char** argv)
         printf("     audio_raw_file: the audio raw steam file.\n");
         printf("     rtmp_publish_url: the rtmp publish url.\n");
         printf("For example:\n");
-        printf("     %s ./audio.raw.pcm rtmp://127.0.0.1:1935/live/livestream\n", argv[0]);
-        printf("Where the file: http://winlinvip.github.io/srs.release/3rdparty/audio.raw.pcm\n");
+        printf("     %s ./audio.raw.aac rtmp://127.0.0.1:1935/live/livestream\n", argv[0]);
+        printf("Where the file: http://winlinvip.github.io/srs.release/3rdparty/audio.raw.aac\n");
         printf("See: https://github.com/winlinvip/simple-rtmp-server/issues/212\n");
         exit(-1);
     }
@@ -135,7 +142,7 @@ int main(int argc, char** argv)
     srs_human_trace("publish stream success");
     
     u_int32_t timestamp = 0;
-    u_int32_t time_delta = 17;
+    u_int32_t time_delta = 45;
     // @remark, to decode the file.
     char* p = audio_raw;
     for (;p < audio_raw + file_size;) {
@@ -154,9 +161,9 @@ int main(int argc, char** argv)
         // 8 = G.711 mu-law logarithmic PCM
         // 10 = AAC
         // 11 = Speex
-        char sound_format = 1;
-        // 3 = 44 kHz
-        char sound_rate = 3;
+        char sound_format = 10;
+        // 2 = 22 kHz
+        char sound_rate = 2;
         // 1 = 16-bit samples
         char sound_size = 1;
         // 1 = Stereo sound
@@ -164,11 +171,12 @@ int main(int argc, char** argv)
         
         timestamp += time_delta;
         
-        if (srs_audio_write_raw_frame(rtmp, 
+        int ret = 0;
+        if ((ret = srs_audio_write_raw_frame(rtmp, 
             sound_format, sound_rate, sound_size, sound_type,
-            data, size, timestamp) != 0
+            data, size, timestamp)) != 0
         ) {
-            srs_human_trace("send audio raw data failed.");
+            srs_human_trace("send audio raw data failed. ret=%d", ret);
             goto rtmp_destroy;
         }
         

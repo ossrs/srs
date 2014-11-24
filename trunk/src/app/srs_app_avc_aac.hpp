@@ -39,25 +39,6 @@ class SrsAmf0Object;
 #define __SRS_AAC_SAMPLE_RATE_UNSET 15
 
 /**
-* the FLV/RTMP supported audio sample rate.
-* Sampling rate. The following values are defined:
-* 0 = 5.5 kHz = 5512 Hz
-* 1 = 11 kHz = 11025 Hz
-* 2 = 22 kHz = 22050 Hz
-* 3 = 44 kHz = 44100 Hz
-*/
-enum SrsCodecAudioSampleRate
-{
-    // set to the max value to reserved, for array map.
-    SrsCodecAudioSampleRateReserved                 = 4,
-    
-    SrsCodecAudioSampleRate5512                     = 0,
-    SrsCodecAudioSampleRate11025                    = 1,
-    SrsCodecAudioSampleRate22050                    = 2,
-    SrsCodecAudioSampleRate44100                    = 3,
-};
-
-/**
 * the FLV/RTMP supported audio sample size.
 * Size of each audio sample. This parameter only pertains to
 * uncompressed formats. Compressed formats always decode
@@ -224,8 +205,9 @@ public:
 public:
     /**
     * audio specified
-    * 1.6.2.1 AudioSpecificConfig, in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 33.
-    * audioObjectType, value defines in 7.1 Profiles, aac-iso-13818-7.pdf, page 40.
+    * audioObjectType, in 1.6.2.1 AudioSpecificConfig, page 33,
+    * 1.5.1.1 Audio object type definition, page 23,
+    *           in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf.
     */
     u_int8_t        aac_profile; 
     /**
