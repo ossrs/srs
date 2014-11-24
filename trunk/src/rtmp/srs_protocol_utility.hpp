@@ -96,5 +96,12 @@ extern bool srs_bytes_equals(void* pa, void* pb, int size);
 */
 extern bool srs_avc_startswith_annexb(SrsStream* stream, int* pnb_start_code = NULL);
 
+/**
+* whether stream starts with the aac ADTS 
+* from aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 75, 1.A.2.2 ADTS.
+* start code must be '1111 1111 1111'B, that is 0xFFF
+*/
+extern bool srs_aac_startswith_adts(SrsStream* stream);
+
 #endif
 

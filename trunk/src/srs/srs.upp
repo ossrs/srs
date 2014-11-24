@@ -130,6 +130,7 @@ file
 	..\utest\srs_utest_reload.hpp,
 	..\utest\srs_utest_reload.cpp,
 	research readonly separator,
+	..\..\research\librtmp\srs_aac_raw_publish.c,
 	..\..\research\librtmp\srs_audio_raw_publish.c,
 	..\..\research\librtmp\srs_bandwidth_check.c,
 	..\..\research\librtmp\srs_detect_rtmp.c,

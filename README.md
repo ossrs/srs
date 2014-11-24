@@ -451,6 +451,10 @@ Supported operating systems and hardware:
 1. Support compile [srs-librtmp on windows](https://github.com/winlinvip/srs.librtmp), 
 [bug #213](https://github.com/winlinvip/simple-rtmp-server/issues/213).
 1. Support [7.5k+ clients](https://github.com/winlinvip/simple-rtmp-server/issues/217), 4Gbps per process.
+1. Support publish aac adts raw stream(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#publish-audio-raw-stream),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_SrsLibrtmp#publish-audio-raw-stream)
+) by srs-librtmp.
 1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
 1. [no-plan] Support RTMP 302 redirect [#92](https://github.com/winlinvip/simple-rtmp-server/issues/92).
 1. [no-plan] Support multiple processes, for both origin and edge
@@ -483,6 +487,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2014-11-24, fix [#212](https://github.com/winlinvip/simple-rtmp-server/issues/212), support publish aac adts raw stream. 2.0.31.
 * v2.0, 2014-11-22, fix [#217](https://github.com/winlinvip/simple-rtmp-server/issues/217), remove timeout recv, support 7.5k+ 250kbps clients. 2.0.30.
 * v2.0, 2014-11-21, srs-librtmp add rtmp prefix for rtmp/utils/human apis. 2.0.29.
 * v2.0, 2014-11-21, refine examples of srs-librtmp, add srs_print_rtmp_packet. 2.0.28.

@@ -84,6 +84,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 extern "C"{
 #endif
 
+// typedefs
+typedef int srs_bool;
+
 /*************************************************************
 **************************************************************
 * srs-librtmp version
@@ -303,12 +306,15 @@ extern int srs_rtmp_write_packet(srs_rtmp_t rtmp,
 * @param sound_type Mono or stereo sound
 *               0 = Mono sound
 *               1 = Stereo sound
-* @param aac_packet_type The following values are defined:
-*               0 = AAC sequence header
-*               1 = AAC raw
 * @param timestamp The timestamp of audio.
 *
-* @remark Ignore aac_packet_type if not aac(sound_format!=10).
+* @example /trunk/research/librtmp/srs_aac_raw_publish.c
+* @example /trunk/research/librtmp/srs_audio_raw_publish.c
+*
+* @remark for aac, the frame must be in ADTS format. 
+*       @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 75, 1.A.2.2 ADTS
+* @remark for aac, only support profile 1-4, AAC main/LC/SSR/LTP,
+*       @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 23, 1.5.1.1 Audio object type
 *
 * @see https://github.com/winlinvip/simple-rtmp-server/issues/212
 * @see E.4.2.1 AUDIODATA of video_file_format_spec_v10_1.pdf
@@ -317,15 +323,38 @@ extern int srs_rtmp_write_packet(srs_rtmp_t rtmp,
 */
 extern int srs_audio_write_raw_frame(srs_rtmp_t rtmp, 
     char sound_format, char sound_rate, char sound_size, char sound_type,
-    char aac_packet_type, char* frame, int frame_size, u_int32_t timestamp
+    char* frame, int frame_size, u_int32_t timestamp
 );
+
+/**
+* whether aac raw data is in adts format,
+* which bytes sequence matches '1111 1111 1111'B, that is 0xFFF.
+* @param aac_raw_data the input aac raw data, a encoded aac frame data.
+* @param ac_raw_size the size of aac raw data.
+*
+* @reamrk used to check whether current frame is in adts format.
+*       @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 75, 1.A.2.2 ADTS
+* @example /trunk/research/librtmp/srs_aac_raw_publish.c
+*
+* @return 0 false; otherwise, true.
+*/
+extern srs_bool srs_aac_is_adts(char* aac_raw_data, int ac_raw_size);
+
+/**
+* parse the adts header to get the frame size,
+* which bytes sequence matches '1111 1111 1111'B, that is 0xFFF.
+* @param aac_raw_data the input aac raw data, a encoded aac frame data.
+* @param ac_raw_size the size of aac raw data.
+*
+* @return failed when <=0 failed; otherwise, ok.
+*/
+extern int srs_aac_adts_frame_size(char* aac_raw_data, int ac_raw_size);
 
 /*************************************************************
 **************************************************************
 * h264 raw codec
 **************************************************************
 *************************************************************/
-typedef int srs_h264_bool;
 /**
 * write h.264 raw frame over RTMP to rtmp server.
 * @param frames the input h264 raw data, encoded h.264 I/P/B frames data.
@@ -392,21 +421,21 @@ extern int srs_h264_write_raw_frames(srs_rtmp_t rtmp,
 *       so, when error and reconnect the rtmp, the first video is not sps/pps(sequence header),
 *       this will cause SRS server to disable HLS.
 */
-extern srs_h264_bool srs_h264_is_dvbsp_error(int error_code);
+extern srs_bool srs_h264_is_dvbsp_error(int error_code);
 /**
 * whether error_code is duplicated sps error.
 * 
 * @see https://github.com/winlinvip/simple-rtmp-server/issues/204
 * @example /trunk/research/librtmp/srs_h264_raw_publish.c
 */
-extern srs_h264_bool srs_h264_is_duplicated_sps_error(int error_code);
+extern srs_bool srs_h264_is_duplicated_sps_error(int error_code);
 /**
 * whether error_code is duplicated pps error.
 * 
 * @see https://github.com/winlinvip/simple-rtmp-server/issues/204
 * @example /trunk/research/librtmp/srs_h264_raw_publish.c
 */
-extern srs_h264_bool srs_h264_is_duplicated_pps_error(int error_code);
+extern srs_bool srs_h264_is_duplicated_pps_error(int error_code);
 /**
 * whether h264 raw data starts with the annexb,
 * which bytes sequence matches N[00] 00 00 01, where N>=0.
@@ -420,7 +449,7 @@ extern srs_h264_bool srs_h264_is_duplicated_pps_error(int error_code);
 *
 * @return 0 false; otherwise, true.
 */
-extern int srs_h264_startswith_annexb(
+extern srs_bool srs_h264_startswith_annexb(
     char* h264_raw_data, int h264_raw_size, 
     int* pnb_start_code
 );
@@ -435,7 +464,6 @@ extern int srs_h264_startswith_annexb(
 **************************************************************
 *************************************************************/
 typedef void* srs_flv_t;
-typedef int srs_flv_bool;
 /* open flv file for both read/write. */
 extern srs_flv_t srs_flv_open_read(const char* file);
 extern srs_flv_t srs_flv_open_write(const char* file);
@@ -510,20 +538,20 @@ extern int64_t srs_flv_tellg(srs_flv_t flv);
 extern void srs_flv_lseek(srs_flv_t flv, int64_t offset);
 /* error code */
 /* whether the error code indicates EOF */
-extern srs_flv_bool srs_flv_is_eof(int error_code);
+extern srs_bool srs_flv_is_eof(int error_code);
 /* media codec */
 /**
 * whether the video body is sequence header 
 * @param data, the data of tag, read by srs_flv_read_tag_data().
 * @param size, the size of tag, read by srs_flv_read_tag_data().
 */
-extern srs_flv_bool srs_flv_is_sequence_header(char* data, int32_t size);
+extern srs_bool srs_flv_is_sequence_header(char* data, int32_t size);
 /**
 * whether the video body is keyframe 
 * @param data, the data of tag, read by srs_flv_read_tag_data().
 * @param size, the size of tag, read by srs_flv_read_tag_data().
 */
-extern srs_flv_bool srs_flv_is_keyframe(char* data, int32_t size);
+extern srs_bool srs_flv_is_keyframe(char* data, int32_t size);
 
 /*************************************************************
 **************************************************************
@@ -534,7 +562,6 @@ extern srs_flv_bool srs_flv_is_keyframe(char* data, int32_t size);
 *************************************************************/
 /* the output handler. */
 typedef void* srs_amf0_t;
-typedef int srs_amf0_bool;
 typedef double srs_amf0_number;
 /**
 * parse amf0 from data.
@@ -552,16 +579,16 @@ extern void srs_amf0_free_bytes(char* data);
 extern int srs_amf0_size(srs_amf0_t amf0);
 extern int srs_amf0_serialize(srs_amf0_t amf0, char* data, int size);
 /* type detecter */
-extern srs_amf0_bool srs_amf0_is_string(srs_amf0_t amf0);
-extern srs_amf0_bool srs_amf0_is_boolean(srs_amf0_t amf0);
-extern srs_amf0_bool srs_amf0_is_number(srs_amf0_t amf0);
-extern srs_amf0_bool srs_amf0_is_null(srs_amf0_t amf0);
-extern srs_amf0_bool srs_amf0_is_object(srs_amf0_t amf0);
-extern srs_amf0_bool srs_amf0_is_ecma_array(srs_amf0_t amf0);
-extern srs_amf0_bool srs_amf0_is_strict_array(srs_amf0_t amf0);
+extern srs_bool srs_amf0_is_string(srs_amf0_t amf0);
+extern srs_bool srs_amf0_is_boolean(srs_amf0_t amf0);
+extern srs_bool srs_amf0_is_number(srs_amf0_t amf0);
+extern srs_bool srs_amf0_is_null(srs_amf0_t amf0);
+extern srs_bool srs_amf0_is_object(srs_amf0_t amf0);
+extern srs_bool srs_amf0_is_ecma_array(srs_amf0_t amf0);
+extern srs_bool srs_amf0_is_strict_array(srs_amf0_t amf0);
 /* value converter */
 extern const char* srs_amf0_to_string(srs_amf0_t amf0);
-extern srs_amf0_bool srs_amf0_to_boolean(srs_amf0_t amf0);
+extern srs_bool srs_amf0_to_boolean(srs_amf0_t amf0);
 extern srs_amf0_number srs_amf0_to_number(srs_amf0_t amf0);
 /* value setter */
 extern void srs_amf0_set_number(srs_amf0_t amf0, srs_amf0_number value);

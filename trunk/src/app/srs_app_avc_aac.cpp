@@ -249,9 +249,6 @@ int SrsAvcAacCodec::audio_aac_demux(char* data, int size, SrsCodecSample* sample
             return ret;
         }
         
-        // aac_profile = audioObjectType - 1
-        aac_profile--;
-        
         // TODO: FIXME: to support aac he/he-v2, see: ngx_rtmp_codec_parse_aac_header
         // @see: https://github.com/winlinvip/nginx-rtmp-module/commit/3a5f9eea78fc8d11e8be922aea9ac349b9dcbfc2
         // 
