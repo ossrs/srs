@@ -259,14 +259,16 @@ public:
     * SRS debug info:
     * @param srs_server_ip, debug info, server ip client connected at.
     * @param srs_server, server info.
-    * @param srs_primary_authors, primary authors.
+    * @param srs_primary, primary authors.
+    * @param srs_authors, authors.
     * @param srs_id, int, debug info, client id in server log.
     * @param srs_pid, int, debug info, server pid in log.
     */
     virtual int connect_app2(
         std::string app, std::string tc_url, SrsRequest* req, bool debug_srs_upnode,
-        std::string& srs_server_ip, std::string& srs_server, std::string& srs_primary_authors, 
-        std::string& srs_version, int& srs_id, int& srs_pid
+        std::string& srs_server_ip, std::string& srs_server, std::string& srs_primary, 
+        std::string& srs_authors, std::string& srs_version, int& srs_id, 
+        int& srs_pid
     );
     /**
     * create a stream, then play/publish data over this stream.

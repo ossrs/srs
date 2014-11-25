@@ -264,12 +264,14 @@ int srs_connect_app(srs_rtmp_t rtmp)
 }
 
 int srs_connect_app2(srs_rtmp_t rtmp,
-    char srs_server_ip[128],char srs_server[128], char srs_primary_authors[128], 
+    char srs_server_ip[128],char srs_server[128], 
+    char srs_primary[128], char srs_authors[128], 
     char srs_version[32], int* srs_id, int* srs_pid
 ) {
     srs_server_ip[0] = 0;
     srs_server[0] = 0;
-    srs_primary_authors[0] = 0;
+    srs_primary[0] = 0;
+    srs_authors[0] = 0;
     srs_version[0] = 0;
     *srs_id = 0;
     *srs_pid = 0;
@@ -284,16 +286,17 @@ int srs_connect_app2(srs_rtmp_t rtmp,
         context->param
     );
     
-    std::string sip, sserver, sauthors, sversion;
+    std::string sip, sserver, sprimary, sauthors, sversion;
     
     if ((ret = context->rtmp->connect_app2(context->app, tcUrl, NULL, true,
-        sip, sserver, sauthors, sversion, *srs_id, *srs_pid)) != ERROR_SUCCESS) {
+        sip, sserver, sprimary, sauthors, sversion, *srs_id, *srs_pid)) != ERROR_SUCCESS) {
         return ret;
     }
     
     snprintf(srs_server_ip, 128, "%s", sip.c_str());
     snprintf(srs_server, 128, "%s", sserver.c_str());
-    snprintf(srs_primary_authors, 128, "%s", sauthors.c_str());
+    snprintf(srs_primary, 128, "%s", sprimary.c_str());
+    snprintf(srs_authors, 128, "%s", sauthors.c_str());
     snprintf(srs_version, 32, "%s", sversion.c_str());
     
     return ret;

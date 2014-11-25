@@ -152,8 +152,11 @@ package
             if (srs_server != null) {
                 obj.server = srs_server;
             }
-            if (srs_primary_authors != null) {
-                obj.contributor = srs_primary_authors;
+            if (srs_primary != null) {
+                obj.contributor = srs_primary;
+            }
+            if (srs_authors != null) {
+                obj.contributor = srs_authors;
             }
             
             var code:int = flash.external.ExternalInterface.call(js_on_player_metadata, js_id, obj);
@@ -267,7 +270,8 @@ package
         
         // srs infos
         private var srs_server:String = null;
-        private var srs_primary_authors:String = null;
+        private var srs_primary:String = null;
+        private var srs_authors:String = null;
         private var srs_id:String = null;
         private var srs_pid:String = null;
         private var srs_server_ip:String = null;
@@ -277,8 +281,11 @@ package
             if (srs_server != null) {
                 customItems.push(new ContextMenuItem("Server: " + srs_server));
             }
-            if (srs_primary_authors != null) {
-                customItems.push(new ContextMenuItem("PrimaryAuthors: " + srs_primary_authors));
+            if (srs_primary != null) {
+                customItems.push(new ContextMenuItem("PrimaryAuthors: " + srs_primary));
+            }
+            if (srs_authors != null) {
+                customItems.push(new ContextMenuItem("Authors: " + srs_authors));
             }
             if (srs_server_ip != null) {
                 customItems.push(new ContextMenuItem("SrsIp: " + srs_server_ip));
@@ -318,8 +325,11 @@ package
                     if (evt.info.data.hasOwnProperty("srs_server")) {
                         srs_server = evt.info.data.srs_server;
                     }
-                    if (evt.info.data.hasOwnProperty("srs_primary_authors")) {
-                        srs_primary_authors = evt.info.data.srs_primary_authors;
+                    if (evt.info.data.hasOwnProperty("srs_primary")) {
+                        srs_primary = evt.info.data.srs_primary;
+                    }
+                    if (evt.info.data.hasOwnProperty("srs_authors")) {
+                        srs_authors = evt.info.data.srs_authors;
                     }
                     if (evt.info.data.hasOwnProperty("srs_id")) {
                         srs_id = evt.info.data.srs_id;

@@ -101,8 +101,8 @@ package
             var as_on_progress_change:Function = function(percent:Number):void {
                 self.on_progress(percent);
             };
-            var as_on_srs_info:Function = function(srs_server:String, srs_primary_authors:String, srs_id:String, srs_pid:String, srs_server_ip:String):void {
-                self.update_context_items(srs_server, srs_primary_authors, srs_id, srs_pid, srs_server_ip);
+            var as_on_srs_info:Function = function(srs_server:String, srs_primary:String, srs_authors:String, srs_id:String, srs_pid:String, srs_server_ip:String):void {
+                self.update_context_items(srs_server, srs_primary, srs_authors, srs_id, srs_pid, srs_server_ip);
             };
             var as_on_complete:Function = function(start_time:Number, end_time:Number, play_kbps:Number, publish_kbps:Number, play_bytes:Number, publish_bytes:Number, play_time:Number, publish_time:Number):void {
                 self.on_complete(start_time, end_time, play_kbps, publish_kbps, play_bytes, publish_bytes, play_time, publish_time);
@@ -130,7 +130,7 @@ package
             trace("progress:" + percent + "%");
         }
         private function update_context_items(
-            srs_server:String, srs_primary_authors:String, 
+            srs_server:String, srs_primary:String, srs_authors:String, 
             srs_id:String, srs_pid:String, srs_server_ip:String
         ):void {
             // for context menu
@@ -138,8 +138,11 @@ package
             if (srs_server != null) {
                 customItems.push(new ContextMenuItem("Server: " + srs_server));
             }
-            if (srs_primary_authors != null) {
-                customItems.push(new ContextMenuItem("PrimaryAuthors: " + srs_primary_authors));
+            if (srs_primary != null) {
+                customItems.push(new ContextMenuItem("PrimaryAuthors: " + srs_primary));
+            }
+            if (srs_authors != null) {
+                customItems.push(new ContextMenuItem("Authors: " + srs_authors));
             }
             if (srs_server_ip != null) {
                 customItems.push(new ContextMenuItem("SrsIp: " + srs_server_ip));
