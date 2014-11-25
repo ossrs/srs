@@ -485,6 +485,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2014-11-25, update PRIMARY, AUTHORS, CONTRIBUTORS rule. 2.0.32.
 * v2.0, 2014-11-24, fix [#212](https://github.com/winlinvip/simple-rtmp-server/issues/212), support publish aac adts raw stream. 2.0.31.
 * v2.0, 2014-11-22, fix [#217](https://github.com/winlinvip/simple-rtmp-server/issues/217), remove timeout recv, support 7.5k+ 250kbps clients. 2.0.30.
 * v2.0, 2014-11-21, srs-librtmp add rtmp prefix for rtmp/utils/human apis. 2.0.29.
