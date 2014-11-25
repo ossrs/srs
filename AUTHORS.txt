@@ -1,14 +1,17 @@
-Authors ordered by first contribution.
+PRIMARY ordered by first contribution.
+* winlin<winlin@vip.126.com> "Plan, arch, implement SRS1.0 and SRS2.0"
 
-* winlin<winlin@vip.126.com>
-* wenjie.zhao<740936897@qq.com>
-* xiangcheng.liu<liuxc0116@foxmail.com>
-* naijia.liu<youngcow@youngcow.net>
-* alcoholyi<alcoholyi@qq.com>
-* byteman<wangchen2011@gmail.com>
-* chad.wang<chad.wang.cn@gmail.com>
-* suhetao<suhetao@gmail.com>
-* Johnny<fengjihu@163.com>
-* karthikeyan<keyanmca@gmail.com>
-* StevenLiu<lq@chinaffmpeg.org>
-* zhengfl<zhengfl_1989@126.com>
+AUTHORS ordered by first contribution.
+* wenjie.zhao<740936897@qq.com> "The bandwidth test module"
+
+CONTRIBUTORS ordered by first contribution.
+* xiangcheng.liu<liuxc0116@foxmail.com> "Bug fixed"
+* naijia.liu<youngcow@youngcow.net> "Performance benchmark"
+* alcoholyi<alcoholyi@qq.com> "Bug fixed"
+* byteman<wangchen2011@gmail.com> "Bug fixed"
+* chad.wang<chad.wang.cn@gmail.com> "Bug fixed"
+* suhetao<suhetao@gmail.com> "Bug fixed"
+* Johnny<fengjihu@163.com> "Create domain ossrs.net"
+* karthikeyan<keyanmca@gmail.com> "Bug fixed"
+* StevenLiu<lq@chinaffmpeg.org> "Build SRS on Darwin OSX"
+* zhengfl<zhengfl_1989@126.com> "Bug fixed"
