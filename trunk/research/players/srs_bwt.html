@@ -63,9 +63,9 @@
             bandwidth.on_update_status = function(status) {
                 $("#check_status").text(status);
             }
-            bandwidth.on_srs_info = function(srs_server, srs_primary_authors, srs_id, srs_pid, srs_server_ip) {
+            bandwidth.on_srs_info = function(srs_server, srs_primary, srs_authors, srs_id, srs_pid, srs_server_ip) {
                 $("#check_info").text(
-                    "server:" + srs_server + ", authors:" + srs_primary_authors +
+                    "server:" + srs_server + ", primary:" + srs_primary + ", authors:" + srs_authors +
                     ", srs_id:" + srs_id + ", srs_pid:" + srs_pid + ", ip:" + srs_server_ip
                 );
             }
