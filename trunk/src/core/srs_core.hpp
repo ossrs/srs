@@ -31,7 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // current release version
 #define VERSION_MAJOR       1
 #define VERSION_MINOR       0
-#define VERSION_REVISION    7
+#define VERSION_REVISION    8
 // server info.
 #define RTMP_SIG_SRS_KEY "SRS"
 #define RTMP_SIG_SRS_ROLE "origin/edge server"
@@ -42,7 +42,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RTMP_SIG_SRS_EMAIL "winlin@vip.126.com"
 #define RTMP_SIG_SRS_LICENSE "The MIT License (MIT)"
 #define RTMP_SIG_SRS_COPYRIGHT "Copyright (c) 2013-2014 winlin"
-#define RTMP_SIG_SRS_PRIMARY_AUTHROS "winlin,wenjie.zhao"
+#define RTMP_SIG_SRS_PRIMARY "winlin"
+#define RTMP_SIG_SRS_AUTHROS "wenjie.zhao"
 #define RTMP_SIG_SRS_CONTRIBUTORS_URL RTMP_SIG_SRS_URL"/blob/master/AUTHORS.txt"
 #define RTMP_SIG_SRS_HANDSHAKE RTMP_SIG_SRS_KEY"("RTMP_SIG_SRS_VERSION")"
 #define RTMP_SIG_SRS_RELEASE "https://github.com/winlinvip/simple-rtmp-server/tree/1.0release"

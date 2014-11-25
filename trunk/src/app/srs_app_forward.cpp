@@ -344,7 +344,8 @@ int SrsForwarder::connect_app(string ep_server, string ep_port)
     data->set("srs_site", SrsAmf0Any::str(RTMP_SIG_SRS_WEB));
     data->set("srs_email", SrsAmf0Any::str(RTMP_SIG_SRS_EMAIL));
     data->set("srs_copyright", SrsAmf0Any::str(RTMP_SIG_SRS_COPYRIGHT));
-    data->set("srs_primary_authors", SrsAmf0Any::str(RTMP_SIG_SRS_PRIMARY_AUTHROS));
+    data->set("srs_primary", SrsAmf0Any::str(RTMP_SIG_SRS_PRIMARY));
+    data->set("srs_authors", SrsAmf0Any::str(RTMP_SIG_SRS_AUTHROS));
     // for edge to directly get the id of client.
     data->set("srs_pid", SrsAmf0Any::number(getpid()));
     data->set("srs_id", SrsAmf0Any::number(_srs_context->get_id()));

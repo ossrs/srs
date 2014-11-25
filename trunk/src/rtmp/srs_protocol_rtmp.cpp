@@ -908,7 +908,8 @@ int SrsRtmpServer::response_connect_app(SrsRequest *req, const char* server_ip)
     data->set("srs_site", SrsAmf0Any::str(RTMP_SIG_SRS_WEB));
     data->set("srs_email", SrsAmf0Any::str(RTMP_SIG_SRS_EMAIL));
     data->set("srs_copyright", SrsAmf0Any::str(RTMP_SIG_SRS_COPYRIGHT));
-    data->set("srs_primary_authors", SrsAmf0Any::str(RTMP_SIG_SRS_PRIMARY_AUTHROS));
+    data->set("srs_primary", SrsAmf0Any::str(RTMP_SIG_SRS_PRIMARY));
+    data->set("srs_authors", SrsAmf0Any::str(RTMP_SIG_SRS_AUTHROS));
     
     if (server_ip) {
         data->set("srs_server_ip", SrsAmf0Any::str(server_ip));
