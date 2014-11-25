@@ -149,19 +149,17 @@ StreamServers：[BLS](https://github.com/wenjiegit/Bull-Live-Server)/[BLE](https
 [FMS/AMS](http://www.adobe.com/products/adobe-media-server-standard.html)
 
 ## AUTHORS
-The PRIMARY AUTHORS are (and/or have been)(Authors ordered by first contribution): 
-* winlin([winterserver](#)): [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin) 
-* wenjie([wenjiegit](https://github.com/wenjiegit/simple-rtmp-server)): [http://blog.chinaunix.net/uid/25006789.html](http://blog.chinaunix.net/uid/25006789.html) 
 
-About the primary AUTHORS: 
-* Contribute important features to SRS. 
-* Names of all PRIMARY AUTHORS response in NetConnection.connect and metadata. 
-* Names of all CONTRIBUTORS response in api/v1/authors.
+There are three types of people that have contributed to the SRS project:
+* PRIMARY: Contribute important features and >10% code. Names of all 
+PRIMARY response in NetConnection.connect and metadata. 
+* AUTHORS: Contribute features and 1%~10% code. Names of all 
+PRIMARY response in NetConnection.connect and metadata. 
+* CONTRIBUTORS: Submit patches, report bugs, add translations, help answer 
+newbie questions, and generally make SRS that much better.
 
-And here is an inevitably incomplete list of MUCH-APPRECIATED CONTRIBUTORS --
-people who have submitted patches, reported bugs, added translations, helped
-answer newbie questions, and generally made SRS that much better: 
-[AUTHORS.txt](https://github.com/winlinvip/simple-rtmp-server/blob/master/AUTHORS.txt)
+About all PRIMARY, AUTHORS and CONTRIBUTORS, read 
+[AUTHORS.txt](https://github.com/winlinvip/simple-rtmp-server/blob/master/AUTHORS.txt).
 
 A big THANK YOU goes to:
 * [chnvideo](chnvideo.com) co-founders([wiseyoung](mailto:wiseyoung@chnvideo.com), [trueice](mailto:trueice@chnvideo.com), [leijian](mailto:leijian@chnvideo.com)) for [big supports](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Product#bigthanks).
