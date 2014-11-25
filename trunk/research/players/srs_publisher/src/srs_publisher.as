@@ -148,7 +148,7 @@ package
                 customItems.push(new ContextMenuItem("Server: " + srs_server));
             }
             if (srs_primary != null) {
-                customItems.push(new ContextMenuItem("PrimaryAuthors: " + srs_primary));
+                customItems.push(new ContextMenuItem("Primary: " + srs_primary));
             }
             if (srs_authors != null) {
                 customItems.push(new ContextMenuItem("Authors: " + srs_authors));
