@@ -447,8 +447,9 @@ int SrsRtmpClient::connect_app(string app, string tc_url,
 
 int SrsRtmpClient::connect_app2(
     string app, string tc_url, SrsRequest* req, bool debug_srs_upnode,
-    string& srs_server_ip, string& srs_server, string& srs_primary_authors, 
-    string& srs_version, int& srs_id, int& srs_pid
+    string& srs_server_ip, string& srs_server, string& srs_primary, 
+    string& srs_authors, string& srs_version, int& srs_id, 
+    int& srs_pid
 ){
     int ret = ERROR_SUCCESS;
     
@@ -513,8 +514,11 @@ int SrsRtmpClient::connect_app2(
         SrsAmf0EcmaArray* arr = data->to_ecma_array();
         
         SrsAmf0Any* prop = NULL;
-        if ((prop = arr->ensure_property_string("srs_primary_authors")) != NULL) {
-            srs_primary_authors = prop->to_str();
+        if ((prop = arr->ensure_property_string("srs_primary")) != NULL) {
+            srs_primary = prop->to_str();
+        }
+        if ((prop = arr->ensure_property_string("srs_authors")) != NULL) {
+            srs_authors = prop->to_str();
         }
         if ((prop = arr->ensure_property_string("srs_version")) != NULL) {
             srs_version = prop->to_str();

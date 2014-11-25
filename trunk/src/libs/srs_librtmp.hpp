@@ -107,13 +107,15 @@ int srs_connect_app(srs_rtmp_t rtmp);
 * SRS debug info:
 * @param srs_server_ip, 128bytes, debug info, server ip client connected at.
 * @param srs_server, 128bytes, server info.
-* @param srs_primary_authors, 128bytes, primary authors.
+* @param srs_primary, 128bytes, primary authors.
+* @param srs_authors, 128bytes, authors.
 * @param srs_version, 32bytes, server version.
 * @param srs_id, int, debug info, client id in server log.
 * @param srs_pid, int, debug info, server pid in log.
 */
 int srs_connect_app2(srs_rtmp_t rtmp,
-    char srs_server_ip[128], char srs_server[128], char srs_primary_authors[128], 
+    char srs_server_ip[128], char srs_server[128], 
+    char srs_primary[128], char srs_authors[128], 
     char srs_version[32], int* srs_id, int* srs_pid
 );
 

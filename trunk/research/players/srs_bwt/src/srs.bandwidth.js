@@ -39,9 +39,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     bandwidth.on_update_status = function(status) {
         // console.log(status);
     }
-    bandwidth.on_srs_info = function(srs_server, srs_primary_authors, srs_id, srs_pid, srs_server_ip) {
+    bandwidth.on_srs_info = function(srs_server, srs_primary, srs_authors, srs_id, srs_pid, srs_server_ip) {
         // console.log(
-        //    "server:" + srs_server + ", authors:" + srs_primary_authors +
+        //    "server:" + srs_server + ", primary:" + srs_primary + ", authors:" + srs_authors +
         //    ", srs_id:" + srs_id + ", srs_pid:" + srs_pid + ", ip:" + srs_server_ip
         //);
     }
@@ -160,7 +160,7 @@ SrsBandwidth.prototype.on_update_progress = function(percent) {
 }
 SrsBandwidth.prototype.on_update_status = function(status) {
 }
-SrsBandwidth.prototype.on_srs_info = function(srs_server, srs_primary_authors, srs_id, srs_pid, srs_server_ip) {
+SrsBandwidth.prototype.on_srs_info = function(srs_server, srs_primary, srs_authors, srs_id, srs_pid, srs_server_ip) {
 }
 SrsBandwidth.prototype.on_complete = function(start_time, end_time, play_kbps, publish_kbps, play_bytes, publish_bytes, play_time, publish_time) {
 }
@@ -233,11 +233,11 @@ function __srs_on_update_status(id, code, data) {
     bandwidth.status = status;
     bandwidth.on_update_status(status);
 }
-function __srs_on_srs_info(id, srs_server, srs_primary_authors, srs_id, srs_pid, srs_server_ip) {
+function __srs_on_srs_info(id, srs_server, srs_primary, srs_authors, srs_id, srs_pid, srs_server_ip) {
     var bandwidth = __srs_find_bandwidth(id);
     bandwidth.status = status;
     bandwidth.server = srs_server_ip;
-    bandwidth.on_srs_info(srs_server, srs_primary_authors, srs_id, srs_pid, srs_server_ip);
+    bandwidth.on_srs_info(srs_server, srs_primary, srs_authors, srs_id, srs_pid, srs_server_ip);
 }
 function __srs_on_complete(id, start_time, end_time, play_kbps, publish_kbps, play_bytes, publish_bytes, play_time, publish_time) {
     var bandwidth = __srs_find_bandwidth(id);
