@@ -188,7 +188,8 @@ int main(int argc, char** argv)
     
     srs_trace("srs(simple-rtmp-server) "RTMP_SIG_SRS_VERSION);
     srs_trace("license: "RTMP_SIG_SRS_LICENSE);
-    srs_trace("authors: "RTMP_SIG_SRS_PRIMARY_AUTHROS);
+    srs_trace("primary: "RTMP_SIG_SRS_PRIMARY);
+    srs_trace("authors: "RTMP_SIG_SRS_AUTHROS);
     srs_trace("contributors: "SRS_AUTO_CONSTRIBUTORS);
     srs_trace("uname: "SRS_AUTO_UNAME);
     srs_trace("build: %s, %s", SRS_AUTO_BUILD_DATE, srs_is_little_endian()? "little-endian":"big-endian");

@@ -88,9 +88,10 @@ package
         *           "", otherwise empty string.
         * @param as_on_progress_change, function(percent:Number):void, where:
         *       percent, the progress percent, 0 means 0%, 100 means 100%.
-        * @param as_on_srs_info, function(srs_server:String, srs_primary_authors:String, srs_id:String, srs_pid:String, srs_server_ip:String):void, where:
+        * @param as_on_srs_info, function(srs_server:String, srs_primary:String, srs_authors:String, srs_id:String, srs_pid:String, srs_server_ip:String):void, where:
         *       srs_server: the srs server info.
-        *       srs_primary_authors: the srs version info.
+        *       srs_primary: the srs primary authors info.
+        *       srs_authors: the srs authors info.
         *       srs_id: the tracable log id, to direclty grep the log..
         *       srs_pid: the srs process id, to direclty grep the log.
         *       srs_server_ip: the srs server ip, where client connected at.
@@ -112,7 +113,7 @@ package
         * @param js_on_ready, function(js_id:String):void, callback when bandwidth tool is ready to run.
         * @param js_on_status_change, function(js_id:String, code:String, data:String):void
         * @param as_on_progress_change, function(js_id:String, percent:Number):void
-        * @param as_on_srs_info, function(js_id:String, srs_server:String, srs_primary_authors:String, srs_id:String, srs_pid:String, srs_server_ip:String):void
+        * @param as_on_srs_info, function(js_id:String, srs_server:String, srs_primary:String, srs_authors:String, srs_id:String, srs_pid:String, srs_server_ip:String):void
         * @param as_on_complete, function(js_id:String, start_time:Number, end_time:Number, play_kbps:Number, publish_kbps:Number, play_bytes:Number, publish_bytes:Number, play_time:Number, publish_time:Number):void
         * 
         * the js export functions.
@@ -268,7 +269,8 @@ package
         * srs debug infos
         */
         private var srs_server:String = null;
-        private var srs_primary_authors:String = null;
+        private var srs_primary:String = null;
+        private var srs_authors:String = null;
         private var srs_id:String = null;
         private var srs_pid:String = null;
         private var srs_server_ip:String = null;
@@ -486,8 +488,11 @@ package
                 if (evt.info.data.hasOwnProperty("srs_server")) {
                     srs_server = evt.info.data.srs_server;
                 }
-                if (evt.info.data.hasOwnProperty("srs_primary_authors")) {
-                    srs_primary_authors = evt.info.data.srs_primary_authors;
+                if (evt.info.data.hasOwnProperty("srs_primary")) {
+                    srs_primary = evt.info.data.srs_primary;
+                }
+                if (evt.info.data.hasOwnProperty("srs_authors")) {
+                    srs_authors = evt.info.data.srs_authors;
                 }
                 if (evt.info.data.hasOwnProperty("srs_id")) {
                     srs_id = evt.info.data.srs_id;
@@ -500,11 +505,11 @@ package
                 }
                 
                 if (this.as_on_srs_info != null) {
-                    this.as_on_srs_info(srs_server, srs_primary_authors, srs_id, srs_pid, srs_server_ip);
+                    this.as_on_srs_info(srs_server, srs_primary, srs_authors, srs_id, srs_pid, srs_server_ip);
                 }
                 if (this.js_on_srs_info != null) {
                     flash.external.ExternalInterface.call(this.js_on_srs_info, this.js_id, 
-                        srs_server, srs_primary_authors, srs_id, srs_pid, srs_server_ip);
+                        srs_server, srs_primary, srs_authors, srs_id, srs_pid, srs_server_ip);
                 }
             }
             if (evt.info.code) {
