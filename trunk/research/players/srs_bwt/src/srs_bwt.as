@@ -101,7 +101,7 @@ package
             var as_on_progress_change:Function = function(percent:Number):void {
                 self.on_progress(percent);
             };
-            var as_on_srs_info:Function = function(srs_server:String, srs_primary, srs_authors:String, srs_id:String, srs_pid:String, srs_server_ip:String):void {
+            var as_on_srs_info:Function = function(srs_server:String, srs_primary:String, srs_authors:String, srs_id:String, srs_pid:String, srs_server_ip:String):void {
                 self.update_context_items(srs_server, srs_primary, srs_authors, srs_id, srs_pid, srs_server_ip);
             };
             var as_on_complete:Function = function(start_time:Number, end_time:Number, play_kbps:Number, publish_kbps:Number, play_bytes:Number, publish_bytes:Number, play_time:Number, publish_time:Number):void {
