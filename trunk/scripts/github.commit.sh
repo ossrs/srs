@@ -20,14 +20,46 @@ cd $work_dir && git checkout master
 ret=$?; if [[ $ret -ne 0 ]]; then exit $ret; fi
 ok_msg "导入脚本成功"
 
-source $work_dir/scripts/_mirror.utils.sh
+function remote_check()
+{
+    remote=$1
+    url=$2
+    git remote -v| grep "$url" >/dev/null 2>&1
+    ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "remote $remote not found, add by:"
+        echo "    git remote add $remote $url"
+        exit -1
+    fi
+    ok_msg "remote $remote ok, url is $url"
+}
+remote_check origin git@github.com:winlinvip/simple-rtmp-server.git
+remote_check srs.csdn git@code.csdn.net:winlinvip/srs-csdn.git
+remote_check srs.oschina git@git.oschina.net:winlinvip/srs.oschina.git
 
-git remote -v|grep github.com >/dev/null 2>&1
-ret=$?; if [[ 0 -ne $ret ]]; then 
-    echo "current not under github.com branch"
-    exit -1; 
-fi 
+function sync_push()
+{
+    repository=$1
+    branch=$2
+    
+    for ((;;)); do 
+        git push $repository $branch
+        ret=$?; if [[ 0 -ne $ret ]]; then 
+            failed_msg "提交$repository/$branch分支失败，自动重试";
+            continue
+        else
+            ok_msg "提交$repository/$branch分支成功"
+        fi
+        break
+    done
+    ok_msg "$repository/$branch同步git成功"
+}
 
-sync_push "Github"
+sync_push origin master
+sync_push origin 1.0release
+sync_push srs.csdn master
+sync_push srs.csdn 1.0release
+sync_push srs.oschina master
+sync_push srs.oschina 1.0release
+ok_msg "sync push ok"
 
 exit 0
