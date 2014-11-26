@@ -62,4 +62,8 @@ sync_push srs.oschina master
 sync_push srs.oschina 1.0release
 ok_msg "sync push ok"
 
+sync_push srs.csdn --tags
+sync_push srs.oschina --tags
+ok_msg "sync tags ok"
+
 exit 0
