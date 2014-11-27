@@ -22,7 +22,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
 #include <srs_librtmp.hpp>
-#include <srs_platform.hpp>
+
 #include <stdlib.h>
 
 // for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
@@ -34,6 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sstream>
 using namespace std;
 
+#include <srs_platform.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_rtmp.hpp>
 #include <srs_lib_simple_socket.hpp>
@@ -106,56 +107,6 @@ struct Context
         srs_freep(skt);
     }
 };
-
-// for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
-#ifdef _WIN32
-
-/*    
-    int open(const char *pathname, int flags)
-    {
-        return open(pathname, flags, 0);
-    }
-    
-    int open(const char *pathname, int flags, mode_t mode)
-    {
-        FILE* file = NULL;
-    
-        if ((flags & O_RDONLY) == O_RDONLY) {
-            file = fopen(pathname, "r");
-        } else {
-            file = fopen(pathname, "w+");
-        }
-    
-        if (file == NULL) {
-            return -1;
-        }
-    
-        return (int)file;
-    }
-    
-    int close(int fd)
-    {
-        FILE* file = (FILE*)fd;
-        return fclose(file);
-    }
-    
-    off_t lseek(int fd, off_t offset, int whence)
-    {
-        return (off_t)fseek((FILE*)fd, offset, whence);
-    }
-    
-    ssize_t write(int fd, const void *buf, size_t count)
-    {
-        return (ssize_t)fwrite(buf, count, 1, (FILE*)fd);
-    }
-    
-    ssize_t read(int fd, void *buf, size_t count)
-    {
-        return (ssize_t)fread(buf, count, 1, (FILE*)fd);
-    }
-*/    
-
-#endif
 
 int srs_librtmp_context_parse_uri(Context* context) 
 {

@@ -30,11 +30,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
-// success, ok
-#if !defined(_WIN32) || defined(__CYGWIN__)  //avoid redefine error on Windows
+// for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
+#ifndef _WIN32
 #define ERROR_SUCCESS                       0
-#else
-#include <windows.h>
 #endif
 
 ///////////////////////////////////////////////////////

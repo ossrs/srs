@@ -299,10 +299,9 @@ END
 GDBDebug=" -g -O0"
 # the warning level.
 WarnLevel=" -Wall"
-# the compile standard.
-if [ "$MSYSTEM" != "MINGW32" -a "$MSYSTEM" != "MINGW64" ]; then
-	CppStd="-ansi"
-fi
+# the compile in c++ standard.
+# @remark, donot specifies it for mingw.
+CppStd="-ansi" && echo $MSYSTEM|grep "MINGW">/dev/null && CppStd=""
 # for library compile
 LibraryCompile=" -fPIC"
 # performance of gprof

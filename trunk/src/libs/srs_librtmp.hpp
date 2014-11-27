@@ -31,53 +31,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/types.h>
 
 
-// for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
-#if 0
-    #define _CRT_SECURE_NO_WARNINGS
-    typedef unsigned long long u_int64_t;
-    typedef long long int64_t;
-    typedef unsigned int u_int32_t;
-    typedef int int32_t;
-    typedef unsigned char u_int8_t;
-    typedef char int8_t;
-    typedef unsigned short u_int16_t;
-    typedef short int16_t;
-    typedef int64_t ssize_t;
-    struct iovec {
-        void  *iov_base;    /* Starting address */
-        size_t iov_len;     /* Number of bytes to transfer */
-    };
-    #include <time.h>
-    #include <windows.h>
-    int gettimeofday(struct timeval* tv, struct timezone* tz);
-    #define PRId64 "lld"
-    typedef int socklen_t;
-    const char *inet_ntop(int af, const void *src, char *dst, socklen_t size);
-    typedef int mode_t;
-    #define S_IRUSR 0
-    #define S_IWUSR 0
-    #define S_IRGRP 0
-    #define S_IWGRP 0
-    #define S_IROTH 0
-    int open(const char *pathname, int flags);
-    int open(const char *pathname, int flags, mode_t mode);
-    int close(int fd);
-    off_t lseek(int fd, off_t offset, int whence);
-    ssize_t write(int fd, const void *buf, size_t count);
-    ssize_t read(int fd, void *buf, size_t count);
-    typedef int pid_t;
-    pid_t getpid(void);
-    #define snprintf _snprintf
-    ssize_t writev(int fd, const struct iovec *iov, int iovcnt);
-    typedef int64_t useconds_t;
-    int usleep(useconds_t usec);
-#endif
-
-#if defined(_WIN32) && !defined(__CYGWIN__)
-#include <stdint.h>
-typedef uint32_t u_int32_t;
-#endif
-
 /**
 * srs-librtmp is a librtmp like library,
 * used to play/publish rtmp stream from/to rtmp server.

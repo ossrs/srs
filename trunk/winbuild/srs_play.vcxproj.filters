@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\research\librtmp\srs_play.c">
+    <ClCompile Include="srs_play.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
