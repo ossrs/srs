@@ -1,6 +1,12 @@
 #!/bin/bash
 
-# sudo ln -sf `pwd`/git.commit.sh /bin/git-ensure-commit
+cat <<END >>/dev/null
+touch git-ensure-commit &&
+echo "bash `pwd`/git.commit.sh" >git-ensure-commit &&
+chmod +x git-ensure-commit &&
+sudo rm -f /bin/git-ensure-commit &&
+sudo mv git-ensure-commit /bin/git-ensure-commit
+END
 
 echo "submit code to github.com"
 
