@@ -35,35 +35,32 @@ function remote_check()
 remote_check origin git@github.com:winlinvip/simple-rtmp-server.git
 remote_check srs.csdn git@code.csdn.net:winlinvip/srs-csdn.git
 remote_check srs.oschina git@git.oschina.net:winlinvip/srs.oschina.git
+ok_msg "remote check ok"
 
 function sync_push()
 {
-    repository=$1
-    branch=$2
-    
     for ((;;)); do 
-        git push $repository $branch
+        git push $*
         ret=$?; if [[ 0 -ne $ret ]]; then 
-            failed_msg "提交$repository/$branch分支失败，自动重试";
+            failed_msg "Retry for failed: $*"
             continue
         else
-            ok_msg "提交$repository/$branch分支成功"
+            ok_msg "Success: $*"
         fi
         break
     done
-    ok_msg "$repository/$branch同步git成功"
 }
 
-sync_push origin master
-sync_push origin 1.0release
-sync_push srs.csdn master
-sync_push srs.csdn 1.0release
-sync_push srs.oschina master
-sync_push srs.oschina 1.0release
-ok_msg "sync push ok"
+sync_push --all origin master
+sync_push --all origin 1.0release
+sync_push --all srs.csdn master
+sync_push --all srs.csdn 1.0release
+sync_push --all srs.oschina master
+sync_push --all srs.oschina 1.0release
+ok_msg "push refs ok"
 
-sync_push srs.csdn --tags
-sync_push srs.oschina --tags
-ok_msg "sync tags ok"
+sync_push --tags srs.csdn
+sync_push --tags srs.oschina
+ok_msg "push tags ok"
 
 exit 0
