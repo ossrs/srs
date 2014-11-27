@@ -30,8 +30,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <sys/types.h>
 
+
 // for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
-#ifdef _WIN32
+#if 0
     #define _CRT_SECURE_NO_WARNINGS
     typedef unsigned long long u_int64_t;
     typedef long long int64_t;
@@ -70,6 +71,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     ssize_t writev(int fd, const struct iovec *iov, int iovcnt);
     typedef int64_t useconds_t;
     int usleep(useconds_t usec);
+#endif
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#include <stdint.h>
+typedef uint32_t u_int32_t;
 #endif
 
 /**

@@ -31,7 +31,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 // success, ok
+#if !defined(_WIN32) || defined(__CYGWIN__)  //avoid redefine error on Windows
 #define ERROR_SUCCESS                       0
+#else
+#include <windows.h>
+#endif
 
 ///////////////////////////////////////////////////////
 // system error.

@@ -300,7 +300,9 @@ GDBDebug=" -g -O0"
 # the warning level.
 WarnLevel=" -Wall"
 # the compile standard.
-CppStd="-ansi"
+if [ "$MSYSTEM" != "MINGW32" -a "$MSYSTEM" != "MINGW64" ]; then
+	CppStd="-ansi"
+fi
 # for library compile
 LibraryCompile=" -fPIC"
 # performance of gprof
@@ -355,7 +357,7 @@ if [ $SRS_MIPS_UBUNTU12 = YES ]; then SrsLinkOptions="${SrsLinkOptions} -lgcc_eh
 MODULE_ID="CORE"
 MODULE_DEPENDS=()
 ModuleLibIncs=(${SRS_OBJS_DIR})
-MODULE_FILES=("srs_core" "srs_core_autofree")
+MODULE_FILES=("srs_core" "srs_core_autofree" "srs_platform")
 CORE_INCS="src/core"; MODULE_DIR=${CORE_INCS} . auto/modules.sh
 CORE_OBJS="${MODULE_OBJS[@]}"
 #

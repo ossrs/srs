@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "srs-librtmp", "srs-librtmp_vs2010.vcxproj", "{051CC3D8-5A99-4534-90EE-AED40EDDEEB2}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "srs_play", "srs_play.vcxproj", "{5149B9A9-5085-4A10-AD6F-23FBE6854390}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{051CC3D8-5A99-4534-90EE-AED40EDDEEB2}.Debug|Win32.ActiveCfg = Debug|Win32
+		{051CC3D8-5A99-4534-90EE-AED40EDDEEB2}.Debug|Win32.Build.0 = Debug|Win32
+		{051CC3D8-5A99-4534-90EE-AED40EDDEEB2}.Release|Win32.ActiveCfg = Release|Win32
+		{051CC3D8-5A99-4534-90EE-AED40EDDEEB2}.Release|Win32.Build.0 = Release|Win32
+		{5149B9A9-5085-4A10-AD6F-23FBE6854390}.Debug|Win32.ActiveCfg = Debug|Win32
+		{5149B9A9-5085-4A10-AD6F-23FBE6854390}.Debug|Win32.Build.0 = Debug|Win32
+		{5149B9A9-5085-4A10-AD6F-23FBE6854390}.Release|Win32.ActiveCfg = Release|Win32
+		{5149B9A9-5085-4A10-AD6F-23FBE6854390}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
