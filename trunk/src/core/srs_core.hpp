@@ -73,6 +73,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 // for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
+#if defined(_WIN32)
+    #include <windows.h>
+#endif
+
+// for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
 #ifndef _WIN32
 #include <inttypes.h>
 #endif

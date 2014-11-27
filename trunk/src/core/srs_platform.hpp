@@ -24,11 +24,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef SRS_WIN_PORTING_H
 #define SRS_WIN_PORTING_H
 
-// for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
-#if defined(_WIN32)
-    #include <windows.h>
-#endif
-
 /** 
 * for linux like,
 * for example, not on windows or it's cygwin. 

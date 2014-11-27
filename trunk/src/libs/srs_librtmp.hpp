@@ -30,6 +30,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <sys/types.h>
 
+#ifdef _WIN32
+    typedef long int int64_t;
+    typedef unsigned int u_int32_t;
+    typedef int int32_t;
+#endif
 
 /**
 * srs-librtmp is a librtmp like library,

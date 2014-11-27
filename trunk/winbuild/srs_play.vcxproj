@@ -77,7 +77,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="srs_play.c" />
+    <ClCompile Include="srs_play.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="srs_auto_headers.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

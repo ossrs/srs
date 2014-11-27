@@ -15,7 +15,12 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="srs_play.c">
+    <ClInclude Include="srs_auto_headers.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="srs_play.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
