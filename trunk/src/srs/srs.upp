@@ -15,8 +15,6 @@ file
 	..\core\srs_core.cpp,
 	..\core\srs_core_autofree.hpp,
 	..\core\srs_core_autofree.cpp,
-	..\core\srs_platform.hpp,
-	..\core\srs_platform.cpp,
 	kernel readonly separator,
 	..\kernel\srs_kernel_buffer.hpp,
 	..\kernel\srs_kernel_buffer.cpp,
