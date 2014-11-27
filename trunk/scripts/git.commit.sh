@@ -2,7 +2,8 @@
 
 cat <<END >>/dev/null
 touch git-ensure-commit &&
-echo "bash `pwd`/git.commit.sh" >git-ensure-commit &&
+echo "cd `pwd`/.. && git checkout master &&" >git-ensure-commit &&
+echo "bash `pwd`/git.commit.sh" >>git-ensure-commit &&
 chmod +x git-ensure-commit &&
 sudo rm -f /bin/git-ensure-commit &&
 sudo mv git-ensure-commit /bin/git-ensure-commit
