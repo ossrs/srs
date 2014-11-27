@@ -435,13 +435,14 @@ int SrsRtmpClient::connect_app(string app, string tc_url,
 {
     std::string srs_server_ip;
     std::string srs_server;
-    std::string srs_primary_authors;
+    std::string srs_primary;
+    std::string srs_authors;
     std::string srs_version;
     int srs_id = 0;
     int srs_pid = 0;
     
     return connect_app2(app, tc_url, req, debug_srs_upnode,
-        srs_server_ip, srs_server, srs_primary_authors, 
+        srs_server_ip, srs_server, srs_primary, srs_authors, 
         srs_version, srs_id, srs_pid);
 }
 
