@@ -43,6 +43,7 @@ function sync_push()
         git push $*
         ret=$?; if [[ 0 -ne $ret ]]; then 
             failed_msg "Retry for failed: $*"
+            sleep 3
             continue
         else
             ok_msg "Success: $*"
