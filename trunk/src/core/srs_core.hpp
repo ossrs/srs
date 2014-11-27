@@ -31,7 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // current release version
 #define VERSION_MAJOR       2
 #define VERSION_MINOR       0
-#define VERSION_REVISION    32
+#define VERSION_REVISION    33
 // server info.
 #define RTMP_SIG_SRS_KEY "SRS"
 #define RTMP_SIG_SRS_ROLE "origin/edge server"
@@ -109,6 +109,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         */ \
         className(const className&); \
         className& operator= (const className&)
+
+// for windows to compile srs-librtmp
+// @see: https://github.com/winlinvip/simple-rtmp-server/issues/213
+#include <srs_platform.hpp>
 
 #endif
 
