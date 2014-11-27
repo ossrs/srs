@@ -149,6 +149,8 @@ int main(int argc, char** argv)
     // TODO: support both little and big endian.
     srs_assert(srs_is_little_endian());
 
+    // for gperf gmp or gcp, 
+    // should never enable it when not enabled for performance issue.
 #ifdef SRS_AUTO_GPERF_MP
     HeapProfilerStart("gperf.srs.gmp");
 #endif
