@@ -164,12 +164,12 @@ int main(int argc, char** argv)
     ProfilerStart("gperf.srs.gcp");
 #endif
 
+    // directly compile error when these two macro defines.
 #if defined(SRS_AUTO_GPERF_MC) && defined(SRS_AUTO_GPERF_MP)
-    srs_error("option --with-gmc confict with --with-gmp, "
+    #error ("option --with-gmc confict with --with-gmp, "
         "@see: http://google-perftools.googlecode.com/svn/trunk/doc/heap_checker.html\n"
         "Note that since the heap-checker uses the heap-profiling framework internally, "
         "it is not possible to run both the heap-checker and heap profiler at the same time");
-    return -1;
 #endif
     
     // never use srs log(srs_trace, srs_error, etc) before config parse the option,
