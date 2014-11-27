@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# sudo ln -sf `pwd`/git.commit.sh /bin/git-ensure-commit
+
 echo "submit code to github.com"
 
 echo "argv[0]=$0"
