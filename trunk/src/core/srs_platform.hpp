@@ -1,3 +1,26 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2014 allspace
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
 #ifndef SRS_WIN_PORTING_H
 #define SRS_WIN_PORTING_H
 
@@ -12,11 +35,11 @@
 * while the _WIN32 includes both 32-bit and 64-bit
 */
 #if !defined(_WIN32) || defined(__CYGWIN__)
-    #define SOCKET_ETIME		ETIME
-    #define SOCKET_ECONNRESET   ECONNRESET
+    #define SOCKET_ETIME ETIME
+    #define SOCKET_ECONNRESET ECONNRESET
 
     #define SOCKET int
-    #define SOCKET_ERRNO()	errno
+    #define SOCKET_ERRNO() errno
     #define SOCKET_RESET(fd) fd = -1; (void)0
     #define SOCKET_CLOSE(fd) \
         if (fd > 0) {\
@@ -25,7 +48,7 @@
         } \
         (void)0
     #define SOCKET_VALID(x) (x > 0)
-    #define SOCKET_SETUP()   (void)0
+    #define SOCKET_SETUP() (void)0
     #define SOCKET_CLEANUP() (void)0
 #else /*on windows, but not on cygwin*/
     #include <sys/stat.h>
@@ -33,7 +56,7 @@
     #include <winsock2.h>
     #include <stdint.h>
 
-    #ifdef _MSC_VER		//for VS2010
+    #ifdef _MSC_VER //for VS2010
     #include <io.h>
     #include <fcntl.h>
     #define S_IRUSR _S_IREAD
@@ -61,14 +84,14 @@
 
     #define PRId64 "lld"
 
-    #define SOCKET_ETIME		WSAETIMEDOUT
-    #define SOCKET_ECONNRESET   WSAECONNRESET
-    #define SOCKET_ERRNO()    WSAGetLastError()
+    #define SOCKET_ETIME WSAETIMEDOUT
+    #define SOCKET_ECONNRESET WSAECONNRESET
+    #define SOCKET_ERRNO() WSAGetLastError()
     #define SOCKET_RESET(x) x=INVALID_SOCKET
     #define SOCKET_CLOSE(x) if(x!=INVALID_SOCKET){::closesocket(x);x=INVALID_SOCKET;}
     #define SOCKET_VALID(x) (x!=INVALID_SOCKET)
-    #define SOCKET_BUFF(x)  ((char*)x)
-    #define SOCKET_SETUP()	socket_setup()
+    #define SOCKET_BUFF(x) ((char*)x)
+    #define SOCKET_SETUP() socket_setup()
     #define SOCKET_CLEANUP() socket_cleanup()
 
     typedef uint32_t u_int32_t;
