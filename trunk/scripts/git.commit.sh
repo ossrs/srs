@@ -51,12 +51,9 @@ function sync_push()
     done
 }
 
-sync_push --all origin master
-sync_push --all origin 1.0release
-sync_push --all srs.csdn master
-sync_push --all srs.csdn 1.0release
-sync_push --all srs.oschina master
-sync_push --all srs.oschina 1.0release
+sync_push --all origin
+sync_push --all srs.csdn
+sync_push --all srs.oschina
 ok_msg "push refs ok"
 
 sync_push --tags srs.csdn
