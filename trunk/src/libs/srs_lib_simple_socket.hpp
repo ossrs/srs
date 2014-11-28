@@ -31,6 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <srs_protocol_io.hpp>
+#include <srs_librtmp.hpp>
     
 /**
 * simple socket stream,
@@ -43,7 +44,7 @@ private:
     int64_t send_timeout;
     int64_t recv_bytes;
     int64_t send_bytes;
-    int fd;
+    SOCKET fd;
 public:
     SimpleSocketStream();
     virtual ~SimpleSocketStream();

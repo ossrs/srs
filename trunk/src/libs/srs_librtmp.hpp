@@ -31,7 +31,23 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/types.h>
 
 // for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
-#ifdef _WIN32
+#ifndef _WIN32
+    #define SOCKET_ETIME ETIME
+    #define SOCKET_ECONNRESET ECONNRESET
+
+    #define SOCKET int
+    #define SOCKET_ERRNO() errno
+    #define SOCKET_RESET(fd) fd = -1; (void)0
+    #define SOCKET_CLOSE(fd) \
+        if (fd > 0) {\
+            ::close(fd); \
+            fd = -1; \
+        } \
+        (void)0
+    #define SOCKET_VALID(x) (x > 0)
+    #define SOCKET_SETUP() (void)0
+    #define SOCKET_CLEANUP() (void)0
+#else
     #define _CRT_SECURE_NO_WARNINGS
     typedef unsigned long long u_int64_t;
     typedef long long int64_t;
@@ -50,6 +66,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     #include <windows.h>
     int gettimeofday(struct timeval* tv, struct timezone* tz);
     #define PRId64 "lld"
+
+    #define SOCKET_ETIME WSAETIMEDOUT
+    #define SOCKET_ECONNRESET WSAECONNRESET
+    #define SOCKET_ERRNO() WSAGetLastError()
+    #define SOCKET_RESET(x) x=INVALID_SOCKET
+    #define SOCKET_CLOSE(x) if(x!=INVALID_SOCKET){::closesocket(x);x=INVALID_SOCKET;}
+    #define SOCKET_VALID(x) (x!=INVALID_SOCKET)
+    #define SOCKET_BUFF(x) ((char*)x)
+    #define SOCKET_SETUP() socket_setup()
+    #define SOCKET_CLEANUP() socket_cleanup()
+    
     typedef int socklen_t;
     const char *inet_ntop(int af, const void *src, char *dst, socklen_t size);
     typedef int mode_t;
@@ -58,18 +85,23 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     #define S_IRGRP 0
     #define S_IWGRP 0
     #define S_IROTH 0
-    int open(const char *pathname, int flags);
-    int open(const char *pathname, int flags, mode_t mode);
-    int close(int fd);
-    off_t lseek(int fd, off_t offset, int whence);
-    ssize_t write(int fd, const void *buf, size_t count);
-    ssize_t read(int fd, void *buf, size_t count);
+    
+    #include <io.h>
+    #include <fcntl.h>
+    #define open _open
+    #define close _close
+    #define lseek _lseek
+    #define write _write
+    #define read _read
+    
     typedef int pid_t;
     pid_t getpid(void);
     #define snprintf _snprintf
     ssize_t writev(int fd, const struct iovec *iov, int iovcnt);
     typedef int64_t useconds_t;
     int usleep(useconds_t usec);
+    int socket_setup();
+    int socket_cleanup();
 #endif
 
 /**

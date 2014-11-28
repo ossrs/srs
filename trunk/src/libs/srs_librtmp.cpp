@@ -133,47 +133,29 @@ struct Context
         return 0;
     }
     
-    int open(const char *pathname, int flags)
+    int socket_setup()
     {
-        return open(pathname, flags, 0);
-    }
+        WORD wVersionRequested;
+        WSADATA wsaData;
+        int err;
     
-    int open(const char *pathname, int flags, mode_t mode)
-    {
-        FILE* file = NULL;
+        /* Use the MAKEWORD(lowbyte, highbyte) macro declared in Windef.h */
+        wVersionRequested = MAKEWORD(2, 2);
     
-        if ((flags & O_RDONLY) == O_RDONLY) {
-            file = fopen(pathname, "r");
-        } else {
-            file = fopen(pathname, "w+");
-        }
-    
-        if (file == NULL) {
+        err = WSAStartup(wVersionRequested, &wsaData);
+        if (err != 0) {
+            /* Tell the user that we could not find a usable */
+            /* Winsock DLL.                                  */
+            //printf("WSAStartup failed with error: %d\n", err);
             return -1;
         }
-    
-        return (int)file;
+        return 0;
     }
     
-    int close(int fd)
+    int socket_cleanup()
     {
-        FILE* file = (FILE*)fd;
-        return fclose(file);
-    }
-    
-    off_t lseek(int fd, off_t offset, int whence)
-    {
-        return (off_t)fseek((FILE*)fd, offset, whence);
-    }
-    
-    ssize_t write(int fd, const void *buf, size_t count)
-    {
-        return (ssize_t)fwrite(buf, count, 1, (FILE*)fd);
-    }
-    
-    ssize_t read(int fd, void *buf, size_t count)
-    {
-        return (ssize_t)fread(buf, count, 1, (FILE*)fd);
+        WSACleanup();
+        return 0;
     }
     
     pid_t getpid(void)
