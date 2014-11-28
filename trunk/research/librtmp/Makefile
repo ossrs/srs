@@ -7,7 +7,8 @@ else
                 objs/srs_flv_injecter objs/srs_publish objs/srs_play \
                 objs/srs_ingest_flv objs/srs_ingest_rtmp objs/srs_detect_rtmp \
                 objs/srs_bandwidth_check objs/srs_h264_raw_publish \
-                objs/srs_audio_raw_publish objs/srs_aac_raw_publish
+                objs/srs_audio_raw_publish objs/srs_aac_raw_publish \
+                objs/srs_rtmp_dump
 endif
 
 .PHONY: default clean help ssl nossl
@@ -32,6 +33,7 @@ help:
 	@echo "     srs_ingest_rtmp         ingest RTMP and publish to RTMP server."
 	@echo "     srs_detect_rtmp         detect RTMP stream info."
 	@echo "     srs_bandwidth_check     bandwidth check/test tool."
+	@echo "     srs_rtmp_dump           dump rtmp stream to flv file."
 	@echo "Remark: about simple/complex handshake, see: http://blog.csdn.net/win_lin/article/details/13006803"
 	@echo "Remark: srs Makefile will auto invoke this by --with/without-ssl, "
 	@echo "     that is, if user specified ssl(by --with-ssl), srs will make this by 'make ssl'"
@@ -108,3 +110,6 @@ objs/srs_detect_rtmp: srs_detect_rtmp.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(
 
 objs/srs_bandwidth_check: srs_bandwidth_check.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
 	$(GCC) srs_bandwidth_check.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_bandwidth_check
+
+objs/srs_rtmp_dump: srs_rtmp_dump.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
+	$(GCC) srs_rtmp_dump.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_rtmp_dump
