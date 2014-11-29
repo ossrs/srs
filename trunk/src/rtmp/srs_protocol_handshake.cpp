@@ -292,54 +292,44 @@ namespace _srs_internal
         return ret;
     }
     
-    void key_block::init()
+    key_block::key_block()
     {
-        key_block* key = this;
+        offset = (int32_t)rand();
+        random0 = NULL;
+        random1 = NULL;
         
-        key->offset = (int32_t)rand();
-        key->random0 = NULL;
-        key->random1 = NULL;
+        int valid_offset = calc_valid_offset();
+        srs_assert(valid_offset >= 0);
         
-        int offset = key->offsets();
-        srs_assert(offset >= 0);
-        
-        key->random0_size = offset;
-        if (key->random0_size > 0) {
-            key->random0 = new char[key->random0_size];
-            srs_random_generate(key->random0, key->random0_size);
-            snprintf(key->random0, key->random0_size, "%s", RTMP_SIG_SRS_HANDSHAKE);
+        random0_size = valid_offset;
+        if (random0_size > 0) {
+            random0 = new char[random0_size];
+            srs_random_generate(random0, random0_size);
+            snprintf(random0, random0_size, "%s", RTMP_SIG_SRS_HANDSHAKE);
         }
         
-        srs_random_generate(key->key, sizeof(key->key));
+        srs_random_generate(key, sizeof(key));
         
-        key->random1_size = 764 - offset - 128 - 4;
-        if (key->random1_size > 0) {
-            key->random1 = new char[key->random1_size];
-            srs_random_generate(key->random1, key->random1_size);
-            snprintf(key->random1, key->random1_size, "%s", RTMP_SIG_SRS_HANDSHAKE);
+        random1_size = 764 - valid_offset - 128 - 4;
+        if (random1_size > 0) {
+            random1 = new char[random1_size];
+            srs_random_generate(random1, random1_size);
+            snprintf(random1, random1_size, "%s", RTMP_SIG_SRS_HANDSHAKE);
         }
     }
     
-    int key_block::offsets()
+    key_block::~key_block()
     {
-        key_block* key = this;
-        
-        int max_offset_size = 764 - 128 - 4;
-        
-        int offset = 0;
-        u_int8_t* pp = (u_int8_t*)&key->offset;
-        offset += *pp++;
-        offset += *pp++;
-        offset += *pp++;
-        offset += *pp++;
-    
-        return offset % max_offset_size;
+        if (random0) {
+            srs_freep(random0);
+        }
+        if (random1) {
+            srs_freep(random1);
+        }
     }
     
     int key_block::parse(SrsStream* stream)
     {
-        key_block* key = this;
-        
         int ret = ERROR_SUCCESS;
         
         // the key must be 764 bytes.
@@ -347,148 +337,138 @@ namespace _srs_internal
     
         // read the last offset first, 760-763
         stream->skip(764 - sizeof(int32_t));
-        key->offset = stream->read_4bytes();
+        offset = stream->read_4bytes();
         
         // reset stream to read others.
         stream->skip(-764);
         
         // TODO: FIXME: free it.
-        key->random0 = NULL;
-        key->random1 = NULL;
+        random0 = NULL;
+        random1 = NULL;
         
-        int offset = key->offsets();
-        srs_assert(offset >= 0);
+        int valid_offset = calc_valid_offset();
+        srs_assert(valid_offset >= 0);
         
-        key->random0_size = offset;
-        if (key->random0_size > 0) {
-            key->random0 = new char[key->random0_size];
-            stream->read_bytes(key->random0, key->random0_size);
+        random0_size = valid_offset;
+        if (random0_size > 0) {
+            random0 = new char[random0_size];
+            stream->read_bytes(random0, random0_size);
         }
         
-        stream->read_bytes(key->key, 128);
+        stream->read_bytes(key, 128);
         
-        key->random1_size = 764 - offset - 128 - 4;
-        if (key->random1_size > 0) {
-            key->random1 = new char[key->random1_size];
-            stream->read_bytes(key->random1, key->random1_size);
+        random1_size = 764 - valid_offset - 128 - 4;
+        if (random1_size > 0) {
+            random1 = new char[random1_size];
+            stream->read_bytes(random1, random1_size);
         }
         
         return ret;
     }
     
-    void key_block::free()
+    int key_block::calc_valid_offset()
     {
-        key_block* key = this;
+        int max_offset_size = 764 - 128 - 4;
         
-        if (key->random0) {
-            srs_freep(key->random0);
+        int valid_offset = 0;
+        u_int8_t* pp = (u_int8_t*)&offset;
+        valid_offset += *pp++;
+        valid_offset += *pp++;
+        valid_offset += *pp++;
+        valid_offset += *pp++;
+    
+        return valid_offset % max_offset_size;
+    }
+    
+    digest_block::digest_block()
+    {
+        offset = (int32_t)rand();
+        random0 = NULL;
+        random1 = NULL;
+        
+        int valid_offset = calc_valid_offset();
+        srs_assert(valid_offset >= 0);
+        
+        random0_size = valid_offset;
+        if (random0_size > 0) {
+            random0 = new char[random0_size];
+            srs_random_generate(random0, random0_size);
+            snprintf(random0, random0_size, "%s", RTMP_SIG_SRS_HANDSHAKE);
         }
-        if (key->random1) {
-            srs_freep(key->random1);
+        
+        srs_random_generate(digest, sizeof(digest));
+        
+        random1_size = 764 - 4 - valid_offset - 32;
+        if (random1_size > 0) {
+            random1 = new char[random1_size];
+            srs_random_generate(random1, random1_size);
+            snprintf(random1, random1_size, "%s", RTMP_SIG_SRS_HANDSHAKE);
         }
     }
     
-    void digest_block::init()
+    digest_block::~digest_block()
     {
-        digest_block* digest = this;
-        
-        digest->offset = (int32_t)rand();
-        digest->random0 = NULL;
-        digest->random1 = NULL;
-        
-        int offset = digest->offsets();
-        srs_assert(offset >= 0);
-        
-        digest->random0_size = offset;
-        if (digest->random0_size > 0) {
-            digest->random0 = new char[digest->random0_size];
-            srs_random_generate(digest->random0, digest->random0_size);
-            snprintf(digest->random0, digest->random0_size, "%s", RTMP_SIG_SRS_HANDSHAKE);
+        if (random0) {
+            srs_freep(random0);
         }
-        
-        srs_random_generate(digest->digest, sizeof(digest->digest));
-        
-        digest->random1_size = 764 - 4 - offset - 32;
-        if (digest->random1_size > 0) {
-            digest->random1 = new char[digest->random1_size];
-            srs_random_generate(digest->random1, digest->random1_size);
-            snprintf(digest->random1, digest->random1_size, "%s", RTMP_SIG_SRS_HANDSHAKE);
+        if (random1) {
+            srs_freep(random1);
         }
-    }
-    
-    int digest_block::offsets()
-    {
-        digest_block* digest = this;
-        
-        int max_offset_size = 764 - 32 - 4;
-        
-        int offset = 0;
-        u_int8_t* pp = (u_int8_t*)&digest->offset;
-        offset += *pp++;
-        offset += *pp++;
-        offset += *pp++;
-        offset += *pp++;
-    
-        return offset % max_offset_size;
     }
 
     int digest_block::parse(SrsStream* stream)
     {
-        digest_block* digest = this;
-        
         int ret = ERROR_SUCCESS;
         
         // the digest must be 764 bytes.
         srs_assert(stream->require(764));
         
-        digest->offset = stream->read_4bytes();
+        offset = stream->read_4bytes();
         
         // TODO: FIXME: free it.
-        digest->random0 = NULL;
-        digest->random1 = NULL;
+        random0 = NULL;
+        random1 = NULL;
         
-        int offset = digest->offsets();
-        srs_assert(offset >= 0);
+        int valid_offset = calc_valid_offset();
+        srs_assert(valid_offset >= 0);
         
-        digest->random0_size = offset;
-        if (digest->random0_size > 0) {
-            digest->random0 = new char[digest->random0_size];
-            stream->read_bytes(digest->random0, digest->random0_size);
+        random0_size = valid_offset;
+        if (random0_size > 0) {
+            random0 = new char[random0_size];
+            stream->read_bytes(random0, random0_size);
         }
         
-        stream->read_bytes(digest->digest, 32);
+        stream->read_bytes(digest, 32);
         
-        digest->random1_size = 764 - 4 - offset - 32;
-        if (digest->random1_size > 0) {
-            digest->random1 = new char[digest->random1_size];
-            stream->read_bytes(digest->random1, digest->random1_size);
+        random1_size = 764 - 4 - valid_offset - 32;
+        if (random1_size > 0) {
+            random1 = new char[random1_size];
+            stream->read_bytes(random1, random1_size);
         }
         
         return ret;
     }
     
-    void digest_block::free()
+    int digest_block::calc_valid_offset()
     {
-        digest_block* digest = this;
+        int max_offset_size = 764 - 32 - 4;
         
-        if (digest->random0) {
-            srs_freep(digest->random0);
-        }
-        if (digest->random1) {
-            srs_freep(digest->random1);
-        }
+        int valid_offset = 0;
+        u_int8_t* pp = (u_int8_t*)&offset;
+        valid_offset += *pp++;
+        valid_offset += *pp++;
+        valid_offset += *pp++;
+        valid_offset += *pp++;
+    
+        return valid_offset % max_offset_size;
     }
     
     c1s1_strategy::c1s1_strategy()
     {
-        key.init();
-        digest.init();
     }
     
     c1s1_strategy::~c1s1_strategy()
     {
-        key.free();
-        digest.free();
     }
     
     char* c1s1_strategy::get_digest()

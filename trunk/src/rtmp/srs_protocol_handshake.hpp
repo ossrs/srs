@@ -133,22 +133,17 @@ namespace _srs_internal
         // 4bytes
         int32_t offset;
     public:
-        // create new key block data.
-        // if created, user must free it by srs_key_block_free
-        void init();
-        
-        // calc the offset of key,
-        // the key->offset cannot be used as the offset of key.
-        int offsets();
-        
+        key_block();
+        virtual ~key_block();
+    public:
         // parse key block from c1s1.
         // if created, user must free it by srs_key_block_free
         // @stream contains c1s1_key_bytes the key start bytes
         int parse(SrsStream* stream);
-        
-        // free the block data create by 
-        // srs_key_block_init or srs_key_block_parse
-        void free();
+    private:
+        // calc the offset of key,
+        // the key->offset cannot be used as the offset of key.
+        int calc_valid_offset();
     };
     
     /**
@@ -176,22 +171,17 @@ namespace _srs_internal
         char* random1;
         int random1_size;
     public:
-        // create new digest block data.
-        // if created, user must free it by srs_digest_block_free
-        void init();
-        
-        // calc the offset of digest,
-        // the key->offset cannot be used as the offset of digest.
-        int offsets();
-    
+        digest_block();
+        virtual ~digest_block();
+    public:
         // parse digest block from c1s1.
         // if created, user must free it by srs_digest_block_free
         // @stream contains c1s1_digest_bytes the digest start bytes
         int parse(SrsStream* stream);
-        
-        // free the block data create by 
-        // srs_digest_block_init or srs_digest_block_parse
-        void free();
+    private:
+        // calc the offset of digest,
+        // the key->offset cannot be used as the offset of digest.
+        int calc_valid_offset();
     };
     
     class c1s1;
