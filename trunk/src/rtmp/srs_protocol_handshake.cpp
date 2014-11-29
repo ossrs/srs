@@ -320,12 +320,8 @@ namespace _srs_internal
     
     key_block::~key_block()
     {
-        if (random0) {
-            srs_freep(random0);
-        }
-        if (random1) {
-            srs_freep(random1);
-        }
+        srs_freep(random0);
+        srs_freep(random1);
     }
     
     int key_block::parse(SrsStream* stream)
@@ -342,15 +338,12 @@ namespace _srs_internal
         // reset stream to read others.
         stream->skip(-764);
         
-        // TODO: FIXME: free it.
-        random0 = NULL;
-        random1 = NULL;
-        
         int valid_offset = calc_valid_offset();
         srs_assert(valid_offset >= 0);
         
         random0_size = valid_offset;
         if (random0_size > 0) {
+            srs_freep(random0);
             random0 = new char[random0_size];
             stream->read_bytes(random0, random0_size);
         }
@@ -359,6 +352,7 @@ namespace _srs_internal
         
         random1_size = 764 - valid_offset - 128 - 4;
         if (random1_size > 0) {
+            srs_freep(random1);
             random1 = new char[random1_size];
             stream->read_bytes(random1, random1_size);
         }
@@ -408,12 +402,8 @@ namespace _srs_internal
     
     digest_block::~digest_block()
     {
-        if (random0) {
-            srs_freep(random0);
-        }
-        if (random1) {
-            srs_freep(random1);
-        }
+        srs_freep(random0);
+        srs_freep(random1);
     }
 
     int digest_block::parse(SrsStream* stream)
@@ -425,15 +415,12 @@ namespace _srs_internal
         
         offset = stream->read_4bytes();
         
-        // TODO: FIXME: free it.
-        random0 = NULL;
-        random1 = NULL;
-        
         int valid_offset = calc_valid_offset();
         srs_assert(valid_offset >= 0);
         
         random0_size = valid_offset;
         if (random0_size > 0) {
+            srs_freep(random0);
             random0 = new char[random0_size];
             stream->read_bytes(random0, random0_size);
         }
@@ -442,6 +429,7 @@ namespace _srs_internal
         
         random1_size = 764 - 4 - valid_offset - 32;
         if (random1_size > 0) {
+            srs_freep(random1);
             random1 = new char[random1_size];
             stream->read_bytes(random1, random1_size);
         }
@@ -741,8 +729,9 @@ namespace _srs_internal
     
     int c1s1_strategy_schema0::copy_to(c1s1* owner, char* bytes, int size, bool with_digest)
     {
-        SrsStream stream;
         int ret = ERROR_SUCCESS;
+        
+        SrsStream stream;
         
         if ((ret = stream.initialize(bytes, size)) != ERROR_SUCCESS) {
             return ret;
@@ -753,6 +742,8 @@ namespace _srs_internal
         copy_digest(&stream, with_digest);
         
         srs_assert(stream.empty());
+        
+        return ret;
     }
     
     c1s1_strategy_schema1::c1s1_strategy_schema1()
@@ -801,8 +792,9 @@ namespace _srs_internal
     
     int c1s1_strategy_schema1::copy_to(c1s1* owner, char* bytes, int size, bool with_digest)
     {
-        SrsStream stream;
         int ret = ERROR_SUCCESS;
+        
+        SrsStream stream;
         
         if ((ret = stream.initialize(bytes, size)) != ERROR_SUCCESS) {
             return ret;
@@ -813,6 +805,8 @@ namespace _srs_internal
         copy_key(&stream);
         
         srs_assert(stream.empty());
+        
+        return ret;
     }
     
     // TODO: FIXME: move to the right position.
