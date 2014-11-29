@@ -41,78 +41,6 @@ class SrsHandshakeBytes;
 
 namespace _srs_internal
 {
-    /**
-    * the schema type.
-    */
-    enum srs_schema_type 
-    {
-        srs_schema_invalid = 2,
-        
-        /**
-        * key-digest sequence
-        */
-        srs_schema0 = 0,
-        
-        /**
-        * digest-key sequence
-        * @remark, FMS requires the schema1(digest-key), or connect failed.
-        */
-        // 
-        srs_schema1 = 1,
-    };
-    
-    /**
-    * 764bytes key structure
-    *     random-data: (offset)bytes
-    *     key-data: 128bytes
-    *     random-data: (764-offset-128-4)bytes
-    *     offset: 4bytes
-    * @see also: http://blog.csdn.net/win_lin/article/details/13006803
-    */
-    class key_block
-    {
-    public:
-        // (offset)bytes
-        char* random0;
-        int random0_size;
-        
-        // 128bytes
-        char key[128];
-        
-        // (764-offset-128-4)bytes
-        char* random1;
-        int random1_size;
-        
-        // 4bytes
-        int32_t offset;
-    };
-    
-    /**
-    * 764bytes digest structure
-    *     offset: 4bytes
-    *     random-data: (offset)bytes
-    *     digest-data: 32bytes
-    *     random-data: (764-4-offset-32)bytes
-    * @see also: http://blog.csdn.net/win_lin/article/details/13006803
-    */
-    class digest_block
-    {
-    public:
-        // 4bytes
-        int32_t offset;
-        
-        // (offset)bytes
-        char* random0;
-        int random0_size;
-        
-        // 32bytes
-        char digest[32];
-        
-        // (764-4-offset-32)bytes
-        char* random1;
-        int random1_size;
-    };
-    
     // the digest key generate size.
     #define __SRS_OpensslHashSize 512
     extern u_int8_t SrsGenuineFMSKey[];
@@ -159,40 +87,111 @@ namespace _srs_internal
     private:
         virtual int do_initialize();
     };
+    /**
+    * the schema type.
+    */
+    enum srs_schema_type 
+    {
+        srs_schema_invalid = 2,
+        
+        /**
+        * key-digest sequence
+        */
+        srs_schema0 = 0,
+        
+        /**
+        * digest-key sequence
+        * @remark, FMS requires the schema1(digest-key), or connect failed.
+        */
+        // 
+        srs_schema1 = 1,
+    };
     
-    // calc the offset of key,
-    // the key->offset cannot be used as the offset of key.
-    int srs_key_block_get_offset(key_block* key);
+    /**
+    * 764bytes key structure
+    *     random-data: (offset)bytes
+    *     key-data: 128bytes
+    *     random-data: (764-offset-128-4)bytes
+    *     offset: 4bytes
+    * @see also: http://blog.csdn.net/win_lin/article/details/13006803
+    */
+    class key_block
+    {
+    public:
+        // (offset)bytes
+        char* random0;
+        int random0_size;
+        
+        // 128bytes
+        char key[128];
+        
+        // (764-offset-128-4)bytes
+        char* random1;
+        int random1_size;
+        
+        // 4bytes
+        int32_t offset;
+    public:
+        // create new key block data.
+        // if created, user must free it by srs_key_block_free
+        void init();
+        
+        // calc the offset of key,
+        // the key->offset cannot be used as the offset of key.
+        int offsets();
+        
+        // parse key block from c1s1.
+        // if created, user must free it by srs_key_block_free
+        // @c1s1_key_bytes the key start bytes, maybe c1s1 or c1s1+764
+        int parse(char* c1s1_key_bytes);
+        
+        // free the block data create by 
+        // srs_key_block_init or srs_key_block_parse
+        void free();
+    };
     
-    // create new key block data.
-    // if created, user must free it by srs_key_block_free
-    void srs_key_block_init(key_block* key);
+    /**
+    * 764bytes digest structure
+    *     offset: 4bytes
+    *     random-data: (offset)bytes
+    *     digest-data: 32bytes
+    *     random-data: (764-4-offset-32)bytes
+    * @see also: http://blog.csdn.net/win_lin/article/details/13006803
+    */
+    class digest_block
+    {
+    public:
+        // 4bytes
+        int32_t offset;
+        
+        // (offset)bytes
+        char* random0;
+        int random0_size;
+        
+        // 32bytes
+        char digest[32];
+        
+        // (764-4-offset-32)bytes
+        char* random1;
+        int random1_size;
+    public:
+        // create new digest block data.
+        // if created, user must free it by srs_digest_block_free
+        void init();
+        
+        // calc the offset of digest,
+        // the key->offset cannot be used as the offset of digest.
+        int offsets();
     
-    // parse key block from c1s1.
-    // if created, user must free it by srs_key_block_free
-    // @c1s1_key_bytes the key start bytes, maybe c1s1 or c1s1+764
-    int srs_key_block_parse(key_block* key, char* c1s1_key_bytes);
-    
-    // free the block data create by 
-    // srs_key_block_init or srs_key_block_parse
-    void srs_key_block_free(key_block* key);
-    
-    // calc the offset of digest,
-    // the key->offset cannot be used as the offset of digest.
-    int srs_digest_block_get_offset(digest_block* digest);
-    
-    // create new digest block data.
-    // if created, user must free it by srs_digest_block_free
-    void srs_digest_block_init(digest_block* digest);
-
-    // parse digest block from c1s1.
-    // if created, user must free it by srs_digest_block_free
-    // @c1s1_digest_bytes the digest start bytes, maybe c1s1 or c1s1+764
-    int srs_digest_block_parse(digest_block* digest, char* c1s1_digest_bytes);
-    
-    // free the block data create by 
-    // srs_digest_block_init or srs_digest_block_parse
-    void srs_digest_block_free(digest_block* digest);
+        // parse digest block from c1s1.
+        // if created, user must free it by srs_digest_block_free
+        // @c1s1_digest_bytes the digest start bytes, maybe c1s1 or c1s1+764
+        int parse(char* c1s1_digest_bytes);
+        
+        // free the block data create by 
+        // srs_digest_block_init or srs_digest_block_parse
+        void free();
+    };
     
     /**
     * copy whole c1s1 to bytes.

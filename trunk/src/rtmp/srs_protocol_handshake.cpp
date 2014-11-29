@@ -312,31 +312,17 @@ namespace _srs_internal
         return stream.read_4bytes();
     }
     
-    // calc the offset of key,
-    // the key->offset cannot be used as the offset of key.
-    int srs_key_block_get_offset(key_block* key)
-    {
-        int max_offset_size = 764 - 128 - 4;
-        
-        int offset = 0;
-        u_int8_t* pp = (u_int8_t*)&key->offset;
-        offset += *pp++;
-        offset += *pp++;
-        offset += *pp++;
-        offset += *pp++;
-    
-        return offset % max_offset_size;
-    }
-    
     // create new key block data.
     // if created, user must free it by srs_key_block_free
-    void srs_key_block_init(key_block* key)
+    void key_block::init()
     {
+        key_block* key = this;
+        
         key->offset = (int32_t)rand();
         key->random0 = NULL;
         key->random1 = NULL;
         
-        int offset = srs_key_block_get_offset(key);
+        int offset = key->offsets();
         srs_assert(offset >= 0);
         
         key->random0_size = offset;
@@ -356,11 +342,31 @@ namespace _srs_internal
         }
     }
     
+    // calc the offset of key,
+    // the key->offset cannot be used as the offset of key.
+    int key_block::offsets()
+    {
+        key_block* key = this;
+        
+        int max_offset_size = 764 - 128 - 4;
+        
+        int offset = 0;
+        u_int8_t* pp = (u_int8_t*)&key->offset;
+        offset += *pp++;
+        offset += *pp++;
+        offset += *pp++;
+        offset += *pp++;
+    
+        return offset % max_offset_size;
+    }
+    
     // parse key block from c1s1.
     // if created, user must free it by srs_key_block_free
     // @c1s1_key_bytes the key start bytes, maybe c1s1 or c1s1+764
-    int srs_key_block_parse(key_block* key, char* c1s1_key_bytes)
+    int key_block::parse(char* c1s1_key_bytes)
     {
+        key_block* key = this;
+        
         int ret = ERROR_SUCCESS;
     
         char* pp = c1s1_key_bytes + 764;
@@ -371,7 +377,7 @@ namespace _srs_internal
         key->random0 = NULL;
         key->random1 = NULL;
         
-        int offset = srs_key_block_get_offset(key);
+        int offset = key->offsets();
         srs_assert(offset >= 0);
         
         pp = c1s1_key_bytes;
@@ -396,8 +402,10 @@ namespace _srs_internal
     
     // free the block data create by 
     // srs_key_block_init or srs_key_block_parse
-    void srs_key_block_free(key_block* key)
+    void key_block::free()
     {
+        key_block* key = this;
+        
         if (key->random0) {
             srs_freep(key->random0);
         }
@@ -406,31 +414,17 @@ namespace _srs_internal
         }
     }
     
-    // calc the offset of digest,
-    // the key->offset cannot be used as the offset of digest.
-    int srs_digest_block_get_offset(digest_block* digest)
-    {
-        int max_offset_size = 764 - 32 - 4;
-        
-        int offset = 0;
-        u_int8_t* pp = (u_int8_t*)&digest->offset;
-        offset += *pp++;
-        offset += *pp++;
-        offset += *pp++;
-        offset += *pp++;
-    
-        return offset % max_offset_size;
-    }
-    
     // create new digest block data.
     // if created, user must free it by srs_digest_block_free
-    void srs_digest_block_init(digest_block* digest)
+    void digest_block::init()
     {
+        digest_block* digest = this;
+        
         digest->offset = (int32_t)rand();
         digest->random0 = NULL;
         digest->random1 = NULL;
         
-        int offset = srs_digest_block_get_offset(digest);
+        int offset = digest->offsets();
         srs_assert(offset >= 0);
         
         digest->random0_size = offset;
@@ -449,12 +443,32 @@ namespace _srs_internal
             snprintf(digest->random1, digest->random1_size, "%s", RTMP_SIG_SRS_HANDSHAKE);
         }
     }
+    
+    // calc the offset of digest,
+    // the key->offset cannot be used as the offset of digest.
+    int digest_block::offsets()
+    {
+        digest_block* digest = this;
+        
+        int max_offset_size = 764 - 32 - 4;
+        
+        int offset = 0;
+        u_int8_t* pp = (u_int8_t*)&digest->offset;
+        offset += *pp++;
+        offset += *pp++;
+        offset += *pp++;
+        offset += *pp++;
+    
+        return offset % max_offset_size;
+    }
 
     // parse digest block from c1s1.
     // if created, user must free it by srs_digest_block_free
     // @c1s1_digest_bytes the digest start bytes, maybe c1s1 or c1s1+764
-    int srs_digest_block_parse(digest_block* digest, char* c1s1_digest_bytes)
+    int digest_block::parse(char* c1s1_digest_bytes)
     {
+        digest_block* digest = this;
+        
         int ret = ERROR_SUCCESS;
     
         char* pp = c1s1_digest_bytes;
@@ -465,7 +479,7 @@ namespace _srs_internal
         digest->random0 = NULL;
         digest->random1 = NULL;
         
-        int offset = srs_digest_block_get_offset(digest);
+        int offset = digest->offsets();
         srs_assert(offset >= 0);
         
         digest->random0_size = offset;
@@ -489,8 +503,10 @@ namespace _srs_internal
     
     // free the block data create by 
     // srs_digest_block_init or srs_digest_block_parse
-    void srs_digest_block_free(digest_block* digest)
+    void digest_block::free()
     {
+        digest_block* digest = this;
+        
         if (digest->random0) {
             srs_freep(digest->random0);
         }
@@ -792,21 +808,21 @@ namespace _srs_internal
         version = __srs_stream_read_4bytes(_c1s1 + 4); // client c1 version
         
         if (_schema == srs_schema0) {
-            if ((ret = srs_key_block_parse(&block0.key, _c1s1 + 8)) != ERROR_SUCCESS) {
+            if ((ret = block0.key.parse(_c1s1 + 8)) != ERROR_SUCCESS) {
                 srs_error("parse the c1 key failed. ret=%d", ret);
                 return ret;
             }
-            if ((ret = srs_digest_block_parse(&block1.digest, _c1s1 + 8 + 764)) != ERROR_SUCCESS) {
+            if ((ret = block1.digest.parse(_c1s1 + 8 + 764)) != ERROR_SUCCESS) {
                 srs_error("parse the c1 digest failed. ret=%d", ret);
                 return ret;
             }
             srs_verbose("parse c1 key-digest success");
         } else if (_schema == srs_schema1) {
-            if ((ret = srs_digest_block_parse(&block0.digest, _c1s1 + 8)) != ERROR_SUCCESS) {
+            if ((ret = block0.digest.parse(_c1s1 + 8)) != ERROR_SUCCESS) {
                 srs_error("parse the c1 key failed. ret=%d", ret);
                 return ret;
             }
-            if ((ret = srs_key_block_parse(&block1.key, _c1s1 + 8 + 764)) != ERROR_SUCCESS) {
+            if ((ret = block1.key.parse(_c1s1 + 8 + 764)) != ERROR_SUCCESS) {
                 srs_error("parse the c1 digest failed. ret=%d", ret);
                 return ret;
             }
@@ -840,11 +856,11 @@ namespace _srs_internal
         
         // generate signature by schema
         if (_schema == srs_schema0) {
-            srs_key_block_init(&block0.key);
-            srs_digest_block_init(&block1.digest);
+            block0.key.init();
+            block1.digest.init();
         } else {
-            srs_digest_block_init(&block0.digest);
-            srs_key_block_init(&block1.key);
+            block0.digest.init();
+            block1.key.init();
         }
         
         schema = _schema;
@@ -941,8 +957,8 @@ namespace _srs_internal
         }
         
         if (schema == srs_schema0) {
-            srs_key_block_init(&block0.key);
-            srs_digest_block_init(&block1.digest);
+            block0.key.init();
+            block1.digest.init();
             
             // directly generate the public key.
             // @see: https://github.com/winlinvip/simple-rtmp-server/issues/148
@@ -953,8 +969,8 @@ namespace _srs_internal
             }
             srs_assert(pkey_size == 128);
         } else {
-            srs_digest_block_init(&block0.digest);
-            srs_key_block_init(&block1.key);
+            block0.digest.init();
+            block1.key.init();
             
             // directly generate the public key.
             // @see: https://github.com/winlinvip/simple-rtmp-server/issues/148
@@ -1048,11 +1064,11 @@ namespace _srs_internal
         }
         
         if (schema == srs_schema0) {
-            srs_key_block_free(&block0.key);
-            srs_digest_block_free(&block1.digest);
+            block0.key.free();
+            block1.digest.free();
         } else {
-            srs_digest_block_free(&block0.digest);
-            srs_key_block_free(&block1.key);
+            block0.digest.free();
+            block1.key.free();
         }
     }
 }
