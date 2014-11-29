@@ -833,6 +833,134 @@ namespace _srs_internal
         }
     }
     
+    // TODO: FIXME: move to the right position.
+    c1s1::c1s1()
+    {
+        payload = NULL;
+    }
+    c1s1::~c1s1()
+    {
+        srs_freep(payload);
+        /*
+        void c1s1::destroy_blocks()
+        {
+            if (schema == srs_schema_invalid) {
+                return;
+            }
+            
+            if (schema == srs_schema0) {
+                block0.key.free();
+                block1.digest.free();
+            } else {
+                block0.digest.free();
+                block1.key.free();
+            }
+        }*/
+    }
+    
+    srs_schema_type c1s1::schema()
+    {
+        srs_assert(payload != NULL);
+        return payload->schema();
+    }
+    
+    char* c1s1::get_digest()
+    {
+        srs_assert(payload != NULL);
+        return payload->get_digest();
+    }
+    
+    void c1s1::dump(char* _c1s1)
+    {
+        srs_assert(payload != NULL);
+        return payload->dump(this, _c1s1);
+    }
+    
+    int c1s1::parse(char* _c1s1, srs_schema_type schema)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        if (schema != srs_schema0 && schema != srs_schema1) {
+            ret = ERROR_RTMP_CH_SCHEMA;
+            srs_error("parse c1 failed. invalid schema=%d, ret=%d", schema, ret);
+            return ret;
+        }
+        
+        time = __srs_stream_read_4bytes(_c1s1);
+        version = __srs_stream_read_4bytes(_c1s1 + 4); // client c1 version
+        
+        srs_freep(payload);
+        if (schema == srs_schema0) {
+            payload = new c1s1_strategy_schema0();
+        } else {
+            payload = new c1s1_strategy_schema1();
+        }
+
+        return payload->parse(_c1s1);
+    }
+    
+    int c1s1::c1_create(srs_schema_type schema)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        if (schema != srs_schema0 && schema != srs_schema1) {
+            ret = ERROR_RTMP_CH_SCHEMA;
+            srs_error("create c1 failed. invalid schema=%d, ret=%d", schema, ret);
+            return ret;
+        }
+        
+        // client c1 time and version
+        time = ::time(NULL);
+        version = 0x80000702; // client c1 version
+
+        // generate signature by schema
+        srs_freep(payload);
+        if (schema == srs_schema0) {
+            payload = new c1s1_strategy_schema0();
+        } else {
+            payload = new c1s1_strategy_schema1();
+        }
+        
+        return payload->c1_create(this);
+    }
+    
+    int c1s1::c1_validate_digest(bool& is_valid)
+    {
+        is_valid = false;
+        srs_assert(payload);
+        return payload->c1_validate_digest(this, is_valid);
+    }
+    
+    int c1s1::s1_create(c1s1* c1)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        if (c1->schema() != srs_schema0 && c1->schema() != srs_schema1) {
+            ret = ERROR_RTMP_CH_SCHEMA;
+            srs_error("create s1 failed. invalid schema=%d, ret=%d", c1->schema(), ret);
+            return ret;
+        }
+        
+        time = ::time(NULL);
+        version = 0x01000504; // server s1 version
+        
+        srs_freep(payload);
+        if (c1->schema() == srs_schema0) {
+            payload = new c1s1_strategy_schema0();
+        } else {
+            payload = new c1s1_strategy_schema1();
+        }
+        
+        return payload->s1_create(this);
+    }
+    
+    int c1s1::s1_validate_digest(bool& is_valid)
+    {
+        is_valid = false;
+        srs_assert(payload);
+        return payload->s1_validate_digest(this, is_valid);
+    }
+    
     c2s2::c2s2()
     {
         srs_random_generate(random, 1504);
@@ -952,134 +1080,6 @@ namespace _srs_internal
         is_valid = srs_bytes_equals(digest, _digest, 32);
         
         return ret;
-    }
-    
-    // TODO: FIXME: move to the right position.
-    c1s1::c1s1()
-    {
-        payload = NULL;
-    }
-    c1s1::~c1s1()
-    {
-        srs_freep(payload);
-        /*
-        void c1s1::destroy_blocks()
-        {
-            if (schema == srs_schema_invalid) {
-                return;
-            }
-            
-            if (schema == srs_schema0) {
-                block0.key.free();
-                block1.digest.free();
-            } else {
-                block0.digest.free();
-                block1.key.free();
-            }
-        }*/
-    }
-    
-    srs_schema_type c1s1::schema()
-    {
-        srs_assert(payload != NULL);
-        return payload->schema();
-    }
-    
-    char* c1s1::get_digest()
-    {
-        srs_assert(payload != NULL);
-        return payload->get_digest();
-    }
-    
-    void c1s1::dump(char* _c1s1)
-    {
-        srs_assert(payload != NULL);
-        return payload->dump(this, _c1s1);
-    }
-    
-    int c1s1::parse(char* _c1s1, srs_schema_type schema)
-    {
-        int ret = ERROR_SUCCESS;
-        
-        if (schema != srs_schema0 && schema != srs_schema1) {
-            ret = ERROR_RTMP_CH_SCHEMA;
-            srs_error("parse c1 failed. invalid schema=%d, ret=%d", schema, ret);
-            return ret;
-        }
-        
-        time = __srs_stream_read_4bytes(_c1s1);
-        version = __srs_stream_read_4bytes(_c1s1 + 4); // client c1 version
-        
-        srs_freep(payload);
-        if (schema == srs_schema0) {
-            payload = new c1s1_strategy_schema0();
-        } else {
-            payload = new c1s1_strategy_schema1();
-        }
-
-        return payload->parse(_c1s1);
-    }
-    
-    int c1s1::c1_create(srs_schema_type schema)
-    {
-        int ret = ERROR_SUCCESS;
-        
-        if (schema != srs_schema0 && schema != srs_schema1) {
-            ret = ERROR_RTMP_CH_SCHEMA;
-            srs_error("create c1 failed. invalid schema=%d, ret=%d", schema, ret);
-            return ret;
-        }
-        
-        // client c1 time and version
-        time = ::time(NULL);
-        version = 0x80000702; // client c1 version
-
-        // generate signature by schema
-        srs_freep(payload);
-        if (schema == srs_schema0) {
-            payload = new c1s1_strategy_schema0();
-        } else {
-            payload = new c1s1_strategy_schema1();
-        }
-        
-        return payload->c1_create(this);
-    }
-    
-    int c1s1::c1_validate_digest(bool& is_valid)
-    {
-        is_valid = false;
-        srs_assert(payload);
-        return payload->c1_validate_digest(this, is_valid);
-    }
-    
-    int c1s1::s1_validate_digest(bool& is_valid)
-    {
-        is_valid = false;
-        srs_assert(payload);
-        return payload->s1_validate_digest(this, is_valid);
-    }
-    
-    int c1s1::s1_create(c1s1* c1)
-    {
-        int ret = ERROR_SUCCESS;
-        
-        if (c1->schema() != srs_schema0 && c1->schema() != srs_schema1) {
-            ret = ERROR_RTMP_CH_SCHEMA;
-            srs_error("create s1 failed. invalid schema=%d, ret=%d", c1->schema(), ret);
-            return ret;
-        }
-        
-        time = ::time(NULL);
-        version = 0x01000504; // server s1 version
-        
-        srs_freep(payload);
-        if (c1->schema() == srs_schema0) {
-            payload = new c1s1_strategy_schema0();
-        } else {
-            payload = new c1s1_strategy_schema1();
-        }
-        
-        return payload->s1_create(this);
     }
 }
 
