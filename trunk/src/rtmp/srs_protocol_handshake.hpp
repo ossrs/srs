@@ -193,32 +193,6 @@ namespace _srs_internal
         void free();
     };
     
-    /**
-    * copy whole c1s1 to bytes.
-    */
-    void srs_schema0_copy_to(char* bytes, bool with_digest, 
-        int32_t time, int32_t version, key_block* key, digest_block* digest);
-    void srs_schema1_copy_to(char* bytes, bool with_digest, 
-        int32_t time, int32_t version, digest_block* digest, key_block* key);
-    
-    /**
-    * c1s1 is splited by digest:
-    *     c1s1-part1: n bytes (time, version, key and digest-part1).
-    *     digest-data: 32bytes
-    *     c1s1-part2: (1536-n-32)bytes (digest-part2)
-    * @return a new allocated bytes, user must free it.
-    */
-    char* srs_bytes_join_schema0(int32_t time, int32_t version, key_block* key, digest_block* digest);
-    
-    /**
-    * c1s1 is splited by digest:
-    *     c1s1-part1: n bytes (time, version and digest-part1).
-    *     digest-data: 32bytes
-    *     c1s1-part2: (1536-n-32)bytes (digest-part2 and key)
-    * @return a new allocated bytes, user must free it.
-    */
-    char* srs_bytes_join_schema1(int32_t time, int32_t version, digest_block* digest, key_block* key);
-    
     class c1s1;
     
     /**
@@ -228,6 +202,9 @@ namespace _srs_internal
     */
     class c1s1_strategy
     {
+    protected:
+        key_block key;
+        digest_block digest;
     public:
         c1s1_strategy();
         virtual ~c1s1_strategy();
@@ -239,11 +216,11 @@ namespace _srs_internal
         /**
         * get the digest key.
         */
-        virtual char* get_digest() = 0;
+        virtual char* get_digest();
         /**
         * copy to bytes.
         */
-        virtual void dump(c1s1* owner, char* _c1s1) = 0;
+        virtual void dump(c1s1* owner, char* _c1s1);
         /**
         * server: parse the c1s1, discovery the key and digest by schema.
         * use the c1_validate_digest() to valid the digest of c1.
@@ -265,19 +242,29 @@ namespace _srs_internal
         *        digest-data = calc_c1_digest(c1, schema)
         *        copy digest-data to c1
         */
-        virtual int c1_create(c1s1* owner) = 0;
+        virtual int c1_create(c1s1* owner);
         /**
         * server: validate the parsed c1 schema
         */
-        virtual int c1_validate_digest(c1s1* owner, bool& is_valid) = 0;
+        virtual int c1_validate_digest(c1s1* owner, bool& is_valid);
         /**
         * server: create and sign the s1 from c1.
         */
-        virtual int s1_create(c1s1* owner) = 0;
+        virtual int s1_create(c1s1* owner);
         /**
         * server: validate the parsed s1 schema
         */
-        virtual int s1_validate_digest(c1s1* owner, bool& is_valid) = 0;
+        virtual int s1_validate_digest(c1s1* owner, bool& is_valid);
+    protected:
+        virtual int calc_c1_digest(c1s1* owner, char*& c1_digest);
+        virtual int calc_s1_digest(c1s1* owner, char*& s1_digest);
+        /**
+        * copy whole c1s1 to bytes.
+        */
+        virtual void copy_to(c1s1* owner, char* bytes, bool with_digest) = 0;
+        virtual void copy_time_version(char*& pp, c1s1* owner);
+        virtual void copy_key(char*& pp);
+        virtual void digest_key(char*& pp, bool with_digest);
     };
     
     /**
@@ -287,24 +274,17 @@ namespace _srs_internal
     */
     class c1s1_strategy_schema0 : public c1s1_strategy
     {
-    private:
-        key_block key;
-        digest_block digest;
     public:
         c1s1_strategy_schema0();
         virtual ~c1s1_strategy_schema0();
     public:
         virtual srs_schema_type schema();
-        virtual char* get_digest();
-        virtual void dump(c1s1* owner, char* _c1s1);
         virtual int parse(char* _c1s1);
-        virtual int c1_create(c1s1* owner);
-        virtual int c1_validate_digest(c1s1* owner, bool& is_valid);
-        virtual int s1_create(c1s1* owner);
-        virtual int s1_validate_digest(c1s1* owner, bool& is_valid);
     private:
-        virtual int calc_c1_digest(c1s1* owner, char*& c1_digest);
-        virtual int calc_s1_digest(c1s1* owner, char*& s1_digest);
+        /**
+        * copy whole c1s1 to bytes.
+        */
+        virtual void copy_to(c1s1* owner, char* bytes, bool with_digest);
     };
     
     /**
@@ -314,24 +294,17 @@ namespace _srs_internal
     */
     class c1s1_strategy_schema1 : public c1s1_strategy
     {
-    private:
-        digest_block digest;
-        key_block key;
     public:
         c1s1_strategy_schema1();
         virtual ~c1s1_strategy_schema1();
     public:
         virtual srs_schema_type schema();
-        virtual char* get_digest();
-        virtual void dump(c1s1* owner, char* _c1s1);
         virtual int parse(char* _c1s1);
-        virtual int c1_create(c1s1* owner);
-        virtual int c1_validate_digest(c1s1* owner, bool& is_valid);
-        virtual int s1_create(c1s1* owner);
-        virtual int s1_validate_digest(c1s1* owner, bool& is_valid);
     private:
-        virtual int calc_c1_digest(c1s1* owner, char*& c1_digest);
-        virtual int calc_s1_digest(c1s1* owner, char*& s1_digest);
+        /**
+        * copy whole c1s1 to bytes.
+        */
+        virtual void copy_to(c1s1* owner, char* bytes, bool with_digest);
     };
 
     /**
@@ -356,9 +329,10 @@ namespace _srs_internal
         int32_t version;
         // 764bytes+764bytes
         c1s1_strategy* payload;
-        
+    public:
         c1s1();
         virtual ~c1s1();
+    public:
         /**
         * get the scema.
         */
@@ -367,6 +341,7 @@ namespace _srs_internal
         * get the digest key.
         */
         virtual char* get_digest();
+    public:
         /**
         * copy to bytes.
         */
@@ -377,7 +352,7 @@ namespace _srs_internal
         * use the s1_validate_digest() to valid the digest of s1.
         */
         virtual int parse(char* _c1s1, srs_schema_type _schema);
-        
+    public:
         /**
         * client: create and sign c1 by schema.
         * sign the c1, generate the digest.
@@ -398,6 +373,7 @@ namespace _srs_internal
         * server: validate the parsed c1 schema
         */
         virtual int c1_validate_digest(bool& is_valid);
+    public:
         /**
         * server: create and sign the s1 from c1.
         *       // decode c1 try schema0 then schema1
@@ -442,10 +418,10 @@ namespace _srs_internal
     public:
         char random[1504];
         char digest[32];
-        
+    public:
         c2s2();
         virtual ~c2s2();
-        
+    public:
         /**
         * copy to bytes.
         */
@@ -454,7 +430,7 @@ namespace _srs_internal
         * parse the c2s2
         */
         virtual void parse(char* _c2s2);
-    
+    public:
         /**
         * create c2.
         * random fill c2s2 1536 bytes
@@ -469,7 +445,7 @@ namespace _srs_internal
         * validate the c2 from client.
         */
         virtual int c2_validate(c1s1* s1, bool& is_valid);
-        
+    public:
         /**
         * create s2.
         * random fill c2s2 1536 bytes
