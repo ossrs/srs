@@ -638,6 +638,385 @@ namespace _srs_internal
         return bytes;
     }
     
+    c1s1_strategy::c1s1_strategy()
+    {
+    }
+    
+    c1s1_strategy::~c1s1_strategy()
+    {
+    }
+    
+    c1s1_strategy_schema0::c1s1_strategy_schema0()
+    {
+        key.init();
+        digest.init();
+    }
+    
+    c1s1_strategy_schema0::~c1s1_strategy_schema0()
+    {
+        key.free();
+        digest.free();
+    }
+    
+    srs_schema_type c1s1_strategy_schema0::schema()
+    {
+        return srs_schema0;
+    }
+    
+    char* c1s1_strategy_schema0::get_digest()
+    {
+        return digest.digest;
+    }
+    
+    void c1s1_strategy_schema0::dump(c1s1* owner, char* _c1s1)
+    {
+        srs_schema0_copy_to(_c1s1, true, owner->time, owner->version, &key, &digest);
+    }
+    
+    int c1s1_strategy_schema0::parse(char* _c1s1)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        if ((ret = key.parse(_c1s1 + 8)) != ERROR_SUCCESS) {
+            srs_error("parse the c1 key failed. ret=%d", ret);
+            return ret;
+        }
+        
+        if ((ret = digest.parse(_c1s1 + 8 + 764)) != ERROR_SUCCESS) {
+            srs_error("parse the c1 digest failed. ret=%d", ret);
+            return ret;
+        }
+        
+        srs_verbose("parse c1 key-digest success");
+        
+        return ret;
+    }
+    
+    int c1s1_strategy_schema0::c1_create(c1s1* owner)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        // generate digest
+        char* c1_digest = NULL;
+        
+        if ((ret = calc_c1_digest(owner, c1_digest)) != ERROR_SUCCESS) {
+            srs_error("sign c1 error, failed to calc digest. ret=%d", ret);
+            return ret;
+        }
+        
+        srs_assert(c1_digest != NULL);
+        SrsAutoFree(char, c1_digest);
+        
+        memcpy(digest.digest, c1_digest, 32);
+        
+        return ret;
+    }
+    
+    int c1s1_strategy_schema0::c1_validate_digest(c1s1* owner, bool& is_valid)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        char* c1_digest = NULL;
+        
+        if ((ret = calc_c1_digest(owner, c1_digest)) != ERROR_SUCCESS) {
+            srs_error("validate c1 error, failed to calc digest. ret=%d", ret);
+            return ret;
+        }
+        
+        srs_assert(c1_digest != NULL);
+        SrsAutoFree(char, c1_digest);
+        
+        is_valid = srs_bytes_equals(digest.digest, c1_digest, 32);
+        
+        return ret;
+    }
+    
+    int c1s1_strategy_schema0::s1_create(c1s1* owner)
+    {
+        int ret = ERROR_SUCCESS;
+
+        SrsDH dh;
+        
+        // ensure generate 128bytes public key.
+        if ((ret = dh.initialize(true)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        // directly generate the public key.
+        // @see: https://github.com/winlinvip/simple-rtmp-server/issues/148
+        int pkey_size = 128;
+        // TODO: FIXME: use c1 public key to calc the shared key.
+        if ((ret = dh.copy_public_key(key.key, pkey_size)) != ERROR_SUCCESS) {
+            srs_error("calc s1 key failed. ret=%d", ret);
+            return ret;
+        }
+        srs_assert(pkey_size == 128);
+        srs_verbose("calc s1 key success.");
+            
+        char* s1_digest = NULL;
+        if ((ret = calc_s1_digest(owner, s1_digest))  != ERROR_SUCCESS) {
+            srs_error("calc s1 digest failed. ret=%d", ret);
+            return ret;
+        }
+        srs_verbose("calc s1 digest success.");
+        
+        srs_assert(s1_digest != NULL);
+        SrsAutoFree(char, s1_digest);
+        
+        memcpy(digest.digest, s1_digest, 32);
+        srs_verbose("copy s1 key success.");
+        
+        return ret;
+    }
+    
+    int c1s1_strategy_schema0::s1_validate_digest(c1s1* owner, bool& is_valid)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        char* s1_digest = NULL;
+        
+        if ((ret = calc_s1_digest(owner, s1_digest)) != ERROR_SUCCESS) {
+            srs_error("validate s1 error, failed to calc digest. ret=%d", ret);
+            return ret;
+        }
+        
+        srs_assert(s1_digest != NULL);
+        SrsAutoFree(char, s1_digest);
+        
+        is_valid = srs_bytes_equals(digest.digest, s1_digest, 32);
+        
+        return ret;
+    }
+    
+    int c1s1_strategy_schema0::calc_c1_digest(c1s1* owner, char*& c1_digest)
+    {
+        int ret = ERROR_SUCCESS;
+
+        char* c1s1_joined_bytes = NULL;
+    
+        c1s1_joined_bytes = srs_bytes_join_schema0(owner->time, owner->version, &key, &digest);
+        
+        srs_assert(c1s1_joined_bytes != NULL);
+        SrsAutoFree(char, c1s1_joined_bytes);
+        
+        c1_digest = new char[__SRS_OpensslHashSize];
+        if ((ret = openssl_HMACsha256(SrsGenuineFPKey, 30, c1s1_joined_bytes, 1536 - 32, c1_digest)) != ERROR_SUCCESS) {
+            srs_freep(c1_digest);
+            srs_error("calc digest for c1 failed. ret=%d", ret);
+            return ret;
+        }
+        srs_verbose("digest calculated for c1");
+        
+        return ret;
+    }
+    
+    int c1s1_strategy_schema0::calc_s1_digest(c1s1* owner, char*& s1_digest)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        char* c1s1_joined_bytes = NULL;
+    
+        c1s1_joined_bytes = srs_bytes_join_schema0(owner->time, owner->version, &key, &digest);
+        
+        srs_assert(c1s1_joined_bytes != NULL);
+        SrsAutoFree(char, c1s1_joined_bytes);
+        
+        s1_digest = new char[__SRS_OpensslHashSize];
+        if ((ret = openssl_HMACsha256(SrsGenuineFMSKey, 36, c1s1_joined_bytes, 1536 - 32, s1_digest)) != ERROR_SUCCESS) {
+            srs_freep(s1_digest);
+            srs_error("calc digest for s1 failed. ret=%d", ret);
+            return ret;
+        }
+        srs_verbose("digest calculated for s1");
+
+        return ret;
+    }
+    
+    c1s1_strategy_schema1::c1s1_strategy_schema1()
+    {
+        key.init();
+        digest.init();
+    }
+    
+    c1s1_strategy_schema1::~c1s1_strategy_schema1()
+    {
+        key.free();
+        digest.free();
+    }
+    
+    srs_schema_type c1s1_strategy_schema1::schema()
+    {
+        return srs_schema1;
+    }
+    
+    char* c1s1_strategy_schema1::get_digest()
+    {
+        return digest.digest;
+    }
+    
+    void c1s1_strategy_schema1::dump(c1s1* owner, char* _c1s1)
+    {
+        srs_schema0_copy_to(_c1s1, true, owner->time, owner->version, &key, &digest);
+    }
+    
+    int c1s1_strategy_schema1::parse(char* _c1s1)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        if ((ret = digest.parse(_c1s1 + 8)) != ERROR_SUCCESS) {
+            srs_error("parse the c1 digest failed. ret=%d", ret);
+            return ret;
+        }
+        
+        if ((ret = key.parse(_c1s1 + 8 + 764)) != ERROR_SUCCESS) {
+            srs_error("parse the c1 key failed. ret=%d", ret);
+            return ret;
+        }
+        
+        srs_verbose("parse c1 digest-key success");
+        
+        return ret;
+    }
+    
+    int c1s1_strategy_schema1::c1_create(c1s1* owner)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        // generate digest
+        char* c1_digest = NULL;
+        
+        if ((ret = calc_c1_digest(owner, c1_digest)) != ERROR_SUCCESS) {
+            srs_error("sign c1 error, failed to calc digest. ret=%d", ret);
+            return ret;
+        }
+        
+        srs_assert(c1_digest != NULL);
+        SrsAutoFree(char, c1_digest);
+        
+        memcpy(digest.digest, c1_digest, 32);
+        
+        return ret;
+    }
+    
+    int c1s1_strategy_schema1::c1_validate_digest(c1s1* owner, bool& is_valid)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        char* c1_digest = NULL;
+        
+        if ((ret = calc_c1_digest(owner, c1_digest)) != ERROR_SUCCESS) {
+            srs_error("validate c1 error, failed to calc digest. ret=%d", ret);
+            return ret;
+        }
+        
+        srs_assert(c1_digest != NULL);
+        SrsAutoFree(char, c1_digest);
+        
+        is_valid = srs_bytes_equals(digest.digest, c1_digest, 32);
+        
+        return ret;
+    }
+    
+    int c1s1_strategy_schema1::s1_create(c1s1* owner)
+    {
+        int ret = ERROR_SUCCESS;
+
+        SrsDH dh;
+        
+        // ensure generate 128bytes public key.
+        if ((ret = dh.initialize(true)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        // directly generate the public key.
+        // @see: https://github.com/winlinvip/simple-rtmp-server/issues/148
+        int pkey_size = 128;
+        if ((ret = dh.copy_public_key(key.key, pkey_size)) != ERROR_SUCCESS) {
+            srs_error("calc s1 key failed. ret=%d", ret);
+            return ret;
+        }
+        srs_assert(pkey_size == 128);
+        srs_verbose("calc s1 key success.");
+            
+        char* s1_digest = NULL;
+        if ((ret = calc_s1_digest(owner, s1_digest))  != ERROR_SUCCESS) {
+            srs_error("calc s1 digest failed. ret=%d", ret);
+            return ret;
+        }
+        srs_verbose("calc s1 digest success.");
+        
+        srs_assert(s1_digest != NULL);
+        SrsAutoFree(char, s1_digest);
+        
+        memcpy(digest.digest, s1_digest, 32);
+        srs_verbose("copy s1 key success.");
+        
+        return ret;
+    }
+    
+    int c1s1_strategy_schema1::s1_validate_digest(c1s1* owner, bool& is_valid)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        char* s1_digest = NULL;
+        
+        if ((ret = calc_s1_digest(owner, s1_digest)) != ERROR_SUCCESS) {
+            srs_error("validate s1 error, failed to calc digest. ret=%d", ret);
+            return ret;
+        }
+        
+        srs_assert(s1_digest != NULL);
+        SrsAutoFree(char, s1_digest);
+        
+        is_valid = srs_bytes_equals(digest.digest, s1_digest, 32);
+        
+        return ret;
+    }
+    
+    int c1s1_strategy_schema1::calc_c1_digest(c1s1* owner, char*& c1_digest)
+    {
+        int ret = ERROR_SUCCESS;
+
+        char* c1s1_joined_bytes = NULL;
+    
+        c1s1_joined_bytes = srs_bytes_join_schema1(owner->time, owner->version, &digest, &key);
+        
+        srs_assert(c1s1_joined_bytes != NULL);
+        SrsAutoFree(char, c1s1_joined_bytes);
+        
+        c1_digest = new char[__SRS_OpensslHashSize];
+        if ((ret = openssl_HMACsha256(SrsGenuineFPKey, 30, c1s1_joined_bytes, 1536 - 32, c1_digest)) != ERROR_SUCCESS) {
+            srs_freep(c1_digest);
+            srs_error("calc digest for c1 failed. ret=%d", ret);
+            return ret;
+        }
+        srs_verbose("digest calculated for c1");
+        
+        return ret;
+    }
+    
+    int c1s1_strategy_schema1::calc_s1_digest(c1s1* owner, char*& s1_digest)
+    {
+        int ret = ERROR_SUCCESS;
+        
+        char* c1s1_joined_bytes = NULL;
+    
+        c1s1_joined_bytes = srs_bytes_join_schema1(owner->time, owner->version, &digest, &key);
+        
+        srs_assert(c1s1_joined_bytes != NULL);
+        SrsAutoFree(char, c1s1_joined_bytes);
+        
+        s1_digest = new char[__SRS_OpensslHashSize];
+        if ((ret = openssl_HMACsha256(SrsGenuineFMSKey, 36, c1s1_joined_bytes, 1536 - 32, s1_digest)) != ERROR_SUCCESS) {
+            srs_freep(s1_digest);
+            srs_error("calc digest for s1 failed. ret=%d", ret);
+            return ret;
+        }
+        srs_verbose("digest calculated for s1");
+
+        return ret;
+    }
+    
     c2s2::c2s2()
     {
         srs_random_generate(random, 1504);
@@ -762,314 +1141,129 @@ namespace _srs_internal
     // TODO: FIXME: move to the right position.
     c1s1::c1s1()
     {
-        schema = srs_schema_invalid;
+        payload = NULL;
     }
     c1s1::~c1s1()
     {
-        destroy_blocks();
+        srs_freep(payload);
+        /*
+        void c1s1::destroy_blocks()
+        {
+            if (schema == srs_schema_invalid) {
+                return;
+            }
+            
+            if (schema == srs_schema0) {
+                block0.key.free();
+                block1.digest.free();
+            } else {
+                block0.digest.free();
+                block1.key.free();
+            }
+        }*/
+    }
+    
+    srs_schema_type c1s1::schema()
+    {
+        srs_assert(payload != NULL);
+        return payload->schema();
     }
     
     char* c1s1::get_digest()
     {
-        srs_assert(schema != srs_schema_invalid);
-        
-        if (schema == srs_schema0) {
-            return block1.digest.digest;
-        } else {
-            return block0.digest.digest;
-        }
+        srs_assert(payload != NULL);
+        return payload->get_digest();
     }
     
     void c1s1::dump(char* _c1s1)
     {
-        srs_assert(schema != srs_schema_invalid);
-        
-        if (schema == srs_schema0) {
-            srs_schema0_copy_to(_c1s1, true, time, version, &block0.key, &block1.digest);
-        } else {
-            srs_schema1_copy_to(_c1s1, true, time, version, &block0.digest, &block1.key);
-        }
+        srs_assert(payload != NULL);
+        return payload->dump(this, _c1s1);
     }
     
-    int c1s1::parse(char* _c1s1, srs_schema_type _schema)
+    int c1s1::parse(char* _c1s1, srs_schema_type schema)
     {
         int ret = ERROR_SUCCESS;
         
-        if (_schema == srs_schema_invalid) {
+        if (schema != srs_schema0 && schema != srs_schema1) {
             ret = ERROR_RTMP_CH_SCHEMA;
-            srs_error("parse c1 failed. invalid schema=%d, ret=%d", _schema, ret);
+            srs_error("parse c1 failed. invalid schema=%d, ret=%d", schema, ret);
             return ret;
         }
-        
-        destroy_blocks();
-        
         
         time = __srs_stream_read_4bytes(_c1s1);
         version = __srs_stream_read_4bytes(_c1s1 + 4); // client c1 version
         
-        if (_schema == srs_schema0) {
-            if ((ret = block0.key.parse(_c1s1 + 8)) != ERROR_SUCCESS) {
-                srs_error("parse the c1 key failed. ret=%d", ret);
-                return ret;
-            }
-            if ((ret = block1.digest.parse(_c1s1 + 8 + 764)) != ERROR_SUCCESS) {
-                srs_error("parse the c1 digest failed. ret=%d", ret);
-                return ret;
-            }
-            srs_verbose("parse c1 key-digest success");
-        } else if (_schema == srs_schema1) {
-            if ((ret = block0.digest.parse(_c1s1 + 8)) != ERROR_SUCCESS) {
-                srs_error("parse the c1 key failed. ret=%d", ret);
-                return ret;
-            }
-            if ((ret = block1.key.parse(_c1s1 + 8 + 764)) != ERROR_SUCCESS) {
-                srs_error("parse the c1 digest failed. ret=%d", ret);
-                return ret;
-            }
-            srs_verbose("parse c1 digest-key success");
+        srs_freep(payload);
+        if (schema == srs_schema0) {
+            payload = new c1s1_strategy_schema0();
         } else {
-            ret = ERROR_RTMP_CH_SCHEMA;
-            srs_error("parse c1 failed. invalid schema=%d, ret=%d", _schema, ret);
-            return ret;
+            payload = new c1s1_strategy_schema1();
         }
-        
-        schema = _schema;
-        
-        return ret;
+
+        return payload->parse(_c1s1);
     }
     
-    int c1s1::c1_create(srs_schema_type _schema)
+    int c1s1::c1_create(srs_schema_type schema)
     {
         int ret = ERROR_SUCCESS;
         
-        if (_schema == srs_schema_invalid) {
+        if (schema != srs_schema0 && schema != srs_schema1) {
             ret = ERROR_RTMP_CH_SCHEMA;
-            srs_error("create c1 failed. invalid schema=%d, ret=%d", _schema, ret);
+            srs_error("create c1 failed. invalid schema=%d, ret=%d", schema, ret);
             return ret;
         }
-        
-        destroy_blocks();
         
         // client c1 time and version
         time = ::time(NULL);
         version = 0x80000702; // client c1 version
-        
+
         // generate signature by schema
-        if (_schema == srs_schema0) {
-            block0.key.init();
-            block1.digest.init();
-        } else {
-            block0.digest.init();
-            block1.key.init();
-        }
-        
-        schema = _schema;
-        
-        // generate digest
-        char* digest = NULL;
-        
-        if ((ret = calc_c1_digest(digest)) != ERROR_SUCCESS) {
-            srs_error("sign c1 error, failed to calc digest. ret=%d", ret);
-            return ret;
-        }
-        
-        srs_assert(digest != NULL);
-        SrsAutoFree(char, digest);
-        
+        srs_freep(payload);
         if (schema == srs_schema0) {
-            memcpy(block1.digest.digest, digest, 32);
+            payload = new c1s1_strategy_schema0();
         } else {
-            memcpy(block0.digest.digest, digest, 32);
+            payload = new c1s1_strategy_schema1();
         }
         
-        return ret;
+        return payload->c1_create(this);
     }
     
     int c1s1::c1_validate_digest(bool& is_valid)
     {
         is_valid = false;
-        int ret = ERROR_SUCCESS;
-        
-        char* c1_digest = NULL;
-        
-        if ((ret = calc_c1_digest(c1_digest)) != ERROR_SUCCESS) {
-            srs_error("validate c1 error, failed to calc digest. ret=%d", ret);
-            return ret;
-        }
-        
-        srs_assert(c1_digest != NULL);
-        SrsAutoFree(char, c1_digest);
-        
-        if (schema == srs_schema0) {
-            is_valid = srs_bytes_equals(block1.digest.digest, c1_digest, 32);
-        } else {
-            is_valid = srs_bytes_equals(block0.digest.digest, c1_digest, 32);
-        }
-        
-        return ret;
+        srs_assert(payload);
+        return payload->c1_validate_digest(this, is_valid);
     }
     
     int c1s1::s1_validate_digest(bool& is_valid)
     {
         is_valid = false;
-        int ret = ERROR_SUCCESS;
-        
-        char* s1_digest = NULL;
-        
-        if ((ret = calc_s1_digest(s1_digest)) != ERROR_SUCCESS) {
-            srs_error("validate s1 error, failed to calc digest. ret=%d", ret);
-            return ret;
-        }
-        
-        srs_assert(s1_digest != NULL);
-        SrsAutoFree(char, s1_digest);
-        
-        if (schema == srs_schema0) {
-            is_valid = srs_bytes_equals(block1.digest.digest, s1_digest, 32);
-        } else {
-            is_valid = srs_bytes_equals(block0.digest.digest, s1_digest, 32);
-        }
-        
-        return ret;
+        srs_assert(payload);
+        return payload->s1_validate_digest(this, is_valid);
     }
     
     int c1s1::s1_create(c1s1* c1)
     {
         int ret = ERROR_SUCCESS;
         
-        if (c1->schema == srs_schema_invalid) {
+        if (c1->schema() != srs_schema0 && c1->schema() != srs_schema1) {
             ret = ERROR_RTMP_CH_SCHEMA;
-            srs_error("create s1 failed. invalid schema=%d, ret=%d", c1->schema, ret);
+            srs_error("create s1 failed. invalid schema=%d, ret=%d", c1->schema(), ret);
             return ret;
         }
-        
-        destroy_blocks();
-        schema = c1->schema;
         
         time = ::time(NULL);
         version = 0x01000504; // server s1 version
         
-        SrsDH dh;
-        
-        // ensure generate 128bytes public key.
-        if ((ret = dh.initialize(true)) != ERROR_SUCCESS) {
-            return ret;
-        }
-        
-        if (schema == srs_schema0) {
-            block0.key.init();
-            block1.digest.init();
-            
-            // directly generate the public key.
-            // @see: https://github.com/winlinvip/simple-rtmp-server/issues/148
-            int pkey_size = 128;
-            if ((ret = dh.copy_public_key(block0.key.key, pkey_size)) != ERROR_SUCCESS) {
-                srs_error("calc s1 key failed. ret=%d", ret);
-                return ret;
-            }
-            srs_assert(pkey_size == 128);
+        srs_freep(payload);
+        if (c1->schema() == srs_schema0) {
+            payload = new c1s1_strategy_schema0();
         } else {
-            block0.digest.init();
-            block1.key.init();
-            
-            // directly generate the public key.
-            // @see: https://github.com/winlinvip/simple-rtmp-server/issues/148
-            int pkey_size = 128;
-            if ((ret = dh.copy_public_key(block1.key.key, pkey_size)) != ERROR_SUCCESS) {
-                srs_error("calc s1 key failed. ret=%d", ret);
-                return ret;
-            }
-            srs_assert(pkey_size == 128);
-        }
-        srs_verbose("calc s1 key success.");
-            
-        char* s1_digest = NULL;
-        if ((ret = calc_s1_digest(s1_digest))  != ERROR_SUCCESS) {
-            srs_error("calc s1 digest failed. ret=%d", ret);
-            return ret;
-        }
-        srs_verbose("calc s1 digest success.");
-        
-        srs_assert(s1_digest != NULL);
-        SrsAutoFree(char, s1_digest);
-        
-        if (schema == srs_schema0) {
-            memcpy(block1.digest.digest, s1_digest, 32);
-        } else {
-            memcpy(block0.digest.digest, s1_digest, 32);
-        }
-        srs_verbose("copy s1 key success.");
-        
-        return ret;
-    }
-    
-    int c1s1::calc_s1_digest(char*& digest)
-    {
-        int ret = ERROR_SUCCESS;
-        
-        srs_assert(schema == srs_schema0 || schema == srs_schema1);
-        
-        char* c1s1_joined_bytes = NULL;
-    
-        if (schema == srs_schema0) {
-            c1s1_joined_bytes = srs_bytes_join_schema0(time, version, &block0.key, &block1.digest);
-        } else {
-            c1s1_joined_bytes = srs_bytes_join_schema1(time, version, &block0.digest, &block1.key);
+            payload = new c1s1_strategy_schema1();
         }
         
-        srs_assert(c1s1_joined_bytes != NULL);
-        SrsAutoFree(char, c1s1_joined_bytes);
-        
-        digest = new char[__SRS_OpensslHashSize];
-        if ((ret = openssl_HMACsha256(SrsGenuineFMSKey, 36, c1s1_joined_bytes, 1536 - 32, digest)) != ERROR_SUCCESS) {
-            srs_error("calc digest for s1 failed. ret=%d", ret);
-            return ret;
-        }
-        srs_verbose("digest calculated for s1");
-        
-        return ret;
-    }
-    
-    int c1s1::calc_c1_digest(char*& digest)
-    {
-        int ret = ERROR_SUCCESS;
-        
-        srs_assert(schema == srs_schema0 || schema == srs_schema1);
-        
-        char* c1s1_joined_bytes = NULL;
-    
-        if (schema == srs_schema0) {
-            c1s1_joined_bytes = srs_bytes_join_schema0(time, version, &block0.key, &block1.digest);
-        } else {
-            c1s1_joined_bytes = srs_bytes_join_schema1(time, version, &block0.digest, &block1.key);
-        }
-        
-        srs_assert(c1s1_joined_bytes != NULL);
-        SrsAutoFree(char, c1s1_joined_bytes);
-        
-        digest = new char[__SRS_OpensslHashSize];
-        if ((ret = openssl_HMACsha256(SrsGenuineFPKey, 30, c1s1_joined_bytes, 1536 - 32, digest)) != ERROR_SUCCESS) {
-            srs_error("calc digest for c1 failed. ret=%d", ret);
-            return ret;
-        }
-        srs_verbose("digest calculated for c1");
-        
-        return ret;
-    }
-    
-    void c1s1::destroy_blocks()
-    {
-        if (schema == srs_schema_invalid) {
-            return;
-        }
-        
-        if (schema == srs_schema0) {
-            block0.key.free();
-            block1.digest.free();
-        } else {
-            block0.digest.free();
-            block1.key.free();
-        }
+        return payload->s1_create(this);
     }
 }
 
@@ -1190,6 +1384,7 @@ int SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrs
     // decode c1
     c1s1 c1;
     // try schema0.
+    // @remark, use schema0 to make flash player happy.
     if ((ret = c1.parse(hs_bytes->c0c1 + 1, srs_schema0)) != ERROR_SUCCESS) {
         srs_error("parse c1 schema%d error. ret=%d", srs_schema0, ret);
         return ret;
@@ -1197,6 +1392,7 @@ int SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrs
     // try schema1
     bool is_valid = false;
     if ((ret = c1.c1_validate_digest(is_valid)) != ERROR_SUCCESS || !is_valid) {
+        srs_info("schema0 failed, try schema1.");
         if ((ret = c1.parse(hs_bytes->c0c1 + 1, srs_schema1)) != ERROR_SUCCESS) {
             srs_error("parse c1 schema%d error. ret=%d", srs_schema1, ret);
             return ret;
@@ -1207,6 +1403,8 @@ int SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrs
             srs_info("all schema valid failed, try simple handshake. ret=%d", ret);
             return ret;
         }
+    } else {
+        srs_info("schema0 is ok.");
     }
     srs_verbose("decode c1 success.");
     
@@ -1321,7 +1519,7 @@ int SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrs
     
     // verify s1s2
     c1s1 s1;
-    if ((ret = s1.parse(hs_bytes->s0s1s2 + 1, c1.schema)) != ERROR_SUCCESS) {
+    if ((ret = s1.parse(hs_bytes->s0s1s2 + 1, c1.schema())) != ERROR_SUCCESS) {
         return ret;
     }
     

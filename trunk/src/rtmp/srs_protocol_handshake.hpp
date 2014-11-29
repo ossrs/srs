@@ -219,6 +219,121 @@ namespace _srs_internal
     */
     char* srs_bytes_join_schema1(int32_t time, int32_t version, digest_block* digest, key_block* key);
     
+    class c1s1;
+    
+    /**
+    * the c1s1 strategy, use schema0 or schema1.
+    * the template method class to defines common behaviors,
+    * while the concrete class to implements in schema0 or schema1.
+    */
+    class c1s1_strategy
+    {
+    public:
+        c1s1_strategy();
+        virtual ~c1s1_strategy();
+    public:
+        /**
+        * get the scema.
+        */
+        virtual srs_schema_type schema() = 0;
+        /**
+        * get the digest key.
+        */
+        virtual char* get_digest() = 0;
+        /**
+        * copy to bytes.
+        */
+        virtual void dump(c1s1* owner, char* _c1s1) = 0;
+        /**
+        * server: parse the c1s1, discovery the key and digest by schema.
+        * use the c1_validate_digest() to valid the digest of c1.
+        */
+        virtual int parse(char* _c1s1) = 0;
+    public:
+        /**
+        * client: create and sign c1 by schema.
+        * sign the c1, generate the digest.
+        *         calc_c1_digest(c1, schema) {
+        *            get c1s1-joined from c1 by specified schema
+        *            digest-data = HMACsha256(c1s1-joined, FPKey, 30)
+        *            return digest-data;
+        *        }
+        *        random fill 1536bytes c1 // also fill the c1-128bytes-key
+        *        time = time() // c1[0-3]
+        *        version = [0x80, 0x00, 0x07, 0x02] // c1[4-7]
+        *        schema = choose schema0 or schema1
+        *        digest-data = calc_c1_digest(c1, schema)
+        *        copy digest-data to c1
+        */
+        virtual int c1_create(c1s1* owner) = 0;
+        /**
+        * server: validate the parsed c1 schema
+        */
+        virtual int c1_validate_digest(c1s1* owner, bool& is_valid) = 0;
+        /**
+        * server: create and sign the s1 from c1.
+        */
+        virtual int s1_create(c1s1* owner) = 0;
+        /**
+        * server: validate the parsed s1 schema
+        */
+        virtual int s1_validate_digest(c1s1* owner, bool& is_valid) = 0;
+    };
+    
+    /**
+    * c1s1 schema0
+    *     key: 764bytes
+    *     digest: 764bytes
+    */
+    class c1s1_strategy_schema0 : public c1s1_strategy
+    {
+    private:
+        key_block key;
+        digest_block digest;
+    public:
+        c1s1_strategy_schema0();
+        virtual ~c1s1_strategy_schema0();
+    public:
+        virtual srs_schema_type schema();
+        virtual char* get_digest();
+        virtual void dump(c1s1* owner, char* _c1s1);
+        virtual int parse(char* _c1s1);
+        virtual int c1_create(c1s1* owner);
+        virtual int c1_validate_digest(c1s1* owner, bool& is_valid);
+        virtual int s1_create(c1s1* owner);
+        virtual int s1_validate_digest(c1s1* owner, bool& is_valid);
+    private:
+        virtual int calc_c1_digest(c1s1* owner, char*& c1_digest);
+        virtual int calc_s1_digest(c1s1* owner, char*& s1_digest);
+    };
+    
+    /**
+    * c1s1 schema1
+    *     digest: 764bytes
+    *     key: 764bytes
+    */
+    class c1s1_strategy_schema1 : public c1s1_strategy
+    {
+    private:
+        digest_block digest;
+        key_block key;
+    public:
+        c1s1_strategy_schema1();
+        virtual ~c1s1_strategy_schema1();
+    public:
+        virtual srs_schema_type schema();
+        virtual char* get_digest();
+        virtual void dump(c1s1* owner, char* _c1s1);
+        virtual int parse(char* _c1s1);
+        virtual int c1_create(c1s1* owner);
+        virtual int c1_validate_digest(c1s1* owner, bool& is_valid);
+        virtual int s1_create(c1s1* owner);
+        virtual int s1_validate_digest(c1s1* owner, bool& is_valid);
+    private:
+        virtual int calc_c1_digest(c1s1* owner, char*& c1_digest);
+        virtual int calc_s1_digest(c1s1* owner, char*& s1_digest);
+    };
+
     /**
     * c1s1 schema0
     *     time: 4bytes
@@ -235,29 +350,19 @@ namespace _srs_internal
     class c1s1
     {
     public:
-        union block {
-            key_block key; 
-            digest_block digest; 
-        };
-        
         // 4bytes
         int32_t time;
         // 4bytes
         int32_t version;
-        // 764bytes
-        // if schema0, use key
-        // if schema1, use digest
-        block block0;
-        // 764bytes
-        // if schema0, use digest
-        // if schema1, use key
-        block block1;
-        
-        // the logic schema
-        srs_schema_type schema;
+        // 764bytes+764bytes
+        c1s1_strategy* payload;
         
         c1s1();
         virtual ~c1s1();
+        /**
+        * get the scema.
+        */
+        virtual srs_schema_type schema();
         /**
         * get the digest key.
         */
@@ -269,6 +374,7 @@ namespace _srs_internal
         /**
         * server: parse the c1s1, discovery the key and digest by schema.
         * use the c1_validate_digest() to valid the digest of c1.
+        * use the s1_validate_digest() to valid the digest of s1.
         */
         virtual int parse(char* _c1s1, srs_schema_type _schema);
         
@@ -294,16 +400,35 @@ namespace _srs_internal
         virtual int c1_validate_digest(bool& is_valid);
         /**
         * server: create and sign the s1 from c1.
+        *       // decode c1 try schema0 then schema1
+        *       c1-digest-data = get-c1-digest-data(schema0)
+        *       if c1-digest-data equals to calc_c1_digest(c1, schema0) {  
+        *           c1-key-data = get-c1-key-data(schema0)  
+        *           schema = schema0
+        *       } else {  
+        *           c1-digest-data = get-c1-digest-data(schema1)  
+        *           if c1-digest-data not equals to calc_c1_digest(c1, schema1) {
+        *               switch to simple handshake.  
+        *               return  
+        *           }
+        *           c1-key-data = get-c1-key-data(schema1)  
+        *           schema = schema1
+        *       }
+        * 
+        *       // generate s1
+        *       random fill 1536bytes s1
+        *       time = time() // c1[0-3]
+        *       version = [0x04, 0x05, 0x00, 0x01] // s1[4-7]
+        *       s1-key-data=shared_key=DH_compute_key(peer_pub_key=c1-key-data)
+        *       get c1s1-joined by specified schema
+        *       s1-digest-data = HMACsha256(c1s1-joined, FMSKey, 36)
+        *       copy s1-digest-data and s1-key-data to s1.
         */
         virtual int s1_create(c1s1* c1);
         /**
         * server: validate the parsed s1 schema
         */
         virtual int s1_validate_digest(bool& is_valid);
-    private:
-        virtual int calc_s1_digest(char*& digest);
-        virtual int calc_c1_digest(char*& digest);
-        virtual void destroy_blocks();
     };
     
     /**
