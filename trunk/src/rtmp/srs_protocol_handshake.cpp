@@ -464,8 +464,14 @@ namespace _srs_internal
         return digest.digest;
     }
     
+    char* c1s1_strategy::get_key()
+    {
+        return key.key;
+    }
+    
     int c1s1_strategy::dump(c1s1* owner, char* _c1s1, int size)
     {
+        srs_assert(size == 1536);
         return copy_to(owner, _c1s1, size, true);
     }
     
@@ -731,6 +737,12 @@ namespace _srs_internal
     {
         int ret = ERROR_SUCCESS;
         
+        if (with_digest) {
+            srs_assert(size == 1536);
+        } else {
+            srs_assert(size == 1504);
+        }
+        
         SrsStream stream;
         
         if ((ret = stream.initialize(bytes, size)) != ERROR_SUCCESS) {
@@ -794,6 +806,12 @@ namespace _srs_internal
     {
         int ret = ERROR_SUCCESS;
         
+        if (with_digest) {
+            srs_assert(size == 1536);
+        } else {
+            srs_assert(size == 1504);
+        }
+        
         SrsStream stream;
         
         if ((ret = stream.initialize(bytes, size)) != ERROR_SUCCESS) {
@@ -846,8 +864,15 @@ namespace _srs_internal
         return payload->get_digest();
     }
     
+    char* c1s1::get_key()
+    {
+        srs_assert(payload != NULL);
+        return payload->get_key();
+    }
+    
     int c1s1::dump(char* _c1s1, int size)
     {
+        srs_assert(size == 1536);
         srs_assert(payload != NULL);
         return payload->dump(this, _c1s1, size);
     }

@@ -205,11 +205,16 @@ namespace _srs_internal
         */
         virtual srs_schema_type schema() = 0;
         /**
-        * get the digest key.
+        * get the digest.
         */
         virtual char* get_digest();
         /**
+        * get the key.
+        */
+        virtual char* get_key();
+        /**
         * copy to bytes.
+        * @param size must be 1536.
         */
         virtual int dump(c1s1* owner, char* _c1s1, int size);
         /**
@@ -246,15 +251,31 @@ namespace _srs_internal
         * server: validate the parsed s1 schema
         */
         virtual int s1_validate_digest(c1s1* owner, bool& is_valid);
-    protected:
+    public:
+        /**
+        * calc the digest for c1
+        */
         virtual int calc_c1_digest(c1s1* owner, char*& c1_digest);
+        /**
+        * calc the digest for s1
+        */
         virtual int calc_s1_digest(c1s1* owner, char*& s1_digest);
         /**
         * copy whole c1s1 to bytes.
+        * @param size must always be 1536 with digest, and 1504 without digest.
         */
         virtual int copy_to(c1s1* owner, char* bytes, int size, bool with_digest) = 0;
+        /**
+        * copy time and version to stream.
+        */
         virtual void copy_time_version(SrsStream* stream, c1s1* owner);
+        /**
+        * copy key to stream.
+        */
         virtual void copy_key(SrsStream* stream);
+        /**
+        * copy digest to stream.
+        */
         virtual void copy_digest(SrsStream* stream, bool with_digest);
     };
     
@@ -271,7 +292,7 @@ namespace _srs_internal
     public:
         virtual srs_schema_type schema();
         virtual int parse(char* _c1s1, int size);
-    private:
+    public:
         virtual int copy_to(c1s1* owner, char* bytes, int size, bool with_digest);
     };
     
@@ -288,7 +309,7 @@ namespace _srs_internal
     public:
         virtual srs_schema_type schema();
         virtual int parse(char* _c1s1, int size);
-    private:
+    public:
         virtual int copy_to(c1s1* owner, char* bytes, int size, bool with_digest);
     };
 
@@ -326,13 +347,19 @@ namespace _srs_internal
         * get the digest key.
         */
         virtual char* get_digest();
+        /**
+        * get the key.
+        */
+        virtual char* get_key();
     public:
         /**
         * copy to bytes.
+        * @param size, must always be 1536.
         */
         virtual int dump(char* _c1s1, int size);
         /**
         * server: parse the c1s1, discovery the key and digest by schema.
+        * @param size, must always be 1536.
         * use the c1_validate_digest() to valid the digest of c1.
         * use the s1_validate_digest() to valid the digest of s1.
         */
@@ -409,10 +436,12 @@ namespace _srs_internal
     public:
         /**
         * copy to bytes.
+        * @param size, must always be 1536.
         */
         virtual int dump(char* _c2s2, int size);
         /**
         * parse the c2s2
+        * @param size, must always be 1536.
         */
         virtual int parse(char* _c2s2, int size);
     public:

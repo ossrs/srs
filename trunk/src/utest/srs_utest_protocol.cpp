@@ -285,14 +285,15 @@ VOID TEST(ProtocolHandshakeTest, VerifyFPC0C1)
     c1s1 c1;
     
     // the schema of data must be schema0: key-digest.
-    ASSERT_EQ(ERROR_SUCCESS, c1.parse(c0c1 + 1, srs_schema0));
+    ASSERT_EQ(ERROR_SUCCESS, c1.parse(c0c1 + 1, 1536, srs_schema0));
     EXPECT_EQ((int32_t)0x000f64d0, c1.time);
     EXPECT_EQ((int32_t)0x80000702, c1.version);
     
     // manually validate the c1
     // @see: calc_c1_digest
-    char* c1s1_joined_bytes = srs_bytes_join_schema0(c1.time, c1.version, &c1.block0.key, &c1.block1.digest);
+    char* c1s1_joined_bytes = new char[1536 -32];
     SrsAutoFree(char, c1s1_joined_bytes);
+    ASSERT_EQ(ERROR_SUCCESS, c1.payload->copy_to(&c1, c1s1_joined_bytes, 1536 - 32, false));
     
     bool is_valid;
     ASSERT_EQ(ERROR_SUCCESS, c1.c1_validate_digest(is_valid));
@@ -304,14 +305,14 @@ VOID TEST(ProtocolHandshakeTest, VerifyFPC0C1)
         (char)0xf4, (char)0x21, (char)0xa8, (char)0x65, (char)0xce, (char)0xf8, (char)0x8e, (char)0xcc, (char)0x16, (char)0x1e, (char)0xbb, (char)0xd8, (char)0x0e, (char)0xcb, (char)0xd2, (char)0x48, (char)0x37, (char)0xaf, (char)0x4e, (char)0x67, (char)0x45, (char)0xf1, (char)0x79, (char)0x69, (char)0xd2, (char)0xee, (char)0xa4, (char)0xb5, (char)0x01, (char)0xbf, (char)0x57, (char)0x0f, (char)0x68, (char)0x37, (char)0xbe, (char)0x4e, (char)0xff, (char)0xc9, (char)0xb9, (char)0x92, (char)0x23, (char)0x06, (char)0x75, (char)0xa0, (char)0x42, (char)0xe4, (char)0x0a, (char)0x30,
         (char)0xf0, (char)0xaf, (char)0xb0, (char)0x54, (char)0x88, (char)0x7c, (char)0xc0, (char)0xc1, (char)0x0c, (char)0x6d, (char)0x01, (char)0x36, (char)0x63, (char)0xf3, (char)0x3d, (char)0xbc, (char)0x72, (char)0xf6, (char)0x96, (char)0xc8, (char)0x87, (char)0xab, (char)0x8b, (char)0x0c, (char)0x91, (char)0x2f, (char)0x42, (char)0x2a, (char)0x11, (char)0xf6, (char)0x2d, (char)0x5e
     };
-    EXPECT_TRUE(srs_bytes_equals(c1.block0.key.key, key, 128));
+    EXPECT_TRUE(srs_bytes_equals(c1.get_key(), key, 128));
     
     // 32bytes digest
     char digest[] = {
         (char)0x6c, (char)0x96, (char)0x9f, (char)0x26, (char)0xeb, (char)0xdc, (char)0x61, (char)0xc4, (char)0x8f, (char)0xd3, (char)0x2b, (char)0x81, (char)0x86, (char)0x6c, (char)0x9c, (char)0xc2,
         (char)0xb1, (char)0xb5, (char)0xbc, (char)0xa6, (char)0xd6, (char)0xd6, (char)0x1d, (char)0xce, (char)0x93, (char)0x78, (char)0xb3, (char)0xec, (char)0xa8, (char)0x64, (char)0x19, (char)0x13
     };
-    EXPECT_TRUE(srs_bytes_equals(c1.block1.digest.digest, digest, 32));
+    EXPECT_TRUE(srs_bytes_equals(c1.get_digest(), digest, 32));
 }
 
 VOID TEST(ProtocolHandshakeTest, ComplexHandshake)
@@ -348,22 +349,22 @@ VOID TEST(ProtocolHandshakeTest, ComplexHandshake)
         bool is_valid;
         
         c1s1 c1;
-        ASSERT_EQ(ERROR_SUCCESS, c1.parse(hs_bytes->c0c1 + 1, srs_schema0));
+        ASSERT_EQ(ERROR_SUCCESS, c1.parse(hs_bytes->c0c1 + 1, 1536, srs_schema0));
         ASSERT_EQ(ERROR_SUCCESS, c1.c1_validate_digest(is_valid));
         ASSERT_TRUE(is_valid);
         
         c1s1 s1;
-        ASSERT_EQ(ERROR_SUCCESS, s1.parse(hs_bytes->s0s1s2 + 1, c1.schema));
+        ASSERT_EQ(ERROR_SUCCESS, s1.parse(hs_bytes->s0s1s2 + 1, 1536, c1.schema()));
         ASSERT_EQ(ERROR_SUCCESS, s1.s1_validate_digest(is_valid));
         ASSERT_TRUE(is_valid);
         
         c2s2 c2;
-        c2.parse(hs_bytes->c2);
+        c2.parse(hs_bytes->c2, 1536);
         ASSERT_EQ(ERROR_SUCCESS, c2.c2_validate(&s1, is_valid));
         ASSERT_TRUE(is_valid);
         
         c2s2 s2;
-        s2.parse(hs_bytes->s0s1s2 + 1 + 1536);
+        s2.parse(hs_bytes->s0s1s2 + 1 + 1536, 1536);
         ASSERT_EQ(ERROR_SUCCESS, s2.s2_validate(&c1, is_valid));
         ASSERT_TRUE(is_valid);
     }
