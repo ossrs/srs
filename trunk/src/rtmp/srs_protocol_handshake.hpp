@@ -33,6 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class ISrsProtocolReaderWriter;
 class SrsComplexHandshake;
 class SrsHandshakeBytes;
+class SrsStream;
 
 #ifdef SRS_AUTO_SSL
 
@@ -142,8 +143,8 @@ namespace _srs_internal
         
         // parse key block from c1s1.
         // if created, user must free it by srs_key_block_free
-        // @c1s1_key_bytes the key start bytes, maybe c1s1 or c1s1+764
-        int parse(char* c1s1_key_bytes);
+        // @stream contains c1s1_key_bytes the key start bytes
+        int parse(SrsStream* stream);
         
         // free the block data create by 
         // srs_key_block_init or srs_key_block_parse
@@ -185,8 +186,8 @@ namespace _srs_internal
     
         // parse digest block from c1s1.
         // if created, user must free it by srs_digest_block_free
-        // @c1s1_digest_bytes the digest start bytes, maybe c1s1 or c1s1+764
-        int parse(char* c1s1_digest_bytes);
+        // @stream contains c1s1_digest_bytes the digest start bytes
+        int parse(SrsStream* stream);
         
         // free the block data create by 
         // srs_digest_block_init or srs_digest_block_parse
@@ -220,12 +221,12 @@ namespace _srs_internal
         /**
         * copy to bytes.
         */
-        virtual void dump(c1s1* owner, char* _c1s1);
+        virtual int dump(c1s1* owner, char* _c1s1, int size);
         /**
         * server: parse the c1s1, discovery the key and digest by schema.
         * use the c1_validate_digest() to valid the digest of c1.
         */
-        virtual int parse(char* _c1s1) = 0;
+        virtual int parse(char* _c1s1, int size) = 0;
     public:
         /**
         * client: create and sign c1 by schema.
@@ -261,10 +262,10 @@ namespace _srs_internal
         /**
         * copy whole c1s1 to bytes.
         */
-        virtual void copy_to(c1s1* owner, char* bytes, bool with_digest) = 0;
-        virtual void copy_time_version(char*& pp, c1s1* owner);
-        virtual void copy_key(char*& pp);
-        virtual void digest_key(char*& pp, bool with_digest);
+        virtual int copy_to(c1s1* owner, char* bytes, int size, bool with_digest) = 0;
+        virtual void copy_time_version(SrsStream* stream, c1s1* owner);
+        virtual void copy_key(SrsStream* stream);
+        virtual void copy_digest(SrsStream* stream, bool with_digest);
     };
     
     /**
@@ -279,12 +280,9 @@ namespace _srs_internal
         virtual ~c1s1_strategy_schema0();
     public:
         virtual srs_schema_type schema();
-        virtual int parse(char* _c1s1);
+        virtual int parse(char* _c1s1, int size);
     private:
-        /**
-        * copy whole c1s1 to bytes.
-        */
-        virtual void copy_to(c1s1* owner, char* bytes, bool with_digest);
+        virtual int copy_to(c1s1* owner, char* bytes, int size, bool with_digest);
     };
     
     /**
@@ -299,12 +297,9 @@ namespace _srs_internal
         virtual ~c1s1_strategy_schema1();
     public:
         virtual srs_schema_type schema();
-        virtual int parse(char* _c1s1);
+        virtual int parse(char* _c1s1, int size);
     private:
-        /**
-        * copy whole c1s1 to bytes.
-        */
-        virtual void copy_to(c1s1* owner, char* bytes, bool with_digest);
+        virtual int copy_to(c1s1* owner, char* bytes, int size, bool with_digest);
     };
 
     /**
@@ -345,13 +340,13 @@ namespace _srs_internal
         /**
         * copy to bytes.
         */
-        virtual void dump(char* _c1s1);
+        virtual int dump(char* _c1s1, int size);
         /**
         * server: parse the c1s1, discovery the key and digest by schema.
         * use the c1_validate_digest() to valid the digest of c1.
         * use the s1_validate_digest() to valid the digest of s1.
         */
-        virtual int parse(char* _c1s1, srs_schema_type _schema);
+        virtual int parse(char* _c1s1, int size, srs_schema_type _schema);
     public:
         /**
         * client: create and sign c1 by schema.
@@ -425,11 +420,11 @@ namespace _srs_internal
         /**
         * copy to bytes.
         */
-        virtual void dump(char* _c2s2);
+        virtual int dump(char* _c2s2, int size);
         /**
         * parse the c2s2
         */
-        virtual void parse(char* _c2s2);
+        virtual int parse(char* _c2s2, int size);
     public:
         /**
         * create c2.

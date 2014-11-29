@@ -292,28 +292,6 @@ namespace _srs_internal
         return ret;
     }
     
-    // read/write stream using SrsStream.
-    void __srs_stream_write_4bytes(char* pp, int32_t value) 
-    {
-        static SrsStream stream;
-        
-        int ret = stream.initialize(pp, 4);
-        srs_assert(ret == ERROR_SUCCESS);
-        
-        stream.write_4bytes(value);
-    }
-    int32_t __srs_stream_read_4bytes(char* pp)
-    {
-        static SrsStream stream;
-        
-        int ret = stream.initialize(pp, 4);
-        srs_assert(ret == ERROR_SUCCESS);
-        
-        return stream.read_4bytes();
-    }
-    
-    // create new key block data.
-    // if created, user must free it by srs_key_block_free
     void key_block::init()
     {
         key_block* key = this;
@@ -342,8 +320,6 @@ namespace _srs_internal
         }
     }
     
-    // calc the offset of key,
-    // the key->offset cannot be used as the offset of key.
     int key_block::offsets()
     {
         key_block* key = this;
@@ -360,48 +336,46 @@ namespace _srs_internal
         return offset % max_offset_size;
     }
     
-    // parse key block from c1s1.
-    // if created, user must free it by srs_key_block_free
-    // @c1s1_key_bytes the key start bytes, maybe c1s1 or c1s1+764
-    int key_block::parse(char* c1s1_key_bytes)
+    int key_block::parse(SrsStream* stream)
     {
         key_block* key = this;
         
         int ret = ERROR_SUCCESS;
+        
+        // the key must be 764 bytes.
+        srs_assert(stream->require(764));
     
-        char* pp = c1s1_key_bytes + 764;
+        // read the last offset first, 760-763
+        stream->skip(764 - sizeof(int32_t));
+        key->offset = stream->read_4bytes();
         
-        pp -= sizeof(int32_t);
-        key->offset = __srs_stream_read_4bytes(pp);
+        // reset stream to read others.
+        stream->skip(-764);
         
+        // TODO: FIXME: free it.
         key->random0 = NULL;
         key->random1 = NULL;
         
         int offset = key->offsets();
         srs_assert(offset >= 0);
         
-        pp = c1s1_key_bytes;
         key->random0_size = offset;
         if (key->random0_size > 0) {
             key->random0 = new char[key->random0_size];
-            memcpy(key->random0, pp, key->random0_size);
+            stream->read_bytes(key->random0, key->random0_size);
         }
-        pp += key->random0_size;
         
-        memcpy(key->key, pp, sizeof(key->key));
-        pp += sizeof(key->key);
+        stream->read_bytes(key->key, 128);
         
         key->random1_size = 764 - offset - 128 - 4;
         if (key->random1_size > 0) {
             key->random1 = new char[key->random1_size];
-            memcpy(key->random1, pp, key->random1_size);
+            stream->read_bytes(key->random1, key->random1_size);
         }
         
         return ret;
     }
     
-    // free the block data create by 
-    // srs_key_block_init or srs_key_block_parse
     void key_block::free()
     {
         key_block* key = this;
@@ -414,8 +388,6 @@ namespace _srs_internal
         }
     }
     
-    // create new digest block data.
-    // if created, user must free it by srs_digest_block_free
     void digest_block::init()
     {
         digest_block* digest = this;
@@ -444,8 +416,6 @@ namespace _srs_internal
         }
     }
     
-    // calc the offset of digest,
-    // the key->offset cannot be used as the offset of digest.
     int digest_block::offsets()
     {
         digest_block* digest = this;
@@ -462,20 +432,18 @@ namespace _srs_internal
         return offset % max_offset_size;
     }
 
-    // parse digest block from c1s1.
-    // if created, user must free it by srs_digest_block_free
-    // @c1s1_digest_bytes the digest start bytes, maybe c1s1 or c1s1+764
-    int digest_block::parse(char* c1s1_digest_bytes)
+    int digest_block::parse(SrsStream* stream)
     {
         digest_block* digest = this;
         
         int ret = ERROR_SUCCESS;
-    
-        char* pp = c1s1_digest_bytes;
         
-        digest->offset = __srs_stream_read_4bytes(pp);
-        pp += sizeof(int32_t);
+        // the digest must be 764 bytes.
+        srs_assert(stream->require(764));
         
+        digest->offset = stream->read_4bytes();
+        
+        // TODO: FIXME: free it.
         digest->random0 = NULL;
         digest->random1 = NULL;
         
@@ -485,24 +453,20 @@ namespace _srs_internal
         digest->random0_size = offset;
         if (digest->random0_size > 0) {
             digest->random0 = new char[digest->random0_size];
-            memcpy(digest->random0, pp, digest->random0_size);
+            stream->read_bytes(digest->random0, digest->random0_size);
         }
-        pp += digest->random0_size;
         
-        memcpy(digest->digest, pp, sizeof(digest->digest));
-        pp += sizeof(digest->digest);
+        stream->read_bytes(digest->digest, 32);
         
         digest->random1_size = 764 - 4 - offset - 32;
         if (digest->random1_size > 0) {
             digest->random1 = new char[digest->random1_size];
-            memcpy(digest->random1, pp, digest->random1_size);
+            stream->read_bytes(digest->random1, digest->random1_size);
         }
         
         return ret;
     }
     
-    // free the block data create by 
-    // srs_digest_block_init or srs_digest_block_parse
     void digest_block::free()
     {
         digest_block* digest = this;
@@ -532,9 +496,9 @@ namespace _srs_internal
         return digest.digest;
     }
     
-    void c1s1_strategy::dump(c1s1* owner, char* _c1s1)
+    int c1s1_strategy::dump(c1s1* owner, char* _c1s1, int size)
     {
-        copy_to(owner, _c1s1, true);
+        return copy_to(owner, _c1s1, size, true);
     }
     
     int c1s1_strategy::c1_create(c1s1* owner)
@@ -646,7 +610,9 @@ namespace _srs_internal
         */
         char* c1s1_joined_bytes = new char[1536 -32];
         SrsAutoFree(char, c1s1_joined_bytes);
-        copy_to(owner, c1s1_joined_bytes, false);
+        if ((ret = copy_to(owner, c1s1_joined_bytes, 1536 - 32, false)) != ERROR_SUCCESS) {
+            return ret;
+        }
         
         c1_digest = new char[__SRS_OpensslHashSize];
         if ((ret = openssl_HMACsha256(SrsGenuineFPKey, 30, c1s1_joined_bytes, 1536 - 32, c1_digest)) != ERROR_SUCCESS) {
@@ -672,7 +638,9 @@ namespace _srs_internal
         */
         char* c1s1_joined_bytes = new char[1536 -32];
         SrsAutoFree(char, c1s1_joined_bytes);
-        copy_to(owner, c1s1_joined_bytes, false);
+        if ((ret = copy_to(owner, c1s1_joined_bytes, 1536 - 32, false)) != ERROR_SUCCESS) {
+            return ret;
+        }
         
         s1_digest = new char[__SRS_OpensslHashSize];
         if ((ret = openssl_HMACsha256(SrsGenuineFMSKey, 36, c1s1_joined_bytes, 1536 - 32, s1_digest)) != ERROR_SUCCESS) {
@@ -685,58 +653,66 @@ namespace _srs_internal
         return ret;
     }
     
-    void c1s1_strategy::copy_time_version(char*& pp, c1s1* owner)
+    void c1s1_strategy::copy_time_version(SrsStream* stream, c1s1* owner)
     {
+        srs_assert(stream->require(8));
+        
         // 4bytes time
-        __srs_stream_write_4bytes(pp, owner->time);
-        pp += 4;
+        stream->write_4bytes(owner->time);
+
         // 4bytes version
-        __srs_stream_write_4bytes(pp, owner->version);
-        pp += 4;
+        stream->write_4bytes(owner->version);
     }
-    void c1s1_strategy::copy_key(char*& pp)
+    void c1s1_strategy::copy_key(SrsStream* stream)
     {
+        srs_assert(key.random0_size >= 0);
+        srs_assert(key.random1_size >= 0);
+        
+        int total = key.random0_size + 128 + key.random1_size + 4;
+        srs_assert(stream->require(total));
+        
         // 764bytes key block
         if (key.random0_size > 0) {
-            memcpy(pp, key.random0, key.random0_size);
+            stream->write_bytes(key.random0, key.random0_size);
         }
-        pp += key.random0_size;
         
-        memcpy(pp, key.key, sizeof(key.key));
-        pp += sizeof(key.key);
+        stream->write_bytes(key.key, 128);
         
         if (key.random1_size > 0) {
-            memcpy(pp, key.random1, key.random1_size);
+            stream->write_bytes(key.random1, key.random1_size);
         }
-        pp += key.random1_size;
         
-        __srs_stream_write_4bytes(pp, key.offset);
-        pp += 4;
+        stream->write_4bytes(key.offset);
     }
-    void c1s1_strategy::digest_key(char*& pp, bool with_digest)
+    void c1s1_strategy::copy_digest(SrsStream* stream, bool with_digest)
     {
+        srs_assert(key.random0_size >= 0);
+        srs_assert(key.random1_size >= 0);
+        
+        int total = 4 + digest.random0_size + digest.random1_size;
+        if (with_digest) {
+            total += 32;
+        }
+        srs_assert(stream->require(total));
+        
         // 732bytes digest block without the 32bytes digest-data
         // nbytes digest block part1
-        __srs_stream_write_4bytes(pp, digest.offset);
-        pp += 4;
+        stream->write_4bytes(digest.offset);
         
         // digest random padding.
         if (digest.random0_size > 0) {
-            memcpy(pp, digest.random0, digest.random0_size);
+            stream->write_bytes(digest.random0, digest.random0_size);
         }
-        pp += digest.random0_size;
         
         // digest
         if (with_digest) {
-            memcpy(pp, digest.digest, 32);
-            pp += 32;
+            stream->write_bytes(digest.digest, 32);
         }
         
         // nbytes digest block part2
         if (digest.random1_size > 0) {
-            memcpy(pp, digest.random1, digest.random1_size);
+            stream->write_bytes(digest.random1, digest.random1_size);
         }
-        pp += digest.random1_size;
     }
     
     c1s1_strategy_schema0::c1s1_strategy_schema0()
@@ -752,16 +728,28 @@ namespace _srs_internal
         return srs_schema0;
     }
     
-    int c1s1_strategy_schema0::parse(char* _c1s1)
+    int c1s1_strategy_schema0::parse(char* _c1s1, int size)
     {
         int ret = ERROR_SUCCESS;
         
-        if ((ret = key.parse(_c1s1 + 8)) != ERROR_SUCCESS) {
+        srs_assert(size == 1536);
+        
+        SrsStream stream;
+        
+        if ((ret = stream.initialize(_c1s1 + 8, 764)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        if ((ret = key.parse(&stream)) != ERROR_SUCCESS) {
             srs_error("parse the c1 key failed. ret=%d", ret);
             return ret;
         }
         
-        if ((ret = digest.parse(_c1s1 + 8 + 764)) != ERROR_SUCCESS) {
+        if ((ret = stream.initialize(_c1s1 + 8 + 764, 764)) != ERROR_SUCCESS) {
+            return ret;
+        }
+
+        if ((ret = digest.parse(&stream)) != ERROR_SUCCESS) {
             srs_error("parse the c1 digest failed. ret=%d", ret);
             return ret;
         }
@@ -771,19 +759,20 @@ namespace _srs_internal
         return ret;
     }
     
-    void c1s1_strategy_schema0::copy_to(c1s1* owner, char* bytes, bool with_digest)
+    int c1s1_strategy_schema0::copy_to(c1s1* owner, char* bytes, int size, bool with_digest)
     {
-        char* pp = bytes;
-    
-        copy_time_version(pp, owner);
-        copy_key(pp);
-        digest_key(pp, with_digest);
+        SrsStream stream;
+        int ret = ERROR_SUCCESS;
         
-        if (with_digest) {
-            srs_assert(pp - bytes == 1536);
-        } else {
-            srs_assert(pp - bytes == 1536 - 32);
+        if ((ret = stream.initialize(bytes, size)) != ERROR_SUCCESS) {
+            return ret;
         }
+        
+        copy_time_version(&stream, owner);
+        copy_key(&stream);
+        copy_digest(&stream, with_digest);
+        
+        srs_assert(stream.empty());
     }
     
     c1s1_strategy_schema1::c1s1_strategy_schema1()
@@ -799,16 +788,28 @@ namespace _srs_internal
         return srs_schema1;
     }
     
-    int c1s1_strategy_schema1::parse(char* _c1s1)
+    int c1s1_strategy_schema1::parse(char* _c1s1, int size)
     {
         int ret = ERROR_SUCCESS;
         
-        if ((ret = digest.parse(_c1s1 + 8)) != ERROR_SUCCESS) {
+        srs_assert(size == 1536);
+        
+        SrsStream stream;
+        
+        if ((ret = stream.initialize(_c1s1 + 8, 764)) != ERROR_SUCCESS) {
+            return ret;
+        }
+
+        if ((ret = digest.parse(&stream)) != ERROR_SUCCESS) {
             srs_error("parse the c1 digest failed. ret=%d", ret);
             return ret;
         }
         
-        if ((ret = key.parse(_c1s1 + 8 + 764)) != ERROR_SUCCESS) {
+        if ((ret = stream.initialize(_c1s1 + 8 + 764, 764)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        if ((ret = key.parse(&stream)) != ERROR_SUCCESS) {
             srs_error("parse the c1 key failed. ret=%d", ret);
             return ret;
         }
@@ -818,19 +819,20 @@ namespace _srs_internal
         return ret;
     }
     
-    void c1s1_strategy_schema1::copy_to(c1s1* owner, char* bytes, bool with_digest)
+    int c1s1_strategy_schema1::copy_to(c1s1* owner, char* bytes, int size, bool with_digest)
     {
-        char* pp = bytes;
-    
-        copy_time_version(pp, owner);
-        digest_key(pp, with_digest);
-        copy_key(pp);
+        SrsStream stream;
+        int ret = ERROR_SUCCESS;
         
-        if (with_digest) {
-            srs_assert(pp - bytes == 1536);
-        } else {
-            srs_assert(pp - bytes == 1536 - 32);
+        if ((ret = stream.initialize(bytes, size)) != ERROR_SUCCESS) {
+            return ret;
         }
+        
+        copy_time_version(&stream, owner);
+        copy_digest(&stream, with_digest);
+        copy_key(&stream);
+        
+        srs_assert(stream.empty());
     }
     
     // TODO: FIXME: move to the right position.
@@ -870,15 +872,17 @@ namespace _srs_internal
         return payload->get_digest();
     }
     
-    void c1s1::dump(char* _c1s1)
+    int c1s1::dump(char* _c1s1, int size)
     {
         srs_assert(payload != NULL);
-        return payload->dump(this, _c1s1);
+        return payload->dump(this, _c1s1, size);
     }
     
-    int c1s1::parse(char* _c1s1, srs_schema_type schema)
+    int c1s1::parse(char* _c1s1, int size, srs_schema_type schema)
     {
         int ret = ERROR_SUCCESS;
+        
+        srs_assert(size == 1536);
         
         if (schema != srs_schema0 && schema != srs_schema1) {
             ret = ERROR_RTMP_CH_SCHEMA;
@@ -886,8 +890,14 @@ namespace _srs_internal
             return ret;
         }
         
-        time = __srs_stream_read_4bytes(_c1s1);
-        version = __srs_stream_read_4bytes(_c1s1 + 4); // client c1 version
+        SrsStream stream;
+        
+        if ((ret = stream.initialize(_c1s1, size)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        time = stream.read_4bytes();
+        version = stream.read_4bytes(); // client c1 version
         
         srs_freep(payload);
         if (schema == srs_schema0) {
@@ -896,7 +906,7 @@ namespace _srs_internal
             payload = new c1s1_strategy_schema1();
         }
 
-        return payload->parse(_c1s1);
+        return payload->parse(_c1s1, size);
     }
     
     int c1s1::c1_create(srs_schema_type schema)
@@ -976,16 +986,24 @@ namespace _srs_internal
     {
     }
     
-    void c2s2::dump(char* _c2s2)
+    int c2s2::dump(char* _c2s2, int size)
     {
+        srs_assert(size == 1536);
+        
         memcpy(_c2s2, random, 1504);
         memcpy(_c2s2 + 1504, digest, 32);
+        
+        return ERROR_SUCCESS;
     }
     
-    void c2s2::parse(char* _c2s2)
+    int c2s2::parse(char* _c2s2, int size)
     {
+        srs_assert(size == 1536);
+        
         memcpy(random, _c2s2, 1504);
         memcpy(digest, _c2s2 + 1504, 32);
+        
+        return ERROR_SUCCESS;
     }
     
     int c2s2::c2_create(c1s1* s1)
@@ -1201,7 +1219,7 @@ int SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrs
     c1s1 c1;
     // try schema0.
     // @remark, use schema0 to make flash player happy.
-    if ((ret = c1.parse(hs_bytes->c0c1 + 1, srs_schema0)) != ERROR_SUCCESS) {
+    if ((ret = c1.parse(hs_bytes->c0c1 + 1, 1536, srs_schema0)) != ERROR_SUCCESS) {
         srs_error("parse c1 schema%d error. ret=%d", srs_schema0, ret);
         return ret;
     }
@@ -1209,7 +1227,7 @@ int SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrs
     bool is_valid = false;
     if ((ret = c1.c1_validate_digest(is_valid)) != ERROR_SUCCESS || !is_valid) {
         srs_info("schema0 failed, try schema1.");
-        if ((ret = c1.parse(hs_bytes->c0c1 + 1, srs_schema1)) != ERROR_SUCCESS) {
+        if ((ret = c1.parse(hs_bytes->c0c1 + 1, 1536, srs_schema1)) != ERROR_SUCCESS) {
             srs_error("parse c1 schema%d error. ret=%d", srs_schema1, ret);
             return ret;
         }
@@ -1257,8 +1275,12 @@ int SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrs
     if ((ret = hs_bytes->create_s0s1s2()) != ERROR_SUCCESS) {
         return ret;
     }
-    s1.dump(hs_bytes->s0s1s2 + 1);
-    s2.dump(hs_bytes->s0s1s2 + 1537);
+    if ((ret = s1.dump(hs_bytes->s0s1s2 + 1, 1536)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = s2.dump(hs_bytes->s0s1s2 + 1537, 1536)) != ERROR_SUCCESS) {
+        return ret;
+    }
     if ((ret = io->write(hs_bytes->s0s1s2, 3073, &nsize)) != ERROR_SUCCESS) {
         srs_warn("complex handshake send s0s1s2 failed. ret=%d", ret);
         return ret;
@@ -1270,7 +1292,9 @@ int SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes* hs_bytes, ISrs
         return ret;
     }
     c2s2 c2;
-    c2.parse(hs_bytes->c2);
+    if ((ret = c2.parse(hs_bytes->c2, 1536)) != ERROR_SUCCESS) {
+        return ret;
+    }
     srs_verbose("complex handshake read c2 success.");
     
     // verify c2
@@ -1306,7 +1330,9 @@ int SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrs
     if ((ret = c1.c1_create(srs_schema1)) != ERROR_SUCCESS) {
         return ret;
     }
-    c1.dump(hs_bytes->c0c1 + 1);
+    if ((ret = c1.dump(hs_bytes->c0c1 + 1, 1536)) != ERROR_SUCCESS) {
+        return ret;
+    }
 
     // verify c1
     bool is_valid;
@@ -1335,7 +1361,7 @@ int SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrs
     
     // verify s1s2
     c1s1 s1;
-    if ((ret = s1.parse(hs_bytes->s0s1s2 + 1, c1.schema())) != ERROR_SUCCESS) {
+    if ((ret = s1.parse(hs_bytes->s0s1s2 + 1, 1536, c1.schema())) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -1353,7 +1379,9 @@ int SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes* hs_bytes, ISrs
         return ret;
     }
 
-    c2.dump(hs_bytes->c2);
+    if ((ret = c2.dump(hs_bytes->c2, 1536)) != ERROR_SUCCESS) {
+        return ret;
+    }
     if ((ret = io->write(hs_bytes->c2, 1536, &nsize)) != ERROR_SUCCESS) {
         srs_warn("complex handshake write c2 failed. ret=%d", ret);
         return ret;
