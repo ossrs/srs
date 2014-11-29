@@ -514,7 +514,7 @@ namespace _srs_internal
         return ret;
     }
     
-    int c1s1_strategy::s1_create(c1s1* owner)
+    int c1s1_strategy::s1_create(c1s1* owner, c1s1* c1)
     {
         int ret = ERROR_SUCCESS;
 
@@ -528,8 +528,7 @@ namespace _srs_internal
         // directly generate the public key.
         // @see: https://github.com/winlinvip/simple-rtmp-server/issues/148
         int pkey_size = 128;
-        // TODO: FIXME: use c1 public key to calc the shared key.
-        if ((ret = dh.copy_public_key(key.key, pkey_size)) != ERROR_SUCCESS) {
+        if ((ret = dh.copy_shared_key(c1->get_key(), 128, key.key, pkey_size)) != ERROR_SUCCESS) {
             srs_error("calc s1 key failed. ret=%d", ret);
             return ret;
         }
@@ -827,7 +826,6 @@ namespace _srs_internal
         return ret;
     }
     
-    // TODO: FIXME: move to the right position.
     c1s1::c1s1()
     {
         payload = NULL;
@@ -835,21 +833,6 @@ namespace _srs_internal
     c1s1::~c1s1()
     {
         srs_freep(payload);
-        /*
-        void c1s1::destroy_blocks()
-        {
-            if (schema == srs_schema_invalid) {
-                return;
-            }
-            
-            if (schema == srs_schema0) {
-                block0.key.free();
-                block1.digest.free();
-            } else {
-                block0.digest.free();
-                block1.key.free();
-            }
-        }*/
     }
     
     srs_schema_type c1s1::schema()
@@ -960,7 +943,7 @@ namespace _srs_internal
             payload = new c1s1_strategy_schema1();
         }
         
-        return payload->s1_create(this);
+        return payload->s1_create(this, c1);
     }
     
     int c1s1::s1_validate_digest(bool& is_valid)

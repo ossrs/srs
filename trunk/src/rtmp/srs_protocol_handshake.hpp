@@ -245,8 +245,32 @@ namespace _srs_internal
         virtual int c1_validate_digest(c1s1* owner, bool& is_valid);
         /**
         * server: create and sign the s1 from c1.
+        *       // decode c1 try schema0 then schema1
+        *       c1-digest-data = get-c1-digest-data(schema0)
+        *       if c1-digest-data equals to calc_c1_digest(c1, schema0) {  
+        *           c1-key-data = get-c1-key-data(schema0)  
+        *           schema = schema0
+        *       } else {  
+        *           c1-digest-data = get-c1-digest-data(schema1)  
+        *           if c1-digest-data not equals to calc_c1_digest(c1, schema1) {
+        *               switch to simple handshake.  
+        *               return  
+        *           }
+        *           c1-key-data = get-c1-key-data(schema1)  
+        *           schema = schema1
+        *       }
+        * 
+        *       // generate s1
+        *       random fill 1536bytes s1
+        *       time = time() // c1[0-3]
+        *       version = [0x04, 0x05, 0x00, 0x01] // s1[4-7]
+        *       s1-key-data=shared_key=DH_compute_key(peer_pub_key=c1-key-data)
+        *       get c1s1-joined by specified schema
+        *       s1-digest-data = HMACsha256(c1s1-joined, FMSKey, 36)
+        *       copy s1-digest-data and s1-key-data to s1.
+        * @param c1, to get the peer_pub_key of client.
         */
-        virtual int s1_create(c1s1* owner);
+        virtual int s1_create(c1s1* owner, c1s1* c1);
         /**
         * server: validate the parsed s1 schema
         */
