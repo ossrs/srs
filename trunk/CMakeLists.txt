@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.6.4)
 project(srs CXX)
 
-INCLUDE_DIRECTORIES(objs objs/st objs/hp objs/openssl src/core src/kernel src/rtmp src/app)
+INCLUDE_DIRECTORIES(objs objs/st objs/hp objs/openssl/include src/core src/kernel src/rtmp src/app)
 
 set(SOURCE_FILES src/main/srs_main_server.cpp)
 AUX_SOURCE_DIRECTORY(src/core SOURCE_FILES)
@@ -15,6 +15,7 @@ TARGET_LINK_LIBRARIES(srs ${PROJECT_SOURCE_DIR}/objs/st/libst.a)
 TARGET_LINK_LIBRARIES(srs ${PROJECT_SOURCE_DIR}/objs/openssl/lib/libssl.a)
 TARGET_LINK_LIBRARIES(srs ${PROJECT_SOURCE_DIR}/objs/openssl/lib/libcrypto.a)
 TARGET_LINK_LIBRARIES(srs ${PROJECT_SOURCE_DIR}/objs/hp/libhttp_parser.a)
+TARGET_LINK_LIBRARIES(srs -ldl)
 
 IF(NOT EXISTS ${PROJECT_SOURCE_DIR}/objs/st/libst.a)
     MESSAGE("srs_libs not found")

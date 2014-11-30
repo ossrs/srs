@@ -440,7 +440,7 @@ bool srs_get_disk_diskstats_stat(SrsDiskStat& r)
         unsigned int nb_current = 0;
         unsigned int ticks = 0;
         unsigned int aveq = 0;
-        memset(name, sizeof(name), 0);
+        memset(name, 0, sizeof(name));
         
         sscanf(buf, "%4d %4d %31s %u %u %llu %u %u %u %llu %u %u %u %u", 
             &major, 
