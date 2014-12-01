@@ -26,20 +26,101 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_rtmp.hpp>
 #include <srs_protocol_stack.hpp>
 
-SrsQueueRecvThread::SrsQueueRecvThread(SrsRtmpServer* rtmp_sdk)
+ISrsMessageHandler::ISrsMessageHandler()
 {
+}
+
+ISrsMessageHandler::~ISrsMessageHandler()
+{
+}
+
+SrsRecvThread::SrsRecvThread(ISrsMessageHandler* msg_handler, SrsRtmpServer* rtmp_sdk)
+{
+    handler = msg_handler;
     rtmp = rtmp_sdk;
     trd = new SrsThread(this, 0, true);
 }
 
-SrsQueueRecvThread::~SrsQueueRecvThread()
+SrsRecvThread::~SrsRecvThread()
 {
     // stop recv thread.
     stop();
-    
+
     // destroy the thread.
     srs_freep(trd);
-    
+}
+
+int SrsRecvThread::start()
+{
+    return trd->start();
+}
+
+void SrsRecvThread::stop()
+{
+    trd->stop();
+}
+
+int SrsRecvThread::cycle()
+{
+    int ret = ERROR_SUCCESS;
+
+    if (!handler->can_handle()) {
+        st_usleep(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
+        return ret;
+    }
+
+    SrsMessage* msg = NULL;
+
+    if ((ret = rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
+        if (!srs_is_client_gracefully_close(ret)) {
+            srs_error("recv client control message failed. ret=%d", ret);
+        }
+
+        // we use no timeout to recv, should never got any error.
+        trd->stop_loop();
+
+        return ret;
+    }
+    srs_verbose("play loop recv message. ret=%d", ret);
+
+    handler->handle(msg);
+
+    return ret;
+}
+
+void SrsRecvThread::on_thread_start()
+{
+    // the multiple messages writev improve performance large,
+    // but the timeout recv will cause 33% sys call performance,
+    // to use isolate thread to recv, can improve about 33% performance.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/194
+    // @see: https://github.com/winlinvip/simple-rtmp-server/issues/217
+    rtmp->set_recv_timeout(ST_UTIME_NO_TIMEOUT);
+
+    // disable the protocol auto response,
+    // for the isolate recv thread should never send any messages.
+    rtmp->set_auto_response(false);
+}
+
+void SrsRecvThread::on_thread_stop()
+{
+    // enable the protocol auto response,
+    // for the isolate recv thread terminated.
+    rtmp->set_auto_response(true);
+
+    // reset the timeout to pulse mode.
+    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
+}
+
+SrsQueueRecvThread::SrsQueueRecvThread(SrsRtmpServer* rtmp_sdk)
+    : SrsRecvThread(this, rtmp_sdk)
+{
+}
+
+SrsQueueRecvThread::~SrsQueueRecvThread()
+{
+    stop();
+
     // clear all messages.
     std::vector<SrsMessage*>::iterator it;
     for (it = queue.begin(); it != queue.end(); ++it) {
@@ -70,71 +151,20 @@ SrsMessage* SrsQueueRecvThread::pump()
     return msg;
 }
 
-int SrsQueueRecvThread::start()
+bool SrsQueueRecvThread::can_handle()
 {
-    return trd->start();
-}
-
-void SrsQueueRecvThread::stop()
-{
-    trd->stop();
-}
-
-int SrsQueueRecvThread::cycle()
-{
-    int ret = ERROR_SUCCESS;
-    
     // we only recv one message and then process it,
     // for the message may cause the thread to stop,
     // when stop, the thread is freed, so the messages
     // are dropped.
-    if (!queue.empty()) {
-        st_usleep(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
-        return ret;
-    }
-    
-    SrsMessage* msg = NULL;
-    
-    if ((ret = rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
-        if (!srs_is_client_gracefully_close(ret)) {
-            srs_error("recv client control message failed. ret=%d", ret);
-        }
-        
-        // we use no timeout to recv, should never got any error.
-        trd->stop_loop();
-        
-        return ret;
-    }
-    srs_verbose("play loop recv message. ret=%d", ret);
-    
+    return empty();
+}
+
+int SrsQueueRecvThread::handle(SrsMessage* msg)
+{
     // put into queue, the send thread will get and process it,
     // @see SrsRtmpConn::process_play_control_msg
     queue.push_back(msg);
-    
-    return ret;
-}
 
-void SrsQueueRecvThread::on_thread_start()
-{
-    // the multiple messages writev improve performance large,
-    // but the timeout recv will cause 33% sys call performance,
-    // to use isolate thread to recv, can improve about 33% performance.
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/194
-    // @see: https://github.com/winlinvip/simple-rtmp-server/issues/217
-    rtmp->set_recv_timeout(ST_UTIME_NO_TIMEOUT);
-    
-    // disable the protocol auto response, 
-    // for the isolate recv thread should never send any messages.
-    rtmp->set_auto_response(false);
+    return ERROR_SUCCESS;
 }
-
-void SrsQueueRecvThread::on_thread_stop()
-{
-    // enable the protocol auto response,
-    // for the isolate recv thread terminated.
-    rtmp->set_auto_response(true);
-    
-    // reset the timeout to pulse mode.
-    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
-}
-

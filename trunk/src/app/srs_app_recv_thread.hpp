@@ -38,16 +38,57 @@ class SrsRtmpServer;
 class SrsMessage;
 
 /**
+ * for the recv thread to handle the message.
+ */
+class ISrsMessageHandler
+{
+public:
+    ISrsMessageHandler();
+    virtual ~ISrsMessageHandler();
+public:
+    /**
+     * whether the handler can handle,
+     * for example, when queue recv handler got an message,
+     * it wait the user to process it, then the recv thread
+     * never recv message util the handler is ok.
+     */
+    virtual bool can_handle() = 0;
+    /**
+     * process the received message.
+     */
+    virtual int handle(SrsMessage* msg) = 0;
+};
+
+/**
+ * the recv thread, use message handler to handle each received message.
+ */
+class SrsRecvThread : public ISrsThreadHandler
+{
+protected:
+    SrsThread* trd;
+    ISrsMessageHandler* handler;
+    SrsRtmpServer* rtmp;
+public:
+    SrsRecvThread(ISrsMessageHandler* msg_handler, SrsRtmpServer* rtmp_sdk);
+    virtual ~SrsRecvThread();
+public:
+    virtual int start();
+    virtual void stop();
+    virtual int cycle();
+public:
+    virtual void on_thread_start();
+    virtual void on_thread_stop();
+};
+
+/**
 * the recv thread used to replace the timeout recv,
 * which hurt performance for the epoll_ctrl is frequently used.
 * @see: SrsRtmpConn::playing
 * @see: https://github.com/winlinvip/simple-rtmp-server/issues/217
 */
-class SrsQueueRecvThread : public ISrsThreadHandler
+class SrsQueueRecvThread : virtual public ISrsMessageHandler, virtual public SrsRecvThread
 {
 private:
-    SrsThread* trd;
-    SrsRtmpServer* rtmp;
     std::vector<SrsMessage*> queue;
 public:
     SrsQueueRecvThread(SrsRtmpServer* rtmp_sdk);
@@ -57,12 +98,8 @@ public:
     virtual int size();
     virtual SrsMessage* pump();
 public:
-    virtual int start();
-    virtual void stop();
-    virtual int cycle();
-public:
-    virtual void on_thread_start();
-    virtual void on_thread_stop();
+    virtual bool can_handle();
+    virtual int handle(SrsMessage* msg);
 };
 
 #endif
