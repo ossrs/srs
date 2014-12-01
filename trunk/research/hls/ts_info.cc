@@ -2255,9 +2255,9 @@ int main(int argc, char** argv)
             int64_t pcr = msg->pcr;
             static int64_t last_pcr_dts = 0;
             trace("demuxer+report id=%d, type=%s, size=%d, dts=%d, pts=%d, cts=%d, pcr=%d, dts-pcr=%d, ref=%d, unit=%d, dts(diff-pcr)=%d",
-                ctx.ts_packet_count, (msg->type == TSPidTypeVideo)? "video":"audio", 
-                msg->parsed_packet_size, dts, pts, pts - dts, pcr, pcr? dts - pcr : 0,
-                msg->nal_ref_idc, msg->nal_unit_type, pcr? dts - last_pcr_dts: 0);
+                (int)ctx.ts_packet_count, (msg->type == TSPidTypeVideo)? "video":"audio", 
+                (int)msg->parsed_packet_size, (int)dts, (int)pts, (int)(pts - dts), (int)pcr, (int)(pcr? dts - pcr : 0),
+                (int)msg->nal_ref_idc, (int)msg->nal_unit_type, (int)(pcr? dts - last_pcr_dts: 0));
             if (pcr > 0) {
                 last_pcr_dts = dts;
             }
