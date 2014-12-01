@@ -392,6 +392,12 @@ int SrsGopCache::cache(SrsSharedPtrMessage* msg)
         srs_verbose("gop cache is disabled.");
         return ret;
     }
+
+    // disable gop cache when not h.264
+    if (!SrsFlvCodec::video_is_h264(msg->payload, msg->size)) {
+        srs_info("gop donot cache video for none h.264");
+        return ret;
+    }
     
     // got video, update the video count if acceptable
     if (msg->header.is_video()) {

@@ -132,6 +132,7 @@ rtmp_destroy:
         "\"srs_id\":%d, "
         "\"duration\":%d, "
         "\"play_duration\":%d, "
+        "\"publish_duration\":%d,"
         "\"play_kbps\":%d, "
         "\"publish_kbps\":%d"
         "}",
@@ -141,7 +142,7 @@ rtmp_destroy:
         (int)(end_time - start_time), play_duration, publish_duration,
         play_kbps, publish_kbps);
     
-    srs_human_trace("");
+    srs_human_trace(" ");
     srs_human_trace("completed");
     
     return ret;

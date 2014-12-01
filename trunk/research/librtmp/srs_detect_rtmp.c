@@ -197,7 +197,7 @@ rtmp_destroy:
         "\"remark2\": \"if code is not 0, user must ignore all data\""
     );
     
-    srs_human_trace("");
+    srs_human_trace(" ");
     srs_human_trace("completed");
     
     return ret;

@@ -100,7 +100,7 @@ int main(int argc, char** argv)
     // open file
     int raw_fd = open(raw_file, O_RDONLY);
     if (raw_fd < 0) {
-        srs_human_trace("open h264 raw file %s failed.", raw_fd);
+        srs_human_trace("open h264 raw file %s failed.", raw_file);
         goto rtmp_destroy;
     }
     

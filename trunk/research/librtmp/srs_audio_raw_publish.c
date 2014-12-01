@@ -47,7 +47,7 @@ int read_audio_frame(char* audio_raw, int file_size, char** pp, char** pdata, in
     
     if (file_size - (p - audio_raw) < 168) {
         srs_human_trace("audio must be 160+8 bytes. left %d bytes.", 
-            file_size - (p - audio_raw));
+            (int)(file_size - (p - audio_raw)));
         return - 1;
     }
     
@@ -88,7 +88,7 @@ int main(int argc, char** argv)
     // open file
     int raw_fd = open(raw_file, O_RDONLY);
     if (raw_fd < 0) {
-        srs_human_trace("open audio raw file %s failed.", raw_fd);
+        srs_human_trace("open audio raw file %s failed.", raw_file);
         goto rtmp_destroy;
     }
     
