@@ -26,13 +26,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_rtmp.hpp>
 #include <srs_protocol_stack.hpp>
 
-SrsRecvThread::SrsRecvThread(SrsRtmpServer* rtmp_sdk)
+SrsQueueRecvThread::SrsQueueRecvThread(SrsRtmpServer* rtmp_sdk)
 {
     rtmp = rtmp_sdk;
     trd = new SrsThread(this, 0, true);
 }
 
-SrsRecvThread::~SrsRecvThread()
+SrsQueueRecvThread::~SrsQueueRecvThread()
 {
     // stop recv thread.
     stop();
@@ -49,17 +49,17 @@ SrsRecvThread::~SrsRecvThread()
     queue.clear();
 }
 
-bool SrsRecvThread::empty()
+bool SrsQueueRecvThread::empty()
 {
     return queue.empty();
 }
 
-int SrsRecvThread::size()
+int SrsQueueRecvThread::size()
 {
     return (int)queue.size();
 }
 
-SrsMessage* SrsRecvThread::pump()
+SrsMessage* SrsQueueRecvThread::pump()
 {
     srs_assert(!queue.empty());
     
@@ -70,17 +70,17 @@ SrsMessage* SrsRecvThread::pump()
     return msg;
 }
 
-int SrsRecvThread::start()
+int SrsQueueRecvThread::start()
 {
     return trd->start();
 }
 
-void SrsRecvThread::stop()
+void SrsQueueRecvThread::stop()
 {
     trd->stop();
 }
 
-int SrsRecvThread::cycle()
+int SrsQueueRecvThread::cycle()
 {
     int ret = ERROR_SUCCESS;
     
@@ -114,7 +114,7 @@ int SrsRecvThread::cycle()
     return ret;
 }
 
-void SrsRecvThread::on_thread_start()
+void SrsQueueRecvThread::on_thread_start()
 {
     // the multiple messages writev improve performance large,
     // but the timeout recv will cause 33% sys call performance,
@@ -128,7 +128,7 @@ void SrsRecvThread::on_thread_start()
     rtmp->set_auto_response(false);
 }
 
-void SrsRecvThread::on_thread_stop()
+void SrsQueueRecvThread::on_thread_stop()
 {
     // enable the protocol auto response,
     // for the isolate recv thread terminated.

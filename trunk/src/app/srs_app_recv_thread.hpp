@@ -43,15 +43,15 @@ class SrsMessage;
 * @see: SrsRtmpConn::playing
 * @see: https://github.com/winlinvip/simple-rtmp-server/issues/217
 */
-class SrsRecvThread : public ISrsThreadHandler
+class SrsQueueRecvThread : public ISrsThreadHandler
 {
 private:
     SrsThread* trd;
     SrsRtmpServer* rtmp;
     std::vector<SrsMessage*> queue;
 public:
-    SrsRecvThread(SrsRtmpServer* rtmp_sdk);
-    virtual ~SrsRecvThread();
+    SrsQueueRecvThread(SrsRtmpServer* rtmp_sdk);
+    virtual ~SrsQueueRecvThread();
 public:
     virtual bool empty();
     virtual int size();

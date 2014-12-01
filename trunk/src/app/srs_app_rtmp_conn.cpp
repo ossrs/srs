@@ -500,7 +500,7 @@ int SrsRtmpConn::playing(SrsSource* source)
     
     // use isolate thread to recv, 
     // @see: https://github.com/winlinvip/simple-rtmp-server/issues/217
-    SrsRecvThread trd(rtmp);
+    SrsQueueRecvThread trd(rtmp);
     
     // start isolate recv thread.
     if ((ret = trd.start()) != ERROR_SUCCESS) {
@@ -522,7 +522,7 @@ int SrsRtmpConn::playing(SrsSource* source)
     return ret;
 }
 
-int SrsRtmpConn::do_playing(SrsSource* source, SrsRecvThread* trd)
+int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
 {
     int ret = ERROR_SUCCESS;
     
