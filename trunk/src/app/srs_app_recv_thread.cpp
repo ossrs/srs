@@ -114,13 +114,13 @@ void SrsRecvThread::on_thread_stop()
 }
 
 SrsQueueRecvThread::SrsQueueRecvThread(SrsRtmpServer* rtmp_sdk, int timeout_ms)
-    : SrsRecvThread(this, rtmp_sdk, timeout_ms)
+    : trd(this, rtmp_sdk, timeout_ms)
 {
 }
 
 SrsQueueRecvThread::~SrsQueueRecvThread()
 {
-    stop();
+    trd.stop();
 
     // clear all messages.
     std::vector<SrsMessage*>::iterator it;
@@ -129,6 +129,16 @@ SrsQueueRecvThread::~SrsQueueRecvThread()
         srs_freep(msg);
     }
     queue.clear();
+}
+
+int SrsQueueRecvThread::start()
+{
+    return trd.start();
+}
+
+void SrsQueueRecvThread::stop()
+{
+    trd.stop();
 }
 
 bool SrsQueueRecvThread::empty()
