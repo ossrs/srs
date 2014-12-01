@@ -34,8 +34,9 @@ ISrsMessageHandler::~ISrsMessageHandler()
 {
 }
 
-SrsRecvThread::SrsRecvThread(ISrsMessageHandler* msg_handler, SrsRtmpServer* rtmp_sdk)
+SrsRecvThread::SrsRecvThread(ISrsMessageHandler* msg_handler, SrsRtmpServer* rtmp_sdk, int timeout_ms)
 {
+    timeout = timeout_ms;
     handler = msg_handler;
     rtmp = rtmp_sdk;
     trd = new SrsThread(this, 0, true);
@@ -65,7 +66,7 @@ int SrsRecvThread::cycle()
     int ret = ERROR_SUCCESS;
 
     if (!handler->can_handle()) {
-        st_usleep(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
+        st_usleep(timeout * 1000);
         return ret;
     }
 
@@ -109,11 +110,11 @@ void SrsRecvThread::on_thread_stop()
     rtmp->set_auto_response(true);
 
     // reset the timeout to pulse mode.
-    rtmp->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
+    rtmp->set_recv_timeout(timeout * 1000);
 }
 
-SrsQueueRecvThread::SrsQueueRecvThread(SrsRtmpServer* rtmp_sdk)
-    : SrsRecvThread(this, rtmp_sdk)
+SrsQueueRecvThread::SrsQueueRecvThread(SrsRtmpServer* rtmp_sdk, int timeout_ms)
+    : SrsRecvThread(this, rtmp_sdk, timeout_ms)
 {
 }
 

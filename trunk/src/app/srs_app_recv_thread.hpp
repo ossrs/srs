@@ -68,8 +68,9 @@ protected:
     SrsThread* trd;
     ISrsMessageHandler* handler;
     SrsRtmpServer* rtmp;
+    int timeout;
 public:
-    SrsRecvThread(ISrsMessageHandler* msg_handler, SrsRtmpServer* rtmp_sdk);
+    SrsRecvThread(ISrsMessageHandler* msg_handler, SrsRtmpServer* rtmp_sdk, int timeout_ms);
     virtual ~SrsRecvThread();
 public:
     virtual int start();
@@ -91,7 +92,7 @@ class SrsQueueRecvThread : virtual public ISrsMessageHandler, virtual public Srs
 private:
     std::vector<SrsMessage*> queue;
 public:
-    SrsQueueRecvThread(SrsRtmpServer* rtmp_sdk);
+    SrsQueueRecvThread(SrsRtmpServer* rtmp_sdk, int timeout_ms);
     virtual ~SrsQueueRecvThread();
 public:
     virtual bool empty();
