@@ -532,7 +532,11 @@ namespace _srs_internal
             srs_error("calc s1 key failed. ret=%d", ret);
             return ret;
         }
-        srs_assert(pkey_size == 128);
+
+        // altough the public key is always 128bytes, but the share key maybe not.
+        // we just ignore the actual key size, but if need to use the key, must use the actual size.
+        // TODO: FIXME: use the actual key size.
+        //srs_assert(pkey_size == 128);
         srs_verbose("calc s1 key success.");
             
         char* s1_digest = NULL;
