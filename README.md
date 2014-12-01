@@ -485,6 +485,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2014-12-01, add qtcreate project file trunk/src/qt/srs/srs-qt.pro. 2.0.39.
 * v2.0, 2014-11-29, fix [#235](https://github.com/winlinvip/simple-rtmp-server/issues/235), refine handshake, replace union with template method. 2.0.38.
 * v2.0, 2014-11-28, fix [#215](https://github.com/winlinvip/simple-rtmp-server/issues/215), add srs_rtmp_dump tool. 2.0.37.
 * v2.0, 2014-11-25, update PRIMARY, AUTHORS, CONTRIBUTORS rule. 2.0.32.
