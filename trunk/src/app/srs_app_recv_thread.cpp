@@ -25,6 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_protocol_rtmp.hpp>
 #include <srs_protocol_stack.hpp>
+#include <srs_app_rtmp_conn.hpp>
 
 ISrsMessageHandler::ISrsMessageHandler()
 {
@@ -87,6 +88,11 @@ int SrsRecvThread::cycle()
     handler->handle(msg);
 
     return ret;
+}
+
+void SrsRecvThread::stop_loop()
+{
+    trd->stop_loop();
 }
 
 void SrsRecvThread::on_thread_start()
@@ -178,4 +184,73 @@ int SrsQueueRecvThread::handle(SrsMessage* msg)
     queue.push_back(msg);
 
     return ERROR_SUCCESS;
+}
+
+SrsPublishRecvThread::SrsPublishRecvThread(
+    SrsRtmpServer* rtmp_sdk, int timeout_ms,
+    SrsRtmpConn* conn, SrsSource* source, bool is_fmle, bool is_edge
+): trd(this, rtmp_sdk, timeout_ms)
+{
+    _conn = conn;
+    _source = source;
+    _is_fmle = is_fmle;
+    _is_edge = is_edge;
+
+    recv_error_code = ERROR_SUCCESS;
+    _nb_msgs = 0;
+}
+
+SrsPublishRecvThread::~SrsPublishRecvThread()
+{
+    trd.stop();
+}
+
+int64_t SrsPublishRecvThread::nb_msgs()
+{
+    return _nb_msgs;
+}
+
+int SrsPublishRecvThread::error_code()
+{
+    return recv_error_code;
+}
+
+int SrsPublishRecvThread::start()
+{
+    return trd.start();
+}
+
+void SrsPublishRecvThread::stop()
+{
+    trd.stop();
+}
+
+bool SrsPublishRecvThread::can_handle()
+{
+    // publish thread always can handle message.
+    return true;
+}
+
+int SrsPublishRecvThread::handle(SrsMessage* msg)
+{
+    int ret = ERROR_SUCCESS;
+
+    _nb_msgs++;
+
+    // the rtmp connection will handle this message,
+    // quit the thread loop when error.
+    recv_error_code = ret = _conn->handle_publish_message(_source, msg, _is_fmle, _is_edge);
+
+    // when error, use stop loop to terminate the thread normally,
+    // for we are in the thread loop now, and should never use stop() to terminate it.
+    if (ret != ERROR_SUCCESS) {
+        trd.stop_loop();
+    }
+
+    // must always free it,
+    // the source will copy it if need to use.
+    srs_freep(msg);
+
+    // TODO: FIXME: implements it.
+    return ret;
 }

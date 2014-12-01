@@ -644,8 +644,15 @@ int SrsRtmpConn::fmle_publishing(SrsSource* source)
         return ret;
     }
 
+    // use isolate thread to recv,
+    // @see: https://github.com/winlinvip/simple-rtmp-server/issues/237
+    SrsPublishRecvThread trd(rtmp, SRS_CONSTS_RTMP_RECV_TIMEOUT_US, this, source, true, vhost_is_edge);
+
     srs_info("start to publish stream %s success", req->stream.c_str());
-    ret = do_fmle_publishing(source);
+    ret = do_publishing(source, &trd);
+
+    // stop isolate recv thread
+    trd.stop();
 
     // when edge, notice edge to change state.
     // when origin, notice all service to unpublish.
@@ -656,82 +663,6 @@ int SrsRtmpConn::fmle_publishing(SrsSource* source)
     }
 
     http_hooks_on_unpublish();
-    
-    return ret;
-}
-
-int SrsRtmpConn::do_fmle_publishing(SrsSource* source)
-{
-    int ret = ERROR_SUCCESS;
-    
-    if ((ret = refer->check(req->pageUrl, _srs_config->get_refer_publish(req->vhost))) != ERROR_SUCCESS) {
-        srs_error("fmle check publish_refer failed. ret=%d", ret);
-        return ret;
-    }
-    srs_verbose("fmle check publish_refer success.");
-    
-    SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_PUBLISH_USER);
-    
-    bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
-    
-    // when edge, ignore the publish event, directly proxy it.
-    if (!vhost_is_edge) {
-        // notify the hls to prepare when publish start.
-        if ((ret = source->on_publish()) != ERROR_SUCCESS) {
-            srs_error("fmle hls on_publish failed. ret=%d", ret);
-            return ret;
-        }
-        srs_verbose("fmle hls on_publish success.");
-    }
-    
-    while (true) {
-        SrsMessage* msg = NULL;
-        if ((ret = rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
-            srs_error("fmle recv identify client message failed. ret=%d", ret);
-            return ret;
-        }
-
-        SrsAutoFree(SrsMessage, msg);
-        
-        pithy_print.elapse();
-
-        // reportable
-        if (pithy_print.can_print()) {
-            kbps->sample();
-            srs_trace("<- "SRS_CONSTS_LOG_CLIENT_PUBLISH
-                " time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d", pithy_print.age(), 
-                kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
-                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m());
-        }
-    
-        // process UnPublish event.
-        if (msg->header.is_amf0_command() || msg->header.is_amf3_command()) {
-            SrsPacket* pkt = NULL;
-            if ((ret = rtmp->decode_message(msg, &pkt)) != ERROR_SUCCESS) {
-                srs_error("fmle decode unpublish message failed. ret=%d", ret);
-                return ret;
-            }
-            
-            SrsAutoFree(SrsPacket, pkt);
-        
-            if (dynamic_cast<SrsFMLEStartPacket*>(pkt)) {
-                SrsFMLEStartPacket* unpublish = dynamic_cast<SrsFMLEStartPacket*>(pkt);
-                if ((ret = rtmp->fmle_unpublish(res->stream_id, unpublish->transaction_id)) != ERROR_SUCCESS) {
-                    return ret;
-                }
-                return ERROR_CONTROL_REPUBLISH;
-            }
-            
-            srs_trace("fmle ignore AMF0/AMF3 command message.");
-            continue;
-        }
-
-        // video, audio, data message
-        if ((ret = process_publish_message(source, msg, vhost_is_edge)) != ERROR_SUCCESS) {
-            srs_error("fmle process publish message failed. ret=%d", ret);
-            return ret;
-        }
-    }
     
     return ret;
 }
@@ -739,16 +670,23 @@ int SrsRtmpConn::do_fmle_publishing(SrsSource* source)
 int SrsRtmpConn::flash_publishing(SrsSource* source)
 {
     int ret = ERROR_SUCCESS;
-    
+
     bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
-            
+
     if ((ret = http_hooks_on_publish()) != ERROR_SUCCESS) {
         srs_error("http hook on_publish failed. ret=%d", ret);
         return ret;
     }
-    
-    srs_info("flash start to publish stream %s success", req->stream.c_str());
-    ret = do_flash_publishing(source);
+
+    // use isolate thread to recv,
+    // @see: https://github.com/winlinvip/simple-rtmp-server/issues/237
+    SrsPublishRecvThread trd(rtmp, SRS_CONSTS_RTMP_RECV_TIMEOUT_US, this, source, false, vhost_is_edge);
+
+    srs_info("start to publish stream %s success", req->stream.c_str());
+    ret = do_publishing(source, &trd);
+
+    // stop isolate recv thread
+    trd.stop();
 
     // when edge, notice edge to change state.
     // when origin, notice all service to unpublish.
@@ -757,80 +695,117 @@ int SrsRtmpConn::flash_publishing(SrsSource* source)
     } else {
         source->on_unpublish();
     }
-    
+
     http_hooks_on_unpublish();
-    
+
     return ret;
 }
 
-int SrsRtmpConn::do_flash_publishing(SrsSource* source)
+int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
 {
     int ret = ERROR_SUCCESS;
-    
+
     if ((ret = refer->check(req->pageUrl, _srs_config->get_refer_publish(req->vhost))) != ERROR_SUCCESS) {
-        srs_error("flash check publish_refer failed. ret=%d", ret);
+        srs_error("check publish_refer failed. ret=%d", ret);
         return ret;
     }
-    srs_verbose("flash check publish_refer success.");
-    
+    srs_verbose("check publish_refer success.");
+
     SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_PUBLISH_USER);
-    
+
     bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
-    
+
     // when edge, ignore the publish event, directly proxy it.
     if (!vhost_is_edge) {
         // notify the hls to prepare when publish start.
         if ((ret = source->on_publish()) != ERROR_SUCCESS) {
-            srs_error("flash hls on_publish failed. ret=%d", ret);
+            srs_error("hls on_publish failed. ret=%d", ret);
             return ret;
         }
-        srs_verbose("flash hls on_publish success.");
+        srs_verbose("hls on_publish success.");
     }
-    
+
+    // start isolate recv thread.
+    if ((ret = trd->start()) != ERROR_SUCCESS) {
+        srs_error("start isolate recv thread failed. ret=%d", ret);
+        return ret;
+    }
+
+    int64_t nb_msgs = 0;
     while (true) {
-        SrsMessage* msg = NULL;
-        if ((ret = rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
-            if (!srs_is_client_gracefully_close(ret)) {
-                srs_error("flash recv identify client message failed. ret=%d", ret);
+        // use small loop to check the error code, interval = 30s/100 = 300ms.
+        for (int i = 0; i < 100; i++) {
+            st_usleep(SRS_CONSTS_RTMP_RECV_TIMEOUT_US * 1000 / 100);
+
+            // check the thread error code.
+            if ((ret = trd->error_code()) != ERROR_SUCCESS) {
+                return ret;
             }
-            return ret;
         }
 
-        SrsAutoFree(SrsMessage, msg);
-        
+        // when not got any messages, timeout.
+        if (trd->nb_msgs() <= nb_msgs) {
+            ret = ERROR_SOCKET_TIMEOUT;
+            srs_warn("publish timeout %"PRId64"us, nb_msgs=%"PRId64", ret=%d",
+                     SRS_CONSTS_RTMP_RECV_TIMEOUT_US, nb_msgs, ret);
+            break;
+        }
+        nb_msgs = trd->nb_msgs();
+
         pithy_print.elapse();
 
         // reportable
         if (pithy_print.can_print()) {
             kbps->sample();
-            srs_trace("<- "SRS_CONSTS_LOG_WEB_PUBLISH
-                " time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d", 
-                pithy_print.age(),
+            srs_trace("<- "SRS_CONSTS_LOG_CLIENT_PUBLISH
+                " time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d", pithy_print.age(),
                 kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
                 kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m());
         }
+    }
+
+    return ret;
+}
+
+int SrsRtmpConn::handle_publish_message(SrsSource* source, SrsMessage* msg, bool is_fmle, bool vhost_is_edge)
+{
+    int ret = ERROR_SUCCESS;
     
-        // process UnPublish event.
-        if (msg->header.is_amf0_command() || msg->header.is_amf3_command()) {
-            SrsPacket* pkt = NULL;
-            if ((ret = rtmp->decode_message(msg, &pkt)) != ERROR_SUCCESS) {
-                srs_error("flash decode unpublish message failed. ret=%d", ret);
-                return ret;
-            }
-            
-            SrsAutoFree(SrsPacket, pkt);
-            
+    // process publish event.
+    if (msg->header.is_amf0_command() || msg->header.is_amf3_command()) {
+        SrsPacket* pkt = NULL;
+        if ((ret = rtmp->decode_message(msg, &pkt)) != ERROR_SUCCESS) {
+            srs_error("fmle decode unpublish message failed. ret=%d", ret);
+            return ret;
+        }
+
+        SrsAutoFree(SrsPacket, pkt);
+
+        // for flash, any packet is republish.
+        if (!is_fmle) {
             // flash unpublish.
             // TODO: maybe need to support republish.
             srs_trace("flash flash publish finished.");
             return ERROR_CONTROL_REPUBLISH;
         }
 
-        // video, audio, data message
-        if ((ret = process_publish_message(source, msg, vhost_is_edge)) != ERROR_SUCCESS) {
-            srs_error("flash process publish message failed. ret=%d", ret);
-            return ret;
+        // for fmle, drop others except the fmle start packet.
+        if (dynamic_cast<SrsFMLEStartPacket*>(pkt)) {
+            SrsFMLEStartPacket* unpublish = dynamic_cast<SrsFMLEStartPacket*>(pkt);
+            if ((ret = rtmp->fmle_unpublish(res->stream_id, unpublish->transaction_id)) != ERROR_SUCCESS) {
+                return ret;
+            }
+            return ERROR_CONTROL_REPUBLISH;
         }
+
+        srs_trace("fmle ignore AMF0/AMF3 command message.");
+        return ret;
+    }
+
+    // video, audio, data message
+    if ((ret = process_publish_message(source, msg, vhost_is_edge)) != ERROR_SUCCESS) {
+        srs_error("fmle process publish message failed. ret=%d", ret);
+        return ret;
     }
     
     return ret;

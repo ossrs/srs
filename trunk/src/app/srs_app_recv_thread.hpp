@@ -36,6 +36,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsRtmpServer;
 class SrsMessage;
+class SrsRtmpConn;
+class SrsSource;
 
 /**
  * for the recv thread to handle the message.
@@ -76,6 +78,7 @@ public:
     virtual int start();
     virtual void stop();
     virtual int cycle();
+    virtual void stop_loop();
 public:
     virtual void on_thread_start();
     virtual void on_thread_stop();
@@ -87,7 +90,7 @@ public:
 * @see: SrsRtmpConn::playing
 * @see: https://github.com/winlinvip/simple-rtmp-server/issues/217
 */
-class SrsQueueRecvThread : virtual public ISrsMessageHandler
+class SrsQueueRecvThread : public ISrsMessageHandler
 {
 private:
     std::vector<SrsMessage*> queue;
@@ -102,6 +105,37 @@ public:
     virtual bool empty();
     virtual int size();
     virtual SrsMessage* pump();
+public:
+    virtual bool can_handle();
+    virtual int handle(SrsMessage* msg);
+};
+
+/**
+ * the publish recv thread got message and callback the source method to process message.
+* @see: https://github.com/winlinvip/simple-rtmp-server/issues/237
+ */
+class SrsPublishRecvThread : public ISrsMessageHandler
+{
+private:
+    SrsRecvThread trd;
+    // the msgs already got.
+    int64_t _nb_msgs;
+    // the recv thread error code.
+    int recv_error_code;
+    SrsRtmpConn* _conn;
+    SrsSource* _source;
+    bool _is_fmle;
+    bool _is_edge;
+public:
+    SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, int timeout_ms,
+        SrsRtmpConn* conn, SrsSource* source, bool is_fmle, bool is_edge);
+    virtual ~SrsPublishRecvThread();
+public:
+    virtual int64_t nb_msgs();
+    virtual int error_code();
+public:
+    virtual int start();
+    virtual void stop();
 public:
     virtual bool can_handle();
     virtual int handle(SrsMessage* msg);
