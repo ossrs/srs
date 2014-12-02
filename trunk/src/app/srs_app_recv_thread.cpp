@@ -80,6 +80,9 @@ int SrsRecvThread::cycle()
 
         // we use no timeout to recv, should never got any error.
         trd->stop_loop();
+        
+        // notice the handler got a recv error.
+        handler->on_recv_error(ret);
 
         return ret;
     }
@@ -122,6 +125,7 @@ void SrsRecvThread::on_thread_stop()
 SrsQueueRecvThread::SrsQueueRecvThread(SrsRtmpServer* rtmp_sdk, int timeout_ms)
     : trd(this, rtmp_sdk, timeout_ms)
 {
+    recv_error_code = ERROR_SUCCESS;
 }
 
 SrsQueueRecvThread::~SrsQueueRecvThread()
@@ -168,6 +172,11 @@ SrsMessage* SrsQueueRecvThread::pump()
     return msg;
 }
 
+int SrsQueueRecvThread::error_code()
+{
+    return recv_error_code;
+}
+
 bool SrsQueueRecvThread::can_handle()
 {
     // we only recv one message and then process it,
@@ -184,6 +193,11 @@ int SrsQueueRecvThread::handle(SrsMessage* msg)
     queue.push_back(msg);
 
     return ERROR_SUCCESS;
+}
+
+void SrsQueueRecvThread::on_recv_error(int ret)
+{
+    recv_error_code = ret;
 }
 
 SrsPublishRecvThread::SrsPublishRecvThread(
@@ -253,4 +267,9 @@ int SrsPublishRecvThread::handle(SrsMessage* msg)
 
     // TODO: FIXME: implements it.
     return ret;
+}
+
+void SrsPublishRecvThread::on_recv_error(int ret)
+{
+    recv_error_code = ret;
 }

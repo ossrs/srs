@@ -49,16 +49,20 @@ public:
     virtual ~ISrsMessageHandler();
 public:
     /**
-     * whether the handler can handle,
-     * for example, when queue recv handler got an message,
-     * it wait the user to process it, then the recv thread
-     * never recv message util the handler is ok.
-     */
+    * whether the handler can handle,
+    * for example, when queue recv handler got an message,
+    * it wait the user to process it, then the recv thread
+    * never recv message util the handler is ok.
+    */
     virtual bool can_handle() = 0;
     /**
-     * process the received message.
-     */
+    * process the received message.
+    */
     virtual int handle(SrsMessage* msg) = 0;
+    /**
+    * when recv message error.
+    */
+    virtual void on_recv_error(int ret) = 0;
 };
 
 /**
@@ -95,6 +99,8 @@ class SrsQueueRecvThread : public ISrsMessageHandler
 private:
     std::vector<SrsMessage*> queue;
     SrsRecvThread trd;
+    // the recv thread error code.
+    int recv_error_code;
 public:
     SrsQueueRecvThread(SrsRtmpServer* rtmp_sdk, int timeout_ms);
     virtual ~SrsQueueRecvThread();
@@ -105,9 +111,11 @@ public:
     virtual bool empty();
     virtual int size();
     virtual SrsMessage* pump();
+    virtual int error_code();
 public:
     virtual bool can_handle();
     virtual int handle(SrsMessage* msg);
+    virtual void on_recv_error(int ret);
 };
 
 /**
@@ -139,6 +147,7 @@ public:
 public:
     virtual bool can_handle();
     virtual int handle(SrsMessage* msg);
+    virtual void on_recv_error(int ret);
 };
 
 #endif

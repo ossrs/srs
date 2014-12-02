@@ -558,11 +558,19 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
             srs_verbose("pump client message to process.");
             
             if ((ret = process_play_control_msg(consumer, msg)) != ERROR_SUCCESS) {
-                if (!srs_is_system_control_error(ret)) {
+                if (!srs_is_system_control_error(ret) && !srs_is_client_gracefully_close(ret)) {
                     srs_error("process play control message failed. ret=%d", ret);
                 }
                 return ret;
             }
+        }
+        
+        // quit when recv thread error.
+        if ((ret = trd->error_code()) != ERROR_SUCCESS) {
+            if (!srs_is_client_gracefully_close(ret)) {
+                srs_error("recv thread failed. ret=%d", ret);
+            }
+            return ret;
         }
         
         // collect elapse for pithy print.
@@ -744,6 +752,9 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
 
             // check the thread error code.
             if ((ret = trd->error_code()) != ERROR_SUCCESS) {
+                if (!srs_is_client_gracefully_close(ret)) {
+                    srs_error("recv thread failed. ret=%d", ret);
+                }
                 return ret;
             }
         }
