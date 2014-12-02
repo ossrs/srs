@@ -750,9 +750,9 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
 
     int64_t nb_msgs = 0;
     while (true) {
-        // use small loop to check the error code, interval = 30s/100 = 300ms.
-        for (int i = 0; i < 100; i++) {
-            st_usleep(SRS_CONSTS_RTMP_RECV_TIMEOUT_US / 100);
+        // use small loop to check the error code, interval = 30s/43 = 697ms.
+        for (int i = 0; i < 43; i++) {
+            st_usleep(SRS_CONSTS_RTMP_RECV_TIMEOUT_US / 43);
 
             // check the thread error code.
             if ((ret = trd->error_code()) != ERROR_SUCCESS) {
