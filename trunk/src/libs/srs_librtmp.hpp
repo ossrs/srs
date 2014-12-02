@@ -608,7 +608,6 @@ extern srs_amf0_t srs_amf0_create_ecma_array();
 extern srs_amf0_t srs_amf0_create_strict_array();
 extern srs_amf0_t srs_amf0_create_object();
 extern void srs_amf0_free(srs_amf0_t amf0);
-extern void srs_amf0_free_bytes(char* data);
 /* size and to bytes */
 extern int srs_amf0_size(srs_amf0_t amf0);
 extern int srs_amf0_serialize(srs_amf0_t amf0, char* data, int size);

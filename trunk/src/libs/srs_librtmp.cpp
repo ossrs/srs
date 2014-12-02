@@ -1743,11 +1743,6 @@ void srs_amf0_free(srs_amf0_t amf0)
     srs_freep(any);
 }
 
-void srs_amf0_free_bytes(char* data)
-{
-    srs_freep(data);
-}
-
 int srs_amf0_size(srs_amf0_t amf0)
 {
     SrsAmf0Any* any = (SrsAmf0Any*)amf0;
@@ -2389,7 +2384,7 @@ int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int 
             
             char* amf0_str = NULL;
             srs_human_raw("%s", srs_human_amf0_print(amf0, &amf0_str, NULL));
-            srs_amf0_free_bytes(amf0_str);
+            srs_freep(amf0_str);
         }
     } else {
         srs_human_trace("Unknown packet type=%s, dts=%d, pts=%d, size=%d", 
