@@ -26,7 +26,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 
-#define SOCKET_READ_SIZE 4096
+// 4096=4KB
+// 16384=16KB
+// 65536=64KB
+#define SOCKET_READ_SIZE 16384
 
 ISrsBufferReader::ISrsBufferReader()
 {
@@ -38,10 +41,13 @@ ISrsBufferReader::~ISrsBufferReader()
 
 SrsBuffer::SrsBuffer()
 {
+    merge_chunks_in_big_buffer = false;
+    buffer = new char[SOCKET_READ_SIZE];
 }
 
 SrsBuffer::~SrsBuffer()
 {
+    srs_freep(buffer);
 }
 
 int SrsBuffer::length()
@@ -88,11 +94,15 @@ int SrsBuffer::grow(ISrsBufferReader* reader, int required_size)
     }
 
     while (length() < required_size) {
-        char buffer[SOCKET_READ_SIZE];
-        
         ssize_t nread;
-        if ((ret = reader->read(buffer, SOCKET_READ_SIZE, &nread)) != ERROR_SUCCESS) {
-            return ret;
+        if (merge_chunks_in_big_buffer) {
+            if ((ret = reader->read_fully(buffer, SOCKET_READ_SIZE, &nread)) != ERROR_SUCCESS) {
+                return ret;
+            }
+        } else {
+            if ((ret = reader->read(buffer, SOCKET_READ_SIZE, &nread)) != ERROR_SUCCESS) {
+                return ret;
+            }
         }
         
         srs_assert((int)nread > 0);
@@ -100,6 +110,11 @@ int SrsBuffer::grow(ISrsBufferReader* reader, int required_size)
     }
     
     return ret;
+}
+
+void SrsBuffer::set_merge_chunks(bool v)
+{
+    merge_chunks_in_big_buffer = v;
 }
 
 

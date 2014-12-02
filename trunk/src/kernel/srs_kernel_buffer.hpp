@@ -42,7 +42,16 @@ public:
     virtual ~ISrsBufferReader();
 // for protocol/amf0/msg-codec
 public:
+    /**
+    * read some bytes of data.
+    * @param nread, the actually read size, NULL to ignore.
+    */
     virtual int read(void* buf, size_t size, ssize_t* nread) = 0;
+    /**
+    * read specified size bytes of data
+    * @param nread, the actually read size, NULL to ignore.
+    */
+    virtual int read_fully(void* buf, size_t size, ssize_t* nread) = 0;
 };
 
 /**
@@ -53,6 +62,15 @@ class SrsBuffer
 {
 private:
     std::vector<char> data;
+    /**
+    * notice the protocol stack to merge chunks to big buffer.
+    * for example, the buffer is 64KB=512kb, it's 1s buffer for 500kbps video stream.
+    * so we can use read_fullly(64KB) to merge all chunks in 1s.
+    * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+    */
+    bool merge_chunks_in_big_buffer;
+    // the socket recv buffer.
+    char* buffer;
 public:
     SrsBuffer();
     virtual ~SrsBuffer();
@@ -89,6 +107,14 @@ public:
     * @remark, we actually maybe read more than required_size, maybe 4k for example.
     */
     virtual int grow(ISrsBufferReader* reader, int required_size);
+public:
+    /**
+    * notice the protocol stack to merge chunks to big buffer.
+    * for example, the buffer is 64KB=512kb, it's 1s buffer for 500kbps video stream.
+    * so we can use read_fullly(64KB) to merge all chunks in 1s.
+    * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+    */
+    virtual void set_merge_chunks(bool v);
 };
 
 #endif

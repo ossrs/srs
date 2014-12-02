@@ -288,10 +288,16 @@ void SrsPublishRecvThread::on_thread_start()
 {
     // we donot set the auto response to false,
     // for the main thread never send message.
+
+    // notice the protocol stack to merge chunks to big buffer.
+    // for example, the buffer is 64KB=512kb, it's 1s buffer for 500kbps video stream.
+    // so we can use read_fullly(64KB) to merge all chunks in 1s.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+    rtmp->set_merge_chunks(true);
 }
 
 void SrsPublishRecvThread::on_thread_stop()
 {
-    // we donot set the auto response to true,
-    // for we donot set to false yet.
+    // revert state
+    rtmp->set_merge_chunks(false);
 }

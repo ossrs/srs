@@ -199,6 +199,11 @@ int MockBufferReader::read(void* buf, size_t size, ssize_t* nread)
     return ERROR_SUCCESS;
 }
 
+int MockBufferReader::read_fully(void* buf, size_t size, ssize_t* nread)
+{
+    return read(buf, size, nread);
+}
+
 #ifdef ENABLE_UTEST_KERNEL
 
 VOID TEST(KernelBufferTest, DefaultObject)

@@ -343,6 +343,13 @@ public:
     */
     virtual void set_auto_response(bool v);
     /**
+    * notice the protocol stack to merge chunks to big buffer.
+    * for example, the buffer is 64KB=512kb, it's 1s buffer for 500kbps video stream.
+    * so we can use read_fullly(64KB) to merge all chunks in 1s.
+    * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+    */
+    virtual void set_merge_chunks(bool v);
+    /**
     * set/get the recv timeout in us.
     * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.
     */

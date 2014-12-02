@@ -478,6 +478,11 @@ int SrsProtocol::manual_response_flush()
     return ret;
 }
 
+void SrsProtocol::set_merge_chunks(bool v)
+{
+    in_buffer->set_merge_chunks(v);
+}
+
 void SrsProtocol::set_recv_timeout(int64_t timeout_us)
 {
     return skt->set_recv_timeout(timeout_us);
