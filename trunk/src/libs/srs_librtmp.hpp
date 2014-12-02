@@ -930,6 +930,93 @@ extern const char* srs_human_format_time();
 #define srs_human_verbose(msg, ...) printf("[%s] ", srs_human_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
 #define srs_human_raw(msg, ...) printf(msg, ##__VA_ARGS__)
 
+/*************************************************************
+**************************************************************
+* IO hijack, use your specified io functions.
+**************************************************************
+*************************************************************/
+// the void* will convert to your handler for io hijack.
+typedef void* srs_hijack_io_t;
+// define the following macro and functions in your module to hijack the io.
+// the example @see https://github.com/winlinvip/st-load
+// which use librtmp but use its own io(use st also).
+#ifdef SRS_HIJACK_IO
+    /**
+    * create hijack.
+    * @return NULL for error; otherwise, ok.
+    */
+    extern srs_hijack_io_t srs_hijack_io_create();
+    /**
+    * destroy the context, user must close the socket.
+    */
+    extern void srs_hijack_io_destroy(srs_hijack_io_t ctx);
+    /**
+    * create socket, not connect yet.
+    * @return 0, success; otherswise, failed.
+    */
+    extern int srs_hijack_io_create_socket(srs_hijack_io_t ctx);
+    /**
+    * connect socket at server_ip:port.
+    * @return 0, success; otherswise, failed.
+    */
+    extern int srs_hijack_io_connect(srs_hijack_io_t ctx, const char* server_ip, int port);
+    /**
+    * read from socket.
+    * @return 0, success; otherswise, failed.
+    */
+    extern int srs_hijack_io_read(srs_hijack_io_t ctx, void* buf, size_t size, ssize_t* nread);
+    /**
+    * set the socket recv timeout.
+    * @return 0, success; otherswise, failed.
+    */
+    extern void srs_hijack_io_set_recv_timeout(srs_hijack_io_t ctx, int64_t timeout_us);
+    /**
+    * get the socket recv timeout.
+    * @return 0, success; otherswise, failed.
+    */
+    extern int64_t srs_hijack_io_get_recv_timeout(srs_hijack_io_t ctx);
+    /**
+    * get the socket recv bytes.
+    * @return 0, success; otherswise, failed.
+    */
+    extern int64_t srs_hijack_io_get_recv_bytes(srs_hijack_io_t ctx);
+    /**
+    * set the socket send timeout.
+    * @return 0, success; otherswise, failed.
+    */
+    extern void srs_hijack_io_set_send_timeout(srs_hijack_io_t ctx, int64_t timeout_us);
+    /**
+    * get the socket send timeout.
+    * @return 0, success; otherswise, failed.
+    */
+    extern int64_t srs_hijack_io_get_send_timeout(srs_hijack_io_t ctx);
+    /**
+    * get the socket send bytes.
+    * @return 0, success; otherswise, failed.
+    */
+    extern int64_t srs_hijack_io_get_send_bytes(srs_hijack_io_t ctx);
+    /**
+    * writev of socket.
+    * @return 0, success; otherswise, failed.
+    */
+    extern int srs_hijack_io_writev(srs_hijack_io_t ctx, const iovec *iov, int iov_size, ssize_t* nwrite);
+    /**
+    * whether the timeout is never timeout.
+    * @return 0, success; otherswise, failed.
+    */
+    extern bool srs_hijack_io_is_never_timeout(srs_hijack_io_t ctx, int64_t timeout_us);
+    /**
+    * read fully, fill the buf exactly size bytes.
+    * @return 0, success; otherswise, failed.
+    */
+    extern int srs_hijack_io_read_fully(srs_hijack_io_t ctx, void* buf, size_t size, ssize_t* nread);
+    /**
+    * write bytes to socket.
+    * @return 0, success; otherswise, failed.
+    */
+    extern int srs_hijack_io_write(srs_hijack_io_t ctx, void* buf, size_t size, ssize_t* nwrite);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

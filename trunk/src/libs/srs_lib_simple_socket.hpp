@@ -32,7 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_protocol_io.hpp>
 #include <srs_librtmp.hpp>
-    
+
 /**
 * simple socket stream,
 * use tcp socket, sync block mode, for client like srs-librtmp.
@@ -40,11 +40,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SimpleSocketStream : public ISrsProtocolReaderWriter
 {
 private:
-    int64_t recv_timeout;
-    int64_t send_timeout;
-    int64_t recv_bytes;
-    int64_t send_bytes;
-    SOCKET fd;
+    srs_hijack_io_t io;
 public:
     SimpleSocketStream();
     virtual ~SimpleSocketStream();

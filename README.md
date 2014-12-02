@@ -485,6 +485,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2014-12-02, srs-librtmp support hijack io apis for st-load. 2.0.42.
 * v2.0, 2014-12-01, for [#237](https://github.com/winlinvip/simple-rtmp-server/issues/237), refine syscall for recv, supports 1.5k clients. 2.0.41.
 * v2.0, 2014-11-30, add qtcreate project file trunk/src/qt/srs/srs-qt.pro. 2.0.39.
 * v2.0, 2014-11-29, fix [#235](https://github.com/winlinvip/simple-rtmp-server/issues/235), refine handshake, replace union with template method. 2.0.38.
