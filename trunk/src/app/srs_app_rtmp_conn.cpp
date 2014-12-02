@@ -242,6 +242,18 @@ int SrsRtmpConn::service_cycle()
         return bandwidth->bandwidth_check(rtmp, skt, req, local_ip);
     }
     
+    // do token traverse before serve it.
+    // @see https://github.com/winlinvip/simple-rtmp-server/pull/239
+    bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
+    bool edge_traverse = _srs_config->get_vhost_edge_token_traverse(req->vhost);
+    if (vhost_is_edge && edge_traverse) {
+        if ((ret = check_edge_token_traverse_auth()) != ERROR_SUCCESS) {
+            srs_warn("token auth failed, ret=%d", ret);
+            return ret;
+        }
+    }
+    
+    // response the client connect ok.
     if ((ret = rtmp->response_connect_app(req, local_ip.c_str())) != ERROR_SUCCESS) {
         srs_error("response connect app failed. ret=%d", ret);
         return ret;
@@ -324,15 +336,7 @@ int SrsRtmpConn::stream_service_cycle()
     }
     srs_info("set chunk_size=%d success", chunk_size);
     
-    // do token traverse before serve it.
     bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
-    bool edge_traverse = _srs_config->get_vhost_edge_token_traverse(req->vhost);
-    if (vhost_is_edge && edge_traverse) {
-        if ((ret = check_edge_token_traverse_auth()) != ERROR_SUCCESS) {
-            srs_warn("token auth failed, ret=%d", ret);
-            return ret;
-        }
-    }
     
     // find a source to serve.
     SrsSource* source = NULL;

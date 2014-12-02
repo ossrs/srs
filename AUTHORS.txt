@@ -20,3 +20,4 @@ CONTRIBUTORS ordered by first contribution.
 * karthikeyan<keyanmca@gmail.com> "Bug fixed"
 * StevenLiu<lq@chinaffmpeg.org> "Build SRS on Darwin OSX"
 * zhengfl<zhengfl_1989@126.com> "Bug fixed"
+* tufang14<breadbean1449@gmail.com> "Bug fixed"
