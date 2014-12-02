@@ -63,6 +63,12 @@ public:
     * when recv message error.
     */
     virtual void on_recv_error(int ret) = 0;
+    /**
+    * when thread start or stop, 
+    * for example, the message handler can set whether auto response.
+    */
+    virtual void on_thread_start() = 0;
+    virtual void on_thread_stop() = 0;
 };
 
 /**
@@ -99,6 +105,7 @@ class SrsQueueRecvThread : public ISrsMessageHandler
 private:
     std::vector<SrsMessage*> queue;
     SrsRecvThread trd;
+    SrsRtmpServer* rtmp;
     // the recv thread error code.
     int recv_error_code;
 public:
@@ -116,6 +123,9 @@ public:
     virtual bool can_handle();
     virtual int handle(SrsMessage* msg);
     virtual void on_recv_error(int ret);
+public:
+    virtual void on_thread_start();
+    virtual void on_thread_stop();
 };
 
 /**
@@ -126,6 +136,7 @@ class SrsPublishRecvThread : public ISrsMessageHandler
 {
 private:
     SrsRecvThread trd;
+    SrsRtmpServer* rtmp;
     // the msgs already got.
     int64_t _nb_msgs;
     // the recv thread error code.
@@ -148,6 +159,9 @@ public:
     virtual bool can_handle();
     virtual int handle(SrsMessage* msg);
     virtual void on_recv_error(int ret);
+public:
+    virtual void on_thread_start();
+    virtual void on_thread_stop();
 };
 
 #endif

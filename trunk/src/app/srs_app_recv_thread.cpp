@@ -106,25 +106,22 @@ void SrsRecvThread::on_thread_start()
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/194
     // @see: https://github.com/winlinvip/simple-rtmp-server/issues/217
     rtmp->set_recv_timeout(ST_UTIME_NO_TIMEOUT);
-
-    // disable the protocol auto response,
-    // for the isolate recv thread should never send any messages.
-    rtmp->set_auto_response(false);
+    
+    handler->on_thread_start();
 }
 
 void SrsRecvThread::on_thread_stop()
 {
-    // enable the protocol auto response,
-    // for the isolate recv thread terminated.
-    rtmp->set_auto_response(true);
-
     // reset the timeout to pulse mode.
     rtmp->set_recv_timeout(timeout * 1000);
+    
+    handler->on_thread_stop();
 }
 
 SrsQueueRecvThread::SrsQueueRecvThread(SrsRtmpServer* rtmp_sdk, int timeout_ms)
     : trd(this, rtmp_sdk, timeout_ms)
 {
+    rtmp = rtmp_sdk;
     recv_error_code = ERROR_SUCCESS;
 }
 
@@ -200,11 +197,26 @@ void SrsQueueRecvThread::on_recv_error(int ret)
     recv_error_code = ret;
 }
 
+void SrsQueueRecvThread::on_thread_start()
+{
+    // disable the protocol auto response,
+    // for the isolate recv thread should never send any messages.
+    rtmp->set_auto_response(false);
+}
+
+void SrsQueueRecvThread::on_thread_stop()
+{
+    // enable the protocol auto response,
+    // for the isolate recv thread terminated.
+    rtmp->set_auto_response(true);
+}
+
 SrsPublishRecvThread::SrsPublishRecvThread(
     SrsRtmpServer* rtmp_sdk, int timeout_ms,
     SrsRtmpConn* conn, SrsSource* source, bool is_fmle, bool is_edge
 ): trd(this, rtmp_sdk, timeout_ms)
 {
+    rtmp = rtmp_sdk;
     _conn = conn;
     _source = source;
     _is_fmle = is_fmle;
@@ -272,4 +284,16 @@ int SrsPublishRecvThread::handle(SrsMessage* msg)
 void SrsPublishRecvThread::on_recv_error(int ret)
 {
     recv_error_code = ret;
+}
+
+void SrsPublishRecvThread::on_thread_start()
+{
+    // we donot set the auto response to false,
+    // for the main thread never send message.
+}
+
+void SrsPublishRecvThread::on_thread_stop()
+{
+    // we donot set the auto response to true,
+    // for we donot set to false yet.
 }
