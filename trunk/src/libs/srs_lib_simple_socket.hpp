@@ -50,6 +50,7 @@ public:
     SimpleSocketStream();
     virtual ~SimpleSocketStream();
 public:
+    virtual srs_hijack_io_t hijack_io();
     virtual int create_socket();
     virtual int connect(const char* server, int port);
 // ISrsBufferReader

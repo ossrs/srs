@@ -290,6 +290,11 @@ SimpleSocketStream::~SimpleSocketStream()
     }
 }
 
+srs_hijack_io_t SimpleSocketStream::hijack_io()
+{
+    return io;
+}
+
 int SimpleSocketStream::create_socket()
 {
     srs_assert(io);

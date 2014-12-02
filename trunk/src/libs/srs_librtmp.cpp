@@ -534,7 +534,10 @@ srs_rtmp_t srs_rtmp_create2(const char* url)
 
 void srs_rtmp_destroy(srs_rtmp_t rtmp)
 {
-    srs_assert(rtmp != NULL);
+    if (!rtmp) {
+        return;
+    }
+    
     Context* context = (Context*)rtmp;
     
     srs_freep(context);
@@ -2423,6 +2426,23 @@ const char* srs_human_format_time()
     
     return buf;
 }
+
+
+#ifdef SRS_HIJACK_IO
+srs_hijack_io_t srs_hijack_io_get(srs_rtmp_t rtmp)
+{
+    if (!rtmp) {
+        return NULL;
+    }
+    
+    Context* context = (Context*)rtmp;
+    if (!context->skt) {
+        return NULL;
+    }
+    
+    return context->skt->hijack_io();
+}
+#endif
 
 #ifdef __cplusplus
 }
