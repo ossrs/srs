@@ -129,9 +129,9 @@ public:
 };
 
 /**
- * the publish recv thread got message and callback the source method to process message.
+* the publish recv thread got message and callback the source method to process message.
 * @see: https://github.com/winlinvip/simple-rtmp-server/issues/237
- */
+*/
 class SrsPublishRecvThread : public ISrsMessageHandler
 {
 private:
