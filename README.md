@@ -372,7 +372,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
-* v1.0, 2014-11-13, hotfix [#239](https://github.com/winlinvip/simple-rtmp-server/pull/239), traverse the token before response connect. 1.0.10.
+* v1.0, 2014-12-02, hotfix [#239](https://github.com/winlinvip/simple-rtmp-server/pull/239), traverse the token before response connect. 1.0.10.
 * v1.0, 2014-11-25, update PRIMARY, AUTHORS, CONTRIBUTORS of SRS. 1.0.8.
 * v1.0, 2014-11-18, all wiki translated to English. 1.0.7.
 * v1.0, 2014-11-13, hotfix [#200](https://github.com/winlinvip/simple-rtmp-server/issues/200), deadloop when read/write 0 and ETIME. 1.0.6.
