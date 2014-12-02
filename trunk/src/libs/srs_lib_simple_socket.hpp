@@ -33,6 +33,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_io.hpp>
 #include <srs_librtmp.hpp>
 
+// for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
+#ifndef _WIN32
+    #define SOCKET int
+#endif
+
 /**
 * simple socket stream,
 * use tcp socket, sync block mode, for client like srs-librtmp.
