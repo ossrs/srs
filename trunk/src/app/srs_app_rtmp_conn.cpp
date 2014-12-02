@@ -500,7 +500,8 @@ int SrsRtmpConn::playing(SrsSource* source)
     
     // use isolate thread to recv, 
     // @see: https://github.com/winlinvip/simple-rtmp-server/issues/217
-    SrsQueueRecvThread trd(rtmp, SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
+    SrsQueueRecvThread trd(rtmp, 
+        SRS_CONSTS_RTMP_PULSE_TIMEOUT_US / 1000);
     
     // start isolate recv thread.
     if ((ret = trd.start()) != ERROR_SUCCESS) {
@@ -646,7 +647,9 @@ int SrsRtmpConn::fmle_publishing(SrsSource* source)
 
     // use isolate thread to recv,
     // @see: https://github.com/winlinvip/simple-rtmp-server/issues/237
-    SrsPublishRecvThread trd(rtmp, SRS_CONSTS_RTMP_RECV_TIMEOUT_US, this, source, true, vhost_is_edge);
+    SrsPublishRecvThread trd(rtmp, 
+        SRS_CONSTS_RTMP_RECV_TIMEOUT_US / 1000, 
+        this, source, true, vhost_is_edge);
 
     srs_info("start to publish stream %s success", req->stream.c_str());
     ret = do_publishing(source, &trd);
@@ -680,7 +683,9 @@ int SrsRtmpConn::flash_publishing(SrsSource* source)
 
     // use isolate thread to recv,
     // @see: https://github.com/winlinvip/simple-rtmp-server/issues/237
-    SrsPublishRecvThread trd(rtmp, SRS_CONSTS_RTMP_RECV_TIMEOUT_US, this, source, false, vhost_is_edge);
+    SrsPublishRecvThread trd(rtmp, 
+        SRS_CONSTS_RTMP_RECV_TIMEOUT_US / 1000, 
+        this, source, false, vhost_is_edge);
 
     srs_info("start to publish stream %s success", req->stream.c_str());
     ret = do_publishing(source, &trd);
@@ -735,7 +740,7 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
     while (true) {
         // use small loop to check the error code, interval = 30s/100 = 300ms.
         for (int i = 0; i < 100; i++) {
-            st_usleep(SRS_CONSTS_RTMP_RECV_TIMEOUT_US * 1000 / 100);
+            st_usleep(SRS_CONSTS_RTMP_RECV_TIMEOUT_US / 100);
 
             // check the thread error code.
             if ((ret = trd->error_code()) != ERROR_SUCCESS) {
