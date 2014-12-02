@@ -926,9 +926,13 @@ extern int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* dat
 
 // log to console, for use srs-librtmp application.
 extern const char* srs_human_format_time();
-#define srs_human_trace(msg, ...) printf("[%s] ", srs_human_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
-#define srs_human_verbose(msg, ...) printf("[%s] ", srs_human_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
-#define srs_human_raw(msg, ...) printf(msg, ##__VA_ARGS__)
+
+// when hijack the log, user will defines this macros.
+#ifndef SRS_HIJACK_LOG
+    #define srs_human_trace(msg, ...) printf("[%s] ", srs_human_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
+    #define srs_human_verbose(msg, ...) printf("[%s] ", srs_human_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
+    #define srs_human_raw(msg, ...) printf(msg, ##__VA_ARGS__)
+#endif
 
 /*************************************************************
 **************************************************************

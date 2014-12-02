@@ -48,12 +48,9 @@ using namespace std;
 #include <srs_kernel_file.hpp>
 #include <srs_lib_bandwidth.hpp>
 
-// if want to use your log, define the folowing macro.
-#ifndef SRS_HIJACK_LOG
-    // kernel module.
-    ISrsLog* _srs_log = new ISrsLog();
-    ISrsThreadContext* _srs_context = new ISrsThreadContext();
-#endif
+// kernel module.
+ISrsLog* _srs_log = new ISrsLog();
+ISrsThreadContext* _srs_context = new ISrsThreadContext();
 
 /**
 * export runtime context.
