@@ -43,16 +43,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 | IBufferReader |     |    IStatistic      |      | IBufferWriter |
 +---------------+     +--------------------+      +---------------+
 | + read()      |     | + get_recv_bytes() |      | + write()     |
-| + readfully() |     | + get_recv_bytes() |      | + writev()    |
-+------+--------+     +---+--------------+-+      +-------+-------+
-      / \                / \            / \              / \
++------+--------+     | + get_recv_bytes() |      | + writev()    |
+      / \             +---+--------------+-+      +-------+-------+
+       |                 / \            / \              / \
        |                  |              |                |
 +------+------------------+-+      +-----+----------------+--+
 | IProtocolReader           |      | IProtocolWriter         |
 +---------------------------+      +-------------------------+
-| + set_recv_timeout()      |      | + set_send_timeout()    |
-+------------+--------------+      +-------+-----------------+
-            / \                           / \     
+| + readfully()             |      | + set_send_timeout()    |
+| + set_recv_timeout()      |      +-------+-----------------+
++------------+--------------+             / \     
+            / \                            |   
              |                             | 
           +--+-----------------------------+-+
           |       IProtocolReaderWriter      |
@@ -122,6 +123,13 @@ public:
     * get the recv timeout in us.
     */
     virtual int64_t get_recv_timeout() = 0;
+// for handshake.
+public:
+    /**
+    * read specified size bytes of data
+    * @param nread, the actually read size, NULL to ignore.
+    */
+    virtual int read_fully(void* buf, size_t size, ssize_t* nread) = 0;
 };
 
 /**

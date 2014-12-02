@@ -42,7 +42,6 @@ public:
     virtual ~MockBufferReader();
 public:
     virtual int read(void* buf, size_t size, ssize_t* nread);
-    virtual int read_fully(void* buf, size_t size, ssize_t* nread);
 };
 
 class MockSrsFileWriter : public SrsFileWriter
