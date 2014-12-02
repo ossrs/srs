@@ -28,6 +28,19 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_librtmp.h>
 */
 
+/**
+* srs-librtmp is a librtmp like library,
+* used to play/publish rtmp stream from/to rtmp server.
+* socket: use sync and block socket to connect/recv/send data with server.
+* depends: no need other libraries; depends on ssl if use srs_complex_handshake.
+* thread-safe: no
+*/
+
+/*************************************************************
+**************************************************************
+* Windows SRS-LIBRTMP pre-declare
+**************************************************************
+*************************************************************/
 // for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
 #ifdef _WIN32
     // include windows first.
@@ -49,14 +62,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #include <sys/types.h>
-
-/**
-* srs-librtmp is a librtmp like library,
-* used to play/publish rtmp stream from/to rtmp server.
-* socket: use sync and block socket to connect/recv/send data with server.
-* depends: no need other libraries; depends on ssl if use srs_complex_handshake.
-* thread-safe: no
-*/
 
 #ifdef __cplusplus
 extern "C"{
