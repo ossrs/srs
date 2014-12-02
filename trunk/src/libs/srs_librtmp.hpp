@@ -926,8 +926,12 @@ extern int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* dat
 // log to console, for use srs-librtmp application.
 extern const char* srs_human_format_time();
 
-// when hijack the log, user will defines this macros.
-#ifndef SRS_HIJACK_LOG
+// when disabled log, donot compile it.
+#ifdef SRS_DISABLE_LOG
+    #define srs_human_trace(msg, ...) (void)0
+    #define srs_human_verbose(msg, ...) (void)0
+    #define srs_human_raw(msg, ...) (void)0
+#else
     #define srs_human_trace(msg, ...) printf("[%s] ", srs_human_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
     #define srs_human_verbose(msg, ...) printf("[%s] ", srs_human_format_time());printf(msg, ##__VA_ARGS__);printf("\n")
     #define srs_human_raw(msg, ...) printf(msg, ##__VA_ARGS__)
@@ -944,6 +948,10 @@ typedef void* srs_hijack_io_t;
 // the example @see https://github.com/winlinvip/st-load
 // which use librtmp but use its own io(use st also).
 #ifdef SRS_HIJACK_IO
+    #ifndef _WIN32
+        // for iovec.
+        #include <sys/uio.h>
+    #endif
     /**
     * create hijack.
     * @return NULL for error; otherwise, ok.
