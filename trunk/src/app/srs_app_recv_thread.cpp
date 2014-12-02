@@ -66,29 +66,35 @@ int SrsRecvThread::cycle()
 {
     int ret = ERROR_SUCCESS;
 
-    if (!handler->can_handle()) {
-        st_usleep(timeout * 1000);
-        return ret;
-    }
-
-    SrsMessage* msg = NULL;
-
-    if ((ret = rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
-        if (!srs_is_client_gracefully_close(ret)) {
-            srs_error("recv client control message failed. ret=%d", ret);
+    while (trd->can_loop()) {
+        if (!handler->can_handle()) {
+            st_usleep(timeout * 1000);
+            continue;
         }
-
-        // we use no timeout to recv, should never got any error.
-        trd->stop_loop();
+    
+        SrsMessage* msg = NULL;
         
-        // notice the handler got a recv error.
-        handler->on_recv_error(ret);
-
-        return ret;
+        // recv and handle message
+        ret = rtmp->recv_message(&msg);
+        if (ret == ERROR_SUCCESS) {
+            ret = handler->handle(msg);
+        }
+    
+        if (ret != ERROR_SUCCESS) {
+            if (!srs_is_client_gracefully_close(ret)) {
+                srs_error("thread process message failed. ret=%d", ret);
+            }
+    
+            // we use no timeout to recv, should never got any error.
+            trd->stop_loop();
+            
+            // notice the handler got a recv error.
+            handler->on_recv_error(ret);
+    
+            return ret;
+        }
+        srs_verbose("thread loop recv message. ret=%d", ret);
     }
-    srs_verbose("play loop recv message. ret=%d", ret);
-
-    handler->handle(msg);
 
     return ret;
 }
@@ -263,21 +269,13 @@ int SrsPublishRecvThread::handle(SrsMessage* msg)
 
     _nb_msgs++;
 
-    // the rtmp connection will handle this message,
-    // quit the thread loop when error.
-    recv_error_code = ret = _conn->handle_publish_message(_source, msg, _is_fmle, _is_edge);
-
-    // when error, use stop loop to terminate the thread normally,
-    // for we are in the thread loop now, and should never use stop() to terminate it.
-    if (ret != ERROR_SUCCESS) {
-        trd.stop_loop();
-    }
+    // the rtmp connection will handle this message
+    ret = _conn->handle_publish_message(_source, msg, _is_fmle, _is_edge);
 
     // must always free it,
     // the source will copy it if need to use.
     srs_freep(msg);
-
-    // TODO: FIXME: implements it.
+    
     return ret;
 }
 
