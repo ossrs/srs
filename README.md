@@ -706,6 +706,9 @@ Supported operating systems and hardware:
 
 Performance benchmark history, on virtual box.
 
+* See also: [Performance for x86/x64 Test Guide](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Performance)
+* See also: [Performance for RaspberryPi](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_RaspberryPi)
+
 ### Play benchmark
 
 The play benchmark by st-load:
@@ -718,10 +721,7 @@ The play benchmark by st-load:
 * 2014-11-12, SRS 2.0.14,  2.7k(2700)clients, 69%CPU, 59MB.
 * 2014-11-12, SRS 2.0.14,  3.5k(3500)clients, 95%CPU, 78MB.
 * 2014-11-13, SRS 2.0.15,  6.0k(6000)clients, 82%CPU, 203MB.
-* 2014-11-22, SRS 2.0.30,  7.5k(7500)clients, 87%CPU, 320MB. 
-
-* See also: [Performance for x86/x64 Test Guide](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Performance)
-* See also: [Performance for RaspberryPi](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_RaspberryPi)
+* 2014-11-22, SRS 2.0.30,  7.5k(7500)clients, 87%CPU, 320MB.
 
 ### Publish benchmark
 
