@@ -148,7 +148,12 @@ void SrsBuffer::on_chunk_size(int32_t chunk_size)
         return;
     }
 
-    reset_buffer(chunk_size);
+    // limit the max buffer.
+    int buffer_size = srs_min(chunk_size, SOCKET_MAX_BUF);
+
+    if (buffer_size != nb_buffer) {
+        reset_buffer(buffer_size);
+    }
 
     if (_handler) {
         _handler->on_buffer_change(nb_buffer);
