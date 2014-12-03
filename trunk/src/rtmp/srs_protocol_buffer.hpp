@@ -34,6 +34,34 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_protocol_io.hpp>
 
+// 4KB=4096
+// 8KB=8192
+// 16KB=16384
+// 32KB=32768
+// 64KB=65536
+// @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+#define SOCKET_READ_SIZE 4096
+
+/**
+* to improve read performance, merge some packets then read,
+* when it on and read small bytes, we sleep to wait more data.,
+* that is, we merge some data to read together.
+* @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+*/
+class IMergeReadHandler
+{
+public:
+    IMergeReadHandler();
+    virtual ~IMergeReadHandler();
+public:
+    /**
+    * when read from channel, notice the merge handler to sleep for
+    * some small bytes.
+    * @remark, it only for server-side, client srs-librtmp just ignore.
+    */
+    virtual void on_read(ssize_t nread) = 0;
+};
+
 /**
 * the buffer provices bytes cache for protocol. generally, 
 * protocol recv data from socket, put into buffer, decode to RTMP message.
@@ -41,6 +69,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsBuffer
 {
 private:
+    // the merged handler
+    bool merged_read;
+    IMergeReadHandler* _handler;
+    // data and socket buffer
     std::vector<char> data;
     char* buffer;
 public:
@@ -79,6 +111,16 @@ public:
     * @remark, we actually maybe read more than required_size, maybe 4k for example.
     */
     virtual int grow(ISrsBufferReader* reader, int required_size);
+public:
+    /**
+    * to improve read performance, merge some packets then read,
+    * when it on and read small bytes, we sleep to wait more data.,
+    * that is, we merge some data to read together.
+    * @param v true to ename merged read.
+    * @param handler the handler when merge read is enabled.
+    * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+    */
+    virtual void set_merge_read(bool v, IMergeReadHandler* handler);
 };
 
 #endif

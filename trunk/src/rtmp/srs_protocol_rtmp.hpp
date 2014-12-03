@@ -46,6 +46,7 @@ class SrsPlayPacket;
 class SrsMessage;
 class SrsPacket;
 class SrsAmf0Object;
+class IMergeReadHandler;
 
 /**
 * the original request from client.
@@ -342,6 +343,15 @@ public:
     * @see: https://github.com/winlinvip/simple-rtmp-server/issues/217
     */
     virtual void set_auto_response(bool v);
+    /**
+    * to improve read performance, merge some packets then read,
+    * when it on and read small bytes, we sleep to wait more data.,
+    * that is, we merge some data to read together.
+    * @param v true to ename merged read.
+    * @param handler the handler when merge read is enabled.
+    * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+    */
+    virtual void set_merge_read(bool v, IMergeReadHandler* handler);
     /**
     * set/get the recv timeout in us.
     * if timeout, recv/send message return ERROR_SOCKET_TIMEOUT.

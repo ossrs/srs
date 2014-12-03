@@ -26,6 +26,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_rtmp.hpp>
 #include <srs_protocol_stack.hpp>
 #include <srs_app_rtmp_conn.hpp>
+#include <srs_protocol_buffer.hpp>
+
+// when we read from socket less than this value,
+// sleep a while to merge read.
+// @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+#define SRS_MERGED_READ_SIZE (SOCKET_READ_SIZE / 10)
+// the time to sleep to merge read, to read more bytes.
+#define SRS_MERGED_READ_US (300 * 1000)
 
 ISrsMessageHandler::ISrsMessageHandler()
 {
@@ -271,6 +279,30 @@ void SrsPublishRecvThread::stop()
     trd.stop();
 }
 
+void SrsPublishRecvThread::on_thread_start()
+{
+    // we donot set the auto response to false,
+    // for the main thread never send message.
+
+    // enable the merge read
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+    rtmp->set_merge_read(true, this);
+}
+
+void SrsPublishRecvThread::on_thread_stop()
+{
+    // we donot set the auto response to true,
+    // for we donot set to false yet.
+    
+    // when thread stop, signal the conn thread which wait.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/244
+    st_cond_signal(error);
+
+    // disable the merge read
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+    rtmp->set_merge_read(false, NULL);
+}
+
 bool SrsPublishRecvThread::can_handle()
 {
     // publish thread always can handle message.
@@ -302,18 +334,19 @@ void SrsPublishRecvThread::on_recv_error(int ret)
     st_cond_signal(error);
 }
 
-void SrsPublishRecvThread::on_thread_start()
+void SrsPublishRecvThread::on_read(ssize_t nread)
 {
-    // we donot set the auto response to false,
-    // for the main thread never send message.
-}
-
-void SrsPublishRecvThread::on_thread_stop()
-{
-    // we donot set the auto response to true,
-    // for we donot set to false yet.
+    if (nread < 0) {
+        return;
+    }
     
-    // when thread stop, signal the conn thread which wait.
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/244
-    st_cond_signal(error);
+    /**
+    * to improve read performance, merge some packets then read,
+    * when it on and read small bytes, we sleep to wait more data.,
+    * that is, we merge some data to read together.
+    * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+    */
+    if (nread < SRS_MERGED_READ_SIZE) {
+        st_usleep(SRS_MERGED_READ_US);
+    }
 }

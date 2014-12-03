@@ -33,6 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 
 #include <srs_app_thread.hpp>
+#include <srs_protocol_buffer.hpp>
 
 class SrsRtmpServer;
 class SrsMessage;
@@ -132,7 +133,7 @@ public:
 * the publish recv thread got message and callback the source method to process message.
 * @see: https://github.com/winlinvip/simple-rtmp-server/issues/237
 */
-class SrsPublishRecvThread : public ISrsMessageHandler
+class SrsPublishRecvThread : virtual public ISrsMessageHandler, virtual public IMergeReadHandler
 {
 private:
     SrsRecvThread trd;
@@ -163,13 +164,16 @@ public:
 public:
     virtual int start();
     virtual void stop();
+    virtual void on_thread_start();
+    virtual void on_thread_stop();
+// interface ISrsMessageHandler    
 public:
     virtual bool can_handle();
     virtual int handle(SrsMessage* msg);
     virtual void on_recv_error(int ret);
+// interface IMergeReadHandler
 public:
-    virtual void on_thread_start();
-    virtual void on_thread_stop();
+    virtual void on_read(ssize_t nread);
 };
 
 #endif
