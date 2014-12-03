@@ -27,13 +27,21 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_stack.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_protocol_buffer.hpp>
+#include <srs_kernel_utility.hpp>
 
 // when we read from socket less than this value,
 // sleep a while to merge read.
 // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
-#define SRS_MERGED_READ_SIZE(buffer) (buffer / 10)
-// the time to sleep to merge read, to read more bytes.
-#define SRS_MERGED_READ_US (300 * 1000)
+// use the bitrate in kbps to calc the max sleep time.
+#define SRS_MR_MAX_BITRATE_KBPS 10000
+#define SRS_MR_AVERAGE_BITRATE_KBPS 1000
+#define SRS_MR_MIN_BITRATE_KBPS 64
+// the max sleep time in ms
+#define SRS_MR_MAX_SLEEP_MS 3000
+// the max small bytes to group
+#define SRS_MR_SMALL_BYTES 64
+// the percent of buffer to set as small bytes
+#define SRS_MR_SMALL_PERCENT 100
 
 ISrsMessageHandler::ISrsMessageHandler()
 {
@@ -226,7 +234,7 @@ void SrsQueueRecvThread::on_thread_stop()
 }
 
 SrsPublishRecvThread::SrsPublishRecvThread(
-    SrsRtmpServer* rtmp_sdk, int timeout_ms,
+    SrsRtmpServer* rtmp_sdk, int fd, int timeout_ms,
     SrsRtmpConn* conn, SrsSource* source, bool is_fmle, bool is_edge
 ): trd(this, rtmp_sdk, timeout_ms)
 {
@@ -239,6 +247,10 @@ SrsPublishRecvThread::SrsPublishRecvThread(
     recv_error_code = ERROR_SUCCESS;
     _nb_msgs = 0;
     error = st_cond_new();
+
+    mr_fd = fd;
+    mr_small_bytes = 0;
+    mr_sleep_ms = 0;
 }
 
 SrsPublishRecvThread::~SrsPublishRecvThread()
@@ -284,9 +296,17 @@ void SrsPublishRecvThread::on_thread_start()
     // we donot set the auto response to false,
     // for the main thread never send message.
 
+    // 128KB recv buffer.
+    int nb_rbuf = 128 * 1024;
+    socklen_t sock_buf_size = sizeof(int);
+    if (setsockopt(mr_fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, sock_buf_size) < 0) {
+        srs_warn("set sock SO_RCVBUF=%d failed.", nb_rbuf);
+    }
+    getsockopt(mr_fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, &sock_buf_size);
+
     // enable the merge read
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
-    rtmp->set_merge_read(true, this);
+    rtmp->set_merge_read(true, nb_rbuf, this);
 }
 
 void SrsPublishRecvThread::on_thread_stop()
@@ -300,7 +320,7 @@ void SrsPublishRecvThread::on_thread_stop()
 
     // disable the merge read
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
-    rtmp->set_merge_read(false, NULL);
+    rtmp->set_merge_read(false, 0, NULL);
 }
 
 bool SrsPublishRecvThread::can_handle()
@@ -334,9 +354,9 @@ void SrsPublishRecvThread::on_recv_error(int ret)
     st_cond_signal(error);
 }
 
-void SrsPublishRecvThread::on_read(int nb_buffer, ssize_t nread)
+void SrsPublishRecvThread::on_read(ssize_t nread)
 {
-    if (nread < 0) {
+    if (nread < 0 || mr_sleep_ms <= 0) {
         return;
     }
     
@@ -346,7 +366,31 @@ void SrsPublishRecvThread::on_read(int nb_buffer, ssize_t nread)
     * that is, we merge some data to read together.
     * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
     */
-    if (nread < SRS_MERGED_READ_SIZE(nb_buffer)) {
-        st_usleep(SRS_MERGED_READ_US);
+    if (nread < mr_small_bytes) {
+        st_usleep(mr_sleep_ms * 1000);
     }
+}
+
+void SrsPublishRecvThread::on_buffer_change(int nb_buffer)
+{
+    // set percent.
+    mr_small_bytes = (int)(nb_buffer / SRS_MR_SMALL_PERCENT);
+    // select the smaller
+    mr_small_bytes = srs_min(mr_small_bytes, SRS_MR_SMALL_BYTES);
+
+    // the recv sleep is [buffer / max_kbps, buffer / min_kbps]
+    // for example, buffer is 256KB, max kbps is 10Mbps, min kbps is 10Kbps,
+    // the buffer is 256KB*8=2048Kb, which can provides sleep time in
+    //      min: 2038Kb/10Mbps=2038Kb/10Kbpms=203.8ms
+    //      max: 2038Kb/10Kbps=203.8s
+    // sleep = Xb * 8 / (N * 1000 b / 1000 ms) = (X * 8 / N) ms
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+    int min_sleep = (int)(nb_buffer * 8.0 / SRS_MR_MAX_BITRATE_KBPS);
+    int average_sleep = (int)(nb_buffer * 8.0 / SRS_MR_AVERAGE_BITRATE_KBPS);
+    int max_sleep = (int)(nb_buffer * 8.0 / SRS_MR_MIN_BITRATE_KBPS);
+    // 80% min, 16% average, 4% max.
+    mr_sleep_ms = (int)(min_sleep * 0.8 + average_sleep * 0.16 + max_sleep * 0.04);
+    mr_sleep_ms = srs_min(mr_sleep_ms, SRS_MR_MAX_SLEEP_MS);
+
+    srs_trace("merged read, buffer=%d, small=%d, sleep=%d", nb_buffer, mr_small_bytes, mr_sleep_ms);
 }

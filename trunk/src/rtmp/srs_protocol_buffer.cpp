@@ -112,7 +112,7 @@ int SrsBuffer::grow(ISrsBufferReader* reader, int required_size)
         * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
         */
         if (merged_read && _handler) {
-            _handler->on_read(nb_buffer, nread);
+            _handler->on_read(nread);
         }
         
         srs_assert((int)nread > 0);
@@ -122,10 +122,14 @@ int SrsBuffer::grow(ISrsBufferReader* reader, int required_size)
     return ret;
 }
 
-void SrsBuffer::set_merge_read(bool v, IMergeReadHandler* handler)
+void SrsBuffer::set_merge_read(bool v, int max_buffer, IMergeReadHandler* handler)
 {
     merged_read = v;
     _handler = handler;
+
+    if (v && max_buffer != nb_buffer) {
+        reset_buffer(max_buffer);
+    }
 }
 
 void SrsBuffer::on_chunk_size(int32_t chunk_size)
@@ -134,10 +138,7 @@ void SrsBuffer::on_chunk_size(int32_t chunk_size)
         return;
     }
 
-    srs_freep(buffer);
-
-    nb_buffer = chunk_size;
-    buffer = new char[nb_buffer];
+    reset_buffer(chunk_size);
 }
 
 int SrsBuffer::buffer_size()
@@ -145,4 +146,14 @@ int SrsBuffer::buffer_size()
     return nb_buffer;
 }
 
+void SrsBuffer::reset_buffer(int size)
+{
+    srs_freep(buffer);
 
+    nb_buffer = size;
+    buffer = new char[nb_buffer];
+
+    if (_handler) {
+        _handler->on_buffer_change(nb_buffer);
+    }
+}

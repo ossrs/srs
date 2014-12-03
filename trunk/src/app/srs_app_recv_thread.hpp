@@ -140,6 +140,11 @@ private:
     SrsRtmpServer* rtmp;
     // the msgs already got.
     int64_t _nb_msgs;
+    // for mr(merged read),
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+    int mr_fd;
+    int mr_small_bytes;
+    int mr_sleep_ms;
     // the recv thread error code.
     int recv_error_code;
     SrsRtmpConn* _conn;
@@ -151,7 +156,7 @@ private:
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/244
     st_cond_t error;
 public:
-    SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, int timeout_ms,
+    SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, int fd, int timeout_ms,
         SrsRtmpConn* conn, SrsSource* source, bool is_fmle, bool is_edge);
     virtual ~SrsPublishRecvThread();
 public:
@@ -173,7 +178,8 @@ public:
     virtual void on_recv_error(int ret);
 // interface IMergeReadHandler
 public:
-    virtual void on_read(int nb_buffer, ssize_t nread);
+    virtual void on_read(ssize_t nread);
+    virtual void on_buffer_change(int nb_buffer);
 };
 
 #endif

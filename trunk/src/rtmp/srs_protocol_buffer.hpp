@@ -51,7 +51,12 @@ public:
     * some small bytes.
     * @remark, it only for server-side, client srs-librtmp just ignore.
     */
-    virtual void on_read(int nb_buffer, ssize_t nread) = 0;
+    virtual void on_read(ssize_t nread) = 0;
+    /**
+    * when buffer size changed.
+    * @param nb_buffer the new buffer size.
+    */
+    virtual void on_buffer_change(int nb_buffer) = 0;
 };
 
 /**
@@ -110,11 +115,11 @@ public:
     * when it on and read small bytes, we sleep to wait more data.,
     * that is, we merge some data to read together.
     * @param v true to ename merged read.
+    * @param max_buffer the max buffer size, the socket buffer.
     * @param handler the handler when merge read is enabled.
     * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
     */
-    virtual void set_merge_read(bool v, IMergeReadHandler* handler);
-public:
+    virtual void set_merge_read(bool v, int max_buffer, IMergeReadHandler* handler);
     /**
     * when chunk size changed, the buffer should change the buffer also.
     * to keep the socket buffer size always greater than chunk size.
@@ -125,6 +130,8 @@ public:
     * get the size of socket buffer to read.
     */
     virtual int buffer_size();
+private:
+    virtual void reset_buffer(int size);
 };
 
 #endif

@@ -479,9 +479,9 @@ int SrsProtocol::manual_response_flush()
     return ret;
 }
 
-void SrsProtocol::set_merge_read(bool v, IMergeReadHandler* handler)
+void SrsProtocol::set_merge_read(bool v, int max_buffer, IMergeReadHandler* handler)
 {
-    in_buffer->set_merge_read(v, handler);
+    in_buffer->set_merge_read(v, max_buffer, handler);
 }
 
 void SrsProtocol::set_recv_timeout(int64_t timeout_us)
