@@ -26,6 +26,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 
+// 4KB=4096
+// 8KB=8192
+// 16KB=16384
+// 32KB=32768
+// 64KB=65536
+// @see https://github.com/winlinvip/simple-rtmp-server/issues/241
 #define SOCKET_READ_SIZE 4096
 
 ISrsBufferReader::ISrsBufferReader()
@@ -38,10 +44,12 @@ ISrsBufferReader::~ISrsBufferReader()
 
 SrsBuffer::SrsBuffer()
 {
+    buffer = new char[SOCKET_READ_SIZE];
 }
 
 SrsBuffer::~SrsBuffer()
 {
+    srs_freep(buffer);
 }
 
 int SrsBuffer::length()
@@ -88,8 +96,6 @@ int SrsBuffer::grow(ISrsBufferReader* reader, int required_size)
     }
 
     while (length() < required_size) {
-        char buffer[SOCKET_READ_SIZE];
-        
         ssize_t nread;
         if ((ret = reader->read(buffer, SOCKET_READ_SIZE, &nread)) != ERROR_SUCCESS) {
             return ret;

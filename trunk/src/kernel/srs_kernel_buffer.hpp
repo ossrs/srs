@@ -53,6 +53,7 @@ class SrsBuffer
 {
 private:
     std::vector<char> data;
+    char* buffer;
 public:
     SrsBuffer();
     virtual ~SrsBuffer();
