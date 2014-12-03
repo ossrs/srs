@@ -25,6 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
+#include <srs_kernel_utility.hpp>
 
 // 4KB=4096
 // 8KB=8192
@@ -33,6 +34,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // 64KB=65536
 // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
 #define SOCKET_READ_SIZE 4096
+// the max buffer for user space socket buffer.
+#define SOCKET_MAX_BUF 65536
 
 IMergeReadHandler::IMergeReadHandler()
 {
@@ -127,8 +130,11 @@ void SrsBuffer::set_merge_read(bool v, int max_buffer, IMergeReadHandler* handle
     merged_read = v;
     _handler = handler;
 
-    if (v && max_buffer != nb_buffer) {
-        reset_buffer(max_buffer);
+    // limit the max buffer.
+    int buffer_size = srs_min(max_buffer, SOCKET_MAX_BUF);
+
+    if (v && buffer_size != nb_buffer) {
+        reset_buffer(buffer_size);
     }
 }
 

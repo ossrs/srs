@@ -35,7 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // use the bitrate in kbps to calc the max sleep time.
 #define SRS_MR_MAX_BITRATE_KBPS 10000
 #define SRS_MR_AVERAGE_BITRATE_KBPS 1000
-#define SRS_MR_MIN_BITRATE_KBPS 64
+#define SRS_MR_MIN_BITRATE_KBPS 32
 // the max sleep time in ms
 #define SRS_MR_MAX_SLEEP_MS 3000
 // the max small bytes to group
