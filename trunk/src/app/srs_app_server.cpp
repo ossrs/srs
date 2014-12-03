@@ -53,9 +53,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // system interval in ms,
 // all resolution times should be times togother,
-// for example, system-time is 3(300ms),
-// then rusage can be 3*x, for instance, 3*10=30(3s),
-// the meminfo canbe 30*x, for instance, 30*2=60(6s)
+// for example, system-interval is x=1s(1000ms),
+// then rusage can be 3*x, for instance, 3*1=3s,
+// the meminfo canbe 6*x, for instance, 6*1=6s,
 // for performance refine, @see: https://github.com/winlinvip/simple-rtmp-server/issues/194
 // @remark, recomment to 1000ms.
 #define SRS_SYS_CYCLE_INTERVAL 1000
@@ -63,7 +63,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // update time interval:
 //      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_TIME_RESOLUTION_MS_TIMES
 // @see SYS_TIME_RESOLUTION_US
-#define SRS_SYS_TIME_RESOLUTION_MS_TIMES 3
+#define SRS_SYS_TIME_RESOLUTION_MS_TIMES 1
 
 // update rusage interval:
 //      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_RUSAGE_RESOLUTION_TIMES
@@ -102,7 +102,7 @@ SrsListener::SrsListener(SrsServer* server, SrsListenerType type)
     _server = server;
     _type = type;
 
-    pthread = new SrsThread(this, 0, true);
+    pthread = new SrsThread("listen", this, 0, true);
 }
 
 SrsListener::~SrsListener()
@@ -215,7 +215,7 @@ SrsSignalManager::SrsSignalManager(SrsServer* server)
     
     _server = server;
     sig_pipe[0] = sig_pipe[1] = -1;
-    pthread = new SrsThread(this, 0, true);
+    pthread = new SrsThread("signal", this, 0, true);
     signal_read_stfd = NULL;
 }
 
@@ -714,7 +714,7 @@ int SrsServer::do_cycle()
                 srs_trace("reload config success.");
             }
             
-            // update the cache time or rusage.
+            // update the cache time
             if ((i % SRS_SYS_TIME_RESOLUTION_MS_TIMES) == 0) {
                 srs_info("update current time cache.");
                 srs_update_system_time_ms();

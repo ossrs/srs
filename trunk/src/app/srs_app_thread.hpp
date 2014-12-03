@@ -88,23 +88,26 @@ private:
     bool loop;
     bool can_run;
     bool _joinable;
+    const char* _name;
 private:
     ISrsThreadHandler* handler;
     int64_t cycle_interval_us;
 public:
     /**
     * initialize the thread.
+    * @param name, human readable name for st debug.
     * @param thread_handler, the cycle handler for the thread.
     * @param interval_us, the sleep interval when cycle finished.
     * @param joinable, if joinable, other thread must stop the thread.
     * @remark if joinable, thread never quit itself, or memory leak. 
     * @see: https://github.com/winlinvip/simple-rtmp-server/issues/78
+    * @remark about st debug, see st-1.9/README, _st_iterate_threads_flag
     */
     /**
     * TODO: FIXME: maybe all thread must be reap by others threads, 
     * @see: https://github.com/winlinvip/simple-rtmp-server/issues/77
     */
-    SrsThread(ISrsThreadHandler* thread_handler, int64_t interval_us, bool joinable);
+    SrsThread(const char* name, ISrsThreadHandler* thread_handler, int64_t interval_us, bool joinable);
     virtual ~SrsThread();
 public:
     /**

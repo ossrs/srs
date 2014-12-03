@@ -40,7 +40,7 @@ SrsRecvThread::SrsRecvThread(ISrsMessageHandler* msg_handler, SrsRtmpServer* rtm
     timeout = timeout_ms;
     handler = msg_handler;
     rtmp = rtmp_sdk;
-    trd = new SrsThread(this, 0, true);
+    trd = new SrsThread("recv", this, 0, true);
 }
 
 SrsRecvThread::~SrsRecvThread()

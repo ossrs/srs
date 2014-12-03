@@ -44,7 +44,7 @@ static std::vector<std::string> _transcoded_url;
 
 SrsEncoder::SrsEncoder()
 {
-    pthread = new SrsThread(this, SRS_RTMP_ENCODER_SLEEP_US, true);
+    pthread = new SrsThread("encoder", this, SRS_RTMP_ENCODER_SLEEP_US, true);
     pithy_print = new SrsPithyPrint(SRS_CONSTS_STAGE_ENCODER);
 }
 

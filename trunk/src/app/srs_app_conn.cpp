@@ -37,7 +37,7 @@ SrsConnection::SrsConnection(SrsServer* srs_server, st_netfd_t client_stfd)
     // so we never use joinable.
     // TODO: FIXME: maybe other thread need to stop it.
     // @see: https://github.com/winlinvip/simple-rtmp-server/issues/78
-    pthread = new SrsThread(this, 0, false);
+    pthread = new SrsThread("conn", this, 0, false);
 }
 
 SrsConnection::~SrsConnection()
