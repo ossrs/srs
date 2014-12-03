@@ -35,7 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/uio.h>
 #endif
 
-#include <srs_kernel_buffer.hpp>
+#include <srs_protocol_buffer.hpp>
 
 /**
 * the system io reader/writer architecture:

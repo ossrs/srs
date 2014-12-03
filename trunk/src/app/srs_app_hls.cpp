@@ -68,7 +68,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_app_avc_aac.hpp>
 #include <srs_kernel_file.hpp>
-#include <srs_kernel_buffer.hpp>
+#include <srs_protocol_buffer.hpp>
 
 // max PES packets size to flush the video.
 #define SRS_AUTO_HLS_AUDIO_CACHE_SIZE 1024 * 1024

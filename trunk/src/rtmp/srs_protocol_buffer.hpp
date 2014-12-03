@@ -25,7 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_KERNEL_BUFFER_HPP
 
 /*
-#include <srs_kernel_buffer.hpp>
+#include <srs_protocol_buffer.hpp>
 */
 
 #include <srs_core.hpp>

@@ -363,7 +363,7 @@ CORE_OBJS="${MODULE_OBJS[@]}"
 MODULE_ID="KERNEL" 
 MODULE_DEPENDS=("CORE") 
 ModuleLibIncs=(${SRS_OBJS_DIR})
-MODULE_FILES=("srs_kernel_error" "srs_kernel_log" "srs_kernel_stream" "srs_kernel_buffer" 
+MODULE_FILES=("srs_kernel_error" "srs_kernel_log" "srs_kernel_stream"
         "srs_kernel_utility" "srs_kernel_flv" "srs_kernel_codec" "srs_kernel_file" 
         "srs_kernel_consts")
 KERNEL_INCS="src/kernel"; MODULE_DIR=${KERNEL_INCS} . auto/modules.sh
@@ -374,7 +374,7 @@ MODULE_ID="RTMP"
 MODULE_DEPENDS=("CORE" "KERNEL") 
 ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSSLRoot})
 MODULE_FILES=("srs_protocol_amf0" "srs_protocol_io" "srs_protocol_stack" "srs_protocol_rtmp"
-        "srs_protocol_handshake" "srs_protocol_utility" "srs_protocol_msg_array")
+        "srs_protocol_handshake" "srs_protocol_utility" "srs_protocol_msg_array" "srs_protocol_buffer")
 RTMP_INCS="src/rtmp"; MODULE_DIR=${RTMP_INCS} . auto/modules.sh
 RTMP_OBJS="${MODULE_OBJS[@]}"
 #
