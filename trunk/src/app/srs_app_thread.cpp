@@ -182,7 +182,7 @@ failed:
         
         // to improve performance, donot sleep when interval is zero.
         // @see: https://github.com/winlinvip/simple-rtmp-server/issues/237
-        if (cycle_interval_us > 0) {
+        if (cycle_interval_us != 0) {
             st_usleep(cycle_interval_us);
         }
     }
