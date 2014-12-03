@@ -731,6 +731,7 @@ The publish benchmark by [st-load](https://github.com/winlinvip/st-load):
 * 2014-12-03, SRS 2.0.12,  1k(1200) publishers, 96%CPU, 43MB.
 * 2014-12-03, SRS 2.0.47,  1k(1200) publishers, 84%CPU, 76MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/787ab674e38734ea8e0678101614fdcd84645dc8)
 * 2014-12-03, SRS 2.0.47,  1k(1400) publishers, 95%CPU, 140MB.
+* 2014-12-03, SRS 2.0.48,  1k(1400) publishers, 95%CPU, 140MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/f35ec2155b1408d528a9f37da7904c9625186bcf)
 
 ## Architecture
 
