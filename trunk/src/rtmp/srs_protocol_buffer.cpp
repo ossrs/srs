@@ -33,7 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // 32KB=32768
 // 64KB=65536
 // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
-#define SOCKET_READ_SIZE 4096
+#define SOCKET_READ_SIZE 65536
 // the max buffer for user space socket buffer.
 #define SOCKET_MAX_BUF 65536
 
@@ -136,6 +136,10 @@ void SrsBuffer::set_merge_read(bool v, int max_buffer, IMergeReadHandler* handle
     if (v && buffer_size != nb_buffer) {
         reset_buffer(buffer_size);
     }
+
+    if (_handler) {
+        _handler->on_buffer_change(nb_buffer);
+    }
 }
 
 void SrsBuffer::on_chunk_size(int32_t chunk_size)
@@ -145,6 +149,10 @@ void SrsBuffer::on_chunk_size(int32_t chunk_size)
     }
 
     reset_buffer(chunk_size);
+
+    if (_handler) {
+        _handler->on_buffer_change(nb_buffer);
+    }
 }
 
 int SrsBuffer::buffer_size()
@@ -158,8 +166,4 @@ void SrsBuffer::reset_buffer(int size)
 
     nb_buffer = size;
     buffer = new char[nb_buffer];
-
-    if (_handler) {
-        _handler->on_buffer_change(nb_buffer);
-    }
 }

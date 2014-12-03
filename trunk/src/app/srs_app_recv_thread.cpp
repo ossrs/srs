@@ -42,6 +42,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_MR_SMALL_BYTES 64
 // the percent of buffer to set as small bytes
 #define SRS_MR_SMALL_PERCENT 100
+// set the socket buffer to specified KB.
+// the underlayer api will set to 2*SRS_MR_SOCKET_BUFFER KB.
+#define SRS_MR_SOCKET_BUFFER 32
 
 ISrsMessageHandler::ISrsMessageHandler()
 {
@@ -296,13 +299,15 @@ void SrsPublishRecvThread::on_thread_start()
     // we donot set the auto response to false,
     // for the main thread never send message.
 
-    // 128KB recv buffer.
-    int nb_rbuf = 128 * 1024;
+    // socket recv buffer.
+    int nb_rbuf = SRS_MR_SOCKET_BUFFER * 1024;
     socklen_t sock_buf_size = sizeof(int);
     if (setsockopt(mr_fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, sock_buf_size) < 0) {
         srs_warn("set sock SO_RCVBUF=%d failed.", nb_rbuf);
     }
     getsockopt(mr_fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, &sock_buf_size);
+
+    srs_trace("set socket buffer to %d, actual %d KB", SRS_MR_SOCKET_BUFFER, nb_rbuf / 1024);
 
     // enable the merge read
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
