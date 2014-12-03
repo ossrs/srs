@@ -750,17 +750,15 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
 
     int64_t nb_msgs = 0;
     while (true) {
-        // use small loop to check the error code, interval = 30s/43 = 697ms.
-        for (int i = 0; i < 43; i++) {
-            st_usleep(SRS_CONSTS_RTMP_RECV_TIMEOUT_US / 43);
+        // cond wait for error.
+        trd->wait(SRS_CONSTS_RTMP_RECV_TIMEOUT_US / 1000);
 
-            // check the thread error code.
-            if ((ret = trd->error_code()) != ERROR_SUCCESS) {
-                if (!srs_is_client_gracefully_close(ret)) {
-                    srs_error("recv thread failed. ret=%d", ret);
-                }
-                return ret;
+        // check the thread error code.
+        if ((ret = trd->error_code()) != ERROR_SUCCESS) {
+            if (!srs_is_client_gracefully_close(ret)) {
+                srs_error("recv thread failed. ret=%d", ret);
             }
+            return ret;
         }
 
         // when not got any messages, timeout.

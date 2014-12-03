@@ -485,6 +485,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2014-12-03, fix [#244](https://github.com/winlinvip/simple-rtmp-server/issues/244), conn thread use cond to wait for recv thread error. 2.0.47.
 * v2.0, 2014-12-02, merge [#239](https://github.com/winlinvip/simple-rtmp-server/pull/239), traverse the token before response connect. 2.0.45.
 * v2.0, 2014-12-02, srs-librtmp support hijack io apis for st-load. 2.0.42.
 * v2.0, 2014-12-01, for [#237](https://github.com/winlinvip/simple-rtmp-server/issues/237), refine syscall for recv, supports 1.5k clients. 2.0.41.
@@ -703,47 +704,30 @@ Supported operating systems and hardware:
 
 ## Performance
 
-Performance benchmark history, on virtual box:
+Performance benchmark history, on virtual box.
+
+### Play benchmark
+
+The play benchmark by st-load:
 
 * 2013-11-28, SRS 0.5.0,   1.8k(1800)clients, 90%CPU, 41MB. [benchmark](https://github.com/winlinvip/simple-rtmp-server/commit/023e23bc8261bec15a70a7ae932098fb4f82b679)
 * 2014-07-12, SRS 0.9.156, 1.8k(1800)clients, 68%CPU, 38MB. [benchmark](https://github.com/winlinvip/simple-rtmp-server/commit/e2d273f4939348374bf9644df9d54c4293b39c1a)
 * 2014-07-12, SRS 0.9.156, 2.7k(2700)clients, 89%CPU, 61MB. [benchmark](https://github.com/winlinvip/simple-rtmp-server/commit/6d12280b7cc54c465b1caf8b1402149e77c4c7d9)
-* 2014-11-11, SRS 1.0.5,   2.7k(2700)clients, 85%CPU, 66MB. (1.0 equals 2.0.12)
+* 2014-11-11, SRS 1.0.5,   2.7k(2700)clients, 85%CPU, 66MB.
+* 2014-11-11, SRS 2.0.12,  2.7k(2700)clients, 85%CPU, 66MB.
 * 2014-11-12, SRS 2.0.14,  2.7k(2700)clients, 69%CPU, 59MB.
 * 2014-11-12, SRS 2.0.14,  3.5k(3500)clients, 95%CPU, 78MB.
-* 2014-11-13, SRS 2.0.15,  6.0k(6000)clients, 82%CPU, 203MB. (500 publishers).
+* 2014-11-13, SRS 2.0.15,  6.0k(6000)clients, 82%CPU, 203MB.
 * 2014-11-22, SRS 2.0.30,  7.5k(7500)clients, 87%CPU, 320MB. 
-* 2014-12-01, SRS 2.0.41,  7.5k(7500)clients, 87%CPU, 320MB. (1500 publishers).
-
-Latest benchmark(2014-07-12):
-
-1.  300 connections,  150Mbps, 500kbps, CPU 5.7%, MEM 9208KB.
-1.  600 connections,  300Mbps, 500kbps, CPU 18.3%, MEM 13MB.
-1.  900 connections,  450Mbps, 500kbps, CPU 27.9%, MEM 20MB.
-1. 1200 connections,  600Mbps, 500kbps, CPU 43.9%, MEM 26MB.
-1. 1500 connections,  750Mbps, 500kbps, CPU 55.2%, MEM 32MB.
-1. 1800 connections,  900Mbps, 500kbps, CPU 68.8%, MEM 38MB.
-1. 2100 connections, 1050Mbps, 500kbps, CPU 75.7%, MEM 46MB.
-1. 2400 connections, 1200Mbps, 500kbps, CPU 83.7%, MEM 54MB.
-1. 2700 connections, 1350Mbps, 500kbps, CPU 89.9%, MEM 61MB.
-
-<pre>
-[winlin@dev6 srs]$ dstat
-----total-cpu-usage---- -dsk/total- ---net/lo-- ---paging-- ---system--
-usr sys idl wai hiq siq| read  writ| recv  send|  in   out | int   csw 
- 29  17  39   0   0  15|   0  5325B| 163M  163M|   0     0 |4331  3386 
- 30  16  38   0   0  16|   0  5325B| 160M  160M|   0     0 |4252  3332 
- 30  15  37   0   0  17|   0  7646B| 169M  169M|   0     0 |4015  2886 
- 30  17  36   0   0  17|   0  1638B| 197M  197M|   0     0 |4021  3037 
- 31  17  35   0   0  17|   0   410B| 204M  204M|   0     0 |4181  3243 
- 33  17  32   0   0  18|   0  2185B| 191M  191M|   0     0 |4305  3592 
- 31  15  36   0   0  18|   0  1229B| 127M  127M|   0     0 |4446  3822 
- 34  18  30   0   0  18|   0     0 | 231M  231M|   0     0 |4461  3691 
- 32  17  33   0   0  18|   0   410B| 169M  169M|   0     0 |4518  3788 
-</pre>
 
 * See also: [Performance for x86/x64 Test Guide](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Performance)
 * See also: [Performance for RaspberryPi](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_RaspberryPi)
+
+### Publish benchmark
+
+The publish benchmark by st-load:
+
+* 2014-12-03, SRS 1.0.10,  1k(1000) publishers, xx%CPU, xxMB.
 
 ## Architecture
 

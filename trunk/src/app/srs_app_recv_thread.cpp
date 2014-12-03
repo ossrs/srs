@@ -230,11 +230,25 @@ SrsPublishRecvThread::SrsPublishRecvThread(
 
     recv_error_code = ERROR_SUCCESS;
     _nb_msgs = 0;
+    error = st_cond_new();
 }
 
 SrsPublishRecvThread::~SrsPublishRecvThread()
 {
     trd.stop();
+    st_cond_destroy(error);
+}
+
+int SrsPublishRecvThread::wait(int timeout_ms)
+{
+    if (recv_error_code != ERROR_SUCCESS) {
+        return recv_error_code;
+    }
+    
+    // ignore any return of cond wait.
+    st_cond_timedwait(error, timeout_ms * 1000);
+    
+    return ERROR_SUCCESS;
 }
 
 int64_t SrsPublishRecvThread::nb_msgs()
@@ -282,6 +296,10 @@ int SrsPublishRecvThread::handle(SrsMessage* msg)
 void SrsPublishRecvThread::on_recv_error(int ret)
 {
     recv_error_code = ret;
+
+    // when recv thread error, signal the conn thread to process it.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/244
+    st_cond_signal(error);
 }
 
 void SrsPublishRecvThread::on_thread_start()
@@ -294,4 +312,8 @@ void SrsPublishRecvThread::on_thread_stop()
 {
     // we donot set the auto response to true,
     // for we donot set to false yet.
+    
+    // when thread stop, signal the conn thread which wait.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/244
+    st_cond_signal(error);
 }

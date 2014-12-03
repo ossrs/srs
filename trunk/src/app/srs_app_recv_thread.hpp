@@ -142,14 +142,22 @@ private:
     // the recv thread error code.
     int recv_error_code;
     SrsRtmpConn* _conn;
+    // the params for conn callback.
     SrsSource* _source;
     bool _is_fmle;
     bool _is_edge;
+    // the error timeout cond
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/244
+    st_cond_t error;
 public:
     SrsPublishRecvThread(SrsRtmpServer* rtmp_sdk, int timeout_ms,
         SrsRtmpConn* conn, SrsSource* source, bool is_fmle, bool is_edge);
     virtual ~SrsPublishRecvThread();
 public:
+    /**
+    * wait for error for some timeout.
+    */
+    virtual int wait(int timeout_ms);
     virtual int64_t nb_msgs();
     virtual int error_code();
 public:
