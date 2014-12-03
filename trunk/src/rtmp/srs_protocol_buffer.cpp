@@ -26,6 +26,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 
+// 4KB=4096
+// 8KB=8192
+// 16KB=16384
+// 32KB=32768
+// 64KB=65536
+// @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+#define SOCKET_READ_SIZE 4096
+
 IMergeReadHandler::IMergeReadHandler()
 {
 }
@@ -39,7 +47,8 @@ SrsBuffer::SrsBuffer()
     merged_read = false;
     _handler = NULL;
     
-    buffer = new char[SOCKET_READ_SIZE];
+    nb_buffer = SOCKET_READ_SIZE;
+    buffer = new char[nb_buffer];
 }
 
 SrsBuffer::~SrsBuffer()
@@ -92,7 +101,7 @@ int SrsBuffer::grow(ISrsBufferReader* reader, int required_size)
 
     while (length() < required_size) {
         ssize_t nread;
-        if ((ret = reader->read(buffer, SOCKET_READ_SIZE, &nread)) != ERROR_SUCCESS) {
+        if ((ret = reader->read(buffer, nb_buffer, &nread)) != ERROR_SUCCESS) {
             return ret;
         }
         
@@ -103,7 +112,7 @@ int SrsBuffer::grow(ISrsBufferReader* reader, int required_size)
         * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
         */
         if (merged_read && _handler) {
-            _handler->on_read(nread);
+            _handler->on_read(nb_buffer, nread);
         }
         
         srs_assert((int)nread > 0);
@@ -117,6 +126,23 @@ void SrsBuffer::set_merge_read(bool v, IMergeReadHandler* handler)
 {
     merged_read = v;
     _handler = handler;
+}
+
+void SrsBuffer::on_chunk_size(int32_t chunk_size)
+{
+    if (nb_buffer >= chunk_size) {
+        return;
+    }
+
+    srs_freep(buffer);
+
+    nb_buffer = chunk_size;
+    buffer = new char[nb_buffer];
+}
+
+int SrsBuffer::buffer_size()
+{
+    return nb_buffer;
 }
 
 

@@ -31,7 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // when we read from socket less than this value,
 // sleep a while to merge read.
 // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
-#define SRS_MERGED_READ_SIZE (SOCKET_READ_SIZE / 10)
+#define SRS_MERGED_READ_SIZE(buffer) (buffer / 10)
 // the time to sleep to merge read, to read more bytes.
 #define SRS_MERGED_READ_US (300 * 1000)
 
@@ -334,7 +334,7 @@ void SrsPublishRecvThread::on_recv_error(int ret)
     st_cond_signal(error);
 }
 
-void SrsPublishRecvThread::on_read(ssize_t nread)
+void SrsPublishRecvThread::on_read(int nb_buffer, ssize_t nread)
 {
     if (nread < 0) {
         return;
@@ -346,7 +346,7 @@ void SrsPublishRecvThread::on_read(ssize_t nread)
     * that is, we merge some data to read together.
     * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
     */
-    if (nread < SRS_MERGED_READ_SIZE) {
+    if (nread < SRS_MERGED_READ_SIZE(nb_buffer)) {
         st_usleep(SRS_MERGED_READ_US);
     }
 }

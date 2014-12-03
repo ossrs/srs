@@ -34,14 +34,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_protocol_io.hpp>
 
-// 4KB=4096
-// 8KB=8192
-// 16KB=16384
-// 32KB=32768
-// 64KB=65536
-// @see https://github.com/winlinvip/simple-rtmp-server/issues/241
-#define SOCKET_READ_SIZE 4096
-
 /**
 * to improve read performance, merge some packets then read,
 * when it on and read small bytes, we sleep to wait more data.,
@@ -59,7 +51,7 @@ public:
     * some small bytes.
     * @remark, it only for server-side, client srs-librtmp just ignore.
     */
-    virtual void on_read(ssize_t nread) = 0;
+    virtual void on_read(int nb_buffer, ssize_t nread) = 0;
 };
 
 /**
@@ -75,6 +67,7 @@ private:
     // data and socket buffer
     std::vector<char> data;
     char* buffer;
+    int nb_buffer;
 public:
     SrsBuffer();
     virtual ~SrsBuffer();
@@ -121,6 +114,17 @@ public:
     * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
     */
     virtual void set_merge_read(bool v, IMergeReadHandler* handler);
+public:
+    /**
+    * when chunk size changed, the buffer should change the buffer also.
+    * to keep the socket buffer size always greater than chunk size.
+    * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+    */
+    virtual void on_chunk_size(int32_t chunk_size);
+    /**
+    * get the size of socket buffer to read.
+    */
+    virtual int buffer_size();
 };
 
 #endif

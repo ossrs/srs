@@ -173,7 +173,7 @@ public:
     virtual void on_recv_error(int ret);
 // interface IMergeReadHandler
 public:
-    virtual void on_read(ssize_t nread);
+    virtual void on_read(int nb_buffer, ssize_t nread);
 };
 
 #endif

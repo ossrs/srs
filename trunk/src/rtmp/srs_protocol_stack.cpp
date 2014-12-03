@@ -1688,10 +1688,13 @@ int SrsProtocol::on_recv_message(SrsMessage* msg)
                     pkt->chunk_size, SRS_CONSTS_RTMP_MIN_CHUNK_SIZE, 
                     SRS_CONSTS_RTMP_MAX_CHUNK_SIZE);
             }
-            
+
+            int sock_buffer = in_buffer->buffer_size();
             in_chunk_size = pkt->chunk_size;
-            
-            srs_trace("input chunk size to %d", pkt->chunk_size);
+            in_buffer->on_chunk_size(pkt->chunk_size);
+            srs_trace("input chunk size to %d, sock buf %d=>%d",
+                pkt->chunk_size, sock_buffer, in_buffer->buffer_size());
+
             break;
         }
         case RTMP_MSG_UserControlMessage: {
