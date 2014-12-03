@@ -35,8 +35,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/uio.h>
 #endif
 
-#include <srs_protocol_buffer.hpp>
-
 /**
 * the system io reader/writer architecture:
 +---------------+     +--------------------+      +---------------+
@@ -61,6 +59,19 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
           | + is_never_timeout()             |
           +----------------------------------+
 */
+
+/**
+* the reader for the buffer to read from whatever channel.
+*/
+class ISrsBufferReader
+{
+public:
+    ISrsBufferReader();
+    virtual ~ISrsBufferReader();
+// for protocol/amf0/msg-codec
+public:
+    virtual int read(void* buf, size_t size, ssize_t* nread) = 0;
+};
 
 /**
 * the writer for the buffer to write to whatever channel.

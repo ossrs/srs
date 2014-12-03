@@ -21,8 +21,8 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_KERNEL_BUFFER_HPP
-#define SRS_KERNEL_BUFFER_HPP
+#ifndef SRS_PROTOCOL_BUFFER_HPP
+#define SRS_PROTOCOL_BUFFER_HPP
 
 /*
 #include <srs_protocol_buffer.hpp>
@@ -32,18 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <vector>
 
-/**
-* the reader for the buffer to read from whatever channel.
-*/
-class ISrsBufferReader
-{
-public:
-    ISrsBufferReader();
-    virtual ~ISrsBufferReader();
-// for protocol/amf0/msg-codec
-public:
-    virtual int read(void* buf, size_t size, ssize_t* nread) = 0;
-};
+#include <srs_protocol_io.hpp>
 
 /**
 * the buffer provices bytes cache for protocol. generally, 

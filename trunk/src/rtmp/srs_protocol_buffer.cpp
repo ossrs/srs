@@ -34,14 +34,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
 #define SOCKET_READ_SIZE 4096
 
-ISrsBufferReader::ISrsBufferReader()
-{
-}
-
-ISrsBufferReader::~ISrsBufferReader()
-{
-}
-
 SrsBuffer::SrsBuffer()
 {
     buffer = new char[SOCKET_READ_SIZE];
