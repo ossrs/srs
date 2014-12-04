@@ -300,8 +300,14 @@ void SrsPublishRecvThread::on_thread_start()
     // for the main thread never send message.
 
 #ifdef SRS_PERF_MERGED_READ
-    // for mr.
-    update_buffer(mr, mr_sleep);
+    if (mr) {
+        // set underlayer buffer size
+        set_socket_buffer(mr_sleep);
+
+        // disable the merge read
+        // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+        rtmp->set_merge_read(true, this);
+    }
 #endif
 }
 
@@ -315,9 +321,11 @@ void SrsPublishRecvThread::on_thread_stop()
     st_cond_signal(error);
 
 #ifdef SRS_PERF_MERGED_READ
-    // disable the merge read
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
-    rtmp->set_merge_read(false, NULL);
+    if (mr) {
+        // disable the merge read
+        // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+        rtmp->set_merge_read(false, NULL);
+    }
 #endif
 }
 
@@ -383,41 +391,24 @@ int SrsPublishRecvThread::on_reload_vhost_mr(string vhost)
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
     bool mr_enabled = _srs_config->get_mr_enabled(req->vhost);
     int sleep_ms = _srs_config->get_mr_sleep_ms(req->vhost);
-    update_buffer(mr_enabled, sleep_ms);
-    
-    return ret;
-}
 
-void SrsPublishRecvThread::update_buffer(bool mr_enabled, int sleep_ms)
-{
-    // TODO: FIXME: refine it.
-    
+    // update buffer when sleep ms changed.
+    if (mr_sleep != sleep_ms) {
+        set_socket_buffer(sleep_ms);
+    }
+
 #ifdef SRS_PERF_MERGED_READ
-    // update the buffer.
-    if (true) {
-        // the underlayer api will set to SRS_MR_SOCKET_BUFFER bytes.
-        //      4KB=4096, 8KB=8192, 16KB=16384, 32KB=32768, 64KB=65536, 
-        //      128KB=131072, 256KB=262144, 512KB=524288
-        // the buffer should set to SRS_MR_MAX_SLEEP_MS*kbps/8,
-        // for example, your system delivery stream in 1000kbps, 
-        // sleep 800ms for small bytes, the buffer should set to:
-        //      800*1000/8=100000B(about 128KB).
-        //      2000*3000/8=750000B(about 732KB).
-        int kbps = 3000;
-        int socket_buffer_size = mr_sleep * kbps / 8;
-        
-        // socket recv buffer, system will double it.
-        int nb_rbuf = socket_buffer_size / 2;
-        socklen_t sock_buf_size = sizeof(int);
-        if (setsockopt(mr_fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, sock_buf_size) < 0) {
-            srs_warn("set sock SO_RCVBUF=%d failed.", nb_rbuf);
-        }
-        getsockopt(mr_fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, &sock_buf_size);
-    
-        srs_trace("merged read sockbuf=%d, actual=%d, sleep %d when nread<=%d", 
-            socket_buffer_size, nb_rbuf, mr_sleep, SRS_MR_SMALL_BYTES);
-    
-        rtmp->set_recv_buffer(nb_rbuf);
+    // mr enabled=>disabled
+    if (mr && !mr_enabled) {
+        // disable the merge read
+        // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+        rtmp->set_merge_read(false, NULL);
+    }
+    // mr disabled=>enabled
+    if (!mr && mr_enabled) {
+        // enable the merge read
+        // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+        rtmp->set_merge_read(true, this);
     }
 #endif
 
@@ -425,17 +416,33 @@ void SrsPublishRecvThread::update_buffer(bool mr_enabled, int sleep_ms)
     mr = mr_enabled;
     mr_sleep = sleep_ms;
     
-#ifdef SRS_PERF_MERGED_READ
-    // apply new state.
-    if (mr) {
-        // enable the merge read
-        // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
-        rtmp->set_merge_read(true, this);
-    } else {
-        // disable the merge read
-        // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
-        rtmp->set_merge_read(false, NULL);
+    return ret;
+}
+
+void SrsPublishRecvThread::set_socket_buffer(int sleep_ms)
+{
+    // the underlayer api will set to SRS_MR_SOCKET_BUFFER bytes.
+    //      4KB=4096, 8KB=8192, 16KB=16384, 32KB=32768, 64KB=65536,
+    //      128KB=131072, 256KB=262144, 512KB=524288
+    // the buffer should set to SRS_MR_MAX_SLEEP_MS*kbps/8,
+    // for example, your system delivery stream in 1000kbps,
+    // sleep 800ms for small bytes, the buffer should set to:
+    //      800*1000/8=100000B(about 128KB).
+    //      2000*3000/8=750000B(about 732KB).
+    int kbps = 3000;
+    int socket_buffer_size = sleep_ms * kbps / 8;
+
+    // socket recv buffer, system will double it.
+    int nb_rbuf = socket_buffer_size / 2;
+    socklen_t sock_buf_size = sizeof(int);
+    if (setsockopt(mr_fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, sock_buf_size) < 0) {
+        srs_warn("set sock SO_RCVBUF=%d failed.", nb_rbuf);
     }
-#endif
+    getsockopt(mr_fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, &sock_buf_size);
+
+    srs_trace("merged read sockbuf=%d, actual=%d, sleep %d when nread<=%d",
+        socket_buffer_size, nb_rbuf, sleep_ms, SRS_MR_SMALL_BYTES);
+
+    rtmp->set_recv_buffer(nb_rbuf);
 }
 

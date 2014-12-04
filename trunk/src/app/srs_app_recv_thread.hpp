@@ -194,7 +194,7 @@ public:
 public:
     virtual int on_reload_vhost_mr(std::string vhost);
 private:
-    virtual void update_buffer(bool mr_enabled, int sleep_ms);
+    virtual void set_socket_buffer(int sleep_ms);
 };
 
 #endif
