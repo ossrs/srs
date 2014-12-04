@@ -64,8 +64,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *       buffer=65536B, small=4096B, sleep=780ms
 *       that is, when got nread bytes smaller than 4KB, sleep(780ms).
 */
-#define SRS_PERF_MERGED_READ
 #undef SRS_PERF_MERGED_READ
+#define SRS_PERF_MERGED_READ
+
+/**
+* the send cache time in ms.
+* to improve send performance, cache msgs and send in a time.
+* for example, cache 500ms videos and audios, then convert all these
+* msgs to iovecs, finally use writev to send.
+* @remark this largely improve performance, from 3.5k+ to 7.5k+.
+*       the latency+ when cache+.
+* @remark the socket send buffer default to 185KB, it large enough.
+* @see https://github.com/winlinvip/simple-rtmp-server/issues/194
+*/
+#define SRS_PERF_SEND_MSGS_CACHE 500
 
 #endif
 

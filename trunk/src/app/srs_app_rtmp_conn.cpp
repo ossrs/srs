@@ -49,6 +49,7 @@ using namespace std;
 #include <srs_protocol_msg_array.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_app_recv_thread.hpp>
+#include <srs_core_performance.hpp>
 
 // when stream is busy, for example, streaming is already
 // publishing, when a new client to request to publish,
@@ -591,7 +592,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
         // no message to send, sleep a while.
         if (count <= 0) {
             srs_verbose("sleep for no messages to send");
-            st_usleep(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
+            st_usleep(SRS_PERF_SEND_MSGS_CACHE * 1000);
         }
 
         // reportable
