@@ -90,10 +90,9 @@ SrsFastBuffer::SrsFastBuffer()
     _handler = NULL;
 #endif
     
-    p = end = buffer = NULL;
-    nb_buffer = 0;
-    
-    reset_buffer(SRS_MR_SOCKET_BUFFER);
+    nb_buffer = SRS_MR_SOCKET_BUFFER;
+    buffer = new char[nb_buffer];
+    p = end = buffer;
 }
 
 SrsFastBuffer::~SrsFastBuffer()
@@ -193,21 +192,3 @@ void SrsFastBuffer::set_merge_read(bool v, IMergeReadHandler* handler)
 }
 #endif
 
-void SrsFastBuffer::reset_buffer(int size)
-{
-    // remember the cap.
-    int nb_cap = end - p;
-    
-    // atleast to put the old data.
-    nb_buffer = srs_max(nb_cap, size);
-    
-    // copy old data to buf.
-    char* buf = new char[nb_buffer];
-    if (nb_cap > 0) {
-        memcpy(buf, p, nb_cap);
-    }
-    
-    srs_freep(buffer);
-    p = buffer = buf;
-    end = p + nb_cap;
-}

@@ -162,8 +162,6 @@ public:
     */
     virtual void set_merge_read(bool v, IMergeReadHandler* handler);
 #endif
-private:
-    virtual void reset_buffer(int size);
 };
 
 #endif
