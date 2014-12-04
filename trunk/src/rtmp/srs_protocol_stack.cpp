@@ -1113,20 +1113,6 @@ int SrsProtocol::recv_interlaced_message(SrsMessage** pmsg)
     // the cid must not negative.
     srs_assert(cid >= 0);
     
-    // once we got the chunk message header, 
-    // that is there is a real message in cache,
-    // increase the timeout to got it.
-    // For example, in the play loop, we set timeout to 100ms,
-    // when we got a chunk header, we should increase the timeout,
-    // or we maybe timeout and disconnect the client.
-    int64_t timeout_us = skt->get_recv_timeout();
-    if (!skt->is_never_timeout(timeout_us)) {
-        int64_t pkt_timeout_us = srs_max(timeout_us, SRS_MIN_RECV_TIMEOUT_US);
-        skt->set_recv_timeout(pkt_timeout_us);
-        srs_verbose("change recv timeout_us "
-            "from %"PRId64" to %"PRId64"", timeout_us, pkt_timeout_us);
-    }
-    
     // get the cached chunk stream.
     SrsChunkStream* chunk = NULL;
     
@@ -1175,12 +1161,6 @@ int SrsProtocol::recv_interlaced_message(SrsMessage** pmsg)
             srs_error("read message payload failed. ret=%d", ret);
         }
         return ret;
-    }
-    
-    // reset the recv timeout
-    if (!skt->is_never_timeout(timeout_us)) {
-        skt->set_recv_timeout(timeout_us);
-        srs_verbose("reset recv timeout_us to %"PRId64"", timeout_us);
     }
     
     // not got an entire RTMP message, try next chunk.
