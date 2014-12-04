@@ -27,16 +27,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
 
-// 4KB=4096
-// 8KB=8192
-// 16KB=16384
-// 32KB=32768
-// 64KB=65536
-// @see https://github.com/winlinvip/simple-rtmp-server/issues/241
-#define SOCKET_READ_SIZE 65536
-// the max buffer for user space socket buffer.
-#define SOCKET_MAX_BUF 65536
-
 IMergeReadHandler::IMergeReadHandler()
 {
 }

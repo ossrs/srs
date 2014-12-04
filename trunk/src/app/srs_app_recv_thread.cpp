@@ -37,14 +37,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_MR_AVERAGE_BITRATE_KBPS 1000
 #define SRS_MR_MIN_BITRATE_KBPS 32
 // the max sleep time in ms
-#define SRS_MR_MAX_SLEEP_MS 3000
+#define SRS_MR_MAX_SLEEP_MS 2500
 // the max small bytes to group
-#define SRS_MR_SMALL_BYTES 64
+#define SRS_MR_SMALL_BYTES 4096
 // the percent of buffer to set as small bytes
 #define SRS_MR_SMALL_PERCENT 100
-// set the socket buffer to specified KB.
-// the underlayer api will set to 2*SRS_MR_SOCKET_BUFFER KB.
-#define SRS_MR_SOCKET_BUFFER 32
+// set the socket buffer to specified bytes.
+// the underlayer api will set to SRS_MR_SOCKET_BUFFER bytes.
+#define SRS_MR_SOCKET_BUFFER SOCKET_READ_SIZE
 
 ISrsMessageHandler::ISrsMessageHandler()
 {
@@ -299,15 +299,15 @@ void SrsPublishRecvThread::on_thread_start()
     // we donot set the auto response to false,
     // for the main thread never send message.
 
-    // socket recv buffer.
-    int nb_rbuf = SRS_MR_SOCKET_BUFFER * 1024;
+    // socket recv buffer, system will double it.
+    int nb_rbuf = SRS_MR_SOCKET_BUFFER / 2;
     socklen_t sock_buf_size = sizeof(int);
     if (setsockopt(mr_fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, sock_buf_size) < 0) {
         srs_warn("set sock SO_RCVBUF=%d failed.", nb_rbuf);
     }
     getsockopt(mr_fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, &sock_buf_size);
 
-    srs_trace("set socket buffer to %d, actual %d KB", SRS_MR_SOCKET_BUFFER, nb_rbuf / 1024);
+    srs_trace("set socket buffer to %d, actual %d KB", SRS_MR_SOCKET_BUFFER / 1024, nb_rbuf / 1024);
 
     // enable the merge read
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
@@ -381,7 +381,7 @@ void SrsPublishRecvThread::on_buffer_change(int nb_buffer)
     // set percent.
     mr_small_bytes = (int)(nb_buffer / SRS_MR_SMALL_PERCENT);
     // select the smaller
-    mr_small_bytes = srs_min(mr_small_bytes, SRS_MR_SMALL_BYTES);
+    mr_small_bytes = srs_max(mr_small_bytes, SRS_MR_SMALL_BYTES);
 
     // the recv sleep is [buffer / max_kbps, buffer / min_kbps]
     // for example, buffer is 256KB, max kbps is 10Mbps, min kbps is 10Kbps,
