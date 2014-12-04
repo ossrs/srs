@@ -479,10 +479,12 @@ int SrsProtocol::manual_response_flush()
     return ret;
 }
 
+#ifdef SRS_PERF_MERGED_READ
 void SrsProtocol::set_merge_read(bool v, int max_buffer, IMergeReadHandler* handler)
 {
     in_buffer->set_merge_read(v, max_buffer, handler);
 }
+#endif
 
 void SrsProtocol::set_recv_timeout(int64_t timeout_us)
 {

@@ -33,6 +33,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 
 #include <srs_protocol_io.hpp>
+#include <srs_core_performance.hpp>
+
+// 4KB=4096
+// 8KB=8192
+// 16KB=16384
+// 32KB=32768
+// 64KB=65536
+// @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+#define SOCKET_READ_SIZE 65536
+// the max buffer for user space socket buffer.
+#define SOCKET_MAX_BUF SOCKET_READ_SIZE
 
 /**
 * the simple buffer use vector to append bytes,
@@ -71,16 +82,7 @@ public:
     virtual void append(const char* bytes, int size);
 };
 
-// 4KB=4096
-// 8KB=8192
-// 16KB=16384
-// 32KB=32768
-// 64KB=65536
-// @see https://github.com/winlinvip/simple-rtmp-server/issues/241
-#define SOCKET_READ_SIZE 65536
-// the max buffer for user space socket buffer.
-#define SOCKET_MAX_BUF SOCKET_READ_SIZE
-
+#ifdef SRS_PERF_MERGED_READ
 /**
 * to improve read performance, merge some packets then read,
 * when it on and read small bytes, we sleep to wait more data.,
@@ -105,17 +107,21 @@ public:
     */
     virtual void on_buffer_change(int nb_buffer) = 0;
 };
+#endif
 
 /**
 * the buffer provices bytes cache for protocol. generally, 
 * protocol recv data from socket, put into buffer, decode to RTMP message.
 */
+// TODO: FIXME: add utest for it.
 class SrsFastBuffer
 {
 private:
+#ifdef SRS_PERF_MERGED_READ
     // the merged handler
     bool merged_read;
     IMergeReadHandler* _handler;
+#endif
     // the user-space buffer to fill by reader,
     // which use fast index and reset when chunk body read ok.
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/248
@@ -160,6 +166,7 @@ public:
     */
     virtual int grow(ISrsBufferReader* reader, int required_size);
 public:
+#ifdef SRS_PERF_MERGED_READ
     /**
     * to improve read performance, merge some packets then read,
     * when it on and read small bytes, we sleep to wait more data.,
@@ -170,6 +177,8 @@ public:
     * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
     */
     virtual void set_merge_read(bool v, int max_buffer, IMergeReadHandler* handler);
+#endif
+public:
     /**
     * when chunk size changed, the buffer should change the buffer also.
     * to keep the socket buffer size always greater than chunk size.

@@ -203,7 +203,7 @@ int MockBufferReader::read(void* buf, size_t size, ssize_t* nread)
 
 VOID TEST(KernelBufferTest, DefaultObject)
 {
-    SrsFastBuffer b;
+    SrsSimpleBuffer b;
     
     EXPECT_EQ(0, b.length());
     EXPECT_EQ(NULL, b.bytes());
@@ -211,7 +211,7 @@ VOID TEST(KernelBufferTest, DefaultObject)
 
 VOID TEST(KernelBufferTest, AppendBytes)
 {
-    SrsFastBuffer b;
+    SrsSimpleBuffer b;
     
     char winlin[] = "winlin";
     b.append(winlin, strlen(winlin));
@@ -231,7 +231,7 @@ VOID TEST(KernelBufferTest, AppendBytes)
 
 VOID TEST(KernelBufferTest, EraseBytes)
 {
-    SrsFastBuffer b;
+    SrsSimpleBuffer b;
     
     b.erase(0);
     b.erase(-1);
@@ -265,22 +265,21 @@ VOID TEST(KernelBufferTest, EraseBytes)
     EXPECT_EQ(0, b.length());
 }
 
-VOID TEST(KernelBufferTest, Grow)
+VOID TEST(KernelFastBufferTest, Grow)
 {
     SrsFastBuffer b;
     MockBufferReader r("winlin");
     
     b.grow(&r, 1);
-    EXPECT_EQ(6, b.length());
-    EXPECT_EQ('w', b.bytes()[0]);
+    EXPECT_EQ('w', b.read_1byte());
 
     b.grow(&r, 3);
-    EXPECT_EQ(6, b.length());
-    EXPECT_EQ('n', b.bytes()[2]);
+    b.skip(1);
+    EXPECT_EQ('n', b.read_1byte());
     
     b.grow(&r, 100);
-    EXPECT_EQ(102, b.length());
-    EXPECT_EQ('l', b.bytes()[99]);
+    b.skip(99);
+    EXPECT_EQ('w', b.read_1byte());
 }
 
 /**

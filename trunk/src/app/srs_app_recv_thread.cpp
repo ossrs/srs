@@ -28,6 +28,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_protocol_buffer.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_core_performance.hpp>
 
 // when we read from socket less than this value,
 // sleep a while to merge read.
@@ -299,6 +300,7 @@ void SrsPublishRecvThread::on_thread_start()
     // we donot set the auto response to false,
     // for the main thread never send message.
 
+#ifdef SRS_PERF_MERGED_READ
     // socket recv buffer, system will double it.
     int nb_rbuf = SRS_MR_SOCKET_BUFFER / 2;
     socklen_t sock_buf_size = sizeof(int);
@@ -312,6 +314,7 @@ void SrsPublishRecvThread::on_thread_start()
     // enable the merge read
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
     rtmp->set_merge_read(true, nb_rbuf, this);
+#endif
 }
 
 void SrsPublishRecvThread::on_thread_stop()
@@ -323,9 +326,11 @@ void SrsPublishRecvThread::on_thread_stop()
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/244
     st_cond_signal(error);
 
+#ifdef SRS_PERF_MERGED_READ
     // disable the merge read
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
     rtmp->set_merge_read(false, 0, NULL);
+#endif
 }
 
 bool SrsPublishRecvThread::can_handle()
@@ -359,6 +364,7 @@ void SrsPublishRecvThread::on_recv_error(int ret)
     st_cond_signal(error);
 }
 
+#ifdef SRS_PERF_MERGED_READ
 void SrsPublishRecvThread::on_read(ssize_t nread)
 {
     if (nread < 0 || mr_sleep_ms <= 0) {
@@ -378,6 +384,8 @@ void SrsPublishRecvThread::on_read(ssize_t nread)
 
 void SrsPublishRecvThread::on_buffer_change(int nb_buffer)
 {
+    srs_assert(nb_buffer > 0);
+    
     // set percent.
     mr_small_bytes = (int)(nb_buffer / SRS_MR_SMALL_PERCENT);
     // select the smaller
@@ -399,3 +407,4 @@ void SrsPublishRecvThread::on_buffer_change(int nb_buffer)
 
     srs_trace("merged read, buffer=%d, small=%d, sleep=%d", nb_buffer, mr_small_bytes, mr_sleep_ms);
 }
+#endif

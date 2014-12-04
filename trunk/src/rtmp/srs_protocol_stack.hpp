@@ -42,6 +42,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_consts.hpp>
+#include <srs_core_performance.hpp>
 
 class ISrsProtocolReaderWriter;
 class SrsFastBuffer;
@@ -271,6 +272,7 @@ public:
     */
     virtual int manual_response_flush();
 public:
+#ifdef SRS_PERF_MERGED_READ
     /**
     * to improve read performance, merge some packets then read,
     * when it on and read small bytes, we sleep to wait more data.,
@@ -281,6 +283,7 @@ public:
     * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
     */
     virtual void set_merge_read(bool v, int max_buffer, IMergeReadHandler* handler);
+#endif
 public:
     /**
     * set/get the recv timeout in us.

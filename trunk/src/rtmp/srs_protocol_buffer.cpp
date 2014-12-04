@@ -26,6 +26,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_core_performance.hpp>
 
 // the max header size,
 // @see SrsProtocol::read_message_header().
@@ -72,6 +73,7 @@ void SrsSimpleBuffer::append(const char* bytes, int size)
     data.insert(data.end(), bytes, bytes + size);
 }
 
+#ifdef SRS_PERF_MERGED_READ
 IMergeReadHandler::IMergeReadHandler()
 {
 }
@@ -79,11 +81,14 @@ IMergeReadHandler::IMergeReadHandler()
 IMergeReadHandler::~IMergeReadHandler()
 {
 }
+#endif
 
 SrsFastBuffer::SrsFastBuffer()
 {
+#ifdef SRS_PERF_MERGED_READ
     merged_read = false;
     _handler = NULL;
+#endif
     
     p = end = buffer = NULL;
     nb_buffer = 0;
@@ -160,6 +165,7 @@ int SrsFastBuffer::grow(ISrsBufferReader* reader, int required_size)
             return ret;
         }
         
+#ifdef SRS_PERF_MERGED_READ
         /**
         * to improve read performance, merge some packets then read,
         * when it on and read small bytes, we sleep to wait more data.,
@@ -169,6 +175,7 @@ int SrsFastBuffer::grow(ISrsBufferReader* reader, int required_size)
         if (merged_read && _handler) {
             _handler->on_read(nread);
         }
+#endif
         
         // we just move the ptr to next.
         srs_assert((int)nread > 0);
@@ -178,6 +185,7 @@ int SrsFastBuffer::grow(ISrsBufferReader* reader, int required_size)
     return ret;
 }
 
+#ifdef SRS_PERF_MERGED_READ
 void SrsFastBuffer::set_merge_read(bool v, int max_buffer, IMergeReadHandler* handler)
 {
     merged_read = v;
@@ -194,6 +202,7 @@ void SrsFastBuffer::set_merge_read(bool v, int max_buffer, IMergeReadHandler* ha
         _handler->on_buffer_change(nb_buffer);
     }
 }
+#endif
 
 void SrsFastBuffer::on_chunk_size(int32_t chunk_size)
 {
@@ -208,9 +217,11 @@ void SrsFastBuffer::on_chunk_size(int32_t chunk_size)
         reset_buffer(buffer_size);
     }
 
+#ifdef SRS_PERF_MERGED_READ
     if (_handler) {
         _handler->on_buffer_change(nb_buffer);
     }
+#endif
 }
 
 int SrsFastBuffer::buffer_size()
