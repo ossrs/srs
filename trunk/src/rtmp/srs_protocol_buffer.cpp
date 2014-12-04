@@ -93,7 +93,7 @@ SrsFastBuffer::SrsFastBuffer()
     p = end = buffer = NULL;
     nb_buffer = 0;
     
-    reset_buffer(SOCKET_READ_SIZE);
+    reset_buffer(SRS_MR_SOCKET_BUFFER);
 }
 
 SrsFastBuffer::~SrsFastBuffer()
@@ -192,14 +192,10 @@ void SrsFastBuffer::set_merge_read(bool v, int max_buffer, IMergeReadHandler* ha
     _handler = handler;
 
     // limit the max buffer.
-    int buffer_size = srs_min(max_buffer, SOCKET_MAX_BUF);
+    int buffer_size = srs_min(max_buffer, SRS_MR_SOCKET_BUFFER);
 
     if (v && buffer_size != nb_buffer) {
         reset_buffer(buffer_size);
-    }
-
-    if (_handler) {
-        _handler->on_buffer_change(nb_buffer);
     }
 }
 #endif
@@ -211,17 +207,11 @@ void SrsFastBuffer::on_chunk_size(int32_t chunk_size)
     }
 
     // limit the max buffer.
-    int buffer_size = srs_min(chunk_size, SOCKET_MAX_BUF);
+    int buffer_size = srs_min(chunk_size, SRS_MR_SOCKET_BUFFER);
 
     if (buffer_size != nb_buffer) {
         reset_buffer(buffer_size);
     }
-
-#ifdef SRS_PERF_MERGED_READ
-    if (_handler) {
-        _handler->on_buffer_change(nb_buffer);
-    }
-#endif
 }
 
 int SrsFastBuffer::buffer_size()

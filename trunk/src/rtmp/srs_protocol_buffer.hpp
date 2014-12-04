@@ -35,16 +35,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_io.hpp>
 #include <srs_core_performance.hpp>
 
-// 4KB=4096
-// 8KB=8192
-// 16KB=16384
-// 32KB=32768
-// 64KB=65536
-// @see https://github.com/winlinvip/simple-rtmp-server/issues/241
-#define SOCKET_READ_SIZE 65536
-// the max buffer for user space socket buffer.
-#define SOCKET_MAX_BUF SOCKET_READ_SIZE
-
 /**
 * the simple buffer use vector to append bytes,
 * it's for hls and http, and need to be refined in future.
@@ -101,11 +91,6 @@ public:
     * @remark, it only for server-side, client srs-librtmp just ignore.
     */
     virtual void on_read(ssize_t nread) = 0;
-    /**
-    * when buffer size changed.
-    * @param nb_buffer the new buffer size.
-    */
-    virtual void on_buffer_change(int nb_buffer) = 0;
 };
 #endif
 

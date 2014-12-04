@@ -64,8 +64,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *       buffer=65536B, small=4096B, sleep=780ms
 *       that is, when got nread bytes smaller than 4KB, sleep(780ms).
 */
-#undef SRS_PERF_MERGED_READ
-#define SRS_PERF_MERGED_READ
+#if 1
+    // to enable merged read.
+    #define SRS_PERF_MERGED_READ
+    // the max sleep time in ms
+    #define SRS_MR_MAX_SLEEP_MS 1000
+    // the max small bytes to group
+    #define SRS_MR_SMALL_BYTES 4096
+    // the underlayer api will set to SRS_MR_SOCKET_BUFFER bytes.
+    // 4KB=4096, 8KB=8192, 16KB=16384, 32KB=32768, 64KB=65536
+    #define SRS_MR_SOCKET_BUFFER 65536
+#endif
 
 /**
 * the send cache time in ms.

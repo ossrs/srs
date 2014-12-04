@@ -147,8 +147,6 @@ private:
     // for mr(merged read),
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
     int mr_fd;
-    int mr_small_bytes;
-    int mr_sleep_ms;
     // the recv thread error code.
     int recv_error_code;
     SrsRtmpConn* _conn;
@@ -184,7 +182,6 @@ public:
 public:
 #ifdef SRS_PERF_MERGED_READ
     virtual void on_read(ssize_t nread);
-    virtual void on_buffer_change(int nb_buffer);
 #endif
 };
 
