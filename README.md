@@ -485,6 +485,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2014-12-04, fix [#248](https://github.com/winlinvip/simple-rtmp-server/issues/248), improve about 15% performance for fast buffer. 2.0.49
 * v2.0, 2014-12-03, fix [#244](https://github.com/winlinvip/simple-rtmp-server/issues/244), conn thread use cond to wait for recv thread error. 2.0.47.
 * v2.0, 2014-12-02, merge [#239](https://github.com/winlinvip/simple-rtmp-server/pull/239), traverse the token before response connect. 2.0.45.
 * v2.0, 2014-12-02, srs-librtmp support hijack io apis for st-load. 2.0.42.
@@ -732,6 +733,7 @@ The publish benchmark by [st-load](https://github.com/winlinvip/st-load):
 * 2014-12-03, SRS 2.0.47,  1k(1200) publishers, 84%CPU, 76MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/787ab674e38734ea8e0678101614fdcd84645dc8)
 * 2014-12-03, SRS 2.0.47,  1k(1400) publishers, 95%CPU, 140MB.
 * 2014-12-03, SRS 2.0.48,  1k(1400) publishers, 95%CPU, 140MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/f35ec2155b1408d528a9f37da7904c9625186bcf)
+* 2014-12-04, SRS 2.0.49,  1k(1400) publishers, 68%CPU, 144MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/29324fab469e0f7cef9ad04ffdbce832ac7dd9ff)
 
 ## Architecture
 
