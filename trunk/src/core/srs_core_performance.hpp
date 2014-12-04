@@ -75,6 +75,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * how many chunk stream to cache, [0, N].
 * to imporove about 10% performance when chunk size small, and 5% for large chunk.
 * @see https://github.com/winlinvip/simple-rtmp-server/issues/249
+* @remark 0 to disable the chunk stream cache.
 */
 #define SRS_PERF_CHUNK_STREAM_CACHE 16
 

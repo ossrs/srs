@@ -418,7 +418,10 @@ SrsProtocol::SrsProtocol(ISrsProtocolReaderWriter* io)
     warned_c0c3_cache_dry = false;
     auto_response_when_recv = true;
     
-    cs_cache = new SrsChunkStream*[SRS_PERF_CHUNK_STREAM_CACHE];
+    cs_cache = NULL;
+    if (SRS_PERF_CHUNK_STREAM_CACHE > 0) {
+        cs_cache = new SrsChunkStream*[SRS_PERF_CHUNK_STREAM_CACHE];
+    }
     for (int cid = 0; cid < SRS_PERF_CHUNK_STREAM_CACHE; cid++) {
         SrsChunkStream* cs = new SrsChunkStream(cid);
         // set the perfer cid of chunk,
@@ -1101,6 +1104,9 @@ int SrsProtocol::recv_interlaced_message(SrsMessage** pmsg)
         return ret;
     }
     srs_verbose("read basic header success. fmt=%d, cid=%d", fmt, cid);
+    
+    // the cid must not negative.
+    srs_assert(cid >= 0);
     
     // once we got the chunk message header, 
     // that is there is a real message in cache,
