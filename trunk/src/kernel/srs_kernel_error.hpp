@@ -60,7 +60,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_SYSTEM_PACKET_INVALID         1019
 #define ERROR_SYSTEM_CLIENT_INVALID         1020
 #define ERROR_SYSTEM_ASSERT_FAILED          1021
-#define ERROR_SYSTEM_SIZE_NEGATIVE          1022
+#define ERROR_READER_BUFFER_OVERFLOW        1022
 #define ERROR_SYSTEM_CONFIG_INVALID         1023
 #define ERROR_SYSTEM_CONFIG_DIRECTIVE       1024
 #define ERROR_SYSTEM_CONFIG_BLOCK_START     1025
@@ -134,7 +134,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_OpenSslSha256DigestSize       2037
 #define ERROR_OpenSslGetPeerPublicKey       2038
 #define ERROR_OpenSslComputeSharedKey       2039
-#define ERROR_RTMP_BUFFER_OVERFLOW          2040
 //                                           
 // system control message, 
 // not an error, but special control logic.

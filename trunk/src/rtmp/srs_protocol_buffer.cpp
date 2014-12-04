@@ -169,18 +169,18 @@ int SrsFastBuffer::grow(ISrsBufferReader* reader, int required_size)
 {
     int ret = ERROR_SUCCESS;
 
-    if (required_size < 0) {
-        ret = ERROR_SYSTEM_SIZE_NEGATIVE;
-        srs_error("size is negative. size=%d, ret=%d", required_size, ret);
+    // generally the required size is ok.
+    if (end - p >= required_size) {
         return ret;
     }
 
-    // when read payload and need to grow, reset buffer.
-    // or there is no space to read.
+    // must be positive.
+    srs_assert(required_size > 0);
+
+    // when read payload or there is no space to read,
+    // reset the buffer with exists bytes.
     int max_to_read = buffer + nb_buffer - end;
-    if (end - p < required_size 
-        && (required_size > SRS_RTMP_MAX_MESSAGE_HEADER || max_to_read < required_size)
-    ) {
+    if (required_size > SRS_RTMP_MAX_MESSAGE_HEADER || max_to_read < required_size) {
         int nb_cap = end - p;
         srs_verbose("move fast buffer %d bytes", nb_cap);
         if (nb_cap < nb_buffer) {
@@ -190,16 +190,16 @@ int SrsFastBuffer::grow(ISrsBufferReader* reader, int required_size)
         }
     }
 
+    // directly check the available bytes to read in buffer.
+    max_to_read = buffer + nb_buffer - end;
+    if (max_to_read < required_size) {
+        ret = ERROR_READER_BUFFER_OVERFLOW;
+        srs_error("buffer overflow, required=%d, max=%d, ret=%d", required_size, nb_buffer, ret);
+        return ret;
+    }
+
+    // buffer is ok, read required size of bytes.
     while (end - p < required_size) {
-        // the max to read is the left bytes.
-        max_to_read = buffer + nb_buffer - end;
-        
-        if (max_to_read <= 0) {
-            ret = ERROR_RTMP_BUFFER_OVERFLOW;
-            srs_error("buffer overflow, required=%d, max=%d, ret=%d", required_size, nb_buffer, ret);
-            return ret;
-        }
-        
         ssize_t nread;
         if ((ret = reader->read(end, max_to_read, &nread)) != ERROR_SUCCESS) {
             return ret;
