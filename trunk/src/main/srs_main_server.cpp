@@ -39,6 +39,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_config.hpp>
 #include <srs_app_log.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_core_performance.hpp>
 
 // pre-declare
 int run();
@@ -130,6 +131,24 @@ void show_macro_features()
 #else
     srs_warn("check feature compile ffmpeg: off");
 #endif
+
+#ifdef SRS_PERF_MERGED_READ
+    srs_trace("MR(merged-read): on, @see %s", RTMP_SIG_SRS_ISSUES(241));
+#else
+    srs_warn("MR(merged-read): off, @see %s", RTMP_SIG_SRS_ISSUES(241));
+#endif
+
+    srs_trace("MR(merged-read) default %d sleep %d", SRS_PERF_MR_ENABLED, SRS_PERF_MR_SLEEP);
+    srs_trace("MW(merged-write) default sleep %d", SRS_PERF_MW_SLEEP);
+    srs_trace("read chunk stream cache cid [0, %d)", SRS_PERF_CHUNK_STREAM_CACHE);
+    srs_trace("default gop cache %d, play queue %ds", SRS_PERF_GOP_CACHE, SRS_PERF_PLAY_QUEUE);
+
+    int possible_mr_latency = 0;
+#ifdef SRS_PERF_MERGED_READ
+    possible_mr_latency = SRS_PERF_MR_SLEEP;
+#endif
+    srs_trace("system default latency in ms: mw(0-%d) + mr(0-%d) + play-queue(0-%d)",
+        SRS_PERF_MW_SLEEP, possible_mr_latency, SRS_PERF_PLAY_QUEUE*1000);
 }
 
 void check_macro_features()
@@ -137,6 +156,10 @@ void check_macro_features()
     // for special features.
 #ifdef SRS_AUTO_HTTP_SERVER
     srs_warn("http server is dev feature, @see %s", RTMP_SIG_SRS_HTTP_SERVER);
+#endif
+
+#ifndef SRS_PERF_MERGED_READ
+    srs_warn("MR(merged-read) is disabled, hurts read performance. @see %s", RTMP_SIG_SRS_ISSUES(241));
 #endif
 
 #if VERSION_MAJOR > 1

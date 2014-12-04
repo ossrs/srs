@@ -38,6 +38,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * to improve read performance, merge some packets then read,
 * when it on and read small bytes, we sleep to wait more data.,
 * that is, we merge some data to read together.
+* @see SrsConfig::get_mr_enabled()
+* @see SrsConfig::get_mr_sleep_ms()
 * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
 * @example, for the default settings, this algorithm will use:
 *       that is, when got nread bytes smaller than 4KB, sleep(780ms).
@@ -55,11 +57,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * For example, sleep 120ms. Then there is, and always 120ms data in buffer.
 * That is, the latency is 120ms(the sleep time).
 */
-// to enable merged read.
 #define SRS_PERF_MERGED_READ
+// the default config of mr.
+#define SRS_PERF_MR_ENABLED false
+#define SRS_PERF_MR_SLEEP 500
 
 /**
-* the send cache time in ms.
+* the MW(merged-write) send cache time in ms.
+* the default value, user can override it in config.
 * to improve send performance, cache msgs and send in a time.
 * for example, cache 500ms videos and audios, then convert all these
 * msgs to iovecs, finally use writev to send.
@@ -67,8 +72,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *       the latency+ when cache+.
 * @remark the socket send buffer default to 185KB, it large enough.
 * @see https://github.com/winlinvip/simple-rtmp-server/issues/194
+* @see SrsConfig::get_mw_sleep_ms()
 */
-#define SRS_PERF_SEND_MSGS_CACHE 500
+// the default config of mw.
+#define SRS_PERF_MW_SLEEP 500
 
 /**
 * how many chunk stream to cache, [0, N].
@@ -77,6 +84,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * @remark 0 to disable the chunk stream cache.
 */
 #define SRS_PERF_CHUNK_STREAM_CACHE 16
+
+/**
+* the gop cache and play cache queue.
+*/
+// whether gop cache is on.
+#define SRS_PERF_GOP_CACHE true
+// in seconds, the live queue length.
+#define SRS_PERF_PLAY_QUEUE 30
 
 #endif
 

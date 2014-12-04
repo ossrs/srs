@@ -145,6 +145,11 @@ int ISrsReloadHandler::on_reload_vhost_mr(string /*vhost*/)
     return ERROR_SUCCESS;
 }
 
+int ISrsReloadHandler::on_reload_vhost_mw(string /*vhost*/)
+{
+    return ERROR_SUCCESS;
+}
+
 int ISrsReloadHandler::on_reload_vhost_transcode(string /*vhost*/)
 {
     return ERROR_SUCCESS;

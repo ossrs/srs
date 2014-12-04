@@ -83,6 +83,7 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* srs_server, st_netfd_t client_stfd)
     duration = 0;
     kbps = new SrsKbps();
     kbps->set_io(skt, skt);
+    mw_sleep = SRS_PERF_MW_SLEEP;
     
     _srs_config->subscribe(this);
 }
@@ -207,6 +208,13 @@ int SrsRtmpConn::on_reload_vhost_removed(string vhost)
     srs_close_stfd(stfd);
     
     return ret;
+}
+
+int SrsRtmpConn::on_reload_vhost_mw(string /*vhost*/)
+{
+    mw_sleep = _srs_config->get_mw_sleep_ms(req->vhost);
+
+    return ERROR_SUCCESS;
 }
 
 int64_t SrsRtmpConn::get_send_bytes_delta()
@@ -361,7 +369,7 @@ int SrsRtmpConn::stream_service_cycle()
     }
     
     bool enabled_cache = _srs_config->get_gop_cache(req->vhost);
-    srs_trace("source url=%s, ip=%s, cache=%d, is_edge=%d, source_id=%d[%d]", 
+    srs_trace("source url=%s, ip=%s, cache=%d, is_edge=%d, source_id=%d[%d]",
         req->get_stream_url().c_str(), ip.c_str(), enabled_cache, vhost_is_edge, 
         source->source_id(), source->source_id());
     source->set_cache(enabled_cache);
@@ -592,17 +600,18 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
         // no message to send, sleep a while.
         if (count <= 0) {
             srs_verbose("sleep for no messages to send");
-            st_usleep(SRS_PERF_SEND_MSGS_CACHE * 1000);
+            st_usleep(mw_sleep * 1000);
         }
 
         // reportable
         if (pithy_print.can_print()) {
             kbps->sample();
             srs_trace("-> "SRS_CONSTS_LOG_PLAY
-                " time=%"PRId64", msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d", 
+                " time=%"PRId64", msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d, mw=%d",
                 pithy_print.age(), count,
                 kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
-                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m()
+                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(),
+                mw_sleep
             );
         }
         
@@ -774,10 +783,14 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
         // reportable
         if (pithy_print.can_print()) {
             kbps->sample();
+            bool mr = _srs_config->get_mr_enabled(req->vhost);
+            int mr_sleep = _srs_config->get_mr_sleep_ms(req->vhost);
             srs_trace("<- "SRS_CONSTS_LOG_CLIENT_PUBLISH
-                " time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d", pithy_print.age(),
+                " time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d, mr=%d/%d", pithy_print.age(),
                 kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
-                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m());
+                kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(),
+                mr, mr_sleep
+            );
         }
     }
 

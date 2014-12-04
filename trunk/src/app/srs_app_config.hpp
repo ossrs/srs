@@ -54,8 +54,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_DVR_PLAN SRS_CONF_DEFAULT_DVR_PLAN_SESSION
 #define SRS_CONF_DEFAULT_DVR_DURATION 30
 #define SRS_CONF_DEFAULT_TIME_JITTER "full"
-// in seconds, the live queue length.
-#define SRS_CONF_DEFAULT_QUEUE_LENGTH 30
 // in seconds, the paused queue length.
 #define SRS_CONF_DEFAULT_PAUSED_LENGTH 10
 // the interval in seconds for bandwidth check
@@ -541,6 +539,12 @@ public:
     */
     // TODO: FIXME: add utest for mr config.
     virtual int                 get_mr_sleep_ms(std::string vhost);
+    /**
+    * get the mw sleep time in ms for vhost.
+    * @param vhost, the vhost to get the mw sleep time.
+    */
+    // TODO: FIXME: add utest for mw config.
+    virtual int                 get_mw_sleep_ms(std::string vhost);
 private:
     /**
     * get the global chunk size.

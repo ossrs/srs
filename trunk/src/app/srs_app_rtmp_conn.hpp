@@ -71,6 +71,8 @@ private:
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/47
     int64_t duration;
     SrsKbps* kbps;
+    // the MR(merged-write) sleep time in ms.
+    int mw_sleep;
 public:
     SrsRtmpConn(SrsServer* srs_server, st_netfd_t client_stfd);
     virtual ~SrsRtmpConn();
@@ -81,6 +83,7 @@ protected:
 // interface ISrsReloadHandler
 public:
     virtual int on_reload_vhost_removed(std::string vhost);
+    virtual int on_reload_vhost_mw(std::string vhost);
 // interface IKbpsDelta
 public:
     virtual int64_t get_send_bytes_delta();

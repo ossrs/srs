@@ -50,10 +50,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // 6. Chunking, RTMP protocol default chunk size.
 #define SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE 128
 
-// the default setting of mr.
-#define SRS_CONSTS_RTMP_MR false
-#define SRS_CONSTS_RTMP_MR_SLEEP 500
-
 /**
 * 6. Chunking
 * The chunk size is configurable. It can be set using a control
