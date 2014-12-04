@@ -42,22 +42,23 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * @example, for the default settings, this algorithm will use:
 *       that is, when got nread bytes smaller than 4KB, sleep(780ms).
 */
-#if 1
-    // to enable merged read.
-    #define SRS_PERF_MERGED_READ
-    // the max sleep time in ms
-    #define SRS_MR_MAX_SLEEP_MS 780
-    // the max small bytes to group
-    #define SRS_MR_SMALL_BYTES 4096
-    // the underlayer api will set to SRS_MR_SOCKET_BUFFER bytes.
-    //      4KB=4096, 8KB=8192, 16KB=16384, 32KB=32768, 64KB=65536, 
-    //      128KB=131072, 256KB=262144, 512KB=524288
-    // the buffer should set to SRS_MR_MAX_SLEEP_MS*kbps/8,
-    // for example, your system delivery stream in 1000kbps, 
-    // sleep 800ms for small bytes, the buffer should set to:
-    //      800*1000/8=100000B(about 128KB).
-    #define SRS_MR_SOCKET_BUFFER 65536
-#endif
+/**
+* https://github.com/winlinvip/simple-rtmp-server/issues/241#issuecomment-65554690
+* The merged read algorithm is ok and can be simplified for:
+*   1. Suppose the client network is ok. All algorithm go wrong when netowrk is not ok.
+*   2. Suppose the client send each packet one by one. Although send some together, it's same.
+*   3. SRS MR algorithm will read all data then sleep.
+* So, the MR algorithm is:
+*   while true:
+*       read all data from socket.
+*       sleep a while
+* For example, sleep 120ms. Then there is, and always 120ms data in buffer.
+* That is, the latency is 120ms(the sleep time).
+*/
+// to enable merged read.
+#undef SRS_PERF_MERGED_READ
+// the max sleep time in ms
+#define SRS_MR_MAX_SLEEP_MS 800
 
 /**
 * the send cache time in ms.

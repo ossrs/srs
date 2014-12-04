@@ -660,9 +660,8 @@ int SrsRtmpConn::fmle_publishing(SrsSource* source)
 
     // use isolate thread to recv,
     // @see: https://github.com/winlinvip/simple-rtmp-server/issues/237
-    SrsPublishRecvThread trd(rtmp, st_netfd_fileno(stfd),
-        SRS_CONSTS_RTMP_RECV_TIMEOUT_US / 1000, 
-        this, source, true, vhost_is_edge);
+    SrsPublishRecvThread trd(rtmp, req, 
+        st_netfd_fileno(stfd), 0, this, source, true, vhost_is_edge);
 
     srs_info("start to publish stream %s success", req->stream.c_str());
     ret = do_publishing(source, &trd);
@@ -696,9 +695,8 @@ int SrsRtmpConn::flash_publishing(SrsSource* source)
 
     // use isolate thread to recv,
     // @see: https://github.com/winlinvip/simple-rtmp-server/issues/237
-    SrsPublishRecvThread trd(rtmp, st_netfd_fileno(stfd),
-        SRS_CONSTS_RTMP_RECV_TIMEOUT_US / 1000, 
-        this, source, false, vhost_is_edge);
+    SrsPublishRecvThread trd(rtmp, req, 
+        st_netfd_fileno(stfd), 0, this, source, true, vhost_is_edge);
 
     srs_info("start to publish stream %s success", req->stream.c_str());
     ret = do_publishing(source, &trd);

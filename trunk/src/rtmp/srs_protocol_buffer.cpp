@@ -28,6 +28,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_utility.hpp>
 #include <srs_core_performance.hpp>
 
+// the max small bytes to group
+#define SRS_MR_SMALL_BYTES 4096
+// the default recv buffer size
+#define SRS_DEFAULT_RECV_BUFFER_SIZE 8192
+
 // the max header size,
 // @see SrsProtocol::read_message_header().
 #define SRS_RTMP_MAX_MESSAGE_HEADER 11
@@ -90,9 +95,28 @@ SrsFastBuffer::SrsFastBuffer()
     _handler = NULL;
 #endif
     
-    nb_buffer = SRS_MR_SOCKET_BUFFER;
+    nb_buffer = SRS_DEFAULT_RECV_BUFFER_SIZE;
     buffer = new char[nb_buffer];
     p = end = buffer;
+}
+
+void SrsFastBuffer::set_buffer(int buffer_size)
+{
+    // only realloc when buffer changed bigger
+    if (buffer_size <= nb_buffer) {
+        return;
+    }
+    
+    int start = p - buffer;
+    int cap = end - p;
+    
+    char* buf = new char[buffer_size];
+    memcpy(buf, buffer, nb_buffer);
+    srs_freep(buffer);
+    
+    buffer = buf;
+    p = buffer + start;
+    end = p + cap;
 }
 
 SrsFastBuffer::~SrsFastBuffer()

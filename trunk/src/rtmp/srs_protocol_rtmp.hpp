@@ -354,6 +354,14 @@ public:
     * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
     */
     virtual void set_merge_read(bool v, IMergeReadHandler* handler);
+    /**
+    * create buffer with specifeid size.
+    * @param buffer the size of buffer.
+    * @remark when MR(SRS_PERF_MERGED_READ) disabled, always set to 8K.
+    * @remark when buffer changed, the previous ptr maybe invalid.
+    * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+    */
+    virtual void set_recv_buffer(int buffer_size);
 #endif
     /**
     * set/get the recv timeout in us.

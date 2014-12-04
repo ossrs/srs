@@ -530,6 +530,16 @@ public:
     * @remark, default 60000.
     */
     virtual int                 get_chunk_size(std::string vhost);
+    /**
+    * whether mr is enabled for vhost.
+    * @param vhost, the vhost to get the mr.
+    */
+    virtual bool                get_mr_enabled(std::string vhost);
+    /**
+    * get the mr sleep time in ms for vhost.
+    * @param vhost, the vhost to get the mr sleep time.
+    */
+    virtual int                 get_mr_sleep_ms(std::string vhost);
 private:
     /**
     * get the global chunk size.

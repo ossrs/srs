@@ -504,6 +504,11 @@ void SrsProtocol::set_merge_read(bool v, IMergeReadHandler* handler)
 {
     in_buffer->set_merge_read(v, handler);
 }
+
+void SrsProtocol::set_recv_buffer(int buffer_size)
+{
+    in_buffer->set_buffer(buffer_size);
+}
 #endif
 
 void SrsProtocol::set_recv_timeout(int64_t timeout_us)

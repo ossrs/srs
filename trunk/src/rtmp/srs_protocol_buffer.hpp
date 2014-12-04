@@ -124,6 +124,15 @@ public:
     virtual ~SrsFastBuffer();
 public:
     /**
+    * create buffer with specifeid size.
+    * @param buffer the size of buffer.
+    * @remark when MR(SRS_PERF_MERGED_READ) disabled, always set to 8K.
+    * @remark when buffer changed, the previous ptr maybe invalid.
+    * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+    */
+    virtual void set_buffer(int buffer_size);
+public:
+    /**
     * read 1byte from buffer, move to next bytes.
     * @remark assert buffer already grow(1).
     */

@@ -750,6 +750,11 @@ void SrsRtmpServer::set_merge_read(bool v, IMergeReadHandler* handler)
 {
     protocol->set_merge_read(v, handler);
 }
+
+void SrsRtmpServer::set_recv_buffer(int buffer_size)
+{
+    protocol->set_recv_buffer(buffer_size);
+}
 #endif
 
 void SrsRtmpServer::set_recv_timeout(int64_t timeout_us)

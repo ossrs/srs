@@ -816,7 +816,18 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                         return ret;
                     }
                 }
-                srs_trace("vhost %s reload hls success.", vhost.c_str());
+                srs_trace("vhost %s reload hlsdvrsuccess.", vhost.c_str());
+            }
+            // mr, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("mr"), old_vhost->get("mr"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_mr(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes mr failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload mr success.", vhost.c_str());
             }
             // http, only one per vhost.
             if (!srs_directive_equals(new_vhost->get("http"), old_vhost->get("http"))) {
@@ -1316,6 +1327,7 @@ int SrsConfig::check_config()
                 && n != "time_jitter" 
                 && n != "atc" && n != "atc_auto"
                 && n != "debug_srs_upnode"
+                && n != "mr"
             ) {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported vhost directive %s, ret=%d", n.c_str(), ret);
@@ -1330,6 +1342,16 @@ int SrsConfig::check_config()
                     ) {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost dvr directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
+                    }
+                }
+            } else if (n == "mr") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name.c_str();
+                    if (m != "enabled" && m != "latency"
+                    ) {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost mr directive %s, ret=%d", m.c_str(), ret);
                         return ret;
                     }
                 }
@@ -2073,6 +2095,50 @@ int SrsConfig::get_chunk_size(string vhost)
         // vhost does not specify the chunk size,
         // use the global instead.
         return get_global_chunk_size();
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
+bool SrsConfig::get_mr_enabled(string vhost)
+{
+    
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return SRS_CONSTS_RTMP_MR;
+    }
+
+    conf = conf->get("mr");
+    if (!conf) {
+        return SRS_CONSTS_RTMP_MR;
+    }
+
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0() != "on") {
+        return SRS_CONSTS_RTMP_MR;
+    }
+
+    return true;
+}
+
+int SrsConfig::get_mr_sleep_ms(string vhost)
+{
+    
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return SRS_CONSTS_RTMP_MR_SLEEP;
+    }
+
+    conf = conf->get("mr");
+    if (!conf) {
+        return SRS_CONSTS_RTMP_MR_SLEEP;
+    }
+
+    conf = conf->get("latency");
+    if (!conf || conf->arg0().empty()) {
+        return SRS_CONSTS_RTMP_MR_SLEEP;
     }
 
     return ::atoi(conf->arg0().c_str());
