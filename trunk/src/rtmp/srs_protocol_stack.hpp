@@ -205,6 +205,12 @@ private:
     */
     std::map<int, SrsChunkStream*> chunk_streams;
     /**
+    * cache some frequently used chunk header.
+    * cs_cache, the chunk stream cache.
+    * @see https://github.com/winlinvip/simple-rtmp-server/issues/249
+    */
+    SrsChunkStream** cs_cache;
+    /**
     * bytes buffer cache, recv from skt, provide services for stream.
     */
     SrsFastBuffer* in_buffer;

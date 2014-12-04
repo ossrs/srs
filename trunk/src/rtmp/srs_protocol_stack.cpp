@@ -417,6 +417,16 @@ SrsProtocol::SrsProtocol(ISrsProtocolReaderWriter* io)
     
     warned_c0c3_cache_dry = false;
     auto_response_when_recv = true;
+    
+    cs_cache = new SrsChunkStream*[SRS_PERF_CHUNK_STREAM_CACHE];
+    for (int cid = 0; cid < SRS_PERF_CHUNK_STREAM_CACHE; cid++) {
+        SrsChunkStream* cs = new SrsChunkStream(cid);
+        // set the perfer cid of chunk,
+        // which will copy to the message received.
+        cs->header.perfer_cid = cid;
+        
+        cs_cache[cid] = cs;
+    }
 }
 
 SrsProtocol::~SrsProtocol()
@@ -448,6 +458,13 @@ SrsProtocol::~SrsProtocol()
         free(out_iovs);
         out_iovs = NULL;
     }
+    
+    // free all chunk stream cache.
+    for (int i = 0; i < SRS_PERF_CHUNK_STREAM_CACHE; i++) {
+        SrsChunkStream* cs = cs_cache[i];
+        srs_freep(cs);
+    }
+    srs_freep(cs_cache);
 }
 
 void SrsProtocol::set_auto_response(bool v)
@@ -1102,17 +1119,30 @@ int SrsProtocol::recv_interlaced_message(SrsMessage** pmsg)
     // get the cached chunk stream.
     SrsChunkStream* chunk = NULL;
     
-    if (chunk_streams.find(cid) == chunk_streams.end()) {
-        chunk = chunk_streams[cid] = new SrsChunkStream(cid);
-        // set the perfer cid of chunk,
-        // which will copy to the message received.
-        chunk->header.perfer_cid = cid;
-        srs_verbose("cache new chunk stream: fmt=%d, cid=%d", fmt, cid);
-    } else {
-        chunk = chunk_streams[cid];
+    // use chunk stream cache to get the chunk info.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/249
+    if (cid < SRS_PERF_CHUNK_STREAM_CACHE) {
+        // chunk stream cache hit.
+        srs_verbose("cs-cache hit, cid=%d", cid);
+        // already init, use it direclty
+        chunk = cs_cache[cid];
         srs_verbose("cached chunk stream: fmt=%d, cid=%d, size=%d, message(type=%d, size=%d, time=%"PRId64", sid=%d)",
             chunk->fmt, chunk->cid, (chunk->msg? chunk->msg->size : 0), chunk->header.message_type, chunk->header.payload_length,
             chunk->header.timestamp, chunk->header.stream_id);
+    } else {
+        // chunk stream cache miss, use map.
+        if (chunk_streams.find(cid) == chunk_streams.end()) {
+            chunk = chunk_streams[cid] = new SrsChunkStream(cid);
+            // set the perfer cid of chunk,
+            // which will copy to the message received.
+            chunk->header.perfer_cid = cid;
+            srs_verbose("cache new chunk stream: fmt=%d, cid=%d", fmt, cid);
+        } else {
+            chunk = chunk_streams[cid];
+            srs_verbose("cached chunk stream: fmt=%d, cid=%d, size=%d, message(type=%d, size=%d, time=%"PRId64", sid=%d)",
+                chunk->fmt, chunk->cid, (chunk->msg? chunk->msg->size : 0), chunk->header.message_type, chunk->header.payload_length,
+                chunk->header.timestamp, chunk->header.stream_id);
+        }
     }
 
     // chunk stream message header

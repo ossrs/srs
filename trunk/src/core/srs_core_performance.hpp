@@ -79,5 +79,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #define SRS_PERF_SEND_MSGS_CACHE 500
 
+/**
+* how many chunk stream to cache, [0, N].
+* to imporove about 10% performance when chunk size small, and 5% for large chunk.
+* @see https://github.com/winlinvip/simple-rtmp-server/issues/249
+*/
+#define SRS_PERF_CHUNK_STREAM_CACHE 16
+
 #endif
 
