@@ -28,6 +28,7 @@ using namespace std;
 #include <srs_kernel_consts.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_app_source.hpp>
+#include <srs_core_performance.hpp>
 
 MockSrsConfigBuffer::MockSrsConfigBuffer(string buf)
 {
@@ -1092,7 +1093,7 @@ VOID TEST(ConfigTest, CheckMacros)
 #ifndef SRS_CONF_DEFAULT_TIME_JITTER
     EXPECT_TRUE(false);
 #endif
-#ifndef SRS_CONF_DEFAULT_QUEUE_LENGTH
+#ifndef SRS_PERF_PLAY_QUEUE
     EXPECT_TRUE(false);
 #endif
 #ifndef SRS_CONF_DEFAULT_PAUSED_LENGTH
