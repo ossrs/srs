@@ -350,11 +350,10 @@ public:
     * when it on and read small bytes, we sleep to wait more data.,
     * that is, we merge some data to read together.
     * @param v true to ename merged read.
-    * @param max_buffer the max buffer size, the socket buffer.
     * @param handler the handler when merge read is enabled.
     * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
     */
-    virtual void set_merge_read(bool v, int max_buffer, IMergeReadHandler* handler);
+    virtual void set_merge_read(bool v, IMergeReadHandler* handler);
 #endif
     /**
     * set/get the recv timeout in us.

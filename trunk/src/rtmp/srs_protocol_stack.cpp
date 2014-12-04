@@ -497,9 +497,9 @@ int SrsProtocol::manual_response_flush()
 }
 
 #ifdef SRS_PERF_MERGED_READ
-void SrsProtocol::set_merge_read(bool v, int max_buffer, IMergeReadHandler* handler)
+void SrsProtocol::set_merge_read(bool v, IMergeReadHandler* handler)
 {
-    in_buffer->set_merge_read(v, max_buffer, handler);
+    in_buffer->set_merge_read(v, handler);
 }
 #endif
 

@@ -186,17 +186,10 @@ int SrsFastBuffer::grow(ISrsBufferReader* reader, int required_size)
 }
 
 #ifdef SRS_PERF_MERGED_READ
-void SrsFastBuffer::set_merge_read(bool v, int max_buffer, IMergeReadHandler* handler)
+void SrsFastBuffer::set_merge_read(bool v, IMergeReadHandler* handler)
 {
     merged_read = v;
     _handler = handler;
-
-    // limit the max buffer.
-    int buffer_size = srs_min(max_buffer, SRS_MR_SOCKET_BUFFER);
-
-    if (v && buffer_size != nb_buffer) {
-        reset_buffer(buffer_size);
-    }
 }
 #endif
 

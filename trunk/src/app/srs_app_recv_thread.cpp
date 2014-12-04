@@ -295,7 +295,7 @@ void SrsPublishRecvThread::on_thread_start()
 
     // enable the merge read
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
-    rtmp->set_merge_read(true, nb_rbuf, this);
+    rtmp->set_merge_read(true, this);
 #endif
 }
 
@@ -311,7 +311,7 @@ void SrsPublishRecvThread::on_thread_stop()
 #ifdef SRS_PERF_MERGED_READ
     // disable the merge read
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
-    rtmp->set_merge_read(false, 0, NULL);
+    rtmp->set_merge_read(false, NULL);
 #endif
 }
 

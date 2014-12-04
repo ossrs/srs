@@ -39,40 +39,23 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * when it on and read small bytes, we sleep to wait more data.,
 * that is, we merge some data to read together.
 * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
-* @remark other macros:
-*       SOCKET_MAX_BUF, the max size of user-space buffer.
-*       SOCKET_READ_SIZE, the user space buffer for socket.
-*       SRS_MR_MAX_BITRATE_KBPS, the kbps of stream for system to guess the sleep time.
-*       SRS_MR_AVERAGE_BITRATE_KBPS, the average kbps of system.
-*       SRS_MR_MIN_BITRATE_KBPS, the min kbps of system.
-*       SRS_MR_MAX_SLEEP_MS, the max sleep time, the latency+ when sleep+.
-*       SRS_MR_SMALL_BYTES, sleep when got small bytes, the latency+ when small+.
-*       SRS_MR_SMALL_PERCENT, to calc the small bytes = SRS_MR_SOCKET_BUFFER/percent.
-*       SRS_MR_SOCKET_BUFFER, the socket buffer to set fd.
-* @remark the actual socket buffer used to set the buffer user-space size.
-*       buffer = min(SOCKET_MAX_BUF, SRS_MR_SOCKET_BUFFER, SOCKET_READ_SIZE)
-*       small bytes = max(buffer/SRS_MR_SMALL_PERCENT, SRS_MR_SMALL_BYTES)
-*       sleep = calc the sleep by kbps and buffer.
-* @remark the main merged-read algorithm:
-*       while true:
-*           nread = read from socket.
-*           sleep if nread < small bytes
-*           process bytes.
 * @example, for the default settings, this algorithm will use:
-*       socket buffer set to 64KB,
-*       user space buffer set to 64KB,
-*       buffer=65536B, small=4096B, sleep=780ms
 *       that is, when got nread bytes smaller than 4KB, sleep(780ms).
 */
 #if 1
     // to enable merged read.
     #define SRS_PERF_MERGED_READ
     // the max sleep time in ms
-    #define SRS_MR_MAX_SLEEP_MS 1000
+    #define SRS_MR_MAX_SLEEP_MS 780
     // the max small bytes to group
     #define SRS_MR_SMALL_BYTES 4096
     // the underlayer api will set to SRS_MR_SOCKET_BUFFER bytes.
-    // 4KB=4096, 8KB=8192, 16KB=16384, 32KB=32768, 64KB=65536
+    //      4KB=4096, 8KB=8192, 16KB=16384, 32KB=32768, 64KB=65536, 
+    //      128KB=131072, 256KB=262144, 512KB=524288
+    // the buffer should set to SRS_MR_MAX_SLEEP_MS*kbps/8,
+    // for example, your system delivery stream in 1000kbps, 
+    // sleep 800ms for small bytes, the buffer should set to:
+    //      800*1000/8=100000B(about 128KB).
     #define SRS_MR_SOCKET_BUFFER 65536
 #endif
 

@@ -746,9 +746,9 @@ void SrsRtmpServer::set_auto_response(bool v)
 }
 
 #ifdef SRS_PERF_MERGED_READ
-void SrsRtmpServer::set_merge_read(bool v, int max_buffer, IMergeReadHandler* handler)
+void SrsRtmpServer::set_merge_read(bool v, IMergeReadHandler* handler)
 {
-    protocol->set_merge_read(v, max_buffer, handler);
+    protocol->set_merge_read(v, handler);
 }
 #endif
 
