@@ -33,6 +33,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 using namespace std;
 
+// the max small bytes to group
+#define SRS_MR_SMALL_BYTES 4096
+
 ISrsMessageHandler::ISrsMessageHandler()
 {
 }
@@ -390,8 +393,8 @@ void SrsPublishRecvThread::update_buffer(bool mr_enabled, int sleep_ms)
     // TODO: FIXME: refine it.
     
 #ifdef SRS_PERF_MERGED_READ
-    // previous enabled mr, update the buffer.
-    if (mr && mr_sleep != sleep_ms) {
+    // update the buffer.
+    if (true) {
         // the underlayer api will set to SRS_MR_SOCKET_BUFFER bytes.
         //      4KB=4096, 8KB=8192, 16KB=16384, 32KB=32768, 64KB=65536, 
         //      128KB=131072, 256KB=262144, 512KB=524288

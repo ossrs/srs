@@ -539,6 +539,7 @@ public:
     * get the mr sleep time in ms for vhost.
     * @param vhost, the vhost to get the mr sleep time.
     */
+    // TODO: FIXME: add utest for mr config.
     virtual int                 get_mr_sleep_ms(std::string vhost);
 private:
     /**

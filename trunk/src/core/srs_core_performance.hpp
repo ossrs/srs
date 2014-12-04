@@ -56,9 +56,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * That is, the latency is 120ms(the sleep time).
 */
 // to enable merged read.
-#undef SRS_PERF_MERGED_READ
-// the max sleep time in ms
-#define SRS_MR_MAX_SLEEP_MS 800
+#define SRS_PERF_MERGED_READ
 
 /**
 * the send cache time in ms.
