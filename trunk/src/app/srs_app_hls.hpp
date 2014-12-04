@@ -61,43 +61,7 @@ class SrsRequest;
 class SrsPithyPrint;
 class SrsSource;
 class SrsFileWriter;
-
-/**
-* the simple buffer use vector to append bytes,
-* it's for hls, and need to be refined in future.
-*/
-class SrsSimpleBuffer
-{
-private:
-    std::vector<char> data;
-public:
-    SrsSimpleBuffer();
-    virtual ~SrsSimpleBuffer();
-public:
-    /**
-    * get the length of buffer. empty if zero.
-    * @remark assert length() is not negative.
-    */
-    virtual int length();
-    /**
-    * get the buffer bytes.
-    * @return the bytes, NULL if empty.
-    */
-    virtual char* bytes();
-    /**
-    * erase size of bytes from begin.
-    * @param size to erase size of bytes. 
-    *       clear if size greater than or equals to length()
-    * @remark ignore size is not positive.
-    */
-    virtual void erase(int size);
-    /**
-    * append specified bytes to buffer.
-    * @param size the size of bytes
-    * @remark assert size is positive.
-    */
-    virtual void append(const char* bytes, int size);
-};
+class SrsSimpleBuffer;
 
 /**
 * jitter correct for audio,

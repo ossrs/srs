@@ -39,7 +39,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_st.hpp>
 
-class SrsBuffer;
+class SrsSimpleBuffer;
 class SrsRequest;
 class SrsStSocket;
 class SrsHttpUri;
@@ -214,7 +214,7 @@ private:
     * body object, in bytes.
     * @remark, user can get body in string by get_body().
     */
-    SrsBuffer* _body;
+    SrsSimpleBuffer* _body;
     /**
     * parser state
     * @remark, user can use is_complete() to determine the state.

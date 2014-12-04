@@ -537,7 +537,7 @@ SrsHttpHandler* SrsHttpHandler::create_http_stream()
 
 SrsHttpMessage::SrsHttpMessage()
 {
-    _body = new SrsBuffer();
+    _body = new SrsSimpleBuffer();
     _state = SrsHttpParseStateInit;
     _uri = new SrsHttpUri();
     _match = NULL;
