@@ -429,7 +429,8 @@ void SrsPublishRecvThread::set_socket_buffer(int sleep_ms)
     // sleep 800ms for small bytes, the buffer should set to:
     //      800*1000/8=100000B(about 128KB).
     //      2000*3000/8=750000B(about 732KB).
-    int kbps = 3000;
+    //      2000*5000/8=1250000B(about 1220KB).
+    int kbps = 5000;
     int socket_buffer_size = sleep_ms * kbps / 8;
 
     // socket recv buffer, system will double it.

@@ -28,8 +28,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_utility.hpp>
 #include <srs_core_performance.hpp>
 
-// the default recv buffer size
-#define SRS_DEFAULT_RECV_BUFFER_SIZE 32768
+// the default recv buffer size, 128KB.
+#define SRS_DEFAULT_RECV_BUFFER_SIZE 131072
+
+// limit user-space buffer to 256KB, for 3Mbps stream delivery.
+//      800*2000/8=200000B(about 195KB).
+// @remark it's ok for higher stream, the buffer is ok for one chunk is 256KB.
+#define SRS_MAX_SOCKET_BUFFER 262144
 
 // the max header size,
 // @see SrsProtocol::read_message_header().
@@ -100,15 +105,21 @@ SrsFastBuffer::SrsFastBuffer()
 
 void SrsFastBuffer::set_buffer(int buffer_size)
 {
+    // the user-space buffer size limit to a max value.
+    int nb_max_buf = srs_min(buffer_size, SRS_MAX_SOCKET_BUFFER);
+    if (nb_max_buf < buffer_size) {
+        srs_warn("limit the user-space buffer from %d to %d", buffer_size, nb_max_buf);
+    }
+
     // only realloc when buffer changed bigger
-    if (buffer_size <= nb_buffer) {
+    if (nb_max_buf <= nb_buffer) {
         return;
     }
     
     int start = p - buffer;
     int cap = end - p;
     
-    char* buf = new char[buffer_size];
+    char* buf = new char[nb_max_buf];
     if (cap > 0) {
         memcpy(buf, buffer, nb_buffer);
     }
