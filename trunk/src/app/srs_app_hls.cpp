@@ -198,7 +198,7 @@ public:
 
         return ret;
     }
-    static int write_frame(SrsFileWriter* writer, SrsMpegtsFrame* frame, SrsBuffer* buffer)
+    static int write_frame(SrsFileWriter* writer, SrsMpegtsFrame* frame, SrsSimpleBuffer* buffer)
     {
         int ret = ERROR_SUCCESS;
         
@@ -396,6 +396,56 @@ private:
     }
 };
 
+SrsSimpleBuffer::SrsSimpleBuffer()
+{
+}
+
+SrsSimpleBuffer::~SrsSimpleBuffer()
+{
+}
+
+int SrsSimpleBuffer::length()
+{
+    int len = (int)data.size();
+    srs_assert(len >= 0);
+    return len;
+}
+
+char* SrsSimpleBuffer::bytes()
+{
+    return (length() == 0)? NULL : &data.at(0);
+}
+
+void SrsSimpleBuffer::erase(int size)
+{
+    if (size <= 0) {
+        return;
+    }
+    
+    if (size >= length()) {
+        data.clear();
+        return;
+    }
+    
+    data.erase(data.begin(), data.begin() + size);
+}
+
+void SrsSimpleBuffer::append(const char* bytes, int size)
+{
+    srs_assert(size > 0);
+
+    data.insert(data.end(), bytes, bytes + size);
+}
+
+SrsHlsAacJitter::SrsHlsAacJitter()
+{
+    base_pts = 0;
+    nb_samples = 0;
+
+    // TODO: config it, 0 means no adjust
+    sync_ms = SRS_CONF_DEFAULT_AAC_SYNC;
+}
+
 SrsHlsAacJitter::~SrsHlsAacJitter()
 {
 }
@@ -481,7 +531,7 @@ int SrsTSMuxer::open(string _path)
     return ret;
 }
 
-int SrsTSMuxer::write_audio(SrsMpegtsFrame* af, SrsBuffer* ab)
+int SrsTSMuxer::write_audio(SrsMpegtsFrame* af, SrsSimpleBuffer* ab)
 {
     int ret = ERROR_SUCCESS;
     
@@ -492,7 +542,7 @@ int SrsTSMuxer::write_audio(SrsMpegtsFrame* af, SrsBuffer* ab)
     return ret;
 }
 
-int SrsTSMuxer::write_video(SrsMpegtsFrame* vf, SrsBuffer* vb)
+int SrsTSMuxer::write_video(SrsMpegtsFrame* vf, SrsSimpleBuffer* vb)
 {
     int ret = ERROR_SUCCESS;
     
@@ -536,15 +586,6 @@ void SrsHlsSegment::update_duration(int64_t current_frame_dts)
     srs_assert(duration >= 0);
     
     return;
-}
-
-SrsHlsAacJitter::SrsHlsAacJitter()
-{
-    base_pts = 0;
-    nb_samples = 0;
-
-    // TODO: config it, 0 means no adjust
-    sync_ms = SRS_CONF_DEFAULT_AAC_SYNC;
 }
 
 SrsHlsMuxer::SrsHlsMuxer()
@@ -654,7 +695,7 @@ bool SrsHlsMuxer::is_segment_overflow()
     return current->duration >= hls_fragment;
 }
 
-int SrsHlsMuxer::flush_audio(SrsMpegtsFrame* af, SrsBuffer* ab)
+int SrsHlsMuxer::flush_audio(SrsMpegtsFrame* af, SrsSimpleBuffer* ab)
 {
     int ret = ERROR_SUCCESS;
 
@@ -681,7 +722,7 @@ int SrsHlsMuxer::flush_audio(SrsMpegtsFrame* af, SrsBuffer* ab)
     return ret;
 }
 
-int SrsHlsMuxer::flush_video(SrsMpegtsFrame* /*af*/, SrsBuffer* /*ab*/, SrsMpegtsFrame* vf, SrsBuffer* vb)
+int SrsHlsMuxer::flush_video(SrsMpegtsFrame* /*af*/, SrsSimpleBuffer* /*ab*/, SrsMpegtsFrame* vf, SrsSimpleBuffer* vb)
 {
     int ret = ERROR_SUCCESS;
 
@@ -964,8 +1005,8 @@ SrsHlsCache::SrsHlsCache()
 {
     aac_jitter = new SrsHlsAacJitter();
     
-    ab = new SrsBuffer();
-    vb = new SrsBuffer();
+    ab = new SrsSimpleBuffer();
+    vb = new SrsSimpleBuffer();
     
     af = new SrsMpegtsFrame();
     vf = new SrsMpegtsFrame();

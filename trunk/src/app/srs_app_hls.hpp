@@ -50,7 +50,6 @@ extern int aac_sample_rates[];
 #include <string>
 #include <vector>
 
-class SrsBuffer;
 class SrsSharedPtrMessage;
 class SrsCodecSample;
 class SrsMpegtsFrame;
@@ -62,6 +61,43 @@ class SrsRequest;
 class SrsPithyPrint;
 class SrsSource;
 class SrsFileWriter;
+
+/**
+* the simple buffer use vector to append bytes,
+* it's for hls, and need to be refined in future.
+*/
+class SrsSimpleBuffer
+{
+private:
+    std::vector<char> data;
+public:
+    SrsSimpleBuffer();
+    virtual ~SrsSimpleBuffer();
+public:
+    /**
+    * get the length of buffer. empty if zero.
+    * @remark assert length() is not negative.
+    */
+    virtual int length();
+    /**
+    * get the buffer bytes.
+    * @return the bytes, NULL if empty.
+    */
+    virtual char* bytes();
+    /**
+    * erase size of bytes from begin.
+    * @param size to erase size of bytes. 
+    *       clear if size greater than or equals to length()
+    * @remark ignore size is not positive.
+    */
+    virtual void erase(int size);
+    /**
+    * append specified bytes to buffer.
+    * @param size the size of bytes
+    * @remark assert size is positive.
+    */
+    virtual void append(const char* bytes, int size);
+};
 
 /**
 * jitter correct for audio,
@@ -109,8 +145,8 @@ public:
     virtual ~SrsTSMuxer();
 public:
     virtual int open(std::string _path);
-    virtual int write_audio(SrsMpegtsFrame* af, SrsBuffer* ab);
-    virtual int write_video(SrsMpegtsFrame* vf, SrsBuffer* vb);
+    virtual int write_audio(SrsMpegtsFrame* af, SrsSimpleBuffer* ab);
+    virtual int write_video(SrsMpegtsFrame* vf, SrsSimpleBuffer* vb);
     virtual void close();
 };
 
@@ -196,8 +232,8 @@ public:
     * that is whether the current segment duration >= the segment in config
     */
     virtual bool is_segment_overflow();
-    virtual int flush_audio(SrsMpegtsFrame* af, SrsBuffer* ab);
-    virtual int flush_video(SrsMpegtsFrame* af, SrsBuffer* ab, SrsMpegtsFrame* vf, SrsBuffer* vb);
+    virtual int flush_audio(SrsMpegtsFrame* af, SrsSimpleBuffer* ab);
+    virtual int flush_video(SrsMpegtsFrame* af, SrsSimpleBuffer* ab, SrsMpegtsFrame* vf, SrsSimpleBuffer* vb);
     /**
     * close segment(ts).
     * @param log_desc the description for log.
@@ -231,9 +267,9 @@ class SrsHlsCache
 private:
     // current frame and buffer
     SrsMpegtsFrame* af;
-    SrsBuffer* ab;
+    SrsSimpleBuffer* ab;
     SrsMpegtsFrame* vf;
-    SrsBuffer* vb;
+    SrsSimpleBuffer* vb;
 private:
     // the audio cache buffer start pts, to flush audio if full.
     int64_t audio_buffer_start_pts;
