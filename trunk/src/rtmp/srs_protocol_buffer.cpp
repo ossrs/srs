@@ -165,17 +165,23 @@ int SrsFastBuffer::grow(ISrsBufferReader* reader, int required_size)
     }
 
     // when read payload and need to grow, reset buffer.
-    if (end - p < required_size && required_size > SRS_RTMP_MAX_MESSAGE_HEADER) {
+    // or there is no space to read.
+    int max_to_read = buffer + nb_buffer - end;
+    if (end - p < required_size 
+        && (required_size > SRS_RTMP_MAX_MESSAGE_HEADER || max_to_read < required_size)
+    ) {
         int nb_cap = end - p;
         srs_verbose("move fast buffer %d bytes", nb_cap);
-        buffer = (char*)memmove(buffer, p, nb_cap);
-        p = buffer;
-        end = p + nb_cap;
+        if (nb_cap < nb_buffer) {
+            buffer = (char*)memmove(buffer, p, nb_cap);
+            p = buffer;
+            end = p + nb_cap;
+        }
     }
 
     while (end - p < required_size) {
         // the max to read is the left bytes.
-        size_t max_to_read = buffer + nb_buffer - end;
+        max_to_read = buffer + nb_buffer - end;
         
         if (max_to_read <= 0) {
             ret = ERROR_RTMP_BUFFER_OVERFLOW;
