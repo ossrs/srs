@@ -116,39 +116,40 @@ private:
     // the merged handler
     bool merged_read;
     IMergeReadHandler* _handler;
-    // data and socket buffer
-    std::vector<char> data;
+    // the user-space buffer to fill by reader,
+    // which use fast index and reset when chunk body read ok.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/248
+    // ptr to the current read position.
+    char* p;
+    // ptr to the content end.
+    char* end;
+    // ptr to the buffer.
+    //      buffer <= p <= end <= buffer+nb_buffer
     char* buffer;
+    // the max size of buffer.
     int nb_buffer;
 public:
     SrsFastBuffer();
     virtual ~SrsFastBuffer();
 public:
     /**
-    * get the length of buffer. empty if zero.
-    * @remark assert length() is not negative.
+    * read 1byte from buffer, move to next bytes.
+    * @remark assert buffer already grow(1).
     */
-    virtual int length();
+    virtual char read_1byte();
     /**
-    * get the buffer bytes.
-    * @return the bytes, NULL if empty.
+    * read a slice in size bytes, move to next bytes.
+    * user can use this char* ptr directly, and should never free it.
+    * @remark assert buffer already grow(size).
+    * @remark the ptr returned maybe invalid after grow(x).
     */
-    virtual char* bytes();
-public:
+    virtual char* read_slice(int size);
     /**
-    * erase size of bytes from begin.
-    * @param size to erase size of bytes. 
-    *       clear if size greater than or equals to length()
-    * @remark ignore size is not positive.
+    * skip some bytes in buffer.
+    * @param size the bytes to skip. positive to next; negative to previous.
+    * @remark assert buffer already grow(size).
     */
-    virtual void erase(int size);
-private:
-    /**
-    * append specified bytes to buffer.
-    * @param size the size of bytes
-    * @remark assert size is positive.
-    */
-    virtual void append(const char* bytes, int size);
+    virtual void skip(int size);
 public:
     /**
     * grow buffer to the required size, loop to read from skt to fill.

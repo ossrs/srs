@@ -134,6 +134,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_OpenSslSha256DigestSize       2037
 #define ERROR_OpenSslGetPeerPublicKey       2038
 #define ERROR_OpenSslComputeSharedKey       2039
+#define ERROR_RTMP_BUFFER_OVERFLOW          2040
 //                                           
 // system control message, 
 // not an error, but special control logic.

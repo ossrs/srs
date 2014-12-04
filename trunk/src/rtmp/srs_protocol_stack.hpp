@@ -434,21 +434,18 @@ private:
     /**
     * read the chunk basic header(fmt, cid) from chunk stream.
     * user can discovery a SrsChunkStream by cid.
-    * @bh_size return the chunk basic header size, to remove the used bytes when finished.
     */
-    virtual int read_basic_header(char& fmt, int& cid, int& bh_size);
+    virtual int read_basic_header(char& fmt, int& cid);
     /**
     * read the chunk message header(timestamp, payload_length, message_type, stream_id) 
     * from chunk stream and save to SrsChunkStream.
-    * @mh_size return the chunk message header size, to remove the used bytes when finished.
     */
-    virtual int read_message_header(SrsChunkStream* chunk, char fmt, int bh_size, int& mh_size);
+    virtual int read_message_header(SrsChunkStream* chunk, char fmt);
     /**
     * read the chunk payload, remove the used bytes in buffer,
     * if got entire message, set the pmsg.
-    * @payload_size read size in this roundtrip, generally a chunk size or left message size.
     */
-    virtual int read_message_payload(SrsChunkStream* chunk, int bh_size, int mh_size, int& payload_size, SrsMessage** pmsg);
+    virtual int read_message_payload(SrsChunkStream* chunk, SrsMessage** pmsg);
     /**
     * when recv message, update the context.
     */

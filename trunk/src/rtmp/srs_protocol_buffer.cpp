@@ -27,6 +27,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
 
+// the max header size,
+// @see SrsProtocol::read_message_header().
+#define SRS_RTMP_MAX_MESSAGE_HEADER 11
+
 SrsSimpleBuffer::SrsSimpleBuffer()
 {
 }
@@ -81,8 +85,10 @@ SrsFastBuffer::SrsFastBuffer()
     merged_read = false;
     _handler = NULL;
     
-    nb_buffer = SOCKET_READ_SIZE;
-    buffer = new char[nb_buffer];
+    p = end = buffer = NULL;
+    nb_buffer = 0;
+    
+    reset_buffer(SOCKET_READ_SIZE);
 }
 
 SrsFastBuffer::~SrsFastBuffer()
@@ -90,37 +96,34 @@ SrsFastBuffer::~SrsFastBuffer()
     srs_freep(buffer);
 }
 
-int SrsFastBuffer::length()
+char SrsFastBuffer::read_1byte()
 {
-    int len = (int)data.size();
-    srs_assert(len >= 0);
-    return len;
+    srs_assert(end - p >= 1);
+    return *p++;
 }
 
-char* SrsFastBuffer::bytes()
+char* SrsFastBuffer::read_slice(int size)
 {
-    return (length() == 0)? NULL : &data.at(0);
-}
-
-void SrsFastBuffer::erase(int size)
-{
-    if (size <= 0) {
-        return;
-    }
+    srs_assert(end - p >= size);
+    srs_assert(p + size > buffer);
     
-    if (size >= length()) {
-        data.clear();
-        return;
-    }
+    char* ptr = p;
+    p += size;
     
-    data.erase(data.begin(), data.begin() + size);
+    // reset when consumed all.
+    if (p == end) {
+        p = end = buffer;
+        srs_verbose("all consumed, reset fast buffer");
+    }
+
+    return ptr;
 }
 
-void SrsFastBuffer::append(const char* bytes, int size)
+void SrsFastBuffer::skip(int size)
 {
-    srs_assert(size > 0);
-
-    data.insert(data.end(), bytes, bytes + size);
+    srs_assert(end - p >= size);
+    srs_assert(p + size > buffer);
+    p += size;
 }
 
 int SrsFastBuffer::grow(ISrsBufferReader* reader, int required_size)
@@ -133,9 +136,27 @@ int SrsFastBuffer::grow(ISrsBufferReader* reader, int required_size)
         return ret;
     }
 
-    while (length() < required_size) {
+    // when read payload and need to grow, reset buffer.
+    if (end - p < required_size && required_size > SRS_RTMP_MAX_MESSAGE_HEADER) {
+        int nb_cap = end - p;
+        srs_verbose("move fast buffer %d bytes", nb_cap);
+        buffer = (char*)memmove(buffer, p, nb_cap);
+        p = buffer;
+        end = p + nb_cap;
+    }
+
+    while (end - p < required_size) {
+        // the max to read is the left bytes.
+        size_t max_to_read = buffer + nb_buffer - end;
+        
+        if (max_to_read <= 0) {
+            ret = ERROR_RTMP_BUFFER_OVERFLOW;
+            srs_error("buffer overflow, required=%d, max=%d, ret=%d", required_size, nb_buffer, ret);
+            return ret;
+        }
+        
         ssize_t nread;
-        if ((ret = reader->read(buffer, nb_buffer, &nread)) != ERROR_SUCCESS) {
+        if ((ret = reader->read(end, max_to_read, &nread)) != ERROR_SUCCESS) {
             return ret;
         }
         
@@ -149,8 +170,9 @@ int SrsFastBuffer::grow(ISrsBufferReader* reader, int required_size)
             _handler->on_read(nread);
         }
         
+        // we just move the ptr to next.
         srs_assert((int)nread > 0);
-        append(buffer, (int)nread);
+        end += nread;
     }
     
     return ret;
@@ -198,8 +220,19 @@ int SrsFastBuffer::buffer_size()
 
 void SrsFastBuffer::reset_buffer(int size)
 {
+    // remember the cap.
+    int nb_cap = end - p;
+    
+    // atleast to put the old data.
+    nb_buffer = srs_max(nb_cap, size);
+    
+    // copy old data to buf.
+    char* buf = new char[nb_buffer];
+    if (nb_cap > 0) {
+        memcpy(buf, p, nb_cap);
+    }
+    
     srs_freep(buffer);
-
-    nb_buffer = size;
-    buffer = new char[nb_buffer];
+    p = buffer = buf;
+    end = p + nb_cap;
 }
