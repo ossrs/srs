@@ -110,7 +110,7 @@ public:
 * the buffer provices bytes cache for protocol. generally, 
 * protocol recv data from socket, put into buffer, decode to RTMP message.
 */
-class SrsBuffer
+class SrsFastBuffer
 {
 private:
     // the merged handler
@@ -121,8 +121,8 @@ private:
     char* buffer;
     int nb_buffer;
 public:
-    SrsBuffer();
-    virtual ~SrsBuffer();
+    SrsFastBuffer();
+    virtual ~SrsFastBuffer();
 public:
     /**
     * get the length of buffer. empty if zero.

@@ -76,7 +76,7 @@ IMergeReadHandler::~IMergeReadHandler()
 {
 }
 
-SrsBuffer::SrsBuffer()
+SrsFastBuffer::SrsFastBuffer()
 {
     merged_read = false;
     _handler = NULL;
@@ -85,24 +85,24 @@ SrsBuffer::SrsBuffer()
     buffer = new char[nb_buffer];
 }
 
-SrsBuffer::~SrsBuffer()
+SrsFastBuffer::~SrsFastBuffer()
 {
     srs_freep(buffer);
 }
 
-int SrsBuffer::length()
+int SrsFastBuffer::length()
 {
     int len = (int)data.size();
     srs_assert(len >= 0);
     return len;
 }
 
-char* SrsBuffer::bytes()
+char* SrsFastBuffer::bytes()
 {
     return (length() == 0)? NULL : &data.at(0);
 }
 
-void SrsBuffer::erase(int size)
+void SrsFastBuffer::erase(int size)
 {
     if (size <= 0) {
         return;
@@ -116,14 +116,14 @@ void SrsBuffer::erase(int size)
     data.erase(data.begin(), data.begin() + size);
 }
 
-void SrsBuffer::append(const char* bytes, int size)
+void SrsFastBuffer::append(const char* bytes, int size)
 {
     srs_assert(size > 0);
 
     data.insert(data.end(), bytes, bytes + size);
 }
 
-int SrsBuffer::grow(ISrsBufferReader* reader, int required_size)
+int SrsFastBuffer::grow(ISrsBufferReader* reader, int required_size)
 {
     int ret = ERROR_SUCCESS;
 
@@ -156,7 +156,7 @@ int SrsBuffer::grow(ISrsBufferReader* reader, int required_size)
     return ret;
 }
 
-void SrsBuffer::set_merge_read(bool v, int max_buffer, IMergeReadHandler* handler)
+void SrsFastBuffer::set_merge_read(bool v, int max_buffer, IMergeReadHandler* handler)
 {
     merged_read = v;
     _handler = handler;
@@ -173,7 +173,7 @@ void SrsBuffer::set_merge_read(bool v, int max_buffer, IMergeReadHandler* handle
     }
 }
 
-void SrsBuffer::on_chunk_size(int32_t chunk_size)
+void SrsFastBuffer::on_chunk_size(int32_t chunk_size)
 {
     if (nb_buffer >= chunk_size) {
         return;
@@ -191,12 +191,12 @@ void SrsBuffer::on_chunk_size(int32_t chunk_size)
     }
 }
 
-int SrsBuffer::buffer_size()
+int SrsFastBuffer::buffer_size()
 {
     return nb_buffer;
 }
 
-void SrsBuffer::reset_buffer(int size)
+void SrsFastBuffer::reset_buffer(int size)
 {
     srs_freep(buffer);
 

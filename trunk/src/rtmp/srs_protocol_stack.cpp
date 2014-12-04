@@ -404,7 +404,7 @@ SrsProtocol::AckWindowSize::AckWindowSize()
 
 SrsProtocol::SrsProtocol(ISrsProtocolReaderWriter* io)
 {
-    in_buffer = new SrsBuffer();
+    in_buffer = new SrsFastBuffer();
     skt = io;
     
     in_chunk_size = SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE;

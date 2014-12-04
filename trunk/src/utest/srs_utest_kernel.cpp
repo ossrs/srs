@@ -203,7 +203,7 @@ int MockBufferReader::read(void* buf, size_t size, ssize_t* nread)
 
 VOID TEST(KernelBufferTest, DefaultObject)
 {
-    SrsBuffer b;
+    SrsFastBuffer b;
     
     EXPECT_EQ(0, b.length());
     EXPECT_EQ(NULL, b.bytes());
@@ -211,7 +211,7 @@ VOID TEST(KernelBufferTest, DefaultObject)
 
 VOID TEST(KernelBufferTest, AppendBytes)
 {
-    SrsBuffer b;
+    SrsFastBuffer b;
     
     char winlin[] = "winlin";
     b.append(winlin, strlen(winlin));
@@ -231,7 +231,7 @@ VOID TEST(KernelBufferTest, AppendBytes)
 
 VOID TEST(KernelBufferTest, EraseBytes)
 {
-    SrsBuffer b;
+    SrsFastBuffer b;
     
     b.erase(0);
     b.erase(-1);
@@ -267,7 +267,7 @@ VOID TEST(KernelBufferTest, EraseBytes)
 
 VOID TEST(KernelBufferTest, Grow)
 {
-    SrsBuffer b;
+    SrsFastBuffer b;
     MockBufferReader r("winlin");
     
     b.grow(&r, 1);

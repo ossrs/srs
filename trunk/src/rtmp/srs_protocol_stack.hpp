@@ -44,7 +44,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_consts.hpp>
 
 class ISrsProtocolReaderWriter;
-class SrsBuffer;
+class SrsFastBuffer;
 class SrsPacket;
 class SrsStream;
 class SrsAmf0Object;
@@ -206,7 +206,7 @@ private:
     /**
     * bytes buffer cache, recv from skt, provide services for stream.
     */
-    SrsBuffer* in_buffer;
+    SrsFastBuffer* in_buffer;
     /**
     * input chunk size, default to 128, set by peer packet.
     */
