@@ -163,17 +163,6 @@ public:
     */
     virtual void set_merge_read(bool v, int max_buffer, IMergeReadHandler* handler);
 #endif
-public:
-    /**
-    * when chunk size changed, the buffer should change the buffer also.
-    * to keep the socket buffer size always greater than chunk size.
-    * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
-    */
-    virtual void on_chunk_size(int32_t chunk_size);
-    /**
-    * get the size of socket buffer to read.
-    */
-    virtual int buffer_size();
 private:
     virtual void reset_buffer(int size);
 };

@@ -200,25 +200,6 @@ void SrsFastBuffer::set_merge_read(bool v, int max_buffer, IMergeReadHandler* ha
 }
 #endif
 
-void SrsFastBuffer::on_chunk_size(int32_t chunk_size)
-{
-    if (nb_buffer >= chunk_size) {
-        return;
-    }
-
-    // limit the max buffer.
-    int buffer_size = srs_min(chunk_size, SRS_MR_SOCKET_BUFFER);
-
-    if (buffer_size != nb_buffer) {
-        reset_buffer(buffer_size);
-    }
-}
-
-int SrsFastBuffer::buffer_size()
-{
-    return nb_buffer;
-}
-
 void SrsFastBuffer::reset_buffer(int size)
 {
     // remember the cap.
