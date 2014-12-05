@@ -372,6 +372,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* <strong>v1.0, 2014-12-05, [1.0 release(1.0.10)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0) released. 59391 lines.</strong>
 * v1.0, 2014-12-02, hotfix [#239](https://github.com/winlinvip/simple-rtmp-server/pull/239), traverse the token before response connect. 1.0.10.
 * v1.0, 2014-11-25, update PRIMARY, AUTHORS, CONTRIBUTORS of SRS. 1.0.8.
 * v1.0, 2014-11-18, all wiki translated to English. 1.0.7.
