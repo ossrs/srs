@@ -306,38 +306,13 @@ SrsConsumer::SrsConsumer(SrsSource* _source)
     jitter = new SrsRtmpJitter();
     queue = new SrsMessageQueue();
     should_update_source_id = false;
-    
-#ifdef SRS_PERF_QUEUE_COND_WAIT
-    mw_wait = st_cond_new();
-    mw_min_msgs = 0;
-    mw_duration = 0;
-    mw_waiting = false;
-#endif
-    
-#ifdef SRS_PERF_QUEUE_FAST_CACHE
-    mw_cache = new SrsMessageArray(SRS_PERF_MW_MSGS);
-    mw_count = 0;
-    mw_first_pkt = mw_last_pkt = 0;
-#endif
 }
 
 SrsConsumer::~SrsConsumer()
 {
-#ifdef SRS_PERF_QUEUE_FAST_CACHE
-    if (mw_cache) {
-        mw_cache->free(mw_count);
-        mw_count = 0;
-    }
-    srs_freep(mw_cache);
-#endif
-    
     source->on_consumer_destroy(this);
     srs_freep(jitter);
     srs_freep(queue);
-    
-#ifdef SRS_PERF_QUEUE_COND_WAIT
-    st_cond_destroy(mw_wait);
-#endif
 }
 
 void SrsConsumer::set_queue_size(double queue_size)
@@ -365,72 +340,15 @@ int SrsConsumer::enqueue(SrsSharedPtrMessage* msg, bool atc, int tba, int tbv, S
             return ret;
         }
     }
-    
-#ifdef SRS_PERF_QUEUE_FAST_CACHE
-    // use fast cache if available
-    if (mw_count < mw_cache->max) {
-        // update fast cache timestamps
-        if (mw_count == 0) {
-            mw_first_pkt = msg->header.timestamp;
-        }
-        mw_last_pkt = msg->header.timestamp;
-        
-        mw_cache->msgs[mw_count++] = msg;
-    } else{
-        // fast cache is full, use queue.
-        bool is_overflow = false;
-        if ((ret = queue->enqueue(msg, &is_overflow)) != ERROR_SUCCESS) {
-            return ret;
-        }
-        // when overflow, clear cache and refresh the fast cache.
-        if (is_overflow) {
-            mw_cache->free(mw_count);
-            if ((ret = dumps_queue_to_fast_cache()) != ERROR_SUCCESS) {
-                return ret;
-            }
-        }
-    }
-    
-    #ifdef SRS_PERF_QUEUE_COND_WAIT
-    // fire the mw when msgs is enough.
-    if (mw_waiting) {
-        // when fast cache not overflow, always flush.
-        // so we donot care about the queue.
-        bool fast_cache_overflow = mw_count >= mw_cache->max;
-        int duration_ms = (int)(mw_last_pkt - mw_first_pkt);
-        bool match_min_msgs = mw_count > mw_min_msgs;
-        
-        // when fast cache overflow, or duration ok, signal to flush.
-        if (fast_cache_overflow || (match_min_msgs && duration_ms > mw_duration)) {
-            st_cond_signal(mw_wait);
-            mw_waiting = false;
-        }
-    }
-    #endif
-#else
+
     if ((ret = queue->enqueue(msg, NULL)) != ERROR_SUCCESS) {
         return ret;
     }
     
-    #ifdef SRS_PERF_QUEUE_COND_WAIT
-    // fire the mw when msgs is enough.
-    if (mw_waiting) {
-        int duration_ms = queue->duration();
-        bool match_min_msgs = queue->size() > mw_min_msgs;
-        
-        // when duration ok, signal to flush.
-        if (match_min_msgs && duration_ms > mw_duration) {
-            st_cond_signal(mw_wait);
-            mw_waiting = false;
-        }
-    }
-    #endif
-#endif
-    
     return ret;
 }
 
-int SrsConsumer::dump_packets(SrsMessageArray* msgs, int* count)
+int SrsConsumer::dump_packets(SrsMessageArray* msgs, int& count)
 {
     int ret =ERROR_SUCCESS;
     
@@ -446,68 +364,13 @@ int SrsConsumer::dump_packets(SrsMessageArray* msgs, int* count)
         return ret;
     }
     
-#ifdef SRS_PERF_QUEUE_FAST_CACHE
-    // only dumps an whole array to msgs.
-    for (int i = 0; i < mw_count; i++) {
-        msgs->msgs[i] = mw_cache->msgs[i];
-    }
-    *count = mw_count;
-    
-    // when fast cache is not filled, 
-    // we donot check the queue, direclty zero fast cache.
-    if (mw_count < mw_cache->max) {
-        mw_count = 0;
-        mw_first_pkt = mw_last_pkt = 0;
-        return ret;
-    }
-    
-    return dumps_queue_to_fast_cache();
-#else
-    
     // pump msgs from queue.
-    int nb_msgs = 0;
-    if ((ret = queue->dump_packets(msgs->max, msgs->msgs, nb_msgs)) != ERROR_SUCCESS) {
+    if ((ret = queue->dump_packets(msgs->max, msgs->msgs, count)) != ERROR_SUCCESS) {
         return ret;
     }
-    *count = nb_msgs;
     
     return ret;
-#endif
 }
-
-#ifdef SRS_PERF_QUEUE_COND_WAIT
-void SrsConsumer::wait(int nb_msgs, int duration)
-{
-    mw_min_msgs = nb_msgs;
-    mw_duration = duration;
-    
-#ifdef SRS_PERF_QUEUE_FAST_CACHE
-    // when fast cache not overflow, always flush.
-    // so we donot care about the queue.
-    bool fast_cache_overflow = mw_count >= mw_cache->max;
-    int duration_ms = (int)(mw_last_pkt - mw_first_pkt);
-    bool match_min_msgs = mw_count > mw_min_msgs;
-    
-    // when fast cache overflow, or duration ok, signal to flush.
-    if (fast_cache_overflow || (match_min_msgs && duration_ms > mw_duration)) {
-        return;
-    }
-#else
-    int duration_ms = queue->duration();
-    bool match_min_msgs = queue->size() > mw_min_msgs;
-    
-    // when duration ok, signal to flush.
-    if (match_min_msgs && duration_ms > mw_duration) {
-        return;
-    }
-#endif
-    
-    // the enqueue will notify this cond.
-    mw_waiting = true;
-    // wait for msgs to incoming.
-    st_cond_wait(mw_wait);
-}
-#endif
 
 int SrsConsumer::on_play_client_pause(bool is_pause)
 {
@@ -518,28 +381,6 @@ int SrsConsumer::on_play_client_pause(bool is_pause)
     
     return ret;
 }
-
-#ifdef SRS_PERF_QUEUE_FAST_CACHE
-int SrsConsumer::dumps_queue_to_fast_cache()
-{
-    int ret =ERROR_SUCCESS;
-    
-    // fill fast cache with queue.
-    if ((ret = queue->dump_packets(mw_cache->max, mw_cache->msgs, mw_count)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    // set the timestamp when got message.
-    if (mw_count > 0) {
-        SrsMessage* first_msg = mw_cache->msgs[0];
-        mw_first_pkt = first_msg->header.timestamp;
-        
-        SrsMessage* last_msg = mw_cache->msgs[mw_count - 1];
-        mw_last_pkt = last_msg->header.timestamp;
-    }
-    
-    return ret;
-}
-#endif
 
 SrsGopCache::SrsGopCache()
 {

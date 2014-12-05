@@ -736,8 +736,20 @@ int SrsProtocol::do_send_messages(SrsMessage** msgs, int nb_msgs)
     if (iov_index <= 0) {
         return ret;
     }
-    srs_info("mw %d msgs in %d iovs, max_msgs=%d, nb_out_iovs=%d", 
+
+    // calc the bytes of iovs, for debug.
+#if 0
+    int nb_bytes = 0;
+    for (int i = 0; i < iov_index; i++) {
+        iovec* iov = out_iovs + i;
+        nb_bytes += iov->iov_len;
+    }
+    srs_warn("mw %d msgs %dB in %d iovs, max_msgs=%d, nb_out_iovs=%d",
+        nb_msgs, nb_bytes, iov_index, SRS_PERF_MW_MSGS, nb_out_iovs);
+#else
+    srs_info("mw %d msgs in %d iovs, max_msgs=%d, nb_out_iovs=%d",
         nb_msgs, iov_index, SRS_PERF_MW_MSGS, nb_out_iovs);
+#endif
     
     // send by writev
     // sendout header and payload by writev.
