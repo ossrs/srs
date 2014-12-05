@@ -211,22 +211,24 @@ int SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg, bool* is_overflow)
 int SrsMessageQueue::dump_packets(int max_count, SrsMessage** pmsgs, int& count)
 {
     int ret = ERROR_SUCCESS;
-    
-    if (msgs.empty()) {
+
+    int nb_msgs = (int)msgs.size();
+    if (nb_msgs <= 0) {
         return ret;
     }
     
     srs_assert(max_count > 0);
-    count = srs_min(max_count, (int)msgs.size());
-    
+    count = srs_min(max_count, nb_msgs);
+
+    SrsSharedPtrMessage** omsgs = msgs.data();
     for (int i = 0; i < count; i++) {
-        pmsgs[i] = msgs[i];
+        pmsgs[i] = omsgs[i];
     }
     
-    SrsMessage* last = msgs[count - 1];
+    SrsSharedPtrMessage* last = omsgs[count - 1];
     av_start_time = last->header.timestamp;
     
-    if (count == (int)msgs.size()) {
+    if (count >= nb_msgs) {
         // the pmsgs is big enough and clear msgs at most time.
         msgs.clear();
     } else {
@@ -1108,9 +1110,11 @@ int SrsSource::on_audio(SrsMessage* __audio)
 #endif
     
     // copy to all consumer
-    if (true) {
-        for (int i = 0; i < (int)consumers.size(); i++) {
-            SrsConsumer* consumer = consumers.at(i);
+    int nb_consumers = (int)consumers.size();
+    if (nb_consumers > 0) {
+        SrsConsumer** pconsumer = consumers.data();
+        for (int i = 0; i < nb_consumers; i++) {
+            SrsConsumer* consumer = pconsumer[i];
             SrsSharedPtrMessage* copy = msg.copy();
             if ((ret = consumer->enqueue(copy, atc, sample_rate, frame_rate, jitter_algorithm)) != ERROR_SUCCESS) {
                 srs_error("dispatch the audio failed. ret=%d", ret);
