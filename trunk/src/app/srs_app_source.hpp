@@ -48,6 +48,7 @@ class SrsRequest;
 class SrsStSocket;
 class SrsRtmpServer;
 class SrsEdgeProxyContext;
+class SrsMessageArray;
 #ifdef SRS_AUTO_HLS
 class SrsHls;
 #endif
@@ -116,14 +117,6 @@ public:
     virtual ~SrsMessageQueue();
 public:
     /**
-    * get the count of queue.
-    */
-    virtual int count();
-    /**
-    * get duration of queue.
-    */
-    virtual int duration();
-    /**
     * set the queue size
     * @param queue_size the queue size in seconds.
     */
@@ -132,8 +125,9 @@ public:
     /**
     * enqueue the message, the timestamp always monotonically.
     * @param msg, the msg to enqueue, user never free it whatever the return code.
+    * @param is_overflow, whether overflow and shrinked. NULL to ignore.
     */
-    virtual int enqueue(SrsSharedPtrMessage* msg);
+    virtual int enqueue(SrsSharedPtrMessage* msg, bool* is_overflow = NULL);
     /**
     * get packets in consumer queue.
     * @pmsgs SrsMessages*[], used to store the msgs, user must alloc it.
@@ -168,6 +162,14 @@ private:
     bool mw_waiting;
     int mw_min_msgs;
     int mw_duration;
+    // use fast cache for msgs
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/251
+    SrsMessageArray* mw_cache;
+    // the count of msg in fast cache.
+    int mw_count;
+    // the packet time in fast cache.
+    int64_t mw_first_pkt;
+    int64_t mw_last_pkt;
 public:
     SrsConsumer(SrsSource* _source);
     virtual ~SrsConsumer();
@@ -197,11 +199,11 @@ public:
     virtual int enqueue(SrsSharedPtrMessage* msg, bool atc, int tba, int tbv, SrsRtmpJitterAlgorithm ag);
     /**
     * get packets in consumer queue.
-    * @pmsgs SrsMessages*[], used to store the msgs, user must alloc it.
-    * @count the count in array, output param.
+    * @param msgs the msgs array to dump packets to send.
+    * @param count the count in array, output param.
     * @max_count the max count to dequeue, must be positive.
     */
-    virtual int dump_packets(int max_count, SrsMessage** pmsgs, int& count);
+    virtual int dump_packets(SrsMessageArray* msgs, int* count);
     /**
     * wait for messages incomming, atleast nb_msgs and in duration.
     * @param nb_msgs the messages count to wait.
@@ -212,6 +214,12 @@ public:
     * when client send the pause message.
     */
     virtual int on_play_client_pause(bool is_pause);
+private:
+    /**
+    * dumps the queue to fast cache, 
+    * when fast cache is clear or queue is overflow.
+    */
+    virtual int dumps_queue_to_fast_cache();
 };
 
 /**

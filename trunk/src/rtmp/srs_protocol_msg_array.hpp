@@ -60,6 +60,16 @@ public:
     * free the msgs not sent out(not NULL).
     */
     virtual ~SrsMessageArray();
+public:
+    /**
+    * free specified count of messages.
+    */
+    virtual void free(int count);
+private:
+    /**
+    * zero initialize the message array.
+    */
+    virtual void zero(int count);
 };
 
 #endif

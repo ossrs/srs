@@ -41,6 +41,7 @@ using namespace std;
 #include <srs_app_edge.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_avc_aac.hpp>
+#include <srs_protocol_msg_array.hpp>
 
 #define CONST_MAX_JITTER_MS         500
 #define DEFAULT_FRAME_TIME_MS         40
@@ -166,22 +167,12 @@ SrsMessageQueue::~SrsMessageQueue()
     clear();
 }
 
-int SrsMessageQueue::count()
-{
-    return (int)msgs.size();
-}
-
-int SrsMessageQueue::duration()
-{
-    return (int)(av_end_time - av_start_time);
-}
-
 void SrsMessageQueue::set_queue_size(double queue_size)
 {
     queue_size_ms = (int)(queue_size * 1000);
 }
 
-int SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg)
+int SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg, bool* is_overflow)
 {
     int ret = ERROR_SUCCESS;
     
@@ -196,6 +187,11 @@ int SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg)
     msgs.push_back(msg);
 
     while (av_end_time - av_start_time > queue_size_ms) {
+        // notice the caller queue already overflow and shrinked.
+        if (is_overflow) {
+            *is_overflow = true;
+        }
+        
         shrink();
     }
     
@@ -305,10 +301,20 @@ SrsConsumer::SrsConsumer(SrsSource* _source)
     mw_min_msgs = 0;
     mw_duration = 0;
     mw_waiting = false;
+    
+    mw_cache = new SrsMessageArray(SRS_PERF_MW_MSGS);
+    mw_count = 0;
+    mw_first_pkt = mw_last_pkt = 0;
 }
 
 SrsConsumer::~SrsConsumer()
 {
+    if (mw_cache) {
+        mw_cache->free(mw_count);
+        mw_count = 0;
+    }
+    srs_freep(mw_cache);
+    
     source->on_consumer_destroy(this);
     srs_freep(jitter);
     srs_freep(queue);
@@ -341,22 +347,53 @@ int SrsConsumer::enqueue(SrsSharedPtrMessage* msg, bool atc, int tba, int tbv, S
         }
     }
     
-    if ((ret = queue->enqueue(msg)) != ERROR_SUCCESS) {
-        return ret;
+    // use fast cache if available
+    if (mw_count < mw_cache->max) {
+        // update fast cache timestamps
+        if (mw_count == 0) {
+            mw_first_pkt = msg->header.timestamp;
+        }
+        mw_last_pkt = msg->header.timestamp;
+        
+        mw_cache->msgs[mw_count++] = msg;
+    } else{
+        // fast cache is full, use queue.
+        bool is_overflow = false;
+        if ((ret = queue->enqueue(msg, &is_overflow)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        // when overflow, clear cache and refresh the fast cache.
+        if (is_overflow) {
+            mw_cache->free(mw_count);
+            if ((ret = dumps_queue_to_fast_cache()) != ERROR_SUCCESS) {
+                return ret;
+            }
+        }
     }
     
     // fire the mw when msgs is enough.
-    if (mw_waiting && queue->count() > mw_min_msgs && queue->duration() > mw_duration) {
-        st_cond_signal(mw_wait);
-        mw_waiting = false;
+    if (mw_waiting) {
+        // when fast cache not overflow, always flush.
+        // so we donot care about the queue.
+        bool fast_cache_overflow = mw_count >= mw_cache->max;
+        int duration_ms = (int)(mw_last_pkt - mw_first_pkt);
+        bool match_min_msgs = mw_count > mw_min_msgs;
+        
+        // when fast cache overflow, or duration ok, signal to flush.
+        if (fast_cache_overflow || (match_min_msgs && duration_ms > mw_duration)) {
+            st_cond_signal(mw_wait);
+            mw_waiting = false;
+        }
     }
     
     return ret;
 }
 
-int SrsConsumer::dump_packets(int max_count, SrsMessage** pmsgs, int& count)
+int SrsConsumer::dump_packets(SrsMessageArray* msgs, int* count)
 {
-    srs_assert(max_count > 0);
+    int ret =ERROR_SUCCESS;
+    
+    srs_assert(msgs->max > 0);
     
     if (should_update_source_id) {
         srs_trace("update source_id=%d[%d]", source->source_id(), source->source_id());
@@ -365,10 +402,24 @@ int SrsConsumer::dump_packets(int max_count, SrsMessage** pmsgs, int& count)
     
     // paused, return nothing.
     if (paused) {
-        return ERROR_SUCCESS;
+        return ret;
     }
     
-    return queue->dump_packets(max_count, pmsgs, count);
+    // only dumps an whole array to msgs.
+    for (int i = 0; i < mw_count; i++) {
+        msgs->msgs[i] = mw_cache->msgs[i];
+    }
+    *count = mw_count;
+    
+    // when fast cache is not filled, 
+    // we donot check the queue, direclty zero fast cache.
+    if (mw_count < mw_cache->max) {
+        mw_count = 0;
+        mw_first_pkt = mw_last_pkt = 0;
+        return ret;
+    }
+    
+    return dumps_queue_to_fast_cache();
 }
 
 void SrsConsumer::wait(int nb_msgs, int duration)
@@ -376,14 +427,20 @@ void SrsConsumer::wait(int nb_msgs, int duration)
     mw_min_msgs = nb_msgs;
     mw_duration = duration;
     
-    // already ok, donot wait.
-    if (queue->count() > mw_min_msgs && queue->duration() > mw_duration) {
+    // when fast cache not overflow, always flush.
+    // so we donot care about the queue.
+    bool fast_cache_overflow = mw_count >= mw_cache->max;
+    int duration_ms = (int)(mw_last_pkt - mw_first_pkt);
+    bool match_min_msgs = mw_count > mw_min_msgs;
+    
+    // when fast cache overflow, or duration ok, signal to flush.
+    if (fast_cache_overflow || (match_min_msgs && duration_ms > mw_duration)) {
         return;
     }
     
     // the enqueue will notify this cond.
     mw_waiting = true;
-    
+    // wait for msgs to incoming.
     st_cond_wait(mw_wait);
 }
 
@@ -393,6 +450,26 @@ int SrsConsumer::on_play_client_pause(bool is_pause)
     
     srs_trace("stream consumer change pause state %d=>%d", paused, is_pause);
     paused = is_pause;
+    
+    return ret;
+}
+
+int SrsConsumer::dumps_queue_to_fast_cache()
+{
+    int ret =ERROR_SUCCESS;
+    
+    // fill fast cache with queue.
+    if ((ret = queue->dump_packets(mw_cache->max, mw_cache->msgs, mw_count)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    // set the timestamp when got message.
+    if (mw_count > 0) {
+        SrsMessage* first_msg = mw_cache->msgs[0];
+        mw_first_pkt = first_msg->header.timestamp;
+        
+        SrsMessage* last_msg = mw_cache->msgs[mw_count - 1];
+        mw_last_pkt = last_msg->header.timestamp;
+    }
     
     return ret;
 }

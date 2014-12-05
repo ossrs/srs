@@ -75,14 +75,24 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * @see SrsConfig::get_mw_sleep_ms()
 * @remark the mw sleep and msgs to send, maybe:
 *       mw_sleep        msgs        iovs
-*       350             24/48       48/84
-*       500             24/48       48/84
-*       800             42/64       84/128
-*       1000            64/85       128/170
-*       1200            65/86       130/172
-*       1500            87/110      174/220
-*       1800            106/128     212/256
-*       2000            134/142     268/284
+*       350             43          86
+*       400             44          88
+*       500             46          92
+*       600             46          92
+*       700             82          164
+*       800             81          162
+*       900             80          160
+*       1000            88          176
+*       1100            91          182
+*       1200            89          178
+*       1300            119         238
+*       1400            120         240
+*       1500            119         238
+*       1600            131         262
+*       1700            
+*       1800            
+*       1900            
+*       2000            
 */
 // the default config of mw.
 #define SRS_PERF_MW_SLEEP 350

@@ -32,10 +32,7 @@ SrsMessageArray::SrsMessageArray(int max_msgs)
     msgs = new SrsMessage*[max_msgs];
     max = max_msgs;
     
-    // initialize
-    for (int i = 0; i < max_msgs; i++) {
-        msgs[i] = NULL;
-    }
+    zero(max_msgs);
 }
 
 SrsMessageArray::~SrsMessageArray()
@@ -44,6 +41,25 @@ SrsMessageArray::~SrsMessageArray()
     // both delete and delete[] is ok,
     // for each msg in msgs is already freed by send_and_free_messages.
     srs_freep(msgs);
+}
+
+void SrsMessageArray::free(int count)
+{
+    // initialize
+    for (int i = 0; i < count; i++) {
+        SrsMessage* msg = msgs[i];
+        srs_freep(msg);
+        
+        msgs[i] = NULL;
+    }
+}
+
+void SrsMessageArray::zero(int count)
+{
+    // initialize
+    for (int i = 0; i < count; i++) {
+        msgs[i] = NULL;
+    }
 }
 
 
