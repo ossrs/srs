@@ -728,7 +728,7 @@ The play benchmark by [st-load](https://github.com/winlinvip/st-load):
 * 2014-11-13, SRS 2.0.15,  6.0k(6000)clients, 82%CPU, 203MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/cc6aca9ad55342a06440ce7f3b38453776b2b2d1)
 * 2014-11-22, SRS 2.0.30,  7.5k(7500)clients, 87%CPU, 320MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/58136ec178e3d47db6c90a59875d7e40946936e5)
 * 2014-12-05, SRS 2.0.55,  8.0k(8000)clients, 89%CPU, 360MB. (mw_sleep=350)[commit](https://github.com/winlinvip/simple-rtmp-server/commit/58136ec178e3d47db6c90a59875d7e40946936e5)
-* 2014-12-05, SRS 2.0.57,  9.0k(9000)clients, 92%CPU, 410MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/9ee138746f83adc26f0e236ec017f4d68a300004)
+* 2014-12-05, SRS 2.0.57,  9.0k(9000)clients, 90%CPU, 468MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/9ee138746f83adc26f0e236ec017f4d68a300004)
 
 ### Publish benchmark
 
