@@ -598,6 +598,10 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
         // collect elapse for pithy print.
         pithy_print.elapse();
         
+        // wait for message to incoming.
+        // @see https://github.com/winlinvip/simple-rtmp-server/issues/251
+        consumer->wait(SRS_PERF_MW_MIN_MSGS, mw_sleep);
+        
         // get messages from consumer.
         // each msg in msgs.msgs must be free, for the SrsMessageArray never free them.
         int count = 0;
@@ -606,12 +610,9 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
             return ret;
         }
         
-        // no message to send, sleep a while.
-        if (count <= 0) {
-            srs_verbose("sleep for no messages to send");
-            st_usleep(mw_sleep * 1000);
-        }
-        srs_info("got %d msgs, mw=%d", count, mw_sleep);
+        // we use wait to get messages, so the count must be positive.
+        srs_assert(count > 0);
+        srs_info("got %d msgs, min=%d, mw=%d", count, SRS_PERF_MW_MIN_MSGS, mw_sleep);
 
         // reportable
         if (pithy_print.can_print()) {

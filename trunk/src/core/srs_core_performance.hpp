@@ -93,6 +93,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * @remark, recomment to 156.
 */
 #define SRS_PERF_MW_MSGS 156
+/**
+* how many msgs atleast to send.
+* @remark, recomment to 8.
+*/
+#define SRS_PERF_MW_MIN_MSGS 8
 
 /**
 * how many chunk stream to cache, [0, N].

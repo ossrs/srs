@@ -166,6 +166,16 @@ SrsMessageQueue::~SrsMessageQueue()
     clear();
 }
 
+int SrsMessageQueue::count()
+{
+    return (int)msgs.size();
+}
+
+int SrsMessageQueue::duration()
+{
+    return (int)(av_end_time - av_start_time);
+}
+
 void SrsMessageQueue::set_queue_size(double queue_size)
 {
     queue_size_ms = (int)(queue_size * 1000);
@@ -290,6 +300,11 @@ SrsConsumer::SrsConsumer(SrsSource* _source)
     jitter = new SrsRtmpJitter();
     queue = new SrsMessageQueue();
     should_update_source_id = false;
+    
+    mw_wait = st_cond_new();
+    mw_min_msgs = 0;
+    mw_duration = 0;
+    mw_waiting = false;
 }
 
 SrsConsumer::~SrsConsumer()
@@ -297,6 +312,7 @@ SrsConsumer::~SrsConsumer()
     source->on_consumer_destroy(this);
     srs_freep(jitter);
     srs_freep(queue);
+    st_cond_destroy(mw_wait);
 }
 
 void SrsConsumer::set_queue_size(double queue_size)
@@ -329,6 +345,12 @@ int SrsConsumer::enqueue(SrsSharedPtrMessage* msg, bool atc, int tba, int tbv, S
         return ret;
     }
     
+    // fire the mw when msgs is enough.
+    if (mw_waiting && queue->count() > mw_min_msgs && queue->duration() > mw_duration) {
+        st_cond_signal(mw_wait);
+        mw_waiting = false;
+    }
+    
     return ret;
 }
 
@@ -347,6 +369,22 @@ int SrsConsumer::dump_packets(int max_count, SrsMessage** pmsgs, int& count)
     }
     
     return queue->dump_packets(max_count, pmsgs, count);
+}
+
+void SrsConsumer::wait(int nb_msgs, int duration)
+{
+    mw_min_msgs = nb_msgs;
+    mw_duration = duration;
+    
+    // already ok, donot wait.
+    if (queue->count() > mw_min_msgs && queue->duration() > mw_duration) {
+        return;
+    }
+    
+    // the enqueue will notify this cond.
+    mw_waiting = true;
+    
+    st_cond_wait(mw_wait);
 }
 
 int SrsConsumer::on_play_client_pause(bool is_pause)

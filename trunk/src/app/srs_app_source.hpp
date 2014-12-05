@@ -116,6 +116,14 @@ public:
     virtual ~SrsMessageQueue();
 public:
     /**
+    * get the count of queue.
+    */
+    virtual int count();
+    /**
+    * get duration of queue.
+    */
+    virtual int duration();
+    /**
     * set the queue size
     * @param queue_size the queue size in seconds.
     */
@@ -154,6 +162,12 @@ private:
     bool paused;
     // when source id changed, notice all consumers
     bool should_update_source_id;
+    // the cond wait for mw.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/251
+    st_cond_t mw_wait;
+    bool mw_waiting;
+    int mw_min_msgs;
+    int mw_duration;
 public:
     SrsConsumer(SrsSource* _source);
     virtual ~SrsConsumer();
@@ -188,6 +202,12 @@ public:
     * @max_count the max count to dequeue, must be positive.
     */
     virtual int dump_packets(int max_count, SrsMessage** pmsgs, int& count);
+    /**
+    * wait for messages incomming, atleast nb_msgs and in duration.
+    * @param nb_msgs the messages count to wait.
+    * @param duration the messgae duration to wait.
+    */
+    virtual void wait(int nb_msgs, int duration);
     /**
     * when client send the pause message.
     */
