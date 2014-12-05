@@ -80,9 +80,21 @@ public:
 public:
     virtual int on_publish();
     virtual void on_unpublish();
-    virtual int on_meta_data(SrsSharedPtrMessage* metadata);
-    virtual int on_audio(SrsSharedPtrMessage* msg);
-    virtual int on_video(SrsSharedPtrMessage* msg);
+    /**
+    * forward the audio packet.
+    * @param __metadata, directly ptr, copy it if need to save it.
+    */
+    virtual int on_meta_data(SrsSharedPtrMessage* __metadata);
+    /**
+    * forward the audio packet.
+    * @param __audio, directly ptr, copy it if need to save it.
+    */
+    virtual int on_audio(SrsSharedPtrMessage* __audio);
+    /**
+    * forward the video packet.
+    * @param __video, directly ptr, copy it if need to save it.
+    */
+    virtual int on_video(SrsSharedPtrMessage* __video);
 // interface ISrsThreadHandler.
 public:
     virtual int cycle();

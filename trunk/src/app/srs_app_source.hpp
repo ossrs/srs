@@ -184,6 +184,7 @@ public:
     virtual int get_time();
     /**
     * enqueue an shared ptr message.
+    * @param __msg, directly ptr, copy it if need to save it.
     * @param whether atc, donot use jitter correct if true.
     * @param tba timebase of audio.
     *         used to calc the audio time delta if time-jitter detected.
@@ -191,7 +192,7 @@ public:
     *        used to calc the video time delta if time-jitter detected.
     * @param ag the algorithm of time jitter.
     */
-    virtual int enqueue(SrsSharedPtrMessage* msg, bool atc, int tba, int tbv, SrsRtmpJitterAlgorithm ag);
+    virtual int enqueue(SrsSharedPtrMessage* __msg, bool atc, int tba, int tbv, SrsRtmpJitterAlgorithm ag);
     /**
     * get packets in consumer queue.
     * @param msgs the msgs array to dump packets to send.
@@ -252,8 +253,9 @@ public:
     * only for h264 codec
     * 1. cache the gop when got h264 video packet.
     * 2. clear gop when got keyframe.
+    * @param __msg, directly ptr, copy it if need to save it.
     */
-    virtual int cache(SrsSharedPtrMessage* msg);
+    virtual int cache(SrsSharedPtrMessage* __msg);
     /**
     * clear the gop cache.
     */

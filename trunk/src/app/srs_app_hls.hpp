@@ -326,12 +326,14 @@ public:
     virtual int on_meta_data(SrsAmf0Object* metadata);
     /**
     * mux the audio packets to ts.
+    * @param __audio, directly ptr, copy it if need to save it.
     */
-    virtual int on_audio(SrsSharedPtrMessage* audio);
+    virtual int on_audio(SrsSharedPtrMessage* __audio);
     /**
     * mux the video packets to ts.
+    * @param __video, directly ptr, copy it if need to save it.
     */
-    virtual int on_video(SrsSharedPtrMessage* video);
+    virtual int on_video(SrsSharedPtrMessage* __video);
 private:
     virtual void hls_mux();
 };

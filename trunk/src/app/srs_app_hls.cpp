@@ -1426,15 +1426,16 @@ int SrsHls::on_meta_data(SrsAmf0Object* metadata)
     return ret;
 }
 
-int SrsHls::on_audio(SrsSharedPtrMessage* audio)
+int SrsHls::on_audio(SrsSharedPtrMessage* __audio)
 {
     int ret = ERROR_SUCCESS;
-    
-    SrsAutoFree(SrsSharedPtrMessage, audio);
     
     if (!hls_enabled) {
         return ret;
     }
+
+    SrsSharedPtrMessage* audio = __audio->copy();
+    SrsAutoFree(SrsSharedPtrMessage, audio);
     
     sample->clear();
     if ((ret = codec->audio_aac_demux(audio->payload, audio->size, sample)) != ERROR_SUCCESS) {
@@ -1470,15 +1471,16 @@ int SrsHls::on_audio(SrsSharedPtrMessage* audio)
     return ret;
 }
 
-int SrsHls::on_video(SrsSharedPtrMessage* video)
+int SrsHls::on_video(SrsSharedPtrMessage* __video)
 {
     int ret = ERROR_SUCCESS;
-    
-    SrsAutoFree(SrsSharedPtrMessage, video);
     
     if (!hls_enabled) {
         return ret;
     }
+
+    SrsSharedPtrMessage* video = __video->copy();
+    SrsAutoFree(SrsSharedPtrMessage, video);
     
     sample->clear();
     if ((ret = codec->video_avc_demux(video->payload, video->size, sample)) != ERROR_SUCCESS) {

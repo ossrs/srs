@@ -119,8 +119,14 @@ public:
     virtual int on_publish();
     virtual void on_unpublish() = 0;
     virtual int on_meta_data(SrsOnMetaDataPacket* metadata);
-    virtual int on_audio(SrsSharedPtrMessage* audio);
-    virtual int on_video(SrsSharedPtrMessage* video);
+    /**
+    * @param __audio, directly ptr, copy it if need to save it.
+    */
+    virtual int on_audio(SrsSharedPtrMessage* __audio);
+    /**
+    * @param __video, directly ptr, copy it if need to save it.
+    */
+    virtual int on_video(SrsSharedPtrMessage* __video);
 // interface ISrsReloadHandler
 public:
     virtual int on_reload_vhost_dvr(std::string vhost);
@@ -166,7 +172,13 @@ public:
     virtual int initialize(SrsSource* source, SrsRequest* req);
     virtual int on_publish();
     virtual void on_unpublish();
+    /**
+    * @param audio, directly ptr, copy it if need to save it.
+    */
     virtual int on_audio(SrsSharedPtrMessage* audio);
+    /**
+    * @param video, directly ptr, copy it if need to save it.
+    */
     virtual int on_video(SrsSharedPtrMessage* video);
 private:
     virtual int update_duration(SrsSharedPtrMessage* msg);
@@ -208,12 +220,14 @@ public:
     virtual int on_meta_data(SrsOnMetaDataPacket* metadata);
     /**
     * mux the audio packets to dvr.
+    * @param __audio, directly ptr, copy it if need to save it.
     */
-    virtual int on_audio(SrsSharedPtrMessage* audio);
+    virtual int on_audio(SrsSharedPtrMessage* __audio);
     /**
     * mux the video packets to dvr.
+    * @param __video, directly ptr, copy it if need to save it.
     */
-    virtual int on_video(SrsSharedPtrMessage* video);
+    virtual int on_video(SrsSharedPtrMessage* __video);
 };
 
 #endif

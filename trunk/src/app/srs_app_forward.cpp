@@ -156,9 +156,11 @@ void SrsForwarder::on_unpublish()
     kbps->set_io(NULL, NULL);
 }
 
-int SrsForwarder::on_meta_data(SrsSharedPtrMessage* metadata)
+int SrsForwarder::on_meta_data(SrsSharedPtrMessage* __metadata)
 {
     int ret = ERROR_SUCCESS;
+
+    SrsSharedPtrMessage* metadata = __metadata->copy();
     
     if ((ret = jitter->correct(metadata, 0, 0, SrsRtmpJitterAlgorithmFULL)) != ERROR_SUCCESS) {
         srs_freep(metadata);
@@ -172,10 +174,12 @@ int SrsForwarder::on_meta_data(SrsSharedPtrMessage* metadata)
     return ret;
 }
 
-int SrsForwarder::on_audio(SrsSharedPtrMessage* msg)
+int SrsForwarder::on_audio(SrsSharedPtrMessage* __audio)
 {
     int ret = ERROR_SUCCESS;
     
+    SrsSharedPtrMessage* msg = __audio->copy();
+
     if ((ret = jitter->correct(msg, 0, 0, SrsRtmpJitterAlgorithmFULL)) != ERROR_SUCCESS) {
         srs_freep(msg);
         return ret;
@@ -193,9 +197,11 @@ int SrsForwarder::on_audio(SrsSharedPtrMessage* msg)
     return ret;
 }
 
-int SrsForwarder::on_video(SrsSharedPtrMessage* msg)
+int SrsForwarder::on_video(SrsSharedPtrMessage* __video)
 {
     int ret = ERROR_SUCCESS;
+
+    SrsSharedPtrMessage* msg = __video->copy();
     
     if ((ret = jitter->correct(msg, 0, 0, SrsRtmpJitterAlgorithmFULL)) != ERROR_SUCCESS) {
         srs_freep(msg);

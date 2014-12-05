@@ -196,13 +196,16 @@ int SrsDvrPlan::on_meta_data(SrsOnMetaDataPacket* metadata)
     return ret;
 }
 
-int SrsDvrPlan::on_audio(SrsSharedPtrMessage* audio)
+int SrsDvrPlan::on_audio(SrsSharedPtrMessage* __audio)
 {
     int ret = ERROR_SUCCESS;
     
     if (!dvr_enabled) {
         return ret;
     }
+
+    SrsSharedPtrMessage* audio = __audio->copy();
+    SrsAutoFree(SrsSharedPtrMessage, audio);
     
     if ((jitter->correct(audio, 0, 0, jitter_algorithm)) != ERROR_SUCCESS) {
         return ret;
@@ -222,13 +225,16 @@ int SrsDvrPlan::on_audio(SrsSharedPtrMessage* audio)
     return ret;
 }
 
-int SrsDvrPlan::on_video(SrsSharedPtrMessage* video)
+int SrsDvrPlan::on_video(SrsSharedPtrMessage* __video)
 {
     int ret = ERROR_SUCCESS;
     
     if (!dvr_enabled) {
         return ret;
     }
+
+    SrsSharedPtrMessage* video = __video->copy();
+    SrsAutoFree(SrsSharedPtrMessage, video);
     
     char* payload = video->payload;
     int size = video->size;
@@ -571,30 +577,14 @@ int SrsDvr::on_meta_data(SrsOnMetaDataPacket* metadata)
     return ret;
 }
 
-int SrsDvr::on_audio(SrsSharedPtrMessage* audio)
+int SrsDvr::on_audio(SrsSharedPtrMessage* __audio)
 {
-    int ret = ERROR_SUCCESS;
-    
-    SrsAutoFree(SrsSharedPtrMessage, audio);
-    
-    if ((ret = plan->on_audio(audio)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    return ret;
+    return plan->on_audio(__audio);
 }
 
-int SrsDvr::on_video(SrsSharedPtrMessage* video)
+int SrsDvr::on_video(SrsSharedPtrMessage* __video)
 {
-    int ret = ERROR_SUCCESS;
-    
-    SrsAutoFree(SrsSharedPtrMessage, video);
-    
-    if ((ret = plan->on_video(video)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    return ret;
+    return plan->on_video(__video);
 }
 
 #endif
