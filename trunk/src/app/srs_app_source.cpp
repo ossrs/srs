@@ -216,7 +216,7 @@ int SrsMessageQueue::dump_packets(int max_count, SrsMessage** pmsgs, int& count)
     } else {
         // erase some vector elements may cause memory copy,
         // maybe can use more efficient vector.swap to avoid copy.
-        // @remark for the pmsgs is big enough, for instance, SYS_CONSTS_MAX_PLAY_SEND_MSGS 128,
+        // @remark for the pmsgs is big enough, for instance, SRS_PERF_MW_MSGS 128,
         //      the rtmp play client will get 128msgs once, so this branch rarely execute.
         msgs.erase(msgs.begin(), msgs.begin() + count);
     }

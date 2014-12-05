@@ -73,6 +73,8 @@ private:
     SrsKbps* kbps;
     // the MR(merged-write) sleep time in ms.
     int mw_sleep;
+    // the MR(merged-write) only enabled for play.
+    int mw_enabled;
 public:
     SrsRtmpConn(SrsServer* srs_server, st_netfd_t client_stfd);
     virtual ~SrsRtmpConn();
@@ -102,6 +104,7 @@ private:
     virtual int handle_publish_message(SrsSource* source, SrsMessage* msg, bool is_fmle, bool vhost_is_edge);
     virtual int process_publish_message(SrsSource* source, SrsMessage* msg, bool vhost_is_edge);
     virtual int process_play_control_msg(SrsConsumer* consumer, SrsMessage* msg);
+    virtual void change_mw_sleep(int sleep_ms);
 private:
     virtual int check_edge_token_traverse_auth();
     virtual int connect_server(int origin_index, st_netfd_t* pstsock);

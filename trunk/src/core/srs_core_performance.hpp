@@ -60,7 +60,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_PERF_MERGED_READ
 // the default config of mr.
 #define SRS_PERF_MR_ENABLED false
-#define SRS_PERF_MR_SLEEP 500
+#define SRS_PERF_MR_SLEEP 350
 
 /**
 * the MW(merged-write) send cache time in ms.
@@ -73,9 +73,26 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * @remark the socket send buffer default to 185KB, it large enough.
 * @see https://github.com/winlinvip/simple-rtmp-server/issues/194
 * @see SrsConfig::get_mw_sleep_ms()
+* @remark the mw sleep and msgs to send, maybe:
+*       mw_sleep        msgs        iovs
+*       350             24/48       48/84
+*       500             24/48       48/84
+*       800             42/64       84/128
+*       1000            64/85       128/170
+*       1200            65/86       130/172
+*       1500            87/110      174/220
+*       1800            106/128     212/256
+*       2000            134/142     268/284
 */
 // the default config of mw.
-#define SRS_PERF_MW_SLEEP 500
+#define SRS_PERF_MW_SLEEP 350
+/**
+* how many msgs can be send entirely.
+* for play clients to get msgs then totally send out.
+* for the mw sleep set to 1800, the msgs is about 128.
+* @remark, recomment to 156.
+*/
+#define SRS_PERF_MW_MSGS 156
 
 /**
 * how many chunk stream to cache, [0, N].

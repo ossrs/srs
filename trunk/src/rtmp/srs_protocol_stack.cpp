@@ -645,7 +645,7 @@ int SrsProtocol::do_send_messages(SrsMessage** msgs, int nb_msgs)
         // we donot use the complex basic header,
         // ensure the basic header is 1bytes.
         if (msg->header.perfer_cid < 2) {
-            srs_warn("change the chunk_id=%d to default=%d", 
+            srs_info("change the chunk_id=%d to default=%d", 
                 msg->header.perfer_cid, RTMP_CID_ProtocolControl);
             msg->header.perfer_cid = RTMP_CID_ProtocolControl;
         }
@@ -682,6 +682,10 @@ int SrsProtocol::do_send_messages(SrsMessage** msgs, int nb_msgs)
             // for we donot know how many messges maybe to send entirely,
             // we just alloc the iovs, it's ok.
             if (iov_index >= nb_out_iovs - 2) {
+                srs_warn("resize iovs %d => %d, max_msgs=%d", 
+                    nb_out_iovs, nb_out_iovs + SRS_CONSTS_IOVS_MAX, 
+                    SRS_PERF_MW_MSGS);
+                    
                 nb_out_iovs += SRS_CONSTS_IOVS_MAX;
                 int realloc_size = sizeof(iovec) * nb_out_iovs;
                 out_iovs = (iovec*)realloc(out_iovs, realloc_size);
@@ -732,6 +736,8 @@ int SrsProtocol::do_send_messages(SrsMessage** msgs, int nb_msgs)
     if (iov_index <= 0) {
         return ret;
     }
+    srs_info("mw %d msgs in %d iovs, max_msgs=%d, nb_out_iovs=%d", 
+        nb_msgs, iov_index, SRS_PERF_MW_MSGS, nb_out_iovs);
     
     // send by writev
     // sendout header and payload by writev.

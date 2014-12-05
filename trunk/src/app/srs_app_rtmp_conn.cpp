@@ -83,7 +83,9 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* srs_server, st_netfd_t client_stfd)
     duration = 0;
     kbps = new SrsKbps();
     kbps->set_io(skt, skt);
+    
     mw_sleep = SRS_PERF_MW_SLEEP;
+    mw_enabled = false;
     
     _srs_config->subscribe(this);
 }
@@ -212,7 +214,10 @@ int SrsRtmpConn::on_reload_vhost_removed(string vhost)
 
 int SrsRtmpConn::on_reload_vhost_mw(string /*vhost*/)
 {
-    mw_sleep = _srs_config->get_mw_sleep_ms(req->vhost);
+    int sleep_ms = _srs_config->get_mw_sleep_ms(req->vhost);
+    
+    // when mw_sleep changed, resize the socket send buffer.
+    change_mw_sleep(sleep_ms);
 
     return ERROR_SUCCESS;
 }
@@ -513,8 +518,7 @@ int SrsRtmpConn::playing(SrsSource* source)
     
     // use isolate thread to recv, 
     // @see: https://github.com/winlinvip/simple-rtmp-server/issues/217
-    SrsQueueRecvThread trd(rtmp, 
-        SRS_CONSTS_RTMP_PULSE_TIMEOUT_US / 1000);
+    SrsQueueRecvThread trd(rtmp, SRS_PERF_MW_SLEEP);
     
     // start isolate recv thread.
     if ((ret = trd.start()) != ERROR_SUCCESS) {
@@ -558,9 +562,14 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
     
     // initialize other components
     SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_PLAY_USER);
-    SrsMessageArray msgs(SYS_CONSTS_MAX_PLAY_SEND_MSGS);
+    SrsMessageArray msgs(SRS_PERF_MW_MSGS);
     bool user_specified_duration_to_stop = (req->duration > 0);
     int64_t starttime = -1;
+    
+    // setup the mw config.
+    // when mw_sleep changed, resize the socket send buffer.
+    mw_enabled = true;
+    change_mw_sleep(_srs_config->get_mw_sleep_ms(req->vhost));
     
     while (true) {
         // to use isolate thread to recv, can improve about 33% performance.
@@ -602,6 +611,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
             srs_verbose("sleep for no messages to send");
             st_usleep(mw_sleep * 1000);
         }
+        srs_info("got %d msgs, mw=%d", count, mw_sleep);
 
         // reportable
         if (pithy_print.can_print()) {
@@ -978,6 +988,46 @@ int SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsMessage* msg
     srs_info("process pause success, is_pause=%d, time=%d.", pause->is_pause, pause->time_ms);
     
     return ret;
+}
+
+void SrsRtmpConn::change_mw_sleep(int sleep_ms)
+{
+    if (!mw_enabled) {
+        return;
+    }
+    
+    // the bytes:
+    //      4KB=4096, 8KB=8192, 16KB=16384, 32KB=32768, 64KB=65536,
+    //      128KB=131072, 256KB=262144, 512KB=524288
+    // the buffer should set to sleep*kbps/8,
+    // for example, your system delivery stream in 1000kbps,
+    // sleep 800ms for small bytes, the buffer should set to:
+    //      800*1000/8=100000B(about 128KB).
+    // other examples:
+    //      2000*3000/8=750000B(about 732KB).
+    //      2000*5000/8=1250000B(about 1220KB).
+    int kbps = 5000;
+    int socket_buffer_size = sleep_ms * kbps / 8;
+    
+    int fd = st_netfd_fileno(stfd);
+    int onb_sbuf = 0;
+    socklen_t sock_buf_size = sizeof(int);
+    getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &onb_sbuf, &sock_buf_size);
+
+    // socket send buffer, system will double it.
+    int nb_sbuf = socket_buffer_size / 2;
+    
+    // set the socket send buffer when required larger buffer
+    if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &nb_sbuf, sock_buf_size) < 0) {
+        srs_warn("set sock SO_SENDBUF=%d failed.", nb_sbuf);
+    }
+    getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &nb_sbuf, &sock_buf_size);
+    
+    srs_trace("mw changed %d=>%d, max_msgs=%d, esbuf=%d, sbuf %d=>%d", 
+        mw_sleep, sleep_ms, SRS_PERF_MW_MSGS, socket_buffer_size,
+        onb_sbuf, nb_sbuf);
+        
+    mw_sleep = sleep_ms;
 }
 
 int SrsRtmpConn::check_edge_token_traverse_auth()

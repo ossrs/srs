@@ -726,6 +726,7 @@ The play benchmark by [st-load](https://github.com/winlinvip/st-load):
 * 2014-11-12, SRS 2.0.14,  3.5k(3500)clients, 95%CPU, 78MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/8acd143a7a152885b815999162660fd4e7a3f247)
 * 2014-11-13, SRS 2.0.15,  6.0k(6000)clients, 82%CPU, 203MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/cc6aca9ad55342a06440ce7f3b38453776b2b2d1)
 * 2014-11-22, SRS 2.0.30,  7.5k(7500)clients, 87%CPU, 320MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/58136ec178e3d47db6c90a59875d7e40946936e5)
+* 2014-12-05, SRS 2.0.55,  8.0k(8000)clients, 89%CPU, 360MB. (mw_sleep=1800)[commit](https://github.com/winlinvip/simple-rtmp-server/commit/58136ec178e3d47db6c90a59875d7e40946936e5)
 
 ### Publish benchmark
 
@@ -739,7 +740,7 @@ The publish benchmark by [st-load](https://github.com/winlinvip/st-load):
 * 2014-12-04, SRS 2.0.49,  1.4k(1400) publishers, 68%CPU, 144MB.
 * 2014-12-04, SRS 2.0.49,  2.5k(2500) publishers, 95%CPU, 404MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/29324fab469e0f7cef9ad04ffdbce832ac7dd9ff)
 * 2014-12-04, SRS 2.0.51,  2.5k(2500) publishers, 91%CPU, 259MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/f57801eb46c16755b173984b915a4166922df6a6)
-* 2014-12-04, SRS 2.0.52,  4.0k(4000) publishers, 80%CPU, 331MB. (mr_sleep=2000) [commit](https://github.com/winlinvip/simple-rtmp-server/commit/5589b13d2e216b91f97afb78ee0c011b2fccf7da)
+* 2014-12-04, SRS 2.0.52,  4.0k(4000) publishers, 80%CPU, 331MB. (mr_sleep=2000)[commit](https://github.com/winlinvip/simple-rtmp-server/commit/5589b13d2e216b91f97afb78ee0c011b2fccf7da)
 
 ## Architecture
 

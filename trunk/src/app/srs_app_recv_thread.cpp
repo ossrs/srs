@@ -421,13 +421,14 @@ int SrsPublishRecvThread::on_reload_vhost_mr(string vhost)
 
 void SrsPublishRecvThread::set_socket_buffer(int sleep_ms)
 {
-    // the underlayer api will set to SRS_MR_SOCKET_BUFFER bytes.
+    // the bytes:
     //      4KB=4096, 8KB=8192, 16KB=16384, 32KB=32768, 64KB=65536,
     //      128KB=131072, 256KB=262144, 512KB=524288
-    // the buffer should set to SRS_MR_MAX_SLEEP_MS*kbps/8,
+    // the buffer should set to sleep*kbps/8,
     // for example, your system delivery stream in 1000kbps,
     // sleep 800ms for small bytes, the buffer should set to:
     //      800*1000/8=100000B(about 128KB).
+    // other examples:
     //      2000*3000/8=750000B(about 732KB).
     //      2000*5000/8=1250000B(about 1220KB).
     int kbps = 5000;
