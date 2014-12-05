@@ -208,7 +208,7 @@ int SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg, bool* is_overflow)
     return ret;
 }
 
-int SrsMessageQueue::dump_packets(int max_count, SrsMessage** pmsgs, int& count)
+int SrsMessageQueue::dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count)
 {
     int ret = ERROR_SUCCESS;
 
@@ -951,7 +951,7 @@ bool SrsSource::can_publish()
     return _can_publish;
 }
 
-int SrsSource::on_meta_data(SrsMessage* msg, SrsOnMetaDataPacket* metadata)
+int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1072,7 +1072,7 @@ int SrsSource::on_meta_data(SrsMessage* msg, SrsOnMetaDataPacket* metadata)
     return ret;
 }
 
-int SrsSource::on_audio(SrsMessage* __audio)
+int SrsSource::on_audio(SrsCommonMessage* __audio)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1183,7 +1183,7 @@ int SrsSource::on_audio(SrsMessage* __audio)
     return ret;
 }
 
-int SrsSource::on_video(SrsMessage* __video)
+int SrsSource::on_video(SrsCommonMessage* __video)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1287,7 +1287,7 @@ int SrsSource::on_video(SrsMessage* __video)
     return ret;
 }
 
-int SrsSource::on_aggregate(SrsMessage* msg)
+int SrsSource::on_aggregate(SrsCommonMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1349,7 +1349,7 @@ int SrsSource::on_aggregate(SrsMessage* msg)
         
         // to common message.
         SrsCommonMessage __o;
-        SrsMessage& o = __o;
+        SrsCommonMessage& o = __o;
         
         o.header.message_type = type;
         o.header.payload_length = data_size;
@@ -1570,7 +1570,7 @@ int SrsSource::on_edge_start_publish()
     return publish_edge->on_client_publish();
 }
 
-int SrsSource::on_edge_proxy_publish(SrsMessage* msg)
+int SrsSource::on_edge_proxy_publish(SrsCommonMessage* msg)
 {
     return publish_edge->on_proxy_publish(msg);
 }

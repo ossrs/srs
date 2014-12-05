@@ -51,7 +51,7 @@ class SrsStream;
 class SrsAmf0Object;
 class SrsAmf0Any;
 class SrsMessageHeader;
-class SrsMessage;
+class SrsCommonMessage;
 class SrsChunkStream;
 class SrsSharedPtrMessage;
 class IMergeReadHandler;
@@ -136,15 +136,10 @@ public:
 /**
 * message is raw data RTMP message, bytes oriented,
 * protcol always recv RTMP message, and can send RTMP message or RTMP packet.
-* the shared-ptr message is a special RTMP message, use ref-count for performance issue.
-* 
-* @remark, never directly new SrsMessage, the constructor is protected,
-* for in the SrsMessage, we never know whether we should free the message,
-* for SrsCommonMessage, we should free the payload,
-* while for SrsSharedPtrMessage, we should use ref-count to free it.
-* so, use these two concrete message, SrsCommonMessage or SrsSharedPtrMessage instread.
+* the common message is read from underlay protocol sdk.
+* while the shared ptr message used to copy and send.
 */
-class SrsMessage
+class SrsCommonMessage
 {
 // 4.1. Message Header
 public:
@@ -158,16 +153,90 @@ public:
     */
     int size;
     /**
-    * the payload of message, the SrsMessage never know about the detail of payload,
+    * the payload of message, the SrsCommonMessage never know about the detail of payload,
     * user must use SrsProtocol.decode_message to get concrete packet.
     * @remark, not all message payload can be decoded to packet. for example, 
     *       video/audio packet use raw bytes, no video/audio packet.
     */
     char* payload;
-protected:
-    SrsMessage();
 public:
-    virtual ~SrsMessage();
+    SrsCommonMessage();
+public:
+    virtual ~SrsCommonMessage();
+};
+
+/**
+* shared ptr message.
+* for audio/video/data message that need less memory copy.
+* and only for output.
+*
+* create first object by constructor and create(),
+* use copy if need reference count message.
+*
+*/
+class SrsSharedPtrMessage
+{
+// 4.1. Message Header
+public:
+    SrsMessageHeader header;
+// 4.2. Message Payload
+public:
+    /**
+    * current message parsed size,
+    *       size <= header.payload_length
+    * for the payload maybe sent in multiple chunks.
+    */
+    int size;
+    /**
+    * the payload of message, the SrsCommonMessage never know about the detail of payload,
+    * user must use SrsProtocol.decode_message to get concrete packet.
+    * @remark, not all message payload can be decoded to packet. for example,
+    *       video/audio packet use raw bytes, no video/audio packet.
+    */
+    char* payload;
+private:
+    class __SrsSharedPtr
+    {
+    public:
+        char* payload;
+        int size;
+        int shared_count;
+
+        __SrsSharedPtr();
+        virtual ~__SrsSharedPtr();
+    };
+    __SrsSharedPtr* ptr;
+public:
+    SrsSharedPtrMessage();
+    virtual ~SrsSharedPtrMessage();
+public:
+    /**
+    * create shared ptr message,
+    * copy header, manage the payload of msg,
+    * set the payload to NULL to prevent double free.
+    * @remark payload of msg set to NULL if success.
+    */
+    virtual int create(SrsCommonMessage* msg);
+    /**
+    * create shared ptr message,
+    * from the header and payload.
+    * @remark user should never free the payload.
+    */
+    virtual int create(SrsMessageHeader* pheader, char* payload, int size);
+    /**
+    * get current reference count.
+    * when this object created, count set to 0.
+    * if copy() this object, count increase 1.
+    * if this or copy deleted, free payload when count is 0, or count--.
+    * @remark, assert object is created.
+    */
+    virtual int count();
+public:
+    /**
+    * copy current shared ptr message, use ref-count.
+    * @remark, assert object is created.
+    */
+    virtual SrsSharedPtrMessage* copy();
 };
 
 /**
@@ -321,14 +390,14 @@ public:
     *       never NULL if decode success.
     * @remark, drop message when msg is empty or payload length is empty.
     */
-    virtual int recv_message(SrsMessage** pmsg);
+    virtual int recv_message(SrsCommonMessage** pmsg);
     /**
     * decode bytes oriented RTMP message to RTMP packet,
     * @param ppacket, output decoded packet, 
     *       always NULL if error, never NULL if success.
     * @return error when unknown packet, error when decode failed.
     */
-    virtual int decode_message(SrsMessage* msg, SrsPacket** ppacket);
+    virtual int decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
     /**
     * send the RTMP message and always free it.
     * user must never free or use the msg after this method,
@@ -336,7 +405,7 @@ public:
     * @param msg, the msg to send out, never be NULL.
     * @param stream_id, the stream id of packet to send over, 0 for control message.
     */
-    virtual int send_and_free_message(SrsMessage* msg, int stream_id);
+    virtual int send_and_free_message(SrsSharedPtrMessage* msg, int stream_id);
     /**
     * send the RTMP message and always free it.
     * user must never free or use the msg after this method,
@@ -345,7 +414,7 @@ public:
     * @param nb_msgs, the size of msgs to send out.
     * @param stream_id, the stream id of packet to send over, 0 for control message.
     */
-    virtual int send_and_free_messages(SrsMessage** msgs, int nb_msgs, int stream_id);
+    virtual int send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, int stream_id);
     /**
     * send the RTMP packet and always free it.
     * user must never free or use the packet after this method,
@@ -371,7 +440,7 @@ public:
     * if need to set timeout, use set timeout of SrsProtocol.
     */
     template<class T>
-    int expect_message(SrsMessage** pmsg, T** ppacket)
+    int expect_message(SrsCommonMessage** pmsg, T** ppacket)
     {
         *pmsg = NULL;
         *ppacket = NULL;
@@ -379,7 +448,7 @@ public:
         int ret = ERROR_SUCCESS;
         
         while (true) {
-            SrsMessage* msg = NULL;
+            SrsCommonMessage* msg = NULL;
             if ((ret = recv_message(&msg)) != ERROR_SUCCESS) {
                 if (ret != ERROR_SOCKET_TIMEOUT && !srs_is_client_gracefully_close(ret)) {
                     srs_error("recv message failed. ret=%d", ret);
@@ -418,7 +487,7 @@ private:
     * send out the messages, donot free it, 
     * the caller must free the param msgs.
     */
-    virtual int do_send_messages(SrsMessage** msgs, int nb_msgs);
+    virtual int do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs);
     /**
     * underlayer api for send and free packet.
     */
@@ -442,7 +511,7 @@ private:
     * return success and pmsg set to NULL if no entire message got,
     * return success and pmsg set to entire message if got one.
     */
-    virtual int recv_interlaced_message(SrsMessage** pmsg);
+    virtual int recv_interlaced_message(SrsCommonMessage** pmsg);
     /**
     * read the chunk basic header(fmt, cid) from chunk stream.
     * user can discovery a SrsChunkStream by cid.
@@ -457,15 +526,15 @@ private:
     * read the chunk payload, remove the used bytes in buffer,
     * if got entire message, set the pmsg.
     */
-    virtual int read_message_payload(SrsChunkStream* chunk, SrsMessage** pmsg);
+    virtual int read_message_payload(SrsChunkStream* chunk, SrsCommonMessage** pmsg);
     /**
     * when recv message, update the context.
     */
-    virtual int on_recv_message(SrsMessage* msg);
+    virtual int on_recv_message(SrsCommonMessage* msg);
     /**
     * when message sentout, update the context.
     */
-    virtual int on_send_packet(SrsMessage* msg, SrsPacket* packet);
+    virtual int on_send_packet(SrsSharedPtrMessage* msg, SrsPacket* packet);
 private:
     /**
     * auto response the ack message.
@@ -505,7 +574,7 @@ public:
     /**
     * partially read message.
     */
-    SrsMessage* msg;
+    SrsCommonMessage* msg;
     /**
     * decoded msg count, to identify whether the chunk stream is fresh.
     */
@@ -513,75 +582,6 @@ public:
 public:
     SrsChunkStream(int _cid);
     virtual ~SrsChunkStream();
-};
-
-/**
-* the common message used free the payload in common way.
-*/
-class SrsCommonMessage : public SrsMessage
-{
-public:
-    SrsCommonMessage();
-    virtual ~SrsCommonMessage();
-};
-
-/**
-* shared ptr message.
-* for audio/video/data message that need less memory copy.
-* and only for output.
-*
-* create first object by constructor and create(),
-* use copy if need reference count message.
-* 
-* Usage:
-*       SrsSharedPtrMessage msg;
-*       
-*/
-class SrsSharedPtrMessage : public SrsMessage
-{
-private:
-    class __SrsSharedPtr
-    {
-    public:
-        char* payload;
-        int size;
-        int shared_count;
-        
-        __SrsSharedPtr();
-        virtual ~__SrsSharedPtr();
-    };
-    __SrsSharedPtr* ptr;
-public:
-    SrsSharedPtrMessage();
-    virtual ~SrsSharedPtrMessage();
-public:
-    /**
-    * create shared ptr message, 
-    * copy header, manage the payload of msg,
-    * set the payload to NULL to prevent double free.
-    * @remark payload of msg set to NULL if success.
-    */
-    virtual int create(SrsMessage* msg);
-    /**
-    * create shared ptr message,
-    * from the header and payload.
-    * @remark user should never free the payload.
-    */
-    virtual int create(SrsMessageHeader* pheader, char* payload, int size);
-    /**
-    * get current reference count.
-    * when this object created, count set to 0.
-    * if copy() this object, count increase 1.
-    * if this or copy deleted, free payload when count is 0, or count--.
-    * @remark, assert object is created.
-    */
-    virtual int count();
-public:
-    /**
-    * copy current shared ptr message, use ref-count.
-    * @remark, assert object is created.
-    */
-    virtual SrsSharedPtrMessage* copy();
 };
 
 /**
@@ -1227,7 +1227,7 @@ protected:
 
 /**
 * onStatus command, AMF0 Call
-* @remark, user must set the stream_id by SrsMessage.set_packet().
+* @remark, user must set the stream_id by SrsCommonMessage.set_packet().
 */
 class SrsOnStatusCallPacket : public SrsPacket
 {
@@ -1336,7 +1336,7 @@ private:
 
 /**
 * onStatus data, AMF0 Data
-* @remark, user must set the stream_id by SrsMessage.set_packet().
+* @remark, user must set the stream_id by SrsCommonMessage.set_packet().
 */
 class SrsOnStatusDataPacket : public SrsPacket
 {
@@ -1365,7 +1365,7 @@ protected:
 
 /**
 * AMF0Data RtmpSampleAccess
-* @remark, user must set the stream_id by SrsMessage.set_packet().
+* @remark, user must set the stream_id by SrsCommonMessage.set_packet().
 */
 class SrsSampleAccessPacket : public SrsPacket
 {

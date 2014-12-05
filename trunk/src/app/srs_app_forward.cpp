@@ -404,7 +404,7 @@ int SrsForwarder::forward()
 
         // read from client.
         if (true) {
-            SrsMessage* msg = NULL;
+            SrsCommonMessage* msg = NULL;
             ret = client->recv_message(&msg);
             
             srs_verbose("play loop recv message. ret=%d", ret);

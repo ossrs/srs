@@ -29,7 +29,7 @@ SrsMessageArray::SrsMessageArray(int max_msgs)
 {
     srs_assert(max_msgs > 0);
     
-    msgs = new SrsMessage*[max_msgs];
+    msgs = new SrsSharedPtrMessage*[max_msgs];
     max = max_msgs;
     
     zero(max_msgs);
@@ -47,7 +47,7 @@ void SrsMessageArray::free(int count)
 {
     // initialize
     for (int i = 0; i < count; i++) {
-        SrsMessage* msg = msgs[i];
+        SrsSharedPtrMessage* msg = msgs[i];
         srs_freep(msg);
         
         msgs[i] = NULL;

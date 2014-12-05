@@ -755,7 +755,7 @@ int srs_rtmp_read_packet(srs_rtmp_t rtmp, char* type, u_int32_t* timestamp, char
     Context* context = (Context*)rtmp;
     
     for (;;) {
-        SrsMessage* msg = NULL;
+        SrsCommonMessage* msg = NULL;
         if ((ret = context->rtmp->recv_message(&msg)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -763,7 +763,7 @@ int srs_rtmp_read_packet(srs_rtmp_t rtmp, char* type, u_int32_t* timestamp, char
             continue;
         }
         
-        SrsAutoFree(SrsMessage, msg);
+        SrsAutoFree(SrsCommonMessage, msg);
         
         if (msg->header.is_audio()) {
             *type = SRS_RTMP_TYPE_AUDIO;

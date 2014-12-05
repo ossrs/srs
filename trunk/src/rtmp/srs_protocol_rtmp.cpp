@@ -360,22 +360,22 @@ int64_t SrsRtmpClient::get_send_bytes()
     return protocol->get_send_bytes();
 }
 
-int SrsRtmpClient::recv_message(SrsMessage** pmsg)
+int SrsRtmpClient::recv_message(SrsCommonMessage** pmsg)
 {
     return protocol->recv_message(pmsg);
 }
 
-int SrsRtmpClient::decode_message(SrsMessage* msg, SrsPacket** ppacket)
+int SrsRtmpClient::decode_message(SrsCommonMessage* msg, SrsPacket** ppacket)
 {
     return protocol->decode_message(msg, ppacket);
 }
 
-int SrsRtmpClient::send_and_free_message(SrsMessage* msg, int stream_id)
+int SrsRtmpClient::send_and_free_message(SrsSharedPtrMessage* msg, int stream_id)
 {
     return protocol->send_and_free_message(msg, stream_id);
 }
 
-int SrsRtmpClient::send_and_free_messages(SrsMessage** msgs, int nb_msgs, int stream_id)
+int SrsRtmpClient::send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, int stream_id)
 {
     return protocol->send_and_free_messages(msgs, nb_msgs, stream_id);
 }
@@ -509,13 +509,13 @@ int SrsRtmpClient::connect_app2(
     }
     
     // expect connect _result
-    SrsMessage* msg = NULL;
+    SrsCommonMessage* msg = NULL;
     SrsConnectAppResPacket* pkt = NULL;
     if ((ret = expect_message<SrsConnectAppResPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
         srs_error("expect connect app response message failed. ret=%d", ret);
         return ret;
     }
-    SrsAutoFree(SrsMessage, msg);
+    SrsAutoFree(SrsCommonMessage, msg);
     SrsAutoFree(SrsConnectAppResPacket, pkt);
     
     // server info
@@ -566,13 +566,13 @@ int SrsRtmpClient::create_stream(int& stream_id)
 
     // CreateStream _result.
     if (true) {
-        SrsMessage* msg = NULL;
+        SrsCommonMessage* msg = NULL;
         SrsCreateStreamResPacket* pkt = NULL;
         if ((ret = expect_message<SrsCreateStreamResPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect create stream response message failed. ret=%d", ret);
             return ret;
         }
-        SrsAutoFree(SrsMessage, msg);
+        SrsAutoFree(SrsCommonMessage, msg);
         SrsAutoFree(SrsCreateStreamResPacket, pkt);
         srs_info("get create stream response message");
 
@@ -700,13 +700,13 @@ int SrsRtmpClient::fmle_publish(string stream, int& stream_id)
     
     // expect result of CreateStream
     if (true) {
-        SrsMessage* msg = NULL;
+        SrsCommonMessage* msg = NULL;
         SrsCreateStreamResPacket* pkt = NULL;
         if ((ret = expect_message<SrsCreateStreamResPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("expect create stream response message failed. ret=%d", ret);
             return ret;
         }
-        SrsAutoFree(SrsMessage, msg);
+        SrsAutoFree(SrsCommonMessage, msg);
         SrsAutoFree(SrsCreateStreamResPacket, pkt);
         srs_info("get create stream response message");
 
@@ -787,22 +787,22 @@ int64_t SrsRtmpServer::get_send_bytes()
     return protocol->get_send_bytes();
 }
 
-int SrsRtmpServer::recv_message(SrsMessage** pmsg)
+int SrsRtmpServer::recv_message(SrsCommonMessage** pmsg)
 {
     return protocol->recv_message(pmsg);
 }
 
-int SrsRtmpServer::decode_message(SrsMessage* msg, SrsPacket** ppacket)
+int SrsRtmpServer::decode_message(SrsCommonMessage* msg, SrsPacket** ppacket)
 {
     return protocol->decode_message(msg, ppacket);
 }
 
-int SrsRtmpServer::send_and_free_message(SrsMessage* msg, int stream_id)
+int SrsRtmpServer::send_and_free_message(SrsSharedPtrMessage* msg, int stream_id)
 {
     return protocol->send_and_free_message(msg, stream_id);
 }
 
-int SrsRtmpServer::send_and_free_messages(SrsMessage** msgs, int nb_msgs, int stream_id)
+int SrsRtmpServer::send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, int stream_id)
 {
     return protocol->send_and_free_messages(msgs, nb_msgs, stream_id);
 }
@@ -838,13 +838,13 @@ int SrsRtmpServer::connect_app(SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsMessage* msg = NULL;
+    SrsCommonMessage* msg = NULL;
     SrsConnectAppPacket* pkt = NULL;
     if ((ret = expect_message<SrsConnectAppPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
         srs_error("expect connect app message failed. ret=%d", ret);
         return ret;
     }
-    SrsAutoFree(SrsMessage, msg);
+    SrsAutoFree(SrsCommonMessage, msg);
     SrsAutoFree(SrsConnectAppPacket, pkt);
     srs_info("get connect app message");
     
@@ -1001,7 +1001,7 @@ int SrsRtmpServer::identify_client(int stream_id, SrsRtmpConnType& type, string&
     int ret = ERROR_SUCCESS;
     
     while (true) {
-        SrsMessage* msg = NULL;
+        SrsCommonMessage* msg = NULL;
         if ((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS) {
             if (!srs_is_client_gracefully_close(ret)) {
                 srs_error("recv identify client message failed. ret=%d", ret);
@@ -1009,7 +1009,7 @@ int SrsRtmpServer::identify_client(int stream_id, SrsRtmpConnType& type, string&
             return ret;
         }
 
-        SrsAutoFree(SrsMessage, msg);
+        SrsAutoFree(SrsCommonMessage, msg);
         SrsMessageHeader& h = msg->header;
         
         if (h.is_ackledgement() || h.is_set_chunk_size() || h.is_window_ackledgement_size() || h.is_user_control_message()) {
@@ -1233,7 +1233,7 @@ int SrsRtmpServer::start_fmle_publish(int stream_id)
     // FCPublish
     double fc_publish_tid = 0;
     if (true) {
-        SrsMessage* msg = NULL;
+        SrsCommonMessage* msg = NULL;
         SrsFMLEStartPacket* pkt = NULL;
         if ((ret = expect_message<SrsFMLEStartPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("recv FCPublish message failed. ret=%d", ret);
@@ -1241,7 +1241,7 @@ int SrsRtmpServer::start_fmle_publish(int stream_id)
         }
         srs_info("recv FCPublish request message success.");
         
-        SrsAutoFree(SrsMessage, msg);
+        SrsAutoFree(SrsCommonMessage, msg);
         SrsAutoFree(SrsFMLEStartPacket, pkt);
     
         fc_publish_tid = pkt->transaction_id;
@@ -1259,7 +1259,7 @@ int SrsRtmpServer::start_fmle_publish(int stream_id)
     // createStream
     double create_stream_tid = 0;
     if (true) {
-        SrsMessage* msg = NULL;
+        SrsCommonMessage* msg = NULL;
         SrsCreateStreamPacket* pkt = NULL;
         if ((ret = expect_message<SrsCreateStreamPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("recv createStream message failed. ret=%d", ret);
@@ -1267,7 +1267,7 @@ int SrsRtmpServer::start_fmle_publish(int stream_id)
         }
         srs_info("recv createStream request message success.");
         
-        SrsAutoFree(SrsMessage, msg);
+        SrsAutoFree(SrsCommonMessage, msg);
         SrsAutoFree(SrsCreateStreamPacket, pkt);
         
         create_stream_tid = pkt->transaction_id;
@@ -1284,7 +1284,7 @@ int SrsRtmpServer::start_fmle_publish(int stream_id)
     
     // publish
     if (true) {
-        SrsMessage* msg = NULL;
+        SrsCommonMessage* msg = NULL;
         SrsPublishPacket* pkt = NULL;
         if ((ret = expect_message<SrsPublishPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
             srs_error("recv publish message failed. ret=%d", ret);
@@ -1292,7 +1292,7 @@ int SrsRtmpServer::start_fmle_publish(int stream_id)
         }
         srs_info("recv publish request message success.");
         
-        SrsAutoFree(SrsMessage, msg);
+        SrsAutoFree(SrsCommonMessage, msg);
         SrsAutoFree(SrsPublishPacket, pkt);
     }
     // publish response onFCPublish(NetStream.Publish.Start)
@@ -1417,7 +1417,7 @@ int SrsRtmpServer::identify_create_stream_client(SrsCreateStreamPacket* req, int
     }
     
     while (true) {
-        SrsMessage* msg = NULL;
+        SrsCommonMessage* msg = NULL;
         if ((ret = protocol->recv_message(&msg)) != ERROR_SUCCESS) {
             if (!srs_is_client_gracefully_close(ret)) {
                 srs_error("recv identify client message failed. ret=%d", ret);
@@ -1425,7 +1425,7 @@ int SrsRtmpServer::identify_create_stream_client(SrsCreateStreamPacket* req, int
             return ret;
         }
 
-        SrsAutoFree(SrsMessage, msg);
+        SrsAutoFree(SrsCommonMessage, msg);
         SrsMessageHeader& h = msg->header;
         
         if (h.is_ackledgement() || h.is_set_chunk_size() || h.is_window_ackledgement_size() || h.is_user_control_message()) {

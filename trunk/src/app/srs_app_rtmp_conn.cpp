@@ -576,7 +576,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
         // @see: https://github.com/winlinvip/simple-rtmp-server/issues/196
         // @see: https://github.com/winlinvip/simple-rtmp-server/issues/217
         while (!trd->empty()) {
-            SrsMessage* msg = trd->pump();
+            SrsCommonMessage* msg = trd->pump();
             srs_verbose("pump client message to process.");
             
             if ((ret = process_play_control_msg(consumer, msg)) != ERROR_SUCCESS) {
@@ -628,7 +628,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
         // we start to collect the durations for each message.
         if (user_specified_duration_to_stop) {
             for (int i = 0; i < count; i++) {
-                SrsMessage* msg = msgs.msgs[i];
+                SrsSharedPtrMessage* msg = msgs.msgs[i];
                 
                 // foreach msg, collect the duration.
                 // @remark: never use msg when sent it, for the protocol sdk will free it.
@@ -806,7 +806,7 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
     return ret;
 }
 
-int SrsRtmpConn::handle_publish_message(SrsSource* source, SrsMessage* msg, bool is_fmle, bool vhost_is_edge)
+int SrsRtmpConn::handle_publish_message(SrsSource* source, SrsCommonMessage* msg, bool is_fmle, bool vhost_is_edge)
 {
     int ret = ERROR_SUCCESS;
     
@@ -850,7 +850,7 @@ int SrsRtmpConn::handle_publish_message(SrsSource* source, SrsMessage* msg, bool
     return ret;
 }
 
-int SrsRtmpConn::process_publish_message(SrsSource* source, SrsMessage* msg, bool vhost_is_edge)
+int SrsRtmpConn::process_publish_message(SrsSource* source, SrsCommonMessage* msg, bool vhost_is_edge)
 {
     int ret = ERROR_SUCCESS;
     
@@ -915,7 +915,7 @@ int SrsRtmpConn::process_publish_message(SrsSource* source, SrsMessage* msg, boo
     return ret;
 }
 
-int SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsMessage* msg)
+int SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -923,7 +923,7 @@ int SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsMessage* msg
         srs_verbose("ignore all empty message.");
         return ret;
     }
-    SrsAutoFree(SrsMessage, msg);
+    SrsAutoFree(SrsCommonMessage, msg);
     
     if (!msg->header.is_amf0_command() && !msg->header.is_amf3_command()) {
         srs_info("ignore all message except amf0/amf3 command.");

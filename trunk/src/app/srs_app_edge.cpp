@@ -183,7 +183,7 @@ int SrsEdgeIngester::ingest()
         }
 
         // read from client.
-        SrsMessage* msg = NULL;
+        SrsCommonMessage* msg = NULL;
         if ((ret = client->recv_message(&msg)) != ERROR_SUCCESS) {
             if (!srs_is_client_gracefully_close(ret)) {
                 srs_error("pull origin server message failed. ret=%d", ret);
@@ -193,7 +193,7 @@ int SrsEdgeIngester::ingest()
         srs_verbose("edge loop recv message. ret=%d", ret);
         
         srs_assert(msg);
-        SrsAutoFree(SrsMessage, msg);
+        SrsAutoFree(SrsCommonMessage, msg);
         
         if ((ret = process_publish_message(msg)) != ERROR_SUCCESS) {
             return ret;
@@ -256,7 +256,7 @@ int SrsEdgeIngester::connect_app(string ep_server, string ep_port)
     return ret;
 }
 
-int SrsEdgeIngester::process_publish_message(SrsMessage* msg)
+int SrsEdgeIngester::process_publish_message(SrsCommonMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -485,7 +485,7 @@ int SrsEdgeForwarder::cycle()
 
         // read from client.
         if (true) {
-            SrsMessage* msg = NULL;
+            SrsCommonMessage* msg = NULL;
             ret = client->recv_message(&msg);
             
             srs_verbose("edge loop recv message. ret=%d", ret);
@@ -534,7 +534,7 @@ int SrsEdgeForwarder::cycle()
     return ret;
 }
 
-int SrsEdgeForwarder::proxy(SrsMessage* msg)
+int SrsEdgeForwarder::proxy(SrsCommonMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -825,7 +825,7 @@ int SrsPublishEdge::on_client_publish()
     return ret;
 }
 
-int SrsPublishEdge::on_proxy_publish(SrsMessage* msg)
+int SrsPublishEdge::on_proxy_publish(SrsCommonMessage* msg)
 {
     return forwarder->proxy(msg);
 }

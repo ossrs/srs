@@ -40,7 +40,7 @@ class SrsResponse;
 class SrsSource;
 class SrsRefer;
 class SrsConsumer;
-class SrsMessage;
+class SrsCommonMessage;
 class SrsStSocket;
 #ifdef SRS_AUTO_HTTP_CALLBACK    
 class SrsHttpHooks;
@@ -101,9 +101,9 @@ private:
     virtual int fmle_publishing(SrsSource* source);
     virtual int flash_publishing(SrsSource* source);
     virtual int do_publishing(SrsSource* source, SrsPublishRecvThread* trd);
-    virtual int handle_publish_message(SrsSource* source, SrsMessage* msg, bool is_fmle, bool vhost_is_edge);
-    virtual int process_publish_message(SrsSource* source, SrsMessage* msg, bool vhost_is_edge);
-    virtual int process_play_control_msg(SrsConsumer* consumer, SrsMessage* msg);
+    virtual int handle_publish_message(SrsSource* source, SrsCommonMessage* msg, bool is_fmle, bool vhost_is_edge);
+    virtual int process_publish_message(SrsSource* source, SrsCommonMessage* msg, bool vhost_is_edge);
+    virtual int process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage* msg);
     virtual void change_mw_sleep(int sleep_ms);
 private:
     virtual int check_edge_token_traverse_auth();

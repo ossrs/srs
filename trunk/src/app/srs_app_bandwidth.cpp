@@ -94,12 +94,12 @@ int _srs_expect_bandwidth_packet(SrsRtmpServer* rtmp, _CheckPacketType pfn)
     int ret = ERROR_SUCCESS;
     
     while (true) {
-        SrsMessage* msg = NULL;
+        SrsCommonMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
         if ((ret = rtmp->expect_message<SrsBandwidthPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
             return ret;
         }
-        SrsAutoFree(SrsMessage, msg);
+        SrsAutoFree(SrsCommonMessage, msg);
         SrsAutoFree(SrsBandwidthPacket, pkt);
         srs_info("get bwtc message success.");
         
@@ -380,12 +380,12 @@ int SrsBandwidth::publish_checking(SrsBandwidthSample* sample, SrsKbpsLimit* lim
     srs_update_system_time_ms();
     int64_t starttime = srs_get_system_time_ms();
     while ((srs_get_system_time_ms() - starttime) < sample->duration_ms) {
-        SrsMessage* msg = NULL;
+        SrsCommonMessage* msg = NULL;
         SrsBandwidthPacket* pkt = NULL;
         if ((ret = _rtmp->expect_message<SrsBandwidthPacket>(&msg, &pkt)) != ERROR_SUCCESS) {
             return ret;
         }
-        SrsAutoFree(SrsMessage, msg);
+        SrsAutoFree(SrsCommonMessage, msg);
         SrsAutoFree(SrsBandwidthPacket, pkt);
         srs_info("get publish message success.");
         

@@ -37,14 +37,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsProtocol;
 class ISrsProtocolReaderWriter;
-class ISrsMessage;
+class ISrsCommonMessage;
 class SrsCommonMessage;
 class SrsCreateStreamPacket;
 class SrsFMLEStartPacket;
 class SrsPublishPacket;
 class SrsOnMetaDataPacket;
 class SrsPlayPacket;
-class SrsMessage;
+class SrsCommonMessage;
 class SrsPacket;
 class SrsAmf0Object;
 class IMergeReadHandler;
@@ -207,14 +207,14 @@ public:
     *       never NULL if decode success.
     * @remark, drop message when msg is empty or payload length is empty.
     */
-    virtual int recv_message(SrsMessage** pmsg);
+    virtual int recv_message(SrsCommonMessage** pmsg);
     /**
     * decode bytes oriented RTMP message to RTMP packet,
     * @param ppacket, output decoded packet, 
     *       always NULL if error, never NULL if success.
     * @return error when unknown packet, error when decode failed.
     */
-    virtual int decode_message(SrsMessage* msg, SrsPacket** ppacket);
+    virtual int decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
     /**
     * send the RTMP message and always free it.
     * user must never free or use the msg after this method,
@@ -222,7 +222,7 @@ public:
     * @param msg, the msg to send out, never be NULL.
     * @param stream_id, the stream id of packet to send over, 0 for control message.
     */
-    virtual int send_and_free_message(SrsMessage* msg, int stream_id);
+    virtual int send_and_free_message(SrsSharedPtrMessage* msg, int stream_id);
     /**
     * send the RTMP message and always free it.
     * user must never free or use the msg after this method,
@@ -231,7 +231,7 @@ public:
     * @param nb_msgs, the size of msgs to send out.
     * @param stream_id, the stream id of packet to send over, 0 for control message.
     */
-    virtual int send_and_free_messages(SrsMessage** msgs, int nb_msgs, int stream_id);
+    virtual int send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, int stream_id);
     /**
     * send the RTMP packet and always free it.
     * user must never free or use the packet after this method,
@@ -316,7 +316,7 @@ public:
     * if need to set timeout, use set timeout of SrsProtocol.
     */
     template<class T>
-    int expect_message(SrsMessage** pmsg, T** ppacket)
+    int expect_message(SrsCommonMessage** pmsg, T** ppacket)
     {
         return protocol->expect_message<T>(pmsg, ppacket);
     }
@@ -389,14 +389,14 @@ public:
     *       never NULL if decode success.
     * @remark, drop message when msg is empty or payload length is empty.
     */
-    virtual int recv_message(SrsMessage** pmsg);
+    virtual int recv_message(SrsCommonMessage** pmsg);
     /**
     * decode bytes oriented RTMP message to RTMP packet,
     * @param ppacket, output decoded packet, 
     *       always NULL if error, never NULL if success.
     * @return error when unknown packet, error when decode failed.
     */
-    virtual int decode_message(SrsMessage* msg, SrsPacket** ppacket);
+    virtual int decode_message(SrsCommonMessage* msg, SrsPacket** ppacket);
     /**
     * send the RTMP message and always free it.
     * user must never free or use the msg after this method,
@@ -404,7 +404,7 @@ public:
     * @param msg, the msg to send out, never be NULL.
     * @param stream_id, the stream id of packet to send over, 0 for control message.
     */
-    virtual int send_and_free_message(SrsMessage* msg, int stream_id);
+    virtual int send_and_free_message(SrsSharedPtrMessage* msg, int stream_id);
     /**
     * send the RTMP message and always free it.
     * user must never free or use the msg after this method,
@@ -416,7 +416,7 @@ public:
     * @remark performance issue, to support 6k+ 250kbps client,
     *       @see https://github.com/winlinvip/simple-rtmp-server/issues/194
     */
-    virtual int send_and_free_messages(SrsMessage** msgs, int nb_msgs, int stream_id);
+    virtual int send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, int stream_id);
     /**
     * send the RTMP packet and always free it.
     * user must never free or use the packet after this method,
@@ -523,7 +523,7 @@ public:
     * if need to set timeout, use set timeout of SrsProtocol.
     */
     template<class T>
-    int expect_message(SrsMessage** pmsg, T** ppacket)
+    int expect_message(SrsCommonMessage** pmsg, T** ppacket)
     {
         return protocol->expect_message<T>(pmsg, ppacket);
     }

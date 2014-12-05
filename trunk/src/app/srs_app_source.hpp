@@ -41,7 +41,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsPlayEdge;
 class SrsPublishEdge;
 class SrsSource;
-class SrsMessage;
+class SrsCommonMessage;
 class SrsOnMetaDataPacket;
 class SrsSharedPtrMessage;
 class SrsForwarder;
@@ -139,11 +139,11 @@ public:
     virtual int enqueue(SrsSharedPtrMessage* msg, bool* is_overflow = NULL);
     /**
     * get packets in consumer queue.
-    * @pmsgs SrsMessages*[], used to store the msgs, user must alloc it.
+    * @pmsgs SrsCommonMessages*[], used to store the msgs, user must alloc it.
     * @count the count in array, output param.
     * @max_count the max count to dequeue, must be positive.
     */
-    virtual int dump_packets(int max_count, SrsMessage** pmsgs, int& count);
+    virtual int dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count);
 private:
     /**
     * remove a gop from the front.
@@ -395,10 +395,10 @@ public:
 // logic data methods
 public:
     virtual bool can_publish();
-    virtual int on_meta_data(SrsMessage* msg, SrsOnMetaDataPacket* metadata);
-    virtual int on_audio(SrsMessage* audio);
-    virtual int on_video(SrsMessage* video);
-    virtual int on_aggregate(SrsMessage* msg);
+    virtual int on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);
+    virtual int on_audio(SrsCommonMessage* audio);
+    virtual int on_video(SrsCommonMessage* video);
+    virtual int on_aggregate(SrsCommonMessage* msg);
     /**
     * the pre-publish is we are very sure we are
     * trying to publish stream, please lock the resource,
@@ -425,7 +425,7 @@ public:
     // for edge, when publish edge stream, check the state
     virtual int on_edge_start_publish();
     // for edge, proxy the publish
-    virtual int on_edge_proxy_publish(SrsMessage* msg);
+    virtual int on_edge_proxy_publish(SrsCommonMessage* msg);
     // for edge, proxy stop publish
     virtual void on_edge_proxy_unpublish();
 private:

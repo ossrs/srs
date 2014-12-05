@@ -30,7 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
-class SrsMessage;
+class SrsSharedPtrMessage;
 
 /**
 * the class to auto free the shared ptr message array.
@@ -49,7 +49,7 @@ public:
     * for instance, msg= msgs.msgs[i], msgs.msgs[i]=NULL, send(msg),
     * where send(msg) will always send and free it.
     */
-    SrsMessage** msgs;
+    SrsSharedPtrMessage** msgs;
     int max;
 public:
     /**

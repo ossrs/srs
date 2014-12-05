@@ -386,14 +386,112 @@ void SrsMessageHeader::initialize_video(int size, u_int32_t time, int stream)
     perfer_cid = RTMP_CID_Video;
 }
 
-SrsMessage::SrsMessage()
+SrsCommonMessage::SrsCommonMessage()
 {
     payload = NULL;
     size = 0;
 }
 
-SrsMessage::~SrsMessage()
+SrsCommonMessage::~SrsCommonMessage()
 {
+    srs_freep(payload);
+}
+
+SrsSharedPtrMessage::__SrsSharedPtr::__SrsSharedPtr()
+{
+    payload = NULL;
+    size = 0;
+    shared_count = 0;
+}
+
+SrsSharedPtrMessage::__SrsSharedPtr::~__SrsSharedPtr()
+{
+    srs_freep(payload);
+}
+
+SrsSharedPtrMessage::SrsSharedPtrMessage()
+{
+    ptr = NULL;
+}
+
+SrsSharedPtrMessage::~SrsSharedPtrMessage()
+{
+    if (ptr) {
+        if (ptr->shared_count == 0) {
+            srs_freep(ptr);
+        } else {
+            ptr->shared_count--;
+        }
+    }
+}
+
+int SrsSharedPtrMessage::create(SrsCommonMessage* msg)
+{
+    int ret = ERROR_SUCCESS;
+
+    if ((ret = create(&msg->header, msg->payload, msg->size)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    // to prevent double free of payload:
+    // initialize already attach the payload of msg,
+    // detach the payload to transfer the owner to shared ptr.
+    msg->payload = NULL;
+    msg->size = 0;
+
+    return ret;
+}
+
+int SrsSharedPtrMessage::create(SrsMessageHeader* pheader, char* payload, int size)
+{
+    int ret = ERROR_SUCCESS;
+
+    srs_assert(pheader != NULL);
+    if (ptr) {
+        ret = ERROR_SYSTEM_ASSERT_FAILED;
+        srs_error("should not set the payload twice. ret=%d", ret);
+        srs_assert(false);
+
+        return ret;
+    }
+
+    header = *pheader;
+    header.payload_length = size;
+
+    ptr = new __SrsSharedPtr();
+
+    // direct attach the data.
+    ptr->payload = payload;
+    ptr->size = size;
+
+    // message can access it.
+    this->payload = ptr->payload;
+    this->size = ptr->size;
+
+    return ret;
+}
+
+int SrsSharedPtrMessage::count()
+{
+    srs_assert(ptr);
+    return ptr->shared_count;
+}
+
+SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
+{
+    srs_assert(ptr);
+
+    SrsSharedPtrMessage* copy = new SrsSharedPtrMessage();
+
+    copy->header = header;
+
+    copy->ptr = ptr;
+    ptr->shared_count++;
+
+    copy->payload = ptr->payload;
+    copy->size = ptr->size;
+
+    return copy;
 }
 
 SrsProtocol::AckWindowSize::AckWindowSize()
@@ -541,14 +639,14 @@ int64_t SrsProtocol::get_send_bytes()
     return skt->get_send_bytes();
 }
 
-int SrsProtocol::recv_message(SrsMessage** pmsg)
+int SrsProtocol::recv_message(SrsCommonMessage** pmsg)
 {
     *pmsg = NULL;
     
     int ret = ERROR_SUCCESS;
     
     while (true) {
-        SrsMessage* msg = NULL;
+        SrsCommonMessage* msg = NULL;
         
         if ((ret = recv_interlaced_message(&msg)) != ERROR_SUCCESS) {
             if (ret != ERROR_SOCKET_TIMEOUT && !srs_is_client_gracefully_close(ret)) {
@@ -587,7 +685,7 @@ int SrsProtocol::recv_message(SrsMessage** pmsg)
     return ret;
 }
 
-int SrsProtocol::decode_message(SrsMessage* msg, SrsPacket** ppacket)
+int SrsProtocol::decode_message(SrsCommonMessage* msg, SrsPacket** ppacket)
 {
     *ppacket = NULL;
     
@@ -620,7 +718,7 @@ int SrsProtocol::decode_message(SrsMessage* msg, SrsPacket** ppacket)
     return ret;
 }
 
-int SrsProtocol::do_send_messages(SrsMessage** msgs, int nb_msgs)
+int SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
 {
     int ret = ERROR_SUCCESS;
     
@@ -634,7 +732,7 @@ int SrsProtocol::do_send_messages(SrsMessage** msgs, int nb_msgs)
     // try to send use the c0c3 header cache,
     // if cache is consumed, try another loop.
     for (int i = 0; i < nb_msgs; i++) {
-        SrsMessage* msg = msgs[i];
+        SrsSharedPtrMessage* msg = msgs[i];
     
         // ignore empty message.
         if (!msg->payload || msg->size <= 0) {
@@ -785,22 +883,23 @@ int SrsProtocol::do_send_and_free_packet(SrsPacket* packet, int stream_id)
     }
     
     // to message
-    SrsMessage* msg = new SrsCommonMessage();
-    
-    msg->payload = payload;
-    msg->size = size;
-    
-    msg->header.payload_length = size;
-    msg->header.message_type = packet->get_message_type();
-    msg->header.stream_id = stream_id;
-    msg->header.perfer_cid = packet->get_prefer_cid();
+    SrsMessageHeader header;
+    header.payload_length = size;
+    header.message_type = packet->get_message_type();
+    header.stream_id = stream_id;
+    header.perfer_cid = packet->get_prefer_cid();
+
+    SrsSharedPtrMessage* msg = new SrsSharedPtrMessage();
+    ret = msg->create(&header, payload, size);
+    if (ret == ERROR_SUCCESS) {
+        ret = do_send_messages(&msg, 1);
+        if (ret == ERROR_SUCCESS) {
+            ret = on_send_packet(msg, packet);
+        }
+    }
 
     // donot use the auto free to free the msg,
     // for performance issue.
-    ret = do_send_messages(&msg, 1);
-    if (ret == ERROR_SUCCESS) {
-        ret = on_send_packet(msg, packet);
-    }
     srs_freep(msg);
     
     return ret;
@@ -1054,12 +1153,12 @@ int SrsProtocol::do_decode_message(SrsMessageHeader& header, SrsStream* stream, 
     return ret;
 }
 
-int SrsProtocol::send_and_free_message(SrsMessage* msg, int stream_id)
+int SrsProtocol::send_and_free_message(SrsSharedPtrMessage* msg, int stream_id)
 {
     return send_and_free_messages(&msg, 1, stream_id);
 }
 
-int SrsProtocol::send_and_free_messages(SrsMessage** msgs, int nb_msgs, int stream_id)
+int SrsProtocol::send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, int stream_id)
 {
     // always not NULL msg.
     srs_assert(msgs);
@@ -1067,7 +1166,7 @@ int SrsProtocol::send_and_free_messages(SrsMessage** msgs, int nb_msgs, int stre
     
     // update the stream id in header.
     for (int i = 0; i < nb_msgs; i++) {
-        SrsMessage* msg = msgs[i];
+        SrsSharedPtrMessage* msg = msgs[i];
         // we assume that the stream_id in a group must be the same.
         if (msg->header.stream_id == stream_id) {
             break;
@@ -1080,7 +1179,7 @@ int SrsProtocol::send_and_free_messages(SrsMessage** msgs, int nb_msgs, int stre
     int ret = do_send_messages(msgs, nb_msgs);
     
     for (int i = 0; i < nb_msgs; i++) {
-        SrsMessage* msg = msgs[i];
+        SrsSharedPtrMessage* msg = msgs[i];
         srs_freep(msg);
     }
     
@@ -1113,7 +1212,7 @@ int SrsProtocol::send_and_free_packet(SrsPacket* packet, int stream_id)
     return ret;
 }
 
-int SrsProtocol::recv_interlaced_message(SrsMessage** pmsg)
+int SrsProtocol::recv_interlaced_message(SrsCommonMessage** pmsg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1173,7 +1272,7 @@ int SrsProtocol::recv_interlaced_message(SrsMessage** pmsg)
             chunk->header.payload_length, chunk->header.timestamp, chunk->header.stream_id);
     
     // read msg payload from chunk stream.
-    SrsMessage* msg = NULL;
+    SrsCommonMessage* msg = NULL;
     if ((ret = read_message_payload(chunk, &msg)) != ERROR_SUCCESS) {
         if (ret != ERROR_SOCKET_TIMEOUT && !srs_is_client_gracefully_close(ret)) {
             srs_error("read message payload failed. ret=%d", ret);
@@ -1591,7 +1690,7 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt)
     return ret;
 }
 
-int SrsProtocol::read_message_payload(SrsChunkStream* chunk, SrsMessage** pmsg)
+int SrsProtocol::read_message_payload(SrsChunkStream* chunk, SrsCommonMessage** pmsg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1650,7 +1749,7 @@ int SrsProtocol::read_message_payload(SrsChunkStream* chunk, SrsMessage** pmsg)
     return ret;
 }
 
-int SrsProtocol::on_recv_message(SrsMessage* msg)
+int SrsProtocol::on_recv_message(SrsCommonMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1743,7 +1842,7 @@ int SrsProtocol::on_recv_message(SrsMessage* msg)
     return ret;
 }
 
-int SrsProtocol::on_send_packet(SrsMessage* msg, SrsPacket* packet)
+int SrsProtocol::on_send_packet(SrsSharedPtrMessage* msg, SrsPacket* packet)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1857,112 +1956,6 @@ SrsChunkStream::SrsChunkStream(int _cid)
 SrsChunkStream::~SrsChunkStream()
 {
     srs_freep(msg);
-}
-
-SrsCommonMessage::SrsCommonMessage()
-{
-}
-
-SrsCommonMessage::~SrsCommonMessage()
-{
-    srs_freep(payload);
-}
-
-SrsSharedPtrMessage::__SrsSharedPtr::__SrsSharedPtr()
-{
-    payload = NULL;
-    size = 0;
-    shared_count = 0;
-}
-
-SrsSharedPtrMessage::__SrsSharedPtr::~__SrsSharedPtr()
-{
-    srs_freep(payload);
-}
-
-SrsSharedPtrMessage::SrsSharedPtrMessage()
-{
-    ptr = NULL;
-}
-
-SrsSharedPtrMessage::~SrsSharedPtrMessage()
-{
-    if (ptr) {
-        if (ptr->shared_count == 0) {
-            srs_freep(ptr);
-        } else {
-            ptr->shared_count--;
-        }
-    }
-}
-
-int SrsSharedPtrMessage::create(SrsMessage* msg)
-{
-    int ret = ERROR_SUCCESS;
-    
-    if ((ret = create(&msg->header, msg->payload, msg->size)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    // to prevent double free of payload:
-    // initialize already attach the payload of msg,
-    // detach the payload to transfer the owner to shared ptr.
-    msg->payload = NULL;
-    msg->size = 0;
-    
-    return ret;
-}
-
-int SrsSharedPtrMessage::create(SrsMessageHeader* pheader, char* payload, int size)
-{
-    int ret = ERROR_SUCCESS;
-    
-    srs_assert(pheader != NULL);
-    if (ptr) {
-        ret = ERROR_SYSTEM_ASSERT_FAILED;
-        srs_error("should not set the payload twice. ret=%d", ret);
-        srs_assert(false);
-        
-        return ret;
-    }
-    
-    header = *pheader;
-    header.payload_length = size;
-    
-    ptr = new __SrsSharedPtr();
-    
-    // direct attach the data.
-    ptr->payload = payload;
-    ptr->size = size;
-    
-    // message can access it.
-    SrsMessage::payload = ptr->payload;
-    SrsMessage::size = ptr->size;
-    
-    return ret;
-}
-
-int SrsSharedPtrMessage::count()
-{
-    srs_assert(ptr);
-    return ptr->shared_count;
-}
-
-SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
-{
-    srs_assert(ptr);
-    
-    SrsSharedPtrMessage* copy = new SrsSharedPtrMessage();
-    
-    copy->header = header;
-    
-    copy->ptr = ptr;
-    ptr->shared_count++;
-    
-    copy->payload = ptr->payload;
-    copy->size = ptr->size;
-    
-    return copy;
 }
 
 SrsPacket::SrsPacket()

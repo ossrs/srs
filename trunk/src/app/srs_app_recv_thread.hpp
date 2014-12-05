@@ -38,7 +38,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_reload.hpp>
 
 class SrsRtmpServer;
-class SrsMessage;
+class SrsCommonMessage;
 class SrsRtmpConn;
 class SrsSource;
 class SrsRequest;
@@ -62,7 +62,7 @@ public:
     /**
     * process the received message.
     */
-    virtual int handle(SrsMessage* msg) = 0;
+    virtual int handle(SrsCommonMessage* msg) = 0;
     /**
     * when recv message error.
     */
@@ -107,7 +107,7 @@ public:
 class SrsQueueRecvThread : public ISrsMessageHandler
 {
 private:
-    std::vector<SrsMessage*> queue;
+    std::vector<SrsCommonMessage*> queue;
     SrsRecvThread trd;
     SrsRtmpServer* rtmp;
     // the recv thread error code.
@@ -121,11 +121,11 @@ public:
 public:
     virtual bool empty();
     virtual int size();
-    virtual SrsMessage* pump();
+    virtual SrsCommonMessage* pump();
     virtual int error_code();
 public:
     virtual bool can_handle();
-    virtual int handle(SrsMessage* msg);
+    virtual int handle(SrsCommonMessage* msg);
     virtual void on_recv_error(int ret);
 public:
     virtual void on_thread_start();
@@ -183,7 +183,7 @@ public:
 // interface ISrsMessageHandler    
 public:
     virtual bool can_handle();
-    virtual int handle(SrsMessage* msg);
+    virtual int handle(SrsCommonMessage* msg);
     virtual void on_recv_error(int ret);
 // interface IMergeReadHandler
 public:
