@@ -89,25 +89,25 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *       1400            120         240
 *       1500            119         238
 *       1600            131         262
-*       1700            
-*       1800            
-*       1900            
-*       2000            
+*       1700            131         262
+*       1800            133         266
+*       1900            141         282
+*       2000            150         300
 */
 // the default config of mw.
 #define SRS_PERF_MW_SLEEP 350
 /**
 * how many msgs can be send entirely.
 * for play clients to get msgs then totally send out.
-* for the mw sleep set to 1800, the msgs is about 128.
-* @remark, recomment to 156.
+* for the mw sleep set to 1800, the msgs is about 133.
+* @remark, recomment to 256.
 */
-#define SRS_PERF_MW_MSGS 156
+#define SRS_PERF_MW_MSGS 256
 /**
 * how many msgs atleast to send.
-* @remark, recomment to 8.
+* @remark, recomment to 32.
 */
-#define SRS_PERF_MW_MIN_MSGS 8
+#define SRS_PERF_MW_MIN_MSGS 32
 
 /**
 * how many chunk stream to cache, [0, N].
