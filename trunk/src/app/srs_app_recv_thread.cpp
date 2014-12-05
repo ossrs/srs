@@ -433,17 +433,21 @@ void SrsPublishRecvThread::set_socket_buffer(int sleep_ms)
     //      2000*5000/8=1250000B(about 1220KB).
     int kbps = 5000;
     int socket_buffer_size = sleep_ms * kbps / 8;
+    
+    int fd = mr_fd;
+    int onb_rbuf = 0;
+    socklen_t sock_buf_size = sizeof(int);
+    getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &onb_rbuf, &sock_buf_size);
 
     // socket recv buffer, system will double it.
     int nb_rbuf = socket_buffer_size / 2;
-    socklen_t sock_buf_size = sizeof(int);
-    if (setsockopt(mr_fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, sock_buf_size) < 0) {
+    if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, sock_buf_size) < 0) {
         srs_warn("set sock SO_RCVBUF=%d failed.", nb_rbuf);
     }
-    getsockopt(mr_fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, &sock_buf_size);
+    getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, &sock_buf_size);
 
-    srs_trace("merged read sockbuf=%d, actual=%d, sleep %d when nread<=%d",
-        socket_buffer_size, nb_rbuf, sleep_ms, SRS_MR_SMALL_BYTES);
+    srs_trace("mr change sleep %d=>%d, erbuf=%d, rbuf %d=>%d, sbytes=%d",
+        mr_sleep, sleep_ms, socket_buffer_size, onb_rbuf, nb_rbuf, SRS_MR_SMALL_BYTES);
 
     rtmp->set_recv_buffer(nb_rbuf);
 }

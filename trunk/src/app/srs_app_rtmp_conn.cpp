@@ -1023,7 +1023,7 @@ void SrsRtmpConn::change_mw_sleep(int sleep_ms)
     }
     getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &nb_sbuf, &sock_buf_size);
     
-    srs_trace("mw changed %d=>%d, max_msgs=%d, esbuf=%d, sbuf %d=>%d", 
+    srs_trace("mw change sleep %d=>%d, max_msgs=%d, esbuf=%d, sbuf %d=>%d", 
         mw_sleep, sleep_ms, SRS_PERF_MW_MSGS, socket_buffer_size,
         onb_sbuf, nb_sbuf);
         
