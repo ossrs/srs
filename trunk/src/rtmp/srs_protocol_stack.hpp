@@ -84,7 +84,7 @@ public:
     /**
     * 4bytes.
     * Four-byte field that identifies the stream of the message. These
-    * bytes are set in big-endian format.
+    * bytes are set in little-endian format.
     */
     int32_t stream_id;
     
@@ -494,11 +494,16 @@ private:
     virtual int do_send_and_free_packet(SrsPacket* packet, int stream_id);
     /**
     * generate the chunk header for msg.
+    * @param somhc, session-oriented message-header cache.
+    * @param somhc_bytes, the serialized bytes.
+    * @param nb_somhc_bytes, the size of somhc_bytes.
     * @param mh, the header of msg to send.
     * @param c0, whether the first chunk, the c0 chunk.
     * @param iov, output the header and size to iovec.
     */
-    virtual void generate_chunk_header(char* cache, SrsMessageHeader* mh, bool c0, iovec* iov);
+    virtual void generate_chunk_header(
+        SrsMessageHeader* somhc, char* somhc_bytes, int nb_somhc_bytes,
+        char* cache, int nb_cache, SrsMessageHeader* mh, bool c0, iovec* iov);
     /**
     * imp for decode_message
     */
