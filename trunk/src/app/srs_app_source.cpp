@@ -167,6 +167,16 @@ SrsMessageQueue::~SrsMessageQueue()
     clear();
 }
 
+int SrsMessageQueue::size()
+{
+    return (int)msgs.size();
+}
+
+int SrsMessageQueue::duration()
+{
+    return (int)(av_end_time - av_start_time);
+}
+
 void SrsMessageQueue::set_queue_size(double queue_size)
 {
     queue_size_ms = (int)(queue_size * 1000);
@@ -297,28 +307,37 @@ SrsConsumer::SrsConsumer(SrsSource* _source)
     queue = new SrsMessageQueue();
     should_update_source_id = false;
     
+#ifdef SRS_PERF_QUEUE_COND_WAIT
     mw_wait = st_cond_new();
     mw_min_msgs = 0;
     mw_duration = 0;
     mw_waiting = false;
+#endif
     
+#ifdef SRS_PERF_QUEUE_FAST_CACHE
     mw_cache = new SrsMessageArray(SRS_PERF_MW_MSGS);
     mw_count = 0;
     mw_first_pkt = mw_last_pkt = 0;
+#endif
 }
 
 SrsConsumer::~SrsConsumer()
 {
+#ifdef SRS_PERF_QUEUE_FAST_CACHE
     if (mw_cache) {
         mw_cache->free(mw_count);
         mw_count = 0;
     }
     srs_freep(mw_cache);
+#endif
     
     source->on_consumer_destroy(this);
     srs_freep(jitter);
     srs_freep(queue);
+    
+#ifdef SRS_PERF_QUEUE_COND_WAIT
     st_cond_destroy(mw_wait);
+#endif
 }
 
 void SrsConsumer::set_queue_size(double queue_size)
@@ -347,6 +366,7 @@ int SrsConsumer::enqueue(SrsSharedPtrMessage* msg, bool atc, int tba, int tbv, S
         }
     }
     
+#ifdef SRS_PERF_QUEUE_FAST_CACHE
     // use fast cache if available
     if (mw_count < mw_cache->max) {
         // update fast cache timestamps
@@ -371,6 +391,7 @@ int SrsConsumer::enqueue(SrsSharedPtrMessage* msg, bool atc, int tba, int tbv, S
         }
     }
     
+    #ifdef SRS_PERF_QUEUE_COND_WAIT
     // fire the mw when msgs is enough.
     if (mw_waiting) {
         // when fast cache not overflow, always flush.
@@ -385,6 +406,26 @@ int SrsConsumer::enqueue(SrsSharedPtrMessage* msg, bool atc, int tba, int tbv, S
             mw_waiting = false;
         }
     }
+    #endif
+#else
+    if ((ret = queue->enqueue(msg, NULL)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    #ifdef SRS_PERF_QUEUE_COND_WAIT
+    // fire the mw when msgs is enough.
+    if (mw_waiting) {
+        int duration_ms = queue->duration();
+        bool match_min_msgs = queue->size() > mw_min_msgs;
+        
+        // when duration ok, signal to flush.
+        if (match_min_msgs && duration_ms > mw_duration) {
+            st_cond_signal(mw_wait);
+            mw_waiting = false;
+        }
+    }
+    #endif
+#endif
     
     return ret;
 }
@@ -405,6 +446,7 @@ int SrsConsumer::dump_packets(SrsMessageArray* msgs, int* count)
         return ret;
     }
     
+#ifdef SRS_PERF_QUEUE_FAST_CACHE
     // only dumps an whole array to msgs.
     for (int i = 0; i < mw_count; i++) {
         msgs->msgs[i] = mw_cache->msgs[i];
@@ -420,13 +462,26 @@ int SrsConsumer::dump_packets(SrsMessageArray* msgs, int* count)
     }
     
     return dumps_queue_to_fast_cache();
+#else
+    
+    // pump msgs from queue.
+    int nb_msgs = 0;
+    if ((ret = queue->dump_packets(msgs->max, msgs->msgs, nb_msgs)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    *count = nb_msgs;
+    
+    return ret;
+#endif
 }
 
+#ifdef SRS_PERF_QUEUE_COND_WAIT
 void SrsConsumer::wait(int nb_msgs, int duration)
 {
     mw_min_msgs = nb_msgs;
     mw_duration = duration;
     
+#ifdef SRS_PERF_QUEUE_FAST_CACHE
     // when fast cache not overflow, always flush.
     // so we donot care about the queue.
     bool fast_cache_overflow = mw_count >= mw_cache->max;
@@ -437,12 +492,22 @@ void SrsConsumer::wait(int nb_msgs, int duration)
     if (fast_cache_overflow || (match_min_msgs && duration_ms > mw_duration)) {
         return;
     }
+#else
+    int duration_ms = queue->duration();
+    bool match_min_msgs = queue->size() > mw_min_msgs;
+    
+    // when duration ok, signal to flush.
+    if (match_min_msgs && duration_ms > mw_duration) {
+        return;
+    }
+#endif
     
     // the enqueue will notify this cond.
     mw_waiting = true;
     // wait for msgs to incoming.
     st_cond_wait(mw_wait);
 }
+#endif
 
 int SrsConsumer::on_play_client_pause(bool is_pause)
 {
@@ -454,6 +519,7 @@ int SrsConsumer::on_play_client_pause(bool is_pause)
     return ret;
 }
 
+#ifdef SRS_PERF_QUEUE_FAST_CACHE
 int SrsConsumer::dumps_queue_to_fast_cache()
 {
     int ret =ERROR_SUCCESS;
@@ -473,6 +539,7 @@ int SrsConsumer::dumps_queue_to_fast_cache()
     
     return ret;
 }
+#endif
 
 SrsGopCache::SrsGopCache()
 {

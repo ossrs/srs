@@ -598,9 +598,11 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
         // collect elapse for pithy print.
         pithy_print.elapse();
         
+#ifdef SRS_PERF_QUEUE_COND_WAIT
         // wait for message to incoming.
         // @see https://github.com/winlinvip/simple-rtmp-server/issues/251
         consumer->wait(SRS_PERF_MW_MIN_MSGS, mw_sleep);
+#endif
         
         // get messages from consumer.
         // each msg in msgs.msgs must be free, for the SrsMessageArray never free them.
@@ -610,8 +612,14 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
             return ret;
         }
         
+#ifdef SRS_PERF_QUEUE_COND_WAIT
         // we use wait to get messages, so the count must be positive.
         srs_assert(count > 0);
+#else
+        if (count <= 0) {
+            st_usleep(mw_sleep * 1000);
+        }
+#endif
         srs_info("got %d msgs, min=%d, mw=%d", count, SRS_PERF_MW_MIN_MSGS, mw_sleep);
 
         // reportable

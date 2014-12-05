@@ -110,6 +110,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_PERF_MW_MIN_MSGS 32
 
 /**
+* whether enable the fast cache.
+* @remark this improve performance for large connectios.
+* @remark this also introduce complex, default to disable it.
+* @see https://github.com/winlinvip/simple-rtmp-server/issues/251
+*/
+#undef SRS_PERF_QUEUE_FAST_CACHE
+/**
+* whether use cond wait to send messages.
+* @remark this improve performance for large connectios.
+* @see https://github.com/winlinvip/simple-rtmp-server/issues/251
+*/
+#undef SRS_PERF_QUEUE_COND_WAIT
+
+/**
 * how many chunk stream to cache, [0, N].
 * to imporove about 10% performance when chunk size small, and 5% for large chunk.
 * @see https://github.com/winlinvip/simple-rtmp-server/issues/249

@@ -36,6 +36,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_st.hpp>
 #include <srs_app_reload.hpp>
+#include <srs_core_performance.hpp>
 
 class SrsPlayEdge;
 class SrsPublishEdge;
@@ -117,6 +118,14 @@ public:
     virtual ~SrsMessageQueue();
 public:
     /**
+    * get the size of queue.
+    */
+    virtual int size();
+    /**
+    * get the duration of queue.
+    */
+    virtual int duration();
+    /**
     * set the queue size
     * @param queue_size the queue size in seconds.
     */
@@ -156,12 +165,15 @@ private:
     bool paused;
     // when source id changed, notice all consumers
     bool should_update_source_id;
+#ifdef SRS_PERF_QUEUE_COND_WAIT
     // the cond wait for mw.
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/251
     st_cond_t mw_wait;
     bool mw_waiting;
     int mw_min_msgs;
     int mw_duration;
+#endif
+#ifdef SRS_PERF_QUEUE_FAST_CACHE
     // use fast cache for msgs
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/251
     SrsMessageArray* mw_cache;
@@ -170,6 +182,7 @@ private:
     // the packet time in fast cache.
     int64_t mw_first_pkt;
     int64_t mw_last_pkt;
+#endif
 public:
     SrsConsumer(SrsSource* _source);
     virtual ~SrsConsumer();
@@ -204,22 +217,26 @@ public:
     * @max_count the max count to dequeue, must be positive.
     */
     virtual int dump_packets(SrsMessageArray* msgs, int* count);
+#ifdef SRS_PERF_QUEUE_COND_WAIT
     /**
     * wait for messages incomming, atleast nb_msgs and in duration.
     * @param nb_msgs the messages count to wait.
     * @param duration the messgae duration to wait.
     */
     virtual void wait(int nb_msgs, int duration);
+#endif
     /**
     * when client send the pause message.
     */
     virtual int on_play_client_pause(bool is_pause);
 private:
+#ifdef SRS_PERF_QUEUE_FAST_CACHE
     /**
     * dumps the queue to fast cache, 
     * when fast cache is clear or queue is overflow.
     */
     virtual int dumps_queue_to_fast_cache();
+#endif
 };
 
 /**
