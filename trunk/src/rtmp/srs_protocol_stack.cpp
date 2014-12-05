@@ -729,13 +729,6 @@ int SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
     int c0c3_cache_index = 0;
     char* c0c3_cache = out_c0c3_caches + c0c3_cache_index;
 
-    // the somc(session-oriented message-header cache),
-    // many message header are same, use cache.
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/251
-    SrsMessageHeader* somhc = NULL;
-    char* somhc_bytes = NULL;
-    int nb_somhc_bytes = 0;
-
     // try to send use the c0c3 header cache,
     // if cache is consumed, try another loop.
     for (int i = 0; i < nb_msgs; i++) {
@@ -762,20 +755,8 @@ int SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
         
         // always write the header event payload is empty.
         while (p < pend) {
-            // the first chunk is c0, others is c3.
-            bool is_c0 = p == msg->payload;
-
             // header use iov[0].
-            generate_chunk_header(somhc, somhc_bytes, nb_somhc_bytes,
-                c0c3_cache, SRS_CONSTS_C0C3_HEADERS_MAX - c0c3_cache_index,
-                &msg->header, is_c0, iov);
-
-            // set somhc to the first header.
-            if (!somhc) {
-                somhc = &msg->header;
-                somhc_bytes = (char*)iov[0].iov_base;
-                nb_somhc_bytes = iov[0].iov_len;
-            }
+            generate_chunk_header(c0c3_cache, &msg->header, p == msg->payload, iov);
             
             // payload use iov[1].
             int payload_size = pend - p;
@@ -917,10 +898,8 @@ int SrsProtocol::do_send_and_free_packet(SrsPacket* packet, int stream_id)
     return ret;
 }
 
-void SrsProtocol::generate_chunk_header(
-    SrsMessageHeader* somhc, char* somhc_bytes, int nb_somhc_bytes,
-    char* cache, int nb_cache, SrsMessageHeader* mh, bool c0, iovec* iov
-) {
+void SrsProtocol::generate_chunk_header(char* cache, SrsMessageHeader* mh, bool c0, iovec* iov)
+{
     // to directly set the field.
     char* pp = NULL;
     
@@ -931,55 +910,37 @@ void SrsProtocol::generate_chunk_header(
     u_int32_t timestamp = (u_int32_t)mh->timestamp;
     
     if (c0) {
-        // if cached header, copy it.
-        if (somhc) {
-            srs_assert(nb_cache >= nb_somhc_bytes);
-            memcpy(cache, somhc_bytes, nb_somhc_bytes);
-        }
-
         // write new chunk stream header, fmt is 0
         *p++ = 0x00 | (mh->perfer_cid & 0x3F);
         
         // chunk message header, 11 bytes
         // timestamp, 3bytes, big-endian
-        if (somhc && somhc->timestamp == mh->timestamp) {
-            p += 3;
-        } else {
-            if (timestamp < RTMP_EXTENDED_TIMESTAMP) {
-                pp = (char*)&timestamp;
-                *p++ = pp[2];
-                *p++ = pp[1];
-                *p++ = pp[0];
-            } else {
-                *p++ = 0xFF;
-                *p++ = 0xFF;
-                *p++ = 0xFF;
-            }
-        }
-        
-        // message_length, 3bytes, big-endian
-        if (somhc && somhc->payload_length == mh->payload_length) {
-            p += 3;
-        } else {
-            pp = (char*)&mh->payload_length;
+        if (timestamp < RTMP_EXTENDED_TIMESTAMP) {
+            pp = (char*)&timestamp;
             *p++ = pp[2];
             *p++ = pp[1];
             *p++ = pp[0];
+        } else {
+            *p++ = 0xFF;
+            *p++ = 0xFF;
+            *p++ = 0xFF;
         }
+        
+        // message_length, 3bytes, big-endian
+        pp = (char*)&mh->payload_length;
+        *p++ = pp[2];
+        *p++ = pp[1];
+        *p++ = pp[0];
         
         // message_type, 1bytes
         *p++ = mh->message_type;
         
-        // stream_id, 4bytes, little-endian.
-        if (somhc && somhc->stream_id == mh->stream_id) {
-            p += 4;
-        } else {
-            pp = (char*)&mh->stream_id;
-            *p++ = pp[0];
-            *p++ = pp[1];
-            *p++ = pp[2];
-            *p++ = pp[3];
-        }
+        // message_length, 3bytes, little-endian
+        pp = (char*)&mh->stream_id;
+        *p++ = pp[0];
+        *p++ = pp[1];
+        *p++ = pp[2];
+        *p++ = pp[3];
     } else {
         // write no message header chunk stream, fmt is 3
         // @remark, if perfer_cid > 0x3F, that is, use 2B/3B chunk header,
@@ -1006,15 +967,11 @@ void SrsProtocol::generate_chunk_header(
     // @see: http://blog.csdn.net/win_lin/article/details/13363699
     // TODO: FIXME: extract to outer.
     if (timestamp >= RTMP_EXTENDED_TIMESTAMP) {
-        if (somhc && somhc->payload_length == mh->payload_length) {
-            p += 4;
-        } else {
-                pp = (char*)&timestamp;
-                *p++ = pp[3];
-                *p++ = pp[2];
-                *p++ = pp[1];
-                *p++ = pp[0];
-        }
+        pp = (char*)&timestamp;
+        *p++ = pp[3];
+        *p++ = pp[2];
+        *p++ = pp[1];
+        *p++ = pp[0];
     }
     
     // always has header
