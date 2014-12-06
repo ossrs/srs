@@ -34,6 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_consts.hpp>
 
 class SrsStream;
+class SrsMessageHeader;
 
 /**
 * parse the tcUrl, output the schema, host, vhost, app and port.
@@ -102,6 +103,14 @@ extern bool srs_avc_startswith_annexb(SrsStream* stream, int* pnb_start_code = N
 * start code must be '1111 1111 1111'B, that is 0xFFF
 */
 extern bool srs_aac_startswith_adts(SrsStream* stream);
+
+/**
+* generate the chunk header for msg.
+* @param mh, the header of msg to send.
+* @param c0, whether the first chunk, the c0 chunk.
+* @return the size of header.
+*/
+extern int srs_chunk_header(char* cache, SrsMessageHeader* mh, bool c0);
 
 #endif
 

@@ -830,6 +830,17 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload mr success.", vhost.c_str());
             }
+            // chunk_size, only one per vhost.
+            if (!srs_directive_equals(new_vhost->get("chunk_size"), old_vhost->get("chunk_size"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_chunk_size(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes chunk_size failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload chunk_size success.", vhost.c_str());
+            }
             // mw, only one per vhost
             if (!srs_directive_equals(new_vhost->get("mw_latency"), old_vhost->get("mw_latency"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {

@@ -1173,7 +1173,7 @@ int SrsSource::on_audio(SrsCommonMessage* __audio)
         std::vector<SrsForwarder*>::iterator it;
         for (it = forwarders.begin(); it != forwarders.end(); ++it) {
             SrsForwarder* forwarder = *it;
-            if ((ret = forwarder->on_audio(msg.copy())) != ERROR_SUCCESS) {
+            if ((ret = forwarder->on_audio(&msg)) != ERROR_SUCCESS) {
                 srs_error("forwarder process audio message failed. ret=%d", ret);
                 return ret;
             }

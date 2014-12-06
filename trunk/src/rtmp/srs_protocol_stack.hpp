@@ -56,6 +56,22 @@ class SrsChunkStream;
 class SrsSharedPtrMessage;
 class IMergeReadHandler;
 
+/****************************************************************************
+*****************************************************************************
+****************************************************************************/
+/**
+* 6.1. Chunk Format
+* Extended timestamp: 0 or 4 bytes
+* This field MUST be sent when the normal timsestamp is set to
+* 0xffffff, it MUST NOT be sent if the normal timestamp is set to
+* anything else. So for values less than 0xffffff the normal
+* timestamp field SHOULD be used in which case the extended timestamp
+* MUST NOT be present. For values greater than or equal to 0xffffff
+* the normal timestamp field MUST NOT be used and MUST be set to
+* 0xffffff and the extended timestamp MUST be sent.
+*/
+#define RTMP_EXTENDED_TIMESTAMP                 0xFFFFFF
+
 /**
 * 4.1. Message Header
 */
@@ -493,14 +509,10 @@ private:
     */
     virtual int do_send_and_free_packet(SrsPacket* packet, int stream_id);
     /**
-    * generate the chunk header for msg.
-    * @param mh, the header of msg to send.
-    * @param c0, whether the first chunk, the c0 chunk.
-    * @param pnbh, output the size of header.
-    * @param ph, output the header cache.
-    *       user should never free it, it's cached header.
+    * use simple algorithm to send the header and bytes.
+    * @remark, for do_send_and_free_packet to send.
     */
-    virtual void generate_chunk_header(char* cache, SrsMessageHeader* mh, bool c0, int* pnbh, char** ph);
+    virtual int do_simple_send(SrsMessageHeader* mh, char* payload, int size);
     /**
     * imp for decode_message
     */
@@ -534,7 +546,7 @@ private:
     /**
     * when message sentout, update the context.
     */
-    virtual int on_send_packet(SrsSharedPtrMessage* msg, SrsPacket* packet);
+    virtual int on_send_packet(SrsMessageHeader* mh, SrsPacket* packet);
 private:
     /**
     * auto response the ack message.
