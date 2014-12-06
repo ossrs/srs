@@ -286,9 +286,6 @@ private:
     char mic_etime[4];
     // whether etime present.
     bool mic_etime_present;
-    // the calced private iovs for this msg
-    iovec* iovs;
-    int nb_iovs;
 #endif
 public:
     SrsSharedPtrMessage();
@@ -329,14 +326,10 @@ public:
     */
     virtual int mic_evaluate(int chunk_size);
     /**
-    * count the total iovs needed.
-    */
-    virtual int mic_iovs_count();
-    /**
     * dump all iovs, the _nb_iovs must equals to mic_iovs_count().
-    * @return the dumped count.
+    * @return the dumped count. -1 if not enough iovs.
     */
-    virtual int mic_iovs_dump(iovec* _iovs, int _nb_iovs);
+    virtual int mic_iovs_dump(iovec* iovs, int max_nb_iovs);
 #endif
 };
 
@@ -593,6 +586,10 @@ private:
     * the caller must free the param msgs.
     */
     virtual int do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs);
+    /**
+    * send iovs. send multiple times if exceed limits.
+    */
+    virtual int do_iovs_send(iovec* iovs, int size);
     /**
     * underlayer api for send and free packet.
     */

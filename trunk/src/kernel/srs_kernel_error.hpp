@@ -135,6 +135,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_OpenSslGetPeerPublicKey       2038
 #define ERROR_OpenSslComputeSharedKey       2039
 #define ERROR_RTMP_MIC_CHUNKSIZE_CHANGED    2040
+#define ERROR_RTMP_MIC_CACHE_OVERFLOW       2041
 //                                           
 // system control message, 
 // not an error, but special control logic.

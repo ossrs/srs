@@ -97,13 +97,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // the default config of mw.
 #define SRS_PERF_MW_SLEEP 350
 /**
-* how many msgs can be send entirely.
-* for play clients to get msgs then totally send out.
-* for the mw sleep set to 1800, the msgs is about 133.
-* @remark, recomment to 128.
-*/
-#define SRS_PERF_MW_MSGS 128
-/**
 * use iovs cache in each msg,
 * for the shared ptr message, we calc once and used for every copy.
 * @see https://github.com/winlinvip/simple-rtmp-server/issues/251
@@ -111,6 +104,18 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * @remark when reload change the chunk size, previous clients error.
 */
 #undef SRS_PERF_MW_MSG_IOVS_CACHE
+/**
+* how many msgs can be send entirely.
+* for play clients to get msgs then totally send out.
+* for the mw sleep set to 1800, the msgs is about 133.
+* @remark, recomment to 128.
+* @remark, when mic enabled, use larger iovs cache, to 512.
+*/
+#ifndef SRS_PERF_MW_MSG_IOVS_CACHE
+    #define SRS_PERF_MW_MSGS 128
+#else
+    #define SRS_PERF_MW_MSGS 512
+#endif
 
 /**
 * whether set the socket send buffer size.
