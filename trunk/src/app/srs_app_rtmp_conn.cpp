@@ -598,6 +598,12 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
         // collect elapse for pithy print.
         pithy_print.elapse();
         
+#ifdef SRS_PERF_QUEUE_COND_WAIT
+        // wait for message to incoming.
+        // @see https://github.com/winlinvip/simple-rtmp-server/issues/251
+        consumer->wait(SRS_PERF_MW_MIN_MSGS, mw_sleep);
+#endif
+        
         // get messages from consumer.
         // each msg in msgs.msgs must be free, for the SrsMessageArray never free them.
         int count = 0;
@@ -605,12 +611,16 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
             srs_error("get messages from consumer failed. ret=%d", ret);
             return ret;
         }
-
-        // no messages, sleep for a while.
+        
+#ifdef SRS_PERF_QUEUE_COND_WAIT
+        // we use wait to get messages, so the count must be positive.
+        srs_assert(count > 0);
+#else
         if (count <= 0) {
             st_usleep(mw_sleep * 1000);
         }
-        srs_info("got %d msgs, mw=%d", count, mw_sleep);
+#endif
+        srs_info("got %d msgs, min=%d, mw=%d", count, SRS_PERF_MW_MIN_MSGS, mw_sleep);
 
         // reportable
         if (pithy_print.can_print()) {
@@ -995,6 +1005,13 @@ void SrsRtmpConn::change_mw_sleep(int sleep_ms)
         return;
     }
     
+    // get the sock buffer size.
+    int fd = st_netfd_fileno(stfd);
+    int onb_sbuf = 0;
+    socklen_t sock_buf_size = sizeof(int);
+    getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &onb_sbuf, &sock_buf_size);
+    
+#ifdef SRS_PERF_MW_SO_SNDBUF    
     // the bytes:
     //      4KB=4096, 8KB=8192, 16KB=16384, 32KB=32768, 64KB=65536,
     //      128KB=131072, 256KB=262144, 512KB=524288
@@ -1007,11 +1024,6 @@ void SrsRtmpConn::change_mw_sleep(int sleep_ms)
     //      2000*5000/8=1250000B(about 1220KB).
     int kbps = 5000;
     int socket_buffer_size = sleep_ms * kbps / 8;
-    
-    int fd = st_netfd_fileno(stfd);
-    int onb_sbuf = 0;
-    socklen_t sock_buf_size = sizeof(int);
-    getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &onb_sbuf, &sock_buf_size);
 
     // socket send buffer, system will double it.
     int nb_sbuf = socket_buffer_size / 2;
@@ -1022,9 +1034,13 @@ void SrsRtmpConn::change_mw_sleep(int sleep_ms)
     }
     getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &nb_sbuf, &sock_buf_size);
     
-    srs_trace("mw change sleep %d=>%d, max_msgs=%d, esbuf=%d, sbuf %d=>%d", 
+    srs_trace("mw changed sleep %d=>%d, max_msgs=%d, esbuf=%d, sbuf %d=>%d", 
         mw_sleep, sleep_ms, SRS_PERF_MW_MSGS, socket_buffer_size,
         onb_sbuf, nb_sbuf);
+#else
+    srs_trace("mw changed sleep %d=>%d, max_msgs=%d, sbuf %d", 
+        mw_sleep, sleep_ms, SRS_PERF_MW_MSGS, onb_sbuf);
+#endif
         
     mw_sleep = sleep_ms;
 }

@@ -182,7 +182,7 @@ void SrsMessageQueue::set_queue_size(double queue_size)
     queue_size_ms = (int)(queue_size * 1000);
 }
 
-int SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg, bool* is_overflow)
+int SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -197,11 +197,6 @@ int SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg, bool* is_overflow)
     msgs.push_back(msg);
 
     while (av_end_time - av_start_time > queue_size_ms) {
-        // notice the caller queue already overflow and shrinked.
-        if (is_overflow) {
-            *is_overflow = true;
-        }
-        
         shrink();
     }
     
@@ -211,7 +206,7 @@ int SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg, bool* is_overflow)
 int SrsMessageQueue::dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count)
 {
     int ret = ERROR_SUCCESS;
-
+    
     int nb_msgs = (int)msgs.size();
     if (nb_msgs <= 0) {
         return ret;
@@ -308,6 +303,13 @@ SrsConsumer::SrsConsumer(SrsSource* _source)
     jitter = new SrsRtmpJitter();
     queue = new SrsMessageQueue();
     should_update_source_id = false;
+    
+#ifdef SRS_PERF_QUEUE_COND_WAIT
+    mw_wait = st_cond_new();
+    mw_min_msgs = 0;
+    mw_duration = 0;
+    mw_waiting = false;
+#endif
 }
 
 SrsConsumer::~SrsConsumer()
@@ -315,6 +317,10 @@ SrsConsumer::~SrsConsumer()
     source->on_consumer_destroy(this);
     srs_freep(jitter);
     srs_freep(queue);
+    
+#ifdef SRS_PERF_QUEUE_COND_WAIT
+    st_cond_destroy(mw_wait);
+#endif
 }
 
 void SrsConsumer::set_queue_size(double queue_size)
@@ -344,10 +350,24 @@ int SrsConsumer::enqueue(SrsSharedPtrMessage* __msg, bool atc, int tba, int tbv,
             return ret;
         }
     }
-
-    if ((ret = queue->enqueue(msg, NULL)) != ERROR_SUCCESS) {
+    
+    if ((ret = queue->enqueue(msg)) != ERROR_SUCCESS) {
         return ret;
     }
+    
+    #ifdef SRS_PERF_QUEUE_COND_WAIT
+    // fire the mw when msgs is enough.
+    if (mw_waiting) {
+        int duration_ms = queue->duration();
+        bool match_min_msgs = queue->size() > mw_min_msgs;
+        
+        // when duration ok, signal to flush.
+        if (match_min_msgs && duration_ms > mw_duration) {
+            st_cond_signal(mw_wait);
+            mw_waiting = false;
+        }
+    }
+    #endif
     
     return ret;
 }
@@ -375,6 +395,27 @@ int SrsConsumer::dump_packets(SrsMessageArray* msgs, int& count)
     
     return ret;
 }
+
+#ifdef SRS_PERF_QUEUE_COND_WAIT
+void SrsConsumer::wait(int nb_msgs, int duration)
+{
+    mw_min_msgs = nb_msgs;
+    mw_duration = duration;
+    
+    int duration_ms = queue->duration();
+    bool match_min_msgs = queue->size() > mw_min_msgs;
+    
+    // when duration ok, signal to flush.
+    if (match_min_msgs && duration_ms > mw_duration) {
+        return;
+    }
+    
+    // the enqueue will notify this cond.
+    mw_waiting = true;
+    // wait for msgs to incoming.
+    st_cond_wait(mw_wait);
+}
+#endif
 
 int SrsConsumer::on_play_client_pause(bool is_pause)
 {

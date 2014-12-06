@@ -496,9 +496,11 @@ private:
     * generate the chunk header for msg.
     * @param mh, the header of msg to send.
     * @param c0, whether the first chunk, the c0 chunk.
-    * @param iov, output the header and size to iovec.
+    * @param pnbh, output the size of header.
+    * @param ph, output the header cache.
+    *       user should never free it, it's cached header.
     */
-    virtual void generate_chunk_header(char* cache, SrsMessageHeader* mh, bool c0, iovec* iov);
+    virtual void generate_chunk_header(char* cache, SrsMessageHeader* mh, bool c0, int* pnbh, char** ph);
     /**
     * imp for decode_message
     */

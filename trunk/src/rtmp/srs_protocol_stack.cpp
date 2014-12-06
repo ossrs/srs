@@ -755,10 +755,17 @@ int SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
         
         // always write the header event payload is empty.
         while (p < pend) {
-            // header use iov[0].
-            generate_chunk_header(c0c3_cache, &msg->header, p == msg->payload, iov);
+            // always has header
+            int nbh = 0;
+            char* header = NULL;
+            generate_chunk_header(c0c3_cache, &msg->header, p == msg->payload, &nbh, &header);
+            srs_assert(nbh > 0);
             
-            // payload use iov[1].
+            // header iov
+            iov[0].iov_base = header;
+            iov[0].iov_len = nbh;
+            
+            // payload iov
             int payload_size = pend - p;
             if (payload_size > out_chunk_size) {
                 payload_size = out_chunk_size;
@@ -781,14 +788,14 @@ int SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
                 int realloc_size = sizeof(iovec) * nb_out_iovs;
                 out_iovs = (iovec*)realloc(out_iovs, realloc_size);
             }
-
-            // to next c0c3 header cache
-            c0c3_cache_index += iov[0].iov_len;
-            c0c3_cache = out_c0c3_caches + c0c3_cache_index;
             
             // to next pair of iovs
             iov_index += 2;
             iov = out_iovs + iov_index;
+
+            // to next c0c3 header cache
+            c0c3_cache_index += nbh;
+            c0c3_cache = out_c0c3_caches + c0c3_cache_index;
             
             // the cache header should never be realloc again,
             // for the ptr is set to iovs, so we just warn user to set larger
@@ -898,7 +905,7 @@ int SrsProtocol::do_send_and_free_packet(SrsPacket* packet, int stream_id)
     return ret;
 }
 
-void SrsProtocol::generate_chunk_header(char* cache, SrsMessageHeader* mh, bool c0, iovec* iov)
+void SrsProtocol::generate_chunk_header(char* cache, SrsMessageHeader* mh, bool c0, int* pnbh, char** ph) 
 {
     // to directly set the field.
     char* pp = NULL;
@@ -975,8 +982,8 @@ void SrsProtocol::generate_chunk_header(char* cache, SrsMessageHeader* mh, bool 
     }
     
     // always has header
-    iov->iov_base = cache;
-    iov->iov_len = p - cache;
+    *pnbh = p - cache;
+    *ph = cache;
 }
 
 int SrsProtocol::do_decode_message(SrsMessageHeader& header, SrsStream* stream, SrsPacket** ppacket)

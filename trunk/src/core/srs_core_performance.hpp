@@ -103,6 +103,22 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * @remark, recomment to 128.
 */
 #define SRS_PERF_MW_MSGS 128
+/**
+* whether set the socket send buffer size.
+* @see https://github.com/winlinvip/simple-rtmp-server/issues/251
+*/
+#undef SRS_PERF_MW_SO_SNDBUF
+/**
+* whether set the socket recv buffer size.
+* @see https://github.com/winlinvip/simple-rtmp-server/issues/251
+*/
+#undef SRS_PERF_MW_SO_RCVBUF
+/**
+* whether use cond wait to send messages.
+* @remark this improve performance for large connectios.
+* @see https://github.com/winlinvip/simple-rtmp-server/issues/251
+*/
+#undef SRS_PERF_QUEUE_COND_WAIT
 
 /**
 * how many chunk stream to cache, [0, N].

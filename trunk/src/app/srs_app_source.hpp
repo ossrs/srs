@@ -134,12 +134,11 @@ public:
     /**
     * enqueue the message, the timestamp always monotonically.
     * @param msg, the msg to enqueue, user never free it whatever the return code.
-    * @param is_overflow, whether overflow and shrinked. NULL to ignore.
     */
-    virtual int enqueue(SrsSharedPtrMessage* msg, bool* is_overflow = NULL);
+    virtual int enqueue(SrsSharedPtrMessage* msg);
     /**
     * get packets in consumer queue.
-    * @pmsgs SrsCommonMessages*[], used to store the msgs, user must alloc it.
+    * @pmsgs SrsSharedPtrMessage*[], used to store the msgs, user must alloc it.
     * @count the count in array, output param.
     * @max_count the max count to dequeue, must be positive.
     */
@@ -165,6 +164,14 @@ private:
     bool paused;
     // when source id changed, notice all consumers
     bool should_update_source_id;
+#ifdef SRS_PERF_QUEUE_COND_WAIT
+    // the cond wait for mw.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/251
+    st_cond_t mw_wait;
+    bool mw_waiting;
+    int mw_min_msgs;
+    int mw_duration;
+#endif
 public:
     SrsConsumer(SrsSource* _source);
     virtual ~SrsConsumer();
@@ -200,6 +207,14 @@ public:
     * @max_count the max count to dequeue, must be positive.
     */
     virtual int dump_packets(SrsMessageArray* msgs, int& count);
+#ifdef SRS_PERF_QUEUE_COND_WAIT
+    /**
+    * wait for messages incomming, atleast nb_msgs and in duration.
+    * @param nb_msgs the messages count to wait.
+    * @param duration the messgae duration to wait.
+    */
+    virtual void wait(int nb_msgs, int duration);
+#endif
     /**
     * when client send the pause message.
     */

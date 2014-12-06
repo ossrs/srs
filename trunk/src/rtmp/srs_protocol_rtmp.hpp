@@ -37,7 +37,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsProtocol;
 class ISrsProtocolReaderWriter;
-class ISrsCommonMessage;
 class SrsCommonMessage;
 class SrsCreateStreamPacket;
 class SrsFMLEStartPacket;
