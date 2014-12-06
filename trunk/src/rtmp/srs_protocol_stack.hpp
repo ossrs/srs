@@ -214,14 +214,82 @@ private:
     class __SrsSharedPtr
     {
     public:
+        // actual shared payload.
         char* payload;
+        // size of payload.
         int size;
+        // the reference count
         int shared_count;
-
+    public:
+        // the iovs cache in shared ptr message.
+        // @see https://github.com/winlinvip/simple-rtmp-server/issues/251
+    #ifdef SRS_PERF_MW_MSG_IOVS_CACHE
+        /**
+        * the mic(msg iovs cache).
+        * why share the cache in msg?
+        * all msgs of a source are same for:
+        *      1. cid, all use the same cid, copy from src msg.
+        *      2. size, all msg size never changed.
+        *      3. type, type never changed.
+        *      4. chunk size, all connections in a vhost use the same chunk size.
+        * the different:
+        *      1. time and etime, almost different.
+        *      2. stream id, maybe different, but almost the same.
+        * @remark, when reload change the chunk size, clients will be disconnected.
+        */
+        // the c0 shared section for all msgs
+        //      1. cid, 1B, same.
+        //      2. [*]time, 3B, not same.
+        //      3. size, 3B, same.
+        //      4. type, 1B, same.
+        //      5. [*]stream id, 4B, not same, little-endian.
+        //      6. [*]etime, 4B, not same.
+        // the stared field must be calced in each msg.
+        char mic_c0[16];
+        // the c3 headers.
+        char mic_c3;
+        // the calced iovs for all msg,
+        // we assumpt that the chunk size is not changed for a vhost,
+        // if do changed, the client will got an error msg and disconnect.
+        iovec* iovs;
+        int nb_iovs;
+        // the msgs source chunk size,
+        // which is evaluated the iovs first time,
+        // this cannot be changed.
+        int chunk_size;
+        // the number of chunks.
+        int nb_chunks;
+    #endif
+    public:
         __SrsSharedPtr();
         virtual ~__SrsSharedPtr();
+    public:
+    #ifdef SRS_PERF_MW_MSG_IOVS_CACHE
+        /**
+        * for iovs msg cache, calc the iovs.
+        * @param chunk_size use the specified chunk size to evaluate the iovs.
+        */
+        virtual int mic_evaluate(SrsMessageHeader* mh, int chunk_size);
+    #endif
     };
     __SrsSharedPtr* ptr;
+private:
+    // msgs level cache.
+#ifdef SRS_PERF_MW_MSG_IOVS_CACHE
+    // the c0 private section for this
+    //      1. time, 3B, not same, not used.
+    //      2. stream id, 4B, almost the same, little-endian.
+    //      3. etime, 4B, optional, always same for all chunk when present.
+    // the stared field must be calced in each msg.
+    char mic_c0_time[3];
+    char mic_c0_sid[4];
+    char mic_etime[4];
+    // whether etime present.
+    bool mic_etime_present;
+    // the calced private iovs for this msg
+    iovec* iovs;
+    int nb_iovs;
+#endif
 public:
     SrsSharedPtrMessage();
     virtual ~SrsSharedPtrMessage();
@@ -253,6 +321,23 @@ public:
     * @remark, assert object is created.
     */
     virtual SrsSharedPtrMessage* copy();
+public:
+#ifdef SRS_PERF_MW_MSG_IOVS_CACHE
+    /**
+    * for iovs msg cache, calc the iovs.
+    * @param chunk_size use the specified chunk size to evaluate the iovs.
+    */
+    virtual int mic_evaluate(int chunk_size);
+    /**
+    * count the total iovs needed.
+    */
+    virtual int mic_iovs_count();
+    /**
+    * dump all iovs, the _nb_iovs must equals to mic_iovs_count().
+    * @return the dumped count.
+    */
+    virtual int mic_iovs_dump(iovec* _iovs, int _nb_iovs);
+#endif
 };
 
 /**
@@ -326,6 +411,9 @@ private:
     */
     iovec* out_iovs;
     int nb_out_iovs;
+    // if use iovs cache in each msg,
+    // donot use protocol level c0c3 cache.
+#ifndef SRS_PERF_MW_MSG_IOVS_CACHE
     /**
     * output header cache.
     * used for type0, 11bytes(or 15bytes with extended timestamp) header.
@@ -337,6 +425,7 @@ private:
     char out_c0c3_caches[SRS_CONSTS_C0C3_HEADERS_MAX];
     // whether warned user to increase the c0c3 header cache.
     bool warned_c0c3_cache_dry;
+#endif
     /**
     * output chunk size, default to 128, set by config.
     */

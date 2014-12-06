@@ -104,6 +104,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #define SRS_PERF_MW_MSGS 128
 /**
+* use iovs cache in each msg,
+* for the shared ptr message, we calc once and used for every copy.
+* @see https://github.com/winlinvip/simple-rtmp-server/issues/251
+* @remark if enable this, donot use protocol iovs cache.
+* @remark when reload change the chunk size, previous clients error.
+*/
+#undef SRS_PERF_MW_MSG_IOVS_CACHE
+
+/**
 * whether set the socket send buffer size.
 * @see https://github.com/winlinvip/simple-rtmp-server/issues/251
 */

@@ -352,6 +352,11 @@ private:
     std::vector<SrsForwarder*> forwarders;
     // for aggregate message
     SrsStream* aggregate_stream;
+#ifdef SRS_PERF_MW_MSG_IOVS_CACHE
+    // the chunk size for mic,
+    // update when publish stream.
+    int chunk_size;
+#endif
 private:
     /**
     * the sample rate of audio in metadata.
@@ -396,6 +401,7 @@ public:
     virtual int on_reload_vhost_forward(std::string vhost);
     virtual int on_reload_vhost_hls(std::string vhost);
     virtual int on_reload_vhost_dvr(std::string vhost);
+    virtual int on_reload_vhost_chunk_size(std::string vhost);
     virtual int on_reload_vhost_transcode(std::string vhost);
 // for the tools callback
 public:
