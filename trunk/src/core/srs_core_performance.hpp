@@ -139,12 +139,18 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * @see https://github.com/winlinvip/simple-rtmp-server/issues/251
 */
 #undef SRS_PERF_QUEUE_FAST_VECTOR
+#if defined(SRS_PERF_QUEUE_FAST_CACHE) && defined(SRS_PERF_QUEUE_FAST_VECTOR)
+    #error "fast cache conflict with fast vector"
+#endif
 /**
 * whether use cond wait to send messages.
 * @remark this improve performance for large connectios.
 * @see https://github.com/winlinvip/simple-rtmp-server/issues/251
 */
 #undef SRS_PERF_QUEUE_COND_WAIT
+#ifdef SRS_PERF_QUEUE_COND_WAIT
+    #define SRS_PERF_MW_MIN_MSGS 8
+#endif
 
 /**
 * how many chunk stream to cache, [0, N].
