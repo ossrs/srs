@@ -102,6 +102,34 @@ public:
     virtual int get_time();
 };
 
+#ifdef SRS_PERF_QUEUE_FAST_VECTOR
+/**
+* to alloc and increase fixed space,
+* fast remove and insert for msgs sender.
+* @see https://github.com/winlinvip/simple-rtmp-server/issues/251
+*/
+class SrsFastVector
+{
+private:
+    SrsSharedPtrMessage** msgs;
+    int nb_msgs;
+    int count;
+public:
+    SrsFastVector();
+    virtual ~SrsFastVector();
+public:
+    virtual int size();
+    virtual int begin();
+    virtual int end();
+    virtual SrsSharedPtrMessage** data();
+    virtual SrsSharedPtrMessage* at(int index);
+    virtual void clear();
+    virtual void erase(int _begin, int _end);
+    virtual void push_back(SrsSharedPtrMessage* msg);
+    virtual void free();
+};
+#endif
+
 /**
 * the message queue for the consumer(client), forwarder.
 * we limit the size in seconds, drop old messages(the whole gop) if full.
@@ -112,7 +140,11 @@ private:
     int64_t av_start_time;
     int64_t av_end_time;
     int queue_size_ms;
+#ifdef SRS_PERF_QUEUE_FAST_VECTOR
+    SrsFastVector msgs;
+#else
     std::vector<SrsSharedPtrMessage*> msgs;
+#endif
 public:
     SrsMessageQueue();
     virtual ~SrsMessageQueue();

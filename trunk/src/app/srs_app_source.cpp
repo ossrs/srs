@@ -156,6 +156,93 @@ int SrsRtmpJitter::get_time()
     return (int)last_pkt_correct_time;
 }
 
+#ifdef SRS_PERF_QUEUE_FAST_VECTOR
+SrsFastVector::SrsFastVector()
+{
+    count = 0;
+    nb_msgs = SRS_PERF_MW_MSGS * 2;
+    msgs = new SrsSharedPtrMessage*[nb_msgs];
+}
+
+SrsFastVector::~SrsFastVector()
+{
+    free();
+}
+
+int SrsFastVector::size()
+{
+    return count;
+}
+
+int SrsFastVector::begin()
+{
+    return 0;
+}
+
+int SrsFastVector::end()
+{
+    return count;
+}
+
+SrsSharedPtrMessage** SrsFastVector::data()
+{
+    return msgs;
+}
+
+SrsSharedPtrMessage* SrsFastVector::at(int index)
+{
+    srs_assert(index < count);
+    return msgs[index];
+}
+
+void SrsFastVector::clear()
+{
+    count = 0;
+}
+
+void SrsFastVector::erase(int _begin, int _end)
+{
+    srs_assert(_begin < _end);
+    
+    // move all erased to previous.
+    for (int i = 0; i < count - _end; i++) {
+        msgs[_begin + i] = msgs[_end + i];
+    }
+    
+    // update the count.
+    count -= _end - _begin;
+}
+
+void SrsFastVector::push_back(SrsSharedPtrMessage* msg)
+{
+    // increase vector.
+    if (count >= nb_msgs) {
+        int size = nb_msgs * 2;
+        SrsSharedPtrMessage** buf = new SrsSharedPtrMessage*[size];
+        for (int i = 0; i < nb_msgs; i++) {
+            buf[i] = msgs[i];
+        }
+        srs_warn("fast vector incrase %d=>%d", nb_msgs, size);
+        
+        // use new array.
+        srs_freep(msgs);
+        msgs = buf;
+        nb_msgs = size;
+    }
+    
+    msgs[count++] = msg;
+}
+
+void SrsFastVector::free()
+{
+    for (int i = 0; i < count; i++) {
+        SrsSharedPtrMessage* msg = msgs[i];
+        srs_freep(msg);
+    }
+    count = 0;
+}
+#endif
+
 SrsMessageQueue::SrsMessageQueue()
 {
     queue_size_ms = 0;
@@ -251,7 +338,7 @@ void SrsMessageQueue::shrink()
     // for when we shrinked, the first is the iframe,
     // we will directly remove the gop next time.
     for (int i = 1; i < (int)msgs.size(); i++) {
-        SrsSharedPtrMessage* msg = msgs[i];
+        SrsSharedPtrMessage* msg = msgs.at(i);
         
         if (msg->is_video()) {
             if (SrsFlvCodec::video_is_keyframe(msg->payload, msg->size)) {
@@ -281,7 +368,7 @@ void SrsMessageQueue::shrink()
     
     // remove the first gop from the front
     for (int i = 0; i < iframe_index; i++) {
-        SrsSharedPtrMessage* msg = msgs[i];
+        SrsSharedPtrMessage* msg = msgs.at(i);
         srs_freep(msg);
     }
     msgs.erase(msgs.begin(), msgs.begin() + iframe_index);
@@ -289,12 +376,16 @@ void SrsMessageQueue::shrink()
 
 void SrsMessageQueue::clear()
 {
+#ifndef SRS_PERF_QUEUE_FAST_VECTOR
     std::vector<SrsSharedPtrMessage*>::iterator it;
 
     for (it = msgs.begin(); it != msgs.end(); ++it) {
         SrsSharedPtrMessage* msg = *it;
         srs_freep(msg);
     }
+#else
+    msgs.free();
+#endif
 
     msgs.clear();
     

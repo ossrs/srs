@@ -135,6 +135,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #undef SRS_PERF_QUEUE_FAST_CACHE
 /**
+* whether enable the fast vector for qeueue.
+* @see https://github.com/winlinvip/simple-rtmp-server/issues/251
+*/
+#undef SRS_PERF_QUEUE_FAST_VECTOR
+/**
 * whether use cond wait to send messages.
 * @remark this improve performance for large connectios.
 * @see https://github.com/winlinvip/simple-rtmp-server/issues/251
