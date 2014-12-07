@@ -134,8 +134,9 @@ public:
     /**
     * enqueue the message, the timestamp always monotonically.
     * @param msg, the msg to enqueue, user never free it whatever the return code.
+    * @param is_overflow, whether overflow and shrinked. NULL to ignore.
     */
-    virtual int enqueue(SrsSharedPtrMessage* msg);
+    virtual int enqueue(SrsSharedPtrMessage* msg, bool* is_overflow = NULL);
     /**
     * get packets in consumer queue.
     * @pmsgs SrsSharedPtrMessage*[], used to store the msgs, user must alloc it.
@@ -171,6 +172,16 @@ private:
     bool mw_waiting;
     int mw_min_msgs;
     int mw_duration;
+#endif
+#ifdef SRS_PERF_QUEUE_FAST_CACHE
+    // use fast cache for msgs
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/251
+    SrsMessageArray* mw_cache;
+    // the count of msg in fast cache.
+    int mw_count;
+    // the packet time in fast cache.
+    int64_t mw_first_pkt;
+    int64_t mw_last_pkt;
 #endif
 public:
     SrsConsumer(SrsSource* _source);
@@ -219,6 +230,14 @@ public:
     * when client send the pause message.
     */
     virtual int on_play_client_pause(bool is_pause);
+private:
+#ifdef SRS_PERF_QUEUE_FAST_CACHE
+    /**
+    * dumps the queue to fast cache, 
+    * when fast cache is clear or queue is overflow.
+    */
+    virtual int dumps_queue_to_fast_cache();
+#endif
 };
 
 /**

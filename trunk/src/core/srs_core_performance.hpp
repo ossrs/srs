@@ -128,6 +128,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #undef SRS_PERF_MW_SO_RCVBUF
 /**
+* whether enable the fast cache.
+* @remark this improve performance for large connectios.
+* @remark this also introduce complex, default to disable it.
+* @see https://github.com/winlinvip/simple-rtmp-server/issues/251
+*/
+#undef SRS_PERF_QUEUE_FAST_CACHE
+/**
 * whether use cond wait to send messages.
 * @remark this improve performance for large connectios.
 * @see https://github.com/winlinvip/simple-rtmp-server/issues/251
