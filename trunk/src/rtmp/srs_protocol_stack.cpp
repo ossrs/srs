@@ -1039,10 +1039,7 @@ int SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
             iov[0].iov_len = nbh;
             
             // payload iov
-            int payload_size = pend - p;
-            if (payload_size > out_chunk_size) {
-                payload_size = out_chunk_size;
-            }
+            int payload_size = srs_min(out_chunk_size, pend - p);
             iov[1].iov_base = p;
             iov[1].iov_len = payload_size;
             
