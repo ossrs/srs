@@ -160,7 +160,7 @@ int SrsRtmpJitter::get_time()
 SrsFastVector::SrsFastVector()
 {
     count = 0;
-    nb_msgs = SRS_PERF_MW_MSGS * 2;
+    nb_msgs = SRS_PERF_MW_MSGS * 8;
     msgs = new SrsSharedPtrMessage*[nb_msgs];
 }
 
