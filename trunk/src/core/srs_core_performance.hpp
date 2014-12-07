@@ -95,7 +95,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *       2000            150         300
 */
 // the default config of mw.
-#define SRS_PERF_MW_SLEEP 350
+#define SRS_PERF_MW_SLEEP 450
 /**
 * use iovs cache in each msg,
 * for the shared ptr message, we calc once and used for every copy.
@@ -138,7 +138,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * whether enable the fast vector for qeueue.
 * @see https://github.com/winlinvip/simple-rtmp-server/issues/251
 */
-#undef SRS_PERF_QUEUE_FAST_VECTOR
+#define SRS_PERF_QUEUE_FAST_VECTOR
 #if defined(SRS_PERF_QUEUE_FAST_CACHE) && defined(SRS_PERF_QUEUE_FAST_VECTOR)
     #error "fast cache conflict with fast vector"
 #endif
@@ -147,7 +147,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * @remark this improve performance for large connectios.
 * @see https://github.com/winlinvip/simple-rtmp-server/issues/251
 */
-#undef SRS_PERF_QUEUE_COND_WAIT
+#define SRS_PERF_QUEUE_COND_WAIT
 #ifdef SRS_PERF_QUEUE_COND_WAIT
     #define SRS_PERF_MW_MIN_MSGS 8
 #endif
