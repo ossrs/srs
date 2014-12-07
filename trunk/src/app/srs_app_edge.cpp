@@ -560,7 +560,7 @@ int SrsEdgeForwarder::proxy(SrsCommonMessage* msg)
     }
     srs_verbose("initialize shared ptr msg success.");
     
-    copy.header.stream_id = stream_id;
+    copy.stream_id = stream_id;
     if ((ret = queue->enqueue(copy.copy())) != ERROR_SUCCESS) {
         srs_error("enqueue edge publish msg failed. ret=%d", ret);
     }

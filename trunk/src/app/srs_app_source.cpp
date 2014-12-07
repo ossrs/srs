@@ -85,10 +85,10 @@ int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, int tba, int tbv, SrsRtmpJi
         if (ag == SrsRtmpJitterAlgorithmZERO) {
             // for the first time, last_pkt_correct_time is zero.
             // while when timestamp overflow, the timestamp become smaller, reset the last_pkt_correct_time.
-            if (last_pkt_correct_time <= 0 || last_pkt_correct_time > msg->header.timestamp) {
-                last_pkt_correct_time = msg->header.timestamp;
+            if (last_pkt_correct_time <= 0 || last_pkt_correct_time > msg->timestamp) {
+                last_pkt_correct_time = msg->timestamp;
             }
-            msg->header.timestamp -= last_pkt_correct_time;
+            msg->timestamp -= last_pkt_correct_time;
             return ret;
         }
         
@@ -99,8 +99,8 @@ int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, int tba, int tbv, SrsRtmpJi
     // full jitter algorithm, do jitter correct.
     
     // set to 0 for metadata.
-    if (!msg->header.is_audio() && !msg->header.is_video()) {
-        msg->header.timestamp = 0;
+    if (!msg->is_av()) {
+        msg->timestamp = 0;
         return ret;
     }
     
@@ -117,15 +117,15 @@ int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, int tba, int tbv, SrsRtmpJi
     * 3. last_pkt_correct_time: simply add the positive delta, 
     *     and enforce the time monotonically.
     */
-    int64_t time = msg->header.timestamp;
+    int64_t time = msg->timestamp;
     int64_t delta = time - last_pkt_time;
 
     // if jitter detected, reset the delta.
     if (delta < 0 || delta > CONST_MAX_JITTER_MS) {
         // calc the right diff by audio sample rate
-        if (msg->header.is_audio() && sample_rate > 0) {
+        if (msg->is_audio() && sample_rate > 0) {
             delta = (int64_t)(delta * 1000.0 / sample_rate);
-        } else if (msg->header.is_video() && frame_rate > 0) {
+        } else if (msg->is_video() && frame_rate > 0) {
             delta = (int64_t)(delta * 1.0 / frame_rate);
         } else {
             delta = DEFAULT_FRAME_TIME_MS;
@@ -145,7 +145,7 @@ int SrsRtmpJitter::correct(SrsSharedPtrMessage* msg, int tba, int tbv, SrsRtmpJi
     
     last_pkt_correct_time = srs_max(0, last_pkt_correct_time + delta);
     
-    msg->header.timestamp = last_pkt_correct_time;
+    msg->timestamp = last_pkt_correct_time;
     last_pkt_time = time;
     
     return ret;
@@ -186,12 +186,12 @@ int SrsMessageQueue::enqueue(SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     
-    if (msg->header.is_audio() || msg->header.is_video()) {
+    if (msg->is_av()) {
         if (av_start_time == -1) {
-            av_start_time = msg->header.timestamp;
+            av_start_time = msg->timestamp;
         }
         
-        av_end_time = msg->header.timestamp;
+        av_end_time = msg->timestamp;
     }
     
     msgs.push_back(msg);
@@ -221,7 +221,7 @@ int SrsMessageQueue::dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, in
     }
     
     SrsSharedPtrMessage* last = omsgs[count - 1];
-    av_start_time = last->header.timestamp;
+    av_start_time = last->timestamp;
     
     if (count >= nb_msgs) {
         // the pmsgs is big enough and clear msgs at most time.
@@ -248,13 +248,13 @@ void SrsMessageQueue::shrink()
     for (int i = 1; i < (int)msgs.size(); i++) {
         SrsSharedPtrMessage* msg = msgs[i];
         
-        if (msg->header.is_video()) {
+        if (msg->is_video()) {
             if (SrsFlvCodec::video_is_keyframe(msg->payload, msg->size)) {
                 // the max frame index to remove.
                 iframe_index = i;
                 
                 // set the start time, we will remove until this frame.
-                av_start_time = msg->header.timestamp;
+                av_start_time = msg->timestamp;
                 
                 break;
             }
@@ -471,7 +471,7 @@ int SrsGopCache::cache(SrsSharedPtrMessage* __msg)
     }
     
     // got video, update the video count if acceptable
-    if (msg->header.is_video()) {
+    if (msg->is_video()) {
         cached_video_count++;
         audio_after_last_video_count = 0;
     }
@@ -483,7 +483,7 @@ int SrsGopCache::cache(SrsSharedPtrMessage* __msg)
     }
     
     // ok, gop cache enabled, and got an audio.
-    if (msg->header.is_audio()) {
+    if (msg->is_audio()) {
         audio_after_last_video_count++;
     }
     
@@ -495,7 +495,7 @@ int SrsGopCache::cache(SrsSharedPtrMessage* __msg)
     }
     
     // clear gop cache when got key frame
-    if (msg->header.is_video() && SrsFlvCodec::video_is_keyframe(msg->payload, msg->size)) {
+    if (msg->is_video() && SrsFlvCodec::video_is_keyframe(msg->payload, msg->size)) {
         srs_info("clear gop cache when got keyframe. vcount=%d, count=%d",
             cached_video_count, (int)gop_cache.size());
             
@@ -556,7 +556,7 @@ int64_t SrsGopCache::start_time()
     SrsSharedPtrMessage* msg = gop_cache[0];
     srs_assert(msg);
     
-    return msg->header.timestamp;
+    return msg->timestamp;
 }
 
 bool SrsGopCache::pure_audio()
@@ -1239,7 +1239,7 @@ int SrsSource::on_audio(SrsCommonMessage* __audio)
         srs_trace("%dB audio sh, "
             "codec(%d, profile=%d, %dchannels, %dkbps, %dHZ), "
             "flv(%dbits, %dchannels, %dHZ)", 
-            msg.header.payload_length, codec.audio_codec_id,
+            msg.size, codec.audio_codec_id,
             codec.aac_profile, codec.aac_channels, 
             codec.audio_data_rate / 1000, aac_sample_rates[codec.aac_sample_rate], 
             flv_sample_sizes[sample.sound_size], flv_sound_types[sample.sound_type], 
@@ -1257,10 +1257,10 @@ int SrsSource::on_audio(SrsCommonMessage* __audio)
     // if atc, update the sequence header to abs time.
     if (atc) {
         if (cache_sh_audio) {
-            cache_sh_audio->header.timestamp = msg.header.timestamp;
+            cache_sh_audio->timestamp = msg.timestamp;
         }
         if (cache_metadata) {
-            cache_metadata->header.timestamp = msg.header.timestamp;
+            cache_metadata->timestamp = msg.timestamp;
         }
     }
     
@@ -1352,7 +1352,7 @@ int SrsSource::on_video(SrsCommonMessage* __video)
         
         srs_trace("%dB video sh, "
             "codec(%d, profile=%d, level=%d, %dx%d, %dkbps, %dfps, %ds)",
-            msg.header.payload_length, codec.video_codec_id,
+            msg.size, codec.video_codec_id,
             codec.avc_profile, codec.avc_level, codec.width, codec.height,
             codec.video_data_rate / 1000, codec.frame_rate, codec.duration);
         return ret;
@@ -1368,10 +1368,10 @@ int SrsSource::on_video(SrsCommonMessage* __video)
     // if atc, update the sequence header to abs time.
     if (atc) {
         if (cache_sh_video) {
-            cache_sh_video->header.timestamp = msg.header.timestamp;
+            cache_sh_video->timestamp = msg.timestamp;
         }
         if (cache_metadata) {
-            cache_metadata->header.timestamp = msg.header.timestamp;
+            cache_metadata->timestamp = msg.timestamp;
         }
     }
     
@@ -1593,13 +1593,13 @@ void SrsSource::on_unpublish()
     // if atc, update the sequence header to gop cache time.
     if (atc && !gop_cache->empty()) {
         if (cache_metadata) {
-            cache_metadata->header.timestamp = gop_cache->start_time();
+            cache_metadata->timestamp = gop_cache->start_time();
         }
         if (cache_sh_video) {
-            cache_sh_video->header.timestamp = gop_cache->start_time();
+            cache_sh_video->timestamp = gop_cache->start_time();
         }
         if (cache_sh_audio) {
-            cache_sh_audio->header.timestamp = gop_cache->start_time();
+            cache_sh_audio->timestamp = gop_cache->start_time();
         }
     }
 

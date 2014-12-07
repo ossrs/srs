@@ -213,7 +213,7 @@ int SrsDvrPlan::on_audio(SrsSharedPtrMessage* __audio)
     
     char* payload = audio->payload;
     int size = audio->size;
-    int64_t timestamp = filter_timestamp(audio->header.timestamp);
+    int64_t timestamp = filter_timestamp(audio->timestamp);
     if ((ret = enc->write_audio(timestamp, payload, size)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -262,7 +262,7 @@ int SrsDvrPlan::on_video(SrsSharedPtrMessage* __video)
         return ret;
     }
     
-    int32_t timestamp = filter_timestamp(video->header.timestamp);
+    int32_t timestamp = filter_timestamp(video->timestamp);
     if ((ret = enc->write_video(timestamp, payload, size)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -332,20 +332,20 @@ int SrsDvrPlan::update_duration(SrsSharedPtrMessage* msg)
     
     // set the segment starttime at first time
     if (segment->starttime < 0) {
-        segment->starttime = msg->header.timestamp;
+        segment->starttime = msg->timestamp;
     }
     
     // no previous packet or timestamp overflow.
-    if (segment->stream_previous_pkt_time < 0 || segment->stream_previous_pkt_time > msg->header.timestamp) {
-        segment->stream_previous_pkt_time = msg->header.timestamp;
+    if (segment->stream_previous_pkt_time < 0 || segment->stream_previous_pkt_time > msg->timestamp) {
+        segment->stream_previous_pkt_time = msg->timestamp;
     }
     
     // collect segment and stream duration, timestamp overflow is ok.
-    segment->duration += msg->header.timestamp - segment->stream_previous_pkt_time;
-    segment->stream_duration += msg->header.timestamp - segment->stream_previous_pkt_time;
+    segment->duration += msg->timestamp - segment->stream_previous_pkt_time;
+    segment->stream_duration += msg->timestamp - segment->stream_previous_pkt_time;
     
     // update previous packet time
-    segment->stream_previous_pkt_time = msg->header.timestamp;
+    segment->stream_previous_pkt_time = msg->timestamp;
     
     return ret;
 }
@@ -488,7 +488,7 @@ int SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
     // when wait keyframe, ignore if no frame arrived.
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/177
     if (_srs_config->get_dvr_wait_keyframe(_req->vhost)) {
-        if (!msg->header.is_video()) {
+        if (!msg->is_video()) {
             return ret;
         }
         

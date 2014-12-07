@@ -405,21 +405,25 @@ SrsSharedPtrMessage::__SrsSharedPtr::~__SrsSharedPtr()
 }
 
 #ifdef SRS_PERF_MW_MSG_IOVS_CACHE
-int SrsSharedPtrMessage::__SrsSharedPtr::mic_evaluate(
-    SrsMessageHeader* mh, int chunk_size
-) {
+int SrsSharedPtrMessage::__SrsSharedPtr::mic_evaluate(int chunk_size) 
+{
     int ret = ERROR_SUCCESS;
     
     // use the chunk size, shuold not be changed.
     this->chunk_size = chunk_size;
     
-    // ignore size
-    srs_chunk_header(mic_c0, mh, true);
-    mic_c3 = 0xC0 | (mh->perfer_cid & 0x3F);
+    // c0 header
+    int nbh = srs_chunk_header_c0(
+            header.perfer_cid, 0, header.payload_length,
+            header.message_type, 0,
+            mic_c0, sizeof(mic_c0));
+    srs_assert(nbh > 0);;
+    // c3 header
+    mic_c3 = 0xC0 | (header.perfer_cid & 0x3F);
     
     // calc number of iovs
-    nb_chunks = mh->payload_length / chunk_size;
-    if (mh->payload_length % chunk_size) {
+    nb_chunks = header.payload_length / chunk_size;
+    if (header.payload_length % chunk_size) {
         nb_chunks++;
     }
     nb_iovs = 1/*cid*/ + 1/*size*//*type*/+ 1/*chunk*/;
@@ -529,12 +533,14 @@ int SrsSharedPtrMessage::create(SrsMessageHeader* pheader, char* payload, int si
         return ret;
     }
 
-    header = *pheader;
-    header.payload_length = size;
-
     ptr = new __SrsSharedPtr();
 
     // direct attach the data.
+    ptr->header.message_type = pheader->message_type;
+    ptr->header.payload_length = size;
+    ptr->header.perfer_cid = pheader->perfer_cid;
+    this->timestamp = pheader->timestamp;
+    this->stream_id = pheader->stream_id;
     ptr->payload = payload;
     ptr->size = size;
 
@@ -551,17 +557,68 @@ int SrsSharedPtrMessage::count()
     return ptr->shared_count;
 }
 
+bool SrsSharedPtrMessage::check(int stream_id)
+{
+    // we donot use the complex basic header,
+    // ensure the basic header is 1bytes.
+    if (ptr->header.perfer_cid < 2) {
+        srs_info("change the chunk_id=%d to default=%d", 
+            ptr->header.perfer_cid, RTMP_CID_ProtocolControl);
+        ptr->header.perfer_cid = RTMP_CID_ProtocolControl;
+    }
+    
+    // we assume that the stream_id in a group must be the same.
+    if (this->stream_id == stream_id) {
+        return true;
+    }
+    this->stream_id = stream_id;
+    
+    return false;
+}
+
+bool SrsSharedPtrMessage::is_av()
+{
+    return ptr->header.message_type == RTMP_MSG_AudioMessage 
+        || ptr->header.message_type == RTMP_MSG_VideoMessage;
+}
+
+bool SrsSharedPtrMessage::is_audio()
+{
+    return ptr->header.message_type == RTMP_MSG_AudioMessage;
+}
+
+bool SrsSharedPtrMessage::is_video()
+{
+    return ptr->header.message_type == RTMP_MSG_VideoMessage;
+}
+
+#ifndef SRS_PERF_MW_MSG_IOVS_CACHE
+int SrsSharedPtrMessage::chunk_header(char* cache, int nb_cache, bool c0)
+{
+    if (c0) {
+        return srs_chunk_header_c0(
+            ptr->header.perfer_cid, timestamp, ptr->header.payload_length,
+            ptr->header.message_type, stream_id,
+            cache, nb_cache);
+    } else {
+        return srs_chunk_header_c3(
+            ptr->header.perfer_cid, timestamp,
+            cache, nb_cache);
+    }
+}
+#endif
+
 SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
 {
     srs_assert(ptr);
 
     SrsSharedPtrMessage* copy = new SrsSharedPtrMessage();
 
-    copy->header = header;
-
     copy->ptr = ptr;
     ptr->shared_count++;
 
+    copy->timestamp = timestamp;
+    copy->stream_id = stream_id;
     copy->payload = ptr->payload;
     copy->size = ptr->size;
 
@@ -583,7 +640,7 @@ int SrsSharedPtrMessage::mic_evaluate(int chunk_size)
     
     // calc the shared ptr iovs at the first time.
     if (ptr->chunk_size <= 0) {
-        if ((ret = ptr->mic_evaluate(&header, chunk_size)) != ERROR_SUCCESS) {
+        if ((ret = ptr->mic_evaluate(chunk_size)) != ERROR_SUCCESS) {
             srs_warn("mic evaluate source iovs failed. ret=%d", ret);
             return ret;
         }
@@ -610,7 +667,7 @@ int SrsSharedPtrMessage::mic_iovs_dump(iovec* iovs, int max_nb_iovs)
     }
     
     // timestamp for c0/c3
-    u_int32_t timestamp = (u_int32_t)header.timestamp;
+    u_int32_t timestamp = (u_int32_t)this->timestamp;
     mic_etime_present = timestamp >= RTMP_EXTENDED_TIMESTAMP;
     
     // chunk message header, 11 bytes
@@ -629,7 +686,7 @@ int SrsSharedPtrMessage::mic_iovs_dump(iovec* iovs, int max_nb_iovs)
         
     // stream_id, 4bytes, little-endian
     p = mic_c0_sid;
-    pp = (char*)&header.stream_id;
+    pp = (char*)&stream_id;
     *p++ = pp[0];
     *p++ = pp[1];
     *p++ = pp[2];
@@ -964,14 +1021,6 @@ int SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
             srs_info("ignore empty message.");
             continue;
         }
-        
-        // we donot use the complex basic header,
-        // ensure the basic header is 1bytes.
-        if (msg->header.perfer_cid < 2) {
-            srs_info("change the chunk_id=%d to default=%d", 
-                msg->header.perfer_cid, RTMP_CID_ProtocolControl);
-            msg->header.perfer_cid = RTMP_CID_ProtocolControl;
-        }
     
         // p set to current write position,
         // it's ok when payload is NULL and size is 0.
@@ -981,7 +1030,8 @@ int SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
         // always write the header event payload is empty.
         while (p < pend) {
             // always has header
-            int nbh = srs_chunk_header(c0c3_cache, &msg->header, p == msg->payload);
+            int nb_cache = SRS_CONSTS_C0C3_HEADERS_MAX - c0c3_cache_index;
+            int nbh = msg->chunk_header(c0c3_cache, nb_cache, p == msg->payload);
             srs_assert(nbh > 0);
             
             // header iov
@@ -1066,8 +1116,8 @@ int SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
         for (int i = msg_sent; i < nb_msgs; i++) {
             SrsSharedPtrMessage* msg = msgs[i];
             
-            // evaluate
-            if ((ret = msg->mic_evaluate(out_chunk_size)) != ERROR_SUCCESS) {
+            // evaluate the first
+            if (i == 0 && (ret = msg->mic_evaluate(out_chunk_size)) != ERROR_SUCCESS) {
                 return ret;
             }
             
@@ -1185,7 +1235,18 @@ int SrsProtocol::do_simple_send(SrsMessageHeader* mh, char* payload, int size)
     char* end = p + size;
     char c0c3[SRS_CONSTS_RTMP_MAX_FMT0_HEADER_SIZE];
     while (p < end) {
-        int nbh = srs_chunk_header(c0c3, mh, p == payload);
+        int nbh = 0;
+        if (p == payload) {
+            nbh = srs_chunk_header_c0(
+                mh->perfer_cid, mh->timestamp, mh->payload_length,
+                mh->message_type, mh->stream_id,
+                c0c3, sizeof(c0c3));
+        } else {
+            nbh = srs_chunk_header_c3(
+                mh->perfer_cid, mh->timestamp,
+                c0c3, sizeof(c0c3));
+        }
+        srs_assert(nbh > 0);;
         
         iovec iovs[2];
         iovs[0].iov_base = c0c3;
@@ -1388,11 +1449,12 @@ int SrsProtocol::send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs,
     // update the stream id in header.
     for (int i = 0; i < nb_msgs; i++) {
         SrsSharedPtrMessage* msg = msgs[i];
-        // we assume that the stream_id in a group must be the same.
-        if (msg->header.stream_id == stream_id) {
+        
+        // check perfer cid and stream,
+        // when one msg stream id is ok, ignore left.
+        if (msg->check(stream_id)) {
             break;
         }
-        msg->header.stream_id = stream_id;
     }
     
     // donot use the auto free to free the msg,

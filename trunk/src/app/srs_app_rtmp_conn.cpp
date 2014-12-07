@@ -642,11 +642,11 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
                 
                 // foreach msg, collect the duration.
                 // @remark: never use msg when sent it, for the protocol sdk will free it.
-                if (starttime < 0 || starttime > msg->header.timestamp) {
-                    starttime = msg->header.timestamp;
+                if (starttime < 0 || starttime > msg->timestamp) {
+                    starttime = msg->timestamp;
                 }
-                duration += msg->header.timestamp - starttime;
-                starttime = msg->header.timestamp;
+                duration += msg->timestamp - starttime;
+                starttime = msg->timestamp;
             }
         }
         

@@ -182,6 +182,32 @@ public:
 };
 
 /**
+* the message header for shared ptr message.
+* only the message for all msgs are same.
+*/
+struct SrsSharedMessageHeader
+{
+    /**
+    * 3bytes.
+    * Three-byte field that represents the size of the payload in bytes.
+    * It is set in big-endian format.
+    */
+    int32_t payload_length;
+    /**
+    * 1byte.
+    * One byte field to represent the message type. A range of type IDs
+    * (1-7) are reserved for protocol control messages.
+    */
+    int8_t message_type;
+    /**
+    * get the perfered cid(chunk stream id) which sendout over.
+    * set at decoding, and canbe used for directly send message,
+    * for example, dispatch to all connections.
+    */
+    int perfer_cid;
+};
+
+/**
 * shared ptr message.
 * for audio/video/data message that need less memory copy.
 * and only for output.
@@ -194,7 +220,22 @@ class SrsSharedPtrMessage
 {
 // 4.1. Message Header
 public:
-    SrsMessageHeader header;
+    // the header can shared, only set the timestamp and stream id.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/251
+    //SrsSharedMessageHeader header;
+    /**
+    * Four-byte field that contains a timestamp of the message.
+    * The 4 bytes are packed in the big-endian order.
+    * @remark, used as calc timestamp when decode and encode time.
+    * @remark, we use 64bits for large time for jitter detect and hls.
+    */
+    int64_t timestamp;
+    /**
+    * 4bytes.
+    * Four-byte field that identifies the stream of the message. These
+    * bytes are set in big-endian format.
+    */
+    int32_t stream_id;
 // 4.2. Message Payload
 public:
     /**
@@ -214,6 +255,9 @@ private:
     class __SrsSharedPtr
     {
     public:
+        // shared message header.
+        // @see https://github.com/winlinvip/simple-rtmp-server/issues/251
+        SrsSharedMessageHeader header;
         // actual shared payload.
         char* payload;
         // size of payload.
@@ -269,7 +313,7 @@ private:
         * for iovs msg cache, calc the iovs.
         * @param chunk_size use the specified chunk size to evaluate the iovs.
         */
-        virtual int mic_evaluate(SrsMessageHeader* mh, int chunk_size);
+        virtual int mic_evaluate(int chunk_size);
     #endif
     };
     __SrsSharedPtr* ptr;
@@ -312,6 +356,23 @@ public:
     * @remark, assert object is created.
     */
     virtual int count();
+    /**
+    * check perfer cid and stream id.
+    * @return whether stream id already set.
+    */
+    virtual bool check(int stream_id);
+public:
+    virtual bool is_av();
+    virtual bool is_audio();
+    virtual bool is_video();
+public:
+#ifndef SRS_PERF_MW_MSG_IOVS_CACHE
+    /**
+    * generate the chunk header to cache.
+    * @return the size of header.
+    */
+    virtual int chunk_header(char* cache, int nb_cache, bool c0);
+#endif
 public:
     /**
     * copy current shared ptr message, use ref-count.

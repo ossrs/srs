@@ -105,12 +105,27 @@ extern bool srs_avc_startswith_annexb(SrsStream* stream, int* pnb_start_code = N
 extern bool srs_aac_startswith_adts(SrsStream* stream);
 
 /**
-* generate the chunk header for msg.
-* @param mh, the header of msg to send.
-* @param c0, whether the first chunk, the c0 chunk.
-* @return the size of header.
+* generate the c0 chunk header for msg.
+* @param cache, the cache to write header.
+* @param nb_cache, the size of cache.
+* @return the size of header. 0 if cache not enough.
 */
-extern int srs_chunk_header(char* cache, SrsMessageHeader* mh, bool c0);
+extern int srs_chunk_header_c0(
+    int perfer_cid, u_int32_t timestamp, int32_t payload_length,
+    int8_t message_type, int32_t stream_id,
+    char* cache, int nb_cache
+);
+
+/**
+* generate the c3 chunk header for msg.
+* @param cache, the cache to write header.
+* @param nb_cache, the size of cache.
+* @return the size of header. 0 if cache not enough.
+*/
+extern int srs_chunk_header_c3(
+    int perfer_cid, u_int32_t timestamp, 
+    char* cache, int nb_cache
+);
 
 #endif
 

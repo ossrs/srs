@@ -96,7 +96,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * that is, 1+4=5bytes.
 */
 // always use fmt0 as cache.
-//#define SRS_CONSTS_RTMP_MAX_FMT3_HEADER_SIZE 5
+#define SRS_CONSTS_RTMP_MAX_FMT3_HEADER_SIZE 5
 
 /**
 * for performance issue, 
