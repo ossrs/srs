@@ -465,6 +465,7 @@ Supported operating systems and hardware:
 1. [no-plan] Support RTP/RTSP server.
 
 ## Releases
+* 2014-12-05, [Release v1.0](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0), all bug fixed, 1.0.10, 59391 lines.<br/>
 * 2014-10-09, [Release v1.0-beta](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.beta), all bug fixed, 1.0.0, 59316 lines.<br/>
 * 2014-08-03, [Release v1.0-mainline7](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline7), config utest, all bug fixed. 57432 lines.<br/>
 * 2014-07-13, [Release v1.0-mainline6](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline6), core/kernel/rtmp utest, refine bandwidth(as/js/srslibrtmp library). 50029 lines.<br/>
@@ -485,6 +486,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2014-12-07, fix [#251](https://github.com/winlinvip/simple-rtmp-server/issues/251), 10k+ clients, use queue cond wait and fast vector. 2.0.67
 * v2.0, 2014-12-05, fix [#251](https://github.com/winlinvip/simple-rtmp-server/issues/251), 9k+ clients, use fast cache for msgs queue. 2.0.57
 * v2.0, 2014-12-04, fix [#241](https://github.com/winlinvip/simple-rtmp-server/issues/241), add mw(merged-write) config. 2.0.53
 * v2.0, 2014-12-04, for [#241](https://github.com/winlinvip/simple-rtmp-server/issues/241), support mr(merged-read) config and reload. 2.0.52.
