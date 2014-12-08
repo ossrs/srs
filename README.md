@@ -486,6 +486,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2014-12-08, update wiki for mr([EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_LowLatency#merged-read), [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_LowLatency#merged-read)) and mw([EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_LowLatency#merged-write), [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_LowLatency#merged-write)).
 * v2.0, 2014-12-07, fix [#251](https://github.com/winlinvip/simple-rtmp-server/issues/251), 10k+ clients, use queue cond wait and fast vector. 2.0.67
 * v2.0, 2014-12-05, fix [#251](https://github.com/winlinvip/simple-rtmp-server/issues/251), 9k+ clients, use fast cache for msgs queue. 2.0.57
 * v2.0, 2014-12-04, fix [#241](https://github.com/winlinvip/simple-rtmp-server/issues/241), add mw(merged-write) config. 2.0.53
@@ -858,41 +859,6 @@ Schema#1: Any RTMP encoder push RTMP stream to RTMP (origin/edge)server,
                                             +-----------------+
 Schema#2: SRS RTMP Edge server pull stream from origin (or upstream SRS 
     RTMP Edge server), then delivery to Client.
-</pre>
-
-### (plan) SRS Multiple processes Architecture(design by wenjie)
-
-<pre>
-                 +---------------+              +--------+
-                 | upnode server |              + client +
-                 +-------+-------+              +---+----+
-            -------------+------------network-------+---------
-                         |                          |
- +--------+         +----+-----------+         +----+----------+
- | master +--fork->-+ back source(1) +-->-pull-+ stream 1-N(2) +
- +---+----+         +----------------+         +-------+-------+
-     |                                                 |
-     +-------------------------------------fork--->-----+
-     |                           +-------------+
-     +-------------------fork-->-+ http/vod(3) |
-                                 +-------------+
-Remark:
-(1) back source process: create by master process, get stream from 
-    upnode server if edge, create stream if origin, serve the stream 
-    process.
-(2) stream process: create by master process, get stream from back
-    source process, serve the client.
-(3) the embeded mininum http server, also provides vod service. for
-    http server, it provides http api, hls(live/vod) delivery. for
-    vod server, it slice the file to hls(m3u8/ts).
-Remark:
-(a) This multiple processes architecture is design by wenjie, it's a
-    very simple and powerful multiple process architecture, for the
-    master no need to pass between stream process.
-(b) The CLI architecture is similar to this, instead, cli process
-    will collect informations from all stream process, master process
-    only send signals to child processes.
-(c) Maybe multiple thread is ok? By winlin.
 </pre>
 
 ### Bandwidth Test Workflow
