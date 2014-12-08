@@ -35,7 +35,7 @@ HLS(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryHLS), 
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_DeliveryHLS)
 ), 
-high-performance(7.5k+ clients)(
+high-performance(10k+ clients)(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Performance), 
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Performance)
 ),
@@ -448,7 +448,7 @@ Supported operating systems and hardware:
 1. Research and simplify st, [bug #182](https://github.com/winlinvip/simple-rtmp-server/issues/182).
 1. Support compile [srs-librtmp on windows](https://github.com/winlinvip/srs.librtmp), 
 [bug #213](https://github.com/winlinvip/simple-rtmp-server/issues/213).
-1. Support [7.5k+ clients](https://github.com/winlinvip/simple-rtmp-server/issues/217), 4Gbps per process.
+1. Support [10k+ clients](https://github.com/winlinvip/simple-rtmp-server/issues/251), 4Gbps per process.
 1. Support publish aac adts raw stream(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#publish-audio-raw-stream),
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_SrsLibrtmp#publish-audio-raw-stream)
