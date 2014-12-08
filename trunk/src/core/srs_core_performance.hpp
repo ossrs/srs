@@ -95,7 +95,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *       2000            150         300
 */
 // the default config of mw.
-#define SRS_PERF_MW_SLEEP 450
+#define SRS_PERF_MW_SLEEP 350
 /**
 * use iovs cache in each msg,
 * for the shared ptr message, we calc once and used for every copy.
