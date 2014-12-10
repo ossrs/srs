@@ -615,8 +615,11 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
 #ifdef SRS_PERF_QUEUE_COND_WAIT
         // we use wait to get messages, so the count must be positive.
         srs_assert(count > 0);
+        srs_info("mw wait %dms and got %d msgs %"PRId64"-%"PRId64"ms", 
+            mw_sleep, count, msgs.msgs[0]->timestamp, msgs.msgs[count - 1]->timestamp);
 #else
         if (count <= 0) {
+            srs_info("mw sleep %dms for no msg", mw_sleep);
             st_usleep(mw_sleep * 1000);
         }
 #endif
