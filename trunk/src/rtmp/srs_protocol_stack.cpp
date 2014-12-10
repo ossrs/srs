@@ -387,109 +387,16 @@ SrsSharedPtrMessage::__SrsSharedPtr::__SrsSharedPtr()
     payload = NULL;
     size = 0;
     shared_count = 0;
-
-#ifdef SRS_PERF_MW_MSG_IOVS_CACHE
-    nb_iovs = 0;
-    iovs = NULL;
-    chunk_size = 0;
-#endif
 }
 
 SrsSharedPtrMessage::__SrsSharedPtr::~__SrsSharedPtr()
 {
     srs_freep(payload);
-
-#ifdef SRS_PERF_MW_MSG_IOVS_CACHE
-    srs_freep(iovs);
-#endif
 }
-
-#ifdef SRS_PERF_MW_MSG_IOVS_CACHE
-int SrsSharedPtrMessage::__SrsSharedPtr::mic_evaluate(int chunk_size) 
-{
-    int ret = ERROR_SUCCESS;
-    
-    // use the chunk size, shuold not be changed.
-    this->chunk_size = chunk_size;
-    
-    // c0 header
-    int nbh = srs_chunk_header_c0(
-            header.perfer_cid, 0, header.payload_length,
-            header.message_type, 0,
-            mic_c0, sizeof(mic_c0));
-    srs_assert(nbh > 0);;
-    // c3 header
-    mic_c3 = 0xC0 | (header.perfer_cid & 0x3F);
-    
-    // calc number of iovs
-    nb_chunks = header.payload_length / chunk_size;
-    if (header.payload_length % chunk_size) {
-        nb_chunks++;
-    }
-    nb_iovs = 1/*cid*/ + 1/*size*//*type*/+ 1/*chunk*/;
-    // left chunks, always cid+chunk.
-    if (nb_chunks > 0) {
-        nb_iovs += (nb_chunks - 1) * 2;
-    }
-    
-    // create iovs
-    srs_freep(iovs);
-    iovs = new iovec[nb_iovs];
-    
-    // for payload chunks.
-    char* p = payload;
-    char* end = p + size;
-    iovec* iov = iovs + 0;
-    while (p < end) {
-        // size of payload.
-        int payload_size = srs_min(chunk_size, end - p);
-        
-        // header, c0 or c3
-        if (p == payload) {
-            // c0, cid+size+type
-            // cid, 1B
-            iov[0].iov_base = mic_c0;
-            iov[0].iov_len = 1;
-            
-            // size(payload length), 3B
-            // type(message type), 1B
-            iov[1].iov_base = mic_c0 + 4;
-            iov[1].iov_len = 4;
-        
-            // chunk
-            iov[2].iov_base = p;
-            iov[2].iov_len = payload_size;
-            
-            // move to next iovs.
-            iov += 3;
-        } else {
-            // c3
-            iov[0].iov_base = &mic_c3;
-            iov[0].iov_len = 1;
-        
-            // chunk
-            iov[1].iov_base = p;
-            iov[1].iov_len = payload_size;
-            
-            // move to next iovs.
-            iov += 2;
-        }
-        
-        // to next chunk
-        p += payload_size;
-    }
-    
-    return ret;
-}
-#endif
 
 SrsSharedPtrMessage::SrsSharedPtrMessage()
 {
     ptr = NULL;
-    
-#ifdef SRS_PERF_MW_MSG_IOVS_CACHE
-    mic_etime_present = false;
-#endif
 }
 
 SrsSharedPtrMessage::~SrsSharedPtrMessage()
@@ -592,7 +499,6 @@ bool SrsSharedPtrMessage::is_video()
     return ptr->header.message_type == RTMP_MSG_VideoMessage;
 }
 
-#ifndef SRS_PERF_MW_MSG_IOVS_CACHE
 int SrsSharedPtrMessage::chunk_header(char* cache, int nb_cache, bool c0)
 {
     if (c0) {
@@ -606,7 +512,6 @@ int SrsSharedPtrMessage::chunk_header(char* cache, int nb_cache, bool c0)
             cache, nb_cache);
     }
 }
-#endif
 
 SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
 {
@@ -624,155 +529,6 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
 
     return copy;
 }
-
-#ifdef SRS_PERF_MW_MSG_IOVS_CACHE
-int SrsSharedPtrMessage::mic_evaluate(int chunk_size)
-{
-    int ret = ERROR_SUCCESS;
-    
-    // when chunk size changed, error to disconnect the client..
-    if (ptr->chunk_size > 0 && chunk_size != ptr->chunk_size) {
-        ret = ERROR_RTMP_MIC_CHUNKSIZE_CHANGED;
-        srs_warn("mic chunk size changed %d=>%d, ret=%d", 
-            ptr->chunk_size, chunk_size, ret);
-        return ret;
-    }
-    
-    // calc the shared ptr iovs at the first time.
-    if (ptr->chunk_size <= 0) {
-        if ((ret = ptr->mic_evaluate(chunk_size)) != ERROR_SUCCESS) {
-            srs_warn("mic evaluate source iovs failed. ret=%d", ret);
-            return ret;
-        }
-    }
-    
-    return ret;
-}
-
-int SrsSharedPtrMessage::mic_iovs_dump(iovec* iovs, int max_nb_iovs) 
-{
-    // calc the private iovs
-    char* pp = NULL;
-    
-    // calc number of iovs.
-    int nb_iovs = 1/*time*/ + 1/*sid*/;
-    // insert etime before all chunks.
-    if (mic_etime_present) {
-        nb_iovs += ptr->nb_chunks;
-    }
-    
-    // not enough, return nagetive to try another loop.
-    if (max_nb_iovs < nb_iovs + ptr->nb_iovs) {
-        return -1;
-    }
-    
-    // timestamp for c0/c3
-    u_int32_t timestamp = (u_int32_t)this->timestamp;
-    mic_etime_present = timestamp >= RTMP_EXTENDED_TIMESTAMP;
-    
-    // chunk message header, 11 bytes
-    // timestamp, 3bytes, big-endian
-    char* p = mic_c0_time;
-    if (!mic_etime_present) {
-        pp = (char*)&timestamp;
-        *p++ = pp[2];
-        *p++ = pp[1];
-        *p++ = pp[0];
-    } else {
-        *p++ = 0xFF;
-        *p++ = 0xFF;
-        *p++ = 0xFF;
-    }
-        
-    // stream_id, 4bytes, little-endian
-    p = mic_c0_sid;
-    pp = (char*)&stream_id;
-    *p++ = pp[0];
-    *p++ = pp[1];
-    *p++ = pp[2];
-    *p++ = pp[3];
-    
-    // for c0
-    // chunk extended timestamp header, 0 or 4 bytes, big-endian
-    // 
-    // for c3:
-    // chunk extended timestamp header, 0 or 4 bytes, big-endian
-    // 6.1.3. Extended Timestamp
-    // This field is transmitted only when the normal time stamp in the
-    // chunk message header is set to 0x00ffffff. If normal time stamp is
-    // set to any value less than 0x00ffffff, this field MUST NOT be
-    // present. This field MUST NOT be present if the timestamp field is not
-    // present. Type 3 chunks MUST NOT have this field.
-    // adobe changed for Type3 chunk:
-    //        FMLE always sendout the extended-timestamp,
-    //        must send the extended-timestamp to FMS,
-    //        must send the extended-timestamp to flash-player.
-    // @see: ngx_rtmp_prepare_message
-    // @see: http://blog.csdn.net/win_lin/article/details/13363699
-    // TODO: FIXME: extract to outer.
-    p = mic_etime;
-    if (mic_etime_present) {
-        pp = (char*)&timestamp;
-        *p++ = pp[3];
-        *p++ = pp[2];
-        *p++ = pp[1];
-        *p++ = pp[0];
-    }
-    
-    // dumps all ovs
-    iovec* shared = ptr->iovs;
-    iovec* iov = iovs;
-    
-    // dump the c0 chunk
-    // cid
-    iov->iov_len = shared->iov_len;
-    iov->iov_base = shared->iov_base;
-    iov++; shared++;
-    // time, 3B
-    iov->iov_base = mic_c0_time;
-    iov->iov_len = 3;
-    iov++;
-    // size, type
-    iov->iov_len = shared->iov_len;
-    iov->iov_base = shared->iov_base;
-    iov++; shared++;
-    // sid, 4B
-    iov->iov_base = mic_c0_sid;
-    iov->iov_len = 4;
-    iov++;
-    // etime, 4B
-    if (mic_etime_present) {
-        // etime
-        iov->iov_base = mic_etime;
-        iov->iov_len = 4;
-        iov++;
-    }
-    // chunk
-    iov->iov_len = shared->iov_len;
-    iov->iov_base = shared->iov_base;
-    iov++; shared++;
-    
-    // dump left c3 chunks
-    for (int i = 1; i < ptr->nb_chunks; i++) {
-        // cid
-        iov->iov_len = shared->iov_len;
-        iov->iov_base = shared->iov_base;
-        iov++; shared++;
-        if (mic_etime_present) {
-            // etime
-            iov->iov_base = mic_etime;
-            iov->iov_len = 4;
-            iov++;
-        }
-        // chunk
-        iov->iov_len = shared->iov_len;
-        iov->iov_base = shared->iov_base;
-        iov++; shared++;
-    }
-    
-    return nb_iovs + ptr->nb_iovs;
-}
-#endif
 
 SrsProtocol::AckWindowSize::AckWindowSize()
 {
@@ -793,10 +549,8 @@ SrsProtocol::SrsProtocol(ISrsProtocolReaderWriter* io)
     // each chunk consumers atleast 2 iovs
     srs_assert(nb_out_iovs >= 2);
     
-#ifndef SRS_PERF_MW_MSG_IOVS_CACHE
     warned_c0c3_cache_dry = false;
     auto_response_when_recv = true;
-#endif
     
     cs_cache = NULL;
     if (SRS_PERF_CHUNK_STREAM_CACHE > 0) {
@@ -1004,7 +758,6 @@ int SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
 {
     int ret = ERROR_SUCCESS;
     
-#ifndef SRS_PERF_MW_MSG_IOVS_CACHE
     int iov_index = 0;
     iovec* iov = out_iovs + iov_index;
     
@@ -1105,51 +858,6 @@ int SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
         nb_msgs, iov_index, SRS_PERF_MW_MSGS, nb_out_iovs);
 
     return do_iovs_send(out_iovs, iov_index);
-#else
-    // send all iovs for all msgs.
-    int msg_sent = 0;
-    while (msg_sent < nb_msgs) {
-        int iov_index = 0;
-        for (int i = msg_sent; i < nb_msgs; i++) {
-            SrsSharedPtrMessage* msg = msgs[i];
-            
-            // evaluate the first
-            if (i == 0 && (ret = msg->mic_evaluate(out_chunk_size)) != ERROR_SUCCESS) {
-                return ret;
-            }
-            
-            // dump msg to iovec.
-            int ok_iovs = msg->mic_iovs_dump(
-                out_iovs + iov_index, nb_out_iovs - iov_index
-            );
-            // protocol iovs cache exceed.
-            if (ok_iovs <= 0) {
-                break;
-            }
-            
-            // ok, dump next.
-            msg_sent++;
-            iov_index += ok_iovs;
-        }
-        srs_info("mic nb_iovs=%d, msgs=%d, msg_sent=%d, iovs_sent=%d", 
-            nb_out_iovs, nb_msgs, msg_sent, iov_index);
-        
-        // cache not enough.
-        if (iov_index <= 0) {
-            ret = ERROR_RTMP_MIC_CACHE_OVERFLOW;
-            srs_warn("mic iovs overflow, nb_iovs=%d, msgs=%d, msg_sent=%d, iovs_sent=%d, ret=%d",
-                nb_out_iovs, nb_msgs, msg_sent, iov_index, ret);
-            return ret;
-        }
-        
-        // send out these iovs.
-        if ((ret = do_iovs_send(out_iovs, iov_index)) != ERROR_SUCCESS) {
-            return ret;
-        }
-    }
-    
-    return ret;
-#endif
 }
 
 int SrsProtocol::do_iovs_send(iovec* iovs, int size)

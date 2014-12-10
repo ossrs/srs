@@ -149,11 +149,6 @@ void show_macro_features()
 #endif
     srs_trace("system default latency in ms: mw(0-%d) + mr(0-%d) + play-queue(0-%d)",
         SRS_PERF_MW_SLEEP, possible_mr_latency, SRS_PERF_PLAY_QUEUE*1000);
-        
-#ifndef SRS_PERF_MW_MSG_IOVS_CACHE
-    srs_warn("MIC(message iovs cache) enabled, the connected clients will be"
-        "disconneted when reload changed the chunk_size.");
-#endif
 }
 
 void check_macro_features()

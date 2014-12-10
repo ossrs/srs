@@ -822,10 +822,6 @@ SrsSource::SrsSource(SrsRequest* req)
     
     _srs_config->subscribe(this);
     atc = _srs_config->get_atc(_req->vhost);
-    
-#ifdef SRS_PERF_MW_MSG_IOVS_CACHE
-    chunk_size = 0;
-#endif
 }
 
 SrsSource::~SrsSource()
@@ -1047,26 +1043,6 @@ int SrsSource::on_reload_vhost_dvr(string vhost)
     }
     
     srs_trace("vhost %s dvr reload success", vhost.c_str());
-#endif
-    
-    return ret;
-}
-
-int SrsSource::on_reload_vhost_chunk_size(string vhost)
-{
-    int ret = ERROR_SUCCESS;
-    
-    if (_req->vhost != vhost) {
-        return ret;
-    }
-
-#ifdef SRS_PERF_MW_MSG_IOVS_CACHE
-    int size = _srs_config->get_chunk_size(_req->vhost);
-    if (chunk_size != size) {
-        srs_warn("connected clients will error for mic chunk_size changed %d=>%d", 
-            chunk_size, size);
-    }
-    chunk_size = size;
 #endif
     
     return ret;
@@ -1301,14 +1277,6 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
     }
     srs_verbose("initialize shared ptr metadata success.");
     
-#ifdef SRS_PERF_MW_MSG_IOVS_CACHE
-    if ((ret = cache_metadata->mic_evaluate(chunk_size)) != ERROR_SUCCESS) {
-        srs_error("mic metadata iovs failed, chunk_size=%d. ret=%d", chunk_size, ret);
-        return ret;
-    }
-    srs_info("mic metadata iovs ok, chunk_size=%d", chunk_size);
-#endif
-    
     // copy to all consumer
     if (true) {
         std::vector<SrsConsumer*>::iterator it;
@@ -1349,14 +1317,6 @@ int SrsSource::on_audio(SrsCommonMessage* __audio)
         return ret;
     }
     srs_verbose("initialize shared ptr audio success.");
-    
-#ifdef SRS_PERF_MW_MSG_IOVS_CACHE
-    if ((ret = msg.mic_evaluate(chunk_size)) != ERROR_SUCCESS) {
-        srs_error("mic audio iovs failed, chunk_size=%d. ret=%d", chunk_size, ret);
-        return ret;
-    }
-    srs_info("mic audio iovs ok, chunk_size=%d", chunk_size);
-#endif
     
 #ifdef SRS_AUTO_HLS
     if ((ret = hls->on_audio(&msg)) != ERROR_SUCCESS) {
@@ -1467,14 +1427,6 @@ int SrsSource::on_video(SrsCommonMessage* __video)
         return ret;
     }
     srs_verbose("initialize shared ptr video success.");
-    
-#ifdef SRS_PERF_MW_MSG_IOVS_CACHE
-    if ((ret = msg.mic_evaluate(chunk_size)) != ERROR_SUCCESS) {
-        srs_error("mic video iovs failed, chunk_size=%d. ret=%d", chunk_size, ret);
-        return ret;
-    }
-    srs_info("mic video iovs ok, chunk_size=%d", chunk_size);
-#endif
     
 #ifdef SRS_AUTO_HLS
     if ((ret = hls->on_video(&msg)) != ERROR_SUCCESS) {
@@ -1726,11 +1678,6 @@ int SrsSource::on_publish()
         srs_error("start dvr failed. ret=%d", ret);
         return ret;
     }
-#endif
-    
-#ifdef SRS_PERF_MW_MSG_IOVS_CACHE
-    chunk_size = _srs_config->get_chunk_size(_req->vhost);
-    srs_trace("mic use chunk_size=%d to send msgs", chunk_size);
 #endif
 
     return ret;
