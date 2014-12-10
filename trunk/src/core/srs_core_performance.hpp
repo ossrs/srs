@@ -115,20 +115,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #undef SRS_PERF_MW_SO_RCVBUF
 /**
-* whether enable the fast cache.
-* @remark this improve performance for large connectios.
-* @remark this also introduce complex, default to disable it.
-* @see https://github.com/winlinvip/simple-rtmp-server/issues/251
-*/
-#undef SRS_PERF_QUEUE_FAST_CACHE
-/**
 * whether enable the fast vector for qeueue.
 * @see https://github.com/winlinvip/simple-rtmp-server/issues/251
 */
 #define SRS_PERF_QUEUE_FAST_VECTOR
-#if defined(SRS_PERF_QUEUE_FAST_CACHE) && defined(SRS_PERF_QUEUE_FAST_VECTOR)
-    #error "fast cache conflict with fast vector"
-#endif
 /**
 * whether use cond wait to send messages.
 * @remark this improve performance for large connectios.

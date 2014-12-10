@@ -205,16 +205,6 @@ private:
     int mw_min_msgs;
     int mw_duration;
 #endif
-#ifdef SRS_PERF_QUEUE_FAST_CACHE
-    // use fast cache for msgs
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/251
-    SrsMessageArray* mw_cache;
-    // the count of msg in fast cache.
-    int mw_count;
-    // the packet time in fast cache.
-    int64_t mw_first_pkt;
-    int64_t mw_last_pkt;
-#endif
 public:
     SrsConsumer(SrsSource* _source);
     virtual ~SrsConsumer();
@@ -262,14 +252,6 @@ public:
     * when client send the pause message.
     */
     virtual int on_play_client_pause(bool is_pause);
-private:
-#ifdef SRS_PERF_QUEUE_FAST_CACHE
-    /**
-    * dumps the queue to fast cache, 
-    * when fast cache is clear or queue is overflow.
-    */
-    virtual int dumps_queue_to_fast_cache();
-#endif
 };
 
 /**
