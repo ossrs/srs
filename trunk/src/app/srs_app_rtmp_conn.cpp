@@ -646,7 +646,9 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
         // we use wait timeout to get messages,
         // for min latency event no message incoming,
         // so the count maybe zero.
-        srs_verbose("mw wait %dms and got %d msgs %"PRId64"-%"PRId64"ms", mw_sleep, count, 
+        srs_info("mw wait %dms and got %d msgs %d(%"PRId64"-%"PRId64")ms", 
+            mw_sleep, count, 
+            (count > 0? msgs.msgs[count - 1]->timestamp - msgs.msgs[0]->timestamp : 0),
             (count > 0? msgs.msgs[0]->timestamp : 0), 
             (count > 0? msgs.msgs[count - 1]->timestamp : 0));
 #else
