@@ -245,8 +245,9 @@ public:
     * wait for messages incomming, atleast nb_msgs and in duration.
     * @param nb_msgs the messages count to wait.
     * @param duration the messgae duration to wait.
+    * @param realtime whether use realtime mode.
     */
-    virtual void wait(int nb_msgs, int duration);
+    virtual void wait(int nb_msgs, int duration, bool realtime);
 #endif
     /**
     * when client send the pause message.

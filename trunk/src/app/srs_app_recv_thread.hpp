@@ -153,6 +153,9 @@ private:
     bool mr;
     int mr_fd;
     int mr_sleep;
+    // for realtime
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/257
+    bool realtime;
     // the recv thread error code.
     int recv_error_code;
     SrsRtmpConn* _conn;
@@ -193,6 +196,7 @@ public:
 // interface ISrsReloadHandler
 public:
     virtual int on_reload_vhost_mr(std::string vhost);
+    virtual int on_reload_vhost_realtime(std::string vhost);
 private:
     virtual void set_socket_buffer(int sleep_ms);
 };

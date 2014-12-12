@@ -545,6 +545,12 @@ public:
     */
     // TODO: FIXME: add utest for mw config.
     virtual int                 get_mw_sleep_ms(std::string vhost);
+    /**
+    * whether min latency mode enabled.
+    * @param vhost, the vhost to get the min_latency.
+    */
+    // TODO: FIXME: add utest for min_latency.
+    virtual bool                get_realtime_enabled(std::string vhost);
 private:
     /**
     * get the global chunk size.

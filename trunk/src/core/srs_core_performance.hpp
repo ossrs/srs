@@ -128,6 +128,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef SRS_PERF_QUEUE_COND_WAIT
     #define SRS_PERF_MW_MIN_MSGS 8
 #endif
+/**
+* the default value of vhost for
+* SRS whether use the min latency mode.
+* for min latence mode:
+* 1. disable the mr for vhost.
+* 2. use timeout for cond wait for consumer queue.
+* @see https://github.com/winlinvip/simple-rtmp-server/issues/257
+*/
+#define SRS_PERF_MIN_LATENCY_ENABLED true
 
 /**
 * how many chunk stream to cache, [0, N].

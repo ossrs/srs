@@ -852,6 +852,17 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload mw success.", vhost.c_str());
             }
+            // min_latency, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("min_latency"), old_vhost->get("min_latency"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_realtime(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes min_latency failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload min_latency success.", vhost.c_str());
+            }
             // http, only one per vhost.
             if (!srs_directive_equals(new_vhost->get("http"), old_vhost->get("http"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -1350,7 +1361,7 @@ int SrsConfig::check_config()
                 && n != "time_jitter" 
                 && n != "atc" && n != "atc_auto"
                 && n != "debug_srs_upnode"
-                && n != "mr" && n != "mw_latency"
+                && n != "mr" && n != "mw_latency" && n != "min_latency"
             ) {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported vhost directive %s, ret=%d", n.c_str(), ret);
@@ -2125,7 +2136,6 @@ int SrsConfig::get_chunk_size(string vhost)
 
 bool SrsConfig::get_mr_enabled(string vhost)
 {
-    
     SrsConfDirective* conf = get_vhost(vhost);
 
     if (!conf) {
@@ -2147,7 +2157,6 @@ bool SrsConfig::get_mr_enabled(string vhost)
 
 int SrsConfig::get_mr_sleep_ms(string vhost)
 {
-    
     SrsConfDirective* conf = get_vhost(vhost);
 
     if (!conf) {
@@ -2169,7 +2178,6 @@ int SrsConfig::get_mr_sleep_ms(string vhost)
 
 int SrsConfig::get_mw_sleep_ms(string vhost)
 {
-
     SrsConfDirective* conf = get_vhost(vhost);
 
     if (!conf) {
@@ -2182,6 +2190,22 @@ int SrsConfig::get_mw_sleep_ms(string vhost)
     }
 
     return ::atoi(conf->arg0().c_str());
+}
+
+bool SrsConfig::get_realtime_enabled(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return SRS_PERF_MIN_LATENCY_ENABLED;
+    }
+
+    conf = conf->get("min_latency");
+    if (!conf || conf->arg0() != "off") {
+        return SRS_PERF_MIN_LATENCY_ENABLED;
+    }
+
+    return false;
 }
 
 int SrsConfig::get_global_chunk_size()

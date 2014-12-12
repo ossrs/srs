@@ -251,6 +251,8 @@ SrsPublishRecvThread::SrsPublishRecvThread(
     mr = _srs_config->get_mr_enabled(req->vhost);
     mr_sleep = _srs_config->get_mr_sleep_ms(req->vhost);
     
+    realtime = _srs_config->get_realtime_enabled(req->vhost);
+    
     _srs_config->subscribe(this);
 }
 
@@ -340,6 +342,10 @@ int SrsPublishRecvThread::handle(SrsCommonMessage* msg)
     int ret = ERROR_SUCCESS;
 
     _nb_msgs++;
+    
+    // log to show the time of recv thread.
+    srs_verbose("recv thread now=%"PRId64"us, got msg time=%"PRId64"ms, size=%d",
+        srs_update_system_time_ms(), msg->header.timestamp, msg->size);
 
     // the rtmp connection will handle this message
     ret = _conn->handle_publish_message(_source, msg, _is_fmle, _is_edge);
@@ -363,7 +369,7 @@ void SrsPublishRecvThread::on_recv_error(int ret)
 #ifdef SRS_PERF_MERGED_READ
 void SrsPublishRecvThread::on_read(ssize_t nread)
 {
-    if (!mr) {
+    if (!mr || realtime) {
         return;
     }
     
@@ -386,6 +392,10 @@ void SrsPublishRecvThread::on_read(ssize_t nread)
 int SrsPublishRecvThread::on_reload_vhost_mr(string vhost)
 {
     int ret = ERROR_SUCCESS;
+    
+    if (req->vhost != vhost) {
+        return ret;
+    }
 
     // the mr settings, 
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/241
@@ -419,6 +429,21 @@ int SrsPublishRecvThread::on_reload_vhost_mr(string vhost)
     return ret;
 }
 
+int SrsPublishRecvThread::on_reload_vhost_realtime(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (req->vhost != vhost) {
+        return ret;
+    }
+    
+    bool realtime_enabled = _srs_config->get_realtime_enabled(req->vhost);
+    srs_trace("realtime changed %d=>%d", realtime, realtime_enabled);
+    realtime = realtime_enabled;
+    
+    return ret;
+}
+
 void SrsPublishRecvThread::set_socket_buffer(int sleep_ms)
 {
     // the bytes:
@@ -446,8 +471,9 @@ void SrsPublishRecvThread::set_socket_buffer(int sleep_ms)
     }
     getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, &sock_buf_size);
 
-    srs_trace("mr change sleep %d=>%d, erbuf=%d, rbuf %d=>%d, sbytes=%d",
-        mr_sleep, sleep_ms, socket_buffer_size, onb_rbuf, nb_rbuf, SRS_MR_SMALL_BYTES);
+    srs_trace("mr change sleep %d=>%d, erbuf=%d, rbuf %d=>%d, sbytes=%d, realtime=%d",
+        mr_sleep, sleep_ms, socket_buffer_size, onb_rbuf, nb_rbuf, 
+        SRS_MR_SMALL_BYTES, realtime);
 
     rtmp->set_recv_buffer(nb_rbuf);
 }

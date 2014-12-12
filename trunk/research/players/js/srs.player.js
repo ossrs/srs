@@ -22,7 +22,7 @@ function SrsPlayer(container, width, height, private_object) {
     this.height = height;
     this.id = SrsPlayer.__id++;
     this.stream_url = null;
-    this.buffer_time = 0.8; // default to 0.8
+    this.buffer_time = 0.3; // default to 0.3
     this.volume = 1.0; // default to 100%
     this.callbackObj = null;
     

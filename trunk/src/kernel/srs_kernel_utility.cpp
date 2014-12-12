@@ -61,13 +61,13 @@ int64_t srs_get_system_startup_time_ms()
     
     return _srs_system_time_startup_time / 1000;
 }
-void srs_update_system_time_ms()
+int64_t srs_update_system_time_ms()
 {
     timeval now;
     
     if (gettimeofday(&now, NULL) < 0) {
         srs_warn("gettimeofday failed, ignore");
-        return;
+        return -1;
     }
 
     // @see: https://github.com/winlinvip/simple-rtmp-server/issues/35
@@ -83,7 +83,7 @@ void srs_update_system_time_ms()
     if (_srs_system_time_us_cache <= 0) {
         _srs_system_time_us_cache = now_us;
         _srs_system_time_startup_time = now_us;
-        return;
+        return _srs_system_time_us_cache;
     }
     
     // use relative time.
@@ -99,6 +99,8 @@ void srs_update_system_time_ms()
     _srs_system_time_us_cache = now_us;
     srs_info("system time updated, startup=%"PRId64"us, now=%"PRId64"us", 
         _srs_system_time_startup_time, _srs_system_time_us_cache);
+    
+    return _srs_system_time_us_cache;
 }
 
 string srs_dns_resolve(string host)

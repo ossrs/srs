@@ -453,6 +453,7 @@ Supported operating systems and hardware:
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#publish-audio-raw-stream),
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_SrsLibrtmp#publish-audio-raw-stream)
 ) by srs-librtmp.
+1. Support 0.1s+ latency, read [#257](https://github.com/winlinvip/simple-rtmp-server/issues/257).
 1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
 1. [no-plan] Support RTMP 302 redirect [#92](https://github.com/winlinvip/simple-rtmp-server/issues/92).
 1. [no-plan] Support multiple processes, for both origin and edge
@@ -486,6 +487,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2014-12-12, fix [#257](https://github.com/winlinvip/simple-rtmp-server/issues/257), support 0.1s+ latency. 2.0.70
 * v2.0, 2014-12-08, update wiki for mr([EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_LowLatency#merged-read), [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_LowLatency#merged-read)) and mw([EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_LowLatency#merged-write), [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_LowLatency#merged-write)).
 * v2.0, 2014-12-07, fix [#251](https://github.com/winlinvip/simple-rtmp-server/issues/251), 10k+ clients, use queue cond wait and fast vector. 2.0.67
 * v2.0, 2014-12-05, fix [#251](https://github.com/winlinvip/simple-rtmp-server/issues/251), 9k+ clients, use fast cache for msgs queue. 2.0.57

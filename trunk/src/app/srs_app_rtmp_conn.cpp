@@ -50,6 +50,7 @@ using namespace std;
 #include <srs_protocol_amf0.hpp>
 #include <srs_app_recv_thread.hpp>
 #include <srs_core_performance.hpp>
+#include <srs_kernel_utility.hpp>
 
 // when stream is busy, for example, streaming is already
 // publishing, when a new client to request to publish,
@@ -86,6 +87,7 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* srs_server, st_netfd_t client_stfd)
     
     mw_sleep = SRS_PERF_MW_SLEEP;
     mw_enabled = false;
+    realtime = SRS_PERF_MIN_LATENCY_ENABLED;
     
     _srs_config->subscribe(this);
 }
@@ -212,14 +214,35 @@ int SrsRtmpConn::on_reload_vhost_removed(string vhost)
     return ret;
 }
 
-int SrsRtmpConn::on_reload_vhost_mw(string /*vhost*/)
+int SrsRtmpConn::on_reload_vhost_mw(string vhost)
 {
+    int ret = ERROR_SUCCESS;
+    
+    if (req->vhost != vhost) {
+        return ret;
+    }
+    
     int sleep_ms = _srs_config->get_mw_sleep_ms(req->vhost);
     
     // when mw_sleep changed, resize the socket send buffer.
     change_mw_sleep(sleep_ms);
 
-    return ERROR_SUCCESS;
+    return ret;
+}
+
+int SrsRtmpConn::on_reload_vhost_realtime(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (req->vhost != vhost) {
+        return ret;
+    }
+    
+    bool realtime_enabled = _srs_config->get_realtime_enabled(req->vhost);
+    srs_trace("realtime changed %d=>%d", realtime, realtime_enabled);
+    realtime = realtime_enabled;
+
+    return ret;
 }
 
 int64_t SrsRtmpConn::get_send_bytes_delta()
@@ -570,6 +593,7 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
     // when mw_sleep changed, resize the socket send buffer.
     mw_enabled = true;
     change_mw_sleep(_srs_config->get_mw_sleep_ms(req->vhost));
+    realtime = _srs_config->get_realtime_enabled(req->vhost);
     
     while (true) {
         // to use isolate thread to recv, can improve about 33% performance.
@@ -599,9 +623,15 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
         pithy_print.elapse();
         
 #ifdef SRS_PERF_QUEUE_COND_WAIT
+        // for send wait time debug
+        srs_verbose("send thread now=%"PRId64"us, wait %dms", srs_update_system_time_ms(), mw_sleep);
+        
         // wait for message to incoming.
         // @see https://github.com/winlinvip/simple-rtmp-server/issues/251
-        consumer->wait(SRS_PERF_MW_MIN_MSGS, mw_sleep);
+        consumer->wait(SRS_PERF_MW_MIN_MSGS, mw_sleep, realtime);
+        
+        // for send wait time debug
+        srs_verbose("send thread now=%"PRId64"us wakeup", srs_update_system_time_ms());
 #endif
         
         // get messages from consumer.
@@ -613,10 +643,12 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
         }
         
 #ifdef SRS_PERF_QUEUE_COND_WAIT
-        // we use wait to get messages, so the count must be positive.
-        srs_assert(count > 0);
-        srs_info("mw wait %dms and got %d msgs %"PRId64"-%"PRId64"ms", 
-            mw_sleep, count, msgs.msgs[0]->timestamp, msgs.msgs[count - 1]->timestamp);
+        // we use wait timeout to get messages,
+        // for min latency event no message incoming,
+        // so the count maybe zero.
+        srs_verbose("mw wait %dms and got %d msgs %"PRId64"-%"PRId64"ms", mw_sleep, count, 
+            (count > 0? msgs.msgs[0]->timestamp : 0), 
+            (count > 0? msgs.msgs[count - 1]->timestamp : 0));
 #else
         if (count <= 0) {
             srs_info("mw sleep %dms for no msg", mw_sleep);
@@ -1037,12 +1069,12 @@ void SrsRtmpConn::change_mw_sleep(int sleep_ms)
     }
     getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &nb_sbuf, &sock_buf_size);
     
-    srs_trace("mw changed sleep %d=>%d, max_msgs=%d, esbuf=%d, sbuf %d=>%d", 
+    srs_trace("mw changed sleep %d=>%d, max_msgs=%d, esbuf=%d, sbuf %d=>%d, realtime=%d", 
         mw_sleep, sleep_ms, SRS_PERF_MW_MSGS, socket_buffer_size,
-        onb_sbuf, nb_sbuf);
+        onb_sbuf, nb_sbuf, realtime);
 #else
-    srs_trace("mw changed sleep %d=>%d, max_msgs=%d, sbuf %d", 
-        mw_sleep, sleep_ms, SRS_PERF_MW_MSGS, onb_sbuf);
+    srs_trace("mw changed sleep %d=>%d, max_msgs=%d, sbuf %d, realtime=%d", 
+        mw_sleep, sleep_ms, SRS_PERF_MW_MSGS, onb_sbuf, realtime);
 #endif
         
     mw_sleep = sleep_ms;

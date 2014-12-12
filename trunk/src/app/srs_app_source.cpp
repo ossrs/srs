@@ -493,7 +493,7 @@ int SrsConsumer::dump_packets(SrsMessageArray* msgs, int& count)
 }
 
 #ifdef SRS_PERF_QUEUE_COND_WAIT
-void SrsConsumer::wait(int nb_msgs, int duration)
+void SrsConsumer::wait(int nb_msgs, int duration, bool realtime)
 {
     mw_min_msgs = nb_msgs;
     mw_duration = duration;
@@ -508,8 +508,15 @@ void SrsConsumer::wait(int nb_msgs, int duration)
     
     // the enqueue will notify this cond.
     mw_waiting = true;
-    // wait for msgs to incoming.
-    st_cond_wait(mw_wait);
+    
+    // use timeout wait for realtime mode.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/257
+    if (realtime) {
+        st_cond_timedwait(mw_wait, duration * 1000);
+    } else {
+        // use cond block wait for high performance mode.
+        st_cond_wait(mw_wait);
+    }
 }
 #endif
 

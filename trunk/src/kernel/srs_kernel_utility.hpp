@@ -40,7 +40,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 extern int64_t srs_get_system_time_ms();
 extern int64_t srs_get_system_startup_time_ms();
 // the deamon st-thread will update it.
-extern void srs_update_system_time_ms();
+extern int64_t srs_update_system_time_ms();
 
 // dns resolve utility, return the resolved ip address.
 extern std::string srs_dns_resolve(std::string host);
