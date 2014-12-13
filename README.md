@@ -786,8 +786,8 @@ The latency between encoder and player with realtime config(
 </tr>
 </table>
 
-We use FMLE as encoder to benchmark. The latency of server is 0.1s+, 
-and the bottleneck is on the encoder. For more information, read 
+We use FMLE as encoder for benchmark. The latency of server is 0.1s+, 
+and the bottleneck is the encoder. For more information, read 
 [bug #257](https://github.com/winlinvip/simple-rtmp-server/issues/257#issuecomment-66864413).
 
 ## Architecture
