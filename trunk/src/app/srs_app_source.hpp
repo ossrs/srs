@@ -237,7 +237,6 @@ public:
     * get packets in consumer queue.
     * @param msgs the msgs array to dump packets to send.
     * @param count the count in array, output param.
-    * @max_count the max count to dequeue, must be positive.
     */
     virtual int dump_packets(SrsMessageArray* msgs, int& count);
 #ifdef SRS_PERF_QUEUE_COND_WAIT

@@ -2201,11 +2201,11 @@ bool SrsConfig::get_realtime_enabled(string vhost)
     }
 
     conf = conf->get("min_latency");
-    if (!conf || conf->arg0() != "off") {
+    if (!conf || conf->arg0().empty()) {
         return SRS_PERF_MIN_LATENCY_ENABLED;
     }
 
-    return false;
+    return conf->arg0() == "on";
 }
 
 int SrsConfig::get_global_chunk_size()

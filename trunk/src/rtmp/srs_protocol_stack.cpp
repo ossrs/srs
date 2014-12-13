@@ -768,6 +768,10 @@ int SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
     // if cache is consumed, try another loop.
     for (int i = 0; i < nb_msgs; i++) {
         SrsSharedPtrMessage* msg = msgs[i];
+        
+        if (!msg) {
+            continue;
+        }
     
         // ignore empty message.
         if (!msg->payload || msg->size <= 0) {
@@ -1154,6 +1158,10 @@ int SrsProtocol::send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs,
     // update the stream id in header.
     for (int i = 0; i < nb_msgs; i++) {
         SrsSharedPtrMessage* msg = msgs[i];
+        
+        if (!msg) {
+            continue;
+        }
         
         // check perfer cid and stream,
         // when one msg stream id is ok, ignore left.

@@ -688,14 +688,12 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
         }
         
         // sendout messages, all messages are freed by send_and_free_messages().
-        if (count > 0) {
-            // no need to assert msg, for the rtmp will assert it.
-            if ((ret = rtmp->send_and_free_messages(msgs.msgs, count, res->stream_id)) != ERROR_SUCCESS) {
-                if (!srs_is_client_gracefully_close(ret)) {
-                    srs_error("send messages to client failed. ret=%d", ret);
-                }
-                return ret;
+        // no need to assert msg, for the rtmp will assert it.
+        if (count > 0 && (ret = rtmp->send_and_free_messages(msgs.msgs, count, res->stream_id)) != ERROR_SUCCESS) {
+            if (!srs_is_client_gracefully_close(ret)) {
+                srs_error("send messages to client failed. ret=%d", ret);
             }
+            return ret;
         }
         
         // if duration specified, and exceed it, stop play live.
