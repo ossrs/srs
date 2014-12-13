@@ -39,6 +39,10 @@ high-performance(10k+ clients)(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Performance), 
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Performance)
 ),
+low-latency(0.1s+)(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_LowLatency),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_LowLatency)
+),
 single processes, edge/origin live server, 
 x86/x64/arm(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SrsLinuxArm), 
@@ -750,6 +754,34 @@ The publish benchmark by [st-load](https://github.com/winlinvip/st-load):
 * 2014-12-04, SRS 2.0.49,  2.5k(2500) publishers, 95%CPU, 404MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/29324fab469e0f7cef9ad04ffdbce832ac7dd9ff)
 * 2014-12-04, SRS 2.0.51,  2.5k(2500) publishers, 91%CPU, 259MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/f57801eb46c16755b173984b915a4166922df6a6)
 * 2014-12-04, SRS 2.0.52,  4.0k(4000) publishers, 80%CPU, 331MB. (mr_sleep=350)[commit](https://github.com/winlinvip/simple-rtmp-server/commit/5589b13d2e216b91f97afb78ee0c011b2fccf7da)
+
+### Latency benchmark
+
+The latency between encoder and player:
+
+<table>
+<tr>
+    <th>SRS</th>
+    <th>VP6</th>
+    <th>H.264</th>
+    <th>VP6+mp3</th>
+    <th>H.264+mp3</th>
+</tr>
+<tr>
+    <td>1.0.10</td>
+    <td>0.4s</td>
+    <td>0.4s</td>
+    <td>0.9s</td>
+    <td>1.2s</td>
+</tr>
+<tr>
+    <td>2.0.70</td>
+    <td>[0.1s](https://github.com/winlinvip/simple-rtmp-server/commit/10297fab519811845b549a8af40a6bcbd23411e8)</td>
+    <td>0.4s</td>
+    <td>1.0s</td>
+    <td>0.9s</td>
+</tr>
+</table>
 
 ## Architecture
 
