@@ -589,11 +589,12 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
     bool user_specified_duration_to_stop = (req->duration > 0);
     int64_t starttime = -1;
     
+    // setup the realtime.
+    realtime = _srs_config->get_realtime_enabled(req->vhost);
     // setup the mw config.
     // when mw_sleep changed, resize the socket send buffer.
     mw_enabled = true;
     change_mw_sleep(_srs_config->get_mw_sleep_ms(req->vhost));
-    realtime = _srs_config->get_realtime_enabled(req->vhost);
     
     while (true) {
         // to use isolate thread to recv, can improve about 33% performance.
@@ -641,23 +642,6 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
             srs_error("get messages from consumer failed. ret=%d", ret);
             return ret;
         }
-        
-#ifdef SRS_PERF_QUEUE_COND_WAIT
-        // we use wait timeout to get messages,
-        // for min latency event no message incoming,
-        // so the count maybe zero.
-        srs_info("mw wait %dms and got %d msgs %d(%"PRId64"-%"PRId64")ms", 
-            mw_sleep, count, 
-            (count > 0? msgs.msgs[count - 1]->timestamp - msgs.msgs[0]->timestamp : 0),
-            (count > 0? msgs.msgs[0]->timestamp : 0), 
-            (count > 0? msgs.msgs[count - 1]->timestamp : 0));
-#else
-        if (count <= 0) {
-            srs_info("mw sleep %dms for no msg", mw_sleep);
-            st_usleep(mw_sleep * 1000);
-        }
-#endif
-        srs_info("got %d msgs, min=%d, mw=%d", count, SRS_PERF_MW_MIN_MSGS, mw_sleep);
 
         // reportable
         if (pithy_print.can_print()) {
@@ -670,6 +654,29 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
                 mw_sleep
             );
         }
+        
+        // we use wait timeout to get messages,
+        // for min latency event no message incoming,
+        // so the count maybe zero.
+        if (count > 0) {
+            srs_verbose("mw wait %dms and got %d msgs %d(%"PRId64"-%"PRId64")ms", 
+                mw_sleep, count, 
+                (count > 0? msgs.msgs[count - 1]->timestamp - msgs.msgs[0]->timestamp : 0),
+                (count > 0? msgs.msgs[0]->timestamp : 0), 
+                (count > 0? msgs.msgs[count - 1]->timestamp : 0));
+        }
+        
+        if (count <= 0) {
+#ifndef SRS_PERF_QUEUE_COND_WAIT
+            srs_info("mw sleep %dms for no msg", mw_sleep);
+            st_usleep(mw_sleep * 1000);
+#else
+            srs_verbose("mw wait %dms and got nothing.", mw_sleep);
+#endif
+            // ignore when nothing got.
+            continue;
+        }
+        srs_info("got %d msgs, min=%d, mw=%d", count, SRS_PERF_MW_MIN_MSGS, mw_sleep);
         
         // only when user specifies the duration, 
         // we start to collect the durations for each message.
