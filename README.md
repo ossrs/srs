@@ -757,7 +757,7 @@ The publish benchmark by [st-load](https://github.com/winlinvip/st-load):
 
 ### Latency benchmark
 
-The latency between encoder and player with [realtime config](
+The latency between encoder and player with realtime config(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_LowLatency),
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_LowLatency)
 ):
