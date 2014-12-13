@@ -136,7 +136,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * 2. use timeout for cond wait for consumer queue.
 * @see https://github.com/winlinvip/simple-rtmp-server/issues/257
 */
-#define SRS_PERF_MIN_LATENCY_ENABLED true
+#define SRS_PERF_MIN_LATENCY_ENABLED false
 
 /**
 * how many chunk stream to cache, [0, N].
