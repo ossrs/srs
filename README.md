@@ -776,7 +776,7 @@ The latency between encoder and player:
 </tr>
 <tr>
     <td>2.0.70</td>
-    <td>[0.1s](https://github.com/winlinvip/simple-rtmp-server/commit/10297fab519811845b549a8af40a6bcbd23411e8)</td>
+    <td><a href="https://github.com/winlinvip/simple-rtmp-server/commit/10297fab519811845b549a8af40a6bcbd23411e8">0.1s</a></td>
     <td>0.4s</td>
     <td>1.0s</td>
     <td>0.9s</td>
