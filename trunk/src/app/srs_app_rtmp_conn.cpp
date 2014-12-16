@@ -629,7 +629,14 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
         
         // wait for message to incoming.
         // @see https://github.com/winlinvip/simple-rtmp-server/issues/251
-        consumer->wait(SRS_PERF_MW_MIN_MSGS, mw_sleep, realtime);
+        // @see https://github.com/winlinvip/simple-rtmp-server/issues/257
+        if (realtime) {
+            // for realtime, min required msgs is 0, send when got one+ msgs.
+            consumer->wait(0, mw_sleep);
+        } else {
+            // for no-realtime, got some msgs then send.
+            consumer->wait(SRS_PERF_MW_MIN_MSGS, mw_sleep);
+        }
         
         // for send wait time debug
         srs_verbose("send thread now=%"PRId64"us wakeup", srs_update_system_time_ms());
