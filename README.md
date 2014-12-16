@@ -728,32 +728,222 @@ Performance benchmark history, on virtual box.
 
 The play benchmark by [st-load](https://github.com/winlinvip/st-load):
 
-* 2013-11-28, SRS 0.5.0,   1.8k(1800)clients, 90%CPU, 41MB.
-* 2014-07-12, SRS 0.9.156, 1.8k(1800)clients, 68%CPU, 38MB.
-* 2014-07-12, SRS 0.9.156, 2.7k(2700)clients, 89%CPU, 61MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/1ae3e6c64cc5cee90e6050c26968ebc3c18281be)
-* 2014-11-11, SRS 1.0.5,   2.7k(2700)clients, 85%CPU, 66MB. 
-* 2014-11-11, SRS 2.0.12,  2.7k(2700)clients, 85%CPU, 66MB.
-* 2014-11-12, SRS 2.0.14,  2.7k(2700)clients, 69%CPU, 59MB.
-* 2014-11-12, SRS 2.0.14,  3.5k(3500)clients, 95%CPU, 78MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/8acd143a7a152885b815999162660fd4e7a3f247)
-* 2014-11-13, SRS 2.0.15,  6.0k(6000)clients, 82%CPU, 203MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/cc6aca9ad55342a06440ce7f3b38453776b2b2d1)
-* 2014-11-22, SRS 2.0.30,  7.5k(7500)clients, 87%CPU, 320MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/58136ec178e3d47db6c90a59875d7e40946936e5)
-* 2014-12-05, SRS 2.0.55,  8.0k(8000)clients, 89%CPU, 360MB. (mw_sleep=350)[commit](https://github.com/winlinvip/simple-rtmp-server/commit/58136ec178e3d47db6c90a59875d7e40946936e5)
-* 2014-12-05, SRS 2.0.57,  9.0k(9000)clients, 90%CPU, 468MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/9ee138746f83adc26f0e236ec017f4d68a300004)
-* 2014-12-07, SRS 2.0.67,  10k(10000)clients, 95%CPU, 656MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/1311b6fe6576fd7b9c6d299b0f8f2e8d202f4bf8)
+<table>
+    <tr>
+        <th>Update</th>
+        <th>SRS</th>
+        <th>Clients</th>
+        <th>Type</th>
+        <th>CPU</th>
+        <th>Memory</th>
+        <th>Commit</th>
+    </tr>
+    <tr>
+        <td>2013-11-28</td>
+        <td>0.5.0</td>
+        <td>1.8k(1800">commit</a></td>
+        <td>players</td>
+        <td>90%</td>
+        <td>41MB</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>2014-07-12</td>
+        <td>0.9.156</td>
+        <td>1.8k(1800">commit</a></td>
+        <td>players</td>
+        <td>68%</td>
+        <td>38MB</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>2014-07-12</td>
+        <td>0.9.156</td>
+        <td>2.7k(2700">commit</a></td>
+        <td>players</td>
+        <td>89%</td>
+        <td>61MB</td>
+        <td><a href="https://github.com/winlinvip/simple-rtmp-server/commit/1ae3e6c64cc5cee90e6050c26968ebc3c18281be">commit</a></td>
+    </tr>
+    <tr>
+        <td>2014-11-11</td>
+        <td>1.0.5</td>
+        <td>2.7k(2700">commit</a></td>
+        <td>players</td>
+        <td>85%</td>
+        <td>66MB</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>2014-11-11</td>
+        <td>2.0.12</td>
+        <td>2.7k(2700">commit</a></td>
+        <td>players</td>
+        <td>85%</td>
+        <td>66MB</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>2014-11-12</td>
+        <td>2.0.14</td>
+        <td>2.7k(2700">commit</a></td>
+        <td>players</td>
+        <td>69%</td>
+        <td>59MB</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>2014-11-12</td>
+        <td>2.0.14</td>
+        <td>3.5k(3500">commit</a></td>
+        <td>players</td>
+        <td>95%</td>
+        <td>78MB</td>
+        <td><a href="https://github.com/winlinvip/simple-rtmp-server/commit/8acd143a7a152885b815999162660fd4e7a3f247">commit</a></td>
+    </tr>
+    <tr>
+        <td>2014-11-13</td>
+        <td>2.0.15</td>
+        <td>6.0k(6000">commit</a></td>
+        <td>players</td>
+        <td>82%</td>
+        <td>203MB</td>
+        <td><a href="https://github.com/winlinvip/simple-rtmp-server/commit/cc6aca9ad55342a06440ce7f3b38453776b2b2d1">commit</a></td>
+    </tr>
+    <tr>
+        <td>2014-11-22</td>
+        <td>2.0.30</td>
+        <td>7.5k(7500">commit</a></td>
+        <td>players</td>
+        <td>87%</td>
+        <td>320MB</td>
+        <td><a href="https://github.com/winlinvip/simple-rtmp-server/commit/58136ec178e3d47db6c90a59875d7e40946936e5">commit</a></td>
+    </tr>
+    <tr>
+        <td>2014-12-05</td>
+        <td>2.0.55</td>
+        <td>8.0k(8000">commit</a></td>
+        <td>players</td>
+        <td>89%</td>
+        <td>360MB</td>
+        <td>(mw_sleep=350)<br/><a href="https://github.com/winlinvip/simple-rtmp-server/commit/58136ec178e3d47db6c90a59875d7e40946936e5">commit</a></td>
+    </tr>
+    <tr>
+        <td>2014-12-05</td>
+        <td>2.0.57</td>
+        <td>9.0k(9000">commit</a></td>
+        <td>players</td>
+        <td>90%</td>
+        <td>468MB</td>
+        <td><a href="https://github.com/winlinvip/simple-rtmp-server/commit/9ee138746f83adc26f0e236ec017f4d68a300004">commit</a></td>
+    </tr>
+    <tr>
+        <td>2014-12-07</td>
+        <td>2.0.67</td>
+        <td>10k(10000">commit</a></td>
+        <td>players</td>
+        <td>95%</td>
+        <td>656MB</td>
+        <td><a href="https://github.com/winlinvip/simple-rtmp-server/commit/1311b6fe6576fd7b9c6d299b0f8f2e8d202f4bf8">commit</a></td>
+    </tr>
+</table>
 
 ### Publish benchmark
 
 The publish benchmark by [st-load](https://github.com/winlinvip/st-load):
 
-* 2014-12-03, SRS 1.0.10,  1.2k(1200) publishers, 96%CPU, 43MB.
-* 2014-12-03, SRS 2.0.12,  1.2k(1200) publishers, 96%CPU, 43MB.
-* 2014-12-03, SRS 2.0.47,  1.2k(1200) publishers, 84%CPU, 76MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/787ab674e38734ea8e0678101614fdcd84645dc8)
-* 2014-12-03, SRS 2.0.47,  1.4k(1400) publishers, 95%CPU, 140MB.
-* 2014-12-03, SRS 2.0.48,  1.4k(1400) publishers, 95%CPU, 140MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/f35ec2155b1408d528a9f37da7904c9625186bcf)
-* 2014-12-04, SRS 2.0.49,  1.4k(1400) publishers, 68%CPU, 144MB.
-* 2014-12-04, SRS 2.0.49,  2.5k(2500) publishers, 95%CPU, 404MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/29324fab469e0f7cef9ad04ffdbce832ac7dd9ff)
-* 2014-12-04, SRS 2.0.51,  2.5k(2500) publishers, 91%CPU, 259MB. [commit](https://github.com/winlinvip/simple-rtmp-server/commit/f57801eb46c16755b173984b915a4166922df6a6)
-* 2014-12-04, SRS 2.0.52,  4.0k(4000) publishers, 80%CPU, 331MB. (mr_sleep=350)[commit](https://github.com/winlinvip/simple-rtmp-server/commit/5589b13d2e216b91f97afb78ee0c011b2fccf7da)
+<table>
+    <tr>
+        <th>Update</th>
+        <th>SRS</th>
+        <th>Clients</th>
+        <th>Type</th>
+        <th>CPU</th>
+        <th>Memory</th>
+        <th>Commit</th>
+    </tr>
+    <tr>
+        <td>2014-12-03</td>
+        <td>1.0.10</td>
+        <td>1.2k(1200">commit</a></td>
+        <td>publishers</td>
+        <td>96%</td>
+        <td>43MB</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>2014-12-03</td>
+        <td>2.0.12</td>
+        <td>1.2k(1200">commit</a></td>
+        <td>publishers</td>
+        <td>96%</td>
+        <td>43MB</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>2014-12-03</td>
+        <td>2.0.47</td>
+        <td>1.2k(1200">commit</a></td>
+        <td>publishers</td>
+        <td>84%</td>
+        <td>76MB</td>
+        <td><a href="https://github.com/winlinvip/simple-rtmp-server/commit/787ab674e38734ea8e0678101614fdcd84645dc8">commit</a></td>
+    </tr>
+    <tr>
+        <td>2014-12-03</td>
+        <td>2.0.47</td>
+        <td>1.4k(1400">commit</a></td>
+        <td>publishers</td>
+        <td>95%</td>
+        <td>140MB</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>2014-12-03</td>
+        <td>2.0.48</td>
+        <td>1.4k(1400">commit</a></td>
+        <td>publishers</td>
+        <td>95%</td>
+        <td>140MB</td>
+        <td><a href="https://github.com/winlinvip/simple-rtmp-server/commit/f35ec2155b1408d528a9f37da7904c9625186bcf">commit</a></td>
+    </tr>
+    <tr>
+        <td>2014-12-04</td>
+        <td>2.0.49</td>
+        <td>1.4k(1400">commit</a></td>
+        <td>publishers</td>
+        <td>68%</td>
+        <td>144MB</td>
+        <td>-</td>
+    </tr>
+    <tr>
+        <td>2014-12-04</td>
+        <td>2.0.49</td>
+        <td>2.5k(2500">commit</a></td>
+        <td>publishers</td>
+        <td>95%</td>
+        <td>404MB</td>
+        <td><a href="https://github.com/winlinvip/simple-rtmp-server/commit/29324fab469e0f7cef9ad04ffdbce832ac7dd9ff">commit</a></td>
+    </tr>
+    <tr>
+        <td>2014-12-04</td>
+        <td>2.0.51</td>
+        <td>2.5k(2500">commit</a></td>
+        <td>publishers</td>
+        <td>91%</td>
+        <td>259MB</td>
+        <td><a href="https://github.com/winlinvip/simple-rtmp-server/commit/f57801eb46c16755b173984b915a4166922df6a6">commit</a></td>
+    </tr>
+    <tr>
+        <td>2014-12-04</td>
+        <td>2.0.52</td>
+        <td>4.0k(4000">commit</a></td>
+        <td>publishers</td>
+        <td>80%</td>
+        <td>331MB</td>
+        <td>(mr_sleep=350)<br/><a href="https://github.com/winlinvip/simple-rtmp-server/commit/5589b13d2e216b91f97afb78ee0c011b2fccf7da">commit</a></td>
+    </tr>
+</table>
 
 ### Latency benchmark
 
@@ -764,6 +954,7 @@ The latency between encoder and player with realtime config(
 
 <table>
 <tr>
+    <th>Update</th>
     <th>SRS</th>
     <th>VP6</th>
     <th>H.264</th>
@@ -771,6 +962,7 @@ The latency between encoder and player with realtime config(
     <th>H.264+mp3</th>
 </tr>
 <tr>
+    <td>2014-12-03</td>
     <td>1.0.10</td>
     <td>0.4s</td>
     <td>0.4s</td>
@@ -778,6 +970,7 @@ The latency between encoder and player with realtime config(
     <td>1.2s</td>
 </tr>
 <tr>
+    <td>2014-12-12</td>
     <td>2.0.70</td>
     <td><a href="https://github.com/winlinvip/simple-rtmp-server/commit/10297fab519811845b549a8af40a6bcbd23411e8">0.1s</a></td>
     <td><a href="https://github.com/winlinvip/simple-rtmp-server/commit/10297fab519811845b549a8af40a6bcbd23411e8">0.4s</a></td>
@@ -785,6 +978,7 @@ The latency between encoder and player with realtime config(
     <td>0.9s</td>
 </tr>
 <tr>
+    <td>2014-12-16</td>
     <td>2.0.72</td>
     <td>0.1s</td>
     <td>0.4s</td>
