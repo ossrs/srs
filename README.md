@@ -780,9 +780,16 @@ The latency between encoder and player with realtime config(
 <tr>
     <td>2.0.70</td>
     <td><a href="https://github.com/winlinvip/simple-rtmp-server/commit/10297fab519811845b549a8af40a6bcbd23411e8">0.1s</a></td>
-    <td>0.4s</td>
+    <td><a href="https://github.com/winlinvip/simple-rtmp-server/commit/10297fab519811845b549a8af40a6bcbd23411e8">0.4s</a></td>
     <td>1.0s</td>
     <td>0.9s</td>
+</tr>
+<tr>
+    <td>2.0.72</td>
+    <td>0.1s</td>
+    <td>0.4s</td>
+    <td><a href="https://github.com/winlinvip/simple-rtmp-server/commit/0d6b91039d408328caab31a1077d56a809b6bebc">0.8s</a></td>
+    <td><a href="https://github.com/winlinvip/simple-rtmp-server/commit/0d6b91039d408328caab31a1077d56a809b6bebc">0.6s</a></td>
 </tr>
 </table>
 
