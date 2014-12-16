@@ -741,7 +741,7 @@ The play benchmark by [st-load](https://github.com/winlinvip/st-load):
     <tr>
         <td>2013-11-28</td>
         <td>0.5.0</td>
-        <td>1.8k(1800">commit</a></td>
+        <td>1.8k(1800)</td>
         <td>players</td>
         <td>90%</td>
         <td>41MB</td>
@@ -750,7 +750,7 @@ The play benchmark by [st-load](https://github.com/winlinvip/st-load):
     <tr>
         <td>2014-07-12</td>
         <td>0.9.156</td>
-        <td>1.8k(1800">commit</a></td>
+        <td>1.8k(1800)</td>
         <td>players</td>
         <td>68%</td>
         <td>38MB</td>
@@ -759,7 +759,7 @@ The play benchmark by [st-load](https://github.com/winlinvip/st-load):
     <tr>
         <td>2014-07-12</td>
         <td>0.9.156</td>
-        <td>2.7k(2700">commit</a></td>
+        <td>2.7k(2700)</td>
         <td>players</td>
         <td>89%</td>
         <td>61MB</td>
@@ -768,7 +768,7 @@ The play benchmark by [st-load](https://github.com/winlinvip/st-load):
     <tr>
         <td>2014-11-11</td>
         <td>1.0.5</td>
-        <td>2.7k(2700">commit</a></td>
+        <td>2.7k(2700)</td>
         <td>players</td>
         <td>85%</td>
         <td>66MB</td>
@@ -777,7 +777,7 @@ The play benchmark by [st-load](https://github.com/winlinvip/st-load):
     <tr>
         <td>2014-11-11</td>
         <td>2.0.12</td>
-        <td>2.7k(2700">commit</a></td>
+        <td>2.7k(2700)</td>
         <td>players</td>
         <td>85%</td>
         <td>66MB</td>
@@ -786,7 +786,7 @@ The play benchmark by [st-load](https://github.com/winlinvip/st-load):
     <tr>
         <td>2014-11-12</td>
         <td>2.0.14</td>
-        <td>2.7k(2700">commit</a></td>
+        <td>2.7k(2700)</td>
         <td>players</td>
         <td>69%</td>
         <td>59MB</td>
@@ -795,7 +795,7 @@ The play benchmark by [st-load](https://github.com/winlinvip/st-load):
     <tr>
         <td>2014-11-12</td>
         <td>2.0.14</td>
-        <td>3.5k(3500">commit</a></td>
+        <td>3.5k(3500)</td>
         <td>players</td>
         <td>95%</td>
         <td>78MB</td>
@@ -804,7 +804,7 @@ The play benchmark by [st-load](https://github.com/winlinvip/st-load):
     <tr>
         <td>2014-11-13</td>
         <td>2.0.15</td>
-        <td>6.0k(6000">commit</a></td>
+        <td>6.0k(6000)</td>
         <td>players</td>
         <td>82%</td>
         <td>203MB</td>
@@ -813,7 +813,7 @@ The play benchmark by [st-load](https://github.com/winlinvip/st-load):
     <tr>
         <td>2014-11-22</td>
         <td>2.0.30</td>
-        <td>7.5k(7500">commit</a></td>
+        <td>7.5k(7500)</td>
         <td>players</td>
         <td>87%</td>
         <td>320MB</td>
@@ -822,7 +822,7 @@ The play benchmark by [st-load](https://github.com/winlinvip/st-load):
     <tr>
         <td>2014-12-05</td>
         <td>2.0.55</td>
-        <td>8.0k(8000">commit</a></td>
+        <td>8.0k(8000)</td>
         <td>players</td>
         <td>89%</td>
         <td>360MB</td>
@@ -831,7 +831,7 @@ The play benchmark by [st-load](https://github.com/winlinvip/st-load):
     <tr>
         <td>2014-12-05</td>
         <td>2.0.57</td>
-        <td>9.0k(9000">commit</a></td>
+        <td>9.0k(9000)</td>
         <td>players</td>
         <td>90%</td>
         <td>468MB</td>
@@ -840,7 +840,7 @@ The play benchmark by [st-load](https://github.com/winlinvip/st-load):
     <tr>
         <td>2014-12-07</td>
         <td>2.0.67</td>
-        <td>10k(10000">commit</a></td>
+        <td>10k(10000)</td>
         <td>players</td>
         <td>95%</td>
         <td>656MB</td>
@@ -865,7 +865,7 @@ The publish benchmark by [st-load](https://github.com/winlinvip/st-load):
     <tr>
         <td>2014-12-03</td>
         <td>1.0.10</td>
-        <td>1.2k(1200">commit</a></td>
+        <td>1.2k(1200)</td>
         <td>publishers</td>
         <td>96%</td>
         <td>43MB</td>
@@ -874,7 +874,7 @@ The publish benchmark by [st-load](https://github.com/winlinvip/st-load):
     <tr>
         <td>2014-12-03</td>
         <td>2.0.12</td>
-        <td>1.2k(1200">commit</a></td>
+        <td>1.2k(1200)</td>
         <td>publishers</td>
         <td>96%</td>
         <td>43MB</td>
@@ -883,7 +883,7 @@ The publish benchmark by [st-load](https://github.com/winlinvip/st-load):
     <tr>
         <td>2014-12-03</td>
         <td>2.0.47</td>
-        <td>1.2k(1200">commit</a></td>
+        <td>1.2k(1200)</td>
         <td>publishers</td>
         <td>84%</td>
         <td>76MB</td>
@@ -892,7 +892,7 @@ The publish benchmark by [st-load](https://github.com/winlinvip/st-load):
     <tr>
         <td>2014-12-03</td>
         <td>2.0.47</td>
-        <td>1.4k(1400">commit</a></td>
+        <td>1.4k(1400)</td>
         <td>publishers</td>
         <td>95%</td>
         <td>140MB</td>
@@ -901,7 +901,7 @@ The publish benchmark by [st-load](https://github.com/winlinvip/st-load):
     <tr>
         <td>2014-12-03</td>
         <td>2.0.48</td>
-        <td>1.4k(1400">commit</a></td>
+        <td>1.4k(1400)</td>
         <td>publishers</td>
         <td>95%</td>
         <td>140MB</td>
@@ -910,7 +910,7 @@ The publish benchmark by [st-load](https://github.com/winlinvip/st-load):
     <tr>
         <td>2014-12-04</td>
         <td>2.0.49</td>
-        <td>1.4k(1400">commit</a></td>
+        <td>1.4k(1400)</td>
         <td>publishers</td>
         <td>68%</td>
         <td>144MB</td>
@@ -919,7 +919,7 @@ The publish benchmark by [st-load](https://github.com/winlinvip/st-load):
     <tr>
         <td>2014-12-04</td>
         <td>2.0.49</td>
-        <td>2.5k(2500">commit</a></td>
+        <td>2.5k(2500)</td>
         <td>publishers</td>
         <td>95%</td>
         <td>404MB</td>
@@ -928,7 +928,7 @@ The publish benchmark by [st-load](https://github.com/winlinvip/st-load):
     <tr>
         <td>2014-12-04</td>
         <td>2.0.51</td>
-        <td>2.5k(2500">commit</a></td>
+        <td>2.5k(2500)</td>
         <td>publishers</td>
         <td>91%</td>
         <td>259MB</td>
@@ -937,7 +937,7 @@ The publish benchmark by [st-load](https://github.com/winlinvip/st-load):
     <tr>
         <td>2014-12-04</td>
         <td>2.0.52</td>
-        <td>4.0k(4000">commit</a></td>
+        <td>4.0k(4000)</td>
         <td>publishers</td>
         <td>80%</td>
         <td>331MB</td>
