@@ -515,6 +515,14 @@ void SrsConsumer::wait(int nb_msgs, int duration)
     // use cond block wait for high performance mode.
     st_cond_wait(mw_wait);
 }
+
+void SrsConsumer::on_dispose()
+{
+    if (mw_waiting) {
+        st_cond_signal(mw_wait);
+        mw_waiting = false;
+    }
+}
 #endif
 
 int SrsConsumer::on_play_client_pause(bool is_pause)

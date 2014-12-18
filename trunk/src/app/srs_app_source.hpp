@@ -246,6 +246,10 @@ public:
     * @param duration the messgae duration to wait.
     */
     virtual void wait(int nb_msgs, int duration);
+    /**
+    * when waiting, a message incomming, we rouse it
+    */
+    virtual void on_dispose();
 #endif
     /**
     * when client send the pause message.

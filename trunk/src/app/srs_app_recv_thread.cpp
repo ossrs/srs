@@ -30,6 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_utility.hpp>
 #include <srs_core_performance.hpp>
 #include <srs_app_config.hpp>
+#include <srs_app_source.hpp>
 
 using namespace std;
 
@@ -138,11 +139,12 @@ SrsQueueRecvThread::SrsQueueRecvThread(SrsRtmpServer* rtmp_sdk, int timeout_ms)
 {
     rtmp = rtmp_sdk;
     recv_error_code = ERROR_SUCCESS;
+    _consumer = NULL;
 }
 
 SrsQueueRecvThread::~SrsQueueRecvThread()
 {
-    trd.stop();
+    stop();
 
     // clear all messages.
     std::vector<SrsCommonMessage*>::iterator it;
@@ -160,6 +162,7 @@ int SrsQueueRecvThread::start()
 
 void SrsQueueRecvThread::stop()
 {
+    _consumer = NULL;
     trd.stop();
 }
 
@@ -203,13 +206,22 @@ int SrsQueueRecvThread::handle(SrsCommonMessage* msg)
     // put into queue, the send thread will get and process it,
     // @see SrsRtmpConn::process_play_control_msg
     queue.push_back(msg);
-
+#ifdef SRS_PERF_QUEUE_COND_WAIT
+    if (_consumer) {
+        _consumer->on_dispose();
+    }
+#endif
     return ERROR_SUCCESS;
 }
 
 void SrsQueueRecvThread::on_recv_error(int ret)
 {
     recv_error_code = ret;
+#ifdef SRS_PERF_QUEUE_COND_WAIT
+    if (_consumer) {
+        _consumer->on_dispose();
+    }
+#endif
 }
 
 void SrsQueueRecvThread::on_thread_start()
@@ -224,6 +236,11 @@ void SrsQueueRecvThread::on_thread_stop()
     // enable the protocol auto response,
     // for the isolate recv thread terminated.
     rtmp->set_auto_response(true);
+}
+
+void SrsQueueRecvThread::set_consumer(SrsConsumer *consumer)
+{
+    _consumer = consumer;
 }
 
 SrsPublishRecvThread::SrsPublishRecvThread(
