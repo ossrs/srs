@@ -516,7 +516,7 @@ void SrsConsumer::wait(int nb_msgs, int duration)
     st_cond_wait(mw_wait);
 }
 
-void SrsConsumer::on_dispose()
+void SrsConsumer::wakeup()
 {
     if (mw_waiting) {
         st_cond_signal(mw_wait);
@@ -1635,7 +1635,7 @@ void SrsSource::on_unpublish()
     _source_id = -1;
 }
 
- int SrsSource::create_consumer(SrsConsumer*& consumer)
+int SrsSource::create_consumer(SrsConsumer*& consumer)
 {
     int ret = ERROR_SUCCESS;
     

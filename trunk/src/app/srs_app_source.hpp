@@ -247,9 +247,11 @@ public:
     */
     virtual void wait(int nb_msgs, int duration);
     /**
-    * when waiting, a message incomming, we rouse it
+    * when the consumer(for player) got msg from recv thread,
+    * it must be processed for maybe it's a close msg, so the cond
+    * wait must be wakeup.
     */
-    virtual void on_dispose();
+    virtual void wakeup();
 #endif
     /**
     * when client send the pause message.

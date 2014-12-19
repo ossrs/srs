@@ -162,7 +162,6 @@ int SrsQueueRecvThread::start()
 
 void SrsQueueRecvThread::stop()
 {
-    _consumer = NULL;
     trd.stop();
 }
 
@@ -208,7 +207,7 @@ int SrsQueueRecvThread::handle(SrsCommonMessage* msg)
     queue.push_back(msg);
 #ifdef SRS_PERF_QUEUE_COND_WAIT
     if (_consumer) {
-        _consumer->on_dispose();
+        _consumer->wakeup();
     }
 #endif
     return ERROR_SUCCESS;
@@ -219,7 +218,7 @@ void SrsQueueRecvThread::on_recv_error(int ret)
     recv_error_code = ret;
 #ifdef SRS_PERF_QUEUE_COND_WAIT
     if (_consumer) {
-        _consumer->on_dispose();
+        _consumer->wakeup();
     }
 #endif
 }
