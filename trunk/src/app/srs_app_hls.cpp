@@ -1435,7 +1435,6 @@ int SrsHls::on_audio(SrsSharedPtrMessage* audio)
     if (!hls_enabled) {
         return ret;
     }
-return 1;
     
     sample->clear();
     if ((ret = codec->audio_aac_demux(audio->payload, audio->size, sample)) != ERROR_SUCCESS) {
