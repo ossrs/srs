@@ -1439,7 +1439,7 @@ int SrsHls::on_audio(SrsSharedPtrMessage* __audio)
     
     sample->clear();
     if ((ret = codec->audio_aac_demux(audio->payload, audio->size, sample)) != ERROR_SUCCESS) {
-        srs_error("codec demux audio failed. ret=%d", ret);
+        srs_error("hls codec demux audio failed. ret=%d", ret);
         return ret;
     }
     
@@ -1484,7 +1484,7 @@ int SrsHls::on_video(SrsSharedPtrMessage* __video)
     
     sample->clear();
     if ((ret = codec->video_avc_demux(video->payload, video->size, sample)) != ERROR_SUCCESS) {
-        srs_error("codec demux video failed. ret=%d", ret);
+        srs_error("hls codec demux video failed. ret=%d", ret);
         return ret;
     }
     

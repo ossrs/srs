@@ -48,6 +48,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_HLS_PATH "./objs/nginx/html"
 #define SRS_CONF_DEFAULT_HLS_FRAGMENT 10
 #define SRS_CONF_DEFAULT_HLS_WINDOW 60
+#define SRS_CONF_DEFAULT_HLS_ON_ERROR_IGNORE "ignore"
+#define SRS_CONF_DEFAULT_HLS_ON_ERROR_DISCONNECT "disconnect"
+#define SRS_CONF_DEFAULT_HLS_ON_ERROR SRS_CONF_DEFAULT_HLS_ON_ERROR_IGNORE
 #define SRS_CONF_DEFAULT_DVR_PATH "./objs/nginx/html"
 #define SRS_CONF_DEFAULT_DVR_PLAN_SESSION "session"
 #define SRS_CONF_DEFAULT_DVR_PLAN_SEGMENT "segment"
@@ -847,6 +850,13 @@ public:
     * @remark SRS will delete the ts exceed the window.
     */
     virtual double              get_hls_window(std::string vhost);
+    /**
+    * get the hls hls_on_error config.
+    * the ignore will ignore error and disable hls.
+    * the disconnect will disconnect publish connection.
+    * @see https://github.com/winlinvip/simple-rtmp-server/issues/264
+    */
+    virtual std::string         get_hls_on_error(std::string vhost);
 // dvr section
 private:
     /**

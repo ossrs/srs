@@ -798,6 +798,7 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 srs_trace("vhost %s reload forward success.", vhost.c_str());
             }
             // hls, only one per vhost
+            // @remark, the hls_on_error directly support reload.
             if (!srs_directive_equals(new_vhost->get("hls"), old_vhost->get("hls"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
                     ISrsReloadHandler* subscribe = *it;
@@ -1412,7 +1413,7 @@ int SrsConfig::check_config()
             } else if (n == "hls") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name.c_str();
-                    if (m != "enabled" && m != "hls_path" && m != "hls_fragment" && m != "hls_window") {
+                    if (m != "enabled" && m != "hls_path" && m != "hls_fragment" && m != "hls_window" && m != "hls_on_error") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost hls directive %s, ret=%d", m.c_str(), ret);
                         return ret;
@@ -3062,6 +3063,23 @@ double SrsConfig::get_hls_window(string vhost)
     }
 
     return ::atof(conf->arg0().c_str());
+}
+
+string SrsConfig::get_hls_on_error(string vhost)
+{
+    SrsConfDirective* hls = get_hls(vhost);
+    
+    if (!hls) {
+        return SRS_CONF_DEFAULT_HLS_ON_ERROR;
+    }
+    
+    SrsConfDirective* conf = hls->get("hls_on_error");
+    
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HLS_ON_ERROR;
+    }
+
+    return conf->arg0();
 }
 
 SrsConfDirective* SrsConfig::get_dvr(string vhost)
