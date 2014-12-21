@@ -552,12 +552,14 @@ typedef double srs_amf0_number;
 * parse amf0 from data.
 * @param nparsed, the parsed size, NULL to ignore.
 * @return the parsed amf0 object. NULL for error.
+* @remark user must free the parsed or created object by srs_amf0_free.
 */
 extern srs_amf0_t srs_amf0_parse(char* data, int size, int* nparsed);
 extern srs_amf0_t srs_amf0_create_number(srs_amf0_number value);
 extern srs_amf0_t srs_amf0_create_ecma_array();
 extern srs_amf0_t srs_amf0_create_strict_array();
 extern srs_amf0_t srs_amf0_create_object();
+extern srs_amf0_t srs_amf0_ecma_array_to_object(srs_amf0_t ecma_arr);
 extern void srs_amf0_free(srs_amf0_t amf0);
 /* size and to bytes */
 extern int srs_amf0_size(srs_amf0_t amf0);

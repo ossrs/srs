@@ -1740,6 +1740,22 @@ srs_amf0_t srs_amf0_create_object()
     return SrsAmf0Any::object();
 }
 
+srs_amf0_t srs_amf0_ecma_array_to_object(srs_amf0_t ecma_arr)
+{
+    srs_assert(srs_amf0_is_ecma_array(ecma_arr));
+
+    SrsAmf0EcmaArray* arr = (SrsAmf0EcmaArray*)ecma_arr;
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    
+    for (int i = 0; i < arr->count(); i++) {
+        std::string key = arr->key_at(i);
+        SrsAmf0Any* value = arr->value_at(i);
+        obj->set(key, value->copy());
+    }
+    
+    return obj;
+}
+
 void srs_amf0_free(srs_amf0_t amf0)
 {
     SrsAmf0Any* any = (SrsAmf0Any*)amf0;
