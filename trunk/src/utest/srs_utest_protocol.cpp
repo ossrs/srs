@@ -4635,7 +4635,10 @@ VOID TEST(ProtocolStackTest, ProtocolSendVMessage)
     msg->payload = new char[msg->size];
     memcpy(msg->payload, data, msg->size);
     
-    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_message(msg, 0));
+    SrsSharedPtrMessage m;
+    ASSERT_TRUE(ERROR_SUCCESS == m.create(msg));
+    
+    EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_message(m.copy(), 0));
     EXPECT_EQ(16, bio.out_buffer.length());
 }
 
@@ -5346,8 +5349,11 @@ VOID TEST(ProtocolStackTest, ProtocolAckSizeFlow)
         
         msg->header.message_type = 9;
         EXPECT_TRUE(msg->header.is_video());
+    
+        SrsSharedPtrMessage m;
+        ASSERT_TRUE(ERROR_SUCCESS == m.create(msg));
 
-        EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_message(msg, 1));
+        EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_message(m.copy(), 1));
     }
     
     // copy output to input
@@ -5392,8 +5398,11 @@ VOID TEST(ProtocolStackTest, ProtocolAckSizeFlow)
         
         msg->header.message_type = 9;
         EXPECT_TRUE(msg->header.is_video());
+    
+        SrsSharedPtrMessage m;
+        ASSERT_TRUE(ERROR_SUCCESS == m.create(msg));
 
-        EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_message(msg, 1));
+        EXPECT_TRUE(ERROR_SUCCESS == proto.send_and_free_message(m.copy(), 1));
     }
     // copy output to input
     if (true) {
