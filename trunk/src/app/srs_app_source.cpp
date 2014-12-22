@@ -1251,6 +1251,15 @@ int SrsSource::on_audio(SrsCommonMessage* __audio)
             
             // ignore.
             ret = ERROR_SUCCESS;
+        } else if (hls_error_strategy == SRS_CONF_DEFAULT_HLS_ON_ERROR_CONTINUE) {
+            // compare the sequence header with audio, continue when it's actually an sequence header.
+            if (ret == ERROR_HLS_DECODE_ERROR && cache_sh_audio && cache_sh_audio->size == msg.size) {
+                srs_warn("the audio is actually a sequence header, ignore this packet.");
+                ret = ERROR_SUCCESS;
+            } else {
+                srs_warn("hls continue audio failed. ret=%d", ret);
+                return ret;
+            }
         } else {
             srs_warn("hls disconnect publisher for audio error. ret=%d", ret);
             return ret;
@@ -1369,6 +1378,15 @@ int SrsSource::on_video(SrsCommonMessage* __video)
             
             // ignore.
             ret = ERROR_SUCCESS;
+        } else if (hls_error_strategy == SRS_CONF_DEFAULT_HLS_ON_ERROR_CONTINUE) {
+            // compare the sequence header with video, continue when it's actually an sequence header.
+            if (ret == ERROR_HLS_DECODE_ERROR && cache_sh_video && cache_sh_video->size == msg.size) {
+                srs_warn("the video is actually a sequence header, ignore this packet.");
+                ret = ERROR_SUCCESS;
+            } else {
+                srs_warn("hls continue video failed. ret=%d", ret);
+                return ret;
+            }
         } else {
             srs_warn("hls disconnect publisher for video error. ret=%d", ret);
             return ret;
