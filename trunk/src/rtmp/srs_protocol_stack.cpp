@@ -31,6 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_buffer.hpp>
 #include <srs_protocol_utility.hpp>
 
+#include <unistd.h>
 #include <stdlib.h>
 using namespace std;
 
