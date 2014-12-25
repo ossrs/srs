@@ -925,7 +925,7 @@ int __srs_write_aac_adts_frame(Context* context,
         // 7bits left.
         
         // channelConfiguration; 4 bslbf
-        ch |= (aac_channel << 3) & 0x70;
+        ch |= (aac_channel << 3) & 0x78;
         // 3bits left.
         
         // only support aac profile 1-4.
@@ -939,11 +939,11 @@ int __srs_write_aac_adts_frame(Context* context,
         // extensionFlag; 1 bslbf
         context->aac_specific_config += ch;
         
+        char* sh = (char*)context->aac_specific_config.data();
+        int nb_sh = (int)context->aac_specific_config.length();
         if ((ret = __srs_write_audio_raw_frame(context, 
             sound_format, sound_rate, sound_size, sound_type, 
-            0, (char*)context->aac_specific_config.data(), 
-            context->aac_specific_config.length(), 
-            timestamp)) != ERROR_SUCCESS
+            0, sh, nb_sh, timestamp)) != ERROR_SUCCESS
         ) {
             return ret;
         }
