@@ -216,6 +216,16 @@ the GIT usage(
 git clone https://git.oschina.net/winlinvip/srs.oschina.git
 ```
 
+Gitlab: [https://gitlab.com/winlinvip/srs-gitlab](https://gitlab.com/winlinvip/srs-gitlab) ,
+the GIT usage(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Git),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Git)
+)
+
+```bash
+git clone https://gitlab.com/winlinvip/srs-gitlab.git
+```
+
 ## Usage
 
 <strong>Step 1:</strong> get SRS 
