@@ -44,6 +44,7 @@ function remote_check()
 remote_check origin git@github.com:winlinvip/simple-rtmp-server.git
 remote_check srs.csdn git@code.csdn.net:winlinvip/srs-csdn.git
 remote_check srs.oschina git@git.oschina.net:winlinvip/srs.oschina.git
+remote_check srs.gitlab git@gitlab.com:winlinvip/srs-gitlab.git
 ok_msg "remote check ok"
 
 function sync_push()
@@ -64,10 +65,12 @@ function sync_push()
 sync_push --all origin
 sync_push --all srs.csdn
 sync_push --all srs.oschina
+sync_push --all srs.gitlab
 ok_msg "push refs ok"
 
 sync_push --tags srs.csdn
 sync_push --tags srs.oschina
+sync_push --tags srs.gitlab
 ok_msg "push tags ok"
 
 exit 0
