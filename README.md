@@ -312,7 +312,7 @@ Donations:<br/>
 ## System Requirements
 Supported operating systems and hardware:
 * All Linux , both 32 and 64 bits
-* All hardware.
+* All hardware with x86/x86_64/arm/mips cpu.
 
 ## Summary
 1. 简洁稳定：Simple, also stable enough.
