@@ -2,7 +2,7 @@
 
 cat <<END >>/dev/null
 touch git-ensure-commit &&
-echo "cd `pwd` && git checkout master &&" >git-ensure-commit &&
+echo "cd `pwd` && git checkout develop &&" >git-ensure-commit &&
 echo "bash `pwd`/git.commit.sh" >>git-ensure-commit &&
 chmod +x git-ensure-commit &&
 sudo rm -f /bin/git-ensure-commit &&
@@ -23,7 +23,7 @@ work_dir=`(cd ${work_dir}/.. && pwd)`
 product_dir=$work_dir
 
 # allow start script from any dir
-cd $work_dir && git checkout master
+cd $work_dir && git checkout develop
 
 . ${product_dir}/scripts/_log.sh
 ret=$?; if [[ $ret -ne 0 ]]; then exit $ret; fi
