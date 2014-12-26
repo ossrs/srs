@@ -1135,4 +1135,3 @@ Schema#2: SRS RTMP Edge server pull stream from origin (or upstream SRS
 Beijing, 2013.10<br/>
 Winlin
 
-
