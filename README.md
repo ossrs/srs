@@ -722,41 +722,6 @@ Schema#2: SRS RTMP Edge server pull stream from origin (or upstream SRS
     RTMP Edge server), then delivery to Client.
 </pre>
 
-### (plan) SRS Multiple processes Architecture(design by wenjie)
-
-<pre>
-                 +---------------+              +--------+
-                 | upnode server |              + client +
-                 +-------+-------+              +---+----+
-            -------------+------------network-------+---------
-                         |                          |
- +--------+         +----+-----------+         +----+----------+
- | master +--fork->-+ back source(1) +-->-pull-+ stream 1-N(2) +
- +---+----+         +----------------+         +-------+-------+
-     |                                                 |
-     +-------------------------------------fork--->-----+
-     |                           +-------------+
-     +-------------------fork-->-+ http/vod(3) |
-                                 +-------------+
-Remark:
-(1) back source process: create by master process, get stream from 
-    upnode server if edge, create stream if origin, serve the stream 
-    process.
-(2) stream process: create by master process, get stream from back
-    source process, serve the client.
-(3) the embeded mininum http server, also provides vod service. for
-    http server, it provides http api, hls(live/vod) delivery. for
-    vod server, it slice the file to hls(m3u8/ts).
-Remark:
-(a) This multiple processes architecture is design by wenjie, it's a
-    very simple and powerful multiple process architecture, for the
-    master no need to pass between stream process.
-(b) The CLI architecture is similar to this, instead, cli process
-    will collect informations from all stream process, master process
-    only send signals to child processes.
-(c) Maybe multiple thread is ok? By winlin.
-</pre>
-
 ### Bandwidth Test Workflow
 
 <pre>
