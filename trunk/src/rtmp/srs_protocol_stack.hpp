@@ -100,7 +100,7 @@ public:
     /**
     * 4bytes.
     * Four-byte field that identifies the stream of the message. These
-    * bytes are set in big-endian format.
+    * bytes are set in little-endian format.
     */
     int32_t stream_id;
     
