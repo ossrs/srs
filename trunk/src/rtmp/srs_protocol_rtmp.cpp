@@ -288,7 +288,7 @@ int SrsHandshakeBytes::create_s0s1s2(const char* c1)
     }
     stream.write_1bytes(0x03);
     stream.write_4bytes((int32_t)::time(NULL));
-    // s2 time2 copy from c1
+    // s1 time2 copy from c1
     if (c0c1) {
         stream.write_bytes(c0c1 + 1, 4);
     }
