@@ -81,7 +81,6 @@ public:
     /**
     * 3bytes.
     * Three-byte field that contains a timestamp delta of the message.
-    * The 4 bytes are packed in the big-endian order.
     * @remark, only used for decoding message from chunk stream.
     */
     int32_t timestamp_delta;
