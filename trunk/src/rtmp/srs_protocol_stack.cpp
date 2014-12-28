@@ -1279,15 +1279,15 @@ int SrsProtocol::recv_interlaced_message(SrsCommonMessage** pmsg)
     
     // not got an entire RTMP message, try next chunk.
     if (!msg) {
-        srs_verbose("get partial message success. chunk_payload_size=%d, size=%d, message(type=%d, size=%d, time=%"PRId64", sid=%d)",
-                payload_size, (msg? msg->size : (chunk->msg? chunk->msg->size : 0)), chunk->header.message_type, chunk->header.payload_length,
+        srs_verbose("get partial message success. size=%d, message(type=%d, size=%d, time=%"PRId64", sid=%d)",
+                (msg? msg->size : (chunk->msg? chunk->msg->size : 0)), chunk->header.message_type, chunk->header.payload_length,
                 chunk->header.timestamp, chunk->header.stream_id);
         return ret;
     }
     
     *pmsg = msg;
-    srs_info("get entire message success. chunk_payload_size=%d, size=%d, message(type=%d, size=%d, time=%"PRId64", sid=%d)",
-            payload_size, (msg? msg->size : (chunk->msg? chunk->msg->size : 0)), chunk->header.message_type, chunk->header.payload_length,
+    srs_info("get entire message success. size=%d, message(type=%d, size=%d, time=%"PRId64", sid=%d)",
+            (msg? msg->size : (chunk->msg? chunk->msg->size : 0)), chunk->header.message_type, chunk->header.payload_length,
             chunk->header.timestamp, chunk->header.stream_id);
             
     return ret;
