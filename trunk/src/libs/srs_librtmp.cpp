@@ -1065,10 +1065,15 @@ int __srs_write_aac_adts_frames(Context* context,
             return ERROR_AAC_ADTS_HEADER;
         }
         
+        // the profile = object_id + 1
+        // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 78,
+        //      Table 1. A.9 – MPEG-2 Audio profiles and MPEG-4 Audio object types
+        char aac_profile = fh_Profile_ObjectType + 1;
+        
         char* raw_data = stream->data() + stream->pos();
         if ((ret = __srs_write_aac_adts_frame(context,
             sound_format, sound_rate, sound_size, sound_type,
-            fh_Profile_ObjectType, fh_sampling_frequency_index, fh_channel_configuration,
+            aac_profile, fh_sampling_frequency_index, fh_channel_configuration,
             raw_data, raw_data_size, timestamp)) != ERROR_SUCCESS
         ) {
             return ret;
