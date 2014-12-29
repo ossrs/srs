@@ -368,11 +368,16 @@ private:
     }
     static char* write_pcr(char* p, int64_t pcr)
     {
-        *p++ = (char) (pcr >> 25);
-        *p++ = (char) (pcr >> 17);
-        *p++ = (char) (pcr >> 9);
-        *p++ = (char) (pcr >> 1);
-        *p++ = (char) (pcr << 7 | 0x7e);
+        // the pcr=dts-delay
+        // and the pcr maybe negative
+        // @see https://github.com/winlinvip/simple-rtmp-server/issues/268
+        int64_t v = srs_max(0, pcr);
+        
+        *p++ = (char) (v >> 25);
+        *p++ = (char) (v >> 17);
+        *p++ = (char) (v >> 9);
+        *p++ = (char) (v >> 1);
+        *p++ = (char) (v << 7 | 0x7e);
         *p++ = 0;
     
         return p;
