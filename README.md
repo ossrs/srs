@@ -501,6 +501,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2014-12-29, hotfix [#267](https://github.com/winlinvip/simple-rtmp-server/issues/267), the forward dest ep should use server. 2.0.79
 * v2.0, 2014-12-29, hotfix [#268](https://github.com/winlinvip/simple-rtmp-server/issues/268), the hls pcr is negative when startup. 2.0.78
 * v2.0, 2014-12-22, hotfix [#264](https://github.com/winlinvip/simple-rtmp-server/issues/264), ignore NALU when sequence header to make HLS happy. 2.0.76
 * v2.0, 2014-12-20, hotfix [#264](https://github.com/winlinvip/simple-rtmp-server/issues/264), support disconnect publish connect when hls error. 2.0.75

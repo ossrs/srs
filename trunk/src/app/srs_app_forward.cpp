@@ -119,7 +119,7 @@ int SrsForwarder::on_publish()
     if (_ep_forward == SRS_CONSTS_LOCALHOST) {
         dest_ep += req->host;
     } else {
-        dest_ep += _ep_forward;
+        dest_ep += server;
     }
     dest_ep += ":";
     dest_ep += port;
