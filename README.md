@@ -501,6 +501,8 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2014-12-22, hotfix #264, ignore NALU when sequence header to make HLS happy. 2.0.76
+* v2.0, 2014-12-20, hotfix #264, support disconnect publish connect when hls error. 2.0.75
 * v2.0, 2014-12-12, fix [#257](https://github.com/winlinvip/simple-rtmp-server/issues/257), support 0.1s+ latency. 2.0.70
 * v2.0, 2014-12-08, update wiki for mr([EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_LowLatency#merged-read), [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_LowLatency#merged-read)) and mw([EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_LowLatency#merged-write), [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_LowLatency#merged-write)).
 * v2.0, 2014-12-07, fix [#251](https://github.com/winlinvip/simple-rtmp-server/issues/251), 10k+ clients, use queue cond wait and fast vector. 2.0.67
