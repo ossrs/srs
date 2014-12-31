@@ -1123,10 +1123,10 @@ int SrsRtmpServer::start_play(int stream_id)
         pkt->data->set(StatusClientId, SrsAmf0Any::str(RTMP_SIG_CLIENT_ID));
         
         if ((ret = protocol->send_and_free_packet(pkt, stream_id)) != ERROR_SUCCESS) {
-            srs_error("send onStatus(NetStream.Play.Reset) message failed. ret=%d", ret);
+            srs_error("send onStatus(NetStream.Play.Start) message failed. ret=%d", ret);
             return ret;
         }
-        srs_info("send onStatus(NetStream.Play.Reset) message success.");
+        srs_info("send onStatus(NetStream.Play.Start) message success.");
     }
     
     // |RtmpSampleAccess(false, false)

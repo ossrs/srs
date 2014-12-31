@@ -1788,7 +1788,7 @@ int SrsProtocol::on_recv_message(SrsCommonMessage* msg)
             
             if (pkt->ackowledgement_window_size > 0) {
                 in_ack_size.ack_window_size = pkt->ackowledgement_window_size;
-                // @remakr, we ignore this message, for user noneed to care.
+                // @remark, we ignore this message, for user noneed to care.
                 // but it's important for dev, for client/server will block if required 
                 // ack msg not arrived.
                 srs_info("set ack window size to %d", pkt->ackowledgement_window_size);
