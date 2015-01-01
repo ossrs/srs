@@ -111,6 +111,8 @@ int SrsHttpClient::post(SrsHttpUri* uri, string req, string& res)
     }
     srs_info("parse http post response success.");
     
+    srs_freep(msg);
+    
     return ret;
 }
 

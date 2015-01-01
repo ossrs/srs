@@ -501,6 +501,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2015-01-01, hotfix [#270](https://github.com/winlinvip/simple-rtmp-server/issues/270), memory leak for http client post. 2.0.81
 * v2.0, 2014-12-12, fix [#266](https://github.com/winlinvip/simple-rtmp-server/issues/266), aac profile is object id plus one. 2.0.80
 * v2.0, 2014-12-29, hotfix [#267](https://github.com/winlinvip/simple-rtmp-server/issues/267), the forward dest ep should use server. 2.0.79
 * v2.0, 2014-12-29, hotfix [#268](https://github.com/winlinvip/simple-rtmp-server/issues/268), the hls pcr is negative when startup. 2.0.78
@@ -544,6 +545,12 @@ Supported operating systems and hardware:
 * v2.0, 2014-10-19, fix [#184](https://github.com/winlinvip/simple-rtmp-server/issues/184), support AnnexB in RTMP body for HLS. 2.0.2
 * v2.0, 2014-10-18, remove supports for OSX(darwin). 2.0.1.
 * v2.0, 2014-10-16, revert github srs README to English. 2.0.0.
+
+* v1.0, 2015-01-01, hotfix [#270](https://github.com/winlinvip/simple-rtmp-server/issues/270), memory leak for http client post. 1.0.16
+* v1.0, 2014-12-29, hotfix [#267](https://github.com/winlinvip/simple-rtmp-server/issues/267), the forward dest ep should use server. 1.0.15
+* v1.0, 2014-12-29, hotfix [#268](https://github.com/winlinvip/simple-rtmp-server/issues/268), the hls pcr is negative when startup. 1.0.14
+* v1.0, 2014-12-22, hotfix [#264](https://github.com/winlinvip/simple-rtmp-server/issues/264), ignore NALU when sequence header to make HLS happy. 1.0.12
+* v1.0, 2014-12-20, hotfix [#264](https://github.com/winlinvip/simple-rtmp-server/issues/264), support disconnect publish connect when hls error. 1.0.11
 * <strong>v1.0, 2014-12-05, [1.0 release(1.0.10)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0) released. 59391 lines.</strong>
 * <strong>v1.0, 2014-10-09, [1.0 beta(1.0.0)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.beta) released. 59316 lines.</strong>
 * v1.0, 2014-10-08, fix [#151](https://github.com/winlinvip/simple-rtmp-server/issues/151), always reap ts whatever audio or video packet. 0.9.223.
