@@ -104,6 +104,8 @@ file
 	..\app\srs_app_rtmp_conn.cpp,
 	..\app\srs_app_pithy_print.hpp,
 	..\app\srs_app_pithy_print.cpp,
+	..\app\srs_app_security.hpp,
+	..\app\srs_app_security.cpp,
 	..\app\srs_app_server.hpp,
 	..\app\srs_app_server.cpp,
 	..\app\srs_app_st.hpp,

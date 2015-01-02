@@ -76,6 +76,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_URL "http://"SRS_CONSTS_LOCALHOST":8085/api/v1/servers"
 #define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_SUMMARIES false
 
+#define SRS_CONF_DEFAULT_SECURITY_ENABLED false
+
 #define SRS_CONF_DEFAULT_STATS_NETWORK_DEVICE_INDEX 0
 
 #define SRS_CONF_DEFAULT_STAGE_PLAY_USER_INTERVAL_MS 10000
@@ -659,6 +661,16 @@ public:
     * all clients connected to edge must be tranverse to origin to verify.
     */
     virtual bool                get_vhost_edge_token_traverse(std::string vhost);
+// vhost security section
+public:
+    /**
+    * whether the secrity of vhost enabled.
+    */
+    virtual bool                get_security_enabled(std::string vhost);
+    /**
+    * get the security rules.
+    */
+    virtual SrsConfDirective*   get_security_rules(std::string vhost);
 // vhost transcode section
 public:
     /**
@@ -776,7 +788,7 @@ public:
     * @remark, we will use some variable, for instance, [vhost] to substitude with vhost.
     */
     virtual std::string         get_engine_output(SrsConfDirective* engine);
-// ingest section
+// vhost ingest section
 public:
     /**
     * get the ingest directives of vhost.

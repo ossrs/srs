@@ -90,6 +90,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_SYSTEM_FILE_SEEK              1049
 #define ERROR_SYSTEM_IO_INVALID             1050
 #define ERROR_ST_EXCEED_THREADS             1051
+#define ERROR_SYSTEM_SECURITY               1052
+#define ERROR_SYSTEM_SECURITY_DENY          1053
+#define ERROR_SYSTEM_SECURITY_ALLOW         1054
 
 ///////////////////////////////////////////////////////
 // RTMP protocol error.

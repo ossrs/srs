@@ -434,7 +434,8 @@ int SrsConfig::reload_conf(SrsConfig* conf)
     // always support reload without additional code:
     //      chunk_size, ff_log_dir, max_connections,
     //      bandcheck, http_hooks, heartbeat, 
-    //      token_traverse, debug_srs_upnode
+    //      token_traverse, debug_srs_upnode,
+    //      security
 
     // merge config: listen
     if (!srs_directive_equals(root->get("listen"), old_root->get("listen"))) {
@@ -1363,6 +1364,7 @@ int SrsConfig::check_config()
                 && n != "atc" && n != "atc_auto"
                 && n != "debug_srs_upnode"
                 && n != "mr" && n != "mw_latency" && n != "min_latency"
+                && n != "security"
             ) {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported vhost directive %s, ret=%d", n.c_str(), ret);
@@ -1440,6 +1442,16 @@ int SrsConfig::check_config()
                         return ret;
                     }
                 }*/
+            } else if (n == "security") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    SrsConfDirective* security = conf->at(j);
+                    string m = security->name.c_str();
+                    if (m != "enabled" && m != "deny" && m != "allow") {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost security directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
+                    }
+                }
             } else if (n == "transcode") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     SrsConfDirective* trans = conf->at(j);
@@ -2454,6 +2466,43 @@ bool SrsConfig::get_vhost_edge_token_traverse(string vhost)
     }
     
     return true;
+}
+
+bool SrsConfig::get_security_enabled(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+    
+    if (!conf) {
+        return SRS_CONF_DEFAULT_SECURITY_ENABLED;
+    }
+    
+    SrsConfDirective* security = conf->get("security");
+    if (!security) {
+        return SRS_CONF_DEFAULT_SECURITY_ENABLED;
+    }
+    
+    conf = security->get("enabled");
+    if (!conf || conf->arg0() != "on") {
+        return SRS_CONF_DEFAULT_SECURITY_ENABLED;
+    }
+    
+    return true;
+}
+
+SrsConfDirective* SrsConfig::get_security_rules(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+    
+    if (!conf) {
+        return NULL;
+    }
+    
+    SrsConfDirective* security = conf->get("security");
+    if (!security) {
+        return NULL;
+    }
+    
+    return security;
 }
 
 SrsConfDirective* SrsConfig::get_transcode(string vhost, string scope)
