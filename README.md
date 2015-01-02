@@ -383,6 +383,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v1.0, 2015-01-02, hotfix [#207](https://github.com/winlinvip/simple-rtmp-server/issues/207), trim the last 0 of log. 1.0.18
 * v1.0, 2015-01-02, hotfix [#216](https://github.com/winlinvip/simple-rtmp-server/issues/216), http-callback post in application/json content-type. 1.0.17
 * v1.0, 2015-01-01, hotfix [#270](https://github.com/winlinvip/simple-rtmp-server/issues/270), memory leak for http client post. 1.0.16
 * v1.0, 2014-12-29, hotfix [#267](https://github.com/winlinvip/simple-rtmp-server/issues/267), the forward dest ep should use server. 1.0.15
