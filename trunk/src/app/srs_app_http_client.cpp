@@ -81,7 +81,7 @@ int SrsHttpClient::post(SrsHttpUri* uri, string req, string& res)
         << "Connection: Keep-Alive" << __SRS_CRLF
         << "Content-Length: " << std::dec << req.length() << __SRS_CRLF
         << "User-Agent: " << RTMP_SIG_SRS_NAME << RTMP_SIG_SRS_VERSION << __SRS_CRLF
-        << "Content-Type: text/html" << __SRS_CRLF
+        << "Content-Type: application/json" << __SRS_CRLF
         << __SRS_CRLF
         << req;
     
