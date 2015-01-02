@@ -61,7 +61,7 @@ private:
     virtual int allow_check(SrsConfDirective* rules, SrsRtmpConnType type, std::string ip, SrsRequest* req);
     /**
     * security check the deny,
-    * @return, if allowed, ERROR_SYSTEM_SECURITY_DENY.
+    * @return, if denied, ERROR_SYSTEM_SECURITY_DENY.
     */
     virtual int deny_check(SrsConfDirective* rules, SrsRtmpConnType type, std::string ip, SrsRequest* req);
 };
