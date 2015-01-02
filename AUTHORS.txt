@@ -7,7 +7,7 @@ PRIMARY ordered by first contribution.
 * winlin<winlin@vip.126.com> "Plan, arch, implement SRS1.0 and SRS2.0"
 
 AUTHORS ordered by first contribution.
-* wenjie.zhao<740936897@qq.com> "The bandwidth test module"
+* wenjie.zhao<740936897@qq.com> "The bandwidth test module and bug fixed."
 
 CONTRIBUTORS ordered by first contribution.
 * xiangcheng.liu<liuxc0116@foxmail.com> "Bug fixed"
@@ -21,4 +21,5 @@ CONTRIBUTORS ordered by first contribution.
 * StevenLiu<lq@chinaffmpeg.org> "Build SRS on Darwin OSX"
 * zhengfl<zhengfl_1989@126.com> "Bug fixed"
 * tufang14<breadbean1449@gmail.com> "Bug fixed"
+* allspace<allspace@gmail.com> "srs-librtmp windowns support"
 
