@@ -501,6 +501,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2014-01-02, fix [#263](https://github.com/winlinvip/simple-rtmp-server/issues/263), srs-librtmp flv read tag should init size. 2.0.82
 * v2.0, 2015-01-01, hotfix [#270](https://github.com/winlinvip/simple-rtmp-server/issues/270), memory leak for http client post. 2.0.81
 * v2.0, 2014-12-12, fix [#266](https://github.com/winlinvip/simple-rtmp-server/issues/266), aac profile is object id plus one. 2.0.80
 * v2.0, 2014-12-29, hotfix [#267](https://github.com/winlinvip/simple-rtmp-server/issues/267), the forward dest ep should use server. 2.0.79

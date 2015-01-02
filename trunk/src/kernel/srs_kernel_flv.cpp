@@ -316,6 +316,7 @@ int SrsFlvDecoder::read_tag_header(char* ptype, int32_t* pdata_size, u_int32_t* 
     
     // DataSize UI24
     char* pp = (char*)pdata_size;
+    pp[3] = 0;
     pp[2] = th[1];
     pp[1] = th[2];
     pp[0] = th[3];
