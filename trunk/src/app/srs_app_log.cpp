@@ -326,7 +326,6 @@ void SrsFastLog::write_log(int& fd, char *str_log, int size, int level)
     
     // add some to the end of char.
     str_log[size++] = LOG_TAIL;
-    str_log[size++] = 0;
     
     // if not to file, to console and return.
     if (!log_to_file_tank) {
@@ -336,11 +335,11 @@ void SrsFastLog::write_log(int& fd, char *str_log, int size, int level)
         // \033[33m : yellow text code in shell
         // \033[0m : normal text code
         if (level <= SrsLogLevel::Trace) {
-            printf("%s", str_log);
+            printf("%.*s", size, str_log);
         } else if (level == SrsLogLevel::Warn) {
-            printf("\033[33m%s\033[0m", str_log);
+            printf("\033[33m%.*s\033[0m", size, str_log);
         } else{
-            printf("\033[31m%s\033[0m", str_log);
+            printf("\033[31m%.*s\033[0m", size, str_log);
         }
 
         return;
