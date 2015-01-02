@@ -501,6 +501,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2014-01-02, fix [#158](https://github.com/winlinvip/simple-rtmp-server/issues/158), http-callback check http status code ok(200). 2.0.84
 * v2.0, 2015-01-02, hotfix [#216](https://github.com/winlinvip/simple-rtmp-server/issues/216), http-callback post in application/json content-type. 2.0.83
 * v2.0, 2014-01-02, fix [#263](https://github.com/winlinvip/simple-rtmp-server/issues/263), srs-librtmp flv read tag should init size. 2.0.82
 * v2.0, 2015-01-01, hotfix [#270](https://github.com/winlinvip/simple-rtmp-server/issues/270), memory leak for http client post. 2.0.81

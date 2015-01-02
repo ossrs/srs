@@ -593,6 +593,11 @@ u_int8_t SrsHttpMessage::method()
     return (u_int8_t)_header.method;
 }
 
+u_int16_t SrsHttpMessage::status_code()
+{
+    return (u_int16_t)_header.status_code;
+}
+
 string SrsHttpMessage::method_str()
 {
     if (is_http_get()) {

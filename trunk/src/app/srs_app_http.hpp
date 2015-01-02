@@ -249,6 +249,7 @@ public:
 public:
     virtual bool is_complete();
     virtual u_int8_t method();
+    virtual u_int16_t status_code();
     virtual std::string method_str();
     virtual bool is_http_get();
     virtual bool is_http_put();

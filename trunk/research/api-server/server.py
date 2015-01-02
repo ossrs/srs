@@ -87,6 +87,7 @@ class RESTClients(object):
                   "action": "on_connect",
                   "client_id": 1985,
                   "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
+                  "tcUrl": "rtmp://video.test.com/live?key=d2fa801d08e3f90ed1e1670e6e52651a",
                   "pageUrl": "http://www.test.com/live.html"
               }
     on_close:
@@ -118,6 +119,7 @@ class RESTClients(object):
 
         action = json_req["action"]
         if action == "on_connect":
+            raise cherrypy.HTTPError(401)
             code = self.__on_connect(json_req)
         elif action == "on_close":
             code = self.__on_close(json_req)

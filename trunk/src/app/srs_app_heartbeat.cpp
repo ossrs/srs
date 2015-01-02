@@ -75,9 +75,10 @@ void SrsHttpHeartbeat::heartbeat()
     ss << __SRS_JOBJECT_END;
     std::string data = ss.str();
     std::string res;
+    int status_code;
     
     SrsHttpClient http;
-    if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
+    if ((ret = http.post(&uri, data, status_code, res)) != ERROR_SUCCESS) {
         srs_info("http post hartbeart uri failed. "
             "url=%s, request=%s, response=%s, ret=%d",
             url.c_str(), data.c_str(), res.c_str(), ret);
@@ -85,8 +86,8 @@ void SrsHttpHeartbeat::heartbeat()
     }
     
     srs_info("http hook hartbeart success. "
-        "url=%s, request=%s, response=%s, ret=%d",
-        url.c_str(), data.c_str(), res.c_str(), ret);
+        "url=%s, request=%s, status_code=%d, response=%s, ret=%d",
+        url.c_str(), data.c_str(), status_code, res.c_str(), ret);
     
     return;
 }

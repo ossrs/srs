@@ -36,7 +36,7 @@ using namespace std;
 #include <srs_app_dvr.hpp>
 #include <srs_app_http_client.hpp>
 
-#define SRS_HTTP_RESPONSE_OK "0"
+#define SRS_HTTP_RESPONSE_OK    __SRS_XSTR(ERROR_SUCCESS)
 
 #define SRS_HTTP_HEADER_BUFFER        1024
 #define SRS_HTTP_BODY_BUFFER        32 * 1024
@@ -72,12 +72,22 @@ int SrsHttpHooks::on_connect(string url, int client_id, string ip, SrsRequest* r
         << __SRS_JOBJECT_END;
     std::string data = ss.str();
     std::string res;
+    int status_code;
     
     SrsHttpClient http;
-    if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
+    if ((ret = http.post(&uri, data, status_code, res)) != ERROR_SUCCESS) {
         srs_error("http post on_connect uri failed. "
             "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
             client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+        return ret;
+    }
+    
+    // ensure the http status is ok.
+    // https://github.com/winlinvip/simple-rtmp-server/issues/158
+    if (status_code != SRS_CONSTS_HTTP_OK) {
+        ret = ERROR_HTTP_STATUS_INVLIAD;
+        srs_error("http hook on_connect status failed. "
+            "client_id=%d, code=%d, ret=%d", client_id, status_code, ret);
         return ret;
     }
     
@@ -117,12 +127,22 @@ void SrsHttpHooks::on_close(string url, int client_id, string ip, SrsRequest* re
         << __SRS_JOBJECT_END;
     std::string data = ss.str();
     std::string res;
+    int status_code;
     
     SrsHttpClient http;
-    if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
+    if ((ret = http.post(&uri, data, status_code, res)) != ERROR_SUCCESS) {
         srs_warn("http post on_close uri failed, ignored. "
             "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
             client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+        return;
+    }
+    
+    // ensure the http status is ok.
+    // https://github.com/winlinvip/simple-rtmp-server/issues/158
+    if (status_code != SRS_CONSTS_HTTP_OK) {
+        ret = ERROR_HTTP_STATUS_INVLIAD;
+        srs_error("http hook on_close status failed. "
+            "client_id=%d, code=%d, ret=%d", client_id, status_code, ret);
         return;
     }
     
@@ -163,12 +183,22 @@ int SrsHttpHooks::on_publish(string url, int client_id, string ip, SrsRequest* r
         << __SRS_JOBJECT_END;
     std::string data = ss.str();
     std::string res;
+    int status_code;
     
     SrsHttpClient http;
-    if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
+    if ((ret = http.post(&uri, data, status_code, res)) != ERROR_SUCCESS) {
         srs_error("http post on_publish uri failed. "
             "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
             client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+        return ret;
+    }
+    
+    // ensure the http status is ok.
+    // https://github.com/winlinvip/simple-rtmp-server/issues/158
+    if (status_code != SRS_CONSTS_HTTP_OK) {
+        ret = ERROR_HTTP_STATUS_INVLIAD;
+        srs_error("http hook on_publish status failed. "
+            "client_id=%d, code=%d, ret=%d", client_id, status_code, ret);
         return ret;
     }
     
@@ -209,12 +239,22 @@ void SrsHttpHooks::on_unpublish(string url, int client_id, string ip, SrsRequest
         << __SRS_JOBJECT_END;
     std::string data = ss.str();
     std::string res;
+    int status_code;
     
     SrsHttpClient http;
-    if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
+    if ((ret = http.post(&uri, data, status_code, res)) != ERROR_SUCCESS) {
         srs_warn("http post on_unpublish uri failed, ignored. "
             "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
             client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+        return;
+    }
+    
+    // ensure the http status is ok.
+    // https://github.com/winlinvip/simple-rtmp-server/issues/158
+    if (status_code != SRS_CONSTS_HTTP_OK) {
+        ret = ERROR_HTTP_STATUS_INVLIAD;
+        srs_error("http hook on_unpublish status failed. "
+            "client_id=%d, code=%d, ret=%d", client_id, status_code, ret);
         return;
     }
     
@@ -255,12 +295,22 @@ int SrsHttpHooks::on_play(string url, int client_id, string ip, SrsRequest* req)
         << __SRS_JOBJECT_END;
     std::string data = ss.str();
     std::string res;
+    int status_code;
     
     SrsHttpClient http;
-    if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
+    if ((ret = http.post(&uri, data, status_code, res)) != ERROR_SUCCESS) {
         srs_error("http post on_play uri failed. "
             "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
             client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+        return ret;
+    }
+    
+    // ensure the http status is ok.
+    // https://github.com/winlinvip/simple-rtmp-server/issues/158
+    if (status_code != SRS_CONSTS_HTTP_OK) {
+        ret = ERROR_HTTP_STATUS_INVLIAD;
+        srs_error("http hook on_play status failed. "
+            "client_id=%d, code=%d, ret=%d", client_id, status_code, ret);
         return ret;
     }
     
@@ -301,12 +351,22 @@ void SrsHttpHooks::on_stop(string url, int client_id, string ip, SrsRequest* req
         << __SRS_JOBJECT_END;
     std::string data = ss.str();
     std::string res;
+    int status_code;
     
     SrsHttpClient http;
-    if ((ret = http.post(&uri, data, res)) != ERROR_SUCCESS) {
+    if ((ret = http.post(&uri, data, status_code, res)) != ERROR_SUCCESS) {
         srs_warn("http post on_stop uri failed, ignored. "
             "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
             client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+        return;
+    }
+    
+    // ensure the http status is ok.
+    // https://github.com/winlinvip/simple-rtmp-server/issues/158
+    if (status_code != SRS_CONSTS_HTTP_OK) {
+        ret = ERROR_HTTP_STATUS_INVLIAD;
+        srs_error("http hook on_stop status failed. "
+            "client_id=%d, code=%d, ret=%d", client_id, status_code, ret);
         return;
     }
     
