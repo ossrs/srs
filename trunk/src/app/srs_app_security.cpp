@@ -55,19 +55,19 @@ int SrsSecurity::check(SrsRtmpConnType type, string ip, SrsRequest* req)
     }
     
     // allow if matches allow strategy.
-    if (allow_check(rules, type, ip, req) == ERROR_SYSTEM_SECURITY_ALLOW) {
+    if (allow_check(rules, type, ip) == ERROR_SYSTEM_SECURITY_ALLOW) {
         ret = ERROR_SUCCESS;
     }
     
     // deny if matches deny strategy.
-    if (deny_check(rules, type, ip, req) == ERROR_SYSTEM_SECURITY_DENY) {
+    if (deny_check(rules, type, ip) == ERROR_SYSTEM_SECURITY_DENY) {
         ret = ERROR_SYSTEM_SECURITY_DENY;
     }
     
     return ret;
 }
 
-int SrsSecurity::allow_check(SrsConfDirective* rules, SrsRtmpConnType type, std::string ip, SrsRequest* req)
+int SrsSecurity::allow_check(SrsConfDirective* rules, SrsRtmpConnType type, std::string ip)
 {
     int ret = ERROR_SUCCESS;
     
@@ -109,7 +109,7 @@ int SrsSecurity::allow_check(SrsConfDirective* rules, SrsRtmpConnType type, std:
     return ret;
 }
 
-int SrsSecurity::deny_check(SrsConfDirective* rules, SrsRtmpConnType type, std::string ip, SrsRequest* req)
+int SrsSecurity::deny_check(SrsConfDirective* rules, SrsRtmpConnType type, std::string ip)
 {
     int ret = ERROR_SUCCESS;
     
