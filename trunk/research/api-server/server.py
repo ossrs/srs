@@ -119,7 +119,6 @@ class RESTClients(object):
 
         action = json_req["action"]
         if action == "on_connect":
-            raise cherrypy.HTTPError(401)
             code = self.__on_connect(json_req)
         elif action == "on_close":
             code = self.__on_close(json_req)
