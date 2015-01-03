@@ -486,6 +486,12 @@ public:
 private:
     virtual int create_forwarders();
     virtual void destroy_forwarders();
+//get information
+public:
+    static std::map<std::string, SrsSource*>* get_source_pool() { return &pool; }
+    virtual SrsRequest* get_reqinfo() { return _req; }
+    virtual std::size_t get_consumers_size() { return consumers.size(); }
+    virtual std::string get_source_type();
 };
 
 #endif

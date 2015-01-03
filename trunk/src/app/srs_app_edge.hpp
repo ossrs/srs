@@ -188,6 +188,10 @@ public:
     * when ingester start to play stream.
     */
     virtual int on_ingest_play();
+    /**
+    * get state info.
+    */
+    virtual int get_state() { return state; }
 };
 
 /**
@@ -219,6 +223,10 @@ public:
     * proxy unpublish stream to edge.
     */
     virtual void on_proxy_unpublish();
+    /**
+    * get state info.
+    */
+    virtual int get_state() { return state; }
 };
 
 #endif

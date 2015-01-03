@@ -35,6 +35,8 @@ using namespace std;
 #include <srs_app_json.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_app_source.hpp>
+#include <srs_protocol_rtmp.hpp>
 
 SrsApiRoot::SrsApiRoot()
 {
@@ -122,6 +124,8 @@ SrsApiV1::SrsApiV1()
     handlers.push_back(new SrsApiMemInfos());
     handlers.push_back(new SrsApiAuthors());
     handlers.push_back(new SrsApiRequests());
+    handlers.push_back(new SrsApiVhosts());
+    handlers.push_back(new SrsApiStreams());
 }
 
 SrsApiV1::~SrsApiV1()
@@ -147,7 +151,9 @@ int SrsApiV1::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
             << __SRS_JFIELD_STR("system_proc_stats", "the system process stats") << __SRS_JFIELD_CONT
             << __SRS_JFIELD_STR("meminfos", "the meminfo of system") << __SRS_JFIELD_CONT
             << __SRS_JFIELD_STR("authors", "the primary authors and contributors") << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("requests", "the request itself, for http debug")
+            << __SRS_JFIELD_STR("requests", "the request itself, for http debug") << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_STR("vhosts", "list all vhosts") << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_STR("streams?(name/vhost)=xxx", "list streams that match the name or vhost")
         << __SRS_JOBJECT_END
         << __SRS_JOBJECT_END;
     
@@ -496,6 +502,88 @@ int SrsApiAuthors::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
             << __SRS_JFIELD_STR("contributors", SRS_AUTO_CONSTRIBUTORS)
         << __SRS_JOBJECT_END
         << __SRS_JOBJECT_END;
+    
+    return res_json(skt, req, ss.str());
+}
+
+SrsApiVhosts::SrsApiVhosts()
+{
+}
+
+SrsApiVhosts::~SrsApiVhosts()
+{
+}
+
+bool SrsApiVhosts::can_handle(const char* path, int length, const char** /*pchild*/)
+{
+    return srs_path_equals("/vhosts", path, length);
+}
+
+int SrsApiVhosts::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
+{
+    std::stringstream ss;
+    
+    ss << __SRS_JARRAY_START;
+    bool first = true;
+    std::map<std::string, SrsSource*> *source_pool = SrsSource::get_source_pool();
+    std::map<std::string, SrsSource*>::iterator it;
+    for (it=source_pool->begin(); it!=source_pool->end(); it++) {
+        SrsRequest* source_req = it->second->get_reqinfo();
+        if (first) first = false;
+        else ss << __SRS_JFIELD_CONT;
+
+        ss << "\"" << source_req->vhost << "\"";
+    }
+    ss << __SRS_JARRAY_END;
+    
+    return res_json(skt, req, ss.str());
+}
+
+SrsApiStreams::SrsApiStreams()
+{
+}
+
+SrsApiStreams::~SrsApiStreams()
+{
+}
+
+bool SrsApiStreams::can_handle(const char* path, int length, const char** /*pchild*/)
+{
+    return srs_path_equals("/streams", path, length);
+}
+
+int SrsApiStreams::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
+{
+    std::stringstream ss;
+    
+    std::string query_name = req->query_get("name");
+    std::string query_vhost = req->query_get("vhost");
+    if (query_name.size()>0 || query_vhost.size()>0) {
+        ss << __SRS_JARRAY_START;
+        bool first = true;
+        std::map<std::string, SrsSource*> *source_pool = SrsSource::get_source_pool();
+        std::map<std::string, SrsSource*>::iterator it;
+        for (it=source_pool->begin(); it!=source_pool->end(); it++) {
+            SrsSource* source = it->second;
+            SrsRequest* source_req = source->get_reqinfo();
+            if (source_req->stream==query_name || source_req->vhost==query_vhost) {
+                if (first) first = false;
+                else ss << __SRS_JFIELD_CONT;
+
+                ss << __SRS_JOBJECT_START
+                    << __SRS_JFIELD_STR("name", source_req->stream) << __SRS_JFIELD_CONT
+                    << __SRS_JFIELD_STR("url", source_req->tcUrl) << __SRS_JFIELD_CONT
+                    << __SRS_JFIELD_ORG("clients", source->get_consumers_size()) << __SRS_JFIELD_CONT
+                    << __SRS_JFIELD_STR("status", (source->can_publish()?"idle":"streaming")) << __SRS_JFIELD_CONT
+                    << __SRS_JFIELD_STR("type", source->get_source_type()) << __SRS_JFIELD_CONT
+                    << __SRS_JFIELD_STR("codec", "")
+                    << __SRS_JOBJECT_END;
+            }
+        }
+        ss << __SRS_JARRAY_END;
+    } else {
+        return res_error(skt, req, 400, "Bad Request", "unknown query");
+    }
     
     return res_json(skt, req, ss.str());
 }

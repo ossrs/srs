@@ -1807,4 +1807,13 @@ void SrsSource::destroy_forwarders()
     forwarders.clear();
 }
 
-
+std::string SrsSource::get_source_type()
+{
+    if (play_edge->get_state() == SrsEdgeStateIngestConnected) {
+        return "origin pull";
+    } else if (publish_edge->get_state() == SrsEdgeStatePublish) {
+        return "edge publish";
+    } else {
+        return "normal publish";
+    }
+}
