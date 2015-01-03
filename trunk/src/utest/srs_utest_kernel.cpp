@@ -1206,12 +1206,12 @@ VOID TEST(KernelStreamTest, StreamRead8Bytes)
     data[18] = 0x13;
     data[19] = 0x14;
     
-    EXPECT_EQ(0x0102030405060708, s.read_8bytes());
-    EXPECT_EQ(0x090a0b0c0d0e0f10, s.read_8bytes());
+    EXPECT_EQ(0x0102030405060708LL, s.read_8bytes());
+    EXPECT_EQ(0x090a0b0c0d0e0f10LL, s.read_8bytes());
 
     s.skip(-1 * s.pos());
     s.skip(5);
-    EXPECT_EQ(0x060708090a0b0c0d, s.read_8bytes());
+    EXPECT_EQ(0x060708090a0b0c0dLL, s.read_8bytes());
 }
 
 /**
@@ -1364,8 +1364,8 @@ VOID TEST(KernelStreamTest, StreamWrite8Bytes)
     
     EXPECT_TRUE(ERROR_SUCCESS == s.initialize(data, 1024));
     
-    s.write_8bytes(0x1011121314151617);
-    s.write_8bytes(0x1819202122232425);
+    s.write_8bytes(0x1011121314151617LL);
+    s.write_8bytes(0x1819202122232425LL);
 
     s.skip(-1 * s.pos());
     EXPECT_EQ(0x10, s.read_1bytes());
