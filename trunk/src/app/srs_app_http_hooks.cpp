@@ -379,5 +379,61 @@ void SrsHttpHooks::on_stop(string url, int client_id, string ip, SrsRequest* req
     return;
 }
 
-#endif
+int SrsHttpHooks::on_dvr(string url, int client_id, string ip, SrsRequest* req, string cwd, string file)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsHttpUri uri;
+    if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
+        srs_error("http uri parse on_dvr url failed, ignored. "
+            "client_id=%d, url=%s, ret=%d", client_id, url.c_str(), ret);
+        return ret;
+    }
+    
+    std::stringstream ss;
+    ss << __SRS_JOBJECT_START
+        << __SRS_JFIELD_STR("action", "on_dvr") << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_ORG("client_id", client_id) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("ip", ip) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("vhost", req->vhost) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("app", req->app) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("stream", req->stream) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("cwd", cwd) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_STR("file", file)
+        << __SRS_JOBJECT_END;
+    std::string data = ss.str();
+    std::string res;
+    int status_code;
+    
+    SrsHttpClient http;
+    if ((ret = http.post(&uri, data, status_code, res)) != ERROR_SUCCESS) {
+        srs_error("http post on_dvr uri failed, ignored. "
+            "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
+            client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+        return ret;
+    }
+    
+    // ensure the http status is ok.
+    // https://github.com/winlinvip/simple-rtmp-server/issues/158
+    if (status_code != SRS_CONSTS_HTTP_OK) {
+        ret = ERROR_HTTP_STATUS_INVLIAD;
+        srs_error("http hook on_dvr status failed. "
+            "client_id=%d, code=%d, ret=%d", client_id, status_code, ret);
+        return ret;
+    }
+    
+    if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
+        ret = ERROR_HTTP_DATA_INVLIAD;
+        srs_warn("http hook on_dvr validate failed, ignored. "
+            "client_id=%d, res=%s, ret=%d", client_id, res.c_str(), ret);
+        return ret;
+    }
+    
+    srs_trace("http hook on_dvr success. "
+        "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
+        client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+    
+    return ret;
+}
 
+#endif

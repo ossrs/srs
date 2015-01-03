@@ -501,6 +501,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2015-01-03, fix [#274](https://github.com/winlinvip/simple-rtmp-server/issues/274), http-callback support on_dvr when reap a dvr file. 2.0.89
 * v2.0, 2015-01-03, hotfix to remove the pageUrl for http callback. 2.0.88
 * v2.0, 2015-01-03, fix [#179](https://github.com/winlinvip/simple-rtmp-server/issues/179), dvr support custom filepath by variables. 2.0.87
 * v2.0, 2015-01-02, fix [#211](https://github.com/winlinvip/simple-rtmp-server/issues/211), support security allow/deny publish/play all/ip. 2.0.86

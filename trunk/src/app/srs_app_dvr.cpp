@@ -404,6 +404,30 @@ int SrsDvrPlan::flv_close()
         return ret;
     }
     
+#ifdef SRS_AUTO_HTTP_CALLBACK
+    SrsRequest* req = _req;
+    if (_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        // HTTP: on_dvr 
+        SrsConfDirective* on_dvr = _srs_config->get_vhost_on_dvr(req->vhost);
+        if (!on_dvr) {
+            srs_info("ignore the empty http callback: on_dvr");
+            return ret;
+        }
+        
+        int connection_id = _srs_context->get_id();
+        std::string ip = req->ip;
+        std::string cwd = _srs_config->cwd();
+        std::string file = segment->path;
+        for (int i = 0; i < (int)on_dvr->args.size(); i++) {
+            std::string url = on_dvr->args.at(i);
+            if ((ret = SrsHttpHooks::on_dvr(url, connection_id, ip, req, cwd, file)) != ERROR_SUCCESS) {
+                srs_error("hook client on_dvr failed. url=%s, ret=%d", url.c_str(), ret);
+                return ret;
+            }
+        }
+    }
+#endif
+
     return ret;
 }
 

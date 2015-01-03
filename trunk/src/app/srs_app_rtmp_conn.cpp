@@ -135,6 +135,9 @@ int SrsRtmpConn::do_cycle()
     }
     srs_verbose("rtmp connect app success");
     
+    // set client ip to request.
+    req->ip = ip;
+    
     // discovery vhost, resolve the vhost from config
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost(req->vhost);
     if (parsed_vhost) {
