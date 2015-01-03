@@ -98,6 +98,9 @@ int SrsSecurity::allow_check(SrsConfDirective* rules, SrsRtmpConnType type, std:
                     break;
                 }
                 break;
+            case SrsRtmpConnUnknown:
+            default:
+                break;
         }
         
         // when matched, donot search more.
@@ -139,6 +142,9 @@ int SrsSecurity::deny_check(SrsConfDirective* rules, SrsRtmpConnType type, std::
                     ret = ERROR_SYSTEM_SECURITY_DENY;
                     break;
                 }
+                break;
+            case SrsRtmpConnUnknown:
+            default:
                 break;
         }
         

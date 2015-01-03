@@ -501,7 +501,8 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
-* v2.0, 2015-01-02, hotfix [#211](https://github.com/winlinvip/simple-rtmp-server/issues/211), support security allow/deny publish/play all/ip. 2.0.86
+* v2.0, 2015-01-03, fix [#179](https://github.com/winlinvip/simple-rtmp-server/issues/179), dvr support custom filepath by variables. 2.0.87
+* v2.0, 2015-01-02, fix [#211](https://github.com/winlinvip/simple-rtmp-server/issues/211), support security allow/deny publish/play all/ip. 2.0.86
 * v2.0, 2015-01-02, hotfix [#207](https://github.com/winlinvip/simple-rtmp-server/issues/207), trim the last 0 of log. 2.0.85
 * v2.0, 2014-01-02, fix [#158](https://github.com/winlinvip/simple-rtmp-server/issues/158), http-callback check http status code ok(200). 2.0.84
 * v2.0, 2015-01-02, hotfix [#216](https://github.com/winlinvip/simple-rtmp-server/issues/216), http-callback post in application/json content-type. 2.0.83

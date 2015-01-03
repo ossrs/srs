@@ -93,6 +93,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_SYSTEM_SECURITY               1052
 #define ERROR_SYSTEM_SECURITY_DENY          1053
 #define ERROR_SYSTEM_SECURITY_ALLOW         1054
+#define ERROR_SYSTEM_TIME                   1055
+#define ERROR_SYSTEM_DIR_EXISTS             1056
+#define ERROR_SYSTEM_CREATE_DIR             1057
 
 ///////////////////////////////////////////////////////
 // RTMP protocol error.
@@ -152,7 +155,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ///////////////////////////////////////////////////////
 #define ERROR_HLS_METADATA                  3000
 #define ERROR_HLS_DECODE_ERROR              3001
-#define ERROR_HLS_CREATE_DIR                3002
+//#define ERROR_HLS_CREATE_DIR                3002
 #define ERROR_HLS_OPEN_FAILED               3003
 #define ERROR_HLS_WRITE_FAILED              3004
 #define ERROR_HLS_AAC_FRAME_LENGTH          3005

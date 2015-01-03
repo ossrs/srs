@@ -59,5 +59,8 @@ extern std::string srs_string_remove(std::string str, std::string remove_chars);
 // whether string end with
 extern bool srs_string_ends_with(std::string str, std::string flag);
 
+// create dir recursively
+extern int srs_create_dir_recursively(std::string dir);
+
 #endif
 
