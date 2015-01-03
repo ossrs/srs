@@ -154,7 +154,7 @@ class RESTClients(object):
         return code
 
 '''
-handle the streams requests: publish/unpublish stream.
+handle the streams requests: publish/unpublish/dvr stream.
 '''
 class RESTStreams(object):
     exposed = True
