@@ -26,6 +26,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef SRS_AUTO_HTTP_API
 
 #include <sstream>
+#include <set>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
@@ -35,7 +36,7 @@ using namespace std;
 #include <srs_app_json.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_utility.hpp>
-#include <srs_app_source.hpp>
+#include <srs_app_statistic.hpp>
 #include <srs_protocol_rtmp.hpp>
 
 SrsApiRoot::SrsApiRoot()
@@ -153,7 +154,7 @@ int SrsApiV1::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
             << __SRS_JFIELD_STR("authors", "the primary authors and contributors") << __SRS_JFIELD_CONT
             << __SRS_JFIELD_STR("requests", "the request itself, for http debug") << __SRS_JFIELD_CONT
             << __SRS_JFIELD_STR("vhosts", "list all vhosts") << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("streams?(name/vhost)=xxx", "list streams that match the name or vhost")
+            << __SRS_JFIELD_STR("streams", "list streams that match the name or vhost")
         << __SRS_JOBJECT_END
         << __SRS_JOBJECT_END;
     
@@ -523,16 +524,26 @@ int SrsApiVhosts::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
 {
     std::stringstream ss;
     
+    std::set<std::string> vhost_set;
+    SrsStreamInfoMap* pool = SrsStatistic::instance()->get_pool();
+    SrsStreamInfoMap::iterator it;
+    for (it = pool->begin(); it != pool->end(); it++) {
+        if (it->second->_req == NULL)
+            continue;
+        vhost_set.insert(it->second->_req->vhost);
+    }
+
     ss << __SRS_JARRAY_START;
     bool first = true;
-    std::map<std::string, SrsSource*> *source_pool = SrsSource::get_source_pool();
-    std::map<std::string, SrsSource*>::iterator it;
-    for (it=source_pool->begin(); it!=source_pool->end(); it++) {
-        SrsRequest* source_req = it->second->get_reqinfo();
-        if (first) first = false;
-        else ss << __SRS_JFIELD_CONT;
+    std::set<std::string>::iterator it_set;
+    for (it_set = vhost_set.begin(); it_set != vhost_set.end(); it_set++) {
+        if (first) {
+            first = false;
+        } else {
+            ss << __SRS_JFIELD_CONT;
+        }
 
-        ss << "\"" << source_req->vhost << "\"";
+        ss << "\"" << (*it_set) << "\"";
     }
     ss << __SRS_JARRAY_END;
     
@@ -558,24 +569,29 @@ int SrsApiStreams::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
     
     std::string query_name = req->query_get("name");
     std::string query_vhost = req->query_get("vhost");
-    if (query_name.size()>0 || query_vhost.size()>0) {
+    if (query_name.size() > 0 || query_vhost.size() > 0) {
         ss << __SRS_JARRAY_START;
         bool first = true;
-        std::map<std::string, SrsSource*> *source_pool = SrsSource::get_source_pool();
-        std::map<std::string, SrsSource*>::iterator it;
-        for (it=source_pool->begin(); it!=source_pool->end(); it++) {
-            SrsSource* source = it->second;
-            SrsRequest* source_req = source->get_reqinfo();
-            if (source_req->stream==query_name || source_req->vhost==query_vhost) {
-                if (first) first = false;
-                else ss << __SRS_JFIELD_CONT;
+        SrsStreamInfoMap* pool = SrsStatistic::instance()->get_pool();
+        SrsStreamInfoMap::iterator it;
+        for (it = pool->begin(); it != pool->end(); it++) {
+            SrsRequest* reqinfo = it->second->_req;
+            if (reqinfo == NULL)
+                continue;
+            
+            if (reqinfo->stream == query_name || reqinfo->vhost == query_vhost) {
+                if (first) {
+                    first = false;
+                } else {
+                    ss << __SRS_JFIELD_CONT;
+                }
 
                 ss << __SRS_JOBJECT_START
-                    << __SRS_JFIELD_STR("name", source_req->stream) << __SRS_JFIELD_CONT
-                    << __SRS_JFIELD_STR("url", source_req->tcUrl) << __SRS_JFIELD_CONT
-                    << __SRS_JFIELD_ORG("clients", source->get_consumers_size()) << __SRS_JFIELD_CONT
-                    << __SRS_JFIELD_STR("status", (source->can_publish()?"idle":"streaming")) << __SRS_JFIELD_CONT
-                    << __SRS_JFIELD_STR("type", source->get_source_type()) << __SRS_JFIELD_CONT
+                    << __SRS_JFIELD_STR("name", reqinfo->stream) << __SRS_JFIELD_CONT
+                    << __SRS_JFIELD_STR("url", reqinfo->tcUrl) << __SRS_JFIELD_CONT
+                    << __SRS_JFIELD_ORG("clients", 0) << __SRS_JFIELD_CONT
+                    << __SRS_JFIELD_STR("status", "idle") << __SRS_JFIELD_CONT
+                    << __SRS_JFIELD_STR("type", "") << __SRS_JFIELD_CONT
                     << __SRS_JFIELD_STR("codec", "")
                     << __SRS_JOBJECT_END;
             }
