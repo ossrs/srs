@@ -525,8 +525,8 @@ int SrsApiVhosts::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
     std::stringstream ss;
     
     std::set<std::string> vhost_set;
-    SrsStreamInfoMap* pool = SrsStatistic::instance()->get_pool();
-    SrsStreamInfoMap::iterator it;
+    std::map<void*, SrsStreamInfo*>* pool = SrsStatistic::instance()->get_pool();
+    std::map<void*, SrsStreamInfo*>::iterator it;
     for (it = pool->begin(); it != pool->end(); it++) {
         if (it->second->_req == NULL)
             continue;
@@ -572,8 +572,8 @@ int SrsApiStreams::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
     if (query_name.size() > 0 || query_vhost.size() > 0) {
         ss << __SRS_JARRAY_START;
         bool first = true;
-        SrsStreamInfoMap* pool = SrsStatistic::instance()->get_pool();
-        SrsStreamInfoMap::iterator it;
+        std::map<void*, SrsStreamInfo*>* pool = SrsStatistic::instance()->get_pool();
+        std::map<void*, SrsStreamInfo*>::iterator it;
         for (it = pool->begin(); it != pool->end(); it++) {
             SrsRequest* reqinfo = it->second->_req;
             if (reqinfo == NULL)

@@ -39,32 +39,24 @@ class SrsStreamInfo
 public:
     SrsStreamInfo();
     virtual ~SrsStreamInfo();
-
+public:
     SrsRequest *_req;
 };
-
-typedef std::map<void*, SrsStreamInfo*> SrsStreamInfoMap;
 
 class SrsStatistic
 {
 public:
-    static SrsStatistic *instance()
-    {
-        if (_instance == NULL) {
-            _instance = new SrsStatistic();
-        }
-        return _instance;
-    }
-
-    virtual SrsStreamInfoMap* get_pool();
-
+    static SrsStatistic* instance();
+public:
+    virtual std::map<void*, SrsStreamInfo*>* get_pool();
     virtual void add_request_info(void *p, SrsRequest *req);
-    
 private:
     SrsStatistic();
     virtual ~SrsStatistic();
+private:
     static SrsStatistic *_instance;
-    SrsStreamInfoMap pool;
+    std::map<void*, SrsStreamInfo*> pool;
+private:
     virtual SrsStreamInfo *get(void *p);
 };
 

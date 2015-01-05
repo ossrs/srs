@@ -32,44 +32,54 @@ SrsStreamInfo::SrsStreamInfo()
 
 SrsStreamInfo::~SrsStreamInfo()
 {
-    if (_req != NULL)
-        delete _req;
+    srs_freep(_req);
 }
 
-SrsStatistic *SrsStatistic::_instance = NULL;
+SrsStatistic* SrsStatistic::_instance = NULL;
 
 SrsStatistic::SrsStatistic()
 {
-
 }
 
 SrsStatistic::~SrsStatistic()
 {
-    SrsStreamInfoMap::iterator it;
+    std::map<void*, SrsStreamInfo*>::iterator it;
     for (it = pool.begin(); it != pool.end(); it++) {
-        delete it->second;
+        SrsStreamInfo* si = it->second;
+        srs_freep(si);
     }
 }
 
-SrsStreamInfoMap* SrsStatistic::get_pool()
+SrsStatistic* SrsStatistic::instance()
+{
+    if (_instance == NULL) {
+        _instance = new SrsStatistic();
+    }
+    return _instance;
+}
+
+std::map<void*, SrsStreamInfo*>* SrsStatistic::get_pool()
 {
     return &pool;
 }
 
 SrsStreamInfo* SrsStatistic::get(void *p)
 {
-    SrsStreamInfoMap::iterator it = pool.find(p);
+    std::map<void*, SrsStreamInfo*>::iterator it = pool.find(p);
     if (it == pool.end()) {
-        pool[p] = new SrsStreamInfo();
-        return pool[p];
+        SrsStreamInfo* si = new SrsStreamInfo();
+        pool[p] = si;
+        return si;
     } else {
-        return it->second;
+        SrsStreamInfo* si = it->second;
+        return si;
     }
 }
 
 void SrsStatistic::add_request_info(void *p, SrsRequest *req)
 {
-    SrsStreamInfo *info = get(p);
-    if (info->_req == NULL)
+    SrsStreamInfo* info = get(p);
+    if (info->_req == NULL) {
         info->_req = req->copy();
+    }
 }
