@@ -396,7 +396,12 @@ int SrsRtmpConn::stream_service_cycle()
     }
     srs_assert(source != NULL);
     
-    SrsStatistic::instance()->add_request_info(source, req);
+    // update the statistic when source disconveried.
+    SrsStatistic* stat = SrsStatistic::instance();
+    if ((ret = stat->on_client(_srs_context->get_id(), req)) != ERROR_SUCCESS) {
+        srs_error("stat client failed. ret=%d", ret);
+        return ret;
+    }
 
     // check ASAP, to fail it faster if invalid.
     if (type != SrsRtmpConnPlay && !vhost_is_edge) {

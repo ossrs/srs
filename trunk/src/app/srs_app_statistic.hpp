@@ -31,33 +31,62 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <map>
+#include <string>
 
 class SrsRequest;
 
-class SrsStreamInfo
+struct SrsStatisticVhost
 {
 public:
-    SrsStreamInfo();
-    virtual ~SrsStreamInfo();
+    std::string vhost;
+};
+
+struct SrsStatisticStream
+{
 public:
-    SrsRequest *_req;
+    SrsStatisticVhost* vhost;
+    std::string app;
+    std::string stream;
+};
+
+struct SrsStatisticClient
+{
+public:
+    SrsStatisticStream* stream;
+    int id;
 };
 
 class SrsStatistic
 {
-public:
-    static SrsStatistic* instance();
-public:
-    virtual std::map<void*, SrsStreamInfo*>* get_pool();
-    virtual void add_request_info(void *p, SrsRequest *req);
+private:
+    static SrsStatistic *_instance;
+    // key: vhost name, value: vhost object.
+    std::map<std::string, SrsStatisticVhost*> vhosts;
+    // key: stream name, value: stream object.
+    std::map<std::string, SrsStatisticStream*> streams;
+    // key: client id, value: stream object.
+    std::map<int, SrsStatisticClient*> clients;
 private:
     SrsStatistic();
     virtual ~SrsStatistic();
-private:
-    static SrsStatistic *_instance;
-    std::map<void*, SrsStreamInfo*> pool;
-private:
-    virtual SrsStreamInfo *get(void *p);
+public:
+    static SrsStatistic* instance();
+public:
+    /**
+    * when got a client to publish/play stream,
+    * @param id, the client srs id.
+    * @param req, the client request object.
+    */
+    virtual int on_client(int id, SrsRequest *req);
+public:
+    /**
+    * dumps the vhosts to sstream in json.
+    */
+    virtual int dumps_vhosts(std::stringstream& ss);
+    /**
+    * dumps the streams to sstream in json.
+    */
+    virtual int dumps_streams(std::stringstream& ss);
 };
 
 #endif

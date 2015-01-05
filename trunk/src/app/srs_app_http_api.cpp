@@ -26,7 +26,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef SRS_AUTO_HTTP_API
 
 #include <sstream>
-#include <set>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
@@ -522,30 +521,14 @@ bool SrsApiVhosts::can_handle(const char* path, int length, const char** /*pchil
 
 int SrsApiVhosts::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
 {
+    int ret = ERROR_SUCCESS;
+    
     std::stringstream ss;
     
-    std::set<std::string> vhost_set;
-    std::map<void*, SrsStreamInfo*>* pool = SrsStatistic::instance()->get_pool();
-    std::map<void*, SrsStreamInfo*>::iterator it;
-    for (it = pool->begin(); it != pool->end(); it++) {
-        if (it->second->_req == NULL)
-            continue;
-        vhost_set.insert(it->second->_req->vhost);
+    SrsStatistic* stat = SrsStatistic::instance();
+    if ((ret = stat->dumps_vhosts(ss)) != ERROR_SUCCESS) {
+        return ret;
     }
-
-    ss << __SRS_JARRAY_START;
-    bool first = true;
-    std::set<std::string>::iterator it_set;
-    for (it_set = vhost_set.begin(); it_set != vhost_set.end(); it_set++) {
-        if (first) {
-            first = false;
-        } else {
-            ss << __SRS_JFIELD_CONT;
-        }
-
-        ss << "\"" << (*it_set) << "\"";
-    }
-    ss << __SRS_JARRAY_END;
     
     return res_json(skt, req, ss.str());
 }
@@ -565,40 +548,13 @@ bool SrsApiStreams::can_handle(const char* path, int length, const char** /*pchi
 
 int SrsApiStreams::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
 {
+    int ret = ERROR_SUCCESS;
+    
     std::stringstream ss;
     
-    std::string query_name = req->query_get("name");
-    std::string query_vhost = req->query_get("vhost");
-    if (query_name.size() > 0 || query_vhost.size() > 0) {
-        ss << __SRS_JARRAY_START;
-        bool first = true;
-        std::map<void*, SrsStreamInfo*>* pool = SrsStatistic::instance()->get_pool();
-        std::map<void*, SrsStreamInfo*>::iterator it;
-        for (it = pool->begin(); it != pool->end(); it++) {
-            SrsRequest* reqinfo = it->second->_req;
-            if (reqinfo == NULL)
-                continue;
-            
-            if (reqinfo->stream == query_name || reqinfo->vhost == query_vhost) {
-                if (first) {
-                    first = false;
-                } else {
-                    ss << __SRS_JFIELD_CONT;
-                }
-
-                ss << __SRS_JOBJECT_START
-                    << __SRS_JFIELD_STR("name", reqinfo->stream) << __SRS_JFIELD_CONT
-                    << __SRS_JFIELD_STR("url", reqinfo->tcUrl) << __SRS_JFIELD_CONT
-                    << __SRS_JFIELD_ORG("clients", 0) << __SRS_JFIELD_CONT
-                    << __SRS_JFIELD_STR("status", "idle") << __SRS_JFIELD_CONT
-                    << __SRS_JFIELD_STR("type", "") << __SRS_JFIELD_CONT
-                    << __SRS_JFIELD_STR("codec", "")
-                    << __SRS_JOBJECT_END;
-            }
-        }
-        ss << __SRS_JARRAY_END;
-    } else {
-        return res_error(skt, req, 400, "Bad Request", "unknown query");
+    SrsStatistic* stat = SrsStatistic::instance();
+    if ((ret = stat->dumps_streams(ss)) != ERROR_SUCCESS) {
+        return ret;
     }
     
     return res_json(skt, req, ss.str());

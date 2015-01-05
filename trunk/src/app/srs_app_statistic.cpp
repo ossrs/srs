@@ -25,17 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_protocol_rtmp.hpp>
 
-SrsStreamInfo::SrsStreamInfo()
-{
-    _req = NULL;
-}
-
-SrsStreamInfo::~SrsStreamInfo()
-{
-    srs_freep(_req);
-}
-
-SrsStatistic* SrsStatistic::_instance = NULL;
+SrsStatistic* SrsStatistic::_instance = new SrsStatistic();
 
 SrsStatistic::SrsStatistic()
 {
@@ -43,43 +33,48 @@ SrsStatistic::SrsStatistic()
 
 SrsStatistic::~SrsStatistic()
 {
-    std::map<void*, SrsStreamInfo*>::iterator it;
-    for (it = pool.begin(); it != pool.end(); it++) {
-        SrsStreamInfo* si = it->second;
-        srs_freep(si);
+    if (true) {
+        std::map<std::string, SrsStatisticVhost*>::iterator it;
+        for (it = vhosts.begin(); it != vhosts.end(); it++) {
+            SrsStatisticVhost* vhost = it->second;
+            srs_freep(vhost);
+        }
+    }
+    if (true) {
+        std::map<std::string, SrsStatisticStream*>::iterator it;
+        for (it = streams.begin(); it != streams.end(); it++) {
+            SrsStatisticStream* stream = it->second;
+            srs_freep(stream);
+        }
+    }
+    if (true) {
+        std::map<int, SrsStatisticClient*>::iterator it;
+        for (it = clients.begin(); it != clients.end(); it++) {
+            SrsStatisticClient* client = it->second;
+            srs_freep(client);
+        }
     }
 }
 
 SrsStatistic* SrsStatistic::instance()
 {
-    if (_instance == NULL) {
-        _instance = new SrsStatistic();
-    }
     return _instance;
 }
 
-std::map<void*, SrsStreamInfo*>* SrsStatistic::get_pool()
+int SrsStatistic::on_client(int id, SrsRequest *req)
 {
-    return &pool;
+    int ret = ERROR_SUCCESS;
+    return ret;
 }
 
-SrsStreamInfo* SrsStatistic::get(void *p)
+int SrsStatistic::dumps_vhosts(std::stringstream& ss)
 {
-    std::map<void*, SrsStreamInfo*>::iterator it = pool.find(p);
-    if (it == pool.end()) {
-        SrsStreamInfo* si = new SrsStreamInfo();
-        pool[p] = si;
-        return si;
-    } else {
-        SrsStreamInfo* si = it->second;
-        return si;
-    }
+    int ret = ERROR_SUCCESS;
+    return ret;
 }
 
-void SrsStatistic::add_request_info(void *p, SrsRequest *req)
+int SrsStatistic::dumps_streams(std::stringstream& ss)
 {
-    SrsStreamInfo* info = get(p);
-    if (info->_req == NULL) {
-        info->_req = req->copy();
-    }
+    int ret = ERROR_SUCCESS;
+    return ret;
 }
