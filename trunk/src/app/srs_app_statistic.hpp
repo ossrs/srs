@@ -42,6 +42,7 @@ public:
 
     SrsRequest *_req;
 };
+
 typedef std::map<void*, SrsStreamInfo*> SrsStreamInfoMap;
 
 class SrsStatistic
