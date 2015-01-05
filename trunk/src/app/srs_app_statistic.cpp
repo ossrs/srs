@@ -23,53 +23,142 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_statistic.hpp>
 
+#include <unistd.h>
+#include <sstream>
+using namespace std;
+
 #include <srs_protocol_rtmp.hpp>
+#include <srs_app_json.hpp>
 
-SrsStreamInfo::SrsStreamInfo()
+int64_t __srs_gvid = getpid();
+
+int64_t __srs_generate_id()
 {
-	_req = NULL;
+    return __srs_gvid++;
 }
 
-SrsStreamInfo::~SrsStreamInfo()
+SrsStatisticVhost::SrsStatisticVhost()
 {
-	if (_req != NULL)
-		delete _req;
+    id = __srs_generate_id();
 }
 
-SrsStatistic *SrsStatistic::_instance = NULL;
+SrsStatisticVhost::~SrsStatisticVhost()
+{
+}
+
+SrsStatisticStream::SrsStatisticStream()
+{
+    id = __srs_generate_id();
+    vhost = NULL;
+}
+
+SrsStatisticStream::~SrsStatisticStream()
+{
+}
+
+SrsStatistic* SrsStatistic::_instance = new SrsStatistic();
 
 SrsStatistic::SrsStatistic()
 {
-
+    _server_id = __srs_generate_id();
 }
 
 SrsStatistic::~SrsStatistic()
 {
-	SrsStreamInfoMap::iterator it;
-	for (it = pool.begin(); it != pool.end(); it++) {
-		delete it->second;
-	}
+    if (true) {
+        std::map<std::string, SrsStatisticVhost*>::iterator it;
+        for (it = vhosts.begin(); it != vhosts.end(); it++) {
+            SrsStatisticVhost* vhost = it->second;
+            srs_freep(vhost);
+        }
+    }
+    if (true) {
+        std::map<std::string, SrsStatisticStream*>::iterator it;
+        for (it = streams.begin(); it != streams.end(); it++) {
+            SrsStatisticStream* stream = it->second;
+            srs_freep(stream);
+        }
+    }
+    if (true) {
+        std::map<int, SrsStatisticClient*>::iterator it;
+        for (it = clients.begin(); it != clients.end(); it++) {
+            SrsStatisticClient* client = it->second;
+            srs_freep(client);
+        }
+    }
 }
 
-SrsStreamInfoMap* SrsStatistic::get_pool()
+SrsStatistic* SrsStatistic::instance()
 {
-	return &pool;
+    return _instance;
 }
 
-SrsStreamInfo* SrsStatistic::get(void *p)
+int SrsStatistic::on_client(int id, SrsRequest* req)
 {
-	SrsStreamInfoMap::iterator it = pool.find(p);
-	if (it == pool.end()) {
-		pool[p] = new SrsStreamInfo();
-		return pool[p];
-	} else {
-		return it->second;
-	}
+    int ret = ERROR_SUCCESS;
+    
+    // create vhost if not exists.
+    SrsStatisticVhost* vhost = NULL;
+    if (vhosts.find(req->vhost) == vhosts.end()) {
+        vhost = new SrsStatisticVhost();
+        vhost->vhost = req->vhost;
+        vhosts[req->vhost] = vhost;
+    } else {
+        vhost = vhosts[req->vhost];
+    }
+    
+    // the url to identify the stream.
+    std::string url = req->get_stream_url();
+    
+    // create stream if not exists.
+    SrsStatisticStream* stream = NULL;
+    if (streams.find(url) == streams.end()) {
+        stream = new SrsStatisticStream();
+        stream->vhost = vhost;
+        stream->stream = req->stream;
+        stream->url = url;
+        streams[url] = stream;
+    } else {
+        stream = streams[url];
+    }
+    
+    return ret;
 }
 
-void SrsStatistic::add_request_info(void *p, SrsRequest *req)
+int64_t SrsStatistic::server_id()
 {
-	SrsStreamInfo *info = get(p);
-	if (info->_req == NULL)
-		info->_req = req->copy();
+    return _server_id;
+}
+
+int SrsStatistic::dumps_vhosts(stringstream& ss)
+{
+    int ret = ERROR_SUCCESS;
+
+    std::map<std::string, SrsStatisticVhost*>::iterator it;
+    for (it = vhosts.begin(); it != vhosts.end(); it++) {
+        SrsStatisticVhost* vhost = it->second;
+        ss << __SRS_JOBJECT_START
+                << __SRS_JFIELD_ORG("id", vhost->id) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_STR("name", vhost->vhost)
+            << __SRS_JOBJECT_END;
+    }
+    
+    return ret;
+}
+
+int SrsStatistic::dumps_streams(stringstream& ss)
+{
+    int ret = ERROR_SUCCESS;
+    
+    std::map<std::string, SrsStatisticStream*>::iterator it;
+    for (it = streams.begin(); it != streams.end(); it++) {
+        SrsStatisticStream* stream = it->second;
+        ss << __SRS_JOBJECT_START
+                << __SRS_JFIELD_ORG("id", stream->id) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_STR("name", stream->stream) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("vhost", stream->vhost->id)
+            << __SRS_JOBJECT_END;
+    }
+    
+    return ret;
 }

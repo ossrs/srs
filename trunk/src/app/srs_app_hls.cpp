@@ -951,16 +951,12 @@ int SrsHlsMuxer::create_dir()
     app_dir += app;
     
     // TODO: cleanup the dir when startup.
-
-    mode_t mode = S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_IROTH|S_IXOTH;
-    if (::mkdir(app_dir.c_str(), mode) < 0) {
-        if (errno != EEXIST) {
-            ret = ERROR_HLS_CREATE_DIR;
-            srs_error("create app dir %s failed. ret=%d", app_dir.c_str(), ret);
-            return ret;
-        }
+    
+    if ((ret = srs_create_dir_recursively(app_dir)) != ERROR_SUCCESS) {
+        srs_error("create app dir %s failed. ret=%d", app_dir.c_str(), ret);
+        return ret;
     }
-    srs_info("create app dir %s success.", app_dir.c_str());
+    srs_info("create app dir %s ok", app_dir.c_str());
 
     return ret;
 }

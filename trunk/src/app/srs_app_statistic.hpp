@@ -31,40 +31,78 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <map>
+#include <string>
 
 class SrsRequest;
 
-class SrsStreamInfo
+struct SrsStatisticVhost
 {
 public:
-    SrsStreamInfo();
-    virtual ~SrsStreamInfo();
-
-    SrsRequest *_req;
+    int64_t id;
+    std::string vhost;
+public:
+    SrsStatisticVhost();
+    virtual ~SrsStatisticVhost();
 };
-typedef std::map<void*, SrsStreamInfo*> SrsStreamInfoMap;
+
+struct SrsStatisticStream
+{
+public:
+    int64_t id;
+    SrsStatisticVhost* vhost;
+    std::string app;
+    std::string stream;
+    std::string url;
+public:
+    SrsStatisticStream();
+    virtual ~SrsStatisticStream();
+};
+
+struct SrsStatisticClient
+{
+public:
+    SrsStatisticStream* stream;
+    int id;
+};
 
 class SrsStatistic
 {
-public:
-    static SrsStatistic *instance()
-    {
-        if (_instance == NULL) {
-            _instance = new SrsStatistic();
-        }
-        return _instance;
-    }
-
-    virtual SrsStreamInfoMap* get_pool();
-
-    virtual void add_request_info(void *p, SrsRequest *req);
-    
+private:
+    static SrsStatistic *_instance;
+    // the id to identify the sever.
+    int64_t _server_id;
+    // key: vhost name, value: vhost object.
+    std::map<std::string, SrsStatisticVhost*> vhosts;
+    // key: stream name, value: stream object.
+    std::map<std::string, SrsStatisticStream*> streams;
+    // key: client id, value: stream object.
+    std::map<int, SrsStatisticClient*> clients;
 private:
     SrsStatistic();
     virtual ~SrsStatistic();
-    static SrsStatistic *_instance;
-    SrsStreamInfoMap pool;
-    virtual SrsStreamInfo *get(void *p);
+public:
+    static SrsStatistic* instance();
+public:
+    /**
+    * when got a client to publish/play stream,
+    * @param id, the client srs id.
+    * @param req, the client request object.
+    */
+    virtual int on_client(int id, SrsRequest* req);
+public:
+    /**
+    * get the server id, used to identify the server.
+    * for example, when restart, the server id must changed.
+    */
+    virtual int64_t server_id();
+    /**
+    * dumps the vhosts to sstream in json.
+    */
+    virtual int dumps_vhosts(std::stringstream& ss);
+    /**
+    * dumps the streams to sstream in json.
+    */
+    virtual int dumps_streams(std::stringstream& ss);
 };
 
 #endif

@@ -389,7 +389,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             "srs_app_pithy_print" "srs_app_reload" "srs_app_http_api" "srs_app_http_conn" "srs_app_http_hooks" 
             "srs_app_json" "srs_app_ingest" "srs_app_ffmpeg" "srs_app_utility" "srs_app_dvr" "srs_app_edge"
             "srs_app_kbps" "srs_app_heartbeat" "srs_app_empty" "srs_app_http_client" "srs_app_avc_aac"
-            "srs_app_recv_thread" "srs_app_statistic")
+            "srs_app_recv_thread" "srs_app_security" "srs_app_statistic")
     APP_INCS="src/app"; MODULE_DIR=${APP_INCS} . auto/modules.sh
     APP_OBJS="${MODULE_OBJS[@]}"
 fi

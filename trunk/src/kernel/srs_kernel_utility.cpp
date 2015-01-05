@@ -32,10 +32,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #include <string.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 using namespace std;
 
 #include <srs_kernel_log.hpp>
+#include <srs_kernel_error.hpp>
 
 // this value must:
 // equals to (SRS_SYS_CYCLE_INTERVAL*SRS_SYS_TIME_RESOLUTION_MS_TIMES)*1000
@@ -220,5 +223,58 @@ string srs_string_remove(string str, string remove_chars)
 bool srs_string_ends_with(string str, string flag)
 {
     return str.rfind(flag) == str.length() - flag.length();
+}
+
+int __srs_create_dir_recursively(string dir)
+{
+    int ret = ERROR_SUCCESS;
+    
+    struct stat st;
+    
+    // stat current dir, if exists, return error.
+    if (stat(dir.c_str(), &st) == 0) {
+        return ERROR_SYSTEM_DIR_EXISTS;
+    }
+    
+    // create parent first.
+    size_t pos;
+    if ((pos = dir.rfind("/")) != std::string::npos) {
+        std::string parent = dir.substr(0, pos);
+        ret = __srs_create_dir_recursively(parent);
+        // return for error.
+        if (ret != ERROR_SUCCESS && ret != ERROR_SYSTEM_DIR_EXISTS) {
+            return ret;
+        }
+        // parent exists, set to ok.
+        ret = ERROR_SUCCESS;
+    }
+    
+    // create curren dir.
+    mode_t mode = S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_IROTH|S_IXOTH;
+    if (::mkdir(dir.c_str(), mode) < 0) {
+        if (errno == EEXIST) {
+            return ERROR_SYSTEM_DIR_EXISTS;
+        }
+        
+        ret = ERROR_SYSTEM_CREATE_DIR;
+        srs_error("create dir %s failed. ret=%d", dir.c_str(), ret);
+        return ret;
+    }
+    srs_info("create dir %s success.", dir.c_str());
+    
+    return ret;
+}
+
+int srs_create_dir_recursively(string dir)
+{
+    int ret = ERROR_SUCCESS;
+    
+    ret = __srs_create_dir_recursively(dir);
+    
+    if (ret == ERROR_SYSTEM_DIR_EXISTS) {
+        return ERROR_SUCCESS;
+    }
+    
+    return ret;
 }
 

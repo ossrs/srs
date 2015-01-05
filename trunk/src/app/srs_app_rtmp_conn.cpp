@@ -51,6 +51,7 @@ using namespace std;
 #include <srs_app_recv_thread.hpp>
 #include <srs_core_performance.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_app_security.hpp>
 #include <srs_app_statistic.hpp>
 
 // when stream is busy, for example, streaming is already
@@ -82,6 +83,7 @@ SrsRtmpConn::SrsRtmpConn(SrsServer* srs_server, st_netfd_t client_stfd)
     rtmp = new SrsRtmpServer(skt);
     refer = new SrsRefer();
     bandwidth = new SrsBandwidth();
+    security = new SrsSecurity();
     duration = 0;
     kbps = new SrsKbps();
     kbps->set_io(skt, skt);
@@ -103,6 +105,7 @@ SrsRtmpConn::~SrsRtmpConn()
     srs_freep(skt);
     srs_freep(refer);
     srs_freep(bandwidth);
+    srs_freep(security);
     srs_freep(kbps);
 }
 
@@ -132,6 +135,9 @@ int SrsRtmpConn::do_cycle()
         return ret;
     }
     srs_verbose("rtmp connect app success");
+    
+    // set client ip to request.
+    req->ip = ip;
     
     // discovery vhost, resolve the vhost from config
     SrsConfDirective* parsed_vhost = _srs_config->get_vhost(req->vhost);
@@ -361,6 +367,13 @@ int SrsRtmpConn::stream_service_cycle()
     req->strip();
     srs_trace("client identified, type=%s, stream_name=%s, duration=%.2f", 
         srs_client_type_string(type).c_str(), req->stream.c_str(), req->duration);
+    
+    // security check
+    if ((ret = security->check(type, ip, req)) != ERROR_SUCCESS) {
+        srs_error("security check failed. ret=%d", ret);
+        return ret;
+    }
+    srs_info("security check ok");
 
     // client is identified, set the timeout to service timeout.
     rtmp->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
@@ -383,7 +396,12 @@ int SrsRtmpConn::stream_service_cycle()
     }
     srs_assert(source != NULL);
     
-    SrsStatistic::instance()->add_request_info(source, req);
+    // update the statistic when source disconveried.
+    SrsStatistic* stat = SrsStatistic::instance();
+    if ((ret = stat->on_client(_srs_context->get_id(), req)) != ERROR_SUCCESS) {
+        srs_error("stat client failed. ret=%d", ret);
+        return ret;
+    }
 
     // check ASAP, to fail it faster if invalid.
     if (type != SrsRtmpConnPlay && !vhost_is_edge) {

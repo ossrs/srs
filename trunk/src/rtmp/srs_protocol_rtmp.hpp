@@ -54,6 +54,9 @@ class IMergeReadHandler;
 class SrsRequest
 {
 public:
+    // client ip.
+    std::string ip;
+public:
     /**
     * tcUrl: rtmp://request_vhost:port/app/stream
     * support pass vhost in query string, such as:

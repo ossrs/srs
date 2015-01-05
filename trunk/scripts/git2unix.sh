@@ -15,7 +15,7 @@ ret=$?; if [[ 0 -ne $ret ]]; then
     exit $ret
 fi
 
-files=`git status|egrep "(modified|new file)"|awk -F ':' '{print $2}'|awk '{print $1}'|egrep "(.hpp$|.cpp$|.cc$|.h$|.c$|.txt$|.sh$)"`;
+files=`git status|egrep "(modified|new file)"|awk -F ':' '{print $2}'|awk '{print $1}'|egrep "(.hpp$|.cpp$|.cc$|.h$|.c$|.txt$|.sh|.conf$)"`;
 for file in $files; do
     dos2unix $file;
     echo $file|grep ".sh$" >/dev/null 2>&1; EOF_SH=$?

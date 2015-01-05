@@ -58,7 +58,6 @@ public:
     * @param client_id the id of client on server.
     * @param url the api server url, to valid the client. 
     *         ignore if empty.
-    * @return valid failed or connect to the url failed.
     */
     static int on_connect(std::string url, int client_id, std::string ip, SrsRequest* req);
     /**
@@ -73,7 +72,6 @@ public:
     * @param client_id the id of client on server.
     * @param url the api server url, to valid the client. 
     *         ignore if empty.
-    * @return valid failed or connect to the url failed.
     */
     static int on_publish(std::string url, int client_id, std::string ip, SrsRequest* req);
     /**
@@ -88,7 +86,6 @@ public:
     * @param client_id the id of client on server.
     * @param url the api server url, to valid the client. 
     *         ignore if empty.
-    * @return valid failed or connect to the url failed.
     */
     static int on_play(std::string url, int client_id, std::string ip, SrsRequest* req);
     /**
@@ -98,6 +95,15 @@ public:
     *         ignore if empty.
     */
     static void on_stop(std::string url, int client_id, std::string ip, SrsRequest* req);
+    /**
+    * on_dvr hook, when reap a dvr file.
+    * @param client_id the id of client on server.
+    * @param url the api server url, to process the event. 
+    *         ignore if empty.
+    * @param cwd the current work directory, used to resolve the reltive file path.
+    * @param file the file path, can be relative or absolute path.
+    */
+    static int on_dvr(std::string url, int client_id, std::string ip, SrsRequest* req, std::string cwd, std::string file);
 };
 
 #endif

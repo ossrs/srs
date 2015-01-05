@@ -91,6 +91,7 @@ SrsRequest* SrsRequest::copy()
 {
     SrsRequest* cp = new SrsRequest();
     
+    cp->ip = ip;
     cp->app = app;
     cp->objectEncoding = objectEncoding;
     cp->pageUrl = pageUrl;

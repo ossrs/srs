@@ -51,6 +51,7 @@ class SrsRtmpClient;
 class SrsSharedPtrMessage;
 class SrsQueueRecvThread;
 class SrsPublishRecvThread;
+class SrsSecurity;
 
 /**
 * the client provides the main logic control for RTMP clients.
@@ -66,6 +67,7 @@ private:
     SrsRtmpServer* rtmp;
     SrsRefer* refer;
     SrsBandwidth* bandwidth;
+    SrsSecurity* security;
     // elapse duration in ms
     // for live play duration, for instance, rtmpdump to record.
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/47
