@@ -38,15 +38,24 @@ class SrsRequest;
 struct SrsStatisticVhost
 {
 public:
+    int64_t id;
     std::string vhost;
+public:
+    SrsStatisticVhost();
+    virtual ~SrsStatisticVhost();
 };
 
 struct SrsStatisticStream
 {
 public:
+    int64_t id;
     SrsStatisticVhost* vhost;
     std::string app;
     std::string stream;
+    std::string url;
+public:
+    SrsStatisticStream();
+    virtual ~SrsStatisticStream();
 };
 
 struct SrsStatisticClient
@@ -60,6 +69,8 @@ class SrsStatistic
 {
 private:
     static SrsStatistic *_instance;
+    // the id to identify the sever.
+    int64_t _server_id;
     // key: vhost name, value: vhost object.
     std::map<std::string, SrsStatisticVhost*> vhosts;
     // key: stream name, value: stream object.
@@ -79,6 +90,11 @@ public:
     */
     virtual int on_client(int id, SrsRequest* req);
 public:
+    /**
+    * get the server id, used to identify the server.
+    * for example, when restart, the server id must changed.
+    */
+    virtual int64_t server_id();
     /**
     * dumps the vhosts to sstream in json.
     */

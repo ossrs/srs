@@ -23,16 +23,44 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_statistic.hpp>
 
+#include <unistd.h>
 #include <sstream>
 using namespace std;
 
 #include <srs_protocol_rtmp.hpp>
 #include <srs_app_json.hpp>
 
+int64_t __srs_gvid = getpid();
+
+int64_t __srs_generate_id()
+{
+    return __srs_gvid++;
+}
+
+SrsStatisticVhost::SrsStatisticVhost()
+{
+    id = __srs_generate_id();
+}
+
+SrsStatisticVhost::~SrsStatisticVhost()
+{
+}
+
+SrsStatisticStream::SrsStatisticStream()
+{
+    id = __srs_generate_id();
+    vhost = NULL;
+}
+
+SrsStatisticStream::~SrsStatisticStream()
+{
+}
+
 SrsStatistic* SrsStatistic::_instance = new SrsStatistic();
 
 SrsStatistic::SrsStatistic()
 {
+    _server_id = __srs_generate_id();
 }
 
 SrsStatistic::~SrsStatistic()
@@ -87,13 +115,19 @@ int SrsStatistic::on_client(int id, SrsRequest* req)
     if (streams.find(url) == streams.end()) {
         stream = new SrsStatisticStream();
         stream->vhost = vhost;
-        stream->stream = url;
+        stream->stream = req->stream;
+        stream->url = url;
         streams[url] = stream;
     } else {
         stream = streams[url];
     }
     
     return ret;
+}
+
+int64_t SrsStatistic::server_id()
+{
+    return _server_id;
 }
 
 int SrsStatistic::dumps_vhosts(stringstream& ss)
@@ -104,6 +138,7 @@ int SrsStatistic::dumps_vhosts(stringstream& ss)
     for (it = vhosts.begin(); it != vhosts.end(); it++) {
         SrsStatisticVhost* vhost = it->second;
         ss << __SRS_JOBJECT_START
+                << __SRS_JFIELD_ORG("id", vhost->id) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_STR("name", vhost->vhost)
             << __SRS_JOBJECT_END;
     }
@@ -119,7 +154,9 @@ int SrsStatistic::dumps_streams(stringstream& ss)
     for (it = streams.begin(); it != streams.end(); it++) {
         SrsStatisticStream* stream = it->second;
         ss << __SRS_JOBJECT_START
-                << __SRS_JFIELD_STR("url", stream->stream)
+                << __SRS_JFIELD_ORG("id", stream->id) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_STR("name", stream->stream) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("vhost", stream->vhost->id)
             << __SRS_JOBJECT_END;
     }
     
