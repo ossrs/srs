@@ -77,7 +77,7 @@ public:
     * @param id, the client srs id.
     * @param req, the client request object.
     */
-    virtual int on_client(int id, SrsRequest *req);
+    virtual int on_client(int id, SrsRequest* req);
 public:
     /**
     * dumps the vhosts to sstream in json.

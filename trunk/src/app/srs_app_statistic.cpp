@@ -23,7 +23,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_statistic.hpp>
 
+#include <sstream>
+using namespace std;
+
 #include <srs_protocol_rtmp.hpp>
+#include <srs_app_json.hpp>
 
 SrsStatistic* SrsStatistic::_instance = new SrsStatistic();
 
@@ -61,20 +65,63 @@ SrsStatistic* SrsStatistic::instance()
     return _instance;
 }
 
-int SrsStatistic::on_client(int id, SrsRequest *req)
+int SrsStatistic::on_client(int id, SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
+    
+    // create vhost if not exists.
+    SrsStatisticVhost* vhost = NULL;
+    if (vhosts.find(req->vhost) == vhosts.end()) {
+        vhost = new SrsStatisticVhost();
+        vhost->vhost = req->vhost;
+        vhosts[req->vhost] = vhost;
+    } else {
+        vhost = vhosts[req->vhost];
+    }
+    
+    // the url to identify the stream.
+    std::string url = req->get_stream_url();
+    
+    // create stream if not exists.
+    SrsStatisticStream* stream = NULL;
+    if (streams.find(url) == streams.end()) {
+        stream = new SrsStatisticStream();
+        stream->vhost = vhost;
+        stream->stream = url;
+        streams[url] = stream;
+    } else {
+        stream = streams[url];
+    }
+    
     return ret;
 }
 
-int SrsStatistic::dumps_vhosts(std::stringstream& ss)
+int SrsStatistic::dumps_vhosts(stringstream& ss)
 {
     int ret = ERROR_SUCCESS;
+
+    std::map<std::string, SrsStatisticVhost*>::iterator it;
+    for (it = vhosts.begin(); it != vhosts.end(); it++) {
+        SrsStatisticVhost* vhost = it->second;
+        ss << __SRS_JOBJECT_START
+                << __SRS_JFIELD_STR("name", vhost->vhost)
+            << __SRS_JOBJECT_END;
+    }
+    
     return ret;
 }
 
-int SrsStatistic::dumps_streams(std::stringstream& ss)
+int SrsStatistic::dumps_streams(stringstream& ss)
 {
     int ret = ERROR_SUCCESS;
+    
+    std::map<std::string, SrsStatisticStream*>::iterator it;
+    for (it = streams.begin(); it != streams.end(); it++) {
+        SrsStatisticStream* stream = it->second;
+        ss << __SRS_JOBJECT_START
+                << __SRS_JFIELD_STR("url", stream->stream)
+            << __SRS_JOBJECT_END;
+    }
+    
     return ret;
 }
