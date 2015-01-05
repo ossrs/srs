@@ -35,6 +35,8 @@ using namespace std;
 #include <srs_app_json.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_app_statistic.hpp>
+#include <srs_protocol_rtmp.hpp>
 
 SrsApiRoot::SrsApiRoot()
 {
@@ -122,6 +124,8 @@ SrsApiV1::SrsApiV1()
     handlers.push_back(new SrsApiMemInfos());
     handlers.push_back(new SrsApiAuthors());
     handlers.push_back(new SrsApiRequests());
+    handlers.push_back(new SrsApiVhosts());
+    handlers.push_back(new SrsApiStreams());
 }
 
 SrsApiV1::~SrsApiV1()
@@ -147,7 +151,9 @@ int SrsApiV1::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
             << __SRS_JFIELD_STR("system_proc_stats", "the system process stats") << __SRS_JFIELD_CONT
             << __SRS_JFIELD_STR("meminfos", "the meminfo of system") << __SRS_JFIELD_CONT
             << __SRS_JFIELD_STR("authors", "the primary authors and contributors") << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("requests", "the request itself, for http debug")
+            << __SRS_JFIELD_STR("requests", "the request itself, for http debug") << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_STR("vhosts", "dumps vhost to json") << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_STR("streams", "dumps streams to json")
         << __SRS_JOBJECT_END
         << __SRS_JOBJECT_END;
     
@@ -495,6 +501,70 @@ int SrsApiAuthors::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
             << __SRS_JFIELD_STR("contributors_link", RTMP_SIG_SRS_CONTRIBUTORS_URL) << __SRS_JFIELD_CONT
             << __SRS_JFIELD_STR("contributors", SRS_AUTO_CONSTRIBUTORS)
         << __SRS_JOBJECT_END
+        << __SRS_JOBJECT_END;
+    
+    return res_json(skt, req, ss.str());
+}
+
+SrsApiVhosts::SrsApiVhosts()
+{
+}
+
+SrsApiVhosts::~SrsApiVhosts()
+{
+}
+
+bool SrsApiVhosts::can_handle(const char* path, int length, const char** /*pchild*/)
+{
+    return srs_path_equals("/vhosts", path, length);
+}
+
+int SrsApiVhosts::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
+{
+    std::stringstream data;
+    SrsStatistic* stat = SrsStatistic::instance();
+    int ret = stat->dumps_vhosts(data);
+    
+    std::stringstream ss;
+    
+    ss << __SRS_JOBJECT_START
+        << __SRS_JFIELD_ERROR(ret) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_ORG("server", stat->server_id()) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_ORG("vhosts", __SRS_JARRAY_START)
+            << data.str()
+        << __SRS_JARRAY_END
+        << __SRS_JOBJECT_END;
+    
+    return res_json(skt, req, ss.str());
+}
+
+SrsApiStreams::SrsApiStreams()
+{
+}
+
+SrsApiStreams::~SrsApiStreams()
+{
+}
+
+bool SrsApiStreams::can_handle(const char* path, int length, const char** /*pchild*/)
+{
+    return srs_path_equals("/streams", path, length);
+}
+
+int SrsApiStreams::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
+{
+    std::stringstream data;
+    SrsStatistic* stat = SrsStatistic::instance();
+    int ret = stat->dumps_streams(data);
+    
+    std::stringstream ss;
+    
+    ss << __SRS_JOBJECT_START
+        << __SRS_JFIELD_ERROR(ret) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_ORG("server", stat->server_id()) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_ORG("streams", __SRS_JARRAY_START)
+            << data.str()
+        << __SRS_JARRAY_END
         << __SRS_JOBJECT_END;
     
     return res_json(skt, req, ss.str());
