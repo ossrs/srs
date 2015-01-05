@@ -164,6 +164,28 @@ protected:
     virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
 };
 
+class SrsApiVhosts : public SrsHttpHandler
+{
+public:
+    SrsApiVhosts();
+    virtual ~SrsApiVhosts();
+public:
+    virtual bool can_handle(const char* path, int length, const char** pchild);
+protected:
+    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
+};
+
+class SrsApiStreams : public SrsHttpHandler
+{
+public:
+    SrsApiStreams();
+    virtual ~SrsApiStreams();
+public:
+    virtual bool can_handle(const char* path, int length, const char** pchild);
+protected:
+    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
+};
+
 class SrsHttpApi : public SrsConnection
 {
 private:

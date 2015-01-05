@@ -52,6 +52,7 @@ using namespace std;
 #include <srs_core_performance.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_security.hpp>
+#include <srs_app_statistic.hpp>
 
 // when stream is busy, for example, streaming is already
 // publishing, when a new client to request to publish,
@@ -395,6 +396,8 @@ int SrsRtmpConn::stream_service_cycle()
     }
     srs_assert(source != NULL);
     
+    SrsStatistic::instance()->add_request_info(source, req);
+
     // check ASAP, to fail it faster if invalid.
     if (type != SrsRtmpConnPlay && !vhost_is_edge) {
         // check publish available

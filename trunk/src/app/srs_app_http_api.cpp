@@ -26,6 +26,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef SRS_AUTO_HTTP_API
 
 #include <sstream>
+#include <set>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
@@ -35,6 +36,8 @@ using namespace std;
 #include <srs_app_json.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_app_statistic.hpp>
+#include <srs_protocol_rtmp.hpp>
 
 SrsApiRoot::SrsApiRoot()
 {
@@ -122,6 +125,8 @@ SrsApiV1::SrsApiV1()
     handlers.push_back(new SrsApiMemInfos());
     handlers.push_back(new SrsApiAuthors());
     handlers.push_back(new SrsApiRequests());
+    handlers.push_back(new SrsApiVhosts());
+    handlers.push_back(new SrsApiStreams());
 }
 
 SrsApiV1::~SrsApiV1()
@@ -147,7 +152,9 @@ int SrsApiV1::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
             << __SRS_JFIELD_STR("system_proc_stats", "the system process stats") << __SRS_JFIELD_CONT
             << __SRS_JFIELD_STR("meminfos", "the meminfo of system") << __SRS_JFIELD_CONT
             << __SRS_JFIELD_STR("authors", "the primary authors and contributors") << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("requests", "the request itself, for http debug")
+            << __SRS_JFIELD_STR("requests", "the request itself, for http debug") << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_STR("vhosts", "list all vhosts") << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_STR("streams", "list streams that match the name or vhost")
         << __SRS_JOBJECT_END
         << __SRS_JOBJECT_END;
     
@@ -496,6 +503,103 @@ int SrsApiAuthors::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
             << __SRS_JFIELD_STR("contributors", SRS_AUTO_CONSTRIBUTORS)
         << __SRS_JOBJECT_END
         << __SRS_JOBJECT_END;
+    
+    return res_json(skt, req, ss.str());
+}
+
+SrsApiVhosts::SrsApiVhosts()
+{
+}
+
+SrsApiVhosts::~SrsApiVhosts()
+{
+}
+
+bool SrsApiVhosts::can_handle(const char* path, int length, const char** /*pchild*/)
+{
+    return srs_path_equals("/vhosts", path, length);
+}
+
+int SrsApiVhosts::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
+{
+    std::stringstream ss;
+    
+    std::set<std::string> vhost_set;
+    SrsStreamInfoMap* pool = SrsStatistic::instance()->get_pool();
+    SrsStreamInfoMap::iterator it;
+    for (it = pool->begin(); it != pool->end(); it++) {
+        if (it->second->_req == NULL)
+            continue;
+        vhost_set.insert(it->second->_req->vhost);
+    }
+
+    ss << __SRS_JARRAY_START;
+    bool first = true;
+    std::set<std::string>::iterator it_set;
+    for (it_set = vhost_set.begin(); it_set != vhost_set.end(); it_set++) {
+        if (first) {
+            first = false;
+        } else {
+            ss << __SRS_JFIELD_CONT;
+        }
+
+        ss << "\"" << (*it_set) << "\"";
+    }
+    ss << __SRS_JARRAY_END;
+    
+    return res_json(skt, req, ss.str());
+}
+
+SrsApiStreams::SrsApiStreams()
+{
+}
+
+SrsApiStreams::~SrsApiStreams()
+{
+}
+
+bool SrsApiStreams::can_handle(const char* path, int length, const char** /*pchild*/)
+{
+    return srs_path_equals("/streams", path, length);
+}
+
+int SrsApiStreams::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
+{
+    std::stringstream ss;
+    
+    std::string query_name = req->query_get("name");
+    std::string query_vhost = req->query_get("vhost");
+    if (query_name.size() > 0 || query_vhost.size() > 0) {
+        ss << __SRS_JARRAY_START;
+        bool first = true;
+        SrsStreamInfoMap* pool = SrsStatistic::instance()->get_pool();
+        SrsStreamInfoMap::iterator it;
+        for (it = pool->begin(); it != pool->end(); it++) {
+            SrsRequest* reqinfo = it->second->_req;
+            if (reqinfo == NULL)
+                continue;
+            
+            if (reqinfo->stream == query_name || reqinfo->vhost == query_vhost) {
+                if (first) {
+                    first = false;
+                } else {
+                    ss << __SRS_JFIELD_CONT;
+                }
+
+                ss << __SRS_JOBJECT_START
+                    << __SRS_JFIELD_STR("name", reqinfo->stream) << __SRS_JFIELD_CONT
+                    << __SRS_JFIELD_STR("url", reqinfo->tcUrl) << __SRS_JFIELD_CONT
+                    << __SRS_JFIELD_ORG("clients", 0) << __SRS_JFIELD_CONT
+                    << __SRS_JFIELD_STR("status", "idle") << __SRS_JFIELD_CONT
+                    << __SRS_JFIELD_STR("type", "") << __SRS_JFIELD_CONT
+                    << __SRS_JFIELD_STR("codec", "")
+                    << __SRS_JOBJECT_END;
+            }
+        }
+        ss << __SRS_JARRAY_END;
+    } else {
+        return res_error(skt, req, 400, "Bad Request", "unknown query");
+    }
     
     return res_json(skt, req, ss.str());
 }
