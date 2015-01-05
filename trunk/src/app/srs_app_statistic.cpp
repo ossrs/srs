@@ -27,13 +27,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 SrsStreamInfo::SrsStreamInfo()
 {
-	_req = NULL;
+    _req = NULL;
 }
 
 SrsStreamInfo::~SrsStreamInfo()
 {
-	if (_req != NULL)
-		delete _req;
+    if (_req != NULL)
+        delete _req;
 }
 
 SrsStatistic *SrsStatistic::_instance = NULL;
@@ -45,31 +45,31 @@ SrsStatistic::SrsStatistic()
 
 SrsStatistic::~SrsStatistic()
 {
-	SrsStreamInfoMap::iterator it;
-	for (it = pool.begin(); it != pool.end(); it++) {
-		delete it->second;
-	}
+    SrsStreamInfoMap::iterator it;
+    for (it = pool.begin(); it != pool.end(); it++) {
+        delete it->second;
+    }
 }
 
 SrsStreamInfoMap* SrsStatistic::get_pool()
 {
-	return &pool;
+    return &pool;
 }
 
 SrsStreamInfo* SrsStatistic::get(void *p)
 {
-	SrsStreamInfoMap::iterator it = pool.find(p);
-	if (it == pool.end()) {
-		pool[p] = new SrsStreamInfo();
-		return pool[p];
-	} else {
-		return it->second;
-	}
+    SrsStreamInfoMap::iterator it = pool.find(p);
+    if (it == pool.end()) {
+        pool[p] = new SrsStreamInfo();
+        return pool[p];
+    } else {
+        return it->second;
+    }
 }
 
 void SrsStatistic::add_request_info(void *p, SrsRequest *req)
 {
-	SrsStreamInfo *info = get(p);
-	if (info->_req == NULL)
-		info->_req = req->copy();
+    SrsStreamInfo *info = get(p);
+    if (info->_req == NULL)
+        info->_req = req->copy();
 }
