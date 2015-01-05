@@ -152,8 +152,8 @@ int SrsApiV1::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
             << __SRS_JFIELD_STR("meminfos", "the meminfo of system") << __SRS_JFIELD_CONT
             << __SRS_JFIELD_STR("authors", "the primary authors and contributors") << __SRS_JFIELD_CONT
             << __SRS_JFIELD_STR("requests", "the request itself, for http debug") << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("vhosts", "list all vhosts") << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("streams", "list streams that match the name or vhost")
+            << __SRS_JFIELD_STR("vhosts", "dumps vhost to json") << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_STR("streams", "dumps streams to json")
         << __SRS_JOBJECT_END
         << __SRS_JOBJECT_END;
     
@@ -521,14 +521,18 @@ bool SrsApiVhosts::can_handle(const char* path, int length, const char** /*pchil
 
 int SrsApiVhosts::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
 {
-    int ret = ERROR_SUCCESS;
+    std::stringstream data;
+    SrsStatistic* stat = SrsStatistic::instance();
+    int ret = stat->dumps_vhosts(data);
     
     std::stringstream ss;
     
-    SrsStatistic* stat = SrsStatistic::instance();
-    if ((ret = stat->dumps_vhosts(ss)) != ERROR_SUCCESS) {
-        return ret;
-    }
+    ss << __SRS_JOBJECT_START
+        << __SRS_JFIELD_ERROR(ret) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_ORG("vhosts", __SRS_JARRAY_START)
+            << data.str()
+        << __SRS_JARRAY_END
+        << __SRS_JOBJECT_END;
     
     return res_json(skt, req, ss.str());
 }
@@ -548,14 +552,18 @@ bool SrsApiStreams::can_handle(const char* path, int length, const char** /*pchi
 
 int SrsApiStreams::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
 {
-    int ret = ERROR_SUCCESS;
+    std::stringstream data;
+    SrsStatistic* stat = SrsStatistic::instance();
+    int ret = stat->dumps_streams(data);
     
     std::stringstream ss;
     
-    SrsStatistic* stat = SrsStatistic::instance();
-    if ((ret = stat->dumps_streams(ss)) != ERROR_SUCCESS) {
-        return ret;
-    }
+    ss << __SRS_JOBJECT_START
+        << __SRS_JFIELD_ERROR(ret) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_ORG("streams", __SRS_JARRAY_START)
+            << data.str()
+        << __SRS_JARRAY_END
+        << __SRS_JOBJECT_END;
     
     return res_json(skt, req, ss.str());
 }
