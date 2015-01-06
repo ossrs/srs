@@ -398,7 +398,8 @@ int SrsRtmpConn::stream_service_cycle()
     
     // update the statistic when source disconveried.
     SrsStatistic* stat = SrsStatistic::instance();
-    if ((ret = stat->on_client(_srs_context->get_id(), req)) != ERROR_SUCCESS) {
+    int client_id = _srs_context->get_id();
+    if ((ret = stat->on_client(client_id, req)) != ERROR_SUCCESS) {
         srs_error("stat client failed. ret=%d", ret);
         return ret;
     }
@@ -445,9 +446,15 @@ int SrsRtmpConn::stream_service_cycle()
                 return ret;
             }
             
+            if ((ret = stat->on_client_play_start(client_id)) != ERROR_SUCCESS) {
+                srs_error("stat client play start failed. ret=%d", ret);
+                return ret;
+            }
+
             srs_info("start to play stream %s success", req->stream.c_str());
             ret = playing(source);
             http_hooks_on_stop();
+            stat->on_client_play_stop(client_id);
             
             return ret;
         }

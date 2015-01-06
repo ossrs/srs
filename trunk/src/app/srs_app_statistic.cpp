@@ -50,6 +50,7 @@ SrsStatisticStream::SrsStatisticStream()
 {
     id = __srs_generate_id();
     vhost = NULL;
+    clients = 0;
 }
 
 SrsStatisticStream::~SrsStatisticStream()
@@ -121,7 +122,43 @@ int SrsStatistic::on_client(int id, SrsRequest* req)
     } else {
         stream = streams[url];
     }
+
+    // create client if not exists
+    SrsStatisticClient* client = NULL;
+    if (clients.find(id) == clients.end()) {
+        client = new SrsStatisticClient();
+        client->stream = stream;
+        clients[id] = client;
+    } else {
+        client = clients[id];
+    }
     
+    return ret;
+}
+
+int SrsStatistic::on_client_play_start(int id)
+{
+    int ret = ERROR_SUCCESS;
+
+    std::map<int, SrsStatisticClient*>::iterator it;
+    it = clients.find(id);
+    if (it != clients.end()) {
+        it->second->stream->clients++;
+    }
+
+    return ret;
+}
+
+int SrsStatistic::on_client_play_stop(int id)
+{
+    int ret = ERROR_SUCCESS;
+
+    std::map<int, SrsStatisticClient*>::iterator it;
+    it = clients.find(id);
+    if (it != clients.end()) {
+        it->second->stream->clients--;
+    }
+
     return ret;
 }
 
@@ -134,15 +171,24 @@ int SrsStatistic::dumps_vhosts(stringstream& ss)
 {
     int ret = ERROR_SUCCESS;
 
+    ss << __SRS_JARRAY_START;
+    bool first = true;
     std::map<std::string, SrsStatisticVhost*>::iterator it;
     for (it = vhosts.begin(); it != vhosts.end(); it++) {
         SrsStatisticVhost* vhost = it->second;
+        if (first) {
+            first = false;
+        } else {
+            ss << __SRS_JFIELD_CONT;
+        }
+
         ss << __SRS_JOBJECT_START
                 << __SRS_JFIELD_ORG("id", vhost->id) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_STR("name", vhost->vhost)
             << __SRS_JOBJECT_END;
     }
-    
+    ss << __SRS_JARRAY_END;
+
     return ret;
 }
 
@@ -150,15 +196,25 @@ int SrsStatistic::dumps_streams(stringstream& ss)
 {
     int ret = ERROR_SUCCESS;
     
+    ss << __SRS_JARRAY_START;
+    bool first = true;
     std::map<std::string, SrsStatisticStream*>::iterator it;
     for (it = streams.begin(); it != streams.end(); it++) {
         SrsStatisticStream* stream = it->second;
+        if (first) {
+            first = false;
+        } else {
+            ss << __SRS_JFIELD_CONT;
+        }
+
         ss << __SRS_JOBJECT_START
                 << __SRS_JFIELD_ORG("id", stream->id) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_STR("name", stream->stream) << __SRS_JFIELD_CONT
-                << __SRS_JFIELD_ORG("vhost", stream->vhost->id)
+                << __SRS_JFIELD_ORG("vhost", stream->vhost->id) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("clients", stream->clients)
             << __SRS_JOBJECT_END;
     }
+    ss << __SRS_JARRAY_END;
     
     return ret;
 }

@@ -53,6 +53,7 @@ public:
     std::string app;
     std::string stream;
     std::string url;
+    int64_t clients;
 public:
     SrsStatisticStream();
     virtual ~SrsStatisticStream();
@@ -89,6 +90,14 @@ public:
     * @param req, the client request object.
     */
     virtual int on_client(int id, SrsRequest* req);
+    /**
+    * client start play
+    */
+    virtual int on_client_play_start(int id);
+    /**
+    * client stop play
+    */
+    virtual int on_client_play_stop(int id);
 public:
     /**
     * get the server id, used to identify the server.
