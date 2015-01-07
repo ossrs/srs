@@ -602,6 +602,11 @@ int __srs_rtmp_connect_server(srs_rtmp_t rtmp)
 
 int __srs_rtmp_do_complex_handshake(srs_rtmp_t rtmp)
 {
+#ifndef SRS_AUTO_SSL
+    // complex handshake requires ssl
+    return ERROR_RTMP_HS_SSL_REQUIRE;
+#endif
+
     int ret = ERROR_SUCCESS;
     
     srs_assert(rtmp != NULL);

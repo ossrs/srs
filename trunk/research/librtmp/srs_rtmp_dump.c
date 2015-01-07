@@ -80,6 +80,9 @@ void parse_amf0_object(char* p, srs_amf0_t args)
 
 int main(int argc, char** argv)
 {
+    srs_flv_t flv = NULL;
+    srs_rtmp_t rtmp = NULL;
+    
     printf("dump rtmp stream to flv file\n");
     printf("srs(simple-rtmp-server) client librtmp library.\n");
     printf("version: %d.%d.%d\n", srs_version_major(), srs_version_minor(), srs_version_revision());
@@ -184,7 +187,7 @@ int main(int argc, char** argv)
         srs_human_trace("output to console");
     }
     
-    srs_rtmp_t rtmp = srs_rtmp_create(rtmp_url);
+    rtmp = srs_rtmp_create(rtmp_url);
     
     if (__srs_rtmp_dns_resolve(rtmp) != 0) {
         srs_human_trace("dns resolve failed.");
@@ -227,7 +230,6 @@ int main(int argc, char** argv)
     }
     srs_human_trace("play stream success");
     
-    srs_flv_t flv = NULL;
     if (output_flv) {
         flv = srs_flv_open_write(output_flv);
     }
@@ -282,9 +284,7 @@ int main(int argc, char** argv)
     
 rtmp_destroy:
     srs_rtmp_destroy(rtmp);
-    if (flv) {
-        srs_flv_close(flv);
-    }
+    srs_flv_close(flv);
     srs_human_trace("completed");
     
     return 0;
