@@ -134,9 +134,10 @@ void SrsRecvThread::on_thread_stop()
     handler->on_thread_stop();
 }
 
-SrsQueueRecvThread::SrsQueueRecvThread(SrsRtmpServer* rtmp_sdk, int timeout_ms)
+SrsQueueRecvThread::SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, int timeout_ms)
     : trd(this, rtmp_sdk, timeout_ms)
 {
+    _consumer = consumer;
     rtmp = rtmp_sdk;
     recv_error_code = ERROR_SUCCESS;
     _consumer = NULL;
@@ -235,11 +236,6 @@ void SrsQueueRecvThread::on_thread_stop()
     // enable the protocol auto response,
     // for the isolate recv thread terminated.
     rtmp->set_auto_response(true);
-}
-
-void SrsQueueRecvThread::set_consumer(SrsConsumer *consumer)
-{
-    _consumer = consumer;
 }
 
 SrsPublishRecvThread::SrsPublishRecvThread(

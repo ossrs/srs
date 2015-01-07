@@ -113,9 +113,9 @@ private:
     SrsRtmpServer* rtmp;
     // the recv thread error code.
     int recv_error_code;
-    SrsConsumer *_consumer;
+    SrsConsumer* _consumer;
 public:
-    SrsQueueRecvThread(SrsRtmpServer* rtmp_sdk, int timeout_ms);
+    SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtmp_sdk, int timeout_ms);
     virtual ~SrsQueueRecvThread();
 public:
     virtual int start();
@@ -132,8 +132,6 @@ public:
 public:
     virtual void on_thread_start();
     virtual void on_thread_stop();
-public:
-    virtual void set_consumer(SrsConsumer *consumer);
 };
 
 /**

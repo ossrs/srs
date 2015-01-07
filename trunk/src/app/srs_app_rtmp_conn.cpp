@@ -560,9 +560,18 @@ int SrsRtmpConn::playing(SrsSource* source)
 {
     int ret = ERROR_SUCCESS;
     
+    // create consumer of souce.
+    SrsConsumer* consumer = NULL;
+    if ((ret = source->create_consumer(consumer)) != ERROR_SUCCESS) {
+        srs_error("create consumer failed. ret=%d", ret);
+        return ret;
+    }
+    SrsAutoFree(SrsConsumer, consumer);
+    srs_verbose("consumer created success.");
+    
     // use isolate thread to recv, 
     // @see: https://github.com/winlinvip/simple-rtmp-server/issues/217
-    SrsQueueRecvThread trd(rtmp, SRS_PERF_MW_SLEEP);
+    SrsQueueRecvThread trd(consumer, rtmp, SRS_PERF_MW_SLEEP);
     
     // start isolate recv thread.
     if ((ret = trd.start()) != ERROR_SUCCESS) {
@@ -571,7 +580,7 @@ int SrsRtmpConn::playing(SrsSource* source)
     }
     
     // delivery messages for clients playing stream.
-    ret = do_playing(source, &trd);
+    ret = do_playing(source, consumer, &trd);
     
     // stop isolate recv thread
     trd.stop();
@@ -584,26 +593,17 @@ int SrsRtmpConn::playing(SrsSource* source)
     return ret;
 }
 
-int SrsRtmpConn::do_playing(SrsSource* source, SrsQueueRecvThread* trd)
+int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRecvThread* trd)
 {
     int ret = ERROR_SUCCESS;
+    
+    srs_assert(consumer != NULL);
     
     if ((ret = refer->check(req->pageUrl, _srs_config->get_refer_play(req->vhost))) != ERROR_SUCCESS) {
         srs_error("check play_refer failed. ret=%d", ret);
         return ret;
     }
     srs_verbose("check play_refer success.");
-    
-    SrsConsumer* consumer = NULL;
-    if ((ret = source->create_consumer(consumer)) != ERROR_SUCCESS) {
-        srs_error("create consumer failed. ret=%d", ret);
-        return ret;
-    }
-    
-    srs_assert(consumer != NULL);
-    SrsAutoFree(SrsConsumer, consumer);
-    trd->set_consumer(consumer);
-    srs_verbose("consumer created success.");
     
     // initialize other components
     SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_PLAY_USER);
