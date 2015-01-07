@@ -823,7 +823,9 @@ int __srs_rtmp_on_aggregate(Context* context, SrsCommonMessage* msg)
         return ret;
     }
     
+    // the aggregate message always use abs time.
     int delta = -1;
+    
     while (!stream->empty()) {
         if (!stream->require(1)) {
             ret = ERROR_RTMP_AGGREGATE;
@@ -862,7 +864,7 @@ int __srs_rtmp_on_aggregate(Context* context, SrsCommonMessage* msg)
         timestamp |= time_h<<24;
         timestamp &= 0x7FFFFFFF;
         
-        // adjust timestamp.
+        // adjust abs timestamp in aggregate msg.
         if (delta < 0) {
             delta = (int)msg->header.timestamp - (int)timestamp;
         }

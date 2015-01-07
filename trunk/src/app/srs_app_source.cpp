@@ -1481,6 +1481,9 @@ int SrsSource::on_aggregate(SrsCommonMessage* msg)
         return ret;
     }
     
+    // the aggregate message always use abs time.
+    int delta = -1;
+    
     while (!stream->empty()) {
         if (!stream->require(1)) {
             ret = ERROR_RTMP_AGGREGATE;
@@ -1518,6 +1521,12 @@ int SrsSource::on_aggregate(SrsCommonMessage* msg)
         
         timestamp |= time_h<<24;
         timestamp &= 0x7FFFFFFF;
+        
+        // adjust abs timestamp in aggregate msg.
+        if (delta < 0) {
+            delta = (int)msg->header.timestamp - (int)timestamp;
+        }
+        timestamp += delta;
         
         if (!stream->require(3)) {
             ret = ERROR_RTMP_AGGREGATE;
