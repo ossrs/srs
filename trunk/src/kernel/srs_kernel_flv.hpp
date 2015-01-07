@@ -66,12 +66,13 @@ public:
     virtual int write_header(char flv_header[9]);
     /**
     * write flv metadata. 
+    * @param type, the type of data, or other message type.
     * @param data, the amf0 metadata which serialize from:
     *   AMF0 string: onMetaData,
     *   AMF0 object: the metadata object.
     * @remark assert data is not NULL.
     */
-    virtual int write_metadata(char* data, int size);
+    virtual int write_metadata(char type, char* data, int size);
     /**
     * write audio/video packet.
     * @remark assert data is not NULL.

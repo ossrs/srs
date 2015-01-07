@@ -273,7 +273,7 @@ int SrsDvrPlan::on_meta_data(SrsOnMetaDataPacket* metadata)
     }
     SrsAutoFree(char, payload);
     
-    if ((ret = enc->write_metadata(payload, size)) != ERROR_SUCCESS) {
+    if ((ret = enc->write_metadata(18, payload, size)) != ERROR_SUCCESS) {
         return ret;
     }
     

@@ -460,7 +460,7 @@ VOID TEST(KernelFlvTest, FlvEncoderWriteMetadata)
     };
     char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)19 };
     
-    ASSERT_TRUE(ERROR_SUCCESS == enc.write_metadata(md, 8));
+    ASSERT_TRUE(ERROR_SUCCESS == enc.write_metadata(18, md, 8));
     ASSERT_TRUE(11 + 8 + 4 == fs.offset);
     
     EXPECT_TRUE(srs_bytes_equals(tag_header, fs.data, 11));

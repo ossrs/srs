@@ -110,7 +110,7 @@ int SrsFlvEncoder::write_header(char flv_header[9])
     return ret;
 }
 
-int SrsFlvEncoder::write_metadata(char* data, int size)
+int SrsFlvEncoder::write_metadata(char type, char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -118,7 +118,7 @@ int SrsFlvEncoder::write_metadata(char* data, int size)
     
     // 11 bytes tag header
     static char tag_header[] = {
-        (char)18, // TagType UB [5], 18 = script data
+        (char)type, // TagType UB [5], 18 = script data
         (char)0x00, (char)0x00, (char)0x00, // DataSize UI24 Length of the message.
         (char)0x00, (char)0x00, (char)0x00, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
         (char)0x00, // TimestampExtended UI8

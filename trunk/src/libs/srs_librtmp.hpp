@@ -241,6 +241,7 @@ extern int srs_rtmp_bandwidth_check(srs_rtmp_t rtmp,
 *            SRS_RTMP_TYPE_AUDIO, FlvTagAudio
 *            SRS_RTMP_TYPE_VIDEO, FlvTagVideo
 *            SRS_RTMP_TYPE_SCRIPT, FlvTagScript
+*            otherswise, invalid type.
 * @param timestamp, in ms, overflow in 50days
 * @param data, the packet data, according to type:
 *             FlvTagAudio, @see "E.4.2.1 AUDIODATA"

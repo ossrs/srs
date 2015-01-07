@@ -843,8 +843,11 @@ int srs_rtmp_read_packet(srs_rtmp_t rtmp, char* type, u_int32_t* timestamp, char
             // detach bytes from packet.
             msg->payload = NULL;
         } else {
-            // ignore and continue
-            continue;
+            *type = msg->header.message_type;
+            *data = (char*)msg->payload;
+            *size = (int)msg->size;
+            // detach bytes from packet.
+            msg->payload = NULL;
         }
         
         // got expected message.
@@ -1714,7 +1717,7 @@ int srs_flv_write_tag(srs_flv_t flv, char type, int32_t time, char* data, int si
     } else if (type == SRS_RTMP_TYPE_VIDEO) {
         return context->enc.write_video(time, data, size);
     } else {
-        return context->enc.write_metadata(data, size);
+        return context->enc.write_metadata(type, data, size);
     }
 
     return ret;
@@ -2476,8 +2479,8 @@ int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int 
             srs_freep(amf0_str);
         }
     } else {
-        srs_human_trace("Unknown packet type=%s, dts=%d, pts=%d, size=%d", 
-            srs_human_flv_tag_type2string(type), timestamp, pts, size);
+        srs_human_trace("Unknown packet type=%#x, dts=%d, pts=%d, size=%d", 
+            type, timestamp, pts, size);
     }
     
     return ret;
