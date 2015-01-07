@@ -272,10 +272,18 @@ int main(int argc, char** argv)
             goto rtmp_destroy;
         }
         
+        // we only write some types of messages to flv file.
+        int is_flv_msg = type == SRS_RTMP_TYPE_AUDIO
+            || type == SRS_RTMP_TYPE_VIDEO || type == SRS_RTMP_TYPE_SCRIPT;
+
         if (flv) {
-            if (srs_flv_write_tag(flv, type, timestamp, data, size) != 0) {
-                srs_human_trace("dump rtmp packet failed.");
-                goto rtmp_destroy;
+            if (is_flv_msg) {
+                if (srs_flv_write_tag(flv, type, timestamp, data, size) != 0) {
+                    srs_human_trace("dump rtmp packet failed.");
+                    goto rtmp_destroy;
+                }
+            } else {
+                srs_human_trace("drop message size=%dB", size);
             }
         }
         
