@@ -31,7 +31,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_protocol_buffer.hpp>
 #include <srs_protocol_utility.hpp>
 
+// for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
+#ifndef _WIN32
 #include <unistd.h>
+#endif
+
 #include <stdlib.h>
 using namespace std;
 
@@ -868,9 +872,14 @@ int SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
 int SrsProtocol::do_iovs_send(iovec* iovs, int size)
 {
     int ret = ERROR_SUCCESS;
-    
+
     // the limits of writev iovs.
+    // for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
+#ifndef _WIN32
     static int limits = sysconf(_SC_IOV_MAX);
+#else
+    static int limits = 1024;
+#endif
     
     // send in a time.
     if (size < limits) {

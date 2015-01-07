@@ -86,6 +86,7 @@ extern int srs_version_revision();
 *************************************************************/
 // the RTMP handler.
 typedef void* srs_rtmp_t;
+typedef void* srs_amf0_t;
 
 /**
 * create/destroy a rtmp protocol stack.
@@ -142,6 +143,18 @@ extern int __srs_rtmp_dns_resolve(srs_rtmp_t rtmp);
 extern int __srs_rtmp_connect_server(srs_rtmp_t rtmp);
 // do simple handshake over socket.
 extern int __srs_rtmp_do_simple_handshake(srs_rtmp_t rtmp);
+// do complex handshake over socket.
+extern int __srs_rtmp_do_complex_handshake(srs_rtmp_t rtmp);
+
+/**
+* set the args of connect packet for rtmp.
+* @param args, the extra amf0 object args.
+* @remark, all params can be NULL to ignore.
+* @remark, user should never free the args for we directly use it.
+*/
+extern int srs_rtmp_set_connect_args(srs_rtmp_t rtmp, 
+    const char* tcUrl, const char* swfUrl, const char* pageUrl, srs_amf0_t args
+);
 
 /**
 * connect to rtmp vhost/app
@@ -546,7 +559,6 @@ extern srs_bool srs_flv_is_keyframe(char* data, int32_t size);
 **************************************************************
 *************************************************************/
 /* the output handler. */
-typedef void* srs_amf0_t;
 typedef double srs_amf0_number;
 /**
 * parse amf0 from data.
@@ -555,6 +567,7 @@ typedef double srs_amf0_number;
 * @remark user must free the parsed or created object by srs_amf0_free.
 */
 extern srs_amf0_t srs_amf0_parse(char* data, int size, int* nparsed);
+extern srs_amf0_t srs_amf0_create_string(const char* value);
 extern srs_amf0_t srs_amf0_create_number(srs_amf0_number value);
 extern srs_amf0_t srs_amf0_create_ecma_array();
 extern srs_amf0_t srs_amf0_create_strict_array();

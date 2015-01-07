@@ -66,6 +66,9 @@ struct Context
     std::string app;
     std::string stream;
     std::string param;
+
+    // extra request object for connect to server, NULL to ignore.
+    SrsRequest* req;
     
     SrsRtmpClient* rtmp;
     SimpleSocketStream* skt;
@@ -93,12 +96,14 @@ struct Context
     Context() {
         rtmp = NULL;
         skt = NULL;
+        req = NULL;
         stream_id = 0;
         h264_sps_pps_sent = false;
         h264_sps_changed = false;
         h264_pps_changed = false;
     }
     virtual ~Context() {
+        srs_freep(req);
         srs_freep(rtmp);
         srs_freep(skt);
     }
@@ -595,6 +600,53 @@ int __srs_rtmp_connect_server(srs_rtmp_t rtmp)
     return ret;
 }
 
+int __srs_rtmp_do_complex_handshake(srs_rtmp_t rtmp)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(rtmp != NULL);
+    Context* context = (Context*)rtmp;
+    
+    srs_assert(context->skt != NULL);
+    
+    // simple handshake
+    srs_freep(context->rtmp);
+    context->rtmp = new SrsRtmpClient(context->skt);
+    
+    if ((ret = context->rtmp->complex_handshake()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int srs_rtmp_set_connect_args(srs_rtmp_t rtmp, 
+    const char* tcUrl, const char* swfUrl, const char* pageUrl, srs_amf0_t args
+) {
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(rtmp != NULL);
+    Context* context = (Context*)rtmp;
+    
+    srs_freep(context->req);
+    context->req = new SrsRequest();
+    
+    if (args) {
+        context->req->args = (SrsAmf0Object*)args;
+    }
+    if (tcUrl) {
+        context->req->tcUrl = tcUrl;
+    }
+    if (swfUrl) {
+        context->req->swfUrl = swfUrl;
+    }
+    if (pageUrl) {
+        context->req->pageUrl = pageUrl;
+    }
+    
+    return ret;
+}
+
 int __srs_rtmp_do_simple_handshake(srs_rtmp_t rtmp)
 {
     int ret = ERROR_SUCCESS;
@@ -628,7 +680,7 @@ int srs_rtmp_connect_app(srs_rtmp_t rtmp)
     );
     
     if ((ret = context->rtmp->connect_app(
-        context->app, tcUrl, NULL, true)) != ERROR_SUCCESS) 
+        context->app, tcUrl, context->req, true)) != ERROR_SUCCESS) 
     {
         return ret;
     }
@@ -1725,6 +1777,11 @@ srs_amf0_t srs_amf0_parse(char* data, int size, int* nparsed)
     return amf0;
 }
 
+srs_amf0_t srs_amf0_create_string(const char* value)
+{
+    return SrsAmf0Any::str(value);
+}
+
 srs_amf0_t srs_amf0_create_number(srs_amf0_number value)
 {
     return SrsAmf0Any::number(value);
@@ -2374,6 +2431,9 @@ int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int 
     
     u_int32_t pts;
     if (srs_utils_parse_timestamp(timestamp, type, data, size, &pts) != 0) {
+        srs_human_trace("Video packet type=%s, dts=%d, pts=%d, size=%d, DecodeError", 
+            srs_human_flv_tag_type2string(type), timestamp, pts, size
+        );
         return ret;
     }
     

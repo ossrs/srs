@@ -469,13 +469,17 @@ int SrsRtmpClient::connect_app2(
         SrsConnectAppPacket* pkt = new SrsConnectAppPacket();
         
         pkt->command_object->set("app", SrsAmf0Any::str(app.c_str()));
-        pkt->command_object->set("flashVer", SrsAmf0Any::str("WIN 12,0,0,41"));
+        pkt->command_object->set("flashVer", SrsAmf0Any::str("WIN 15,0,0,239"));
         if (req) {
             pkt->command_object->set("swfUrl", SrsAmf0Any::str(req->swfUrl.c_str()));
         } else {
             pkt->command_object->set("swfUrl", SrsAmf0Any::str());
         }
-        pkt->command_object->set("tcUrl", SrsAmf0Any::str(tc_url.c_str()));
+        if (req && req->tcUrl != "") {
+            pkt->command_object->set("tcUrl", SrsAmf0Any::str(req->tcUrl.c_str()));
+        } else {
+            pkt->command_object->set("tcUrl", SrsAmf0Any::str(tc_url.c_str()));
+        }
         pkt->command_object->set("fpad", SrsAmf0Any::boolean(false));
         pkt->command_object->set("capabilities", SrsAmf0Any::number(239));
         pkt->command_object->set("audioCodecs", SrsAmf0Any::number(3575));
