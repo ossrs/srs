@@ -2595,8 +2595,8 @@ int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int 
     
     u_int32_t pts;
     if (srs_utils_parse_timestamp(timestamp, type, data, size, &pts) != 0) {
-        srs_human_trace("Video packet type=%s, dts=%d, pts=%d, size=%d, DecodeError", 
-            srs_human_flv_tag_type2string(type), timestamp, pts, size
+        srs_human_trace("Rtmp packet type=%s, dts=%d, size=%d, DecodeError", 
+            srs_human_flv_tag_type2string(type), timestamp, size
         );
         return ret;
     }
@@ -2635,7 +2635,7 @@ int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int 
             srs_freep(amf0_str);
         }
     } else {
-        srs_human_trace("Unknown packet type=%#x, dts=%d, pts=%d, size=%d", 
+        srs_human_trace("Rtmp packet type=%#x, dts=%d, pts=%d, size=%d", 
             type, timestamp, pts, size);
     }
     

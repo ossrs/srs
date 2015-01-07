@@ -283,7 +283,7 @@ int main(int argc, char** argv)
                     goto rtmp_destroy;
                 }
             } else {
-                srs_human_trace("drop message size=%dB", size);
+                srs_human_trace("drop message type=%d, size=%dB", type, size);
             }
         }
         
