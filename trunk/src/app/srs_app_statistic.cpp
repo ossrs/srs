@@ -50,7 +50,6 @@ SrsStatisticStream::SrsStatisticStream()
 {
     id = __srs_generate_id();
     vhost = NULL;
-    clients = 0;
 }
 
 SrsStatisticStream::~SrsStatisticStream()
@@ -133,30 +132,22 @@ int SrsStatistic::on_client(int id, SrsRequest* req)
         client = clients[id];
     }
     
+    stream->clients[id] = client;
+
     return ret;
 }
 
-int SrsStatistic::on_client_play_start(int id)
+int SrsStatistic::on_close(int id)
 {
     int ret = ERROR_SUCCESS;
 
     std::map<int, SrsStatisticClient*>::iterator it;
     it = clients.find(id);
     if (it != clients.end()) {
-        it->second->stream->clients++;
-    }
-
-    return ret;
-}
-
-int SrsStatistic::on_client_play_stop(int id)
-{
-    int ret = ERROR_SUCCESS;
-
-    std::map<int, SrsStatisticClient*>::iterator it;
-    it = clients.find(id);
-    if (it != clients.end()) {
-        it->second->stream->clients--;
+        SrsStatisticClient* client = it->second;
+        client->stream->clients.erase(id);
+        srs_freep(client);
+        clients.erase(it);
     }
 
     return ret;
@@ -172,13 +163,10 @@ int SrsStatistic::dumps_vhosts(stringstream& ss)
     int ret = ERROR_SUCCESS;
 
     ss << __SRS_JARRAY_START;
-    bool first = true;
     std::map<std::string, SrsStatisticVhost*>::iterator it;
     for (it = vhosts.begin(); it != vhosts.end(); it++) {
         SrsStatisticVhost* vhost = it->second;
-        if (first) {
-            first = false;
-        } else {
+        if (it != vhosts.begin()) {
             ss << __SRS_JFIELD_CONT;
         }
 
@@ -197,13 +185,10 @@ int SrsStatistic::dumps_streams(stringstream& ss)
     int ret = ERROR_SUCCESS;
     
     ss << __SRS_JARRAY_START;
-    bool first = true;
     std::map<std::string, SrsStatisticStream*>::iterator it;
     for (it = streams.begin(); it != streams.end(); it++) {
         SrsStatisticStream* stream = it->second;
-        if (first) {
-            first = false;
-        } else {
+        if (it != streams.begin()) {
             ss << __SRS_JFIELD_CONT;
         }
 
@@ -211,7 +196,7 @@ int SrsStatistic::dumps_streams(stringstream& ss)
                 << __SRS_JFIELD_ORG("id", stream->id) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_STR("name", stream->stream) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_ORG("vhost", stream->vhost->id) << __SRS_JFIELD_CONT
-                << __SRS_JFIELD_ORG("clients", stream->clients)
+                << __SRS_JFIELD_ORG("clients", stream->clients.size())
             << __SRS_JOBJECT_END;
     }
     ss << __SRS_JARRAY_END;
