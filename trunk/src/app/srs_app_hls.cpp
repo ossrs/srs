@@ -1272,9 +1272,13 @@ int SrsHlsCache::cache_video(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         // 6: Supplemental enhancement information (SEI) sei_rbsp( ), page 61
         // @see: ngx_rtmp_hls_append_aud
         if (!aud_sent) {
-            if (nal_unit_type == 9) {
+            // @remark, when got type 9, we donot send aud_nal, but it will make 
+            //      ios unhappy, so we remove it.
+            // @see https://github.com/winlinvip/simple-rtmp-server/issues/281
+            /*if (nal_unit_type == 9) {
                 aud_sent = true;
-            }
+            }*/
+            
             if (nal_unit_type == 1 || nal_unit_type == 5 || nal_unit_type == 6) {
                 // for type 6, append a aud with type 9.
                 vb->append((const char*)aud_nal, sizeof(aud_nal));
@@ -1485,6 +1489,10 @@ int SrsHls::on_video(SrsSharedPtrMessage* __video)
     
     sample->clear();
     if ((ret = codec->video_avc_demux(video->payload, video->size, sample)) != ERROR_SUCCESS) {
+        if (sample->frame_type == SrsCodecVideoAVCFrameVideoInfoFrame) {
+            srs_warn("hls igone the info frame, ret=%d", ret);
+            return ERROR_SUCCESS;
+        }
         srs_error("hls codec demux video failed. ret=%d", ret);
         return ret;
     }

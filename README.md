@@ -508,6 +508,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* v2.0, 2015-01-08, hotfix [#281](https://github.com/winlinvip/simple-rtmp-server/issues/281), fix hls bug ignore type-9 send aud. 2.0.93
 * v2.0, 2015-01-03, fix [#274](https://github.com/winlinvip/simple-rtmp-server/issues/274), http-callback support on_dvr when reap a dvr file. 2.0.89
 * v2.0, 2015-01-03, hotfix to remove the pageUrl for http callback. 2.0.88
 * v2.0, 2015-01-03, fix [#179](https://github.com/winlinvip/simple-rtmp-server/issues/179), dvr support custom filepath by variables. 2.0.87
@@ -561,6 +562,7 @@ Supported operating systems and hardware:
 * v2.0, 2014-10-18, remove supports for OSX(darwin). 2.0.1.
 * v2.0, 2014-10-16, revert github srs README to English. 2.0.0.
 
+* v1.0, 2015-01-08, hotfix [#281](https://github.com/winlinvip/simple-rtmp-server/issues/281), fix hls bug ignore type-9 send aud. 1.0.20
 * v1.0, 2015-01-03, hotfix to remove the pageUrl for http callback. 1.0.19
 * v1.0, 2015-01-02, hotfix [#207](https://github.com/winlinvip/simple-rtmp-server/issues/207), trim the last 0 of log. 1.0.18
 * v1.0, 2015-01-02, hotfix [#216](https://github.com/winlinvip/simple-rtmp-server/issues/216), http-callback post in application/json content-type. 1.0.17
