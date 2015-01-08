@@ -383,6 +383,7 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+
 * v1.0, 2015-01-08, hotfix [#281](https://github.com/winlinvip/simple-rtmp-server/issues/281), fix hls bug ignore type-9 send aud. 1.0.20
 * v1.0, 2015-01-03, hotfix to remove the pageUrl for http callback. 1.0.19
 * v1.0, 2015-01-02, hotfix [#207](https://github.com/winlinvip/simple-rtmp-server/issues/207), trim the last 0 of log. 1.0.18
