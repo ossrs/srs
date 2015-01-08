@@ -1239,7 +1239,7 @@ int SrsSource::on_audio(SrsCommonMessage* __audio)
     srs_verbose("initialize shared ptr audio success.");
     
 #ifdef SRS_AUTO_HLS
-    if ((ret = hls->on_audio(msg.copy())) != ERROR_SUCCESS) {
+    if ((ret = hls->on_audio(&msg)) != ERROR_SUCCESS) {
         // apply the error strategy for hls.
         // @see https://github.com/winlinvip/simple-rtmp-server/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(_req->vhost);
@@ -1366,7 +1366,7 @@ int SrsSource::on_video(SrsCommonMessage* __video)
     srs_verbose("initialize shared ptr video success.");
     
 #ifdef SRS_AUTO_HLS
-    if ((ret = hls->on_video(msg.copy())) != ERROR_SUCCESS) {
+    if ((ret = hls->on_video(&msg)) != ERROR_SUCCESS) {
         // apply the error strategy for hls.
         // @see https://github.com/winlinvip/simple-rtmp-server/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(_req->vhost);
