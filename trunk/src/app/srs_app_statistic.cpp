@@ -121,7 +121,35 @@ int SrsStatistic::on_client(int id, SrsRequest* req)
     } else {
         stream = streams[url];
     }
+
+    // create client if not exists
+    SrsStatisticClient* client = NULL;
+    if (clients.find(id) == clients.end()) {
+        client = new SrsStatisticClient();
+        client->stream = stream;
+        clients[id] = client;
+    } else {
+        client = clients[id];
+    }
     
+    stream->clients[id] = client;
+
+    return ret;
+}
+
+int SrsStatistic::on_close(int id)
+{
+    int ret = ERROR_SUCCESS;
+
+    std::map<int, SrsStatisticClient*>::iterator it;
+    it = clients.find(id);
+    if (it != clients.end()) {
+        SrsStatisticClient* client = it->second;
+        client->stream->clients.erase(id);
+        srs_freep(client);
+        clients.erase(it);
+    }
+
     return ret;
 }
 
@@ -134,15 +162,21 @@ int SrsStatistic::dumps_vhosts(stringstream& ss)
 {
     int ret = ERROR_SUCCESS;
 
+    ss << __SRS_JARRAY_START;
     std::map<std::string, SrsStatisticVhost*>::iterator it;
     for (it = vhosts.begin(); it != vhosts.end(); it++) {
         SrsStatisticVhost* vhost = it->second;
+        if (it != vhosts.begin()) {
+            ss << __SRS_JFIELD_CONT;
+        }
+
         ss << __SRS_JOBJECT_START
                 << __SRS_JFIELD_ORG("id", vhost->id) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_STR("name", vhost->vhost)
             << __SRS_JOBJECT_END;
     }
-    
+    ss << __SRS_JARRAY_END;
+
     return ret;
 }
 
@@ -150,15 +184,22 @@ int SrsStatistic::dumps_streams(stringstream& ss)
 {
     int ret = ERROR_SUCCESS;
     
+    ss << __SRS_JARRAY_START;
     std::map<std::string, SrsStatisticStream*>::iterator it;
     for (it = streams.begin(); it != streams.end(); it++) {
         SrsStatisticStream* stream = it->second;
+        if (it != streams.begin()) {
+            ss << __SRS_JFIELD_CONT;
+        }
+
         ss << __SRS_JOBJECT_START
                 << __SRS_JFIELD_ORG("id", stream->id) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_STR("name", stream->stream) << __SRS_JFIELD_CONT
-                << __SRS_JFIELD_ORG("vhost", stream->vhost->id)
+                << __SRS_JFIELD_ORG("vhost", stream->vhost->id) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("clients", stream->clients.size())
             << __SRS_JOBJECT_END;
     }
+    ss << __SRS_JARRAY_END;
     
     return ret;
 }

@@ -530,9 +530,7 @@ int SrsApiVhosts::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
     ss << __SRS_JOBJECT_START
         << __SRS_JFIELD_ERROR(ret) << __SRS_JFIELD_CONT
         << __SRS_JFIELD_ORG("server", stat->server_id()) << __SRS_JFIELD_CONT
-        << __SRS_JFIELD_ORG("vhosts", __SRS_JARRAY_START)
-            << data.str()
-        << __SRS_JARRAY_END
+        << __SRS_JFIELD_ORG("vhosts", data.str())
         << __SRS_JOBJECT_END;
     
     return res_json(skt, req, ss.str());
@@ -562,9 +560,7 @@ int SrsApiStreams::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
     ss << __SRS_JOBJECT_START
         << __SRS_JFIELD_ERROR(ret) << __SRS_JFIELD_CONT
         << __SRS_JFIELD_ORG("server", stat->server_id()) << __SRS_JFIELD_CONT
-        << __SRS_JFIELD_ORG("streams", __SRS_JARRAY_START)
-            << data.str()
-        << __SRS_JARRAY_END
+        << __SRS_JFIELD_ORG("streams", data.str())
         << __SRS_JOBJECT_END;
     
     return res_json(skt, req, ss.str());
