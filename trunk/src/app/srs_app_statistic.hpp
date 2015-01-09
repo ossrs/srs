@@ -34,7 +34,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string>
 
 class SrsRequest;
-struct SrsStatisticClient;
 
 struct SrsStatisticVhost
 {
@@ -54,7 +53,6 @@ public:
     std::string app;
     std::string stream;
     std::string url;
-    std::map<int, SrsStatisticClient*> clients;
 public:
     SrsStatisticStream();
     virtual ~SrsStatisticStream();
@@ -94,7 +92,7 @@ public:
     /**
     * client close
     */
-    virtual int on_close(int id);
+    virtual void on_close(int id);
 public:
     /**
     * get the server id, used to identify the server.

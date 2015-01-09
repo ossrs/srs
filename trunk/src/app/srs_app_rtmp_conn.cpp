@@ -200,7 +200,8 @@ int SrsRtmpConn::do_cycle()
     
     ret = service_cycle();
     http_hooks_on_close();
-    SrsStatistic::instance()->on_close(_srs_context->get_id());
+    SrsStatistic* stat = SrsStatistic::instance();
+    stat->on_close(_srs_context->get_id());
     
     return ret;
 }

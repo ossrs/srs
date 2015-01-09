@@ -131,26 +131,19 @@ int SrsStatistic::on_client(int id, SrsRequest* req)
     } else {
         client = clients[id];
     }
-    
-    stream->clients[id] = client;
 
     return ret;
 }
 
-int SrsStatistic::on_close(int id)
+void SrsStatistic::on_close(int id)
 {
-    int ret = ERROR_SUCCESS;
-
     std::map<int, SrsStatisticClient*>::iterator it;
     it = clients.find(id);
     if (it != clients.end()) {
         SrsStatisticClient* client = it->second;
-        client->stream->clients.erase(id);
         srs_freep(client);
         clients.erase(it);
     }
-
-    return ret;
 }
 
 int64_t SrsStatistic::server_id()
@@ -192,11 +185,20 @@ int SrsStatistic::dumps_streams(stringstream& ss)
             ss << __SRS_JFIELD_CONT;
         }
 
+        int client_num = 0;
+        std::map<int, SrsStatisticClient*>::iterator it_client;
+        for (it_client = clients.begin(); it_client != clients.end(); it_client++) {
+            SrsStatisticClient* client = it_client->second;
+            if (client->stream == stream) {
+                client_num++;
+            }
+        }
+
         ss << __SRS_JOBJECT_START
                 << __SRS_JFIELD_ORG("id", stream->id) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_STR("name", stream->stream) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_ORG("vhost", stream->vhost->id) << __SRS_JFIELD_CONT
-                << __SRS_JFIELD_ORG("clients", stream->clients.size())
+                << __SRS_JFIELD_ORG("clients", client_num)
             << __SRS_JOBJECT_END;
     }
     ss << __SRS_JARRAY_END;
