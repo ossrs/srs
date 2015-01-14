@@ -336,6 +336,13 @@ int SrsAvcAacCodec::video_avc_demux(char* data, int size, SrsCodecSample* sample
     
     sample->frame_type = (SrsCodecVideoAVCFrame)frame_type;
     
+    // ignore info frame without error,
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/288#issuecomment-69863909
+    if (sample->frame_type == SrsCodecVideoAVCFrameVideoInfoFrame) {
+        srs_warn("hls igone the info frame, ret=%d", ret);
+        return ret;
+    }
+    
     // only support h.264/avc
     if (codec_id != SrsCodecVideoAVC) {
         ret = ERROR_HLS_DECODE_ERROR;
