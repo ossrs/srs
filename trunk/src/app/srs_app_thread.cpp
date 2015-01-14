@@ -163,7 +163,7 @@ void SrsThread::thread_cycle()
         
         if ((ret = handler->cycle()) != ERROR_SUCCESS) {
             if (!srs_is_client_gracefully_close(ret)) {
-                srs_warn("thread cycle failed, ignored and retry, ret=%d", _name, ret);
+                srs_warn("thread %s cycle failed, ignored and retry, ret=%d", _name, ret);
             }
             goto failed;
         }
