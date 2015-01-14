@@ -1491,11 +1491,13 @@ int SrsHls::on_video(SrsSharedPtrMessage* video)
     
     sample->clear();
     if ((ret = codec->video_avc_demux(video->payload, video->size, sample)) != ERROR_SUCCESS) {
-        if (sample->frame_type == SrsCodecVideoAVCFrameVideoInfoFrame) {
-            srs_warn("hls igone the info frame, ret=%d", ret);
-            return ERROR_SUCCESS;
-        }
         srs_error("hls codec demux video failed. ret=%d", ret);
+        return ret;
+    }
+    
+    // ignore info frame,
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/288#issuecomment-69863909
+    if (sample->frame_type == SrsCodecVideoAVCFrameVideoInfoFrame) {
         return ret;
     }
     
