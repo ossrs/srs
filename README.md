@@ -317,8 +317,8 @@ Donation:<br/>
 [http://www.ossrs.net/srs.release/donation/index.html](http://www.ossrs.net/srs.release/donation/index.html)
 
 Donations:<br/>
-[https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt]
-(https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt)
+[https://github.com/winlinvip/simple-rtmp-server/blob/develop/DONATIONS.txt]
+(https://github.com/winlinvip/simple-rtmp-server/blob/develop/DONATIONS.txt)
 
 ## System Requirements
 Supported operating systems and hardware:
