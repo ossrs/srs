@@ -639,8 +639,7 @@ int SrsGopCache::dump(SrsConsumer* consumer, bool atc, int tba, int tbv, SrsRtmp
     std::vector<SrsSharedPtrMessage*>::iterator it;
     for (it = gop_cache.begin(); it != gop_cache.end(); ++it) {
         SrsSharedPtrMessage* msg = *it;
-        SrsSharedPtrMessage* copy = msg->copy();
-        if ((ret = consumer->enqueue(copy, atc, tba, tbv, jitter_algorithm)) != ERROR_SUCCESS) {
+        if ((ret = consumer->enqueue(msg, atc, tba, tbv, jitter_algorithm)) != ERROR_SUCCESS) {
             srs_error("dispatch cached gop failed. ret=%d", ret);
             return ret;
         }
