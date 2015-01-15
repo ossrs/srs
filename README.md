@@ -35,7 +35,7 @@ git clone https://git.oschina.net/winlinvip/srs.oschina.git
 公用机器(LiveShow): [https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_LiveShow](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_LiveShow) <br/>
 捐款(Donation): [GitHub](http://winlinvip.github.io/srs.release/donation/index.html) 
 或 [阿里云镜像](http://www.ossrs.net/srs.release/donation/index.html) ，查看
-[捐献墙(Donations)](https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt)<br/>
+[捐献墙(Donations)](https://github.com/winlinvip/simple-rtmp-server/blob/develop/DONATIONS.txt)<br/>
 
 ## About
 
@@ -216,6 +216,16 @@ the GIT usage(
 git clone https://git.oschina.net/winlinvip/srs.oschina.git
 ```
 
+Gitlab: [https://gitlab.com/winlinvip/srs-gitlab](https://gitlab.com/winlinvip/srs-gitlab) ,
+the GIT usage(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Git),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Git)
+)
+
+```bash
+git clone https://gitlab.com/winlinvip/srs-gitlab.git
+```
+
 ## Usage
 
 <strong>Step 1:</strong> get SRS 
@@ -306,13 +316,13 @@ Donation:<br/>
 [http://www.ossrs.net/srs.release/donation/index.html](http://www.ossrs.net/srs.release/donation/index.html)
 
 Donations:<br/>
-[https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt]
-(https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt)
+[https://github.com/winlinvip/simple-rtmp-server/blob/develop/DONATIONS.txt]
+(https://github.com/winlinvip/simple-rtmp-server/blob/develop/DONATIONS.txt)
 
 ## System Requirements
 Supported operating systems and hardware:
 * All Linux , both 32 and 64 bits
-* All hardware.
+* All hardware with x86/x86_64/arm/mips cpu.
 
 ## Summary
 1. 简洁稳定：Simple, also stable enough.
@@ -373,6 +383,14 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+* <strong>v1.0, 2015-01-15, [1.0r1 release(1.0.20)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0r1) released. 59472 lines.</strong>
+* v1.0, 2015-01-08, hotfix [#281](https://github.com/winlinvip/simple-rtmp-server/issues/281), fix hls bug ignore type-9 send aud. 1.0.20
+* v1.0, 2015-01-03, hotfix to remove the pageUrl for http callback. 1.0.19
+* v1.0, 2015-01-02, hotfix [#207](https://github.com/winlinvip/simple-rtmp-server/issues/207), trim the last 0 of log. 1.0.18
+* v1.0, 2015-01-02, hotfix [#216](https://github.com/winlinvip/simple-rtmp-server/issues/216), http-callback post in application/json content-type. 1.0.17
+* v1.0, 2015-01-01, hotfix [#270](https://github.com/winlinvip/simple-rtmp-server/issues/270), memory leak for http client post. 1.0.16
+* v1.0, 2014-12-29, hotfix [#267](https://github.com/winlinvip/simple-rtmp-server/issues/267), the forward dest ep should use server. 1.0.15
+* v1.0, 2014-12-29, hotfix [#268](https://github.com/winlinvip/simple-rtmp-server/issues/268), the hls pcr is negative when startup. 1.0.14
 * v1.0, 2014-12-26, use master as main stable branch with hotfixes. 1.0.13
 * v1.0, 2014-12-22, hotfix [#264](https://github.com/winlinvip/simple-rtmp-server/issues/264), ignore NALU when sequence header to make HLS happy. 1.0.12
 * v1.0, 2014-12-20, hotfix [#264](https://github.com/winlinvip/simple-rtmp-server/issues/264), support disconnect publish connect when hls error. 1.0.11
@@ -721,41 +739,6 @@ Schema#1: Any RTMP encoder push RTMP stream to RTMP (origin/edge)server,
                                             +-----------------+
 Schema#2: SRS RTMP Edge server pull stream from origin (or upstream SRS 
     RTMP Edge server), then delivery to Client.
-</pre>
-
-### (plan) SRS Multiple processes Architecture(design by wenjie)
-
-<pre>
-                 +---------------+              +--------+
-                 | upnode server |              + client +
-                 +-------+-------+              +---+----+
-            -------------+------------network-------+---------
-                         |                          |
- +--------+         +----+-----------+         +----+----------+
- | master +--fork->-+ back source(1) +-->-pull-+ stream 1-N(2) +
- +---+----+         +----------------+         +-------+-------+
-     |                                                 |
-     +-------------------------------------fork--->-----+
-     |                           +-------------+
-     +-------------------fork-->-+ http/vod(3) |
-                                 +-------------+
-Remark:
-(1) back source process: create by master process, get stream from 
-    upnode server if edge, create stream if origin, serve the stream 
-    process.
-(2) stream process: create by master process, get stream from back
-    source process, serve the client.
-(3) the embeded mininum http server, also provides vod service. for
-    http server, it provides http api, hls(live/vod) delivery. for
-    vod server, it slice the file to hls(m3u8/ts).
-Remark:
-(a) This multiple processes architecture is design by wenjie, it's a
-    very simple and powerful multiple process architecture, for the
-    master no need to pass between stream process.
-(b) The CLI architecture is similar to this, instead, cli process
-    will collect informations from all stream process, master process
-    only send signals to child processes.
-(c) Maybe multiple thread is ok? By winlin.
 </pre>
 
 ### Bandwidth Test Workflow

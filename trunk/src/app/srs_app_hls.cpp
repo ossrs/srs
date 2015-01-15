@@ -368,11 +368,16 @@ private:
     }
     static char* write_pcr(char* p, int64_t pcr)
     {
-        *p++ = (char) (pcr >> 25);
-        *p++ = (char) (pcr >> 17);
-        *p++ = (char) (pcr >> 9);
-        *p++ = (char) (pcr >> 1);
-        *p++ = (char) (pcr << 7 | 0x7e);
+        // the pcr=dts-delay
+        // and the pcr maybe negative
+        // @see https://github.com/winlinvip/simple-rtmp-server/issues/268
+        int64_t v = srs_max(0, pcr);
+        
+        *p++ = (char) (v >> 25);
+        *p++ = (char) (v >> 17);
+        *p++ = (char) (v >> 9);
+        *p++ = (char) (v >> 1);
+        *p++ = (char) (v << 7 | 0x7e);
         *p++ = 0;
     
         return p;
@@ -1271,9 +1276,13 @@ int SrsHlsCache::cache_video(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         // 6: Supplemental enhancement information (SEI) sei_rbsp( ), page 61
         // @see: ngx_rtmp_hls_append_aud
         if (!aud_sent) {
-            if (nal_unit_type == 9) {
+            // @remark, when got type 9, we donot send aud_nal, but it will make 
+            //      ios unhappy, so we remove it.
+            // @see https://github.com/winlinvip/simple-rtmp-server/issues/281
+            /*if (nal_unit_type == 9) {
                 aud_sent = true;
-            }
+            }*/
+            
             if (nal_unit_type == 1 || nal_unit_type == 5 || nal_unit_type == 6) {
                 // for type 6, append a aud with type 9.
                 vb->append((const char*)aud_nal, sizeof(aud_nal));
@@ -1483,6 +1492,12 @@ int SrsHls::on_video(SrsSharedPtrMessage* video)
     sample->clear();
     if ((ret = codec->video_avc_demux(video->payload, video->size, sample)) != ERROR_SUCCESS) {
         srs_error("hls codec demux video failed. ret=%d", ret);
+        return ret;
+    }
+    
+    // ignore info frame,
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/288#issuecomment-69863909
+    if (sample->frame_type == SrsCodecVideoAVCFrameVideoInfoFrame) {
         return ret;
     }
     

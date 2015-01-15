@@ -2,7 +2,7 @@
 
 cat <<END >>/dev/null
 touch git-ensure-commit &&
-echo "cd `pwd` && git checkout master &&" >git-ensure-commit &&
+echo "cd `pwd` && git checkout develop &&" >git-ensure-commit &&
 echo "bash `pwd`/git.commit.sh" >>git-ensure-commit &&
 chmod +x git-ensure-commit &&
 sudo rm -f /bin/git-ensure-commit &&
@@ -23,7 +23,7 @@ work_dir=`(cd ${work_dir}/.. && pwd)`
 product_dir=$work_dir
 
 # allow start script from any dir
-cd $work_dir && git checkout master
+cd $work_dir && git checkout develop
 
 . ${product_dir}/scripts/_log.sh
 ret=$?; if [[ $ret -ne 0 ]]; then exit $ret; fi
@@ -44,6 +44,7 @@ function remote_check()
 remote_check origin git@github.com:winlinvip/simple-rtmp-server.git
 remote_check srs.csdn git@code.csdn.net:winlinvip/srs-csdn.git
 remote_check srs.oschina git@git.oschina.net:winlinvip/srs.oschina.git
+remote_check srs.gitlab git@gitlab.com:winlinvip/srs-gitlab.git
 ok_msg "remote check ok"
 
 function sync_push()
@@ -64,10 +65,12 @@ function sync_push()
 sync_push --all origin
 sync_push --all srs.csdn
 sync_push --all srs.oschina
+sync_push --all srs.gitlab
 ok_msg "push refs ok"
 
 sync_push --tags srs.csdn
 sync_push --tags srs.oschina
+sync_push --tags srs.gitlab
 ok_msg "push tags ok"
 
 exit 0
