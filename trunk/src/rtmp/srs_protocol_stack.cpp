@@ -936,6 +936,7 @@ int SrsProtocol::do_send_and_free_packet(SrsPacket* packet, int stream_id)
     header.perfer_cid = packet->get_prefer_cid();
     
     ret = do_simple_send(&header, payload, size);
+    srs_freep(payload);
     if (ret == ERROR_SUCCESS) {
         ret = on_send_packet(&header, packet);
     }
