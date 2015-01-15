@@ -6,11 +6,11 @@ SRS is industrial-strength live streaming cluster,
 for the best conceptual integrity and the simplest implementation.
 
 Download from github.io: 
-[Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.0.zip) 
+[Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.21.zip) 
 [more...](http://winlinvip.github.io/srs.release/releases/)
 
 Download from ossrs.net: 
-[Centos6-x86_64](http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.0.zip) 
+[Centos6-x86_64](http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.21.zip) 
 [more...](http://www.ossrs.net/srs.release/releases/)
 
 ## About
