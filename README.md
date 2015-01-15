@@ -362,6 +362,7 @@ Supported operating systems and hardware:
 [2.0dev branch](https://github.com/winlinvip/simple-rtmp-server/tree/master).
 
 ## Releases
+* 2015-01-15, [Release v1.0r1](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0r1), bug fixed, 1.0.21, 59472 lines.<br/>
 * 2014-12-05, [Release v1.0](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0), all bug fixed, 1.0.10, 59391 lines.<br/>
 * 2014-10-09, [Release v1.0-beta](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.beta), all bug fixed, 1.0.0, 59316 lines.<br/>
 * 2014-08-03, [Release v1.0-mainline7](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline7), config utest, all bug fixed. 57432 lines.<br/>
@@ -384,7 +385,7 @@ Supported operating systems and hardware:
 
 ## History
 
-* <strong>v1.0, 2015-01-15, [1.0r1 release(1.0.20)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0r1) released. 59472 lines.</strong>
+* <strong>v1.0, 2015-01-15, [1.0r1 release(1.0.21)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0r1) released. 59472 lines.</strong>
 * v1.0, 2015-01-08, hotfix [#281](https://github.com/winlinvip/simple-rtmp-server/issues/281), fix hls bug ignore type-9 send aud. 1.0.20
 * v1.0, 2015-01-03, hotfix to remove the pageUrl for http callback. 1.0.19
 * v1.0, 2015-01-02, hotfix [#207](https://github.com/winlinvip/simple-rtmp-server/issues/207), trim the last 0 of log. 1.0.18
