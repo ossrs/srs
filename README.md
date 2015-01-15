@@ -35,7 +35,7 @@ git clone https://git.oschina.net/winlinvip/srs.oschina.git
 公用机器(LiveShow): [https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_LiveShow](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_LiveShow) <br/>
 捐款(Donation): [GitHub](http://winlinvip.github.io/srs.release/donation/index.html) 
 或 [阿里云镜像](http://www.ossrs.net/srs.release/donation/index.html) ，查看
-[捐献墙(Donations)](https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt)<br/>
+[捐献墙(Donations)](https://github.com/winlinvip/simple-rtmp-server/blob/develop/DONATIONS.txt)<br/>
 
 ## About
 
@@ -316,8 +316,8 @@ Donation:<br/>
 [http://www.ossrs.net/srs.release/donation/index.html](http://www.ossrs.net/srs.release/donation/index.html)
 
 Donations:<br/>
-[https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt]
-(https://github.com/winlinvip/simple-rtmp-server/blob/master/DONATIONS.txt)
+[https://github.com/winlinvip/simple-rtmp-server/blob/develop/DONATIONS.txt]
+(https://github.com/winlinvip/simple-rtmp-server/blob/develop/DONATIONS.txt)
 
 ## System Requirements
 Supported operating systems and hardware:
