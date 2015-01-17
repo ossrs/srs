@@ -189,8 +189,6 @@ messages.
 #define RTMP_AMF0_COMMAND_UNPUBLISH             "FCUnpublish"
 #define RTMP_AMF0_COMMAND_PUBLISH               "publish"
 #define RTMP_AMF0_DATA_SAMPLE_ACCESS            "|RtmpSampleAccess"
-#define RTMP_AMF0_DATA_SET_DATAFRAME            "@setDataFrame"
-#define RTMP_AMF0_DATA_ON_METADATA              "onMetaData"
 
 /**
 * band width check method name, which will be invoked by client.
@@ -1100,7 +1098,7 @@ int SrsProtocol::do_decode_message(SrsMessageHeader& header, SrsStream* stream, 
             srs_info("decode the AMF0/AMF3 command(unpublish message).");
             *ppacket = packet = new SrsFMLEStartPacket();
             return packet->decode(stream);
-        } else if(command == RTMP_AMF0_DATA_SET_DATAFRAME || command == RTMP_AMF0_DATA_ON_METADATA) {
+        } else if(command == SRS_CONSTS_RTMP_SET_DATAFRAME || command == SRS_CONSTS_RTMP_ON_METADATA) {
             srs_info("decode the AMF0/AMF3 data(onMetaData message).");
             *ppacket = packet = new SrsOnMetaDataPacket();
             return packet->decode(stream);
@@ -3756,7 +3754,7 @@ int SrsSampleAccessPacket::encode_packet(SrsStream* stream)
 
 SrsOnMetaDataPacket::SrsOnMetaDataPacket()
 {
-    name = RTMP_AMF0_DATA_ON_METADATA;
+    name = SRS_CONSTS_RTMP_ON_METADATA;
     metadata = SrsAmf0Any::object();
 }
 
@@ -3775,7 +3773,7 @@ int SrsOnMetaDataPacket::decode(SrsStream* stream)
     }
 
     // ignore the @setDataFrame
-    if (name == RTMP_AMF0_DATA_SET_DATAFRAME) {
+    if (name == SRS_CONSTS_RTMP_SET_DATAFRAME) {
         if ((ret = srs_amf0_read_string(stream, name)) != ERROR_SUCCESS) {
             srs_error("decode metadata name failed. ret=%d", ret);
             return ret;

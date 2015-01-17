@@ -1082,11 +1082,15 @@ srs_bool srs_rtmp_is_onMetaData(char type, char* data, int size)
         return false;
     }
     
-    if (name != "onMetaData") {
-        return false;
+    if (name == SRS_CONSTS_RTMP_ON_METADATA) {
+        return true;
     }
     
-    return true;
+    if (name == SRS_CONSTS_RTMP_SET_DATAFRAME) {
+        return true;
+    }
+    
+    return false;
 }
 
 /**
