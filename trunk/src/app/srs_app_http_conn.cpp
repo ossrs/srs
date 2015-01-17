@@ -38,7 +38,6 @@ using namespace std;
 #include <srs_app_st_socket.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_app_config.hpp>
-#include <srs_kernel_flv.hpp>
 #include <srs_kernel_utility.hpp>
 
 SrsHttpServer::SrsHttpServer()

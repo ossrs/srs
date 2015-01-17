@@ -204,6 +204,9 @@ public:
     virtual ~SrsGoHttpFileServer();
 public:
     virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
+private:
+    virtual int serve_file(std::string fullpath, ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
+    virtual int serve_flv_stream(std::string fullpath, ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, int offset);
 };
 
 // the mux entry for server mux.
