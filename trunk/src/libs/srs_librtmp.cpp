@@ -1064,6 +1064,31 @@ int srs_rtmp_write_packet(srs_rtmp_t rtmp, char type, u_int32_t timestamp, char*
     return ret;
 }
 
+srs_bool srs_rtmp_is_onMetaData(char type, char* data, int size)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (type != SRS_RTMP_TYPE_SCRIPT) {
+        return false;
+    }
+    
+    SrsStream stream;
+    if ((ret = stream.initialize(data, size)) != ERROR_SUCCESS) {
+        return false;
+    }
+    
+    std::string name;
+    if ((ret = srs_amf0_read_string(&stream, name)) != ERROR_SUCCESS) {
+        return false;
+    }
+    
+    if (name != "onMetaData") {
+        return false;
+    }
+    
+    return true;
+}
+
 /**
 * directly write a audio frame.
 */

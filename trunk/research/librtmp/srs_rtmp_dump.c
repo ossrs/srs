@@ -275,6 +275,13 @@ int main(int argc, char** argv)
         // we only write some types of messages to flv file.
         int is_flv_msg = type == SRS_RTMP_TYPE_AUDIO
             || type == SRS_RTMP_TYPE_VIDEO || type == SRS_RTMP_TYPE_SCRIPT;
+            
+        // for script data, ignore except onMetaData
+        if (type == SRS_RTMP_TYPE_SCRIPT) {
+            if (!srs_rtmp_is_onMetaData(type, data, size)) {
+                is_flv_msg = 0;
+            }
+        }
 
         if (flv) {
             if (is_flv_msg) {

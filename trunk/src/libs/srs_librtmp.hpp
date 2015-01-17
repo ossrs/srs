@@ -264,6 +264,11 @@ extern int srs_rtmp_write_packet(srs_rtmp_t rtmp,
     char type, u_int32_t timestamp, char* data, int size
 );
 
+/**
+* whether type is script data and the data is onMetaData.
+*/
+extern srs_bool srs_rtmp_is_onMetaData(char type, char* data, int size);
+
 /*************************************************************
 **************************************************************
 * audio raw codec
