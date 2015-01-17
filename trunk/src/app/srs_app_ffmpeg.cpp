@@ -209,6 +209,13 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
         return ret;
     }
     
+    // for not rtmp input, donot append the iformat,
+    // for example, "-f flv" before "-i udp://192.168.1.252:2222"
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/290
+    if (input.find("rtmp://") != 0) {
+        iformat = "";
+    }
+    
     return ret;
 }
 

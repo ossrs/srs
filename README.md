@@ -385,6 +385,7 @@ Supported operating systems and hardware:
 
 ## History
 
+* v1.0, 2015-01-17, hotfix [#290](https://github.com/winlinvip/simple-rtmp-server/issues/290), use iformat only for rtmp input. 1.0.22
 * <strong>v1.0, 2015-01-15, [1.0r1 release(1.0.21)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0r1) released. 59472 lines.</strong>
 * v1.0, 2015-01-08, hotfix [#281](https://github.com/winlinvip/simple-rtmp-server/issues/281), fix hls bug ignore type-9 send aud. 1.0.20
 * v1.0, 2015-01-03, hotfix to remove the pageUrl for http callback. 1.0.19
