@@ -564,7 +564,9 @@ int SrsGoHttpServeMux::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r
     
     srs_assert(h);
     if ((ret = h->serve_http(w, r)) != ERROR_SUCCESS) {
-        srs_error("handler serve http failed. ret=%d", ret);
+        if (!srs_is_client_gracefully_close(ret)) {
+            srs_error("handler serve http failed. ret=%d", ret);
+        }
         return ret;
     }
     

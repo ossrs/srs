@@ -154,10 +154,6 @@ void show_macro_features()
 void check_macro_features()
 {
     // for special features.
-#ifdef SRS_AUTO_HTTP_SERVER
-    srs_warn("http server is dev feature, @see %s", RTMP_SIG_SRS_HTTP_SERVER);
-#endif
-
 #ifndef SRS_PERF_MERGED_READ
     srs_warn("MR(merged-read) is disabled, hurts read performance. @see %s", RTMP_SIG_SRS_ISSUES(241));
 #endif
