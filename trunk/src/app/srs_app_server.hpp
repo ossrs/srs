@@ -39,7 +39,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsServer;
 class SrsConnection;
 class SrsGoHttpServeMux;
-class SrsHttpHandler;
+class SrsHttpServer;
 class SrsIngester;
 class SrsHttpHeartbeat;
 class SrsKbps;
@@ -120,7 +120,7 @@ private:
     SrsGoHttpServeMux* http_api_mux;
 #endif
 #ifdef SRS_AUTO_HTTP_SERVER
-    SrsHttpHandler* http_stream_handler;
+    SrsHttpServer* http_stream_mux;
 #endif
 #ifdef SRS_AUTO_HTTP_PARSER
     SrsHttpHeartbeat* http_heartbeat;

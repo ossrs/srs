@@ -431,8 +431,6 @@ SrsGoApiVhosts::~SrsGoApiVhosts()
 
 int SrsGoApiVhosts::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
 {
-    SrsHttpMessage* req = r;
-    
     std::stringstream data;
     SrsStatistic* stat = SrsStatistic::instance();
     int ret = stat->dumps_vhosts(data);

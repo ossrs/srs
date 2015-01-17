@@ -333,7 +333,7 @@ SrsServer::SrsServer()
     http_api_mux = new SrsGoHttpServeMux();
 #endif
 #ifdef SRS_AUTO_HTTP_SERVER
-    http_stream_handler = NULL;
+    http_stream_mux = new SrsHttpServer();
 #endif
 #ifdef SRS_AUTO_HTTP_PARSER
     http_heartbeat = NULL;
@@ -367,7 +367,7 @@ void SrsServer::destroy()
 #endif
 
 #ifdef SRS_AUTO_HTTP_SERVER
-    srs_freep(http_stream_handler);
+    srs_freep(http_stream_mux);
 #endif
 
 #ifdef SRS_AUTO_HTTP_PARSER
@@ -462,23 +462,22 @@ int SrsServer::initialize()
         return ret;
     }
 #endif
+
 #ifdef SRS_AUTO_HTTP_SERVER
-    srs_assert(!http_stream_handler);
-    http_stream_handler = SrsHttpHandler::create_http_stream();
+    srs_assert(http_stream_mux);
+    if ((ret = http_stream_mux->initialize()) != ERROR_SUCCESS) {
+        return ret;
+    }
 #endif
+
 #ifdef SRS_AUTO_HTTP_PARSER
     srs_assert(!http_heartbeat);
     http_heartbeat = new SrsHttpHeartbeat();
 #endif
+
 #ifdef SRS_AUTO_INGEST
     srs_assert(!ingester);
     ingester = new SrsIngester();
-#endif
-
-#ifdef SRS_AUTO_HTTP_SERVER
-    if ((ret = http_stream_handler->initialize()) != ERROR_SUCCESS) {
-        return ret;
-    }
 #endif
 
     return ret;
@@ -942,7 +941,7 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
 #endif
     } else if (type == SrsListenerHttpStream) {
 #ifdef SRS_AUTO_HTTP_SERVER
-        conn = new SrsHttpConn(this, client_stfd, http_stream_handler);
+        conn = new SrsHttpConn(this, client_stfd, http_stream_mux);
 #else
         srs_warn("close http client for server not support http-server");
         srs_close_stfd(client_stfd);
@@ -1019,10 +1018,10 @@ int SrsServer::on_reload_vhost_http_updated()
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_HTTP_SERVER
-    srs_freep(http_stream_handler);
-    http_stream_handler = SrsHttpHandler::create_http_stream();
+    srs_freep(http_stream_mux);
+    http_stream_mux = new SrsHttpServer();
 
-    if ((ret = http_stream_handler->initialize()) != ERROR_SUCCESS) {
+    if ((ret = http_stream_mux->initialize()) != ERROR_SUCCESS) {
         return ret;
     }
 #endif

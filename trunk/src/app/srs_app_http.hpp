@@ -70,15 +70,6 @@ class ISrsGoHttpResponseWriter;
 // helper function: response in json format.
 extern int srs_go_http_response_json(ISrsGoHttpResponseWriter* w, std::string data);
 
-// compare the path.
-// full compare, extractly match.
-// used for api match.
-extern bool srs_path_equals(const char* expect, const char* path, int nb_path);
-// compare the path use like,
-// used for http stream to match,
-// if the path like the requires
-extern bool srs_path_like(const char* expect, const char* path, int nb_path);
-
 // state of message
 enum SrsHttpParseState {
     SrsHttpParseStateInit = 0, 
@@ -196,6 +187,25 @@ public:
     virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
 };
 
+// FileServer returns a handler that serves HTTP requests
+// with the contents of the file system rooted at root.
+//
+// To use the operating system's file system implementation,
+// use http.Dir:
+//
+//     http.Handle("/", SrsGoHttpFileServer("/tmp"))
+//     http.Handle("/", SrsGoHttpFileServer("static-dir"))
+class SrsGoHttpFileServer : public ISrsGoHttpHandler
+{
+private:
+    std::string dir;
+public:
+    SrsGoHttpFileServer(std::string root_dir);
+    virtual ~SrsGoHttpFileServer();
+public:
+    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
+};
+
 // the mux entry for server mux.
 class SrsGoHttpMuxEntry
 {
@@ -294,115 +304,6 @@ public:
     virtual int send_header(char* data, int size);
 };
 
-/**
-* the matched handler info.
-*/
-class SrsHttpHandlerMatch
-{
-public:
-    SrsHttpHandler* handler;
-    std::string matched_url;
-    std::string unmatched_url;
-public:
-    SrsHttpHandlerMatch();
-};
-
-/**
-* resource handler for HTTP RESTful api.
-*/
-class SrsHttpHandler
-{
-protected:
-    /**
-    * we use handler chain to process request.
-    */
-    std::vector<SrsHttpHandler*> handlers;
-public:
-    SrsHttpHandler();
-    virtual ~SrsHttpHandler();
-public:
-    /**
-    * initialize the handler.
-    */
-    virtual int initialize();
-    /**
-    * whether current handler can handle the specified path.
-    * @pchild set the next child path, if needed.
-    *       for example, the root handler will reset pchild to path,
-    *       to reparse the path use child handlers.
-    */
-    virtual bool can_handle(const char* path, int length, const char** pchild);
-    /**
-    * use the handler to process the request.
-    * @remark sub classes should override the do_process_request.
-    */
-    virtual int process_request(SrsStSocket* skt, SrsHttpMessage* req);
-public:
-    /**
-    * find the best matched handler
-    */
-    virtual int best_match(const char* path, int length, SrsHttpHandlerMatch** ppmatch);
-// factory methods
-protected:
-    /**
-    * check whether the handler is valid.
-    * for example, user access /apis, actually it's not found,
-    * we will find the root handler to process it.
-    * @remark user can override this method, and should invoke it first.
-    * @see SrsApiRoot::is_handler_valid
-    */
-    virtual bool is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase);
-    /**
-    * do the actual process of request., format as, for example:
-    * {"code":0, "data":{}}
-    */
-    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
-    /**
-    * response error, format as, for example:
-    * {"code":100, "desc":"description"}
-    */
-    virtual int response_error(SrsStSocket* skt, SrsHttpMessage* req, int code, std::string desc);
-// response writer
-public:
-    virtual SrsHttpHandler* res_status_line(std::stringstream& ss);
-    virtual SrsHttpHandler* res_status_line_error(std::stringstream& ss, int code, std::string reason_phrase);
-    virtual SrsHttpHandler* res_content_type(std::stringstream& ss);
-    virtual SrsHttpHandler* res_content_type_xml(std::stringstream& ss);
-    virtual SrsHttpHandler* res_content_type_javascript(std::stringstream& ss);
-    virtual SrsHttpHandler* res_content_type_swf(std::stringstream& ss);
-    virtual SrsHttpHandler* res_content_type_css(std::stringstream& ss);
-    virtual SrsHttpHandler* res_content_type_ico(std::stringstream& ss);
-    virtual SrsHttpHandler* res_content_type_json(std::stringstream& ss);
-    virtual SrsHttpHandler* res_content_type_m3u8(std::stringstream& ss);
-    virtual SrsHttpHandler* res_content_type_mpegts(std::stringstream& ss);
-    virtual SrsHttpHandler* res_content_type_flv(std::stringstream& ss);
-    virtual SrsHttpHandler* res_content_length(std::stringstream& ss, int64_t length);
-    virtual SrsHttpHandler* res_enable_crossdomain(std::stringstream& ss);
-    virtual SrsHttpHandler* res_header_eof(std::stringstream& ss);
-    virtual SrsHttpHandler* res_body(std::stringstream& ss, std::string body);
-    virtual int res_flush(SrsStSocket* skt, std::stringstream& ss);
-public:
-    virtual int res_options(SrsStSocket* skt);
-    virtual int res_text(SrsStSocket* skt, SrsHttpMessage* req, std::string body);
-    virtual int res_xml(SrsStSocket* skt, SrsHttpMessage* req, std::string body);
-    virtual int res_javascript(SrsStSocket* skt, SrsHttpMessage* req, std::string body);
-    virtual int res_swf(SrsStSocket* skt, SrsHttpMessage* req, std::string body);
-    virtual int res_css(SrsStSocket* skt, SrsHttpMessage* req, std::string body);
-    virtual int res_ico(SrsStSocket* skt, SrsHttpMessage* req, std::string body);
-    virtual int res_m3u8(SrsStSocket* skt, SrsHttpMessage* req, std::string body);
-    virtual int res_mpegts(SrsStSocket* skt, SrsHttpMessage* req, std::string body);
-    virtual int res_json(SrsStSocket* skt, SrsHttpMessage* req, std::string json);
-    virtual int res_error(SrsStSocket* skt, SrsHttpMessage* req, int code, std::string reason_phrase, std::string body);
-// object creator
-public:
-    /**
-    * create http stream resource handler.
-    */
-#ifdef SRS_AUTO_HTTP_SERVER
-    static SrsHttpHandler* create_http_stream();
-#endif
-};
-
 // A Request represents an HTTP request received by a server
 // or to be sent by a client.
 //
@@ -437,14 +338,6 @@ private:
     * uri parser
     */
     SrsHttpUri* _uri;
-    /**
-    * best matched handler.
-    */
-    SrsHttpHandlerMatch* _match;
-    /**
-    * whether the message requires crossdomain.
-    */
-    bool _requires_crossdomain;
     /**
     * use a buffer to read and send ts file.
     */
@@ -481,13 +374,9 @@ public:
     virtual char* body_raw();
     virtual int64_t body_size();
     virtual int64_t content_length();
-    virtual SrsHttpHandlerMatch* match();
-    virtual bool requires_crossdomain();
     virtual void set_url(std::string url);
     virtual void set_state(SrsHttpParseState state);
     virtual void set_header(http_parser* header);
-    virtual void set_match(SrsHttpHandlerMatch* match);
-    virtual void set_requires_crossdomain(bool requires_crossdomain);
     virtual void append_body(const char* body, int length);
     /**
     * get the param in query string,
