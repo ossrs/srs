@@ -510,6 +510,7 @@ Supported operating systems and hardware:
 
 ## History
 
+* v2.0, 2015-01-17, for [#277](https://github.com/winlinvip/simple-rtmp-server/issues/277), refine http api refer to go http-framework. 2.0.97
 * v2.0, 2015-01-17, hotfix [#290](https://github.com/winlinvip/simple-rtmp-server/issues/290), use iformat only for rtmp input. 2.0.95
 * v2.0, 2015-01-08, hotfix [#281](https://github.com/winlinvip/simple-rtmp-server/issues/281), fix hls bug ignore type-9 send aud. 2.0.93
 * v2.0, 2015-01-03, fix [#274](https://github.com/winlinvip/simple-rtmp-server/issues/274), http-callback support on_dvr when reap a dvr file. 2.0.89

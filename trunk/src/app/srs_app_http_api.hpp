@@ -42,158 +42,130 @@ class SrsHttpHandler;
 #include <srs_app_http.hpp>
 
 // for http root.
-class SrsApiRoot : public SrsHttpHandler
+class SrsGoApiRoot : public ISrsGoHttpHandler
 {
 public:
-    SrsApiRoot();
-    virtual ~SrsApiRoot();
+    SrsGoApiRoot();
+    virtual ~SrsGoApiRoot();
 public:
-    virtual bool is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase);
-protected:
-    virtual bool can_handle(const char* path, int length, const char** pchild);
-    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
+    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
 };
 
-class SrsApiApi : public SrsHttpHandler
+class SrsGoApiApi : public ISrsGoHttpHandler
 {
 public:
-    SrsApiApi();
-    virtual ~SrsApiApi();
+    SrsGoApiApi();
+    virtual ~SrsGoApiApi();
 public:
-    virtual bool can_handle(const char* path, int length, const char** pchild);
-protected:
-    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
+    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
 };
 
-class SrsApiV1 : public SrsHttpHandler
+class SrsGoApiV1 : public ISrsGoHttpHandler
 {
 public:
-    SrsApiV1();
-    virtual ~SrsApiV1();
+    SrsGoApiV1();
+    virtual ~SrsGoApiV1();
 public:
-    virtual bool can_handle(const char* path, int length, const char** pchild);
-protected:
-    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
+    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
 };
 
-class SrsApiRequests : public SrsHttpHandler
+class SrsGoApiVersion : public ISrsGoHttpHandler
 {
 public:
-    SrsApiRequests();
-    virtual ~SrsApiRequests();
+    SrsGoApiVersion();
+    virtual ~SrsGoApiVersion();
 public:
-    virtual bool can_handle(const char* path, int length, const char** pchild);
-protected:
-    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
+    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
 };
 
-class SrsApiVersion : public SrsHttpHandler
+class SrsGoApiSummaries : public ISrsGoHttpHandler
 {
 public:
-    SrsApiVersion();
-    virtual ~SrsApiVersion();
+    SrsGoApiSummaries();
+    virtual ~SrsGoApiSummaries();
 public:
-    virtual bool can_handle(const char* path, int length, const char** pchild);
-protected:
-    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
+    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
 };
 
-class SrsApiSummaries : public SrsHttpHandler
+class SrsGoApiRusages : public ISrsGoHttpHandler
 {
 public:
-    SrsApiSummaries();
-    virtual ~SrsApiSummaries();
+    SrsGoApiRusages();
+    virtual ~SrsGoApiRusages();
 public:
-    virtual bool can_handle(const char* path, int length, const char** pchild);
-protected:
-    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
+    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
 };
 
-class SrsApiRusages : public SrsHttpHandler
+class SrsGoApiSelfProcStats : public ISrsGoHttpHandler
 {
 public:
-    SrsApiRusages();
-    virtual ~SrsApiRusages();
+    SrsGoApiSelfProcStats();
+    virtual ~SrsGoApiSelfProcStats();
 public:
-    virtual bool can_handle(const char* path, int length, const char** pchild);
-protected:
-    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
+    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
 };
 
-class SrsApiSelfProcStats : public SrsHttpHandler
+class SrsGoApiSystemProcStats : public ISrsGoHttpHandler
 {
 public:
-    SrsApiSelfProcStats();
-    virtual ~SrsApiSelfProcStats();
+    SrsGoApiSystemProcStats();
+    virtual ~SrsGoApiSystemProcStats();
 public:
-    virtual bool can_handle(const char* path, int length, const char** pchild);
-protected:
-    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
+    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
 };
 
-class SrsApiSystemProcStats : public SrsHttpHandler
+class SrsGoApiMemInfos : public ISrsGoHttpHandler
 {
 public:
-    SrsApiSystemProcStats();
-    virtual ~SrsApiSystemProcStats();
+    SrsGoApiMemInfos();
+    virtual ~SrsGoApiMemInfos();
 public:
-    virtual bool can_handle(const char* path, int length, const char** pchild);
-protected:
-    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
+    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
 };
 
-class SrsApiMemInfos : public SrsHttpHandler
+class SrsGoApiAuthors : public ISrsGoHttpHandler
 {
 public:
-    SrsApiMemInfos();
-    virtual ~SrsApiMemInfos();
+    SrsGoApiAuthors();
+    virtual ~SrsGoApiAuthors();
 public:
-    virtual bool can_handle(const char* path, int length, const char** pchild);
-protected:
-    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
+    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
 };
 
-class SrsApiAuthors : public SrsHttpHandler
+class SrsGoApiRequests : public ISrsGoHttpHandler
 {
 public:
-    SrsApiAuthors();
-    virtual ~SrsApiAuthors();
+    SrsGoApiRequests();
+    virtual ~SrsGoApiRequests();
 public:
-    virtual bool can_handle(const char* path, int length, const char** pchild);
-protected:
-    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
+    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
 };
 
-class SrsApiVhosts : public SrsHttpHandler
+class SrsGoApiVhosts : public ISrsGoHttpHandler
 {
 public:
-    SrsApiVhosts();
-    virtual ~SrsApiVhosts();
+    SrsGoApiVhosts();
+    virtual ~SrsGoApiVhosts();
 public:
-    virtual bool can_handle(const char* path, int length, const char** pchild);
-protected:
-    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
+    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
 };
 
-class SrsApiStreams : public SrsHttpHandler
+class SrsGoApiStreams : public ISrsGoHttpHandler
 {
 public:
-    SrsApiStreams();
-    virtual ~SrsApiStreams();
+    SrsGoApiStreams();
+    virtual ~SrsGoApiStreams();
 public:
-    virtual bool can_handle(const char* path, int length, const char** pchild);
-protected:
-    virtual int do_process_request(SrsStSocket* skt, SrsHttpMessage* req);
+    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
 };
 
 class SrsHttpApi : public SrsConnection
 {
 private:
     SrsHttpParser* parser;
-    SrsHttpHandler* handler;
-    bool requires_crossdomain;
+    SrsGoHttpServeMux* mux;
 public:
-    SrsHttpApi(SrsServer* srs_server, st_netfd_t client_stfd, SrsHttpHandler* _handler);
+    SrsHttpApi(SrsServer* svr, st_netfd_t fd, SrsGoHttpServeMux* m);
     virtual ~SrsHttpApi();
 public:
     virtual void kbps_resample();
@@ -204,7 +176,7 @@ public:
 protected:
     virtual int do_cycle();
 private:
-    virtual int process_request(SrsStSocket* skt, SrsHttpMessage* req);
+    virtual int process_request(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
 };
 
 #endif

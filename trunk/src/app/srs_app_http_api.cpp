@@ -38,41 +38,15 @@ using namespace std;
 #include <srs_app_statistic.hpp>
 #include <srs_protocol_rtmp.hpp>
 
-SrsApiRoot::SrsApiRoot()
-{
-    handlers.push_back(new SrsApiApi());
-}
-
-SrsApiRoot::~SrsApiRoot()
+SrsGoApiRoot::SrsGoApiRoot()
 {
 }
 
-bool SrsApiRoot::is_handler_valid(SrsHttpMessage* req, int& status_code, std::string& reason_phrase) 
+SrsGoApiRoot::~SrsGoApiRoot()
 {
-    if (!SrsHttpHandler::is_handler_valid(req, status_code, reason_phrase)) {
-        return false;
-    }
-    
-    if (req->match()->matched_url.length() != 1) {
-        status_code = SRS_CONSTS_HTTP_NotFound;
-        reason_phrase = SRS_CONSTS_HTTP_NotFound_str;
-        return false;
-    }
-    
-    return true;
 }
 
-bool SrsApiRoot::can_handle(const char* path, int /*length*/, const char** pchild)
-{
-    // reset the child path to path,
-    // for child to reparse the path.
-    *pchild = path;
-    
-    // only compare the first char.
-    return srs_path_equals("/", path, 1);
-}
-
-int SrsApiRoot::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
+int SrsGoApiRoot::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
 {
     std::stringstream ss;
     
@@ -82,25 +56,19 @@ int SrsApiRoot::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
             << __SRS_JFIELD_STR("api", "the api root")
         << __SRS_JOBJECT_END
         << __SRS_JOBJECT_END;
-    
-    return res_json(skt, req, ss.str());
+        
+    return srs_go_http_response_json(w, ss.str());
 }
 
-SrsApiApi::SrsApiApi()
-{
-    handlers.push_back(new SrsApiV1());
-}
-
-SrsApiApi::~SrsApiApi()
+SrsGoApiApi::SrsGoApiApi()
 {
 }
 
-bool SrsApiApi::can_handle(const char* path, int length, const char** /*pchild*/)
+SrsGoApiApi::~SrsGoApiApi()
 {
-    return srs_path_equals("/api", path, length);
 }
 
-int SrsApiApi::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
+int SrsGoApiApi::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
 {
     std::stringstream ss;
     
@@ -110,34 +78,19 @@ int SrsApiApi::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
             << __SRS_JFIELD_STR("v1", "the api version 1.0")
         << __SRS_JOBJECT_END
         << __SRS_JOBJECT_END;
-    
-    return res_json(skt, req, ss.str());
+        
+    return srs_go_http_response_json(w, ss.str());
 }
 
-SrsApiV1::SrsApiV1()
-{
-    handlers.push_back(new SrsApiVersion());
-    handlers.push_back(new SrsApiSummaries());
-    handlers.push_back(new SrsApiRusages());
-    handlers.push_back(new SrsApiSelfProcStats());
-    handlers.push_back(new SrsApiSystemProcStats());
-    handlers.push_back(new SrsApiMemInfos());
-    handlers.push_back(new SrsApiAuthors());
-    handlers.push_back(new SrsApiRequests());
-    handlers.push_back(new SrsApiVhosts());
-    handlers.push_back(new SrsApiStreams());
-}
-
-SrsApiV1::~SrsApiV1()
+SrsGoApiV1::SrsGoApiV1()
 {
 }
 
-bool SrsApiV1::can_handle(const char* path, int length, const char** /*pchild*/)
+SrsGoApiV1::~SrsGoApiV1()
 {
-    return srs_path_equals("/v1", path, length);
 }
 
-int SrsApiV1::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
+int SrsGoApiV1::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
 {
     std::stringstream ss;
     
@@ -157,87 +110,18 @@ int SrsApiV1::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
         << __SRS_JOBJECT_END
         << __SRS_JOBJECT_END;
     
-    return res_json(skt, req, ss.str());
+    return srs_go_http_response_json(w, ss.str());
 }
 
-SrsApiRequests::SrsApiRequests()
+SrsGoApiVersion::SrsGoApiVersion()
 {
 }
 
-SrsApiRequests::~SrsApiRequests()
+SrsGoApiVersion::~SrsGoApiVersion()
 {
 }
 
-bool SrsApiRequests::can_handle(const char* path, int length, const char** /*pchild*/)
-{
-    return srs_path_equals("/requests", path, length);
-}
-
-int SrsApiRequests::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
-{
-    std::stringstream ss;
-    
-    ss << __SRS_JOBJECT_START
-        << __SRS_JFIELD_ERROR(ERROR_SUCCESS) << __SRS_JFIELD_CONT
-        << __SRS_JFIELD_ORG("data", __SRS_JOBJECT_START)
-            << __SRS_JFIELD_STR("uri", req->uri()) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("path", req->path()) << __SRS_JFIELD_CONT;
-    
-    // method
-    if (req->is_http_get()) {
-        ss  << __SRS_JFIELD_STR("METHOD", "GET");
-    } else if (req->is_http_post()) {
-        ss  << __SRS_JFIELD_STR("METHOD", "POST");
-    } else if (req->is_http_put()) {
-        ss  << __SRS_JFIELD_STR("METHOD", "PUT");
-    } else if (req->is_http_delete()) {
-        ss  << __SRS_JFIELD_STR("METHOD", "DELETE");
-    } else {
-        ss  << __SRS_JFIELD_ORG("METHOD", req->method());
-    }
-    ss << __SRS_JFIELD_CONT;
-    
-    // request headers
-    ss      << __SRS_JFIELD_NAME("headers") << __SRS_JOBJECT_START;
-    for (int i = 0; i < req->request_header_count(); i++) {
-        std::string key = req->request_header_key_at(i);
-        std::string value = req->request_header_value_at(i);
-        if ( i < req->request_header_count() - 1) {
-            ss      << __SRS_JFIELD_STR(key, value) << __SRS_JFIELD_CONT;
-        } else {
-            ss      << __SRS_JFIELD_STR(key, value);
-        }
-    }
-    ss      << __SRS_JOBJECT_END << __SRS_JFIELD_CONT;
-    
-    // server informations
-    ss      << __SRS_JFIELD_NAME("server") << __SRS_JOBJECT_START
-                << __SRS_JFIELD_STR("sigature", RTMP_SIG_SRS_KEY) << __SRS_JFIELD_CONT
-                << __SRS_JFIELD_STR("name", RTMP_SIG_SRS_NAME) << __SRS_JFIELD_CONT
-                << __SRS_JFIELD_STR("version", RTMP_SIG_SRS_VERSION) << __SRS_JFIELD_CONT
-                << __SRS_JFIELD_STR("link", RTMP_SIG_SRS_URL) << __SRS_JFIELD_CONT
-                << __SRS_JFIELD_ORG("time", srs_get_system_time_ms())
-            << __SRS_JOBJECT_END
-        << __SRS_JOBJECT_END
-        << __SRS_JOBJECT_END;
-    
-    return res_json(skt, req, ss.str());
-}
-
-SrsApiVersion::SrsApiVersion()
-{
-}
-
-SrsApiVersion::~SrsApiVersion()
-{
-}
-
-bool SrsApiVersion::can_handle(const char* path, int length, const char** /*pchild*/)
-{
-    return srs_path_equals("/versions", path, length);
-}
-
-int SrsApiVersion::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
+int SrsGoApiVersion::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
 {
     std::stringstream ss;
     
@@ -251,43 +135,33 @@ int SrsApiVersion::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
         << __SRS_JOBJECT_END
         << __SRS_JOBJECT_END;
     
-    return res_json(skt, req, ss.str());
+    return srs_go_http_response_json(w, ss.str());
 }
 
-SrsApiSummaries::SrsApiSummaries()
+SrsGoApiSummaries::SrsGoApiSummaries()
 {
 }
 
-SrsApiSummaries::~SrsApiSummaries()
+SrsGoApiSummaries::~SrsGoApiSummaries()
 {
 }
 
-bool SrsApiSummaries::can_handle(const char* path, int length, const char** /*pchild*/)
-{
-    return srs_path_equals("/summaries", path, length);
-}
-
-int SrsApiSummaries::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
+int SrsGoApiSummaries::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
 {
     std::stringstream ss;
     srs_api_dump_summaries(ss);
-    return res_json(skt, req, ss.str());
+    return srs_go_http_response_json(w, ss.str());
 }
 
-SrsApiRusages::SrsApiRusages()
+SrsGoApiRusages::SrsGoApiRusages()
 {
 }
 
-SrsApiRusages::~SrsApiRusages()
+SrsGoApiRusages::~SrsGoApiRusages()
 {
 }
 
-bool SrsApiRusages::can_handle(const char* path, int length, const char** /*pchild*/)
-{
-    return srs_path_equals("/rusages", path, length);
-}
-
-int SrsApiRusages::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
+int SrsGoApiRusages::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* req)
 {
     std::stringstream ss;
     
@@ -317,23 +191,18 @@ int SrsApiRusages::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
         << __SRS_JOBJECT_END
         << __SRS_JOBJECT_END;
     
-    return res_json(skt, req, ss.str());
+    return srs_go_http_response_json(w, ss.str());
 }
 
-SrsApiSelfProcStats::SrsApiSelfProcStats()
+SrsGoApiSelfProcStats::SrsGoApiSelfProcStats()
 {
 }
 
-SrsApiSelfProcStats::~SrsApiSelfProcStats()
+SrsGoApiSelfProcStats::~SrsGoApiSelfProcStats()
 {
 }
 
-bool SrsApiSelfProcStats::can_handle(const char* path, int length, const char** /*pchild*/)
-{
-    return srs_path_equals("/self_proc_stats", path, length);
-}
-
-int SrsApiSelfProcStats::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
+int SrsGoApiSelfProcStats::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
 {
     std::stringstream ss;
     
@@ -392,23 +261,18 @@ int SrsApiSelfProcStats::do_process_request(SrsStSocket* skt, SrsHttpMessage* re
         << __SRS_JOBJECT_END
         << __SRS_JOBJECT_END;
     
-    return res_json(skt, req, ss.str());
+    return srs_go_http_response_json(w, ss.str());
 }
 
-SrsApiSystemProcStats::SrsApiSystemProcStats()
+SrsGoApiSystemProcStats::SrsGoApiSystemProcStats()
 {
 }
 
-SrsApiSystemProcStats::~SrsApiSystemProcStats()
+SrsGoApiSystemProcStats::~SrsGoApiSystemProcStats()
 {
 }
 
-bool SrsApiSystemProcStats::can_handle(const char* path, int length, const char** /*pchild*/)
-{
-    return srs_path_equals("/system_proc_stats", path, length);
-}
-
-int SrsApiSystemProcStats::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
+int SrsGoApiSystemProcStats::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
 {
     std::stringstream ss;
     
@@ -432,23 +296,18 @@ int SrsApiSystemProcStats::do_process_request(SrsStSocket* skt, SrsHttpMessage* 
         << __SRS_JOBJECT_END
         << __SRS_JOBJECT_END;
     
-    return res_json(skt, req, ss.str());
+    return srs_go_http_response_json(w, ss.str());
 }
 
-SrsApiMemInfos::SrsApiMemInfos()
+SrsGoApiMemInfos::SrsGoApiMemInfos()
 {
 }
 
-SrsApiMemInfos::~SrsApiMemInfos()
+SrsGoApiMemInfos::~SrsGoApiMemInfos()
 {
 }
 
-bool SrsApiMemInfos::can_handle(const char* path, int length, const char** /*pchild*/)
-{
-    return srs_path_equals("/meminfos", path, length);
-}
-
-int SrsApiMemInfos::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
+int SrsGoApiMemInfos::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
 {
     std::stringstream ss;
     
@@ -473,23 +332,18 @@ int SrsApiMemInfos::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
         << __SRS_JOBJECT_END
         << __SRS_JOBJECT_END;
     
-    return res_json(skt, req, ss.str());
+    return srs_go_http_response_json(w, ss.str());
 }
 
-SrsApiAuthors::SrsApiAuthors()
+SrsGoApiAuthors::SrsGoApiAuthors()
 {
 }
 
-SrsApiAuthors::~SrsApiAuthors()
+SrsGoApiAuthors::~SrsGoApiAuthors()
 {
 }
 
-bool SrsApiAuthors::can_handle(const char* path, int length, const char** /*pchild*/)
-{
-    return srs_path_equals("/authors", path, length);
-}
-
-int SrsApiAuthors::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
+int SrsGoApiAuthors::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
 {
     std::stringstream ss;
     
@@ -503,24 +357,82 @@ int SrsApiAuthors::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
         << __SRS_JOBJECT_END
         << __SRS_JOBJECT_END;
     
-    return res_json(skt, req, ss.str());
+    return srs_go_http_response_json(w, ss.str());
 }
 
-SrsApiVhosts::SrsApiVhosts()
+SrsGoApiRequests::SrsGoApiRequests()
 {
 }
 
-SrsApiVhosts::~SrsApiVhosts()
+SrsGoApiRequests::~SrsGoApiRequests()
 {
 }
 
-bool SrsApiVhosts::can_handle(const char* path, int length, const char** /*pchild*/)
+int SrsGoApiRequests::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
 {
-    return srs_path_equals("/vhosts", path, length);
+    SrsHttpMessage* req = r;
+    
+    std::stringstream ss;
+    
+    ss << __SRS_JOBJECT_START
+        << __SRS_JFIELD_ERROR(ERROR_SUCCESS) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_ORG("data", __SRS_JOBJECT_START)
+            << __SRS_JFIELD_STR("uri", req->uri()) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_STR("path", req->path()) << __SRS_JFIELD_CONT;
+    
+    // method
+    if (req->is_http_get()) {
+        ss  << __SRS_JFIELD_STR("METHOD", "GET");
+    } else if (req->is_http_post()) {
+        ss  << __SRS_JFIELD_STR("METHOD", "POST");
+    } else if (req->is_http_put()) {
+        ss  << __SRS_JFIELD_STR("METHOD", "PUT");
+    } else if (req->is_http_delete()) {
+        ss  << __SRS_JFIELD_STR("METHOD", "DELETE");
+    } else {
+        ss  << __SRS_JFIELD_ORG("METHOD", req->method());
+    }
+    ss << __SRS_JFIELD_CONT;
+    
+    // request headers
+    ss      << __SRS_JFIELD_NAME("headers") << __SRS_JOBJECT_START;
+    for (int i = 0; i < req->request_header_count(); i++) {
+        std::string key = req->request_header_key_at(i);
+        std::string value = req->request_header_value_at(i);
+        if ( i < req->request_header_count() - 1) {
+            ss      << __SRS_JFIELD_STR(key, value) << __SRS_JFIELD_CONT;
+        } else {
+            ss      << __SRS_JFIELD_STR(key, value);
+        }
+    }
+    ss      << __SRS_JOBJECT_END << __SRS_JFIELD_CONT;
+    
+    // server informations
+    ss      << __SRS_JFIELD_NAME("server") << __SRS_JOBJECT_START
+                << __SRS_JFIELD_STR("sigature", RTMP_SIG_SRS_KEY) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_STR("name", RTMP_SIG_SRS_NAME) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_STR("version", RTMP_SIG_SRS_VERSION) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_STR("link", RTMP_SIG_SRS_URL) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("time", srs_get_system_time_ms())
+            << __SRS_JOBJECT_END
+        << __SRS_JOBJECT_END
+        << __SRS_JOBJECT_END;
+    
+    return srs_go_http_response_json(w, ss.str());
 }
 
-int SrsApiVhosts::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
+SrsGoApiVhosts::SrsGoApiVhosts()
 {
+}
+
+SrsGoApiVhosts::~SrsGoApiVhosts()
+{
+}
+
+int SrsGoApiVhosts::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
+{
+    SrsHttpMessage* req = r;
+    
     std::stringstream data;
     SrsStatistic* stat = SrsStatistic::instance();
     int ret = stat->dumps_vhosts(data);
@@ -533,23 +445,18 @@ int SrsApiVhosts::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
         << __SRS_JFIELD_ORG("vhosts", data.str())
         << __SRS_JOBJECT_END;
     
-    return res_json(skt, req, ss.str());
+    return srs_go_http_response_json(w, ss.str());
 }
 
-SrsApiStreams::SrsApiStreams()
+SrsGoApiStreams::SrsGoApiStreams()
 {
 }
 
-SrsApiStreams::~SrsApiStreams()
+SrsGoApiStreams::~SrsGoApiStreams()
 {
 }
 
-bool SrsApiStreams::can_handle(const char* path, int length, const char** /*pchild*/)
-{
-    return srs_path_equals("/streams", path, length);
-}
-
-int SrsApiStreams::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
+int SrsGoApiStreams::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
 {
     std::stringstream data;
     SrsStatistic* stat = SrsStatistic::instance();
@@ -563,15 +470,14 @@ int SrsApiStreams::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
         << __SRS_JFIELD_ORG("streams", data.str())
         << __SRS_JOBJECT_END;
     
-    return res_json(skt, req, ss.str());
+    return srs_go_http_response_json(w, ss.str());
 }
 
-SrsHttpApi::SrsHttpApi(SrsServer* srs_server, st_netfd_t client_stfd, SrsHttpHandler* _handler) 
-    : SrsConnection(srs_server, client_stfd)
+SrsHttpApi::SrsHttpApi(SrsServer* svr, st_netfd_t fd, SrsGoHttpServeMux* m) 
+    : SrsConnection(svr, fd)
 {
+    mux = m;
     parser = new SrsHttpParser();
-    handler = _handler;
-    requires_crossdomain = false;
 }
 
 SrsHttpApi::~SrsHttpApi()
@@ -628,7 +534,8 @@ int SrsHttpApi::do_cycle()
         SrsAutoFree(SrsHttpMessage, req);
         
         // ok, handle http request.
-        if ((ret = process_request(&skt, req)) != ERROR_SUCCESS) {
+        SrsGoHttpResponseWriter writer(&skt);
+        if ((ret = process_request(&writer, req)) != ERROR_SUCCESS) {
             return ret;
         }
     }
@@ -636,44 +543,19 @@ int SrsHttpApi::do_cycle()
     return ret;
 }
 
-int SrsHttpApi::process_request(SrsStSocket* skt, SrsHttpMessage* req) 
+int SrsHttpApi::process_request(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r) 
 {
     int ret = ERROR_SUCCESS;
-
-    // parse uri to schema/server:port/path?query
-    if ((ret = req->parse_uri()) != ERROR_SUCCESS) {
-        return ret;
-    }
     
     srs_trace("HTTP %s %s, content-length=%"PRId64"", 
-        req->method_str().c_str(), req->url().c_str(), req->content_length());
+        r->method_str().c_str(), r->url().c_str(), r->content_length());
     
-    // TODO: maybe need to parse the url.
-    std::string url = req->path();
-    
-    SrsHttpHandlerMatch* p = NULL;
-    if ((ret = handler->best_match(url.data(), url.length(), &p)) != ERROR_SUCCESS) {
-        srs_warn("failed to find the best match handler for url. ret=%d", ret);
+    // use default server mux to serve http request.
+    if ((ret = mux->serve_http(w, r)) != ERROR_SUCCESS) {
+        if (!srs_is_client_gracefully_close(ret)) {
+            srs_error("serve http msg failed. ret=%d", ret);
+        }
         return ret;
-    }
-    
-    // if success, p and pstart should be valid.
-    srs_assert(p);
-    srs_assert(p->handler);
-    srs_assert(p->matched_url.length() <= url.length());
-    srs_info("best match handler, matched_url=%s", p->matched_url.c_str());
-    
-    req->set_match(p);
-    req->set_requires_crossdomain(requires_crossdomain);
-    
-    // use handler to process request.
-    if ((ret = p->handler->process_request(skt, req)) != ERROR_SUCCESS) {
-        srs_warn("handler failed to process http request. ret=%d", ret);
-        return ret;
-    }
-    
-    if (req->requires_crossdomain()) {
-        requires_crossdomain = true;
     }
     
     return ret;

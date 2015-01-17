@@ -31,6 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef SRS_AUTO_HTTP_PARSER
 
+#include <map>
 #include <string>
 #include <vector>
 #include <sstream>
@@ -45,6 +46,7 @@ class SrsStSocket;
 class SrsHttpUri;
 class SrsHttpMessage;
 class SrsHttpHandler;
+class ISrsGoHttpResponseWriter;
 
 // http specification
 // CR             = <US-ASCII CR, carriage return (13)>
@@ -65,6 +67,9 @@ class SrsHttpHandler;
 // @see SrsHttpMessage._http_ts_send_buffer
 #define __SRS_HTTP_TS_SEND_BUFFER_SIZE 4096
 
+// helper function: response in json format.
+extern int srs_go_http_response_json(ISrsGoHttpResponseWriter* w, std::string data);
+
 // compare the path.
 // full compare, extractly match.
 // used for api match.
@@ -79,6 +84,214 @@ enum SrsHttpParseState {
     SrsHttpParseStateInit = 0, 
     SrsHttpParseStateStart, 
     SrsHttpParseStateComplete
+};
+
+// A Header represents the key-value pairs in an HTTP header.
+class SrsGoHttpHeader
+{
+private:
+    std::map<std::string, std::string> headers;
+public:
+    SrsGoHttpHeader();
+    virtual ~SrsGoHttpHeader();
+public:
+    // Add adds the key, value pair to the header.
+    // It appends to any existing values associated with key.
+    virtual void set(std::string key, std::string value);
+    // Get gets the first value associated with the given key.
+    // If there are no values associated with the key, Get returns "".
+    // To access multiple values of a key, access the map directly
+    // with CanonicalHeaderKey.
+    virtual std::string get(std::string key);
+public:
+    /**
+    * get the content length. -1 if not set.
+    */
+    virtual int64_t content_length();
+    /**
+    * set the content length by header "Content-Length"
+    */
+    virtual void set_content_length(int64_t size);
+public:
+    /**
+    * get the content type. empty string if not set.
+    */
+    virtual std::string content_type();
+    /**
+    * set the content type by header "Content-Type"
+    */
+    virtual void set_content_type(std::string ct);
+public:
+    /**
+    * write all headers to string stream.
+    */
+    virtual void write(std::stringstream& ss);
+};
+
+// A ResponseWriter interface is used by an HTTP handler to
+// construct an HTTP response.
+class ISrsGoHttpResponseWriter
+{
+public:
+    ISrsGoHttpResponseWriter();
+    virtual ~ISrsGoHttpResponseWriter();
+public:
+    // Header returns the header map that will be sent by WriteHeader.
+    // Changing the header after a call to WriteHeader (or Write) has
+    // no effect.
+    virtual SrsGoHttpHeader* header() = 0;
+    
+    // Write writes the data to the connection as part of an HTTP reply.
+    // If WriteHeader has not yet been called, Write calls WriteHeader(http.StatusOK)
+    // before writing the data.  If the Header does not contain a
+    // Content-Type line, Write adds a Content-Type set to the result of passing
+    // the initial 512 bytes of written data to DetectContentType.
+    virtual int write(char* data, int size) = 0;
+    
+    // WriteHeader sends an HTTP response header with status code.
+    // If WriteHeader is not called explicitly, the first call to Write
+    // will trigger an implicit WriteHeader(http.StatusOK).
+    // Thus explicit calls to WriteHeader are mainly used to
+    // send error codes.
+    virtual void write_header(int code) = 0;
+};
+
+// Objects implementing the Handler interface can be
+// registered to serve a particular path or subtree
+// in the HTTP server.
+//
+// ServeHTTP should write reply headers and data to the ResponseWriter
+// and then return.  Returning signals that the request is finished
+// and that the HTTP server can move on to the next request on
+// the connection.
+class ISrsGoHttpHandler
+{
+public:
+    ISrsGoHttpHandler();
+    virtual ~ISrsGoHttpHandler();
+public:
+    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r) = 0;
+};
+
+// Redirect to a fixed URL
+class SrsGoHttpRedirectHandler : public ISrsGoHttpHandler
+{
+private:
+    std::string url;
+    int code;
+public:
+    SrsGoHttpRedirectHandler(std::string u, int c);
+    virtual ~SrsGoHttpRedirectHandler();
+public:
+    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
+};
+
+// NotFound replies to the request with an HTTP 404 not found error.
+class SrsGoHttpNotFoundHandler : public ISrsGoHttpHandler
+{
+public:
+    SrsGoHttpNotFoundHandler();
+    virtual ~SrsGoHttpNotFoundHandler();
+public:
+    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
+};
+
+// the mux entry for server mux.
+class SrsGoHttpMuxEntry
+{
+public:
+    bool explicit_match;
+    ISrsGoHttpHandler* handler;
+    std::string pattern;
+public:
+    SrsGoHttpMuxEntry();
+    virtual ~SrsGoHttpMuxEntry();
+};
+
+// ServeMux is an HTTP request multiplexer.
+// It matches the URL of each incoming request against a list of registered
+// patterns and calls the handler for the pattern that
+// most closely matches the URL.
+//
+// Patterns name fixed, rooted paths, like "/favicon.ico",
+// or rooted subtrees, like "/images/" (note the trailing slash).
+// Longer patterns take precedence over shorter ones, so that
+// if there are handlers registered for both "/images/"
+// and "/images/thumbnails/", the latter handler will be
+// called for paths beginning "/images/thumbnails/" and the
+// former will receive requests for any other paths in the
+// "/images/" subtree.
+//
+// Note that since a pattern ending in a slash names a rooted subtree,
+// the pattern "/" matches all paths not matched by other registered
+// patterns, not just the URL with Path == "/".
+//
+// Patterns may optionally begin with a host name, restricting matches to
+// URLs on that host only.  Host-specific patterns take precedence over
+// general patterns, so that a handler might register for the two patterns
+// "/codesearch" and "codesearch.google.com/" without also taking over
+// requests for "http://www.google.com/".
+//
+// ServeMux also takes care of sanitizing the URL request path,
+// redirecting any request containing . or .. elements to an
+// equivalent .- and ..-free URL.
+class SrsGoHttpServeMux
+{
+private:
+    std::map<std::string, SrsGoHttpMuxEntry*> entries;
+public:
+    SrsGoHttpServeMux();
+    virtual ~SrsGoHttpServeMux();
+public:
+    /**
+    * initialize the http serve mux.
+    */
+    virtual int initialize();
+public:
+    // Handle registers the handler for the given pattern.
+    // If a handler already exists for pattern, Handle panics.
+    virtual int handle(std::string pattern, ISrsGoHttpHandler* handler);
+// interface ISrsGoHttpHandler
+public:
+    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
+private:
+    virtual int find_handler(SrsHttpMessage* r, ISrsGoHttpHandler** ph);
+    virtual int match(SrsHttpMessage* r, ISrsGoHttpHandler** ph);
+    virtual bool path_match(std::string pattern, std::string path);
+};
+
+/**
+* response writer use st socket
+*/
+class SrsGoHttpResponseWriter : public ISrsGoHttpResponseWriter
+{
+private:
+    SrsStSocket* skt;
+    SrsGoHttpHeader* hdr;
+private:
+    // reply header has been (logically) written
+    bool header_wrote;
+     // status code passed to WriteHeader
+    int status;
+private:
+    // explicitly-declared Content-Length; or -1
+    int64_t content_length;
+    // number of bytes written in body
+    int64_t written;
+private:
+    // wroteHeader tells whether the header's been written to "the
+    // wire" (or rather: w.conn.buf). this is unlike
+    // (*response).wroteHeader, which tells only whether it was
+    // logically written.
+    bool header_sent;
+public:
+    SrsGoHttpResponseWriter(SrsStSocket* io);
+    virtual ~SrsGoHttpResponseWriter();
+public:
+    virtual SrsGoHttpHeader* header();
+    virtual int write(char* data, int size);
+    virtual void write_header(int code);
+    virtual int send_header(char* data, int size);
 };
 
 /**
@@ -183,12 +396,6 @@ public:
 // object creator
 public:
     /**
-    * create http api resource handler.
-    */
-#ifdef SRS_AUTO_HTTP_API
-    static SrsHttpHandler* create_http_api();
-#endif
-    /**
     * create http stream resource handler.
     */
 #ifdef SRS_AUTO_HTTP_SERVER
@@ -196,6 +403,12 @@ public:
 #endif
 };
 
+// A Request represents an HTTP request received by a server
+// or to be sent by a client.
+//
+// The field semantics differ slightly between client and server
+// usage. In addition to the notes on the fields below, see the
+// documentation for Request.Write and RoundTripper.
 /**
 * the http message, request or response.
 */
@@ -239,13 +452,16 @@ private:
     // http headers
     typedef std::pair<std::string, std::string> SrsHttpHeaderField;
     std::vector<SrsHttpHeaderField> headers;
+    // the query map
+    std::map<std::string, std::string> _query;
 public:
     SrsHttpMessage();
     virtual ~SrsHttpMessage();
 public:
+    virtual int initialize();
+public:
     virtual char* http_ts_send_buffer();
     virtual void reset();
-    virtual int parse_uri();
 public:
     virtual bool is_complete();
     virtual u_int8_t method();
@@ -260,7 +476,7 @@ public:
     virtual std::string url();
     virtual std::string host();
     virtual std::string path();
-    virtual std::string query();
+public:
     virtual std::string body();
     virtual char* body_raw();
     virtual int64_t body_size();
@@ -273,14 +489,12 @@ public:
     virtual void set_match(SrsHttpHandlerMatch* match);
     virtual void set_requires_crossdomain(bool requires_crossdomain);
     virtual void append_body(const char* body, int length);
-public:
     /**
     * get the param in query string,
     * for instance, query is "start=100&end=200",
     * then query_get("start") is "100", and query_get("end") is "200"
     */
     virtual std::string query_get(std::string key);
-public:
     virtual int request_header_count();
     virtual std::string request_header_key_at(int index);
     virtual std::string request_header_value_at(int index);

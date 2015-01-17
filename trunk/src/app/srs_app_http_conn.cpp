@@ -549,11 +549,6 @@ int SrsHttpConn::do_cycle()
 int SrsHttpConn::process_request(SrsStSocket* skt, SrsHttpMessage* req) 
 {
     int ret = ERROR_SUCCESS;
-
-    // parse uri to schema/server:port/path?query
-    if ((ret = req->parse_uri()) != ERROR_SUCCESS) {
-        return ret;
-    }
     
     srs_trace("HTTP %s %s, content-length=%"PRId64"", 
         req->method_str().c_str(), req->url().c_str(), req->content_length());

@@ -204,6 +204,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_AAC_DATA_INVALID              3048
 #define ERROR_HTTP_STATUS_INVLIAD           3049
 
+///////////////////////////////////////////////////////
+// HTTP protocol error.
+///////////////////////////////////////////////////////
+#define ERROR_HTTP_PATTERN_EMPTY            4000
+#define ERROR_HTTP_PATTERN_DUPLICATED       4001
+#define ERROR_HTTP_URL_NOT_CLEAN            4002
+#define ERROR_HTTP_CONTENT_LENGTH           4003
+
 /**
 * whether the error code is an system control error.
 */

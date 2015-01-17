@@ -68,6 +68,503 @@ bool srs_path_like(const char* expect, const char* path, int nb_path)
     return equals;
 }
 
+int srs_go_http_response_json(ISrsGoHttpResponseWriter* w, string data)
+{
+    w->header()->set_content_length(data.length());
+    w->header()->set_content_type("application/json;charset=utf-8");
+    
+    return w->write((char*)data.data(), data.length());
+}
+
+// get the status text of code.
+string srs_generate_status_text(int status)
+{
+    static std::map<int, std::string> _status_map;
+    if (_status_map.empty()) {
+        _status_map[SRS_CONSTS_HTTP_Continue                       ] = SRS_CONSTS_HTTP_Continue_str                     ;      
+        _status_map[SRS_CONSTS_HTTP_SwitchingProtocols             ] = SRS_CONSTS_HTTP_SwitchingProtocols_str           ;      
+        _status_map[SRS_CONSTS_HTTP_OK                             ] = SRS_CONSTS_HTTP_OK_str                           ;      
+        _status_map[SRS_CONSTS_HTTP_Created                        ] = SRS_CONSTS_HTTP_Created_str                      ;      
+        _status_map[SRS_CONSTS_HTTP_Accepted                       ] = SRS_CONSTS_HTTP_Accepted_str                     ;      
+        _status_map[SRS_CONSTS_HTTP_NonAuthoritativeInformation    ] = SRS_CONSTS_HTTP_NonAuthoritativeInformation_str  ;      
+        _status_map[SRS_CONSTS_HTTP_NoContent                      ] = SRS_CONSTS_HTTP_NoContent_str                    ;      
+        _status_map[SRS_CONSTS_HTTP_ResetContent                   ] = SRS_CONSTS_HTTP_ResetContent_str                 ;      
+        _status_map[SRS_CONSTS_HTTP_PartialContent                 ] = SRS_CONSTS_HTTP_PartialContent_str               ;      
+        _status_map[SRS_CONSTS_HTTP_MultipleChoices                ] = SRS_CONSTS_HTTP_MultipleChoices_str              ;      
+        _status_map[SRS_CONSTS_HTTP_MovedPermanently               ] = SRS_CONSTS_HTTP_MovedPermanently_str             ;      
+        _status_map[SRS_CONSTS_HTTP_Found                          ] = SRS_CONSTS_HTTP_Found_str                        ;      
+        _status_map[SRS_CONSTS_HTTP_SeeOther                       ] = SRS_CONSTS_HTTP_SeeOther_str                     ;      
+        _status_map[SRS_CONSTS_HTTP_NotModified                    ] = SRS_CONSTS_HTTP_NotModified_str                  ;      
+        _status_map[SRS_CONSTS_HTTP_UseProxy                       ] = SRS_CONSTS_HTTP_UseProxy_str                     ;      
+        _status_map[SRS_CONSTS_HTTP_TemporaryRedirect              ] = SRS_CONSTS_HTTP_TemporaryRedirect_str            ;      
+        _status_map[SRS_CONSTS_HTTP_BadRequest                     ] = SRS_CONSTS_HTTP_BadRequest_str                   ;      
+        _status_map[SRS_CONSTS_HTTP_Unauthorized                   ] = SRS_CONSTS_HTTP_Unauthorized_str                 ;      
+        _status_map[SRS_CONSTS_HTTP_PaymentRequired                ] = SRS_CONSTS_HTTP_PaymentRequired_str              ;      
+        _status_map[SRS_CONSTS_HTTP_Forbidden                      ] = SRS_CONSTS_HTTP_Forbidden_str                    ;      
+        _status_map[SRS_CONSTS_HTTP_NotFound                       ] = SRS_CONSTS_HTTP_NotFound_str                     ;      
+        _status_map[SRS_CONSTS_HTTP_MethodNotAllowed               ] = SRS_CONSTS_HTTP_MethodNotAllowed_str             ;      
+        _status_map[SRS_CONSTS_HTTP_NotAcceptable                  ] = SRS_CONSTS_HTTP_NotAcceptable_str                ;      
+        _status_map[SRS_CONSTS_HTTP_ProxyAuthenticationRequired    ] = SRS_CONSTS_HTTP_ProxyAuthenticationRequired_str  ;      
+        _status_map[SRS_CONSTS_HTTP_RequestTimeout                 ] = SRS_CONSTS_HTTP_RequestTimeout_str               ;      
+        _status_map[SRS_CONSTS_HTTP_Conflict                       ] = SRS_CONSTS_HTTP_Conflict_str                     ;      
+        _status_map[SRS_CONSTS_HTTP_Gone                           ] = SRS_CONSTS_HTTP_Gone_str                         ;      
+        _status_map[SRS_CONSTS_HTTP_LengthRequired                 ] = SRS_CONSTS_HTTP_LengthRequired_str               ;      
+        _status_map[SRS_CONSTS_HTTP_PreconditionFailed             ] = SRS_CONSTS_HTTP_PreconditionFailed_str           ;      
+        _status_map[SRS_CONSTS_HTTP_RequestEntityTooLarge          ] = SRS_CONSTS_HTTP_RequestEntityTooLarge_str        ;      
+        _status_map[SRS_CONSTS_HTTP_RequestURITooLarge             ] = SRS_CONSTS_HTTP_RequestURITooLarge_str           ;      
+        _status_map[SRS_CONSTS_HTTP_UnsupportedMediaType           ] = SRS_CONSTS_HTTP_UnsupportedMediaType_str         ;      
+        _status_map[SRS_CONSTS_HTTP_RequestedRangeNotSatisfiable   ] = SRS_CONSTS_HTTP_RequestedRangeNotSatisfiable_str ;      
+        _status_map[SRS_CONSTS_HTTP_ExpectationFailed              ] = SRS_CONSTS_HTTP_ExpectationFailed_str            ;      
+        _status_map[SRS_CONSTS_HTTP_InternalServerError            ] = SRS_CONSTS_HTTP_InternalServerError_str          ;      
+        _status_map[SRS_CONSTS_HTTP_NotImplemented                 ] = SRS_CONSTS_HTTP_NotImplemented_str               ;      
+        _status_map[SRS_CONSTS_HTTP_BadGateway                     ] = SRS_CONSTS_HTTP_BadGateway_str                   ;      
+        _status_map[SRS_CONSTS_HTTP_ServiceUnavailable             ] = SRS_CONSTS_HTTP_ServiceUnavailable_str           ;      
+        _status_map[SRS_CONSTS_HTTP_GatewayTimeout                 ] = SRS_CONSTS_HTTP_GatewayTimeout_str               ;      
+        _status_map[SRS_CONSTS_HTTP_HTTPVersionNotSupported        ] = SRS_CONSTS_HTTP_HTTPVersionNotSupported_str      ;      
+    }
+    
+    std::string status_text;
+    if (_status_map.find(status) == _status_map.end()) {
+        status_text = "Status Unknown";
+    } else {
+        status_text = _status_map[status];
+    }
+    
+    return status_text;
+}
+
+// bodyAllowedForStatus reports whether a given response status code
+// permits a body.  See RFC2616, section 4.4.
+bool srs_go_http_body_allowd(int status)
+{
+    if (status >= 100 && status <= 199) {
+        return false;
+    } else if (status == 204 || status == 304) {
+        return false;
+    }
+    
+	return true;
+}
+
+// DetectContentType implements the algorithm described
+// at http://mimesniff.spec.whatwg.org/ to determine the
+// Content-Type of the given data.  It considers at most the
+// first 512 bytes of data.  DetectContentType always returns
+// a valid MIME type: if it cannot determine a more specific one, it
+// returns "application/octet-stream".
+string srs_go_http_detect(char* data, int size)
+{
+    return "application/octet-stream"; // fallback
+}
+
+// Error replies to the request with the specified error message and HTTP code.
+// The error message should be plain text.
+int srs_go_http_error(ISrsGoHttpResponseWriter* w, int code, string error)
+{
+    int ret = ERROR_SUCCESS;
+    
+    w->header()->set_content_type("text/plain; charset=utf-8");
+    w->header()->set_content_length(error.length());
+    w->write_header(code);
+    w->write((char*)error.data(), (int)error.length());
+    
+    return ret;
+}
+
+SrsGoHttpHeader::SrsGoHttpHeader()
+{
+}
+
+SrsGoHttpHeader::~SrsGoHttpHeader()
+{
+}
+
+void SrsGoHttpHeader::set(string key, string value)
+{
+    headers[key] = value;
+}
+
+string SrsGoHttpHeader::get(string key)
+{
+    std::string v;
+    
+    if (headers.find(key) != headers.end()) {
+        v = headers[key];
+    }
+    
+    return v;
+}
+
+int64_t SrsGoHttpHeader::content_length()
+{
+    std::string cl = get("Content-Length");
+    
+    if (cl.empty()) {
+        return -1;
+    }
+    
+    return (int64_t)::atof(cl.c_str());
+}
+
+void SrsGoHttpHeader::set_content_length(int64_t size)
+{
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%"PRId64, size);
+    set("Content-Length", buf);
+}
+
+string SrsGoHttpHeader::content_type()
+{
+    return get("Content-Type");
+}
+
+void SrsGoHttpHeader::set_content_type(string ct)
+{
+    set("Content-Type", ct);
+}
+
+void SrsGoHttpHeader::write(stringstream& ss)
+{
+    std::map<std::string, std::string>::iterator it;
+    for (it = headers.begin(); it != headers.end(); ++it) {
+        ss << it->first << ": " << it->second << __SRS_CRLF;
+    }
+}
+
+ISrsGoHttpResponseWriter::ISrsGoHttpResponseWriter()
+{
+}
+
+ISrsGoHttpResponseWriter::~ISrsGoHttpResponseWriter()
+{
+}
+
+ISrsGoHttpHandler::ISrsGoHttpHandler()
+{
+}
+
+ISrsGoHttpHandler::~ISrsGoHttpHandler()
+{
+}
+
+SrsGoHttpRedirectHandler::SrsGoHttpRedirectHandler(string u, int c)
+{
+    url = u;
+    code = c;
+}
+
+SrsGoHttpRedirectHandler::~SrsGoHttpRedirectHandler()
+{
+}
+
+int SrsGoHttpRedirectHandler::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
+{
+    int ret = ERROR_SUCCESS;
+    // TODO: FIXME: implements it.
+    return ret;
+}
+
+SrsGoHttpNotFoundHandler::SrsGoHttpNotFoundHandler()
+{
+}
+
+SrsGoHttpNotFoundHandler::~SrsGoHttpNotFoundHandler()
+{
+}
+
+int SrsGoHttpNotFoundHandler::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
+{
+    return srs_go_http_error(w, 
+        SRS_CONSTS_HTTP_NotFound, SRS_CONSTS_HTTP_NotFound_str);
+}
+
+SrsGoHttpMuxEntry::SrsGoHttpMuxEntry()
+{
+    explicit_match = false;
+    handler = NULL;
+}
+
+SrsGoHttpMuxEntry::~SrsGoHttpMuxEntry()
+{
+    srs_freep(handler);
+}
+
+SrsGoHttpServeMux::SrsGoHttpServeMux()
+{
+}
+
+SrsGoHttpServeMux::~SrsGoHttpServeMux()
+{
+    std::map<std::string, SrsGoHttpMuxEntry*>::iterator it;
+    for (it = entries.begin(); it != entries.end(); ++it) {
+        SrsGoHttpMuxEntry* entry = it->second;
+        srs_freep(entry);
+    }
+    entries.clear();
+}
+
+int SrsGoHttpServeMux::initialize()
+{
+    int ret = ERROR_SUCCESS;
+    // TODO: FIXME: implements it.
+    return ret;
+}
+
+int SrsGoHttpServeMux::handle(std::string pattern, ISrsGoHttpHandler* handler)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(handler);
+    
+    if (pattern.empty()) {
+        ret = ERROR_HTTP_PATTERN_EMPTY;
+        srs_error("http: empty pattern. ret=%d", ret);
+        return ret;
+    }
+    
+    if (entries.find(pattern) != entries.end()) {
+        SrsGoHttpMuxEntry* exists = entries[pattern];
+        if (exists->explicit_match) {
+            ret = ERROR_HTTP_PATTERN_DUPLICATED;
+            srs_error("http: multiple registrations for %s. ret=%d", pattern.c_str(), ret);
+            return ret;
+        }
+    }
+    
+    if (true) {
+        SrsGoHttpMuxEntry* entry = new SrsGoHttpMuxEntry();
+        entry->explicit_match = true;
+        entry->handler = handler;
+        entry->pattern = pattern;
+        
+        if (entries.find(pattern) != entries.end()) {
+            SrsGoHttpMuxEntry* exists = entries[pattern];
+            srs_freep(exists);
+        }
+        entries[pattern] = entry;
+    }
+
+    // Helpful behavior:
+    // If pattern is /tree/, insert an implicit permanent redirect for /tree.
+    // It can be overridden by an explicit registration.
+    if (!pattern.empty() && pattern.at(pattern.length() - 1) == '/') {
+        std::string rpattern = pattern.substr(0, pattern.length() - 1);
+        SrsGoHttpMuxEntry* entry = NULL;
+        
+        // free the exists not explicit entry
+        if (entries.find(rpattern) != entries.end()) {
+            SrsGoHttpMuxEntry* exists = entries[rpattern];
+            if (!exists->explicit_match) {
+                entry = exists;
+            }
+        }
+
+        // create implicit redirect.
+        if (!entry || entry->explicit_match) {
+            srs_freep(entry);
+            
+            entry = new SrsGoHttpMuxEntry();
+            entry->explicit_match = false;
+            entry->handler = new SrsGoHttpRedirectHandler(pattern, SRS_CONSTS_HTTP_MovedPermanently);
+            entry->pattern = pattern;
+            
+            entries[rpattern] = entry;
+        }
+    }
+    
+    return ret;
+}
+
+int SrsGoHttpServeMux::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
+{
+    int ret = ERROR_SUCCESS;
+    
+    ISrsGoHttpHandler* h = NULL;
+    if ((ret = find_handler(r, &h)) != ERROR_SUCCESS) {
+        srs_error("find handler failed. ret=%d", ret);
+        return ret;
+    }
+    
+    srs_assert(h);
+    if ((ret = h->serve_http(w, r)) != ERROR_SUCCESS) {
+        srs_error("handler serve http failed. ret=%d", ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsGoHttpServeMux::find_handler(SrsHttpMessage* r, ISrsGoHttpHandler** ph)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // TODO: FIXME: support the path . and ..
+    if (r->url().find("..") != std::string::npos) {
+        ret = ERROR_HTTP_URL_NOT_CLEAN;
+        srs_error("htt url not canonical, url=%s. ret=%d", r->url().c_str(), ret);
+        return ret;
+    }
+    
+    if ((ret = match(r, ph)) != ERROR_SUCCESS) {
+        srs_error("http match handler failed. ret=%d", ret);
+        return ret;
+    }
+
+    if (*ph == NULL) {
+        *ph = new SrsGoHttpNotFoundHandler();
+    }
+    
+    return ret;
+}
+
+int SrsGoHttpServeMux::match(SrsHttpMessage* r, ISrsGoHttpHandler** ph)
+{
+    int ret = ERROR_SUCCESS;
+    
+    std::string path = r->path();
+    
+    int nb_matched = 0;
+    ISrsGoHttpHandler* h = NULL;
+    
+    std::map<std::string, SrsGoHttpMuxEntry*>::iterator it;
+    for (it = entries.begin(); it != entries.end(); ++it) {
+        std::string pattern = it->first;
+        SrsGoHttpMuxEntry* entry = it->second;
+        
+        if (!path_match(pattern, path)) {
+            continue;
+        }
+        
+        if (!h || (int)pattern.length() > nb_matched) {
+            nb_matched = (int)pattern.length();
+            h = entry->handler;
+        }
+    }
+    
+    *ph = h;
+    
+    return ret;
+}
+
+bool SrsGoHttpServeMux::path_match(string pattern, string path)
+{
+    if (pattern.empty()) {
+        return false;
+    }
+    
+    int n = pattern.length();
+    
+    // not endswith '/', exactly match.
+    if (pattern.at(n - 1) != '/') {
+        return pattern == path;
+    }
+    
+    // endswith '/', match any,
+    // for example, '/api/' match '/api/[N]'
+    if ((int)path.length() >= n) {
+        if (memcmp(pattern.data(), path.data(), n) == 0) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+SrsGoHttpResponseWriter::SrsGoHttpResponseWriter(SrsStSocket* io)
+{
+    skt = io;
+    hdr = new SrsGoHttpHeader();
+    header_wrote = false;
+    status = SRS_CONSTS_HTTP_OK;
+    content_length = -1;
+    written = 0;
+    header_sent = false;
+}
+
+SrsGoHttpResponseWriter::~SrsGoHttpResponseWriter()
+{
+    srs_freep(hdr);
+}
+
+SrsGoHttpHeader* SrsGoHttpResponseWriter::header()
+{
+    return hdr;
+}
+
+int SrsGoHttpResponseWriter::write(char* data, int size)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (!header_wrote) {
+        write_header(SRS_CONSTS_HTTP_OK);
+    }
+    
+    written += size;
+    if (content_length != -1 && written > content_length) {
+        ret = ERROR_HTTP_CONTENT_LENGTH;
+        srs_error("http: exceed content length. ret=%d", ret);
+        return ret;
+    }
+    
+    if ((ret = send_header(data, size)) != ERROR_SUCCESS) {
+        srs_error("http: send header failed. ret=%d", ret);
+        return ret;
+    }
+    
+    return skt->write((void*)data, size, NULL);
+}
+
+void SrsGoHttpResponseWriter::write_header(int code)
+{
+    if (header_wrote) {
+        srs_warn("http: multiple write_header calls, code=%d", code);
+        return;
+    }
+    
+    header_wrote = true;
+    status = code;
+    
+    // parse the content length from header.
+    content_length = hdr->content_length();
+}
+
+int SrsGoHttpResponseWriter::send_header(char* data, int size)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (header_sent) {
+        return ret;
+    }
+    header_sent = true;
+    
+    std::stringstream ss;
+    
+    // status_line
+    ss << "HTTP/1.1 " << status << " " 
+        << srs_generate_status_text(status) << __SRS_CRLF;
+        
+    // detect content type
+    if (srs_go_http_body_allowd(status)) {
+        if (hdr->content_type().empty()) {
+            hdr->set_content_type(srs_go_http_detect(data, size));
+        }
+    }
+    
+    // set server if not set.
+    if (hdr->get("Server").empty()) {
+        hdr->set("Server", RTMP_SIG_SRS_KEY"/"RTMP_SIG_SRS_VERSION);
+    }
+    
+    // write headers
+    hdr->write(ss);
+    
+    // header_eof
+    ss << __SRS_CRLF;
+    
+    std::string buf = ss.str();
+    return skt->write((void*)buf.c_str(), buf.length(), NULL);
+}
+
 SrsHttpHandlerMatch::SrsHttpHandlerMatch()
 {
     handler = NULL;
@@ -521,13 +1018,6 @@ int SrsHttpHandler::res_error(SrsStSocket* skt, SrsHttpMessage* req, int code, s
     return res_flush(skt, ss);
 }
 
-#ifdef SRS_AUTO_HTTP_API
-SrsHttpHandler* SrsHttpHandler::create_http_api()
-{
-    return new SrsApiRoot();
-}
-#endif
-
 #ifdef SRS_AUTO_HTTP_SERVER
 SrsHttpHandler* SrsHttpHandler::create_http_stream()
 {
@@ -553,6 +1043,41 @@ SrsHttpMessage::~SrsHttpMessage()
     srs_freep(_http_ts_send_buffer);
 }
 
+int SrsHttpMessage::initialize()
+{
+    int ret = ERROR_SUCCESS;
+    
+    // parse uri to schema/server:port/path?query
+    if ((ret = _uri->initialize(_url)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // must format as key=value&...&keyN=valueN
+    std::string q = _uri->get_query();
+    size_t pos = string::npos;
+    while (!q.empty()) {
+        std::string k = q;
+        if ((pos = q.find("=")) != string::npos) {
+            k = q.substr(0, pos);
+            q = q.substr(pos + 1);
+        } else {
+            q = "";
+        }
+        
+        std::string v = q;
+        if ((pos = q.find("&")) != string::npos) {
+            v = q.substr(0, pos);
+            q = q.substr(pos + 1);
+        } else {
+            q = "";
+        }
+        
+        _query[k] = v;
+    }
+    
+    return ret;
+}
+
 char* SrsHttpMessage::http_ts_send_buffer()
 {
     return _http_ts_send_buffer;
@@ -563,24 +1088,6 @@ void SrsHttpMessage::reset()
     _state = SrsHttpParseStateInit;
     _body->erase(_body->length());
     _url = "";
-}
-
-int SrsHttpMessage::parse_uri()
-{
-    // filter url according to HTTP specification.
-    
-    // remove the duplicated slash.
-    std::string filtered_url = srs_string_replace(_url, "//", "/");
-    
-    // remove the last / to match resource.
-    filtered_url = srs_string_trim_end(filtered_url, "/");
-    
-    // if empty, use root.
-    if (filtered_url.empty()) {
-        filtered_url = "/";
-    }
-    
-    return _uri->initialize(filtered_url);
 }
 
 bool SrsHttpMessage::is_complete()
@@ -671,11 +1178,6 @@ string SrsHttpMessage::path()
     return _uri->get_path();
 }
 
-string SrsHttpMessage::query()
-{
-    return _uri->get_query();
-}
-
 string SrsHttpMessage::body()
 {
     std::string b;
@@ -745,21 +1247,10 @@ void SrsHttpMessage::append_body(const char* body, int length)
 
 string SrsHttpMessage::query_get(string key)
 {
-    std::string q = query();
-    size_t pos = std::string::npos;
+    std::string v;
     
-    // must format as key=value&...&keyN=valueN
-    if ((pos = key.find("=")) != key.length() - 1) {
-        key = key + "=";
-    }
-    
-    if ((pos = q.find(key)) == std::string::npos) {
-        return "";
-    }
-    
-    std::string v = q.substr(pos + key.length());
-    if ((pos = v.find("&")) != std::string::npos) {
-        v = v.substr(0, pos);
+    if (_query.find(key) != _query.end()) {
+        v = _query[key];
     }
     
     return v;
@@ -856,6 +1347,13 @@ int SrsHttpParser::parse_message(SrsStSocket* skt, SrsHttpMessage** ppmsg)
         if (!srs_is_client_gracefully_close(ret)) {
             srs_error("parse http msg failed. ret=%d", ret);
         }
+        srs_freep(msg);
+        return ret;
+    }
+
+    // initalize http msg, parse url.
+    if ((ret = msg->initialize()) != ERROR_SUCCESS) {
+        srs_error("initialize http msg failed. ret=%d", ret);
         srs_freep(msg);
         return ret;
     }
