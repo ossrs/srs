@@ -167,6 +167,7 @@ SrsFastVector::SrsFastVector()
 SrsFastVector::~SrsFastVector()
 {
     free();
+    srs_freep(msgs);
 }
 
 int SrsFastVector::size()
