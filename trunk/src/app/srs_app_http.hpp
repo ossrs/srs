@@ -46,6 +46,7 @@ class SrsHttpUri;
 class SrsHttpMessage;
 class SrsFileReader;
 class SrsSimpleBuffer;
+class SrsGoHttpMuxEntry;
 class ISrsGoHttpResponseWriter;
 
 // http specification
@@ -157,6 +158,8 @@ public:
 // the connection.
 class ISrsGoHttpHandler
 {
+public:
+    SrsGoHttpMuxEntry* entry;
 public:
     ISrsGoHttpHandler();
     virtual ~ISrsGoHttpHandler();

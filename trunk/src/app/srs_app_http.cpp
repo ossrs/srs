@@ -226,6 +226,7 @@ ISrsGoHttpResponseWriter::~ISrsGoHttpResponseWriter()
 
 ISrsGoHttpHandler::ISrsGoHttpHandler()
 {
+    entry = NULL;
 }
 
 ISrsGoHttpHandler::~ISrsGoHttpHandler()
@@ -283,7 +284,16 @@ int SrsGoHttpFileServer::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
         upath += SRS_HTTP_DEFAULT_PAGE;
     }
 
-    string fullpath = dir + "/" + upath;
+    string fullpath = dir + "/";
+    
+    srs_assert(entry);
+    if (upath.length() > entry->pattern.length()) {
+        fullpath += upath.substr(entry->pattern.length());
+    } else {
+        fullpath += upath;
+    }
+    srs_trace("http match file=%s, pattern=%s, upath=%s", 
+        fullpath.c_str(), entry->pattern.c_str(), upath.c_str());
     
     if (srs_string_ends_with(fullpath, ".flv") || srs_string_ends_with(fullpath, ".fhv")) {
         std::string start = r->query_get("start");
@@ -437,6 +447,7 @@ int SrsGoHttpServeMux::handle(std::string pattern, ISrsGoHttpHandler* handler)
         entry->explicit_match = true;
         entry->handler = handler;
         entry->pattern = pattern;
+        entry->handler->entry = entry;
         
         if (entries.find(pattern) != entries.end()) {
             SrsGoHttpMuxEntry* exists = entries[pattern];
@@ -448,7 +459,7 @@ int SrsGoHttpServeMux::handle(std::string pattern, ISrsGoHttpHandler* handler)
     // Helpful behavior:
     // If pattern is /tree/, insert an implicit permanent redirect for /tree.
     // It can be overridden by an explicit registration.
-    if (!pattern.empty() && pattern.at(pattern.length() - 1) == '/') {
+    if (pattern != "/" && !pattern.empty() && pattern.at(pattern.length() - 1) == '/') {
         std::string rpattern = pattern.substr(0, pattern.length() - 1);
         SrsGoHttpMuxEntry* entry = NULL;
         
@@ -468,6 +479,7 @@ int SrsGoHttpServeMux::handle(std::string pattern, ISrsGoHttpHandler* handler)
             entry->explicit_match = false;
             entry->handler = new SrsGoHttpRedirectHandler(pattern, SRS_CONSTS_HTTP_MovedPermanently);
             entry->pattern = pattern;
+            entry->handler->entry = entry;
             
             entries[rpattern] = entry;
         }

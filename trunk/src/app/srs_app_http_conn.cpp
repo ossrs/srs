@@ -166,6 +166,11 @@ int SrsHttpServer::initialize()
         std::string mount = _srs_config->get_vhost_http_mount(vhost);
         std::string dir = _srs_config->get_vhost_http_dir(vhost);
         
+        // the dir mount must always ends with "/"
+        if (mount != "/" && mount.rfind("/") != mount.length() - 1) {
+            mount += "/";
+        }
+        
         if ((ret = mux.handle(mount, new SrsVodStream(dir))) != ERROR_SUCCESS) {
             srs_error("http: mount dir=%s for vhost=%s failed. ret=%d", dir.c_str(), vhost.c_str(), ret);
             return ret;
@@ -173,6 +178,7 @@ int SrsHttpServer::initialize()
         
         if (mount == "/") {
             default_root_exists = true;
+            srs_warn("http: root mount to %s", dir.c_str());
         }
     }
     
@@ -183,6 +189,7 @@ int SrsHttpServer::initialize()
             srs_error("http: mount root dir=%s failed. ret=%d", dir.c_str(), ret);
             return ret;
         }
+        srs_trace("http: root mount to %s", dir.c_str());
     }
     
     return ret;
