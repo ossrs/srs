@@ -475,6 +475,8 @@ Supported operating systems and hardware:
 1. Support custom dvr path and http callback, read 
 [#179](https://github.com/winlinvip/simple-rtmp-server/issues/179) and
 [274](https://github.com/winlinvip/simple-rtmp-server/issues/274).
+1. Support rtmp remux to http flv live stream, read 
+[#293](https://github.com/winlinvip/simple-rtmp-server/issues/293).
 1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
 1. [no-plan] Support RTMP 302 redirect [#92](https://github.com/winlinvip/simple-rtmp-server/issues/92).
 1. [no-plan] Support multiple processes, for both origin and edge
@@ -510,6 +512,7 @@ Supported operating systems and hardware:
 
 ## History
 
+* v2.0, 2015-01-18, fix [#293](https://github.com/winlinvip/simple-rtmp-server/issues/293), support rtmp remux to http flv live stream. 2.0.99.
 * v2.0, 2015-01-17, fix [#277](https://github.com/winlinvip/simple-rtmp-server/issues/277), refine http server refer to go http-framework. 2.0.98
 * v2.0, 2015-01-17, for [#277](https://github.com/winlinvip/simple-rtmp-server/issues/277), refine http api refer to go http-framework. 2.0.97
 * v2.0, 2015-01-17, hotfix [#290](https://github.com/winlinvip/simple-rtmp-server/issues/290), use iformat only for rtmp input. 2.0.95
