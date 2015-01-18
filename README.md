@@ -443,13 +443,13 @@ Supported operating systems and hardware:
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_DRM#tokentraverse)
 ) for fms origin authenticate.
 1. Support system full utest on gtest.
-1. [experiment] Support embeded HTTP server(
-[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleHTTP),
-[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_SampleHTTP)
+1. Support embeded HTTP server(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SampleHTTP),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_SampleHTTP)
 ) for hls(live/vod)
-1. [experiment] Support vod stream(http flv/hls vod stream)(
-[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_FlvVodStream),
-[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_FlvVodStream)
+1. Support vod stream(http flv/hls vod stream)(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_FlvVodStream),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_FlvVodStream)
 ).
 1. Stable [1.0release branch](https://github.com/winlinvip/simple-rtmp-server/tree/1.0release) and 
 [2.0dev branch](https://github.com/winlinvip/simple-rtmp-server/tree/master).
