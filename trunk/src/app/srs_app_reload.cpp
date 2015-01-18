@@ -95,6 +95,11 @@ int ISrsReloadHandler::on_reload_vhost_http_updated()
     return ERROR_SUCCESS;
 }
 
+int ISrsReloadHandler::on_reload_vhost_http_flv_updated()
+{
+    return ERROR_SUCCESS;
+}
+
 int ISrsReloadHandler::on_reload_vhost_added(string /*vhost*/)
 {
     return ERROR_SUCCESS;

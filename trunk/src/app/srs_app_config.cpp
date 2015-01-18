@@ -876,6 +876,17 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload http success.", vhost.c_str());
             }
+            // http_flv, only one per vhost.
+            if (!srs_directive_equals(new_vhost->get("http_flv"), old_vhost->get("http_flv"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_http_flv_updated()) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes http_flv failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload http_flv success.", vhost.c_str());
+            }
             // transcode, many per vhost.
             if ((ret = reload_transcode(new_vhost, old_vhost)) != ERROR_SUCCESS) {
                 return ret;
@@ -1364,7 +1375,7 @@ int SrsConfig::check_config()
                 && n != "atc" && n != "atc_auto"
                 && n != "debug_srs_upnode"
                 && n != "mr" && n != "mw_latency" && n != "min_latency"
-                && n != "security"
+                && n != "security" && n != "http_flv"
             ) {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported vhost directive %s, ret=%d", n.c_str(), ret);
@@ -1409,6 +1420,15 @@ int SrsConfig::check_config()
                     if (m != "enabled" && m != "mount" && m != "dir") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost http directive %s, ret=%d", m.c_str(), ret);
+                        return ret;
+                    }
+                }
+            } else if (n == "http_flv") {
+                for (int j = 0; j < (int)conf->directives.size(); j++) {
+                    string m = conf->at(j)->name.c_str();
+                    if (m != "enabled" && m != "mount") {
+                        ret = ERROR_SYSTEM_CONFIG_INVALID;
+                        srs_error("unsupported vhost http_flv directive %s, ret=%d", m.c_str(), ret);
                         return ret;
                     }
                 }
@@ -3420,6 +3440,50 @@ string SrsConfig::get_vhost_http_dir(string vhost)
     conf = conf->get("dir");
     if (!conf || conf->arg0().empty()) {
         return SRS_CONF_DEFAULT_HTTP_DIR;
+    }
+    
+    return conf->arg0();
+}
+
+bool SrsConfig::get_vhost_http_flv_enabled(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return false;
+    }
+    
+    conf = conf->get("http_flv");
+    if (!conf) {
+        return false;
+    }
+    
+    conf = conf->get("enabled");
+    if (!conf) {
+        return false;
+    }
+    
+    if (conf->arg0() == "on") {
+        return true;
+    }
+    
+    return false;
+}
+
+string SrsConfig::get_vhost_http_flv_mount(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HTTP_FLV_MOUNT;
+    }
+    
+    conf = conf->get("http_flv");
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HTTP_FLV_MOUNT;
+    }
+    
+    conf = conf->get("mount");
+    if (!conf || conf->arg0().empty()) {
+        return SRS_CONF_DEFAULT_HTTP_FLV_MOUNT;
     }
     
     return conf->arg0();

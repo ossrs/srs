@@ -57,10 +57,29 @@ protected:
     virtual int serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath, int offset);
 };
 
+/**
+* the flv live stream supports access rtmp in flv over http.
+* srs will remux rtmp to flv streaming.
+*/
+class SrsLiveStream : public ISrsGoHttpHandler
+{
+public:
+    SrsLiveStream();
+    virtual ~SrsLiveStream();
+public:
+    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
+};
+
+/**
+* the http server instance,
+* serve http static file, flv vod stream and flv live stream.
+*/
 class SrsHttpServer : public ISrsReloadHandler
 {
 public:
     SrsGoHttpServeMux mux;
+    // the flv live streaming template.
+    std::map<std::string, std::string> flvs;
 public:
     SrsHttpServer();
     virtual ~SrsHttpServer();
@@ -69,6 +88,10 @@ public:
 // interface ISrsThreadHandler.
 public:
     virtual int on_reload_vhost_http_updated();
+    virtual int on_reload_vhost_http_flv_updated();
+private:
+    virtual int mount_static_file();
+    virtual int mount_flv_streaming();
 };
 
 class SrsHttpConn : public SrsConnection

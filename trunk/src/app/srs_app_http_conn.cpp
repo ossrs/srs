@@ -135,21 +135,69 @@ int SrsVodStream::serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* 
     return ret;
 }
 
+SrsLiveStream::SrsLiveStream()
+{
+}
+
+SrsLiveStream::~SrsLiveStream()
+{
+}
+
+int SrsLiveStream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
+{
+    int ret = ERROR_SUCCESS;
+    // TODO: FIMXE: implements it.
+    return ret;
+}
+
 SrsHttpServer::SrsHttpServer()
 {
 }
 
 SrsHttpServer::~SrsHttpServer()
 {
+    flvs.clear();
 }
 
 int SrsHttpServer::initialize()
 {
     int ret = ERROR_SUCCESS;
     
+    // static file
+    // flv vod streaming.
+    if ((ret = mount_static_file()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // remux rtmp to flv live streaming
+    if ((ret = mount_flv_streaming()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsHttpServer::on_reload_vhost_http_updated()
+{
+    int ret = ERROR_SUCCESS;
+    // TODO: FIXME: implements it.
+    return ret;
+}
+
+int SrsHttpServer::on_reload_vhost_http_flv_updated()
+{
+    int ret = ERROR_SUCCESS;
+    // TODO: FIXME: implements it.
+    return ret;
+}
+
+int SrsHttpServer::mount_static_file()
+{
+    int ret = ERROR_SUCCESS;
+    
     bool default_root_exists = false;
     
-    // add other virtual path
+    // http static file and flv vod stream mount for each vhost.
     SrsConfDirective* root = _srs_config->get_root();
     for (int i = 0; i < (int)root->directives.size(); i++) {
         SrsConfDirective* conf = root->at(i);
@@ -168,6 +216,9 @@ int SrsHttpServer::initialize()
 
         // replace the vhost variable
         mount = srs_string_replace(mount, "[vhost]", vhost);
+
+        // remove the default vhost mount
+        mount = srs_string_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST"/", "");
         
         // the dir mount must always ends with "/"
         if (mount != "/" && mount.rfind("/") != mount.length() - 1) {
@@ -199,10 +250,30 @@ int SrsHttpServer::initialize()
     return ret;
 }
 
-int SrsHttpServer::on_reload_vhost_http_updated()
+int SrsHttpServer::mount_flv_streaming()
 {
     int ret = ERROR_SUCCESS;
-    // TODO: FIXME: implements it.
+    
+    // http flv live stream mount for each vhost.
+    SrsConfDirective* root = _srs_config->get_root();
+    for (int i = 0; i < (int)root->directives.size(); i++) {
+        SrsConfDirective* conf = root->at(i);
+        
+        if (!conf->is_vhost()) {
+            continue;
+        }
+        
+        std::string vhost = conf->arg0();
+        if (!_srs_config->get_vhost_http_flv_enabled(vhost)) {
+            continue;
+        }
+        
+        std::string mount = _srs_config->get_vhost_http_flv_mount(vhost);
+        flvs[vhost] = mount;
+        srs_trace("http flv live stream, vhost=%s, mount=%s", 
+            vhost.c_str(), mount.c_str());
+    }
+    
     return ret;
 }
 

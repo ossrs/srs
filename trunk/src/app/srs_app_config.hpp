@@ -65,7 +65,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // the interval in seconds for bandwidth check
 #define SRS_CONF_DEFAULT_BANDWIDTH_LIMIT_KBPS 1000
 
-#define SRS_CONF_DEFAULT_HTTP_MOUNT "/"
+#define SRS_CONF_DEFAULT_HTTP_MOUNT "[vhost]/"
+#define SRS_CONF_DEFAULT_HTTP_FLV_MOUNT "[vhost]/[app]/[stream].flv"
 #define SRS_CONF_DEFAULT_HTTP_DIR SRS_CONF_DEFAULT_HLS_PATH
 
 #define SRS_CONF_DEFAULT_HTTP_STREAM_PORT 8080
@@ -954,20 +955,26 @@ public:
     */
     virtual bool                get_vhost_http_enabled(std::string vhost);
     /**
-    * get the http mount point for vhost,
-    * vhost can use sub dir of http.
-    * for example, http://server/vhost1/live/livestream
-    * where the vhost1 is mount point for vhost1.
+    * get the http mount point for vhost.
+    * for example, http://vhost/live/livestream
     */
     virtual std::string         get_vhost_http_mount(std::string vhost);
     /**
     * get the http dir for vhost.
-    * the http dir of vhost will mount to the mount point of vhost.
-    * for example, http://server/vhost1/live/livestream
-    * where the vhost1 is mount point for vhost1,
-    * and vhost1 dir is specified by this http dir.
+    * the path on disk for mount root of http vhost.
     */
     virtual std::string         get_vhost_http_dir(std::string vhost);
+// flv live streaming section
+public:
+    /**
+    * get whether vhost enabled http flv live stream
+    */
+    virtual bool                get_vhost_http_flv_enabled(std::string vhost);
+    /**
+    * get the http flv live stream mount point for vhost.
+    * used to generate the flv stream mount path.
+    */
+    virtual std::string         get_vhost_http_flv_mount(std::string vhost);
 // http heartbeart section
 private:
     /**
