@@ -136,12 +136,15 @@ int SrsVodStream::serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* 
     return ret;
 }
 
-SrsLiveStream::SrsLiveStream()
+SrsLiveStream::SrsLiveStream(SrsSource* s, SrsRequest* r)
 {
+    source = s;
+    req = r->copy();
 }
 
 SrsLiveStream::~SrsLiveStream()
 {
+    srs_freep(req);
 }
 
 int SrsLiveStream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
@@ -182,27 +185,33 @@ int SrsHttpServer::mount(SrsSource* s, SrsRequest* r)
 {
     int ret = ERROR_SUCCESS;
     
-    if (flvs.empty()) {
-        srs_info("ignore mount, no flv stream configed.");
-        return ret;
-    }
-    
     if (flvs.find(r->vhost) == flvs.end()) {
         srs_info("ignore mount flv stream for disabled");
         return ret;
     }
+
+    std::string mount = flvs[r->vhost];
+
+    // replace the vhost variable
+    mount = srs_string_replace(mount, "[vhost]", r->vhost);
+    mount = srs_string_replace(mount, "[app]", r->app);
+    mount = srs_string_replace(mount, "[stream]", r->stream);
+
+    // remove the default vhost mount
+    mount = srs_string_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST"/", "");
     
-    // TODO: FIXME: implements it.
+    // mount the http flv stream.
+    if ((ret = mux.handle(mount, new SrsLiveStream(s, r))) != ERROR_SUCCESS) {
+        srs_error("http: mount flv stream for vhost=%s failed. ret=%d", r->vhost.c_str(), ret);
+        return ret;
+    }
+    srs_trace("http: mount flv stream for vhost=%s, mount=%s", r->vhost.c_str(), mount.c_str());
+    
     return ret;
 }
 
 void SrsHttpServer::unmount(SrsSource* s, SrsRequest* r)
 {
-    if (flvs.empty()) {
-        srs_info("ignore unmount, no flv stream configed.");
-        return;
-    }
-    
     if (flvs.find(r->vhost) == flvs.end()) {
         srs_info("ignore unmount flv stream for disabled");
         return;
@@ -269,6 +278,7 @@ int SrsHttpServer::mount_static_file()
             default_root_exists = true;
             srs_warn("http: root mount to %s", dir.c_str());
         }
+        srs_trace("http: vhost=%s mount to %s", vhost.c_str(), mount.c_str());
     }
     
     if (!default_root_exists) {

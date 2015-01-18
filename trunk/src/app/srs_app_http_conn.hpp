@@ -65,8 +65,11 @@ protected:
 */
 class SrsLiveStream : public ISrsGoHttpHandler
 {
+private:
+    SrsRequest* req;
+    SrsSource* source;
 public:
-    SrsLiveStream();
+    SrsLiveStream(SrsSource* s, SrsRequest* r);
     virtual ~SrsLiveStream();
 public:
     virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
