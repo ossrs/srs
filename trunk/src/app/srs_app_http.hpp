@@ -217,7 +217,7 @@ protected:
     /**
     * copy the fs to response writer in size bytes.
     */
-    virtual int copy(SrsFileReader* fs, ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, int size);
+    virtual int copy(ISrsGoHttpResponseWriter* w, SrsFileReader* fs, SrsHttpMessage* r, int size);
 };
 
 // the mux entry for server mux.

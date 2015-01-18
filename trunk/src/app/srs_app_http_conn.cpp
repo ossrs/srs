@@ -127,7 +127,7 @@ int SrsVodStream::serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* 
     }
     
     // send data
-    if ((ret = copy(&fs, w, r, left)) != ERROR_SUCCESS) {
+    if ((ret = copy(w, &fs, r, left)) != ERROR_SUCCESS) {
         srs_warn("read flv=%s size=%d failed, ret=%d", fullpath.c_str(), left, ret);
         return ret;
     }

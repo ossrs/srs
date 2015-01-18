@@ -344,7 +344,7 @@ int SrsGoHttpFileServer::serve_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
     
     // write body.
     int64_t left = length;
-    if ((ret = copy(&fs, w, r, left)) != ERROR_SUCCESS) {
+    if ((ret = copy(w, &fs, r, left)) != ERROR_SUCCESS) {
         srs_warn("read file=%s size=%d failed, ret=%d", fullpath.c_str(), left, ret);
         return ret;
     }
@@ -357,7 +357,7 @@ int SrsGoHttpFileServer::serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMe
     return serve_file(w, r, fullpath);
 }
 
-int SrsGoHttpFileServer::copy(SrsFileReader* fs, ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, int size)
+int SrsGoHttpFileServer::copy(ISrsGoHttpResponseWriter* w, SrsFileReader* fs, SrsHttpMessage* r, int size)
 {
     int ret = ERROR_SUCCESS;
     
