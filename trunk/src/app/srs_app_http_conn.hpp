@@ -36,13 +36,16 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_conn.hpp>
 #include <srs_app_http.hpp>
 #include <srs_app_reload.hpp>
+#include <srs_kernel_file.hpp>
 
 class SrsSource;
 class SrsRequest;
 class SrsStSocket;
+class SrsFlvEncoder;
 class SrsHttpParser;
 class SrsHttpMessage;
 class SrsHttpHandler;
+class SrsSharedPtrMessage;
 
 /**
 * the flv vod stream supports flv?start=offset-bytes.
@@ -60,6 +63,26 @@ protected:
 };
 
 /**
+* write stream to http response direclty.
+*/
+class SrsFlvStreamWriter : public SrsFileWriter
+{
+private:
+    ISrsGoHttpResponseWriter* writer;
+public:
+    SrsFlvStreamWriter(ISrsGoHttpResponseWriter* w);
+    virtual ~SrsFlvStreamWriter();
+public:
+    virtual int open(std::string file);
+    virtual void close();
+public:
+    virtual bool is_open();
+    virtual int64_t tellg();
+public:
+    virtual int write(void* buf, size_t count, ssize_t* pnwrite);
+};
+
+/**
 * the flv live stream supports access rtmp in flv over http.
 * srs will remux rtmp to flv streaming.
 */
@@ -73,6 +96,8 @@ public:
     virtual ~SrsLiveStream();
 public:
     virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
+private:
+    virtual int send_messages(SrsFlvEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs);
 };
 
 /**
