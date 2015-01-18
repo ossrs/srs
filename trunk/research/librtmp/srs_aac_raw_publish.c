@@ -35,12 +35,7 @@ gcc srs_aac_raw_publish.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_aa
        
 #include "../../objs/include/srs_librtmp.h"
 
-// https://github.com/winlinvip/simple-rtmp-server/issues/212#issuecomment-63648892
-// allspace:
-//      Take this file as an example: https://github.com/allspace/files/blob/master/srs.pcm
-//      It's captured using SDK callback method. I have filtered out h264 video, so it's audio only now.
-//      For every frame, it's a 8 bytes vendor specific header, following 160 bytes audio frame. 
-//      The header part can be ignored.
+// https://github.com/winlinvip/simple-rtmp-server/issues/212#issuecomment-64145910
 int read_audio_frame(char* data, int size, char** pp, char** frame, int* frame_size) 
 {
     char* p = *pp;
