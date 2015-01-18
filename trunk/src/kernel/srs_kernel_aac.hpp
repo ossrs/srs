@@ -56,38 +56,11 @@ public:
     virtual int initialize(SrsFileWriter* fs);
 public:
     /**
-    * write flv header.
-    * write following:
-    *   1. E.2 The FLV header
-    *   2. PreviousTagSize0 UI32 Always 0
-    * that is, 9+4=13bytes.
-    */
-    virtual int write_header();
-    virtual int write_header(char flv_header[9]);
-    /**
-    * write flv metadata. 
-    * @param type, the type of data, or other message type.
-    * @param data, the amf0 metadata which serialize from:
-    *   AMF0 string: onMetaData,
-    *   AMF0 object: the metadata object.
-    * @remark assert data is not NULL.
-    */
-    virtual int write_metadata(char type, char* data, int size);
-    /**
     * write audio/video packet.
     * @remark assert data is not NULL.
     */
     virtual int write_audio(int64_t timestamp, char* data, int size);
     virtual int write_video(int64_t timestamp, char* data, int size);
-public:
-    /**
-    * get the tag size,
-    * including the tag header, body, and 4bytes previous tag size.
-    * @remark assert data_size is not negative.
-    */
-    static int size_tag(int data_size);
-private:
-    virtual int write_tag(char* header, int header_size, char* tag, int tag_size);
 };
 
 #endif

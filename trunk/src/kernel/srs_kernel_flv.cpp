@@ -59,7 +59,7 @@ int SrsFlvEncoder::initialize(SrsFileWriter* fs)
     
     if (!fs->is_open()) {
         ret = ERROR_KERNEL_FLV_STREAM_CLOSED;
-        srs_warn("stream is not open for decoder. ret=%d", ret);
+        srs_warn("stream is not open for encoder. ret=%d", ret);
         return ret;
     }
     

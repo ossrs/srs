@@ -219,9 +219,10 @@ int SrsAacStreamEncoder::write_video(int64_t timestamp, char* data, int size)
     return enc->write_video(timestamp, data, size);
 }
 
-int SrsAacStreamEncoder::write_metadata(int64_t timestamp, char* data, int size)
+int SrsAacStreamEncoder::write_metadata(int64_t /*timestamp*/, char* /*data*/, int /*size*/)
 {
-    return enc->write_metadata(timestamp, data, size);
+    // aac ignore any flv metadata.
+    return ERROR_SUCCESS;
 }
 
 SrsStreamWriter::SrsStreamWriter(ISrsGoHttpResponseWriter* w)
