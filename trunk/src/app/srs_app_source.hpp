@@ -337,6 +337,27 @@ public:
 };
 
 /**
+* the handler to handle the event of srs source.
+* for example, the http flv streaming module handle the event and 
+* mount http when rtmp start publishing.
+*/
+class ISrsSourceHandler
+{
+public:
+    ISrsSourceHandler();
+    virtual ~ISrsSourceHandler();
+public:
+    /**
+    * when stream start publish, mount stream.
+    */
+    virtual int on_publish(SrsSource* s, SrsRequest* r) = 0;
+    /**
+    * when stream stop publish, unmount stream.
+    */
+    virtual void on_unpublish(SrsSource* s, SrsRequest* r) = 0;
+};
+
+/**
 * live streaming source.
 */
 class SrsSource : public ISrsReloadHandler
@@ -346,11 +367,11 @@ private:
 public:
     /**
     * find stream by vhost/app/stream.
-    * @param req the client request.
-    * @param ppsource the matched source, if success never be NULL.
-    * @remark stream_url should without port and schema.
+    * @param r the client request.
+    * @param h the event handler for source.
+    * @param pps the matched source, if success never be NULL.
     */
-    static int find(SrsRequest* req, SrsSource** ppsource);
+    static int find(SrsRequest* r, ISrsSourceHandler* h, SrsSource** pps);
     /**
     * when system exit, destroy the sources,
     * for gmc to analysis mem leaks.
@@ -390,6 +411,8 @@ private:
     std::vector<SrsForwarder*> forwarders;
     // for aggregate message
     SrsStream* aggregate_stream;
+    // the event handler.
+    ISrsSourceHandler* handler;
 private:
     /**
     * the sample rate of audio in metadata.
@@ -421,10 +444,11 @@ public:
     * @param _req the client request object, 
     *     this object will deep copy it for reload.
     */
-    SrsSource(SrsRequest* req);
+    SrsSource();
     virtual ~SrsSource();
+// initialize, get and setter.
 public:
-    virtual int initialize();
+    virtual int initialize(SrsRequest* r, ISrsSourceHandler* h);
 // interface ISrsReloadHandler
 public:
     virtual int on_reload_vhost_atc(std::string vhost);

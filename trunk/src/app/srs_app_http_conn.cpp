@@ -41,6 +41,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_flv.hpp>
+#include <srs_protocol_rtmp.hpp>
 
 SrsVodStream::SrsVodStream(string root_dir)
     : SrsGoHttpFileServer(root_dir)
@@ -175,6 +176,39 @@ int SrsHttpServer::initialize()
     }
     
     return ret;
+}
+
+int SrsHttpServer::mount(SrsSource* s, SrsRequest* r)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (flvs.empty()) {
+        srs_info("ignore mount, no flv stream configed.");
+        return ret;
+    }
+    
+    if (flvs.find(r->vhost) == flvs.end()) {
+        srs_info("ignore mount flv stream for disabled");
+        return ret;
+    }
+    
+    // TODO: FIXME: implements it.
+    return ret;
+}
+
+void SrsHttpServer::unmount(SrsSource* s, SrsRequest* r)
+{
+    if (flvs.empty()) {
+        srs_info("ignore unmount, no flv stream configed.");
+        return;
+    }
+    
+    if (flvs.find(r->vhost) == flvs.end()) {
+        srs_info("ignore unmount flv stream for disabled");
+        return;
+    }
+    
+    // TODO: FIXME: implements it.
 }
 
 int SrsHttpServer::on_reload_vhost_http_updated()

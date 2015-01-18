@@ -35,6 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_st.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_app_thread.hpp>
+#include <srs_app_source.hpp>
 
 class SrsServer;
 class SrsConnection;
@@ -113,7 +114,8 @@ private:
 * SRS RTMP server, initialize and listen, 
 * start connection service thread, destroy client.
 */
-class SrsServer : public ISrsReloadHandler
+class SrsServer : virtual public ISrsReloadHandler
+    , virtual public ISrsSourceHandler
 {
 private:
 #ifdef SRS_AUTO_HTTP_API
@@ -241,6 +243,10 @@ public:
     virtual int on_reload_http_stream_enabled();
     virtual int on_reload_http_stream_disabled();
     virtual int on_reload_http_stream_updated();
+// interface ISrsSourceHandler
+public:
+    virtual int on_publish(SrsSource* s, SrsRequest* r);
+    virtual void on_unpublish(SrsSource* s, SrsRequest* r);
 };
 
 #endif

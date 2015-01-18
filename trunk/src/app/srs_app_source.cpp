@@ -672,24 +672,33 @@ bool SrsGopCache::pure_audio()
     return cached_video_count == 0;
 }
 
+ISrsSourceHandler::ISrsSourceHandler()
+{
+}
+
+ISrsSourceHandler::~ISrsSourceHandler()
+{
+}
+
 std::map<std::string, SrsSource*> SrsSource::pool;
 
-int SrsSource::find(SrsRequest* req, SrsSource** ppsource)
+int SrsSource::find(SrsRequest* r, ISrsSourceHandler* h, SrsSource** pps)
 {
     int ret = ERROR_SUCCESS;
     
-    string stream_url = req->get_stream_url();
-    string vhost = req->vhost;
+    string stream_url = r->get_stream_url();
+    string vhost = r->vhost;
     
     if (pool.find(stream_url) == pool.end()) {
-        SrsSource* source = new SrsSource(req);
-        if ((ret = source->initialize()) != ERROR_SUCCESS) {
+        SrsSource* source = new SrsSource();
+        if ((ret = source->initialize(r, h)) != ERROR_SUCCESS) {
             srs_freep(source);
             return ret;
         }
         
         pool[stream_url] = source;
-        srs_info("create new source for url=%s, vhost=%s", stream_url.c_str(), vhost.c_str());
+        srs_info("create new source for url=%s, vhost=%s", 
+            stream_url.c_str(), vhost.c_str());
     }
     
     // we always update the request of resource, 
@@ -697,8 +706,8 @@ int SrsSource::find(SrsRequest* req, SrsSource** ppsource)
     // and we only need to update the token of request, it's simple.
     if (true) {
         SrsSource* source = pool[stream_url];
-        source->_req->update_auth(req);
-        *ppsource = source;
+        source->_req->update_auth(r);
+        *pps = source;
     }
     
     return ret;
@@ -714,9 +723,9 @@ void SrsSource::destroy()
     pool.clear();
 }
 
-SrsSource::SrsSource(SrsRequest* req)
+SrsSource::SrsSource()
 {
-    _req = req->copy();
+    _req = NULL;
     jitter_algorithm = SrsRtmpJitterAlgorithmOFF;
     
 #ifdef SRS_AUTO_HLS
@@ -741,7 +750,7 @@ SrsSource::SrsSource(SrsRequest* req)
     aggregate_stream = new SrsStream();
     
     _srs_config->subscribe(this);
-    atc = _srs_config->get_atc(_req->vhost);
+    atc = false;
 }
 
 SrsSource::~SrsSource()
@@ -783,9 +792,13 @@ SrsSource::~SrsSource()
     srs_freep(_req);
 }
 
-int SrsSource::initialize()
+int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h)
 {
     int ret = ERROR_SUCCESS;
+    
+    handler = h;
+    _req = r->copy();
+    atc = _srs_config->get_atc(_req->vhost);
     
 #ifdef SRS_AUTO_DVR
     if ((ret = dvr->initialize(_req)) != ERROR_SUCCESS) {
@@ -1643,6 +1656,13 @@ int SrsSource::on_publish()
     }
 #endif
 
+    // notify the handler.
+    srs_assert(handler);
+    if ((ret = handler->on_publish(this, _req)) != ERROR_SUCCESS) {
+        srs_error("handle on publish failed. ret=%d", ret);
+        return ret;
+    }
+
     return ret;
 }
 
@@ -1676,6 +1696,10 @@ void SrsSource::on_unpublish()
     
     _can_publish = true;
     _source_id = -1;
+
+    // notify the handler.
+    srs_assert(handler);
+    handler->on_unpublish(this, _req);
 }
 
 int SrsSource::create_consumer(SrsConsumer*& consumer)

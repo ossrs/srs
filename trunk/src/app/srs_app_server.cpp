@@ -1074,3 +1074,23 @@ int SrsServer::on_reload_http_stream_updated()
     return ret;
 }
 
+int SrsServer::on_publish(SrsSource* s, SrsRequest* r)
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_AUTO_HTTP_SERVER
+    if ((ret = http_stream_mux->mount(s, r)) != ERROR_SUCCESS) {
+        return ret;
+    }
+#endif
+    
+    return ret;
+}
+
+void SrsServer::on_unpublish(SrsSource* s, SrsRequest* r)
+{
+#ifdef SRS_AUTO_HTTP_SERVER
+    http_stream_mux->unmount(s, r);
+#endif
+}
+

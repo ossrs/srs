@@ -37,6 +37,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_http.hpp>
 #include <srs_app_reload.hpp>
 
+class SrsSource;
+class SrsRequest;
 class SrsStSocket;
 class SrsHttpParser;
 class SrsHttpMessage;
@@ -85,6 +87,9 @@ public:
     virtual ~SrsHttpServer();
 public:
     virtual int initialize();
+public:
+    virtual int mount(SrsSource* s, SrsRequest* r);
+    virtual void unmount(SrsSource* s, SrsRequest* r);
 // interface ISrsThreadHandler.
 public:
     virtual int on_reload_vhost_http_updated();
