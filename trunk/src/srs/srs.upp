@@ -18,6 +18,8 @@ file
     ..\core\srs_core_performance.hpp,
     ..\core\srs_core_performance.cpp,
     kernel readonly separator,
+    ..\kernel\srs_kernel_aac.hpp,
+    ..\kernel\srs_kernel_aac.cpp,
     ..\kernel\srs_kernel_codec.hpp,
     ..\kernel\srs_kernel_codec.cpp,
     ..\kernel\srs_kernel_consts.hpp,

@@ -41,6 +41,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsSource;
 class SrsRequest;
 class SrsStSocket;
+class SrsAacEncoder;
 class SrsFlvEncoder;
 class SrsHttpParser;
 class SrsHttpMessage;
@@ -63,15 +64,64 @@ protected:
 };
 
 /**
+* the stream encoder in some codec, for example, flv or aac.
+*/
+class ISrsStreamEncoder
+{
+public:
+    ISrsStreamEncoder();
+    virtual ~ISrsStreamEncoder();
+public:
+    virtual int initialize(SrsFileWriter* w) = 0;
+    virtual int write_audio(int64_t timestamp, char* data, int size) = 0;
+    virtual int write_video(int64_t timestamp, char* data, int size) = 0;
+    virtual int write_metadata(int64_t timestamp, char* data, int size) = 0;
+};
+
+/**
+* the flv stream encoder, remux rtmp stream to flv stream.
+*/
+class SrsFlvStreamEncoder : public ISrsStreamEncoder
+{
+private:
+    SrsFlvEncoder* enc;
+public:
+    SrsFlvStreamEncoder();
+    virtual ~SrsFlvStreamEncoder();
+public:
+    virtual int initialize(SrsFileWriter* w);
+    virtual int write_audio(int64_t timestamp, char* data, int size);
+    virtual int write_video(int64_t timestamp, char* data, int size);
+    virtual int write_metadata(int64_t timestamp, char* data, int size);
+};
+
+/**
+* the aac stream encoder, remux rtmp stream to aac stream.
+*/
+class SrsAacStreamEncoder : public ISrsStreamEncoder
+{
+private:
+    SrsAacEncoder* enc;
+public:
+    SrsAacStreamEncoder();
+    virtual ~SrsAacStreamEncoder();
+public:
+    virtual int initialize(SrsFileWriter* w);
+    virtual int write_audio(int64_t timestamp, char* data, int size);
+    virtual int write_video(int64_t timestamp, char* data, int size);
+    virtual int write_metadata(int64_t timestamp, char* data, int size);
+};
+
+/**
 * write stream to http response direclty.
 */
-class SrsFlvStreamWriter : public SrsFileWriter
+class SrsStreamWriter : public SrsFileWriter
 {
 private:
     ISrsGoHttpResponseWriter* writer;
 public:
-    SrsFlvStreamWriter(ISrsGoHttpResponseWriter* w);
-    virtual ~SrsFlvStreamWriter();
+    SrsStreamWriter(ISrsGoHttpResponseWriter* w);
+    virtual ~SrsStreamWriter();
 public:
     virtual int open(std::string file);
     virtual void close();
@@ -97,7 +147,7 @@ public:
 public:
     virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
 private:
-    virtual int send_messages(SrsFlvEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs);
+    virtual int streaming_send_messages(ISrsStreamEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs);
 };
 
 /**

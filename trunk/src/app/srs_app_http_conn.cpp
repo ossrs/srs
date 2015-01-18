@@ -44,6 +44,7 @@ using namespace std;
 #include <srs_protocol_rtmp.hpp>
 #include <srs_app_source.hpp>
 #include <srs_protocol_msg_array.hpp>
+#include <srs_kernel_aac.hpp>
 
 SrsVodStream::SrsVodStream(string root_dir)
     : SrsGoHttpFileServer(root_dir)
@@ -138,35 +139,120 @@ int SrsVodStream::serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* 
     return ret;
 }
 
-SrsFlvStreamWriter::SrsFlvStreamWriter(ISrsGoHttpResponseWriter* w)
+ISrsStreamEncoder::ISrsStreamEncoder()
+{
+}
+
+ISrsStreamEncoder::~ISrsStreamEncoder()
+{
+}
+
+SrsFlvStreamEncoder::SrsFlvStreamEncoder()
+{
+    enc = new SrsFlvEncoder();
+}
+
+SrsFlvStreamEncoder::~SrsFlvStreamEncoder()
+{
+    srs_freep(enc);
+}
+
+int SrsFlvStreamEncoder::initialize(SrsFileWriter* w)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = enc->initialize(w)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // write flv header.
+    if ((ret = enc->write_header())  != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsFlvStreamEncoder::write_audio(int64_t timestamp, char* data, int size)
+{
+    return enc->write_audio(timestamp, data, size);
+}
+
+int SrsFlvStreamEncoder::write_video(int64_t timestamp, char* data, int size)
+{
+    return enc->write_video(timestamp, data, size);
+}
+
+int SrsFlvStreamEncoder::write_metadata(int64_t timestamp, char* data, int size)
+{
+    return enc->write_metadata(timestamp, data, size);
+}
+
+SrsAacStreamEncoder::SrsAacStreamEncoder()
+{
+    enc = new SrsAacEncoder();
+}
+
+SrsAacStreamEncoder::~SrsAacStreamEncoder()
+{
+    srs_freep(enc);
+}
+
+int SrsAacStreamEncoder::initialize(SrsFileWriter* w)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = enc->initialize(w)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsAacStreamEncoder::write_audio(int64_t timestamp, char* data, int size)
+{
+    return enc->write_audio(timestamp, data, size);
+}
+
+int SrsAacStreamEncoder::write_video(int64_t timestamp, char* data, int size)
+{
+    return enc->write_video(timestamp, data, size);
+}
+
+int SrsAacStreamEncoder::write_metadata(int64_t timestamp, char* data, int size)
+{
+    return enc->write_metadata(timestamp, data, size);
+}
+
+SrsStreamWriter::SrsStreamWriter(ISrsGoHttpResponseWriter* w)
 {
     writer = w;
 }
 
-SrsFlvStreamWriter::~SrsFlvStreamWriter()
+SrsStreamWriter::~SrsStreamWriter()
 {
 }
 
-int SrsFlvStreamWriter::open(std::string /*file*/)
+int SrsStreamWriter::open(std::string /*file*/)
 {
     return ERROR_SUCCESS;
 }
 
-void SrsFlvStreamWriter::close()
+void SrsStreamWriter::close()
 {
 }
 
-bool SrsFlvStreamWriter::is_open()
+bool SrsStreamWriter::is_open()
 {
     return true;
 }
 
-int64_t SrsFlvStreamWriter::tellg()
+int64_t SrsStreamWriter::tellg()
 {
     return 0;
 }
 
-int SrsFlvStreamWriter::write(void* buf, size_t count, ssize_t* pnwrite)
+int SrsStreamWriter::write(void* buf, size_t count, ssize_t* pnwrite)
 {
     if (pnwrite) {
         *pnwrite = count;
@@ -189,6 +275,20 @@ int SrsLiveStream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
     
+    bool serve_flv_streaming = false;
+    bool serve_aac_streaming = false;
+    
+    srs_assert(entry);
+    if (srs_string_ends_with(entry->pattern, ".flv")) {
+        serve_flv_streaming = true;
+    } else if (srs_string_ends_with(entry->pattern, ".aac")) {
+        serve_aac_streaming = true;
+    } else {
+        ret = ERROR_HTTP_LIVE_STREAM_EXT;
+        srs_error("http: unsupported pattern %s", entry->pattern.c_str());
+        return ret;
+    }
+    
     // create consumer of souce.
     SrsConsumer* consumer = NULL;
     if ((ret = source->create_consumer(consumer)) != ERROR_SUCCESS) {
@@ -201,20 +301,25 @@ int SrsLiveStream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
     SrsMessageArray msgs(SRS_PERF_MW_MSGS);
     // TODO: FIMXE: add pithy print.
 
-    // write http header for ts.
+    // write http header for streaming.
     w->header()->set_content_length((int64_t)2 * 1024 * 1024 * 1024);
-    w->header()->set_content_type("video/x-flv");
-    
-    // the memory writer.
-    SrsFlvStreamWriter writer(w);
-    
-    SrsFlvEncoder enc;
-    if ((ret = enc.initialize(&writer)) != ERROR_SUCCESS) {
-        return ret;
+    if (serve_flv_streaming) {
+        w->header()->set_content_type("video/x-flv");
+    }
+    if (serve_aac_streaming) {
+        w->header()->set_content_type("audio/x-aac");
     }
     
-    // write flv header.
-    if ((ret = enc.write_header())  != ERROR_SUCCESS) {
+    // the memory writer.
+    SrsStreamWriter writer(w);
+    
+    ISrsStreamEncoder* enc = NULL;
+    if (serve_flv_streaming) {
+        enc = new SrsFlvStreamEncoder();
+    }
+    SrsAutoFree(ISrsStreamEncoder, enc);
+    
+    if ((ret = enc->initialize(&writer)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -223,23 +328,23 @@ int SrsLiveStream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
         // each msg in msgs.msgs must be free, for the SrsMessageArray never free them.
         int count = 0;
         if ((ret = consumer->dump_packets(&msgs, count)) != ERROR_SUCCESS) {
-            srs_error("get messages from consumer failed. ret=%d", ret);
+            srs_error("http: get messages from consumer failed. ret=%d", ret);
             return ret;
         }
         
         if (count <= 0) {
-            srs_info("mw sleep %dms for no msg", mw_sleep);
+            srs_info("http: mw sleep %dms for no msg", mw_sleep);
             // directly use sleep, donot use consumer wait.
             st_usleep(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
             
             // ignore when nothing got.
             continue;
         }
-        srs_info("got %d msgs, min=%d, mw=%d", count, 
+        srs_info("http: got %d msgs, min=%d, mw=%d", count, 
             SRS_PERF_MW_MIN_MSGS, SRS_CONSTS_RTMP_PULSE_TIMEOUT_US / 1000);
         
         // sendout all messages.
-        ret = send_messages(&enc, msgs.msgs, count);
+        ret = streaming_send_messages(enc, msgs.msgs, count);
     
         // free the messages.
         for (int i = 0; i < count; i++) {
@@ -250,7 +355,7 @@ int SrsLiveStream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
         // check send error code.
         if (ret != ERROR_SUCCESS) {
             if (!srs_is_client_gracefully_close(ret)) {
-                srs_error("send messages to client failed. ret=%d", ret);
+                srs_error("http: send messages to client failed. ret=%d", ret);
             }
             return ret;
         }
@@ -259,7 +364,7 @@ int SrsLiveStream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
     return ret;
 }
 
-int SrsLiveStream::send_messages(SrsFlvEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs)
+int SrsLiveStream::streaming_send_messages(ISrsStreamEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs)
 {
     int ret = ERROR_SUCCESS;
     

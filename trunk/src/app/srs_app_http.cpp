@@ -371,7 +371,7 @@ int SrsGoHttpFileServer::serve_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
     }
     
     if (true) {
-        ssize_t pos;
+        size_t pos;
         std::string ext = fullpath;
         if ((pos = ext.rfind(".")) != string::npos) {
             ext = ext.substr(pos);
