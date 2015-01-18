@@ -349,6 +349,7 @@ int SrsGoHttpFileServer::serve_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
         _mime[".3gpp"] = "video/3gpp";
         _mime[".3gp"] = "video/3gpp";
         _mime[".mp4"] = "video/mp4";
+        _mime[".aac"] = "audio/x-aac";
         _mime[".mp3"] = "audio/mpeg";
         _mime[".m4a"] = "audio/x-m4a";
         _mime[".ogg"] = "audio/ogg";
