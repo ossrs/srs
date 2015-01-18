@@ -38,7 +38,6 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_buffer.hpp>
 #include <srs_kernel_file.hpp>
-#include <srs_kernel_flv.hpp>
 #include <srs_core_autofree.hpp>
 
 #define SRS_DEFAULT_HTTP_PORT 80
@@ -289,23 +288,23 @@ int SrsGoHttpFileServer::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
     if (srs_string_ends_with(fullpath, ".flv") || srs_string_ends_with(fullpath, ".fhv")) {
         std::string start = r->query_get("start");
         if (start.empty()) {
-            return serve_file(fullpath, w, r);
+            return serve_file(w, r, fullpath);
         }
 
         int offset = ::atoi(start.c_str());
         if (offset <= 0) {
-            return serve_file(fullpath, w, r);
+            return serve_file(w, r, fullpath);
         }
         
-        return serve_flv_stream(fullpath, w, r, offset);
+        return serve_flv_stream(w, r, fullpath, offset);
     } else {
-        return serve_file(fullpath, w, r);
+        return serve_file(w, r, fullpath);
     }
     
     return ret;
 }
 
-int SrsGoHttpFileServer::serve_file(string fullpath, ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsGoHttpFileServer::serve_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, string fullpath)
 {
     int ret = ERROR_SUCCESS;
     
@@ -345,110 +344,35 @@ int SrsGoHttpFileServer::serve_file(string fullpath, ISrsGoHttpResponseWriter* w
     
     // write body.
     int64_t left = length;
-    char* buf = r->http_ts_send_buffer();
-    
-    while (left > 0) {
-        ssize_t nread = -1;
-        if ((ret = fs.read(buf, __SRS_HTTP_TS_SEND_BUFFER_SIZE, &nread)) != ERROR_SUCCESS) {
-            srs_warn("read file %s failed, ret=%d", fullpath.c_str(), ret);
-            break;
-        }
-        
-        left -= nread;
-        if ((ret = w->write(buf, nread)) != ERROR_SUCCESS) {
-            break;
-        }
+    if ((ret = copy(&fs, w, r, left)) != ERROR_SUCCESS) {
+        srs_warn("read file=%s size=%d failed, ret=%d", fullpath.c_str(), left, ret);
+        return ret;
     }
     
     return ret;
 }
 
-int SrsGoHttpFileServer::serve_flv_stream(string fullpath, ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, int offset)
+int SrsGoHttpFileServer::serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, string fullpath, int offset)
+{
+    return serve_file(w, r, fullpath);
+}
+
+int SrsGoHttpFileServer::copy(SrsFileReader* fs, ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, int size)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsFileReader fs;
-    
-    // open flv file
-    if ((ret = fs.open(fullpath)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    if (offset > fs.filesize()) {
-        ret = ERROR_HTTP_FLV_OFFSET_OVERFLOW;
-        srs_warn("http flv streaming %s overflow. size=%"PRId64", offset=%d, ret=%d", 
-            fullpath.c_str(), fs.filesize(), offset, ret);
-        return ret;
-    }
-    
-    SrsFlvVodStreamDecoder ffd;
-    
-    // open fast decoder
-    if ((ret = ffd.initialize(&fs)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    // save header, send later.
-    char flv_header[13];
-    
-    // send flv header
-    if ((ret = ffd.read_header_ext(flv_header)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    // save sequence header, send later
-    char* sh_data = NULL;
-    int sh_size = 0;
-    
-    if (true) {
-        // send sequence header
-        int64_t start = 0;
-        if ((ret = ffd.read_sequence_header_summary(&start, &sh_size)) != ERROR_SUCCESS) {
-            return ret;
-        }
-        if (sh_size <= 0) {
-            ret = ERROR_HTTP_FLV_SEQUENCE_HEADER;
-            srs_warn("http flv streaming no sequence header. size=%d, ret=%d", sh_size, ret);
-            return ret;
-        }
-    }
-    sh_data = new char[sh_size];
-    SrsAutoFree(char, sh_data);
-    if ((ret = fs.read(sh_data, sh_size, NULL)) != ERROR_SUCCESS) {
-        return ret;
-    }
-
-    // seek to data offset
-    int64_t left = fs.filesize() - offset;
-
-    // write http header for ts.
-    w->header()->set_content_length((int)(sizeof(flv_header) + sh_size + left));
-    w->header()->set_content_type("video/x-flv");
-    
-    // write flv header and sequence header.
-    if ((ret = w->write(flv_header, sizeof(flv_header))) != ERROR_SUCCESS) {
-        return ret;
-    }
-    if (sh_size > 0 && (ret = w->write(sh_data, sh_size)) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    // write body.
+    int left = size;
     char* buf = r->http_ts_send_buffer();
-    if ((ret = ffd.lseek(offset)) != ERROR_SUCCESS) {
-        return ret;
-    }
     
-    // send data
     while (left > 0) {
         ssize_t nread = -1;
-        if ((ret = fs.read(buf, __SRS_HTTP_TS_SEND_BUFFER_SIZE, &nread)) != ERROR_SUCCESS) {
-            return ret;
+        if ((ret = fs->read(buf, __SRS_HTTP_TS_SEND_BUFFER_SIZE, &nread)) != ERROR_SUCCESS) {
+            break;
         }
         
         left -= nread;
         if ((ret = w->write(buf, nread)) != ERROR_SUCCESS) {
-            return ret;
+            break;
         }
     }
     

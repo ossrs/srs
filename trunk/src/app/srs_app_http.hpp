@@ -40,12 +40,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_st.hpp>
 
-class SrsSimpleBuffer;
 class SrsRequest;
 class SrsStSocket;
 class SrsHttpUri;
 class SrsHttpMessage;
-class SrsHttpHandler;
+class SrsFileReader;
+class SrsSimpleBuffer;
 class ISrsGoHttpResponseWriter;
 
 // http specification
@@ -197,16 +197,27 @@ public:
 //     http.Handle("/", SrsGoHttpFileServer("static-dir"))
 class SrsGoHttpFileServer : public ISrsGoHttpHandler
 {
-private:
+protected:
     std::string dir;
 public:
     SrsGoHttpFileServer(std::string root_dir);
     virtual ~SrsGoHttpFileServer();
 public:
     virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
-private:
-    virtual int serve_file(std::string fullpath, ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
-    virtual int serve_flv_stream(std::string fullpath, ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, int offset);
+protected:
+    /**
+    * serve the file by specified path.
+    */
+    virtual int serve_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath);
+    /**
+    * when access flv file with start=xxx.
+    */
+    virtual int serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath, int offset);
+protected:
+    /**
+    * copy the fs to response writer in size bytes.
+    */
+    virtual int copy(SrsFileReader* fs, ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, int size);
 };
 
 // the mux entry for server mux.

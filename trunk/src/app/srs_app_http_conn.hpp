@@ -41,7 +41,21 @@ class SrsHttpParser;
 class SrsHttpMessage;
 class SrsHttpHandler;
 
-// for http server.
+/**
+* the flv vod stream supports flv?start=offset-bytes.
+* for example, http://server/file.flv?start=10240
+* server will write flv header and sequence header, 
+* then seek(10240) and response flv tag data.
+*/
+class SrsVodStream : public SrsGoHttpFileServer
+{
+public:
+    SrsVodStream(std::string root_dir);
+    virtual ~SrsVodStream();
+protected:
+    virtual int serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath, int offset);
+};
+
 class SrsHttpServer
 {
 public:
