@@ -402,6 +402,7 @@ int SrsGoHttpFileServer::copy(ISrsGoHttpResponseWriter* w, SrsFileReader* fs, Sr
 
 SrsGoHttpMuxEntry::SrsGoHttpMuxEntry()
 {
+    enabled = true;
     explicit_match = false;
     handler = NULL;
 }
@@ -571,6 +572,10 @@ int SrsGoHttpServeMux::match(SrsHttpMessage* r, ISrsGoHttpHandler** ph)
     for (it = entries.begin(); it != entries.end(); ++it) {
         std::string pattern = it->first;
         SrsGoHttpMuxEntry* entry = it->second;
+        
+        if (!entry->enabled) {
+            continue;
+        }
         
         if (!path_match(pattern, path)) {
             continue;

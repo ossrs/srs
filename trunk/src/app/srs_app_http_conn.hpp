@@ -101,6 +101,18 @@ private:
 };
 
 /**
+* the srs live entry
+*/
+struct SrsLiveEntry
+{
+    std::string vhost;
+    std::string mount;
+    SrsLiveStream* stream;
+    
+    SrsLiveEntry();
+};
+
+/**
 * the http server instance,
 * serve http static file, flv vod stream and flv live stream.
 */
@@ -109,7 +121,7 @@ class SrsHttpServer : public ISrsReloadHandler
 public:
     SrsGoHttpServeMux mux;
     // the flv live streaming template.
-    std::map<std::string, std::string> flvs;
+    std::map<std::string, SrsLiveEntry*> flvs;
 public:
     SrsHttpServer();
     virtual ~SrsHttpServer();

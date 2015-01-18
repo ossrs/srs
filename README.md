@@ -476,7 +476,10 @@ Supported operating systems and hardware:
 [#179](https://github.com/winlinvip/simple-rtmp-server/issues/179) and
 [274](https://github.com/winlinvip/simple-rtmp-server/issues/274).
 1. Support rtmp remux to http flv live stream, read 
-[#293](https://github.com/winlinvip/simple-rtmp-server/issues/293).
+[#293](https://github.com/winlinvip/simple-rtmp-server/issues/293)(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_DeliveryHttpFlvStream),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_DeliveryHttpFlvStream)
+).
 1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
 1. [no-plan] Support RTMP 302 redirect [#92](https://github.com/winlinvip/simple-rtmp-server/issues/92).
 1. [no-plan] Support multiple processes, for both origin and edge

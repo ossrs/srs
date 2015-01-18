@@ -282,12 +282,22 @@ int SrsLiveStream::send_messages(SrsFlvEncoder* enc, SrsSharedPtrMessage** msgs,
     return ret;
 }
 
+SrsLiveEntry::SrsLiveEntry()
+{
+    stream = NULL;
+}
+
 SrsHttpServer::SrsHttpServer()
 {
 }
 
 SrsHttpServer::~SrsHttpServer()
 {
+    std::map<std::string, SrsLiveEntry*>::iterator it;
+    for (it = flvs.begin(); it != flvs.end(); ++it) {
+        SrsLiveEntry* entry = it->second;
+        srs_freep(entry);
+    }
     flvs.clear();
 }
 
@@ -317,8 +327,16 @@ int SrsHttpServer::mount(SrsSource* s, SrsRequest* r)
         srs_info("ignore mount flv stream for disabled");
         return ret;
     }
+    
+    SrsLiveEntry* entry = flvs[r->vhost];
+    
+    // TODO: FIXME: supports reload.
+    if (entry->stream) {
+        entry->stream->entry->enabled = true;
+        return ret;
+    }
 
-    std::string mount = flvs[r->vhost];
+    std::string mount = entry->mount;
 
     // replace the vhost variable
     mount = srs_string_replace(mount, "[vhost]", r->vhost);
@@ -328,8 +346,10 @@ int SrsHttpServer::mount(SrsSource* s, SrsRequest* r)
     // remove the default vhost mount
     mount = srs_string_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST"/", "/");
     
+    entry->stream = new SrsLiveStream(s, r);
+    
     // mount the http flv stream.
-    if ((ret = mux.handle(mount, new SrsLiveStream(s, r))) != ERROR_SUCCESS) {
+    if ((ret = mux.handle(mount, entry->stream)) != ERROR_SUCCESS) {
         srs_error("http: mount flv stream for vhost=%s failed. ret=%d", r->vhost.c_str(), ret);
         return ret;
     }
@@ -344,8 +364,9 @@ void SrsHttpServer::unmount(SrsSource* s, SrsRequest* r)
         srs_info("ignore unmount flv stream for disabled");
         return;
     }
-    
-    // TODO: FIXME: implements it.
+
+    SrsLiveEntry* entry = flvs[r->vhost];
+    entry->stream->entry->enabled = false;
 }
 
 int SrsHttpServer::on_reload_vhost_http_updated()
@@ -440,10 +461,12 @@ int SrsHttpServer::mount_flv_streaming()
             continue;
         }
         
-        std::string mount = _srs_config->get_vhost_http_flv_mount(vhost);
-        flvs[vhost] = mount;
+        SrsLiveEntry* entry = new SrsLiveEntry();
+        entry->vhost = vhost;
+        entry->mount = _srs_config->get_vhost_http_flv_mount(vhost);
+        flvs[vhost] = entry;
         srs_trace("http flv live stream, vhost=%s, mount=%s", 
-            vhost.c_str(), mount.c_str());
+            vhost.c_str(), entry->mount.c_str());
     }
     
     return ret;

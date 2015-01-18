@@ -230,6 +230,7 @@ public:
     bool explicit_match;
     ISrsGoHttpHandler* handler;
     std::string pattern;
+    bool enabled;
 public:
     SrsGoHttpMuxEntry();
     virtual ~SrsGoHttpMuxEntry();
