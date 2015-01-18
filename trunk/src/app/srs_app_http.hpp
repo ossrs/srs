@@ -265,6 +265,7 @@ public:
 class SrsGoHttpServeMux
 {
 private:
+    // the pattern handler.
     std::map<std::string, SrsGoHttpMuxEntry*> entries;
     // the vhost handler.
     std::map<std::string, ISrsGoHttpHandler*> vhosts;

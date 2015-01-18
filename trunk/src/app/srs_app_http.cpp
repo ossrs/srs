@@ -26,7 +26,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef SRS_AUTO_HTTP_PARSER
 
 #include <stdlib.h>
-
+#include <sys/stat.h>
 using namespace std;
 
 #include <srs_kernel_error.hpp>
@@ -293,6 +293,14 @@ int SrsGoHttpFileServer::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
         fullpath += upath.substr(entry->pattern.length() - pos);
     } else {
         fullpath += upath;
+    }
+    
+    // stat current dir, if exists, return error.
+    struct stat st;
+    if (stat(fullpath.c_str(), &st) != 0) {
+        srs_warn("http miss file=%s, pattern=%s, upath=%s", 
+            fullpath.c_str(), entry->pattern.c_str(), upath.c_str());
+        return SrsGoHttpNotFoundHandler().serve_http(w, r);
     }
     srs_trace("http match file=%s, pattern=%s, upath=%s", 
         fullpath.c_str(), entry->pattern.c_str(), upath.c_str());
