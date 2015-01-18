@@ -145,7 +145,7 @@ int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
     }
     
     // the left is the aac raw frame data.
-    int16_t aac_frame_length = stream->size() - stream->pos();
+    int16_t aac_raw_length = stream->size() - stream->pos();
     
     // write the ADTS header.
     // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 75,
@@ -169,6 +169,7 @@ int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
     char aac_fixed_header[7];
     if(true) {
         char* pp = aac_fixed_header;
+        int16_t aac_frame_length = aac_raw_length + 7;
         
         // Syncword 12 bslbf
         *pp++ = 0xff;
@@ -212,7 +213,7 @@ int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
     }
     
     // write aac frame body.
-    if ((ret = _fs->write(data + stream->pos(), aac_frame_length, NULL)) != ERROR_SUCCESS) {
+    if ((ret = _fs->write(data + stream->pos(), aac_raw_length, NULL)) != ERROR_SUCCESS) {
         return ret;
     }
     
