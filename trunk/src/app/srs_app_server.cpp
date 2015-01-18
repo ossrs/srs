@@ -1013,22 +1013,6 @@ int SrsServer::on_reload_vhost_removed(std::string /*vhost*/)
     return ret;
 }
 
-int SrsServer::on_reload_vhost_http_updated()
-{
-    int ret = ERROR_SUCCESS;
-    
-#ifdef SRS_AUTO_HTTP_SERVER
-    srs_freep(http_stream_mux);
-    http_stream_mux = new SrsHttpServer();
-
-    if ((ret = http_stream_mux->initialize()) != ERROR_SUCCESS) {
-        return ret;
-    }
-#endif
-
-    return ret;
-}
-
 int SrsServer::on_reload_http_api_enabled()
 {
     int ret = ERROR_SUCCESS;

@@ -199,6 +199,13 @@ int SrsHttpServer::initialize()
     return ret;
 }
 
+int SrsHttpServer::on_reload_vhost_http_updated()
+{
+    int ret = ERROR_SUCCESS;
+    // TODO: FIXME: implements it.
+    return ret;
+}
+
 SrsHttpConn::SrsHttpConn(SrsServer* svr, st_netfd_t fd, SrsHttpServer* m) 
     : SrsConnection(svr, fd)
 {

@@ -35,6 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
 #include <srs_app_http.hpp>
+#include <srs_app_reload.hpp>
 
 class SrsStSocket;
 class SrsHttpParser;
@@ -56,7 +57,7 @@ protected:
     virtual int serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath, int offset);
 };
 
-class SrsHttpServer
+class SrsHttpServer : public ISrsReloadHandler
 {
 public:
     SrsGoHttpServeMux mux;
@@ -65,6 +66,9 @@ public:
     virtual ~SrsHttpServer();
 public:
     virtual int initialize();
+// interface ISrsThreadHandler.
+public:
+    virtual int on_reload_vhost_http_updated();
 };
 
 class SrsHttpConn : public SrsConnection
