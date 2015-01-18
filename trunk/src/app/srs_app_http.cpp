@@ -341,26 +341,46 @@ int SrsGoHttpFileServer::serve_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
     
     w->header()->set_content_length(length);
     
-    if (srs_string_ends_with(fullpath, ".ts")) {
-        w->header()->set_content_type("video/MP2T");
-    } else if (srs_string_ends_with(fullpath, ".m3u8")) {
-        w->header()->set_content_type("application/x-mpegURL;charset=utf-8");
-    } else if (srs_string_ends_with(fullpath, ".flv")) {
-        w->header()->set_content_type("video/x-flv");
-    } else if (srs_string_ends_with(fullpath, ".xml")) {
-        w->header()->set_content_type("text/xml;charset=utf-8");
-    } else if (srs_string_ends_with(fullpath, ".js")) {
-        w->header()->set_content_type("text/javascript");
-    } else if (srs_string_ends_with(fullpath, ".json")) {
-        w->header()->set_content_type("application/json;charset=utf-8");
-    } else if (srs_string_ends_with(fullpath, ".swf")) {
-        w->header()->set_content_type("application/x-shockwave-flash");
-    } else if (srs_string_ends_with(fullpath, ".css")) {
-        w->header()->set_content_type("text/css;charset=utf-8");
-    } else if (srs_string_ends_with(fullpath, ".ico")) {
-        w->header()->set_content_type("image/x-icon");
-    } else {
-        w->header()->set_content_type("text/html;charset=utf-8");
+    static std::map<std::string, std::string> _mime;
+    if (_mime.empty()) {
+        _mime[".ts"] = "video/MP2T";
+        _mime[".flv"] = "video/x-flv";
+        _mime[".m4v"] = "video/x-m4v";
+        _mime[".3gpp"] = "video/3gpp";
+        _mime[".3gp"] = "video/3gpp";
+        _mime[".mp4"] = "video/mp4";
+        _mime[".mp3"] = "audio/mpeg";
+        _mime[".m4a"] = "audio/x-m4a";
+        _mime[".ogg"] = "audio/ogg";
+        _mime[".m3u8"] = "application/x-mpegURL;charset=utf-8";
+        _mime[".rss"] = "application/rss+xml";
+        _mime[".json"] = "application/json;charset=utf-8";
+        _mime[".swf"] = "application/x-shockwave-flash";
+        _mime[".doc"] = "application/msword";
+        _mime[".zip"] = "application/zip";
+        _mime[".rar"] = "application/x-rar-compressed";
+        _mime[".xml"] = "text/xml;charset=utf-8";
+        _mime[".js"] = "text/javascript";
+        _mime[".css"] = "text/css;charset=utf-8";
+        _mime[".ico"] = "image/x-icon";
+        _mime[".png"] = "image/png";
+        _mime[".jpeg"] = "image/jpeg";
+        _mime[".jpg"] = "image/jpeg";
+        _mime[".gif"] = "image/gif";
+    }
+    
+    if (true) {
+        ssize_t pos;
+        std::string ext = fullpath;
+        if ((pos = ext.rfind(".")) != string::npos) {
+            ext = ext.substr(pos);
+        }
+        
+        if (_mime.find(ext) == _mime.end()) {
+            w->header()->set_content_type("text/html;charset=utf-8");
+        } else {
+            w->header()->set_content_type(_mime[ext]);
+        }
     }
     
     // write body.
