@@ -339,7 +339,8 @@ int SrsGoHttpFileServer::serve_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
 
     int64_t length = fs.filesize();
     
-    w->header()->set_content_length(length);
+    // unset the content length in chunked encoding.
+    //w->header()->set_content_length(length);
     
     static std::map<std::string, std::string> _mime;
     if (_mime.empty()) {
@@ -391,7 +392,7 @@ int SrsGoHttpFileServer::serve_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
         return ret;
     }
     
-    return ret;
+    return w->final_request();
 }
 
 int SrsGoHttpFileServer::serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, string fullpath, int offset)
@@ -653,6 +654,20 @@ SrsGoHttpResponseWriter::~SrsGoHttpResponseWriter()
     srs_freep(hdr);
 }
 
+int SrsGoHttpResponseWriter::final_request()
+{
+    // complete the chunked encoding.
+    if (content_length == -1) {
+        std::stringstream ss;
+        ss << 0 << __SRS_CRLF << __SRS_CRLF;
+        std::string ch = ss.str();
+        return skt->write((void*)ch.data(), (int)ch.length(), NULL);
+    }
+    
+    // ignore when send with content length
+    return ERROR_SUCCESS;
+}
+
 SrsGoHttpHeader* SrsGoHttpResponseWriter::header()
 {
     return hdr;
@@ -678,7 +693,26 @@ int SrsGoHttpResponseWriter::write(char* data, int size)
         return ret;
     }
     
-    return skt->write((void*)data, size, NULL);
+    // directly send with content length
+    if (content_length != -1) {
+        return skt->write((void*)data, size, NULL);
+    }
+    
+    // send in chunked encoding.
+    std::stringstream ss;
+    ss << hex << size << __SRS_CRLF;
+    std::string ch = ss.str();
+    if ((ret = skt->write((void*)ch.data(), (int)ch.length(), NULL)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = skt->write((void*)data, size, NULL)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = skt->write((void*)__SRS_CRLF, 2, NULL)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
 }
 
 void SrsGoHttpResponseWriter::write_header(int code)
@@ -720,6 +754,11 @@ int SrsGoHttpResponseWriter::send_header(char* data, int size)
     // set server if not set.
     if (hdr->get("Server").empty()) {
         hdr->set("Server", RTMP_SIG_SRS_KEY"/"RTMP_SIG_SRS_VERSION);
+    }
+    
+    // chunked encoding
+    if (content_length == -1) {
+        hdr->set("Transfer-Encoding", "chunked");
     }
     
     // write headers

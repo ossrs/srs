@@ -128,6 +128,10 @@ public:
     ISrsGoHttpResponseWriter();
     virtual ~ISrsGoHttpResponseWriter();
 public:
+    // when chunked mode, 
+    // final the request to complete the chunked encoding.
+    virtual int final_request() = 0;
+    
     // Header returns the header map that will be sent by WriteHeader.
     // Changing the header after a call to WriteHeader (or Write) has
     // no effect.
@@ -319,6 +323,7 @@ public:
     SrsGoHttpResponseWriter(SrsStSocket* io);
     virtual ~SrsGoHttpResponseWriter();
 public:
+    virtual int final_request();
     virtual SrsGoHttpHeader* header();
     virtual int write(char* data, int size);
     virtual void write_header(int code);

@@ -304,7 +304,7 @@ int SrsLiveStream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
     // TODO: FIMXE: add pithy print.
 
     // write http header for streaming.
-    w->header()->set_content_length((int64_t)2 * 1024 * 1024 * 1024);
+    // use chunked encoding, for we donot specifes the content length.
     if (serve_flv_streaming) {
         w->header()->set_content_type("video/x-flv");
     }
