@@ -214,9 +214,10 @@ int SrsAacStreamEncoder::write_audio(int64_t timestamp, char* data, int size)
     return enc->write_audio(timestamp, data, size);
 }
 
-int SrsAacStreamEncoder::write_video(int64_t timestamp, char* data, int size)
+int SrsAacStreamEncoder::write_video(int64_t /*timestamp*/, char* /*data*/, int /*size*/)
 {
-    return enc->write_video(timestamp, data, size);
+    // aac ignore any flv video.
+    return ERROR_SUCCESS;
 }
 
 int SrsAacStreamEncoder::write_metadata(int64_t /*timestamp*/, char* /*data*/, int /*size*/)
@@ -317,6 +318,9 @@ int SrsLiveStream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
     ISrsStreamEncoder* enc = NULL;
     if (serve_flv_streaming) {
         enc = new SrsFlvStreamEncoder();
+    }
+    if (serve_aac_streaming) {
+        enc = new SrsAacStreamEncoder();
     }
     SrsAutoFree(ISrsStreamEncoder, enc);
     

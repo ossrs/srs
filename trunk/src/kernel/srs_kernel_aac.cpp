@@ -36,6 +36,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_file.hpp>
+#include <srs_kernel_codec.hpp>
 
 #define SRS_FLV_TAG_HEADER_SIZE 11
 #define SRS_FLV_PREVIOUS_TAG_SIZE 4
@@ -43,6 +44,7 @@ using namespace std;
 SrsAacEncoder::SrsAacEncoder()
 {
     _fs = NULL;
+    got_sequence_header = false;
     tag_stream = new SrsStream();
 }
 
@@ -76,16 +78,143 @@ int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
     
     timestamp &= 0x7fffffff;
     
-    return ret;
-}
+    SrsStream* stream = tag_stream;
+    if ((ret = stream->initialize(data, size)) != ERROR_SUCCESS) {
+        return ret;
+    }
 
-int SrsAacEncoder::write_video(int64_t timestamp, char* data, int size)
-{
-    int ret = ERROR_SUCCESS;
+    // audio decode
+    if (!stream->require(1)) {
+        ret = ERROR_AAC_DECODE_ERROR;
+        srs_error("aac decode audio sound_format failed. ret=%d", ret);
+        return ret;
+    }
     
-    srs_assert(data);
+    // @see: E.4.2 Audio Tags, video_file_format_spec_v10_1.pdf, page 76
+    int8_t sound_format = stream->read_1bytes();
     
-    timestamp &= 0x7fffffff;
+    // @see: SrsAvcAacCodec::audio_aac_demux
+    //int8_t sound_type = sound_format & 0x01;
+    //int8_t sound_size = (sound_format >> 1) & 0x01;
+    //int8_t sound_rate = (sound_format >> 2) & 0x03;
+    sound_format = (sound_format >> 4) & 0x0f;
+    
+    if ((SrsCodecAudio)sound_format != SrsCodecAudioAAC) {
+        ret = ERROR_AAC_DECODE_ERROR;
+        srs_error("aac required, format=%d. ret=%d", sound_format, ret);
+        return ret;
+    }
+
+    if (!stream->require(1)) {
+        ret = ERROR_AAC_DECODE_ERROR;
+        srs_error("aac decode aac_packet_type failed. ret=%d", ret);
+        return ret;
+    }
+    
+    SrsCodecAudioType aac_packet_type = (SrsCodecAudioType)stream->read_1bytes();
+    if (aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
+        // AudioSpecificConfig
+        // 1.6.2.1 AudioSpecificConfig, in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 33.
+        //
+        // only need to decode the first 2bytes:
+        // audioObjectType, aac_profile, 5bits.
+        // samplingFrequencyIndex, aac_sample_rate, 4bits.
+        // channelConfiguration, aac_channels, 4bits
+        if (!stream->require(2)) {
+            ret = ERROR_AAC_DECODE_ERROR;
+            srs_error("aac decode sequence header failed. ret=%d", ret);
+            return ret;
+        }
+        
+        aac_profile = stream->read_1bytes();
+        aac_sample_rate = stream->read_1bytes();
+        
+        aac_channels = (aac_sample_rate >> 3) & 0x0f;
+        aac_sample_rate = ((aac_profile << 1) & 0x0e) | ((aac_sample_rate >> 7) & 0x01);
+        aac_profile = (aac_profile >> 3) & 0x1f;
+        
+        got_sequence_header = true;
+        
+        return ret;
+    }
+    
+    if (!got_sequence_header) {
+        ret = ERROR_AAC_DECODE_ERROR;
+        srs_error("aac no sequence header. ret=%d", ret);
+        return ret;
+    }
+    
+    // the left is the aac raw frame data.
+    int16_t aac_frame_length = stream->size() - stream->pos();
+    
+    // write the ADTS header.
+    // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 75,
+    //      1.A.2.2 Audio_Data_Transport_Stream frame, ADTS
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/212#issuecomment-64145885
+    // byte_alignment()
+    
+    // adts_fixed_header:
+    //      12bits syncword,
+    //      16bits left.
+    // adts_variable_header:
+    //      28bits
+    //      12+16+28=56bits
+    // adts_error_check:
+    //      16bits if protection_absent
+    //      56+16=72bits
+    // if protection_absent:
+    //      require(7bytes)=56bits
+    // else
+    //      require(9bytes)=72bits
+    char aac_fixed_header[7];
+    if(true) {
+        char* pp = aac_fixed_header;
+        
+        // Syncword 12 bslbf
+        *pp++ = 0xff;
+        // 4bits left.
+        // adts_fixed_header(), 1.A.2.2.1 Fixed Header of ADTS
+        // ID 1 bslbf
+        // Layer 2 uimsbf
+        // protection_absent 1 bslbf
+        *pp++ = 0xf1;
+        
+        // Profile_ObjectType 2 uimsbf
+        // sampling_frequency_index 4 uimsbf
+        // private_bit 1 bslbf
+        // channel_configuration 3 uimsbf
+        // original/copy 1 bslbf
+        // home 1 bslbf
+        int8_t fh_Profile_ObjectType = aac_profile - 1;
+        *pp++ = ((fh_Profile_ObjectType << 6) & 0xc0) | ((aac_sample_rate << 2) & 0x3c) | ((aac_channels >> 2) & 0x01);
+        // @remark, Emphasis is removed, 
+        //      @see https://github.com/winlinvip/simple-rtmp-server/issues/212#issuecomment-64154736
+        // 4bits left.
+        // adts_variable_header(), 1.A.2.2.2 Variable Header of ADTS
+        // copyright_identification_bit 1 bslbf
+        // copyright_identification_start 1 bslbf
+        *pp++ = ((aac_channels << 6) & 0xc0) | ((aac_frame_length >> 11) & 0x03);
+        
+        // aac_frame_length 13 bslbf: Length of the frame including headers and error_check in bytes.
+        // use the left 2bits as the 13 and 12 bit,
+        // the aac_frame_length is 13bits, so we move 13-2=11.
+        *pp++ = aac_frame_length >> 3;
+        // adts_buffer_fullness 11 bslbf
+        *pp++ = (aac_frame_length << 5) & 0xe0;
+        
+        // no_raw_data_blocks_in_frame 2 uimsbf
+        *pp++ = 0xfc;
+    }
+    
+    // write 7bytes fixed header.
+    if ((ret = _fs->write(aac_fixed_header, 7, NULL)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // write aac frame body.
+    if ((ret = _fs->write(data + stream->pos(), aac_frame_length, NULL)) != ERROR_SUCCESS) {
+        return ret;
+    }
     
     return ret;
 }

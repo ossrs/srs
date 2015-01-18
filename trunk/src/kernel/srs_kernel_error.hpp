@@ -204,6 +204,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_AAC_DATA_INVALID              3048
 #define ERROR_HTTP_STATUS_INVLIAD           3049
 #define ERROR_KERNEL_AAC_STREAM_CLOSED      3050
+#define ERROR_AAC_DECODE_ERROR              3051
 
 ///////////////////////////////////////////////////////
 // HTTP protocol error.

@@ -43,6 +43,11 @@ class SrsAacEncoder
 private:
     SrsFileWriter* _fs;
 private:
+    int8_t aac_profile;
+    int8_t aac_sample_rate;
+    int8_t aac_channels;
+    bool got_sequence_header;
+private:
     SrsStream* tag_stream;
 public:
     SrsAacEncoder();
@@ -60,7 +65,6 @@ public:
     * @remark assert data is not NULL.
     */
     virtual int write_audio(int64_t timestamp, char* data, int size);
-    virtual int write_video(int64_t timestamp, char* data, int size);
 };
 
 #endif
