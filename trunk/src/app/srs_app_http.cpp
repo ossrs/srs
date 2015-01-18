@@ -286,6 +286,7 @@ int SrsGoHttpFileServer::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
 
     string fullpath = dir + "/";
     
+    // remove the virtual directory.
     srs_assert(entry);
     size_t pos = entry->pattern.find("/");
     if (upath.length() > entry->pattern.length() && pos != string::npos) {
@@ -296,6 +297,7 @@ int SrsGoHttpFileServer::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
     srs_trace("http match file=%s, pattern=%s, upath=%s", 
         fullpath.c_str(), entry->pattern.c_str(), upath.c_str());
     
+    // handle file extension.
     if (srs_string_ends_with(fullpath, ".flv") || srs_string_ends_with(fullpath, ".fhv")) {
         std::string start = r->query_get("start");
         if (start.empty()) {
@@ -403,7 +405,6 @@ SrsGoHttpMuxEntry::~SrsGoHttpMuxEntry()
 
 SrsGoHttpServeMux::SrsGoHttpServeMux()
 {
-    hosts = false;
 }
 
 SrsGoHttpServeMux::~SrsGoHttpServeMux()
@@ -414,6 +415,8 @@ SrsGoHttpServeMux::~SrsGoHttpServeMux()
         srs_freep(entry);
     }
     entries.clear();
+    
+    vhosts.clear();
 }
 
 int SrsGoHttpServeMux::initialize()
@@ -444,8 +447,12 @@ int SrsGoHttpServeMux::handle(std::string pattern, ISrsGoHttpHandler* handler)
         }
     }
     
+    std::string vhost = pattern;
     if (pattern.at(0) != '/') {
-        hosts = true;
+        if (pattern.find("/") != string::npos) {
+            vhost = pattern.substr(0, pattern.find("/"));
+        }
+        vhosts[vhost] = handler;
     }
     
     if (true) {
@@ -545,7 +552,7 @@ int SrsGoHttpServeMux::match(SrsHttpMessage* r, ISrsGoHttpHandler** ph)
     std::string path = r->path();
     
     // Host-specific pattern takes precedence over generic ones
-    if (hosts) {
+    if (!vhosts.empty() && vhosts.find(r->host()) != vhosts.end()) {
         path = r->host() + path;
     }
     

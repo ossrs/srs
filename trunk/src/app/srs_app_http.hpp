@@ -266,8 +266,8 @@ class SrsGoHttpServeMux
 {
 private:
     std::map<std::string, SrsGoHttpMuxEntry*> entries;
-    // whether any patterns contain hostnames
-    bool hosts;
+    // the vhost handler.
+    std::map<std::string, ISrsGoHttpHandler*> vhosts;
 public:
     SrsGoHttpServeMux();
     virtual ~SrsGoHttpServeMux();
