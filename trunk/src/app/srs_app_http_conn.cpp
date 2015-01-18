@@ -165,12 +165,16 @@ int SrsHttpServer::initialize()
         
         std::string mount = _srs_config->get_vhost_http_mount(vhost);
         std::string dir = _srs_config->get_vhost_http_dir(vhost);
+
+        // replace the vhost variable
+        mount = srs_string_replace(mount, "[vhost]", vhost);
         
         // the dir mount must always ends with "/"
         if (mount != "/" && mount.rfind("/") != mount.length() - 1) {
             mount += "/";
         }
         
+        // mount the http of vhost.
         if ((ret = mux.handle(mount, new SrsVodStream(dir))) != ERROR_SUCCESS) {
             srs_error("http: mount dir=%s for vhost=%s failed. ret=%d", dir.c_str(), vhost.c_str(), ret);
             return ret;

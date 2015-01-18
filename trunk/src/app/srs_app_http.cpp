@@ -287,8 +287,9 @@ int SrsGoHttpFileServer::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
     string fullpath = dir + "/";
     
     srs_assert(entry);
-    if (upath.length() > entry->pattern.length()) {
-        fullpath += upath.substr(entry->pattern.length());
+    size_t pos = entry->pattern.find("/");
+    if (upath.length() > entry->pattern.length() && pos != string::npos) {
+        fullpath += upath.substr(entry->pattern.length() - pos);
     } else {
         fullpath += upath;
     }
@@ -402,6 +403,7 @@ SrsGoHttpMuxEntry::~SrsGoHttpMuxEntry()
 
 SrsGoHttpServeMux::SrsGoHttpServeMux()
 {
+    hosts = false;
 }
 
 SrsGoHttpServeMux::~SrsGoHttpServeMux()
@@ -440,6 +442,10 @@ int SrsGoHttpServeMux::handle(std::string pattern, ISrsGoHttpHandler* handler)
             srs_error("http: multiple registrations for %s. ret=%d", pattern.c_str(), ret);
             return ret;
         }
+    }
+    
+    if (pattern.at(0) != '/') {
+        hosts = true;
     }
     
     if (true) {
@@ -537,6 +543,11 @@ int SrsGoHttpServeMux::match(SrsHttpMessage* r, ISrsGoHttpHandler** ph)
     int ret = ERROR_SUCCESS;
     
     std::string path = r->path();
+    
+    // Host-specific pattern takes precedence over generic ones
+    if (hosts) {
+        path = r->host() + path;
+    }
     
     int nb_matched = 0;
     ISrsGoHttpHandler* h = NULL;
@@ -700,7 +711,8 @@ int SrsHttpMessage::initialize()
     int ret = ERROR_SUCCESS;
     
     // parse uri to schema/server:port/path?query
-    if ((ret = _uri->initialize(_url)) != ERROR_SUCCESS) {
+    std::string uri = "http://" + get_request_header("Host") + _url;
+    if ((ret = _uri->initialize(uri)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -822,7 +834,7 @@ string SrsHttpMessage::url()
 
 string SrsHttpMessage::host()
 {
-    return get_request_header("Host");
+    return _uri->get_host();
 }
 
 string SrsHttpMessage::path()
