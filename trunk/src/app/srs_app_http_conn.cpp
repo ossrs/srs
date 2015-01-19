@@ -45,6 +45,7 @@ using namespace std;
 #include <srs_app_source.hpp>
 #include <srs_protocol_msg_array.hpp>
 #include <srs_kernel_aac.hpp>
+#include <srs_kernel_mp3.hpp>
 
 SrsVodStream::SrsVodStream(string root_dir)
     : SrsGoHttpFileServer(root_dir)
@@ -226,6 +227,44 @@ int SrsAacStreamEncoder::write_metadata(int64_t /*timestamp*/, char* /*data*/, i
     return ERROR_SUCCESS;
 }
 
+SrsMp3StreamEncoder::SrsMp3StreamEncoder()
+{
+    enc = new SrsMp3Encoder();
+}
+
+SrsMp3StreamEncoder::~SrsMp3StreamEncoder()
+{
+    srs_freep(enc);
+}
+
+int SrsMp3StreamEncoder::initialize(SrsFileWriter* w)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = enc->initialize(w)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsMp3StreamEncoder::write_audio(int64_t timestamp, char* data, int size)
+{
+    return enc->write_audio(timestamp, data, size);
+}
+
+int SrsMp3StreamEncoder::write_video(int64_t /*timestamp*/, char* /*data*/, int /*size*/)
+{
+    // mp3 ignore any flv video.
+    return ERROR_SUCCESS;
+}
+
+int SrsMp3StreamEncoder::write_metadata(int64_t /*timestamp*/, char* /*data*/, int /*size*/)
+{
+    // mp3 ignore any flv metadata.
+    return ERROR_SUCCESS;
+}
+
 SrsStreamWriter::SrsStreamWriter(ISrsGoHttpResponseWriter* w)
 {
     writer = w;
@@ -279,12 +318,15 @@ int SrsLiveStream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
     
     bool serve_flv_streaming = false;
     bool serve_aac_streaming = false;
+    bool serve_mp3_streaming = false;
     
     srs_assert(entry);
     if (srs_string_ends_with(entry->pattern, ".flv")) {
         serve_flv_streaming = true;
     } else if (srs_string_ends_with(entry->pattern, ".aac")) {
         serve_aac_streaming = true;
+    } else if (srs_string_ends_with(entry->pattern, ".mp3")) {
+        serve_mp3_streaming = true;
     } else {
         ret = ERROR_HTTP_LIVE_STREAM_EXT;
         srs_error("http: unsupported pattern %s", entry->pattern.c_str());
@@ -321,6 +363,9 @@ int SrsLiveStream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
     }
     if (serve_aac_streaming) {
         enc = new SrsAacStreamEncoder();
+    }
+    if (serve_mp3_streaming) {
+        enc = new SrsMp3StreamEncoder();
     }
     SrsAutoFree(ISrsStreamEncoder, enc);
     

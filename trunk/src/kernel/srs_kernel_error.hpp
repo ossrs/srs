@@ -202,9 +202,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_AAC_REQUIRED_ADTS             3046
 #define ERROR_AAC_ADTS_HEADER               3047
 #define ERROR_AAC_DATA_INVALID              3048
-#define ERROR_HTTP_STATUS_INVLIAD           3049
-#define ERROR_KERNEL_AAC_STREAM_CLOSED      3050
-#define ERROR_AAC_DECODE_ERROR              3051
 
 ///////////////////////////////////////////////////////
 // HTTP protocol error.
@@ -214,6 +211,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_HTTP_URL_NOT_CLEAN            4002
 #define ERROR_HTTP_CONTENT_LENGTH           4003
 #define ERROR_HTTP_LIVE_STREAM_EXT          4004
+#define ERROR_HTTP_STATUS_INVLIAD           4005
+#define ERROR_KERNEL_AAC_STREAM_CLOSED      4006
+#define ERROR_AAC_DECODE_ERROR              4007
+#define ERROR_KERNEL_MP3_STREAM_CLOSED      4008
+#define ERROR_MP3_DECODE_ERROR              4009
 
 /**
 * whether the error code is an system control error.

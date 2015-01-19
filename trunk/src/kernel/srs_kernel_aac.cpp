@@ -38,9 +38,6 @@ using namespace std;
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_codec.hpp>
 
-#define SRS_FLV_TAG_HEADER_SIZE 11
-#define SRS_FLV_PREVIOUS_TAG_SIZE 4
-
 SrsAacEncoder::SrsAacEncoder()
 {
     _fs = NULL;

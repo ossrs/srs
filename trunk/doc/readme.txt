@@ -63,4 +63,8 @@ http1.1-rfc2616.txt
 arpa-internet-text-messages-rfc822.txt
     http://www.rfc-editor.org/rfc/rfc822.txt
 
+mp3规范：
+mp3.id3v2.3.0.pdf
+    http://id3.org/id3v2.3.0
+
 Winlin

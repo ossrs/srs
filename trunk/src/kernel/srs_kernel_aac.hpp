@@ -36,7 +36,7 @@ class SrsFileWriter;
 class SrsFileReader;
 
 /**
-* encode data to flv file.
+* encode data to aac file.
 */
 class SrsAacEncoder
 {
@@ -55,8 +55,8 @@ public:
 public:
     /**
     * initialize the underlayer file stream.
-    * @remark user can initialize multiple times to encode multiple flv files.
-    * @remark, user must free the fs, flv encoder never close/free it.
+    * @remark user can initialize multiple times to encode multiple aac files.
+    * @remark, user must free the fs, aac encoder never close/free it.
     */
     virtual int initialize(SrsFileWriter* fs);
 public:

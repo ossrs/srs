@@ -32,6 +32,8 @@ file
     ..\kernel\srs_kernel_flv.cpp,
     ..\kernel\srs_kernel_log.hpp,
     ..\kernel\srs_kernel_log.cpp,
+    ..\kernel\srs_kernel_mp3.hpp,
+    ..\kernel\srs_kernel_mp3.cpp,
     ..\kernel\srs_kernel_stream.hpp,
     ..\kernel\srs_kernel_stream.cpp,
     ..\kernel\srs_kernel_utility.hpp,
