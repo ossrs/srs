@@ -140,7 +140,6 @@ SrsQueueRecvThread::SrsQueueRecvThread(SrsConsumer* consumer, SrsRtmpServer* rtm
     _consumer = consumer;
     rtmp = rtmp_sdk;
     recv_error_code = ERROR_SUCCESS;
-    _consumer = NULL;
 }
 
 SrsQueueRecvThread::~SrsQueueRecvThread()
