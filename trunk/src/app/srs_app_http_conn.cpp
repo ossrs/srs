@@ -245,6 +245,10 @@ int SrsMp3StreamEncoder::initialize(SrsFileWriter* w)
         return ret;
     }
     
+    if ((ret = enc->write_header()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     return ret;
 }
 
@@ -316,22 +320,24 @@ int SrsLiveStream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
     
-    bool serve_flv_streaming = false;
-    bool serve_aac_streaming = false;
-    bool serve_mp3_streaming = false;
+    ISrsStreamEncoder* enc = NULL;
     
     srs_assert(entry);
     if (srs_string_ends_with(entry->pattern, ".flv")) {
-        serve_flv_streaming = true;
+        w->header()->set_content_type("video/x-flv");
+        enc = new SrsFlvStreamEncoder();
     } else if (srs_string_ends_with(entry->pattern, ".aac")) {
-        serve_aac_streaming = true;
+        w->header()->set_content_type("audio/x-aac");
+        enc = new SrsAacStreamEncoder();
     } else if (srs_string_ends_with(entry->pattern, ".mp3")) {
-        serve_mp3_streaming = true;
+        w->header()->set_content_type("audio/mpeg");
+        enc = new SrsMp3StreamEncoder();
     } else {
         ret = ERROR_HTTP_LIVE_STREAM_EXT;
         srs_error("http: unsupported pattern %s", entry->pattern.c_str());
         return ret;
     }
+    SrsAutoFree(ISrsStreamEncoder, enc);
     
     // create consumer of souce.
     SrsConsumer* consumer = NULL;
@@ -344,31 +350,9 @@ int SrsLiveStream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
     
     SrsMessageArray msgs(SRS_PERF_MW_MSGS);
     // TODO: FIMXE: add pithy print.
-
-    // write http header for streaming.
-    // use chunked encoding, for we donot specifes the content length.
-    if (serve_flv_streaming) {
-        w->header()->set_content_type("video/x-flv");
-    }
-    if (serve_aac_streaming) {
-        w->header()->set_content_type("audio/x-aac");
-    }
     
     // the memory writer.
     SrsStreamWriter writer(w);
-    
-    ISrsStreamEncoder* enc = NULL;
-    if (serve_flv_streaming) {
-        enc = new SrsFlvStreamEncoder();
-    }
-    if (serve_aac_streaming) {
-        enc = new SrsAacStreamEncoder();
-    }
-    if (serve_mp3_streaming) {
-        enc = new SrsMp3StreamEncoder();
-    }
-    SrsAutoFree(ISrsStreamEncoder, enc);
-    
     if ((ret = enc->initialize(&writer)) != ERROR_SUCCESS) {
         return ret;
     }
