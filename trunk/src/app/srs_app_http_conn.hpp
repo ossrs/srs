@@ -77,9 +77,10 @@ class SrsStreamCache : public ISrsThreadHandler
 private:
     SrsMessageQueue* queue;
     SrsSource* source;
+    SrsRequest* req;
     SrsThread* pthread;
 public:
-    SrsStreamCache(SrsSource* s);
+    SrsStreamCache(SrsSource* s, SrsRequest* r);
     virtual ~SrsStreamCache();
 public:
     virtual int start();

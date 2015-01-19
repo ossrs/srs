@@ -68,6 +68,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_HTTP_MOUNT "[vhost]/"
 #define SRS_CONF_DEFAULT_HTTP_FLV_MOUNT "[vhost]/[app]/[stream].flv"
 #define SRS_CONF_DEFAULT_HTTP_DIR SRS_CONF_DEFAULT_HLS_PATH
+#define SRS_CONF_DEFAULT_HTTP_AUDIO_FAST_CACHE 30
 
 #define SRS_CONF_DEFAULT_HTTP_STREAM_PORT 8080
 #define SRS_CONF_DEFAULT_HTTP_API_PORT 1985
@@ -970,6 +971,10 @@ public:
     * get whether vhost enabled http flv live stream
     */
     virtual bool                get_vhost_http_flv_enabled(std::string vhost);
+    /**
+    * get the fast cache duration for http audio live stream.
+    */
+    virtual double              get_vhost_http_flv_fast_cache(std::string vhost);
     /**
     * get the http flv live stream mount point for vhost.
     * used to generate the flv stream mount path.

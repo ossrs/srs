@@ -1426,7 +1426,7 @@ int SrsConfig::check_config()
             } else if (n == "http_flv") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name.c_str();
-                    if (m != "enabled" && m != "mount") {
+                    if (m != "enabled" && m != "mount" && m != "fast_cache") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost http_flv directive %s, ret=%d", m.c_str(), ret);
                         return ret;
@@ -3467,6 +3467,30 @@ bool SrsConfig::get_vhost_http_flv_enabled(string vhost)
     }
     
     return false;
+}
+
+double SrsConfig::get_vhost_http_flv_fast_cache(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HTTP_AUDIO_FAST_CACHE;
+    }
+    
+    conf = conf->get("http_flv");
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HTTP_AUDIO_FAST_CACHE;
+    }
+    
+    conf = conf->get("fast_cache");
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HTTP_AUDIO_FAST_CACHE;
+    }
+    
+    if (conf->arg0().empty()) {
+        return SRS_CONF_DEFAULT_HTTP_AUDIO_FAST_CACHE;
+    }
+    
+    return ::atof(conf->arg0().c_str());
 }
 
 string SrsConfig::get_vhost_http_flv_mount(string vhost)

@@ -140,8 +140,9 @@ int SrsVodStream::serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* 
     return ret;
 }
 
-SrsStreamCache::SrsStreamCache(SrsSource* s)
+SrsStreamCache::SrsStreamCache(SrsSource* s, SrsRequest* r)
 {
+    req = r->copy();
     source = s;
     queue = new SrsMessageQueue(true);
     pthread = new SrsThread("http-stream", this, 0, false);
@@ -153,6 +154,7 @@ SrsStreamCache::~SrsStreamCache()
     srs_freep(pthread);
     
     srs_freep(queue);
+    srs_freep(req);
 }
 
 int SrsStreamCache::start()
@@ -168,7 +170,8 @@ int SrsStreamCache::dump_cache(SrsConsumer* consumer)
         return ret;
     }
     
-    srs_trace("http: dump cache %d msgs, duration=%dms", queue->size(), queue->duration());
+    srs_trace("http: dump cache %d msgs, duration=%dms, cache=%.2fs", 
+        queue->size(), queue->duration(), _srs_config->get_vhost_http_flv_fast_cache(req->vhost));
     
     return ret;
 }
@@ -187,8 +190,8 @@ int SrsStreamCache::cycle()
     SrsMessageArray msgs(SRS_PERF_MW_MSGS);
     // TODO: FIMXE: add pithy print.
     
-    // TODO: FIXME: config it.
-    queue->set_queue_size(60);
+    // TODO: FIXME: support reload.
+    queue->set_queue_size(_srs_config->get_vhost_http_flv_fast_cache(req->vhost));
     
     while (true) {
         // get messages from consumer.
@@ -616,7 +619,7 @@ int SrsHttpServer::mount(SrsSource* s, SrsRequest* r)
     // remove the default vhost mount
     mount = srs_string_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST"/", "/");
     
-    entry->cache = new SrsStreamCache(s);
+    entry->cache = new SrsStreamCache(s, r);
     entry->stream = new SrsLiveStream(s, r, entry->cache);
     
     // start http stream cache thread
