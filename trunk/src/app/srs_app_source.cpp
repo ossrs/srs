@@ -244,8 +244,9 @@ void SrsFastVector::free()
 }
 #endif
 
-SrsMessageQueue::SrsMessageQueue()
+SrsMessageQueue::SrsMessageQueue(bool ignore_shrink)
 {
+    _ignore_shrink = ignore_shrink;
     queue_size_ms = 0;
     av_start_time = av_end_time = -1;
 }
@@ -330,6 +331,26 @@ int SrsMessageQueue::dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, in
     return ret;
 }
 
+int SrsMessageQueue::dump_packets(SrsConsumer* consumer, bool atc, int tba, int tbv, SrsRtmpJitterAlgorithm ag)
+{
+    int ret = ERROR_SUCCESS;
+    
+    int nb_msgs = (int)msgs.size();
+    if (nb_msgs <= 0) {
+        return ret;
+    }
+
+    SrsSharedPtrMessage** omsgs = msgs.data();
+    for (int i = 0; i < nb_msgs; i++) {
+        SrsSharedPtrMessage* msg = omsgs[i];
+        if ((ret = consumer->enqueue(msg, atc, tba, tbv, ag)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    
+    return ret;
+}
+
 void SrsMessageQueue::shrink()
 {
     int iframe_index = -1;
@@ -364,8 +385,13 @@ void SrsMessageQueue::shrink()
         return;
     }
     
-    srs_trace("shrink the cache queue, size=%d, removed=%d, max=%.2f", 
-        (int)msgs.size(), iframe_index, queue_size_ms / 1000.0);
+    if (_ignore_shrink) {
+        srs_info("shrink the cache queue, size=%d, removed=%d, max=%.2f", 
+            (int)msgs.size(), iframe_index, queue_size_ms / 1000.0);
+    } else {
+        srs_trace("shrink the cache queue, size=%d, removed=%d, max=%.2f", 
+            (int)msgs.size(), iframe_index, queue_size_ms / 1000.0);
+    }
     
     // remove the first gop from the front
     for (int i = 0; i < iframe_index; i++) {
@@ -1702,7 +1728,7 @@ void SrsSource::on_unpublish()
     handler->on_unpublish(this, _req);
 }
 
-int SrsSource::create_consumer(SrsConsumer*& consumer, bool dump_gop_cache)
+int SrsSource::create_consumer(SrsConsumer*& consumer, bool ds, bool dm, bool dg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1730,14 +1756,14 @@ int SrsSource::create_consumer(SrsConsumer*& consumer, bool dump_gop_cache)
     SrsRtmpJitterAlgorithm ag = jitter_algorithm;
     
     // copy metadata.
-    if (cache_metadata && (ret = consumer->enqueue(cache_metadata, atc, tba, tbv, ag)) != ERROR_SUCCESS) {
+    if (dm && cache_metadata && (ret = consumer->enqueue(cache_metadata, atc, tba, tbv, ag)) != ERROR_SUCCESS) {
         srs_error("dispatch metadata failed. ret=%d", ret);
         return ret;
     }
     srs_info("dispatch metadata success");
     
     // copy sequence header
-    if (cache_sh_video && (ret = consumer->enqueue(cache_sh_video, atc, tba, tbv, ag)) != ERROR_SUCCESS) {
+    if (ds && cache_sh_video && (ret = consumer->enqueue(cache_sh_video, atc, tba, tbv, ag)) != ERROR_SUCCESS) {
         srs_error("dispatch video sequence header failed. ret=%d", ret);
         return ret;
     }
@@ -1750,10 +1776,12 @@ int SrsSource::create_consumer(SrsConsumer*& consumer, bool dump_gop_cache)
     srs_info("dispatch audio sequence header success");
     
     // copy gop cache to client.
-    if (dump_gop_cache) {
-        if ((ret = gop_cache->dump(consumer, atc, tba, tbv, ag)) != ERROR_SUCCESS) {
-            return ret;
-        }
+    if (dg && (ret = gop_cache->dump(consumer, atc, tba, tbv, ag)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // print status.
+    if (dg) {
         srs_trace("create consumer, queue_size=%.2f, tba=%d, tbv=%d", queue_size, sample_rate, frame_rate);
     } else {
         srs_trace("create consumer, ignore gop cache, tba=%d, tbv=%d", sample_rate, frame_rate);

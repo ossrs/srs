@@ -143,14 +143,16 @@ int SrsVodStream::serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* 
 SrsStreamCache::SrsStreamCache(SrsSource* s)
 {
     source = s;
-    pthread = new SrsThread("http-stream", 
-        this, SRS_CONSTS_RTMP_PULSE_TIMEOUT_US, false);
+    queue = new SrsMessageQueue(true);
+    pthread = new SrsThread("http-stream", this, 0, false);
 }
 
 SrsStreamCache::~SrsStreamCache()
 {
     pthread->stop();
     srs_freep(pthread);
+    
+    srs_freep(queue);
 }
 
 int SrsStreamCache::start()
@@ -161,12 +163,60 @@ int SrsStreamCache::start()
 int SrsStreamCache::dump_cache(SrsConsumer* consumer)
 {
     int ret = ERROR_SUCCESS;
+    
+    if ((ret = queue->dump_packets(consumer, false, 0, 0, SrsRtmpJitterAlgorithmOFF)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    srs_trace("http: dump cache %d msgs, duration=%dms", queue->size(), queue->duration());
+    
     return ret;
 }
 
 int SrsStreamCache::cycle()
 {
     int ret = ERROR_SUCCESS;
+    
+    SrsConsumer* consumer = NULL;
+    if ((ret = source->create_consumer(consumer, false, false, true)) != ERROR_SUCCESS) {
+        srs_error("http: create consumer failed. ret=%d", ret);
+        return ret;
+    }
+    SrsAutoFree(SrsConsumer, consumer);
+    
+    SrsMessageArray msgs(SRS_PERF_MW_MSGS);
+    // TODO: FIMXE: add pithy print.
+    
+    // TODO: FIXME: config it.
+    queue->set_queue_size(60);
+    
+    while (true) {
+        // get messages from consumer.
+        // each msg in msgs.msgs must be free, for the SrsMessageArray never free them.
+        int count = 0;
+        if ((ret = consumer->dump_packets(&msgs, count)) != ERROR_SUCCESS) {
+            srs_error("http: get messages from consumer failed. ret=%d", ret);
+            return ret;
+        }
+        
+        if (count <= 0) {
+            srs_info("http: mw sleep %dms for no msg", mw_sleep);
+            // directly use sleep, donot use consumer wait.
+            st_usleep(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
+            
+            // ignore when nothing got.
+            continue;
+        }
+        srs_info("http: got %d msgs, min=%d, mw=%d", count, 
+            SRS_PERF_MW_MIN_MSGS, SRS_CONSTS_RTMP_PULSE_TIMEOUT_US / 1000);
+    
+        // free the messages.
+        for (int i = 0; i < count; i++) {
+            SrsSharedPtrMessage* msg = msgs.msgs[i];
+            queue->enqueue(msg);
+        }
+    }
+    
     return ret;
 }
 
@@ -412,7 +462,7 @@ int SrsLiveStream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
     
     // create consumer of souce, ignore gop cache, use the audio gop cache.
     SrsConsumer* consumer = NULL;
-    if ((ret = source->create_consumer(consumer, !enc->has_cache())) != ERROR_SUCCESS) {
+    if ((ret = source->create_consumer(consumer, true, true, !enc->has_cache())) != ERROR_SUCCESS) {
         srs_error("http: create consumer failed. ret=%d", ret);
         return ret;
     }

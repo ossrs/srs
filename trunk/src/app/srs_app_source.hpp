@@ -38,6 +38,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_reload.hpp>
 #include <srs_core_performance.hpp>
 
+class SrsConsumer;
 class SrsPlayEdge;
 class SrsPublishEdge;
 class SrsSource;
@@ -137,6 +138,7 @@ public:
 class SrsMessageQueue
 {
 private:
+    bool _ignore_shrink;
     int64_t av_start_time;
     int64_t av_end_time;
     int queue_size_ms;
@@ -146,7 +148,7 @@ private:
     std::vector<SrsSharedPtrMessage*> msgs;
 #endif
 public:
-    SrsMessageQueue();
+    SrsMessageQueue(bool ignore_shrink = false);
     virtual ~SrsMessageQueue();
 public:
     /**
@@ -176,6 +178,11 @@ public:
     * @max_count the max count to dequeue, must be positive.
     */
     virtual int dump_packets(int max_count, SrsSharedPtrMessage** pmsgs, int& count);
+    /**
+    * dumps packets to consumer, use specified args.
+    * @remark the atc/tba/tbv/ag are same to SrsConsumer.enqueue().
+    */
+    virtual int dump_packets(SrsConsumer* consumer, bool atc, int tba, int tbv, SrsRtmpJitterAlgorithm ag);
 private:
     /**
     * remove a gop from the front.
@@ -494,7 +501,17 @@ public:
     virtual void on_unpublish();
 // consumer methods
 public:
-    virtual int create_consumer(SrsConsumer*& consumer, bool dump_gop_cache = true);
+    /**
+    * create consumer and dumps packets in cache.
+    * @param consumer, output the create consumer.
+    * @param ds, whether dumps the sequence header.
+    * @param dm, whether dumps the metadata.
+    * @param dg, whether dumps the gop cache.
+    */
+    virtual int create_consumer(
+        SrsConsumer*& consumer, 
+        bool ds = true, bool dm = true, bool dg = true
+    );
     virtual void on_consumer_destroy(SrsConsumer* consumer);
     virtual void set_cache(bool enabled);
 // internal

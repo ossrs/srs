@@ -49,6 +49,7 @@ class SrsFlvEncoder;
 class SrsHttpParser;
 class SrsHttpMessage;
 class SrsHttpHandler;
+class SrsMessageQueue;
 class SrsSharedPtrMessage;
 
 /**
@@ -74,6 +75,7 @@ protected:
 class SrsStreamCache : public ISrsThreadHandler
 {
 private:
+    SrsMessageQueue* queue;
     SrsSource* source;
     SrsThread* pthread;
 public:
