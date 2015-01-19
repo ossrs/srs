@@ -37,9 +37,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_http.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_kernel_file.hpp>
+#include <srs_app_thread.hpp>
 
 class SrsSource;
 class SrsRequest;
+class SrsConsumer;
 class SrsStSocket;
 class SrsAacEncoder;
 class SrsMp3Encoder;
@@ -65,6 +67,27 @@ protected:
 };
 
 /**
+* for the srs http stream cache, 
+* for example, the audio stream cache to make android(weixin) happy.
+* we start a thread to shrink the queue.
+*/
+class SrsStreamCache : public ISrsThreadHandler
+{
+private:
+    SrsSource* source;
+    SrsThread* pthread;
+public:
+    SrsStreamCache(SrsSource* s);
+    virtual ~SrsStreamCache();
+public:
+    virtual int start();
+    virtual int dump_cache(SrsConsumer* consumer);
+// interface ISrsThreadHandler.
+public:
+    virtual int cycle();
+};
+
+/**
 * the stream encoder in some codec, for example, flv or aac.
 */
 class ISrsStreamEncoder
@@ -73,10 +96,29 @@ public:
     ISrsStreamEncoder();
     virtual ~ISrsStreamEncoder();
 public:
-    virtual int initialize(SrsFileWriter* w) = 0;
+    /**
+    * initialize the encoder with file writer(to http response) and stream cache.
+    * @param w the writer to write to http response.
+    * @param c the stream cache for audio stream fast startup.
+    */
+    virtual int initialize(SrsFileWriter* w, SrsStreamCache* c) = 0;
+    /**
+    * write rtmp video/audio/metadata.
+    */
     virtual int write_audio(int64_t timestamp, char* data, int size) = 0;
     virtual int write_video(int64_t timestamp, char* data, int size) = 0;
     virtual int write_metadata(int64_t timestamp, char* data, int size) = 0;
+public:
+    /**
+    * for some stream, for example, mp3 and aac, the audio stream,
+    * we use large gop cache in encoder, for the gop cache of SrsSource is ignore audio.
+    * @return true to use gop cache of encoder; otherwise, use SrsSource.
+    */
+    virtual bool has_cache() = 0;
+    /**
+    * dumps the cache of encoder to consumer.
+    */
+    virtual int dump_cache(SrsConsumer* consumer) = 0;
 };
 
 /**
@@ -90,10 +132,13 @@ public:
     SrsFlvStreamEncoder();
     virtual ~SrsFlvStreamEncoder();
 public:
-    virtual int initialize(SrsFileWriter* w);
+    virtual int initialize(SrsFileWriter* w, SrsStreamCache* c);
     virtual int write_audio(int64_t timestamp, char* data, int size);
     virtual int write_video(int64_t timestamp, char* data, int size);
     virtual int write_metadata(int64_t timestamp, char* data, int size);
+public:
+    virtual bool has_cache();
+    virtual int dump_cache(SrsConsumer* consumer);
 };
 
 /**
@@ -103,14 +148,18 @@ class SrsAacStreamEncoder : public ISrsStreamEncoder
 {
 private:
     SrsAacEncoder* enc;
+    SrsStreamCache* cache;
 public:
     SrsAacStreamEncoder();
     virtual ~SrsAacStreamEncoder();
 public:
-    virtual int initialize(SrsFileWriter* w);
+    virtual int initialize(SrsFileWriter* w, SrsStreamCache* c);
     virtual int write_audio(int64_t timestamp, char* data, int size);
     virtual int write_video(int64_t timestamp, char* data, int size);
     virtual int write_metadata(int64_t timestamp, char* data, int size);
+public:
+    virtual bool has_cache();
+    virtual int dump_cache(SrsConsumer* consumer);
 };
 
 /**
@@ -120,14 +169,18 @@ class SrsMp3StreamEncoder : public ISrsStreamEncoder
 {
 private:
     SrsMp3Encoder* enc;
+    SrsStreamCache* cache;
 public:
     SrsMp3StreamEncoder();
     virtual ~SrsMp3StreamEncoder();
 public:
-    virtual int initialize(SrsFileWriter* w);
+    virtual int initialize(SrsFileWriter* w, SrsStreamCache* c);
     virtual int write_audio(int64_t timestamp, char* data, int size);
     virtual int write_video(int64_t timestamp, char* data, int size);
     virtual int write_metadata(int64_t timestamp, char* data, int size);
+public:
+    virtual bool has_cache();
+    virtual int dump_cache(SrsConsumer* consumer);
 };
 
 /**
@@ -159,8 +212,9 @@ class SrsLiveStream : public ISrsGoHttpHandler
 private:
     SrsRequest* req;
     SrsSource* source;
+    SrsStreamCache* cache;
 public:
-    SrsLiveStream(SrsSource* s, SrsRequest* r);
+    SrsLiveStream(SrsSource* s, SrsRequest* r, SrsStreamCache* c);
     virtual ~SrsLiveStream();
 public:
     virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
@@ -176,6 +230,7 @@ struct SrsLiveEntry
     std::string vhost;
     std::string mount;
     SrsLiveStream* stream;
+    SrsStreamCache* cache;
     
     SrsLiveEntry();
 };

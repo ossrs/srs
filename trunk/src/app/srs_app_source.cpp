@@ -1702,7 +1702,7 @@ void SrsSource::on_unpublish()
     handler->on_unpublish(this, _req);
 }
 
-int SrsSource::create_consumer(SrsConsumer*& consumer)
+int SrsSource::create_consumer(SrsConsumer*& consumer, bool dump_gop_cache)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1750,11 +1750,14 @@ int SrsSource::create_consumer(SrsConsumer*& consumer)
     srs_info("dispatch audio sequence header success");
     
     // copy gop cache to client.
-    if ((ret = gop_cache->dump(consumer, atc, tba, tbv, ag)) != ERROR_SUCCESS) {
-        return ret;
+    if (dump_gop_cache) {
+        if ((ret = gop_cache->dump(consumer, atc, tba, tbv, ag)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        srs_trace("create consumer, queue_size=%.2f, tba=%d, tbv=%d", queue_size, sample_rate, frame_rate);
+    } else {
+        srs_trace("create consumer, ignore gop cache, tba=%d, tbv=%d", sample_rate, frame_rate);
     }
-    
-    srs_trace("create consumer, queue_size=%.2f, tba=%d, tbv=%d", queue_size, sample_rate, frame_rate);
     
     return ret;
 }

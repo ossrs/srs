@@ -140,6 +140,36 @@ int SrsVodStream::serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* 
     return ret;
 }
 
+SrsStreamCache::SrsStreamCache(SrsSource* s)
+{
+    source = s;
+    pthread = new SrsThread("http-stream", 
+        this, SRS_CONSTS_RTMP_PULSE_TIMEOUT_US, false);
+}
+
+SrsStreamCache::~SrsStreamCache()
+{
+    pthread->stop();
+    srs_freep(pthread);
+}
+
+int SrsStreamCache::start()
+{
+    return pthread->start();
+}
+
+int SrsStreamCache::dump_cache(SrsConsumer* consumer)
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+int SrsStreamCache::cycle()
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
 ISrsStreamEncoder::ISrsStreamEncoder()
 {
 }
@@ -158,7 +188,7 @@ SrsFlvStreamEncoder::~SrsFlvStreamEncoder()
     srs_freep(enc);
 }
 
-int SrsFlvStreamEncoder::initialize(SrsFileWriter* w)
+int SrsFlvStreamEncoder::initialize(SrsFileWriter* w, SrsStreamCache* /*c*/)
 {
     int ret = ERROR_SUCCESS;
     
@@ -189,9 +219,22 @@ int SrsFlvStreamEncoder::write_metadata(int64_t timestamp, char* data, int size)
     return enc->write_metadata(timestamp, data, size);
 }
 
+bool SrsFlvStreamEncoder::has_cache()
+{
+    // for flv stream, use gop cache of SrsSource is ok.
+    return false;
+}
+
+int SrsFlvStreamEncoder::dump_cache(SrsConsumer* /*consumer*/)
+{
+    // for flv stream, ignore cache.
+    return ERROR_SUCCESS;
+}
+
 SrsAacStreamEncoder::SrsAacStreamEncoder()
 {
     enc = new SrsAacEncoder();
+    cache = NULL;
 }
 
 SrsAacStreamEncoder::~SrsAacStreamEncoder()
@@ -199,9 +242,11 @@ SrsAacStreamEncoder::~SrsAacStreamEncoder()
     srs_freep(enc);
 }
 
-int SrsAacStreamEncoder::initialize(SrsFileWriter* w)
+int SrsAacStreamEncoder::initialize(SrsFileWriter* w, SrsStreamCache* c)
 {
     int ret = ERROR_SUCCESS;
+    
+    cache = c;
     
     if ((ret = enc->initialize(w)) != ERROR_SUCCESS) {
         return ret;
@@ -227,9 +272,21 @@ int SrsAacStreamEncoder::write_metadata(int64_t /*timestamp*/, char* /*data*/, i
     return ERROR_SUCCESS;
 }
 
+bool SrsAacStreamEncoder::has_cache()
+{
+    return true;
+}
+
+int SrsAacStreamEncoder::dump_cache(SrsConsumer* consumer)
+{
+    srs_assert(cache);
+    return cache->dump_cache(consumer);
+}
+
 SrsMp3StreamEncoder::SrsMp3StreamEncoder()
 {
     enc = new SrsMp3Encoder();
+    cache = NULL;
 }
 
 SrsMp3StreamEncoder::~SrsMp3StreamEncoder()
@@ -237,9 +294,11 @@ SrsMp3StreamEncoder::~SrsMp3StreamEncoder()
     srs_freep(enc);
 }
 
-int SrsMp3StreamEncoder::initialize(SrsFileWriter* w)
+int SrsMp3StreamEncoder::initialize(SrsFileWriter* w, SrsStreamCache* c)
 {
     int ret = ERROR_SUCCESS;
+    
+    cache = c;
     
     if ((ret = enc->initialize(w)) != ERROR_SUCCESS) {
         return ret;
@@ -267,6 +326,17 @@ int SrsMp3StreamEncoder::write_metadata(int64_t /*timestamp*/, char* /*data*/, i
 {
     // mp3 ignore any flv metadata.
     return ERROR_SUCCESS;
+}
+
+bool SrsMp3StreamEncoder::has_cache()
+{
+    return true;
+}
+
+int SrsMp3StreamEncoder::dump_cache(SrsConsumer* consumer)
+{
+    srs_assert(cache);
+    return cache->dump_cache(consumer);
 }
 
 SrsStreamWriter::SrsStreamWriter(ISrsGoHttpResponseWriter* w)
@@ -305,9 +375,10 @@ int SrsStreamWriter::write(void* buf, size_t count, ssize_t* pnwrite)
     return writer->write((char*)buf, (int)count);
 }
 
-SrsLiveStream::SrsLiveStream(SrsSource* s, SrsRequest* r)
+SrsLiveStream::SrsLiveStream(SrsSource* s, SrsRequest* r, SrsStreamCache* c)
 {
     source = s;
+    cache = c;
     req = r->copy();
 }
 
@@ -339,9 +410,9 @@ int SrsLiveStream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
     }
     SrsAutoFree(ISrsStreamEncoder, enc);
     
-    // create consumer of souce.
+    // create consumer of souce, ignore gop cache, use the audio gop cache.
     SrsConsumer* consumer = NULL;
-    if ((ret = source->create_consumer(consumer)) != ERROR_SUCCESS) {
+    if ((ret = source->create_consumer(consumer, !enc->has_cache())) != ERROR_SUCCESS) {
         srs_error("http: create consumer failed. ret=%d", ret);
         return ret;
     }
@@ -353,8 +424,17 @@ int SrsLiveStream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
     
     // the memory writer.
     SrsStreamWriter writer(w);
-    if ((ret = enc->initialize(&writer)) != ERROR_SUCCESS) {
+    if ((ret = enc->initialize(&writer, cache)) != ERROR_SUCCESS) {
+        srs_error("http: initialize stream encoder failed. ret=%d", ret);
         return ret;
+    }
+    
+    // if gop cache enabled for encoder, dump to consumer.
+    if (enc->has_cache()) {
+        if ((ret = enc->dump_cache(consumer)) != ERROR_SUCCESS) {
+            srs_error("http: dump cache to consumer failed. ret=%d", ret);
+            return ret;
+        }
     }
     
     while (true) {
@@ -424,6 +504,7 @@ int SrsLiveStream::streaming_send_messages(ISrsStreamEncoder* enc, SrsSharedPtrM
 SrsLiveEntry::SrsLiveEntry()
 {
     stream = NULL;
+    cache = NULL;
 }
 
 SrsHttpServer::SrsHttpServer()
@@ -485,7 +566,14 @@ int SrsHttpServer::mount(SrsSource* s, SrsRequest* r)
     // remove the default vhost mount
     mount = srs_string_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST"/", "/");
     
-    entry->stream = new SrsLiveStream(s, r);
+    entry->cache = new SrsStreamCache(s);
+    entry->stream = new SrsLiveStream(s, r, entry->cache);
+    
+    // start http stream cache thread
+    if ((ret = entry->cache->start()) != ERROR_SUCCESS) {
+        srs_error("http: start stream cache failed. ret=%d", ret);
+        return ret;
+    }
     
     // mount the http flv stream.
     if ((ret = mux.handle(mount, entry->stream)) != ERROR_SUCCESS) {

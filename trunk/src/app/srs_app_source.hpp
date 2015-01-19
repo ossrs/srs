@@ -494,7 +494,7 @@ public:
     virtual void on_unpublish();
 // consumer methods
 public:
-    virtual int create_consumer(SrsConsumer*& consumer);
+    virtual int create_consumer(SrsConsumer*& consumer, bool dump_gop_cache = true);
     virtual void on_consumer_destroy(SrsConsumer* consumer);
     virtual void set_cache(bool enabled);
 // internal
