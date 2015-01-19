@@ -35,6 +35,10 @@ HLS(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryHLS), 
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_DeliveryHLS)
 ), 
+HTTP(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_DeliveryHttpFlvStream),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_DeliveryHttpFlvStream)
+),
 high-performance(10k+ clients)(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Performance), 
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_Performance)
