@@ -475,7 +475,7 @@ Supported operating systems and hardware:
 1. Support custom dvr path and http callback, read 
 [#179](https://github.com/winlinvip/simple-rtmp-server/issues/179) and
 [274](https://github.com/winlinvip/simple-rtmp-server/issues/274).
-1. Support rtmp remux to http flv live stream, read 
+1. Support rtmp remux to http flv/mp3/aac live stream, read 
 [#293](https://github.com/winlinvip/simple-rtmp-server/issues/293)(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_DeliveryHttpFlvStream),
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_DeliveryHttpFlvStream)
@@ -514,6 +514,8 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+
+### SRS 2.0 history
 
 * v2.0, 2015-01-19, fix [#293](https://github.com/winlinvip/simple-rtmp-server/issues/293), support http live flv/aac/mp3 stream with fast cache. 2.0.100.
 * v2.0, 2015-01-18, fix [#293](https://github.com/winlinvip/simple-rtmp-server/issues/293), support rtmp remux to http flv live stream. 2.0.99.
@@ -573,6 +575,8 @@ Supported operating systems and hardware:
 * v2.0, 2014-10-19, fix [#184](https://github.com/winlinvip/simple-rtmp-server/issues/184), support AnnexB in RTMP body for HLS. 2.0.2
 * v2.0, 2014-10-18, remove supports for OSX(darwin). 2.0.1.
 * v2.0, 2014-10-16, revert github srs README to English. 2.0.0.
+
+### SRS 1.0 history
 
 * v1.0, 2015-01-17, hotfix [#290](https://github.com/winlinvip/simple-rtmp-server/issues/290), use iformat only for rtmp input. 1.0.22
 * <strong>v1.0, 2015-01-15, [1.0r1 release(1.0.21)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0r1) released. 59472 lines.</strong>
