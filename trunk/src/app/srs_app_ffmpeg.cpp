@@ -181,15 +181,6 @@ int SrsFFMPEG::initialize_transcode(SrsConfDirective* engine)
     }
     
     if (acodec != SRS_RTMP_ENCODER_COPY && acodec != SRS_RTMP_ENCODER_NO_AUDIO) {
-        /*
-        // add new acodec libmp3lame
-        if (acodec.find(SRS_RTMP_ENCODER_ACODEC) == std::string::npos) {
-            ret = ERROR_ENCODER_ACODEC;
-            srs_error("invalid acodec, must be %s, actual %s, ret=%d",
-                SRS_RTMP_ENCODER_ACODEC, acodec.c_str(), ret);
-            return ret;
-        }
-        */
         if (abitrate <= 0) {
             ret = ERROR_ENCODER_ABITRATE;
             srs_error("invalid abitrate: %d, ret=%d", abitrate, ret);
