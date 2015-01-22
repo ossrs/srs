@@ -165,13 +165,21 @@ int SrsStreamCache::start()
 int SrsStreamCache::dump_cache(SrsConsumer* consumer)
 {
     int ret = ERROR_SUCCESS;
+
+    double fast_cache = _srs_config->get_vhost_http_remux_fast_cache(req->vhost);
+
+    if (fast_cache <= 0) {
+        srs_info("http: ignore dump fast cache.");
+        return ret;
+    }
     
+    // TODO: FIXME: config it.
     if ((ret = queue->dump_packets(consumer, false, 0, 0, SrsRtmpJitterAlgorithmOFF)) != ERROR_SUCCESS) {
         return ret;
     }
     
     srs_trace("http: dump cache %d msgs, duration=%dms, cache=%.2fs", 
-        queue->size(), queue->duration(), _srs_config->get_vhost_http_remux_fast_cache(req->vhost));
+        queue->size(), queue->duration(), fast_cache);
     
     return ret;
 }
@@ -191,7 +199,10 @@ int SrsStreamCache::cycle()
     // TODO: FIMXE: add pithy print.
     
     // TODO: FIXME: support reload.
-    queue->set_queue_size(_srs_config->get_vhost_http_remux_fast_cache(req->vhost));
+    double fast_cache = _srs_config->get_vhost_http_remux_fast_cache(req->vhost);
+    if (fast_cache > 0) {
+        queue->set_queue_size(fast_cache);
+    }
     
     while (true) {
         // get messages from consumer.
@@ -216,7 +227,11 @@ int SrsStreamCache::cycle()
         // free the messages.
         for (int i = 0; i < count; i++) {
             SrsSharedPtrMessage* msg = msgs.msgs[i];
-            queue->enqueue(msg);
+            if (fast_cache > 0) {
+                queue->enqueue(msg);
+            } else {
+                srs_freep(msg);
+            }
         }
     }
     
