@@ -95,7 +95,7 @@ int ISrsReloadHandler::on_reload_vhost_http_updated()
     return ERROR_SUCCESS;
 }
 
-int ISrsReloadHandler::on_reload_vhost_http_flv_updated()
+int ISrsReloadHandler::on_reload_vhost_http_remux_updated()
 {
     return ERROR_SUCCESS;
 }

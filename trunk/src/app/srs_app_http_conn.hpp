@@ -259,7 +259,7 @@ public:
 // interface ISrsThreadHandler.
 public:
     virtual int on_reload_vhost_http_updated();
-    virtual int on_reload_vhost_http_flv_updated();
+    virtual int on_reload_vhost_http_remux_updated();
 private:
     virtual int mount_static_file();
     virtual int mount_flv_streaming();

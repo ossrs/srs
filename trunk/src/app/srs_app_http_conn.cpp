@@ -68,7 +68,7 @@ int SrsVodStream::serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* 
     }
     
     if (offset > fs.filesize()) {
-        ret = ERROR_HTTP_FLV_OFFSET_OVERFLOW;
+        ret = ERROR_HTTP_REMUX_OFFSET_OVERFLOW;
         srs_warn("http flv streaming %s overflow. size=%"PRId64", offset=%d, ret=%d", 
             fullpath.c_str(), fs.filesize(), offset, ret);
         return ret;
@@ -100,7 +100,7 @@ int SrsVodStream::serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* 
             return ret;
         }
         if (sh_size <= 0) {
-            ret = ERROR_HTTP_FLV_SEQUENCE_HEADER;
+            ret = ERROR_HTTP_REMUX_SEQUENCE_HEADER;
             srs_warn("http flv streaming no sequence header. size=%d, ret=%d", sh_size, ret);
             return ret;
         }
@@ -171,7 +171,7 @@ int SrsStreamCache::dump_cache(SrsConsumer* consumer)
     }
     
     srs_trace("http: dump cache %d msgs, duration=%dms, cache=%.2fs", 
-        queue->size(), queue->duration(), _srs_config->get_vhost_http_flv_fast_cache(req->vhost));
+        queue->size(), queue->duration(), _srs_config->get_vhost_http_remux_fast_cache(req->vhost));
     
     return ret;
 }
@@ -191,7 +191,7 @@ int SrsStreamCache::cycle()
     // TODO: FIMXE: add pithy print.
     
     // TODO: FIXME: support reload.
-    queue->set_queue_size(_srs_config->get_vhost_http_flv_fast_cache(req->vhost));
+    queue->set_queue_size(_srs_config->get_vhost_http_remux_fast_cache(req->vhost));
     
     while (true) {
         // get messages from consumer.
@@ -656,7 +656,7 @@ int SrsHttpServer::on_reload_vhost_http_updated()
     return ret;
 }
 
-int SrsHttpServer::on_reload_vhost_http_flv_updated()
+int SrsHttpServer::on_reload_vhost_http_remux_updated()
 {
     int ret = ERROR_SUCCESS;
     // TODO: FIXME: implements it.
@@ -737,13 +737,13 @@ int SrsHttpServer::mount_flv_streaming()
         }
         
         std::string vhost = conf->arg0();
-        if (!_srs_config->get_vhost_http_flv_enabled(vhost)) {
+        if (!_srs_config->get_vhost_http_remux_enabled(vhost)) {
             continue;
         }
         
         SrsLiveEntry* entry = new SrsLiveEntry();
         entry->vhost = vhost;
-        entry->mount = _srs_config->get_vhost_http_flv_mount(vhost);
+        entry->mount = _srs_config->get_vhost_http_remux_mount(vhost);
         flvs[vhost] = entry;
         srs_trace("http flv live stream, vhost=%s, mount=%s", 
             vhost.c_str(), entry->mount.c_str());
