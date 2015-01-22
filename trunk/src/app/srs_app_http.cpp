@@ -305,7 +305,8 @@ int SrsGoHttpFileServer::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
     srs_trace("http match file=%s, pattern=%s, upath=%s", 
         fullpath.c_str(), entry->pattern.c_str(), upath.c_str());
     
-    // handle file extension.
+    // handle file according to its extension.
+    // use vod stream for .flv/.fhv
     if (srs_string_ends_with(fullpath, ".flv") || srs_string_ends_with(fullpath, ".fhv")) {
         std::string start = r->query_get("start");
         if (start.empty()) {
@@ -318,11 +319,10 @@ int SrsGoHttpFileServer::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
         }
         
         return serve_flv_stream(w, r, fullpath, offset);
-    } else {
-        return serve_file(w, r, fullpath);
     }
-    
-    return ret;
+
+    // serve common static file.
+    return serve_file(w, r, fullpath);
 }
 
 int SrsGoHttpFileServer::serve_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, string fullpath)
@@ -339,8 +339,8 @@ int SrsGoHttpFileServer::serve_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
 
     int64_t length = fs.filesize();
     
-    // unset the content length in chunked encoding.
-    //w->header()->set_content_length(length);
+    // unset the content length to encode in chunked encoding.
+    w->header()->set_content_length(length);
     
     static std::map<std::string, std::string> _mime;
     if (_mime.empty()) {
