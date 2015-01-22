@@ -16,9 +16,6 @@
     <ClCompile Include="..\..\research\librtmp\srs_ingest_rtmp.c">
       <Filter>research</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\research\librtmp\srs_aac_raw_publish.c">
-      <Filter>srs</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\app\srs_app_http.cpp">
       <Filter>srs</Filter>
     </ClCompile>
@@ -215,6 +212,9 @@
       <Filter>librtmp</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\libs\srs_librtmp.cpp">
+      <Filter>librtmp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\research\librtmp\srs_aac_raw_publish.c">
       <Filter>librtmp</Filter>
     </ClCompile>
   </ItemGroup>
