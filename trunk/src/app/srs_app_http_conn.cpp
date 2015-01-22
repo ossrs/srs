@@ -46,6 +46,7 @@ using namespace std;
 #include <srs_protocol_msg_array.hpp>
 #include <srs_kernel_aac.hpp>
 #include <srs_kernel_mp3.hpp>
+#include <srs_kernel_ts.hpp>
 
 SrsVodStream::SrsVodStream(string root_dir)
     : SrsGoHttpFileServer(root_dir)
@@ -244,6 +245,54 @@ ISrsStreamEncoder::ISrsStreamEncoder()
 
 ISrsStreamEncoder::~ISrsStreamEncoder()
 {
+}
+
+SrsTsStreamEncoder::SrsTsStreamEncoder()
+{
+    enc = new SrsTsEncoder();
+}
+
+SrsTsStreamEncoder::~SrsTsStreamEncoder()
+{
+    srs_freep(enc);
+}
+
+int SrsTsStreamEncoder::initialize(SrsFileWriter* w, SrsStreamCache* /*c*/)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = enc->initialize(w)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsTsStreamEncoder::write_audio(int64_t timestamp, char* data, int size)
+{
+    return enc->write_audio(timestamp, data, size);
+}
+
+int SrsTsStreamEncoder::write_video(int64_t timestamp, char* data, int size)
+{
+    return enc->write_video(timestamp, data, size);
+}
+
+int SrsTsStreamEncoder::write_metadata(int64_t /*timestamp*/, char* /*data*/, int /*size*/)
+{
+    return ERROR_SUCCESS;
+}
+
+bool SrsTsStreamEncoder::has_cache()
+{
+    // for ts stream, use gop cache of SrsSource is ok.
+    return false;
+}
+
+int SrsTsStreamEncoder::dump_cache(SrsConsumer* /*consumer*/)
+{
+    // for ts stream, ignore cache.
+    return ERROR_SUCCESS;
 }
 
 SrsFlvStreamEncoder::SrsFlvStreamEncoder()
@@ -471,6 +520,9 @@ int SrsLiveStream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
     } else if (srs_string_ends_with(entry->pattern, ".mp3")) {
         w->header()->set_content_type("audio/mpeg");
         enc = new SrsMp3StreamEncoder();
+    } else if (srs_string_ends_with(entry->pattern, ".ts")) {
+        w->header()->set_content_type("video/MP2T");
+        enc = new SrsTsStreamEncoder();
     } else {
         ret = ERROR_HTTP_LIVE_STREAM_EXT;
         srs_error("http: unsupported pattern %s", entry->pattern.c_str());

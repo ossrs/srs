@@ -40,7 +40,7 @@ using namespace std;
 #include <srs_kernel_stream.hpp>
 #include <srs_app_edge.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_app_avc_aac.hpp>
+#include <srs_kernel_avc.hpp>
 #include <srs_protocol_msg_array.hpp>
 
 #define CONST_MAX_JITTER_MS         500

@@ -39,6 +39,7 @@ using namespace std;
 
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_stream.hpp>
 
 // this value must:
 // equals to (SRS_SYS_CYCLE_INTERVAL*SRS_SYS_TIME_RESOLUTION_MS_TIMES)*1000
@@ -276,5 +277,52 @@ int srs_create_dir_recursively(string dir)
     }
     
     return ret;
+}
+
+bool srs_avc_startswith_annexb(SrsStream* stream, int* pnb_start_code)
+{
+    char* bytes = stream->data() + stream->pos();
+    char* p = bytes;
+    
+    for (;;) {
+        if (!stream->require(p - bytes + 3)) {
+            return false;
+        }
+        
+        // not match
+        if (p[0] != (char)0x00 || p[1] != (char)0x00) {
+            return false;
+        }
+        
+        // match N[00] 00 00 01, where N>=0
+        if (p[2] == (char)0x01) {
+            if (pnb_start_code) {
+                *pnb_start_code = (int)(p - bytes) + 3;
+            }
+            return true;
+        }
+        
+        p++;
+    }
+    
+    return false;
+}
+
+bool srs_aac_startswith_adts(SrsStream* stream)
+{
+    char* bytes = stream->data() + stream->pos();
+    char* p = bytes;
+    
+    if (!stream->require(p - bytes + 2)) {
+        return false;
+    }
+    
+    // matched 12bits 0xFFF,
+    // @remark, we must cast the 0xff to char to compare.
+    if (p[0] != (char)0xff || (char)(p[1] & 0xf0) != (char)0xf0) {
+        return false;
+    }
+    
+    return true;
 }
 

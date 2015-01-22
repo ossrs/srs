@@ -157,53 +157,6 @@ bool srs_bytes_equals(void* pa, void* pb, int size)
     return true;
 }
 
-bool srs_avc_startswith_annexb(SrsStream* stream, int* pnb_start_code)
-{
-    char* bytes = stream->data() + stream->pos();
-    char* p = bytes;
-    
-    for (;;) {
-        if (!stream->require(p - bytes + 3)) {
-            return false;
-        }
-        
-        // not match
-        if (p[0] != (char)0x00 || p[1] != (char)0x00) {
-            return false;
-        }
-        
-        // match N[00] 00 00 01, where N>=0
-        if (p[2] == (char)0x01) {
-            if (pnb_start_code) {
-                *pnb_start_code = (int)(p - bytes) + 3;
-            }
-            return true;
-        }
-        
-        p++;
-    }
-    
-    return false;
-}
-
-bool srs_aac_startswith_adts(SrsStream* stream)
-{
-    char* bytes = stream->data() + stream->pos();
-    char* p = bytes;
-    
-    if (!stream->require(p - bytes + 2)) {
-        return false;
-    }
-    
-    // matched 12bits 0xFFF,
-    // @remark, we must cast the 0xff to char to compare.
-    if (p[0] != (char)0xff || (char)(p[1] & 0xf0) != (char)0xf0) {
-        return false;
-    }
-    
-    return true;
-}
-
 int srs_chunk_header_c0(
     int perfer_cid, u_int32_t timestamp, int32_t payload_length,
     int8_t message_type, int32_t stream_id,

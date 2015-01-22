@@ -66,7 +66,7 @@ using namespace std;
 #include <srs_protocol_rtmp.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_app_avc_aac.hpp>
+#include <srs_kernel_avc.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_protocol_buffer.hpp>
 
@@ -1421,10 +1421,6 @@ int SrsHls::on_meta_data(SrsAmf0Object* metadata)
     
     if (metadata->count() <= 0) {
         srs_trace("no metadata persent, hls ignored it.");
-        return ret;
-    }
-    
-    if ((ret = codec->metadata_demux(metadata)) != ERROR_SUCCESS) {
         return ret;
     }
     

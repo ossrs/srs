@@ -32,6 +32,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
+class SrsStream;
+
 // compare
 #define srs_min(a, b) (((a) < (b))? (a) : (b))
 #define srs_max(a, b) (((a) < (b))? (b) : (a))
@@ -61,6 +63,22 @@ extern bool srs_string_ends_with(std::string str, std::string flag);
 
 // create dir recursively
 extern int srs_create_dir_recursively(std::string dir);
+
+/**
+* whether stream starts with the avc NALU in "AnnexB" 
+* from H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
+* start code must be "N[00] 00 00 01" where N>=0
+* @param pnb_start_code output the size of start code, must >=3. 
+*       NULL to ignore.
+*/
+extern bool srs_avc_startswith_annexb(SrsStream* stream, int* pnb_start_code = NULL);
+
+/**
+* whether stream starts with the aac ADTS 
+* from aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 75, 1.A.2.2 ADTS.
+* start code must be '1111 1111 1111'B, that is 0xFFF
+*/
+extern bool srs_aac_startswith_adts(SrsStream* stream);
 
 #endif
 

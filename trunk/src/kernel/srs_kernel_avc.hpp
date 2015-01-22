@@ -21,11 +21,11 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_APP_AVC_AAC_HPP
-#define SRS_APP_AVC_AAC_HPP
+#ifndef SRS_KERNEL_AVC_HPP
+#define SRS_KERNEL_AVC_HPP
 
 /*
-#include <srs_app_avc_aac.hpp>
+#include <srs_kernel_avc.hpp>
 */
 
 #include <srs_core.hpp>
@@ -238,12 +238,6 @@ public:
     virtual ~SrsAvcAacCodec();
 // the following function used for hls to build the sample and codec.
 public:
-    /**
-    * demux the metadata, to to get the stream info,
-    * for instance, the width/height, sample rate.
-    * @param metadata, the metadata amf0 object. assert not NULL.
-    */
-    virtual int metadata_demux(SrsAmf0Object* metadata);
     /**
     * demux the audio packet in aac codec.
     * the packet mux in FLV/RTMP format defined in flv specification.

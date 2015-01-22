@@ -217,6 +217,9 @@
     <ClCompile Include="..\..\research\librtmp\srs_aac_raw_publish.c">
       <Filter>librtmp</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\kernel\srs_kernel_ts.cpp">
+      <Filter>srs</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\app\srs_app_avc_aac.hpp">
@@ -395,6 +398,9 @@
     </ClInclude>
     <ClInclude Include="..\..\src\libs\srs_lib_simple_socket.hpp">
       <Filter>librtmp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\kernel\srs_kernel_ts.hpp">
+      <Filter>srs</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -43,6 +43,7 @@ class SrsSource;
 class SrsRequest;
 class SrsConsumer;
 class SrsStSocket;
+class SrsTsEncoder;
 class SrsAacEncoder;
 class SrsMp3Encoder;
 class SrsFlvEncoder;
@@ -134,6 +135,26 @@ private:
 public:
     SrsFlvStreamEncoder();
     virtual ~SrsFlvStreamEncoder();
+public:
+    virtual int initialize(SrsFileWriter* w, SrsStreamCache* c);
+    virtual int write_audio(int64_t timestamp, char* data, int size);
+    virtual int write_video(int64_t timestamp, char* data, int size);
+    virtual int write_metadata(int64_t timestamp, char* data, int size);
+public:
+    virtual bool has_cache();
+    virtual int dump_cache(SrsConsumer* consumer);
+};
+
+/**
+* the ts stream encoder, remux rtmp stream to ts stream.
+*/
+class SrsTsStreamEncoder : public ISrsStreamEncoder
+{
+private:
+    SrsTsEncoder* enc;
+public:
+    SrsTsStreamEncoder();
+    virtual ~SrsTsStreamEncoder();
 public:
     virtual int initialize(SrsFileWriter* w, SrsStreamCache* c);
     virtual int write_audio(int64_t timestamp, char* data, int size);

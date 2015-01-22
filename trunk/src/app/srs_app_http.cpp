@@ -275,8 +275,6 @@ SrsGoHttpFileServer::~SrsGoHttpFileServer()
 
 int SrsGoHttpFileServer::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
 {
-    int ret = ERROR_SUCCESS;
-    
     string upath = r->path();
     
     // add default pages.
@@ -760,6 +758,9 @@ int SrsGoHttpResponseWriter::send_header(char* data, int size)
     if (content_length == -1) {
         hdr->set("Transfer-Encoding", "chunked");
     }
+
+    // keep alive to make vlc happy.
+    hdr->set("Connection", "Keep-Alive");
     
     // write headers
     hdr->write(ss);
