@@ -36,18 +36,23 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_avc.hpp>
+#include <srs_kernel_buffer.hpp>
 
 SrsTsEncoder::SrsTsEncoder()
 {
     _fs = NULL;
     codec = new SrsAvcAacCodec();
     sample = new SrsCodecSample();
+    cache = new SrsTsCache();
+    muxer = NULL;
 }
 
 SrsTsEncoder::~SrsTsEncoder()
 {
     srs_freep(codec);
     srs_freep(sample);
+    srs_freep(cache);
+    srs_freep(muxer);
 }
 
 int SrsTsEncoder::initialize(SrsFileWriter* fs)
@@ -63,6 +68,13 @@ int SrsTsEncoder::initialize(SrsFileWriter* fs)
     }
     
     _fs = fs;
+
+    srs_freep(muxer);
+    muxer = new SrsTSMuxer(fs);
+
+    if ((ret = muxer->open("")) != ERROR_SUCCESS) {
+        return ret;
+    }
     
     return ret;
 }
@@ -91,10 +103,20 @@ int SrsTsEncoder::write_audio(int64_t timestamp, char* data, int size)
     //      for the packet is filtered by consumer.
     int64_t dts = timestamp * 90;
     
-    /*if ((ret = hls_cache->write_audio(codec, muxer, dts, sample)) != ERROR_SUCCESS) {
-        srs_error("http: ts cache write audio failed. ret=%d", ret);
+    // write audio to cache.
+    if ((ret = cache->cache_audio(codec, dts, sample)) != ERROR_SUCCESS) {
         return ret;
-    }*/
+    }
+    
+    // flush if buffer exceed max size.
+    if (cache->ab->length() > SRS_AUTO_HLS_AUDIO_CACHE_SIZE) {
+        if ((ret = muxer->write_audio(cache->af, cache->ab)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    
+        // write success, clear and free the buffer
+        cache->ab->erase(cache->ab->length());
+    }
 
     return ret;
 }
@@ -126,10 +148,18 @@ int SrsTsEncoder::write_video(int64_t timestamp, char* data, int size)
     }
     
     int64_t dts = timestamp * 90;
-    /*if ((ret = hls_cache->write_video(codec, muxer, dts, sample)) != ERROR_SUCCESS) {
-        srs_error("http: ts cache write video failed. ret=%d", ret);
+    
+    // write video to cache.
+    if ((ret = cache->cache_video(codec, dts, sample)) != ERROR_SUCCESS) {
         return ret;
-    }*/
+    }
+    
+    if ((ret = muxer->write_video(cache->vf, cache->vb)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // write success, clear and free the buffer
+    cache->vb->erase(cache->vb->length());
 
     return ret;
 }

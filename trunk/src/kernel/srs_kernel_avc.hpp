@@ -30,6 +30,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+#include <string>
+
 #include <srs_kernel_codec.hpp>
 
 class SrsStream;
@@ -37,6 +39,7 @@ class SrsMpegtsFrame;
 class SrsSimpleBuffer;
 class SrsAvcAacCodec;
 class SrsCodecSample;
+class SrsFileWriter;
 
 /**
 * the public data, event HLS disable, others can use it.
@@ -56,6 +59,9 @@ extern int aac_sample_rates[];
 
 // in ms, for HLS aac flush the audio
 #define SRS_CONF_DEFAULT_AAC_DELAY 100
+
+// max PES packets size to flush the video.
+#define SRS_AUTO_HLS_AUDIO_CACHE_SIZE 1024 * 1024
 
 /**
 * the FLV/RTMP supported audio sample size.
@@ -101,6 +107,25 @@ public:
     bool            key;
     
     SrsMpegtsFrame();
+};
+
+/**
+* write data from frame(header info) and buffer(data) to ts file.
+* it's a simple object wrapper for utility from nginx-rtmp: SrsMpegtsWriter
+*/
+class SrsTSMuxer
+{
+private:
+    SrsFileWriter* writer;
+    std::string path;
+public:
+    SrsTSMuxer(SrsFileWriter* w);
+    virtual ~SrsTSMuxer();
+public:
+    virtual int open(std::string _path);
+    virtual int write_audio(SrsMpegtsFrame* af, SrsSimpleBuffer* ab);
+    virtual int write_video(SrsMpegtsFrame* vf, SrsSimpleBuffer* vb);
+    virtual void close();
 };
 
 /**

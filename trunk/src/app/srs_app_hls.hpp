@@ -53,25 +53,6 @@ class SrsTsAacJitter;
 class SrsTsCache;
 
 /**
-* write data from frame(header info) and buffer(data) to ts file.
-* it's a simple object wrapper for utility from nginx-rtmp: SrsMpegtsWriter
-*/
-class SrsTSMuxer
-{
-private:
-    SrsFileWriter* writer;
-    std::string path;
-public:
-    SrsTSMuxer();
-    virtual ~SrsTSMuxer();
-public:
-    virtual int open(std::string _path);
-    virtual int write_audio(SrsMpegtsFrame* af, SrsSimpleBuffer* ab);
-    virtual int write_video(SrsMpegtsFrame* vf, SrsSimpleBuffer* vb);
-    virtual void close();
-};
-
-/**
 * the wrapper of m3u8 segment from specification:
 *
 * 3.3.2.  EXTINF
@@ -89,6 +70,7 @@ public:
     // ts full file to write.
     std::string full_path;
     // the muxer to write ts.
+    SrsFileWriter* writer;
     SrsTSMuxer* muxer;
     // current segment start dts for m3u8
     int64_t segment_start_dts;

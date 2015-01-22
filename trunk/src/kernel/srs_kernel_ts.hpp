@@ -31,6 +31,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
+class SrsTsCache;
+class SrsTSMuxer;
 class SrsFileWriter;
 class SrsFileReader;
 class SrsAvcAacCodec;
@@ -46,6 +48,8 @@ private:
 private:
     SrsAvcAacCodec* codec;
     SrsCodecSample* sample;
+    SrsTsCache* cache;
+    SrsTSMuxer* muxer;
 public:
     SrsTsEncoder();
     virtual ~SrsTsEncoder();
