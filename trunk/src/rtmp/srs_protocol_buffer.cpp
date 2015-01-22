@@ -40,47 +40,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // @see SrsProtocol::read_message_header().
 #define SRS_RTMP_MAX_MESSAGE_HEADER 11
 
-SrsSimpleBuffer::SrsSimpleBuffer()
-{
-}
-
-SrsSimpleBuffer::~SrsSimpleBuffer()
-{
-}
-
-int SrsSimpleBuffer::length()
-{
-    int len = (int)data.size();
-    srs_assert(len >= 0);
-    return len;
-}
-
-char* SrsSimpleBuffer::bytes()
-{
-    return (length() == 0)? NULL : &data.at(0);
-}
-
-void SrsSimpleBuffer::erase(int size)
-{
-    if (size <= 0) {
-        return;
-    }
-    
-    if (size >= length()) {
-        data.clear();
-        return;
-    }
-    
-    data.erase(data.begin(), data.begin() + size);
-}
-
-void SrsSimpleBuffer::append(const char* bytes, int size)
-{
-    srs_assert(size > 0);
-
-    data.insert(data.end(), bytes, bytes + size);
-}
-
 #ifdef SRS_PERF_MERGED_READ
 IMergeReadHandler::IMergeReadHandler()
 {

@@ -22,6 +22,8 @@ file
 	../../src/kernel/srs_kernel_aac.cpp,
 	../../src/kernel/srs_kernel_avc.hpp,
 	../../src/kernel/srs_kernel_avc.cpp,
+	../../src/kernel/srs_kernel_buffer.hpp,
+	../../src/kernel/srs_kernel_buffer.cpp,
 	../../src/kernel/srs_kernel_codec.hpp,
 	../../src/kernel/srs_kernel_codec.cpp,
 	../../src/kernel/srs_kernel_consts.hpp,

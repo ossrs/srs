@@ -24,25 +24,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_hls.hpp>
 
 /**
-* the public data, event HLS disable, others can use it.
-*/
-// 0 = 5.5 kHz = 5512 Hz
-// 1 = 11 kHz = 11025 Hz
-// 2 = 22 kHz = 22050 Hz
-// 3 = 44 kHz = 44100 Hz
-int flv_sample_rates[] = {5512, 11025, 22050, 44100};
-
-// the sample rates in the codec,
-// in the sequence header.
-int aac_sample_rates[] = 
-{
-    96000, 88200, 64000, 48000,
-    44100, 32000, 24000, 22050,
-    16000, 12000, 11025,  8000,
-    7350,     0,     0,    0
-};
-
-/**
 * the HLS section, only available when HLS enabled.
 */
 #ifdef SRS_AUTO_HLS
@@ -79,25 +60,6 @@ using namespace std;
 // @see: NGX_RTMP_HLS_DELAY, 
 // 63000: 700ms, ts_tbn=90000
 #define SRS_AUTO_HLS_DELAY 63000
-
-// the mpegts header specifed the video/audio pid.
-#define TS_VIDEO_PID 256
-#define TS_AUDIO_PID 257
-
-// ts aac stream id.
-#define TS_AUDIO_AAC 0xc0
-// ts avc stream id.
-#define TS_VIDEO_AVC 0xe0
-
-// @see: ngx_rtmp_hls_audio
-/* We assume here AAC frame size is 1024
- * Need to handle AAC frames with frame size of 960 */
-#define _SRS_AAC_SAMPLE_SIZE 1024
-
-// in ms, for HLS aac sync time.
-#define SRS_CONF_DEFAULT_AAC_SYNC 100
-// in ms, for HLS aac flush the audio
-#define SRS_CONF_DEFAULT_AAC_DELAY 100
 
 // @see: ngx_rtmp_mpegts_header
 u_int8_t mpegts_header[] = {
@@ -160,25 +122,6 @@ u_int8_t mpegts_header[] = {
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
-};
-
-// @see: ngx_rtmp_SrsMpegtsFrame_t
-class SrsMpegtsFrame
-{
-public:
-    int64_t         pts;
-    int64_t         dts;
-    int             pid;
-    int             sid;
-    int             cc;
-    bool            key;
-    
-    SrsMpegtsFrame()
-    {
-        pts = dts = 0;
-        pid = sid = cc = 0;
-        key = false;
-    }
 };
 
 // @see: ngx_rtmp_mpegts.c
@@ -400,69 +343,6 @@ private:
         return p;
     }
 };
-
-SrsHlsAacJitter::SrsHlsAacJitter()
-{
-    base_pts = 0;
-    nb_samples = 0;
-
-    // TODO: config it, 0 means no adjust
-    sync_ms = SRS_CONF_DEFAULT_AAC_SYNC;
-}
-
-SrsHlsAacJitter::~SrsHlsAacJitter()
-{
-}
-
-int64_t SrsHlsAacJitter::on_buffer_start(int64_t flv_pts, int sample_rate, int aac_sample_rate)
-{
-    // use sample rate in flv/RTMP.
-    int flv_sample_rate = flv_sample_rates[sample_rate & 0x03];
-
-    // override the sample rate by sequence header
-    if (aac_sample_rate != __SRS_AAC_SAMPLE_RATE_UNSET) {
-        flv_sample_rate = aac_sample_rates[aac_sample_rate];
-    }
-
-    // sync time set to 0, donot adjust the aac timestamp.
-    if (!sync_ms) {
-        return flv_pts;
-    }
-    
-    // @see: ngx_rtmp_hls_audio
-    // drop the rtmp audio packet timestamp, re-calc it by sample rate.
-    // 
-    // resample for the tbn of ts is 90000, flv is 1000,
-    // we will lost timestamp if use audio packet timestamp,
-    // so we must resample. or audio will corupt in IOS.
-    int64_t est_pts = base_pts + nb_samples * 90000LL * _SRS_AAC_SAMPLE_SIZE / flv_sample_rate;
-    int64_t dpts = (int64_t) (est_pts - flv_pts);
-
-    if (dpts <= (int64_t) sync_ms * 90 && dpts >= (int64_t) sync_ms * -90) {
-        srs_info("HLS correct aac pts "
-            "from %"PRId64" to %"PRId64", base=%"PRId64", nb_samples=%d, sample_rate=%d",
-            flv_pts, est_pts, nb_samples, flv_sample_rate, base_pts);
-
-        nb_samples++;
-        
-        return est_pts;
-    }
-    
-    // resync
-    srs_trace("HLS aac resync, dpts=%"PRId64", pts=%"PRId64
-        ", base=%"PRId64", nb_samples=%"PRId64", sample_rate=%d",
-        dpts, flv_pts, base_pts, nb_samples, flv_sample_rate);
-    
-    base_pts = flv_pts;
-    nb_samples = 1;
-    
-    return flv_pts;
-}
-
-void SrsHlsAacJitter::on_buffer_continue()
-{
-    nb_samples++;
-}
 
 SrsTSMuxer::SrsTSMuxer()
 {
@@ -963,27 +843,12 @@ int SrsHlsMuxer::create_dir()
 
 SrsHlsCache::SrsHlsCache()
 {
-    aac_jitter = new SrsHlsAacJitter();
-    
-    ab = new SrsSimpleBuffer();
-    vb = new SrsSimpleBuffer();
-    
-    af = new SrsMpegtsFrame();
-    vf = new SrsMpegtsFrame();
+    cache = new SrsTsCache();
 }
 
 SrsHlsCache::~SrsHlsCache()
 {
-    srs_freep(aac_jitter);
-    
-    ab->erase(ab->length());
-    vb->erase(vb->length());
-    
-    srs_freep(ab);
-    srs_freep(vb);
-    
-    srs_freep(af);
-    srs_freep(vf);
+    srs_freep(cache);
 }
 
 int SrsHlsCache::on_publish(SrsHlsMuxer* muxer, SrsRequest* req, int64_t segment_start_dts)
@@ -1021,7 +886,7 @@ int SrsHlsCache::on_unpublish(SrsHlsMuxer* muxer)
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = muxer->flush_audio(af, ab)) != ERROR_SUCCESS) {
+    if ((ret = muxer->flush_audio(cache->af, cache->ab)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer flush audio failed. ret=%d", ret);
         return ret;
     }
@@ -1047,26 +912,17 @@ int SrsHlsCache::on_sequence_header(SrsHlsMuxer* muxer)
 int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t pts, SrsCodecSample* sample)
 {
     int ret = ERROR_SUCCESS;
-    
-    // start buffer, set the af
-    if (ab->length() == 0) {
-        pts = aac_jitter->on_buffer_start(pts, sample->sound_rate, codec->aac_sample_rate);
-        
-        af->dts = af->pts = audio_buffer_start_pts = pts;
-        af->pid = TS_AUDIO_PID;
-        af->sid = TS_AUDIO_AAC;
-    } else {
-        aac_jitter->on_buffer_continue();
-    }
+
+    audio_buffer_start_pts = pts;
     
     // write audio to cache.
-    if ((ret = cache_audio(codec, sample)) != ERROR_SUCCESS) {
+    if ((ret = cache->cache_audio(codec, pts, sample)) != ERROR_SUCCESS) {
         return ret;
     }
     
     // flush if buffer exceed max size.
-    if (ab->length() > SRS_AUTO_HLS_AUDIO_CACHE_SIZE) {
-        if ((ret = muxer->flush_audio(af, ab)) != ERROR_SUCCESS) {
+    if (cache->ab->length() > SRS_AUTO_HLS_AUDIO_CACHE_SIZE) {
+        if ((ret = muxer->flush_audio(cache->af, cache->ab)) != ERROR_SUCCESS) {
             return ret;
         }
     }
@@ -1075,7 +931,7 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     int64_t audio_delay = SRS_CONF_DEFAULT_AAC_DELAY;
     // flush if audio delay exceed
     if (pts - audio_buffer_start_pts > audio_delay * 90) {
-        if ((ret = muxer->flush_audio(af, ab)) != ERROR_SUCCESS) {
+        if ((ret = muxer->flush_audio(cache->af, cache->ab)) != ERROR_SUCCESS) {
             return ret;
         }
     }
@@ -1087,7 +943,7 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     // so we reap event when the audio incoming when segment overflow.
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/151
     if (muxer->is_segment_overflow()) {
-        if ((ret = reap_segment("audio", muxer, af->pts)) != ERROR_SUCCESS) {
+        if ((ret = reap_segment("audio", muxer, cache->af->pts)) != ERROR_SUCCESS) {
             return ret;
         }
     }
@@ -1095,33 +951,26 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     return ret;
 }
     
-int SrsHlsCache::write_video(
-    SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t dts, SrsCodecSample* sample)
+int SrsHlsCache::write_video(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t dts, SrsCodecSample* sample)
 {
     int ret = ERROR_SUCCESS;
     
     // write video to cache.
-    if ((ret = cache_video(codec, sample)) != ERROR_SUCCESS) {
+    if ((ret = cache->cache_video(codec, dts, sample)) != ERROR_SUCCESS) {
         return ret;
     }
-    
-    vf->dts = dts;
-    vf->pts = vf->dts + sample->cts * 90;
-    vf->pid = TS_VIDEO_PID;
-    vf->sid = TS_VIDEO_AVC;
-    vf->key = sample->frame_type == SrsCodecVideoAVCFrameKeyFrame;
     
     // new segment when:
     // 1. base on gop.
     // 2. some gops duration overflow.
-    if (vf->key && muxer->is_segment_overflow()) {
-        if ((ret = reap_segment("video", muxer, vf->dts)) != ERROR_SUCCESS) {
+    if (cache->vf->key && muxer->is_segment_overflow()) {
+        if ((ret = reap_segment("video", muxer, cache->vf->dts)) != ERROR_SUCCESS) {
             return ret;
         }
     }
     
     // flush video when got one
-    if ((ret = muxer->flush_video(af, ab, vf, vb)) != ERROR_SUCCESS) {
+    if ((ret = muxer->flush_video(cache->af, cache->ab, cache->vf, cache->vb)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer flush video failed. ret=%d", ret);
         return ret;
     }
@@ -1147,188 +996,9 @@ int SrsHlsCache::reap_segment(string log_desc, SrsHlsMuxer* muxer, int64_t segme
     // segment open, flush the audio.
     // @see: ngx_rtmp_hls_open_fragment
     /* start fragment with audio to make iPhone happy */
-    if ((ret = muxer->flush_audio(af, ab)) != ERROR_SUCCESS) {
+    if ((ret = muxer->flush_audio(cache->af, cache->ab)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer flush audio failed. ret=%d", ret);
         return ret;
-    }
-    
-    return ret;
-}
-
-int SrsHlsCache::cache_audio(SrsAvcAacCodec* codec, SrsCodecSample* sample)
-{
-    int ret = ERROR_SUCCESS;
-    
-    for (int i = 0; i < sample->nb_sample_units; i++) {
-        SrsCodecSampleUnit* sample_unit = &sample->sample_units[i];
-        int32_t size = sample_unit->size;
-        
-        if (!sample_unit->bytes || size <= 0 || size > 0x1fff) {
-            ret = ERROR_HLS_AAC_FRAME_LENGTH;
-            srs_error("invalid aac frame length=%d, ret=%d", size, ret);
-            return ret;
-        }
-        
-        // the frame length is the AAC raw data plus the adts header size.
-        int32_t frame_length = size + 7;
-        
-        // AAC-ADTS
-        // 6.2 Audio Data Transport Stream, ADTS
-        // in aac-iso-13818-7.pdf, page 26.
-        // fixed 7bytes header
-        static u_int8_t adts_header[7] = {0xff, 0xf1, 0x00, 0x00, 0x00, 0x0f, 0xfc};
-        /*
-        // adts_fixed_header
-        // 2B, 16bits
-        int16_t syncword; //12bits, '1111 1111 1111'
-        int8_t ID; //1bit, '0'
-        int8_t layer; //2bits, '00'
-        int8_t protection_absent; //1bit, can be '1'
-        // 12bits
-        int8_t profile; //2bit, 7.1 Profiles, page 40
-        TSAacSampleFrequency sampling_frequency_index; //4bits, Table 35, page 46
-        int8_t private_bit; //1bit, can be '0'
-        int8_t channel_configuration; //3bits, Table 8
-        int8_t original_or_copy; //1bit, can be '0'
-        int8_t home; //1bit, can be '0'
-        
-        // adts_variable_header
-        // 28bits
-        int8_t copyright_identification_bit; //1bit, can be '0'
-        int8_t copyright_identification_start; //1bit, can be '0'
-        int16_t frame_length; //13bits
-        int16_t adts_buffer_fullness; //11bits, 7FF signals that the bitstream is a variable rate bitstream.
-        int8_t number_of_raw_data_blocks_in_frame; //2bits, 0 indicating 1 raw_data_block()
-        */
-        // profile, 2bits
-        adts_header[2] = (codec->aac_profile << 6) & 0xc0;
-        // sampling_frequency_index 4bits
-        adts_header[2] |= (codec->aac_sample_rate << 2) & 0x3c;
-        // channel_configuration 3bits
-        adts_header[2] |= (codec->aac_channels >> 2) & 0x01;
-        adts_header[3] = (codec->aac_channels << 6) & 0xc0;
-        // frame_length 13bits
-        adts_header[3] |= (frame_length >> 11) & 0x03;
-        adts_header[4] = (frame_length >> 3) & 0xff;
-        adts_header[5] = ((frame_length << 5) & 0xe0);
-        // adts_buffer_fullness; //11bits
-        adts_header[5] |= 0x1f;
-
-        // copy to audio buffer
-        ab->append((const char*)adts_header, sizeof(adts_header));
-        ab->append(sample_unit->bytes, sample_unit->size);
-    }
-    
-    return ret;
-}
-
-int SrsHlsCache::cache_video(SrsAvcAacCodec* codec, SrsCodecSample* sample)
-{
-    int ret = ERROR_SUCCESS;
-    
-    // for type1/5/6, insert aud packet.
-    static u_int8_t aud_nal[] = { 0x00, 0x00, 0x00, 0x01, 0x09, 0xf0 };
-    
-    bool sps_pps_sent = false;
-    bool aud_sent = false;
-    /**
-    * a ts sample is format as:
-    * 00 00 00 01 // header
-    *       xxxxxxx // data bytes
-    * 00 00 01 // continue header
-    *       xxxxxxx // data bytes.
-    * so, for each sample, we append header in aud_nal, then appends the bytes in sample.
-    */
-    for (int i = 0; i < sample->nb_sample_units; i++) {
-        SrsCodecSampleUnit* sample_unit = &sample->sample_units[i];
-        int32_t size = sample_unit->size;
-        
-        if (!sample_unit->bytes || size <= 0) {
-            ret = ERROR_HLS_AVC_SAMPLE_SIZE;
-            srs_error("invalid avc sample length=%d, ret=%d", size, ret);
-            return ret;
-        }
-        
-        /**
-        * step 1:
-        * first, before each "real" sample, 
-        * we add some packets according to the nal_unit_type,
-        * for example, when got nal_unit_type=5, insert SPS/PPS before sample.
-        */
-        
-        // 5bits, 7.3.1 NAL unit syntax, 
-        // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
-        u_int8_t nal_unit_type;
-        nal_unit_type = *sample_unit->bytes;
-        nal_unit_type &= 0x1f;
-        
-        // @see: ngx_rtmp_hls_video
-        // Table 7-1 – NAL unit type codes, page 61
-        // 1: Coded slice
-        if (nal_unit_type == 1) {
-            sps_pps_sent = false;
-        }
-        
-        // 6: Supplemental enhancement information (SEI) sei_rbsp( ), page 61
-        // @see: ngx_rtmp_hls_append_aud
-        if (!aud_sent) {
-            // @remark, when got type 9, we donot send aud_nal, but it will make 
-            //      ios unhappy, so we remove it.
-            // @see https://github.com/winlinvip/simple-rtmp-server/issues/281
-            /*if (nal_unit_type == 9) {
-                aud_sent = true;
-            }*/
-            
-            if (nal_unit_type == 1 || nal_unit_type == 5 || nal_unit_type == 6) {
-                // for type 6, append a aud with type 9.
-                vb->append((const char*)aud_nal, sizeof(aud_nal));
-                aud_sent = true;
-            }
-        }
-        
-        // 5: Coded slice of an IDR picture.
-        // insert sps/pps before IDR or key frame is ok.
-        if (nal_unit_type == 5 && !sps_pps_sent) {
-            sps_pps_sent = true;
-            
-            // @see: ngx_rtmp_hls_append_sps_pps
-            if (codec->sequenceParameterSetLength > 0) {
-                // AnnexB prefix, for sps always 4 bytes header
-                vb->append((const char*)aud_nal, 4);
-                // sps
-                vb->append(codec->sequenceParameterSetNALUnit, codec->sequenceParameterSetLength);
-            }
-            if (codec->pictureParameterSetLength > 0) {
-                // AnnexB prefix, for pps always 4 bytes header
-                vb->append((const char*)aud_nal, 4);
-                // pps
-                vb->append(codec->pictureParameterSetNALUnit, codec->pictureParameterSetLength);
-            }
-        }
-        
-        // 7-9, ignore, @see: ngx_rtmp_hls_video
-        if (nal_unit_type >= 7 && nal_unit_type <= 9) {
-            continue;
-        }
-        
-        /**
-        * step 2:
-        * output the "real" sample, in buf.
-        * when we output some special assist packets according to nal_unit_type
-        */
-        
-        // sample start prefix, '00 00 00 01' or '00 00 01'
-        u_int8_t* p = aud_nal + 1;
-        u_int8_t* end = p + 3;
-        
-        // first AnnexB prefix is long (4 bytes)
-        if (vb->length() == 0) {
-            p = aud_nal;
-        }
-        vb->append((const char*)p, end - p);
-        
-        // sample data
-        vb->append(sample_unit->bytes, sample_unit->size);
     }
     
     return ret;

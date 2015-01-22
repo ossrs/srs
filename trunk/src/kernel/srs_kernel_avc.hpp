@@ -33,10 +33,29 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_codec.hpp>
 
 class SrsStream;
-class SrsAmf0Object;
+class SrsMpegtsFrame;
+class SrsSimpleBuffer;
+class SrsAvcAacCodec;
+class SrsCodecSample;
+
+/**
+* the public data, event HLS disable, others can use it.
+*/
+/**
+* the flv sample rate map
+*/
+extern int flv_sample_rates[];
+
+/**
+* the aac sample rate map
+*/
+extern int aac_sample_rates[];
 
 #define __SRS_SRS_MAX_CODEC_SAMPLE 128
 #define __SRS_AAC_SAMPLE_RATE_UNSET 15
+
+// in ms, for HLS aac flush the audio
+#define SRS_CONF_DEFAULT_AAC_DELAY 100
 
 /**
 * the FLV/RTMP supported audio sample size.
@@ -68,6 +87,90 @@ enum SrsCodecAudioSoundType
     
     SrsCodecAudioSoundTypeMono                      = 0,
     SrsCodecAudioSoundTypeStereo                    = 1,
+};
+
+// @see: ngx_rtmp_SrsMpegtsFrame_t
+class SrsMpegtsFrame
+{
+public:
+    int64_t         pts;
+    int64_t         dts;
+    int             pid;
+    int             sid;
+    int             cc;
+    bool            key;
+    
+    SrsMpegtsFrame();
+};
+
+/**
+* jitter correct for audio,
+* the sample rate 44100/32000 will lost precise,
+* when mp4/ts(tbn=90000) covert to flv/rtmp(1000),
+* so the Hls on ipad or iphone will corrupt,
+* @see nginx-rtmp: est_pts
+*/
+class SrsTsAacJitter
+{
+private:
+    int64_t base_pts;
+    int64_t nb_samples;
+    int sync_ms;
+public:
+    SrsTsAacJitter();
+    virtual ~SrsTsAacJitter();
+    /**
+    * when buffer start, calc the "correct" pts for ts,
+    * @param flv_pts, the flv pts calc from flv header timestamp,
+    * @param sample_rate, the sample rate in format(flv/RTMP packet header).
+    * @param aac_sample_rate, the sample rate in codec(sequence header).
+    * @return the calc correct pts.
+    */
+    virtual int64_t on_buffer_start(int64_t flv_pts, int sample_rate, int aac_sample_rate);
+    /**
+    * when buffer continue, muxer donot write to file,
+    * the audio buffer continue grow and donot need a pts,
+    * for the ts audio PES packet only has one pts at the first time.
+    */
+    virtual void on_buffer_continue();
+};
+
+/**
+* ts stream cache, 
+* use to cache ts stream.
+* 
+* about the flv tbn problem:
+*   flv tbn is 1/1000, ts tbn is 1/90000,
+*   when timestamp convert to flv tbn, it will loose precise,
+*   so we must gather audio frame together, and recalc the timestamp @see SrsTsAacJitter,
+*   we use a aac jitter to correct the audio pts.
+*/
+class SrsTsCache
+{
+public:
+    // current frame and buffer
+    SrsMpegtsFrame* af;
+    SrsSimpleBuffer* ab;
+    SrsMpegtsFrame* vf;
+    SrsSimpleBuffer* vb;
+protected:
+    // time jitter for aac
+    SrsTsAacJitter* aac_jitter;
+public:
+    SrsTsCache();
+    virtual ~SrsTsCache();
+public:
+    /**
+    * write audio to cache
+    */
+    virtual int cache_audio(SrsAvcAacCodec* codec, int64_t pts, SrsCodecSample* sample);
+    /**
+    * write video to muxer.
+    */
+    virtual int cache_video(SrsAvcAacCodec* codec, int64_t dts, SrsCodecSample* sample);
+private:
+    virtual int do_cache_audio(SrsAvcAacCodec* codec, SrsCodecSample* sample);
+    virtual int do_cache_video(SrsAvcAacCodec* codec, SrsCodecSample* sample);
 };
 
 /**
