@@ -63,7 +63,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\..\objs\srs_auto_headers.hpp" />
-    <ClInclude Include="..\..\src\app\srs_app_avc_aac.hpp" />
     <ClInclude Include="..\..\src\app\srs_app_bandwidth.hpp" />
     <ClInclude Include="..\..\src\app\srs_app_config.hpp" />
     <ClInclude Include="..\..\src\app\srs_app_conn.hpp" />
@@ -101,6 +100,8 @@
     <ClInclude Include="..\..\src\core\srs_core_autofree.hpp" />
     <ClInclude Include="..\..\src\core\srs_core_performance.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_aac.hpp" />
+    <ClInclude Include="..\..\src\kernel\srs_kernel_avc.hpp" />
+    <ClInclude Include="..\..\src\kernel\srs_kernel_buffer.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_codec.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_consts.hpp" />
     <ClInclude Include="..\..\src\kernel\srs_kernel_error.hpp" />
@@ -137,7 +138,6 @@
     <ClCompile Include="..\..\research\librtmp\srs_play.c" />
     <ClCompile Include="..\..\research\librtmp\srs_publish.c" />
     <ClCompile Include="..\..\research\librtmp\srs_rtmp_dump.c" />
-    <ClCompile Include="..\..\src\app\srs_app_avc_aac.cpp" />
     <ClCompile Include="..\..\src\app\srs_app_bandwidth.cpp" />
     <ClCompile Include="..\..\src\app\srs_app_config.cpp" />
     <ClCompile Include="..\..\src\app\srs_app_conn.cpp" />
@@ -175,6 +175,8 @@
     <ClCompile Include="..\..\src\core\srs_core_autofree.cpp" />
     <ClCompile Include="..\..\src\core\srs_core_performance.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_aac.cpp" />
+    <ClCompile Include="..\..\src\kernel\srs_kernel_avc.cpp" />
+    <ClCompile Include="..\..\src\kernel\srs_kernel_buffer.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_codec.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_consts.cpp" />
     <ClCompile Include="..\..\src\kernel\srs_kernel_error.cpp" />
