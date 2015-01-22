@@ -31,9 +31,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
-class SrsStream;
 class SrsFileWriter;
 class SrsFileReader;
+class SrsAvcAacCodec;
+class SrsCodecSample;
 
 /**
 * encode data to ts file.
@@ -43,7 +44,8 @@ class SrsTsEncoder
 private:
     SrsFileWriter* _fs;
 private:
-    SrsStream* tag_stream;
+    SrsAvcAacCodec* codec;
+    SrsCodecSample* sample;
 public:
     SrsTsEncoder();
     virtual ~SrsTsEncoder();
