@@ -1458,13 +1458,13 @@ int SrsHls::on_audio(SrsSharedPtrMessage* __audio)
         return ret;
     }
     
-    // the pts calc from rtmp/flv header.
-    int64_t pts = audio->timestamp * 90;
+    // the dts calc from rtmp/flv header.
+    int64_t dts = audio->timestamp * 90;
     
     // for pure audio, we need to update the stream dts also.
-    stream_dts = pts;
+    stream_dts = dts;
     
-    if ((ret = hls_cache->write_audio(codec, muxer, pts, sample)) != ERROR_SUCCESS) {
+    if ((ret = hls_cache->write_audio(codec, muxer, dts, sample)) != ERROR_SUCCESS) {
         srs_error("hls cache write audio failed. ret=%d", ret);
         return ret;
     }
