@@ -521,6 +521,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-01-23, hotfix [#151](https://github.com/winlinvip/simple-rtmp-server/issues/151), use absolutely overflow to make jwplayer happy. 2.0.103
 * v2.0, 2015-01-22, for [#293](https://github.com/winlinvip/simple-rtmp-server/issues/293), support http live ts stream. 2.0.101.
 * v2.0, 2015-01-19, for [#293](https://github.com/winlinvip/simple-rtmp-server/issues/293), support http live flv/aac/mp3 stream with fast cache. 2.0.100.
 * v2.0, 2015-01-18, for [#293](https://github.com/winlinvip/simple-rtmp-server/issues/293), support rtmp remux to http flv live stream. 2.0.99.
@@ -583,6 +584,7 @@ Supported operating systems and hardware:
 
 ### SRS 1.0 history
 
+* v1.0, 2015-01-23, hotfix [#151](https://github.com/winlinvip/simple-rtmp-server/issues/151), use absolutely overflow to make jwplayer happy. 1.0.23
 * v1.0, 2015-01-17, hotfix [#290](https://github.com/winlinvip/simple-rtmp-server/issues/290), use iformat only for rtmp input. 1.0.22
 * <strong>v1.0, 2015-01-15, [1.0r1 release(1.0.21)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0r1) released. 59472 lines.</strong>
 * v1.0, 2015-01-08, hotfix [#281](https://github.com/winlinvip/simple-rtmp-server/issues/281), fix hls bug ignore type-9 send aud. 1.0.20

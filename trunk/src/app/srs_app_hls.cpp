@@ -189,8 +189,13 @@ int SrsHlsMuxer::on_sequence_header()
 bool SrsHlsMuxer::is_segment_overflow()
 {
     srs_assert(current);
-    
     return current->duration >= hls_fragment;
+}
+
+bool SrsHlsMuxer::is_segment_absolutely_overflow()
+{
+    srs_assert(current);
+    return current->duration >= 2 * hls_fragment;
 }
 
 int SrsHlsMuxer::flush_audio(SrsMpegtsFrame* af, SrsSimpleBuffer* ab)
@@ -597,7 +602,9 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     // pure audio again for audio disabled.
     // so we reap event when the audio incoming when segment overflow.
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/151
-    if (muxer->is_segment_overflow()) {
+    // we use absolutely overflow of segment to make jwplayer/ffplay happy
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-71155184
+    if (muxer->is_segment_absolutely_overflow()) {
         if ((ret = reap_segment("audio", muxer, cache->af->pts)) != ERROR_SUCCESS) {
             return ret;
         }
