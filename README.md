@@ -1107,12 +1107,13 @@ SRS always use the most simple architecture to support complex transaction.
 +----------------------+-------------------------+----------------+
 |     Input            | SRS(Simple RTMP Server) |     Output     |
 +----------------------+-------------------------+----------------+
-|    Encoder(1)        |   +-> RTMP protocol ----+-> Flash Player |
-|  (FMLE,FFMPEG, -rtmp-+->-+-> HLS/NGINX --------+-> m3u8 player  |
-|  Flash,XSPLIT,       |   +-> Fowarder ---------+-> RTMP Server  |
-|  ......)             |   +-> Transcoder -------+-> RTMP Server  |
-|                      |   +-> DVR --------------+-> FILE         |
-|                      |   +-> BandwidthTest ----+-> Flash/StLoad |
+|    Encoder(1)        |   +-> RTMP protocol ----+-> RTMP player  |
+|  (FMLE,FFMPEG, -rtmp-+->-+-> HLS/HTTP ---------+-> M3u8 player  |
+|  Flash,XSPLIT,       |   +-> FLV/MP3/Aac/Ts ---+-> HTTP player  |
+|  ......)             |   +-> Fowarder ---------+-> RTMP server  |
+|                      |   +-> Transcoder -------+-> RTMP server  |
+|                      |   +-> DVR --------------+-> Flv file     |
+|                      |   +-> BandwidthTest ----+-> flash        |
 +----------------------+                         |                |
 |  MediaSource(2)      |                         |                |
 |  (RTSP,FILE,         |                         |                |
