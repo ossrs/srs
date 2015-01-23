@@ -1116,7 +1116,13 @@ SRS always use the most simple architecture to support complex transaction.
 +----------------------+                         |                |
 |  MediaSource(2)      |                         |                |
 |  (RTSP,FILE,         |                         |                |
-|   HTTP,HLS,    ------+->-- Ingester ----(rtmp)-+-> SRS          |
+|   HTTP,HLS,   --pull-+->-- Ingester ----(rtmp)-+-> SRS          |
+|   Device,            |                         |                |
+|   ......)            |                         |                |
++----------------------+                         |                |
+|  MediaSource(2)      |                         |                |
+|  (RTSP,FILE,         |                         |                |
+|   HTTP,HLS,   --push-+->-- Streamer ----(rtmp)-+-> SRS          |
 |   Device,            |                         |                |
 |   ......)            |                         |                |
 +----------------------+-------------------------+----------------+
@@ -1125,7 +1131,9 @@ Remark:
 (1) Encoder: encoder must push RTMP stream to SRS server.
 (2) MediaSource: any media source, which can be ingest by ffmpeg.
 (3) Ingester: SRS will fork a process to run ffmpeg(or your application) 
-to ingest any input to rtmp, push to SRS.
+to ingest any input to rtmp, push to SRS. Read <a href="https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Ingest">Ingest</a>.
+(4) Streamer: SRS will listen for some protocol and accept stream push 
+over some protocol and remux to rtmp to SRS. Read <a href="https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_Streamer">Streamer</a>.
 </pre>
 
 ### [HDS/HLS origin backup](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_RTMP-ATC)
