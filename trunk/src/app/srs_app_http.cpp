@@ -306,51 +306,9 @@ int SrsGoHttpFileServer::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
     // handle file according to its extension.
     // use vod stream for .flv/.fhv
     if (srs_string_ends_with(fullpath, ".flv") || srs_string_ends_with(fullpath, ".fhv")) {
-        std::string start = r->query_get("start");
-        if (start.empty()) {
-            return serve_file(w, r, fullpath);
-        }
-
-        int offset = ::atoi(start.c_str());
-        if (offset <= 0) {
-            return serve_file(w, r, fullpath);
-        }
-        
-        return serve_flv_stream(w, r, fullpath, offset);
+        return serve_flv_file(w, r, fullpath);
     } else if (srs_string_ends_with(fullpath, ".mp4")) {
-        // for flash to request mp4 range in query string.
-        // for example, http://digitalprimates.net/dash/DashTest.html?url=http://dashdemo.edgesuite.net/digitalprimates/nexus/oops-20120802-manifest.mpd
-        std::string range = r->query_get("range");
-        // or, use bytes to request range,
-        // for example, http://dashas.castlabs.com/demo/try.html
-        if (range.empty()) {
-            range = r->query_get("bytes");
-        }
-
-        // rollback to serve whole file.
-        size_t pos = string::npos;
-        if (range.empty() || (pos = range.find("-")) == string::npos) {
-            return serve_file(w, r, fullpath);
-        }
-
-        // parse the start in query string
-        int start = 0;
-        if (pos > 0) {
-            start = ::atoi(range.substr(0, pos).c_str());
-        }
-
-        // parse end in query string.
-        int end = -1;
-        if (pos < range.length() - 1) {
-            end = ::atoi(range.substr(pos + 1).c_str());
-        }
-
-        // invalid param, serve as whole mp4 file.
-        if (start < 0 || (end != -1 && start > end)) {
-            return serve_file(w, r, fullpath);
-        }
-        
-        return serve_mp4_range(w, r, fullpath, start, end);
+        return serve_mp4_file(w, r, fullpath);
     }
 
     // serve common static file.
@@ -427,12 +385,64 @@ int SrsGoHttpFileServer::serve_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
     return w->final_request();
 }
 
+int SrsGoHttpFileServer::serve_flv_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, string fullpath)
+{
+    std::string start = r->query_get("start");
+    if (start.empty()) {
+        return serve_file(w, r, fullpath);
+    }
+
+    int offset = ::atoi(start.c_str());
+    if (offset <= 0) {
+        return serve_file(w, r, fullpath);
+    }
+        
+    return serve_flv_stream(w, r, fullpath, offset);
+}
+
+int SrsGoHttpFileServer::serve_mp4_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, string fullpath)
+{
+    // for flash to request mp4 range in query string.
+    // for example, http://digitalprimates.net/dash/DashTest.html?url=http://dashdemo.edgesuite.net/digitalprimates/nexus/oops-20120802-manifest.mpd
+    std::string range = r->query_get("range");
+    // or, use bytes to request range,
+    // for example, http://dashas.castlabs.com/demo/try.html
+    if (range.empty()) {
+        range = r->query_get("bytes");
+    }
+
+    // rollback to serve whole file.
+    size_t pos = string::npos;
+    if (range.empty() || (pos = range.find("-")) == string::npos) {
+        return serve_file(w, r, fullpath);
+    }
+
+    // parse the start in query string
+    int start = 0;
+    if (pos > 0) {
+        start = ::atoi(range.substr(0, pos).c_str());
+    }
+
+    // parse end in query string.
+    int end = -1;
+    if (pos < range.length() - 1) {
+        end = ::atoi(range.substr(pos + 1).c_str());
+    }
+
+    // invalid param, serve as whole mp4 file.
+    if (start < 0 || (end != -1 && start > end)) {
+        return serve_file(w, r, fullpath);
+    }
+        
+    return serve_mp4_stream(w, r, fullpath, start, end);
+}
+
 int SrsGoHttpFileServer::serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, string fullpath, int offset)
 {
     return serve_file(w, r, fullpath);
 }
 
-int SrsGoHttpFileServer::serve_mp4_range(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, string fullpath, int start, int end)
+int SrsGoHttpFileServer::serve_mp4_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, string fullpath, int start, int end)
 {
     return serve_file(w, r, fullpath);
 }

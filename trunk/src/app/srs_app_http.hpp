@@ -149,6 +149,7 @@ public:
     // will trigger an implicit WriteHeader(http.StatusOK).
     // Thus explicit calls to WriteHeader are mainly used to
     // send error codes.
+    // @remark, user must set header then write or write_header.
     virtual void write_header(int code) = 0;
 };
 
@@ -211,11 +212,14 @@ public:
     virtual ~SrsGoHttpFileServer();
 public:
     virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
-protected:
+private:
     /**
     * serve the file by specified path
     */
     virtual int serve_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath);
+    virtual int serve_flv_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath);
+    virtual int serve_mp4_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath);
+protected:
     /**
     * when access flv file with x.flv?start=xxx
     */
@@ -226,7 +230,7 @@ protected:
     * @param end the end offset in bytes. -1 to end of file.
     * @remark response data in [start, end].
     */
-    virtual int serve_mp4_range(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath, int start, int end);
+    virtual int serve_mp4_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath, int start, int end);
 protected:
     /**
     * copy the fs to response writer in size bytes.

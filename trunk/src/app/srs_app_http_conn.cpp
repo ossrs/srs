@@ -141,7 +141,7 @@ int SrsVodStream::serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* 
     return ret;
 }
 
-int SrsVodStream::serve_mp4_range(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, string fullpath, int start, int end)
+int SrsVodStream::serve_mp4_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, string fullpath, int start, int end)
 {
     int ret = ERROR_SUCCESS;
 

@@ -66,7 +66,7 @@ public:
     virtual ~SrsVodStream();
 protected:
     virtual int serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath, int offset);
-    virtual int serve_mp4_range(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath, int start, int end);
+    virtual int serve_mp4_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath, int start, int end);
 };
 
 /**
