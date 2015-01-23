@@ -141,6 +141,59 @@ int SrsVodStream::serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* 
     return ret;
 }
 
+int SrsVodStream::serve_mp4_range(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, string fullpath, int start, int end)
+{
+    int ret = ERROR_SUCCESS;
+
+    srs_assert(start >= 0);
+    srs_assert(end == -1 || end >= 0);
+    
+    SrsFileReader fs;
+    
+    // open flv file
+    if ((ret = fs.open(fullpath)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    // parse -1 to whole file.
+    if (end == -1) {
+        end = fs.filesize();
+    }
+    
+    if (end > fs.filesize() || start > end) {
+        ret = ERROR_HTTP_REMUX_OFFSET_OVERFLOW;
+        srs_warn("http mp4 streaming %s overflow. size=%"PRId64", offset=%d, ret=%d", 
+            fullpath.c_str(), fs.filesize(), start, ret);
+        return ret;
+    }
+
+    // seek to data offset, [start, end] for range.
+    int64_t left = end - start + 1;
+
+    // write http header for ts.
+    w->header()->set_content_length(left);
+    w->header()->set_content_type("video/mp4");
+
+    // status code 206 to make dash.as happy.
+    w->write_header(SRS_CONSTS_HTTP_PartialContent);
+
+    // response the content range header.
+    std::stringstream content_range;
+    content_range << "bytes " << start << "-" << end << "/" << fs.filesize();
+    w->header()->set("Content-Range", content_range.str());
+    
+    // write body.
+    fs.lseek(start);
+    
+    // send data
+    if ((ret = copy(w, &fs, r, left)) != ERROR_SUCCESS) {
+        srs_warn("read mp4=%s size=%d failed, ret=%d", fullpath.c_str(), left, ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
 SrsStreamCache::SrsStreamCache(SrsSource* s, SrsRequest* r)
 {
     req = r->copy();

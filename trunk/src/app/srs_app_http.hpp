@@ -213,13 +213,20 @@ public:
     virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
 protected:
     /**
-    * serve the file by specified path.
+    * serve the file by specified path
     */
     virtual int serve_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath);
     /**
-    * when access flv file with start=xxx.
+    * when access flv file with x.flv?start=xxx
     */
     virtual int serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath, int offset);
+    /**
+    * when access mp4 file with x.mp4?range=start-end
+    * @param start the start offset in bytes.
+    * @param end the end offset in bytes. -1 to end of file.
+    * @remark response data in [start, end].
+    */
+    virtual int serve_mp4_range(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath, int start, int end);
 protected:
     /**
     * copy the fs to response writer in size bytes.
