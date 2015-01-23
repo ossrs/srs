@@ -479,7 +479,7 @@ Supported operating systems and hardware:
 1. Support custom dvr path and http callback, read 
 [#179](https://github.com/winlinvip/simple-rtmp-server/issues/179) and
 [274](https://github.com/winlinvip/simple-rtmp-server/issues/274).
-1. Support rtmp remux to http flv/mp3/aac live stream, read 
+1. Support rtmp remux to http flv/mp3/aac/ts live stream, read 
 [#293](https://github.com/winlinvip/simple-rtmp-server/issues/293)(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_DeliveryHttpStream),
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_DeliveryHttpStream)
