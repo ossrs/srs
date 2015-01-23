@@ -25,7 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_RTMP_PROTOCOL_HANDSHKAE_HPP
 
 /*
-#include <srs_protocol_handshake.hpp>
+#include <srs_rtmp_handshake.hpp>
 */
 
 #include <srs_core.hpp>

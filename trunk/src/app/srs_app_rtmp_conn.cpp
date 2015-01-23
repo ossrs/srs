@@ -32,7 +32,7 @@ using namespace std;
 
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
-#include <srs_protocol_rtmp.hpp>
+#include <srs_rtmp_sdk.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_app_source.hpp>
 #include <srs_app_server.hpp>
@@ -46,8 +46,8 @@ using namespace std;
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_edge.hpp>
 #include <srs_app_utility.hpp>
-#include <srs_protocol_msg_array.hpp>
-#include <srs_protocol_amf0.hpp>
+#include <srs_rtmp_msg_array.hpp>
+#include <srs_rtmp_amf0.hpp>
 #include <srs_app_recv_thread.hpp>
 #include <srs_core_performance.hpp>
 #include <srs_kernel_utility.hpp>

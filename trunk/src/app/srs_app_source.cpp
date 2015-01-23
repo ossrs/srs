@@ -28,20 +28,20 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 using namespace std;
 
 #include <srs_kernel_log.hpp>
-#include <srs_protocol_stack.hpp>
-#include <srs_protocol_amf0.hpp>
+#include <srs_rtmp_stack.hpp>
+#include <srs_rtmp_amf0.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_app_hls.hpp>
 #include <srs_app_forward.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_encoder.hpp>
-#include <srs_protocol_rtmp.hpp>
+#include <srs_rtmp_sdk.hpp>
 #include <srs_app_dvr.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_app_edge.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_avc.hpp>
-#include <srs_protocol_msg_array.hpp>
+#include <srs_rtmp_msg_array.hpp>
 
 #define CONST_MAX_JITTER_MS         500
 #define DEFAULT_FRAME_TIME_MS         40

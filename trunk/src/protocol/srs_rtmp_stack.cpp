@@ -21,15 +21,15 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <srs_protocol_stack.hpp>
+#include <srs_rtmp_stack.hpp>
 
-#include <srs_protocol_amf0.hpp>
-#include <srs_protocol_io.hpp>
+#include <srs_rtmp_amf0.hpp>
+#include <srs_rtmp_io.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_protocol_buffer.hpp>
-#include <srs_protocol_utility.hpp>
+#include <srs_rtmp_buffer.hpp>
+#include <srs_rtmp_utility.hpp>
 
 // for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
 #ifndef _WIN32

@@ -36,7 +36,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_app_statistic.hpp>
-#include <srs_protocol_rtmp.hpp>
+#include <srs_rtmp_sdk.hpp>
 
 SrsGoApiRoot::SrsGoApiRoot()
 {

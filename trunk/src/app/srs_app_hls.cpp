@@ -39,17 +39,17 @@ using namespace std;
 
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_codec.hpp>
-#include <srs_protocol_amf0.hpp>
-#include <srs_protocol_stack.hpp>
+#include <srs_rtmp_amf0.hpp>
+#include <srs_rtmp_stack.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_source.hpp>
 #include <srs_core_autofree.hpp>
-#include <srs_protocol_rtmp.hpp>
+#include <srs_rtmp_sdk.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_avc.hpp>
 #include <srs_kernel_file.hpp>
-#include <srs_protocol_buffer.hpp>
+#include <srs_rtmp_buffer.hpp>
 
 // drop the segment when duration of ts too small.
 #define SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS 100

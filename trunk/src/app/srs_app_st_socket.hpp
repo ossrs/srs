@@ -31,7 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <srs_app_st.hpp>
-#include <srs_protocol_io.hpp>
+#include <srs_rtmp_io.hpp>
 
 /**
 * the socket provides TCP socket over st,

@@ -25,7 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_RTMP_PROTOCOL_IO_HPP
 
 /*
-#include <srs_protocol_io.hpp>
+#include <srs_rtmp_io.hpp>
 */
 
 #include <srs_core.hpp>

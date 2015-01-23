@@ -26,13 +26,13 @@ using namespace std;
 
 #include <srs_kernel_error.hpp>
 #include <srs_core_autofree.hpp>
-#include <srs_protocol_utility.hpp>
-#include <srs_protocol_msg_array.hpp>
-#include <srs_protocol_stack.hpp>
+#include <srs_rtmp_utility.hpp>
+#include <srs_rtmp_msg_array.hpp>
+#include <srs_rtmp_stack.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_st.hpp>
-#include <srs_protocol_amf0.hpp>
-#include <srs_protocol_rtmp.hpp>
+#include <srs_rtmp_amf0.hpp>
+#include <srs_rtmp_sdk.hpp>
 
 MockEmptyIO::MockEmptyIO()
 {

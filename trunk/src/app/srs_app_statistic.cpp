@@ -27,7 +27,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sstream>
 using namespace std;
 
-#include <srs_protocol_rtmp.hpp>
+#include <srs_rtmp_sdk.hpp>
 #include <srs_app_json.hpp>
 
 int64_t __srs_gvid = getpid();

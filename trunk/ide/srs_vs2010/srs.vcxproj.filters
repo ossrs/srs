@@ -172,30 +172,6 @@
     <ClCompile Include="..\..\research\hls\ts_info.cc">
       <Filter>research</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\rtmp\srs_protocol_amf0.cpp">
-      <Filter>srs</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\rtmp\srs_protocol_buffer.cpp">
-      <Filter>srs</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\rtmp\srs_protocol_handshake.cpp">
-      <Filter>srs</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\rtmp\srs_protocol_io.cpp">
-      <Filter>srs</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\rtmp\srs_protocol_msg_array.cpp">
-      <Filter>srs</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\rtmp\srs_protocol_rtmp.cpp">
-      <Filter>srs</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\rtmp\srs_protocol_stack.cpp">
-      <Filter>srs</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\rtmp\srs_protocol_utility.cpp">
-      <Filter>srs</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\research\librtmp\srs_audio_raw_publish.c">
       <Filter>research</Filter>
     </ClCompile>
@@ -221,6 +197,30 @@
       <Filter>srs</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\kernel\srs_kernel_buffer.cpp">
+      <Filter>srs</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\protocol\srs_rtmp_amf0.cpp">
+      <Filter>srs</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\protocol\srs_rtmp_buffer.cpp">
+      <Filter>srs</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\protocol\srs_rtmp_handshake.cpp">
+      <Filter>srs</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\protocol\srs_rtmp_io.cpp">
+      <Filter>srs</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\protocol\srs_rtmp_msg_array.cpp">
+      <Filter>srs</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\protocol\srs_rtmp_sdk.cpp">
+      <Filter>srs</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\protocol\srs_rtmp_stack.cpp">
+      <Filter>srs</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\protocol\srs_rtmp_utility.cpp">
       <Filter>srs</Filter>
     </ClCompile>
   </ItemGroup>
@@ -366,30 +366,6 @@
     <ClInclude Include="..\..\src\kernel\srs_kernel_utility.hpp">
       <Filter>srs</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\rtmp\srs_protocol_utility.hpp">
-      <Filter>srs</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\rtmp\srs_protocol_amf0.hpp">
-      <Filter>srs</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\rtmp\srs_protocol_buffer.hpp">
-      <Filter>srs</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\rtmp\srs_protocol_handshake.hpp">
-      <Filter>srs</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\rtmp\srs_protocol_io.hpp">
-      <Filter>srs</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\rtmp\srs_protocol_msg_array.hpp">
-      <Filter>srs</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\rtmp\srs_protocol_rtmp.hpp">
-      <Filter>srs</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\rtmp\srs_protocol_stack.hpp">
-      <Filter>srs</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\src\libs\srs_librtmp.hpp">
       <Filter>librtmp</Filter>
     </ClInclude>
@@ -406,6 +382,30 @@
       <Filter>srs</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\kernel\srs_kernel_buffer.hpp">
+      <Filter>srs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\protocol\srs_rtmp_amf0.hpp">
+      <Filter>srs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\protocol\srs_rtmp_buffer.hpp">
+      <Filter>srs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\protocol\srs_rtmp_handshake.hpp">
+      <Filter>srs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\protocol\srs_rtmp_io.hpp">
+      <Filter>srs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\protocol\srs_rtmp_msg_array.hpp">
+      <Filter>srs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\protocol\srs_rtmp_sdk.hpp">
+      <Filter>srs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\protocol\srs_rtmp_stack.hpp">
+      <Filter>srs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\protocol\srs_rtmp_utility.hpp">
       <Filter>srs</Filter>
     </ClInclude>
   </ItemGroup>

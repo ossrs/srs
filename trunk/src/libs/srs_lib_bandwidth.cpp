@@ -32,11 +32,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 using namespace std;
 
 #include <srs_kernel_error.hpp>
-#include <srs_protocol_stack.hpp>
-#include <srs_protocol_rtmp.hpp>
+#include <srs_rtmp_stack.hpp>
+#include <srs_rtmp_sdk.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_protocol_amf0.hpp>
+#include <srs_rtmp_amf0.hpp>
 
 /**
 * recv bandwidth helper.

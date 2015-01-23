@@ -31,18 +31,18 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 using namespace std;
 
 #include <srs_kernel_error.hpp>
-#include <srs_protocol_rtmp.hpp>
-#include <srs_protocol_io.hpp>
+#include <srs_rtmp_sdk.hpp>
+#include <srs_rtmp_io.hpp>
 #include <srs_app_config.hpp>
-#include <srs_protocol_utility.hpp>
+#include <srs_rtmp_utility.hpp>
 #include <srs_app_st_socket.hpp>
 #include <srs_app_source.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_app_kbps.hpp>
-#include <srs_protocol_msg_array.hpp>
+#include <srs_rtmp_msg_array.hpp>
 #include <srs_app_utility.hpp>
-#include <srs_protocol_amf0.hpp>
+#include <srs_rtmp_amf0.hpp>
 
 // when error, edge ingester sleep for a while and retry.
 #define SRS_EDGE_INGESTER_SLEEP_US (int64_t)(1*1000*1000LL)

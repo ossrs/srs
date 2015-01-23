@@ -115,14 +115,14 @@
     <ClInclude Include="..\..\src\libs\srs_librtmp.hpp" />
     <ClInclude Include="..\..\src\libs\srs_lib_bandwidth.hpp" />
     <ClInclude Include="..\..\src\libs\srs_lib_simple_socket.hpp" />
-    <ClInclude Include="..\..\src\rtmp\srs_protocol_amf0.hpp" />
-    <ClInclude Include="..\..\src\rtmp\srs_protocol_buffer.hpp" />
-    <ClInclude Include="..\..\src\rtmp\srs_protocol_handshake.hpp" />
-    <ClInclude Include="..\..\src\rtmp\srs_protocol_io.hpp" />
-    <ClInclude Include="..\..\src\rtmp\srs_protocol_msg_array.hpp" />
-    <ClInclude Include="..\..\src\rtmp\srs_protocol_rtmp.hpp" />
-    <ClInclude Include="..\..\src\rtmp\srs_protocol_stack.hpp" />
-    <ClInclude Include="..\..\src\rtmp\srs_protocol_utility.hpp" />
+    <ClInclude Include="..\..\src\protocol\srs_rtmp_amf0.hpp" />
+    <ClInclude Include="..\..\src\protocol\srs_rtmp_buffer.hpp" />
+    <ClInclude Include="..\..\src\protocol\srs_rtmp_handshake.hpp" />
+    <ClInclude Include="..\..\src\protocol\srs_rtmp_io.hpp" />
+    <ClInclude Include="..\..\src\protocol\srs_rtmp_msg_array.hpp" />
+    <ClInclude Include="..\..\src\protocol\srs_rtmp_sdk.hpp" />
+    <ClInclude Include="..\..\src\protocol\srs_rtmp_stack.hpp" />
+    <ClInclude Include="..\..\src\protocol\srs_rtmp_utility.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\research\hls\ts_info.cc" />
@@ -191,14 +191,14 @@
     <ClCompile Include="..\..\src\libs\srs_lib_bandwidth.cpp" />
     <ClCompile Include="..\..\src\libs\srs_lib_simple_socket.cpp" />
     <ClCompile Include="..\..\src\main\srs_main_server.cpp" />
-    <ClCompile Include="..\..\src\rtmp\srs_protocol_amf0.cpp" />
-    <ClCompile Include="..\..\src\rtmp\srs_protocol_buffer.cpp" />
-    <ClCompile Include="..\..\src\rtmp\srs_protocol_handshake.cpp" />
-    <ClCompile Include="..\..\src\rtmp\srs_protocol_io.cpp" />
-    <ClCompile Include="..\..\src\rtmp\srs_protocol_msg_array.cpp" />
-    <ClCompile Include="..\..\src\rtmp\srs_protocol_rtmp.cpp" />
-    <ClCompile Include="..\..\src\rtmp\srs_protocol_stack.cpp" />
-    <ClCompile Include="..\..\src\rtmp\srs_protocol_utility.cpp" />
+    <ClCompile Include="..\..\src\protocol\srs_rtmp_amf0.cpp" />
+    <ClCompile Include="..\..\src\protocol\srs_rtmp_buffer.cpp" />
+    <ClCompile Include="..\..\src\protocol\srs_rtmp_handshake.cpp" />
+    <ClCompile Include="..\..\src\protocol\srs_rtmp_io.cpp" />
+    <ClCompile Include="..\..\src\protocol\srs_rtmp_msg_array.cpp" />
+    <ClCompile Include="..\..\src\protocol\srs_rtmp_sdk.cpp" />
+    <ClCompile Include="..\..\src\protocol\srs_rtmp_stack.cpp" />
+    <ClCompile Include="..\..\src\protocol\srs_rtmp_utility.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

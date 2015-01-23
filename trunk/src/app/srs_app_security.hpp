@@ -32,7 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
-#include <srs_protocol_rtmp.hpp>
+#include <srs_rtmp_sdk.hpp>
 
 class SrsConfDirective;
 

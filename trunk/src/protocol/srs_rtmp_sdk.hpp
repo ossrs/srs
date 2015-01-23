@@ -25,14 +25,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_RTMP_PROTOCOL_RTMP_HPP
 
 /*
-#include <srs_protocol_rtmp.hpp>
+#include <srs_rtmp_sdk.hpp>
 */
 
 #include <srs_core.hpp>
 
 #include <string>
 
-#include <srs_protocol_stack.hpp>
+#include <srs_rtmp_stack.hpp>
 #include <srs_core_performance.hpp>
 
 class SrsProtocol;

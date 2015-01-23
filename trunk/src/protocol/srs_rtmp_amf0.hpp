@@ -25,7 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_RTMP_PROTOCOL_AMF0_HPP
 
 /*
-#include <srs_protocol_amf0.hpp>
+#include <srs_rtmp_amf0.hpp>
 */
 
 #include <srs_core.hpp>

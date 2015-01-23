@@ -21,45 +21,53 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <srs_protocol_msg_array.hpp>
+#include <srs_rtmp_io.hpp>
 
-#include <srs_protocol_stack.hpp>
-
-SrsMessageArray::SrsMessageArray(int max_msgs)
+ISrsBufferReader::ISrsBufferReader()
 {
-    srs_assert(max_msgs > 0);
-    
-    msgs = new SrsSharedPtrMessage*[max_msgs];
-    max = max_msgs;
-    
-    zero(max_msgs);
 }
 
-SrsMessageArray::~SrsMessageArray()
+ISrsBufferReader::~ISrsBufferReader()
 {
-    // we just free the msgs itself,
-    // both delete and delete[] is ok,
-    // for each msg in msgs is already freed by send_and_free_messages.
-    srs_freep(msgs);
 }
 
-void SrsMessageArray::free(int count)
+ISrsBufferWriter::ISrsBufferWriter()
 {
-    // initialize
-    for (int i = 0; i < count; i++) {
-        SrsSharedPtrMessage* msg = msgs[i];
-        srs_freep(msg);
-        
-        msgs[i] = NULL;
-    }
 }
 
-void SrsMessageArray::zero(int count)
+ISrsBufferWriter::~ISrsBufferWriter()
 {
-    // initialize
-    for (int i = 0; i < count; i++) {
-        msgs[i] = NULL;
-    }
 }
 
+ISrsProtocolStatistic::ISrsProtocolStatistic()
+{
+}
+
+ISrsProtocolStatistic::~ISrsProtocolStatistic()
+{
+}
+
+ISrsProtocolReader::ISrsProtocolReader()
+{
+}
+
+ISrsProtocolReader::~ISrsProtocolReader()
+{
+}
+
+ISrsProtocolWriter::ISrsProtocolWriter()
+{
+}
+
+ISrsProtocolWriter::~ISrsProtocolWriter()
+{
+}
+
+ISrsProtocolReaderWriter::ISrsProtocolReaderWriter()
+{
+}
+
+ISrsProtocolReaderWriter::~ISrsProtocolReaderWriter()
+{
+}
 

@@ -30,17 +30,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_utest.hpp>
 
 #include <string>
-#include <srs_protocol_utility.hpp>
+#include <srs_rtmp_utility.hpp>
 
-#include <srs_protocol_rtmp.hpp>
-#include <srs_protocol_handshake.hpp>
-#include <srs_protocol_buffer.hpp>
+#include <srs_rtmp_sdk.hpp>
+#include <srs_rtmp_handshake.hpp>
+#include <srs_rtmp_buffer.hpp>
 
 #ifdef SRS_AUTO_SSL
 using namespace _srs_internal;
 #endif
 
-#include <srs_protocol_io.hpp>
+#include <srs_rtmp_io.hpp>
 
 class MockEmptyIO : public ISrsProtocolReaderWriter
 {

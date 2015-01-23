@@ -21,13 +21,13 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <srs_protocol_rtmp.hpp>
+#include <srs_rtmp_sdk.hpp>
 
 #include <srs_core_autofree.hpp>
-#include <srs_protocol_io.hpp>
-#include <srs_protocol_amf0.hpp>
-#include <srs_protocol_handshake.hpp>
-#include <srs_protocol_utility.hpp>
+#include <srs_rtmp_io.hpp>
+#include <srs_rtmp_amf0.hpp>
+#include <srs_rtmp_handshake.hpp>
+#include <srs_rtmp_utility.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_utility.hpp>
 

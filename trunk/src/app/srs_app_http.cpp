@@ -36,7 +36,7 @@ using namespace std;
 #include <srs_app_http_conn.hpp>
 #include <srs_app_json.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_protocol_buffer.hpp>
+#include <srs_rtmp_buffer.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_core_autofree.hpp>
 

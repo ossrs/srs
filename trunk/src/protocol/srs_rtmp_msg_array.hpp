@@ -25,7 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_RTMP_PROTOCOL_MSG_ARRAY_HPP
 
 /*
-#include <srs_protocol_msg_array.hpp>
+#include <srs_rtmp_msg_array.hpp>
 */
 
 #include <srs_core.hpp>
