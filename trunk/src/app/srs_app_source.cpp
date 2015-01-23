@@ -525,6 +525,11 @@ int SrsConsumer::dump_packets(SrsMessageArray* msgs, int& count)
 #ifdef SRS_PERF_QUEUE_COND_WAIT
 void SrsConsumer::wait(int nb_msgs, int duration)
 {
+    if (paused) {
+        st_usleep(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
+        return;
+    }
+
     mw_min_msgs = nb_msgs;
     mw_duration = duration;
 
