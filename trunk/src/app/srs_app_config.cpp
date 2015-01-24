@@ -140,6 +140,11 @@ bool SrsConfDirective::is_vhost()
     return name == "vhost";
 }
 
+bool SrsConfDirective::is_stream_caster()
+{
+    return name == "stream_caster";
+}
+
 int SrsConfDirective::parse(SrsConfigBuffer* buffer)
 {
     return parse_conf(buffer, parse_file);
@@ -518,6 +523,8 @@ int SrsConfig::reload_conf(SrsConfig* conf)
     if ((ret = reload_http_stream(old_root)) != ERROR_SUCCESS) {
         return ret;
     }
+
+    // TODO: FIXME: support reload stream_caster.
 
     // merge config: vhost
     if ((ret = reload_vhost(old_root)) != ERROR_SUCCESS) {
@@ -1295,6 +1302,7 @@ int SrsConfig::check_config()
     srs_trace("srs checking config...");
     
     vector<SrsConfDirective*> vhosts = get_vhosts();
+    vector<SrsConfDirective*> stream_casters = get_stream_casters();
 
     ////////////////////////////////////////////////////////////////////////
     // check empty
@@ -1315,7 +1323,7 @@ int SrsConfig::check_config()
             && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_file"
             && n != "max_connections" && n != "daemon" && n != "heartbeat"
             && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print"
-            && n != "http_stream" && n != "http_server") 
+            && n != "http_stream" && n != "http_server" && n != "stream_caster") 
         {
             ret = ERROR_SYSTEM_CONFIG_INVALID;
             srs_error("unsupported directive %s, ret=%d", n.c_str(), ret);
@@ -1377,6 +1385,20 @@ int SrsConfig::check_config()
             ) {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported pithy_print directive %s, ret=%d", n.c_str(), ret);
+                return ret;
+            }
+        }
+    }
+    for (int n = 0; n < (int)stream_casters.size(); n++) {
+        SrsConfDirective* stream_caster = stream_casters[n];
+        for (int i = 0; stream_caster && i < (int)stream_caster->directives.size(); i++) {
+            SrsConfDirective* conf = stream_caster->at(i);
+            string n = conf->name;
+            if (n != "enabled" && n != "caster" && n != "output"
+                && n != "listen"
+            ) {
+                ret = ERROR_SYSTEM_CONFIG_INVALID;
+                srs_error("unsupported stream_caster directive %s, ret=%d", n.c_str(), ret);
                 return ret;
             }
         }
@@ -1967,6 +1989,77 @@ int SrsConfig::get_pithy_print_edge()
     }
     
     return ::atoi(pithy->arg0().c_str());
+}
+
+vector<SrsConfDirective*> SrsConfig::get_stream_casters()
+{
+    srs_assert(root);
+    
+    std::vector<SrsConfDirective*> stream_casters;
+    
+    for (int i = 0; i < (int)root->directives.size(); i++) {
+        SrsConfDirective* conf = root->at(i);
+        
+        if (!conf->is_stream_caster()) {
+            continue;
+        }
+        
+        stream_casters.push_back(conf);
+    }
+    
+    return stream_casters;
+}
+
+bool SrsConfig::get_stream_caster_enabled(SrsConfDirective* sc)
+{
+    srs_assert(sc);
+
+    SrsConfDirective* conf = sc->get("enabled");
+    if (!conf) {
+        return SRS_CONF_DEFAULT_STREAM_CASTER_ENABLED;
+    }
+
+    if (conf->arg0() != "on") {
+        return false;
+    }
+
+    return true;
+}
+
+string SrsConfig::get_stream_caster_engine(SrsConfDirective* sc)
+{
+    srs_assert(sc);
+
+    SrsConfDirective* conf = sc->get("caster");
+    if (!conf) {
+        return "";
+    }
+
+    return conf->arg0();
+}
+
+string SrsConfig::get_stream_caster_output(SrsConfDirective* sc)
+{
+    srs_assert(sc);
+
+    SrsConfDirective* conf = sc->get("output");
+    if (!conf) {
+        return "";
+    }
+
+    return conf->arg0();
+}
+
+int SrsConfig::get_stream_caster_listen(SrsConfDirective* sc)
+{
+    srs_assert(sc);
+
+    SrsConfDirective* conf = sc->get("listen");
+    if (!conf) {
+        return 0;
+    }
+
+    return ::atoi(conf->arg0().c_str());
 }
 
 SrsConfDirective* SrsConfig::get_vhost(string vhost)

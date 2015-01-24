@@ -80,6 +80,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define SRS_CONF_DEFAULT_SECURITY_ENABLED false
 
+#define SRS_CONF_DEFAULT_STREAM_CASTER_ENABLED false
+#define SRS_CONF_DEFAULT_STREAM_CASTER_MPEGTS_OVER_UDP "mpegts_over_udp"
+
 #define SRS_CONF_DEFAULT_STATS_NETWORK_DEVICE_INDEX 0
 
 #define SRS_CONF_DEFAULT_STAGE_PLAY_USER_INTERVAL_MS 10000
@@ -188,6 +191,10 @@ public:
     * whether current directive is vhost.
     */
     virtual bool is_vhost();
+    /**
+    * whether current directive is stream_caster.
+    */
+    virtual bool is_stream_caster();
 // parse utilities
 public:
     /**
@@ -446,6 +453,28 @@ public:
     * the edge will get stream from upnode.
     */
     virtual int                 get_pithy_print_edge();
+// stream_caster section
+public:
+    /**
+    * get all stream_caster in config file.
+    */
+    virtual std::vector<SrsConfDirective*>  get_stream_casters();
+    /**
+    * get whether the specified stream_caster is enabled.
+    */
+    virtual bool                get_stream_caster_enabled(SrsConfDirective* sc);
+    /**
+    * get the engine of stream_caster, the caster config.
+    */
+    virtual std::string         get_stream_caster_engine(SrsConfDirective* sc);
+    /**
+    * get the output rtmp url of stream_caster, the output config.
+    */
+    virtual std::string         get_stream_caster_output(SrsConfDirective* sc);
+    /**
+    * get the listen port of stream caster.
+    */
+    virtual int                 get_stream_caster_listen(SrsConfDirective* sc);
 // vhost specified section
 public:
     /**

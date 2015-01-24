@@ -204,7 +204,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_AAC_DATA_INVALID              3048
 
 ///////////////////////////////////////////////////////
-// HTTP protocol error.
+// HTTP/StreamCaster protocol error.
 ///////////////////////////////////////////////////////
 #define ERROR_HTTP_PATTERN_EMPTY            4000
 #define ERROR_HTTP_PATTERN_DUPLICATED       4001
@@ -216,6 +216,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_AAC_DECODE_ERROR              4007
 #define ERROR_KERNEL_MP3_STREAM_CLOSED      4008
 #define ERROR_MP3_DECODE_ERROR              4009
+#define ERROR_STREAM_CASTER_ENGINE          4010
+#define ERROR_STREAM_CASTER_PORT            4011
 
 /**
 * whether the error code is an system control error.

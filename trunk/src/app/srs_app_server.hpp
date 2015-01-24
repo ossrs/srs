@@ -50,18 +50,23 @@ class SrsKbps;
 enum SrsListenerType 
 {
     // RTMP client,
-    SrsListenerRtmpStream   = 0,
+    SrsListenerRtmpStream       = 0,
     // HTTP api,
-    SrsListenerHttpApi      = 1,
+    SrsListenerHttpApi          = 1,
     // HTTP stream, HDS/HLS/DASH
-    SrsListenerHttpStream   = 2
+    SrsListenerHttpStream       = 2,
+    // UDP stream, MPEG-TS over udp.
+    SrsListenerMpegTsOverUdp    = 3,
 };
 
+/**
+* the common tcp listener, for RTMP/HTTP server.
+*/
 class SrsListener : public ISrsThreadHandler
 {
 public:
     SrsListenerType _type;
-private:
+protected:
     int fd;
     st_netfd_t stfd;
     int _port;
@@ -75,7 +80,21 @@ public:
     virtual int listen(int port);
 // interface ISrsThreadHandler.
 public:
-    virtual void on_thread_start();
+    virtual int cycle();
+};
+
+/**
+* the udp listener, for udp server.
+*/
+class SrsUdpListener : public SrsListener
+{
+public:
+    SrsUdpListener(SrsServer* server, SrsListenerType type);
+    virtual ~SrsUdpListener();
+public:
+    virtual int listen(int port);
+// interface ISrsThreadHandler.
+public:
     virtual int cycle();
 };
 
@@ -211,6 +230,7 @@ private:
     virtual int listen_rtmp();
     virtual int listen_http_api();
     virtual int listen_http_stream();
+    virtual int listen_stream_caster();
     /**
     * close the listeners for specified type, 
     * remove the listen object from manager.
