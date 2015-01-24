@@ -223,6 +223,9 @@
     <ClCompile Include="..\..\src\protocol\srs_rtmp_utility.cpp">
       <Filter>srs</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\app\srs_app_mpegts_udp.cpp">
+      <Filter>srs</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\app\srs_app_bandwidth.hpp">
@@ -406,6 +409,9 @@
       <Filter>srs</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\protocol\srs_rtmp_utility.hpp">
+      <Filter>srs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\app\srs_app_mpegts_udp.hpp">
       <Filter>srs</Filter>
     </ClInclude>
   </ItemGroup>

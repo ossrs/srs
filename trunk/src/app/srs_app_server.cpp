@@ -44,6 +44,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_source.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_app_heartbeat.hpp>
+#include <srs_app_mpegts_udp.hpp>
 
 // signal defines.
 #define SIGNAL_RELOAD SIGHUP
@@ -226,14 +227,18 @@ int SrsListener::cycle()
     return ret;
 }
 
-SrsUdpListener::SrsUdpListener(SrsServer* server, SrsListenerType type) : SrsListener(server, type)
+#ifdef SRS_AUTO_STREAM_CASTER
+SrsUdpListener::SrsUdpListener(SrsServer* server, SrsListenerType type, SrsConfDirective* c) : SrsListener(server, type)
 {
     nb_buf = SRS_UDP_MAX_PACKET_SIZE;
     buf = new char[nb_buf];
+    caster = new SrsMpegtsOverUdp(c);
 }
 
 SrsUdpListener::~SrsUdpListener()
 {
+    srs_freep(caster);
+    srs_freep(buf);
 }
 
 int SrsUdpListener::listen(int port)
@@ -313,7 +318,7 @@ int SrsUdpListener::cycle()
             continue;
         }
         
-        if ((ret = _server->on_udp_packet(_type, &from, buf, nread)) != ERROR_SUCCESS) {
+        if ((ret = caster->on_udp_packet(&from, buf, nread)) != ERROR_SUCCESS) {
             srs_warn("handle udp packet failed. ret=%d", ret);
             continue;
         }
@@ -328,6 +333,7 @@ int SrsUdpListener::cycle()
 
     return ret;
 }
+#endif
 
 SrsSignalManager* SrsSignalManager::instance = NULL;
 
@@ -1015,7 +1021,7 @@ int SrsServer::listen_stream_caster()
 
         std::string caster = _srs_config->get_stream_caster_engine(stream_caster);
         if (caster == SRS_CONF_DEFAULT_STREAM_CASTER_MPEGTS_OVER_UDP) {
-            listener = new SrsUdpListener(this, SrsListenerMpegTsOverUdp);
+            listener = new SrsUdpListener(this, SrsListenerMpegTsOverUdp, stream_caster);
         } else {
             ret = ERROR_STREAM_CASTER_ENGINE;
             srs_error("unsupported stream caster %s. ret=%d", caster.c_str(), ret);
@@ -1138,19 +1144,6 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
 
     srs_verbose("accept client finished. conns=%d, ret=%d", (int)conns.size(), ret);
     
-    return ret;
-}
-
-int SrsServer::on_udp_packet(SrsListenerType type, sockaddr_in* from, char* buf, int nb_buf)
-{
-    int ret = ERROR_SUCCESS;
-
-    std::string peer_ip = inet_ntoa(from->sin_addr);
-    int peer_port = ntohs(from->sin_port);
-
-    // TODO: FIXME: implements it.
-    srs_warn("udp: drop %s:%d packet %d bytes", peer_ip.c_str(), peer_port, nb_buf);
-
     return ret;
 }
 

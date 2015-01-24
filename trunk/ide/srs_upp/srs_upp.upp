@@ -102,6 +102,8 @@ file
 	../../src/app/srs_app_kbps.cpp,
 	../../src/app/srs_app_log.hpp,
 	../../src/app/srs_app_log.cpp,
+	../../src/app/srs_app_mpegts_udp.hpp,
+	../../src/app/srs_app_mpegts_udp.cpp,
 	../../src/app/srs_app_recv_thread.hpp,
 	../../src/app/srs_app_recv_thread.cpp,
 	../../src/app/srs_app_refer.hpp,

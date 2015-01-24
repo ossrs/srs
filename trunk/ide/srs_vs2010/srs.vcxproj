@@ -83,6 +83,7 @@
     <ClInclude Include="..\..\src\app\srs_app_json.hpp" />
     <ClInclude Include="..\..\src\app\srs_app_kbps.hpp" />
     <ClInclude Include="..\..\src\app\srs_app_log.hpp" />
+    <ClInclude Include="..\..\src\app\srs_app_mpegts_udp.hpp" />
     <ClInclude Include="..\..\src\app\srs_app_pithy_print.hpp" />
     <ClInclude Include="..\..\src\app\srs_app_recv_thread.hpp" />
     <ClInclude Include="..\..\src\app\srs_app_refer.hpp" />
@@ -158,6 +159,7 @@
     <ClCompile Include="..\..\src\app\srs_app_json.cpp" />
     <ClCompile Include="..\..\src\app\srs_app_kbps.cpp" />
     <ClCompile Include="..\..\src\app\srs_app_log.cpp" />
+    <ClCompile Include="..\..\src\app\srs_app_mpegts_udp.cpp" />
     <ClCompile Include="..\..\src\app\srs_app_pithy_print.cpp" />
     <ClCompile Include="..\..\src\app\srs_app_recv_thread.cpp" />
     <ClCompile Include="..\..\src\app\srs_app_refer.cpp" />
