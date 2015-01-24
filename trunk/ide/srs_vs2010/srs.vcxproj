@@ -36,8 +36,8 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>$(ProjectDir)/../../src/core;$(ProjectDir)/../../src/kernel;$(ProjectDir)/../../src/rtmp;$(ProjectDir)/../../src/app;$(ProjectDir)/../../src/libs;$(ProjectDir)/../../objs;$(IncludePath)</IncludePath>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'"> 
+    <IncludePath>$(ProjectDir)/../../src/core;$(ProjectDir)/../../src/kernel;$(ProjectDir)/../../src/protocol;$(ProjectDir)/../../src/app;$(ProjectDir)/../../src/libs;$(ProjectDir)/../../objs;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

@@ -31,6 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 class sockaddr_in;
+#include <string>
 
 class SrsConfDirective;
 
@@ -41,6 +42,8 @@ class SrsConfDirective;
 */
 class SrsMpegtsOverUdp
 {
+private:
+    std::string output;
 public:
     SrsMpegtsOverUdp(SrsConfDirective* c);
     virtual ~SrsMpegtsOverUdp();

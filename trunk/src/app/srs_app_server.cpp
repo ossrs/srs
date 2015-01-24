@@ -335,9 +335,6 @@ int SrsUdpListener::cycle()
         }
     }
 
-    // TODO: FIXME: recv udp packet.
-    st_sleep(1);
-
     return ret;
 }
 #endif

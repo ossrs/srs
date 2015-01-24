@@ -3,12 +3,12 @@ project(srs CXX)
 
 INCLUDE_DIRECTORIES(../../objs 
     ../../objs/st ../../objs/hp ../../objs/openssl/include 
-    ../../src/core ../../src/kernel ../../src/rtmp ../../src/app)
+    ../../src/core ../../src/kernel ../../src/protocol ../../src/app)
 
 set(SOURCE_FILES ../../src/main/srs_main_server.cpp)
 AUX_SOURCE_DIRECTORY(../../src/core SOURCE_FILES)
 AUX_SOURCE_DIRECTORY(../../src/kernel SOURCE_FILES)
-AUX_SOURCE_DIRECTORY(../../src/rtmp SOURCE_FILES)
+AUX_SOURCE_DIRECTORY(../../src/protocol SOURCE_FILES)
 AUX_SOURCE_DIRECTORY(../../src/app SOURCE_FILES)
 
 ADD_DEFINITIONS("-g -O0")

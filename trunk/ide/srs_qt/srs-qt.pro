@@ -7,20 +7,20 @@ HEADERS += \
     ../../src/core/*.hpp \
     ../../src/kernel/*.hpp \
     ../../src/app/*.hpp \
-    ../../src/rtmp/*.hpp
+    ../../src/protocol/*.hpp
 
 SOURCES += \
     ../../src/core/*.cpp \
     ../../src/kernel/*.cpp \
     ../../src/app/*.cpp \
-    ../../src/rtmp/*.cpp \
+    ../../src/protocol/*.cpp \
     ../../src/main/*.cpp
 
 INCLUDEPATH += \
     ../../src/core \
     ../../src/kernel \
     ../../src/app \
-    ../../src/rtmp \
+    ../../src/protocol \
     ../../objs \
     ../../objs/st \
     ../../objs/hp \

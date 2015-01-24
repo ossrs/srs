@@ -26,15 +26,18 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+using namespace std;
 
 #include <srs_app_config.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
+#include <srs_app_config.hpp>
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
 SrsMpegtsOverUdp::SrsMpegtsOverUdp(SrsConfDirective* c)
 {
+    output = _srs_config->get_stream_caster_output(c);
 }
 
 SrsMpegtsOverUdp::~SrsMpegtsOverUdp()
@@ -49,6 +52,7 @@ int SrsMpegtsOverUdp::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
     int peer_port = ntohs(from->sin_port);
 
     srs_info("udp: got %s:%d packet %d bytes", peer_ip.c_str(), peer_port, nb_buf);
+
     // TODO: FIXME: implements it.
 
     return ret;
