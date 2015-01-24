@@ -44,6 +44,7 @@ class SrsHttpServer;
 class SrsIngester;
 class SrsHttpHeartbeat;
 class SrsKbps;
+class sockaddr_in;
 
 // listener type for server to identify the connection,
 // that is, use different type to process the connection.
@@ -88,6 +89,9 @@ public:
 */
 class SrsUdpListener : public SrsListener
 {
+private:
+    char* buf;
+    int nb_buf;
 public:
     SrsUdpListener(SrsServer* server, SrsListenerType type);
     virtual ~SrsUdpListener();
@@ -252,6 +256,16 @@ public:
     * @param client_stfd, the client fd in st boxed, the underlayer fd.
     */
     virtual int accept_client(SrsListenerType type, st_netfd_t client_stfd);
+    /**
+    * when udp listener got a udp packet, notice server to process it.
+    * @param type, the client type, used to create concrete connection, 
+    *       for instance RTMP connection to serve client.
+    * @param from, the udp packet from address.
+    * @param buf, the udp packet bytes, user should copy if need to use.
+    * @param nb_buf, the size of udp packet bytes.
+    * @remark user should never use the buf, for it's a shared memory bytes.
+    */
+    virtual int on_udp_packet(SrsListenerType type, sockaddr_in* from, char* buf, int nb_buf);
 // interface ISrsThreadHandler.
 public:
     virtual int on_reload_listen();

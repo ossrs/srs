@@ -51,6 +51,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // nginx also set to 512
 #define SERVER_LISTEN_BACKLOG 512
 
+// sleep in ms for udp recv packet.
+#define SRS_UDP_PACKET_RECV_CYCLE_INTERVAL_MS 0
+
+// set the max packet size.
+#define SRS_UDP_MAX_PACKET_SIZE 65535
+
 // system interval in ms,
 // all resolution times should be times togother,
 // for example, system-interval is x=1s(1000ms),
@@ -222,6 +228,8 @@ int SrsListener::cycle()
 
 SrsUdpListener::SrsUdpListener(SrsServer* server, SrsListenerType type) : SrsListener(server, type)
 {
+    nb_buf = SRS_UDP_MAX_PACKET_SIZE;
+    buf = new char[nb_buf];
 }
 
 SrsUdpListener::~SrsUdpListener()
@@ -293,6 +301,27 @@ int SrsUdpListener::cycle()
     // the caller already ensure the type is ok,
     // we just assert here for unknown stream caster.
     srs_assert(_type == SrsListenerMpegTsOverUdp);
+
+    for (;;) {
+        // TODO: FIXME: support ipv6, @see man 7 ipv6
+        sockaddr_in from;
+        int nb_from = sizeof(sockaddr_in);
+        int nread = 0;
+
+        if ((nread = st_recvfrom(stfd, buf, nb_buf, (sockaddr*)&from, &nb_from, ST_UTIME_NO_TIMEOUT)) <= 0) {
+            srs_warn("ignore recv udp packet failed, nread=%d", nread);
+            continue;
+        }
+        
+        if ((ret = _server->on_udp_packet(_type, &from, buf, nread)) != ERROR_SUCCESS) {
+            srs_warn("handle udp packet failed. ret=%d", ret);
+            continue;
+        }
+
+        if (SRS_UDP_PACKET_RECV_CYCLE_INTERVAL_MS > 0) {
+            st_usleep(SRS_UDP_PACKET_RECV_CYCLE_INTERVAL_MS * 1000);
+        }
+    }
 
     // TODO: FIXME: recv udp packet.
     st_sleep(1);
@@ -1109,6 +1138,19 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
 
     srs_verbose("accept client finished. conns=%d, ret=%d", (int)conns.size(), ret);
     
+    return ret;
+}
+
+int SrsServer::on_udp_packet(SrsListenerType type, sockaddr_in* from, char* buf, int nb_buf)
+{
+    int ret = ERROR_SUCCESS;
+
+    std::string peer_ip = inet_ntoa(from->sin_addr);
+    int peer_port = ntohs(from->sin_port);
+
+    // TODO: FIXME: implements it.
+    srs_warn("udp: drop %s:%d packet %d bytes", peer_ip.c_str(), peer_port, nb_buf);
+
     return ret;
 }
 
