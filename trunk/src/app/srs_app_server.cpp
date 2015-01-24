@@ -230,9 +230,16 @@ int SrsListener::cycle()
 #ifdef SRS_AUTO_STREAM_CASTER
 SrsUdpListener::SrsUdpListener(SrsServer* server, SrsListenerType type, SrsConfDirective* c) : SrsListener(server, type)
 {
+    _type = type;
     nb_buf = SRS_UDP_MAX_PACKET_SIZE;
     buf = new char[nb_buf];
-    caster = new SrsMpegtsOverUdp(c);
+
+    // the caller already ensure the type is ok,
+    // we just assert here for unknown stream caster.
+    srs_assert(_type == SrsListenerMpegTsOverUdp);
+    if (_type == SrsListenerMpegTsOverUdp) {
+        caster = new SrsMpegtsOverUdp(c);
+    }
 }
 
 SrsUdpListener::~SrsUdpListener()
