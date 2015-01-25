@@ -521,6 +521,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-01-25, hotfix [#268](https://github.com/winlinvip/simple-rtmp-server/issues/268), refine the pcr start at 0, dts/pts plus delay. 2.0.105
 * v2.0, 2015-01-25, hotfix [#151](https://github.com/winlinvip/simple-rtmp-server/issues/151), refine pcr=dts-800ms and use dts/pts directly. 2.0.104
 * v2.0, 2015-01-23, hotfix [#151](https://github.com/winlinvip/simple-rtmp-server/issues/151), use absolutely overflow to make jwplayer happy. 2.0.103
 * v2.0, 2015-01-22, for [#293](https://github.com/winlinvip/simple-rtmp-server/issues/293), support http live ts stream. 2.0.101.
@@ -585,6 +586,7 @@ Supported operating systems and hardware:
 
 ### SRS 1.0 history
 
+* v1.0, 2015-01-25, hotfix [#268](https://github.com/winlinvip/simple-rtmp-server/issues/268), refine the pcr start at 0, dts/pts plus delay. 1.0.25
 * v1.0, 2015-01-25, hotfix [#151](https://github.com/winlinvip/simple-rtmp-server/issues/151), refine pcr=dts-800ms and use dts/pts directly. 1.0.24
 * v1.0, 2015-01-23, hotfix [#151](https://github.com/winlinvip/simple-rtmp-server/issues/151), use absolutely overflow to make jwplayer happy. 1.0.23
 * v1.0, 2015-01-17, hotfix [#290](https://github.com/winlinvip/simple-rtmp-server/issues/290), use iformat only for rtmp input. 1.0.22
