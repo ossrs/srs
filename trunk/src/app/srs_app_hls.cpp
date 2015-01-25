@@ -92,6 +92,7 @@ SrsHlsMuxer::SrsHlsMuxer()
     hls_fragment = hls_window = 0;
     _sequence_no = 0;
     current = NULL;
+    acodec = SrsCodecAudioReserved1;
 }
 
 SrsHlsMuxer::~SrsHlsMuxer()
@@ -170,6 +171,11 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     }
     srs_info("open HLS muxer success. path=%s, tmp=%s", 
         current->full_path.c_str(), tmp_file.c_str());
+
+    // set the segment muxer audio codec.
+    if (acodec != SrsCodecAudioReserved1) {
+        current->muxer->update_acodec(acodec);
+    }
     
     return ret;
 }
@@ -199,11 +205,12 @@ bool SrsHlsMuxer::is_segment_absolutely_overflow()
     return current->duration >= 2 * hls_fragment;
 }
 
-int SrsHlsMuxer::update_acodec(SrsCodecAudio acodec)
+int SrsHlsMuxer::update_acodec(SrsCodecAudio ac)
 {
     srs_assert(current);
     srs_assert(current->muxer);
-    return current->muxer->update_acodec(acodec);
+    acodec = ac;
+    return current->muxer->update_acodec(ac);
 }
 
 int SrsHlsMuxer::flush_audio(SrsMpegtsFrame* af, SrsSimpleBuffer* ab)
@@ -801,7 +808,7 @@ int SrsHls::on_audio(SrsSharedPtrMessage* __audio)
     }
     
     // ignore sequence header
-    if (sample->aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
+    if (acodec == SrsCodecAudioAAC && sample->aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
         return hls_cache->on_sequence_header(muxer);
     }
     

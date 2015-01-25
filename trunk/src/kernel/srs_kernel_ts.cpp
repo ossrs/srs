@@ -430,14 +430,14 @@ int SrsTSMuxer::open(string _path)
     return ret;
 }
 
-int SrsTSMuxer::update_acodec(SrsCodecAudio acodec)
+int SrsTSMuxer::update_acodec(SrsCodecAudio ac)
 {
     int ret = ERROR_SUCCESS;
 
-    if (current == acodec) {
+    if (current == ac) {
         return ret;
     }
-    current = acodec;
+    current = ac;
 
     return ret;
 }

@@ -118,6 +118,12 @@ private:
     * current writing segment.
     */
     SrsHlsSegment* current;
+    /**
+    * the current audio codec, when open new muxer,
+    * set the muxer audio codec.
+    * @see https://github.com/winlinvip/simple-rtmp-server/issues/301
+    */
+    SrsCodecAudio acodec;
 public:
     SrsHlsMuxer();
     virtual ~SrsHlsMuxer();
@@ -144,7 +150,7 @@ public:
     */
     virtual bool is_segment_absolutely_overflow();
 public:
-    virtual int update_acodec(SrsCodecAudio acodec);
+    virtual int update_acodec(SrsCodecAudio ac);
     virtual int flush_audio(SrsMpegtsFrame* af, SrsSimpleBuffer* ab);
     virtual int flush_video(SrsMpegtsFrame* af, SrsSimpleBuffer* ab, SrsMpegtsFrame* vf, SrsSimpleBuffer* vb);
     /**

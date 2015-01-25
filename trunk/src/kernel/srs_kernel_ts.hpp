@@ -85,7 +85,7 @@ public:
     * @remark for audio aac codec, for example, SRS1, it's ok to write PSI when open ts.
     * @see https://github.com/winlinvip/simple-rtmp-server/issues/301
     */
-    virtual int update_acodec(SrsCodecAudio acodec);
+    virtual int update_acodec(SrsCodecAudio ac);
     /**
     * write an audio frame to ts, 
     * @remark write PSI first when not write yet.

@@ -521,6 +521,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-01-25, for [#301](https://github.com/winlinvip/simple-rtmp-server/issues/301), hls support h.264+mp3, ok for vlc. 2.0.107
 * v2.0, 2015-01-25, for [#301](https://github.com/winlinvip/simple-rtmp-server/issues/301), http ts stream support h.264+mp3. 2.0.106
 * v2.0, 2015-01-25, hotfix [#268](https://github.com/winlinvip/simple-rtmp-server/issues/268), refine the pcr start at 0, dts/pts plus delay. 2.0.105
 * v2.0, 2015-01-25, hotfix [#151](https://github.com/winlinvip/simple-rtmp-server/issues/151), refine pcr=dts-800ms and use dts/pts directly. 2.0.104

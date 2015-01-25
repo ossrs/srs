@@ -352,6 +352,7 @@ int SrsGoHttpFileServer::serve_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
         _mime[".zip"] = "application/zip";
         _mime[".rar"] = "application/x-rar-compressed";
         _mime[".xml"] = "text/xml;charset=utf-8";
+        _mime[".html"] = "text/html;charset=utf-8";
         _mime[".js"] = "text/javascript";
         _mime[".css"] = "text/css;charset=utf-8";
         _mime[".ico"] = "image/x-icon";
