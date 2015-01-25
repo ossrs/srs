@@ -32,9 +32,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
-
-// Transport Stream packets are 188 bytes in length.
-#define TS_PACKET_SIZE          188
+#include <srs_kernel_ts.hpp>
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
@@ -55,14 +53,14 @@ int SrsMpegtsOverUdp::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
     int peer_port = ntohs(from->sin_port);
 
     // drop ts packet when size not modulus by 188
-    if (nb_buf < TS_PACKET_SIZE || (nb_buf % TS_PACKET_SIZE) != 0) {
+    if (nb_buf < SRS_TS_PACKET_SIZE || (nb_buf % SRS_TS_PACKET_SIZE) != 0) {
         srs_warn("udp: drop %s:%d packet %d bytes", peer_ip.c_str(), peer_port, nb_buf);
         return ret;
     }
     srs_info("udp: got %s:%d packet %d bytes", peer_ip.c_str(), peer_port, nb_buf);
 
     // process each ts packet
-    for (int i = 0; i < nb_buf; i += TS_PACKET_SIZE) {
+    for (int i = 0; i < nb_buf; i += SRS_TS_PACKET_SIZE) {
         char* ts_packet = buf + i;
         if ((ret = on_ts_packet(ts_packet)) != ERROR_SUCCESS) {
             srs_warn("mpegts: ignore ts packet error. ret=%d", ret);

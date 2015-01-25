@@ -254,11 +254,11 @@ public:
                 *p++ = header_size;
 
                 // pts; // 33bits
-                p = write_pts(p, flags >> 6, frame->pts + SRS_AUTO_HLS_DELAY);
+                p = write_dts_pts(p, flags >> 6, frame->pts + SRS_AUTO_HLS_DELAY);
                 
                 // dts; // 33bits
                 if (frame->dts != frame->pts) {
-                    p = write_pts(p, 1, frame->dts + SRS_AUTO_HLS_DELAY);
+                    p = write_dts_pts(p, 1, frame->dts + SRS_AUTO_HLS_DELAY);
                 }
             }
             
@@ -344,7 +344,7 @@ private:
     
         return p;
     }
-    static char* write_pts(char* p, u_int8_t fb, int64_t pts)
+    static char* write_dts_pts(char* p, u_int8_t fb, int64_t pts)
     {
         int32_t val;
     

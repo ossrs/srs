@@ -39,6 +39,9 @@ class SrsAvcAacCodec;
 class SrsCodecSample;
 class SrsSimpleBuffer;
 
+// Transport Stream packets are 188 bytes in length.
+#define SRS_TS_PACKET_SIZE          188
+
 // @see: ngx_rtmp_SrsMpegtsFrame_t
 class SrsMpegtsFrame
 {
