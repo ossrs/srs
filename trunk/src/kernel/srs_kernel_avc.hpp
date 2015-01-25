@@ -156,6 +156,8 @@ public:
     SrsCodecVideoAVCType avc_packet_type;
 public:
     // audio specified
+    SrsCodecAudio acodec;
+    // audio aac specified.
     SrsCodecAudioSampleRate sound_rate;
     SrsCodecAudioSampleSize sound_size;
     SrsCodecAudioSoundType sound_type;
@@ -271,6 +273,7 @@ public:
     * demux the aac raw to sample units.
     */
     virtual int audio_aac_demux(char* data, int size, SrsCodecSample* sample);
+    virtual int audio_mp3_demux(char* data, int size, SrsCodecSample* sample);
     /**
     * demux the video packet in h.264 codec.
     * the packet mux in FLV/RTMP format defined in flv specification.

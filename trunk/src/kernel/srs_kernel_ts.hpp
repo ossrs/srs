@@ -31,6 +31,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
+#include <srs_kernel_codec.hpp>
+
 class SrsTsCache;
 class SrsTSMuxer;
 class SrsFileWriter;
@@ -63,15 +65,40 @@ public:
 class SrsTSMuxer
 {
 private:
+    SrsCodecAudio previous;
+    SrsCodecAudio current;
+private:
     SrsFileWriter* writer;
     std::string path;
 public:
     SrsTSMuxer(SrsFileWriter* w);
     virtual ~SrsTSMuxer();
 public:
+    /**
+    * open the writer, donot write the PSI of ts.
+    */
     virtual int open(std::string _path);
+    /**
+    * when open ts, we donot write the header(PSI),
+    * for user may need to update the acodec to mp3 or others,
+    * so we use delay write PSI, when write audio or video.
+    * @remark for audio aac codec, for example, SRS1, it's ok to write PSI when open ts.
+    * @see https://github.com/winlinvip/simple-rtmp-server/issues/301
+    */
+    virtual int update_acodec(SrsCodecAudio acodec);
+    /**
+    * write an audio frame to ts, 
+    * @remark write PSI first when not write yet.
+    */
     virtual int write_audio(SrsMpegtsFrame* af, SrsSimpleBuffer* ab);
+    /**
+    * write a video frame to ts, 
+    * @remark write PSI first when not write yet.
+    */
     virtual int write_video(SrsMpegtsFrame* vf, SrsSimpleBuffer* vb);
+    /**
+    * close the writer.
+    */
     virtual void close();
 };
 
@@ -125,6 +152,10 @@ public:
     SrsSimpleBuffer* ab;
     SrsMpegtsFrame* vf;
     SrsSimpleBuffer* vb;
+public:
+    // the audio cache buffer start pts, to flush audio if full.
+    // @remark the pts is not the adjust one, it's the orignal pts.
+    int64_t audio_buffer_start_pts;
 protected:
     // time jitter for aac
     SrsTsAacJitter* aac_jitter;
@@ -172,6 +203,9 @@ public:
     */
     virtual int write_audio(int64_t timestamp, char* data, int size);
     virtual int write_video(int64_t timestamp, char* data, int size);
+private:
+    virtual int flush_audio();
+    virtual int flush_video();
 };
 
 #endif

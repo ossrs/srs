@@ -37,6 +37,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string>
 #include <vector>
 
+#include <srs_kernel_codec.hpp>
+
 class SrsSharedPtrMessage;
 class SrsCodecSample;
 class SrsMpegtsFrame;
@@ -141,6 +143,8 @@ public:
     * @see https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-71155184
     */
     virtual bool is_segment_absolutely_overflow();
+public:
+    virtual int update_acodec(SrsCodecAudio acodec);
     virtual int flush_audio(SrsMpegtsFrame* af, SrsSimpleBuffer* ab);
     virtual int flush_video(SrsMpegtsFrame* af, SrsSimpleBuffer* ab, SrsMpegtsFrame* vf, SrsSimpleBuffer* vb);
     /**
@@ -174,8 +178,6 @@ private:
 class SrsHlsCache
 {
 private:
-    // the audio cache buffer start pts, to flush audio if full.
-    int64_t audio_buffer_start_pts;
     SrsTsCache* cache;
 public:
     SrsHlsCache();

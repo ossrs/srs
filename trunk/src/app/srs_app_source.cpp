@@ -1349,12 +1349,17 @@ int SrsSource::on_audio(SrsCommonMessage* __audio)
         }
     }
 
-    // cache the sequence header if h264
-    // donot cache the sequence header to gop_cache, return here.
-    if (SrsFlvCodec::audio_is_sequence_header(msg.payload, msg.size)) {
+    // cache the sequence header of aac, or first packet of mp3.
+    // for example, the mp3 is used for hls to write the "right" audio codec.
+    bool is_aac_sequence_header = SrsFlvCodec::audio_is_sequence_header(msg.payload, msg.size);
+    if (is_aac_sequence_header || !cache_sh_audio) {
         srs_freep(cache_sh_audio);
         cache_sh_audio = msg.copy();
-        
+    }
+
+    // cache the sequence header if aac
+    // donot cache the sequence header to gop_cache, return here.
+    if (is_aac_sequence_header) {
         // parse detail audio codec
         SrsAvcAacCodec codec;
         SrsCodecSample sample;
@@ -1768,17 +1773,19 @@ int SrsSource::create_consumer(SrsConsumer*& consumer, bool ds, bool dm, bool dg
     srs_info("dispatch metadata success");
     
     // copy sequence header
+    // copy audio sequence first, for hls to fast parse the "right" audio codec.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/301
+    if (ds && cache_sh_audio && (ret = consumer->enqueue(cache_sh_audio, atc, tba, tbv, ag)) != ERROR_SUCCESS) {
+        srs_error("dispatch audio sequence header failed. ret=%d", ret);
+        return ret;
+    }
+    srs_info("dispatch audio sequence header success");
+
     if (ds && cache_sh_video && (ret = consumer->enqueue(cache_sh_video, atc, tba, tbv, ag)) != ERROR_SUCCESS) {
         srs_error("dispatch video sequence header failed. ret=%d", ret);
         return ret;
     }
     srs_info("dispatch video sequence header success");
-    
-    if (cache_sh_audio && (ret = consumer->enqueue(cache_sh_audio, atc, tba, tbv, ag)) != ERROR_SUCCESS) {
-        srs_error("dispatch audio sequence header failed. ret=%d", ret);
-        return ret;
-    }
-    srs_info("dispatch audio sequence header success");
     
     // copy gop cache to client.
     if (dg && (ret = gop_cache->dump(consumer, atc, tba, tbv, ag)) != ERROR_SUCCESS) {

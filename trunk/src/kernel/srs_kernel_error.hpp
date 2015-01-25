@@ -202,6 +202,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_AAC_REQUIRED_ADTS             3046
 #define ERROR_AAC_ADTS_HEADER               3047
 #define ERROR_AAC_DATA_INVALID              3048
+#define ERROR_HLS_TRY_MP3                   3049
 
 ///////////////////////////////////////////////////////
 // HTTP/StreamCaster protocol error.

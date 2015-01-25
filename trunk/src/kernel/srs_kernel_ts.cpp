@@ -53,6 +53,7 @@ using namespace std;
 
 // ts aac stream id.
 #define TS_AUDIO_AAC 0xc0
+#define TS_AUDIO_MP3 0x04
 // ts avc stream id.
 #define TS_VIDEO_AVC 0xe0
 
@@ -118,11 +119,18 @@ u_int8_t mpegts_header[] = {
     // must generate header with/without video, @see:
     // https://github.com/winlinvip/simple-rtmp-server/issues/40
     0x1b, 0xe1, 0x00, 0xf0, 0x00, /* h264, pid=0x100=256 */
+};
+u_int8_t mpegts_header_aac[] = {
     0x0f, 0xe1, 0x01, 0xf0, 0x00, /* aac, pid=0x101=257 */
-    /*0x03, 0xe1, 0x01, 0xf0, 0x00,*/ /* mp3 */
     /* CRC */
     0x2f, 0x44, 0xb9, 0x9b, /* crc for aac */
-    /*0x4e, 0x59, 0x3d, 0x1e,*/ /* crc for mp3 */
+};
+u_int8_t mpegts_header_mp3[] = {
+    0x03, 0xe1, 0x01, 0xf0, 0x00, /* mp3 */
+    /* CRC */
+    0x4e, 0x59, 0x3d, 0x1e, /* crc for mp3 */
+};
+u_int8_t mpegts_header_padding[] = {
     /* stuffing 157 bytes */
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -147,13 +155,33 @@ u_int8_t mpegts_header[] = {
 class SrsMpegtsWriter
 {
 public:
-    static int write_header(SrsFileWriter* writer)
+    static int write_header(SrsFileWriter* writer, SrsCodecAudio acodec)
     {
         int ret = ERROR_SUCCESS;
         
         if ((ret = writer->write(mpegts_header, sizeof(mpegts_header), NULL)) != ERROR_SUCCESS) {
             ret = ERROR_HLS_WRITE_FAILED;
             srs_error("write ts file header failed. ret=%d", ret);
+            return ret;
+        }
+
+        if (acodec == SrsCodecAudioAAC) {
+            if ((ret = writer->write(mpegts_header_aac, sizeof(mpegts_header_aac), NULL)) != ERROR_SUCCESS) {
+                ret = ERROR_HLS_WRITE_FAILED;
+                srs_error("write ts file aac header failed. ret=%d", ret);
+                return ret;
+            }
+        } else {
+            if ((ret = writer->write(mpegts_header_mp3, sizeof(mpegts_header_mp3), NULL)) != ERROR_SUCCESS) {
+                ret = ERROR_HLS_WRITE_FAILED;
+                srs_error("write ts file mp3 header failed. ret=%d", ret);
+                return ret;
+            }
+        }
+        
+        if ((ret = writer->write(mpegts_header_padding, sizeof(mpegts_header_padding), NULL)) != ERROR_SUCCESS) {
+            ret = ERROR_HLS_WRITE_FAILED;
+            srs_error("write ts file padding header failed. ret=%d", ret);
             return ret;
         }
 
@@ -375,6 +403,11 @@ SrsMpegtsFrame::SrsMpegtsFrame()
 SrsTSMuxer::SrsTSMuxer(SrsFileWriter* w)
 {
     writer = w;
+
+    // reserved is not written.
+    previous = SrsCodecAudioReserved1;
+    // current default to aac.
+    current = SrsCodecAudioAAC;
 }
 
 SrsTSMuxer::~SrsTSMuxer()
@@ -393,18 +426,33 @@ int SrsTSMuxer::open(string _path)
     if ((ret = writer->open(path)) != ERROR_SUCCESS) {
         return ret;
     }
+    
+    return ret;
+}
 
-    // write mpegts header
-    if ((ret = SrsMpegtsWriter::write_header(writer)) != ERROR_SUCCESS) {
+int SrsTSMuxer::update_acodec(SrsCodecAudio acodec)
+{
+    int ret = ERROR_SUCCESS;
+
+    if (current == acodec) {
         return ret;
     }
-    
+    current = acodec;
+
     return ret;
 }
 
 int SrsTSMuxer::write_audio(SrsMpegtsFrame* af, SrsSimpleBuffer* ab)
 {
     int ret = ERROR_SUCCESS;
+    
+    // when acodec changed, write header.
+    if (current != previous) {
+        previous = current;
+        if ((ret = SrsMpegtsWriter::write_header(writer, previous)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
     
     if ((ret = SrsMpegtsWriter::write_frame(writer, af, ab)) != ERROR_SUCCESS) {
         return ret;
@@ -416,6 +464,14 @@ int SrsTSMuxer::write_audio(SrsMpegtsFrame* af, SrsSimpleBuffer* ab)
 int SrsTSMuxer::write_video(SrsMpegtsFrame* vf, SrsSimpleBuffer* vb)
 {
     int ret = ERROR_SUCCESS;
+    
+    // when acodec changed, write header.
+    if (current != previous) {
+        previous = current;
+        if ((ret = SrsMpegtsWriter::write_header(writer, previous)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
     
     if ((ret = SrsMpegtsWriter::write_frame(writer, vf, vb)) != ERROR_SUCCESS) {
         return ret;
@@ -501,6 +557,8 @@ SrsTsCache::SrsTsCache()
     
     af = new SrsMpegtsFrame();
     vf = new SrsMpegtsFrame();
+
+    audio_buffer_start_pts = 0;
 }
 
 SrsTsCache::~SrsTsCache()
@@ -520,21 +578,51 @@ SrsTsCache::~SrsTsCache()
 int SrsTsCache::cache_audio(SrsAvcAacCodec* codec, int64_t pts, SrsCodecSample* sample)
 {
     int ret = ERROR_SUCCESS;
-    
-    // start buffer, set the af
+
+    // @remark, always use the orignal pts.
     if (ab->length() == 0) {
-        pts = aac_jitter->on_buffer_start(pts, sample->sound_rate, codec->aac_sample_rate);
-        
-        af->dts = af->pts = pts;
-        af->pid = TS_AUDIO_PID;
-        af->sid = TS_AUDIO_AAC;
-    } else {
-        aac_jitter->on_buffer_continue();
+         audio_buffer_start_pts = pts;
     }
     
-    // write audio to cache.
-    if ((ret = do_cache_audio(codec, sample)) != ERROR_SUCCESS) {
+    // must be aac or mp3
+    SrsCodecAudio acodec = (SrsCodecAudio)codec->audio_codec_id;
+    srs_assert(acodec == SrsCodecAudioAAC || acodec == SrsCodecAudioMP3);
+    
+    // cache the aac audio.
+    if (codec->audio_codec_id == SrsCodecAudioAAC) {
+        // for aac audio, recalc the timestamp by aac jitter.
+        if (ab->length() == 0) {
+            pts = aac_jitter->on_buffer_start(pts, sample->sound_rate, codec->aac_sample_rate);
+        
+            af->dts = af->pts = pts;
+            af->pid = TS_AUDIO_PID;
+            af->sid = TS_AUDIO_AAC;
+        } else {
+            aac_jitter->on_buffer_continue();
+        }
+    
+        // write aac audio to cache.
+        if ((ret = do_cache_audio(codec, sample)) != ERROR_SUCCESS) {
+            return ret;
+        }
+
         return ret;
+    }
+    
+    // cache the mp3 audio.
+    if (codec->audio_codec_id == SrsCodecAudioMP3) {
+        // for mp3 audio, recalc the timestamp by mp3 jitter.
+        // TODO: FIXME: implements it.
+        af->dts = af->pts = pts;
+        af->pid = TS_AUDIO_PID;
+        af->sid = SrsCodecAudioMP3;
+        
+        // for mp3, directly write to cache.
+        // TODO: FIXME: implements it.
+        for (int i = 0; i < sample->nb_sample_units; i++) {
+            SrsCodecSampleUnit* sample_unit = &sample->sample_units[i];
+            ab->append(sample_unit->bytes, sample_unit->size);
+        }
     }
     
     return ret;
@@ -784,16 +872,30 @@ int SrsTsEncoder::write_audio(int64_t timestamp, char* data, int size)
     
     sample->clear();
     if ((ret = codec->audio_aac_demux(data, size, sample)) != ERROR_SUCCESS) {
-        srs_error("http: ts codec demux audio failed. ret=%d", ret);
+        if (ret != ERROR_HLS_TRY_MP3) {
+            srs_error("http: ts aac demux audio failed. ret=%d", ret);
+            return ret;
+        }
+        if ((ret = codec->audio_mp3_demux(data, size, sample)) != ERROR_SUCCESS) {
+            srs_error("http: ts mp3 demux audio failed. ret=%d", ret);
+            return ret;
+        }
+    }
+    SrsCodecAudio acodec = (SrsCodecAudio)codec->audio_codec_id;
+    
+    // ts support audio codec: aac/mp3
+    if (acodec != SrsCodecAudioAAC && acodec != SrsCodecAudioMP3) {
+        return ret;
+    }
+
+    // when codec changed, write new header.
+    if ((ret = muxer->update_acodec(acodec)) != ERROR_SUCCESS) {
+        srs_error("http: ts audio write header failed. ret=%d", ret);
         return ret;
     }
     
-    if (codec->audio_codec_id != SrsCodecAudioAAC) {
-        return ret;
-    }
-    
-    // ignore sequence header
-    if (sample->aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
+    // for aac: ignore sequence header
+    if (acodec == SrsCodecAudioAAC && sample->aac_packet_type == SrsCodecAudioTypeSequenceHeader) {
         return ret;
     }
 
@@ -809,12 +911,15 @@ int SrsTsEncoder::write_audio(int64_t timestamp, char* data, int size)
     
     // flush if buffer exceed max size.
     if (cache->ab->length() > SRS_AUTO_HLS_AUDIO_CACHE_SIZE) {
-        if ((ret = muxer->write_audio(cache->af, cache->ab)) != ERROR_SUCCESS) {
-            return ret;
-        }
-    
-        // write success, clear and free the buffer
-        cache->ab->erase(cache->ab->length());
+        return flush_video();
+    }
+
+    // TODO: config it.
+    // in ms, audio delay to flush the audios.
+    int64_t audio_delay = SRS_CONF_DEFAULT_AAC_DELAY;
+    // flush if audio delay exceed
+    if (dts - cache->audio_buffer_start_pts > audio_delay * 90) {
+        return flush_audio();
     }
 
     return ret;
@@ -852,6 +957,27 @@ int SrsTsEncoder::write_video(int64_t timestamp, char* data, int size)
     if ((ret = cache->cache_video(codec, dts, sample)) != ERROR_SUCCESS) {
         return ret;
     }
+
+    return flush_video();
+}
+
+int SrsTsEncoder::flush_audio()
+{
+    int ret = ERROR_SUCCESS;
+
+    if ((ret = muxer->write_audio(cache->af, cache->ab)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // write success, clear and free the buffer
+    cache->ab->erase(cache->ab->length());
+
+    return ret;
+}
+
+int SrsTsEncoder::flush_video()
+{
+    int ret = ERROR_SUCCESS;
     
     if ((ret = muxer->write_video(cache->vf, cache->vb)) != ERROR_SUCCESS) {
         return ret;

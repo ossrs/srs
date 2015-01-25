@@ -199,6 +199,13 @@ bool SrsHlsMuxer::is_segment_absolutely_overflow()
     return current->duration >= 2 * hls_fragment;
 }
 
+int SrsHlsMuxer::update_acodec(SrsCodecAudio acodec)
+{
+    srs_assert(current);
+    srs_assert(current->muxer);
+    return current->muxer->update_acodec(acodec);
+}
+
 int SrsHlsMuxer::flush_audio(SrsMpegtsFrame* af, SrsSimpleBuffer* ab)
 {
     int ret = ERROR_SUCCESS;
@@ -572,8 +579,6 @@ int SrsHlsCache::on_sequence_header(SrsHlsMuxer* muxer)
 int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t pts, SrsCodecSample* sample)
 {
     int ret = ERROR_SUCCESS;
-
-    audio_buffer_start_pts = pts;
     
     // write audio to cache.
     if ((ret = cache->cache_audio(codec, pts, sample)) != ERROR_SUCCESS) {
@@ -591,7 +596,7 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     // in ms, audio delay to flush the audios.
     int64_t audio_delay = SRS_CONF_DEFAULT_AAC_DELAY;
     // flush if audio delay exceed
-    if (pts - audio_buffer_start_pts > audio_delay * 90) {
+    if (pts - cache->audio_buffer_start_pts > audio_delay * 90) {
         if ((ret = muxer->flush_audio(cache->af, cache->ab)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -773,11 +778,25 @@ int SrsHls::on_audio(SrsSharedPtrMessage* __audio)
     
     sample->clear();
     if ((ret = codec->audio_aac_demux(audio->payload, audio->size, sample)) != ERROR_SUCCESS) {
-        srs_error("hls codec demux audio failed. ret=%d", ret);
+        if (ret != ERROR_HLS_TRY_MP3) {
+            srs_error("hls aac demux audio failed. ret=%d", ret);
+            return ret;
+        }
+        if ((ret = codec->audio_mp3_demux(audio->payload, audio->size, sample)) != ERROR_SUCCESS) {
+            srs_error("hls mp3 demux audio failed. ret=%d", ret);
+            return ret;
+        }
+    }
+    SrsCodecAudio acodec = (SrsCodecAudio)codec->audio_codec_id;
+    
+    // ts support audio codec: aac/mp3
+    if (acodec != SrsCodecAudioAAC && acodec != SrsCodecAudioMP3) {
         return ret;
     }
-    
-    if (codec->audio_codec_id != SrsCodecAudioAAC) {
+
+    // when codec changed, write new header.
+    if ((ret = muxer->update_acodec(acodec)) != ERROR_SUCCESS) {
+        srs_error("http: ts audio write header failed. ret=%d", ret);
         return ret;
     }
     
