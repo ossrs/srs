@@ -78,7 +78,9 @@ using namespace std;
 
 // @see: NGX_RTMP_HLS_DELAY, 
 // 63000: 700ms, ts_tbn=90000
-#define SRS_AUTO_HLS_DELAY 63000
+// 72000: 800ms, ts_tbn=90000
+// @see https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-71352511
+#define SRS_AUTO_HLS_DELAY 72000
 
 // the mpegts header specifed the video/audio pid.
 #define TS_VIDEO_PID 256
@@ -237,6 +239,7 @@ public:
                     p[-1] |= 0x20; // Both Adaption and Payload
                     *p++ = 7;    // size
                     *p++ = 0x50; // random access + PCR
+                    // about the pcr, read https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-71352511
                     p = write_pcr(p, frame->dts - SRS_AUTO_HLS_DELAY);
                 }
                 
@@ -293,11 +296,11 @@ public:
                 *p++ = header_size;
 
                 // pts; // 33bits
-                p = write_pts(p, flags >> 6, frame->pts + SRS_AUTO_HLS_DELAY);
+                p = write_pts(p, flags >> 6, frame->pts);
                 
                 // dts; // 33bits
                 if (frame->dts != frame->pts) {
-                    p = write_pts(p, 1, frame->dts + SRS_AUTO_HLS_DELAY);
+                    p = write_pts(p, 1, frame->dts);
                 }
             }
             
