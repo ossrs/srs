@@ -50,6 +50,7 @@ using namespace std;
 #include <srs_kernel_avc.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_rtmp_buffer.hpp>
+#include <srs_kernel_ts.hpp>
 
 // drop the segment when duration of ts too small.
 #define SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS 100

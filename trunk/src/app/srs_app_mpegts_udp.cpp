@@ -33,6 +33,9 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
 
+// Transport Stream packets are 188 bytes in length.
+#define TS_PACKET_SIZE          188
+
 #ifdef SRS_AUTO_STREAM_CASTER
 
 SrsMpegtsOverUdp::SrsMpegtsOverUdp(SrsConfDirective* c)
@@ -51,10 +54,28 @@ int SrsMpegtsOverUdp::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
     std::string peer_ip = inet_ntoa(from->sin_addr);
     int peer_port = ntohs(from->sin_port);
 
+    // drop ts packet when size not modulus by 188
+    if (nb_buf < TS_PACKET_SIZE || (nb_buf % TS_PACKET_SIZE) != 0) {
+        srs_warn("udp: drop %s:%d packet %d bytes", peer_ip.c_str(), peer_port, nb_buf);
+        return ret;
+    }
     srs_info("udp: got %s:%d packet %d bytes", peer_ip.c_str(), peer_port, nb_buf);
 
-    // TODO: FIXME: implements it.
+    // process each ts packet
+    for (int i = 0; i < nb_buf; i += TS_PACKET_SIZE) {
+        char* ts_packet = buf + i;
+        if ((ret = on_ts_packet(ts_packet)) != ERROR_SUCCESS) {
+            srs_warn("mpegts: ignore ts packet error. ret=%d", ret);
+            continue;
+        }
+    }
 
+    return ret;
+}
+
+int SrsMpegtsOverUdp::on_ts_packet(char* ts_packet)
+{
+    int ret = ERROR_SUCCESS;
     return ret;
 }
 

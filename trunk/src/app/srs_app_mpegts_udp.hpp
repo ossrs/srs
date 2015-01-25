@@ -58,6 +58,11 @@ public:
     * @remark user should never use the buf, for it's a shared memory bytes.
     */
     virtual int on_udp_packet(sockaddr_in* from, char* buf, int nb_buf);
+private:
+    /**
+    * when got a ts packet, in size TS_PACKET_SIZE.
+    */
+    virtual int on_ts_packet(char* ts_packet);
 };
 
 #endif

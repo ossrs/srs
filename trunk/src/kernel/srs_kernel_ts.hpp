@@ -37,6 +37,110 @@ class SrsFileWriter;
 class SrsFileReader;
 class SrsAvcAacCodec;
 class SrsCodecSample;
+class SrsSimpleBuffer;
+
+// @see: ngx_rtmp_SrsMpegtsFrame_t
+class SrsMpegtsFrame
+{
+public:
+    int64_t         pts;
+    int64_t         dts;
+    int             pid;
+    int             sid;
+    int             cc;
+    bool            key;
+    
+    SrsMpegtsFrame();
+};
+
+/**
+* write data from frame(header info) and buffer(data) to ts file.
+* it's a simple object wrapper for utility from nginx-rtmp: SrsMpegtsWriter
+*/
+class SrsTSMuxer
+{
+private:
+    SrsFileWriter* writer;
+    std::string path;
+public:
+    SrsTSMuxer(SrsFileWriter* w);
+    virtual ~SrsTSMuxer();
+public:
+    virtual int open(std::string _path);
+    virtual int write_audio(SrsMpegtsFrame* af, SrsSimpleBuffer* ab);
+    virtual int write_video(SrsMpegtsFrame* vf, SrsSimpleBuffer* vb);
+    virtual void close();
+};
+
+/**
+* jitter correct for audio,
+* the sample rate 44100/32000 will lost precise,
+* when mp4/ts(tbn=90000) covert to flv/rtmp(1000),
+* so the Hls on ipad or iphone will corrupt,
+* @see nginx-rtmp: est_pts
+*/
+class SrsTsAacJitter
+{
+private:
+    int64_t base_pts;
+    int64_t nb_samples;
+    int sync_ms;
+public:
+    SrsTsAacJitter();
+    virtual ~SrsTsAacJitter();
+    /**
+    * when buffer start, calc the "correct" pts for ts,
+    * @param flv_pts, the flv pts calc from flv header timestamp,
+    * @param sample_rate, the sample rate in format(flv/RTMP packet header).
+    * @param aac_sample_rate, the sample rate in codec(sequence header).
+    * @return the calc correct pts.
+    */
+    virtual int64_t on_buffer_start(int64_t flv_pts, int sample_rate, int aac_sample_rate);
+    /**
+    * when buffer continue, muxer donot write to file,
+    * the audio buffer continue grow and donot need a pts,
+    * for the ts audio PES packet only has one pts at the first time.
+    */
+    virtual void on_buffer_continue();
+};
+
+/**
+* ts stream cache, 
+* use to cache ts stream.
+* 
+* about the flv tbn problem:
+*   flv tbn is 1/1000, ts tbn is 1/90000,
+*   when timestamp convert to flv tbn, it will loose precise,
+*   so we must gather audio frame together, and recalc the timestamp @see SrsTsAacJitter,
+*   we use a aac jitter to correct the audio pts.
+*/
+class SrsTsCache
+{
+public:
+    // current frame and buffer
+    SrsMpegtsFrame* af;
+    SrsSimpleBuffer* ab;
+    SrsMpegtsFrame* vf;
+    SrsSimpleBuffer* vb;
+protected:
+    // time jitter for aac
+    SrsTsAacJitter* aac_jitter;
+public:
+    SrsTsCache();
+    virtual ~SrsTsCache();
+public:
+    /**
+    * write audio to cache
+    */
+    virtual int cache_audio(SrsAvcAacCodec* codec, int64_t pts, SrsCodecSample* sample);
+    /**
+    * write video to muxer.
+    */
+    virtual int cache_video(SrsAvcAacCodec* codec, int64_t dts, SrsCodecSample* sample);
+private:
+    virtual int do_cache_audio(SrsAvcAacCodec* codec, SrsCodecSample* sample);
+    virtual int do_cache_video(SrsAvcAacCodec* codec, SrsCodecSample* sample);
+};
 
 /**
 * encode data to ts file.
