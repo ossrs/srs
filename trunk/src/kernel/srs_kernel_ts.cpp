@@ -400,6 +400,16 @@ SrsMpegtsFrame::SrsMpegtsFrame()
     key = false;
 }
 
+SrsTsPacket::SrsTsPacket()
+{
+    adaptation_field = NULL;
+}
+
+SrsTsPacket::~SrsTsPacket()
+{
+    srs_freep(adaptation_field);
+}
+
 SrsTSMuxer::SrsTSMuxer(SrsFileWriter* w)
 {
     writer = w;

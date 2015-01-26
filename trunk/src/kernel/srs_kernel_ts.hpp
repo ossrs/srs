@@ -59,6 +59,154 @@ public:
 };
 
 /**
+* the pid of ts packet,
+* Table 2-3 每 PID table, hls-mpeg-ts-iso13818-1.pdf, page 37
+*/
+enum SrsTsPid
+{
+    // Program Association Table(see Table 2-25).
+    SrsTsPidPAT    = 0x00,
+    // Conditional Access Table (see Table 2-27).
+    SrsTsPidCAT    = 0x01,
+    // Transport Stream Description Table
+    SrsTsPidTSDT    = 0x02,
+    // null packets (see Table 2-3)
+    SrsTsPidNULL    = 0x01FFF,
+};
+
+/**
+* the transport_scrambling_control of ts packet,
+* Table 2-4 每 Scrambling control values, hls-mpeg-ts-iso13818-1.pdf, page 38
+*/
+enum SrsTsScrambled
+{
+    // Not scrambled
+    SrsTsScrambledDisabled      = 0x00,
+    // User-defined
+    SrsTsScrambledUserDefined1  = 0x01,
+    // User-defined
+    SrsTsScrambledUserDefined2  = 0x02,
+    // User-defined
+    SrsTsScrambledUserDefined3  = 0x03,
+};
+
+/**
+* the adaption_field_control of ts packet,
+* Table 2-5 每 Adaptation field control values, hls-mpeg-ts-iso13818-1.pdf, page 38
+*/
+enum SrsTsAdaptationFieldType
+{
+    // Reserved for future use by ISO/IEC
+    SrsTsAdaptationFieldTypeReserved      = 0x00,
+    // No adaptation_field, payload only
+    SrsTsAdaptationFieldTypePayloadOnly   = 0x01,
+    // Adaptation_field only, no payload
+    SrsTsAdaptationFieldTypeAdaptionOnly  = 0x02,
+    // Adaptation_field followed by payload
+    SrsTsAdaptationFieldTypeBoth          = 0x03,
+};
+
+class SrsTsAdaptationField
+{
+};
+
+/**
+* the packet in ts stream,
+* 2.4.3.2 Transport Stream packet layer, hls-mpeg-ts-iso13818-1.pdf, page 36
+* Transport Stream packets shall be 188 bytes long.
+*/
+class SrsTsPacket
+{
+private:
+    /**
+    * The sync_byte is a fixed 8-bit field whose value is '0100 0111' (0x47). Sync_byte emulation in the choice of
+    * values for other regularly occurring fields, such as PID, should be avoided.
+    */
+    int8_t sync_byte; //8bits
+    /**
+    * The transport_error_indicator is a 1-bit flag. When set to '1' it indicates that at least
+    * 1 uncorrectable bit error exists in the associated Transport Stream packet. This bit may be set to '1' by entities external to
+    * the transport layer. When set to '1' this bit shall not be reset to '0' unless the bit value(s) in error have been corrected.
+    */
+    int8_t transport_error_indicator; //1bit
+    /**
+    * The payload_unit_start_indicator is a 1-bit flag which has normative meaning for
+    * Transport Stream packets that carry PES packets (refer to 2.4.3.6) or PSI data (refer to 2.4.4).
+    * 
+    * When the payload of the Transport Stream packet contains PES packet data, the payload_unit_start_indicator has the
+    * following significance: a '1' indicates that the payload of this Transport Stream packet will commence with the first byte
+    * of a PES packet and a '0' indicates no PES packet shall start in this Transport Stream packet. If the
+    * payload_unit_start_indicator is set to '1', then one and only one PES packet starts in this Transport Stream packet. This
+    * also applies to private streams of stream_type 6 (refer to Table 2-29).
+    *
+    * When the payload of the Transport Stream packet contains PSI data, the payload_unit_start_indicator has the following
+    * significance: if the Transport Stream packet carries the first byte of a PSI section, the payload_unit_start_indicator value
+    * shall be '1', indicating that the first byte of the payload of this Transport Stream packet carries the pointer_field. If the
+    * Transport Stream packet does not carry the first byte of a PSI section, the payload_unit_start_indicator value shall be '0',
+    * indicating that there is no pointer_field in the payload. Refer to 2.4.4.1 and 2.4.4.2. This also applies to private streams of
+    * stream_type 5 (refer to Table 2-29).
+    * 
+    * For null packets the payload_unit_start_indicator shall be set to '0'.
+    * 
+    * The meaning of this bit for Transport Stream packets carrying only private data is not defined in this Specification.
+    */
+    int8_t payload_unit_start_indicator; //1bit
+    /**
+    * The transport_priority is a 1-bit indicator. When set to '1' it indicates that the associated packet is
+    * of greater priority than other packets having the same PID which do not have the bit set to '1'. The transport mechanism
+    * can use this to prioritize its data within an elementary stream. Depending on the application the transport_priority field
+    * may be coded regardless of the PID or within one PID only. This field may be changed by channel specific encoders or
+    * decoders.
+    */
+    int8_t transport_priority; //1bit
+    /**
+    * The PID is a 13-bit field, indicating the type of the data stored in the packet payload. PID value 0x0000 is
+    * reserved for the Program Association Table (see Table 2-25). PID value 0x0001 is reserved for the Conditional Access
+    * Table (see Table 2-27). PID values 0x0002 每 0x000F are reserved. PID value 0x1FFF is reserved for null packets (see
+    * Table 2-3).
+    */
+    SrsTsPid pid; //13bits
+    /**
+    * This 2-bit field indicates the scrambling mode of the Transport Stream packet payload.
+    * The Transport Stream packet header, and the adaptation field when present, shall not be scrambled. In the case of a null
+    * packet the value of the transport_scrambling_control field shall be set to '00' (see Table 2-4).
+    */
+    SrsTsScrambled transport_scrambling_control; //2bits
+    /**
+    * This 2-bit field indicates whether this Transport Stream packet header is followed by an
+    * adaptation field and/or payload (see Table 2-5).
+    *
+    * ITU-T Rec. H.222.0 | ISO/IEC 13818-1 decoders shall discard Transport Stream packets with the
+    * adaptation_field_control field set to a value of '00'. In the case of a null packet the value of the adaptation_field_control
+    * shall be set to '01'.
+    */
+    SrsTsAdaptationFieldType adaption_field_control; //2bits
+    /**
+    * The continuity_counter is a 4-bit field incrementing with each Transport Stream packet with the
+    * same PID. The continuity_counter wraps around to 0 after its maximum value. The continuity_counter shall not be
+    *incremented when the adaptation_field_control of the packet equals '00' or '10'.
+    * 
+    * In Transport Streams, duplicate packets may be sent as two, and only two, consecutive Transport Stream packets of the
+    * same PID. The duplicate packets shall have the same continuity_counter value as the original packet and the
+    * adaptation_field_control field shall be equal to '01' or '11'. In duplicate packets each byte of the original packet shall be
+    * duplicated, with the exception that in the program clock reference fields, if present, a valid value shall be encoded.
+    *
+    * The continuity_counter in a particular Transport Stream packet is continuous when it differs by a positive value of one
+    * from the continuity_counter value in the previous Transport Stream packet of the same PID, or when either of the nonincrementing
+    * conditions (adaptation_field_control set to '00' or '10', or duplicate packets as described above) are met.
+    * The continuity counter may be discontinuous when the discontinuity_indicator is set to '1' (refer to 2.4.3.4). In the case of
+    * a null packet the value of the continuity_counter is undefined.
+    */
+    u_int8_t continuity_counter; //4bits
+private:
+    SrsTsAdaptationField* adaptation_field;
+public:
+    SrsTsPacket();
+    virtual ~SrsTsPacket();
+public:
+};
+
+/**
 * write data from frame(header info) and buffer(data) to ts file.
 * it's a simple object wrapper for utility from nginx-rtmp: SrsMpegtsWriter
 */
