@@ -417,7 +417,7 @@ int SrsTsContext::decode(SrsStream* stream)
     // parse util EOF of stream.
     // for example, parse multiple times for the PES_packet_length(0) packet.
     while (!stream->empty()) {
-        SrsTsPacket* packet = new SrsTsPacket();
+        SrsTsPacket* packet = new SrsTsPacket(this);
         SrsAutoFree(SrsTsPacket, packet);
 
         if ((ret = packet->decode(stream)) != ERROR_SUCCESS) {
@@ -429,8 +429,23 @@ int SrsTsContext::decode(SrsStream* stream)
     return ret;
 }
 
-SrsTsPacket::SrsTsPacket()
+SrsTsPidApply SrsTsContext::get(int pid)
 {
+    if (pids.find(pid) == pids.end()) {
+        return SrsTsPidApplyReserved;
+    }
+    return pids[pid];
+}
+
+void SrsTsContext::set(int pid, SrsTsPidApply apply_pid)
+{
+    pids[pid] = apply_pid;
+}
+
+SrsTsPacket::SrsTsPacket(SrsTsContext* c)
+{
+    context = c;
+
     sync_byte = 0;
     transport_error_indicator = 0;
     payload_unit_start_indicator = 0;
@@ -508,8 +523,15 @@ int SrsTsPacket::decode(SrsStream* stream)
             srs_freep(payload);
             payload = new SrsTsPayloadPAT(this);
         } else {
-            // left bytes as reserved.
-            stream->skip(nb_payload);
+            SrsTsPidApply apply_pid = context->get(pid);
+            if (apply_pid == SrsTsPidApplyPMT) {
+                // 2.4.4.8 Program Map Table
+                srs_freep(payload);
+                payload = new SrsTsPayloadPMT(this);
+            } else {
+                // left bytes as reserved.
+                stream->skip(nb_payload);
+            }
         }
 
         if (payload && (ret = payload->decode(stream)) != ERROR_SUCCESS) {
@@ -676,14 +698,16 @@ int SrsTsAdaptationField::decode(SrsStream* stream)
         }
         transport_private_data_length = (u_int8_t)stream->read_1bytes();
 
-        if (!stream->require(transport_private_data_length)) {
-            ret = ERROR_STREAM_CASTER_TS_AF;
-            srs_error("ts: demux af transport_private_data_flag failed. ret=%d", ret);
-            return ret;
+        if (transport_private_data_length> 0) {
+            if (!stream->require(transport_private_data_length)) {
+                ret = ERROR_STREAM_CASTER_TS_AF;
+                srs_error("ts: demux af transport_private_data_flag failed. ret=%d", ret);
+                return ret;
+            }
+            srs_freep(transport_private_data);
+            transport_private_data = new char[transport_private_data_length];
+            stream->read_bytes(transport_private_data, transport_private_data_length);
         }
-        srs_freep(transport_private_data);
-        transport_private_data = new char[transport_private_data_length];
-        stream->read_bytes(transport_private_data, transport_private_data_length);
     }
     
     if (adaptation_field_extension_flag) {
@@ -760,16 +784,6 @@ int SrsTsAdaptationField::decode(SrsStream* stream)
     return ret;
 }
 
-SrsTsPayloadPATProgram::SrsTsPayloadPATProgram()
-{
-    number = 0;
-    pid = 0;
-}
-
-SrsTsPayloadPATProgram::~SrsTsPayloadPATProgram()
-{
-}
-
 SrsTsPayload::SrsTsPayload(SrsTsPacket* p)
 {
     packet = p;
@@ -782,6 +796,7 @@ SrsTsPayload::~SrsTsPayload()
 SrsTsPayloadPSI::SrsTsPayloadPSI(SrsTsPacket* p) : SrsTsPayload(p)
 {
     pointer_field = 0;
+    CRC_32 = 0;
 }
 
 SrsTsPayloadPSI::~SrsTsPayloadPSI()
@@ -802,43 +817,21 @@ int SrsTsPayloadPSI::decode(SrsStream* stream)
     */
     if (packet->payload_unit_start_indicator) {
         if (!stream->require(1)) {
-            ret = ERROR_STREAM_CASTER_TS_AF;
+            ret = ERROR_STREAM_CASTER_TS_PSI;
             srs_error("ts: demux PSI failed. ret=%d", ret);
             return ret;
         }
         pointer_field = stream->read_1bytes();
     }
 
-    return ret;
-}
-
-SrsTsPayloadPAT::SrsTsPayloadPAT(SrsTsPacket* p) : SrsTsPayloadPSI(p)
-{
-    nb_programs = 0;
-    programs = NULL;
-}
-
-SrsTsPayloadPAT::~SrsTsPayloadPAT()
-{
-    srs_freep(programs);
-}
-
-int SrsTsPayloadPAT::decode(SrsStream* stream)
-{
-    int ret = ERROR_SUCCESS;
-
-    if ((ret = SrsTsPayloadPSI::decode(stream)) != ERROR_SUCCESS) {
-        return ret;
-    }
-
     // to calc the crc32
     char* ppat = stream->data() + stream->pos();
     int pat_pos = stream->pos();
 
-    // atleast 8B without programs and crc32
-    if (!stream->require(8)) {
-        ret = ERROR_STREAM_CASTER_TS_AF;
-        srs_error("ts: demux PAT failed. ret=%d", ret);
+    // atleast 3B for all psi.
+    if (!stream->require(3)) {
+        ret = ERROR_STREAM_CASTER_TS_PSI;
+        srs_error("ts: demux PSI failed. ret=%d", ret);
         return ret;
     }
     // 1B
@@ -851,11 +844,82 @@ int SrsTsPayloadPAT::decode(SrsStream* stream)
     const0_value = (section_length >> 14) & 0x01;
     section_length &= 0x0FFF;
 
+    // no section, ignore.
+    if (section_length == 0) {
+        srs_warn("ts: demux PAT ignore empty section");
+        return ret;
+    }
+
     if (!stream->require(section_length)) {
-        ret = ERROR_STREAM_CASTER_TS_AF;
+        ret = ERROR_STREAM_CASTER_TS_PSI;
         srs_error("ts: demux PAT section failed. ret=%d", ret);
         return ret;
     }
+
+    // call the virtual method of actual PSI.
+    if ((ret = psi_decode(stream)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // 4B
+    if (!stream->require(4)) {
+        ret = ERROR_STREAM_CASTER_TS_PSI;
+        srs_error("ts: demux PSI crc32 failed. ret=%d", ret);
+        return ret;
+    }
+    CRC_32 = stream->read_4bytes();
+
+    // verify crc32.
+    int32_t crc32 = srs_crc32(ppat, stream->pos() - pat_pos - 4);
+    if (crc32 != CRC_32) {
+        ret = ERROR_STREAM_CASTER_TS_CRC32;
+        srs_error("ts: verify PSI crc32 failed. ret=%d", ret);
+        return ret;
+    }
+
+    // consume left stuffings
+    if (!stream->empty()) {
+        stream->skip(stream->size() - stream->pos());
+    }
+
+    return ret;
+}
+
+SrsTsPayloadPATProgram::SrsTsPayloadPATProgram()
+{
+    number = 0;
+    pid = 0;
+}
+
+SrsTsPayloadPATProgram::~SrsTsPayloadPATProgram()
+{
+}
+
+SrsTsPayloadPAT::SrsTsPayloadPAT(SrsTsPacket* p) : SrsTsPayloadPSI(p)
+{
+}
+
+SrsTsPayloadPAT::~SrsTsPayloadPAT()
+{
+    std::vector<SrsTsPayloadPATProgram*>::iterator it;
+    for (it = programs.begin(); it != programs.end(); ++it) {
+        SrsTsPayloadPATProgram* program = *it;
+        srs_freep(program);
+    }
+    programs.clear();
+}
+
+int SrsTsPayloadPAT::psi_decode(SrsStream* stream)
+{
+    int ret = ERROR_SUCCESS;
+
+    // atleast 5B for PAT specified
+    if (!stream->require(5)) {
+        ret = ERROR_STREAM_CASTER_TS_PAT;
+        srs_error("ts: demux PAT failed. ret=%d", ret);
+        return ret;
+    }
+
     int pos = stream->pos();
 
     // 2B
@@ -876,35 +940,136 @@ int SrsTsPayloadPAT::decode(SrsStream* stream)
 
     // multiple 4B program data.
     int program_bytes = section_length - 4 - (stream->pos() - pos);
-    nb_programs = program_bytes / 4;
-    if (nb_programs > 0) {
-        srs_freep(programs);
-        programs = new SrsTsPayloadPATProgram[nb_programs];
+    for (int i = 0; i < program_bytes; i += 4) {
+        SrsTsPayloadPATProgram* program = new SrsTsPayloadPATProgram();
 
-        for (int i = 0; i < nb_programs; i++) {
-            SrsTsPayloadPATProgram* program = programs + i;
+        int tmpv = stream->read_4bytes();
+        program->number = (int16_t)((tmpv >> 16) & 0xFFFF);
+        program->pid = (int16_t)(tmpv & 0x1FFF);
 
-            int tmpv = stream->read_4bytes();
-            program->number = (int16_t)((tmpv >> 16) & 0xFFFF);
-            program->pid = (int16_t)(tmpv & 0x1FFF);
+        // update the apply pid table.
+        packet->context->set(program->pid, SrsTsPidApplyPMT);
+
+        programs.push_back(program);
+    }
+
+    // update the apply pid table.
+    packet->context->set(packet->pid, SrsTsPidApplyPAT);
+
+    return ret;
+}
+
+SrsTsPayloadPMTESInfo::SrsTsPayloadPMTESInfo()
+{
+    ES_info_length = 0;
+    ES_info = NULL;
+}
+
+SrsTsPayloadPMTESInfo::~SrsTsPayloadPMTESInfo()
+{
+    srs_freep(ES_info);
+}
+
+SrsTsPayloadPMT::SrsTsPayloadPMT(SrsTsPacket* p) : SrsTsPayloadPSI(p)
+{
+    program_info_length = 0;
+    program_info_desc = NULL;
+}
+
+SrsTsPayloadPMT::~SrsTsPayloadPMT()
+{
+    srs_freep(program_info_desc);
+
+    std::vector<SrsTsPayloadPMTESInfo*>::iterator it;
+    for (it = infos.begin(); it != infos.end(); ++it) {
+        SrsTsPayloadPMTESInfo* info = *it;
+        srs_freep(info);
+    }
+    infos.clear();
+}
+
+int SrsTsPayloadPMT::psi_decode(SrsStream* stream)
+{
+    int ret = ERROR_SUCCESS;
+
+    // atleast 9B for PMT specified
+    if (!stream->require(9)) {
+        ret = ERROR_STREAM_CASTER_TS_PMT;
+        srs_error("ts: demux PMT failed. ret=%d", ret);
+        return ret;
+    }
+
+    // 2B
+    program_number = stream->read_2bytes();
+    
+    // 1B
+    current_next_indicator = stream->read_1bytes();
+    
+    version_number = (current_next_indicator >> 1) & 0x1F;
+    current_next_indicator &= 0x01;
+    
+    // 1B
+    section_number = stream->read_1bytes();
+    
+    // 1B
+    last_section_number = stream->read_1bytes();
+
+    // 2B
+    PCR_PID = stream->read_2bytes();
+    
+    PCR_PID &= 0x1FFF;
+    
+    // 2B
+    program_info_length = stream->read_2bytes();
+
+    program_info_length &= 0xFFF;
+    
+    if (program_info_length > 0) {
+        if (!stream->require(program_info_length)) {
+            ret = ERROR_STREAM_CASTER_TS_PMT;
+            srs_error("ts: demux PMT program info failed. ret=%d", ret);
+            return ret;
+        }
+
+        srs_freep(program_info_desc);
+        program_info_desc = new char[program_info_length];
+        stream->read_bytes(program_info_desc, program_info_length);
+    }
+
+    // [section_length] - 4(CRC) - 9B - [program_info_length]
+    int ES_EOF_pos = stream->pos() + section_length - 4 - 9 - program_info_length;
+    while (stream->pos() < ES_EOF_pos) {
+        SrsTsPayloadPMTESInfo* info = new SrsTsPayloadPMTESInfo();
+        infos.push_back(info);
+
+        // 5B
+        if (!stream->require(5)) {
+            ret = ERROR_STREAM_CASTER_TS_PMT;
+            srs_error("ts: demux PMT es info failed. ret=%d", ret);
+            return ret;
+        }
+
+        info->stream_type = stream->read_1bytes();
+        info->elementary_PID = stream->read_2bytes();
+        info->ES_info_length = stream->read_2bytes();
+
+        info->elementary_PID &= 0x1FFF;
+        info->ES_info_length &= 0x0FFF;
+
+        if (info->ES_info_length > 0) {
+            if (!stream->require(info->ES_info_length)) {
+                ret = ERROR_STREAM_CASTER_TS_PMT;
+                srs_error("ts: demux PMT es info data failed. ret=%d", ret);
+                return ret;
+            }
+            srs_freep(info->ES_info);
+            info->ES_info = new char[info->ES_info_length];
+            stream->read_bytes(info->ES_info, info->ES_info_length);
         }
     }
-    
-    // 4B
-    if (!stream->require(4)) {
-        ret = ERROR_STREAM_CASTER_TS_AF;
-        srs_error("ts: demux PAT crc32 failed. ret=%d", ret);
-        return ret;
-    }
-    CRC_32 = stream->read_4bytes();
 
-    // verify crc32.
-    int32_t crc32 = srs_crc32(ppat, stream->pos() - pat_pos - 4);
-    if (crc32 != CRC_32) {
-        ret = ERROR_STREAM_CASTER_TS_CRC32;
-        srs_error("ts: verify PAT crc32 failed. ret=%d", ret);
-        return ret;
-    }
+    // update the apply pid table.
+    packet->context->set(packet->pid, SrsTsPidApplyPMT);
 
     return ret;
 }

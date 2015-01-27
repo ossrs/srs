@@ -30,6 +30,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <string>
+#include <map>
+#include <vector>
 
 #include <srs_kernel_codec.hpp>
 
@@ -64,15 +66,22 @@ public:
 /**
 * the pid of ts packet,
 * Table 2-3 每 PID table, hls-mpeg-ts-iso13818-1.pdf, page 37
+* NOTE 每 The transport packets with PID values 0x0000, 0x0001, and 0x0010-0x1FFE are allowed to carry a PCR.
 */
 enum SrsTsPid
 {
     // Program Association Table(see Table 2-25).
-    SrsTsPidPAT    = 0x00,
+    SrsTsPidPAT             = 0x00,
     // Conditional Access Table (see Table 2-27).
-    SrsTsPidCAT    = 0x01,
+    SrsTsPidCAT             = 0x01,
     // Transport Stream Description Table
-    SrsTsPidTSDT    = 0x02,
+    SrsTsPidTSDT            = 0x02,
+    // Reserved
+    SrsTsPidReservedStart   = 0x03,
+    SrsTsPidReservedEnd     = 0x0f,
+    // May be assigned as network_PID, Program_map_PID, elementary_PID, or for other purposes
+    SrsTsPidAppStart        = 0x10,
+    SrsTsPidAppEnd          = 0x1ffe,
     // null packets (see Table 2-3)
     SrsTsPidNULL    = 0x01FFF,
 };
@@ -110,10 +119,27 @@ enum SrsTsAdaptationFieldType
 };
 
 /**
+* the actually parsed ts pid,
+* @see SrsTsPid, some pid, for example, PMT/Video/Audio is specified by PAT or other tables.
+*/
+enum SrsTsPidApply
+{
+    SrsTsPidApplyReserved = 0, // TSPidTypeReserved, nothing parsed, used reserved.
+    
+    SrsTsPidApplyPAT, // Program associtate table
+    SrsTsPidApplyPMT, // Program map table.
+    
+    SrsTsPidApplyVideo, // for video
+    SrsTsPidApplyAudio, // vor audio
+};
+
+/**
 * the context of ts, to decode the ts stream.
 */
 class SrsTsContext
 {
+private:
+    std::map<int, SrsTsPidApply> pids;
 public:
     SrsTsContext();
     virtual ~SrsTsContext();
@@ -123,6 +149,16 @@ public:
     * @remark we will consume all bytes in stream.
     */
     virtual int decode(SrsStream* stream);
+public:
+    /**
+    * get the pid apply, the parsed pid.
+    * @return the apply pid; SrsTsPidApplyReserved for invalid.
+    */
+    virtual SrsTsPidApply get(int pid);
+    /**
+    * set the pid apply, the parsed pid.
+    */
+    virtual void set(int pid, SrsTsPidApply apply_pid);
 };
 
 /**
@@ -204,7 +240,7 @@ public:
     /**
     * The continuity_counter is a 4-bit field incrementing with each Transport Stream packet with the
     * same PID. The continuity_counter wraps around to 0 after its maximum value. The continuity_counter shall not be
-    *incremented when the adaptation_field_control of the packet equals '00' or '10'.
+    * incremented when the adaptation_field_control of the packet equals '00'(reseverd) or '10'(adaptation field only).
     * 
     * In Transport Streams, duplicate packets may be sent as two, and only two, consecutive Transport Stream packets of the
     * same PID. The duplicate packets shall have the same continuity_counter value as the original packet and the
@@ -222,7 +258,9 @@ private:
     SrsTsAdaptationField* adaptation_field;
     SrsTsPayload* payload;
 public:
-    SrsTsPacket();
+    SrsTsContext* context;
+public:
+    SrsTsPacket(SrsTsContext* c);
     virtual ~SrsTsPacket();
 public:
     virtual int decode(SrsStream* stream);
@@ -561,34 +599,6 @@ enum SrsTsPsiId
 };
 
 /**
-* the program of PAT of PSI ts packet.
-*/
-class SrsTsPayloadPATProgram
-{
-public:
-    // 4B
-    /**
-    * Program_number is a 16-bit field. It specifies the program to which the program_map_PID is
-    * applicable. When set to 0x0000, then the following PID reference shall be the network PID. For all other cases the value
-    * of this field is user defined. This field shall not take any single value more than once within one version of the Program
-    * Association Table.
-    */
-    int16_t number; // 16bits
-    // reserved 3bits
-    /**
-    * program_map_PID/network_PID 13bits
-    * network_PID 每 The network_PID is a 13-bit field, which is used only in conjunction with the value of the
-    * program_number set to 0x0000, specifies the PID of the Transport Stream packets which shall contain the Network
-    * Information Table. The value of the network_PID field is defined by the user, but shall only take values as specified in
-    * Table 2-3. The presence of the network_PID is optional.
-    */
-    int16_t pid;
-public:
-    SrsTsPayloadPATProgram();
-    virtual ~SrsTsPayloadPATProgram();
-};
-
-/**
 * the payload of ts packet, can be PES or PSI payload.
 */
 class SrsTsPayload
@@ -621,22 +631,6 @@ public:
     */
     int8_t pointer_field;
 public:
-    SrsTsPayloadPSI(SrsTsPacket* p);
-    virtual ~SrsTsPayloadPSI();
-public:
-    virtual int decode(SrsStream* stream);
-};
-
-/**
-* the PAT payload of PSI ts packet.
-* 2.4.4.3 Program association Table, hls-mpeg-ts-iso13818-1.pdf, page 61
-* The Program Association Table provides the correspondence between a program_number and the PID value of the
-* Transport Stream packets which carry the program definition. The program_number is the numeric label associated with
-* a program.
-*/
-class SrsTsPayloadPAT : public SrsTsPayloadPSI
-{
-public:
     // 1B
     /**
     * This is an 8-bit field, which shall be set to 0x00 as shown in Table 2-26.
@@ -659,7 +653,61 @@ public:
     * field shall not exceed 1021 (0x3FD).
     */
     u_int16_t section_length; //12bits
-    
+public:
+    // 4B
+    /**
+    * This is a 32-bit field that contains the CRC value that gives a zero output of the registers in the decoder
+    * defined in Annex A after processing the entire section.
+    * @remark crc32(bytes without pointer field, before crc32 field)
+    */
+    int32_t CRC_32; //32bits
+public:
+    SrsTsPayloadPSI(SrsTsPacket* p);
+    virtual ~SrsTsPayloadPSI();
+public:
+    virtual int decode(SrsStream* stream);
+protected:
+    virtual int psi_decode(SrsStream* stream) = 0;
+};
+
+/**
+* the program of PAT of PSI ts packet.
+*/
+class SrsTsPayloadPATProgram
+{
+public:
+    // 4B
+    /**
+    * Program_number is a 16-bit field. It specifies the program to which the program_map_PID is
+    * applicable. When set to 0x0000, then the following PID reference shall be the network PID. For all other cases the value
+    * of this field is user defined. This field shall not take any single value more than once within one version of the Program
+    * Association Table.
+    */
+    int16_t number; // 16bits
+    // reserved 3bits
+    /**
+    * program_map_PID/network_PID 13bits
+    * network_PID 每 The network_PID is a 13-bit field, which is used only in conjunction with the value of the
+    * program_number set to 0x0000, specifies the PID of the Transport Stream packets which shall contain the Network
+    * Information Table. The value of the network_PID field is defined by the user, but shall only take values as specified in
+    * Table 2-3. The presence of the network_PID is optional.
+    */
+    int16_t pid;
+public:
+    SrsTsPayloadPATProgram();
+    virtual ~SrsTsPayloadPATProgram();
+};
+
+/**
+* the PAT payload of PSI ts packet.
+* 2.4.4.3 Program association Table, hls-mpeg-ts-iso13818-1.pdf, page 61
+* The Program Association Table provides the correspondence between a program_number and the PID value of the
+* Transport Stream packets which carry the program definition. The program_number is the numeric label associated with
+* a program.
+*/
+class SrsTsPayloadPAT : public SrsTsPayloadPSI
+{
+public:
     // 2B
     /**
     * This is a 16-bit field which serves as a label to identify this Transport Stream from any other
@@ -700,16 +748,128 @@ public:
     u_int8_t last_section_number; //8bits
     
     // multiple 4B program data.
-    int nb_programs;
-    SrsTsPayloadPATProgram* programs;
-    
-    // 4B
-    int32_t CRC_32; //32bits
+    std::vector<SrsTsPayloadPATProgram*> programs;
 public:
     SrsTsPayloadPAT(SrsTsPacket* p);
     virtual ~SrsTsPayloadPAT();
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int psi_decode(SrsStream* stream);
+};
+
+/**
+* the esinfo for PMT program.
+*/
+class SrsTsPayloadPMTESInfo
+{
+public:
+    // 1B
+    /**
+    * This is an 8-bit field specifying the type of program element carried within the packets with the PID
+    * whose value is specified by the elementary_PID. The values of stream_type are specified in Table 2-29.
+    */
+    u_int8_t stream_type; //8bits
+    
+    // 2B
+    // 3bits reserved
+    /**
+    * This is a 13-bit field specifying the PID of the Transport Stream packets which carry the associated
+    * program element.
+    */
+    int16_t elementary_PID; //13bits
+    
+    // 2B
+    // 4bits reserved
+    /**
+    * This is a 12-bit field, the first two bits of which shall be '00'. The remaining 10 bits specify the number
+    * of bytes of the descriptors of the associated program element immediately following the ES_info_length field.
+    */
+    int16_t ES_info_length; //12bits
+    char* ES_info; //[ES_info_length] bytes.
+public:
+    SrsTsPayloadPMTESInfo();
+    virtual ~SrsTsPayloadPMTESInfo();
+};
+
+/**
+* the PMT payload of PSI ts packet.
+* 2.4.4.8 Program Map Table, hls-mpeg-ts-iso13818-1.pdf, page 64
+* The Program Map Table provides the mappings between program numbers and the program elements that comprise
+* them. A single instance of such a mapping is referred to as a "program definition". The program map table is the
+* complete collection of all program definitions for a Transport Stream. This table shall be transmitted in packets, the PID
+* values of which are selected by the encoder. More than one PID value may be used, if desired. The table is contained in
+* one or more sections with the following syntax. It may be segmented to occupy multiple sections. In each section, the
+* section number field shall be set to zero. Sections are identified by the program_number field.
+*/
+class SrsTsPayloadPMT : public SrsTsPayloadPSI
+{
+public:
+    // 2B
+    /**
+    * program_number is a 16-bit field. It specifies the program to which the program_map_PID is
+    * applicable. One program definition shall be carried within only one TS_program_map_section. This implies that a
+    * program definition is never longer than 1016 (0x3F8). See Informative Annex C for ways to deal with the cases when
+    * that length is not sufficient. The program_number may be used as a designation for a broadcast channel, for example. By
+    * describing the different program elements belonging to a program, data from different sources (e.g. sequential events)
+    * can be concatenated together to form a continuous set of streams using a program_number. For examples of applications
+    * refer to Annex C.
+    */
+    u_int16_t program_number; //16bits
+    
+    // 1B
+    // 2bits reerverd.
+    /**
+    * This 5-bit field is the version number of the TS_program_map_section. The version number shall be
+    * incremented by 1 modulo 32 when a change in the information carried within the section occurs. Version number refers
+    * to the definition of a single program, and therefore to a single section. When the current_next_indicator is set to '1', then
+    * the version_number shall be that of the currently applicable TS_program_map_section. When the current_next_indicator
+    * is set to '0', then the version_number shall be that of the next applicable TS_program_map_section.
+    */
+    int8_t version_number; //5bits
+    /**
+    * A 1-bit field, which when set to '1' indicates that the TS_program_map_section sent is
+    * currently applicable. When the bit is set to '0', it indicates that the TS_program_map_section sent is not yet applicable
+    * and shall be the next TS_program_map_section to become valid.
+    */
+    int8_t current_next_indicator; //1bit
+    
+    // 1B
+    /**
+    * The value of this 8-bit field shall be 0x00.
+    */
+    u_int8_t section_number; //8bits
+    
+    // 1B
+    /**
+    * The value of this 8-bit field shall be 0x00.
+    */
+    u_int8_t last_section_number; //8bits
+    
+    // 2B
+    // 2bits reserved.
+    /**
+    * This is a 13-bit field indicating the PID of the Transport Stream packets which shall contain the PCR fields
+    * valid for the program specified by program_number. If no PCR is associated with a program definition for private
+    * streams, then this field shall take the value of 0x1FFF. Refer to the semantic definition of PCR in 2.4.3.5 and Table 2-3
+    * for restrictions on the choice of PCR_PID value.
+    */
+    int16_t PCR_PID; //16bits
+    
+    // 2B
+    // 4bits reserved.
+    /**
+    * This is a 12-bit field, the first two bits of which shall be '00'. The remaining 10 bits specify the
+    * number of bytes of the descriptors immediately following the program_info_length field.
+    */
+    u_int16_t program_info_length; //12bits
+    char* program_info_desc; //[program_info_length]bytes
+    
+    // array of TSPMTESInfo.
+    std::vector<SrsTsPayloadPMTESInfo*> infos;
+public:
+    SrsTsPayloadPMT(SrsTsPacket* p);
+    virtual ~SrsTsPayloadPMT();
+public:
+    virtual int psi_decode(SrsStream* stream);
 };
 
 /**
