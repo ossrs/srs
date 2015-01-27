@@ -402,12 +402,60 @@ SrsMpegtsFrame::SrsMpegtsFrame()
 
 SrsTsPacket::SrsTsPacket()
 {
+    sync_byte = 0;
+    transport_error_indicator = 0;
+    payload_unit_start_indicator = 0;
+    transport_priority = 0;
+    pid = SrsTsPidPAT;
+    transport_scrambling_control = SrsTsScrambledDisabled;
+    adaption_field_control = SrsTsAdaptationFieldTypeReserved;
+    continuity_counter = 0;
     adaptation_field = NULL;
 }
 
 SrsTsPacket::~SrsTsPacket()
 {
     srs_freep(adaptation_field);
+}
+
+SrsTsAdaptationField::SrsTsAdaptationField()
+{
+    adaption_field_length = 0;
+    discontinuity_indicator = 0;
+    random_access_indicator = 0;
+    elementary_stream_priority_indicator = 0;
+    PCR_flag = 0;
+    OPCR_flag = 0;
+    splicing_point_flag = 0;
+    transport_private_data_flag = 0;
+    adaptation_field_extension_flag = 0;
+    program_clock_reference_base = 0;
+    program_clock_reference_extension = 0;
+    original_program_clock_reference_base = 0;
+    original_program_clock_reference_extension = 0;
+    splice_countdown = 0;
+    transport_private_data_length = 0;
+    transport_private_data = NULL;
+    adaptation_field_extension_length = 0;
+    ltw_flag = 0;
+    piecewise_rate_flag = 0;
+    seamless_splice_flag = 0;
+    ltw_valid_flag = 0;
+    ltw_offset = 0;
+    piecewise_rate = 0;
+    splice_type = 0;
+    DTS_next_AU0 = 0;
+    marker_bit0 = 0;
+    DTS_next_AU1 = 0;
+    marker_bit1 = 0;
+    DTS_next_AU2 = 0;
+    marker_bit2 = 0;
+    nb_af_ext_reserved = 0;
+    nb_af_reserved = 0;
+}
+
+SrsTsAdaptationField::~SrsTsAdaptationField()
+{
 }
 
 SrsTSMuxer::SrsTSMuxer(SrsFileWriter* w)
