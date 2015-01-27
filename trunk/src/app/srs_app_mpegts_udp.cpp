@@ -35,19 +35,20 @@ using namespace std;
 #include <srs_kernel_ts.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_ts.hpp>
-#include <srs_core_autofree.hpp>
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
 SrsMpegtsOverUdp::SrsMpegtsOverUdp(SrsConfDirective* c)
 {
     stream = new SrsStream();
+    context = new SrsTsContext();
     output = _srs_config->get_stream_caster_output(c);
 }
 
 SrsMpegtsOverUdp::~SrsMpegtsOverUdp()
 {
     srs_freep(stream);
+    srs_freep(context);
 }
 
 int SrsMpegtsOverUdp::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
@@ -85,10 +86,7 @@ int SrsMpegtsOverUdp::on_ts_packet(SrsStream* stream)
 {
     int ret = ERROR_SUCCESS;
 
-    SrsTsPacket* packet = new SrsTsPacket();
-    SrsAutoFree(SrsTsPacket, packet);
-
-    if ((ret = packet->decode(stream)) != ERROR_SUCCESS) {
+    if ((ret = context->decode(stream)) != ERROR_SUCCESS) {
         srs_error("mpegts: decode ts packet failed. ret=%d", ret);
         return ret;
     }

@@ -42,6 +42,7 @@ class SrsAvcAacCodec;
 class SrsCodecSample;
 class SrsSimpleBuffer;
 class SrsTsAdaptationField;
+class SrsTsPayload;
 
 // Transport Stream packets are 188 bytes in length.
 #define SRS_TS_PACKET_SIZE          188
@@ -106,6 +107,22 @@ enum SrsTsAdaptationFieldType
     SrsTsAdaptationFieldTypeAdaptionOnly  = 0x02,
     // Adaptation_field followed by payload
     SrsTsAdaptationFieldTypeBoth          = 0x03,
+};
+
+/**
+* the context of ts, to decode the ts stream.
+*/
+class SrsTsContext
+{
+public:
+    SrsTsContext();
+    virtual ~SrsTsContext();
+public:
+    /**
+    * the stream contains only one ts packet.
+    * @remark we will consume all bytes in stream.
+    */
+    virtual int decode(SrsStream* stream);
 };
 
 /**
@@ -203,14 +220,11 @@ public:
     u_int8_t continuity_counter; //4bits
 private:
     SrsTsAdaptationField* adaptation_field;
+    SrsTsPayload* payload;
 public:
     SrsTsPacket();
     virtual ~SrsTsPacket();
 public:
-    /**
-    * the stream contains only one ts packet.
-    * @remark we will consume all bytes in stream.
-    */
     virtual int decode(SrsStream* stream);
 };
 
@@ -511,6 +525,189 @@ private:
 public:
     SrsTsAdaptationField(SrsTsPacket* pkt);
     virtual ~SrsTsAdaptationField();
+public:
+    virtual int decode(SrsStream* stream);
+};
+
+/**
+* 2.4.4.4 Table_id assignments, hls-mpeg-ts-iso13818-1.pdf, page 62
+* The table_id field identifies the contents of a Transport Stream PSI section as shown in Table 2-26.
+*/
+enum SrsTsPsiId
+{
+    // program_association_section
+    SrsTsPsiIdPas               = 0x00,
+    // conditional_access_section (CA_section)
+    SrsTsPsiIdCas               = 0x01,
+    // TS_program_map_section
+    SrsTsPsiIdPms               = 0x02,
+    // TS_description_section
+    SrsTsPsiIdDs                = 0x03,
+    // ISO_IEC_14496_scene_description_section
+    SrsTsPsiIdSds               = 0x04,
+    // ISO_IEC_14496_object_descriptor_section
+    SrsTsPsiIdOds               = 0x05,
+    // ITU-T Rec. H.222.0 | ISO/IEC 13818-1 reserved
+    SrsTsPsiIdIso138181Start    = 0x06,
+    SrsTsPsiIdIso138181End      = 0x37,
+    // Defined in ISO/IEC 13818-6
+    SrsTsPsiIdIso138186Start    = 0x38,
+    SrsTsPsiIdIso138186End      = 0x3F,
+    // User private
+    SrsTsPsiIdUserStart         = 0x40,
+    SrsTsPsiIdUserEnd           = 0xFE,
+    // forbidden
+    SrsTsPsiIdForbidden         = 0xFF,
+};
+
+/**
+* the program of PAT of PSI ts packet.
+*/
+class SrsTsPayloadPATProgram
+{
+public:
+    // 4B
+    /**
+    * Program_number is a 16-bit field. It specifies the program to which the program_map_PID is
+    * applicable. When set to 0x0000, then the following PID reference shall be the network PID. For all other cases the value
+    * of this field is user defined. This field shall not take any single value more than once within one version of the Program
+    * Association Table.
+    */
+    int16_t number; // 16bits
+    // reserved 3bits
+    /**
+    * program_map_PID/network_PID 13bits
+    * network_PID ¨C The network_PID is a 13-bit field, which is used only in conjunction with the value of the
+    * program_number set to 0x0000, specifies the PID of the Transport Stream packets which shall contain the Network
+    * Information Table. The value of the network_PID field is defined by the user, but shall only take values as specified in
+    * Table 2-3. The presence of the network_PID is optional.
+    */
+    int16_t pid;
+public:
+    SrsTsPayloadPATProgram();
+    virtual ~SrsTsPayloadPATProgram();
+};
+
+/**
+* the payload of ts packet, can be PES or PSI payload.
+*/
+class SrsTsPayload
+{
+protected:
+    SrsTsPacket* packet;
+public:
+    SrsTsPayload(SrsTsPacket* p);
+    virtual ~SrsTsPayload();
+public:
+    virtual int decode(SrsStream* stream) = 0;
+};
+
+/**
+* the PSI payload of ts packet.
+* 2.4.4 Program specific information, hls-mpeg-ts-iso13818-1.pdf, page 59
+*/
+class SrsTsPayloadPSI : public SrsTsPayload
+{
+public:
+    // 1B
+    /**
+    * This is an 8-bit field whose value shall be the number of bytes, immediately following the pointer_field
+    * until the first byte of the first section that is present in the payload of the Transport Stream packet (so a value of 0x00 in
+    * the pointer_field indicates that the section starts immediately after the pointer_field). When at least one section begins in
+    * a given Transport Stream packet, then the payload_unit_start_indicator (refer to 2.4.3.2) shall be set to 1 and the first
+    * byte of the payload of that Transport Stream packet shall contain the pointer. When no section begins in a given
+    * Transport Stream packet, then the payload_unit_start_indicator shall be set to 0 and no pointer shall be sent in the
+    * payload of that packet.
+    */
+    int8_t pointer_field;
+public:
+    SrsTsPayloadPSI(SrsTsPacket* p);
+    virtual ~SrsTsPayloadPSI();
+public:
+    virtual int decode(SrsStream* stream);
+};
+
+/**
+* the PAT payload of PSI ts packet.
+* 2.4.4.3 Program association Table, hls-mpeg-ts-iso13818-1.pdf, page 61
+* The Program Association Table provides the correspondence between a program_number and the PID value of the
+* Transport Stream packets which carry the program definition. The program_number is the numeric label associated with
+* a program.
+*/
+class SrsTsPayloadPAT : public SrsTsPayloadPSI
+{
+public:
+    // 1B
+    /**
+    * This is an 8-bit field, which shall be set to 0x00 as shown in Table 2-26.
+    */
+    SrsTsPsiId table_id; //8bits
+    
+    // 2B
+    /**
+    * The section_syntax_indicator is a 1-bit field which shall be set to '1'.
+    */
+    int8_t section_syntax_indicator; //1bit
+    /**
+    * const value, must be '0'
+    */
+    int8_t const0_value; //1bit
+    // 2bits reserved. 
+    /**
+    * This is a 12-bit field, the first two bits of which shall be '00'. The remaining 10 bits specify the number
+    * of bytes of the section, starting immediately following the section_length field, and including the CRC. The value in this
+    * field shall not exceed 1021 (0x3FD).
+    */
+    u_int16_t section_length; //12bits
+    
+    // 2B
+    /**
+    * This is a 16-bit field which serves as a label to identify this Transport Stream from any other
+    * multiplex within a network. Its value is defined by the user.
+    */
+    u_int16_t transport_stream_id; //16bits
+    
+    // 1B
+    // 2bits reerverd.
+    /**
+    * This 5-bit field is the version number of the whole Program Association Table. The version number
+    * shall be incremented by 1 modulo 32 whenever the definition of the Program Association Table changes. When the
+    * current_next_indicator is set to '1', then the version_number shall be that of the currently applicable Program Association
+    * Table. When the current_next_indicator is set to '0', then the version_number shall be that of the next applicable Program
+    * Association Table.
+    */
+    int8_t version_number; //5bits
+    /**
+    * A 1-bit indicator, which when set to '1' indicates that the Program Association Table sent is
+    * currently applicable. When the bit is set to '0', it indicates that the table sent is not yet applicable and shall be the next
+    * table to become valid.
+    */
+    int8_t current_next_indicator; //1bit
+    
+    // 1B
+    /**
+    * This 8-bit field gives the number of this section. The section_number of the first section in the
+    * Program Association Table shall be 0x00. It shall be incremented by 1 with each additional section in the Program
+    * Association Table.
+    */
+    u_int8_t section_number; //8bits
+    
+    // 1B
+    /**
+    * This 8-bit field specifies the number of the last section (that is, the section with the highest
+    * section_number) of the complete Program Association Table.
+    */
+    u_int8_t last_section_number; //8bits
+    
+    // multiple 4B program data.
+    int nb_programs;
+    SrsTsPayloadPATProgram* programs;
+    
+    // 4B
+    int32_t CRC_32; //32bits
+public:
+    SrsTsPayloadPAT(SrsTsPacket* p);
+    virtual ~SrsTsPayloadPAT();
 public:
     virtual int decode(SrsStream* stream);
 };
