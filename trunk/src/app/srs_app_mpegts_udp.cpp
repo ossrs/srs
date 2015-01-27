@@ -33,16 +33,21 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
 #include <srs_kernel_ts.hpp>
+#include <srs_kernel_stream.hpp>
+#include <srs_kernel_ts.hpp>
+#include <srs_core_autofree.hpp>
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
 SrsMpegtsOverUdp::SrsMpegtsOverUdp(SrsConfDirective* c)
 {
+    stream = new SrsStream();
     output = _srs_config->get_stream_caster_output(c);
 }
 
 SrsMpegtsOverUdp::~SrsMpegtsOverUdp()
 {
+    srs_freep(stream);
 }
 
 int SrsMpegtsOverUdp::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
@@ -59,21 +64,35 @@ int SrsMpegtsOverUdp::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
     }
     srs_info("udp: got %s:%d packet %d bytes", peer_ip.c_str(), peer_port, nb_buf);
 
-    // process each ts packet
+    // use stream to parse ts packet.
     for (int i = 0; i < nb_buf; i += SRS_TS_PACKET_SIZE) {
-        char* ts_packet = buf + i;
-        if ((ret = on_ts_packet(ts_packet)) != ERROR_SUCCESS) {
-            srs_warn("mpegts: ignore ts packet error. ret=%d", ret);
-            continue;
+        if ((ret = stream->initialize(buf + i, SRS_TS_PACKET_SIZE)) != ERROR_SUCCESS) {
+            return ret;
         }
+
+        // process each ts packet
+        if ((ret = on_ts_packet(stream)) != ERROR_SUCCESS) {
+            break;
+        }
+        srs_info("mpegts: parse ts packet completed");
     }
+    srs_info("mpegts: parse udp packet completed");
 
     return ret;
 }
 
-int SrsMpegtsOverUdp::on_ts_packet(char* ts_packet)
+int SrsMpegtsOverUdp::on_ts_packet(SrsStream* stream)
 {
     int ret = ERROR_SUCCESS;
+
+    SrsTsPacket* packet = new SrsTsPacket();
+    SrsAutoFree(SrsTsPacket, packet);
+
+    if ((ret = packet->decode(stream)) != ERROR_SUCCESS) {
+        srs_error("mpegts: decode ts packet failed. ret=%d", ret);
+        return ret;
+    }
+
     return ret;
 }
 

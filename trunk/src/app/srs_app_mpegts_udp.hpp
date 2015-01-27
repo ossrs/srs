@@ -33,6 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class sockaddr_in;
 #include <string>
 
+class SrsStream;
 class SrsConfDirective;
 
 #ifdef SRS_AUTO_STREAM_CASTER
@@ -43,6 +44,7 @@ class SrsConfDirective;
 class SrsMpegtsOverUdp
 {
 private:
+    SrsStream* stream;
     std::string output;
 public:
     SrsMpegtsOverUdp(SrsConfDirective* c);
@@ -60,9 +62,9 @@ public:
     virtual int on_udp_packet(sockaddr_in* from, char* buf, int nb_buf);
 private:
     /**
-    * when got a ts packet, in size TS_PACKET_SIZE.
+    * the stream contains the ts packet to parse.
     */
-    virtual int on_ts_packet(char* ts_packet);
+    virtual int on_ts_packet(SrsStream* stream);
 };
 
 #endif

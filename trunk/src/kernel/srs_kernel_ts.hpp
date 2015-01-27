@@ -33,6 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_codec.hpp>
 
+class SrsStream;
 class SrsTsCache;
 class SrsTSMuxer;
 class SrsFileWriter;
@@ -114,7 +115,7 @@ enum SrsTsAdaptationFieldType
 */
 class SrsTsPacket
 {
-private:
+public:
     // 1B
     /**
     * The sync_byte is a fixed 8-bit field whose value is '0100 0111' (0x47). Sync_byte emulation in the choice of
@@ -206,6 +207,11 @@ public:
     SrsTsPacket();
     virtual ~SrsTsPacket();
 public:
+    /**
+    * the stream contains only one ts packet.
+    * @remark we will consume all bytes in stream.
+    */
+    virtual int decode(SrsStream* stream);
 };
 
 /**
@@ -215,7 +221,7 @@ public:
 */
 class SrsTsAdaptationField
 {
-private:
+public:
     // 1B
     /**
     * The adaptation_field_length is an 8-bit field specifying the number of bytes in the
@@ -500,10 +506,13 @@ private:
     * decoder.
     */
     int nb_af_reserved;
+private:
+    SrsTsPacket* packet;
 public:
-    SrsTsAdaptationField();
+    SrsTsAdaptationField(SrsTsPacket* pkt);
     virtual ~SrsTsAdaptationField();
 public:
+    virtual int decode(SrsStream* stream);
 };
 
 /**
