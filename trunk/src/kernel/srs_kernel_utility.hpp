@@ -80,5 +80,10 @@ extern bool srs_avc_startswith_annexb(SrsStream* stream, int* pnb_start_code = N
 */
 extern bool srs_aac_startswith_adts(SrsStream* stream);
 
+/**
+* cacl the crc32 of bytes in buf.
+*/
+extern u_int32_t srs_crc32(const void* buf, int size);
+
 #endif
 

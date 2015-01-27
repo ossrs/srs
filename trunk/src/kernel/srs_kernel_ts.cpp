@@ -617,7 +617,7 @@ int SrsTsAdaptationField::decode(SrsStream* stream)
         }
 
         char* pp = NULL;
-        char* p = stream->data();
+        char* p = stream->data() + stream->pos();
         stream->skip(6);
 
         pp = (char*)&program_clock_reference_base;
@@ -642,7 +642,7 @@ int SrsTsAdaptationField::decode(SrsStream* stream)
         }
 
         char* pp = NULL;
-        char* p = stream->data();
+        char* p = stream->data() + stream->pos();
         stream->skip(6);
 
         pp = (char*)&original_program_clock_reference_base;
@@ -831,6 +831,10 @@ int SrsTsPayloadPAT::decode(SrsStream* stream)
         return ret;
     }
 
+    // to calc the crc32
+    char* ppat = stream->data() + stream->pos();
+    int pat_pos = stream->pos();
+
     // atleast 8B without programs and crc32
     if (!stream->require(8)) {
         ret = ERROR_STREAM_CASTER_TS_AF;
@@ -894,7 +898,13 @@ int SrsTsPayloadPAT::decode(SrsStream* stream)
     }
     CRC_32 = stream->read_4bytes();
 
-    // TODO: FIXME: verfy crc32.
+    // verify crc32.
+    int32_t crc32 = srs_crc32(ppat, stream->pos() - pat_pos - 4);
+    if (crc32 != CRC_32) {
+        ret = ERROR_STREAM_CASTER_TS_CRC32;
+        srs_error("ts: verify PAT crc32 failed. ret=%d", ret);
+        return ret;
+    }
 
     return ret;
 }
