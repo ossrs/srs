@@ -408,6 +408,12 @@ SrsTsContext::SrsTsContext()
 
 SrsTsContext::~SrsTsContext()
 {
+    std::map<int, SrsTsChannel*>::iterator it;
+    for (it = pids.begin(); it != pids.end(); ++it) {
+        SrsTsChannel* channel = it->second;
+        srs_freep(channel);
+    }
+    pids.clear();
 }
 
 int SrsTsContext::decode(SrsStream* stream)
@@ -429,17 +435,28 @@ int SrsTsContext::decode(SrsStream* stream)
     return ret;
 }
 
-SrsTsPidApply SrsTsContext::get(int pid)
+SrsTsChannel* SrsTsContext::get(int pid)
 {
     if (pids.find(pid) == pids.end()) {
-        return SrsTsPidApplyReserved;
+        return NULL;
     }
     return pids[pid];
 }
 
-void SrsTsContext::set(int pid, SrsTsPidApply apply_pid)
+void SrsTsContext::set(int pid, SrsTsPidApply apply_pid, SrsTsStream stream)
 {
-    pids[pid] = apply_pid;
+    SrsTsChannel* channel = NULL;
+
+    if (pids.find(pid) == pids.end()) {
+        channel = new SrsTsChannel();
+        pids[pid] = channel;
+    } else {
+        channel = pids[pid];
+    }
+
+    channel->pid = pid;
+    channel->apply = apply_pid;
+    channel->stream = stream;
 }
 
 SrsTsPacket::SrsTsPacket(SrsTsContext* c)
@@ -523,11 +540,15 @@ int SrsTsPacket::decode(SrsStream* stream)
             srs_freep(payload);
             payload = new SrsTsPayloadPAT(this);
         } else {
-            SrsTsPidApply apply_pid = context->get(pid);
-            if (apply_pid == SrsTsPidApplyPMT) {
+            SrsTsChannel* channel = context->get(pid);
+            if (channel && channel->apply == SrsTsPidApplyPMT) {
                 // 2.4.4.8 Program Map Table
                 srs_freep(payload);
                 payload = new SrsTsPayloadPMT(this);
+            } else if (channel && (channel->apply == SrsTsPidApplyVideo || channel->apply == SrsTsPidApplyAudio)) {
+                // 2.4.3.6 PES packet
+                srs_freep(payload);
+                payload = new SrsTsPayloadPES(this);
             } else {
                 // left bytes as reserved.
                 stream->skip(nb_payload);
@@ -793,6 +814,31 @@ SrsTsPayload::~SrsTsPayload()
 {
 }
 
+SrsTsPayloadPES::SrsTsPayloadPES(SrsTsPacket* p) : SrsTsPayload(p)
+{
+    PES_private_data = NULL;
+    pack_field = NULL;
+    PES_extension_field = NULL;
+    nb_stuffings = 0;
+    nb_bytes = 0;
+    bytes = NULL;
+    nb_paddings = 0;
+}
+
+SrsTsPayloadPES::~SrsTsPayloadPES()
+{
+    srs_freep(PES_private_data);
+    srs_freep(pack_field);
+    srs_freep(PES_extension_field);
+    srs_freep(bytes);
+}
+
+int SrsTsPayloadPES::decode(SrsStream* stream)
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
 SrsTsPayloadPSI::SrsTsPayloadPSI(SrsTsPacket* p) : SrsTsPayload(p)
 {
     pointer_field = 0;
@@ -879,7 +925,19 @@ int SrsTsPayloadPSI::decode(SrsStream* stream)
 
     // consume left stuffings
     if (!stream->empty()) {
-        stream->skip(stream->size() - stream->pos());
+        int nb_stuffings = stream->size() - stream->pos();
+        char* stuffing = stream->data() + stream->pos();
+
+        // all stuffing must be 0xff.
+        // TODO: FIXME: maybe need to remove the following.
+        for (int i = 0; i < nb_stuffings; i++) {
+            if ((u_int8_t)stuffing[i] != 0xff) {
+                srs_warn("ts: stuff is not 0xff, actual=%#x", stuffing[i]);
+                break;
+            }
+        }
+
+        stream->skip(nb_stuffings);
     }
 
     return ret;
@@ -1049,7 +1107,7 @@ int SrsTsPayloadPMT::psi_decode(SrsStream* stream)
             return ret;
         }
 
-        info->stream_type = stream->read_1bytes();
+        info->stream_type = (SrsTsStream)stream->read_1bytes();
         info->elementary_PID = stream->read_2bytes();
         info->ES_info_length = stream->read_2bytes();
 
@@ -1065,6 +1123,23 @@ int SrsTsPayloadPMT::psi_decode(SrsStream* stream)
             srs_freep(info->ES_info);
             info->ES_info = new char[info->ES_info_length];
             stream->read_bytes(info->ES_info, info->ES_info_length);
+        }
+
+        // update the apply pid table
+        switch (info->stream_type) {
+            case SrsTsStreamVideoH264:
+            case SrsTsStreamVideoMpeg4:
+                packet->context->set(info->elementary_PID, SrsTsPidApplyVideo, info->stream_type);
+                break;
+            case SrsTsStreamAudioAAC:
+            case SrsTsStreamAudioAC3:
+            case SrsTsStreamAudioDTS:
+            case SrsTsStreamAudioMp3:
+                packet->context->set(info->elementary_PID, SrsTsPidApplyAudio, info->stream_type);
+                break;
+            default:
+                srs_warn("ts: drop pid=%#x, stream=%#x", info->elementary_PID, info->stream_type);
+                break;
         }
     }
 
