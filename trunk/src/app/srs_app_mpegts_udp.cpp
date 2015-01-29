@@ -35,6 +35,7 @@ using namespace std;
 #include <srs_kernel_ts.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_ts.hpp>
+#include <srs_kernel_buffer.hpp>
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
@@ -42,11 +43,13 @@ SrsMpegtsOverUdp::SrsMpegtsOverUdp(SrsConfDirective* c)
 {
     stream = new SrsStream();
     context = new SrsTsContext();
+    buffer = new SrsSimpleBuffer();
     output = _srs_config->get_stream_caster_output(c);
 }
 
 SrsMpegtsOverUdp::~SrsMpegtsOverUdp()
 {
+    srs_freep(buffer);
     srs_freep(stream);
     srs_freep(context);
 }
@@ -58,16 +61,36 @@ int SrsMpegtsOverUdp::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
     std::string peer_ip = inet_ntoa(from->sin_addr);
     int peer_port = ntohs(from->sin_port);
 
+    // append to buffer.
+    buffer->append(buf, nb_buf);
+
+    // find the sync byte of mpegts.
+    char* p = buffer->bytes();
+    for (int i = 0; i < buffer->length(); i++) {
+        if (p[i] != 0x47) {
+            continue;
+        }
+
+        if (i > 0) {
+            buffer->erase(i);
+        }
+        break;
+    }
+
     // drop ts packet when size not modulus by 188
-    if (nb_buf < SRS_TS_PACKET_SIZE || (nb_buf % SRS_TS_PACKET_SIZE) != 0) {
-        srs_warn("udp: drop %s:%d packet %d bytes", peer_ip.c_str(), peer_port, nb_buf);
+    if (buffer->length() < SRS_TS_PACKET_SIZE) {
+        srs_info("udp: wait %s:%d packet %d/%d bytes",
+            peer_ip.c_str(), peer_port, nb_buf, buffer->length());
         return ret;
     }
-    srs_info("udp: got %s:%d packet %d bytes", peer_ip.c_str(), peer_port, nb_buf);
+    srs_info("udp: got %s:%d packet %d/%d bytes",
+        peer_ip.c_str(), peer_port, nb_buf, buffer->length());
 
     // use stream to parse ts packet.
-    for (int i = 0; i < nb_buf; i += SRS_TS_PACKET_SIZE) {
-        if ((ret = stream->initialize(buf + i, SRS_TS_PACKET_SIZE)) != ERROR_SUCCESS) {
+    int nb_packet =  buffer->length() / SRS_TS_PACKET_SIZE;
+    for (int i = 0; i < nb_packet; i++) {
+        char* p = buffer->bytes() + (i * SRS_TS_PACKET_SIZE);
+        if ((ret = stream->initialize(p, SRS_TS_PACKET_SIZE)) != ERROR_SUCCESS) {
             return ret;
         }
 
@@ -79,6 +102,11 @@ int SrsMpegtsOverUdp::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
         srs_info("mpegts: parse ts packet completed");
     }
     srs_info("mpegts: parse udp packet completed");
+
+    // erase consumed bytes
+    if (nb_packet > 0) {
+        buffer->erase(nb_packet * SRS_TS_PACKET_SIZE);
+    }
 
     return ret;
 }

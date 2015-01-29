@@ -36,6 +36,7 @@ class sockaddr_in;
 class SrsStream;
 class SrsTsContext;
 class SrsConfDirective;
+class SrsSimpleBuffer;
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
@@ -49,6 +50,7 @@ class SrsMpegtsOverUdp : public ISrsTsHandler
 private:
     SrsStream* stream;
     SrsTsContext* context;
+    SrsSimpleBuffer* buffer;
     std::string output;
 public:
     SrsMpegtsOverUdp(SrsConfDirective* c);
