@@ -415,10 +415,15 @@ SrsTsChannel::~SrsTsChannel()
     srs_freep(msg);
 }
 
-SrsTsMessage::SrsTsMessage()
+SrsTsMessage::SrsTsMessage(SrsTsChannel* c, SrsTsPacket* p)
 {
-    payload = NULL;
-    clear();
+    channel = c;
+    packet = p;
+
+    dts = pts = 0;
+    continuity_counter = 0;
+    PES_packet_length = 0;
+    payload = new SrsSimpleBuffer();
 }
 
 SrsTsMessage::~SrsTsMessage()
@@ -467,15 +472,6 @@ bool SrsTsMessage::completed(int8_t payload_unit_start_indicator)
 bool SrsTsMessage::fresh()
 {
     return payload->length() == 0;
-}
-
-void SrsTsMessage::clear()
-{
-    dts = pts = 0;
-    continuity_counter = 0;
-    PES_packet_length = 0;
-    srs_freep(payload);
-    payload = new SrsSimpleBuffer();
 }
 
 ISrsTsHandler::ISrsTsHandler()
@@ -941,7 +937,7 @@ int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
     // init msg.
     SrsTsMessage* msg = channel->msg;
     if (!msg) {
-        msg = new SrsTsMessage();
+        msg = new SrsTsMessage(channel, packet);
         channel->msg = msg;
     }
 
@@ -967,7 +963,8 @@ int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
 
         // reparse current msg.
         stream->skip(stream->pos() * -1);
-        msg->clear();
+        srs_freep(msg);
+        channel->msg = NULL;
         return ERROR_SUCCESS;
     }
 
@@ -991,7 +988,8 @@ int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
 
             // reparse current msg.
             stream->skip(stream->pos() * -1);
-            msg->clear();
+            srs_freep(msg);
+            channel->msg = NULL;
             return ERROR_SUCCESS;
         }
     }
@@ -1005,7 +1003,6 @@ int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
 
         // reparse current msg.
         stream->skip(stream->pos() * -1);
-
         return ret;
     }
 

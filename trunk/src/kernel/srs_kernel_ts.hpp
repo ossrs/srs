@@ -46,6 +46,7 @@ class SrsSimpleBuffer;
 class SrsTsAdaptationField;
 class SrsTsPayload;
 class SrsTsMessage;
+class SrsTsPacket;
 
 // Transport Stream packets are 188 bytes in length.
 #define SRS_TS_PACKET_SIZE          188
@@ -192,6 +193,9 @@ struct SrsTsChannel
 */
 class SrsTsMessage
 {
+private:
+    SrsTsChannel* channel;
+    SrsTsPacket* packet;
 public:
     int64_t dts;
     int64_t pts;
@@ -199,7 +203,7 @@ public:
     u_int8_t continuity_counter;
     SrsSimpleBuffer* payload;
 public:
-    SrsTsMessage();
+    SrsTsMessage(SrsTsChannel* c, SrsTsPacket* p);
     virtual ~SrsTsMessage();
 public:
     /**
@@ -219,10 +223,6 @@ public:
     * whether the message is fresh.
     */
     virtual bool fresh();
-    /**
-    * clear current message.
-    */
-    virtual void clear();
 };
 
 /**
