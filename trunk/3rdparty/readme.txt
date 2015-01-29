@@ -23,6 +23,9 @@ x264-snapshot-20131129-2245-stable.tar.bz2 (core.138)
     for srs to support live stream transcoding.
     remark: we use *.zip for all linux plantform.
 
+fdk-aac-0.1.3.zip
+    https://github.com/mstorsjo/fdk-aac/releases
+
 tools/ccache-3.1.9.zip
     to fast build.
     
