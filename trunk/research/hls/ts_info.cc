@@ -1539,7 +1539,8 @@ int TSPayloadPES::demux(TSContext* ctx, TSPacket* pkt, u_int8_t* start, u_int8_t
         // for (i = 0; i < PES_packet_length; i++) {
         //         PES_packet_data_byte
         // }
-    } else if (stream_id != PES_padding_stream) {
+        // TODO: FIXME: implements it.
+    } else if (stream_id == PES_padding_stream) {
         // for (i = 0; i < PES_packet_length; i++) {
         //         padding_byte
         // }

@@ -39,10 +39,12 @@ class SrsConfDirective;
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
+#include <srs_kernel_ts.hpp>
+
 /**
 * the mpegts over udp stream caster.
 */
-class SrsMpegtsOverUdp
+class SrsMpegtsOverUdp : public ISrsTsHandler
 {
 private:
     SrsStream* stream;
@@ -67,6 +69,9 @@ private:
     * the stream contains the ts packet to parse.
     */
     virtual int on_ts_packet(SrsStream* stream);
+// interface ISrsTsHandler
+public:
+    virtual int on_ts_message(SrsTsMessage* msg);
 };
 
 #endif

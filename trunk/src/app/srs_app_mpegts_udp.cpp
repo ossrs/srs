@@ -73,7 +73,8 @@ int SrsMpegtsOverUdp::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
 
         // process each ts packet
         if ((ret = on_ts_packet(stream)) != ERROR_SUCCESS) {
-            break;
+            srs_warn("mpegts: ignore parse ts packet failed. ret=%d", ret);
+            continue;
         }
         srs_info("mpegts: parse ts packet completed");
     }
@@ -86,11 +87,18 @@ int SrsMpegtsOverUdp::on_ts_packet(SrsStream* stream)
 {
     int ret = ERROR_SUCCESS;
 
-    if ((ret = context->decode(stream)) != ERROR_SUCCESS) {
+    if ((ret = context->decode(stream, this)) != ERROR_SUCCESS) {
         srs_error("mpegts: decode ts packet failed. ret=%d", ret);
         return ret;
     }
 
+    return ret;
+}
+
+int SrsMpegtsOverUdp::on_ts_message(SrsTsMessage* msg)
+{
+    int ret = ERROR_SUCCESS;
+    // TODO: FIXME: implements it.
     return ret;
 }
 

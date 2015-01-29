@@ -226,6 +226,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_STREAM_CASTER_TS_PSI          4016
 #define ERROR_STREAM_CASTER_TS_PAT          4017
 #define ERROR_STREAM_CASTER_TS_PMT          4018
+#define ERROR_STREAM_CASTER_TS_PSE          4019
 
 /**
 * whether the error code is an system control error.

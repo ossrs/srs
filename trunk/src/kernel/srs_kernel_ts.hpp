@@ -45,6 +45,7 @@ class SrsCodecSample;
 class SrsSimpleBuffer;
 class SrsTsAdaptationField;
 class SrsTsPayload;
+class SrsTsMessage;
 
 // Transport Stream packets are 188 bytes in length.
 #define SRS_TS_PACKET_SIZE          188
@@ -180,6 +181,65 @@ struct SrsTsChannel
     int pid;
     SrsTsPidApply apply;
     SrsTsStream stream;
+    SrsTsMessage* msg;
+
+    SrsTsChannel();
+    virtual ~SrsTsChannel();
+};
+
+/**
+* the media audio/video message parsed from PES packet.
+*/
+class SrsTsMessage
+{
+public:
+    int64_t dts;
+    int64_t pts;
+    u_int16_t PES_packet_length;
+    u_int8_t continuity_counter;
+    SrsSimpleBuffer* payload;
+public:
+    SrsTsMessage();
+    virtual ~SrsTsMessage();
+public:
+    /**
+    * dumps all bytes in stream to ts message.
+    */
+    virtual int dump(SrsStream* stream, int* pnb_bytes);
+    /**
+    * whether ts message is completed to reap.
+    * @param payload_unit_start_indicator whether new ts message start.
+    *       PES_packet_length is 0, the payload_unit_start_indicator=1 to reap ts message.
+    *       PES_packet_length > 0, the payload.length() == PES_packet_length to reap ts message.
+    * @remark when PES_packet_length>0, the payload_unit_start_indicator should never be 1 when not completed.
+    * @remark when fresh, the payload_unit_start_indicator should be 1.
+    */
+    virtual bool completed(int8_t payload_unit_start_indicator);
+    /**
+    * whether the message is fresh.
+    */
+    virtual bool fresh();
+    /**
+    * clear current message.
+    */
+    virtual void clear();
+};
+
+/**
+* the ts message handler.
+*/
+class ISrsTsHandler
+{
+public:
+    ISrsTsHandler();
+    virtual ~ISrsTsHandler();
+public:
+    /**
+    * when ts context got message, use handler to process it.
+    * @param msg the ts msg, user should never free it.
+    * @return an int error code.
+    */
+    virtual int on_ts_message(SrsTsMessage* msg) = 0;
 };
 
 /**
@@ -195,9 +255,10 @@ public:
 public:
     /**
     * the stream contains only one ts packet.
+    * @param handler the ts message handler to process the msg.
     * @remark we will consume all bytes in stream.
     */
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsStream* stream, ISrsTsHandler* handler);
 public:
     /**
     * get the pid apply, the parsed pid.
@@ -237,7 +298,7 @@ public:
     * Transport Stream packets that carry PES packets (refer to 2.4.3.6) or PSI data (refer to 2.4.4).
     * 
     * When the payload of the Transport Stream packet contains PES packet data, the payload_unit_start_indicator has the
-    * following significance: a '1' indicates that the payload of this Transport Stream packet will commence with the first byte
+    * following significance: a '1' indicates that the payload of this Transport Stream packet will commence(start) with the first byte
     * of a PES packet and a '0' indicates no PES packet shall start in this Transport Stream packet. If the
     * payload_unit_start_indicator is set to '1', then one and only one PES packet starts in this Transport Stream packet. This
     * also applies to private streams of stream_type 6 (refer to Table 2-29).
@@ -293,7 +354,7 @@ public:
     * 
     * In Transport Streams, duplicate packets may be sent as two, and only two, consecutive Transport Stream packets of the
     * same PID. The duplicate packets shall have the same continuity_counter value as the original packet and the
-    * adaptation_field_control field shall be equal to '01' or '11'. In duplicate packets each byte of the original packet shall be
+    * adaptation_field_control field shall be equal to '01'(payload only) or '11'(both). In duplicate packets each byte of the original packet shall be
     * duplicated, with the exception that in the program clock reference fields, if present, a valid value shall be encoded.
     *
     * The continuity_counter in a particular Transport Stream packet is continuous when it differs by a positive value of one
@@ -312,7 +373,7 @@ public:
     SrsTsPacket(SrsTsContext* c);
     virtual ~SrsTsPacket();
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsStream* stream, SrsTsMessage** ppmsg);
 };
 
 /**
@@ -658,7 +719,64 @@ public:
     SrsTsPayload(SrsTsPacket* p);
     virtual ~SrsTsPayload();
 public:
-    virtual int decode(SrsStream* stream) = 0;
+    virtual int decode(SrsStream* stream, SrsTsMessage** ppmsg) = 0;
+};
+
+/**
+* the stream_id of PES payload of ts packet.
+* Table 2-18 – Stream_id assignments, hls-mpeg-ts-iso13818-1.pdf, page 52.
+*/
+enum SrsTsPESStreamId
+{
+    // program_stream_map
+    SrsTsPESStreamIdProgramStreamMap            = 0xbc, // 0b10111100
+    // private_stream_1
+    SrsTsPESStreamIdPrivateStream1              = 0xbd, // 0b10111101
+    // padding_stream
+    SrsTsPESStreamIdPaddingStream               = 0xbe, // 0b10111110
+    // private_stream_2
+    SrsTsPESStreamIdPrivateStream2              = 0xbf, // 0b10111111
+
+    // 110x xxxx
+    // ISO/IEC 13818-3 or ISO/IEC 11172-3 or ISO/IEC 13818-7 or ISO/IEC
+    // 14496-3 audio stream number x xxxx
+    // (stream_id>>5)&0x07 == SrsTsPESStreamIdAudio
+    SrsTsPESStreamIdAudio                       = 0x06, // 0b110
+
+    // 1110 xxxx
+    // ITU-T Rec. H.262 | ISO/IEC 13818-2 or ISO/IEC 11172-2 or ISO/IEC
+    // 14496-2 video stream number xxxx
+    // (stream_id>>4)&0x0f == SrsTsPESStreamIdVideo
+    SrsTsPESStreamIdVideo                       = 0x0e, // 0b1110
+
+    // ECM_stream
+    SrsTsPESStreamIdEcmStream                   = 0xf0, // 0b11110000
+    // EMM_stream
+    SrsTsPESStreamIdEmmStream                   = 0xf1, // 0b11110001
+    // DSMCC_stream
+    SrsTsPESStreamIdDsmccStream                 = 0xf2, // 0b11110010
+    // 13522_stream
+    SrsTsPESStreamId13522Stream                 = 0xf3, // 0b11110011
+    // H_222_1_type_A
+    SrsTsPESStreamIdH2221TypeA                  = 0xf4, // 0b11110100
+    // H_222_1_type_B
+    SrsTsPESStreamIdH2221TypeB                  = 0xf5, // 0b11110101
+    // H_222_1_type_C
+    SrsTsPESStreamIdH2221TypeC                  = 0xf6, // 0b11110110
+    // H_222_1_type_D
+    SrsTsPESStreamIdH2221TypeD                  = 0xf7, // 0b11110111
+    // H_222_1_type_E
+    SrsTsPESStreamIdH2221TypeE                  = 0xf8, // 0b11111000
+    // ancillary_stream
+    SrsTsPESStreamIdAncillaryStream             = 0xf9, // 0b11111001
+    // SL_packetized_stream
+    SrsTsPESStreamIdSlPacketizedStream          = 0xfa, // 0b11111010
+    // FlexMux_stream
+    SrsTsPESStreamIdFlexMuxStream               = 0xfb, // 0b11111011
+    // reserved data stream
+    // 1111 1100 … 1111 1110
+    // program_stream_directory
+    SrsTsPESStreamIdProgramStreamDirectory      = 0xff, // 0b11111111
 };
 
 /**
@@ -774,7 +892,7 @@ public:
     */
     u_int8_t PES_header_data_length; //8bits
 
-    // 8B
+    // 5B
     /**
     * Presentation times shall be related to decoding times as follows: The PTS is a 33-bit
     * number coded in three separate fields. It indicates the time of presentation, tp n (k), in the system target decoder of a
@@ -782,15 +900,37 @@ public:
     * frequency divided by 300 (yielding 90 kHz). The presentation time is derived from the PTS according to equation 2-11
     * below. Refer to 2.7.4 for constraints on the frequency of coding presentation timestamps.
     */
+    // ===========1B
+    // 4bits const
+    // 3bits PTS [32..30]
+    // 1bit const '1'
+    // ===========2B
+    // 15bits PTS [29..15]
+    // 1bit const '1'
+    // ===========2B
+    // 15bits PTS [14..0]
+    // 1bit const '1'
     int64_t pts; // 33bits
+
+    // 5B
     /**
     * The DTS is a 33-bit number coded in three separate fields. It indicates the decoding time,
     * td n (j), in the system target decoder of an access unit j of elementary stream n. The value of DTS is specified in units of
     * the period of the system clock frequency divided by 300 (yielding 90 kHz).
     */
+    // ===========1B
+    // 4bits const
+    // 3bits DTS [32..30]
+    // 1bit const '1'
+    // ===========2B
+    // 15bits DTS [29..15]
+    // 1bit const '1'
+    // ===========2B
+    // 15bits DTS [14..0]
+    // 1bit const '1'
     int64_t dts; // 33bits
 
-    // 8B
+    // 6B
     /**
     * The elementary stream clock reference is a 42-bit field coded in two parts. The first
     * part, ESCR_base, is a 33-bit field whose value is given by ESCR_base(i), as given in equation 2-14. The second part,
@@ -798,8 +938,19 @@ public:
     * intended time of arrival of the byte containing the last bit of the ESCR_base at the input of the PES-STD for PES streams
     * (refer to 2.5.2.4).
     */
-    int16_t ESCR_extension; //9bits
+    // 2bits reserved
+    // 3bits ESCR_base[32..30]
+    // 1bit const '1'
+    // 15bits ESCR_base[29..15]
+    // 1bit const '1'
+    // 15bits ESCR_base[14..0]
+    // 1bit const '1'
+    // 9bits ESCR_extension
+    // 1bit const '1'
     int64_t ESCR_base; //33bits
+    int16_t ESCR_extension; //9bits
+
+    // 3B
     /**
     * The ES_rate field is a 22-bit unsigned integer specifying the rate at which the
     * system target decoder receives bytes of the PES packet in the case of a PES stream. The ES_rate is valid in the PES
@@ -808,6 +959,9 @@ public:
     * ES_rate is used to define the time of arrival of bytes at the input of a P-STD for PES streams defined in 2.5.2.4. The
     * value encoded in the ES_rate field may vary from PES_packet to PES_packet.
     */
+    // 1bit const '1'
+    // 22bits ES_rate
+    // 1bit const '1'
     int32_t ES_rate; //22bits
 
     // 1B
@@ -877,7 +1031,7 @@ public:
     /**
     * This is an 8-bit field which indicates the length, in bytes, of the pack_header_field().
     */
-    int8_t pack_field_length; //8bits
+    u_int8_t pack_field_length; //8bits
     char* pack_field; //[pack_field_length] bytes
 
     // 2B
@@ -928,7 +1082,7 @@ public:
     * This is a 7-bit field which specifies the length, in bytes, of the data following this field in
     * the PES extension field up to and including any reserved bytes.
     */
-    int8_t PES_extension_field_length; //7bits
+    u_int8_t PES_extension_field_length; //7bits
     char* PES_extension_field; //[PES_extension_field_length] bytes
 
     // NB
@@ -953,7 +1107,6 @@ public:
     * PES_packet_data_byte field are user definable and will not be specified by ITU-T | ISO/IEC in the future.
     */
     int nb_bytes;
-    char* bytes;
 
     // NB
     /**
@@ -964,7 +1117,9 @@ public:
     SrsTsPayloadPES(SrsTsPacket* p);
     virtual ~SrsTsPayloadPES();
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsStream* stream, SrsTsMessage** ppmsg);
+private:
+    virtual int decode_33bits_dts_pts(SrsStream* stream, int64_t* pv);
 };
 
 /**
@@ -1020,7 +1175,7 @@ public:
     SrsTsPayloadPSI(SrsTsPacket* p);
     virtual ~SrsTsPayloadPSI();
 public:
-    virtual int decode(SrsStream* stream);
+    virtual int decode(SrsStream* stream, SrsTsMessage** ppmsg);
 protected:
     virtual int psi_decode(SrsStream* stream) = 0;
 };
