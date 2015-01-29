@@ -1428,7 +1428,7 @@ int SrsTsCache::do_cache_video(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         nal_unit_type &= 0x1f;
         
         // @see: ngx_rtmp_hls_video
-        // Table 7-1 ¨C NAL unit type codes, page 61
+        // Table 7-1 NAL unit type codes, page 61
         // 1: Coded slice
         if (nal_unit_type == 1) {
             sps_pps_sent = false;

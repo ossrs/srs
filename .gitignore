@@ -17,6 +17,7 @@
 *.swp
 /trunk/Makefile
 /trunk/objs
+/trunk/src/build-qt-Desktop-Debug
 /trunk/research/librtmp/objs
 /trunk/3rdparty/ccache/ccache-3.1.9
 /trunk/3rdparty/gprof/graphviz-2.36.0
