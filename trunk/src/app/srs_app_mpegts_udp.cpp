@@ -39,6 +39,14 @@ using namespace std;
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
+ISrsUdpHandler::ISrsUdpHandler()
+{
+}
+
+ISrsUdpHandler::~ISrsUdpHandler()
+{
+}
+
 SrsMpegtsOverUdp::SrsMpegtsOverUdp(SrsConfDirective* c)
 {
     stream = new SrsStream();
@@ -95,7 +103,7 @@ int SrsMpegtsOverUdp::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
         }
 
         // process each ts packet
-        if ((ret = on_ts_packet(stream)) != ERROR_SUCCESS) {
+        if ((ret = context->decode(stream, this)) != ERROR_SUCCESS) {
             srs_warn("mpegts: ignore parse ts packet failed. ret=%d", ret);
             continue;
         }
@@ -106,18 +114,6 @@ int SrsMpegtsOverUdp::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
     // erase consumed bytes
     if (nb_packet > 0) {
         buffer->erase(nb_packet * SRS_TS_PACKET_SIZE);
-    }
-
-    return ret;
-}
-
-int SrsMpegtsOverUdp::on_ts_packet(SrsStream* stream)
-{
-    int ret = ERROR_SUCCESS;
-
-    if ((ret = context->decode(stream, this)) != ERROR_SUCCESS) {
-        srs_error("mpegts: decode ts packet failed. ret=%d", ret);
-        return ret;
     }
 
     return ret;

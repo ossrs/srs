@@ -43,9 +43,31 @@ class SrsSimpleBuffer;
 #include <srs_kernel_ts.hpp>
 
 /**
+* the udp packet handler.
+*/
+class ISrsUdpHandler
+{
+public:
+    ISrsUdpHandler();
+    virtual ~ISrsUdpHandler();
+public:
+    /**
+    * when udp listener got a udp packet, notice server to process it.
+    * @param type, the client type, used to create concrete connection,
+    *       for instance RTMP connection to serve client.
+    * @param from, the udp packet from address.
+    * @param buf, the udp packet bytes, user should copy if need to use.
+    * @param nb_buf, the size of udp packet bytes.
+    * @remark user should never use the buf, for it's a shared memory bytes.
+    */
+    virtual int on_udp_packet(sockaddr_in* from, char* buf, int nb_buf) = 0;
+};
+
+/**
 * the mpegts over udp stream caster.
 */
-class SrsMpegtsOverUdp : public ISrsTsHandler
+class SrsMpegtsOverUdp : virtual public ISrsTsHandler
+    , virtual public ISrsUdpHandler
 {
 private:
     SrsStream* stream;
@@ -55,22 +77,9 @@ private:
 public:
     SrsMpegtsOverUdp(SrsConfDirective* c);
     virtual ~SrsMpegtsOverUdp();
+// interface ISrsUdpHandler
 public:
-    /**
-    * when udp listener got a udp packet, notice server to process it.
-    * @param type, the client type, used to create concrete connection, 
-    *       for instance RTMP connection to serve client.
-    * @param from, the udp packet from address.
-    * @param buf, the udp packet bytes, user should copy if need to use.
-    * @param nb_buf, the size of udp packet bytes.
-    * @remark user should never use the buf, for it's a shared memory bytes.
-    */
     virtual int on_udp_packet(sockaddr_in* from, char* buf, int nb_buf);
-private:
-    /**
-    * the stream contains the ts packet to parse.
-    */
-    virtual int on_ts_packet(SrsStream* stream);
 // interface ISrsTsHandler
 public:
     virtual int on_ts_message(SrsTsMessage* msg);

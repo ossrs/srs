@@ -45,9 +45,7 @@ class SrsIngester;
 class SrsHttpHeartbeat;
 class SrsKbps;
 class SrsConfDirective;
-#ifdef SRS_AUTO_STREAM_CASTER
-class SrsMpegtsOverUdp;
-#endif
+class ISrsUdpHandler;
 
 // listener type for server to identify the connection,
 // that is, use different type to process the connection.
@@ -96,7 +94,7 @@ class SrsUdpListener : public SrsListener
 private:
     char* buf;
     int nb_buf;
-    SrsMpegtsOverUdp* caster;
+    ISrsUdpHandler* caster;
 public:
     SrsUdpListener(SrsServer* server, SrsListenerType type, SrsConfDirective* c);
     virtual ~SrsUdpListener();
