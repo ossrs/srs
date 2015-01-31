@@ -162,6 +162,7 @@ enum SrsTsStream
     // ISO/IEC 14496-2 Visual
     SrsTsStreamVideoMpeg4      = 0x10,
     // ISO/IEC 14496-3 Audio with the LATM transport syntax as defined in ISO/IEC 14496-3 / AMD 1
+    SrsTsStreamAudioMpeg4      = 0x11,
     // ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in PES packets
     // ISO/IEC 14496-1 SL-packetized stream or FlexMux stream carried in ISO/IEC14496_sections.
     // ISO/IEC 13818-6 Synchronized Download Protocol
@@ -189,18 +190,82 @@ struct SrsTsChannel
 };
 
 /**
+* the stream_id of PES payload of ts packet.
+* Table 2-18 – Stream_id assignments, hls-mpeg-ts-iso13818-1.pdf, page 52.
+*/
+enum SrsTsPESStreamId
+{
+    // program_stream_map
+    SrsTsPESStreamIdProgramStreamMap            = 0xbc, // 0b10111100
+    // private_stream_1
+    SrsTsPESStreamIdPrivateStream1              = 0xbd, // 0b10111101
+    // padding_stream
+    SrsTsPESStreamIdPaddingStream               = 0xbe, // 0b10111110
+    // private_stream_2
+    SrsTsPESStreamIdPrivateStream2              = 0xbf, // 0b10111111
+
+    // 110x xxxx
+    // ISO/IEC 13818-3 or ISO/IEC 11172-3 or ISO/IEC 13818-7 or ISO/IEC
+    // 14496-3 audio stream number x xxxx
+    // ((sid >> 5) & 0x07) == SrsTsPESStreamIdAudio
+    SrsTsPESStreamIdAudio                       = 0x06, // 0b110
+
+    // 1110 xxxx
+    // ITU-T Rec. H.262 | ISO/IEC 13818-2 or ISO/IEC 11172-2 or ISO/IEC
+    // 14496-2 video stream number xxxx
+    // ((stream_id >> 4) & 0x0f) == SrsTsPESStreamIdVideo
+    SrsTsPESStreamIdVideo                       = 0x0e, // 0b1110
+
+    // ECM_stream
+    SrsTsPESStreamIdEcmStream                   = 0xf0, // 0b11110000
+    // EMM_stream
+    SrsTsPESStreamIdEmmStream                   = 0xf1, // 0b11110001
+    // DSMCC_stream
+    SrsTsPESStreamIdDsmccStream                 = 0xf2, // 0b11110010
+    // 13522_stream
+    SrsTsPESStreamId13522Stream                 = 0xf3, // 0b11110011
+    // H_222_1_type_A
+    SrsTsPESStreamIdH2221TypeA                  = 0xf4, // 0b11110100
+    // H_222_1_type_B
+    SrsTsPESStreamIdH2221TypeB                  = 0xf5, // 0b11110101
+    // H_222_1_type_C
+    SrsTsPESStreamIdH2221TypeC                  = 0xf6, // 0b11110110
+    // H_222_1_type_D
+    SrsTsPESStreamIdH2221TypeD                  = 0xf7, // 0b11110111
+    // H_222_1_type_E
+    SrsTsPESStreamIdH2221TypeE                  = 0xf8, // 0b11111000
+    // ancillary_stream
+    SrsTsPESStreamIdAncillaryStream             = 0xf9, // 0b11111001
+    // SL_packetized_stream
+    SrsTsPESStreamIdSlPacketizedStream          = 0xfa, // 0b11111010
+    // FlexMux_stream
+    SrsTsPESStreamIdFlexMuxStream               = 0xfb, // 0b11111011
+    // reserved data stream
+    // 1111 1100 … 1111 1110
+    // program_stream_directory
+    SrsTsPESStreamIdProgramStreamDirectory      = 0xff, // 0b11111111
+};
+
+/**
 * the media audio/video message parsed from PES packet.
 */
 class SrsTsMessage
 {
-private:
+public:
     SrsTsChannel* channel;
     SrsTsPacket* packet;
 public:
+    // the timestamp in 90khz
     int64_t dts;
     int64_t pts;
+    // the id of pes stream to indicates the payload codec.
+    // @remark use is_audio() and is_video() to check it, and stream_number() to finger it out.
+    SrsTsPESStreamId sid;
+    // the size of payload, 0 indicates the length() of payload.
     u_int16_t PES_packet_length;
+    // the chunk id.
     u_int8_t continuity_counter;
+    // the payload bytes.
     SrsSimpleBuffer* payload;
 public:
     SrsTsMessage(SrsTsChannel* c, SrsTsPacket* p);
@@ -223,6 +288,20 @@ public:
     * whether the message is fresh.
     */
     virtual bool fresh();
+public:
+    /**
+    * whether the sid indicates the elementary stream audio.
+    */
+    virtual bool is_audio();
+    /**
+    * whether the sid indicates the elementary stream video.
+    */
+    virtual bool is_video();
+    /**
+    * when audio or video, get the stream number which specifies the format of stream.
+    * @return the stream number for audio/video; otherwise, -1.
+    */
+    virtual int stream_number();
 };
 
 /**
@@ -720,63 +799,6 @@ public:
     virtual ~SrsTsPayload();
 public:
     virtual int decode(SrsStream* stream, SrsTsMessage** ppmsg) = 0;
-};
-
-/**
-* the stream_id of PES payload of ts packet.
-* Table 2-18 – Stream_id assignments, hls-mpeg-ts-iso13818-1.pdf, page 52.
-*/
-enum SrsTsPESStreamId
-{
-    // program_stream_map
-    SrsTsPESStreamIdProgramStreamMap            = 0xbc, // 0b10111100
-    // private_stream_1
-    SrsTsPESStreamIdPrivateStream1              = 0xbd, // 0b10111101
-    // padding_stream
-    SrsTsPESStreamIdPaddingStream               = 0xbe, // 0b10111110
-    // private_stream_2
-    SrsTsPESStreamIdPrivateStream2              = 0xbf, // 0b10111111
-
-    // 110x xxxx
-    // ISO/IEC 13818-3 or ISO/IEC 11172-3 or ISO/IEC 13818-7 or ISO/IEC
-    // 14496-3 audio stream number x xxxx
-    // (stream_id>>5)&0x07 == SrsTsPESStreamIdAudio
-    SrsTsPESStreamIdAudio                       = 0x06, // 0b110
-
-    // 1110 xxxx
-    // ITU-T Rec. H.262 | ISO/IEC 13818-2 or ISO/IEC 11172-2 or ISO/IEC
-    // 14496-2 video stream number xxxx
-    // (stream_id>>4)&0x0f == SrsTsPESStreamIdVideo
-    SrsTsPESStreamIdVideo                       = 0x0e, // 0b1110
-
-    // ECM_stream
-    SrsTsPESStreamIdEcmStream                   = 0xf0, // 0b11110000
-    // EMM_stream
-    SrsTsPESStreamIdEmmStream                   = 0xf1, // 0b11110001
-    // DSMCC_stream
-    SrsTsPESStreamIdDsmccStream                 = 0xf2, // 0b11110010
-    // 13522_stream
-    SrsTsPESStreamId13522Stream                 = 0xf3, // 0b11110011
-    // H_222_1_type_A
-    SrsTsPESStreamIdH2221TypeA                  = 0xf4, // 0b11110100
-    // H_222_1_type_B
-    SrsTsPESStreamIdH2221TypeB                  = 0xf5, // 0b11110101
-    // H_222_1_type_C
-    SrsTsPESStreamIdH2221TypeC                  = 0xf6, // 0b11110110
-    // H_222_1_type_D
-    SrsTsPESStreamIdH2221TypeD                  = 0xf7, // 0b11110111
-    // H_222_1_type_E
-    SrsTsPESStreamIdH2221TypeE                  = 0xf8, // 0b11111000
-    // ancillary_stream
-    SrsTsPESStreamIdAncillaryStream             = 0xf9, // 0b11111001
-    // SL_packetized_stream
-    SrsTsPESStreamIdSlPacketizedStream          = 0xfa, // 0b11111010
-    // FlexMux_stream
-    SrsTsPESStreamIdFlexMuxStream               = 0xfb, // 0b11111011
-    // reserved data stream
-    // 1111 1100 … 1111 1110
-    // program_stream_directory
-    SrsTsPESStreamIdProgramStreamDirectory      = 0xff, // 0b11111111
 };
 
 /**

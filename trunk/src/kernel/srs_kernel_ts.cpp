@@ -421,6 +421,7 @@ SrsTsMessage::SrsTsMessage(SrsTsChannel* c, SrsTsPacket* p)
     packet = p;
 
     dts = pts = 0;
+    sid = (SrsTsPESStreamId)0x00;
     continuity_counter = 0;
     PES_packet_length = 0;
     payload = new SrsSimpleBuffer();
@@ -472,6 +473,26 @@ bool SrsTsMessage::completed(int8_t payload_unit_start_indicator)
 bool SrsTsMessage::fresh()
 {
     return payload->length() == 0;
+}
+
+bool SrsTsMessage::is_audio()
+{
+    return ((sid >> 5) & 0x07) == SrsTsPESStreamIdAudio;
+}
+
+bool SrsTsMessage::is_video()
+{
+    return ((sid >> 4) & 0x0f) == SrsTsPESStreamIdVideo;
+}
+
+int SrsTsMessage::stream_number()
+{
+    if (is_audio()) {
+        return sid & 0x1f;
+    } else if (is_video()) {
+        return sid & 0x0f;
+    }
+    return -1;
 }
 
 ISrsTsHandler::ISrsTsHandler()
@@ -945,21 +966,22 @@ int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
     // should be 1 for the fresh msg.
     if (msg->fresh() && !packet->payload_unit_start_indicator) {
         ret = ERROR_STREAM_CASTER_TS_PSE;
-        srs_error("ts: PES fresh packet length=%d, unit_start=%d. ret=%d",
-            msg->PES_packet_length, packet->payload_unit_start_indicator, ret);
+        srs_error("ts: PES fresh packet length=%d, us=%d, cc=%d. ret=%d",
+            msg->PES_packet_length, packet->payload_unit_start_indicator, packet->continuity_counter,
+            ret);
         return ret;
     }
 
     // check when not fresh and PES_packet_length>0,
     // the payload_unit_start_indicator should never be 1 when not completed.
     if (!msg->fresh() && msg->PES_packet_length > 0
-        && packet->payload_unit_start_indicator
         && !msg->completed(packet->payload_unit_start_indicator)
+        && packet->payload_unit_start_indicator
     ) {
         ret = ERROR_STREAM_CASTER_TS_PSE;
-        srs_error("ts: PES packet length=%d, payload=%d, unit_start=%d. ret=%d",
-            msg->PES_packet_length, msg->payload->length(),
-            packet->payload_unit_start_indicator, ret);
+        srs_error("ts: PES packet length=%d, payload=%d, us=%d, cc=%d. ret=%d",
+            msg->PES_packet_length, msg->payload->length(), packet->payload_unit_start_indicator, 
+            packet->continuity_counter, ret);
 
         // reparse current msg.
         stream->skip(stream->pos() * -1);
@@ -975,7 +997,7 @@ int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
         if (msg->continuity_counter >= packet->continuity_counter
             && ((msg->continuity_counter + 1) & 0x0f) > packet->continuity_counter
         ) {
-            srs_warn("ts: drop PES %dB for duplicated continuity=%#x", msg->continuity_counter);
+            srs_warn("ts: drop PES %dB for duplicated cc=%#x", msg->continuity_counter);
             stream->skip(stream->size() - stream->pos());
             return ret;
         }
@@ -1037,8 +1059,10 @@ int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
         }
         int pos_packet = stream->pos();
 
-        // @remark SrsTsPESStreamIdAudio and SrsTsPESStreamIdVideo is not used here.
+        // @remark the sid indicates the elementary stream format.
+        //      the SrsTsPESStreamIdAudio and SrsTsPESStreamIdVideo is start by 0b110 or 0b1110
         SrsTsPESStreamId sid = (SrsTsPESStreamId)stream_id;
+        msg->sid = sid;
 
         if (sid != SrsTsPESStreamIdProgramStreamMap
             && sid != SrsTsPESStreamIdPaddingStream
