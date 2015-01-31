@@ -57,6 +57,68 @@ ISrsUdpHandler::~ISrsUdpHandler()
 {
 }
 
+SrsMpegtsQueue::SrsMpegtsQueue()
+{
+    nb_audios = nb_videos = 0;
+}
+
+SrsMpegtsQueue::~SrsMpegtsQueue()
+{
+    std::map<int64_t, SrsSharedPtrMessage*>::iterator it;
+    for (it = msgs.begin(); it != msgs.end(); ++it) {
+        SrsSharedPtrMessage* msg = it->second;
+        srs_freep(msg);
+    }
+    msgs.clear();
+}
+
+int SrsMpegtsQueue::push(SrsSharedPtrMessage* msg)
+{
+    int ret = ERROR_SUCCESS;
+
+    if (msgs.find(msg->timestamp) != msgs.end()) {
+        srs_warn("mpegts: free the msg for dts exists, dts=%"PRId64, msg->timestamp);
+        srs_freep(msg);
+        return ret;
+    }
+
+    if (msg->is_audio()) {
+        nb_audios++;
+    }
+
+    if (msg->is_video()) {
+        nb_videos++;
+    }
+
+    msgs[msg->timestamp] = msg;
+
+    return ret;
+}
+
+SrsSharedPtrMessage* SrsMpegtsQueue::dequeue()
+{
+    // got 2+ videos and audios, ok to dequeue.
+    bool av_ok = nb_videos >= 2 && nb_audios >= 2;
+    // 100 videos about 30s, while 300 audios about 30s
+    bool av_overflow = nb_videos > 100 || nb_audios > 300;
+
+    if (av_ok || av_overflow) {
+        std::map<int64_t, SrsSharedPtrMessage*>::iterator it = msgs.begin();
+        SrsSharedPtrMessage* msg = it->second;
+        msgs.erase(it);
+
+        if (msg->is_audio()) {
+            nb_audios--;
+        }
+
+        if (msg->is_video()) {
+            nb_videos--;
+        }
+    }
+
+    return NULL;
+}
+
 SrsMpegtsOverUdp::SrsMpegtsOverUdp(SrsConfDirective* c)
 {
     stream = new SrsStream();
@@ -72,6 +134,7 @@ SrsMpegtsOverUdp::SrsMpegtsOverUdp(SrsConfDirective* c)
     h264_sps_changed = false;
     h264_pps_changed = false;
     h264_sps_pps_sent = false;
+    queue = new SrsMpegtsQueue();
 }
 
 SrsMpegtsOverUdp::~SrsMpegtsOverUdp()
@@ -82,6 +145,7 @@ SrsMpegtsOverUdp::~SrsMpegtsOverUdp()
     srs_freep(stream);
     srs_freep(context);
     srs_freep(avc);
+    srs_freep(queue);
 }
 
 int SrsMpegtsOverUdp::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
@@ -280,11 +344,14 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsStream* avs)
 
         // it may be return error, but we must process all packets.
         if ((ret = write_h264_raw_frame(frame, frame_size, dts, pts)) != ERROR_SUCCESS) {
-            if (ret = ERROR_H264_DROP_BEFORE_SPS_PPS) {
+            if (ret == ERROR_H264_DROP_BEFORE_SPS_PPS) {
                 continue;
             }
             return ret;
         }
+
+        // for video, drop others with same pts/dts.
+        break;
     }
 
     return ret;
@@ -399,14 +466,27 @@ int SrsMpegtsOverUdp::rtmp_write_packet(char type, u_int32_t timestamp, char* da
     SrsSharedPtrMessage* msg = NULL;
 
     if ((ret = srs_rtmp_create_msg(type, timestamp, data, size, stream_id, &msg)) != ERROR_SUCCESS) {
+        srs_error("mpegts: create shared ptr msg failed. ret=%d", ret);
+        return ret;
+    }
+    srs_assert(msg);
+
+    // push msg to queue.
+    if ((ret = queue->push(msg)) != ERROR_SUCCESS) {
+        srs_error("mpegts: push msg to queue failed. ret=%d", ret);
         return ret;
     }
 
-    srs_assert(msg);
+    // for all ready msg, dequeue and send out.
+    for (;;) {
+        if ((msg = queue->dequeue()) == NULL) {
+            break;
+        }
     
-    // send out encoded msg.
-    if ((ret = client->send_and_free_message(msg, stream_id)) != ERROR_SUCCESS) {
-        return ret;
+        // send out encoded msg.
+        if ((ret = client->send_and_free_message(msg, stream_id)) != ERROR_SUCCESS) {
+            return ret;
+        }
     }
     
     return ret;

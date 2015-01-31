@@ -34,6 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class sockaddr_in;
 #include <string>
+#include <map>
 
 class SrsStream;
 class SrsTsContext;
@@ -43,6 +44,7 @@ class SrsRtmpClient;
 class SrsStSocket;
 class SrsRequest;
 class SrsRawH264Stream;
+class SrsSharedPtrMessage;
 
 #include <srs_app_st.hpp>
 #include <srs_kernel_ts.hpp>
@@ -69,6 +71,26 @@ public:
 };
 
 /**
+* the queue for mpegts over udp to send packets.
+* for the aac in mpegts contains many flv packets in a pes packet,
+* we must recalc the timestamp.
+*/
+class SrsMpegtsQueue
+{
+private:
+    // key: dts, value: msg.
+    std::map<int64_t, SrsSharedPtrMessage*> msgs;
+    int nb_audios;
+    int nb_videos;
+public:
+    SrsMpegtsQueue();
+    virtual ~SrsMpegtsQueue();
+public:
+    virtual int push(SrsSharedPtrMessage* msg);
+    virtual SrsSharedPtrMessage* dequeue();
+};
+
+/**
 * the mpegts over udp stream caster.
 */
 class SrsMpegtsOverUdp : virtual public ISrsTsHandler
@@ -92,6 +114,7 @@ private:
     std::string h264_pps;
     bool h264_pps_changed;
     bool h264_sps_pps_sent;
+    SrsMpegtsQueue* queue;
 public:
     SrsMpegtsOverUdp(SrsConfDirective* c);
     virtual ~SrsMpegtsOverUdp();

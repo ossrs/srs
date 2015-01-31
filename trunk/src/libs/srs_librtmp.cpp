@@ -1520,7 +1520,6 @@ int srs_h264_write_raw_frames(srs_rtmp_t rtmp,
     while (!context->h264_raw_stream.empty()) {
         char* frame = NULL;
         int frame_size = 0;
-        bool got_sps_pps = false;
         if ((ret = context->avc_raw.annexb_demux(&context->h264_raw_stream, &frame, &frame_size)) != ERROR_SUCCESS) {
             return ret;
         }

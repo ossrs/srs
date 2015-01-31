@@ -47,7 +47,7 @@ using namespace std;
 #include <srs_rtmp_sdk.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_kernel_utility.hpp>
-#include <srs_kernel_avc.hpp>
+#include <srs_kernel_codec.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_rtmp_buffer.hpp>
 #include <srs_kernel_ts.hpp>
