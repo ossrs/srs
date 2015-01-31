@@ -53,7 +53,7 @@ enum SrsCodecAudioType
 //     5 = video info/command frame
 enum SrsCodecVideoAVCFrame
 {
-    // set to the max value to reserved, for array map.
+    // set to the zero to reserved, for array map.
     SrsCodecVideoAVCFrameReserved                    = 0,
     SrsCodecVideoAVCFrameReserved1                    = 6,
     
@@ -91,7 +91,7 @@ enum SrsCodecVideoAVCType
 //     7 = AVC
 enum SrsCodecVideo
 {
-    // set to the max value to reserved, for array map.
+    // set to the zero to reserved, for array map.
     SrsCodecVideoReserved                = 0,
     SrsCodecVideoReserved1                = 1,
     SrsCodecVideoReserved2                = 8,
@@ -161,6 +161,22 @@ enum SrsCodecAudioSampleRate
     SrsCodecAudioSampleRate11025                    = 1,
     SrsCodecAudioSampleRate22050                    = 2,
     SrsCodecAudioSampleRate44100                    = 3,
+};
+
+/**
+* E.4.1 FLV Tag, page 75
+*/
+enum SrsCodecFlvTag
+{
+    // set to the zero to reserved, for array map.
+    SrsCodecFlvTagReserved = 0,
+
+    // 8 = audio
+    SrsCodecFlvTagAudio = 8,
+    // 9 = video
+    SrsCodecFlvTagVideo = 9,
+    // 18 = script data
+    SrsCodecFlvTagScript = 18,
 };
 
 /**

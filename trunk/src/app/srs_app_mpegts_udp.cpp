@@ -23,6 +23,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_mpegts_udp.hpp>
 
+#ifdef SRS_AUTO_STREAM_CASTER
+
+#include <stdlib.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -39,8 +42,12 @@ using namespace std;
 #include <srs_kernel_file.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_utility.hpp>
-
-#ifdef SRS_AUTO_STREAM_CASTER
+#include <srs_rtmp_sdk.hpp>
+#include <srs_app_st_socket.hpp>
+#include <srs_rtmp_utility.hpp>
+#include <srs_app_utility.hpp>
+#include <srs_rtmp_amf0.hpp>
+#include <srs_raw_avc.hpp>
 
 ISrsUdpHandler::ISrsUdpHandler()
 {
@@ -56,13 +63,25 @@ SrsMpegtsOverUdp::SrsMpegtsOverUdp(SrsConfDirective* c)
     context = new SrsTsContext();
     buffer = new SrsSimpleBuffer();
     output = _srs_config->get_stream_caster_output(c);
+    req = NULL;
+    io = NULL;
+    client = NULL;
+    stfd = NULL;
+    stream_id = 0;
+    avc = new SrsRawH264Stream();
+    h264_sps_changed = false;
+    h264_pps_changed = false;
+    h264_sps_pps_sent = false;
 }
 
 SrsMpegtsOverUdp::~SrsMpegtsOverUdp()
 {
+    close();
+
     srs_freep(buffer);
     srs_freep(stream);
     srs_freep(context);
+    srs_freep(avc);
 }
 
 int SrsMpegtsOverUdp::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
@@ -207,8 +226,311 @@ int SrsMpegtsOverUdp::on_ts_message(SrsTsMessage* msg)
         return ret;
     }
 
+    // check supported codec
+    if (msg->channel->stream != SrsTsStreamVideoH264 && msg->channel->stream != SrsTsStreamAudioAAC) {
+        ret = ERROR_STREAM_CASTER_TS_CODEC;
+        srs_error("mpegts: unsupported stream codec=%d. ret=%d", msg->channel->stream, ret);
+        return ret;
+    }
+
+    // parse the stream.
+    SrsStream avs;
+    if ((ret = avs.initialize(msg->payload->bytes(), msg->payload->length())) != ERROR_SUCCESS) {
+        srs_error("mpegts: initialize av stream failed. ret=%d", ret);
+        return ret;
+    }
+
+    // publish audio or video.
+    if (msg->channel->stream == SrsTsStreamVideoH264) {
+        return on_ts_video(msg, &avs);
+    }
+
     // TODO: FIXME: implements it.
     return ret;
+}
+
+int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsStream* avs)
+{
+    int ret = ERROR_SUCCESS;
+
+    // ensure rtmp connected.
+    if ((ret = connect()) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    // ts tbn to flv tbn.
+    u_int32_t dts = msg->dts / 90; 
+    u_int32_t pts = msg->dts / 90;
+    
+    // send each frame.
+    while (!avs->empty()) {
+        char* frame = NULL;
+        int frame_size = 0;
+        if ((ret = avc->annexb_demux(avs, &frame, &frame_size)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    
+        // ignore invalid frame,
+        //  * atleast 1bytes for SPS to decode the type
+        //  * ignore the auth bytes '09f0'
+        if (frame_size <= 2) {
+            continue;
+        }
+
+        // it may be return error, but we must process all packets.
+        if ((ret = write_h264_raw_frame(frame, frame_size, dts, pts)) != ERROR_SUCCESS) {
+            if (ret = ERROR_H264_DROP_BEFORE_SPS_PPS) {
+                continue;
+            }
+            return ret;
+        }
+    }
+
+    return ret;
+}
+
+int SrsMpegtsOverUdp::write_h264_raw_frame(char* frame, int frame_size, u_int32_t dts, u_int32_t pts)
+{
+    int ret = ERROR_SUCCESS;
+
+    // for sps
+    if (avc->is_sps(frame, frame_size)) {
+        std::string sps;
+        if ((ret = avc->sps_demux(frame, frame_size, sps)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        if (h264_sps == sps) {
+            return ret;
+        }
+        h264_sps_changed = true;
+        h264_sps = sps;
+        
+        return write_h264_sps_pps(dts, pts);
+    }
+
+    // for pps
+    if (avc->is_pps(frame, frame_size)) {
+        std::string pps;
+        if ((ret = avc->pps_demux(frame, frame_size, pps)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        if (h264_pps == pps) {
+            return ret;
+        }
+        h264_pps_changed = true;
+        h264_pps = pps;
+        
+        return write_h264_sps_pps(dts, pts);
+    }
+
+    // ibp frame.
+    return write_h264_ipb_frame(frame, frame_size, dts, pts);
+}
+
+int SrsMpegtsOverUdp::write_h264_sps_pps(u_int32_t dts, u_int32_t pts)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // only send when both sps and pps changed.
+    if (!h264_sps_changed || !h264_pps_changed) {
+        return ret;
+    }
+    
+    // h264 raw to h264 packet.
+    std::string sh;
+    if ((ret = avc->mux_sequence_header(h264_sps, h264_pps, dts, pts, sh)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // h264 packet to flv packet.
+    int8_t frame_type = SrsCodecVideoAVCFrameKeyFrame;
+    int8_t avc_packet_type = SrsCodecVideoAVCTypeSequenceHeader;
+    char* flv = NULL;
+    int nb_flv = 0;
+    if ((ret = avc->mux_avc2flv(sh, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // reset sps and pps.
+    h264_sps_changed = false;
+    h264_pps_changed = false;
+    h264_sps_pps_sent = true;
+    
+    // the timestamp in rtmp message header is dts.
+    u_int32_t timestamp = dts;
+    return rtmp_write_packet(SrsCodecFlvTagVideo, timestamp, flv, nb_flv);
+}
+
+int SrsMpegtsOverUdp::write_h264_ipb_frame(char* frame, int frame_size, u_int32_t dts, u_int32_t pts) 
+{
+    int ret = ERROR_SUCCESS;
+    
+    // when sps or pps not sent, ignore the packet.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/203
+    if (!h264_sps_pps_sent) {
+        return ERROR_H264_DROP_BEFORE_SPS_PPS;
+    }
+
+    std::string ibp;
+    int8_t frame_type;
+    if ((ret = avc->mux_ipb_frame(frame, frame_size, dts, pts, ibp, frame_type)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    int8_t avc_packet_type = SrsCodecVideoAVCTypeNALU;
+    char* flv = NULL;
+    int nb_flv = 0;
+    if ((ret = avc->mux_avc2flv(ibp, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // the timestamp in rtmp message header is dts.
+    u_int32_t timestamp = dts;
+    return rtmp_write_packet(SrsCodecFlvTagVideo, timestamp, flv, nb_flv);
+}
+
+int SrsMpegtsOverUdp::rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsSharedPtrMessage* msg = NULL;
+
+    if ((ret = srs_rtmp_create_msg(type, timestamp, data, size, stream_id, &msg)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    srs_assert(msg);
+    
+    // send out encoded msg.
+    if ((ret = client->send_and_free_message(msg, stream_id)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+int SrsMpegtsOverUdp::connect()
+{
+    int ret = ERROR_SUCCESS;
+
+    // when ok, ignore.
+    if (io || client) {
+        return ret;
+    }
+    
+    // parse uri
+    if (!req) {
+        req = new SrsRequest();
+
+        size_t pos = string::npos;
+        string uri = req->tcUrl = output;
+
+        // tcUrl, stream
+        if ((pos = uri.rfind("/")) != string::npos) {
+            req->stream = uri.substr(pos + 1);
+            req->tcUrl = uri = uri.substr(0, pos);
+        }
+    
+        srs_discovery_tc_url(req->tcUrl, 
+            req->schema, req->host, req->vhost, req->app, req->port,
+            req->param);
+    }
+
+    // connect host.
+    if ((ret = srs_socket_connect(req->host, ::atoi(req->port.c_str()), ST_UTIME_NO_TIMEOUT, &stfd)) != ERROR_SUCCESS) {
+        srs_error("mpegts: connect server %s:%s failed. ret=%d", req->host.c_str(), req->port.c_str(), ret);
+        return ret;
+    }
+    io = new SrsStSocket(stfd);
+    client = new SrsRtmpClient(io);
+
+    client->set_recv_timeout(SRS_CONSTS_RTMP_RECV_TIMEOUT_US);
+    client->set_send_timeout(SRS_CONSTS_RTMP_SEND_TIMEOUT_US);
+    
+    // connect to vhost/app
+    if ((ret = client->handshake()) != ERROR_SUCCESS) {
+        srs_error("mpegts: handshake with server failed. ret=%d", ret);
+        return ret;
+    }
+    if ((ret = connect_app(req->host, req->port)) != ERROR_SUCCESS) {
+        srs_error("mpegts: connect with server failed. ret=%d", ret);
+        return ret;
+    }
+    if ((ret = client->create_stream(stream_id)) != ERROR_SUCCESS) {
+        srs_error("mpegts: connect with server failed, stream_id=%d. ret=%d", stream_id, ret);
+        return ret;
+    }
+    
+    // publish.
+    if ((ret = client->publish(req->stream, stream_id)) != ERROR_SUCCESS) {
+        srs_error("mpegts: publish failed, stream=%s, stream_id=%d. ret=%d", 
+            req->stream.c_str(), stream_id, ret);
+        return ret;
+    }
+
+
+    return ret;
+}
+
+// TODO: FIXME: refine the connect_app.
+int SrsMpegtsOverUdp::connect_app(string ep_server, string ep_port)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // args of request takes the srs info.
+    if (req->args == NULL) {
+        req->args = SrsAmf0Any::object();
+    }
+    
+    // notify server the edge identity,
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/147
+    SrsAmf0Object* data = req->args;
+    data->set("srs_sig", SrsAmf0Any::str(RTMP_SIG_SRS_KEY));
+    data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
+    data->set("srs_license", SrsAmf0Any::str(RTMP_SIG_SRS_LICENSE));
+    data->set("srs_role", SrsAmf0Any::str(RTMP_SIG_SRS_ROLE));
+    data->set("srs_url", SrsAmf0Any::str(RTMP_SIG_SRS_URL));
+    data->set("srs_version", SrsAmf0Any::str(RTMP_SIG_SRS_VERSION));
+    data->set("srs_site", SrsAmf0Any::str(RTMP_SIG_SRS_WEB));
+    data->set("srs_email", SrsAmf0Any::str(RTMP_SIG_SRS_EMAIL));
+    data->set("srs_copyright", SrsAmf0Any::str(RTMP_SIG_SRS_COPYRIGHT));
+    data->set("srs_primary", SrsAmf0Any::str(RTMP_SIG_SRS_PRIMARY));
+    data->set("srs_authors", SrsAmf0Any::str(RTMP_SIG_SRS_AUTHROS));
+    // for edge to directly get the id of client.
+    data->set("srs_pid", SrsAmf0Any::number(getpid()));
+    data->set("srs_id", SrsAmf0Any::number(_srs_context->get_id()));
+    
+    // local ip of edge
+    std::vector<std::string> ips = srs_get_local_ipv4_ips();
+    assert(_srs_config->get_stats_network() < (int)ips.size());
+    std::string local_ip = ips[_srs_config->get_stats_network()];
+    data->set("srs_server_ip", SrsAmf0Any::str(local_ip.c_str()));
+    
+    // generate the tcUrl
+    std::string param = "";
+    std::string tc_url = srs_generate_tc_url(ep_server, req->vhost, req->app, ep_port, param);
+    
+    // upnode server identity will show in the connect_app of client.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/160
+    // the debug_srs_upnode is config in vhost and default to true.
+    bool debug_srs_upnode = _srs_config->get_debug_srs_upnode(req->vhost);
+    if ((ret = client->connect_app(req->app, tc_url, req, debug_srs_upnode)) != ERROR_SUCCESS) {
+        srs_error("mpegts: connect with server failed, tcUrl=%s, dsu=%d. ret=%d", 
+            tc_url.c_str(), debug_srs_upnode, ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
+void SrsMpegtsOverUdp::close()
+{
+    srs_freep(client);
+    srs_freep(io);
+    srs_freep(req);
+    srs_close_stfd(stfd);
 }
 
 #endif

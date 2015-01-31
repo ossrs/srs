@@ -30,6 +30,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_rtmp_stack.hpp>
+#include <srs_kernel_codec.hpp>
 
 void srs_discovery_tc_url(
     string tcUrl, 
@@ -285,5 +286,63 @@ int srs_chunk_header_c3(
     
     // always has header
     return p - cache;
+}
+
+int __srs_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, int stream_id, SrsSharedPtrMessage** ppmsg)
+{
+    int ret = ERROR_SUCCESS;
+    
+    *ppmsg = NULL;
+    SrsSharedPtrMessage* msg = NULL;
+    
+    if (type == SrsCodecFlvTagAudio) {
+        SrsMessageHeader header;
+        header.initialize_audio(size, timestamp, stream_id);
+        
+        msg = new SrsSharedPtrMessage();
+        if ((ret = msg->create(&header, data, size)) != ERROR_SUCCESS) {
+            srs_freep(msg);
+            return ret;
+        }
+    } else if (type == SrsCodecFlvTagVideo) {
+        SrsMessageHeader header;
+        header.initialize_video(size, timestamp, stream_id);
+        
+        msg = new SrsSharedPtrMessage();
+        if ((ret = msg->create(&header, data, size)) != ERROR_SUCCESS) {
+            srs_freep(msg);
+            return ret;
+        }
+    } else if (type == SrsCodecFlvTagScript) {
+        SrsMessageHeader header;
+        header.initialize_amf0_script(size, stream_id);
+        
+        msg = new SrsSharedPtrMessage();
+        if ((ret = msg->create(&header, data, size)) != ERROR_SUCCESS) {
+            srs_freep(msg);
+            return ret;
+        }
+    } else {
+        ret = ERROR_STREAM_CASTER_FLV_TAG;
+        srs_error("rtmp unknown tag type=%#x. ret=%d", type, ret);
+        return ret;
+    }
+
+    *ppmsg = msg;
+
+    return ret;
+}
+
+int srs_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, int stream_id, SrsSharedPtrMessage** ppmsg)
+{
+    int ret = ERROR_SUCCESS;
+
+    // only when failed, we must free the data.
+    if ((ret = __srs_rtmp_create_msg(type, timestamp, data, size, stream_id, ppmsg)) != ERROR_SUCCESS) {
+        srs_freep(data);
+        return ret;
+    }
+
+    return ret;
 }
 

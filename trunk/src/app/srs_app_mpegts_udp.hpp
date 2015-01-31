@@ -30,6 +30,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+#ifdef SRS_AUTO_STREAM_CASTER
+
 class sockaddr_in;
 #include <string>
 
@@ -37,9 +39,12 @@ class SrsStream;
 class SrsTsContext;
 class SrsConfDirective;
 class SrsSimpleBuffer;
+class SrsRtmpClient;
+class SrsStSocket;
+class SrsRequest;
+class SrsRawH264Stream;
 
-#ifdef SRS_AUTO_STREAM_CASTER
-
+#include <srs_app_st.hpp>
 #include <srs_kernel_ts.hpp>
 
 /**
@@ -74,6 +79,19 @@ private:
     SrsTsContext* context;
     SrsSimpleBuffer* buffer;
     std::string output;
+private:
+    SrsRequest* req;
+    st_netfd_t stfd;
+    SrsStSocket* io;
+    SrsRtmpClient* client;
+    int stream_id;
+private:
+    SrsRawH264Stream* avc;
+    std::string h264_sps;
+    bool h264_sps_changed;
+    std::string h264_pps;
+    bool h264_pps_changed;
+    bool h264_sps_pps_sent;
 public:
     SrsMpegtsOverUdp(SrsConfDirective* c);
     virtual ~SrsMpegtsOverUdp();
@@ -83,6 +101,19 @@ public:
 // interface ISrsTsHandler
 public:
     virtual int on_ts_message(SrsTsMessage* msg);
+private:
+    virtual int on_ts_video(SrsTsMessage* msg, SrsStream* avs);
+    virtual int write_h264_raw_frame(char* frame, int frame_size, u_int32_t dts, u_int32_t pts);
+    virtual int write_h264_sps_pps(u_int32_t dts, u_int32_t pts);
+    virtual int write_h264_ipb_frame(char* frame, int frame_size, u_int32_t dts, u_int32_t pts);
+    virtual int rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size);
+private:
+    // connect to rtmp output url. 
+    // @remark ignore when not connected, reconnect when disconnected.
+    virtual int connect();
+    virtual int connect_app(std::string ep_server, std::string ep_port);
+    // close the connected io and rtmp to ready to be re-connect.
+    virtual void close();
 };
 
 #endif

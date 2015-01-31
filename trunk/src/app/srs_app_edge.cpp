@@ -447,7 +447,7 @@ int SrsEdgeForwarder::start()
     }
     
     if ((ret = client->publish(req->stream, stream_id)) != ERROR_SUCCESS) {
-        srs_error("connect with server failed, stream=%s, stream_id=%d. ret=%d", 
+        srs_error("publish failed, stream=%s, stream_id=%d. ret=%d", 
             req->stream.c_str(), stream_id, ret);
         return ret;
     }

@@ -34,6 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_consts.hpp>
 
 class SrsMessageHeader;
+class SrsSharedPtrMessage;
 
 /**
 * parse the tcUrl, output the schema, host, vhost, app and port.
@@ -109,6 +110,13 @@ extern int srs_chunk_header_c3(
     int perfer_cid, u_int32_t timestamp, 
     char* cache, int nb_cache
 );
+
+/**
+* create shared ptr message from bytes.
+* @param data the packet bytes. user should never free it.
+* @param ppmsg output the shared ptr message. user should free it.
+*/
+extern int srs_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, int stream_id, SrsSharedPtrMessage** ppmsg);
 
 #endif
 

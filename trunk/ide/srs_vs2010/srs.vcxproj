@@ -36,7 +36,7 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'"> 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <IncludePath>$(ProjectDir)/../../src/core;$(ProjectDir)/../../src/kernel;$(ProjectDir)/../../src/protocol;$(ProjectDir)/../../src/app;$(ProjectDir)/../../src/libs;$(ProjectDir)/../../objs;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -116,6 +116,7 @@
     <ClInclude Include="..\..\src\libs\srs_librtmp.hpp" />
     <ClInclude Include="..\..\src\libs\srs_lib_bandwidth.hpp" />
     <ClInclude Include="..\..\src\libs\srs_lib_simple_socket.hpp" />
+    <ClInclude Include="..\..\src\protocol\srs_raw_avc.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_rtmp_amf0.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_rtmp_buffer.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_rtmp_handshake.hpp" />
@@ -193,6 +194,7 @@
     <ClCompile Include="..\..\src\libs\srs_lib_bandwidth.cpp" />
     <ClCompile Include="..\..\src\libs\srs_lib_simple_socket.cpp" />
     <ClCompile Include="..\..\src\main\srs_main_server.cpp" />
+    <ClCompile Include="..\..\src\protocol\srs_raw_avc.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_rtmp_amf0.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_rtmp_buffer.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_rtmp_handshake.cpp" />
