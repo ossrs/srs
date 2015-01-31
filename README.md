@@ -486,7 +486,7 @@ Supported operating systems and hardware:
 ).
 1. Support HLS(h.264+mp3) streaming, read 
 [#301](https://github.com/winlinvip/simple-rtmp-server/issues/301).
-1. [dev] Support push MPEG-TS over UDP to SRS, read 
+1. Support push MPEG-TS over UDP to SRS, read 
 [#250](https://github.com/winlinvip/simple-rtmp-server/issues/250).
 1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
 1. [no-plan] Support RTMP 302 redirect [#92](https://github.com/winlinvip/simple-rtmp-server/issues/92).
@@ -525,6 +525,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-01-31, for [#250](https://github.com/winlinvip/simple-rtmp-server/issues/250), support push MPEGTS over UDP to SRS. 2.0.111
 * v2.0, 2015-01-29, build libfdk-aac in ffmpeg. 2.0.108
 * v2.0, 2015-01-25, for [#301](https://github.com/winlinvip/simple-rtmp-server/issues/301), hls support h.264+mp3, ok for vlc. 2.0.107
 * v2.0, 2015-01-25, for [#301](https://github.com/winlinvip/simple-rtmp-server/issues/301), http ts stream support h.264+mp3. 2.0.106

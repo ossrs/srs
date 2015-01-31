@@ -81,9 +81,10 @@ struct Context
     SimpleSocketStream* skt;
     int stream_id;
     
-    // for h264 raw stream, 
-    // @see: https://github.com/winlinvip/simple-rtmp-server/issues/66#issuecomment-62240521
+    // the remux raw codec.
     SrsRawH264Stream avc_raw;
+    SrsRawAacStream aac_raw;
+
     // for h264 raw stream, 
     // @see: https://github.com/winlinvip/simple-rtmp-server/issues/66#issuecomment-62240521
     SrsStream h264_raw_stream;
@@ -1073,32 +1074,15 @@ srs_bool srs_rtmp_is_onMetaData(char type, char* data, int size)
 * directly write a audio frame.
 */
 int __srs_write_audio_raw_frame(Context* context,
-    char sound_format, char sound_rate, char sound_size, char sound_type,
-    char aac_packet_type, char* frame, int frame_size, u_int32_t timestamp
+    char* frame, int frame_size, SrsRawAacStreamCodec* codec, u_int32_t timestamp
 ) {
-    
-    // for audio frame, there is 1 or 2 bytes header:
-    //      1bytes, SoundFormat|SoundRate|SoundSize|SoundType
-    //      1bytes, AACPacketType for SoundFormat == 10, 0 is sequence header.
-    int size = frame_size + 1;
-    if (sound_format == SrsCodecAudioAAC) {
-        size += 1;
+    int ret = ERROR_SUCCESS;
+
+    char* data = NULL;
+    int size = 0;
+    if ((ret = context->aac_raw.mux_aac2flv(frame, frame_size, codec, timestamp, &data, &size)) != ERROR_SUCCESS) {
+        return ret;
     }
-    char* data = new char[size];
-    char* p = data;
-    
-    u_int8_t audio_header = sound_type & 0x01;
-    audio_header |= (sound_size << 1) & 0x02;
-    audio_header |= (sound_rate << 2) & 0x0c;
-    audio_header |= (sound_format << 4) & 0xf0;
-    
-    *p++ = audio_header;
-    
-    if (sound_format == SrsCodecAudioAAC) {
-        *p++ = aac_packet_type;
-    }
-    
-    memcpy(p, frame, frame_size);
     
     return srs_rtmp_write_packet(context, SRS_RTMP_TYPE_AUDIO, timestamp, data, size);
 }
@@ -1106,73 +1090,28 @@ int __srs_write_audio_raw_frame(Context* context,
 /**
 * write aac frame in adts.
 */
-int __srs_write_aac_adts_frame(Context* context,
-    char sound_format, char sound_rate, char sound_size, char sound_type,
-    char aac_profile, char aac_samplerate, char aac_channel,
-    char* frame, int frame_size, u_int32_t timestamp
+int __srs_write_aac_adts_frame(Context* context, 
+    SrsRawAacStreamCodec* codec, char* frame, int frame_size, u_int32_t timestamp
 ) {
     int ret = ERROR_SUCCESS;
     
-    // override the aac samplerate by user specified.
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/212#issuecomment-64146899
-    switch (sound_rate) {
-        case SrsCodecAudioSampleRate11025: 
-            aac_samplerate = 0x0a; break;
-        case SrsCodecAudioSampleRate22050: 
-            aac_samplerate = 0x07; break;
-        case SrsCodecAudioSampleRate44100: 
-            aac_samplerate = 0x04; break;
-        default:
-            break;
-    }
-    
     // send out aac sequence header if not sent.
     if (context->aac_specific_config.empty()) {
-        char ch = 0;
-        // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf
-        // AudioSpecificConfig (), page 33
-        // 1.6.2.1 AudioSpecificConfig
-        // audioObjectType; 5 bslbf
-        ch = (aac_profile << 3) & 0xf8;
-        // 3bits left.
-        
-        // samplingFrequencyIndex; 4 bslbf
-        ch |= (aac_samplerate >> 1) & 0x07;
-        context->aac_specific_config += ch;
-        ch = (aac_samplerate << 7) & 0x80;
-        if (aac_samplerate == 0x0f) {
-            return ERROR_AAC_DATA_INVALID;
+        std::string sh;
+        if ((ret = context->aac_raw.mux_sequence_header(codec, sh)) != ERROR_SUCCESS) {
+            return ret;
         }
-        // 7bits left.
-        
-        // channelConfiguration; 4 bslbf
-        ch |= (aac_channel << 3) & 0x78;
-        // 3bits left.
-        
-        // only support aac profile 1-4.
-        if (aac_profile < 1 || aac_profile > 4) {
-            return ERROR_AAC_DATA_INVALID;
-        }
-        // GASpecificConfig(), page 451
-        // 4.4.1 Decoder configuration (GASpecificConfig)
-        // frameLengthFlag; 1 bslbf
-        // dependsOnCoreCoder; 1 bslbf
-        // extensionFlag; 1 bslbf
-        context->aac_specific_config += ch;
-        
-        char* sh = (char*)context->aac_specific_config.data();
-        int nb_sh = (int)context->aac_specific_config.length();
-        if ((ret = __srs_write_audio_raw_frame(context, 
-            sound_format, sound_rate, sound_size, sound_type, 
-            0, sh, nb_sh, timestamp)) != ERROR_SUCCESS
-        ) {
+        context->aac_specific_config = sh;
+
+        codec->aac_packet_type = 0;
+
+        if ((ret = __srs_write_audio_raw_frame(context, (char*)sh.data(), (int)sh.length(), codec, timestamp)) != ERROR_SUCCESS) {
             return ret;
         }
     }
     
-    return __srs_write_audio_raw_frame(context, 
-        sound_format, sound_rate, sound_size, sound_type, 
-        1, frame, frame_size, timestamp);
+    codec->aac_packet_type = 1;
+    return __srs_write_audio_raw_frame(context, frame, frame_size, codec, timestamp);
 }
 
 /**
@@ -1180,126 +1119,32 @@ int __srs_write_aac_adts_frame(Context* context,
 */
 int __srs_write_aac_adts_frames(Context* context,
     char sound_format, char sound_rate, char sound_size, char sound_type,
-    char* frame, int frame_size, u_int32_t timestamp
+    char* frames, int frames_size, u_int32_t timestamp
 ) {
     int ret = ERROR_SUCCESS;
     
     SrsStream* stream = &context->aac_raw_stream;
-    if ((ret = stream->initialize(frame, frame_size)) != ERROR_SUCCESS) {
+    if ((ret = stream->initialize(frames, frames_size)) != ERROR_SUCCESS) {
         return ret;
     }
     
     while (!stream->empty()) {
-        int adts_header_start = stream->pos();
-        
-        // decode the ADTS.
-        // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 75,
-        //      1.A.2.2 Audio_Data_Transport_Stream frame, ADTS
-        // @see https://github.com/winlinvip/simple-rtmp-server/issues/212#issuecomment-64145885
-        // byte_alignment()
-        
-        // adts_fixed_header:
-        //      12bits syncword,
-        //      16bits left.
-        // adts_variable_header:
-        //      28bits
-        //      12+16+28=56bits
-        // adts_error_check:
-        //      16bits if protection_absent
-        //      56+16=72bits
-        // if protection_absent:
-        //      require(7bytes)=56bits
-        // else
-        //      require(9bytes)=72bits
-        if (!stream->require(7)) {
-            return ERROR_AAC_ADTS_HEADER;
-        }
-        
-        // for aac, the frame must be ADTS format.
-        if (!srs_aac_startswith_adts(stream)) {
-            return ERROR_AAC_REQUIRED_ADTS;
-        }
-        
-        // Syncword 12 bslbf
-        stream->read_1bytes();
-        // 4bits left.
-        // adts_fixed_header(), 1.A.2.2.1 Fixed Header of ADTS
-        // ID 1 bslbf
-        // Layer 2 uimsbf
-        // protection_absent 1 bslbf
-        int8_t fh0 = (stream->read_1bytes() & 0x0f);
-        /*int8_t fh_id = (fh0 >> 3) & 0x01;*/
-        /*int8_t fh_layer = (fh0 >> 1) & 0x03;*/
-        int8_t fh_protection_absent = fh0 & 0x01;
-        
-        int16_t fh1 = stream->read_2bytes();
-        // Profile_ObjectType 2 uimsbf
-        // sampling_frequency_index 4 uimsbf
-        // private_bit 1 bslbf
-        // channel_configuration 3 uimsbf
-        // original/copy 1 bslbf
-        // home 1 bslbf
-        int8_t fh_Profile_ObjectType = (fh1 >> 14) & 0x03;
-        int8_t fh_sampling_frequency_index = (fh1 >> 10) & 0x0f;
-        /*int8_t fh_private_bit = (fh1 >> 9) & 0x01;*/
-        int8_t fh_channel_configuration = (fh1 >> 6) & 0x07;
-        /*int8_t fh_original = (fh1 >> 5) & 0x01;*/
-        /*int8_t fh_home = (fh1 >> 4) & 0x01;*/
-        // @remark, Emphasis is removed, 
-        //      @see https://github.com/winlinvip/simple-rtmp-server/issues/212#issuecomment-64154736
-        //int8_t fh_Emphasis = (fh1 >> 2) & 0x03;
-        // 4bits left.
-        // adts_variable_header(), 1.A.2.2.2 Variable Header of ADTS
-        // copyright_identification_bit 1 bslbf
-        // copyright_identification_start 1 bslbf
-        /*int8_t fh_copyright_identification_bit = (fh1 >> 3) & 0x01;*/
-        /*int8_t fh_copyright_identification_start = (fh1 >> 2) & 0x01;*/
-        // aac_frame_length 13 bslbf: Length of the frame including headers and error_check in bytes.
-        // use the left 2bits as the 13 and 12 bit,
-        // the aac_frame_length is 13bits, so we move 13-2=11.
-        int16_t fh_aac_frame_length = (fh1 << 11) & 0x0800;
-        
-        int32_t fh2 = stream->read_3bytes();
-        // aac_frame_length 13 bslbf: consume the first 13-2=11bits
-        // the fh2 is 24bits, so we move right 24-11=13.
-        fh_aac_frame_length |= (fh2 >> 13) & 0x07ff;
-        // adts_buffer_fullness 11 bslbf
-        /*int16_t fh_adts_buffer_fullness = (fh2 >> 2) & 0x7ff;*/
-        // no_raw_data_blocks_in_frame 2 uimsbf
-        /*int16_t fh_no_raw_data_blocks_in_frame = fh2 & 0x03;*/
-        // adts_error_check(), 1.A.2.2.3 Error detection
-        if (!fh_protection_absent) {
-            if (!stream->require(2)) {
-                return ERROR_AAC_ADTS_HEADER;
-            }
-            // crc_check 16 Rpchof
-            /*int16_t crc_check = */stream->read_2bytes();
-        }
-        
-        // TODO: check the fh_sampling_frequency_index
-        // TODO: check the fh_channel_configuration
-        
-        // raw_data_blocks
-        int adts_header_size = stream->pos() - adts_header_start;
-        int raw_data_size = fh_aac_frame_length - adts_header_size;
-        if (!stream->require(raw_data_size)) {
-            return ERROR_AAC_ADTS_HEADER;
-        }
-        
-        // the profile = object_id + 1
-        // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 78,
-        //      Table 1. A.9 – MPEG-2 Audio profiles and MPEG-4 Audio object types
-        char aac_profile = fh_Profile_ObjectType + 1;
-        
-        char* raw_data = stream->data() + stream->pos();
-        if ((ret = __srs_write_aac_adts_frame(context,
-            sound_format, sound_rate, sound_size, sound_type,
-            aac_profile, fh_sampling_frequency_index, fh_channel_configuration,
-            raw_data, raw_data_size, timestamp)) != ERROR_SUCCESS
-        ) {
+        char* frame = NULL;
+        int frame_size = 0;
+        SrsRawAacStreamCodec codec;
+        if ((ret = context->aac_raw.adts_demux(stream, &frame, &frame_size, codec)) != ERROR_SUCCESS) {
             return ret;
         }
-        stream->skip(raw_data_size);
+
+        // override by user specified.
+        codec.sound_format = sound_format;
+        codec.sound_rate = sound_rate;
+        codec.sound_size = sound_size;
+        codec.sound_type = sound_type;
+
+        if ((ret = __srs_write_aac_adts_frame(context, &codec, frame, frame_size, timestamp)) != ERROR_SUCCESS) {
+            return ret;
+        }
     }
     
     return ret;
@@ -1328,10 +1173,16 @@ int srs_audio_write_raw_frame(srs_rtmp_t rtmp,
             sound_format, sound_rate, sound_size, sound_type, 
             frame, frame_size, timestamp);
     } else {
+        // use codec info for aac.
+        SrsRawAacStreamCodec codec;
+        codec.sound_format = sound_format;
+        codec.sound_rate = sound_rate;
+        codec.sound_size = sound_size;
+        codec.sound_type = sound_type;
+        codec.aac_packet_type = 0;
+
         // for other data, directly write frame.
-        return __srs_write_audio_raw_frame(context, 
-            sound_format, sound_rate, sound_size, sound_type, 
-            0, frame, frame_size, timestamp);
+        return __srs_write_audio_raw_frame(context, frame, frame_size, &codec, timestamp);
     }
     
     

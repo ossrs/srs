@@ -86,4 +86,62 @@ public:
     virtual int mux_avc2flv(std::string video, int8_t frame_type, int8_t avc_packet_type, u_int32_t dts, u_int32_t pts, char** flv, int* nb_flv);
 };
 
+/**
+* the header of adts sample.
+*/
+struct SrsRawAacStreamCodec
+{
+    int8_t protection_absent;
+    int8_t Profile_ObjectType;
+    int8_t sampling_frequency_index;
+    int8_t channel_configuration;
+    int16_t aac_frame_length;
+
+    // calc by Profile_ObjectType+1
+    char aac_profile;
+    char aac_samplerate;
+    char aac_channel;
+
+    char sound_format;
+    char sound_rate;
+    char sound_size;
+    char sound_type;
+    // 0 for sh; 1 for raw data.
+    int8_t aac_packet_type;
+};
+
+/**
+* the raw aac stream, in adts.
+*/
+class SrsRawAacStream
+{
+public:
+    SrsRawAacStream();
+    virtual ~SrsRawAacStream();
+public:
+    /**
+    * demux the stream in adts format.
+    * @param stream the input stream bytes.
+    * @param pframe the output aac frame in stream. user should never free it.
+    * @param pnb_frame the output aac frame size.
+    * @param codec the output codec info.
+    */
+    virtual int adts_demux(SrsStream* stream, char** pframe, int* pnb_frame, SrsRawAacStreamCodec& codec);
+    /**
+    * aac raw data to aac packet, without flv payload header.
+    * mux the aac specific config to flv sequence header packet.
+    * @param sh output the sequence header.
+    */
+    virtual int mux_sequence_header(SrsRawAacStreamCodec* codec, std::string& sh);
+    /**
+    * mux the aac audio packet to flv audio packet.
+    * @param frame the aac raw data.
+    * @param nb_frame the count of aac frame.
+    * @param codec the codec info of aac.
+    * @param flv output the muxed flv packet.
+    * @param nb_flv output the muxed flv size.
+    */
+    virtual int mux_aac2flv(char* frame, int nb_frame, SrsRawAacStreamCodec* codec, u_int32_t dts, char** flv, int* nb_flv);
+};
+
 #endif

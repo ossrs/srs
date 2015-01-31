@@ -45,6 +45,8 @@ class SrsStSocket;
 class SrsRequest;
 class SrsRawH264Stream;
 class SrsSharedPtrMessage;
+class SrsRawAacStream;
+class SrsRawAacStreamCodec;
 
 #include <srs_app_st.hpp>
 #include <srs_kernel_ts.hpp>
@@ -114,6 +116,10 @@ private:
     std::string h264_pps;
     bool h264_pps_changed;
     bool h264_sps_pps_sent;
+private:
+    SrsRawAacStream* aac;
+    std::string aac_specific_config;
+private:
     SrsMpegtsQueue* queue;
 public:
     SrsMpegtsOverUdp(SrsConfDirective* c);
@@ -126,9 +132,11 @@ public:
     virtual int on_ts_message(SrsTsMessage* msg);
 private:
     virtual int on_ts_video(SrsTsMessage* msg, SrsStream* avs);
-    virtual int write_h264_raw_frame(char* frame, int frame_size, u_int32_t dts, u_int32_t pts);
     virtual int write_h264_sps_pps(u_int32_t dts, u_int32_t pts);
     virtual int write_h264_ipb_frame(char* frame, int frame_size, u_int32_t dts, u_int32_t pts);
+    virtual int on_ts_audio(SrsTsMessage* msg, SrsStream* avs);
+    virtual int write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, u_int32_t dts);
+private:
     virtual int rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size);
 private:
     // connect to rtmp output url. 
