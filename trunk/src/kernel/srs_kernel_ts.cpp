@@ -402,6 +402,21 @@ SrsMpegtsFrame::SrsMpegtsFrame()
     key = false;
 }
 
+string srs_ts_stream2string(SrsTsStream stream)
+{
+    switch (stream) {
+        case SrsTsStreamReserved: return "Reserved";
+        case SrsTsStreamAudioMp3: return "MP3";
+        case SrsTsStreamAudioAAC: return "AAC";
+        case SrsTsStreamAudioAC3: return "AC3";
+        case SrsTsStreamAudioDTS: return "AudioDTS";
+        case SrsTsStreamVideoH264: return "H.264";
+        case SrsTsStreamVideoMpeg4: return "MP4";
+        case SrsTsStreamAudioMpeg4: return "MP4A";
+        default: return "Other";
+    }
+}
+
 SrsTsChannel::SrsTsChannel()
 {
     pid = 0;

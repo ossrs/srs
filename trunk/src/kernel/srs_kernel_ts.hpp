@@ -174,6 +174,7 @@ enum SrsTsStream
     SrsTsStreamAudioAC3        = 0x81,
     SrsTsStreamAudioDTS        = 0x8a,
 };
+std::string srs_ts_stream2string(SrsTsStream stream);
 
 /**
 * the ts channel.

@@ -38,6 +38,7 @@ using namespace std;
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_kernel_utility.hpp>
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
@@ -160,8 +161,8 @@ int SrsMpegtsOverUdp::on_ts_message(SrsTsMessage* msg)
     // for example, when SrsTsStream of SrsTsChannel indicates stream_type is SrsTsStreamVideoMpeg4 and SrsTsStreamAudioMpeg4,
     // the elementary stream can be mux in "2.11 Carriage of ISO/IEC 14496 data" in hls-mpeg-ts-iso13818-1.pdf, page 103
     // @remark, the most popular stream_id is 0xe0 for h.264 over mpegts, which indicates the stream_id is video and 
-    //      stream_number is 0, where I guess the elementary is specified in 13818-2(video part).
-    //      because when audio stream_number is 0, the elementary is ADTS specified in 13818-7(aac part).
+    //      stream_number is 0, where I guess the elementary is specified in annexb format(H.264-AVC-ISO_IEC_14496-10.pdf, page 211).
+    //      because when audio stream_number is 0, the elementary is ADTS(aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 75, 1.A.2.2 ADTS).
 
     // about the bytes of PES_packet_data_byte, defined in hls-mpeg-ts-iso13818-1.pdf, page 58
     // PES_packet_data_byte ¨C PES_packet_data_bytes shall be contiguous bytes of data from the elementary stream
@@ -193,10 +194,18 @@ int SrsMpegtsOverUdp::on_ts_message(SrsTsMessage* msg)
     // 14496-2 video stream number xxxx
     // ((stream_id >> 4) & 0x0f) == SrsTsPESStreamIdVideo
 
-    srs_trace("mpegts: got %s dts=%"PRId64", pts=%"PRId64", size=%d, us=%d, cc=%d, sid=%#x(%s-%d)",
-        (msg->channel->apply == SrsTsPidApplyVideo)? "Video":"Audio", msg->dts, msg->pts, msg->payload->length(),
-        msg->packet->payload_unit_start_indicator, msg->continuity_counter, msg->sid,
+    srs_trace("mpegts: got %s stream=%s, dts=%"PRId64", pts=%"PRId64", size=%d, us=%d, cc=%d, sid=%#x(%s-%d)",
+        (msg->channel->apply == SrsTsPidApplyVideo)? "Video":"Audio", srs_ts_stream2string(msg->channel->stream).c_str(),
+        msg->dts, msg->pts, msg->payload->length(), msg->packet->payload_unit_start_indicator, msg->continuity_counter, msg->sid,
         msg->is_audio()? "A":msg->is_video()? "V":"N", msg->stream_number());
+
+    // when not audio/video, or not adts/annexb format, donot support.
+    if (msg->stream_number() != 0) {
+        ret = ERROR_STREAM_CASTER_TS_ES;
+        srs_error("mpegts: unsupported stream format, sid=%#x(%s-%d). ret=%d", 
+            msg->sid, msg->is_audio()? "A":msg->is_video()? "V":"N", msg->stream_number(), ret);
+        return ret;
+    }
 
     // TODO: FIXME: implements it.
     return ret;
