@@ -713,7 +713,7 @@ ISrsSourceHandler::~ISrsSourceHandler()
 
 std::map<std::string, SrsSource*> SrsSource::pool;
 
-int SrsSource::find(SrsRequest* r, ISrsSourceHandler* h, SrsSource** pps)
+int SrsSource::find(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh, SrsSource** pps)
 {
     int ret = ERROR_SUCCESS;
     
@@ -721,7 +721,7 @@ int SrsSource::find(SrsRequest* r, ISrsSourceHandler* h, SrsSource** pps)
     string vhost = r->vhost;
     
     if (pool.find(stream_url) == pool.end()) {
-        SrsSource* source = new SrsSource();
+        SrsSource* source = new SrsSource(hh);
         if ((ret = source->initialize(r, h)) != ERROR_SUCCESS) {
             srs_freep(source);
             return ret;
@@ -754,13 +754,14 @@ void SrsSource::destroy()
     pool.clear();
 }
 
-SrsSource::SrsSource()
+SrsSource::SrsSource(ISrsHlsHandler* hh)
 {
     _req = NULL;
     jitter_algorithm = SrsRtmpJitterAlgorithmOFF;
     
 #ifdef SRS_AUTO_HLS
-    hls = new SrsHls(this);
+    // TODO: FIXME: refine code, use subscriber pattern.
+    hls = new SrsHls(this, hh);
 #endif
 #ifdef SRS_AUTO_DVR
     dvr = new SrsDvr(this);

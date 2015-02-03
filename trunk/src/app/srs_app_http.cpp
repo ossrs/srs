@@ -379,7 +379,9 @@ int SrsGoHttpFileServer::serve_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
     // write body.
     int64_t left = length;
     if ((ret = copy(w, &fs, r, left)) != ERROR_SUCCESS) {
-        srs_warn("read file=%s size=%d failed, ret=%d", fullpath.c_str(), left, ret);
+        if (!srs_is_client_gracefully_close(ret)) {
+            srs_error("read file=%s size=%d failed, ret=%d", fullpath.c_str(), left, ret);
+        }
         return ret;
     }
     

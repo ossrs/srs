@@ -52,6 +52,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_HLS_ON_ERROR_DISCONNECT "disconnect"
 #define SRS_CONF_DEFAULT_HLS_ON_ERROR_CONTINUE "continue"
 #define SRS_CONF_DEFAULT_HLS_ON_ERROR SRS_CONF_DEFAULT_HLS_ON_ERROR_IGNORE
+#define SRS_CONF_DEFAULT_HLS_STORAGE "disk"
+#define SRS_CONF_DEFAULT_HLS_MOUNT "[vhost]/[app]/[stream].m3u8"
 #define SRS_CONF_DEFAULT_DVR_PATH "./objs/nginx/html"
 #define SRS_CONF_DEFAULT_DVR_PLAN_SESSION "session"
 #define SRS_CONF_DEFAULT_DVR_PLAN_SEGMENT "segment"
@@ -906,6 +908,14 @@ public:
     * @see https://github.com/winlinvip/simple-rtmp-server/issues/264
     */
     virtual std::string         get_hls_on_error(std::string vhost);
+    /**
+    * get the HLS storage type.
+    */
+    virtual std::string         get_hls_storage(std::string vhost);
+    /**
+    * get the HLS mount url for HTTP server.
+    */
+    virtual std::string         get_hls_mount(std::string vhost);
 // dvr section
 private:
     /**

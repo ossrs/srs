@@ -1479,7 +1479,9 @@ int SrsConfig::check_config()
             } else if (n == "hls") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name.c_str();
-                    if (m != "enabled" && m != "hls_path" && m != "hls_fragment" && m != "hls_window" && m != "hls_on_error") {
+                    if (m != "enabled" && m != "hls_path" && m != "hls_fragment" && m != "hls_window" && m != "hls_on_error"
+                        && m != "hls_storage" && m != "hls_mount"
+                    ) {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost hls directive %s, ret=%d", m.c_str(), ret);
                         return ret;
@@ -1799,6 +1801,7 @@ int SrsConfig::check_config()
             }
         }
 #endif
+        // TODO: FIXME: required http server when hls storage is ram or both.
     }
     
     return ret;
@@ -3273,6 +3276,40 @@ string SrsConfig::get_hls_on_error(string vhost)
     
     if (!conf) {
         return SRS_CONF_DEFAULT_HLS_ON_ERROR;
+    }
+
+    return conf->arg0();
+}
+
+string SrsConfig::get_hls_storage(string vhost)
+{
+    SrsConfDirective* hls = get_hls(vhost);
+    
+    if (!hls) {
+        return SRS_CONF_DEFAULT_HLS_STORAGE;
+    }
+    
+    SrsConfDirective* conf = hls->get("hls_storage");
+    
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HLS_STORAGE;
+    }
+
+    return conf->arg0();
+}
+
+string SrsConfig::get_hls_mount(string vhost)
+{
+    SrsConfDirective* hls = get_hls(vhost);
+    
+    if (!hls) {
+        return SRS_CONF_DEFAULT_HLS_MOUNT;
+    }
+    
+    SrsConfDirective* conf = hls->get("hls_mount");
+    
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HLS_MOUNT;
     }
 
     return conf->arg0();

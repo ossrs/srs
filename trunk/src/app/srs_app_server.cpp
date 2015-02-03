@@ -32,6 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <fcntl.h>
 
 #include <algorithm>
+using namespace std;
 
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
@@ -1275,5 +1276,55 @@ void SrsServer::on_unpublish(SrsSource* s, SrsRequest* r)
 #ifdef SRS_AUTO_HTTP_SERVER
     http_stream_mux->unmount(s, r);
 #endif
+}
+
+int SrsServer::on_hls_publish(SrsRequest* r)
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_AUTO_HTTP_SERVER
+    if ((ret = http_stream_mux->mount_hls(r)) != ERROR_SUCCESS) {
+        return ret;
+    }
+#endif
+    
+    return ret;
+}
+
+int SrsServer::on_update_m3u8(SrsRequest* r, string m3u8)
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_AUTO_HTTP_SERVER
+    if ((ret = http_stream_mux->hls_update_m3u8(r, m3u8)) != ERROR_SUCCESS) {
+        return ret;
+    }
+#endif
+    
+    return ret;
+}
+
+int SrsServer::on_update_ts(SrsRequest* r, string uri, string ts)
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_AUTO_HTTP_SERVER
+    if ((ret = http_stream_mux->hls_update_ts(r, uri, ts)) != ERROR_SUCCESS) {
+        return ret;
+    }
+#endif
+    
+    return ret;
+}
+
+int SrsServer::on_hls_unpublish(SrsRequest* r)
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_AUTO_HTTP_SERVER
+    http_stream_mux->unmount_hls(r);
+#endif
+    
+    return ret;
 }
 

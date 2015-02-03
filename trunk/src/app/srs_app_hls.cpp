@@ -55,13 +55,87 @@ using namespace std;
 // drop the segment when duration of ts too small.
 #define SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS 100
 
-SrsHlsSegment::SrsHlsSegment()
+ISrsHlsHandler::ISrsHlsHandler()
+{
+}
+
+ISrsHlsHandler::~ISrsHlsHandler()
+{
+}
+
+SrsHlsCacheWriter::SrsHlsCacheWriter(bool write_cache, bool write_file)
+{
+    should_write_cache = write_cache;
+    should_write_file = write_file;
+}
+
+SrsHlsCacheWriter::~SrsHlsCacheWriter()
+{
+}
+
+int SrsHlsCacheWriter::open(string file)
+{
+    if (!should_write_file) {
+        return ERROR_SUCCESS;
+    }
+
+    return impl.open(file);
+}
+
+void SrsHlsCacheWriter::close()
+{
+    if (!should_write_file) {
+        return;
+    }
+
+    impl.close();
+}
+
+bool SrsHlsCacheWriter::is_open()
+{
+    if (!should_write_file) {
+        return true;
+    }
+
+    return impl.is_open();
+}
+
+int64_t SrsHlsCacheWriter::tellg()
+{
+    if (!should_write_file) {
+        return 0;
+    }
+
+    return impl.tellg();
+}
+
+int SrsHlsCacheWriter::write(void* buf, size_t count, ssize_t* pnwrite)
+{
+    if (should_write_cache) {
+        if (count > 0) {
+            data.append((char*)buf, count);
+        }
+    }
+
+    if (should_write_file) {
+        return impl.write(buf, count, pnwrite);
+    }
+
+    return ERROR_SUCCESS;
+}
+
+string SrsHlsCacheWriter::cache()
+{
+    return data;
+}
+
+SrsHlsSegment::SrsHlsSegment(bool write_cache, bool write_file)
 {
     duration = 0;
     sequence_no = 0;
     segment_start_dts = 0;
     is_sequence_header = false;
-    writer = new SrsFileWriter();
+    writer = new SrsHlsCacheWriter(write_cache, write_file);
     muxer = new SrsTSMuxer(writer);
 }
 
@@ -87,12 +161,16 @@ void SrsHlsSegment::update_duration(int64_t current_frame_dts)
     return;
 }
 
-SrsHlsMuxer::SrsHlsMuxer()
+SrsHlsMuxer::SrsHlsMuxer(ISrsHlsHandler* h)
 {
+    req = NULL;
+    handler = h;
     hls_fragment = hls_window = 0;
     _sequence_no = 0;
     current = NULL;
     acodec = SrsCodecAudioReserved1;
+    should_write_cache = false;
+    should_write_file = true;
 }
 
 SrsHlsMuxer::~SrsHlsMuxer()
@@ -105,6 +183,7 @@ SrsHlsMuxer::~SrsHlsMuxer()
     segments.clear();
     
     srs_freep(current);
+    srs_freep(req);
 }
 
 int SrsHlsMuxer::sequence_no()
@@ -112,16 +191,29 @@ int SrsHlsMuxer::sequence_no()
     return _sequence_no;
 }
 
-int SrsHlsMuxer::update_config(
-    string _app, string _stream, string path, int fragment, int window
-) {
+int SrsHlsMuxer::update_config(SrsRequest* r, string path, int fragment, int window) 
+{
     int ret = ERROR_SUCCESS;
     
-    app = _app;
-    stream = _stream;
+    srs_freep(req);
+    req = r->copy();
+
     hls_path = path;
     hls_fragment = fragment;
     hls_window = window;
+
+    std::string storage = _srs_config->get_hls_storage(r->vhost);
+    if (storage == "ram") {
+        should_write_cache = true;
+        should_write_file = false;
+    } else if (storage == "disk") {
+        should_write_cache = false;
+        should_write_file = true;
+    } else {
+        srs_assert(storage == "both");
+        should_write_cache = true;
+        should_write_file = true;
+    }
     
     return ret;
 }
@@ -137,7 +229,7 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     
     // TODO: create all parents dirs.
     // create dir for app.
-    if ((ret = create_dir()) != ERROR_SUCCESS) {
+    if (should_write_file && (ret = create_dir()) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -145,19 +237,19 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     srs_assert(!current);
     
     // new segment.
-    current = new SrsHlsSegment();
+    current = new SrsHlsSegment(should_write_cache, should_write_file);
     current->sequence_no = _sequence_no++;
     current->segment_start_dts = segment_start_dts;
     
     // generate filename.
     char filename[128];
     snprintf(filename, sizeof(filename), 
-        "%s-%d.ts", stream.c_str(), current->sequence_no);
+        "%s-%d.ts", req->stream.c_str(), current->sequence_no);
     
     // TODO: use temp file and rename it.
     current->full_path = hls_path;
     current->full_path += "/";
-    current->full_path += app;
+    current->full_path += req->app;
     current->full_path += "/";
     current->full_path += filename;
     
@@ -289,6 +381,13 @@ int SrsHlsMuxer::segment_close(string log_desc)
         srs_info("%s reap ts segment, sequence_no=%d, uri=%s, duration=%.2f, start=%"PRId64"",
             log_desc.c_str(), current->sequence_no, current->uri.c_str(), current->duration, 
             current->segment_start_dts);
+        
+        // notify handler for update ts.
+        srs_assert(current->writer);
+        if (handler && (ret = handler->on_update_ts(req, current->uri, current->writer->cache())) != ERROR_SUCCESS) {
+            srs_error("notify handler for update ts failed. ret=%d", ret);
+            return ret;
+        }
     
         // close the muxer of finished segment.
         srs_freep(current->muxer);
@@ -297,7 +396,7 @@ int SrsHlsMuxer::segment_close(string log_desc)
         
         // rename from tmp to real path
         std::string tmp_file = full_path + ".tmp";
-        if (rename(tmp_file.c_str(), full_path.c_str()) < 0) {
+        if (should_write_file && rename(tmp_file.c_str(), full_path.c_str()) < 0) {
             ret = ERROR_HLS_WRITE_FAILED;
             srs_error("rename ts file failed, %s => %s. ret=%d", 
                 tmp_file.c_str(), full_path.c_str(), ret);
@@ -313,7 +412,9 @@ int SrsHlsMuxer::segment_close(string log_desc)
         
         // rename from tmp to real path
         std::string tmp_file = current->full_path + ".tmp";
-        unlink(tmp_file.c_str());
+        if (should_write_file) {
+            unlink(tmp_file.c_str());
+        }
         
         srs_freep(current);
     }
@@ -365,22 +466,18 @@ int SrsHlsMuxer::refresh_m3u8()
     
     std::string m3u8_file = hls_path;
     m3u8_file += "/";
-    m3u8_file += app;
+    m3u8_file += req->app;
     m3u8_file += "/";
-    m3u8_file += stream;
+    m3u8_file += req->stream;
     m3u8_file += ".m3u8";
     
     m3u8 = m3u8_file;
     m3u8_file += ".temp";
     
-    int fd = -1;
-    ret = _refresh_m3u8(fd, m3u8_file);
-    if (fd >= 0) {
-        close(fd);
-        if (rename(m3u8_file.c_str(), m3u8.c_str()) < 0) {
+    if ((ret = _refresh_m3u8(m3u8_file)) == ERROR_SUCCESS) {
+        if (should_write_file && rename(m3u8_file.c_str(), m3u8.c_str()) < 0) {
             ret = ERROR_HLS_WRITE_FAILED;
-            srs_error("rename m3u8 file failed. "
-                "%s => %s, ret=%d", m3u8_file.c_str(), m3u8.c_str(), ret);
+            srs_error("rename m3u8 file failed. %s => %s, ret=%d", m3u8_file.c_str(), m3u8.c_str(), ret);
         }
     }
     
@@ -390,7 +487,7 @@ int SrsHlsMuxer::refresh_m3u8()
     return ret;
 }
 
-int SrsHlsMuxer::_refresh_m3u8(int& fd, string m3u8_file)
+int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
 {
     int ret = ERROR_SUCCESS;
     
@@ -398,11 +495,9 @@ int SrsHlsMuxer::_refresh_m3u8(int& fd, string m3u8_file)
     if (segments.size() == 0) {
         return ret;
     }
-    
-    int flags = O_CREAT|O_WRONLY|O_TRUNC;
-    mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
-    if ((fd = ::open(m3u8_file.c_str(), flags, mode)) < 0) {
-        ret = ERROR_HLS_OPEN_FAILED;
+
+    SrsHlsCacheWriter writer(should_write_cache, should_write_file);
+    if ((ret = writer.open(m3u8_file)) != ERROR_SUCCESS) {
         srs_error("open m3u8 file %s failed. ret=%d", m3u8_file.c_str(), ret);
         return ret;
     }
@@ -419,8 +514,7 @@ int SrsHlsMuxer::_refresh_m3u8(int& fd, string m3u8_file)
         0x23, 0x45, 0x58, 0x54, 0x2d, 0x58, 0x2d, 0x41, 0x4c, 0x4c, 
         0x4f, 0x57, 0x2d, 0x43, 0x41, 0x43, 0x48, 0x45, 0x3a, 0x4e, 0x4f, 0x0a
     };
-    if (::write(fd, header, sizeof(header)) != sizeof(header)) {
-        ret = ERROR_HLS_WRITE_FAILED;
+    if ((ret = writer.write(header, sizeof(header), NULL)) != ERROR_SUCCESS) {
         srs_error("write m3u8 header failed. ret=%d", ret);
         return ret;
     }
@@ -430,8 +524,7 @@ int SrsHlsMuxer::_refresh_m3u8(int& fd, string m3u8_file)
     SrsHlsSegment* first = *segments.begin();
     char sequence[34] = {};
     int len = snprintf(sequence, sizeof(sequence), "#EXT-X-MEDIA-SEQUENCE:%d\n", first->sequence_no);
-    if (::write(fd, sequence, len) != len) {
-        ret = ERROR_HLS_WRITE_FAILED;
+    if ((ret = writer.write(sequence, len, NULL)) != ERROR_SUCCESS) {
         srs_error("write m3u8 sequence failed. ret=%d", ret);
         return ret;
     }
@@ -448,8 +541,7 @@ int SrsHlsMuxer::_refresh_m3u8(int& fd, string m3u8_file)
     target_duration += 1;
     char duration[34]; // 23+10+1
     len = snprintf(duration, sizeof(duration), "#EXT-X-TARGETDURATION:%d\n", target_duration);
-    if (::write(fd, duration, len) != len) {
-        ret = ERROR_HLS_WRITE_FAILED;
+    if ((ret = writer.write(duration, len, NULL)) != ERROR_SUCCESS) {
         srs_error("write m3u8 duration failed. ret=%d", ret);
         return ret;
     }
@@ -463,8 +555,7 @@ int SrsHlsMuxer::_refresh_m3u8(int& fd, string m3u8_file)
             // #EXT-X-DISCONTINUITY\n
             char ext_discon[22]; // 21+1
             len = snprintf(ext_discon, sizeof(ext_discon), "#EXT-X-DISCONTINUITY\n");
-            if (::write(fd, ext_discon, len) != len) {
-                ret = ERROR_HLS_WRITE_FAILED;
+            if ((ret = writer.write(ext_discon, len, NULL)) != ERROR_SUCCESS) {
                 srs_error("write m3u8 segment discontinuity failed. ret=%d", ret);
                 return ret;
             }
@@ -474,8 +565,7 @@ int SrsHlsMuxer::_refresh_m3u8(int& fd, string m3u8_file)
         // "#EXTINF:4294967295.208,\n"
         char ext_info[25]; // 14+10+1
         len = snprintf(ext_info, sizeof(ext_info), "#EXTINF:%.3f\n", segment->duration);
-        if (::write(fd, ext_info, len) != len) {
-            ret = ERROR_HLS_WRITE_FAILED;
+        if ((ret = writer.write(ext_info, len, NULL)) != ERROR_SUCCESS) {
             srs_error("write m3u8 segment info failed. ret=%d", ret);
             return ret;
         }
@@ -484,14 +574,19 @@ int SrsHlsMuxer::_refresh_m3u8(int& fd, string m3u8_file)
         // file name
         std::string filename = segment->uri;
         filename += "\n";
-        if (::write(fd, filename.c_str(), filename.length()) != (int)filename.length()) {
-            ret = ERROR_HLS_WRITE_FAILED;
+        if ((ret = writer.write((char*)filename.c_str(), (int)filename.length(), NULL)) != ERROR_SUCCESS) {
             srs_error("write m3u8 segment uri failed. ret=%d", ret);
             return ret;
         }
         srs_verbose("write m3u8 segment uri success.");
     }
     srs_info("write m3u8 %s success.", m3u8_file.c_str());
+
+    // notify handler for update m3u8.
+    if (handler && (ret = handler->on_update_m3u8(req, writer.cache())) != ERROR_SUCCESS) {
+        srs_error("notify handler for update m3u8 failed. ret=%d", ret);
+        return ret;
+    }
     
     return ret;
 }
@@ -499,10 +594,14 @@ int SrsHlsMuxer::_refresh_m3u8(int& fd, string m3u8_file)
 int SrsHlsMuxer::create_dir()
 {
     int ret = ERROR_SUCCESS;
+
+    if (!should_write_file) {
+        return ret;
+    }
     
     std::string app_dir = hls_path;
     app_dir += "/";
-    app_dir += app;
+    app_dir += req->app;
     
     // TODO: cleanup the dir when startup.
     
@@ -543,7 +642,7 @@ int SrsHlsCache::on_publish(SrsHlsMuxer* muxer, SrsRequest* req, int64_t segment
     // for the HLS donot requires the EXT-X-MEDIA-SEQUENCE be monotonically increase.
     
     // open muxer
-    if ((ret = muxer->update_config(app, stream, hls_path, hls_fragment, hls_window)) != ERROR_SUCCESS) {
+    if ((ret = muxer->update_config(req, hls_path, hls_fragment, hls_window)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer update config failed. ret=%d", ret);
         return ret;
     }
@@ -679,16 +778,18 @@ int SrsHlsCache::reap_segment(string log_desc, SrsHlsMuxer* muxer, int64_t segme
     return ret;
 }
 
-SrsHls::SrsHls(SrsSource* _source)
+SrsHls::SrsHls(SrsSource* s, ISrsHlsHandler* h)
 {
-    hls_enabled = false;
+    source = s;
+    handler = h;
     
-    source = _source;
+    hls_enabled = false;
+
     codec = new SrsAvcAacCodec();
     sample = new SrsCodecSample();
     jitter = new SrsRtmpJitter();
     
-    muxer = new SrsHlsMuxer();
+    muxer = new SrsHlsMuxer(h);
     hls_cache = new SrsHlsCache();
 
     pithy_print = new SrsPithyPrint(SRS_CONSTS_STAGE_HLS);

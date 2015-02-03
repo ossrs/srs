@@ -61,6 +61,7 @@ class SrsDvr;
 class SrsEncoder;
 #endif
 class SrsStream;
+class ISrsHlsHandler;
 
 /**
 * the time jitter algorithm:
@@ -376,9 +377,10 @@ public:
     * find stream by vhost/app/stream.
     * @param r the client request.
     * @param h the event handler for source.
+    * @param hh the event handler for hls.
     * @param pps the matched source, if success never be NULL.
     */
-    static int find(SrsRequest* r, ISrsSourceHandler* h, SrsSource** pps);
+    static int find(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh, SrsSource** pps);
     /**
     * when system exit, destroy the sources,
     * for gmc to analysis mem leaks.
@@ -451,7 +453,7 @@ public:
     * @param _req the client request object, 
     *     this object will deep copy it for reload.
     */
-    SrsSource();
+    SrsSource(ISrsHlsHandler* hh);
     virtual ~SrsSource();
 // initialize, get and setter.
 public:

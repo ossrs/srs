@@ -680,18 +680,96 @@ SrsLiveEntry::SrsLiveEntry()
     cache = NULL;
 }
 
+SrsHlsM3u8Stream::SrsHlsM3u8Stream()
+{
+}
+
+SrsHlsM3u8Stream::~SrsHlsM3u8Stream()
+{
+}
+
+void SrsHlsM3u8Stream::set_m3u8(std::string v)
+{
+    m3u8 = v;
+}
+
+int SrsHlsM3u8Stream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
+{
+    int ret = ERROR_SUCCESS;
+    
+    std::string data = m3u8;
+    
+    w->header()->set_content_length((int)data.length());
+    w->header()->set_content_type("application/x-mpegURL;charset=utf-8");
+
+    if ((ret = w->write((char*)data.data(), (int)data.length())) != ERROR_SUCCESS) {
+        if (!srs_is_client_gracefully_close(ret)) {
+            srs_error("send m3u8 failed. ret=%d", ret);
+        }
+        return ret;
+    }
+
+    return ret;
+}
+
+SrsHlsTsStream::SrsHlsTsStream()
+{
+}
+
+SrsHlsTsStream::~SrsHlsTsStream()
+{
+}
+
+void SrsHlsTsStream::set_ts(std::string v)
+{
+    ts = v;
+}
+
+int SrsHlsTsStream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
+{
+    int ret = ERROR_SUCCESS;
+    
+    std::string data = ts;
+    
+    w->header()->set_content_length((int)data.length());
+    w->header()->set_content_type("video/MP2T");
+
+    if ((ret = w->write((char*)data.data(), (int)data.length())) != ERROR_SUCCESS) {
+        if (!srs_is_client_gracefully_close(ret)) {
+            srs_error("send ts failed. ret=%d", ret);
+        }
+        return ret;
+    }
+
+    return ret;
+}
+
+SrsHlsEntry::SrsHlsEntry()
+{
+}
+
 SrsHttpServer::SrsHttpServer()
 {
 }
 
 SrsHttpServer::~SrsHttpServer()
 {
-    std::map<std::string, SrsLiveEntry*>::iterator it;
-    for (it = flvs.begin(); it != flvs.end(); ++it) {
-        SrsLiveEntry* entry = it->second;
-        srs_freep(entry);
+    if (true) {
+        std::map<std::string, SrsLiveEntry*>::iterator it;
+        for (it = flvs.begin(); it != flvs.end(); ++it) {
+            SrsLiveEntry* entry = it->second;
+            srs_freep(entry);
+        }
+        flvs.clear();
     }
-    flvs.clear();
+    if (true) {
+        std::map<std::string, SrsHlsEntry*>::iterator it;
+        for (it = hls.begin(); it != hls.end(); ++it) {
+            SrsHlsEntry* entry = it->second;
+            srs_freep(entry);
+        }
+        hls.clear();
+    }
 }
 
 int SrsHttpServer::initialize()
@@ -700,12 +778,17 @@ int SrsHttpServer::initialize()
     
     // static file
     // flv vod streaming.
-    if ((ret = mount_static_file()) != ERROR_SUCCESS) {
+    if ((ret = initialize_static_file()) != ERROR_SUCCESS) {
         return ret;
     }
     
     // remux rtmp to flv live streaming
-    if ((ret = mount_flv_streaming()) != ERROR_SUCCESS) {
+    if ((ret = initialize_flv_streaming()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // remux rtmp to hls live streaming
+    if ((ret = initialize_hls_streaming()) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -769,6 +852,128 @@ void SrsHttpServer::unmount(SrsSource* s, SrsRequest* r)
     entry->stream->entry->enabled = false;
 }
 
+int SrsHttpServer::mount_hls(SrsRequest* r)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (hls.find(r->vhost) == hls.end()) {
+        srs_info("ignore mount hls stream for disabled");
+        return ret;
+    }
+    
+    SrsHlsEntry* entry = hls[r->vhost];
+    
+    // TODO: FIXME: supports reload.
+    std::map<std::string, ISrsGoHttpHandler*>::iterator it;
+    for (it = entry->streams.begin(); it != entry->streams.end(); ++it) {
+        ISrsGoHttpHandler* stream = it->second;
+        stream->entry->enabled = true;
+    }
+
+    return ret;
+}
+
+int SrsHttpServer::hls_update_m3u8(SrsRequest* r, string m3u8)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(hls.find(r->vhost) != hls.end());
+    SrsHlsEntry* entry = hls[r->vhost];
+    srs_assert(entry);
+
+    std::string mount = entry->mount;
+
+    // replace the vhost variable
+    mount = srs_string_replace(mount, "[vhost]", r->vhost);
+    mount = srs_string_replace(mount, "[app]", r->app);
+    mount = srs_string_replace(mount, "[stream]", r->stream);
+
+    // remove the default vhost mount
+    mount = srs_string_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST"/", "/");
+
+    if (entry->streams.find(mount) == entry->streams.end()) {
+        ISrsGoHttpHandler* he = new SrsHlsM3u8Stream();
+        entry->streams[mount] = he;
+
+        if ((ret = mux.handle(mount, he)) != ERROR_SUCCESS) {
+            srs_error("handle mount=%s failed. ret=%d", mount.c_str(), ret);
+            return ret;
+        }
+    }
+
+    // update the m3u8 stream.
+    SrsHlsM3u8Stream* hms = dynamic_cast<SrsHlsM3u8Stream*>(entry->streams[mount]);
+    if (hms) {
+        hms->set_m3u8(m3u8);
+    }
+    srs_trace("hls update m3u8 ok, mount=%s", mount.c_str());
+
+    return ret;
+}
+
+int SrsHttpServer::hls_update_ts(SrsRequest* r, string uri, string ts)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(hls.find(r->vhost) != hls.end());
+    SrsHlsEntry* entry = hls[r->vhost];
+    srs_assert(entry);
+
+    std::string mount = entry->mount;
+    
+    // the ts is relative from the m3u8, the same start dir.
+    size_t pos = string::npos;
+    if ((pos = mount.rfind("/")) != string::npos) {
+        mount = mount.substr(0, pos);
+    }
+
+    // replace the vhost variable
+    mount = srs_string_replace(mount, "[vhost]", r->vhost);
+    mount = srs_string_replace(mount, "[app]", r->app);
+
+    // remove the default vhost mount
+    mount = srs_string_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST"/", "/");
+
+    // mount with ts.
+    mount += "/";
+    mount += uri;
+
+    if (entry->streams.find(mount) == entry->streams.end()) {
+        ISrsGoHttpHandler* he = new SrsHlsTsStream();
+        entry->streams[mount] = he;
+
+        if ((ret = mux.handle(mount, he)) != ERROR_SUCCESS) {
+            srs_error("handle mount=%s failed. ret=%d", mount.c_str(), ret);
+            return ret;
+        }
+    }
+
+    // update the ts stream.
+    SrsHlsTsStream* hts = dynamic_cast<SrsHlsTsStream*>(entry->streams[mount]);
+    if (hts) {
+        hts->set_ts(ts);
+    }
+    srs_trace("hls update ts ok, mount=%s", mount.c_str());
+
+    return ret;
+}
+
+void SrsHttpServer::unmount_hls(SrsRequest* r)
+{
+    if (hls.find(r->vhost) == hls.end()) {
+        srs_info("ignore unmount hls stream for disabled");
+        return;
+    }
+
+    SrsHlsEntry* entry = hls[r->vhost];
+
+    std::map<std::string, ISrsGoHttpHandler*>::iterator it;
+    for (it = entry->streams.begin(); it != entry->streams.end(); ++it) {
+        ISrsGoHttpHandler* stream = it->second;
+        stream->entry->enabled = false;
+    }
+}
+
 int SrsHttpServer::on_reload_vhost_http_updated()
 {
     int ret = ERROR_SUCCESS;
@@ -783,7 +988,14 @@ int SrsHttpServer::on_reload_vhost_http_remux_updated()
     return ret;
 }
 
-int SrsHttpServer::mount_static_file()
+int SrsHttpServer::on_reload_vhost_hls(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    // TODO: FIXME: implements it.
+    return ret;
+}
+
+int SrsHttpServer::initialize_static_file()
 {
     int ret = ERROR_SUCCESS;
     
@@ -843,7 +1055,7 @@ int SrsHttpServer::mount_static_file()
     return ret;
 }
 
-int SrsHttpServer::mount_flv_streaming()
+int SrsHttpServer::initialize_flv_streaming()
 {
     int ret = ERROR_SUCCESS;
     
@@ -866,6 +1078,40 @@ int SrsHttpServer::mount_flv_streaming()
         entry->mount = _srs_config->get_vhost_http_remux_mount(vhost);
         flvs[vhost] = entry;
         srs_trace("http flv live stream, vhost=%s, mount=%s", 
+            vhost.c_str(), entry->mount.c_str());
+    }
+    
+    return ret;
+}
+
+int SrsHttpServer::initialize_hls_streaming()
+{
+    int ret = ERROR_SUCCESS;
+    
+    // http hls live stream mount for each vhost.
+    SrsConfDirective* root = _srs_config->get_root();
+    for (int i = 0; i < (int)root->directives.size(); i++) {
+        SrsConfDirective* conf = root->at(i);
+        
+        if (!conf->is_vhost()) {
+            continue;
+        }
+        
+        std::string vhost = conf->arg0();
+        if (!_srs_config->get_hls_enabled(vhost)) {
+            continue;
+        }
+
+        std::string storage = _srs_config->get_hls_storage(vhost);
+        if (storage != "ram" && storage != "both") {
+            continue;
+        }
+        
+        SrsHlsEntry* entry = new SrsHlsEntry();
+        entry->vhost = vhost;
+        entry->mount = _srs_config->get_hls_mount(vhost);
+        hls[vhost] = entry;
+        srs_trace("http hls live stream, vhost=%s, mount=%s", 
             vhost.c_str(), entry->mount.c_str());
     }
     

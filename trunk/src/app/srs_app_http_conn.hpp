@@ -261,6 +261,53 @@ struct SrsLiveEntry
 };
 
 /**
+* the m3u8 stream handler.
+*/
+class SrsHlsM3u8Stream : public ISrsGoHttpHandler
+{
+private:
+    std::string m3u8;
+public:
+    SrsHlsM3u8Stream();
+    virtual ~SrsHlsM3u8Stream();
+public:
+    virtual void set_m3u8(std::string v);
+public:
+    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
+};
+
+/**
+* the ts stream handler.
+*/
+class SrsHlsTsStream : public ISrsGoHttpHandler
+{
+private:
+    std::string ts;
+public:
+    SrsHlsTsStream();
+    virtual ~SrsHlsTsStream();
+public:
+    virtual void set_ts(std::string v);
+public:
+    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
+};
+
+/**
+* the srs hls entry.
+*/
+struct SrsHlsEntry
+{
+    std::string vhost;
+    std::string mount;
+
+    // key: the m3u8/ts file path.
+    // value: the http handler.
+    std::map<std::string, ISrsGoHttpHandler*> streams;
+    
+    SrsHlsEntry();
+};
+
+/**
 * the http server instance,
 * serve http static file, flv vod stream and flv live stream.
 */
@@ -270,21 +317,32 @@ public:
     SrsGoHttpServeMux mux;
     // the flv live streaming template.
     std::map<std::string, SrsLiveEntry*> flvs;
+    // the hls live streaming template.
+    std::map<std::string, SrsHlsEntry*> hls;
 public:
     SrsHttpServer();
     virtual ~SrsHttpServer();
 public:
     virtual int initialize();
+// http flv/ts/mp3/aac stream
 public:
     virtual int mount(SrsSource* s, SrsRequest* r);
     virtual void unmount(SrsSource* s, SrsRequest* r);
+// hls stream
+public:
+    virtual int mount_hls(SrsRequest* r);
+    virtual int hls_update_m3u8(SrsRequest* r, std::string m3u8);
+    virtual int hls_update_ts(SrsRequest* r, std::string uri, std::string ts);
+    virtual void unmount_hls(SrsRequest* r);
 // interface ISrsThreadHandler.
 public:
     virtual int on_reload_vhost_http_updated();
     virtual int on_reload_vhost_http_remux_updated();
+    virtual int on_reload_vhost_hls(std::string vhost);
 private:
-    virtual int mount_static_file();
-    virtual int mount_flv_streaming();
+    virtual int initialize_static_file();
+    virtual int initialize_flv_streaming();
+    virtual int initialize_hls_streaming();
 };
 
 class SrsHttpConn : public SrsConnection

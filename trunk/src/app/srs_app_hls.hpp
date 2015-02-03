@@ -38,6 +38,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 
 #include <srs_kernel_codec.hpp>
+#include <srs_kernel_file.hpp>
 
 class SrsSharedPtrMessage;
 class SrsCodecSample;
@@ -53,6 +54,70 @@ class SrsFileWriter;
 class SrsSimpleBuffer;
 class SrsTsAacJitter;
 class SrsTsCache;
+class SrsHlsSegment;
+
+/**
+* the handler for hls event.
+* for example, we use memory only hls for
+*/
+class ISrsHlsHandler
+{
+public:
+    ISrsHlsHandler();
+    virtual ~ISrsHlsHandler();
+public:
+    /**
+    * when publish stream
+    */
+    virtual int on_hls_publish(SrsRequest* req) = 0;
+    /**
+    * when update the m3u8 file.
+    */
+    virtual int on_update_m3u8(SrsRequest* r, std::string m3u8) = 0;
+    /**
+    * when reap new ts file.
+    */
+    virtual int on_update_ts(SrsRequest* r, std::string uri, std::string ts) = 0;
+    /**
+    * when unpublish stream
+    */
+    virtual int on_hls_unpublish(SrsRequest* req) = 0;
+};
+
+/**
+* write to file and cache.
+*/
+class SrsHlsCacheWriter : public SrsFileWriter
+{
+private:
+    SrsFileWriter impl;
+    std::string data;
+    bool should_write_cache;
+    bool should_write_file;
+public:
+    SrsHlsCacheWriter(bool write_cache, bool write_file);
+    virtual ~SrsHlsCacheWriter();
+public:
+    /**
+    * open file writer, can open then close then open...
+    */
+    virtual int open(std::string file);
+    virtual void close();
+public:
+    virtual bool is_open();
+    virtual int64_t tellg();
+public:
+    /**
+    * write to file. 
+    * @param pnwrite the output nb_write, NULL to ignore.
+    */
+    virtual int write(void* buf, size_t count, ssize_t* pnwrite);
+public:
+    /**
+    * get the string cache.
+    */
+    virtual std::string cache();
+};
 
 /**
 * the wrapper of m3u8 segment from specification:
@@ -72,16 +137,16 @@ public:
     // ts full file to write.
     std::string full_path;
     // the muxer to write ts.
-    SrsFileWriter* writer;
+    SrsHlsCacheWriter* writer;
     SrsTSMuxer* muxer;
     // current segment start dts for m3u8
     int64_t segment_start_dts;
     // whether current segement is sequence header.
     bool is_sequence_header;
-    
-    SrsHlsSegment();
+public:
+    SrsHlsSegment(bool write_cache, bool write_file);
     virtual ~SrsHlsSegment();
-    
+public:
     /**
     * update the segment duration.
     * @current_frame_dts the dts of frame, in tbn of ts.
@@ -100,8 +165,7 @@ public:
 class SrsHlsMuxer
 {
 private:
-    std::string app;
-    std::string stream;
+    SrsRequest* req;
 private:
     std::string hls_path;
     int hls_fragment;
@@ -109,6 +173,10 @@ private:
 private:
     int _sequence_no;
     std::string m3u8;
+private:
+    ISrsHlsHandler* handler;
+    bool should_write_cache;
+    bool should_write_file;
 private:
     /**
     * m3u8 segments.
@@ -125,12 +193,15 @@ private:
     */
     SrsCodecAudio acodec;
 public:
-    SrsHlsMuxer();
+    SrsHlsMuxer(ISrsHlsHandler* h);
     virtual ~SrsHlsMuxer();
 public:
     virtual int sequence_no();
 public:
-    virtual int update_config(std::string _app, std::string _stream, std::string path, int fragment, int window);
+    /**
+    * when publish, update the config for muxer.
+    */
+    virtual int update_config(SrsRequest* r, std::string path, int fragment, int window);
     /**
     * open a new segment(a new ts file),
     * @param segment_start_dts use to calc the segment duration,
@@ -160,7 +231,7 @@ public:
     virtual int segment_close(std::string log_desc);
 private:
     virtual int refresh_m3u8();
-    virtual int _refresh_m3u8(int& fd, std::string m3u8_file);
+    virtual int _refresh_m3u8(std::string m3u8_file);
     virtual int create_dir();
 };
 
@@ -229,6 +300,7 @@ class SrsHls
 private:
     SrsHlsMuxer* muxer;
     SrsHlsCache* hls_cache;
+    ISrsHlsHandler* handler;
 private:
     bool hls_enabled;
     SrsSource* source;
@@ -251,7 +323,7 @@ private:
     */
     int64_t stream_dts;
 public:
-    SrsHls(SrsSource* _source);
+    SrsHls(SrsSource* s, ISrsHlsHandler* h);
     virtual ~SrsHls();
 public:
     /**

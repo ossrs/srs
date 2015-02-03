@@ -31,11 +31,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <vector>
+#include <string>
 
 #include <srs_app_st.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_app_thread.hpp>
 #include <srs_app_source.hpp>
+#include <srs_app_hls.hpp>
 
 class SrsServer;
 class SrsConnection;
@@ -142,7 +144,7 @@ private:
 * start connection service thread, destroy client.
 */
 class SrsServer : virtual public ISrsReloadHandler
-    , virtual public ISrsSourceHandler
+    , virtual public ISrsSourceHandler, virtual public ISrsHlsHandler
 {
 private:
 #ifdef SRS_AUTO_HTTP_API
@@ -275,6 +277,12 @@ public:
 public:
     virtual int on_publish(SrsSource* s, SrsRequest* r);
     virtual void on_unpublish(SrsSource* s, SrsRequest* r);
+// interface ISrsHlsHandler
+public:
+    virtual int on_hls_publish(SrsRequest* r);
+    virtual int on_update_m3u8(SrsRequest* r, std::string m3u8);
+    virtual int on_update_ts(SrsRequest* r, std::string uri, std::string ts);
+    virtual int on_hls_unpublish(SrsRequest* r);
 };
 
 #endif
