@@ -501,7 +501,7 @@ Supported operating systems and hardware:
 
 ## Releases
 * 2015-01-15, [Release v1.0r1](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0r1), bug fixed, 1.0.21, 59472 lines.<br/>
-* 2014-12-05, [Release v1.0](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0), all bug fixed, 1.0.10, 59391 lines.<br/>
+* 2014-12-05, [Release v1.0r0](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0r0), all bug fixed, 1.0.10, 59391 lines.<br/>
 * 2014-10-09, [Release v1.0-beta](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.beta), all bug fixed, 1.0.0, 59316 lines.<br/>
 * 2014-08-03, [Release v1.0-mainline7](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline7), config utest, all bug fixed. 57432 lines.<br/>
 * 2014-07-13, [Release v1.0-mainline6](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.mainline6), core/kernel/rtmp utest, refine bandwidth(as/js/srslibrtmp library). 50029 lines.<br/>
@@ -525,6 +525,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-02-03, fix [#136](https://github.com/winlinvip/simple-rtmp-server/issues/136), support hls without io(in ram). 2.0.112
 * v2.0, 2015-01-31, for [#250](https://github.com/winlinvip/simple-rtmp-server/issues/250), support push MPEGTS over UDP to SRS. 2.0.111
 * v2.0, 2015-01-29, build libfdk-aac in ffmpeg. 2.0.108
 * v2.0, 2015-01-25, for [#301](https://github.com/winlinvip/simple-rtmp-server/issues/301), hls support h.264+mp3, ok for vlc. 2.0.107

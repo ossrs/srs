@@ -175,6 +175,7 @@ private:
     std::string m3u8;
 private:
     ISrsHlsHandler* handler;
+    // TODO: FIXME: supports reload.
     bool should_write_cache;
     bool should_write_file;
 private:
