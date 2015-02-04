@@ -393,7 +393,7 @@ int SrsRawAacStream::adts_demux(SrsStream* stream, char** pframe, int* pnb_frame
         // aac_frame_length 13 bslbf: Length of the frame including headers and error_check in bytes.
         // use the left 2bits as the 13 and 12 bit,
         // the aac_frame_length is 13bits, so we move 13-2=11.
-        int16_t fh_aac_frame_length = (fh1 << 11) & 0x0800;
+        int16_t fh_aac_frame_length = (fh1 << 11) & 0x1800;
         
         int32_t fh2 = stream->read_3bytes();
         // aac_frame_length 13 bslbf: consume the first 13-2=11bits
