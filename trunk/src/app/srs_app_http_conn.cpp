@@ -877,7 +877,11 @@ int SrsHttpServer::hls_update_m3u8(SrsRequest* r, string m3u8)
 {
     int ret = ERROR_SUCCESS;
     
-    srs_assert(hls.find(r->vhost) != hls.end());
+    // when no hls mounted, ignore.
+    if (hls.find(r->vhost) == hls.end()) {
+        return ret;
+    }
+    
     SrsHlsEntry* entry = hls[r->vhost];
     srs_assert(entry);
 
@@ -915,7 +919,11 @@ int SrsHttpServer::hls_update_ts(SrsRequest* r, string uri, string ts)
 {
     int ret = ERROR_SUCCESS;
     
-    srs_assert(hls.find(r->vhost) != hls.end());
+    // when no hls mounted, ignore.
+    if (hls.find(r->vhost) == hls.end()) {
+        return ret;
+    }
+
     SrsHlsEntry* entry = hls[r->vhost];
     srs_assert(entry);
 
