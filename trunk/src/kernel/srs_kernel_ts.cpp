@@ -1989,6 +1989,20 @@ int SrsTsCache::do_cache_audio(SrsAvcAacCodec* codec, SrsCodecSample* sample)
             srs_error("invalid aac frame length=%d, ret=%d", size, ret);
             return ret;
         }
+
+        // the profile = object_id + 1
+        // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 78,
+        //      Table 1. A.9 ¨C MPEG-2 Audio profiles and MPEG-4 Audio object types
+        // the valid object type:
+        //      AAC Main(ID == 0)
+        //      AAC LC(ID == 1)
+        //      AAC SSR(ID == 2)
+        //      AAC LTP(ID == 3)
+        u_int8_t profile_ObjectType = codec->aac_profile - 1;
+
+        // TODO: FIXME: only support Main or LC.
+        // @see https://github.com/winlinvip/simple-rtmp-server/issues/310
+        profile_ObjectType = srs_min(1, profile_ObjectType);
         
         // the frame length is the AAC raw data plus the adts header size.
         int32_t frame_length = size + 7;
@@ -2022,7 +2036,7 @@ int SrsTsCache::do_cache_audio(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         int8_t number_of_raw_data_blocks_in_frame; //2bits, 0 indicating 1 raw_data_block()
         */
         // profile, 2bits
-        adts_header[2] = (codec->aac_profile << 6) & 0xc0;
+        adts_header[2] = (profile_ObjectType << 6) & 0xc0;
         // sampling_frequency_index 4bits
         adts_header[2] |= (codec->aac_sample_rate << 2) & 0x3c;
         // channel_configuration 3bits

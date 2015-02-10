@@ -281,25 +281,41 @@ int SrsAvcAacCodec::audio_aac_demux(char* data, int size, SrsCodecSample* sample
         }
         
         // only need to decode the first 2bytes:
-        // audioObjectType, aac_profile, 5bits.
-        // samplingFrequencyIndex, aac_sample_rate, 4bits.
-        // channelConfiguration, aac_channels, 4bits
+        //      audioObjectType, aac_profile, 5bits.
+        //      samplingFrequencyIndex, aac_sample_rate, 4bits.
+        //      channelConfiguration, aac_channels, 4bits
         if (!stream->require(2)) {
             ret = ERROR_HLS_DECODE_ERROR;
             srs_error("audio codec decode aac sequence header failed. ret=%d", ret);
             return ret;
         }
-        aac_profile = stream->read_1bytes();
-        aac_sample_rate = stream->read_1bytes();
+        u_int8_t profile_ObjectType = stream->read_1bytes();
+        u_int8_t samplingFrequencyIndex = stream->read_1bytes();
         
-        aac_channels = (aac_sample_rate >> 3) & 0x0f;
-        aac_sample_rate = ((aac_profile << 1) & 0x0e) | ((aac_sample_rate >> 7) & 0x01);
-        aac_profile = (aac_profile >> 3) & 0x1f;
+        aac_channels = (samplingFrequencyIndex >> 3) & 0x0f;
+        samplingFrequencyIndex = ((profile_ObjectType << 1) & 0x0e) | ((samplingFrequencyIndex >> 7) & 0x01);
+        profile_ObjectType = (profile_ObjectType >> 3) & 0x1f;
+
+        // set the aac sample rate.
+        aac_sample_rate = samplingFrequencyIndex;
+
+        // the profile = object_id + 1
+        // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 78,
+        //      Table 1. A.9 ¨C MPEG-2 Audio profiles and MPEG-4 Audio object types
+        aac_profile = profile_ObjectType + 1;
         
-        if (aac_profile == 0 || aac_profile == 0x1f) {
+        // the valid aac profile:
+        //      MPEG-2 profile
+        //      Main profile (ID == 1)
+        //      Low Complexity profile (LC) (ID == 2)
+        //      Scalable Sampling Rate profile (SSR) (ID == 3)
+        //      (reserved) (ID == 4)
+        // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 78,
+        //      Table 1. A.9 ¨C MPEG-2 Audio profiles and MPEG-4 Audio object types
+        if (aac_profile > 4) {
             ret = ERROR_HLS_DECODE_ERROR;
             srs_error("audio codec decode aac sequence header failed, "
-                "adts object=%d invalid. ret=%d", aac_profile, ret);
+                "adts object=%d invalid. ret=%d", profile_ObjectType, ret);
             return ret;
         }
         

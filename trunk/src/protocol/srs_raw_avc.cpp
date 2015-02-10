@@ -375,10 +375,10 @@ int SrsRawAacStream::adts_demux(SrsStream* stream, char** pframe, int* pnb_frame
         // channel_configuration 3 uimsbf
         // original/copy 1 bslbf
         // home 1 bslbf
-        int8_t fh_Profile_ObjectType = (fh1 >> 14) & 0x03;
-        int8_t fh_sampling_frequency_index = (fh1 >> 10) & 0x0f;
+        int8_t audioObjectType = (fh1 >> 14) & 0x03;
+        int8_t samplingFrequencyIndex = (fh1 >> 10) & 0x0f;
         /*int8_t fh_private_bit = (fh1 >> 9) & 0x01;*/
-        int8_t fh_channel_configuration = (fh1 >> 6) & 0x07;
+        int8_t channelConfiguration = (fh1 >> 6) & 0x07;
         /*int8_t fh_original = (fh1 >> 5) & 0x01;*/
         /*int8_t fh_home = (fh1 >> 4) & 0x01;*/
         // @remark, Emphasis is removed, 
@@ -412,8 +412,8 @@ int SrsRawAacStream::adts_demux(SrsStream* stream, char** pframe, int* pnb_frame
             /*int16_t crc_check = */stream->read_2bytes();
         }
         
-        // TODO: check the fh_sampling_frequency_index
-        // TODO: check the fh_channel_configuration
+        // TODO: check the samplingFrequencyIndex
+        // TODO: check the channelConfiguration
         
         // raw_data_blocks
         int adts_header_size = stream->pos() - adts_header_start;
@@ -425,34 +425,34 @@ int SrsRawAacStream::adts_demux(SrsStream* stream, char** pframe, int* pnb_frame
         // the profile = object_id + 1
         // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 78,
         //      Table 1. A.9 ¨C MPEG-2 Audio profiles and MPEG-4 Audio object types
-        char aac_profile = fh_Profile_ObjectType + 1;
+        char aac_profile = audioObjectType + 1;
         
         // the codec info.
         codec.protection_absent = fh_protection_absent;
-        codec.Profile_ObjectType = fh_Profile_ObjectType;
-        codec.sampling_frequency_index = fh_sampling_frequency_index;
-        codec.channel_configuration = fh_channel_configuration;
+        codec.Profile_ObjectType = audioObjectType;
+        codec.sampling_frequency_index = samplingFrequencyIndex;
+        codec.channel_configuration = channelConfiguration;
         codec.aac_frame_length = fh_aac_frame_length;
 
         codec.aac_profile = aac_profile;
-        codec.aac_samplerate = fh_sampling_frequency_index;
-        codec.aac_channel = fh_channel_configuration;
+        codec.aac_samplerate = samplingFrequencyIndex;
+        codec.aac_channel = channelConfiguration;
         
         // @see srs_audio_write_raw_frame().
         codec.sound_format = 10; // AAC
-        if (fh_sampling_frequency_index <= 0x0c && fh_sampling_frequency_index > 0x0a) {
+        if (samplingFrequencyIndex <= 0x0c && samplingFrequencyIndex > 0x0a) {
             codec.sound_rate = SrsCodecAudioSampleRate5512;
-        } else if (fh_sampling_frequency_index <= 0x0a && fh_sampling_frequency_index > 0x07) {
+        } else if (samplingFrequencyIndex <= 0x0a && samplingFrequencyIndex > 0x07) {
             codec.sound_rate = SrsCodecAudioSampleRate11025;
-        } else if (fh_sampling_frequency_index <= 0x07 && fh_sampling_frequency_index > 0x04) {
+        } else if (samplingFrequencyIndex <= 0x07 && samplingFrequencyIndex > 0x04) {
             codec.sound_rate = SrsCodecAudioSampleRate22050;
-        } else if (fh_sampling_frequency_index <= 0x04) {
+        } else if (samplingFrequencyIndex <= 0x04) {
             codec.sound_rate = SrsCodecAudioSampleRate44100;
         } else {
             codec.sound_rate = SrsCodecAudioSampleRate44100;
-            srs_warn("adts invalid sample rate for flv, rate=%#x", fh_sampling_frequency_index);
+            srs_warn("adts invalid sample rate for flv, rate=%#x", samplingFrequencyIndex);
         }
-        codec.sound_size = srs_max(0, srs_min(1, fh_channel_configuration - 1));
+        codec.sound_size = srs_max(0, srs_min(1, channelConfiguration - 1));
         // TODO: FIXME: finger it out the sound size by adts.
         codec.sound_size = 1; // 0(8bits) or 1(16bits).
 
@@ -470,20 +470,28 @@ int SrsRawAacStream::adts_demux(SrsStream* stream, char** pframe, int* pnb_frame
 int SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, string& sh)
 {
     int ret = ERROR_SUCCESS;
+
+    // only support aac profile 1-4.
+    if (codec->aac_profile < 1 || codec->aac_profile > 4) {
+        return ERROR_AAC_DATA_INVALID;
+    }
     
-    char aac_channel = codec->aac_channel;
-    char aac_profile = codec->aac_profile;
-    char aac_samplerate = codec->aac_samplerate;
+    // the profile = object_id + 1
+    // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 78,
+    //      Table 1. A.9 ¨C MPEG-2 Audio profiles and MPEG-4 Audio object types
+    char profile_ObjectType = codec->aac_profile - 1;
+    char channelConfiguration = codec->aac_channel;
+    char samplingFrequencyIndex = codec->aac_samplerate;
 
     // override the aac samplerate by user specified.
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/212#issuecomment-64146899
     switch (codec->sound_rate) {
         case SrsCodecAudioSampleRate11025: 
-            aac_samplerate = 0x0a; break;
+            samplingFrequencyIndex = 0x0a; break;
         case SrsCodecAudioSampleRate22050: 
-            aac_samplerate = 0x07; break;
+            samplingFrequencyIndex = 0x07; break;
         case SrsCodecAudioSampleRate44100: 
-            aac_samplerate = 0x04; break;
+            samplingFrequencyIndex = 0x04; break;
         default:
             break;
     }
@@ -495,26 +503,22 @@ int SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, string& sh
     // AudioSpecificConfig (), page 33
     // 1.6.2.1 AudioSpecificConfig
     // audioObjectType; 5 bslbf
-    ch = (aac_profile << 3) & 0xf8;
+    ch = (profile_ObjectType << 3) & 0xf8;
     // 3bits left.
         
     // samplingFrequencyIndex; 4 bslbf
-    ch |= (aac_samplerate >> 1) & 0x07;
+    ch |= (samplingFrequencyIndex >> 1) & 0x07;
     sh += ch;
-    ch = (aac_samplerate << 7) & 0x80;
-    if (aac_samplerate == 0x0f) {
+    ch = (samplingFrequencyIndex << 7) & 0x80;
+    if (samplingFrequencyIndex == 0x0f) {
         return ERROR_AAC_DATA_INVALID;
     }
     // 7bits left.
         
     // channelConfiguration; 4 bslbf
-    ch |= (aac_channel << 3) & 0x78;
+    ch |= (channelConfiguration << 3) & 0x78;
     // 3bits left.
         
-    // only support aac profile 1-4.
-    if (aac_profile < 1 || aac_profile > 4) {
-        return ERROR_AAC_DATA_INVALID;
-    }
     // GASpecificConfig(), page 451
     // 4.4.1 Decoder configuration (GASpecificConfig)
     // frameLengthFlag; 1 bslbf

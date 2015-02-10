@@ -309,6 +309,12 @@ int SrsHlsMuxer::flush_audio(SrsMpegtsFrame* af, SrsSimpleBuffer* ab)
 {
     int ret = ERROR_SUCCESS;
 
+    // if flushed yet, ignore.
+    if (ab->length() == 0) {
+        srs_info("ignore hls segment audio flushed yet.");
+        return ret;
+    }
+
     // if current is NULL, segment is not open, ignore the flush event.
     if (!current) {
         srs_warn("flush audio ignored, for segment is not open.");
@@ -335,6 +341,12 @@ int SrsHlsMuxer::flush_audio(SrsMpegtsFrame* af, SrsSimpleBuffer* ab)
 int SrsHlsMuxer::flush_video(SrsMpegtsFrame* /*af*/, SrsSimpleBuffer* /*ab*/, SrsMpegtsFrame* vf, SrsSimpleBuffer* vb)
 {
     int ret = ERROR_SUCCESS;
+
+    // if flushed yet, ignore.
+    if (vb->length() == 0) {
+        srs_info("ignore hls segment video flushed yet.");
+        return ret;
+    }
 
     // if current is NULL, segment is not open, ignore the flush event.
     if (!current) {
@@ -776,6 +788,13 @@ int SrsHlsCache::reap_segment(string log_desc, SrsHlsMuxer* muxer, int64_t segme
     }
 
     // TODO: flush audio before or after segment?
+    
+    // segment open, flush video first.
+    if ((ret = muxer->flush_video(cache->af, cache->ab, cache->vf, cache->vb)) != ERROR_SUCCESS) {
+        srs_error("m3u8 muxer flush video failed. ret=%d", ret);
+        return ret;
+    }
+
     // segment open, flush the audio.
     // @see: ngx_rtmp_hls_open_fragment
     /* start fragment with audio to make iPhone happy */
