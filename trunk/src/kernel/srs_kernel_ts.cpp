@@ -78,10 +78,6 @@ int aac_sample_rates[] =
     7350,     0,     0,    0
 };
 
-// @see: NGX_RTMP_HLS_DELAY, 
-// 63000: 700ms, ts_tbn=90000
-#define SRS_AUTO_HLS_DELAY 63000
-
 // @see: ngx_rtmp_mpegts_header
 u_int8_t mpegts_header[] = {
     /* TS */
@@ -228,6 +224,7 @@ public:
                     p[-1] |= 0x20; // Both Adaption and Payload
                     *p++ = 7;    // size
                     *p++ = 0x50; // random access + PCR
+                    // @see https://github.com/winlinvip/simple-rtmp-server/issues/311
                     p = write_pcr(p, frame->dts);
                 }
                 
@@ -284,11 +281,11 @@ public:
                 *p++ = header_size;
 
                 // pts; // 33bits
-                p = write_dts_pts(p, flags >> 6, frame->pts + SRS_AUTO_HLS_DELAY);
+                p = write_dts_pts(p, flags >> 6, frame->pts);
                 
                 // dts; // 33bits
                 if (frame->dts != frame->pts) {
-                    p = write_dts_pts(p, 1, frame->dts + SRS_AUTO_HLS_DELAY);
+                    p = write_dts_pts(p, 1, frame->dts);
                 }
             }
             

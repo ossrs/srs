@@ -525,6 +525,8 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-02-10, for [#311](https://github.com/winlinvip/simple-rtmp-server/issues/311), set pcr_base to dts. 2.0.114.
+* v2.0, 2015-02-10, fix [the bug](https://github.com/winlinvip/simple-rtmp-server/commit/87519aaae835199e5adb60c0ae2c1cd24939448c) of ibmf format which decoded in annexb.
 * v2.0, 2015-02-10, for [#310](https://github.com/winlinvip/simple-rtmp-server/issues/310), downcast aac SSR to LC. 2.0.113
 * v2.0, 2015-02-03, fix [#136](https://github.com/winlinvip/simple-rtmp-server/issues/136), support hls without io(in ram). 2.0.112
 * v2.0, 2015-01-31, for [#250](https://github.com/winlinvip/simple-rtmp-server/issues/250), support push MPEGTS over UDP to SRS. 2.0.111
