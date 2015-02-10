@@ -309,12 +309,6 @@ int SrsHlsMuxer::flush_audio(SrsMpegtsFrame* af, SrsSimpleBuffer* ab)
 {
     int ret = ERROR_SUCCESS;
 
-    // if flushed yet, ignore.
-    if (ab->length() == 0) {
-        srs_info("ignore hls segment audio flushed yet.");
-        return ret;
-    }
-
     // if current is NULL, segment is not open, ignore the flush event.
     if (!current) {
         srs_warn("flush audio ignored, for segment is not open.");
@@ -341,12 +335,6 @@ int SrsHlsMuxer::flush_audio(SrsMpegtsFrame* af, SrsSimpleBuffer* ab)
 int SrsHlsMuxer::flush_video(SrsMpegtsFrame* /*af*/, SrsSimpleBuffer* /*ab*/, SrsMpegtsFrame* vf, SrsSimpleBuffer* vb)
 {
     int ret = ERROR_SUCCESS;
-
-    // if flushed yet, ignore.
-    if (vb->length() == 0) {
-        srs_info("ignore hls segment video flushed yet.");
-        return ret;
-    }
 
     // if current is NULL, segment is not open, ignore the flush event.
     if (!current) {
@@ -762,6 +750,7 @@ int SrsHlsCache::write_video(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
         if ((ret = reap_segment("video", muxer, cache->vf->dts)) != ERROR_SUCCESS) {
             return ret;
         }
+        return ret;
     }
     
     // flush video when got one
