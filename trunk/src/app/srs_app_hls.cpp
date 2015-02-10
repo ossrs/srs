@@ -966,6 +966,8 @@ int SrsHls::on_video(SrsSharedPtrMessage* __video)
         srs_error("hls codec demux video failed. ret=%d", ret);
         return ret;
     }
+    srs_info("video decoded, type=%d, codec=%d, avc=%d, cts=%d, size=%d, time=%"PRId64, 
+        sample->frame_type, codec->video_codec_id, sample->avc_packet_type, sample->cts, video->size, video->timestamp);
     
     // ignore info frame,
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/288#issuecomment-69863909

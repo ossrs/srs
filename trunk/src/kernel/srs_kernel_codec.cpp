@@ -488,7 +488,7 @@ int SrsAvcAacCodec::video_avc_demux(char* data, int size, SrsCodecSample* sample
         // ignored.
     }
     
-    srs_info("video decoded, type=%d, codec=%d, avc=%d, time=%d, size=%d", 
+    srs_info("video decoded, type=%d, codec=%d, avc=%d, cts=%d, size=%d", 
         frame_type, video_codec_id, avc_packet_type, composition_time, size);
     
     return ret;
