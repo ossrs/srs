@@ -506,13 +506,13 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
     // #EXTM3U\n#EXT-X-VERSION:3\n
     char header[] = {
         // #EXTM3U\n
-        0x23, 0x45, 0x58, 0x54, 0x4d, 0x33, 0x55, 0xa, 
+        0x23, 0x45, 0x58, 0x54, 0x4d, 0x33, 0x55, SRS_CONSTS_LF, 
         // #EXT-X-VERSION:3\n
         0x23, 0x45, 0x58, 0x54, 0x2d, 0x58, 0x2d, 0x56, 0x45, 0x52, 
-        0x53, 0x49, 0x4f, 0x4e, 0x3a, 0x33, 0xa,
-        // #EXT-X-ALLOW-CACHE:NO
+        0x53, 0x49, 0x4f, 0x4e, 0x3a, 0x33, SRS_CONSTS_LF,
+        // #EXT-X-ALLOW-CACHE:NO\n
         0x23, 0x45, 0x58, 0x54, 0x2d, 0x58, 0x2d, 0x41, 0x4c, 0x4c, 
-        0x4f, 0x57, 0x2d, 0x43, 0x41, 0x43, 0x48, 0x45, 0x3a, 0x4e, 0x4f, 0x0a
+        0x4f, 0x57, 0x2d, 0x43, 0x41, 0x43, 0x48, 0x45, 0x3a, 0x4e, 0x4f, SRS_CONSTS_LF
     };
     if ((ret = writer.write(header, sizeof(header), NULL)) != ERROR_SUCCESS) {
         srs_error("write m3u8 header failed. ret=%d", ret);
@@ -523,7 +523,7 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
     // #EXT-X-MEDIA-SEQUENCE:4294967295\n
     SrsHlsSegment* first = *segments.begin();
     char sequence[34] = {};
-    int len = snprintf(sequence, sizeof(sequence), "#EXT-X-MEDIA-SEQUENCE:%d\n", first->sequence_no);
+    int len = snprintf(sequence, sizeof(sequence), "#EXT-X-MEDIA-SEQUENCE:%d%c", first->sequence_no, SRS_CONSTS_LF);
     if ((ret = writer.write(sequence, len, NULL)) != ERROR_SUCCESS) {
         srs_error("write m3u8 sequence failed. ret=%d", ret);
         return ret;
@@ -540,7 +540,7 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
     // TODO: maybe need to take an around value
     target_duration += 1;
     char duration[34]; // 23+10+1
-    len = snprintf(duration, sizeof(duration), "#EXT-X-TARGETDURATION:%d\n", target_duration);
+    len = snprintf(duration, sizeof(duration), "#EXT-X-TARGETDURATION:%d%c", target_duration, SRS_CONSTS_LF);
     if ((ret = writer.write(duration, len, NULL)) != ERROR_SUCCESS) {
         srs_error("write m3u8 duration failed. ret=%d", ret);
         return ret;
@@ -554,7 +554,7 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
         if (segment->is_sequence_header) {
             // #EXT-X-DISCONTINUITY\n
             char ext_discon[22]; // 21+1
-            len = snprintf(ext_discon, sizeof(ext_discon), "#EXT-X-DISCONTINUITY\n");
+            len = snprintf(ext_discon, sizeof(ext_discon), "#EXT-X-DISCONTINUITY%c", SRS_CONSTS_LF);
             if ((ret = writer.write(ext_discon, len, NULL)) != ERROR_SUCCESS) {
                 srs_error("write m3u8 segment discontinuity failed. ret=%d", ret);
                 return ret;
@@ -564,16 +564,16 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
         
         // "#EXTINF:4294967295.208,\n"
         char ext_info[25]; // 14+10+1
-        len = snprintf(ext_info, sizeof(ext_info), "#EXTINF:%.3f,\n", segment->duration);
+        len = snprintf(ext_info, sizeof(ext_info), "#EXTINF:%.3f,%c", segment->duration, SRS_CONSTS_LF);
         if ((ret = writer.write(ext_info, len, NULL)) != ERROR_SUCCESS) {
             srs_error("write m3u8 segment info failed. ret=%d", ret);
             return ret;
         }
         srs_verbose("write m3u8 segment info success.");
         
-        // file name
+        // {file name}\n
         std::string filename = segment->uri;
-        filename += "\n";
+        filename += SRS_CONSTS_LF;
         if ((ret = writer.write((char*)filename.c_str(), (int)filename.length(), NULL)) != ERROR_SUCCESS) {
             srs_error("write m3u8 segment uri failed. ret=%d", ret);
             return ret;

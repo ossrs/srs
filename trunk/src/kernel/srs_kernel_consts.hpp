@@ -202,6 +202,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONSTS_RTMP_ON_METADATA              "onMetaData"
 
 ///////////////////////////////////////////////////////////
+// HTTP/HLS consts values
+///////////////////////////////////////////////////////////
+// @see hls-m3u8-draft-pantos-http-live-streaming-12.pdf, page 4
+// Lines are terminated by either a single LF character or a CR
+// character followed by an LF character.
+// CR             = <US-ASCII CR, carriage return (13)>
+#define SRS_CONSTS_CR '\r' // 0x0D
+// LF             = <US-ASCII LF, linefeed (10)>
+#define SRS_CONSTS_LF '\n' // 0x0A
+
+///////////////////////////////////////////////////////////
 // HTTP consts values
 ///////////////////////////////////////////////////////////
 // linux path seprator
