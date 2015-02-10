@@ -359,6 +359,18 @@ public:
 };
 
 /**
+* the avc payload format, must be ibmf or annexb format.
+* we guess by annexb first, then ibmf for the first time,
+* and we always use the guessed format for the next time.
+*/
+enum SrsAvcPayloadFormat
+{
+    SrsAvcPayloadFormatGuess = 0,
+    SrsAvcPayloadFormatAnnexb,
+    SrsAvcPayloadFormatIbmf,
+};
+
+/**
 * the h264/avc and aac codec, for media stream.
 *
 * to demux the FLV/RTMP video/audio packet to sample,
@@ -404,6 +416,9 @@ public:
     char*           sequenceParameterSetNALUnit;
     u_int16_t       pictureParameterSetLength;
     char*           pictureParameterSetNALUnit;
+private:
+    // the avc payload format.
+    SrsAvcPayloadFormat payload_format;
 public:
     /**
     * audio specified

@@ -199,6 +199,7 @@ SrsAvcAacCodec::SrsAvcAacCodec()
     pictureParameterSetLength   = 0;
     pictureParameterSetNALUnit  = NULL;
 
+    payload_format = SrsAvcPayloadFormatGuess;
     stream = new SrsStream();
 }
 
@@ -469,20 +470,42 @@ int SrsAvcAacCodec::video_avc_demux(char* data, int size, SrsCodecSample* sample
             srs_error("avc decode failed, sequence header not found. ret=%d", ret);
             return ret;
         }
-        
-        // One or more NALUs (Full frames are required)
-        // try  "AnnexB" from H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
-        if ((ret = avc_demux_annexb_format(stream, sample)) != ERROR_SUCCESS) {
-            // stop try when system error.
-            if (ret != ERROR_HLS_AVC_TRY_OTHERS) {
-                srs_error("avc demux for annexb failed. ret=%d", ret);
-                return ret;
+
+        // guess for the first time.
+        if (payload_format == SrsAvcPayloadFormatGuess) {
+            // One or more NALUs (Full frames are required)
+            // try  "AnnexB" from H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
+            if ((ret = avc_demux_annexb_format(stream, sample)) != ERROR_SUCCESS) {
+                // stop try when system error.
+                if (ret != ERROR_HLS_AVC_TRY_OTHERS) {
+                    srs_error("avc demux for annexb failed. ret=%d", ret);
+                    return ret;
+                }
+                
+                // try "ISO Base Media File Format" from H.264-AVC-ISO_IEC_14496-15.pdf, page 20
+                if ((ret = avc_demux_ibmf_format(stream, sample)) != ERROR_SUCCESS) {
+                    return ret;
+                } else {
+                    payload_format = SrsAvcPayloadFormatIbmf;
+                    srs_info("hls guess avc payload is ibmf format.");
+                }
+            } else {
+                payload_format = SrsAvcPayloadFormatAnnexb;
+                srs_info("hls guess avc payload is annexb format.");
             }
-            
+        } else if (payload_format == SrsAvcPayloadFormatIbmf) {
             // try "ISO Base Media File Format" from H.264-AVC-ISO_IEC_14496-15.pdf, page 20
             if ((ret = avc_demux_ibmf_format(stream, sample)) != ERROR_SUCCESS) {
                 return ret;
             }
+            srs_info("hls decode avc payload in ibmf format.");
+        } else {
+            // One or more NALUs (Full frames are required)
+            // try  "AnnexB" from H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
+            if ((ret = avc_demux_annexb_format(stream, sample)) != ERROR_SUCCESS) {
+                return ret;
+            }
+            srs_info("hls decode avc payload in annexb format.");
         }
     } else {
         // ignored.
