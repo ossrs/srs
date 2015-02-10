@@ -532,6 +532,15 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
     
     // #EXT-X-TARGETDURATION:4294967295\n
     int target_duration = 0;
+    /**
+    * @see hls-m3u8-draft-pantos-http-live-streaming-12.pdf, page 25
+    * The Media Playlist file MUST contain an EXT-X-TARGETDURATION tag.
+    * Its value MUST be equal to or greater than the EXTINF duration of any
+    * media segment that appears or will appear in the Playlist file,
+    * rounded to the nearest integer. Its value MUST NOT change. A
+    * typical target duration is 10 seconds.
+    */
+    // TODO: FIXME: finger it out whether it should not changed.
     std::vector<SrsHlsSegment*>::iterator it;
     for (it = segments.begin(); it != segments.end(); ++it) {
         SrsHlsSegment* segment = *it;
