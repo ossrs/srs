@@ -56,7 +56,7 @@ using namespace std;
 int srs_go_http_response_json(ISrsGoHttpResponseWriter* w, string data)
 {
     w->header()->set_content_length(data.length());
-    w->header()->set_content_type("application/json;charset=utf-8");
+    w->header()->set_content_type("application/json");
     
     return w->write((char*)data.data(), data.length());
 }
@@ -344,17 +344,18 @@ int SrsGoHttpFileServer::serve_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
         _mime[".mp3"] = "audio/mpeg";
         _mime[".m4a"] = "audio/x-m4a";
         _mime[".ogg"] = "audio/ogg";
-        _mime[".m3u8"] = "application/x-mpegURL;charset=utf-8";
+        // @see hls-m3u8-draft-pantos-http-live-streaming-12.pdf, page 5.
+        _mime[".m3u8"] = "application/vnd.apple.mpegurl"; // application/x-mpegURL
         _mime[".rss"] = "application/rss+xml";
-        _mime[".json"] = "application/json;charset=utf-8";
+        _mime[".json"] = "application/json";
         _mime[".swf"] = "application/x-shockwave-flash";
         _mime[".doc"] = "application/msword";
         _mime[".zip"] = "application/zip";
         _mime[".rar"] = "application/x-rar-compressed";
-        _mime[".xml"] = "text/xml;charset=utf-8";
-        _mime[".html"] = "text/html;charset=utf-8";
+        _mime[".xml"] = "text/xml";
+        _mime[".html"] = "text/html";
         _mime[".js"] = "text/javascript";
-        _mime[".css"] = "text/css;charset=utf-8";
+        _mime[".css"] = "text/css";
         _mime[".ico"] = "image/x-icon";
         _mime[".png"] = "image/png";
         _mime[".jpeg"] = "image/jpeg";

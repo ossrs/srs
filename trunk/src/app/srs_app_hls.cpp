@@ -564,7 +564,7 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
         
         // "#EXTINF:4294967295.208,\n"
         char ext_info[25]; // 14+10+1
-        len = snprintf(ext_info, sizeof(ext_info), "#EXTINF:%.3f\n", segment->duration);
+        len = snprintf(ext_info, sizeof(ext_info), "#EXTINF:%.3f,\n", segment->duration);
         if ((ret = writer.write(ext_info, len, NULL)) != ERROR_SUCCESS) {
             srs_error("write m3u8 segment info failed. ret=%d", ret);
             return ret;
