@@ -525,6 +525,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-02-10, for [#310](https://github.com/winlinvip/simple-rtmp-server/issues/310), downcast aac SSR to LC. 2.0.113
 * v2.0, 2015-02-03, fix [#136](https://github.com/winlinvip/simple-rtmp-server/issues/136), support hls without io(in ram). 2.0.112
 * v2.0, 2015-01-31, for [#250](https://github.com/winlinvip/simple-rtmp-server/issues/250), support push MPEGTS over UDP to SRS. 2.0.111
 * v2.0, 2015-01-29, build libfdk-aac in ffmpeg. 2.0.108
@@ -595,6 +596,7 @@ Supported operating systems and hardware:
 
 ### SRS 1.0 history
 
+* v1.0, 2015-02-10, for [#310](https://github.com/winlinvip/simple-rtmp-server/issues/310), the aac profile must be object plus one. 1.0.26
 * v1.0, 2015-01-25, hotfix [#268](https://github.com/winlinvip/simple-rtmp-server/issues/268), refine the pcr start at 0, dts/pts plus delay. 1.0.25
 * v1.0, 2015-01-25, hotfix [#151](https://github.com/winlinvip/simple-rtmp-server/issues/151), refine pcr=dts-800ms and use dts/pts directly. 1.0.24
 * v1.0, 2015-01-23, hotfix [#151](https://github.com/winlinvip/simple-rtmp-server/issues/151), use absolutely overflow to make jwplayer happy. 1.0.23
