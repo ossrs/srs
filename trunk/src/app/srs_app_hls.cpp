@@ -758,7 +758,7 @@ int SrsHlsCache::write_video(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     // new segment when:
     // 1. base on gop.
     // 2. some gops duration overflow.
-    if (cache->vf->key && muxer->is_segment_overflow()) {
+    if (sample->frame_type == SrsCodecVideoAVCFrameKeyFrame && muxer->is_segment_overflow()) {
         if ((ret = reap_segment("video", muxer, cache->vf->dts)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -788,6 +788,7 @@ int SrsHlsCache::reap_segment(string log_desc, SrsHlsMuxer* muxer, int64_t segme
     }
 
     // TODO: flush audio before or after segment?
+    // TODO: fresh segment begin with audio or video?
     
     // segment open, flush video first.
     if ((ret = muxer->flush_video(cache->af, cache->ab, cache->vf, cache->vb)) != ERROR_SUCCESS) {

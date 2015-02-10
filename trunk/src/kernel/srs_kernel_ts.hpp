@@ -60,7 +60,7 @@ public:
     int             pid;
     int             sid;
     int             cc;
-    bool            key;
+    bool            write_pcr;
     
     SrsMpegtsFrame();
 };

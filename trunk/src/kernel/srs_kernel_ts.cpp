@@ -224,7 +224,7 @@ public:
             
             if (first) {
                 first = false;
-                if (frame->key) {
+                if (frame->write_pcr) {
                     p[-1] |= 0x20; // Both Adaption and Payload
                     *p++ = 7;    // size
                     *p++ = 0x50; // random access + PCR
@@ -399,7 +399,7 @@ SrsMpegtsFrame::SrsMpegtsFrame()
 {
     pts = dts = 0;
     pid = sid = cc = 0;
-    key = false;
+    write_pcr = false;
 }
 
 string srs_ts_stream2string(SrsTsStream stream)
@@ -1971,7 +1971,7 @@ int SrsTsCache::cache_video(SrsAvcAacCodec* codec, int64_t dts, SrsCodecSample* 
     vf->pts = vf->dts + sample->cts * 90;
     vf->pid = TS_VIDEO_PID;
     vf->sid = TS_VIDEO_AVC;
-    vf->key = sample->frame_type == SrsCodecVideoAVCFrameKeyFrame;
+    vf->write_pcr = sample->frame_type == SrsCodecVideoAVCFrameKeyFrame;
     
     return ret;
 }

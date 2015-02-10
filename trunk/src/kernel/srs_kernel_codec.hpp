@@ -233,10 +233,10 @@ extern int aac_sample_rates[];
 #define __SRS_AAC_SAMPLE_RATE_UNSET 15
 
 // in ms, for HLS aac flush the audio
-#define SRS_CONF_DEFAULT_AAC_DELAY 100
+#define SRS_CONF_DEFAULT_AAC_DELAY 60
 
 // max PES packets size to flush the video.
-#define SRS_AUTO_HLS_AUDIO_CACHE_SIZE 1024 * 1024
+#define SRS_AUTO_HLS_AUDIO_CACHE_SIZE 128 * 1024
 
 /**
 * the FLV/RTMP supported audio sample size.
