@@ -35,6 +35,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // server info.
 #define RTMP_SIG_SRS_KEY "SRS"
+#define RTMP_SIG_SRS_CODE "ZhouGuowen"
 #define RTMP_SIG_SRS_ROLE "origin/edge server"
 #define RTMP_SIG_SRS_NAME RTMP_SIG_SRS_KEY"(Simple RTMP Server)"
 #define RTMP_SIG_SRS_URL_SHORT "github.com/winlinvip/simple-rtmp-server"
@@ -50,6 +51,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RTMP_SIG_SRS_RELEASE RTMP_SIG_SRS_URL"/tree/1.0release"
 #define RTMP_SIG_SRS_ISSUES(id) RTMP_SIG_SRS_URL"/issues/"#id
 #define RTMP_SIG_SRS_VERSION __SRS_XSTR(VERSION_MAJOR)"."__SRS_XSTR(VERSION_MINOR)"."__SRS_XSTR(VERSION_REVISION)
+#define RTMP_SIG_SRS_SERVER RTMP_SIG_SRS_KEY"/"RTMP_SIG_SRS_VERSION"("RTMP_SIG_SRS_CODE")"
 
 // internal macros, covert macro values to str,
 // see: read https://gcc.gnu.org/onlinedocs/cpp/Stringification.html#Stringification

@@ -941,7 +941,7 @@ int SrsRtmpServer::response_connect_app(SrsRequest *req, const char* server_ip)
     
     data->set("version", SrsAmf0Any::str(RTMP_SIG_FMS_VER));
     data->set("srs_sig", SrsAmf0Any::str(RTMP_SIG_SRS_KEY));
-    data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
+    data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_SERVER));
     data->set("srs_license", SrsAmf0Any::str(RTMP_SIG_SRS_LICENSE));
     data->set("srs_role", SrsAmf0Any::str(RTMP_SIG_SRS_ROLE));
     data->set("srs_url", SrsAmf0Any::str(RTMP_SIG_SRS_URL));
