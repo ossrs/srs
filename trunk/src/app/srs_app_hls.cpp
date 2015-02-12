@@ -33,8 +33,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include <algorithm>
+#include <sstream>
 using namespace std;
 
 #include <srs_kernel_error.hpp>
@@ -166,6 +168,7 @@ SrsHlsMuxer::SrsHlsMuxer(ISrsHlsHandler* h)
     req = NULL;
     handler = h;
     hls_fragment = hls_window = 0;
+    target_duration = 0;
     _sequence_no = 0;
     current = NULL;
     acodec = SrsCodecAudioReserved1;
@@ -201,6 +204,7 @@ int SrsHlsMuxer::update_config(SrsRequest* r, string path, int fragment, int win
     hls_path = path;
     hls_fragment = fragment;
     hls_window = window;
+    target_duration = (int)(fragment * _srs_config->get_hls_td_ratio(r->vhost));
 
     std::string storage = _srs_config->get_hls_storage(r->vhost);
     if (storage == "ram") {
@@ -503,35 +507,21 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
     }
     srs_info("open m3u8 file %s success.", m3u8_file.c_str());
     
-    // #EXTM3U\n#EXT-X-VERSION:3\n
-    char header[] = {
-        // #EXTM3U\n
-        0x23, 0x45, 0x58, 0x54, 0x4d, 0x33, 0x55, SRS_CONSTS_LF, 
-        // #EXT-X-VERSION:3\n
-        0x23, 0x45, 0x58, 0x54, 0x2d, 0x58, 0x2d, 0x56, 0x45, 0x52, 
-        0x53, 0x49, 0x4f, 0x4e, 0x3a, 0x33, SRS_CONSTS_LF,
-        // #EXT-X-ALLOW-CACHE:NO\n
-        0x23, 0x45, 0x58, 0x54, 0x2d, 0x58, 0x2d, 0x41, 0x4c, 0x4c, 
-        0x4f, 0x57, 0x2d, 0x43, 0x41, 0x43, 0x48, 0x45, 0x3a, 0x4e, 0x4f, SRS_CONSTS_LF
-    };
-    if ((ret = writer.write(header, sizeof(header), NULL)) != ERROR_SUCCESS) {
-        srs_error("write m3u8 header failed. ret=%d", ret);
-        return ret;
-    }
+    // #EXTM3U\n
+    // #EXT-X-VERSION:3\n
+    // #EXT-X-ALLOW-CACHE:NO\n
+    std::stringstream ss;
+    ss << "#EXTM3U" << SRS_CONSTS_LF
+        << "#EXT-X-VERSION:3" << SRS_CONSTS_LF
+        << "#EXT-X-ALLOW-CACHE:NO" << SRS_CONSTS_LF;
     srs_verbose("write m3u8 header success.");
     
     // #EXT-X-MEDIA-SEQUENCE:4294967295\n
     SrsHlsSegment* first = *segments.begin();
-    char sequence[34] = {};
-    int len = snprintf(sequence, sizeof(sequence), "#EXT-X-MEDIA-SEQUENCE:%d%c", first->sequence_no, SRS_CONSTS_LF);
-    if ((ret = writer.write(sequence, len, NULL)) != ERROR_SUCCESS) {
-        srs_error("write m3u8 sequence failed. ret=%d", ret);
-        return ret;
-    }
+    ss << "#EXT-X-MEDIA-SEQUENCE:" << first->sequence_no << SRS_CONSTS_LF;
     srs_verbose("write m3u8 sequence success.");
     
     // #EXT-X-TARGETDURATION:4294967295\n
-    int target_duration = 0;
     /**
     * @see hls-m3u8-draft-pantos-http-live-streaming-12.pdf, page 25
     * The Media Playlist file MUST contain an EXT-X-TARGETDURATION tag.
@@ -540,20 +530,13 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
     * rounded to the nearest integer. Its value MUST NOT change. A
     * typical target duration is 10 seconds.
     */
-    // TODO: FIXME: finger it out whether it should not changed.
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/304#issuecomment-74000081
     std::vector<SrsHlsSegment*>::iterator it;
     for (it = segments.begin(); it != segments.end(); ++it) {
         SrsHlsSegment* segment = *it;
-        target_duration = srs_max(target_duration, (int)segment->duration);
+        target_duration = srs_max(target_duration, (int)ceil(segment->duration));
     }
-    // TODO: maybe need to take an around value
-    target_duration += 1;
-    char duration[34]; // 23+10+1
-    len = snprintf(duration, sizeof(duration), "#EXT-X-TARGETDURATION:%d%c", target_duration, SRS_CONSTS_LF);
-    if ((ret = writer.write(duration, len, NULL)) != ERROR_SUCCESS) {
-        srs_error("write m3u8 duration failed. ret=%d", ret);
-        return ret;
-    }
+    ss << "#EXT-X-TARGETDURATION:" << target_duration << SRS_CONSTS_LF;
     srs_verbose("write m3u8 duration success.");
     
     // write all segments
@@ -562,32 +545,26 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
         
         if (segment->is_sequence_header) {
             // #EXT-X-DISCONTINUITY\n
-            char ext_discon[22]; // 21+1
-            len = snprintf(ext_discon, sizeof(ext_discon), "#EXT-X-DISCONTINUITY%c", SRS_CONSTS_LF);
-            if ((ret = writer.write(ext_discon, len, NULL)) != ERROR_SUCCESS) {
-                srs_error("write m3u8 segment discontinuity failed. ret=%d", ret);
-                return ret;
-            }
+            ss << "#EXT-X-DISCONTINUITY" << SRS_CONSTS_LF;
             srs_verbose("write m3u8 segment discontinuity success.");
         }
         
         // "#EXTINF:4294967295.208,\n"
-        char ext_info[25]; // 14+10+1
-        len = snprintf(ext_info, sizeof(ext_info), "#EXTINF:%.3f,%c", segment->duration, SRS_CONSTS_LF);
-        if ((ret = writer.write(ext_info, len, NULL)) != ERROR_SUCCESS) {
-            srs_error("write m3u8 segment info failed. ret=%d", ret);
-            return ret;
-        }
+        ss.precision(3);
+        ss.setf(std::ios::fixed, std::ios::floatfield);
+        ss << "#EXTINF:" << segment->duration << "," << SRS_CONSTS_LF;
         srs_verbose("write m3u8 segment info success.");
         
         // {file name}\n
-        std::string filename = segment->uri;
-        filename += SRS_CONSTS_LF;
-        if ((ret = writer.write((char*)filename.c_str(), (int)filename.length(), NULL)) != ERROR_SUCCESS) {
-            srs_error("write m3u8 segment uri failed. ret=%d", ret);
-            return ret;
-        }
+        ss << segment->uri << SRS_CONSTS_LF;
         srs_verbose("write m3u8 segment uri success.");
+    }
+
+    // write m3u8 to writer.
+    std::string m3u8 = ss.str();
+    if ((ret = writer.write((char*)m3u8.c_str(), (int)m3u8.length(), NULL)) != ERROR_SUCCESS) {
+        srs_error("write m3u8 failed. ret=%d", ret);
+        return ret;
     }
     srs_info("write m3u8 %s success.", m3u8_file.c_str());
 

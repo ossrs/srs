@@ -172,6 +172,7 @@ private:
     int hls_window;
 private:
     int _sequence_no;
+    int target_duration;
     std::string m3u8;
 private:
     ISrsHlsHandler* handler;

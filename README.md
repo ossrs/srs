@@ -525,6 +525,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-02-12, for [#304](https://github.com/winlinvip/simple-rtmp-server/issues/304), use stringstream to generate m3u8, add hls_td_ratio. 2.0.116.
 * v2.0, 2015-02-11, dev code ZhouGuowen for 2.0.115.
 * v2.0, 2015-02-10, for [#311](https://github.com/winlinvip/simple-rtmp-server/issues/311), set pcr_base to dts. 2.0.114.
 * v2.0, 2015-02-10, fix [the bug](https://github.com/winlinvip/simple-rtmp-server/commit/87519aaae835199e5adb60c0ae2c1cd24939448c) of ibmf format which decoded in annexb.
