@@ -2,15 +2,12 @@
 
 SRS定位是运营级的互联网直播服务器集群，追求更好的概念完整性和最简单实现的代码。
 
-SRS is industrial-strength live streaming cluster, 
-for the best conceptual integrity and the simplest implementation.
-
 Download from github.io: 
-[Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.21.zip) 
+[Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.27.zip) 
 [more...](http://winlinvip.github.io/srs.release/releases/)
 
 Download from ossrs.net: 
-[Centos6-x86_64](http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.21.zip) 
+[Centos6-x86_64](http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.27.zip) 
 [more...](http://www.ossrs.net/srs.release/releases/)
 
 ## About
@@ -500,6 +497,7 @@ Supported operating systems and hardware:
 1. [no-plan] Support RTP/RTSP server.
 
 ## Releases
+* 2015-02-12, [Release v1.0r2](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0r2), bug fixed, 1.0.27, 59507 lines.<br/>
 * 2015-01-15, [Release v1.0r1](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0r1), bug fixed, 1.0.21, 59472 lines.<br/>
 * 2014-12-05, [Release v1.0r0](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0r0), all bug fixed, 1.0.10, 59391 lines.<br/>
 * 2014-10-09, [Release v1.0-beta](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.beta), all bug fixed, 1.0.0, 59316 lines.<br/>
@@ -599,6 +597,7 @@ Supported operating systems and hardware:
 
 ### SRS 1.0 history
 
+* <strong>v1.0, 2015-02-12, [1.0r2 release(1.0.27)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0r2) released. 59507 lines.</strong>
 * v1.0, 2015-02-11, dev code HuKaiqun for 1.0.27.
 * v1.0, 2015-02-10, for [#310](https://github.com/winlinvip/simple-rtmp-server/issues/310), the aac profile must be object plus one. 1.0.26
 * v1.0, 2015-01-25, hotfix [#268](https://github.com/winlinvip/simple-rtmp-server/issues/268), refine the pcr start at 0, dts/pts plus delay. 1.0.25
