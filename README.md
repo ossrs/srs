@@ -385,6 +385,7 @@ Supported operating systems and hardware:
 
 ## History
 
+* v1.0, 2015-02-11, dev code HuKaiqun for 1.0.27.
 * v1.0, 2015-02-10, for [#310](https://github.com/winlinvip/simple-rtmp-server/issues/310), the aac profile must be object plus one. 1.0.26
 * v1.0, 2015-01-25, hotfix [#268](https://github.com/winlinvip/simple-rtmp-server/issues/268), refine the pcr start at 0, dts/pts plus delay. 1.0.25
 * v1.0, 2015-01-25, hotfix [#151](https://github.com/winlinvip/simple-rtmp-server/issues/151), refine pcr=dts-800ms and use dts/pts directly. 1.0.24
