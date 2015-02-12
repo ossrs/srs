@@ -78,7 +78,9 @@ using namespace std;
 
 // @see: NGX_RTMP_HLS_DELAY, 
 // 63000: 700ms, ts_tbn=90000
-#define SRS_AUTO_HLS_DELAY 63000
+// 72000: 800ms, ts_tbn=90000
+// @see https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-71352511
+#define SRS_AUTO_HLS_DELAY 72000
 
 // the mpegts header specifed the video/audio pid.
 #define TS_VIDEO_PID 256
@@ -237,7 +239,8 @@ public:
                     p[-1] |= 0x20; // Both Adaption and Payload
                     *p++ = 7;    // size
                     *p++ = 0x50; // random access + PCR
-                    p = write_pcr(p, frame->dts - SRS_AUTO_HLS_DELAY);
+                    // about the pcr, read https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-71352511
+                    p = write_pcr(p, frame->dts);
                 }
                 
                 // PES header
@@ -368,10 +371,12 @@ private:
     }
     static char* write_pcr(char* p, int64_t pcr)
     {
-        // the pcr=dts-delay
-        // and the pcr maybe negative
+        // the pcr=dts-delay, where dts = frame->dts + delay
+        // and the pcr should never be negative
         // @see https://github.com/winlinvip/simple-rtmp-server/issues/268
-        int64_t v = srs_max(0, pcr);
+        srs_assert(pcr >= 0);
+        
+        int64_t v = pcr;
         
         *p++ = (char) (v >> 25);
         *p++ = (char) (v >> 17);
@@ -655,8 +660,13 @@ int SrsHlsMuxer::on_sequence_header()
 bool SrsHlsMuxer::is_segment_overflow()
 {
     srs_assert(current);
-    
     return current->duration >= hls_fragment;
+}
+
+bool SrsHlsMuxer::is_segment_absolutely_overflow()
+{
+    srs_assert(current);
+    return current->duration >= 2 * hls_fragment;
 }
 
 int SrsHlsMuxer::flush_audio(SrsMpegtsFrame* af, SrsBuffer* ab)
@@ -1090,7 +1100,9 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     // pure audio again for audio disabled.
     // so we reap event when the audio incoming when segment overflow.
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/151
-    if (muxer->is_segment_overflow()) {
+    // we use absolutely overflow of segment to make jwplayer/ffplay happy
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-71155184
+    if (muxer->is_segment_absolutely_overflow()) {
         if ((ret = reap_segment("audio", muxer, af->pts)) != ERROR_SUCCESS) {
             return ret;
         }

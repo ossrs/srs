@@ -1,12 +1,14 @@
 #Simple-RTMP-Server
 
+SRS/1.0，开发代号：[HuKaiqun](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Product#release10)
+
 SRS定位是运营级的互联网直播服务器集群，追求更好的概念完整性和最简单实现的代码。
 
 下载发布版(github): 
-[Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.21.zip) 
+[Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.27.zip) 
 其他[more...](http://winlinvip.github.io/srs.release/releases/) <br/>
 下载发布版(国内阿里云镜像): 
-[Centos6-x86_64](http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.21.zip) 
+[Centos6-x86_64](http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.27.zip) 
 其他[more...](http://www.ossrs.net/srs.release/releases/)<br/>
 QQ群: 365936885, by wenjie <br/>
 同类产品：[BLS](https://github.com/wenjiegit/Bull-Live-Server)/[BLE](https://github.com/wenjiegit/Bull-Live-Encoder), [NGINX-RTMP](https://github.com/arut/nginx-rtmp-module), [CRTMPD](http://www.rtmpd.com/), [RED5](http://www.red5.org/), [WOWZA](http://www.wowza.com/), [FMS/AMS](http://www.adobe.com/products/adobe-media-server-standard.html)
@@ -362,6 +364,7 @@ Supported operating systems and hardware:
 [2.0dev branch](https://github.com/winlinvip/simple-rtmp-server/tree/master).
 
 ## Releases
+* 2015-02-12, [Release v1.0r2](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0r2), bug fixed, 1.0.27, 59507 lines.<br/>
 * 2015-01-15, [Release v1.0r1](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0r1), bug fixed, 1.0.21, 59472 lines.<br/>
 * 2014-12-05, [Release v1.0](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0), all bug fixed, 1.0.10, 59391 lines.<br/>
 * 2014-10-09, [Release v1.0-beta](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0.beta), all bug fixed, 1.0.0, 59316 lines.<br/>
@@ -384,6 +387,14 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
+
+* <strong>v1.0, 2015-02-12, [1.0r2 release(1.0.27)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0r2) released. 59507 lines.</strong>
+* v1.0, 2015-02-11, dev code HuKaiqun for 1.0.27.
+* v1.0, 2015-02-10, for [#310](https://github.com/winlinvip/simple-rtmp-server/issues/310), the aac profile must be object plus one. 1.0.26
+* v1.0, 2015-01-25, hotfix [#268](https://github.com/winlinvip/simple-rtmp-server/issues/268), refine the pcr start at 0, dts/pts plus delay. 1.0.25
+* v1.0, 2015-01-25, hotfix [#151](https://github.com/winlinvip/simple-rtmp-server/issues/151), refine pcr=dts-800ms and use dts/pts directly. 1.0.24
+* v1.0, 2015-01-23, hotfix [#151](https://github.com/winlinvip/simple-rtmp-server/issues/151), use absolutely overflow to make jwplayer happy. 1.0.23
+* v1.0, 2015-01-17, hotfix [#290](https://github.com/winlinvip/simple-rtmp-server/issues/290), use iformat only for rtmp input. 1.0.22
 * <strong>v1.0, 2015-01-15, [1.0r1 release(1.0.21)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0r1) released. 59472 lines.</strong>
 * v1.0, 2015-01-08, hotfix [#281](https://github.com/winlinvip/simple-rtmp-server/issues/281), fix hls bug ignore type-9 send aud. 1.0.20
 * v1.0, 2015-01-03, hotfix to remove the pageUrl for http callback. 1.0.19

@@ -222,7 +222,7 @@ int SrsEdgeIngester::connect_app(string ep_server, string ep_port)
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/147
     SrsAmf0Object* data = req->args;
     data->set("srs_sig", SrsAmf0Any::str(RTMP_SIG_SRS_KEY));
-    data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
+    data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_SERVER));
     data->set("srs_license", SrsAmf0Any::str(RTMP_SIG_SRS_LICENSE));
     data->set("srs_role", SrsAmf0Any::str(RTMP_SIG_SRS_ROLE));
     data->set("srs_url", SrsAmf0Any::str(RTMP_SIG_SRS_URL));
@@ -654,7 +654,7 @@ int SrsEdgeForwarder::connect_app(string ep_server, string ep_port)
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/147
     SrsAmf0Object* data = req->args;
     data->set("srs_sig", SrsAmf0Any::str(RTMP_SIG_SRS_KEY));
-    data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
+    data->set("srs_server", SrsAmf0Any::str(RTMP_SIG_SRS_SERVER));
     data->set("srs_license", SrsAmf0Any::str(RTMP_SIG_SRS_LICENSE));
     data->set("srs_role", SrsAmf0Any::str(RTMP_SIG_SRS_ROLE));
     data->set("srs_url", SrsAmf0Any::str(RTMP_SIG_SRS_URL));

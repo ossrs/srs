@@ -956,7 +956,7 @@ int SrsSource::on_meta_data(SrsMessage* msg, SrsOnMetaDataPacket* metadata)
     }
     
     // add server info to metadata
-    metadata->metadata->set("server", SrsAmf0Any::str(RTMP_SIG_SRS_KEY" "RTMP_SIG_SRS_VERSION" ("RTMP_SIG_SRS_URL_SHORT")"));
+    metadata->metadata->set("server", SrsAmf0Any::str(RTMP_SIG_SRS_SERVER));
     metadata->metadata->set("primary", SrsAmf0Any::str(RTMP_SIG_SRS_PRIMARY));
     metadata->metadata->set("authors", SrsAmf0Any::str(RTMP_SIG_SRS_AUTHROS));
     

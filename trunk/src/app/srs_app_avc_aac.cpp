@@ -247,6 +247,13 @@ int SrsAvcAacCodec::audio_aac_demux(char* data, int size, SrsCodecSample* sample
             return ret;
         }
         
+        // the profile = object_id + 1
+        // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 78,
+        //      Table 1. A.9 ¨C MPEG-2 Audio profiles and MPEG-4 Audio object types
+        // so the aac_profile should plus 1, not minus 1, and nginx-rtmp used it to 
+        // downcast aac SSR to LC.
+        // @see https://github.com/winlinvip/simple-rtmp-server/issues/310
+        // TODO: FIXME: fix the following in future version.
         // aac_profile = audioObjectType - 1
         aac_profile--;
         
