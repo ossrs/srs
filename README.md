@@ -1,5 +1,7 @@
 #Simple-RTMP-Server
 
+SRS/1.0，开发代号：[HuKaiqun](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Product#release10)
+
 SRS定位是运营级的互联网直播服务器集群，追求更好的概念完整性和最简单实现的代码。
 
 下载发布版(github): 
