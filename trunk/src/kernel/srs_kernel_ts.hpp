@@ -59,7 +59,7 @@ public:
     int64_t         dts;
     int             pid;
     int             sid;
-    int             cc;
+    int             cc; // continuity_counter
     bool            write_pcr;
     
     SrsMpegtsFrame();
@@ -327,18 +327,18 @@ public:
 */
 class SrsTsContext
 {
+// codec
 private:
     std::map<int, SrsTsChannel*> pids;
+// encoder
+private:
+    // when any codec changed, write the PAT/PMT.
+    SrsCodecVideo vcodec;
+    SrsCodecAudio acodec;
 public:
     SrsTsContext();
     virtual ~SrsTsContext();
-public:
-    /**
-    * the stream contains only one ts packet.
-    * @param handler the ts message handler to process the msg.
-    * @remark we will consume all bytes in stream.
-    */
-    virtual int decode(SrsStream* stream, ISrsTsHandler* handler);
+// codec
 public:
     /**
     * get the pid apply, the parsed pid.
@@ -349,6 +349,27 @@ public:
     * set the pid apply, the parsed pid.
     */
     virtual void set(int pid, SrsTsPidApply apply_pid, SrsTsStream stream = SrsTsStreamReserved);
+// decode methods
+public:
+    /**
+    * the stream contains only one ts packet.
+    * @param handler the ts message handler to process the msg.
+    * @remark we will consume all bytes in stream.
+    */
+    virtual int decode(SrsStream* stream, ISrsTsHandler* handler);
+// encode methods
+public:
+    /**
+    * write the PES packet, the video/audio stream.
+    * @param frame the video/audio frame info.
+    * @param payload the video/audio payload bytes.
+    * @param vc the video codec, write the PAT/PMT table when changed.
+    * @param ac the audio codec, write the PAT/PMT table when changed.
+    */
+    virtual int encode(SrsFileWriter* writer, SrsMpegtsFrame* frame, SrsSimpleBuffer* payload, SrsCodecVideo vc, SrsCodecAudio ac);
+private:
+    virtual int encode_pat_pmt(SrsFileWriter* writer, SrsCodecVideo vcodec, SrsCodecAudio acodec);
+    virtual int encode_pes(SrsFileWriter* writer, SrsMpegtsFrame* frame, SrsSimpleBuffer* payload);
 };
 
 /**
@@ -454,6 +475,12 @@ public:
     virtual ~SrsTsPacket();
 public:
     virtual int decode(SrsStream* stream, SrsTsMessage** ppmsg);
+public:
+    virtual int size();
+    virtual int encode(SrsStream* stream);
+public:
+    static SrsTsPacket* create_pat(SrsTsContext* context, int16_t pmt_number, int16_t pmt_pid);
+    static SrsTsPacket* create_pmt(SrsTsContext* context, int16_t pmt_number, int16_t pmt_pid, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as);
 };
 
 /**
@@ -755,6 +782,9 @@ public:
     virtual ~SrsTsAdaptationField();
 public:
     virtual int decode(SrsStream* stream);
+public:
+    virtual int size();
+    virtual int encode(SrsStream* stream);
 };
 
 /**
@@ -800,6 +830,9 @@ public:
     virtual ~SrsTsPayload();
 public:
     virtual int decode(SrsStream* stream, SrsTsMessage** ppmsg) = 0;
+public:
+    virtual int size() = 0;
+    virtual int encode(SrsStream* stream) = 0;
 };
 
 /**
@@ -1141,6 +1174,9 @@ public:
     virtual ~SrsTsPayloadPES();
 public:
     virtual int decode(SrsStream* stream, SrsTsMessage** ppmsg);
+public:
+    virtual int size();
+    virtual int encode(SrsStream* stream);
 private:
     virtual int decode_33bits_dts_pts(SrsStream* stream, int64_t* pv);
 };
@@ -1179,13 +1215,18 @@ public:
     * const value, must be '0'
     */
     int8_t const0_value; //1bit
-    // 2bits reserved. 
+    /**
+    * reverved value, must be '1'
+    */
+    int8_t const1_value; //2bits
     /**
     * This is a 12-bit field, the first two bits of which shall be '00'. The remaining 10 bits specify the number
     * of bytes of the section, starting immediately following the section_length field, and including the CRC. The value in this
     * field shall not exceed 1021 (0x3FD).
     */
     u_int16_t section_length; //12bits
+public:
+    // the specified psi info, for example, PAT fields.
 public:
     // 4B
     /**
@@ -1199,7 +1240,12 @@ public:
     virtual ~SrsTsPayloadPSI();
 public:
     virtual int decode(SrsStream* stream, SrsTsMessage** ppmsg);
+public:
+    virtual int size();
+    virtual int encode(SrsStream* stream);
 protected:
+    virtual int psi_size() = 0;
+    virtual int psi_encode(SrsStream* stream) = 0;
     virtual int psi_decode(SrsStream* stream) = 0;
 };
 
@@ -1217,7 +1263,10 @@ public:
     * Association Table.
     */
     int16_t number; // 16bits
-    // reserved 3bits
+    /**
+    * reverved value, must be '1'
+    */
+    int8_t const1_value; //3bits
     /**
     * program_map_PID/network_PID 13bits
     * network_PID - The network_PID is a 13-bit field, which is used only in conjunction with the value of the
@@ -1225,10 +1274,15 @@ public:
     * Information Table. The value of the network_PID field is defined by the user, but shall only take values as specified in
     * Table 2-3. The presence of the network_PID is optional.
     */
-    int16_t pid;
+    int16_t pid; //13bits
 public:
-    SrsTsPayloadPATProgram();
+    SrsTsPayloadPATProgram(int16_t n = 0, int16_t p = 0);
     virtual ~SrsTsPayloadPATProgram();
+public:
+    virtual int decode(SrsStream* stream);
+public:
+    virtual int size();
+    virtual int encode(SrsStream* stream);
 };
 
 /**
@@ -1249,7 +1303,10 @@ public:
     u_int16_t transport_stream_id; //16bits
     
     // 1B
-    // 2bits reerverd.
+    /**
+    * reverved value, must be '1'
+    */
+    int8_t const1_value; //2bits
     /**
     * This 5-bit field is the version number of the whole Program Association Table. The version number
     * shall be incremented by 1 modulo 32 whenever the definition of the Program Association Table changes. When the
@@ -1285,8 +1342,11 @@ public:
 public:
     SrsTsPayloadPAT(SrsTsPacket* p);
     virtual ~SrsTsPayloadPAT();
-public:
+protected:
     virtual int psi_decode(SrsStream* stream);
+protected:
+    virtual int psi_size();
+    virtual int psi_encode(SrsStream* stream);
 };
 
 /**
@@ -1303,15 +1363,21 @@ public:
     SrsTsStream stream_type; //8bits
     
     // 2B
-    // 3bits reserved
+    /**
+    * reverved value, must be '1'
+    */
+    int8_t const1_value0; //3bits
     /**
     * This is a 13-bit field specifying the PID of the Transport Stream packets which carry the associated
     * program element.
     */
     int16_t elementary_PID; //13bits
     
-    // 2B
-    // 4bits reserved
+    // (2+x)B
+    /**
+    * reverved value, must be '1'
+    */
+    int8_t const1_value1; //4bits
     /**
     * This is a 12-bit field, the first two bits of which shall be '00'. The remaining 10 bits specify the number
     * of bytes of the descriptors of the associated program element immediately following the ES_info_length field.
@@ -1319,8 +1385,13 @@ public:
     int16_t ES_info_length; //12bits
     char* ES_info; //[ES_info_length] bytes.
 public:
-    SrsTsPayloadPMTESInfo();
+    SrsTsPayloadPMTESInfo(SrsTsStream st = SrsTsStreamReserved, int16_t epid = 0);
     virtual ~SrsTsPayloadPMTESInfo();
+public:
+    virtual int decode(SrsStream* stream);
+public:
+    virtual int size();
+    virtual int encode(SrsStream* stream);
 };
 
 /**
@@ -1349,7 +1420,10 @@ public:
     u_int16_t program_number; //16bits
     
     // 1B
-    // 2bits reerverd.
+    /**
+    * reverved value, must be '1'
+    */
+    int8_t const1_value0; //2bits
     /**
     * This 5-bit field is the version number of the TS_program_map_section. The version number shall be
     * incremented by 1 modulo 32 when a change in the information carried within the section occurs. Version number refers
@@ -1378,17 +1452,20 @@ public:
     u_int8_t last_section_number; //8bits
     
     // 2B
-    // 2bits reserved.
+    /**
+    * reverved value, must be '1'
+    */
+    int8_t const1_value1; //3bits
     /**
     * This is a 13-bit field indicating the PID of the Transport Stream packets which shall contain the PCR fields
     * valid for the program specified by program_number. If no PCR is associated with a program definition for private
     * streams, then this field shall take the value of 0x1FFF. Refer to the semantic definition of PCR in 2.4.3.5 and Table 2-3
     * for restrictions on the choice of PCR_PID value.
     */
-    int16_t PCR_PID; //16bits
+    int16_t PCR_PID; //13bits
     
     // 2B
-    // 4bits reserved.
+    int8_t const1_value2; //4bits
     /**
     * This is a 12-bit field, the first two bits of which shall be '00'. The remaining 10 bits specify the
     * number of bytes of the descriptors immediately following the program_info_length field.
@@ -1401,8 +1478,11 @@ public:
 public:
     SrsTsPayloadPMT(SrsTsPacket* p);
     virtual ~SrsTsPayloadPMT();
-public:
+protected:
     virtual int psi_decode(SrsStream* stream);
+protected:
+    virtual int psi_size();
+    virtual int psi_encode(SrsStream* stream);
 };
 
 /**
@@ -1412,9 +1492,10 @@ public:
 class SrsTSMuxer
 {
 private:
-    SrsCodecAudio previous;
-    SrsCodecAudio current;
+    SrsCodecVideo vcodec;
+    SrsCodecAudio acodec;
 private:
+    SrsTsContext* context;
     SrsFileWriter* writer;
     std::string path;
 public:
