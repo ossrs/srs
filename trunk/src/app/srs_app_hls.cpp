@@ -204,7 +204,11 @@ int SrsHlsMuxer::update_config(SrsRequest* r, string path, int fragment, int win
     hls_path = path;
     hls_fragment = fragment;
     hls_window = window;
-    target_duration = (int)(fragment * _srs_config->get_hls_td_ratio(r->vhost));
+
+    // we always keep the target duration increasing.
+    int max_td = srs_max(target_duration, (int)(fragment * _srs_config->get_hls_td_ratio(r->vhost)));
+    srs_info("hls update target duration %d=>%d", target_duration, max_td);
+    target_duration = max_td;
 
     std::string storage = _srs_config->get_hls_storage(r->vhost);
     if (storage == "ram") {
