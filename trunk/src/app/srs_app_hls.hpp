@@ -42,7 +42,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsSharedPtrMessage;
 class SrsCodecSample;
-class SrsMpegtsFrame;
 class SrsAmf0Object;
 class SrsRtmpJitter;
 class SrsTSMuxer;
@@ -55,6 +54,7 @@ class SrsSimpleBuffer;
 class SrsTsAacJitter;
 class SrsTsCache;
 class SrsHlsSegment;
+class SrsTsCache;
 
 /**
 * the handler for hls event.
@@ -224,8 +224,8 @@ public:
     virtual bool is_segment_absolutely_overflow();
 public:
     virtual int update_acodec(SrsCodecAudio ac);
-    virtual int flush_audio(SrsMpegtsFrame* af, SrsSimpleBuffer* ab);
-    virtual int flush_video(SrsMpegtsFrame* af, SrsSimpleBuffer* ab, SrsMpegtsFrame* vf, SrsSimpleBuffer* vb);
+    virtual int flush_audio(SrsTsCache* cache);
+    virtual int flush_video(SrsTsCache* cache);
     /**
     * close segment(ts).
     * @param log_desc the description for log.

@@ -313,7 +313,7 @@ int SrsHlsMuxer::update_acodec(SrsCodecAudio ac)
     return current->muxer->update_acodec(ac);
 }
 
-int SrsHlsMuxer::flush_audio(SrsMpegtsFrame* af, SrsSimpleBuffer* ab)
+int SrsHlsMuxer::flush_audio(SrsTsCache* cache)
 {
     int ret = ERROR_SUCCESS;
 
@@ -323,24 +323,24 @@ int SrsHlsMuxer::flush_audio(SrsMpegtsFrame* af, SrsSimpleBuffer* ab)
         return ret;
     }
     
-    if (ab->length() <= 0) {
+    if (!cache->audio || cache->audio->payload->length() <= 0) {
         return ret;
     }
     
     // update the duration of segment.
-    current->update_duration(af->pts);
+    current->update_duration(cache->audio->pts);
     
-    if ((ret = current->muxer->write_audio(af, ab)) != ERROR_SUCCESS) {
+    if ((ret = current->muxer->write_audio(cache->audio)) != ERROR_SUCCESS) {
         return ret;
     }
     
-    // write success, clear and free the buffer
-    ab->erase(ab->length());
+    // write success, clear and free the msg
+    srs_freep(cache->audio);
 
     return ret;
 }
 
-int SrsHlsMuxer::flush_video(SrsMpegtsFrame* /*af*/, SrsSimpleBuffer* /*ab*/, SrsMpegtsFrame* vf, SrsSimpleBuffer* vb)
+int SrsHlsMuxer::flush_video(SrsTsCache* cache)
 {
     int ret = ERROR_SUCCESS;
 
@@ -350,17 +350,21 @@ int SrsHlsMuxer::flush_video(SrsMpegtsFrame* /*af*/, SrsSimpleBuffer* /*ab*/, Sr
         return ret;
     }
     
-    srs_assert(current);
-    
-    // update the duration of segment.
-    current->update_duration(vf->dts);
-    
-    if ((ret = current->muxer->write_video(vf, vb)) != ERROR_SUCCESS) {
+    if (!cache->video || cache->video->payload->length() <= 0) {
         return ret;
     }
     
-    // write success, clear and free the buffer
-    vb->erase(vb->length());
+    srs_assert(current);
+    
+    // update the duration of segment.
+    current->update_duration(cache->video->dts);
+    
+    if ((ret = current->muxer->write_video(cache->video)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // write success, clear and free the msg
+    srs_freep(cache->video);
     
     return ret;
 }
@@ -649,7 +653,7 @@ int SrsHlsCache::on_unpublish(SrsHlsMuxer* muxer)
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = muxer->flush_audio(cache->af, cache->ab)) != ERROR_SUCCESS) {
+    if ((ret = muxer->flush_audio(cache)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer flush audio failed. ret=%d", ret);
         return ret;
     }
@@ -682,8 +686,8 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     }
     
     // flush if buffer exceed max size.
-    if (cache->ab->length() > SRS_AUTO_HLS_AUDIO_CACHE_SIZE) {
-        if ((ret = muxer->flush_audio(cache->af, cache->ab)) != ERROR_SUCCESS) {
+    if (cache->audio->payload->length() > SRS_AUTO_HLS_AUDIO_CACHE_SIZE) {
+        if ((ret = muxer->flush_audio(cache)) != ERROR_SUCCESS) {
             return ret;
         }
     }
@@ -692,8 +696,8 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     // in ms, audio delay to flush the audios.
     int64_t audio_delay = SRS_CONF_DEFAULT_AAC_DELAY;
     // flush if audio delay exceed
-    if (pts - cache->audio_buffer_start_pts > audio_delay * 90) {
-        if ((ret = muxer->flush_audio(cache->af, cache->ab)) != ERROR_SUCCESS) {
+    if (pts - cache->audio->start_pts > audio_delay * 90) {
+        if ((ret = muxer->flush_audio(cache)) != ERROR_SUCCESS) {
             return ret;
         }
     }
@@ -707,7 +711,7 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     // we use absolutely overflow of segment to make jwplayer/ffplay happy
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-71155184
     if (muxer->is_segment_absolutely_overflow()) {
-        if ((ret = reap_segment("audio", muxer, cache->af->pts)) != ERROR_SUCCESS) {
+        if ((ret = reap_segment("audio", muxer, cache->audio->pts)) != ERROR_SUCCESS) {
             return ret;
         }
     }
@@ -728,14 +732,14 @@ int SrsHlsCache::write_video(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     // 1. base on gop.
     // 2. some gops duration overflow.
     if (sample->frame_type == SrsCodecVideoAVCFrameKeyFrame && muxer->is_segment_overflow()) {
-        if ((ret = reap_segment("video", muxer, cache->vf->dts)) != ERROR_SUCCESS) {
+        if ((ret = reap_segment("video", muxer, cache->video->dts)) != ERROR_SUCCESS) {
             return ret;
         }
         return ret;
     }
     
     // flush video when got one
-    if ((ret = muxer->flush_video(cache->af, cache->ab, cache->vf, cache->vb)) != ERROR_SUCCESS) {
+    if ((ret = muxer->flush_video(cache)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer flush video failed. ret=%d", ret);
         return ret;
     }
@@ -761,7 +765,7 @@ int SrsHlsCache::reap_segment(string log_desc, SrsHlsMuxer* muxer, int64_t segme
     // TODO: fresh segment begin with audio or video?
     
     // segment open, flush video first.
-    if ((ret = muxer->flush_video(cache->af, cache->ab, cache->vf, cache->vb)) != ERROR_SUCCESS) {
+    if ((ret = muxer->flush_video(cache)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer flush video failed. ret=%d", ret);
         return ret;
     }
@@ -769,7 +773,7 @@ int SrsHlsCache::reap_segment(string log_desc, SrsHlsMuxer* muxer, int64_t segme
     // segment open, flush the audio.
     // @see: ngx_rtmp_hls_open_fragment
     /* start fragment with audio to make iPhone happy */
-    if ((ret = muxer->flush_audio(cache->af, cache->ab)) != ERROR_SUCCESS) {
+    if ((ret = muxer->flush_audio(cache)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer flush audio failed. ret=%d", ret);
         return ret;
     }

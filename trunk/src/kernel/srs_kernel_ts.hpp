@@ -185,6 +185,8 @@ struct SrsTsChannel
     SrsTsPidApply apply;
     SrsTsStream stream;
     SrsTsMessage* msg;
+    // for encoder.
+    u_int8_t continuity_counter;
 
     SrsTsChannel();
     virtual ~SrsTsChannel();
@@ -209,13 +211,17 @@ enum SrsTsPESStreamId
     // ISO/IEC 13818-3 or ISO/IEC 11172-3 or ISO/IEC 13818-7 or ISO/IEC
     // 14496-3 audio stream number x xxxx
     // ((sid >> 5) & 0x07) == SrsTsPESStreamIdAudio
-    SrsTsPESStreamIdAudio                       = 0x06, // 0b110
+    // @remark, use SrsTsPESStreamIdAudioCommon as actually audio, SrsTsPESStreamIdAudio to check whether audio.
+    SrsTsPESStreamIdAudioChecker                = 0x06, // 0b110
+        SrsTsPESStreamIdAudioCommon             = 0xc0,
 
     // 1110 xxxx
     // ITU-T Rec. H.262 | ISO/IEC 13818-2 or ISO/IEC 11172-2 or ISO/IEC
     // 14496-2 video stream number xxxx
     // ((stream_id >> 4) & 0x0f) == SrsTsPESStreamIdVideo
-    SrsTsPESStreamIdVideo                       = 0x0e, // 0b1110
+    // @remark, use SrsTsPESStreamIdVideoCommon as actually video, SrsTsPESStreamIdVideo to check whether video.
+    SrsTsPESStreamIdVideoChecker                = 0x0e, // 0b1110
+        SrsTsPESStreamIdVideoCommon             = 0xe0,
 
     // ECM_stream
     SrsTsPESStreamIdEcmStream                   = 0xf0, // 0b11110000
@@ -253,8 +259,20 @@ enum SrsTsPESStreamId
 class SrsTsMessage
 {
 public:
+    // decoder only,
+    // the ts messgae does not use them, 
+    // for user to get the channel and packet.
     SrsTsChannel* channel;
     SrsTsPacket* packet;
+public:
+    // the audio cache buffer start pts, to flush audio if full.
+    // @remark the pts is not the adjust one, it's the orignal pts.
+    int64_t start_pts;
+    // whether this message with pcr info,
+    // generally, the video IDR(I frame, the keyframe of h.264) carray the pcr info.
+    bool write_pcr;
+    // whether got discontinuity ts, for example, sequence header changed.
+    bool discontinuity;
 public:
     // the timestamp in 90khz
     int64_t dts;
@@ -269,8 +287,9 @@ public:
     // the payload bytes.
     SrsSimpleBuffer* payload;
 public:
-    SrsTsMessage(SrsTsChannel* c, SrsTsPacket* p);
+    SrsTsMessage(SrsTsChannel* c = NULL, SrsTsPacket* p = NULL);
     virtual ~SrsTsMessage();
+// decoder
 public:
     /**
     * dumps all bytes in stream to ts message.
@@ -361,15 +380,14 @@ public:
 public:
     /**
     * write the PES packet, the video/audio stream.
-    * @param frame the video/audio frame info.
-    * @param payload the video/audio payload bytes.
+    * @param msg the video/audio msg to write to ts.
     * @param vc the video codec, write the PAT/PMT table when changed.
     * @param ac the audio codec, write the PAT/PMT table when changed.
     */
-    virtual int encode(SrsFileWriter* writer, SrsMpegtsFrame* frame, SrsSimpleBuffer* payload, SrsCodecVideo vc, SrsCodecAudio ac);
+    virtual int encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsCodecVideo vc, SrsCodecAudio ac);
 private:
-    virtual int encode_pat_pmt(SrsFileWriter* writer, SrsCodecVideo vcodec, SrsCodecAudio acodec);
-    virtual int encode_pes(SrsFileWriter* writer, SrsMpegtsFrame* frame, SrsSimpleBuffer* payload);
+    virtual int encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as);
+    virtual int encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t pid, SrsTsStream sid);
 };
 
 /**
@@ -478,9 +496,22 @@ public:
 public:
     virtual int size();
     virtual int encode(SrsStream* stream);
+    virtual void padding(int nb_stuffings);
 public:
-    static SrsTsPacket* create_pat(SrsTsContext* context, int16_t pmt_number, int16_t pmt_pid);
-    static SrsTsPacket* create_pmt(SrsTsContext* context, int16_t pmt_number, int16_t pmt_pid, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as);
+    static SrsTsPacket* create_pat(SrsTsContext* context, 
+        int16_t pmt_number, int16_t pmt_pid
+    );
+    static SrsTsPacket* create_pmt(SrsTsContext* context, 
+        int16_t pmt_number, int16_t pmt_pid, int16_t vpid, SrsTsStream vs, 
+        int16_t apid, SrsTsStream as
+    );
+    static SrsTsPacket* create_pes_first(SrsTsContext* context, 
+        int16_t pid, SrsTsPESStreamId sid, u_int8_t continuity_counter, bool discontinuity, 
+        int64_t pcr, int64_t dts, int64_t pts, int size
+    );
+    static SrsTsPacket* create_pes_continue(SrsTsContext* context, 
+        int16_t pid, SrsTsPESStreamId sid, u_int8_t continuity_counter
+    );
 };
 
 /**
@@ -627,7 +658,10 @@ public:
     * the last bit of the program_clock_reference_base at the input of the system target decoder.
     */
     int64_t program_clock_reference_base; //33bits
-    //6bits reserved.
+    /**
+    * 6bits reserved, must be '1'
+    */
+    int8_t const1_value0; // 6bits
     int16_t program_clock_reference_extension; //9bits
     
     // if OPCR_flag, 6B
@@ -646,7 +680,10 @@ public:
     * in the original single program Transport Stream.
     */
     int64_t original_program_clock_reference_base; //33bits
-    //6bits reserved.
+    /**
+    * 6bits reserved, must be '1'
+    */
+    int8_t const1_value2; // 6bits
     int16_t original_program_clock_reference_extension; //9bits
     
     // if splicing_point_flag, 1B
@@ -711,7 +748,10 @@ public:
     * constraints indicated by the splice_type value.
     */
     int8_t seamless_splice_flag; //1bit
-    //5bits reserved
+    /**
+    * reserved 5bits, must be '1'
+    */
+    int8_t const1_value1; //5bits
     // if ltw_flag, 2B
     /**
     * (legal time window_valid_flag) - This is a 1-bit field which when set to '1' indicates that the value of the
@@ -856,6 +896,7 @@ public:
     * elementary stream type as defined in Table 2-18. In Transport Streams, the elementary stream type is specified in the
     * Program Specific Information as specified in 2.4.4.
     */
+    // @see SrsTsPESStreamId, value can be SrsTsPESStreamIdAudioCommon or SrsTsPESStreamIdVideoCommon.
     u_int8_t stream_id; //8bits
     // 2B
     /**
@@ -866,7 +907,10 @@ public:
     u_int16_t PES_packet_length; //16bits
 
     // 1B
-    // 2bits const '10'
+    /**
+    * 2bits const '10'
+    */
+    int8_t const2bits; //2bits
     /**
     * The 2-bit PES_scrambling_control field indicates the scrambling mode of the PES packet
     * payload. When scrambling is performed at the PES level, the PES packet header, including the optional fields when
@@ -1068,7 +1112,10 @@ public:
     * PES header.
     */
     int8_t P_STD_buffer_flag; //1bit
-    // reserved 3bits
+    /**
+    * reverved value, must be '1'
+    */
+    int8_t const1_value0; //3bits
     /**
     * A 1-bit field which when set to '1' indicates the presence of the PES_extension_field_length
     * field and associated fields. When set to a value of '0' this indicates that the PES_extension_field_length field and any
@@ -1179,6 +1226,7 @@ public:
     virtual int encode(SrsStream* stream);
 private:
     virtual int decode_33bits_dts_pts(SrsStream* stream, int64_t* pv);
+    virtual int encode_33bits_dts_pts(SrsStream* stream, u_int8_t fb, int64_t v);
 };
 
 /**
@@ -1516,50 +1564,16 @@ public:
     virtual int update_acodec(SrsCodecAudio ac);
     /**
     * write an audio frame to ts, 
-    * @remark write PSI first when not write yet.
     */
-    virtual int write_audio(SrsMpegtsFrame* af, SrsSimpleBuffer* ab);
+    virtual int write_audio(SrsTsMessage* audio);
     /**
     * write a video frame to ts, 
-    * @remark write PSI first when not write yet.
     */
-    virtual int write_video(SrsMpegtsFrame* vf, SrsSimpleBuffer* vb);
+    virtual int write_video(SrsTsMessage* video);
     /**
     * close the writer.
     */
     virtual void close();
-};
-
-/**
-* jitter correct for audio,
-* the sample rate 44100/32000 will lost precise,
-* when mp4/ts(tbn=90000) covert to flv/rtmp(1000),
-* so the Hls on ipad or iphone will corrupt,
-* @see nginx-rtmp: est_pts
-*/
-class SrsTsAacJitter
-{
-private:
-    int64_t base_pts;
-    int64_t nb_samples;
-    int sync_ms;
-public:
-    SrsTsAacJitter();
-    virtual ~SrsTsAacJitter();
-    /**
-    * when buffer start, calc the "correct" pts for ts,
-    * @param flv_pts, the flv pts calc from flv header timestamp,
-    * @param sample_rate, the sample rate in format(flv/RTMP packet header).
-    * @param aac_sample_rate, the sample rate in codec(sequence header).
-    * @return the calc correct pts.
-    */
-    virtual int64_t on_buffer_start(int64_t flv_pts, int sample_rate, int aac_sample_rate);
-    /**
-    * when buffer continue, muxer donot write to file,
-    * the audio buffer continue grow and donot need a pts,
-    * for the ts audio PES packet only has one pts at the first time.
-    */
-    virtual void on_buffer_continue();
 };
 
 /**
@@ -1575,18 +1589,9 @@ public:
 class SrsTsCache
 {
 public:
-    // current frame and buffer
-    SrsMpegtsFrame* af;
-    SrsSimpleBuffer* ab;
-    SrsMpegtsFrame* vf;
-    SrsSimpleBuffer* vb;
-public:
-    // the audio cache buffer start pts, to flush audio if full.
-    // @remark the pts is not the adjust one, it's the orignal pts.
-    int64_t audio_buffer_start_pts;
-protected:
-    // time jitter for aac
-    SrsTsAacJitter* aac_jitter;
+    // current ts message.
+    SrsTsMessage* audio;
+    SrsTsMessage* video;
 public:
     SrsTsCache();
     virtual ~SrsTsCache();
@@ -1594,14 +1599,15 @@ public:
     /**
     * write audio to cache
     */
-    virtual int cache_audio(SrsAvcAacCodec* codec, int64_t pts, SrsCodecSample* sample);
+    virtual int cache_audio(SrsAvcAacCodec* codec, int64_t dts, SrsCodecSample* sample);
     /**
     * write video to muxer.
     */
     virtual int cache_video(SrsAvcAacCodec* codec, int64_t dts, SrsCodecSample* sample);
 private:
-    virtual int do_cache_audio(SrsAvcAacCodec* codec, SrsCodecSample* sample);
-    virtual int do_cache_video(SrsAvcAacCodec* codec, SrsCodecSample* sample);
+    virtual int do_cache_mp3(SrsAvcAacCodec* codec, SrsCodecSample* sample);
+    virtual int do_cache_aac(SrsAvcAacCodec* codec, SrsCodecSample* sample);
+    virtual int do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample);
 };
 
 /**
