@@ -131,14 +131,14 @@ string SrsHlsCacheWriter::cache()
     return data;
 }
 
-SrsHlsSegment::SrsHlsSegment(bool write_cache, bool write_file)
+SrsHlsSegment::SrsHlsSegment(bool write_cache, bool write_file, SrsCodecAudio ac)
 {
     duration = 0;
     sequence_no = 0;
     segment_start_dts = 0;
     is_sequence_header = false;
     writer = new SrsHlsCacheWriter(write_cache, write_file);
-    muxer = new SrsTSMuxer(writer);
+    muxer = new SrsTSMuxer(writer, ac);
 }
 
 SrsHlsSegment::~SrsHlsSegment()
@@ -243,9 +243,22 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     
     // when segment open, the current segment must be NULL.
     srs_assert(!current);
+
+    // load the default acodec from config.
+    SrsCodecAudio default_acodec = SrsCodecAudioAAC;
+    std::string default_acodec_str = _srs_config->get_hls_acodec(req->vhost);
+    if (default_acodec_str == "mp3") {
+        default_acodec = SrsCodecAudioMP3;
+        srs_info("hls: use default mp3 acodec");
+    } else if (default_acodec_str == "aac") {
+        default_acodec = SrsCodecAudioAAC;
+        srs_info("hls: use default aac acodec");
+    } else {
+        srs_warn("hls: use aac for other codec=%s", default_acodec_str.c_str());
+    }
     
     // new segment.
-    current = new SrsHlsSegment(should_write_cache, should_write_file);
+    current = new SrsHlsSegment(should_write_cache, should_write_file, default_acodec);
     current->sequence_no = _sequence_no++;
     current->segment_start_dts = segment_start_dts;
     

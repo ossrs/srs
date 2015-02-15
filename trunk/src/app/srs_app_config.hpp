@@ -55,6 +55,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_HLS_ON_ERROR SRS_CONF_DEFAULT_HLS_ON_ERROR_IGNORE
 #define SRS_CONF_DEFAULT_HLS_STORAGE "disk"
 #define SRS_CONF_DEFAULT_HLS_MOUNT "[vhost]/[app]/[stream].m3u8"
+#define SRS_CONF_DEFAULT_HLS_ACODEC "aac"
 #define SRS_CONF_DEFAULT_DVR_PATH "./objs/nginx/html"
 #define SRS_CONF_DEFAULT_DVR_PLAN_SESSION "session"
 #define SRS_CONF_DEFAULT_DVR_PLAN_SEGMENT "segment"
@@ -922,6 +923,10 @@ public:
     * get the HLS mount url for HTTP server.
     */
     virtual std::string         get_hls_mount(std::string vhost);
+    /**
+    * get the HLS default audio codec.
+    */
+    virtual std::string         get_hls_acodec(std::string vhost);
 // dvr section
 private:
     /**

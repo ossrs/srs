@@ -1547,7 +1547,7 @@ private:
     SrsFileWriter* writer;
     std::string path;
 public:
-    SrsTSMuxer(SrsFileWriter* w);
+    SrsTSMuxer(SrsFileWriter* w, SrsCodecAudio ac);
     virtual ~SrsTSMuxer();
 public:
     /**

@@ -2916,13 +2916,12 @@ int SrsTsPayloadPMT::psi_encode(SrsStream* stream)
     return ret;
 }
 
-SrsTSMuxer::SrsTSMuxer(SrsFileWriter* w)
+SrsTSMuxer::SrsTSMuxer(SrsFileWriter* w, SrsCodecAudio ac)
 {
     writer = w;
     context = NULL;
 
-    // default to aac.
-    acodec = SrsCodecAudioAAC;
+    acodec = ac;
     // default to avc(h.264)
     vcodec = SrsCodecVideoAVC;
 }
@@ -3296,7 +3295,7 @@ int SrsTsEncoder::initialize(SrsFileWriter* fs)
     _fs = fs;
 
     srs_freep(muxer);
-    muxer = new SrsTSMuxer(fs);
+    muxer = new SrsTSMuxer(fs, SrsCodecAudioAAC);
 
     if ((ret = muxer->open("")) != ERROR_SUCCESS) {
         return ret;

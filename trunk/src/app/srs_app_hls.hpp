@@ -144,7 +144,7 @@ public:
     // whether current segement is sequence header.
     bool is_sequence_header;
 public:
-    SrsHlsSegment(bool write_cache, bool write_file);
+    SrsHlsSegment(bool write_cache, bool write_file, SrsCodecAudio ac);
     virtual ~SrsHlsSegment();
 public:
     /**
