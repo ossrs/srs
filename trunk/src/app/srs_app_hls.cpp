@@ -131,14 +131,14 @@ string SrsHlsCacheWriter::cache()
     return data;
 }
 
-SrsHlsSegment::SrsHlsSegment(bool write_cache, bool write_file, SrsCodecAudio ac)
+SrsHlsSegment::SrsHlsSegment(bool write_cache, bool write_file, SrsCodecAudio ac, SrsCodecVideo vc)
 {
     duration = 0;
     sequence_no = 0;
     segment_start_dts = 0;
     is_sequence_header = false;
     writer = new SrsHlsCacheWriter(write_cache, write_file);
-    muxer = new SrsTSMuxer(writer, ac);
+    muxer = new SrsTSMuxer(writer, ac, vc);
 }
 
 SrsHlsSegment::~SrsHlsSegment()
@@ -246,19 +246,36 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
 
     // load the default acodec from config.
     SrsCodecAudio default_acodec = SrsCodecAudioAAC;
-    std::string default_acodec_str = _srs_config->get_hls_acodec(req->vhost);
-    if (default_acodec_str == "mp3") {
-        default_acodec = SrsCodecAudioMP3;
-        srs_info("hls: use default mp3 acodec");
-    } else if (default_acodec_str == "aac") {
-        default_acodec = SrsCodecAudioAAC;
-        srs_info("hls: use default aac acodec");
-    } else {
-        srs_warn("hls: use aac for other codec=%s", default_acodec_str.c_str());
+    if (true) {
+        std::string default_acodec_str = _srs_config->get_hls_acodec(req->vhost);
+        if (default_acodec_str == "mp3") {
+            default_acodec = SrsCodecAudioMP3;
+            srs_info("hls: use default mp3 acodec");
+        } else if (default_acodec_str == "aac") {
+            default_acodec = SrsCodecAudioAAC;
+            srs_info("hls: use default aac acodec");
+        } else {
+            srs_warn("hls: use aac for other codec=%s", default_acodec_str.c_str());
+        }
+    }
+
+    // load the default vcodec from config.
+    SrsCodecVideo default_vcodec = SrsCodecVideoAVC;
+    if (true) {
+        std::string default_vcodec_str = _srs_config->get_hls_vcodec(req->vhost);
+        if (default_vcodec_str == "h264") {
+            default_vcodec = SrsCodecVideoAVC;
+            srs_info("hls: use default h264 vcodec");
+        } else if (default_vcodec_str == "vn") {
+            default_vcodec = SrsCodecVideoDisabled;
+            srs_info("hls: use default vn vcodec for pure audio");
+        } else {
+            srs_warn("hls: use h264 for other codec=%s", default_vcodec_str.c_str());
+        }
     }
     
     // new segment.
-    current = new SrsHlsSegment(should_write_cache, should_write_file, default_acodec);
+    current = new SrsHlsSegment(should_write_cache, should_write_file, default_acodec, default_vcodec);
     current->sequence_no = _sequence_no++;
     current->segment_start_dts = segment_start_dts;
     

@@ -527,6 +527,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-02-15, for [#304](https://github.com/winlinvip/simple-rtmp-server/issues/304), support config default acodec/vcodec. 2.0.118.
 * v2.0, 2015-02-15, for [#304](https://github.com/winlinvip/simple-rtmp-server/issues/304), rewrite hls/ts code, support h.264+mp3 for hls. 2.0.117.
 * v2.0, 2015-02-12, for [#304](https://github.com/winlinvip/simple-rtmp-server/issues/304), use stringstream to generate m3u8, add hls_td_ratio. 2.0.116.
 * v2.0, 2015-02-11, dev code ZhouGuowen for 2.0.115.

@@ -75,327 +75,6 @@ int aac_sample_rates[] =
     7350,     0,     0,    0
 };
 
-// @see: ngx_rtmp_mpegts_header
-u_int8_t mpegts_header[] = {
-    /* TS */
-    0x47, 0x40, 0x00, 0x10, 0x00,
-    /* PSI */
-    0x00, 0xb0, 0x0d, 0x00, 0x01, 0xc1, 0x00, 0x00,
-    /* PAT */
-    0x00, 0x01, 0xf0, 0x01,
-    /* CRC */
-    0x2e, 0x70, 0x19, 0x05,
-    /* stuffing 167 bytes */
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    
-    /* TS */
-    0x47, 0x50, 0x01, 0x10, 0x00,
-    /* PSI */
-    0x02, 0xb0, 0x17, 0x00, 0x01, 0xc1, 0x00, 0x00,
-    /* PMT */
-    0xe1, 0x00,
-    0xf0, 0x00,
-    // must generate header with/without video, @see:
-    // https://github.com/winlinvip/simple-rtmp-server/issues/40
-    0x1b, 0xe1, 0x00, 0xf0, 0x00, /* h264, pid=0x100=256 */
-};
-u_int8_t mpegts_header_aac[] = {
-    0x0f, 0xe1, 0x01, 0xf0, 0x00, /* aac, pid=0x101=257 */
-    /* CRC */
-    0x2f, 0x44, 0xb9, 0x9b, /* crc for aac */
-};
-u_int8_t mpegts_header_mp3[] = {
-    0x03, 0xe1, 0x01, 0xf0, 0x00, /* mp3 */
-    /* CRC */
-    0x4e, 0x59, 0x3d, 0x1e, /* crc for mp3 */
-};
-u_int8_t mpegts_header_padding[] = {
-    /* stuffing 157 bytes */
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
-};
-
-// @see: ngx_rtmp_mpegts.c
-// TODO: support full mpegts feature in future.
-class SrsMpegtsWriter
-{
-public:
-    static int write_header(SrsFileWriter* writer, SrsCodecAudio acodec)
-    {
-        int ret = ERROR_SUCCESS;
-        
-        if ((ret = writer->write(mpegts_header, sizeof(mpegts_header), NULL)) != ERROR_SUCCESS) {
-            ret = ERROR_HLS_WRITE_FAILED;
-            srs_error("write ts file header failed. ret=%d", ret);
-            return ret;
-        }
-
-        if (acodec == SrsCodecAudioAAC) {
-            if ((ret = writer->write(mpegts_header_aac, sizeof(mpegts_header_aac), NULL)) != ERROR_SUCCESS) {
-                ret = ERROR_HLS_WRITE_FAILED;
-                srs_error("write ts file aac header failed. ret=%d", ret);
-                return ret;
-            }
-        } else {
-            if ((ret = writer->write(mpegts_header_mp3, sizeof(mpegts_header_mp3), NULL)) != ERROR_SUCCESS) {
-                ret = ERROR_HLS_WRITE_FAILED;
-                srs_error("write ts file mp3 header failed. ret=%d", ret);
-                return ret;
-            }
-        }
-        
-        if ((ret = writer->write(mpegts_header_padding, sizeof(mpegts_header_padding), NULL)) != ERROR_SUCCESS) {
-            ret = ERROR_HLS_WRITE_FAILED;
-            srs_error("write ts file padding header failed. ret=%d", ret);
-            return ret;
-        }
-
-        return ret;
-    }
-    static int write_frame(SrsFileWriter* writer, SrsMpegtsFrame* frame, SrsSimpleBuffer* buffer)
-    {
-        int ret = ERROR_SUCCESS;
-        
-        if (!buffer->bytes() || buffer->length() <= 0) {
-            return ret;
-        }
-        
-        char* last = buffer->bytes() + buffer->length();
-        char* pos = buffer->bytes();
-        
-        bool first = true;
-        while (pos < last) {
-            static char packet[188];
-            char* p = packet;
-            
-            frame->cc++;
-            
-            // sync_byte; //8bits
-            *p++ = 0x47;
-            // pid; //13bits
-            *p++ = (frame->pid >> 8) & 0x1f;
-            // payload_unit_start_indicator; //1bit
-            if (first) {
-                p[-1] |= 0x40;
-            }
-            *p++ = frame->pid;
-            
-            // transport_scrambling_control; //2bits
-            // adaption_field_control; //2bits, 0x01: PayloadOnly
-            // continuity_counter; //4bits
-            *p++ = 0x10 | (frame->cc & 0x0f);
-            
-            if (first) {
-                first = false;
-                if (frame->write_pcr) {
-                    p[-1] |= 0x20; // Both Adaption and Payload
-                    *p++ = 7;    // size
-                    *p++ = 0x50; // random access + PCR
-                    // @see https://github.com/winlinvip/simple-rtmp-server/issues/311
-                    p = write_pcr(p, frame->dts);
-                }
-                
-                // PES header
-                // packet_start_code_prefix; //24bits, '00 00 01'
-                *p++ = 0x00;
-                *p++ = 0x00;
-                *p++ = 0x01;
-                //8bits
-                *p++ = frame->sid;
-                
-                // pts(33bits) need 5bytes.
-                u_int8_t header_size = 5;
-                u_int8_t flags = 0x80; // pts
-                
-                // dts(33bits) need 5bytes also
-                if (frame->dts != frame->pts) {
-                    header_size += 5;
-                    flags |= 0x40; // dts
-                }
-                
-                // 3bytes: flag fields from PES_packet_length to PES_header_data_length
-                int pes_size = (last - pos) + header_size + 3;
-                if (pes_size > 0xffff) {
-                    /**
-                    * when actual packet length > 0xffff(65535),
-                    * which exceed the max u_int16_t packet length,
-                    * use 0 packet length, the next unit start indicates the end of packet.
-                    */
-                    pes_size = 0;
-                }
-                
-                // PES_packet_length; //16bits
-                *p++ = (pes_size >> 8);
-                *p++ = pes_size;
-                
-                // PES_scrambling_control; //2bits, '10'
-                // PES_priority; //1bit
-                // data_alignment_indicator; //1bit
-                // copyright; //1bit
-                // original_or_copy; //1bit    
-                *p++ = 0x80; /* H222 */
-                
-                // PTS_DTS_flags; //2bits
-                // ESCR_flag; //1bit
-                // ES_rate_flag; //1bit
-                // DSM_trick_mode_flag; //1bit
-                // additional_copy_info_flag; //1bit
-                // PES_CRC_flag; //1bit
-                // PES_extension_flag; //1bit
-                *p++ = flags;
-                
-                // PES_header_data_length; //8bits
-                *p++ = header_size;
-
-                // pts; // 33bits
-                p = write_dts_pts(p, flags >> 6, frame->pts);
-                
-                // dts; // 33bits
-                if (frame->dts != frame->pts) {
-                    p = write_dts_pts(p, 1, frame->dts);
-                }
-            }
-            
-            int body_size = sizeof(packet) - (p - packet);
-            int in_size = last - pos;
-            
-            if (body_size <= in_size) {
-                memcpy(p, pos, body_size);
-                pos += body_size;
-            } else {
-                p = fill_stuff(p, packet, body_size, in_size);
-                memcpy(p, pos, in_size);
-                pos = last;
-            }
-            
-            // write ts packet
-            if ((ret = writer->write(packet, sizeof(packet), NULL)) != ERROR_SUCCESS) {
-                if (!srs_is_client_gracefully_close(ret)) {
-                    srs_error("write ts file failed. ret=%d", ret);
-                }
-                return ret;
-            }
-        }
-        
-        return ret;
-    }
-private:
-    static char* fill_stuff(char* pes_body_end, char* packet, int body_size, int in_size)
-    {
-        char* p = pes_body_end;
-        
-        // insert the stuff bytes before PES body
-        int stuff_size = (body_size - in_size);
-        
-        // adaption_field_control; //2bits
-        if (packet[3] & 0x20) {
-            //  has adaptation
-            // packet[4]: adaption_field_length
-            // packet[5]: adaption field data
-            // base: start of PES body
-            char* base = &packet[5] + packet[4];
-            int len = p - base;
-            p = (char*)memmove(base + stuff_size, base, len) + len;
-            // increase the adaption field size.
-            packet[4] += stuff_size;
-            
-            return p;
-        }
-
-        // create adaption field.
-        // adaption_field_control; //2bits
-        packet[3] |= 0x20;
-        // base: start of PES body
-        char* base = &packet[4];
-        int len = p - base;
-        p = (char*)memmove(base + stuff_size, base, len) + len;
-        // adaption_field_length; //8bits
-        packet[4] = (stuff_size - 1);
-        if (stuff_size >= 2) {
-            // adaption field flags.
-            packet[5] = 0;
-            // adaption data.
-            if (stuff_size > 2) {
-                memset(&packet[6], 0xff, stuff_size - 2);
-            }
-        }
-        
-        return p;
-    }
-    static char* write_pcr(char* p, int64_t pcr)
-    {
-        // the pcr=dts-delay, where dts = frame->dts + delay
-        // and the pcr should never be negative
-        // @see https://github.com/winlinvip/simple-rtmp-server/issues/268
-        srs_assert(pcr >= 0);
-        
-        int64_t v = pcr;
-        
-        *p++ = (char) (v >> 25);
-        *p++ = (char) (v >> 17);
-        *p++ = (char) (v >> 9);
-        *p++ = (char) (v >> 1);
-        *p++ = (char) (v << 7 | 0x7e);
-        *p++ = 0;
-    
-        return p;
-    }
-    static char* write_dts_pts(char* p, u_int8_t fb, int64_t pts)
-    {
-        int32_t val;
-    
-        val = fb << 4 | (((pts >> 30) & 0x07) << 1) | 1;
-        *p++ = val;
-    
-        val = (((pts >> 15) & 0x7fff) << 1) | 1;
-        *p++ = (val >> 8);
-        *p++ = val;
-    
-        val = (((pts) & 0x7fff) << 1) | 1;
-        *p++ = (val >> 8);
-        *p++ = val;
-    
-        return p;
-    }
-};
-
-SrsMpegtsFrame::SrsMpegtsFrame()
-{
-    pts = dts = 0;
-    pid = sid = cc = 0;
-    write_pcr = false;
-}
-
 string srs_ts_stream2string(SrsTsStream stream)
 {
     switch (stream) {
@@ -600,6 +279,7 @@ int SrsTsContext::encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsCodecVideo
         case SrsCodecVideoReserved:
         case SrsCodecVideoReserved1:
         case SrsCodecVideoReserved2:
+        case SrsCodecVideoDisabled:
         case SrsCodecVideoSorensonH263:
         case SrsCodecVideoScreenVideo:
         case SrsCodecVideoOn2VP6:
@@ -645,9 +325,9 @@ int SrsTsContext::encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsCodecVideo
 
     // encode the media frame to PES packets over TS.
     if (msg->is_audio()) {
-        return encode_pes(writer, msg, audio_pid, as);
+        return encode_pes(writer, msg, audio_pid, as, vs == SrsTsStreamReserved);
     } else {
-        return encode_pes(writer, msg, video_pid, vs);
+        return encode_pes(writer, msg, video_pid, vs, vs == SrsTsStreamReserved);
     }
 }
 
@@ -711,11 +391,16 @@ int SrsTsContext::encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStrea
     return ret;
 }
 
-int SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t pid, SrsTsStream sid)
+int SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t pid, SrsTsStream sid, bool pure_audio)
 {
     int ret = ERROR_SUCCESS;
 
     if (msg->payload->length() == 0) {
+        return ret;
+    }
+
+    if (sid != SrsTsStreamVideoH264 && sid != SrsTsStreamAudioMp3 && sid != SrsTsStreamAudioAAC) {
+        srs_info("ts: ignore the unknown stream, sid=%d", sid);
         return ret;
     }
 
@@ -729,9 +414,15 @@ int SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t p
     while (p < end) {
         SrsTsPacket* pkt = NULL;
         if (p == start) {
+            // for pure audio stream, always write pcr.
+            bool write_pcr = msg->write_pcr;
+            if (pure_audio && msg->is_audio()) {
+                write_pcr = true;
+            }
+
             pkt = SrsTsPacket::create_pes_first(this, 
                 pid, msg->sid, channel->continuity_counter++, msg->discontinuity, 
-                msg->write_pcr? msg->dts:-1, msg->dts, msg->pts, msg->payload->length()
+                write_pcr? msg->dts:-1, msg->dts, msg->pts, msg->payload->length()
             );
         } else {
             pkt = SrsTsPacket::create_pes_continue(this, 
@@ -1030,9 +721,13 @@ SrsTsPacket* SrsTsPacket::create_pmt(SrsTsContext* context, int16_t pmt_number, 
     pmt->current_next_indicator = 1;
     pmt->section_number = 0;
     pmt->last_section_number = 0;
-    pmt->PCR_PID = vpid;
     pmt->program_info_length = 0;
-    pmt->infos.push_back(new SrsTsPayloadPMTESInfo(vs, vpid));
+    if (vs == SrsTsStreamVideoH264) {
+        pmt->PCR_PID = vpid;
+        pmt->infos.push_back(new SrsTsPayloadPMTESInfo(vs, vpid));
+    } else {
+        pmt->PCR_PID = apid;
+    }
     pmt->infos.push_back(new SrsTsPayloadPMTESInfo(as, apid));
     pmt->CRC_32 = 0; // calc in encode.
     return pkt;
@@ -2916,14 +2611,13 @@ int SrsTsPayloadPMT::psi_encode(SrsStream* stream)
     return ret;
 }
 
-SrsTSMuxer::SrsTSMuxer(SrsFileWriter* w, SrsCodecAudio ac)
+SrsTSMuxer::SrsTSMuxer(SrsFileWriter* w, SrsCodecAudio ac, SrsCodecVideo vc)
 {
     writer = w;
     context = NULL;
 
     acodec = ac;
-    // default to avc(h.264)
-    vcodec = SrsCodecVideoAVC;
+    vcodec = vc;
 }
 
 SrsTSMuxer::~SrsTSMuxer()
@@ -3295,7 +2989,7 @@ int SrsTsEncoder::initialize(SrsFileWriter* fs)
     _fs = fs;
 
     srs_freep(muxer);
-    muxer = new SrsTSMuxer(fs, SrsCodecAudioAAC);
+    muxer = new SrsTSMuxer(fs, SrsCodecAudioAAC, SrsCodecVideoAVC);
 
     if ((ret = muxer->open("")) != ERROR_SUCCESS) {
         return ret;

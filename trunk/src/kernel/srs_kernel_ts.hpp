@@ -51,20 +51,6 @@ class SrsTsPacket;
 // Transport Stream packets are 188 bytes in length.
 #define SRS_TS_PACKET_SIZE          188
 
-// @see: ngx_rtmp_SrsMpegtsFrame_t
-class SrsMpegtsFrame
-{
-public:
-    int64_t         pts;
-    int64_t         dts;
-    int             pid;
-    int             sid;
-    int             cc; // continuity_counter
-    bool            write_pcr;
-    
-    SrsMpegtsFrame();
-};
-
 /**
 * the pid of ts packet,
 * Table 2-3 - PID table, hls-mpeg-ts-iso13818-1.pdf, page 37
@@ -387,7 +373,7 @@ public:
     virtual int encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsCodecVideo vc, SrsCodecAudio ac);
 private:
     virtual int encode_pat_pmt(SrsFileWriter* writer, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as);
-    virtual int encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t pid, SrsTsStream sid);
+    virtual int encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t pid, SrsTsStream sid, bool pure_audio);
 };
 
 /**
@@ -1547,7 +1533,7 @@ private:
     SrsFileWriter* writer;
     std::string path;
 public:
-    SrsTSMuxer(SrsFileWriter* w, SrsCodecAudio ac);
+    SrsTSMuxer(SrsFileWriter* w, SrsCodecAudio ac, SrsCodecVideo vc);
     virtual ~SrsTSMuxer();
 public:
     /**
