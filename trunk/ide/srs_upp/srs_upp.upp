@@ -112,6 +112,8 @@ file
 	../../src/app/srs_app_reload.cpp,
 	../../src/app/srs_app_rtmp_conn.hpp,
 	../../src/app/srs_app_rtmp_conn.cpp,
+        ../../src/app/srs_app_rtsp.hpp,
+        ../../src/app/srs_app_rtsp.cpp,
 	../../src/app/srs_app_pithy_print.hpp,
 	../../src/app/srs_app_pithy_print.cpp,
 	../../src/app/srs_app_security.hpp,

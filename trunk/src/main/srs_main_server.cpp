@@ -132,6 +132,12 @@ void show_macro_features()
     srs_warn("check feature compile ffmpeg: off");
 #endif
 
+#ifdef SRS_AUTO_STREAM_CASTER
+    srs_trace("stream caster: on");
+#else
+    srs_warn("stream caster: off");
+#endif
+
 #ifdef SRS_PERF_MERGED_READ
     srs_trace("MR(merged-read): on, @see %s", RTMP_SIG_SRS_ISSUES(241));
 #else

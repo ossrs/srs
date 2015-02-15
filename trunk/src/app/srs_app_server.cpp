@@ -46,6 +46,7 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_app_heartbeat.hpp>
 #include <srs_app_mpegts_udp.hpp>
+#include <srs_app_rtsp.hpp>
 
 // signal defines.
 #define SIGNAL_RELOAD SIGHUP
@@ -112,6 +113,8 @@ std::string __srs_listener_type2string(SrsListenerType type)
         return "HTTP-Server";
     case SrsListenerMpegTsOverUdp:
         return "MPEG-TS over UDP";
+    case SrsListenerRtsp:
+        return "RTSP";
     default:
         return "UNKONWN";
     }
@@ -229,6 +232,44 @@ int SrsListener::cycle()
 }
 
 #ifdef SRS_AUTO_STREAM_CASTER
+SrsRtspListener::SrsRtspListener(SrsServer* server, SrsListenerType type, SrsConfDirective* c) : SrsListener(server, type)
+{
+    _type = type;
+
+    // the caller already ensure the type is ok,
+    // we just assert here for unknown stream caster.
+    srs_assert(_type == SrsListenerRtsp);
+    if (_type == SrsListenerRtsp) {
+        caster = new SrsRtspConn(c);
+    }
+}
+
+SrsRtspListener::~SrsRtspListener()
+{
+    srs_freep(caster);
+}
+
+int SrsRtspListener::cycle()
+{
+    int ret = ERROR_SUCCESS;
+    
+    st_netfd_t client_stfd = st_accept(stfd, NULL, NULL, ST_UTIME_NO_TIMEOUT);
+    
+    if(client_stfd == NULL){
+        // ignore error.
+        srs_error("ignore accept thread stoppped for accept client error");
+        return ret;
+    }
+    srs_verbose("get a client. fd=%d", st_netfd_fileno(client_stfd));
+    
+    if ((ret = _server->accept_client(_type, client_stfd)) != ERROR_SUCCESS) {
+        srs_warn("accept client error. ret=%d", ret);
+        return ret;
+    }
+    
+    return ret;
+}
+
 SrsUdpListener::SrsUdpListener(SrsServer* server, SrsListenerType type, SrsConfDirective* c) : SrsListener(server, type)
 {
     _type = type;
@@ -1022,11 +1063,13 @@ int SrsServer::listen_stream_caster()
             continue;
         }
 
-        SrsUdpListener* listener = NULL;
+        SrsListener* listener = NULL;
 
         std::string caster = _srs_config->get_stream_caster_engine(stream_caster);
         if (caster == SRS_CONF_DEFAULT_STREAM_CASTER_MPEGTS_OVER_UDP) {
             listener = new SrsUdpListener(this, SrsListenerMpegTsOverUdp, stream_caster);
+        } else if (caster == SRS_CONF_DEFAULT_STREAM_CASTER_RTSP) {
+            listener = new SrsRtspListener(this, SrsListenerRtsp, stream_caster);
         } else {
             ret = ERROR_STREAM_CASTER_ENGINE;
             srs_error("unsupported stream caster %s. ret=%d", caster.c_str(), ret);

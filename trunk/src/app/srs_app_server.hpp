@@ -48,6 +48,7 @@ class SrsHttpHeartbeat;
 class SrsKbps;
 class SrsConfDirective;
 class ISrsUdpHandler;
+class ISrsRtspHandler;
 
 // listener type for server to identify the connection,
 // that is, use different type to process the connection.
@@ -61,6 +62,8 @@ enum SrsListenerType
     SrsListenerHttpStream       = 2,
     // UDP stream, MPEG-TS over udp.
     SrsListenerMpegTsOverUdp    = 3,
+    // TCP stream, RTSP stream.
+    SrsListenerRtsp             = 4,
 };
 
 /**
@@ -88,6 +91,21 @@ public:
 };
 
 #ifdef SRS_AUTO_STREAM_CASTER
+/**
+* the tcp listener, for rtsp server.
+*/
+class SrsRtspListener : public SrsListener
+{
+private:
+    ISrsRtspHandler* caster;
+public:
+    SrsRtspListener(SrsServer* server, SrsListenerType type, SrsConfDirective* c);
+    virtual ~SrsRtspListener();
+// interface ISrsThreadHandler.
+public:
+    virtual int cycle();
+};
+
 /**
 * the udp listener, for udp server.
 */
