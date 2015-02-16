@@ -31,10 +31,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <string>
+#include <vector>
+
+#include <srs_app_st.hpp>
+#include <srs_app_thread.hpp>
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
 class SrsConfDirective;
+class SrsStSocket;
+class SrsRtspStack;
+class SrsRtspCaster;
 
 /**
 * the handler for rtsp handler.
@@ -44,18 +51,54 @@ class ISrsRtspHandler
 public:
     ISrsRtspHandler();
     virtual ~ISrsRtspHandler();
+public:
+    /**
+    * serve the rtsp connection.
+    */
+    virtual int serve_client(st_netfd_t stfd) = 0;
 };
 
 /**
-* the connection for rtsp.
+* the rtsp connection serve the fd.
 */
-class SrsRtspConn : public ISrsRtspHandler
+class SrsRtspConn : public ISrsThreadHandler
 {
 private:
     std::string output;
+    st_netfd_t stfd;
+    SrsStSocket* skt;
+    SrsRtspStack* rtsp;
+    SrsRtspCaster* caster;
+    SrsThread* trd;
 public:
-    SrsRtspConn(SrsConfDirective* c);
+    SrsRtspConn(SrsRtspCaster* c, st_netfd_t fd, std::string o);
     virtual ~SrsRtspConn();
+public:
+    virtual int serve();
+private:
+    virtual int do_cycle();
+// interface ISrsThreadHandler
+public:
+    virtual int cycle();
+    virtual void on_thread_stop();
+};
+
+/**
+* the caster for rtsp.
+*/
+class SrsRtspCaster : public ISrsRtspHandler
+{
+private:
+    std::string output;
+    std::vector<SrsRtspConn*> clients;
+public:
+    SrsRtspCaster(SrsConfDirective* c);
+    virtual ~SrsRtspCaster();
+public:
+    virtual int serve_client(st_netfd_t stfd);
+// internal methods.
+public:
+    virtual void remove(SrsRtspConn* conn);
 };
 
 #endif

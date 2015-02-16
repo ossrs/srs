@@ -240,7 +240,7 @@ SrsRtspListener::SrsRtspListener(SrsServer* server, SrsListenerType type, SrsCon
     // we just assert here for unknown stream caster.
     srs_assert(_type == SrsListenerRtsp);
     if (_type == SrsListenerRtsp) {
-        caster = new SrsRtspConn(c);
+        caster = new SrsRtspCaster(c);
     }
 }
 
@@ -262,7 +262,7 @@ int SrsRtspListener::cycle()
     }
     srs_verbose("get a client. fd=%d", st_netfd_fileno(client_stfd));
     
-    if ((ret = _server->accept_client(_type, client_stfd)) != ERROR_SUCCESS) {
+    if ((ret = caster->serve_client(client_stfd)) != ERROR_SUCCESS) {
         srs_warn("accept client error. ret=%d", ret);
         return ret;
     }

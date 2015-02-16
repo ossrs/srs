@@ -46,22 +46,78 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * which will cause the socket to return error and 
 * terminate the cycle thread.
 *
-* when thread interrupt, the socket maybe not got EINT,
-* espectially on st_usleep(), so the cycle must check the loop,
-* when handler->cycle() has loop itself, for example:
-*         while (true):
-*             if (read_from_socket(skt) < 0) break;
-* if thread stop when read_from_socket, it's ok, the loop will break,
-* but when thread stop interrupt the s_usleep(0), then the loop is
-* death loop.
-* in a word, the handler->cycle() must:
-*         while (pthread->can_loop()):
-*             if (read_from_socket(skt) < 0) break;
-* check the loop, then it works.
+* Usage 1: stop by other thread.
+*       user can create thread and stop then start again and again,
+*       generally must provides a start and stop method, @see SrsIngester.
+*       the step to create a thread stop by other thread:
+*       1. create SrsThread field, with joinable true.
+*       2. must use stop to stop and join the thread.
+*       for example:
+*           class SrsIngester : public ISrsThreadHandler {
+*               public: SrsIngester() { pthread = new SrsThread("ingest", this, SRS_AUTO_INGESTER_SLEEP_US, true); }
+*               public: virtual int start() { return pthread->start(); }
+*               public: virtual void stop() { pthread->stop(); }
+*               public: virtual int cycle() { 
+*                   // check status, start ffmpeg when stopped. 
+*               }
+*           };
 *
-* in the thread itself, that is the cycle method,
-* if itself want to terminate the thread, should never use stop(),
-* but use stop_loop() to set the loop to false and terminate normally.
+* Usage 2: stop by thread itself.
+*       user can create thread which stop itself,
+*       generally only need to provides a start method, 
+*       the object will destroy itself then terminate the thread, @see SrsConnection
+*       1. create SrsThread field, with joinable false.
+*       2. owner stop thread loop, destroy itself when thread stop.
+*       for example:
+*           class SrsConnection : public ISrsThreadHandler {
+*               public: SrsConnection() { pthread = new SrsThread("conn", this, 0, false); }
+*               public: virtual int start() { return pthread->start(); }
+*               public: virtual int cycle() { 
+*                   // serve client.
+*                   // set loop to stop to quit, stop thread itself.
+*                   pthread->stop_loop();
+*               }
+*               public: virtual int on_thread_stop() { 
+*                   // remove the connection in thread itself.
+*                   server->remove(this); 
+*               }
+*           };
+* 
+* Usage 3: loop in the cycle method.
+*       user can use loop code in the cycle method, @see SrsForwarder
+*       1. create SrsThread field, with or without joinable is ok.
+*       2. loop code in cycle method, check the can_loop() for thread to quit.
+*       for example:
+*           class SrsForwarder : public ISrsThreadHandler {
+*               public: virtual int cycle() {
+*                   while (pthread->can_loop()) {
+*                       // read msgs from queue and forward to server.
+*                   }
+*               }
+*           };
+*
+* @remark why should check can_loop() in cycle method?
+*       when thread interrupt, the socket maybe not got EINT,
+*       espectially on st_usleep(), so the cycle must check the loop,
+*       when handler->cycle() has loop itself, for example:
+*               while (true):
+*                   if (read_from_socket(skt) < 0) break;
+*       if thread stop when read_from_socket, it's ok, the loop will break,
+*       but when thread stop interrupt the s_usleep(0), then the loop is
+*       death loop.
+*       in a word, the handler->cycle() must:
+*               while (pthread->can_loop()):
+*                   if (read_from_socket(skt) < 0) break;
+*       check the loop, then it works.
+*
+* @remark why should use stop_loop() to terminate thread in itself?
+*       in the thread itself, that is the cycle method,
+*       if itself want to terminate the thread, should never use stop(),
+*       but use stop_loop() to set the loop to false and terminate normally.
+* 
+* @remark when should set the interval_us, and when not?
+*       the cycle will invoke util cannot loop, eventhough the return code of cycle is error,
+*       so the interval_us used to sleep for each cycle. 
 */
 class ISrsThreadHandler
 {

@@ -229,6 +229,12 @@
     <ClCompile Include="..\..\src\protocol\srs_raw_avc.cpp">
       <Filter>srs</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\app\srs_app_rtsp.cpp">
+      <Filter>srs</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\protocol\srs_rtsp_stack.cpp">
+      <Filter>srs</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\app\srs_app_bandwidth.hpp">
@@ -418,6 +424,12 @@
       <Filter>srs</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\protocol\srs_raw_avc.hpp">
+      <Filter>srs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\app\srs_app_rtsp.hpp">
+      <Filter>srs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\protocol\srs_rtsp_stack.hpp">
       <Filter>srs</Filter>
     </ClInclude>
   </ItemGroup>

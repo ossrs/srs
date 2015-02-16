@@ -36,6 +36,8 @@ file
 	../../src/kernel/srs_kernel_log.cpp,
 	../../src/kernel/srs_kernel_mp3.hpp,
 	../../src/kernel/srs_kernel_mp3.cpp,
+        ../../src/kernel/srs_rtsp_stack.hpp,
+        ../../src/kernel/srs_rtsp_stack.cpp,
 	../../src/kernel/srs_kernel_stream.hpp,
 	../../src/kernel/srs_kernel_stream.cpp,
 	../../src/kernel/srs_kernel_ts.cpp,
