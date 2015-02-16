@@ -39,6 +39,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <http_parser.h>
 
 #include <srs_app_st.hpp>
+#include <srs_kernel_consts.hpp>
 
 class SrsRequest;
 class SrsStSocket;
@@ -51,19 +52,19 @@ class ISrsGoHttpResponseWriter;
 
 // http specification
 // CR             = <US-ASCII CR, carriage return (13)>
-#define __SRS_CR SRS_CONSTS_CR // 0x0D
+#define __SRS_HTTP_CR SRS_CONSTS_CR // 0x0D
 // LF             = <US-ASCII LF, linefeed (10)>
-#define __SRS_LF SRS_CONSTS_LF // 0x0A
+#define __SRS_HTTP_LF SRS_CONSTS_LF // 0x0A
 // SP             = <US-ASCII SP, space (32)>
-#define __SRS_SP ' ' // 0x20
+#define __SRS_HTTP_SP ' ' // 0x20
 // HT             = <US-ASCII HT, horizontal-tab (9)>
-#define __SRS_HT '\x09' // 0x09
+#define __SRS_HTTP_HT '\x09' // 0x09
 
 // HTTP/1.1 defines the sequence CR LF as the end-of-line marker for all
 // protocol elements except the entity-body (see appendix 19.3 for
 // tolerant applications). 
-#define __SRS_CRLF "\r\n" // 0x0D0A
-#define __SRS_CRLFCRLF "\r\n\r\n" // 0x0D0A0D0A
+#define __SRS_HTTP_CRLF "\r\n" // 0x0D0A
+#define __SRS_HTTP_CRLFCRLF "\r\n\r\n" // 0x0D0A0D0A
 
 // @see SrsHttpMessage._http_ts_send_buffer
 #define __SRS_HTTP_TS_SEND_BUFFER_SIZE 4096

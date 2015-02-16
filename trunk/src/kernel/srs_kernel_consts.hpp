@@ -265,43 +265,137 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONSTS_HTTP_Continue_str                           "Continue"
 #define SRS_CONSTS_HTTP_SwitchingProtocols_str                 "Switching Protocols"
 #define SRS_CONSTS_HTTP_OK_str                                 "OK"
-#define SRS_CONSTS_HTTP_Created_str                            "Created "
+#define SRS_CONSTS_HTTP_Created_str                            "Created"
 #define SRS_CONSTS_HTTP_Accepted_str                           "Accepted"
-#define SRS_CONSTS_HTTP_NonAuthoritativeInformation_str        "Non Authoritative Information "
-#define SRS_CONSTS_HTTP_NoContent_str                          "No Content "
+#define SRS_CONSTS_HTTP_NonAuthoritativeInformation_str        "Non Authoritative Information"
+#define SRS_CONSTS_HTTP_NoContent_str                          "No Content"
 #define SRS_CONSTS_HTTP_ResetContent_str                       "Reset Content"
 #define SRS_CONSTS_HTTP_PartialContent_str                     "Partial Content"
-#define SRS_CONSTS_HTTP_MultipleChoices_str                    "Multiple Choices "
+#define SRS_CONSTS_HTTP_MultipleChoices_str                    "Multiple Choices"
 #define SRS_CONSTS_HTTP_MovedPermanently_str                   "Moved Permanently"
 #define SRS_CONSTS_HTTP_Found_str                              "Found"
 #define SRS_CONSTS_HTTP_SeeOther_str                           "See Other"
-#define SRS_CONSTS_HTTP_NotModified_str                        "Not Modified "
+#define SRS_CONSTS_HTTP_NotModified_str                        "Not Modified"
 #define SRS_CONSTS_HTTP_UseProxy_str                           "Use Proxy"
-#define SRS_CONSTS_HTTP_TemporaryRedirect_str                  "Temporary Redirect "
+#define SRS_CONSTS_HTTP_TemporaryRedirect_str                  "Temporary Redirect"
 #define SRS_CONSTS_HTTP_BadRequest_str                         "Bad Request"
 #define SRS_CONSTS_HTTP_Unauthorized_str                       "Unauthorized"
-#define SRS_CONSTS_HTTP_PaymentRequired_str                    "Payment Required "
-#define SRS_CONSTS_HTTP_Forbidden_str                          "Forbidden "
+#define SRS_CONSTS_HTTP_PaymentRequired_str                    "Payment Required"
+#define SRS_CONSTS_HTTP_Forbidden_str                          "Forbidden"
 #define SRS_CONSTS_HTTP_NotFound_str                           "Not Found"
 #define SRS_CONSTS_HTTP_MethodNotAllowed_str                   "Method Not Allowed"
-#define SRS_CONSTS_HTTP_NotAcceptable_str                      "Not Acceptable "
-#define SRS_CONSTS_HTTP_ProxyAuthenticationRequired_str        "Proxy Authentication Required "
+#define SRS_CONSTS_HTTP_NotAcceptable_str                      "Not Acceptable"
+#define SRS_CONSTS_HTTP_ProxyAuthenticationRequired_str        "Proxy Authentication Required"
 #define SRS_CONSTS_HTTP_RequestTimeout_str                     "Request Timeout"
 #define SRS_CONSTS_HTTP_Conflict_str                           "Conflict"
 #define SRS_CONSTS_HTTP_Gone_str                               "Gone"
 #define SRS_CONSTS_HTTP_LengthRequired_str                     "Length Required"
 #define SRS_CONSTS_HTTP_PreconditionFailed_str                 "Precondition Failed"
-#define SRS_CONSTS_HTTP_RequestEntityTooLarge_str              "Request Entity Too Large "
+#define SRS_CONSTS_HTTP_RequestEntityTooLarge_str              "Request Entity Too Large"
 #define SRS_CONSTS_HTTP_RequestURITooLarge_str                 "Request URI Too Large"
 #define SRS_CONSTS_HTTP_UnsupportedMediaType_str               "Unsupported Media Type"
 #define SRS_CONSTS_HTTP_RequestedRangeNotSatisfiable_str       "Requested Range Not Satisfiable"
-#define SRS_CONSTS_HTTP_ExpectationFailed_str                  "Expectation Failed "
-#define SRS_CONSTS_HTTP_InternalServerError_str                "Internal Server Error "
+#define SRS_CONSTS_HTTP_ExpectationFailed_str                  "Expectation Failed"
+#define SRS_CONSTS_HTTP_InternalServerError_str                "Internal Server Error"
 #define SRS_CONSTS_HTTP_NotImplemented_str                     "Not Implemented"
 #define SRS_CONSTS_HTTP_BadGateway_str                         "Bad Gateway"
 #define SRS_CONSTS_HTTP_ServiceUnavailable_str                 "Service Unavailable"
 #define SRS_CONSTS_HTTP_GatewayTimeout_str                     "Gateway Timeout"
 #define SRS_CONSTS_HTTP_HTTPVersionNotSupported_str            "HTTP Version Not Supported"
+
+///////////////////////////////////////////////////////////
+// RTSP consts values
+///////////////////////////////////////////////////////////
+// 7.1.1 Status Code and Reason Phrase
+#define SRS_CONSTS_RTSP_Continue                       100
+#define SRS_CONSTS_RTSP_OK                             200
+#define SRS_CONSTS_RTSP_Created                        201
+#define SRS_CONSTS_RTSP_LowOnStorageSpace              250
+#define SRS_CONSTS_RTSP_MultipleChoices                300
+#define SRS_CONSTS_RTSP_MovedPermanently               301
+#define SRS_CONSTS_RTSP_MovedTemporarily               302
+#define SRS_CONSTS_RTSP_SeeOther                       303
+#define SRS_CONSTS_RTSP_NotModified                    304
+#define SRS_CONSTS_RTSP_UseProxy                       305
+#define SRS_CONSTS_RTSP_BadRequest                     400
+#define SRS_CONSTS_RTSP_Unauthorized                   401
+#define SRS_CONSTS_RTSP_PaymentRequired                402
+#define SRS_CONSTS_RTSP_Forbidden                      403
+#define SRS_CONSTS_RTSP_NotFound                       404
+#define SRS_CONSTS_RTSP_MethodNotAllowed               405
+#define SRS_CONSTS_RTSP_NotAcceptable                  406
+#define SRS_CONSTS_RTSP_ProxyAuthenticationRequired    407
+#define SRS_CONSTS_RTSP_RequestTimeout                 408
+#define SRS_CONSTS_RTSP_Gone                           410
+#define SRS_CONSTS_RTSP_LengthRequired                 411
+#define SRS_CONSTS_RTSP_PreconditionFailed             412
+#define SRS_CONSTS_RTSP_RequestEntityTooLarge          413
+#define SRS_CONSTS_RTSP_RequestURITooLarge             414
+#define SRS_CONSTS_RTSP_UnsupportedMediaType           415
+#define SRS_CONSTS_RTSP_ParameterNotUnderstood         451
+#define SRS_CONSTS_RTSP_ConferenceNotFound             452
+#define SRS_CONSTS_RTSP_NotEnoughBandwidth             453
+#define SRS_CONSTS_RTSP_SessionNotFound                454
+#define SRS_CONSTS_RTSP_MethodNotValidInThisState      455
+#define SRS_CONSTS_RTSP_HeaderFieldNotValidForResource 456
+#define SRS_CONSTS_RTSP_InvalidRange                   457
+#define SRS_CONSTS_RTSP_ParameterIsReadOnly            458
+#define SRS_CONSTS_RTSP_AggregateOperationNotAllowed   459
+#define SRS_CONSTS_RTSP_OnlyAggregateOperationAllowed  460
+#define SRS_CONSTS_RTSP_UnsupportedTransport           461
+#define SRS_CONSTS_RTSP_DestinationUnreachable         462
+#define SRS_CONSTS_RTSP_InternalServerError            500
+#define SRS_CONSTS_RTSP_NotImplemented                 501
+#define SRS_CONSTS_RTSP_BadGateway                     502
+#define SRS_CONSTS_RTSP_ServiceUnavailable             503
+#define SRS_CONSTS_RTSP_GatewayTimeout                 504
+#define SRS_CONSTS_RTSP_RTSPVersionNotSupported        505
+#define SRS_CONSTS_RTSP_OptionNotSupported             551
+
+#define SRS_CONSTS_RTSP_Continue_str                            "Continue"
+#define SRS_CONSTS_RTSP_OK_str                                  "OK"
+#define SRS_CONSTS_RTSP_Created_str                             "Created"
+#define SRS_CONSTS_RTSP_LowOnStorageSpace_str                   "Low on Storage Space"
+#define SRS_CONSTS_RTSP_MultipleChoices_str                     "Multiple Choices"
+#define SRS_CONSTS_RTSP_MovedPermanently_str                    "Moved Permanently"
+#define SRS_CONSTS_RTSP_MovedTemporarily_str                    "Moved Temporarily"
+#define SRS_CONSTS_RTSP_SeeOther_str                            "See Other"
+#define SRS_CONSTS_RTSP_NotModified_str                         "Not Modified"
+#define SRS_CONSTS_RTSP_UseProxy_str                            "Use Proxy"
+#define SRS_CONSTS_RTSP_BadRequest_str                          "Bad Request"
+#define SRS_CONSTS_RTSP_Unauthorized_str                        "Unauthorized"
+#define SRS_CONSTS_RTSP_PaymentRequired_str                     "Payment Required"
+#define SRS_CONSTS_RTSP_Forbidden_str                           "Forbidden"
+#define SRS_CONSTS_RTSP_NotFound_str                            "Not Found"
+#define SRS_CONSTS_RTSP_MethodNotAllowed_str                    "Method Not Allowed"
+#define SRS_CONSTS_RTSP_NotAcceptable_str                       "Not Acceptable"
+#define SRS_CONSTS_RTSP_ProxyAuthenticationRequired_str         "Proxy Authentication Required"
+#define SRS_CONSTS_RTSP_RequestTimeout_str                      "Request Timeout"
+#define SRS_CONSTS_RTSP_Gone_str                                "Gone"
+#define SRS_CONSTS_RTSP_LengthRequired_str                      "Length Required"
+#define SRS_CONSTS_RTSP_PreconditionFailed_str                  "Precondition Failed"
+#define SRS_CONSTS_RTSP_RequestEntityTooLarge_str               "Request Entity Too Large"
+#define SRS_CONSTS_RTSP_RequestURITooLarge_str                  "Request URI Too Large"
+#define SRS_CONSTS_RTSP_UnsupportedMediaType_str                "Unsupported Media Type"
+#define SRS_CONSTS_RTSP_ParameterNotUnderstood_str              "Invalid parameter"
+#define SRS_CONSTS_RTSP_ConferenceNotFound_str                  "Illegal Conference Identifier"
+#define SRS_CONSTS_RTSP_NotEnoughBandwidth_str                  "Not Enough Bandwidth"
+#define SRS_CONSTS_RTSP_SessionNotFound_str                     "Session Not Found"
+#define SRS_CONSTS_RTSP_MethodNotValidInThisState_str           "Method Not Valid In This State"
+#define SRS_CONSTS_RTSP_HeaderFieldNotValidForResource_str      "Header Field Not Valid"
+#define SRS_CONSTS_RTSP_InvalidRange_str                        "Invalid Range"
+#define SRS_CONSTS_RTSP_ParameterIsReadOnly_str                 "Parameter Is Read-Only"
+#define SRS_CONSTS_RTSP_AggregateOperationNotAllowed_str        "Aggregate Operation Not Allowed"
+#define SRS_CONSTS_RTSP_OnlyAggregateOperationAllowed_str       "Only Aggregate Operation Allowed"
+#define SRS_CONSTS_RTSP_UnsupportedTransport_str                "Unsupported Transport"
+#define SRS_CONSTS_RTSP_DestinationUnreachable_str              "Destination Unreachable"
+#define SRS_CONSTS_RTSP_InternalServerError_str                 "Internal Server Error"
+#define SRS_CONSTS_RTSP_NotImplemented_str                      "Not Implemented"
+#define SRS_CONSTS_RTSP_BadGateway_str                          "Bad Gateway"
+#define SRS_CONSTS_RTSP_ServiceUnavailable_str                  "Service Unavailable"
+#define SRS_CONSTS_RTSP_GatewayTimeout_str                      "Gateway Timeout"
+#define SRS_CONSTS_RTSP_RTSPVersionNotSupported_str             "RTSP Version Not Supported"
+#define SRS_CONSTS_RTSP_OptionNotSupported_str                  "Option not support"
 
 #endif
 

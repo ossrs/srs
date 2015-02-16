@@ -62,7 +62,7 @@ int srs_go_http_response_json(ISrsGoHttpResponseWriter* w, string data)
 }
 
 // get the status text of code.
-string srs_generate_status_text(int status)
+string srs_generate_http_status_text(int status)
 {
     static std::map<int, std::string> _status_map;
     if (_status_map.empty()) {
@@ -212,7 +212,7 @@ void SrsGoHttpHeader::write(stringstream& ss)
 {
     std::map<std::string, std::string>::iterator it;
     for (it = headers.begin(); it != headers.end(); ++it) {
-        ss << it->first << ": " << it->second << __SRS_CRLF;
+        ss << it->first << ": " << it->second << __SRS_HTTP_CRLF;
     }
 }
 
@@ -711,7 +711,7 @@ int SrsGoHttpResponseWriter::final_request()
     // complete the chunked encoding.
     if (content_length == -1) {
         std::stringstream ss;
-        ss << 0 << __SRS_CRLF << __SRS_CRLF;
+        ss << 0 << __SRS_HTTP_CRLF << __SRS_HTTP_CRLF;
         std::string ch = ss.str();
         return skt->write((void*)ch.data(), (int)ch.length(), NULL);
     }
@@ -752,7 +752,7 @@ int SrsGoHttpResponseWriter::write(char* data, int size)
     
     // send in chunked encoding.
     std::stringstream ss;
-    ss << hex << size << __SRS_CRLF;
+    ss << hex << size << __SRS_HTTP_CRLF;
     std::string ch = ss.str();
     if ((ret = skt->write((void*)ch.data(), (int)ch.length(), NULL)) != ERROR_SUCCESS) {
         return ret;
@@ -760,7 +760,7 @@ int SrsGoHttpResponseWriter::write(char* data, int size)
     if ((ret = skt->write((void*)data, size, NULL)) != ERROR_SUCCESS) {
         return ret;
     }
-    if ((ret = skt->write((void*)__SRS_CRLF, 2, NULL)) != ERROR_SUCCESS) {
+    if ((ret = skt->write((void*)__SRS_HTTP_CRLF, 2, NULL)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -794,7 +794,7 @@ int SrsGoHttpResponseWriter::send_header(char* data, int size)
     
     // status_line
     ss << "HTTP/1.1 " << status << " " 
-        << srs_generate_status_text(status) << __SRS_CRLF;
+        << srs_generate_http_status_text(status) << __SRS_HTTP_CRLF;
         
     // detect content type
     if (srs_go_http_body_allowd(status)) {
@@ -820,7 +820,7 @@ int SrsGoHttpResponseWriter::send_header(char* data, int size)
     hdr->write(ss);
     
     // header_eof
-    ss << __SRS_CRLF;
+    ss << __SRS_HTTP_CRLF;
     
     std::string buf = ss.str();
     return skt->write((void*)buf.c_str(), buf.length(), NULL);

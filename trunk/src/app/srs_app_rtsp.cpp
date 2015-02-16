@@ -32,6 +32,7 @@ using namespace std;
 #include <srs_app_st_socket.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_core_autofree.hpp>
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
@@ -75,6 +76,28 @@ int SrsRtspConn::do_cycle()
     // retrieve ip of client.
     std::string ip = srs_get_peer_ip(st_netfd_fileno(stfd));
     srs_trace("rtsp: serve %s", ip.c_str());
+
+    // consume all rtsp messages.
+    for (;;) {
+        SrsRtspRequest* req = NULL;
+        if ((ret = rtsp->recv_message(&req)) != ERROR_SUCCESS) {
+            if (!srs_is_client_gracefully_close(ret)) {
+                srs_error("rtsp: recv request failed. ret=%d", ret);
+            }
+            return ret;
+        }
+        SrsAutoFree(SrsRtspRequest, req);
+        srs_info("rtsp: got rtsp request");
+
+        if (req->is_options()) {
+            if ((ret = rtsp->send_message(new SrsRtspOptionsResponse(req->seq))) != ERROR_SUCCESS) {
+                if (!srs_is_client_gracefully_close(ret)) {
+                    srs_error("rtsp: send response failed. ret=%d", ret);
+                }
+                return ret;
+            }
+        }
+    }
 
     return ret;
 }
