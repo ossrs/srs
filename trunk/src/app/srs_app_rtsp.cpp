@@ -68,7 +68,7 @@ SrsRtspConn::SrsRtspConn(SrsRtspCaster* c, st_netfd_t fd, std::string o)
 {
     output = o;
 
-    session = "O9EaZ4bf"; // TODO: FIXME: generate session id.
+    session = "";
     video_rtp = NULL;
     audio_rtp = NULL;
 
@@ -118,7 +118,9 @@ int SrsRtspConn::do_cycle()
         srs_info("rtsp: got rtsp request");
 
         if (req->is_options()) {
-            if ((ret = rtsp->send_message(new SrsRtspOptionsResponse(req->seq))) != ERROR_SUCCESS) {
+            SrsRtspOptionsResponse* res = new SrsRtspOptionsResponse(req->seq);
+            res->session = session;
+            if ((ret = rtsp->send_message(res)) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
                     srs_error("rtsp: send OPTIONS response failed. ret=%d", ret);
                 }
@@ -136,7 +138,10 @@ int SrsRtspConn::do_cycle()
                 req->sdp->audio_stream_id.c_str(), req->sdp->audio_codec.c_str(), 
                 req->sdp->audio_sample_rate.c_str(), req->sdp->audio_channel.c_str()
             );
-            if ((ret = rtsp->send_message(new SrsRtspResponse(req->seq))) != ERROR_SUCCESS) {
+
+            SrsRtspResponse* res = new SrsRtspResponse(req->seq);
+            res->session = session;
+            if ((ret = rtsp->send_message(res)) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
                     srs_error("rtsp: send ANNOUNCE response failed. ret=%d", ret);
                 }
@@ -164,11 +169,25 @@ int SrsRtspConn::do_cycle()
             }
             srs_trace("rtsp: rtp listen at port=%d ok.", lpm);
 
+            // create session.
+            if (session.empty()) {
+                session = "O9EaZ4bf"; // TODO: FIXME: generate session id.
+            }
+
             SrsRtspSetupResponse* res = new SrsRtspSetupResponse(req->seq);
             res->client_port_min = req->transport->client_port_min;
             res->client_port_max = req->transport->client_port_max;
             res->local_port_min = lpm;
             res->local_port_max = lpm + 1;
+            res->session = session;
+            if ((ret = rtsp->send_message(res)) != ERROR_SUCCESS) {
+                if (!srs_is_client_gracefully_close(ret)) {
+                    srs_error("rtsp: send SETUP response failed. ret=%d", ret);
+                }
+                return ret;
+            }
+        } else if (req->is_record()) {
+            SrsRtspResponse* res = new SrsRtspResponse(req->seq);
             res->session = session;
             if ((ret = rtsp->send_message(res)) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {

@@ -337,6 +337,10 @@ public:
     * assumed. It is interpreted according to [H14.14].
     */
     long content_length;
+    /**
+    * the session id.
+    */
+    std::string session;
 
     /**
     * the sdp in announce, NULL for no sdp.
@@ -357,6 +361,7 @@ public:
     virtual bool is_options();
     virtual bool is_announce();
     virtual bool is_setup();
+    virtual bool is_record();
 };
 
 /**
@@ -401,6 +406,10 @@ public:
     * for retransmissions of the same request).
     */
     long seq;
+    /**
+    * the session id.
+    */
+    std::string session;
 public:
     SrsRtspResponse(int cseq);
     virtual ~SrsRtspResponse();

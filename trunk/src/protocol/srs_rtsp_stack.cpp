@@ -486,6 +486,11 @@ bool SrsRtspRequest::is_setup()
     return method == __SRS_METHOD_SETUP;
 }
 
+bool SrsRtspRequest::is_record()
+{
+    return method == __SRS_METHOD_RECORD;
+}
+
 SrsRtspResponse::SrsRtspResponse(int cseq)
 {
     seq = cseq;
@@ -512,6 +517,11 @@ int SrsRtspResponse::encode(stringstream& ss)
     ss << "Cache-Control: no-store" << __SRS_RTSP_CRLF
         << "Pragma: no-cache" << __SRS_RTSP_CRLF
         << "Server: " << RTMP_SIG_SRS_SERVER << __SRS_RTSP_CRLF;
+
+    // session if specified.
+    if (!session.empty()) {
+        ss << __SRS_TOKEN_SESSION << ":" << session << __SRS_RTSP_CRLF;
+    }
 
     if ((ret = encode_header(ss)) != ERROR_SUCCESS) {
         srs_error("rtsp: encode header failed. ret=%d", ret);
@@ -728,6 +738,13 @@ int SrsRtspStack::do_recv_message(SrsRtspRequest* req)
             }
             if ((ret = req->transport->parse(transport)) != ERROR_SUCCESS) {
                 srs_error("rtsp: parse transport failed, transport=%s. ret=%d", transport.c_str(), ret);
+                return ret;
+            }
+        } else if (token == __SRS_TOKEN_SESSION) {
+            if ((ret = recv_token_eof(req->session)) != ERROR_SUCCESS) {
+                if (!srs_is_client_gracefully_close(ret)) {
+                    srs_error("rtsp: parse %s failed. ret=%d", __SRS_TOKEN_SESSION, ret);
+                }
                 return ret;
             }
         } else {
