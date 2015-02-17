@@ -48,7 +48,7 @@ class ISrsProtocolReaderWriter;
 // SP             = <US-ASCII SP, space (32)>
 #define __SRS_RTSP_SP ' ' // 0x20
 
-// 4 RTSP Message
+// 4 RTSP Message, @see rtsp-rfc2326-1998.pdf, page 37
 // Lines are terminated by CRLF, but
 // receivers should be prepared to also interpret CR and LF by
 // themselves as line terminators.
@@ -100,7 +100,7 @@ enum SrsRtspSdpState
 };
 
 /**
-* 10 Method Definitions
+* 10 Method Definitions, @see rtsp-rfc2326-1998.pdf, page 57
 * The method token indicates the method to be performed on the resource
 * identified by the Request-URI. The method is case-sensitive. New
 * methods may be defined in the future. Method names may not start with
@@ -147,7 +147,7 @@ enum SrsRtspTokenState
 };
 
 /**
-* the sdp in announce.
+* the sdp in announce, @see rtsp-rfc2326-1998.pdf, page 159
 * Appendix C: Use of SDP for RTSP Session Descriptions
 * The Session Description Protocol (SDP, RFC 2327 [6]) may be used to
 * describe streams or presentations in RTSP.
@@ -241,7 +241,7 @@ private:
 
 /**
 * the rtsp transport.
-* 12.39 Transport
+* 12.39 Transport, @see rtsp-rfc2326-1998.pdf, page 115
 * This request header indicates which transport protocol is to be used
 * and configures its parameters such as destination address,
 * compression, multicast time-to-live and destination port for a single
@@ -288,7 +288,7 @@ public:
 
 /**
 * the rtsp request message.
-* 6 Request
+* 6 Request, @see rtsp-rfc2326-1998.pdf, page 39
 * A request message from a client to a server or vice versa includes,
 * within the first line of that message, the method to be applied to
 * the resource, the identifier of the resource, and the protocol
@@ -322,14 +322,14 @@ public:
     */
     long seq;
     /**
-    * 12.16 Content-Type
+    * 12.16 Content-Type, @see rtsp-rfc2326-1998.pdf, page 99
     * See [H14.18]. Note that the content types suitable for RTSP are
     * likely to be restricted in practice to presentation descriptions and
     * parameter-value types.
     */
     std::string content_type;
     /**
-    * 12.14 Content-Length
+    * 12.14 Content-Length, @see rtsp-rfc2326-1998.pdf, page 99
     * This field contains the length of the content of the method (i.e.
     * after the double CRLF following the last header). Unlike HTTP, it
     * MUST be included in all messages that carry content beyond the header
@@ -353,7 +353,7 @@ public:
     /**
     * for setup message, parse the stream id from uri.
     */
-    std::string stream_id;
+    int stream_id;
 public:
     SrsRtspRequest();
     virtual ~SrsRtspRequest();
@@ -366,7 +366,7 @@ public:
 
 /**
 * the rtsp response message.
-* 7 Response
+* 7 Response, @see rtsp-rfc2326-1998.pdf, page 43
 * [H6] applies except that HTTP-Version is replaced by RTSP-Version.
 * Also, RTSP defines additional status codes and does not define some
 * HTTP codes. The valid response codes and the methods they can be used
@@ -396,7 +396,7 @@ public:
     // @see about the status of rtsp, see SRS_CONSTS_RTSP_OK
     int status;
     /**
-    * 12.17 CSeq
+    * 12.17 CSeq, @see rtsp-rfc2326-1998.pdf, page 99
     * The CSeq field specifies the sequence number for an RTSP requestresponse
     * pair. This field MUST be present in all requests and
     * responses. For every RTSP request containing the given sequence
@@ -426,7 +426,7 @@ protected:
 };
 
 /**
-* 10.1 OPTIONS
+* 10.1 OPTIONS, @see rtsp-rfc2326-1998.pdf, page 59
 * The behavior is equivalent to that described in [H9.2]. An OPTIONS
 * request may be issued at any time, e.g., if the client is about to
 * try a nonstandard request. It does not influence server state.
@@ -446,7 +446,7 @@ protected:
 };
 
 /**
-* 10.4 SETUP
+* 10.4 SETUP, @see rtsp-rfc2326-1998.pdf, page 65
 * The SETUP request for a URI specifies the transport mechanism to be
 * used for the streamed media. A client can issue a SETUP request for a
 * stream that is already playing to change transport parameters, which

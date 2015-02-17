@@ -128,15 +128,19 @@ int SrsRtspConn::do_cycle()
             }
         } else if (req->is_announce()) {
             srs_assert(req->sdp);
-            video_id = req->sdp->video_stream_id;
-            audio_id = req->sdp->audio_stream_id;
+            video_id = ::atoi(req->sdp->video_stream_id.c_str());
+            audio_id = ::atoi(req->sdp->audio_stream_id.c_str());
+            video_codec = req->sdp->video_codec;
+            audio_codec = req->sdp->audio_codec;
+            audio_sample_rate = ::atoi(req->sdp->audio_sample_rate.c_str());
+            audio_channel = ::atoi(req->sdp->audio_channel.c_str());
             sps = req->sdp->video_sps;
             pps = req->sdp->video_pps;
             asc = req->sdp->audio_sh;
-            srs_trace("rtsp: video(#%s, %s), audio(#%s, %s, %sHZ %schannels)", 
-                req->sdp->video_stream_id.c_str(), req->sdp->video_codec.c_str(),
-                req->sdp->audio_stream_id.c_str(), req->sdp->audio_codec.c_str(), 
-                req->sdp->audio_sample_rate.c_str(), req->sdp->audio_channel.c_str()
+            srs_trace("rtsp: video(#%d, %s, %s/%s), audio(#%d, %s, %s/%s, %dHZ %dchannels)", 
+                video_id, video_codec.c_str(), req->sdp->video_protocol.c_str(), req->sdp->video_transport_format.c_str(), 
+                audio_id, audio_codec.c_str(), req->sdp->audio_protocol.c_str(), req->sdp->audio_transport_format.c_str(),
+                audio_sample_rate, audio_channel
             );
 
             SrsRtspResponse* res = new SrsRtspResponse(req->seq);
@@ -167,7 +171,12 @@ int SrsRtspConn::do_cycle()
                 srs_error("rtsp: rtp listen at port=%d failed. ret=%d", lpm, ret);
                 return ret;
             }
-            srs_trace("rtsp: rtp listen at port=%d ok.", lpm);
+            srs_trace("rtsp: #%d %s over %s/%s/%s %s client-port=%d-%d, server-port=%d-%d", 
+                req->stream_id, (req->stream_id == video_id)? "Video":"Audio", 
+                req->transport->transport.c_str(), req->transport->profile.c_str(), req->transport->lower_transport.c_str(), 
+                req->transport->cast_type.c_str(), req->transport->client_port_min, req->transport->client_port_max, 
+                lpm, lpm + 1
+            );
 
             // create session.
             if (session.empty()) {

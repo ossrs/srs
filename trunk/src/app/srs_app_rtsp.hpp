@@ -76,10 +76,14 @@ private:
 private:
     std::string session;
     // video stream.
-    std::string video_id;
+    int video_id;
+    std::string video_codec;
     SrsRtpConn* video_rtp;
     // audio stream.
-    std::string audio_id;
+    int audio_id;
+    std::string audio_codec;
+    int audio_sample_rate;
+    int audio_channel;
     SrsRtpConn* audio_rtp;
     // video sequence header.
     std::string sps;

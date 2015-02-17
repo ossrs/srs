@@ -461,6 +461,7 @@ SrsRtspRequest::SrsRtspRequest()
 {
     seq = 0;
     content_length = 0;
+    stream_id = 0;
     sdp = NULL;
     transport = NULL;
 }
@@ -766,13 +767,15 @@ int SrsRtspStack::do_recv_message(SrsRtspRequest* req)
     // for setup, parse the stream id from uri.
     if (req->is_setup()) {
         size_t pos = string::npos;
+        std::string stream_id;
         if ((pos = req->uri.rfind("/")) != string::npos) {
-            req->stream_id = req->uri.substr(pos + 1);
+            stream_id = req->uri.substr(pos + 1);
         }
-        if ((pos = req->stream_id.find("=")) != string::npos) {
-            req->stream_id = req->stream_id.substr(pos + 1);
+        if ((pos = stream_id.find("=")) != string::npos) {
+            stream_id = stream_id.substr(pos + 1);
         }
-        srs_info("rtsp: setup stream id=%s", req->stream_id.c_str());
+        req->stream_id = ::atoi(stream_id.c_str());
+        srs_info("rtsp: setup stream id=%d", req->stream_id);
     }
 
     // parse rdp body.
