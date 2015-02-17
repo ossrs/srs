@@ -32,30 +32,38 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 #include <vector>
+#include <map>
 
 #include <srs_app_st.hpp>
 #include <srs_app_thread.hpp>
+#include <srs_app_listener.hpp>
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
-class SrsConfDirective;
 class SrsStSocket;
+class SrsRtspConn;
 class SrsRtspStack;
 class SrsRtspCaster;
+class SrsConfDirective;
 
 /**
-* the handler for rtsp handler.
+* a rtp connection which transport a stream.
 */
-class ISrsRtspHandler
+class SrsRtpConn: public ISrsUdpHandler
 {
+private:
+    SrsUdpListener* listener;
+    SrsRtspConn* rtsp;
+    int _port;
 public:
-    ISrsRtspHandler();
-    virtual ~ISrsRtspHandler();
+    SrsRtpConn(SrsRtspConn* r, int p);
+    virtual ~SrsRtpConn();
 public:
-    /**
-    * serve the rtsp connection.
-    */
-    virtual int serve_client(st_netfd_t stfd) = 0;
+    virtual int port();
+    virtual int listen();
+// interface ISrsUdpHandler
+public:
+    virtual int on_udp_packet(sockaddr_in* from, char* buf, int nb_buf);
 };
 
 /**
@@ -65,10 +73,14 @@ class SrsRtspConn : public ISrsThreadHandler
 {
 private:
     std::string output;
-    int local_port_min;
-    int local_port_max;
 private:
     std::string session;
+    // video stream.
+    std::string video_id;
+    SrsRtpConn* video_rtp;
+    // audio stream.
+    std::string audio_id;
+    SrsRtpConn* audio_rtp;
     // video sequence header.
     std::string sps;
     std::string pps;
@@ -81,7 +93,7 @@ private:
     SrsRtspCaster* caster;
     SrsThread* trd;
 public:
-    SrsRtspConn(SrsRtspCaster* c, st_netfd_t fd, std::string o, int lpmin, int lpmax);
+    SrsRtspConn(SrsRtspCaster* c, st_netfd_t fd, std::string o);
     virtual ~SrsRtspConn();
 public:
     virtual int serve();
@@ -96,19 +108,32 @@ public:
 /**
 * the caster for rtsp.
 */
-class SrsRtspCaster : public ISrsRtspHandler
+class SrsRtspCaster : public ISrsTcpHandler
 {
 private:
     std::string output;
     int local_port_min;
     int local_port_max;
+    // key: port, value: whether used.
+    std::map<int, bool> used_ports;
 private:
     std::vector<SrsRtspConn*> clients;
 public:
     SrsRtspCaster(SrsConfDirective* c);
     virtual ~SrsRtspCaster();
 public:
-    virtual int serve_client(st_netfd_t stfd);
+    /**
+    * alloc a rtp port from local ports pool.
+    * @param pport output the rtp port.
+    */
+    virtual int alloc_port(int* pport);
+    /**
+    * free the alloced rtp port.
+    */
+    virtual void free_port(int lpmin, int lpmax);
+// interface ISrsTcpHandler
+public:
+    virtual int on_tcp_client(st_netfd_t stfd);
 // internal methods.
 public:
     virtual void remove(SrsRtspConn* conn);

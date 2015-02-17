@@ -77,8 +77,9 @@ SrsUdpListener::SrsUdpListener(ISrsUdpHandler* h, int p)
 
 SrsUdpListener::~SrsUdpListener()
 {
+    // close the stfd to trigger thread to interrupted.
     srs_close_stfd(stfd);
-    
+
     pthread->stop();
     srs_freep(pthread);
     
@@ -143,8 +144,8 @@ int SrsUdpListener::listen()
 int SrsUdpListener::cycle()
 {
     int ret = ERROR_SUCCESS;
-
-    for (;;) {
+    
+    while (pthread->can_loop()) {
         // TODO: FIXME: support ipv6, @see man 7 ipv6
         sockaddr_in from;
         int nb_from = sizeof(sockaddr_in);
@@ -181,8 +182,9 @@ SrsTcpListener::SrsTcpListener(ISrsTcpHandler* h, int p)
 
 SrsTcpListener::~SrsTcpListener()
 {
+    // close the stfd to trigger thread to interrupted.
     srs_close_stfd(stfd);
-    
+
     pthread->stop();
     srs_freep(pthread);
     

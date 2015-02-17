@@ -36,21 +36,41 @@ using namespace std;
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
-ISrsRtspHandler::ISrsRtspHandler()
+SrsRtpConn::SrsRtpConn(SrsRtspConn* r, int p)
 {
+    rtsp = r;
+    _port = p;
+    listener = new SrsUdpListener(this, p);
 }
 
-ISrsRtspHandler::~ISrsRtspHandler()
+SrsRtpConn::~SrsRtpConn()
 {
+    srs_freep(listener);
 }
 
-SrsRtspConn::SrsRtspConn(SrsRtspCaster* c, st_netfd_t fd, std::string o, int lpmin, int lpmax)
+int SrsRtpConn::port()
+{
+    return _port;
+}
+
+int SrsRtpConn::listen()
+{
+    return listener->listen();
+}
+
+int SrsRtpConn::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
+{
+    int ret = ERROR_SUCCESS;
+    return ret;
+}
+
+SrsRtspConn::SrsRtspConn(SrsRtspCaster* c, st_netfd_t fd, std::string o)
 {
     output = o;
-    local_port_min = lpmin;
-    local_port_max = lpmax;
 
     session = "O9EaZ4bf"; // TODO: FIXME: generate session id.
+    video_rtp = NULL;
+    audio_rtp = NULL;
 
     caster = c;
     stfd = fd;
@@ -63,6 +83,9 @@ SrsRtspConn::~SrsRtspConn()
 {
     srs_close_stfd(stfd);
     trd->stop();
+
+    srs_freep(video_rtp);
+    srs_freep(audio_rtp);
 
     srs_freep(trd);
     srs_freep(skt);
@@ -103,6 +126,8 @@ int SrsRtspConn::do_cycle()
             }
         } else if (req->is_announce()) {
             srs_assert(req->sdp);
+            video_id = req->sdp->video_stream_id;
+            audio_id = req->sdp->audio_stream_id;
             sps = req->sdp->video_sps;
             pps = req->sdp->video_pps;
             asc = req->sdp->audio_sh;
@@ -119,11 +144,31 @@ int SrsRtspConn::do_cycle()
             }
         } else if (req->is_setup()) {
             srs_assert(req->transport);
+            int lpm = 0;
+            if ((ret = caster->alloc_port(&lpm)) != ERROR_SUCCESS) {
+                srs_error("rtsp: alloc port failed. ret=%d", ret);
+                return ret;
+            }
+
+            SrsRtpConn* rtp = NULL;
+            if (req->stream_id == video_id) {
+                srs_freep(video_rtp);
+                rtp = video_rtp = new SrsRtpConn(this, lpm);
+            } else {
+                srs_freep(audio_rtp);
+                rtp = audio_rtp = new SrsRtpConn(this, lpm);
+            }
+            if ((ret = rtp->listen()) != ERROR_SUCCESS) {
+                srs_error("rtsp: rtp listen at port=%d failed. ret=%d", lpm, ret);
+                return ret;
+            }
+            srs_trace("rtsp: rtp listen at port=%d ok.", lpm);
+
             SrsRtspSetupResponse* res = new SrsRtspSetupResponse(req->seq);
             res->client_port_min = req->transport->client_port_min;
             res->client_port_max = req->transport->client_port_max;
-            res->local_port_min = local_port_min;
-            res->local_port_max = local_port_max;
+            res->local_port_min = lpm;
+            res->local_port_max = lpm + 1;
             res->session = session;
             if ((ret = rtsp->send_message(res)) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
@@ -165,6 +210,14 @@ int SrsRtspConn::cycle()
 
 void SrsRtspConn::on_thread_stop()
 {
+    if (video_rtp) {
+        caster->free_port(video_rtp->port(), video_rtp->port() + 1);
+    }
+
+    if (audio_rtp) {
+        caster->free_port(audio_rtp->port(), audio_rtp->port() + 1);
+    }
+
     caster->remove(this);
 }
 
@@ -184,16 +237,40 @@ SrsRtspCaster::~SrsRtspCaster()
         srs_freep(conn);
     }
     clients.clear();
+    used_ports.clear();
 }
 
-int SrsRtspCaster::serve_client(st_netfd_t stfd)
+int SrsRtspCaster::alloc_port(int* pport)
 {
     int ret = ERROR_SUCCESS;
 
-    SrsRtspConn* conn = new SrsRtspConn(
-        this, stfd, 
-        output, local_port_min, local_port_max
-    );
+    // use a pair of port.
+    for (int i = local_port_min; i < local_port_max - 1; i += 2) {
+        if (!used_ports[i]) {
+            used_ports[i] = true;
+            used_ports[i + 1] = true;
+            *pport = i;
+            break;
+        }
+    }
+    srs_info("rtsp: alloc port=%d-%d", *pport, *pport + 1);
+
+    return ret;
+}
+
+void SrsRtspCaster::free_port(int lpmin, int lpmax)
+{
+    for (int i = lpmin; i < lpmax; i++) {
+        used_ports[i] = false;
+    }
+    srs_trace("rtsp: free rtp port=%d-%d", lpmin, lpmax);
+}
+
+int SrsRtspCaster::on_tcp_client(st_netfd_t stfd)
+{
+    int ret = ERROR_SUCCESS;
+
+    SrsRtspConn* conn = new SrsRtspConn(this, stfd, output);
 
     if ((ret = conn->serve()) != ERROR_SUCCESS) {
         srs_error("rtsp: serve client failed. ret=%d", ret);

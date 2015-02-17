@@ -220,7 +220,7 @@ int SrsRtspListener::on_tcp_client(st_netfd_t stfd)
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = caster->serve_client(stfd)) != ERROR_SUCCESS) {
+    if ((ret = caster->on_tcp_client(stfd)) != ERROR_SUCCESS) {
         srs_warn("accept client error. ret=%d", ret);
         return ret;
     }

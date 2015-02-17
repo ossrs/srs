@@ -337,6 +337,7 @@ public:
     * assumed. It is interpreted according to [H14.14].
     */
     long content_length;
+
     /**
     * the sdp in announce, NULL for no sdp.
     */
@@ -345,6 +346,10 @@ public:
     * the transport in setup, NULL for no transport.
     */
     SrsRtspTransport* transport;
+    /**
+    * for setup message, parse the stream id from uri.
+    */
+    std::string stream_id;
 public:
     SrsRtspRequest();
     virtual ~SrsRtspRequest();

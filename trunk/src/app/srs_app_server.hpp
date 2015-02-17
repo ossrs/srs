@@ -47,8 +47,8 @@ class SrsIngester;
 class SrsHttpHeartbeat;
 class SrsKbps;
 class SrsConfDirective;
+class ISrsTcpHandler;
 class ISrsUdpHandler;
-class ISrsRtspHandler;
 class SrsUdpListener;
 class SrsTcpListener;
 
@@ -111,8 +111,7 @@ class SrsRtspListener : virtual public SrsListener, virtual public ISrsTcpHandle
 {
 private:
     SrsTcpListener* listener;
-private:
-    ISrsRtspHandler* caster;
+    ISrsTcpHandler* caster;
 public:
     SrsRtspListener(SrsServer* server, SrsListenerType type, SrsConfDirective* c);
     virtual ~SrsRtspListener();

@@ -746,6 +746,18 @@ int SrsRtspStack::do_recv_message(SrsRtspRequest* req)
         }
     }
 
+    // for setup, parse the stream id from uri.
+    if (req->is_setup()) {
+        size_t pos = string::npos;
+        if ((pos = req->uri.rfind("/")) != string::npos) {
+            req->stream_id = req->uri.substr(pos + 1);
+        }
+        if ((pos = req->stream_id.find("=")) != string::npos) {
+            req->stream_id = req->stream_id.substr(pos + 1);
+        }
+        srs_info("rtsp: setup stream id=%s", req->stream_id.c_str());
+    }
+
     // parse rdp body.
     long consumed = 0;
     while (consumed < req->content_length) {

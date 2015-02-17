@@ -143,6 +143,7 @@ private:
     int _cid;
     bool loop;
     bool can_run;
+    bool really_terminated;
     bool _joinable;
     const char* _name;
 private:

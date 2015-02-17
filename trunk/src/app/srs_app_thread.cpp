@@ -62,6 +62,7 @@ SrsThread::SrsThread(const char* name, ISrsThreadHandler* thread_handler, int64_
     
     tid = NULL;
     loop = false;
+    really_terminated = true;
     _cid = -1;
     _joinable = joinable;
     
@@ -120,10 +121,27 @@ void SrsThread::stop()
         // which will terminate the cycle thread.
         st_thread_interrupt(tid);
         
-        // wait the thread to exit.
-        int ret = st_thread_join(tid, NULL);
-        // TODO: FIXME: the join maybe failed, should use a variable to ensure thread terminated.
-        srs_assert(ret == 0);
+        // when joinable, wait util quit.
+        if (_joinable) {
+            // wait the thread to exit.
+            int ret = st_thread_join(tid, NULL);
+            if (ret) {
+                srs_warn("core: ignore join thread failed.");
+            }
+
+            // wait the thread actually terminated.
+            // sometimes the thread join return -1, for example, 
+            // when thread use st_recvfrom, the thread join return -1.
+            // so here, we use a variable to ensure the thread stopped.
+            while (!really_terminated) {
+                st_usleep(10 * 1000);
+
+                if (really_terminated) {
+                    break;
+                }
+                srs_warn("core: wait thread to actually terminated");
+            }
+        }
         
         tid = NULL;
     }
@@ -150,6 +168,9 @@ void SrsThread::thread_cycle()
     
     srs_assert(handler);
     handler->on_thread_start();
+
+    // thread is running now.
+    really_terminated = false;
     
     // wait for cid to ready, for parent thread to get the cid.
     while (!can_run && loop) {
@@ -191,6 +212,9 @@ failed:
     
     handler->on_thread_stop();
     srs_info("thread %s cycle finished", _name);
+
+    // readly terminated now.
+    really_terminated = true;
 }
 
 void* SrsThread::thread_fun(void* arg)
