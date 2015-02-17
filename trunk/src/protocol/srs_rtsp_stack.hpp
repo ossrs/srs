@@ -58,6 +58,8 @@ class ISrsProtocolReaderWriter;
 // RTSP token
 #define __SRS_TOKEN_CSEQ "CSeq"
 #define __SRS_TOKEN_PUBLIC "Public"
+#define __SRS_TOKEN_CONTENT_TYPE "Content-Type"
+#define __SRS_TOKEN_CONTENT_LENGTH "Content-Length"
 
 // RTSP methods
 #define __SRS_METHOD_OPTIONS            "OPTIONS"
@@ -75,6 +77,118 @@ class ISrsProtocolReaderWriter;
 
 // RTSP-Version
 #define __SRS_VERSION "RTSP/1.0"
+
+/**
+* the rtsp sdp parse state.
+*/
+enum SrsRtspSdpState
+{
+    /**
+    * other sdp properties.
+    */
+    SrsRtspSdpStateOthers,
+    /**
+    * parse sdp audio state.
+    */
+    SrsRtspSdpStateAudio,
+    /**
+    * parse sdp video state.
+    */
+    SrsRtspSdpStateVideo,
+};
+
+/**
+* the sdp in announce.
+* Appendix C: Use of SDP for RTSP Session Descriptions
+* The Session Description Protocol (SDP, RFC 2327 [6]) may be used to
+* describe streams or presentations in RTSP.
+*/
+class SrsRtspSdp
+{
+private:
+    SrsRtspSdpState state;
+public:
+    /**
+    * the version of sdp.
+    */
+    std::string version;
+    /**
+    * the owner/creator of sdp.
+    */
+    std::string owner_username;
+    std::string owner_session_id;
+    std::string owner_session_version;
+    std::string owner_network_type;
+    std::string owner_address_type;
+    std::string owner_address;
+    /**
+    * the session name of sdp.
+    */
+    std::string session_name;
+    /**
+    * the connection info of sdp.
+    */
+    std::string connection_network_type;
+    std::string connection_address_type;
+    std::string connection_address;
+    /**
+    * the tool attribute of sdp.
+    */
+    std::string tool;
+    /**
+    * the video attribute of sdp.
+    */
+    std::string video_port;
+    std::string video_protocol;
+    std::string video_transport_format;
+    std::string video_bandwidth_kbps;
+    std::string video_codec;
+    std::string video_sample_rate;
+    std::string video_stream_id;
+    // fmtp
+    std::string video_packetization_mode;
+    std::string video_sps; // sequence header: sps.
+    std::string video_pps; // sequence header: pps.
+    /**
+    * the audio attribute of sdp.
+    */
+    std::string audio_port;
+    std::string audio_protocol;
+    std::string audio_transport_format;
+    std::string audio_bandwidth_kbps;
+    std::string audio_codec;
+    std::string audio_sample_rate;
+    std::string audio_channel;
+    std::string audio_stream_id;
+    // fmtp
+    std::string audio_profile_level_id;
+    std::string audio_mode;
+    std::string audio_size_length;
+    std::string audio_index_length;
+    std::string audio_index_delta_length;
+    std::string audio_sh; // sequence header.
+public:
+    SrsRtspSdp();
+    virtual ~SrsRtspSdp();
+public:
+    /**
+    * parse a line of token for sdp.
+    */
+    virtual int parse(std::string token);
+private:
+    /**
+    * generally, the fmtp is the sequence header for video or audio.
+    */
+    virtual int parse_fmtp_attribute(std::string& attr);
+    /**
+    * generally, the control is the stream info for video or audio.
+    */
+    virtual int parse_control_attribute(std::string& attr);
+    /**
+    * decode the string by base64.
+    */
+    virtual std::string base64_decode(std::string value);
+};
 
 /**
 * the rtsp request message.
@@ -110,12 +224,33 @@ public:
     * number as the original (i.e. the sequence number is not incremented
     * for retransmissions of the same request).
     */
-    int seq;
+    long seq;
+    /**
+    * 12.16 Content-Type
+    * See [H14.18]. Note that the content types suitable for RTSP are
+    * likely to be restricted in practice to presentation descriptions and
+    * parameter-value types.
+    */
+    std::string content_type;
+    /**
+    * 12.14 Content-Length
+    * This field contains the length of the content of the method (i.e.
+    * after the double CRLF following the last header). Unlike HTTP, it
+    * MUST be included in all messages that carry content beyond the header
+    * portion of the message. If it is missing, a default value of zero is
+    * assumed. It is interpreted according to [H14.14].
+    */
+    long content_length;
+    /**
+    * the sdp in announce, NULL for no sdp.
+    */
+    SrsRtspSdp* sdp;
 public:
     SrsRtspRequest();
     virtual ~SrsRtspRequest();
 public:
     virtual bool is_options();
+    virtual bool is_announce();
 };
 
 /**
@@ -159,7 +294,7 @@ public:
     * number as the original (i.e. the sequence number is not incremented
     * for retransmissions of the same request).
     */
-    int seq;
+    long seq;
 public:
     SrsRtspResponse(int cseq);
     virtual ~SrsRtspResponse();
@@ -283,18 +418,20 @@ private:
     virtual int recv_token_eof(std::string& token);
     /**
     * read the token util got eof, for example, to read the response status Reason-Phrase
+    * @param pconsumed, output the token parsed length. NULL to ignore.
     */
-    virtual int recv_token_util_eof(std::string& token);
+    virtual int recv_token_util_eof(std::string& token, int* pconsumed = NULL);
     /**
     * read a token from io, split by SP, endswith CRLF:
     *       token1 SP token2 SP ... tokenN CRLF
+    * @param token, output the read token.
+    * @param state, output the token parse state.
     * @param normal_ch, the char to indicates the normal token. 
     *       the SP use to indicates the normal token, @see __SRS_RTSP_SP
     *       the 0x00 use to ignore normal token flag. @see recv_token_util_eof
-    * @param token, output the read token.
-    * @param state, output the token parse state.
+    * @param pconsumed, output the token parsed length. NULL to ignore.
     */
-    virtual int recv_token(std::string& token, SrsRtspTokenState& state, char normal_ch = __SRS_RTSP_SP);
+    virtual int recv_token(std::string& token, SrsRtspTokenState& state, char normal_ch = __SRS_RTSP_SP, int* pconsumed = NULL);
 };
 
 #endif

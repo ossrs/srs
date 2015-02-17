@@ -92,7 +92,14 @@ int SrsRtspConn::do_cycle()
         if (req->is_options()) {
             if ((ret = rtsp->send_message(new SrsRtspOptionsResponse(req->seq))) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
-                    srs_error("rtsp: send response failed. ret=%d", ret);
+                    srs_error("rtsp: send OPTIONS response failed. ret=%d", ret);
+                }
+                return ret;
+            }
+        } else if (req->is_announce()) {
+            if ((ret = rtsp->send_message(new SrsRtspResponse(req->seq))) != ERROR_SUCCESS) {
+                if (!srs_is_client_gracefully_close(ret)) {
+                    srs_error("rtsp: send ANNOUNCE response failed. ret=%d", ret);
                 }
                 return ret;
             }
