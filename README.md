@@ -1,6 +1,10 @@
 #Simple-RTMP-Server
 
+<<<<<<< HEAD
 SRS/2.0，开发代号：[ZhouGuowen](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Product#release20)
+=======
+SRS/1.0，开发代号：[HuKaiqun](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Product#release10)
+>>>>>>> 1.0release
 
 SRS定位是运营级的互联网直播服务器集群，追求更好的概念完整性和最简单实现的代码。
 
@@ -527,6 +531,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-02-17, the join maybe failed, should use a variable to ensure thread terminated. 2.0.119.
 * v2.0, 2015-02-15, for [#304](https://github.com/winlinvip/simple-rtmp-server/issues/304), support config default acodec/vcodec. 2.0.118.
 * v2.0, 2015-02-15, for [#304](https://github.com/winlinvip/simple-rtmp-server/issues/304), rewrite hls/ts code, support h.264+mp3 for hls. 2.0.117.
 * v2.0, 2015-02-12, for [#304](https://github.com/winlinvip/simple-rtmp-server/issues/304), use stringstream to generate m3u8, add hls_td_ratio. 2.0.116.
@@ -604,6 +609,7 @@ Supported operating systems and hardware:
 
 ### SRS 1.0 history
 
+* v1.0, 2015-02-17, the join maybe failed, should use a variable to ensure thread terminated. 1.0.28.
 * <strong>v1.0, 2015-02-12, [1.0r2 release(1.0.27)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0r2) released. 59507 lines.</strong>
 * v1.0, 2015-02-11, dev code HuKaiqun for 1.0.27.
 * v1.0, 2015-02-10, for [#310](https://github.com/winlinvip/simple-rtmp-server/issues/310), the aac profile must be object plus one. 1.0.26
