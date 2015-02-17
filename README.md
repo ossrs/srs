@@ -388,6 +388,7 @@ Supported operating systems and hardware:
 
 ## History
 
+* v1.0, 2015-02-17, the join maybe failed, should use a variable to ensure thread terminated. 1.0.28.
 * <strong>v1.0, 2015-02-12, [1.0r2 release(1.0.27)](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0r2) released. 59507 lines.</strong>
 * v1.0, 2015-02-11, dev code HuKaiqun for 1.0.27.
 * v1.0, 2015-02-10, for [#310](https://github.com/winlinvip/simple-rtmp-server/issues/310), the aac profile must be object plus one. 1.0.26

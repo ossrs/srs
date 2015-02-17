@@ -120,7 +120,9 @@ void SrsThread::stop()
         st_thread_interrupt(tid);
         
         // wait the thread to exit.
-        st_thread_join(tid, NULL);
+        int ret = st_thread_join(tid, NULL);
+        // TODO: FIXME: the join maybe failed, should use a variable to ensure thread terminated.
+        srs_assert(ret == 0);
         
         tid = NULL;
     }
