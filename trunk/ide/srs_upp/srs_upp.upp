@@ -102,6 +102,8 @@ file
 	../../src/app/srs_app_json.cpp,
 	../../src/app/srs_app_kbps.hpp,
 	../../src/app/srs_app_kbps.cpp,
+        ../../src/app/srs_app_listener.hpp,
+        ../../src/app/srs_app_listener.cpp,
 	../../src/app/srs_app_log.hpp,
 	../../src/app/srs_app_log.cpp,
 	../../src/app/srs_app_mpegts_udp.hpp,

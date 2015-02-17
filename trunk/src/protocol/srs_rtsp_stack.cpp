@@ -231,9 +231,9 @@ int SrsRtspSdp::parse(string token)
                         audio_sample_rate = audio_codec.substr(pos + 1);
                         audio_codec = audio_codec.substr(0, pos);
                     }
-                    if ((pos = audio_codec.find("/")) != string::npos) {
-                        audio_channel = audio_codec.substr(pos + 1);
-                        audio_codec = audio_codec.substr(0, pos);
+                    if ((pos = audio_sample_rate.find("/")) != string::npos) {
+                        audio_channel = audio_sample_rate.substr(pos + 1);
+                        audio_sample_rate = audio_sample_rate.substr(0, pos);
                     }
                 }
             } else if (desc_key == "fmtp") {
@@ -283,19 +283,20 @@ int SrsRtspSdp::parse(string token)
     return ret;
 }
 
-int SrsRtspSdp::parse_fmtp_attribute(string& attr)
+int SrsRtspSdp::parse_fmtp_attribute(string attr)
 {
     int ret = ERROR_SUCCESS;
     
     size_t pos = string::npos;
+    std::string token = attr;
 
-    while (!attr.empty()) {
-        std::string item = attr;
+    while (!token.empty()) {
+        std::string item = token;
         if ((pos = item.find(";")) != string::npos) {
-            item = attr.substr(0, pos);
-            attr = attr.substr(pos + 1);
+            item = token.substr(0, pos);
+            token = token.substr(pos + 1);
         } else {
-            attr = "";
+            token = "";
         }
 
         std::string item_key = item, item_value;
@@ -337,19 +338,20 @@ int SrsRtspSdp::parse_fmtp_attribute(string& attr)
     return ret;
 }
 
-int SrsRtspSdp::parse_control_attribute(string& attr)
+int SrsRtspSdp::parse_control_attribute(string attr)
 {
     int ret = ERROR_SUCCESS;
     
     size_t pos = string::npos;
+    std::string token = attr;
 
-    while (!attr.empty()) {
-        std::string item = attr;
+    while (!token.empty()) {
+        std::string item = token;
         if ((pos = item.find(";")) != string::npos) {
-            item = attr.substr(0, pos);
-            attr = attr.substr(pos + 1);
+            item = token.substr(0, pos);
+            token = token.substr(pos + 1);
         } else {
-            attr = "";
+            token = "";
         }
 
         std::string item_key = item, item_value;
@@ -392,16 +394,81 @@ string SrsRtspSdp::base64_decode(string value)
     return plaintext;
 }
 
+SrsRtspTransport::SrsRtspTransport()
+{
+    client_port_min = 0;
+    client_port_max = 0;
+}
+
+SrsRtspTransport::~SrsRtspTransport()
+{
+}
+
+int SrsRtspTransport::parse(string attr)
+{
+    int ret = ERROR_SUCCESS;
+    
+    size_t pos = string::npos;
+    std::string token = attr;
+
+    while (!token.empty()) {
+        std::string item = token;
+        if ((pos = item.find(";")) != string::npos) {
+            item = token.substr(0, pos);
+            token = token.substr(pos + 1);
+        } else {
+            token = "";
+        }
+
+        std::string item_key = item, item_value;
+        if ((pos = item.find("=")) != string::npos) {
+            item_key = item.substr(0, pos);
+            item_value = item.substr(pos + 1);
+        }
+
+        if (transport.empty()) {
+            transport = item_key;
+            if ((pos = transport.find("/")) != string::npos) {
+                profile = transport.substr(pos + 1);
+                transport = transport.substr(0, pos);
+            }
+            if ((pos = profile.find("/")) != string::npos) {
+                lower_transport = profile.substr(pos + 1);
+                profile = profile.substr(0, pos);
+            }
+        }
+
+        if (item_key == "unicast" || item_key == "multicast") {
+            cast_type = item_key;
+        } else if (item_key == "mode") {
+            mode = item_value;
+        } else if (item_key == "client_port") {
+            std::string sport = item_value;
+            std::string eport = item_value;
+            if ((pos = eport.find("-")) != string::npos) {
+                sport = eport.substr(0, pos);
+                eport = eport.substr(pos + 1);
+            }
+            client_port_min = ::atoi(sport.c_str());
+            client_port_max = ::atoi(eport.c_str());
+        }
+    }
+
+    return ret;
+}
+
 SrsRtspRequest::SrsRtspRequest()
 {
     seq = 0;
     content_length = 0;
     sdp = NULL;
+    transport = NULL;
 }
 
 SrsRtspRequest::~SrsRtspRequest()
 {
     srs_freep(sdp);
+    srs_freep(transport);
 }
 
 bool SrsRtspRequest::is_options()
@@ -414,6 +481,11 @@ bool SrsRtspRequest::is_announce()
     return method == __SRS_METHOD_ANNOUNCE;
 }
 
+bool SrsRtspRequest::is_setup()
+{
+    return method == __SRS_METHOD_SETUP;
+}
+
 SrsRtspResponse::SrsRtspResponse(int cseq)
 {
     seq = cseq;
@@ -424,8 +496,10 @@ SrsRtspResponse::~SrsRtspResponse()
 {
 }
 
-stringstream& SrsRtspResponse::encode(stringstream& ss)
+int SrsRtspResponse::encode(stringstream& ss)
 {
+    int ret = ERROR_SUCCESS;
+
     // status line
     ss << __SRS_VERSION << __SRS_RTSP_SP 
         << status << __SRS_RTSP_SP 
@@ -439,7 +513,20 @@ stringstream& SrsRtspResponse::encode(stringstream& ss)
         << "Pragma: no-cache" << __SRS_RTSP_CRLF
         << "Server: " << RTMP_SIG_SRS_SERVER << __SRS_RTSP_CRLF;
 
-    return ss;
+    if ((ret = encode_header(ss)) != ERROR_SUCCESS) {
+        srs_error("rtsp: encode header failed. ret=%d", ret);
+        return ret;
+    };
+
+    // header EOF.
+    ss << __SRS_RTSP_CRLF;
+
+    return ret;
+}
+
+int SrsRtspResponse::encode_header(std::stringstream& ss)
+{
+    return ERROR_SUCCESS;
 }
 
 SrsRtspOptionsResponse::SrsRtspOptionsResponse(int cseq) : SrsRtspResponse(cseq)
@@ -453,10 +540,8 @@ SrsRtspOptionsResponse::~SrsRtspOptionsResponse()
 {
 }
 
-stringstream& SrsRtspOptionsResponse::encode(stringstream& ss)
+int SrsRtspOptionsResponse::encode_header(stringstream& ss)
 {
-    SrsRtspResponse::encode(ss);
-
     SrsRtspMethod __methods[] = {
         SrsRtspMethodDescribe,
         SrsRtspMethodAnnounce,
@@ -489,10 +574,27 @@ stringstream& SrsRtspOptionsResponse::encode(stringstream& ss)
     }
     ss << __SRS_RTSP_CRLF;
 
-    // eof header.
-    ss << __SRS_RTSP_CRLF;
+    return ERROR_SUCCESS;
+}
 
-    return ss;
+SrsRtspSetupResponse::SrsRtspSetupResponse(int seq) : SrsRtspResponse(seq)
+{
+    local_port_min = 0;
+    local_port_max = 0;
+}
+
+SrsRtspSetupResponse::~SrsRtspSetupResponse()
+{
+}
+
+int SrsRtspSetupResponse::encode_header(stringstream& ss)
+{
+    ss << __SRS_TOKEN_SESSION << ":" << __SRS_RTSP_SP << session << __SRS_RTSP_CRLF;
+    ss << __SRS_TOKEN_TRANSPORT << ":" << __SRS_RTSP_SP 
+        << "RTP/AVP;unicast;client_port=" << client_port_min << "-" << client_port_max << ";"
+        << "server_port=" << local_port_min << "-" << local_port_max
+        << __SRS_RTSP_CRLF;
+    return ERROR_SUCCESS;
 }
 
 SrsRtspStack::SrsRtspStack(ISrsProtocolReaderWriter* s)
@@ -613,6 +715,21 @@ int SrsRtspStack::do_recv_message(SrsRtspRequest* req)
                 return ret;
             }
             req->content_length = ::atol(cl.c_str());
+        } else if (token == __SRS_TOKEN_TRANSPORT) {
+            std::string transport;
+            if ((ret = recv_token_eof(transport)) != ERROR_SUCCESS) {
+                if (!srs_is_client_gracefully_close(ret)) {
+                    srs_error("rtsp: parse %s failed. ret=%d", __SRS_TOKEN_TRANSPORT, ret);
+                }
+                return ret;
+            }
+            if (!req->transport) {
+                req->transport = new SrsRtspTransport();
+            }
+            if ((ret = req->transport->parse(transport)) != ERROR_SUCCESS) {
+                srs_error("rtsp: parse transport failed, transport=%s. ret=%d", transport.c_str(), ret);
+                return ret;
+            }
         } else {
             // unknown header name, parse util EOF.
             SrsRtspTokenState state = SrsRtspTokenStateNormal;

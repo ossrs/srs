@@ -65,13 +65,23 @@ class SrsRtspConn : public ISrsThreadHandler
 {
 private:
     std::string output;
+    int local_port_min;
+    int local_port_max;
+private:
+    std::string session;
+    // video sequence header.
+    std::string sps;
+    std::string pps;
+    // audio sequence header.
+    std::string asc;
+private:
     st_netfd_t stfd;
     SrsStSocket* skt;
     SrsRtspStack* rtsp;
     SrsRtspCaster* caster;
     SrsThread* trd;
 public:
-    SrsRtspConn(SrsRtspCaster* c, st_netfd_t fd, std::string o);
+    SrsRtspConn(SrsRtspCaster* c, st_netfd_t fd, std::string o, int lpmin, int lpmax);
     virtual ~SrsRtspConn();
 public:
     virtual int serve();
@@ -90,6 +100,9 @@ class SrsRtspCaster : public ISrsRtspHandler
 {
 private:
     std::string output;
+    int local_port_min;
+    int local_port_max;
+private:
     std::vector<SrsRtspConn*> clients;
 public:
     SrsRtspCaster(SrsConfDirective* c);

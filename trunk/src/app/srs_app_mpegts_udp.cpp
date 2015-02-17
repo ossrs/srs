@@ -49,14 +49,6 @@ using namespace std;
 #include <srs_rtmp_amf0.hpp>
 #include <srs_raw_avc.hpp>
 
-ISrsUdpHandler::ISrsUdpHandler()
-{
-}
-
-ISrsUdpHandler::~ISrsUdpHandler()
-{
-}
-
 SrsMpegtsQueue::SrsMpegtsQueue()
 {
     nb_audios = nb_videos = 0;

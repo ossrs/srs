@@ -35,9 +35,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_st.hpp>
 #include <srs_app_reload.hpp>
-#include <srs_app_thread.hpp>
 #include <srs_app_source.hpp>
 #include <srs_app_hls.hpp>
+#include <srs_app_listener.hpp>
 
 class SrsServer;
 class SrsConnection;
@@ -49,6 +49,8 @@ class SrsKbps;
 class SrsConfDirective;
 class ISrsUdpHandler;
 class ISrsRtspHandler;
+class SrsUdpListener;
+class SrsTcpListener;
 
 // listener type for server to identify the connection,
 // that is, use different type to process the connection.
@@ -69,60 +71,71 @@ enum SrsListenerType
 /**
 * the common tcp listener, for RTMP/HTTP server.
 */
-class SrsListener : public ISrsThreadHandler
+class SrsListener
 {
-public:
+protected:
     SrsListenerType _type;
 protected:
-    int fd;
-    st_netfd_t stfd;
     int _port;
     SrsServer* _server;
-    SrsThread* pthread;
 public:
     SrsListener(SrsServer* server, SrsListenerType type);
     virtual ~SrsListener();
 public:
     virtual SrsListenerType type();
-    virtual int listen(int port);
-// interface ISrsThreadHandler.
+    virtual int listen(int port) = 0;
+};
+
+/**
+* tcp listener.
+*/
+class SrsStreamListener : virtual public SrsListener, virtual public ISrsTcpHandler
+{
+private:
+    SrsTcpListener* listener;
 public:
-    virtual int cycle();
+    SrsStreamListener(SrsServer* server, SrsListenerType type);
+    virtual ~SrsStreamListener();
+public:
+    virtual int listen(int port);
+// ISrsTcpHandler
+public:
+    virtual int on_tcp_client(st_netfd_t stfd);
 };
 
 #ifdef SRS_AUTO_STREAM_CASTER
 /**
 * the tcp listener, for rtsp server.
 */
-class SrsRtspListener : public SrsListener
+class SrsRtspListener : virtual public SrsListener, virtual public ISrsTcpHandler
 {
+private:
+    SrsTcpListener* listener;
 private:
     ISrsRtspHandler* caster;
 public:
     SrsRtspListener(SrsServer* server, SrsListenerType type, SrsConfDirective* c);
     virtual ~SrsRtspListener();
-// interface ISrsThreadHandler.
 public:
-    virtual int cycle();
+    virtual int listen(int port);
+// ISrsTcpHandler
+public:
+    virtual int on_tcp_client(st_netfd_t stfd);
 };
 
 /**
 * the udp listener, for udp server.
 */
-class SrsUdpListener : public SrsListener
+class SrsUdpCasterListener : public SrsListener
 {
 private:
-    char* buf;
-    int nb_buf;
+    SrsUdpListener* listener;
     ISrsUdpHandler* caster;
 public:
-    SrsUdpListener(SrsServer* server, SrsListenerType type, SrsConfDirective* c);
-    virtual ~SrsUdpListener();
+    SrsUdpCasterListener(SrsServer* server, SrsListenerType type, SrsConfDirective* c);
+    virtual ~SrsUdpCasterListener();
 public:
     virtual int listen(int port);
-// interface ISrsThreadHandler.
-public:
-    virtual int cycle();
 };
 #endif
 

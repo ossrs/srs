@@ -1395,7 +1395,7 @@ int SrsConfig::check_config()
             SrsConfDirective* conf = stream_caster->at(i);
             string n = conf->name;
             if (n != "enabled" && n != "caster" && n != "output"
-                && n != "listen"
+                && n != "listen" && n != "rtp_port_min" && n != "rtp_port_max"
             ) {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported stream_caster directive %s, ret=%d", n.c_str(), ret);
@@ -2058,6 +2058,30 @@ int SrsConfig::get_stream_caster_listen(SrsConfDirective* sc)
     srs_assert(sc);
 
     SrsConfDirective* conf = sc->get("listen");
+    if (!conf) {
+        return 0;
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_stream_caster_rtp_port_min(SrsConfDirective* sc)
+{
+    srs_assert(sc);
+
+    SrsConfDirective* conf = sc->get("rtp_port_min");
+    if (!conf) {
+        return 0;
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_stream_caster_rtp_port_max(SrsConfDirective* sc)
+{
+    srs_assert(sc);
+
+    SrsConfDirective* conf = sc->get("rtp_port_max");
     if (!conf) {
         return 0;
     }

@@ -44,9 +44,14 @@ ISrsRtspHandler::~ISrsRtspHandler()
 {
 }
 
-SrsRtspConn::SrsRtspConn(SrsRtspCaster* c, st_netfd_t fd, std::string o)
+SrsRtspConn::SrsRtspConn(SrsRtspCaster* c, st_netfd_t fd, std::string o, int lpmin, int lpmax)
 {
     output = o;
+    local_port_min = lpmin;
+    local_port_max = lpmax;
+
+    session = "O9EaZ4bf"; // TODO: FIXME: generate session id.
+
     caster = c;
     stfd = fd;
     skt = new SrsStSocket(fd);
@@ -97,9 +102,32 @@ int SrsRtspConn::do_cycle()
                 return ret;
             }
         } else if (req->is_announce()) {
+            srs_assert(req->sdp);
+            sps = req->sdp->video_sps;
+            pps = req->sdp->video_pps;
+            asc = req->sdp->audio_sh;
+            srs_trace("rtsp: video(#%s, %s), audio(#%s, %s, %sHZ %schannels)", 
+                req->sdp->video_stream_id.c_str(), req->sdp->video_codec.c_str(),
+                req->sdp->audio_stream_id.c_str(), req->sdp->audio_codec.c_str(), 
+                req->sdp->audio_sample_rate.c_str(), req->sdp->audio_channel.c_str()
+            );
             if ((ret = rtsp->send_message(new SrsRtspResponse(req->seq))) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
                     srs_error("rtsp: send ANNOUNCE response failed. ret=%d", ret);
+                }
+                return ret;
+            }
+        } else if (req->is_setup()) {
+            srs_assert(req->transport);
+            SrsRtspSetupResponse* res = new SrsRtspSetupResponse(req->seq);
+            res->client_port_min = req->transport->client_port_min;
+            res->client_port_max = req->transport->client_port_max;
+            res->local_port_min = local_port_min;
+            res->local_port_max = local_port_max;
+            res->session = session;
+            if ((ret = rtsp->send_message(res)) != ERROR_SUCCESS) {
+                if (!srs_is_client_gracefully_close(ret)) {
+                    srs_error("rtsp: send SETUP response failed. ret=%d", ret);
                 }
                 return ret;
             }
@@ -144,6 +172,8 @@ SrsRtspCaster::SrsRtspCaster(SrsConfDirective* c)
 {
     // TODO: FIXME: support reload.
     output = _srs_config->get_stream_caster_output(c);
+    local_port_min = _srs_config->get_stream_caster_rtp_port_min(c);
+    local_port_max = _srs_config->get_stream_caster_rtp_port_max(c);
 }
 
 SrsRtspCaster::~SrsRtspCaster()
@@ -160,7 +190,11 @@ int SrsRtspCaster::serve_client(st_netfd_t stfd)
 {
     int ret = ERROR_SUCCESS;
 
-    SrsRtspConn* conn = new SrsRtspConn(this, stfd, output);
+    SrsRtspConn* conn = new SrsRtspConn(
+        this, stfd, 
+        output, local_port_min, local_port_max
+    );
+
     if ((ret = conn->serve()) != ERROR_SUCCESS) {
         srs_error("rtsp: serve client failed. ret=%d", ret);
         srs_freep(conn);

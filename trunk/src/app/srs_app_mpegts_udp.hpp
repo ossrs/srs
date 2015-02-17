@@ -50,27 +50,7 @@ class SrsRawAacStreamCodec;
 
 #include <srs_app_st.hpp>
 #include <srs_kernel_ts.hpp>
-
-/**
-* the udp packet handler.
-*/
-class ISrsUdpHandler
-{
-public:
-    ISrsUdpHandler();
-    virtual ~ISrsUdpHandler();
-public:
-    /**
-    * when udp listener got a udp packet, notice server to process it.
-    * @param type, the client type, used to create concrete connection,
-    *       for instance RTMP connection to serve client.
-    * @param from, the udp packet from address.
-    * @param buf, the udp packet bytes, user should copy if need to use.
-    * @param nb_buf, the size of udp packet bytes.
-    * @remark user should never use the buf, for it's a shared memory bytes.
-    */
-    virtual int on_udp_packet(sockaddr_in* from, char* buf, int nb_buf) = 0;
-};
+#include <srs_app_listener.hpp>
 
 /**
 * the queue for mpegts over udp to send packets.

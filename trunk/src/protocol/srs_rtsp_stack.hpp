@@ -60,6 +60,8 @@ class ISrsProtocolReaderWriter;
 #define __SRS_TOKEN_PUBLIC "Public"
 #define __SRS_TOKEN_CONTENT_TYPE "Content-Type"
 #define __SRS_TOKEN_CONTENT_LENGTH "Content-Length"
+#define __SRS_TOKEN_TRANSPORT "Transport"
+#define __SRS_TOKEN_SESSION "Session"
 
 // RTSP methods
 #define __SRS_METHOD_OPTIONS            "OPTIONS"
@@ -95,6 +97,53 @@ enum SrsRtspSdpState
     * parse sdp video state.
     */
     SrsRtspSdpStateVideo,
+};
+
+/**
+* 10 Method Definitions
+* The method token indicates the method to be performed on the resource
+* identified by the Request-URI. The method is case-sensitive. New
+* methods may be defined in the future. Method names may not start with
+* a $ character (decimal 24) and must be a token. Methods are
+* summarized in Table 2.
+* Notes on Table 2: PAUSE is recommended, but not required in that a
+* fully functional server can be built that does not support this
+* method, for example, for live feeds. If a server does not support a
+* particular method, it MUST return "501 Not Implemented" and a client
+* SHOULD not try this method again for this server.
+*/
+enum SrsRtspMethod
+{
+    SrsRtspMethodDescribe           = 0x0001,
+    SrsRtspMethodAnnounce           = 0x0002,
+    SrsRtspMethodGetParameter       = 0x0004,
+    SrsRtspMethodOptions            = 0x0008,
+    SrsRtspMethodPause              = 0x0010,
+    SrsRtspMethodPlay               = 0x0020,
+    SrsRtspMethodRecord             = 0x0040,
+    SrsRtspMethodRedirect           = 0x0080,
+    SrsRtspMethodSetup              = 0x0100,
+    SrsRtspMethodSetParameter       = 0x0200,
+    SrsRtspMethodTeardown           = 0x0400,
+};
+
+/**
+* the state of rtsp token.
+*/
+enum SrsRtspTokenState
+{
+    /**
+    * parse token failed, default state.
+    */
+    SrsRtspTokenStateError = 100,
+    /**
+    * when SP follow the token.
+    */
+    SrsRtspTokenStateNormal = 101,
+    /**
+    * when CRLF follow the token.
+    */
+    SrsRtspTokenStateEOF = 102,
 };
 
 /**
@@ -179,15 +228,62 @@ private:
     /**
     * generally, the fmtp is the sequence header for video or audio.
     */
-    virtual int parse_fmtp_attribute(std::string& attr);
+    virtual int parse_fmtp_attribute(std::string attr);
     /**
     * generally, the control is the stream info for video or audio.
     */
-    virtual int parse_control_attribute(std::string& attr);
+    virtual int parse_control_attribute(std::string attr);
     /**
     * decode the string by base64.
     */
     virtual std::string base64_decode(std::string value);
+};
+
+/**
+* the rtsp transport.
+* 12.39 Transport
+* This request header indicates which transport protocol is to be used
+* and configures its parameters such as destination address,
+* compression, multicast time-to-live and destination port for a single
+* stream. It sets those values not already determined by a presentation
+* description.
+*/
+class SrsRtspTransport
+{
+public:
+    // The syntax for the transport specifier is
+    //      transport/profile/lower-transport
+    std::string transport;
+    std::string profile;
+    std::string lower_transport;
+    // unicast | multicast
+    // mutually exclusive indication of whether unicast or multicast
+    // delivery will be attempted. Default value is multicast.
+    // Clients that are capable of handling both unicast and
+    // multicast transmission MUST indicate such capability by
+    // including two full transport-specs with separate parameters
+    // for each.
+    std::string cast_type;
+    // The mode parameter indicates the methods to be supported for
+    // this session. Valid values are PLAY and RECORD. If not
+    // provided, the default is PLAY.
+    std::string mode;
+    // This parameter provides the unicast RTP/RTCP port pair on
+    // which the client has chosen to receive media data and control
+    // information. It is specified as a range, e.g.,
+    //      client_port=3456-3457.
+    // where client will use port in:
+    //      [client_port_min, client_port_max)
+    int client_port_min;
+    int client_port_max;
+public:
+    SrsRtspTransport();
+    virtual ~SrsRtspTransport();
+public:
+    /**
+    * parse a line of token for transport.
+    */
+    virtual int parse(std::string attr);
 };
 
 /**
@@ -245,12 +341,17 @@ public:
     * the sdp in announce, NULL for no sdp.
     */
     SrsRtspSdp* sdp;
+    /**
+    * the transport in setup, NULL for no transport.
+    */
+    SrsRtspTransport* transport;
 public:
     SrsRtspRequest();
     virtual ~SrsRtspRequest();
 public:
     virtual bool is_options();
     virtual bool is_announce();
+    virtual bool is_setup();
 };
 
 /**
@@ -302,35 +403,12 @@ public:
     /**
     * encode message to string.
     */
-    virtual std::stringstream& encode(std::stringstream& ss);
-};
-
-/**
-* 10 Method Definitions
-* The method token indicates the method to be performed on the resource
-* identified by the Request-URI. The method is case-sensitive. New
-* methods may be defined in the future. Method names may not start with
-* a $ character (decimal 24) and must be a token. Methods are
-* summarized in Table 2.
-* Notes on Table 2: PAUSE is recommended, but not required in that a
-* fully functional server can be built that does not support this
-* method, for example, for live feeds. If a server does not support a
-* particular method, it MUST return "501 Not Implemented" and a client
-* SHOULD not try this method again for this server.
-*/
-enum SrsRtspMethod
-{
-    SrsRtspMethodDescribe           = 0x0001,
-    SrsRtspMethodAnnounce           = 0x0002,
-    SrsRtspMethodGetParameter       = 0x0004,
-    SrsRtspMethodOptions            = 0x0008,
-    SrsRtspMethodPause              = 0x0010,
-    SrsRtspMethodPlay               = 0x0020,
-    SrsRtspMethodRecord             = 0x0040,
-    SrsRtspMethodRedirect           = 0x0080,
-    SrsRtspMethodSetup              = 0x0100,
-    SrsRtspMethodSetParameter       = 0x0200,
-    SrsRtspMethodTeardown           = 0x0400,
+    virtual int encode(std::stringstream& ss);
+protected:
+    /**
+    * sub classes override this to encode the headers.
+    */
+    virtual int encode_header(std::stringstream& ss);
 };
 
 /**
@@ -349,27 +427,38 @@ public:
 public:
     SrsRtspOptionsResponse(int cseq);
     virtual ~SrsRtspOptionsResponse();
-public:
-    virtual std::stringstream& encode(std::stringstream& ss);
+protected:
+    virtual int encode_header(std::stringstream& ss);
 };
 
 /**
-* the state of rtsp token.
+* 10.4 SETUP
+* The SETUP request for a URI specifies the transport mechanism to be
+* used for the streamed media. A client can issue a SETUP request for a
+* stream that is already playing to change transport parameters, which
+* a server MAY allow. If it does not allow this, it MUST respond with
+* error "455 Method Not Valid In This State". For the benefit of any
+* intervening firewalls, a client must indicate the transport
+* parameters even if it has no influence over these parameters, for
+* example, where the server advertises a fixed multicast address.
 */
-enum SrsRtspTokenState
+class SrsRtspSetupResponse : public SrsRtspResponse
 {
-    /**
-    * parse token failed, default state.
-    */
-    SrsRtspTokenStateError = 100,
-    /**
-    * when SP follow the token.
-    */
-    SrsRtspTokenStateNormal = 101,
-    /**
-    * when CRLF follow the token.
-    */
-    SrsRtspTokenStateEOF = 102,
+public:
+    // the client specified port.
+    int client_port_min;
+    int client_port_max;
+    // client will use the port in:
+    //      [local_port_min, local_port_max)
+    int local_port_min;
+    int local_port_max;
+    // session.
+    std::string session;
+public:
+    SrsRtspSetupResponse(int cseq);
+    virtual ~SrsRtspSetupResponse();
+protected:
+    virtual int encode_header(std::stringstream& ss);
 };
 
 /**

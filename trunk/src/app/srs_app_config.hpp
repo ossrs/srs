@@ -481,6 +481,14 @@ public:
     * get the listen port of stream caster.
     */
     virtual int                 get_stream_caster_listen(SrsConfDirective* sc);
+    /**
+    * get the min udp port for rtp of stream caster rtsp.
+    */
+    virtual int                 get_stream_caster_rtp_port_min(SrsConfDirective* sc);
+    /**
+    * get the max udp port for rtp of stream caster rtsp.
+    */
+    virtual int                 get_stream_caster_rtp_port_max(SrsConfDirective* sc);
 // vhost specified section
 public:
     /**
