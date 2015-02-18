@@ -35,6 +35,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_stream.hpp>
+#include <srs_kernel_codec.hpp>
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
@@ -133,6 +134,7 @@ SrsRtpPacket::SrsRtpPacket()
     ssrc = 0;
 
     payload = new SrsSimpleBuffer();
+    audio_samples = new SrsCodecSample();
     chunked = false;
     completed = false;
 }
@@ -140,6 +142,7 @@ SrsRtpPacket::SrsRtpPacket()
 SrsRtpPacket::~SrsRtpPacket()
 {
     srs_freep(payload);
+    srs_freep(audio_samples);
 }
 
 void SrsRtpPacket::copy(SrsRtpPacket* src)
@@ -156,22 +159,28 @@ void SrsRtpPacket::copy(SrsRtpPacket* src)
 
     chunked = src->chunked;
     completed = src->completed;
+    audio_samples = new SrsCodecSample();
 }
 
 void SrsRtpPacket::reap(SrsRtpPacket* src)
 {
     copy(src);
 
+    srs_freep(payload);
     payload = src->payload;
     src->payload = NULL;
+    
+    srs_freep(audio_samples);
+    audio_samples = src->audio_samples;
+    src->audio_samples = NULL;
 }
 
 int SrsRtpPacket::decode(SrsStream* stream)
 {
     int ret = ERROR_SUCCESS;
 
-    // 12bytes header, atleast 2bytes content.
-    if (!stream->require(14)) {
+    // 12bytes header
+    if (!stream->require(12)) {
         ret = ERROR_RTP_HEADER_CORRUPT;
         srs_error("rtsp: rtp header corrupt. ret=%d", ret);
         return ret;
@@ -190,6 +199,92 @@ int SrsRtpPacket::decode(SrsStream* stream)
     sequence_number = stream->read_2bytes();
     timestamp = stream->read_4bytes();
     ssrc = stream->read_4bytes();
+
+    // video codec.
+    if (payload_type == 96) {
+        return decode_96(stream);
+    } else if (payload_type == 97) {
+        return decode_97(stream);
+    }
+
+    return ret;
+}
+
+int SrsRtpPacket::decode_97(SrsStream* stream)
+{
+    int ret = ERROR_SUCCESS;
+
+    // atleast 2bytes content.
+    if (!stream->require(2)) {
+        ret = ERROR_RTP_TYPE97_CORRUPT;
+        srs_error("rtsp: rtp type97 corrupt. ret=%d", ret);
+        return ret;
+    }
+
+    int8_t hasv = stream->read_1bytes();
+    int8_t lasv = stream->read_1bytes();
+    u_int16_t au_size = ((hasv << 5) & 0xE0) | ((lasv >> 3) & 0x1f);
+
+    if (!stream->require(au_size)) {
+        ret = ERROR_RTP_TYPE97_CORRUPT;
+        srs_error("rtsp: rtp type97 au_size corrupt. ret=%d", ret);
+        return ret;
+    }
+
+    int nb_samples = au_size / 2;
+    int guess_sample_size = (stream->size() - stream->pos() - au_size) / nb_samples;
+    int required_size = 0;
+
+    // append left bytes to payload.
+    payload->append(
+        stream->data() + stream->pos() + au_size, 
+        stream->size() - stream->pos() - au_size
+    );
+    char* p = payload->bytes();
+
+    for (int i = 0; i < au_size; i += 2) {
+        hasv = stream->read_1bytes();
+        lasv = stream->read_1bytes();
+
+        u_int16_t sample_size = ((hasv << 5) & 0xE0) | ((lasv >> 3) & 0x1f);
+        if (sample_size != guess_sample_size) {
+            // guess the size lost 0x100.
+            if (guess_sample_size == (sample_size | 0x100)) {
+                sample_size = guess_sample_size;
+            }
+        }
+
+        char* sample = p + required_size;
+        required_size += sample_size;
+
+        if (!stream->require(required_size)) {
+            ret = ERROR_RTP_TYPE97_CORRUPT;
+            srs_error("rtsp: rtp type97 samples corrupt. ret=%d", ret);
+            return ret;
+        }
+
+        if ((ret = audio_samples->add_sample_unit(sample, sample_size)) != ERROR_SUCCESS) {
+            srs_error("rtsp: rtp type97 add sample failed. ret=%d", ret);
+            return ret;
+        }
+    }
+
+    // parsed ok.
+    completed = true;
+
+    return ret;
+}
+
+int SrsRtpPacket::decode_96(SrsStream* stream)
+{
+    int ret = ERROR_SUCCESS;
+
+    // atleast 2bytes content.
+    if (!stream->require(2)) {
+        ret = ERROR_RTP_TYPE96_CORRUPT;
+        srs_error("rtsp: rtp type96 corrupt. ret=%d", ret);
+        return ret;
+    }
 
     // frame type
     // 0... .... reserverd

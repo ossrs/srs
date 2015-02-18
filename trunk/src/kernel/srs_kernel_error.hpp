@@ -145,6 +145,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_RTSP_TOKEN_NOT_NORMAL         2042
 #define ERROR_RTSP_REQUEST_HEADER_EOF       2043
 #define ERROR_RTP_HEADER_CORRUPT            2044
+#define ERROR_RTP_TYPE96_CORRUPT            2045
+#define ERROR_RTP_TYPE97_CORRUPT            2046
 //                                           
 // system control message, 
 // not an error, but special control logic.

@@ -39,6 +39,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsStream;
 class SrsSimpleBuffer;
+class SrsCodecSample;
 class ISrsProtocolReaderWriter;
 
 // rtsp specification
@@ -292,6 +293,11 @@ public:
     // normal message always completed.
     // while chunked completed when the last chunk arriaved.
     bool completed;
+
+    /**
+    * the audio samples, one rtp packets may contains multiple audio samples.
+    */
+    SrsCodecSample* audio_samples;
 public:
     SrsRtpPacket();
     virtual ~SrsRtpPacket();
@@ -308,6 +314,9 @@ public:
     * decode rtp packet from stream.
     */
     virtual int decode(SrsStream* stream);
+private:
+    virtual int decode_97(SrsStream* stream);
+    virtual int decode_96(SrsStream* stream);
 };
 
 /**
