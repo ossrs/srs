@@ -37,6 +37,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
+class SrsStream;
 class SrsSimpleBuffer;
 class ISrsProtocolReaderWriter;
 
@@ -144,6 +145,169 @@ enum SrsRtspTokenState
     * when CRLF follow the token.
     */
     SrsRtspTokenStateEOF = 102,
+};
+
+/**
+* the rtp packet.
+* 5. RTP Data Transfer Protocol, @see rtp-rfc3550-2003.pdf, page 12
+*/
+class SrsRtpPacket
+{
+public:
+    /**
+    * version (V): 2 bits
+    * This eld identies the version of RTP. The version dened by this specication is two (2).
+    * (The value 1 is used by the rst draft version of RTP and the value 0 is used by the protocol
+    * initially implemented in the \vat" audio tool.)
+    */
+    int8_t version; //2bits
+    /**
+    * padding (P): 1 bit
+    * If the padding bit is set, the packet contains one or more additional padding octets at the
+    * end which are not part of the payload. The last octet of the padding contains a count of
+    * how many padding octets should be ignored, including itself. Padding may be needed by
+    * some encryption algorithms with xed block sizes or for carrying several RTP packets in a
+    * lower-layer protocol data unit.
+    */
+    int8_t padding; //1bit
+    /**
+    * extension (X): 1 bit
+    * If the extension bit is set, the xed header must be followed by exactly one header extension,
+    * with a format dened in Section 5.3.1.
+    */
+    int8_t extension; //1bit
+    /**
+    * CSRC count (CC): 4 bits
+    * The CSRC count contains the number of CSRC identiers that follow the xed header.
+    */
+    int8_t csrc_count; //4bits
+    /**
+    * marker (M): 1 bit
+    * The interpretation of the marker is dened by a prole. It is intended to allow signicant
+    * events such as frame boundaries to be marked in the packet stream. A prole may dene
+    * additional marker bits or specify that there is no marker bit by changing the number of bits
+    * in the payload type eld (see Section 5.3).
+    */
+    int8_t marker; //1bit
+    /**
+    * payload type (PT): 7 bits
+    * This eld identies the format of the RTP payload and determines its interpretation by the
+    * application. A prole may specify a default static mapping of payload type codes to payload
+    * formats. Additional payload type codes may be dened dynamically through non-RTP means
+    * (see Section 3). A set of default mappings for audio and video is specied in the companion
+    * RFC 3551 [1]. An RTP source may change the payload type during a session, but this eld
+    * should not be used for multiplexing separate media streams (see Section 5.2).
+    * A receiver must ignore packets with payload types that it does not understand.
+    */
+    int8_t payload_type; //7bits
+    /**
+    * sequence number: 16 bits
+    * The sequence number increments by one for each RTP data packet sent, and may be used
+    * by the receiver to detect packet loss and to restore packet sequence. The initial value of the
+    * sequence number should be random (unpredictable) to make known-plaintext attacks on
+    * encryption more dicult, even if the source itself does not encrypt according to the method
+    * in Section 9.1, because the packets may flow through a translator that does. Techniques for
+    * choosing unpredictable numbers are discussed in [17].
+    */
+    u_int16_t sequence_number; //16bits
+    /**
+    * timestamp: 32 bits
+    * The timestamp reflects the sampling instant of the rst octet in the RTP data packet. The
+    * sampling instant must be derived from a clock that increments monotonically and linearly
+    * in time to allow synchronization and jitter calculations (see Section 6.4.1). The resolution
+    * of the clock must be sucient for the desired synchronization accuracy and for measuring
+    * packet arrival jitter (one tick per video frame is typically not sucient). The clock frequency
+    * is dependent on the format of data carried as payload and is specied statically in the prole
+    * or payload format specication that denes the format, or may be specied dynamically for
+    * payload formats dened through non-RTP means. If RTP packets are generated periodically,
+    * the nominal sampling instant as determined from the sampling clock is to be used, not a
+    * reading of the system clock. As an example, for xed-rate audio the timestamp clock would
+    * likely increment by one for each sampling period. If an audio application reads blocks covering
+    * 160 sampling periods from the input device, the timestamp would be increased by 160 for
+    * each such block, regardless of whether the block is transmitted in a packet or dropped as
+    * silent.
+    *
+    * The initial value of the timestamp should be random, as for the sequence number. Several
+    * consecutive RTP packets will have equal timestamps if they are (logically) generated at once,
+    * e.g., belong to the same video frame. Consecutive RTP packets may contain timestamps that
+    * are not monotonic if the data is not transmitted in the order it was sampled, as in the case
+    * of MPEG interpolated video frames. (The sequence numbers of the packets as transmitted
+    * will still be monotonic.)
+    * 
+    * RTP timestamps from dierent media streams may advance at dierent rates and usually
+    * have independent, random osets. Therefore, although these timestamps are sucient to
+    * reconstruct the timing of a single stream, directly comparing RTP timestamps from dierent
+    * media is not eective for synchronization. Instead, for each medium the RTP timestamp
+    * is related to the sampling instant by pairing it with a timestamp from a reference clock
+    * (wallclock) that represents the time when the data corresponding to the RTP timestamp was
+    * sampled. The reference clock is shared by all media to be synchronized. The timestamp
+    * pairs are not transmitted in every data packet, but at a lower rate in RTCP SR packets as
+    * described in Section 6.4.
+    * 
+    * The sampling instant is chosen as the point of reference for the RTP timestamp because it is
+    * known to the transmitting endpoint and has a common denition for all media, independent
+    * of encoding delays or other processing. The purpose is to allow synchronized presentation of
+    * all media sampled at the same time.
+    * 
+    * Applications transmitting stored data rather than data sampled in real time typically use a
+    * virtual presentation timeline derived from wallclock time to determine when the next frame
+    * or other unit of each medium in the stored data should be presented. In this case, the RTP
+    * timestamp would reflect the presentation time for each unit. That is, the RTP timestamp for
+    * each unit would be related to the wallclock time at which the unit becomes current on the
+    * virtual presentation timeline. Actual presentation occurs some time later as determined by
+    * the receiver.
+    * 
+    * An example describing live audio narration of prerecorded video illustrates the signicance
+    * of choosing the sampling instant as the reference point. In this scenario, the video would
+    * be presented locally for the narrator to view and would be simultaneously transmitted using
+    * RTP. The \sampling instant" of a video frame transmitted in RTP would be established by
+    * referencing its timestamp to the wallclock time when that video frame was presented to the
+    * narrator. The sampling instant for the audio RTP packets containing the narrator's speech
+    * would be established by referencing the same wallclock time when the audio was sampled.
+    * The audio and video may even be transmitted by dierent hosts if the reference clocks on
+    * the two hosts are synchronized by some means such as NTP. A receiver can then synchronize
+    * presentation of the audio and video packets by relating their RTP timestamps using the
+    * timestamp pairs in RTCP SR packets.
+    */
+    u_int32_t timestamp; //32bits
+    /**
+    * SSRC: 32 bits
+    * The SSRC eld identies the synchronization source. This identier should be chosen
+    * randomly, with the intent that no two synchronization sources within the same RTP session
+    * will have the same SSRC identier. An example algorithm for generating a random identier
+    * is presented in Appendix A.6. Although the probability of multiple sources choosing the same
+    * identier is low, all RTP implementations must be prepared to detect and resolve collisions.
+    * Section 8 describes the probability of collision along with a mechanism for resolving collisions
+    * and detecting RTP-level forwarding loops based on the uniqueness of the SSRC identier. If
+    * a source changes its source transport address, it must also choose a new SSRC identier to
+    * avoid being interpreted as a looped source (see Section 8.2).
+    */
+    u_int32_t ssrc; //32bits
+
+    // the payload.
+    SrsSimpleBuffer* payload;
+    // whether transport in chunked payload.
+    bool chunked;
+    // whether message is completed.
+    // normal message always completed.
+    // while chunked completed when the last chunk arriaved.
+    bool completed;
+public:
+    SrsRtpPacket();
+    virtual ~SrsRtpPacket();
+public:
+    /**
+    * copy the header from src.
+    */
+    virtual void copy(SrsRtpPacket* src);
+    /**
+    * reap the src to this packet, reap the payload.
+    */
+    virtual void reap(SrsRtpPacket* src);
+    /**
+    * decode rtp packet from stream.
+    */
+    virtual int decode(SrsStream* stream);
 };
 
 /**

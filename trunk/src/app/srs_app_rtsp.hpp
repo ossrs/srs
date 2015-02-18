@@ -45,6 +45,7 @@ class SrsRtspConn;
 class SrsRtspStack;
 class SrsRtspCaster;
 class SrsConfDirective;
+class SrsRtpPacket;
 
 /**
 * a rtp connection which transport a stream.
@@ -54,9 +55,11 @@ class SrsRtpConn: public ISrsUdpHandler
 private:
     SrsUdpListener* listener;
     SrsRtspConn* rtsp;
+    SrsRtpPacket* cache;
+    int stream_id;
     int _port;
 public:
-    SrsRtpConn(SrsRtspConn* r, int p);
+    SrsRtpConn(SrsRtspConn* r, int p, int sid);
     virtual ~SrsRtpConn();
 public:
     virtual int port();
@@ -103,6 +106,9 @@ public:
     virtual int serve();
 private:
     virtual int do_cycle();
+// internal methods
+public:
+    virtual int on_rtp_packet(SrsRtpPacket* pkt);
 // interface ISrsThreadHandler
 public:
     virtual int cycle();

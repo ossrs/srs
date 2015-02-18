@@ -33,19 +33,24 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_kernel_stream.hpp>
+#include <srs_kernel_buffer.hpp>
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
-SrsRtpConn::SrsRtpConn(SrsRtspConn* r, int p)
+SrsRtpConn::SrsRtpConn(SrsRtspConn* r, int p, int sid)
 {
     rtsp = r;
     _port = p;
+    stream_id = sid;
     listener = new SrsUdpListener(this, p);
+    cache = new SrsRtpPacket();
 }
 
 SrsRtpConn::~SrsRtpConn()
 {
     srs_freep(listener);
+    srs_freep(cache);
 }
 
 int SrsRtpConn::port()
@@ -61,6 +66,53 @@ int SrsRtpConn::listen()
 int SrsRtpConn::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
 {
     int ret = ERROR_SUCCESS;
+
+    if (true) {
+        SrsStream stream;
+
+        if ((ret = stream.initialize(buf, nb_buf)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    
+        SrsRtpPacket pkt;
+        if ((ret = pkt.decode(&stream)) != ERROR_SUCCESS) {
+            srs_error("rtsp: decode rtp packet failed. ret=%d", ret);
+            return ret;
+        }
+
+        if (pkt.chunked) {
+            if (!cache) {
+                cache = new SrsRtpPacket();
+            }
+            cache->copy(&pkt);
+            cache->payload->append(pkt.payload->bytes(), pkt.payload->length());
+            if (!cache->completed) {
+                srs_trace("rtsp: rtp chunked %dB, vt=%d/%u, sts=%u/%#x/%#x, paylod=%dB", 
+                    nb_buf, cache->version, cache->payload_type, cache->sequence_number, cache->timestamp, cache->ssrc, 
+                    cache->payload->length()
+                );
+                return ret;
+            }
+        } else {
+            srs_freep(cache);
+            cache = new SrsRtpPacket();
+            cache->reap(&pkt);
+        }
+    }
+
+    srs_trace("rtsp: rtp %dB, vt=%d/%u, sts=%u/%#x/%#x, paylod=%dB, chunked=%d", 
+        nb_buf, cache->version, cache->payload_type, cache->sequence_number, cache->timestamp, cache->ssrc, 
+        cache->payload->length(), cache->chunked
+    );
+
+    // always free it.
+    SrsAutoFree(SrsRtpPacket, cache);
+    
+    if ((ret = rtsp->on_rtp_packet(cache)) != ERROR_SUCCESS) {
+        srs_error("rtsp: process rtp packet failed. ret=%d", ret);
+        return ret;
+    }
+
     return ret;
 }
 
@@ -162,10 +214,10 @@ int SrsRtspConn::do_cycle()
             SrsRtpConn* rtp = NULL;
             if (req->stream_id == video_id) {
                 srs_freep(video_rtp);
-                rtp = video_rtp = new SrsRtpConn(this, lpm);
+                rtp = video_rtp = new SrsRtpConn(this, lpm, video_id);
             } else {
                 srs_freep(audio_rtp);
-                rtp = audio_rtp = new SrsRtpConn(this, lpm);
+                rtp = audio_rtp = new SrsRtpConn(this, lpm, audio_id);
             }
             if ((ret = rtp->listen()) != ERROR_SUCCESS) {
                 srs_error("rtsp: rtp listen at port=%d failed. ret=%d", lpm, ret);
@@ -207,6 +259,12 @@ int SrsRtspConn::do_cycle()
         }
     }
 
+    return ret;
+}
+
+int SrsRtspConn::on_rtp_packet(SrsRtpPacket* pkt)
+{
+    int ret = ERROR_SUCCESS;
     return ret;
 }
 

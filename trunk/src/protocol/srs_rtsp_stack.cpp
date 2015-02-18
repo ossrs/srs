@@ -34,6 +34,7 @@ using namespace std;
 #include <srs_kernel_consts.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_kernel_stream.hpp>
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
@@ -116,6 +117,121 @@ std::string srs_generate_rtsp_method_str(SrsRtspMethod method)
         case SrsRtspMethodTeardown: return __SRS_METHOD_TEARDOWN;
         default: return "Unknown";
     }
+}
+
+SrsRtpPacket::SrsRtpPacket()
+{
+    version = 2;
+    padding = 0;
+    extension = 0;
+    csrc_count = 0;
+    marker = 1;
+
+    payload_type = 0;
+    sequence_number = 0;
+    timestamp = 0;
+    ssrc = 0;
+
+    payload = new SrsSimpleBuffer();
+    chunked = false;
+    completed = false;
+}
+
+SrsRtpPacket::~SrsRtpPacket()
+{
+    srs_freep(payload);
+}
+
+void SrsRtpPacket::copy(SrsRtpPacket* src)
+{
+    version = src->version;
+    padding = src->padding;
+    extension = src->extension;
+    csrc_count = src->csrc_count;
+    marker = src->marker;
+    payload_type = src->payload_type;
+    sequence_number = src->sequence_number;
+    timestamp = src->timestamp;
+    ssrc = src->ssrc;
+
+    chunked = src->chunked;
+    completed = src->completed;
+}
+
+void SrsRtpPacket::reap(SrsRtpPacket* src)
+{
+    copy(src);
+
+    payload = src->payload;
+    src->payload = NULL;
+}
+
+int SrsRtpPacket::decode(SrsStream* stream)
+{
+    int ret = ERROR_SUCCESS;
+
+    // 12bytes header, atleast 2bytes content.
+    if (!stream->require(14)) {
+        ret = ERROR_RTP_HEADER_CORRUPT;
+        srs_error("rtsp: rtp header corrupt. ret=%d", ret);
+        return ret;
+    }
+
+    int8_t vv = stream->read_1bytes();
+    version = (vv >> 6) & 0x03;
+    padding = (vv >> 5) & 0x01;
+    extension = (vv >> 4) & 0x01;
+    csrc_count = vv & 0x0f;
+
+    int8_t mv = stream->read_1bytes();
+    marker = (mv >> 7) & 0x01;
+    payload_type = mv & 0x7f;
+
+    sequence_number = stream->read_2bytes();
+    timestamp = stream->read_4bytes();
+    ssrc = stream->read_4bytes();
+
+    // frame type
+    // 0... .... reserverd
+    // .11. .... NALU[0]&0x60
+    // ...1 11.. FU indicator
+    // .... ..00 reserverd
+    int8_t ftv = stream->read_1bytes();
+    int8_t nalu_0x60 = ftv & 0x60;
+    int8_t fu_indicator = ftv & 0x1c;
+
+    // nri, whatever
+    // 10.. .... first chunk.
+    // 00.. .... continous chunk.
+    // 01.. .... last chunk.
+    // ...1 1111 NALU[0]&0x1f
+    int8_t nriv = stream->read_1bytes();
+    bool first_chunk = (nriv & 0xC0) == 0x80;
+    bool last_chunk = (nriv & 0xC0) == 0x40;
+    bool contious_chunk = (nriv & 0xC0) == 0x00;
+    int8_t nalu_0x1f = nriv & 0x1f;
+
+    // chunked, generate the first byte NALU.
+    if (fu_indicator == 0x1c && (first_chunk || last_chunk || contious_chunk)) {
+        chunked = true;
+        completed = last_chunk;
+
+        // generate and append the first byte NALU.
+        if (first_chunk) {
+            int8_t nalu_byte0 = nalu_0x60 | nalu_0x1f;
+            payload->append((char*)&nalu_byte0, 1);
+        }
+        
+        payload->append(stream->data() + stream->pos(), stream->size() - stream->pos());
+        return ret;
+    }
+
+    // no chunked, append to payload.
+    stream->skip(-2);
+    payload->append(stream->data() + stream->pos(), stream->size() - stream->pos());
+    completed = true;
+
+    return ret;
 }
 
 SrsRtspSdp::SrsRtspSdp()
