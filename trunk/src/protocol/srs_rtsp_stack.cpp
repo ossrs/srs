@@ -200,6 +200,8 @@ int SrsRtpPacket::decode(SrsStream* stream)
     timestamp = stream->read_4bytes();
     ssrc = stream->read_4bytes();
 
+    // TODO: FIXME: check sequence number.
+
     // video codec.
     if (payload_type == 96) {
         return decode_96(stream);
@@ -232,7 +234,6 @@ int SrsRtpPacket::decode_97(SrsStream* stream)
     }
 
     int nb_samples = au_size / 2;
-    int guess_sample_size = (stream->size() - stream->pos() - au_size) / nb_samples;
     int required_size = 0;
 
     // append left bytes to payload.
@@ -247,11 +248,9 @@ int SrsRtpPacket::decode_97(SrsStream* stream)
         lasv = stream->read_1bytes();
 
         u_int16_t sample_size = ((hasv << 5) & 0xE0) | ((lasv >> 3) & 0x1f);
-        if (sample_size != guess_sample_size) {
-            // guess the size lost 0x100.
-            if (guess_sample_size == (sample_size | 0x100)) {
-                sample_size = guess_sample_size;
-            }
+        // TODO: FIXME: finger out how to parse the size of sample.
+        if (sample_size < 0x100 && stream->require(required_size + sample_size + 0x100)) {
+            sample_size = sample_size | 0x100;
         }
 
         char* sample = p + required_size;
@@ -541,7 +540,17 @@ int SrsRtspSdp::parse_fmtp_attribute(string attr)
             } else if (item_key == "indexdeltalength") {
                 audio_index_delta_length = item_value;
             } else if (item_key == "config") {
-                audio_sh = base64_decode(item_value);
+                if (item_value.length() <= 0) {
+                    ret = ERROR_RTSP_AUDIO_CONFIG;
+                    srs_error("rtsp: audio config failed. ret=%d", ret);
+                    return ret;
+                }
+
+                char* tmp_sh = new char[item_value.length()];
+                SrsAutoFree(char, tmp_sh);
+                int nb_tmp_sh = ff_hex_to_data((u_int8_t*)tmp_sh, item_value.c_str());
+                srs_assert(nb_tmp_sh > 0);
+                audio_sh.append(tmp_sh, nb_tmp_sh);
             }
         }
     }

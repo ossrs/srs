@@ -629,7 +629,6 @@ int SrsMpegtsOverUdp::connect()
         return ret;
     }
 
-
     return ret;
 }
 

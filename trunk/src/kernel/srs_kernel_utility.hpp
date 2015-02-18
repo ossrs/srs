@@ -115,5 +115,12 @@ extern char* srs_av_base64_encode(char* out, int out_size, const u_int8_t* in, i
  */
 #define SRS_AV_BASE64_SIZE(x)  (((x)+2) / 3 * 4 + 1)
 
+/**
+* convert hex string to data.
+* for example, p=config='139056E5A0'
+* output hex to data={0x13, 0x90, 0x56, 0xe5, 0xa0}
+*/
+extern int ff_hex_to_data(u_int8_t* data, const char* p);
+
 #endif
 

@@ -475,6 +475,11 @@ public:
     * demux the h.264 NALUs to sampe units.
     */
     virtual int video_avc_demux(char* data, int size, SrsCodecSample* sample);
+public:
+    /**
+    * directly demux the sequence header, without RTMP packet header.
+    */
+    virtual int audio_aac_sequence_header_demux(char* data, int size);
 private:
     /**
     * when avc packet type is SrsCodecVideoAVCTypeSequenceHeader,

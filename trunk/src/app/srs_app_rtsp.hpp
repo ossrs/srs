@@ -46,6 +46,15 @@ class SrsRtspStack;
 class SrsRtspCaster;
 class SrsConfDirective;
 class SrsRtpPacket;
+class SrsRequest;
+class SrsStSocket;
+class SrsRtmpClient;
+class SrsRawH264Stream;
+class SrsRawAacStream;
+class SrsRawAacStreamCodec;
+class SrsSharedPtrMessage;
+class SrsCodecSample;
+class SrsSimpleBuffer;
 
 /**
 * a rtp connection which transport a stream.
@@ -70,12 +79,45 @@ public:
 };
 
 /**
+* audio is group by frames.
+*/
+struct SrsRtspAudioCache
+{
+    int64_t dts;
+    SrsCodecSample* audio_samples;
+    SrsSimpleBuffer* payload;
+
+    SrsRtspAudioCache();
+    virtual ~SrsRtspAudioCache();
+};
+
+/**
+* the time jitter correct for rtsp.
+*/
+class SrsRtspJitter
+{
+private:
+    int64_t previous_timestamp;
+    int64_t pts;
+    int delta;
+public:
+    SrsRtspJitter();
+    virtual ~SrsRtspJitter();
+public:
+    virtual int64_t timestamp();
+    virtual int correct(int64_t& ts);
+};
+
+/**
 * the rtsp connection serve the fd.
 */
 class SrsRtspConn : public ISrsThreadHandler
 {
 private:
-    std::string output;
+    std::string output_template;
+    std::string rtsp_tcUrl;
+    std::string rtsp_stream;
+
 private:
     std::string session;
     // video stream.
@@ -88,17 +130,28 @@ private:
     int audio_sample_rate;
     int audio_channel;
     SrsRtpConn* audio_rtp;
-    // video sequence header.
-    std::string sps;
-    std::string pps;
-    // audio sequence header.
-    std::string asc;
 private:
     st_netfd_t stfd;
     SrsStSocket* skt;
     SrsRtspStack* rtsp;
     SrsRtspCaster* caster;
     SrsThread* trd;
+private:
+    SrsRequest* req;
+    SrsStSocket* io;
+    SrsRtmpClient* client;
+    SrsRtspJitter* vjitter;
+    SrsRtspJitter* ajitter;
+    int stream_id;
+private:
+    SrsRawH264Stream* avc;
+    std::string h264_sps;
+    std::string h264_pps;
+private:
+    SrsRawAacStream* aac;
+    SrsRawAacStreamCodec* acodec;
+    std::string aac_specific_config;
+    SrsRtspAudioCache* acache;
 public:
     SrsRtspConn(SrsRtspCaster* c, st_netfd_t fd, std::string o);
     virtual ~SrsRtspConn();
@@ -108,11 +161,28 @@ private:
     virtual int do_cycle();
 // internal methods
 public:
-    virtual int on_rtp_packet(SrsRtpPacket* pkt);
+    virtual int on_rtp_packet(SrsRtpPacket* pkt, int stream_id);
 // interface ISrsThreadHandler
 public:
     virtual int cycle();
     virtual void on_thread_stop();
+private:
+    virtual int on_rtp_video(SrsRtpPacket* pkt, int64_t dts, int64_t pts);
+    virtual int on_rtp_audio(SrsRtpPacket* pkt, int64_t dts);
+    virtual int kickoff_audio_cache(SrsRtpPacket* pkt, int64_t dts);
+private:
+    virtual int write_sequence_header();
+    virtual int write_h264_sps_pps(u_int32_t dts, u_int32_t pts);
+    virtual int write_h264_ipb_frame(char* frame, int frame_size, u_int32_t dts, u_int32_t pts);
+    virtual int write_audio_raw_frame(char* frame, int frame_size, SrsRawAacStreamCodec* codec, u_int32_t dts);
+    virtual int rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size);
+private:
+    // connect to rtmp output url. 
+    // @remark ignore when not connected, reconnect when disconnected.
+    virtual int connect();
+    virtual int connect_app(std::string ep_server, std::string ep_port);
+    // close the connected io and rtmp to ready to be re-connect.
+    virtual void close();
 };
 
 /**

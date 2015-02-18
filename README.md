@@ -1,10 +1,6 @@
 #Simple-RTMP-Server
 
-<<<<<<< HEAD
 SRS/2.0，开发代号：[ZhouGuowen](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Product#release20)
-=======
-SRS/1.0，开发代号：[HuKaiqun](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Product#release10)
->>>>>>> 1.0release
 
 SRS定位是运营级的互联网直播服务器集群，追求更好的概念完整性和最简单实现的代码。
 
@@ -493,6 +489,8 @@ Supported operating systems and hardware:
 [#250](https://github.com/winlinvip/simple-rtmp-server/issues/250).
 1. Rewrite HLS(h.264+aac/mp3) streaming, read
 [#304](https://github.com/winlinvip/simple-rtmp-server/issues/304).
+1. Support push RTSP to SRS, read
+[#133](https://github.com/winlinvip/simple-rtmp-server/issues/133).
 1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
 1. [no-plan] Support RTMP 302 redirect [#92](https://github.com/winlinvip/simple-rtmp-server/issues/92).
 1. [no-plan] Support multiple processes, for both origin and edge
@@ -531,6 +529,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-02-18, fix [#133](https://github.com/winlinvip/simple-rtmp-server/issues/133), support push rtsp to srs. 2.0.120.
 * v2.0, 2015-02-17, the join maybe failed, should use a variable to ensure thread terminated. 2.0.119.
 * v2.0, 2015-02-15, for [#304](https://github.com/winlinvip/simple-rtmp-server/issues/304), support config default acodec/vcodec. 2.0.118.
 * v2.0, 2015-02-15, for [#304](https://github.com/winlinvip/simple-rtmp-server/issues/304), rewrite hls/ts code, support h.264+mp3 for hls. 2.0.117.

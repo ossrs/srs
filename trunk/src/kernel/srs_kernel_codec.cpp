@@ -279,58 +279,12 @@ int SrsAvcAacCodec::audio_aac_demux(char* data, int size, SrsCodecSample* sample
             srs_freep(aac_extra_data);
             aac_extra_data = new char[aac_extra_size];
             memcpy(aac_extra_data, stream->data() + stream->pos(), aac_extra_size);
-        }
-        
-        // only need to decode the first 2bytes:
-        //      audioObjectType, aac_profile, 5bits.
-        //      samplingFrequencyIndex, aac_sample_rate, 4bits.
-        //      channelConfiguration, aac_channels, 4bits
-        if (!stream->require(2)) {
-            ret = ERROR_HLS_DECODE_ERROR;
-            srs_error("audio codec decode aac sequence header failed. ret=%d", ret);
-            return ret;
-        }
-        u_int8_t profile_ObjectType = stream->read_1bytes();
-        u_int8_t samplingFrequencyIndex = stream->read_1bytes();
-        
-        aac_channels = (samplingFrequencyIndex >> 3) & 0x0f;
-        samplingFrequencyIndex = ((profile_ObjectType << 1) & 0x0e) | ((samplingFrequencyIndex >> 7) & 0x01);
-        profile_ObjectType = (profile_ObjectType >> 3) & 0x1f;
 
-        // set the aac sample rate.
-        aac_sample_rate = samplingFrequencyIndex;
-
-        // the profile = object_id + 1
-        // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 78,
-        //      Table 1. A.9 每 MPEG-2 Audio profiles and MPEG-4 Audio object types
-        aac_profile = profile_ObjectType + 1;
-        
-        // the valid aac profile:
-        //      MPEG-2 profile
-        //      Main profile (ID == 1)
-        //      Low Complexity profile (LC) (ID == 2)
-        //      Scalable Sampling Rate profile (SSR) (ID == 3)
-        //      (reserved) (ID == 4)
-        // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 78,
-        //      Table 1. A.9 每 MPEG-2 Audio profiles and MPEG-4 Audio object types
-        if (aac_profile > 4) {
-            ret = ERROR_HLS_DECODE_ERROR;
-            srs_error("audio codec decode aac sequence header failed, "
-                "adts object=%d invalid. ret=%d", profile_ObjectType, ret);
-            return ret;
+            // demux the sequence header.
+            if ((ret = audio_aac_sequence_header_demux(aac_extra_data, aac_extra_size)) != ERROR_SUCCESS) {
+                return ret;
+            }
         }
-        
-        // TODO: FIXME: to support aac he/he-v2, see: ngx_rtmp_codec_parse_aac_header
-        // @see: https://github.com/winlinvip/nginx-rtmp-module/commit/3a5f9eea78fc8d11e8be922aea9ac349b9dcbfc2
-        // 
-        // donot force to LC, @see: https://github.com/winlinvip/simple-rtmp-server/issues/81
-        // the source will print the sequence header info.
-        //if (aac_profile > 3) {
-            // Mark all extended profiles as LC
-            // to make Android as happy as possible.
-            // @see: ngx_rtmp_hls_parse_aac_header
-            //aac_profile = 1;
-        //}
     } else if (aac_packet_type == SrsCodecAudioTypeRawData) {
         // ensure the sequence header demuxed
         if (aac_extra_size <= 0 || !aac_extra_data) {
@@ -400,6 +354,68 @@ int SrsAvcAacCodec::audio_mp3_demux(char* data, int size, SrsCodecSample* sample
     srs_info("audio decoded, type=%d, codec=%d, asize=%d, rate=%d, format=%d, size=%d", 
         sample->sound_type, audio_codec_id, sample->sound_size, sample->sound_rate, sample->acodec, size);
     
+    return ret;
+}
+
+int SrsAvcAacCodec::audio_aac_sequence_header_demux(char* data, int size)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = stream->initialize(data, size)) != ERROR_SUCCESS) {
+        return ret;
+    }
+        
+    // only need to decode the first 2bytes:
+    //      audioObjectType, aac_profile, 5bits.
+    //      samplingFrequencyIndex, aac_sample_rate, 4bits.
+    //      channelConfiguration, aac_channels, 4bits
+    if (!stream->require(2)) {
+        ret = ERROR_HLS_DECODE_ERROR;
+        srs_error("audio codec decode aac sequence header failed. ret=%d", ret);
+        return ret;
+    }
+    u_int8_t profile_ObjectType = stream->read_1bytes();
+    u_int8_t samplingFrequencyIndex = stream->read_1bytes();
+        
+    aac_channels = (samplingFrequencyIndex >> 3) & 0x0f;
+    samplingFrequencyIndex = ((profile_ObjectType << 1) & 0x0e) | ((samplingFrequencyIndex >> 7) & 0x01);
+    profile_ObjectType = (profile_ObjectType >> 3) & 0x1f;
+
+    // set the aac sample rate.
+    aac_sample_rate = samplingFrequencyIndex;
+
+    // the profile = object_id + 1
+    // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 78,
+    //      Table 1. A.9 每 MPEG-2 Audio profiles and MPEG-4 Audio object types
+    aac_profile = profile_ObjectType + 1;
+        
+    // the valid aac profile:
+    //      MPEG-2 profile
+    //      Main profile (ID == 1)
+    //      Low Complexity profile (LC) (ID == 2)
+    //      Scalable Sampling Rate profile (SSR) (ID == 3)
+    //      (reserved) (ID == 4)
+    // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 78,
+    //      Table 1. A.9 每 MPEG-2 Audio profiles and MPEG-4 Audio object types
+    if (aac_profile > 4) {
+        ret = ERROR_HLS_DECODE_ERROR;
+        srs_error("audio codec decode aac sequence header failed, "
+            "adts object=%d invalid. ret=%d", profile_ObjectType, ret);
+        return ret;
+    }
+        
+    // TODO: FIXME: to support aac he/he-v2, see: ngx_rtmp_codec_parse_aac_header
+    // @see: https://github.com/winlinvip/nginx-rtmp-module/commit/3a5f9eea78fc8d11e8be922aea9ac349b9dcbfc2
+    // 
+    // donot force to LC, @see: https://github.com/winlinvip/simple-rtmp-server/issues/81
+    // the source will print the sequence header info.
+    //if (aac_profile > 3) {
+        // Mark all extended profiles as LC
+        // to make Android as happy as possible.
+        // @see: ngx_rtmp_hls_parse_aac_header
+        //aac_profile = 1;
+    //}
+
     return ret;
 }
 
