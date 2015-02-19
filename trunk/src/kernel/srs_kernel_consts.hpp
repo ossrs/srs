@@ -162,31 +162,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONSTS_LOG_HLS "HLS"
 // encoder log id.
 #define SRS_CONSTS_LOG_ENCODER "ENC"
-
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////
-
-///////////////////////////////////////////////////////////
-// pithy-print consts values
-///////////////////////////////////////////////////////////
-// the pithy stage for all play clients.
-#define SRS_CONSTS_STAGE_PLAY_USER 1
-// the pithy stage for all publish clients.
-#define SRS_CONSTS_STAGE_PUBLISH_USER 2
-// the pithy stage for all forward clients.
-#define SRS_CONSTS_STAGE_FORWARDER 3
-// the pithy stage for all encoders.
-#define SRS_CONSTS_STAGE_ENCODER 4
-// the pithy stage for all hls.
-#define SRS_CONSTS_STAGE_HLS 5
-// the pithy stage for all ingesters.
-#define SRS_CONSTS_STAGE_INGESTER 6
-// the pithy stage for all edge.
-#define SRS_CONSTS_STAGE_EDGE 7
+// http stream log id.
+#define SRS_CONSTS_LOG_HTTP_STREAM "HTS"
+// http stream cache log id.
+#define SRS_CONSTS_LOG_HTTP_STREAM_CACHE "HTC"
+// stream caster log id.
+#define SRS_CONSTS_LOG_STREAM_CASTER "SCS"
 
 ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////

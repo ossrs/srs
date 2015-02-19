@@ -65,7 +65,7 @@ private:
     std::vector<SrsIngesterFFMPEG*> ingesters;
 private:
     SrsThread* pthread;
-    SrsPithyPrint* pithy_print;
+    SrsPithyPrint* pprint;
 public:
     SrsIngester();
     virtual ~SrsIngester();
@@ -82,7 +82,7 @@ private:
     virtual int parse_ingesters(SrsConfDirective* vhost);
     virtual int parse_engines(SrsConfDirective* vhost, SrsConfDirective* ingest);
     virtual int initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, SrsConfDirective* ingest, SrsConfDirective* engine);
-    virtual void ingester();
+    virtual void show_ingest_log_message();
 // interface ISrsReloadHandler.
 public:
     virtual int on_reload_vhost_removed(std::string vhost);

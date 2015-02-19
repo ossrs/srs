@@ -91,13 +91,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define SRS_CONF_DEFAULT_STATS_NETWORK_DEVICE_INDEX 0
 
-#define SRS_CONF_DEFAULT_STAGE_PLAY_USER_INTERVAL_MS 10000
-#define SRS_CONF_DEFAULT_STAGE_PUBLISH_USER_INTERVAL_MS 10000
-#define SRS_CONF_DEFAULT_STAGE_FORWARDER_INTERVAL_MS 10000
-#define SRS_CONF_DEFAULT_STAGE_ENCODER_INTERVAL_MS 10000
-#define SRS_CONF_DEFAULT_STAGE_INGESTER_INTERVAL_MS 10000
-#define SRS_CONF_DEFAULT_STAGE_HLS_INTERVAL_MS 10000
-#define SRS_CONF_DEFAULT_STAGE_EDGE_INTERVAL_MS 10000
+#define SRS_CONF_DEFAULT_PITHY_PRINT_MS 10000
 
 #define SRS_CONF_DEFAULT_INGEST_TYPE_FILE "file"
 #define SRS_CONF_DEFAULT_INGEST_TYPE_STREAM "stream"
@@ -419,46 +413,12 @@ public:
     *       user can use different pid file for each process.
     */
     virtual std::string         get_pid_file();
-// pithy print
-private:
-    virtual SrsConfDirective*   get_pithy_print();
-public:
     /**
-    * get the pithy print interval for publish, in ms,
-    * the publish(flash/FMLE) message print.
+    * get pithy print pulse ms,
+    * for example, all rtmp connections only print one message
+    * every this interval in ms.
     */
-    virtual int                 get_pithy_print_publish();
-    /**
-    * get the pithy print interval for forwarder, in ms,
-    * the forwarder message print, for SRS forward stream to other servers.
-    */
-    virtual int                 get_pithy_print_forwarder();
-    /**
-    * get the pithy print interval for encoder, in ms,
-    * the encoder message print, for FFMPEG transcoder.
-    */
-    virtual int                 get_pithy_print_encoder();
-    /**
-    * get the pithy print interval for ingester, in ms,
-    * the ingest used FFMPEG, or your tools, to read and transcode other stream 
-    * to RTMP to SRS.
-    */
-    virtual int                 get_pithy_print_ingester();
-    /**
-    * get the pithy print interval for HLS, in ms,
-    * the HLS used for IOS/android/PC, SRS will mux RTMP to HLS.
-    */
-    virtual int                 get_pithy_print_hls();
-    /**
-    * get the pithy print interval for Play, in ms,
-    * the play is client or edge playing RTMP stream
-    */
-    virtual int                 get_pithy_print_play();
-    /**
-    * get the pithy print interval for edge, in ms,
-    * the edge will get stream from upnode.
-    */
-    virtual int                 get_pithy_print_edge();
+    virtual int                 get_pithy_print_ms();
 // stream_caster section
 public:
     /**

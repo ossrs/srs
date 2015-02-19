@@ -52,7 +52,7 @@ private:
     std::vector<SrsFFMPEG*> ffmpegs;
 private:
     SrsThread* pthread;
-    SrsPithyPrint* pithy_print;
+    SrsPithyPrint* pprint;
 public:
     SrsEncoder();
     virtual ~SrsEncoder();
@@ -69,7 +69,7 @@ private:
     virtual int parse_scope_engines(SrsRequest* req);
     virtual int parse_ffmpeg(SrsRequest* req, SrsConfDirective* conf);
     virtual int initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDirective* engine);
-    virtual void encoder();
+    virtual void show_encode_log_message();
 };
 
 #endif

@@ -45,7 +45,7 @@ static std::vector<std::string> _transcoded_url;
 SrsEncoder::SrsEncoder()
 {
     pthread = new SrsThread("encoder", this, SRS_RTMP_ENCODER_SLEEP_US, true);
-    pithy_print = new SrsPithyPrint(SRS_CONSTS_STAGE_ENCODER);
+    pprint = SrsPithyPrint::create_encoder();
 }
 
 SrsEncoder::~SrsEncoder()
@@ -53,7 +53,7 @@ SrsEncoder::~SrsEncoder()
     on_unpublish();
     
     srs_freep(pthread);
-    srs_freep(pithy_print);
+    srs_freep(pprint);
 }
 
 int SrsEncoder::on_publish(SrsRequest* req)
@@ -113,8 +113,7 @@ int SrsEncoder::cycle()
     }
 
     // pithy print
-    encoder();
-    pithy_print->elapse();
+    show_encode_log_message();
     
     return ret;
 }
@@ -324,13 +323,15 @@ int SrsEncoder::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsRequest* req, SrsConfDir
     return ret;
 }
 
-void SrsEncoder::encoder()
+void SrsEncoder::show_encode_log_message()
 {
+    pprint->elapse();
+
     // reportable
-    if (pithy_print->can_print()) {
+    if (pprint->can_print()) {
         // TODO: FIXME: show more info.
         srs_trace("-> "SRS_CONSTS_LOG_ENCODER" time=%"PRId64", encoders=%d, input=%s", 
-            pithy_print->age(), (int)ffmpegs.size(), input_stream_name.c_str());
+            pprint->age(), (int)ffmpegs.size(), input_stream_name.c_str());
     }
 }
 

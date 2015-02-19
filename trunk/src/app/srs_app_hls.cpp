@@ -825,7 +825,7 @@ SrsHls::SrsHls(SrsSource* s, ISrsHlsHandler* h)
     muxer = new SrsHlsMuxer(h);
     hls_cache = new SrsHlsCache();
 
-    pithy_print = new SrsPithyPrint(SRS_CONSTS_STAGE_HLS);
+    pprint = SrsPithyPrint::create_hls();
     stream_dts = 0;
 }
 
@@ -838,7 +838,7 @@ SrsHls::~SrsHls()
     srs_freep(muxer);
     srs_freep(hls_cache);
     
-    srs_freep(pithy_print);
+    srs_freep(pprint);
 }
 
 int SrsHls::on_publish(SrsRequest* req)
@@ -1012,24 +1012,25 @@ int SrsHls::on_video(SrsSharedPtrMessage* __video)
         return ret;
     }
     
-    hls_mux();
+    // pithy print message.
+    hls_show_mux_log();
     
     return ret;
 }
 
-void SrsHls::hls_mux()
+void SrsHls::hls_show_mux_log()
 {
+    pprint->elapse();
+
     // reportable
-    if (pithy_print->can_print()) {
+    if (pprint->can_print()) {
         // the run time is not equals to stream time,
         // @see: https://github.com/winlinvip/simple-rtmp-server/issues/81#issuecomment-48100994
         // it's ok.
         srs_trace("-> "SRS_CONSTS_LOG_HLS
             " time=%"PRId64", stream dts=%"PRId64"(%"PRId64"ms), sequence_no=%d", 
-            pithy_print->age(), stream_dts, stream_dts / 90, muxer->sequence_no());
+            pprint->age(), stream_dts, stream_dts / 90, muxer->sequence_no());
     }
-    
-    pithy_print->elapse();
 }
 
 #endif

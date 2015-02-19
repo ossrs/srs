@@ -41,6 +41,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_raw_avc.hpp>
 #include <srs_kernel_codec.hpp>
+#include <srs_app_pithy_print.hpp>
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
@@ -51,12 +52,14 @@ SrsRtpConn::SrsRtpConn(SrsRtspConn* r, int p, int sid)
     stream_id = sid;
     listener = new SrsUdpListener(this, p);
     cache = new SrsRtpPacket();
+    pprint = SrsPithyPrint::create_caster();
 }
 
 SrsRtpConn::~SrsRtpConn()
 {
     srs_freep(listener);
     srs_freep(cache);
+    srs_freep(pprint);
 }
 
 int SrsRtpConn::port()
@@ -72,6 +75,8 @@ int SrsRtpConn::listen()
 int SrsRtpConn::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
 {
     int ret = ERROR_SUCCESS;
+
+    pprint->elapse();
 
     if (true) {
         SrsStream stream;
@@ -92,9 +97,9 @@ int SrsRtpConn::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
             }
             cache->copy(&pkt);
             cache->payload->append(pkt.payload->bytes(), pkt.payload->length());
-            if (!cache->completed) {
-                srs_trace("rtsp: rtp chunked %dB, vt=%d/%u, sts=%u/%#x/%#x, paylod=%dB", 
-                    nb_buf, cache->version, cache->payload_type, cache->sequence_number, cache->timestamp, cache->ssrc, 
+            if (!cache->completed && pprint->can_print()) {
+                srs_trace("<- "SRS_CONSTS_LOG_STREAM_CASTER" rtsp: rtp chunked %dB, age=%d, vt=%d/%u, sts=%u/%#x/%#x, paylod=%dB", 
+                    nb_buf, pprint->age(), cache->version, cache->payload_type, cache->sequence_number, cache->timestamp, cache->ssrc, 
                     cache->payload->length()
                 );
                 return ret;
@@ -106,10 +111,12 @@ int SrsRtpConn::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
         }
     }
 
-    srs_trace("rtsp: rtp #%d %dB, vt=%d/%u, sts=%u/%u/%#x, paylod=%dB, chunked=%d", 
-        stream_id, nb_buf, cache->version, cache->payload_type, cache->sequence_number, cache->timestamp, cache->ssrc, 
-        cache->payload->length(), cache->chunked
-    );
+    if (pprint->can_print()) {
+        srs_trace("<- "SRS_CONSTS_LOG_STREAM_CASTER" rtsp: rtp #%d %dB, age=%d, vt=%d/%u, sts=%u/%u/%#x, paylod=%dB, chunked=%d", 
+            stream_id, nb_buf, pprint->age(), cache->version, cache->payload_type, cache->sequence_number, cache->timestamp, cache->ssrc, 
+            cache->payload->length(), cache->chunked
+        );
+    }
 
     // always free it.
     SrsAutoFree(SrsRtpPacket, cache);

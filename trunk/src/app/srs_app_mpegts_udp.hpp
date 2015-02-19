@@ -47,6 +47,7 @@ class SrsRawH264Stream;
 class SrsSharedPtrMessage;
 class SrsRawAacStream;
 class SrsRawAacStreamCodec;
+class SrsPithyPrint;
 
 #include <srs_app_st.hpp>
 #include <srs_kernel_ts.hpp>
@@ -101,6 +102,7 @@ private:
     std::string aac_specific_config;
 private:
     SrsMpegtsQueue* queue;
+    SrsPithyPrint* pprint;
 public:
     SrsMpegtsOverUdp(SrsConfDirective* c);
     virtual ~SrsMpegtsOverUdp();

@@ -32,6 +32,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_reload.hpp>
 
+/**
+* the stage info to calc the age.
+*/
 class SrsStageInfo : public ISrsReloadHandler
 {
 public:
@@ -56,6 +59,17 @@ public:
 * the print time in a stage is constant and not changed.
 * for example, stage #1 for all play clients, print time is 3s,
 * if there is 10clients, then all clients should print in 10*3s.
+* Usage:
+        SrsPithyPrint* pprint = SrsPithyPrint::create_rtmp_play();
+        SrsAutoFree(SrsPithyPrint, pprint);
+        while (true) {
+            pprint->elapse();
+            if (pprint->can_print()) {
+                // print pithy message.
+                // user can get the elapse time by: pprint->age()
+            }
+            // read and write RTMP messages.
+        }
 */
 class SrsPithyPrint
 {
@@ -65,11 +79,19 @@ private:
     // in ms.
     int64_t _age;
     int64_t previous_tick;
-public:
-    /**
-    * @param _stage_id defined in SRS_CONSTS_STAGE_xxx, eg. SRS_CONSTS_STAGE_PLAY_USER.
-    */
+private:
     SrsPithyPrint(int _stage_id);
+public:
+    static SrsPithyPrint* create_rtmp_play();
+    static SrsPithyPrint* create_rtmp_publish();
+    static SrsPithyPrint* create_hls();
+    static SrsPithyPrint* create_forwarder();
+    static SrsPithyPrint* create_encoder();
+    static SrsPithyPrint* create_ingester();
+    static SrsPithyPrint* create_edge();
+    static SrsPithyPrint* create_caster();
+    static SrsPithyPrint* create_http_stream();
+    static SrsPithyPrint* create_http_stream_cache();
     virtual ~SrsPithyPrint();
 private:
     /**

@@ -608,7 +608,9 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
     srs_verbose("check play_refer success.");
     
     // initialize other components
-    SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_PLAY_USER);
+    SrsPithyPrint* pprint = SrsPithyPrint::create_rtmp_play();
+    SrsAutoFree(SrsPithyPrint, pprint);
+
     SrsMessageArray msgs(SRS_PERF_MW_MSGS);
     bool user_specified_duration_to_stop = (req->duration > 0);
     int64_t starttime = -1;
@@ -621,6 +623,9 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
     change_mw_sleep(_srs_config->get_mw_sleep_ms(req->vhost));
     
     while (true) {
+        // collect elapse for pithy print.
+        pprint->elapse();
+
         // to use isolate thread to recv, can improve about 33% performance.
         // @see: https://github.com/winlinvip/simple-rtmp-server/issues/196
         // @see: https://github.com/winlinvip/simple-rtmp-server/issues/217
@@ -643,9 +648,6 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
             }
             return ret;
         }
-        
-        // collect elapse for pithy print.
-        pithy_print.elapse();
         
 #ifdef SRS_PERF_QUEUE_COND_WAIT
         // for send wait time debug
@@ -675,11 +677,11 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
         }
 
         // reportable
-        if (pithy_print.can_print()) {
+        if (pprint->can_print()) {
             kbps->sample();
             srs_trace("-> "SRS_CONSTS_LOG_PLAY
                 " time=%"PRId64", msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d, mw=%d",
-                pithy_print.age(), count,
+                pprint->age(), count,
                 kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
                 kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(),
                 mw_sleep
@@ -827,8 +829,9 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
         return ret;
     }
     srs_verbose("check publish_refer success.");
-
-    SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_PUBLISH_USER);
+    
+    SrsPithyPrint* pprint = SrsPithyPrint::create_rtmp_publish();
+    SrsAutoFree(SrsPithyPrint, pprint);
 
     bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
 
@@ -850,6 +853,8 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
 
     int64_t nb_msgs = 0;
     while (true) {
+        pprint->elapse();
+
         // cond wait for error.
         trd->wait(SRS_CONSTS_RTMP_RECV_TIMEOUT_US / 1000);
 
@@ -870,15 +875,13 @@ int SrsRtmpConn::do_publishing(SrsSource* source, SrsPublishRecvThread* trd)
         }
         nb_msgs = trd->nb_msgs();
 
-        pithy_print.elapse();
-
         // reportable
-        if (pithy_print.can_print()) {
+        if (pprint->can_print()) {
             kbps->sample();
             bool mr = _srs_config->get_mr_enabled(req->vhost);
             int mr_sleep = _srs_config->get_mr_sleep_ms(req->vhost);
             srs_trace("<- "SRS_CONSTS_LOG_CLIENT_PUBLISH
-                " time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d, mr=%d/%d", pithy_print.age(),
+                " time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d, mr=%d/%d", pprint->age(),
                 kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
                 kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m(),
                 mr, mr_sleep

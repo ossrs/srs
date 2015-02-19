@@ -55,6 +55,7 @@ class SrsRawAacStreamCodec;
 class SrsSharedPtrMessage;
 class SrsCodecSample;
 class SrsSimpleBuffer;
+class SrsPithyPrint;
 
 /**
 * a rtp connection which transport a stream.
@@ -62,6 +63,7 @@ class SrsSimpleBuffer;
 class SrsRtpConn: public ISrsUdpHandler
 {
 private:
+    SrsPithyPrint* pprint;
     SrsUdpListener* listener;
     SrsRtspConn* rtsp;
     SrsRtpPacket* cache;
@@ -117,7 +119,6 @@ private:
     std::string output_template;
     std::string rtsp_tcUrl;
     std::string rtsp_stream;
-
 private:
     std::string session;
     // video stream.

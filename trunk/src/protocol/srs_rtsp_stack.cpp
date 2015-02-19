@@ -233,7 +233,6 @@ int SrsRtpPacket::decode_97(SrsStream* stream)
         return ret;
     }
 
-    int nb_samples = au_size / 2;
     int required_size = 0;
 
     // append left bytes to payload.

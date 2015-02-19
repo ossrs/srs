@@ -55,7 +55,7 @@ SrsIngester::SrsIngester()
     _srs_config->subscribe(this);
     
     pthread = new SrsThread("ingest", this, SRS_AUTO_INGESTER_SLEEP_US, true);
-    pithy_print = new SrsPithyPrint(SRS_CONSTS_STAGE_INGESTER);
+    pprint = SrsPithyPrint::create_ingester();
 }
 
 SrsIngester::~SrsIngester()
@@ -186,8 +186,7 @@ int SrsIngester::cycle()
     }
 
     // pithy print
-    ingester();
-    pithy_print->elapse();
+    show_ingest_log_message();
     
     return ret;
 }
@@ -340,17 +339,19 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
     return ret;
 }
 
-void SrsIngester::ingester()
+void SrsIngester::show_ingest_log_message()
 {
+    pprint->elapse();
+
     if ((int)ingesters.size() <= 0) {
         return;
     }
     
     // reportable
-    if (pithy_print->can_print()) {
+    if (pprint->can_print()) {
         // TODO: FIXME: show more info.
         srs_trace("-> "SRS_CONSTS_LOG_INGESTER
-            " time=%"PRId64", ingesters=%d", pithy_print->age(), (int)ingesters.size());
+            " time=%"PRId64", ingesters=%d", pprint->age(), (int)ingesters.size());
     }
 }
 

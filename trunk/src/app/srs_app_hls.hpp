@@ -309,7 +309,7 @@ private:
     SrsAvcAacCodec* codec;
     SrsCodecSample* sample;
     SrsRtmpJitter* jitter;
-    SrsPithyPrint* pithy_print;
+    SrsPithyPrint* pprint;
     /**
     * we store the stream dts,
     * for when we notice the hls cache to publish,
@@ -353,7 +353,7 @@ public:
     */
     virtual int on_video(SrsSharedPtrMessage* __video);
 private:
-    virtual void hls_mux();
+    virtual void hls_show_mux_log();
 };
 
 #endif

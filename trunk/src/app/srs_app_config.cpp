@@ -502,16 +502,16 @@ int SrsConfig::reload_conf(SrsConfig* conf)
         srs_trace("reload srs_log_file success.");
     }
     
-    // merge config: pithy_print
-    if (!srs_directive_equals(root->get("pithy_print"), old_root->get("pithy_print"))) {
+    // merge config: pithy_print_ms
+    if (!srs_directive_equals(root->get("pithy_print_ms"), old_root->get("pithy_print_ms"))) {
         for (it = subscribes.begin(); it != subscribes.end(); ++it) {
             ISrsReloadHandler* subscribe = *it;
             if ((ret = subscribe->on_reload_pithy_print()) != ERROR_SUCCESS) {
-                srs_error("notify subscribes pithy_print listen failed. ret=%d", ret);
+                srs_error("notify subscribes pithy_print_ms listen failed. ret=%d", ret);
                 return ret;
             }
         }
-        srs_trace("reload pithy_print success.");
+        srs_trace("reload pithy_print_ms success.");
     }
     
     // merge config: http_api
@@ -1322,7 +1322,7 @@ int SrsConfig::check_config()
         if (n != "listen" && n != "pid" && n != "chunk_size" && n != "ff_log_dir" 
             && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_file"
             && n != "max_connections" && n != "daemon" && n != "heartbeat"
-            && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print"
+            && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms"
             && n != "http_stream" && n != "http_server" && n != "stream_caster") 
         {
             ret = ERROR_SYSTEM_CONFIG_INVALID;
@@ -1372,19 +1372,6 @@ int SrsConfig::check_config()
             if (n != "network" && n != "disk") {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported stats directive %s, ret=%d", n.c_str(), ret);
-                return ret;
-            }
-        }
-    }
-    if (true) {
-        SrsConfDirective* conf = get_pithy_print();
-        for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
-            string n = conf->at(i)->name;
-            if (n != "publish" && n != "play" && n != "forwarder" 
-                && n != "encoder" && n != "ingester" && n != "hls" && n != "edge"
-            ) {
-                ret = ERROR_SYSTEM_CONFIG_INVALID;
-                srs_error("unsupported pithy_print directive %s, ret=%d", n.c_str(), ret);
                 return ret;
             }
         }
@@ -1884,111 +1871,11 @@ string SrsConfig::get_pid_file()
     return conf->arg0();
 }
 
-SrsConfDirective* SrsConfig::get_pithy_print()
+int SrsConfig::get_pithy_print_ms()
 {
-    return root->get("pithy_print");
-}
-
-int SrsConfig::get_pithy_print_publish()
-{
-    SrsConfDirective* pithy = get_pithy_print();
-    if (!pithy) {
-        return SRS_CONF_DEFAULT_STAGE_PUBLISH_USER_INTERVAL_MS;
-    }
-    
-    pithy = pithy->get("publish");
-    if (!pithy) {
-        return SRS_CONF_DEFAULT_STAGE_PUBLISH_USER_INTERVAL_MS;
-    }
-    
-    return ::atoi(pithy->arg0().c_str());
-}
-
-int SrsConfig::get_pithy_print_forwarder()
-{
-    SrsConfDirective* pithy = get_pithy_print();
-    if (!pithy) {
-        return SRS_CONF_DEFAULT_STAGE_FORWARDER_INTERVAL_MS;
-    }
-    
-    pithy = pithy->get("forwarder");
-    if (!pithy) {
-        return SRS_CONF_DEFAULT_STAGE_FORWARDER_INTERVAL_MS;
-    }
-    
-    return ::atoi(pithy->arg0().c_str());
-}
-
-int SrsConfig::get_pithy_print_encoder()
-{
-    SrsConfDirective* pithy = get_pithy_print();
-    if (!pithy) {
-        return SRS_CONF_DEFAULT_STAGE_ENCODER_INTERVAL_MS;
-    }
-    
-    pithy = pithy->get("encoder");
-    if (!pithy) {
-        return SRS_CONF_DEFAULT_STAGE_ENCODER_INTERVAL_MS;
-    }
-    
-    return ::atoi(pithy->arg0().c_str());
-}
-
-int SrsConfig::get_pithy_print_ingester()
-{
-    SrsConfDirective* pithy = get_pithy_print();
-    if (!pithy) {
-        return SRS_CONF_DEFAULT_STAGE_INGESTER_INTERVAL_MS;
-    }
-    
-    pithy = pithy->get("ingester");
-    if (!pithy) {
-        return SRS_CONF_DEFAULT_STAGE_INGESTER_INTERVAL_MS;
-    }
-    
-    return ::atoi(pithy->arg0().c_str());
-}
-
-int SrsConfig::get_pithy_print_hls()
-{
-    SrsConfDirective* pithy = get_pithy_print();
-    if (!pithy) {
-        return SRS_CONF_DEFAULT_STAGE_HLS_INTERVAL_MS;
-    }
-    
-    pithy = pithy->get("hls");
-    if (!pithy) {
-        return SRS_CONF_DEFAULT_STAGE_HLS_INTERVAL_MS;
-    }
-    
-    return ::atoi(pithy->arg0().c_str());
-}
-
-int SrsConfig::get_pithy_print_play()
-{
-    SrsConfDirective* pithy = get_pithy_print();
-    if (!pithy) {
-        return SRS_CONF_DEFAULT_STAGE_PLAY_USER_INTERVAL_MS;
-    }
-    
-    pithy = pithy->get("play");
-    if (!pithy) {
-        return SRS_CONF_DEFAULT_STAGE_PLAY_USER_INTERVAL_MS;
-    }
-    
-    return ::atoi(pithy->arg0().c_str());
-}
-
-int SrsConfig::get_pithy_print_edge()
-{
-    SrsConfDirective* pithy = get_pithy_print();
-    if (!pithy) {
-        return SRS_CONF_DEFAULT_STAGE_EDGE_INTERVAL_MS;
-    }
-    
-    pithy = pithy->get("edge");
-    if (!pithy) {
-        return SRS_CONF_DEFAULT_STAGE_EDGE_INTERVAL_MS;
+    SrsConfDirective* pithy = root->get("pithy_print_ms");
+    if (!pithy || pithy->arg0().empty()) {
+        return SRS_CONF_DEFAULT_PITHY_PRINT_MS;
     }
     
     return ::atoi(pithy->arg0().c_str());

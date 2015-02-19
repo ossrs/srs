@@ -47,6 +47,7 @@ using namespace std;
 #include <srs_kernel_aac.hpp>
 #include <srs_kernel_mp3.hpp>
 #include <srs_kernel_ts.hpp>
+#include <srs_app_pithy_print.hpp>
 
 SrsVodStream::SrsVodStream(string root_dir)
     : SrsGoHttpFileServer(root_dir)
@@ -248,10 +249,12 @@ int SrsStreamCache::cycle()
         return ret;
     }
     SrsAutoFree(SrsConsumer, consumer);
+
+    SrsPithyPrint* pprint = SrsPithyPrint::create_http_stream_cache();
+    SrsAutoFree(SrsPithyPrint, pprint);
     
     SrsMessageArray msgs(SRS_PERF_MW_MSGS);
-    // TODO: FIMXE: add pithy print.
-    
+
     // TODO: FIXME: support reload.
     double fast_cache = _srs_config->get_vhost_http_remux_fast_cache(req->vhost);
     if (fast_cache > 0) {
@@ -259,6 +262,8 @@ int SrsStreamCache::cycle()
     }
     
     while (true) {
+        pprint->elapse();
+
         // get messages from consumer.
         // each msg in msgs.msgs must be free, for the SrsMessageArray never free them.
         int count = 0;
@@ -275,8 +280,11 @@ int SrsStreamCache::cycle()
             // ignore when nothing got.
             continue;
         }
-        srs_info("http: got %d msgs, min=%d, mw=%d", count, 
-            SRS_PERF_MW_MIN_MSGS, SRS_CONSTS_RTMP_PULSE_TIMEOUT_US / 1000);
+
+        if (pprint->can_print()) {
+            srs_trace("-> "SRS_CONSTS_LOG_HTTP_STREAM_CACHE" http: got %d msgs, age=%d, min=%d, mw=%d", 
+                pprint->age(), count, SRS_PERF_MW_MIN_MSGS, SRS_CONSTS_RTMP_PULSE_TIMEOUT_US / 1000);
+        }
     
         // free the messages.
         for (int i = 0; i < count; i++) {
@@ -591,9 +599,11 @@ int SrsLiveStream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
     }
     SrsAutoFree(SrsConsumer, consumer);
     srs_verbose("http: consumer created success.");
+
+    SrsPithyPrint* pprint = SrsPithyPrint::create_http_stream();
+    SrsAutoFree(SrsPithyPrint, pprint);
     
     SrsMessageArray msgs(SRS_PERF_MW_MSGS);
-    // TODO: FIMXE: add pithy print.
     
     // the memory writer.
     SrsStreamWriter writer(w);
@@ -611,6 +621,8 @@ int SrsLiveStream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
     }
     
     while (true) {
+        pprint->elapse();
+
         // get messages from consumer.
         // each msg in msgs.msgs must be free, for the SrsMessageArray never free them.
         int count = 0;
@@ -627,8 +639,11 @@ int SrsLiveStream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
             // ignore when nothing got.
             continue;
         }
-        srs_info("http: got %d msgs, min=%d, mw=%d", count, 
-            SRS_PERF_MW_MIN_MSGS, SRS_CONSTS_RTMP_PULSE_TIMEOUT_US / 1000);
+
+        if (pprint->can_print()) {
+            srs_info("-> "SRS_CONSTS_LOG_HTTP_STREAM" http: got %d msgs, age=%d, min=%d, mw=%d", 
+                pprint->age(), count, SRS_PERF_MW_MIN_MSGS, SRS_CONSTS_RTMP_PULSE_TIMEOUT_US / 1000);
+        }
         
         // sendout all messages.
         ret = streaming_send_messages(enc, msgs.msgs, count);

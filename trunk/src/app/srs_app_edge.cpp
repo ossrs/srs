@@ -167,17 +167,18 @@ int SrsEdgeIngester::ingest()
     
     client->set_recv_timeout(SRS_EDGE_INGESTER_TIMEOUT_US);
     
-    SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_EDGE);
+    SrsPithyPrint* pprint = SrsPithyPrint::create_edge();
+    SrsAutoFree(SrsPithyPrint, pprint);
 
     while (pthread->can_loop()) {
-        pithy_print.elapse();
+        pprint->elapse();
         
         // pithy print
-        if (pithy_print.can_print()) {
+        if (pprint->can_print()) {
             kbps->sample();
             srs_trace("<- "SRS_CONSTS_LOG_EDGE_PLAY
                 " time=%"PRId64", okbps=%d,%d,%d, ikbps=%d,%d,%d", 
-                pithy_print.age(),
+                pprint->age(),
                 kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
                 kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m());
         }
@@ -473,7 +474,8 @@ int SrsEdgeForwarder::cycle()
     
     client->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
     
-    SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_EDGE);
+    SrsPithyPrint* pprint = SrsPithyPrint::create_edge();
+    SrsAutoFree(SrsPithyPrint, pprint);
     
     SrsMessageArray msgs(SYS_MAX_EDGE_SEND_MSGS);
 
@@ -506,14 +508,14 @@ int SrsEdgeForwarder::cycle()
             return ret;
         }
         
-        pithy_print.elapse();
+        pprint->elapse();
         
         // pithy print
-        if (pithy_print.can_print()) {
+        if (pprint->can_print()) {
             kbps->sample();
             srs_trace("-> "SRS_CONSTS_LOG_EDGE_PUBLISH
                 " time=%"PRId64", msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d", 
-                pithy_print.age(), count,
+                pprint->age(), count,
                 kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
                 kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m());
         }

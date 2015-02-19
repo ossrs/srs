@@ -43,6 +43,7 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_rtmp_amf0.hpp>
 #include <srs_kernel_codec.hpp>
+#include <srs_core_autofree.hpp>
 
 // when error, forwarder sleep for a while and retry.
 #define SRS_FORWARDER_SLEEP_US (int64_t)(3*1000*1000LL)
@@ -386,7 +387,8 @@ int SrsForwarder::forward()
     
     client->set_recv_timeout(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
     
-    SrsPithyPrint pithy_print(SRS_CONSTS_STAGE_FORWARDER);
+    SrsPithyPrint* pprint = SrsPithyPrint::create_forwarder();
+    SrsAutoFree(SrsPithyPrint, pprint);
 
     SrsMessageArray msgs(SYS_MAX_FORWARD_SEND_MSGS);
     
@@ -406,7 +408,7 @@ int SrsForwarder::forward()
     }
     
     while (pthread->can_loop()) {
-        pithy_print.elapse();
+        pprint->elapse();
 
         // read from client.
         if (true) {
@@ -431,11 +433,11 @@ int SrsForwarder::forward()
         }
         
         // pithy print
-        if (pithy_print.can_print()) {
+        if (pprint->can_print()) {
             kbps->sample();
             srs_trace("-> "SRS_CONSTS_LOG_FOWARDER
                 " time=%"PRId64", msgs=%d, okbps=%d,%d,%d, ikbps=%d,%d,%d", 
-                pithy_print.age(), count,
+                pprint->age(), count,
                 kbps->get_send_kbps(), kbps->get_send_kbps_30s(), kbps->get_send_kbps_5m(),
                 kbps->get_recv_kbps(), kbps->get_recv_kbps_30s(), kbps->get_recv_kbps_5m());
         }

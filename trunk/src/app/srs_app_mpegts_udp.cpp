@@ -48,6 +48,7 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_rtmp_amf0.hpp>
 #include <srs_raw_avc.hpp>
+#include <srs_app_pithy_print.hpp>
 
 SrsMpegtsQueue::SrsMpegtsQueue()
 {
@@ -140,6 +141,7 @@ SrsMpegtsOverUdp::SrsMpegtsOverUdp(SrsConfDirective* c)
     h264_pps_changed = false;
     h264_sps_pps_sent = false;
     queue = new SrsMpegtsQueue();
+    pprint = SrsPithyPrint::create_caster();
 }
 
 SrsMpegtsOverUdp::~SrsMpegtsOverUdp()
@@ -152,6 +154,7 @@ SrsMpegtsOverUdp::~SrsMpegtsOverUdp()
     srs_freep(avc);
     srs_freep(aac);
     srs_freep(queue);
+    srs_freep(pprint);
 }
 
 int SrsMpegtsOverUdp::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
@@ -246,6 +249,8 @@ int SrsMpegtsOverUdp::on_ts_message(SrsTsMessage* msg)
 {
     int ret = ERROR_SUCCESS;
 
+    pprint->elapse();
+
     // about the bytes of msg, specified by elementary stream which indicates by PES_packet_data_byte and stream_id
     // for example, when SrsTsStream of SrsTsChannel indicates stream_type is SrsTsStreamVideoMpeg4 and SrsTsStreamAudioMpeg4,
     // the elementary stream can be mux in "2.11 Carriage of ISO/IEC 14496 data" in hls-mpeg-ts-iso13818-1.pdf, page 103
@@ -283,11 +288,12 @@ int SrsMpegtsOverUdp::on_ts_message(SrsTsMessage* msg)
     // 14496-2 video stream number xxxx
     // ((stream_id >> 4) & 0x0f) == SrsTsPESStreamIdVideo
 
-    // TODO: FIXME: support pithy print.
-    srs_info("mpegts: got %s stream=%s, dts=%"PRId64", pts=%"PRId64", size=%d, us=%d, cc=%d, sid=%#x(%s-%d)",
-        (msg->channel->apply == SrsTsPidApplyVideo)? "Video":"Audio", srs_ts_stream2string(msg->channel->stream).c_str(),
-        msg->dts, msg->pts, msg->payload->length(), msg->packet->payload_unit_start_indicator, msg->continuity_counter, msg->sid,
-        msg->is_audio()? "A":msg->is_video()? "V":"N", msg->stream_number());
+    if (pprint->can_print()) {
+        srs_trace("<- "SRS_CONSTS_LOG_STREAM_CASTER" mpegts: got %s age=%d stream=%s, dts=%"PRId64", pts=%"PRId64", size=%d, us=%d, cc=%d, sid=%#x(%s-%d)",
+            (msg->channel->apply == SrsTsPidApplyVideo)? "Video":"Audio", pprint->age(), srs_ts_stream2string(msg->channel->stream).c_str(),
+            msg->dts, msg->pts, msg->payload->length(), msg->packet->payload_unit_start_indicator, msg->continuity_counter, msg->sid,
+            msg->is_audio()? "A":msg->is_video()? "V":"N", msg->stream_number());
+    }
 
     // when not audio/video, or not adts/annexb format, donot support.
     if (msg->stream_number() != 0) {
@@ -557,9 +563,10 @@ int SrsMpegtsOverUdp::rtmp_write_packet(char type, u_int32_t timestamp, char* da
             break;
         }
 
-        // TODO: FIXME: use pithy print.
-        srs_info("mpegts: send msg %s dts=%"PRId64", size=%d",
-            msg->is_audio()? "A":msg->is_video()? "V":"N", msg->timestamp, msg->size);
+        if (pprint->can_print()) {
+            srs_trace("mpegts: send msg %s age=%d, dts=%"PRId64", size=%d",
+                msg->is_audio()? "A":msg->is_video()? "V":"N", pprint->age(), msg->timestamp, msg->size);
+        }
     
         // send out encoded msg.
         if ((ret = client->send_and_free_message(msg, stream_id)) != ERROR_SUCCESS) {
