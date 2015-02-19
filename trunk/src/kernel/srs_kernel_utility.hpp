@@ -64,6 +64,9 @@ extern bool srs_string_ends_with(std::string str, std::string flag);
 // create dir recursively
 extern int srs_create_dir_recursively(std::string dir);
 
+// whether path exists.
+extern bool srs_path_exists(std::string path);
+
 /**
 * whether stream starts with the avc NALU in "AnnexB" 
 * from H.264-AVC-ISO_IEC_14496-10.pdf, page 211.

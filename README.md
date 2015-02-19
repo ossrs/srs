@@ -530,7 +530,8 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
-* v2.0, 2015-02-19, refine pithy print to more easyer to use 2.0.121.
+* v2.0, 2015-02-19, refine dvr, append file when dvr file exists. 2.0.122.
+* v2.0, 2015-02-19, refine pithy print to more easyer to use. 2.0.121.
 * v2.0, 2015-02-18, fix [#133](https://github.com/winlinvip/simple-rtmp-server/issues/133), support push rtsp to srs. 2.0.120.
 * v2.0, 2015-02-17, the join maybe failed, should use a variable to ensure thread terminated. 2.0.119.
 * v2.0, 2015-02-15, for [#304](https://github.com/winlinvip/simple-rtmp-server/issues/304), support config default acodec/vcodec. 2.0.118.

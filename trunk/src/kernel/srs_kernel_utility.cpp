@@ -230,10 +230,8 @@ int __srs_create_dir_recursively(string dir)
 {
     int ret = ERROR_SUCCESS;
     
-    struct stat st;
-    
     // stat current dir, if exists, return error.
-    if (stat(dir.c_str(), &st) == 0) {
+    if (srs_path_exists(dir)) {
         return ERROR_SYSTEM_DIR_EXISTS;
     }
     
@@ -277,6 +275,18 @@ int srs_create_dir_recursively(string dir)
     }
     
     return ret;
+}
+
+bool srs_path_exists(std::string path)
+{
+    struct stat st;
+    
+    // stat current dir, if exists, return error.
+    if (stat(path.c_str(), &st) == 0) {
+        return true;
+    }
+
+    return false;
 }
 
 bool srs_avc_startswith_annexb(SrsStream* stream, int* pnb_start_code)

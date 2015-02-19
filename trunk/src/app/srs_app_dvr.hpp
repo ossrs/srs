@@ -111,6 +111,8 @@ protected:
     SrsRequest* _req;
     bool dvr_enabled;
     SrsFileWriter* fs;
+private:
+    std::string tmp_flv_file;
 public:
     SrsDvrPlan();
     virtual ~SrsDvrPlan();

@@ -47,6 +47,10 @@ public:
     * open file writer, can open then close then open...
     */
     virtual int open(std::string file);
+    /**
+    * open file writer in append mode.
+    */
+    virtual int open_append(std::string file);
     virtual void close();
 public:
     virtual bool is_open();

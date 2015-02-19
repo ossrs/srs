@@ -294,8 +294,7 @@ int SrsGoHttpFileServer::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
     }
     
     // stat current dir, if exists, return error.
-    struct stat st;
-    if (stat(fullpath.c_str(), &st) != 0) {
+    if (!srs_path_exists(fullpath)) {
         srs_warn("http miss file=%s, pattern=%s, upath=%s", 
             fullpath.c_str(), entry->pattern.c_str(), upath.c_str());
         return SrsGoHttpNotFoundHandler().serve_http(w, r);

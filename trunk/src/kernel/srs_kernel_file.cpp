@@ -69,6 +69,30 @@ int SrsFileWriter::open(string file)
     return ret;
 }
 
+int SrsFileWriter::open_append(string file)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (fd > 0) {
+        ret = ERROR_SYSTEM_FILE_ALREADY_OPENED;
+        srs_error("file %s already opened. ret=%d", _file.c_str(), ret);
+        return ret;
+    }
+    
+    int flags = O_APPEND|O_WRONLY;
+    mode_t mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH;
+
+    if ((fd = ::open(file.c_str(), flags, mode)) < 0) {
+        ret = ERROR_SYSTEM_FILE_OPENE;
+        srs_error("open file %s failed. ret=%d", file.c_str(), ret);
+        return ret;
+    }
+    
+    _file = file;
+    
+    return ret;
+}
+
 void SrsFileWriter::close()
 {
     int ret = ERROR_SUCCESS;

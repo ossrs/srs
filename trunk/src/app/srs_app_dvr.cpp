@@ -368,11 +368,27 @@ int SrsDvrPlan::flv_open(string stream, string path)
     int ret = ERROR_SUCCESS;
     
     segment->reset();
+
+    if (srs_path_exists(path)) {
+        // when path exists, always append to it.
+        // so we must use the target flv path as output flv.
+        tmp_flv_file = path;
+    } else {
+        // when path not exists, dvr to tmp file.
+        tmp_flv_file = path + ".tmp";
+    }
     
-    std::string tmp_file = path + ".tmp";
-    if ((ret = fs->open(tmp_file)) != ERROR_SUCCESS) {
-        srs_error("open file stream for file %s failed. ret=%d", path.c_str(), ret);
-        return ret;
+    if (srs_path_exists(path)) {
+        if ((ret = fs->open_append(tmp_flv_file)) != ERROR_SUCCESS) {
+            srs_error("append file stream for file %s failed. ret=%d", path.c_str(), ret);
+            return ret;
+        }
+        srs_warn("dvr: always append to when exists, file=%s.", path.c_str());
+    } else {
+        if ((ret = fs->open(tmp_flv_file)) != ERROR_SUCCESS) {
+            srs_error("open file stream for file %s failed. ret=%d", path.c_str(), ret);
+            return ret;
+        }
     }
     
     if ((ret = enc->initialize(fs)) != ERROR_SUCCESS) {
@@ -396,12 +412,14 @@ int SrsDvrPlan::flv_close()
     
     fs->close();
     
-    std::string tmp_file = segment->path + ".tmp";
-    if (rename(tmp_file.c_str(), segment->path.c_str()) < 0) {
-        ret = ERROR_SYSTEM_FILE_RENAME;
-        srs_error("rename flv file failed, %s => %s. ret=%d", 
-            tmp_file.c_str(), segment->path.c_str(), ret);
-        return ret;
+    // when tmp flv file exists, reap it.
+    if (tmp_flv_file != segment->path) {
+        if (rename(tmp_flv_file.c_str(), segment->path.c_str()) < 0) {
+            ret = ERROR_SYSTEM_FILE_RENAME;
+            srs_error("rename flv file failed, %s => %s. ret=%d", 
+                tmp_flv_file.c_str(), segment->path.c_str(), ret);
+            return ret;
+        }
     }
     
 #ifdef SRS_AUTO_HTTP_CALLBACK
