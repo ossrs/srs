@@ -383,7 +383,7 @@ int SrsDvrPlan::flv_open(string stream, string path)
             srs_error("append file stream for file %s failed. ret=%d", path.c_str(), ret);
             return ret;
         }
-        srs_warn("dvr: always append to when exists, file=%s.", path.c_str());
+        srs_trace("dvr: always append to when exists, file=%s.", path.c_str());
     } else {
         if ((ret = fs->open(tmp_flv_file)) != ERROR_SUCCESS) {
             srs_error("open file stream for file %s failed. ret=%d", path.c_str(), ret);
@@ -396,8 +396,11 @@ int SrsDvrPlan::flv_open(string stream, string path)
         return ret;
     }
     
-    if ((ret = write_flv_header()) != ERROR_SUCCESS) {
-        return ret;
+    // when exists, donot write flv header.
+    if (tmp_flv_file != path) {
+        if ((ret = write_flv_header()) != ERROR_SUCCESS) {
+            return ret;
+        }
     }
     
     segment->path = path;
