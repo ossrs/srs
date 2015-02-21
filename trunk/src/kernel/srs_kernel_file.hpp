@@ -54,6 +54,7 @@ public:
     virtual void close();
 public:
     virtual bool is_open();
+    virtual void lseek(int64_t offset);
     virtual int64_t tellg();
 public:
     /**

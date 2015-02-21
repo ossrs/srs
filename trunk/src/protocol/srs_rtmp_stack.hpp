@@ -283,6 +283,7 @@ public:
     * create shared ptr message,
     * from the header and payload.
     * @remark user should never free the payload.
+    * @param pheader, the header to copy to the message. NULL to ignore.
     */
     virtual int create(SrsMessageHeader* pheader, char* payload, int size);
     /**

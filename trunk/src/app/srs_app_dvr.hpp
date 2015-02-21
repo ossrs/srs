@@ -67,6 +67,17 @@ private:
     SrsRtmpJitterAlgorithm jitter_algorithm;
     SrsFileWriter* fs;
 private:
+    /**
+    * the offset of file for duration value.
+    * the next 8 bytes is the double value.
+    */
+    int64_t duration_offset;
+    /**
+    * the offset of file for filesize value.
+    * the next 8 bytes is the double value.
+    */
+    int64_t filesize_offset;
+private:
     std::string tmp_flv_file;
 private:
     /**
@@ -124,7 +135,7 @@ public:
     /**
     * write the metadata to segment.
     */
-    virtual int write_metadata(SrsOnMetaDataPacket* metadata);
+    virtual int write_metadata(SrsSharedPtrMessage* metadata);
     /**
     * @param __audio, directly ptr, copy it if need to save it.
     */
@@ -133,6 +144,10 @@ public:
     * @param __video, directly ptr, copy it if need to save it.
     */
     virtual int write_video(SrsSharedPtrMessage* __video);
+    /**
+    * update the flv metadata.
+    */
+    virtual int update_flv_metadata();
 private:
     /**
     * generate the flv segment path.
@@ -178,7 +193,7 @@ public:
     /**
     * when got metadata.
     */
-    virtual int on_meta_data(SrsOnMetaDataPacket* metadata);
+    virtual int on_meta_data(SrsSharedPtrMessage* __metadata);
     /**
     * @param __audio, directly ptr, copy it if need to save it.
     */
@@ -213,12 +228,24 @@ public:
 */
 class SrsDvrAppendPlan : public SrsDvrPlan
 {
+private:
+    int64_t last_update_time;
 public:
     SrsDvrAppendPlan();
     virtual ~SrsDvrAppendPlan();
 public:
     virtual int on_publish();
     virtual void on_unpublish();
+    /**
+    * @param audio, directly ptr, copy it if need to save it.
+    */
+    virtual int on_audio(SrsSharedPtrMessage* audio);
+    /**
+    * @param video, directly ptr, copy it if need to save it.
+    */
+    virtual int on_video(SrsSharedPtrMessage* video);
+private:
+    virtual int update_duration(SrsSharedPtrMessage* msg);
 };
 
 /**
@@ -231,6 +258,7 @@ private:
     int segment_duration;
     SrsSharedPtrMessage* sh_audio;
     SrsSharedPtrMessage* sh_video;
+    SrsSharedPtrMessage* metadata;
 public:
     SrsDvrSegmentPlan();
     virtual ~SrsDvrSegmentPlan();
@@ -238,6 +266,10 @@ public:
     virtual int initialize(SrsSource* source, SrsRequest* req);
     virtual int on_publish();
     virtual void on_unpublish();
+    /**
+    * when got metadata.
+    */
+    virtual int on_meta_data(SrsSharedPtrMessage* __metadata);
     /**
     * @param audio, directly ptr, copy it if need to save it.
     */

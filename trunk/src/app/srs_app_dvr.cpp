@@ -38,6 +38,11 @@ using namespace std;
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_flv.hpp>
 #include <srs_kernel_file.hpp>
+#include <srs_rtmp_amf0.hpp>
+#include <srs_kernel_stream.hpp>
+
+// update the flv duration and filesize every this interval in ms.
+#define __SRS_DVR_UPDATE_DURATION_INTERVAL 60000
 
 SrsFlvSegment::SrsFlvSegment(SrsDvrPlan* p)
 {
@@ -57,6 +62,9 @@ SrsFlvSegment::SrsFlvSegment(SrsDvrPlan* p)
     stream_starttime = 0;
     stream_previous_pkt_time = -1;
     stream_duration = 0;
+
+    duration_offset = 0;
+    filesize_offset = 0;
 
     _srs_config->subscribe(this);
 }
@@ -150,6 +158,10 @@ int SrsFlvSegment::open(bool use_tmp_file)
             return ret;
         }
     }
+
+    // update the duration and filesize offset.
+    duration_offset = 0;
+    filesize_offset = 0;
     
     srs_trace("dvr stream %s to file %s", req->stream.c_str(), path.c_str());
 
@@ -162,6 +174,11 @@ int SrsFlvSegment::close()
     
     // ignore when already closed.
     if (!fs->is_open()) {
+        return ret;
+    }
+
+    // update duration and filesize.
+    if ((ret = update_flv_metadata()) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -203,17 +220,61 @@ int SrsFlvSegment::close()
     return ret;
 }
 
-int SrsFlvSegment::write_metadata(SrsOnMetaDataPacket* metadata)
+int SrsFlvSegment::write_metadata(SrsSharedPtrMessage* metadata)
 {
     int ret = ERROR_SUCCESS;
-    
-    int size = 0;
-    char* payload = NULL;
-    if ((ret = metadata->encode(size, payload)) != ERROR_SUCCESS) {
+
+    if (duration_offset || filesize_offset) {
         return ret;
     }
-    SrsAutoFree(char, payload);
+
+    SrsStream stream;
+    if ((ret = stream.initialize(metadata->payload, metadata->size)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    SrsAmf0Any* name = SrsAmf0Any::str();
+    SrsAutoFree(SrsAmf0Any, name);
+    if ((ret = name->read(&stream)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    SrsAmf0Object* obj = SrsAmf0Any::object();
+    SrsAutoFree(SrsAmf0Object, obj);
+    if ((ret = obj->read(&stream)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    // remove duration and filesize.
+    obj->set("filesize", NULL);
+    obj->set("duration", NULL);
+
+    // add properties.
+    obj->set("service", SrsAmf0Any::str(RTMP_SIG_SRS_SERVER));
+    obj->set("filesize", SrsAmf0Any::number(0));
+    obj->set("duration", SrsAmf0Any::number(0));
     
+    int size = name->total_size() + obj->total_size();
+    char* payload = new char[size];
+    SrsAutoFree(char, payload);
+
+    // 11B flv header, 3B object EOF, 8B number value, 1B number flag.
+    duration_offset = fs->tellg() + size + 11 - SrsAmf0Size::object_eof() - SrsAmf0Size::number();
+    // 2B string flag, 8B number value, 8B string 'duration', 1B number flag
+    filesize_offset = duration_offset - SrsAmf0Size::utf8("duration") - SrsAmf0Size::number();
+
+    // convert metadata to bytes.
+    if ((ret = stream.initialize(payload, size)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = name->write(&stream)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = obj->write(&stream)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // to flv file.
     if ((ret = enc->write_metadata(18, payload, size)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -284,6 +345,62 @@ int SrsFlvSegment::write_video(SrsSharedPtrMessage* __video)
         return ret;
     }
     
+    return ret;
+}
+
+int SrsFlvSegment::update_flv_metadata()
+{
+    int ret = ERROR_SUCCESS;
+
+    // no duration or filesize specified.
+    if (!duration_offset || !filesize_offset) {
+        return ret;
+    }
+
+    int64_t cur = fs->tellg();
+
+    // buffer to write the size.
+    char* buf = new char[SrsAmf0Size::number()];
+    SrsAutoFree(char, buf);
+
+    SrsStream stream;
+    if ((ret = stream.initialize(buf, SrsAmf0Size::number())) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    // filesize to buf.
+    SrsAmf0Any* size = SrsAmf0Any::number((double)cur);
+    SrsAutoFree(SrsAmf0Any, size);
+
+    stream.skip(-1 * stream.pos());
+    if ((ret = size->write(&stream)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    // update the flesize.
+    fs->lseek(filesize_offset);
+    if ((ret = fs->write(buf, SrsAmf0Size::number(), NULL)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // duration to buf
+    SrsAmf0Any* dur = SrsAmf0Any::number((double)duration / 1000.0);
+    SrsAutoFree(SrsAmf0Any, dur);
+    
+    stream.skip(-1 * stream.pos());
+    if ((ret = dur->write(&stream)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    // update the duration
+    fs->lseek(duration_offset);
+    if ((ret = fs->write(buf, SrsAmf0Size::number(), NULL)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    // reset the offset.
+    fs->lseek(cur);
+
     return ret;
 }
 
@@ -498,7 +615,7 @@ int64_t SrsDvrPlan::filter_timestamp(int64_t timestamp)
     return timestamp;
 }
 
-int SrsDvrPlan::on_meta_data(SrsOnMetaDataPacket* metadata)
+int SrsDvrPlan::on_meta_data(SrsSharedPtrMessage* __metadata)
 {
     int ret = ERROR_SUCCESS;
     
@@ -506,7 +623,7 @@ int SrsDvrPlan::on_meta_data(SrsOnMetaDataPacket* metadata)
         return ret;
     }
     
-    return segment->write_metadata(metadata);
+    return segment->write_metadata(__metadata);
 }
 
 int SrsDvrPlan::on_audio(SrsSharedPtrMessage* __audio)
@@ -606,6 +723,7 @@ void SrsDvrSessionPlan::on_unpublish()
 
 SrsDvrAppendPlan::SrsDvrAppendPlan()
 {
+    last_update_time = 0;
 }
 
 SrsDvrAppendPlan::~SrsDvrAppendPlan()
@@ -638,16 +756,74 @@ void SrsDvrAppendPlan::on_unpublish()
 {
 }
 
+int SrsDvrAppendPlan::on_audio(SrsSharedPtrMessage* audio)
+{
+    int ret = ERROR_SUCCESS;
+
+    if ((ret = update_duration(audio)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = SrsDvrPlan::on_audio(audio)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    return ret;
+}
+
+int SrsDvrAppendPlan::on_video(SrsSharedPtrMessage* video)
+{
+    int ret = ERROR_SUCCESS;
+
+    if ((ret = update_duration(video)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = SrsDvrPlan::on_video(video)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    return ret;
+}
+
+int SrsDvrAppendPlan::update_duration(SrsSharedPtrMessage* msg)
+{
+    int ret = ERROR_SUCCESS;
+
+    if (last_update_time <= 0) {
+        last_update_time = msg->timestamp;
+        return ret;
+    }
+
+    if (msg->timestamp < last_update_time) {
+        last_update_time = msg->timestamp;
+        return ret;
+    }
+
+    if (__SRS_DVR_UPDATE_DURATION_INTERVAL > msg->timestamp - last_update_time) {
+        return ret;
+    }
+    last_update_time = msg->timestamp;
+    
+    srs_assert(segment);
+    if (!segment->update_flv_metadata()) {
+        return ret;
+    }
+
+    return ret;
+}
+
 SrsDvrSegmentPlan::SrsDvrSegmentPlan()
 {
     segment_duration = -1;
-    sh_video = sh_audio = NULL;
+    metadata = sh_video = sh_audio = NULL;
 }
 
 SrsDvrSegmentPlan::~SrsDvrSegmentPlan()
 {
     srs_freep(sh_video);
     srs_freep(sh_audio);
+    srs_freep(metadata);
 }
 
 int SrsDvrSegmentPlan::initialize(SrsSource* source, SrsRequest* req)
@@ -693,6 +869,20 @@ int SrsDvrSegmentPlan::on_publish()
 
 void SrsDvrSegmentPlan::on_unpublish()
 {
+}
+
+int SrsDvrSegmentPlan::on_meta_data(SrsSharedPtrMessage* __metadata)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_freep(metadata);
+    metadata = __metadata->copy();
+    
+    if ((ret = SrsDvrPlan::on_meta_data(__metadata)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    return ret;
 }
 
 int SrsDvrSegmentPlan::on_audio(SrsSharedPtrMessage* audio)
@@ -774,6 +964,9 @@ int SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
     }
     
     // update sequence header
+    if (metadata && (ret = SrsDvrPlan::on_meta_data(metadata)) != ERROR_SUCCESS) {
+        return ret;
+    }
     if (sh_video && (ret = SrsDvrPlan::on_video(sh_video)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -828,8 +1021,19 @@ void SrsDvr::on_unpublish()
 int SrsDvr::on_meta_data(SrsOnMetaDataPacket* m)
 {
     int ret = ERROR_SUCCESS;
-    
-    if ((ret = plan->on_meta_data(m)) != ERROR_SUCCESS) {
+
+    int size = 0;
+    char* payload = NULL;
+    if ((ret = m->encode(size, payload)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    SrsSharedPtrMessage metadata;
+    if ((ret = metadata.create(NULL, payload, size)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    if ((ret = plan->on_meta_data(&metadata)) != ERROR_SUCCESS) {
         return ret;
     }
     

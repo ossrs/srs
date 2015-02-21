@@ -448,11 +448,6 @@ SrsAmf0Any* SrsUnSortedHashtable::value_at(int index)
 
 void SrsUnSortedHashtable::set(string key, SrsAmf0Any* value)
 {
-    if (!value) {
-        srs_warn("add a NULL propertity %s", key.c_str());
-        return;
-    }
-    
     std::vector<SrsAmf0ObjectPropertyType>::iterator it;
     
     for (it = properties.begin(); it != properties.end(); ++it) {
@@ -467,7 +462,9 @@ void SrsUnSortedHashtable::set(string key, SrsAmf0Any* value)
         }
     }
     
-    properties.push_back(std::make_pair(key, value));
+    if (value) {
+        properties.push_back(std::make_pair(key, value));
+    }
 }
 
 SrsAmf0Any* SrsUnSortedHashtable::get_property(string name)

@@ -794,6 +794,10 @@ namespace _srs_internal
         virtual std::string key_at(int index);
         virtual const char* key_raw_at(int index);
         virtual SrsAmf0Any* value_at(int index);
+        /**
+        * set the value of hashtable.
+        * @param value, the value to set. NULL to delete the property.
+        */
         virtual void set(std::string key, SrsAmf0Any* value);
     public:
         virtual SrsAmf0Any* get_property(std::string name);

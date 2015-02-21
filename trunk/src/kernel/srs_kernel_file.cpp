@@ -116,6 +116,11 @@ bool SrsFileWriter::is_open()
     return fd > 0;
 }
 
+void SrsFileWriter::lseek(int64_t offset)
+{
+    ::lseek(fd, (off_t)offset, SEEK_SET);
+}
+
 int64_t SrsFileWriter::tellg()
 {
     return (int64_t)::lseek(fd, 0, SEEK_CUR);

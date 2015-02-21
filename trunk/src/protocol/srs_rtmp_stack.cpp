@@ -434,7 +434,6 @@ int SrsSharedPtrMessage::create(SrsMessageHeader* pheader, char* payload, int si
 {
     int ret = ERROR_SUCCESS;
 
-    srs_assert(pheader != NULL);
     if (ptr) {
         ret = ERROR_SYSTEM_ASSERT_FAILED;
         srs_error("should not set the payload twice. ret=%d", ret);
@@ -446,11 +445,13 @@ int SrsSharedPtrMessage::create(SrsMessageHeader* pheader, char* payload, int si
     ptr = new __SrsSharedPtr();
 
     // direct attach the data.
-    ptr->header.message_type = pheader->message_type;
-    ptr->header.payload_length = size;
-    ptr->header.perfer_cid = pheader->perfer_cid;
-    this->timestamp = pheader->timestamp;
-    this->stream_id = pheader->stream_id;
+    if (pheader) {
+        ptr->header.message_type = pheader->message_type;
+        ptr->header.payload_length = size;
+        ptr->header.perfer_cid = pheader->perfer_cid;
+        this->timestamp = pheader->timestamp;
+        this->stream_id = pheader->stream_id;
+    }
     ptr->payload = payload;
     ptr->size = size;
 
