@@ -113,8 +113,9 @@ public:
     /**
     * open new segment file, timestamp start at 0 for fresh flv file.
     * @remark ignore when already open.
+    * @param use_tmp_file whether use tmp file if possible.
     */
-    virtual int open();
+    virtual int open(bool use_tmp_file = true);
     /**
     * close current segment.
     * @remark ignore when already closed.
@@ -202,6 +203,19 @@ class SrsDvrSessionPlan : public SrsDvrPlan
 public:
     SrsDvrSessionPlan();
     virtual ~SrsDvrSessionPlan();
+public:
+    virtual int on_publish();
+    virtual void on_unpublish();
+};
+
+/**
+* always append to flv file, never reap it.
+*/
+class SrsDvrAppendPlan : public SrsDvrPlan
+{
+public:
+    SrsDvrAppendPlan();
+    virtual ~SrsDvrAppendPlan();
 public:
     virtual int on_publish();
     virtual void on_unpublish();

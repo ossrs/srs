@@ -86,7 +86,7 @@ bool SrsFlvSegment::is_overflow(int64_t max_duration)
     return duration >= max_duration;
 }
 
-int SrsFlvSegment::open()
+int SrsFlvSegment::open(bool use_tmp_file)
 {
     int ret = ERROR_SUCCESS;
     
@@ -113,7 +113,7 @@ int SrsFlvSegment::open()
     }
     
     // generate the tmp flv path.
-    if (!fresh_flv_file) {
+    if (!fresh_flv_file || !use_tmp_file) {
         // when path exists, always append to it.
         // so we must use the target flv path as output flv.
         tmp_flv_file = path;
@@ -546,8 +546,11 @@ SrsDvrPlan* SrsDvrPlan::create_plan(string vhost)
         return new SrsDvrSegmentPlan();
     } else if (plan == SRS_CONF_DEFAULT_DVR_PLAN_SESSION) {
         return new SrsDvrSessionPlan();
+    } else if (plan == SRS_CONF_DEFAULT_DVR_PLAN_APPEND) {
+        return new SrsDvrAppendPlan();
     } else {
-        return new SrsDvrSessionPlan();
+        srs_error("invalid dvr plan=%s, vhost=%s", plan.c_str(), vhost.c_str());
+        srs_assert(false);
     }
 }
 
@@ -599,6 +602,40 @@ void SrsDvrSessionPlan::on_unpublish()
     }
     
     dvr_enabled = false;
+}
+
+SrsDvrAppendPlan::SrsDvrAppendPlan()
+{
+}
+
+SrsDvrAppendPlan::~SrsDvrAppendPlan()
+{
+}
+
+int SrsDvrAppendPlan::on_publish()
+{
+    int ret = ERROR_SUCCESS;
+    
+    // support multiple publish.
+    if (dvr_enabled) {
+        return ret;
+    }
+
+    if (!_srs_config->get_dvr_enabled(req->vhost)) {
+        return ret;
+    }
+
+    if ((ret = segment->open(false)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    dvr_enabled = true;
+
+    return ret;
+}
+
+void SrsDvrAppendPlan::on_unpublish()
+{
 }
 
 SrsDvrSegmentPlan::SrsDvrSegmentPlan()
