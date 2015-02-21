@@ -159,11 +159,21 @@ public:
     virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
 };
 
+class SrsGoApiDvrs : public ISrsGoHttpHandler
+{
+public:
+    SrsGoApiDvrs();
+    virtual ~SrsGoApiDvrs();
+public:
+    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
+};
+
 class SrsHttpApi : public SrsConnection
 {
 private:
     SrsHttpParser* parser;
     SrsGoHttpServeMux* mux;
+    bool crossdomain_required;
 public:
     SrsHttpApi(SrsServer* svr, st_netfd_t fd, SrsGoHttpServeMux* m);
     virtual ~SrsHttpApi();

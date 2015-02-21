@@ -30,6 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core.hpp>
 
 #include <string>
+#include <sstream>
 
 #ifdef SRS_AUTO_DVR
 
@@ -224,6 +225,19 @@ public:
 };
 
 /**
+* api plan: reap flv by api.
+*/
+class SrsDvrApiPlan : public SrsDvrPlan
+{
+public:
+    SrsDvrApiPlan();
+    virtual ~SrsDvrApiPlan();
+public:
+    virtual int on_publish();
+    virtual void on_unpublish();
+};
+
+/**
 * always append to flv file, never reap it.
 */
 class SrsDvrAppendPlan : public SrsDvrPlan
@@ -280,6 +294,22 @@ public:
     virtual int on_video(SrsSharedPtrMessage* video);
 private:
     virtual int update_duration(SrsSharedPtrMessage* msg);
+};
+
+/**
+* the api dvr pool.
+*/
+class SrsApiDvrPool
+{
+private:
+    static SrsApiDvrPool* _instance;
+private:
+    SrsApiDvrPool();
+public:
+    static SrsApiDvrPool* instance();
+    virtual ~SrsApiDvrPool();
+public:
+    virtual int dumps(std::stringstream& ss);
 };
 
 /**

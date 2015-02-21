@@ -209,6 +209,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_AAC_ADTS_HEADER               3047
 #define ERROR_AAC_DATA_INVALID              3048
 #define ERROR_HLS_TRY_MP3                   3049
+#define ERROR_HTTP_DVR_DISABLED             3050
+#define ERROR_HTTP_DVR_REQUEST              3051
 
 ///////////////////////////////////////////////////////
 // HTTP/StreamCaster protocol error.

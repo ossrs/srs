@@ -123,6 +123,29 @@ public:
 
 // A ResponseWriter interface is used by an HTTP handler to
 // construct an HTTP response.
+// Usage 1, response with specified length content:
+//      ISrsGoHttpResponseWriter* w; // create or get response.
+//      std::string msg = "Hello, HTTP!";
+//      w->header()->set_content_type("text/plain; charset=utf-8");
+//      w->header()->set_content_length(msg.length());
+//      w->write_header(SRS_CONSTS_HTTP_OK);
+//      w->write((char*)msg.data(), (int)msg.length());
+//      w->final_request(); // optional flush.
+// Usage 2, response with HTTP code only, zero content length.
+//      ISrsGoHttpResponseWriter* w; // create or get response.
+//      w->header()->set_content_length(0);
+//      w->write_header(SRS_CONSTS_HTTP_OK);
+//      w->final_request();
+// Usage 3, response in chunked encoding.
+//      ISrsGoHttpResponseWriter* w; // create or get response.
+//      std::string msg = "Hello, HTTP!";
+//      w->header()->set_content_type("application/octet-stream");
+//      w->write_header(SRS_CONSTS_HTTP_OK);
+//      w->write((char*)msg.data(), (int)msg.length());
+//      w->write((char*)msg.data(), (int)msg.length());
+//      w->write((char*)msg.data(), (int)msg.length());
+//      w->write((char*)msg.data(), (int)msg.length());
+//      w->final_request(); // required to end the chunked and flush.
 class ISrsGoHttpResponseWriter
 {
 public:
@@ -143,6 +166,7 @@ public:
     // before writing the data.  If the Header does not contain a
     // Content-Type line, Write adds a Content-Type set to the result of passing
     // the initial 512 bytes of written data to DetectContentType.
+    // @param data, the data to send. NULL to flush header only.
     virtual int write(char* data, int size) = 0;
     
     // WriteHeader sends an HTTP response header with status code.

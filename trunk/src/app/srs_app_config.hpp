@@ -79,6 +79,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define SRS_CONF_DEFAULT_HTTP_STREAM_PORT 8080
 #define SRS_CONF_DEFAULT_HTTP_API_PORT 1985
+#define SRS_CONF_DEFAULT_HTTP_API_CROSSDOMAIN true
 
 #define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_ENABLED false
 #define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_INTERVAL 9.9
@@ -957,6 +958,10 @@ public:
     * get the http api listen port.
     */
     virtual int                 get_http_api_listen();
+    /**
+    * whether enable crossdomain for http api.
+    */
+    virtual bool                get_http_api_crossdomain();
 // http stream section
 private:
     /**

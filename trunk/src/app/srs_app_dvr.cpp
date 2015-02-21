@@ -40,6 +40,7 @@ using namespace std;
 #include <srs_kernel_file.hpp>
 #include <srs_rtmp_amf0.hpp>
 #include <srs_kernel_stream.hpp>
+#include <srs_app_json.hpp>
 
 // update the flv duration and filesize every this interval in ms.
 #define __SRS_DVR_UPDATE_DURATION_INTERVAL 60000
@@ -665,6 +666,8 @@ SrsDvrPlan* SrsDvrPlan::create_plan(string vhost)
         return new SrsDvrSessionPlan();
     } else if (plan == SRS_CONF_DEFAULT_DVR_PLAN_APPEND) {
         return new SrsDvrAppendPlan();
+    } else if (plan == SRS_CONF_DEFAULT_DVR_PLAN_API) {
+        return new SrsDvrApiPlan();
     } else {
         srs_error("invalid dvr plan=%s, vhost=%s", plan.c_str(), vhost.c_str());
         srs_assert(false);
@@ -706,6 +709,56 @@ int SrsDvrSessionPlan::on_publish()
 }
 
 void SrsDvrSessionPlan::on_unpublish()
+{
+    // support multiple publish.
+    if (!dvr_enabled) {
+        return;
+    }
+    
+    // ignore error.
+    int ret = segment->close();
+    if (ret != ERROR_SUCCESS) {
+        srs_warn("ignore flv close error. ret=%d", ret);
+    }
+    
+    dvr_enabled = false;
+}
+
+SrsDvrApiPlan::SrsDvrApiPlan()
+{
+}
+
+SrsDvrApiPlan::~SrsDvrApiPlan()
+{
+}
+
+int SrsDvrApiPlan::on_publish()
+{
+    int ret = ERROR_SUCCESS;
+    
+    // support multiple publish.
+    if (dvr_enabled) {
+        return ret;
+    }
+
+    if (!_srs_config->get_dvr_enabled(req->vhost)) {
+        return ret;
+    }
+
+    if ((ret = segment->close()) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    if ((ret = segment->open()) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    dvr_enabled = true;
+
+    return ret;
+}
+
+void SrsDvrApiPlan::on_unpublish()
 {
     // support multiple publish.
     if (!dvr_enabled) {
@@ -974,6 +1027,29 @@ int SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
         return ret;
     }
     
+    return ret;
+}
+
+SrsApiDvrPool* SrsApiDvrPool::_instance = new SrsApiDvrPool();
+
+SrsApiDvrPool* SrsApiDvrPool::instance()
+{
+    return SrsApiDvrPool::_instance;
+}
+
+SrsApiDvrPool::SrsApiDvrPool()
+{
+}
+
+SrsApiDvrPool::~SrsApiDvrPool()
+{
+}
+
+int SrsApiDvrPool::dumps(stringstream& ss)
+{
+    int ret = ERROR_SUCCESS;
+    ss << __SRS_JARRAY_START
+        << __SRS_JARRAY_END;
     return ret;
 }
 

@@ -1334,7 +1334,7 @@ int SrsConfig::check_config()
         SrsConfDirective* conf = get_http_api();
         for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
             string n = conf->at(i)->name;
-            if (n != "enabled" && n != "listen") {
+            if (n != "enabled" && n != "listen" && n != "crossdomain") {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported http_api directive %s, ret=%d", n.c_str(), ret);
                 return ret;
@@ -3451,6 +3451,22 @@ int SrsConfig::get_http_api_listen()
     }
 
     return ::atoi(conf->arg0().c_str());
+}
+
+bool SrsConfig::get_http_api_crossdomain()
+{
+    SrsConfDirective* conf = get_http_api();
+    
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HTTP_API_CROSSDOMAIN;
+    }
+    
+    conf = conf->get("crossdomain");
+    if (!conf || conf->arg0().empty()) {
+        return SRS_CONF_DEFAULT_HTTP_API_CROSSDOMAIN;
+    }
+
+    return conf->arg0() != "off";
 }
 
 bool SrsConfig::get_http_stream_enabled()

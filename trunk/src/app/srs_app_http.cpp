@@ -139,6 +139,9 @@ bool srs_go_http_body_allowd(int status)
 // returns "application/octet-stream".
 string srs_go_http_detect(char* data, int size)
 {
+    // detect only when data specified.
+    if (data) {
+    }
     return "application/octet-stream"; // fallback
 }
 
@@ -715,8 +718,8 @@ int SrsGoHttpResponseWriter::final_request()
         return skt->write((void*)ch.data(), (int)ch.length(), NULL);
     }
     
-    // ignore when send with content length
-    return ERROR_SUCCESS;
+    // flush when send with content length
+    return write(NULL, 0);
 }
 
 SrsGoHttpHeader* SrsGoHttpResponseWriter::header()
@@ -741,6 +744,11 @@ int SrsGoHttpResponseWriter::write(char* data, int size)
     
     if ((ret = send_header(data, size)) != ERROR_SUCCESS) {
         srs_error("http: send header failed. ret=%d", ret);
+        return ret;
+    }
+
+    // ignore NULL content.
+    if (!data) {
         return ret;
     }
     

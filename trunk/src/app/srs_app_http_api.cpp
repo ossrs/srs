@@ -37,6 +37,8 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_rtmp_sdk.hpp>
+#include <srs_app_dvr.hpp>
+#include <srs_app_config.hpp>
 
 SrsGoApiRoot::SrsGoApiRoot()
 {
@@ -472,11 +474,48 @@ int SrsGoApiStreams::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
     return srs_go_http_response_json(w, ss.str());
 }
 
+SrsGoApiDvrs::SrsGoApiDvrs()
+{
+}
+
+SrsGoApiDvrs::~SrsGoApiDvrs()
+{
+}
+
+int SrsGoApiDvrs::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
+{
+    std::stringstream ss;
+
+#ifndef SRS_AUTO_DVR
+    ss << __SRS_JOBJECT_START
+        << __SRS_JFIELD_ERROR(ERROR_HTTP_DVR_DISABLED)
+        << __SRS_JOBJECT_END;
+#else
+    SrsApiDvrPool* pool = SrsApiDvrPool::instance();
+    if (r->is_http_get()) {
+        std::stringstream data;
+        int ret = pool->dumps(data);
+
+        ss << __SRS_JOBJECT_START
+            << __SRS_JFIELD_ERROR(ret) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_ORG("dvrs", data.str())
+            << __SRS_JOBJECT_END;
+    } else {
+        ss << __SRS_JOBJECT_START
+            << __SRS_JFIELD_ERROR(ERROR_HTTP_DVR_REQUEST)
+            << __SRS_JOBJECT_END;
+    }
+#endif
+    
+    return srs_go_http_response_json(w, ss.str());
+}
+
 SrsHttpApi::SrsHttpApi(SrsServer* svr, st_netfd_t fd, SrsGoHttpServeMux* m) 
     : SrsConnection(svr, fd)
 {
     mux = m;
     parser = new SrsHttpParser();
+    crossdomain_required = false;
 }
 
 SrsHttpApi::~SrsHttpApi()
@@ -548,6 +587,29 @@ int SrsHttpApi::process_request(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
     
     srs_trace("HTTP %s %s, content-length=%"PRId64"", 
         r->method_str().c_str(), r->url().c_str(), r->content_length());
+    
+    // method is OPTIONS and enable crossdomain, required crossdomain header.
+    if (r->is_http_options() && _srs_config->get_http_api_crossdomain()) {
+        crossdomain_required = true;
+    }
+
+    // whenever crossdomain required, set crossdomain header.
+    if (crossdomain_required) {
+        w->header()->set("Access-Control-Allow-Origin", "*");
+        w->header()->set("Access-Control-Allow-Methods", "GET, POST, HEAD, PUT, DELETE");
+        w->header()->set("Access-Control-Allow-Headers", "Cache-Control,X-Proxy-Authorization,X-Requested-With,Content-Type");
+    }
+
+    // handle the http options.
+    if (r->is_http_options()) {
+        w->header()->set_content_length(0);
+        if (_srs_config->get_http_api_crossdomain()) {
+            w->write_header(SRS_CONSTS_HTTP_OK);
+        } else {
+            w->write_header(SRS_CONSTS_HTTP_MethodNotAllowed);
+        }
+        return w->final_request();
+    }
     
     // use default server mux to serve http request.
     if ((ret = mux->serve_http(w, r)) != ERROR_SUCCESS) {
