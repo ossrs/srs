@@ -194,6 +194,11 @@ int SrsFlvSegment::close()
             return ret;
         }
     }
+
+    if ((ret = plan->on_reap_segment()) != ERROR_SUCCESS) {
+        srs_error("dvr: notify plan to reap segment failed. ret=%d", ret);
+        return ret;
+    }
     
 #ifdef SRS_AUTO_HTTP_CALLBACK
     if (_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
@@ -403,6 +408,11 @@ int SrsFlvSegment::update_flv_metadata()
     fs->lseek(cur);
 
     return ret;
+}
+
+string SrsFlvSegment::get_path()
+{
+    return path;
 }
 
 string SrsFlvSegment::generate_path()
@@ -657,6 +667,11 @@ int SrsDvrPlan::on_video(SrsSharedPtrMessage* __video)
     return ret;
 }
 
+int SrsDvrPlan::on_reap_segment()
+{
+    return ERROR_SUCCESS;
+}
+
 SrsDvrPlan* SrsDvrPlan::create_plan(string vhost)
 {
     std::string plan = _srs_config->get_dvr_plan(vhost);
@@ -726,10 +741,30 @@ void SrsDvrSessionPlan::on_unpublish()
 
 SrsDvrApiPlan::SrsDvrApiPlan()
 {
+    autostart = false;
+    started = false;
 }
 
 SrsDvrApiPlan::~SrsDvrApiPlan()
 {
+}
+
+int SrsDvrApiPlan::initialize(SrsSource* s, SrsRequest* r)
+{
+    int ret = ERROR_SUCCESS;
+
+    if ((ret = SrsDvrPlan::initialize(s, r)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    SrsApiDvrPool* pool = SrsApiDvrPool::instance();
+    if ((ret = pool->add_dvr(this)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    autostart = _srs_config->get_dvr_autostart(r->vhost);
+
+    return ret;
 }
 
 int SrsDvrApiPlan::on_publish()
@@ -742,6 +777,13 @@ int SrsDvrApiPlan::on_publish()
     }
 
     if (!_srs_config->get_dvr_enabled(req->vhost)) {
+        return ret;
+    }
+
+    // api disabled dvr when not autostart.
+    bool autostart = _srs_config->get_dvr_autostart(req->vhost);
+    if (!autostart && !started) {
+        srs_warn("dvr: api not start and disabled for not autostart.");
         return ret;
     }
 
@@ -760,18 +802,76 @@ int SrsDvrApiPlan::on_publish()
 
 void SrsDvrApiPlan::on_unpublish()
 {
-    // support multiple publish.
-    if (!dvr_enabled) {
-        return;
+}
+
+int SrsDvrApiPlan::set_path_tmpl(string path_tmpl)
+{
+    _srs_config->set_dvr_path(req->vhost, path_tmpl);
+    return ERROR_SUCCESS;
+}
+
+int SrsDvrApiPlan::set_callback(string value)
+{
+    callback = value;
+    return ERROR_SUCCESS;
+}
+
+int SrsDvrApiPlan::set_wait_keyframe(bool wait_keyframe)
+{
+    _srs_config->set_dvr_wait_keyframe(req->vhost, wait_keyframe);
+    return ERROR_SUCCESS;
+}
+
+int SrsDvrApiPlan::start()
+{
+    int ret = ERROR_SUCCESS;
+
+    if (started) {
+        return ret;
     }
+
+    // stop dvr
+    if (dvr_enabled) {
+        // ignore error.
+        int ret = segment->close();
+        if (ret != ERROR_SUCCESS) {
+            srs_warn("ignore flv close error. ret=%d", ret);
+        }
     
-    // ignore error.
-    int ret = segment->close();
-    if (ret != ERROR_SUCCESS) {
-        srs_warn("ignore flv close error. ret=%d", ret);
+        dvr_enabled = false;
     }
-    
-    dvr_enabled = false;
+
+    // start dvr
+    if ((ret = on_publish()) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    started = true;
+    return ret;
+}
+
+int SrsDvrApiPlan::dumps(stringstream& ss)
+{
+    int ret = ERROR_SUCCESS;
+
+    bool wait_keyframe = _srs_config->get_dvr_wait_keyframe(req->vhost);
+    std::string path_template = _srs_config->get_dvr_path(req->vhost);
+
+    ss << __SRS_JOBJECT_START
+            << __SRS_JFIELD_STR("path_tmpl", path_template) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_STR("path_dvr", segment->get_path()) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_BOOL("wait_keyframe", wait_keyframe) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_STR("vhost", req->vhost) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_STR("callback", callback)
+        << __SRS_JOBJECT_END;
+
+    return ret;
+}
+
+int SrsDvrApiPlan::on_reap_segment()
+{
+    // TODO: FIXME: implements it.
+    return ERROR_SUCCESS;
 }
 
 SrsDvrAppendPlan::SrsDvrAppendPlan()
@@ -1043,14 +1143,101 @@ SrsApiDvrPool::SrsApiDvrPool()
 
 SrsApiDvrPool::~SrsApiDvrPool()
 {
+    dvrs.clear();
 }
 
-int SrsApiDvrPool::dumps(stringstream& ss)
+int SrsApiDvrPool::add_dvr(SrsDvrApiPlan* dvr)
+{
+    dvrs.push_back(dvr);
+    return ERROR_SUCCESS;
+}
+
+int SrsApiDvrPool::dumps(string vhost, stringstream& ss)
 {
     int ret = ERROR_SUCCESS;
-    ss << __SRS_JARRAY_START
-        << __SRS_JARRAY_END;
+
+    ss << __SRS_JARRAY_START;
+
+    std::vector<SrsDvrApiPlan*> plans;
+    for (int i = 0; i < (int)dvrs.size(); i++) {
+        SrsDvrApiPlan* plan = dvrs.at(i);
+        if (!vhost.empty() && plan->req->vhost != vhost) {
+            continue;
+        }
+        plans.push_back(plan);
+    }
+
+    for (int i = 0; i < (int)plans.size(); i++) {
+        SrsDvrApiPlan* plan = plans.at(i);
+
+        if ((ret = plan->dumps(ss)) != ERROR_SUCCESS) {
+            return ret;
+        }
+
+        if (i < (int)dvrs.size() - 1) {
+            ss << __SRS_JFIELD_CONT;
+        }
+    }
+
+    ss << __SRS_JARRAY_END;
+
     return ret;
+}
+
+int SrsApiDvrPool::create(SrsJsonAny* json)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(json);
+    if (!json->is_object()) {
+        ret = ERROR_HTTP_DVR_CREATE_REQUEST;
+        srs_error("dvr: api create dvr request requires json object. ret=%d", ret);
+        return ret;
+    }
+
+    SrsJsonObject* obj = json->to_object();
+    SrsJsonAny* prop = NULL;
+    if ((prop = obj->ensure_property_string("vhost")) == NULL) {
+        ret = ERROR_HTTP_DVR_CREATE_REQUEST;
+        srs_error("dvr: api create dvr request requires vhost. ret=%d", ret);
+        return ret;
+    }
+
+    std::string vhost = prop->to_str();
+    SrsDvrApiPlan* dvr = NULL;
+    for (int i = 0; i < (int)dvrs.size(); i++) {
+        SrsDvrApiPlan* plan = dvrs.at(i);
+        if (!vhost.empty() && plan->req->vhost != vhost) {
+            continue;
+        }
+        dvr = plan;
+        break;
+    }
+
+    if (!dvr) {
+        ret = ERROR_HTTP_DVR_CREATE_REQUEST;
+        srs_error("dvr: api create dvr request vhost invalid. vhost=%s. ret=%d", vhost.c_str(), ret);
+        return ret;
+    }
+
+    // update optional parameters for plan.
+    if ((prop = obj->ensure_property_string("path_tmpl")) != NULL) {
+        if ((ret = dvr->set_path_tmpl(prop->to_str())) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    if ((prop = obj->ensure_property_boolean("wait_keyframe")) != NULL) {
+        if ((ret = dvr->set_wait_keyframe(prop->to_boolean())) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    if ((prop = obj->ensure_property_string("callback")) != NULL) {
+        if ((ret = dvr->set_callback(prop->to_str())) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+
+    return dvr->start();
 }
 
 SrsDvr::SrsDvr(SrsSource* s)

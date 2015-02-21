@@ -123,6 +123,7 @@ public:
 public:
     /**
     * read json tree from str:char*
+    * @return json object. NULL if error.
     */
     static SrsJsonAny* loads(char* str);
 };
@@ -148,6 +149,7 @@ public:
     virtual void set(std::string key, SrsJsonAny* value);
     virtual SrsJsonAny* get_property(std::string name);
     virtual SrsJsonAny* ensure_property_string(std::string name);
+    virtual SrsJsonAny* ensure_property_boolean(std::string name);
 };
 
 class SrsJsonArray : public SrsJsonAny
@@ -214,6 +216,7 @@ that is:
 #define __SRS_JFIELD_NAME(k) "\"" << k << "\":"
 #define __SRS_JFIELD_STR(k, v) "\"" << k << "\":\"" << v << "\""
 #define __SRS_JFIELD_ORG(k, v) "\"" << k << "\":" << std::dec << v
+#define __SRS_JFIELD_BOOL(k, v) __SRS_JFIELD_ORG(k, (v? "true":"false"))
 #define __SRS_JFIELD_ERROR(ret) "\"" << "code" << "\":" << ret
 #define __SRS_JFIELD_CONT ","
 #define __SRS_JOBJECT_END "}"

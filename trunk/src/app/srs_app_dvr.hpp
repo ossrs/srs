@@ -43,6 +43,7 @@ class SrsSharedPtrMessage;
 class SrsFileWriter;
 class SrsFlvEncoder;
 class SrsDvrPlan;
+class SrsJsonAny;
 
 #include <srs_app_source.hpp>
 #include <srs_app_reload.hpp>
@@ -149,6 +150,10 @@ public:
     * update the flv metadata.
     */
     virtual int update_flv_metadata();
+    /**
+    * get the current dvr path.
+    */
+    virtual std::string get_path();
 private:
     /**
     * generate the flv segment path.
@@ -179,9 +184,10 @@ class SrsDvrPlan
 {
 public:
     friend class SrsFlvSegment;
+public:
+    SrsRequest* req;
 protected:
     SrsSource* source;
-    SrsRequest* req;
     SrsFlvSegment* segment;
     bool dvr_enabled;
 public:
@@ -204,6 +210,7 @@ public:
     */
     virtual int on_video(SrsSharedPtrMessage* __video);
 protected:
+    virtual int on_reap_segment();
     virtual int on_dvr_request_sh();
     virtual int on_video_keyframe();
     virtual int64_t filter_timestamp(int64_t timestamp);
@@ -229,12 +236,25 @@ public:
 */
 class SrsDvrApiPlan : public SrsDvrPlan
 {
+private:
+    std::string callback;
+    bool autostart;
+    bool started;
 public:
     SrsDvrApiPlan();
     virtual ~SrsDvrApiPlan();
 public:
+    virtual int initialize(SrsSource* s, SrsRequest* r);
     virtual int on_publish();
     virtual void on_unpublish();
+public:
+    virtual int set_path_tmpl(std::string path_tmpl);
+    virtual int set_callback(std::string value);
+    virtual int set_wait_keyframe(bool wait_keyframe);
+    virtual int start();
+    virtual int dumps(std::stringstream& ss);
+protected:
+    virtual int on_reap_segment();
 };
 
 /**
@@ -302,6 +322,7 @@ private:
 class SrsApiDvrPool
 {
 private:
+    std::vector<SrsDvrApiPlan*> dvrs;
     static SrsApiDvrPool* _instance;
 private:
     SrsApiDvrPool();
@@ -309,7 +330,10 @@ public:
     static SrsApiDvrPool* instance();
     virtual ~SrsApiDvrPool();
 public:
-    virtual int dumps(std::stringstream& ss);
+    virtual int add_dvr(SrsDvrApiPlan* dvr);
+public:
+    virtual int dumps(std::string vhost, std::stringstream& ss);
+    virtual int create(SrsJsonAny* json);
 };
 
 /**

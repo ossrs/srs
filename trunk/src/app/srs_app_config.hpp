@@ -452,6 +452,14 @@ public:
     * get the max udp port for rtp of stream caster rtsp.
     */
     virtual int                 get_stream_caster_rtp_port_max(SrsConfDirective* sc);
+private:
+    /**
+    * create directive under vhost.
+    * @param directive, get the directive of vhost. get vhost if directive is empty.
+    * @param sub_directive, get the sub directive of vhost. get directive if sub-directive is empty.
+    * @return the vhost(empty directive and sub-directive); the directive(empty sub-directive); the sub-directive.
+    */
+    virtual SrsConfDirective*   create_directive(std::string vhost, std::string directive, std::string sub_directive);
 // vhost specified section
 public:
     /**
@@ -919,6 +927,7 @@ public:
     * get the dvr path, the flv file to save in.
     */
     virtual std::string         get_dvr_path(std::string vhost);
+    virtual void                set_dvr_path(std::string vhost, std::string path);
     /**
     * get the plan of dvr, how to reap the flv file.
     */
@@ -931,6 +940,7 @@ public:
     * whether wait keyframe to reap segment.
     */
     virtual bool                get_dvr_wait_keyframe(std::string vhost);
+    virtual void                set_dvr_wait_keyframe(std::string vhost, bool wait_keyframe);
     /**
     * whether autostart for dvr. wait api to start dvr if false.
     */

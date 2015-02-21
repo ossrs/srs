@@ -1977,6 +1977,38 @@ int SrsConfig::get_stream_caster_rtp_port_max(SrsConfDirective* sc)
     return ::atoi(conf->arg0().c_str());
 }
 
+SrsConfDirective* SrsConfig::create_directive(string vhost, string directive, string sub_directive)
+{
+    SrsConfDirective* vhost_conf = get_vhost(vhost);
+
+    if (!vhost_conf) {
+        vhost_conf = new SrsConfDirective();
+        root->directives.push_back(vhost_conf);
+    }
+
+    if (directive.empty()) {
+        return vhost_conf;
+    }
+
+    SrsConfDirective* dir = vhost_conf->get(directive);
+    if (!dir) {
+        dir = new SrsConfDirective();
+        vhost_conf->directives.push_back(dir);
+    }
+
+    if (sub_directive.empty()) {
+        return dir;
+    }
+
+    SrsConfDirective* sdir = dir->get(sub_directive);
+    if (!sdir) {
+        sdir = new SrsConfDirective();
+        dir->directives.push_back(sdir);
+    }
+
+    return sdir;
+}
+
 SrsConfDirective* SrsConfig::get_vhost(string vhost)
 {
     srs_assert(root);
@@ -3327,6 +3359,13 @@ string SrsConfig::get_dvr_path(string vhost)
     return conf->arg0();
 }
 
+void SrsConfig::set_dvr_path(string vhost, string path)
+{
+    SrsConfDirective* conf = create_directive(vhost, "dvr", "dvr_path");
+    conf->args.clear();
+    conf->args.push_back(path);
+}
+
 string SrsConfig::get_dvr_plan(string vhost)
 {
     SrsConfDirective* dvr = get_dvr(vhost);
@@ -3376,6 +3415,13 @@ bool SrsConfig::get_dvr_wait_keyframe(string vhost)
     }
     
     return false;
+}
+
+void SrsConfig::set_dvr_wait_keyframe(string vhost, bool wait_keyframe)
+{
+    SrsConfDirective* conf = create_directive(vhost, "dvr", "dvr_wait_keyframe");
+    conf->args.clear();
+    conf->args.push_back(wait_keyframe? "on":"off");
 }
 
 bool SrsConfig::get_dvr_autostart(string vhost)

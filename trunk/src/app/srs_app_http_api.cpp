@@ -494,11 +494,24 @@ int SrsGoApiDvrs::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
     SrsApiDvrPool* pool = SrsApiDvrPool::instance();
     if (r->is_http_get()) {
         std::stringstream data;
-        int ret = pool->dumps(data);
+        int ret = pool->dumps(r->query_get("vhost"), data);
 
         ss << __SRS_JOBJECT_START
             << __SRS_JFIELD_ERROR(ret) << __SRS_JFIELD_CONT
             << __SRS_JFIELD_ORG("dvrs", data.str())
+            << __SRS_JOBJECT_END;
+    } else if (r->is_http_post()) {
+        char* body = (char*)r->body().c_str();
+        SrsJsonAny* json = SrsJsonAny::loads(body);
+        int ret = ERROR_SUCCESS;
+        if (!json) {
+            ret = ERROR_HTTP_JSON_REQUIRED;
+        } else {
+            SrsAutoFree(SrsJsonAny, json);
+            ret = pool->create(json);
+        }
+        ss << __SRS_JOBJECT_START
+            << __SRS_JFIELD_ERROR(ret)
             << __SRS_JOBJECT_END;
     } else {
         ss << __SRS_JOBJECT_START
