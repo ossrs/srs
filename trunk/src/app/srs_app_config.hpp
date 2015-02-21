@@ -60,6 +60,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_DVR_PATH "./objs/nginx/html"
 #define SRS_CONF_DEFAULT_DVR_PLAN_SESSION "session"
 #define SRS_CONF_DEFAULT_DVR_PLAN_SEGMENT "segment"
+#define SRS_CONF_DEFAULT_DVR_PLAN_API "api"
 #define SRS_CONF_DEFAULT_DVR_PLAN SRS_CONF_DEFAULT_DVR_PLAN_SESSION
 #define SRS_CONF_DEFAULT_DVR_DURATION 30
 #define SRS_CONF_DEFAULT_TIME_JITTER "full"
@@ -921,13 +922,17 @@ public:
     */
     virtual std::string         get_dvr_plan(std::string vhost);
     /**
-    * get the duration of dvr flv, for segment plan.
+    * get the duration of dvr flv.
     */
     virtual int                 get_dvr_duration(std::string vhost);
     /**
-    * whether wait keyframe to reap segment, for segment plan.
+    * whether wait keyframe to reap segment.
     */
     virtual bool                get_dvr_wait_keyframe(std::string vhost);
+    /**
+    * whether autostart for dvr. wait api to start dvr if false.
+    */
+    virtual bool                get_dvr_autostart(std::string vhost);
     /**
     * get the time_jitter algorithm for dvr.
     */

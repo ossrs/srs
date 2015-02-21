@@ -106,7 +106,8 @@ int SrsGoApiV1::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
             << __SRS_JFIELD_STR("authors", "the primary authors and contributors") << __SRS_JFIELD_CONT
             << __SRS_JFIELD_STR("requests", "the request itself, for http debug") << __SRS_JFIELD_CONT
             << __SRS_JFIELD_STR("vhosts", "dumps vhost to json") << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("streams", "dumps streams to json")
+            << __SRS_JFIELD_STR("streams", "dumps streams to json") << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_STR("dvrs", "query or control the dvr plan")
         << __SRS_JOBJECT_END
         << __SRS_JOBJECT_END;
     
