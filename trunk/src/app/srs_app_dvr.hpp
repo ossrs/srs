@@ -237,6 +237,11 @@ public:
 class SrsDvrApiPlan : public SrsDvrPlan
 {
 private:
+    // cache the metadata and sequence header, for new segment maybe opened.
+    SrsSharedPtrMessage* sh_audio;
+    SrsSharedPtrMessage* sh_video;
+    SrsSharedPtrMessage* metadata;
+private:
     std::string callback;
     bool autostart;
     bool started;
@@ -247,12 +252,16 @@ public:
     virtual int initialize(SrsSource* s, SrsRequest* r);
     virtual int on_publish();
     virtual void on_unpublish();
+    virtual int on_meta_data(SrsSharedPtrMessage* __metadata);
+    virtual int on_audio(SrsSharedPtrMessage* __audio);
+    virtual int on_video(SrsSharedPtrMessage* __video);
 public:
     virtual int set_path_tmpl(std::string path_tmpl);
     virtual int set_callback(std::string value);
     virtual int set_wait_keyframe(bool wait_keyframe);
     virtual int start();
     virtual int dumps(std::stringstream& ss);
+    virtual int stop();
 protected:
     virtual int on_reap_segment();
 };
@@ -270,14 +279,8 @@ public:
 public:
     virtual int on_publish();
     virtual void on_unpublish();
-    /**
-    * @param audio, directly ptr, copy it if need to save it.
-    */
-    virtual int on_audio(SrsSharedPtrMessage* audio);
-    /**
-    * @param video, directly ptr, copy it if need to save it.
-    */
-    virtual int on_video(SrsSharedPtrMessage* video);
+    virtual int on_audio(SrsSharedPtrMessage* __audio);
+    virtual int on_video(SrsSharedPtrMessage* __video);
 private:
     virtual int update_duration(SrsSharedPtrMessage* msg);
 };
@@ -300,18 +303,9 @@ public:
     virtual int initialize(SrsSource* source, SrsRequest* req);
     virtual int on_publish();
     virtual void on_unpublish();
-    /**
-    * when got metadata.
-    */
     virtual int on_meta_data(SrsSharedPtrMessage* __metadata);
-    /**
-    * @param audio, directly ptr, copy it if need to save it.
-    */
-    virtual int on_audio(SrsSharedPtrMessage* audio);
-    /**
-    * @param video, directly ptr, copy it if need to save it.
-    */
-    virtual int on_video(SrsSharedPtrMessage* video);
+    virtual int on_audio(SrsSharedPtrMessage* __audio);
+    virtual int on_video(SrsSharedPtrMessage* __video);
 private:
     virtual int update_duration(SrsSharedPtrMessage* msg);
 };
@@ -334,6 +328,7 @@ public:
 public:
     virtual int dumps(std::string vhost, std::stringstream& ss);
     virtual int create(SrsJsonAny* json);
+    virtual int stop(std::string vhost);
 };
 
 /**

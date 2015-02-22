@@ -3342,6 +3342,13 @@ bool SrsConfig::get_dvr_enabled(string vhost)
     return false;
 }
 
+void SrsConfig::set_dvr_enabled(string vhost, bool enabled)
+{
+    SrsConfDirective* conf = create_directive(vhost, "dvr", "enabled");
+    conf->args.clear();
+    conf->args.push_back(enabled? "on":"off");
+}
+
 string SrsConfig::get_dvr_path(string vhost)
 {
     SrsConfDirective* dvr = get_dvr(vhost);

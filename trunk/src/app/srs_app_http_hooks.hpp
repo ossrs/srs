@@ -104,6 +104,15 @@ public:
     * @param file the file path, can be relative or absolute path.
     */
     static int on_dvr(std::string url, int client_id, std::string ip, SrsRequest* req, std::string cwd, std::string file);
+    /**
+    * when dvr reap segment, callback.
+    * @param client_id the id of client on server.
+    * @param url the api server url, to process the event. 
+    *         ignore if empty.
+    * @param cwd the current work directory, used to resolve the reltive file path.
+    * @param file the file path, can be relative or absolute path.
+    */
+    static int on_dvr_reap_segment(std::string url, int client_id, SrsRequest* req, std::string cwd, std::string file);
 };
 
 #endif

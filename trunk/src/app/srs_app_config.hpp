@@ -923,6 +923,7 @@ public:
     * whether dvr is enabled.
     */
     virtual bool                get_dvr_enabled(std::string vhost);
+    virtual void                set_dvr_enabled(std::string vhost, bool enabled);
     /**
     * get the dvr path, the flv file to save in.
     */
