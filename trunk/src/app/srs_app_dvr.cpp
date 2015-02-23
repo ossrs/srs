@@ -45,6 +45,9 @@ using namespace std;
 // update the flv duration and filesize every this interval in ms.
 #define __SRS_DVR_UPDATE_DURATION_INTERVAL 60000
 
+// the sleep interval for http async callback.
+#define SRS_AUTO_ASYNC_CALLBACL_SLEEP_US 300000
+
 SrsFlvSegment::SrsFlvSegment(SrsDvrPlan* p)
 {
     req = NULL;
@@ -201,29 +204,6 @@ int SrsFlvSegment::close()
         srs_error("dvr: notify plan to reap segment failed. ret=%d", ret);
         return ret;
     }
-    
-#ifdef SRS_AUTO_HTTP_CALLBACK
-    if (_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
-        // HTTP: on_dvr 
-        SrsConfDirective* on_dvr = _srs_config->get_vhost_on_dvr(req->vhost);
-        if (!on_dvr) {
-            srs_info("ignore the empty http callback: on_dvr");
-            return ret;
-        }
-        
-        int connection_id = _srs_context->get_id();
-        std::string ip = req->ip;
-        std::string cwd = _srs_config->cwd();
-        std::string file = path;
-        for (int i = 0; i < (int)on_dvr->args.size(); i++) {
-            std::string url = on_dvr->args.at(i);
-            if ((ret = SrsHttpHooks::on_dvr(url, connection_id, ip, req, cwd, file)) != ERROR_SUCCESS) {
-                srs_error("hook client on_dvr failed. url=%s, ret=%d", url.c_str(), ret);
-                return ret;
-            }
-        }
-    }
-#endif
 
     return ret;
 }
@@ -578,6 +558,160 @@ int SrsFlvSegment::on_reload_vhost_dvr(std::string /*vhost*/)
     return ret;
 }
 
+ISrsDvrAsyncCall::ISrsDvrAsyncCall()
+{
+}
+
+ISrsDvrAsyncCall::~ISrsDvrAsyncCall()
+{
+}
+
+SrsDvrAsyncCallOnDvr::SrsDvrAsyncCallOnDvr(SrsRequest* r, string p)
+{
+    req = r;
+    path = p;
+}
+
+SrsDvrAsyncCallOnDvr::~SrsDvrAsyncCallOnDvr()
+{
+}
+
+int SrsDvrAsyncCallOnDvr::call()
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_AUTO_HTTP_CALLBACK
+    // http callback for on_dvr in config.
+    if (_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        // HTTP: on_dvr 
+        SrsConfDirective* on_dvr = _srs_config->get_vhost_on_dvr(req->vhost);
+        if (!on_dvr) {
+            srs_info("ignore the empty http callback: on_dvr");
+            return ret;
+        }
+        
+        int connection_id = _srs_context->get_id();
+        std::string ip = req->ip;
+        std::string cwd = _srs_config->cwd();
+        std::string file = path;
+        for (int i = 0; i < (int)on_dvr->args.size(); i++) {
+            std::string url = on_dvr->args.at(i);
+            if ((ret = SrsHttpHooks::on_dvr(url, connection_id, ip, req, cwd, file)) != ERROR_SUCCESS) {
+                srs_error("hook client on_dvr failed. url=%s, ret=%d", url.c_str(), ret);
+                return ret;
+            }
+        }
+    }
+#endif
+
+    return ret;
+}
+
+string SrsDvrAsyncCallOnDvr::to_string()
+{
+    std::stringstream ss;
+    ss << "vhost=" << req->vhost << ", file=" << path;
+    return ss.str();
+}
+
+SrsDvrAsyncCallOnSegment::SrsDvrAsyncCallOnSegment(SrsRequest* r, string c, string p)
+{
+    req = r;
+    callback = c;
+    path = p;
+}
+
+SrsDvrAsyncCallOnSegment::~SrsDvrAsyncCallOnSegment()
+{
+}
+
+int SrsDvrAsyncCallOnSegment::call()
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_AUTO_HTTP_CALLBACK
+    // HTTP: callback
+    if (callback.empty()) {
+        srs_warn("dvr: ignore for callback empty, vhost=%s", req->vhost.c_str());
+        return ret;
+    }
+    
+    int connection_id = _srs_context->get_id();
+    std::string cwd = _srs_config->cwd();
+    std::string file = path;
+    std::string url = callback;
+    if ((ret = SrsHttpHooks::on_dvr_reap_segment(url, connection_id, req, cwd, file)) != ERROR_SUCCESS) {
+        srs_error("hook client on_dvr_reap_segment failed. url=%s, ret=%d", url.c_str(), ret);
+        return ret;
+    }
+#endif
+
+    return ret;
+}
+
+string SrsDvrAsyncCallOnSegment::to_string()
+{
+    std::stringstream ss;
+    ss << "vhost=" << req->vhost << ", file=" << path << "callback=" << callback;
+    return ss.str();
+}
+
+SrsDvrAsyncCallThread::SrsDvrAsyncCallThread()
+{
+    pthread = new SrsThread("async", this, SRS_AUTO_ASYNC_CALLBACL_SLEEP_US, true);
+}
+
+SrsDvrAsyncCallThread::~SrsDvrAsyncCallThread()
+{
+    stop();
+    srs_freep(pthread);
+
+    std::vector<ISrsDvrAsyncCall*>::iterator it;
+    for (it = callbacks.begin(); it != callbacks.end(); ++it) {
+        ISrsDvrAsyncCall* call = *it;
+        srs_freep(call);
+    }
+    callbacks.clear();
+}
+
+int SrsDvrAsyncCallThread::call(ISrsDvrAsyncCall* c)
+{
+    int ret = ERROR_SUCCESS;
+
+    callbacks.push_back(c);
+
+    return ret;
+}
+
+int SrsDvrAsyncCallThread::start()
+{
+    return pthread->start();
+}
+
+void SrsDvrAsyncCallThread::stop()
+{
+    pthread->stop();
+}
+
+int SrsDvrAsyncCallThread::cycle()
+{
+    int ret = ERROR_SUCCESS;
+    
+    std::vector<ISrsDvrAsyncCall*> copies = callbacks;
+    callbacks.clear();
+
+    std::vector<ISrsDvrAsyncCall*>::iterator it;
+    for (it = copies.begin(); it != copies.end(); ++it) {
+        ISrsDvrAsyncCall* call = *it;
+        if ((ret = call->call()) != ERROR_SUCCESS) {
+            srs_warn("dvr: ignore callback %s, ret=%d", call->to_string().c_str(), ret);
+        }
+        srs_freep(call);
+    }
+
+    return ret;
+}
+
 SrsDvrPlan::SrsDvrPlan()
 {
     source = NULL;
@@ -585,11 +719,13 @@ SrsDvrPlan::SrsDvrPlan()
 
     dvr_enabled = false;
     segment = new SrsFlvSegment(this);
+    async = new SrsDvrAsyncCallThread();
 }
 
 SrsDvrPlan::~SrsDvrPlan()
 {
     srs_freep(segment);
+    srs_freep(async);
 }
 
 int SrsDvrPlan::initialize(SrsSource* s, SrsRequest* r)
@@ -600,6 +736,10 @@ int SrsDvrPlan::initialize(SrsSource* s, SrsRequest* r)
     req = r;
 
     if ((ret = segment->initialize(s, r)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    if ((ret = async->start()) != ERROR_SUCCESS) {
         return ret;
     }
 
@@ -671,7 +811,13 @@ int SrsDvrPlan::on_video(SrsSharedPtrMessage* __video)
 
 int SrsDvrPlan::on_reap_segment()
 {
-    return ERROR_SUCCESS;
+    int ret = ERROR_SUCCESS;
+
+    if ((ret = async->call(new SrsDvrAsyncCallOnDvr(req, segment->get_path()))) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    return ret;
 }
 
 SrsDvrPlan* SrsDvrPlan::create_plan(string vhost)
@@ -958,23 +1104,14 @@ int SrsDvrApiPlan::stop()
 int SrsDvrApiPlan::on_reap_segment()
 {
     int ret = ERROR_SUCCESS;
-    
-#ifdef SRS_AUTO_HTTP_CALLBACK
-    // HTTP: callback
-    if (callback.empty()) {
-        srs_warn("dvr: ignore for callback empty, vhost=%s", req->vhost.c_str());
+
+    if ((ret = SrsDvrPlan::on_reap_segment()) != ERROR_SUCCESS) {
         return ret;
     }
-    
-    int connection_id = _srs_context->get_id();
-    std::string cwd = _srs_config->cwd();
-    std::string file = segment->get_path();
-    std::string url = callback;
-    if ((ret = SrsHttpHooks::on_dvr_reap_segment(url, connection_id, req, cwd, file)) != ERROR_SUCCESS) {
-        srs_error("hook client on_dvr_reap_segment failed. url=%s, ret=%d", url.c_str(), ret);
+
+    if ((ret = async->call(new SrsDvrAsyncCallOnSegment(req, callback, segment->get_path()))) != ERROR_SUCCESS) {
         return ret;
     }
-#endif
 
     return ret;
 }

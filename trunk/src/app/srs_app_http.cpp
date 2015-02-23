@@ -851,9 +851,18 @@ SrsHttpMessage::~SrsHttpMessage()
 int SrsHttpMessage::initialize()
 {
     int ret = ERROR_SUCCESS;
+
+    std::string host = get_request_header("Host");
+
+    // donot parse the empty host for uri, 
+    // for example, the response contains no host,
+    // ignore it is ok.
+    if (host.empty()) {
+        return ret;
+    }
     
     // parse uri to schema/server:port/path?query
-    std::string uri = "http://" + get_request_header("Host") + _url;
+    std::string uri = "http://" + host + _url;
     if ((ret = _uri->initialize(uri)) != ERROR_SUCCESS) {
         return ret;
     }

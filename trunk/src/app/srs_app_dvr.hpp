@@ -44,9 +44,11 @@ class SrsFileWriter;
 class SrsFlvEncoder;
 class SrsDvrPlan;
 class SrsJsonAny;
+class SrsThread;
 
 #include <srs_app_source.hpp>
 #include <srs_app_reload.hpp>
+#include <srs_app_thread.hpp>
 
 /**
 * a piece of flv segment.
@@ -174,6 +176,63 @@ public:
 };
 
 /**
+* the dvr async call.
+*/
+class ISrsDvrAsyncCall
+{
+public:
+    ISrsDvrAsyncCall();
+    virtual ~ISrsDvrAsyncCall();
+public:
+    virtual int call() = 0;
+    virtual std::string to_string() = 0;
+};
+class SrsDvrAsyncCallOnDvr : public ISrsDvrAsyncCall
+{
+private:
+    std::string path;
+    SrsRequest* req;
+public:
+    SrsDvrAsyncCallOnDvr(SrsRequest* r, std::string p);
+    virtual ~SrsDvrAsyncCallOnDvr();
+public:
+    virtual int call();
+    virtual std::string to_string();
+};
+class SrsDvrAsyncCallOnSegment : public ISrsDvrAsyncCall
+{
+private:
+    std::string callback;
+    std::string path;
+    SrsRequest* req;
+public:
+    SrsDvrAsyncCallOnSegment(SrsRequest* r, std::string c, std::string p);
+    virtual ~SrsDvrAsyncCallOnSegment();
+public:
+    virtual int call();
+    virtual std::string to_string();
+};
+
+/**
+* the async callback for dvr.
+*/
+class SrsDvrAsyncCallThread : public ISrsThreadHandler
+{
+private:
+    SrsThread* pthread;
+    std::vector<ISrsDvrAsyncCall*> callbacks;
+public:
+    SrsDvrAsyncCallThread();
+    virtual ~SrsDvrAsyncCallThread();
+public:
+    virtual int call(ISrsDvrAsyncCall* c);
+public:
+    virtual int start();
+    virtual void stop();
+    virtual int cycle();
+};
+
+/**
 * the plan for dvr.
 * use to control the following dvr params:
 * 1. filename: the filename for record file.
@@ -189,6 +248,7 @@ public:
 protected:
     SrsSource* source;
     SrsFlvSegment* segment;
+    SrsDvrAsyncCallThread* async;
     bool dvr_enabled;
 public:
     SrsDvrPlan();
