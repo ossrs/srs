@@ -492,6 +492,8 @@ Supported operating systems and hardware:
 [#304](https://github.com/winlinvip/simple-rtmp-server/issues/304).
 1. Support push RTSP to SRS, read
 [#133](https://github.com/winlinvip/simple-rtmp-server/issues/133).
+1. Support DVR http api, read
+[#179](https://github.com/winlinvip/simple-rtmp-server/issues/179).
 1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
 1. [no-plan] Support RTMP 302 redirect [#92](https://github.com/winlinvip/simple-rtmp-server/issues/92).
 1. [no-plan] Support multiple processes, for both origin and edge
