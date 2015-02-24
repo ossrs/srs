@@ -1960,16 +1960,16 @@ int SrsTsPayloadPES::encode_33bits_dts_pts(SrsStream* stream, u_int8_t fb, int64
     char* p = stream->data() + stream->pos();
     stream->skip(5);
 
-    int32_t val;
+    int32_t val = 0;
     
-    val = fb << 4 | (((pts >> 30) & 0x07) << 1) | 1;
+    val = fb << 4 | (((v >> 30) & 0x07) << 1) | 1;
     *p++ = val;
     
-    val = (((pts >> 15) & 0x7fff) << 1) | 1;
+    val = (((v >> 15) & 0x7fff) << 1) | 1;
     *p++ = (val >> 8);
     *p++ = val;
     
-    val = (((pts) & 0x7fff) << 1) | 1;
+    val = (((v) & 0x7fff) << 1) | 1;
     *p++ = (val >> 8);
     *p++ = val;
 
@@ -2653,6 +2653,9 @@ int SrsTSMuxer::update_acodec(SrsCodecAudio ac)
 int SrsTSMuxer::write_audio(SrsTsMessage* audio)
 {
     int ret = ERROR_SUCCESS;
+
+    srs_info("hls: write audio pts=%"PRId64", dts=%"PRId64", size=%d", 
+        audio->pts, audio->dts, audio->PES_packet_length);
     
     if ((ret = context->encode(writer, audio, vcodec, acodec)) != ERROR_SUCCESS) {
         srs_error("hls encode audio failed. ret=%d", ret);
@@ -2666,6 +2669,9 @@ int SrsTSMuxer::write_audio(SrsTsMessage* audio)
 int SrsTSMuxer::write_video(SrsTsMessage* video)
 {
     int ret = ERROR_SUCCESS;
+
+    srs_info("hls: write video pts=%"PRId64", dts=%"PRId64", size=%d", 
+        video->pts, video->dts, video->PES_packet_length);
     
     if ((ret = context->encode(writer, video, vcodec, acodec)) != ERROR_SUCCESS) {
         srs_error("hls encode video failed. ret=%d", ret);

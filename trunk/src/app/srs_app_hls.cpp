@@ -928,6 +928,8 @@ int SrsHls::on_audio(SrsSharedPtrMessage* __audio)
             return ret;
         }
     }
+    srs_info("audio decoded, type=%d, codec=%d, cts=%d, size=%d, time=%"PRId64, 
+        sample->frame_type, codec->audio_codec_id, sample->cts, audio->size, audio->timestamp);
     SrsCodecAudio acodec = (SrsCodecAudio)codec->audio_codec_id;
     
     // ts support audio codec: aac/mp3
