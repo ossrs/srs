@@ -48,6 +48,9 @@ using namespace std;
 // the sleep interval for http async callback.
 #define SRS_AUTO_ASYNC_CALLBACL_SLEEP_US 300000
 
+// the use raction for dvr rpc.
+#define SRS_DVR_USER_ACTION_REAP_SEGMENT "reap_segment"
+
 SrsFlvSegment::SrsFlvSegment(SrsDvrPlan* p)
 {
     req = NULL;
@@ -1003,6 +1006,10 @@ int SrsDvrApiPlan::on_video(SrsSharedPtrMessage* __video)
         sh_video = __video->copy();
     }
     
+    if ((ret = check_user_actions(__video)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     if ((ret = SrsDvrPlan::on_video(__video)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -1101,6 +1108,29 @@ int SrsDvrApiPlan::stop()
     return ret;
 }
 
+int SrsDvrApiPlan::rpc(SrsJsonObject* obj)
+{
+    int ret = ERROR_SUCCESS;
+
+    SrsJsonAny* prop = NULL;
+    if ((prop = obj->ensure_property_string("action")) == NULL) {
+        ret = ERROR_HTTP_DVR_REQUEST;
+        srs_error("dvr: rpc required action request. ret=%d", ret);
+        return ret;
+    }
+
+    action = prop->to_str();
+    if (action == SRS_DVR_USER_ACTION_REAP_SEGMENT) {
+        if ((prop = obj->ensure_property_string("path_tmpl")) != NULL) {
+            path_template = prop->to_str();
+        }
+    } else {
+        ret = ERROR_HTTP_DVR_REQUEST;
+    }
+
+    return ret;
+}
+
 int SrsDvrApiPlan::on_reap_segment()
 {
     int ret = ERROR_SUCCESS;
@@ -1113,6 +1143,64 @@ int SrsDvrApiPlan::on_reap_segment()
         return ret;
     }
 
+    return ret;
+}
+
+int SrsDvrApiPlan::check_user_actions(SrsSharedPtrMessage* msg)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(segment);
+
+    if (action == SRS_DVR_USER_ACTION_REAP_SEGMENT) {
+        // when wait keyframe, ignore if no frame arrived.
+        // @see https://github.com/winlinvip/simple-rtmp-server/issues/177
+        if (_srs_config->get_dvr_wait_keyframe(req->vhost)) {
+            if (!msg->is_video()) {
+                return ret;
+            }
+        
+            char* payload = msg->payload;
+            int size = msg->size;
+            bool is_key_frame = SrsFlvCodec::video_is_h264(payload, size) 
+                && SrsFlvCodec::video_is_keyframe(payload, size) 
+                && !SrsFlvCodec::video_is_sequence_header(payload, size);
+            if (!is_key_frame) {
+                return ret;
+            }
+        }
+    
+        // reap segment
+        if ((ret = segment->close()) != ERROR_SUCCESS) {
+            return ret;
+        }
+
+        // use new path template if user specified.
+        if (!path_template.empty() && (ret = set_path_tmpl(path_template))  != ERROR_SUCCESS) {
+            return ret;
+        }
+    
+        // open new flv file
+        if ((ret = segment->open()) != ERROR_SUCCESS) {
+            return ret;
+        }
+    
+        // update sequence header
+        if (metadata && (ret = SrsDvrPlan::on_meta_data(metadata)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        if (sh_video && (ret = SrsDvrPlan::on_video(sh_video)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        if (sh_audio && (ret = SrsDvrPlan::on_audio(sh_audio)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+
+    // reset rcp params.
+    action = "";
+    path_template = "";
+    
     return ret;
 }
 
@@ -1499,6 +1587,46 @@ int SrsApiDvrPool::stop(string vhost)
         SrsDvrApiPlan* plan = plans.at(i);
 
         if ((ret = plan->stop()) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+
+    return ret;
+}
+
+int SrsApiDvrPool::rpc(SrsJsonAny* json)
+{
+    int ret = ERROR_SUCCESS;
+
+    if (!json->is_object()) {
+        ret = ERROR_HTTP_DVR_REQUEST;
+        srs_error("dvr: rpc required object request. ret=%d", ret);
+        return ret;
+    }
+
+    SrsJsonObject* obj = json->to_object();
+
+    SrsJsonAny* prop = NULL;
+    if ((prop = obj->ensure_property_string("vhost")) == NULL) {
+        ret = ERROR_HTTP_DVR_REQUEST;
+        srs_error("dvr: rpc required vhost request. ret=%d", ret);
+        return ret;
+    }
+    std::string vhost = prop->to_str();
+
+    std::vector<SrsDvrApiPlan*> plans;
+    for (int i = 0; i < (int)dvrs.size(); i++) {
+        SrsDvrApiPlan* plan = dvrs.at(i);
+        if (!vhost.empty() && plan->req->vhost != vhost) {
+            continue;
+        }
+        plans.push_back(plan);
+    }
+
+    for (int i = 0; i < (int)plans.size(); i++) {
+        SrsDvrApiPlan* plan = plans.at(i);
+
+        if ((ret = plan->rpc(obj)) != ERROR_SUCCESS) {
             return ret;
         }
     }

@@ -44,6 +44,7 @@ class SrsFileWriter;
 class SrsFlvEncoder;
 class SrsDvrPlan;
 class SrsJsonAny;
+class SrsJsonObject;
 class SrsThread;
 
 #include <srs_app_source.hpp>
@@ -305,6 +306,10 @@ private:
     std::string callback;
     bool autostart;
     bool started;
+private:
+    // user action, reap_segment.
+    std::string action;
+    std::string path_template;
 public:
     SrsDvrApiPlan();
     virtual ~SrsDvrApiPlan();
@@ -322,8 +327,11 @@ public:
     virtual int start();
     virtual int dumps(std::stringstream& ss);
     virtual int stop();
+    virtual int rpc(SrsJsonObject* obj);
 protected:
     virtual int on_reap_segment();
+private:
+    virtual int check_user_actions(SrsSharedPtrMessage* msg);
 };
 
 /**
@@ -389,6 +397,7 @@ public:
     virtual int dumps(std::string vhost, std::stringstream& ss);
     virtual int create(SrsJsonAny* json);
     virtual int stop(std::string vhost);
+    virtual int rpc(SrsJsonAny* json);
 };
 
 /**

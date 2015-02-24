@@ -519,6 +519,21 @@ int SrsGoApiDvrs::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
         ss << __SRS_JOBJECT_START
             << __SRS_JFIELD_ERROR(ret)
             << __SRS_JOBJECT_END;
+    } else if (r->is_http_put()) {
+        int ret = ERROR_SUCCESS;
+
+        std::string body = r->body();
+        SrsJsonAny* json = SrsJsonAny::loads((char*)body.c_str());
+        if (!json) {
+            ret = ERROR_HTTP_JSON_REQUIRED;
+        } else {
+            SrsAutoFree(SrsJsonAny, json);
+            ret = pool->rpc(json);
+        }
+
+        ss << __SRS_JOBJECT_START
+            << __SRS_JFIELD_ERROR(ret)
+            << __SRS_JOBJECT_END;
     } else {
         ss << __SRS_JOBJECT_START
             << __SRS_JFIELD_ERROR(ERROR_HTTP_DVR_REQUEST)
