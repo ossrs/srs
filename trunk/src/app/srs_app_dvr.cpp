@@ -1078,6 +1078,8 @@ int SrsDvrApiPlan::dumps(stringstream& ss)
             << __SRS_JFIELD_STR("path_dvr", segment->get_path()) << __SRS_JFIELD_CONT
             << __SRS_JFIELD_BOOL("wait_keyframe", wait_keyframe) << __SRS_JFIELD_CONT
             << __SRS_JFIELD_STR("vhost", req->vhost) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_STR("app", req->app) << __SRS_JFIELD_CONT
+            << __SRS_JFIELD_STR("stream", req->stream) << __SRS_JFIELD_CONT
             << __SRS_JFIELD_STR("callback", callback) << __SRS_JFIELD_CONT
             << __SRS_JFIELD_STR("status", (dvr_enabled? "start":"stop"))
         << __SRS_JOBJECT_END;
@@ -1482,7 +1484,7 @@ int SrsApiDvrPool::add_dvr(SrsDvrApiPlan* dvr)
     return ERROR_SUCCESS;
 }
 
-int SrsApiDvrPool::dumps(string vhost, stringstream& ss)
+int SrsApiDvrPool::dumps(string vhost, string app, string stream, stringstream& ss)
 {
     int ret = ERROR_SUCCESS;
 
@@ -1492,6 +1494,12 @@ int SrsApiDvrPool::dumps(string vhost, stringstream& ss)
     for (int i = 0; i < (int)dvrs.size(); i++) {
         SrsDvrApiPlan* plan = dvrs.at(i);
         if (!vhost.empty() && plan->req->vhost != vhost) {
+            continue;
+        }
+        if (!app.empty() && plan->req->app != app) {
+            continue;
+        }
+        if (!stream.empty() && plan->req->stream != stream) {
             continue;
         }
         plans.push_back(plan);
@@ -1504,7 +1512,7 @@ int SrsApiDvrPool::dumps(string vhost, stringstream& ss)
             return ret;
         }
 
-        if (i < (int)dvrs.size() - 1) {
+        if (i < (int)plans.size() - 1) {
             ss << __SRS_JFIELD_CONT;
         }
     }
@@ -1534,10 +1542,24 @@ int SrsApiDvrPool::create(SrsJsonAny* json)
     }
 
     std::string vhost = prop->to_str();
+    std::string app, stream;
+    if ((prop = obj->ensure_property_string("app")) != NULL) {
+        app = prop->to_str();
+    }
+    if ((prop = obj->ensure_property_string("stream")) != NULL) {
+        stream = prop->to_str();
+    }
+
     SrsDvrApiPlan* dvr = NULL;
     for (int i = 0; i < (int)dvrs.size(); i++) {
         SrsDvrApiPlan* plan = dvrs.at(i);
         if (!vhost.empty() && plan->req->vhost != vhost) {
+            continue;
+        }
+        if (!app.empty() && plan->req->app != app) {
+            continue;
+        }
+        if (!stream.empty() && plan->req->stream != stream) {
             continue;
         }
         dvr = plan;
@@ -1545,8 +1567,8 @@ int SrsApiDvrPool::create(SrsJsonAny* json)
     }
 
     if (!dvr) {
-        ret = ERROR_HTTP_DVR_CREATE_REQUEST;
-        srs_error("dvr: api create dvr request vhost invalid. vhost=%s. ret=%d", vhost.c_str(), ret);
+        ret = ERROR_HTTP_DVR_NO_TAEGET;
+        srs_error("dvr: create not found for url=%s/%s/%s, ret=%d", vhost.c_str(), app.c_str(), stream.c_str(), ret);
         return ret;
     }
 
@@ -1570,7 +1592,7 @@ int SrsApiDvrPool::create(SrsJsonAny* json)
     return dvr->start();
 }
 
-int SrsApiDvrPool::stop(string vhost)
+int SrsApiDvrPool::stop(string vhost, string app, string stream)
 {
     int ret = ERROR_SUCCESS;
 
@@ -1580,7 +1602,19 @@ int SrsApiDvrPool::stop(string vhost)
         if (!vhost.empty() && plan->req->vhost != vhost) {
             continue;
         }
+        if (!app.empty() && plan->req->app != app) {
+            continue;
+        }
+        if (!stream.empty() && plan->req->stream != stream) {
+            continue;
+        }
         plans.push_back(plan);
+    }
+
+    if (plans.empty()) {
+        ret = ERROR_HTTP_DVR_NO_TAEGET;
+        srs_error("dvr: stop not found for url=%s/%s/%s, ret=%d", vhost.c_str(), app.c_str(), stream.c_str(), ret);
+        return ret;
     }
 
     for (int i = 0; i < (int)plans.size(); i++) {
@@ -1613,6 +1647,13 @@ int SrsApiDvrPool::rpc(SrsJsonAny* json)
         return ret;
     }
     std::string vhost = prop->to_str();
+    std::string app, stream;
+    if ((prop = obj->ensure_property_string("app")) != NULL) {
+        app = prop->to_str();
+    }
+    if ((prop = obj->ensure_property_string("stream")) != NULL) {
+        stream = prop->to_str();
+    }
 
     std::vector<SrsDvrApiPlan*> plans;
     for (int i = 0; i < (int)dvrs.size(); i++) {
@@ -1621,6 +1662,12 @@ int SrsApiDvrPool::rpc(SrsJsonAny* json)
             continue;
         }
         plans.push_back(plan);
+    }
+
+    if (plans.empty()) {
+        ret = ERROR_HTTP_DVR_NO_TAEGET;
+        srs_error("dvr: rpc not found for url=%s/%s/%s, ret=%d", vhost.c_str(), app.c_str(), stream.c_str(), ret);
+        return ret;
     }
 
     for (int i = 0; i < (int)plans.size(); i++) {

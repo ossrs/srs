@@ -394,9 +394,9 @@ public:
 public:
     virtual int add_dvr(SrsDvrApiPlan* dvr);
 public:
-    virtual int dumps(std::string vhost, std::stringstream& ss);
+    virtual int dumps(std::string vhost, std::string app, std::string stream, std::stringstream& ss);
     virtual int create(SrsJsonAny* json);
-    virtual int stop(std::string vhost);
+    virtual int stop(std::string vhost, std::string app, std::string stream);
     virtual int rpc(SrsJsonAny* json);
 };
 

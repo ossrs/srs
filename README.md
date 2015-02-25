@@ -532,6 +532,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-02-24, for [#179](https://github.com/winlinvip/simple-rtmp-server/issues/179), dvr suport vhost/app/stream level control. 2.0.125.
 * v2.0, 2015-02-24, for [#304](https://github.com/winlinvip/simple-rtmp-server/issues/304), fix hls bug, write pts/dts error. 2.0.124.
 * v2.0, 2015-02-24, fix [#179](https://github.com/winlinvip/simple-rtmp-server/issues/179), support dvr http api. 2.0.123.
 * v2.0, 2015-02-19, refine dvr, append file when dvr file exists. 2.0.122.

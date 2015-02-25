@@ -494,7 +494,7 @@ int SrsGoApiDvrs::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
     SrsApiDvrPool* pool = SrsApiDvrPool::instance();
     if (r->is_http_get()) {
         std::stringstream data;
-        int ret = pool->dumps(r->query_get("vhost"), data);
+        int ret = pool->dumps(r->query_get("vhost"), r->query_get("app"), r->query_get("stream"), data);
 
         ss << __SRS_JOBJECT_START
             << __SRS_JFIELD_ERROR(ret) << __SRS_JFIELD_CONT
@@ -514,7 +514,7 @@ int SrsGoApiDvrs::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
             << __SRS_JFIELD_ERROR(ret)
             << __SRS_JOBJECT_END;
     } else if (r->is_http_delete()) {
-        int ret = pool->stop(r->query_get("vhost"));
+        int ret = pool->stop(r->query_get("vhost"), r->query_get("app"), r->query_get("stream"));
 
         ss << __SRS_JOBJECT_START
             << __SRS_JFIELD_ERROR(ret)

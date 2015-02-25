@@ -213,6 +213,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_HTTP_DVR_REQUEST              3051
 #define ERROR_HTTP_JSON_REQUIRED            3052
 #define ERROR_HTTP_DVR_CREATE_REQUEST       3053
+#define ERROR_HTTP_DVR_NO_TAEGET            3054
 
 ///////////////////////////////////////////////////////
 // HTTP/StreamCaster protocol error.
