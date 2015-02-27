@@ -1983,6 +1983,7 @@ SrsConfDirective* SrsConfig::create_directive(string vhost, string directive, st
 
     if (!vhost_conf) {
         vhost_conf = new SrsConfDirective();
+        vhost_conf->name = vhost;
         root->directives.push_back(vhost_conf);
     }
 
@@ -1993,6 +1994,7 @@ SrsConfDirective* SrsConfig::create_directive(string vhost, string directive, st
     SrsConfDirective* dir = vhost_conf->get(directive);
     if (!dir) {
         dir = new SrsConfDirective();
+        dir->name = directive;
         vhost_conf->directives.push_back(dir);
     }
 
@@ -2003,6 +2005,7 @@ SrsConfDirective* SrsConfig::create_directive(string vhost, string directive, st
     SrsConfDirective* sdir = dir->get(sub_directive);
     if (!sdir) {
         sdir = new SrsConfDirective();
+        sdir->name = sub_directive;
         dir->directives.push_back(sdir);
     }
 
@@ -2352,6 +2355,13 @@ bool SrsConfig::get_vhost_http_hooks_enabled(string vhost)
     return true;
 }
 
+void SrsConfig::set_vhost_http_hooks_enabled(string vhost, bool enabled)
+{
+    SrsConfDirective* conf = create_directive(vhost, "http_hooks", "enabled");
+    conf->args.clear();
+    conf->args.push_back(enabled? "on":"off");
+}
+
 SrsConfDirective* SrsConfig::get_vhost_on_connect(string vhost)
 {
     SrsConfDirective* conf = get_vhost_http_hooks(vhost);
@@ -2427,6 +2437,13 @@ SrsConfDirective* SrsConfig::get_vhost_on_dvr(string vhost)
     }
     
     return conf->get("on_dvr");
+}
+
+void SrsConfig::set_vhost_on_dvr(string vhost, string callback)
+{
+    SrsConfDirective* conf = create_directive(vhost, "http_hooks", "on_dvr");
+    conf->args.clear();
+    conf->args.push_back(callback);
 }
 
 bool SrsConfig::get_bw_check_enabled(string vhost)
@@ -3388,6 +3405,13 @@ string SrsConfig::get_dvr_plan(string vhost)
     }
     
     return conf->arg0();
+}
+
+void SrsConfig::set_dvr_plan(string vhost, string plan)
+{
+    SrsConfDirective* conf = create_directive(vhost, "dvr", "dvr_plan");
+    conf->args.clear();
+    conf->args.push_back(plan);
 }
 
 int SrsConfig::get_dvr_duration(string vhost)

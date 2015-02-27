@@ -596,6 +596,7 @@ public:
     * @remark, if not enabled, donot callback all http hooks.
     */
     virtual bool                get_vhost_http_hooks_enabled(std::string vhost);
+    virtual void                set_vhost_http_hooks_enabled(std::string vhost, bool enabled);
     /**
     * get the on_connect callbacks of vhost.
     * @return the on_connect callback directive, the args is the url to callback.
@@ -631,6 +632,7 @@ public:
     * @return the on_dvr callback directive, the args is the url to callback.
     */
     virtual SrsConfDirective*   get_vhost_on_dvr(std::string vhost);
+    virtual void                set_vhost_on_dvr(std::string vhost, std::string callback);
 // bwct(bandwidth check tool) section
 public:
     /**
@@ -933,6 +935,7 @@ public:
     * get the plan of dvr, how to reap the flv file.
     */
     virtual std::string         get_dvr_plan(std::string vhost);
+    virtual void                set_dvr_plan(std::string vhost, std::string plan);
     /**
     * get the duration of dvr flv.
     */

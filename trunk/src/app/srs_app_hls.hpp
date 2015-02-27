@@ -195,11 +195,15 @@ private:
     */
     SrsCodecAudio acodec;
 public:
-    SrsHlsMuxer(ISrsHlsHandler* h);
+    SrsHlsMuxer();
     virtual ~SrsHlsMuxer();
 public:
     virtual int sequence_no();
 public:
+    /**
+    * initialize the hls muxer.
+    */
+    virtual int initialize(ISrsHlsHandler* h);
     /**
     * when publish, update the config for muxer.
     */
@@ -325,9 +329,13 @@ private:
     */
     int64_t stream_dts;
 public:
-    SrsHls(SrsSource* s, ISrsHlsHandler* h);
+    SrsHls();
     virtual ~SrsHls();
 public:
+    /**
+    * initialize the hls by handler and source.
+    */
+    virtual int initialize(SrsSource* s, ISrsHlsHandler* h);
     /**
     * publish stream event, continue to write the m3u8,
     * for the muxer object not destroyed.

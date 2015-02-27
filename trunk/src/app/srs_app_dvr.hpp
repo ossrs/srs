@@ -58,7 +58,6 @@ class SrsThread;
 class SrsFlvSegment : public ISrsReloadHandler
 {
 private:
-    SrsSource* source;
     SrsRequest* req;
     SrsDvrPlan* plan;
 private:
@@ -121,7 +120,7 @@ public:
     /**
     * initialize the segment.
     */
-    virtual int initialize(SrsSource* s, SrsRequest* r);
+    virtual int initialize(SrsRequest* r);
     /**
     * whether segment is overflow.
     */
@@ -200,19 +199,6 @@ public:
     virtual int call();
     virtual std::string to_string();
 };
-class SrsDvrAsyncCallOnSegment : public ISrsDvrAsyncCall
-{
-private:
-    std::string callback;
-    std::string path;
-    SrsRequest* req;
-public:
-    SrsDvrAsyncCallOnSegment(SrsRequest* r, std::string c, std::string p);
-    virtual ~SrsDvrAsyncCallOnSegment();
-public:
-    virtual int call();
-    virtual std::string to_string();
-};
 
 /**
 * the async callback for dvr.
@@ -247,7 +233,6 @@ public:
 public:
     SrsRequest* req;
 protected:
-    SrsSource* source;
     SrsFlvSegment* segment;
     SrsDvrAsyncCallThread* async;
     bool dvr_enabled;
@@ -255,7 +240,7 @@ public:
     SrsDvrPlan();
     virtual ~SrsDvrPlan();
 public:
-    virtual int initialize(SrsSource* s, SrsRequest* r);
+    virtual int initialize(SrsRequest* r);
     virtual int on_publish() = 0;
     virtual void on_unpublish() = 0;
     /**
@@ -272,7 +257,6 @@ public:
     virtual int on_video(SrsSharedPtrMessage* __video);
 protected:
     virtual int on_reap_segment();
-    virtual int on_dvr_request_sh();
     virtual int on_video_keyframe();
     virtual int64_t filter_timestamp(int64_t timestamp);
 public:
@@ -294,6 +278,8 @@ public:
 
 /**
 * api plan: reap flv by api.
+* @remark the api plan maybe create by publish event or http api post create dvr event.
+*       so when we got from pool first when create it.
 */
 class SrsDvrApiPlan : public SrsDvrPlan
 {
@@ -303,7 +289,6 @@ private:
     SrsSharedPtrMessage* sh_video;
     SrsSharedPtrMessage* metadata;
 private:
-    std::string callback;
     bool autostart;
     bool started;
 private:
@@ -314,13 +299,14 @@ public:
     SrsDvrApiPlan();
     virtual ~SrsDvrApiPlan();
 public:
-    virtual int initialize(SrsSource* s, SrsRequest* r);
+    virtual int initialize(SrsRequest* r);
     virtual int on_publish();
     virtual void on_unpublish();
     virtual int on_meta_data(SrsSharedPtrMessage* __metadata);
     virtual int on_audio(SrsSharedPtrMessage* __audio);
     virtual int on_video(SrsSharedPtrMessage* __video);
 public:
+    virtual int set_plan();
     virtual int set_path_tmpl(std::string path_tmpl);
     virtual int set_callback(std::string value);
     virtual int set_wait_keyframe(bool wait_keyframe);
@@ -328,8 +314,6 @@ public:
     virtual int dumps(std::stringstream& ss);
     virtual int stop();
     virtual int rpc(SrsJsonObject* obj);
-protected:
-    virtual int on_reap_segment();
 private:
     virtual int check_user_actions(SrsSharedPtrMessage* msg);
 };
@@ -368,7 +352,7 @@ public:
     SrsDvrSegmentPlan();
     virtual ~SrsDvrSegmentPlan();
 public:
-    virtual int initialize(SrsSource* source, SrsRequest* req);
+    virtual int initialize(SrsRequest* req);
     virtual int on_publish();
     virtual void on_unpublish();
     virtual int on_meta_data(SrsSharedPtrMessage* __metadata);
@@ -392,7 +376,9 @@ public:
     static SrsApiDvrPool* instance();
     virtual ~SrsApiDvrPool();
 public:
+    virtual SrsDvrApiPlan* get_dvr(std::string vhost);
     virtual int add_dvr(SrsDvrApiPlan* dvr);
+    virtual void detach_dvr(SrsDvrApiPlan* dvr);
 public:
     virtual int dumps(std::string vhost, std::string app, std::string stream, std::stringstream& ss);
     virtual int create(SrsJsonAny* json);
@@ -411,7 +397,7 @@ private:
 private:
     SrsDvrPlan* plan;
 public:
-    SrsDvr(SrsSource* s);
+    SrsDvr();
     virtual ~SrsDvr();
 public:
     /**
@@ -419,7 +405,7 @@ public:
     * when system initialize(encoder publish at first time, or reload),
     * initialize the dvr will reinitialize the plan, the whole dvr framework.
     */
-    virtual int initialize(SrsRequest* r);
+    virtual int initialize(SrsSource* s, SrsRequest* r);
     /**
     * publish stream event, 
     * when encoder start to publish RTMP stream.

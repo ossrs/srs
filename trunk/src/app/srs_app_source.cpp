@@ -713,35 +713,47 @@ ISrsSourceHandler::~ISrsSourceHandler()
 
 std::map<std::string, SrsSource*> SrsSource::pool;
 
-int SrsSource::find(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh, SrsSource** pps)
+int SrsSource::create(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh, SrsSource** pps)
 {
     int ret = ERROR_SUCCESS;
     
     string stream_url = r->get_stream_url();
     string vhost = r->vhost;
     
-    if (pool.find(stream_url) == pool.end()) {
-        SrsSource* source = new SrsSource(hh);
-        if ((ret = source->initialize(r, h)) != ERROR_SUCCESS) {
-            srs_freep(source);
-            return ret;
-        }
-        
-        pool[stream_url] = source;
-        srs_info("create new source for url=%s, vhost=%s", 
-            stream_url.c_str(), vhost.c_str());
+    // should always not exists for create a source.
+    srs_assert (pool.find(stream_url) == pool.end());
+
+    SrsSource* source = new SrsSource();
+    if ((ret = source->initialize(r, h, hh)) != ERROR_SUCCESS) {
+        srs_freep(source);
+        return ret;
     }
+        
+    pool[stream_url] = source;
+    srs_info("create new source for url=%s, vhost=%s", stream_url.c_str(), vhost.c_str());
     
+    *pps = source;
+    
+    return ret;
+}
+
+SrsSource* SrsSource::fetch(SrsRequest* r)
+{
+    SrsSource* source = NULL;
+    
+    string stream_url = r->get_stream_url();
+    if (pool.find(stream_url) == pool.end()) {
+        return NULL;
+    }
+
+    source = pool[stream_url];
+
     // we always update the request of resource, 
     // for origin auth is on, the token in request maybe invalid,
     // and we only need to update the token of request, it's simple.
-    if (true) {
-        SrsSource* source = pool[stream_url];
-        source->_req->update_auth(r);
-        *pps = source;
-    }
-    
-    return ret;
+    source->_req->update_auth(r);
+
+    return source;
 }
 
 void SrsSource::destroy()
@@ -754,17 +766,16 @@ void SrsSource::destroy()
     pool.clear();
 }
 
-SrsSource::SrsSource(ISrsHlsHandler* hh)
+SrsSource::SrsSource()
 {
     _req = NULL;
     jitter_algorithm = SrsRtmpJitterAlgorithmOFF;
     
 #ifdef SRS_AUTO_HLS
-    // TODO: FIXME: refine code, use subscriber pattern.
-    hls = new SrsHls(this, hh);
+    hls = new SrsHls();
 #endif
 #ifdef SRS_AUTO_DVR
-    dvr = new SrsDvr(this);
+    dvr = new SrsDvr();
 #endif
 #ifdef SRS_AUTO_TRANSCODE
     encoder = new SrsEncoder();
@@ -824,16 +835,26 @@ SrsSource::~SrsSource()
     srs_freep(_req);
 }
 
-int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h)
+int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh)
 {
     int ret = ERROR_SUCCESS;
     
+    srs_assert(h);
+    srs_assert(hh);
+    srs_assert(!_req);
+
     handler = h;
     _req = r->copy();
     atc = _srs_config->get_atc(_req->vhost);
+
+#ifdef SRS_AUTO_HLS
+    if ((ret = hls->initialize(this, hh)) != ERROR_SUCCESS) {
+        return ret;
+    }
+#endif
     
 #ifdef SRS_AUTO_DVR
-    if ((ret = dvr->initialize(_req)) != ERROR_SUCCESS) {
+    if ((ret = dvr->initialize(this, _req)) != ERROR_SUCCESS) {
         return ret;
     }
 #endif
@@ -997,7 +1018,7 @@ int SrsSource::on_reload_vhost_dvr(string vhost)
     dvr->on_unpublish();
 
     // reinitialize the dvr, update plan.
-    if ((ret = dvr->initialize(_req)) != ERROR_SUCCESS) {
+    if ((ret = dvr->initialize(this, _req)) != ERROR_SUCCESS) {
         return ret;
     }
 
