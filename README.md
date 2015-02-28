@@ -21,7 +21,7 @@ Download from ossrs.net:
 1. Popular internet delivery: RTMP for flash, HLS for mobile(IOS/IPad/MAC/Android), HTTP flv/ts/mp3/aac streaming for user prefered.
 1. Enhanced DVR: segment/session/append/api plan, customer path and HTTP callback.
 1. Multiple feature: transcode, forward, ingest, http hooks, dvr, hls, rtsp, http streaming, http api, refer, log, bandwith test and srs-librtmp.
-1. Best maintainess: simple arch over state-threads(coroutine) and only linux platform, common server x86-64/i386/arm/mips cpus, rich comments, stricty follows RTMP/HLS/RTSP spec.
+1. Best maintainess: simple arch over state-threads(coroutine) and only linux platform, common server x86-64/i386/arm/mips cpus, rich comments, strictly follows RTMP/HLS/RTSP spec.
 1. Easy to use: both English and Chinese wiki, typically config files in trunk/conf, traceable and session based log.
 
 ## About
