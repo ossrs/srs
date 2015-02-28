@@ -12,6 +12,18 @@ Download from ossrs.net:
 [Centos6-x86_64](http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.27.zip) 
 [more...](http://www.ossrs.net/srs.release/releases/)
 
+## Why SRS?
+
+1. Completely rewrite HLS following m3u8/ts spec, and HLS support h.264+aac/mp3.
+1. High efficient RTMP deliverying support 7k+ concurrency, vhost based, both origin and edge.
+1. Embeded simplified media HTTP server for HLS, api and HTTP flv/ts/mp3/aac streaming.
+1. Variety input: RTMP, pull by ingest file or stream(HTTP/RTMP/RTSP), push by stream caster RTSP/MPEGTS-over-UDP.
+1. Popular internet delivery: RTMP for flash, HLS for mobile(IOS/IPad/MAC/Android), HTTP flv/ts/mp3/aac streaming for user prefered.
+1. Enhanced DVR: segment/session/append/api plan, customer path and HTTP callback.
+1. Multiple feature: transcode, forward, ingest, http hooks, dvr, hls, rtsp, http streaming, http api, refer, log, bandwith test and srs-librtmp.
+1. Best maintainess: simple arch over state-threads(coroutine) and only linux platform, common server x86-64/i386/arm/mips cpus, rich comments, stricty follows RTMP/HLS/RTSP spec.
+1. Easy to use: both English and Chinese wiki, typically config files in trunk/conf, traceable and session based log.
+
 ## About
 
 SRS(SIMPLE RTMP Server) over state-threads created in 2013.10.
