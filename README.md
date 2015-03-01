@@ -21,7 +21,7 @@ Download from ossrs.net:
 RTSP/MPEGTS-over-UDP.
 1. Popular internet delivery: RTMP for flash, HLS for mobile(IOS/IPad/MAC/Android), HTTP 
 flv/ts/mp3/aac streaming for user prefered.
-1. Enhanced DVR: segment/session/append/api plan, customer path and HTTP callback.
+1. Enhanced DVR: segment/session/append plan, customer path and HTTP callback.
 1. Multiple feature: transcode, forward, ingest, http hooks, dvr, hls, rtsp, http streaming, 
 http api, refer, log, bandwith test and srs-librtmp.
 1. Best maintainess: simple arch over state-threads(coroutine), single thread, single process 
