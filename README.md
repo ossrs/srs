@@ -513,8 +513,6 @@ Supported operating systems and hardware:
 [#304](https://github.com/winlinvip/simple-rtmp-server/issues/304).
 1. Support push RTSP to SRS, read
 [#133](https://github.com/winlinvip/simple-rtmp-server/issues/133).
-1. Support DVR http api, read
-[#179](https://github.com/winlinvip/simple-rtmp-server/issues/179).
 1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
 1. [no-plan] Support RTMP 302 redirect [#92](https://github.com/winlinvip/simple-rtmp-server/issues/92).
 1. [no-plan] Support multiple processes, for both origin and edge
@@ -552,10 +550,9 @@ Supported operating systems and hardware:
 ## History
 
 ### SRS 2.0 history
-
-* v2.0, 2015-02-24, for [#179](https://github.com/winlinvip/simple-rtmp-server/issues/179), dvr suport vhost/app/stream level control. 2.0.125.
-* v2.0, 2015-02-24, for [#304](https://github.com/winlinvip/simple-rtmp-server/issues/304), fix hls bug, write pts/dts error. 2.0.124.
-* v2.0, 2015-02-24, fix [#179](https://github.com/winlinvip/simple-rtmp-server/issues/179), support dvr http api. 2.0.123.
+.
+* v2.0, 2015-03-01, for [#179](https://github.com/winlinvip/simple-rtmp-server/issues/179), revert dvr http api. 2.0.128.
+* v2.0, 2015-02-24, for [#304](https://github.com/winlinvip/simple-rtmp-server/issues/304), fix hls bug, write pts/dts error. 2.0.124
 * v2.0, 2015-02-19, refine dvr, append file when dvr file exists. 2.0.122.
 * v2.0, 2015-02-19, refine pithy print to more easyer to use. 2.0.121.
 * v2.0, 2015-02-18, fix [#133](https://github.com/winlinvip/simple-rtmp-server/issues/133), support push rtsp to srs. 2.0.120.

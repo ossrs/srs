@@ -529,9 +529,6 @@ int SrsServer::initialize()
     if ((ret = http_api_mux->handle("/api/v1/streams", new SrsGoApiStreams())) != ERROR_SUCCESS) {
         return ret;
     }
-    if ((ret = http_api_mux->handle("/api/v1/dvrs", new SrsGoApiDvrs())) != ERROR_SUCCESS) {
-        return ret;
-    }
 #endif
 
 #ifdef SRS_AUTO_HTTP_SERVER

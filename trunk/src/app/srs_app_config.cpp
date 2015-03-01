@@ -1418,7 +1418,6 @@ int SrsConfig::check_config()
                     string m = conf->at(j)->name.c_str();
                     if (m != "enabled" && m != "dvr_path" && m != "dvr_plan"
                         && m != "dvr_duration" && m != "dvr_wait_keyframe" && m != "time_jitter"
-                        && m != "dvr_autostart"
                     ) {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost dvr directive %s, ret=%d", m.c_str(), ret);
@@ -1977,41 +1976,6 @@ int SrsConfig::get_stream_caster_rtp_port_max(SrsConfDirective* sc)
     return ::atoi(conf->arg0().c_str());
 }
 
-SrsConfDirective* SrsConfig::create_directive(string vhost, string directive, string sub_directive)
-{
-    SrsConfDirective* vhost_conf = get_vhost(vhost);
-
-    if (!vhost_conf) {
-        vhost_conf = new SrsConfDirective();
-        vhost_conf->name = vhost;
-        root->directives.push_back(vhost_conf);
-    }
-
-    if (directive.empty()) {
-        return vhost_conf;
-    }
-
-    SrsConfDirective* dir = vhost_conf->get(directive);
-    if (!dir) {
-        dir = new SrsConfDirective();
-        dir->name = directive;
-        vhost_conf->directives.push_back(dir);
-    }
-
-    if (sub_directive.empty()) {
-        return dir;
-    }
-
-    SrsConfDirective* sdir = dir->get(sub_directive);
-    if (!sdir) {
-        sdir = new SrsConfDirective();
-        sdir->name = sub_directive;
-        dir->directives.push_back(sdir);
-    }
-
-    return sdir;
-}
-
 SrsConfDirective* SrsConfig::get_vhost(string vhost)
 {
     srs_assert(root);
@@ -2355,13 +2319,6 @@ bool SrsConfig::get_vhost_http_hooks_enabled(string vhost)
     return true;
 }
 
-void SrsConfig::set_vhost_http_hooks_enabled(string vhost, bool enabled)
-{
-    SrsConfDirective* conf = create_directive(vhost, "http_hooks", "enabled");
-    conf->args.clear();
-    conf->args.push_back(enabled? "on":"off");
-}
-
 SrsConfDirective* SrsConfig::get_vhost_on_connect(string vhost)
 {
     SrsConfDirective* conf = get_vhost_http_hooks(vhost);
@@ -2437,13 +2394,6 @@ SrsConfDirective* SrsConfig::get_vhost_on_dvr(string vhost)
     }
     
     return conf->get("on_dvr");
-}
-
-void SrsConfig::set_vhost_on_dvr(string vhost, string callback)
-{
-    SrsConfDirective* conf = create_directive(vhost, "http_hooks", "on_dvr");
-    conf->args.clear();
-    conf->args.push_back(callback);
 }
 
 bool SrsConfig::get_bw_check_enabled(string vhost)
@@ -3359,13 +3309,6 @@ bool SrsConfig::get_dvr_enabled(string vhost)
     return false;
 }
 
-void SrsConfig::set_dvr_enabled(string vhost, bool enabled)
-{
-    SrsConfDirective* conf = create_directive(vhost, "dvr", "enabled");
-    conf->args.clear();
-    conf->args.push_back(enabled? "on":"off");
-}
-
 string SrsConfig::get_dvr_path(string vhost)
 {
     SrsConfDirective* dvr = get_dvr(vhost);
@@ -3383,13 +3326,6 @@ string SrsConfig::get_dvr_path(string vhost)
     return conf->arg0();
 }
 
-void SrsConfig::set_dvr_path(string vhost, string path)
-{
-    SrsConfDirective* conf = create_directive(vhost, "dvr", "dvr_path");
-    conf->args.clear();
-    conf->args.push_back(path);
-}
-
 string SrsConfig::get_dvr_plan(string vhost)
 {
     SrsConfDirective* dvr = get_dvr(vhost);
@@ -3405,13 +3341,6 @@ string SrsConfig::get_dvr_plan(string vhost)
     }
     
     return conf->arg0();
-}
-
-void SrsConfig::set_dvr_plan(string vhost, string plan)
-{
-    SrsConfDirective* conf = create_directive(vhost, "dvr", "dvr_plan");
-    conf->args.clear();
-    conf->args.push_back(plan);
 }
 
 int SrsConfig::get_dvr_duration(string vhost)
@@ -3440,30 +3369,6 @@ bool SrsConfig::get_dvr_wait_keyframe(string vhost)
     }
     
     SrsConfDirective* conf = dvr->get("dvr_wait_keyframe");
-    
-    if (!conf || conf->arg0() != "off") {
-        return true;
-    }
-    
-    return false;
-}
-
-void SrsConfig::set_dvr_wait_keyframe(string vhost, bool wait_keyframe)
-{
-    SrsConfDirective* conf = create_directive(vhost, "dvr", "dvr_wait_keyframe");
-    conf->args.clear();
-    conf->args.push_back(wait_keyframe? "on":"off");
-}
-
-bool SrsConfig::get_dvr_autostart(string vhost)
-{
-    SrsConfDirective* dvr = get_dvr(vhost);
-    
-    if (!dvr) {
-        return true;
-    }
-    
-    SrsConfDirective* conf = dvr->get("dvr_autostart");
     
     if (!conf || conf->arg0() != "off") {
         return true;

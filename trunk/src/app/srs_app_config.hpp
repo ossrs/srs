@@ -61,7 +61,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_DVR_PLAN_SESSION "session"
 #define SRS_CONF_DEFAULT_DVR_PLAN_SEGMENT "segment"
 #define SRS_CONF_DEFAULT_DVR_PLAN_APPEND "append"
-#define SRS_CONF_DEFAULT_DVR_PLAN_API "api"
 #define SRS_CONF_DEFAULT_DVR_PLAN SRS_CONF_DEFAULT_DVR_PLAN_SESSION
 #define SRS_CONF_DEFAULT_DVR_DURATION 30
 #define SRS_CONF_DEFAULT_TIME_JITTER "full"
@@ -452,14 +451,6 @@ public:
     * get the max udp port for rtp of stream caster rtsp.
     */
     virtual int                 get_stream_caster_rtp_port_max(SrsConfDirective* sc);
-private:
-    /**
-    * create directive under vhost.
-    * @param directive, get the directive of vhost. get vhost if directive is empty.
-    * @param sub_directive, get the sub directive of vhost. get directive if sub-directive is empty.
-    * @return the vhost(empty directive and sub-directive); the directive(empty sub-directive); the sub-directive.
-    */
-    virtual SrsConfDirective*   create_directive(std::string vhost, std::string directive, std::string sub_directive);
 // vhost specified section
 public:
     /**
@@ -596,7 +587,6 @@ public:
     * @remark, if not enabled, donot callback all http hooks.
     */
     virtual bool                get_vhost_http_hooks_enabled(std::string vhost);
-    virtual void                set_vhost_http_hooks_enabled(std::string vhost, bool enabled);
     /**
     * get the on_connect callbacks of vhost.
     * @return the on_connect callback directive, the args is the url to callback.
@@ -632,7 +622,6 @@ public:
     * @return the on_dvr callback directive, the args is the url to callback.
     */
     virtual SrsConfDirective*   get_vhost_on_dvr(std::string vhost);
-    virtual void                set_vhost_on_dvr(std::string vhost, std::string callback);
 // bwct(bandwidth check tool) section
 public:
     /**
@@ -925,17 +914,14 @@ public:
     * whether dvr is enabled.
     */
     virtual bool                get_dvr_enabled(std::string vhost);
-    virtual void                set_dvr_enabled(std::string vhost, bool enabled);
     /**
     * get the dvr path, the flv file to save in.
     */
     virtual std::string         get_dvr_path(std::string vhost);
-    virtual void                set_dvr_path(std::string vhost, std::string path);
     /**
     * get the plan of dvr, how to reap the flv file.
     */
     virtual std::string         get_dvr_plan(std::string vhost);
-    virtual void                set_dvr_plan(std::string vhost, std::string plan);
     /**
     * get the duration of dvr flv.
     */
@@ -944,11 +930,6 @@ public:
     * whether wait keyframe to reap segment.
     */
     virtual bool                get_dvr_wait_keyframe(std::string vhost);
-    virtual void                set_dvr_wait_keyframe(std::string vhost, bool wait_keyframe);
-    /**
-    * whether autostart for dvr. wait api to start dvr if false.
-    */
-    virtual bool                get_dvr_autostart(std::string vhost);
     /**
     * get the time_jitter algorithm for dvr.
     */

@@ -108,8 +108,7 @@ int SrsGoApiV1::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
             << __SRS_JFIELD_STR("authors", "the primary authors and contributors") << __SRS_JFIELD_CONT
             << __SRS_JFIELD_STR("requests", "the request itself, for http debug") << __SRS_JFIELD_CONT
             << __SRS_JFIELD_STR("vhosts", "dumps vhost to json") << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("streams", "dumps streams to json") << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("dvrs", "query or control the dvr plan")
+            << __SRS_JFIELD_STR("streams", "dumps streams to json")
         << __SRS_JOBJECT_END
         << __SRS_JOBJECT_END;
     
@@ -470,76 +469,6 @@ int SrsGoApiStreams::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
         << __SRS_JFIELD_ORG("server", stat->server_id()) << __SRS_JFIELD_CONT
         << __SRS_JFIELD_ORG("streams", data.str())
         << __SRS_JOBJECT_END;
-    
-    return srs_go_http_response_json(w, ss.str());
-}
-
-SrsGoApiDvrs::SrsGoApiDvrs()
-{
-}
-
-SrsGoApiDvrs::~SrsGoApiDvrs()
-{
-}
-
-int SrsGoApiDvrs::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
-{
-    std::stringstream ss;
-
-#ifndef SRS_AUTO_DVR
-    ss << __SRS_JOBJECT_START
-        << __SRS_JFIELD_ERROR(ERROR_HTTP_DVR_DISABLED)
-        << __SRS_JOBJECT_END;
-#else
-    SrsApiDvrPool* pool = SrsApiDvrPool::instance();
-    if (r->is_http_get()) {
-        std::stringstream data;
-        int ret = pool->dumps(r->query_get("vhost"), r->query_get("app"), r->query_get("stream"), data);
-
-        ss << __SRS_JOBJECT_START
-            << __SRS_JFIELD_ERROR(ret) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("dvrs", data.str())
-            << __SRS_JOBJECT_END;
-    } else if (r->is_http_post()) {
-        std::string body = r->body();
-        SrsJsonAny* json = SrsJsonAny::loads((char*)body.c_str());
-        int ret = ERROR_SUCCESS;
-        if (!json) {
-            ret = ERROR_HTTP_JSON_REQUIRED;
-        } else {
-            SrsAutoFree(SrsJsonAny, json);
-            ret = pool->create(json);
-        }
-        ss << __SRS_JOBJECT_START
-            << __SRS_JFIELD_ERROR(ret)
-            << __SRS_JOBJECT_END;
-    } else if (r->is_http_delete()) {
-        int ret = pool->stop(r->query_get("vhost"), r->query_get("app"), r->query_get("stream"));
-
-        ss << __SRS_JOBJECT_START
-            << __SRS_JFIELD_ERROR(ret)
-            << __SRS_JOBJECT_END;
-    } else if (r->is_http_put()) {
-        int ret = ERROR_SUCCESS;
-
-        std::string body = r->body();
-        SrsJsonAny* json = SrsJsonAny::loads((char*)body.c_str());
-        if (!json) {
-            ret = ERROR_HTTP_JSON_REQUIRED;
-        } else {
-            SrsAutoFree(SrsJsonAny, json);
-            ret = pool->rpc(json);
-        }
-
-        ss << __SRS_JOBJECT_START
-            << __SRS_JFIELD_ERROR(ret)
-            << __SRS_JOBJECT_END;
-    } else {
-        ss << __SRS_JOBJECT_START
-            << __SRS_JFIELD_ERROR(ERROR_HTTP_DVR_REQUEST)
-            << __SRS_JOBJECT_END;
-    }
-#endif
     
     return srs_go_http_response_json(w, ss.str());
 }

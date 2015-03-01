@@ -277,48 +277,6 @@ public:
 };
 
 /**
-* api plan: reap flv by api.
-* @remark the api plan maybe create by publish event or http api post create dvr event.
-*       so when we got from pool first when create it.
-*/
-class SrsDvrApiPlan : public SrsDvrPlan
-{
-private:
-    // cache the metadata and sequence header, for new segment maybe opened.
-    SrsSharedPtrMessage* sh_audio;
-    SrsSharedPtrMessage* sh_video;
-    SrsSharedPtrMessage* metadata;
-private:
-    bool autostart;
-    bool started;
-private:
-    // user action, reap_segment.
-    std::string action;
-    std::string path_template;
-public:
-    SrsDvrApiPlan();
-    virtual ~SrsDvrApiPlan();
-public:
-    virtual int initialize(SrsRequest* r);
-    virtual int on_publish();
-    virtual void on_unpublish();
-    virtual int on_meta_data(SrsSharedPtrMessage* __metadata);
-    virtual int on_audio(SrsSharedPtrMessage* __audio);
-    virtual int on_video(SrsSharedPtrMessage* __video);
-public:
-    virtual int set_plan();
-    virtual int set_path_tmpl(std::string path_tmpl);
-    virtual int set_callback(std::string value);
-    virtual int set_wait_keyframe(bool wait_keyframe);
-    virtual int start();
-    virtual int dumps(std::stringstream& ss);
-    virtual int stop();
-    virtual int rpc(SrsJsonObject* obj);
-private:
-    virtual int check_user_actions(SrsSharedPtrMessage* msg);
-};
-
-/**
 * always append to flv file, never reap it.
 */
 class SrsDvrAppendPlan : public SrsDvrPlan
@@ -360,30 +318,6 @@ public:
     virtual int on_video(SrsSharedPtrMessage* __video);
 private:
     virtual int update_duration(SrsSharedPtrMessage* msg);
-};
-
-/**
-* the api dvr pool.
-*/
-class SrsApiDvrPool
-{
-private:
-    std::vector<SrsDvrApiPlan*> dvrs;
-    static SrsApiDvrPool* _instance;
-private:
-    SrsApiDvrPool();
-public:
-    static SrsApiDvrPool* instance();
-    virtual ~SrsApiDvrPool();
-public:
-    virtual SrsDvrApiPlan* get_dvr(std::string vhost);
-    virtual int add_dvr(SrsDvrApiPlan* dvr);
-    virtual void detach_dvr(SrsDvrApiPlan* dvr);
-public:
-    virtual int dumps(std::string vhost, std::string app, std::string stream, std::stringstream& ss);
-    virtual int create(SrsJsonAny* json);
-    virtual int stop(std::string vhost, std::string app, std::string stream);
-    virtual int rpc(SrsJsonAny* json);
 };
 
 /**
