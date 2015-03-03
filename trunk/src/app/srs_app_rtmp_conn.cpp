@@ -1129,10 +1129,10 @@ void SrsRtmpConn::change_mw_sleep(int sleep_ms)
 
 void SrsRtmpConn::play_set_sock_options()
 {
-    int fd = st_netfd_fileno(stfd);
-    
 #ifdef SRS_PERF_TCP_NODELAY
     if (true) {
+        int fd = st_netfd_fileno(stfd);
+    
         socklen_t nb_v = sizeof(int);
         
         int ov = 0;
