@@ -108,7 +108,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * whether set the socket send buffer size.
 * @see https://github.com/winlinvip/simple-rtmp-server/issues/251
 */
-#undef SRS_PERF_MW_SO_SNDBUF
+#define SRS_PERF_MW_SO_SNDBUF
+
 /**
 * whether set the socket recv buffer size.
 * @see https://github.com/winlinvip/simple-rtmp-server/issues/251
@@ -153,6 +154,21 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_PERF_GOP_CACHE true
 // in seconds, the live queue length.
 #define SRS_PERF_PLAY_QUEUE 30
+
+/**
+* whether always use complex send algorithm.
+* for some network does not support the complex send,
+* @see https://github.com/winlinvip/simple-rtmp-server/issues/320
+*/
+//#undef SRS_PERF_COMPLEX_SEND
+#define SRS_PERF_COMPLEX_SEND
+/**
+* whether enable the TCP_NODELAY
+* user maybe need send small tcp packet for some network.
+* @see https://github.com/winlinvip/simple-rtmp-server/issues/320
+*/
+//#define SRS_PERF_TCP_NODELAY
+#undef SRS_PERF_TCP_NODELAY
 
 #endif
 

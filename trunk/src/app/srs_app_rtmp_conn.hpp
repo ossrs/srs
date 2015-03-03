@@ -111,6 +111,7 @@ private:
     virtual int process_publish_message(SrsSource* source, SrsCommonMessage* msg, bool vhost_is_edge);
     virtual int process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage* msg);
     virtual void change_mw_sleep(int sleep_ms);
+    virtual void play_set_sock_options();
 private:
     virtual int check_edge_token_traverse_auth();
     virtual int connect_server(int origin_index, st_netfd_t* pstsock);

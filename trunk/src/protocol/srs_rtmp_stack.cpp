@@ -762,8 +762,9 @@ int SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
 {
     int ret = ERROR_SUCCESS;
     
+#ifdef SRS_PERF_COMPLEX_SEND
     int iov_index = 0;
-    iovec* iov = out_iovs + iov_index;
+    iovec* iovs = out_iovs + iov_index;
     
     int c0c3_cache_index = 0;
     char* c0c3_cache = out_c0c3_caches + c0c3_cache_index;
@@ -796,13 +797,13 @@ int SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
             srs_assert(nbh > 0);
             
             // header iov
-            iov[0].iov_base = c0c3_cache;
-            iov[0].iov_len = nbh;
+            iovs[0].iov_base = c0c3_cache;
+            iovs[0].iov_len = nbh;
             
             // payload iov
             int payload_size = srs_min(out_chunk_size, pend - p);
-            iov[1].iov_base = p;
-            iov[1].iov_len = payload_size;
+            iovs[1].iov_base = p;
+            iovs[1].iov_len = payload_size;
             
             // consume sendout bytes.
             p += payload_size;
@@ -822,7 +823,7 @@ int SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
             
             // to next pair of iovs
             iov_index += 2;
-            iov = out_iovs + iov_index;
+            iovs = out_iovs + iov_index;
 
             // to next c0c3 header cache
             c0c3_cache_index += nbh;
@@ -849,7 +850,7 @@ int SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
                 // reset caches, while these cache ensure 
                 // atleast we can sendout a chunk.
                 iov_index = 0;
-                iov = out_iovs + iov_index;
+                iovs = out_iovs + iov_index;
                 
                 c0c3_cache_index = 0;
                 c0c3_cache = out_c0c3_caches + c0c3_cache_index;
@@ -866,6 +867,61 @@ int SrsProtocol::do_send_messages(SrsSharedPtrMessage** msgs, int nb_msgs)
         nb_msgs, iov_index, SRS_PERF_MW_MSGS, nb_out_iovs);
 
     return do_iovs_send(out_iovs, iov_index);
+#else
+    // try to send use the c0c3 header cache,
+    // if cache is consumed, try another loop.
+    for (int i = 0; i < nb_msgs; i++) {
+        SrsSharedPtrMessage* msg = msgs[i];
+        
+        if (!msg) {
+            continue;
+        }
+    
+        // ignore empty message.
+        if (!msg->payload || msg->size <= 0) {
+            srs_info("ignore empty message.");
+            continue;
+        }
+    
+        // p set to current write position,
+        // it's ok when payload is NULL and size is 0.
+        char* p = msg->payload;
+        char* pend = msg->payload + msg->size;
+        
+        // always write the header event payload is empty.
+        while (p < pend) {
+            // for simple send, send each chunk one by one
+            iovec* iovs = out_iovs;
+            char* c0c3_cache = out_c0c3_caches;
+            int nb_cache = SRS_CONSTS_C0C3_HEADERS_MAX;
+            
+            // always has header
+            int nbh = msg->chunk_header(c0c3_cache, nb_cache, p == msg->payload);
+            srs_assert(nbh > 0);
+            
+            // header iov
+            iovs[0].iov_base = c0c3_cache;
+            iovs[0].iov_len = nbh;
+            
+            // payload iov
+            int payload_size = srs_min(out_chunk_size, pend - p);
+            iovs[1].iov_base = p;
+            iovs[1].iov_len = payload_size;
+            
+            // consume sendout bytes.
+            p += payload_size;
+
+            if ((ret = skt->writev(iovs, 2, NULL)) != ERROR_SUCCESS) {
+                if (!srs_is_client_gracefully_close(ret)) {
+                    srs_error("send packet with writev failed. ret=%d", ret);
+                }
+                return ret;
+            }
+        }
+    }
+    
+    return ret;
+#endif   
 }
 
 int SrsProtocol::do_iovs_send(iovec* iovs, int size)
