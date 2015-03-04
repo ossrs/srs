@@ -1838,13 +1838,7 @@ VOID TEST(ConfigMainTest, ParseFullConf)
     EXPECT_EQ(8080, conf.get_http_stream_listen());
     EXPECT_STREQ("./objs/nginx/html", conf.get_http_stream_dir().c_str());
     
-    EXPECT_EQ(10000, conf.get_pithy_print_publish());
-    EXPECT_EQ(10000, conf.get_pithy_print_play());
-    EXPECT_EQ(10000, conf.get_pithy_print_forwarder());
-    EXPECT_EQ(10000, conf.get_pithy_print_encoder());
-    EXPECT_EQ(10000, conf.get_pithy_print_ingester());
-    EXPECT_EQ(10000, conf.get_pithy_print_hls());
-    EXPECT_EQ(10000, conf.get_pithy_print_edge());
+    EXPECT_EQ(10000, conf.get_pithy_print_ms());
     
     EXPECT_TRUE(NULL != conf.get_vhost("__defaultVhost__"));
     EXPECT_TRUE(NULL != conf.get_vhost("same.edge.srs.com"));
