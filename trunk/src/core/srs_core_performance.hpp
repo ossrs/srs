@@ -169,6 +169,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 //#define SRS_PERF_TCP_NODELAY
 #undef SRS_PERF_TCP_NODELAY
+/**
+* set the socket send buffer,
+* to force the server to send smaller tcp packet.
+* @see https://github.com/winlinvip/simple-rtmp-server/issues/320
+* @remark undef it to auto calc it by merged write sleep ms.
+* @remark only apply it when SRS_PERF_MW_SO_RCVBUF is defined.
+*/
+#ifdef SRS_PERF_MW_SO_SNDBUF
+    //#define SRS_PERF_SO_SNDBUF_SIZE 1024
+    #undef SRS_PERF_SO_SNDBUF_SIZE
+#endif
 
 #endif
 

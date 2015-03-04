@@ -148,6 +148,24 @@ void show_macro_features()
     srs_trace("MW(merged-write) default sleep %d", SRS_PERF_MW_SLEEP);
     srs_trace("read chunk stream cache cid [0, %d)", SRS_PERF_CHUNK_STREAM_CACHE);
     srs_trace("default gop cache %d, play queue %ds", SRS_PERF_GOP_CACHE, SRS_PERF_PLAY_QUEUE);
+    
+#ifndef SRS_PERF_COMPLEX_SEND
+    srs_warn("complex send algorithm disabled.");
+#else
+    srs_trace("complex send algorithm enabled.");
+#endif
+
+#ifdef SRS_PERF_TCP_NODELAY
+    srs_warn("TCP_NODELAY enabled, hurts performance.");
+#else
+    srs_trace("TCP_NODELAY disabled.");
+#endif
+
+#ifdef SRS_PERF_SO_SNDBUF_SIZE
+    srs_warn("socket send buffer size %d", SRS_PERF_SO_SNDBUF_SIZE);
+#else
+    srs_trace("auto guess socket send buffer by merged write");
+#endif
 
     int possible_mr_latency = 0;
 #ifdef SRS_PERF_MERGED_READ
@@ -169,6 +187,10 @@ void check_macro_features()
 #if VERSION_MAJOR > 1
     #warning "using develop SRS, please use release instead."
     srs_warn("SRS %s is develop branch, please use %s instead", RTMP_SIG_SRS_VERSION, RTMP_SIG_SRS_RELEASE);
+#endif
+
+#if defined(SRS_PERF_SO_SNDBUF_SIZE) && !defined(SRS_PERF_MW_SO_SNDBUF)
+    #error "SRS_PERF_SO_SNDBUF_SIZE depends on SRS_PERF_MW_SO_SNDBUF"
 #endif
 }
 

@@ -1110,6 +1110,11 @@ void SrsRtmpConn::change_mw_sleep(int sleep_ms)
     // socket send buffer, system will double it.
     int nb_sbuf = socket_buffer_size / 2;
     
+    // override the send buffer by macro.
+    #ifdef SRS_PERF_SO_SNDBUF_SIZE
+    nb_sbuf = SRS_PERF_SO_SNDBUF_SIZE / 2;
+    #endif
+    
     // set the socket send buffer when required larger buffer
     if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &nb_sbuf, sock_buf_size) < 0) {
         srs_warn("set sock SO_SENDBUF=%d failed.", nb_sbuf);
