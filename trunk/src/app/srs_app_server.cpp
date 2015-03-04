@@ -398,7 +398,7 @@ SrsServer::SrsServer()
     // for some global instance is not ready now,
     // new these objects in initialize instead.
 #ifdef SRS_AUTO_HTTP_API
-    http_api_mux = new SrsGoHttpServeMux();
+    http_api_mux = new SrsHttpServeMux();
 #endif
 #ifdef SRS_AUTO_HTTP_SERVER
     http_stream_mux = new SrsHttpServer();

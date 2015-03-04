@@ -50,7 +50,7 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 
 SrsVodStream::SrsVodStream(string root_dir)
-    : SrsGoHttpFileServer(root_dir)
+    : SrsHttpFileServer(root_dir)
 {
 }
 
@@ -58,7 +58,7 @@ SrsVodStream::~SrsVodStream()
 {
 }
 
-int SrsVodStream::serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, string fullpath, int offset)
+int SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, SrsHttpMessage* r, string fullpath, int offset)
 {
     int ret = ERROR_SUCCESS;
     
@@ -142,7 +142,7 @@ int SrsVodStream::serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* 
     return ret;
 }
 
-int SrsVodStream::serve_mp4_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, string fullpath, int start, int end)
+int SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, SrsHttpMessage* r, string fullpath, int start, int end)
 {
     int ret = ERROR_SUCCESS;
 
@@ -517,7 +517,7 @@ int SrsMp3StreamEncoder::dump_cache(SrsConsumer* consumer)
     return cache->dump_cache(consumer);
 }
 
-SrsStreamWriter::SrsStreamWriter(ISrsGoHttpResponseWriter* w)
+SrsStreamWriter::SrsStreamWriter(ISrsHttpResponseWriter* w)
 {
     writer = w;
 }
@@ -565,7 +565,7 @@ SrsLiveStream::~SrsLiveStream()
     srs_freep(req);
 }
 
-int SrsLiveStream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
     
@@ -708,7 +708,7 @@ void SrsHlsM3u8Stream::set_m3u8(std::string v)
     m3u8 = v;
 }
 
-int SrsHlsM3u8Stream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsHlsM3u8Stream::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
     
@@ -740,7 +740,7 @@ void SrsHlsTsStream::set_ts(std::string v)
     ts = v;
 }
 
-int SrsHlsTsStream::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsHlsTsStream::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
     
@@ -879,9 +879,9 @@ int SrsHttpServer::mount_hls(SrsRequest* r)
     SrsHlsEntry* entry = hls[r->vhost];
     
     // TODO: FIXME: supports reload.
-    std::map<std::string, ISrsGoHttpHandler*>::iterator it;
+    std::map<std::string, ISrsHttpHandler*>::iterator it;
     for (it = entry->streams.begin(); it != entry->streams.end(); ++it) {
-        ISrsGoHttpHandler* stream = it->second;
+        ISrsHttpHandler* stream = it->second;
         stream->entry->enabled = true;
     }
 
@@ -911,7 +911,7 @@ int SrsHttpServer::hls_update_m3u8(SrsRequest* r, string m3u8)
     mount = srs_string_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST"/", "/");
 
     if (entry->streams.find(mount) == entry->streams.end()) {
-        ISrsGoHttpHandler* he = new SrsHlsM3u8Stream();
+        ISrsHttpHandler* he = new SrsHlsM3u8Stream();
         entry->streams[mount] = he;
 
         if ((ret = mux.handle(mount, he)) != ERROR_SUCCESS) {
@@ -962,7 +962,7 @@ int SrsHttpServer::hls_update_ts(SrsRequest* r, string uri, string ts)
     mount += uri;
 
     if (entry->streams.find(mount) == entry->streams.end()) {
-        ISrsGoHttpHandler* he = new SrsHlsTsStream();
+        ISrsHttpHandler* he = new SrsHlsTsStream();
         entry->streams[mount] = he;
 
         if ((ret = mux.handle(mount, he)) != ERROR_SUCCESS) {
@@ -990,9 +990,9 @@ void SrsHttpServer::unmount_hls(SrsRequest* r)
 
     SrsHlsEntry* entry = hls[r->vhost];
 
-    std::map<std::string, ISrsGoHttpHandler*>::iterator it;
+    std::map<std::string, ISrsHttpHandler*>::iterator it;
     for (it = entry->streams.begin(); it != entry->streams.end(); ++it) {
-        ISrsGoHttpHandler* stream = it->second;
+        ISrsHttpHandler* stream = it->second;
         stream->entry->enabled = false;
     }
 }
@@ -1202,7 +1202,7 @@ int SrsHttpConn::do_cycle()
         SrsAutoFree(SrsHttpMessage, req);
         
         // ok, handle http request.
-        SrsGoHttpResponseWriter writer(&skt);
+        SrsHttpResponseWriter writer(&skt);
         if ((ret = process_request(&writer, req)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -1211,7 +1211,7 @@ int SrsHttpConn::do_cycle()
     return ret;
 }
 
-int SrsHttpConn::process_request(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r) 
+int SrsHttpConn::process_request(ISrsHttpResponseWriter* w, SrsHttpMessage* r) 
 {
     int ret = ERROR_SUCCESS;
     

@@ -59,14 +59,14 @@ class SrsSharedPtrMessage;
 * server will write flv header and sequence header, 
 * then seek(10240) and response flv tag data.
 */
-class SrsVodStream : public SrsGoHttpFileServer
+class SrsVodStream : public SrsHttpFileServer
 {
 public:
     SrsVodStream(std::string root_dir);
     virtual ~SrsVodStream();
 protected:
-    virtual int serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath, int offset);
-    virtual int serve_mp4_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath, int start, int end);
+    virtual int serve_flv_stream(ISrsHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath, int offset);
+    virtual int serve_mp4_stream(ISrsHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath, int start, int end);
 };
 
 /**
@@ -214,9 +214,9 @@ public:
 class SrsStreamWriter : public SrsFileWriter
 {
 private:
-    ISrsGoHttpResponseWriter* writer;
+    ISrsHttpResponseWriter* writer;
 public:
-    SrsStreamWriter(ISrsGoHttpResponseWriter* w);
+    SrsStreamWriter(ISrsHttpResponseWriter* w);
     virtual ~SrsStreamWriter();
 public:
     virtual int open(std::string file);
@@ -232,7 +232,7 @@ public:
 * the flv live stream supports access rtmp in flv over http.
 * srs will remux rtmp to flv streaming.
 */
-class SrsLiveStream : public ISrsGoHttpHandler
+class SrsLiveStream : public ISrsHttpHandler
 {
 private:
     SrsRequest* req;
@@ -242,7 +242,7 @@ public:
     SrsLiveStream(SrsSource* s, SrsRequest* r, SrsStreamCache* c);
     virtual ~SrsLiveStream();
 public:
-    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
+    virtual int serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r);
 private:
     virtual int streaming_send_messages(ISrsStreamEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs);
 };
@@ -263,7 +263,7 @@ struct SrsLiveEntry
 /**
 * the m3u8 stream handler.
 */
-class SrsHlsM3u8Stream : public ISrsGoHttpHandler
+class SrsHlsM3u8Stream : public ISrsHttpHandler
 {
 private:
     std::string m3u8;
@@ -273,13 +273,13 @@ public:
 public:
     virtual void set_m3u8(std::string v);
 public:
-    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
+    virtual int serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r);
 };
 
 /**
 * the ts stream handler.
 */
-class SrsHlsTsStream : public ISrsGoHttpHandler
+class SrsHlsTsStream : public ISrsHttpHandler
 {
 private:
     std::string ts;
@@ -289,7 +289,7 @@ public:
 public:
     virtual void set_ts(std::string v);
 public:
-    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
+    virtual int serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r);
 };
 
 /**
@@ -302,7 +302,7 @@ struct SrsHlsEntry
 
     // key: the m3u8/ts file path.
     // value: the http handler.
-    std::map<std::string, ISrsGoHttpHandler*> streams;
+    std::map<std::string, ISrsHttpHandler*> streams;
     
     SrsHlsEntry();
 };
@@ -314,7 +314,7 @@ struct SrsHlsEntry
 class SrsHttpServer : public ISrsReloadHandler
 {
 public:
-    SrsGoHttpServeMux mux;
+    SrsHttpServeMux mux;
     // the flv live streaming template.
     std::map<std::string, SrsLiveEntry*> flvs;
     // the hls live streaming template.
@@ -362,7 +362,7 @@ public:
 protected:
     virtual int do_cycle();
 private:
-    virtual int process_request(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
+    virtual int process_request(ISrsHttpResponseWriter* w, SrsHttpMessage* r);
 };
 
 #endif

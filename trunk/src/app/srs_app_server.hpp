@@ -41,7 +41,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsServer;
 class SrsConnection;
-class SrsGoHttpServeMux;
+class SrsHttpServeMux;
 class SrsHttpServer;
 class SrsIngester;
 class SrsHttpHeartbeat;
@@ -178,7 +178,7 @@ class SrsServer : virtual public ISrsReloadHandler
 {
 private:
 #ifdef SRS_AUTO_HTTP_API
-    SrsGoHttpServeMux* http_api_mux;
+    SrsHttpServeMux* http_api_mux;
 #endif
 #ifdef SRS_AUTO_HTTP_SERVER
     SrsHttpServer* http_stream_mux;
