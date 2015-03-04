@@ -35,6 +35,7 @@ using namespace std;
 #include <srs_app_st_socket.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_core_autofree.hpp>
 
 // when error, http client sleep for a while and retry.
 #define SRS_HTTP_CLIENT_SLEEP_US (int64_t)(3*1000*1000LL)
@@ -103,17 +104,17 @@ int SrsHttpClient::post(SrsHttpUri* uri, string req, int& status_code, string& r
     }
 
     srs_assert(msg);
-    srs_assert(msg->is_complete());
+    
+    // always free it in this scope.
+    SrsAutoFree(SrsHttpMessage, msg);
     
     status_code = (int)msg->status_code();
     
     // get response body.
-    if (msg->body_size() > 0) {
-        res = msg->body();
+    if ((ret = msg->body_read_all(res)) != ERROR_SUCCESS) {
+        return ret;
     }
     srs_info("parse http post response success.");
-    
-    srs_freep(msg);
     
     return ret;
 }

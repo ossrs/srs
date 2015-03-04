@@ -76,7 +76,8 @@ extern int srs_go_http_response_json(ISrsHttpResponseWriter* w, std::string data
 enum SrsHttpParseState {
     SrsHttpParseStateInit = 0, 
     SrsHttpParseStateStart, 
-    SrsHttpParseStateComplete
+    SrsHttpParseStateHeaderComplete,
+    SrsHttpParseStateMessageComplete
 };
 
 // A Header represents the key-value pairs in an HTTP header.
@@ -154,6 +155,8 @@ public:
 public:
     // when chunked mode, 
     // final the request to complete the chunked encoding.
+    // for no-chunked mode, 
+    // final to send request, for example, content-length is 0.
     virtual int final_request() = 0;
     
     // Header returns the header map that will be sent by WriteHeader.
@@ -176,6 +179,39 @@ public:
     // send error codes.
     // @remark, user must set header then write or write_header.
     virtual void write_header(int code) = 0;
+};
+
+/**
+* the reader interface for http response.
+*/
+class ISrsHttpResponseReader
+{
+public:
+    ISrsHttpResponseReader();
+    virtual ~ISrsHttpResponseReader();
+public:
+    /**
+    * read from the response body.
+    * @param max the max size to read. 0 to ignore.
+    */
+    virtual int read(int max, std::string& data) = 0;
+};
+
+/**
+* for connection response only.
+*/
+class ISrsHttpResponseAppender
+{
+public:
+    ISrsHttpResponseAppender();
+    virtual ~ISrsHttpResponseAppender();
+public:
+    /**
+    * append specified size of bytes data to reader.
+    * when we read http message from socket, we maybe read header+body, 
+    * so the reader should provides stream cache feature.
+    */
+    virtual int append(char* data, int size) = 0;
 };
 
 // Objects implementing the Handler interface can be
@@ -366,6 +402,27 @@ public:
     virtual int send_header(char* data, int size);
 };
 
+/**
+* response reader use st socket.
+*/
+class SrsHttpResponseReader : virtual public ISrsHttpResponseReader
+    , virtual public ISrsHttpResponseAppender
+{
+private:
+    SrsStSocket* skt;
+    SrsHttpMessage* owner;
+    SrsSimpleBuffer* cache;
+public:
+    SrsHttpResponseReader(SrsHttpMessage* msg, SrsStSocket* io);
+    virtual ~SrsHttpResponseReader();
+public:
+    virtual int read(int max, std::string& data);
+    virtual int append(char* data, int size);
+};
+
+// for http header.
+typedef std::pair<std::string, std::string> SrsHttpHeaderField;
+
 // A Request represents an HTTP request received by a server
 // or to be sent by a client.
 //
@@ -387,15 +444,10 @@ private:
     */
     http_parser _header;
     /**
-    * body object, in bytes.
+    * body object, reader object.
     * @remark, user can get body in string by get_body().
     */
-    SrsSimpleBuffer* _body;
-    /**
-    * parser state
-    * @remark, user can use is_complete() to determine the state.
-    */
-    SrsHttpParseState _state;
+    SrsHttpResponseReader* _body;
     /**
     * uri parser
     */
@@ -405,20 +457,17 @@ private:
     */
     char* _http_ts_send_buffer;
     // http headers
-    typedef std::pair<std::string, std::string> SrsHttpHeaderField;
-    std::vector<SrsHttpHeaderField> headers;
+    std::vector<SrsHttpHeaderField> _headers;
     // the query map
     std::map<std::string, std::string> _query;
 public:
-    SrsHttpMessage();
+    SrsHttpMessage(SrsStSocket* io);
     virtual ~SrsHttpMessage();
 public:
     virtual int initialize();
 public:
     virtual char* http_ts_send_buffer();
-    virtual void reset();
 public:
-    virtual bool is_complete();
     virtual u_int8_t method();
     virtual u_int16_t status_code();
     virtual std::string method_str();
@@ -432,14 +481,10 @@ public:
     virtual std::string host();
     virtual std::string path();
 public:
-    virtual std::string body();
-    virtual char* body_raw();
-    virtual int64_t body_size();
+    virtual void set(std::string url, http_parser* header, std::string body, std::vector<SrsHttpHeaderField>& headers);
+public:
+    virtual int body_read_all(std::string body);
     virtual int64_t content_length();
-    virtual void set_url(std::string url);
-    virtual void set_state(SrsHttpParseState state);
-    virtual void set_header(http_parser* header);
-    virtual void append_body(const char* body, int length);
     /**
     * get the param in query string,
     * for instance, query is "start=100&end=200",
@@ -449,7 +494,6 @@ public:
     virtual int request_header_count();
     virtual std::string request_header_key_at(int index);
     virtual std::string request_header_value_at(int index);
-    virtual void set_request_header(std::string key, std::string value);
     virtual std::string get_request_header(std::string name);
 };
 
@@ -462,8 +506,16 @@ class SrsHttpParser
 private:
     http_parser_settings settings;
     http_parser parser;
-    SrsHttpMessage* msg;
+private:
+    // http parse data, reset before parse message.
+    bool expect_filed_name;
     std::string filed_name;
+    std::string field_value;
+    SrsHttpParseState state;
+    http_parser header;
+    std::string url;
+    std::vector<SrsHttpHeaderField> headers;
+    std::string body;
 public:
     SrsHttpParser();
     virtual ~SrsHttpParser();

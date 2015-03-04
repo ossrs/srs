@@ -74,6 +74,13 @@ function Ubuntu_prepare()
         echo "install patch success"
     fi
     
+    unzip --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install unzip"
+        require_sudoer "sudo apt-get install -y --force-yes unzip"
+        sudo apt-get install -y --force-yes unzip; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "install unzip success"
+    fi
+    
     if [ $SRS_FFMPEG_TOOL = YES ]; then
         autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "install autoconf"
@@ -168,6 +175,13 @@ function Centos_prepare()
         require_sudoer "sudo yum install -y patch"
         sudo yum install -y patch; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install patch success"
+    fi
+    
+    unzip --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        echo "install unzip"
+        require_sudoer "sudo yum install -y unzip"
+        sudo yum install -y unzip; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "install unzip success"
     fi
     
     if [ $SRS_FFMPEG_TOOL = YES ]; then

@@ -1194,12 +1194,19 @@ int SrsHttpConn::do_cycle()
             return ret;
         }
 
-        // if SUCCESS, always NOT-NULL and completed message.
+        // if SUCCESS, always NOT-NULL.
         srs_assert(req);
-        srs_assert(req->is_complete());
         
         // always free it in this scope.
         SrsAutoFree(SrsHttpMessage, req);
+        
+        // TODO: FIXME: use the post body.
+        std::string res;
+        
+        // get response body.
+        if ((ret = req->body_read_all(res)) != ERROR_SUCCESS) {
+            return ret;
+        }
         
         // ok, handle http request.
         SrsHttpResponseWriter writer(&skt);
