@@ -6,7 +6,7 @@ Donations ordered by first donation.
 RMB 10000+
 * [2015-03-03 13:25] 郭强
 
-RMB 1000+
+RMB 1000-9999
 * [2015-xx-xx xx:xx] xxx
 
 RMB 500-999
