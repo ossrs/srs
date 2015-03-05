@@ -130,6 +130,7 @@ public:
     * @param v true to ename merged read.
     * @param handler the handler when merge read is enabled.
     * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+    * @remark the merged read is optional, ignore if not specifies.
     */
     virtual void set_merge_read(bool v, IMergeReadHandler* handler);
 #endif

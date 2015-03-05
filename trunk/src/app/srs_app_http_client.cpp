@@ -45,6 +45,7 @@ SrsHttpClient::SrsHttpClient()
     connected = false;
     stfd = NULL;
     parser = NULL;
+    skt = NULL;
 }
 
 SrsHttpClient::~SrsHttpClient()
@@ -86,10 +87,8 @@ int SrsHttpClient::post(SrsHttpUri* uri, string req, int& status_code, string& r
         << __SRS_HTTP_CRLF
         << req;
     
-    SrsStSocket skt(stfd);
-    
     std::string data = ss.str();
-    if ((ret = skt.write((void*)data.c_str(), data.length(), NULL)) != ERROR_SUCCESS) {
+    if ((ret = skt->write((void*)data.c_str(), data.length(), NULL)) != ERROR_SUCCESS) {
         // disconnect when error.
         disconnect();
         
@@ -98,7 +97,7 @@ int SrsHttpClient::post(SrsHttpUri* uri, string req, int& status_code, string& r
     }
     
     SrsHttpMessage* msg = NULL;
-    if ((ret = parser->parse_message(&skt, &msg)) != ERROR_SUCCESS) {
+    if ((ret = parser->parse_message(skt, &msg)) != ERROR_SUCCESS) {
         srs_error("parse http post response failed. ret=%d", ret);
         return ret;
     }
@@ -119,11 +118,67 @@ int SrsHttpClient::post(SrsHttpUri* uri, string req, int& status_code, string& r
     return ret;
 }
 
+int SrsHttpClient::get(SrsHttpUri* uri, std::string req, SrsHttpMessage** ppmsg)
+{
+    *ppmsg = NULL;
+
+    int ret = ERROR_SUCCESS;
+
+    if (!parser) {
+        parser = new SrsHttpParser();
+
+        if ((ret = parser->initialize(HTTP_RESPONSE)) != ERROR_SUCCESS) {
+            srs_error("initialize parser failed. ret=%d", ret);
+            return ret;
+        }
+    }
+
+    if ((ret = connect(uri)) != ERROR_SUCCESS) {
+        srs_warn("http connect server failed. ret=%d", ret);
+        return ret;
+    }
+
+    // send POST request to uri
+    // GET %s HTTP/1.1\r\nHost: %s\r\nContent-Length: %d\r\n\r\n%s
+    std::stringstream ss;
+    ss << "GET " << uri->get_path() << " "
+        << "HTTP/1.1" << __SRS_HTTP_CRLF
+        << "Host: " << uri->get_host() << __SRS_HTTP_CRLF
+        << "Connection: Keep-Alive" << __SRS_HTTP_CRLF
+        << "Content-Length: " << std::dec << req.length() << __SRS_HTTP_CRLF
+        << "User-Agent: " << RTMP_SIG_SRS_NAME << RTMP_SIG_SRS_VERSION << __SRS_HTTP_CRLF
+        << "Content-Type: application/json" << __SRS_HTTP_CRLF
+        << __SRS_HTTP_CRLF
+        << req;
+
+    std::string data = ss.str();
+    if ((ret = skt->write((void*)data.c_str(), data.length(), NULL)) != ERROR_SUCCESS) {
+        // disconnect when error.
+        disconnect();
+
+        srs_error("write http get failed. ret=%d", ret);
+        return ret;
+    }
+
+    SrsHttpMessage* msg = NULL;
+    if ((ret = parser->parse_message(skt, &msg)) != ERROR_SUCCESS) {
+        srs_error("parse http post response failed. ret=%d", ret);
+        return ret;
+    }
+
+    srs_assert(msg);
+    *ppmsg = msg;
+    srs_info("parse http get response success.");
+
+    return ret;
+}
+
 void SrsHttpClient::disconnect()
 {
     connected = false;
     
     srs_close_stfd(stfd);
+    srs_freep(skt);
 }
 
 int SrsHttpClient::connect(SrsHttpUri* uri)
@@ -149,6 +204,8 @@ int SrsHttpClient::connect(SrsHttpUri* uri)
     srs_info("connect to server success. http url=%s, server=%s, port=%d", 
         uri->get_url(), uri->get_host(), uri->get_port());
     
+    srs_assert(!skt);
+    skt = new SrsStSocket(stfd);
     connected = true;
     
     return ret;

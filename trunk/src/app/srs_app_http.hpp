@@ -49,6 +49,7 @@ class SrsFileReader;
 class SrsSimpleBuffer;
 class SrsHttpMuxEntry;
 class ISrsHttpResponseWriter;
+class SrsFastBuffer;
 
 // http specification
 // CR             = <US-ASCII CR, carriage return (13)>
@@ -442,6 +443,10 @@ private:
     */
     SrsHttpResponseReader* _body;
     /**
+    * whether the body is chunked.
+    */
+    bool chunked;
+    /**
     * uri parser
     */
     SrsHttpUri* _uri;
@@ -474,12 +479,14 @@ public:
     virtual bool is_http_post();
     virtual bool is_http_delete();
     virtual bool is_http_options();
+    virtual bool is_chunked();
     virtual std::string uri();
     virtual std::string url();
     virtual std::string host();
     virtual std::string path();
 public:
     virtual int body_read_all(std::string body);
+    virtual ISrsHttpResponseReader* body_reader();
     virtual int64_t content_length();
     /**
     * get the param in query string,
@@ -502,6 +509,8 @@ class SrsHttpParser
 private:
     http_parser_settings settings;
     http_parser parser;
+    // the global parse buffer.
+    SrsFastBuffer* fbuffer;
 private:
     // http parse data, reset before parse message.
     bool expect_filed_name;

@@ -904,6 +904,7 @@ int SrsHttpResponseReader::read(int max, std::string& data)
 
 SrsHttpMessage::SrsHttpMessage(SrsStSocket* io)
 {
+    chunked = false;
     _uri = new SrsHttpUri();
     _body = new SrsHttpResponseReader(this, io);
     _http_ts_send_buffer = new char[__SRS_HTTP_TS_SEND_BUFFER_SIZE];
@@ -924,6 +925,11 @@ int SrsHttpMessage::initialize(string url, http_parser* header, string body, vec
     _header = *header;
     _headers = headers;
 
+    // whether chunked.
+    std::string transfer_encoding = get_request_header("Transfer-Encoding");
+    chunked = (transfer_encoding == "chunked");
+
+    // TODO: FIXME: remove it, use fast buffer instead.
     if (!body.empty()) {
         _body->append((char*)body.data(), (int)body.length());
     }
@@ -1031,6 +1037,11 @@ bool SrsHttpMessage::is_http_options()
     return _header.method == SRS_CONSTS_HTTP_OPTIONS;
 }
 
+bool SrsHttpMessage::is_chunked()
+{
+    return chunked;
+}
+
 string SrsHttpMessage::uri()
 {
     std::string uri = _uri->get_schema();
@@ -1102,6 +1113,11 @@ int SrsHttpMessage::body_read_all(string body)
     }
     
     return ret;
+}
+
+ISrsHttpResponseReader* SrsHttpMessage::body_reader()
+{
+    return _body;
 }
 
 int64_t SrsHttpMessage::content_length()
@@ -1258,6 +1274,11 @@ int SrsHttpParser::parse_message_imp(SrsStSocket* skt)
             return ret;
         }
     }
+
+    // parse last header.
+    if (!filed_name.empty() && !field_value.empty()) {
+        headers.push_back(std::make_pair(filed_name, field_value));
+    }
     
     // when parse completed, cache the left body.
     if (nread && nparsed < nread) {
@@ -1341,7 +1362,7 @@ int SrsHttpParser::on_header_field(http_parser* parser, const char* at, size_t l
         obj->filed_name.append(at, (int)length);
     }
     
-    srs_trace("Header field(%d bytes): %.*s", (int)length, (int)length, at);
+    srs_info("Header field(%d bytes): %.*s", (int)length, (int)length, at);
     return 0;
 }
 
@@ -1355,7 +1376,7 @@ int SrsHttpParser::on_header_value(http_parser* parser, const char* at, size_t l
     }
     obj->expect_filed_name = false;
     
-    srs_trace("Header value(%d bytes): %.*s", (int)length, (int)length, at);
+    srs_info("Header value(%d bytes): %.*s", (int)length, (int)length, at);
     return 0;
 }
 

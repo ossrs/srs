@@ -37,6 +37,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsHttpUri;
 class SrsHttpParser;
+class SrsHttpMessage;
+class SrsStSocket;
 
 /**
 * http client to GET/POST/PUT/DELETE uri
@@ -46,6 +48,7 @@ class SrsHttpClient
 private:
     bool connected;
     st_netfd_t stfd;
+    SrsStSocket* skt;
     SrsHttpParser* parser;
 public:
     SrsHttpClient();
@@ -53,11 +56,17 @@ public:
 public:
     /**
     * to post data to the uri.
-    * @param req the data post to uri.
+    * @param req the data post to uri. empty string to ignore.
     * @param status_code the output status code response by server.
     * @param res output the response data from server.
     */
     virtual int post(SrsHttpUri* uri, std::string req, int& status_code, std::string& res);
+    /**
+    * to get data from the uri.
+    * @param req the data post to uri. empty string to ignore.
+    * @param ppmsg output the http message to read the response.
+    */
+    virtual int get(SrsHttpUri* uri, std::string req, SrsHttpMessage** ppmsg);
 private:
     virtual void disconnect();
     virtual int connect(SrsHttpUri* uri);
