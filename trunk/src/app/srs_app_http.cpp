@@ -236,14 +236,6 @@ ISrsHttpResponseReader::~ISrsHttpResponseReader()
 {
 }
 
-ISrsHttpResponseAppender::ISrsHttpResponseAppender()
-{
-}
-
-ISrsHttpResponseAppender::~ISrsHttpResponseAppender()
-{
-}
-
 ISrsHttpHandler::ISrsHttpHandler()
 {
     entry = NULL;
@@ -862,9 +854,25 @@ SrsHttpResponseReader::~SrsHttpResponseReader()
     srs_freep(cache);
 }
 
+bool SrsHttpResponseReader::empty()
+{
+    return cache->length() == 0;
+}
+
+int SrsHttpResponseReader::append(char* data, int size)
+{
+    int ret = ERROR_SUCCESS;
+    
+    cache->append(data, size);
+    
+    return ret;
+}
+
 int SrsHttpResponseReader::read(int max, std::string& data)
 {
     int ret = ERROR_SUCCESS;
+    
+    // TODO: FIXME: decode the chunked bytes.
     
     // read from cache first.
     if (cache->length() > 0) {
@@ -894,15 +902,6 @@ int SrsHttpResponseReader::read(int max, std::string& data)
     return ret;
 }
 
-int SrsHttpResponseReader::append(char* data, int size)
-{
-    int ret = ERROR_SUCCESS;
-    
-    cache->append(data, size);
-    
-    return ret;
-}
-
 SrsHttpMessage::SrsHttpMessage(SrsStSocket* io)
 {
     _uri = new SrsHttpUri();
@@ -917,10 +916,19 @@ SrsHttpMessage::~SrsHttpMessage()
     srs_freep(_http_ts_send_buffer);
 }
 
-int SrsHttpMessage::initialize()
+int SrsHttpMessage::initialize(string url, http_parser* header, string body, vector<SrsHttpHeaderField>& headers)
 {
     int ret = ERROR_SUCCESS;
 
+    _url = url;
+    _header = *header;
+    _headers = headers;
+
+    if (!body.empty()) {
+        _body->append((char*)body.data(), (int)body.length());
+    }
+    
+    // parse uri from url.
     std::string host = get_request_header("Host");
 
     // donot parse the empty host for uri, 
@@ -1050,24 +1058,25 @@ string SrsHttpMessage::path()
     return _uri->get_path();
 }
 
-void SrsHttpMessage::set(string url, http_parser* header, string body, vector<SrsHttpHeaderField>& headers)
-{
-    _url = url;
-    _header = *header;
-    _headers = headers;
-
-    if (!body.empty()) {
-        _body->append((char*)body.data(), (int)body.length());
-    }
-}
-
 int SrsHttpMessage::body_read_all(string body)
 {
     int ret = ERROR_SUCCESS;
     
+    int64_t content_length = (int64_t)_header.content_length;
+    
+    // ignore if not set, should be zero length body.
+    if (content_length < 0) {
+        if (!_body->empty()) {
+            srs_warn("unspecified content-length with body cached.");
+        } else {
+            srs_info("unspecified content-length with body empty.");
+        }
+        return ret;
+    }
+    
     // when content length specified, read specified length.
-    if ((int64_t)_header.content_length > 0) {
-        int left = (int)(int64_t)_header.content_length;
+    if (content_length > 0) {
+        int left = (int)content_length;
         while (left > 0) {
             int nb_read = (int)body.length();
             if ((ret = _body->read(left, body)) != ERROR_SUCCESS) {
@@ -1201,11 +1210,8 @@ int SrsHttpParser::parse_message(SrsStSocket* skt, SrsHttpMessage** ppmsg)
     // create msg
     SrsHttpMessage* msg = new SrsHttpMessage(skt);
     
-    // dumps the header and body read.
-    msg->set(url, &header, body, headers);
-
     // initalize http msg, parse url.
-    if ((ret = msg->initialize()) != ERROR_SUCCESS) {
+    if ((ret = msg->initialize(url, &header, body, headers)) != ERROR_SUCCESS) {
         srs_error("initialize http msg failed. ret=%d", ret);
         srs_freep(msg);
         return ret;
@@ -1325,7 +1331,7 @@ int SrsHttpParser::on_header_field(http_parser* parser, const char* at, size_t l
     if (!obj->expect_filed_name) {
         obj->headers.push_back(std::make_pair(obj->filed_name, obj->field_value));
         
-        // reset the field name when value parsed.
+        // reset the field name when parsed.
         obj->filed_name = "";
         obj->field_value = "";
     }
@@ -1335,7 +1341,7 @@ int SrsHttpParser::on_header_field(http_parser* parser, const char* at, size_t l
         obj->filed_name.append(at, (int)length);
     }
     
-    srs_trace("Header field: %.*s", (int)length, at);
+    srs_trace("Header field(%d bytes): %.*s", (int)length, (int)length, at);
     return 0;
 }
 
@@ -1349,7 +1355,7 @@ int SrsHttpParser::on_header_value(http_parser* parser, const char* at, size_t l
     }
     obj->expect_filed_name = false;
     
-    srs_trace("Header value: %.*s", (int)length, at);
+    srs_trace("Header value(%d bytes): %.*s", (int)length, (int)length, at);
     return 0;
 }
 

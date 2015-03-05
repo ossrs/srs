@@ -197,23 +197,6 @@ public:
     virtual int read(int max, std::string& data) = 0;
 };
 
-/**
-* for connection response only.
-*/
-class ISrsHttpResponseAppender
-{
-public:
-    ISrsHttpResponseAppender();
-    virtual ~ISrsHttpResponseAppender();
-public:
-    /**
-    * append specified size of bytes data to reader.
-    * when we read http message from socket, we maybe read header+body, 
-    * so the reader should provides stream cache feature.
-    */
-    virtual int append(char* data, int size) = 0;
-};
-
 // Objects implementing the Handler interface can be
 // registered to serve a particular path or subtree
 // in the HTTP server.
@@ -406,7 +389,6 @@ public:
 * response reader use st socket.
 */
 class SrsHttpResponseReader : virtual public ISrsHttpResponseReader
-    , virtual public ISrsHttpResponseAppender
 {
 private:
     SrsStSocket* skt;
@@ -416,8 +398,19 @@ public:
     SrsHttpResponseReader(SrsHttpMessage* msg, SrsStSocket* io);
     virtual ~SrsHttpResponseReader();
 public:
-    virtual int read(int max, std::string& data);
+    /**
+    * whether the cache is empty.
+    */
+    virtual bool empty();
+    /**
+    * append specified size of bytes data to reader.
+    * when we read http message from socket, we maybe read header+body, 
+    * so the reader should provides stream cache feature.
+    */
     virtual int append(char* data, int size);
+// interface ISrsHttpResponseReader
+public:
+    virtual int read(int max, std::string& data);
 };
 
 // for http header.
@@ -464,7 +457,12 @@ public:
     SrsHttpMessage(SrsStSocket* io);
     virtual ~SrsHttpMessage();
 public:
-    virtual int initialize();
+    /**
+    * set the original messages, then initialize the message.
+    */
+    virtual int initialize(std::string url, http_parser* header, 
+        std::string body, std::vector<SrsHttpHeaderField>& headers
+    );
 public:
     virtual char* http_ts_send_buffer();
 public:
@@ -480,8 +478,6 @@ public:
     virtual std::string url();
     virtual std::string host();
     virtual std::string path();
-public:
-    virtual void set(std::string url, http_parser* header, std::string body, std::vector<SrsHttpHeaderField>& headers);
 public:
     virtual int body_read_all(std::string body);
     virtual int64_t content_length();
