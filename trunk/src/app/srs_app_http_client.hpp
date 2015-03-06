@@ -57,10 +57,9 @@ public:
     /**
     * to post data to the uri.
     * @param req the data post to uri. empty string to ignore.
-    * @param status_code the output status code response by server.
-    * @param res output the response data from server.
+    * @param ppmsg output the http message to read the response.
     */
-    virtual int post(SrsHttpUri* uri, std::string req, int& status_code, std::string& res);
+    virtual int post(SrsHttpUri* uri, std::string req, SrsHttpMessage** ppmsg);
     /**
     * to get data from the uri.
     * @param req the data post to uri. empty string to ignore.

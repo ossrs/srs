@@ -1181,22 +1181,8 @@ int SrsHttpMessage::body_read_all(string& body)
 {
     int ret = ERROR_SUCCESS;
     
-    // chunked, always read with
-    if (chunked) {
-        return _body->read(body);
-    }
-    
-    int content_length = (int)(int64_t)_header.content_length;
-    
-    // ignore if not set, should be zero length body.
-    if (content_length <= 0) {
-        srs_info("unspecified content-length with body empty.");
-        return ret;
-    }
-    
-    // when content length specified, read specified length.
-    int expect = content_length + (int)body.length();
-    while ((int)body.length() < expect) {
+    // whatever, read util EOF.
+    while (!_body->eof()) {
         if ((ret = _body->read(body)) != ERROR_SUCCESS) {
             return ret;
         }

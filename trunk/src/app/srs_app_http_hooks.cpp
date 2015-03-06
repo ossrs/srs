@@ -35,6 +35,7 @@ using namespace std;
 #include <srs_app_json.hpp>
 #include <srs_app_dvr.hpp>
 #include <srs_app_http_client.hpp>
+#include <srs_core_autofree.hpp>
 
 #define SRS_HTTP_RESPONSE_OK    __SRS_XSTR(ERROR_SUCCESS)
 
@@ -53,13 +54,6 @@ int SrsHttpHooks::on_connect(string url, int client_id, string ip, SrsRequest* r
 {
     int ret = ERROR_SUCCESS;
     
-    SrsHttpUri uri;
-    if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
-        srs_error("http uri parse on_connect url failed. "
-            "client_id=%d, url=%s, ret=%d", client_id, url.c_str(), ret);
-        return ret;
-    }
-    
     std::stringstream ss;
     ss << __SRS_JOBJECT_START
         << __SRS_JFIELD_STR("action", "on_connect") << __SRS_JFIELD_CONT
@@ -70,31 +64,14 @@ int SrsHttpHooks::on_connect(string url, int client_id, string ip, SrsRequest* r
         << __SRS_JFIELD_STR("tcUrl", req->tcUrl) << __SRS_JFIELD_CONT
         << __SRS_JFIELD_STR("pageUrl", req->pageUrl)
         << __SRS_JOBJECT_END;
+        
     std::string data = ss.str();
     std::string res;
     int status_code;
-    
-    SrsHttpClient http;
-    if ((ret = http.post(&uri, data, status_code, res)) != ERROR_SUCCESS) {
+    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_error("http post on_connect uri failed. "
-            "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-            client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-        return ret;
-    }
-    
-    // ensure the http status is ok.
-    // https://github.com/winlinvip/simple-rtmp-server/issues/158
-    if (status_code != SRS_CONSTS_HTTP_OK) {
-        ret = ERROR_HTTP_STATUS_INVLIAD;
-        srs_error("http hook on_connect status failed. "
-            "client_id=%d, code=%d, ret=%d", client_id, status_code, ret);
-        return ret;
-    }
-    
-    if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
-        ret = ERROR_HTTP_DATA_INVLIAD;
-        srs_error("http hook on_connect validate failed. "
-            "client_id=%d, res=%s, ret=%d", client_id, res.c_str(), ret);
+            "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
+            client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return ret;
     }
     
@@ -109,13 +86,6 @@ void SrsHttpHooks::on_close(string url, int client_id, string ip, SrsRequest* re
 {
     int ret = ERROR_SUCCESS;
     
-    SrsHttpUri uri;
-    if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
-        srs_warn("http uri parse on_close url failed, ignored. "
-            "client_id=%d, url=%s, ret=%d", client_id, url.c_str(), ret);
-        return;
-    }
-    
     std::stringstream ss;
     ss << __SRS_JOBJECT_START
         << __SRS_JFIELD_STR("action", "on_close") << __SRS_JFIELD_CONT
@@ -124,31 +94,14 @@ void SrsHttpHooks::on_close(string url, int client_id, string ip, SrsRequest* re
         << __SRS_JFIELD_STR("vhost", req->vhost) << __SRS_JFIELD_CONT
         << __SRS_JFIELD_STR("app", req->app)
         << __SRS_JOBJECT_END;
+        
     std::string data = ss.str();
     std::string res;
     int status_code;
-    
-    SrsHttpClient http;
-    if ((ret = http.post(&uri, data, status_code, res)) != ERROR_SUCCESS) {
+    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_warn("http post on_close uri failed, ignored. "
-            "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-            client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-        return;
-    }
-    
-    // ensure the http status is ok.
-    // https://github.com/winlinvip/simple-rtmp-server/issues/158
-    if (status_code != SRS_CONSTS_HTTP_OK) {
-        ret = ERROR_HTTP_STATUS_INVLIAD;
-        srs_error("http hook on_close status failed. "
-            "client_id=%d, code=%d, ret=%d", client_id, status_code, ret);
-        return;
-    }
-    
-    if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
-        ret = ERROR_HTTP_DATA_INVLIAD;
-        srs_warn("http hook on_close validate failed, ignored. "
-            "client_id=%d, res=%s, ret=%d", client_id, res.c_str(), ret);
+            "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
+            client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return;
     }
     
@@ -163,13 +116,6 @@ int SrsHttpHooks::on_publish(string url, int client_id, string ip, SrsRequest* r
 {
     int ret = ERROR_SUCCESS;
     
-    SrsHttpUri uri;
-    if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
-        srs_error("http uri parse on_publish url failed. "
-            "client_id=%d, url=%s, ret=%d", client_id, url.c_str(), ret);
-        return ret;
-    }
-    
     std::stringstream ss;
     ss << __SRS_JOBJECT_START
         << __SRS_JFIELD_STR("action", "on_publish") << __SRS_JFIELD_CONT
@@ -179,31 +125,14 @@ int SrsHttpHooks::on_publish(string url, int client_id, string ip, SrsRequest* r
         << __SRS_JFIELD_STR("app", req->app) << __SRS_JFIELD_CONT
         << __SRS_JFIELD_STR("stream", req->stream)
         << __SRS_JOBJECT_END;
+        
     std::string data = ss.str();
     std::string res;
     int status_code;
-    
-    SrsHttpClient http;
-    if ((ret = http.post(&uri, data, status_code, res)) != ERROR_SUCCESS) {
+    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_error("http post on_publish uri failed. "
-            "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-            client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-        return ret;
-    }
-    
-    // ensure the http status is ok.
-    // https://github.com/winlinvip/simple-rtmp-server/issues/158
-    if (status_code != SRS_CONSTS_HTTP_OK) {
-        ret = ERROR_HTTP_STATUS_INVLIAD;
-        srs_error("http hook on_publish status failed. "
-            "client_id=%d, code=%d, ret=%d", client_id, status_code, ret);
-        return ret;
-    }
-    
-    if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
-        ret = ERROR_HTTP_DATA_INVLIAD;
-        srs_error("http hook on_publish validate failed. "
-            "client_id=%d, res=%s, ret=%d", client_id, res.c_str(), ret);
+            "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
+            client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return ret;
     }
     
@@ -218,13 +147,6 @@ void SrsHttpHooks::on_unpublish(string url, int client_id, string ip, SrsRequest
 {
     int ret = ERROR_SUCCESS;
     
-    SrsHttpUri uri;
-    if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
-        srs_warn("http uri parse on_unpublish url failed, ignored. "
-            "client_id=%d, url=%s, ret=%d", client_id, url.c_str(), ret);
-        return;
-    }
-    
     std::stringstream ss;
     ss << __SRS_JOBJECT_START
         << __SRS_JFIELD_STR("action", "on_unpublish") << __SRS_JFIELD_CONT
@@ -234,31 +156,14 @@ void SrsHttpHooks::on_unpublish(string url, int client_id, string ip, SrsRequest
         << __SRS_JFIELD_STR("app", req->app) << __SRS_JFIELD_CONT
         << __SRS_JFIELD_STR("stream", req->stream)
         << __SRS_JOBJECT_END;
+        
     std::string data = ss.str();
     std::string res;
     int status_code;
-    
-    SrsHttpClient http;
-    if ((ret = http.post(&uri, data, status_code, res)) != ERROR_SUCCESS) {
+    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_warn("http post on_unpublish uri failed, ignored. "
-            "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-            client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-        return;
-    }
-    
-    // ensure the http status is ok.
-    // https://github.com/winlinvip/simple-rtmp-server/issues/158
-    if (status_code != SRS_CONSTS_HTTP_OK) {
-        ret = ERROR_HTTP_STATUS_INVLIAD;
-        srs_error("http hook on_unpublish status failed. "
-            "client_id=%d, code=%d, ret=%d", client_id, status_code, ret);
-        return;
-    }
-    
-    if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
-        ret = ERROR_HTTP_DATA_INVLIAD;
-        srs_warn("http hook on_unpublish validate failed, ignored. "
-            "client_id=%d, res=%s, ret=%d", client_id, res.c_str(), ret);
+            "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
+            client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return;
     }
     
@@ -273,13 +178,6 @@ int SrsHttpHooks::on_play(string url, int client_id, string ip, SrsRequest* req)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsHttpUri uri;
-    if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
-        srs_error("http uri parse on_play url failed. "
-            "client_id=%d, url=%s, ret=%d", client_id, url.c_str(), ret);
-        return ret;
-    }
-    
     std::stringstream ss;
     ss << __SRS_JOBJECT_START
         << __SRS_JFIELD_STR("action", "on_play") << __SRS_JFIELD_CONT
@@ -289,31 +187,14 @@ int SrsHttpHooks::on_play(string url, int client_id, string ip, SrsRequest* req)
         << __SRS_JFIELD_STR("app", req->app) << __SRS_JFIELD_CONT
         << __SRS_JFIELD_STR("stream", req->stream)
         << __SRS_JOBJECT_END;
+        
     std::string data = ss.str();
     std::string res;
     int status_code;
-    
-    SrsHttpClient http;
-    if ((ret = http.post(&uri, data, status_code, res)) != ERROR_SUCCESS) {
+    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_error("http post on_play uri failed. "
-            "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-            client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-        return ret;
-    }
-    
-    // ensure the http status is ok.
-    // https://github.com/winlinvip/simple-rtmp-server/issues/158
-    if (status_code != SRS_CONSTS_HTTP_OK) {
-        ret = ERROR_HTTP_STATUS_INVLIAD;
-        srs_error("http hook on_play status failed. "
-            "client_id=%d, code=%d, ret=%d", client_id, status_code, ret);
-        return ret;
-    }
-    
-    if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
-        ret = ERROR_HTTP_DATA_INVLIAD;
-        srs_error("http hook on_play validate failed. "
-            "client_id=%d, res=%s, ret=%d", client_id, res.c_str(), ret);
+            "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
+            client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return ret;
     }
     
@@ -328,13 +209,6 @@ void SrsHttpHooks::on_stop(string url, int client_id, string ip, SrsRequest* req
 {
     int ret = ERROR_SUCCESS;
     
-    SrsHttpUri uri;
-    if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
-        srs_warn("http uri parse on_stop url failed, ignored. "
-            "client_id=%d, url=%s, ret=%d", client_id, url.c_str(), ret);
-        return;
-    }
-    
     std::stringstream ss;
     ss << __SRS_JOBJECT_START
         << __SRS_JFIELD_STR("action", "on_stop") << __SRS_JFIELD_CONT
@@ -344,31 +218,14 @@ void SrsHttpHooks::on_stop(string url, int client_id, string ip, SrsRequest* req
         << __SRS_JFIELD_STR("app", req->app) << __SRS_JFIELD_CONT
         << __SRS_JFIELD_STR("stream", req->stream)
         << __SRS_JOBJECT_END;
+        
     std::string data = ss.str();
     std::string res;
     int status_code;
-    
-    SrsHttpClient http;
-    if ((ret = http.post(&uri, data, status_code, res)) != ERROR_SUCCESS) {
+    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_warn("http post on_stop uri failed, ignored. "
-            "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-            client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-        return;
-    }
-    
-    // ensure the http status is ok.
-    // https://github.com/winlinvip/simple-rtmp-server/issues/158
-    if (status_code != SRS_CONSTS_HTTP_OK) {
-        ret = ERROR_HTTP_STATUS_INVLIAD;
-        srs_error("http hook on_stop status failed. "
-            "client_id=%d, code=%d, ret=%d", client_id, status_code, ret);
-        return;
-    }
-    
-    if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
-        ret = ERROR_HTTP_DATA_INVLIAD;
-        srs_warn("http hook on_stop validate failed, ignored. "
-            "client_id=%d, res=%s, ret=%d", client_id, res.c_str(), ret);
+            "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
+            client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return;
     }
     
@@ -383,13 +240,6 @@ int SrsHttpHooks::on_dvr(string url, int client_id, string ip, SrsRequest* req, 
 {
     int ret = ERROR_SUCCESS;
     
-    SrsHttpUri uri;
-    if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
-        srs_error("http uri parse on_dvr url failed, ignored. "
-            "client_id=%d, url=%s, ret=%d", client_id, url.c_str(), ret);
-        return ret;
-    }
-    
     std::stringstream ss;
     ss << __SRS_JOBJECT_START
         << __SRS_JFIELD_STR("action", "on_dvr") << __SRS_JFIELD_CONT
@@ -401,31 +251,14 @@ int SrsHttpHooks::on_dvr(string url, int client_id, string ip, SrsRequest* req, 
         << __SRS_JFIELD_STR("cwd", cwd) << __SRS_JFIELD_CONT
         << __SRS_JFIELD_STR("file", file)
         << __SRS_JOBJECT_END;
+        
     std::string data = ss.str();
     std::string res;
     int status_code;
-    
-    SrsHttpClient http;
-    if ((ret = http.post(&uri, data, status_code, res)) != ERROR_SUCCESS) {
+    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_error("http post on_dvr uri failed, ignored. "
-            "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-            client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-        return ret;
-    }
-    
-    // ensure the http status is ok.
-    // https://github.com/winlinvip/simple-rtmp-server/issues/158
-    if (status_code != SRS_CONSTS_HTTP_OK) {
-        ret = ERROR_HTTP_STATUS_INVLIAD;
-        srs_error("http hook on_dvr status failed. "
-            "client_id=%d, code=%d, ret=%d", client_id, status_code, ret);
-        return ret;
-    }
-    
-    if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
-        ret = ERROR_HTTP_DATA_INVLIAD;
-        srs_warn("http hook on_dvr validate failed, ignored. "
-            "client_id=%d, res=%s, ret=%d", client_id, res.c_str(), ret);
+            "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
+            client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return ret;
     }
     
@@ -440,13 +273,6 @@ int SrsHttpHooks::on_dvr_reap_segment(string url, int client_id, SrsRequest* req
 {
     int ret = ERROR_SUCCESS;
     
-    SrsHttpUri uri;
-    if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
-        srs_error("http uri parse on_dvr_reap_segment url failed, ignored. "
-            "client_id=%d, url=%s, ret=%d", client_id, url.c_str(), ret);
-        return ret;
-    }
-    
     std::stringstream ss;
     ss << __SRS_JOBJECT_START
         << __SRS_JFIELD_STR("action", "on_dvr_reap_segment") << __SRS_JFIELD_CONT
@@ -457,31 +283,14 @@ int SrsHttpHooks::on_dvr_reap_segment(string url, int client_id, SrsRequest* req
         << __SRS_JFIELD_STR("cwd", cwd) << __SRS_JFIELD_CONT
         << __SRS_JFIELD_STR("file", file)
         << __SRS_JOBJECT_END;
+        
     std::string data = ss.str();
     std::string res;
     int status_code;
-    
-    SrsHttpClient http;
-    if ((ret = http.post(&uri, data, status_code, res)) != ERROR_SUCCESS) {
+    if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
         srs_error("http post on_dvr_reap_segment uri failed, ignored. "
-            "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
-            client_id, url.c_str(), data.c_str(), res.c_str(), ret);
-        return ret;
-    }
-    
-    // ensure the http status is ok.
-    // https://github.com/winlinvip/simple-rtmp-server/issues/158
-    if (status_code != SRS_CONSTS_HTTP_OK) {
-        ret = ERROR_HTTP_STATUS_INVLIAD;
-        srs_error("http hook on_dvr_reap_segment status failed. "
-            "client_id=%d, code=%d, ret=%d", client_id, status_code, ret);
-        return ret;
-    }
-    
-    if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
-        ret = ERROR_HTTP_DATA_INVLIAD;
-        srs_warn("http hook on_dvr_reap_segment validate failed, ignored. "
-            "client_id=%d, res=%s, ret=%d", client_id, res.c_str(), ret);
+            "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
+            client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return ret;
     }
     
@@ -489,6 +298,42 @@ int SrsHttpHooks::on_dvr_reap_segment(string url, int client_id, SrsRequest* req
         "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
         client_id, url.c_str(), data.c_str(), res.c_str(), ret);
     
+    return ret;
+}
+
+int SrsHttpHooks::do_post(std::string url, std::string req, int& code, string& res)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsHttpUri uri;
+    if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
+        srs_error("http: post failed. url=%s, ret=%d", url.c_str(), ret);
+        return ret;
+    }
+    
+    SrsHttpClient http;
+    SrsHttpMessage* msg = NULL;
+    if ((ret = http.post(&uri, req, &msg)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    SrsAutoFree(SrsHttpMessage, msg);
+    
+    code = msg->status_code();
+    if ((ret = msg->body_read_all(res)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // ensure the http status is ok.
+    // https://github.com/winlinvip/simple-rtmp-server/issues/158
+    if (code != SRS_CONSTS_HTTP_OK) {
+        return ERROR_HTTP_STATUS_INVLIAD;
+    }
+    
+    // TODO: FIXME: parse json.
+    if (res.empty() || res != SRS_HTTP_RESPONSE_OK) {
+        return ERROR_HTTP_DATA_INVLIAD;
+    }
+
     return ret;
 }
 

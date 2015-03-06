@@ -54,9 +54,9 @@ SrsHttpClient::~SrsHttpClient()
     srs_freep(parser);
 }
 
-int SrsHttpClient::post(SrsHttpUri* uri, string req, int& status_code, string& res)
+int SrsHttpClient::post(SrsHttpUri* uri, string req, SrsHttpMessage** ppmsg)
 {
-    res = "";
+    *ppmsg = NULL;
     
     int ret = ERROR_SUCCESS;
     
@@ -103,16 +103,7 @@ int SrsHttpClient::post(SrsHttpUri* uri, string req, int& status_code, string& r
     }
 
     srs_assert(msg);
-    
-    // always free it in this scope.
-    SrsAutoFree(SrsHttpMessage, msg);
-    
-    status_code = (int)msg->status_code();
-    
-    // get response body.
-    if ((ret = msg->body_read_all(res)) != ERROR_SUCCESS) {
-        return ret;
-    }
+    *ppmsg = msg;
     srs_info("parse http post response success.");
     
     return ret;
