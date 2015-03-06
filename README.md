@@ -522,7 +522,6 @@ Supported operating systems and hardware:
 1. [no-plan] Support encryption: RTMPE/RTMPS, HLS DRM
 1. [no-plan] Support RTMPT, http to tranverse firewalls
 1. [no-plan] Support file source, transcoding file to live stream
-1. [no-plan] Support RTP/RTSP server.
 
 ## Releases
 * 2015-02-12, [Release v1.0r2](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0r2), bug fixed, 1.0.27, 59507 lines.<br/>
