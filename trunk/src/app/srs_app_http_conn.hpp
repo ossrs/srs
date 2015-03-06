@@ -252,8 +252,10 @@ private:
 */
 struct SrsLiveEntry
 {
-    std::string vhost;
+    // for template, the mount contains variables.
+    // for concrete stream, the mount is url to access.
     std::string mount;
+    
     SrsLiveStream* stream;
     SrsStreamCache* cache;
     
@@ -297,7 +299,8 @@ public:
 */
 struct SrsHlsEntry
 {
-    std::string vhost;
+    // for template, the mount contains variables.
+    // for concrete stream, the mount is url to access.
     std::string mount;
 
     // key: the m3u8/ts file path.
@@ -315,10 +318,14 @@ class SrsHttpServer : public ISrsReloadHandler
 {
 public:
     SrsHttpServeMux mux;
-    // the flv live streaming template.
-    std::map<std::string, SrsLiveEntry*> flvs;
-    // the hls live streaming template.
-    std::map<std::string, SrsHlsEntry*> hls;
+    // the flv live streaming template, to create streams.
+    std::map<std::string, SrsLiveEntry*> tflvs;
+    // the flv live streaming streams, crote by template.
+    std::map<std::string, SrsLiveEntry*> sflvs;
+    // the hls live streaming template, to create streams.
+    std::map<std::string, SrsHlsEntry*> thls;
+    // the hls live streaming streams, crote by template.
+    std::map<std::string, SrsHlsEntry*> shls;
 public:
     SrsHttpServer();
     virtual ~SrsHttpServer();

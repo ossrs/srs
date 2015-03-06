@@ -551,6 +551,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-03-06, for [#322](https://github.com/winlinvip/simple-rtmp-server/issues/322), fix http-flv stream bug, support multiple streams. 2.0.133.
 * v2.0, 2015-03-06, refine http request parse. 2.0.132.
 * v2.0, 2015-03-01, for [#179](https://github.com/winlinvip/simple-rtmp-server/issues/179), revert dvr http api. 2.0.128.
 * v2.0, 2015-02-24, for [#304](https://github.com/winlinvip/simple-rtmp-server/issues/304), fix hls bug, write pts/dts error. 2.0.124
