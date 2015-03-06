@@ -312,8 +312,12 @@ int SrsHttpHooks::do_post(std::string url, std::string req, int& code, string& r
     }
     
     SrsHttpClient http;
+    if ((ret = http.initialize(uri.get_host(), uri.get_port())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     SrsHttpMessage* msg = NULL;
-    if ((ret = http.post(&uri, req, &msg)) != ERROR_SUCCESS) {
+    if ((ret = http.post(uri.get_path(), req, &msg)) != ERROR_SUCCESS) {
         return ret;
     }
     SrsAutoFree(SrsHttpMessage, msg);

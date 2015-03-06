@@ -50,25 +50,36 @@ private:
     st_netfd_t stfd;
     SrsStSocket* skt;
     SrsHttpParser* parser;
+private:
+    // host name or ip.
+    std::string host;
+    int port;
 public:
     SrsHttpClient();
     virtual ~SrsHttpClient();
 public:
     /**
+    * initialize the client, connect to host and port.
+    */
+    virtual int initialize(std::string h, int p);
+public:
+    /**
     * to post data to the uri.
+    * @param the path to request on.
     * @param req the data post to uri. empty string to ignore.
     * @param ppmsg output the http message to read the response.
     */
-    virtual int post(SrsHttpUri* uri, std::string req, SrsHttpMessage** ppmsg);
+    virtual int post(std::string path, std::string req, SrsHttpMessage** ppmsg);
     /**
     * to get data from the uri.
+    * @param the path to request on.
     * @param req the data post to uri. empty string to ignore.
     * @param ppmsg output the http message to read the response.
     */
-    virtual int get(SrsHttpUri* uri, std::string req, SrsHttpMessage** ppmsg);
+    virtual int get(std::string path, std::string req, SrsHttpMessage** ppmsg);
 private:
     virtual void disconnect();
-    virtual int connect(SrsHttpUri* uri);
+    virtual int connect();
 };
 
 #endif

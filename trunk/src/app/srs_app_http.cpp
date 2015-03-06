@@ -1042,18 +1042,6 @@ int SrsHttpMessage::update(string url, http_parser* header, SrsFastBuffer* body,
     
     // parse uri to schema/server:port/path?query
     std::string uri = "http://" + host + _url;
-    
-    return update(uri);
-}
-
-int SrsHttpMessage::update(string uri)
-{
-    int ret = ERROR_SUCCESS;
-    
-    if (uri.empty()) {
-        return ret;
-    }
-    
     if ((ret = _uri->initialize(uri)) != ERROR_SUCCESS) {
         return ret;
     }

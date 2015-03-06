@@ -473,11 +473,6 @@ public:
     virtual int update(std::string url, http_parser* header, 
         SrsFastBuffer* body, std::vector<SrsHttpHeaderField>& headers
     );
-    /**
-    * update the request with uri.
-    * @remark user can invoke this multiple times.
-    */
-    virtual int update(std::string uri);
 public:
     virtual char* http_ts_send_buffer();
 public:

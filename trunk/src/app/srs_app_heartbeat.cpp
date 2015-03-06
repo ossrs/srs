@@ -75,13 +75,18 @@ void SrsHttpHeartbeat::heartbeat()
     }
     ss << __SRS_JOBJECT_END;
     
-    std::string data = ss.str();
+    std::string req = ss.str();
+    
     SrsHttpClient http;
+    if ((ret = http.initialize(uri.get_host(), uri.get_port())) != ERROR_SUCCESS) {
+        return;
+    }
+    
     SrsHttpMessage* msg = NULL;
-    if ((ret = http.post(&uri, data, &msg)) != ERROR_SUCCESS) {
+    if ((ret = http.post(uri.get_path(), req, &msg)) != ERROR_SUCCESS) {
         srs_info("http post hartbeart uri failed. "
             "url=%s, request=%s, response=%s, ret=%d",
-            url.c_str(), data.c_str(), res.c_str(), ret);
+            url.c_str(), req.c_str(), res.c_str(), ret);
         return;
     }
     SrsAutoFree(SrsHttpMessage, msg);
@@ -93,7 +98,7 @@ void SrsHttpHeartbeat::heartbeat()
     
     srs_info("http hook hartbeart success. "
         "url=%s, request=%s, status_code=%d, response=%s, ret=%d",
-        url.c_str(), data.c_str(), status_code, res.c_str(), ret);
+        url.c_str(), req.c_str(), status_code, res.c_str(), ret);
     
     return;
 }

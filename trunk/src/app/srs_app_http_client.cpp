@@ -44,8 +44,8 @@ SrsHttpClient::SrsHttpClient()
 {
     connected = false;
     stfd = NULL;
-    parser = NULL;
     skt = NULL;
+    parser = NULL;
 }
 
 SrsHttpClient::~SrsHttpClient()
@@ -54,22 +54,31 @@ SrsHttpClient::~SrsHttpClient()
     srs_freep(parser);
 }
 
-int SrsHttpClient::post(SrsHttpUri* uri, string req, SrsHttpMessage** ppmsg)
+int SrsHttpClient::initialize(string h, int p)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_freep(parser);
+    parser = new SrsHttpParser();
+    
+    if ((ret = parser->initialize(HTTP_RESPONSE)) != ERROR_SUCCESS) {
+        srs_error("initialize parser failed. ret=%d", ret);
+        return ret;
+    }
+    
+    host = h;
+    port = p;
+    
+    return ret;
+}
+
+int SrsHttpClient::post(string path, string req, SrsHttpMessage** ppmsg)
 {
     *ppmsg = NULL;
     
     int ret = ERROR_SUCCESS;
     
-    if (!parser) {
-        parser = new SrsHttpParser();
-        
-        if ((ret = parser->initialize(HTTP_RESPONSE)) != ERROR_SUCCESS) {
-            srs_error("initialize parser failed. ret=%d", ret);
-            return ret;
-        }
-    }
-    
-    if ((ret = connect(uri)) != ERROR_SUCCESS) {
+    if ((ret = connect()) != ERROR_SUCCESS) {
         srs_warn("http connect server failed. ret=%d", ret);
         return ret;
     }
@@ -77,9 +86,9 @@ int SrsHttpClient::post(SrsHttpUri* uri, string req, SrsHttpMessage** ppmsg)
     // send POST request to uri
     // POST %s HTTP/1.1\r\nHost: %s\r\nContent-Length: %d\r\n\r\n%s
     std::stringstream ss;
-    ss << "POST " << uri->get_path() << " "
+    ss << "POST " << path << " "
         << "HTTP/1.1" << __SRS_HTTP_CRLF
-        << "Host: " << uri->get_host() << __SRS_HTTP_CRLF
+        << "Host: " << host << __SRS_HTTP_CRLF
         << "Connection: Keep-Alive" << __SRS_HTTP_CRLF
         << "Content-Length: " << std::dec << req.length() << __SRS_HTTP_CRLF
         << "User-Agent: " << RTMP_SIG_SRS_NAME << RTMP_SIG_SRS_VERSION << __SRS_HTTP_CRLF
@@ -109,22 +118,13 @@ int SrsHttpClient::post(SrsHttpUri* uri, string req, SrsHttpMessage** ppmsg)
     return ret;
 }
 
-int SrsHttpClient::get(SrsHttpUri* uri, std::string req, SrsHttpMessage** ppmsg)
+int SrsHttpClient::get(string path, std::string req, SrsHttpMessage** ppmsg)
 {
     *ppmsg = NULL;
 
     int ret = ERROR_SUCCESS;
 
-    if (!parser) {
-        parser = new SrsHttpParser();
-
-        if ((ret = parser->initialize(HTTP_RESPONSE)) != ERROR_SUCCESS) {
-            srs_error("initialize parser failed. ret=%d", ret);
-            return ret;
-        }
-    }
-
-    if ((ret = connect(uri)) != ERROR_SUCCESS) {
+    if ((ret = connect()) != ERROR_SUCCESS) {
         srs_warn("http connect server failed. ret=%d", ret);
         return ret;
     }
@@ -132,9 +132,9 @@ int SrsHttpClient::get(SrsHttpUri* uri, std::string req, SrsHttpMessage** ppmsg)
     // send POST request to uri
     // GET %s HTTP/1.1\r\nHost: %s\r\nContent-Length: %d\r\n\r\n%s
     std::stringstream ss;
-    ss << "GET " << uri->get_path() << " "
+    ss << "GET " << path << " "
         << "HTTP/1.1" << __SRS_HTTP_CRLF
-        << "Host: " << uri->get_host() << __SRS_HTTP_CRLF
+        << "Host: " << host << __SRS_HTTP_CRLF
         << "Connection: Keep-Alive" << __SRS_HTTP_CRLF
         << "Content-Length: " << std::dec << req.length() << __SRS_HTTP_CRLF
         << "User-Agent: " << RTMP_SIG_SRS_NAME << RTMP_SIG_SRS_VERSION << __SRS_HTTP_CRLF
@@ -157,12 +157,6 @@ int SrsHttpClient::get(SrsHttpUri* uri, std::string req, SrsHttpMessage** ppmsg)
         return ret;
     }
     srs_assert(msg);
-    
-    // for GET, server response no uri, we update with request uri.
-    if ((ret = msg->update(uri->get_url())) != ERROR_SUCCESS) {
-        srs_freep(msg);
-        return ret;
-    }
 
     *ppmsg = msg;
     srs_info("parse http get response success.");
@@ -178,7 +172,7 @@ void SrsHttpClient::disconnect()
     srs_freep(skt);
 }
 
-int SrsHttpClient::connect(SrsHttpUri* uri)
+int SrsHttpClient::connect()
 {
     int ret = ERROR_SUCCESS;
     
@@ -188,18 +182,14 @@ int SrsHttpClient::connect(SrsHttpUri* uri)
     
     disconnect();
     
-    std::string server = uri->get_host();
-    int port = uri->get_port();
-    
     // open socket.
     int64_t timeout = SRS_HTTP_CLIENT_SLEEP_US;
-    if ((ret = srs_socket_connect(server, port, timeout, &stfd)) != ERROR_SUCCESS) {
+    if ((ret = srs_socket_connect(host, port, timeout, &stfd)) != ERROR_SUCCESS) {
         srs_warn("http client failed, server=%s, port=%d, timeout=%"PRId64", ret=%d",
-            server.c_str(), port, timeout, ret);
+            host.c_str(), port, timeout, ret);
         return ret;
     }
-    srs_info("connect to server success. http url=%s, server=%s, port=%d", 
-        uri->get_url(), uri->get_host(), uri->get_port());
+    srs_info("connect to server success. server=%s, port=%d", host, port);
     
     srs_assert(!skt);
     skt = new SrsStSocket(stfd);
