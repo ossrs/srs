@@ -483,20 +483,43 @@ public:
 public:
     virtual u_int8_t method();
     virtual u_int16_t status_code();
+    /**
+    * method helpers.
+    */
     virtual std::string method_str();
     virtual bool is_http_get();
     virtual bool is_http_put();
     virtual bool is_http_post();
     virtual bool is_http_delete();
     virtual bool is_http_options();
+    /**
+    * whether body is chunked encoding, for reader only.
+    */
     virtual bool is_chunked();
+    /**
+    * the uri contains the host and path.
+    */
     virtual std::string uri();
+    /**
+    * the url maybe the path.
+    */
     virtual std::string url();
     virtual std::string host();
     virtual std::string path();
 public:
+    /**
+    * read body to string.
+    * @remark for small http body.
+    */
     virtual int body_read_all(std::string& body);
+    /**
+    * get the body reader, to read one by one.
+    * @remark when body is very large, or chunked, use this.
+    */
     virtual ISrsHttpResponseReader* body_reader();
+    /**
+    * the content length, -1 for chunked or not set.
+    */
     virtual int64_t content_length();
     /**
     * get the param in query string,
@@ -504,6 +527,9 @@ public:
     * then query_get("start") is "100", and query_get("end") is "200"
     */
     virtual std::string query_get(std::string key);
+    /**
+    * get the headers.
+    */
     virtual int request_header_count();
     virtual std::string request_header_key_at(int index);
     virtual std::string request_header_value_at(int index);
