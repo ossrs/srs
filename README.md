@@ -550,7 +550,8 @@ Supported operating systems and hardware:
 ## History
 
 ### SRS 2.0 history
-.
+
+* v2.0, 2015-03-06, refine http request parse. 2.0.132.
 * v2.0, 2015-03-01, for [#179](https://github.com/winlinvip/simple-rtmp-server/issues/179), revert dvr http api. 2.0.128.
 * v2.0, 2015-02-24, for [#304](https://github.com/winlinvip/simple-rtmp-server/issues/304), fix hls bug, write pts/dts error. 2.0.124
 * v2.0, 2015-02-19, refine dvr, append file when dvr file exists. 2.0.122.

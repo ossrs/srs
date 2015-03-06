@@ -86,6 +86,16 @@ public:
     virtual ~SrsFastBuffer();
 public:
     /**
+    * get the size of current bytes in buffer.
+    */
+    virtual int size();
+    /**
+    * get the current bytes in buffer.
+    * @remark user should use read_slice() if possible, 
+    *       the bytes() is used to test bytes, for example, to detect the bytes schema.
+    */
+    virtual char* bytes();
+    /**
     * create buffer with specifeid size.
     * @param buffer the size of buffer.
     * @remark when MR(SRS_PERF_MERGED_READ) disabled, always set to 8K.
@@ -110,6 +120,8 @@ public:
     * skip some bytes in buffer.
     * @param size the bytes to skip. positive to next; negative to previous.
     * @remark assert buffer already grow(size).
+    * @remark always use read_slice to consume bytes, which will reset for EOF.
+    *       while skip never consume bytes.
     */
     virtual void skip(int size);
 public:

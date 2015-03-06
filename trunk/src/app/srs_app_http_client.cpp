@@ -165,8 +165,14 @@ int SrsHttpClient::get(SrsHttpUri* uri, std::string req, SrsHttpMessage** ppmsg)
         srs_error("parse http post response failed. ret=%d", ret);
         return ret;
     }
-
     srs_assert(msg);
+    
+    // for GET, server response no uri, we update with request uri.
+    if ((ret = msg->update(uri->get_url())) != ERROR_SUCCESS) {
+        srs_freep(msg);
+        return ret;
+    }
+
     *ppmsg = msg;
     srs_info("parse http get response success.");
 

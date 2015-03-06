@@ -39,6 +39,7 @@ using namespace std;
 #include <srs_rtmp_buffer.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_rtmp_buffer.hpp>
 
 #define SRS_DEFAULT_HTTP_PORT 80
 
@@ -846,57 +847,152 @@ SrsHttpResponseReader::SrsHttpResponseReader(SrsHttpMessage* msg, SrsStSocket* i
 {
     skt = io;
     owner = msg;
-    cache = new SrsSimpleBuffer();
+    is_eof = false;
+    nb_read = 0;
+    buffer = NULL;
 }
 
 SrsHttpResponseReader::~SrsHttpResponseReader()
 {
-    srs_freep(cache);
 }
 
-bool SrsHttpResponseReader::empty()
-{
-    return cache->length() == 0;
-}
-
-int SrsHttpResponseReader::append(char* data, int size)
+int SrsHttpResponseReader::initialize(SrsFastBuffer* body)
 {
     int ret = ERROR_SUCCESS;
     
-    cache->append(data, size);
+    buffer = body;
     
     return ret;
 }
 
-int SrsHttpResponseReader::read(int max, std::string& data)
+bool SrsHttpResponseReader::eof()
+{
+    return is_eof;
+}
+
+int SrsHttpResponseReader::read(std::string& data)
 {
     int ret = ERROR_SUCCESS;
     
-    // TODO: FIXME: decode the chunked bytes.
+    if (is_eof) {
+        ret = ERROR_HTTP_RESPONSE_EOF;
+        srs_error("http: response EOF. ret=%d", ret);
+        return ret;
+    }
     
-    // read from cache first.
-    if (cache->length() > 0) {
-        int nb_bytes = srs_min(cache->length(), max);
-        data.append(cache->bytes(), nb_bytes);
-        cache->erase(nb_bytes);
+    // chunked encoding.
+    if (owner->is_chunked()) {
+        return read_chunked(data);
+    }
+    
+    // read by specified content-length
+    int max = (int)owner->content_length() - nb_read;
+    if (max <= 0) {
+        is_eof = true;
+        return ret;
+    }
+    return read_specified(max, data);
+}
+
+int SrsHttpResponseReader::read_chunked(std::string& data)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // parse the chunk length first.
+    char* at = NULL;
+    int length = 0;
+    while (!at) {
+        // find the CRLF of chunk header end.
+        char* start = buffer->bytes();
+        char* end = start + buffer->size();
+        for (char* p = start; p < end - 1; p++) {
+            if (p[0] == __SRS_HTTP_CR && p[1] == __SRS_HTTP_LF) {
+                // invalid chunk, ignore.
+                if (p == start) {
+                    ret = ERROR_HTTP_INVALID_CHUNK_HEADER;
+                    srs_error("chunk header start with CRLF. ret=%d", ret);
+                    return ret;
+                }
+                length = p - start + 2;
+                at = buffer->read_slice(length);
+                break;
+            }
+        }
         
+        // got at, ok.
+        if (at) {
+            break;
+        }
+        
+        // when empty, only grow 1bytes, but the buffer will cache more.
+        if ((ret = buffer->grow(skt, buffer->size() + 1)) != ERROR_SUCCESS) {
+            if (!srs_is_client_gracefully_close(ret)) {
+                srs_error("read body from server failed. ret=%d", ret);
+            }
+            return ret;
+        }
+    }
+    srs_assert(length >= 3);
+    
+    // it's ok to set the pos and pos+1 to NULL.
+    at[length - 1] = NULL;
+    at[length - 2] = NULL;
+    
+    // size is the bytes size, excludes the chunk header and end CRLF.
+    int ilength = ::strtol(at, NULL, 16);
+    if (ilength < 0) {
+        ret = ERROR_HTTP_INVALID_CHUNK_HEADER;
+        srs_error("chunk header negative, length=%d. ret=%d", ilength, ret);
         return ret;
     }
     
-    // read some from underlayer.
-    int left = srs_max(SRS_HTTP_BODY_BUFFER, max);
-    
-    // read from io.
-    char* buf = new char[left];
-    SrsAutoFree(char, buf);
-    
-    ssize_t nread = 0;
-    if ((ret = skt->read(buf, left, &nread)) != ERROR_SUCCESS) {
+    // when empty, only grow 1bytes, but the buffer will cache more.
+    if ((ret = buffer->grow(skt, ilength + 2)) != ERROR_SUCCESS) {
+        if (!srs_is_client_gracefully_close(ret)) {
+            srs_error("read body from server failed. ret=%d", ret);
+        }
         return ret;
     }
+    srs_trace("http: read %d chunk", ilength);
     
-    if (nread) {
-        data.append(buf, nread);
+    // read payload when length specifies some payload.
+    if (ilength <= 0) {
+        is_eof = true;
+    } else {
+        srs_assert(ilength);
+        data.append(buffer->read_slice(ilength), ilength);
+        nb_read += ilength;
+    }
+    
+    // the CRLF of chunk payload end.
+    buffer->read_slice(2);
+
+    return ret;
+}
+
+int SrsHttpResponseReader::read_specified(int max, std::string& data)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (buffer->size() <= 0) {
+        // when empty, only grow 1bytes, but the buffer will cache more.
+        if ((ret = buffer->grow(skt, 1)) != ERROR_SUCCESS) {
+            if (!srs_is_client_gracefully_close(ret)) {
+                srs_error("read body from server failed. ret=%d", ret);
+            }
+            return ret;
+        }
+    }
+    
+    int nb_bytes = srs_min(max, buffer->size());
+    
+    srs_assert(nb_bytes);
+    data.append(buffer->read_slice(nb_bytes), nb_bytes);
+    nb_read += nb_bytes;
+    
+    // when read completed, eof.
+    if (nb_read >= (int)owner->content_length()) {
+        is_eof = true;
     }
     
     return ret;
@@ -917,7 +1013,7 @@ SrsHttpMessage::~SrsHttpMessage()
     srs_freep(_http_ts_send_buffer);
 }
 
-int SrsHttpMessage::initialize(string url, http_parser* header, string body, vector<SrsHttpHeaderField>& headers)
+int SrsHttpMessage::update(string url, http_parser* header, SrsFastBuffer* body, vector<SrsHttpHeaderField>& headers)
 {
     int ret = ERROR_SUCCESS;
 
@@ -928,10 +1024,10 @@ int SrsHttpMessage::initialize(string url, http_parser* header, string body, vec
     // whether chunked.
     std::string transfer_encoding = get_request_header("Transfer-Encoding");
     chunked = (transfer_encoding == "chunked");
-
-    // TODO: FIXME: remove it, use fast buffer instead.
-    if (!body.empty()) {
-        _body->append((char*)body.data(), (int)body.length());
+    
+    // set the buffer.
+    if ((ret = _body->initialize(body)) != ERROR_SUCCESS) {
+        return ret;
     }
     
     // parse uri from url.
@@ -946,6 +1042,18 @@ int SrsHttpMessage::initialize(string url, http_parser* header, string body, vec
     
     // parse uri to schema/server:port/path?query
     std::string uri = "http://" + host + _url;
+    
+    return update(uri);
+}
+
+int SrsHttpMessage::update(string uri)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (uri.empty()) {
+        return ret;
+    }
+    
     if ((ret = _uri->initialize(uri)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -1069,46 +1177,28 @@ string SrsHttpMessage::path()
     return _uri->get_path();
 }
 
-int SrsHttpMessage::body_read_all(string body)
+int SrsHttpMessage::body_read_all(string& body)
 {
     int ret = ERROR_SUCCESS;
     
-    int64_t content_length = (int64_t)_header.content_length;
+    // chunked, always read with
+    if (chunked) {
+        return _body->read(body);
+    }
+    
+    int content_length = (int)(int64_t)_header.content_length;
     
     // ignore if not set, should be zero length body.
-    if (content_length < 0) {
-        if (!_body->empty()) {
-            srs_warn("unspecified content-length with body cached.");
-        } else {
-            srs_info("unspecified content-length with body empty.");
-        }
+    if (content_length <= 0) {
+        srs_info("unspecified content-length with body empty.");
         return ret;
     }
     
     // when content length specified, read specified length.
-    if (content_length > 0) {
-        int left = (int)content_length;
-        while (left > 0) {
-            int nb_read = (int)body.length();
-            if ((ret = _body->read(left, body)) != ERROR_SUCCESS) {
-                return ret;
-            }
-            
-            left -= (int)body.length() - nb_read;
-        }
-        return ret;
-    }
-    
-    // chunked encoding, read util got size=0 chunk.
-    for (;;) {
-        int nb_read = (int)body.length();
-        if ((ret = _body->read(0, body)) != ERROR_SUCCESS) {
+    int expect = content_length + (int)body.length();
+    while ((int)body.length() < expect) {
+        if ((ret = _body->read(body)) != ERROR_SUCCESS) {
             return ret;
-        }
-        
-        // eof.
-        if (nb_read == (int)body.length()) {
-            break;
         }
     }
     
@@ -1173,10 +1263,12 @@ string SrsHttpMessage::get_request_header(string name)
 
 SrsHttpParser::SrsHttpParser()
 {
+    buffer = new SrsFastBuffer();
 }
 
 SrsHttpParser::~SrsHttpParser()
 {
+    srs_freep(buffer);
 }
 
 int SrsHttpParser::initialize(enum http_parser_type type)
@@ -1213,7 +1305,7 @@ int SrsHttpParser::parse_message(SrsStSocket* skt, SrsHttpMessage** ppmsg)
     header = http_parser();
     url = "";
     headers.clear();
-    body = "";
+    body_parsed = 0;
     
     // do parse
     if ((ret = parse_message_imp(skt)) != ERROR_SUCCESS) {
@@ -1227,7 +1319,7 @@ int SrsHttpParser::parse_message(SrsStSocket* skt, SrsHttpMessage** ppmsg)
     SrsHttpMessage* msg = new SrsHttpMessage(skt);
     
     // initalize http msg, parse url.
-    if ((ret = msg->initialize(url, &header, body, headers)) != ERROR_SUCCESS) {
+    if ((ret = msg->update(url, &header, buffer, headers)) != ERROR_SUCCESS) {
         srs_error("initialize http msg failed. ret=%d", ret);
         srs_freep(msg);
         return ret;
@@ -1243,47 +1335,34 @@ int SrsHttpParser::parse_message_imp(SrsStSocket* skt)
 {
     int ret = ERROR_SUCCESS;
     
-    ssize_t nread = 0;
-    ssize_t nparsed = 0;
-    
-    char* buf = new char[SRS_HTTP_HEADER_BUFFER];
-    SrsAutoFree(char, buf);
-    
-    // parser header.
-    for (;;) {
-        if ((ret = skt->read(buf, (size_t)sizeof(buf), &nread)) != ERROR_SUCCESS) {
-            if (!srs_is_client_gracefully_close(ret)) {
-                srs_error("read body from server failed. ret=%d", ret);
+    while (true) {
+        if (buffer->size() <= 0) {
+            // when empty, only grow 1bytes, but the buffer will cache more.
+            if ((ret = buffer->grow(skt, 1)) != ERROR_SUCCESS) {
+                if (!srs_is_client_gracefully_close(ret)) {
+                    srs_error("read body from server failed. ret=%d", ret);
+                }
+                return ret;
             }
-            return ret;
         }
         
-        nparsed = http_parser_execute(&parser, &settings, buf, nread);
-        srs_info("read_size=%d, nparsed=%d", (int)nread, (int)nparsed);
+        int nb_header = srs_min(SRS_HTTP_HEADER_BUFFER, buffer->size());
+        ssize_t nparsed = http_parser_execute(&parser, &settings, buffer->bytes(), nb_header);
+        srs_info("buffer=%d, nparsed=%d, body=%d", buffer->size(), (int)nparsed, body_parsed);
+        if (nparsed - body_parsed > 0) {
+            buffer->read_slice(nparsed - body_parsed);
+        }
 
         // ok atleast header completed,
         // never wait for body completed, for maybe chunked.
         if (state == SrsHttpParseStateHeaderComplete || state == SrsHttpParseStateMessageComplete) {
             break;
         }
-        
-        // when not complete, the parser should consume all bytes.
-        if (nparsed != nread) {
-            ret = ERROR_HTTP_PARSE_HEADER;
-            srs_error("parse response error, parsed(%d)!=read(%d), ret=%d", (int)nparsed, (int)nread, ret);
-            return ret;
-        }
     }
 
     // parse last header.
     if (!filed_name.empty() && !field_value.empty()) {
         headers.push_back(std::make_pair(filed_name, field_value));
-    }
-    
-    // when parse completed, cache the left body.
-    if (nread && nparsed < nread) {
-        body.append(buf + nparsed, nread - nparsed);
-        srs_info("cache %d bytes read body.", nread - nparsed);
     }
 
     return ret;
@@ -1385,9 +1464,7 @@ int SrsHttpParser::on_body(http_parser* parser, const char* at, size_t length)
     SrsHttpParser* obj = (SrsHttpParser*)parser->data;
     srs_assert(obj);
     
-    if (length > 0) {
-        obj->body.append(at, (int)length);
-    }
+    obj->body_parsed += length;
     
     srs_info("Body: %.*s", (int)length, at);
 

@@ -192,10 +192,14 @@ public:
     virtual ~ISrsHttpResponseReader();
 public:
     /**
-    * read from the response body.
-    * @param max the max size to read. 0 to ignore.
+    * whether response read EOF.
     */
-    virtual int read(int max, std::string& data) = 0;
+    virtual bool eof() = 0;
+    /**
+    * read from the response body.
+    * @remark when eof(), return error.
+    */
+    virtual int read(std::string& data) = 0;
 };
 
 // Objects implementing the Handler interface can be
@@ -394,24 +398,24 @@ class SrsHttpResponseReader : virtual public ISrsHttpResponseReader
 private:
     SrsStSocket* skt;
     SrsHttpMessage* owner;
-    SrsSimpleBuffer* cache;
+    SrsFastBuffer* buffer;
+    bool is_eof;
+    int64_t nb_read;
 public:
     SrsHttpResponseReader(SrsHttpMessage* msg, SrsStSocket* io);
     virtual ~SrsHttpResponseReader();
 public:
     /**
-    * whether the cache is empty.
+    * initialize the response reader with buffer.
     */
-    virtual bool empty();
-    /**
-    * append specified size of bytes data to reader.
-    * when we read http message from socket, we maybe read header+body, 
-    * so the reader should provides stream cache feature.
-    */
-    virtual int append(char* data, int size);
+    virtual int initialize(SrsFastBuffer* buffer);
 // interface ISrsHttpResponseReader
 public:
-    virtual int read(int max, std::string& data);
+    virtual bool eof();
+    virtual int read(std::string& data);
+private:
+    virtual int read_chunked(std::string& data);
+    virtual int read_specified(int max, std::string& data);
 };
 
 // for http header.
@@ -453,6 +457,7 @@ private:
     /**
     * use a buffer to read and send ts file.
     */
+    // TODO: FIXME: remove it.
     char* _http_ts_send_buffer;
     // http headers
     std::vector<SrsHttpHeaderField> _headers;
@@ -463,11 +468,16 @@ public:
     virtual ~SrsHttpMessage();
 public:
     /**
-    * set the original messages, then initialize the message.
+    * set the original messages, then update the message.
     */
-    virtual int initialize(std::string url, http_parser* header, 
-        std::string body, std::vector<SrsHttpHeaderField>& headers
+    virtual int update(std::string url, http_parser* header, 
+        SrsFastBuffer* body, std::vector<SrsHttpHeaderField>& headers
     );
+    /**
+    * update the request with uri.
+    * @remark user can invoke this multiple times.
+    */
+    virtual int update(std::string uri);
 public:
     virtual char* http_ts_send_buffer();
 public:
@@ -485,7 +495,7 @@ public:
     virtual std::string host();
     virtual std::string path();
 public:
-    virtual int body_read_all(std::string body);
+    virtual int body_read_all(std::string& body);
     virtual ISrsHttpResponseReader* body_reader();
     virtual int64_t content_length();
     /**
@@ -510,7 +520,7 @@ private:
     http_parser_settings settings;
     http_parser parser;
     // the global parse buffer.
-    SrsFastBuffer* fbuffer;
+    SrsFastBuffer* buffer;
 private:
     // http parse data, reset before parse message.
     bool expect_filed_name;
@@ -520,7 +530,7 @@ private:
     http_parser header;
     std::string url;
     std::vector<SrsHttpHeaderField> headers;
-    std::string body;
+    int body_parsed;
 public:
     SrsHttpParser();
     virtual ~SrsHttpParser();

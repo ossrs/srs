@@ -312,8 +312,6 @@ int run()
     return run_master();
 }
 
-#include <srs_app_http.hpp>
-#include <srs_app_http_client.hpp>
 int run_master()
 {
     int ret = ERROR_SUCCESS;
@@ -329,22 +327,6 @@ int run_master()
     if ((ret = _srs_server->initialize_st()) != ERROR_SUCCESS) {
         return ret;
     }
-/*SrsHttpClient client;
-SrsHttpUri uri;
-if ((ret = uri.initialize("http://ossrs.net:8081/live/livestream.flv")) != ERROR_SUCCESS) {
-    return ret;
-}
-SrsHttpMessage* msg = NULL;
-if ((ret = client.get(&uri, "", &msg)) != ERROR_SUCCESS) {
-    return ret;
-}
-for (;;) {
-    ISrsHttpResponseReader* br = msg->body_reader();
-    std::string data;
-    if ((ret = br->read(0, data)) != ERROR_SUCCESS) {
-        return ret;
-    }
-}*/
     
     if ((ret = _srs_server->listen()) != ERROR_SUCCESS) {
         return ret;
