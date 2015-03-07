@@ -3,7 +3,6 @@
 # variables, parent script must set it:
 # SRS_JOBS: the build jobs.
 # SrsArmMakeOptions: the arm make options for ubuntu12(armhf, v7cpu)
-# SRS_AUTO_HEADERS_H: the auto generated header file.
 
 #####################################################################################
 #####################################################################################
@@ -325,30 +324,6 @@ if [ $SRS_HTTP_PARSER = YES ]; then
     if [[ ! -f ${SRS_OBJS}/hp/libhttp_parser.a ]]; then echo "build http-parser-2.1 failed"; exit -1; fi
 fi
 
-if [ $SRS_HTTP_PARSER = YES ]; then
-    echo "#define SRS_AUTO_HTTP_PARSER" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_HTTP_PARSER" >> $SRS_AUTO_HEADERS_H
-fi
-
-if [ $SRS_HTTP_SERVER = YES ]; then
-    echo "#define SRS_AUTO_HTTP_SERVER" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_HTTP_SERVER" >> $SRS_AUTO_HEADERS_H
-fi
-
-if [ $SRS_STREAM_CASTER = YES ]; then
-    echo "#define SRS_AUTO_STREAM_CASTER" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_STREAM_CASTER" >> $SRS_AUTO_HEADERS_H
-fi
-
-if [ $SRS_HTTP_API = YES ]; then
-    echo "#define SRS_AUTO_HTTP_API" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_HTTP_API" >> $SRS_AUTO_HEADERS_H
-fi
-
 #####################################################################################
 # nginx for HLS, nginx-1.5.0
 #####################################################################################
@@ -420,24 +395,6 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     echo "nginx is ok" > ${SRS_OBJS}/nginx/html/nginx.html
 fi
 
-if [ $SRS_NGINX = YES ]; then
-    echo "#define SRS_AUTO_NGINX" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_NGINX" >> $SRS_AUTO_HEADERS_H
-fi
-
-if [ $SRS_DVR = YES ]; then
-    echo "#define SRS_AUTO_DVR" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_DVR" >> $SRS_AUTO_HEADERS_H
-fi
-
-if [ $SRS_HLS = YES ]; then
-    echo "#define SRS_AUTO_HLS" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_HLS" >> $SRS_AUTO_HEADERS_H
-fi
-
 #####################################################################################
 # cherrypy for http hooks callback, CherryPy-3.2.4
 #####################################################################################
@@ -456,12 +413,6 @@ if [ $SRS_HTTP_CALLBACK = YES ]; then
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "build CherryPy-3.2.4 failed, ret=$ret"; exit $ret; fi
     if [ ! -f ${SRS_OBJS}/CherryPy-3.2.4/setup.py ]; then echo "build CherryPy-3.2.4 failed."; exit -1; fi
-fi
-
-if [ $SRS_HTTP_CALLBACK = YES ]; then
-    echo "#define SRS_AUTO_HTTP_CALLBACK" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_HTTP_CALLBACK" >> $SRS_AUTO_HEADERS_H
 fi
 
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
@@ -554,12 +505,6 @@ if [ $SRS_SSL = YES ]; then
     fi
 fi
 
-if [ $SRS_SSL = YES ]; then
-    echo "#define SRS_AUTO_SSL" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_SSL" >> $SRS_AUTO_HEADERS_H
-fi
-
 #####################################################################################
 # live transcoding, ffmpeg-2.1, x264-core138, lame-3.99.5, libaacplus-2.0.2.
 #####################################################################################
@@ -578,40 +523,6 @@ if [ $SRS_FFMPEG_TOOL = YES ]; then
     # check status
     ret=$?; if [[ $ret -ne 0 ]]; then echo "build ffmpeg-2.1 failed, ret=$ret"; exit $ret; fi
     if [ ! -f ${SRS_OBJS}/ffmpeg/bin/ffmpeg ]; then echo "build ffmpeg-2.1 failed."; exit -1; fi
-fi
-
-# whether compile ffmpeg tool
-if [ $SRS_FFMPEG_TOOL = YES ]; then
-    echo "#define SRS_AUTO_FFMPEG_TOOL" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_FFMPEG_TOOL" >> $SRS_AUTO_HEADERS_H
-fi
-
-# whatever the FFMPEG tools, if transcode and ingest specified,
-# srs always compile the FFMPEG tool stub which used to start the FFMPEG process.
-if [ $SRS_FFMPEG_STUB = YES ]; then
-    echo "#define SRS_AUTO_FFMPEG_STUB" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_FFMPEG_STUB" >> $SRS_AUTO_HEADERS_H
-fi
-
-if [ $SRS_TRANSCODE = YES ]; then
-    echo "#define SRS_AUTO_TRANSCODE" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_TRANSCODE" >> $SRS_AUTO_HEADERS_H
-fi
-
-if [ $SRS_INGEST = YES ]; then
-    echo "#define SRS_AUTO_INGEST" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_INGEST" >> $SRS_AUTO_HEADERS_H
-fi
-
-# for statistic.
-if [ $SRS_STAT = YES ]; then
-    echo "#define SRS_AUTO_STAT" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_STAT" >> $SRS_AUTO_HEADERS_H
 fi
 
 #####################################################################################
@@ -676,88 +587,6 @@ if [ $SRS_GPERF = YES ]; then
     ret=$?; if [[ $ret -ne 0 ]]; then echo "build gperftools-2.1 failed, ret=$ret"; exit $ret; fi
     if [ ! -f ${SRS_OBJS}/gperf/bin/pprof ]; then echo "build gperftools-2.1 failed."; exit -1; fi
 fi
-
-if [ $SRS_GPERF = YES ]; then
-    echo "#define SRS_AUTO_GPERF" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_GPERF" >> $SRS_AUTO_HEADERS_H
-fi
-if [ $SRS_GPERF_MC = YES ]; then
-    echo "#define SRS_AUTO_GPERF_MC" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_GPERF_MC" >> $SRS_AUTO_HEADERS_H
-fi
-if [ $SRS_GPERF_MP = YES ]; then
-    echo "#define SRS_AUTO_GPERF_MP" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_GPERF_MP" >> $SRS_AUTO_HEADERS_H
-fi
-if [ $SRS_GPERF_CP = YES ]; then
-    echo "#define SRS_AUTO_GPERF_CP" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_GPERF_CP" >> $SRS_AUTO_HEADERS_H
-fi
-
-#####################################################################################
-# for embeded.
-#####################################################################################
-if [ $SRS_EMBEDED_CPU = YES ]; then
-    echo "#define SRS_AUTO_EMBEDED_CPU" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_EMBEDED_CPU" >> $SRS_AUTO_HEADERS_H
-fi
-
-# arm
-if [ $SRS_ARM_UBUNTU12 = YES ]; then
-    echo "#define SRS_AUTO_ARM_UBUNTU12" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_ARM_UBUNTU12" >> $SRS_AUTO_HEADERS_H
-fi
-
-# mips
-if [ $SRS_MIPS_UBUNTU12 = YES ]; then
-    echo "#define SRS_AUTO_MIPS_UBUNTU12" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_MIPS_UBUNTU12" >> $SRS_AUTO_HEADERS_H
-fi
-
-echo "" >> $SRS_AUTO_HEADERS_H
-
-# for log level compile settings
-if [ $SRS_LOG_VERBOSE = YES ]; then
-    echo "#define SRS_AUTO_VERBOSE" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_VERBOSE" >> $SRS_AUTO_HEADERS_H
-fi
-if [ $SRS_LOG_INFO = YES ]; then
-    echo "#define SRS_AUTO_INFO" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_INFO" >> $SRS_AUTO_HEADERS_H
-fi
-if [ $SRS_LOG_TRACE = YES ]; then
-    echo "#define SRS_AUTO_TRACE" >> $SRS_AUTO_HEADERS_H
-else
-    echo "#undef SRS_AUTO_TRACE" >> $SRS_AUTO_HEADERS_H
-fi
-
-# prefix
-echo "" >> $SRS_AUTO_HEADERS_H
-echo "#define SRS_AUTO_PREFIX \"${SRS_PREFIX}\"" >> $SRS_AUTO_HEADERS_H
-
-echo "" >> $SRS_AUTO_HEADERS_H
-
-#####################################################################################
-# generated the contributors from AUTHORS.txt
-#####################################################################################
-SRS_CONSTRIBUTORS=`cat ../AUTHORS.txt|grep "*"|awk '{print $2}'`
-echo "#define SRS_AUTO_CONSTRIBUTORS \"\\" >> $SRS_AUTO_HEADERS_H
-for CONTRIBUTOR in $SRS_CONSTRIBUTORS; do
-    echo "${CONTRIBUTOR} \\" >> $SRS_AUTO_HEADERS_H
-done
-echo "\"" >> $SRS_AUTO_HEADERS_H
-
-# new empty line to auto headers file.
-echo "" >> $SRS_AUTO_HEADERS_H
 
 #####################################################################################
 # generated the test script
