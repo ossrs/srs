@@ -351,11 +351,11 @@ private:
     * print help and exit.
     */
     virtual void print_help(char** argv);
+public:
     /**
     * parse the config file, which is specified by cli.
     */
     virtual int parse_file(const char* filename);
-public:
     /**
     * check the parsed config.
     */

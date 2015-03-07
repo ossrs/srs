@@ -336,6 +336,10 @@ int run_master()
         return ret;
     }
     
+    if ((ret = _srs_server->http_handle()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     if ((ret = _srs_server->ingest()) != ERROR_SUCCESS) {
         return ret;
     }

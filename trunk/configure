@@ -51,9 +51,9 @@ if [ $SRS_UTEST = YES ]; then SrsUtestMakeEntry="(cd ${SRS_OBJS_DIR}/utest; \$(M
 #####################################################################################
 # finger out modules to install.
 # where srs module is a dir which contains a config file.
-SRS_MODULES=""
+SRS_MODULES=()
 __mfiles=`find modules -name "config"` && for __mfile in $__mfiles; do
-    SRS_MODULES="$SRS_MODULES `dirname $__mfile`"
+    SRS_MODULES+="`dirname $__mfile`"
 done
 
 # variables for makefile for all modules.
@@ -177,6 +177,11 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             "srs_app_kbps" "srs_app_heartbeat" "srs_app_empty" "srs_app_http_client"
             "srs_app_recv_thread" "srs_app_security" "srs_app_statistic"
             "srs_app_mpegts_udp" "srs_app_rtsp" "srs_app_listener")
+    # add each modules for app
+    for SRS_MODULE in $SRS_MODULES; do
+        . $SRS_MODULE/config
+        MODULE_FILES+=($SRS_MODULE_APP)
+    done
     APP_INCS="src/app"; MODULE_DIR=${APP_INCS} . auto/modules.sh
     APP_OBJS="${MODULE_OBJS[@]}"
 fi
@@ -198,7 +203,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # add each modules for main
     for SRS_MODULE in $SRS_MODULES; do
         . $SRS_MODULE/config
-        MODULE_FILES="${MODULE_FILES[@]} $SRS_MODULE_MAIN"
+        MODULE_FILES+=($SRS_MODULE_MAIN)
     done
     MAIN_INCS="src/main"; MODULE_DIR=${MAIN_INCS} . auto/modules.sh
     MAIN_OBJS="${MODULE_OBJS[@]}"
@@ -215,7 +220,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # add each modules for main
     for SRS_MODULE in $SRS_MODULES; do
         . $SRS_MODULE/config
-        MAIN_ENTRANCES="${MAIN_ENTRANCES[@]} $SRS_MODULE_MAIN"
+        MAIN_ENTRANCES+=($SRS_MODULE_MAIN)
     done
     # 
     # all depends libraries

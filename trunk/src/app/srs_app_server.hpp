@@ -236,6 +236,7 @@ public:
     virtual int initialize_st();
     virtual int listen();
     virtual int register_signal();
+    virtual int http_handle();
     virtual int ingest();
     virtual int cycle();
 // server utility
