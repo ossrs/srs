@@ -49,6 +49,35 @@ SrsUtestMakeEntry="@echo -e \"ignore utest for it's disabled\""
 if [ $SRS_UTEST = YES ]; then SrsUtestMakeEntry="(cd ${SRS_OBJS_DIR}/utest; \$(MAKE))"; fi
 
 #####################################################################################
+# finger out modules to install.
+# where srs module is a dir which contains a config file.
+SRS_MODULES=""
+__mfiles=`find modules -name "config"` && for __mfile in $__mfiles; do
+    SRS_MODULES="$SRS_MODULES `dirname $__mfile`"
+done
+
+# variables for makefile for all modules.
+__mphonys="" && __mdefaults="" && __mcleanups=""
+# add each modules for application
+for SRS_MODULE in $SRS_MODULES; do
+    echo "install module at: $SRS_MODULE"
+    . $SRS_MODULE/config
+    __mphonys="$__mphonys $SRS_MODULE_NAME"
+    __mdefaults="$__mdefaults $SRS_MODULE_NAME"
+    __mcleanups="$__mcleanups $SRS_MODULE_NAME"
+done
+
+# clean the exists, when not export srs-librtmp.
+# do this only when the options is ok.
+if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
+    if [[ -f Makefile ]]; then
+        make clean
+    fi
+fi
+# remove makefile
+rm -f ${SRS_WORKDIR}/${SRS_MAKEFILE}
+
+#####################################################################################
 # build tools or compiler args.
 # enable gdb debug
 GDBDebug=" -g -O0"
@@ -166,6 +195,11 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_DEPENDS=("CORE" "KERNEL" "RTMP" "APP")
     ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibHttpParserRoot})
     MODULE_FILES=("srs_main_server")
+    # add each modules for main
+    for SRS_MODULE in $SRS_MODULES; do
+        . $SRS_MODULE/config
+        MODULE_FILES="${MODULE_FILES[@]} $SRS_MODULE_MAIN"
+    done
     MAIN_INCS="src/main"; MODULE_DIR=${MAIN_INCS} . auto/modules.sh
     MAIN_OBJS="${MODULE_OBJS[@]}"
 fi
@@ -178,6 +212,11 @@ fi
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # all main entrances
     MAIN_ENTRANCES=("srs_main_server")
+    # add each modules for main
+    for SRS_MODULE in $SRS_MODULES; do
+        . $SRS_MODULE/config
+        MAIN_ENTRANCES="${MAIN_ENTRANCES[@]} $SRS_MODULE_MAIN"
+    done
     # 
     # all depends libraries
     ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile} ${LibSSLfile} ${LibGperfFile})
@@ -185,9 +224,13 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${RTMP_OBJS[@]} ${APP_OBJS[@]} ${MAIN_OBJS[@]}"
     LINK_OPTIONS="${SrsLinkOptions}${SrsGprofLink}${SrsGperfLink}"
     #
-    # srs:
-    # srs(simple rtmp server) over st(state-threads)
+    # srs: srs(simple rtmp server) over st(state-threads)
     BUILD_KEY="srs" APP_MAIN="srs_main_server" APP_NAME="srs" . auto/apps.sh
+    # add each modules for application
+    for SRS_MODULE in $SRS_MODULES; do
+        . $SRS_MODULE/config
+        BUILD_KEY="$SRS_MODULE_NAME" APP_MAIN="$SRS_MODULE_MAIN" APP_NAME="$SRS_MODULE_NAME" . auto/apps.sh
+    done
 fi
 # srs librtmp
 if [ $SRS_LIBRTMP = YES ]; then
@@ -214,8 +257,14 @@ fi
 #####################################################################################
 # makefile
 echo "generate Makefile"
+
+# backup old makefile.
+rm -f ${SRS_WORKDIR}/${SRS_MAKEFILE}.bk &&
+mv ${SRS_WORKDIR}/${SRS_MAKEFILE} ${SRS_WORKDIR}/${SRS_MAKEFILE}.bk
+
+# generate phony header
 cat << END > ${SRS_WORKDIR}/${SRS_MAKEFILE}
-.PHONY: default _default install install-api help clean server librtmp utest _prepare_dir
+.PHONY: default _default install install-api help clean server librtmp utest _prepare_dir $__mphonys
 
 # install prefix.
 SRS_PREFIX=${SRS_PREFIX}
@@ -243,22 +292,26 @@ fi
 #       the server, librtmp and utest
 # where the bellow will check and disable some entry by only echo.
 cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
-_default: server librtmp utest
+_default: server librtmp utest $__mdefaults
 	@bash objs/_srs_build_summary.sh
 
 help:
 	@echo "Usage: make <help>|<clean>|<server>|<librtmp>|<utest>|<install>|<install-api>|<uninstall>"
-	@echo "  help               display this help menu"
-	@echo "  clean              cleanup project"
-	@echo "  server             build the srs(simple rtmp server) over st(state-threads)"
-	@echo "  librtmp            build the client publish/play library, and samples"
-	@echo "  utest              build the utest for srs"
-	@echo "  install            install srs to the prefix path"
-	@echo "  install-api        install srs and api-server to the prefix path"
-	@echo "  uninstall          uninstall srs from prefix path"
+	@echo "     help               display this help menu"
+	@echo "     clean              cleanup project"
+	@echo "     server             build the srs(simple rtmp server) over st(state-threads)"
+	@echo "     librtmp            build the client publish/play library, and samples"
+	@echo "     utest              build the utest for srs"
+	@echo "     install            install srs to the prefix path"
+	@echo "     install-api        install srs and api-server to the prefix path"
+	@echo "     uninstall          uninstall srs from prefix path"
+	@echo "@remark all modules will auto genearted and build"
+	@echo "For example:"
+	@echo "     make"
+	@echo "     make help"
 
 clean: 
-	(cd ${SRS_OBJS_DIR}; rm -rf srs srs_utest)
+	(cd ${SRS_OBJS_DIR}; rm -rf srs srs_utest $__mcleanups)
 	(cd ${SRS_OBJS_DIR}; rm -rf src research include lib)
 	(cd ${SRS_OBJS_DIR}/utest; rm -rf *.o *.a)
 	(cd research/librtmp; make clean)
@@ -281,6 +334,25 @@ server: _prepare_dir
 
 END
 fi
+# generate all modules entry
+for SRS_MODULE in $SRS_MODULES; do
+    . $SRS_MODULE/config
+    # if export librtmp, donot build the bravo-ingest.
+    if [ $SRS_EXPORT_LIBRTMP_PROJECT != NO ]; then
+        cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
+$SRS_MODULE_NAME: _prepare_dir
+	@echo "donot build the $SRS_MODULE_NAME for srs-librtmp"
+
+END
+    else
+        cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
+$SRS_MODULE_NAME: _prepare_dir
+	@echo "build the $SRS_MODULE_NAME over SRS"
+	\$(MAKE) -f ${SRS_OBJS_DIR}/${SRS_MAKEFILE} $SRS_MODULE_NAME
+
+END
+    fi
+done
 
 # disable install entry for srs-librtmp
 if [ $SRS_EXPORT_LIBRTMP_PROJECT != NO ]; then
@@ -389,6 +461,10 @@ cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 _prepare_dir:
 	@mkdir -p ${SRS_OBJS_DIR}
 END
+
+# generate makefile ok, append the tails.
+cat ${SRS_WORKDIR}/${SRS_MAKEFILE}.bk >> ${SRS_WORKDIR}/${SRS_MAKEFILE} &&
+rm -f ${SRS_WORKDIR}/${SRS_MAKEFILE}.bk
 
 echo 'configure ok! '
 
@@ -509,6 +585,10 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     else
         echo -e "${GREEN}note: mips-ubuntu12 for srs are not builded${BLACK}"
     fi
+    # add each modules for application
+    for SRS_MODULE in $SRS_MODULES; do
+        echo -e "${GREEN}module: $SRS_MODULE${BLACK}"
+    done
 fi
 
 #####################################################################################
