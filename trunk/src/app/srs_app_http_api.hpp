@@ -168,12 +168,12 @@ private:
 public:
     SrsHttpApi(SrsServer* svr, st_netfd_t fd, SrsHttpServeMux* m);
     virtual ~SrsHttpApi();
-public:
-    virtual void kbps_resample();
 // interface IKbpsDelta
 public:
+    virtual void resample();
     virtual int64_t get_send_bytes_delta();
     virtual int64_t get_recv_bytes_delta();
+    virtual void cleanup();
 protected:
     virtual int do_cycle();
 private:

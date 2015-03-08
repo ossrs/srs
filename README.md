@@ -550,6 +550,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-03-08, fix [#316](https://github.com/winlinvip/simple-rtmp-server/issues/316), http api provides stream/vhost/srs/server bytes, codec and count. 2.0.136.
 * v2.0, 2015-03-08, fix [#310](https://github.com/winlinvip/simple-rtmp-server/issues/310), refine aac LC, support aac HE/HEv2. 2.0.134.
 * v2.0, 2015-03-06, for [#322](https://github.com/winlinvip/simple-rtmp-server/issues/322), fix http-flv stream bug, support multiple streams. 2.0.133.
 * v2.0, 2015-03-06, refine http request parse. 2.0.132.

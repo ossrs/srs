@@ -45,6 +45,7 @@ using namespace std;
 #include <srs_app_heartbeat.hpp>
 #include <srs_app_mpegts_udp.hpp>
 #include <srs_app_rtsp.hpp>
+#include <srs_app_statistic.hpp>
 
 // signal defines.
 #define SIGNAL_RELOAD SIGHUP
@@ -392,7 +393,6 @@ SrsServer::SrsServer()
     pid_fd = -1;
     
     signal_manager = NULL;
-    kbps = NULL;
     
     // donot new object in constructor,
     // for some global instance is not ready now,
@@ -452,7 +452,6 @@ void SrsServer::destroy()
     }
     
     srs_freep(signal_manager);
-    srs_freep(kbps);
     
     // @remark never destroy the connections, 
     // for it's still alive.
@@ -477,10 +476,6 @@ int SrsServer::initialize()
     
     srs_assert(!signal_manager);
     signal_manager = new SrsSignalManager(this);
-    
-    srs_assert(!kbps);
-    kbps = new SrsKbps();
-    kbps->set_io(NULL, NULL);
     
 #ifdef SRS_AUTO_HTTP_API
     if ((ret = http_api_mux->initialize()) != ERROR_SUCCESS) {
@@ -745,12 +740,8 @@ void SrsServer::remove(SrsConnection* conn)
     
     srs_info("conn removed. conns=%d", (int)conns.size());
     
-    // resample the kbps to collect the delta.
-    conn->kbps_resample();
-    
-    // add delta of connection to server kbps.,
-    // for next sample() of server kbps can get the stat.
-    kbps->add_delta(conn);
+    SrsStatistic* stat = SrsStatistic::instance();
+    stat->kbps_add_delta(conn);
     
     // all connections are created by server,
     // so we free it here.
@@ -868,7 +859,6 @@ int SrsServer::do_cycle()
             if ((i % SRS_SYS_NETWORK_RTMP_SERVER_RESOLUTION_TIMES) == 0) {
                 srs_info("update network server kbps info.");
                 resample_kbps();
-                srs_update_rtmp_server((int)conns.size(), kbps);
             }
     #ifdef SRS_AUTO_HTTP_PARSER
             if (_srs_config->get_heartbeat_enabled()) {
@@ -1019,22 +1009,23 @@ void SrsServer::close_listeners(SrsListenerType type)
 
 void SrsServer::resample_kbps()
 {
+    SrsStatistic* stat = SrsStatistic::instance();
+    
     // collect delta from all clients.
     for (std::vector<SrsConnection*>::iterator it = conns.begin(); it != conns.end(); ++it) {
         SrsConnection* conn = *it;
-    
-        // resample the kbps to collect the delta.
-        conn->kbps_resample();
         
         // add delta of connection to server kbps.,
         // for next sample() of server kbps can get the stat.
-        kbps->add_delta(conn);
+        stat->kbps_add_delta(conn);
     }
     
     // TODO: FXME: support all other connections.
 
     // sample the kbps, get the stat.
-    kbps->sample();
+    SrsKbps* kbps = stat->kbps_sample();
+    
+    srs_update_rtmp_server((int)conns.size(), kbps);
 }
 
 int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)

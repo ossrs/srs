@@ -486,7 +486,7 @@ SrsHttpApi::~SrsHttpApi()
     srs_freep(parser);
 }
 
-void SrsHttpApi::kbps_resample()
+void SrsHttpApi::resample()
 {
     // TODO: FIXME: implements it
 }
@@ -501,6 +501,11 @@ int64_t SrsHttpApi::get_recv_bytes_delta()
 {
     // TODO: FIXME: implements it
     return 0;
+}
+
+void SrsHttpApi::cleanup()
+{
+    // TODO: FIXME: implements it
 }
 
 int SrsHttpApi::do_cycle()

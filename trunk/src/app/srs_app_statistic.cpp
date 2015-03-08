@@ -29,6 +29,8 @@ using namespace std;
 
 #include <srs_rtmp_sdk.hpp>
 #include <srs_app_json.hpp>
+#include <srs_app_kbps.hpp>
+#include <srs_app_conn.hpp>
 
 int64_t __srs_gvid = getpid();
 
@@ -40,10 +42,14 @@ int64_t __srs_generate_id()
 SrsStatisticVhost::SrsStatisticVhost()
 {
     id = __srs_generate_id();
+    
+    kbps = new SrsKbps();
+    kbps->set_io(NULL, NULL);
 }
 
 SrsStatisticVhost::~SrsStatisticVhost()
 {
+    srs_freep(kbps);
 }
 
 SrsStatisticStream::SrsStatisticStream()
@@ -61,10 +67,14 @@ SrsStatisticStream::SrsStatisticStream()
     asample_rate = SrsCodecAudioSampleRateReserved;
     asound_type = SrsCodecAudioSoundTypeReserved;
     aac_object = SrsAacObjectTypeReserved;
+    
+    kbps = new SrsKbps();
+    kbps->set_io(NULL, NULL);
 }
 
 SrsStatisticStream::~SrsStatisticStream()
 {
+    srs_freep(kbps);
 }
 
 void SrsStatisticStream::close()
@@ -78,10 +88,15 @@ SrsStatistic* SrsStatistic::_instance = new SrsStatistic();
 SrsStatistic::SrsStatistic()
 {
     _server_id = __srs_generate_id();
+    
+    kbps = new SrsKbps();
+    kbps->set_io(NULL, NULL);
 }
 
 SrsStatistic::~SrsStatistic()
 {
+    srs_freep(kbps);
+    
     if (true) {
         std::map<std::string, SrsStatisticVhost*>::iterator it;
         for (it = vhosts.begin(); it != vhosts.end(); it++) {
@@ -183,6 +198,49 @@ void SrsStatistic::on_disconnect(int id)
     }
 }
 
+void SrsStatistic::kbps_add_delta(SrsConnection* conn)
+{
+    int id = conn->srs_id();
+    if (clients.find(id) == clients.end()) {
+        return;
+    }
+    
+    SrsStatisticClient* client = clients[id];
+    
+    // resample the kbps to collect the delta.
+    conn->resample();
+    
+    // add delta of connection to kbps.
+    // for next sample() of server kbps can get the stat.
+    kbps->add_delta(conn);
+    client->stream->kbps->add_delta(conn);
+    client->stream->vhost->kbps->add_delta(conn);
+    
+    // cleanup the delta.
+    conn->cleanup();
+}
+
+SrsKbps* SrsStatistic::kbps_sample()
+{
+    kbps->sample();
+    if (true) {
+        std::map<std::string, SrsStatisticVhost*>::iterator it;
+        for (it = vhosts.begin(); it != vhosts.end(); it++) {
+            SrsStatisticVhost* vhost = it->second;
+            vhost->kbps->sample();
+        }
+    }
+    if (true) {
+        std::map<std::string, SrsStatisticStream*>::iterator it;
+        for (it = streams.begin(); it != streams.end(); it++) {
+            SrsStatisticStream* stream = it->second;
+            stream->kbps->sample();
+        }
+    }
+    
+    return kbps;
+}
+
 int64_t SrsStatistic::server_id()
 {
     return _server_id;
@@ -202,7 +260,9 @@ int SrsStatistic::dumps_vhosts(stringstream& ss)
 
         ss << __SRS_JOBJECT_START
                 << __SRS_JFIELD_ORG("id", vhost->id) << __SRS_JFIELD_CONT
-                << __SRS_JFIELD_STR("name", vhost->vhost)
+                << __SRS_JFIELD_STR("name", vhost->vhost) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("send_bytes", vhost->kbps->get_send_bytes()) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("recv_bytes", vhost->kbps->get_recv_bytes())
             << __SRS_JOBJECT_END;
     }
     ss << __SRS_JARRAY_END;
@@ -235,7 +295,9 @@ int SrsStatistic::dumps_streams(stringstream& ss)
                 << __SRS_JFIELD_ORG("id", stream->id) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_STR("name", stream->stream) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_ORG("vhost", stream->vhost->id) << __SRS_JFIELD_CONT
-                << __SRS_JFIELD_ORG("clients", client_num) << __SRS_JFIELD_CONT;
+                << __SRS_JFIELD_ORG("clients", client_num) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("send_bytes", stream->kbps->get_send_bytes()) << __SRS_JFIELD_CONT
+                << __SRS_JFIELD_ORG("recv_bytes", stream->kbps->get_recv_bytes()) << __SRS_JFIELD_CONT;
                 
         if (!stream->has_video) {
             ss  << __SRS_JFIELD_NULL("video") << __SRS_JFIELD_CONT;

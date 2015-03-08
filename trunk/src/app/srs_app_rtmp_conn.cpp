@@ -110,11 +110,6 @@ SrsRtmpConn::~SrsRtmpConn()
     srs_freep(kbps);
 }
 
-void SrsRtmpConn::kbps_resample()
-{
-    kbps->sample();
-}
-
 // TODO: return detail message when error for client.
 int SrsRtmpConn::do_cycle()
 {
@@ -255,6 +250,11 @@ int SrsRtmpConn::on_reload_vhost_realtime(string vhost)
     return ret;
 }
 
+void SrsRtmpConn::resample()
+{
+    kbps->resample();
+}
+
 int64_t SrsRtmpConn::get_send_bytes_delta()
 {
     return kbps->get_send_bytes_delta();
@@ -263,6 +263,11 @@ int64_t SrsRtmpConn::get_send_bytes_delta()
 int64_t SrsRtmpConn::get_recv_bytes_delta()
 {
     return kbps->get_recv_bytes_delta();
+}
+
+void SrsRtmpConn::cleanup()
+{
+    kbps->cleanup();
 }
     
 int SrsRtmpConn::service_cycle()

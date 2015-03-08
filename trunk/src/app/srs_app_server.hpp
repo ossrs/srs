@@ -210,10 +210,6 @@ private:
     */
     SrsSignalManager* signal_manager;
     /**
-    * server total kbps.
-    */
-    SrsKbps* kbps;
-    /**
     * user send the signal, convert to variable.
     */
     bool signal_reload;

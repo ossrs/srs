@@ -39,7 +39,7 @@ string srs_codec_video2str(SrsCodecVideo codec)
             return "H264";
         case SrsCodecVideoOn2VP6:
         case SrsCodecVideoOn2VP6WithAlphaChannel:
-            return "H264";
+            return "VP6";
         case SrsCodecVideoReserved:
         case SrsCodecVideoReserved1:
         case SrsCodecVideoReserved2:
