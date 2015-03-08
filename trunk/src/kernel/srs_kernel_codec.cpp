@@ -121,6 +121,46 @@ SrsAacProfile srs_codec_aac_rtmp2ts(SrsAacObjectType object_type)
     }
 }
 
+string srs_codec_avc_profile2str(SrsAvcProfile profile)
+{
+    switch (profile) {
+        case SrsAvcProfileBaseline: return "Baseline";
+        case SrsAvcProfileConstrainedBaseline: return "Baseline(Constrained)";
+        case SrsAvcProfileMain: return "Main";
+        case SrsAvcProfileExtended: return "Extended";
+        case SrsAvcProfileHigh: return "High";
+        case SrsAvcProfileHigh10: return "High(10)";
+        case SrsAvcProfileHigh10Intra: return "High(10+Intra)";
+        case SrsAvcProfileHigh422: return "High(422)";
+        case SrsAvcProfileHigh422Intra: return "High(422+Intra)";
+        case SrsAvcProfileHigh444: return "High(444)";
+        case SrsAvcProfileHigh444Predictive: return "High(444+Predictive)";
+        case SrsAvcProfileHigh444Intra: return "High(444+Intra)";
+        default: return "Other";
+    }
+}
+
+string srs_codec_avc_level2str(SrsAvcLevel level)
+{
+    switch (level) {
+        case SrsAvcLevel_1: return "1";
+        case SrsAvcLevel_11: return "1.1";
+        case SrsAvcLevel_12: return "1.2";
+        case SrsAvcLevel_13: return "1.3";
+        case SrsAvcLevel_2: return "2";
+        case SrsAvcLevel_21: return "2.1";
+        case SrsAvcLevel_22: return "2.2";
+        case SrsAvcLevel_3: return "3";
+        case SrsAvcLevel_31: return "3.1";
+        case SrsAvcLevel_32: return "3.2";
+        case SrsAvcLevel_4: return "4";
+        case SrsAvcLevel_41: return "4.1";
+        case SrsAvcLevel_5: return "5";
+        case SrsAvcLevel_51: return "5.1";
+        default: return "Other";
+    }
+}
+
 /**
 * the public data, event HLS disable, others can use it.
 */
@@ -292,8 +332,8 @@ SrsAvcAacCodec::SrsAvcAacCodec()
     audio_data_rate             = 0;
     audio_codec_id              = 0;
 
-    avc_profile                 = 0;
-    avc_level                   = 0;
+    avc_profile                 = SrsAvcProfileReserved;
+    avc_level                   = SrsAvcLevelReserved;
     aac_object                  = SrsAacObjectTypeReserved;
     aac_sample_rate             = __SRS_AAC_SAMPLE_RATE_UNSET; // sample rate ignored
     aac_channels                = 0;
@@ -651,11 +691,11 @@ int SrsAvcAacCodec::avc_demux_sps_pps(SrsStream* stream)
     //int8_t configurationVersion = stream->read_1bytes();
     stream->read_1bytes();
     //int8_t AVCProfileIndication = stream->read_1bytes();
-    avc_profile = stream->read_1bytes();
+    avc_profile = (SrsAvcProfile)stream->read_1bytes();
     //int8_t profile_compatibility = stream->read_1bytes();
     stream->read_1bytes();
     //int8_t AVCLevelIndication = stream->read_1bytes();
-    avc_level = stream->read_1bytes();
+    avc_level = (SrsAvcLevel)stream->read_1bytes();
     
     // parse the NALU size.
     int8_t lengthSizeMinusOne = stream->read_1bytes();

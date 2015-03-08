@@ -417,6 +417,57 @@ SrsAacObjectType srs_codec_aac_ts2rtmp(SrsAacProfile profile);
 SrsAacProfile srs_codec_aac_rtmp2ts(SrsAacObjectType object_type);
 
 /**
+* the profile for avc/h.264.
+* @see Annex A Profiles and levels, H.264-AVC-ISO_IEC_14496-10.pdf, page 205.
+*/
+enum SrsAvcProfile
+{
+    SrsAvcProfileReserved = 0,
+    
+    // @see ffmpeg, libavcodec/avcodec.h:2713
+    SrsAvcProfileBaseline = 66,
+    // FF_PROFILE_H264_CONSTRAINED  (1<<9)  // 8+1; constraint_set1_flag
+    // FF_PROFILE_H264_CONSTRAINED_BASELINE (66|FF_PROFILE_H264_CONSTRAINED)
+    SrsAvcProfileConstrainedBaseline = 578,
+    SrsAvcProfileMain = 77,
+    SrsAvcProfileExtended = 88,
+    SrsAvcProfileHigh = 100,
+    SrsAvcProfileHigh10 = 110,
+    SrsAvcProfileHigh10Intra = 2158,
+    SrsAvcProfileHigh422 = 122,
+    SrsAvcProfileHigh422Intra = 2170,
+    SrsAvcProfileHigh444 = 144,
+    SrsAvcProfileHigh444Predictive = 244,
+    SrsAvcProfileHigh444Intra = 2192,
+};
+std::string srs_codec_avc_profile2str(SrsAvcProfile profile);
+
+/**
+* the level for avc/h.264.
+* @see Annex A Profiles and levels, H.264-AVC-ISO_IEC_14496-10.pdf, page 207.
+*/
+enum SrsAvcLevel
+{
+    SrsAvcLevelReserved = 0,
+    
+    SrsAvcLevel_1 = 10,
+    SrsAvcLevel_11 = 11,
+    SrsAvcLevel_12 = 12,
+    SrsAvcLevel_13 = 13,
+    SrsAvcLevel_2 = 20,
+    SrsAvcLevel_21 = 21,
+    SrsAvcLevel_22 = 22,
+    SrsAvcLevel_3 = 30,
+    SrsAvcLevel_31 = 31,
+    SrsAvcLevel_32 = 32,
+    SrsAvcLevel_4 = 40,
+    SrsAvcLevel_41 = 41,
+    SrsAvcLevel_5 = 50,
+    SrsAvcLevel_51 = 51,
+};
+std::string srs_codec_avc_level2str(SrsAvcLevel level);
+
+/**
 * the h264/avc and aac codec, for media stream.
 *
 * to demux the FLV/RTMP video/audio packet to sample,
@@ -453,9 +504,9 @@ public:
     * video specified
     */
     // profile_idc, H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
-    u_int8_t        avc_profile; 
+    SrsAvcProfile   avc_profile; 
     // level_idc, H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
-    u_int8_t        avc_level; 
+    SrsAvcLevel     avc_level; 
     // lengthSizeMinusOne, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
     int8_t          NAL_unit_length;
     u_int16_t       sequenceParameterSetLength;

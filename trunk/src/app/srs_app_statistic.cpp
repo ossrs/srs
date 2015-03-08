@@ -53,8 +53,8 @@ SrsStatisticStream::SrsStatisticStream()
     
     has_video = false;
     vcodec = SrsCodecVideoReserved;
-    avc_profile = 0;
-    avc_level = 0;
+    avc_profile = SrsAvcProfileReserved;
+    avc_level = SrsAvcLevelReserved;
     
     has_audio = false;
     acodec = SrsCodecAudioReserved1;
@@ -111,7 +111,7 @@ SrsStatistic* SrsStatistic::instance()
 }
 
 int SrsStatistic::on_video_info(SrsRequest* req, 
-    SrsCodecVideo vcodec, u_int8_t avc_profile, u_int8_t avc_level
+    SrsCodecVideo vcodec, SrsAvcProfile avc_profile, SrsAvcLevel avc_level
 ) {
     int ret = ERROR_SUCCESS;
     
@@ -243,8 +243,8 @@ int SrsStatistic::dumps_streams(stringstream& ss)
             ss  << __SRS_JFIELD_NAME("video")
                     << __SRS_JOBJECT_START
                         << __SRS_JFIELD_STR("codec", srs_codec_video2str(stream->vcodec)) << __SRS_JFIELD_CONT
-                        << __SRS_JFIELD_ORG("profile", (int)stream->avc_profile) << __SRS_JFIELD_CONT
-                        << __SRS_JFIELD_ORG("level", (int)stream->avc_level)
+                        << __SRS_JFIELD_STR("profile", srs_codec_avc_profile2str(stream->avc_profile)) << __SRS_JFIELD_CONT
+                        << __SRS_JFIELD_ORG("level", srs_codec_avc_level2str(stream->avc_level))
                     << __SRS_JOBJECT_END
                 << __SRS_JFIELD_CONT;
         }

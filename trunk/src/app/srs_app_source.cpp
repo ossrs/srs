@@ -1531,9 +1531,10 @@ int SrsSource::on_video(SrsCommonMessage* __video)
         }
         
         srs_trace("%dB video sh, "
-            "codec(%d, profile=%d, level=%d, %dx%d, %dkbps, %dfps, %ds)",
+            "codec(%d, profile=%s, level=%s, %dx%d, %dkbps, %dfps, %ds)",
             msg.size, codec.video_codec_id,
-            codec.avc_profile, codec.avc_level, codec.width, codec.height,
+            srs_codec_avc_profile2str(codec.avc_profile).c_str(), 
+            srs_codec_avc_level2str(codec.avc_level).c_str(), codec.width, codec.height,
             codec.video_data_rate / 1000, codec.frame_rate, codec.duration);
         return ret;
     }

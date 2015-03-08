@@ -59,9 +59,9 @@ public:
     bool has_video;
     SrsCodecVideo vcodec;
     // profile_idc, H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
-    u_int8_t avc_profile;
+    SrsAvcProfile avc_profile;
     // level_idc, H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
-    u_int8_t avc_level;
+    SrsAvcLevel avc_level;
 public:
     bool has_audio;
     SrsCodecAudio acodec;
@@ -113,7 +113,7 @@ public:
     * when got video info for stream.
     */
     virtual int on_video_info(SrsRequest* req, 
-        SrsCodecVideo vcodec, u_int8_t avc_profile, u_int8_t avc_level
+        SrsCodecVideo vcodec, SrsAvcProfile avc_profile, SrsAvcLevel avc_level
     );
     /**
     * when got audio info for stream.
