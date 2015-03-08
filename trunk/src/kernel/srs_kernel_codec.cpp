@@ -87,6 +87,18 @@ string srs_codec_aac_profile2str(SrsAacProfile aac_profile)
     }
 }
 
+string srs_codec_aac_object2str(SrsAacObjectType aac_object)
+{
+    switch (aac_object) {
+        case SrsAacObjectTypeAacMain: return "Main";
+        case SrsAacObjectTypeHE: return "HE";
+        case SrsAacObjectTypeHEV2: return "HEv2";
+        case SrsAacObjectTypeAacLC: return "LC";
+        case SrsAacObjectTypeAacSSR: return "SSR";
+        default: return "Other";
+    }
+}
+
 SrsAacObjectType srs_codec_aac_ts2rtmp(SrsAacProfile profile)
 {
     switch (profile) {
@@ -101,6 +113,8 @@ SrsAacProfile srs_codec_aac_rtmp2ts(SrsAacObjectType object_type)
 {
     switch (object_type) {
         case SrsAacObjectTypeAacMain: return SrsAacProfileMain;
+        case SrsAacObjectTypeHE:
+        case SrsAacObjectTypeHEV2:
         case SrsAacObjectTypeAacLC: return SrsAacProfileLC;
         case SrsAacObjectTypeAacSSR: return SrsAacProfileSSR;
         default: return SrsAacProfileReserved;

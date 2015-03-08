@@ -404,7 +404,13 @@ enum SrsAacObjectType
     SrsAacObjectTypeAacMain = 1,
     SrsAacObjectTypeAacLC = 2,
     SrsAacObjectTypeAacSSR = 3,
+    
+    // AAC HE = LC+SBR
+    SrsAacObjectTypeHE = 5,
+    // AAC HEv2 = LC+SBR+PS
+    SrsAacObjectTypeHEV2 = 29,
 };
+std::string srs_codec_aac_object2str(SrsAacObjectType aac_object);
 // ts/hls/adts audio header profile to RTMP sequence header object type.
 SrsAacObjectType srs_codec_aac_ts2rtmp(SrsAacProfile profile);
 // RTMP sequence header object type to ts/hls/adts audio header profile.
