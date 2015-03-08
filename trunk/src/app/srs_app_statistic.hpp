@@ -33,6 +33,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <map>
 #include <string>
 
+#include <srs_kernel_codec.hpp>
+
 class SrsRequest;
 
 struct SrsStatisticVhost
@@ -54,8 +56,32 @@ public:
     std::string stream;
     std::string url;
 public:
+    bool has_video;
+    SrsCodecVideo vcodec;
+    // profile_idc, H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
+    u_int8_t avc_profile;
+    // level_idc, H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
+    u_int8_t avc_level;
+public:
+    bool has_audio;
+    SrsCodecAudio acodec;
+    SrsCodecAudioSampleRate asample_rate;
+    SrsCodecAudioSoundType asound_type;
+    /**
+    * audio specified
+    * audioObjectType, in 1.6.2.1 AudioSpecificConfig, page 33,
+    * 1.5.1.1 Audio object type definition, page 23,
+    *           in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf.
+    */
+    u_int8_t aac_profile;
+public:
     SrsStatisticStream();
     virtual ~SrsStatisticStream();
+public:
+    /**
+    * close the stream.
+    */
+    virtual void close();
 };
 
 struct SrsStatisticClient
@@ -73,7 +99,7 @@ private:
     int64_t _server_id;
     // key: vhost name, value: vhost object.
     std::map<std::string, SrsStatisticVhost*> vhosts;
-    // key: stream name, value: stream object.
+    // key: stream url, value: stream object.
     std::map<std::string, SrsStatisticStream*> streams;
     // key: client id, value: stream object.
     std::map<int, SrsStatisticClient*> clients;
@@ -84,15 +110,33 @@ public:
     static SrsStatistic* instance();
 public:
     /**
+    * when got video info for stream.
+    */
+    virtual int on_video_info(SrsRequest* req, 
+        SrsCodecVideo vcodec, u_int8_t avc_profile, u_int8_t avc_level
+    );
+    /**
+    * when got audio info for stream.
+    */
+    virtual int on_audio_info(SrsRequest* req,
+        SrsCodecAudio acodec, SrsCodecAudioSampleRate asample_rate, SrsCodecAudioSoundType asound_type,
+        u_int8_t aac_profile
+    );
+    /**
+    * when close stream.
+    */
+    virtual void on_stream_close(SrsRequest* req);
+public:
+    /**
     * when got a client to publish/play stream,
     * @param id, the client srs id.
     * @param req, the client request object.
     */
     virtual int on_client(int id, SrsRequest* req);
     /**
-    * client close
+    * client disconnect
     */
-    virtual void on_close(int id);
+    virtual void on_disconnect(int id);
 public:
     /**
     * get the server id, used to identify the server.
@@ -107,6 +151,9 @@ public:
     * dumps the streams to sstream in json.
     */
     virtual int dumps_streams(std::stringstream& ss);
+private:
+    virtual SrsStatisticVhost* create_vhost(SrsRequest* req);
+    virtual SrsStatisticStream* create_stream(SrsStatisticVhost* vhost, SrsRequest* req);
 };
 
 #endif

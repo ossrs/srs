@@ -56,25 +56,6 @@ using namespace std;
 #define TS_AUDIO_AAC_PID 0x102
 #define TS_AUDIO_MP3_PID 0x103
 
-/**
-* the public data, event HLS disable, others can use it.
-*/
-// 0 = 5.5 kHz = 5512 Hz
-// 1 = 11 kHz = 11025 Hz
-// 2 = 22 kHz = 22050 Hz
-// 3 = 44 kHz = 44100 Hz
-int flv_sample_rates[] = {5512, 11025, 22050, 44100};
-
-// the sample rates in the codec,
-// in the sequence header.
-int aac_sample_rates[] = 
-{
-    96000, 88200, 64000, 48000,
-    44100, 32000, 24000, 22050,
-    16000, 12000, 11025,  8000,
-    7350,     0,     0,    0
-};
-
 string srs_ts_stream2string(SrsTsStream stream)
 {
     switch (stream) {

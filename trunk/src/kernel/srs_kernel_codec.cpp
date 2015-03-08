@@ -32,6 +32,80 @@ using namespace std;
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_utility.hpp>
 
+string srs_codec_video2str(SrsCodecVideo codec)
+{
+    switch (codec) {
+        case SrsCodecVideoAVC: 
+            return "H264";
+        case SrsCodecVideoOn2VP6:
+        case SrsCodecVideoOn2VP6WithAlphaChannel:
+            return "H264";
+        case SrsCodecVideoReserved:
+        case SrsCodecVideoReserved1:
+        case SrsCodecVideoReserved2:
+        case SrsCodecVideoDisabled:
+        case SrsCodecVideoSorensonH263:
+        case SrsCodecVideoScreenVideo:
+        case SrsCodecVideoScreenVideoVersion2:
+        default:
+            return "Other";
+    }
+}
+
+string srs_codec_audio2str(SrsCodecAudio codec)
+{
+    switch (codec) {
+        case SrsCodecAudioAAC:
+            return "AAC";
+        case SrsCodecAudioMP3:
+            return "MP3";
+        case SrsCodecAudioReserved1:
+        case SrsCodecAudioLinearPCMPlatformEndian:
+        case SrsCodecAudioADPCM:
+        case SrsCodecAudioLinearPCMLittleEndian:
+        case SrsCodecAudioNellymoser16kHzMono:
+        case SrsCodecAudioNellymoser8kHzMono:
+        case SrsCodecAudioNellymoser:
+        case SrsCodecAudioReservedG711AlawLogarithmicPCM:
+        case SrsCodecAudioReservedG711MuLawLogarithmicPCM:
+        case SrsCodecAudioReserved:
+        case SrsCodecAudioSpeex:
+        case SrsCodecAudioReservedMP3_8kHz:
+        case SrsCodecAudioReservedDeviceSpecificSound:
+        default:
+            return "Other";
+    }
+}
+
+string srs_codec_aac_profile2str(u_int8_t aac_profile)
+{
+    switch (aac_profile) {
+        case 1: return "Main";
+        case 2: return "LC";
+        case 3: return "SSR";
+        default: return "Other";
+    }
+}
+
+/**
+* the public data, event HLS disable, others can use it.
+*/
+// 0 = 5.5 kHz = 5512 Hz
+// 1 = 11 kHz = 11025 Hz
+// 2 = 22 kHz = 22050 Hz
+// 3 = 44 kHz = 44100 Hz
+int flv_sample_rates[] = {5512, 11025, 22050, 44100};
+
+// the sample rates in the codec,
+// in the sequence header.
+int aac_sample_rates[] = 
+{
+    96000, 88200, 64000, 48000,
+    44100, 32000, 24000, 22050,
+    16000, 12000, 11025,  8000,
+    7350,     0,     0,    0
+};
+
 SrsFlvCodec::SrsFlvCodec()
 {
 }

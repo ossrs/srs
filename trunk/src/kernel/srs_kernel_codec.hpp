@@ -110,6 +110,7 @@ enum SrsCodecVideo
     SrsCodecVideoScreenVideoVersion2     = 6,
     SrsCodecVideoAVC                     = 7,
 };
+std::string srs_codec_video2str(SrsCodecVideo codec);
 
 // SoundFormat UB [4] 
 // Format of SoundData. The following values are defined:
@@ -150,6 +151,7 @@ enum SrsCodecAudio
     SrsCodecAudioReservedMP3_8kHz                     = 14,
     SrsCodecAudioReservedDeviceSpecificSound         = 15,
 };
+std::string srs_codec_audio2str(SrsCodecAudio codec);
 
 /**
 * the FLV/RTMP supported audio sample rate.
@@ -372,6 +374,21 @@ enum SrsAvcPayloadFormat
     SrsAvcPayloadFormatAnnexb,
     SrsAvcPayloadFormatIbmf,
 };
+
+// the profile = object_id + 1
+// @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 78,
+//      Table 1. A.9 C MPEG-2 Audio profiles and MPEG-4 Audio object types
+// the valid object type:
+//      AAC Main(ID == 0)
+//      AAC LC(ID == 1)
+//      AAC SSR(ID == 2)
+//      AAC LTP(ID == 3)
+// the valid aac profile:
+//      Main profile (ID == 1)
+//      Low Complexity profile (LC) (ID == 2)
+//      Scalable Sampling Rate profile (SSR) (ID == 3)
+//      (reserved) (ID == 4)
+std::string srs_codec_aac_profile2str(u_int8_t aac_profile);
 
 /**
 * the h264/avc and aac codec, for media stream.

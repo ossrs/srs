@@ -42,6 +42,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_rtmp_msg_array.hpp>
+#include <srs_app_statistic.hpp>
 
 #define CONST_MAX_JITTER_MS         500
 #define DEFAULT_FRAME_TIME_MS         40
@@ -1373,6 +1374,7 @@ int SrsSource::on_audio(SrsCommonMessage* __audio)
 
     // cache the sequence header of aac, or first packet of mp3.
     // for example, the mp3 is used for hls to write the "right" audio codec.
+    // TODO: FIXME: to refine the stream info system.
     bool is_aac_sequence_header = SrsFlvCodec::audio_is_sequence_header(msg.payload, msg.size);
     if (is_aac_sequence_header || !cache_sh_audio) {
         srs_freep(cache_sh_audio);
@@ -1392,6 +1394,13 @@ int SrsSource::on_audio(SrsCommonMessage* __audio)
         
         static int flv_sample_sizes[] = {8, 16, 0};
         static int flv_sound_types[] = {1, 2, 0};
+        
+        // when got audio stream info.
+        SrsStatistic* stat = SrsStatistic::instance();
+        if ((ret = stat->on_audio_info(_req, SrsCodecAudioAAC, sample.sound_rate, sample.sound_type, codec.aac_profile)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
         srs_trace("%dB audio sh, "
             "codec(%d, profile=%d, %dchannels, %dkbps, %dHZ), "
             "flv(%dbits, %dchannels, %dHZ)", 
@@ -1512,6 +1521,12 @@ int SrsSource::on_video(SrsCommonMessage* __video)
         SrsCodecSample sample;
         if ((ret = codec.video_avc_demux(msg.payload, msg.size, &sample)) != ERROR_SUCCESS) {
             srs_error("source codec demux video failed. ret=%d", ret);
+            return ret;
+        }
+        
+        // when got video stream info.
+        SrsStatistic* stat = SrsStatistic::instance();
+        if ((ret = stat->on_video_info(_req, SrsCodecVideoAVC, codec.avc_profile, codec.avc_level)) != ERROR_SUCCESS) {
             return ret;
         }
         
