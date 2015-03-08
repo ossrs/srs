@@ -294,7 +294,7 @@ SrsAvcAacCodec::SrsAvcAacCodec()
 
     avc_profile                 = 0;
     avc_level                   = 0;
-    aac_profile                 = SrsAacProfileReserved;
+    aac_object                  = SrsAacObjectTypeReserved;
     aac_sample_rate             = __SRS_AAC_SAMPLE_RATE_UNSET; // sample rate ignored
     aac_channels                = 0;
     avc_extra_size              = 0;
@@ -493,8 +493,8 @@ int SrsAvcAacCodec::audio_aac_sequence_header_demux(char* data, int size)
     aac_sample_rate = samplingFrequencyIndex;
 
     // convert the object type in sequence header to aac profile of ADTS.
-    aac_profile = srs_codec_aac_rtmp2ts((SrsAacObjectType)profile_ObjectType);
-    if (aac_profile == SrsAacProfileReserved) {
+    aac_object = (SrsAacObjectType)profile_ObjectType;
+    if (aac_object == SrsAacObjectTypeReserved) {
         ret = ERROR_HLS_DECODE_ERROR;
         srs_error("audio codec decode aac sequence header failed, "
             "adts object=%d invalid. ret=%d", profile_ObjectType, ret);

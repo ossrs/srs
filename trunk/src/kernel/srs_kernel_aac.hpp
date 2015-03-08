@@ -45,7 +45,7 @@ class SrsAacEncoder
 private:
     SrsFileWriter* _fs;
 private:
-    SrsAacProfile aac_profile;
+    SrsAacObjectType aac_object;
     int8_t aac_sample_rate;
     int8_t aac_channels;
     bool got_sequence_header;

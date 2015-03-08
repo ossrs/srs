@@ -472,7 +472,7 @@ public:
     * 1.5.1.1 Audio object type definition, page 23,
     *           in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf.
     */
-    SrsAacProfile   aac_profile;
+    SrsAacObjectType    aac_object;
     /**
     * samplingFrequencyIndex
     */

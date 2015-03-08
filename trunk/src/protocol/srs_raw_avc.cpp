@@ -432,7 +432,7 @@ int SrsRawAacStream::adts_demux(SrsStream* stream, char** pframe, int* pnb_frame
         
         // the codec info.
         codec.protection_absent = protection_absent;
-        codec.profile = (SrsAacProfile)profile;
+        codec.aac_object = srs_codec_aac_ts2rtmp((SrsAacProfile)profile);
         codec.sampling_frequency_index = sampling_frequency_index;
         codec.channel_configuration = channel_configuration;
         codec.frame_length = frame_length;
@@ -471,11 +471,11 @@ int SrsRawAacStream::mux_sequence_header(SrsRawAacStreamCodec* codec, string& sh
     int ret = ERROR_SUCCESS;
 
     // only support aac profile 1-4.
-    if (codec->profile == SrsAacProfileReserved) {
+    if (codec->aac_object == SrsAacObjectTypeReserved) {
         return ERROR_AAC_DATA_INVALID;
     }
     
-    SrsAacObjectType audioObjectType = srs_codec_aac_ts2rtmp(codec->profile);
+    SrsAacObjectType audioObjectType = codec->aac_object;
     char channelConfiguration = codec->channel_configuration;
     char samplingFrequencyIndex = codec->sampling_frequency_index;
 

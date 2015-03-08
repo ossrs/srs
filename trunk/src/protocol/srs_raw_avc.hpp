@@ -94,7 +94,7 @@ public:
 struct SrsRawAacStreamCodec
 {
     int8_t protection_absent;
-    SrsAacProfile profile;
+    SrsAacObjectType aac_object;
     int8_t sampling_frequency_index;
     int8_t channel_configuration;
     int16_t frame_length;

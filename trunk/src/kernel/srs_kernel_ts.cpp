@@ -2797,7 +2797,8 @@ int SrsTsCache::do_cache_aac(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         int8_t number_of_raw_data_blocks_in_frame; //2bits, 0 indicating 1 raw_data_block()
         */
         // profile, 2bits
-        adts_header[2] = (codec->aac_profile << 6) & 0xc0;
+        SrsAacProfile aac_profile = srs_codec_aac_rtmp2ts(codec->aac_object);
+        adts_header[2] = (aac_profile << 6) & 0xc0;
         // sampling_frequency_index 4bits
         adts_header[2] |= (codec->aac_sample_rate << 2) & 0x3c;
         // channel_configuration 3bits

@@ -60,7 +60,7 @@ SrsStatisticStream::SrsStatisticStream()
     acodec = SrsCodecAudioReserved1;
     asample_rate = SrsCodecAudioSampleRateReserved;
     asound_type = SrsCodecAudioSoundTypeReserved;
-    aac_profile = SrsAacProfileReserved;
+    aac_object = SrsAacObjectTypeReserved;
 }
 
 SrsStatisticStream::~SrsStatisticStream()
@@ -128,7 +128,7 @@ int SrsStatistic::on_video_info(SrsRequest* req,
 
 int SrsStatistic::on_audio_info(SrsRequest* req,
     SrsCodecAudio acodec, SrsCodecAudioSampleRate asample_rate, SrsCodecAudioSoundType asound_type,
-    SrsAacProfile aac_profile
+    SrsAacObjectType aac_object
 ) {
     int ret = ERROR_SUCCESS;
     
@@ -139,7 +139,7 @@ int SrsStatistic::on_audio_info(SrsRequest* req,
     stream->acodec = acodec;
     stream->asample_rate = asample_rate;
     stream->asound_type = asound_type;
-    stream->aac_profile = aac_profile;
+    stream->aac_object = aac_object;
     
     return ret;
 }
@@ -257,7 +257,7 @@ int SrsStatistic::dumps_streams(stringstream& ss)
                         << __SRS_JFIELD_STR("codec", srs_codec_audio2str(stream->acodec)) << __SRS_JFIELD_CONT
                         << __SRS_JFIELD_ORG("sample_rate", (int)flv_sample_rates[stream->asample_rate]) << __SRS_JFIELD_CONT
                         << __SRS_JFIELD_ORG("channel", (int)stream->asound_type + 1) << __SRS_JFIELD_CONT
-                        << __SRS_JFIELD_STR("profile", srs_codec_aac_profile2str(stream->aac_profile))
+                        << __SRS_JFIELD_STR("profile", srs_codec_aac_object2str(stream->aac_object))
                     << __SRS_JOBJECT_END;
         }
         

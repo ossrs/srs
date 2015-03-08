@@ -43,7 +43,7 @@ SrsAacEncoder::SrsAacEncoder()
     _fs = NULL;
     got_sequence_header = false;
     tag_stream = new SrsStream();
-    aac_profile = SrsAacProfileReserved;
+    aac_object = SrsAacObjectTypeReserved;
 }
 
 SrsAacEncoder::~SrsAacEncoder()
@@ -131,7 +131,7 @@ int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
         aac_sample_rate = ((audioObjectType << 1) & 0x0e) | ((aac_sample_rate >> 7) & 0x01);
         
         audioObjectType = (audioObjectType >> 3) & 0x1f;
-        aac_profile = srs_codec_aac_rtmp2ts((SrsAacObjectType)audioObjectType);
+        aac_object = (SrsAacObjectType)audioObjectType;
         
         got_sequence_header = true;
         
@@ -186,6 +186,7 @@ int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
         // channel_configuration 3 uimsbf
         // original/copy 1 bslbf
         // home 1 bslbf
+        SrsAacProfile aac_profile = srs_codec_aac_rtmp2ts(aac_object);
         *pp++ = ((aac_profile << 6) & 0xc0) | ((aac_sample_rate << 2) & 0x3c) | ((aac_channels >> 2) & 0x01);
         // 4bits left.
         // adts_variable_header(), 1.A.2.2.2 Variable Header of ADTS

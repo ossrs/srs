@@ -1397,15 +1397,15 @@ int SrsSource::on_audio(SrsCommonMessage* __audio)
         
         // when got audio stream info.
         SrsStatistic* stat = SrsStatistic::instance();
-        if ((ret = stat->on_audio_info(_req, SrsCodecAudioAAC, sample.sound_rate, sample.sound_type, codec.aac_profile)) != ERROR_SUCCESS) {
+        if ((ret = stat->on_audio_info(_req, SrsCodecAudioAAC, sample.sound_rate, sample.sound_type, codec.aac_object)) != ERROR_SUCCESS) {
             return ret;
         }
         
         srs_trace("%dB audio sh, "
-            "codec(%d, profile=%d, %dchannels, %dkbps, %dHZ), "
+            "codec(%d, profile=%s, %dchannels, %dkbps, %dHZ), "
             "flv(%dbits, %dchannels, %dHZ)", 
             msg.size, codec.audio_codec_id,
-            codec.aac_profile, codec.aac_channels, 
+            srs_codec_aac_object2str(codec.aac_object).c_str(), codec.aac_channels, 
             codec.audio_data_rate / 1000, aac_sample_rates[codec.aac_sample_rate], 
             flv_sample_sizes[sample.sound_size], flv_sound_types[sample.sound_type], 
             flv_sample_rates[sample.sound_rate]);
