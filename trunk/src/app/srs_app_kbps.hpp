@@ -122,12 +122,12 @@ public:
 * to statistic the kbps of io.
 * itself can be a statistic source, for example, used for SRS bytes stat.
 * there are two usage scenarios:
-* 1. connections to calc kbps:
+* 1. connections to calc kbps by sample():
 *       set_io(in, out)
 *       sample()
 *       get_xxx_kbps().
 *   the connections know how many bytes already send/recv.
-* 2. server to calc kbps:
+* 2. server to calc kbps by add_delta():
 *       set_io(NULL, NULL)
 *       for each connection in connections:
 *           add_delta(connections) // where connection is a IKbpsDelta*

@@ -278,12 +278,9 @@ private:
     */
     virtual void close_listeners(SrsListenerType type);
     /**
-    * resample the server kbps. 
-    * if conn is NULL, resample all connections delta, then calc the total kbps.
-    * @param conn, the connection to do resample the kbps. NULL to resample all connections.
-    * @param do_resample, whether resample the server kbps. always false when sample a connection.
+    * resample the server kbs.
     */
-    virtual void resample_kbps(SrsConnection* conn, bool do_resample = true);
+    virtual void resample_kbps();
 // internal only
 public:
     /**

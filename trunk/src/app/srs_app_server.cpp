@@ -745,8 +745,12 @@ void SrsServer::remove(SrsConnection* conn)
     
     srs_info("conn removed. conns=%d", (int)conns.size());
     
-    // resample the resource of specified connection.
-    resample_kbps(conn);
+    // resample the kbps to collect the delta.
+    conn->kbps_resample();
+    
+    // add delta of connection to server kbps.,
+    // for next sample() of server kbps can get the stat.
+    kbps->add_delta(conn);
     
     // all connections are created by server,
     // so we free it here.
@@ -862,8 +866,8 @@ int SrsServer::do_cycle()
                 srs_update_network_devices();
             }
             if ((i % SRS_SYS_NETWORK_RTMP_SERVER_RESOLUTION_TIMES) == 0) {
-                srs_info("update network rtmp server info.");
-                resample_kbps(NULL);
+                srs_info("update network server kbps info.");
+                resample_kbps();
                 srs_update_rtmp_server((int)conns.size(), kbps);
             }
     #ifdef SRS_AUTO_HTTP_PARSER
@@ -1013,31 +1017,24 @@ void SrsServer::close_listeners(SrsListenerType type)
     }
 }
 
-void SrsServer::resample_kbps(SrsConnection* conn, bool do_resample)
+void SrsServer::resample_kbps()
 {
-    // resample all when conn is NULL.
-    if (!conn) {
-        for (std::vector<SrsConnection*>::iterator it = conns.begin(); it != conns.end(); ++it) {
-            SrsConnection* client = *it;
-            srs_assert(client);
-            
-            // only resample, do resample when all finished.
-            resample_kbps(client, false);
-        }
+    // collect delta from all clients.
+    for (std::vector<SrsConnection*>::iterator it = conns.begin(); it != conns.end(); ++it) {
+        SrsConnection* conn = *it;
+    
+        // resample the kbps to collect the delta.
+        conn->kbps_resample();
         
-        kbps->sample();
-        return;
+        // add delta of connection to server kbps.,
+        // for next sample() of server kbps can get the stat.
+        kbps->add_delta(conn);
     }
     
-    // resample for connection.
-    conn->kbps_resample();
-    
-    kbps->add_delta(conn);
-    
-    // resample for server.
-    if (do_resample) {
-        kbps->sample();
-    }
+    // TODO: FXME: support all other connections.
+
+    // sample the kbps, get the stat.
+    kbps->sample();
 }
 
 int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)

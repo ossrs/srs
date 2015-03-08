@@ -92,6 +92,7 @@ public:
     virtual void on_thread_stop();
 public:
     /**
+    * reset and start sample of bytes.
     * when server to get the kbps of connection,
     * it cannot wait the connection terminated then get the kbps,
     * it must sample the kbps every some interval, for instance, 9s to sample all connections kbps,
