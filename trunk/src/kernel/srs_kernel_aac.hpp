@@ -31,6 +31,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
+#include <srs_kernel_codec.hpp>
+
 class SrsStream;
 class SrsFileWriter;
 class SrsFileReader;
@@ -43,7 +45,7 @@ class SrsAacEncoder
 private:
     SrsFileWriter* _fs;
 private:
-    int8_t aac_profile;
+    SrsAacProfile aac_profile;
     int8_t aac_sample_rate;
     int8_t aac_channels;
     bool got_sequence_header;

@@ -77,13 +77,33 @@ string srs_codec_audio2str(SrsCodecAudio codec)
     }
 }
 
-string srs_codec_aac_profile2str(u_int8_t aac_profile)
+string srs_codec_aac_profile2str(SrsAacProfile aac_profile)
 {
     switch (aac_profile) {
-        case 1: return "Main";
-        case 2: return "LC";
-        case 3: return "SSR";
+        case SrsAacProfileMain: return "Main";
+        case SrsAacProfileLC: return "LC";
+        case SrsAacProfileSSR: return "SSR";
         default: return "Other";
+    }
+}
+
+SrsAacObjectType srs_codec_aac_ts2rtmp(SrsAacProfile profile)
+{
+    switch (profile) {
+        case SrsAacProfileMain: return SrsAacObjectTypeAacMain;
+        case SrsAacProfileLC: return SrsAacObjectTypeAacLC;
+        case SrsAacProfileSSR: return SrsAacObjectTypeAacSSR;
+        default: return SrsAacObjectTypeReserved;
+    }
+}
+
+SrsAacProfile srs_codec_aac_rtmp2ts(SrsAacObjectType object_type)
+{
+    switch (object_type) {
+        case SrsAacObjectTypeAacMain: return SrsAacProfileMain;
+        case SrsAacObjectTypeAacLC: return SrsAacProfileLC;
+        case SrsAacObjectTypeAacSSR: return SrsAacProfileSSR;
+        default: return SrsAacProfileReserved;
     }
 }
 
@@ -260,7 +280,7 @@ SrsAvcAacCodec::SrsAvcAacCodec()
 
     avc_profile                 = 0;
     avc_level                   = 0;
-    aac_profile                 = 0;
+    aac_profile                 = SrsAacProfileReserved;
     aac_sample_rate             = __SRS_AAC_SAMPLE_RATE_UNSET; // sample rate ignored
     aac_channels                = 0;
     avc_extra_size              = 0;
@@ -458,20 +478,9 @@ int SrsAvcAacCodec::audio_aac_sequence_header_demux(char* data, int size)
     // set the aac sample rate.
     aac_sample_rate = samplingFrequencyIndex;
 
-    // the profile = object_id + 1
-    // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 78,
-    //      Table 1. A.9 ¨C MPEG-2 Audio profiles and MPEG-4 Audio object types
-    aac_profile = profile_ObjectType + 1;
-        
-    // the valid aac profile:
-    //      MPEG-2 profile
-    //      Main profile (ID == 1)
-    //      Low Complexity profile (LC) (ID == 2)
-    //      Scalable Sampling Rate profile (SSR) (ID == 3)
-    //      (reserved) (ID == 4)
-    // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 78,
-    //      Table 1. A.9 ¨C MPEG-2 Audio profiles and MPEG-4 Audio object types
-    if (aac_profile > 4) {
+    // convert the object type in sequence header to aac profile of ADTS.
+    aac_profile = srs_codec_aac_rtmp2ts((SrsAacObjectType)profile_ObjectType);
+    if (aac_profile == SrsAacProfileReserved) {
         ret = ERROR_HLS_DECODE_ERROR;
         srs_error("audio codec decode aac sequence header failed, "
             "adts object=%d invalid. ret=%d", profile_ObjectType, ret);

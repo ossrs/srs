@@ -43,6 +43,7 @@ SrsAacEncoder::SrsAacEncoder()
     _fs = NULL;
     got_sequence_header = false;
     tag_stream = new SrsStream();
+    aac_profile = SrsAacProfileReserved;
 }
 
 SrsAacEncoder::~SrsAacEncoder()
@@ -114,7 +115,7 @@ int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
         // 1.6.2.1 AudioSpecificConfig, in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 33.
         //
         // only need to decode the first 2bytes:
-        // audioObjectType, aac_profile, 5bits.
+        // audioObjectType, 5bits.
         // samplingFrequencyIndex, aac_sample_rate, 4bits.
         // channelConfiguration, aac_channels, 4bits
         if (!stream->require(2)) {
@@ -123,12 +124,14 @@ int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
             return ret;
         }
         
-        aac_profile = stream->read_1bytes();
+        int8_t audioObjectType = stream->read_1bytes();
         aac_sample_rate = stream->read_1bytes();
         
         aac_channels = (aac_sample_rate >> 3) & 0x0f;
-        aac_sample_rate = ((aac_profile << 1) & 0x0e) | ((aac_sample_rate >> 7) & 0x01);
-        aac_profile = (aac_profile >> 3) & 0x1f;
+        aac_sample_rate = ((audioObjectType << 1) & 0x0e) | ((aac_sample_rate >> 7) & 0x01);
+        
+        audioObjectType = (audioObjectType >> 3) & 0x1f;
+        aac_profile = srs_codec_aac_rtmp2ts((SrsAacObjectType)audioObjectType);
         
         got_sequence_header = true;
         
@@ -177,16 +180,13 @@ int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
         // protection_absent 1 bslbf
         *pp++ = 0xf1;
         
-        // Profile_ObjectType 2 uimsbf
+        // profile 2 uimsbf
         // sampling_frequency_index 4 uimsbf
         // private_bit 1 bslbf
         // channel_configuration 3 uimsbf
         // original/copy 1 bslbf
         // home 1 bslbf
-        int8_t fh_Profile_ObjectType = aac_profile - 1;
-        *pp++ = ((fh_Profile_ObjectType << 6) & 0xc0) | ((aac_sample_rate << 2) & 0x3c) | ((aac_channels >> 2) & 0x01);
-        // @remark, Emphasis is removed, 
-        //      @see https://github.com/winlinvip/simple-rtmp-server/issues/212#issuecomment-64154736
+        *pp++ = ((aac_profile << 6) & 0xc0) | ((aac_sample_rate << 2) & 0x3c) | ((aac_channels >> 2) & 0x01);
         // 4bits left.
         // adts_variable_header(), 1.A.2.2.2 Variable Header of ADTS
         // copyright_identification_bit 1 bslbf

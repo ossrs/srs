@@ -60,7 +60,7 @@ SrsStatisticStream::SrsStatisticStream()
     acodec = SrsCodecAudioReserved1;
     asample_rate = SrsCodecAudioSampleRateReserved;
     asound_type = SrsCodecAudioSoundTypeReserved;
-    aac_profile = 0;
+    aac_profile = SrsAacProfileReserved;
 }
 
 SrsStatisticStream::~SrsStatisticStream()
@@ -128,7 +128,7 @@ int SrsStatistic::on_video_info(SrsRequest* req,
 
 int SrsStatistic::on_audio_info(SrsRequest* req,
     SrsCodecAudio acodec, SrsCodecAudioSampleRate asample_rate, SrsCodecAudioSoundType asound_type,
-    u_int8_t aac_profile
+    SrsAacProfile aac_profile
 ) {
     int ret = ERROR_SUCCESS;
     

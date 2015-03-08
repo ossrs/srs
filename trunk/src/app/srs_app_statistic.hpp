@@ -73,7 +73,7 @@ public:
     * 1.5.1.1 Audio object type definition, page 23,
     *           in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf.
     */
-    u_int8_t aac_profile;
+    SrsAacProfile aac_profile;
 public:
     SrsStatisticStream();
     virtual ~SrsStatisticStream();
@@ -120,7 +120,7 @@ public:
     */
     virtual int on_audio_info(SrsRequest* req,
         SrsCodecAudio acodec, SrsCodecAudioSampleRate asample_rate, SrsCodecAudioSoundType asound_type,
-        u_int8_t aac_profile
+        SrsAacProfile aac_profile
     );
     /**
     * when close stream.

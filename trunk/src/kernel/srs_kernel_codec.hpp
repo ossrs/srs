@@ -375,20 +375,40 @@ enum SrsAvcPayloadFormat
     SrsAvcPayloadFormatIbmf,
 };
 
-// the profile = object_id + 1
-// @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 78,
-//      Table 1. A.9 C MPEG-2 Audio profiles and MPEG-4 Audio object types
-// the valid object type:
-//      AAC Main(ID == 0)
-//      AAC LC(ID == 1)
-//      AAC SSR(ID == 2)
-//      AAC LTP(ID == 3)
-// the valid aac profile:
-//      Main profile (ID == 1)
-//      Low Complexity profile (LC) (ID == 2)
-//      Scalable Sampling Rate profile (SSR) (ID == 3)
-//      (reserved) (ID == 4)
-std::string srs_codec_aac_profile2str(u_int8_t aac_profile);
+/**
+* the aac profile, for ADTS(HLS/TS)
+* @see https://github.com/winlinvip/simple-rtmp-server/issues/310
+*/
+enum SrsAacProfile
+{
+    SrsAacProfileReserved = 3,
+    
+    // @see 7.1 Profiles, aac-iso-13818-7.pdf, page 40
+    SrsAacProfileMain = 0,
+    SrsAacProfileLC = 1,
+    SrsAacProfileSSR = 2,
+};
+std::string srs_codec_aac_profile2str(SrsAacProfile aac_profile);
+
+/**
+* the aac object type, for RTMP sequence header
+* for AudioSpecificConfig, @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 33
+* for audioObjectType, @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 23
+*/
+enum SrsAacObjectType
+{
+    SrsAacObjectTypeReserved = 0,
+    
+    // Table 1.1 – Audio Object Type definition
+    // @see @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 23
+    SrsAacObjectTypeAacMain = 1,
+    SrsAacObjectTypeAacLC = 2,
+    SrsAacObjectTypeAacSSR = 3,
+};
+// ts/hls/adts audio header profile to RTMP sequence header object type.
+SrsAacObjectType srs_codec_aac_ts2rtmp(SrsAacProfile profile);
+// RTMP sequence header object type to ts/hls/adts audio header profile.
+SrsAacProfile srs_codec_aac_rtmp2ts(SrsAacObjectType object_type);
 
 /**
 * the h264/avc and aac codec, for media stream.
@@ -446,7 +466,7 @@ public:
     * 1.5.1.1 Audio object type definition, page 23,
     *           in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf.
     */
-    u_int8_t        aac_profile; 
+    SrsAacProfile   aac_profile;
     /**
     * samplingFrequencyIndex
     */
