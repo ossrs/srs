@@ -1294,7 +1294,7 @@ void SrsRtmpConn::http_hooks_on_close()
         int connection_id = _srs_context->get_id();
         for (int i = 0; i < (int)on_close->args.size(); i++) {
             std::string url = on_close->args.at(i);
-            SrsHttpHooks::on_close(url, connection_id, ip, req);
+            SrsHttpHooks::on_close(url, connection_id, ip, req, skt->get_send_bytes(), skt->get_recv_bytes());
         }
     }
 #endif

@@ -82,7 +82,7 @@ int SrsHttpHooks::on_connect(string url, int client_id, string ip, SrsRequest* r
     return ret;
 }
 
-void SrsHttpHooks::on_close(string url, int client_id, string ip, SrsRequest* req)
+void SrsHttpHooks::on_close(string url, int client_id, string ip, SrsRequest* req, int64_t send_bytes, int64_t recv_bytes)
 {
     int ret = ERROR_SUCCESS;
     
@@ -92,6 +92,8 @@ void SrsHttpHooks::on_close(string url, int client_id, string ip, SrsRequest* re
         << __SRS_JFIELD_ORG("client_id", client_id) << __SRS_JFIELD_CONT
         << __SRS_JFIELD_STR("ip", ip) << __SRS_JFIELD_CONT
         << __SRS_JFIELD_STR("vhost", req->vhost) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_ORG("send_bytes", send_bytes) << __SRS_JFIELD_CONT
+        << __SRS_JFIELD_ORG("recv_bytes", recv_bytes) << __SRS_JFIELD_CONT
         << __SRS_JFIELD_STR("app", req->app)
         << __SRS_JOBJECT_END;
         
