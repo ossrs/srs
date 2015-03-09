@@ -1,0 +1,15 @@
+*** Makefile	Fri Oct  2 06:55:03 2009
+--- ../st-1.9-patch/Makefile	Mon Mar 16 15:30:35 2015
+***************
+*** 310,315 ****
+--- 310,319 ----
+  EXAMPLES    =
+  endif
+  
++ # disable examples for ubuntu crossbuild failed.
++ # @see https://github.com/winlinvip/simple-rtmp-server/issues/308
++ EXAMPLES =
++ 
+  ifeq ($(OS), DARWIN)
+  LINKNAME    = libst.$(DSO_SUFFIX)
+  SONAME      = libst.$(MAJOR).$(DSO_SUFFIX)

@@ -376,7 +376,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     _ST_MAKE=linux-debug && _ST_EXTRA_CFLAGS="EXTRA_CFLAGS=-DMD_HAVE_EPOLL"
     # for osx, use darwin for st, donot use epoll.
     if [ $OS_IS_OSX = YES ]; then
-        _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS=""
+        _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="EXTRA_CFLAGS=-DMD_HAVE_KQUEUE"
     fi
     # memory leak for linux-optimized
     # @see: https://github.com/winlinvip/simple-rtmp-server/issues/197
@@ -390,10 +390,11 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             echo "build st-1.9t for arm"; 
             (
                 rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
-                unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && 
-                patch -p0 -R < ../../3rdparty/patches/1.st.arm.patch &&
-                make ${_ST_MAKE} CC=${SrsArmCC} AR=${SrsArmAR} LD=${SrsArmLD} RANDLIB=${SrsArmRANDLIB} \
-                    EXTRA_CFLAGS=${_ST_EXTRA_CFLAGS} &&
+                unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && chmod +w * &&
+                patch -p0 < ../../3rdparty/patches/1.st.arm.patch &&
+                patch -p0 < ../../3rdparty/patches/3.st.osx.kqueue.patch &&
+                patch -p0 < ../../3rdparty/patches/4.st.disable.examples.patch &&
+                make ${_ST_MAKE} CC=${SrsArmCC} AR=${SrsArmAR} LD=${SrsArmLD} RANDLIB=${SrsArmRANDLIB} ${_ST_EXTRA_CFLAGS} &&
                 cd .. && rm -rf st && ln -sf st-1.9/obj st &&
                 cd .. && touch ${SRS_OBJS}/_flag.st.arm.tmp
             )
@@ -405,7 +406,9 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             echo "build st-1.9t"; 
             (
                 rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
-                unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && 
+                unzip -q ../3rdparty/st-1.9.zip && cd st-1.9 && chmod +w * &&
+                patch -p0 < ../../3rdparty/patches/3.st.osx.kqueue.patch &&
+                patch -p0 < ../../3rdparty/patches/4.st.disable.examples.patch &&
                 make ${_ST_MAKE} ${_ST_EXTRA_CFLAGS} &&
                 cd .. && rm -rf st && ln -sf st-1.9/obj st &&
                 cd .. && rm -f ${SRS_OBJS}/_flag.st.arm.tmp
@@ -431,7 +434,7 @@ if [ $SRS_HTTP_PARSER = YES ]; then
             (
                 rm -rf ${SRS_OBJS}/http-parser-2.1 && cd ${SRS_OBJS} && unzip -q ../3rdparty/http-parser-2.1.zip && 
                 cd http-parser-2.1 && 
-                patch -p0 -R < ../../3rdparty/patches/2.http.parser.patch &&
+                patch -p0 < ../../3rdparty/patches/2.http.parser.patch &&
                 sed -i "s/CPPFLAGS_FAST +=.*$/CPPFLAGS_FAST = \$\(CPPFLAGS_DEBUG\)/g" Makefile &&
                 sed -i "s/CFLAGS_FAST =.*$/CFLAGS_FAST = \$\(CFLAGS_DEBUG\)/g" Makefile &&
                 make CC=${SrsArmCC} AR=${SrsArmAR} package &&
@@ -448,7 +451,7 @@ if [ $SRS_HTTP_PARSER = YES ]; then
             (
                 rm -rf ${SRS_OBJS}/http-parser-2.1 && cd ${SRS_OBJS} && unzip -q ../3rdparty/http-parser-2.1.zip && 
                 cd http-parser-2.1 && 
-                patch -p0 -R < ../../3rdparty/patches/2.http.parser.patch &&
+                patch -p0 < ../../3rdparty/patches/2.http.parser.patch &&
                 make package &&
                 cd .. && rm -rf hp && ln -sf http-parser-2.1 hp &&
                 cd .. && rm -f ${SRS_OBJS}/_flag.st.hp.tmp

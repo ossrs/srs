@@ -1,7 +1,5 @@
-Only in .: 1.st.arm.patch
-diff -r -c ./md.h ../st-1.9-patch-arm/md.h
-*** ./md.h	2009-10-02 02:46:43.000000000 +0800
---- ../st-1.9-patch-arm/md.h	2014-03-16 20:49:03.845344804 +0800
+*** md.h	Fri Oct  2 02:46:43 2009
+--- ../st-1.9-patch/md.h	Mon Mar 16 15:11:49 2015
 ***************
 *** 422,428 ****
   #define MD_STACK_GROWS_DOWN
