@@ -36,6 +36,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_file.hpp>
+#include <srs_kernel_codec.hpp>
 
 #define SRS_FLV_TAG_HEADER_SIZE 11
 #define SRS_FLV_PREVIOUS_TAG_SIZE 4
@@ -149,7 +150,7 @@ int SrsFlvEncoder::write_audio(int64_t timestamp, char* data, int size)
     
     // 11bytes tag header
     static char tag_header[] = {
-        (char)8, // TagType UB [5], 8 = audio
+        (char)SrsCodecFlvTagAudio, // TagType UB [5], 8 = audio
         (char)0x00, (char)0x00, (char)0x00, // DataSize UI24 Length of the message.
         (char)0x00, (char)0x00, (char)0x00, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
         (char)0x00, // TimestampExtended UI8
@@ -183,7 +184,7 @@ int SrsFlvEncoder::write_video(int64_t timestamp, char* data, int size)
     
     // 11bytes tag header
     static char tag_header[] = {
-        (char)9, // TagType UB [5], 9 = video
+        (char)SrsCodecFlvTagVideo, // TagType UB [5], 9 = video
         (char)0x00, (char)0x00, (char)0x00, // DataSize UI24 Length of the message.
         (char)0x00, (char)0x00, (char)0x00, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
         (char)0x00, // TimestampExtended UI8
