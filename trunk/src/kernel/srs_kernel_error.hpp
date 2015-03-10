@@ -247,6 +247,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_HTTP_RESPONSE_EOF             4025
 #define ERROR_HTTP_INVALID_CHUNK_HEADER     4026
 
+///////////////////////////////////////////////////////
+// user-define error.
+///////////////////////////////////////////////////////
+#define ERROR_USER_START                    9000
+#define ERROR_USER_END                      9999
+
 /**
 * whether the error code is an system control error.
 */

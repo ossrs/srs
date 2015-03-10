@@ -206,6 +206,11 @@ void check_macro_features()
     srs_warn("SRS %s is develop branch, please use %s instead", RTMP_SIG_SRS_VERSION, RTMP_SIG_SRS_RELEASE);
 #endif
 
+#if defined(SRS_AUTO_STREAM_CASTER)
+    #warning "stream caster is experiment feature."
+    srs_warn("stream caster is experiment feature.");
+#endif
+
 #if defined(SRS_PERF_SO_SNDBUF_SIZE) && !defined(SRS_PERF_MW_SO_SNDBUF)
     #error "SRS_PERF_SO_SNDBUF_SIZE depends on SRS_PERF_MW_SO_SNDBUF"
 #endif

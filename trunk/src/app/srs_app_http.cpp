@@ -953,7 +953,7 @@ int SrsHttpResponseReader::read_chunked(std::string& data)
         }
         return ret;
     }
-    srs_trace("http: read %d chunk", ilength);
+    srs_info("http: read %d chunk", ilength);
     
     // read payload when length specifies some payload.
     if (ilength <= 0) {

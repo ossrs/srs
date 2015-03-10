@@ -7,7 +7,7 @@
 SRS_WORKDIR="."
 SRS_OBJS_DIR="objs"
 SRS_OBJS="${SRS_WORKDIR}/${SRS_OBJS_DIR}"
-mkdir -p ${SRS_OBJS}
+SRS_MAKEFILE="Makefile"
 
 # linux shell color support.
 RED="\\033[31m"
@@ -22,6 +22,9 @@ if [[ -f Makefile ]]; then
 fi
 # remove makefile
 rm -f ${SRS_WORKDIR}/${SRS_MAKEFILE}
+
+# create objs
+mkdir -p ${SRS_OBJS}
 
 #####################################################################################
 # parse user options, set the variables like:
@@ -43,11 +46,9 @@ rm -f ${SRS_WORKDIR}/${SRS_MAKEFILE}
 #####################################################################################
 # generate Makefile.
 #####################################################################################
-SRS_MAKEFILE="Makefile"
 # ubuntu echo in Makefile cannot display color, use bash instead
 SRS_BUILD_SUMMARY="_srs_build_summary.sh"
 
-#####################################################################################
 # srs-librtmp sample entry
 SrsLibrtmpSampleEntry="nossl"
 if [ $SRS_SSL = YES ]; then SrsLibrtmpSampleEntry="ssl";fi
