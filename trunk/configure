@@ -9,12 +9,19 @@ SRS_OBJS_DIR="objs"
 SRS_OBJS="${SRS_WORKDIR}/${SRS_OBJS_DIR}"
 mkdir -p ${SRS_OBJS}
 
-#####################################################################################
 # linux shell color support.
 RED="\\033[31m"
 GREEN="\\033[32m"
 YELLOW="\\033[33m"
 BLACK="\\033[0m"
+
+# clean the exists, when not export srs-librtmp.
+# do this only when the options is ok.
+if [[ -f Makefile ]]; then
+    make clean
+fi
+# remove makefile
+rm -f ${SRS_WORKDIR}/${SRS_MAKEFILE}
 
 #####################################################################################
 # parse user options, set the variables like:
@@ -66,16 +73,6 @@ for SRS_MODULE in $SRS_MODULES; do
     __mdefaults="$__mdefaults $SRS_MODULE_NAME"
     __mcleanups="$__mcleanups $SRS_MODULE_NAME"
 done
-
-# clean the exists, when not export srs-librtmp.
-# do this only when the options is ok.
-if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
-    if [[ -f Makefile ]]; then
-        make clean
-    fi
-fi
-# remove makefile
-rm -f ${SRS_WORKDIR}/${SRS_MAKEFILE}
 
 #####################################################################################
 # build tools or compiler args.

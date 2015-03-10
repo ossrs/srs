@@ -349,12 +349,21 @@ if [ $OS_IS_OSX = YES ]; then
         echo "OSX detected, must specifies the --osx"
         exit 1
     fi
+    # TODO: FIXME: support following features.
     if [ $SRS_HTTP_API = YES ]; then
         echo "OSX does not support http-api, use --without-http-api"
         exit 1
     fi
     if [ $SRS_STAT = YES ]; then
         echo "OSX does not support stat, use --without-stat"
+        exit 1
+    fi
+    if [ $SRS_FFMPEG_TOOL = YES ]; then
+        echo "OSX does not support ffmpeg, use --without-ffmpeg"
+        exit 1
+    fi
+    if [ $SRS_NGINX = YES ]; then
+        echo "OSX does not support nginx, use --without-nginx"
         exit 1
     fi
 fi
@@ -723,3 +732,4 @@ fi
 # generated the test script
 #####################################################################################
 rm -rf ${SRS_OBJS}/srs.test && ln -sf `pwd`/scripts/srs.test objs/srs.test
+

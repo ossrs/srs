@@ -282,8 +282,8 @@
 		3C1231E71AAE64A400CE8F6C /* srs_xcode */ = {
 			isa = PBXGroup;
 			children = (
-				3C1232EF1AAEAC5800CE8F6C /* etc */,
 				3C1232B81AAE824500CE8F6C /* configure */,
+				3C1232EF1AAEAC5800CE8F6C /* etc */,
 				3C1232BA1AAE826F00CE8F6C /* auto */,
 				3C1232B91AAE825100CE8F6C /* scripts */,
 				3C12324B1AAE81CE00CE8F6C /* app */,
