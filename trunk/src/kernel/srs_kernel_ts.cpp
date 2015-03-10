@@ -2772,12 +2772,12 @@ int SrsTsCache::do_cache_aac(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         // 6.2 Audio Data Transport Stream, ADTS
         // in aac-iso-13818-7.pdf, page 26.
         // fixed 7bytes header
-        static u_int8_t adts_header[7] = {0xff, 0xf1, 0x00, 0x00, 0x00, 0x0f, 0xfc};
+        static u_int8_t adts_header[7] = {0xff, 0xf9, 0x00, 0x00, 0x00, 0x0f, 0xfc};
         /*
         // adts_fixed_header
         // 2B, 16bits
         int16_t syncword; //12bits, '1111 1111 1111'
-        int8_t ID; //1bit, '0'
+        int8_t ID; //1bit, '1'
         int8_t layer; //2bits, '00'
         int8_t protection_absent; //1bit, can be '1'
         // 12bits
