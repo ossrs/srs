@@ -437,7 +437,9 @@ u_int32_t srs_crc32(const void* buf, int size)
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#ifndef UINT_MAX
 #define UINT_MAX 0xffffffff
+#endif
 
 #ifndef AV_RB32
 #   define AV_RB32(x)                                \

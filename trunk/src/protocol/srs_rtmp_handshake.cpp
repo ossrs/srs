@@ -73,7 +73,7 @@ namespace _srs_internal
     int __openssl_HMACsha256(HMAC_CTX* ctx, const void* data, int data_size, void* digest, unsigned int* digest_size) 
     {
         int ret = ERROR_SUCCESS;
-        
+#ifndef SRS_OSX
         if (HMAC_Update(ctx, (unsigned char *) data, data_size) < 0) {
             ret = ERROR_OpenSslSha256Update;
             return ret;
@@ -83,6 +83,10 @@ namespace _srs_internal
             ret = ERROR_OpenSslSha256Final;
             return ret;
         }
+#else
+        HMAC_Update(ctx, (unsigned char *) data, data_size);
+        HMAC_Final(ctx, (unsigned char *) digest, digest_size);
+#endif
         
         return ret;
     }
@@ -117,10 +121,14 @@ namespace _srs_internal
             // for instance, in python, hashlib.sha256(data).digest().
             HMAC_CTX_init(&ctx);
             
+#ifndef SRS_OSX
             if (HMAC_Init_ex(&ctx, __key, key_size, EVP_sha256(), NULL) < 0) {
                 ret = ERROR_OpenSslSha256Init;
                 return ret;
             }
+#else
+            HMAC_Init_ex(&ctx, __key, key_size, EVP_sha256(), NULL);
+#endif
             
             ret = __openssl_HMACsha256(&ctx, data, data_size, __digest, &digest_size);
             HMAC_CTX_cleanup(&ctx);

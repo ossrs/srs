@@ -16,8 +16,28 @@ echo "#define SRS_AUTO_BUILD_DATE \"`date \"+%Y-%m-%d %H:%M:%S\"`\"" >> $SRS_AUT
 echo "#define SRS_AUTO_UNAME \"`uname -a`\"" >> $SRS_AUTO_HEADERS_H
 echo "#define SRS_AUTO_USER_CONFIGURE \"${SRS_AUTO_USER_CONFIGURE}\"" >> $SRS_AUTO_HEADERS_H
 echo "#define SRS_AUTO_CONFIGURE \"${SRS_AUTO_CONFIGURE}\"" >> $SRS_AUTO_HEADERS_H
+echo "" >> $SRS_AUTO_HEADERS_H
 
-# new empty line to auto headers file.
+# export the preset.
+if [ $SRS_OSX = YES ]; then
+    echo "#define SRS_OSX" >> $SRS_AUTO_HEADERS_H
+fi
+if [ $SRS_X86_X64 = YES ]; then
+    echo "#define SRS_X86_X64" >> $SRS_AUTO_HEADERS_H
+fi
+if [ $SRS_ARM_UBUNTU12 = YES ]; then
+    echo "#define SRS_ARM_UBUNTU12" >> $SRS_AUTO_HEADERS_H
+fi
+if [ $SRS_MIPS_UBUNTU12 = YES ]; then
+    echo "#define SRS_MIPS_UBUNTU12" >> $SRS_AUTO_HEADERS_H
+fi
+if [ $SRS_PI = YES ]; then
+    echo "#define SRS_PI" >> $SRS_AUTO_HEADERS_H
+fi
+if [ $SRS_CUBIE = YES ]; then
+    echo "#define SRS_CUBIE" >> $SRS_AUTO_HEADERS_H
+fi
+
 echo "" >> $SRS_AUTO_HEADERS_H
 
 #####################################################################################

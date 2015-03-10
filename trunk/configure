@@ -11,10 +11,10 @@ mkdir -p ${SRS_OBJS}
 
 #####################################################################################
 # linux shell color support.
-RED="\\e[31m"
-GREEN="\\e[32m"
-YELLOW="\\e[33m"
-BLACK="\\e[0m"
+RED="\\033[31m"
+GREEN="\\033[32m"
+YELLOW="\\033[33m"
+BLACK="\\033[0m"
 
 #####################################################################################
 # parse user options, set the variables like:

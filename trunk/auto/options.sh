@@ -68,6 +68,8 @@ SRS_EXPORT_LIBRTMP_SINGLE=NO
 # presets
 # for x86/x64 pc/servers
 SRS_X86_X64=NO
+# for osx system
+SRS_OSX=NO
 # armhf(v7cpu) built on ubuntu12
 SRS_ARM_UBUNTU12=NO
 # mips built on ubuntu12
@@ -166,6 +168,7 @@ Options:
 
 Presets:
   --x86-x64                 [default] for x86/x64 cpu, common pc and servers.
+  --osx                     for osx(darwin) system to build SRS.
   --pi                      for raspberry-pi(directly build), open features hls/ssl/static.
   --cubie                   for cubieboard(directly build), open features except ffmpeg/nginx.
   --arm                     alias for --with-arm-ubuntu12, for ubuntu12, arm crossbuild
@@ -260,6 +263,7 @@ function parse_user_option() {
         --log-trace)                    SRS_LOG_TRACE=YES           ;;
         
         --x86-x64)                      SRS_X86_X64=YES             ;;
+        --osx)                          SRS_OSX=YES                 ;;
         --arm)                          SRS_ARM_UBUNTU12=YES        ;;
         --mips)                         SRS_MIPS_UBUNTU12=YES       ;;
         --pi)                           SRS_PI=YES                  ;;
@@ -331,7 +335,9 @@ function apply_user_presets() {
                                             if [ $SRS_PI = NO ]; then
                                                 if [ $SRS_CUBIE = NO ]; then
                                                     if [ $SRS_X86_X64 = NO ]; then
-														SRS_X86_X64=YES; opt="--x86-x64 $opt";
+                                                        if [ $SRS_OSX = NO ]; then
+                                                            SRS_X86_X64=YES; opt="--x86-x64 $opt";
+                                                        fi
                                                     fi
                                                 fi
                                             fi
@@ -551,10 +557,36 @@ function apply_user_presets() {
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
         SRS_STREAM_CASTER=YES
-        SRS_HTTP_API=YES
+        SRS_HTTP_API=NO
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=YES
+        SRS_GPERF=NO
+        SRS_GPERF_MC=NO
+        SRS_GPERF_MP=NO
+        SRS_GPERF_CP=NO
+        SRS_GPROF=NO
+        SRS_STATIC=NO
+    fi
+
+    # for osx(darwin)
+    if [ $SRS_OSX = YES ]; then
+        SRS_HLS=YES
+        SRS_DVR=YES
+        SRS_NGINX=NO
+        SRS_SSL=YES
+        SRS_FFMPEG_TOOL=NO
+        SRS_TRANSCODE=YES
+        SRS_INGEST=YES
+        SRS_STAT=NO
+        SRS_HTTP_PARSER=YES
+        SRS_HTTP_CALLBACK=YES
+        SRS_HTTP_SERVER=YES
+        SRS_STREAM_CASTER=YES
+        SRS_HTTP_API=NO
+        SRS_LIBRTMP=YES
+        SRS_RESEARCH=NO
+        SRS_UTEST=NO
         SRS_GPERF=NO
         SRS_GPERF_MC=NO
         SRS_GPERF_MP=NO

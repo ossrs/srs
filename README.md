@@ -25,7 +25,7 @@ flv/ts/mp3/aac streaming for user prefered.
 1. Multiple feature: transcode, forward, ingest, http hooks, dvr, hls, rtsp, http streaming, 
 http api, refer, log, bandwith test and srs-librtmp.
 1. Best maintainess: simple arch over state-threads(coroutine), single thread, single process 
-and only linux platform, common server x86-64/i386/arm/mips cpus, rich comments, strictly 
+and for linux/osx platform, common server x86-64/i386/arm/mips cpus, rich comments, strictly 
 follows RTMP/HLS/RTSP spec.
 1. Easy to use: both English and Chinese wiki, typically config files in trunk/conf, traceable 
 and session based log, linux service script and install script.
@@ -37,7 +37,7 @@ Enjoy it!
 
 SRS(SIMPLE RTMP Server) over state-threads created in 2013.10.
 
-SRS delivers rtmp/hls/http live on x86/x64/arm/mips linux, 
+SRS delivers rtmp/hls/http live on x86/x64/arm/mips linux/osx, 
 supports origin/edge/vhost and transcode/ingest and dvr/forward 
 and http-api/http-callback/reload, introduces tracable 
 session-oriented log, exports client srs-librtmp, 
@@ -550,6 +550,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-03-10, fix [#155](https://github.com/winlinvip/simple-rtmp-server/issues/155), support osx(darwin) for mac pro. 2.0.137.
 * v2.0, 2015-03-08, fix [#316](https://github.com/winlinvip/simple-rtmp-server/issues/316), http api provides stream/vhost/srs/server bytes, codec and count. 2.0.136.
 * v2.0, 2015-03-08, fix [#310](https://github.com/winlinvip/simple-rtmp-server/issues/310), refine aac LC, support aac HE/HEv2. 2.0.134.
 * v2.0, 2015-03-06, for [#322](https://github.com/winlinvip/simple-rtmp-server/issues/322), fix http-flv stream bug, support multiple streams. 2.0.133.

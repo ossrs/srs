@@ -26,6 +26,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 
+#ifndef SRS_OSX
 #include <sys/epoll.h>
 bool srs_st_epoll_is_supported(void)
 {
@@ -38,11 +39,13 @@ bool srs_st_epoll_is_supported(void)
 
     return (errno != ENOSYS);
 }
+#endif
 
 int srs_init_st()
 {
     int ret = ERROR_SUCCESS;
     
+#ifndef SRS_OSX
     // check epoll, some old linux donot support epoll.
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/162
     if (!srs_st_epoll_is_supported()) {
@@ -58,6 +61,7 @@ int srs_init_st()
         return ret;
     }
     srs_verbose("st_set_eventsys use linux epoll success");
+#endif
     
     if(st_init() != 0){
         ret = ERROR_ST_INITIALIZE;

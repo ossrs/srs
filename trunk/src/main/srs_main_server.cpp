@@ -177,6 +177,23 @@ void show_macro_features()
 
 void check_macro_features()
 {
+    // important preset.
+#ifdef SRS_OSX
+    srs_trace("SRS for OSX");
+#endif
+#ifdef SRS_PI
+    srs_trace("SRS for pi");
+#endif
+#ifdef SRS_CUBIE
+    srs_trace("SRS for cubieboard");
+#endif
+#ifdef SRS_ARM_UBUNTU12
+    srs_trace("SRS for arm(build on ubuntu)");
+#endif
+#ifdef SRS_MIPS_UBUNTU12
+    srs_trace("SRS for mips(build on ubuntu)");
+#endif
+    
     // for special features.
 #ifndef SRS_PERF_MERGED_READ
     srs_warn("MR(merged-read) is disabled, hurts read performance. @see %s", RTMP_SIG_SRS_ISSUES(241));
@@ -252,8 +269,8 @@ int main(int argc, char** argv)
     srs_trace("conf: %s, limit: %d", _srs_config->config().c_str(), _srs_config->get_max_connections());
     
     // features
-    show_macro_features();
     check_macro_features();
+    show_macro_features();
     
     /**
     * we do nothing in the constructor of server,
