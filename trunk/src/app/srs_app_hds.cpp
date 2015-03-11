@@ -557,9 +557,8 @@ int SrsHds::flush_bootstrap()
     abst.write_1bytes(1);
     size_abst += 1;
 
-    ///////////////////////////////////////////////////
     start_asrt = start_abst + size_abst;
-    // MStream asrt;
+
     // follows by asrt
     abst.write_4bytes(0);
     abst.write_string("asrt");
@@ -625,8 +624,6 @@ int SrsHds::flush_bootstrap()
     abst.write_1bytes(1);
     size_abst += 1;
 
-    /////////////////////////////////////
-    //MStream afrt;
     // follows by afrt
     start_afrt = start_abst + size_abst;
 
@@ -677,8 +674,6 @@ int SrsHds::flush_bootstrap()
     }
 
     update_box(start_afrt, size_afrt);
-//    abst.append(afrt);
-
     size_abst += size_afrt;
     update_box(start_abst, size_abst);
 
