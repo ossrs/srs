@@ -213,6 +213,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_HTTP_DVR_REQUEST              3051
 #define ERROR_HTTP_JSON_REQUIRED            3052
 #define ERROR_HTTP_DVR_CREATE_REQUEST       3053
+// HDS error code
+#define ERROR_HDS_OPEN_F4M_FAILED           3054
+#define ERROR_HDS_WRITE_F4M_FAILED          3055
+#define ERROR_HDS_OPEN_BOOTSTRAP_FAILED     3056
+#define ERROR_HDS_WRITE_BOOTSTRAP_FAILED    3057
+#define ERROR_HDS_OPEN_FRAGMENT_FAILED      3058
+#define ERROR_HDS_WRITE_FRAGMENT_FAILED     3059
 
 ///////////////////////////////////////////////////////
 // HTTP/StreamCaster protocol error.

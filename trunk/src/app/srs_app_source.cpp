@@ -42,6 +42,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_rtmp_msg_array.hpp>
+#include <srs_app_hds.hpp>
 
 #define CONST_MAX_JITTER_MS         500
 #define DEFAULT_FRAME_TIME_MS         40
@@ -769,6 +770,8 @@ SrsSource::SrsSource(ISrsHlsHandler* hh)
 #ifdef SRS_AUTO_TRANSCODE
     encoder = new SrsEncoder();
 #endif
+
+    hds = new SrsHds(this);
     
     cache_metadata = cache_sh_video = cache_sh_audio = NULL;
     
@@ -1323,6 +1326,15 @@ int SrsSource::on_audio(SrsCommonMessage* __audio)
         ret = ERROR_SUCCESS;
     }
 #endif
+
+    if ((ret = hds->on_audio(&msg)) != ERROR_SUCCESS) {
+        // unpublish, ignore ret.
+        hds->on_unpublish();
+        // ignore.
+        ret = ERROR_SUCCESS;
+
+        srs_warn("hds process audio message failed, ignore and disable dvr. ret=%d", ret);
+    }
     
     // copy to all consumer
     int nb_consumers = (int)consumers.size();
@@ -1455,6 +1467,15 @@ int SrsSource::on_video(SrsCommonMessage* __video)
         ret = ERROR_SUCCESS;
     }
 #endif
+
+    if ((ret = hds->on_video(&msg)) != ERROR_SUCCESS) {
+        // unpublish, ignore ret.
+        hds->on_unpublish();
+        // ignore.
+        ret = ERROR_SUCCESS;
+
+        srs_warn("hds process video message failed, ignore and disable dvr. ret=%d", ret);
+    }
     
     // copy to all consumer
     if (true) {
@@ -1693,6 +1714,11 @@ int SrsSource::on_publish()
     }
 #endif
 
+    if ((ret = hds->on_publish(_req)) != ERROR_SUCCESS) {
+        srs_error("start hds failed. ret=%d", ret);
+        return ret;
+    }
+
     // notify the handler.
     srs_assert(handler);
     if ((ret = handler->on_publish(this, _req)) != ERROR_SUCCESS) {
@@ -1719,6 +1745,8 @@ void SrsSource::on_unpublish()
 #ifdef SRS_AUTO_DVR
     dvr->on_unpublish();
 #endif
+
+    hds->on_unpublish();
 
     gop_cache->clear();
 

@@ -102,10 +102,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_TRANSCODE_IFORMAT "flv"
 #define SRS_CONF_DEFAULT_TRANSCODE_OFORMAT "flv"
 
+// hds default value
+#define SRS_CONF_DEFAULT_HDS_PATH       "./objs/nginx/html"
+#define SRS_CONF_DEFAULT_HDS_WINDOW     (60)
+#define SRS_CONF_DEFAULT_HDS_FRAGMENT   (10)
+
 namespace _srs_internal
 {
     class SrsConfigBuffer;
-};
+}
 
 /**
 * the config directive.
@@ -912,6 +917,32 @@ public:
     * get the HLS default video codec.
     */
     virtual std::string         get_hls_vcodec(std::string vhost);
+
+    // hds section
+private:
+    /**
+    * get the hds directive of vhost.
+    */
+    virtual SrsConfDirective*   get_hds(const std::string &vhost);
+public:
+    /**
+    * whether HDS is enabled.
+    */
+    virtual bool                get_hds_enabled(const std::string &vhost);
+    /**
+    * get the HDS file store path.
+    */
+    virtual std::string         get_hds_path(const std::string &vhost);
+    /**
+    * get the hds fragment time, in seconds.
+    */
+    virtual double              get_hds_fragment(const std::string &vhost);
+    /**
+    * get the hds window time, in seconds.
+    * a window is a set of hds fragments.
+    */
+    virtual double              get_hds_window(const std::string &vhost);
+
 // dvr section
 private:
     /**

@@ -62,6 +62,7 @@ class SrsEncoder;
 #endif
 class SrsStream;
 class ISrsHlsHandler;
+class SrsHds;
 
 /**
 * the time jitter algorithm:
@@ -411,6 +412,7 @@ private:
 #ifdef SRS_AUTO_TRANSCODE
     SrsEncoder* encoder;
 #endif
+    SrsHds *hds;
     // edge control service
     SrsPlayEdge* play_edge;
     SrsPublishEdge* publish_edge;
