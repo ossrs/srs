@@ -39,10 +39,9 @@ using namespace std;
 #include <srs_rtmp_buffer.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_rtmp_buffer.hpp>
 
 #define SRS_DEFAULT_HTTP_PORT 80
-
-#define SRS_HTTP_HEADER_BUFFER 1024
 
 // for http parser macros
 #define SRS_CONSTS_HTTP_OPTIONS HTTP_OPTIONS
@@ -53,7 +52,7 @@ using namespace std;
 
 #define SRS_HTTP_DEFAULT_PAGE "index.html"
 
-int srs_go_http_response_json(ISrsGoHttpResponseWriter* w, string data)
+int srs_go_http_response_json(ISrsHttpResponseWriter* w, string data)
 {
     w->header()->set_content_length(data.length());
     w->header()->set_content_type("application/json");
@@ -147,7 +146,7 @@ string srs_go_http_detect(char* data, int size)
 
 // Error replies to the request with the specified error message and HTTP code.
 // The error message should be plain text.
-int srs_go_http_error(ISrsGoHttpResponseWriter* w, int code, string error)
+int srs_go_http_error(ISrsHttpResponseWriter* w, int code, string error)
 {
     int ret = ERROR_SUCCESS;
     
@@ -159,20 +158,20 @@ int srs_go_http_error(ISrsGoHttpResponseWriter* w, int code, string error)
     return ret;
 }
 
-SrsGoHttpHeader::SrsGoHttpHeader()
+SrsHttpHeader::SrsHttpHeader()
 {
 }
 
-SrsGoHttpHeader::~SrsGoHttpHeader()
+SrsHttpHeader::~SrsHttpHeader()
 {
 }
 
-void SrsGoHttpHeader::set(string key, string value)
+void SrsHttpHeader::set(string key, string value)
 {
     headers[key] = value;
 }
 
-string SrsGoHttpHeader::get(string key)
+string SrsHttpHeader::get(string key)
 {
     std::string v;
     
@@ -183,7 +182,7 @@ string SrsGoHttpHeader::get(string key)
     return v;
 }
 
-int64_t SrsGoHttpHeader::content_length()
+int64_t SrsHttpHeader::content_length()
 {
     std::string cl = get("Content-Length");
     
@@ -194,24 +193,24 @@ int64_t SrsGoHttpHeader::content_length()
     return (int64_t)::atof(cl.c_str());
 }
 
-void SrsGoHttpHeader::set_content_length(int64_t size)
+void SrsHttpHeader::set_content_length(int64_t size)
 {
     char buf[64];
     snprintf(buf, sizeof(buf), "%"PRId64, size);
     set("Content-Length", buf);
 }
 
-string SrsGoHttpHeader::content_type()
+string SrsHttpHeader::content_type()
 {
     return get("Content-Type");
 }
 
-void SrsGoHttpHeader::set_content_type(string ct)
+void SrsHttpHeader::set_content_type(string ct)
 {
     set("Content-Type", ct);
 }
 
-void SrsGoHttpHeader::write(stringstream& ss)
+void SrsHttpHeader::write(stringstream& ss)
 {
     std::map<std::string, std::string>::iterator it;
     for (it = headers.begin(); it != headers.end(); ++it) {
@@ -219,64 +218,72 @@ void SrsGoHttpHeader::write(stringstream& ss)
     }
 }
 
-ISrsGoHttpResponseWriter::ISrsGoHttpResponseWriter()
+ISrsHttpResponseWriter::ISrsHttpResponseWriter()
 {
 }
 
-ISrsGoHttpResponseWriter::~ISrsGoHttpResponseWriter()
+ISrsHttpResponseWriter::~ISrsHttpResponseWriter()
 {
 }
 
-ISrsGoHttpHandler::ISrsGoHttpHandler()
+ISrsHttpResponseReader::ISrsHttpResponseReader()
+{
+}
+
+ISrsHttpResponseReader::~ISrsHttpResponseReader()
+{
+}
+
+ISrsHttpHandler::ISrsHttpHandler()
 {
     entry = NULL;
 }
 
-ISrsGoHttpHandler::~ISrsGoHttpHandler()
+ISrsHttpHandler::~ISrsHttpHandler()
 {
 }
 
-SrsGoHttpRedirectHandler::SrsGoHttpRedirectHandler(string u, int c)
+SrsHttpRedirectHandler::SrsHttpRedirectHandler(string u, int c)
 {
     url = u;
     code = c;
 }
 
-SrsGoHttpRedirectHandler::~SrsGoHttpRedirectHandler()
+SrsHttpRedirectHandler::~SrsHttpRedirectHandler()
 {
 }
 
-int SrsGoHttpRedirectHandler::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsHttpRedirectHandler::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
     // TODO: FIXME: implements it.
     return ret;
 }
 
-SrsGoHttpNotFoundHandler::SrsGoHttpNotFoundHandler()
+SrsHttpNotFoundHandler::SrsHttpNotFoundHandler()
 {
 }
 
-SrsGoHttpNotFoundHandler::~SrsGoHttpNotFoundHandler()
+SrsHttpNotFoundHandler::~SrsHttpNotFoundHandler()
 {
 }
 
-int SrsGoHttpNotFoundHandler::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsHttpNotFoundHandler::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
 {
     return srs_go_http_error(w, 
         SRS_CONSTS_HTTP_NotFound, SRS_CONSTS_HTTP_NotFound_str);
 }
 
-SrsGoHttpFileServer::SrsGoHttpFileServer(string root_dir)
+SrsHttpFileServer::SrsHttpFileServer(string root_dir)
 {
     dir = root_dir;
 }
 
-SrsGoHttpFileServer::~SrsGoHttpFileServer()
+SrsHttpFileServer::~SrsHttpFileServer()
 {
 }
 
-int SrsGoHttpFileServer::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsHttpFileServer::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
 {
     string upath = r->path();
     
@@ -300,7 +307,7 @@ int SrsGoHttpFileServer::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
     if (!srs_path_exists(fullpath)) {
         srs_warn("http miss file=%s, pattern=%s, upath=%s", 
             fullpath.c_str(), entry->pattern.c_str(), upath.c_str());
-        return SrsGoHttpNotFoundHandler().serve_http(w, r);
+        return SrsHttpNotFoundHandler().serve_http(w, r);
     }
     srs_trace("http match file=%s, pattern=%s, upath=%s", 
         fullpath.c_str(), entry->pattern.c_str(), upath.c_str());
@@ -317,7 +324,7 @@ int SrsGoHttpFileServer::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
     return serve_file(w, r, fullpath);
 }
 
-int SrsGoHttpFileServer::serve_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, string fullpath)
+int SrsHttpFileServer::serve_file(ISrsHttpResponseWriter* w, SrsHttpMessage* r, string fullpath)
 {
     int ret = ERROR_SUCCESS;
     
@@ -391,7 +398,7 @@ int SrsGoHttpFileServer::serve_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage*
     return w->final_request();
 }
 
-int SrsGoHttpFileServer::serve_flv_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, string fullpath)
+int SrsHttpFileServer::serve_flv_file(ISrsHttpResponseWriter* w, SrsHttpMessage* r, string fullpath)
 {
     std::string start = r->query_get("start");
     if (start.empty()) {
@@ -406,7 +413,7 @@ int SrsGoHttpFileServer::serve_flv_file(ISrsGoHttpResponseWriter* w, SrsHttpMess
     return serve_flv_stream(w, r, fullpath, offset);
 }
 
-int SrsGoHttpFileServer::serve_mp4_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, string fullpath)
+int SrsHttpFileServer::serve_mp4_file(ISrsHttpResponseWriter* w, SrsHttpMessage* r, string fullpath)
 {
     // for flash to request mp4 range in query string.
     // for example, http://digitalprimates.net/dash/DashTest.html?url=http://dashdemo.edgesuite.net/digitalprimates/nexus/oops-20120802-manifest.mpd
@@ -443,17 +450,17 @@ int SrsGoHttpFileServer::serve_mp4_file(ISrsGoHttpResponseWriter* w, SrsHttpMess
     return serve_mp4_stream(w, r, fullpath, start, end);
 }
 
-int SrsGoHttpFileServer::serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, string fullpath, int offset)
+int SrsHttpFileServer::serve_flv_stream(ISrsHttpResponseWriter* w, SrsHttpMessage* r, string fullpath, int offset)
 {
     return serve_file(w, r, fullpath);
 }
 
-int SrsGoHttpFileServer::serve_mp4_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, string fullpath, int start, int end)
+int SrsHttpFileServer::serve_mp4_stream(ISrsHttpResponseWriter* w, SrsHttpMessage* r, string fullpath, int start, int end)
 {
     return serve_file(w, r, fullpath);
 }
 
-int SrsGoHttpFileServer::copy(ISrsGoHttpResponseWriter* w, SrsFileReader* fs, SrsHttpMessage* r, int size)
+int SrsHttpFileServer::copy(ISrsHttpResponseWriter* w, SrsFileReader* fs, SrsHttpMessage* r, int size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -476,27 +483,27 @@ int SrsGoHttpFileServer::copy(ISrsGoHttpResponseWriter* w, SrsFileReader* fs, Sr
     return ret;
 }
 
-SrsGoHttpMuxEntry::SrsGoHttpMuxEntry()
+SrsHttpMuxEntry::SrsHttpMuxEntry()
 {
     enabled = true;
     explicit_match = false;
     handler = NULL;
 }
 
-SrsGoHttpMuxEntry::~SrsGoHttpMuxEntry()
+SrsHttpMuxEntry::~SrsHttpMuxEntry()
 {
     srs_freep(handler);
 }
 
-SrsGoHttpServeMux::SrsGoHttpServeMux()
+SrsHttpServeMux::SrsHttpServeMux()
 {
 }
 
-SrsGoHttpServeMux::~SrsGoHttpServeMux()
+SrsHttpServeMux::~SrsHttpServeMux()
 {
-    std::map<std::string, SrsGoHttpMuxEntry*>::iterator it;
+    std::map<std::string, SrsHttpMuxEntry*>::iterator it;
     for (it = entries.begin(); it != entries.end(); ++it) {
-        SrsGoHttpMuxEntry* entry = it->second;
+        SrsHttpMuxEntry* entry = it->second;
         srs_freep(entry);
     }
     entries.clear();
@@ -504,14 +511,14 @@ SrsGoHttpServeMux::~SrsGoHttpServeMux()
     vhosts.clear();
 }
 
-int SrsGoHttpServeMux::initialize()
+int SrsHttpServeMux::initialize()
 {
     int ret = ERROR_SUCCESS;
     // TODO: FIXME: implements it.
     return ret;
 }
 
-int SrsGoHttpServeMux::handle(std::string pattern, ISrsGoHttpHandler* handler)
+int SrsHttpServeMux::handle(std::string pattern, ISrsHttpHandler* handler)
 {
     int ret = ERROR_SUCCESS;
     
@@ -524,7 +531,7 @@ int SrsGoHttpServeMux::handle(std::string pattern, ISrsGoHttpHandler* handler)
     }
     
     if (entries.find(pattern) != entries.end()) {
-        SrsGoHttpMuxEntry* exists = entries[pattern];
+        SrsHttpMuxEntry* exists = entries[pattern];
         if (exists->explicit_match) {
             ret = ERROR_HTTP_PATTERN_DUPLICATED;
             srs_error("http: multiple registrations for %s. ret=%d", pattern.c_str(), ret);
@@ -541,14 +548,14 @@ int SrsGoHttpServeMux::handle(std::string pattern, ISrsGoHttpHandler* handler)
     }
     
     if (true) {
-        SrsGoHttpMuxEntry* entry = new SrsGoHttpMuxEntry();
+        SrsHttpMuxEntry* entry = new SrsHttpMuxEntry();
         entry->explicit_match = true;
         entry->handler = handler;
         entry->pattern = pattern;
         entry->handler->entry = entry;
         
         if (entries.find(pattern) != entries.end()) {
-            SrsGoHttpMuxEntry* exists = entries[pattern];
+            SrsHttpMuxEntry* exists = entries[pattern];
             srs_freep(exists);
         }
         entries[pattern] = entry;
@@ -559,11 +566,11 @@ int SrsGoHttpServeMux::handle(std::string pattern, ISrsGoHttpHandler* handler)
     // It can be overridden by an explicit registration.
     if (pattern != "/" && !pattern.empty() && pattern.at(pattern.length() - 1) == '/') {
         std::string rpattern = pattern.substr(0, pattern.length() - 1);
-        SrsGoHttpMuxEntry* entry = NULL;
+        SrsHttpMuxEntry* entry = NULL;
         
         // free the exists not explicit entry
         if (entries.find(rpattern) != entries.end()) {
-            SrsGoHttpMuxEntry* exists = entries[rpattern];
+            SrsHttpMuxEntry* exists = entries[rpattern];
             if (!exists->explicit_match) {
                 entry = exists;
             }
@@ -573,9 +580,9 @@ int SrsGoHttpServeMux::handle(std::string pattern, ISrsGoHttpHandler* handler)
         if (!entry || entry->explicit_match) {
             srs_freep(entry);
             
-            entry = new SrsGoHttpMuxEntry();
+            entry = new SrsHttpMuxEntry();
             entry->explicit_match = false;
-            entry->handler = new SrsGoHttpRedirectHandler(pattern, SRS_CONSTS_HTTP_MovedPermanently);
+            entry->handler = new SrsHttpRedirectHandler(pattern, SRS_CONSTS_HTTP_MovedPermanently);
             entry->pattern = pattern;
             entry->handler->entry = entry;
             
@@ -586,11 +593,11 @@ int SrsGoHttpServeMux::handle(std::string pattern, ISrsGoHttpHandler* handler)
     return ret;
 }
 
-int SrsGoHttpServeMux::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsHttpServeMux::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
     
-    ISrsGoHttpHandler* h = NULL;
+    ISrsHttpHandler* h = NULL;
     if ((ret = find_handler(r, &h)) != ERROR_SUCCESS) {
         srs_error("find handler failed. ret=%d", ret);
         return ret;
@@ -607,7 +614,7 @@ int SrsGoHttpServeMux::serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r
     return ret;
 }
 
-int SrsGoHttpServeMux::find_handler(SrsHttpMessage* r, ISrsGoHttpHandler** ph)
+int SrsHttpServeMux::find_handler(SrsHttpMessage* r, ISrsHttpHandler** ph)
 {
     int ret = ERROR_SUCCESS;
     
@@ -624,13 +631,13 @@ int SrsGoHttpServeMux::find_handler(SrsHttpMessage* r, ISrsGoHttpHandler** ph)
     }
 
     if (*ph == NULL) {
-        *ph = new SrsGoHttpNotFoundHandler();
+        *ph = new SrsHttpNotFoundHandler();
     }
     
     return ret;
 }
 
-int SrsGoHttpServeMux::match(SrsHttpMessage* r, ISrsGoHttpHandler** ph)
+int SrsHttpServeMux::match(SrsHttpMessage* r, ISrsHttpHandler** ph)
 {
     int ret = ERROR_SUCCESS;
     
@@ -642,12 +649,12 @@ int SrsGoHttpServeMux::match(SrsHttpMessage* r, ISrsGoHttpHandler** ph)
     }
     
     int nb_matched = 0;
-    ISrsGoHttpHandler* h = NULL;
+    ISrsHttpHandler* h = NULL;
     
-    std::map<std::string, SrsGoHttpMuxEntry*>::iterator it;
+    std::map<std::string, SrsHttpMuxEntry*>::iterator it;
     for (it = entries.begin(); it != entries.end(); ++it) {
         std::string pattern = it->first;
-        SrsGoHttpMuxEntry* entry = it->second;
+        SrsHttpMuxEntry* entry = it->second;
         
         if (!entry->enabled) {
             continue;
@@ -668,7 +675,7 @@ int SrsGoHttpServeMux::match(SrsHttpMessage* r, ISrsGoHttpHandler** ph)
     return ret;
 }
 
-bool SrsGoHttpServeMux::path_match(string pattern, string path)
+bool SrsHttpServeMux::path_match(string pattern, string path)
 {
     if (pattern.empty()) {
         return false;
@@ -692,10 +699,10 @@ bool SrsGoHttpServeMux::path_match(string pattern, string path)
     return false;
 }
 
-SrsGoHttpResponseWriter::SrsGoHttpResponseWriter(SrsStSocket* io)
+SrsHttpResponseWriter::SrsHttpResponseWriter(SrsStSocket* io)
 {
     skt = io;
-    hdr = new SrsGoHttpHeader();
+    hdr = new SrsHttpHeader();
     header_wrote = false;
     status = SRS_CONSTS_HTTP_OK;
     content_length = -1;
@@ -703,12 +710,12 @@ SrsGoHttpResponseWriter::SrsGoHttpResponseWriter(SrsStSocket* io)
     header_sent = false;
 }
 
-SrsGoHttpResponseWriter::~SrsGoHttpResponseWriter()
+SrsHttpResponseWriter::~SrsHttpResponseWriter()
 {
     srs_freep(hdr);
 }
 
-int SrsGoHttpResponseWriter::final_request()
+int SrsHttpResponseWriter::final_request()
 {
     // complete the chunked encoding.
     if (content_length == -1) {
@@ -722,12 +729,12 @@ int SrsGoHttpResponseWriter::final_request()
     return write(NULL, 0);
 }
 
-SrsGoHttpHeader* SrsGoHttpResponseWriter::header()
+SrsHttpHeader* SrsHttpResponseWriter::header()
 {
     return hdr;
 }
 
-int SrsGoHttpResponseWriter::write(char* data, int size)
+int SrsHttpResponseWriter::write(char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -774,7 +781,7 @@ int SrsGoHttpResponseWriter::write(char* data, int size)
     return ret;
 }
 
-void SrsGoHttpResponseWriter::write_header(int code)
+void SrsHttpResponseWriter::write_header(int code)
 {
     if (header_wrote) {
         srs_warn("http: multiple write_header calls, code=%d", code);
@@ -788,7 +795,7 @@ void SrsGoHttpResponseWriter::write_header(int code)
     content_length = hdr->content_length();
 }
 
-int SrsGoHttpResponseWriter::send_header(char* data, int size)
+int SrsHttpResponseWriter::send_header(char* data, int size)
 {
     int ret = ERROR_SUCCESS;
     
@@ -833,11 +840,166 @@ int SrsGoHttpResponseWriter::send_header(char* data, int size)
     return skt->write((void*)buf.c_str(), buf.length(), NULL);
 }
 
-SrsHttpMessage::SrsHttpMessage()
+SrsHttpResponseReader::SrsHttpResponseReader(SrsHttpMessage* msg, SrsStSocket* io)
 {
-    _body = new SrsSimpleBuffer();
-    _state = SrsHttpParseStateInit;
+    skt = io;
+    owner = msg;
+    is_eof = false;
+    nb_read = 0;
+    buffer = NULL;
+}
+
+SrsHttpResponseReader::~SrsHttpResponseReader()
+{
+}
+
+int SrsHttpResponseReader::initialize(SrsFastBuffer* body)
+{
+    int ret = ERROR_SUCCESS;
+    
+    buffer = body;
+    
+    return ret;
+}
+
+bool SrsHttpResponseReader::eof()
+{
+    return is_eof;
+}
+
+int SrsHttpResponseReader::read(std::string& data)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (is_eof) {
+        ret = ERROR_HTTP_RESPONSE_EOF;
+        srs_error("http: response EOF. ret=%d", ret);
+        return ret;
+    }
+    
+    // chunked encoding.
+    if (owner->is_chunked()) {
+        return read_chunked(data);
+    }
+    
+    // read by specified content-length
+    int max = (int)owner->content_length() - nb_read;
+    if (max <= 0) {
+        is_eof = true;
+        return ret;
+    }
+    return read_specified(max, data);
+}
+
+int SrsHttpResponseReader::read_chunked(std::string& data)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // parse the chunk length first.
+    char* at = NULL;
+    int length = 0;
+    while (!at) {
+        // find the CRLF of chunk header end.
+        char* start = buffer->bytes();
+        char* end = start + buffer->size();
+        for (char* p = start; p < end - 1; p++) {
+            if (p[0] == __SRS_HTTP_CR && p[1] == __SRS_HTTP_LF) {
+                // invalid chunk, ignore.
+                if (p == start) {
+                    ret = ERROR_HTTP_INVALID_CHUNK_HEADER;
+                    srs_error("chunk header start with CRLF. ret=%d", ret);
+                    return ret;
+                }
+                length = p - start + 2;
+                at = buffer->read_slice(length);
+                break;
+            }
+        }
+        
+        // got at, ok.
+        if (at) {
+            break;
+        }
+        
+        // when empty, only grow 1bytes, but the buffer will cache more.
+        if ((ret = buffer->grow(skt, buffer->size() + 1)) != ERROR_SUCCESS) {
+            if (!srs_is_client_gracefully_close(ret)) {
+                srs_error("read body from server failed. ret=%d", ret);
+            }
+            return ret;
+        }
+    }
+    srs_assert(length >= 3);
+    
+    // it's ok to set the pos and pos+1 to NULL.
+    at[length - 1] = NULL;
+    at[length - 2] = NULL;
+    
+    // size is the bytes size, excludes the chunk header and end CRLF.
+    int ilength = ::strtol(at, NULL, 16);
+    if (ilength < 0) {
+        ret = ERROR_HTTP_INVALID_CHUNK_HEADER;
+        srs_error("chunk header negative, length=%d. ret=%d", ilength, ret);
+        return ret;
+    }
+    
+    // when empty, only grow 1bytes, but the buffer will cache more.
+    if ((ret = buffer->grow(skt, ilength + 2)) != ERROR_SUCCESS) {
+        if (!srs_is_client_gracefully_close(ret)) {
+            srs_error("read body from server failed. ret=%d", ret);
+        }
+        return ret;
+    }
+    srs_info("http: read %d chunk", ilength);
+    
+    // read payload when length specifies some payload.
+    if (ilength <= 0) {
+        is_eof = true;
+    } else {
+        srs_assert(ilength);
+        data.append(buffer->read_slice(ilength), ilength);
+        nb_read += ilength;
+    }
+    
+    // the CRLF of chunk payload end.
+    buffer->read_slice(2);
+
+    return ret;
+}
+
+int SrsHttpResponseReader::read_specified(int max, std::string& data)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (buffer->size() <= 0) {
+        // when empty, only grow 1bytes, but the buffer will cache more.
+        if ((ret = buffer->grow(skt, 1)) != ERROR_SUCCESS) {
+            if (!srs_is_client_gracefully_close(ret)) {
+                srs_error("read body from server failed. ret=%d", ret);
+            }
+            return ret;
+        }
+    }
+    
+    int nb_bytes = srs_min(max, buffer->size());
+    
+    srs_assert(nb_bytes);
+    data.append(buffer->read_slice(nb_bytes), nb_bytes);
+    nb_read += nb_bytes;
+    
+    // when read completed, eof.
+    if (nb_read >= (int)owner->content_length()) {
+        is_eof = true;
+    }
+    
+    return ret;
+}
+
+SrsHttpMessage::SrsHttpMessage(SrsStSocket* io)
+{
+    chunked = false;
     _uri = new SrsHttpUri();
+    _body = new SrsHttpResponseReader(this, io);
     _http_ts_send_buffer = new char[__SRS_HTTP_TS_SEND_BUFFER_SIZE];
 }
 
@@ -848,10 +1010,24 @@ SrsHttpMessage::~SrsHttpMessage()
     srs_freep(_http_ts_send_buffer);
 }
 
-int SrsHttpMessage::initialize()
+int SrsHttpMessage::update(string url, http_parser* header, SrsFastBuffer* body, vector<SrsHttpHeaderField>& headers)
 {
     int ret = ERROR_SUCCESS;
 
+    _url = url;
+    _header = *header;
+    _headers = headers;
+
+    // whether chunked.
+    std::string transfer_encoding = get_request_header("Transfer-Encoding");
+    chunked = (transfer_encoding == "chunked");
+    
+    // set the buffer.
+    if ((ret = _body->initialize(body)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // parse uri from url.
     std::string host = get_request_header("Host");
 
     // donot parse the empty host for uri, 
@@ -896,18 +1072,6 @@ int SrsHttpMessage::initialize()
 char* SrsHttpMessage::http_ts_send_buffer()
 {
     return _http_ts_send_buffer;
-}
-
-void SrsHttpMessage::reset()
-{
-    _state = SrsHttpParseStateInit;
-    _body->erase(_body->length());
-    _url = "";
-}
-
-bool SrsHttpMessage::is_complete()
-{
-    return _state == SrsHttpParseStateComplete;
 }
 
 u_int8_t SrsHttpMessage::method()
@@ -966,6 +1130,11 @@ bool SrsHttpMessage::is_http_options()
     return _header.method == SRS_CONSTS_HTTP_OPTIONS;
 }
 
+bool SrsHttpMessage::is_chunked()
+{
+    return chunked;
+}
+
 string SrsHttpMessage::uri()
 {
     std::string uri = _uri->get_schema();
@@ -993,50 +1162,28 @@ string SrsHttpMessage::path()
     return _uri->get_path();
 }
 
-string SrsHttpMessage::body()
+int SrsHttpMessage::body_read_all(string& body)
 {
-    std::string b;
+    int ret = ERROR_SUCCESS;
     
-    if (_body && _body->length() > 0) {
-        b.append(_body->bytes(), _body->length());
+    // whatever, read util EOF.
+    while (!_body->eof()) {
+        if ((ret = _body->read(body)) != ERROR_SUCCESS) {
+            return ret;
+        }
     }
     
-    return b;
+    return ret;
 }
 
-char* SrsHttpMessage::body_raw()
+ISrsHttpResponseReader* SrsHttpMessage::body_reader()
 {
-    return _body? _body->bytes() : NULL;
-}
-
-int64_t SrsHttpMessage::body_size()
-{
-    return (int64_t)_body->length();
+    return _body;
 }
 
 int64_t SrsHttpMessage::content_length()
 {
     return _header.content_length;
-}
-
-void SrsHttpMessage::set_url(string url)
-{
-    _url = url;
-}
-
-void SrsHttpMessage::set_state(SrsHttpParseState state)
-{
-    _state = state;
-}
-
-void SrsHttpMessage::set_header(http_parser* header)
-{
-    memcpy(&_header, header, sizeof(http_parser));
-}
-
-void SrsHttpMessage::append_body(const char* body, int length)
-{
-    _body->append(body, length);
 }
 
 string SrsHttpMessage::query_get(string key)
@@ -1052,33 +1199,28 @@ string SrsHttpMessage::query_get(string key)
 
 int SrsHttpMessage::request_header_count()
 {
-    return (int)headers.size();
+    return (int)_headers.size();
 }
 
 string SrsHttpMessage::request_header_key_at(int index)
 {
     srs_assert(index < request_header_count());
-    SrsHttpHeaderField item = headers[index];
+    SrsHttpHeaderField item = _headers[index];
     return item.first;
 }
 
 string SrsHttpMessage::request_header_value_at(int index)
 {
     srs_assert(index < request_header_count());
-    SrsHttpHeaderField item = headers[index];
+    SrsHttpHeaderField item = _headers[index];
     return item.second;
-}
-
-void SrsHttpMessage::set_request_header(string key, string value)
-{
-    headers.push_back(std::make_pair(key, value));
 }
 
 string SrsHttpMessage::get_request_header(string name)
 {
     std::vector<SrsHttpHeaderField>::iterator it;
     
-    for (it = headers.begin(); it != headers.end(); ++it) {
+    for (it = _headers.begin(); it != _headers.end(); ++it) {
         SrsHttpHeaderField& elem = *it;
         std::string key = elem.first;
         std::string value = elem.second;
@@ -1092,12 +1234,12 @@ string SrsHttpMessage::get_request_header(string name)
 
 SrsHttpParser::SrsHttpParser()
 {
-    msg = NULL;
+    buffer = new SrsFastBuffer();
 }
 
 SrsHttpParser::~SrsHttpParser()
 {
-    srs_freep(msg);
+    srs_freep(buffer);
 }
 
 int SrsHttpParser::initialize(enum http_parser_type type)
@@ -1125,28 +1267,30 @@ int SrsHttpParser::parse_message(SrsStSocket* skt, SrsHttpMessage** ppmsg)
     *ppmsg = NULL;
     
     int ret = ERROR_SUCCESS;
-
-    // the msg must be always NULL
-    srs_assert(msg == NULL);
-    msg = new SrsHttpMessage();
     
     // reset request data.
     filed_name = "";
-    
-    // reset response header.
-    msg->reset();
+    field_value = "";
+    expect_filed_name = true;
+    state = SrsHttpParseStateInit;
+    header = http_parser();
+    url = "";
+    headers.clear();
+    body_parsed = 0;
     
     // do parse
     if ((ret = parse_message_imp(skt)) != ERROR_SUCCESS) {
         if (!srs_is_client_gracefully_close(ret)) {
             srs_error("parse http msg failed. ret=%d", ret);
         }
-        srs_freep(msg);
         return ret;
     }
 
+    // create msg
+    SrsHttpMessage* msg = new SrsHttpMessage(skt);
+    
     // initalize http msg, parse url.
-    if ((ret = msg->initialize()) != ERROR_SUCCESS) {
+    if ((ret = msg->update(url, &header, buffer, headers)) != ERROR_SUCCESS) {
         srs_error("initialize http msg failed. ret=%d", ret);
         srs_freep(msg);
         return ret;
@@ -1154,7 +1298,6 @@ int SrsHttpParser::parse_message(SrsStSocket* skt, SrsHttpMessage** ppmsg)
     
     // parse ok, return the msg.
     *ppmsg = msg;
-    msg = NULL;
     
     return ret;
 }
@@ -1163,33 +1306,41 @@ int SrsHttpParser::parse_message_imp(SrsStSocket* skt)
 {
     int ret = ERROR_SUCCESS;
     
-    // the msg should never be NULL
-    srs_assert(msg != NULL);
-    
-    // parser header.
-    char buf[SRS_HTTP_HEADER_BUFFER];
-    for (;;) {
-        ssize_t nread;
-        if ((ret = skt->read(buf, (size_t)sizeof(buf), &nread)) != ERROR_SUCCESS) {
-            if (!srs_is_client_gracefully_close(ret)) {
-                srs_error("read body from server failed. ret=%d", ret);
-            }
-            return ret;
+    while (true) {
+        ssize_t nparsed = 0;
+        
+        // when buffer not empty, parse it.
+        if (buffer->size() > 0) {
+            nparsed = http_parser_execute(&parser, &settings, buffer->bytes(), buffer->size());
+            srs_info("buffer=%d, nparsed=%d, body=%d", buffer->size(), (int)nparsed, body_parsed);
         }
         
-        ssize_t nparsed = http_parser_execute(&parser, &settings, buf, nread);
-        srs_info("read_size=%d, nparsed=%d", (int)nread, (int)nparsed);
+        // consume the parsed bytes.
+        if (nparsed && nparsed - body_parsed > 0) {
+            buffer->read_slice(nparsed - body_parsed);
+        }
 
-        // check header size.
-        if (msg->is_complete()) {
-            return ret;
+        // ok atleast header completed,
+        // never wait for body completed, for maybe chunked.
+        if (state == SrsHttpParseStateHeaderComplete || state == SrsHttpParseStateMessageComplete) {
+            break;
         }
         
-        if (nparsed != nread) {
-            ret = ERROR_HTTP_PARSE_HEADER;
-            srs_error("parse response error, parsed(%d)!=read(%d), ret=%d", (int)nparsed, (int)nread, ret);
-            return ret;
+        // when nothing parsed, read more to parse.
+        if (nparsed == 0) {
+            // when requires more, only grow 1bytes, but the buffer will cache more.
+            if ((ret = buffer->grow(skt, buffer->size() + 1)) != ERROR_SUCCESS) {
+                if (!srs_is_client_gracefully_close(ret)) {
+                    srs_error("read body from server failed. ret=%d", ret);
+                }
+                return ret;
+            }
         }
+    }
+
+    // parse last header.
+    if (!filed_name.empty() && !field_value.empty()) {
+        headers.push_back(std::make_pair(filed_name, field_value));
     }
 
     return ret;
@@ -1198,7 +1349,9 @@ int SrsHttpParser::parse_message_imp(SrsStSocket* skt)
 int SrsHttpParser::on_message_begin(http_parser* parser)
 {
     SrsHttpParser* obj = (SrsHttpParser*)parser->data;
-    obj->msg->set_state(SrsHttpParseStateStart);
+    srs_assert(obj);
+    
+    obj->state = SrsHttpParseStateStart;
     
     srs_info("***MESSAGE BEGIN***");
     
@@ -1208,7 +1361,11 @@ int SrsHttpParser::on_message_begin(http_parser* parser)
 int SrsHttpParser::on_headers_complete(http_parser* parser)
 {
     SrsHttpParser* obj = (SrsHttpParser*)parser->data;
-    obj->msg->set_header(parser);
+    srs_assert(obj);
+    
+    obj->header = *parser;
+    // save the parser when header parse completed.
+    obj->state = SrsHttpParseStateHeaderComplete;
     
     srs_info("***HEADERS COMPLETE***");
     
@@ -1219,8 +1376,10 @@ int SrsHttpParser::on_headers_complete(http_parser* parser)
 int SrsHttpParser::on_message_complete(http_parser* parser)
 {
     SrsHttpParser* obj = (SrsHttpParser*)parser->data;
-    // save the parser when header parse completed.
-    obj->msg->set_state(SrsHttpParseStateComplete);
+    srs_assert(obj);
+    
+    // save the parser when body parse completed.
+    obj->state = SrsHttpParseStateMessageComplete;
     
     srs_info("***MESSAGE COMPLETE***\n");
     
@@ -1230,13 +1389,10 @@ int SrsHttpParser::on_message_complete(http_parser* parser)
 int SrsHttpParser::on_url(http_parser* parser, const char* at, size_t length)
 {
     SrsHttpParser* obj = (SrsHttpParser*)parser->data;
+    srs_assert(obj);
     
     if (length > 0) {
-        std::string url;
-        
-        url.append(at, (int)length);
-        
-        obj->msg->set_url(url);
+        obj->url.append(at, (int)length);
     }
     
     srs_info("Method: %d, Url: %.*s", parser->method, (int)length, at);
@@ -1247,45 +1403,46 @@ int SrsHttpParser::on_url(http_parser* parser, const char* at, size_t length)
 int SrsHttpParser::on_header_field(http_parser* parser, const char* at, size_t length)
 {
     SrsHttpParser* obj = (SrsHttpParser*)parser->data;
+    srs_assert(obj);
+    
+    // field value=>name, reap the field.
+    if (!obj->expect_filed_name) {
+        obj->headers.push_back(std::make_pair(obj->filed_name, obj->field_value));
+        
+        // reset the field name when parsed.
+        obj->filed_name = "";
+        obj->field_value = "";
+    }
+    obj->expect_filed_name = true;
     
     if (length > 0) {
-        srs_assert(obj);
         obj->filed_name.append(at, (int)length);
     }
     
-    srs_info("Header field: %.*s", (int)length, at);
+    srs_info("Header field(%d bytes): %.*s", (int)length, (int)length, at);
     return 0;
 }
 
 int SrsHttpParser::on_header_value(http_parser* parser, const char* at, size_t length)
 {
     SrsHttpParser* obj = (SrsHttpParser*)parser->data;
+    srs_assert(obj);
     
     if (length > 0) {
-        srs_assert(obj);
-        srs_assert(obj->msg);
-        
-        std::string field_value;
-        field_value.append(at, (int)length);
-
-        obj->msg->set_request_header(obj->filed_name, field_value);
-        obj->filed_name = "";
+        obj->field_value.append(at, (int)length);
     }
+    obj->expect_filed_name = false;
     
-    srs_info("Header value: %.*s", (int)length, at);
+    srs_info("Header value(%d bytes): %.*s", (int)length, (int)length, at);
     return 0;
 }
 
 int SrsHttpParser::on_body(http_parser* parser, const char* at, size_t length)
 {
     SrsHttpParser* obj = (SrsHttpParser*)parser->data;
+    srs_assert(obj);
     
-    if (length > 0) {
-        srs_assert(obj);
-        srs_assert(obj->msg);
-        
-        obj->msg->append_body(at, (int)length);
-    }
+    obj->body_parsed += length;
     
     srs_info("Body: %.*s", (int)length, at);
 

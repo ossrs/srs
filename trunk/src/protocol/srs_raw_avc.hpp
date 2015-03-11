@@ -32,6 +32,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <string>
 
+#include <srs_kernel_codec.hpp>
+
 class SrsStream;
 
 /**
@@ -92,15 +94,10 @@ public:
 struct SrsRawAacStreamCodec
 {
     int8_t protection_absent;
-    int8_t Profile_ObjectType;
+    SrsAacObjectType aac_object;
     int8_t sampling_frequency_index;
     int8_t channel_configuration;
-    int16_t aac_frame_length;
-
-    // calc by Profile_ObjectType+1
-    char aac_profile;
-    char aac_samplerate;
-    char aac_channel;
+    int16_t frame_length;
 
     char sound_format;
     char sound_rate;

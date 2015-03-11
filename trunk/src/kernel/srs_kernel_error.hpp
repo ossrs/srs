@@ -213,13 +213,16 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_HTTP_DVR_REQUEST              3051
 #define ERROR_HTTP_JSON_REQUIRED            3052
 #define ERROR_HTTP_DVR_CREATE_REQUEST       3053
+#define ERROR_HTTP_DVR_NO_TAEGET            3054
+#define ERROR_ADTS_ID_NOT_AAC               3055
+
 // HDS error code
-#define ERROR_HDS_OPEN_F4M_FAILED           3054
-#define ERROR_HDS_WRITE_F4M_FAILED          3055
-#define ERROR_HDS_OPEN_BOOTSTRAP_FAILED     3056
-#define ERROR_HDS_WRITE_BOOTSTRAP_FAILED    3057
-#define ERROR_HDS_OPEN_FRAGMENT_FAILED      3058
-#define ERROR_HDS_WRITE_FRAGMENT_FAILED     3059
+#define ERROR_HDS_OPEN_F4M_FAILED           3056
+#define ERROR_HDS_WRITE_F4M_FAILED          3057
+#define ERROR_HDS_OPEN_BOOTSTRAP_FAILED     3058
+#define ERROR_HDS_WRITE_BOOTSTRAP_FAILED    3059
+#define ERROR_HDS_OPEN_FRAGMENT_FAILED      3060
+#define ERROR_HDS_WRITE_FRAGMENT_FAILED     3061
 
 ///////////////////////////////////////////////////////
 // HTTP/StreamCaster protocol error.
@@ -249,6 +252,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_STREAM_CASTER_AVC_SPS         4022
 #define ERROR_STREAM_CASTER_AVC_PPS         4023
 #define ERROR_STREAM_CASTER_FLV_TAG         4024
+#define ERROR_HTTP_RESPONSE_EOF             4025
+#define ERROR_HTTP_INVALID_CHUNK_HEADER     4026
+
+///////////////////////////////////////////////////////
+// user-define error.
+///////////////////////////////////////////////////////
+#define ERROR_USER_START                    9000
+#define ERROR_USER_END                      9999
 
 /**
 * whether the error code is an system control error.

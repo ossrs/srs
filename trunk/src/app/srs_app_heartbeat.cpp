@@ -35,6 +35,7 @@ using namespace std;
 #include <srs_app_json.hpp>
 #include <srs_app_http.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_core_autofree.hpp>
 
 SrsHttpHeartbeat::SrsHttpHeartbeat()
 {
@@ -73,21 +74,31 @@ void SrsHttpHeartbeat::heartbeat()
         srs_api_dump_summaries(ss);
     }
     ss << __SRS_JOBJECT_END;
-    std::string data = ss.str();
-    std::string res;
-    int status_code;
+    
+    std::string req = ss.str();
     
     SrsHttpClient http;
-    if ((ret = http.post(&uri, data, status_code, res)) != ERROR_SUCCESS) {
+    if ((ret = http.initialize(uri.get_host(), uri.get_port())) != ERROR_SUCCESS) {
+        return;
+    }
+    
+    SrsHttpMessage* msg = NULL;
+    if ((ret = http.post(uri.get_path(), req, &msg)) != ERROR_SUCCESS) {
         srs_info("http post hartbeart uri failed. "
             "url=%s, request=%s, response=%s, ret=%d",
-            url.c_str(), data.c_str(), res.c_str(), ret);
+            url.c_str(), req.c_str(), res.c_str(), ret);
+        return;
+    }
+    SrsAutoFree(SrsHttpMessage, msg);
+    
+    std::string res;
+    if ((ret = msg->body_read_all(res)) != ERROR_SUCCESS) {
         return;
     }
     
     srs_info("http hook hartbeart success. "
         "url=%s, request=%s, status_code=%d, response=%s, ret=%d",
-        url.c_str(), data.c_str(), status_code, res.c_str(), ret);
+        url.c_str(), req.c_str(), status_code, res.c_str(), ret);
     
     return;
 }

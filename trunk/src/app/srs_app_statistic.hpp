@@ -33,13 +33,22 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <map>
 #include <string>
 
+#include <srs_kernel_codec.hpp>
+
+class SrsKbps;
 class SrsRequest;
+class SrsConnection;
 
 struct SrsStatisticVhost
 {
 public:
     int64_t id;
     std::string vhost;
+public:
+    /**
+    * vhost total kbps.
+    */
+    SrsKbps* kbps;
 public:
     SrsStatisticVhost();
     virtual ~SrsStatisticVhost();
@@ -54,8 +63,37 @@ public:
     std::string stream;
     std::string url;
 public:
+    /**
+    * stream total kbps.
+    */
+    SrsKbps* kbps;
+public:
+    bool has_video;
+    SrsCodecVideo vcodec;
+    // profile_idc, H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
+    SrsAvcProfile avc_profile;
+    // level_idc, H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
+    SrsAvcLevel avc_level;
+public:
+    bool has_audio;
+    SrsCodecAudio acodec;
+    SrsCodecAudioSampleRate asample_rate;
+    SrsCodecAudioSoundType asound_type;
+    /**
+    * audio specified
+    * audioObjectType, in 1.6.2.1 AudioSpecificConfig, page 33,
+    * 1.5.1.1 Audio object type definition, page 23,
+    *           in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf.
+    */
+    SrsAacObjectType aac_object;
+public:
     SrsStatisticStream();
     virtual ~SrsStatisticStream();
+public:
+    /**
+    * close the stream.
+    */
+    virtual void close();
 };
 
 struct SrsStatisticClient
@@ -73,15 +111,35 @@ private:
     int64_t _server_id;
     // key: vhost name, value: vhost object.
     std::map<std::string, SrsStatisticVhost*> vhosts;
-    // key: stream name, value: stream object.
+    // key: stream url, value: stream object.
     std::map<std::string, SrsStatisticStream*> streams;
     // key: client id, value: stream object.
     std::map<int, SrsStatisticClient*> clients;
+    // server total kbps.
+    SrsKbps* kbps;
 private:
     SrsStatistic();
     virtual ~SrsStatistic();
 public:
     static SrsStatistic* instance();
+public:
+    /**
+    * when got video info for stream.
+    */
+    virtual int on_video_info(SrsRequest* req, 
+        SrsCodecVideo vcodec, SrsAvcProfile avc_profile, SrsAvcLevel avc_level
+    );
+    /**
+    * when got audio info for stream.
+    */
+    virtual int on_audio_info(SrsRequest* req,
+        SrsCodecAudio acodec, SrsCodecAudioSampleRate asample_rate, SrsCodecAudioSoundType asound_type,
+        SrsAacObjectType aac_object
+    );
+    /**
+    * when close stream.
+    */
+    virtual void on_stream_close(SrsRequest* req);
 public:
     /**
     * when got a client to publish/play stream,
@@ -90,9 +148,19 @@ public:
     */
     virtual int on_client(int id, SrsRequest* req);
     /**
-    * client close
+    * client disconnect
     */
-    virtual void on_close(int id);
+    virtual void on_disconnect(int id);
+    /**
+    * sample the kbps, add delta bytes of conn.
+    * use kbps_sample() to get all result of kbps stat.
+    */
+    virtual void kbps_add_delta(SrsConnection* conn);
+    /**
+    * calc the result for all kbps.
+    * @return the server kbps.
+    */
+    virtual SrsKbps* kbps_sample();
 public:
     /**
     * get the server id, used to identify the server.
@@ -107,6 +175,9 @@ public:
     * dumps the streams to sstream in json.
     */
     virtual int dumps_streams(std::stringstream& ss);
+private:
+    virtual SrsStatisticVhost* create_vhost(SrsRequest* req);
+    virtual SrsStatisticStream* create_stream(SrsStatisticVhost* vhost, SrsRequest* req);
 };
 
 #endif

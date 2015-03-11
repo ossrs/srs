@@ -1119,9 +1119,7 @@ void srs_api_dump_summaries(std::stringstream& ss)
                 << __SRS_JFIELD_ORG("net_send_bytes", ns_bytes) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_ORG("srs_sample_time", nrs->sample_time) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_ORG("srs_recv_bytes", nrs->rbytes) << __SRS_JFIELD_CONT
-                << __SRS_JFIELD_ORG("srs_recv_kbps", nrs->rkbps) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_ORG("srs_send_bytes", nrs->sbytes) << __SRS_JFIELD_CONT
-                << __SRS_JFIELD_ORG("srs_send_kbps", nrs->skbps) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_ORG("conn_sys", nrs->nb_conn_sys) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_ORG("conn_sys_et", nrs->nb_conn_sys_et) << __SRS_JFIELD_CONT
                 << __SRS_JFIELD_ORG("conn_sys_tw", nrs->nb_conn_sys_tw) << __SRS_JFIELD_CONT

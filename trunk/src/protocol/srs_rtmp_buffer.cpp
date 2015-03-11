@@ -62,6 +62,16 @@ SrsFastBuffer::SrsFastBuffer()
     p = end = buffer;
 }
 
+int SrsFastBuffer::size()
+{
+    return end - p;
+}
+
+char* SrsFastBuffer::bytes()
+{
+    return p;
+}
+
 void SrsFastBuffer::set_buffer(int buffer_size)
 {
     // the user-space buffer size limit to a max value.

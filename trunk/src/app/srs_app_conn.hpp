@@ -51,6 +51,10 @@ private:
     * when thread stop, the connection will be delete by server.
     */
     SrsThread* pthread;
+    /**
+    * the id of connection.
+    */
+    int id;
 protected:
     /**
     * the server object to manage the connection.
@@ -92,13 +96,9 @@ public:
     virtual void on_thread_stop();
 public:
     /**
-    * when server to get the kbps of connection,
-    * it cannot wait the connection terminated then get the kbps,
-    * it must sample the kbps every some interval, for instance, 9s to sample all connections kbps,
-    * all connections will extends from IKbpsDelta which provides the bytes delta,
-    * while the delta must be update by the sample which invoke by the kbps_resample().
+    * get the srs id which identify the client.
     */
-    virtual void kbps_resample() = 0;
+    virtual int srs_id();
 protected:
     /**
     * for concrete connection to do the cycle.

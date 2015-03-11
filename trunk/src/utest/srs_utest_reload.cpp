@@ -460,17 +460,17 @@ VOID TEST(ConfigReloadTest, ReloadPithyPrint)
     MockSrsReloadConfig conf;
     
     conf.subscribe(&handler);
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"pithy_print {publish 1000;}"));
-    EXPECT_TRUE(ERROR_SUCCESS == conf.reload(_MIN_OK_CONF"pithy_print {publish 1000;}"));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF"pithy_print_ms 1000;"));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.reload(_MIN_OK_CONF"pithy_print_ms 1000;"));
     EXPECT_TRUE(handler.all_false());
     handler.reset();
     
-    EXPECT_TRUE(ERROR_SUCCESS == conf.reload(_MIN_OK_CONF"pithy_print {publish 2000;}"));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.reload(_MIN_OK_CONF"pithy_print_ms 2000;"));
     EXPECT_TRUE(handler.pithy_print_reloaded);
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
     
-    EXPECT_TRUE(ERROR_SUCCESS == conf.reload(_MIN_OK_CONF"pithy_print {publish 1000;}"));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.reload(_MIN_OK_CONF"pithy_print_ms 1000;"));
     EXPECT_EQ(1, handler.count_true());
     handler.reset();
 }

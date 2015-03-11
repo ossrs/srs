@@ -45,6 +45,7 @@ using namespace std;
 #include <srs_app_heartbeat.hpp>
 #include <srs_app_mpegts_udp.hpp>
 #include <srs_app_rtsp.hpp>
+#include <srs_app_statistic.hpp>
 
 // signal defines.
 #define SIGNAL_RELOAD SIGHUP
@@ -392,13 +393,12 @@ SrsServer::SrsServer()
     pid_fd = -1;
     
     signal_manager = NULL;
-    kbps = NULL;
     
     // donot new object in constructor,
     // for some global instance is not ready now,
     // new these objects in initialize instead.
 #ifdef SRS_AUTO_HTTP_API
-    http_api_mux = new SrsGoHttpServeMux();
+    http_api_mux = new SrsHttpServeMux();
 #endif
 #ifdef SRS_AUTO_HTTP_SERVER
     http_stream_mux = new SrsHttpServer();
@@ -452,7 +452,6 @@ void SrsServer::destroy()
     }
     
     srs_freep(signal_manager);
-    srs_freep(kbps);
     
     // @remark never destroy the connections, 
     // for it's still alive.
@@ -478,58 +477,8 @@ int SrsServer::initialize()
     srs_assert(!signal_manager);
     signal_manager = new SrsSignalManager(this);
     
-    srs_assert(!kbps);
-    kbps = new SrsKbps();
-    kbps->set_io(NULL, NULL);
-    
 #ifdef SRS_AUTO_HTTP_API
     if ((ret = http_api_mux->initialize()) != ERROR_SUCCESS) {
-        return ret;
-    }
-#endif
-    
-#ifdef SRS_AUTO_HTTP_API
-    srs_assert(http_api_mux);
-    if ((ret = http_api_mux->handle("/", new SrsGoApiRoot())) != ERROR_SUCCESS) {
-        return ret;
-    }
-    if ((ret = http_api_mux->handle("/api", new SrsGoApiApi())) != ERROR_SUCCESS) {
-        return ret;
-    }
-    if ((ret = http_api_mux->handle("/api/v1", new SrsGoApiV1())) != ERROR_SUCCESS) {
-        return ret;
-    }
-    if ((ret = http_api_mux->handle("/api/v1/versions", new SrsGoApiVersion())) != ERROR_SUCCESS) {
-        return ret;
-    }
-    if ((ret = http_api_mux->handle("/api/v1/summaries", new SrsGoApiSummaries())) != ERROR_SUCCESS) {
-        return ret;
-    }
-    if ((ret = http_api_mux->handle("/api/v1/rusages", new SrsGoApiRusages())) != ERROR_SUCCESS) {
-        return ret;
-    }
-    if ((ret = http_api_mux->handle("/api/v1/self_proc_stats", new SrsGoApiSelfProcStats())) != ERROR_SUCCESS) {
-        return ret;
-    }
-    if ((ret = http_api_mux->handle("/api/v1/system_proc_stats", new SrsGoApiSystemProcStats())) != ERROR_SUCCESS) {
-        return ret;
-    }
-    if ((ret = http_api_mux->handle("/api/v1/meminfos", new SrsGoApiMemInfos())) != ERROR_SUCCESS) {
-        return ret;
-    }
-    if ((ret = http_api_mux->handle("/api/v1/authors", new SrsGoApiAuthors())) != ERROR_SUCCESS) {
-        return ret;
-    }
-    if ((ret = http_api_mux->handle("/api/v1/requests", new SrsGoApiRequests())) != ERROR_SUCCESS) {
-        return ret;
-    }
-    if ((ret = http_api_mux->handle("/api/v1/vhosts", new SrsGoApiVhosts())) != ERROR_SUCCESS) {
-        return ret;
-    }
-    if ((ret = http_api_mux->handle("/api/v1/streams", new SrsGoApiStreams())) != ERROR_SUCCESS) {
-        return ret;
-    }
-    if ((ret = http_api_mux->handle("/api/v1/dvrs", new SrsGoApiDvrs())) != ERROR_SUCCESS) {
         return ret;
     }
 #endif
@@ -692,6 +641,56 @@ int SrsServer::register_signal()
     return signal_manager->start();
 }
 
+int SrsServer::http_handle()
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_AUTO_HTTP_API
+    srs_assert(http_api_mux);
+    if ((ret = http_api_mux->handle("/", new SrsGoApiRoot())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = http_api_mux->handle("/api", new SrsGoApiApi())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = http_api_mux->handle("/api/v1", new SrsGoApiV1())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = http_api_mux->handle("/api/v1/versions", new SrsGoApiVersion())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = http_api_mux->handle("/api/v1/summaries", new SrsGoApiSummaries())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = http_api_mux->handle("/api/v1/rusages", new SrsGoApiRusages())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = http_api_mux->handle("/api/v1/self_proc_stats", new SrsGoApiSelfProcStats())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = http_api_mux->handle("/api/v1/system_proc_stats", new SrsGoApiSystemProcStats())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = http_api_mux->handle("/api/v1/meminfos", new SrsGoApiMemInfos())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = http_api_mux->handle("/api/v1/authors", new SrsGoApiAuthors())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = http_api_mux->handle("/api/v1/requests", new SrsGoApiRequests())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = http_api_mux->handle("/api/v1/vhosts", new SrsGoApiVhosts())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if ((ret = http_api_mux->handle("/api/v1/streams", new SrsGoApiStreams())) != ERROR_SUCCESS) {
+        return ret;
+    }
+#endif
+
+    return ret;
+}
+
 int SrsServer::ingest()
 {
     int ret = ERROR_SUCCESS;
@@ -741,8 +740,8 @@ void SrsServer::remove(SrsConnection* conn)
     
     srs_info("conn removed. conns=%d", (int)conns.size());
     
-    // resample the resource of specified connection.
-    resample_kbps(conn);
+    SrsStatistic* stat = SrsStatistic::instance();
+    stat->kbps_add_delta(conn);
     
     // all connections are created by server,
     // so we free it here.
@@ -858,9 +857,8 @@ int SrsServer::do_cycle()
                 srs_update_network_devices();
             }
             if ((i % SRS_SYS_NETWORK_RTMP_SERVER_RESOLUTION_TIMES) == 0) {
-                srs_info("update network rtmp server info.");
-                resample_kbps(NULL);
-                srs_update_rtmp_server((int)conns.size(), kbps);
+                srs_info("update network server kbps info.");
+                resample_kbps();
             }
     #ifdef SRS_AUTO_HTTP_PARSER
             if (_srs_config->get_heartbeat_enabled()) {
@@ -1009,31 +1007,25 @@ void SrsServer::close_listeners(SrsListenerType type)
     }
 }
 
-void SrsServer::resample_kbps(SrsConnection* conn, bool do_resample)
+void SrsServer::resample_kbps()
 {
-    // resample all when conn is NULL.
-    if (!conn) {
-        for (std::vector<SrsConnection*>::iterator it = conns.begin(); it != conns.end(); ++it) {
-            SrsConnection* client = *it;
-            srs_assert(client);
-            
-            // only resample, do resample when all finished.
-            resample_kbps(client, false);
-        }
+    SrsStatistic* stat = SrsStatistic::instance();
+    
+    // collect delta from all clients.
+    for (std::vector<SrsConnection*>::iterator it = conns.begin(); it != conns.end(); ++it) {
+        SrsConnection* conn = *it;
         
-        kbps->sample();
-        return;
+        // add delta of connection to server kbps.,
+        // for next sample() of server kbps can get the stat.
+        stat->kbps_add_delta(conn);
     }
     
-    // resample for connection.
-    conn->kbps_resample();
+    // TODO: FXME: support all other connections.
+
+    // sample the kbps, get the stat.
+    SrsKbps* kbps = stat->kbps_sample();
     
-    kbps->add_delta(conn);
-    
-    // resample for server.
-    if (do_resample) {
-        kbps->sample();
-    }
+    srs_update_rtmp_server((int)conns.size(), kbps);
 }
 
 int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)

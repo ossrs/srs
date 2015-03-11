@@ -116,7 +116,6 @@ namespace _srs_internal
             // @remark, if no key, use EVP_Digest to digest,
             // for instance, in python, hashlib.sha256(data).digest().
             HMAC_CTX_init(&ctx);
-            
             if (HMAC_Init_ex(&ctx, __key, key_size, EVP_sha256(), NULL) < 0) {
                 ret = ERROR_OpenSslSha256Init;
                 return ret;

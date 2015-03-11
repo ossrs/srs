@@ -30,6 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 SrsConnection::SrsConnection(SrsServer* srs_server, st_netfd_t client_stfd)
 {
+    id = 0;
     server = srs_server;
     stfd = client_stfd;
     
@@ -55,6 +56,8 @@ int SrsConnection::cycle()
     int ret = ERROR_SUCCESS;
     
     _srs_context->generate_id();
+    id = _srs_context->get_id();
+    
     ip = srs_get_peer_ip(st_netfd_fileno(stfd));
     
     ret = do_cycle();
@@ -84,6 +87,11 @@ void SrsConnection::on_thread_stop()
 {
     // TODO: FIXME: never remove itself, use isolate thread to do cleanup.
     server->remove(this);
+}
+
+int SrsConnection::srs_id()
+{
+    return id;
 }
 
 void SrsConnection::stop()

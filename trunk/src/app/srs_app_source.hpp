@@ -381,7 +381,12 @@ public:
     * @param hh the event handler for hls.
     * @param pps the matched source, if success never be NULL.
     */
-    static int find(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh, SrsSource** pps);
+    static int create(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh, SrsSource** pps);
+    /**
+    * get the exists source, NULL when not exists.
+    * update the request and return the exists source.
+    */
+    static SrsSource* fetch(SrsRequest* r);
     /**
     * when system exit, destroy the sources,
     * for gmc to analysis mem leaks.
@@ -451,15 +456,14 @@ private:
     // the cached audio sequence header.
     SrsSharedPtrMessage* cache_sh_audio;
 public:
-    /**
-    * @param _req the client request object, 
-    *     this object will deep copy it for reload.
-    */
-    SrsSource(ISrsHlsHandler* hh);
+    SrsSource();
     virtual ~SrsSource();
 // initialize, get and setter.
 public:
-    virtual int initialize(SrsRequest* r, ISrsSourceHandler* h);
+    /**
+    * initialize the hls with handlers.
+    */
+    virtual int initialize(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh);
 // interface ISrsReloadHandler
 public:
     virtual int on_reload_vhost_atc(std::string vhost);

@@ -41,7 +41,8 @@ int main(int argc, char** argv)
     // user option parse index.
     int opt = 0;
     // user options.
-    char* in_rtmp_url; char* out_rtmp_url;
+    char* in_rtmp_url = NULL;
+    char* out_rtmp_url = NULL;
     // rtmp handler
     srs_rtmp_t irtmp, ortmp;
     
@@ -60,18 +61,31 @@ int main(int argc, char** argv)
         exit(-1);
     }
     
-    // parse options in FFMPEG format.
-    while ((opt = getopt(argc, argv, "i:y:")) != -1) {
-        switch (opt) {
-            case 'i':
-                in_rtmp_url = optarg;
-                break;
-            case 'y':
-                out_rtmp_url = optarg;
-                break;
-            default:
-                break;
+    // fill the options for mac
+    for (opt = 0; opt < argc - 1; opt++) {
+        // ignore all options except -i and -y.
+        char* p = argv[opt];
+        
+        // only accept -x
+        if (p[0] != '-' || p[1] == 0 || p[2] != 0) {
+            continue;
         }
+        
+        // parse according the option name.
+        switch (p[1]) {
+            case 'i': in_rtmp_url = argv[opt + 1]; break;
+            case 'y': out_rtmp_url = argv[opt + 1]; break;
+            default: break;
+        }
+    }
+    
+    if (!in_rtmp_url) {
+        srs_human_trace("input invalid, use -i <input>");
+        return -1;
+    }
+    if (!out_rtmp_url) {
+        srs_human_trace("output invalid, use -y <output>");
+        return -1;
     }
     
     srs_human_trace("input:  %s", in_rtmp_url);

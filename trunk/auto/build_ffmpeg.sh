@@ -3,7 +3,7 @@
 ff_src_dir="../../3rdparty"
 
 # the jobs to make ffmpeg
-if [[ "" -eq SRS_JOBS ]]; then 
+if [[ "" == $SRS_JOBS ]]; then 
     export SRS_JOBS="--jobs=1" 
 fi
 
@@ -38,9 +38,6 @@ fi
 # ffmpeg can specifies the yasm path when configure it.
 export PATH=${PATH}:${ff_release_dir}/bin
 
-# the aac command for ffmepg.
-AAC_FOR_FFMPEG="--enable-libfdk-aac"
-
 # libfdk-aac
 if [[ -f ${ff_release_dir}/lib/libfdk-aac.a ]]; then
     echo "libfdk_aac is ok"
@@ -51,24 +48,6 @@ else
     cd fdk-aac-0.1.3 && bash autogen.sh && ./configure --prefix=${ff_release_dir} --enable-static && make ${SRS_JOBS} && make install &&
     ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build fdk-aac-0.1.3 failed"; exit 1; fi
 fi
-
-# libaacplus
-if [ $UBUNTU14 = NO ]; then
-    AAC_FOR_FFMPEG="$AAC_FOR_FFMPEG --enable-libaacplus"
-
-    if [[ -f ${ff_release_dir}/lib/libaacplus.a ]]; then
-        echo "libaacplus is ok"
-    else
-        echo "build libaacplus-2.0.2"
-        cd $ff_current_dir &&
-        rm -rf libaacplus-2.0.2 && unzip -q ${ff_src_dir}/libaacplus-2.0.2.zip &&
-        cd libaacplus-2.0.2 && cp ../${ff_src_dir}/libaacplus-patch-26410-800.zip src/26410-800.zip &&
-        bash autogen.sh && ./configure --prefix=${ff_release_dir} --enable-static && make && make install
-        ret=$?; if [[ 0 -ne ${ret} ]]; then echo "build libaacplus-2.0.2 failed"; exit 1; fi
-    fi
-fi
-
-echo "aac for ffmepg: $AAC_FOR_FFMPEG"
 
 # lame-3.99
 if [[ -f ${ff_release_dir}/lib/libmp3lame.a ]]; then
@@ -128,7 +107,7 @@ else
         --extra-ldflags='-L${ffmpeg_exported_release_dir}/lib -lm -ldl' \
         --disable-ffplay --disable-ffprobe --disable-ffserver --disable-doc \
         --enable-postproc --enable-bzlib --enable-zlib --enable-parsers \
-        --enable-libx264 --enable-libmp3lame $AAC_FOR_FFMPEG --enable-libspeex \
+        --enable-libx264 --enable-libmp3lame --enable-libfdk-aac --enable-libspeex \
         --enable-pthreads --extra-libs=-lpthread \
         --enable-encoders --enable-decoders --enable-avfilter --enable-muxers --enable-demuxers && 
     make ${SRS_JOBS} && make install

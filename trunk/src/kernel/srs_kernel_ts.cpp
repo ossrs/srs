@@ -56,25 +56,6 @@ using namespace std;
 #define TS_AUDIO_AAC_PID 0x102
 #define TS_AUDIO_MP3_PID 0x103
 
-/**
-* the public data, event HLS disable, others can use it.
-*/
-// 0 = 5.5 kHz = 5512 Hz
-// 1 = 11 kHz = 11025 Hz
-// 2 = 22 kHz = 22050 Hz
-// 3 = 44 kHz = 44100 Hz
-int flv_sample_rates[] = {5512, 11025, 22050, 44100};
-
-// the sample rates in the codec,
-// in the sequence header.
-int aac_sample_rates[] = 
-{
-    96000, 88200, 64000, 48000,
-    44100, 32000, 24000, 22050,
-    16000, 12000, 11025,  8000,
-    7350,     0,     0,    0
-};
-
 string srs_ts_stream2string(SrsTsStream stream)
 {
     switch (stream) {
@@ -1130,7 +1111,7 @@ int SrsTsAdaptationField::encode(SrsStream* stream)
         // @see https://github.com/winlinvip/simple-rtmp-server/issues/250#issuecomment-71349370
         int64_t pcrv = program_clock_reference_extension & 0x1ff;
         pcrv |= (const1_value0 << 9) & 0x7E00;
-        pcrv |= (program_clock_reference_base << 15) & 0x1FFFFFFFF000000;
+        pcrv |= (program_clock_reference_base << 15) & 0x1FFFFFFFF000000LL;
 
         pp = (char*)&pcrv;
         *p++ = pp[5];
@@ -2783,20 +2764,6 @@ int SrsTsCache::do_cache_aac(SrsAvcAacCodec* codec, SrsCodecSample* sample)
             srs_error("invalid aac frame length=%d, ret=%d", size, ret);
             return ret;
         }
-
-        // the profile = object_id + 1
-        // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 78,
-        //      Table 1. A.9 ¨C MPEG-2 Audio profiles and MPEG-4 Audio object types
-        // the valid object type:
-        //      AAC Main(ID == 0)
-        //      AAC LC(ID == 1)
-        //      AAC SSR(ID == 2)
-        //      AAC LTP(ID == 3)
-        u_int8_t profile_ObjectType = codec->aac_profile - 1;
-
-        // TODO: FIXME: only support Main or LC.
-        // @see https://github.com/winlinvip/simple-rtmp-server/issues/310
-        profile_ObjectType = srs_min(1, profile_ObjectType);
         
         // the frame length is the AAC raw data plus the adts header size.
         int32_t frame_length = size + 7;
@@ -2805,12 +2772,12 @@ int SrsTsCache::do_cache_aac(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         // 6.2 Audio Data Transport Stream, ADTS
         // in aac-iso-13818-7.pdf, page 26.
         // fixed 7bytes header
-        static u_int8_t adts_header[7] = {0xff, 0xf1, 0x00, 0x00, 0x00, 0x0f, 0xfc};
+        static u_int8_t adts_header[7] = {0xff, 0xf9, 0x00, 0x00, 0x00, 0x0f, 0xfc};
         /*
         // adts_fixed_header
         // 2B, 16bits
         int16_t syncword; //12bits, '1111 1111 1111'
-        int8_t ID; //1bit, '0'
+        int8_t ID; //1bit, '1'
         int8_t layer; //2bits, '00'
         int8_t protection_absent; //1bit, can be '1'
         // 12bits
@@ -2830,7 +2797,8 @@ int SrsTsCache::do_cache_aac(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         int8_t number_of_raw_data_blocks_in_frame; //2bits, 0 indicating 1 raw_data_block()
         */
         // profile, 2bits
-        adts_header[2] = (profile_ObjectType << 6) & 0xc0;
+        SrsAacProfile aac_profile = srs_codec_aac_rtmp2ts(codec->aac_object);
+        adts_header[2] = (aac_profile << 6) & 0xc0;
         // sampling_frequency_index 4bits
         adts_header[2] |= (codec->aac_sample_rate << 2) & 0x3c;
         // channel_configuration 3bits

@@ -110,6 +110,7 @@ enum SrsCodecVideo
     SrsCodecVideoScreenVideoVersion2     = 6,
     SrsCodecVideoAVC                     = 7,
 };
+std::string srs_codec_video2str(SrsCodecVideo codec);
 
 // SoundFormat UB [4] 
 // Format of SoundData. The following values are defined:
@@ -150,6 +151,7 @@ enum SrsCodecAudio
     SrsCodecAudioReservedMP3_8kHz                     = 14,
     SrsCodecAudioReservedDeviceSpecificSound         = 15,
 };
+std::string srs_codec_audio2str(SrsCodecAudio codec);
 
 /**
 * the FLV/RTMP supported audio sample rate.
@@ -374,6 +376,98 @@ enum SrsAvcPayloadFormat
 };
 
 /**
+* the aac profile, for ADTS(HLS/TS)
+* @see https://github.com/winlinvip/simple-rtmp-server/issues/310
+*/
+enum SrsAacProfile
+{
+    SrsAacProfileReserved = 3,
+    
+    // @see 7.1 Profiles, aac-iso-13818-7.pdf, page 40
+    SrsAacProfileMain = 0,
+    SrsAacProfileLC = 1,
+    SrsAacProfileSSR = 2,
+};
+std::string srs_codec_aac_profile2str(SrsAacProfile aac_profile);
+
+/**
+* the aac object type, for RTMP sequence header
+* for AudioSpecificConfig, @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 33
+* for audioObjectType, @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 23
+*/
+enum SrsAacObjectType
+{
+    SrsAacObjectTypeReserved = 0,
+    
+    // Table 1.1 – Audio Object Type definition
+    // @see @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 23
+    SrsAacObjectTypeAacMain = 1,
+    SrsAacObjectTypeAacLC = 2,
+    SrsAacObjectTypeAacSSR = 3,
+    
+    // AAC HE = LC+SBR
+    SrsAacObjectTypeHE = 5,
+    // AAC HEv2 = LC+SBR+PS
+    SrsAacObjectTypeHEV2 = 29,
+};
+std::string srs_codec_aac_object2str(SrsAacObjectType aac_object);
+// ts/hls/adts audio header profile to RTMP sequence header object type.
+SrsAacObjectType srs_codec_aac_ts2rtmp(SrsAacProfile profile);
+// RTMP sequence header object type to ts/hls/adts audio header profile.
+SrsAacProfile srs_codec_aac_rtmp2ts(SrsAacObjectType object_type);
+
+/**
+* the profile for avc/h.264.
+* @see Annex A Profiles and levels, H.264-AVC-ISO_IEC_14496-10.pdf, page 205.
+*/
+enum SrsAvcProfile
+{
+    SrsAvcProfileReserved = 0,
+    
+    // @see ffmpeg, libavcodec/avcodec.h:2713
+    SrsAvcProfileBaseline = 66,
+    // FF_PROFILE_H264_CONSTRAINED  (1<<9)  // 8+1; constraint_set1_flag
+    // FF_PROFILE_H264_CONSTRAINED_BASELINE (66|FF_PROFILE_H264_CONSTRAINED)
+    SrsAvcProfileConstrainedBaseline = 578,
+    SrsAvcProfileMain = 77,
+    SrsAvcProfileExtended = 88,
+    SrsAvcProfileHigh = 100,
+    SrsAvcProfileHigh10 = 110,
+    SrsAvcProfileHigh10Intra = 2158,
+    SrsAvcProfileHigh422 = 122,
+    SrsAvcProfileHigh422Intra = 2170,
+    SrsAvcProfileHigh444 = 144,
+    SrsAvcProfileHigh444Predictive = 244,
+    SrsAvcProfileHigh444Intra = 2192,
+};
+std::string srs_codec_avc_profile2str(SrsAvcProfile profile);
+
+/**
+* the level for avc/h.264.
+* @see Annex A Profiles and levels, H.264-AVC-ISO_IEC_14496-10.pdf, page 207.
+*/
+enum SrsAvcLevel
+{
+    SrsAvcLevelReserved = 0,
+    
+    SrsAvcLevel_1 = 10,
+    SrsAvcLevel_11 = 11,
+    SrsAvcLevel_12 = 12,
+    SrsAvcLevel_13 = 13,
+    SrsAvcLevel_2 = 20,
+    SrsAvcLevel_21 = 21,
+    SrsAvcLevel_22 = 22,
+    SrsAvcLevel_3 = 30,
+    SrsAvcLevel_31 = 31,
+    SrsAvcLevel_32 = 32,
+    SrsAvcLevel_4 = 40,
+    SrsAvcLevel_41 = 41,
+    SrsAvcLevel_5 = 50,
+    SrsAvcLevel_51 = 51,
+};
+std::string srs_codec_avc_level2str(SrsAvcLevel level);
+
+/**
 * the h264/avc and aac codec, for media stream.
 *
 * to demux the FLV/RTMP video/audio packet to sample,
@@ -410,9 +504,9 @@ public:
     * video specified
     */
     // profile_idc, H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
-    u_int8_t        avc_profile; 
+    SrsAvcProfile   avc_profile; 
     // level_idc, H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
-    u_int8_t        avc_level; 
+    SrsAvcLevel     avc_level; 
     // lengthSizeMinusOne, H.264-AVC-ISO_IEC_14496-15.pdf, page 16
     int8_t          NAL_unit_length;
     u_int16_t       sequenceParameterSetLength;
@@ -429,7 +523,7 @@ public:
     * 1.5.1.1 Audio object type definition, page 23,
     *           in aac-mp4a-format-ISO_IEC_14496-3+2001.pdf.
     */
-    u_int8_t        aac_profile; 
+    SrsAacObjectType    aac_object;
     /**
     * samplingFrequencyIndex
     */

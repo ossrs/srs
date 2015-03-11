@@ -43,6 +43,7 @@ using namespace std;
 #include <srs_kernel_codec.hpp>
 #include <srs_rtmp_msg_array.hpp>
 #include <srs_app_hds.hpp>
+#include <srs_app_statistic.hpp>
 
 #define CONST_MAX_JITTER_MS         500
 #define DEFAULT_FRAME_TIME_MS         40
@@ -714,35 +715,47 @@ ISrsSourceHandler::~ISrsSourceHandler()
 
 std::map<std::string, SrsSource*> SrsSource::pool;
 
-int SrsSource::find(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh, SrsSource** pps)
+int SrsSource::create(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh, SrsSource** pps)
 {
     int ret = ERROR_SUCCESS;
     
     string stream_url = r->get_stream_url();
     string vhost = r->vhost;
     
-    if (pool.find(stream_url) == pool.end()) {
-        SrsSource* source = new SrsSource(hh);
-        if ((ret = source->initialize(r, h)) != ERROR_SUCCESS) {
-            srs_freep(source);
-            return ret;
-        }
-        
-        pool[stream_url] = source;
-        srs_info("create new source for url=%s, vhost=%s", 
-            stream_url.c_str(), vhost.c_str());
+    // should always not exists for create a source.
+    srs_assert (pool.find(stream_url) == pool.end());
+
+    SrsSource* source = new SrsSource();
+    if ((ret = source->initialize(r, h, hh)) != ERROR_SUCCESS) {
+        srs_freep(source);
+        return ret;
     }
+        
+    pool[stream_url] = source;
+    srs_info("create new source for url=%s, vhost=%s", stream_url.c_str(), vhost.c_str());
     
+    *pps = source;
+    
+    return ret;
+}
+
+SrsSource* SrsSource::fetch(SrsRequest* r)
+{
+    SrsSource* source = NULL;
+    
+    string stream_url = r->get_stream_url();
+    if (pool.find(stream_url) == pool.end()) {
+        return NULL;
+    }
+
+    source = pool[stream_url];
+
     // we always update the request of resource, 
     // for origin auth is on, the token in request maybe invalid,
     // and we only need to update the token of request, it's simple.
-    if (true) {
-        SrsSource* source = pool[stream_url];
-        source->_req->update_auth(r);
-        *pps = source;
-    }
-    
-    return ret;
+    source->_req->update_auth(r);
+
+    return source;
 }
 
 void SrsSource::destroy()
@@ -755,17 +768,16 @@ void SrsSource::destroy()
     pool.clear();
 }
 
-SrsSource::SrsSource(ISrsHlsHandler* hh)
+SrsSource::SrsSource()
 {
     _req = NULL;
     jitter_algorithm = SrsRtmpJitterAlgorithmOFF;
     
 #ifdef SRS_AUTO_HLS
-    // TODO: FIXME: refine code, use subscriber pattern.
-    hls = new SrsHls(this, hh);
+    hls = new SrsHls();
 #endif
 #ifdef SRS_AUTO_DVR
-    dvr = new SrsDvr(this);
+    dvr = new SrsDvr();
 #endif
 #ifdef SRS_AUTO_TRANSCODE
     encoder = new SrsEncoder();
@@ -827,16 +839,26 @@ SrsSource::~SrsSource()
     srs_freep(_req);
 }
 
-int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h)
+int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh)
 {
     int ret = ERROR_SUCCESS;
     
+    srs_assert(h);
+    srs_assert(hh);
+    srs_assert(!_req);
+
     handler = h;
     _req = r->copy();
     atc = _srs_config->get_atc(_req->vhost);
+
+#ifdef SRS_AUTO_HLS
+    if ((ret = hls->initialize(this, hh)) != ERROR_SUCCESS) {
+        return ret;
+    }
+#endif
     
 #ifdef SRS_AUTO_DVR
-    if ((ret = dvr->initialize(_req)) != ERROR_SUCCESS) {
+    if ((ret = dvr->initialize(this, _req)) != ERROR_SUCCESS) {
         return ret;
     }
 #endif
@@ -1000,7 +1022,7 @@ int SrsSource::on_reload_vhost_dvr(string vhost)
     dvr->on_unpublish();
 
     // reinitialize the dvr, update plan.
-    if ((ret = dvr->initialize(_req)) != ERROR_SUCCESS) {
+    if ((ret = dvr->initialize(this, _req)) != ERROR_SUCCESS) {
         return ret;
     }
 
@@ -1364,6 +1386,7 @@ int SrsSource::on_audio(SrsCommonMessage* __audio)
 
     // cache the sequence header of aac, or first packet of mp3.
     // for example, the mp3 is used for hls to write the "right" audio codec.
+    // TODO: FIXME: to refine the stream info system.
     bool is_aac_sequence_header = SrsFlvCodec::audio_is_sequence_header(msg.payload, msg.size);
     if (is_aac_sequence_header || !cache_sh_audio) {
         srs_freep(cache_sh_audio);
@@ -1383,11 +1406,18 @@ int SrsSource::on_audio(SrsCommonMessage* __audio)
         
         static int flv_sample_sizes[] = {8, 16, 0};
         static int flv_sound_types[] = {1, 2, 0};
+        
+        // when got audio stream info.
+        SrsStatistic* stat = SrsStatistic::instance();
+        if ((ret = stat->on_audio_info(_req, SrsCodecAudioAAC, sample.sound_rate, sample.sound_type, codec.aac_object)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
         srs_trace("%dB audio sh, "
-            "codec(%d, profile=%d, %dchannels, %dkbps, %dHZ), "
+            "codec(%d, profile=%s, %dchannels, %dkbps, %dHZ), "
             "flv(%dbits, %dchannels, %dHZ)", 
             msg.size, codec.audio_codec_id,
-            codec.aac_profile, codec.aac_channels, 
+            srs_codec_aac_object2str(codec.aac_object).c_str(), codec.aac_channels, 
             codec.audio_data_rate / 1000, aac_sample_rates[codec.aac_sample_rate], 
             flv_sample_sizes[sample.sound_size], flv_sound_types[sample.sound_type], 
             flv_sample_rates[sample.sound_rate]);
@@ -1515,10 +1545,17 @@ int SrsSource::on_video(SrsCommonMessage* __video)
             return ret;
         }
         
+        // when got video stream info.
+        SrsStatistic* stat = SrsStatistic::instance();
+        if ((ret = stat->on_video_info(_req, SrsCodecVideoAVC, codec.avc_profile, codec.avc_level)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
         srs_trace("%dB video sh, "
-            "codec(%d, profile=%d, level=%d, %dx%d, %dkbps, %dfps, %ds)",
+            "codec(%d, profile=%s, level=%s, %dx%d, %dkbps, %dfps, %ds)",
             msg.size, codec.video_codec_id,
-            codec.avc_profile, codec.avc_level, codec.width, codec.height,
+            srs_codec_avc_profile2str(codec.avc_profile).c_str(), 
+            srs_codec_avc_level2str(codec.avc_level).c_str(), codec.width, codec.height,
             codec.video_data_rate / 1000, codec.frame_rate, codec.duration);
         return ret;
     }

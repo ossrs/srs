@@ -148,6 +148,24 @@ void show_macro_features()
     srs_trace("MW(merged-write) default sleep %d", SRS_PERF_MW_SLEEP);
     srs_trace("read chunk stream cache cid [0, %d)", SRS_PERF_CHUNK_STREAM_CACHE);
     srs_trace("default gop cache %d, play queue %ds", SRS_PERF_GOP_CACHE, SRS_PERF_PLAY_QUEUE);
+    
+#ifndef SRS_PERF_COMPLEX_SEND
+    srs_warn("complex send algorithm disabled.");
+#else
+    srs_trace("complex send algorithm enabled.");
+#endif
+
+#ifdef SRS_PERF_TCP_NODELAY
+    srs_warn("TCP_NODELAY enabled, hurts performance.");
+#else
+    srs_trace("TCP_NODELAY disabled.");
+#endif
+
+#ifdef SRS_PERF_SO_SNDBUF_SIZE
+    srs_warn("socket send buffer size %d", SRS_PERF_SO_SNDBUF_SIZE);
+#else
+    srs_trace("auto guess socket send buffer by merged write");
+#endif
 
     int possible_mr_latency = 0;
 #ifdef SRS_PERF_MERGED_READ
@@ -159,6 +177,23 @@ void show_macro_features()
 
 void check_macro_features()
 {
+    // important preset.
+#ifdef SRS_OSX
+    srs_trace("SRS for OSX");
+#endif
+#ifdef SRS_PI
+    srs_trace("SRS for pi");
+#endif
+#ifdef SRS_CUBIE
+    srs_trace("SRS for cubieboard");
+#endif
+#ifdef SRS_ARM_UBUNTU12
+    srs_trace("SRS for arm(build on ubuntu)");
+#endif
+#ifdef SRS_MIPS_UBUNTU12
+    srs_trace("SRS for mips(build on ubuntu)");
+#endif
+    
     // for special features.
 #ifndef SRS_PERF_MERGED_READ
     srs_warn("MR(merged-read) is disabled, hurts read performance. @see %s", RTMP_SIG_SRS_ISSUES(241));
@@ -169,6 +204,15 @@ void check_macro_features()
 #if VERSION_MAJOR > 1
     #warning "using develop SRS, please use release instead."
     srs_warn("SRS %s is develop branch, please use %s instead", RTMP_SIG_SRS_VERSION, RTMP_SIG_SRS_RELEASE);
+#endif
+
+#if defined(SRS_AUTO_STREAM_CASTER)
+    #warning "stream caster is experiment feature."
+    srs_warn("stream caster is experiment feature.");
+#endif
+
+#if defined(SRS_PERF_SO_SNDBUF_SIZE) && !defined(SRS_PERF_MW_SO_SNDBUF)
+    #error "SRS_PERF_SO_SNDBUF_SIZE depends on SRS_PERF_MW_SO_SNDBUF"
 #endif
 }
 
@@ -230,8 +274,8 @@ int main(int argc, char** argv)
     srs_trace("conf: %s, limit: %d", _srs_config->config().c_str(), _srs_config->get_max_connections());
     
     // features
-    show_macro_features();
     check_macro_features();
+    show_macro_features();
     
     /**
     * we do nothing in the constructor of server,
@@ -311,6 +355,10 @@ int run_master()
     }
     
     if ((ret = _srs_server->register_signal()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if ((ret = _srs_server->http_handle()) != ERROR_SUCCESS) {
         return ret;
     }
     

@@ -113,6 +113,8 @@ public:
     * @param file the file path, can be relative or absolute path.
     */
     static int on_dvr_reap_segment(std::string url, int client_id, SrsRequest* req, std::string cwd, std::string file);
+private:
+    static int do_post(std::string url, std::string req, int& code, std::string& res);
 };
 
 #endif

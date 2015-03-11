@@ -47,8 +47,9 @@ class SrsHttpUri;
 class SrsHttpMessage;
 class SrsFileReader;
 class SrsSimpleBuffer;
-class SrsGoHttpMuxEntry;
-class ISrsGoHttpResponseWriter;
+class SrsHttpMuxEntry;
+class ISrsHttpResponseWriter;
+class SrsFastBuffer;
 
 // http specification
 // CR             = <US-ASCII CR, carriage return (13)>
@@ -70,23 +71,24 @@ class ISrsGoHttpResponseWriter;
 #define __SRS_HTTP_TS_SEND_BUFFER_SIZE 4096
 
 // helper function: response in json format.
-extern int srs_go_http_response_json(ISrsGoHttpResponseWriter* w, std::string data);
+extern int srs_go_http_response_json(ISrsHttpResponseWriter* w, std::string data);
 
 // state of message
 enum SrsHttpParseState {
     SrsHttpParseStateInit = 0, 
     SrsHttpParseStateStart, 
-    SrsHttpParseStateComplete
+    SrsHttpParseStateHeaderComplete,
+    SrsHttpParseStateMessageComplete
 };
 
 // A Header represents the key-value pairs in an HTTP header.
-class SrsGoHttpHeader
+class SrsHttpHeader
 {
 private:
     std::map<std::string, std::string> headers;
 public:
-    SrsGoHttpHeader();
-    virtual ~SrsGoHttpHeader();
+    SrsHttpHeader();
+    virtual ~SrsHttpHeader();
 public:
     // Add adds the key, value pair to the header.
     // It appends to any existing values associated with key.
@@ -124,7 +126,7 @@ public:
 // A ResponseWriter interface is used by an HTTP handler to
 // construct an HTTP response.
 // Usage 1, response with specified length content:
-//      ISrsGoHttpResponseWriter* w; // create or get response.
+//      ISrsHttpResponseWriter* w; // create or get response.
 //      std::string msg = "Hello, HTTP!";
 //      w->header()->set_content_type("text/plain; charset=utf-8");
 //      w->header()->set_content_length(msg.length());
@@ -132,12 +134,12 @@ public:
 //      w->write((char*)msg.data(), (int)msg.length());
 //      w->final_request(); // optional flush.
 // Usage 2, response with HTTP code only, zero content length.
-//      ISrsGoHttpResponseWriter* w; // create or get response.
+//      ISrsHttpResponseWriter* w; // create or get response.
 //      w->header()->set_content_length(0);
 //      w->write_header(SRS_CONSTS_HTTP_OK);
 //      w->final_request();
 // Usage 3, response in chunked encoding.
-//      ISrsGoHttpResponseWriter* w; // create or get response.
+//      ISrsHttpResponseWriter* w; // create or get response.
 //      std::string msg = "Hello, HTTP!";
 //      w->header()->set_content_type("application/octet-stream");
 //      w->write_header(SRS_CONSTS_HTTP_OK);
@@ -146,20 +148,22 @@ public:
 //      w->write((char*)msg.data(), (int)msg.length());
 //      w->write((char*)msg.data(), (int)msg.length());
 //      w->final_request(); // required to end the chunked and flush.
-class ISrsGoHttpResponseWriter
+class ISrsHttpResponseWriter
 {
 public:
-    ISrsGoHttpResponseWriter();
-    virtual ~ISrsGoHttpResponseWriter();
+    ISrsHttpResponseWriter();
+    virtual ~ISrsHttpResponseWriter();
 public:
     // when chunked mode, 
     // final the request to complete the chunked encoding.
+    // for no-chunked mode, 
+    // final to send request, for example, content-length is 0.
     virtual int final_request() = 0;
     
     // Header returns the header map that will be sent by WriteHeader.
     // Changing the header after a call to WriteHeader (or Write) has
     // no effect.
-    virtual SrsGoHttpHeader* header() = 0;
+    virtual SrsHttpHeader* header() = 0;
     
     // Write writes the data to the connection as part of an HTTP reply.
     // If WriteHeader has not yet been called, Write calls WriteHeader(http.StatusOK)
@@ -178,6 +182,26 @@ public:
     virtual void write_header(int code) = 0;
 };
 
+/**
+* the reader interface for http response.
+*/
+class ISrsHttpResponseReader
+{
+public:
+    ISrsHttpResponseReader();
+    virtual ~ISrsHttpResponseReader();
+public:
+    /**
+    * whether response read EOF.
+    */
+    virtual bool eof() = 0;
+    /**
+    * read from the response body.
+    * @remark when eof(), return error.
+    */
+    virtual int read(std::string& data) = 0;
+};
+
 // Objects implementing the Handler interface can be
 // registered to serve a particular path or subtree
 // in the HTTP server.
@@ -186,38 +210,38 @@ public:
 // and then return.  Returning signals that the request is finished
 // and that the HTTP server can move on to the next request on
 // the connection.
-class ISrsGoHttpHandler
+class ISrsHttpHandler
 {
 public:
-    SrsGoHttpMuxEntry* entry;
+    SrsHttpMuxEntry* entry;
 public:
-    ISrsGoHttpHandler();
-    virtual ~ISrsGoHttpHandler();
+    ISrsHttpHandler();
+    virtual ~ISrsHttpHandler();
 public:
-    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r) = 0;
+    virtual int serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r) = 0;
 };
 
 // Redirect to a fixed URL
-class SrsGoHttpRedirectHandler : public ISrsGoHttpHandler
+class SrsHttpRedirectHandler : public ISrsHttpHandler
 {
 private:
     std::string url;
     int code;
 public:
-    SrsGoHttpRedirectHandler(std::string u, int c);
-    virtual ~SrsGoHttpRedirectHandler();
+    SrsHttpRedirectHandler(std::string u, int c);
+    virtual ~SrsHttpRedirectHandler();
 public:
-    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
+    virtual int serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r);
 };
 
 // NotFound replies to the request with an HTTP 404 not found error.
-class SrsGoHttpNotFoundHandler : public ISrsGoHttpHandler
+class SrsHttpNotFoundHandler : public ISrsHttpHandler
 {
 public:
-    SrsGoHttpNotFoundHandler();
-    virtual ~SrsGoHttpNotFoundHandler();
+    SrsHttpNotFoundHandler();
+    virtual ~SrsHttpNotFoundHandler();
 public:
-    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
+    virtual int serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r);
 };
 
 // FileServer returns a handler that serves HTTP requests
@@ -226,54 +250,54 @@ public:
 // To use the operating system's file system implementation,
 // use http.Dir:
 //
-//     http.Handle("/", SrsGoHttpFileServer("/tmp"))
-//     http.Handle("/", SrsGoHttpFileServer("static-dir"))
-class SrsGoHttpFileServer : public ISrsGoHttpHandler
+//     http.Handle("/", SrsHttpFileServer("/tmp"))
+//     http.Handle("/", SrsHttpFileServer("static-dir"))
+class SrsHttpFileServer : public ISrsHttpHandler
 {
 protected:
     std::string dir;
 public:
-    SrsGoHttpFileServer(std::string root_dir);
-    virtual ~SrsGoHttpFileServer();
+    SrsHttpFileServer(std::string root_dir);
+    virtual ~SrsHttpFileServer();
 public:
-    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
+    virtual int serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r);
 private:
     /**
     * serve the file by specified path
     */
-    virtual int serve_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath);
-    virtual int serve_flv_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath);
-    virtual int serve_mp4_file(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath);
+    virtual int serve_file(ISrsHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath);
+    virtual int serve_flv_file(ISrsHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath);
+    virtual int serve_mp4_file(ISrsHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath);
 protected:
     /**
     * when access flv file with x.flv?start=xxx
     */
-    virtual int serve_flv_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath, int offset);
+    virtual int serve_flv_stream(ISrsHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath, int offset);
     /**
     * when access mp4 file with x.mp4?range=start-end
     * @param start the start offset in bytes.
     * @param end the end offset in bytes. -1 to end of file.
     * @remark response data in [start, end].
     */
-    virtual int serve_mp4_stream(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath, int start, int end);
+    virtual int serve_mp4_stream(ISrsHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath, int start, int end);
 protected:
     /**
     * copy the fs to response writer in size bytes.
     */
-    virtual int copy(ISrsGoHttpResponseWriter* w, SrsFileReader* fs, SrsHttpMessage* r, int size);
+    virtual int copy(ISrsHttpResponseWriter* w, SrsFileReader* fs, SrsHttpMessage* r, int size);
 };
 
 // the mux entry for server mux.
-class SrsGoHttpMuxEntry
+class SrsHttpMuxEntry
 {
 public:
     bool explicit_match;
-    ISrsGoHttpHandler* handler;
+    ISrsHttpHandler* handler;
     std::string pattern;
     bool enabled;
 public:
-    SrsGoHttpMuxEntry();
-    virtual ~SrsGoHttpMuxEntry();
+    SrsHttpMuxEntry();
+    virtual ~SrsHttpMuxEntry();
 };
 
 // ServeMux is an HTTP request multiplexer.
@@ -303,16 +327,16 @@ public:
 // ServeMux also takes care of sanitizing the URL request path,
 // redirecting any request containing . or .. elements to an
 // equivalent .- and ..-free URL.
-class SrsGoHttpServeMux
+class SrsHttpServeMux
 {
 private:
     // the pattern handler.
-    std::map<std::string, SrsGoHttpMuxEntry*> entries;
+    std::map<std::string, SrsHttpMuxEntry*> entries;
     // the vhost handler.
-    std::map<std::string, ISrsGoHttpHandler*> vhosts;
+    std::map<std::string, ISrsHttpHandler*> vhosts;
 public:
-    SrsGoHttpServeMux();
-    virtual ~SrsGoHttpServeMux();
+    SrsHttpServeMux();
+    virtual ~SrsHttpServeMux();
 public:
     /**
     * initialize the http serve mux.
@@ -321,24 +345,24 @@ public:
 public:
     // Handle registers the handler for the given pattern.
     // If a handler already exists for pattern, Handle panics.
-    virtual int handle(std::string pattern, ISrsGoHttpHandler* handler);
-// interface ISrsGoHttpHandler
+    virtual int handle(std::string pattern, ISrsHttpHandler* handler);
+// interface ISrsHttpHandler
 public:
-    virtual int serve_http(ISrsGoHttpResponseWriter* w, SrsHttpMessage* r);
+    virtual int serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r);
 private:
-    virtual int find_handler(SrsHttpMessage* r, ISrsGoHttpHandler** ph);
-    virtual int match(SrsHttpMessage* r, ISrsGoHttpHandler** ph);
+    virtual int find_handler(SrsHttpMessage* r, ISrsHttpHandler** ph);
+    virtual int match(SrsHttpMessage* r, ISrsHttpHandler** ph);
     virtual bool path_match(std::string pattern, std::string path);
 };
 
 /**
 * response writer use st socket
 */
-class SrsGoHttpResponseWriter : public ISrsGoHttpResponseWriter
+class SrsHttpResponseWriter : public ISrsHttpResponseWriter
 {
 private:
     SrsStSocket* skt;
-    SrsGoHttpHeader* hdr;
+    SrsHttpHeader* hdr;
 private:
     // reply header has been (logically) written
     bool header_wrote;
@@ -356,15 +380,46 @@ private:
     // logically written.
     bool header_sent;
 public:
-    SrsGoHttpResponseWriter(SrsStSocket* io);
-    virtual ~SrsGoHttpResponseWriter();
+    SrsHttpResponseWriter(SrsStSocket* io);
+    virtual ~SrsHttpResponseWriter();
 public:
     virtual int final_request();
-    virtual SrsGoHttpHeader* header();
+    virtual SrsHttpHeader* header();
     virtual int write(char* data, int size);
     virtual void write_header(int code);
     virtual int send_header(char* data, int size);
 };
+
+/**
+* response reader use st socket.
+*/
+class SrsHttpResponseReader : virtual public ISrsHttpResponseReader
+{
+private:
+    SrsStSocket* skt;
+    SrsHttpMessage* owner;
+    SrsFastBuffer* buffer;
+    bool is_eof;
+    int64_t nb_read;
+public:
+    SrsHttpResponseReader(SrsHttpMessage* msg, SrsStSocket* io);
+    virtual ~SrsHttpResponseReader();
+public:
+    /**
+    * initialize the response reader with buffer.
+    */
+    virtual int initialize(SrsFastBuffer* buffer);
+// interface ISrsHttpResponseReader
+public:
+    virtual bool eof();
+    virtual int read(std::string& data);
+private:
+    virtual int read_chunked(std::string& data);
+    virtual int read_specified(int max, std::string& data);
+};
+
+// for http header.
+typedef std::pair<std::string, std::string> SrsHttpHeaderField;
 
 // A Request represents an HTTP request received by a server
 // or to be sent by a client.
@@ -387,15 +442,14 @@ private:
     */
     http_parser _header;
     /**
-    * body object, in bytes.
+    * body object, reader object.
     * @remark, user can get body in string by get_body().
     */
-    SrsSimpleBuffer* _body;
+    SrsHttpResponseReader* _body;
     /**
-    * parser state
-    * @remark, user can use is_complete() to determine the state.
+    * whether the body is chunked.
     */
-    SrsHttpParseState _state;
+    bool chunked;
     /**
     * uri parser
     */
@@ -403,53 +457,77 @@ private:
     /**
     * use a buffer to read and send ts file.
     */
+    // TODO: FIXME: remove it.
     char* _http_ts_send_buffer;
     // http headers
-    typedef std::pair<std::string, std::string> SrsHttpHeaderField;
-    std::vector<SrsHttpHeaderField> headers;
+    std::vector<SrsHttpHeaderField> _headers;
     // the query map
     std::map<std::string, std::string> _query;
 public:
-    SrsHttpMessage();
+    SrsHttpMessage(SrsStSocket* io);
     virtual ~SrsHttpMessage();
 public:
-    virtual int initialize();
+    /**
+    * set the original messages, then update the message.
+    */
+    virtual int update(std::string url, http_parser* header, 
+        SrsFastBuffer* body, std::vector<SrsHttpHeaderField>& headers
+    );
 public:
     virtual char* http_ts_send_buffer();
-    virtual void reset();
 public:
-    virtual bool is_complete();
     virtual u_int8_t method();
     virtual u_int16_t status_code();
+    /**
+    * method helpers.
+    */
     virtual std::string method_str();
     virtual bool is_http_get();
     virtual bool is_http_put();
     virtual bool is_http_post();
     virtual bool is_http_delete();
     virtual bool is_http_options();
+    /**
+    * whether body is chunked encoding, for reader only.
+    */
+    virtual bool is_chunked();
+    /**
+    * the uri contains the host and path.
+    */
     virtual std::string uri();
+    /**
+    * the url maybe the path.
+    */
     virtual std::string url();
     virtual std::string host();
     virtual std::string path();
 public:
-    virtual std::string body();
-    virtual char* body_raw();
-    virtual int64_t body_size();
+    /**
+    * read body to string.
+    * @remark for small http body.
+    */
+    virtual int body_read_all(std::string& body);
+    /**
+    * get the body reader, to read one by one.
+    * @remark when body is very large, or chunked, use this.
+    */
+    virtual ISrsHttpResponseReader* body_reader();
+    /**
+    * the content length, -1 for chunked or not set.
+    */
     virtual int64_t content_length();
-    virtual void set_url(std::string url);
-    virtual void set_state(SrsHttpParseState state);
-    virtual void set_header(http_parser* header);
-    virtual void append_body(const char* body, int length);
     /**
     * get the param in query string,
     * for instance, query is "start=100&end=200",
     * then query_get("start") is "100", and query_get("end") is "200"
     */
     virtual std::string query_get(std::string key);
+    /**
+    * get the headers.
+    */
     virtual int request_header_count();
     virtual std::string request_header_key_at(int index);
     virtual std::string request_header_value_at(int index);
-    virtual void set_request_header(std::string key, std::string value);
     virtual std::string get_request_header(std::string name);
 };
 
@@ -462,8 +540,18 @@ class SrsHttpParser
 private:
     http_parser_settings settings;
     http_parser parser;
-    SrsHttpMessage* msg;
+    // the global parse buffer.
+    SrsFastBuffer* buffer;
+private:
+    // http parse data, reset before parse message.
+    bool expect_filed_name;
     std::string filed_name;
+    std::string field_value;
+    SrsHttpParseState state;
+    http_parser header;
+    std::string url;
+    std::vector<SrsHttpHeaderField> headers;
+    int body_parsed;
 public:
     SrsHttpParser();
     virtual ~SrsHttpParser();
