@@ -21,7 +21,9 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
+#include <srs_app_hds.hpp>
 
+#include <unistd.h>
 #include <string>
 #include <vector>
 #include <sys/types.h>
@@ -462,7 +464,9 @@ int SrsHds::flush_bootstrap()
     char *start_afrt = NULL;
     int size_afrt = 0;
 
-    abst.initialize(start_abst, size);
+    if ((ret = abst.initialize(start_abst, size)) != ERROR_SUCCESS) {
+        return ret;
+    }
 
     // @see video_file_format_spec_v10_1
     // page: 46

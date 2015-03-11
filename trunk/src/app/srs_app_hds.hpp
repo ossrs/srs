@@ -25,14 +25,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef SRS_APP_HDS_HPP
 #define SRS_APP_HDS_HPP
 
+#include <srs_core.hpp>
+
 #include <list>
 
 class SrsRequest;
 class SrsSharedPtrMessage;
 class SrsHdsFragment;
 class SrsSource;
-
-using namespace std;
 
 class SrsHds
 {
@@ -52,7 +52,7 @@ private:
     void adjust_windows();
 
 private:
-    list<SrsHdsFragment *> fragments;
+    std::list<SrsHdsFragment *> fragments;
     SrsHdsFragment *currentSegment;
     SrsSource *source;
     int fragment_index;
