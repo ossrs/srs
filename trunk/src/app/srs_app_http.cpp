@@ -1315,17 +1315,6 @@ int SrsHttpParser::parse_message_imp(SrsStSocket* skt)
             srs_info("buffer=%d, nparsed=%d, body=%d", buffer->size(), (int)nparsed, body_parsed);
         }
         
-        // when nothing parsed, read more to parse.
-        if (nparsed == 0) {
-            // when requires more, only grow 1bytes, but the buffer will cache more.
-            if ((ret = buffer->grow(skt, buffer->size() + 1)) != ERROR_SUCCESS) {
-                if (!srs_is_client_gracefully_close(ret)) {
-                    srs_error("read body from server failed. ret=%d", ret);
-                }
-                return ret;
-            }
-        }
-        
         // consume the parsed bytes.
         if (nparsed && nparsed - body_parsed > 0) {
             buffer->read_slice(nparsed - body_parsed);
@@ -1335,6 +1324,17 @@ int SrsHttpParser::parse_message_imp(SrsStSocket* skt)
         // never wait for body completed, for maybe chunked.
         if (state == SrsHttpParseStateHeaderComplete || state == SrsHttpParseStateMessageComplete) {
             break;
+        }
+        
+        // when nothing parsed, read more to parse.
+        if (nparsed == 0) {
+            // when requires more, only grow 1bytes, but the buffer will cache more.
+            if ((ret = buffer->grow(skt, buffer->size() + 1)) != ERROR_SUCCESS) {
+                if (!srs_is_client_gracefully_close(ret)) {
+                    srs_error("read body from server failed. ret=%d", ret);
+                }
+                return ret;
+            }
         }
     }
 
