@@ -1407,6 +1407,7 @@ int SrsConfig::check_config()
                 && n != "mr" && n != "mw_latency" && n != "min_latency"
                 && n != "security" && n != "http_remux"
                 && n != "http" && n != "http_static"
+                && n != "hds"
             ) {
                 ret = ERROR_SYSTEM_CONFIG_INVALID;
                 srs_error("unsupported vhost directive %s, ret=%d", n.c_str(), ret);
@@ -3275,6 +3276,85 @@ string SrsConfig::get_hls_vcodec(string vhost)
     }
 
     return conf->arg0();
+}
+
+SrsConfDirective *SrsConfig::get_hds(const string &vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+
+    if (!conf) {
+        return NULL;
+    }
+
+    return conf->get("hds");
+}
+
+bool SrsConfig::get_hds_enabled(const string &vhost)
+{
+    SrsConfDirective* hds = get_hds(vhost);
+
+    if (!hds) {
+        return false;
+    }
+
+    SrsConfDirective* conf = hds->get("enabled");
+
+    if (!conf) {
+        return false;
+    }
+
+    return conf->arg0() == "on";
+}
+
+string SrsConfig::get_hds_path(const string &vhost)
+{
+    SrsConfDirective* hds = get_hds(vhost);
+
+    if (!hds) {
+        return SRS_CONF_DEFAULT_HDS_PATH;
+    }
+
+    SrsConfDirective* conf = hds->get("hds_path");
+
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HDS_PATH;
+    }
+
+    return conf->arg0();
+}
+
+double SrsConfig::get_hds_fragment(const string &vhost)
+{
+    SrsConfDirective* hds = get_hds(vhost);
+
+    if (!hds) {
+        return SRS_CONF_DEFAULT_HDS_FRAGMENT;
+    }
+
+    SrsConfDirective* conf = hds->get("hds_fragment");
+
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HDS_FRAGMENT;
+    }
+
+    return ::atof(conf->arg0().c_str());
+}
+
+double SrsConfig::get_hds_window(const string &vhost)
+{
+    SrsConfDirective* hds = get_hds(vhost);
+
+    if (!hds) {
+        return SRS_CONF_DEFAULT_HDS_WINDOW;
+    }
+
+    SrsConfDirective* conf = hds->get("hds_window");
+
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HDS_WINDOW;
+    }
+
+    return ::atof(conf->arg0().c_str());
 }
 
 SrsConfDirective* SrsConfig::get_dvr(string vhost)
