@@ -41,7 +41,8 @@ int main(int argc, char** argv)
     // user option parse index.
     int opt = 0;
     // user options.
-    char* in_rtmp_url; char* out_rtmp_url;
+    char* in_rtmp_url = NULL;
+    char* out_rtmp_url = NULL;
     // rtmp handler
     srs_rtmp_t irtmp, ortmp;
     
@@ -72,6 +73,15 @@ int main(int argc, char** argv)
             default:
                 break;
         }
+    }
+    
+    if (!in_rtmp_url) {
+        srs_human_trace("input invalid, use -i <input>");
+        return -1;
+    }
+    if (!out_rtmp_url) {
+        srs_human_trace("output invalid, use -y <output>");
+        return -1;
     }
     
     srs_human_trace("input:  %s", in_rtmp_url);

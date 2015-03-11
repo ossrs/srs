@@ -43,9 +43,6 @@ using namespace std;
 
 #define SRS_DEFAULT_HTTP_PORT 80
 
-#define SRS_HTTP_HEADER_BUFFER 1024
-#define SRS_HTTP_BODY_BUFFER 1024
-
 // for http parser macros
 #define SRS_CONSTS_HTTP_OPTIONS HTTP_OPTIONS
 #define SRS_CONSTS_HTTP_GET HTTP_GET
@@ -1310,9 +1307,18 @@ int SrsHttpParser::parse_message_imp(SrsStSocket* skt)
     int ret = ERROR_SUCCESS;
     
     while (true) {
-        if (buffer->size() <= 0) {
-            // when empty, only grow 1bytes, but the buffer will cache more.
-            if ((ret = buffer->grow(skt, 1)) != ERROR_SUCCESS) {
+        ssize_t nparsed = 0;
+        
+        // when buffer not empty, parse it.
+        if (buffer->size() > 0) {
+            nparsed = http_parser_execute(&parser, &settings, buffer->bytes(), buffer->size());
+            srs_info("buffer=%d, nparsed=%d, body=%d", buffer->size(), (int)nparsed, body_parsed);
+        }
+        
+        // when nothing parsed, read more to parse.
+        if (nparsed == 0) {
+            // when requires more, only grow 1bytes, but the buffer will cache more.
+            if ((ret = buffer->grow(skt, buffer->size() + 1)) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
                     srs_error("read body from server failed. ret=%d", ret);
                 }
@@ -1320,10 +1326,8 @@ int SrsHttpParser::parse_message_imp(SrsStSocket* skt)
             }
         }
         
-        int nb_header = srs_min(SRS_HTTP_HEADER_BUFFER, buffer->size());
-        ssize_t nparsed = http_parser_execute(&parser, &settings, buffer->bytes(), nb_header);
-        srs_info("buffer=%d, nparsed=%d, body=%d", buffer->size(), (int)nparsed, body_parsed);
-        if (nparsed - body_parsed > 0) {
+        // consume the parsed bytes.
+        if (nparsed && nparsed - body_parsed > 0) {
             buffer->read_slice(nparsed - body_parsed);
         }
 
