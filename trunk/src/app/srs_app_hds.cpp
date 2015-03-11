@@ -152,10 +152,7 @@ public:
 
         data = string(ss.data(), ss.size()) + data;
 
-        char file_path[1024] = {0};
-        sprintf(file_path, "%s/%s/%sSeg1-Frag%d", _srs_config->get_hds_path(req->vhost).c_str()
-                , req->app.c_str(), req->stream.c_str(), index);
-
+        const char *file_path = path.c_str();
         int fd = open(file_path, O_WRONLY | O_CREAT, S_IRWXU | S_IRGRP | S_IROTH);
         if (fd < 0) {
             srs_error("open fragment file failed, path=%s", file_path);
@@ -203,9 +200,11 @@ public:
     */
     inline void set_index(int idx)
     {
-        char fg_name[1024] = {0};
-        sprintf(fg_name, "/var/www/live/stream0Seg1-Frag%d", idx);
-        path = fg_name;
+        char file_path[1024] = {0};
+        sprintf(file_path, "%s/%s/%sSeg1-Frag%d", _srs_config->get_hds_path(req->vhost).c_str()
+                , req->app.c_str(), req->stream.c_str(), idx);
+
+        path = file_path;
         index = idx;
     }
 
