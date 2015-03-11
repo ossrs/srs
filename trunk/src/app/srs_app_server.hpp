@@ -41,7 +41,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsServer;
 class SrsConnection;
-class SrsGoHttpServeMux;
+class SrsHttpServeMux;
 class SrsHttpServer;
 class SrsIngester;
 class SrsHttpHeartbeat;
@@ -178,7 +178,7 @@ class SrsServer : virtual public ISrsReloadHandler
 {
 private:
 #ifdef SRS_AUTO_HTTP_API
-    SrsGoHttpServeMux* http_api_mux;
+    SrsHttpServeMux* http_api_mux;
 #endif
 #ifdef SRS_AUTO_HTTP_SERVER
     SrsHttpServer* http_stream_mux;
@@ -210,10 +210,6 @@ private:
     */
     SrsSignalManager* signal_manager;
     /**
-    * server total kbps.
-    */
-    SrsKbps* kbps;
-    /**
     * user send the signal, convert to variable.
     */
     bool signal_reload;
@@ -236,6 +232,7 @@ public:
     virtual int initialize_st();
     virtual int listen();
     virtual int register_signal();
+    virtual int http_handle();
     virtual int ingest();
     virtual int cycle();
 // server utility
@@ -277,12 +274,9 @@ private:
     */
     virtual void close_listeners(SrsListenerType type);
     /**
-    * resample the server kbps. 
-    * if conn is NULL, resample all connections delta, then calc the total kbps.
-    * @param conn, the connection to do resample the kbps. NULL to resample all connections.
-    * @param do_resample, whether resample the server kbps. always false when sample a connection.
+    * resample the server kbs.
     */
-    virtual void resample_kbps(SrsConnection* conn, bool do_resample = true);
+    virtual void resample_kbps();
 // internal only
 public:
     /**
@@ -316,3 +310,4 @@ public:
 };
 
 #endif
+

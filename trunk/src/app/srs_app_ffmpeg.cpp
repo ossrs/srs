@@ -432,8 +432,8 @@ int SrsFFMPEG::start()
         // memory leak in child process, it's ok.
         char** charpv_params = new char*[params.size() + 1];
         for (int i = 0; i < (int)params.size(); i++) {
-            std::string p = params[i];
-            charpv_params[i] = (char*)p.c_str();
+            std::string& p = params[i];
+            charpv_params[i] = (char*)p.data();
         }
         // EOF: NULL
         charpv_params[params.size()] = NULL;

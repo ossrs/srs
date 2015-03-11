@@ -203,18 +203,27 @@ int64_t SrsKbps::get_recv_bytes()
     return is.get_total_bytes();
 }
 
+void SrsKbps::resample()
+{
+    sample();
+}
+
 int64_t SrsKbps::get_send_bytes_delta()
 {
     int64_t delta = os.get_total_bytes() - os.delta_bytes;
-    os.delta_bytes = os.get_total_bytes();
     return delta;
 }
 
 int64_t SrsKbps::get_recv_bytes_delta()
 {
     int64_t delta = is.get_total_bytes() - is.delta_bytes;
-    is.delta_bytes = is.get_total_bytes();
     return delta;
+}
+
+void SrsKbps::cleanup()
+{
+    os.delta_bytes = os.get_total_bytes();
+    is.delta_bytes = is.get_total_bytes();
 }
 
 void SrsKbps::add_delta(IKbpsDelta* delta)

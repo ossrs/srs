@@ -82,6 +82,7 @@ public:
     virtual int open(std::string file);
     virtual void close();
 public:
+    // TODO: FIXME: extract interface.
     virtual bool is_open();
     virtual int64_t tellg();
     virtual void skip(int64_t size);

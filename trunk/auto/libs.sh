@@ -57,7 +57,7 @@ done
 echo "" >> ${FILE}
 
 # parent Makefile, to create module output dir before compile it.
-echo "	mkdir -p ${SRS_OBJS_DIR}/include" >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
-echo "	mkdir -p ${SRS_OBJS_DIR}/lib" >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
+echo "	@mkdir -p ${SRS_OBJS_DIR}/include" >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
+echo "	@mkdir -p ${SRS_OBJS_DIR}/lib" >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 
 echo -n "generate lib ${LIB_NAME} ok"; echo '!';

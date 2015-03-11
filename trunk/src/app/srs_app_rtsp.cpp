@@ -131,7 +131,7 @@ int SrsRtpConn::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
 
 SrsRtspAudioCache::SrsRtspAudioCache()
 {
-    dts = NULL;
+    dts = 0;
     audio_samples = NULL;
     payload = NULL;
 }

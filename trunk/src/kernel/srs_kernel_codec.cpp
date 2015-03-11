@@ -32,6 +32,154 @@ using namespace std;
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_utility.hpp>
 
+string srs_codec_video2str(SrsCodecVideo codec)
+{
+    switch (codec) {
+        case SrsCodecVideoAVC: 
+            return "H264";
+        case SrsCodecVideoOn2VP6:
+        case SrsCodecVideoOn2VP6WithAlphaChannel:
+            return "VP6";
+        case SrsCodecVideoReserved:
+        case SrsCodecVideoReserved1:
+        case SrsCodecVideoReserved2:
+        case SrsCodecVideoDisabled:
+        case SrsCodecVideoSorensonH263:
+        case SrsCodecVideoScreenVideo:
+        case SrsCodecVideoScreenVideoVersion2:
+        default:
+            return "Other";
+    }
+}
+
+string srs_codec_audio2str(SrsCodecAudio codec)
+{
+    switch (codec) {
+        case SrsCodecAudioAAC:
+            return "AAC";
+        case SrsCodecAudioMP3:
+            return "MP3";
+        case SrsCodecAudioReserved1:
+        case SrsCodecAudioLinearPCMPlatformEndian:
+        case SrsCodecAudioADPCM:
+        case SrsCodecAudioLinearPCMLittleEndian:
+        case SrsCodecAudioNellymoser16kHzMono:
+        case SrsCodecAudioNellymoser8kHzMono:
+        case SrsCodecAudioNellymoser:
+        case SrsCodecAudioReservedG711AlawLogarithmicPCM:
+        case SrsCodecAudioReservedG711MuLawLogarithmicPCM:
+        case SrsCodecAudioReserved:
+        case SrsCodecAudioSpeex:
+        case SrsCodecAudioReservedMP3_8kHz:
+        case SrsCodecAudioReservedDeviceSpecificSound:
+        default:
+            return "Other";
+    }
+}
+
+string srs_codec_aac_profile2str(SrsAacProfile aac_profile)
+{
+    switch (aac_profile) {
+        case SrsAacProfileMain: return "Main";
+        case SrsAacProfileLC: return "LC";
+        case SrsAacProfileSSR: return "SSR";
+        default: return "Other";
+    }
+}
+
+string srs_codec_aac_object2str(SrsAacObjectType aac_object)
+{
+    switch (aac_object) {
+        case SrsAacObjectTypeAacMain: return "Main";
+        case SrsAacObjectTypeHE: return "HE";
+        case SrsAacObjectTypeHEV2: return "HEv2";
+        case SrsAacObjectTypeAacLC: return "LC";
+        case SrsAacObjectTypeAacSSR: return "SSR";
+        default: return "Other";
+    }
+}
+
+SrsAacObjectType srs_codec_aac_ts2rtmp(SrsAacProfile profile)
+{
+    switch (profile) {
+        case SrsAacProfileMain: return SrsAacObjectTypeAacMain;
+        case SrsAacProfileLC: return SrsAacObjectTypeAacLC;
+        case SrsAacProfileSSR: return SrsAacObjectTypeAacSSR;
+        default: return SrsAacObjectTypeReserved;
+    }
+}
+
+SrsAacProfile srs_codec_aac_rtmp2ts(SrsAacObjectType object_type)
+{
+    switch (object_type) {
+        case SrsAacObjectTypeAacMain: return SrsAacProfileMain;
+        case SrsAacObjectTypeHE:
+        case SrsAacObjectTypeHEV2:
+        case SrsAacObjectTypeAacLC: return SrsAacProfileLC;
+        case SrsAacObjectTypeAacSSR: return SrsAacProfileSSR;
+        default: return SrsAacProfileReserved;
+    }
+}
+
+string srs_codec_avc_profile2str(SrsAvcProfile profile)
+{
+    switch (profile) {
+        case SrsAvcProfileBaseline: return "Baseline";
+        case SrsAvcProfileConstrainedBaseline: return "Baseline(Constrained)";
+        case SrsAvcProfileMain: return "Main";
+        case SrsAvcProfileExtended: return "Extended";
+        case SrsAvcProfileHigh: return "High";
+        case SrsAvcProfileHigh10: return "High(10)";
+        case SrsAvcProfileHigh10Intra: return "High(10+Intra)";
+        case SrsAvcProfileHigh422: return "High(422)";
+        case SrsAvcProfileHigh422Intra: return "High(422+Intra)";
+        case SrsAvcProfileHigh444: return "High(444)";
+        case SrsAvcProfileHigh444Predictive: return "High(444+Predictive)";
+        case SrsAvcProfileHigh444Intra: return "High(444+Intra)";
+        default: return "Other";
+    }
+}
+
+string srs_codec_avc_level2str(SrsAvcLevel level)
+{
+    switch (level) {
+        case SrsAvcLevel_1: return "1";
+        case SrsAvcLevel_11: return "1.1";
+        case SrsAvcLevel_12: return "1.2";
+        case SrsAvcLevel_13: return "1.3";
+        case SrsAvcLevel_2: return "2";
+        case SrsAvcLevel_21: return "2.1";
+        case SrsAvcLevel_22: return "2.2";
+        case SrsAvcLevel_3: return "3";
+        case SrsAvcLevel_31: return "3.1";
+        case SrsAvcLevel_32: return "3.2";
+        case SrsAvcLevel_4: return "4";
+        case SrsAvcLevel_41: return "4.1";
+        case SrsAvcLevel_5: return "5";
+        case SrsAvcLevel_51: return "5.1";
+        default: return "Other";
+    }
+}
+
+/**
+* the public data, event HLS disable, others can use it.
+*/
+// 0 = 5.5 kHz = 5512 Hz
+// 1 = 11 kHz = 11025 Hz
+// 2 = 22 kHz = 22050 Hz
+// 3 = 44 kHz = 44100 Hz
+int flv_sample_rates[] = {5512, 11025, 22050, 44100};
+
+// the sample rates in the codec,
+// in the sequence header.
+int aac_sample_rates[] = 
+{
+    96000, 88200, 64000, 48000,
+    44100, 32000, 24000, 22050,
+    16000, 12000, 11025,  8000,
+    7350,     0,     0,    0
+};
+
 SrsFlvCodec::SrsFlvCodec()
 {
 }
@@ -184,9 +332,9 @@ SrsAvcAacCodec::SrsAvcAacCodec()
     audio_data_rate             = 0;
     audio_codec_id              = 0;
 
-    avc_profile                 = 0;
-    avc_level                   = 0;
-    aac_profile                 = 0;
+    avc_profile                 = SrsAvcProfileReserved;
+    avc_level                   = SrsAvcLevelReserved;
+    aac_object                  = SrsAacObjectTypeReserved;
     aac_sample_rate             = __SRS_AAC_SAMPLE_RATE_UNSET; // sample rate ignored
     aac_channels                = 0;
     avc_extra_size              = 0;
@@ -384,20 +532,9 @@ int SrsAvcAacCodec::audio_aac_sequence_header_demux(char* data, int size)
     // set the aac sample rate.
     aac_sample_rate = samplingFrequencyIndex;
 
-    // the profile = object_id + 1
-    // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 78,
-    //      Table 1. A.9 ¨C MPEG-2 Audio profiles and MPEG-4 Audio object types
-    aac_profile = profile_ObjectType + 1;
-        
-    // the valid aac profile:
-    //      MPEG-2 profile
-    //      Main profile (ID == 1)
-    //      Low Complexity profile (LC) (ID == 2)
-    //      Scalable Sampling Rate profile (SSR) (ID == 3)
-    //      (reserved) (ID == 4)
-    // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 78,
-    //      Table 1. A.9 ¨C MPEG-2 Audio profiles and MPEG-4 Audio object types
-    if (aac_profile > 4) {
+    // convert the object type in sequence header to aac profile of ADTS.
+    aac_object = (SrsAacObjectType)profile_ObjectType;
+    if (aac_object == SrsAacObjectTypeReserved) {
         ret = ERROR_HLS_DECODE_ERROR;
         srs_error("audio codec decode aac sequence header failed, "
             "adts object=%d invalid. ret=%d", profile_ObjectType, ret);
@@ -554,11 +691,11 @@ int SrsAvcAacCodec::avc_demux_sps_pps(SrsStream* stream)
     //int8_t configurationVersion = stream->read_1bytes();
     stream->read_1bytes();
     //int8_t AVCProfileIndication = stream->read_1bytes();
-    avc_profile = stream->read_1bytes();
+    avc_profile = (SrsAvcProfile)stream->read_1bytes();
     //int8_t profile_compatibility = stream->read_1bytes();
     stream->read_1bytes();
     //int8_t AVCLevelIndication = stream->read_1bytes();
-    avc_level = stream->read_1bytes();
+    avc_level = (SrsAvcLevel)stream->read_1bytes();
     
     // parse the NALU size.
     int8_t lengthSizeMinusOne = stream->read_1bytes();

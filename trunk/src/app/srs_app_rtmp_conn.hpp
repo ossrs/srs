@@ -83,8 +83,6 @@ private:
 public:
     SrsRtmpConn(SrsServer* srs_server, st_netfd_t client_stfd);
     virtual ~SrsRtmpConn();
-public:
-    virtual void kbps_resample();
 protected:
     virtual int do_cycle();
 // interface ISrsReloadHandler
@@ -94,8 +92,10 @@ public:
     virtual int on_reload_vhost_realtime(std::string vhost);
 // interface IKbpsDelta
 public:
+    virtual void resample();
     virtual int64_t get_send_bytes_delta();
     virtual int64_t get_recv_bytes_delta();
+    virtual void cleanup();
 private:
     // when valid and connected to vhost/app, service the client.
     virtual int service_cycle();
@@ -111,6 +111,7 @@ private:
     virtual int process_publish_message(SrsSource* source, SrsCommonMessage* msg, bool vhost_is_edge);
     virtual int process_play_control_msg(SrsConsumer* consumer, SrsCommonMessage* msg);
     virtual void change_mw_sleep(int sleep_ms);
+    virtual void play_set_sock_options();
 private:
     virtual int check_edge_token_traverse_auth();
     virtual int connect_server(int origin_index, st_netfd_t* pstsock);

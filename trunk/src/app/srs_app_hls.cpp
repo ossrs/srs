@@ -163,10 +163,10 @@ void SrsHlsSegment::update_duration(int64_t current_frame_dts)
     return;
 }
 
-SrsHlsMuxer::SrsHlsMuxer(ISrsHlsHandler* h)
+SrsHlsMuxer::SrsHlsMuxer()
 {
     req = NULL;
-    handler = h;
+    handler = NULL;
     hls_fragment = hls_window = 0;
     target_duration = 0;
     _sequence_no = 0;
@@ -187,6 +187,15 @@ SrsHlsMuxer::~SrsHlsMuxer()
     
     srs_freep(current);
     srs_freep(req);
+}
+
+int SrsHlsMuxer::initialize(ISrsHlsHandler* h)
+{
+    int ret = ERROR_SUCCESS;
+    
+    handler = h;
+
+    return ret;
 }
 
 int SrsHlsMuxer::sequence_no()
@@ -811,10 +820,10 @@ int SrsHlsCache::reap_segment(string log_desc, SrsHlsMuxer* muxer, int64_t segme
     return ret;
 }
 
-SrsHls::SrsHls(SrsSource* s, ISrsHlsHandler* h)
+SrsHls::SrsHls()
 {
-    source = s;
-    handler = h;
+    source = NULL;
+    handler = NULL;
     
     hls_enabled = false;
 
@@ -822,7 +831,7 @@ SrsHls::SrsHls(SrsSource* s, ISrsHlsHandler* h)
     sample = new SrsCodecSample();
     jitter = new SrsRtmpJitter();
     
-    muxer = new SrsHlsMuxer(h);
+    muxer = new SrsHlsMuxer();
     hls_cache = new SrsHlsCache();
 
     pprint = SrsPithyPrint::create_hls();
@@ -839,6 +848,20 @@ SrsHls::~SrsHls()
     srs_freep(hls_cache);
     
     srs_freep(pprint);
+}
+
+int SrsHls::initialize(SrsSource* s, ISrsHlsHandler* h)
+{
+    int ret = ERROR_SUCCESS;
+
+    source = s;
+    handler = h;
+
+    if ((ret = muxer->initialize(h)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    return ret;
 }
 
 int SrsHls::on_publish(SrsRequest* req)

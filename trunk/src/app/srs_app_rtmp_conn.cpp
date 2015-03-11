@@ -27,6 +27,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netinet/tcp.h>
 
 using namespace std;
 
@@ -107,11 +108,6 @@ SrsRtmpConn::~SrsRtmpConn()
     srs_freep(bandwidth);
     srs_freep(security);
     srs_freep(kbps);
-}
-
-void SrsRtmpConn::kbps_resample()
-{
-    kbps->sample();
 }
 
 // TODO: return detail message when error for client.
@@ -201,7 +197,7 @@ int SrsRtmpConn::do_cycle()
     ret = service_cycle();
     http_hooks_on_close();
     SrsStatistic* stat = SrsStatistic::instance();
-    stat->on_close(_srs_context->get_id());
+    stat->on_disconnect(_srs_context->get_id());
     
     return ret;
 }
@@ -254,6 +250,11 @@ int SrsRtmpConn::on_reload_vhost_realtime(string vhost)
     return ret;
 }
 
+void SrsRtmpConn::resample()
+{
+    kbps->resample();
+}
+
 int64_t SrsRtmpConn::get_send_bytes_delta()
 {
     return kbps->get_send_bytes_delta();
@@ -262,6 +263,11 @@ int64_t SrsRtmpConn::get_send_bytes_delta()
 int64_t SrsRtmpConn::get_recv_bytes_delta()
 {
     return kbps->get_recv_bytes_delta();
+}
+
+void SrsRtmpConn::cleanup()
+{
+    kbps->cleanup();
 }
     
 int SrsRtmpConn::service_cycle()
@@ -392,9 +398,11 @@ int SrsRtmpConn::stream_service_cycle()
     bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
     
     // find a source to serve.
-    SrsSource* source = NULL;
-    if ((ret = SrsSource::find(req, server, server, &source)) != ERROR_SUCCESS) {
-        return ret;
+    SrsSource* source = SrsSource::fetch(req);
+    if (!source) {
+        if ((ret = SrsSource::create(req, server, server, &source)) != ERROR_SUCCESS) {
+            return ret;
+        }
     }
     srs_assert(source != NULL);
     
@@ -621,6 +629,9 @@ int SrsRtmpConn::do_playing(SrsSource* source, SrsConsumer* consumer, SrsQueueRe
     // when mw_sleep changed, resize the socket send buffer.
     mw_enabled = true;
     change_mw_sleep(_srs_config->get_mw_sleep_ms(req->vhost));
+    
+    // set the sock options.
+    play_set_sock_options();
     
     while (true) {
         // collect elapse for pithy print.
@@ -1087,7 +1098,7 @@ void SrsRtmpConn::change_mw_sleep(int sleep_ms)
     socklen_t sock_buf_size = sizeof(int);
     getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &onb_sbuf, &sock_buf_size);
     
-#ifdef SRS_PERF_MW_SO_SNDBUF    
+#ifdef SRS_PERF_MW_SO_SNDBUF
     // the bytes:
     //      4KB=4096, 8KB=8192, 16KB=16384, 32KB=32768, 64KB=65536,
     //      128KB=131072, 256KB=262144, 512KB=524288
@@ -1104,6 +1115,11 @@ void SrsRtmpConn::change_mw_sleep(int sleep_ms)
     // socket send buffer, system will double it.
     int nb_sbuf = socket_buffer_size / 2;
     
+    // override the send buffer by macro.
+    #ifdef SRS_PERF_SO_SNDBUF_SIZE
+    nb_sbuf = SRS_PERF_SO_SNDBUF_SIZE / 2;
+    #endif
+    
     // set the socket send buffer when required larger buffer
     if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &nb_sbuf, sock_buf_size) < 0) {
         srs_warn("set sock SO_SENDBUF=%d failed.", nb_sbuf);
@@ -1119,6 +1135,29 @@ void SrsRtmpConn::change_mw_sleep(int sleep_ms)
 #endif
         
     mw_sleep = sleep_ms;
+}
+
+void SrsRtmpConn::play_set_sock_options()
+{
+#ifdef SRS_PERF_TCP_NODELAY
+    if (true) {
+        int fd = st_netfd_fileno(stfd);
+    
+        socklen_t nb_v = sizeof(int);
+        
+        int ov = 0;
+        getsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &ov, &nb_v);
+        
+        int v = 1;
+        // set the socket send buffer when required larger buffer
+        if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &v, nb_v) < 0) {
+            srs_warn("set sock TCP_NODELAY=%d failed.", v);
+        }
+        getsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &v, &nb_v);
+        
+        srs_trace("set TCP_NODELAY %d=>%d", ov, v);
+    }
+#endif
 }
 
 int SrsRtmpConn::check_edge_token_traverse_auth()

@@ -58,7 +58,6 @@ class SrsThread;
 class SrsFlvSegment : public ISrsReloadHandler
 {
 private:
-    SrsSource* source;
     SrsRequest* req;
     SrsDvrPlan* plan;
 private:
@@ -121,7 +120,7 @@ public:
     /**
     * initialize the segment.
     */
-    virtual int initialize(SrsSource* s, SrsRequest* r);
+    virtual int initialize(SrsRequest* r);
     /**
     * whether segment is overflow.
     */
@@ -200,19 +199,6 @@ public:
     virtual int call();
     virtual std::string to_string();
 };
-class SrsDvrAsyncCallOnSegment : public ISrsDvrAsyncCall
-{
-private:
-    std::string callback;
-    std::string path;
-    SrsRequest* req;
-public:
-    SrsDvrAsyncCallOnSegment(SrsRequest* r, std::string c, std::string p);
-    virtual ~SrsDvrAsyncCallOnSegment();
-public:
-    virtual int call();
-    virtual std::string to_string();
-};
 
 /**
 * the async callback for dvr.
@@ -247,7 +233,6 @@ public:
 public:
     SrsRequest* req;
 protected:
-    SrsSource* source;
     SrsFlvSegment* segment;
     SrsDvrAsyncCallThread* async;
     bool dvr_enabled;
@@ -255,7 +240,7 @@ public:
     SrsDvrPlan();
     virtual ~SrsDvrPlan();
 public:
-    virtual int initialize(SrsSource* s, SrsRequest* r);
+    virtual int initialize(SrsRequest* r);
     virtual int on_publish() = 0;
     virtual void on_unpublish() = 0;
     /**
@@ -272,7 +257,6 @@ public:
     virtual int on_video(SrsSharedPtrMessage* __video);
 protected:
     virtual int on_reap_segment();
-    virtual int on_dvr_request_sh();
     virtual int on_video_keyframe();
     virtual int64_t filter_timestamp(int64_t timestamp);
 public:
@@ -290,48 +274,6 @@ public:
 public:
     virtual int on_publish();
     virtual void on_unpublish();
-};
-
-/**
-* api plan: reap flv by api.
-*/
-class SrsDvrApiPlan : public SrsDvrPlan
-{
-private:
-    // cache the metadata and sequence header, for new segment maybe opened.
-    SrsSharedPtrMessage* sh_audio;
-    SrsSharedPtrMessage* sh_video;
-    SrsSharedPtrMessage* metadata;
-private:
-    std::string callback;
-    bool autostart;
-    bool started;
-private:
-    // user action, reap_segment.
-    std::string action;
-    std::string path_template;
-public:
-    SrsDvrApiPlan();
-    virtual ~SrsDvrApiPlan();
-public:
-    virtual int initialize(SrsSource* s, SrsRequest* r);
-    virtual int on_publish();
-    virtual void on_unpublish();
-    virtual int on_meta_data(SrsSharedPtrMessage* __metadata);
-    virtual int on_audio(SrsSharedPtrMessage* __audio);
-    virtual int on_video(SrsSharedPtrMessage* __video);
-public:
-    virtual int set_path_tmpl(std::string path_tmpl);
-    virtual int set_callback(std::string value);
-    virtual int set_wait_keyframe(bool wait_keyframe);
-    virtual int start();
-    virtual int dumps(std::stringstream& ss);
-    virtual int stop();
-    virtual int rpc(SrsJsonObject* obj);
-protected:
-    virtual int on_reap_segment();
-private:
-    virtual int check_user_actions(SrsSharedPtrMessage* msg);
 };
 
 /**
@@ -368,7 +310,7 @@ public:
     SrsDvrSegmentPlan();
     virtual ~SrsDvrSegmentPlan();
 public:
-    virtual int initialize(SrsSource* source, SrsRequest* req);
+    virtual int initialize(SrsRequest* req);
     virtual int on_publish();
     virtual void on_unpublish();
     virtual int on_meta_data(SrsSharedPtrMessage* __metadata);
@@ -376,28 +318,6 @@ public:
     virtual int on_video(SrsSharedPtrMessage* __video);
 private:
     virtual int update_duration(SrsSharedPtrMessage* msg);
-};
-
-/**
-* the api dvr pool.
-*/
-class SrsApiDvrPool
-{
-private:
-    std::vector<SrsDvrApiPlan*> dvrs;
-    static SrsApiDvrPool* _instance;
-private:
-    SrsApiDvrPool();
-public:
-    static SrsApiDvrPool* instance();
-    virtual ~SrsApiDvrPool();
-public:
-    virtual int add_dvr(SrsDvrApiPlan* dvr);
-public:
-    virtual int dumps(std::string vhost, std::stringstream& ss);
-    virtual int create(SrsJsonAny* json);
-    virtual int stop(std::string vhost);
-    virtual int rpc(SrsJsonAny* json);
 };
 
 /**
@@ -411,7 +331,7 @@ private:
 private:
     SrsDvrPlan* plan;
 public:
-    SrsDvr(SrsSource* s);
+    SrsDvr();
     virtual ~SrsDvr();
 public:
     /**
@@ -419,7 +339,7 @@ public:
     * when system initialize(encoder publish at first time, or reload),
     * initialize the dvr will reinitialize the plan, the whole dvr framework.
     */
-    virtual int initialize(SrsRequest* r);
+    virtual int initialize(SrsSource* s, SrsRequest* r);
     /**
     * publish stream event, 
     * when encoder start to publish RTMP stream.

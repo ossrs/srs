@@ -12,11 +12,32 @@ Download from ossrs.net:
 [Centos6-x86_64](http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.27.zip) 
 [more...](http://www.ossrs.net/srs.release/releases/)
 
+## Why SRS?
+
+1. Completely rewrite HLS following m3u8/ts spec, and HLS support h.264+aac/mp3.
+1. High efficient RTMP deliverying support 7k+ concurrency, vhost based, both origin and edge.
+1. Embeded simplified media HTTP server for HLS, api and HTTP flv/ts/mp3/aac streaming.
+1. Variety input: RTMP, pull by ingest file or stream(HTTP/RTMP/RTSP), push by stream caster 
+RTSP/MPEGTS-over-UDP.
+1. Popular internet delivery: RTMP for flash, HLS for mobile(IOS/IPad/MAC/Android), HTTP 
+flv/ts/mp3/aac streaming for user prefered.
+1. Enhanced DVR: segment/session/append plan, customer path and HTTP callback.
+1. Multiple feature: transcode, forward, ingest, http hooks, dvr, hls, rtsp, http streaming, 
+http api, refer, log, bandwith test and srs-librtmp.
+1. Best maintainess: simple arch over state-threads(coroutine), single thread, single process 
+and for linux/osx platform, common server x86-64/i386/arm/mips cpus, rich comments, strictly 
+follows RTMP/HLS/RTSP spec.
+1. Easy to use: both English and Chinese wiki, typically config files in trunk/conf, traceable 
+and session based log, linux service script and install script.
+1. MIT license, open source with product management and evolution.
+
+Enjoy it!
+
 ## About
 
 SRS(SIMPLE RTMP Server) over state-threads created in 2013.10.
 
-SRS delivers rtmp/hls/http live on x86/x64/arm/mips linux, 
+SRS delivers rtmp/hls/http live on x86/x64/arm/mips linux/osx, 
 supports origin/edge/vhost and transcode/ingest and dvr/forward 
 and http-api/http-callback/reload, introduces tracable 
 session-oriented log, exports client srs-librtmp, 
@@ -486,14 +507,12 @@ Supported operating systems and hardware:
 ).
 1. Support HLS(h.264+mp3) streaming, read 
 [#301](https://github.com/winlinvip/simple-rtmp-server/issues/301).
-1. Support push MPEG-TS over UDP to SRS, read 
-[#250](https://github.com/winlinvip/simple-rtmp-server/issues/250).
 1. Rewrite HLS(h.264+aac/mp3) streaming, read
 [#304](https://github.com/winlinvip/simple-rtmp-server/issues/304).
-1. Support push RTSP to SRS, read
+1. [experiment] Support push MPEG-TS over UDP to SRS, read 
+[#250](https://github.com/winlinvip/simple-rtmp-server/issues/250).
+1. [experiment] Support push RTSP to SRS, read
 [#133](https://github.com/winlinvip/simple-rtmp-server/issues/133).
-1. Support DVR http api, read
-[#179](https://github.com/winlinvip/simple-rtmp-server/issues/179).
 1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
 1. [no-plan] Support RTMP 302 redirect [#92](https://github.com/winlinvip/simple-rtmp-server/issues/92).
 1. [no-plan] Support multiple processes, for both origin and edge
@@ -503,7 +522,6 @@ Supported operating systems and hardware:
 1. [no-plan] Support encryption: RTMPE/RTMPS, HLS DRM
 1. [no-plan] Support RTMPT, http to tranverse firewalls
 1. [no-plan] Support file source, transcoding file to live stream
-1. [no-plan] Support RTP/RTSP server.
 
 ## Releases
 * 2015-02-12, [Release v1.0r2](https://github.com/winlinvip/simple-rtmp-server/releases/tag/1.0r2), bug fixed, 1.0.27, 59507 lines.<br/>
@@ -532,8 +550,13 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
-* v2.0, 2015-02-24, for [#304](https://github.com/winlinvip/simple-rtmp-server/issues/304), fix hls bug, write pts/dts error. 2.0.124.
-* v2.0, 2015-02-24, fix [#179](https://github.com/winlinvip/simple-rtmp-server/issues/179), support dvr http api. 2.0.123.
+* v2.0, 2015-03-10, fix [#155](https://github.com/winlinvip/simple-rtmp-server/issues/155), support osx(darwin) for mac pro. 2.0.137.
+* v2.0, 2015-03-08, fix [#316](https://github.com/winlinvip/simple-rtmp-server/issues/316), http api provides stream/vhost/srs/server bytes, codec and count. 2.0.136.
+* v2.0, 2015-03-08, fix [#310](https://github.com/winlinvip/simple-rtmp-server/issues/310), refine aac LC, support aac HE/HEv2. 2.0.134.
+* v2.0, 2015-03-06, for [#322](https://github.com/winlinvip/simple-rtmp-server/issues/322), fix http-flv stream bug, support multiple streams. 2.0.133.
+* v2.0, 2015-03-06, refine http request parse. 2.0.132.
+* v2.0, 2015-03-01, for [#179](https://github.com/winlinvip/simple-rtmp-server/issues/179), revert dvr http api. 2.0.128.
+* v2.0, 2015-02-24, for [#304](https://github.com/winlinvip/simple-rtmp-server/issues/304), fix hls bug, write pts/dts error. 2.0.124
 * v2.0, 2015-02-19, refine dvr, append file when dvr file exists. 2.0.122.
 * v2.0, 2015-02-19, refine pithy print to more easyer to use. 2.0.121.
 * v2.0, 2015-02-18, fix [#133](https://github.com/winlinvip/simple-rtmp-server/issues/133), support push rtsp to srs. 2.0.120.

@@ -217,6 +217,7 @@ that is:
 #define __SRS_JFIELD_STR(k, v) "\"" << k << "\":\"" << v << "\""
 #define __SRS_JFIELD_ORG(k, v) "\"" << k << "\":" << std::dec << v
 #define __SRS_JFIELD_BOOL(k, v) __SRS_JFIELD_ORG(k, (v? "true":"false"))
+#define __SRS_JFIELD_NULL(k) "\"" << k << "\":null"
 #define __SRS_JFIELD_ERROR(ret) "\"" << "code" << "\":" << ret
 #define __SRS_JFIELD_CONT ","
 #define __SRS_JOBJECT_END "}"

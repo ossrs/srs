@@ -130,11 +130,13 @@ SrsMpegtsOverUdp::SrsMpegtsOverUdp(SrsConfDirective* c)
     context = new SrsTsContext();
     buffer = new SrsSimpleBuffer();
     output = _srs_config->get_stream_caster_output(c);
+    
     req = NULL;
     io = NULL;
     client = NULL;
     stfd = NULL;
     stream_id = 0;
+    
     avc = new SrsRawH264Stream();
     aac = new SrsRawAacStream();
     h264_sps_changed = false;
@@ -159,8 +161,6 @@ SrsMpegtsOverUdp::~SrsMpegtsOverUdp()
 
 int SrsMpegtsOverUdp::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
 {
-    int ret = ERROR_SUCCESS;
-
     std::string peer_ip = inet_ntoa(from->sin_addr);
     int peer_port = ntohs(from->sin_port);
 
@@ -169,6 +169,13 @@ int SrsMpegtsOverUdp::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
 
     srs_info("udp: got %s:%d packet %d/%d bytes",
         peer_ip.c_str(), peer_port, nb_buf, buffer->length());
+        
+    return on_udp_bytes(peer_ip, peer_port, buf, nb_buf);
+}
+
+int SrsMpegtsOverUdp::on_udp_bytes(string host, int port, char* buf, int nb_buf)
+{
+    int ret = ERROR_SUCCESS;
 
     // collect nMB data to parse in a time.
     // TODO: FIXME: comment the following for release.
@@ -215,8 +222,7 @@ int SrsMpegtsOverUdp::on_udp_packet(sockaddr_in* from, char* buf, int nb_buf)
 
     // drop ts packet when size not modulus by 188
     if (buffer->length() < SRS_TS_PACKET_SIZE) {
-        srs_warn("udp: wait %s:%d packet %d/%d bytes",
-            peer_ip.c_str(), peer_port, nb_buf, buffer->length());
+        srs_warn("udp: wait %s:%d packet %d/%d bytes", host.c_str(), port, nb_buf, buffer->length());
         return ret;
     }
 
@@ -582,6 +588,7 @@ int SrsMpegtsOverUdp::connect()
     int ret = ERROR_SUCCESS;
 
     // when ok, ignore.
+    // TODO: FIXME: should reconnect when disconnected.
     if (io || client) {
         return ret;
     }

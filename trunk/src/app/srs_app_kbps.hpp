@@ -107,6 +107,11 @@ public:
 
 /**
 * the interface which provices delta of bytes.
+* for a delta, for example, a live stream connection, we can got the delta by:
+*       IKbpsDelta* delta = ...;
+*       delta->resample();
+*       kbps->add_delta(delta);
+*       delta->cleanup();
 */
 class IKbpsDelta
 {
@@ -114,25 +119,41 @@ public:
     IKbpsDelta();
     virtual ~IKbpsDelta();
 public:
+    /**
+    * resample to generate the value of delta bytes.
+    */
+    virtual void resample() = 0;
+    /**
+    * get the send or recv bytes delta.
+    */
     virtual int64_t get_send_bytes_delta() = 0;
     virtual int64_t get_recv_bytes_delta() = 0;
+    /**
+    * cleanup the value of delta bytes.
+    */
+    virtual void cleanup() = 0;
 };
 
 /**
 * to statistic the kbps of io.
 * itself can be a statistic source, for example, used for SRS bytes stat.
 * there are two usage scenarios:
-* 1. connections to calc kbps:
-*       set_io(in, out)
-*       sample()
-*       get_xxx_kbps().
+* 1. connections to calc kbps by sample():
+*       SrsKbps* kbps = ...;
+*       kbps->set_io(in, out)
+*       kbps->sample()
+*       kbps->get_xxx_kbps().
 *   the connections know how many bytes already send/recv.
-* 2. server to calc kbps:
-*       set_io(NULL, NULL)
+* 2. server to calc kbps by add_delta():
+*       SrsKbps* kbps = ...;
+*       kbps->set_io(NULL, NULL)
 *       for each connection in connections:
-*           add_delta(connections) // where connection is a IKbpsDelta*
-*       sample()
-*       get_xxx_kbps().
+*           IKbpsDelta* delta = connection; // where connection implements IKbpsDelta
+*           delta->resample()
+*           kbps->add_delta(delta)
+*           delta->cleanup()
+*       kbps->sample()
+*       kbps->get_xxx_kbps().
 *   the server never know how many bytes already send/recv, for the connection maybe closed.
 */
 class SrsKbps : public virtual ISrsProtocolStatistic, public virtual IKbpsDelta
@@ -174,18 +195,26 @@ public:
     */
     virtual int64_t get_send_bytes();
     virtual int64_t get_recv_bytes();
+public:
+    /**
+    * resample to get the delta.
+    */
+    virtual void resample();
     /**
     * get the delta of send/recv bytes.
-    * @remark, used for add_delta to calc the total system bytes/kbps.
     */
     virtual int64_t get_send_bytes_delta();
     virtual int64_t get_recv_bytes_delta();
+    /**
+    * cleanup the delta.
+    */
+    virtual void cleanup();
 public:
     /**
     * add delta to kbps clac mechenism.
     * we donot know the total bytes, but know the delta, for instance, 
     * for rtmp server to calc total bytes and kbps.
-    * @remark user must invoke sample() when invoke this method.
+    * @remark user must invoke sample() to calc result after invoke this method.
     * @param delta, assert should never be NULL.
     */
     virtual void add_delta(IKbpsDelta* delta);
