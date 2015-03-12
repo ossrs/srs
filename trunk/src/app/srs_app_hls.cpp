@@ -203,14 +203,14 @@ int SrsHlsMuxer::sequence_no()
     return _sequence_no;
 }
 
-int SrsHlsMuxer::update_config(SrsRequest* r, string _entry_prefix, string path, int fragment, int window) 
+int SrsHlsMuxer::update_config(SrsRequest* r, string hls_entry_prefix, string path, int fragment, int window) 
 {
     int ret = ERROR_SUCCESS;
     
     srs_freep(req);
     req = r->copy();
 
-    entry_prefix = _entry_prefix;
+    entry_prefix = hls_entry_prefix;
     hls_path = path;
     hls_fragment = fragment;
     hls_window = window;

@@ -208,7 +208,7 @@ public:
     /**
     * when publish, update the config for muxer.
     */
-    virtual int update_config(SrsRequest* r, std::string _entry_prefix, std::string path, int fragment, int window);
+    virtual int update_config(SrsRequest* r, std::string hls_entry_prefix, std::string path, int fragment, int window);
     /**
     * open a new segment(a new ts file),
     * @param segment_start_dts use to calc the segment duration,
