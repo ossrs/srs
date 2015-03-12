@@ -61,6 +61,7 @@ private:
     SrsSharedPtrMessage *audio_sh;
 
     SrsRequest *hds_req;
+    bool hds_enabled;
 };
 
 #endif

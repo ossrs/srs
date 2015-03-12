@@ -1013,6 +1013,26 @@ int SrsSource::on_reload_vhost_hls(string vhost)
     return ret;
 }
 
+int SrsSource::on_reload_vhost_hds(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+
+    if (_req->vhost != vhost) {
+        return ret;
+    }
+
+#ifdef SRS_AUTO_HDS
+    hds->on_unpublish();
+    if ((ret = hds->on_publish(_req)) != ERROR_SUCCESS) {
+        srs_error("hds publish failed. ret=%d", ret);
+        return ret;
+    }
+    srs_trace("vhost %s hds reload success", vhost.c_str());
+#endif
+
+    return ret;
+}
+
 int SrsSource::on_reload_vhost_dvr(string vhost)
 {
     int ret = ERROR_SUCCESS;
