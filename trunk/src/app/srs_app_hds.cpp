@@ -278,6 +278,9 @@ SrsHds::~SrsHds()
 
 int SrsHds::on_publish(SrsRequest *req)
 {
+    // TODO: FIXME: check whether disabled.
+    // TODO: FIXME: support reload.
+    
     hds_req = req->copy();
 
     return flush_mainfest();
