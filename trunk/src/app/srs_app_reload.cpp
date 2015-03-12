@@ -140,6 +140,11 @@ int ISrsReloadHandler::on_reload_vhost_hls(string /*vhost*/)
     return ERROR_SUCCESS;
 }
 
+int ISrsReloadHandler::on_reload_vhost_hds(string /*vhost*/)
+{
+    return ERROR_SUCCESS;
+}
+
 int ISrsReloadHandler::on_reload_vhost_dvr(string /*vhost*/)
 {
     return ERROR_SUCCESS;

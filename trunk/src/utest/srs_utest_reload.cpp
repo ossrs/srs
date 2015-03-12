@@ -266,6 +266,12 @@ int MockReloadHandler::on_reload_vhost_hls(string /*vhost*/)
     return ERROR_SUCCESS;
 }
 
+int MockReloadHandler::on_reload_vhost_hds(string /*vhost*/)
+{
+    vhost_hls_reloaded = true;
+    return ERROR_SUCCESS;
+}
+
 int MockReloadHandler::on_reload_vhost_dvr(string /*vhost*/)
 {
     vhost_dvr_reloaded = true;

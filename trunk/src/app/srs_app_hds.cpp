@@ -267,6 +267,7 @@ SrsHds::SrsHds(SrsSource *s)
     , video_sh(NULL)
     , audio_sh(NULL)
     , hds_req(NULL)
+    , hds_enabled(false)
 {
 
 }
@@ -278,9 +279,18 @@ SrsHds::~SrsHds()
 
 int SrsHds::on_publish(SrsRequest *req)
 {
-    // TODO: FIXME: check whether disabled.
-    // TODO: FIXME: support reload.
-    
+    int ret = ERROR_SUCCESS;
+    if (hds_enabled) {
+        return ret;
+    }
+
+    std::string vhost = req->vhost;
+    if (!_srs_config->get_hds_enabled(vhost)) {
+        hds_enabled = false;
+        return ret;
+    }
+    hds_enabled = true;
+
     hds_req = req->copy();
 
     return flush_mainfest();
@@ -289,6 +299,12 @@ int SrsHds::on_publish(SrsRequest *req)
 int SrsHds::on_unpublish()
 {
     int ret = ERROR_SUCCESS;
+
+    if (!hds_enabled) {
+        return ret;
+    }
+
+    hds_enabled = false;
 
     srs_freep(video_sh);
     srs_freep(audio_sh);
@@ -312,6 +328,10 @@ int SrsHds::on_unpublish()
 int SrsHds::on_video(SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
+
+    if (!hds_enabled) {
+        return ret;
+    }
 
     if (SrsFlvCodec::video_is_sequence_header(msg->payload, msg->size)) {
         srs_freep(video_sh);
@@ -360,6 +380,10 @@ int SrsHds::on_video(SrsSharedPtrMessage* msg)
 int SrsHds::on_audio(SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
+
+    if (!hds_enabled) {
+        return ret;
+    }
 
     if (SrsFlvCodec::audio_is_sequence_header(msg->payload, msg->size)) {
         srs_freep(audio_sh);
