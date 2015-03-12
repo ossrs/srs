@@ -3152,17 +3152,17 @@ string SrsConfig::get_hls_entry_prefix(string vhost)
         return "";
     }
 
-    std::string hls_entry_prefix = conf->arg0();
-    if (hls_entry_prefix.empty()) {
+    std::string prefix = conf->arg0();
+    if (prefix.empty()) {
         return "";
     }
 
-    char last_char = hls_entry_prefix[hls_entry_prefix.length() - 1];
-    if (last_char != '/') {
-        hls_entry_prefix.append("/");
+    const char last = prefix[prefix.length() - 1];
+    if (last != '/') {
+        return prefix.append("/");
     }
 
-    return hls_entry_prefix;
+    return prefix;
 }
 
 string SrsConfig::get_hls_path(string vhost)
