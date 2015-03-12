@@ -72,6 +72,12 @@ void show_macro_features()
     srs_warn("check feature hls: off");
 #endif
 
+#ifdef SRS_AUTO_HDS
+    srs_trace("check feature hds: on");
+#else
+    srs_warn("check feature hds: off");
+#endif
+
 #ifdef SRS_AUTO_HTTP_CALLBACK
     srs_trace("check feature http callback: on");
 #else

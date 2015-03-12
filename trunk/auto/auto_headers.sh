@@ -118,6 +118,12 @@ else
     echo "#undef SRS_AUTO_HLS" >> $SRS_AUTO_HEADERS_H
 fi
 
+if [ $SRS_HDS = YES ]; then
+    echo "#define SRS_AUTO_HDS" >> $SRS_AUTO_HEADERS_H
+else
+    echo "#undef SRS_AUTO_HDS" >> $SRS_AUTO_HEADERS_H
+fi
+
 if [ $SRS_HTTP_CALLBACK = YES ]; then
     echo "#define SRS_AUTO_HTTP_CALLBACK" >> $SRS_AUTO_HEADERS_H
 else

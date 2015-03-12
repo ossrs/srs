@@ -782,8 +782,9 @@ SrsSource::SrsSource()
 #ifdef SRS_AUTO_TRANSCODE
     encoder = new SrsEncoder();
 #endif
-
+#ifdef SRS_AUTO_HDS
     hds = new SrsHds(this);
+#endif
     
     cache_metadata = cache_sh_video = cache_sh_audio = NULL;
     
@@ -834,6 +835,9 @@ SrsSource::~SrsSource()
 #endif
 #ifdef SRS_AUTO_TRANSCODE
     srs_freep(encoder);
+#endif
+#ifdef SRS_AUTO_HDS
+    srs_freep(hds);
 #endif
 
     srs_freep(_req);
@@ -1349,14 +1353,16 @@ int SrsSource::on_audio(SrsCommonMessage* __audio)
     }
 #endif
 
+#ifdef SRS_AUTO_HDS
     if ((ret = hds->on_audio(&msg)) != ERROR_SUCCESS) {
+        srs_warn("hds process audio message failed, ignore and disable dvr. ret=%d", ret);
+        
         // unpublish, ignore ret.
         hds->on_unpublish();
         // ignore.
         ret = ERROR_SUCCESS;
-
-        srs_warn("hds process audio message failed, ignore and disable dvr. ret=%d", ret);
     }
+#endif
     
     // copy to all consumer
     int nb_consumers = (int)consumers.size();
@@ -1498,14 +1504,16 @@ int SrsSource::on_video(SrsCommonMessage* __video)
     }
 #endif
 
+#ifdef SRS_AUTO_HDS
     if ((ret = hds->on_video(&msg)) != ERROR_SUCCESS) {
+        srs_warn("hds process video message failed, ignore and disable dvr. ret=%d", ret);
+        
         // unpublish, ignore ret.
         hds->on_unpublish();
         // ignore.
         ret = ERROR_SUCCESS;
-
-        srs_warn("hds process video message failed, ignore and disable dvr. ret=%d", ret);
     }
+#endif
     
     // copy to all consumer
     if (true) {
@@ -1751,10 +1759,12 @@ int SrsSource::on_publish()
     }
 #endif
 
+#ifdef SRS_AUTO_HDS
     if ((ret = hds->on_publish(_req)) != ERROR_SUCCESS) {
         srs_error("start hds failed. ret=%d", ret);
         return ret;
     }
+#endif
 
     // notify the handler.
     srs_assert(handler);
@@ -1783,7 +1793,9 @@ void SrsSource::on_unpublish()
     dvr->on_unpublish();
 #endif
 
+#ifdef SRS_AUTO_HDS
     hds->on_unpublish();
+#endif
 
     gop_cache->clear();
 

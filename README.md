@@ -37,7 +37,7 @@ Enjoy it!
 
 SRS(SIMPLE RTMP Server) over state-threads created in 2013.10.
 
-SRS delivers rtmp/hls/http live on x86/x64/arm/mips linux/osx, 
+SRS delivers rtmp/hls/http/hds live on x86/x64/arm/mips linux/osx, 
 supports origin/edge/vhost and transcode/ingest and dvr/forward 
 and http-api/http-callback/reload, introduces tracable 
 session-oriented log, exports client srs-librtmp, 
@@ -55,6 +55,10 @@ SRS is a simple, RTMP(
 HLS(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryHLS), 
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_DeliveryHLS)
+), 
+HDS(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryHDS), 
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_DeliveryHDS)
 ), 
 HTTP(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_DeliveryHttpStream),
@@ -509,6 +513,10 @@ Supported operating systems and hardware:
 [#301](https://github.com/winlinvip/simple-rtmp-server/issues/301).
 1. Rewrite HLS(h.264+aac/mp3) streaming, read
 [#304](https://github.com/winlinvip/simple-rtmp-server/issues/304).
+1. Support Adobe HDS(f4m)(
+[CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryHDS),
+[EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_EN_DeliveryHDS)
+) dynamic streaming.
 1. [experiment] Support push MPEG-TS over UDP to SRS, read 
 [#250](https://github.com/winlinvip/simple-rtmp-server/issues/250).
 1. [experiment] Support push RTSP to SRS, read
@@ -550,6 +558,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-03-12, fix [#328](https://github.com/winlinvip/simple-rtmp-server/issues/328), support adobe hds. 2.0.138.
 * v2.0, 2015-03-10, fix [#155](https://github.com/winlinvip/simple-rtmp-server/issues/155), support osx(darwin) for mac pro. 2.0.137.
 * v2.0, 2015-03-08, fix [#316](https://github.com/winlinvip/simple-rtmp-server/issues/316), http api provides stream/vhost/srs/server bytes, codec and count. 2.0.136.
 * v2.0, 2015-03-08, fix [#310](https://github.com/winlinvip/simple-rtmp-server/issues/310), refine aac LC, support aac HE/HEv2. 2.0.134.

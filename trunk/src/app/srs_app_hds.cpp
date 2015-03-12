@@ -2,7 +2,6 @@
 The MIT License (MIT)
 
 Copyright (c) 2013-2015 wenjiegit
-Copyright (c) 2013-2015 winlin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -21,12 +20,17 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
+#include <srs_app_hds.hpp>
 
+#ifdef SRS_AUTO_HDS
+
+#include <unistd.h>
 #include <string>
 #include <vector>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+using namespace std;
 
 #include <srs_app_hds.hpp>
 #include <srs_rtmp_sdk.hpp>
@@ -37,8 +41,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_config.hpp>
-
-using namespace std;
 
 static void update_box(char *start, int size)
 {
@@ -276,6 +278,9 @@ SrsHds::~SrsHds()
 
 int SrsHds::on_publish(SrsRequest *req)
 {
+    // TODO: FIXME: check whether disabled.
+    // TODO: FIXME: support reload.
+    
     hds_req = req->copy();
 
     return flush_mainfest();
@@ -462,7 +467,9 @@ int SrsHds::flush_bootstrap()
     char *start_afrt = NULL;
     int size_afrt = 0;
 
-    abst.initialize(start_abst, size);
+    if ((ret = abst.initialize(start_abst, size)) != ERROR_SUCCESS) {
+        return ret;
+    }
 
     // @see video_file_format_spec_v10_1
     // page: 46
@@ -716,3 +723,5 @@ void SrsHds::adjust_windows()
         srs_freep(fragment);
     }
 }
+
+#endif
