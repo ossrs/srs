@@ -731,6 +731,8 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
         }
     }
 
+    // cache->audio will be free in flush_audio
+    // so we must check whether it's null ptr.
     if (!cache->audio) {
         return ret;
     }
