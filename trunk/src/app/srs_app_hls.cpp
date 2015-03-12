@@ -731,6 +731,10 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
         }
     }
 
+    if (!cache->audio) {
+        return ret;
+    }
+
     // TODO: config it.
     // in ms, audio delay to flush the audios.
     int64_t audio_delay = SRS_CONF_DEFAULT_AAC_DELAY;
