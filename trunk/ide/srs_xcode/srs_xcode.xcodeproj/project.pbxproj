@@ -74,6 +74,7 @@
 		3C1232EA1AAEA5D000CE8F6C /* libssl.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C1232E81AAEA5D000CE8F6C /* libssl.a */; };
 		3C1232ED1AAEA70F00CE8F6C /* libhttp_parser.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C1232EC1AAEA70F00CE8F6C /* libhttp_parser.a */; };
 		3C1EE6AE1AB1055800576EE9 /* srs_app_hds.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C1EE6AC1AB1055800576EE9 /* srs_app_hds.cpp */; };
+		3C1EE6D71AB1367D00576EE9 /* README.md in Sources */ = {isa = PBXBuildFile; fileRef = 3C1EE6D61AB1367D00576EE9 /* README.md */; };
 		3C663F0E1AB0155100286D8B /* Makefile in Sources */ = {isa = PBXBuildFile; fileRef = 3C663F011AB0155100286D8B /* Makefile */; };
 		3C663F0F1AB0155100286D8B /* srs_aac_raw_publish.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C663F021AB0155100286D8B /* srs_aac_raw_publish.c */; };
 		3C663F101AB0155100286D8B /* srs_audio_raw_publish.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C663F031AB0155100286D8B /* srs_audio_raw_publish.c */; };
@@ -102,7 +103,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		3C1231E51AAE64A400CE8F6C /* srs_xcode */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; includeInIndex = 0; path = srs_xcode; sourceTree = BUILT_PRODUCTS_DIR; };
+		3C1231E51AAE64A400CE8F6C /* srs_xcode */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = srs_xcode; sourceTree = BUILT_PRODUCTS_DIR; };
 		3C1231F01AAE652C00CE8F6C /* srs_core_autofree.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_core_autofree.cpp; path = ../../../src/core/srs_core_autofree.cpp; sourceTree = "<group>"; };
 		3C1231F11AAE652C00CE8F6C /* srs_core_autofree.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_core_autofree.hpp; path = ../../../src/core/srs_core_autofree.hpp; sourceTree = "<group>"; };
 		3C1231F21AAE652C00CE8F6C /* srs_core_performance.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_core_performance.cpp; path = ../../../src/core/srs_core_performance.cpp; sourceTree = "<group>"; };
@@ -238,7 +239,7 @@
 		3C1232C21AAE827E00CE8F6C /* libs.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = libs.sh; path = ../../../auto/libs.sh; sourceTree = "<group>"; };
 		3C1232C31AAE827E00CE8F6C /* local_ip.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = local_ip.sh; path = ../../../auto/local_ip.sh; sourceTree = "<group>"; };
 		3C1232C41AAE827E00CE8F6C /* modules.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = modules.sh; path = ../../../auto/modules.sh; sourceTree = "<group>"; };
-		3C1232C51AAE827E00CE8F6C /* options.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = options.sh; path = ../../../auto/options.sh; sourceTree = "<group>"; };
+		3C1232C51AAE827E00CE8F6C /* options.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = options.sh; path = ../../../auto/options.sh; sourceTree = "<group>"; wrapsLines = 0; };
 		3C1232C61AAE827E00CE8F6C /* summary.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = summary.sh; path = ../../../auto/summary.sh; sourceTree = "<group>"; };
 		3C1232C71AAE827E00CE8F6C /* utest.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = utest.sh; path = ../../../auto/utest.sh; sourceTree = "<group>"; };
 		3C1232C81AAE833300CE8F6C /* _log.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = _log.sh; path = ../../../scripts/_log.sh; sourceTree = "<group>"; };
@@ -261,6 +262,44 @@
 		3C1232F41AAEAC7000CE8F6C /* srs-demo-19350 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; name = "srs-demo-19350"; path = "../../../etc/init.d/srs-demo-19350"; sourceTree = "<group>"; };
 		3C1EE6AC1AB1055800576EE9 /* srs_app_hds.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_app_hds.cpp; path = ../../../src/app/srs_app_hds.cpp; sourceTree = "<group>"; };
 		3C1EE6AD1AB1055800576EE9 /* srs_app_hds.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_app_hds.hpp; path = ../../../src/app/srs_app_hds.hpp; sourceTree = "<group>"; };
+		3C1EE6B01AB1080900576EE9 /* bandwidth.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = bandwidth.conf; path = ../../../conf/bandwidth.conf; sourceTree = "<group>"; };
+		3C1EE6B11AB1080900576EE9 /* console.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = console.conf; path = ../../../conf/console.conf; sourceTree = "<group>"; };
+		3C1EE6B21AB1080900576EE9 /* demo.19350.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = demo.19350.conf; path = ../../../conf/demo.19350.conf; sourceTree = "<group>"; };
+		3C1EE6B31AB1080900576EE9 /* demo.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = demo.conf; path = ../../../conf/demo.conf; sourceTree = "<group>"; };
+		3C1EE6B41AB1080900576EE9 /* dvr.path.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = dvr.path.conf; path = ../../../conf/dvr.path.conf; sourceTree = "<group>"; };
+		3C1EE6B51AB1080900576EE9 /* dvr.segment.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = dvr.segment.conf; path = ../../../conf/dvr.segment.conf; sourceTree = "<group>"; };
+		3C1EE6B61AB1080900576EE9 /* dvr.session.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = dvr.session.conf; path = ../../../conf/dvr.session.conf; sourceTree = "<group>"; };
+		3C1EE6B71AB1080900576EE9 /* edge.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = edge.conf; path = ../../../conf/edge.conf; sourceTree = "<group>"; };
+		3C1EE6B81AB1080900576EE9 /* edge.token.traverse.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = edge.token.traverse.conf; path = ../../../conf/edge.token.traverse.conf; sourceTree = "<group>"; };
+		3C1EE6B91AB1080900576EE9 /* ffmpeg.transcode.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ffmpeg.transcode.conf; path = ../../../conf/ffmpeg.transcode.conf; sourceTree = "<group>"; };
+		3C1EE6BA1AB1080900576EE9 /* forward.master.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = forward.master.conf; path = ../../../conf/forward.master.conf; sourceTree = "<group>"; };
+		3C1EE6BB1AB1080900576EE9 /* forward.slave.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = forward.slave.conf; path = ../../../conf/forward.slave.conf; sourceTree = "<group>"; };
+		3C1EE6BC1AB1080900576EE9 /* full.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = full.conf; path = ../../../conf/full.conf; sourceTree = "<group>"; };
+		3C1EE6BD1AB1080900576EE9 /* hds.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = hds.conf; path = ../../../conf/hds.conf; sourceTree = "<group>"; };
+		3C1EE6BE1AB1080900576EE9 /* hls.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = hls.conf; path = ../../../conf/hls.conf; sourceTree = "<group>"; };
+		3C1EE6BF1AB1080900576EE9 /* http.aac.live.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = http.aac.live.conf; path = ../../../conf/http.aac.live.conf; sourceTree = "<group>"; };
+		3C1EE6C01AB1080900576EE9 /* http.flv.live.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = http.flv.live.conf; path = ../../../conf/http.flv.live.conf; sourceTree = "<group>"; };
+		3C1EE6C11AB1080900576EE9 /* http.heartbeat.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = http.heartbeat.conf; path = ../../../conf/http.heartbeat.conf; sourceTree = "<group>"; };
+		3C1EE6C21AB1080900576EE9 /* http.hls.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = http.hls.conf; path = ../../../conf/http.hls.conf; sourceTree = "<group>"; };
+		3C1EE6C31AB1080900576EE9 /* http.hooks.callback.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = http.hooks.callback.conf; path = ../../../conf/http.hooks.callback.conf; sourceTree = "<group>"; };
+		3C1EE6C41AB1080900576EE9 /* http.mp3.live.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = http.mp3.live.conf; path = ../../../conf/http.mp3.live.conf; sourceTree = "<group>"; };
+		3C1EE6C51AB1080900576EE9 /* http.server.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = http.server.conf; path = ../../../conf/http.server.conf; sourceTree = "<group>"; };
+		3C1EE6C61AB1080900576EE9 /* http.ts.live.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = http.ts.live.conf; path = ../../../conf/http.ts.live.conf; sourceTree = "<group>"; };
+		3C1EE6C71AB1080900576EE9 /* ingest.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ingest.conf; path = ../../../conf/ingest.conf; sourceTree = "<group>"; };
+		3C1EE6C81AB1080900576EE9 /* mac.dev.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = mac.dev.conf; path = ../../../conf/mac.dev.conf; sourceTree = "<group>"; };
+		3C1EE6C91AB1080900576EE9 /* origin.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = origin.conf; path = ../../../conf/origin.conf; sourceTree = "<group>"; };
+		3C1EE6CA1AB1080900576EE9 /* push.mpegts.over.udp.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = push.mpegts.over.udp.conf; path = ../../../conf/push.mpegts.over.udp.conf; sourceTree = "<group>"; };
+		3C1EE6CB1AB1080900576EE9 /* push.rtsp.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = push.rtsp.conf; path = ../../../conf/push.rtsp.conf; sourceTree = "<group>"; };
+		3C1EE6CC1AB1080900576EE9 /* ram.hls.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = ram.hls.conf; path = ../../../conf/ram.hls.conf; sourceTree = "<group>"; };
+		3C1EE6CD1AB1080900576EE9 /* realtime.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = realtime.conf; path = ../../../conf/realtime.conf; sourceTree = "<group>"; };
+		3C1EE6CE1AB1080900576EE9 /* rtmp.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = rtmp.conf; path = ../../../conf/rtmp.conf; sourceTree = "<group>"; };
+		3C1EE6CF1AB1080900576EE9 /* security.deny.publish.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = security.deny.publish.conf; path = ../../../conf/security.deny.publish.conf; sourceTree = "<group>"; };
+		3C1EE6D01AB1080900576EE9 /* srs.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = srs.conf; path = ../../../conf/srs.conf; sourceTree = "<group>"; };
+		3C1EE6D11AB1080900576EE9 /* transcode2hls.audio.only.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = transcode2hls.audio.only.conf; path = ../../../conf/transcode2hls.audio.only.conf; sourceTree = "<group>"; };
+		3C1EE6D31AB1367D00576EE9 /* AUTHORS.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = AUTHORS.txt; path = ../../../AUTHORS.txt; sourceTree = "<group>"; };
+		3C1EE6D41AB1367D00576EE9 /* DONATIONS.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = DONATIONS.txt; path = ../../../DONATIONS.txt; sourceTree = "<group>"; };
+		3C1EE6D51AB1367D00576EE9 /* LICENSE */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = LICENSE; path = ../../../LICENSE; sourceTree = "<group>"; };
+		3C1EE6D61AB1367D00576EE9 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; name = README.md; path = ../../../README.md; sourceTree = "<group>"; wrapsLines = 0; };
 		3C663F011AB0155100286D8B /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; name = Makefile; path = ../../../research/librtmp/Makefile; sourceTree = "<group>"; };
 		3C663F021AB0155100286D8B /* srs_aac_raw_publish.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = srs_aac_raw_publish.c; path = ../../../research/librtmp/srs_aac_raw_publish.c; sourceTree = "<group>"; };
 		3C663F031AB0155100286D8B /* srs_audio_raw_publish.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = srs_audio_raw_publish.c; path = ../../../research/librtmp/srs_audio_raw_publish.c; sourceTree = "<group>"; };
@@ -294,6 +333,7 @@
 		3C1231DC1AAE64A400CE8F6C = {
 			isa = PBXGroup;
 			children = (
+				3C1EE6D21AB1366500576EE9 /* doc */,
 				3C1231E61AAE64A400CE8F6C /* Products */,
 				3C1232EE1AAEA71C00CE8F6C /* links */,
 				3C1231E71AAE64A400CE8F6C /* srs_xcode */,
@@ -313,6 +353,7 @@
 			isa = PBXGroup;
 			children = (
 				3C1232B81AAE824500CE8F6C /* configure */,
+				3C1EE6AF1AB107EE00576EE9 /* conf */,
 				3C1232EF1AAEAC5800CE8F6C /* etc */,
 				3C1232BA1AAE826F00CE8F6C /* auto */,
 				3C1232B91AAE825100CE8F6C /* scripts */,
@@ -561,6 +602,58 @@
 			name = init.d;
 			sourceTree = "<group>";
 		};
+		3C1EE6AF1AB107EE00576EE9 /* conf */ = {
+			isa = PBXGroup;
+			children = (
+				3C1EE6B01AB1080900576EE9 /* bandwidth.conf */,
+				3C1EE6B11AB1080900576EE9 /* console.conf */,
+				3C1EE6B21AB1080900576EE9 /* demo.19350.conf */,
+				3C1EE6B31AB1080900576EE9 /* demo.conf */,
+				3C1EE6B41AB1080900576EE9 /* dvr.path.conf */,
+				3C1EE6B51AB1080900576EE9 /* dvr.segment.conf */,
+				3C1EE6B61AB1080900576EE9 /* dvr.session.conf */,
+				3C1EE6B71AB1080900576EE9 /* edge.conf */,
+				3C1EE6B81AB1080900576EE9 /* edge.token.traverse.conf */,
+				3C1EE6B91AB1080900576EE9 /* ffmpeg.transcode.conf */,
+				3C1EE6BA1AB1080900576EE9 /* forward.master.conf */,
+				3C1EE6BB1AB1080900576EE9 /* forward.slave.conf */,
+				3C1EE6BC1AB1080900576EE9 /* full.conf */,
+				3C1EE6BD1AB1080900576EE9 /* hds.conf */,
+				3C1EE6BE1AB1080900576EE9 /* hls.conf */,
+				3C1EE6BF1AB1080900576EE9 /* http.aac.live.conf */,
+				3C1EE6C01AB1080900576EE9 /* http.flv.live.conf */,
+				3C1EE6C11AB1080900576EE9 /* http.heartbeat.conf */,
+				3C1EE6C21AB1080900576EE9 /* http.hls.conf */,
+				3C1EE6C31AB1080900576EE9 /* http.hooks.callback.conf */,
+				3C1EE6C41AB1080900576EE9 /* http.mp3.live.conf */,
+				3C1EE6C51AB1080900576EE9 /* http.server.conf */,
+				3C1EE6C61AB1080900576EE9 /* http.ts.live.conf */,
+				3C1EE6C71AB1080900576EE9 /* ingest.conf */,
+				3C1EE6C81AB1080900576EE9 /* mac.dev.conf */,
+				3C1EE6C91AB1080900576EE9 /* origin.conf */,
+				3C1EE6CA1AB1080900576EE9 /* push.mpegts.over.udp.conf */,
+				3C1EE6CB1AB1080900576EE9 /* push.rtsp.conf */,
+				3C1EE6CC1AB1080900576EE9 /* ram.hls.conf */,
+				3C1EE6CD1AB1080900576EE9 /* realtime.conf */,
+				3C1EE6CE1AB1080900576EE9 /* rtmp.conf */,
+				3C1EE6CF1AB1080900576EE9 /* security.deny.publish.conf */,
+				3C1EE6D01AB1080900576EE9 /* srs.conf */,
+				3C1EE6D11AB1080900576EE9 /* transcode2hls.audio.only.conf */,
+			);
+			name = conf;
+			sourceTree = "<group>";
+		};
+		3C1EE6D21AB1366500576EE9 /* doc */ = {
+			isa = PBXGroup;
+			children = (
+				3C1EE6D31AB1367D00576EE9 /* AUTHORS.txt */,
+				3C1EE6D41AB1367D00576EE9 /* DONATIONS.txt */,
+				3C1EE6D51AB1367D00576EE9 /* LICENSE */,
+				3C1EE6D61AB1367D00576EE9 /* README.md */,
+			);
+			name = doc;
+			sourceTree = "<group>";
+		};
 		3C663F001AB014B500286D8B /* research */ = {
 			isa = PBXGroup;
 			children = (
@@ -669,6 +762,7 @@
 				3C1232AB1AAE81D900CE8F6C /* srs_app_recv_thread.cpp in Sources */,
 				3C663F151AB0155100286D8B /* srs_h264_raw_publish.c in Sources */,
 				3C1231F61AAE652D00CE8F6C /* srs_core_autofree.cpp in Sources */,
+				3C1EE6D71AB1367D00576EE9 /* README.md in Sources */,
 				3C1232411AAE81A400CE8F6C /* srs_raw_avc.cpp in Sources */,
 				3C1232491AAE81A400CE8F6C /* srs_rtmp_utility.cpp in Sources */,
 				3C663F191AB0155100286D8B /* srs_publish.c in Sources */,

@@ -2,7 +2,6 @@
 The MIT License (MIT)
 
 Copyright (c) 2013-2015 wenjiegit
-Copyright (c) 2013-2015 winlin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -26,6 +25,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_APP_HDS_HPP
 
 #include <srs_core.hpp>
+
+#ifdef SRS_AUTO_HDS
 
 #include <list>
 
@@ -62,4 +63,6 @@ private:
     SrsRequest *hds_req;
 };
 
-#endif // SRS_APP_HDS_HPP
+#endif
+
+#endif

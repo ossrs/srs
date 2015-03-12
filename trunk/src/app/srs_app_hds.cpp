@@ -2,7 +2,6 @@
 The MIT License (MIT)
 
 Copyright (c) 2013-2015 wenjiegit
-Copyright (c) 2013-2015 winlin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -23,12 +22,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 #include <srs_app_hds.hpp>
 
+#ifdef SRS_AUTO_HDS
+
 #include <unistd.h>
 #include <string>
 #include <vector>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+using namespace std;
 
 #include <srs_app_hds.hpp>
 #include <srs_rtmp_sdk.hpp>
@@ -39,8 +41,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_config.hpp>
-
-using namespace std;
 
 static void update_box(char *start, int size)
 {
@@ -720,3 +720,5 @@ void SrsHds::adjust_windows()
         srs_freep(fragment);
     }
 }
+
+#endif

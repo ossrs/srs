@@ -7,7 +7,7 @@ PRIMARY ordered by first contribution.
 * winlin<winlin@vip.126.com> "Plan, arch, implement SRS1.0 and SRS2.0"
 
 AUTHORS ordered by first contribution.
-* wenjie.zhao<740936897@qq.com> "The bandwidth test module and bug fixed."
+* wenjie.zhao<740936897@qq.com> "The bandwidth test module, HDS and bug fixed."
 
 CONTRIBUTORS ordered by first contribution.
 * xiangcheng.liu<liuxc0116@foxmail.com> "Bug fixed"
