@@ -32,7 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
-class sockaddr_in;
+struct sockaddr_in;
 #include <string>
 #include <map>
 
@@ -46,7 +46,7 @@ class SrsRequest;
 class SrsRawH264Stream;
 class SrsSharedPtrMessage;
 class SrsRawAacStream;
-class SrsRawAacStreamCodec;
+struct SrsRawAacStreamCodec;
 class SrsPithyPrint;
 
 #include <srs_app_st.hpp>

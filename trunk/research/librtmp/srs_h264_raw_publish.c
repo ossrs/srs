@@ -146,11 +146,11 @@ int main(int argc, char** argv)
     }
     srs_human_trace("publish stream success");
     
-    u_int32_t dts = 0;
-    u_int32_t pts = 0;
+    int dts = 0;
+    int pts = 0;
     // @remark, the dts and pts if read from device, for instance, the encode lib,
     // so we assume the fps is 25, and each h264 frame is 1000ms/25fps=40ms/f.
-    u_int32_t fps = 25;
+    int fps = 25;
     // @remark, to decode the file.
     char* p = h264_raw;
     for (;p < h264_raw + file_size;) {
@@ -158,9 +158,7 @@ int main(int argc, char** argv)
         char* data = NULL;
         int size = 0;
         int nb_start_code = 0;
-        if (read_h264_frame(h264_raw, file_size, &p, &nb_start_code, fps, 
-            &data, &size, &dts, &pts) < 0
-        ) {
+        if (read_h264_frame(h264_raw, (int)file_size, &p, &nb_start_code, fps, &data, &size, &dts, &pts) < 0) {
             srs_human_trace("read a frame from file buffer failed.");
             goto rtmp_destroy;
         }

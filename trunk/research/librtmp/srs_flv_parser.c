@@ -122,6 +122,8 @@ int parse_bytes(char* data, int size, char* hbuf, int hsize, char* tbuf, int tsi
     if (size > print_size * 2) {
         digit_to_char(data + size - print_size, size, tbuf, tsize - 1);
     }
+
+    return 0;
 }
 
 int parse_flv(srs_flv_t flv)

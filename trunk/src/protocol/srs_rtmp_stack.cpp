@@ -534,6 +534,85 @@ SrsSharedPtrMessage* SrsSharedPtrMessage::copy()
     return copy;
 }
 
+SrsPacket::SrsPacket()
+{
+}
+
+SrsPacket::~SrsPacket()
+{
+}
+
+int SrsPacket::encode(int& psize, char*& ppayload)
+{
+    int ret = ERROR_SUCCESS;
+    
+    int size = get_size();
+    char* payload = NULL;
+    
+    SrsStream stream;
+    
+    if (size > 0) {
+        payload = new char[size];
+        
+        if ((ret = stream.initialize(payload, size)) != ERROR_SUCCESS) {
+            srs_error("initialize the stream failed. ret=%d", ret);
+            srs_freep(payload);
+            return ret;
+        }
+    }
+    
+    if ((ret = encode_packet(&stream)) != ERROR_SUCCESS) {
+        srs_error("encode the packet failed. ret=%d", ret);
+        srs_freep(payload);
+        return ret;
+    }
+    
+    psize = size;
+    ppayload = payload;
+    srs_verbose("encode the packet success. size=%d", size);
+    
+    return ret;
+}
+
+int SrsPacket::decode(SrsStream* stream)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(stream != NULL);
+    
+    ret = ERROR_SYSTEM_PACKET_INVALID;
+    srs_error("current packet is not support to decode. ret=%d", ret);
+    
+    return ret;
+}
+
+int SrsPacket::get_prefer_cid()
+{
+    return 0;
+}
+
+int SrsPacket::get_message_type()
+{
+    return 0;
+}
+
+int SrsPacket::get_size()
+{
+    return 0;
+}
+
+int SrsPacket::encode_packet(SrsStream* stream)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_assert(stream != NULL);
+    
+    ret = ERROR_SYSTEM_PACKET_INVALID;
+    srs_error("current packet is not support to encode. ret=%d", ret);
+    
+    return ret;
+}
+
 SrsProtocol::AckWindowSize::AckWindowSize()
 {
     ack_window_size = 0;
@@ -2018,85 +2097,6 @@ SrsChunkStream::SrsChunkStream(int _cid)
 SrsChunkStream::~SrsChunkStream()
 {
     srs_freep(msg);
-}
-
-SrsPacket::SrsPacket()
-{
-}
-
-SrsPacket::~SrsPacket()
-{
-}
-
-int SrsPacket::encode(int& psize, char*& ppayload)
-{
-    int ret = ERROR_SUCCESS;
-    
-    int size = get_size();
-    char* payload = NULL;
-    
-    SrsStream stream;
-    
-    if (size > 0) {
-        payload = new char[size];
-        
-        if ((ret = stream.initialize(payload, size)) != ERROR_SUCCESS) {
-            srs_error("initialize the stream failed. ret=%d", ret);
-            srs_freep(payload);
-            return ret;
-        }
-    }
-    
-    if ((ret = encode_packet(&stream)) != ERROR_SUCCESS) {
-        srs_error("encode the packet failed. ret=%d", ret);
-        srs_freep(payload);
-        return ret;
-    }
-    
-    psize = size;
-    ppayload = payload;
-    srs_verbose("encode the packet success. size=%d", size);
-    
-    return ret;
-}
-
-int SrsPacket::decode(SrsStream* stream)
-{
-    int ret = ERROR_SUCCESS;
-    
-    srs_assert(stream != NULL);
-
-    ret = ERROR_SYSTEM_PACKET_INVALID;
-    srs_error("current packet is not support to decode. ret=%d", ret);
-    
-    return ret;
-}
-
-int SrsPacket::get_prefer_cid()
-{
-    return 0;
-}
-
-int SrsPacket::get_message_type()
-{
-    return 0;
-}
-
-int SrsPacket::get_size()
-{
-    return 0;
-}
-
-int SrsPacket::encode_packet(SrsStream* stream)
-{
-    int ret = ERROR_SUCCESS;
-    
-    srs_assert(stream != NULL);
-
-    ret = ERROR_SYSTEM_PACKET_INVALID;
-    srs_error("current packet is not support to encode. ret=%d", ret);
-    
-    return ret;
 }
 
 SrsConnectAppPacket::SrsConnectAppPacket()

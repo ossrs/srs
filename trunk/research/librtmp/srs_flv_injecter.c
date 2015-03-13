@@ -38,6 +38,9 @@ gcc srs_flv_injecter.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_flv_i
 #define ERROR_INJECTED 10000
 
 int process(const char* in_flv_file, const char* out_flv_file, srs_flv_t* pic, srs_flv_t* poc);
+int build_keyframes(srs_flv_t ic, srs_amf0_t *pname, srs_amf0_t* pdata, srs_amf0_t* pfilepositions, int64_t* pmetadata_end_offset);
+int do_inject_flv(srs_flv_t ic, srs_flv_t oc, srs_amf0_t amf0_name, srs_amf0_t amf0_data, srs_amf0_t filepositions, int64_t metadata_end_offset);
+
 int main(int argc, char** argv)
 {
     int ret = 0;

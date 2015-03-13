@@ -318,6 +318,60 @@ public:
 };
 
 /**
+ * the decoded message payload.
+ * @remark we seperate the packet from message,
+ *        for the packet focus on logic and domain data,
+ *        the message bind to the protocol and focus on protocol, such as header.
+ *         we can merge the message and packet, using OOAD hierachy, packet extends from message,
+ *         it's better for me to use components -- the message use the packet as payload.
+ */
+class SrsPacket
+{
+public:
+    SrsPacket();
+    virtual ~SrsPacket();
+public:
+    /**
+     * the subpacket can override this encode,
+     * for example, video and audio will directly set the payload withou memory copy,
+     * other packet which need to serialize/encode to bytes by override the
+     * get_size and encode_packet.
+     */
+    virtual int encode(int& size, char*& payload);
+    // decode functions for concrete packet to override.
+public:
+    /**
+     * subpacket must override to decode packet from stream.
+     * @remark never invoke the super.decode, it always failed.
+     */
+    virtual int decode(SrsStream* stream);
+    // encode functions for concrete packet to override.
+public:
+    /**
+     * the cid(chunk id) specifies the chunk to send data over.
+     * generally, each message perfer some cid, for example,
+     * all protocol control messages perfer RTMP_CID_ProtocolControl,
+     * SrsSetWindowAckSizePacket is protocol control message.
+     */
+    virtual int get_prefer_cid();
+    /**
+     * subpacket must override to provide the right message type.
+     * the message type set the RTMP message type in header.
+     */
+    virtual int get_message_type();
+protected:
+    /**
+     * subpacket can override to calc the packet size.
+     */
+    virtual int get_size();
+    /**
+     * subpacket can override to encode the payload to stream.
+     * @remark never invoke the super.encode_packet, it always failed.
+     */
+    virtual int encode_packet(SrsStream* stream);
+};
+
+/**
 * the protocol provides the rtmp-message-protocol services,
 * to recv RTMP message from RTMP chunk stream,
 * and to send out RTMP message over RTMP chunk stream.
@@ -660,60 +714,6 @@ public:
 public:
     SrsChunkStream(int _cid);
     virtual ~SrsChunkStream();
-};
-
-/**
-* the decoded message payload.
-* @remark we seperate the packet from message,
-*        for the packet focus on logic and domain data,
-*        the message bind to the protocol and focus on protocol, such as header.
-*         we can merge the message and packet, using OOAD hierachy, packet extends from message,
-*         it's better for me to use components -- the message use the packet as payload.
-*/
-class SrsPacket
-{
-public:
-    SrsPacket();
-    virtual ~SrsPacket();
-public:
-    /**
-    * the subpacket can override this encode,
-    * for example, video and audio will directly set the payload withou memory copy,
-    * other packet which need to serialize/encode to bytes by override the 
-    * get_size and encode_packet.
-    */
-    virtual int encode(int& size, char*& payload);
-// decode functions for concrete packet to override.
-public:
-    /**
-    * subpacket must override to decode packet from stream.
-    * @remark never invoke the super.decode, it always failed.
-    */
-    virtual int decode(SrsStream* stream);
-// encode functions for concrete packet to override.
-public:
-    /**
-    * the cid(chunk id) specifies the chunk to send data over.
-    * generally, each message perfer some cid, for example, 
-    * all protocol control messages perfer RTMP_CID_ProtocolControl,
-    * SrsSetWindowAckSizePacket is protocol control message.
-    */
-    virtual int get_prefer_cid();
-    /**
-    * subpacket must override to provide the right message type.
-    * the message type set the RTMP message type in header.
-    */
-    virtual int get_message_type();
-protected:
-    /**
-    * subpacket can override to calc the packet size.
-    */
-    virtual int get_size();
-    /**
-    * subpacket can override to encode the payload to stream.
-    * @remark never invoke the super.encode_packet, it always failed.
-    */
-    virtual int encode_packet(SrsStream* stream);
 };
 
 /**

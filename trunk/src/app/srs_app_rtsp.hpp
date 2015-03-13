@@ -51,7 +51,7 @@ class SrsStSocket;
 class SrsRtmpClient;
 class SrsRawH264Stream;
 class SrsRawAacStream;
-class SrsRawAacStreamCodec;
+struct SrsRawAacStreamCodec;
 class SrsSharedPtrMessage;
 class SrsCodecSample;
 class SrsSimpleBuffer;

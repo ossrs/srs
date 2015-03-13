@@ -55,7 +55,6 @@ private:
 private:
     std::list<SrsHdsFragment *> fragments;
     SrsHdsFragment *currentSegment;
-    SrsSource *source;
     int fragment_index;
     SrsSharedPtrMessage *video_sh;
     SrsSharedPtrMessage *audio_sh;

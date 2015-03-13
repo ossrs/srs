@@ -932,8 +932,8 @@ int SrsHttpResponseReader::read_chunked(std::string& data)
     srs_assert(length >= 3);
     
     // it's ok to set the pos and pos+1 to NULL.
-    at[length - 1] = NULL;
-    at[length - 2] = NULL;
+    at[length - 1] = 0;
+    at[length - 2] = 0;
     
     // size is the bytes size, excludes the chunk header and end CRLF.
     int ilength = ::strtol(at, NULL, 16);

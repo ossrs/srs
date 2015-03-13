@@ -2086,7 +2086,6 @@ char srs_utils_flv_audio_aac_packet_type(char* data, int size)
     }
     
     u_int8_t aac_packet_type = data[1];
-    aac_packet_type = aac_packet_type;
     if (aac_packet_type > 1) {
         return -1;
     }

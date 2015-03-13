@@ -262,7 +262,6 @@ private:
 
 SrsHds::SrsHds(SrsSource *s)
     : currentSegment(NULL)
-    , source(s)
     , fragment_index(1)
     , video_sh(NULL)
     , audio_sh(NULL)
