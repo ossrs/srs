@@ -19,7 +19,7 @@ Download from ossrs.net:
 1. Embeded simplified media HTTP server for HLS, api and HTTP flv/ts/mp3/aac streaming.
 1. Variety input: RTMP, pull by ingest file or stream(HTTP/RTMP/RTSP), push by stream caster 
 RTSP/MPEGTS-over-UDP.
-1. Popular internet delivery: RTMP for flash, HLS for mobile(IOS/IPad/MAC/Android), HTTP 
+1. Popular internet delivery: RTMP/HDS for flash, HLS for mobile(IOS/IPad/MAC/Android), HTTP 
 flv/ts/mp3/aac streaming for user prefered.
 1. Enhanced DVR: segment/session/append plan, customer path and HTTP callback.
 1. Multiple feature: transcode, forward, ingest, http hooks, dvr, hls, rtsp, http streaming, 
