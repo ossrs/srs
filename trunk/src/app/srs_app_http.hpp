@@ -288,6 +288,7 @@ protected:
 };
 
 // the mux entry for server mux.
+// the matcher info, for example, the pattern and handler.
 class SrsHttpMuxEntry
 {
 public:
@@ -298,6 +299,23 @@ public:
 public:
     SrsHttpMuxEntry();
     virtual ~SrsHttpMuxEntry();
+};
+
+/**
+* the hijacker for http pattern match.
+*/
+class ISrsHttpMatchHijacker
+{
+public:
+    ISrsHttpMatchHijacker();
+    virtual ~ISrsHttpMatchHijacker();
+public:
+    /**
+    * when match the request failed, no handler to process request.
+    * @param request the http request message to match the handler.
+    * @param ph the already matched handler, hijack can rewrite it.
+    */
+    virtual int hijack(SrsHttpMessage* request, ISrsHttpHandler** ph) = 0;
 };
 
 // ServeMux is an HTTP request multiplexer.
@@ -338,6 +356,10 @@ private:
     // for example, for pattern /live/livestream.flv of vhost ossrs.net,
     // the path will rewrite to ossrs.net/live/livestream.flv
     std::map<std::string, ISrsHttpHandler*> vhosts;
+    // all hijackers for http match.
+    // for example, the hstrs(http stream trigger rtmp source)
+    // can hijack and install handler when request incoming and no handler.
+    std::vector<ISrsHttpMatchHijacker*> hijackers;
 public:
     SrsHttpServeMux();
     virtual ~SrsHttpServeMux();
@@ -346,6 +368,11 @@ public:
     * initialize the http serve mux.
     */
     virtual int initialize();
+    /**
+    * hijack the http match.
+    */
+    virtual void hijack(ISrsHttpMatchHijacker* h);
+    virtual void unhijack(ISrsHttpMatchHijacker* h);
 public:
     // Handle registers the handler for the given pattern.
     // If a handler already exists for pattern, Handle panics.
@@ -442,6 +469,10 @@ private:
     */
     std::string _url;
     /**
+    * the extension of file, for example, .flv
+    */
+    std::string _ext;
+    /**
     * parsed http header.
     */
     http_parser _header;
@@ -505,6 +536,7 @@ public:
     virtual std::string url();
     virtual std::string host();
     virtual std::string path();
+    virtual std::string ext();
 public:
     /**
     * read body to string.

@@ -252,14 +252,27 @@ private:
 */
 struct SrsLiveEntry
 {
+private:
+    bool _is_flv;
+    bool _is_ts;
+    bool _is_aac;
+    bool _is_mp3;
+public:
     // for template, the mount contains variables.
     // for concrete stream, the mount is url to access.
     std::string mount;
+    // whether hstrs(http stream trigger rtmp source)
+    bool hstrs;
     
     SrsLiveStream* stream;
     SrsStreamCache* cache;
     
-    SrsLiveEntry();
+    SrsLiveEntry(std::string m, bool h);
+    
+    bool is_flv();
+    bool is_ts();
+    bool is_mp3();
+    bool is_aac();
 };
 
 /**
@@ -314,13 +327,14 @@ struct SrsHlsEntry
 * the http server instance,
 * serve http static file, flv vod stream and flv live stream.
 */
-class SrsHttpServer : public ISrsReloadHandler
+class SrsHttpServer : virtual public ISrsReloadHandler
+    , virtual public ISrsHttpMatchHijacker
 {
 public:
     SrsHttpServeMux mux;
-    // the flv live streaming template, to create streams.
+    // the http live streaming template, to create streams.
     std::map<std::string, SrsLiveEntry*> tflvs;
-    // the flv live streaming streams, crote by template.
+    // the http live streaming streams, crote by template.
     std::map<std::string, SrsLiveEntry*> sflvs;
     // the hls live streaming template, to create streams.
     std::map<std::string, SrsHlsEntry*> thls;
@@ -346,6 +360,9 @@ public:
     virtual int on_reload_vhost_http_updated();
     virtual int on_reload_vhost_http_remux_updated();
     virtual int on_reload_vhost_hls(std::string vhost);
+// interface ISrsHttpMatchHijacker
+public:
+    virtual int hijack(SrsHttpMessage* request, ISrsHttpHandler** ph);
 private:
     virtual int initialize_static_file();
     virtual int initialize_flv_streaming();

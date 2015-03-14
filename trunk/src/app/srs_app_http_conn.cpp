@@ -689,10 +689,43 @@ int SrsLiveStream::streaming_send_messages(ISrsStreamEncoder* enc, SrsSharedPtrM
     return ret;
 }
 
-SrsLiveEntry::SrsLiveEntry()
+SrsLiveEntry::SrsLiveEntry(std::string m, bool h)
 {
+    mount = m;
+    hstrs = h;
+    
     stream = NULL;
     cache = NULL;
+    
+    std::string ext;
+    size_t pos = string::npos;
+    if ((pos = m.rfind(".")) != string::npos) {
+        ext = m.substr(pos);
+    }
+    _is_flv = (ext == ".flv");
+    _is_ts = (ext == ".ts");
+    _is_mp3 = (ext == ".mp3");
+    _is_aac = (ext == ".aac");
+}
+
+bool SrsLiveEntry::is_flv()
+{
+    return _is_flv;
+}
+
+bool SrsLiveEntry::is_ts()
+{
+    return _is_ts;
+}
+
+bool SrsLiveEntry::is_aac()
+{
+    return _is_aac;
+}
+
+bool SrsLiveEntry::is_mp3()
+{
+    return _is_mp3;
 }
 
 SrsHlsM3u8Stream::SrsHlsM3u8Stream()
@@ -765,10 +798,13 @@ SrsHlsEntry::SrsHlsEntry()
 
 SrsHttpServer::SrsHttpServer()
 {
+    mux.hijack(this);
 }
 
 SrsHttpServer::~SrsHttpServer()
 {
+    mux.unhijack(this);
+    
     if (true) {
         std::map<std::string, SrsLiveEntry*>::iterator it;
         for (it = tflvs.begin(); it != tflvs.end(); ++it) {
@@ -853,8 +889,7 @@ int SrsHttpServer::http_mount(SrsSource* s, SrsRequest* r)
         // remove the default vhost mount
         mount = srs_string_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST"/", "/");
         
-        entry = new SrsLiveEntry();
-        entry->mount = mount;
+        entry = new SrsLiveEntry(mount, tmpl->hstrs);
     
         entry->cache = new SrsStreamCache(s, r);
         entry->stream = new SrsLiveStream(s, r, entry->cache);
@@ -1060,6 +1095,29 @@ int SrsHttpServer::on_reload_vhost_hls(string vhost)
     return ret;
 }
 
+int SrsHttpServer::hijack(SrsHttpMessage* request, ISrsHttpHandler** ph)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // when handler not the root, we think the handler is ok.
+    ISrsHttpHandler* h = ph? *ph : NULL;
+    if (h->entry && h->entry->pattern != "/") {
+        return ret;
+    }
+    
+    // only hijack for http streaming, http-flv/ts/mp3/aac.
+    std::string ext = request->ext();
+    if (ext.empty()) {
+        return ret;
+    }
+    if (ext != ".flv" && ext != ".ts" && ext != ".mp3" && ext != ".aac") {
+        return ret;
+    }
+    
+    // TODO: FIXME: implements it.
+    return ret;
+}
+
 int SrsHttpServer::initialize_static_file()
 {
     int ret = ERROR_SUCCESS;
@@ -1138,8 +1196,10 @@ int SrsHttpServer::initialize_flv_streaming()
             continue;
         }
         
-        SrsLiveEntry* entry = new SrsLiveEntry();
-        entry->mount = _srs_config->get_vhost_http_remux_mount(vhost);
+        SrsLiveEntry* entry = new SrsLiveEntry(
+            _srs_config->get_vhost_http_remux_mount(vhost),
+            _srs_config->get_vhost_http_remux_hstrs(vhost)
+        );
         tflvs[vhost] = entry;
         srs_trace("http flv live stream, vhost=%s, mount=%s", 
             vhost.c_str(), entry->mount.c_str());

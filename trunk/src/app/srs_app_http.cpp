@@ -495,6 +495,14 @@ SrsHttpMuxEntry::~SrsHttpMuxEntry()
     srs_freep(handler);
 }
 
+ISrsHttpMatchHijacker::ISrsHttpMatchHijacker()
+{
+}
+
+ISrsHttpMatchHijacker::~ISrsHttpMatchHijacker()
+{
+}
+
 SrsHttpServeMux::SrsHttpServeMux()
 {
 }
@@ -509,6 +517,7 @@ SrsHttpServeMux::~SrsHttpServeMux()
     entries.clear();
     
     vhosts.clear();
+    hijackers.clear();
 }
 
 int SrsHttpServeMux::initialize()
@@ -516,6 +525,24 @@ int SrsHttpServeMux::initialize()
     int ret = ERROR_SUCCESS;
     // TODO: FIXME: implements it.
     return ret;
+}
+
+void SrsHttpServeMux::hijack(ISrsHttpMatchHijacker* h)
+{
+    std::vector<ISrsHttpMatchHijacker*>::iterator it = ::find(hijackers.begin(), hijackers.end(), h);
+    if (it != hijackers.end()) {
+        return;
+    }
+    hijackers.push_back(h);
+}
+
+void SrsHttpServeMux::unhijack(ISrsHttpMatchHijacker* h)
+{
+    std::vector<ISrsHttpMatchHijacker*>::iterator it = ::find(hijackers.begin(), hijackers.end(), h);
+    if (it == hijackers.end()) {
+        return;
+    }
+    hijackers.erase(it);
 }
 
 int SrsHttpServeMux::handle(std::string pattern, ISrsHttpHandler* handler)
@@ -629,8 +656,22 @@ int SrsHttpServeMux::find_handler(SrsHttpMessage* r, ISrsHttpHandler** ph)
         srs_error("http match handler failed. ret=%d", ret);
         return ret;
     }
+    
+    // always hijack.
+    if (!hijackers.empty()) {
+        // notice all hijacker the match failed.
+        std::vector<ISrsHttpMatchHijacker*>::iterator it;
+        for (it = hijackers.begin(); it != hijackers.end(); ++it) {
+            ISrsHttpMatchHijacker* hijacker = *it;
+            if ((ret = hijacker->hijack(r, ph)) != ERROR_SUCCESS) {
+                srs_error("hijacker match failed. ret=%d", ret);
+                return ret;
+            }
+        }
+    }
 
     if (*ph == NULL) {
+        // TODO: FIXME: memory leak.
         *ph = new SrsHttpNotFoundHandler();
     }
     
@@ -1066,6 +1107,14 @@ int SrsHttpMessage::update(string url, http_parser* header, SrsFastBuffer* body,
         _query[k] = v;
     }
     
+    // parse ext.
+    _ext = _uri->get_path();
+    if ((pos = _ext.rfind(".")) != string::npos) {
+        _ext = _ext.substr(pos);
+    } else {
+        _ext = "";
+    }
+    
     return ret;
 }
 
@@ -1160,6 +1209,11 @@ string SrsHttpMessage::host()
 string SrsHttpMessage::path()
 {
     return _uri->get_path();
+}
+
+string SrsHttpMessage::ext()
+{
+    return _ext;
 }
 
 int SrsHttpMessage::body_read_all(string& body)
