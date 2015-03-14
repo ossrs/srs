@@ -40,6 +40,8 @@ using namespace std;
 #include <srs_kernel_file.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_rtmp_buffer.hpp>
+#include <srs_rtmp_sdk.hpp>
+#include <srs_rtmp_utility.hpp>
 
 #define SRS_DEFAULT_HTTP_PORT 80
 
@@ -1284,6 +1286,32 @@ string SrsHttpMessage::get_request_header(string name)
     }
     
     return "";
+}
+
+SrsRequest* SrsHttpMessage::to_request(string vhost)
+{
+    SrsRequest* req = new SrsRequest();
+    
+    req->app = _uri->get_path();
+    ssize_t pos = string::npos;
+    if ((pos = req->app.rfind("/")) != string::npos) {
+        req->stream = req->app.substr(pos + 1);
+        req->app = req->app.substr(0, pos);
+    }
+    if ((pos = req->stream.rfind(".")) != string::npos) {
+        req->stream = req->stream.substr(0, pos);
+    }
+    
+    req->tcUrl = "rtmp://" + vhost + req->app;
+    req->pageUrl = get_request_header("Referer");
+    req->objectEncoding = 0;
+    
+    srs_discovery_tc_url(req->tcUrl,
+        req->schema, req->host, req->vhost, req->app, req->port,
+        req->param);
+    req->strip();
+    
+    return req;
 }
 
 SrsHttpParser::SrsHttpParser()

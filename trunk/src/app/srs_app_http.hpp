@@ -565,6 +565,12 @@ public:
     virtual std::string request_header_key_at(int index);
     virtual std::string request_header_value_at(int index);
     virtual std::string get_request_header(std::string name);
+public:
+    /**
+    * convert the http message to a request.
+    * @remark user must free the return request.
+    */
+    virtual SrsRequest* to_request(std::string vhost);
 };
 
 /**

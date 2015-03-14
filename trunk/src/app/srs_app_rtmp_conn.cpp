@@ -296,12 +296,14 @@ int SrsRtmpConn::service_cycle()
     
     // do token traverse before serve it.
     // @see https://github.com/winlinvip/simple-rtmp-server/pull/239
-    bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
-    bool edge_traverse = _srs_config->get_vhost_edge_token_traverse(req->vhost);
-    if (vhost_is_edge && edge_traverse) {
-        if ((ret = check_edge_token_traverse_auth()) != ERROR_SUCCESS) {
-            srs_warn("token auth failed, ret=%d", ret);
-            return ret;
+    if (true) {
+        bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
+        bool edge_traverse = _srs_config->get_vhost_edge_token_traverse(req->vhost);
+        if (vhost_is_edge && edge_traverse) {
+            if ((ret = check_edge_token_traverse_auth()) != ERROR_SUCCESS) {
+                srs_warn("token auth failed, ret=%d", ret);
+                return ret;
+            }
         }
     }
     

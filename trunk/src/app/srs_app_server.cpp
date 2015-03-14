@@ -401,7 +401,7 @@ SrsServer::SrsServer()
     http_api_mux = new SrsHttpServeMux();
 #endif
 #ifdef SRS_AUTO_HTTP_SERVER
-    http_stream_mux = new SrsHttpServer();
+    http_stream_mux = new SrsHttpServer(this);
 #endif
 #ifdef SRS_AUTO_HTTP_PARSER
     http_heartbeat = NULL;

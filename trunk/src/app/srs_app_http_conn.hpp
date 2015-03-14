@@ -330,6 +330,8 @@ struct SrsHlsEntry
 class SrsHttpServer : virtual public ISrsReloadHandler
     , virtual public ISrsHttpMatchHijacker
 {
+private:
+    SrsServer* server;
 public:
     SrsHttpServeMux mux;
     // the http live streaming template, to create streams.
@@ -341,7 +343,7 @@ public:
     // the hls live streaming streams, crote by template.
     std::map<std::string, SrsHlsEntry*> shls;
 public:
-    SrsHttpServer();
+    SrsHttpServer(SrsServer* svr);
     virtual ~SrsHttpServer();
 public:
     virtual int initialize();

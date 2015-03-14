@@ -21,7 +21,9 @@ Download from ossrs.net:
 RTSP/MPEGTS-over-UDP.
 1. Popular internet delivery: RTMP/HDS for flash, HLS for mobile(IOS/IPad/MAC/Android), HTTP 
 flv/ts/mp3/aac streaming for user prefered.
-1. Enhanced DVR: segment/session/append plan, customer path and HTTP callback.
+1. Enhanced DVR and hstrs: segment/session/append plan, customer path and HTTP callback.
+the hstrs(http stream trigger rtmp source) enable the http-flv stream standby util encoder 
+start publish, similar to rtmp, which will trigger edge to fetch from origin.
 1. Multiple feature: transcode, forward, ingest, http hooks, dvr, hls, rtsp, http streaming, 
 http api, refer, log, bandwith test and srs-librtmp.
 1. Best maintainess: simple arch over state-threads(coroutine), single thread, single process 
@@ -558,6 +560,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-03-14, for [#324](https://github.com/winlinvip/simple-rtmp-server/issues/324), support hstrs(http stream trigger rtmp source) origin mode. 2.0.139.
 * v2.0, 2015-03-12, fix [#328](https://github.com/winlinvip/simple-rtmp-server/issues/328), support adobe hds. 2.0.138.
 * v2.0, 2015-03-10, fix [#155](https://github.com/winlinvip/simple-rtmp-server/issues/155), support osx(darwin) for mac pro. 2.0.137.
 * v2.0, 2015-03-08, fix [#316](https://github.com/winlinvip/simple-rtmp-server/issues/316), http api provides stream/vhost/srs/server bytes, codec and count. 2.0.136.

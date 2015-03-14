@@ -48,6 +48,8 @@ using namespace std;
 #include <srs_kernel_mp3.hpp>
 #include <srs_kernel_ts.hpp>
 #include <srs_app_pithy_print.hpp>
+#include <srs_app_source.hpp>
+#include <srs_app_server.hpp>
 
 SrsVodStream::SrsVodStream(string root_dir)
     : SrsHttpFileServer(root_dir)
@@ -796,8 +798,10 @@ SrsHlsEntry::SrsHlsEntry()
 {
 }
 
-SrsHttpServer::SrsHttpServer()
+SrsHttpServer::SrsHttpServer(SrsServer* svr)
 {
+    server = svr;
+    
     mux.hijack(this);
 }
 
@@ -1110,11 +1114,76 @@ int SrsHttpServer::hijack(SrsHttpMessage* request, ISrsHttpHandler** ph)
     if (ext.empty()) {
         return ret;
     }
-    if (ext != ".flv" && ext != ".ts" && ext != ".mp3" && ext != ".aac") {
+    
+    // find the actually request vhost.
+    SrsConfDirective* vhost = _srs_config->get_vhost(request->host());
+    if (!vhost || !_srs_config->get_vhost_enabled(vhost)) {
         return ret;
     }
     
-    // TODO: FIXME: implements it.
+    // find the entry template for the stream.
+    SrsLiveEntry* entry = NULL;
+    if (true) {
+        // no http streaming on vhost, ignore.
+        std::map<std::string, SrsLiveEntry*>::iterator it = tflvs.find(vhost->arg0());
+        if (it == tflvs.end()) {
+            return ret;
+        }
+        
+        // hstrs not enabled, ignore.
+        entry = it->second;
+        if (!entry->hstrs) {
+            return ret;
+        }
+
+        // check entry and request extension.
+        if (entry->is_flv()) {
+            if (ext != ".flv") {
+                return ret;
+            }
+        } else if (entry->is_ts()) {
+            if (ext != ".ts") {
+                return ret;
+            }
+        } else if (entry->is_mp3()) {
+            if (ext != ".mp3") {
+                return ret;
+            }
+        } else if (entry->is_aac()) {
+            if (ext != ".aac") {
+                return ret;
+            }
+        } else {
+            return ret;
+        }
+    }
+    
+    // hijack for entry.
+    SrsRequest* r = request->to_request(vhost->arg0());
+    SrsAutoFree(SrsRequest, r);
+    SrsSource* s = SrsSource::fetch(r);
+    if (!s) {
+        if ((ret = SrsSource::create(r, server, server, &s)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    }
+    srs_assert(s != NULL);
+    
+    // create http streaming handler.
+    if ((ret = http_mount(s, r)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // use the handler if exists.
+    if (ph) {
+        std::string sid = r->get_stream_url();
+        if (sflvs.find(sid) != sflvs.end()) {
+            entry = sflvs[sid];
+            *ph = entry->stream;
+            srs_trace("hstrs sid=%s", sid.c_str());
+        }
+    }
+    
     return ret;
 }
 
