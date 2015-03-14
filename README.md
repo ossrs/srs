@@ -560,6 +560,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-03-14, fix [#324](https://github.com/winlinvip/simple-rtmp-server/issues/324), support hstrs(http stream trigger rtmp source) edge mode. 2.0.140.
 * v2.0, 2015-03-14, for [#324](https://github.com/winlinvip/simple-rtmp-server/issues/324), support hstrs(http stream trigger rtmp source) origin mode. 2.0.139.
 * v2.0, 2015-03-12, fix [#328](https://github.com/winlinvip/simple-rtmp-server/issues/328), support adobe hds. 2.0.138.
 * v2.0, 2015-03-10, fix [#155](https://github.com/winlinvip/simple-rtmp-server/issues/155), support osx(darwin) for mac pro. 2.0.137.
