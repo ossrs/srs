@@ -334,7 +334,7 @@ int SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>& args, 
             }
             
             if (found) {
-                int len = buffer->pos - pstart;
+                int len = (int)(buffer->pos - pstart);
                 char* aword = new char[len];
                 memcpy(aword, pstart, len);
                 aword[len - 1] = 0;
@@ -1471,7 +1471,7 @@ int SrsConfig::check_config()
             } else if (n == "http_remux") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name.c_str();
-                    if (m != "enabled" && m != "mount" && m != "fast_cache" && m != "crss") {
+                    if (m != "enabled" && m != "mount" && m != "fast_cache" && m != "hstrs") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost http_remux directive %s, ret=%d", m.c_str(), ret);
                         return ret;
@@ -1629,7 +1629,7 @@ int SrsConfig::check_config()
         int nb_connections = get_max_connections();
         int nb_total = nb_connections + nb_consumed_fds;
         
-        int max_open_files = sysconf(_SC_OPEN_MAX);
+        int max_open_files = (int)sysconf(_SC_OPEN_MAX);
         int nb_canbe = max_open_files - nb_consumed_fds - 1;
 
         // for each play connections, we open a pipe(2fds) to convert SrsConsumver to io,

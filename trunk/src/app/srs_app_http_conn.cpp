@@ -134,7 +134,7 @@ int SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, SrsHttpMessage* r,
     }
     
     // send data
-    if ((ret = copy(w, &fs, r, left)) != ERROR_SUCCESS) {
+    if ((ret = copy(w, &fs, r, (int)left)) != ERROR_SUCCESS) {
         srs_warn("read flv=%s size=%d failed, ret=%d", fullpath.c_str(), left, ret);
         return ret;
     }
@@ -158,7 +158,7 @@ int SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, SrsHttpMessage* r,
 
     // parse -1 to whole file.
     if (end == -1) {
-        end = fs.filesize();
+        end = (int)fs.filesize();
     }
     
     if (end > fs.filesize() || start > end) {
@@ -187,7 +187,7 @@ int SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, SrsHttpMessage* r,
     fs.lseek(start);
     
     // send data
-    if ((ret = copy(w, &fs, r, left)) != ERROR_SUCCESS) {
+    if ((ret = copy(w, &fs, r, (int)left)) != ERROR_SUCCESS) {
         srs_warn("read mp4=%s size=%d failed, ret=%d", fullpath.c_str(), left, ret);
         return ret;
     }

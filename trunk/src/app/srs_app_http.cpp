@@ -57,7 +57,7 @@ int srs_go_http_response_json(ISrsHttpResponseWriter* w, string data)
     w->header()->set_content_length(data.length());
     w->header()->set_content_type("application/json");
     
-    return w->write((char*)data.data(), data.length());
+    return w->write((char*)data.data(), (int)data.length());
 }
 
 // get the status text of code.
@@ -388,7 +388,7 @@ int SrsHttpFileServer::serve_file(ISrsHttpResponseWriter* w, SrsHttpMessage* r, 
     
     // write body.
     int64_t left = length;
-    if ((ret = copy(w, &fs, r, left)) != ERROR_SUCCESS) {
+    if ((ret = copy(w, &fs, r, (int)left)) != ERROR_SUCCESS) {
         if (!srs_is_client_gracefully_close(ret)) {
             srs_error("read file=%s size=%d failed, ret=%d", fullpath.c_str(), left, ret);
         }
@@ -475,7 +475,7 @@ int SrsHttpFileServer::copy(ISrsHttpResponseWriter* w, SrsFileReader* fs, SrsHtt
         }
         
         left -= nread;
-        if ((ret = w->write(buf, nread)) != ERROR_SUCCESS) {
+        if ((ret = w->write(buf, (int)nread)) != ERROR_SUCCESS) {
             break;
         }
     }
@@ -681,7 +681,7 @@ bool SrsHttpServeMux::path_match(string pattern, string path)
         return false;
     }
     
-    int n = pattern.length();
+    int n = (int)pattern.length();
     
     // not endswith '/', exactly match.
     if (pattern.at(n - 1) != '/') {
@@ -883,7 +883,7 @@ int SrsHttpResponseReader::read(std::string& data)
     }
     
     // read by specified content-length
-    int max = (int)owner->content_length() - nb_read;
+    int max = (int)owner->content_length() - (int)nb_read;
     if (max <= 0) {
         is_eof = true;
         return ret;
@@ -910,7 +910,7 @@ int SrsHttpResponseReader::read_chunked(std::string& data)
                     srs_error("chunk header start with CRLF. ret=%d", ret);
                     return ret;
                 }
-                length = p - start + 2;
+                length = (int)(p - start + 2);
                 at = buffer->read_slice(length);
                 break;
             }
@@ -936,7 +936,7 @@ int SrsHttpResponseReader::read_chunked(std::string& data)
     at[length - 2] = 0;
     
     // size is the bytes size, excludes the chunk header and end CRLF.
-    int ilength = ::strtol(at, NULL, 16);
+    int ilength = (int)::strtol(at, NULL, 16);
     if (ilength < 0) {
         ret = ERROR_HTTP_INVALID_CHUNK_HEADER;
         srs_error("chunk header negative, length=%d. ret=%d", ilength, ret);
@@ -1317,7 +1317,7 @@ int SrsHttpParser::parse_message_imp(SrsStSocket* skt)
         
         // consume the parsed bytes.
         if (nparsed && nparsed - body_parsed > 0) {
-            buffer->read_slice(nparsed - body_parsed);
+            buffer->read_slice((int)nparsed - (int)body_parsed);
         }
 
         // ok atleast header completed,
