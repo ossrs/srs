@@ -826,7 +826,7 @@ int SrsHttpServer::initialize()
     return ret;
 }
 
-int SrsHttpServer::mount(SrsSource* s, SrsRequest* r)
+int SrsHttpServer::http_mount(SrsSource* s, SrsRequest* r)
 {
     int ret = ERROR_SUCCESS;
     
@@ -886,7 +886,7 @@ int SrsHttpServer::mount(SrsSource* s, SrsRequest* r)
     return ret;
 }
 
-void SrsHttpServer::unmount(SrsSource* s, SrsRequest* r)
+void SrsHttpServer::http_unmount(SrsSource* s, SrsRequest* r)
 {
     std::string sid = r->get_stream_url();
     
@@ -1185,7 +1185,7 @@ SrsHttpConn::SrsHttpConn(SrsServer* svr, st_netfd_t fd, SrsHttpServer* m)
     : SrsConnection(svr, fd)
 {
     parser = new SrsHttpParser();
-    mux = m;
+    http_server = m;
 }
 
 SrsHttpConn::~SrsHttpConn()
@@ -1271,7 +1271,7 @@ int SrsHttpConn::process_request(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
         r->method_str().c_str(), r->url().c_str(), r->content_length());
     
     // use default server mux to serve http request.
-    if ((ret = mux->mux.serve_http(w, r)) != ERROR_SUCCESS) {
+    if ((ret = http_server->mux.serve_http(w, r)) != ERROR_SUCCESS) {
         if (!srs_is_client_gracefully_close(ret)) {
             srs_error("serve http msg failed. ret=%d", ret);
         }

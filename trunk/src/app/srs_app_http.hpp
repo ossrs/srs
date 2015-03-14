@@ -330,9 +330,13 @@ public:
 class SrsHttpServeMux
 {
 private:
-    // the pattern handler.
+    // the pattern handler, to handle the http request.
     std::map<std::string, SrsHttpMuxEntry*> entries;
     // the vhost handler.
+    // when find the handler to process the request,
+    // append the matched vhost when pattern not starts with /,
+    // for example, for pattern /live/livestream.flv of vhost ossrs.net,
+    // the path will rewrite to ossrs.net/live/livestream.flv
     std::map<std::string, ISrsHttpHandler*> vhosts;
 public:
     SrsHttpServeMux();
@@ -544,8 +548,8 @@ private:
     SrsFastBuffer* buffer;
 private:
     // http parse data, reset before parse message.
-    bool expect_filed_name;
-    std::string filed_name;
+    bool expect_field_name;
+    std::string field_name;
     std::string field_value;
     SrsHttpParseState state;
     http_parser header;

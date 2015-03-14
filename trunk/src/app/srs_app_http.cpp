@@ -1269,9 +1269,9 @@ int SrsHttpParser::parse_message(SrsStSocket* skt, SrsHttpMessage** ppmsg)
     int ret = ERROR_SUCCESS;
     
     // reset request data.
-    filed_name = "";
+    field_name = "";
     field_value = "";
-    expect_filed_name = true;
+    expect_field_name = true;
     state = SrsHttpParseStateInit;
     header = http_parser();
     url = "";
@@ -1339,8 +1339,8 @@ int SrsHttpParser::parse_message_imp(SrsStSocket* skt)
     }
 
     // parse last header.
-    if (!filed_name.empty() && !field_value.empty()) {
-        headers.push_back(std::make_pair(filed_name, field_value));
+    if (!field_name.empty() && !field_value.empty()) {
+        headers.push_back(std::make_pair(field_name, field_value));
     }
 
     return ret;
@@ -1406,17 +1406,17 @@ int SrsHttpParser::on_header_field(http_parser* parser, const char* at, size_t l
     srs_assert(obj);
     
     // field value=>name, reap the field.
-    if (!obj->expect_filed_name) {
-        obj->headers.push_back(std::make_pair(obj->filed_name, obj->field_value));
+    if (!obj->expect_field_name) {
+        obj->headers.push_back(std::make_pair(obj->field_name, obj->field_value));
         
         // reset the field name when parsed.
-        obj->filed_name = "";
+        obj->field_name = "";
         obj->field_value = "";
     }
-    obj->expect_filed_name = true;
+    obj->expect_field_name = true;
     
     if (length > 0) {
-        obj->filed_name.append(at, (int)length);
+        obj->field_name.append(at, (int)length);
     }
     
     srs_info("Header field(%d bytes): %.*s", (int)length, (int)length, at);
@@ -1431,7 +1431,7 @@ int SrsHttpParser::on_header_value(http_parser* parser, const char* at, size_t l
     if (length > 0) {
         obj->field_value.append(at, (int)length);
     }
-    obj->expect_filed_name = false;
+    obj->expect_field_name = false;
     
     srs_info("Header value(%d bytes): %.*s", (int)length, (int)length, at);
     return 0;

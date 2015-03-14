@@ -514,7 +514,7 @@ function apply_user_presets() {
         SRS_HTTP_PARSER=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
-        SRS_STREAM_CASTER=YES
+        SRS_STREAM_CASTER=NO
         SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
@@ -542,7 +542,7 @@ function apply_user_presets() {
         SRS_HTTP_PARSER=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
-        SRS_STREAM_CASTER=YES
+        SRS_STREAM_CASTER=NO
         SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
@@ -569,7 +569,7 @@ function apply_user_presets() {
         SRS_HTTP_PARSER=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
-        SRS_STREAM_CASTER=YES
+        SRS_STREAM_CASTER=NO
         SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
@@ -596,7 +596,7 @@ function apply_user_presets() {
         SRS_HTTP_PARSER=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
-        SRS_STREAM_CASTER=YES
+        SRS_STREAM_CASTER=NO
         SRS_HTTP_API=NO
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
@@ -623,7 +623,7 @@ function apply_user_presets() {
         SRS_HTTP_PARSER=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
-        SRS_STREAM_CASTER=YES
+        SRS_STREAM_CASTER=NO
         SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=YES
@@ -650,7 +650,7 @@ function apply_user_presets() {
         SRS_HTTP_PARSER=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
-        SRS_STREAM_CASTER=YES
+        SRS_STREAM_CASTER=NO
         SRS_HTTP_API=YES
         SRS_LIBRTMP=NO
         SRS_RESEARCH=NO
@@ -677,7 +677,7 @@ function apply_user_presets() {
         SRS_HTTP_PARSER=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
-        SRS_STREAM_CASTER=YES
+        SRS_STREAM_CASTER=NO
         SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
@@ -704,7 +704,7 @@ function apply_user_presets() {
         SRS_HTTP_PARSER=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
-        SRS_STREAM_CASTER=YES
+        SRS_STREAM_CASTER=NO
         SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
@@ -731,7 +731,7 @@ function apply_user_presets() {
         SRS_HTTP_PARSER=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
-        SRS_STREAM_CASTER=YES
+        SRS_STREAM_CASTER=NO
         SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO

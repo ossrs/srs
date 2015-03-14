@@ -1195,7 +1195,7 @@ int SrsServer::on_publish(SrsSource* s, SrsRequest* r)
     int ret = ERROR_SUCCESS;
     
 #ifdef SRS_AUTO_HTTP_SERVER
-    if ((ret = http_stream_mux->mount(s, r)) != ERROR_SUCCESS) {
+    if ((ret = http_stream_mux->http_mount(s, r)) != ERROR_SUCCESS) {
         return ret;
     }
 #endif
@@ -1206,7 +1206,7 @@ int SrsServer::on_publish(SrsSource* s, SrsRequest* r)
 void SrsServer::on_unpublish(SrsSource* s, SrsRequest* r)
 {
 #ifdef SRS_AUTO_HTTP_SERVER
-    http_stream_mux->unmount(s, r);
+    http_stream_mux->http_unmount(s, r);
 #endif
 }
 

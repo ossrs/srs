@@ -11,6 +11,7 @@ SrsIngestSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_INGEST = YES ]; then Sr
 SrsHttpCallbackSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_HTTP_CALLBACK = YES ]; then SrsHttpCallbackSummaryColor="\${GREEN}"; fi
 SrsHttpServerSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_HTTP_SERVER = YES ]; then SrsHttpServerSummaryColor="\${GREEN}"; fi
 SrsHttpApiSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_HTTP_API = YES ]; then SrsHttpApiSummaryColor="\${GREEN}"; fi
+SrsStreamCasterSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_STREAM_CASTER = YES ]; then SrsStreamCasterSummaryColor="\${GREEN}"; fi
 SrsLibrtmpSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_LIBRTMP = YES ]; then SrsLibrtmpSummaryColor="\${GREEN}"; fi
 SrsLibrtmpSSLSummaryColor="\${YELLOW}{disabled} "; if [ $SRS_LIBRTMP = YES ]; then if [ $SRS_SSL = YES ]; then SrsLibrtmpSSLSummaryColor="\${GREEN}"; fi fi
 SrsResearchSummaryColor="\${GREEN}{disabled} "; if [ $SRS_RESEARCH = YES ]; then SrsResearchSummaryColor="\${GREEN}"; fi
@@ -71,11 +72,11 @@ echo -e "     |     ${SrsLibrtmpSummaryColor}librtmp-sample: ./research/librtmp/
 echo -e "     |     ${SrsLibrtmpSummaryColor}librtmp-sample: ./research/librtmp/objs/srs_bandwidth_check\${BLACK}"
 echo -e "     \${BLACK}+------------------------------------------------------------------------------------\${BLACK}"
 echo -e "     |\${GREEN}server: ./objs/srs -c conf/srs.conf, start the srs server\${BLACK}"
-echo -e "     |     ${SrsHlsSummaryColor}hls @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryHLS\${BLACK}"
+echo -e "     |     ${SrsHlsSummaryColor}hls @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_DeliveryHLS\${BLACK}"
 echo -e "     |     ${SrsHlsSummaryColor}hls: generate m3u8 and ts from rtmp stream\${BLACK}"
-echo -e "     |     ${SrsDvrSummaryColor}dvr @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DVR\${BLACK}"
+echo -e "     |     ${SrsDvrSummaryColor}dvr @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_DVR\${BLACK}"
 echo -e "     |     ${SrsDvrSummaryColor}dvr: record RTMP stream to flv files.\${BLACK}"
-echo -e "     |     ${SrsNginxSummaryColor}nginx @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_DeliveryHLS\${BLACK}"
+echo -e "     |     ${SrsNginxSummaryColor}nginx @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_DeliveryHLS\${BLACK}"
 echo -e "     |     ${SrsNginxSummaryColor}nginx: delivery HLS stream by nginx\${BLACK}"
 echo -e "     |     ${SrsNginxSummaryColor}nginx: sudo ./objs/nginx/sbin/nginx\${BLACK}"
 echo -e "     |     ${SrsSslSummaryColor}ssl @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_RTMPHandshake\${BLACK}"
@@ -87,14 +88,16 @@ echo -e "     |     ${SrsTranscodeSummaryColor}transcode @see: https://github.co
 echo -e "     |     ${SrsTranscodeSummaryColor}transcode: support transcoding RTMP stream\${BLACK}"
 echo -e "     |     ${SrsIngestSummaryColor}ingest @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Ingest\${BLACK}"
 echo -e "     |     ${SrsIngestSummaryColor}ingest: support ingest file/stream/device then push to SRS by RTMP stream\${BLACK}"
-echo -e "     |     ${SrsHttpCallbackSummaryColor}http-callback @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_HTTPCallback\${BLACK}"
+echo -e "     |     ${SrsHttpCallbackSummaryColor}http-callback @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_HTTPCallback\${BLACK}"
 echo -e "     |     ${SrsHttpCallbackSummaryColor}http-callback: support http callback for authentication and event injection\${BLACK}"
-echo -e "     |     ${SrsHttpServerSummaryColor}http-server @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_HTTPServer\${BLACK}"
+echo -e "     |     ${SrsHttpServerSummaryColor}http-server @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_HTTPServer\${BLACK}"
 echo -e "     |     ${SrsHttpServerSummaryColor}http-server: support http server to delivery http stream\${BLACK}"
-echo -e "     |     ${SrsHttpApiSummaryColor}http-api @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_HTTPApi\${BLACK}"
+echo -e "     |     ${SrsHttpApiSummaryColor}http-api @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_HTTPApi\${BLACK}"
 echo -e "     |     ${SrsHttpApiSummaryColor}http-api: support http api to manage server\${BLACK}"
+echo -e "     |     ${SrsStreamCasterSummaryColor}stream-caster @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_Streamer\${BLACK}"
+echo -e "     |     ${SrsStreamCasterSummaryColor}stream-caster: start server to cast stream over other protocols.\${BLACK}"
 echo -e "     \${BLACK}+------------------------------------------------------------------------------------\${BLACK}"
-echo -e "\${GREEN}binaries @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Build\${BLACK}"
+echo -e "\${GREEN}binaries @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_Build\${BLACK}"
 
 echo "You can:"
 echo "      ./objs/srs -c conf/srs.conf"

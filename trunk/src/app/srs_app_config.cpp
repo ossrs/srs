@@ -1471,7 +1471,7 @@ int SrsConfig::check_config()
             } else if (n == "http_remux") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name.c_str();
-                    if (m != "enabled" && m != "mount" && m != "fast_cache") {
+                    if (m != "enabled" && m != "mount" && m != "fast_cache" && m != "crss") {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost http_remux directive %s, ret=%d", m.c_str(), ret);
                         return ret;
@@ -3749,6 +3749,30 @@ string SrsConfig::get_vhost_http_remux_mount(string vhost)
     }
     
     return conf->arg0();
+}
+
+bool SrsConfig::get_vhost_http_remux_hstrs(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+    if (!conf) {
+        return false;
+    }
+    
+    conf = conf->get("http_remux");
+    if (!conf) {
+        return false;
+    }
+    
+    conf = conf->get("hstrs");
+    if (!conf) {
+        return false;
+    }
+    
+    if (conf->arg0() == "on") {
+        return true;
+    }
+    
+    return false;
 }
 
 SrsConfDirective* SrsConfig::get_heartbeart()

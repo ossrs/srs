@@ -333,8 +333,8 @@ public:
     virtual int initialize();
 // http flv/ts/mp3/aac stream
 public:
-    virtual int mount(SrsSource* s, SrsRequest* r);
-    virtual void unmount(SrsSource* s, SrsRequest* r);
+    virtual int http_mount(SrsSource* s, SrsRequest* r);
+    virtual void http_unmount(SrsSource* s, SrsRequest* r);
 // hls stream
 public:
     virtual int mount_hls(SrsRequest* r);
@@ -356,7 +356,7 @@ class SrsHttpConn : public SrsConnection
 {
 private:
     SrsHttpParser* parser;
-    SrsHttpServer* mux;
+    SrsHttpServer* http_server;
 public:
     SrsHttpConn(SrsServer* svr, st_netfd_t fd, SrsHttpServer* m);
     virtual ~SrsHttpConn();

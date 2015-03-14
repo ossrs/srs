@@ -1041,6 +1041,10 @@ public:
     * used to generate the flv stream mount path.
     */
     virtual std::string         get_vhost_http_remux_mount(std::string vhost);
+    /**
+    * get whether the hstrs(http stream trigger rtmp source) enabled.
+    */
+    virtual bool                get_vhost_http_remux_hstrs(std::string vhost);
 // http heartbeart section
 private:
     /**
