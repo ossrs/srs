@@ -12,6 +12,8 @@ Download from ossrs.net:
 [Centos6-x86_64](http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.27.zip) 
 [more...](http://www.ossrs.net/srs.release/releases/)
 
+Contact by QQ or Weixin, read [Contact](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Contact)
+
 ## Why SRS?
 
 1. Completely rewrite HLS following m3u8/ts spec, and HLS support h.264+aac/mp3.
@@ -182,6 +184,16 @@ StreamServers：[BLS](https://github.com/wenjiegit/Bull-Live-Server)/[BLE](https
 [NGINX-RTMP](https://github.com/arut/nginx-rtmp-module), [CRTMPD](http://www.rtmpd.com/), 
 [RED5](http://www.red5.org/), [WOWZA](http://www.wowza.com/), 
 [FMS/AMS](http://www.adobe.com/products/adobe-media-server-standard.html)
+
+## Contact
+
+![Tencent QQ Group](http://winlinvip.github.io/srs.release/wiki/images/srs_qq_95.png)
+
+Or join QQ group by number "365936885", where you can get realtime support.
+
+![Weixin](http://winlinvip.github.io/srs.release/wiki/images/srs_weixin_430.jpg)
+
+Or join weixin by account "srs-server", where you can get latest news about SRS.
 
 ## AUTHORS
 
