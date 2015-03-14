@@ -10,7 +10,7 @@ SRS定位是运营级的互联网直播服务器集群，追求更好的概念�
 下载发布版(国内阿里云镜像): 
 [Centos6-x86_64](http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.27.zip) 
 其他[more...](http://www.ossrs.net/srs.release/releases/)<br/>
-QQ群: 365936885, by wenjie <br/>
+腾讯QQ和微信：[Contact](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Contact)<br/>
 同类产品：[BLS](https://github.com/wenjiegit/Bull-Live-Server)/[BLE](https://github.com/wenjiegit/Bull-Live-Encoder), [NGINX-RTMP](https://github.com/arut/nginx-rtmp-module), [CRTMPD](http://www.rtmpd.com/), [RED5](http://www.red5.org/), [WOWZA](http://www.wowza.com/), [FMS/AMS](http://www.adobe.com/products/adobe-media-server-standard.html)
 
 获得源码(github): [https://github.com/winlinvip/simple-rtmp-server](https://github.com/winlinvip/simple-rtmp-server) [GIT使用方法](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Git)
@@ -162,6 +162,16 @@ StreamServers：[BLS](https://github.com/wenjiegit/Bull-Live-Server)/[BLE](https
 [NGINX-RTMP](https://github.com/arut/nginx-rtmp-module), [CRTMPD](http://www.rtmpd.com/), 
 [RED5](http://www.red5.org/), [WOWZA](http://www.wowza.com/), 
 [FMS/AMS](http://www.adobe.com/products/adobe-media-server-standard.html)
+
+## Contact
+
+![腾讯QQ群](http://winlinvip.github.io/srs.release/wiki/images/srs_qq_95.png)
+
+或者加入腾讯QQ群：365936885，你可以在QQ群获取大家实时的帮助。
+
+![微信号](http://winlinvip.github.io/srs.release/wiki/images/srs_weixin_430.jpg)
+
+或者加微信号：srs-server，我会在公众号上发布最新的消息。
 
 ## AUTHORS
 
