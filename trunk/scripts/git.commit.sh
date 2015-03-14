@@ -23,7 +23,7 @@ work_dir=`(cd ${work_dir}/.. && pwd)`
 product_dir=$work_dir
 
 # allow start script from any dir
-cd $work_dir && git checkout develop
+cd $work_dir && git checkout 2.0release
 
 . ${product_dir}/scripts/_log.sh
 ret=$?; if [[ $ret -ne 0 ]]; then exit $ret; fi

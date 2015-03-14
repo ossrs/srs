@@ -178,7 +178,6 @@ Report Bug: [https://github.com/winlinvip/simple-rtmp-server/issues/new](https:/
 WebSite: [http://ossrs.net](http://ossrs.net) <br/>
 Release: [http://winlinvip.github.io/srs.release](http://winlinvip.github.io/srs.release)  <br/>
 Blog: [http://blog.csdn.net/win_lin](http://blog.csdn.net/win_lin)  <br/>
-QQ Group: 365936885, by wenjie <br/>
 Wiki: [https://github.com/winlinvip/simple-rtmp-server/wiki](https://github.com/winlinvip/simple-rtmp-server/wiki)  <br/>
 StreamServers：[BLS](https://github.com/wenjiegit/Bull-Live-Server)/[BLE](https://github.com/wenjiegit/Bull-Live-Encoder), 
 [NGINX-RTMP](https://github.com/arut/nginx-rtmp-module), [CRTMPD](http://www.rtmpd.com/), 
@@ -494,8 +493,7 @@ Supported operating systems and hardware:
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_FlvVodStream),
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_FlvVodStream)
 ).
-1. Stable [1.0release branch](https://github.com/winlinvip/simple-rtmp-server/tree/1.0release) and 
-[2.0dev branch](https://github.com/winlinvip/simple-rtmp-server/tree/master).
+1. Stable [1.0release branch](https://github.com/winlinvip/simple-rtmp-server/tree/1.0release).
 1. Support publish h264 raw stream(
 [CN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data),
 [EN](https://github.com/winlinvip/simple-rtmp-server/wiki/v2_EN_SrsLibrtmp#publish-h264-raw-data)
@@ -535,6 +533,7 @@ Supported operating systems and hardware:
 [#250](https://github.com/winlinvip/simple-rtmp-server/issues/250).
 1. [experiment] Support push RTSP to SRS, read
 [#133](https://github.com/winlinvip/simple-rtmp-server/issues/133).
+1. Start [2.0release branch](https://github.com/winlinvip/simple-rtmp-server/tree/2.0release).
 1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
 1. [no-plan] Support RTMP 302 redirect [#92](https://github.com/winlinvip/simple-rtmp-server/issues/92).
 1. [no-plan] Support multiple processes, for both origin and edge
@@ -572,6 +571,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-03-15, start [2.0release branch](https://github.com/winlinvip/simple-rtmp-server/tree/2.0release), 80773 lines.
 * v2.0, 2015-03-14, fix [#324](https://github.com/winlinvip/simple-rtmp-server/issues/324), support hstrs(http stream trigger rtmp source) edge mode. 2.0.140.
 * v2.0, 2015-03-14, for [#324](https://github.com/winlinvip/simple-rtmp-server/issues/324), support hstrs(http stream trigger rtmp source) origin mode. 2.0.139.
 * v2.0, 2015-03-12, fix [#328](https://github.com/winlinvip/simple-rtmp-server/issues/328), support adobe hds. 2.0.138.
