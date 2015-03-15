@@ -205,7 +205,7 @@ PRIMARY response in NetConnection.connect and metadata.
 newbie questions, and generally make SRS that much better.
 
 About all PRIMARY, AUTHORS and CONTRIBUTORS, read 
-[AUTHORS.txt](https://github.com/winlinvip/simple-rtmp-server/blob/master/AUTHORS.txt).
+[AUTHORS.txt](https://github.com/winlinvip/simple-rtmp-server/blob/develop/AUTHORS.txt).
 
 A big THANK YOU goes to:
 * [chnvideo](chnvideo.com) co-founders([wiseyoung](mailto:wiseyoung@chnvideo.com), [trueice](mailto:trueice@chnvideo.com), [leijian](mailto:leijian@chnvideo.com)) for [big supports](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Product#bigthanks).
