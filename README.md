@@ -184,20 +184,6 @@ StreamServers：[BLS](https://github.com/wenjiegit/Bull-Live-Server)/[BLE](https
 [RED5](http://www.red5.org/), [WOWZA](http://www.wowza.com/), 
 [FMS/AMS](http://www.adobe.com/products/adobe-media-server-standard.html)
 
-## Contact
-
-For QQ group, scan the following:
-
-![Tencent QQ Group](http://winlinvip.github.io/srs.release/wiki/images/srs_qq_95.png)
-
-Or join QQ group by number "365936885", where you can get realtime support.
-
-For weixin, scan the following:
-
-![Weixin](http://winlinvip.github.io/srs.release/wiki/images/srs_weixin_430.jpg)
-
-Or join weixin by account "srs-server", where you can get latest news about SRS.
-
 ## AUTHORS
 
 There are three types of people that have contributed to the SRS project:
