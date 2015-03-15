@@ -207,9 +207,9 @@ void check_macro_features()
 
     srs_trace("writev limits write %d iovs a time", sysconf(_SC_IOV_MAX));
 
-#if VERSION_MAJOR > 1
-    #warning "using develop SRS, please use release instead."
-    srs_warn("SRS %s is develop branch, please use %s instead", RTMP_SIG_SRS_VERSION, RTMP_SIG_SRS_RELEASE);
+#if VERSION_MAJOR > VERSION_STABLE
+    #warning "current branch is not stable, please use stable branch instead."
+    srs_warn("SRS %s is not stable, please use stable branch %s instead", RTMP_SIG_SRS_VERSION, VERSION_STABLE_BRANCH);
 #endif
 
 #if defined(SRS_AUTO_STREAM_CASTER)

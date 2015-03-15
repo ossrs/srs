@@ -53,6 +53,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RTMP_SIG_SRS_VERSION __SRS_XSTR(VERSION_MAJOR)"."__SRS_XSTR(VERSION_MINOR)"."__SRS_XSTR(VERSION_REVISION)
 #define RTMP_SIG_SRS_SERVER RTMP_SIG_SRS_KEY"/"RTMP_SIG_SRS_VERSION"("RTMP_SIG_SRS_CODE")"
 
+// stable major version
+#define VERSION_STABLE 1
+#define VERSION_STABLE_BRANCH __SRS_XSTR(VERSION_STABLE)".0release"
+
 // internal macros, covert macro values to str,
 // see: read https://gcc.gnu.org/onlinedocs/cpp/Stringification.html#Stringification
 #define __SRS_XSTR(v) __SRS_STR(v)
