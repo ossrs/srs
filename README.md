@@ -186,9 +186,13 @@ StreamServers：[BLS](https://github.com/wenjiegit/Bull-Live-Server)/[BLE](https
 
 ## Contact
 
+For QQ group, scan the following:
+
 ![Tencent QQ Group](http://winlinvip.github.io/srs.release/wiki/images/srs_qq_95.png)
 
 Or join QQ group by number "365936885", where you can get realtime support.
+
+For weixin, scan the following:
 
 ![Weixin](http://winlinvip.github.io/srs.release/wiki/images/srs_weixin_430.jpg)
 
@@ -365,6 +369,7 @@ Donations:<br/>
 ## System Requirements
 Supported operating systems and hardware:
 * All Linux , both 32 and 64 bits
+* Apple OSX(Darwin), both 32 and 64bits.
 * All hardware with x86/x86_64/arm/mips cpu.
 
 ## Summary
