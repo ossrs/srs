@@ -66,7 +66,7 @@ public:
     * @param url the api server url, to process the event. 
     *         ignore if empty.
     */
-    static void on_close(std::string url, int client_id, std::string ip, SrsRequest* req);
+    static void on_close(std::string url, int client_id, std::string ip, SrsRequest* req, int64_t send_bytes, int64_t recv_bytes);
     /**
     * on_publish hook, when client(encoder) start to publish stream
     * @param client_id the id of client on server.

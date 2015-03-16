@@ -1,17 +1,16 @@
-diff -r -c ./Makefile ../http-parser-2.1/Makefile
-*** ./Makefile	Tue Mar 10 10:44:19 2015
---- ../http-parser-2.1/Makefile	Wed Mar 27 06:35:20 2013
+*** Makefile	Wed Mar 27 06:35:20 2013
+--- ../http-parser-2.1-patch/Makefile	Mon Mar 16 15:25:59 2015
 ***************
-*** 12,22 ****
+*** 12,17 ****
+--- 12,22 ----
   CFLAGS_FAST = $(CFLAGS) -O3 $(CFLAGS_FAST_EXTRA)
   CFLAGS_LIB = $(CFLAGS_FAST) -fPIC
   
-- # patch by winlin
-- CPPFLAGS_FAST = $(CPPFLAGS_DEBUG)
-- CFLAGS_FAST = $(CFLAGS_DEBUG)
-- CFLAGS_LIB = $(CFLAGS_FAST) -fPIC
-- 
++ # patch by winlin
++ CPPFLAGS_FAST = $(CPPFLAGS_DEBUG)
++ CFLAGS_FAST = $(CFLAGS_DEBUG)
++ CFLAGS_LIB = $(CFLAGS_FAST) -fPIC
++ 
   test: test_g test_fast
   	./test_g
   	./test_fast
---- 12,17 ----
