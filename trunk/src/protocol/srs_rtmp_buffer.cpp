@@ -189,6 +189,7 @@ int SrsFastBuffer::grow(ISrsBufferReader* reader, int required_size)
         // we just move the ptr to next.
         srs_assert((int)nread > 0);
         end += nread;
+        max_to_read -= nread;
     }
     
     return ret;
