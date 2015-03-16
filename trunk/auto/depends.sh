@@ -256,6 +256,30 @@ function OSX_prepare()
 
     OS_IS_OSX=YES
     echo "OSX detected, install tools if needed"
+    # requires the osx when os
+    if [ $OS_IS_OSX = YES ]; then
+        if [ $SRS_OSX = NO ]; then
+            echo "OSX detected, must specifies the --osx"
+            exit 1
+        fi
+        # TODO: FIXME: support following features.
+        if [ $SRS_HTTP_API = YES ]; then
+            echo "OSX does not support http-api, use --without-http-api"
+            exit 1
+        fi
+        if [ $SRS_STAT = YES ]; then
+            echo "OSX does not support stat, use --without-stat"
+            exit 1
+        fi
+        if [ $SRS_FFMPEG_TOOL = YES ]; then
+            echo "OSX does not support ffmpeg, use --without-ffmpeg"
+            exit 1
+        fi
+        if [ $SRS_NGINX = YES ]; then
+            echo "OSX does not support nginx, use --without-nginx"
+            exit 1
+        fi
+    fi
     
     brew --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install brew"
@@ -342,30 +366,6 @@ function OSX_prepare()
 # donot prepare tools, for srs-librtmp depends only gcc and g++.
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     OSX_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "OSX prepare failed, ret=$ret"; exit $ret; fi
-fi
-# requires the osx when os
-if [ $OS_IS_OSX = YES ]; then
-    if [ $SRS_OSX = NO ]; then
-        echo "OSX detected, must specifies the --osx"
-        exit 1
-    fi
-    # TODO: FIXME: support following features.
-    if [ $SRS_HTTP_API = YES ]; then
-        echo "OSX does not support http-api, use --without-http-api"
-        exit 1
-    fi
-    if [ $SRS_STAT = YES ]; then
-        echo "OSX does not support stat, use --without-stat"
-        exit 1
-    fi
-    if [ $SRS_FFMPEG_TOOL = YES ]; then
-        echo "OSX does not support ffmpeg, use --without-ffmpeg"
-        exit 1
-    fi
-    if [ $SRS_NGINX = YES ]; then
-        echo "OSX does not support nginx, use --without-nginx"
-        exit 1
-    fi
 fi
 
 #####################################################################################
