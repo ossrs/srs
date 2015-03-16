@@ -1480,7 +1480,7 @@ int SrsConfig::check_config()
             } else if (n == "hls") {
                 for (int j = 0; j < (int)conf->directives.size(); j++) {
                     string m = conf->at(j)->name.c_str();
-                    if (m != "enabled" && m != "hls_path" && m != "hls_fragment" && m != "hls_window" && m != "hls_on_error"
+                    if (m != "enabled" && m != "hls_entry_prefix" && m != "hls_path" && m != "hls_fragment" && m != "hls_window" && m != "hls_on_error"
                         && m != "hls_storage" && m != "hls_mount" && m != "hls_td_ratio" && m != "hls_acodec" && m != "hls_vcodec"
                     ) {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
@@ -3136,6 +3136,33 @@ bool SrsConfig::get_hls_enabled(string vhost)
     }
     
     return false;
+}
+
+string SrsConfig::get_hls_entry_prefix(string vhost)
+{
+    SrsConfDirective* hls = get_hls(vhost);
+    
+    if (!hls) {
+        return "";
+    }
+    
+    SrsConfDirective* conf = hls->get("hls_entry_prefix");
+    
+    if (!conf) {
+        return "";
+    }
+
+    std::string prefix = conf->arg0();
+    if (prefix.empty()) {
+        return "";
+    }
+
+    const char last = prefix[prefix.length() - 1];
+    if (last != '/') {
+        return prefix.append("/");
+    }
+
+    return prefix;
 }
 
 string SrsConfig::get_hls_path(string vhost)
