@@ -866,6 +866,10 @@ public:
     */
     virtual bool                get_hls_enabled(std::string vhost);
     /**
+    * get the HLS m3u8 list ts segment entry prefix info.
+    */
+    virtual std::string         get_hls_entry_prefix(std::string vhost);
+    /**
     * get the HLS ts/m3u8 file store path.
     */
     virtual std::string         get_hls_path(std::string vhost);
