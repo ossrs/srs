@@ -203,14 +203,14 @@ int SrsHlsMuxer::sequence_no()
     return _sequence_no;
 }
 
-int SrsHlsMuxer::update_config(SrsRequest* r, string hls_entry_prefix, string path, int fragment, int window) 
+int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix, string path, int fragment, int window)
 {
     int ret = ERROR_SUCCESS;
     
     srs_freep(req);
     req = r->copy();
 
-    entry_prefix = hls_entry_prefix;
+    hls_entry_prefix = entry_prefix;
     hls_path = path;
     hls_fragment = fragment;
     hls_window = window;
@@ -301,8 +301,10 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     current->full_path += "/";
     current->full_path += filename;
     
-    // TODO: support base url, and so on.
-    current->uri += entry_prefix;
+    current->uri += hls_entry_prefix;
+    if (!hls_entry_prefix.empty() && !srs_string_ends_with(hls_entry_prefix, "/")) {
+        current->uri += "/";
+    }
     current->uri += filename;
     
     std::string tmp_file = current->full_path + ".tmp";

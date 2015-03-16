@@ -3152,17 +3152,7 @@ string SrsConfig::get_hls_entry_prefix(string vhost)
         return "";
     }
 
-    std::string prefix = conf->arg0();
-    if (prefix.empty()) {
-        return "";
-    }
-
-    const char last = prefix[prefix.length() - 1];
-    if (last != '/') {
-        return prefix.append("/");
-    }
-
-    return prefix;
+    return conf->arg0();
 }
 
 string SrsConfig::get_hls_path(string vhost)
