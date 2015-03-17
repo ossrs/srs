@@ -1104,8 +1104,8 @@ int SrsHttpServer::hijack(SrsHttpMessage* request, ISrsHttpHandler** ph)
     int ret = ERROR_SUCCESS;
     
     // when handler not the root, we think the handler is ok.
-    ISrsHttpHandler* h = ph? *ph : NULL;
-    if (h->entry && h->entry->pattern != "/") {
+    ISrsHttpHandler* h = *ph? *ph : NULL;
+    if (h && h->entry && h->entry->pattern != "/") {
         return ret;
     }
     

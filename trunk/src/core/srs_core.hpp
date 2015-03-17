@@ -29,13 +29,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
 // current release version
-#define VERSION_MAJOR       2
+#define VERSION_MAJOR       3
 #define VERSION_MINOR       0
+#define VERSION_REVISION    0
 #define VERSION_REVISION    143
 
 // server info.
 #define RTMP_SIG_SRS_KEY "SRS"
-#define RTMP_SIG_SRS_CODE "ZhouGuowen"
+#define RTMP_SIG_SRS_CODE "OuXuli"
 #define RTMP_SIG_SRS_ROLE "origin/edge server"
 #define RTMP_SIG_SRS_NAME RTMP_SIG_SRS_KEY"(Simple RTMP Server)"
 #define RTMP_SIG_SRS_URL_SHORT "github.com/winlinvip/simple-rtmp-server"
