@@ -299,6 +299,11 @@ function OSX_prepare()
 }
 OSX_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "OSX prepare failed, ret=$ret"; exit $ret; fi
 
+# by winlin, disable other system.
+if [[ $OS_IS_UBUNTU = NO && $OS_IS_CENTOS = NO && $SRS_EMBEDED_CPU = NO ]]; then
+    echo "only support Centos and Ubuntu, actual is `uname -s`"
+    exit 1
+fi
 
 #####################################################################################
 # st-1.9

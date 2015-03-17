@@ -161,7 +161,6 @@ Options:
 
 Presets:
   --x86-x64                 [default] for x86/x64 cpu, common pc and servers.
-  --osx                     for IOS(darwin) to build SRS.
   --pi                      for raspberry-pi(directly build), open features hls/ssl/static.
   --cubie                   for cubieboard(directly build), open features except ffmpeg/nginx.
   --arm                     alias for --with-arm-ubuntu12, for ubuntu12, arm crossbuild
@@ -252,7 +251,6 @@ function parse_user_option() {
         --log-trace)                    SRS_LOG_TRACE=YES           ;;
         
         --x86-x64)                      SRS_X86_X64=YES             ;;
-        --osx)                          SRS_OSX=YES                 ;;
         --arm)                          SRS_ARM_UBUNTU12=YES        ;;
         --mips)                         SRS_MIPS_UBUNTU12=YES       ;;
         --pi)                           SRS_PI=YES                  ;;
