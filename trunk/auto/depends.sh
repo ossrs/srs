@@ -266,17 +266,8 @@ function OSX_prepare()
             echo "OSX detected, must specifies the --osx"
             exit 1
         fi
-        # TODO: FIXME: support following features.
-        if [ $SRS_HTTP_API = YES ]; then
-            echo "OSX does not support http-api, use --without-http-api"
-            exit 1
-        fi
-        if [ $SRS_STAT = YES ]; then
-            echo "OSX does not support stat, use --without-stat"
-            exit 1
-        fi
     fi
-    
+
     brew --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
         echo "install brew"
         echo "ruby -e \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)\""
