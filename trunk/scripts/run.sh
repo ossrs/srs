@@ -3,10 +3,10 @@ src_dir='src'
 if [[ ! -d $src_dir ]]; then echo "错误：必须在src同目录执行脚本"; exit 1; fi
 
 # linux shell color support.
-RED="\\e[31m"
-GREEN="\\e[32m"
-YELLOW="\\e[33m"
-BLACK="\\e[0m"
+RED="\\033[31m"
+GREEN="\\033[32m"
+YELLOW="\\033[33m"
+BLACK="\\033[0m"
 
 ./etc/init.d/srs-demo restart; ret=$?; if [[ 0 -ne $ret ]]; then echo "错误：启动SRS失败"; exit $ret; fi
 echo "启动SRS服务器成功"
@@ -32,7 +32,8 @@ cat<<END
     http://$ip:$port/players/srs_bwt.html?key=35c9b402c12a7246868752e2878f7e0e&vhost=bandcheck.srs.com
 END
 
-if [[ `getenforce` != 'Disabled' ]]; then 
+which getenforce >/dev/null 2>&1
+if [[ 0 -eq $? && `getenforce` != 'Disabled' ]]; then
 	echo -e "${RED}请关闭selinux：${BLACK}";
 	echo -e "${RED}    打开配置文件：sudo vi /etc/sysconfig/selinux${BLACK}";
 	echo -e "${RED}    修改为：SELINUX=disabled${BLACK}";

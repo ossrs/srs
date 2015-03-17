@@ -97,6 +97,15 @@ function Ubuntu_prepare()
         sudo apt-get install -y --force-yes unzip; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install unzip success"
     fi
+
+    if [ $SRS_NGINX = YES ]; then
+        if [[ ! -f /usr/include/pcre.h ]]; then
+            echo "install libpcre3-dev"
+            require_sudoer "sudo apt-get install -y --force-yes libpcre3-dev"
+            sudo apt-get install -y --force-yes libpcre3-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "install libpcre3-dev success"
+        fi
+    fi
     
     if [ $SRS_FFMPEG_TOOL = YES ]; then
         autoconf --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
@@ -111,13 +120,6 @@ function Ubuntu_prepare()
             require_sudoer "sudo apt-get install -y --force-yes libtool"
             sudo apt-get install -y --force-yes libtool; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "install libtool success"
-        fi
-        
-        if [[ ! -f /usr/include/pcre.h ]]; then
-            echo "install libpcre3-dev"
-            require_sudoer "sudo apt-get install -y --force-yes libpcre3-dev"
-            sudo apt-get install -y --force-yes libpcre3-dev; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install libpcre3-dev success"
         fi
         
         if [[ ! -f /usr/include/zlib.h ]]; then
@@ -188,6 +190,15 @@ function Centos_prepare()
         sudo yum install -y unzip; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install unzip success"
     fi
+
+    if [ $SRS_NGINX = YES ]; then
+        if [[ ! -f /usr/include/pcre.h ]]; then
+            echo "install pcre-devel"
+            require_sudoer "sudo yum install -y pcre-devel"
+            sudo yum install -y pcre-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "install pcre-devel success"
+        fi
+    fi
     
     if [ $SRS_FFMPEG_TOOL = YES ]; then
         automake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
@@ -209,13 +220,6 @@ function Centos_prepare()
             require_sudoer "sudo yum install -y libtool"
             sudo yum install -y libtool; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "install libtool success"
-        fi
-        
-        if [[ ! -f /usr/include/pcre.h ]]; then
-            echo "install pcre-devel"
-            require_sudoer "sudo yum install -y pcre-devel"
-            sudo yum install -y pcre-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install pcre-devel success"
         fi
         
         if [[ ! -f /usr/include/zlib.h ]]; then
@@ -271,14 +275,6 @@ function OSX_prepare()
             echo "OSX does not support stat, use --without-stat"
             exit 1
         fi
-        if [ $SRS_FFMPEG_TOOL = YES ]; then
-            echo "OSX does not support ffmpeg, use --without-ffmpeg"
-            exit 1
-        fi
-        if [ $SRS_NGINX = YES ]; then
-            echo "OSX does not support nginx, use --without-nginx"
-            exit 1
-        fi
     fi
     
     brew --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
@@ -322,7 +318,16 @@ function OSX_prepare()
         brew install unzip; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
         echo "install unzip success"
     fi
-    
+
+    if [ $SRS_NGINX = YES ]; then
+        if [[ ! -f /usr/local/include/pcre.h ]]; then
+        echo "install pcre"
+        echo "brew install pcre"
+        brew install pcre; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+        echo "install pcre success"
+        fi
+    fi
+
     if [ $SRS_FFMPEG_TOOL = YES ]; then
         automake --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "install automake"
@@ -338,25 +343,18 @@ function OSX_prepare()
             echo "install autoconf success"
         fi
         
-        libtool --help >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+        which libtool >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
             echo "install libtool"
             echo "brew install libtool"
             brew install libtool; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
             echo "install libtool success"
         fi
-        
-        if [[ ! -f /usr/include/pcre.h ]]; then
-            echo "install pcre-devel"
-            echo "brew install pcre-devel"
-            brew install pcre-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install pcre-devel success"
-        fi
-        
-        if [[ ! -f /usr/include/zlib.h ]]; then
-            echo "install zlib-devel"
-            echo "brew install zlib-devel"
-            brew install zlib-devel; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
-            echo "install zlib-devel success"
+
+        brew info zlib >/dev/null 2>&1; ret=$?; if [[ 0 -ne $ret ]]; then
+            echo "install zlib"
+            echo "brew install zlib"
+            brew install zlib; ret=$?; if [[ 0 -ne $ret ]]; then return $ret; fi
+            echo "install zlib success"
         fi
     fi
     
@@ -366,6 +364,19 @@ function OSX_prepare()
 # donot prepare tools, for srs-librtmp depends only gcc and g++.
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     OSX_prepare; ret=$?; if [[ 0 -ne $ret ]]; then echo "OSX prepare failed, ret=$ret"; exit $ret; fi
+fi
+
+#####################################################################################
+# check the os.
+#####################################################################################
+# user must specifies something what a fuck, we suppport following os:
+#       centos/ubuntu/osx,
+#       embeded system, for example, mips or arm,
+#       export srs-librtmp
+# others is invalid.
+if [[ $OS_IS_UBUNTU = NO && $OS_IS_CENTOS = NO && $OS_IS_OSX = NO && $SRS_EMBEDED_CPU = NO && $SRS_EXPORT_LIBRTMP_PROJECT = NO ]]; then
+    echo "what a fuck, os not supported."
+    exit 1
 fi
 
 #####################################################################################
@@ -435,8 +446,6 @@ if [ $SRS_HTTP_PARSER = YES ]; then
                 rm -rf ${SRS_OBJS}/http-parser-2.1 && cd ${SRS_OBJS} && unzip -q ../3rdparty/http-parser-2.1.zip && 
                 cd http-parser-2.1 && 
                 patch -p0 < ../../3rdparty/patches/2.http.parser.patch &&
-                sed -i "s/CPPFLAGS_FAST +=.*$/CPPFLAGS_FAST = \$\(CPPFLAGS_DEBUG\)/g" Makefile &&
-                sed -i "s/CFLAGS_FAST =.*$/CFLAGS_FAST = \$\(CFLAGS_DEBUG\)/g" Makefile &&
                 make CC=${SrsArmCC} AR=${SrsArmAR} package &&
                 cd .. && rm -rf hp && ln -sf http-parser-2.1 hp &&
                 cd .. && touch ${SRS_OBJS}/_flag.st.hp.tmp
@@ -504,7 +513,11 @@ if [ $__SRS_BUILD_NGINX = YES ]; then
     # srs will write ts/m3u8 file use current user,
     # nginx default use nobody, so cannot read the ts/m3u8 created by srs.
     cp ${SRS_OBJS}/nginx/conf/nginx.conf ${SRS_OBJS}/nginx/conf/nginx.conf.bk
-    sed -i "s/^.user  nobody;/user `whoami`;/g" ${SRS_OBJS}/nginx/conf/nginx.conf
+    if [ $OS_IS_OSX = YES ]; then
+        sed -i '' "s/^.user  nobody;/user `whoami`;/g" ${SRS_OBJS}/nginx/conf/nginx.conf
+    else
+        sed -i "s/^.user  nobody;/user `whoami`;/g" ${SRS_OBJS}/nginx/conf/nginx.conf
+    fi
 fi
 
 # the demo dir.
