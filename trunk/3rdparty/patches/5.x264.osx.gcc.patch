@@ -1,0 +1,19 @@
+*** configure	Sat Nov 30 05:45:08 2013
+--- ../x264-snapshot-20131129-2245-stable-patch/configure	Tue Mar 17 21:42:24 2015
+***************
+*** 466,472 ****
+          ;;
+      darwin*)
+          SYS="MACOSX"
+!         CFLAGS="$CFLAGS -falign-loops=16"
+          libm="-lm"
+          if [ "$pic" = "no" ]; then
+              cc_check "" -mdynamic-no-pic && CFLAGS="$CFLAGS -mdynamic-no-pic"
+--- 466,472 ----
+          ;;
+      darwin*)
+          SYS="MACOSX"
+!         CFLAGS="$CFLAGS"
+          libm="-lm"
+          if [ "$pic" = "no" ]; then
+              cc_check "" -mdynamic-no-pic && CFLAGS="$CFLAGS -mdynamic-no-pic"
