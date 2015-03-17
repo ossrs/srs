@@ -1,6 +1,6 @@
 #Simple-RTMP-Server
 
-SRS/3.0，开发代号：[OuXuli](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Product#release30)
+SRS/2.0，开发代号：[ZhouGuowen](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Product#release20)
 
 SRS定位是运营级的互联网直播服务器集群，追求更好的概念完整性和最简单实现的代码。
 
@@ -559,10 +559,6 @@ Supported operating systems and hardware:
 * 2013-10-17, Created.<br/>
 
 ## History
-
-## SRS 3.0 history
-
-* v3.0, 2015-03-15, fork srs2 and start srs3. 3.0.0
 
 ### SRS 2.0 history
 
