@@ -592,12 +592,12 @@ function apply_user_presets() {
         SRS_FFMPEG_TOOL=NO
         SRS_TRANSCODE=YES
         SRS_INGEST=YES
-        SRS_STAT=NO
+        SRS_STAT=YES
         SRS_HTTP_PARSER=YES
         SRS_HTTP_CALLBACK=YES
         SRS_HTTP_SERVER=YES
         SRS_STREAM_CASTER=NO
-        SRS_HTTP_API=NO
+        SRS_HTTP_API=YES
         SRS_LIBRTMP=YES
         SRS_RESEARCH=NO
         SRS_UTEST=NO

@@ -836,6 +836,7 @@ int SrsServer::do_cycle()
                 srs_info("update resource info, rss.");
                 srs_update_system_rusage();
             }
+#ifndef SRS_OSX
             if ((i % SRS_SYS_CPU_STAT_RESOLUTION_TIMES) == 0) {
                 srs_info("update cpu info, cpu usage.");
                 srs_update_proc_stat();
@@ -868,6 +869,7 @@ int SrsServer::do_cycle()
                 }
             }
     #endif
+#endif
 #endif
             srs_info("server main thread loop");
         }
