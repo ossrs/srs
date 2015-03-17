@@ -1294,7 +1294,7 @@ SrsRequest* SrsHttpMessage::to_request(string vhost)
     SrsRequest* req = new SrsRequest();
     
     req->app = _uri->get_path();
-    ssize_t pos = string::npos;
+    size_t pos = string::npos;
     if ((pos = req->app.rfind("/")) != string::npos) {
         req->stream = req->app.substr(pos + 1);
         req->app = req->app.substr(0, pos);
