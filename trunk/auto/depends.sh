@@ -369,6 +369,19 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
 fi
 
 #####################################################################################
+# check the os.
+#####################################################################################
+# user must specifies something what a fuck, we suppport following os:
+#       centos/ubuntu/osx,
+#       embeded system, for example, mips or arm,
+#       export srs-librtmp
+# others is invalid.
+if [[ $OS_IS_UBUNTU = NO && $OS_IS_CENTOS = NO && $OS_IS_OSX = NO && $SRS_EMBEDED_CPU = NO && $SRS_EXPORT_LIBRTMP_PROJECT = NO ]]; then
+    echo "what a fuck, os not supported."
+    exit 1
+fi
+
+#####################################################################################
 # st-1.9
 #####################################################################################
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
