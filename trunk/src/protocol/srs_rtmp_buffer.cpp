@@ -82,17 +82,21 @@ char* SrsFastBuffer::bytes()
 
 void SrsFastBuffer::set_buffer(int buffer_size)
 {
+    // never exceed the max size.
+    if (buffer_size > SRS_MAX_SOCKET_BUFFER) {
+        srs_warn("limit the user-space buffer from %d to %d", 
+            buffer_size, SRS_MAX_SOCKET_BUFFER);
+    }
+    
     // the user-space buffer size limit to a max value.
     int nb_resize_buf = srs_min(buffer_size, SRS_MAX_SOCKET_BUFFER);
-    if (buffer_size > SRS_MAX_SOCKET_BUFFER) {
-        srs_warn("limit the user-space buffer from %d to %d", buffer_size, SRS_MAX_SOCKET_BUFFER);
-    }
 
     // only realloc when buffer changed bigger
     if (nb_resize_buf <= nb_buffer) {
         return;
     }
     
+    // realloc for buffer change bigger.
     int start = p - buffer;
     int nb_bytes = end - p;
     
@@ -148,6 +152,7 @@ int SrsFastBuffer::grow(ISrsBufferReader* reader, int required_size)
         srs_assert(nb_exists_bytes >= 0);
         srs_verbose("move fast buffer %d bytes", nb_exists_bytes);
 
+        // reset or move to get more space.
         if (!nb_exists_bytes) {
             // reset when buffer is empty.
             p = end = buffer;
@@ -159,15 +164,15 @@ int SrsFastBuffer::grow(ISrsBufferReader* reader, int required_size)
             p = buffer;
             end = p + nb_exists_bytes;
         }
-    }
-
-    // check whether enough free space in buffer.
-    nb_free_space = buffer + nb_buffer - end;
-    if (nb_free_space < required_size) {
-        ret = ERROR_READER_BUFFER_OVERFLOW;
-        srs_error("buffer overflow, required=%d, max=%d, left=%d, ret=%d", 
-            required_size, nb_buffer, nb_free_space, ret);
-        return ret;
+        
+        // check whether enough free space in buffer.
+        nb_free_space = buffer + nb_buffer - end;
+        if (nb_free_space < required_size) {
+            ret = ERROR_READER_BUFFER_OVERFLOW;
+            srs_error("buffer overflow, required=%d, max=%d, left=%d, ret=%d", 
+                required_size, nb_buffer, nb_free_space, ret);
+            return ret;
+        }
     }
 
     // buffer is ok, read required size of bytes.
