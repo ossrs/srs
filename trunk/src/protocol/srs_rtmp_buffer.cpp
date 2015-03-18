@@ -23,6 +23,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_rtmp_buffer.hpp>
 
+#include <stdlib.h>
+
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
@@ -58,8 +60,14 @@ SrsFastBuffer::SrsFastBuffer()
 #endif
     
     nb_buffer = SRS_DEFAULT_RECV_BUFFER_SIZE;
-    buffer = new char[nb_buffer];
+    buffer = (char*)malloc(nb_buffer);
     p = end = buffer;
+}
+
+SrsFastBuffer::~SrsFastBuffer()
+{
+    free(buffer);
+    buffer = NULL;
 }
 
 int SrsFastBuffer::size()
@@ -75,33 +83,23 @@ char* SrsFastBuffer::bytes()
 void SrsFastBuffer::set_buffer(int buffer_size)
 {
     // the user-space buffer size limit to a max value.
-    int nb_max_buf = srs_min(buffer_size, SRS_MAX_SOCKET_BUFFER);
-    if (nb_max_buf < buffer_size) {
-        srs_warn("limit the user-space buffer from %d to %d", buffer_size, nb_max_buf);
+    int nb_resize_buf = srs_min(buffer_size, SRS_MAX_SOCKET_BUFFER);
+    if (buffer_size > SRS_MAX_SOCKET_BUFFER) {
+        srs_warn("limit the user-space buffer from %d to %d", buffer_size, SRS_MAX_SOCKET_BUFFER);
     }
 
     // only realloc when buffer changed bigger
-    if (nb_max_buf <= nb_buffer) {
+    if (nb_resize_buf <= nb_buffer) {
         return;
     }
     
     int start = p - buffer;
-    int cap = end - p;
+    int nb_bytes = end - p;
     
-    char* buf = new char[nb_max_buf];
-    if (cap > 0) {
-        memcpy(buf, buffer, nb_buffer);
-    }
-    srs_freep(buffer);
-    
-    buffer = buf;
+    buffer = (char*)realloc(buffer, nb_resize_buf);
+    nb_buffer = nb_resize_buf;
     p = buffer + start;
-    end = p + cap;
-}
-
-SrsFastBuffer::~SrsFastBuffer()
-{
-    srs_freep(buffer);
+    end = p + nb_bytes;
 }
 
 char SrsFastBuffer::read_1byte()
@@ -117,12 +115,6 @@ char* SrsFastBuffer::read_slice(int size)
     
     char* ptr = p;
     p += size;
-    
-    // reset when consumed all.
-    if (p == end) {
-        p = end = buffer;
-        srs_verbose("all consumed, reset fast buffer");
-    }
 
     return ptr;
 }
@@ -138,7 +130,7 @@ int SrsFastBuffer::grow(ISrsBufferReader* reader, int required_size)
 {
     int ret = ERROR_SUCCESS;
 
-    // generally the required size is ok.
+    // already got required size of bytes.
     if (end - p >= required_size) {
         return ret;
     }
@@ -146,31 +138,42 @@ int SrsFastBuffer::grow(ISrsBufferReader* reader, int required_size)
     // must be positive.
     srs_assert(required_size > 0);
 
-    // when read payload or there is no space to read,
-    // reset the buffer with exists bytes.
-    int max_to_read = buffer + nb_buffer - end;
-    if (required_size > SRS_RTMP_MAX_MESSAGE_HEADER || max_to_read < required_size) {
-        int nb_cap = end - p;
-        srs_verbose("move fast buffer %d bytes", nb_cap);
-        if (nb_cap < nb_buffer) {
-            buffer = (char*)memmove(buffer, p, nb_cap);
+    // the free space of buffer, 
+    //      buffer = consumed_bytes + exists_bytes + free_space.
+    int nb_free_space = buffer + nb_buffer - end;
+    // resize the space when no left space.
+    if (nb_free_space < required_size) {
+        // the bytes already in buffer
+        int nb_exists_bytes = end - p;
+        srs_assert(nb_exists_bytes >= 0);
+        srs_verbose("move fast buffer %d bytes", nb_exists_bytes);
+
+        if (!nb_exists_bytes) {
+            // reset when buffer is empty.
+            p = end = buffer;
+            srs_verbose("all consumed, reset fast buffer");
+        } else {
+            // move the left bytes to start of buffer.
+            srs_assert(nb_exists_bytes < nb_buffer);
+            buffer = (char*)memmove(buffer, p, nb_exists_bytes);
             p = buffer;
-            end = p + nb_cap;
+            end = p + nb_exists_bytes;
         }
     }
 
-    // directly check the available bytes to read in buffer.
-    max_to_read = buffer + nb_buffer - end;
-    if (max_to_read < required_size) {
+    // check whether enough free space in buffer.
+    nb_free_space = buffer + nb_buffer - end;
+    if (nb_free_space < required_size) {
         ret = ERROR_READER_BUFFER_OVERFLOW;
-        srs_error("buffer overflow, required=%d, max=%d, ret=%d", required_size, nb_buffer, ret);
+        srs_error("buffer overflow, required=%d, max=%d, left=%d, ret=%d", 
+            required_size, nb_buffer, nb_free_space, ret);
         return ret;
     }
 
     // buffer is ok, read required size of bytes.
     while (end - p < required_size) {
         ssize_t nread;
-        if ((ret = reader->read(end, max_to_read, &nread)) != ERROR_SUCCESS) {
+        if ((ret = reader->read(end, nb_free_space, &nread)) != ERROR_SUCCESS) {
             return ret;
         }
         
@@ -189,7 +192,7 @@ int SrsFastBuffer::grow(ISrsBufferReader* reader, int required_size)
         // we just move the ptr to next.
         srs_assert((int)nread > 0);
         end += nread;
-        max_to_read -= nread;
+        nb_free_space -= nread;
     }
     
     return ret;
