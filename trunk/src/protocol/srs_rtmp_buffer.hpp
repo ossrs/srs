@@ -59,6 +59,12 @@ public:
 /**
 * the buffer provices bytes cache for protocol. generally, 
 * protocol recv data from socket, put into buffer, decode to RTMP message.
+* Usage:
+*       ISrsBufferReader* r = ......;
+*       SrsFastBuffer* fb = ......;
+*       fb->grow(r, 1024);
+*       char* header = fb->read_slice(100);
+*       char* payload = fb->read_payload(924);
 */
 // TODO: FIXME: add utest for it.
 class SrsFastBuffer
@@ -79,7 +85,7 @@ private:
     // ptr to the buffer.
     //      buffer <= p <= end <= buffer+nb_buffer
     char* buffer;
-    // the max size of buffer.
+    // the size of buffer.
     int nb_buffer;
 public:
     SrsFastBuffer();
@@ -97,7 +103,7 @@ public:
     virtual char* bytes();
     /**
     * create buffer with specifeid size.
-    * @param buffer the size of buffer.
+    * @param buffer the size of buffer. ignore when smaller than SRS_MAX_SOCKET_BUFFER.
     * @remark when MR(SRS_PERF_MERGED_READ) disabled, always set to 8K.
     * @remark when buffer changed, the previous ptr maybe invalid.
     * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
@@ -112,8 +118,8 @@ public:
     /**
     * read a slice in size bytes, move to next bytes.
     * user can use this char* ptr directly, and should never free it.
-    * @remark assert buffer already grow(size).
-    * @remark the ptr returned maybe invalid after grow(x).
+    * @remark user can use the returned ptr util grow(size),
+    *       for the ptr returned maybe invalid after grow(x).
     */
     virtual char* read_slice(int size);
     /**
