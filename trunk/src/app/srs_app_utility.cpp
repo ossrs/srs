@@ -28,6 +28,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <ifaddrs.h>
 #include <arpa/inet.h>
 
+#ifdef SRS_OSX
+#include <sys/sysctl.h>
+#endif
 using namespace std;
 
 #include <srs_kernel_log.hpp>
@@ -666,6 +669,7 @@ void srs_update_platform_info()
     
     r.srs_startup_time = srs_get_system_startup_time_ms();
     
+#ifndef SRS_OSX
     if (true) {
         FILE* f = fopen("/proc/uptime", "r");
         if (f == NULL) {
@@ -694,6 +698,43 @@ void srs_update_platform_info()
     
         fclose(f);
     }
+#else
+    // man 3 sysctl
+    if (true) {
+        struct timeval tv;
+        size_t len = sizeof(timeval);
+        
+        int mib[2];
+        mib[0] = CTL_KERN;
+        mib[1] = KERN_BOOTTIME;
+        if (sysctl(mib, 2, &tv, &len, NULL, 0) < 0) {
+            srs_warn("sysctl boottime failed, ignore");
+            return;
+        }
+        
+        time_t bsec = tv.tv_sec;
+        time_t csec = ::time(NULL);
+        r.os_uptime = difftime(csec, bsec);
+    }
+    
+    // man 3 sysctl
+    if (true) {
+        struct loadavg la;
+        size_t len = sizeof(loadavg);
+        
+        int mib[2];
+        mib[0] = CTL_VM;
+        mib[1] = VM_LOADAVG;
+        if (sysctl(mib, 2, &la, &len, NULL, 0) < 0) {
+            srs_warn("sysctl loadavg failed, ignore");
+            return;
+        }
+        
+        r.load_one_minutes = (double)la.ldavg[0] / la.fscale;
+        r.load_five_minutes = (double)la.ldavg[1] / la.fscale;
+        r.load_fifteen_minutes = (double)la.ldavg[2] / la.fscale;
+    }
+#endif
     
     r.ok = true;
 }

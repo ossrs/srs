@@ -849,10 +849,12 @@ int SrsServer::do_cycle()
                 srs_info("update memory info, usage/free.");
                 srs_update_meminfo();
             }
+#endif
             if ((i % SRS_SYS_PLATFORM_INFO_RESOLUTION_TIMES) == 0) {
                 srs_info("update platform info, uptime/load.");
                 srs_update_platform_info();
             }
+#ifndef SRS_OSX
             if ((i % SRS_SYS_NETWORK_DEVICE_RESOLUTION_TIMES) == 0) {
                 srs_info("update network devices info.");
                 srs_update_network_devices();
