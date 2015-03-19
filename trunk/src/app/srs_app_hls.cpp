@@ -168,6 +168,7 @@ SrsHlsMuxer::SrsHlsMuxer()
     req = NULL;
     handler = NULL;
     hls_fragment = hls_window = 0;
+    hls_aof_ratio = 1.0;
     target_duration = 0;
     _sequence_no = 0;
     current = NULL;
@@ -203,7 +204,7 @@ int SrsHlsMuxer::sequence_no()
     return _sequence_no;
 }
 
-int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix, string path, int fragment, int window)
+int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix, string path, int fragment, int window, double aof_ratio)
 {
     int ret = ERROR_SUCCESS;
     
@@ -213,11 +214,12 @@ int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix, string path, 
     hls_entry_prefix = entry_prefix;
     hls_path = path;
     hls_fragment = fragment;
+    hls_aof_ratio = aof_ratio;
     hls_window = window;
 
     // we always keep the target duration increasing.
     int max_td = srs_max(target_duration, (int)(fragment * _srs_config->get_hls_td_ratio(r->vhost)));
-    srs_info("hls update target duration %d=>%d", target_duration, max_td);
+    srs_info("hls update target duration %d=>%d, aof=%.2f", target_duration, max_td, aof_ratio);
     target_duration = max_td;
 
     std::string storage = _srs_config->get_hls_storage(r->vhost);
@@ -345,7 +347,7 @@ bool SrsHlsMuxer::is_segment_overflow()
 bool SrsHlsMuxer::is_segment_absolutely_overflow()
 {
     srs_assert(current);
-    return current->duration >= 2 * hls_fragment;
+    return current->duration >= hls_aof_ratio * hls_fragment;
 }
 
 int SrsHlsMuxer::update_acodec(SrsCodecAudio ac)
@@ -676,12 +678,14 @@ int SrsHlsCache::on_publish(SrsHlsMuxer* muxer, SrsRequest* req, int64_t segment
     std::string entry_prefix = _srs_config->get_hls_entry_prefix(vhost);
     // get the hls path config
     std::string hls_path = _srs_config->get_hls_path(vhost);
+    // the audio overflow, for pure audio to reap segment.
+    double hls_aof_ratio = _srs_config->get_hls_aof_ratio(vhost);
     
     // TODO: FIXME: support load exists m3u8, to continue publish stream.
     // for the HLS donot requires the EXT-X-MEDIA-SEQUENCE be monotonically increase.
     
     // open muxer
-    if ((ret = muxer->update_config(req, entry_prefix, hls_path, hls_fragment, hls_window)) != ERROR_SUCCESS) {
+    if ((ret = muxer->update_config(req, entry_prefix, hls_path, hls_fragment, hls_window, hls_aof_ratio)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer update config failed. ret=%d", ret);
         return ret;
     }
@@ -737,17 +741,13 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
         }
     }
 
-    // cache->audio will be free in flush_audio
-    // so we must check whether it's null ptr.
-    if (!cache->audio) {
-        return ret;
-    }
-
     // TODO: config it.
     // in ms, audio delay to flush the audios.
     int64_t audio_delay = SRS_CONF_DEFAULT_AAC_DELAY;
     // flush if audio delay exceed
-    if (pts - cache->audio->start_pts > audio_delay * 90) {
+    // cache->audio will be free in flush_audio
+    // so we must check whether it's null ptr.
+    if (cache->audio && pts - cache->audio->start_pts > audio_delay * 90) {
         if ((ret = muxer->flush_audio(cache)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -761,7 +761,7 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/151
     // we use absolutely overflow of segment to make jwplayer/ffplay happy
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-71155184
-    if (muxer->is_segment_absolutely_overflow()) {
+    if (cache->audio && muxer->is_segment_absolutely_overflow()) {
         if ((ret = reap_segment("audio", muxer, cache->audio->pts)) != ERROR_SUCCESS) {
             return ret;
         }

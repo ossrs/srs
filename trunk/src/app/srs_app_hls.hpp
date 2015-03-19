@@ -169,6 +169,7 @@ private:
 private:
     std::string hls_entry_prefix;
     std::string hls_path;
+    double hls_aof_ratio;
     int hls_fragment;
     int hls_window;
 private:
@@ -208,7 +209,7 @@ public:
     /**
     * when publish, update the config for muxer.
     */
-    virtual int update_config(SrsRequest* r, std::string entry_prefix, std::string path, int fragment, int window);
+    virtual int update_config(SrsRequest* r, std::string entry_prefix, std::string path, int fragment, int window, double aof_ratio);
     /**
     * open a new segment(a new ts file),
     * @param segment_start_dts use to calc the segment duration,
