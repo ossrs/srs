@@ -48,6 +48,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_HLS_PATH "./objs/nginx/html"
 #define SRS_CONF_DEFAULT_HLS_FRAGMENT 10
 #define SRS_CONF_DEFAULT_HLS_TD_RATIO 1.5
+#define SRS_CONF_DEFAULT_HLS_AOF_RATIO 2.0
 #define SRS_CONF_DEFAULT_HLS_WINDOW 60
 #define SRS_CONF_DEFAULT_HLS_ON_ERROR_IGNORE "ignore"
 #define SRS_CONF_DEFAULT_HLS_ON_ERROR_DISCONNECT "disconnect"
@@ -875,14 +876,16 @@ public:
     virtual std::string         get_hls_path(std::string vhost);
     /**
     * get the hls fragment time, in seconds.
-    * a fragment is a ts file.
     */
     virtual double              get_hls_fragment(std::string vhost);
     /**
     * get the hls td(target duration) ratio.
-    * a fragment is a ts file.
     */
     virtual double              get_hls_td_ratio(std::string vhost);
+    /**
+     * get the hls aof(audio overflow) ratio.
+     */
+    virtual double              get_hls_aof_ratio(std::string vhost);
     /**
     * get the hls window time, in seconds.
     * a window is a set of ts, the ts collection in m3u8.
