@@ -346,6 +346,7 @@ bool SrsHlsMuxer::is_segment_overflow()
 
 bool SrsHlsMuxer::is_segment_absolutely_overflow()
 {
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-83553950
     srs_assert(current);
     return current->duration >= hls_aof_ratio * hls_fragment;
 }

@@ -38,7 +38,7 @@ failed_msg(){
 
 function check_log(){
     log_dir="`dirname $log`"
-    (mkdir -p ${log_dir} && sudo chmod 777 ${log_dir} && touch $log)
+    (mkdir -p ${log_dir} && chmod 777 ${log_dir} && touch $log)
     ret=$?; if [[ $ret -ne 0 ]]; then failed_msg "create log failed, ret=$ret"; return $ret; fi
     ok_msg "create log( ${log} ) success"
     
