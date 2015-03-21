@@ -39,7 +39,7 @@ using namespace std;
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
-#define __SRS_RTSP_BUFFER 4096
+#define SRS_RTSP_BUFFER 4096
 
 // get the status text of code.
 string srs_generate_rtsp_status_text(int status)
@@ -105,17 +105,17 @@ string srs_generate_rtsp_status_text(int status)
 std::string srs_generate_rtsp_method_str(SrsRtspMethod method) 
 {
     switch (method) {
-        case SrsRtspMethodDescribe: return __SRS_METHOD_DESCRIBE;
-        case SrsRtspMethodAnnounce: return __SRS_METHOD_ANNOUNCE;
-        case SrsRtspMethodGetParameter: return __SRS_METHOD_GET_PARAMETER;
-        case SrsRtspMethodOptions: return __SRS_METHOD_OPTIONS;
-        case SrsRtspMethodPause: return __SRS_METHOD_PAUSE;
-        case SrsRtspMethodPlay: return __SRS_METHOD_PLAY;
-        case SrsRtspMethodRecord: return __SRS_METHOD_RECORD;
-        case SrsRtspMethodRedirect: return __SRS_METHOD_REDIRECT;
-        case SrsRtspMethodSetup: return __SRS_METHOD_SETUP;
-        case SrsRtspMethodSetParameter: return __SRS_METHOD_SET_PARAMETER;
-        case SrsRtspMethodTeardown: return __SRS_METHOD_TEARDOWN;
+        case SrsRtspMethodDescribe: return SRS_METHOD_DESCRIBE;
+        case SrsRtspMethodAnnounce: return SRS_METHOD_ANNOUNCE;
+        case SrsRtspMethodGetParameter: return SRS_METHOD_GET_PARAMETER;
+        case SrsRtspMethodOptions: return SRS_METHOD_OPTIONS;
+        case SrsRtspMethodPause: return SRS_METHOD_PAUSE;
+        case SrsRtspMethodPlay: return SRS_METHOD_PLAY;
+        case SrsRtspMethodRecord: return SRS_METHOD_RECORD;
+        case SrsRtspMethodRedirect: return SRS_METHOD_REDIRECT;
+        case SrsRtspMethodSetup: return SRS_METHOD_SETUP;
+        case SrsRtspMethodSetParameter: return SRS_METHOD_SET_PARAMETER;
+        case SrsRtspMethodTeardown: return SRS_METHOD_TEARDOWN;
         default: return "Unknown";
     }
 }
@@ -382,7 +382,7 @@ int SrsRtspSdp::parse(string token)
     while (p < end) {
         // parse an attribute, split by SP.
         char* pa = p;
-        for (; p < end && p[0] != __SRS_RTSP_SP; p++) {
+        for (; p < end && p[0] != SRS_RTSP_SP; p++) {
         }
         std::string attr;
         if (p > pa) {
@@ -693,22 +693,22 @@ SrsRtspRequest::~SrsRtspRequest()
 
 bool SrsRtspRequest::is_options()
 {
-    return method == __SRS_METHOD_OPTIONS;
+    return method == SRS_METHOD_OPTIONS;
 }
 
 bool SrsRtspRequest::is_announce()
 {
-    return method == __SRS_METHOD_ANNOUNCE;
+    return method == SRS_METHOD_ANNOUNCE;
 }
 
 bool SrsRtspRequest::is_setup()
 {
-    return method == __SRS_METHOD_SETUP;
+    return method == SRS_METHOD_SETUP;
 }
 
 bool SrsRtspRequest::is_record()
 {
-    return method == __SRS_METHOD_RECORD;
+    return method == SRS_METHOD_RECORD;
 }
 
 SrsRtspResponse::SrsRtspResponse(int cseq)
@@ -726,21 +726,21 @@ int SrsRtspResponse::encode(stringstream& ss)
     int ret = ERROR_SUCCESS;
 
     // status line
-    ss << __SRS_VERSION << __SRS_RTSP_SP 
-        << status << __SRS_RTSP_SP 
-        << srs_generate_rtsp_status_text(status) << __SRS_RTSP_CRLF;
+    ss << SRS_RTSP_VERSION << SRS_RTSP_SP 
+        << status << SRS_RTSP_SP 
+        << srs_generate_rtsp_status_text(status) << SRS_RTSP_CRLF;
 
     // cseq
-    ss << __SRS_TOKEN_CSEQ << ":" << __SRS_RTSP_SP << seq << __SRS_RTSP_CRLF;
+    ss << SRS_RTSP_TOKEN_CSEQ << ":" << SRS_RTSP_SP << seq << SRS_RTSP_CRLF;
 
     // others.
-    ss << "Cache-Control: no-store" << __SRS_RTSP_CRLF
-        << "Pragma: no-cache" << __SRS_RTSP_CRLF
-        << "Server: " << RTMP_SIG_SRS_SERVER << __SRS_RTSP_CRLF;
+    ss << "Cache-Control: no-store" << SRS_RTSP_CRLF
+        << "Pragma: no-cache" << SRS_RTSP_CRLF
+        << "Server: " << RTMP_SIG_SRS_SERVER << SRS_RTSP_CRLF;
 
     // session if specified.
     if (!session.empty()) {
-        ss << __SRS_TOKEN_SESSION << ":" << session << __SRS_RTSP_CRLF;
+        ss << SRS_RTSP_TOKEN_SESSION << ":" << session << SRS_RTSP_CRLF;
     }
 
     if ((ret = encode_header(ss)) != ERROR_SUCCESS) {
@@ -749,7 +749,7 @@ int SrsRtspResponse::encode(stringstream& ss)
     };
 
     // header EOF.
-    ss << __SRS_RTSP_CRLF;
+    ss << SRS_RTSP_CRLF;
 
     return ret;
 }
@@ -786,7 +786,7 @@ int SrsRtspOptionsResponse::encode_header(stringstream& ss)
         SrsRtspMethodTeardown,
     };
 
-    ss << __SRS_TOKEN_PUBLIC << ":" << __SRS_RTSP_SP;
+    ss << SRS_RTSP_TOKEN_PUBLIC << ":" << SRS_RTSP_SP;
 
     bool appended = false;
     int nb_methods = (int)(sizeof(__methods) / sizeof(SrsRtspMethod));
@@ -802,7 +802,7 @@ int SrsRtspOptionsResponse::encode_header(stringstream& ss)
         ss << srs_generate_rtsp_method_str(method);
         appended = true;
     }
-    ss << __SRS_RTSP_CRLF;
+    ss << SRS_RTSP_CRLF;
 
     return ERROR_SUCCESS;
 }
@@ -819,11 +819,11 @@ SrsRtspSetupResponse::~SrsRtspSetupResponse()
 
 int SrsRtspSetupResponse::encode_header(stringstream& ss)
 {
-    ss << __SRS_TOKEN_SESSION << ":" << __SRS_RTSP_SP << session << __SRS_RTSP_CRLF;
-    ss << __SRS_TOKEN_TRANSPORT << ":" << __SRS_RTSP_SP 
+    ss << SRS_RTSP_TOKEN_SESSION << ":" << SRS_RTSP_SP << session << SRS_RTSP_CRLF;
+    ss << SRS_RTSP_TOKEN_TRANSPORT << ":" << SRS_RTSP_SP 
         << "RTP/AVP;unicast;client_port=" << client_port_min << "-" << client_port_max << ";"
         << "server_port=" << local_port_min << "-" << local_port_max
-        << __SRS_RTSP_CRLF;
+        << SRS_RTSP_CRLF;
     return ERROR_SUCCESS;
 }
 
@@ -918,38 +918,38 @@ int SrsRtspStack::do_recv_message(SrsRtspRequest* req)
         }
 
         // parse the header value according by header name
-        if (token == __SRS_TOKEN_CSEQ) {
+        if (token == SRS_RTSP_TOKEN_CSEQ) {
             std::string seq;
             if ((ret = recv_token_eof(seq)) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
-                    srs_error("rtsp: parse %s failed. ret=%d", __SRS_TOKEN_CSEQ, ret);
+                    srs_error("rtsp: parse %s failed. ret=%d", SRS_RTSP_TOKEN_CSEQ, ret);
                 }
                 return ret;
             }
             req->seq = ::atol(seq.c_str());
-        } else if (token == __SRS_TOKEN_CONTENT_TYPE) {
+        } else if (token == SRS_RTSP_TOKEN_CONTENT_TYPE) {
             std::string ct;
             if ((ret = recv_token_eof(ct)) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
-                    srs_error("rtsp: parse %s failed. ret=%d", __SRS_TOKEN_CONTENT_TYPE, ret);
+                    srs_error("rtsp: parse %s failed. ret=%d", SRS_RTSP_TOKEN_CONTENT_TYPE, ret);
                 }
                 return ret;
             }
             req->content_type = ct;
-        } else if (token == __SRS_TOKEN_CONTENT_LENGTH) {
+        } else if (token == SRS_RTSP_TOKEN_CONTENT_LENGTH) {
             std::string cl;
             if ((ret = recv_token_eof(cl)) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
-                    srs_error("rtsp: parse %s failed. ret=%d", __SRS_TOKEN_CONTENT_LENGTH, ret);
+                    srs_error("rtsp: parse %s failed. ret=%d", SRS_RTSP_TOKEN_CONTENT_LENGTH, ret);
                 }
                 return ret;
             }
             req->content_length = ::atol(cl.c_str());
-        } else if (token == __SRS_TOKEN_TRANSPORT) {
+        } else if (token == SRS_RTSP_TOKEN_TRANSPORT) {
             std::string transport;
             if ((ret = recv_token_eof(transport)) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
-                    srs_error("rtsp: parse %s failed. ret=%d", __SRS_TOKEN_TRANSPORT, ret);
+                    srs_error("rtsp: parse %s failed. ret=%d", SRS_RTSP_TOKEN_TRANSPORT, ret);
                 }
                 return ret;
             }
@@ -960,10 +960,10 @@ int SrsRtspStack::do_recv_message(SrsRtspRequest* req)
                 srs_error("rtsp: parse transport failed, transport=%s. ret=%d", transport.c_str(), ret);
                 return ret;
             }
-        } else if (token == __SRS_TOKEN_SESSION) {
+        } else if (token == SRS_RTSP_TOKEN_SESSION) {
             if ((ret = recv_token_eof(req->session)) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
-                    srs_error("rtsp: parse %s failed. ret=%d", __SRS_TOKEN_SESSION, ret);
+                    srs_error("rtsp: parse %s failed. ret=%d", SRS_RTSP_TOKEN_SESSION, ret);
                 }
                 return ret;
             }
@@ -1117,9 +1117,9 @@ int SrsRtspStack::recv_token(std::string& token, SrsRtspTokenState& state, char 
         if (append_bytes) {
             append_bytes = false;
 
-            char buffer[__SRS_RTSP_BUFFER];
+            char buffer[SRS_RTSP_BUFFER];
             ssize_t nb_read = 0;
-            if ((ret = skt->read(buffer, __SRS_RTSP_BUFFER, &nb_read)) != ERROR_SUCCESS) {
+            if ((ret = skt->read(buffer, SRS_RTSP_BUFFER, &nb_read)) != ERROR_SUCCESS) {
                 if (!srs_is_client_gracefully_close(ret)) {
                     srs_error("rtsp: io read failed. ret=%d", ret);
                 }
@@ -1136,7 +1136,7 @@ int SrsRtspStack::recv_token(std::string& token, SrsRtspTokenState& state, char 
         char* p = start;
 
         // find util SP/CR/LF, max 2 EOF, to finger out the EOF of message.
-        for (; p < end && p[0] != normal_ch && p[0] != __SRS_RTSP_CR && p[0] != __SRS_RTSP_LF; p++) {
+        for (; p < end && p[0] != normal_ch && p[0] != SRS_RTSP_CR && p[0] != SRS_RTSP_LF; p++) {
         }
 
         // matched.
@@ -1161,7 +1161,7 @@ int SrsRtspStack::recv_token(std::string& token, SrsRtspTokenState& state, char 
             }
 
             // ignore SP/CR/LF
-            for (int i = 0; i < 2 && p < end && (p[0] == normal_ch || p[0] == __SRS_RTSP_CR || p[0] == __SRS_RTSP_LF); p++, i++) {
+            for (int i = 0; i < 2 && p < end && (p[0] == normal_ch || p[0] == SRS_RTSP_CR || p[0] == SRS_RTSP_LF); p++, i++) {
             }
 
             // consume the token bytes.

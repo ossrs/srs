@@ -52,14 +52,14 @@ using namespace _srs_internal;
 #define SRS_WIKI_URL_LOG "https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SrsLog"
 
 // '\n'
-#define __LF (char)0x0a
+#define SRS_LF (char)0x0a
 
 // '\r'
-#define __CR (char)0x0d
+#define SRS_CR (char)0x0d
 
 bool is_common_space(char ch)
 {
-    return (ch == ' ' || ch == '\t' || ch == __CR || ch == __LF);
+    return (ch == ' ' || ch == '\t' || ch == SRS_CR || ch == SRS_LF);
 }
 
 SrsConfDirective::SrsConfDirective()
@@ -242,7 +242,7 @@ int SrsConfDirective::read_token(SrsConfigBuffer* buffer, vector<string>& args, 
         
         char ch = *buffer->pos++;
         
-        if (ch == __LF) {
+        if (ch == SRS_LF) {
             buffer->line++;
             sharp_comment = false;
         }

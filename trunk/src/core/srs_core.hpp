@@ -50,17 +50,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RTMP_SIG_SRS_HANDSHAKE RTMP_SIG_SRS_KEY"("RTMP_SIG_SRS_VERSION")"
 #define RTMP_SIG_SRS_RELEASE RTMP_SIG_SRS_URL"/tree/1.0release"
 #define RTMP_SIG_SRS_ISSUES(id) RTMP_SIG_SRS_URL"/issues/"#id
-#define RTMP_SIG_SRS_VERSION __SRS_XSTR(VERSION_MAJOR)"."__SRS_XSTR(VERSION_MINOR)"."__SRS_XSTR(VERSION_REVISION)
+#define RTMP_SIG_SRS_VERSION SRS_XSTR(VERSION_MAJOR)"."SRS_XSTR(VERSION_MINOR)"."SRS_XSTR(VERSION_REVISION)
 #define RTMP_SIG_SRS_SERVER RTMP_SIG_SRS_KEY"/"RTMP_SIG_SRS_VERSION"("RTMP_SIG_SRS_CODE")"
 
 // stable major version
 #define VERSION_STABLE 1
-#define VERSION_STABLE_BRANCH __SRS_XSTR(VERSION_STABLE)".0release"
+#define VERSION_STABLE_BRANCH SRS_XSTR(VERSION_STABLE)".0release"
 
 // internal macros, covert macro values to str,
 // see: read https://gcc.gnu.org/onlinedocs/cpp/Stringification.html#Stringification
-#define __SRS_XSTR(v) __SRS_STR(v)
-#define __SRS_STR(v) #v
+#define SRS_XSTR(v) SRS_INTERNAL_STR(v)
+#define SRS_INTERNAL_STR(v) #v
 
 /**
 * the core provides the common defined macros, utilities,

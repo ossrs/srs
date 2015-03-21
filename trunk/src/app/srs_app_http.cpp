@@ -217,7 +217,7 @@ void SrsHttpHeader::write(stringstream& ss)
 {
     std::map<std::string, std::string>::iterator it;
     for (it = headers.begin(); it != headers.end(); ++it) {
-        ss << it->first << ": " << it->second << __SRS_HTTP_CRLF;
+        ss << it->first << ": " << it->second << SRS_HTTP_CRLF;
     }
 }
 
@@ -472,7 +472,7 @@ int SrsHttpFileServer::copy(ISrsHttpResponseWriter* w, SrsFileReader* fs, SrsHtt
     
     while (left > 0) {
         ssize_t nread = -1;
-        int max_read = srs_min(left, __SRS_HTTP_TS_SEND_BUFFER_SIZE);
+        int max_read = srs_min(left, SRS_HTTP_TS_SEND_BUFFER_SIZE);
         if ((ret = fs->read(buf, max_read, &nread)) != ERROR_SUCCESS) {
             break;
         }
@@ -764,7 +764,7 @@ int SrsHttpResponseWriter::final_request()
     // complete the chunked encoding.
     if (content_length == -1) {
         std::stringstream ss;
-        ss << 0 << __SRS_HTTP_CRLF << __SRS_HTTP_CRLF;
+        ss << 0 << SRS_HTTP_CRLF << SRS_HTTP_CRLF;
         std::string ch = ss.str();
         return skt->write((void*)ch.data(), (int)ch.length(), NULL);
     }
@@ -810,7 +810,7 @@ int SrsHttpResponseWriter::write(char* data, int size)
     
     // send in chunked encoding.
     std::stringstream ss;
-    ss << hex << size << __SRS_HTTP_CRLF;
+    ss << hex << size << SRS_HTTP_CRLF;
     std::string ch = ss.str();
     if ((ret = skt->write((void*)ch.data(), (int)ch.length(), NULL)) != ERROR_SUCCESS) {
         return ret;
@@ -818,7 +818,7 @@ int SrsHttpResponseWriter::write(char* data, int size)
     if ((ret = skt->write((void*)data, size, NULL)) != ERROR_SUCCESS) {
         return ret;
     }
-    if ((ret = skt->write((void*)__SRS_HTTP_CRLF, 2, NULL)) != ERROR_SUCCESS) {
+    if ((ret = skt->write((void*)SRS_HTTP_CRLF, 2, NULL)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -852,7 +852,7 @@ int SrsHttpResponseWriter::send_header(char* data, int size)
     
     // status_line
     ss << "HTTP/1.1 " << status << " " 
-        << srs_generate_http_status_text(status) << __SRS_HTTP_CRLF;
+        << srs_generate_http_status_text(status) << SRS_HTTP_CRLF;
         
     // detect content type
     if (srs_go_http_body_allowd(status)) {
@@ -878,7 +878,7 @@ int SrsHttpResponseWriter::send_header(char* data, int size)
     hdr->write(ss);
     
     // header_eof
-    ss << __SRS_HTTP_CRLF;
+    ss << SRS_HTTP_CRLF;
     
     std::string buf = ss.str();
     return skt->write((void*)buf.c_str(), buf.length(), NULL);
@@ -947,7 +947,7 @@ int SrsHttpResponseReader::read_chunked(std::string& data)
         char* start = buffer->bytes();
         char* end = start + buffer->size();
         for (char* p = start; p < end - 1; p++) {
-            if (p[0] == __SRS_HTTP_CR && p[1] == __SRS_HTTP_LF) {
+            if (p[0] == SRS_HTTP_CR && p[1] == SRS_HTTP_LF) {
                 // invalid chunk, ignore.
                 if (p == start) {
                     ret = ERROR_HTTP_INVALID_CHUNK_HEADER;
@@ -1044,7 +1044,7 @@ SrsHttpMessage::SrsHttpMessage(SrsStSocket* io)
     chunked = false;
     _uri = new SrsHttpUri();
     _body = new SrsHttpResponseReader(this, io);
-    _http_ts_send_buffer = new char[__SRS_HTTP_TS_SEND_BUFFER_SIZE];
+    _http_ts_send_buffer = new char[SRS_HTTP_TS_SEND_BUFFER_SIZE];
 }
 
 SrsHttpMessage::~SrsHttpMessage()

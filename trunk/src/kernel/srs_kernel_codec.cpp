@@ -304,10 +304,10 @@ int SrsCodecSample::add_sample_unit(char* bytes, int size)
 {
     int ret = ERROR_SUCCESS;
     
-    if (nb_sample_units >= __SRS_SRS_MAX_CODEC_SAMPLE) {
+    if (nb_sample_units >= SRS_SRS_MAX_CODEC_SAMPLE) {
         ret = ERROR_HLS_DECODE_ERROR;
         srs_error("hls decode samples error, "
-            "exceed the max count: %d, ret=%d", __SRS_SRS_MAX_CODEC_SAMPLE, ret);
+            "exceed the max count: %d, ret=%d", SRS_SRS_MAX_CODEC_SAMPLE, ret);
         return ret;
     }
     
@@ -335,7 +335,7 @@ SrsAvcAacCodec::SrsAvcAacCodec()
     avc_profile                 = SrsAvcProfileReserved;
     avc_level                   = SrsAvcLevelReserved;
     aac_object                  = SrsAacObjectTypeReserved;
-    aac_sample_rate             = __SRS_AAC_SAMPLE_RATE_UNSET; // sample rate ignored
+    aac_sample_rate             = SRS_AAC_SAMPLE_RATE_UNSET; // sample rate ignored
     aac_channels                = 0;
     avc_extra_size              = 0;
     avc_extra_data              = NULL;
@@ -452,7 +452,7 @@ int SrsAvcAacCodec::audio_aac_demux(char* data, int size, SrsCodecSample* sample
     }
     
     // reset the sample rate by sequence header
-    if (aac_sample_rate != __SRS_AAC_SAMPLE_RATE_UNSET) {
+    if (aac_sample_rate != SRS_AAC_SAMPLE_RATE_UNSET) {
         static int aac_sample_rates[] = {
             96000, 88200, 64000, 48000,
             44100, 32000, 24000, 22050,

@@ -234,8 +234,8 @@ extern int flv_sample_rates[];
 */
 extern int aac_sample_rates[];
 
-#define __SRS_SRS_MAX_CODEC_SAMPLE 128
-#define __SRS_AAC_SAMPLE_RATE_UNSET 15
+#define SRS_SRS_MAX_CODEC_SAMPLE 128
+#define SRS_AAC_SAMPLE_RATE_UNSET 15
 
 // in ms, for HLS aac flush the audio
 #define SRS_CONF_DEFAULT_AAC_DELAY 60
@@ -319,7 +319,7 @@ public:
     * where avc/h264 video packet may contains multiple buffer.
     */
     int nb_sample_units;
-    SrsCodecSampleUnit sample_units[__SRS_SRS_MAX_CODEC_SAMPLE];
+    SrsCodecSampleUnit sample_units[SRS_SRS_MAX_CODEC_SAMPLE];
 public:
     /**
     * whether the sample is video sample which demux from video packet.
