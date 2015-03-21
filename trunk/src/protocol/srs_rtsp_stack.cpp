@@ -772,7 +772,7 @@ SrsRtspOptionsResponse::~SrsRtspOptionsResponse()
 
 int SrsRtspOptionsResponse::encode_header(stringstream& ss)
 {
-    SrsRtspMethod __methods[] = {
+    SrsRtspMethod rtsp_methods[] = {
         SrsRtspMethodDescribe,
         SrsRtspMethodAnnounce,
         SrsRtspMethodGetParameter,
@@ -789,9 +789,9 @@ int SrsRtspOptionsResponse::encode_header(stringstream& ss)
     ss << SRS_RTSP_TOKEN_PUBLIC << ":" << SRS_RTSP_SP;
 
     bool appended = false;
-    int nb_methods = (int)(sizeof(__methods) / sizeof(SrsRtspMethod));
+    int nb_methods = (int)(sizeof(rtsp_methods) / sizeof(SrsRtspMethod));
     for (int i = 0; i < nb_methods; i++) {
-        SrsRtspMethod method = __methods[i];
+        SrsRtspMethod method = rtsp_methods[i];
         if (((int)methods & (int)method) != (int)method) {
             continue;
         }

@@ -90,21 +90,21 @@ int main(int argc, char** argv)
     
     rtmp = srs_rtmp_create(rtmp_url);
     
-    if ((ret = __srs_rtmp_dns_resolve(rtmp)) != 0) {
+    if ((ret = srs_rtmp_dns_resolve(rtmp)) != 0) {
         srs_human_trace("dns resolve failed. ret=%d", ret);
         goto rtmp_destroy;
     }
     srs_human_trace("dns resolve success");
     time_dns_resolve = srs_utils_time_ms();
     
-    if ((ret = __srs_rtmp_connect_server(rtmp)) != 0) {
+    if ((ret = srs_rtmp_connect_server(rtmp)) != 0) {
         srs_human_trace("socket connect failed. ret=%d", ret);
         goto rtmp_destroy;
     }
     srs_human_trace("socket connect success");
     time_socket_connect = srs_utils_time_ms();
     
-    if ((ret = __srs_rtmp_do_simple_handshake(rtmp)) != 0) {
+    if ((ret = srs_rtmp_do_simple_handshake(rtmp)) != 0) {
         srs_human_trace("do simple handshake failed. ret=%d", ret);
         goto rtmp_destroy;
     }

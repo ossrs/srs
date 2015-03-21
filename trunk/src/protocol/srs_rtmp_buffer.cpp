@@ -144,11 +144,11 @@ int SrsFastBuffer::grow(ISrsBufferReader* reader, int required_size)
 
     // the free space of buffer, 
     //      buffer = consumed_bytes + exists_bytes + free_space.
-    int nb_free_space = buffer + nb_buffer - end;
+    int nb_free_space = (int)(buffer + nb_buffer - end);
     // resize the space when no left space.
     if (nb_free_space < required_size) {
         // the bytes already in buffer
-        int nb_exists_bytes = end - p;
+        int nb_exists_bytes = (int)(end - p);
         srs_assert(nb_exists_bytes >= 0);
         srs_verbose("move fast buffer %d bytes", nb_exists_bytes);
 
@@ -166,7 +166,7 @@ int SrsFastBuffer::grow(ISrsBufferReader* reader, int required_size)
         }
         
         // check whether enough free space in buffer.
-        nb_free_space = buffer + nb_buffer - end;
+        nb_free_space = (int)(buffer + nb_buffer - end);
         if (nb_free_space < required_size) {
             ret = ERROR_READER_BUFFER_OVERFLOW;
             srs_error("buffer overflow, required=%d, max=%d, left=%d, ret=%d", 

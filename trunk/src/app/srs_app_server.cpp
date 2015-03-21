@@ -92,7 +92,7 @@ using namespace std;
 //      SRS_SYS_CYCLE_INTERVAL * SRS_SYS_NETWORK_DEVICE_RESOLUTION_TIMES
 #define SRS_SYS_NETWORK_DEVICE_RESOLUTION_TIMES 9
 
-std::string __srs_listener_type2string(SrsListenerType type) 
+std::string srs_listener_type2string(SrsListenerType type) 
 {
     switch (type) {
     case SrsListenerRtmpStream:
@@ -154,7 +154,7 @@ int SrsStreamListener::listen(int port)
         "listen at port=%d, type=%d, fd=%d started success, port=%d", 
         pthread->cid(), _srs_context->get_id(), _port, _type, fd, port);
 
-    srs_trace("%s listen at tcp://%d, fd=%d", __srs_listener_type2string(_type).c_str(), _port, listener->fd());
+    srs_trace("%s listen at tcp://%d, fd=%d", srs_listener_type2string(_type).c_str(), _port, listener->fd());
 
     return ret;
 }
@@ -212,7 +212,7 @@ int SrsRtspListener::listen(int port)
         "listen at port=%d, type=%d, fd=%d started success, port=%d", 
         pthread->cid(), _srs_context->get_id(), _port, _type, fd, port);
 
-    srs_trace("%s listen at tcp://%d, fd=%d", __srs_listener_type2string(_type).c_str(), _port, listener->fd());
+    srs_trace("%s listen at tcp://%d, fd=%d", srs_listener_type2string(_type).c_str(), _port, listener->fd());
 
     return ret;
 }
@@ -270,7 +270,7 @@ int SrsUdpCasterListener::listen(int port)
         "listen at port=%d, type=%d, fd=%d started success, port=%d", 
         pthread->cid(), _srs_context->get_id(), _port, _type, fd, port);
 
-    srs_trace("%s listen at udp://%d, fd=%d", __srs_listener_type2string(_type).c_str(), _port, listener->fd());
+    srs_trace("%s listen at udp://%d, fd=%d", srs_listener_type2string(_type).c_str(), _port, listener->fd());
 
     return ret;
 }
@@ -796,10 +796,10 @@ int SrsServer::do_cycle()
         int heartbeat_max_resolution = (int)(_srs_config->get_heartbeat_interval() / SRS_SYS_CYCLE_INTERVAL);
         
         // dynamic fetch the max.
-        int __max = max;
-        __max = srs_max(__max, heartbeat_max_resolution);
+        int temp_max = max;
+        temp_max = srs_max(temp_max, heartbeat_max_resolution);
         
-        for (int i = 0; i < __max; i++) {
+        for (int i = 0; i < temp_max; i++) {
             st_usleep(SRS_SYS_CYCLE_INTERVAL * 1000);
         
 // for gperf heap checker,

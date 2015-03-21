@@ -251,7 +251,7 @@ public:
     */
     char* payload;
 private:
-    class __SrsSharedPtr
+    class SrsSharedPtrPayload
     {
     public:
         // shared message header.
@@ -264,10 +264,10 @@ private:
         // the reference count
         int shared_count;
     public:
-        __SrsSharedPtr();
-        virtual ~__SrsSharedPtr();
+        SrsSharedPtrPayload();
+        virtual ~SrsSharedPtrPayload();
     };
-    __SrsSharedPtr* ptr;
+    SrsSharedPtrPayload* ptr;
 public:
     SrsSharedPtrMessage();
     virtual ~SrsSharedPtrMessage();

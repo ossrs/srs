@@ -32,16 +32,16 @@ using namespace std;
 #include <srs_app_kbps.hpp>
 #include <srs_app_conn.hpp>
 
-int64_t __srs_gvid = getpid();
+int64_t srs_gvid = getpid();
 
-int64_t __srs_generate_id()
+int64_t srs_generate_id()
 {
-    return __srs_gvid++;
+    return srs_gvid++;
 }
 
 SrsStatisticVhost::SrsStatisticVhost()
 {
-    id = __srs_generate_id();
+    id = srs_generate_id();
     
     kbps = new SrsKbps();
     kbps->set_io(NULL, NULL);
@@ -54,7 +54,7 @@ SrsStatisticVhost::~SrsStatisticVhost()
 
 SrsStatisticStream::SrsStatisticStream()
 {
-    id = __srs_generate_id();
+    id = srs_generate_id();
     vhost = NULL;
     
     has_video = false;
@@ -87,7 +87,7 @@ SrsStatistic* SrsStatistic::_instance = new SrsStatistic();
 
 SrsStatistic::SrsStatistic()
 {
-    _server_id = __srs_generate_id();
+    _server_id = srs_generate_id();
     
     kbps = new SrsKbps();
     kbps->set_io(NULL, NULL);

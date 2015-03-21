@@ -131,20 +131,20 @@ extern void srs_rtmp_destroy(srs_rtmp_t rtmp);
 */
 /**
 * srs_rtmp_handshake equals to invoke:
-*       __srs_rtmp_dns_resolve()
-*       __srs_rtmp_connect_server()
-*       __srs_rtmp_do_simple_handshake()
+*       srs_rtmp_dns_resolve()
+*       srs_rtmp_connect_server()
+*       srs_rtmp_do_simple_handshake()
 * user can use these functions if needed.
 */
 extern int srs_rtmp_handshake(srs_rtmp_t rtmp);
 // parse uri, create socket, resolve host
-extern int __srs_rtmp_dns_resolve(srs_rtmp_t rtmp);
+extern int srs_rtmp_dns_resolve(srs_rtmp_t rtmp);
 // connect socket to server
-extern int __srs_rtmp_connect_server(srs_rtmp_t rtmp);
+extern int srs_rtmp_connect_server(srs_rtmp_t rtmp);
 // do simple handshake over socket.
-extern int __srs_rtmp_do_simple_handshake(srs_rtmp_t rtmp);
+extern int srs_rtmp_do_simple_handshake(srs_rtmp_t rtmp);
 // do complex handshake over socket.
-extern int __srs_rtmp_do_complex_handshake(srs_rtmp_t rtmp);
+extern int srs_rtmp_do_complex_handshake(srs_rtmp_t rtmp);
 
 /**
 * set the args of connect packet for rtmp.

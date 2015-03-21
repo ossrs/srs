@@ -45,7 +45,7 @@ MockEmptyLog::~MockEmptyLog()
 {
 }
 
-void __srs_bytes_print(char* pa, int size)
+void srs_bytes_print(char* pa, int size)
 {
     for(int i = 0; i < size; i++) {
         char v = pa[i];

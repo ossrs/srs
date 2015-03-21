@@ -272,11 +272,11 @@ int SrsFlvSegment::write_metadata(SrsSharedPtrMessage* metadata)
     return ret;
 }
 
-int SrsFlvSegment::write_audio(SrsSharedPtrMessage* __audio)
+int SrsFlvSegment::write_audio(SrsSharedPtrMessage* shared_audio)
 {
     int ret = ERROR_SUCCESS;
 
-    SrsSharedPtrMessage* audio = __audio->copy();
+    SrsSharedPtrMessage* audio = shared_audio->copy();
     SrsAutoFree(SrsSharedPtrMessage, audio);
     
     if ((jitter->correct(audio, 0, 0, jitter_algorithm)) != ERROR_SUCCESS) {
@@ -297,11 +297,11 @@ int SrsFlvSegment::write_audio(SrsSharedPtrMessage* __audio)
     return ret;
 }
 
-int SrsFlvSegment::write_video(SrsSharedPtrMessage* __video)
+int SrsFlvSegment::write_video(SrsSharedPtrMessage* shared_video)
 {
     int ret = ERROR_SUCCESS;
 
-    SrsSharedPtrMessage* video = __video->copy();
+    SrsSharedPtrMessage* video = shared_video->copy();
     SrsAutoFree(SrsSharedPtrMessage, video);
     
     char* payload = video->payload;
@@ -724,7 +724,7 @@ int64_t SrsDvrPlan::filter_timestamp(int64_t timestamp)
     return timestamp;
 }
 
-int SrsDvrPlan::on_meta_data(SrsSharedPtrMessage* __metadata)
+int SrsDvrPlan::on_meta_data(SrsSharedPtrMessage* shared_metadata)
 {
     int ret = ERROR_SUCCESS;
     
@@ -732,10 +732,10 @@ int SrsDvrPlan::on_meta_data(SrsSharedPtrMessage* __metadata)
         return ret;
     }
     
-    return segment->write_metadata(__metadata);
+    return segment->write_metadata(shared_metadata);
 }
 
-int SrsDvrPlan::on_audio(SrsSharedPtrMessage* __audio)
+int SrsDvrPlan::on_audio(SrsSharedPtrMessage* shared_audio)
 {
     int ret = ERROR_SUCCESS;
     
@@ -743,14 +743,14 @@ int SrsDvrPlan::on_audio(SrsSharedPtrMessage* __audio)
         return ret;
     }
 
-    if ((ret = segment->write_audio(__audio)) != ERROR_SUCCESS) {
+    if ((ret = segment->write_audio(shared_audio)) != ERROR_SUCCESS) {
         return ret;
     }
     
     return ret;
 }
 
-int SrsDvrPlan::on_video(SrsSharedPtrMessage* __video)
+int SrsDvrPlan::on_video(SrsSharedPtrMessage* shared_video)
 {
     int ret = ERROR_SUCCESS;
     
@@ -758,7 +758,7 @@ int SrsDvrPlan::on_video(SrsSharedPtrMessage* __video)
         return ret;
     }
 
-    if ((ret = segment->write_video(__video)) != ERROR_SUCCESS) {
+    if ((ret = segment->write_video(shared_video)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -876,30 +876,30 @@ void SrsDvrAppendPlan::on_unpublish()
 {
 }
 
-int SrsDvrAppendPlan::on_audio(SrsSharedPtrMessage* __audio)
+int SrsDvrAppendPlan::on_audio(SrsSharedPtrMessage* shared_audio)
 {
     int ret = ERROR_SUCCESS;
 
-    if ((ret = update_duration(__audio)) != ERROR_SUCCESS) {
+    if ((ret = update_duration(shared_audio)) != ERROR_SUCCESS) {
         return ret;
     }
     
-    if ((ret = SrsDvrPlan::on_audio(__audio)) != ERROR_SUCCESS) {
+    if ((ret = SrsDvrPlan::on_audio(shared_audio)) != ERROR_SUCCESS) {
         return ret;
     }
 
     return ret;
 }
 
-int SrsDvrAppendPlan::on_video(SrsSharedPtrMessage* __video)
+int SrsDvrAppendPlan::on_video(SrsSharedPtrMessage* shared_video)
 {
     int ret = ERROR_SUCCESS;
 
-    if ((ret = update_duration(__video)) != ERROR_SUCCESS) {
+    if ((ret = update_duration(shared_video)) != ERROR_SUCCESS) {
         return ret;
     }
     
-    if ((ret = SrsDvrPlan::on_video(__video)) != ERROR_SUCCESS) {
+    if ((ret = SrsDvrPlan::on_video(shared_video)) != ERROR_SUCCESS) {
         return ret;
     }
 
@@ -991,54 +991,54 @@ void SrsDvrSegmentPlan::on_unpublish()
 {
 }
 
-int SrsDvrSegmentPlan::on_meta_data(SrsSharedPtrMessage* __metadata)
+int SrsDvrSegmentPlan::on_meta_data(SrsSharedPtrMessage* shared_metadata)
 {
     int ret = ERROR_SUCCESS;
     
     srs_freep(metadata);
-    metadata = __metadata->copy();
+    metadata = shared_metadata->copy();
     
-    if ((ret = SrsDvrPlan::on_meta_data(__metadata)) != ERROR_SUCCESS) {
+    if ((ret = SrsDvrPlan::on_meta_data(shared_metadata)) != ERROR_SUCCESS) {
         return ret;
     }
 
     return ret;
 }
 
-int SrsDvrSegmentPlan::on_audio(SrsSharedPtrMessage* __audio)
+int SrsDvrSegmentPlan::on_audio(SrsSharedPtrMessage* shared_audio)
 {
     int ret = ERROR_SUCCESS;
     
-    if (SrsFlvCodec::audio_is_sequence_header(__audio->payload, __audio->size)) {
+    if (SrsFlvCodec::audio_is_sequence_header(shared_audio->payload, shared_audio->size)) {
         srs_freep(sh_audio);
-        sh_audio = __audio->copy();
+        sh_audio = shared_audio->copy();
     }
 
-    if ((ret = update_duration(__audio)) != ERROR_SUCCESS) {
+    if ((ret = update_duration(shared_audio)) != ERROR_SUCCESS) {
         return ret;
     }
     
-    if ((ret = SrsDvrPlan::on_audio(__audio)) != ERROR_SUCCESS) {
+    if ((ret = SrsDvrPlan::on_audio(shared_audio)) != ERROR_SUCCESS) {
         return ret;
     }
 
     return ret;
 }
 
-int SrsDvrSegmentPlan::on_video(SrsSharedPtrMessage* __video)
+int SrsDvrSegmentPlan::on_video(SrsSharedPtrMessage* shared_video)
 {
     int ret = ERROR_SUCCESS;
 
-    if (SrsFlvCodec::video_is_sequence_header(__video->payload, __video->size)) {
+    if (SrsFlvCodec::video_is_sequence_header(shared_video->payload, shared_video->size)) {
         srs_freep(sh_video);
-        sh_video = __video->copy();
+        sh_video = shared_video->copy();
     }
 
-    if ((ret = update_duration(__video)) != ERROR_SUCCESS) {
+    if ((ret = update_duration(shared_video)) != ERROR_SUCCESS) {
         return ret;
     }
     
-    if ((ret = SrsDvrPlan::on_video(__video)) != ERROR_SUCCESS) {
+    if ((ret = SrsDvrPlan::on_video(shared_video)) != ERROR_SUCCESS) {
         return ret;
     }
 
@@ -1167,14 +1167,14 @@ int SrsDvr::on_meta_data(SrsOnMetaDataPacket* m)
     return ret;
 }
 
-int SrsDvr::on_audio(SrsSharedPtrMessage* __audio)
+int SrsDvr::on_audio(SrsSharedPtrMessage* shared_audio)
 {
-    return plan->on_audio(__audio);
+    return plan->on_audio(shared_audio);
 }
 
-int SrsDvr::on_video(SrsSharedPtrMessage* __video)
+int SrsDvr::on_video(SrsSharedPtrMessage* shared_video)
 {
-    return plan->on_video(__video);
+    return plan->on_video(shared_video);
 }
 
 #endif

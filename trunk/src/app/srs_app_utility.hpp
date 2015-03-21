@@ -378,7 +378,7 @@ public:
     unsigned long long rd_sectors;
     // Number of milliseconds spent reading. 
     // This is the total number of milliseconds spent by all reads 
-    // (as measured from __make_request() to end_that_request_last()).
+    // (as measured from make_request() to end_that_request_last()).
     // Time in queue + service for read
     unsigned int rd_ticks;
     //
@@ -399,7 +399,7 @@ public:
     unsigned long long wr_sectors;
     // Number of milliseconds spent writing . 
     // This is the total number of milliseconds spent by all writes 
-    // (as measured from __make_request() to end_that_request_last()).
+    // (as measured from make_request() to end_that_request_last()).
     // Time in queue + service for write
     unsigned int wr_ticks;
     //
