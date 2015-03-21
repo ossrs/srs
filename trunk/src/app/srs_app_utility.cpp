@@ -147,7 +147,7 @@ SrsProcSelfStat::SrsProcSelfStat()
     
     pid = 0;
     memset(comm, 0, sizeof(comm));
-    state = 0;
+    state = '0';
     ppid = 0;
     pgrp = 0;
     session = 0;
@@ -1146,7 +1146,6 @@ void srs_api_dump_summaries(std::stringstream& ss)
     int64_t now = srs_get_system_time_ms();
     double srs_uptime = (now - p->srs_startup_time) / 100 / 10.0;
     
-    bool n_ok = false;
     int64_t n_sample_time = 0;
     int64_t nr_bytes = 0;
     int64_t ns_bytes = 0;
@@ -1160,7 +1159,6 @@ void srs_api_dump_summaries(std::stringstream& ss)
             continue;
         }
         
-        n_ok = true;
         nr_bytes += o.rbytes;
         ns_bytes += o.sbytes;
         n_sample_time = o.sample_time;
@@ -1168,7 +1166,7 @@ void srs_api_dump_summaries(std::stringstream& ss)
     
     // all data is ok?
     bool ok = (r->ok && u->ok && s->ok && c->ok 
-        && d->ok && m->ok && p->ok && n_ok && nrs->ok);
+        && d->ok && m->ok && p->ok && nrs->ok);
     
     ss << SRS_JOBJECT_START
         << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
