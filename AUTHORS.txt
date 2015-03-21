@@ -3,7 +3,7 @@ There are three types of people that have contributed to the SRS project:
 2. AUTHORS: Contribute features and 1%~10% code. Names of all PRIMARY response in NetConnection.connect and metadata.
 3. CONTRIBUTORS: Submit patches, report bugs, add translations, help answer newbie questions, and generally make SRS that much better.
 
-PRIMARY ordered by first contribution.
+PRIMARY authors ordered by first contribution.
 * winlin<winlin@vip.126.com> "Plan, arch, implement SRS1.0 and SRS2.0"
 
 AUTHORS ordered by first contribution.

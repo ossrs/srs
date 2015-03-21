@@ -225,6 +225,7 @@ SrsProcSystemStat* srs_get_system_proc_stat()
 
 bool get_proc_system_stat(SrsProcSystemStat& r)
 {
+#ifndef SRS_OSX
     FILE* f = fopen("/proc/stat", "r");
     if (f == NULL) {
         srs_warn("open system cpu stat failed, ignore");
@@ -254,6 +255,10 @@ bool get_proc_system_stat(SrsProcSystemStat& r)
     }
     
     fclose(f);
+#else
+    // TODO: FIXME: impelments it.
+    // Fuck all of you who use osx for a long time and never patch the osx features for srs.
+#endif
 
     r.ok = true;
     
@@ -262,6 +267,7 @@ bool get_proc_system_stat(SrsProcSystemStat& r)
 
 bool get_proc_self_stat(SrsProcSelfStat& r)
 {
+#ifndef SRS_OSX
     FILE* f = fopen("/proc/self/stat", "r");
     if (f == NULL) {
         srs_warn("open self cpu stat failed, ignore");
@@ -288,6 +294,10 @@ bool get_proc_self_stat(SrsProcSelfStat& r)
         &r.guest_time, &r.cguest_time);
     
     fclose(f);
+#else
+    // TODO: FIXME: impelments it.
+    // Fuck all of you who use osx for a long time and never patch the osx features for srs.
+#endif
     
     r.ok = true;
     
@@ -385,6 +395,7 @@ SrsDiskStat* srs_get_disk_stat()
 
 bool srs_get_disk_vmstat_stat(SrsDiskStat& r)
 {
+#ifndef SRS_OSX
     FILE* f = fopen("/proc/vmstat", "r");
     if (f == NULL) {
         srs_warn("open vmstat failed, ignore");
@@ -404,6 +415,10 @@ bool srs_get_disk_vmstat_stat(SrsDiskStat& r)
     }
     
     fclose(f);
+#else
+    // TODO: FIXME: impelments it.
+    // Fuck all of you who use osx for a long time and never patch the osx features for srs.
+#endif
     
     r.ok = true;
     
@@ -421,6 +436,7 @@ bool srs_get_disk_diskstats_stat(SrsDiskStat& r)
         return true;
     }
     
+#ifndef SRS_OSX
     FILE* f = fopen("/proc/diskstats", "r");
     if (f == NULL) {
         srs_warn("open vmstat failed, ignore");
@@ -485,6 +501,10 @@ bool srs_get_disk_diskstats_stat(SrsDiskStat& r)
     }
     
     fclose(f);
+#else
+    // TODO: FIXME: impelments it.
+    // Fuck all of you who use osx for a long time and never patch the osx features for srs.
+#endif
     
     r.ok = true;
     
@@ -575,13 +595,14 @@ SrsMemInfo* srs_get_meminfo()
 
 void srs_update_meminfo()
 {
+    SrsMemInfo& r = _srs_system_meminfo;
+    
+#ifndef SRS_OSX
     FILE* f = fopen("/proc/meminfo", "r");
     if (f == NULL) {
         srs_warn("open meminfo failed, ignore");
         return;
     }
-    
-    SrsMemInfo& r = _srs_system_meminfo;
     
     static char buf[1024];
     while (fgets(buf, sizeof(buf), f)) {
@@ -602,6 +623,10 @@ void srs_update_meminfo()
     }
     
     fclose(f);
+#else
+    // TODO: FIXME: impelments it.
+    // Fuck all of you who use osx for a long time and never patch the osx features for srs.
+#endif
     
     r.sample_time = srs_get_system_time_ms();
     r.MemActive = r.MemTotal - r.MemFree;
@@ -781,6 +806,7 @@ int srs_get_network_devices_count()
 
 void srs_update_network_devices()
 {
+#ifndef SRS_OSX
     if (true) {
         FILE* f = fopen("/proc/net/dev", "r");
         if (f == NULL) {
@@ -815,6 +841,10 @@ void srs_update_network_devices()
     
         fclose(f);
     }
+#else
+    // TODO: FIXME: impelments it.
+    // Fuck all of you who use osx for a long time and never patch the osx features for srs.
+#endif
 }
 
 SrsNetworkRtmpServer::SrsNetworkRtmpServer()
@@ -862,6 +892,7 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
     int nb_tcp_mem = 0;
     int nb_udp4 = 0;
     
+#ifndef SRS_OSX
     if (true) {
         FILE* f = fopen("/proc/net/sockstat", "r");
         if (f == NULL) {
@@ -891,9 +922,21 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
     
         fclose(f);
     }
+#else
+    // TODO: FIXME: impelments it.
+    // Fuck all of you who use osx for a long time and never patch the osx features for srs.
+    nb_socks = 0;
+    nb_tcp4_hashed = 0;
+    nb_tcp_orphans = 0;
+    nb_tcp_tws = 0;
+    nb_tcp_total = 0;
+    nb_tcp_mem = 0;
+    nb_udp4 = 0;
+#endif
     
     int nb_tcp_estab = 0;
     
+#ifndef SRS_OSX
     if (true) {
         FILE* f = fopen("/proc/net/snmp", "r");
         if (f == NULL) {
@@ -923,6 +966,10 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps* kbps)
     
         fclose(f);
     }
+#else
+    // TODO: FIXME: impelments it.
+    // Fuck all of you who use osx for a long time and never patch the osx features for srs.
+#endif
     
     // @see: https://github.com/shemminger/iproute2/blob/master/misc/ss.c
     // TODO: FIXME: ignore the slabstat, @see: get_slabstat()
