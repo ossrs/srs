@@ -57,9 +57,9 @@ class SrsFastBuffer;
 // LF             = <US-ASCII LF, linefeed (10)>
 #define SRS_HTTP_LF SRS_CONSTS_LF // 0x0A
 // SP             = <US-ASCII SP, space (32)>
-#define __SRS_HTTP_SP ' ' // 0x20
+#define SRS_HTTP_SP ' ' // 0x20
 // HT             = <US-ASCII HT, horizontal-tab (9)>
-#define __SRS_HTTP_HT '\x09' // 0x09
+#define SRS_HTTP_HT '\x09' // 0x09
 
 // HTTP/1.1 defines the sequence CR LF as the end-of-line marker for all
 // protocol elements except the entity-body (see appendix 19.3 for
