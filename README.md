@@ -198,7 +198,7 @@ About all PRIMARY, AUTHORS and CONTRIBUTORS, read
 [AUTHORS.txt](https://github.com/winlinvip/simple-rtmp-server/blob/develop/AUTHORS.txt).
 
 A big THANK YOU goes to:
-* [chnvideo](chnvideo.com) co-founders([wiseyoung](mailto:wiseyoung@chnvideo.com), [trueice](mailto:trueice@chnvideo.com), [leijian](mailto:leijian@chnvideo.com)) for [big supports](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Product#bigthanks).
+* All friends of SRS for [big supports](https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_Product#bigthanks).
 * Genes amd Mabbott for creating [st](https://github.com/winlinvip/state-threads)([state-threads](http://sourceforge.net/projects/state-threads/)).
 * Michael Talyanksy for introducing us to use st.
 * Roman Arutyunyan for creating [nginx-rtmp](https://github.com/arut/nginx-rtmp-module) for SRS to refer to. 
