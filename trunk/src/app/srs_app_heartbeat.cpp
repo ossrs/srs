@@ -66,14 +66,14 @@ void SrsHttpHeartbeat::heartbeat()
     }
     
     std::stringstream ss;
-    ss << __SRS_JOBJECT_START
-        << __SRS_JFIELD_STR("device_id", device_id) << __SRS_JFIELD_CONT
-        << __SRS_JFIELD_STR("ip", ip);
+    ss << SRS_JOBJECT_START
+        << SRS_JFIELD_STR("device_id", device_id) << SRS_JFIELD_CONT
+        << SRS_JFIELD_STR("ip", ip);
     if (_srs_config->get_heartbeat_summaries()) {
-        ss << __SRS_JFIELD_CONT << __SRS_JFIELD_ORG("summaries", "");
+        ss << SRS_JFIELD_CONT << SRS_JFIELD_ORG("summaries", "");
         srs_api_dump_summaries(ss);
     }
-    ss << __SRS_JOBJECT_END;
+    ss << SRS_JOBJECT_END;
     
     std::string req = ss.str();
     

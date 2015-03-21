@@ -34,8 +34,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // whether use nxjson
 // @see: https://bitbucket.org/yarosla/nxjson
-#undef __SRS_JSON_USE_NXJSON
-#define __SRS_JSON_USE_NXJSON
+#undef SRS_JSON_USE_NXJSON
+#define SRS_JSON_USE_NXJSON
 
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
@@ -174,16 +174,16 @@ public:
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 /* json encode
-    cout<< __SRS_JOBJECT_START
-            << __SRS_JFIELD_STR("name", "srs") << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("version", 100) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_NAME("features") << __SRS_JOBJECT_START
-                << __SRS_JFIELD_STR("rtmp", "released") << __SRS_JFIELD_CONT
-                << __SRS_JFIELD_STR("hls", "released") << __SRS_JFIELD_CONT
-                << __SRS_JFIELD_STR("dash", "plan")
-            << __SRS_JOBJECT_END << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("author", "srs team")
-        << __SRS_JOBJECT_END
+    cout<< SRS_JOBJECT_START
+            << SRS_JFIELD_STR("name", "srs") << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("version", 100) << SRS_JFIELD_CONT
+            << SRS_JFIELD_NAME("features") << SRS_JOBJECT_START
+                << SRS_JFIELD_STR("rtmp", "released") << SRS_JFIELD_CONT
+                << SRS_JFIELD_STR("hls", "released") << SRS_JFIELD_CONT
+                << SRS_JFIELD_STR("dash", "plan")
+            << SRS_JOBJECT_END << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("author", "srs team")
+        << SRS_JOBJECT_END
 it's:
     cont<< "{"
             << "name:" << "srs" << ","
@@ -212,16 +212,16 @@ that is:
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
-#define __SRS_JOBJECT_START "{"
-#define __SRS_JFIELD_NAME(k) "\"" << k << "\":"
-#define __SRS_JFIELD_STR(k, v) "\"" << k << "\":\"" << v << "\""
-#define __SRS_JFIELD_ORG(k, v) "\"" << k << "\":" << std::dec << v
-#define __SRS_JFIELD_BOOL(k, v) __SRS_JFIELD_ORG(k, (v? "true":"false"))
-#define __SRS_JFIELD_NULL(k) "\"" << k << "\":null"
-#define __SRS_JFIELD_ERROR(ret) "\"" << "code" << "\":" << ret
-#define __SRS_JFIELD_CONT ","
-#define __SRS_JOBJECT_END "}"
-#define __SRS_JARRAY_START "["
-#define __SRS_JARRAY_END "]"
+#define SRS_JOBJECT_START "{"
+#define SRS_JFIELD_NAME(k) "\"" << k << "\":"
+#define SRS_JFIELD_STR(k, v) "\"" << k << "\":\"" << v << "\""
+#define SRS_JFIELD_ORG(k, v) "\"" << k << "\":" << std::dec << v
+#define SRS_JFIELD_BOOL(k, v) SRS_JFIELD_ORG(k, (v? "true":"false"))
+#define SRS_JFIELD_NULL(k) "\"" << k << "\":null"
+#define SRS_JFIELD_ERROR(ret) "\"" << "code" << "\":" << ret
+#define SRS_JFIELD_CONT ","
+#define SRS_JOBJECT_END "}"
+#define SRS_JARRAY_START "["
+#define SRS_JARRAY_END "]"
 
 #endif

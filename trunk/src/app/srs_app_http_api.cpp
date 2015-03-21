@@ -52,12 +52,12 @@ int SrsGoApiRoot::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
 {
     std::stringstream ss;
     
-    ss << __SRS_JOBJECT_START
-        << __SRS_JFIELD_ERROR(ERROR_SUCCESS) << __SRS_JFIELD_CONT
-        << __SRS_JFIELD_ORG("urls", __SRS_JOBJECT_START)
-            << __SRS_JFIELD_STR("api", "the api root")
-        << __SRS_JOBJECT_END
-        << __SRS_JOBJECT_END;
+    ss << SRS_JOBJECT_START
+        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("urls", SRS_JOBJECT_START)
+            << SRS_JFIELD_STR("api", "the api root")
+        << SRS_JOBJECT_END
+        << SRS_JOBJECT_END;
         
     return srs_go_http_response_json(w, ss.str());
 }
@@ -74,12 +74,12 @@ int SrsGoApiApi::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
 {
     std::stringstream ss;
     
-    ss << __SRS_JOBJECT_START
-        << __SRS_JFIELD_ERROR(ERROR_SUCCESS) << __SRS_JFIELD_CONT
-        << __SRS_JFIELD_ORG("urls", __SRS_JOBJECT_START)
-            << __SRS_JFIELD_STR("v1", "the api version 1.0")
-        << __SRS_JOBJECT_END
-        << __SRS_JOBJECT_END;
+    ss << SRS_JOBJECT_START
+        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("urls", SRS_JOBJECT_START)
+            << SRS_JFIELD_STR("v1", "the api version 1.0")
+        << SRS_JOBJECT_END
+        << SRS_JOBJECT_END;
         
     return srs_go_http_response_json(w, ss.str());
 }
@@ -96,21 +96,21 @@ int SrsGoApiV1::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
 {
     std::stringstream ss;
     
-    ss << __SRS_JOBJECT_START
-        << __SRS_JFIELD_ERROR(ERROR_SUCCESS) << __SRS_JFIELD_CONT
-        << __SRS_JFIELD_ORG("urls", __SRS_JOBJECT_START)
-            << __SRS_JFIELD_STR("versions", "the version of SRS") << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("summaries", "the summary(pid, argv, pwd, cpu, mem) of SRS") << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("rusages", "the rusage of SRS") << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("self_proc_stats", "the self process stats") << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("system_proc_stats", "the system process stats") << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("meminfos", "the meminfo of system") << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("authors", "the primary authors and contributors") << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("requests", "the request itself, for http debug") << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("vhosts", "dumps vhost to json") << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("streams", "dumps streams to json")
-        << __SRS_JOBJECT_END
-        << __SRS_JOBJECT_END;
+    ss << SRS_JOBJECT_START
+        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("urls", SRS_JOBJECT_START)
+            << SRS_JFIELD_STR("versions", "the version of SRS") << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("summaries", "the summary(pid, argv, pwd, cpu, mem) of SRS") << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("rusages", "the rusage of SRS") << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("self_proc_stats", "the self process stats") << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("system_proc_stats", "the system process stats") << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("meminfos", "the meminfo of system") << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("authors", "the primary authors and contributors") << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("requests", "the request itself, for http debug") << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("vhosts", "dumps vhost to json") << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("streams", "dumps streams to json")
+        << SRS_JOBJECT_END
+        << SRS_JOBJECT_END;
     
     return srs_go_http_response_json(w, ss.str());
 }
@@ -127,15 +127,15 @@ int SrsGoApiVersion::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
 {
     std::stringstream ss;
     
-    ss << __SRS_JOBJECT_START
-        << __SRS_JFIELD_ERROR(ERROR_SUCCESS) << __SRS_JFIELD_CONT
-        << __SRS_JFIELD_ORG("data", __SRS_JOBJECT_START)
-            << __SRS_JFIELD_ORG("major", VERSION_MAJOR) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("minor", VERSION_MINOR) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("revision", VERSION_REVISION) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("version", RTMP_SIG_SRS_VERSION)
-        << __SRS_JOBJECT_END
-        << __SRS_JOBJECT_END;
+    ss << SRS_JOBJECT_START
+        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
+            << SRS_JFIELD_ORG("major", VERSION_MAJOR) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("minor", VERSION_MINOR) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("revision", VERSION_REVISION) << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("version", RTMP_SIG_SRS_VERSION)
+        << SRS_JOBJECT_END
+        << SRS_JOBJECT_END;
     
     return srs_go_http_response_json(w, ss.str());
 }
@@ -169,29 +169,29 @@ int SrsGoApiRusages::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* req)
     
     SrsRusage* r = srs_get_system_rusage();
     
-    ss << __SRS_JOBJECT_START
-        << __SRS_JFIELD_ERROR(ERROR_SUCCESS) << __SRS_JFIELD_CONT
-        << __SRS_JFIELD_ORG("data", __SRS_JOBJECT_START)
-            << __SRS_JFIELD_ORG("ok", (r->ok? "true":"false")) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("sample_time", r->sample_time) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("ru_utime", r->r.ru_utime.tv_sec) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("ru_stime", r->r.ru_stime.tv_sec) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("ru_maxrss", r->r.ru_maxrss) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("ru_ixrss", r->r.ru_ixrss) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("ru_idrss", r->r.ru_idrss) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("ru_isrss", r->r.ru_isrss) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("ru_minflt", r->r.ru_minflt) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("ru_majflt", r->r.ru_majflt) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("ru_nswap", r->r.ru_nswap) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("ru_inblock", r->r.ru_inblock) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("ru_oublock", r->r.ru_oublock) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("ru_msgsnd", r->r.ru_msgsnd) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("ru_msgrcv", r->r.ru_msgrcv) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("ru_nsignals", r->r.ru_nsignals) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("ru_nvcsw", r->r.ru_nvcsw) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("ru_nivcsw", r->r.ru_nivcsw)
-        << __SRS_JOBJECT_END
-        << __SRS_JOBJECT_END;
+    ss << SRS_JOBJECT_START
+        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
+            << SRS_JFIELD_ORG("ok", (r->ok? "true":"false")) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("sample_time", r->sample_time) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_utime", r->r.ru_utime.tv_sec) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_stime", r->r.ru_stime.tv_sec) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_maxrss", r->r.ru_maxrss) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_ixrss", r->r.ru_ixrss) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_idrss", r->r.ru_idrss) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_isrss", r->r.ru_isrss) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_minflt", r->r.ru_minflt) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_majflt", r->r.ru_majflt) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_nswap", r->r.ru_nswap) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_inblock", r->r.ru_inblock) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_oublock", r->r.ru_oublock) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_msgsnd", r->r.ru_msgsnd) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_msgrcv", r->r.ru_msgrcv) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_nsignals", r->r.ru_nsignals) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_nvcsw", r->r.ru_nvcsw) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ru_nivcsw", r->r.ru_nivcsw)
+        << SRS_JOBJECT_END
+        << SRS_JOBJECT_END;
     
     return srs_go_http_response_json(w, ss.str());
 }
@@ -210,58 +210,58 @@ int SrsGoApiSelfProcStats::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage*
     
     SrsProcSelfStat* u = srs_get_self_proc_stat();
     
-    ss << __SRS_JOBJECT_START
-        << __SRS_JFIELD_ERROR(ERROR_SUCCESS) << __SRS_JFIELD_CONT
-        << __SRS_JFIELD_ORG("data", __SRS_JOBJECT_START)
-            << __SRS_JFIELD_ORG("ok", (u->ok? "true":"false")) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("sample_time", u->sample_time) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("percent", u->percent) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("pid", u->pid) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("comm", u->comm) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("state", u->state) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("ppid", u->ppid) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("pgrp", u->pgrp) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("session", u->session) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("tty_nr", u->tty_nr) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("tpgid", u->tpgid) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("flags", u->flags) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("minflt", u->minflt) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("cminflt", u->cminflt) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("majflt", u->majflt) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("cmajflt", u->cmajflt) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("utime", u->utime) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("stime", u->stime) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("cutime", u->cutime) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("cstime", u->cstime) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("priority", u->priority) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("nice", u->nice) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("num_threads", u->num_threads) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("itrealvalue", u->itrealvalue) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("starttime", u->starttime) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("vsize", u->vsize) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("rss", u->rss) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("rsslim", u->rsslim) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("startcode", u->startcode) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("endcode", u->endcode) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("startstack", u->startstack) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("kstkesp", u->kstkesp) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("kstkeip", u->kstkeip) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("signal", u->signal) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("blocked", u->blocked) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("sigignore", u->sigignore) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("sigcatch", u->sigcatch) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("wchan", u->wchan) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("nswap", u->nswap) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("cnswap", u->cnswap) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("exit_signal", u->exit_signal) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("processor", u->processor) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("rt_priority", u->rt_priority) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("policy", u->policy) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("delayacct_blkio_ticks", u->delayacct_blkio_ticks) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("guest_time", u->guest_time) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("cguest_time", u->cguest_time)
-        << __SRS_JOBJECT_END
-        << __SRS_JOBJECT_END;
+    ss << SRS_JOBJECT_START
+        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
+            << SRS_JFIELD_ORG("ok", (u->ok? "true":"false")) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("sample_time", u->sample_time) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("percent", u->percent) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("pid", u->pid) << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("comm", u->comm) << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("state", u->state) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("ppid", u->ppid) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("pgrp", u->pgrp) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("session", u->session) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("tty_nr", u->tty_nr) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("tpgid", u->tpgid) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("flags", u->flags) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("minflt", u->minflt) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("cminflt", u->cminflt) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("majflt", u->majflt) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("cmajflt", u->cmajflt) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("utime", u->utime) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("stime", u->stime) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("cutime", u->cutime) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("cstime", u->cstime) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("priority", u->priority) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("nice", u->nice) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("num_threads", u->num_threads) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("itrealvalue", u->itrealvalue) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("starttime", u->starttime) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("vsize", u->vsize) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("rss", u->rss) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("rsslim", u->rsslim) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("startcode", u->startcode) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("endcode", u->endcode) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("startstack", u->startstack) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("kstkesp", u->kstkesp) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("kstkeip", u->kstkeip) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("signal", u->signal) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("blocked", u->blocked) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("sigignore", u->sigignore) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("sigcatch", u->sigcatch) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("wchan", u->wchan) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("nswap", u->nswap) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("cnswap", u->cnswap) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("exit_signal", u->exit_signal) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("processor", u->processor) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("rt_priority", u->rt_priority) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("policy", u->policy) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("delayacct_blkio_ticks", u->delayacct_blkio_ticks) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("guest_time", u->guest_time) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("cguest_time", u->cguest_time)
+        << SRS_JOBJECT_END
+        << SRS_JOBJECT_END;
     
     return srs_go_http_response_json(w, ss.str());
 }
@@ -280,23 +280,23 @@ int SrsGoApiSystemProcStats::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessag
     
     SrsProcSystemStat* s = srs_get_system_proc_stat();
     
-    ss << __SRS_JOBJECT_START
-        << __SRS_JFIELD_ERROR(ERROR_SUCCESS) << __SRS_JFIELD_CONT
-        << __SRS_JFIELD_ORG("data", __SRS_JOBJECT_START)
-            << __SRS_JFIELD_ORG("ok", (s->ok? "true":"false")) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("sample_time", s->sample_time) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("percent", s->percent) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("user", s->user) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("nice", s->nice) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("sys", s->sys) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("idle", s->idle) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("iowait", s->iowait) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("irq", s->irq) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("softirq", s->softirq) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("steal", s->steal) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("guest", s->guest)
-        << __SRS_JOBJECT_END
-        << __SRS_JOBJECT_END;
+    ss << SRS_JOBJECT_START
+        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
+            << SRS_JFIELD_ORG("ok", (s->ok? "true":"false")) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("sample_time", s->sample_time) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("percent", s->percent) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("user", s->user) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("nice", s->nice) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("sys", s->sys) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("idle", s->idle) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("iowait", s->iowait) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("irq", s->irq) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("softirq", s->softirq) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("steal", s->steal) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("guest", s->guest)
+        << SRS_JOBJECT_END
+        << SRS_JOBJECT_END;
     
     return srs_go_http_response_json(w, ss.str());
 }
@@ -315,24 +315,24 @@ int SrsGoApiMemInfos::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
     
     SrsMemInfo* m = srs_get_meminfo();
     
-    ss << __SRS_JOBJECT_START
-        << __SRS_JFIELD_ERROR(ERROR_SUCCESS) << __SRS_JFIELD_CONT
-        << __SRS_JFIELD_ORG("data", __SRS_JOBJECT_START)
-            << __SRS_JFIELD_ORG("ok", (m->ok? "true":"false")) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("sample_time", m->sample_time) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("percent_ram", m->percent_ram) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("percent_swap", m->percent_swap) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("MemActive", m->MemActive) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("RealInUse", m->RealInUse) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("NotInUse", m->NotInUse) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("MemTotal", m->MemTotal) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("MemFree", m->MemFree) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("Buffers", m->Buffers) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("Cached", m->Cached) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("SwapTotal", m->SwapTotal) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_ORG("SwapFree", m->SwapFree)
-        << __SRS_JOBJECT_END
-        << __SRS_JOBJECT_END;
+    ss << SRS_JOBJECT_START
+        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
+            << SRS_JFIELD_ORG("ok", (m->ok? "true":"false")) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("sample_time", m->sample_time) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("percent_ram", m->percent_ram) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("percent_swap", m->percent_swap) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("MemActive", m->MemActive) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("RealInUse", m->RealInUse) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("NotInUse", m->NotInUse) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("MemTotal", m->MemTotal) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("MemFree", m->MemFree) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("Buffers", m->Buffers) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("Cached", m->Cached) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("SwapTotal", m->SwapTotal) << SRS_JFIELD_CONT
+            << SRS_JFIELD_ORG("SwapFree", m->SwapFree)
+        << SRS_JOBJECT_END
+        << SRS_JOBJECT_END;
     
     return srs_go_http_response_json(w, ss.str());
 }
@@ -349,15 +349,15 @@ int SrsGoApiAuthors::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
 {
     std::stringstream ss;
     
-    ss << __SRS_JOBJECT_START
-        << __SRS_JFIELD_ERROR(ERROR_SUCCESS) << __SRS_JFIELD_CONT
-        << __SRS_JFIELD_ORG("data", __SRS_JOBJECT_START)
-            << __SRS_JFIELD_STR("primary", RTMP_SIG_SRS_PRIMARY) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("authors", RTMP_SIG_SRS_AUTHROS) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("contributors_link", RTMP_SIG_SRS_CONTRIBUTORS_URL) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("contributors", SRS_AUTO_CONSTRIBUTORS)
-        << __SRS_JOBJECT_END
-        << __SRS_JOBJECT_END;
+    ss << SRS_JOBJECT_START
+        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
+            << SRS_JFIELD_STR("primary", RTMP_SIG_SRS_PRIMARY) << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("authors", RTMP_SIG_SRS_AUTHROS) << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("contributors_link", RTMP_SIG_SRS_CONTRIBUTORS_URL) << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("contributors", SRS_AUTO_CONSTRIBUTORS)
+        << SRS_JOBJECT_END
+        << SRS_JOBJECT_END;
     
     return srs_go_http_response_json(w, ss.str());
 }
@@ -376,49 +376,49 @@ int SrsGoApiRequests::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
     
     std::stringstream ss;
     
-    ss << __SRS_JOBJECT_START
-        << __SRS_JFIELD_ERROR(ERROR_SUCCESS) << __SRS_JFIELD_CONT
-        << __SRS_JFIELD_ORG("data", __SRS_JOBJECT_START)
-            << __SRS_JFIELD_STR("uri", req->uri()) << __SRS_JFIELD_CONT
-            << __SRS_JFIELD_STR("path", req->path()) << __SRS_JFIELD_CONT;
+    ss << SRS_JOBJECT_START
+        << SRS_JFIELD_ERROR(ERROR_SUCCESS) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("data", SRS_JOBJECT_START)
+            << SRS_JFIELD_STR("uri", req->uri()) << SRS_JFIELD_CONT
+            << SRS_JFIELD_STR("path", req->path()) << SRS_JFIELD_CONT;
     
     // method
     if (req->is_http_get()) {
-        ss  << __SRS_JFIELD_STR("METHOD", "GET");
+        ss  << SRS_JFIELD_STR("METHOD", "GET");
     } else if (req->is_http_post()) {
-        ss  << __SRS_JFIELD_STR("METHOD", "POST");
+        ss  << SRS_JFIELD_STR("METHOD", "POST");
     } else if (req->is_http_put()) {
-        ss  << __SRS_JFIELD_STR("METHOD", "PUT");
+        ss  << SRS_JFIELD_STR("METHOD", "PUT");
     } else if (req->is_http_delete()) {
-        ss  << __SRS_JFIELD_STR("METHOD", "DELETE");
+        ss  << SRS_JFIELD_STR("METHOD", "DELETE");
     } else {
-        ss  << __SRS_JFIELD_ORG("METHOD", req->method());
+        ss  << SRS_JFIELD_ORG("METHOD", req->method());
     }
-    ss << __SRS_JFIELD_CONT;
+    ss << SRS_JFIELD_CONT;
     
     // request headers
-    ss      << __SRS_JFIELD_NAME("headers") << __SRS_JOBJECT_START;
+    ss      << SRS_JFIELD_NAME("headers") << SRS_JOBJECT_START;
     for (int i = 0; i < req->request_header_count(); i++) {
         std::string key = req->request_header_key_at(i);
         std::string value = req->request_header_value_at(i);
         if ( i < req->request_header_count() - 1) {
-            ss      << __SRS_JFIELD_STR(key, value) << __SRS_JFIELD_CONT;
+            ss      << SRS_JFIELD_STR(key, value) << SRS_JFIELD_CONT;
         } else {
-            ss      << __SRS_JFIELD_STR(key, value);
+            ss      << SRS_JFIELD_STR(key, value);
         }
     }
-    ss      << __SRS_JOBJECT_END << __SRS_JFIELD_CONT;
+    ss      << SRS_JOBJECT_END << SRS_JFIELD_CONT;
     
     // server informations
-    ss      << __SRS_JFIELD_NAME("server") << __SRS_JOBJECT_START
-                << __SRS_JFIELD_STR("sigature", RTMP_SIG_SRS_KEY) << __SRS_JFIELD_CONT
-                << __SRS_JFIELD_STR("name", RTMP_SIG_SRS_NAME) << __SRS_JFIELD_CONT
-                << __SRS_JFIELD_STR("version", RTMP_SIG_SRS_VERSION) << __SRS_JFIELD_CONT
-                << __SRS_JFIELD_STR("link", RTMP_SIG_SRS_URL) << __SRS_JFIELD_CONT
-                << __SRS_JFIELD_ORG("time", srs_get_system_time_ms())
-            << __SRS_JOBJECT_END
-        << __SRS_JOBJECT_END
-        << __SRS_JOBJECT_END;
+    ss      << SRS_JFIELD_NAME("server") << SRS_JOBJECT_START
+                << SRS_JFIELD_STR("sigature", RTMP_SIG_SRS_KEY) << SRS_JFIELD_CONT
+                << SRS_JFIELD_STR("name", RTMP_SIG_SRS_NAME) << SRS_JFIELD_CONT
+                << SRS_JFIELD_STR("version", RTMP_SIG_SRS_VERSION) << SRS_JFIELD_CONT
+                << SRS_JFIELD_STR("link", RTMP_SIG_SRS_URL) << SRS_JFIELD_CONT
+                << SRS_JFIELD_ORG("time", srs_get_system_time_ms())
+            << SRS_JOBJECT_END
+        << SRS_JOBJECT_END
+        << SRS_JOBJECT_END;
     
     return srs_go_http_response_json(w, ss.str());
 }
@@ -439,11 +439,11 @@ int SrsGoApiVhosts::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
     
     std::stringstream ss;
     
-    ss << __SRS_JOBJECT_START
-        << __SRS_JFIELD_ERROR(ret) << __SRS_JFIELD_CONT
-        << __SRS_JFIELD_ORG("server", stat->server_id()) << __SRS_JFIELD_CONT
-        << __SRS_JFIELD_ORG("vhosts", data.str())
-        << __SRS_JOBJECT_END;
+    ss << SRS_JOBJECT_START
+        << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("vhosts", data.str())
+        << SRS_JOBJECT_END;
     
     return srs_go_http_response_json(w, ss.str());
 }
@@ -464,11 +464,11 @@ int SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
     
     std::stringstream ss;
     
-    ss << __SRS_JOBJECT_START
-        << __SRS_JFIELD_ERROR(ret) << __SRS_JFIELD_CONT
-        << __SRS_JFIELD_ORG("server", stat->server_id()) << __SRS_JFIELD_CONT
-        << __SRS_JFIELD_ORG("streams", data.str())
-        << __SRS_JOBJECT_END;
+    ss << SRS_JOBJECT_START
+        << SRS_JFIELD_ERROR(ret) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("server", stat->server_id()) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("streams", data.str())
+        << SRS_JOBJECT_END;
     
     return srs_go_http_response_json(w, ss.str());
 }

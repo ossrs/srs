@@ -87,13 +87,13 @@ int SrsHttpClient::post(string path, string req, SrsHttpMessage** ppmsg)
     // POST %s HTTP/1.1\r\nHost: %s\r\nContent-Length: %d\r\n\r\n%s
     std::stringstream ss;
     ss << "POST " << path << " "
-        << "HTTP/1.1" << __SRS_HTTP_CRLF
-        << "Host: " << host << __SRS_HTTP_CRLF
-        << "Connection: Keep-Alive" << __SRS_HTTP_CRLF
-        << "Content-Length: " << std::dec << req.length() << __SRS_HTTP_CRLF
-        << "User-Agent: " << RTMP_SIG_SRS_NAME << RTMP_SIG_SRS_VERSION << __SRS_HTTP_CRLF
-        << "Content-Type: application/json" << __SRS_HTTP_CRLF
-        << __SRS_HTTP_CRLF
+        << "HTTP/1.1" << SRS_HTTP_CRLF
+        << "Host: " << host << SRS_HTTP_CRLF
+        << "Connection: Keep-Alive" << SRS_HTTP_CRLF
+        << "Content-Length: " << std::dec << req.length() << SRS_HTTP_CRLF
+        << "User-Agent: " << RTMP_SIG_SRS_NAME << RTMP_SIG_SRS_VERSION << SRS_HTTP_CRLF
+        << "Content-Type: application/json" << SRS_HTTP_CRLF
+        << SRS_HTTP_CRLF
         << req;
     
     std::string data = ss.str();
@@ -133,13 +133,13 @@ int SrsHttpClient::get(string path, std::string req, SrsHttpMessage** ppmsg)
     // GET %s HTTP/1.1\r\nHost: %s\r\nContent-Length: %d\r\n\r\n%s
     std::stringstream ss;
     ss << "GET " << path << " "
-        << "HTTP/1.1" << __SRS_HTTP_CRLF
-        << "Host: " << host << __SRS_HTTP_CRLF
-        << "Connection: Keep-Alive" << __SRS_HTTP_CRLF
-        << "Content-Length: " << std::dec << req.length() << __SRS_HTTP_CRLF
-        << "User-Agent: " << RTMP_SIG_SRS_NAME << RTMP_SIG_SRS_VERSION << __SRS_HTTP_CRLF
-        << "Content-Type: application/json" << __SRS_HTTP_CRLF
-        << __SRS_HTTP_CRLF
+        << "HTTP/1.1" << SRS_HTTP_CRLF
+        << "Host: " << host << SRS_HTTP_CRLF
+        << "Connection: Keep-Alive" << SRS_HTTP_CRLF
+        << "Content-Length: " << std::dec << req.length() << SRS_HTTP_CRLF
+        << "User-Agent: " << RTMP_SIG_SRS_NAME << RTMP_SIG_SRS_VERSION << SRS_HTTP_CRLF
+        << "Content-Type: application/json" << SRS_HTTP_CRLF
+        << SRS_HTTP_CRLF
         << req;
 
     std::string data = ss.str();

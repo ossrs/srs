@@ -44,7 +44,7 @@ using namespace std;
 #include <srs_app_json.hpp>
 
 // update the flv duration and filesize every this interval in ms.
-#define __SRS_DVR_UPDATE_DURATION_INTERVAL 60000
+#define SRS_DVR_UPDATE_DURATION_INTERVAL 60000
 
 // the sleep interval for http async callback.
 #define SRS_AUTO_ASYNC_CALLBACL_SLEEP_US 300000
@@ -920,7 +920,7 @@ int SrsDvrAppendPlan::update_duration(SrsSharedPtrMessage* msg)
         return ret;
     }
 
-    if (__SRS_DVR_UPDATE_DURATION_INTERVAL > msg->timestamp - last_update_time) {
+    if (SRS_DVR_UPDATE_DURATION_INTERVAL > msg->timestamp - last_update_time) {
         return ret;
     }
     last_update_time = msg->timestamp;

@@ -44,43 +44,43 @@ class ISrsProtocolReaderWriter;
 
 // rtsp specification
 // CR             = <US-ASCII CR, carriage return (13)>
-#define __SRS_RTSP_CR SRS_CONSTS_CR // 0x0D
+#define SRS_RTSP_CR SRS_CONSTS_CR // 0x0D
 // LF             = <US-ASCII LF, linefeed (10)>
-#define __SRS_RTSP_LF SRS_CONSTS_LF // 0x0A
+#define SRS_RTSP_LF SRS_CONSTS_LF // 0x0A
 // SP             = <US-ASCII SP, space (32)>
-#define __SRS_RTSP_SP ' ' // 0x20
+#define SRS_RTSP_SP ' ' // 0x20
 
 // 4 RTSP Message, @see rtsp-rfc2326-1998.pdf, page 37
 // Lines are terminated by CRLF, but
 // receivers should be prepared to also interpret CR and LF by
 // themselves as line terminators.
-#define __SRS_RTSP_CRLF "\r\n" // 0x0D0A
-#define __SRS_RTSP_CRLFCRLF "\r\n\r\n" // 0x0D0A0D0A
+#define SRS_RTSP_CRLF "\r\n" // 0x0D0A
+#define SRS_RTSP_CRLFCRLF "\r\n\r\n" // 0x0D0A0D0A
 
 // RTSP token
-#define __SRS_TOKEN_CSEQ "CSeq"
-#define __SRS_TOKEN_PUBLIC "Public"
-#define __SRS_TOKEN_CONTENT_TYPE "Content-Type"
-#define __SRS_TOKEN_CONTENT_LENGTH "Content-Length"
-#define __SRS_TOKEN_TRANSPORT "Transport"
-#define __SRS_TOKEN_SESSION "Session"
+#define SRS_RTSP_TOKEN_CSEQ "CSeq"
+#define SRS_RTSP_TOKEN_PUBLIC "Public"
+#define SRS_RTSP_TOKEN_CONTENT_TYPE "Content-Type"
+#define SRS_RTSP_TOKEN_CONTENT_LENGTH "Content-Length"
+#define SRS_RTSP_TOKEN_TRANSPORT "Transport"
+#define SRS_RTSP_TOKEN_SESSION "Session"
 
 // RTSP methods
-#define __SRS_METHOD_OPTIONS            "OPTIONS"
-#define __SRS_METHOD_DESCRIBE           "DESCRIBE"
-#define __SRS_METHOD_ANNOUNCE           "ANNOUNCE"
-#define __SRS_METHOD_SETUP              "SETUP"
-#define __SRS_METHOD_PLAY               "PLAY"
-#define __SRS_METHOD_PAUSE              "PAUSE"
-#define __SRS_METHOD_TEARDOWN           "TEARDOWN"
-#define __SRS_METHOD_GET_PARAMETER      "GET_PARAMETER"
-#define __SRS_METHOD_SET_PARAMETER      "SET_PARAMETER"
-#define __SRS_METHOD_REDIRECT           "REDIRECT"
-#define __SRS_METHOD_RECORD             "RECORD"
+#define SRS_METHOD_OPTIONS            "OPTIONS"
+#define SRS_METHOD_DESCRIBE           "DESCRIBE"
+#define SRS_METHOD_ANNOUNCE           "ANNOUNCE"
+#define SRS_METHOD_SETUP              "SETUP"
+#define SRS_METHOD_PLAY               "PLAY"
+#define SRS_METHOD_PAUSE              "PAUSE"
+#define SRS_METHOD_TEARDOWN           "TEARDOWN"
+#define SRS_METHOD_GET_PARAMETER      "GET_PARAMETER"
+#define SRS_METHOD_SET_PARAMETER      "SET_PARAMETER"
+#define SRS_METHOD_REDIRECT           "REDIRECT"
+#define SRS_METHOD_RECORD             "RECORD"
 // Embedded (Interleaved) Binary Data
 
 // RTSP-Version
-#define __SRS_VERSION "RTSP/1.0"
+#define SRS_RTSP_VERSION "RTSP/1.0"
 
 /**
 * the rtsp sdp parse state.
@@ -565,7 +565,7 @@ public:
     * final CRLF sequence.
     *       Status-Line = RTSP-Version SP Status-Code SP Reason-Phrase CRLF
     */
-    // @see about the version of rtsp, see __SRS_VERSION
+    // @see about the version of rtsp, see SRS_RTSP_VERSION
     // @see about the status of rtsp, see SRS_CONSTS_RTSP_OK
     int status;
     /**
@@ -703,11 +703,11 @@ private:
     * @param token, output the read token.
     * @param state, output the token parse state.
     * @param normal_ch, the char to indicates the normal token. 
-    *       the SP use to indicates the normal token, @see __SRS_RTSP_SP
+    *       the SP use to indicates the normal token, @see SRS_RTSP_SP
     *       the 0x00 use to ignore normal token flag. @see recv_token_util_eof
     * @param pconsumed, output the token parsed length. NULL to ignore.
     */
-    virtual int recv_token(std::string& token, SrsRtspTokenState& state, char normal_ch = __SRS_RTSP_SP, int* pconsumed = NULL);
+    virtual int recv_token(std::string& token, SrsRtspTokenState& state, char normal_ch = SRS_RTSP_SP, int* pconsumed = NULL);
 };
 
 #endif

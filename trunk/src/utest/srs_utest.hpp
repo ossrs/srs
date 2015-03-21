@@ -33,11 +33,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_log.hpp>
 
-#define __UTEST_DEV
-#undef __UTEST_DEV
+#define SRS_UTEST_DEV
+#undef SRS_UTEST_DEV
 
 // enable all utest.
-#ifndef __UTEST_DEV
+#ifndef SRS_UTEST_DEV
     #define ENABLE_UTEST_AMF0
     #define ENABLE_UTEST_CONFIG
     #define ENABLE_UTEST_CORE
@@ -47,7 +47,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 // disable some for fast dev, compile and startup.
-#ifdef __UTEST_DEV
+#ifdef SRS_UTEST_DEV
     #undef ENABLE_UTEST_AMF0
     #undef ENABLE_UTEST_CONFIG
     #undef ENABLE_UTEST_CORE
@@ -56,7 +56,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     #undef ENABLE_UTEST_RELOAD
 #endif
 
-#ifdef __UTEST_DEV
+#ifdef SRS_UTEST_DEV
     #define ENABLE_UTEST_RELOAD
 #endif
 
