@@ -385,14 +385,14 @@ SrsCommonMessage::~SrsCommonMessage()
     srs_freep(payload);
 }
 
-SrsSharedPtrMessage::__SrsSharedPtr::__SrsSharedPtr()
+SrsSharedPtrMessage::SrsSharedPtrPayload::SrsSharedPtrPayload()
 {
     payload = NULL;
     size = 0;
     shared_count = 0;
 }
 
-SrsSharedPtrMessage::__SrsSharedPtr::~__SrsSharedPtr()
+SrsSharedPtrMessage::SrsSharedPtrPayload::~SrsSharedPtrPayload()
 {
     srs_freep(payload);
 }
@@ -442,7 +442,7 @@ int SrsSharedPtrMessage::create(SrsMessageHeader* pheader, char* payload, int si
         return ret;
     }
 
-    ptr = new __SrsSharedPtr();
+    ptr = new SrsSharedPtrPayload();
 
     // direct attach the data.
     if (pheader) {

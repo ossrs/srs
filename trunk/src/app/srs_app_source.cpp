@@ -50,7 +50,7 @@ using namespace std;
 
 // for 26ms per audio packet,
 // 115 packets is 3s.
-#define __SRS_PURE_AUDIO_GUESS_COUNT 115
+#define SRS_PURE_AUDIO_GUESS_COUNT 115
 
 int _srs_time_jitter_string2int(std::string time_jitter)
 {
@@ -463,11 +463,11 @@ int SrsConsumer::get_time()
     return jitter->get_time();
 }
 
-int SrsConsumer::enqueue(SrsSharedPtrMessage* __msg, bool atc, int tba, int tbv, SrsRtmpJitterAlgorithm ag)
+int SrsConsumer::enqueue(SrsSharedPtrMessage* shared_msg, bool atc, int tba, int tbv, SrsRtmpJitterAlgorithm ag)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsSharedPtrMessage* msg = __msg->copy();
+    SrsSharedPtrMessage* msg = shared_msg->copy();
 
     if (!atc) {
         if ((ret = jitter->correct(msg, tba, tbv, ag)) != ERROR_SUCCESS) {
@@ -594,7 +594,7 @@ void SrsGopCache::set(bool enabled)
     srs_info("enable gop cache");
 }
 
-int SrsGopCache::cache(SrsSharedPtrMessage* __msg)
+int SrsGopCache::cache(SrsSharedPtrMessage* shared_msg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -604,7 +604,7 @@ int SrsGopCache::cache(SrsSharedPtrMessage* __msg)
     }
 
     // the gop cache know when to gop it.
-    SrsSharedPtrMessage* msg = __msg;
+    SrsSharedPtrMessage* msg = shared_msg;
 
     // disable gop cache when not h.264
     if (!SrsFlvCodec::video_is_h264(msg->payload, msg->size)) {
@@ -630,7 +630,7 @@ int SrsGopCache::cache(SrsSharedPtrMessage* __msg)
     }
     
     // clear gop cache when pure audio count overflow
-    if (audio_after_last_video_count > __SRS_PURE_AUDIO_GUESS_COUNT) {
+    if (audio_after_last_video_count > SRS_PURE_AUDIO_GUESS_COUNT) {
         srs_warn("clear gop cache for guess pure audio overflow");
         clear();
         return ret;
@@ -1319,14 +1319,14 @@ int SrsSource::on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata
     return ret;
 }
 
-int SrsSource::on_audio(SrsCommonMessage* __audio)
+int SrsSource::on_audio(SrsCommonMessage* shared_audio)
 {
     int ret = ERROR_SUCCESS;
     
-    // convert __audio to msg, user should not use __audio again.
-    // the payload is transfer to msg, and set to NULL in __audio.
+    // convert shared_audio to msg, user should not use shared_audio again.
+    // the payload is transfer to msg, and set to NULL in shared_audio.
     SrsSharedPtrMessage msg;
-    if ((ret = msg.create(__audio)) != ERROR_SUCCESS) {
+    if ((ret = msg.create(shared_audio)) != ERROR_SUCCESS) {
         srs_error("initialize the audio failed. ret=%d", ret);
         return ret;
     }
@@ -1470,14 +1470,14 @@ int SrsSource::on_audio(SrsCommonMessage* __audio)
     return ret;
 }
 
-int SrsSource::on_video(SrsCommonMessage* __video)
+int SrsSource::on_video(SrsCommonMessage* shared_video)
 {
     int ret = ERROR_SUCCESS;
     
-    // convert __video to msg, user should not use __video again.
-    // the payload is transfer to msg, and set to NULL in __video.
+    // convert shared_video to msg, user should not use shared_video again.
+    // the payload is transfer to msg, and set to NULL in shared_video.
     SrsSharedPtrMessage msg;
-    if ((ret = msg.create(__video)) != ERROR_SUCCESS) {
+    if ((ret = msg.create(shared_video)) != ERROR_SUCCESS) {
         srs_error("initialize the video failed. ret=%d", ret);
         return ret;
     }
@@ -1678,8 +1678,7 @@ int SrsSource::on_aggregate(SrsCommonMessage* msg)
         }
         
         // to common message.
-        SrsCommonMessage __o;
-        SrsCommonMessage& o = __o;
+        SrsCommonMessage o;
         
         o.header.message_type = type;
         o.header.payload_length = data_size;

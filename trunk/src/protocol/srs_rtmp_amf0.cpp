@@ -194,13 +194,13 @@ bool SrsAmf0Any::is_object_eof()
     return marker == RTMP_AMF0_ObjectEnd;
 }
 
-void __srs_fill_level_spaces(stringstream& ss, int level)
+void srs_fill_level_spaces(stringstream& ss, int level)
 {
     for (int i = 0; i < level; i++) {
         ss << "    ";
     }
 }
-void __srs_amf0_do_print(SrsAmf0Any* any, stringstream& ss, int level)
+void srs_amf0_do_print(SrsAmf0Any* any, stringstream& ss, int level)
 {
     if (any->is_boolean()) {
         ss << "Boolean " << (any->to_boolean()? "true":"false") << endl;
@@ -217,36 +217,36 @@ void __srs_amf0_do_print(SrsAmf0Any* any, stringstream& ss, int level)
         SrsAmf0EcmaArray* obj = any->to_ecma_array();
         ss << "EcmaArray " << "(" << obj->count() << " items)" << endl;
         for (int i = 0; i < obj->count(); i++) {
-            __srs_fill_level_spaces(ss, level + 1);
+            srs_fill_level_spaces(ss, level + 1);
             ss << "Elem '" << obj->key_at(i) << "' ";
             if (obj->value_at(i)->is_complex_object()) {
-                __srs_amf0_do_print(obj->value_at(i), ss, level + 1);
+                srs_amf0_do_print(obj->value_at(i), ss, level + 1);
             } else {
-                __srs_amf0_do_print(obj->value_at(i), ss, 0);
+                srs_amf0_do_print(obj->value_at(i), ss, 0);
             }
         }
     } else if (any->is_strict_array()) {
         SrsAmf0StrictArray* obj = any->to_strict_array();
         ss << "StrictArray " << "(" << obj->count() << " items)" << endl;
         for (int i = 0; i < obj->count(); i++) {
-            __srs_fill_level_spaces(ss, level + 1);
+            srs_fill_level_spaces(ss, level + 1);
             ss << "Elem ";
             if (obj->at(i)->is_complex_object()) {
-                __srs_amf0_do_print(obj->at(i), ss, level + 1);
+                srs_amf0_do_print(obj->at(i), ss, level + 1);
             } else {
-                __srs_amf0_do_print(obj->at(i), ss, 0);
+                srs_amf0_do_print(obj->at(i), ss, 0);
             }
         }
     } else if (any->is_object()) {
         SrsAmf0Object* obj = any->to_object();
         ss << "Object " << "(" << obj->count() << " items)" << endl;
         for (int i = 0; i < obj->count(); i++) {
-            __srs_fill_level_spaces(ss, level + 1);
+            srs_fill_level_spaces(ss, level + 1);
             ss << "Property '" << obj->key_at(i) << "' ";
             if (obj->value_at(i)->is_complex_object()) {
-                __srs_amf0_do_print(obj->value_at(i), ss, level + 1);
+                srs_amf0_do_print(obj->value_at(i), ss, level + 1);
             } else {
-                __srs_amf0_do_print(obj->value_at(i), ss, 0);
+                srs_amf0_do_print(obj->value_at(i), ss, 0);
             }
         }
     } else {
@@ -260,7 +260,7 @@ char* SrsAmf0Any::human_print(char** pdata, int* psize)
     
     ss.precision(1);
     
-    __srs_amf0_do_print(this, ss, 0);
+    srs_amf0_do_print(this, ss, 0);
     
     string str = ss.str();
     if (str.empty()) {

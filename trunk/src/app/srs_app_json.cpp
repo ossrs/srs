@@ -109,75 +109,75 @@ const nx_json* nx_json_item(const nx_json* json, int idx); // get array element 
 #define SRS_JSON_Null                      0x06
 #define SRS_JSON_Array                     0x07
 
-class __SrsJsonString : public SrsJsonAny
+class SrsJsonString : public SrsJsonAny
 {
 public:
     std::string value;
 
-    __SrsJsonString(const char* _value) 
+    SrsJsonString(const char* _value) 
     {
         marker = SRS_JSON_String;
         if (_value) {
             value = _value;
         }
     }
-    virtual ~__SrsJsonString() 
+    virtual ~SrsJsonString() 
     {
     }
 };
 
-class __SrsJsonBoolean : public SrsJsonAny
+class SrsJsonBoolean : public SrsJsonAny
 {
 public:
     bool value;
 
-    __SrsJsonBoolean(bool _value) 
+    SrsJsonBoolean(bool _value) 
     {
         marker = SRS_JSON_Boolean;
         value = _value;
     }
-    virtual ~__SrsJsonBoolean() 
+    virtual ~SrsJsonBoolean() 
     {
     }
 };
 
-class __SrsJsonInteger : public SrsJsonAny
+class SrsJsonInteger : public SrsJsonAny
 {
 public:
     int64_t value;
 
-    __SrsJsonInteger(int64_t _value) 
+    SrsJsonInteger(int64_t _value) 
     {
         marker = SRS_JSON_Integer;
         value = _value;
     }
-    virtual ~__SrsJsonInteger() 
+    virtual ~SrsJsonInteger() 
     {
     }
 };
 
-class __SrsJsonNumber : public SrsJsonAny
+class SrsJsonNumber : public SrsJsonAny
 {
 public:
     double value;
 
-    __SrsJsonNumber(double _value) 
+    SrsJsonNumber(double _value) 
     {
         marker = SRS_JSON_Number;
         value = _value;
     }
-    virtual ~__SrsJsonNumber() 
+    virtual ~SrsJsonNumber() 
     {
     }
 };
 
-class __SrsJsonNull : public SrsJsonAny
+class SrsJsonNull : public SrsJsonAny
 {
 public:
-    __SrsJsonNull() {
+    SrsJsonNull() {
         marker = SRS_JSON_Null;
     }
-    virtual ~__SrsJsonNull() {
+    virtual ~SrsJsonNull() {
     }
 };
 
@@ -227,28 +227,28 @@ bool SrsJsonAny::is_null()
 
 string SrsJsonAny::to_str()
 {
-    __SrsJsonString* p = dynamic_cast<__SrsJsonString*>(this);
+    SrsJsonString* p = dynamic_cast<SrsJsonString*>(this);
     srs_assert(p != NULL);
     return p->value;
 }
 
 bool SrsJsonAny::to_boolean()
 {
-    __SrsJsonBoolean* p = dynamic_cast<__SrsJsonBoolean*>(this);
+    SrsJsonBoolean* p = dynamic_cast<SrsJsonBoolean*>(this);
     srs_assert(p != NULL);
     return p->value;
 }
 
 int64_t SrsJsonAny::to_integer()
 {
-    __SrsJsonInteger* p = dynamic_cast<__SrsJsonInteger*>(this);
+    SrsJsonInteger* p = dynamic_cast<SrsJsonInteger*>(this);
     srs_assert(p != NULL);
     return p->value;
 }
 
 double SrsJsonAny::to_number()
 {
-    __SrsJsonNumber* p = dynamic_cast<__SrsJsonNumber*>(this);
+    SrsJsonNumber* p = dynamic_cast<SrsJsonNumber*>(this);
     srs_assert(p != NULL);
     return p->value;
 }
@@ -269,27 +269,27 @@ SrsJsonArray* SrsJsonAny::to_array()
 
 SrsJsonAny* SrsJsonAny::str(const char* value)
 {
-    return new __SrsJsonString(value);
+    return new SrsJsonString(value);
 }
 
 SrsJsonAny* SrsJsonAny::boolean(bool value)
 {
-    return new __SrsJsonBoolean(value);
+    return new SrsJsonBoolean(value);
 }
 
 SrsJsonAny* SrsJsonAny::ingeter(int64_t value)
 {
-    return new __SrsJsonInteger(value);
+    return new SrsJsonInteger(value);
 }
 
 SrsJsonAny* SrsJsonAny::number(double value)
 {
-    return new __SrsJsonNumber(value);
+    return new SrsJsonNumber(value);
 }
 
 SrsJsonAny* SrsJsonAny::null()
 {
-    return new __SrsJsonNull();
+    return new SrsJsonNull();
 }
 
 SrsJsonObject* SrsJsonAny::object()

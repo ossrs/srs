@@ -189,24 +189,24 @@ int main(int argc, char** argv)
     
     rtmp = srs_rtmp_create(rtmp_url);
     
-    if (__srs_rtmp_dns_resolve(rtmp) != 0) {
+    if (srs_rtmp_dns_resolve(rtmp) != 0) {
         srs_human_trace("dns resolve failed.");
         goto rtmp_destroy;
     }
     
-    if (__srs_rtmp_connect_server(rtmp) != 0) {
+    if (srs_rtmp_connect_server(rtmp) != 0) {
         srs_human_trace("connect to server failed.");
         goto rtmp_destroy;
     }
     
     if (complex_handshake) {
-        if (__srs_rtmp_do_complex_handshake(rtmp) != 0) {
+        if (srs_rtmp_do_complex_handshake(rtmp) != 0) {
             srs_human_trace("complex handshake failed.");
             goto rtmp_destroy;
         }
         srs_human_trace("do complex handshake success");
     } else {
-        if (__srs_rtmp_do_simple_handshake(rtmp) != 0) {
+        if (srs_rtmp_do_simple_handshake(rtmp) != 0) {
             srs_human_trace("simple handshake failed.");
             goto rtmp_destroy;
         }

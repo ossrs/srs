@@ -79,7 +79,7 @@ int MockSrsConfig::parse(string buf)
 #ifdef ENABLE_UTEST_CONFIG
 
 // full.conf
-std::string __full_conf = ""
+std::string _full_conf = ""
 "listen              1935;                                                                                                                               \n          "
 "pid                 ./objs/srs.pid;                                                                                                                     \n          "
 "chunk_size          60000;                                                                                                                              \n          "
@@ -1377,7 +1377,7 @@ VOID TEST(ConfigMainTest, ParseInvalidDirective2)
 VOID TEST(ConfigMainTest, ParseFullConf)
 {
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
     
     vector<string> listens = conf.get_listen();
     EXPECT_EQ(1, (int)listens.size());
@@ -1525,7 +1525,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_same_edge)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
     
     vhost = "same.edge.srs.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -1605,7 +1605,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_change_edge)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
     
     vhost = "change.edge.srs.com";
     // TODO: FIXME: implements it.
@@ -1681,7 +1681,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_dvr)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
     
     vhost = "dvr.srs.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -1756,7 +1756,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_ingest)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
     
     vhost = "ingest.srs.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -1852,7 +1852,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_http)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
     
     vhost = "http.srs.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -1930,7 +1930,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_hls_enabled)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
     
     vhost = "with-hls.srs.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -2008,7 +2008,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_hls_disabled)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
     
     vhost = "no-hls.srs.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -2086,7 +2086,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_http_hooks)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
     
     vhost = "hooks.callback.srs.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -2195,7 +2195,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_min_delay)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
     
     vhost = "min.delay.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -2274,7 +2274,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_refer_anti_suck)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
 
     vhost = "refer.anti_suck.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -2368,7 +2368,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_forward_same_vhost)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
 
     vhost = "same.vhost.forward.srs.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -2452,7 +2452,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_forward_change_vhost)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
 
     vhost = "change.vhost.forward.srs.com";
     // TODO: FIXME: implements it.
@@ -2532,7 +2532,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_mirror)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
 
     vhost = "mirror.transcode.srs.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -2622,7 +2622,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_crop)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
 
     vhost = "crop.transcode.srs.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -2712,7 +2712,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_logo)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
 
     vhost = "logo.transcode.srs.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -2802,7 +2802,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_audio)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
 
     vhost = "audio.transcode.srs.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -2886,7 +2886,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_vn)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
 
     vhost = "vn.transcode.srs.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -2970,7 +2970,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_copy)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
 
     vhost = "copy.transcode.srs.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -3050,7 +3050,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_all)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
 
     vhost = "all.transcode.srs.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -3268,7 +3268,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_ffempty)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
 
     vhost = "ffempty.transcode.srs.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -3358,7 +3358,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_app)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
 
     vhost = "app.transcode.srs.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -3448,7 +3448,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_transcode_stream)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
 
     vhost = "stream.transcode.srs.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -3538,7 +3538,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_bandcheck)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
 
     vhost = "bandcheck.srs.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -3617,7 +3617,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_chunksize)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
 
     vhost = "chunksize.srs.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -3696,7 +3696,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_jitter)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
 
     vhost = "jitter.srs.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -3775,7 +3775,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_atc)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
 
     vhost = "atc.srs.com";
     EXPECT_TRUE(conf.get_vhost_enabled(vhost));
@@ -3854,7 +3854,7 @@ VOID TEST(ConfigMainTest, ParseFullConf_removed)
 {
     string vhost;
     MockSrsConfig conf;
-    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(__full_conf));
+    EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
 
     vhost = "removed.srs.com";
     EXPECT_FALSE(conf.get_vhost_enabled(vhost));

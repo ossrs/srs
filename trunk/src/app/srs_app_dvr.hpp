@@ -141,13 +141,13 @@ public:
     */
     virtual int write_metadata(SrsSharedPtrMessage* metadata);
     /**
-    * @param __audio, directly ptr, copy it if need to save it.
+    * @param shared_audio, directly ptr, copy it if need to save it.
     */
-    virtual int write_audio(SrsSharedPtrMessage* __audio);
+    virtual int write_audio(SrsSharedPtrMessage* shared_audio);
     /**
-    * @param __video, directly ptr, copy it if need to save it.
+    * @param shared_video, directly ptr, copy it if need to save it.
     */
-    virtual int write_video(SrsSharedPtrMessage* __video);
+    virtual int write_video(SrsSharedPtrMessage* shared_video);
     /**
     * update the flv metadata.
     */
@@ -246,15 +246,15 @@ public:
     /**
     * when got metadata.
     */
-    virtual int on_meta_data(SrsSharedPtrMessage* __metadata);
+    virtual int on_meta_data(SrsSharedPtrMessage* shared_metadata);
     /**
-    * @param __audio, directly ptr, copy it if need to save it.
+    * @param shared_audio, directly ptr, copy it if need to save it.
     */
-    virtual int on_audio(SrsSharedPtrMessage* __audio);
+    virtual int on_audio(SrsSharedPtrMessage* shared_audio);
     /**
-    * @param __video, directly ptr, copy it if need to save it.
+    * @param shared_video, directly ptr, copy it if need to save it.
     */
-    virtual int on_video(SrsSharedPtrMessage* __video);
+    virtual int on_video(SrsSharedPtrMessage* shared_video);
 protected:
     virtual int on_reap_segment();
     virtual int on_video_keyframe();
@@ -289,8 +289,8 @@ public:
 public:
     virtual int on_publish();
     virtual void on_unpublish();
-    virtual int on_audio(SrsSharedPtrMessage* __audio);
-    virtual int on_video(SrsSharedPtrMessage* __video);
+    virtual int on_audio(SrsSharedPtrMessage* shared_audio);
+    virtual int on_video(SrsSharedPtrMessage* shared_video);
 private:
     virtual int update_duration(SrsSharedPtrMessage* msg);
 };
@@ -313,9 +313,9 @@ public:
     virtual int initialize(SrsRequest* req);
     virtual int on_publish();
     virtual void on_unpublish();
-    virtual int on_meta_data(SrsSharedPtrMessage* __metadata);
-    virtual int on_audio(SrsSharedPtrMessage* __audio);
-    virtual int on_video(SrsSharedPtrMessage* __video);
+    virtual int on_meta_data(SrsSharedPtrMessage* shared_metadata);
+    virtual int on_audio(SrsSharedPtrMessage* shared_audio);
+    virtual int on_video(SrsSharedPtrMessage* shared_video);
 private:
     virtual int update_duration(SrsSharedPtrMessage* msg);
 };
@@ -356,14 +356,14 @@ public:
     virtual int on_meta_data(SrsOnMetaDataPacket* m);
     /**
     * mux the audio packets to dvr.
-    * @param __audio, directly ptr, copy it if need to save it.
+    * @param shared_audio, directly ptr, copy it if need to save it.
     */
-    virtual int on_audio(SrsSharedPtrMessage* __audio);
+    virtual int on_audio(SrsSharedPtrMessage* shared_audio);
     /**
     * mux the video packets to dvr.
-    * @param __video, directly ptr, copy it if need to save it.
+    * @param shared_video, directly ptr, copy it if need to save it.
     */
-    virtual int on_video(SrsSharedPtrMessage* __video);
+    virtual int on_video(SrsSharedPtrMessage* shared_video);
 };
 
 #endif

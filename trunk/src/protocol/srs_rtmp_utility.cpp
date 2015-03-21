@@ -288,7 +288,7 @@ int srs_chunk_header_c3(
     return p - cache;
 }
 
-int __srs_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, int stream_id, SrsSharedPtrMessage** ppmsg)
+int srs_do_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, int stream_id, SrsSharedPtrMessage** ppmsg)
 {
     int ret = ERROR_SUCCESS;
     
@@ -338,7 +338,7 @@ int srs_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, in
     int ret = ERROR_SUCCESS;
 
     // only when failed, we must free the data.
-    if ((ret = __srs_rtmp_create_msg(type, timestamp, data, size, stream_id, ppmsg)) != ERROR_SUCCESS) {
+    if ((ret = srs_do_rtmp_create_msg(type, timestamp, data, size, stream_id, ppmsg)) != ERROR_SUCCESS) {
         srs_freep(data);
         return ret;
     }

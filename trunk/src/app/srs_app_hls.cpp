@@ -942,7 +942,7 @@ int SrsHls::on_meta_data(SrsAmf0Object* metadata)
     return ret;
 }
 
-int SrsHls::on_audio(SrsSharedPtrMessage* __audio)
+int SrsHls::on_audio(SrsSharedPtrMessage* shared_audio)
 {
     int ret = ERROR_SUCCESS;
     
@@ -950,7 +950,7 @@ int SrsHls::on_audio(SrsSharedPtrMessage* __audio)
         return ret;
     }
 
-    SrsSharedPtrMessage* audio = __audio->copy();
+    SrsSharedPtrMessage* audio = shared_audio->copy();
     SrsAutoFree(SrsSharedPtrMessage, audio);
     
     sample->clear();
@@ -1003,7 +1003,7 @@ int SrsHls::on_audio(SrsSharedPtrMessage* __audio)
     return ret;
 }
 
-int SrsHls::on_video(SrsSharedPtrMessage* __video)
+int SrsHls::on_video(SrsSharedPtrMessage* shared_video)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1011,7 +1011,7 @@ int SrsHls::on_video(SrsSharedPtrMessage* __video)
         return ret;
     }
 
-    SrsSharedPtrMessage* video = __video->copy();
+    SrsSharedPtrMessage* video = shared_video->copy();
     SrsAutoFree(SrsSharedPtrMessage, video);
     
     sample->clear();

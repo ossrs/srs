@@ -226,7 +226,7 @@ bool srs_string_ends_with(string str, string flag)
     return str.rfind(flag) == str.length() - flag.length();
 }
 
-int __srs_create_dir_recursively(string dir)
+int srs_do_create_dir_recursively(string dir)
 {
     int ret = ERROR_SUCCESS;
     
@@ -239,7 +239,7 @@ int __srs_create_dir_recursively(string dir)
     size_t pos;
     if ((pos = dir.rfind("/")) != std::string::npos) {
         std::string parent = dir.substr(0, pos);
-        ret = __srs_create_dir_recursively(parent);
+        ret = srs_do_create_dir_recursively(parent);
         // return for error.
         if (ret != ERROR_SUCCESS && ret != ERROR_SYSTEM_DIR_EXISTS) {
             return ret;
@@ -268,7 +268,7 @@ int srs_create_dir_recursively(string dir)
 {
     int ret = ERROR_SUCCESS;
     
-    ret = __srs_create_dir_recursively(dir);
+    ret = srs_do_create_dir_recursively(dir);
     
     if (ret == ERROR_SYSTEM_DIR_EXISTS) {
         return ERROR_SUCCESS;

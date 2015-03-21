@@ -43,7 +43,7 @@ class SrsStream;
 namespace _srs_internal
 {
     // the digest key generate size.
-    #define __SRS_OpensslHashSize 512
+    #define SRS_OpensslHashSize 512
     extern u_int8_t SrsGenuineFMSKey[];
     extern u_int8_t SrsGenuineFPKey[];
     int openssl_HMACsha256(const void* key, int key_size, const void* data, int data_size, void* digest);
