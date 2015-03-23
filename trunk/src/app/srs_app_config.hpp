@@ -77,8 +77,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_HTTP_DIR SRS_CONF_DEFAULT_HLS_PATH
 #define SRS_CONF_DEFAULT_HTTP_AUDIO_FAST_CACHE 0
 
-#define SRS_CONF_DEFAULT_HTTP_STREAM_PORT 8080
-#define SRS_CONF_DEFAULT_HTTP_API_PORT 1985
+#define SRS_CONF_DEFAULT_HTTP_STREAM_PORT "8080"
+#define SRS_CONF_DEFAULT_HTTP_API_PORT "1985"
 #define SRS_CONF_DEFAULT_HTTP_API_CROSSDOMAIN true
 
 #define SRS_CONF_DEFAULT_HTTP_HEAETBEAT_ENABLED false
@@ -411,7 +411,7 @@ public:
     * user can specifies multiple listen ports,
     * each args of directive is a listen port.
     */
-    virtual std::vector<std::string>        get_listen();
+    virtual std::vector<std::string>        get_listens();
     /**
     * get the pid file path.
     * the pid file is used to save the pid of SRS,
@@ -990,7 +990,7 @@ public:
     /**
     * get the http api listen port.
     */
-    virtual int                 get_http_api_listen();
+    virtual std::string         get_http_api_listen();
     /**
     * whether enable crossdomain for http api.
     */
@@ -1013,7 +1013,7 @@ public:
     /**
     * get the http stream listen port.
     */
-    virtual int                 get_http_stream_listen();
+    virtual std::string         get_http_stream_listen();
     /**
     * get the http stream root dir.
     */

@@ -33,6 +33,7 @@ using namespace std;
 #include <srs_app_ffmpeg.hpp>
 #include <srs_app_pithy_print.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_app_utility.hpp>
 
 // when error, ingester sleep for a while and retry.
 // ingest never sleep a long time, for we must start the stream ASAP.
@@ -228,9 +229,15 @@ int SrsIngester::initialize_ffmpeg(SrsFFMPEG* ffmpeg, SrsConfDirective* vhost, S
 {
     int ret = ERROR_SUCCESS;
     
-    std::vector<std::string> ports = _srs_config->get_listen();
-    srs_assert(ports.size() > 0);
-    std::string port = ports[0];
+    std::string port;
+    if (true) {
+        std::vector<std::string> ip_ports = _srs_config->get_listens();
+        srs_assert(ip_ports.size() > 0);
+        
+        std::string ep = ip_ports[0];
+        std::string ip;
+        srs_parse_endpoint(ep, ip, port);
+    }
     
     std::string output = _srs_config->get_engine_output(engine);
     // output stream, to other/self server

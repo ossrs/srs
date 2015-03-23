@@ -110,6 +110,25 @@ int srs_get_log_level(string level)
     }
 }
 
+void srs_parse_endpoint(string ip_port, string& ip, string& port)
+{
+    ip = "0.0.0.0";
+    port = ip_port;
+    
+    size_t pos = string::npos;
+    if ((pos = port.find(":")) != string::npos) {
+        ip = port.substr(0, pos);
+        port = port.substr(pos + 1);
+    }
+}
+
+void srs_parse_endpoint(string ip_port, string& ip, int& port)
+{
+    std::string the_port;
+    srs_parse_endpoint(ip_port, ip, the_port);
+    port = ::atoi(the_port.c_str());
+}
+
 static SrsRusage _srs_system_rusage;
 
 SrsRusage::SrsRusage()

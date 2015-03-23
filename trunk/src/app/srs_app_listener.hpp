@@ -30,6 +30,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+#include <string>
+
 #include <srs_app_st.hpp>
 #include <srs_app_thread.hpp>
 
@@ -85,9 +87,10 @@ private:
     int nb_buf;
 private:
     ISrsUdpHandler* handler;
+    std::string ip;
     int port;
 public:
-    SrsUdpListener(ISrsUdpHandler* h, int p);
+    SrsUdpListener(ISrsUdpHandler* h, std::string i, int p);
     virtual ~SrsUdpListener();
 public:
     virtual int fd();
@@ -109,9 +112,10 @@ private:
     SrsThread* pthread;
 private:
     ISrsTcpHandler* handler;
+    std::string ip;
     int port;
 public:
-    SrsTcpListener(ISrsTcpHandler* h, int p);
+    SrsTcpListener(ISrsTcpHandler* h, std::string i, int p);
     virtual ~SrsTcpListener();
 public:
     virtual int fd();

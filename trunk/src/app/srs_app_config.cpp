@@ -1586,7 +1586,7 @@ int SrsConfig::check_config()
     // check listen for rtmp.
     ////////////////////////////////////////////////////////////////////////
     if (true) {
-        vector<string> listens = get_listen();
+        vector<string> listens = get_listens();
         if (listens.size() <= 0) {
             ret = ERROR_SYSTEM_CONFIG_INVALID;
             srs_error("directive \"listen\" is empty, ret=%d", ret);
@@ -1613,11 +1613,11 @@ int SrsConfig::check_config()
     
     // check max connections of system limits
     if (true) {
-        int nb_consumed_fds = (int)get_listen().size();
-        if (get_http_api_listen() > 0) {
+        int nb_consumed_fds = (int)get_listens().size();
+        if (!get_http_api_listen().empty()) {
             nb_consumed_fds++;
         }
-        if (get_http_stream_listen() > 0) {
+        if (!get_http_stream_listen().empty()) {
             nb_consumed_fds++;
         }
         if (get_log_tank_file()) {
@@ -1694,20 +1694,20 @@ int SrsConfig::check_config()
     ////////////////////////////////////////////////////////////////////////
     // check http api
     ////////////////////////////////////////////////////////////////////////
-    if (get_http_api_listen() <= 0) {
+    if (get_http_api_listen().empty()) {
         ret = ERROR_SYSTEM_CONFIG_INVALID;
-        srs_error("directive http_api listen invalid, listen=%d, ret=%d", 
-            get_http_api_listen(), ret);
+        srs_error("directive http_api listen invalid, listen=%s, ret=%d",
+            get_http_api_listen().c_str(), ret);
         return ret;
     }
     
     ////////////////////////////////////////////////////////////////////////
     // check http stream
     ////////////////////////////////////////////////////////////////////////
-    if (get_http_stream_listen() <= 0) {
+    if (get_http_stream_listen().empty()) {
         ret = ERROR_SYSTEM_CONFIG_INVALID;
-        srs_error("directive http_stream listen invalid, listen=%d, ret=%d", 
-            get_http_stream_listen(), ret);
+        srs_error("directive http_stream listen invalid, listen=%s, ret=%d",
+            get_http_stream_listen().c_str(), ret);
         return ret;
     }
     
@@ -1858,7 +1858,7 @@ int SrsConfig::get_max_connections()
     return ::atoi(conf->arg0().c_str());
 }
 
-vector<string> SrsConfig::get_listen()
+vector<string> SrsConfig::get_listens()
 {
     std::vector<string> ports;
     
@@ -3546,7 +3546,7 @@ bool SrsConfig::get_http_api_enabled(SrsConfDirective* conf)
     return false;
 }
 
-int SrsConfig::get_http_api_listen()
+string SrsConfig::get_http_api_listen()
 {
     SrsConfDirective* conf = get_http_api();
     
@@ -3559,7 +3559,7 @@ int SrsConfig::get_http_api_listen()
         return SRS_CONF_DEFAULT_HTTP_API_PORT;
     }
 
-    return ::atoi(conf->arg0().c_str());
+    return conf->arg0();
 }
 
 bool SrsConfig::get_http_api_crossdomain()
@@ -3609,7 +3609,7 @@ bool SrsConfig::get_http_stream_enabled(SrsConfDirective* conf)
     return false;
 }
 
-int SrsConfig::get_http_stream_listen()
+string SrsConfig::get_http_stream_listen()
 {
     SrsConfDirective* conf = get_http_stream();
     
@@ -3622,7 +3622,7 @@ int SrsConfig::get_http_stream_listen()
         return SRS_CONF_DEFAULT_HTTP_STREAM_PORT;
     }
     
-    return ::atoi(conf->arg0().c_str());
+    return conf->arg0();
 }
 
 string SrsConfig::get_http_stream_dir()

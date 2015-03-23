@@ -50,6 +50,13 @@ extern int srs_socket_connect(std::string server, int port, int64_t timeout, st_
 */
 extern int srs_get_log_level(std::string level);
 
+/**
+* parse the endpoint to ip and port.
+* @param ip_port the ip and port which formats in <[ip:]port>
+ */
+extern void srs_parse_endpoint(std::string ip_port, std::string& ip, std::string& port);
+extern void srs_parse_endpoint(std::string ip_port, std::string& ip, int& port);
+
 // current process resouce usage.
 // @see: man getrusage
 class SrsRusage
