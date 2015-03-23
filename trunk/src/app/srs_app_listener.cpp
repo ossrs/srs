@@ -30,6 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+using namespace std;
 
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
@@ -61,9 +62,10 @@ ISrsTcpHandler::~ISrsTcpHandler()
 {
 }
 
-SrsUdpListener::SrsUdpListener(ISrsUdpHandler* h, int p)
+SrsUdpListener::SrsUdpListener(ISrsUdpHandler* h, string i, int p)
 {
     handler = h;
+    ip = i;
     port = p;
 
     _fd = -1;
@@ -101,42 +103,42 @@ int SrsUdpListener::listen()
     
     if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
         ret = ERROR_SOCKET_CREATE;
-        srs_error("create linux socket error. port=%d, ret=%d", port, ret);
+        srs_error("create linux socket error. port=%d, ret=%d", ip.c_str(), port, ret);
         return ret;
     }
-    srs_verbose("create linux socket success. port=%d, fd=%d", port, _fd);
+    srs_verbose("create linux socket success. port=%d, fd=%d", ip.c_str(), port, _fd);
     
     int reuse_socket = 1;
     if (setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_socket, sizeof(int)) == -1) {
         ret = ERROR_SOCKET_SETREUSE;
-        srs_error("setsockopt reuse-addr error. port=%d, ret=%d", port, ret);
+        srs_error("setsockopt reuse-addr error. port=%d, ret=%d", ip.c_str(), port, ret);
         return ret;
     }
-    srs_verbose("setsockopt reuse-addr success. port=%d, fd=%d", port, _fd);
+    srs_verbose("setsockopt reuse-addr success. port=%d, fd=%d", ip.c_str(), port, _fd);
     
     sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_addr.s_addr = inet_addr(ip.c_str());
     if (bind(_fd, (const sockaddr*)&addr, sizeof(sockaddr_in)) == -1) {
         ret = ERROR_SOCKET_BIND;
-        srs_error("bind socket error. port=%d, ret=%d", port, ret);
+        srs_error("bind socket error. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
         return ret;
     }
-    srs_verbose("bind socket success. port=%d, fd=%d", port, _fd);
+    srs_verbose("bind socket success. ep=%s:%d, fd=%d", ip.c_str(), port, _fd);
     
     if ((stfd = st_netfd_open_socket(_fd)) == NULL){
         ret = ERROR_ST_OPEN_SOCKET;
-        srs_error("st_netfd_open_socket open socket failed. port=%d, ret=%d", port, ret);
+        srs_error("st_netfd_open_socket open socket failed. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
         return ret;
     }
-    srs_verbose("st open socket success. port=%d, fd=%d", port, _fd);
+    srs_verbose("st open socket success. ep=%s:%d, fd=%d", ip.c_str(), port, _fd);
     
     if ((ret = pthread->start()) != ERROR_SUCCESS) {
-        srs_error("st_thread_create listen thread error. port=%d, ret=%d", port, ret);
+        srs_error("st_thread_create listen thread error. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
         return ret;
     }
-    srs_verbose("create st listen thread success, port=%d", port);
+    srs_verbose("create st listen thread success, ep=%s:%d", ip.c_str(), port);
 
     return ret;
 }
@@ -169,9 +171,10 @@ int SrsUdpListener::cycle()
     return ret;
 }
 
-SrsTcpListener::SrsTcpListener(ISrsTcpHandler* h, int p)
+SrsTcpListener::SrsTcpListener(ISrsTcpHandler* h, string i, int p)
 {
     handler = h;
+    ip = i;
     port = p;
 
     _fd = -1;
@@ -220,33 +223,33 @@ int SrsTcpListener::listen()
     sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_addr.s_addr = inet_addr(ip.c_str());
     if (bind(_fd, (const sockaddr*)&addr, sizeof(sockaddr_in)) == -1) {
         ret = ERROR_SOCKET_BIND;
-        srs_error("bind socket error. port=%d, ret=%d", port, ret);
+        srs_error("bind socket error. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
         return ret;
     }
-    srs_verbose("bind socket success. port=%d, fd=%d", port, _fd);
+    srs_verbose("bind socket success. ep=%s:%d, fd=%d", ip.c_str(), port, _fd);
     
     if (::listen(_fd, SERVER_LISTEN_BACKLOG) == -1) {
         ret = ERROR_SOCKET_LISTEN;
-        srs_error("listen socket error. port=%d, ret=%d", port, ret);
+        srs_error("listen socket error. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
         return ret;
     }
-    srs_verbose("listen socket success. port=%d, fd=%d", port, _fd);
+    srs_verbose("listen socket success. ep=%s:%d, fd=%d", ip.c_str(), port, _fd);
     
     if ((stfd = st_netfd_open_socket(_fd)) == NULL){
         ret = ERROR_ST_OPEN_SOCKET;
-        srs_error("st_netfd_open_socket open socket failed. port=%d, ret=%d", port, ret);
+        srs_error("st_netfd_open_socket open socket failed. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
         return ret;
     }
-    srs_verbose("st open socket success. port=%d, fd=%d", port, _fd);
+    srs_verbose("st open socket success. ep=%s:%d, fd=%d", ip.c_str(), port, _fd);
     
     if ((ret = pthread->start()) != ERROR_SUCCESS) {
-        srs_error("st_thread_create listen thread error. port=%d, ret=%d", port, ret);
+        srs_error("st_thread_create listen thread error. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
         return ret;
     }
-    srs_verbose("create st listen thread success, port=%d", port);
+    srs_verbose("create st listen thread success, ep=%s:%d", ip.c_str(), port);
     
     return ret;
 }

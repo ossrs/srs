@@ -50,7 +50,8 @@ SrsRtpConn::SrsRtpConn(SrsRtspConn* r, int p, int sid)
     rtsp = r;
     _port = p;
     stream_id = sid;
-    listener = new SrsUdpListener(this, p);
+    // TODO: support listen at <[ip:]port>
+    listener = new SrsUdpListener(this, "0.0.0.0", p);
     cache = new SrsRtpPacket();
     pprint = SrsPithyPrint::create_caster();
 }

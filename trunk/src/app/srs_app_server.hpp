@@ -76,6 +76,7 @@ class SrsListener
 protected:
     SrsListenerType _type;
 protected:
+    std::string _ip;
     int _port;
     SrsServer* _server;
 public:
@@ -83,7 +84,7 @@ public:
     virtual ~SrsListener();
 public:
     virtual SrsListenerType type();
-    virtual int listen(int port) = 0;
+    virtual int listen(std::string ip, int port) = 0;
 };
 
 /**
@@ -97,7 +98,7 @@ public:
     SrsStreamListener(SrsServer* server, SrsListenerType type);
     virtual ~SrsStreamListener();
 public:
-    virtual int listen(int port);
+    virtual int listen(std::string ip, int port);
 // ISrsTcpHandler
 public:
     virtual int on_tcp_client(st_netfd_t stfd);
@@ -116,7 +117,7 @@ public:
     SrsRtspListener(SrsServer* server, SrsListenerType type, SrsConfDirective* c);
     virtual ~SrsRtspListener();
 public:
-    virtual int listen(int port);
+    virtual int listen(std::string ip, int port);
 // ISrsTcpHandler
 public:
     virtual int on_tcp_client(st_netfd_t stfd);
@@ -134,7 +135,7 @@ public:
     SrsUdpCasterListener(SrsServer* server, SrsListenerType type, SrsConfDirective* c);
     virtual ~SrsUdpCasterListener();
 public:
-    virtual int listen(int port);
+    virtual int listen(std::string ip, int port);
 };
 #endif
 

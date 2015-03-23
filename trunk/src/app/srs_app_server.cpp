@@ -136,14 +136,15 @@ SrsStreamListener::~SrsStreamListener()
     srs_freep(listener);
 }
 
-int SrsStreamListener::listen(int port)
+int SrsStreamListener::listen(string ip, int port)
 {
     int ret = ERROR_SUCCESS;
     
+    _ip = ip;
     _port = port;
 
     srs_freep(listener);
-    listener = new SrsTcpListener(this, port);
+    listener = new SrsTcpListener(this, ip, port);
 
     if ((ret = listener->listen()) != ERROR_SUCCESS) {
         srs_error("tcp listen failed. ret=%d", ret);
@@ -151,10 +152,10 @@ int SrsStreamListener::listen(int port)
     }
     
     srs_info("listen thread cid=%d, current_cid=%d, "
-        "listen at port=%d, type=%d, fd=%d started success, port=%d", 
-        pthread->cid(), _srs_context->get_id(), _port, _type, fd, port);
+        "listen at port=%d, type=%d, fd=%d started success, ep=%s:%d",
+        pthread->cid(), _srs_context->get_id(), _port, _type, fd, ip.c_str(), port);
 
-    srs_trace("%s listen at tcp://%d, fd=%d", srs_listener_type2string(_type).c_str(), _port, listener->fd());
+    srs_trace("%s listen at tcp://%s:%d, fd=%d", srs_listener_type2string(_type).c_str(), ip.c_str(), _port, listener->fd());
 
     return ret;
 }
@@ -190,7 +191,7 @@ SrsRtspListener::~SrsRtspListener()
     srs_freep(listener);
 }
 
-int SrsRtspListener::listen(int port)
+int SrsRtspListener::listen(string ip, int port)
 {
     int ret = ERROR_SUCCESS;
 
@@ -198,10 +199,11 @@ int SrsRtspListener::listen(int port)
     // we just assert here for unknown stream caster.
     srs_assert(_type == SrsListenerRtsp);
     
+    _ip = ip;
     _port = port;
 
     srs_freep(listener);
-    listener = new SrsTcpListener(this, port);
+    listener = new SrsTcpListener(this, ip, port);
 
     if ((ret = listener->listen()) != ERROR_SUCCESS) {
         srs_error("udp caster listen failed. ret=%d", ret);
@@ -209,10 +211,10 @@ int SrsRtspListener::listen(int port)
     }
     
     srs_info("listen thread cid=%d, current_cid=%d, "
-        "listen at port=%d, type=%d, fd=%d started success, port=%d", 
-        pthread->cid(), _srs_context->get_id(), _port, _type, fd, port);
+        "listen at port=%d, type=%d, fd=%d started success, ep=%s:%d",
+        pthread->cid(), _srs_context->get_id(), _port, _type, fd, ip.c_str(), port);
 
-    srs_trace("%s listen at tcp://%d, fd=%d", srs_listener_type2string(_type).c_str(), _port, listener->fd());
+    srs_trace("%s listen at tcp://%s:%d, fd=%d", srs_listener_type2string(_type).c_str(), ip.c_str(), _port, listener->fd());
 
     return ret;
 }
@@ -248,7 +250,7 @@ SrsUdpCasterListener::~SrsUdpCasterListener()
     srs_freep(listener);
 }
 
-int SrsUdpCasterListener::listen(int port)
+int SrsUdpCasterListener::listen(string ip, int port)
 {
     int ret = ERROR_SUCCESS;
 
@@ -256,10 +258,11 @@ int SrsUdpCasterListener::listen(int port)
     // we just assert here for unknown stream caster.
     srs_assert(_type == SrsListenerMpegTsOverUdp);
     
+    _ip = ip;
     _port = port;
 
     srs_freep(listener);
-    listener = new SrsUdpListener(caster, port);
+    listener = new SrsUdpListener(caster, ip, port);
 
     if ((ret = listener->listen()) != ERROR_SUCCESS) {
         srs_error("udp caster listen failed. ret=%d", ret);
@@ -267,10 +270,10 @@ int SrsUdpCasterListener::listen(int port)
     }
     
     srs_info("listen thread cid=%d, current_cid=%d, "
-        "listen at port=%d, type=%d, fd=%d started success, port=%d", 
-        pthread->cid(), _srs_context->get_id(), _port, _type, fd, port);
+        "listen at port=%d, type=%d, fd=%d started success, ep=%s:%d",
+        pthread->cid(), _srs_context->get_id(), _port, _type, fd, ip.c_str(), port);
 
-    srs_trace("%s listen at udp://%d, fd=%d", srs_listener_type2string(_type).c_str(), _port, listener->fd());
+    srs_trace("%s listen at udp://%s:%d, fd=%d", srs_listener_type2string(_type).c_str(), ip.c_str(), _port, listener->fd());
 
     return ret;
 }
@@ -881,18 +884,21 @@ int SrsServer::listen_rtmp()
     int ret = ERROR_SUCCESS;
     
     // stream service port.
-    std::vector<std::string> ports = _srs_config->get_listen();
-    srs_assert((int)ports.size() > 0);
+    std::vector<std::string> ip_ports = _srs_config->get_listens();
+    srs_assert((int)ip_ports.size() > 0);
     
     close_listeners(SrsListenerRtmpStream);
     
-    for (int i = 0; i < (int)ports.size(); i++) {
+    for (int i = 0; i < (int)ip_ports.size(); i++) {
         SrsListener* listener = new SrsStreamListener(this, SrsListenerRtmpStream);
         listeners.push_back(listener);
         
-        int port = ::atoi(ports[i].c_str());
-        if ((ret = listener->listen(port)) != ERROR_SUCCESS) {
-            srs_error("RTMP stream listen at port %d failed. ret=%d", port, ret);
+        std::string ip;
+        int port;
+        srs_parse_endpoint(ip_ports[i], ip, port);
+        
+        if ((ret = listener->listen(ip, port)) != ERROR_SUCCESS) {
+            srs_error("RTMP stream listen at %s:%d failed. ret=%d", ip.c_str(), port, ret);
             return ret;
         }
     }
@@ -910,9 +916,14 @@ int SrsServer::listen_http_api()
         SrsListener* listener = new SrsStreamListener(this, SrsListenerHttpApi);
         listeners.push_back(listener);
         
-        int port = _srs_config->get_http_api_listen();
-        if ((ret = listener->listen(port)) != ERROR_SUCCESS) {
-            srs_error("HTTP api listen at port %d failed. ret=%d", port, ret);
+        std::string ep = _srs_config->get_http_api_listen();
+        
+        std::string ip;
+        int port;
+        srs_parse_endpoint(ep, ip, port);
+        
+        if ((ret = listener->listen(ip, port)) != ERROR_SUCCESS) {
+            srs_error("HTTP api listen at %s:%d failed. ret=%d", ip.c_str(), port, ret);
             return ret;
         }
     }
@@ -931,9 +942,14 @@ int SrsServer::listen_http_stream()
         SrsListener* listener = new SrsStreamListener(this, SrsListenerHttpStream);
         listeners.push_back(listener);
         
-        int port = _srs_config->get_http_stream_listen();
-        if ((ret = listener->listen(port)) != ERROR_SUCCESS) {
-            srs_error("HTTP stream listen at port %d failed. ret=%d", port, ret);
+        std::string ep = _srs_config->get_http_stream_listen();
+        
+        std::string ip;
+        int port;
+        srs_parse_endpoint(ep, ip, port);
+        
+        if ((ret = listener->listen(ip, port)) != ERROR_SUCCESS) {
+            srs_error("HTTP stream listen at %s:%d failed. ret=%d", ip.c_str(), port, ret);
             return ret;
         }
     }
