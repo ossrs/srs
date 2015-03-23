@@ -10,6 +10,7 @@
 #     $MODULE_DEPENDS array, the denpend MODULEs id. ie. (CORE OS)
 #     $ModuleLibIncs array, the depend 3rdpart library includes. ie. (objs/st-1.9/obj objs/libx264/obj)
 #     $MODULE_FILES array, the head/cpp files of modules. ie. (public log)
+#     $DEFINES string, the build macro defines. ie. "-DMY_SRS"
 #     
 # returns:
 #     $MODULE_OBJS array, the objects of the modules, used for link the binary
@@ -78,7 +79,7 @@ for item in ${MODULE_FILES[*]}; do
     MODULE_OBJS="${MODULE_OBJS[@]} ${CPP_FILE}"
     if [ -f ${CPP_FILE} ]; then
         echo "${OBJ_FILE}: \$(${DEPS_NAME}) ${CPP_FILE} " >> ${FILE}
-        echo "	\$(CXX) -c \$(CXXFLAGS) \$(${INCS_NAME})\\" >> ${FILE}
+        echo "	\$(CXX) -c \$(CXXFLAGS) ${DEFINES} \$(${INCS_NAME})\\" >> ${FILE}
         echo "          -o ${OBJ_FILE} ${CPP_FILE}" >> ${FILE}
     fi
 done
