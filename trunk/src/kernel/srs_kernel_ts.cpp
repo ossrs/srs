@@ -2772,7 +2772,7 @@ int SrsTsCache::do_cache_aac(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         // 6.2 Audio Data Transport Stream, ADTS
         // in aac-iso-13818-7.pdf, page 26.
         // fixed 7bytes header
-        static u_int8_t adts_header[7] = {0xff, 0xf9, 0x00, 0x00, 0x00, 0x0f, 0xfc};
+        u_int8_t adts_header[7] = {0xff, 0xf9, 0x00, 0x00, 0x00, 0x0f, 0xfc};
         /*
         // adts_fixed_header
         // 2B, 16bits
@@ -2824,7 +2824,7 @@ int SrsTsCache::do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample)
     int ret = ERROR_SUCCESS;
     
     // for type1/5/6, insert aud packet.
-    static u_int8_t aud_nal[] = { 0x00, 0x00, 0x00, 0x01, 0x09, 0xf0 };
+    u_int8_t aud_nal[] = { 0x00, 0x00, 0x00, 0x01, 0x09, 0xf0 };
     
     bool sps_pps_sent = false;
     bool aud_sent = false;

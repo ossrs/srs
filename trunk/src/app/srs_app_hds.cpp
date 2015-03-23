@@ -146,7 +146,7 @@ public:
             data.append(serialFlv(msg));
         }
 
-        static char box_header[8];
+        char box_header[8];
         SrsStream ss;
         ss.initialize(box_header, 8);
         ss.write_4bytes(8 + data.size());

@@ -260,7 +260,7 @@ int SrsHandshakeBytes::create_c0c1()
     srs_random_generate(c0c1, 1537);
     
     // plain text required.
-    static SrsStream stream;
+    SrsStream stream;
     if ((ret = stream.initialize(c0c1, 9)) != ERROR_SUCCESS) {
         return ret;
     }

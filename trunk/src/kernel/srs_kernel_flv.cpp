@@ -74,7 +74,7 @@ int SrsFlvEncoder::write_header()
     int ret = ERROR_SUCCESS;
     
     // 9bytes header and 4bytes first previous-tag-size
-    static char flv_header[] = {
+    char flv_header[] = {
         'F', 'L', 'V', // Signatures "FLV"
         (char)0x01, // File version (for example, 0x01 for FLV version 1)
         (char)0x00, // 4, audio; 1, video; 5 audio+video.
@@ -118,7 +118,7 @@ int SrsFlvEncoder::write_metadata(char type, char* data, int size)
     srs_assert(data);
     
     // 11 bytes tag header
-    static char tag_header[] = {
+    char tag_header[] = {
         (char)type, // TagType UB [5], 18 = script data
         (char)0x00, (char)0x00, (char)0x00, // DataSize UI24 Length of the message.
         (char)0x00, (char)0x00, (char)0x00, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
@@ -149,7 +149,7 @@ int SrsFlvEncoder::write_audio(int64_t timestamp, char* data, int size)
     timestamp &= 0x7fffffff;
     
     // 11bytes tag header
-    static char tag_header[] = {
+    char tag_header[] = {
         (char)SrsCodecFlvTagAudio, // TagType UB [5], 8 = audio
         (char)0x00, (char)0x00, (char)0x00, // DataSize UI24 Length of the message.
         (char)0x00, (char)0x00, (char)0x00, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
@@ -183,7 +183,7 @@ int SrsFlvEncoder::write_video(int64_t timestamp, char* data, int size)
     timestamp &= 0x7fffffff;
     
     // 11bytes tag header
-    static char tag_header[] = {
+    char tag_header[] = {
         (char)SrsCodecFlvTagVideo, // TagType UB [5], 9 = video
         (char)0x00, (char)0x00, (char)0x00, // DataSize UI24 Length of the message.
         (char)0x00, (char)0x00, (char)0x00, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
@@ -231,7 +231,7 @@ int SrsFlvEncoder::write_tag(char* header, int header_size, char* tag, int tag_s
     }
     
     // PreviousTagSizeN UI32 Size of last tag, including its header, in bytes.
-    static char pre_size[SRS_FLV_PREVIOUS_TAG_SIZE];
+    char pre_size[SRS_FLV_PREVIOUS_TAG_SIZE];
     if ((ret = tag_stream->initialize(pre_size, SRS_FLV_PREVIOUS_TAG_SIZE)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -426,7 +426,7 @@ int SrsFlvVodStreamDecoder::read_sequence_header_summary(int64_t* pstart, int* p
     // and must be a sequence video and audio.
     
     // 11bytes tag header
-    static char tag_header[] = {
+    char tag_header[] = {
         (char)0x00, // TagType UB [5], 9 = video, 8 = audio, 18 = script data
         (char)0x00, (char)0x00, (char)0x00, // DataSize UI24 Length of the message.
         (char)0x00, (char)0x00, (char)0x00, // Timestamp UI24 Time in milliseconds at which the data in this tag applies.
