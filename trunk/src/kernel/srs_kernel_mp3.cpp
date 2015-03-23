@@ -68,7 +68,7 @@ int SrsMp3Encoder::initialize(SrsFileWriter* fs)
 
 int SrsMp3Encoder::write_header()
 {
-    static char id3[] = {
+    char id3[] = {
         (char)0x49, (char)0x44, (char)0x33, // ID3
         (char)0x03, (char)0x00, // version
         (char)0x00, // flags
