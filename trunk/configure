@@ -175,10 +175,12 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             "srs_app_kbps" "srs_app_heartbeat" "srs_app_empty" "srs_app_http_client"
             "srs_app_recv_thread" "srs_app_security" "srs_app_statistic" "srs_app_hds"
             "srs_app_mpegts_udp" "srs_app_rtsp" "srs_app_listener")
+    DEFINES=""
     # add each modules for app
     for SRS_MODULE in $SRS_MODULES; do
         . $SRS_MODULE/config
         MODULE_FILES+=($SRS_MODULE_APP)
+        DEFINES="${DEFINES} ${SRS_MODULE_DEFINES}"
     done
     APP_INCS="src/app"; MODULE_DIR=${APP_INCS} . auto/modules.sh
     APP_OBJS="${MODULE_OBJS[@]}"
