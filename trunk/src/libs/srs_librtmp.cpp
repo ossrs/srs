@@ -2340,7 +2340,7 @@ int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int 
 const char* srs_human_format_time()
 {
     struct timeval tv;
-    char buf[23];
+    static char buf[23];
     
     memset(buf, 0, sizeof(buf));
     
