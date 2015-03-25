@@ -1340,7 +1340,7 @@ public:
     /**
     * reverved value, must be '1'
     */
-    int8_t const1_value; //2bits
+    int8_t const3_value; //2bits
     /**
     * This 5-bit field is the version number of the whole Program Association Table. The version number
     * shall be incremented by 1 modulo 32 whenever the definition of the Program Association Table changes. When the

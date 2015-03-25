@@ -31,6 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifdef SRS_OSX
 #include <sys/sysctl.h>
 #endif
+#include <stdlib.h>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
