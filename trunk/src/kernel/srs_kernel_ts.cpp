@@ -507,7 +507,7 @@ int SrsTsPacket::decode(SrsStream* stream, SrsTsMessage** ppmsg)
     int8_t ccv = stream->read_1bytes();
     transport_scrambling_control = (SrsTsScrambled)((ccv >> 6) & 0x03);
     adaption_field_control = (SrsTsAdaptationFieldType)((ccv >> 4) & 0x03);
-    continuity_counter = (SrsTsPid)(ccv & 0x0F);
+    continuity_counter = ccv & 0x0F;
 
     // TODO: FIXME: create pids map when got new pid.
     
@@ -2196,7 +2196,7 @@ int SrsTsPayloadPATProgram::encode(SrsStream* stream)
 
 SrsTsPayloadPAT::SrsTsPayloadPAT(SrsTsPacket* p) : SrsTsPayloadPSI(p)
 {
-    const1_value = 3;
+    const3_value = 3;
 }
 
 SrsTsPayloadPAT::~SrsTsPayloadPAT()
@@ -2228,7 +2228,7 @@ int SrsTsPayloadPAT::psi_decode(SrsStream* stream)
     // 1B
     int8_t cniv = stream->read_1bytes();
     
-    const1_value = (cniv >> 6) & 0x03;
+    const3_value = (cniv >> 6) & 0x03;
     version_number = (cniv >> 1) & 0x1F;
     current_next_indicator = cniv & 0x01;
 
