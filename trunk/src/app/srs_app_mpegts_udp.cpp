@@ -353,7 +353,6 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsStream* avs)
     int ibpframe_size = avs->size() - avs->pos();
     
     // send each frame.
-    bool got_sps_pps = false;
     while (!avs->empty()) {
         char* frame = NULL;
         int frame_size = 0;
@@ -370,8 +369,6 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsStream* avs)
 
         // for sps
         if (avc->is_sps(frame, frame_size)) {
-            got_sps_pps = true;
-            
             std::string sps;
             if ((ret = avc->sps_demux(frame, frame_size, sps)) != ERROR_SUCCESS) {
                 return ret;
@@ -409,19 +406,15 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsStream* avs)
             }
             continue;
         }
-
-        break;
+        
+        // ibp frame.
+        srs_info("mpegts: demux avc ibp frame size=%d, dts=%d", ibpframe_size, dts);
+        if ((ret = write_h264_ipb_frame(frame, frame_size, dts, pts)) != ERROR_SUCCESS) {
+            return ret;
+        }
     }
     
-    // not ibp frame, ignore for already sent.
-    if (got_sps_pps) {
-        srs_info("mpegts: already send the sps/pps.");
-        return ret;
-    }
-
-    // ibp frame.
-    srs_info("mpegts: demux avc ibp frame size=%d, dts=%d", ibpframe_size, dts);
-    return write_h264_ipb_frame(ibpframe, ibpframe_size, dts, pts);
+    return ret;
 }
 
 int SrsMpegtsOverUdp::write_h264_sps_pps(u_int32_t dts, u_int32_t pts)
