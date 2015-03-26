@@ -91,8 +91,8 @@ string srs_codec_aac_object2str(SrsAacObjectType aac_object)
 {
     switch (aac_object) {
         case SrsAacObjectTypeAacMain: return "Main";
-        case SrsAacObjectTypeHE: return "HE";
-        case SrsAacObjectTypeHEV2: return "HEv2";
+        case SrsAacObjectTypeAacHE: return "HE";
+        case SrsAacObjectTypeAacHEV2: return "HEv2";
         case SrsAacObjectTypeAacLC: return "LC";
         case SrsAacObjectTypeAacSSR: return "SSR";
         default: return "Other";
@@ -113,8 +113,8 @@ SrsAacProfile srs_codec_aac_rtmp2ts(SrsAacObjectType object_type)
 {
     switch (object_type) {
         case SrsAacObjectTypeAacMain: return SrsAacProfileMain;
-        case SrsAacObjectTypeHE:
-        case SrsAacObjectTypeHEV2:
+        case SrsAacObjectTypeAacHE:
+        case SrsAacObjectTypeAacHEV2:
         case SrsAacObjectTypeAacLC: return SrsAacProfileLC;
         case SrsAacObjectTypeAacSSR: return SrsAacProfileSSR;
         default: return SrsAacProfileReserved;

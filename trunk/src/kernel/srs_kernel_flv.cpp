@@ -103,6 +103,7 @@ int SrsFlvEncoder::write_header(char flv_header[9])
         return ret;
     }
     
+    // previous tag size.
     char pts[] = { (char)0x00, (char)0x00, (char)0x00, (char)0x00 };
     if ((ret = _fs->write(pts, 4, NULL)) != ERROR_SUCCESS) {
         return ret;
