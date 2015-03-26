@@ -353,6 +353,7 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsStream* avs)
     int ibpframe_size = avs->size() - avs->pos();
     
     // send each frame.
+    bool got_sps_pps = false;
     while (!avs->empty()) {
         char* frame = NULL;
         int frame_size = 0;
@@ -369,6 +370,8 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsStream* avs)
 
         // for sps
         if (avc->is_sps(frame, frame_size)) {
+            got_sps_pps = true;
+            
             std::string sps;
             if ((ret = avc->sps_demux(frame, frame_size, sps)) != ERROR_SUCCESS) {
                 return ret;
@@ -388,6 +391,8 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsStream* avs)
 
         // for pps
         if (avc->is_pps(frame, frame_size)) {
+            got_sps_pps = true;
+            
             std::string pps;
             if ((ret = avc->pps_demux(frame, frame_size, pps)) != ERROR_SUCCESS) {
                 return ret;
@@ -404,17 +409,14 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsStream* avs)
             }
             continue;
         }
-        
-        // regenerat the ibp frame.
-        if (!avs->empty()) {
-            ibpframe = avs->data() + avs->pos();
-            ibpframe_size = avs->size() - avs->pos();
-        } else {
-            srs_info("mpegts: sps/pps frame consumed.");
-            return ret;
-        }
 
         break;
+    }
+    
+    // not ibp frame, ignore for already sent.
+    if (got_sps_pps) {
+        srs_info("mpegts: already send the sps/pps.");
+        return ret;
     }
 
     // ibp frame.
