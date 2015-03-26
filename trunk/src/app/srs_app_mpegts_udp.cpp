@@ -404,6 +404,15 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsStream* avs)
             }
             continue;
         }
+        
+        // regenerat the ibp frame.
+        if (!avs->empty()) {
+            ibpframe = avs->data() + avs->pos();
+            ibpframe_size = avs->size() - avs->pos();
+        } else {
+            srs_info("mpegts: sps/pps frame consumed.");
+            return ret;
+        }
 
         break;
     }
