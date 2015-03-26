@@ -1192,7 +1192,7 @@ int SrsHlsCache::cache_audio(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         // 6.2 Audio Data Transport Stream, ADTS
         // in aac-iso-13818-7.pdf, page 26.
         // fixed 7bytes header
-        static u_int8_t adts_header[7] = {0xff, 0xf1, 0x00, 0x00, 0x00, 0x0f, 0xfc};
+        static u_int8_t adts_header[7] = {0xff, 0xf9, 0x00, 0x00, 0x00, 0x0f, 0xfc};
         /*
         // adts_fixed_header
         // 2B, 16bits
