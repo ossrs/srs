@@ -210,11 +210,11 @@ failed:
         }
     }
     
-    handler->on_thread_stop();
-    srs_info("thread %s cycle finished", _name);
-
     // readly terminated now.
     really_terminated = true;
+    
+    handler->on_thread_stop();
+    srs_info("thread %s cycle finished", _name);
 }
 
 void* SrsThread::thread_fun(void* arg)
