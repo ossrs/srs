@@ -1265,10 +1265,15 @@ int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
         msg = new SrsTsMessage(channel, packet);
         channel->msg = msg;
     }
+    
+    // we must cache the fresh state of msg,
+    // for the PES_packet_length is 0, the first payload_unit_start_indicator always 1,
+    // so should check for the fresh and not completed it.
+    bool is_fresh_msg = msg->fresh();
 
     // check when fresh, the payload_unit_start_indicator
     // should be 1 for the fresh msg.
-    if (msg->fresh() && !packet->payload_unit_start_indicator) {
+    if (is_fresh_msg && !packet->payload_unit_start_indicator) {
         ret = ERROR_STREAM_CASTER_TS_PSE;
         srs_error("ts: PES fresh packet length=%d, us=%d, cc=%d. ret=%d",
             msg->PES_packet_length, packet->payload_unit_start_indicator, packet->continuity_counter,
@@ -1278,7 +1283,7 @@ int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
 
     // check when not fresh and PES_packet_length>0,
     // the payload_unit_start_indicator should never be 1 when not completed.
-    if (!msg->fresh() && msg->PES_packet_length > 0
+    if (!is_fresh_msg && msg->PES_packet_length > 0
         && !msg->completed(packet->payload_unit_start_indicator)
         && packet->payload_unit_start_indicator
     ) {
@@ -1295,7 +1300,7 @@ int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
     }
 
     // check the continuity counter
-    if (!msg->fresh()) {
+    if (!is_fresh_msg) {
         // late-incoming or duplicated continuity, drop message.
         // @remark check overflow, the counter plus 1 should greater when invalid.
         if (msg->continuity_counter >= packet->continuity_counter
@@ -1322,7 +1327,7 @@ int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
     msg->continuity_counter = packet->continuity_counter;
 
     // for the PES_packet_length(0), reap when completed.
-    if (!msg->fresh() && msg->completed(packet->payload_unit_start_indicator)) {
+    if (!is_fresh_msg && msg->completed(packet->payload_unit_start_indicator)) {
         // reap previous PES packet.
         *ppmsg = msg;
         channel->msg = NULL;
@@ -1358,7 +1363,7 @@ int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
         packet_start_code_prefix &= 0xFFFFFF;
         if (packet_start_code_prefix != 0x01) {
             ret = ERROR_STREAM_CASTER_TS_PSE;
-            srs_error("ts: demux PSE start code failed, expect=0x01, actual=%#x. ret=%d", packet_start_code_prefix, ret);
+            srs_error("ts: demux PES start code failed, expect=0x01, actual=%#x. ret=%d", packet_start_code_prefix, ret);
             return ret;
         }
         int pos_packet = stream->pos();
@@ -1380,7 +1385,7 @@ int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
             // 3B flags.
             if (!stream->require(3)) {
                 ret = ERROR_STREAM_CASTER_TS_PSE;
-                srs_error("ts: demux PSE flags failed. ret=%d", ret);
+                srs_error("ts: demux PES flags failed. ret=%d", ret);
                 return ret;
             }
             // 1B
@@ -1419,7 +1424,7 @@ int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
             nb_required += PES_extension_flag? 1:0;
             if (!stream->require(nb_required)) {
                 ret = ERROR_STREAM_CASTER_TS_PSE;
-                srs_error("ts: demux PSE payload failed. ret=%d", ret);
+                srs_error("ts: demux PES payload failed. ret=%d", ret);
                 return ret;
             }
 
@@ -1637,6 +1642,13 @@ int SrsTsPayloadPES::decode(SrsStream* stream, SrsTsMessage** ppmsg)
             stream->skip(nb_drop);
             srs_warn("ts: drop the pes packet %dB for stream_id=%#x", nb_drop, stream_id);
         }
+    }
+    
+    // when fresh and the PES_packet_length is 0,
+    // the payload_unit_start_indicator always be 1,
+    // the message should never EOF for the first packet.
+    if (is_fresh_msg && msg->PES_packet_length == 0) {
+        return ret;
     }
 
     // check msg, reap when completed.
