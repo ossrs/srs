@@ -438,6 +438,7 @@ int SrsRawAacStream::adts_demux(SrsStream* stream, char** pframe, int* pnb_frame
         codec.frame_length = frame_length;
         
         // @see srs_audio_write_raw_frame().
+        // TODO: FIXME: maybe need to resample audio.
         codec.sound_format = 10; // AAC
         if (sampling_frequency_index <= 0x0c && sampling_frequency_index > 0x0a) {
             codec.sound_rate = SrsCodecAudioSampleRate5512;
@@ -451,7 +452,7 @@ int SrsRawAacStream::adts_demux(SrsStream* stream, char** pframe, int* pnb_frame
             codec.sound_rate = SrsCodecAudioSampleRate44100;
             srs_warn("adts invalid sample rate for flv, rate=%#x", sampling_frequency_index);
         }
-        codec.sound_size = srs_max(0, srs_min(1, channel_configuration - 1));
+        codec.sound_type = srs_max(0, srs_min(1, channel_configuration - 1));
         // TODO: FIXME: finger it out the sound size by adts.
         codec.sound_size = 1; // 0(8bits) or 1(16bits).
 
