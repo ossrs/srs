@@ -51,6 +51,29 @@ extern int srs_socket_connect(std::string server, int port, int64_t timeout, st_
 extern int srs_get_log_level(std::string level);
 
 /**
+* build the path according to vhost/app/stream, where replace variables:
+*       [vhost], the vhost of stream.
+*       [app], the app of stream.
+*       [stream], the stream name of stream.
+* @return the replaced path.
+*/
+extern std::string srs_path_build_stream(std::string template_path, std::string vhost, std::string app, std::string stream);
+
+/**
+* build the path according to timestamp, where replace variables:
+*       [2006], replace this const to current year.
+*       [01], replace this const to current month.
+*       [02], replace this const to current date.
+*       [15], replace this const to current hour.
+*       [04], repleace this const to current minute.
+*       [05], repleace this const to current second.
+*       [999], repleace this const to current millisecond.
+*       [timestamp],replace this const to current UNIX timestamp in ms.
+* @return the replaced path.
+*/
+extern std::string srs_path_build_timestamp(std::string template_path);
+
+/**
 * parse the endpoint to ip and port.
 * @param ip_port the ip and port which formats in <[ip:]port>
  */

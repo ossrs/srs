@@ -53,6 +53,7 @@ using namespace std;
 #include <srs_kernel_file.hpp>
 #include <srs_rtmp_buffer.hpp>
 #include <srs_kernel_ts.hpp>
+#include <srs_app_utility.hpp>
 
 // drop the segment when duration of ts too small.
 #define SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS 100
@@ -204,8 +205,9 @@ int SrsHlsMuxer::sequence_no()
     return _sequence_no;
 }
 
-int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix, string path, int fragment, int window, double aof_ratio)
-{
+int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
+    string path, string m3u8_file, string ts_file, int fragment, int window, double aof_ratio
+) {
     int ret = ERROR_SUCCESS;
     
     srs_freep(req);
@@ -213,6 +215,8 @@ int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix, string path, 
 
     hls_entry_prefix = entry_prefix;
     hls_path = path;
+    hls_m3u8_file = m3u8_file;
+    hls_ts_file = ts_file;
     hls_fragment = fragment;
     hls_aof_ratio = aof_ratio;
     hls_window = window;
@@ -249,7 +253,7 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     
     // TODO: create all parents dirs.
     // create dir for app.
-    if (should_write_file && (ret = create_dir()) != ERROR_SUCCESS) {
+    if (should_write_file && (ret = create_dir(current->full_path)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -292,22 +296,23 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     current->segment_start_dts = segment_start_dts;
     
     // generate filename.
-    char filename[128];
-    snprintf(filename, sizeof(filename), 
-        "%s-%d.ts", req->stream.c_str(), current->sequence_no);
+    std::string ts_file = hls_ts_file;
+    ts_file = srs_path_build_stream(ts_file, req->vhost, req->app, req->stream);
+    ts_file = srs_path_build_timestamp(ts_file);
+    if (true) {
+        std::stringstream ss;
+        ss << current->sequence_no;
+        ts_file = srs_string_replace(ts_file, "[seq]", ss.str());
+    }
     
-    // TODO: use temp file and rename it.
-    current->full_path = hls_path;
-    current->full_path += "/";
-    current->full_path += req->app;
-    current->full_path += "/";
-    current->full_path += filename;
+    // replace variables
+    current->full_path = hls_path + "/" + ts_file;
     
     current->uri += hls_entry_prefix;
     if (!hls_entry_prefix.empty() && !srs_string_ends_with(hls_entry_prefix, "/")) {
         current->uri += "/";
     }
-    current->uri += filename;
+    current->uri += ts_file;
     
     std::string tmp_file = current->full_path + ".tmp";
     if ((ret = current->muxer->open(tmp_file.c_str())) != ERROR_SUCCESS) {
@@ -524,10 +529,8 @@ int SrsHlsMuxer::refresh_m3u8()
     
     std::string m3u8_file = hls_path;
     m3u8_file += "/";
-    m3u8_file += req->app;
-    m3u8_file += "/";
-    m3u8_file += req->stream;
-    m3u8_file += ".m3u8";
+    m3u8_file += hls_m3u8_file;
+    m3u8_file = srs_path_build_stream(m3u8_file, req->vhost, req->app, req->stream);
     
     m3u8 = m3u8_file;
     m3u8_file += ".temp";
@@ -631,7 +634,7 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
     return ret;
 }
 
-int SrsHlsMuxer::create_dir()
+int SrsHlsMuxer::create_dir(string filepath)
 {
     int ret = ERROR_SUCCESS;
 
@@ -639,9 +642,11 @@ int SrsHlsMuxer::create_dir()
         return ret;
     }
     
-    std::string app_dir = hls_path;
-    app_dir += "/";
-    app_dir += req->app;
+    std::string app_dir = filepath;
+    size_t pos = string::npos;
+    if ((pos = app_dir.rfind("/")) != string::npos) {
+        app_dir = app_dir.substr(0, pos);
+    }
     
     // TODO: cleanup the dir when startup.
     
@@ -678,7 +683,9 @@ int SrsHlsCache::on_publish(SrsHlsMuxer* muxer, SrsRequest* req, int64_t segment
     // get the hls m3u8 ts list entry prefix config
     std::string entry_prefix = _srs_config->get_hls_entry_prefix(vhost);
     // get the hls path config
-    std::string hls_path = _srs_config->get_hls_path(vhost);
+    std::string path = _srs_config->get_hls_path(vhost);
+    std::string m3u8_file = _srs_config->get_hls_m3u8_file(vhost);
+    std::string ts_file = _srs_config->get_hls_ts_file(vhost);
     // the audio overflow, for pure audio to reap segment.
     double hls_aof_ratio = _srs_config->get_hls_aof_ratio(vhost);
     
@@ -686,7 +693,7 @@ int SrsHlsCache::on_publish(SrsHlsMuxer* muxer, SrsRequest* req, int64_t segment
     // for the HLS donot requires the EXT-X-MEDIA-SEQUENCE be monotonically increase.
     
     // open muxer
-    if ((ret = muxer->update_config(req, entry_prefix, hls_path, hls_fragment, hls_window, hls_aof_ratio)) != ERROR_SUCCESS) {
+    if ((ret = muxer->update_config(req, entry_prefix, path, m3u8_file, ts_file, hls_fragment, hls_window, hls_aof_ratio)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer update config failed. ret=%d", ret);
         return ret;
     }

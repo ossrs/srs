@@ -46,6 +46,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #define SRS_CONF_DEFAULT_MAX_CONNECTIONS 1000
 #define SRS_CONF_DEFAULT_HLS_PATH "./objs/nginx/html"
+#define SRS_CONF_DEFAULT_HLS_M3U8_FILE "[app]/[stream].m3u8"
+#define SRS_CONF_DEFAULT_HLS_TS_FILE "[app]/[stream]-[seq].ts"
 #define SRS_CONF_DEFAULT_HLS_FRAGMENT 10
 #define SRS_CONF_DEFAULT_HLS_TD_RATIO 1.5
 #define SRS_CONF_DEFAULT_HLS_AOF_RATIO 2.0
@@ -871,9 +873,17 @@ public:
     */
     virtual std::string         get_hls_entry_prefix(std::string vhost);
     /**
-    * get the HLS ts/m3u8 file store path.
-    */
+     * get the HLS ts/m3u8 file store path.
+     */
     virtual std::string         get_hls_path(std::string vhost);
+    /**
+     * get the HLS m3u8 file path template.
+     */
+    virtual std::string         get_hls_m3u8_file(std::string vhost);
+    /**
+     * get the HLS ts file path template.
+     */
+    virtual std::string         get_hls_ts_file(std::string vhost);
     /**
     * get the hls fragment time, in seconds.
     */
