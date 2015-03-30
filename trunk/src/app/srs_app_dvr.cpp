@@ -27,7 +27,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <fcntl.h>
 #include <sstream>
-#include <sys/time.h>
 #include <algorithm>
 using namespace std;
 
@@ -42,6 +41,7 @@ using namespace std;
 #include <srs_rtmp_amf0.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_app_json.hpp>
+#include <srs_app_utility.hpp>
 
 // update the flv duration and filesize every this interval in ms.
 #define SRS_DVR_UPDATE_DURATION_INTERVAL 60000
@@ -422,76 +422,8 @@ string SrsFlvSegment::generate_path()
     
     // the flv file path
     std::string flv_path = path_config;
-    
-    // variable [vhost]
-    flv_path = srs_string_replace(flv_path, "[vhost]", req->vhost);
-    // variable [app]
-    flv_path = srs_string_replace(flv_path, "[app]", req->app);
-    // variable [stream]
-    flv_path = srs_string_replace(flv_path, "[stream]", req->stream);
-    
-    // date and time substitude
-    // clock time
-    timeval tv;
-    if (gettimeofday(&tv, NULL) == -1) {
-        return flv_path;
-    }
-    
-    // to calendar time
-    struct tm* tm;
-    if ((tm = localtime(&tv.tv_sec)) == NULL) {
-        return flv_path;
-    }
-    
-    // the buffer to format the date and time.
-    char buf[64];
-    
-    // [2006], replace with current year.
-    if (true) {
-        snprintf(buf, sizeof(buf), "%d", 1900 + tm->tm_year);
-        flv_path = srs_string_replace(flv_path, "[2006]", buf);
-    }
-    // [2006], replace with current year.
-    if (true) {
-        snprintf(buf, sizeof(buf), "%d", 1900 + tm->tm_year);
-        flv_path = srs_string_replace(flv_path, "[2006]", buf);
-    }
-    // [01], replace this const to current month.
-    if (true) {
-        snprintf(buf, sizeof(buf), "%d", 1 + tm->tm_mon);
-        flv_path = srs_string_replace(flv_path, "[01]", buf);
-    }
-    // [02], replace this const to current date.
-    if (true) {
-        snprintf(buf, sizeof(buf), "%d", tm->tm_mday);
-        flv_path = srs_string_replace(flv_path, "[02]", buf);
-    }
-    // [15], replace this const to current hour.
-    if (true) {
-        snprintf(buf, sizeof(buf), "%d", tm->tm_hour);
-        flv_path = srs_string_replace(flv_path, "[15]", buf);
-    }
-    // [04], repleace this const to current minute.
-    if (true) {
-        snprintf(buf, sizeof(buf), "%d", tm->tm_min);
-        flv_path = srs_string_replace(flv_path, "[04]", buf);
-    }
-    // [05], repleace this const to current second.
-    if (true) {
-        snprintf(buf, sizeof(buf), "%d", tm->tm_sec);
-        flv_path = srs_string_replace(flv_path, "[05]", buf);
-    }
-    // [999], repleace this const to current millisecond.
-    if (true) {
-        snprintf(buf, sizeof(buf), "%03d", (int)(tv.tv_usec / 1000));
-        flv_path = srs_string_replace(flv_path, "[999]", buf);
-    }
-    // [timestamp],replace this const to current UNIX timestamp in ms.
-    if (true) {
-        int64_t now_us = ((int64_t)tv.tv_sec) * 1000 * 1000 + (int64_t)tv.tv_usec;
-        snprintf(buf, sizeof(buf), "%"PRId64, now_us / 1000);
-        flv_path = srs_string_replace(flv_path, "[timestamp]", buf);
-    }
+    flv_path = srs_path_build_stream(flv_path, req->vhost, req->app, req->stream);
+    flv_path = srs_path_build_timestamp(flv_path);
 
     return flv_path;
 }

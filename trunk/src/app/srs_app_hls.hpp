@@ -169,6 +169,8 @@ private:
 private:
     std::string hls_entry_prefix;
     std::string hls_path;
+    std::string hls_m3u8_file;
+    std::string hls_ts_file;
     double hls_aof_ratio;
     int hls_fragment;
     int hls_window;
@@ -209,7 +211,9 @@ public:
     /**
     * when publish, update the config for muxer.
     */
-    virtual int update_config(SrsRequest* r, std::string entry_prefix, std::string path, int fragment, int window, double aof_ratio);
+    virtual int update_config(SrsRequest* r, std::string entry_prefix,
+        std::string path, std::string m3u8_file, std::string ts_file,
+        int fragment, int window, double aof_ratio);
     /**
     * open a new segment(a new ts file),
     * @param segment_start_dts use to calc the segment duration,
@@ -240,7 +244,7 @@ public:
 private:
     virtual int refresh_m3u8();
     virtual int _refresh_m3u8(std::string m3u8_file);
-    virtual int create_dir();
+    virtual int create_dir(std::string filepath);
 };
 
 /**

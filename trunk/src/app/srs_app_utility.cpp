@@ -32,6 +32,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <sys/sysctl.h>
 #endif
 #include <stdlib.h>
+#include <sys/time.h>
 using namespace std;
 
 #include <srs_kernel_log.hpp>
@@ -109,6 +110,91 @@ int srs_get_log_level(string level)
     } else {
         return SrsLogLevel::Disabled;
     }
+}
+
+string srs_path_build_stream(string template_path, string vhost, string app, string stream)
+{
+    std::string path = template_path;
+    
+    // variable [vhost]
+    path = srs_string_replace(path, "[vhost]", vhost);
+    // variable [app]
+    path = srs_string_replace(path, "[app]", app);
+    // variable [stream]
+    path = srs_string_replace(path, "[stream]", stream);
+    
+    return path;
+}
+
+string srs_path_build_timestamp(string template_path)
+{
+    std::string path = template_path;
+    
+    
+    // date and time substitude
+    // clock time
+    timeval tv;
+    if (gettimeofday(&tv, NULL) == -1) {
+        return path;
+    }
+    
+    // to calendar time
+    struct tm* tm;
+    if ((tm = localtime(&tv.tv_sec)) == NULL) {
+        return path;
+    }
+    
+    // the buffer to format the date and time.
+    char buf[64];
+    
+    // [2006], replace with current year.
+    if (true) {
+        snprintf(buf, sizeof(buf), "%d", 1900 + tm->tm_year);
+        path = srs_string_replace(path, "[2006]", buf);
+    }
+    // [2006], replace with current year.
+    if (true) {
+        snprintf(buf, sizeof(buf), "%d", 1900 + tm->tm_year);
+        path = srs_string_replace(path, "[2006]", buf);
+    }
+    // [01], replace this const to current month.
+    if (true) {
+        snprintf(buf, sizeof(buf), "%d", 1 + tm->tm_mon);
+        path = srs_string_replace(path, "[01]", buf);
+    }
+    // [02], replace this const to current date.
+    if (true) {
+        snprintf(buf, sizeof(buf), "%d", tm->tm_mday);
+        path = srs_string_replace(path, "[02]", buf);
+    }
+    // [15], replace this const to current hour.
+    if (true) {
+        snprintf(buf, sizeof(buf), "%d", tm->tm_hour);
+        path = srs_string_replace(path, "[15]", buf);
+    }
+    // [04], repleace this const to current minute.
+    if (true) {
+        snprintf(buf, sizeof(buf), "%d", tm->tm_min);
+        path = srs_string_replace(path, "[04]", buf);
+    }
+    // [05], repleace this const to current second.
+    if (true) {
+        snprintf(buf, sizeof(buf), "%d", tm->tm_sec);
+        path = srs_string_replace(path, "[05]", buf);
+    }
+    // [999], repleace this const to current millisecond.
+    if (true) {
+        snprintf(buf, sizeof(buf), "%03d", (int)(tv.tv_usec / 1000));
+        path = srs_string_replace(path, "[999]", buf);
+    }
+    // [timestamp],replace this const to current UNIX timestamp in ms.
+    if (true) {
+        int64_t now_us = ((int64_t)tv.tv_sec) * 1000 * 1000 + (int64_t)tv.tv_usec;
+        snprintf(buf, sizeof(buf), "%"PRId64, now_us / 1000);
+        path = srs_string_replace(path, "[timestamp]", buf);
+    }
+    
+    return path;
 }
 
 void srs_parse_endpoint(string ip_port, string& ip, string& port)
