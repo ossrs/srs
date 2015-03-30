@@ -60,6 +60,8 @@ extern std::string srs_string_trim_start(std::string str, std::string trim_chars
 extern std::string srs_string_remove(std::string str, std::string remove_chars);
 // whether string end with
 extern bool srs_string_ends_with(std::string str, std::string flag);
+// whether string starts with
+extern bool srs_string_starts_with(std::string str, std::string flag);
 
 // create dir recursively
 extern int srs_create_dir_recursively(std::string dir);

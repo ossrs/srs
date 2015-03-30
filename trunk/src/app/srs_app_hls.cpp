@@ -215,11 +215,20 @@ int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
 
     hls_entry_prefix = entry_prefix;
     hls_path = path;
-    hls_m3u8_file = m3u8_file;
     hls_ts_file = ts_file;
     hls_fragment = fragment;
     hls_aof_ratio = aof_ratio;
     hls_window = window;
+    
+    // generate the m3u8 dir and path.
+    m3u8 = path + "/" + m3u8_file;
+    m3u8 = srs_path_build_stream(m3u8, req->vhost, req->app, req->stream);
+    
+    m3u8_dir = m3u8;
+    size_t pos = string::npos;
+    if ((pos = m3u8_dir.rfind("/")) != string::npos) {
+        m3u8_dir = m3u8_dir.substr(0, pos);
+    }
 
     // we always keep the target duration increasing.
     int max_td = srs_max(target_duration, (int)(fragment * _srs_config->get_hls_td_ratio(r->vhost)));
@@ -248,12 +257,6 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     
     if (current) {
         srs_warn("ignore the segment open, for segment is already open.");
-        return ret;
-    }
-    
-    // TODO: create all parents dirs.
-    // create dir for app.
-    if (should_write_file && (ret = create_dir(current->full_path)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -304,16 +307,30 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
         ss << current->sequence_no;
         ts_file = srs_string_replace(ts_file, "[seq]", ss.str());
     }
-    
-    // replace variables
     current->full_path = hls_path + "/" + ts_file;
     
+    // the ts url, relative or absolute url.
+    std::string ts_url = current->full_path;
+    if (srs_string_starts_with(ts_url, m3u8_dir)) {
+        ts_url = ts_url.substr(m3u8_dir.length());
+    }
+    while (srs_string_starts_with(ts_url, "/")) {
+        ts_url = ts_url.substr(1);
+    }
     current->uri += hls_entry_prefix;
     if (!hls_entry_prefix.empty() && !srs_string_ends_with(hls_entry_prefix, "/")) {
         current->uri += "/";
     }
-    current->uri += ts_file;
+    current->uri += ts_url;
     
+    // create dir recursively for hls.
+    if (should_write_file && (ret = srs_create_dir_recursively(m3u8_dir)) != ERROR_SUCCESS) {
+        srs_error("create app dir %s failed. ret=%d", m3u8_dir.c_str(), ret);
+        return ret;
+    }
+    srs_info("create app dir %s ok", m3u8_dir.c_str());
+    
+    // open temp ts file.
     std::string tmp_file = current->full_path + ".tmp";
     if ((ret = current->muxer->open(tmp_file.c_str())) != ERROR_SUCCESS) {
         srs_error("open hls muxer failed. ret=%d", ret);
@@ -527,23 +544,16 @@ int SrsHlsMuxer::refresh_m3u8()
 {
     int ret = ERROR_SUCCESS;
     
-    std::string m3u8_file = hls_path;
-    m3u8_file += "/";
-    m3u8_file += hls_m3u8_file;
-    m3u8_file = srs_path_build_stream(m3u8_file, req->vhost, req->app, req->stream);
-    
-    m3u8 = m3u8_file;
-    m3u8_file += ".temp";
-    
-    if ((ret = _refresh_m3u8(m3u8_file)) == ERROR_SUCCESS) {
-        if (should_write_file && rename(m3u8_file.c_str(), m3u8.c_str()) < 0) {
+    std::string temp_m3u8 = m3u8 + ".temp";
+    if ((ret = _refresh_m3u8(temp_m3u8)) == ERROR_SUCCESS) {
+        if (should_write_file && rename(temp_m3u8.c_str(), m3u8.c_str()) < 0) {
             ret = ERROR_HLS_WRITE_FAILED;
-            srs_error("rename m3u8 file failed. %s => %s, ret=%d", m3u8_file.c_str(), m3u8.c_str(), ret);
+            srs_error("rename m3u8 file failed. %s => %s, ret=%d", temp_m3u8.c_str(), m3u8.c_str(), ret);
         }
     }
     
     // remove the temp file.
-    unlink(m3u8_file.c_str());
+    unlink(temp_m3u8.c_str());
     
     return ret;
 }
@@ -631,31 +641,6 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
         return ret;
     }
     
-    return ret;
-}
-
-int SrsHlsMuxer::create_dir(string filepath)
-{
-    int ret = ERROR_SUCCESS;
-
-    if (!should_write_file) {
-        return ret;
-    }
-    
-    std::string app_dir = filepath;
-    size_t pos = string::npos;
-    if ((pos = app_dir.rfind("/")) != string::npos) {
-        app_dir = app_dir.substr(0, pos);
-    }
-    
-    // TODO: cleanup the dir when startup.
-    
-    if ((ret = srs_create_dir_recursively(app_dir)) != ERROR_SUCCESS) {
-        srs_error("create app dir %s failed. ret=%d", app_dir.c_str(), ret);
-        return ret;
-    }
-    srs_info("create app dir %s ok", app_dir.c_str());
-
     return ret;
 }
 

@@ -226,6 +226,11 @@ bool srs_string_ends_with(string str, string flag)
     return str.rfind(flag) == str.length() - flag.length();
 }
 
+bool srs_string_starts_with(string str, string flag)
+{
+    return str.find(flag) == 0;
+}
+
 int srs_do_create_dir_recursively(string dir)
 {
     int ret = ERROR_SUCCESS;
