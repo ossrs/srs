@@ -169,8 +169,8 @@ private:
 private:
     std::string hls_entry_prefix;
     std::string hls_path;
-    std::string hls_m3u8_file;
     std::string hls_ts_file;
+    std::string m3u8_dir;
     double hls_aof_ratio;
     int hls_fragment;
     int hls_window;
@@ -244,7 +244,6 @@ public:
 private:
     virtual int refresh_m3u8();
     virtual int _refresh_m3u8(std::string m3u8_file);
-    virtual int create_dir(std::string filepath);
 };
 
 /**
