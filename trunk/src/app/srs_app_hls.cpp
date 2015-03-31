@@ -331,17 +331,18 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     std::string ts_file = hls_ts_file;
     ts_file = srs_path_build_stream(ts_file, req->vhost, req->app, req->stream);
     if (hls_ts_floor) {
-        int64_t floor_ts = (int64_t)(srs_get_system_time_ms() / (1000 * hls_fragment));
+        // we always ensure the piece is increase one by one.
         std::stringstream ts_floor;
-        ts_floor << floor_ts;
+        ts_floor << (int64_t)(previous_floor_ts + 1);
         ts_file = srs_string_replace(ts_file, "[timestamp]", ts_floor.str());
         
         // dup/jmp detect for ts in floor mode.
+        int64_t floor_ts = (int64_t)(srs_get_system_time_ms() / (1000 * hls_fragment));
         if (previous_floor_ts && previous_floor_ts != floor_ts - 1) {
             srs_warn("hls: dup or jmp for floor ts, previous=%"PRId64", current=%"PRId64", ts=%s, deviation=%.2f",
                      previous_floor_ts, floor_ts, ts_file.c_str(), hls_fragment_deviation);
         }
-        previous_floor_ts = floor_ts;
+        previous_floor_ts++;
     }
     ts_file = srs_path_build_timestamp(ts_file);
     if (true) {
