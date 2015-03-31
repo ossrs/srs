@@ -1482,7 +1482,7 @@ int SrsConfig::check_config()
                     string m = conf->at(j)->name.c_str();
                     if (m != "enabled" && m != "hls_entry_prefix" && m != "hls_path" && m != "hls_fragment" && m != "hls_window" && m != "hls_on_error"
                         && m != "hls_storage" && m != "hls_mount" && m != "hls_td_ratio" && m != "hls_aof_ratio" && m != "hls_acodec" && m != "hls_vcodec"
-                        && m != "hls_m3u8_file" && m != "hls_ts_file"
+                        && m != "hls_m3u8_file" && m != "hls_ts_file" && m != "hls_ts_floor"
                     ) {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost hls directive %s, ret=%d", m.c_str(), ret);
@@ -3205,6 +3205,23 @@ string SrsConfig::get_hls_ts_file(string vhost)
     }
     
     return conf->arg0();
+}
+
+bool SrsConfig::get_hls_ts_floor(string vhost)
+{
+    SrsConfDirective* hls = get_hls(vhost);
+    
+    if (!hls) {
+        return SRS_CONF_DEFAULT_HLS_TS_FLOOR;
+    }
+    
+    SrsConfDirective* conf = hls->get("hls_ts_floor");
+    
+    if (!conf || conf->arg0() != "on") {
+        return SRS_CONF_DEFAULT_HLS_TS_FLOOR;
+    }
+    
+    return true;
 }
 
 double SrsConfig::get_hls_fragment(string vhost)

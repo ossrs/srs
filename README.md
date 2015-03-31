@@ -562,6 +562,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-03-31, enhanced hls, support deviation for duration. 2.0.151.
 * v2.0, 2015-03-30, for [#351](https://github.com/winlinvip/simple-rtmp-server/issues/351), support config the m3u8/ts path for hls. 2.0.149.
 * v2.0, 2015-03-17, for [#155](https://github.com/winlinvip/simple-rtmp-server/issues/155), osx(darwin) support demo with nginx and ffmpeg. 2.0.143.
 * v2.0, 2015-03-15, start [2.0release branch](https://github.com/winlinvip/simple-rtmp-server/tree/2.0release), 80773 lines.

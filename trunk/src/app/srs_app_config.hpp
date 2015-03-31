@@ -48,6 +48,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_HLS_PATH "./objs/nginx/html"
 #define SRS_CONF_DEFAULT_HLS_M3U8_FILE "[app]/[stream].m3u8"
 #define SRS_CONF_DEFAULT_HLS_TS_FILE "[app]/[stream]-[seq].ts"
+#define SRS_CONF_DEFAULT_HLS_TS_FLOOR "off"
 #define SRS_CONF_DEFAULT_HLS_FRAGMENT 10
 #define SRS_CONF_DEFAULT_HLS_TD_RATIO 1.5
 #define SRS_CONF_DEFAULT_HLS_AOF_RATIO 2.0
@@ -884,6 +885,10 @@ public:
      * get the HLS ts file path template.
      */
     virtual std::string         get_hls_ts_file(std::string vhost);
+    /**
+     * whether enable the floor(timestamp/hls_fragment) for variable timestamp.
+     */
+    virtual bool                get_hls_ts_floor(std::string vhost);
     /**
     * get the hls fragment time, in seconds.
     */

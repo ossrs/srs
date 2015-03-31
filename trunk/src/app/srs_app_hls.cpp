@@ -58,6 +58,11 @@ using namespace std;
 // drop the segment when duration of ts too small.
 #define SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS 100
 
+// startup piece, the first piece, fragment percent to reap.
+#define SRS_HLS_FLOOR_STARTUP_PERCENT 0.1
+// fragment plus the deviation percent.
+#define SRS_HLS_FLOOR_REAP_PERCENT 0.9
+
 ISrsHlsHandler::ISrsHlsHandler()
 {
 }
@@ -170,6 +175,8 @@ SrsHlsMuxer::SrsHlsMuxer()
     handler = NULL;
     hls_fragment = hls_window = 0;
     hls_aof_ratio = 1.0;
+    hls_fragment_deviation = 0;
+    hls_ts_floor = false;
     target_duration = 0;
     _sequence_no = 0;
     current = NULL;
@@ -205,8 +212,24 @@ int SrsHlsMuxer::sequence_no()
     return _sequence_no;
 }
 
+string SrsHlsMuxer::ts_url()
+{
+    return current? current->uri:"";
+}
+
+double SrsHlsMuxer::duration()
+{
+    return current? current->duration:0;
+}
+
+double SrsHlsMuxer::deviation()
+{
+    return hls_fragment_deviation;
+}
+
 int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
-    string path, string m3u8_file, string ts_file, int fragment, int window, double aof_ratio
+    string path, string m3u8_file, string ts_file, double fragment, double window,
+    bool ts_floor, double aof_ratio
 ) {
     int ret = ERROR_SUCCESS;
     
@@ -218,7 +241,11 @@ int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     hls_ts_file = ts_file;
     hls_fragment = fragment;
     hls_aof_ratio = aof_ratio;
+    hls_ts_floor = ts_floor;
     hls_window = window;
+    // for the first time, we set to -N% of fragment,
+    // that is, the first piece always smaller.
+    hls_fragment_deviation = -1 * (fragment * SRS_HLS_FLOOR_STARTUP_PERCENT);
     
     // generate the m3u8 dir and path.
     m3u8 = path + "/" + m3u8_file;
@@ -301,6 +328,11 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     // generate filename.
     std::string ts_file = hls_ts_file;
     ts_file = srs_path_build_stream(ts_file, req->vhost, req->app, req->stream);
+    if (hls_ts_floor) {
+        std::stringstream ts_floor;
+        ts_floor << (int64_t)(srs_get_system_time_ms() / (1000 * hls_fragment));
+        ts_file = srs_string_replace(ts_file, "[timestamp]", ts_floor.str());
+    }
     ts_file = srs_path_build_timestamp(ts_file);
     if (true) {
         std::stringstream ss;
@@ -308,6 +340,7 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
         ts_file = srs_string_replace(ts_file, "[seq]", ss.str());
     }
     current->full_path = hls_path + "/" + ts_file;
+    srs_info("hls: generate ts path %s, tmpl=%s, floor=%d", ts_file.c_str(), hls_ts_file.c_str(), hls_ts_floor);
     
     // the ts url, relative or absolute url.
     std::string ts_url = current->full_path;
@@ -336,7 +369,7 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
         srs_error("open hls muxer failed. ret=%d", ret);
         return ret;
     }
-    srs_info("open HLS muxer success. path=%s, tmp=%s", 
+    srs_info("open HLS muxer success. path=%s, tmp=%s",
         current->full_path.c_str(), tmp_file.c_str());
 
     // set the segment muxer audio codec.
@@ -363,14 +396,22 @@ int SrsHlsMuxer::on_sequence_header()
 bool SrsHlsMuxer::is_segment_overflow()
 {
     srs_assert(current);
-    return current->duration >= hls_fragment;
+    
+    // use N% deviation, to smoother.
+    double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * hls_fragment_deviation : 0.0;
+    
+    return current->duration >= hls_fragment + deviation;
 }
 
 bool SrsHlsMuxer::is_segment_absolutely_overflow()
 {
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-83553950
     srs_assert(current);
-    return current->duration >= hls_aof_ratio * hls_fragment;
+    
+    // use N% deviation, to smoother.
+    double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * hls_fragment_deviation : 0.0;
+    
+    return current->duration >= hls_aof_ratio * (hls_fragment + deviation);
 }
 
 int SrsHlsMuxer::update_acodec(SrsCodecAudio ac)
@@ -457,10 +498,15 @@ int SrsHlsMuxer::segment_close(string log_desc)
     // valid, add to segments if segment duration is ok
     if (current->duration * 1000 >= SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
         segments.push_back(current);
+        
+        // when reap ts, adjust the deviation.
+        if (hls_ts_floor) {
+            hls_fragment_deviation += (double)(hls_fragment - current->duration);
+        }
     
-        srs_info("%s reap ts segment, sequence_no=%d, uri=%s, duration=%.2f, start=%"PRId64"",
+        srs_info("%s reap ts segment, sequence_no=%d, uri=%s, duration=%.2f, start=%"PRId64", deviation=%.2f",
             log_desc.c_str(), current->sequence_no, current->uri.c_str(), current->duration, 
-            current->segment_start_dts);
+            current->segment_start_dts, hls_fragment_deviation);
         
         // notify handler for update ts.
         srs_assert(current->writer);
@@ -505,7 +551,7 @@ int SrsHlsMuxer::segment_close(string log_desc)
     // shrink the segments.
     double duration = 0;
     int remove_index = -1;
-    for (int i = segments.size() - 1; i >= 0; i--) {
+    for (int i = (int)segments.size() - 1; i >= 0; i--) {
         SrsHlsSegment* segment = segments[i];
         duration += segment->duration;
         
@@ -662,8 +708,8 @@ int SrsHlsCache::on_publish(SrsHlsMuxer* muxer, SrsRequest* req, int64_t segment
     std::string stream = req->stream;
     std::string app = req->app;
     
-    int hls_fragment = (int)_srs_config->get_hls_fragment(vhost);
-    int hls_window = (int)_srs_config->get_hls_window(vhost);
+    double hls_fragment = _srs_config->get_hls_fragment(vhost);
+    double hls_window = _srs_config->get_hls_window(vhost);
     
     // get the hls m3u8 ts list entry prefix config
     std::string entry_prefix = _srs_config->get_hls_entry_prefix(vhost);
@@ -673,12 +719,16 @@ int SrsHlsCache::on_publish(SrsHlsMuxer* muxer, SrsRequest* req, int64_t segment
     std::string ts_file = _srs_config->get_hls_ts_file(vhost);
     // the audio overflow, for pure audio to reap segment.
     double hls_aof_ratio = _srs_config->get_hls_aof_ratio(vhost);
+    // whether use floor(timestamp/hls_fragment) for variable timestamp
+    bool ts_floor = _srs_config->get_hls_ts_floor(vhost);
     
     // TODO: FIXME: support load exists m3u8, to continue publish stream.
     // for the HLS donot requires the EXT-X-MEDIA-SEQUENCE be monotonically increase.
     
     // open muxer
-    if ((ret = muxer->update_config(req, entry_prefix, path, m3u8_file, ts_file, hls_fragment, hls_window, hls_aof_ratio)) != ERROR_SUCCESS) {
+    if ((ret = muxer->update_config(req, entry_prefix,
+        path, m3u8_file, ts_file, hls_fragment, hls_window, ts_floor, hls_aof_ratio)) != ERROR_SUCCESS
+    ) {
         srs_error("m3u8 muxer update config failed. ret=%d", ret);
         return ret;
     }
@@ -687,6 +737,9 @@ int SrsHlsCache::on_publish(SrsHlsMuxer* muxer, SrsRequest* req, int64_t segment
         srs_error("m3u8 muxer open segment failed. ret=%d", ret);
         return ret;
     }
+    srs_trace("hls: win=%.2f, frag=%.2f, prefix=%s, path=%s, m3u8=%s, ts=%s, aof=%.2f, floor=%d",
+        hls_window, hls_fragment, entry_prefix.c_str(), path.c_str(), m3u8_file.c_str(),
+        ts_file.c_str(), hls_aof_ratio, ts_floor);
     
     return ret;
 }
@@ -1057,9 +1110,9 @@ void SrsHls::hls_show_mux_log()
         // the run time is not equals to stream time,
         // @see: https://github.com/winlinvip/simple-rtmp-server/issues/81#issuecomment-48100994
         // it's ok.
-        srs_trace("-> "SRS_CONSTS_LOG_HLS
-            " time=%"PRId64", stream dts=%"PRId64"(%"PRId64"ms), sequence_no=%d", 
-            pprint->age(), stream_dts, stream_dts / 90, muxer->sequence_no());
+        srs_trace("-> "SRS_CONSTS_LOG_HLS" time=%"PRId64", stream dts=%"PRId64"(%"PRId64"ms), sequence_no=%d, ts=%s, duration=%.2f, deviation=%.2f",
+            pprint->age(), stream_dts, stream_dts / 90, muxer->sequence_no(), muxer->ts_url().c_str(),
+            muxer->duration(), muxer->deviation());
     }
 }
 
