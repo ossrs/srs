@@ -195,13 +195,11 @@ int SrsDvrAsyncCallOnHls::call()
             return ret;
         }
         
-        int connection_id = _srs_context->get_id();
-        std::string cwd = _srs_config->cwd();
         std::string file = path;
         int sn = seq_no;
         for (int i = 0; i < (int)on_hls->args.size(); i++) {
             std::string url = on_hls->args.at(i);
-            if ((ret = SrsHttpHooks::on_hls(url, connection_id, req, cwd, file, sn)) != ERROR_SUCCESS) {
+            if ((ret = SrsHttpHooks::on_hls(url, req, file, sn)) != ERROR_SUCCESS) {
                 srs_error("hook client on_hls failed. url=%s, ret=%d", url.c_str(), ret);
                 return ret;
             }

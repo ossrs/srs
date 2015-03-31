@@ -55,65 +55,55 @@ public:
 public:
     /**
     * on_connect hook, when client connect to srs.
-    * @param client_id the id of client on server.
     * @param url the api server url, to valid the client. 
     *         ignore if empty.
     */
-    static int on_connect(std::string url, int client_id, std::string ip, SrsRequest* req);
+    static int on_connect(std::string url, SrsRequest* req);
     /**
     * on_close hook, when client disconnect to srs, where client is valid by on_connect.
-    * @param client_id the id of client on server.
     * @param url the api server url, to process the event. 
     *         ignore if empty.
     */
-    static void on_close(std::string url, int client_id, std::string ip, SrsRequest* req, int64_t send_bytes, int64_t recv_bytes);
+    static void on_close(std::string url, SrsRequest* req, int64_t send_bytes, int64_t recv_bytes);
     /**
     * on_publish hook, when client(encoder) start to publish stream
-    * @param client_id the id of client on server.
     * @param url the api server url, to valid the client. 
     *         ignore if empty.
     */
-    static int on_publish(std::string url, int client_id, std::string ip, SrsRequest* req);
+    static int on_publish(std::string url, SrsRequest* req);
     /**
     * on_unpublish hook, when client(encoder) stop publish stream.
-    * @param client_id the id of client on server.
     * @param url the api server url, to process the event. 
     *         ignore if empty.
     */
-    static void on_unpublish(std::string url, int client_id, std::string ip, SrsRequest* req);
+    static void on_unpublish(std::string url, SrsRequest* req);
     /**
     * on_play hook, when client start to play stream.
-    * @param client_id the id of client on server.
     * @param url the api server url, to valid the client. 
     *         ignore if empty.
     */
-    static int on_play(std::string url, int client_id, std::string ip, SrsRequest* req);
+    static int on_play(std::string url, SrsRequest* req);
     /**
     * on_stop hook, when client stop to play the stream.
-    * @param client_id the id of client on server.
     * @param url the api server url, to process the event. 
     *         ignore if empty.
     */
-    static void on_stop(std::string url, int client_id, std::string ip, SrsRequest* req);
+    static void on_stop(std::string url, SrsRequest* req);
     /**
     * on_dvr hook, when reap a dvr file.
-    * @param client_id the id of client on server.
     * @param url the api server url, to process the event. 
     *         ignore if empty.
-    * @param cwd the current work directory, used to resolve the reltive file path.
     * @param file the file path, can be relative or absolute path.
     */
-    static int on_dvr(std::string url, int client_id, std::string ip, SrsRequest* req, std::string cwd, std::string file);
+    static int on_dvr(std::string url, SrsRequest* req, std::string file);
     /**
     * when hls reap segment, callback.
-    * @param client_id the id of client on server.
     * @param url the api server url, to process the event. 
     *         ignore if empty.
-    * @param cwd the current work directory, used to resolve the reltive file path.
     * @param file the ts file path, can be relative or absolute path.
     * @param sn the seq_no, the sequence number of ts in hls/m3u8.
     */
-    static int on_hls(std::string url, int client_id, SrsRequest* req, std::string cwd, std::string file, int sn);
+    static int on_hls(std::string url, SrsRequest* req, std::string file, int sn);
 private:
     static int do_post(std::string url, std::string req, int& code, std::string& res);
 };

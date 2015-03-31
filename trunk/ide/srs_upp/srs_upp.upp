@@ -64,6 +64,8 @@ file
 	../../src/protocol/srs_rtmp_utility.hpp,
 	../../src/protocol/srs_rtmp_utility.cpp,
 	app readonly separator,
+        ../../src/app/srs_app_async_call.hpp,
+        ../../src/app/srs_app_async_call.cpp,
 	../../src/app/srs_app_bandwidth.hpp,
 	../../src/app/srs_app_bandwidth.cpp,
 	../../src/app/srs_app_conn.hpp,

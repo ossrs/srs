@@ -1265,10 +1265,9 @@ int SrsRtmpConn::http_hooks_on_connect()
             return ret;
         }
         
-        int connection_id = _srs_context->get_id();
         for (int i = 0; i < (int)on_connect->args.size(); i++) {
             std::string url = on_connect->args.at(i);
-            if ((ret = SrsHttpHooks::on_connect(url, connection_id, ip, req)) != ERROR_SUCCESS) {
+            if ((ret = SrsHttpHooks::on_connect(url, req)) != ERROR_SUCCESS) {
                 srs_error("hook client on_connect failed. url=%s, ret=%d", url.c_str(), ret);
                 return ret;
             }
@@ -1291,10 +1290,9 @@ void SrsRtmpConn::http_hooks_on_close()
             return;
         }
         
-        int connection_id = _srs_context->get_id();
         for (int i = 0; i < (int)on_close->args.size(); i++) {
             std::string url = on_close->args.at(i);
-            SrsHttpHooks::on_close(url, connection_id, ip, req, kbps->get_send_bytes(), kbps->get_recv_bytes());
+            SrsHttpHooks::on_close(url, req, kbps->get_send_bytes(), kbps->get_recv_bytes());
         }
     }
 #endif
@@ -1313,10 +1311,9 @@ int SrsRtmpConn::http_hooks_on_publish()
             return ret;
         }
         
-        int connection_id = _srs_context->get_id();
         for (int i = 0; i < (int)on_publish->args.size(); i++) {
             std::string url = on_publish->args.at(i);
-            if ((ret = SrsHttpHooks::on_publish(url, connection_id, ip, req)) != ERROR_SUCCESS) {
+            if ((ret = SrsHttpHooks::on_publish(url, req)) != ERROR_SUCCESS) {
                 srs_error("hook client on_publish failed. url=%s, ret=%d", url.c_str(), ret);
                 return ret;
             }
@@ -1339,10 +1336,9 @@ void SrsRtmpConn::http_hooks_on_unpublish()
             return;
         }
         
-        int connection_id = _srs_context->get_id();
         for (int i = 0; i < (int)on_unpublish->args.size(); i++) {
             std::string url = on_unpublish->args.at(i);
-            SrsHttpHooks::on_unpublish(url, connection_id, ip, req);
+            SrsHttpHooks::on_unpublish(url, req);
         }
     }
 #endif
@@ -1361,10 +1357,9 @@ int SrsRtmpConn::http_hooks_on_play()
             return ret;
         }
         
-        int connection_id = _srs_context->get_id();
         for (int i = 0; i < (int)on_play->args.size(); i++) {
             std::string url = on_play->args.at(i);
-            if ((ret = SrsHttpHooks::on_play(url, connection_id, ip, req)) != ERROR_SUCCESS) {
+            if ((ret = SrsHttpHooks::on_play(url, req)) != ERROR_SUCCESS) {
                 srs_error("hook client on_play failed. url=%s, ret=%d", url.c_str(), ret);
                 return ret;
             }
@@ -1387,10 +1382,9 @@ void SrsRtmpConn::http_hooks_on_stop()
             return;
         }
         
-        int connection_id = _srs_context->get_id();
         for (int i = 0; i < (int)on_stop->args.size(); i++) {
             std::string url = on_stop->args.at(i);
-            SrsHttpHooks::on_stop(url, connection_id, ip, req);
+            SrsHttpHooks::on_stop(url, req);
         }
     }
 #endif
