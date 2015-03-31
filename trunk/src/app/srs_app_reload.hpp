@@ -75,6 +75,7 @@ public:
     virtual int on_reload_ingest_removed(std::string vhost, std::string ingest_id);
     virtual int on_reload_ingest_added(std::string vhost, std::string ingest_id);
     virtual int on_reload_ingest_updated(std::string vhost, std::string ingest_id);
+    virtual int on_reload_user_info();
 };
 
 #endif

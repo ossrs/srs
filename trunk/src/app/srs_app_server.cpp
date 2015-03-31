@@ -389,6 +389,14 @@ void SrsSignalManager::sig_catcher(int signo)
     errno = err;
 }
 
+ISrsServerCycle::ISrsServerCycle()
+{
+}
+
+ISrsServerCycle::~ISrsServerCycle()
+{
+}
+
 SrsServer::SrsServer()
 {
     signal_reload = false;
@@ -396,6 +404,8 @@ SrsServer::SrsServer()
     pid_fd = -1;
     
     signal_manager = NULL;
+    
+    handler = NULL;
     
     // donot new object in constructor,
     // for some global instance is not ready now,
@@ -456,6 +466,8 @@ void SrsServer::destroy()
     
     srs_freep(signal_manager);
     
+    srs_freep(handler);
+    
     // @remark never destroy the connections, 
     // for it's still alive.
 
@@ -464,7 +476,7 @@ void SrsServer::destroy()
     // and segment fault.
 }
 
-int SrsServer::initialize()
+int SrsServer::initialize(ISrsServerCycle* cycle_handler)
 {
     int ret = ERROR_SUCCESS;
     
@@ -479,6 +491,11 @@ int SrsServer::initialize()
     
     srs_assert(!signal_manager);
     signal_manager = new SrsSignalManager(this);
+    
+    handler = cycle_handler;
+    if(handler && (ret = handler->initialize()) != ERROR_SUCCESS){
+        return ret;
+    }
     
 #ifdef SRS_AUTO_HTTP_API
     if ((ret = http_api_mux->initialize()) != ERROR_SUCCESS) {
@@ -795,6 +812,11 @@ int SrsServer::do_cycle()
     
     // the deamon thread, update the time cache
     while (true) {
+        if(handler && (ret = handler->on_cycle(conns.size())) != ERROR_SUCCESS){
+            srs_error("cycle handle failed. ret=%d", ret);
+            return ret;
+        }
+            
         // the interval in config.
         int heartbeat_max_resolution = (int)(_srs_config->get_heartbeat_interval() / SRS_SYS_CYCLE_INTERVAL);
         

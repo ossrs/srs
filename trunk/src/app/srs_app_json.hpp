@@ -149,6 +149,7 @@ public:
     virtual void set(std::string key, SrsJsonAny* value);
     virtual SrsJsonAny* get_property(std::string name);
     virtual SrsJsonAny* ensure_property_string(std::string name);
+    virtual SrsJsonAny* ensure_property_integer(std::string name);
     virtual SrsJsonAny* ensure_property_boolean(std::string name);
 };
 
