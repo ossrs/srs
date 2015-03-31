@@ -172,8 +172,17 @@ private:
     std::string hls_ts_file;
     std::string m3u8_dir;
     double hls_aof_ratio;
-    int hls_fragment;
-    int hls_window;
+    double hls_fragment;
+    double hls_window;
+private:
+    // whether use floor algorithm for timestamp.
+    bool hls_ts_floor;
+    // the deviation in seconds to adjust the fragment to be more
+    // bigger or smaller.
+    double hls_fragment_deviation;
+    // the previous reap floor timestamp,
+    // used to detect the dup or jmp or ts.
+    int64_t previous_floor_ts;
 private:
     int _sequence_no;
     int target_duration;
@@ -203,6 +212,9 @@ public:
     virtual ~SrsHlsMuxer();
 public:
     virtual int sequence_no();
+    virtual std::string ts_url();
+    virtual double duration();
+    virtual double deviation();
 public:
     /**
     * initialize the hls muxer.
@@ -213,7 +225,7 @@ public:
     */
     virtual int update_config(SrsRequest* r, std::string entry_prefix,
         std::string path, std::string m3u8_file, std::string ts_file,
-        int fragment, int window, double aof_ratio);
+        double fragment, double window, bool ts_floor, double aof_ratio);
     /**
     * open a new segment(a new ts file),
     * @param segment_start_dts use to calc the segment duration,
