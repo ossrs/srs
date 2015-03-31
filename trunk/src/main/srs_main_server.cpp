@@ -288,7 +288,7 @@ int main(int argc, char** argv)
     * and use initialize to create members, set hooks for instance the reload handler,
     * all initialize will done in this stage.
     */
-    if ((ret = _srs_server->initialize()) != ERROR_SUCCESS) {
+    if ((ret = _srs_server->initialize(NULL)) != ERROR_SUCCESS) {
         return ret;
     }
     

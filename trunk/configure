@@ -61,15 +61,16 @@ if [ $SRS_UTEST = YES ]; then SrsUtestMakeEntry="(cd ${SRS_OBJS_DIR}/utest; \$(M
 # where srs module is a dir which contains a config file.
 SRS_MODULES=()
 __mfiles=`find modules -name "config"` && for __mfile in $__mfiles; do
-    SRS_MODULES+="`dirname $__mfile`"
+    SRS_MODULES+=("`dirname $__mfile`")
 done
 
 # variables for makefile for all modules.
 __mphonys="" && __mdefaults="" && __mcleanups=""
 # add each modules for application
-for SRS_MODULE in $SRS_MODULES; do
+for SRS_MODULE in ${SRS_MODULES[*]}; do
     echo "install module at: $SRS_MODULE"
     . $SRS_MODULE/config
+    if [[ 0 -eq ${#SRS_MODULE_MAIN[@]} ]]; then continue; fi
     __mphonys="$__mphonys $SRS_MODULE_NAME"
     __mdefaults="$__mdefaults $SRS_MODULE_NAME"
     __mcleanups="$__mcleanups $SRS_MODULE_NAME"
@@ -177,9 +178,9 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
             "srs_app_mpegts_udp" "srs_app_rtsp" "srs_app_listener" "srs_app_async_call")
     DEFINES=""
     # add each modules for app
-    for SRS_MODULE in $SRS_MODULES; do
+    for SRS_MODULE in ${SRS_MODULES[*]}; do
         . $SRS_MODULE/config
-        MODULE_FILES+=($SRS_MODULE_APP)
+        MODULE_FILES+=("${SRS_MODULE_APP[*]}")
         DEFINES="${DEFINES} ${SRS_MODULE_DEFINES}"
     done
     APP_INCS="src/app"; MODULE_DIR=${APP_INCS} . auto/modules.sh
@@ -201,9 +202,9 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibHttpParserRoot})
     MODULE_FILES=("srs_main_server")
     # add each modules for main
-    for SRS_MODULE in $SRS_MODULES; do
+    for SRS_MODULE in ${SRS_MODULES[*]}; do
         . $SRS_MODULE/config
-        MODULE_FILES+=($SRS_MODULE_MAIN)
+        MODULE_FILES+=("${SRS_MODULE_MAIN[*]}")
     done
     MAIN_INCS="src/main"; MODULE_DIR=${MAIN_INCS} . auto/modules.sh
     MAIN_OBJS="${MODULE_OBJS[@]}"
@@ -218,9 +219,9 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # all main entrances
     MAIN_ENTRANCES=("srs_main_server")
     # add each modules for main
-    for SRS_MODULE in $SRS_MODULES; do
+    for SRS_MODULE in ${SRS_MODULES[*]}; do
         . $SRS_MODULE/config
-        MAIN_ENTRANCES+=($SRS_MODULE_MAIN)
+        MAIN_ENTRANCES+=("${SRS_MODULE_MAIN[*]}")
     done
     # 
     # all depends libraries
@@ -232,8 +233,10 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # srs: srs(simple rtmp server) over st(state-threads)
     BUILD_KEY="srs" APP_MAIN="srs_main_server" APP_NAME="srs" . auto/apps.sh
     # add each modules for application
-    for SRS_MODULE in $SRS_MODULES; do
+    for SRS_MODULE in ${SRS_MODULES[*]}; do
         . $SRS_MODULE/config
+        # no SRS_MODULE_MAIN 
+        if [[ 0 -eq ${#SRS_MODULE_MAIN[@]} ]]; then continue; fi
         BUILD_KEY="$SRS_MODULE_NAME" APP_MAIN="$SRS_MODULE_MAIN" APP_NAME="$SRS_MODULE_NAME" . auto/apps.sh
     done
 fi
@@ -340,7 +343,7 @@ server: _prepare_dir
 END
 fi
 # generate all modules entry
-for SRS_MODULE in $SRS_MODULES; do
+for SRS_MODULE in ${SRS_MODULES[*]}; do
     . $SRS_MODULE/config
     # if export librtmp, donot build the bravo-ingest.
     if [ $SRS_EXPORT_LIBRTMP_PROJECT != NO ]; then
@@ -596,7 +599,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         echo -e "${GREEN}note: mips-ubuntu12 for srs are not builded${BLACK}"
     fi
     # add each modules for application
-    for SRS_MODULE in $SRS_MODULES; do
+    for SRS_MODULE in ${SRS_MODULES[*]}; do
         echo -e "${GREEN}module: $SRS_MODULE${BLACK}"
     done
 fi

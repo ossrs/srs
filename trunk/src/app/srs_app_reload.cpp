@@ -190,4 +190,8 @@ int ISrsReloadHandler::on_reload_ingest_updated(string /*vhost*/, string /*inges
     return ERROR_SUCCESS;
 }
 
+int ISrsReloadHandler::on_reload_user_info()
+{
+    return ERROR_SUCCESS;
+}
 
