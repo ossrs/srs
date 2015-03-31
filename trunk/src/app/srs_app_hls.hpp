@@ -39,6 +39,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_file.hpp>
+#include <srs_app_async_call.hpp>
 
 class SrsSharedPtrMessage;
 class SrsCodecSample;
@@ -155,6 +156,23 @@ public:
 };
 
 /**
+ * the dvr async call.
+ */
+class SrsDvrAsyncCallOnHls : public ISrsDvrAsyncCall
+{
+private:
+    std::string path;
+    int seq_no;
+    SrsRequest* req;
+public:
+    SrsDvrAsyncCallOnHls(SrsRequest* r, std::string p, int s);
+    virtual ~SrsDvrAsyncCallOnHls();
+public:
+    virtual int call();
+    virtual std::string to_string();
+};
+
+/**
 * muxer the HLS stream(m3u8 and ts files).
 * generally, the m3u8 muxer only provides methods to open/close segments,
 * to flush video/audio, without any mechenisms.
@@ -174,6 +192,7 @@ private:
     double hls_aof_ratio;
     double hls_fragment;
     double hls_window;
+    SrsDvrAsyncCallThread* async;
 private:
     // whether use floor algorithm for timestamp.
     bool hls_ts_floor;

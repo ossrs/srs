@@ -105,14 +105,15 @@ public:
     */
     static int on_dvr(std::string url, int client_id, std::string ip, SrsRequest* req, std::string cwd, std::string file);
     /**
-    * when dvr reap segment, callback.
+    * when hls reap segment, callback.
     * @param client_id the id of client on server.
     * @param url the api server url, to process the event. 
     *         ignore if empty.
     * @param cwd the current work directory, used to resolve the reltive file path.
-    * @param file the file path, can be relative or absolute path.
+    * @param file the ts file path, can be relative or absolute path.
+    * @param sn the seq_no, the sequence number of ts in hls/m3u8.
     */
-    static int on_dvr_reap_segment(std::string url, int client_id, SrsRequest* req, std::string cwd, std::string file);
+    static int on_hls(std::string url, int client_id, SrsRequest* req, std::string cwd, std::string file, int sn);
 private:
     static int do_post(std::string url, std::string req, int& code, std::string& res);
 };

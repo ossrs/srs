@@ -271,32 +271,34 @@ int SrsHttpHooks::on_dvr(string url, int client_id, string ip, SrsRequest* req, 
     return ret;
 }
 
-int SrsHttpHooks::on_dvr_reap_segment(string url, int client_id, SrsRequest* req, string cwd, string file)
+int SrsHttpHooks::on_hls(string url, int client_id, SrsRequest* req, string cwd, string file, int sn)
 {
     int ret = ERROR_SUCCESS;
     
     std::stringstream ss;
     ss << SRS_JOBJECT_START
-        << SRS_JFIELD_STR("action", "on_dvr_reap_segment") << SRS_JFIELD_CONT
+        << SRS_JFIELD_STR("action", "on_hls") << SRS_JFIELD_CONT
         << SRS_JFIELD_ORG("client_id", client_id) << SRS_JFIELD_CONT
+        << SRS_JFIELD_STR("ip", req->ip) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("vhost", req->vhost) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("app", req->app) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("stream", req->stream) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("cwd", cwd) << SRS_JFIELD_CONT
-        << SRS_JFIELD_STR("file", file)
+        << SRS_JFIELD_STR("file", file) << SRS_JFIELD_CONT
+        << SRS_JFIELD_ORG("seq_no", sn)
         << SRS_JOBJECT_END;
         
     std::string data = ss.str();
     std::string res;
     int status_code;
     if ((ret = do_post(url, data, status_code, res)) != ERROR_SUCCESS) {
-        srs_error("http post on_dvr_reap_segment uri failed, ignored. "
+        srs_error("http post on_hls uri failed, ignored. "
             "client_id=%d, url=%s, request=%s, response=%s, code=%d, ret=%d",
             client_id, url.c_str(), data.c_str(), res.c_str(), status_code, ret);
         return ret;
     }
     
-    srs_trace("http hook on_dvr_reap_segment success. "
+    srs_trace("http hook on_hls success. "
         "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
         client_id, url.c_str(), data.c_str(), res.c_str(), ret);
     

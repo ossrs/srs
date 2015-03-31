@@ -54,6 +54,7 @@ using namespace std;
 #include <srs_rtmp_buffer.hpp>
 #include <srs_kernel_ts.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_app_http_hooks.hpp>
 
 // drop the segment when duration of ts too small.
 #define SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS 100
@@ -169,6 +170,55 @@ void SrsHlsSegment::update_duration(int64_t current_frame_dts)
     return;
 }
 
+SrsDvrAsyncCallOnHls::SrsDvrAsyncCallOnHls(SrsRequest* r, string p, int s)
+{
+    req = r;
+    path = p;
+    seq_no = s;
+}
+
+SrsDvrAsyncCallOnHls::~SrsDvrAsyncCallOnHls()
+{
+}
+
+int SrsDvrAsyncCallOnHls::call()
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_AUTO_HTTP_CALLBACK
+    // http callback for on_hls in config.
+    if (_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        // HTTP: on_hls
+        SrsConfDirective* on_hls = _srs_config->get_vhost_on_hls(req->vhost);
+        if (!on_hls) {
+            srs_info("ignore the empty http callback: on_hls");
+            return ret;
+        }
+        
+        int connection_id = _srs_context->get_id();
+        std::string cwd = _srs_config->cwd();
+        std::string file = path;
+        int sn = seq_no;
+        for (int i = 0; i < (int)on_hls->args.size(); i++) {
+            std::string url = on_hls->args.at(i);
+            if ((ret = SrsHttpHooks::on_hls(url, connection_id, req, cwd, file, sn)) != ERROR_SUCCESS) {
+                srs_error("hook client on_hls failed. url=%s, ret=%d", url.c_str(), ret);
+                return ret;
+            }
+        }
+    }
+#endif
+    
+    return ret;
+}
+
+string SrsDvrAsyncCallOnHls::to_string()
+{
+    std::stringstream ss;
+    ss << "vhost=" << req->vhost << ", file=" << path;
+    return ss.str();
+}
+
 SrsHlsMuxer::SrsHlsMuxer()
 {
     req = NULL;
@@ -185,6 +235,7 @@ SrsHlsMuxer::SrsHlsMuxer()
     acodec = SrsCodecAudioReserved1;
     should_write_cache = false;
     should_write_file = true;
+    async = new SrsDvrAsyncCallThread();
 }
 
 SrsHlsMuxer::~SrsHlsMuxer()
@@ -198,6 +249,7 @@ SrsHlsMuxer::~SrsHlsMuxer()
     
     srs_freep(current);
     srs_freep(req);
+    srs_freep(async);
 }
 
 int SrsHlsMuxer::initialize(ISrsHlsHandler* h)
@@ -205,6 +257,10 @@ int SrsHlsMuxer::initialize(ISrsHlsHandler* h)
     int ret = ERROR_SUCCESS;
     
     handler = h;
+    
+    if ((ret = async->start()) != ERROR_SUCCESS) {
+        return ret;
+    }
 
     return ret;
 }
@@ -522,6 +578,11 @@ int SrsHlsMuxer::segment_close(string log_desc)
         // when reap ts, adjust the deviation.
         if (hls_ts_floor) {
             hls_fragment_deviation += (double)(hls_fragment - current->duration);
+        }
+        
+        // use async to call the http hooks, for it will cause thread switch.
+        if ((ret = async->call(new SrsDvrAsyncCallOnHls(req, current->full_path, current->sequence_no))) != ERROR_SUCCESS) {
+            return ret;
         }
     
         srs_info("%s reap ts segment, sequence_no=%d, uri=%s, duration=%.2f, start=%"PRId64", deviation=%.2f",

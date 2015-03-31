@@ -46,12 +46,6 @@ using namespace std;
 // update the flv duration and filesize every this interval in ms.
 #define SRS_DVR_UPDATE_DURATION_INTERVAL 60000
 
-// the sleep interval for http async callback.
-#define SRS_AUTO_ASYNC_CALLBACL_SLEEP_US 300000
-
-// the use raction for dvr rpc.
-#define SRS_DVR_USER_ACTION_REAP_SEGMENT "reap_segment"
-
 SrsFlvSegment::SrsFlvSegment(SrsDvrPlan* p)
 {
     req = NULL;
@@ -502,14 +496,6 @@ int SrsFlvSegment::on_reload_vhost_dvr(std::string /*vhost*/)
     return ret;
 }
 
-ISrsDvrAsyncCall::ISrsDvrAsyncCall()
-{
-}
-
-ISrsDvrAsyncCall::~ISrsDvrAsyncCall()
-{
-}
-
 SrsDvrAsyncCallOnDvr::SrsDvrAsyncCallOnDvr(SrsRequest* r, string p)
 {
     req = r;
@@ -556,62 +542,6 @@ string SrsDvrAsyncCallOnDvr::to_string()
     std::stringstream ss;
     ss << "vhost=" << req->vhost << ", file=" << path;
     return ss.str();
-}
-
-SrsDvrAsyncCallThread::SrsDvrAsyncCallThread()
-{
-    pthread = new SrsThread("async", this, SRS_AUTO_ASYNC_CALLBACL_SLEEP_US, true);
-}
-
-SrsDvrAsyncCallThread::~SrsDvrAsyncCallThread()
-{
-    stop();
-    srs_freep(pthread);
-
-    std::vector<ISrsDvrAsyncCall*>::iterator it;
-    for (it = callbacks.begin(); it != callbacks.end(); ++it) {
-        ISrsDvrAsyncCall* call = *it;
-        srs_freep(call);
-    }
-    callbacks.clear();
-}
-
-int SrsDvrAsyncCallThread::call(ISrsDvrAsyncCall* c)
-{
-    int ret = ERROR_SUCCESS;
-
-    callbacks.push_back(c);
-
-    return ret;
-}
-
-int SrsDvrAsyncCallThread::start()
-{
-    return pthread->start();
-}
-
-void SrsDvrAsyncCallThread::stop()
-{
-    pthread->stop();
-}
-
-int SrsDvrAsyncCallThread::cycle()
-{
-    int ret = ERROR_SUCCESS;
-    
-    std::vector<ISrsDvrAsyncCall*> copies = callbacks;
-    callbacks.clear();
-
-    std::vector<ISrsDvrAsyncCall*>::iterator it;
-    for (it = copies.begin(); it != copies.end(); ++it) {
-        ISrsDvrAsyncCall* call = *it;
-        if ((ret = call->call()) != ERROR_SUCCESS) {
-            srs_warn("dvr: ignore callback %s, ret=%d", call->to_string().c_str(), ret);
-        }
-        srs_freep(call);
-    }
-
-    return ret;
 }
 
 SrsDvrPlan::SrsDvrPlan()

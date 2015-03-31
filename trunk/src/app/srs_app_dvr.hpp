@@ -49,7 +49,7 @@ class SrsThread;
 
 #include <srs_app_source.hpp>
 #include <srs_app_reload.hpp>
-#include <srs_app_thread.hpp>
+#include <srs_app_async_call.hpp>
 
 /**
 * a piece of flv segment.
@@ -178,15 +178,6 @@ public:
 /**
 * the dvr async call.
 */
-class ISrsDvrAsyncCall
-{
-public:
-    ISrsDvrAsyncCall();
-    virtual ~ISrsDvrAsyncCall();
-public:
-    virtual int call() = 0;
-    virtual std::string to_string() = 0;
-};
 class SrsDvrAsyncCallOnDvr : public ISrsDvrAsyncCall
 {
 private:
@@ -198,25 +189,6 @@ public:
 public:
     virtual int call();
     virtual std::string to_string();
-};
-
-/**
-* the async callback for dvr.
-*/
-class SrsDvrAsyncCallThread : public ISrsThreadHandler
-{
-private:
-    SrsThread* pthread;
-    std::vector<ISrsDvrAsyncCall*> callbacks;
-public:
-    SrsDvrAsyncCallThread();
-    virtual ~SrsDvrAsyncCallThread();
-public:
-    virtual int call(ISrsDvrAsyncCall* c);
-public:
-    virtual int start();
-    virtual void stop();
-    virtual int cycle();
 };
 
 /**
