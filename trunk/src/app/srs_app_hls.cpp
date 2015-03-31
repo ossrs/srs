@@ -61,7 +61,7 @@ using namespace std;
 // startup piece, the first piece, fragment percent to reap.
 #define SRS_HLS_FLOOR_STARTUP_PERCENT 0.1
 // fragment plus the deviation percent.
-#define SRS_HLS_FLOOR_REAP_PERCENT 0.9
+#define SRS_HLS_FLOOR_REAP_PERCENT 0.2
 
 ISrsHlsHandler::ISrsHlsHandler()
 {
