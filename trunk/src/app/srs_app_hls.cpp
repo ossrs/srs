@@ -177,6 +177,7 @@ SrsHlsMuxer::SrsHlsMuxer()
     hls_aof_ratio = 1.0;
     hls_fragment_deviation = 0;
     previous_floor_ts = 0;
+    accept_floor_ts = 0;
     hls_ts_floor = false;
     target_duration = 0;
     _sequence_no = 0;
@@ -244,6 +245,7 @@ int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     hls_aof_ratio = aof_ratio;
     hls_ts_floor = ts_floor;
     previous_floor_ts = 0;
+    accept_floor_ts = 0;
     hls_window = window;
     // for the first time, we set to -N% of fragment,
     // that is, the first piece always smaller.
@@ -331,18 +333,25 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     std::string ts_file = hls_ts_file;
     ts_file = srs_path_build_stream(ts_file, req->vhost, req->app, req->stream);
     if (hls_ts_floor) {
+        // accept the floor ts for the first piece.
+        int64_t floor_ts = (int64_t)(srs_get_system_time_ms() / (1000 * hls_fragment));
+        if (!accept_floor_ts) {
+            accept_floor_ts = floor_ts - 1;
+        } else {
+            accept_floor_ts++;
+        }
+        
         // we always ensure the piece is increase one by one.
         std::stringstream ts_floor;
-        ts_floor << (int64_t)(previous_floor_ts + 1);
+        ts_floor << accept_floor_ts;
         ts_file = srs_string_replace(ts_file, "[timestamp]", ts_floor.str());
         
         // dup/jmp detect for ts in floor mode.
-        int64_t floor_ts = (int64_t)(srs_get_system_time_ms() / (1000 * hls_fragment));
         if (previous_floor_ts && previous_floor_ts != floor_ts - 1) {
             srs_warn("hls: dup or jmp for floor ts, previous=%"PRId64", current=%"PRId64", ts=%s, deviation=%.2f",
                      previous_floor_ts, floor_ts, ts_file.c_str(), hls_fragment_deviation);
         }
-        previous_floor_ts++;
+        previous_floor_ts = floor_ts;
     }
     ts_file = srs_path_build_timestamp(ts_file);
     if (true) {

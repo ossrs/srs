@@ -182,6 +182,7 @@ private:
     double hls_fragment_deviation;
     // the previous reap floor timestamp,
     // used to detect the dup or jmp or ts.
+    int64_t accept_floor_ts;
     int64_t previous_floor_ts;
 private:
     int _sequence_no;

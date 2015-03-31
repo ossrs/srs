@@ -253,7 +253,7 @@ class RESTDvrs(object):
         return json.dumps(dvrs)
 
     '''
-    for SRS hook: on_dvr, on_dvr_reap_segment
+    for SRS hook: on_dvr, 
     on_dvr:
         when srs reap a dvr file, call the hook,
         the request in the POST data string is a object encode by json:
@@ -346,7 +346,7 @@ class RESTHls(object):
         return json.dumps(hls)
 
     '''
-    for SRS hook: on_dvr, on_dvr_reap_segment
+    for SRS hook: on, on_dvr_reap_segment
     on_dvr:
         when srs reap a dvr file, call the hook,
         the request in the POST data string is a object encode by json:
