@@ -31,7 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // current release version
 #define VERSION_MAJOR       2
 #define VERSION_MINOR       0
-#define VERSION_REVISION    153
+#define VERSION_REVISION    154
 
 // server info.
 #define RTMP_SIG_SRS_KEY "SRS"

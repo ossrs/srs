@@ -224,6 +224,7 @@ SrsHlsMuxer::SrsHlsMuxer()
     hls_fragment = hls_window = 0;
     hls_aof_ratio = 1.0;
     hls_fragment_deviation = 0;
+    hls_cleanup = true;
     previous_floor_ts = 0;
     accept_floor_ts = 0;
     hls_ts_floor = false;
@@ -250,19 +251,6 @@ SrsHlsMuxer::~SrsHlsMuxer()
     srs_freep(async);
 }
 
-int SrsHlsMuxer::initialize(ISrsHlsHandler* h)
-{
-    int ret = ERROR_SUCCESS;
-    
-    handler = h;
-    
-    if ((ret = async->start()) != ERROR_SUCCESS) {
-        return ret;
-    }
-
-    return ret;
-}
-
 int SrsHlsMuxer::sequence_no()
 {
     return _sequence_no;
@@ -283,9 +271,22 @@ double SrsHlsMuxer::deviation()
     return hls_fragment_deviation;
 }
 
+int SrsHlsMuxer::initialize(ISrsHlsHandler* h)
+{
+    int ret = ERROR_SUCCESS;
+    
+    handler = h;
+    
+    if ((ret = async->start()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
 int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     string path, string m3u8_file, string ts_file, double fragment, double window,
-    bool ts_floor, double aof_ratio
+    bool ts_floor, double aof_ratio, bool cleanup
 ) {
     int ret = ERROR_SUCCESS;
     
@@ -298,6 +299,7 @@ int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     hls_fragment = fragment;
     hls_aof_ratio = aof_ratio;
     hls_ts_floor = ts_floor;
+    hls_cleanup = cleanup;
     previous_floor_ts = 0;
     accept_floor_ts = 0;
     hls_window = window;
@@ -651,7 +653,11 @@ int SrsHlsMuxer::segment_close(string log_desc)
     // remove the ts file.
     for (int i = 0; i < (int)segment_to_remove.size(); i++) {
         SrsHlsSegment* segment = segment_to_remove[i];
-        unlink(segment->full_path.c_str());
+        
+        if (hls_cleanup) {
+            unlink(segment->full_path.c_str());
+        }
+        
         srs_freep(segment);
     }
     segment_to_remove.clear();
@@ -796,6 +802,7 @@ int SrsHlsCache::on_publish(SrsHlsMuxer* muxer, SrsRequest* req, int64_t segment
     std::string path = _srs_config->get_hls_path(vhost);
     std::string m3u8_file = _srs_config->get_hls_m3u8_file(vhost);
     std::string ts_file = _srs_config->get_hls_ts_file(vhost);
+    bool cleanup = _srs_config->get_hls_cleanup(vhost);
     // the audio overflow, for pure audio to reap segment.
     double hls_aof_ratio = _srs_config->get_hls_aof_ratio(vhost);
     // whether use floor(timestamp/hls_fragment) for variable timestamp
@@ -806,7 +813,8 @@ int SrsHlsCache::on_publish(SrsHlsMuxer* muxer, SrsRequest* req, int64_t segment
     
     // open muxer
     if ((ret = muxer->update_config(req, entry_prefix,
-        path, m3u8_file, ts_file, hls_fragment, hls_window, ts_floor, hls_aof_ratio)) != ERROR_SUCCESS
+        path, m3u8_file, ts_file, hls_fragment, hls_window, ts_floor, hls_aof_ratio,
+        cleanup)) != ERROR_SUCCESS
     ) {
         srs_error("m3u8 muxer update config failed. ret=%d", ret);
         return ret;
