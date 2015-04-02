@@ -31,6 +31,8 @@ using namespace std;
 #include <srs_app_json.hpp>
 #include <srs_app_kbps.hpp>
 #include <srs_app_conn.hpp>
+#include <srs_app_config.hpp>
+#include <srs_kernel_utility.hpp>
 
 int64_t srs_gvid = getpid();
 
@@ -257,12 +259,19 @@ int SrsStatistic::dumps_vhosts(stringstream& ss)
         if (it != vhosts.begin()) {
             ss << SRS_JFIELD_CONT;
         }
+        
+        // dumps the config of vhost.
+        bool hls_enabled = _srs_config->get_hls_enabled(vhost->vhost);
 
         ss << SRS_JOBJECT_START
                 << SRS_JFIELD_ORG("id", vhost->id) << SRS_JFIELD_CONT
                 << SRS_JFIELD_STR("name", vhost->vhost) << SRS_JFIELD_CONT
                 << SRS_JFIELD_ORG("send_bytes", vhost->kbps->get_send_bytes()) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("recv_bytes", vhost->kbps->get_recv_bytes())
+                << SRS_JFIELD_ORG("recv_bytes", vhost->kbps->get_recv_bytes()) << SRS_JFIELD_CONT
+                << SRS_JFIELD_NAME("hls") << SRS_JOBJECT_START
+                    << SRS_JFIELD_BOOL("enabled", hls_enabled) << SRS_JFIELD_CONT
+                    << SRS_JFIELD_ORG("fragment", _srs_config->get_hls_fragment(vhost->vhost))
+                << SRS_JOBJECT_END
             << SRS_JOBJECT_END;
     }
     ss << SRS_JARRAY_END;
@@ -295,10 +304,12 @@ int SrsStatistic::dumps_streams(stringstream& ss)
                 << SRS_JFIELD_ORG("id", stream->id) << SRS_JFIELD_CONT
                 << SRS_JFIELD_STR("name", stream->stream) << SRS_JFIELD_CONT
                 << SRS_JFIELD_ORG("vhost", stream->vhost->id) << SRS_JFIELD_CONT
+                << SRS_JFIELD_STR("app", stream->app) << SRS_JFIELD_CONT
                 << SRS_JFIELD_ORG("clients", client_num) << SRS_JFIELD_CONT
                 << SRS_JFIELD_ORG("send_bytes", stream->kbps->get_send_bytes()) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("recv_bytes", stream->kbps->get_recv_bytes()) << SRS_JFIELD_CONT;
-                
+                << SRS_JFIELD_ORG("recv_bytes", stream->kbps->get_recv_bytes()) << SRS_JFIELD_CONT
+                << SRS_JFIELD_ORG("live_ms", srs_get_system_time_ms()) << SRS_JFIELD_CONT;
+        
         if (!stream->has_video) {
             ss  << SRS_JFIELD_NULL("video") << SRS_JFIELD_CONT;
         } else {
@@ -358,6 +369,7 @@ SrsStatisticStream* SrsStatistic::create_stream(SrsStatisticVhost* vhost, SrsReq
         stream = new SrsStatisticStream();
         stream->vhost = vhost;
         stream->stream = req->stream;
+        stream->app = req->app;
         stream->url = url;
         streams[url] = stream;
         return stream;
