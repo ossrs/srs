@@ -102,8 +102,9 @@ public:
     *         ignore if empty.
     * @param file the ts file path, can be relative or absolute path.
     * @param sn the seq_no, the sequence number of ts in hls/m3u8.
+    * @param duration the segment duration in seconds.
     */
-    static int on_hls(std::string url, SrsRequest* req, std::string file, int sn);
+    static int on_hls(std::string url, SrsRequest* req, std::string file, int sn, double duration);
 private:
     static int do_post(std::string url, std::string req, int& code, std::string& res);
 };
