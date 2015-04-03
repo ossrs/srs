@@ -106,6 +106,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_TRANSCODE_IFORMAT "flv"
 #define SRS_CONF_DEFAULT_TRANSCODE_OFORMAT "flv"
 
+#define SRS_CONF_DEFAULT_EDGE_MODE false
+#define SRS_CONF_DEFAULT_EDGE_TOKEN_TRAVERSE false
+#define SRS_CONF_DEFAULT_EDGE_TRANSFORM_VHOST "[vhost]"
+
 // hds default value
 #define SRS_CONF_DEFAULT_HDS_PATH       "./objs/nginx/html"
 #define SRS_CONF_DEFAULT_HDS_WINDOW     (60)
@@ -688,6 +692,11 @@ public:
     * all clients connected to edge must be tranverse to origin to verify.
     */
     virtual bool                get_vhost_edge_token_traverse(std::string vhost);
+    /**
+     * get the transformed vhost for edge,
+     * @see https://github.com/winlinvip/simple-rtmp-server/issues/372
+     */
+    virtual std::string         get_vhost_edge_transform_vhost(std::string vhost);
 // vhost security section
 public:
     /**

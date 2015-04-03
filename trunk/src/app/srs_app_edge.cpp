@@ -43,6 +43,7 @@ using namespace std;
 #include <srs_rtmp_msg_array.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_rtmp_amf0.hpp>
+#include <srs_kernel_utility.hpp>
 
 // when error, edge ingester sleep for a while and retry.
 #define SRS_EDGE_INGESTER_SLEEP_US (int64_t)(1*1000*1000LL)
@@ -240,9 +241,18 @@ int SrsEdgeIngester::connect_app(string ep_server, string ep_port)
     std::string local_ip = ips[_srs_config->get_stats_network()];
     data->set("srs_server_ip", SrsAmf0Any::str(local_ip.c_str()));
     
+    // support vhost tranform for edge,
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/372
+    std::string vhost = _srs_config->get_vhost_edge_transform_vhost(req->vhost);
+    vhost = srs_string_replace(vhost, "[vhost]", req->vhost);
     // generate the tcUrl
     std::string param = "";
-    std::string tc_url = srs_generate_tc_url(ep_server, req->vhost, req->app, ep_port, param);
+    std::string tc_url = srs_generate_tc_url(ep_server, vhost, req->app, ep_port, param);
+    srs_trace("edge ingest from %s:%s at %s", ep_server.c_str(), ep_port.c_str(), tc_url.c_str());
+    
+    // replace the tcUrl in request,
+    // which will replace the tc_url in client.connect_app().
+    req->tcUrl = tc_url;
     
     // upnode server identity will show in the connect_app of client.
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/160
@@ -662,9 +672,18 @@ int SrsEdgeForwarder::connect_app(string ep_server, string ep_port)
     std::string local_ip = ips[_srs_config->get_stats_network()];
     data->set("srs_server_ip", SrsAmf0Any::str(local_ip.c_str()));
     
+    // support vhost tranform for edge,
+    // @see https://github.com/winlinvip/simple-rtmp-server/issues/372
+    std::string vhost = _srs_config->get_vhost_edge_transform_vhost(req->vhost);
+    vhost = srs_string_replace(vhost, "[vhost]", req->vhost);
     // generate the tcUrl
     std::string param = "";
-    std::string tc_url = srs_generate_tc_url(ep_server, req->vhost, req->app, ep_port, param);
+    std::string tc_url = srs_generate_tc_url(ep_server, vhost, req->app, ep_port, param);
+    srs_trace("edge forward to %s:%s at %s", ep_server.c_str(), ep_port.c_str(), tc_url.c_str());
+    
+    // replace the tcUrl in request,
+    // which will replace the tc_url in client.connect_app().
+    req->tcUrl = tc_url;
     
     // upnode server identity will show in the connect_app of client.
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/160
