@@ -899,6 +899,7 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     // we use absolutely overflow of segment to make jwplayer/ffplay happy
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-71155184
     if (cache->audio && muxer->is_segment_absolutely_overflow()) {
+        srs_warn("hls: absolute audio reap segment.");
         if ((ret = reap_segment("audio", muxer, cache->audio->pts)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -938,26 +939,28 @@ int SrsHlsCache::write_video(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
 int SrsHlsCache::reap_segment(string log_desc, SrsHlsMuxer* muxer, int64_t segment_start_dts)
 {
     int ret = ERROR_SUCCESS;
+    
+    // TODO: flush audio before or after segment?
+    // TODO: fresh segment begin with audio or video?
 
+    // close current ts.
     if ((ret = muxer->segment_close(log_desc)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer close segment failed. ret=%d", ret);
         return ret;
     }
     
+    // open new ts.
     if ((ret = muxer->segment_open(segment_start_dts)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer open segment failed. ret=%d", ret);
         return ret;
     }
-
-    // TODO: flush audio before or after segment?
-    // TODO: fresh segment begin with audio or video?
     
     // segment open, flush video first.
     if ((ret = muxer->flush_video(cache)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer flush video failed. ret=%d", ret);
         return ret;
     }
-
+    
     // segment open, flush the audio.
     // @see: ngx_rtmp_hls_open_fragment
     /* start fragment with audio to make iPhone happy */
