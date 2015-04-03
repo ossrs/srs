@@ -1409,7 +1409,7 @@ int SrsConfig::check_config()
             SrsConfDirective* conf = vhost->at(i);
             string n = conf->name;
             if (n != "enabled" && n != "chunk_size"
-                && n != "mode" && n != "origin" && n != "token_traverse"
+                && n != "mode" && n != "origin" && n != "token_traverse" && n != "vhost"
                 && n != "dvr" && n != "ingest" && n != "hls" && n != "http_hooks"
                 && n != "gop_cache" && n != "queue_length"
                 && n != "refer" && n != "refer_publish" && n != "refer_play"
@@ -2517,12 +2517,12 @@ bool SrsConfig::get_vhost_is_edge(SrsConfDirective* vhost)
     SrsConfDirective* conf = vhost;
     
     if (!conf) {
-        return false;
+        return SRS_CONF_DEFAULT_EDGE_MODE;
     }
     
     conf = conf->get("mode");
     if (!conf || conf->arg0() != "remote") {
-        return false;
+        return SRS_CONF_DEFAULT_EDGE_MODE;
     }
     
     return true;
@@ -2544,15 +2544,31 @@ bool SrsConfig::get_vhost_edge_token_traverse(string vhost)
     SrsConfDirective* conf = get_vhost(vhost);
     
     if (!conf) {
-        return false;
+        return SRS_CONF_DEFAULT_EDGE_TOKEN_TRAVERSE;
     }
     
     conf = conf->get("token_traverse");
     if (!conf || conf->arg0() != "on") {
-        return false;
+        return SRS_CONF_DEFAULT_EDGE_TOKEN_TRAVERSE;
     }
     
     return true;
+}
+
+string SrsConfig::get_vhost_edge_transform_vhost(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+    
+    if (!conf) {
+        return SRS_CONF_DEFAULT_EDGE_TRANSFORM_VHOST;
+    }
+    
+    conf = conf->get("vhost");
+    if (!conf || conf->arg0().empty()) {
+        return SRS_CONF_DEFAULT_EDGE_TRANSFORM_VHOST;
+    }
+    
+    return conf->arg0();
 }
 
 bool SrsConfig::get_security_enabled(string vhost)
