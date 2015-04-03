@@ -562,7 +562,8 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
-* v2.0, 2015-03-30, for [#372](https://github.com/winlinvip/simple-rtmp-server/issues/372), support transform vhost of edge 2.0.155.
+* v2.0, 2015-04-03, enhanced avc decode, parse the sps get width+height. 2.0.156.
+* v2.0, 2015-04-03, for [#372](https://github.com/winlinvip/simple-rtmp-server/issues/372), support transform vhost of edge 2.0.155.
 * v2.0, 2015-03-30, for [#366](https://github.com/winlinvip/simple-rtmp-server/issues/366), config hls to disable cleanup of ts. 2.0.154.
 * v2.0, 2015-03-31, support server cycle handler. 2.0.153.
 * v2.0, 2015-03-31, support on_hls for http hooks. 2.0.152.

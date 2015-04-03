@@ -215,7 +215,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_HTTP_DVR_CREATE_REQUEST       3053
 #define ERROR_HTTP_DVR_NO_TAEGET            3054
 #define ERROR_ADTS_ID_NOT_AAC               3055
-
 // HDS error code
 #define ERROR_HDS_OPEN_F4M_FAILED           3056
 #define ERROR_HDS_WRITE_F4M_FAILED          3057
@@ -254,6 +253,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_STREAM_CASTER_FLV_TAG         4024
 #define ERROR_HTTP_RESPONSE_EOF             4025
 #define ERROR_HTTP_INVALID_CHUNK_HEADER     4026
+#define ERROR_AVC_NALU_UEV                  4027
 
 ///////////////////////////////////////////////////////
 // user-define error.

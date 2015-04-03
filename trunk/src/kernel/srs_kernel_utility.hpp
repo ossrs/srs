@@ -33,10 +33,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string>
 
 class SrsStream;
+class SrsBitStream;
 
 // compare
 #define srs_min(a, b) (((a) < (b))? (a) : (b))
 #define srs_max(a, b) (((a) < (b))? (b) : (a))
+
+// read nalu uev.
+extern int srs_avc_nalu_read_uev(SrsBitStream* stream, int64_t& v);
+extern int srs_avc_nalu_read_bit(SrsBitStream* stream, int8_t& v);
 
 // get current system time in ms, use cache to avoid performance problem
 extern int64_t srs_get_system_time_ms();

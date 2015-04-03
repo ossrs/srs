@@ -581,6 +581,11 @@ private:
     */
     virtual int avc_demux_sps_pps(SrsStream* stream);
     /**
+     * decode the sps rbsp stream.
+     */
+    virtual int avc_demux_sps();
+    virtual int avc_demux_sps_rbsp(char* rbsp, int nb_rbsp);
+    /**
     * demux the avc NALU in "AnnexB" 
     * from H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
     */
