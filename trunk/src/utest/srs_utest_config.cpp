@@ -1356,7 +1356,7 @@ VOID TEST(ConfigMainTest, ParseMinConf)
     MockSrsConfig conf;
     EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_MIN_OK_CONF));
     
-    vector<string> listens = conf.get_listen();
+    vector<string> listens = conf.get_listens();
     EXPECT_EQ(1, (int)listens.size());
     EXPECT_STREQ("1935", listens.at(0).c_str());
 }
@@ -1379,7 +1379,7 @@ VOID TEST(ConfigMainTest, ParseFullConf)
     MockSrsConfig conf;
     EXPECT_TRUE(ERROR_SUCCESS == conf.parse(_full_conf));
     
-    vector<string> listens = conf.get_listen();
+    vector<string> listens = conf.get_listens();
     EXPECT_EQ(1, (int)listens.size());
     EXPECT_STREQ("1935", listens.at(0).c_str());
     
@@ -1403,10 +1403,10 @@ VOID TEST(ConfigMainTest, ParseFullConf)
     EXPECT_EQ(4, (int)conf.get_stats_disk_device()->args.size());
     
     EXPECT_TRUE(conf.get_http_api_enabled());
-    EXPECT_EQ(1985, conf.get_http_api_listen());
+    EXPECT_STREQ("1985", conf.get_http_api_listen().c_str());
     
     EXPECT_TRUE(conf.get_http_stream_enabled());
-    EXPECT_EQ(8080, conf.get_http_stream_listen());
+    EXPECT_STREQ("8080", conf.get_http_stream_listen().c_str());
     EXPECT_STREQ("./objs/nginx/html", conf.get_http_stream_dir().c_str());
     
     EXPECT_EQ(10000, conf.get_pithy_print_ms());

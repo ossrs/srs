@@ -97,6 +97,13 @@
 		3C689F9F1AB6AAC800C9CEEE /* sched.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C689F9B1AB6AAC800C9CEEE /* sched.c */; };
 		3C689FA01AB6AAC800C9CEEE /* stk.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C689F9C1AB6AAC800C9CEEE /* stk.c */; };
 		3C689FA11AB6AAC800C9CEEE /* sync.c in Sources */ = {isa = PBXBuildFile; fileRef = 3C689F9D1AB6AAC800C9CEEE /* sync.c */; };
+		3CC52DD81ACE4023006FEB01 /* srs_utest_amf0.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CC52DCA1ACE4023006FEB01 /* srs_utest_amf0.cpp */; };
+		3CC52DD91ACE4023006FEB01 /* srs_utest_config.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CC52DCC1ACE4023006FEB01 /* srs_utest_config.cpp */; };
+		3CC52DDA1ACE4023006FEB01 /* srs_utest_core.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CC52DCE1ACE4023006FEB01 /* srs_utest_core.cpp */; };
+		3CC52DDB1ACE4023006FEB01 /* srs_utest_kernel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CC52DD01ACE4023006FEB01 /* srs_utest_kernel.cpp */; };
+		3CC52DDC1ACE4023006FEB01 /* srs_utest_protocol.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CC52DD21ACE4023006FEB01 /* srs_utest_protocol.cpp */; };
+		3CC52DDD1ACE4023006FEB01 /* srs_utest_reload.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CC52DD41ACE4023006FEB01 /* srs_utest_reload.cpp */; };
+		3CC52DDE1ACE4023006FEB01 /* srs_utest.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CC52DD61ACE4023006FEB01 /* srs_utest.cpp */; };
 		3CD88B3F1ACA9C58000359E0 /* srs_app_async_call.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3CD88B3D1ACA9C58000359E0 /* srs_app_async_call.cpp */; };
 /* End PBXBuildFile section */
 
@@ -338,6 +345,20 @@
 		3C689F9B1AB6AAC800C9CEEE /* sched.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sched.c; path = "../../objs/st-1.9/sched.c"; sourceTree = "<group>"; };
 		3C689F9C1AB6AAC800C9CEEE /* stk.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = stk.c; path = "../../objs/st-1.9/stk.c"; sourceTree = "<group>"; };
 		3C689F9D1AB6AAC800C9CEEE /* sync.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sync.c; path = "../../objs/st-1.9/sync.c"; sourceTree = "<group>"; };
+		3CC52DCA1ACE4023006FEB01 /* srs_utest_amf0.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_utest_amf0.cpp; path = ../../src/utest/srs_utest_amf0.cpp; sourceTree = "<group>"; };
+		3CC52DCB1ACE4023006FEB01 /* srs_utest_amf0.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_utest_amf0.hpp; path = ../../src/utest/srs_utest_amf0.hpp; sourceTree = "<group>"; };
+		3CC52DCC1ACE4023006FEB01 /* srs_utest_config.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_utest_config.cpp; path = ../../src/utest/srs_utest_config.cpp; sourceTree = "<group>"; };
+		3CC52DCD1ACE4023006FEB01 /* srs_utest_config.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_utest_config.hpp; path = ../../src/utest/srs_utest_config.hpp; sourceTree = "<group>"; };
+		3CC52DCE1ACE4023006FEB01 /* srs_utest_core.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_utest_core.cpp; path = ../../src/utest/srs_utest_core.cpp; sourceTree = "<group>"; };
+		3CC52DCF1ACE4023006FEB01 /* srs_utest_core.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_utest_core.hpp; path = ../../src/utest/srs_utest_core.hpp; sourceTree = "<group>"; };
+		3CC52DD01ACE4023006FEB01 /* srs_utest_kernel.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_utest_kernel.cpp; path = ../../src/utest/srs_utest_kernel.cpp; sourceTree = "<group>"; };
+		3CC52DD11ACE4023006FEB01 /* srs_utest_kernel.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_utest_kernel.hpp; path = ../../src/utest/srs_utest_kernel.hpp; sourceTree = "<group>"; };
+		3CC52DD21ACE4023006FEB01 /* srs_utest_protocol.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_utest_protocol.cpp; path = ../../src/utest/srs_utest_protocol.cpp; sourceTree = "<group>"; };
+		3CC52DD31ACE4023006FEB01 /* srs_utest_protocol.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_utest_protocol.hpp; path = ../../src/utest/srs_utest_protocol.hpp; sourceTree = "<group>"; };
+		3CC52DD41ACE4023006FEB01 /* srs_utest_reload.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_utest_reload.cpp; path = ../../src/utest/srs_utest_reload.cpp; sourceTree = "<group>"; };
+		3CC52DD51ACE4023006FEB01 /* srs_utest_reload.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_utest_reload.hpp; path = ../../src/utest/srs_utest_reload.hpp; sourceTree = "<group>"; };
+		3CC52DD61ACE4023006FEB01 /* srs_utest.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_utest.cpp; path = ../../src/utest/srs_utest.cpp; sourceTree = "<group>"; };
+		3CC52DD71ACE4023006FEB01 /* srs_utest.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_utest.hpp; path = ../../src/utest/srs_utest.hpp; sourceTree = "<group>"; };
 		3CD88B3D1ACA9C58000359E0 /* srs_app_async_call.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_app_async_call.cpp; path = ../../../src/app/srs_app_async_call.cpp; sourceTree = "<group>"; };
 		3CD88B3E1ACA9C58000359E0 /* srs_app_async_call.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_app_async_call.hpp; path = ../../../src/app/srs_app_async_call.hpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -365,6 +386,7 @@
 				3C1231E61AAE64A400CE8F6C /* Products */,
 				3C1232EE1AAEA71C00CE8F6C /* links */,
 				3C1231E71AAE64A400CE8F6C /* srs_xcode */,
+				3CC52DC91ACE4006006FEB01 /* utest */,
 				3C663F001AB014B500286D8B /* research */,
 			);
 			sourceTree = "<group>";
@@ -735,6 +757,27 @@
 			name = "st-1.9";
 			sourceTree = "<group>";
 		};
+		3CC52DC91ACE4006006FEB01 /* utest */ = {
+			isa = PBXGroup;
+			children = (
+				3CC52DCA1ACE4023006FEB01 /* srs_utest_amf0.cpp */,
+				3CC52DCB1ACE4023006FEB01 /* srs_utest_amf0.hpp */,
+				3CC52DCC1ACE4023006FEB01 /* srs_utest_config.cpp */,
+				3CC52DCD1ACE4023006FEB01 /* srs_utest_config.hpp */,
+				3CC52DCE1ACE4023006FEB01 /* srs_utest_core.cpp */,
+				3CC52DCF1ACE4023006FEB01 /* srs_utest_core.hpp */,
+				3CC52DD01ACE4023006FEB01 /* srs_utest_kernel.cpp */,
+				3CC52DD11ACE4023006FEB01 /* srs_utest_kernel.hpp */,
+				3CC52DD21ACE4023006FEB01 /* srs_utest_protocol.cpp */,
+				3CC52DD31ACE4023006FEB01 /* srs_utest_protocol.hpp */,
+				3CC52DD41ACE4023006FEB01 /* srs_utest_reload.cpp */,
+				3CC52DD51ACE4023006FEB01 /* srs_utest_reload.hpp */,
+				3CC52DD61ACE4023006FEB01 /* srs_utest.cpp */,
+				3CC52DD71ACE4023006FEB01 /* srs_utest.hpp */,
+			);
+			name = utest;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -798,6 +841,7 @@
 				3C1232961AAE81D900CE8F6C /* srs_app_conn.cpp in Sources */,
 				3C12322A1AAE814D00CE8F6C /* srs_kernel_ts.cpp in Sources */,
 				3C12329E1AAE81D900CE8F6C /* srs_app_hls.cpp in Sources */,
+				3CC52DD91ACE4023006FEB01 /* srs_utest_config.cpp in Sources */,
 				3C663F171AB0155100286D8B /* srs_ingest_rtmp.c in Sources */,
 				3C663F131AB0155100286D8B /* srs_flv_injecter.c in Sources */,
 				3C1232971AAE81D900CE8F6C /* srs_app_dvr.cpp in Sources */,
@@ -816,15 +860,18 @@
 				3C1EE6AE1AB1055800576EE9 /* srs_app_hds.cpp in Sources */,
 				3C663F101AB0155100286D8B /* srs_audio_raw_publish.c in Sources */,
 				3C663F111AB0155100286D8B /* srs_bandwidth_check.c in Sources */,
+				3CC52DDE1ACE4023006FEB01 /* srs_utest.cpp in Sources */,
 				3C1232A11AAE81D900CE8F6C /* srs_app_http_conn.cpp in Sources */,
 				3C1232AC1AAE81D900CE8F6C /* srs_app_refer.cpp in Sources */,
 				3C1232991AAE81D900CE8F6C /* srs_app_empty.cpp in Sources */,
+				3CC52DDA1ACE4023006FEB01 /* srs_utest_core.cpp in Sources */,
 				3C36DB5C1ABD1CB90066CCAF /* srs_lib_simple_socket.cpp in Sources */,
 				3C1232201AAE814D00CE8F6C /* srs_kernel_aac.cpp in Sources */,
 				3C1232941AAE81D900CE8F6C /* srs_app_bandwidth.cpp in Sources */,
 				3C1232221AAE814D00CE8F6C /* srs_kernel_codec.cpp in Sources */,
 				3C1232B71AAE81D900CE8F6C /* srs_app_utility.cpp in Sources */,
 				3C1232AB1AAE81D900CE8F6C /* srs_app_recv_thread.cpp in Sources */,
+				3CC52DDC1ACE4023006FEB01 /* srs_utest_protocol.cpp in Sources */,
 				3C663F151AB0155100286D8B /* srs_h264_raw_publish.c in Sources */,
 				3C1231F61AAE652D00CE8F6C /* srs_core_autofree.cpp in Sources */,
 				3C1EE6D71AB1367D00576EE9 /* README.md in Sources */,
@@ -849,7 +896,9 @@
 				3C1232281AAE814D00CE8F6C /* srs_kernel_mp3.cpp in Sources */,
 				3C1232B21AAE81D900CE8F6C /* srs_app_source.cpp in Sources */,
 				3C1231F71AAE652D00CE8F6C /* srs_core_performance.cpp in Sources */,
+				3CC52DD81ACE4023006FEB01 /* srs_utest_amf0.cpp in Sources */,
 				3C1232981AAE81D900CE8F6C /* srs_app_edge.cpp in Sources */,
+				3CC52DDB1ACE4023006FEB01 /* srs_utest_kernel.cpp in Sources */,
 				3C689F9E1AB6AAC800C9CEEE /* md.S in Sources */,
 				3C1232461AAE81A400CE8F6C /* srs_rtmp_msg_array.cpp in Sources */,
 				3C1232A71AAE81D900CE8F6C /* srs_app_listener.cpp in Sources */,
@@ -875,6 +924,7 @@
 				3C12329D1AAE81D900CE8F6C /* srs_app_heartbeat.cpp in Sources */,
 				3C1232231AAE814D00CE8F6C /* srs_kernel_consts.cpp in Sources */,
 				3C1232AF1AAE81D900CE8F6C /* srs_app_rtsp.cpp in Sources */,
+				3CC52DDD1ACE4023006FEB01 /* srs_utest_reload.cpp in Sources */,
 				3C689FA11AB6AAC800C9CEEE /* sync.c in Sources */,
 				3C1232A31AAE81D900CE8F6C /* srs_app_http.cpp in Sources */,
 				3C12329A1AAE81D900CE8F6C /* srs_app_encoder.cpp in Sources */,

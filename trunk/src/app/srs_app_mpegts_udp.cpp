@@ -347,10 +347,6 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsStream* avs)
     // ts tbn to flv tbn.
     u_int32_t dts = msg->dts / 90; 
     u_int32_t pts = msg->dts / 90;
-
-    // the whole ts pes video packet must be a flv frame packet.
-    char* ibpframe = avs->data() + avs->pos();
-    int ibpframe_size = avs->size() - avs->pos();
     
     // send each frame.
     while (!avs->empty()) {
@@ -388,8 +384,6 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsStream* avs)
 
         // for pps
         if (avc->is_pps(frame, frame_size)) {
-            got_sps_pps = true;
-            
             std::string pps;
             if ((ret = avc->pps_demux(frame, frame_size, pps)) != ERROR_SUCCESS) {
                 return ret;
