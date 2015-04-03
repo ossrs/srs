@@ -582,7 +582,7 @@ int SrsHlsMuxer::segment_close(string log_desc)
         }
         
         // use async to call the http hooks, for it will cause thread switch.
-        if ((ret = async->call(new SrsDvrAsyncCallOnHls(req, current->full_path, current->sequence_no))) != ERROR_SUCCESS) {
+        if ((ret = async->call(new SrsDvrAsyncCallOnHls(req, current->full_path, current->sequence_no, current->duration))) != ERROR_SUCCESS) {
             return ret;
         }
     
