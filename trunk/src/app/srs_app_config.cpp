@@ -3414,7 +3414,7 @@ bool SrsConfig::get_hls_cleanup(string vhost)
     
     SrsConfDirective* conf = hls->get("hls_cleanup");
     
-    if (!conf && conf->arg0() != "off") {
+    if (conf && conf->arg0() != "off") {
         return SRS_CONF_DEFAULT_HLS_CLEANUP;
     }
     

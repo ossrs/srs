@@ -170,11 +170,12 @@ void SrsHlsSegment::update_duration(int64_t current_frame_dts)
     return;
 }
 
-SrsDvrAsyncCallOnHls::SrsDvrAsyncCallOnHls(SrsRequest* r, string p, int s)
+SrsDvrAsyncCallOnHls::SrsDvrAsyncCallOnHls(SrsRequest* r, string p, int s, double d)
 {
     req = r;
     path = p;
     seq_no = s;
+    duration = d;
 }
 
 SrsDvrAsyncCallOnHls::~SrsDvrAsyncCallOnHls()
@@ -199,7 +200,7 @@ int SrsDvrAsyncCallOnHls::call()
         int sn = seq_no;
         for (int i = 0; i < (int)on_hls->args.size(); i++) {
             std::string url = on_hls->args.at(i);
-            if ((ret = SrsHttpHooks::on_hls(url, req, file, sn)) != ERROR_SUCCESS) {
+            if ((ret = SrsHttpHooks::on_hls(url, req, file, sn, duration)) != ERROR_SUCCESS) {
                 srs_error("hook client on_hls failed. url=%s, ret=%d", url.c_str(), ret);
                 return ret;
             }
@@ -581,7 +582,7 @@ int SrsHlsMuxer::segment_close(string log_desc)
         }
         
         // use async to call the http hooks, for it will cause thread switch.
-        if ((ret = async->call(new SrsDvrAsyncCallOnHls(req, current->full_path, current->sequence_no))) != ERROR_SUCCESS) {
+        if ((ret = async->call(new SrsDvrAsyncCallOnHls(req, current->full_path, current->sequence_no, current->duration))) != ERROR_SUCCESS) {
             return ret;
         }
     

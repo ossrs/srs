@@ -164,8 +164,9 @@ private:
     std::string path;
     int seq_no;
     SrsRequest* req;
+    double duration;
 public:
-    SrsDvrAsyncCallOnHls(SrsRequest* r, std::string p, int s);
+    SrsDvrAsyncCallOnHls(SrsRequest* r, std::string p, int s, double d);
     virtual ~SrsDvrAsyncCallOnHls();
 public:
     virtual int call();

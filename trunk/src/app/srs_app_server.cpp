@@ -1018,8 +1018,9 @@ int SrsServer::listen_stream_caster()
             srs_error("invalid stream caster port %d. ret=%d", port, ret);
             return ret;
         }
-
-        if ((ret = listener->listen(port)) != ERROR_SUCCESS) {
+        
+        // TODO: support listen at <[ip:]port>
+        if ((ret = listener->listen("0.0.0.0", port)) != ERROR_SUCCESS) {
             srs_error("StreamCaster listen at port %d failed. ret=%d", port, ret);
             return ret;
         }

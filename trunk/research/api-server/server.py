@@ -328,8 +328,11 @@ class RESTHls(object):
               {
                   "action": "on_dvr",
                   "client_id": 1985,
-                  "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
+                  "ip": "192.168.1.10", 
+                  "vhost": "video.test.com", 
+                  "app": "live",
                   "stream": "livestream",
+                  "duration": 9.68, // in seconds
                   "cwd": "/usr/local/srs",
                   "file": "./objs/nginx/html/live/livestream.1420254068776-100.ts",
                   "seq_no": 100
@@ -368,8 +371,8 @@ class RESTHls(object):
     def __on_hls(self, req):
         code = Error.success
 
-        trace("srs %s: client id=%s, ip=%s, vhost=%s, app=%s, stream=%s, cwd=%s, file=%s, seq_no=%s"%(
-            req["action"], req["client_id"], req["ip"], req["vhost"], req["app"], req["stream"],
+        trace("srs %s: client id=%s, ip=%s, vhost=%s, app=%s, stream=%s, duration=%s, cwd=%s, file=%s, seq_no=%s"%(
+            req["action"], req["client_id"], req["ip"], req["vhost"], req["app"], req["stream"], req["duration"],
             req["cwd"], req["file"], req["seq_no"]
         ))
 
