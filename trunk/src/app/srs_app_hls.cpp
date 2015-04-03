@@ -311,12 +311,6 @@ int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     // generate the m3u8 dir and path.
     m3u8 = path + "/" + m3u8_file;
     m3u8 = srs_path_build_stream(m3u8, req->vhost, req->app, req->stream);
-    
-    m3u8_dir = m3u8;
-    size_t pos = string::npos;
-    if ((pos = m3u8_dir.rfind("/")) != string::npos) {
-        m3u8_dir = m3u8_dir.substr(0, pos);
-    }
 
     // we always keep the target duration increasing.
     int max_td = srs_max(target_duration, (int)(fragment * _srs_config->get_hls_td_ratio(r->vhost)));
@@ -335,6 +329,14 @@ int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
         should_write_cache = true;
         should_write_file = true;
     }
+    
+    // create m3u8 dir once.
+    m3u8_dir = srs_path_dirname(m3u8);
+    if (should_write_file && (ret = srs_create_dir_recursively(m3u8_dir)) != ERROR_SUCCESS) {
+        srs_error("create app dir %s failed. ret=%d", m3u8_dir.c_str(), ret);
+        return ret;
+    }
+    srs_info("create m3u8 dir %s ok", m3u8_dir.c_str());
     
     return ret;
 }
@@ -434,11 +436,12 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     current->uri += ts_url;
     
     // create dir recursively for hls.
-    if (should_write_file && (ret = srs_create_dir_recursively(m3u8_dir)) != ERROR_SUCCESS) {
-        srs_error("create app dir %s failed. ret=%d", m3u8_dir.c_str(), ret);
+    std::string ts_dir = srs_path_dirname(current->full_path);
+    if (should_write_file && (ret = srs_create_dir_recursively(ts_dir)) != ERROR_SUCCESS) {
+        srs_error("create app dir %s failed. ret=%d", ts_dir.c_str(), ret);
         return ret;
     }
-    srs_info("create app dir %s ok", m3u8_dir.c_str());
+    srs_info("create ts dir %s ok", ts_dir.c_str());
     
     // open temp ts file.
     std::string tmp_file = current->full_path + ".tmp";

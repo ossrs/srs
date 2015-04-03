@@ -294,6 +294,21 @@ bool srs_path_exists(std::string path)
     return false;
 }
 
+string srs_path_dirname(string path)
+{
+    std::string dirname = path;
+    size_t pos = string::npos;
+    
+    if ((pos = dirname.rfind("/")) != string::npos) {
+        if (pos == 0) {
+            return "/";
+        }
+        dirname = dirname.substr(0, pos);
+    }
+    
+    return dirname;
+}
+
 bool srs_avc_startswith_annexb(SrsStream* stream, int* pnb_start_code)
 {
     char* bytes = stream->data() + stream->pos();

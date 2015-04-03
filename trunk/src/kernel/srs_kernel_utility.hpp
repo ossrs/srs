@@ -68,6 +68,8 @@ extern int srs_create_dir_recursively(std::string dir);
 
 // whether path exists.
 extern bool srs_path_exists(std::string path);
+// get the dirname of path
+extern std::string srs_path_dirname(std::string path);
 
 /**
 * whether stream starts with the avc NALU in "AnnexB" 

@@ -274,8 +274,14 @@ bool SrsFastLog::generate_header(bool error, const char* tag, int context_id, co
     
     // to calendar time
     struct tm* tm;
-    if ((tm = localtime(&tv.tv_sec)) == NULL) {
-        return false;
+    if (_srs_config->get_utc_time()) {
+        if ((tm = gmtime(&tv.tv_sec)) == NULL) {
+            return false;
+        }
+    } else {
+        if ((tm = localtime(&tv.tv_sec)) == NULL) {
+            return false;
+        }
     }
     
     // write log header

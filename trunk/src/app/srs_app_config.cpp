@@ -1336,7 +1336,8 @@ int SrsConfig::check_config()
             && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_file"
             && n != "max_connections" && n != "daemon" && n != "heartbeat"
             && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms"
-            && n != "http_stream" && n != "http_server" && n != "stream_caster") 
+            && n != "http_stream" && n != "http_server" && n != "stream_caster"
+            && n != "utc_time")
         {
             ret = ERROR_SYSTEM_CONFIG_INVALID;
             srs_error("unsupported directive %s, ret=%d", n.c_str(), ret);
@@ -1894,6 +1895,16 @@ int SrsConfig::get_pithy_print_ms()
     }
     
     return ::atoi(pithy->arg0().c_str());
+}
+
+bool SrsConfig::get_utc_time()
+{
+    SrsConfDirective* utc = root->get("utc_time");
+    if (!utc || utc->arg0().empty()) {
+        return SRS_CONF_DEFAULT_UTC_TIME;
+    }
+    
+    return utc->arg0() == "on";
 }
 
 vector<SrsConfDirective*> SrsConfig::get_stream_casters()
