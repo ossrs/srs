@@ -226,14 +226,9 @@ int SrsRawH264Stream::mux_sequence_header(string sps, string pps, u_int32_t dts,
     return ret;
 }
 
-int SrsRawH264Stream::mux_ipb_frame(char* frame, int nb_frame, u_int32_t dts, u_int32_t pts, string& ibp, int8_t& frame_type)
+int SrsRawH264Stream::mux_ipb_frame(char* frame, int nb_frame, string& ibp)
 {
     int ret = ERROR_SUCCESS;
-    
-    // 5bits, 7.3.1 NAL unit syntax, 
-    // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
-    //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
-    u_int8_t nal_unit_type = (char)frame[0] & 0x1f;
     
     // 4bytes size of nalu:
     //      NALUnitLength
@@ -260,12 +255,6 @@ int SrsRawH264Stream::mux_ipb_frame(char* frame, int nb_frame, u_int32_t dts, u_
     // NALUnit
     stream.write_bytes(frame, nb_frame);
 
-    // send out h264 packet.
-    frame_type = SrsCodecVideoAVCFrameInterFrame;
-    if (nal_unit_type != 1) {
-        frame_type = SrsCodecVideoAVCFrameKeyFrame;
-    }
-
     ibp = "";
     ibp.append(packet, nb_packet);
 
@@ -281,7 +270,7 @@ int SrsRawH264Stream::mux_avc2flv(string video, int8_t frame_type, int8_t avc_pa
     //      1bytes, AVCPacketType
     //      3bytes, CompositionTime, the cts.
     // @see: E.4.3 Video Tags, video_file_format_spec_v10_1.pdf, page 78
-    int size = video.length() + 5;
+    int size = (int)video.length() + 5;
     char* data = new char[size];
     char* p = data;
     

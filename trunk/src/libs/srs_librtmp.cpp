@@ -1243,10 +1243,20 @@ int srs_write_h264_ipb_frame(Context* context,
     if (!context->h264_sps_pps_sent) {
         return ERROR_H264_DROP_BEFORE_SPS_PPS;
     }
-
+    
+    // 5bits, 7.3.1 NAL unit syntax,
+    // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+    //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
+    SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
+    
+    // for IDR frame, the frame is keyframe.
+    SrsCodecVideoAVCFrame frame_type = SrsCodecVideoAVCFrameInterFrame;
+    if (nal_unit_type == SrsAvcNaluTypeIDR) {
+        frame_type = SrsCodecVideoAVCFrameKeyFrame;
+    }
+    
     std::string ibp;
-    int8_t frame_type;
-    if ((ret = context->avc_raw.mux_ipb_frame(frame, frame_size, dts, pts, ibp, frame_type)) != ERROR_SUCCESS) {
+    if ((ret = context->avc_raw.mux_ipb_frame(frame, frame_size, ibp)) != ERROR_SUCCESS) {
         return ret;
     }
     
