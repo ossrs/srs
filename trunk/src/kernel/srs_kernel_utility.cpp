@@ -46,7 +46,7 @@ using namespace std;
 // @see SRS_SYS_TIME_RESOLUTION_MS_TIMES
 #define SYS_TIME_RESOLUTION_US 300*1000
 
-int srs_avc_nalu_read_uev(SrsBitStream* stream, int64_t& v)
+int srs_avc_nalu_read_uev(SrsBitStream* stream, int32_t& v)
 {
     int ret = ERROR_SUCCESS;
     
@@ -67,13 +67,13 @@ int srs_avc_nalu_read_uev(SrsBitStream* stream, int64_t& v)
         b = stream->read_bit();
     }
     
-    if (leadingZeroBits >= 64) {
+    if (leadingZeroBits >= 31) {
         return ERROR_AVC_NALU_UEV;
     }
     
     v = (1 << leadingZeroBits) - 1;
     for (int i = 0; i < leadingZeroBits; i++) {
-        int64_t b = stream->read_bit();
+        int32_t b = stream->read_bit();
         v += b << (leadingZeroBits - 1);
     }
     

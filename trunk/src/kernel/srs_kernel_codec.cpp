@@ -876,6 +876,13 @@ int SrsAvcAacCodec::avc_demux_sps()
         
         // XX 00 00 03 XX, the 03 byte should be drop.
         if (nb_rbsp > 2 && rbsp[nb_rbsp - 2] == 0 && rbsp[nb_rbsp - 1] == 0 && rbsp[nb_rbsp] == 3) {
+            // read 1byte more.
+            if (stream.empty()) {
+                break;
+            }
+            rbsp[nb_rbsp] = stream.read_1bytes();
+            nb_rbsp++;
+            
             continue;
         }
         
@@ -929,7 +936,7 @@ int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
         return ret;
     }
     
-    int64_t seq_parameter_set_id = -1;
+    int32_t seq_parameter_set_id = -1;
     if ((ret = srs_avc_nalu_read_uev(&bs, seq_parameter_set_id)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -944,7 +951,7 @@ int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
         || profile_idc == 44 || profile_idc == 83 || profile_idc == 86 || profile_idc == 118
         || profile_idc == 128
     ) {
-        int64_t chroma_format_idc = -1;
+        int32_t chroma_format_idc = -1;
         if ((ret = srs_avc_nalu_read_uev(&bs, chroma_format_idc)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -955,12 +962,12 @@ int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
             }
         }
         
-        int64_t bit_depth_luma_minus8 = -1;
+        int32_t bit_depth_luma_minus8 = -1;
         if ((ret = srs_avc_nalu_read_uev(&bs, bit_depth_luma_minus8)) != ERROR_SUCCESS) {
             return ret;
         }
         
-        int64_t bit_depth_chroma_minus8 = -1;
+        int32_t bit_depth_chroma_minus8 = -1;
         if ((ret = srs_avc_nalu_read_uev(&bs, bit_depth_chroma_minus8)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -981,18 +988,18 @@ int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
         }
     }
     
-    int64_t log2_max_frame_num_minus4 = -1;
+    int32_t log2_max_frame_num_minus4 = -1;
     if ((ret = srs_avc_nalu_read_uev(&bs, log2_max_frame_num_minus4)) != ERROR_SUCCESS) {
         return ret;
     }
     
-    int64_t pic_order_cnt_type = -1;
+    int32_t pic_order_cnt_type = -1;
     if ((ret = srs_avc_nalu_read_uev(&bs, pic_order_cnt_type)) != ERROR_SUCCESS) {
         return ret;
     }
     
     if (pic_order_cnt_type == 0) {
-        int64_t log2_max_pic_order_cnt_lsb_minus4 = -1;
+        int32_t log2_max_pic_order_cnt_lsb_minus4 = -1;
         if ((ret = srs_avc_nalu_read_uev(&bs, log2_max_pic_order_cnt_lsb_minus4)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -1002,17 +1009,17 @@ int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
             return ret;
         }
         
-        int64_t offset_for_non_ref_pic = -1;
+        int32_t offset_for_non_ref_pic = -1;
         if ((ret = srs_avc_nalu_read_uev(&bs, offset_for_non_ref_pic)) != ERROR_SUCCESS) {
             return ret;
         }
         
-        int64_t offset_for_top_to_bottom_field = -1;
+        int32_t offset_for_top_to_bottom_field = -1;
         if ((ret = srs_avc_nalu_read_uev(&bs, offset_for_top_to_bottom_field)) != ERROR_SUCCESS) {
             return ret;
         }
         
-        int64_t num_ref_frames_in_pic_order_cnt_cycle = -1;
+        int32_t num_ref_frames_in_pic_order_cnt_cycle = -1;
         if ((ret = srs_avc_nalu_read_uev(&bs, num_ref_frames_in_pic_order_cnt_cycle)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -1023,7 +1030,7 @@ int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
         }
     }
     
-    int64_t max_num_ref_frames = -1;
+    int32_t max_num_ref_frames = -1;
     if ((ret = srs_avc_nalu_read_uev(&bs, max_num_ref_frames)) != ERROR_SUCCESS) {
         return ret;
     }
@@ -1033,12 +1040,12 @@ int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
         return ret;
     }
     
-    int64_t pic_width_in_mbs_minus1 = -1;
+    int32_t pic_width_in_mbs_minus1 = -1;
     if ((ret = srs_avc_nalu_read_uev(&bs, pic_width_in_mbs_minus1)) != ERROR_SUCCESS) {
         return ret;
     }
     
-    int64_t pic_height_in_map_units_minus1 = -1;
+    int32_t pic_height_in_map_units_minus1 = -1;
     if ((ret = srs_avc_nalu_read_uev(&bs, pic_height_in_map_units_minus1)) != ERROR_SUCCESS) {
         return ret;
     }

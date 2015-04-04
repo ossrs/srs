@@ -76,7 +76,7 @@ public:
     * @param ibp output the packet.
     * @param frame_type output the frame type.
     */
-    virtual int mux_ipb_frame(char* frame, int nb_frame, u_int32_t dts, u_int32_t pts, std::string& ibp, int8_t& frame_type);
+    virtual int mux_ipb_frame(char* frame, int nb_frame, std::string& ibp);
     /**
     * mux the avc video packet to flv video packet.
     * @param frame_type, SrsCodecVideoAVCFrameKeyFrame or SrsCodecVideoAVCFrameInterFrame.

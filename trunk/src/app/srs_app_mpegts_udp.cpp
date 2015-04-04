@@ -355,11 +355,14 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsStream* avs)
         if ((ret = avc->annexb_demux(avs, &frame, &frame_size)) != ERROR_SUCCESS) {
             return ret;
         }
-    
-        // ignore invalid frame,
-        //  * atleast 1bytes for SPS to decode the type
-        //  * ignore the auth bytes '09f0'
-        if (frame_size <= 2) {
+        
+        // 5bits, 7.3.1 NAL unit syntax,
+        // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+        //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
+        SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
+        
+        // ignore the nalu type sps(7), pps(8), aud(9)
+        if (nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter) {
             continue;
         }
 
@@ -402,6 +405,7 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsStream* avs)
         }
         
         // ibp frame.
+        // TODO: FIXME: we should group all frames to a rtmp/flv message from one ts message.
         srs_info("mpegts: demux avc ibp frame size=%d, dts=%d", ibpframe_size, dts);
         if ((ret = write_h264_ipb_frame(frame, frame_size, dts, pts)) != ERROR_SUCCESS) {
             return ret;
@@ -458,10 +462,20 @@ int SrsMpegtsOverUdp::write_h264_ipb_frame(char* frame, int frame_size, u_int32_
     if (!h264_sps_pps_sent) {
         return ERROR_H264_DROP_BEFORE_SPS_PPS;
     }
+    
+    // 5bits, 7.3.1 NAL unit syntax,
+    // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+    //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
+    SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
+    
+    // for IDR frame, the frame is keyframe.
+    SrsCodecVideoAVCFrame frame_type = SrsCodecVideoAVCFrameInterFrame;
+    if (nal_unit_type == SrsAvcNaluTypeIDR) {
+        frame_type = SrsCodecVideoAVCFrameKeyFrame;
+    }
 
     std::string ibp;
-    int8_t frame_type;
-    if ((ret = avc->mux_ipb_frame(frame, frame_size, dts, pts, ibp, frame_type)) != ERROR_SUCCESS) {
+    if ((ret = avc->mux_ipb_frame(frame, frame_size, ibp)) != ERROR_SUCCESS) {
         return ret;
     }
     
