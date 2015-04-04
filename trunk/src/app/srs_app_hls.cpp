@@ -487,11 +487,7 @@ bool SrsHlsMuxer::is_segment_absolutely_overflow()
 {
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-83553950
     srs_assert(current);
-    
-    // use N% deviation, to smoother.
-    double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * hls_fragment_deviation : 0.0;
-    
-    return current->duration >= hls_aof_ratio * (hls_fragment + deviation);
+    return current->duration >= hls_aof_ratio * hls_fragment;
 }
 
 int SrsHlsMuxer::update_acodec(SrsCodecAudio ac)
@@ -922,7 +918,7 @@ int SrsHlsCache::write_video(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     // 2. some gops duration overflow.
     if (sample->frame_type == SrsCodecVideoAVCFrameKeyFrame && muxer->is_segment_overflow()) {
         if (!sample->has_idr) {
-            srs_warn("hls: ts starts without IDR, first nalu=%d", sample->first_nalu_type);
+            srs_warn("hls: ts starts without IDR, first nalu=%d, idr=%d", sample->first_nalu_type, sample->has_idr);
         }
         if ((ret = reap_segment("video", muxer, cache->video->dts)) != ERROR_SUCCESS) {
             return ret;
