@@ -266,6 +266,30 @@ bool SrsFlvCodec::audio_is_aac(char* data, int size)
     return sound_format == SrsCodecAudioAAC;
 }
 
+string srs_codec_avc_nalu2str(SrsAvcNaluType nalu_type)
+{
+    switch (nalu_type) {
+        case SrsAvcNaluTypeNonIDR: return "NonIDR";
+        case SrsAvcNaluTypeDataPartitionA: return "DataPartitionA";
+        case SrsAvcNaluTypeDataPartitionB: return "DataPartitionB";
+        case SrsAvcNaluTypeDataPartitionC: return "DataPartitionC";
+        case SrsAvcNaluTypeIDR: return "IDR";
+        case SrsAvcNaluTypeSEI: return "SEI";
+        case SrsAvcNaluTypeSPS: return "SPS";
+        case SrsAvcNaluTypePPS: return "PPS";
+        case SrsAvcNaluTypeAccessUnitDelimiter: return "AccessUnitDelimiter";
+        case SrsAvcNaluTypeEOSequence: return "EOSequence";
+        case SrsAvcNaluTypeEOStream: return "EOStream";
+        case SrsAvcNaluTypeFilterData: return "FilterData";
+        case SrsAvcNaluTypeSPSExt: return "SPSExt";
+        case SrsAvcNaluTypePrefixNALU: return "PrefixNALU";
+        case SrsAvcNaluTypeSubsetSPS: return "SubsetSPS";
+        case SrsAvcNaluTypeLayerWithoutPartition: return "LayerWithoutPartition";
+        case SrsAvcNaluTypeCodedSliceExt: return "CodedSliceExt";
+        case SrsAvcNaluTypeReserved: default: return "Other";
+    }
+}
+
 SrsCodecSampleUnit::SrsCodecSampleUnit()
 {
     size = 0;
@@ -293,6 +317,8 @@ void SrsCodecSample::clear()
     cts = 0;
     frame_type = SrsCodecVideoAVCFrameReserved;
     avc_packet_type = SrsCodecVideoAVCTypeReserved;
+    has_idr = false;
+    first_nalu_type = SrsAvcNaluTypeReserved;
     
     acodec = SrsCodecAudioReserved1;
     sound_rate = SrsCodecAudioSampleRateReserved;
@@ -315,6 +341,19 @@ int SrsCodecSample::add_sample_unit(char* bytes, int size)
     SrsCodecSampleUnit* sample_unit = &sample_units[nb_sample_units++];
     sample_unit->bytes = bytes;
     sample_unit->size = size;
+    
+    // for video, parse the nalu type, set the IDR flag.
+    if (is_video) {
+        SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(bytes[0] & 0x1f);
+        
+        if (nal_unit_type == SrsAvcNaluTypeIDR) {
+            has_idr = true;
+        }
+    
+        if (first_nalu_type == SrsAvcNaluTypeReserved) {
+            first_nalu_type = nal_unit_type;
+        }
+    }
     
     return ret;
 }
@@ -791,7 +830,7 @@ int SrsAvcAacCodec::avc_demux_sps()
     }
     
     // for NALU, 7.3.1 NAL unit syntax
-    // H.264-AVC-ISO_IEC_14496-10.pdf, page 44.
+    // H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 61.
     if (!stream.require(1)) {
         ret = ERROR_HLS_DECODE_ERROR;
         srs_error("avc decode sps failed. ret=%d", ret);
@@ -816,10 +855,10 @@ int SrsAvcAacCodec::avc_demux_sps()
         return ret;
     }
     
+    // 7.4.1 NAL unit semantics
+    // H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 61.
     // nal_unit_type specifies the type of RBSP data structure contained in the NAL unit as specified in Table 7-1.
-    // VCL NAL units are specified as those NAL units having nal_unit_type equal to 1, 2, 3, 4, 5, or 12.
-    // All remaining NAL units are called non-VCL NAL units.
-    int8_t nal_unit_type = nutv & 0x1f;
+    SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(nutv & 0x1f);
     if (nal_unit_type != 7) {
         ret = ERROR_HLS_DECODE_ERROR;
         srs_error("for sps, nal_unit_type shall be equal to 7. ret=%d", ret);

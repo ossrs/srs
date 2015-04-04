@@ -754,7 +754,7 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
         // "#EXTINF:4294967295.208,\n"
         ss.precision(3);
         ss.setf(std::ios::fixed, std::ios::floatfield);
-        ss << "#EXTINF:" << segment->duration << "," << SRS_CONSTS_LF;
+        ss << "#EXTINF:" << segment->duration << ", no desc" << SRS_CONSTS_LF;
         srs_verbose("write m3u8 segment info success.");
         
         // {file name}\n
@@ -918,9 +918,12 @@ int SrsHlsCache::write_video(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     }
     
     // new segment when:
-    // 1. base on gop.
+    // 1. base on gop(IDR).
     // 2. some gops duration overflow.
     if (sample->frame_type == SrsCodecVideoAVCFrameKeyFrame && muxer->is_segment_overflow()) {
+        if (!sample->has_idr) {
+            srs_warn("hls: ts starts without IDR, first nalu=%d", sample->first_nalu_type);
+        }
         if ((ret = reap_segment("video", muxer, cache->video->dts)) != ERROR_SUCCESS) {
             return ret;
         }

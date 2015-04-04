@@ -562,6 +562,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-04-04, for [#304](https://github.com/winlinvip/simple-rtmp-server/issues/304), rewrite annexb mux for ts, refer to apple sample. 2.0.157.
 * v2.0, 2015-04-03, enhanced avc decode, parse the sps get width+height. 2.0.156.
 * v2.0, 2015-04-03, for [#372](https://github.com/winlinvip/simple-rtmp-server/issues/372), support transform vhost of edge 2.0.155.
 * v2.0, 2015-03-30, for [#366](https://github.com/winlinvip/simple-rtmp-server/issues/366), config hls to disable cleanup of ts. 2.0.154.

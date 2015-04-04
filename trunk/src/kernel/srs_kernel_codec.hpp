@@ -276,6 +276,52 @@ enum SrsCodecAudioSoundType
 };
 
 /**
+ * Table 7-1 – NAL unit type codes, syntax element categories, and NAL unit type classes
+ * H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 83.
+ */
+enum SrsAvcNaluType
+{
+    // Unspecified
+    SrsAvcNaluTypeReserved = 0,
+    
+    // Coded slice of a non-IDR picture slice_layer_without_partitioning_rbsp( )
+    SrsAvcNaluTypeNonIDR = 1,
+    // Coded slice data partition A slice_data_partition_a_layer_rbsp( )
+    SrsAvcNaluTypeDataPartitionA = 2,
+    // Coded slice data partition B slice_data_partition_b_layer_rbsp( )
+    SrsAvcNaluTypeDataPartitionB = 3,
+    // Coded slice data partition C slice_data_partition_c_layer_rbsp( )
+    SrsAvcNaluTypeDataPartitionC = 4,
+    // Coded slice of an IDR picture slice_layer_without_partitioning_rbsp( )
+    SrsAvcNaluTypeIDR = 5,
+    // Supplemental enhancement information (SEI) sei_rbsp( )
+    SrsAvcNaluTypeSEI = 6,
+    // Sequence parameter set seq_parameter_set_rbsp( )
+    SrsAvcNaluTypeSPS = 7,
+    // Picture parameter set pic_parameter_set_rbsp( )
+    SrsAvcNaluTypePPS = 8,
+    // Access unit delimiter access_unit_delimiter_rbsp( )
+    SrsAvcNaluTypeAccessUnitDelimiter = 9,
+    // End of sequence end_of_seq_rbsp( )
+    SrsAvcNaluTypeEOSequence = 10,
+    // End of stream end_of_stream_rbsp( )
+    SrsAvcNaluTypeEOStream = 11,
+    // Filler data filler_data_rbsp( )
+    SrsAvcNaluTypeFilterData = 12,
+    // Sequence parameter set extension seq_parameter_set_extension_rbsp( )
+    SrsAvcNaluTypeSPSExt = 13,
+    // Prefix NAL unit prefix_nal_unit_rbsp( )
+    SrsAvcNaluTypePrefixNALU = 14,
+    // Subset sequence parameter set subset_seq_parameter_set_rbsp( )
+    SrsAvcNaluTypeSubsetSPS = 15,
+    // Coded slice of an auxiliary coded picture without partitioning slice_layer_without_partitioning_rbsp( )
+    SrsAvcNaluTypeLayerWithoutPartition = 19,
+    // Coded slice extension slice_layer_extension_rbsp( )
+    SrsAvcNaluTypeCodedSliceExt = 20,
+};
+std::string srs_codec_avc_nalu2str(SrsAvcNaluType nalu_type);
+
+/**
 * the codec sample unit.
 * for h.264 video packet, a NALU is a sample unit.
 * for aac raw audio packet, a NALU is the entire aac raw data.
@@ -334,6 +380,9 @@ public:
     // video specified
     SrsCodecVideoAVCFrame frame_type;
     SrsCodecVideoAVCType avc_packet_type;
+    // whether sample_units contains IDR frame.
+    bool has_idr;
+    SrsAvcNaluType first_nalu_type;
 public:
     // audio specified
     SrsCodecAudio acodec;
