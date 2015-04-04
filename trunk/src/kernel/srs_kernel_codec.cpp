@@ -876,6 +876,13 @@ int SrsAvcAacCodec::avc_demux_sps()
         
         // XX 00 00 03 XX, the 03 byte should be drop.
         if (nb_rbsp > 2 && rbsp[nb_rbsp - 2] == 0 && rbsp[nb_rbsp - 1] == 0 && rbsp[nb_rbsp] == 3) {
+            // read 1byte more.
+            if (stream.empty()) {
+                break;
+            }
+            rbsp[nb_rbsp] = stream.read_1bytes();
+            nb_rbsp++;
+            
             continue;
         }
         
