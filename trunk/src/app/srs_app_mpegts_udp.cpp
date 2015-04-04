@@ -362,13 +362,8 @@ int SrsMpegtsOverUdp::on_ts_video(SrsTsMessage* msg, SrsStream* avs)
         SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
         
         // ignore the nalu type sps(7), pps(8), aud(9)
-        switch (nal_unit_type) {
-            case SrsAvcNaluTypeSPS:
-            case SrsAvcNaluTypePPS:
-            case SrsAvcNaluTypeAccessUnitDelimiter:
-                continue;
-            default:
-                break;
+        if (nal_unit_type == SrsAvcNaluTypeAccessUnitDelimiter) {
+            continue;
         }
 
         // for sps
