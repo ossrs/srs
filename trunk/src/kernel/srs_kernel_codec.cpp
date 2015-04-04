@@ -31,6 +31,7 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_core_autofree.hpp>
 
 string srs_codec_video2str(SrsCodecVideo codec)
 {
@@ -265,6 +266,30 @@ bool SrsFlvCodec::audio_is_aac(char* data, int size)
     return sound_format == SrsCodecAudioAAC;
 }
 
+string srs_codec_avc_nalu2str(SrsAvcNaluType nalu_type)
+{
+    switch (nalu_type) {
+        case SrsAvcNaluTypeNonIDR: return "NonIDR";
+        case SrsAvcNaluTypeDataPartitionA: return "DataPartitionA";
+        case SrsAvcNaluTypeDataPartitionB: return "DataPartitionB";
+        case SrsAvcNaluTypeDataPartitionC: return "DataPartitionC";
+        case SrsAvcNaluTypeIDR: return "IDR";
+        case SrsAvcNaluTypeSEI: return "SEI";
+        case SrsAvcNaluTypeSPS: return "SPS";
+        case SrsAvcNaluTypePPS: return "PPS";
+        case SrsAvcNaluTypeAccessUnitDelimiter: return "AccessUnitDelimiter";
+        case SrsAvcNaluTypeEOSequence: return "EOSequence";
+        case SrsAvcNaluTypeEOStream: return "EOStream";
+        case SrsAvcNaluTypeFilterData: return "FilterData";
+        case SrsAvcNaluTypeSPSExt: return "SPSExt";
+        case SrsAvcNaluTypePrefixNALU: return "PrefixNALU";
+        case SrsAvcNaluTypeSubsetSPS: return "SubsetSPS";
+        case SrsAvcNaluTypeLayerWithoutPartition: return "LayerWithoutPartition";
+        case SrsAvcNaluTypeCodedSliceExt: return "CodedSliceExt";
+        case SrsAvcNaluTypeReserved: default: return "Other";
+    }
+}
+
 SrsCodecSampleUnit::SrsCodecSampleUnit()
 {
     size = 0;
@@ -292,6 +317,8 @@ void SrsCodecSample::clear()
     cts = 0;
     frame_type = SrsCodecVideoAVCFrameReserved;
     avc_packet_type = SrsCodecVideoAVCTypeReserved;
+    has_idr = false;
+    first_nalu_type = SrsAvcNaluTypeReserved;
     
     acodec = SrsCodecAudioReserved1;
     sound_rate = SrsCodecAudioSampleRateReserved;
@@ -314,6 +341,19 @@ int SrsCodecSample::add_sample_unit(char* bytes, int size)
     SrsCodecSampleUnit* sample_unit = &sample_units[nb_sample_units++];
     sample_unit->bytes = bytes;
     sample_unit->size = size;
+    
+    // for video, parse the nalu type, set the IDR flag.
+    if (is_video) {
+        SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(bytes[0] & 0x1f);
+        
+        if (nal_unit_type == SrsAvcNaluTypeIDR) {
+            has_idr = true;
+        }
+    
+        if (first_nalu_type == SrsAvcNaluTypeReserved) {
+            first_nalu_type = nal_unit_type;
+        }
+    }
     
     return ret;
 }
@@ -713,7 +753,8 @@ int SrsAvcAacCodec::avc_demux_sps_pps(SrsStream* stream)
         return ret;
     }
     
-    // 1 sps
+    // 1 sps, 7.3.2.1 Sequence parameter set RBSP syntax
+    // H.264-AVC-ISO_IEC_14496-10.pdf, page 45.
     if (!stream->require(1)) {
         ret = ERROR_HLS_DECODE_ERROR;
         srs_error("avc decode sequenc header sps failed. ret=%d", ret);
@@ -740,8 +781,7 @@ int SrsAvcAacCodec::avc_demux_sps_pps(SrsStream* stream)
     if (sequenceParameterSetLength > 0) {
         srs_freep(sequenceParameterSetNALUnit);
         sequenceParameterSetNALUnit = new char[sequenceParameterSetLength];
-        memcpy(sequenceParameterSetNALUnit, stream->data() + stream->pos(), sequenceParameterSetLength);
-        stream->skip(sequenceParameterSetLength);
+        stream->read_bytes(sequenceParameterSetNALUnit, sequenceParameterSetLength);
     }
     // 1 pps
     if (!stream->require(1)) {
@@ -770,9 +810,241 @@ int SrsAvcAacCodec::avc_demux_sps_pps(SrsStream* stream)
     if (pictureParameterSetLength > 0) {
         srs_freep(pictureParameterSetNALUnit);
         pictureParameterSetNALUnit = new char[pictureParameterSetLength];
-        memcpy(pictureParameterSetNALUnit, stream->data() + stream->pos(), pictureParameterSetLength);
-        stream->skip(pictureParameterSetLength);
+        stream->read_bytes(pictureParameterSetNALUnit, pictureParameterSetLength);
     }
+    
+    return avc_demux_sps();
+}
+
+int SrsAvcAacCodec::avc_demux_sps()
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (!sequenceParameterSetLength) {
+        return ret;
+    }
+    
+    SrsStream stream;
+    if ((ret = stream.initialize(sequenceParameterSetNALUnit, sequenceParameterSetLength)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // for NALU, 7.3.1 NAL unit syntax
+    // H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 61.
+    if (!stream.require(1)) {
+        ret = ERROR_HLS_DECODE_ERROR;
+        srs_error("avc decode sps failed. ret=%d", ret);
+        return ret;
+    }
+    int8_t nutv = stream.read_1bytes();
+    
+    // forbidden_zero_bit shall be equal to 0.
+    int8_t forbidden_zero_bit = (nutv >> 7) & 0x01;
+    if (forbidden_zero_bit) {
+        ret = ERROR_HLS_DECODE_ERROR;
+        srs_error("forbidden_zero_bit shall be equal to 0. ret=%d", ret);
+        return ret;
+    }
+    
+    // nal_ref_idc not equal to 0 specifies that the content of the NAL unit contains a sequence parameter set or a picture
+    // parameter set or a slice of a reference picture or a slice data partition of a reference picture.
+    int8_t nal_ref_idc = (nutv >> 5) & 0x03;
+    if (!nal_ref_idc) {
+        ret = ERROR_HLS_DECODE_ERROR;
+        srs_error("for sps, nal_ref_idc shall be not be equal to 0. ret=%d", ret);
+        return ret;
+    }
+    
+    // 7.4.1 NAL unit semantics
+    // H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 61.
+    // nal_unit_type specifies the type of RBSP data structure contained in the NAL unit as specified in Table 7-1.
+    SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(nutv & 0x1f);
+    if (nal_unit_type != 7) {
+        ret = ERROR_HLS_DECODE_ERROR;
+        srs_error("for sps, nal_unit_type shall be equal to 7. ret=%d", ret);
+        return ret;
+    }
+    
+    // decode the rbsp from sps.
+    // rbsp[ i ] a raw byte sequence payload is specified as an ordered sequence of bytes.
+    int8_t* rbsp = new int8_t[sequenceParameterSetLength];
+    SrsAutoFree(int8_t, rbsp);
+    
+    int nb_rbsp = 0;
+    while (!stream.empty()) {
+        rbsp[nb_rbsp] = stream.read_1bytes();
+        
+        // XX 00 00 03 XX, the 03 byte should be drop.
+        if (nb_rbsp > 2 && rbsp[nb_rbsp - 2] == 0 && rbsp[nb_rbsp - 1] == 0 && rbsp[nb_rbsp] == 3) {
+            continue;
+        }
+        
+        nb_rbsp++;
+    }
+    
+    return avc_demux_sps_rbsp((char*)rbsp, nb_rbsp);
+}
+
+
+int SrsAvcAacCodec::avc_demux_sps_rbsp(char* rbsp, int nb_rbsp)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // reparse the rbsp.
+    SrsStream stream;
+    if ((ret = stream.initialize(rbsp, nb_rbsp)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    // for SPS, 7.3.2.1.1 Sequence parameter set data syntax
+    // H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 62.
+    if (!stream.require(3)) {
+        ret = ERROR_HLS_DECODE_ERROR;
+        srs_error("sps shall atleast 3bytes. ret=%d", ret);
+        return ret;
+    }
+    u_int8_t profile_idc = stream.read_1bytes();
+    if (!profile_idc) {
+        ret = ERROR_HLS_DECODE_ERROR;
+        srs_error("sps the profile_idc invalid. ret=%d", ret);
+        return ret;
+    }
+    
+    int8_t flags = stream.read_1bytes();
+    if (flags & 0x03) {
+        ret = ERROR_HLS_DECODE_ERROR;
+        srs_error("sps the flags invalid. ret=%d", ret);
+        return ret;
+    }
+    
+    u_int8_t level_idc = stream.read_1bytes();
+    if (!level_idc) {
+        ret = ERROR_HLS_DECODE_ERROR;
+        srs_error("sps the level_idc invalid. ret=%d", ret);
+        return ret;
+    }
+    
+    SrsBitStream bs;
+    if ((ret = bs.initialize(&stream)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    int64_t seq_parameter_set_id = -1;
+    if ((ret = srs_avc_nalu_read_uev(&bs, seq_parameter_set_id)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    if (seq_parameter_set_id < 0) {
+        ret = ERROR_HLS_DECODE_ERROR;
+        srs_error("sps the seq_parameter_set_id invalid. ret=%d", ret);
+        return ret;
+    }
+    srs_info("sps parse profile=%d, level=%d, sps_id=%d", profile_idc, level_idc, seq_parameter_set_id);
+    
+    if (profile_idc == 100 || profile_idc == 110 || profile_idc == 122 || profile_idc == 244
+        || profile_idc == 44 || profile_idc == 83 || profile_idc == 86 || profile_idc == 118
+        || profile_idc == 128
+    ) {
+        int64_t chroma_format_idc = -1;
+        if ((ret = srs_avc_nalu_read_uev(&bs, chroma_format_idc)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        if (chroma_format_idc == 3) {
+            int8_t separate_colour_plane_flag = -1;
+            if ((ret = srs_avc_nalu_read_bit(&bs, separate_colour_plane_flag)) != ERROR_SUCCESS) {
+                return ret;
+            }
+        }
+        
+        int64_t bit_depth_luma_minus8 = -1;
+        if ((ret = srs_avc_nalu_read_uev(&bs, bit_depth_luma_minus8)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        int64_t bit_depth_chroma_minus8 = -1;
+        if ((ret = srs_avc_nalu_read_uev(&bs, bit_depth_chroma_minus8)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        int8_t qpprime_y_zero_transform_bypass_flag = -1;
+        if ((ret = srs_avc_nalu_read_bit(&bs, qpprime_y_zero_transform_bypass_flag)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        int8_t seq_scaling_matrix_present_flag = -1;
+        if ((ret = srs_avc_nalu_read_bit(&bs, seq_scaling_matrix_present_flag)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        if (seq_scaling_matrix_present_flag) {
+            ret = ERROR_HLS_DECODE_ERROR;
+            srs_error("sps the seq_scaling_matrix_present_flag invalid. ret=%d", ret);
+            return ret;
+        }
+    }
+    
+    int64_t log2_max_frame_num_minus4 = -1;
+    if ((ret = srs_avc_nalu_read_uev(&bs, log2_max_frame_num_minus4)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    int64_t pic_order_cnt_type = -1;
+    if ((ret = srs_avc_nalu_read_uev(&bs, pic_order_cnt_type)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    if (pic_order_cnt_type == 0) {
+        int64_t log2_max_pic_order_cnt_lsb_minus4 = -1;
+        if ((ret = srs_avc_nalu_read_uev(&bs, log2_max_pic_order_cnt_lsb_minus4)) != ERROR_SUCCESS) {
+            return ret;
+        }
+    } else if (pic_order_cnt_type == 1) {
+        int8_t delta_pic_order_always_zero_flag = -1;
+        if ((ret = srs_avc_nalu_read_bit(&bs, delta_pic_order_always_zero_flag)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        int64_t offset_for_non_ref_pic = -1;
+        if ((ret = srs_avc_nalu_read_uev(&bs, offset_for_non_ref_pic)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        int64_t offset_for_top_to_bottom_field = -1;
+        if ((ret = srs_avc_nalu_read_uev(&bs, offset_for_top_to_bottom_field)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        int64_t num_ref_frames_in_pic_order_cnt_cycle = -1;
+        if ((ret = srs_avc_nalu_read_uev(&bs, num_ref_frames_in_pic_order_cnt_cycle)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        if (num_ref_frames_in_pic_order_cnt_cycle) {
+            ret = ERROR_HLS_DECODE_ERROR;
+            srs_error("sps the num_ref_frames_in_pic_order_cnt_cycle invalid. ret=%d", ret);
+            return ret;
+        }
+    }
+    
+    int64_t max_num_ref_frames = -1;
+    if ((ret = srs_avc_nalu_read_uev(&bs, max_num_ref_frames)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    int8_t gaps_in_frame_num_value_allowed_flag = -1;
+    if ((ret = srs_avc_nalu_read_bit(&bs, gaps_in_frame_num_value_allowed_flag)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    int64_t pic_width_in_mbs_minus1 = -1;
+    if ((ret = srs_avc_nalu_read_uev(&bs, pic_width_in_mbs_minus1)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    int64_t pic_height_in_map_units_minus1 = -1;
+    if ((ret = srs_avc_nalu_read_uev(&bs, pic_height_in_map_units_minus1)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    width = (int)(pic_width_in_mbs_minus1 + 1) * 16;
+    height = (int)(pic_height_in_map_units_minus1 + 1) * 16;
     
     return ret;
 }

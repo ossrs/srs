@@ -46,6 +46,53 @@ using namespace std;
 // @see SRS_SYS_TIME_RESOLUTION_MS_TIMES
 #define SYS_TIME_RESOLUTION_US 300*1000
 
+int srs_avc_nalu_read_uev(SrsBitStream* stream, int64_t& v)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (stream->empty()) {
+        return ERROR_AVC_NALU_UEV;
+    }
+    
+    // ue(v) in 9.1 Parsing process for Exp-Golomb codes
+    // H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 227.
+    // Syntax elements coded as ue(v), me(v), or se(v) are Exp-Golomb-coded.
+    //      leadingZeroBits = -1;
+    //      for( b = 0; !b; leadingZeroBits++ )
+    //          b = read_bits( 1 )
+    // The variable codeNum is then assigned as follows:
+    //      codeNum = (2<<leadingZeroBits) – 1 + read_bits( leadingZeroBits )
+    int leadingZeroBits = -1;
+    for (int8_t b = 0; !b && !stream->empty(); leadingZeroBits++) {
+        b = stream->read_bit();
+    }
+    
+    if (leadingZeroBits >= 64) {
+        return ERROR_AVC_NALU_UEV;
+    }
+    
+    v = (1 << leadingZeroBits) - 1;
+    for (int i = 0; i < leadingZeroBits; i++) {
+        int64_t b = stream->read_bit();
+        v += b << (leadingZeroBits - 1);
+    }
+    
+    return ret;
+}
+
+int srs_avc_nalu_read_bit(SrsBitStream* stream, int8_t& v)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (stream->empty()) {
+        return ERROR_AVC_NALU_UEV;
+    }
+    
+    v = stream->read_bit();
+    
+    return ret;
+}
+
 static int64_t _srs_system_time_us_cache = 0;
 static int64_t _srs_system_time_startup_time = 0;
 
@@ -292,6 +339,21 @@ bool srs_path_exists(std::string path)
     }
 
     return false;
+}
+
+string srs_path_dirname(string path)
+{
+    std::string dirname = path;
+    size_t pos = string::npos;
+    
+    if ((pos = dirname.rfind("/")) != string::npos) {
+        if (pos == 0) {
+            return "/";
+        }
+        dirname = dirname.substr(0, pos);
+    }
+    
+    return dirname;
 }
 
 bool srs_avc_startswith_annexb(SrsStream* stream, int* pnb_start_code)

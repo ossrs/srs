@@ -311,12 +311,6 @@ int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     // generate the m3u8 dir and path.
     m3u8 = path + "/" + m3u8_file;
     m3u8 = srs_path_build_stream(m3u8, req->vhost, req->app, req->stream);
-    
-    m3u8_dir = m3u8;
-    size_t pos = string::npos;
-    if ((pos = m3u8_dir.rfind("/")) != string::npos) {
-        m3u8_dir = m3u8_dir.substr(0, pos);
-    }
 
     // we always keep the target duration increasing.
     int max_td = srs_max(target_duration, (int)(fragment * _srs_config->get_hls_td_ratio(r->vhost)));
@@ -335,6 +329,14 @@ int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
         should_write_cache = true;
         should_write_file = true;
     }
+    
+    // create m3u8 dir once.
+    m3u8_dir = srs_path_dirname(m3u8);
+    if (should_write_file && (ret = srs_create_dir_recursively(m3u8_dir)) != ERROR_SUCCESS) {
+        srs_error("create app dir %s failed. ret=%d", m3u8_dir.c_str(), ret);
+        return ret;
+    }
+    srs_info("create m3u8 dir %s ok", m3u8_dir.c_str());
     
     return ret;
 }
@@ -434,11 +436,12 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     current->uri += ts_url;
     
     // create dir recursively for hls.
-    if (should_write_file && (ret = srs_create_dir_recursively(m3u8_dir)) != ERROR_SUCCESS) {
-        srs_error("create app dir %s failed. ret=%d", m3u8_dir.c_str(), ret);
+    std::string ts_dir = srs_path_dirname(current->full_path);
+    if (should_write_file && (ret = srs_create_dir_recursively(ts_dir)) != ERROR_SUCCESS) {
+        srs_error("create app dir %s failed. ret=%d", ts_dir.c_str(), ret);
         return ret;
     }
-    srs_info("create app dir %s ok", m3u8_dir.c_str());
+    srs_info("create ts dir %s ok", ts_dir.c_str());
     
     // open temp ts file.
     std::string tmp_file = current->full_path + ".tmp";
@@ -751,7 +754,7 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
         // "#EXTINF:4294967295.208,\n"
         ss.precision(3);
         ss.setf(std::ios::fixed, std::ios::floatfield);
-        ss << "#EXTINF:" << segment->duration << "," << SRS_CONSTS_LF;
+        ss << "#EXTINF:" << segment->duration << ", no desc" << SRS_CONSTS_LF;
         srs_verbose("write m3u8 segment info success.");
         
         // {file name}\n
@@ -896,6 +899,7 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     // we use absolutely overflow of segment to make jwplayer/ffplay happy
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-71155184
     if (cache->audio && muxer->is_segment_absolutely_overflow()) {
+        srs_warn("hls: absolute audio reap segment.");
         if ((ret = reap_segment("audio", muxer, cache->audio->pts)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -914,9 +918,12 @@ int SrsHlsCache::write_video(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     }
     
     // new segment when:
-    // 1. base on gop.
+    // 1. base on gop(IDR).
     // 2. some gops duration overflow.
     if (sample->frame_type == SrsCodecVideoAVCFrameKeyFrame && muxer->is_segment_overflow()) {
+        if (!sample->has_idr) {
+            srs_warn("hls: ts starts without IDR, first nalu=%d", sample->first_nalu_type);
+        }
         if ((ret = reap_segment("video", muxer, cache->video->dts)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -935,26 +942,28 @@ int SrsHlsCache::write_video(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
 int SrsHlsCache::reap_segment(string log_desc, SrsHlsMuxer* muxer, int64_t segment_start_dts)
 {
     int ret = ERROR_SUCCESS;
+    
+    // TODO: flush audio before or after segment?
+    // TODO: fresh segment begin with audio or video?
 
+    // close current ts.
     if ((ret = muxer->segment_close(log_desc)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer close segment failed. ret=%d", ret);
         return ret;
     }
     
+    // open new ts.
     if ((ret = muxer->segment_open(segment_start_dts)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer open segment failed. ret=%d", ret);
         return ret;
     }
-
-    // TODO: flush audio before or after segment?
-    // TODO: fresh segment begin with audio or video?
     
     // segment open, flush video first.
     if ((ret = muxer->flush_video(cache)) != ERROR_SUCCESS) {
         srs_error("m3u8 muxer flush video failed. ret=%d", ret);
         return ret;
     }
-
+    
     // segment open, flush the audio.
     // @see: ngx_rtmp_hls_open_fragment
     /* start fragment with audio to make iPhone happy */

@@ -43,6 +43,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_LOG_TANK_CONSOLE "console"
 #define SRS_CONF_DEFAULT_COFNIG_FILE "conf/srs.conf"
 #define SRS_CONF_DEFAULT_FF_LOG_DIR "./objs"
+#define SRS_CONF_DEFAULT_UTC_TIME false
 
 #define SRS_CONF_DEFAULT_MAX_CONNECTIONS 1000
 #define SRS_CONF_DEFAULT_HLS_PATH "./objs/nginx/html"
@@ -435,6 +436,10 @@ public:
     * every this interval in ms.
     */
     virtual int                 get_pithy_print_ms();
+    /**
+     * whether use utc-time to format the time.
+     */
+    virtual bool                get_utc_time();
 // stream_caster section
 public:
     /**

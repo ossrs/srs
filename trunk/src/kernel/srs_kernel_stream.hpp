@@ -154,4 +154,22 @@ public:
     virtual void write_bytes(char* data, int size);
 };
 
+/**
+ * the bit stream.
+ */
+class SrsBitStream
+{
+private:
+    int8_t cb;
+    u_int8_t cb_left;
+    SrsStream* stream;
+public:
+    SrsBitStream();
+    virtual ~SrsBitStream();
+public:
+    virtual int initialize(SrsStream* s);
+    virtual bool empty();
+    virtual int8_t read_bit();
+};
+
 #endif
