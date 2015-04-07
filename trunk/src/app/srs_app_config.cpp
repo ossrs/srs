@@ -3093,7 +3093,7 @@ bool SrsConfig::get_log_tank_file()
     
     SrsConfDirective* conf = root->get("srs_log_tank");
     if (!conf || conf->arg0().empty()) {
-        return false;
+        return true;
     }
     
     return conf->arg0() != SRS_CONF_DEFAULT_LOG_TANK_CONSOLE;
