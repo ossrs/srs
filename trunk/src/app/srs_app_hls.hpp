@@ -237,6 +237,7 @@ public:
     virtual std::string ts_url();
     virtual double duration();
     virtual double deviation();
+    virtual int absolute_deviation();
 public:
     /**
     * initialize the hls muxer.
