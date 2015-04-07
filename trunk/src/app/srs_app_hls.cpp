@@ -272,6 +272,13 @@ double SrsHlsMuxer::deviation()
     return hls_fragment_deviation;
 }
 
+int SrsHlsMuxer::absolute_deviation()
+{
+    // accept the floor ts for the first piece.
+    int64_t floor_ts = (int64_t)(srs_get_system_time_ms() / (1000 * hls_fragment));
+    return (int)(accept_floor_ts - (floor_ts - 1));
+}
+
 int SrsHlsMuxer::initialize(ISrsHlsHandler* h)
 {
     int ret = ERROR_SUCCESS;
@@ -1203,9 +1210,9 @@ void SrsHls::hls_show_mux_log()
         // the run time is not equals to stream time,
         // @see: https://github.com/winlinvip/simple-rtmp-server/issues/81#issuecomment-48100994
         // it's ok.
-        srs_trace("-> "SRS_CONSTS_LOG_HLS" time=%"PRId64", stream dts=%"PRId64"(%"PRId64"ms), sequence_no=%d, ts=%s, duration=%.2f, deviation=%.2f",
+        srs_trace("-> "SRS_CONSTS_LOG_HLS" time=%"PRId64", stream dts=%"PRId64"(%"PRId64"ms), sno=%d, ts=%s, dur=%.2f, dva=%.2fs/%dp",
             pprint->age(), stream_dts, stream_dts / 90, muxer->sequence_no(), muxer->ts_url().c_str(),
-            muxer->duration(), muxer->deviation());
+            muxer->duration(), muxer->deviation(), muxer->absolute_deviation());
     }
 }
 
