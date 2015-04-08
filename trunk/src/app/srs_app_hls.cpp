@@ -138,14 +138,14 @@ string SrsHlsCacheWriter::cache()
     return data;
 }
 
-SrsHlsSegment::SrsHlsSegment(bool write_cache, bool write_file, SrsCodecAudio ac, SrsCodecVideo vc)
+SrsHlsSegment::SrsHlsSegment(SrsTsContext* c, bool write_cache, bool write_file, SrsCodecAudio ac, SrsCodecVideo vc)
 {
     duration = 0;
     sequence_no = 0;
     segment_start_dts = 0;
     is_sequence_header = false;
     writer = new SrsHlsCacheWriter(write_cache, write_file);
-    muxer = new SrsTSMuxer(writer, ac, vc);
+    muxer = new SrsTSMuxer(writer, c, ac, vc);
 }
 
 SrsHlsSegment::~SrsHlsSegment()
@@ -236,6 +236,7 @@ SrsHlsMuxer::SrsHlsMuxer()
     should_write_cache = false;
     should_write_file = true;
     async = new SrsDvrAsyncCallThread();
+    context = new SrsTsContext();
 }
 
 SrsHlsMuxer::~SrsHlsMuxer()
@@ -250,6 +251,7 @@ SrsHlsMuxer::~SrsHlsMuxer()
     srs_freep(current);
     srs_freep(req);
     srs_freep(async);
+    srs_freep(context);
 }
 
 int SrsHlsMuxer::sequence_no()
@@ -269,11 +271,21 @@ double SrsHlsMuxer::duration()
 
 double SrsHlsMuxer::deviation()
 {
+    // no floor, no deviation.
+    if (!hls_ts_floor) {
+        return 0;
+    }
+    
     return hls_fragment_deviation;
 }
 
 int SrsHlsMuxer::absolute_deviation()
 {
+    // no floor, no deviation.
+    if (!hls_ts_floor) {
+        return 0;
+    }
+    
     // accept the floor ts for the first piece.
     int64_t floor_ts = (int64_t)(srs_get_system_time_ms() / (1000 * hls_fragment));
     return (int)(accept_floor_ts - (floor_ts - 1));
@@ -391,7 +403,7 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     }
     
     // new segment.
-    current = new SrsHlsSegment(should_write_cache, should_write_file, default_acodec, default_vcodec);
+    current = new SrsHlsSegment(context, should_write_cache, should_write_file, default_acodec, default_vcodec);
     current->sequence_no = _sequence_no++;
     current->segment_start_dts = segment_start_dts;
     
