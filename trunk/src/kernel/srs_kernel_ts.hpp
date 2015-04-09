@@ -47,6 +47,7 @@ class SrsTsAdaptationField;
 class SrsTsPayload;
 class SrsTsMessage;
 class SrsTsPacket;
+class SrsTsContext;
 
 // Transport Stream packets are 188 bytes in length.
 #define SRS_TS_PACKET_SIZE          188
@@ -258,7 +259,7 @@ public:
     // generally, the video IDR(I frame, the keyframe of h.264) carray the pcr info.
     bool write_pcr;
     // whether got discontinuity ts, for example, sequence header changed.
-    bool discontinuity;
+    bool is_discontinuity;
 public:
     // the timestamp in 90khz
     int64_t dts;
@@ -343,6 +344,11 @@ private:
 public:
     SrsTsContext();
     virtual ~SrsTsContext();
+public:
+    /**
+     * reset the context for a new ts segment start.
+     */
+    virtual void reset();
 // codec
 public:
     /**
@@ -1533,7 +1539,7 @@ private:
     SrsFileWriter* writer;
     std::string path;
 public:
-    SrsTSMuxer(SrsFileWriter* w, SrsCodecAudio ac, SrsCodecVideo vc);
+    SrsTSMuxer(SrsFileWriter* w, SrsTsContext* c, SrsCodecAudio ac, SrsCodecVideo vc);
     virtual ~SrsTSMuxer();
 public:
     /**
@@ -1608,6 +1614,7 @@ private:
     SrsCodecSample* sample;
     SrsTsCache* cache;
     SrsTSMuxer* muxer;
+    SrsTsContext* context;
 public:
     SrsTsEncoder();
     virtual ~SrsTsEncoder();

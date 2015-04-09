@@ -1973,6 +1973,11 @@ int srs_utils_parse_timestamp(
     
     return ret;
 }
+    
+srs_bool srs_utils_flv_tag_is_ok(char type)
+{
+    return type == SRS_RTMP_TYPE_AUDIO || type == SRS_RTMP_TYPE_VIDEO || type == SRS_RTMP_TYPE_SCRIPT;
+}
 
 char srs_utils_flv_video_codec_id(char* data, int size)
 {
@@ -2324,7 +2329,7 @@ int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int 
         );
     } else if (type == SRS_RTMP_TYPE_SCRIPT) {
         srs_human_verbose("Data packet type=%s, time=%d, size=%d", 
-            srs_human_flv_tag_type2string(type), timestamp, size);
+        srs_human_flv_tag_type2string(type), timestamp, size);
         int nparsed = 0;
         while (nparsed < size) {
             int nb_parsed_this = 0;
@@ -2332,7 +2337,7 @@ int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int 
             if (amf0 == NULL) {
                 break;
             }
-            
+    
             nparsed += nb_parsed_this;
             
             char* amf0_str = NULL;

@@ -127,6 +127,12 @@ int proxy(srs_rtmp_t irtmp, srs_rtmp_t ortmp)
             return ret;
         }
         
+        if (!srs_utils_flv_tag_is_ok(type)) {
+            srs_human_trace("ignore invalid flv tag=%d, dts=%d, %d bytes", type, timestamp, size);
+            free(data);
+            continue;
+        }
+        
         if ((ret = srs_human_print_rtmp_packet(type, timestamp, data, size)) != 0) {
             srs_human_trace("print packet failed. ret=%d", ret);
             return ret;

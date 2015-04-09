@@ -56,6 +56,7 @@ class SrsTsAacJitter;
 class SrsTsCache;
 class SrsHlsSegment;
 class SrsTsCache;
+class SrsTsContext;
 
 /**
 * the handler for hls event.
@@ -145,7 +146,7 @@ public:
     // whether current segement is sequence header.
     bool is_sequence_header;
 public:
-    SrsHlsSegment(bool write_cache, bool write_file, SrsCodecAudio ac, SrsCodecVideo vc);
+    SrsHlsSegment(SrsTsContext* c, bool write_cache, bool write_file, SrsCodecAudio ac, SrsCodecVideo vc);
     virtual ~SrsHlsSegment();
 public:
     /**
@@ -229,6 +230,11 @@ private:
     * @see https://github.com/winlinvip/simple-rtmp-server/issues/301
     */
     SrsCodecAudio acodec;
+    /**
+     * the ts context, to keep cc continous between ts.
+     * @see https://github.com/winlinvip/simple-rtmp-server/issues/375
+     */
+    SrsTsContext* context;
 public:
     SrsHlsMuxer();
     virtual ~SrsHlsMuxer();

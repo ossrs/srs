@@ -51,10 +51,10 @@ using namespace std;
 
 // the mpegts header specifed the video/audio pid.
 #define TS_PMT_NUMBER 1
-#define TS_PMT_PID 0x100
-#define TS_VIDEO_AVC_PID 0x101
-#define TS_AUDIO_AAC_PID 0x102
-#define TS_AUDIO_MP3_PID 0x103
+#define TS_PMT_PID 0x1001
+#define TS_VIDEO_AVC_PID 0x100
+#define TS_AUDIO_AAC_PID 0x101
+#define TS_AUDIO_MP3_PID 0x102
 
 string srs_ts_stream2string(SrsTsStream stream)
 {
@@ -95,6 +95,7 @@ SrsTsMessage::SrsTsMessage(SrsTsChannel* c, SrsTsPacket* p)
     continuity_counter = 0;
     PES_packet_length = 0;
     payload = new SrsSimpleBuffer();
+    is_discontinuity = false;
 
     start_pts = 0;
     write_pcr = false;
@@ -192,6 +193,12 @@ SrsTsContext::~SrsTsContext()
     pids.clear();
 }
 
+void SrsTsContext::reset()
+{
+    vcodec = SrsCodecVideoReserved;
+    acodec = SrsCodecAudioReserved1;
+}
+
 SrsTsChannel* SrsTsContext::get(int pid)
 {
     if (pids.find(pid) == pids.end()) {
@@ -251,7 +258,7 @@ int SrsTsContext::encode(SrsFileWriter* writer, SrsTsMessage* msg, SrsCodecVideo
     int ret = ERROR_SUCCESS;
 
     SrsTsStream vs, as;
-    int16_t video_pid, audio_pid;
+    int16_t video_pid = 0, audio_pid = 0;
     switch (vc) {
         case SrsCodecVideoAVC: 
             vs = SrsTsStreamVideoH264; 
@@ -401,9 +408,14 @@ int SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t p
                 write_pcr = true;
             }
 
+            // it's ok to set pcr equals to dts,
+            // @see https://github.com/winlinvip/simple-rtmp-server/issues/311
+            int64_t pcr = write_pcr? msg->dts : -1;
+            
+            // TODO: FIXME: finger it why use discontinuity of msg.
             pkt = SrsTsPacket::create_pes_first(this, 
-                pid, msg->sid, channel->continuity_counter++, msg->discontinuity, 
-                write_pcr? msg->dts:-1, msg->dts, msg->pts, msg->payload->length()
+                pid, msg->sid, channel->continuity_counter++, msg->is_discontinuity,
+                pcr, msg->dts, msg->pts, msg->payload->length()
             );
         } else {
             pkt = SrsTsPacket::create_pes_continue(this, 
@@ -419,7 +431,7 @@ int SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t p
         int nb_buf = pkt->size();
         srs_assert(nb_buf < SRS_TS_PACKET_SIZE);
 
-        int left = srs_min(end - p, SRS_TS_PACKET_SIZE - nb_buf);
+        int left = (int)srs_min(end - p, SRS_TS_PACKET_SIZE - nb_buf);
         int nb_stuffings = SRS_TS_PACKET_SIZE - nb_buf - left;
         if (nb_stuffings > 0) {
             // set all bytes to stuffings.
@@ -432,7 +444,7 @@ int SrsTsContext::encode_pes(SrsFileWriter* writer, SrsTsMessage* msg, int16_t p
             nb_buf = pkt->size();
             srs_assert(nb_buf < SRS_TS_PACKET_SIZE);
 
-            left = srs_min(end - p, SRS_TS_PACKET_SIZE - nb_buf);
+            left = (int)srs_min(end - p, SRS_TS_PACKET_SIZE - nb_buf);
             nb_stuffings = SRS_TS_PACKET_SIZE - nb_buf - left;
             srs_assert(nb_stuffings == 0);
         }
@@ -703,13 +715,18 @@ SrsTsPacket* SrsTsPacket::create_pmt(SrsTsContext* context, int16_t pmt_number, 
     pmt->section_number = 0;
     pmt->last_section_number = 0;
     pmt->program_info_length = 0;
+    
+    // use audio to carray pcr by default.
+    // for hls, there must be atleast one audio channel.
+    pmt->PCR_PID = apid;
+    pmt->infos.push_back(new SrsTsPayloadPMTESInfo(as, apid));
+    
+    // if h.264 specified, use video to carry pcr.
     if (vs == SrsTsStreamVideoH264) {
         pmt->PCR_PID = vpid;
         pmt->infos.push_back(new SrsTsPayloadPMTESInfo(vs, vpid));
-    } else {
-        pmt->PCR_PID = apid;
     }
-    pmt->infos.push_back(new SrsTsPayloadPMTESInfo(as, apid));
+    
     pmt->CRC_32 = 0; // calc in encode.
     return pkt;
 }
@@ -2604,10 +2621,10 @@ int SrsTsPayloadPMT::psi_encode(SrsStream* stream)
     return ret;
 }
 
-SrsTSMuxer::SrsTSMuxer(SrsFileWriter* w, SrsCodecAudio ac, SrsCodecVideo vc)
+SrsTSMuxer::SrsTSMuxer(SrsFileWriter* w, SrsTsContext* c, SrsCodecAudio ac, SrsCodecVideo vc)
 {
     writer = w;
-    context = NULL;
+    context = c;
 
     acodec = ac;
     vcodec = vc;
@@ -2625,10 +2642,9 @@ int SrsTSMuxer::open(string _path)
     path = _path;
     
     close();
-
-    // use context to write ts file.
-    srs_freep(context);
-    context = new SrsTsContext();
+    
+    // reset the context for a new ts start.
+    context->reset();
     
     if ((ret = writer->open(path)) != ERROR_SUCCESS) {
         return ret;
@@ -2677,7 +2693,6 @@ int SrsTSMuxer::write_video(SrsTsMessage* video)
 
 void SrsTSMuxer::close()
 {
-    srs_freep(context);
     writer->close();
 }
 
@@ -2911,6 +2926,8 @@ int SrsTsCache::do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample)
     //      9, SI (SI slice)
     // H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 105.
     static u_int8_t aud_nalu_7[] = { 0x09, 0xf0};
+    
+    // always append a aud nalu for each frame.
     video->payload->append((const char*)fresh_nalu_header, 4);
     video->payload->append((const char*)aud_nalu_7, 2);
     
@@ -2973,6 +2990,7 @@ SrsTsEncoder::SrsTsEncoder()
     codec = new SrsAvcAacCodec();
     sample = new SrsCodecSample();
     cache = new SrsTsCache();
+    context = new SrsTsContext();
     muxer = NULL;
 }
 
@@ -2982,6 +3000,7 @@ SrsTsEncoder::~SrsTsEncoder()
     srs_freep(sample);
     srs_freep(cache);
     srs_freep(muxer);
+    srs_freep(context);
 }
 
 int SrsTsEncoder::initialize(SrsFileWriter* fs)
@@ -2999,7 +3018,7 @@ int SrsTsEncoder::initialize(SrsFileWriter* fs)
     _fs = fs;
 
     srs_freep(muxer);
-    muxer = new SrsTSMuxer(fs, SrsCodecAudioAAC, SrsCodecVideoAVC);
+    muxer = new SrsTSMuxer(fs, context, SrsCodecAudioAAC, SrsCodecVideoAVC);
 
     if ((ret = muxer->open("")) != ERROR_SUCCESS) {
         return ret;
