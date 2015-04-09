@@ -696,7 +696,19 @@ int SrsAvcAacCodec::video_avc_demux(char* data, int size, SrsCodecSample* sample
             // One or more NALUs (Full frames are required)
             // try  "AnnexB" from H.264-AVC-ISO_IEC_14496-10.pdf, page 211.
             if ((ret = avc_demux_annexb_format(stream, sample)) != ERROR_SUCCESS) {
-                return ret;
+                // ok, we guess out the payload is annexb, but maybe changed to ibmf.
+                if (ret != ERROR_HLS_AVC_TRY_OTHERS) {
+                    srs_error("avc demux for annexb failed. ret=%d", ret);
+                    return ret;
+                }
+                
+                // try "ISO Base Media File Format" from H.264-AVC-ISO_IEC_14496-15.pdf, page 20
+                if ((ret = avc_demux_ibmf_format(stream, sample)) != ERROR_SUCCESS) {
+                    return ret;
+                } else {
+                    payload_format = SrsAvcPayloadFormatIbmf;
+                    srs_warn("hls avc payload change from annexb to ibmf format.");
+                }
             }
             srs_info("hls decode avc payload in annexb format.");
         }
