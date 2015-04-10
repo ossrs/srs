@@ -341,6 +341,8 @@ int SrsHttpHooks::on_hls_notify(std::string url, SrsRequest* req, std::string ts
     url = srs_string_replace(url, "[stream]", req->stream);
     url = srs_string_replace(url, "[ts_url]", ts_url);
     
+    int64_t starttime = srs_update_system_time_ms();
+    
     SrsHttpUri uri;
     if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
         srs_error("http: post failed. url=%s, ret=%d", url.c_str(), ret);
@@ -366,8 +368,9 @@ int SrsHttpHooks::on_hls_notify(std::string url, SrsRequest* req, std::string ts
         break;
     }
     
-    srs_trace("http hook on_hls_notify success. client_id=%d, url=%s, code=%d, ret=%d",
-        client_id, url.c_str(), msg->status_code(), ret);
+    int spenttime = (int)(srs_update_system_time_ms() - starttime);
+    srs_trace("http hook on_hls_notify success. client_id=%d, url=%s, code=%d, spent=%dms, ret=%d",
+        client_id, url.c_str(), msg->status_code(), spenttime, ret);
     
     // ignore any error for on_hls_notify.
     ret = ERROR_SUCCESS;
