@@ -36,7 +36,7 @@ reload(sys)
 exec("sys.setdefaultencoding('utf-8')")
 assert sys.getdefaultencoding().lower() == "utf-8"
 
-import os, json, time, datetime, cherrypy, threading
+import os, json, time, datetime, cherrypy, threading, urllib2
 
 # simple log functions.
 def trace(msg):
@@ -328,15 +328,20 @@ class RESTProxy(object):
     '''
     def GET(self, *args, **kwargs):
         enable_crossdomain()
-
-        hls = {
-            "args": args,
-            "kwargs": kwargs
-        }
         
-        ret = json.dumps(hls)
-        print ret
-        return ret
+        url = "http://" + "/".join(args);
+        print "start to proxy url: %s"%url
+        
+        f = None
+        try:
+            f = urllib2.urlopen(url)
+            f.read()
+        except:
+            print "error proxy url: %s"%url
+        finally:
+            if f: f.close()
+            print "completed proxy url: %s"%url
+        return url
 
 '''
 handle the hls requests: hls stream.
