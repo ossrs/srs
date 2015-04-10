@@ -59,10 +59,10 @@ using namespace std;
 // drop the segment when duration of ts too small.
 #define SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS 100
 
-// startup piece, the first piece, fragment percent to reap.
-#define SRS_HLS_FLOOR_STARTUP_PERCENT 0.1
 // fragment plus the deviation percent.
 #define SRS_HLS_FLOOR_REAP_PERCENT 0.2
+// reset the piece id when deviation overflow this.
+#define SRS_JUMP_WHEN_PIECE_DEVIATION 10
 
 ISrsHlsHandler::ISrsHlsHandler()
 {
@@ -224,7 +224,7 @@ SrsHlsMuxer::SrsHlsMuxer()
     handler = NULL;
     hls_fragment = hls_window = 0;
     hls_aof_ratio = 1.0;
-    hls_fragment_deviation = 0;
+    deviation_ts = 0;
     hls_cleanup = true;
     previous_floor_ts = 0;
     accept_floor_ts = 0;
@@ -269,26 +269,14 @@ double SrsHlsMuxer::duration()
     return current? current->duration:0;
 }
 
-double SrsHlsMuxer::deviation()
+int SrsHlsMuxer::deviation()
 {
     // no floor, no deviation.
     if (!hls_ts_floor) {
         return 0;
     }
     
-    return hls_fragment_deviation;
-}
-
-int SrsHlsMuxer::absolute_deviation()
-{
-    // no floor, no deviation.
-    if (!hls_ts_floor) {
-        return 0;
-    }
-    
-    // accept the floor ts for the first piece.
-    int64_t floor_ts = (int64_t)(srs_get_system_time_ms() / (1000 * hls_fragment));
-    return (int)(accept_floor_ts - (floor_ts - 1));
+    return deviation_ts;
 }
 
 int SrsHlsMuxer::initialize(ISrsHlsHandler* h)
@@ -323,9 +311,7 @@ int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     previous_floor_ts = 0;
     accept_floor_ts = 0;
     hls_window = window;
-    // for the first time, we set to -N% of fragment,
-    // that is, the first piece always smaller.
-    hls_fragment_deviation = -1 * (fragment * SRS_HLS_FLOOR_STARTUP_PERCENT);
+    deviation_ts = 0;
     
     // generate the m3u8 dir and path.
     m3u8 = path + "/" + m3u8_file;
@@ -412,12 +398,21 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     ts_file = srs_path_build_stream(ts_file, req->vhost, req->app, req->stream);
     if (hls_ts_floor) {
         // accept the floor ts for the first piece.
-        int64_t floor_ts = (int64_t)(srs_get_system_time_ms() / (1000 * hls_fragment));
+        int64_t current_floor_ts = (int64_t)(srs_get_system_time_ms() / (1000 * hls_fragment));
         if (!accept_floor_ts) {
-            accept_floor_ts = floor_ts - 1;
+            accept_floor_ts = current_floor_ts - 1;
         } else {
             accept_floor_ts++;
         }
+        
+        // jump when deviation more than 10p
+        if (accept_floor_ts - current_floor_ts > SRS_JUMP_WHEN_PIECE_DEVIATION) {
+            srs_warn("hls: jmp for ts deviation, current=%"PRId64", accept=%"PRId64, current_floor_ts, accept_floor_ts);
+            accept_floor_ts = current_floor_ts - 1;
+        }
+        
+        // when reap ts, adjust the deviation.
+        deviation_ts = (int)(accept_floor_ts - current_floor_ts);
         
         // we always ensure the piece is increase one by one.
         std::stringstream ts_floor;
@@ -425,11 +420,11 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
         ts_file = srs_string_replace(ts_file, "[timestamp]", ts_floor.str());
         
         // dup/jmp detect for ts in floor mode.
-        if (previous_floor_ts && previous_floor_ts != floor_ts - 1) {
-            srs_warn("hls: dup or jmp for floor ts, previous=%"PRId64", current=%"PRId64", ts=%s, deviation=%.2f",
-                     previous_floor_ts, floor_ts, ts_file.c_str(), hls_fragment_deviation);
+        if (previous_floor_ts && previous_floor_ts != current_floor_ts - 1) {
+            srs_warn("hls: dup or jmp for floor ts, previous=%"PRId64", current=%"PRId64", accept=%"PRId64", deviation=%d",
+                     previous_floor_ts, current_floor_ts, accept_floor_ts, deviation_ts);
         }
-        previous_floor_ts = floor_ts;
+        previous_floor_ts = current_floor_ts;
     }
     ts_file = srs_path_build_timestamp(ts_file);
     if (true) {
@@ -497,7 +492,7 @@ bool SrsHlsMuxer::is_segment_overflow()
     srs_assert(current);
     
     // use N% deviation, to smoother.
-    double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * hls_fragment_deviation : 0.0;
+    double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0.0;
     
     return current->duration >= hls_fragment + deviation;
 }
@@ -594,19 +589,14 @@ int SrsHlsMuxer::segment_close(string log_desc)
     if (current->duration * 1000 >= SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
         segments.push_back(current);
         
-        // when reap ts, adjust the deviation.
-        if (hls_ts_floor) {
-            hls_fragment_deviation += (double)(hls_fragment - current->duration);
-        }
-        
         // use async to call the http hooks, for it will cause thread switch.
         if ((ret = async->call(new SrsDvrAsyncCallOnHls(req, current->full_path, current->sequence_no, current->duration))) != ERROR_SUCCESS) {
             return ret;
         }
     
-        srs_info("%s reap ts segment, sequence_no=%d, uri=%s, duration=%.2f, start=%"PRId64", deviation=%.2f",
+        srs_info("%s reap ts segment, sequence_no=%d, uri=%s, duration=%.2f, start=%"PRId64,
             log_desc.c_str(), current->sequence_no, current->uri.c_str(), current->duration, 
-            current->segment_start_dts, hls_fragment_deviation);
+            current->segment_start_dts);
         
         // notify handler for update ts.
         srs_assert(current->writer);
@@ -1222,9 +1212,9 @@ void SrsHls::hls_show_mux_log()
         // the run time is not equals to stream time,
         // @see: https://github.com/winlinvip/simple-rtmp-server/issues/81#issuecomment-48100994
         // it's ok.
-        srs_trace("-> "SRS_CONSTS_LOG_HLS" time=%"PRId64", stream dts=%"PRId64"(%"PRId64"ms), sno=%d, ts=%s, dur=%.2f, dva=%.2fs/%dp",
+        srs_trace("-> "SRS_CONSTS_LOG_HLS" time=%"PRId64", stream dts=%"PRId64"(%"PRId64"ms), sno=%d, ts=%s, dur=%.2f, dva=%dp",
             pprint->age(), stream_dts, stream_dts / 90, muxer->sequence_no(), muxer->ts_url().c_str(),
-            muxer->duration(), muxer->deviation(), muxer->absolute_deviation());
+            muxer->duration(), muxer->deviation());
     }
 }
 

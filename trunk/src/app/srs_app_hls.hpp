@@ -199,9 +199,9 @@ private:
 private:
     // whether use floor algorithm for timestamp.
     bool hls_ts_floor;
-    // the deviation in seconds to adjust the fragment to be more
+    // the deviation in piece to adjust the fragment to be more
     // bigger or smaller.
-    double hls_fragment_deviation;
+    int deviation_ts;
     // the previous reap floor timestamp,
     // used to detect the dup or jmp or ts.
     int64_t accept_floor_ts;
@@ -242,8 +242,7 @@ public:
     virtual int sequence_no();
     virtual std::string ts_url();
     virtual double duration();
-    virtual double deviation();
-    virtual int absolute_deviation();
+    virtual int deviation();
 public:
     /**
     * initialize the hls muxer.
