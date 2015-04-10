@@ -308,6 +308,36 @@ class RESTDvrs(object):
 
         return code
 
+
+'''
+handle the hls proxy requests: hls stream.
+'''
+class RESTProxy(object):
+    exposed = True
+
+    '''
+    for SRS hook: on_hls_notify
+    on_hls_notify:
+        when srs reap a ts file of hls, call this hook,
+        used to push file to cdn network, by get the ts file from cdn network.
+        so we use HTTP GET and use the variable following:
+              [app], replace with the app.
+              [stream], replace with the stream.
+              [ts_url], replace with the ts url.
+        ignore any return data of server.
+    '''
+    def GET(self, *args, **kwargs):
+        enable_crossdomain()
+
+        hls = {
+            "args": args,
+            "kwargs": kwargs
+        }
+        
+        ret = json.dumps(hls)
+        print ret
+        return ret
+
 '''
 handle the hls requests: hls stream.
 '''
@@ -1195,6 +1225,7 @@ class V1(object):
         self.sessions = RESTSessions()
         self.dvrs = RESTDvrs()
         self.hls = RESTHls()
+        self.proxy = RESTProxy()
         self.chats = RESTChats()
         self.servers = RESTServers()
         self.nodes = RESTNodes()
