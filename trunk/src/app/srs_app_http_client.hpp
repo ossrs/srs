@@ -40,6 +40,9 @@ class SrsHttpParser;
 class SrsHttpMessage;
 class SrsStSocket;
 
+// the default timeout for http client.
+#define SRS_HTTP_CLIENT_TIMEOUT_US (int64_t)(30*1000*1000LL)
+
 /**
 * http client to GET/POST/PUT/DELETE uri
 */
@@ -51,6 +54,7 @@ private:
     SrsStSocket* skt;
     SrsHttpParser* parser;
 private:
+    int64_t timeout_us;
     // host name or ip.
     std::string host;
     int port;
@@ -61,7 +65,7 @@ public:
     /**
     * initialize the client, connect to host and port.
     */
-    virtual int initialize(std::string h, int p);
+    virtual int initialize(std::string h, int p, int64_t t_us = SRS_HTTP_CLIENT_TIMEOUT_US);
 public:
     /**
     * to post data to the uri.

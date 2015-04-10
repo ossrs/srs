@@ -36,7 +36,7 @@ reload(sys)
 exec("sys.setdefaultencoding('utf-8')")
 assert sys.getdefaultencoding().lower() == "utf-8"
 
-import os, json, time, datetime, cherrypy, threading
+import os, json, time, datetime, cherrypy, threading, urllib2
 
 # simple log functions.
 def trace(msg):
@@ -307,6 +307,41 @@ class RESTDvrs(object):
         # TODO: process the on_dvr event
 
         return code
+
+
+'''
+handle the hls proxy requests: hls stream.
+'''
+class RESTProxy(object):
+    exposed = True
+
+    '''
+    for SRS hook: on_hls_notify
+    on_hls_notify:
+        when srs reap a ts file of hls, call this hook,
+        used to push file to cdn network, by get the ts file from cdn network.
+        so we use HTTP GET and use the variable following:
+              [app], replace with the app.
+              [stream], replace with the stream.
+              [ts_url], replace with the ts url.
+        ignore any return data of server.
+    '''
+    def GET(self, *args, **kwargs):
+        enable_crossdomain()
+        
+        url = "http://" + "/".join(args);
+        print "start to proxy url: %s"%url
+        
+        f = None
+        try:
+            f = urllib2.urlopen(url)
+            f.read()
+        except:
+            print "error proxy url: %s"%url
+        finally:
+            if f: f.close()
+            print "completed proxy url: %s"%url
+        return url
 
 '''
 handle the hls requests: hls stream.
@@ -1195,6 +1230,7 @@ class V1(object):
         self.sessions = RESTSessions()
         self.dvrs = RESTDvrs()
         self.hls = RESTHls()
+        self.proxy = RESTProxy()
         self.chats = RESTChats()
         self.servers = RESTServers()
         self.nodes = RESTNodes()

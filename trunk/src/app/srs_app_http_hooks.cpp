@@ -42,7 +42,11 @@ using namespace std;
 #define SRS_HTTP_RESPONSE_OK    SRS_XSTR(ERROR_SUCCESS)
 
 #define SRS_HTTP_HEADER_BUFFER        1024
+#define SRS_HTTP_READ_BUFFER    4096
 #define SRS_HTTP_BODY_BUFFER        32 * 1024
+
+// the timeout for hls notify, in us.
+#define SRS_HLS_NOTIFY_TIMEOUT_US (int64_t)(10*1000*1000LL)
 
 SrsHttpHooks::SrsHttpHooks()
 {
@@ -326,7 +330,7 @@ int SrsHttpHooks::on_hls(string url, SrsRequest* req, string file, int sn, doubl
     return ret;
 }
 
-int SrsHttpHooks::on_hls_notify(std::string url, SrsRequest* req, std::string ts_url)
+int SrsHttpHooks::on_hls_notify(std::string url, SrsRequest* req, std::string ts_url, int nb_notify)
 {
     int ret = ERROR_SUCCESS;
     
@@ -341,6 +345,8 @@ int SrsHttpHooks::on_hls_notify(std::string url, SrsRequest* req, std::string ts
     url = srs_string_replace(url, "[stream]", req->stream);
     url = srs_string_replace(url, "[ts_url]", ts_url);
     
+    int64_t starttime = srs_update_system_time_ms();
+    
     SrsHttpUri uri;
     if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
         srs_error("http: post failed. url=%s, ret=%d", url.c_str(), ret);
@@ -348,7 +354,7 @@ int SrsHttpHooks::on_hls_notify(std::string url, SrsRequest* req, std::string ts
     }
     
     SrsHttpClient http;
-    if ((ret = http.initialize(uri.get_host(), uri.get_port())) != ERROR_SUCCESS) {
+    if ((ret = http.initialize(uri.get_host(), uri.get_port(), SRS_HLS_NOTIFY_TIMEOUT_US)) != ERROR_SUCCESS) {
         return ret;
     }
     
@@ -358,16 +364,23 @@ int SrsHttpHooks::on_hls_notify(std::string url, SrsRequest* req, std::string ts
     }
     SrsAutoFree(SrsHttpMessage, msg);
     
+    int nb_buf = srs_min(nb_notify, SRS_HTTP_READ_BUFFER);
+    char* buf = new char[nb_buf];
+    SrsAutoFree(char, buf);
+    
+    int nb_read = 0;
     ISrsHttpResponseReader* br = msg->body_reader();
-    while (!br->eof()) {
-        std::string data;
-        if ((ret = br->read(data)) != ERROR_SUCCESS) {
+    while (nb_read < nb_notify && !br->eof()) {
+        int nb_bytes = 0;
+        if ((ret = br->read(buf, nb_buf, &nb_bytes)) != ERROR_SUCCESS) {
             break;
         }
+        nb_read += nb_bytes;
     }
     
-    srs_trace("http hook on_hls_notify success. client_id=%d, url=%s, code=%d, ret=%d",
-        client_id, url.c_str(), msg->status_code(), ret);
+    int spenttime = (int)(srs_update_system_time_ms() - starttime);
+    srs_trace("http hook on_hls_notify success. client_id=%d, url=%s, code=%d, spent=%dms, read=%dB, ret=%d",
+        client_id, url.c_str(), msg->status_code(), spenttime, nb_read, ret);
     
     // ignore any error for on_hls_notify.
     ret = ERROR_SUCCESS;

@@ -1487,7 +1487,7 @@ int SrsConfig::check_config()
                     string m = conf->at(j)->name.c_str();
                     if (m != "enabled" && m != "hls_entry_prefix" && m != "hls_path" && m != "hls_fragment" && m != "hls_window" && m != "hls_on_error"
                         && m != "hls_storage" && m != "hls_mount" && m != "hls_td_ratio" && m != "hls_aof_ratio" && m != "hls_acodec" && m != "hls_vcodec"
-                        && m != "hls_m3u8_file" && m != "hls_ts_file" && m != "hls_ts_floor" && m != "hls_cleanup"
+                        && m != "hls_m3u8_file" && m != "hls_ts_file" && m != "hls_ts_floor" && m != "hls_cleanup" && m != "hls_nb_notify"
                     ) {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost hls directive %s, ret=%d", m.c_str(), ret);
@@ -3416,6 +3416,22 @@ string SrsConfig::get_hls_vcodec(string vhost)
     }
 
     return conf->arg0();
+}
+
+int SrsConfig::get_vhost_hls_nb_notify(string vhost)
+{
+    SrsConfDirective* conf = get_hls(vhost);
+    
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HLS_NB_NOTIFY;
+    }
+    
+    conf = conf->get("hls_nb_notify");
+    if (!conf || conf->arg0().empty()) {
+        return SRS_CONF_DEFAULT_HLS_NB_NOTIFY;
+    }
+    
+    return ::atoi(conf->arg0().c_str());
 }
 
 bool SrsConfig::get_hls_cleanup(string vhost)

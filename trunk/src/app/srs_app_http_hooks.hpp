@@ -110,8 +110,9 @@ public:
      * @param url the api server url, to process the event.
      *         ignore if empty.
      * @param ts_url the ts uri, used to replace the variable [ts_url] in url.
+     * @param nb_notify the max bytes to read from notify server.
      */
-    static int on_hls_notify(std::string url, SrsRequest* req, std::string ts_url);
+    static int on_hls_notify(std::string url, SrsRequest* req, std::string ts_url, int nb_notify);
 private:
     static int do_post(std::string url, std::string req, int& code, std::string& res);
 };
