@@ -1267,8 +1267,9 @@ int SrsHttpMessage::body_read_all(string& body)
             return ret;
         }
         
-        srs_assert (nb_read > 0);
-        body.append(buf, nb_read);
+        if (nb_read > 0) {
+            body.append(buf, nb_read);
+        }
     }
     
     return ret;
