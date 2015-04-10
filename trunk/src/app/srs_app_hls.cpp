@@ -243,7 +243,7 @@ int SrsDvrAsyncCallOnHlsNotify::call()
         for (int i = 0; i < (int)on_hls->args.size(); i++) {
             std::string url = on_hls->args.at(i);
             if ((ret = SrsHttpHooks::on_hls_notify(url, req, ts_url)) != ERROR_SUCCESS) {
-                srs_error("hook client on_hls_notify failed. url=%s, ret=%d", url.c_str(), ret);
+                srs_error("hook client on_hls_notify failed. url=%s, ts=%s, ret=%d", url.c_str(), ts_url.c_str(), ret);
                 return ret;
             }
         }

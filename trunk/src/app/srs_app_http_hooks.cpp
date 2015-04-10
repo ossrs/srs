@@ -361,9 +361,9 @@ int SrsHttpHooks::on_hls_notify(std::string url, SrsRequest* req, std::string ts
     ISrsHttpResponseReader* br = msg->body_reader();
     while (!br->eof()) {
         std::string data;
-        if ((ret = br->read(data)) != ERROR_SUCCESS) {
-            break;
-        }
+        // for notify, only read some data.
+        ret = br->read(data);
+        break;
     }
     
     srs_trace("http hook on_hls_notify success. client_id=%d, url=%s, code=%d, ret=%d",
