@@ -134,7 +134,7 @@ int64_t srs_update_system_time_ms()
     if (_srs_system_time_us_cache <= 0) {
         _srs_system_time_us_cache = now_us;
         _srs_system_time_startup_time = now_us;
-        return _srs_system_time_us_cache;
+        return _srs_system_time_us_cache / 1000;
     }
     
     // use relative time.
@@ -151,7 +151,7 @@ int64_t srs_update_system_time_ms()
     srs_info("system time updated, startup=%"PRId64"us, now=%"PRId64"us", 
         _srs_system_time_startup_time, _srs_system_time_us_cache);
     
-    return _srs_system_time_us_cache;
+    return _srs_system_time_us_cache / 1000;
 }
 
 string srs_dns_resolve(string host)
