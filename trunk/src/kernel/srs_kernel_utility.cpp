@@ -390,7 +390,7 @@ bool srs_aac_startswith_adts(SrsStream* stream)
     char* bytes = stream->data() + stream->pos();
     char* p = bytes;
     
-    if (!stream->require(p - bytes + 2)) {
+    if (!stream->require((int)(p - bytes) + 2)) {
         return false;
     }
     

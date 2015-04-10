@@ -37,15 +37,13 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
 
-// when error, http client sleep for a while and retry.
-#define SRS_HTTP_CLIENT_SLEEP_US (int64_t)(3*1000*1000LL)
-
 SrsHttpClient::SrsHttpClient()
 {
     connected = false;
     stfd = NULL;
     skt = NULL;
     parser = NULL;
+    timeout_us = 0;
 }
 
 SrsHttpClient::~SrsHttpClient()
@@ -54,7 +52,7 @@ SrsHttpClient::~SrsHttpClient()
     srs_freep(parser);
 }
 
-int SrsHttpClient::initialize(string h, int p)
+int SrsHttpClient::initialize(string h, int p, int64_t t_us)
 {
     int ret = ERROR_SUCCESS;
     
@@ -68,6 +66,7 @@ int SrsHttpClient::initialize(string h, int p)
     
     host = h;
     port = p;
+    timeout_us = t_us;
     
     return ret;
 }
@@ -183,10 +182,9 @@ int SrsHttpClient::connect()
     disconnect();
     
     // open socket.
-    int64_t timeout = SRS_HTTP_CLIENT_SLEEP_US;
-    if ((ret = srs_socket_connect(host, port, timeout, &stfd)) != ERROR_SUCCESS) {
+    if ((ret = srs_socket_connect(host, port, timeout_us, &stfd)) != ERROR_SUCCESS) {
         srs_warn("http client failed, server=%s, port=%d, timeout=%"PRId64", ret=%d",
-            host.c_str(), port, timeout, ret);
+            host.c_str(), port, timeout_us, ret);
         return ret;
     }
     srs_info("connect to server success. server=%s, port=%d", host, port);
@@ -194,6 +192,10 @@ int SrsHttpClient::connect()
     srs_assert(!skt);
     skt = new SrsStSocket(stfd);
     connected = true;
+    
+    // set the recv/send timeout in us.
+    skt->set_recv_timeout(timeout_us);
+    skt->set_send_timeout(timeout_us);
     
     return ret;
 }
