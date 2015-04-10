@@ -63,6 +63,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_HLS_ACODEC "aac"
 #define SRS_CONF_DEFAULT_HLS_VCODEC "h264"
 #define SRS_CONF_DEFAULT_HLS_CLEANUP true
+#define SRS_CONF_DEFAULT_HLS_NB_NOTIFY 64
 #define SRS_CONF_DEFAULT_DVR_PATH "./objs/nginx/html/[app]/[stream].[timestamp].flv"
 #define SRS_CONF_DEFAULT_DVR_PLAN_SESSION "session"
 #define SRS_CONF_DEFAULT_DVR_PLAN_SEGMENT "segment"
@@ -651,6 +652,11 @@ public:
      * @return the on_hls_notify callback directive, the args is the url to callback.
      */
     virtual SrsConfDirective*   get_vhost_on_hls_notify(std::string vhost);
+    /**
+     * get the size of bytes to read from cdn network, for the on_hls_notify callback,
+     * that is, to read max bytes of the bytes from the callback, or timeout or error.
+     */
+    virtual int                 get_vhost_hls_nb_notify(std::string vhost);
 // bwct(bandwidth check tool) section
 public:
     /**

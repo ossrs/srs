@@ -329,7 +329,7 @@ int SrsHttpHooks::on_hls(string url, SrsRequest* req, string file, int sn, doubl
     return ret;
 }
 
-int SrsHttpHooks::on_hls_notify(std::string url, SrsRequest* req, std::string ts_url)
+int SrsHttpHooks::on_hls_notify(std::string url, SrsRequest* req, std::string ts_url, int nb_notify)
 {
     int ret = ERROR_SUCCESS;
     
@@ -365,9 +365,13 @@ int SrsHttpHooks::on_hls_notify(std::string url, SrsRequest* req, std::string ts
     
     int nb_read = 0;
     ISrsHttpResponseReader* br = msg->body_reader();
-    if (!br->eof()) {
+    while (nb_read < nb_notify && !br->eof()) {
         char buf[64]; // only read a little of bytes of ts.
-        ret = br->read(buf, 64, &nb_read);
+        int nb_buf = 64;
+        if ((ret = br->read(buf, nb_buf, &nb_buf)) != ERROR_SUCCESS) {
+            break;
+        }
+        nb_read += nb_buf;
     }
     
     int spenttime = (int)(srs_update_system_time_ms() - starttime);
