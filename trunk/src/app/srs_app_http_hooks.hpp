@@ -105,6 +105,13 @@ public:
     * @param duration the segment duration in seconds.
     */
     static int on_hls(std::string url, SrsRequest* req, std::string file, int sn, double duration);
+    /**
+     * when hls reap segment, callback.
+     * @param url the api server url, to process the event.
+     *         ignore if empty.
+     * @param ts_url the ts uri, used to replace the variable [ts_url] in url.
+     */
+    static int on_hls_notify(std::string url, SrsRequest* req, std::string ts_url);
 private:
     static int do_post(std::string url, std::string req, int& code, std::string& res);
 };

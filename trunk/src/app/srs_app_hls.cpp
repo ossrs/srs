@@ -213,9 +213,49 @@ int SrsDvrAsyncCallOnHls::call()
 
 string SrsDvrAsyncCallOnHls::to_string()
 {
-    std::stringstream ss;
-    ss << "vhost=" << req->vhost << ", file=" << path;
-    return ss.str();
+    return "on_hls: " + path;
+}
+
+SrsDvrAsyncCallOnHlsNotify::SrsDvrAsyncCallOnHlsNotify(SrsRequest* r, string u)
+{
+    req = r;
+    ts_url = u;
+}
+
+SrsDvrAsyncCallOnHlsNotify::~SrsDvrAsyncCallOnHlsNotify()
+{
+}
+
+int SrsDvrAsyncCallOnHlsNotify::call()
+{
+    int ret = ERROR_SUCCESS;
+    
+#ifdef SRS_AUTO_HTTP_CALLBACK
+    // http callback for on_hls_notify in config.
+    if (_srs_config->get_vhost_http_hooks_enabled(req->vhost)) {
+        // HTTP: on_hls
+        SrsConfDirective* on_hls = _srs_config->get_vhost_on_hls_notify(req->vhost);
+        if (!on_hls) {
+            srs_info("ignore the empty http callback: on_hls_notify");
+            return ret;
+        }
+        
+        for (int i = 0; i < (int)on_hls->args.size(); i++) {
+            std::string url = on_hls->args.at(i);
+            if ((ret = SrsHttpHooks::on_hls_notify(url, req, ts_url)) != ERROR_SUCCESS) {
+                srs_error("hook client on_hls_notify failed. url=%s, ret=%d", url.c_str(), ret);
+                return ret;
+            }
+        }
+    }
+#endif
+    
+    return ret;
+}
+
+string SrsDvrAsyncCallOnHlsNotify::to_string()
+{
+    return "on_hls_notify: " + ts_url;
 }
 
 SrsHlsMuxer::SrsHlsMuxer()
@@ -414,19 +454,23 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
         // when reap ts, adjust the deviation.
         deviation_ts = (int)(accept_floor_ts - current_floor_ts);
         
-        // we always ensure the piece is increase one by one.
-        std::stringstream ts_floor;
-        ts_floor << accept_floor_ts;
-        ts_file = srs_string_replace(ts_file, "[timestamp]", ts_floor.str());
-        
         // dup/jmp detect for ts in floor mode.
         if (previous_floor_ts && previous_floor_ts != current_floor_ts - 1) {
             srs_warn("hls: dup or jmp for floor ts, previous=%"PRId64", current=%"PRId64", accept=%"PRId64", deviation=%d",
                      previous_floor_ts, current_floor_ts, accept_floor_ts, deviation_ts);
         }
         previous_floor_ts = current_floor_ts;
+        
+        // we always ensure the piece is increase one by one.
+        std::stringstream ts_floor;
+        ts_floor << accept_floor_ts;
+        ts_file = srs_string_replace(ts_file, "[timestamp]", ts_floor.str());
+        
+        // TODO: FIMXE: we must use the accept ts floor time to generate the hour variable.
+        ts_file = srs_path_build_timestamp(ts_file);
+    } else {
+        ts_file = srs_path_build_timestamp(ts_file);
     }
-    ts_file = srs_path_build_timestamp(ts_file);
     if (true) {
         std::stringstream ss;
         ss << current->sequence_no;
@@ -591,6 +635,11 @@ int SrsHlsMuxer::segment_close(string log_desc)
         
         // use async to call the http hooks, for it will cause thread switch.
         if ((ret = async->call(new SrsDvrAsyncCallOnHls(req, current->full_path, current->sequence_no, current->duration))) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        // use async to call the http hooks, for it will cause thread switch.
+        if ((ret = async->call(new SrsDvrAsyncCallOnHlsNotify(req, current->uri))) != ERROR_SUCCESS) {
             return ret;
         }
     

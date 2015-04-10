@@ -314,10 +314,24 @@ handle the hls requests: hls stream.
 class RESTHls(object):
     exposed = True
 
-    def GET(self):
+    '''
+    for SRS hook: on_hls_notify
+    on_hls_notify:
+        when srs reap a ts file of hls, call this hook,
+        used to push file to cdn network, by get the ts file from cdn network.
+        so we use HTTP GET and use the variable following:
+              [app], replace with the app.
+              [stream], replace with the stream.
+              [ts_url], replace with the ts url.
+        ignore any return data of server.
+    '''
+    def GET(self, *args, **kwargs):
         enable_crossdomain()
 
-        hls = {}
+        hls = {
+            "args": args,
+            "kwargs": kwargs
+        }
         return json.dumps(hls)
 
     '''

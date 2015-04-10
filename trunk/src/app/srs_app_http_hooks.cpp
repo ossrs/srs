@@ -37,6 +37,7 @@ using namespace std;
 #include <srs_app_http_client.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_app_config.hpp>
+#include <srs_kernel_utility.hpp>
 
 #define SRS_HTTP_RESPONSE_OK    SRS_XSTR(ERROR_SUCCESS)
 
@@ -321,6 +322,55 @@ int SrsHttpHooks::on_hls(string url, SrsRequest* req, string file, int sn, doubl
     srs_trace("http hook on_hls success. "
         "client_id=%d, url=%s, request=%s, response=%s, ret=%d",
         client_id, url.c_str(), data.c_str(), res.c_str(), ret);
+    
+    return ret;
+}
+
+int SrsHttpHooks::on_hls_notify(std::string url, SrsRequest* req, std::string ts_url)
+{
+    int ret = ERROR_SUCCESS;
+    
+    int client_id = _srs_context->get_id();
+    std::string cwd = _srs_config->cwd();
+    
+    if (srs_string_starts_with(ts_url, "http://") || srs_string_starts_with(ts_url, "https://")) {
+        url = ts_url;
+    }
+    
+    url = srs_string_replace(url, "[app]", req->app);
+    url = srs_string_replace(url, "[stream]", req->stream);
+    url = srs_string_replace(url, "[ts_url]", ts_url);
+    
+    SrsHttpUri uri;
+    if ((ret = uri.initialize(url)) != ERROR_SUCCESS) {
+        srs_error("http: post failed. url=%s, ret=%d", url.c_str(), ret);
+        return ret;
+    }
+    
+    SrsHttpClient http;
+    if ((ret = http.initialize(uri.get_host(), uri.get_port())) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    SrsHttpMessage* msg = NULL;
+    if ((ret = http.get(uri.get_path(), "", &msg)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    SrsAutoFree(SrsHttpMessage, msg);
+    
+    ISrsHttpResponseReader* br = msg->body_reader();
+    while (!br->eof()) {
+        std::string data;
+        if ((ret = br->read(data)) != ERROR_SUCCESS) {
+            break;
+        }
+    }
+    
+    srs_trace("http hook on_hls_notify success. client_id=%d, url=%s, code=%d, ret=%d",
+        client_id, url.c_str(), msg->status_code(), ret);
+    
+    // ignore any error for on_hls_notify.
+    ret = ERROR_SUCCESS;
     
     return ret;
 }

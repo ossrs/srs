@@ -157,7 +157,7 @@ public:
 };
 
 /**
- * the dvr async call.
+ * the hls async call: on_hls
  */
 class SrsDvrAsyncCallOnHls : public ISrsDvrAsyncCall
 {
@@ -169,6 +169,22 @@ private:
 public:
     SrsDvrAsyncCallOnHls(SrsRequest* r, std::string p, int s, double d);
     virtual ~SrsDvrAsyncCallOnHls();
+public:
+    virtual int call();
+    virtual std::string to_string();
+};
+
+/**
+ * the hls async call: on_hls_notify
+ */
+class SrsDvrAsyncCallOnHlsNotify : public ISrsDvrAsyncCall
+{
+private:
+    std::string ts_url;
+    SrsRequest* req;
+public:
+    SrsDvrAsyncCallOnHlsNotify(SrsRequest* r, std::string u);
+    virtual ~SrsDvrAsyncCallOnHlsNotify();
 public:
     virtual int call();
     virtual std::string to_string();
