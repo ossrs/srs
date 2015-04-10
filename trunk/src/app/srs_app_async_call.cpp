@@ -87,7 +87,7 @@ int SrsDvrAsyncCallThread::cycle()
     for (it = copies.begin(); it != copies.end(); ++it) {
         ISrsDvrAsyncCall* call = *it;
         if ((ret = call->call()) != ERROR_SUCCESS) {
-            srs_warn("dvr: ignore callback %s, ret=%d", call->to_string().c_str(), ret);
+            srs_warn("ignore async callback %s, ret=%d", call->to_string().c_str(), ret);
         }
         srs_freep(call);
     }

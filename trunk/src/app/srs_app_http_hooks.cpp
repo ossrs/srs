@@ -42,6 +42,7 @@ using namespace std;
 #define SRS_HTTP_RESPONSE_OK    SRS_XSTR(ERROR_SUCCESS)
 
 #define SRS_HTTP_HEADER_BUFFER        1024
+#define SRS_HTTP_READ_BUFFER    4096
 #define SRS_HTTP_BODY_BUFFER        32 * 1024
 
 // the timeout for hls notify, in us.
@@ -363,15 +364,18 @@ int SrsHttpHooks::on_hls_notify(std::string url, SrsRequest* req, std::string ts
     }
     SrsAutoFree(SrsHttpMessage, msg);
     
+    int nb_buf = srs_min(nb_notify, SRS_HTTP_READ_BUFFER);
+    char* buf = new char[nb_buf];
+    SrsAutoFree(char, buf);
+    
     int nb_read = 0;
     ISrsHttpResponseReader* br = msg->body_reader();
     while (nb_read < nb_notify && !br->eof()) {
-        char buf[64]; // only read a little of bytes of ts.
-        int nb_buf = 64;
-        if ((ret = br->read(buf, nb_buf, &nb_buf)) != ERROR_SUCCESS) {
+        int nb_bytes = 0;
+        if ((ret = br->read(buf, nb_buf, &nb_bytes)) != ERROR_SUCCESS) {
             break;
         }
-        nb_read += nb_buf;
+        nb_read += nb_bytes;
     }
     
     int spenttime = (int)(srs_update_system_time_ms() - starttime);

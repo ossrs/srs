@@ -2440,22 +2440,6 @@ SrsConfDirective* SrsConfig::get_vhost_on_hls_notify(string vhost)
     return conf->get("on_hls_notify");
 }
 
-int SrsConfig::get_vhost_hls_nb_notify(string vhost)
-{
-    SrsConfDirective* conf = get_vhost_http_hooks(vhost);
-    
-    if (!conf) {
-        return SRS_CONF_DEFAULT_HLS_NB_NOTIFY;
-    }
-    
-    conf = conf->get("hls_nb_notify");
-    if (!conf || conf->arg0().empty()) {
-        return SRS_CONF_DEFAULT_HLS_NB_NOTIFY;
-    }
-    
-    return ::atoi(conf->arg0().c_str());
-}
-
 bool SrsConfig::get_bw_check_enabled(string vhost)
 {
     SrsConfDirective* conf = get_vhost(vhost);
@@ -3432,6 +3416,22 @@ string SrsConfig::get_hls_vcodec(string vhost)
     }
 
     return conf->arg0();
+}
+
+int SrsConfig::get_vhost_hls_nb_notify(string vhost)
+{
+    SrsConfDirective* conf = get_hls(vhost);
+    
+    if (!conf) {
+        return SRS_CONF_DEFAULT_HLS_NB_NOTIFY;
+    }
+    
+    conf = conf->get("hls_nb_notify");
+    if (!conf || conf->arg0().empty()) {
+        return SRS_CONF_DEFAULT_HLS_NB_NOTIFY;
+    }
+    
+    return ::atoi(conf->arg0().c_str());
 }
 
 bool SrsConfig::get_hls_cleanup(string vhost)
