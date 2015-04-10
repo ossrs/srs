@@ -196,10 +196,13 @@ public:
     */
     virtual bool eof() = 0;
     /**
-    * read from the response body.
-    * @remark when eof(), return error.
-    */
-    virtual int read(std::string& data) = 0;
+     * read from the response body.
+     * @param data, the buffer to read data buffer to.
+     * @param nb_data, the max size of data buffer.
+     * @param nb_read, the actual read size of bytes. NULL to ignore.
+     * @remark when eof(), return error.
+     */
+    virtual int read(char* data, int nb_data, int* nb_read) = 0;
 };
 
 // Objects implementing the Handler interface can be
@@ -431,7 +434,10 @@ private:
     SrsHttpMessage* owner;
     SrsFastBuffer* buffer;
     bool is_eof;
-    int64_t nb_read;
+    // the left bytes in chunk.
+    int nb_left_chunk;
+    // already read total bytes.
+    int64_t nb_total_read;
 public:
     SrsHttpResponseReader(SrsHttpMessage* msg, SrsStSocket* io);
     virtual ~SrsHttpResponseReader();
@@ -443,10 +449,10 @@ public:
 // interface ISrsHttpResponseReader
 public:
     virtual bool eof();
-    virtual int read(std::string& data);
+    virtual int read(char* data, int nb_data, int* nb_read);
 private:
-    virtual int read_chunked(std::string& data);
-    virtual int read_specified(int max, std::string& data);
+    virtual int read_chunked(char* data, int nb_data, int* nb_read);
+    virtual int read_specified(char* data, int nb_data, int* nb_read);
 };
 
 // for http header.

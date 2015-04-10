@@ -363,17 +363,16 @@ int SrsHttpHooks::on_hls_notify(std::string url, SrsRequest* req, std::string ts
     }
     SrsAutoFree(SrsHttpMessage, msg);
     
+    int nb_read = 0;
     ISrsHttpResponseReader* br = msg->body_reader();
-    while (!br->eof()) {
-        std::string data;
-        // for notify, only read some data.
-        ret = br->read(data);
-        break;
+    if (!br->eof()) {
+        char buf[64]; // only read a little of bytes of ts.
+        ret = br->read(buf, 64, &nb_read);
     }
     
     int spenttime = (int)(srs_update_system_time_ms() - starttime);
-    srs_trace("http hook on_hls_notify success. client_id=%d, url=%s, code=%d, spent=%dms, ret=%d",
-        client_id, url.c_str(), msg->status_code(), spenttime, ret);
+    srs_trace("http hook on_hls_notify success. client_id=%d, url=%s, code=%d, spent=%dms, read=%dB, ret=%d",
+        client_id, url.c_str(), msg->status_code(), spenttime, nb_read, ret);
     
     // ignore any error for on_hls_notify.
     ret = ERROR_SUCCESS;
