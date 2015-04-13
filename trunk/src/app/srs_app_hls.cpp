@@ -267,6 +267,7 @@ SrsHlsMuxer::SrsHlsMuxer()
     hls_aof_ratio = 1.0;
     deviation_ts = 0;
     hls_cleanup = true;
+    hls_wait_keyframe = true;
     previous_floor_ts = 0;
     accept_floor_ts = 0;
     hls_ts_floor = false;
@@ -335,7 +336,7 @@ int SrsHlsMuxer::initialize(ISrsHlsHandler* h)
 
 int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     string path, string m3u8_file, string ts_file, double fragment, double window,
-    bool ts_floor, double aof_ratio, bool cleanup
+    bool ts_floor, double aof_ratio, bool cleanup, bool wait_keyframe
 ) {
     int ret = ERROR_SUCCESS;
     
@@ -349,6 +350,7 @@ int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     hls_aof_ratio = aof_ratio;
     hls_ts_floor = ts_floor;
     hls_cleanup = cleanup;
+    hls_wait_keyframe = wait_keyframe;
     previous_floor_ts = 0;
     accept_floor_ts = 0;
     hls_window = window;
@@ -540,6 +542,11 @@ bool SrsHlsMuxer::is_segment_overflow()
     double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0.0;
     
     return current->duration >= hls_fragment + deviation;
+}
+
+bool SrsHlsMuxer::wait_keyframe()
+{
+    return hls_wait_keyframe;
 }
 
 bool SrsHlsMuxer::is_segment_absolutely_overflow()
@@ -862,6 +869,7 @@ int SrsHlsCache::on_publish(SrsHlsMuxer* muxer, SrsRequest* req, int64_t segment
     std::string m3u8_file = _srs_config->get_hls_m3u8_file(vhost);
     std::string ts_file = _srs_config->get_hls_ts_file(vhost);
     bool cleanup = _srs_config->get_hls_cleanup(vhost);
+    bool wait_keyframe = _srs_config->get_hls_wait_keyframe(vhost);
     // the audio overflow, for pure audio to reap segment.
     double hls_aof_ratio = _srs_config->get_hls_aof_ratio(vhost);
     // whether use floor(timestamp/hls_fragment) for variable timestamp
@@ -873,7 +881,7 @@ int SrsHlsCache::on_publish(SrsHlsMuxer* muxer, SrsRequest* req, int64_t segment
     // open muxer
     if ((ret = muxer->update_config(req, entry_prefix,
         path, m3u8_file, ts_file, hls_fragment, hls_window, ts_floor, hls_aof_ratio,
-        cleanup)) != ERROR_SUCCESS
+        cleanup, wait_keyframe)) != ERROR_SUCCESS
     ) {
         srs_error("m3u8 muxer update config failed. ret=%d", ret);
         return ret;
@@ -883,9 +891,9 @@ int SrsHlsCache::on_publish(SrsHlsMuxer* muxer, SrsRequest* req, int64_t segment
         srs_error("m3u8 muxer open segment failed. ret=%d", ret);
         return ret;
     }
-    srs_trace("hls: win=%.2f, frag=%.2f, prefix=%s, path=%s, m3u8=%s, ts=%s, aof=%.2f, floor=%d",
+    srs_trace("hls: win=%.2f, frag=%.2f, prefix=%s, path=%s, m3u8=%s, ts=%s, aof=%.2f, floor=%d, clean=%d, waitk=%d",
         hls_window, hls_fragment, entry_prefix.c_str(), path.c_str(), m3u8_file.c_str(),
-        ts_file.c_str(), hls_aof_ratio, ts_floor);
+        ts_file.c_str(), hls_aof_ratio, ts_floor, cleanup, wait_keyframe);
     
     return ret;
 }
@@ -972,17 +980,25 @@ int SrsHlsCache::write_video(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
         return ret;
     }
     
-    // new segment when:
-    // 1. base on gop(IDR).
-    // 2. some gops duration overflow.
-    if (sample->frame_type == SrsCodecVideoAVCFrameKeyFrame && muxer->is_segment_overflow()) {
-        if (!sample->has_idr) {
-            srs_warn("hls: ts starts without IDR, first nalu=%d, idr=%d", sample->first_nalu_type, sample->has_idr);
-        }
-        if ((ret = reap_segment("video", muxer, cache->video->dts)) != ERROR_SUCCESS) {
+    // when segment overflow, reap if possible.
+    if (muxer->is_segment_overflow()) {
+        // do reap ts if any of:
+        //      a. wait keyframe and got keyframe.
+        //      b. always reap when not wait keyframe.
+        if (!muxer->wait_keyframe() || sample->frame_type == SrsCodecVideoAVCFrameKeyFrame) {
+            // when wait keyframe, there must exists idr frame in sample.
+            if (!sample->has_idr && muxer->wait_keyframe()) {
+                srs_warn("hls: ts starts without IDR, first nalu=%d, idr=%d", sample->first_nalu_type, sample->has_idr);
+            }
+            
+            // reap the segment, which will also flush the video.
+            if ((ret = reap_segment("video", muxer, cache->video->dts)) != ERROR_SUCCESS) {
+                return ret;
+            }
+            
+            // the video must be flushed, just return.
             return ret;
         }
-        return ret;
     }
     
     // flush video when got one

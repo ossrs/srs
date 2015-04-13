@@ -207,6 +207,7 @@ private:
     std::string hls_path;
     std::string hls_ts_file;
     bool hls_cleanup;
+    bool hls_wait_keyframe;
     std::string m3u8_dir;
     double hls_aof_ratio;
     double hls_fragment;
@@ -270,7 +271,7 @@ public:
     virtual int update_config(SrsRequest* r, std::string entry_prefix,
         std::string path, std::string m3u8_file, std::string ts_file,
         double fragment, double window, bool ts_floor, double aof_ratio,
-        bool cleanup);
+        bool cleanup, bool wait_keyframe);
     /**
     * open a new segment(a new ts file),
     * @param segment_start_dts use to calc the segment duration,
@@ -283,6 +284,10 @@ public:
     * that is whether the current segment duration>=(the segment in config)
     */
     virtual bool is_segment_overflow();
+    /**
+     * whether wait keyframe to reap the ts.
+     */
+    virtual bool wait_keyframe();
     /**
     * whether segment absolutely overflow, for pure audio to reap segment,
     * that is whether the current segment duration>=2*(the segment in config)
