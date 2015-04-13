@@ -562,6 +562,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-04-13, for [#381](https://github.com/winlinvip/simple-rtmp-server/issues/381), support reap hls/ts by gop or not. 2.0.160.
 * v2.0, 2015-04-10, enhanced on_hls_notify, support HTTP GET when reap ts.
 * v2.0, 2015-04-10, refine the hls deviation for floor algorithm.
 * v2.0, 2015-04-08, for [#375](https://github.com/winlinvip/simple-rtmp-server/issues/375), fix hls bug, keep cc continous between ts files. 2.0.159.

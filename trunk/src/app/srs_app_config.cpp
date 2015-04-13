@@ -1487,7 +1487,7 @@ int SrsConfig::check_config()
                     string m = conf->at(j)->name.c_str();
                     if (m != "enabled" && m != "hls_entry_prefix" && m != "hls_path" && m != "hls_fragment" && m != "hls_window" && m != "hls_on_error"
                         && m != "hls_storage" && m != "hls_mount" && m != "hls_td_ratio" && m != "hls_aof_ratio" && m != "hls_acodec" && m != "hls_vcodec"
-                        && m != "hls_m3u8_file" && m != "hls_ts_file" && m != "hls_ts_floor" && m != "hls_cleanup" && m != "hls_nb_notify"
+                        && m != "hls_m3u8_file" && m != "hls_ts_file" && m != "hls_ts_floor" && m != "hls_cleanup" && m != "hls_nb_notify" && m != "hls_wait_keyframe"
                     ) {
                         ret = ERROR_SYSTEM_CONFIG_INVALID;
                         srs_error("unsupported vhost hls directive %s, ret=%d", m.c_str(), ret);
@@ -3446,6 +3446,23 @@ bool SrsConfig::get_hls_cleanup(string vhost)
     
     if (!conf || conf->arg0().empty()) {
         return SRS_CONF_DEFAULT_HLS_CLEANUP;
+    }
+    
+    return SRS_CONF_PERFER_TRUE(conf->arg0());
+}
+
+bool SrsConfig::get_hls_wait_keyframe(string vhost)
+{
+    SrsConfDirective* hls = get_hls(vhost);
+    
+    if (!hls) {
+        return SRS_CONF_DEFAULT_HLS_WAIT_KEYFRAME;
+    }
+    
+    SrsConfDirective* conf = hls->get("hls_wait_keyframe");
+    
+    if (!conf || conf->arg0().empty()) {
+        return SRS_CONF_DEFAULT_HLS_WAIT_KEYFRAME;
     }
     
     return SRS_CONF_PERFER_TRUE(conf->arg0());

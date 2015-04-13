@@ -63,6 +63,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_HLS_ACODEC "aac"
 #define SRS_CONF_DEFAULT_HLS_VCODEC "h264"
 #define SRS_CONF_DEFAULT_HLS_CLEANUP true
+#define SRS_CONF_DEFAULT_HLS_WAIT_KEYFRAME true
 #define SRS_CONF_DEFAULT_HLS_NB_NOTIFY 64
 #define SRS_CONF_DEFAULT_DVR_PATH "./objs/nginx/html/[app]/[stream].[timestamp].flv"
 #define SRS_CONF_DEFAULT_DVR_PLAN_SESSION "session"
@@ -960,6 +961,10 @@ public:
      * whether cleanup the old ts files.
      */
     virtual bool                get_hls_cleanup(std::string vhost);
+    /**
+     * whether reap the ts when got keyframe.
+     */
+    virtual bool                get_hls_wait_keyframe(std::string vhost);
     /**
      * get the size of bytes to read from cdn network, for the on_hls_notify callback,
      * that is, to read max bytes of the bytes from the callback, or timeout or error.
