@@ -60,9 +60,9 @@ using namespace std;
 #define SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS 100
 
 // fragment plus the deviation percent.
-#define SRS_HLS_FLOOR_REAP_PERCENT 0.2
+#define SRS_HLS_FLOOR_REAP_PERCENT 0.3
 // reset the piece id when deviation overflow this.
-#define SRS_JUMP_WHEN_PIECE_DEVIATION 10
+#define SRS_JUMP_WHEN_PIECE_DEVIATION 20
 
 ISrsHlsHandler::ISrsHlsHandler()
 {
@@ -240,13 +240,17 @@ int SrsDvrAsyncCallOnHlsNotify::call()
             return ret;
         }
         
+        std::string url;
+        if (true) {
+            static u_int32_t nb_call = 0;
+            int index = nb_call++ % on_hls->args.size();
+            url = on_hls->args.at(index);
+        }
+        
         int nb_notify = _srs_config->get_vhost_hls_nb_notify(req->vhost);
-        for (int i = 0; i < (int)on_hls->args.size(); i++) {
-            std::string url = on_hls->args.at(i);
-            if ((ret = SrsHttpHooks::on_hls_notify(url, req, ts_url, nb_notify)) != ERROR_SUCCESS) {
-                srs_error("hook client on_hls_notify failed. url=%s, ts=%s, ret=%d", url.c_str(), ts_url.c_str(), ret);
-                return ret;
-            }
+        if ((ret = SrsHttpHooks::on_hls_notify(url, req, ts_url, nb_notify)) != ERROR_SUCCESS) {
+            srs_error("hook client on_hls_notify failed. url=%s, ts=%s, ret=%d", url.c_str(), ts_url.c_str(), ret);
+            return ret;
         }
     }
 #endif
@@ -441,7 +445,7 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
     ts_file = srs_path_build_stream(ts_file, req->vhost, req->app, req->stream);
     if (hls_ts_floor) {
         // accept the floor ts for the first piece.
-        int64_t current_floor_ts = (int64_t)(srs_get_system_time_ms() / (1000 * hls_fragment));
+        int64_t current_floor_ts = (int64_t)(srs_update_system_time_ms() / (1000 * hls_fragment));
         if (!accept_floor_ts) {
             accept_floor_ts = current_floor_ts - 1;
         } else {
@@ -459,7 +463,7 @@ int SrsHlsMuxer::segment_open(int64_t segment_start_dts)
         
         // dup/jmp detect for ts in floor mode.
         if (previous_floor_ts && previous_floor_ts != current_floor_ts - 1) {
-            srs_warn("hls: dup or jmp for floor ts, previous=%"PRId64", current=%"PRId64", accept=%"PRId64", deviation=%d",
+            srs_warn("hls: dup/jmp ts, previous=%"PRId64", current=%"PRId64", accept=%"PRId64", deviation=%d",
                      previous_floor_ts, current_floor_ts, accept_floor_ts, deviation_ts);
         }
         previous_floor_ts = current_floor_ts;
@@ -540,6 +544,8 @@ bool SrsHlsMuxer::is_segment_overflow()
     
     // use N% deviation, to smoother.
     double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0.0;
+    srs_info("hls: dur=%.2f, tar=%.2f, dev=%.2fms/%dp, frag=%.2f",
+        current->duration, hls_fragment + deviation, deviation, deviation_ts, hls_fragment);
     
     return current->duration >= hls_fragment + deviation;
 }

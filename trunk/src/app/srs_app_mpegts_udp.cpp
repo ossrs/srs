@@ -419,7 +419,10 @@ int SrsMpegtsOverUdp::write_h264_sps_pps(u_int32_t dts, u_int32_t pts)
 {
     int ret = ERROR_SUCCESS;
     
-    // only send when both sps and pps changed.
+    // TODO: FIMXE: there exists bug, see following comments.
+    // when sps or pps changed, update the sequence header,
+    // for the pps maybe not changed while sps changed.
+    // so, we must check when each video ts message frame parsed.
     if (!h264_sps_changed || !h264_pps_changed) {
         return ret;
     }
