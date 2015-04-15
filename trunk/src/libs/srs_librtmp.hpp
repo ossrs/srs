@@ -661,6 +661,9 @@ extern int srs_utils_parse_timestamp(
  * @return true when tag is video/audio/script-data; otherwise, false.
  */
 extern srs_bool srs_utils_flv_tag_is_ok(char type);
+extern srs_bool srs_utils_flv_tag_is_audio(char type);
+extern srs_bool srs_utils_flv_tag_is_video(char type);
+extern srs_bool srs_utils_flv_tag_is_av(char type);
 
 /**
 * get the CodecID of video tag.

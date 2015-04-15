@@ -1332,8 +1332,17 @@ int SrsSource::on_audio(SrsCommonMessage* shared_audio)
     }
     srs_verbose("initialize shared ptr audio success.");
     
+    srs_warn("Audio dts=%"PRId64", size=%d", msg.timestamp, msg.size);
+    
+    return on_audio_imp(&msg);
+}
+
+int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
+{
+    int ret = ERROR_SUCCESS;
+    
 #ifdef SRS_AUTO_HLS
-    if ((ret = hls->on_audio(&msg)) != ERROR_SUCCESS) {
+    if ((ret = hls->on_audio(msg)) != ERROR_SUCCESS) {
         // apply the error strategy for hls.
         // @see https://github.com/winlinvip/simple-rtmp-server/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(_req->vhost);
@@ -1347,7 +1356,7 @@ int SrsSource::on_audio(SrsCommonMessage* shared_audio)
             ret = ERROR_SUCCESS;
         } else if (hls_error_strategy == SRS_CONF_DEFAULT_HLS_ON_ERROR_CONTINUE) {
             // compare the sequence header with audio, continue when it's actually an sequence header.
-            if (ret == ERROR_HLS_DECODE_ERROR && cache_sh_audio && cache_sh_audio->size == msg.size) {
+            if (ret == ERROR_HLS_DECODE_ERROR && cache_sh_audio && cache_sh_audio->size == msg->size) {
                 srs_warn("the audio is actually a sequence header, ignore this packet.");
                 ret = ERROR_SUCCESS;
             } else {
@@ -1362,7 +1371,7 @@ int SrsSource::on_audio(SrsCommonMessage* shared_audio)
 #endif
     
 #ifdef SRS_AUTO_DVR
-    if ((ret = dvr->on_audio(&msg)) != ERROR_SUCCESS) {
+    if ((ret = dvr->on_audio(msg)) != ERROR_SUCCESS) {
         srs_warn("dvr process audio message failed, ignore and disable dvr. ret=%d", ret);
         
         // unpublish, ignore ret.
@@ -1374,7 +1383,7 @@ int SrsSource::on_audio(SrsCommonMessage* shared_audio)
 #endif
 
 #ifdef SRS_AUTO_HDS
-    if ((ret = hds->on_audio(&msg)) != ERROR_SUCCESS) {
+    if ((ret = hds->on_audio(msg)) != ERROR_SUCCESS) {
         srs_warn("hds process audio message failed, ignore and disable dvr. ret=%d", ret);
         
         // unpublish, ignore ret.
@@ -1390,7 +1399,7 @@ int SrsSource::on_audio(SrsCommonMessage* shared_audio)
         SrsConsumer** pconsumer = consumers.data();
         for (int i = 0; i < nb_consumers; i++) {
             SrsConsumer* consumer = pconsumer[i];
-            if ((ret = consumer->enqueue(&msg, atc, sample_rate, frame_rate, jitter_algorithm)) != ERROR_SUCCESS) {
+            if ((ret = consumer->enqueue(msg, atc, sample_rate, frame_rate, jitter_algorithm)) != ERROR_SUCCESS) {
                 srs_error("dispatch the audio failed. ret=%d", ret);
                 return ret;
             }
@@ -1403,7 +1412,7 @@ int SrsSource::on_audio(SrsCommonMessage* shared_audio)
         std::vector<SrsForwarder*>::iterator it;
         for (it = forwarders.begin(); it != forwarders.end(); ++it) {
             SrsForwarder* forwarder = *it;
-            if ((ret = forwarder->on_audio(&msg)) != ERROR_SUCCESS) {
+            if ((ret = forwarder->on_audio(msg)) != ERROR_SUCCESS) {
                 srs_error("forwarder process audio message failed. ret=%d", ret);
                 return ret;
             }
@@ -1413,10 +1422,10 @@ int SrsSource::on_audio(SrsCommonMessage* shared_audio)
     // cache the sequence header of aac, or first packet of mp3.
     // for example, the mp3 is used for hls to write the "right" audio codec.
     // TODO: FIXME: to refine the stream info system.
-    bool is_aac_sequence_header = SrsFlvCodec::audio_is_sequence_header(msg.payload, msg.size);
+    bool is_aac_sequence_header = SrsFlvCodec::audio_is_sequence_header(msg->payload, msg->size);
     if (is_aac_sequence_header || !cache_sh_audio) {
         srs_freep(cache_sh_audio);
-        cache_sh_audio = msg.copy();
+        cache_sh_audio = msg->copy();
     }
 
     // cache the sequence header if aac
@@ -1425,7 +1434,7 @@ int SrsSource::on_audio(SrsCommonMessage* shared_audio)
         // parse detail audio codec
         SrsAvcAacCodec codec;
         SrsCodecSample sample;
-        if ((ret = codec.audio_aac_demux(msg.payload, msg.size, &sample)) != ERROR_SUCCESS) {
+        if ((ret = codec.audio_aac_demux(msg->payload, msg->size, &sample)) != ERROR_SUCCESS) {
             srs_error("source codec demux audio failed. ret=%d", ret);
             return ret;
         }
@@ -1442,7 +1451,7 @@ int SrsSource::on_audio(SrsCommonMessage* shared_audio)
         srs_trace("%dB audio sh, "
             "codec(%d, profile=%s, %dchannels, %dkbps, %dHZ), "
             "flv(%dbits, %dchannels, %dHZ)", 
-            msg.size, codec.audio_codec_id,
+            msg->size, codec.audio_codec_id,
             srs_codec_aac_object2str(codec.aac_object).c_str(), codec.aac_channels, 
             codec.audio_data_rate / 1000, aac_sample_rates[codec.aac_sample_rate], 
             flv_sample_sizes[sample.sound_size], flv_sound_types[sample.sound_type], 
@@ -1451,7 +1460,7 @@ int SrsSource::on_audio(SrsCommonMessage* shared_audio)
     }
     
     // cache the last gop packets
-    if ((ret = gop_cache->cache(&msg)) != ERROR_SUCCESS) {
+    if ((ret = gop_cache->cache(msg)) != ERROR_SUCCESS) {
         srs_error("shrink gop cache failed. ret=%d", ret);
         return ret;
     }
@@ -1460,10 +1469,10 @@ int SrsSource::on_audio(SrsCommonMessage* shared_audio)
     // if atc, update the sequence header to abs time.
     if (atc) {
         if (cache_sh_audio) {
-            cache_sh_audio->timestamp = msg.timestamp;
+            cache_sh_audio->timestamp = msg->timestamp;
         }
         if (cache_metadata) {
-            cache_metadata->timestamp = msg.timestamp;
+            cache_metadata->timestamp = msg->timestamp;
         }
     }
     
@@ -1483,8 +1492,17 @@ int SrsSource::on_video(SrsCommonMessage* shared_video)
     }
     srs_verbose("initialize shared ptr video success.");
     
+    srs_warn("Video dts=%"PRId64", size=%d", msg.timestamp, msg.size);
+    
+    return on_video_imp(&msg);
+}
+
+int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
+{
+    int ret = ERROR_SUCCESS;
+    
 #ifdef SRS_AUTO_HLS
-    if ((ret = hls->on_video(&msg)) != ERROR_SUCCESS) {
+    if ((ret = hls->on_video(msg)) != ERROR_SUCCESS) {
         // apply the error strategy for hls.
         // @see https://github.com/winlinvip/simple-rtmp-server/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(_req->vhost);
@@ -1498,7 +1516,7 @@ int SrsSource::on_video(SrsCommonMessage* shared_video)
             ret = ERROR_SUCCESS;
         } else if (hls_error_strategy == SRS_CONF_DEFAULT_HLS_ON_ERROR_CONTINUE) {
             // compare the sequence header with video, continue when it's actually an sequence header.
-            if (ret == ERROR_HLS_DECODE_ERROR && cache_sh_video && cache_sh_video->size == msg.size) {
+            if (ret == ERROR_HLS_DECODE_ERROR && cache_sh_video && cache_sh_video->size == msg->size) {
                 srs_warn("the video is actually a sequence header, ignore this packet.");
                 ret = ERROR_SUCCESS;
             } else {
@@ -1513,7 +1531,7 @@ int SrsSource::on_video(SrsCommonMessage* shared_video)
 #endif
     
 #ifdef SRS_AUTO_DVR
-    if ((ret = dvr->on_video(&msg)) != ERROR_SUCCESS) {
+    if ((ret = dvr->on_video(msg)) != ERROR_SUCCESS) {
         srs_warn("dvr process video message failed, ignore and disable dvr. ret=%d", ret);
         
         // unpublish, ignore ret.
@@ -1525,7 +1543,7 @@ int SrsSource::on_video(SrsCommonMessage* shared_video)
 #endif
 
 #ifdef SRS_AUTO_HDS
-    if ((ret = hds->on_video(&msg)) != ERROR_SUCCESS) {
+    if ((ret = hds->on_video(msg)) != ERROR_SUCCESS) {
         srs_warn("hds process video message failed, ignore and disable dvr. ret=%d", ret);
         
         // unpublish, ignore ret.
@@ -1539,7 +1557,7 @@ int SrsSource::on_video(SrsCommonMessage* shared_video)
     if (true) {
         for (int i = 0; i < (int)consumers.size(); i++) {
             SrsConsumer* consumer = consumers.at(i);
-            if ((ret = consumer->enqueue(&msg, atc, sample_rate, frame_rate, jitter_algorithm)) != ERROR_SUCCESS) {
+            if ((ret = consumer->enqueue(msg, atc, sample_rate, frame_rate, jitter_algorithm)) != ERROR_SUCCESS) {
                 srs_error("dispatch the video failed. ret=%d", ret);
                 return ret;
             }
@@ -1552,7 +1570,7 @@ int SrsSource::on_video(SrsCommonMessage* shared_video)
         std::vector<SrsForwarder*>::iterator it;
         for (it = forwarders.begin(); it != forwarders.end(); ++it) {
             SrsForwarder* forwarder = *it;
-            if ((ret = forwarder->on_video(&msg)) != ERROR_SUCCESS) {
+            if ((ret = forwarder->on_video(msg)) != ERROR_SUCCESS) {
                 srs_error("forwarder process video message failed. ret=%d", ret);
                 return ret;
             }
@@ -1561,14 +1579,14 @@ int SrsSource::on_video(SrsCommonMessage* shared_video)
 
     // cache the sequence header if h264
     // donot cache the sequence header to gop_cache, return here.
-    if (SrsFlvCodec::video_is_sequence_header(msg.payload, msg.size)) {
+    if (SrsFlvCodec::video_is_sequence_header(msg->payload, msg->size)) {
         srs_freep(cache_sh_video);
-        cache_sh_video = msg.copy();
+        cache_sh_video = msg->copy();
         
         // parse detail audio codec
         SrsAvcAacCodec codec;
         SrsCodecSample sample;
-        if ((ret = codec.video_avc_demux(msg.payload, msg.size, &sample)) != ERROR_SUCCESS) {
+        if ((ret = codec.video_avc_demux(msg->payload, msg->size, &sample)) != ERROR_SUCCESS) {
             srs_error("source codec demux video failed. ret=%d", ret);
             return ret;
         }
@@ -1581,7 +1599,7 @@ int SrsSource::on_video(SrsCommonMessage* shared_video)
         
         srs_trace("%dB video sh, "
             "codec(%d, profile=%s, level=%s, %dx%d, %dkbps, %dfps, %ds)",
-            msg.size, codec.video_codec_id,
+            msg->size, codec.video_codec_id,
             srs_codec_avc_profile2str(codec.avc_profile).c_str(), 
             srs_codec_avc_level2str(codec.avc_level).c_str(), codec.width, codec.height,
             codec.video_data_rate / 1000, codec.frame_rate, codec.duration);
@@ -1589,7 +1607,7 @@ int SrsSource::on_video(SrsCommonMessage* shared_video)
     }
 
     // cache the last gop packets
-    if ((ret = gop_cache->cache(&msg)) != ERROR_SUCCESS) {
+    if ((ret = gop_cache->cache(msg)) != ERROR_SUCCESS) {
         srs_error("gop cache msg failed. ret=%d", ret);
         return ret;
     }
@@ -1598,10 +1616,10 @@ int SrsSource::on_video(SrsCommonMessage* shared_video)
     // if atc, update the sequence header to abs time.
     if (atc) {
         if (cache_sh_video) {
-            cache_sh_video->timestamp = msg.timestamp;
+            cache_sh_video->timestamp = msg->timestamp;
         }
         if (cache_metadata) {
-            cache_metadata->timestamp = msg.timestamp;
+            cache_metadata->timestamp = msg->timestamp;
         }
     }
     

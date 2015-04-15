@@ -495,8 +495,15 @@ public:
 public:
     virtual bool can_publish();
     virtual int on_meta_data(SrsCommonMessage* msg, SrsOnMetaDataPacket* metadata);
+public:
     virtual int on_audio(SrsCommonMessage* audio);
+private:
+    virtual int on_audio_imp(SrsSharedPtrMessage* audio);
+public:
     virtual int on_video(SrsCommonMessage* video);
+private:
+    virtual int on_video_imp(SrsSharedPtrMessage* video);
+public:
     virtual int on_aggregate(SrsCommonMessage* msg);
     /**
     * the pre-publish is we are very sure we are

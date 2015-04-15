@@ -171,7 +171,7 @@ int do_proxy(srs_flv_t flv, srs_rtmp_t ortmp, int64_t re, int32_t* pstarttime, u
             return ret;
         }
             
-        if (*pstarttime < 0) {
+        if (*pstarttime < 0 && srs_utils_flv_tag_is_av(type)) {
             *pstarttime = *ptimestamp;
         }
         
