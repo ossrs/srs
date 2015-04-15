@@ -44,6 +44,7 @@ using namespace std;
 #include <srs_rtmp_msg_array.hpp>
 #include <srs_app_hds.hpp>
 #include <srs_app_statistic.hpp>
+#include <srs_core_autofree.hpp>
 
 #define CONST_MAX_JITTER_MS         500
 #define DEFAULT_FRAME_TIME_MS         40
@@ -768,10 +769,62 @@ void SrsSource::destroy()
     pool.clear();
 }
 
+SrsMixQueue::SrsMixQueue()
+{
+    nb_videos = 0;
+}
+
+SrsMixQueue::~SrsMixQueue()
+{
+    clear();
+}
+
+void SrsMixQueue::clear()
+{
+    std::multimap<int64_t, SrsSharedPtrMessage*>::iterator it;
+    for (it = msgs.begin(); it != msgs.end(); ++it) {
+        SrsSharedPtrMessage* msg = it->second;
+        srs_freep(msg);
+    }
+    msgs.clear();
+    
+    nb_videos = 0;
+}
+
+void SrsMixQueue::push(SrsSharedPtrMessage* msg)
+{
+    msgs.insert(std::make_pair(msg->timestamp, msg));
+    
+    if (msg->is_video()) {
+        nb_videos++;
+    }
+}
+
+SrsSharedPtrMessage* SrsMixQueue::pop()
+{
+    // always keep 2+ videos
+    if (nb_videos < 2) {
+        return NULL;
+    }
+    
+    // pop the first msg.
+    std::multimap<int64_t, SrsSharedPtrMessage*>::iterator it = msgs.begin();
+    SrsSharedPtrMessage* msg = it->second;
+    msgs.erase(it);
+    
+    if (msg->is_video()) {
+        nb_videos--;
+    }
+    
+    return msg;
+}
+
 SrsSource::SrsSource()
 {
     _req = NULL;
     jitter_algorithm = SrsRtmpJitterAlgorithmOFF;
+    mix_correct = false;
+    mix_queue = new SrsMixQueue();
     
 #ifdef SRS_AUTO_HLS
     hls = new SrsHls();
@@ -818,6 +871,7 @@ SrsSource::~SrsSource()
         forwarders.clear();
     }
     
+    srs_freep(mix_queue);
     srs_freep(cache_metadata);
     srs_freep(cache_sh_video);
     srs_freep(cache_sh_audio);
@@ -878,6 +932,7 @@ int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* h
     publish_edge->set_queue_size(queue_size);
     
     jitter_algorithm = (SrsRtmpJitterAlgorithm)_srs_config->get_time_jitter(_req->vhost);
+    mix_correct = _srs_config->get_mix_correct(_req->vhost);
     
     return ret;
 }
@@ -969,6 +1024,25 @@ int SrsSource::on_reload_vhost_time_jitter(string vhost)
     }
     
     jitter_algorithm = (SrsRtmpJitterAlgorithm)_srs_config->get_time_jitter(_req->vhost);
+    
+    return ret;
+}
+
+int SrsSource::on_reload_vhost_mix_correct(string vhost)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if (_req->vhost != vhost) {
+        return ret;
+    }
+    
+    bool v = _srs_config->get_mix_correct(_req->vhost);
+    
+    // when changed, clear the mix queue.
+    if (v != mix_correct) {
+        mix_queue->clear();
+    }
+    mix_correct = v;
     
     return ret;
 }
@@ -1330,16 +1404,20 @@ int SrsSource::on_audio(SrsCommonMessage* shared_audio)
         srs_error("initialize the audio failed. ret=%d", ret);
         return ret;
     }
-    srs_verbose("initialize shared ptr audio success.");
+    srs_info("Audio dts=%"PRId64", size=%d", msg.timestamp, msg.size);
     
-    srs_warn("Audio dts=%"PRId64", size=%d", msg.timestamp, msg.size);
+    if (!mix_correct) {
+        return on_audio_imp(&msg);
+    }
     
-    return on_audio_imp(&msg);
+    return do_mix_correct(&msg);
 }
 
 int SrsSource::on_audio_imp(SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
+    
+    srs_info("Audio dts=%"PRId64", size=%d", msg->timestamp, msg->size);
     
 #ifdef SRS_AUTO_HLS
     if ((ret = hls->on_audio(msg)) != ERROR_SUCCESS) {
@@ -1490,16 +1568,20 @@ int SrsSource::on_video(SrsCommonMessage* shared_video)
         srs_error("initialize the video failed. ret=%d", ret);
         return ret;
     }
-    srs_verbose("initialize shared ptr video success.");
+    srs_info("Video dts=%"PRId64", size=%d", msg.timestamp, msg.size);
     
-    srs_warn("Video dts=%"PRId64", size=%d", msg.timestamp, msg.size);
+    if (!mix_correct) {
+        return on_video_imp(&msg);
+    }
     
-    return on_video_imp(&msg);
+    return do_mix_correct(&msg);
 }
 
 int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
 {
     int ret = ERROR_SUCCESS;
+    
+    srs_info("Video dts=%"PRId64", size=%d", msg->timestamp, msg->size);
     
 #ifdef SRS_AUTO_HLS
     if ((ret = hls->on_video(msg)) != ERROR_SUCCESS) {
@@ -1624,6 +1706,29 @@ int SrsSource::on_video_imp(SrsSharedPtrMessage* msg)
     }
     
     return ret;
+}
+
+int SrsSource::do_mix_correct(SrsSharedPtrMessage* msg)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // insert msg to the queue.
+    mix_queue->push(msg->copy());
+    
+    // fetch someone from mix queue.
+    SrsSharedPtrMessage* m = mix_queue->pop();
+    if (!m) {
+        return ret;
+    }
+    SrsAutoFree(SrsSharedPtrMessage, m);
+    
+    // consume the monotonically increase message.
+    if (m->is_audio()) {
+        return on_audio_imp(m);
+    }
+    
+    srs_assert(m->is_video());
+    return on_video_imp(m);
 }
 
 int SrsSource::on_aggregate(SrsCommonMessage* msg)
@@ -1765,6 +1870,9 @@ int SrsSource::on_publish()
     // whatever, the publish thread is the source or edge source,
     // save its id to srouce id.
     on_source_id_changed(_srs_context->get_id());
+    
+    // reset the mix queue.
+    mix_queue->clear();
     
     // create forwarders
     if ((ret = create_forwarders()) != ERROR_SUCCESS) {

@@ -369,6 +369,23 @@ public:
 };
 
 /**
+ * the mix queue to correct the timestamp for mix_correct algorithm.
+ */
+class SrsMixQueue
+{
+private:
+    u_int32_t nb_videos;
+    std::multimap<int64_t, SrsSharedPtrMessage*> msgs;
+public:
+    SrsMixQueue();
+    virtual ~SrsMixQueue();
+public:
+    virtual void clear();
+    virtual void push(SrsSharedPtrMessage* msg);
+    virtual SrsSharedPtrMessage* pop();
+};
+
+/**
 * live streaming source.
 */
 class SrsSource : public ISrsReloadHandler
@@ -407,6 +424,9 @@ private:
     std::vector<SrsConsumer*> consumers;
     // the time jitter algorithm for vhost.
     SrsRtmpJitterAlgorithm jitter_algorithm;
+    // whether use interlaced/mixed algorithm to correct timestamp.
+    bool mix_correct;
+    SrsMixQueue* mix_queue;
     // hls handler.
 #ifdef SRS_AUTO_HLS
     SrsHls* hls;
@@ -474,6 +494,7 @@ public:
     virtual int on_reload_vhost_gop_cache(std::string vhost);
     virtual int on_reload_vhost_queue_length(std::string vhost);
     virtual int on_reload_vhost_time_jitter(std::string vhost);
+    virtual int on_reload_vhost_mix_correct(std::string vhost);
     virtual int on_reload_vhost_forward(std::string vhost);
     virtual int on_reload_vhost_hls(std::string vhost);
     virtual int on_reload_vhost_hds(std::string vhost);
@@ -503,6 +524,8 @@ public:
     virtual int on_video(SrsCommonMessage* video);
 private:
     virtual int on_video_imp(SrsSharedPtrMessage* video);
+private:
+    virtual int do_mix_correct(SrsSharedPtrMessage* msg);
 public:
     virtual int on_aggregate(SrsCommonMessage* msg);
     /**

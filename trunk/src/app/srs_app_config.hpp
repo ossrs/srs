@@ -72,6 +72,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define SRS_CONF_DEFAULT_DVR_PLAN SRS_CONF_DEFAULT_DVR_PLAN_SESSION
 #define SRS_CONF_DEFAULT_DVR_DURATION 30
 #define SRS_CONF_DEFAULT_TIME_JITTER "full"
+#define SRS_CONF_DEFAULT_ATC_AUTO true
+#define SRS_CONF_DEFAULT_MIX_CORRECT false
 // in seconds, the paused queue length.
 #define SRS_CONF_DEFAULT_PAUSED_LENGTH 10
 // the interval in seconds for bandwidth check
@@ -531,6 +533,11 @@ public:
     * @remark, default full.
     */
     virtual int                 get_time_jitter(std::string vhost);
+    /**
+     * whether use mix correct algorithm to ensure the timestamp
+     * monotonically increase.
+     */
+    virtual bool                get_mix_correct(std::string vhost);
     /**
     * get the cache queue length, in seconds.
     * when exceed the queue length, drop packet util I frame.

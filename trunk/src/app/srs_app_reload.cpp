@@ -130,6 +130,11 @@ int ISrsReloadHandler::on_reload_vhost_time_jitter(string /*vhost*/)
     return ERROR_SUCCESS;
 }
 
+int ISrsReloadHandler::on_reload_vhost_mix_correct(string /*vhost*/)
+{
+    return ERROR_SUCCESS;
+}
+
 int ISrsReloadHandler::on_reload_vhost_forward(string /*vhost*/)
 {
     return ERROR_SUCCESS;
