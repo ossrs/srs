@@ -358,8 +358,18 @@ int SrsHttpHooks::on_hls_notify(std::string url, SrsRequest* req, std::string ts
         return ret;
     }
     
+    std::string path = uri.get_query();
+    if (path.empty()) {
+        path = uri.get_path();
+    } else {
+        path = uri.get_path();
+        path += "?";
+        path += uri.get_query();
+    }
+    srs_warn("GET %s", path.c_str());
+    
     SrsHttpMessage* msg = NULL;
-    if ((ret = http.get(uri.get_path(), "", &msg)) != ERROR_SUCCESS) {
+    if ((ret = http.get(path.c_str(), "", &msg)) != ERROR_SUCCESS) {
         return ret;
     }
     SrsAutoFree(SrsHttpMessage, msg);

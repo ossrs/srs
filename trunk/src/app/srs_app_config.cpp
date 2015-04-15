@@ -807,6 +807,17 @@ int SrsConfig::reload_vhost(SrsConfDirective* old_root)
                 }
                 srs_trace("vhost %s reload time_jitter success.", vhost.c_str());
             }
+            // mix_correct, only one per vhost
+            if (!srs_directive_equals(new_vhost->get("mix_correct"), old_vhost->get("mix_correct"))) {
+                for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+                    ISrsReloadHandler* subscribe = *it;
+                    if ((ret = subscribe->on_reload_vhost_mix_correct(vhost)) != ERROR_SUCCESS) {
+                        srs_error("vhost %s notify subscribes mix_correct failed. ret=%d", vhost.c_str(), ret);
+                        return ret;
+                    }
+                }
+                srs_trace("vhost %s reload mix_correct success.", vhost.c_str());
+            }
             // forward, only one per vhost
             if (!srs_directive_equals(new_vhost->get("forward"), old_vhost->get("forward"))) {
                 for (it = subscribes.begin(); it != subscribes.end(); ++it) {
@@ -1419,7 +1430,7 @@ int SrsConfig::check_config()
                 && n != "gop_cache" && n != "queue_length"
                 && n != "refer" && n != "refer_publish" && n != "refer_play"
                 && n != "forward" && n != "transcode" && n != "bandcheck"
-                && n != "time_jitter" 
+                && n != "time_jitter" && n != "mix_correct"
                 && n != "atc" && n != "atc_auto"
                 && n != "debug_srs_upnode"
                 && n != "mr" && n != "mw_latency" && n != "min_latency"
@@ -2118,12 +2129,12 @@ bool SrsConfig::get_atc_auto(string vhost)
     SrsConfDirective* conf = get_vhost(vhost);
 
     if (!conf) {
-        return true;
+        return SRS_CONF_DEFAULT_ATC_AUTO;
     }
     
     conf = conf->get("atc_auto");
     if (!conf || conf->arg0().empty()) {
-        return true;
+        return SRS_CONF_DEFAULT_ATC_AUTO;
     }
     
     return SRS_CONF_PERFER_TRUE(conf->arg0());
@@ -2131,19 +2142,35 @@ bool SrsConfig::get_atc_auto(string vhost)
 
 int SrsConfig::get_time_jitter(string vhost)
 {
-    SrsConfDirective* dvr = get_vhost(vhost);
+    SrsConfDirective* conf = get_vhost(vhost);
     
     std::string time_jitter = SRS_CONF_DEFAULT_TIME_JITTER;
     
-    if (dvr) {
-        SrsConfDirective* conf = dvr->get("time_jitter");
+    if (conf) {
+        conf = conf->get("time_jitter");
     
-        if (conf) {
+        if (conf && !conf->arg0().empty()) {
             time_jitter = conf->arg0();
         }
     }
     
     return _srs_time_jitter_string2int(time_jitter);
+}
+
+bool SrsConfig::get_mix_correct(string vhost)
+{
+    SrsConfDirective* conf = get_vhost(vhost);
+    
+    if (!conf) {
+        return SRS_CONF_DEFAULT_MIX_CORRECT;
+    }
+    
+    conf = conf->get("mix_correct");
+    if (!conf || conf->arg0().empty()) {
+        return SRS_CONF_DEFAULT_MIX_CORRECT;
+    }
+    
+    return SRS_CONF_PERFER_FALSE(conf->arg0());
 }
 
 double SrsConfig::get_queue_length(string vhost)

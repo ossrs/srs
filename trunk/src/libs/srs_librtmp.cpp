@@ -1979,6 +1979,21 @@ srs_bool srs_utils_flv_tag_is_ok(char type)
     return type == SRS_RTMP_TYPE_AUDIO || type == SRS_RTMP_TYPE_VIDEO || type == SRS_RTMP_TYPE_SCRIPT;
 }
 
+srs_bool srs_utils_flv_tag_is_audio(char type)
+{
+    return type == SRS_RTMP_TYPE_AUDIO;
+}
+    
+srs_bool srs_utils_flv_tag_is_video(char type)
+{
+    return type == SRS_RTMP_TYPE_VIDEO;
+}
+
+srs_bool srs_utils_flv_tag_is_av(char type)
+{
+    return type == SRS_RTMP_TYPE_AUDIO || type == SRS_RTMP_TYPE_VIDEO;
+}
+
 char srs_utils_flv_video_codec_id(char* data, int size)
 {
     if (size < 1) {
