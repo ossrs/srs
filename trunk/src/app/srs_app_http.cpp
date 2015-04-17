@@ -1401,7 +1401,7 @@ int SrsHttpParser::parse_message(SrsStSocket* skt, SrsHttpMessage** ppmsg)
     header = http_parser();
     url = "";
     headers.clear();
-    body_parsed = 0;
+    header_parsed = 0;
     
     // do parse
     if ((ret = parse_message_imp(skt)) != ERROR_SUCCESS) {
@@ -1437,12 +1437,12 @@ int SrsHttpParser::parse_message_imp(SrsStSocket* skt)
         // when buffer not empty, parse it.
         if (buffer->size() > 0) {
             nparsed = http_parser_execute(&parser, &settings, buffer->bytes(), buffer->size());
-            srs_info("buffer=%d, nparsed=%d, body=%d", buffer->size(), (int)nparsed, body_parsed);
+            srs_info("buffer=%d, nparsed=%d, header=%d", buffer->size(), (int)nparsed, header_parsed);
         }
         
         // consume the parsed bytes.
-        if (nparsed && nparsed - body_parsed > 0) {
-            buffer->read_slice((int)nparsed - (int)body_parsed);
+        if (nparsed && nparsed - header_parsed > 0) {
+            buffer->read_slice(header_parsed);
         }
 
         // ok atleast header completed,
@@ -1491,6 +1491,7 @@ int SrsHttpParser::on_headers_complete(http_parser* parser)
     obj->header = *parser;
     // save the parser when header parse completed.
     obj->state = SrsHttpParseStateHeaderComplete;
+    obj->header_parsed = (int)parser->nread;
     
     srs_info("***HEADERS COMPLETE***");
     
@@ -1566,8 +1567,6 @@ int SrsHttpParser::on_body(http_parser* parser, const char* at, size_t length)
 {
     SrsHttpParser* obj = (SrsHttpParser*)parser->data;
     srs_assert(obj);
-    
-    obj->body_parsed += length;
     
     srs_info("Body: %.*s", (int)length, at);
 
