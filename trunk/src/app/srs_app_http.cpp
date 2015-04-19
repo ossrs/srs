@@ -1441,7 +1441,7 @@ int SrsHttpParser::parse_message_imp(SrsStSocket* skt)
         }
         
         // consume the parsed bytes.
-        if (nparsed && nparsed - header_parsed > 0) {
+        if (nparsed && header_parsed) {
             buffer->read_slice(header_parsed);
         }
 
