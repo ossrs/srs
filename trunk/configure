@@ -100,7 +100,7 @@ AR = ar
 LINK = g++
 CXXFLAGS = ${CXXFLAGS}
 
-.PHONY: default srs librtmp
+.PHONY: default srs srs_ingest_hls librtmp
 
 default:
 
@@ -200,7 +200,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="MAIN" 
     MODULE_DEPENDS=("CORE" "KERNEL" "RTMP" "APP")
     ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibHttpParserRoot})
-    MODULE_FILES=("srs_main_server")
+    MODULE_FILES=("srs_main_server" "srs_main_ingest_hls")
     # add each modules for main
     for SRS_MODULE in ${SRS_MODULES[*]}; do
         . $SRS_MODULE/config
@@ -217,7 +217,7 @@ fi
 # disable all app when export librtmp
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     # all main entrances
-    MAIN_ENTRANCES=("srs_main_server")
+    MAIN_ENTRANCES=("srs_main_server" "srs_main_ingest_hls")
     # add each modules for main
     for SRS_MODULE in ${SRS_MODULES[*]}; do
         . $SRS_MODULE/config
@@ -232,6 +232,9 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     #
     # srs: srs(simple rtmp server) over st(state-threads)
     BUILD_KEY="srs" APP_MAIN="srs_main_server" APP_NAME="srs" . auto/apps.sh
+    # 
+    # srs_ingest_hls: to ingest hls stream to srs. 
+    BUILD_KEY="srs_ingest_hls" APP_MAIN="srs_main_ingest_hls" APP_NAME="srs_ingest_hls" . auto/apps.sh
     # add each modules for application
     for SRS_MODULE in ${SRS_MODULES[*]}; do
         . $SRS_MODULE/config
@@ -272,7 +275,7 @@ mv ${SRS_WORKDIR}/${SRS_MAKEFILE} ${SRS_WORKDIR}/${SRS_MAKEFILE}.bk
 
 # generate phony header
 cat << END > ${SRS_WORKDIR}/${SRS_MAKEFILE}
-.PHONY: default _default install install-api help clean server librtmp utest _prepare_dir $__mphonys
+.PHONY: default _default install install-api help clean server srs_ingest_hls librtmp utest _prepare_dir $__mphonys
 
 # install prefix.
 SRS_PREFIX=${SRS_PREFIX}
@@ -300,14 +303,15 @@ fi
 #       the server, librtmp and utest
 # where the bellow will check and disable some entry by only echo.
 cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
-_default: server librtmp utest $__mdefaults
+_default: server srs_ingest_hls librtmp utest $__mdefaults
 	@bash objs/_srs_build_summary.sh
 
 help:
-	@echo "Usage: make <help>|<clean>|<server>|<librtmp>|<utest>|<install>|<install-api>|<uninstall>"
+	@echo "Usage: make <help>|<clean>|<server>|<srs_ingest_hls>|<librtmp>|<utest>|<install>|<install-api>|<uninstall>"
 	@echo "     help               display this help menu"
 	@echo "     clean              cleanup project"
 	@echo "     server             build the srs(simple rtmp server) over st(state-threads)"
+	@echo "     srs_ingest_hls     build the hls ingest tool of srs."
 	@echo "     librtmp            build the client publish/play library, and samples"
 	@echo "     utest              build the utest for srs"
 	@echo "     install            install srs to the prefix path"
@@ -332,6 +336,8 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT != NO ]; then
     cat << END >> ${SRS_WORKDIR}/${SRS_MAKEFILE}
 server: _prepare_dir
 	@echo "donot build the srs(simple rtmp server) for srs-librtmp"
+srs_ingest_hls: _prepare_dir
+	@echo "donot build the srs_ingest_hls for srs-librtmp"
 
 END
 else
@@ -339,6 +345,9 @@ else
 server: _prepare_dir
 	@echo "build the srs(simple rtmp server) over st(state-threads)"
 	\$(MAKE) -f ${SRS_OBJS_DIR}/${SRS_MAKEFILE} srs
+srs_ingest_hls: _prepare_dir
+	@echo "build the srs_ingest_hls for srs"
+	\$(MAKE) -f ${SRS_OBJS_DIR}/${SRS_MAKEFILE} srs_ingest_hls
 
 END
 fi

@@ -330,26 +330,40 @@ int SrsFFMPEG::start()
     }
     
     // the codec params is disabled when copy
-    if (acodec != SRS_RTMP_ENCODER_COPY && acodec != SRS_RTMP_ENCODER_NO_AUDIO) {
-        params.push_back("-b:a");
-        snprintf(tmp, sizeof(tmp), "%d", abitrate * 1000);
-        params.push_back(tmp);
-        
-        params.push_back("-ar");
-        snprintf(tmp, sizeof(tmp), "%d", asample_rate);
-        params.push_back(tmp);
-        
-        params.push_back("-ac");
-        snprintf(tmp, sizeof(tmp), "%d", achannels);
-        params.push_back(tmp);
-        
-        // aparams
-        if (!aparams.empty()) {
+    if (acodec != SRS_RTMP_ENCODER_NO_AUDIO) {
+        if (acodec != SRS_RTMP_ENCODER_COPY) {
+            params.push_back("-b:a");
+            snprintf(tmp, sizeof(tmp), "%d", abitrate * 1000);
+            params.push_back(tmp);
+            
+            params.push_back("-ar");
+            snprintf(tmp, sizeof(tmp), "%d", asample_rate);
+            params.push_back(tmp);
+            
+            params.push_back("-ac");
+            snprintf(tmp, sizeof(tmp), "%d", achannels);
+            params.push_back(tmp);
+            
+            // aparams
             std::vector<std::string>::iterator it;
             for (it = aparams.begin(); it != aparams.end(); ++it) {
                 std::string p = *it;
                 if (!p.empty()) {
                     params.push_back(p);
+                }
+            }
+        } else {
+            // for audio copy.
+            for (int i = 0; i < (int)aparams.size();) {
+                std::string pn = aparams[i++];
+                
+                // aparams, the adts to asc filter "-bsf:a aac_adtstoasc"
+                if (pn == "-bsf:a" && i < (int)aparams.size()) {
+                    std::string pv = aparams[i++];
+                    if (pv == "aac_adtstoasc") {
+                        params.push_back(pn);
+                        params.push_back(pv);
+                    }
                 }
             }
         }

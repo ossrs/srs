@@ -309,6 +309,13 @@ public:
     * @return the stream number for audio/video; otherwise, -1.
     */
     virtual int stream_number();
+public:
+    /**
+     * detach the ts message,
+     * for user maybe need to parse the message by queue.
+     * @remark we always use the payload of original message.
+     */
+    virtual SrsTsMessage* detach();
 };
 
 /**

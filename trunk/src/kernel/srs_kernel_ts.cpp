@@ -169,6 +169,23 @@ int SrsTsMessage::stream_number()
     return -1;
 }
 
+SrsTsMessage* SrsTsMessage::detach()
+{
+    // @remark the packet cannot be used, but channel is ok.
+    SrsTsMessage* cp = new SrsTsMessage(channel, NULL);
+    cp->start_pts = start_pts;
+    cp->write_pcr = write_pcr;
+    cp->is_discontinuity = is_discontinuity;
+    cp->dts = dts;
+    cp->pts = pts;
+    cp->sid = sid;
+    cp->PES_packet_length = PES_packet_length;
+    cp->continuity_counter = continuity_counter;
+    cp->payload = payload;
+    payload = NULL;
+    return cp;
+}
+
 ISrsTsHandler::ISrsTsHandler()
 {
 }
