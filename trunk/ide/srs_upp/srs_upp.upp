@@ -1,6 +1,7 @@
 file
 	main readonly separator,
 	../../src/main/srs_main_server.cpp,
+        ../../src/main/srs_main_ingest_hls.cpp,
 	auto readonly separator,
 	../../objs/srs_auto_headers.hpp,
 	libs readonly separator,

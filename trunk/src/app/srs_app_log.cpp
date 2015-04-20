@@ -274,7 +274,7 @@ bool SrsFastLog::generate_header(bool error, const char* tag, int context_id, co
     
     // to calendar time
     struct tm* tm;
-    if (_srs_config->get_utc_time()) {
+    if (_srs_config && _srs_config->get_utc_time()) {
         if ((tm = gmtime(&tv.tv_sec)) == NULL) {
             return false;
         }
