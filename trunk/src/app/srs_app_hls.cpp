@@ -542,6 +542,11 @@ bool SrsHlsMuxer::is_segment_overflow()
 {
     srs_assert(current);
     
+    // to prevent very small segment.
+    if (current->duration * 1000 < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
+        return false;
+    }
+    
     // use N% deviation, to smoother.
     double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0.0;
     srs_info("hls: dur=%.2f, tar=%.2f, dev=%.2fms/%dp, frag=%.2f",
@@ -559,7 +564,18 @@ bool SrsHlsMuxer::is_segment_absolutely_overflow()
 {
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-83553950
     srs_assert(current);
-    return current->duration >= hls_aof_ratio * hls_fragment;
+    
+    // to prevent very small segment.
+    if (current->duration * 1000 < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
+        return false;
+    }
+    
+    // use N% deviation, to smoother.
+    double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0.0;
+    srs_info("hls: dur=%.2f, tar=%.2f, dev=%.2fms/%dp, frag=%.2f",
+             current->duration, hls_fragment + deviation, deviation, deviation_ts, hls_fragment);
+    
+    return current->duration >= hls_aof_ratio * hls_fragment + deviation;
 }
 
 int SrsHlsMuxer::update_acodec(SrsCodecAudio ac)
@@ -968,7 +984,7 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     // we use absolutely overflow of segment to make jwplayer/ffplay happy
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-71155184
     if (cache->audio && muxer->is_segment_absolutely_overflow()) {
-        srs_warn("hls: absolute audio reap segment.");
+        srs_info("hls: absolute audio reap segment.");
         if ((ret = reap_segment("audio", muxer, cache->audio->pts)) != ERROR_SUCCESS) {
             return ret;
         }
@@ -991,7 +1007,7 @@ int SrsHlsCache::write_video(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
         // do reap ts if any of:
         //      a. wait keyframe and got keyframe.
         //      b. always reap when not wait keyframe.
-        if (!muxer->wait_keyframe() || sample->frame_type == SrsCodecVideoAVCFrameKeyFrame) {
+        if (!muxer->wait_keyframe()|| sample->frame_type == SrsCodecVideoAVCFrameKeyFrame) {
             // when wait keyframe, there must exists idr frame in sample.
             if (!sample->has_idr && muxer->wait_keyframe()) {
                 srs_warn("hls: ts starts without IDR, first nalu=%d, idr=%d", sample->first_nalu_type, sample->has_idr);

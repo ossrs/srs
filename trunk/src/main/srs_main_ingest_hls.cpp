@@ -561,7 +561,7 @@ void SrsIngestSrsInput::fetch_all_ts(bool fresh_m3u8)
         }
         
         // only wait for a duration of last piece.
-        if (i == pieces.size() - 1) {
+        if (i == (int)pieces.size() - 1) {
             next_connect_time = srs_update_system_time_ms() + (int)tp->duration * 1000;
         }
     }
@@ -657,7 +657,7 @@ public:
     SrsIngestSrsOutput(SrsHttpUri* rtmp) {
         out_rtmp = rtmp;
         disconnected = false;
-        raw_aac_dts = 0;
+        raw_aac_dts = srs_update_system_time_ms();
         
         req = NULL;
         io = NULL;
@@ -807,12 +807,14 @@ int SrsIngestSrsOutput::do_on_aac_frame(SrsStream* avs, double duration)
 {
     int ret = ERROR_SUCCESS;
     
+    u_int32_t duration_ms = (u_int32_t)(duration * 1000);
+    
     // ts tbn to flv tbn.
     u_int32_t dts = (u_int32_t)raw_aac_dts;
-    raw_aac_dts += (int64_t)(duration * 1000);
+    raw_aac_dts += duration_ms;
     
     // got the next msg to calc the delta duration for each audio.
-    u_int32_t max_dts = dts + (u_int32_t)(duration * 1000);
+    u_int32_t max_dts = dts + duration_ms;
     
     // send each frame.
     while (!avs->empty()) {
@@ -852,7 +854,7 @@ int SrsIngestSrsOutput::do_on_aac_frame(SrsStream* avs, double duration)
         }
         
         // calc the delta of dts, when previous frame output.
-        u_int32_t delta = (duration * 1000) / (avs->size() / frame_size);
+        u_int32_t delta = duration_ms / (avs->size() / frame_size);
         dts = (u_int32_t)(srs_min(max_dts, dts + delta));
     }
     
@@ -863,28 +865,36 @@ int SrsIngestSrsOutput::parse_message_queue()
 {
     int ret = ERROR_SUCCESS;
     
-    int nb_videos = 0;
-    int nb_audios = 0;
-    std::multimap<int64_t, SrsTsMessage*>::iterator it;
-    for (it = queue.begin(); it != queue.end(); ++it) {
-        SrsTsMessage* msg = it->second;
-        
-        // publish audio or video.
-        if (msg->channel->stream == SrsTsStreamVideoH264) {
-            nb_videos++;
-        } else {
-            nb_audios++;
-        }
-    }
-    
-    // always wait 2+ videos, to left one video in the queue.
-    // TODO: FIXME: support pure audio hls.
-    if (nb_videos <= 1) {
+    if (queue.empty()) {
         return ret;
     }
     
+    SrsTsMessage* first_ts_msg = queue.begin()->second;
+    SrsTsContext* context = first_ts_msg->channel->context;
+    bool cpa = context->is_pure_audio();
+    
+    int nb_videos = 0;
+    if (!cpa) {
+        std::multimap<int64_t, SrsTsMessage*>::iterator it;
+        for (it = queue.begin(); it != queue.end(); ++it) {
+            SrsTsMessage* msg = it->second;
+            
+            // publish audio or video.
+            if (msg->channel->stream == SrsTsStreamVideoH264) {
+                nb_videos++;
+            }
+        }
+        
+        // always wait 2+ videos, to left one video in the queue.
+        // TODO: FIXME: support pure audio hls.
+        if (nb_videos <= 1) {
+            return ret;
+        }
+    }
+    
     // parse messages util the last video.
-    while (nb_videos > 1 && queue.size() > 0) {
+    while ((cpa && queue.size() > 1) || nb_videos > 1) {
+        srs_assert(!queue.empty());
         std::multimap<int64_t, SrsTsMessage*>::iterator it = queue.begin();
         
         SrsTsMessage* msg = it->second;

@@ -78,6 +78,7 @@ SrsTsChannel::SrsTsChannel()
     stream = SrsTsStreamReserved;
     msg = NULL;
     continuity_counter = 0;
+    context = NULL;
 }
 
 SrsTsChannel::~SrsTsChannel()
@@ -196,6 +197,7 @@ ISrsTsHandler::~ISrsTsHandler()
 
 SrsTsContext::SrsTsContext()
 {
+    pure_audio = false;
     vcodec = SrsCodecVideoReserved;
     acodec = SrsCodecAudioReserved1;
 }
@@ -208,6 +210,24 @@ SrsTsContext::~SrsTsContext()
         srs_freep(channel);
     }
     pids.clear();
+}
+
+bool SrsTsContext::is_pure_audio()
+{
+    return pure_audio;
+}
+
+void SrsTsContext::on_pmt_parsed()
+{
+    pure_audio = true;
+    
+    std::map<int, SrsTsChannel*>::iterator it;
+    for (it = pids.begin(); it != pids.end(); ++it) {
+        SrsTsChannel* channel = it->second;
+        if (channel->apply == SrsTsPidApplyVideo) {
+            pure_audio = false;
+        }
+    }
 }
 
 void SrsTsContext::reset()
@@ -230,6 +250,7 @@ void SrsTsContext::set(int pid, SrsTsPidApply apply_pid, SrsTsStream stream)
 
     if (pids.find(pid) == pids.end()) {
         channel = new SrsTsChannel();
+        channel->context = this;
         pids[pid] = channel;
     } else {
         channel = pids[pid];
@@ -2302,6 +2323,7 @@ int SrsTsPayloadPAT::psi_decode(SrsStream* stream)
 
     // update the apply pid table.
     packet->context->set(packet->pid, SrsTsPidApplyPAT);
+    packet->context->on_pmt_parsed();
 
     return ret;
 }
