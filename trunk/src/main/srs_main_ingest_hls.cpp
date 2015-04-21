@@ -657,7 +657,7 @@ public:
     SrsIngestSrsOutput(SrsHttpUri* rtmp) {
         out_rtmp = rtmp;
         disconnected = false;
-        raw_aac_dts = 0;
+        raw_aac_dts = srs_update_system_time_ms();
         
         req = NULL;
         io = NULL;
@@ -807,12 +807,14 @@ int SrsIngestSrsOutput::do_on_aac_frame(SrsStream* avs, double duration)
 {
     int ret = ERROR_SUCCESS;
     
+    u_int32_t duration_ms = (u_int32_t)(duration * 1000);
+    
     // ts tbn to flv tbn.
     u_int32_t dts = (u_int32_t)raw_aac_dts;
-    raw_aac_dts += (int64_t)(duration * 1000);
+    raw_aac_dts += duration_ms;
     
     // got the next msg to calc the delta duration for each audio.
-    u_int32_t max_dts = dts + (u_int32_t)(duration * 1000);
+    u_int32_t max_dts = dts + duration_ms;
     
     // send each frame.
     while (!avs->empty()) {
@@ -852,7 +854,7 @@ int SrsIngestSrsOutput::do_on_aac_frame(SrsStream* avs, double duration)
         }
         
         // calc the delta of dts, when previous frame output.
-        u_int32_t delta = (duration * 1000) / (avs->size() / frame_size);
+        u_int32_t delta = duration_ms / (avs->size() / frame_size);
         dts = (u_int32_t)(srs_min(max_dts, dts + delta));
     }
     
