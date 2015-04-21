@@ -543,7 +543,7 @@ bool SrsHlsMuxer::is_segment_overflow()
     srs_assert(current);
     
     // to prevent very small segment.
-    if (current->duration < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
+    if (current->duration * 1000 < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
         return false;
     }
     
@@ -566,7 +566,7 @@ bool SrsHlsMuxer::is_segment_absolutely_overflow()
     srs_assert(current);
     
     // to prevent very small segment.
-    if (current->duration < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
+    if (current->duration * 1000 < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
         return false;
     }
     
