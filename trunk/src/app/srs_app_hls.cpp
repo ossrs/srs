@@ -542,6 +542,11 @@ bool SrsHlsMuxer::is_segment_overflow()
 {
     srs_assert(current);
     
+    // to prevent very small segment.
+    if (current->duration < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
+        return false;
+    }
+    
     // use N% deviation, to smoother.
     double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0.0;
     srs_info("hls: dur=%.2f, tar=%.2f, dev=%.2fms/%dp, frag=%.2f",
@@ -559,6 +564,11 @@ bool SrsHlsMuxer::is_segment_absolutely_overflow()
 {
     // @see https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-83553950
     srs_assert(current);
+    
+    // to prevent very small segment.
+    if (current->duration < 2 * SRS_AUTO_HLS_SEGMENT_MIN_DURATION_MS) {
+        return false;
+    }
     
     // use N% deviation, to smoother.
     double deviation = hls_ts_floor? SRS_HLS_FLOOR_REAP_PERCENT * deviation_ts * hls_fragment : 0.0;

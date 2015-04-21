@@ -871,9 +871,10 @@ int SrsIngestSrsOutput::parse_message_queue()
     
     SrsTsMessage* first_ts_msg = queue.begin()->second;
     SrsTsContext* context = first_ts_msg->channel->context;
+    bool cpa = context->is_pure_audio();
     
     int nb_videos = 0;
-    if (!context->is_pure_audio()) {
+    if (!cpa) {
         std::multimap<int64_t, SrsTsMessage*>::iterator it;
         for (it = queue.begin(); it != queue.end(); ++it) {
             SrsTsMessage* msg = it->second;
@@ -892,7 +893,8 @@ int SrsIngestSrsOutput::parse_message_queue()
     }
     
     // parse messages util the last video.
-    while ((nb_videos > 1 || context->is_pure_audio()) && queue.size() > 0) {
+    while ((cpa && queue.size() > 1) || nb_videos > 1) {
+        srs_assert(!queue.empty());
         std::multimap<int64_t, SrsTsMessage*>::iterator it = queue.begin();
         
         SrsTsMessage* msg = it->second;
