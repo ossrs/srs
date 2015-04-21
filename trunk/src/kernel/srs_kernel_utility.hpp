@@ -67,6 +67,8 @@ extern std::string srs_string_remove(std::string str, std::string remove_chars);
 extern bool srs_string_ends_with(std::string str, std::string flag);
 // whether string starts with
 extern bool srs_string_starts_with(std::string str, std::string flag);
+// whether string contains with
+extern bool srs_string_contains(std::string str, std::string flag);
 
 // create dir recursively
 extern int srs_create_dir_recursively(std::string dir);
@@ -75,6 +77,8 @@ extern int srs_create_dir_recursively(std::string dir);
 extern bool srs_path_exists(std::string path);
 // get the dirname of path
 extern std::string srs_path_dirname(std::string path);
+// get the basename of path
+extern std::string srs_path_basename(std::string path);
 
 /**
 * whether stream starts with the avc NALU in "AnnexB" 
