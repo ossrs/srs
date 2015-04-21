@@ -172,6 +172,7 @@ struct SrsTsChannel
     SrsTsPidApply apply;
     SrsTsStream stream;
     SrsTsMessage* msg;
+    SrsTsContext* context;
     // for encoder.
     u_int8_t continuity_counter;
 
@@ -343,6 +344,7 @@ class SrsTsContext
 // codec
 private:
     std::map<int, SrsTsChannel*> pids;
+    bool pure_audio;
 // encoder
 private:
     // when any codec changed, write the PAT/PMT.
@@ -352,6 +354,14 @@ public:
     SrsTsContext();
     virtual ~SrsTsContext();
 public:
+    /**
+     * whether the hls stream is pure audio stream.
+     */
+    virtual bool is_pure_audio();
+    /**
+     * when PMT table parsed, we know some info about stream.
+     */
+    virtual void on_pmt_parsed();
     /**
      * reset the context for a new ts segment start.
      */
