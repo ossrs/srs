@@ -362,9 +362,12 @@ int SrsRawAacStream::adts_demux(SrsStream* stream, char** pframe, int* pnb_frame
         * and set to ‘0’ if the audio data are MPEG-4. See also ISO/IEC 11172-3, subclause 2.4.2.3.
         */
         if (id != 0x01) {
-            ret = ERROR_ADTS_ID_NOT_AAC;
-            srs_warn("adts: id must be 1(aac), actual 0(mp4a). ret=%d", ret);
-            return ret;
+            srs_info("adts: id must be 1(aac), actual 0(mp4a). ret=%d", ret);
+            
+            // well, some system always use 0, but actually is aac format.
+            // for example, houjian vod ts always set the aac id to 0, actually 1.
+            // we just ignore it, and alwyas use 1(aac) to demux.
+            id = 0x01;
         }
         
         int16_t sfiv = stream->read_2bytes();

@@ -278,6 +278,11 @@ bool srs_string_starts_with(string str, string flag)
     return str.find(flag) == 0;
 }
 
+bool srs_string_contains(string str, string flag)
+{
+    return str.find(flag) != string::npos;
+}
+
 int srs_do_create_dir_recursively(string dir)
 {
     int ret = ERROR_SUCCESS;
@@ -351,6 +356,22 @@ string srs_path_dirname(string path)
             return "/";
         }
         dirname = dirname.substr(0, pos);
+    }
+    
+    return dirname;
+}
+
+string srs_path_basename(string path)
+{
+    std::string dirname = path;
+    size_t pos = string::npos;
+    
+    if ((pos = dirname.rfind("/")) != string::npos) {
+        // the basename("/") is "/"
+        if (dirname.length() == 1) {
+            return dirname;
+        }
+        dirname = dirname.substr(pos + 1);
     }
     
     return dirname;
