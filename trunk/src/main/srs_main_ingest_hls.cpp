@@ -1393,7 +1393,7 @@ int proxy_hls2rtmp(string hls, string rtmp)
     
     SrsIngestSrsContext context(&hls_uri, &rtmp_uri);
     for (;;) {
-        if ((ret = context.proxy()) == ERROR_SUCCESS) {
+        if ((ret = context.proxy()) != ERROR_SUCCESS) {
             srs_error("proxy hls to rtmp failed. ret=%d", ret);
             return ret;
         }
