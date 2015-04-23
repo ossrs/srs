@@ -163,11 +163,14 @@ class SrsDvrAsyncCallOnHls : public ISrsDvrAsyncCall
 {
 private:
     std::string path;
+    std::string ts_url;
+    std::string m3u8;
+    std::string m3u8_url;
     int seq_no;
     SrsRequest* req;
     double duration;
 public:
-    SrsDvrAsyncCallOnHls(SrsRequest* r, std::string p, int s, double d);
+    SrsDvrAsyncCallOnHls(SrsRequest* r, std::string p, std::string t, std::string m, std::string mu, int s, double d);
     virtual ~SrsDvrAsyncCallOnHls();
 public:
     virtual int call();
@@ -227,6 +230,7 @@ private:
     int _sequence_no;
     int target_duration;
     std::string m3u8;
+    std::string m3u8_url;
 private:
     ISrsHlsHandler* handler;
     // TODO: FIXME: supports reload.

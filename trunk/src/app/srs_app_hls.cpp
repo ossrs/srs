@@ -170,10 +170,13 @@ void SrsHlsSegment::update_duration(int64_t current_frame_dts)
     return;
 }
 
-SrsDvrAsyncCallOnHls::SrsDvrAsyncCallOnHls(SrsRequest* r, string p, int s, double d)
+SrsDvrAsyncCallOnHls::SrsDvrAsyncCallOnHls(SrsRequest* r, string p, string t, string m, string mu, int s, double d)
 {
     req = r;
     path = p;
+    ts_url = t;
+    m3u8 = m;
+    m3u8_url = mu;
     seq_no = s;
     duration = d;
 }
@@ -200,7 +203,7 @@ int SrsDvrAsyncCallOnHls::call()
         int sn = seq_no;
         for (int i = 0; i < (int)on_hls->args.size(); i++) {
             std::string url = on_hls->args.at(i);
-            if ((ret = SrsHttpHooks::on_hls(url, req, file, sn, duration)) != ERROR_SUCCESS) {
+            if ((ret = SrsHttpHooks::on_hls(url, req, file, ts_url, m3u8, m3u8_url, sn, duration)) != ERROR_SUCCESS) {
                 srs_error("hook client on_hls failed. url=%s, ret=%d", url.c_str(), ret);
                 return ret;
             }
@@ -361,8 +364,8 @@ int SrsHlsMuxer::update_config(SrsRequest* r, string entry_prefix,
     deviation_ts = 0;
     
     // generate the m3u8 dir and path.
-    m3u8 = path + "/" + m3u8_file;
-    m3u8 = srs_path_build_stream(m3u8, req->vhost, req->app, req->stream);
+    m3u8_url = srs_path_build_stream(m3u8_file, req->vhost, req->app, req->stream);
+    m3u8 = path + "/" + m3u8_url;
 
     // we always keep the target duration increasing.
     int max_td = srs_max(target_duration, (int)(fragment * _srs_config->get_hls_td_ratio(r->vhost)));
@@ -664,7 +667,10 @@ int SrsHlsMuxer::segment_close(string log_desc)
         segments.push_back(current);
         
         // use async to call the http hooks, for it will cause thread switch.
-        if ((ret = async->call(new SrsDvrAsyncCallOnHls(req, current->full_path, current->sequence_no, current->duration))) != ERROR_SUCCESS) {
+        if ((ret = async->call(new SrsDvrAsyncCallOnHls(req,
+            current->full_path, current->uri, m3u8, m3u8_url,
+            current->sequence_no, current->duration))) != ERROR_SUCCESS)
+        {
             return ret;
         }
         

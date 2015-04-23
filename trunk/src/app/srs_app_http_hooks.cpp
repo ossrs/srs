@@ -292,7 +292,7 @@ int SrsHttpHooks::on_dvr(string url, SrsRequest* req, string file)
     return ret;
 }
 
-int SrsHttpHooks::on_hls(string url, SrsRequest* req, string file, int sn, double duration)
+int SrsHttpHooks::on_hls(string url, SrsRequest* req, string file, string ts_url, string m3u8, string m3u8_url, int sn, double duration)
 {
     int ret = ERROR_SUCCESS;
     
@@ -310,6 +310,9 @@ int SrsHttpHooks::on_hls(string url, SrsRequest* req, string file, int sn, doubl
         << SRS_JFIELD_ORG("duration", duration) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("cwd", cwd) << SRS_JFIELD_CONT
         << SRS_JFIELD_STR("file", file) << SRS_JFIELD_CONT
+        << SRS_JFIELD_STR("url", ts_url) << SRS_JFIELD_CONT
+        << SRS_JFIELD_STR("m3u8", m3u8) << SRS_JFIELD_CONT
+        << SRS_JFIELD_STR("m3u8_url", m3u8_url) << SRS_JFIELD_CONT
         << SRS_JFIELD_ORG("seq_no", sn)
         << SRS_JOBJECT_END;
         
