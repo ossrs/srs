@@ -965,7 +965,7 @@ int SrsHttpServer::hls_update_m3u8(SrsRequest* r, string m3u8)
 {
     int ret = ERROR_SUCCESS;
 
-    std::string mount = m3u8;
+    std::string mount;
     
     std::string sid = r->get_stream_url();
     SrsHlsEntry* entry = NULL;
@@ -980,8 +980,17 @@ int SrsHttpServer::hls_update_m3u8(SrsRequest* r, string m3u8)
         SrsHlsEntry* tmpl = thls[r->vhost];
         
         entry = new SrsHlsEntry();
-        entry->mount = tmpl->mount;
+        mount = tmpl->mount;
         
+        // replace the vhost variable
+        mount = srs_string_replace(mount, "[vhost]", r->vhost);
+        mount = srs_string_replace(mount, "[app]", r->app);
+        mount = srs_string_replace(mount, "[stream]", r->stream);
+    
+        // remove the default vhost mount
+        mount = srs_string_replace(mount, SRS_CONSTS_RTMP_DEFAULT_VHOST"/", "/");
+        
+        entry->mount = mount;
         shls[sid] = entry;
     
         if (entry->streams.find(mount) == entry->streams.end()) {
@@ -996,6 +1005,8 @@ int SrsHttpServer::hls_update_m3u8(SrsRequest* r, string m3u8)
     } else {
         entry = shls[sid];
     }
+
+    mount = entry->mount;
 
     // update the m3u8 stream.
     SrsHlsM3u8Stream* hms = dynamic_cast<SrsHlsM3u8Stream*>(entry->streams[mount]);
