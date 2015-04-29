@@ -426,7 +426,7 @@ enum SrsAvcPayloadFormat
 
 /**
 * the aac profile, for ADTS(HLS/TS)
-* @see https://github.com/winlinvip/simple-rtmp-server/issues/310
+* @see https://github.com/simple-rtmp-server/srs/issues/310
 */
 enum SrsAacProfile
 {

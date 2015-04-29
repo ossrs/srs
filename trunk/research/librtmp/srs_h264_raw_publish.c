@@ -89,7 +89,7 @@ int main(int argc, char** argv)
         printf("For example:\n");
         printf("     %s ./720p.h264.raw rtmp://127.0.0.1:1935/live/livestream\n", argv[0]);
         printf("Where the file: http://winlinvip.github.io/srs.release/3rdparty/720p.h264.raw\n");
-        printf("See: https://github.com/winlinvip/simple-rtmp-server/issues/66\n");
+        printf("See: https://github.com/simple-rtmp-server/srs/issues/66\n");
         exit(-1);
     }
     

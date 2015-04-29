@@ -23,7 +23,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_aac.hpp>
 
-// for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
+// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -150,7 +150,7 @@ int SrsAacEncoder::write_audio(int64_t timestamp, char* data, int size)
     // write the ADTS header.
     // @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 75,
     //      1.A.2.2 Audio_Data_Transport_Stream frame, ADTS
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/212#issuecomment-64145885
+    // @see https://github.com/simple-rtmp-server/srs/issues/212#issuecomment-64145885
     // byte_alignment()
     
     // adts_fixed_header:

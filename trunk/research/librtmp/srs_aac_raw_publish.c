@@ -35,7 +35,7 @@ gcc srs_aac_raw_publish.c ../../objs/lib/srs_librtmp.a -g -O0 -lstdc++ -o srs_aa
        
 #include "../../objs/include/srs_librtmp.h"
 
-// https://github.com/winlinvip/simple-rtmp-server/issues/212#issuecomment-64145910
+// https://github.com/simple-rtmp-server/srs/issues/212#issuecomment-64145910
 int read_audio_frame(char* data, int size, char** pp, char** frame, int* frame_size) 
 {
     char* p = *pp;
@@ -79,7 +79,7 @@ int main(int argc, char** argv)
         printf("For example:\n");
         printf("     %s ./audio.raw.aac rtmp://127.0.0.1:1935/live/livestream\n", argv[0]);
         printf("Where the file: http://winlinvip.github.io/srs.release/3rdparty/audio.raw.aac\n");
-        printf("See: https://github.com/winlinvip/simple-rtmp-server/issues/212\n");
+        printf("See: https://github.com/simple-rtmp-server/srs/issues/212\n");
         exit(-1);
     }
     

@@ -38,7 +38,7 @@ class SrsConfDirective;
 
 /**
 * the security apply on vhost.
-* @see https://github.com/winlinvip/simple-rtmp-server/issues/211
+* @see https://github.com/simple-rtmp-server/srs/issues/211
 */
 class SrsSecurity
 {

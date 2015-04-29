@@ -97,7 +97,7 @@ SRS_SINGLE_LIBRTMP_COMPILE='gcc example.c srs_librtmp.cpp -g -O0 -lstdc++ -o exa
 cat << END >$FILE
 /**
 # Example to use srs-librtmp
-# see: https://github.com/winlinvip/simple-rtmp-server/wiki/v2_CN_SrsLibrtmp
+# see: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SrsLibrtmp
     ${SRS_SINGLE_LIBRTMP_COMPILE}
 */
 #include <stdio.h>

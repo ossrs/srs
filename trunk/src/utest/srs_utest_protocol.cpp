@@ -654,7 +654,7 @@ VOID TEST(ProtocolStackTest, ProtocolRecvMessage)
 // 0x04             where: message_type=4(protocol control user-control message)
 // 0x00 0x06            where: event Ping(0x06)
 // 0x00 0x00 0x0d 0x0f  where: event data 4bytes ping timestamp.
-// @see: https://github.com/winlinvip/simple-rtmp-server/issues/98
+// @see: https://github.com/simple-rtmp-server/srs/issues/98
 VOID TEST(ProtocolStackTest, ProtocolRecvMessageBug98)
 {
     MockBufferIO bio;
@@ -3751,7 +3751,7 @@ VOID TEST(ProtocolStackTest, ProtocolRecvExtTimeMessage2)
 * always use 31bits timestamp.
 */
 // always use 31bits timestamp, for some server may use 32bits extended timestamp.
-// @see https://github.com/winlinvip/simple-rtmp-server/issues/111
+// @see https://github.com/simple-rtmp-server/srs/issues/111
 VOID TEST(ProtocolStackTest, ProtocolRecvExtTimeMessage3)
 {
     MockBufferIO bio;

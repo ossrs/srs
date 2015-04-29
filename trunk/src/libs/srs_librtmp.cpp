@@ -25,7 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <stdlib.h>
 
-// for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
+// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
 #ifndef _WIN32
 #include <sys/time.h>
 #endif
@@ -86,20 +86,20 @@ struct Context
     SrsRawAacStream aac_raw;
 
     // for h264 raw stream, 
-    // @see: https://github.com/winlinvip/simple-rtmp-server/issues/66#issuecomment-62240521
+    // @see: https://github.com/simple-rtmp-server/srs/issues/66#issuecomment-62240521
     SrsStream h264_raw_stream;
     // about SPS, @see: 7.3.2.1.1, H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 62
     std::string h264_sps;
     std::string h264_pps;
     // whether the sps and pps sent,
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/203
+    // @see https://github.com/simple-rtmp-server/srs/issues/203
     bool h264_sps_pps_sent;
     // only send the ssp and pps when both changed.
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/204
+    // @see https://github.com/simple-rtmp-server/srs/issues/204
     bool h264_sps_changed;
     bool h264_pps_changed;
     // for aac raw stream,
-    // @see: https://github.com/winlinvip/simple-rtmp-server/issues/212#issuecomment-64146250
+    // @see: https://github.com/simple-rtmp-server/srs/issues/212#issuecomment-64146250
     SrsStream aac_raw_stream;
     // the aac sequence header.
     std::string aac_specific_config;
@@ -127,7 +127,7 @@ struct Context
     }
 };
 
-// for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
+// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
 #ifdef _WIN32
     int gettimeofday(struct timeval* tv, struct timezone* tz)
     {  
@@ -1239,7 +1239,7 @@ int srs_write_h264_ipb_frame(Context* context,
     int ret = ERROR_SUCCESS;
     
     // when sps or pps not sent, ignore the packet.
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/203
+    // @see https://github.com/simple-rtmp-server/srs/issues/203
     if (!context->h264_sps_pps_sent) {
         return ERROR_H264_DROP_BEFORE_SPS_PPS;
     }
@@ -1372,8 +1372,8 @@ int srs_h264_write_raw_frames(srs_rtmp_t rtmp,
     }
     
     // use the last error
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/203
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/204
+    // @see https://github.com/simple-rtmp-server/srs/issues/203
+    // @see https://github.com/simple-rtmp-server/srs/issues/204
     int error_code_return = ret;
     
     // send each frame.
@@ -2391,7 +2391,7 @@ const char* srs_human_format_time()
         tm->tm_hour, tm->tm_min, tm->tm_sec, 
         (int)(tv.tv_usec / 1000));
         
-    // for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
+    // for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
     buf[sizeof(buf) - 1] = 0;
     
     return buf;

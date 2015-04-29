@@ -38,7 +38,7 @@ help:
 	@echo "Remark: srs Makefile will auto invoke this by --with/without-ssl, "
 	@echo "     that is, if user specified ssl(by --with-ssl), srs will make this by 'make ssl'"
 	@echo "     that is, if user not use ssl(by --without-ssl), use 'make nossl'"
-	@echo "     see: https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_v1_Build"
+	@echo "     see: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_v1_Build"
 	@echo "Remark: before make this sample, user must make the srs, with/without ssl"
     
 clean:

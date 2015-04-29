@@ -70,7 +70,7 @@ private:
     SrsSecurity* security;
     // elapse duration in ms
     // for live play duration, for instance, rtmpdump to record.
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/47
+    // @see https://github.com/simple-rtmp-server/srs/issues/47
     int64_t duration;
     SrsKbps* kbps;
     // the MR(merged-write) sleep time in ms.
@@ -78,7 +78,7 @@ private:
     // the MR(merged-write) only enabled for play.
     int mw_enabled;
     // for realtime
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/257
+    // @see https://github.com/simple-rtmp-server/srs/issues/257
     bool realtime;
 public:
     SrsRtmpConn(SrsServer* srs_server, st_netfd_t client_stfd);

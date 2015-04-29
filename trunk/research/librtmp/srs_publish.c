@@ -46,12 +46,12 @@ int main(int argc, char** argv)
     }
     
     // warn it .
-    // @see: https://github.com/winlinvip/simple-rtmp-server/issues/126
+    // @see: https://github.com/simple-rtmp-server/srs/issues/126
     srs_human_trace("\033[33m%s\033[0m", 
         "[warning] it's only a sample to use librtmp. "
         "please never use it to publish and test forward/transcode/edge/HLS whatever. "
         "you should refer to this tool to use the srs-librtmp to publish the real media stream."
-        "read about: https://github.com/winlinvip/simple-rtmp-server/issues/126");
+        "read about: https://github.com/simple-rtmp-server/srs/issues/126");
     srs_human_trace("rtmp url: %s", argv[1]);
     srs_rtmp_t rtmp = srs_rtmp_create(argv[1]);
     

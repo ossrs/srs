@@ -248,12 +248,12 @@ private:
     /**
     * the current audio codec, when open new muxer,
     * set the muxer audio codec.
-    * @see https://github.com/winlinvip/simple-rtmp-server/issues/301
+    * @see https://github.com/simple-rtmp-server/srs/issues/301
     */
     SrsCodecAudio acodec;
     /**
      * the ts context, to keep cc continous between ts.
-     * @see https://github.com/winlinvip/simple-rtmp-server/issues/375
+     * @see https://github.com/simple-rtmp-server/srs/issues/375
      */
     SrsTsContext* context;
 public:
@@ -295,7 +295,7 @@ public:
     /**
     * whether segment absolutely overflow, for pure audio to reap segment,
     * that is whether the current segment duration>=2*(the segment in config)
-    * @see https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-71155184
+    * @see https://github.com/simple-rtmp-server/srs/issues/151#issuecomment-71155184
     */
     virtual bool is_segment_absolutely_overflow();
 public:

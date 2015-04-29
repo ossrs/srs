@@ -1568,7 +1568,7 @@ public:
     * for user may need to update the acodec to mp3 or others,
     * so we use delay write PSI, when write audio or video.
     * @remark for audio aac codec, for example, SRS1, it's ok to write PSI when open ts.
-    * @see https://github.com/winlinvip/simple-rtmp-server/issues/301
+    * @see https://github.com/simple-rtmp-server/srs/issues/301
     */
     virtual int update_acodec(SrsCodecAudio ac);
     /**

@@ -41,7 +41,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * Windows SRS-LIBRTMP pre-declare
 **************************************************************
 *************************************************************/
-// for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
+// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
 #ifdef _WIN32
     // include windows first.
     #include <windows.h>
@@ -320,7 +320,7 @@ extern srs_bool srs_rtmp_is_onMetaData(char type, char* data, int size);
 * @remark for aac, only support profile 1-4, AAC main/LC/SSR/LTP,
 *       @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 23, 1.5.1.1 Audio object type
 *
-* @see https://github.com/winlinvip/simple-rtmp-server/issues/212
+* @see https://github.com/simple-rtmp-server/srs/issues/212
 * @see E.4.2.1 AUDIODATA of video_file_format_spec_v10_1.pdf
 * 
 * @return 0, success; otherswise, failed.
@@ -376,7 +376,7 @@ extern int srs_aac_adts_frame_size(char* aac_raw_data, int ac_raw_size);
 * @remark, cts = pts - dts
 * @remark, use srs_h264_startswith_annexb to check whether frame is annexb format.
 * @example /trunk/research/librtmp/srs_h264_raw_publish.c
-* @see https://github.com/winlinvip/simple-rtmp-server/issues/66
+* @see https://github.com/simple-rtmp-server/srs/issues/66
 * 
 * @return 0, success; otherswise, failed.
 *       for dvbsp error, @see srs_h264_is_dvbsp_error().
@@ -418,7 +418,7 @@ extern int srs_h264_write_raw_frames(srs_rtmp_t rtmp,
 /**
 * whether error_code is dvbsp(drop video before sps/pps/sequence-header) error.
 *
-* @see https://github.com/winlinvip/simple-rtmp-server/issues/203
+* @see https://github.com/simple-rtmp-server/srs/issues/203
 * @example /trunk/research/librtmp/srs_h264_raw_publish.c
 * @remark why drop video?
 *       some encoder, for example, ipcamera, will send sps/pps before each IFrame,
@@ -429,14 +429,14 @@ extern srs_bool srs_h264_is_dvbsp_error(int error_code);
 /**
 * whether error_code is duplicated sps error.
 * 
-* @see https://github.com/winlinvip/simple-rtmp-server/issues/204
+* @see https://github.com/simple-rtmp-server/srs/issues/204
 * @example /trunk/research/librtmp/srs_h264_raw_publish.c
 */
 extern srs_bool srs_h264_is_duplicated_sps_error(int error_code);
 /**
 * whether error_code is duplicated pps error.
 * 
-* @see https://github.com/winlinvip/simple-rtmp-server/issues/204
+* @see https://github.com/simple-rtmp-server/srs/issues/204
 * @example /trunk/research/librtmp/srs_h264_raw_publish.c
 */
 extern srs_bool srs_h264_is_duplicated_pps_error(int error_code);
@@ -1021,7 +1021,7 @@ typedef void* srs_hijack_io_t;
 * Windows SRS-LIBRTMP solution
 **************************************************************
 *************************************************************/
-// for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
+// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
 #ifdef _WIN32
     #define _CRT_SECURE_NO_WARNINGS
     #include <time.h>
