@@ -39,7 +39,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * to improve read performance, merge some packets then read,
 * when it on and read small bytes, we sleep to wait more data.,
 * that is, we merge some data to read together.
-* @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+* @see https://github.com/simple-rtmp-server/srs/issues/241
 */
 class IMergeReadHandler
 {
@@ -77,7 +77,7 @@ private:
 #endif
     // the user-space buffer to fill by reader,
     // which use fast index and reset when chunk body read ok.
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/248
+    // @see https://github.com/simple-rtmp-server/srs/issues/248
     // ptr to the current read position.
     char* p;
     // ptr to the content end.
@@ -106,7 +106,7 @@ public:
     * @param buffer the size of buffer. ignore when smaller than SRS_MAX_SOCKET_BUFFER.
     * @remark when MR(SRS_PERF_MERGED_READ) disabled, always set to 8K.
     * @remark when buffer changed, the previous ptr maybe invalid.
-    * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+    * @see https://github.com/simple-rtmp-server/srs/issues/241
     */
     virtual void set_buffer(int buffer_size);
 public:
@@ -147,7 +147,7 @@ public:
     * that is, we merge some data to read together.
     * @param v true to ename merged read.
     * @param handler the handler when merge read is enabled.
-    * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+    * @see https://github.com/simple-rtmp-server/srs/issues/241
     * @remark the merged read is optional, ignore if not specifies.
     */
     virtual void set_merge_read(bool v, IMergeReadHandler* handler);

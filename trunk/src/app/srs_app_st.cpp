@@ -48,7 +48,7 @@ int srs_init_st()
     
 #ifdef __linux__
     // check epoll, some old linux donot support epoll.
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/162
+    // @see https://github.com/simple-rtmp-server/srs/issues/162
     if (!srs_st_epoll_is_supported()) {
         ret = ERROR_ST_SET_EPOLL;
         srs_error("epoll required on Linux. ret=%d", ret);

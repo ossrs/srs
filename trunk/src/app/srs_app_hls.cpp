@@ -565,7 +565,7 @@ bool SrsHlsMuxer::wait_keyframe()
 
 bool SrsHlsMuxer::is_segment_absolutely_overflow()
 {
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-83553950
+    // @see https://github.com/simple-rtmp-server/srs/issues/151#issuecomment-83553950
     srs_assert(current);
     
     // to prevent very small segment.
@@ -822,7 +822,7 @@ int SrsHlsMuxer::_refresh_m3u8(string m3u8_file)
     * rounded to the nearest integer. Its value MUST NOT change. A
     * typical target duration is 10 seconds.
     */
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/304#issuecomment-74000081
+    // @see https://github.com/simple-rtmp-server/srs/issues/304#issuecomment-74000081
     std::vector<SrsHlsSegment*>::iterator it;
     for (it = segments.begin(); it != segments.end(); ++it) {
         SrsHlsSegment* segment = *it;
@@ -986,9 +986,9 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     // for example, pure audio when start, audio/video when publishing,
     // pure audio again for audio disabled.
     // so we reap event when the audio incoming when segment overflow.
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/151
+    // @see https://github.com/simple-rtmp-server/srs/issues/151
     // we use absolutely overflow of segment to make jwplayer/ffplay happy
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-71155184
+    // @see https://github.com/simple-rtmp-server/srs/issues/151#issuecomment-71155184
     if (cache->audio && muxer->is_segment_absolutely_overflow()) {
         srs_info("hls: absolute audio reap segment.");
         if ((ret = reap_segment("audio", muxer, cache->audio->pts)) != ERROR_SUCCESS) {
@@ -1264,7 +1264,7 @@ int SrsHls::on_video(SrsSharedPtrMessage* shared_video)
         sample->frame_type, codec->video_codec_id, sample->avc_packet_type, sample->cts, video->size, video->timestamp);
     
     // ignore info frame,
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/288#issuecomment-69863909
+    // @see https://github.com/simple-rtmp-server/srs/issues/288#issuecomment-69863909
     if (sample->frame_type == SrsCodecVideoAVCFrameVideoInfoFrame) {
         return ret;
     }
@@ -1304,7 +1304,7 @@ void SrsHls::hls_show_mux_log()
     // reportable
     if (pprint->can_print()) {
         // the run time is not equals to stream time,
-        // @see: https://github.com/winlinvip/simple-rtmp-server/issues/81#issuecomment-48100994
+        // @see: https://github.com/simple-rtmp-server/srs/issues/81#issuecomment-48100994
         // it's ok.
         srs_trace("-> "SRS_CONSTS_LOG_HLS" time=%"PRId64", stream dts=%"PRId64"(%"PRId64"ms), sno=%d, ts=%s, dur=%.2f, dva=%dp",
             pprint->age(), stream_dts, stream_dts / 90, muxer->sequence_no(), muxer->ts_url().c_str(),

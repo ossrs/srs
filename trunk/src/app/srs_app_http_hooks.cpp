@@ -428,7 +428,7 @@ int SrsHttpHooks::do_post(std::string url, std::string req, int& code, string& r
     }
     
     // ensure the http status is ok.
-    // https://github.com/winlinvip/simple-rtmp-server/issues/158
+    // https://github.com/simple-rtmp-server/srs/issues/158
     if (code != SRS_CONSTS_HTTP_OK) {
         return ERROR_HTTP_STATUS_INVLIAD;
     }

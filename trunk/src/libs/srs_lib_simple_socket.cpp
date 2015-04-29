@@ -25,7 +25,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_error.hpp>
 
-// for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
+// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
 #ifndef _WIN32
     #define SOCKET_ETIME ETIME
     #define SOCKET_ECONNRESET ECONNRESET
@@ -53,7 +53,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     #define SOCKET_CLEANUP() socket_cleanup()
 #endif
 
-// for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
+// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
 #ifndef _WIN32
     #include <unistd.h>
     #include <sys/socket.h>
@@ -206,7 +206,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         // the writev() function returns the number of bytes written.  On error, -1 is
         // returned, and errno is set appropriately.
         if (nb_write <= 0) {
-            // @see https://github.com/winlinvip/simple-rtmp-server/issues/200
+            // @see https://github.com/simple-rtmp-server/srs/issues/200
             if (nb_write < 0 && SOCKET_ERRNO() == SOCKET_ETIME) {
                 return ERROR_SOCKET_TIMEOUT;
             }
@@ -263,7 +263,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         }
         
         if (nb_write <= 0) {
-            // @see https://github.com/winlinvip/simple-rtmp-server/issues/200
+            // @see https://github.com/simple-rtmp-server/srs/issues/200
             if (nb_write < 0 && SOCKET_ERRNO() == SOCKET_ETIME) {
                 return ERROR_SOCKET_TIMEOUT;
             }

@@ -33,7 +33,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_rtmp_io.hpp>
 #include <srs_librtmp.hpp>
 
-// for srs-librtmp, @see https://github.com/winlinvip/simple-rtmp-server/issues/213
+// for srs-librtmp, @see https://github.com/simple-rtmp-server/srs/issues/213
 #ifndef _WIN32
     #define SOCKET int
 #endif

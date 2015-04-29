@@ -187,7 +187,7 @@ int SrsFastBuffer::grow(ISrsBufferReader* reader, int required_size)
         * to improve read performance, merge some packets then read,
         * when it on and read small bytes, we sleep to wait more data.,
         * that is, we merge some data to read together.
-        * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+        * @see https://github.com/simple-rtmp-server/srs/issues/241
         */
         if (merged_read && _handler) {
             _handler->on_read(nread);

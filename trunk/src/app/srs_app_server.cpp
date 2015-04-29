@@ -55,7 +55,7 @@ using namespace std;
 // for example, system-interval is x=1s(1000ms),
 // then rusage can be 3*x, for instance, 3*1=3s,
 // the meminfo canbe 6*x, for instance, 6*1=6s,
-// for performance refine, @see: https://github.com/winlinvip/simple-rtmp-server/issues/194
+// for performance refine, @see: https://github.com/simple-rtmp-server/srs/issues/194
 // @remark, recomment to 1000ms.
 #define SRS_SYS_CYCLE_INTERVAL 1000
 

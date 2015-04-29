@@ -85,12 +85,12 @@ public:
     std::string stream;
     // for play live stream, 
     // used to specified the stop when exceed the duration.
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/45
+    // @see https://github.com/simple-rtmp-server/srs/issues/45
     // in ms.
     double duration;
     // the token in the connect request,
     // used for edge traverse to origin authentication,
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/104
+    // @see https://github.com/simple-rtmp-server/srs/issues/104
     SrsAmf0Object* args;
 public:
     SrsRequest();
@@ -343,7 +343,7 @@ public:
     /**
     * set the auto response message when recv for protocol stack.
     * @param v, whether auto response message when recv message.
-    * @see: https://github.com/winlinvip/simple-rtmp-server/issues/217
+    * @see: https://github.com/simple-rtmp-server/srs/issues/217
     */
     virtual void set_auto_response(bool v);
 #ifdef SRS_PERF_MERGED_READ
@@ -353,7 +353,7 @@ public:
     * that is, we merge some data to read together.
     * @param v true to ename merged read.
     * @param handler the handler when merge read is enabled.
-    * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+    * @see https://github.com/simple-rtmp-server/srs/issues/241
     */
     virtual void set_merge_read(bool v, IMergeReadHandler* handler);
     /**
@@ -361,7 +361,7 @@ public:
     * @param buffer the size of buffer.
     * @remark when MR(SRS_PERF_MERGED_READ) disabled, always set to 8K.
     * @remark when buffer changed, the previous ptr maybe invalid.
-    * @see https://github.com/winlinvip/simple-rtmp-server/issues/241
+    * @see https://github.com/simple-rtmp-server/srs/issues/241
     */
     virtual void set_recv_buffer(int buffer_size);
 #endif
@@ -416,7 +416,7 @@ public:
     * @param stream_id, the stream id of packet to send over, 0 for control message.
     *
     * @remark performance issue, to support 6k+ 250kbps client,
-    *       @see https://github.com/winlinvip/simple-rtmp-server/issues/194
+    *       @see https://github.com/simple-rtmp-server/srs/issues/194
     */
     virtual int send_and_free_messages(SrsSharedPtrMessage** msgs, int nb_msgs, int stream_id);
     /**

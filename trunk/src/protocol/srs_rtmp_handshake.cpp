@@ -200,12 +200,12 @@ namespace _srs_internal
         
         // maybe the key_size is 127, but dh will write all 128bytes pkey,
         // so, donot need to set/initialize the pkey.
-        // @see https://github.com/winlinvip/simple-rtmp-server/issues/165
+        // @see https://github.com/simple-rtmp-server/srs/issues/165
         key_size = BN_bn2bin(pdh->pub_key, (unsigned char*)pkey);
         srs_assert(key_size > 0);
         
         // output the size of public key.
-        // @see https://github.com/winlinvip/simple-rtmp-server/issues/165
+        // @see https://github.com/simple-rtmp-server/srs/issues/165
         srs_assert(key_size <= pkey_size);
         pkey_size = key_size;
         
@@ -225,7 +225,7 @@ namespace _srs_internal
         // if failed, donot return, do cleanup, @see ./test/dhtest.c:168
         // maybe the key_size is 127, but dh will write all 128bytes skey,
         // so, donot need to set/initialize the skey.
-        // @see https://github.com/winlinvip/simple-rtmp-server/issues/165
+        // @see https://github.com/simple-rtmp-server/srs/issues/165
         int32_t key_size = DH_compute_key((unsigned char*)skey, ppk, pdh);
         
         if (key_size < ppkey_size) {
@@ -525,7 +525,7 @@ namespace _srs_internal
         }
         
         // directly generate the public key.
-        // @see: https://github.com/winlinvip/simple-rtmp-server/issues/148
+        // @see: https://github.com/simple-rtmp-server/srs/issues/148
         int pkey_size = 128;
         if ((ret = dh.copy_shared_key(c1->get_key(), 128, key.key, pkey_size)) != ERROR_SUCCESS) {
             srs_error("calc s1 key failed. ret=%d", ret);

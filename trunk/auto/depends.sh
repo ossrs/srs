@@ -381,14 +381,14 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
         _ST_MAKE=darwin-debug && _ST_EXTRA_CFLAGS="EXTRA_CFLAGS=-DMD_HAVE_KQUEUE"
     fi
     # memory leak for linux-optimized
-    # @see: https://github.com/winlinvip/simple-rtmp-server/issues/197
+    # @see: https://github.com/simple-rtmp-server/srs/issues/197
     if [ $SRS_EMBEDED_CPU = YES ]; then
         # ok, arm specified, if the flag filed does not exists, need to rebuild.
         if [[ -f ${SRS_OBJS}/_flag.st.arm.tmp && -f ${SRS_OBJS}/st/libst.a ]]; then
             echo "st-1.9t for arm is ok.";
         else
             # TODO: FIXME: patch the bug.
-            # patch st for arm, @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SrsLinuxArm#st-arm-bug-fix
+            # patch st for arm, @see: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SrsLinuxArm#st-arm-bug-fix
             echo "build st-1.9t for arm"; 
             (
                 rm -rf ${SRS_OBJS}/st-1.9 && cd ${SRS_OBJS} && 
