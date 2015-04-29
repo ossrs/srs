@@ -66,7 +66,7 @@ SrsThread::SrsThread(ISrsThreadHandler* thread_handler, int64_t interval_us, boo
     
     // in start(), the thread cycle method maybe stop and remove the thread itself,
     // and the thread start() is waiting for the _cid, and segment fault then.
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/110
+    // @see https://github.com/simple-rtmp-server/srs/issues/110
     // thread will set _cid, callback on_thread_start(), then wait for the can_run signal.
     can_run = false;
 }

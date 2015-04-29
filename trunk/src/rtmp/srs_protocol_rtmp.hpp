@@ -81,12 +81,12 @@ public:
     std::string stream;
     // for play live stream, 
     // used to specified the stop when exceed the duration.
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/45
+    // @see https://github.com/simple-rtmp-server/srs/issues/45
     // in ms.
     double duration;
     // the token in the connect request,
     // used for edge traverse to origin authentication,
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/104
+    // @see https://github.com/simple-rtmp-server/srs/issues/104
     SrsAmf0Object* args;
 public:
     SrsRequest();

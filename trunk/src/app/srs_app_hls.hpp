@@ -199,7 +199,7 @@ public:
     /**
     * whether segment absolutely overflow, for pure audio to reap segment,
     * that is whether the current segment duration>=2*(the segment in config)
-    * @see https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-71155184
+    * @see https://github.com/simple-rtmp-server/srs/issues/151#issuecomment-71155184
     */
     virtual bool is_segment_absolutely_overflow();
     virtual int flush_audio(SrsMpegtsFrame* af, SrsBuffer* ab);

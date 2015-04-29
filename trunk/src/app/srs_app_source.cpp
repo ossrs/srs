@@ -252,7 +252,7 @@ void SrsMessageQueue::shrink()
     // it is ok to clear for audio, for the shrink tell us the queue is full.
     // for video, we clear util the I-Frame, for the decoding must start from I-frame,
     // for audio, it's ok to clear any data, also we can clear the whole queue.
-    // @see: https://github.com/winlinvip/simple-rtmp-server/issues/134
+    // @see: https://github.com/simple-rtmp-server/srs/issues/134
     if (iframe_index < 0) {
         clear();
         return;
@@ -1057,7 +1057,7 @@ int SrsSource::on_audio(SrsMessage* __audio)
 #ifdef SRS_AUTO_HLS
     if ((ret = hls->on_audio(msg.copy())) != ERROR_SUCCESS) {
         // apply the error strategy for hls.
-        // @see https://github.com/winlinvip/simple-rtmp-server/issues/264
+        // @see https://github.com/simple-rtmp-server/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(_req->vhost);
         if (hls_error_strategy == SRS_CONF_DEFAULT_HLS_ON_ERROR_IGNORE) {
             srs_warn("hls process audio message failed, ignore and disable hls. ret=%d", ret);
@@ -1183,7 +1183,7 @@ int SrsSource::on_video(SrsMessage* __video)
 #ifdef SRS_AUTO_HLS
     if ((ret = hls->on_video(msg.copy())) != ERROR_SUCCESS) {
         // apply the error strategy for hls.
-        // @see https://github.com/winlinvip/simple-rtmp-server/issues/264
+        // @see https://github.com/simple-rtmp-server/srs/issues/264
         std::string hls_error_strategy = _srs_config->get_hls_on_error(_req->vhost);
         if (hls_error_strategy == SRS_CONF_DEFAULT_HLS_ON_ERROR_IGNORE) {
             srs_warn("hls process video message failed, ignore and disable hls. ret=%d", ret);

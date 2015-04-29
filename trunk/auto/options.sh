@@ -73,7 +73,7 @@ SRS_MIPS_UBUNTU12=NO
 SRS_DEV=NO
 # dev, open main server feature for dev, no utest/research/librtmp
 SRS_FAST_DEV=NO
-# demo, for the demo of srs, @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleDemo
+# demo, for the demo of srs, @see: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleDemo
 SRS_DEMO=NO
 # raspberry-pi, open hls/ssl/static
 SRS_PI=NO
@@ -171,7 +171,7 @@ Presets:
   --disable-all             disable all features, only support vp6 RTMP.
   --dev                     for dev, open all features, no nginx/gperf/gprof/arm.
   --fast-dev                for dev fast compile, the RTMP server, without librtmp/utest/research.
-  --demo                    for srs demo, @see: https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_SampleDemo
+  --demo                    for srs demo, @see: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleDemo
   --full                    enable all features, no gperf/gprof/arm.
   
 Conflicts:

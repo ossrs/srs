@@ -222,7 +222,7 @@ private:
     * 
     * @remark, it is ok for performance, for when we clear the gop cache,
     *       gop cache is disabled for pure audio stream.
-    * @see: https://github.com/winlinvip/simple-rtmp-server/issues/124
+    * @see: https://github.com/simple-rtmp-server/srs/issues/124
     */
     int audio_after_last_video_count;
     /**

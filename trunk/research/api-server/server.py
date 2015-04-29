@@ -1088,7 +1088,7 @@ if len(sys.argv) <= 1:
     print "For example:"
     print "    python %s 8085"%(sys.argv[0])
     print ""
-    print "See also: https://github.com/winlinvip/simple-rtmp-server"
+    print "See also: https://github.com/simple-rtmp-server/srs"
     sys.exit(1)
 
 # parse port from user options.

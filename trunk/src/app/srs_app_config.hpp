@@ -478,7 +478,7 @@ public:
     * whether debug_srs_upnode is enabled of vhost.
     * debug_srs_upnode is very important feature for tracable log,
     * but some server, for instance, flussonic donot support it.
-    * @see https://github.com/winlinvip/simple-rtmp-server/issues/160
+    * @see https://github.com/simple-rtmp-server/srs/issues/160
     * @return true when debug_srs_upnode is ok; otherwise, false.
     * @remark, default true.
     */
@@ -834,7 +834,7 @@ public:
     * get the hls hls_on_error config.
     * the ignore will ignore error and disable hls.
     * the disconnect will disconnect publish connection.
-    * @see https://github.com/winlinvip/simple-rtmp-server/issues/264
+    * @see https://github.com/simple-rtmp-server/srs/issues/264
     */
     virtual std::string         get_hls_on_error(std::string vhost);
 // dvr section

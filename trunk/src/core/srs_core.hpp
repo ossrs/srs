@@ -31,7 +31,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // current release version
 #define VERSION_MAJOR       1
 #define VERSION_MINOR       0
-#define VERSION_REVISION    30 
+#define VERSION_REVISION    31 
 
 // server info.
 #define RTMP_SIG_SRS_KEY "SRS"
@@ -48,8 +48,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RTMP_SIG_SRS_AUTHROS "wenjie.zhao"
 #define RTMP_SIG_SRS_CONTRIBUTORS_URL RTMP_SIG_SRS_URL"/blob/master/AUTHORS.txt"
 #define RTMP_SIG_SRS_HANDSHAKE RTMP_SIG_SRS_KEY"("RTMP_SIG_SRS_VERSION")"
-#define RTMP_SIG_SRS_RELEASE "https://github.com/winlinvip/simple-rtmp-server/tree/1.0release"
-#define RTMP_SIG_SRS_HTTP_SERVER "https://github.com/winlinvip/simple-rtmp-server/wiki/v1_CN_HTTPServer#feature"
+#define RTMP_SIG_SRS_RELEASE "https://github.com/simple-rtmp-server/srs/tree/1.0release"
+#define RTMP_SIG_SRS_HTTP_SERVER "https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HTTPServer#feature"
 #define RTMP_SIG_SRS_VERSION __SRS_XSTR(VERSION_MAJOR)"."__SRS_XSTR(VERSION_MINOR)"."__SRS_XSTR(VERSION_REVISION)
 #define RTMP_SIG_SRS_SERVER RTMP_SIG_SRS_KEY"/"RTMP_SIG_SRS_VERSION"("RTMP_SIG_SRS_CODE")"
 

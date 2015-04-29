@@ -245,7 +245,7 @@ int SrsRtmpConn::service_cycle()
     }
     
     // do token traverse before serve it.
-    // @see https://github.com/winlinvip/simple-rtmp-server/pull/239
+    // @see https://github.com/simple-rtmp-server/srs/pull/239
     bool vhost_is_edge = _srs_config->get_vhost_is_edge(req->vhost);
     bool edge_traverse = _srs_config->get_vhost_edge_token_traverse(req->vhost);
     if (vhost_is_edge && edge_traverse) {
@@ -296,7 +296,7 @@ int SrsRtmpConn::service_cycle()
         // logical accept and retry stream service.
         if (ret == ERROR_CONTROL_RTMP_CLOSE) {
             // TODO: FIXME: use ping message to anti-death of socket.
-            // @see: https://github.com/winlinvip/simple-rtmp-server/issues/39
+            // @see: https://github.com/simple-rtmp-server/srs/issues/39
             // set timeout to a larger value, for user paused.
             rtmp->set_recv_timeout(SRS_PAUSED_RECV_TIMEOUT_US);
             rtmp->set_send_timeout(SRS_PAUSED_SEND_TIMEOUT_US);
@@ -604,7 +604,7 @@ int SrsRtmpConn::playing(SrsSource* source)
         }
         
         // if duration specified, and exceed it, stop play live.
-        // @see: https://github.com/winlinvip/simple-rtmp-server/issues/45
+        // @see: https://github.com/simple-rtmp-server/srs/issues/45
         if (user_specified_duration_to_stop) {
             if (duration >= (int64_t)req->duration) {
                 ret = ERROR_RTMP_DURATION_EXCEED;
@@ -919,7 +919,7 @@ int SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsMessage* msg
     SrsAutoFree(SrsPacket, pkt);
     
     // for jwplayer/flowplayer, which send close as pause message.
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/6
+    // @see https://github.com/simple-rtmp-server/srs/issues/6
     SrsCloseStreamPacket* close = dynamic_cast<SrsCloseStreamPacket*>(pkt);
     if (close) {
         ret = ERROR_CONTROL_RTMP_CLOSE;
@@ -929,7 +929,7 @@ int SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsMessage* msg
     
     // call msg,
     // support response null first,
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/106
+    // @see https://github.com/simple-rtmp-server/srs/issues/106
     // TODO: FIXME: response in right way, or forward in edge mode.
     SrsCallPacket* call = dynamic_cast<SrsCallPacket*>(pkt);
     if (call) {

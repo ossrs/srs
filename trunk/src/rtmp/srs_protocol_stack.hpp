@@ -1265,13 +1265,13 @@ public:
     std::string command_name;
     /**
     * whether allow access the sample of video.
-    * @see: https://github.com/winlinvip/simple-rtmp-server/issues/49
+    * @see: https://github.com/simple-rtmp-server/srs/issues/49
     * @see: http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/net/NetStream.html#videoSampleAccess
     */
     bool video_sample_access;
     /**
     * whether allow access the sample of audio.
-    * @see: https://github.com/winlinvip/simple-rtmp-server/issues/49
+    * @see: https://github.com/simple-rtmp-server/srs/issues/49
     * @see: http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/net/NetStream.html#audioSampleAccess
     */
     bool audio_sample_access;
