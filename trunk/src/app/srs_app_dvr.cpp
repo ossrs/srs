@@ -480,7 +480,7 @@ int SrsDvrSegmentPlan::update_duration(SrsSharedPtrMessage* msg)
     }
     
     // when wait keyframe, ignore if no frame arrived.
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/177
+    // @see https://github.com/simple-rtmp-server/srs/issues/177
     if (_srs_config->get_dvr_wait_keyframe(_req->vhost)) {
         if (!msg->header.is_video()) {
             return ret;

@@ -252,7 +252,7 @@ int SrsAvcAacCodec::audio_aac_demux(char* data, int size, SrsCodecSample* sample
         //      Table 1. A.9 ¨C MPEG-2 Audio profiles and MPEG-4 Audio object types
         // so the aac_profile should plus 1, not minus 1, and nginx-rtmp used it to 
         // downcast aac SSR to LC.
-        // @see https://github.com/winlinvip/simple-rtmp-server/issues/310
+        // @see https://github.com/simple-rtmp-server/srs/issues/310
         // TODO: FIXME: fix the following in future version.
         // aac_profile = audioObjectType - 1
         aac_profile--;
@@ -260,7 +260,7 @@ int SrsAvcAacCodec::audio_aac_demux(char* data, int size, SrsCodecSample* sample
         // TODO: FIXME: to support aac he/he-v2, see: ngx_rtmp_codec_parse_aac_header
         // @see: https://github.com/winlinvip/nginx-rtmp-module/commit/3a5f9eea78fc8d11e8be922aea9ac349b9dcbfc2
         // 
-        // donot force to LC, @see: https://github.com/winlinvip/simple-rtmp-server/issues/81
+        // donot force to LC, @see: https://github.com/simple-rtmp-server/srs/issues/81
         // the source will print the sequence header info.
         //if (aac_profile > 3) {
             // Mark all extended profiles as LC
@@ -345,7 +345,7 @@ int SrsAvcAacCodec::video_avc_demux(char* data, int size, SrsCodecSample* sample
     sample->frame_type = (SrsCodecVideoAVCFrame)frame_type;
     
     // ignore info frame without error,
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/288#issuecomment-69863909
+    // @see https://github.com/simple-rtmp-server/srs/issues/288#issuecomment-69863909
     if (sample->frame_type == SrsCodecVideoAVCFrameVideoInfoFrame) {
         srs_warn("hls igone the info frame, ret=%d", ret);
         return ret;
@@ -489,7 +489,7 @@ int SrsAvcAacCodec::video_avc_demux(char* data, int size, SrsCodecSample* sample
             }
             
             // maybe stream is AnnexB format.
-            // see: https://github.com/winlinvip/simple-rtmp-server/issues/183
+            // see: https://github.com/simple-rtmp-server/srs/issues/183
             if (NALUnitLength < 0) {
                 ret = ERROR_HLS_DECODE_ERROR;
                 srs_error("maybe stream is AnnexB format. ret=%d", ret);

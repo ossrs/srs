@@ -79,7 +79,7 @@ using namespace std;
 // @see: NGX_RTMP_HLS_DELAY, 
 // 63000: 700ms, ts_tbn=90000
 // 72000: 800ms, ts_tbn=90000
-// @see https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-71352511
+// @see https://github.com/simple-rtmp-server/srs/issues/151#issuecomment-71352511
 #define SRS_AUTO_HLS_DELAY 72000
 
 // the mpegts header specifed the video/audio pid.
@@ -138,7 +138,7 @@ u_int8_t mpegts_header[] = {
     0xe1, 0x00,
     0xf0, 0x00,
     // must generate header with/without video, @see:
-    // https://github.com/winlinvip/simple-rtmp-server/issues/40
+    // https://github.com/simple-rtmp-server/srs/issues/40
     0x1b, 0xe1, 0x00, 0xf0, 0x00, /* h264, pid=0x100=256 */
     0x0f, 0xe1, 0x01, 0xf0, 0x00, /* aac, pid=0x101=257 */
     /*0x03, 0xe1, 0x01, 0xf0, 0x00,*/ /* mp3 */
@@ -239,7 +239,7 @@ public:
                     p[-1] |= 0x20; // Both Adaption and Payload
                     *p++ = 7;    // size
                     *p++ = 0x50; // random access + PCR
-                    // about the pcr, read https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-71352511
+                    // about the pcr, read https://github.com/simple-rtmp-server/srs/issues/151#issuecomment-71352511
                     p = write_pcr(p, frame->dts);
                 }
                 
@@ -373,7 +373,7 @@ private:
     {
         // the pcr=dts-delay, where dts = frame->dts + delay
         // and the pcr should never be negative
-        // @see https://github.com/winlinvip/simple-rtmp-server/issues/268
+        // @see https://github.com/simple-rtmp-server/srs/issues/268
         srs_assert(pcr >= 0);
         
         int64_t v = pcr;
@@ -1099,9 +1099,9 @@ int SrsHlsCache::write_audio(SrsAvcAacCodec* codec, SrsHlsMuxer* muxer, int64_t 
     // for example, pure audio when start, audio/video when publishing,
     // pure audio again for audio disabled.
     // so we reap event when the audio incoming when segment overflow.
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/151
+    // @see https://github.com/simple-rtmp-server/srs/issues/151
     // we use absolutely overflow of segment to make jwplayer/ffplay happy
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/151#issuecomment-71155184
+    // @see https://github.com/simple-rtmp-server/srs/issues/151#issuecomment-71155184
     if (muxer->is_segment_absolutely_overflow()) {
         if ((ret = reap_segment("audio", muxer, af->pts)) != ERROR_SUCCESS) {
             return ret;
@@ -1290,7 +1290,7 @@ int SrsHlsCache::cache_video(SrsAvcAacCodec* codec, SrsCodecSample* sample)
         if (!aud_sent) {
             // @remark, when got type 9, we donot send aud_nal, but it will make 
             //      ios unhappy, so we remove it.
-            // @see https://github.com/winlinvip/simple-rtmp-server/issues/281
+            // @see https://github.com/simple-rtmp-server/srs/issues/281
             /*if (nal_unit_type == 9) {
                 aud_sent = true;
             }*/
@@ -1508,7 +1508,7 @@ int SrsHls::on_video(SrsSharedPtrMessage* video)
     }
     
     // ignore info frame,
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/288#issuecomment-69863909
+    // @see https://github.com/simple-rtmp-server/srs/issues/288#issuecomment-69863909
     if (sample->frame_type == SrsCodecVideoAVCFrameVideoInfoFrame) {
         return ret;
     }
@@ -1545,7 +1545,7 @@ void SrsHls::hls_mux()
     // reportable
     if (pithy_print->can_print()) {
         // the run time is not equals to stream time,
-        // @see: https://github.com/winlinvip/simple-rtmp-server/issues/81#issuecomment-48100994
+        // @see: https://github.com/simple-rtmp-server/srs/issues/81#issuecomment-48100994
         // it's ok.
         srs_trace("-> "SRS_CONSTS_LOG_HLS
             " time=%"PRId64", stream dts=%"PRId64"(%"PRId64"ms), sequence_no=%d", 

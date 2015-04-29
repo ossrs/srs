@@ -163,7 +163,7 @@ int SrsHttpVhost::do_process_request(SrsStSocket* skt, SrsHttpMessage* req)
 {
     std::string fullpath = get_request_file(req);
     
-    // TODO: FIXME: support mp4, @see https://github.com/winlinvip/simple-rtmp-server/issues/174
+    // TODO: FIXME: support mp4, @see https://github.com/simple-rtmp-server/srs/issues/174
     if (srs_string_ends_with(fullpath, ".ts")) {
         return response_ts_file(skt, req, fullpath);
     } else if (srs_string_ends_with(fullpath, ".flv") || srs_string_ends_with(fullpath, ".fhv")) {

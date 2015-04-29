@@ -64,7 +64,7 @@ private:
     SrsBandwidth* bandwidth;
     // elapse duration in ms
     // for live play duration, for instance, rtmpdump to record.
-    // @see https://github.com/winlinvip/simple-rtmp-server/issues/47
+    // @see https://github.com/simple-rtmp-server/srs/issues/47
     int64_t duration;
     SrsKbps* kbps;
 public:

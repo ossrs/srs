@@ -66,7 +66,7 @@ void srs_update_system_time_ms()
         return;
     }
 
-    // @see: https://github.com/winlinvip/simple-rtmp-server/issues/35
+    // @see: https://github.com/simple-rtmp-server/srs/issues/35
     // we must convert the tv_sec/tv_usec to int64_t.
     int64_t now_us = ((int64_t)now.tv_sec) * 1000 * 1000 + (int64_t)now.tv_usec;
     
@@ -88,7 +88,7 @@ void srs_update_system_time_ms()
     if (diff < 0 || diff > 1000 * SYS_TIME_RESOLUTION_US) {
         srs_warn("system time jump, history=%"PRId64"us, now=%"PRId64"us, diff=%"PRId64"us", 
             _srs_system_time_us_cache, now_us, diff);
-        // @see: https://github.com/winlinvip/simple-rtmp-server/issues/109
+        // @see: https://github.com/simple-rtmp-server/srs/issues/109
         _srs_system_time_startup_time += diff;
     }
     
