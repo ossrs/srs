@@ -48,9 +48,6 @@ using namespace std;
 #include <srs_rtmp_amf0.hpp>
 #include <srs_raw_avc.hpp>
 
-// the retry timeout in ms.
-#define SRS_INGEST_HLS_ERROR_RETRY_MS 3000
-
 // pre-declare
 int proxy_hls2rtmp(std::string hls, std::string rtmp);
 
@@ -217,7 +214,7 @@ private:
     /**
      * fetch all ts body.
      */
-    virtual void fetch_all_ts(bool fresh_m3u8);
+    virtual int fetch_all_ts(bool fresh_m3u8);
     /**
      * remove all ts which is dirty.
      */
@@ -245,7 +242,10 @@ int SrsIngestSrsInput::connect()
     }
     
     // fetch all ts.
-    fetch_all_ts(fresh_m3u8);
+    if ((ret = fetch_all_ts(fresh_m3u8)) != ERROR_SUCCESS) {
+        srs_error("fetch all ts failed. ret=%d", ret);
+        return ret;
+    }
     
     // remove all dirty ts.
     remove_dirty();
@@ -304,14 +304,8 @@ int SrsIngestSrsInput::parseTs(ISrsTsHandler* handler, char* body, int nb_body)
         
         // process each ts packet
         if ((ret = context->decode(stream, handler)) != ERROR_SUCCESS) {
-            // when peer closed, must interrupt parse and reconnect.
-            if (srs_is_client_gracefully_close(ret)) {
-                srs_warn("interrupt parse for peer closed. ret=%d", ret);
-                return ret;
-            }
-            
-            srs_warn("mpegts: ignore parse ts packet failed. ret=%d", ret);
-            continue;
+            srs_error("mpegts: ignore parse ts packet failed. ret=%d", ret);
+            return ret;
         }
         srs_info("mpegts: parse ts packet completed");
     }
@@ -536,7 +530,7 @@ void SrsIngestSrsInput::dirty_all_ts()
     }
 }
 
-void SrsIngestSrsInput::fetch_all_ts(bool fresh_m3u8)
+int SrsIngestSrsInput::fetch_all_ts(bool fresh_m3u8)
 {
     int ret = ERROR_SUCCESS;
     
@@ -555,9 +549,9 @@ void SrsIngestSrsInput::fetch_all_ts(bool fresh_m3u8)
         }
         
         if ((ret = tp->fetch(in_hls->get_url())) != ERROR_SUCCESS) {
-            srs_warn("ignore ts %s for error. ret=%d", tp->url.c_str(), ret);
+            srs_error("fetch ts %s for error. ret=%d", tp->url.c_str(), ret);
             tp->skip = true;
-            continue;
+            return ret;
         }
         
         // only wait for a duration of last piece.
@@ -565,6 +559,8 @@ void SrsIngestSrsInput::fetch_all_ts(bool fresh_m3u8)
             next_connect_time = srs_update_system_time_ms() + (int)tp->duration * 1000;
         }
     }
+    
+    return ret;
 }
 
 
@@ -779,10 +775,6 @@ int SrsIngestSrsOutput::on_ts_message(SrsTsMessage* msg)
     // we must use queue to cache the msg, then parse it if possible.
     queue.insert(std::make_pair(msg->dts, msg->detach()));
     if ((ret = parse_message_queue()) != ERROR_SUCCESS) {
-        // when peer closed, close the output and reconnect.
-        if (srs_is_client_gracefully_close(ret)) {
-            close();
-        }
         return ret;
     }
     
@@ -1204,6 +1196,7 @@ int SrsIngestSrsOutput::rtmp_write_packet(char type, u_int32_t timestamp, char* 
     
     // send out encoded msg.
     if ((ret = client->send_and_free_message(msg, stream_id)) != ERROR_SUCCESS) {
+        srs_error("send RTMP type=%d, dts=%d, size=%d failed. ret=%d", type, timestamp, size, ret);
         return ret;
     }
     
@@ -1355,22 +1348,22 @@ public:
         int ret = ERROR_SUCCESS;
         
         if ((ret = ic->connect()) != ERROR_SUCCESS) {
-            srs_warn("connect oc failed. ret=%d", ret);
+            srs_error("connect oc failed. ret=%d", ret);
             return ret;
         }
         
         if ((ret = oc->connect()) != ERROR_SUCCESS) {
-            srs_warn("connect ic failed. ret=%d", ret);
+            srs_error("connect ic failed. ret=%d", ret);
             return ret;
         }
         
         if ((ret = ic->parse(oc, oc)) != ERROR_SUCCESS) {
-            srs_warn("proxy ts to rtmp failed. ret=%d", ret);
+            srs_error("proxy ts to rtmp failed. ret=%d", ret);
             return ret;
         }
         
         if ((ret = oc->flush_message_queue()) != ERROR_SUCCESS) {
-            srs_warn("flush oc message failed. ret=%d", ret);
+            srs_error("flush oc message failed. ret=%d", ret);
             return ret;
         }
         
@@ -1400,12 +1393,10 @@ int proxy_hls2rtmp(string hls, string rtmp)
     
     SrsIngestSrsContext context(&hls_uri, &rtmp_uri);
     for (;;) {
-        if ((ret = context.proxy()) == ERROR_SUCCESS) {
-            continue;
+        if ((ret = context.proxy()) != ERROR_SUCCESS) {
+            srs_error("proxy hls to rtmp failed. ret=%d", ret);
+            return ret;
         }
-        
-        srs_warn("proxy hls to rtmp failed. ret=%d", ret);
-        st_usleep(SRS_INGEST_HLS_ERROR_RETRY_MS * 1000);
     }
     
     return ret;
