@@ -166,9 +166,7 @@ StreamServers：[BLS](https://github.com/wenjiegit/Bull-Live-Server)/[BLE](https
 ## AUTHORS
 
 There are three types of people that have contributed to the SRS project:
-* PRIMARY: Contribute important features and >10% code. Names of all 
-PRIMARY response in NetConnection.connect and metadata. 
-* AUTHORS: Contribute features and 1%~10% code. Names of all 
+* AUTHORS: Contribute important features. Names of all 
 PRIMARY response in NetConnection.connect and metadata. 
 * CONTRIBUTORS: Submit patches, report bugs, add translations, help answer 
 newbie questions, and generally make SRS that much better.
