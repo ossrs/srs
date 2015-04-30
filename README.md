@@ -12,7 +12,7 @@ Download from ossrs.net:
 [Centos6-x86_64](http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.27.zip) 
 [more...](http://www.ossrs.net/srs.release/releases/)
 
-Contact by QQ or Weixin, read [Contact](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Contact)
+Contact by QQ or Skype, read [Contact](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Contact)
 
 ## Why SRS?
 
