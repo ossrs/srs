@@ -39,6 +39,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_kernel_file.hpp>
 #include <srs_app_thread.hpp>
 
+class SrsServer;
 class SrsSource;
 class SrsRequest;
 class SrsConsumer;
@@ -375,9 +376,9 @@ class SrsHttpConn : public SrsConnection
 {
 private:
     SrsHttpParser* parser;
-    SrsHttpServer* http_server;
+    SrsHttpServeMux* http_mux;
 public:
-    SrsHttpConn(SrsServer* svr, st_netfd_t fd, SrsHttpServer* m);
+    SrsHttpConn(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m);
     virtual ~SrsHttpConn();
 // interface IKbpsDelta
 public:

@@ -166,7 +166,7 @@ private:
     SrsHttpServeMux* mux;
     bool crossdomain_required;
 public:
-    SrsHttpApi(SrsServer* svr, st_netfd_t fd, SrsHttpServeMux* m);
+    SrsHttpApi(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m);
     virtual ~SrsHttpApi();
 // interface IKbpsDelta
 public:

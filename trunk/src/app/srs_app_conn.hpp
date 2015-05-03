@@ -36,7 +36,22 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_thread.hpp>
 #include <srs_app_kbps.hpp>
 
-class SrsServer;
+class SrsConnection;
+
+/**
+ * the manager for connection.
+ */
+class IConnectionManager
+{
+public:
+    IConnectionManager();
+    virtual ~IConnectionManager();
+public:
+    /**
+     * remove the specified connection.
+     */
+    virtual void remove(SrsConnection* c) = 0;
+};
 
 /**
 * the basic connection of SRS,
@@ -57,9 +72,9 @@ private:
     int id;
 protected:
     /**
-    * the server object to manage the connection.
+    * the manager object to manage the connection.
     */
-    SrsServer* server;
+    IConnectionManager* manager;
     /**
     * the underlayer st fd handler.
     */
@@ -69,7 +84,7 @@ protected:
     */
     std::string ip;
 public:
-    SrsConnection(SrsServer* srs_server, st_netfd_t client_stfd);
+    SrsConnection(IConnectionManager* cm, st_netfd_t c);
     virtual ~SrsConnection();
 public:
     /**

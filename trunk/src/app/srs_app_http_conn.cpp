@@ -1334,11 +1334,11 @@ int SrsHttpServer::initialize_hls_streaming()
     return ret;
 }
 
-SrsHttpConn::SrsHttpConn(SrsServer* svr, st_netfd_t fd, SrsHttpServer* m) 
-    : SrsConnection(svr, fd)
+SrsHttpConn::SrsHttpConn(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m)
+    : SrsConnection(cm, fd)
 {
     parser = new SrsHttpParser();
-    http_server = m;
+    http_mux = m;
 }
 
 SrsHttpConn::~SrsHttpConn()
@@ -1424,7 +1424,7 @@ int SrsHttpConn::process_request(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
         r->method_str().c_str(), r->url().c_str(), r->content_length());
     
     // use default server mux to serve http request.
-    if ((ret = http_server->mux.serve_http(w, r)) != ERROR_SUCCESS) {
+    if ((ret = http_mux->serve_http(w, r)) != ERROR_SUCCESS) {
         if (!srs_is_client_gracefully_close(ret)) {
             srs_error("serve http msg failed. ret=%d", ret);
         }

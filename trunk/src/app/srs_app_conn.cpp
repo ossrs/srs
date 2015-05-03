@@ -25,14 +25,21 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_error.hpp>
-#include <srs_app_server.hpp>
 #include <srs_app_utility.hpp>
 
-SrsConnection::SrsConnection(SrsServer* srs_server, st_netfd_t client_stfd)
+IConnectionManager::IConnectionManager()
+{
+}
+
+IConnectionManager::~IConnectionManager()
+{
+}
+
+SrsConnection::SrsConnection(IConnectionManager* cm, st_netfd_t c)
 {
     id = 0;
-    server = srs_server;
-    stfd = client_stfd;
+    manager = cm;
+    stfd = c;
     
     // the client thread should reap itself, 
     // so we never use joinable.
@@ -86,7 +93,7 @@ int SrsConnection::cycle()
 void SrsConnection::on_thread_stop()
 {
     // TODO: FIXME: never remove itself, use isolate thread to do cleanup.
-    server->remove(this);
+    manager->remove(this);
 }
 
 int SrsConnection::srs_id()

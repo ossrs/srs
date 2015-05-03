@@ -34,6 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_conn.hpp>
 #include <srs_app_reload.hpp>
 
+class SrsServer;
 class SrsRtmpServer;
 class SrsRequest;
 class SrsResponse;
@@ -61,6 +62,7 @@ class SrsRtmpConn : public virtual SrsConnection, public virtual ISrsReloadHandl
     // for the thread to directly access any field of connection.
     friend class SrsPublishRecvThread;
 private:
+    SrsServer* server;
     SrsRequest* req;
     SrsResponse* res;
     SrsStSocket* skt;
@@ -81,7 +83,7 @@ private:
     // @see https://github.com/simple-rtmp-server/srs/issues/257
     bool realtime;
 public:
-    SrsRtmpConn(SrsServer* srs_server, st_netfd_t client_stfd);
+    SrsRtmpConn(SrsServer* svr, st_netfd_t c);
     virtual ~SrsRtmpConn();
 protected:
     virtual int do_cycle();
