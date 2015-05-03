@@ -35,6 +35,7 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_http.hpp>
 #include <srs_app_http_conn.hpp>
+#include <srs_core_autofree.hpp>
 
 SrsAppCasterFlv::SrsAppCasterFlv(SrsConfDirective* c)
 {
@@ -78,12 +79,24 @@ void SrsAppCasterFlv::remove(SrsConnection* c)
         conns.erase(it);
     }
 }
-
+#define SRS_HTTP_FLV_STREAM_BUFFER 4096
 int SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
     
-    srs_trace("flv: handle request at %s", r->path().c_str());
+    srs_info("flv: handle request at %s", r->path().c_str());
+    
+    char* buffer = new char[SRS_HTTP_FLV_STREAM_BUFFER];
+    SrsAutoFree(char, buffer);
+    
+    ISrsHttpResponseReader* rr = r->body_reader();
+    while (!rr->eof()) {
+        int nb_read = 0;
+        if ((ret = rr->read(buffer, SRS_HTTP_FLV_STREAM_BUFFER, &nb_read)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        srs_trace("flv: read %dB from %s", nb_read, r->path().c_str());
+    }
     
     return ret;
 }
