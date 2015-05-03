@@ -75,12 +75,13 @@ using namespace std;
 // when edge timeout, retry next.
 #define SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT_US (int64_t)(3*1000*1000LL)
 
-SrsRtmpConn::SrsRtmpConn(SrsServer* srs_server, st_netfd_t client_stfd)
-    : SrsConnection(srs_server, client_stfd)
+SrsRtmpConn::SrsRtmpConn(SrsServer* svr, st_netfd_t c)
+    : SrsConnection(svr, c)
 {
+    server = svr;
     req = new SrsRequest();
     res = new SrsResponse();
-    skt = new SrsStSocket(client_stfd);
+    skt = new SrsStSocket(c);
     rtmp = new SrsRtmpServer(skt);
     refer = new SrsRefer();
     bandwidth = new SrsBandwidth();

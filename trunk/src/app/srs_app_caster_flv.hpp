@@ -30,21 +30,41 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_core.hpp>
 
+#include <string>
+#include <vector>
+
 #ifdef SRS_AUTO_STREAM_CASTER
 
 class SrsConfDirective;
+class SrsHttpServeMux;
+class SrsHttpConn;
 
 #include <srs_app_st.hpp>
 #include <srs_app_listener.hpp>
+#include <srs_app_conn.hpp>
+#include <srs_app_http.hpp>
 
-class SrsAppCasterFlv : public ISrsTcpHandler
+class SrsAppCasterFlv : virtual public ISrsTcpHandler
+    , virtual public IConnectionManager, virtual public ISrsHttpHandler
 {
+private:
+    std::string output;
+    SrsHttpServeMux* http_mux;
+    std::vector<SrsHttpConn*> conns;
 public:
     SrsAppCasterFlv(SrsConfDirective* c);
     virtual ~SrsAppCasterFlv();
+public:
+    virtual int initialize();
 // ISrsTcpHandler
 public:
     virtual int on_tcp_client(st_netfd_t stfd);
+// IConnectionManager
+public:
+    virtual void remove(SrsConnection* c);
+// ISrsHttpHandler
+public:
+    virtual int serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r);
 };
 
 #endif

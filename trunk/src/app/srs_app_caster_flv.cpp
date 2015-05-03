@@ -25,23 +25,66 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef SRS_AUTO_STREAM_CASTER
 
+#include <algorithm>
+using namespace std;
+
 #include <srs_app_config.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_pithy_print.hpp>
+#include <srs_app_http.hpp>
+#include <srs_app_http_conn.hpp>
 
 SrsAppCasterFlv::SrsAppCasterFlv(SrsConfDirective* c)
 {
+    http_mux = new SrsHttpServeMux();
+    output = _srs_config->get_stream_caster_output(c);
 }
 
 SrsAppCasterFlv::~SrsAppCasterFlv()
 {
 }
 
+int SrsAppCasterFlv::initialize()
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = http_mux->handle("/", this)) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
 int SrsAppCasterFlv::on_tcp_client(st_netfd_t stfd)
 {
     int ret = ERROR_SUCCESS;
+    
+    SrsHttpConn* conn = new SrsHttpConn(this, stfd, http_mux);
+    conns.push_back(conn);
+    
+    if ((ret = conn->start()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
+    return ret;
+}
+
+void SrsAppCasterFlv::remove(SrsConnection* c)
+{
+    std::vector<SrsHttpConn*>::iterator it;
+    if ((it = std::find(conns.begin(), conns.end(), c)) != conns.end()) {
+        conns.erase(it);
+    }
+}
+
+int SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
+{
+    int ret = ERROR_SUCCESS;
+    
+    srs_trace("flv: handle request at %s", r->path().c_str());
+    
     return ret;
 }
 

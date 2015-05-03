@@ -38,6 +38,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <srs_app_source.hpp>
 #include <srs_app_hls.hpp>
 #include <srs_app_listener.hpp>
+#include <srs_app_conn.hpp>
 
 class SrsServer;
 class SrsConnection;
@@ -51,6 +52,9 @@ class ISrsTcpHandler;
 class ISrsUdpHandler;
 class SrsUdpListener;
 class SrsTcpListener;
+#ifdef SRS_AUTO_STREAM_CASTER
+class SrsAppCasterFlv;
+#endif
 
 // listener type for server to identify the connection,
 // that is, use different type to process the connection.
@@ -66,7 +70,7 @@ enum SrsListenerType
     SrsListenerMpegTsOverUdp    = 3,
     // TCP stream, RTSP stream.
     SrsListenerRtsp             = 4,
-    // HTTP stream, FLV over HTTP POST.
+    // TCP stream, FLV stream over HTTP.
     SrsListenerFlv              = 5,
 };
 
@@ -126,13 +130,13 @@ public:
 };
 
 /**
- * the tcp listener, for http flv server.
+ * the tcp listener, for flv stream server.
  */
 class SrsHttpFlvListener : virtual public SrsListener, virtual public ISrsTcpHandler
 {
 private:
     SrsTcpListener* listener;
-    ISrsTcpHandler* caster;
+    SrsAppCasterFlv* caster;
 public:
     SrsHttpFlvListener(SrsServer* server, SrsListenerType type, SrsConfDirective* c);
     virtual ~SrsHttpFlvListener();
@@ -215,6 +219,7 @@ public:
 */
 class SrsServer : virtual public ISrsReloadHandler
     , virtual public ISrsSourceHandler, virtual public ISrsHlsHandler
+    , virtual public IConnectionManager
 {
 private:
 #ifdef SRS_AUTO_HTTP_API
@@ -279,7 +284,7 @@ public:
     virtual int http_handle();
     virtual int ingest();
     virtual int cycle();
-// server utility
+// IConnectionManager
 public:
     /**
     * callback for connection to remove itself.
@@ -287,6 +292,8 @@ public:
     * @see SrsConnection.on_thread_stop().
     */
     virtual void remove(SrsConnection* conn);
+// server utilities.
+public:
     /**
     * callback for signal manager got a signal.
     * the signal manager convert signal to io message,

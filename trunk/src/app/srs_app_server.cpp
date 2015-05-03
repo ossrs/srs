@@ -106,6 +106,8 @@ std::string srs_listener_type2string(SrsListenerType type)
         return "MPEG-TS over UDP";
     case SrsListenerRtsp:
         return "RTSP";
+    case SrsListenerFlv:
+        return "HTTP-FLV";
     default:
         return "UNKONWN";
     }
@@ -238,8 +240,8 @@ SrsHttpFlvListener::SrsHttpFlvListener(SrsServer* server, SrsListenerType type, 
     
     // the caller already ensure the type is ok,
     // we just assert here for unknown stream caster.
-    srs_assert(_type == SrsListenerRtsp);
-    if (_type == SrsListenerRtsp) {
+    srs_assert(_type == SrsListenerFlv);
+    if (_type == SrsListenerFlv) {
         caster = new SrsAppCasterFlv(c);
     }
 }
@@ -256,10 +258,14 @@ int SrsHttpFlvListener::listen(string ip, int port)
     
     // the caller already ensure the type is ok,
     // we just assert here for unknown stream caster.
-    srs_assert(_type == SrsListenerRtsp);
+    srs_assert(_type == SrsListenerFlv);
     
     _ip = ip;
     _port = port;
+    
+    if ((ret = caster->initialize()) != ERROR_SUCCESS) {
+        return ret;
+    }
     
     srs_freep(listener);
     listener = new SrsTcpListener(this, ip, port);
@@ -1157,7 +1163,7 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
 #endif
     } else if (type == SrsListenerHttpStream) {
 #ifdef SRS_AUTO_HTTP_SERVER
-        conn = new SrsHttpConn(this, client_stfd, http_stream_mux);
+        conn = new SrsHttpConn(this, client_stfd, &http_stream_mux->mux);
 #else
         srs_warn("close http client for server not support http-server");
         srs_close_stfd(client_stfd);

@@ -473,8 +473,8 @@ int SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
     return srs_go_http_response_json(w, ss.str());
 }
 
-SrsHttpApi::SrsHttpApi(SrsServer* svr, st_netfd_t fd, SrsHttpServeMux* m) 
-    : SrsConnection(svr, fd)
+SrsHttpApi::SrsHttpApi(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m)
+    : SrsConnection(cm, fd)
 {
     mux = m;
     parser = new SrsHttpParser();
