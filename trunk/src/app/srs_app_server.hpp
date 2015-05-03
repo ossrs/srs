@@ -66,6 +66,8 @@ enum SrsListenerType
     SrsListenerMpegTsOverUdp    = 3,
     // TCP stream, RTSP stream.
     SrsListenerRtsp             = 4,
+    // HTTP stream, FLV over HTTP POST.
+    SrsListenerFlv              = 5,
 };
 
 /**
@@ -116,6 +118,24 @@ private:
 public:
     SrsRtspListener(SrsServer* server, SrsListenerType type, SrsConfDirective* c);
     virtual ~SrsRtspListener();
+public:
+    virtual int listen(std::string ip, int port);
+// ISrsTcpHandler
+public:
+    virtual int on_tcp_client(st_netfd_t stfd);
+};
+
+/**
+ * the tcp listener, for http flv server.
+ */
+class SrsHttpFlvListener : virtual public SrsListener, virtual public ISrsTcpHandler
+{
+private:
+    SrsTcpListener* listener;
+    ISrsTcpHandler* caster;
+public:
+    SrsHttpFlvListener(SrsServer* server, SrsListenerType type, SrsConfDirective* c);
+    virtual ~SrsHttpFlvListener();
 public:
     virtual int listen(std::string ip, int port);
 // ISrsTcpHandler

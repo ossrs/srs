@@ -46,6 +46,7 @@ using namespace std;
 #include <srs_app_mpegts_udp.hpp>
 #include <srs_app_rtsp.hpp>
 #include <srs_app_statistic.hpp>
+#include <srs_app_caster_flv.hpp>
 
 // signal defines.
 #define SIGNAL_RELOAD SIGHUP
@@ -206,7 +207,7 @@ int SrsRtspListener::listen(string ip, int port)
     listener = new SrsTcpListener(this, ip, port);
 
     if ((ret = listener->listen()) != ERROR_SUCCESS) {
-        srs_error("udp caster listen failed. ret=%d", ret);
+        srs_error("rtsp caster listen failed. ret=%d", ret);
         return ret;
     }
     
@@ -228,6 +229,64 @@ int SrsRtspListener::on_tcp_client(st_netfd_t stfd)
         return ret;
     }
 
+    return ret;
+}
+
+SrsHttpFlvListener::SrsHttpFlvListener(SrsServer* server, SrsListenerType type, SrsConfDirective* c) : SrsListener(server, type)
+{
+    listener = NULL;
+    
+    // the caller already ensure the type is ok,
+    // we just assert here for unknown stream caster.
+    srs_assert(_type == SrsListenerRtsp);
+    if (_type == SrsListenerRtsp) {
+        caster = new SrsAppCasterFlv(c);
+    }
+}
+
+SrsHttpFlvListener::~SrsHttpFlvListener()
+{
+    srs_freep(caster);
+    srs_freep(listener);
+}
+
+int SrsHttpFlvListener::listen(string ip, int port)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // the caller already ensure the type is ok,
+    // we just assert here for unknown stream caster.
+    srs_assert(_type == SrsListenerRtsp);
+    
+    _ip = ip;
+    _port = port;
+    
+    srs_freep(listener);
+    listener = new SrsTcpListener(this, ip, port);
+    
+    if ((ret = listener->listen()) != ERROR_SUCCESS) {
+        srs_error("flv caster listen failed. ret=%d", ret);
+        return ret;
+    }
+    
+    srs_info("listen thread cid=%d, current_cid=%d, "
+             "listen at port=%d, type=%d, fd=%d started success, ep=%s:%d",
+             pthread->cid(), _srs_context->get_id(), _port, _type, fd, ip.c_str(), port);
+    
+    srs_trace("%s listen at tcp://%s:%d, fd=%d", srs_listener_type2string(_type).c_str(), ip.c_str(), _port, listener->fd());
+    
+    return ret;
+}
+
+int SrsHttpFlvListener::on_tcp_client(st_netfd_t stfd)
+{
+    int ret = ERROR_SUCCESS;
+    
+    if ((ret = caster->on_tcp_client(stfd)) != ERROR_SUCCESS) {
+        srs_warn("accept client error. ret=%d", ret);
+        return ret;
+    }
+    
     return ret;
 }
 
@@ -1003,6 +1062,8 @@ int SrsServer::listen_stream_caster()
             listener = new SrsUdpCasterListener(this, SrsListenerMpegTsOverUdp, stream_caster);
         } else if (caster == SRS_CONF_DEFAULT_STREAM_CASTER_RTSP) {
             listener = new SrsRtspListener(this, SrsListenerRtsp, stream_caster);
+        } else if (caster == SRS_CONF_DEFAULT_STREAM_CASTER_FLV) {
+            listener = new SrsHttpFlvListener(this, SrsListenerFlv, stream_caster);
         } else {
             ret = ERROR_STREAM_CASTER_ENGINE;
             srs_error("unsupported stream caster %s. ret=%d", caster.c_str(), ret);

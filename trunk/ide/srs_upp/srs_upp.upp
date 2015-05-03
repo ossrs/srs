@@ -69,6 +69,8 @@ file
         ../../src/app/srs_app_async_call.cpp,
 	../../src/app/srs_app_bandwidth.hpp,
 	../../src/app/srs_app_bandwidth.cpp,
+        ../../src/app/srs_app_caster_flv.hpp,
+        ../../src/app/srs_app_caster_flv.cpp,
 	../../src/app/srs_app_conn.hpp,
 	../../src/app/srs_app_conn.cpp,
 	../../src/app/srs_app_config.hpp,
