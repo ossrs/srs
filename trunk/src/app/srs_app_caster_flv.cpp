@@ -425,6 +425,12 @@ int SrsHttpFileReader::read(void* buf, size_t count, ssize_t* pnread)
             return ret;
         }
         
+        if (nread == 0) {
+            ret = ERROR_HTTP_REQUEST_EOF;
+            srs_warn("flv: encoder read EOF. ret=%d", ret);
+            break;
+        }
+        
         srs_assert(nread);
         total_read += nread;
     }
