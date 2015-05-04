@@ -38,6 +38,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsConfDirective;
 class SrsHttpServeMux;
 class SrsHttpConn;
+class SrsRtmpClient;
+class SrsStSocket;
+class SrsRequest;
 
 #include <srs_app_st.hpp>
 #include <srs_app_listener.hpp>
@@ -77,11 +80,28 @@ public:
  */
 class SrsDynamicHttpConn : public SrsHttpConn
 {
+private:
+    std::string output;
+private:
+    SrsRequest* req;
+    st_netfd_t stfd;
+    SrsStSocket* io;
+    SrsRtmpClient* client;
+    int stream_id;
 public:
     SrsDynamicHttpConn(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m);
     virtual ~SrsDynamicHttpConn();
 public:
     virtual int on_got_http_message(SrsHttpMessage* msg);
+public:
+    virtual int proxy(ISrsHttpResponseWriter* w, SrsHttpMessage* r, std::string o);
+private:
+    // connect to rtmp output url.
+    // @remark ignore when not connected, reconnect when disconnected.
+    virtual int connect();
+    virtual int connect_app(std::string ep_server, std::string ep_port);
+    // close the connected io and rtmp to ready to be re-connect.
+    virtual void close();
 };
 
 /**

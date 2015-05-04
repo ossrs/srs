@@ -50,6 +50,7 @@ class SrsSimpleBuffer;
 class SrsHttpMuxEntry;
 class ISrsHttpResponseWriter;
 class SrsFastBuffer;
+class SrsConnection;
 
 // http specification
 // CR             = <US-ASCII CR, carriage return (13)>
@@ -506,8 +507,10 @@ private:
     std::vector<SrsHttpHeaderField> _headers;
     // the query map
     std::map<std::string, std::string> _query;
+    // the transport connection, can be NULL.
+    SrsConnection* conn;
 public:
-    SrsHttpMessage(SrsStSocket* io);
+    SrsHttpMessage(SrsStSocket* io, SrsConnection* c);
     virtual ~SrsHttpMessage();
 public:
     /**
@@ -518,6 +521,7 @@ public:
     );
 public:
     virtual char* http_ts_send_buffer();
+    virtual SrsConnection* connection();
 public:
     virtual u_int8_t method();
     virtual u_int16_t status_code();
@@ -617,7 +621,7 @@ public:
     * or error and *ppmsg must be NULL.
     * @remark, if success, *ppmsg always NOT-NULL, *ppmsg always is_complete().
     */
-    virtual int parse_message(SrsStSocket* skt, SrsHttpMessage** ppmsg);
+    virtual int parse_message(SrsStSocket* skt, SrsConnection* conn, SrsHttpMessage** ppmsg);
 private:
     /**
     * parse the HTTP message to member field: msg.

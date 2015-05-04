@@ -528,7 +528,7 @@ int SrsHttpApi::do_cycle()
         SrsHttpMessage* req = NULL;
         
         // get a http message
-        if ((ret = parser->parse_message(&skt, &req)) != ERROR_SUCCESS) {
+        if ((ret = parser->parse_message(&skt, this, &req)) != ERROR_SUCCESS) {
             return ret;
         }
 
