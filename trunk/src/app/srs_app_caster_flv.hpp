@@ -43,6 +43,7 @@ class SrsHttpConn;
 #include <srs_app_listener.hpp>
 #include <srs_app_conn.hpp>
 #include <srs_app_http.hpp>
+#include <srs_app_http_conn.hpp>
 
 class SrsAppCasterFlv : virtual public ISrsTcpHandler
     , virtual public IConnectionManager, virtual public ISrsHttpHandler
@@ -65,6 +66,15 @@ public:
 // ISrsHttpHandler
 public:
     virtual int serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r);
+};
+
+class SrsDynamicHttpConn : public SrsHttpConn
+{
+public:
+    SrsDynamicHttpConn(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m);
+    virtual ~SrsDynamicHttpConn();
+public:
+    virtual int on_got_http_message(SrsHttpMessage* msg);
 };
 
 #endif

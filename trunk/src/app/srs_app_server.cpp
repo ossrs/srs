@@ -1163,7 +1163,7 @@ int SrsServer::accept_client(SrsListenerType type, st_netfd_t client_stfd)
 #endif
     } else if (type == SrsListenerHttpStream) {
 #ifdef SRS_AUTO_HTTP_SERVER
-        conn = new SrsHttpConn(this, client_stfd, &http_stream_mux->mux);
+        conn = new SrsStaticHttpConn(this, client_stfd, &http_stream_mux->mux);
 #else
         srs_warn("close http client for server not support http-server");
         srs_close_stfd(client_stfd);

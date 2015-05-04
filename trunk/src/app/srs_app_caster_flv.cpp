@@ -37,6 +37,8 @@ using namespace std;
 #include <srs_app_http_conn.hpp>
 #include <srs_core_autofree.hpp>
 
+#define SRS_HTTP_FLV_STREAM_BUFFER 4096
+
 SrsAppCasterFlv::SrsAppCasterFlv(SrsConfDirective* c)
 {
     http_mux = new SrsHttpServeMux();
@@ -62,7 +64,7 @@ int SrsAppCasterFlv::on_tcp_client(st_netfd_t stfd)
 {
     int ret = ERROR_SUCCESS;
     
-    SrsHttpConn* conn = new SrsHttpConn(this, stfd, http_mux);
+    SrsHttpConn* conn = new SrsDynamicHttpConn(this, stfd, http_mux);
     conns.push_back(conn);
     
     if ((ret = conn->start()) != ERROR_SUCCESS) {
@@ -79,7 +81,7 @@ void SrsAppCasterFlv::remove(SrsConnection* c)
         conns.erase(it);
     }
 }
-#define SRS_HTTP_FLV_STREAM_BUFFER 4096
+
 int SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
@@ -95,9 +97,24 @@ int SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
         if ((ret = rr->read(buffer, SRS_HTTP_FLV_STREAM_BUFFER, &nb_read)) != ERROR_SUCCESS) {
             return ret;
         }
-        srs_trace("flv: read %dB from %s", nb_read, r->path().c_str());
+        //srs_trace("flv: read %dB from %s", nb_read, r->path().c_str());
     }
     
+    return ret;
+}
+
+SrsDynamicHttpConn::SrsDynamicHttpConn(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m)
+    : SrsHttpConn(cm, fd, m)
+{
+}
+
+SrsDynamicHttpConn::~SrsDynamicHttpConn()
+{
+}
+
+int SrsDynamicHttpConn::on_got_http_message(SrsHttpMessage* msg)
+{
+    int ret = ERROR_SUCCESS;
     return ret;
 }
 
