@@ -44,7 +44,11 @@ class SrsHttpConn;
 #include <srs_app_conn.hpp>
 #include <srs_app_http.hpp>
 #include <srs_app_http_conn.hpp>
+#include <srs_kernel_file.hpp>
 
+/**
+ * the stream caster for flv stream over HTTP POST.
+ */
 class SrsAppCasterFlv : virtual public ISrsTcpHandler
     , virtual public IConnectionManager, virtual public ISrsHttpHandler
 {
@@ -68,6 +72,9 @@ public:
     virtual int serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r);
 };
 
+/**
+ * the dynamic http connection, never drop the body.
+ */
 class SrsDynamicHttpConn : public SrsHttpConn
 {
 public:
@@ -75,6 +82,38 @@ public:
     virtual ~SrsDynamicHttpConn();
 public:
     virtual int on_got_http_message(SrsHttpMessage* msg);
+};
+
+/**
+ * the http wrapper for file reader,
+ * to read http post stream like a file.
+ */
+class SrsHttpFileReader : public SrsFileReader
+{
+private:
+    ISrsHttpResponseReader* http;
+public:
+    SrsHttpFileReader(ISrsHttpResponseReader* h);
+    virtual ~SrsHttpFileReader();
+public:
+    /**
+     * open file reader, can open then close then open...
+     */
+    virtual int open(std::string file);
+    virtual void close();
+public:
+    // TODO: FIXME: extract interface.
+    virtual bool is_open();
+    virtual int64_t tellg();
+    virtual void skip(int64_t size);
+    virtual int64_t lseek(int64_t offset);
+    virtual int64_t filesize();
+public:
+    /**
+     * read from file.
+     * @param pnread the output nb_read, NULL to ignore.
+     */
+    virtual int read(void* buf, size_t count, ssize_t* pnread);
 };
 
 #endif
