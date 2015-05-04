@@ -95,7 +95,10 @@ int SrsAppCasterFlv::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
     srs_assert(conn);
     
     std::string app = srs_path_dirname(r->path());
+    app = srs_string_trim_start(app, "/");
+    
     std::string stream = srs_path_basename(r->path());
+    stream = srs_string_trim_start(stream, "/");
     
     std::string o = output;
     if (!app.empty() && app != "/") {
@@ -120,10 +123,15 @@ SrsDynamicHttpConn::SrsDynamicHttpConn(IConnectionManager* cm, st_netfd_t fd, Sr
     client = NULL;
     stfd = NULL;
     stream_id = 0;
+    
+    pprint = SrsPithyPrint::create_caster();
 }
 
 SrsDynamicHttpConn::~SrsDynamicHttpConn()
 {
+    close();
+    
+    srs_freep(pprint);
 }
 
 int SrsDynamicHttpConn::on_got_http_message(SrsHttpMessage* msg)
@@ -150,12 +158,87 @@ int SrsDynamicHttpConn::proxy(ISrsHttpResponseWriter* w, SrsHttpMessage* r, std:
         return ret;
     }
     
+    char header[9];
+    if ((ret = dec.read_header(header)) != ERROR_SUCCESS) {
+        if (!srs_is_client_gracefully_close(ret)) {
+            srs_error("flv: proxy flv header failed. ret=%d", ret);
+        }
+        return ret;
+    }
+    srs_trace("flv: proxy drop flv header.");
+    
+    char pps[4];
+    if ((ret = dec.read_previous_tag_size(pps)) != ERROR_SUCCESS) {
+        if (!srs_is_client_gracefully_close(ret)) {
+            srs_error("flv: proxy flv header pps failed. ret=%d", ret);
+        }
+        return ret;
+    }
+    
     while (!rr->eof()) {
-        int nb_read = 0;
-        if ((ret = rr->read(buffer, SRS_HTTP_FLV_STREAM_BUFFER, &nb_read)) != ERROR_SUCCESS) {
+        pprint->elapse();
+        
+        if ((ret = connect()) != ERROR_SUCCESS) {
             return ret;
         }
-        //srs_trace("flv: read %dB from %s", nb_read, r->path().c_str());
+        
+        char type;
+        int32_t size;
+        u_int32_t time;
+        if ((ret = dec.read_tag_header(&type, &size, &time)) != ERROR_SUCCESS) {
+            if (!srs_is_client_gracefully_close(ret)) {
+                srs_error("flv: proxy tag header failed. ret=%d", ret);
+            }
+            return ret;
+        }
+        
+        char* data = new char[size];
+        if ((ret = dec.read_tag_data(data, size)) != ERROR_SUCCESS) {
+            srs_freep(data);
+            if (!srs_is_client_gracefully_close(ret)) {
+                srs_error("flv: proxy tag data failed. ret=%d", ret);
+            }
+            return ret;
+        }
+        
+        if ((ret = rtmp_write_packet(type, time, data, size)) != ERROR_SUCCESS) {
+            if (!srs_is_client_gracefully_close(ret)) {
+                srs_error("flv: proxy rtmp packet failed. ret=%d", ret);
+            }
+            return ret;
+        }
+        
+        if ((ret = dec.read_previous_tag_size(pps)) != ERROR_SUCCESS) {
+            if (!srs_is_client_gracefully_close(ret)) {
+                srs_error("flv: proxy tag header pps failed. ret=%d", ret);
+            }
+            return ret;
+        }
+    }
+    
+    return ret;
+}
+
+int SrsDynamicHttpConn::rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size)
+{
+    int ret = ERROR_SUCCESS;
+    
+    SrsSharedPtrMessage* msg = NULL;
+    
+    if ((ret = srs_rtmp_create_msg(type, timestamp, data, size, stream_id, &msg)) != ERROR_SUCCESS) {
+        srs_error("flv: create shared ptr msg failed. ret=%d", ret);
+        return ret;
+    }
+    srs_assert(msg);
+    
+    if (pprint->can_print()) {
+        srs_trace("flv: send msg %s age=%d, dts=%"PRId64", size=%d",
+                  msg->is_audio()? "A":msg->is_video()? "V":"N", pprint->age(), msg->timestamp, msg->size);
+    }
+    
+    // send out encoded msg.
+    if ((ret = client->send_and_free_message(msg, stream_id)) != ERROR_SUCCESS) {
+        return ret;
     }
     
     return ret;
@@ -335,13 +418,19 @@ int SrsHttpFileReader::read(void* buf, size_t count, ssize_t* pnread)
         return ret;
     }
     
-    int nread = 0;
-    if ((ret = http->read((char*)buf, (int)count, &nread)) != ERROR_SUCCESS) {
-        return ret;
+    int total_read = 0;
+    while (total_read < count) {
+        int nread = 0;
+        if ((ret = http->read((char*)buf + total_read, (int)(count - total_read), &nread)) != ERROR_SUCCESS) {
+            return ret;
+        }
+        
+        srs_assert(nread);
+        total_read += nread;
     }
     
     if (pnread) {
-        *pnread = nread;
+        *pnread = total_read;
     }
     
     return ret;

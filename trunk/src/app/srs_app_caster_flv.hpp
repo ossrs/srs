@@ -41,6 +41,7 @@ class SrsHttpConn;
 class SrsRtmpClient;
 class SrsStSocket;
 class SrsRequest;
+class SrsPithyPrint;
 
 #include <srs_app_st.hpp>
 #include <srs_app_listener.hpp>
@@ -82,6 +83,7 @@ class SrsDynamicHttpConn : public SrsHttpConn
 {
 private:
     std::string output;
+    SrsPithyPrint* pprint;
 private:
     SrsRequest* req;
     st_netfd_t stfd;
@@ -95,6 +97,8 @@ public:
     virtual int on_got_http_message(SrsHttpMessage* msg);
 public:
     virtual int proxy(ISrsHttpResponseWriter* w, SrsHttpMessage* r, std::string o);
+private:
+    virtual int rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size);
 private:
     // connect to rtmp output url.
     // @remark ignore when not connected, reconnect when disconnected.
