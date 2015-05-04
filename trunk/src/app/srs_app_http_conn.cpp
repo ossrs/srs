@@ -1398,11 +1398,8 @@ int SrsHttpConn::do_cycle()
         // always free it in this scope.
         SrsAutoFree(SrsHttpMessage, req);
         
-        // TODO: FIXME: use the post body.
-        std::string res;
-        
-        // get response body.
-        if ((ret = req->body_read_all(res)) != ERROR_SUCCESS) {
+        // may should discard the body.
+        if ((ret = on_got_http_message(req)) != ERROR_SUCCESS) {
             return ret;
         }
         
@@ -1428,6 +1425,30 @@ int SrsHttpConn::process_request(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
         if (!srs_is_client_gracefully_close(ret)) {
             srs_error("serve http msg failed. ret=%d", ret);
         }
+        return ret;
+    }
+    
+    return ret;
+}
+
+SrsStaticHttpConn::SrsStaticHttpConn(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m)
+    : SrsHttpConn(cm, fd, m)
+{
+}
+
+SrsStaticHttpConn::~SrsStaticHttpConn()
+{
+}
+
+int SrsStaticHttpConn::on_got_http_message(SrsHttpMessage* msg)
+{
+    int ret = ERROR_SUCCESS;
+    
+    // TODO: FIXME: use the post body.
+    std::string res;
+    
+    // get response body.
+    if ((ret = msg->body_read_all(res)) != ERROR_SUCCESS) {
         return ret;
     }
     

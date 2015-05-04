@@ -436,6 +436,8 @@ private:
     bool is_eof;
     // the left bytes in chunk.
     int nb_left_chunk;
+    // the number of bytes of current chunk.
+    int nb_chunk;
     // already read total bytes.
     int64_t nb_total_read;
 public:

@@ -905,6 +905,7 @@ int SrsHttpResponseReader::initialize(SrsFastBuffer* body)
 {
     int ret = ERROR_SUCCESS;
     
+    nb_chunk = 0;
     nb_left_chunk = 0;
     nb_total_read = 0;
     buffer = body;
@@ -999,33 +1000,35 @@ int SrsHttpResponseReader::read_chunked(char* data, int nb_data, int* nb_read)
         }
         
         // all bytes in chunk is left now.
-        nb_left_chunk = ilength;
+        nb_chunk = nb_left_chunk = ilength;
     }
     
-    // left bytes in chunk, read some.
-    srs_assert(nb_left_chunk);
-    
-    int nb_bytes = srs_min(nb_left_chunk, nb_data);
-    ret = read_specified(data, nb_bytes, &nb_bytes);
-    
-    // the nb_bytes used for output already read size of bytes.
-    if (nb_read) {
-        *nb_read = nb_bytes;
-    }
-    nb_left_chunk -= nb_bytes;
-    
-    // error or still left bytes in chunk, ignore and read in future.
-    if (nb_left_chunk > 0 || (ret != ERROR_SUCCESS)) {
-        return ret;
-    }
-    srs_info("http: read %d bytes of chunk", nb_bytes);
-    
-    // read payload when length specifies some payload.
-    if (nb_left_chunk <= 0) {
+    if (nb_chunk <= 0) {
+        // for the last chunk, eof.
         is_eof = true;
+    } else {
+        // for not the last chunk, there must always exists bytes.
+        // left bytes in chunk, read some.
+        srs_assert(nb_left_chunk);
+        
+        int nb_bytes = srs_min(nb_left_chunk, nb_data);
+        ret = read_specified(data, nb_bytes, &nb_bytes);
+        
+        // the nb_bytes used for output already read size of bytes.
+        if (nb_read) {
+            *nb_read = nb_bytes;
+        }
+        nb_left_chunk -= nb_bytes;
+        srs_info("http: read %d bytes of chunk", nb_bytes);
+        
+        // error or still left bytes in chunk, ignore and read in future.
+        if (nb_left_chunk > 0 || (ret != ERROR_SUCCESS)) {
+            return ret;
+        }
+        srs_info("http: read total chunk %dB", nb_chunk);
     }
     
-    // the CRLF of chunk payload end.
+    // for both the last or not, the CRLF of chunk payload end.
     if ((ret = buffer->grow(skt, 2)) != ERROR_SUCCESS) {
         if (!srs_is_client_gracefully_close(ret)) {
             srs_error("read EOF of chunk from server failed. ret=%d", ret);
@@ -1064,9 +1067,12 @@ int SrsHttpResponseReader::read_specified(char* data, int nb_data, int* nb_read)
     // increase the total read to determine whether EOF.
     nb_total_read += nb_bytes;
     
-    // when read completed, eof.
-    if (nb_total_read >= (int)owner->content_length()) {
-        is_eof = true;
+    // for not chunked
+    if (!owner->is_chunked()) {
+        // when read completed, eof.
+        if (nb_total_read >= (int)owner->content_length()) {
+            is_eof = true;
+        }
     }
     
     return ret;
