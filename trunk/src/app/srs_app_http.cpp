@@ -1078,8 +1078,9 @@ int SrsHttpResponseReader::read_specified(char* data, int nb_data, int* nb_read)
     return ret;
 }
 
-SrsHttpMessage::SrsHttpMessage(SrsStSocket* io)
+SrsHttpMessage::SrsHttpMessage(SrsStSocket* io, SrsConnection* c)
 {
+    conn = c;
     chunked = false;
     _uri = new SrsHttpUri();
     _body = new SrsHttpResponseReader(this, io);
@@ -1165,6 +1166,11 @@ char* SrsHttpMessage::http_ts_send_buffer()
     return _http_ts_send_buffer;
 }
 
+SrsConnection* SrsHttpMessage::connection()
+{
+    return conn;
+}
+
 u_int8_t SrsHttpMessage::method()
 {
     return (u_int8_t)_header.method;
@@ -1230,8 +1236,9 @@ string SrsHttpMessage::uri()
 {
     std::string uri = _uri->get_schema();
     if (uri.empty()) {
-        uri += "http://";
+        uri += "http";
     }
+    uri += "://";
     
     uri += host();
     uri += path();
@@ -1393,7 +1400,7 @@ int SrsHttpParser::initialize(enum http_parser_type type)
     return ret;
 }
 
-int SrsHttpParser::parse_message(SrsStSocket* skt, SrsHttpMessage** ppmsg)
+int SrsHttpParser::parse_message(SrsStSocket* skt, SrsConnection* conn, SrsHttpMessage** ppmsg)
 {
     *ppmsg = NULL;
     
@@ -1418,7 +1425,7 @@ int SrsHttpParser::parse_message(SrsStSocket* skt, SrsHttpMessage** ppmsg)
     }
 
     // create msg
-    SrsHttpMessage* msg = new SrsHttpMessage(skt);
+    SrsHttpMessage* msg = new SrsHttpMessage(skt, conn);
     
     // initalize http msg, parse url.
     if ((ret = msg->update(url, &header, buffer, headers)) != ERROR_SUCCESS) {
