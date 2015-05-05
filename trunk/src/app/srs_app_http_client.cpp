@@ -187,7 +187,7 @@ int SrsHttpClient::connect()
             host.c_str(), port, timeout_us, ret);
         return ret;
     }
-    srs_info("connect to server success. server=%s, port=%d", host, port);
+    srs_info("connect to server success. server=%s, port=%d", host.c_str(), port);
     
     srs_assert(!skt);
     skt = new SrsStSocket(stfd);
