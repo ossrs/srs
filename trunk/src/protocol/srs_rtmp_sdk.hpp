@@ -73,6 +73,8 @@ public:
     std::string schema;
     // the vhost in tcUrl.
     std::string vhost;
+    // the forward in tcUrl.
+    std::string forward;
     // the host in tcUrl.
     std::string host;
     // the port in tcUrl.
@@ -81,6 +83,8 @@ public:
     std::string app;
     // the param in tcUrl(app).
     std::string param;
+    // the param in stream(stream).
+    std::string streamParam;
     // the stream in play/publish
     std::string stream;
     // for play live stream, 

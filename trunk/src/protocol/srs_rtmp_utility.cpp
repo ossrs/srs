@@ -40,28 +40,31 @@ void srs_discovery_tc_url(
     size_t pos = std::string::npos;
     std::string url = tcUrl;
     
+    srs_trace("discovery_tc_url=%s", tcUrl.c_str());
     if ((pos = url.find("://")) != std::string::npos) {
         schema = url.substr(0, pos);
         url = url.substr(schema.length() + 3);
-        srs_info("discovery schema=%s", schema.c_str());
+        srs_trace("discovery schema=%s", schema.c_str());
     }
     
     if ((pos = url.find("/")) != std::string::npos) {
         host = url.substr(0, pos);
         url = url.substr(host.length() + 1);
-        srs_info("discovery host=%s", host.c_str());
+        srs_trace("discovery host=%s", host.c_str());
     }
 
     port = SRS_CONSTS_RTMP_DEFAULT_PORT;
     if ((pos = host.find(":")) != std::string::npos) {
         port = host.substr(pos + 1);
         host = host.substr(0, pos);
-        srs_info("discovery host=%s, port=%s", host.c_str(), port.c_str());
+        srs_trace("discovery host=%s, port=%s", host.c_str(), port.c_str());
     }
     
     app = url;
     vhost = host;
+    srs_trace("b vhost:%s,app=%s,param=%s",vhost.c_str(),app.c_str(),param.c_str());
     srs_vhost_resolve(vhost, app, param);
+    srs_trace("e vhost:%s,app=%s,param=%s",vhost.c_str(),app.c_str(),param.c_str());
 }
 
 void srs_vhost_resolve(string& vhost, string& app, string& param)
@@ -94,6 +97,27 @@ void srs_vhost_resolve(string& vhost, string& app, string& param)
             vhost = vhost.substr(0, pos);
         }
     }
+}
+
+void srs_param_resolve(string param, string paramName, string& value)
+{
+    // get original param
+    size_t pos = 0;
+    
+    // filter tcUrl
+    
+    paramName = paramName.append("=");
+    if ((pos = param.find(paramName)) != std::string::npos) {
+        param = param.substr(pos + paramName.size());
+        if (!param.empty()) {
+            if ((pos = param.find("&")) != std::string::npos) {
+                value = param.substr(0, pos);
+            } else {
+                value = param;
+            }
+        }
+    }
+    srs_trace("param resolve paramName=%s,value=%s,param:%s",paramName.c_str(),value.c_str(),param.c_str());
 }
 
 void srs_random_generate(char* bytes, int size)

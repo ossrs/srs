@@ -369,6 +369,9 @@ int SrsRtmpConn::stream_service_cycle()
     int ret = ERROR_SUCCESS;
         
     SrsRtmpConnType type;
+
+    srs_trace("b client identified, type=%s, stream_name=%s, duration=%.2f", 
+        srs_client_type_string(type).c_str(), req->stream.c_str(), req->duration);
     if ((ret = rtmp->identify_client(res->stream_id, type, req->stream, req->duration)) != ERROR_SUCCESS) {
         if (!srs_is_client_gracefully_close(ret)) {
             srs_error("identify client failed. ret=%d", ret);
