@@ -569,6 +569,7 @@ public:
     virtual void on_edge_proxy_unpublish();
 private:
     virtual int create_forwarders();
+    virtual int create_one_forwarder(std::string forward_server);
     virtual void destroy_forwarders();
 };
 

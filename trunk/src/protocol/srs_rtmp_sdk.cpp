@@ -104,6 +104,7 @@ SrsRequest* SrsRequest::copy()
     cp->tcUrl = tcUrl;
     cp->vhost = vhost;
     cp->duration = duration;
+    cp->forward = forward;
     if (args) {
         cp->args = args->copy()->to_object();
     }
@@ -147,10 +148,12 @@ void SrsRequest::strip()
     vhost = srs_string_remove(vhost, "/ \n\r\t");
     app = srs_string_remove(app, " \n\r\t");
     stream = srs_string_remove(stream, " \n\r\t");
+    forward = srs_string_remove(forward, " \n\r\t");
     
     // remove end slash of app/stream
     app = srs_string_trim_end(app, "/");
     stream = srs_string_trim_end(stream, "/");
+    forward = srs_string_trim_end(forward, "/");
     
     // remove start slash of app/stream
     app = srs_string_trim_start(app, "/");
@@ -887,7 +890,7 @@ int SrsRtmpServer::connect_app(SrsRequest* req)
         req->param);
 
     string forwardValue;
-    srs_param_resolve(req->param,"forward",forwardValue);
+    srs_param_resolve(req->param,"forward",req->forward);
     req->strip();
     
     return ret;

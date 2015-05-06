@@ -2064,10 +2064,40 @@ void SrsSource::on_edge_proxy_unpublish()
     publish_edge->on_proxy_unpublish();
 }
 
+int SrsSource::create_one_forwarder(std::string forward_server)
+{
+    int ret = ERROR_SUCCESS;
+
+    if ( forward_server.empty() ) {
+        return ret;
+    }
+
+    SrsForwarder* forwarder = new SrsForwarder(this);
+    forwarders.push_back(forwarder);
+
+    // initialize the forwarder with request.
+    if ((ret = forwarder->initialize(_req, forward_server)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    double queue_size = _srs_config->get_queue_length(_req->vhost);
+    forwarder->set_queue_size(queue_size);
+
+    if ((ret = forwarder->on_publish()) != ERROR_SUCCESS) {
+        srs_error("start forwarder failed. "
+                "vhost=%s, app=%s, stream=%s, forward-to=%s",
+                _req->vhost.c_str(), _req->app.c_str(), _req->stream.c_str(),
+                forward_server.c_str());
+        return ret;
+    }
+}
 int SrsSource::create_forwarders()
 {
     int ret = ERROR_SUCCESS;
     
+    srs_trace("create_forwarders forward:%s",_req->forward.c_str());
+    create_one_forwarder(_req->forward);
+
     SrsConfDirective* conf = _srs_config->get_forward(_req->vhost);
     for (int i = 0; conf && i < (int)conf->args.size(); i++) {
         std::string forward_server = conf->args.at(i);
