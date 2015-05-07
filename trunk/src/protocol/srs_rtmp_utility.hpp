@@ -65,6 +65,8 @@ extern void srs_discovery_tc_url(
 */ 
 extern void srs_vhost_resolve(std::string& vhost, std::string& app, std::string& param);
 extern void srs_param_resolve(std::string param, std::string paramName, std::string& value);
+extern std::string srs_UriDecode(const std::string & sSrc);
+extern std::string srs_UriEncode(const std::string & sSrc);
 
 /**
 * generate ramdom data for handshake.

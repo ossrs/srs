@@ -8,7 +8,9 @@ else
                 objs/srs_ingest_flv objs/srs_ingest_rtmp objs/srs_detect_rtmp \
                 objs/srs_bandwidth_check objs/srs_h264_raw_publish \
                 objs/srs_audio_raw_publish objs/srs_aac_raw_publish \
-                objs/srs_rtmp_dump
+                objs/srs_rtmp_dump \
+                objs/srs_rtmp_uri_encode \
+                objs/srs_rtmp_uri_decode 
 endif
 
 .PHONY: default clean help ssl nossl
@@ -46,9 +48,11 @@ clean:
 
 # srs library root
 SRS_OBJS = ../../objs
+SRS_SRC = ../../src
 # srs-librtmp for publish/play, built by srs.
 SRS_LIBRTMP_I = $(SRS_OBJS)/include/srs_librtmp.h
 SRS_LIBRTMP_L = $(SRS_OBJS)/lib/srs_librtmp.a
+SRS_LIB_INCLUDE = -I$(SRS_SRC)/app -I$(SRS_SRC)/kernel -I$(SRS_SRC)/core -I$(SRS_SRC)/libs -I$(SRS_SRC)/protocol -I$(SRS_OBJS)
 # openssl for complex handshake, built by srs.
 SRS_LIBSSL_L =
 # public depends, the Makefile or public headers.
@@ -113,3 +117,9 @@ objs/srs_bandwidth_check: srs_bandwidth_check.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRT
 
 objs/srs_rtmp_dump: srs_rtmp_dump.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
 	$(GCC) srs_rtmp_dump.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_rtmp_dump
+
+objs/srs_rtmp_uri_encode: srs_rtmp_uri_encode.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
+	g++ srs_rtmp_uri_encode.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_rtmp_uri_encode $(SRS_LIB_INCLUDE) 
+
+objs/srs_rtmp_uri_decode: srs_rtmp_uri_decode.c $(SRS_RESEARCH_DEPS) $(SRS_LIBRTMP_I) $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L)
+	g++ srs_rtmp_uri_decode.c $(SRS_LIBRTMP_L) $(SRS_LIBSSL_L) $(EXTRA_CXX_FLAG) -o objs/srs_rtmp_uri_decode $(SRS_LIB_INCLUDE) 
