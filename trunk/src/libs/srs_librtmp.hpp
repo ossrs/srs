@@ -901,8 +901,9 @@ extern const char* srs_human_flv_audio_aac_packet_type2string(char aac_packet_ty
 * print the rtmp packet, use srs_human_trace/srs_human_verbose for packet,
 * and use srs_human_raw for script data body.
 * @return an error code for parse the timetstamp to dts and pts.
-*/
+ */
 extern int srs_human_print_rtmp_packet(char type, u_int32_t timestamp, char* data, int size);
+extern int srs_human_print_rtmp_packet2(char type, u_int32_t timestamp, char* data, int size, u_int32_t pre_timestamp);
 
 // log to console, for use srs-librtmp application.
 extern const char* srs_human_format_time();
