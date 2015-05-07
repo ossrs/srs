@@ -478,11 +478,14 @@ int SrsRtmpClient::connect_app2(
         } else {
             pkt->command_object->set("swfUrl", SrsAmf0Any::str());
         }
-        if (req && req->tcUrl != "") {
-            pkt->command_object->set("tcUrl", SrsAmf0Any::str(req->tcUrl.c_str()));
-        } else {
+        if ( ! tc_url.empty() ) {
             pkt->command_object->set("tcUrl", SrsAmf0Any::str(tc_url.c_str()));
-        }
+        } else if (req && req->tcUrl != "") {
+            pkt->command_object->set("tcUrl", SrsAmf0Any::str(req->tcUrl.c_str()));
+        } 
+//        else {
+//            pkt->command_object->set("tcUrl", SrsAmf0Any::str(tc_url.c_str()));
+//        }
         pkt->command_object->set("fpad", SrsAmf0Any::boolean(false));
         pkt->command_object->set("capabilities", SrsAmf0Any::number(239));
         pkt->command_object->set("audioCodecs", SrsAmf0Any::number(3575));

@@ -117,6 +117,7 @@ void srs_param_resolve(string param, string paramName, string& value)
             }
         }
     }
+    value = srs_UriDecode(value);
     srs_trace("param resolve paramName=%s,value=%s,param:%s",paramName.c_str(),value.c_str(),param.c_str());
 }
 
@@ -270,6 +271,7 @@ string srs_generate_tc_url(string ip, string vhost, string app, string port, str
     tcUrl += app;
     tcUrl += param;
     
+    srs_trace("srs_generate_tc_url:%s",tcUrl.c_str());
     return tcUrl;
 }
 

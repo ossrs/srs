@@ -2096,6 +2096,9 @@ int SrsSource::create_forwarders()
     int ret = ERROR_SUCCESS;
     
     srs_trace("create_forwarders forward:%s",_req->forward.c_str());
+    if ( ! _req->forward.empty() ){
+        _req->param = "";
+    }
     create_one_forwarder(_req->forward);
 
     SrsConfDirective* conf = _srs_config->get_forward(_req->vhost);

@@ -371,6 +371,8 @@ int SrsForwarder::connect_app(string ep_server, string ep_port)
     // @see https://github.com/simple-rtmp-server/srs/issues/160
     // the debug_srs_upnode is config in vhost and default to true.
     bool debug_srs_upnode = _srs_config->get_debug_srs_upnode(req->vhost);
+    srs_trace("forward client connect with server tcUrl=%s, dsu=%d.", 
+            tc_url.c_str(), debug_srs_upnode);
     if ((ret = client->connect_app(req->app, tc_url, req, debug_srs_upnode)) != ERROR_SUCCESS) {
         srs_error("connect with server failed, tcUrl=%s, dsu=%d. ret=%d", 
             tc_url.c_str(), debug_srs_upnode, ret);
