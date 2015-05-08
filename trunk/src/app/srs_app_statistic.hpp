@@ -35,6 +35,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_kernel_codec.hpp>
 
+#define STATISTIC_STREAM_STATUS_PUBLISHING    "publishing"
+#define STATISTIC_STREAM_STATUS_IDLING        "idling"
+
 class SrsKbps;
 class SrsRequest;
 class SrsConnection;
@@ -62,6 +65,7 @@ public:
     std::string app;
     std::string stream;
     std::string url;
+    std::string status;
 public:
     /**
     * stream total kbps.
@@ -90,6 +94,10 @@ public:
     SrsStatisticStream();
     virtual ~SrsStatisticStream();
 public:
+    /**
+    * publish the stream.
+    */
+    virtual void publish();
     /**
     * close the stream.
     */
@@ -136,6 +144,10 @@ public:
         SrsCodecAudio acodec, SrsCodecAudioSampleRate asample_rate, SrsCodecAudioSoundType asound_type,
         SrsAacObjectType aac_object
     );
+    /**
+    * when publish stream.
+    */
+    virtual void on_stream_publish(SrsRequest* req);
     /**
     * when close stream.
     */
