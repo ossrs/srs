@@ -32,6 +32,52 @@ using namespace std;
 #include <srs_rtmp_stack.hpp>
 #include <srs_kernel_codec.hpp>
 
+bool srs_discovery_rtmp_url(
+    string tcUrl, 
+    string& schema, string& host,string& port,  
+    string& app, string& stream
+) {
+    size_t pos = std::string::npos;
+    std::string url = tcUrl;
+    
+    srs_trace("discovery_rtmp_url=%s", tcUrl.c_str());
+    if ((pos = url.find("://")) == std::string::npos) {
+        return false;
+    }
+
+    schema = url.substr(0, pos);
+    url = url.substr(schema.length() + 3);
+    //srs_trace("discovery rtmp  schema=%s", schema.c_str());
+    if ( schema.find("rtmp") == std::string::npos ) {
+        return false;
+    }
+    
+    if ((pos = url.find("/")) == std::string::npos) {
+        return false; 
+    }
+
+    host = url.substr(0, pos);
+    url = url.substr(host.length() + 1);
+    //srs_trace("discovery host=%s", host.c_str());
+
+    port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+    if ((pos = host.find(":")) != std::string::npos) {
+        port = host.substr(pos + 1);
+        host = host.substr(0, pos);
+        //srs_trace("discovery host=%s, port=%s", host.c_str(), port.c_str());
+    }
+    
+    if ((pos = url.find("/")) == std::string::npos) {
+        return false; 
+    }
+    app = url.substr(0, pos);
+    stream = url.substr(pos + 1);
+
+    srs_trace("srs discovery rtmp url= schema=%s,host=%s,port=%s app=%s,stream=%s"
+            ,schema.c_str(),host.c_str(),port.c_str(),app.c_str(),stream.c_str());
+    return true;
+}
+
 void srs_discovery_tc_url(
     string tcUrl, 
     string& schema, string& host, string& vhost, 

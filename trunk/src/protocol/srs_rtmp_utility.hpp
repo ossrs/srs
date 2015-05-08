@@ -36,6 +36,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsMessageHeader;
 class SrsSharedPtrMessage;
 
+extern bool srs_discovery_rtmp_url(
+             std::string tcUrl,
+             std::string& schema, std::string& host,std::string& port,
+             std::string& app,    std::string& stream
+);
 /**
 * parse the tcUrl, output the schema, host, vhost, app and port.
 * @param tcUrl, the input tcUrl, for example, 

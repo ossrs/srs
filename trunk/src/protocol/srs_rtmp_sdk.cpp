@@ -894,7 +894,9 @@ int SrsRtmpServer::connect_app(SrsRequest* req)
 
     string forwardValue;
     srs_param_resolve(req->param,"forward",req->forward);
+    srs_trace("after srs_param_resolve forward=%s",req->forward.c_str());
     req->strip();
+    srs_trace("after strip forward=%s",req->forward.c_str());
     
     return ret;
 }
