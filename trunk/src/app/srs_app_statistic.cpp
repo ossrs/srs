@@ -58,6 +58,7 @@ SrsStatisticStream::SrsStatisticStream()
 {
     id = srs_generate_id();
     vhost = NULL;
+    status = STATISTIC_STREAM_STATUS_IDLING;
     
     has_video = false;
     vcodec = SrsCodecVideoReserved;
@@ -79,10 +80,16 @@ SrsStatisticStream::~SrsStatisticStream()
     srs_freep(kbps);
 }
 
+void SrsStatisticStream::publish()
+{
+    status = STATISTIC_STREAM_STATUS_PUBLISHING;
+}
+
 void SrsStatisticStream::close()
 {
     has_video = false;
     has_audio = false;
+    status = STATISTIC_STREAM_STATUS_IDLING;
 }
 
 SrsStatistic* SrsStatistic::_instance = new SrsStatistic();
@@ -159,6 +166,14 @@ int SrsStatistic::on_audio_info(SrsRequest* req,
     stream->aac_object = aac_object;
     
     return ret;
+}
+
+void SrsStatistic::on_stream_publish(SrsRequest* req)
+{
+    SrsStatisticVhost* vhost = create_vhost(req);
+    SrsStatisticStream* stream = create_stream(vhost, req);
+
+    stream->publish();
 }
 
 void SrsStatistic::on_stream_close(SrsRequest* req)
@@ -308,7 +323,8 @@ int SrsStatistic::dumps_streams(stringstream& ss)
                 << SRS_JFIELD_ORG("clients", client_num) << SRS_JFIELD_CONT
                 << SRS_JFIELD_ORG("send_bytes", stream->kbps->get_send_bytes()) << SRS_JFIELD_CONT
                 << SRS_JFIELD_ORG("recv_bytes", stream->kbps->get_recv_bytes()) << SRS_JFIELD_CONT
-                << SRS_JFIELD_ORG("live_ms", srs_get_system_time_ms()) << SRS_JFIELD_CONT;
+                << SRS_JFIELD_ORG("live_ms", srs_get_system_time_ms()) << SRS_JFIELD_CONT
+                << SRS_JFIELD_STR("status", stream->status) << SRS_JFIELD_CONT;
         
         if (!stream->has_video) {
             ss  << SRS_JFIELD_NULL("video") << SRS_JFIELD_CONT;

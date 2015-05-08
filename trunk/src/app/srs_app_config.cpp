@@ -2570,7 +2570,7 @@ bool SrsConfig::get_vhost_is_edge(SrsConfDirective* vhost)
         return SRS_CONF_DEFAULT_EDGE_MODE;
     }
     
-    return conf->arg0() == "remote";
+    return "remote" == conf->arg0();
 }
 
 SrsConfDirective* SrsConfig::get_vhost_edge_origin(string vhost)
