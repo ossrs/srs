@@ -2898,7 +2898,7 @@ int SrsTsCache::do_cache_avc(SrsAvcAacCodec* codec, SrsCodecSample* sample)
      *       xxxxxxx // data bytes.
      *
      * nal_unit_type specifies the type of RBSP data structure contained in the NAL unit as specified in Table 7-1.
-     * Table 7-1 – NAL unit type codes, syntax element categories, and NAL unit type classes
+     * Table 7-1 - NAL unit type codes, syntax element categories, and NAL unit type classes
      * H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 83.
      *      1, Coded slice of a non-IDR picture slice_layer_without_partitioning_rbsp( )
      *      2, Coded slice data partition A slice_data_partition_a_layer_rbsp( )

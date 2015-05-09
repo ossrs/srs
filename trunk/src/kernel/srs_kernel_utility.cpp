@@ -61,7 +61,7 @@ int srs_avc_nalu_read_uev(SrsBitStream* stream, int32_t& v)
     //      for( b = 0; !b; leadingZeroBits++ )
     //          b = read_bits( 1 )
     // The variable codeNum is then assigned as follows:
-    //      codeNum = (2<<leadingZeroBits) – 1 + read_bits( leadingZeroBits )
+    //      codeNum = (2<<leadingZeroBits) - 1 + read_bits( leadingZeroBits )
     int leadingZeroBits = -1;
     for (int8_t b = 0; !b && !stream->empty(); leadingZeroBits++) {
         b = stream->read_bit();

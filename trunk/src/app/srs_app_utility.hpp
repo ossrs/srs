@@ -143,11 +143,11 @@ public:
     // minflt %lu  The number of minor faults the process has made which have not required loading  a  memory  page  from
     //             disk.
     unsigned long minflt;
-    // cminflt %lu The number of minor faults that the process’s waited-for children have made.
+    // cminflt %lu The number of minor faults that the process's waited-for children have made.
     unsigned long cminflt;
     // majflt %lu  The number of major faults the process has made which have required loading a memory page from disk.
     unsigned long majflt;
-    // cmajflt %lu The number of major faults that the process’s waited-for children have made.
+    // cmajflt %lu The number of major faults that the process's waited-for children have made.
     unsigned long cmajflt;
     // utime %lu   Amount  of  time that this process has been scheduled in user mode, measured in clock ticks (divide by
     //             sysconf(_SC_CLK_TCK).  This includes guest time, guest_time (time spent running  a  virtual  CPU,  see
@@ -157,11 +157,11 @@ public:
     // stime %lu   Amount of time that this process has been scheduled in kernel mode, measured in clock ticks (divide by
     //             sysconf(_SC_CLK_TCK).
     unsigned long stime;
-    // cutime %ld  Amount  of  time that this process’s waited-for children have been scheduled in user mode, measured in
+    // cutime %ld  Amount  of  time that this process's waited-for children have been scheduled in user mode, measured in
     //             clock ticks (divide  by  sysconf(_SC_CLK_TCK).   (See  also  times(2).)   This  includes  guest  time,
     //             cguest_time (time spent running a virtual CPU, see below).
     long cutime;
-    // cstime %ld  Amount of time that this process’s waited-for children have been scheduled in kernel mode, measured in
+    // cstime %ld  Amount of time that this process's waited-for children have been scheduled in kernel mode, measured in
     //             clock ticks (divide by sysconf(_SC_CLK_TCK).
     long cstime;
     // priority %ld
@@ -251,7 +251,7 @@ public:
     //             clock ticks (divide by sysconf(_SC_CLK_TCK).
     unsigned long guest_time;
     // cguest_time %ld (since Linux 2.6.24)
-    //             Guest time of the process’s children, measured in clock ticks (divide by sysconf(_SC_CLK_TCK).
+    //             Guest time of the process's children, measured in clock ticks (divide by sysconf(_SC_CLK_TCK).
     long cguest_time;
     
 public:
