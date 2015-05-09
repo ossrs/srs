@@ -1445,7 +1445,7 @@ int SrsProtocol::recv_interlaced_message(SrsCommonMessage** pmsg)
 * Header field may be 1, 2, or 3 bytes, depending on the chunk stream
 * ID.
 * 
-* The bits 0–5 (least significant) in the chunk basic header represent
+* The bits 0-5 (least significant) in the chunk basic header represent
 * the chunk stream ID.
 *
 * Chunk stream IDs 2-63 can be encoded in the 1-byte version of this
@@ -1651,14 +1651,14 @@ int SrsProtocol::read_message_header(SrsChunkStream* chunk, char fmt)
         // timestamp: 3 bytes
         // If the timestamp is greater than or equal to 16777215
         // (hexadecimal 0x00ffffff), this value MUST be 16777215, and the
-        // ‘extended timestamp header’ MUST be present. Otherwise, this value
+        // 'extended timestamp header' MUST be present. Otherwise, this value
         // SHOULD be the entire timestamp.
         //
         // fmt: 1 or 2
         // timestamp delta: 3 bytes
         // If the delta is greater than or equal to 16777215 (hexadecimal
-        // 0x00ffffff), this value MUST be 16777215, and the ‘extended
-        // timestamp header’ MUST be present. Otherwise, this value SHOULD be
+        // 0x00ffffff), this value MUST be 16777215, and the 'extended
+        // timestamp header' MUST be present. Otherwise, this value SHOULD be
         // the entire delta.
         chunk->extended_timestamp = (chunk->header.timestamp_delta >= RTMP_EXTENDED_TIMESTAMP);
         if (!chunk->extended_timestamp) {

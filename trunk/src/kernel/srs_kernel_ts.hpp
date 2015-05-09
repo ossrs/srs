@@ -182,7 +182,7 @@ struct SrsTsChannel
 
 /**
 * the stream_id of PES payload of ts packet.
-* Table 2-18 – Stream_id assignments, hls-mpeg-ts-iso13818-1.pdf, page 52.
+* Table 2-18 - Stream_id assignments, hls-mpeg-ts-iso13818-1.pdf, page 52.
 */
 enum SrsTsPESStreamId
 {
@@ -236,7 +236,7 @@ enum SrsTsPESStreamId
     // FlexMux_stream
     SrsTsPESStreamIdFlexMuxStream               = 0xfb, // 0b11111011
     // reserved data stream
-    // 1111 1100 … 1111 1110
+    // 1111 1100 ... 1111 1110
     // program_stream_directory
     SrsTsPESStreamIdProgramStreamDirectory      = 0xff, // 0b11111111
 };
@@ -1208,7 +1208,7 @@ public:
     // NB
     /**
     * PES_packet_data_bytes shall be contiguous bytes of data from the elementary stream
-    * indicated by the packet’s stream_id or PID. When the elementary stream data conforms to ITU-T
+    * indicated by the packet's stream_id or PID. When the elementary stream data conforms to ITU-T
     * Rec. H.262 | ISO/IEC 13818-2 or ISO/IEC 13818-3, the PES_packet_data_bytes shall be byte aligned to the bytes of this
     * Recommendation | International Standard. The byte-order of the elementary stream shall be preserved. The number of
     * PES_packet_data_bytes, N, is specified by the PES_packet_length field. N shall be equal to the value indicated in the
