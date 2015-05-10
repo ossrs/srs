@@ -175,6 +175,17 @@ int SrsDynamicHttpConn::proxy(ISrsHttpResponseWriter* w, SrsHttpMessage* r, std:
         return ret;
     }
     
+    ret = do_proxy(rr, &dec);
+    close();
+    
+    return ret;
+}
+
+int SrsDynamicHttpConn::do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec)
+{
+    int ret = ERROR_SUCCESS;
+    
+    char pps[4];
     while (!rr->eof()) {
         pprint->elapse();
         
@@ -185,7 +196,7 @@ int SrsDynamicHttpConn::proxy(ISrsHttpResponseWriter* w, SrsHttpMessage* r, std:
         char type;
         int32_t size;
         u_int32_t time;
-        if ((ret = dec.read_tag_header(&type, &size, &time)) != ERROR_SUCCESS) {
+        if ((ret = dec->read_tag_header(&type, &size, &time)) != ERROR_SUCCESS) {
             if (!srs_is_client_gracefully_close(ret)) {
                 srs_error("flv: proxy tag header failed. ret=%d", ret);
             }
@@ -193,7 +204,7 @@ int SrsDynamicHttpConn::proxy(ISrsHttpResponseWriter* w, SrsHttpMessage* r, std:
         }
         
         char* data = new char[size];
-        if ((ret = dec.read_tag_data(data, size)) != ERROR_SUCCESS) {
+        if ((ret = dec->read_tag_data(data, size)) != ERROR_SUCCESS) {
             srs_freep(data);
             if (!srs_is_client_gracefully_close(ret)) {
                 srs_error("flv: proxy tag data failed. ret=%d", ret);
@@ -208,7 +219,7 @@ int SrsDynamicHttpConn::proxy(ISrsHttpResponseWriter* w, SrsHttpMessage* r, std:
             return ret;
         }
         
-        if ((ret = dec.read_previous_tag_size(pps)) != ERROR_SUCCESS) {
+        if ((ret = dec->read_previous_tag_size(pps)) != ERROR_SUCCESS) {
             if (!srs_is_client_gracefully_close(ret)) {
                 srs_error("flv: proxy tag header pps failed. ret=%d", ret);
             }
