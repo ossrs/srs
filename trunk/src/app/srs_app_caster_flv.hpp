@@ -42,6 +42,8 @@ class SrsRtmpClient;
 class SrsStSocket;
 class SrsRequest;
 class SrsPithyPrint;
+class ISrsHttpResponseReader;
+class SrsFlvDecoder;
 
 #include <srs_app_st.hpp>
 #include <srs_app_listener.hpp>
@@ -98,6 +100,7 @@ public:
 public:
     virtual int proxy(ISrsHttpResponseWriter* w, SrsHttpMessage* r, std::string o);
 private:
+    virtual int do_proxy(ISrsHttpResponseReader* rr, SrsFlvDecoder* dec);
     virtual int rtmp_write_packet(char type, u_int32_t timestamp, char* data, int size);
 private:
     // connect to rtmp output url.

@@ -522,6 +522,8 @@ Supported operating systems and hardware:
 [#250](https://github.com/simple-rtmp-server/srs/issues/250).
 1. [experiment] Support push RTSP to SRS, read
 [#133](https://github.com/simple-rtmp-server/srs/issues/133).
+1. [experiment] Support push flv stream over HTTP POST to SRS, read
+[wiki](https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Streamer#push-http-flv-to-srs).
 1. Start [2.0release branch](https://github.com/simple-rtmp-server/srs/tree/2.0release).
 1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
 1. [no-plan] Support RTMP 302 redirect [#92](https://github.com/simple-rtmp-server/srs/issues/92).
@@ -564,6 +566,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-05-10, support push flv stream over HTTP POST to SRS.
 * v2.0, 2015-04-20, support ingest hls live stream to RTMP.
 * v2.0, 2015-04-15, for [#383](https://github.com/simple-rtmp-server/srs/issues/383), support mix_correct algorithm. 2.0.161.
 * v2.0, 2015-04-13, for [#381](https://github.com/simple-rtmp-server/srs/issues/381), support reap hls/ts by gop or not. 2.0.160.
