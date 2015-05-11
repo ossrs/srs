@@ -2079,11 +2079,11 @@ int SrsSource::create_one_forwarder(std::string forward_server)
     SrsForwarder* forwarder = new SrsForwarder(this);
     forwarders.push_back(forwarder);
 
-    if ( srs_discovery_rtmp_url(forward_server
-                ,_req->schema,_req->host,  _req->port
-                ,_req->app,   _req->stream) ) {
-        forward_server = _req->host.append(":").append(_req->port);
-    }
+//    if ( srs_discovery_rtmp_url(forward_server
+//                ,_req->schema,_req->host,  _req->port
+//                ,_req->app,   _req->stream) ) {
+//        forward_server = _req->host.append(":").append(_req->port);
+//    }
     // initialize the forwarder with request.
     if ((ret = forwarder->initialize(_req, forward_server)) != ERROR_SUCCESS) {
         return ret;
