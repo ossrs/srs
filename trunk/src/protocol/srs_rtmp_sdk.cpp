@@ -104,6 +104,7 @@ SrsRequest* SrsRequest::copy()
     cp->tcUrl = tcUrl;
     cp->vhost = vhost;
     cp->duration = duration;
+    cp->forward = forward;
     if (args) {
         cp->args = args->copy()->to_object();
     }
@@ -116,6 +117,8 @@ void SrsRequest::update_auth(SrsRequest* req)
     pageUrl = req->pageUrl;
     swfUrl = req->swfUrl;
     tcUrl = req->tcUrl;
+    forward = req->forward;
+    param   = req->param;
     
     if (args) {
         srs_freep(args);
@@ -147,10 +150,12 @@ void SrsRequest::strip()
     vhost = srs_string_remove(vhost, "/ \n\r\t");
     app = srs_string_remove(app, " \n\r\t");
     stream = srs_string_remove(stream, " \n\r\t");
+    forward = srs_string_remove(forward, " \n\r\t");
     
     // remove end slash of app/stream
     app = srs_string_trim_end(app, "/");
     stream = srs_string_trim_end(stream, "/");
+    forward = srs_string_trim_end(forward, "/");
     
     // remove start slash of app/stream
     app = srs_string_trim_start(app, "/");
@@ -475,11 +480,14 @@ int SrsRtmpClient::connect_app2(
         } else {
             pkt->command_object->set("swfUrl", SrsAmf0Any::str());
         }
-        if (req && req->tcUrl != "") {
-            pkt->command_object->set("tcUrl", SrsAmf0Any::str(req->tcUrl.c_str()));
-        } else {
+        if ( ! tc_url.empty() ) {
             pkt->command_object->set("tcUrl", SrsAmf0Any::str(tc_url.c_str()));
-        }
+        } else if (req && req->tcUrl != "") {
+            pkt->command_object->set("tcUrl", SrsAmf0Any::str(req->tcUrl.c_str()));
+        } 
+//        else {
+//            pkt->command_object->set("tcUrl", SrsAmf0Any::str(tc_url.c_str()));
+//        }
         pkt->command_object->set("fpad", SrsAmf0Any::boolean(false));
         pkt->command_object->set("capabilities", SrsAmf0Any::number(239));
         pkt->command_object->set("audioCodecs", SrsAmf0Any::number(3575));
@@ -885,6 +893,7 @@ int SrsRtmpServer::connect_app(SrsRequest* req)
     srs_discovery_tc_url(req->tcUrl, 
         req->schema, req->host, req->vhost, req->app, req->port,
         req->param);
+    srs_param_resolve(req->param,"forward",req->forward);
     req->strip();
     
     return ret;

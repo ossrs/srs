@@ -45,6 +45,7 @@ using namespace std;
 #include <srs_app_hds.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_rtmp_utility.hpp>
 
 #define CONST_MAX_JITTER_MS         500
 #define DEFAULT_FRAME_TIME_MS         40
@@ -2067,10 +2068,42 @@ void SrsSource::on_edge_proxy_unpublish()
     publish_edge->on_proxy_unpublish();
 }
 
+int SrsSource::create_forwarder_by_url(std::string forward_server)
+{
+    int ret = ERROR_SUCCESS;
+
+    if ( forward_server.empty() ) {
+        srs_info("forwarders forwards is emptey");
+        return ret;
+    }
+
+    srs_trace("create forwarders by url. forwardUrl:%s",_req->forward.c_str());
+    SrsForwarder* forwarder = new SrsForwarder(this);
+    forwarders.push_back(forwarder);
+
+    // initialize the forwarder with request.
+    if ((ret = forwarder->initialize(_req, forward_server)) != ERROR_SUCCESS) {
+        return ret;
+    }
+
+    double queue_size = _srs_config->get_queue_length(_req->vhost);
+    forwarder->set_queue_size(queue_size);
+
+    if ((ret = forwarder->on_publish()) != ERROR_SUCCESS) {
+        srs_error("start forwarder failed. "
+                "vhost=%s, app=%s, stream=%s, forward-to=%s",
+                _req->vhost.c_str(), _req->app.c_str(), _req->stream.c_str(),
+                forward_server.c_str());
+        return ret;
+    }
+}
+
 int SrsSource::create_forwarders()
 {
     int ret = ERROR_SUCCESS;
     
+    create_forwarder_by_url(_req->forward);
+
     SrsConfDirective* conf = _srs_config->get_forward(_req->vhost);
     for (int i = 0; conf && i < (int)conf->args.size(); i++) {
         std::string forward_server = conf->args.at(i);

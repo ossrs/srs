@@ -36,6 +36,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 class SrsMessageHeader;
 class SrsSharedPtrMessage;
 
+extern bool srs_discovery_rtmp_url(
+             std::string tcUrl,
+             std::string& schema, std::string& host,std::string& port,
+             std::string& app,    std::string& stream
+);
 /**
 * parse the tcUrl, output the schema, host, vhost, app and port.
 * @param tcUrl, the input tcUrl, for example, 
@@ -64,6 +69,9 @@ extern void srs_discovery_tc_url(
 * @param param, the query, for example, ?vhost=xxx
 */ 
 extern void srs_vhost_resolve(std::string& vhost, std::string& app, std::string& param);
+extern void srs_param_resolve(std::string param, std::string paramName, std::string& value);
+extern std::string srs_UriDecode(const std::string & sSrc);
+extern std::string srs_UriEncode(const std::string & sSrc);
 
 /**
 * generate ramdom data for handshake.

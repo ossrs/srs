@@ -73,6 +73,8 @@ public:
     std::string schema;
     // the vhost in tcUrl.
     std::string vhost;
+    // the forward in tcUrl.
+    std::string forward;
     // the host in tcUrl.
     std::string host;
     // the port in tcUrl.
