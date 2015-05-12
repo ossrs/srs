@@ -129,6 +129,10 @@ void srs_vhost_resolve(string& vhost, string& app, string& param)
     
     if ((pos = app.find("?")) == std::string::npos) {
         return;
+    } else {
+        if ( param.empty() ) {
+            param = app.substr(pos);
+        }
     }
     
     std::string query = app.substr(pos + 1);
