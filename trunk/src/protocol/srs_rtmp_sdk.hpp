@@ -83,8 +83,6 @@ public:
     std::string app;
     // the param in tcUrl(app).
     std::string param;
-    // the param in stream(stream).
-    std::string streamParam;
     // the stream in play/publish
     std::string stream;
     // for play live stream, 

@@ -154,9 +154,9 @@ int SrsStreamListener::listen(string ip, int port)
         return ret;
     }
     
-   // srs_info("listen thread cid=%d, current_cid=%d, "
-   //     "listen at port=%d, type=%d, fd=%d started success, ep=%s:%d",
-   //     pthread->cid(), _srs_context->get_id(), _port, _type, this.fd(), ip.c_str(), port);
+    srs_info("listen thread cid=%d, current_cid=%d, "
+        "listen at port=%d, type=%d, fd=%d started success, ep=%s:%d",
+        pthread->cid(), _srs_context->get_id(), _port, _type, fd, ip.c_str(), port);
 
     srs_trace("%s listen at tcp://%s:%d, fd=%d", srs_listener_type2string(_type).c_str(), ip.c_str(), _port, listener->fd());
 

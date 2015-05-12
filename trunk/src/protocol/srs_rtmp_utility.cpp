@@ -86,31 +86,28 @@ void srs_discovery_tc_url(
     size_t pos = std::string::npos;
     std::string url = tcUrl;
     
-    srs_trace("discovery_tc_url=%s", tcUrl.c_str());
     if ((pos = url.find("://")) != std::string::npos) {
         schema = url.substr(0, pos);
         url = url.substr(schema.length() + 3);
-        srs_trace("discovery schema=%s", schema.c_str());
+        srs_info("discovery schema=%s", schema.c_str());
     }
     
     if ((pos = url.find("/")) != std::string::npos) {
         host = url.substr(0, pos);
         url = url.substr(host.length() + 1);
-        srs_trace("discovery host=%s", host.c_str());
+        srs_info("discovery host=%s", host.c_str());
     }
 
     port = SRS_CONSTS_RTMP_DEFAULT_PORT;
     if ((pos = host.find(":")) != std::string::npos) {
         port = host.substr(pos + 1);
         host = host.substr(0, pos);
-        srs_trace("discovery host=%s, port=%s", host.c_str(), port.c_str());
+        srs_info("discovery host=%s, port=%s", host.c_str(), port.c_str());
     }
     
     app = url;
     vhost = host;
-    srs_trace("b vhost:%s,app=%s,param=%s",vhost.c_str(),app.c_str(),param.c_str());
     srs_vhost_resolve(vhost, app, param);
-    srs_trace("e vhost:%s,app=%s,param=%s",vhost.c_str(),app.c_str(),param.c_str());
 }
 
 void srs_vhost_resolve(string& vhost, string& app, string& param)
@@ -325,7 +322,7 @@ string srs_generate_tc_url(string ip, string vhost, string app, string port, str
     tcUrl += app;
     tcUrl += param;
     
-    srs_trace("srs_generate_tc_url:%s",tcUrl.c_str());
+    srs_info("srs_generate_tc_url:%s",tcUrl.c_str());
     return tcUrl;
 }
 

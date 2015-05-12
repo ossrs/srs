@@ -275,7 +275,7 @@ int SrsStreamCache::cycle()
         }
         
         if (count <= 0) {
-            //srs_info("http: mw sleep %dms for no msg", mw_sleep);
+            srs_info("http: mw sleep %dms for no msg", mw_sleep);
             // directly use sleep, donot use consumer wait.
             st_usleep(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
             
@@ -634,7 +634,7 @@ int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
         }
         
         if (count <= 0) {
-            //srs_info("http: mw sleep %dms for no msg", mw_sleep);
+            srs_info("http: mw sleep %dms for no msg", mw_sleep);
             // directly use sleep, donot use consumer wait.
             st_usleep(SRS_CONSTS_RTMP_PULSE_TIMEOUT_US);
             

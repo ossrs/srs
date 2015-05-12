@@ -724,7 +724,6 @@ int SrsSource::create(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* hh, S
     string stream_url = r->get_stream_url();
     string vhost = r->vhost;
     
-    srs_trace("SrsSource:create stream_url:%s",stream_url.c_str());
     // should always not exists for create a source.
     srs_assert (pool.find(stream_url) == pool.end());
 
@@ -909,7 +908,6 @@ int SrsSource::initialize(SrsRequest* r, ISrsSourceHandler* h, ISrsHlsHandler* h
 
     handler = h;
     _req = r->copy();
-    srs_trace("SrsSource::initialize SrsRequest forward:%s",_req->forward.c_str());
     atc = _srs_config->get_atc(_req->vhost);
 
 #ifdef SRS_AUTO_HLS
@@ -2079,11 +2077,6 @@ int SrsSource::create_one_forwarder(std::string forward_server)
     SrsForwarder* forwarder = new SrsForwarder(this);
     forwarders.push_back(forwarder);
 
-//    if ( srs_discovery_rtmp_url(forward_server
-//                ,_req->schema,_req->host,  _req->port
-//                ,_req->app,   _req->stream) ) {
-//        forward_server = _req->host.append(":").append(_req->port);
-//    }
     // initialize the forwarder with request.
     if ((ret = forwarder->initialize(_req, forward_server)) != ERROR_SUCCESS) {
         return ret;
@@ -2104,8 +2097,8 @@ int SrsSource::create_forwarders()
 {
     int ret = ERROR_SUCCESS;
     
-    srs_trace("create_forwarders forward:%s",_req->forward.c_str());
     if ( ! _req->forward.empty() ){
+        srs_trace("create_forwarders forward:%s",_req->forward.c_str());
         _req->param = "";
     }
     create_one_forwarder(_req->forward);

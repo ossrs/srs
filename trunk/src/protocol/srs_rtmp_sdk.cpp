@@ -892,12 +892,8 @@ int SrsRtmpServer::connect_app(SrsRequest* req)
     srs_discovery_tc_url(req->tcUrl, 
         req->schema, req->host, req->vhost, req->app, req->port,
         req->param);
-
-    string forwardValue;
     srs_param_resolve(req->param,"forward",req->forward);
-    srs_trace("after srs_param_resolve forward=%s",req->forward.c_str());
     req->strip();
-    srs_trace("after strip forward=%s",req->forward.c_str());
     
     return ret;
 }
@@ -1048,15 +1044,15 @@ int SrsRtmpServer::identify_client(int stream_id, SrsRtmpConnType& type, string&
         SrsAutoFree(SrsPacket, pkt);
         
         if (dynamic_cast<SrsCreateStreamPacket*>(pkt)) {
-            srs_trace("identify client by create stream, play or flash publish.");
+            srs_info("identify client by create stream, play or flash publish.");
             return identify_create_stream_client(dynamic_cast<SrsCreateStreamPacket*>(pkt), stream_id, type, stream_name, duration);
         }
         if (dynamic_cast<SrsFMLEStartPacket*>(pkt)) {
-            srs_trace("identify client by releaseStream, fmle publish.");
+            srs_info("identify client by releaseStream, fmle publish.");
             return identify_fmle_publish_client(dynamic_cast<SrsFMLEStartPacket*>(pkt), type, stream_name);
         }
         if (dynamic_cast<SrsPlayPacket*>(pkt)) {
-            srs_trace("level0 identify client by play.");
+            srs_info("level0 identify client by play.");
             return identify_play_client(dynamic_cast<SrsPlayPacket*>(pkt), type, stream_name, duration);
         }
         // call msg,
