@@ -118,6 +118,7 @@ void SrsRequest::update_auth(SrsRequest* req)
     swfUrl = req->swfUrl;
     tcUrl = req->tcUrl;
     forward = req->forward;
+    param   = req->param;
     
     if (args) {
         srs_freep(args);

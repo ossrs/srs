@@ -293,7 +293,8 @@ void SrsForwarder::discovery_ep(string& server, string& port, string& tc_url, st
     }
     
     // generate tcUrl
-    tc_url = srs_generate_tc_url(server, req->vhost, req->app, port, req->param);
+    tc_url = srs_generate_tc_url(server, req->vhost, req->app, port
+            , (req->forward.empty() ? req->param : ""));
     ep_app = req->app;
     ep_stream = req->stream;
 }
@@ -332,8 +333,8 @@ int SrsForwarder::connect_server(string& ep_server, string& ep_port, string& ep_
     
     kbps->set_io(io, io);
     
-    srs_trace("forward connected, stream=%s, tcUrl=%s to server=%s, port=%d",
-        _req->stream.c_str(), _req->tcUrl.c_str(), server.c_str(), port);
+    srs_trace("forward connected, stream=%s, tcUrl=%s to server=%s, port=%d forward_url=%s",
+        _req->stream.c_str(), _req->tcUrl.c_str(), server.c_str(), port,ep_url.c_str());
     
     return ret;
 }
@@ -377,15 +378,17 @@ int SrsForwarder::connect_app(string ep_server, string ep_port, string ep_url, s
     // generate the tcUrl
     std::string param = "";
     //std::string tc_url = srs_generate_tc_url(ep_server, req->vhost, req->app, ep_port, param);
-    std::string tc_url = ep_url;
+    //std::string tc_url = ep_url;
     
     // upnode server identity will show in the connect_app of client.
     // @see https://github.com/simple-rtmp-server/srs/issues/160
     // the debug_srs_upnode is config in vhost and default to true.
     bool debug_srs_upnode = _srs_config->get_debug_srs_upnode(req->vhost);
-    if ((ret = client->connect_app(ep_app, tc_url, req, debug_srs_upnode)) != ERROR_SUCCESS) {
-        srs_error("connect with server failed, tcUrl=%s, dsu=%d. ret=%d", 
-            tc_url.c_str(), debug_srs_upnode, ret);
+    srs_error("forward connect with server,app=%s, tcUrl=%s, dsu=%d.", 
+            ep_app.c_str(),ep_url.c_str(),debug_srs_upnode);
+    if ((ret = client->connect_app(ep_app, ep_url, req, debug_srs_upnode)) != ERROR_SUCCESS) {
+        srs_error("connect with server failed, tcUrl=%s, dsu=%d. ret=%d",
+            ep_url.c_str(), debug_srs_upnode, ret);
         return ret;
     }
     

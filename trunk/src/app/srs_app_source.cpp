@@ -2065,15 +2065,16 @@ void SrsSource::on_edge_proxy_unpublish()
     publish_edge->on_proxy_unpublish();
 }
 
-int SrsSource::create_one_forwarder(std::string forward_server)
+int SrsSource::create_forwarder_by_url(std::string forward_server)
 {
     int ret = ERROR_SUCCESS;
 
     if ( forward_server.empty() ) {
-        srs_trace("forwarders forwards is emptey");
+        srs_info("forwarders forwards is emptey");
         return ret;
     }
 
+    srs_trace("create forwarders by url. forwardUrl:%s",_req->forward.c_str());
     SrsForwarder* forwarder = new SrsForwarder(this);
     forwarders.push_back(forwarder);
 
@@ -2093,15 +2094,12 @@ int SrsSource::create_one_forwarder(std::string forward_server)
         return ret;
     }
 }
+
 int SrsSource::create_forwarders()
 {
     int ret = ERROR_SUCCESS;
     
-    if ( ! _req->forward.empty() ){
-        srs_trace("create_forwarders forward:%s",_req->forward.c_str());
-        _req->param = "";
-    }
-    create_one_forwarder(_req->forward);
+    create_forwarder_by_url(_req->forward);
 
     SrsConfDirective* conf = _srs_config->get_forward(_req->vhost);
     for (int i = 0; conf && i < (int)conf->args.size(); i++) {
