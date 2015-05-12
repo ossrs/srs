@@ -151,12 +151,16 @@ void srs_param_resolve(string param, string paramName, string& value)
     size_t pos = 0;
     
     // filter tcUrl
-    
-    paramName = paramName.append("=");
+    param = srs_string_replace(param, ",", "?");
+    param = srs_string_replace(param, "...", "?");
+    param = srs_string_replace(param, "&&", "?");
+    param = srs_string_replace(param, "=", "?");
+
+    paramName = paramName.append("?");
     if ((pos = param.find(paramName)) != std::string::npos) {
         param = param.substr(pos + paramName.size());
         if (!param.empty()) {
-            if ((pos = param.find("&")) != std::string::npos) {
+            if ((pos = param.find("?")) != std::string::npos) {
                 value = param.substr(0, pos);
             } else {
                 value = param;

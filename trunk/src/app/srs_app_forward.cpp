@@ -105,8 +105,8 @@ int SrsForwarder::on_publish()
     SrsRequest* req = _req;
     
     // discovery the server port and tcUrl from req and ep_forward.
-    std::string server, port, tc_url;
-    discovery_ep(server, port, tc_url);
+    std::string server, port, tc_url,app,stream ;
+    discovery_ep(server, port, tc_url,app,stream );
     
     // dead loop check
     std::string source_ep = "rtmp://";
@@ -225,8 +225,8 @@ int SrsForwarder::cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    std::string ep_server, ep_port, ep_url;
-    if ((ret = connect_server(ep_server, ep_port, ep_url)) != ERROR_SUCCESS) {
+    std::string ep_server, ep_port, ep_url,ep_app,ep_stream;
+    if ((ret = connect_server(ep_server, ep_port, ep_url,ep_app,ep_stream)) != ERROR_SUCCESS) {
         return ret;
     }
     srs_assert(client);
@@ -238,7 +238,7 @@ int SrsForwarder::cycle()
         srs_error("handshake with server failed. ret=%d", ret);
         return ret;
     }
-    if ((ret = connect_app(ep_server, ep_port, ep_url)) != ERROR_SUCCESS) {
+    if ((ret = connect_app(ep_server, ep_port, ep_url,ep_app)) != ERROR_SUCCESS) {
         srs_error("connect with server failed. ret=%d", ret);
         return ret;
     }
@@ -247,7 +247,7 @@ int SrsForwarder::cycle()
         return ret;
     }
     
-    if ((ret = client->publish(_req->stream, stream_id)) != ERROR_SUCCESS) {
+    if ((ret = client->publish(ep_stream, stream_id)) != ERROR_SUCCESS) {
         srs_error("connect with server failed, stream_name=%s, stream_id=%d. ret=%d", 
             _req->stream.c_str(), stream_id, ret);
         return ret;
@@ -270,16 +270,15 @@ void SrsForwarder::close_underlayer_socket()
     srs_close_stfd(stfd);
 }
 
-void SrsForwarder::discovery_ep(string& server, string& port, string& tc_url)
+void SrsForwarder::discovery_ep(string& server, string& port, string& tc_url, std::string& ep_app, std::string& ep_stream)
 {
     SrsRequest* req = _req;
-    std::string schema,app,stream;
+    std::string schema;
 
     if ( srs_discovery_rtmp_url(_ep_forward
                 ,schema,server, port
-                ,app,stream) ) {
-        tc_url = _ep_forward;
-        srs_trace("discover_ep 1 tc_url= ");
+                ,ep_app,ep_stream) ) {
+        tc_url = schema + "://" + server + ":" + port + "/" + ep_app ;
         return ;
     } 
 
@@ -295,10 +294,11 @@ void SrsForwarder::discovery_ep(string& server, string& port, string& tc_url)
     
     // generate tcUrl
     tc_url = srs_generate_tc_url(server, req->vhost, req->app, port, req->param);
-    srs_trace("discover_ep 2 tc_url:");
+    ep_app = req->app;
+    ep_stream = req->stream;
 }
 
-int SrsForwarder::connect_server(string& ep_server, string& ep_port, string& ep_url)
+int SrsForwarder::connect_server(string& ep_server, string& ep_port, string& ep_url, string& ep_app, string& ep_stream)
 {
     int ret = ERROR_SUCCESS;
     
@@ -307,7 +307,7 @@ int SrsForwarder::connect_server(string& ep_server, string& ep_port, string& ep_
     
     // discovery the server port and tcUrl from req and ep_forward.
     std::string server, s_port, tc_url;
-    discovery_ep(server, s_port, tc_url);
+    discovery_ep(server, s_port, tc_url,ep_app,ep_stream);
     int port = ::atoi(s_port.c_str());
     
     // output the connected server and port.
@@ -339,7 +339,7 @@ int SrsForwarder::connect_server(string& ep_server, string& ep_port, string& ep_
 }
 
 // TODO: FIXME: refine the connect_app.
-int SrsForwarder::connect_app(string ep_server, string ep_port, string ep_url)
+int SrsForwarder::connect_app(string ep_server, string ep_port, string ep_url, string ep_app)
 {
     int ret = ERROR_SUCCESS;
     
@@ -383,9 +383,9 @@ int SrsForwarder::connect_app(string ep_server, string ep_port, string ep_url)
     // @see https://github.com/simple-rtmp-server/srs/issues/160
     // the debug_srs_upnode is config in vhost and default to true.
     bool debug_srs_upnode = _srs_config->get_debug_srs_upnode(req->vhost);
-    srs_trace("forward client connect with server tcUrl=%s, dsu=%d.", 
-            tc_url.c_str(), debug_srs_upnode);
-    if ((ret = client->connect_app(req->app, tc_url, req, debug_srs_upnode)) != ERROR_SUCCESS) {
+    srs_trace("forward client connect with server  app:%s, tcUrl=%s dsu=%d."
+            ,ep_app.c_str(),tc_url.c_str(),debug_srs_upnode);
+    if ((ret = client->connect_app(ep_app, tc_url, req, debug_srs_upnode)) != ERROR_SUCCESS) {
         srs_error("connect with server failed, tcUrl=%s, dsu=%d. ret=%d", 
             tc_url.c_str(), debug_srs_upnode, ret);
         return ret;
