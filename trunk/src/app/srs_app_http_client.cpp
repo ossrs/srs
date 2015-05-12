@@ -105,7 +105,7 @@ int SrsHttpClient::post(string path, string req, SrsHttpMessage** ppmsg)
     }
     
     SrsHttpMessage* msg = NULL;
-    if ((ret = parser->parse_message(skt, &msg)) != ERROR_SUCCESS) {
+    if ((ret = parser->parse_message(skt, NULL, &msg)) != ERROR_SUCCESS) {
         srs_error("parse http post response failed. ret=%d", ret);
         return ret;
     }
@@ -151,7 +151,7 @@ int SrsHttpClient::get(string path, std::string req, SrsHttpMessage** ppmsg)
     }
 
     SrsHttpMessage* msg = NULL;
-    if ((ret = parser->parse_message(skt, &msg)) != ERROR_SUCCESS) {
+    if ((ret = parser->parse_message(skt, NULL, &msg)) != ERROR_SUCCESS) {
         srs_error("parse http post response failed. ret=%d", ret);
         return ret;
     }

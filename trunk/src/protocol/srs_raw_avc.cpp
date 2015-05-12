@@ -358,8 +358,8 @@ int SrsRawAacStream::adts_demux(SrsStream* stream, char** pframe, int* pnb_frame
         int8_t protection_absent = pav & 0x01;
         
         /**
-        * ID: MPEG identifier, set to ‘1’ if the audio data in the ADTS stream are MPEG-2 AAC (See ISO/IEC 13818-7)
-        * and set to ‘0’ if the audio data are MPEG-4. See also ISO/IEC 11172-3, subclause 2.4.2.3.
+        * ID: MPEG identifier, set to '1' if the audio data in the ADTS stream are MPEG-2 AAC (See ISO/IEC 13818-7)
+        * and set to '0' if the audio data are MPEG-4. See also ISO/IEC 11172-3, subclause 2.4.2.3.
         */
         if (id != 0x01) {
             srs_info("adts: id must be 1(aac), actual 0(mp4a). ret=%d", ret);

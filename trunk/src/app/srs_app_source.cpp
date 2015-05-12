@@ -1918,7 +1918,8 @@ int SrsSource::on_publish()
         srs_error("handle on publish failed. ret=%d", ret);
         return ret;
     }
-
+    SrsStatistic* stat = SrsStatistic::instance();
+    stat->on_stream_publish(_req);
     return ret;
 }
 
@@ -1959,6 +1960,8 @@ void SrsSource::on_unpublish()
 
     // notify the handler.
     srs_assert(handler);
+    SrsStatistic* stat = SrsStatistic::instance();
+    stat->on_stream_close(_req);
     handler->on_unpublish(this, _req);
 }
 

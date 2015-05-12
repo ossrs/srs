@@ -572,7 +572,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     rm -rf research/api-server/static-dir/forward && 
     mkdir -p `pwd`/${SRS_OBJS}/nginx/html/forward &&
     ln -sf `pwd`/${SRS_OBJS}/nginx/html/forward research/api-server/static-dir/forward
-    ret=$?; if [[ $ret -ne 0 ]]; then echo "link players to cherrypy static-dir failed, ret=$ret"; exit $ret; fi
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "[warn] link players to cherrypy static-dir failed"; fi
 fi
 
 #####################################################################################

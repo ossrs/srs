@@ -725,7 +725,7 @@ class SrsConnectAppPacket : public SrsPacket
 {
 public:
     /**
-    * Name of the command. Set to “connect”.
+    * Name of the command. Set to "connect".
     */
     std::string command_name;
     /**
@@ -778,8 +778,8 @@ public:
     */
     SrsAmf0Object* props;
     /**
-    * Name-value pairs that describe the response from|the server. ‘code’,
-    * ‘level’, ‘description’ are names of few among such information.
+    * Name-value pairs that describe the response from|the server. 'code',
+    * 'level', 'description' are names of few among such information.
     * @remark, never be NULL.
     */
     SrsAmf0Object* info;
@@ -887,7 +887,7 @@ class SrsCreateStreamPacket : public SrsPacket
 {
 public:
     /**
-    * Name of the command. Set to “createStream”.
+    * Name of the command. Set to "createStream".
     */
     std::string command_name;
     /**
@@ -958,7 +958,7 @@ class SrsCloseStreamPacket : public SrsPacket
 {
 public:
     /**
-    * Name of the command, set to “closeStream”.
+    * Name of the command, set to "closeStream".
     */
     std::string command_name;
     /**
@@ -1069,7 +1069,7 @@ class SrsPublishPacket : public SrsPacket
 {
 public:
     /**
-    * Name of the command, set to “publish”.
+    * Name of the command, set to "publish".
     */
     std::string command_name;
     /**
@@ -1086,7 +1086,7 @@ public:
     */
     std::string stream_name;
     /**
-    * Type of publishing. Set to “live”, “record”, or “append”.
+    * Type of publishing. Set to "live", "record", or "append".
     *   record: The stream is published and the data is recorded to a new file.The file
     *           is stored on the server in a subdirectory within the directory that
     *           contains the server application. If the file already exists, it is 
@@ -1122,7 +1122,7 @@ class SrsPausePacket : public SrsPacket
 {
 public:
     /**
-    * Name of the command, set to “pause”.
+    * Name of the command, set to "pause".
     */
     std::string command_name;
     /**
@@ -1161,7 +1161,7 @@ class SrsPlayPacket : public SrsPacket
 {
 public:
     /**
-    * Name of the command. Set to “play”.
+    * Name of the command. Set to "play".
     */
     std::string command_name;
     /**
@@ -1325,7 +1325,7 @@ public:
     SrsAmf0Any* args; // null
     /**
     * Name-value pairs that describe the response from the server. 
-    * ‘code’,‘level’, ‘description’ are names of few among such information.
+    * 'code','level', 'description' are names of few among such information.
     * @remark, never be NULL, an AMF0 object instance.
     */
     SrsAmf0Object* data;
@@ -1367,7 +1367,7 @@ public:
     SrsAmf0Any* args; // null
     /**
     * Name-value pairs that describe the response from the server.
-    * ‘code’,‘level’, ‘description’ are names of few among such information.
+    * 'code','level', 'description' are names of few among such information.
     * @remark, never be NULL, an AMF0 object instance.
     */
     SrsAmf0Object* data;
@@ -1425,7 +1425,7 @@ public:
     std::string command_name;
     /**
     * Name-value pairs that describe the response from the server.
-    * ‘code’, are names of few among such information.
+    * 'code', are names of few among such information.
     * @remark, never be NULL, an AMF0 object instance.
     */
     SrsAmf0Object* data;
@@ -1707,7 +1707,7 @@ enum SrcPCUCEventType
 * +------------------------------+-------------------------
 * | Event Type ( 2- bytes ) | Event Data
 * +------------------------------+-------------------------
-* Figure 5 Pay load for the ‘User Control Message’.
+* Figure 5 Pay load for the 'User Control Message'.
 */
 class SrsUserControlPacket : public SrsPacket
 {

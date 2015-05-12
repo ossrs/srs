@@ -388,8 +388,22 @@ public:
     virtual void cleanup();
 protected:
     virtual int do_cycle();
+protected:
+    // when got http message,
+    // for the static service or api, discard any body.
+    // for the stream caster, for instance, http flv streaming, may discard the flv header or not.
+    virtual int on_got_http_message(SrsHttpMessage* msg) = 0;
 private:
     virtual int process_request(ISrsHttpResponseWriter* w, SrsHttpMessage* r);
+};
+
+class SrsStaticHttpConn : public SrsHttpConn
+{
+public:
+    SrsStaticHttpConn(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m);
+    virtual ~SrsStaticHttpConn();
+public:
+    virtual int on_got_http_message(SrsHttpMessage* msg);
 };
 
 #endif

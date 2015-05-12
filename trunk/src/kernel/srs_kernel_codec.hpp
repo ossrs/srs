@@ -276,7 +276,7 @@ enum SrsCodecAudioSoundType
 };
 
 /**
- * Table 7-1 – NAL unit type codes, syntax element categories, and NAL unit type classes
+ * Table 7-1 - NAL unit type codes, syntax element categories, and NAL unit type classes
  * H.264-AVC-ISO_IEC_14496-10-2012.pdf, page 83.
  */
 enum SrsAvcNaluType
@@ -448,7 +448,7 @@ enum SrsAacObjectType
 {
     SrsAacObjectTypeReserved = 0,
     
-    // Table 1.1 – Audio Object Type definition
+    // Table 1.1 - Audio Object Type definition
     // @see @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 23
     SrsAacObjectTypeAacMain = 1,
     SrsAacObjectTypeAacLC = 2,
