@@ -63,7 +63,9 @@ extern void srs_discovery_tc_url(
 *   app...vhost...request_vhost
 * @param param, the query, for example, ?vhost=xxx
 */ 
-extern void srs_vhost_resolve(std::string& vhost, std::string& app, std::string& param);
+extern void srs_vhost_resolve(
+    std::string& vhost, std::string& app, std::string& param
+);
 
 /**
 * generate ramdom data for handshake.

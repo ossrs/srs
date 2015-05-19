@@ -78,22 +78,22 @@ void srs_vhost_resolve(string& vhost, string& app, string& param)
     app = srs_string_replace(app, "&&", "?");
     app = srs_string_replace(app, "=", "?");
     
-    if ((pos = app.find("?")) == std::string::npos) {
-        return;
-    }
-    
-    std::string query = app.substr(pos + 1);
-    app = app.substr(0, pos);
-    
-    if ((pos = query.find("vhost?")) != std::string::npos) {
-        query = query.substr(pos + 6);
-        if (!query.empty()) {
-            vhost = query;
-        }
-        if ((pos = vhost.find("?")) != std::string::npos) {
-            vhost = vhost.substr(0, pos);
+    if ((pos = app.find("?")) != std::string::npos) {
+        std::string query = app.substr(pos + 1);
+        app = app.substr(0, pos);
+        
+        if ((pos = query.find("vhost?")) != std::string::npos) {
+            query = query.substr(pos + 6);
+            if (!query.empty()) {
+                vhost = query;
+            }
+            if ((pos = vhost.find("?")) != std::string::npos) {
+                vhost = vhost.substr(0, pos);
+            }
         }
     }
+    
+    /* others */
 }
 
 void srs_random_generate(char* bytes, int size)

@@ -49,6 +49,36 @@ class SrsAmf0Object;
 class IMergeReadHandler;
 
 /**
+ * the signature for packets to client.
+ */
+#define RTMP_SIG_FMS_VER                        "3,5,3,888"
+#define RTMP_SIG_AMF0_VER                       0
+#define RTMP_SIG_CLIENT_ID                      "ASAICiss"
+
+/**
+ * onStatus consts.
+ */
+#define StatusLevel                             "level"
+#define StatusCode                              "code"
+#define StatusDescription                       "description"
+#define StatusDetails                           "details"
+#define StatusClientId                          "clientid"
+// status value
+#define StatusLevelStatus                       "status"
+// status error
+#define StatusLevelError                        "error"
+// code value
+#define StatusCodeConnectSuccess                "NetConnection.Connect.Success"
+#define StatusCodeConnectRejected               "NetConnection.Connect.Rejected"
+#define StatusCodeStreamReset                   "NetStream.Play.Reset"
+#define StatusCodeStreamStart                   "NetStream.Play.Start"
+#define StatusCodeStreamPause                   "NetStream.Pause.Notify"
+#define StatusCodeStreamUnpause                 "NetStream.Unpause.Notify"
+#define StatusCodePublishStart                  "NetStream.Publish.Start"
+#define StatusCodeDataStart                     "NetStream.Data.Start"
+#define StatusCodeUnpublishSuccess              "NetStream.Unpublish.Success"
+
+/**
 * the original request from client.
 */
 class SrsRequest
