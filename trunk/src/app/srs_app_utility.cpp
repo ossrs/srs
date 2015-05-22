@@ -292,15 +292,13 @@ bool get_proc_self_stat(SrsProcSelfStat& r)
 
 void srs_update_proc_stat()
 {
-    // always assert the USER_HZ is 1/100ths
     // @see: http://stackoverflow.com/questions/7298646/calculating-user-nice-sys-idle-iowait-irq-and-sirq-from-proc-stat/7298711
-    static bool user_hz_assert = false;
-    if (!user_hz_assert) {
-        user_hz_assert = true;
-        
-        int USER_HZ = sysconf(_SC_CLK_TCK);
-        srs_trace("USER_HZ=%d", USER_HZ);
-        srs_assert(USER_HZ == 100);
+    // @see https://github.com/simple-rtmp-server/srs/issues/397
+    static int user_hz = 0;
+    if (user_hz <= 0) {
+        user_hz = sysconf(_SC_CLK_TCK);
+        srs_trace("USER_HZ=%d", user_hz);
+        srs_assert(user_hz > 0);
     }
     
     // system cpu stat
@@ -345,7 +343,7 @@ void srs_update_proc_stat()
         int64_t total = r.sample_time - o.sample_time;
         int64_t usage = (r.utime + r.stime) - (o.utime + o.stime);
         if (total > 0) {
-            r.percent = (float)(usage * 1000 / (double)total / 100);
+            r.percent = (float)(usage * 1000 / (double)total / user_hz);
         }
         
         // upate cache.
