@@ -42,7 +42,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_st.hpp>
 #include <srs_http_stack.hpp>
-#include <srs_app_http.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_app_thread.hpp>

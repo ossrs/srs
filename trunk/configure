@@ -169,7 +169,7 @@ if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_DEPENDS=("CORE" "KERNEL" "RTMP") 
     ModuleLibIncs=(${LibSTRoot} ${LibHttpParserRoot} ${SRS_OBJS_DIR})
     MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_rtmp_conn" "srs_app_st_socket" "srs_app_source" 
-            "srs_app_refer" "srs_app_hls" "srs_app_forward" "srs_app_encoder" "srs_app_http" 
+            "srs_app_refer" "srs_app_hls" "srs_app_forward" "srs_app_encoder"
             "srs_app_thread" "srs_app_bandwidth" "srs_app_st" "srs_app_log" "srs_app_config" 
             "srs_app_pithy_print" "srs_app_reload" "srs_app_http_api" "srs_app_http_conn" "srs_app_http_hooks" 
             "srs_app_json" "srs_app_ingest" "srs_app_ffmpeg" "srs_app_utility" "srs_app_dvr" "srs_app_edge"

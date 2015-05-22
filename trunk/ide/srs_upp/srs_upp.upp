@@ -93,8 +93,6 @@ file
 	../../src/app/srs_app_heartbeat.cpp,
 	../../src/app/srs_app_hls.hpp,
 	../../src/app/srs_app_hls.cpp,
-	../../src/app/srs_app_http.hpp,
-	../../src/app/srs_app_http.cpp,
 	../../src/app/srs_app_http_api.hpp,
 	../../src/app/srs_app_http_api.cpp,
 	../../src/app/srs_app_http_client.hpp,
