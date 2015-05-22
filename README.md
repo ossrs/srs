@@ -562,6 +562,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-05-22, fix [#397](https://github.com/simple-rtmp-server/srs/issues/397) the USER_HZ maybe not 100. 2.0.165
 * v2.0, 2015-05-22, for [#400](https://github.com/simple-rtmp-server/srs/issues/400), parse when got entire http header, by feilong. 2.0.164.
 * v2.0, 2015-05-19, merge from bravo system, add the rtmfp to bms(commercial srs). 2.0.163.
 * v2.0, 2015-05-10, support push flv stream over HTTP POST to SRS.
@@ -672,6 +673,10 @@ Supported operating systems and hardware:
 
 ### SRS 1.0 history
 
+* v1.0, 2015-05-22, fix [#397](https://github.com/simple-rtmp-server/srs/issues/397) the USER_HZ maybe not 100. 1.0.32
+* v1.0, 2015-03-26, fix hls aac adts bug, in aac mux. 1.0.31.
+* <strong>v1.0, 2015-03-19, [1.0r3 release(1.0.30)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r3) released. 59511 lines.</strong>
+* v1.0, 2015-03-17, remove the osx for 1.0.30.
 * v1.0, 2015-02-17, the join maybe failed, should use a variable to ensure thread terminated. 1.0.28.
 * <strong>v1.0, 2015-02-12, [1.0r2 release(1.0.27)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r2) released. 59507 lines.</strong>
 * v1.0, 2015-02-11, dev code HuKaiqun for 1.0.27.
