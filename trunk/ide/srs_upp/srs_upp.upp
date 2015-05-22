@@ -46,6 +46,8 @@ file
 	../../src/kernel/srs_kernel_utility.hpp,
 	../../src/kernel/srs_kernel_utility.cpp,
 	protocol readonly separator,
+        ../../src/protocol/srs_http_stack.hpp,
+        ../../src/protocol/srs_http_stack.cpp,
 	../../src/protocol/srs_raw_avc.hpp,
 	../../src/protocol/srs_raw_avc.cpp,
 	../../src/protocol/srs_rtmp_amf0.hpp,

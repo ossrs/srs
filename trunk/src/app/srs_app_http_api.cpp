@@ -59,7 +59,7 @@ int SrsGoApiRoot::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
         
-    return srs_go_http_response_json(w, ss.str());
+    return srs_http_response_json(w, ss.str());
 }
 
 SrsGoApiApi::SrsGoApiApi()
@@ -81,7 +81,7 @@ int SrsGoApiApi::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
         
-    return srs_go_http_response_json(w, ss.str());
+    return srs_http_response_json(w, ss.str());
 }
 
 SrsGoApiV1::SrsGoApiV1()
@@ -112,7 +112,7 @@ int SrsGoApiV1::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
     
-    return srs_go_http_response_json(w, ss.str());
+    return srs_http_response_json(w, ss.str());
 }
 
 SrsGoApiVersion::SrsGoApiVersion()
@@ -137,7 +137,7 @@ int SrsGoApiVersion::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
     
-    return srs_go_http_response_json(w, ss.str());
+    return srs_http_response_json(w, ss.str());
 }
 
 SrsGoApiSummaries::SrsGoApiSummaries()
@@ -152,7 +152,7 @@ int SrsGoApiSummaries::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
 {
     std::stringstream ss;
     srs_api_dump_summaries(ss);
-    return srs_go_http_response_json(w, ss.str());
+    return srs_http_response_json(w, ss.str());
 }
 
 SrsGoApiRusages::SrsGoApiRusages()
@@ -193,7 +193,7 @@ int SrsGoApiRusages::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* req)
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
     
-    return srs_go_http_response_json(w, ss.str());
+    return srs_http_response_json(w, ss.str());
 }
 
 SrsGoApiSelfProcStats::SrsGoApiSelfProcStats()
@@ -263,7 +263,7 @@ int SrsGoApiSelfProcStats::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage*
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
     
-    return srs_go_http_response_json(w, ss.str());
+    return srs_http_response_json(w, ss.str());
 }
 
 SrsGoApiSystemProcStats::SrsGoApiSystemProcStats()
@@ -298,7 +298,7 @@ int SrsGoApiSystemProcStats::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessag
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
     
-    return srs_go_http_response_json(w, ss.str());
+    return srs_http_response_json(w, ss.str());
 }
 
 SrsGoApiMemInfos::SrsGoApiMemInfos()
@@ -334,7 +334,7 @@ int SrsGoApiMemInfos::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
     
-    return srs_go_http_response_json(w, ss.str());
+    return srs_http_response_json(w, ss.str());
 }
 
 SrsGoApiAuthors::SrsGoApiAuthors()
@@ -359,7 +359,7 @@ int SrsGoApiAuthors::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
     
-    return srs_go_http_response_json(w, ss.str());
+    return srs_http_response_json(w, ss.str());
 }
 
 SrsGoApiRequests::SrsGoApiRequests()
@@ -420,7 +420,7 @@ int SrsGoApiRequests::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
         << SRS_JOBJECT_END
         << SRS_JOBJECT_END;
     
-    return srs_go_http_response_json(w, ss.str());
+    return srs_http_response_json(w, ss.str());
 }
 
 SrsGoApiVhosts::SrsGoApiVhosts()
@@ -445,7 +445,7 @@ int SrsGoApiVhosts::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
         << SRS_JFIELD_ORG("vhosts", data.str())
         << SRS_JOBJECT_END;
     
-    return srs_go_http_response_json(w, ss.str());
+    return srs_http_response_json(w, ss.str());
 }
 
 SrsGoApiStreams::SrsGoApiStreams()
@@ -470,7 +470,7 @@ int SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
         << SRS_JFIELD_ORG("streams", data.str())
         << SRS_JOBJECT_END;
     
-    return srs_go_http_response_json(w, ss.str());
+    return srs_http_response_json(w, ss.str());
 }
 
 SrsHttpApi::SrsHttpApi(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m)

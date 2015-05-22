@@ -58,7 +58,7 @@ using namespace std;
 
 #define SRS_HTTP_DEFAULT_PAGE "index.html"
 
-int srs_go_http_response_json(ISrsHttpResponseWriter* w, string data)
+int srs_http_response_json(ISrsHttpResponseWriter* w, string data)
 {
     w->header()->set_content_length(data.length());
     w->header()->set_content_type("application/json");

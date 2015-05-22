@@ -40,6 +40,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_st.hpp>
 #include <srs_kernel_consts.hpp>
+#include <srs_http_stack.hpp>
 
 class SrsRequest;
 class SrsStSocket;
@@ -72,7 +73,7 @@ class SrsConnection;
 #define SRS_HTTP_TS_SEND_BUFFER_SIZE 4096
 
 // helper function: response in json format.
-extern int srs_go_http_response_json(ISrsHttpResponseWriter* w, std::string data);
+extern int srs_http_response_json(ISrsHttpResponseWriter* w, std::string data);
 
 // state of message
 enum SrsHttpParseState {

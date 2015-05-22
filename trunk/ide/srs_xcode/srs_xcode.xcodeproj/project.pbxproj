@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		3C0E1B8D1B0F5ADF003ADEF7 /* srs_http_stack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C0E1B8B1B0F5ADF003ADEF7 /* srs_http_stack.cpp */; };
 		3C1231F61AAE652D00CE8F6C /* srs_core_autofree.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C1231F01AAE652C00CE8F6C /* srs_core_autofree.cpp */; };
 		3C1231F71AAE652D00CE8F6C /* srs_core_performance.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C1231F21AAE652C00CE8F6C /* srs_core_performance.cpp */; };
 		3C1231F81AAE652D00CE8F6C /* srs_core.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3C1231F41AAE652D00CE8F6C /* srs_core.cpp */; };
@@ -122,6 +123,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		3C0E1B8B1B0F5ADF003ADEF7 /* srs_http_stack.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_http_stack.cpp; path = ../../../src/protocol/srs_http_stack.cpp; sourceTree = "<group>"; };
+		3C0E1B8C1B0F5ADF003ADEF7 /* srs_http_stack.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_http_stack.hpp; path = ../../../src/protocol/srs_http_stack.hpp; sourceTree = "<group>"; };
 		3C1231E51AAE64A400CE8F6C /* srs_xcode */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = srs_xcode; sourceTree = BUILT_PRODUCTS_DIR; };
 		3C1231F01AAE652C00CE8F6C /* srs_core_autofree.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = srs_core_autofree.cpp; path = ../../../src/core/srs_core_autofree.cpp; sourceTree = "<group>"; };
 		3C1231F11AAE652C00CE8F6C /* srs_core_autofree.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = srs_core_autofree.hpp; path = ../../../src/core/srs_core_autofree.hpp; sourceTree = "<group>"; };
@@ -487,6 +490,8 @@
 		3C12322C1AAE819900CE8F6C /* protocol */ = {
 			isa = PBXGroup;
 			children = (
+				3C0E1B8B1B0F5ADF003ADEF7 /* srs_http_stack.cpp */,
+				3C0E1B8C1B0F5ADF003ADEF7 /* srs_http_stack.hpp */,
 				3C12322D1AAE81A400CE8F6C /* srs_raw_avc.cpp */,
 				3C12322E1AAE81A400CE8F6C /* srs_raw_avc.hpp */,
 				3C12322F1AAE81A400CE8F6C /* srs_rtmp_amf0.cpp */,
@@ -886,6 +891,7 @@
 				3C1232411AAE81A400CE8F6C /* srs_raw_avc.cpp in Sources */,
 				3C1232491AAE81A400CE8F6C /* srs_rtmp_utility.cpp in Sources */,
 				3C663F191AB0155100286D8B /* srs_publish.c in Sources */,
+				3C0E1B8D1B0F5ADF003ADEF7 /* srs_http_stack.cpp in Sources */,
 				3C1232A01AAE81D900CE8F6C /* srs_app_http_client.cpp in Sources */,
 				3C689F981AB6AAAC00C9CEEE /* key.c in Sources */,
 				3C12329B1AAE81D900CE8F6C /* srs_app_ffmpeg.cpp in Sources */,
