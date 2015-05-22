@@ -48,7 +48,7 @@ SrsGoApiRoot::~SrsGoApiRoot()
 {
 }
 
-int SrsGoApiRoot::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsGoApiRoot::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     std::stringstream ss;
     
@@ -70,7 +70,7 @@ SrsGoApiApi::~SrsGoApiApi()
 {
 }
 
-int SrsGoApiApi::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsGoApiApi::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     std::stringstream ss;
     
@@ -92,7 +92,7 @@ SrsGoApiV1::~SrsGoApiV1()
 {
 }
 
-int SrsGoApiV1::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsGoApiV1::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     std::stringstream ss;
     
@@ -123,7 +123,7 @@ SrsGoApiVersion::~SrsGoApiVersion()
 {
 }
 
-int SrsGoApiVersion::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsGoApiVersion::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     std::stringstream ss;
     
@@ -148,7 +148,7 @@ SrsGoApiSummaries::~SrsGoApiSummaries()
 {
 }
 
-int SrsGoApiSummaries::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsGoApiSummaries::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     std::stringstream ss;
     srs_api_dump_summaries(ss);
@@ -163,7 +163,7 @@ SrsGoApiRusages::~SrsGoApiRusages()
 {
 }
 
-int SrsGoApiRusages::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* req)
+int SrsGoApiRusages::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* req)
 {
     std::stringstream ss;
     
@@ -204,7 +204,7 @@ SrsGoApiSelfProcStats::~SrsGoApiSelfProcStats()
 {
 }
 
-int SrsGoApiSelfProcStats::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsGoApiSelfProcStats::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     std::stringstream ss;
     
@@ -274,7 +274,7 @@ SrsGoApiSystemProcStats::~SrsGoApiSystemProcStats()
 {
 }
 
-int SrsGoApiSystemProcStats::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsGoApiSystemProcStats::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     std::stringstream ss;
     
@@ -309,7 +309,7 @@ SrsGoApiMemInfos::~SrsGoApiMemInfos()
 {
 }
 
-int SrsGoApiMemInfos::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsGoApiMemInfos::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     std::stringstream ss;
     
@@ -345,7 +345,7 @@ SrsGoApiAuthors::~SrsGoApiAuthors()
 {
 }
 
-int SrsGoApiAuthors::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsGoApiAuthors::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     std::stringstream ss;
     
@@ -370,9 +370,9 @@ SrsGoApiRequests::~SrsGoApiRequests()
 {
 }
 
-int SrsGoApiRequests::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsGoApiRequests::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
-    SrsHttpMessage* req = r;
+    ISrsHttpMessage* req = r;
     
     std::stringstream ss;
     
@@ -431,7 +431,7 @@ SrsGoApiVhosts::~SrsGoApiVhosts()
 {
 }
 
-int SrsGoApiVhosts::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsGoApiVhosts::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     std::stringstream data;
     SrsStatistic* stat = SrsStatistic::instance();
@@ -456,7 +456,7 @@ SrsGoApiStreams::~SrsGoApiStreams()
 {
 }
 
-int SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsGoApiStreams::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     std::stringstream data;
     SrsStatistic* stat = SrsStatistic::instance();
@@ -529,7 +529,7 @@ int SrsHttpApi::do_cycle()
     
     // process http messages.
     for (;;) {
-        SrsHttpMessage* req = NULL;
+        ISrsHttpMessage* req = NULL;
         
         // get a http message
         if ((ret = parser->parse_message(&skt, this, &req)) != ERROR_SUCCESS) {
@@ -540,7 +540,7 @@ int SrsHttpApi::do_cycle()
         srs_assert(req);
         
         // always free it in this scope.
-        SrsAutoFree(SrsHttpMessage, req);
+        SrsAutoFree(ISrsHttpMessage, req);
         
         // TODO: FIXME: use the post body.
         std::string res;
@@ -566,7 +566,7 @@ int SrsHttpApi::do_cycle()
     return ret;
 }
 
-int SrsHttpApi::process_request(ISrsHttpResponseWriter* w, SrsHttpMessage* r) 
+int SrsHttpApi::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r) 
 {
     int ret = ERROR_SUCCESS;
     

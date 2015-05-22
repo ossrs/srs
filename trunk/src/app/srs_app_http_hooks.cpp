@@ -371,11 +371,11 @@ int SrsHttpHooks::on_hls_notify(std::string url, SrsRequest* req, std::string ts
     }
     srs_warn("GET %s", path.c_str());
     
-    SrsHttpMessage* msg = NULL;
+    ISrsHttpMessage* msg = NULL;
     if ((ret = http.get(path.c_str(), "", &msg)) != ERROR_SUCCESS) {
         return ret;
     }
-    SrsAutoFree(SrsHttpMessage, msg);
+    SrsAutoFree(ISrsHttpMessage, msg);
     
     int nb_buf = srs_min(nb_notify, SRS_HTTP_READ_BUFFER);
     char* buf = new char[nb_buf];
@@ -416,11 +416,11 @@ int SrsHttpHooks::do_post(std::string url, std::string req, int& code, string& r
         return ret;
     }
     
-    SrsHttpMessage* msg = NULL;
+    ISrsHttpMessage* msg = NULL;
     if ((ret = http.post(uri.get_path(), req, &msg)) != ERROR_SUCCESS) {
         return ret;
     }
-    SrsAutoFree(SrsHttpMessage, msg);
+    SrsAutoFree(ISrsHttpMessage, msg);
     
     code = msg->status_code();
     if ((ret = msg->body_read_all(res)) != ERROR_SUCCESS) {

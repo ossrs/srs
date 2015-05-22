@@ -49,7 +49,7 @@ class SrsAacEncoder;
 class SrsMp3Encoder;
 class SrsFlvEncoder;
 class SrsHttpParser;
-class SrsHttpMessage;
+class ISrsHttpMessage;
 class SrsHttpHandler;
 class SrsMessageQueue;
 class SrsSharedPtrMessage;
@@ -66,8 +66,8 @@ public:
     SrsVodStream(std::string root_dir);
     virtual ~SrsVodStream();
 protected:
-    virtual int serve_flv_stream(ISrsHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath, int offset);
-    virtual int serve_mp4_stream(ISrsHttpResponseWriter* w, SrsHttpMessage* r, std::string fullpath, int start, int end);
+    virtual int serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int offset);
+    virtual int serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, std::string fullpath, int start, int end);
 };
 
 /**
@@ -243,7 +243,7 @@ public:
     SrsLiveStream(SrsSource* s, SrsRequest* r, SrsStreamCache* c);
     virtual ~SrsLiveStream();
 public:
-    virtual int serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r);
+    virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 private:
     virtual int streaming_send_messages(ISrsStreamEncoder* enc, SrsSharedPtrMessage** msgs, int nb_msgs);
 };
@@ -289,7 +289,7 @@ public:
 public:
     virtual void set_m3u8(std::string v);
 public:
-    virtual int serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r);
+    virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
 /**
@@ -305,7 +305,7 @@ public:
 public:
     virtual void set_ts(std::string v);
 public:
-    virtual int serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r);
+    virtual int serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
 /**
@@ -365,7 +365,7 @@ public:
     virtual int on_reload_vhost_hls(std::string vhost);
 // interface ISrsHttpMatchHijacker
 public:
-    virtual int hijack(SrsHttpMessage* request, ISrsHttpHandler** ph);
+    virtual int hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph);
 private:
     virtual int initialize_static_file();
     virtual int initialize_flv_streaming();
@@ -392,9 +392,9 @@ protected:
     // when got http message,
     // for the static service or api, discard any body.
     // for the stream caster, for instance, http flv streaming, may discard the flv header or not.
-    virtual int on_got_http_message(SrsHttpMessage* msg) = 0;
+    virtual int on_got_http_message(ISrsHttpMessage* msg) = 0;
 private:
-    virtual int process_request(ISrsHttpResponseWriter* w, SrsHttpMessage* r);
+    virtual int process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r);
 };
 
 class SrsStaticHttpConn : public SrsHttpConn
@@ -403,7 +403,7 @@ public:
     SrsStaticHttpConn(IConnectionManager* cm, st_netfd_t fd, SrsHttpServeMux* m);
     virtual ~SrsStaticHttpConn();
 public:
-    virtual int on_got_http_message(SrsHttpMessage* msg);
+    virtual int on_got_http_message(ISrsHttpMessage* msg);
 };
 
 #endif

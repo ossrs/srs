@@ -37,7 +37,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 class SrsHttpUri;
 class SrsHttpParser;
-class SrsHttpMessage;
+class ISrsHttpMessage;
 class SrsStSocket;
 
 // the default timeout for http client.
@@ -73,14 +73,14 @@ public:
     * @param req the data post to uri. empty string to ignore.
     * @param ppmsg output the http message to read the response.
     */
-    virtual int post(std::string path, std::string req, SrsHttpMessage** ppmsg);
+    virtual int post(std::string path, std::string req, ISrsHttpMessage** ppmsg);
     /**
     * to get data from the uri.
     * @param the path to request on.
     * @param req the data post to uri. empty string to ignore.
     * @param ppmsg output the http message to read the response.
     */
-    virtual int get(std::string path, std::string req, SrsHttpMessage** ppmsg);
+    virtual int get(std::string path, std::string req, ISrsHttpMessage** ppmsg);
 private:
     virtual void disconnect();
     virtual int connect();

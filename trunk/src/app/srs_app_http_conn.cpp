@@ -60,7 +60,7 @@ SrsVodStream::~SrsVodStream()
 {
 }
 
-int SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, SrsHttpMessage* r, string fullpath, int offset)
+int SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int offset)
 {
     int ret = ERROR_SUCCESS;
     
@@ -144,7 +144,7 @@ int SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter* w, SrsHttpMessage* r,
     return ret;
 }
 
-int SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, SrsHttpMessage* r, string fullpath, int start, int end)
+int SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter* w, ISrsHttpMessage* r, string fullpath, int start, int end)
 {
     int ret = ERROR_SUCCESS;
 
@@ -567,7 +567,7 @@ SrsLiveStream::~SrsLiveStream()
     srs_freep(req);
 }
 
-int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsLiveStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
     
@@ -743,7 +743,7 @@ void SrsHlsM3u8Stream::set_m3u8(std::string v)
     m3u8 = v;
 }
 
-int SrsHlsM3u8Stream::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsHlsM3u8Stream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
     
@@ -775,7 +775,7 @@ void SrsHlsTsStream::set_ts(std::string v)
     ts = v;
 }
 
-int SrsHlsTsStream::serve_http(ISrsHttpResponseWriter* w, SrsHttpMessage* r)
+int SrsHlsTsStream::serve_http(ISrsHttpResponseWriter* w, ISrsHttpMessage* r)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1110,7 +1110,7 @@ int SrsHttpServer::on_reload_vhost_hls(string vhost)
     return ret;
 }
 
-int SrsHttpServer::hijack(SrsHttpMessage* request, ISrsHttpHandler** ph)
+int SrsHttpServer::hijack(ISrsHttpMessage* request, ISrsHttpHandler** ph)
 {
     int ret = ERROR_SUCCESS;
     
@@ -1169,8 +1169,12 @@ int SrsHttpServer::hijack(SrsHttpMessage* request, ISrsHttpHandler** ph)
         }
     }
     
+    // convert to concreate class.
+    SrsHttpMessage* hreq = dynamic_cast<SrsHttpMessage*>(request);
+    srs_assert(hreq);
+    
     // hijack for entry.
-    SrsRequest* r = request->to_request(vhost->arg0());
+    SrsRequest* r = hreq->to_request(vhost->arg0());
     SrsAutoFree(SrsRequest, r);
     SrsSource* s = SrsSource::fetch(r);
     if (!s) {
@@ -1389,7 +1393,7 @@ int SrsHttpConn::do_cycle()
     
     // process http messages.
     for (;;) {
-        SrsHttpMessage* req = NULL;
+        ISrsHttpMessage* req = NULL;
         
         // get a http message
         if ((ret = parser->parse_message(&skt, this, &req)) != ERROR_SUCCESS) {
@@ -1400,7 +1404,7 @@ int SrsHttpConn::do_cycle()
         srs_assert(req);
         
         // always free it in this scope.
-        SrsAutoFree(SrsHttpMessage, req);
+        SrsAutoFree(ISrsHttpMessage, req);
         
         // may should discard the body.
         if ((ret = on_got_http_message(req)) != ERROR_SUCCESS) {
@@ -1423,7 +1427,7 @@ int SrsHttpConn::do_cycle()
     return ret;
 }
 
-int SrsHttpConn::process_request(ISrsHttpResponseWriter* w, SrsHttpMessage* r) 
+int SrsHttpConn::process_request(ISrsHttpResponseWriter* w, ISrsHttpMessage* r) 
 {
     int ret = ERROR_SUCCESS;
     
@@ -1450,7 +1454,7 @@ SrsStaticHttpConn::~SrsStaticHttpConn()
 {
 }
 
-int SrsStaticHttpConn::on_got_http_message(SrsHttpMessage* msg)
+int SrsStaticHttpConn::on_got_http_message(ISrsHttpMessage* msg)
 {
     int ret = ERROR_SUCCESS;
     

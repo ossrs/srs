@@ -383,14 +383,14 @@ int SrsIngestSrsInput::parseM3u8(SrsHttpUri* url, double& td, double& duration)
         return ret;
     }
     
-    SrsHttpMessage* msg = NULL;
+    ISrsHttpMessage* msg = NULL;
     if ((ret = client.get(url->get_path(), "", &msg)) != ERROR_SUCCESS) {
         srs_error("HTTP GET %s failed. ret=%d", url->get_url(), ret);
         return ret;
     }
     
     srs_assert(msg);
-    SrsAutoFree(SrsHttpMessage, msg);
+    SrsAutoFree(ISrsHttpMessage, msg);
     
     std::string body;
     if ((ret = msg->body_read_all(body)) != ERROR_SUCCESS) {
@@ -605,14 +605,14 @@ int SrsIngestSrsInput::SrsTsPiece::fetch(string m3u8)
         return ret;
     }
     
-    SrsHttpMessage* msg = NULL;
+    ISrsHttpMessage* msg = NULL;
     if ((ret = client.get(uri.get_path(), "", &msg)) != ERROR_SUCCESS) {
         srs_error("HTTP GET %s failed. ret=%d", uri.get_url(), ret);
         return ret;
     }
     
     srs_assert(msg);
-    SrsAutoFree(SrsHttpMessage, msg);
+    SrsAutoFree(ISrsHttpMessage, msg);
     
     if ((ret = msg->body_read_all(body)) != ERROR_SUCCESS) {
         srs_error("read ts failed. ret=%d", ret);
