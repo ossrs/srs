@@ -1068,24 +1068,24 @@ int SrsRtmpConn::process_play_control_msg(SrsConsumer* consumer, SrsCommonMessag
         return ret;
     }
     
-    // pause or other msg.
+    // pause
     SrsPausePacket* pause = dynamic_cast<SrsPausePacket*>(pkt);
-    if (!pause) {
-        srs_info("ignore all amf0/amf3 command except pause.");
+    if (pause) {
+        if ((ret = rtmp->on_play_client_pause(res->stream_id, pause->is_pause)) != ERROR_SUCCESS) {
+            srs_error("rtmp process play client pause failed. ret=%d", ret);
+            return ret;
+        }
+
+        if ((ret = consumer->on_play_client_pause(pause->is_pause)) != ERROR_SUCCESS) {
+            srs_error("consumer process play client pause failed. ret=%d", ret);
+            return ret;
+        }
+        srs_info("process pause success, is_pause=%d, time=%d.", pause->is_pause, pause->time_ms);
         return ret;
     }
     
-    if ((ret = rtmp->on_play_client_pause(res->stream_id, pause->is_pause)) != ERROR_SUCCESS) {
-        srs_error("rtmp process play client pause failed. ret=%d", ret);
-        return ret;
-    }
-    
-    if ((ret = consumer->on_play_client_pause(pause->is_pause)) != ERROR_SUCCESS) {
-        srs_error("consumer process play client pause failed. ret=%d", ret);
-        return ret;
-    }
-    srs_info("process pause success, is_pause=%d, time=%d.", pause->is_pause, pause->time_ms);
-    
+    // other msg.
+    srs_info("ignore all amf0/amf3 command except pause and video control.");
     return ret;
 }
 

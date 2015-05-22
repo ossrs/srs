@@ -195,6 +195,7 @@ int SrsStatistic::on_client(int id, SrsRequest* req)
     SrsStatisticClient* client = NULL;
     if (clients.find(id) == clients.end()) {
         client = new SrsStatisticClient();
+        client->id = id;
         client->stream = stream;
         clients[id] = client;
     } else {

@@ -1383,6 +1383,10 @@ int SrsHttpConn::do_cycle()
     // underlayer socket
     SrsStSocket skt(stfd);
     
+    // set the recv timeout, for some clients never disconnect the connection.
+    // @see https://github.com/simple-rtmp-server/srs/issues/398
+    skt.set_recv_timeout(SRS_HTTP_RECV_TIMEOUT_US);
+    
     // process http messages.
     for (;;) {
         SrsHttpMessage* req = NULL;
@@ -1407,6 +1411,12 @@ int SrsHttpConn::do_cycle()
         SrsHttpResponseWriter writer(&skt);
         if ((ret = process_request(&writer, req)) != ERROR_SUCCESS) {
             return ret;
+        }
+        
+        // donot keep alive, disconnect it.
+        // @see https://github.com/simple-rtmp-server/srs/issues/399
+        if (!req->is_keep_alive()) {
+            break;
         }
     }
         

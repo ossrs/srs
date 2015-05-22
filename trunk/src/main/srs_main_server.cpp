@@ -344,15 +344,15 @@ int run_master()
 {
     int ret = ERROR_SUCCESS;
     
+    if ((ret = _srs_server->initialize_st()) != ERROR_SUCCESS) {
+        return ret;
+    }
+    
     if ((ret = _srs_server->initialize_signal()) != ERROR_SUCCESS) {
         return ret;
     }
     
     if ((ret = _srs_server->acquire_pid_file()) != ERROR_SUCCESS) {
-        return ret;
-    }
-    
-    if ((ret = _srs_server->initialize_st()) != ERROR_SUCCESS) {
         return ret;
     }
     

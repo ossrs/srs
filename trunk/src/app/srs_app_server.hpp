@@ -80,17 +80,17 @@ enum SrsListenerType
 class SrsListener
 {
 protected:
-    SrsListenerType _type;
+    SrsListenerType type;
 protected:
-    std::string _ip;
-    int _port;
-    SrsServer* _server;
+    std::string ip;
+    int port;
+    SrsServer* server;
 public:
-    SrsListener(SrsServer* server, SrsListenerType type);
+    SrsListener(SrsServer* svr, SrsListenerType t);
     virtual ~SrsListener();
 public:
-    virtual SrsListenerType type();
-    virtual int listen(std::string ip, int port) = 0;
+    virtual SrsListenerType listen_type();
+    virtual int listen(std::string i, int p) = 0;
 };
 
 /**
@@ -120,10 +120,10 @@ private:
     SrsTcpListener* listener;
     ISrsTcpHandler* caster;
 public:
-    SrsRtspListener(SrsServer* server, SrsListenerType type, SrsConfDirective* c);
+    SrsRtspListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c);
     virtual ~SrsRtspListener();
 public:
-    virtual int listen(std::string ip, int port);
+    virtual int listen(std::string i, int p);
 // ISrsTcpHandler
 public:
     virtual int on_tcp_client(st_netfd_t stfd);
@@ -138,28 +138,40 @@ private:
     SrsTcpListener* listener;
     SrsAppCasterFlv* caster;
 public:
-    SrsHttpFlvListener(SrsServer* server, SrsListenerType type, SrsConfDirective* c);
+    SrsHttpFlvListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c);
     virtual ~SrsHttpFlvListener();
 public:
-    virtual int listen(std::string ip, int port);
+    virtual int listen(std::string i, int p);
 // ISrsTcpHandler
 public:
     virtual int on_tcp_client(st_netfd_t stfd);
 };
+#endif
 
 /**
-* the udp listener, for udp server.
-*/
-class SrsUdpCasterListener : public SrsListener
+ * the udp listener, for udp server.
+ */
+class SrsUdpStreamListener : public SrsListener
 {
-private:
+protected:
     SrsUdpListener* listener;
     ISrsUdpHandler* caster;
 public:
-    SrsUdpCasterListener(SrsServer* server, SrsListenerType type, SrsConfDirective* c);
-    virtual ~SrsUdpCasterListener();
+    SrsUdpStreamListener(SrsServer* svr, SrsListenerType t, ISrsUdpHandler* c);
+    virtual ~SrsUdpStreamListener();
 public:
-    virtual int listen(std::string ip, int port);
+    virtual int listen(std::string i, int p);
+};
+
+/**
+ * the udp listener, for udp stream caster server.
+ */
+#ifdef SRS_AUTO_STREAM_CASTER
+class SrsUdpCasterListener : public SrsUdpStreamListener
+{
+public:
+    SrsUdpCasterListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c);
+    virtual ~SrsUdpCasterListener();
 };
 #endif
 
@@ -337,7 +349,7 @@ public:
     * @param client_stfd, the client fd in st boxed, the underlayer fd.
     */
     virtual int accept_client(SrsListenerType type, st_netfd_t client_stfd);
-// interface ISrsThreadHandler.
+// interface ISrsReloadHandler.
 public:
     virtual int on_reload_listen();
     virtual int on_reload_pid();

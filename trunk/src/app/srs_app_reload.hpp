@@ -44,6 +44,7 @@ public:
     ISrsReloadHandler();
     virtual ~ISrsReloadHandler();
 public:
+    virtual int on_reload_max_conns();
     virtual int on_reload_listen();
     virtual int on_reload_pid();
     virtual int on_reload_log_tank();
@@ -55,6 +56,7 @@ public:
     virtual int on_reload_http_stream_enabled();
     virtual int on_reload_http_stream_disabled();
     virtual int on_reload_http_stream_updated();
+public:
     virtual int on_reload_vhost_http_updated();
     virtual int on_reload_vhost_http_remux_updated();
     virtual int on_reload_vhost_added(std::string vhost);

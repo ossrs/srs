@@ -408,17 +408,17 @@
 			isa = PBXGroup;
 			children = (
 				3C1232B81AAE824500CE8F6C /* configure */,
-				3C36DB541ABD1CA70066CCAF /* libs */,
-				3C1EE6AF1AB107EE00576EE9 /* conf */,
-				3C1232EF1AAEAC5800CE8F6C /* etc */,
-				3C1232BA1AAE826F00CE8F6C /* auto */,
-				3C1232B91AAE825100CE8F6C /* scripts */,
-				3C12324B1AAE81CE00CE8F6C /* app */,
-				3C12322C1AAE819900CE8F6C /* protocol */,
+				3C1231EF1AAE651100CE8F6C /* core */,
 				3C1232071AAE814200CE8F6C /* kernel */,
+				3C12322C1AAE819900CE8F6C /* protocol */,
+				3C12324B1AAE81CE00CE8F6C /* app */,
 				3C1232041AAE80CB00CE8F6C /* main */,
 				3C1231F91AAE670E00CE8F6C /* objs */,
-				3C1231EF1AAE651100CE8F6C /* core */,
+				3C1232BA1AAE826F00CE8F6C /* auto */,
+				3C1232B91AAE825100CE8F6C /* scripts */,
+				3C1EE6AF1AB107EE00576EE9 /* conf */,
+				3C36DB541ABD1CA70066CCAF /* libs */,
+				3C1232EF1AAEAC5800CE8F6C /* etc */,
 			);
 			path = srs_xcode;
 			sourceTree = "<group>";
@@ -514,12 +514,12 @@
 		3C12324B1AAE81CE00CE8F6C /* app */ = {
 			isa = PBXGroup;
 			children = (
-				3C28EDDD1AF5C43F00A3AEAC /* srs_app_caster_flv.cpp */,
-				3C28EDDE1AF5C43F00A3AEAC /* srs_app_caster_flv.hpp */,
 				3CD88B3D1ACA9C58000359E0 /* srs_app_async_call.cpp */,
 				3CD88B3E1ACA9C58000359E0 /* srs_app_async_call.hpp */,
 				3C12324C1AAE81D900CE8F6C /* srs_app_bandwidth.cpp */,
 				3C12324D1AAE81D900CE8F6C /* srs_app_bandwidth.hpp */,
+				3C28EDDD1AF5C43F00A3AEAC /* srs_app_caster_flv.cpp */,
+				3C28EDDE1AF5C43F00A3AEAC /* srs_app_caster_flv.hpp */,
 				3C12324E1AAE81D900CE8F6C /* srs_app_config.cpp */,
 				3C12324F1AAE81D900CE8F6C /* srs_app_config.hpp */,
 				3C1232501AAE81D900CE8F6C /* srs_app_conn.cpp */,
@@ -536,10 +536,10 @@
 				3C12325B1AAE81D900CE8F6C /* srs_app_ffmpeg.hpp */,
 				3C12325C1AAE81D900CE8F6C /* srs_app_forward.cpp */,
 				3C12325D1AAE81D900CE8F6C /* srs_app_forward.hpp */,
-				3C12325E1AAE81D900CE8F6C /* srs_app_heartbeat.cpp */,
-				3C12325F1AAE81D900CE8F6C /* srs_app_heartbeat.hpp */,
 				3C1EE6AC1AB1055800576EE9 /* srs_app_hds.cpp */,
 				3C1EE6AD1AB1055800576EE9 /* srs_app_hds.hpp */,
+				3C12325E1AAE81D900CE8F6C /* srs_app_heartbeat.cpp */,
+				3C12325F1AAE81D900CE8F6C /* srs_app_heartbeat.hpp */,
 				3C1232601AAE81D900CE8F6C /* srs_app_hls.cpp */,
 				3C1232611AAE81D900CE8F6C /* srs_app_hls.hpp */,
 				3C1232621AAE81D900CE8F6C /* srs_app_http_api.cpp */,

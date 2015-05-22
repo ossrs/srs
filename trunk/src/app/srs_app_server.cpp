@@ -113,23 +113,23 @@ std::string srs_listener_type2string(SrsListenerType type)
     }
 }
 
-SrsListener::SrsListener(SrsServer* server, SrsListenerType type)
+SrsListener::SrsListener(SrsServer* svr, SrsListenerType t)
 {
-    _port = 0;
-    _server = server;
-    _type = type;
+    port = 0;
+    server = svr;
+    type = t;
 }
 
 SrsListener::~SrsListener()
 {
 }
 
-SrsListenerType SrsListener::type()
+SrsListenerType SrsListener::listen_type()
 {
-    return _type;
+    return type;
 }
 
-SrsStreamListener::SrsStreamListener(SrsServer* server, SrsListenerType type) : SrsListener(server, type)
+SrsStreamListener::SrsStreamListener(SrsServer* svr, SrsListenerType t) : SrsListener(svr, t)
 {
     listener = NULL;
 }
@@ -139,12 +139,12 @@ SrsStreamListener::~SrsStreamListener()
     srs_freep(listener);
 }
 
-int SrsStreamListener::listen(string ip, int port)
+int SrsStreamListener::listen(string i, int p)
 {
     int ret = ERROR_SUCCESS;
     
-    _ip = ip;
-    _port = port;
+    ip = i;
+    port = p;
 
     srs_freep(listener);
     listener = new SrsTcpListener(this, ip, port);
@@ -158,7 +158,7 @@ int SrsStreamListener::listen(string ip, int port)
         "listen at port=%d, type=%d, fd=%d started success, ep=%s:%d",
         pthread->cid(), _srs_context->get_id(), _port, _type, fd, ip.c_str(), port);
 
-    srs_trace("%s listen at tcp://%s:%d, fd=%d", srs_listener_type2string(_type).c_str(), ip.c_str(), _port, listener->fd());
+    srs_trace("%s listen at tcp://%s:%d, fd=%d", srs_listener_type2string(type).c_str(), ip.c_str(), port, listener->fd());
 
     return ret;
 }
@@ -167,7 +167,7 @@ int SrsStreamListener::on_tcp_client(st_netfd_t stfd)
 {
     int ret = ERROR_SUCCESS;
     
-    if ((ret = _server->accept_client(_type, stfd)) != ERROR_SUCCESS) {
+    if ((ret = server->accept_client(type, stfd)) != ERROR_SUCCESS) {
         srs_warn("accept client error. ret=%d", ret);
         return ret;
     }
@@ -176,14 +176,14 @@ int SrsStreamListener::on_tcp_client(st_netfd_t stfd)
 }
 
 #ifdef SRS_AUTO_STREAM_CASTER
-SrsRtspListener::SrsRtspListener(SrsServer* server, SrsListenerType type, SrsConfDirective* c) : SrsListener(server, type)
+SrsRtspListener::SrsRtspListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c) : SrsListener(svr, t)
 {
     listener = NULL;
 
     // the caller already ensure the type is ok,
     // we just assert here for unknown stream caster.
-    srs_assert(_type == SrsListenerRtsp);
-    if (_type == SrsListenerRtsp) {
+    srs_assert(type == SrsListenerRtsp);
+    if (type == SrsListenerRtsp) {
         caster = new SrsRtspCaster(c);
     }
 }
@@ -194,16 +194,16 @@ SrsRtspListener::~SrsRtspListener()
     srs_freep(listener);
 }
 
-int SrsRtspListener::listen(string ip, int port)
+int SrsRtspListener::listen(string i, int p)
 {
     int ret = ERROR_SUCCESS;
 
     // the caller already ensure the type is ok,
     // we just assert here for unknown stream caster.
-    srs_assert(_type == SrsListenerRtsp);
+    srs_assert(type == SrsListenerRtsp);
     
-    _ip = ip;
-    _port = port;
+    ip = i;
+    port = p;
 
     srs_freep(listener);
     listener = new SrsTcpListener(this, ip, port);
@@ -215,9 +215,9 @@ int SrsRtspListener::listen(string ip, int port)
     
     srs_info("listen thread cid=%d, current_cid=%d, "
         "listen at port=%d, type=%d, fd=%d started success, ep=%s:%d",
-        pthread->cid(), _srs_context->get_id(), _port, _type, fd, ip.c_str(), port);
+        pthread->cid(), _srs_context->get_id(), port, type, fd, ip.c_str(), port);
 
-    srs_trace("%s listen at tcp://%s:%d, fd=%d", srs_listener_type2string(_type).c_str(), ip.c_str(), _port, listener->fd());
+    srs_trace("%s listen at tcp://%s:%d, fd=%d", srs_listener_type2string(type).c_str(), ip.c_str(), port, listener->fd());
 
     return ret;
 }
@@ -234,14 +234,14 @@ int SrsRtspListener::on_tcp_client(st_netfd_t stfd)
     return ret;
 }
 
-SrsHttpFlvListener::SrsHttpFlvListener(SrsServer* server, SrsListenerType type, SrsConfDirective* c) : SrsListener(server, type)
+SrsHttpFlvListener::SrsHttpFlvListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c) : SrsListener(svr, t)
 {
     listener = NULL;
     
     // the caller already ensure the type is ok,
     // we just assert here for unknown stream caster.
-    srs_assert(_type == SrsListenerFlv);
-    if (_type == SrsListenerFlv) {
+    srs_assert(type == SrsListenerFlv);
+    if (type == SrsListenerFlv) {
         caster = new SrsAppCasterFlv(c);
     }
 }
@@ -252,16 +252,16 @@ SrsHttpFlvListener::~SrsHttpFlvListener()
     srs_freep(listener);
 }
 
-int SrsHttpFlvListener::listen(string ip, int port)
+int SrsHttpFlvListener::listen(string i, int p)
 {
     int ret = ERROR_SUCCESS;
     
     // the caller already ensure the type is ok,
     // we just assert here for unknown stream caster.
-    srs_assert(_type == SrsListenerFlv);
+    srs_assert(type == SrsListenerFlv);
     
-    _ip = ip;
-    _port = port;
+    ip = i;
+    port = p;
     
     if ((ret = caster->initialize()) != ERROR_SUCCESS) {
         return ret;
@@ -277,9 +277,9 @@ int SrsHttpFlvListener::listen(string ip, int port)
     
     srs_info("listen thread cid=%d, current_cid=%d, "
              "listen at port=%d, type=%d, fd=%d started success, ep=%s:%d",
-             pthread->cid(), _srs_context->get_id(), _port, _type, fd, ip.c_str(), port);
+             pthread->cid(), _srs_context->get_id(), port, type, fd, ip.c_str(), port);
     
-    srs_trace("%s listen at tcp://%s:%d, fd=%d", srs_listener_type2string(_type).c_str(), ip.c_str(), _port, listener->fd());
+    srs_trace("%s listen at tcp://%s:%d, fd=%d", srs_listener_type2string(type).c_str(), ip.c_str(), port, listener->fd());
     
     return ret;
 }
@@ -295,36 +295,29 @@ int SrsHttpFlvListener::on_tcp_client(st_netfd_t stfd)
     
     return ret;
 }
+#endif
 
-SrsUdpCasterListener::SrsUdpCasterListener(SrsServer* server, SrsListenerType type, SrsConfDirective* c) : SrsListener(server, type)
+SrsUdpStreamListener::SrsUdpStreamListener(SrsServer* svr, SrsListenerType t, ISrsUdpHandler* c) : SrsListener(svr, t)
 {
-    _type = type;
     listener = NULL;
-
-    // the caller already ensure the type is ok,
-    // we just assert here for unknown stream caster.
-    srs_assert(_type == SrsListenerMpegTsOverUdp);
-    if (_type == SrsListenerMpegTsOverUdp) {
-        caster = new SrsMpegtsOverUdp(c);
-    }
+    caster = c;
 }
 
-SrsUdpCasterListener::~SrsUdpCasterListener()
+SrsUdpStreamListener::~SrsUdpStreamListener()
 {
-    srs_freep(caster);
     srs_freep(listener);
 }
 
-int SrsUdpCasterListener::listen(string ip, int port)
+int SrsUdpStreamListener::listen(string i, int p)
 {
     int ret = ERROR_SUCCESS;
 
     // the caller already ensure the type is ok,
     // we just assert here for unknown stream caster.
-    srs_assert(_type == SrsListenerMpegTsOverUdp);
+    srs_assert(type == SrsListenerMpegTsOverUdp);
     
-    _ip = ip;
-    _port = port;
+    ip = i;
+    port = p;
 
     srs_freep(listener);
     listener = new SrsUdpListener(caster, ip, port);
@@ -336,11 +329,33 @@ int SrsUdpCasterListener::listen(string ip, int port)
     
     srs_info("listen thread cid=%d, current_cid=%d, "
         "listen at port=%d, type=%d, fd=%d started success, ep=%s:%d",
-        pthread->cid(), _srs_context->get_id(), _port, _type, fd, ip.c_str(), port);
+        pthread->cid(), _srs_context->get_id(), port, type, fd, ip.c_str(), port);
+    
+    // notify the handler the fd changed.
+    if ((ret = caster->on_stfd_change(listener->stfd())) != ERROR_SUCCESS) {
+        srs_error("notify handler fd changed. ret=%d", ret);
+        return ret;
+    }
 
-    srs_trace("%s listen at udp://%s:%d, fd=%d", srs_listener_type2string(_type).c_str(), ip.c_str(), _port, listener->fd());
+    srs_trace("%s listen at udp://%s:%d, fd=%d", srs_listener_type2string(type).c_str(), ip.c_str(), port, listener->fd());
 
     return ret;
+}
+
+#ifdef SRS_AUTO_STREAM_CASTER
+SrsUdpCasterListener::SrsUdpCasterListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c) : SrsUdpStreamListener(svr, t, NULL)
+{
+    // the caller already ensure the type is ok,
+    // we just assert here for unknown stream caster.
+    srs_assert(type == SrsListenerMpegTsOverUdp);
+    if (type == SrsListenerMpegTsOverUdp) {
+        caster = new SrsMpegtsOverUdp(c);
+    }
+}
+
+SrsUdpCasterListener::~SrsUdpCasterListener()
+{
+    srs_freep(caster);
 }
 #endif
 
@@ -588,6 +603,34 @@ int SrsServer::initialize(ISrsServerCycle* cycle_handler)
     return ret;
 }
 
+int SrsServer::initialize_st()
+{
+    int ret = ERROR_SUCCESS;
+    
+    // init st
+    if ((ret = srs_init_st()) != ERROR_SUCCESS) {
+        srs_error("init st failed. ret=%d", ret);
+        return ret;
+    }
+    
+    // @remark, st alloc segment use mmap, which only support 32757 threads,
+    // if need to support more, for instance, 100k threads, define the macro MALLOC_STACK.
+    // TODO: FIXME: maybe can use "sysctl vm.max_map_count" to refine.
+    if (_srs_config->get_max_connections() > 32756) {
+        ret = ERROR_ST_EXCEED_THREADS;
+        srs_error("st mmap for stack allocation must <= %d threads, "
+                  "@see Makefile of st for MALLOC_STACK, please build st manually by "
+                  "\"make EXTRA_CFLAGS=-DMALLOC_STACK linux-debug\", ret=%d", ret);
+        return ret;
+    }
+    
+    // set current log id.
+    _srs_context->generate_id();
+    srs_trace("server main cid=%d", _srs_context->get_id());
+    
+    return ret;
+}
+
 int SrsServer::initialize_signal()
 {
     return signal_manager->initialize();
@@ -665,34 +708,6 @@ int SrsServer::acquire_pid_file()
     
     srs_trace("write pid=%d to %s success!", pid, pid_file.c_str());
     pid_fd = fd;
-    
-    return ret;
-}
-
-int SrsServer::initialize_st()
-{
-    int ret = ERROR_SUCCESS;
-    
-    // init st
-    if ((ret = srs_init_st()) != ERROR_SUCCESS) {
-        srs_error("init st failed. ret=%d", ret);
-        return ret;
-    }
-    
-    // @remark, st alloc segment use mmap, which only support 32757 threads,
-    // if need to support more, for instance, 100k threads, define the macro MALLOC_STACK.
-    // TODO: FIXME: maybe can use "sysctl vm.max_map_count" to refine.
-    if (_srs_config->get_max_connections() > 32756) {
-        ret = ERROR_ST_EXCEED_THREADS;
-        srs_error("st mmap for stack allocation must <= %d threads, "
-            "@see Makefile of st for MALLOC_STACK, please build st manually by "
-            "\"make EXTRA_CFLAGS=-DMALLOC_STACK linux-debug\", ret=%d", ret);
-        return ret;
-    }
-    
-    // set current log id.
-    _srs_context->generate_id();
-    srs_trace("server main cid=%d", _srs_context->get_id());
     
     return ret;
 }
@@ -959,6 +974,7 @@ int SrsServer::do_cycle()
             }
     #endif
 #endif
+            
             srs_info("server main thread loop");
         }
     }
@@ -1103,7 +1119,7 @@ void SrsServer::close_listeners(SrsListenerType type)
     for (it = listeners.begin(); it != listeners.end();) {
         SrsListener* listener = *it;
         
-        if (listener->type() != type) {
+        if (listener->listen_type() != type) {
             ++it;
             continue;
         }
@@ -1264,7 +1280,7 @@ int SrsServer::on_reload_http_stream_enabled()
 #ifdef SRS_AUTO_HTTP_SERVER
     ret = listen_http_stream();
 #endif
-
+    
     return ret;
 }
 

@@ -38,36 +38,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 using namespace std;
 
-/**
-* the signature for packets to client.
-*/
-#define RTMP_SIG_FMS_VER                        "3,5,3,888"
-#define RTMP_SIG_AMF0_VER                       0
-#define RTMP_SIG_CLIENT_ID                      "ASAICiss"
-
-/**
-* onStatus consts.
-*/
-#define StatusLevel                             "level"
-#define StatusCode                              "code"
-#define StatusDescription                       "description"
-#define StatusDetails                           "details"
-#define StatusClientId                          "clientid"
-// status value
-#define StatusLevelStatus                       "status"
-// status error
-#define StatusLevelError                        "error"
-// code value
-#define StatusCodeConnectSuccess                "NetConnection.Connect.Success"
-#define StatusCodeConnectRejected               "NetConnection.Connect.Rejected"
-#define StatusCodeStreamReset                   "NetStream.Play.Reset"
-#define StatusCodeStreamStart                   "NetStream.Play.Start"
-#define StatusCodeStreamPause                   "NetStream.Pause.Notify"
-#define StatusCodeStreamUnpause                 "NetStream.Unpause.Notify"
-#define StatusCodePublishStart                  "NetStream.Publish.Start"
-#define StatusCodeDataStart                     "NetStream.Data.Start"
-#define StatusCodeUnpublishSuccess              "NetStream.Unpublish.Success"
-
 // FMLE
 #define RTMP_AMF0_COMMAND_ON_FC_PUBLISH         "onFCPublish"
 #define RTMP_AMF0_COMMAND_ON_FC_UNPUBLISH       "onFCUnpublish"
@@ -129,15 +99,7 @@ void SrsRequest::update_auth(SrsRequest* req)
 
 string SrsRequest::get_stream_url()
 {
-    std::string url = "";
-    
-    url += vhost;
-    url += "/";
-    url += app;
-    url += "/";
-    url += stream;
-
-    return url;
+    return srs_generate_stream_url(vhost, app, stream);
 }
 
 void SrsRequest::strip()

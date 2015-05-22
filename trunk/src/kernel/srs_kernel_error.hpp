@@ -255,7 +255,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERROR_HTTP_INVALID_CHUNK_HEADER     4026
 #define ERROR_AVC_NALU_UEV                  4027
 #define ERROR_AAC_BYTES_INVALID             4028
-#define ERROR_HTTP_REQUEST_EOF             4029
+#define ERROR_HTTP_REQUEST_EOF              4029
 
 ///////////////////////////////////////////////////////
 // user-define error.

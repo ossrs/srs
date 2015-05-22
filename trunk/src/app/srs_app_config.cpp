@@ -441,10 +441,22 @@ int SrsConfig::reload_conf(SrsConfig* conf)
     //      daemon
     //
     // always support reload without additional code:
-    //      chunk_size, ff_log_dir, max_connections,
+    //      chunk_size, ff_log_dir,
     //      bandcheck, http_hooks, heartbeat, 
     //      token_traverse, debug_srs_upnode,
     //      security
+    
+    // merge config: max_connections
+    if (!srs_directive_equals(root->get("max_connections"), old_root->get("max_connections"))) {
+        for (it = subscribes.begin(); it != subscribes.end(); ++it) {
+            ISrsReloadHandler* subscribe = *it;
+            if ((ret = subscribe->on_reload_max_conns()) != ERROR_SUCCESS) {
+                srs_error("notify subscribes reload max_connections failed. ret=%d", ret);
+                return ret;
+            }
+        }
+        srs_trace("reload max_connections success.");
+    }
 
     // merge config: listen
     if (!srs_directive_equals(root->get("listen"), old_root->get("listen"))) {

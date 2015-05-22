@@ -54,6 +54,11 @@ ISrsUdpHandler::~ISrsUdpHandler()
 {
 }
 
+int ISrsUdpHandler::on_stfd_change(st_netfd_t /*fd*/)
+{
+    return ERROR_SUCCESS;
+}
+
 ISrsTcpHandler::ISrsTcpHandler()
 {
 }
@@ -69,7 +74,7 @@ SrsUdpListener::SrsUdpListener(ISrsUdpHandler* h, string i, int p)
     port = p;
 
     _fd = -1;
-    stfd = NULL;
+    _stfd = NULL;
 
     nb_buf = SRS_UDP_MAX_PACKET_SIZE;
     buf = new char[nb_buf];
@@ -80,7 +85,7 @@ SrsUdpListener::SrsUdpListener(ISrsUdpHandler* h, string i, int p)
 SrsUdpListener::~SrsUdpListener()
 {
     // close the stfd to trigger thread to interrupted.
-    srs_close_stfd(stfd);
+    srs_close_stfd(_stfd);
 
     pthread->stop();
     srs_freep(pthread);
@@ -95,6 +100,11 @@ SrsUdpListener::~SrsUdpListener()
 int SrsUdpListener::fd()
 {
     return _fd;
+}
+
+st_netfd_t SrsUdpListener::stfd()
+{
+    return _stfd;
 }
 
 int SrsUdpListener::listen()
@@ -127,7 +137,7 @@ int SrsUdpListener::listen()
     }
     srs_verbose("bind socket success. ep=%s:%d, fd=%d", ip.c_str(), port, _fd);
     
-    if ((stfd = st_netfd_open_socket(_fd)) == NULL){
+    if ((_stfd = st_netfd_open_socket(_fd)) == NULL){
         ret = ERROR_ST_OPEN_SOCKET;
         srs_error("st_netfd_open_socket open socket failed. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
         return ret;
@@ -153,7 +163,7 @@ int SrsUdpListener::cycle()
         int nb_from = sizeof(sockaddr_in);
         int nread = 0;
 
-        if ((nread = st_recvfrom(stfd, buf, nb_buf, (sockaddr*)&from, &nb_from, ST_UTIME_NO_TIMEOUT)) <= 0) {
+        if ((nread = st_recvfrom(_stfd, buf, nb_buf, (sockaddr*)&from, &nb_from, ST_UTIME_NO_TIMEOUT)) <= 0) {
             srs_warn("ignore recv udp packet failed, nread=%d", nread);
             continue;
         }
@@ -178,7 +188,7 @@ SrsTcpListener::SrsTcpListener(ISrsTcpHandler* h, string i, int p)
     port = p;
 
     _fd = -1;
-    stfd = NULL;
+    _stfd = NULL;
 
     pthread = new SrsThread("tcp", this, 0, true);
 }
@@ -186,7 +196,7 @@ SrsTcpListener::SrsTcpListener(ISrsTcpHandler* h, string i, int p)
 SrsTcpListener::~SrsTcpListener()
 {
     // close the stfd to trigger thread to interrupted.
-    srs_close_stfd(stfd);
+    srs_close_stfd(_stfd);
 
     pthread->stop();
     srs_freep(pthread);
@@ -238,7 +248,7 @@ int SrsTcpListener::listen()
     }
     srs_verbose("listen socket success. ep=%s:%d, fd=%d", ip.c_str(), port, _fd);
     
-    if ((stfd = st_netfd_open_socket(_fd)) == NULL){
+    if ((_stfd = st_netfd_open_socket(_fd)) == NULL){
         ret = ERROR_ST_OPEN_SOCKET;
         srs_error("st_netfd_open_socket open socket failed. ep=%s:%d, ret=%d", ip.c_str(), port, ret);
         return ret;
@@ -258,7 +268,7 @@ int SrsTcpListener::cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    st_netfd_t client_stfd = st_accept(stfd, NULL, NULL, ST_UTIME_NO_TIMEOUT);
+    st_netfd_t client_stfd = st_accept(_stfd, NULL, NULL, ST_UTIME_NO_TIMEOUT);
     
     if(client_stfd == NULL){
         // ignore error.

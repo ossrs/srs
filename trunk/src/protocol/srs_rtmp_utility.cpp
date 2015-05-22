@@ -31,6 +31,7 @@ using namespace std;
 #include <srs_kernel_stream.hpp>
 #include <srs_rtmp_stack.hpp>
 #include <srs_kernel_codec.hpp>
+#include <srs_kernel_consts.hpp>
 
 void srs_discovery_tc_url(
     string tcUrl, 
@@ -78,22 +79,22 @@ void srs_vhost_resolve(string& vhost, string& app, string& param)
     app = srs_string_replace(app, "&&", "?");
     app = srs_string_replace(app, "=", "?");
     
-    if ((pos = app.find("?")) == std::string::npos) {
-        return;
-    }
-    
-    std::string query = app.substr(pos + 1);
-    app = app.substr(0, pos);
-    
-    if ((pos = query.find("vhost?")) != std::string::npos) {
-        query = query.substr(pos + 6);
-        if (!query.empty()) {
-            vhost = query;
-        }
-        if ((pos = vhost.find("?")) != std::string::npos) {
-            vhost = vhost.substr(0, pos);
+    if ((pos = app.find("?")) != std::string::npos) {
+        std::string query = app.substr(pos + 1);
+        app = app.substr(0, pos);
+        
+        if ((pos = query.find("vhost?")) != std::string::npos) {
+            query = query.substr(pos + 6);
+            if (!query.empty()) {
+                vhost = query;
+            }
+            if ((pos = vhost.find("?")) != std::string::npos) {
+                vhost = vhost.substr(0, pos);
+            }
         }
     }
+    
+    /* others */
 }
 
 void srs_random_generate(char* bytes, int size)
@@ -344,5 +345,20 @@ int srs_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, in
     }
 
     return ret;
+}
+
+std::string srs_generate_stream_url(std::string vhost, std::string app, std::string stream) 
+{
+    std::string url = "";
+    
+    if (SRS_CONSTS_RTMP_DEFAULT_VHOST != vhost){
+    	url += vhost;
+    }
+    url += "/";
+    url += app;
+    url += "/";
+    url += stream;
+
+    return url;
 }
 

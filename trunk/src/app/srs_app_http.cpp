@@ -1082,6 +1082,7 @@ SrsHttpMessage::SrsHttpMessage(SrsStSocket* io, SrsConnection* c)
 {
     conn = c;
     chunked = false;
+    keep_alive = true;
     _uri = new SrsHttpUri();
     _body = new SrsHttpResponseReader(this, io);
     _http_ts_send_buffer = new char[SRS_HTTP_TS_SEND_BUFFER_SIZE];
@@ -1105,6 +1106,9 @@ int SrsHttpMessage::update(string url, http_parser* header, SrsFastBuffer* body,
     // whether chunked.
     std::string transfer_encoding = get_request_header("Transfer-Encoding");
     chunked = (transfer_encoding == "chunked");
+    
+    // whether keep alive.
+    keep_alive = http_should_keep_alive(header);
     
     // set the buffer.
     if ((ret = _body->initialize(body)) != ERROR_SUCCESS) {
@@ -1230,6 +1234,11 @@ bool SrsHttpMessage::is_http_options()
 bool SrsHttpMessage::is_chunked()
 {
     return chunked;
+}
+
+bool SrsHttpMessage::is_keep_alive()
+{
+    return keep_alive;
 }
 
 string SrsHttpMessage::uri()
@@ -1447,10 +1456,17 @@ int SrsHttpParser::parse_message_imp(SrsStSocket* skt)
     while (true) {
         ssize_t nparsed = 0;
         
-        // when buffer not empty, parse it.
-        if (buffer->size() > 0) {
-            nparsed = http_parser_execute(&parser, &settings, buffer->bytes(), buffer->size());
-            srs_info("buffer=%d, nparsed=%d, header=%d", buffer->size(), (int)nparsed, header_parsed);
+        // when got entire http header, parse it.
+        // @see https://github.com/simple-rtmp-server/srs/issues/400
+        char* start = buffer->bytes();
+        char* end = start + buffer->size();
+        for (char* p = start; p <= end - 4; p++) {
+            // SRS_HTTP_CRLFCRLF "\r\n\r\n" // 0x0D0A0D0A
+            if (p[0] == SRS_CONSTS_CR && p[1] == SRS_CONSTS_LF && p[2] == SRS_CONSTS_CR && p[3] == SRS_CONSTS_LF) {
+                nparsed = http_parser_execute(&parser, &settings, buffer->bytes(), buffer->size());
+                srs_info("buffer=%d, nparsed=%d, header=%d", buffer->size(), (int)nparsed, header_parsed);
+                break;
+            }
         }
         
         // consume the parsed bytes.

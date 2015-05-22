@@ -63,7 +63,9 @@ extern void srs_discovery_tc_url(
 *   app...vhost...request_vhost
 * @param param, the query, for example, ?vhost=xxx
 */ 
-extern void srs_vhost_resolve(std::string& vhost, std::string& app, std::string& param);
+extern void srs_vhost_resolve(
+    std::string& vhost, std::string& app, std::string& param
+);
 
 /**
 * generate ramdom data for handshake.
@@ -117,6 +119,9 @@ extern int srs_chunk_header_c3(
 * @param ppmsg output the shared ptr message. user should free it.
 */
 extern int srs_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, int stream_id, SrsSharedPtrMessage** ppmsg);
+
+// get the stream identify, vhost/app/stream.
+extern std::string srs_generate_stream_url(std::string vhost, std::string app, std::string stream);
 
 #endif
 
