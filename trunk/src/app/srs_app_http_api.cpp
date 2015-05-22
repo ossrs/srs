@@ -523,6 +523,10 @@ int SrsHttpApi::do_cycle()
     // underlayer socket
     SrsStSocket skt(stfd);
     
+    // set the recv timeout, for some clients never disconnect the connection.
+    // @see https://github.com/simple-rtmp-server/srs/issues/398
+    skt.set_recv_timeout(SRS_HTTP_RECV_TIMEOUT_US);
+    
     // process http messages.
     for (;;) {
         SrsHttpMessage* req = NULL;

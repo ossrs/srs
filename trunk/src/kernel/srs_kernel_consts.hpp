@@ -201,6 +201,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // query string seprator
 #define SRS_CONSTS_HTTP_QUERY_SEP '?'
 
+// the default recv timeout.
+#define SRS_HTTP_RECV_TIMEOUT_US 60 * 1000 * 1000
+
 // 6.1.1 Status Code and Reason Phrase
 #define SRS_CONSTS_HTTP_Continue                       100
 #define SRS_CONSTS_HTTP_SwitchingProtocols             101
