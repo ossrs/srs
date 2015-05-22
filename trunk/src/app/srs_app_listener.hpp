@@ -47,6 +47,12 @@ public:
     virtual ~ISrsUdpHandler();
 public:
     /**
+     * when fd changed, for instance, reload the listen port,
+     * notify the handler and user can do something.
+     */
+    virtual int on_stfd_change(st_netfd_t fd);
+public:
+    /**
     * when udp listener got a udp packet, notice server to process it.
     * @param type, the client type, used to create concrete connection,
     *       for instance RTMP connection to serve client.
@@ -80,7 +86,7 @@ class SrsUdpListener : public ISrsThreadHandler
 {
 private:
     int _fd;
-    st_netfd_t stfd;
+    st_netfd_t _stfd;
     SrsThread* pthread;
 private:
     char* buf;
@@ -94,6 +100,7 @@ public:
     virtual ~SrsUdpListener();
 public:
     virtual int fd();
+    virtual st_netfd_t stfd();
 public:
     virtual int listen();
 // interface ISrsThreadHandler.
@@ -108,7 +115,7 @@ class SrsTcpListener : public ISrsThreadHandler
 {
 private:
     int _fd;
-    st_netfd_t stfd;
+    st_netfd_t _stfd;
     SrsThread* pthread;
 private:
     ISrsTcpHandler* handler;

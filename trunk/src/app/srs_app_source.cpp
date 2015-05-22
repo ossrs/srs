@@ -45,6 +45,7 @@ using namespace std;
 #include <srs_app_hds.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_rtmp_utility.hpp>
 
 #define CONST_MAX_JITTER_MS         500
 #define DEFAULT_FRAME_TIME_MS         40
@@ -755,6 +756,20 @@ SrsSource* SrsSource::fetch(SrsRequest* r)
     // for origin auth is on, the token in request maybe invalid,
     // and we only need to update the token of request, it's simple.
     source->_req->update_auth(r);
+
+    return source;
+}
+
+SrsSource* SrsSource::fetch(std::string vhost, std::string app, std::string stream)
+{
+    SrsSource* source = NULL;
+	string stream_url = srs_generate_stream_url(vhost, app, stream);
+    
+    if (pool.find(stream_url) == pool.end()) {
+        return NULL;
+    }
+
+    source = pool[stream_url];
 
     return source;
 }

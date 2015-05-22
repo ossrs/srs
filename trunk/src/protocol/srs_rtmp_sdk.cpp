@@ -99,15 +99,7 @@ void SrsRequest::update_auth(SrsRequest* req)
 
 string SrsRequest::get_stream_url()
 {
-    std::string url = "";
-    
-    url += vhost;
-    url += "/";
-    url += app;
-    url += "/";
-    url += stream;
-
-    return url;
+    return srs_generate_stream_url(vhost, app, stream);
 }
 
 void SrsRequest::strip()

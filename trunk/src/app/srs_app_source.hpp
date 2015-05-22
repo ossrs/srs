@@ -407,6 +407,10 @@ public:
     */
     static SrsSource* fetch(SrsRequest* r);
     /**
+    * get the exists source by stream info(vhost, app, stream), NULL when not exists.
+    */
+    static SrsSource* fetch(std::string vhost, std::string app, std::string stream);
+    /**
     * when system exit, destroy the sources,
     * for gmc to analysis mem leaks.
     */

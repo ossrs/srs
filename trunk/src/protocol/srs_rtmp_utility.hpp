@@ -120,5 +120,8 @@ extern int srs_chunk_header_c3(
 */
 extern int srs_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, int stream_id, SrsSharedPtrMessage** ppmsg);
 
+// get the stream identify, vhost/app/stream.
+extern std::string srs_generate_stream_url(std::string vhost, std::string app, std::string stream);
+
 #endif
 

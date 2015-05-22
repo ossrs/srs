@@ -31,6 +31,7 @@ using namespace std;
 #include <srs_kernel_stream.hpp>
 #include <srs_rtmp_stack.hpp>
 #include <srs_kernel_codec.hpp>
+#include <srs_kernel_consts.hpp>
 
 void srs_discovery_tc_url(
     string tcUrl, 
@@ -344,5 +345,20 @@ int srs_rtmp_create_msg(char type, u_int32_t timestamp, char* data, int size, in
     }
 
     return ret;
+}
+
+std::string srs_generate_stream_url(std::string vhost, std::string app, std::string stream) 
+{
+    std::string url = "";
+    
+    if (SRS_CONSTS_RTMP_DEFAULT_VHOST != vhost){
+    	url += vhost;
+    }
+    url += "/";
+    url += app;
+    url += "/";
+    url += stream;
+
+    return url;
 }
 

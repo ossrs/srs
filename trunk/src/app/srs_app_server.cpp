@@ -330,6 +330,12 @@ int SrsUdpStreamListener::listen(string i, int p)
     srs_info("listen thread cid=%d, current_cid=%d, "
         "listen at port=%d, type=%d, fd=%d started success, ep=%s:%d",
         pthread->cid(), _srs_context->get_id(), port, type, fd, ip.c_str(), port);
+    
+    // notify the handler the fd changed.
+    if ((ret = caster->on_stfd_change(listener->stfd())) != ERROR_SUCCESS) {
+        srs_error("notify handler fd changed. ret=%d", ret);
+        return ret;
+    }
 
     srs_trace("%s listen at udp://%s:%d, fd=%d", srs_listener_type2string(type).c_str(), ip.c_str(), port, listener->fd());
 
