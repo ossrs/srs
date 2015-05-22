@@ -562,6 +562,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-05-22, for [#400](https://github.com/simple-rtmp-server/srs/issues/400), parse when got entire http header, by feilong. 2.0.164.
 * v2.0, 2015-05-19, merge from bravo system, add the rtmfp to bms(commercial srs). 2.0.163.
 * v2.0, 2015-05-10, support push flv stream over HTTP POST to SRS.
 * v2.0, 2015-04-20, support ingest hls live stream to RTMP.
