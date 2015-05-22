@@ -498,12 +498,13 @@ int SrsFlvSegment::on_reload_vhost_dvr(std::string /*vhost*/)
 
 SrsDvrAsyncCallOnDvr::SrsDvrAsyncCallOnDvr(SrsRequest* r, string p)
 {
-    req = r;
+    req = r->copy();
     path = p;
 }
 
 SrsDvrAsyncCallOnDvr::~SrsDvrAsyncCallOnDvr()
 {
+    srs_freep(req);
 }
 
 int SrsDvrAsyncCallOnDvr::call()

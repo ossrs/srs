@@ -172,7 +172,7 @@ void SrsHlsSegment::update_duration(int64_t current_frame_dts)
 
 SrsDvrAsyncCallOnHls::SrsDvrAsyncCallOnHls(SrsRequest* r, string p, string t, string m, string mu, int s, double d)
 {
-    req = r;
+    req = r->copy();
     path = p;
     ts_url = t;
     m3u8 = m;
@@ -183,6 +183,7 @@ SrsDvrAsyncCallOnHls::SrsDvrAsyncCallOnHls(SrsRequest* r, string p, string t, st
 
 SrsDvrAsyncCallOnHls::~SrsDvrAsyncCallOnHls()
 {
+    srs_freep(req);
 }
 
 int SrsDvrAsyncCallOnHls::call()
@@ -221,12 +222,13 @@ string SrsDvrAsyncCallOnHls::to_string()
 
 SrsDvrAsyncCallOnHlsNotify::SrsDvrAsyncCallOnHlsNotify(SrsRequest* r, string u)
 {
-    req = r;
+    req = r->copy();
     ts_url = u;
 }
 
 SrsDvrAsyncCallOnHlsNotify::~SrsDvrAsyncCallOnHlsNotify()
 {
+    srs_freep(req);
 }
 
 int SrsDvrAsyncCallOnHlsNotify::call()
