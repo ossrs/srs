@@ -39,6 +39,7 @@ using namespace std;
 #include <srs_rtmp_sdk.hpp>
 #include <srs_app_dvr.hpp>
 #include <srs_app_config.hpp>
+#include <srs_app_http_conn.hpp>
 
 SrsGoApiRoot::SrsGoApiRoot()
 {

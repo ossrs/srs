@@ -47,6 +47,7 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_rtmp_amf0.hpp>
 #include <srs_raw_avc.hpp>
+#include <srs_app_http_conn.hpp>
 
 // pre-declare
 int proxy_hls2rtmp(std::string hls, std::string rtmp);

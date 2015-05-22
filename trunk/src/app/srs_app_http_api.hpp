@@ -39,7 +39,7 @@ class SrsHttpHandler;
 
 #include <srs_app_st.hpp>
 #include <srs_app_conn.hpp>
-#include <srs_app_http.hpp>
+#include <srs_http_stack.hpp>
 
 // for http root.
 class SrsGoApiRoot : public ISrsHttpHandler

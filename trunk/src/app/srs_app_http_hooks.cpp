@@ -38,6 +38,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_app_config.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_app_http_conn.hpp>
 
 #define SRS_HTTP_RESPONSE_OK    SRS_XSTR(ERROR_SUCCESS)
 

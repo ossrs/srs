@@ -36,6 +36,7 @@ using namespace std;
 #include <srs_app_http.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_app_http_conn.hpp>
 
 SrsHttpHeartbeat::SrsHttpHeartbeat()
 {

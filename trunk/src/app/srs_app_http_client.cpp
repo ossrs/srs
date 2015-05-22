@@ -36,6 +36,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_app_http_conn.hpp>
 
 SrsHttpClient::SrsHttpClient()
 {
