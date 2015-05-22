@@ -286,7 +286,7 @@ SrsHlsMuxer::SrsHlsMuxer()
     acodec = SrsCodecAudioReserved1;
     should_write_cache = false;
     should_write_file = true;
-    async = new SrsDvrAsyncCallThread();
+    async = new SrsAsyncCallWorker();
     context = new SrsTsContext();
 }
 
@@ -669,7 +669,7 @@ int SrsHlsMuxer::segment_close(string log_desc)
         segments.push_back(current);
         
         // use async to call the http hooks, for it will cause thread switch.
-        if ((ret = async->call(new SrsDvrAsyncCallOnHls(req,
+        if ((ret = async->execute(new SrsDvrAsyncCallOnHls(req,
             current->full_path, current->uri, m3u8, m3u8_url,
             current->sequence_no, current->duration))) != ERROR_SUCCESS)
         {
@@ -677,7 +677,7 @@ int SrsHlsMuxer::segment_close(string log_desc)
         }
         
         // use async to call the http hooks, for it will cause thread switch.
-        if ((ret = async->call(new SrsDvrAsyncCallOnHlsNotify(req, current->uri))) != ERROR_SUCCESS) {
+        if ((ret = async->execute(new SrsDvrAsyncCallOnHlsNotify(req, current->uri))) != ERROR_SUCCESS) {
             return ret;
         }
     

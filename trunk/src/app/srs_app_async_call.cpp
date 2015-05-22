@@ -31,65 +31,65 @@ using namespace std;
 // the sleep interval for http async callback.
 #define SRS_AUTO_ASYNC_CALLBACL_SLEEP_US 300000
 
-ISrsDvrAsyncCall::ISrsDvrAsyncCall()
+ISrsAsyncCallTask::ISrsAsyncCallTask()
 {
 }
 
-ISrsDvrAsyncCall::~ISrsDvrAsyncCall()
+ISrsAsyncCallTask::~ISrsAsyncCallTask()
 {
 }
 
-SrsDvrAsyncCallThread::SrsDvrAsyncCallThread()
+SrsAsyncCallWorker::SrsAsyncCallWorker()
 {
     pthread = new SrsThread("async", this, SRS_AUTO_ASYNC_CALLBACL_SLEEP_US, true);
 }
 
-SrsDvrAsyncCallThread::~SrsDvrAsyncCallThread()
+SrsAsyncCallWorker::~SrsAsyncCallWorker()
 {
     stop();
     srs_freep(pthread);
 
-    std::vector<ISrsDvrAsyncCall*>::iterator it;
-    for (it = callbacks.begin(); it != callbacks.end(); ++it) {
-        ISrsDvrAsyncCall* call = *it;
-        srs_freep(call);
+    std::vector<ISrsAsyncCallTask*>::iterator it;
+    for (it = tasks.begin(); it != tasks.end(); ++it) {
+        ISrsAsyncCallTask* task = *it;
+        srs_freep(task);
     }
-    callbacks.clear();
+    tasks.clear();
 }
 
-int SrsDvrAsyncCallThread::call(ISrsDvrAsyncCall* c)
+int SrsAsyncCallWorker::execute(ISrsAsyncCallTask* t)
 {
     int ret = ERROR_SUCCESS;
 
-    callbacks.push_back(c);
+    tasks.push_back(t);
 
     return ret;
 }
 
-int SrsDvrAsyncCallThread::start()
+int SrsAsyncCallWorker::start()
 {
     return pthread->start();
 }
 
-void SrsDvrAsyncCallThread::stop()
+void SrsAsyncCallWorker::stop()
 {
     pthread->stop();
 }
 
-int SrsDvrAsyncCallThread::cycle()
+int SrsAsyncCallWorker::cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    std::vector<ISrsDvrAsyncCall*> copies = callbacks;
-    callbacks.clear();
+    std::vector<ISrsAsyncCallTask*> copies = tasks;
+    tasks.clear();
 
-    std::vector<ISrsDvrAsyncCall*>::iterator it;
+    std::vector<ISrsAsyncCallTask*>::iterator it;
     for (it = copies.begin(); it != copies.end(); ++it) {
-        ISrsDvrAsyncCall* call = *it;
-        if ((ret = call->call()) != ERROR_SUCCESS) {
-            srs_warn("ignore async callback %s, ret=%d", call->to_string().c_str(), ret);
+        ISrsAsyncCallTask* task = *it;
+        if ((ret = task->call()) != ERROR_SUCCESS) {
+            srs_warn("ignore async callback %s, ret=%d", task->to_string().c_str(), ret);
         }
-        srs_freep(call);
+        srs_freep(task);
     }
 
     return ret;

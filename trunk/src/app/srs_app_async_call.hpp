@@ -42,29 +42,31 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * a video and pass it to the dvr again.
  * futhurmore, the aync call never block the main worker thread.
  */
-class ISrsDvrAsyncCall
+class ISrsAsyncCallTask
 {
 public:
-    ISrsDvrAsyncCall();
-    virtual ~ISrsDvrAsyncCall();
+    ISrsAsyncCallTask();
+    virtual ~ISrsAsyncCallTask();
 public:
     virtual int call() = 0;
     virtual std::string to_string() = 0;
 };
 
 /**
-* the async callback for dvr.
-*/
-class SrsDvrAsyncCallThread : public ISrsThreadHandler
+ * the async callback for dvr.
+ * when worker call with the task, the worker will do it in isolate thread.
+ * that is, the task is execute/call in async mode.
+ */
+class SrsAsyncCallWorker : public ISrsThreadHandler
 {
 private:
     SrsThread* pthread;
-    std::vector<ISrsDvrAsyncCall*> callbacks;
+    std::vector<ISrsAsyncCallTask*> tasks;
 public:
-    SrsDvrAsyncCallThread();
-    virtual ~SrsDvrAsyncCallThread();
+    SrsAsyncCallWorker();
+    virtual ~SrsAsyncCallWorker();
 public:
-    virtual int call(ISrsDvrAsyncCall* c);
+    virtual int execute(ISrsAsyncCallTask* t);
 public:
     virtual int start();
     virtual void stop();

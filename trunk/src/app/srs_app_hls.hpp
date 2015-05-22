@@ -159,7 +159,7 @@ public:
 /**
  * the hls async call: on_hls
  */
-class SrsDvrAsyncCallOnHls : public ISrsDvrAsyncCall
+class SrsDvrAsyncCallOnHls : public ISrsAsyncCallTask
 {
 private:
     std::string path;
@@ -180,7 +180,7 @@ public:
 /**
  * the hls async call: on_hls_notify
  */
-class SrsDvrAsyncCallOnHlsNotify : public ISrsDvrAsyncCall
+class SrsDvrAsyncCallOnHlsNotify : public ISrsAsyncCallTask
 {
 private:
     std::string ts_url;
@@ -215,7 +215,7 @@ private:
     double hls_aof_ratio;
     double hls_fragment;
     double hls_window;
-    SrsDvrAsyncCallThread* async;
+    SrsAsyncCallWorker* async;
 private:
     // whether use floor algorithm for timestamp.
     bool hls_ts_floor;
