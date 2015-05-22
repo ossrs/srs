@@ -1412,6 +1412,12 @@ int SrsHttpConn::do_cycle()
         if ((ret = process_request(&writer, req)) != ERROR_SUCCESS) {
             return ret;
         }
+        
+        // donot keep alive, disconnect it.
+        // @see https://github.com/simple-rtmp-server/srs/issues/399
+        if (!req->is_keep_alive()) {
+            break;
+        }
     }
         
     return ret;

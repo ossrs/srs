@@ -495,6 +495,11 @@ private:
     */
     bool chunked;
     /**
+     * whether the request indicates should keep alive
+     * for the http connection.
+     */
+    bool keep_alive;
+    /**
     * uri parser
     */
     SrsHttpUri* _uri;
@@ -538,6 +543,10 @@ public:
     * whether body is chunked encoding, for reader only.
     */
     virtual bool is_chunked();
+    /**
+     * whether should keep the connection alive.
+     */
+    virtual bool is_keep_alive();
     /**
     * the uri contains the host and path.
     */

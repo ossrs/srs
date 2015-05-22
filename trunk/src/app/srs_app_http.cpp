@@ -1082,6 +1082,7 @@ SrsHttpMessage::SrsHttpMessage(SrsStSocket* io, SrsConnection* c)
 {
     conn = c;
     chunked = false;
+    keep_alive = true;
     _uri = new SrsHttpUri();
     _body = new SrsHttpResponseReader(this, io);
     _http_ts_send_buffer = new char[SRS_HTTP_TS_SEND_BUFFER_SIZE];
@@ -1105,6 +1106,9 @@ int SrsHttpMessage::update(string url, http_parser* header, SrsFastBuffer* body,
     // whether chunked.
     std::string transfer_encoding = get_request_header("Transfer-Encoding");
     chunked = (transfer_encoding == "chunked");
+    
+    // whether keep alive.
+    keep_alive = http_should_keep_alive(header);
     
     // set the buffer.
     if ((ret = _body->initialize(body)) != ERROR_SUCCESS) {
@@ -1230,6 +1234,11 @@ bool SrsHttpMessage::is_http_options()
 bool SrsHttpMessage::is_chunked()
 {
     return chunked;
+}
+
+bool SrsHttpMessage::is_keep_alive()
+{
+    return keep_alive;
 }
 
 string SrsHttpMessage::uri()
