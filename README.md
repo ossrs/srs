@@ -5,10 +5,10 @@ SRS/1.0，开发代号：[HuKaiqun](https://github.com/simple-rtmp-server/srs/wi
 SRS定位是运营级的互联网直播服务器集群，追求更好的概念完整性和最简单实现的代码。
 
 下载发布版(github): 
-[Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.30.zip) 
+[Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.32.zip) 
 其他[more...](http://winlinvip.github.io/srs.release/releases/) <br/>
 下载发布版(国内阿里云镜像): 
-[Centos6-x86_64](http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.30.zip) 
+[Centos6-x86_64](http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.32.zip) 
 其他[more...](http://www.ossrs.net/srs.release/releases/)<br/>
 腾讯QQ和微信：[Contact](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Contact)<br/>
 同类产品：[BLS](https://github.com/wenjiegit/Bull-Live-Server)/[BLE](https://github.com/wenjiegit/Bull-Live-Encoder), [NGINX-RTMP](https://github.com/arut/nginx-rtmp-module), [CRTMPD](http://www.rtmpd.com/), [RED5](http://www.red5.org/), [WOWZA](http://www.wowza.com/), [FMS/AMS](http://www.adobe.com/products/adobe-media-server-standard.html)
@@ -362,6 +362,7 @@ Supported operating systems and hardware:
 [2.0dev branch](https://github.com/simple-rtmp-server/srs/tree/master).
 
 ## Releases
+* 2015-05-23, [Release v1.0r4](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r4), bug fixed, 1.0.32, 59509 lines.<br/>
 * 2015-03-19, [Release v1.0r3](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r3), bug fixed, 1.0.30, 59511 lines.<br/>
 * 2015-02-12, [Release v1.0r2](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r2), bug fixed, 1.0.27, 59507 lines.<br/>
 * 2015-01-15, [Release v1.0r1](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r1), bug fixed, 1.0.21, 59472 lines.<br/>
@@ -387,6 +388,7 @@ Supported operating systems and hardware:
 
 ## History
 
+* <strong>v1.0, 2015-05-23, [1.0r4 release(1.0.32)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r4) released. 59509 lines.</strong>
 * v1.0, 2015-05-22, fix [#397](https://github.com/simple-rtmp-server/srs/issues/397) the USER_HZ maybe not 100. 1.0.32
 * v1.0, 2015-03-26, fix hls aac adts bug, in aac mux. 1.0.31.
 * <strong>v1.0, 2015-03-19, [1.0r3 release(1.0.30)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r3) released. 59511 lines.</strong>
