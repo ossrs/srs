@@ -35,7 +35,10 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_app_utility.hpp>
-#include <srs_app_kbps.hpp>
+#include <srs_protocol_kbps.hpp>
+#include <srs_app_st.hpp>
+
+#define _SRS_BANDWIDTH_LIMIT_INTERVAL_MS 100
 
 // default sample duration, in ms
 #define _SRS_BANDWIDTH_SAMPLE_DURATION_MS 3000
@@ -473,5 +476,42 @@ int SrsBandwidth::finial(SrsBandwidthSample& play_sample, SrsBandwidthSample& pu
     srs_info("BW check finished.");
 
     return ret;
+}
+
+SrsKbpsLimit::SrsKbpsLimit(SrsKbps* kbps, int limit_kbps)
+{
+    _kbps = kbps;
+    _limit_kbps = limit_kbps;
+}
+
+SrsKbpsLimit::~SrsKbpsLimit()
+{
+}
+
+int SrsKbpsLimit::limit_kbps()
+{
+    return _limit_kbps;
+}
+
+void SrsKbpsLimit::recv_limit()
+{
+    _kbps->sample();
+    
+    while (_kbps->get_recv_kbps() > _limit_kbps) {
+        _kbps->sample();
+        
+        st_usleep(_SRS_BANDWIDTH_LIMIT_INTERVAL_MS * 1000);
+    }
+}
+
+void SrsKbpsLimit::send_limit()
+{
+    _kbps->sample();
+    
+    while (_kbps->get_send_kbps() > _limit_kbps) {
+        _kbps->sample();
+        
+        st_usleep(_SRS_BANDWIDTH_LIMIT_INTERVAL_MS * 1000);
+    }
 }
 

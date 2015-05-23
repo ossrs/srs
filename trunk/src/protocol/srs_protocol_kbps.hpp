@@ -21,11 +21,11 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef SRS_APP_KBPS_HPP
-#define SRS_APP_KBPS_HPP
+#ifndef SRS_PROTOCOL_KBPS_HPP
+#define SRS_PROTOCOL_KBPS_HPP
 
 /*
-#include <srs_app_kbps.hpp>
+#include <srs_protocol_kbps.hpp>
 */
 
 #include <srs_core.hpp>
@@ -232,32 +232,6 @@ public:
     *       use the add_delta() is better solutions.
     */
     virtual void sample();
-};
-
-/**
-* the kbps limit, if exceed the kbps, slow down.
-*/
-class SrsKbpsLimit
-{
-private:
-    int _limit_kbps;
-    SrsKbps* _kbps;
-public:
-    SrsKbpsLimit(SrsKbps* kbps, int limit_kbps);
-    virtual ~SrsKbpsLimit();
-public:
-    /**
-    * get the system limit kbps.
-    */
-    virtual int limit_kbps();
-    /**
-    * limit the recv bandwidth.
-    */
-    virtual void recv_limit();
-    /**
-    * limit the send bandwidth.
-    */
-    virtual void send_limit();
 };
 
 #endif
