@@ -34,6 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_app_st.hpp>
 
+class SrsKbps;
 class SrsRequest;
 class SrsRtmpServer;
 class SrsKbpsLimit;
@@ -197,6 +198,32 @@ private:
     *       so server never expect the final packet from it.
     */
     virtual int finial(SrsBandwidthSample& play_sample, SrsBandwidthSample& publish_sample, int64_t start_time, int64_t& end_time);
+};
+
+/**
+ * the kbps limit, if exceed the kbps, slow down.
+ */
+class SrsKbpsLimit
+{
+private:
+    int _limit_kbps;
+    SrsKbps* _kbps;
+public:
+    SrsKbpsLimit(SrsKbps* kbps, int limit_kbps);
+    virtual ~SrsKbpsLimit();
+public:
+    /**
+     * get the system limit kbps.
+     */
+    virtual int limit_kbps();
+    /**
+     * limit the recv bandwidth.
+     */
+    virtual void recv_limit();
+    /**
+     * limit the send bandwidth.
+     */
+    virtual void send_limit();
 };
 
 #endif

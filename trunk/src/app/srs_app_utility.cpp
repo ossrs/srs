@@ -39,7 +39,7 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_error.hpp>
-#include <srs_app_kbps.hpp>
+#include <srs_protocol_kbps.hpp>
 #include <srs_app_json.hpp>
 #include <srs_kernel_stream.hpp>
 

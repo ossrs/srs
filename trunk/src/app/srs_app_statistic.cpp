@@ -29,7 +29,7 @@ using namespace std;
 
 #include <srs_rtmp_sdk.hpp>
 #include <srs_app_json.hpp>
-#include <srs_app_kbps.hpp>
+#include <srs_protocol_kbps.hpp>
 #include <srs_app_conn.hpp>
 #include <srs_app_config.hpp>
 #include <srs_kernel_utility.hpp>

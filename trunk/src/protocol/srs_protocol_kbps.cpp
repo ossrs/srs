@@ -21,12 +21,9 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include <srs_app_kbps.hpp>
+#include <srs_protocol_kbps.hpp>
 
 #include <srs_kernel_utility.hpp>
-#include <srs_app_st.hpp>
-
-#define _SRS_BANDWIDTH_LIMIT_INTERVAL_MS 100
 
 SrsKbpsSample::SrsKbpsSample()
 {
@@ -252,42 +249,4 @@ void SrsKbps::sample()
     is.sample();
     os.sample();
 }
-
-SrsKbpsLimit::SrsKbpsLimit(SrsKbps* kbps, int limit_kbps)
-{
-    _kbps = kbps;
-    _limit_kbps = limit_kbps;
-}
-
-SrsKbpsLimit::~SrsKbpsLimit()
-{
-}
-
-int SrsKbpsLimit::limit_kbps()
-{
-    return _limit_kbps;
-}
-
-void SrsKbpsLimit::recv_limit()
-{
-    _kbps->sample();
-    
-    while (_kbps->get_recv_kbps() > _limit_kbps) {
-        _kbps->sample();
-        
-        st_usleep(_SRS_BANDWIDTH_LIMIT_INTERVAL_MS * 1000);
-    }
-}
-
-void SrsKbpsLimit::send_limit()
-{
-    _kbps->sample();
-    
-    while (_kbps->get_send_kbps() > _limit_kbps) {
-        _kbps->sample();
-        
-        st_usleep(_SRS_BANDWIDTH_LIMIT_INTERVAL_MS * 1000);
-    }
-}
-
 

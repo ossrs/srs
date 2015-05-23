@@ -154,26 +154,26 @@ KERNEL_INCS="src/kernel"; MODULE_DIR=${KERNEL_INCS} . auto/modules.sh
 KERNEL_OBJS="${MODULE_OBJS[@]}"
 #
 #RTMP Protocol, depends on core/kernel, provides rtmp/htttp protocol features.
-MODULE_ID="RTMP" 
+MODULE_ID="PROTOCOL" 
 MODULE_DEPENDS=("CORE" "KERNEL") 
 ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSSLRoot})
 MODULE_FILES=("srs_rtmp_amf0" "srs_rtmp_io" "srs_rtmp_stack" "srs_rtmp_sdk"
-        "srs_rtmp_handshake" "srs_rtmp_utility" "srs_rtmp_msg_array" "srs_rtmp_buffer"
-        "srs_raw_avc" "srs_rtsp_stack" "srs_http_stack")
+        "srs_rtmp_handshake" "srs_rtmp_utility" "srs_rtmp_msg_array" "srs_protocol_buffer"
+        "srs_raw_avc" "srs_rtsp_stack" "srs_http_stack" "srs_protocol_kbps")
 RTMP_INCS="src/protocol"; MODULE_DIR=${RTMP_INCS} . auto/modules.sh
 RTMP_OBJS="${MODULE_OBJS[@]}"
 #
 #App Module
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="APP" 
-    MODULE_DEPENDS=("CORE" "KERNEL" "RTMP") 
+    MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL") 
     ModuleLibIncs=(${LibSTRoot} ${LibHttpParserRoot} ${SRS_OBJS_DIR})
     MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_rtmp_conn" "srs_app_st_socket" "srs_app_source" 
             "srs_app_refer" "srs_app_hls" "srs_app_forward" "srs_app_encoder"
             "srs_app_thread" "srs_app_bandwidth" "srs_app_st" "srs_app_log" "srs_app_config" 
             "srs_app_pithy_print" "srs_app_reload" "srs_app_http_api" "srs_app_http_conn" "srs_app_http_hooks" 
             "srs_app_json" "srs_app_ingest" "srs_app_ffmpeg" "srs_app_utility" "srs_app_dvr" "srs_app_edge"
-            "srs_app_kbps" "srs_app_heartbeat" "srs_app_empty" "srs_app_http_client"
+            "srs_app_heartbeat" "srs_app_empty" "srs_app_http_client"
             "srs_app_recv_thread" "srs_app_security" "srs_app_statistic" "srs_app_hds"
             "srs_app_mpegts_udp" "srs_app_rtsp" "srs_app_listener" "srs_app_async_call"
             "srs_app_caster_flv")
@@ -190,7 +190,7 @@ fi
 #
 #LIBS Module, build libsrs.a for static link.
 MODULE_ID="LIBS" 
-MODULE_DEPENDS=("CORE" "KERNEL" "RTMP") 
+MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL") 
 ModuleLibIncs=(${SRS_OBJS_DIR})
 MODULE_FILES=("srs_librtmp" "srs_lib_simple_socket" "srs_lib_bandwidth")
 LIBS_INCS="src/libs"; MODULE_DIR=${LIBS_INCS} . auto/modules.sh
@@ -199,7 +199,7 @@ LIBS_OBJS="${MODULE_OBJS[@]}"
 #Main Module
 if [ $SRS_EXPORT_LIBRTMP_PROJECT = NO ]; then
     MODULE_ID="MAIN" 
-    MODULE_DEPENDS=("CORE" "KERNEL" "RTMP" "APP")
+    MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
     ModuleLibIncs=(${LibSTRoot} ${SRS_OBJS_DIR} ${LibGperfRoot} ${LibHttpParserRoot})
     MODULE_FILES=("srs_main_server" "srs_main_ingest_hls")
     # add each modules for main
@@ -257,7 +257,7 @@ if [ $SRS_UTEST = YES ]; then
             "srs_utest_reload")
     ModuleLibIncs=(${SRS_OBJS_DIR} ${LibSTRoot} ${LibSSLRoot})
     ModuleLibFiles=(${LibSTfile} ${LibHttpParserfile} ${LibSSLfile})
-    MODULE_DEPENDS=("CORE" "KERNEL" "RTMP" "APP")
+    MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
     MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${RTMP_OBJS[@]} ${APP_OBJS[@]}"
     LINK_OPTIONS="-lpthread ${SrsLinkOptions}" MODULE_DIR="src/utest" APP_NAME="srs_utest" . auto/utest.sh
 fi
