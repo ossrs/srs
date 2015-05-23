@@ -1174,10 +1174,6 @@ SRS always use the most simple architecture to support complex transaction.
 * System arch: the system structure and arch.
 * Modularity arch: the main modularity of SRS.
 * Stream arch: the stream dispatch arch of SRS.
-* RTMP cluster arch: the RTMP origin and edge cluster arch.
-* Multiple processes arch (by wenjie): the multiple process of SRS.
-* CLI arch: the cli arch for SRS, api to manage SRS.
-* Bandwidth specification: the bandwidth test specification of SRS.
 
 ### System Architecture
 
@@ -1185,12 +1181,12 @@ SRS always use the most simple architecture to support complex transaction.
 +------------------------------------------------------+
 |             SRS(Simple RTMP Server)                  |
 +---------------+---------------+-----------+----------+
-|   API/hook    |   Transcoder  |    HLS    |   RTMP   |
+|   API/hook    |   Transcoder  |  HLS/HDS  | RTMP/FLV |
 |  http-parser  |  FFMPEG/x264  |  NGINX/ts | protocol |
 +---------------+---------------+-----------+----------+
 |              Network(state-threads)                  |
 +------------------------------------------------------+
-|      All Linux(RHEL,CentOS,Ubuntu,Fedora...)         |
+|    All Linux/Unix(RHEL,CentOS,Ubuntu,Fedora...)      |
 +------------------------------------------------------+
 </pre>
 
@@ -1198,11 +1194,11 @@ SRS always use the most simple architecture to support complex transaction.
 
 <pre>
 +------------------------------------------------------+
-|             Main(srs/bandwidth/librtmp)              |
+|             Main(srs/ingest-hls/librtmp)             |
 +------------------------------------------------------+
 |           App(Server/Client application)             |
 +------------------------------------------------------+
-|               RTMP(Protocol stack)                   |
+|         RTMP/HTTP/RawStream(Protocol stack)          |
 +------------------------------------------------------+
 |      Kernel(depends on Core, provides error/log)     |
 +------------------------------------------------------+
