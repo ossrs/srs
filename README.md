@@ -228,6 +228,46 @@ Supported operating systems and hardware:
 
 Compare SRS with other media server.
 
+|   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
+|   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
+|   RTMP        |   Stable  |   Stable  |   Stable  |   Stable  |   Stable  |
+|   HLS         |   Stable  |   Stable  |   X       |   Stable  |   Stable  |
+|   HDS         |   Stable  |   X       |   X       |   Stable  |   Stable  |
+|   HTTP FLV    |   Stable  |   X       |   X       |   X       |   X       |
+|   RTMP Edge   |   Stable  |   X       |   X       |   Stable  |   X       |
+|   HLS(aonly)  |   Stable  |   X       |   X       |   Stable  |   Stable  |
+|   DVR         |   Stable  |   Stable  |   X       |   X       |   Stable  |
+|   VHOST       |   Stable  |   X       |   X       |   Stable  |   Stable  |
+|   Reload      |   Stable  |   Stable  |   X       |   X       |   X       |
+|   GopCache    |   Stable  |   X       |   X       |   Stable  |   X       |
+|   Concurrency |   7.5k    |   3k      |   2k      |   2k      |   3k      |
+|   RTMP Latency|   0.1s    |   3s      |   3s      |   3s      |   3s      |
+|   HLS Latency |   10s     |   30s     |   X       |   30s     |   30s     |
+|   Forward     |   Stable  |   X       |   X       |   X       |   X       |
+|   Transcode   |   Stable  |   X       |   X       |   X       |   Stable  |
+|   HTTP hooks  |   Stable  |   X       |   X       |   X       |   X       |
+|   BW check    |   Stable  |   X       |   X       |   X       |   X       |
+|   Demos       |   Stable  |   X       |   X       |   X       |   X       |
+|   WIKI(EN+CN) |   Stable  |  EN only  |   X       |   X       |   Stable  |
+|   ARM/MIPS    |   Stable  |   Stable  |   X       |   X       |   X       |
+|   ATC         |   Stable  |   X       |   X       |   X       |   X       |
+|   HTTP API    |   Stable  |   Stable  |   X       |   X       |   Stable  |
+| Tracable Log  |   Stable  |   X       |   X       |   X       |   X       |
+| Token Traverse|   Stable  |   X       |   X       |   Stable  |   X       |
+|   HTTP Server |   Stable  |   Stable  |   X       |   X       |   Stable  |
+| Client Library|   Stable  |   X       |   X       |   X       |   X       |
+|   Security    |   Stable  |   Stable  |   X       |   X       |   Stable  |
+|   Push MPEGTS | Experiment|   X       |   X       |   X       |   Stable  |
+|   Push RTSP   | Experiment|   X       |   Stable  |   X       |   Stable  |
+| Push HTTP FLV | Experiment|   X       |   X       |   X       |   X       |
+
+Remark:
+
+1. Concurrency: The concurrency of single process.
+1. HLS aonly: The HLS audio only streaming delivery.
+1. BW check: The bandwidth check.
+1. Security: To allow or deny stream publish or play.
+
 ## Releases
 
 * 2015-05-23, [Release v1.0r4](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r4), bug fixed, 1.0.32, 59509 lines.<br/>
