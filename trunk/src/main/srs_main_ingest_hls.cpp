@@ -39,7 +39,6 @@ using namespace std;
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_ts.hpp>
 #include <srs_app_http_client.hpp>
-#include <srs_app_http.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_app_st.hpp>
 #include <srs_rtmp_utility.hpp>
@@ -47,6 +46,7 @@ using namespace std;
 #include <srs_app_utility.hpp>
 #include <srs_rtmp_amf0.hpp>
 #include <srs_raw_avc.hpp>
+#include <srs_app_http_conn.hpp>
 
 // pre-declare
 int proxy_hls2rtmp(std::string hls, std::string rtmp);
@@ -383,14 +383,14 @@ int SrsIngestSrsInput::parseM3u8(SrsHttpUri* url, double& td, double& duration)
         return ret;
     }
     
-    SrsHttpMessage* msg = NULL;
+    ISrsHttpMessage* msg = NULL;
     if ((ret = client.get(url->get_path(), "", &msg)) != ERROR_SUCCESS) {
         srs_error("HTTP GET %s failed. ret=%d", url->get_url(), ret);
         return ret;
     }
     
     srs_assert(msg);
-    SrsAutoFree(SrsHttpMessage, msg);
+    SrsAutoFree(ISrsHttpMessage, msg);
     
     std::string body;
     if ((ret = msg->body_read_all(body)) != ERROR_SUCCESS) {
@@ -605,14 +605,14 @@ int SrsIngestSrsInput::SrsTsPiece::fetch(string m3u8)
         return ret;
     }
     
-    SrsHttpMessage* msg = NULL;
+    ISrsHttpMessage* msg = NULL;
     if ((ret = client.get(uri.get_path(), "", &msg)) != ERROR_SUCCESS) {
         srs_error("HTTP GET %s failed. ret=%d", uri.get_url(), ret);
         return ret;
     }
     
     srs_assert(msg);
-    SrsAutoFree(SrsHttpMessage, msg);
+    SrsAutoFree(ISrsHttpMessage, msg);
     
     if ((ret = msg->body_read_all(body)) != ERROR_SUCCESS) {
         srs_error("read ts failed. ret=%d", ret);

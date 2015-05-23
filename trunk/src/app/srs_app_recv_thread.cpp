@@ -50,7 +50,7 @@ SrsRecvThread::SrsRecvThread(ISrsMessageHandler* msg_handler, SrsRtmpServer* rtm
     timeout = timeout_ms;
     handler = msg_handler;
     rtmp = rtmp_sdk;
-    trd = new SrsThread("recv", this, 0, true);
+    trd = new SrsReusableThread2("recv", this);
 }
 
 SrsRecvThread::~SrsRecvThread()
@@ -72,11 +72,16 @@ void SrsRecvThread::stop()
     trd->stop();
 }
 
+void SrsRecvThread::stop_loop()
+{
+    trd->interrupt();
+}
+
 int SrsRecvThread::cycle()
 {
     int ret = ERROR_SUCCESS;
 
-    while (trd->can_loop()) {
+    while (!trd->interrupted()) {
         if (!handler->can_handle()) {
             st_usleep(timeout * 1000);
             continue;
@@ -96,7 +101,7 @@ int SrsRecvThread::cycle()
             }
     
             // we use no timeout to recv, should never got any error.
-            trd->stop_loop();
+            trd->interrupt();
             
             // notice the handler got a recv error.
             handler->on_recv_error(ret);
@@ -107,11 +112,6 @@ int SrsRecvThread::cycle()
     }
 
     return ret;
-}
-
-void SrsRecvThread::stop_loop()
-{
-    trd->stop_loop();
 }
 
 void SrsRecvThread::on_thread_start()

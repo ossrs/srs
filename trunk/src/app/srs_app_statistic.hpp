@@ -167,6 +167,7 @@ public:
     * sample the kbps, add delta bytes of conn.
     * use kbps_sample() to get all result of kbps stat.
     */
+    // TODO: FIXME: the add delta must use IKbpsDelta interface instead.
     virtual void kbps_add_delta(SrsConnection* conn);
     /**
     * calc the result for all kbps.

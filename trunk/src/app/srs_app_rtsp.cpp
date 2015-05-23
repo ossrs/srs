@@ -192,7 +192,7 @@ SrsRtspConn::SrsRtspConn(SrsRtspCaster* c, st_netfd_t fd, std::string o)
     stfd = fd;
     skt = new SrsStSocket(fd);
     rtsp = new SrsRtspStack(skt);
-    trd = new SrsThread("rtsp", this, 0, false);
+    trd = new SrsOneCycleThread("rtsp", this);
 
     req = NULL;
     io = NULL;
@@ -210,7 +210,6 @@ SrsRtspConn::SrsRtspConn(SrsRtspCaster* c, st_netfd_t fd, std::string o)
 SrsRtspConn::~SrsRtspConn()
 {
     srs_close_stfd(stfd);
-    trd->stop();
 
     srs_freep(video_rtp);
     srs_freep(audio_rtp);
@@ -219,7 +218,9 @@ SrsRtspConn::~SrsRtspConn()
     srs_freep(skt);
     srs_freep(rtsp);
     
-    close();
+    srs_freep(client);
+    srs_freep(io);
+    srs_freep(req);
 
     srs_freep(vjitter);
     srs_freep(ajitter);
@@ -411,9 +412,6 @@ int SrsRtspConn::cycle()
     if (ret == ERROR_SOCKET_CLOSED) {
         srs_warn("client disconnect peer. ret=%d", ret);
     }
-
-    // terminate thread in the thread cycle itself.
-    trd->stop_loop();
 
     return ERROR_SUCCESS;
 }
@@ -761,14 +759,6 @@ int SrsRtspConn::connect_app(string ep_server, string ep_port)
     }
     
     return ret;
-}
-
-void SrsRtspConn::close()
-{
-    srs_freep(client);
-    srs_freep(io);
-    srs_freep(req);
-    srs_close_stfd(stfd);
 }
 
 SrsRtspCaster::SrsRtspCaster(SrsConfDirective* c)

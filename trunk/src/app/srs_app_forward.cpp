@@ -59,7 +59,7 @@ SrsForwarder::SrsForwarder(SrsSource* _source)
     kbps = new SrsKbps();
     stream_id = 0;
 
-    pthread = new SrsThread("forward", this, SRS_FORWARDER_SLEEP_US, true);
+    pthread = new SrsReusableThread2("forward", this, SRS_FORWARDER_SLEEP_US);
     queue = new SrsMessageQueue();
     jitter = new SrsRtmpJitter();
     
@@ -407,7 +407,7 @@ int SrsForwarder::forward()
         }
     }
     
-    while (pthread->can_loop()) {
+    while (!pthread->interrupted()) {
         pprint->elapse();
 
         // read from client.

@@ -178,7 +178,7 @@ public:
 /**
 * the dvr async call.
 */
-class SrsDvrAsyncCallOnDvr : public ISrsDvrAsyncCall
+class SrsDvrAsyncCallOnDvr : public ISrsAsyncCallTask
 {
 private:
     std::string path;
@@ -206,7 +206,7 @@ public:
     SrsRequest* req;
 protected:
     SrsFlvSegment* segment;
-    SrsDvrAsyncCallThread* async;
+    SrsAsyncCallWorker* async;
     bool dvr_enabled;
 public:
     SrsDvrPlan();

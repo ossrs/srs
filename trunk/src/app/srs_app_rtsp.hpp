@@ -113,7 +113,7 @@ public:
 /**
 * the rtsp connection serve the fd.
 */
-class SrsRtspConn : public ISrsThreadHandler
+class SrsRtspConn : public ISrsOneCycleThreadHandler
 {
 private:
     std::string output_template;
@@ -136,7 +136,7 @@ private:
     SrsStSocket* skt;
     SrsRtspStack* rtsp;
     SrsRtspCaster* caster;
-    SrsThread* trd;
+    SrsOneCycleThread* trd;
 private:
     SrsRequest* req;
     SrsStSocket* io;
@@ -163,7 +163,7 @@ private:
 // internal methods
 public:
     virtual int on_rtp_packet(SrsRtpPacket* pkt, int stream_id);
-// interface ISrsThreadHandler
+// interface ISrsOneCycleThreadHandler
 public:
     virtual int cycle();
     virtual void on_thread_stop();
@@ -182,8 +182,6 @@ private:
     // @remark ignore when not connected, reconnect when disconnected.
     virtual int connect();
     virtual int connect_app(std::string ep_server, std::string ep_port);
-    // close the connected io and rtmp to ready to be re-connect.
-    virtual void close();
 };
 
 /**

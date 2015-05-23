@@ -498,12 +498,13 @@ int SrsFlvSegment::on_reload_vhost_dvr(std::string /*vhost*/)
 
 SrsDvrAsyncCallOnDvr::SrsDvrAsyncCallOnDvr(SrsRequest* r, string p)
 {
-    req = r;
+    req = r->copy();
     path = p;
 }
 
 SrsDvrAsyncCallOnDvr::~SrsDvrAsyncCallOnDvr()
 {
+    srs_freep(req);
 }
 
 int SrsDvrAsyncCallOnDvr::call()
@@ -547,7 +548,7 @@ SrsDvrPlan::SrsDvrPlan()
 
     dvr_enabled = false;
     segment = new SrsFlvSegment(this);
-    async = new SrsDvrAsyncCallThread();
+    async = new SrsAsyncCallWorker();
 }
 
 SrsDvrPlan::~SrsDvrPlan()
@@ -628,7 +629,7 @@ int SrsDvrPlan::on_reap_segment()
 {
     int ret = ERROR_SUCCESS;
 
-    if ((ret = async->call(new SrsDvrAsyncCallOnDvr(req, segment->get_path()))) != ERROR_SUCCESS) {
+    if ((ret = async->execute(new SrsDvrAsyncCallOnDvr(req, segment->get_path()))) != ERROR_SUCCESS) {
         return ret;
     }
 

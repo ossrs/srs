@@ -70,7 +70,7 @@ SrsEdgeIngester::SrsEdgeIngester()
     origin_index = 0;
     stream_id = 0;
     stfd = NULL;
-    pthread = new SrsThread("edge-igs", this, SRS_EDGE_INGESTER_SLEEP_US, true);
+    pthread = new SrsReusableThread2("edge-igs", this, SRS_EDGE_INGESTER_SLEEP_US);
 }
 
 SrsEdgeIngester::~SrsEdgeIngester()
@@ -171,7 +171,7 @@ int SrsEdgeIngester::ingest()
     SrsPithyPrint* pprint = SrsPithyPrint::create_edge();
     SrsAutoFree(SrsPithyPrint, pprint);
 
-    while (pthread->can_loop()) {
+    while (!pthread->interrupted()) {
         pprint->elapse();
         
         // pithy print
@@ -397,7 +397,7 @@ SrsEdgeForwarder::SrsEdgeForwarder()
     origin_index = 0;
     stream_id = 0;
     stfd = NULL;
-    pthread = new SrsThread("edge-fwr", this, SRS_EDGE_FORWARDER_SLEEP_US, true);
+    pthread = new SrsReusableThread2("edge-fwr", this, SRS_EDGE_FORWARDER_SLEEP_US);
     queue = new SrsMessageQueue();
     send_error_code = ERROR_SUCCESS;
 }
@@ -489,7 +489,7 @@ int SrsEdgeForwarder::cycle()
     
     SrsMessageArray msgs(SYS_MAX_EDGE_SEND_MSGS);
 
-    while (pthread->can_loop()) {
+    while (!pthread->interrupted()) {
         if (send_error_code != ERROR_SUCCESS) {
             st_usleep(SRS_EDGE_FORWARDER_ERROR_US);
             continue;

@@ -44,7 +44,7 @@ static std::vector<std::string> _transcoded_url;
 
 SrsEncoder::SrsEncoder()
 {
-    pthread = new SrsThread("encoder", this, SRS_RTMP_ENCODER_SLEEP_US, true);
+    pthread = new SrsReusableThread("encoder", this, SRS_RTMP_ENCODER_SLEEP_US);
     pprint = SrsPithyPrint::create_encoder();
 }
 

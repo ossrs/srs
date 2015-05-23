@@ -33,9 +33,9 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_app_http_client.hpp>
 #include <srs_app_json.hpp>
-#include <srs_app_http.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_app_http_conn.hpp>
 
 SrsHttpHeartbeat::SrsHttpHeartbeat()
 {
@@ -82,14 +82,14 @@ void SrsHttpHeartbeat::heartbeat()
         return;
     }
     
-    SrsHttpMessage* msg = NULL;
+    ISrsHttpMessage* msg = NULL;
     if ((ret = http.post(uri.get_path(), req, &msg)) != ERROR_SUCCESS) {
         srs_info("http post hartbeart uri failed. "
             "url=%s, request=%s, response=%s, ret=%d",
             url.c_str(), req.c_str(), res.c_str(), ret);
         return;
     }
-    SrsAutoFree(SrsHttpMessage, msg);
+    SrsAutoFree(ISrsHttpMessage, msg);
     
     std::string res;
     if ((ret = msg->body_read_all(res)) != ERROR_SUCCESS) {

@@ -74,7 +74,6 @@
     <ClInclude Include="..\..\src\app\srs_app_forward.hpp" />
     <ClInclude Include="..\..\src\app\srs_app_heartbeat.hpp" />
     <ClInclude Include="..\..\src\app\srs_app_hls.hpp" />
-    <ClInclude Include="..\..\src\app\srs_app_http.hpp" />
     <ClInclude Include="..\..\src\app\srs_app_http_api.hpp" />
     <ClInclude Include="..\..\src\app\srs_app_http_client.hpp" />
     <ClInclude Include="..\..\src\app\srs_app_http_conn.hpp" />
@@ -119,6 +118,7 @@
     <ClInclude Include="..\..\src\libs\srs_librtmp.hpp" />
     <ClInclude Include="..\..\src\libs\srs_lib_bandwidth.hpp" />
     <ClInclude Include="..\..\src\libs\srs_lib_simple_socket.hpp" />
+    <ClInclude Include="..\..\src\protocol\srs_http_stack.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_raw_avc.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_rtmp_amf0.hpp" />
     <ClInclude Include="..\..\src\protocol\srs_rtmp_buffer.hpp" />
@@ -155,7 +155,6 @@
     <ClCompile Include="..\..\src\app\srs_app_forward.cpp" />
     <ClCompile Include="..\..\src\app\srs_app_heartbeat.cpp" />
     <ClCompile Include="..\..\src\app\srs_app_hls.cpp" />
-    <ClCompile Include="..\..\src\app\srs_app_http.cpp" />
     <ClCompile Include="..\..\src\app\srs_app_http_api.cpp" />
     <ClCompile Include="..\..\src\app\srs_app_http_client.cpp" />
     <ClCompile Include="..\..\src\app\srs_app_http_conn.cpp" />
@@ -201,6 +200,7 @@
     <ClCompile Include="..\..\src\libs\srs_lib_bandwidth.cpp" />
     <ClCompile Include="..\..\src\libs\srs_lib_simple_socket.cpp" />
     <ClCompile Include="..\..\src\main\srs_main_server.cpp" />
+    <ClCompile Include="..\..\src\protocol\srs_http_stack.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_raw_avc.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_rtmp_amf0.cpp" />
     <ClCompile Include="..\..\src\protocol\srs_rtmp_buffer.cpp" />

@@ -135,27 +135,34 @@ public:
 };
 
 /**
-* to statistic the kbps of io.
-* itself can be a statistic source, for example, used for SRS bytes stat.
-* there are two usage scenarios:
-* 1. connections to calc kbps by sample():
-*       SrsKbps* kbps = ...;
-*       kbps->set_io(in, out)
-*       kbps->sample()
-*       kbps->get_xxx_kbps().
-*   the connections know how many bytes already send/recv.
-* 2. server to calc kbps by add_delta():
-*       SrsKbps* kbps = ...;
-*       kbps->set_io(NULL, NULL)
-*       for each connection in connections:
-*           IKbpsDelta* delta = connection; // where connection implements IKbpsDelta
-*           delta->resample()
-*           kbps->add_delta(delta)
-*           delta->cleanup()
-*       kbps->sample()
-*       kbps->get_xxx_kbps().
-*   the server never know how many bytes already send/recv, for the connection maybe closed.
-*/
+ * to statistic the kbps of io.
+ * itself can be a statistic source, for example, used for SRS bytes stat.
+ * there are some usage scenarios:
+ * 1. connections to calc kbps by sample():
+ *       SrsKbps* kbps = ...;
+ *       kbps->set_io(in, out)
+ *       kbps->sample()
+ *       kbps->get_xxx_kbps().
+ *   the connections know how many bytes already send/recv.
+ * 2. server to calc kbps by add_delta():
+ *       SrsKbps* kbps = ...;
+ *       kbps->set_io(NULL, NULL)
+ *       for each connection in connections:
+ *           IKbpsDelta* delta = connection; // where connection implements IKbpsDelta
+ *           delta->resample()
+ *           kbps->add_delta(delta)
+ *           delta->cleanup()
+ *       kbps->sample()
+ *       kbps->get_xxx_kbps().
+ * 3. kbps used as IKbpsDelta, to provides delta bytes:
+ *      SrsKbps* kbps = ...;
+ *      kbps->set_io(in, out);
+ *      IKbpsDelta* delta = (IKbpsDelta*)kbps;
+ *      delta->resample();
+ *      printf("delta is %d/%d", delta->get_send_bytes_delta(), delta->get_recv_bytes_delta());
+ *      delta->cleanup();
+ *   the server never know how many bytes already send/recv, for the connection maybe closed.
+ */
 class SrsKbps : public virtual ISrsProtocolStatistic, public virtual IKbpsDelta
 {
 private:
