@@ -23,6 +23,7 @@
 
 #include <srs_http_stack.hpp>
 
+#include <stdlib.h>
 #include <sstream>
 using namespace std;
 
