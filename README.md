@@ -4,7 +4,6 @@ SRS/2.0，开发代号：[ZhouGuowen](https://github.com/simple-rtmp-server/srs/
 
 SRS定位是运营级的互联网直播服务器集群，追求更好的概念完整性和最简单实现的代码。
 
-<<<<<<< HEAD
 Download from github.io: 
 [Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.32.zip) 
 [more...](http://winlinvip.github.io/srs.release/releases/)
@@ -906,141 +905,37 @@ Performance benchmark history, on virtual box.
 
 The play benchmark by [st-load](https://github.com/winlinvip/st-load):
 
-<table>
-    <tr>
-        <th>Update</th>
-        <th>SRS</th>
-        <th>Clients</th>
-        <th>Type</th>
-        <th>CPU</th>
-        <th>Memory</th>
-        <th>Commit</th>
-    </tr>
-    <tr>
-        <td>2013-11-28</td>
-        <td>0.5.0</td>
-        <td>1.8k(1800)</td>
-        <td>players</td>
-        <td>90%</td>
-        <td>41MB</td>
-        <td>-</td>
-    </tr>
-    <tr>
-        <td>2014-07-12</td>
-        <td>0.9.156</td>
-        <td>1.8k(1800)</td>
-        <td>players</td>
-        <td>68%</td>
-        <td>38MB</td>
-        <td>-</td>
-    </tr>
-    <tr>
-        <td>2014-07-12</td>
-        <td>0.9.156</td>
-        <td>2.7k(2700)</td>
-        <td>players</td>
-        <td>89%</td>
-        <td>61MB</td>
-        <td><a href="https://github.com/simple-rtmp-server/srs/commit/1ae3e6c64cc5cee90e6050c26968ebc3c18281be">commit</a></td>
-    </tr>
-    <tr>
-        <td>2014-11-11</td>
-        <td>1.0.5</td>
-        <td>2.7k(2700)</td>
-        <td>players</td>
-        <td>85%</td>
-        <td>66MB</td>
-        <td>-</td>
-    </tr>
-    <tr>
-        <td>2014-11-11</td>
-        <td>2.0.12</td>
-        <td>2.7k(2700)</td>
-        <td>players</td>
-        <td>85%</td>
-        <td>66MB</td>
-        <td>-</td>
-    </tr>
-    <tr>
-        <td>2014-11-12</td>
-        <td>2.0.14</td>
-        <td>2.7k(2700)</td>
-        <td>players</td>
-        <td>69%</td>
-        <td>59MB</td>
-        <td>-</td>
-    </tr>
-    <tr>
-        <td>2014-11-12</td>
-        <td>2.0.14</td>
-        <td>3.5k(3500)</td>
-        <td>players</td>
-        <td>95%</td>
-        <td>78MB</td>
-        <td><a href="https://github.com/simple-rtmp-server/srs/commit/8acd143a7a152885b815999162660fd4e7a3f247">commit</a></td>
-    </tr>
-    <tr>
-        <td>2014-11-13</td>
-        <td>2.0.15</td>
-        <td>6.0k(6000)</td>
-        <td>players</td>
-        <td>82%</td>
-        <td>203MB</td>
-        <td><a href="https://github.com/simple-rtmp-server/srs/commit/cc6aca9ad55342a06440ce7f3b38453776b2b2d1">commit</a></td>
-    </tr>
-    <tr>
-        <td>2014-11-22</td>
-        <td>2.0.30</td>
-        <td>7.5k(7500)</td>
-        <td>players</td>
-        <td>87%</td>
-        <td>320MB</td>
-        <td><a href="https://github.com/simple-rtmp-server/srs/commit/58136ec178e3d47db6c90a59875d7e40946936e5">commit</a></td>
-    </tr>
-    <tr>
-        <td>2014-12-05</td>
-        <td>2.0.55</td>
-        <td>8.0k(8000)</td>
-        <td>players</td>
-        <td>89%</td>
-        <td>360MB</td>
-        <td>(mw_sleep=350)<br/><a href="https://github.com/simple-rtmp-server/srs/commit/58136ec178e3d47db6c90a59875d7e40946936e5">commit</a></td>
-    </tr>
-    <tr>
-        <td>2014-12-05</td>
-        <td>2.0.57</td>
-        <td>9.0k(9000)</td>
-        <td>players</td>
-        <td>90%</td>
-        <td>468MB</td>
-        <td><a href="https://github.com/simple-rtmp-server/srs/commit/9ee138746f83adc26f0e236ec017f4d68a300004">commit</a></td>
-    </tr>
-    <tr>
-        <td>2014-12-07</td>
-        <td>2.0.67</td>
-        <td>10k(10000)</td>
-        <td>players</td>
-        <td>95%</td>
-        <td>656MB</td>
-        <td><a href="https://github.com/simple-rtmp-server/srs/commit/1311b6fe6576fd7b9c6d299b0f8f2e8d202f4bf8">commit</a></td>
-    </tr>
-</table>
+
+|   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Commit        |
+| ------------- | --------- | ------------- | ------------- | --------- | --------  | ------------  |
+|   2013-11-28  |   0.5.0   |   1.8k(1800)  |   players     |   90%     |   41M     |   -           |
+|   2014-07-12  |   0.9.156 |   1.8k(1800)  |   players     |   68%     |   38MB    |   -           |
+|   2014-07-12  |   0.9.156 |   2.7k(2700)  |   players     |   89%     |   61MB    |   [code][p6]  |
+|   2014-11-11  |   1.0.5   |   2.7k(2700)  |   players     |   85%     |   66MB    |   -           |
+|   2014-11-11  |   2.0.12  |   2.7k(2700)  |   players     |   85%     |   66MB    |   -           |
+|   2014-11-12  |   2.0.14  |   2.7k(2700)  |   players     |   69%     |   59MB    |   -           |
+|   2014-11-12  |   2.0.14  |   3.5k(3500)  |   players     |   95%     |   78MB    |   [code][p7]  |
+|   2014-11-13  |   2.0.15  |   6.0k(6000)  |   players     |   82%     |   203MB   |   [code][p8]  |
+|   2014-11-22  |   2.0.30  |   7.5k(7500)  |   players     |   87%     |   320MB   |   [code][p9]  |
+|   2014-12-05  |   2.0.55  |   8.0k(8000)  |   players     |   89%     |   360MB   |   [code][p10] |
+|   2014-12-05  |   2.0.57  |   9.0k(9000)  |   players     |   90%     |   468MB   |   [code][p11] |
+|   2014-12-07  |   2.0.67  |   10k(10000)  |   players     |   95%     |   656MB   |   [code][p12] |
 
 ### Publish benchmark
 
 The publish benchmark by [st-load](https://github.com/winlinvip/st-load):
 
-|   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Commit    |
-| ------------- | --------- | ------------- | ------------- | --------- | --------  | --------  |
-|   2014-12-03  |   1.0.10  |   1.2k(1200)  |   publishers  |   96%     |   43MB    |   -       |
-|   2014-12-03  |   2.0.12  |   1.2k(1200)  |   publishers  |   96%     |   43MB    |   -       |
-|   2014-12-03  |   2.0.47  |   1.2k(1200)  |   publishers  |   84%     |   76MB    | <a href="https://github.com/simple-rtmp-server/srs/commit/787ab674e38734ea8e0678101614fdcd84645dc8">commit</a> |
-|   2014-12-03  |   2.0.47  |   1.4k(1400)  |   publishers  |   95%     |   140MB   |   -       |
-|   2014-12-03  |   2.0.48  |   1.4k(1400   |   publishers  |   95%     |   140MB   | <a href="https://github.com/simple-rtmp-server/srs/commit/f35ec2155b1408d528a9f37da7904c9625186bcf">commit</a> |
-|   2014-12-04  |   2.0.49  |   1.4k(1400)  |   publishers  |   68%     |   144MB   |   -       |
-|   2014-12-04  |   2.0.49  |   2.5k(2500)  |   publishers  |   95%     |   404MB   |   <a href="https://github.com/simple-rtmp-server/srs/commit/29324fab469e0f7cef9ad04ffdbce832ac7dd9ff">commit</a>  |
-|   2014-12-04  |   2.0.51  |   2.5k(2500)  |   publishers  |   91%     |   259MB   |   <a href="https://github.com/simple-rtmp-server/srs/commit/f57801eb46c16755b173984b915a4166922df6a6">commit</a>  |
-|   2014-12-04  |   2.0.52  |   4.0k(4000)  |   publishers  |   80%     |   331MB   |   (mr_sleep=350)<br/><a href="https://github.com/simple-rtmp-server/srs/commit/5589b13d2e216b91f97afb78ee0c011b2fccf7da">commit</a>   |
+|   Update      |    SRS    |    Clients    |     Type      |    CPU    |  Memory   | Commit        |
+| ------------- | --------- | ------------- | ------------- | --------- | --------  | ------------  |
+|   2014-12-03  |   1.0.10  |   1.2k(1200)  |   publishers  |   96%     |   43MB    |   -           |
+|   2014-12-03  |   2.0.12  |   1.2k(1200)  |   publishers  |   96%     |   43MB    |   -           |
+|   2014-12-03  |   2.0.47  |   1.2k(1200)  |   publishers  |   84%     |   76MB    |   [code][p1]  |
+|   2014-12-03  |   2.0.47  |   1.4k(1400)  |   publishers  |   95%     |   140MB   |   -           |
+|   2014-12-03  |   2.0.48  |   1.4k(1400   |   publishers  |   95%     |   140MB   |   [code][p2]  |
+|   2014-12-04  |   2.0.49  |   1.4k(1400)  |   publishers  |   68%     |   144MB   |   -           |
+|   2014-12-04  |   2.0.49  |   2.5k(2500)  |   publishers  |   95%     |   404MB   |   [code][p3]  |
+|   2014-12-04  |   2.0.51  |   2.5k(2500)  |   publishers  |   91%     |   259MB   |   [code][p4]  |
+|   2014-12-04  |   2.0.52  |   4.0k(4000)  |   publishers  |   80%     |   331MB   |   [code][p5]  |
 
 ### Latency benchmark
 
@@ -1049,40 +944,12 @@ The latency between encoder and player with realtime config(
 [EN](https://github.com/simple-rtmp-server/srs/wiki/v2_EN_LowLatency)
 ):
 
-<table>
-<tr>
-    <th>Update</th>
-    <th>SRS</th>
-    <th>VP6</th>
-    <th>H.264</th>
-    <th>VP6+mp3</th>
-    <th>H.264+mp3</th>
-</tr>
-<tr>
-    <td>2014-12-03</td>
-    <td>1.0.10</td>
-    <td>0.4s</td>
-    <td>0.4s</td>
-    <td>0.9s</td>
-    <td>1.2s</td>
-</tr>
-<tr>
-    <td>2014-12-12</td>
-    <td>2.0.70</td>
-    <td><a href="https://github.com/simple-rtmp-server/srs/commit/10297fab519811845b549a8af40a6bcbd23411e8">0.1s</a></td>
-    <td><a href="https://github.com/simple-rtmp-server/srs/commit/10297fab519811845b549a8af40a6bcbd23411e8">0.4s</a></td>
-    <td>1.0s</td>
-    <td>0.9s</td>
-</tr>
-<tr>
-    <td>2014-12-16</td>
-    <td>2.0.72</td>
-    <td>0.1s</td>
-    <td>0.4s</td>
-    <td><a href="https://github.com/simple-rtmp-server/srs/commit/0d6b91039d408328caab31a1077d56a809b6bebc">0.8s</a></td>
-    <td><a href="https://github.com/simple-rtmp-server/srs/commit/0d6b91039d408328caab31a1077d56a809b6bebc">0.6s</a></td>
-</tr>
-</table>
+
+|   Update      |    SRS    |    VP6    |  H.264    |  VP6+MP3  | H.264+MP3 |
+| ------------- | --------- | --------- | --------- | --------- | --------  |
+|   2014-12-03  |   1.0.10  |   0.4s    |   0.4s    |   0.9s    |   1.2s    |
+|   2014-12-12  |   2.0.70  |[0.1s][p13]|[0.4s][p14]|   1.0s    |   0.9s    |
+|   2014-12-16  |   2.0.72  |   0.1s    |   0.4s    |[0.8s][p15]|[0.6s][p16]|
 
 We use FMLE as encoder for benchmark. The latency of server is 0.1s+, 
 and the bottleneck is the encoder. For more information, read 
@@ -1167,4 +1034,24 @@ over some protocol and remux to rtmp to SRS. Read <a href="https://github.com/si
 
 Beijing, 2013.10<br/>
 Winlin
+
+
+[p1]: https://github.com/simple-rtmp-server/srs/commit/787ab674e38734ea8e0678101614fdcd84645dc8
+[p2]: https://github.com/simple-rtmp-server/srs/commit/f35ec2155b1408d528a9f37da7904c9625186bcf
+[p3]: https://github.com/simple-rtmp-server/srs/commit/29324fab469e0f7cef9ad04ffdbce832ac7dd9ff
+[p4]: https://github.com/simple-rtmp-server/srs/commit/f57801eb46c16755b173984b915a4166922df6a6
+[p5]: https://github.com/simple-rtmp-server/srs/commit/5589b13d2e216b91f97afb78ee0c011b2fccf7da
+[p6]: https://github.com/simple-rtmp-server/srs/commit/1ae3e6c64cc5cee90e6050c26968ebc3c18281be
+[p7]: https://github.com/simple-rtmp-server/srs/commit/8acd143a7a152885b815999162660fd4e7a3f247
+[p8]: https://github.com/simple-rtmp-server/srs/commit/cc6aca9ad55342a06440ce7f3b38453776b2b2d1
+[p9]: https://github.com/simple-rtmp-server/srs/commit/58136ec178e3d47db6c90a59875d7e40946936e5
+[p10]: https://github.com/simple-rtmp-server/srs/commit/58136ec178e3d47db6c90a59875d7e40946936e5
+[p11]: https://github.com/simple-rtmp-server/srs/commit/9ee138746f83adc26f0e236ec017f4d68a300004
+[p12]: https://github.com/simple-rtmp-server/srs/commit/1311b6fe6576fd7b9c6d299b0f8f2e8d202f4bf8
+[p13]: https://github.com/simple-rtmp-server/srs/commit/10297fab519811845b549a8af40a6bcbd23411e8
+[p14]: https://github.com/simple-rtmp-server/srs/commit/10297fab519811845b549a8af40a6bcbd23411e8
+[p15]: https://github.com/simple-rtmp-server/srs/commit/0d6b91039d408328caab31a1077d56a809b6bebc
+[p16]: https://github.com/simple-rtmp-server/srs/commit/0d6b91039d408328caab31a1077d56a809b6bebc
+
+
 
