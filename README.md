@@ -4,12 +4,13 @@ SRS/3.0，开发代号：[OuXuli](https://github.com/simple-rtmp-server/srs/wiki
 
 SRS定位是运营级的互联网直播服务器集群，追求更好的概念完整性和最简单实现的代码。
 
+<<<<<<< HEAD
 Download from github.io: 
-[Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.27.zip) 
+[Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.32.zip) 
 [more...](http://winlinvip.github.io/srs.release/releases/)
 
 Download from ossrs.net: 
-[Centos6-x86_64](http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.27.zip) 
+[Centos6-x86_64](http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.32.zip) 
 [more...](http://www.ossrs.net/srs.release/releases/)
 
 Contact by QQ or Skype, read [Contact](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Contact)
@@ -536,6 +537,9 @@ Supported operating systems and hardware:
 1. [no-plan] Support file source, transcoding file to live stream
 
 ## Releases
+
+* 2015-05-23, [Release v1.0r4](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r4), bug fixed, 1.0.32, 59509 lines.<br/>
+* 2015-03-19, [Release v1.0r3](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r3), bug fixed, 1.0.30, 59511 lines.<br/>
 * 2015-02-12, [Release v1.0r2](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r2), bug fixed, 1.0.27, 59507 lines.<br/>
 * 2015-01-15, [Release v1.0r1](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r1), bug fixed, 1.0.21, 59472 lines.<br/>
 * 2014-12-05, [Release v1.0r0](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r0), all bug fixed, 1.0.10, 59391 lines.<br/>
@@ -679,6 +683,7 @@ Supported operating systems and hardware:
 
 ### SRS 1.0 history
 
+* <strong>v1.0, 2015-05-23, [1.0r4 release(1.0.32)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r4) released. 59509 lines.</strong>
 * v1.0, 2015-05-22, fix [#397](https://github.com/simple-rtmp-server/srs/issues/397) the USER_HZ maybe not 100. 1.0.32
 * v1.0, 2015-03-26, fix hls aac adts bug, in aac mux. 1.0.31.
 * <strong>v1.0, 2015-03-19, [1.0r3 release(1.0.30)](https://github.com/simple-rtmp-server/srs/releases/tag/1.0r3) released. 59511 lines.</strong>
@@ -1214,7 +1219,7 @@ SRS always use the most simple architecture to support complex transaction.
 +----------------------+-------------------------+----------------+
 |     Input            | SRS(Simple RTMP Server) |     Output     |
 +----------------------+-------------------------+----------------+
-|    Encoder(1)        |   +-> RTMP protocol ----+-> RTMP player  |
+|    Encoder(1)        |   +-> RTMP/HDS  --------+-> Flash player |
 |  (FMLE,FFMPEG, -rtmp-+->-+-> HLS/HTTP ---------+-> M3u8 player  |
 |  Flash,XSPLIT,       |   +-> FLV/MP3/Aac/Ts ---+-> HTTP player  |
 |  ......)             |   +-> Fowarder ---------+-> RTMP server  |
@@ -1242,75 +1247,6 @@ Remark:
 to ingest any input to rtmp, push to SRS. Read <a href="https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Ingest">Ingest</a>.
 (4) Streamer: SRS will listen for some protocol and accept stream push 
 over some protocol and remux to rtmp to SRS. Read <a href="https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Streamer">Streamer</a>.
-</pre>
-
-### [HDS/HLS origin backup](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_RTMP-ATC)
-
-<pre>
-                        +----------+        +----------+
-               +--ATC->-+  server  +--ATC->-+ packager +-+   +---------+
-+----------+   | RTMP   +----------+ RTMP   +----------+ |   | Reverse |    +-------+
-| encoder  +->-+                                         +->-+  Proxy  +-->-+  CDN  +
-+----------+   |        +----------+        +----------+ |   | (nginx) |    +-------+
-               +--ATC->-+  server  +--ATC->-+ packager +-+   +---------+
-                 RTMP   +----------+ RTMP   +----------+
-</pre>
-
-### [RTMP cluster(origin/edge) Architecture](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Edge)
-
-Remark: cluster over edge, see [Edge](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Edge)
-Remark: cluster over forward, see [Forward](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Forward)
-
-<pre>
-+---------+       +-----------------+     +-----------------------+ 
-+ Encoder +--+-->-+  SRS(RTMP Edge) +--->-+     (RTMP Origin)     | 
-+---------+  |    +-----------------+     |   SRS/FMS/NGINX-RTMP  |
-             |                            |    Red5/HELIX/CRTMP   |
-             +-------------------------->-+         ......        |
-                                          +-----------------------+ 
-Schema#1: Any RTMP encoder push RTMP stream to RTMP (origin/edge)server,
-    where SRS RTMP Edge server will forward stream to origin.
-
-
-+-------------+    +-----------------+      +--------------------+
-| RTMP Origin +-->-+  SRS(RTMP Edge) +--+->-+  Client(RTMP/HLS)  |
-+-------------+    +-----------------+  |   |  Flash/IOS/Android |
-                                        |   +--------------------+
-                                        |
-                                        |   +-----------------+
-                                        +->-+  SRS(RTMP Edge) +
-                                            +-----------------+
-Schema#2: SRS RTMP Edge server pull stream from origin (or upstream SRS 
-    RTMP Edge server), then delivery to Client.
-</pre>
-
-### Bandwidth Test Workflow
-
-<pre>
-   +------------+                    +----------+
-   |  Client    |                    |  Server  |
-   +-----+------+                    +-----+----+
-         |                                 |
-         |   connect vhost------------->   |
-         |   &lt;-----------result(success)   |
-         |                                 |
-         |   &lt;----------call(start play)   |
-         |   result(playing)---------->    |
-         |   &lt;-------------data(playing)   |
-         |   &lt;-----------call(stop play)   |
-         |   result(stopped)---------->    |
-         |                                 |
-         |   &lt;-------call(start publish)   |
-         |   result(publishing)------->    |
-         |   data(publishing)--------->    |
-         |   &lt;--------call(stop publish)   |
-         |   result(stopped)(1)------->    |
-         |                                 |
-         |   &lt;--------------------report   |
-         |   final(2)----------------->    |
-         |           &lt;END>                 |
-         
-@See: class SrsBandwidth comments.
 </pre>
 
 Beijing, 2013.10<br/>
