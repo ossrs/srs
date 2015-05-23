@@ -161,175 +161,61 @@ Supported operating systems and hardware:
 ## Features
 
 1. Simple, also stable enough.
-1. High-performance(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Performance),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Performance)
-): single-thread, async socket, event/st-thread driven.
-1. High-concurrency(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Performance),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Performance)
-), 6000+ connections(500kbps), 900Mbps, CPU 90.2%, 41MB
-1. Support RTMP Origin Server(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryRTMP),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DeliveryRTMP)
-)
-1. Support RTMP Edge Server(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Edge),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Edge)
-) for CDN, push/pull stream from any RTMP server
+1. High-performance([CN][v1_CN_Performance], [EN][v1_EN_Performance]): single-thread, async socket, event/st-thread driven.
+1. High-concurrency([CN][v1_CN_Performance], [EN][v1_EN_Performance]), 6000+ connections(500kbps), 900Mbps, CPU 90.2%, 41MB
+1. Support RTMP Origin Server([CN][v1_CN_DeliveryRTMP],[EN][v1_EN_DeliveryRTMP])
+1. Support RTMP Edge Server([CN][v1_CN_Edge], [EN][v1_EN_Edge]) for CDN, push/pull stream from any RTMP server
 1. Support single process; no multiple processes.
-1. Support Vhost(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_RtmpUrlVhost),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_RtmpUrlVhost)
-), support \_\_defaultVhost\_\_.
-1. Support RTMP(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryRTMP),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DeliveryRTMP)
-) live streaming; no vod streaming.
-1. Support Apple HLS(m3u8)(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryHLS),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DeliveryHLS)
-) live streaming.
-1. Support HLS audio-only(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryHLS#hlsaudioonly),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DeliveryHLS#hlsaudioonly)
-) live streaming.
-1. Support Reload(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Reload),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Reload)
-) config to enable changes.
-1. Support cache last gop(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_LowLatency#gop-cache),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_LowLatency#gop-cache)
-) for flash player to fast startup.
+1. Support Vhost([CN][v1_CN_RtmpUrlVhost], [EN][v1_EN_RtmpUrlVhost]), support \_\_defaultVhost\_\_.
+1. Support RTMP([CN][v1_CN_DeliveryRTMP], [EN][v1_EN_DeliveryRTMP]) live streaming; no vod streaming.
+1. Support Apple HLS(m3u8)([CN][v1_CN_DeliveryHLS], [EN][v1_EN_DeliveryHLS]) live streaming.
+1. Support HLS audio-only([CN][v1_CN_DeliveryHLS2], [EN][v1_EN_DeliveryHLS2]) live streaming.
+1. Support Reload([CN][v1_CN_Reload], [EN][v1_EN_Reload]) config to enable changes.
+1. Support cache last gop([CN][v1_CN_LowLatency2], [EN][v1_EN_LowLatency2]) for flash player to fast startup.
 1. Support listen at multiple ports.
 1. Support long time(>4.6hours) publish/play.
-1. Support Forward(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Forward),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Forward)
-) in master-slave mode.
-1. Support live stream Transcoding(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_FFMPEG),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_FFMPEG)
-) by ffmpeg.
-1. Support ffmpeg(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_FFMPEG),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_FFMPEG)
-) filters(logo/overlay/crop), x264 params, copy/vn/an.
-1. Support audio transcode(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_FFMPEG),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_FFMPEG)
-) only, speex/mp3 to aac
-1. Support http callback api hooks(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HTTPCallback),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_HTTPCallback)
-)(for authentication and injection).
-1. Support bandwidth test(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_BandwidthTestTool),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_BandwidthTestTool)
-) api and flash client.
-1. Player, publisher(encoder), and demo pages(jquery+bootstrap)(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleDemo),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleDemo)
-). 
-1. Demo(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleDemo),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleDemo)
-) video meeting or chat(SRS+cherrypy+jquery+bootstrap). 
-1. Full documents in wiki(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Home),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Home)
-), both Chinese and English. 
-1. Support RTMP(play-publish) library: srs-librtmp(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SrsLibrtmp),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SrsLibrtmp)
-)
-1. Support ARM cpu arch(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SrsLinuxArm),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SrsLinuxArm)
-) with rtmp/ssl/hls/librtmp.
-1. Support init.d(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_LinuxService),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_LinuxService)
-) and packge script, log to file. 
-1. Support RTMP ATC(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_RTMP-ATC),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_RTMP-ATC)
-) for HLS/HDS to support backup(failover)
-1. Support HTTP RESTful management api(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HTTPApi),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_HTTPApi)
-).
-1. Support Ingest(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Ingest),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Ingest)
-) FILE/HTTP/RTMP/RTSP(RTP, SDP) to RTMP using external tools(e.g ffmepg).
-1. Support DVR(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DVR),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DVR)
-), record live to flv file for vod.
-1. Support tracable log, session based log(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SrsLog),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SrsLog)
-).
-1. Support DRM token traverse(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DRM#tokentraverse),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DRM#tokentraverse)
-) for fms origin authenticate.
+1. Support Forward([CN][v1_CN_Forward], [EN][v1_EN_Forward]) in master-slave mode.
+1. Support live stream Transcoding([CN][v1_CN_FFMPEG], [EN][v1_EN_FFMPEG]) by ffmpeg.
+1. Support ffmpeg([CN][v1_CN_FFMPEG], [EN][v1_EN_FFMPEG]) filters(logo/overlay/crop), x264 params, copy/vn/an.
+1. Support audio transcode([CN][v1_CN_FFMPEG], [EN][v1_EN_FFMPEG]) only, speex/mp3 to aac
+1. Support http callback api hooks([CN][v1_CN_HTTPCallback], [EN][v1_EN_HTTPCallback])(for authentication and injection).
+1. Support bandwidth test([CN][v1_CN_BandwidthTestTool], [EN][v1_EN_BandwidthTestTool]) api and flash client.
+1. Player, publisher(encoder), and demo pages(jquery+bootstrap)([CN][v1_CN_SampleDemo],[EN][v1_EN_SampleDemo]). 
+1. Demo([CN][v1_CN_SampleDemo], [EN][v1_EN_SampleDemo]) video meeting or chat(SRS+cherrypy+jquery+bootstrap). 
+1. Full documents in wiki([CN][v1_CN_Home], [EN][v1_EN_Home]), both Chinese and English. 
+1. Support RTMP(play-publish) library: srs-librtmp([CN][v2_CN_SrsLibrtmp], [EN][v2_EN_SrsLibrtmp])
+1. Support ARM cpu arch([CN][v1_CN_SrsLinuxArm], [EN][v1_EN_SrsLinuxArm]) with rtmp/ssl/hls/librtmp.
+1. Support init.d([CN][v1_CN_LinuxService], [EN][v1_EN_LinuxService]) and packge script, log to file. 
+1. Support RTMP ATC([CN][v1_CN_RTMP-ATC], [EN][v1_EN_RTMP-ATC]) for HLS/HDS to support backup(failover)
+1. Support HTTP RESTful management api([CN][v1_CN_HTTPApi], [EN][v1_EN_HTTPApi]).
+1. Support Ingest([CN][v1_CN_Ingest], [EN][v1_EN_Ingest]) FILE/HTTP/RTMP/RTSP(RTP, SDP) to RTMP using external tools(e.g ffmepg).
+1. Support DVR([CN][v1_CN_DVR], [EN][v1_EN_DVR]), record live to flv file for vod.
+1. Support tracable log, session based log([CN][v1_CN_SrsLog], [EN][v1_EN_SrsLog]).
+1. Support DRM token traverse([CN][v1_CN_DRM#tokentraverse], [EN][v1_EN_DRM#tokentraverse]) for fms origin authenticate.
 1. Support system full utest on gtest.
-1. Support embeded HTTP server(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SampleHTTP),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SampleHTTP)
-) for hls(live/vod)
-1. Support vod stream(http flv/hls vod stream)(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v2_CN_FlvVodStream),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v2_EN_FlvVodStream)
-).
+1. Support embeded HTTP server([CN][v2_CN_SampleHTTP], [EN][v2_EN_SampleHTTP]) for hls(live/vod)
+1. Support vod stream(http flv/hls vod stream)([CN][v2_CN_FlvVodStream], [EN][v2_EN_FlvVodStream]).
 1. Stable [1.0release branch](https://github.com/simple-rtmp-server/srs/tree/1.0release).
-1. Support publish h264 raw stream(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SrsLibrtmp#publish-h264-raw-data)
-) by srs-librtmp.
-1. Support [6k+ clients](https://github.com/simple-rtmp-server/srs/issues/194), 3Gbps per process.
-1. Suppport [English wiki](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Home).
-1. Research and simplify st, [bug #182](https://github.com/simple-rtmp-server/srs/issues/182).
-1. Support compile [srs-librtmp on windows](https://github.com/winlinvip/srs.librtmp), 
-[bug #213](https://github.com/simple-rtmp-server/srs/issues/213).
-1. Support [10k+ clients](https://github.com/simple-rtmp-server/srs/issues/251), 4Gbps per process.
-1. Support publish aac adts raw stream(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SrsLibrtmp#publish-audio-raw-stream),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SrsLibrtmp#publish-audio-raw-stream)
-) by srs-librtmp.
-1. Support 0.1s+ latency, read [#257](https://github.com/simple-rtmp-server/srs/issues/257).
-1. Support allow/deny publish/play for all or specified ip(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Security),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v2_EN_Security)
-).
-1. Support custom dvr path and http callback, read 
-[#179](https://github.com/simple-rtmp-server/srs/issues/179) and
-[274](https://github.com/simple-rtmp-server/srs/issues/274).
-1. Support rtmp remux to http flv/mp3/aac/ts live stream, read 
-[#293](https://github.com/simple-rtmp-server/srs/issues/293)(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v2_CN_DeliveryHttpStream),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v2_CN_DeliveryHttpStream)
-).
-1. Support HLS(h.264+mp3) streaming, read 
-[#301](https://github.com/simple-rtmp-server/srs/issues/301).
-1. Rewrite HLS(h.264+aac/mp3) streaming, read
-[#304](https://github.com/simple-rtmp-server/srs/issues/304).
-1. Support Adobe HDS(f4m)(
-[CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryHDS),
-[EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DeliveryHDS)
-1. [dev] Realease [2.0release branch](https://github.com/simple-rtmp-server/srs/tree/2.0release).
-) dynamic streaming.
-1. [experiment] Support push MPEG-TS over UDP to SRS, read 
-[#250](https://github.com/simple-rtmp-server/srs/issues/250).
-1. [experiment] Support push RTSP to SRS, read
-[#133](https://github.com/simple-rtmp-server/srs/issues/133).
-1. [experiment] Support push flv stream over HTTP POST to SRS, read
-[wiki](https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Streamer#push-http-flv-to-srs).
+1. Support publish h264 raw stream([CN][v2_CN_SrsLibrtmp#publish-h264-raw-data], [EN][v2_EN_SrsLibrtmp#publish-h264-raw-data]) by srs-librtmp.
+1. Support [6k+ clients][bug #194], 3Gbps per process.
+1. Suppport [English wiki][v1_EN_Home).
+1. Research and simplify st, [bug #182][bug #182].
+1. Support compile [srs-librtmp on windows](https://github.com/winlinvip/srs.librtmp), [bug #213][bug #213].
+1. Support [10k+ clients][bug #251], 4Gbps per process.
+1. Support publish aac adts raw stream([CN][v2_CN_SrsLibrtmp#publish-audio-raw-stream], [EN][v2_EN_SrsLibrtmp#publish-audio-raw-stream]) by srs-librtmp.
+1. Support 0.1s+ latency, read [bug #257][bug #257].
+1. Support allow/deny publish/play for all or specified ip([CN][v2_CN_Security], [EN][v2_EN_Security]).
+1. Support custom dvr path and http callback, read [bug #179][bug #179] and [bug #274][bug #274].
+1. Support rtmp remux to http flv/mp3/aac/ts live stream, read [bug #293][bug #293]([CN][v2_CN_DeliveryHttpStream], [EN][v2_CN_DeliveryHttpStream]).
+1. Support HLS(h.264+mp3) streaming, read [bug #301][bug #301].
+1. Rewrite HLS(h.264+aac/mp3) streaming, read [bug #304][bug #304].
+1. Support Adobe HDS(f4m)([CN][v1_CN_DeliveryHDS], [EN][v1_EN_DeliveryHDS]) dynamic streaming.
+1. [dev] Realease [2.0release branch][branch2].
+1. [experiment] Support push MPEG-TS over UDP to SRS, read [bug #250][bug #250].
+1. [experiment] Support push RTSP to SRS, read [bug #133][bug #133].
+1. [experiment] Support push flv stream over HTTP POST to SRS, read [wiki]([CN][v2_CN_Streamer#push-http-flv-to-srs], [EN][v2_EN_Streamer#push-http-flv-to-srs]).
 1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
-1. [no-plan] Support RTMP 302 redirect [#92](https://github.com/simple-rtmp-server/srs/issues/92).
+1. [no-plan] Support RTMP 302 redirect [bug #92][bug #92].
 1. [no-plan] Support multiple processes, for both origin and edge
 1. [no-plan] Support adobe RTMFP(flash p2p) protocol.
 1. [no-plan] Support adobe flash refer/token/swf verification.
@@ -854,8 +740,6 @@ Winlin
 [p15]: https://github.com/simple-rtmp-server/srs/commit/0d6b91039d408328caab31a1077d56a809b6bebc
 [p16]: https://github.com/simple-rtmp-server/srs/commit/0d6b91039d408328caab31a1077d56a809b6bebc
 
-
-
 [authors]: https://github.com/simple-rtmp-server/srs/blob/develop/AUTHORS.txt
 [bigthanks]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Product#bigthanks
 [st]: https://github.com/winlinvip/state-threads
@@ -902,11 +786,87 @@ Winlin
 [donation1]: http://www.ossrs.net/srs.release/donation/index.html
 [donations]: https://github.com/simple-rtmp-server/srs/blob/develop/DONATIONS.txt
 
+[v1_CN_Performance]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Performance
+[v1_EN_Performance]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Performance
+[v1_CN_DeliveryRTMP]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryRTMP
+[v1_EN_DeliveryRTMP]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DeliveryRTMP
+[v1_CN_Edge]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Edge
+[v1_EN_Edge]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Edge
+[v1_CN_RtmpUrlVhost]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_RtmpUrlVhost
+[v1_EN_RtmpUrlVhost]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_RtmpUrlVhost
+[v1_CN_DeliveryHLS]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryHLS
+[v1_EN_DeliveryHLS]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DeliveryHLS
+[v1_CN_DeliveryHLS2]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryHLS#hlsaudioonly
+[v1_EN_DeliveryHLS2]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DeliveryHLS#hlsaudioonly
+[v1_CN_Reload]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Reload
+[v1_EN_Reload]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Reload
+[v1_CN_LowLatency2]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_LowLatency#gop-cache
+[v1_EN_LowLatency2]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_LowLatency#gop-cache
+[v1_CN_Forward]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Forward
+[v1_EN_Forward]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Forward
+[v1_CN_FFMPEG]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_FFMPEG
+[v1_EN_FFMPEG]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_FFMPEG
+[v1_CN_HTTPCallback]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HTTPCallback
+[v1_EN_HTTPCallback]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_HTTPCallback
+[v1_CN_BandwidthTestTool]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_BandwidthTestTool
+[v1_EN_BandwidthTestTool]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_BandwidthTestTool
+[v1_CN_SampleDemo]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleDemo
+[v1_EN_SampleDemo]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleDemo
+[v2_CN_SrsLibrtmp]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SrsLibrtmp
+[v2_EN_SrsLibrtmp]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SrsLibrtmp
+[v1_CN_SrsLinuxArm]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SrsLinuxArm
+[v1_EN_SrsLinuxArm]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SrsLinuxArm
+[v1_CN_LinuxService]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_LinuxService
+[v1_EN_LinuxService]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_LinuxService
+[v1_CN_RTMP-ATC]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_RTMP-ATC
+[v1_EN_RTMP-ATC]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_RTMP-ATC
+[v1_CN_HTTPApi]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_HTTPApi
+[v1_EN_HTTPApi]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_HTTPApi
+[v1_CN_Ingest]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Ingest
+[v1_EN_Ingest]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Ingest
+[v1_CN_DVR]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DVR
+[v1_EN_DVR]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DVR
+[v1_CN_SrsLog]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SrsLog
+[v1_EN_SrsLog]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SrsLog
+[v1_CN_DRM#tokentraverse]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DRM#tokentraverse
+[v1_EN_DRM#tokentraverse]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DRM#tokentraverse
+[v2_CN_SampleHTTP]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SampleHTTP
+[v2_EN_SampleHTTP]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SampleHTTP
+[v2_CN_FlvVodStream]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_FlvVodStream
+[v2_EN_FlvVodStream]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_FlvVodStream
+[v2_CN_SrsLibrtmp#publish-h264-raw-data]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data
+[v2_EN_SrsLibrtmp#publish-h264-raw-data]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SrsLibrtmp#publish-h264-raw-data
+[v2_CN_SrsLibrtmp#publish-audio-raw-stream]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SrsLibrtmp#publish-audio-raw-stream
+[v2_EN_SrsLibrtmp#publish-audio-raw-stream]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SrsLibrtmp#publish-audio-raw-stream
+[v2_CN_Security]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Security
+[v2_EN_Security]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_Security
+[v2_CN_DeliveryHttpStream]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_DeliveryHttpStream
+[v2_EN_DeliveryHttpStream]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_DeliveryHttpStream
+[v1_CN_DeliveryHDS]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryHDS
+[v1_EN_DeliveryHDS]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DeliveryHDS
+[v2_CN_Streamer#push-http-flv-to-srs]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Streamer#push-http-flv-to-srs
+[v2_EN_Streamer#push-http-flv-to-srs]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_Streamer#push-http-flv-to-srs
+
+[bug #213]: https://github.com/simple-rtmp-server/srs/issues/213
+[bug #194]: https://github.com/simple-rtmp-server/srs/issues/194
+[bug #182]: https://github.com/simple-rtmp-server/srs/issues/182
+[bug #257]: https://github.com/simple-rtmp-server/srs/issues/257
+[bug #179]: https://github.com/simple-rtmp-server/srs/issues/179
+[bug #224]: https://github.com/simple-rtmp-server/srs/issues/224
+[bug #251]: https://github.com/simple-rtmp-server/srs/issues/251
+[bug #293]: https://github.com/simple-rtmp-server/srs/issues/293
+[bug #250]: https://github.com/simple-rtmp-server/srs/issues/250
+[bug #301]: https://github.com/simple-rtmp-server/srs/issues/301
+[bug #304]: https://github.com/simple-rtmp-server/srs/issues/304
+[bug #133]: https://github.com/simple-rtmp-server/srs/issues/133
+[bug #92]: https://github.com/simple-rtmp-server/srs/issues/92
+
 
 [contact]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Contact
 [more0]: http://winlinvip.github.io/srs.release/releases/
 [more1]: http://www.ossrs.net/srs.release/releases/
 
+[branch2]: https://github.com/simple-rtmp-server/srs/tree/2.0release
 [release2]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Product#release20
 [centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.32.zip
 [centos1]: http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.32.zip
