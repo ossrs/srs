@@ -519,6 +519,7 @@ Supported operating systems and hardware:
 1. Support Adobe HDS(f4m)(
 [CN](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_DeliveryHDS),
 [EN](https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DeliveryHDS)
+1. [dev] Realease [2.0release branch](https://github.com/simple-rtmp-server/srs/tree/2.0release).
 ) dynamic streaming.
 1. [experiment] Support push MPEG-TS over UDP to SRS, read 
 [#250](https://github.com/simple-rtmp-server/srs/issues/250).
@@ -526,7 +527,6 @@ Supported operating systems and hardware:
 [#133](https://github.com/simple-rtmp-server/srs/issues/133).
 1. [experiment] Support push flv stream over HTTP POST to SRS, read
 [wiki](https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Streamer#push-http-flv-to-srs).
-1. Start [2.0release branch](https://github.com/simple-rtmp-server/srs/tree/2.0release).
 1. [no-plan] Support <500ms latency, FRSC(Fast RTMP-compatible Stream Channel tech).
 1. [no-plan] Support RTMP 302 redirect [#92](https://github.com/simple-rtmp-server/srs/issues/92).
 1. [no-plan] Support multiple processes, for both origin and edge
