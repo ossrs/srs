@@ -79,10 +79,10 @@ public:
 /**
  * the recv thread, use message handler to handle each received message.
  */
-class SrsRecvThread : public ISrsThreadHandler
+class SrsRecvThread : public ISrsReusableThreadHandler
 {
 protected:
-    SrsThread* trd;
+    SrsReusableThread* trd;
     ISrsMessageHandler* handler;
     SrsRtmpServer* rtmp;
     int timeout;

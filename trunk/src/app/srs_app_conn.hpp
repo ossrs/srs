@@ -58,14 +58,14 @@ public:
 * all connections accept from listener must extends from this base class,
 * server will add the connection to manager, and delete it when remove.
 */
-class SrsConnection : public virtual ISrsThreadHandler, public virtual IKbpsDelta
+class SrsConnection : public virtual ISrsOneCycleThreadHandler, public virtual IKbpsDelta
 {
 private:
     /**
     * each connection start a green thread,
     * when thread stop, the connection will be delete by server.
     */
-    SrsThread* pthread;
+    SrsOneCycleThread* pthread;
     /**
     * the id of connection.
     */
@@ -97,6 +97,8 @@ public:
     * to remove the client by server->remove(this).
     */
     virtual int start();
+// interface ISrsOneCycleThreadHandler
+public:
     /**
     * the thread cycle function,
     * when serve connection completed, terminate the loop which will terminate the thread,
@@ -119,12 +121,6 @@ protected:
     * for concrete connection to do the cycle.
     */
     virtual int do_cycle() = 0;
-private:
-    /**
-    * when delete the connection, stop the connection,
-    * close the underlayer socket, delete the thread.
-    */
-    virtual void stop();
 };
 
 #endif

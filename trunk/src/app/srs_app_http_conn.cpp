@@ -1157,12 +1157,11 @@ SrsStreamCache::SrsStreamCache(SrsSource* s, SrsRequest* r)
     req = r->copy();
     source = s;
     queue = new SrsMessageQueue(true);
-    pthread = new SrsThread("http-stream", this, 0, false);
+    pthread = new SrsEndlessThread("http-stream", this);
 }
 
 SrsStreamCache::~SrsStreamCache()
 {
-    pthread->stop();
     srs_freep(pthread);
     
     srs_freep(queue);

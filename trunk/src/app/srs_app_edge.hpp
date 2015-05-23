@@ -75,7 +75,7 @@ enum SrsEdgeUserState
 /**
 * edge used to ingest stream from origin.
 */
-class SrsEdgeIngester : public ISrsThreadHandler
+class SrsEdgeIngester : public ISrsReusableThreadHandler
 {
 private:
     int stream_id;
@@ -83,7 +83,7 @@ private:
     SrsSource* _source;
     SrsPlayEdge* _edge;
     SrsRequest* _req;
-    SrsThread* pthread;
+    SrsReusableThread* pthread;
     st_netfd_t stfd;
     ISrsProtocolReaderWriter* io;
     SrsKbps* kbps;
@@ -96,7 +96,7 @@ public:
     virtual int initialize(SrsSource* source, SrsPlayEdge* edge, SrsRequest* req);
     virtual int start();
     virtual void stop();
-// interface ISrsThreadHandler
+// interface ISrsReusableThreadHandler
 public:
     virtual int cycle();
 private:
@@ -110,7 +110,7 @@ private:
 /**
 * edge used to forward stream to origin.
 */
-class SrsEdgeForwarder : public ISrsThreadHandler
+class SrsEdgeForwarder : public ISrsReusableThreadHandler
 {
 private:
     int stream_id;
@@ -118,7 +118,7 @@ private:
     SrsSource* _source;
     SrsPublishEdge* _edge;
     SrsRequest* _req;
-    SrsThread* pthread;
+    SrsReusableThread* pthread;
     st_netfd_t stfd;
     ISrsProtocolReaderWriter* io;
     SrsKbps* kbps;
@@ -144,7 +144,7 @@ public:
     virtual int initialize(SrsSource* source, SrsPublishEdge* edge, SrsRequest* req);
     virtual int start();
     virtual void stop();
-// interface ISrsThreadHandler
+// interface ISrsReusableThreadHandler
 public:
     virtual int cycle();
 public:

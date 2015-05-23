@@ -179,7 +179,7 @@ public:
 * convert signal to io,
 * @see: st-1.9/docs/notes.html
 */
-class SrsSignalManager : public ISrsThreadHandler
+class SrsSignalManager : public ISrsEndlessThreadHandler
 {
 private:
     /* Per-process pipe which is used as a signal queue. */
@@ -188,14 +188,14 @@ private:
     st_netfd_t signal_read_stfd;
 private:
     SrsServer* _server;
-    SrsThread* pthread;
+    SrsEndlessThread* pthread;
 public:
     SrsSignalManager(SrsServer* server);
     virtual ~SrsSignalManager();
 public:
     virtual int initialize();
     virtual int start();
-// interface ISrsThreadHandler.
+// interface ISrsEndlessThreadHandler.
 public:
     virtual int cycle();
 private:

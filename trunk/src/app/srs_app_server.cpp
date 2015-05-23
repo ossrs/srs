@@ -367,13 +367,12 @@ SrsSignalManager::SrsSignalManager(SrsServer* server)
     
     _server = server;
     sig_pipe[0] = sig_pipe[1] = -1;
-    pthread = new SrsThread("signal", this, 0, true);
+    pthread = new SrsEndlessThread("signal", this);
     signal_read_stfd = NULL;
 }
 
 SrsSignalManager::~SrsSignalManager()
 {
-    pthread->stop();
     srs_freep(pthread);
     
     srs_close_stfd(signal_read_stfd);

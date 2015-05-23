@@ -57,10 +57,10 @@ public:
  * when worker call with the task, the worker will do it in isolate thread.
  * that is, the task is execute/call in async mode.
  */
-class SrsAsyncCallWorker : public ISrsThreadHandler
+class SrsAsyncCallWorker : public ISrsReusableThreadHandler
 {
 private:
-    SrsThread* pthread;
+    SrsReusableThread* pthread;
     std::vector<ISrsAsyncCallTask*> tasks;
 public:
     SrsAsyncCallWorker();
@@ -70,6 +70,8 @@ public:
 public:
     virtual int start();
     virtual void stop();
+// interface ISrsReusableThreadHandler
+public:
     virtual int cycle();
 };
 

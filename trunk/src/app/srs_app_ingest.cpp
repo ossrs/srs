@@ -55,7 +55,7 @@ SrsIngester::SrsIngester()
 {
     _srs_config->subscribe(this);
     
-    pthread = new SrsThread("ingest", this, SRS_AUTO_INGESTER_SLEEP_US, true);
+    pthread = new SrsReusableThread("ingest", this, SRS_AUTO_INGESTER_SLEEP_US);
     pprint = SrsPithyPrint::create_ingester();
 }
 

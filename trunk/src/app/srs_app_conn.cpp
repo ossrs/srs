@@ -45,12 +45,17 @@ SrsConnection::SrsConnection(IConnectionManager* cm, st_netfd_t c)
     // so we never use joinable.
     // TODO: FIXME: maybe other thread need to stop it.
     // @see: https://github.com/simple-rtmp-server/srs/issues/78
-    pthread = new SrsThread("conn", this, 0, false);
+    pthread = new SrsOneCycleThread("conn", this);
 }
 
 SrsConnection::~SrsConnection()
 {
-    stop();
+    /**
+     * when delete the connection, stop the connection,
+     * close the underlayer socket, delete the thread.
+     */
+    srs_close_stfd(stfd);
+    srs_freep(pthread);
 }
 
 int SrsConnection::start()
@@ -83,9 +88,6 @@ int SrsConnection::cycle()
     if (ret == ERROR_SOCKET_CLOSED) {
         srs_warn("client disconnect peer. ret=%d", ret);
     }
-    
-    // set loop to stop to quit.
-    pthread->stop_loop();
 
     return ERROR_SUCCESS;
 }
@@ -99,12 +101,6 @@ void SrsConnection::on_thread_stop()
 int SrsConnection::srs_id()
 {
     return id;
-}
-
-void SrsConnection::stop()
-{
-    srs_close_stfd(stfd);
-    srs_freep(pthread);
 }
 
 

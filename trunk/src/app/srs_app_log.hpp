@@ -82,7 +82,7 @@ public:
     virtual void trace(const char* tag, int context_id, const char* fmt, ...);
     virtual void warn(const char* tag, int context_id, const char* fmt, ...);
     virtual void error(const char* tag, int context_id, const char* fmt, ...);
-// interface ISrsThreadHandler.
+// interface ISrsReloadHandler.
 public:
     virtual int on_reload_log_tank();
     virtual int on_reload_log_level();

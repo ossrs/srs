@@ -41,12 +41,11 @@ ISrsAsyncCallTask::~ISrsAsyncCallTask()
 
 SrsAsyncCallWorker::SrsAsyncCallWorker()
 {
-    pthread = new SrsThread("async", this, SRS_AUTO_ASYNC_CALLBACL_SLEEP_US, true);
+    pthread = new SrsReusableThread("async", this, SRS_AUTO_ASYNC_CALLBACL_SLEEP_US);
 }
 
 SrsAsyncCallWorker::~SrsAsyncCallWorker()
 {
-    stop();
     srs_freep(pthread);
 
     std::vector<ISrsAsyncCallTask*>::iterator it;

@@ -79,7 +79,7 @@ SrsUdpListener::SrsUdpListener(ISrsUdpHandler* h, string i, int p)
     nb_buf = SRS_UDP_MAX_PACKET_SIZE;
     buf = new char[nb_buf];
 
-    pthread = new SrsThread("udp", this, 0, true);
+    pthread = new SrsReusableThread("udp", this);
 }
 
 SrsUdpListener::~SrsUdpListener()
@@ -157,7 +157,7 @@ int SrsUdpListener::cycle()
 {
     int ret = ERROR_SUCCESS;
     
-    while (pthread->can_loop()) {
+    while (!pthread->interrupted()) {
         // TODO: FIXME: support ipv6, @see man 7 ipv6
         sockaddr_in from;
         int nb_from = sizeof(sockaddr_in);
@@ -190,7 +190,7 @@ SrsTcpListener::SrsTcpListener(ISrsTcpHandler* h, string i, int p)
     _fd = -1;
     _stfd = NULL;
 
-    pthread = new SrsThread("tcp", this, 0, true);
+    pthread = new SrsReusableThread("tcp", this);
 }
 
 SrsTcpListener::~SrsTcpListener()

@@ -48,7 +48,7 @@ class SrsKbps;
 * forward the stream to other servers.
 */
 // TODO: FIXME: refine the error log, comments it.
-class SrsForwarder : public ISrsThreadHandler
+class SrsForwarder : public ISrsReusableThreadHandler
 {
 private:
     // the ep to forward, server[:port].
@@ -57,7 +57,7 @@ private:
     int stream_id;
 private:
     st_netfd_t stfd;
-    SrsThread* pthread;
+    SrsReusableThread* pthread;
 private:
     SrsSource* source;
     ISrsProtocolReaderWriter* io;
@@ -95,7 +95,7 @@ public:
     * @param shared_video, directly ptr, copy it if need to save it.
     */
     virtual int on_video(SrsSharedPtrMessage* shared_video);
-// interface ISrsThreadHandler.
+// interface ISrsReusableThreadHandler.
 public:
     virtual int cycle();
 private:

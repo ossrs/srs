@@ -386,20 +386,20 @@ protected:
 * for example, the audio stream cache to make android(weixin) happy.
 * we start a thread to shrink the queue.
 */
-class SrsStreamCache : public ISrsThreadHandler
+class SrsStreamCache : public ISrsEndlessThreadHandler
 {
 private:
     SrsMessageQueue* queue;
     SrsSource* source;
     SrsRequest* req;
-    SrsThread* pthread;
+    SrsEndlessThread* pthread;
 public:
     SrsStreamCache(SrsSource* s, SrsRequest* r);
     virtual ~SrsStreamCache();
 public:
     virtual int start();
     virtual int dump_cache(SrsConsumer* consumer);
-// interface ISrsThreadHandler.
+// interface ISrsEndlessThreadHandler.
 public:
     virtual int cycle();
 };
@@ -669,7 +669,7 @@ public:
     virtual int hls_update_m3u8(SrsRequest* r, std::string m3u8);
     virtual int hls_update_ts(SrsRequest* r, std::string uri, std::string ts);
     virtual void unmount_hls(SrsRequest* r);
-// interface ISrsThreadHandler.
+// interface ISrsReloadHandler.
 public:
     virtual int on_reload_vhost_http_updated();
     virtual int on_reload_vhost_http_remux_updated();
