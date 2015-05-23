@@ -123,6 +123,9 @@ function build_default_hls_url() {
         port = 8080;
     }
     
+    if (stream.indexOf(".flv") >= 0) {
+        return "http://" + server + ":" + port + "/" + app + "/" + stream;
+    }
     return "http://" + server + ":" + port + "/" + app + "/" + stream + ".m3u8";
 }
 
