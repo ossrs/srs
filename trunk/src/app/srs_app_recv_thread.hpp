@@ -79,10 +79,10 @@ public:
 /**
  * the recv thread, use message handler to handle each received message.
  */
-class SrsRecvThread : public ISrsReusableThreadHandler
+class SrsRecvThread : public ISrsReusableThread2Handler
 {
 protected:
-    SrsReusableThread* trd;
+    SrsReusableThread2* trd;
     ISrsMessageHandler* handler;
     SrsRtmpServer* rtmp;
     int timeout;
@@ -92,9 +92,10 @@ public:
 public:
     virtual int start();
     virtual void stop();
-    virtual int cycle();
     virtual void stop_loop();
+// interface ISrsReusableThread2Handler
 public:
+    virtual int cycle();
     virtual void on_thread_start();
     virtual void on_thread_stop();
 };

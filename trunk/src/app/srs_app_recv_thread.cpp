@@ -50,7 +50,7 @@ SrsRecvThread::SrsRecvThread(ISrsMessageHandler* msg_handler, SrsRtmpServer* rtm
     timeout = timeout_ms;
     handler = msg_handler;
     rtmp = rtmp_sdk;
-    trd = new SrsReusableThread("recv", this);
+    trd = new SrsReusableThread2("recv", this);
 }
 
 SrsRecvThread::~SrsRecvThread()
@@ -70,6 +70,11 @@ int SrsRecvThread::start()
 void SrsRecvThread::stop()
 {
     trd->stop();
+}
+
+void SrsRecvThread::stop_loop()
+{
+    trd->interrupt();
 }
 
 int SrsRecvThread::cycle()
@@ -107,11 +112,6 @@ int SrsRecvThread::cycle()
     }
 
     return ret;
-}
-
-void SrsRecvThread::stop_loop()
-{
-    trd->interrupt();
 }
 
 void SrsRecvThread::on_thread_start()

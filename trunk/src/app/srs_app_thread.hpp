@@ -184,6 +184,15 @@ public:
      * @remark user must use block method in cycle method, for example, sleep or socket io.
      */
     virtual int cycle() = 0;
+public:
+    /**
+     * other callback for handler.
+     * @remark all callback is optional, handler can ignore it.
+     */
+    virtual void on_thread_start();
+    virtual int on_before_cycle();
+    virtual int on_end_cycle();
+    virtual void on_thread_stop();
 };
 class SrsEndlessThread : public internal::ISrsThreadHandler
 {
@@ -201,6 +210,10 @@ public:
 // interface internal::ISrsThreadHandler
 public:
     virtual int cycle();
+    virtual void on_thread_start();
+    virtual int on_before_cycle();
+    virtual int on_end_cycle();
+    virtual void on_thread_stop();
 };
 
 /**
@@ -236,10 +249,14 @@ public:
      * the cycle method for the one cycle thread.
      */
     virtual int cycle() = 0;
+public:
     /**
-     * when thread stop, the handler can do cleanup.
-     * @remark this method is optional, handler can ignore it.
+     * other callback for handler.
+     * @remark all callback is optional, handler can ignore it.
      */
+    virtual void on_thread_start();
+    virtual int on_before_cycle();
+    virtual int on_end_cycle();
     virtual void on_thread_stop();
 };
 class SrsOneCycleThread : public internal::ISrsThreadHandler
@@ -258,6 +275,9 @@ public:
 // interface internal::ISrsThreadHandler
 public:
     virtual int cycle();
+    virtual void on_thread_start();
+    virtual int on_before_cycle();
+    virtual int on_end_cycle();
     virtual void on_thread_stop();
 };
 
@@ -266,11 +286,11 @@ public:
  *       user can create thread and stop then start again and again,
  *       generally must provides a start and stop method, @see SrsIngester.
  *       the step to create a thread stop by other thread:
- *       1. create SrsThread field, with joinable true.
- *       2. must use stop to stop and join the thread.
+ *       1. create SrsReusableThread field.
+ *       2. must manually stop the thread when started it.
  *       for example:
- *           class SrsIngester : public ISrsThreadHandler {
- *               public: SrsIngester() { pthread = new SrsThread("ingest", this, SRS_AUTO_INGESTER_SLEEP_US, true); }
+ *           class SrsIngester : public ISrsReusableThreadHandler {
+ *               public: SrsIngester() { pthread = new SrsReusableThread("ingest", this, SRS_AUTO_INGESTER_SLEEP_US); }
  *               public: virtual int start() { return pthread->start(); }
  *               public: virtual void stop() { pthread->stop(); }
  *               public: virtual int cycle() {
@@ -290,10 +310,14 @@ public:
      * the thread is interrupted.
      */
     virtual int cycle() = 0;
+public:
     /**
-     * when thread stop, the handler can do cleanup.
-     * @remark this method is optional, handler can ignore it.
+     * other callback for handler.
+     * @remark all callback is optional, handler can ignore it.
      */
+    virtual void on_thread_start();
+    virtual int on_before_cycle();
+    virtual int on_end_cycle();
     virtual void on_thread_stop();
 };
 class SrsReusableThread : public internal::ISrsThreadHandler
@@ -304,6 +328,89 @@ private:
 public:
     SrsReusableThread(const char* n, ISrsReusableThreadHandler* h, int64_t interval_us = 0);
     virtual ~SrsReusableThread();
+public:
+    /**
+     * for the reusable thread, start and stop by user.
+     */
+    virtual int start();
+    /**
+     * stop the thread, wait for the thread to terminate.
+     * @remark user can stop multiple times, ignore if already stopped.
+     */
+    virtual void stop();
+public:
+    /**
+     * get the context id. @see: ISrsThreadContext.get_id().
+     * used for parent thread to get the id.
+     * @remark when start thread, parent thread will block and wait for this id ready.
+     */
+    virtual int cid();
+// interface internal::ISrsThreadHandler
+public:
+    virtual int cycle();
+    virtual void on_thread_start();
+    virtual int on_before_cycle();
+    virtual int on_end_cycle();
+    virtual void on_thread_stop();
+};
+
+/**
+ * the reuse thread is a thread stop and start by other thread.
+ * the version 2, is the thread cycle has its inner loop, which should
+ * check the intterrupt, and should interrupt thread when the inner loop want
+ * to quit the thread.
+ *       user can create thread and stop then start again and again,
+ *       generally must provides a start and stop method, @see SrsIngester.
+ *       the step to create a thread stop by other thread:
+ *       1. create SrsReusableThread field.
+ *       2. must manually stop the thread when started it.
+ *       for example:
+ *           class SrsIngester : public ISrsReusableThreadHandler {
+ *               public: SrsIngester() { pthread = new SrsReusableThread("ingest", this, SRS_AUTO_INGESTER_SLEEP_US); }
+ *               public: virtual int start() { return pthread->start(); }
+ *               public: virtual void stop() { pthread->stop(); }
+ *               public: virtual int cycle() {
+ *                  while (!pthread->interrupted()) {
+ *                      // quit thread when error.
+ *                      if (ret != ERROR_SUCCESS) {
+ *                          pthread->interrupt();
+ *                      }
+ *
+ *                      // do something.
+ *                  }
+ *               }
+ *           };
+ */
+class ISrsReusableThread2Handler
+{
+public:
+    ISrsReusableThread2Handler();
+    virtual ~ISrsReusableThread2Handler();
+public:
+    /**
+     * the cycle method for the one cycle thread.
+     * @remark when the cycle has its inner loop, it must check whether
+     * the thread is interrupted.
+     */
+    virtual int cycle() = 0;
+public:
+    /**
+     * other callback for handler.
+     * @remark all callback is optional, handler can ignore it.
+     */
+    virtual void on_thread_start();
+    virtual int on_before_cycle();
+    virtual int on_end_cycle();
+    virtual void on_thread_stop();
+};
+class SrsReusableThread2 : public internal::ISrsThreadHandler
+{
+private:
+    internal::SrsThread* pthread;
+    ISrsReusableThread2Handler* handler;
+public:
+    SrsReusableThread2(const char* n, ISrsReusableThread2Handler* h, int64_t interval_us = 0);
+    virtual ~SrsReusableThread2();
 public:
     /**
      * for the reusable thread, start and stop by user.
@@ -335,6 +442,9 @@ public:
 // interface internal::ISrsThreadHandler
 public:
     virtual int cycle();
+    virtual void on_thread_start();
+    virtual int on_before_cycle();
+    virtual int on_end_cycle();
     virtual void on_thread_stop();
 };
 

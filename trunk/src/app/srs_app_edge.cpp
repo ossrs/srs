@@ -70,7 +70,7 @@ SrsEdgeIngester::SrsEdgeIngester()
     origin_index = 0;
     stream_id = 0;
     stfd = NULL;
-    pthread = new SrsReusableThread("edge-igs", this, SRS_EDGE_INGESTER_SLEEP_US);
+    pthread = new SrsReusableThread2("edge-igs", this, SRS_EDGE_INGESTER_SLEEP_US);
 }
 
 SrsEdgeIngester::~SrsEdgeIngester()
@@ -397,7 +397,7 @@ SrsEdgeForwarder::SrsEdgeForwarder()
     origin_index = 0;
     stream_id = 0;
     stfd = NULL;
-    pthread = new SrsReusableThread("edge-fwr", this, SRS_EDGE_FORWARDER_SLEEP_US);
+    pthread = new SrsReusableThread2("edge-fwr", this, SRS_EDGE_FORWARDER_SLEEP_US);
     queue = new SrsMessageQueue();
     send_error_code = ERROR_SUCCESS;
 }

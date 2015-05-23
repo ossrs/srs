@@ -156,26 +156,24 @@ int SrsUdpListener::listen()
 int SrsUdpListener::cycle()
 {
     int ret = ERROR_SUCCESS;
+
+    // TODO: FIXME: support ipv6, @see man 7 ipv6
+    sockaddr_in from;
+    int nb_from = sizeof(sockaddr_in);
+    int nread = 0;
+
+    if ((nread = st_recvfrom(_stfd, buf, nb_buf, (sockaddr*)&from, &nb_from, ST_UTIME_NO_TIMEOUT)) <= 0) {
+        srs_warn("ignore recv udp packet failed, nread=%d", nread);
+        return ret;
+    }
     
-    while (!pthread->interrupted()) {
-        // TODO: FIXME: support ipv6, @see man 7 ipv6
-        sockaddr_in from;
-        int nb_from = sizeof(sockaddr_in);
-        int nread = 0;
+    if ((ret = handler->on_udp_packet(&from, buf, nread)) != ERROR_SUCCESS) {
+        srs_warn("handle udp packet failed. ret=%d", ret);
+        return ret;
+    }
 
-        if ((nread = st_recvfrom(_stfd, buf, nb_buf, (sockaddr*)&from, &nb_from, ST_UTIME_NO_TIMEOUT)) <= 0) {
-            srs_warn("ignore recv udp packet failed, nread=%d", nread);
-            continue;
-        }
-        
-        if ((ret = handler->on_udp_packet(&from, buf, nread)) != ERROR_SUCCESS) {
-            srs_warn("handle udp packet failed. ret=%d", ret);
-            continue;
-        }
-
-        if (SRS_UDP_PACKET_RECV_CYCLE_INTERVAL_MS > 0) {
-            st_usleep(SRS_UDP_PACKET_RECV_CYCLE_INTERVAL_MS * 1000);
-        }
+    if (SRS_UDP_PACKET_RECV_CYCLE_INTERVAL_MS > 0) {
+        st_usleep(SRS_UDP_PACKET_RECV_CYCLE_INTERVAL_MS * 1000);
     }
 
     return ret;

@@ -239,6 +239,24 @@ ISrsEndlessThreadHandler::~ISrsEndlessThreadHandler()
 {
 }
 
+void ISrsEndlessThreadHandler::on_thread_start()
+{
+}
+
+int ISrsEndlessThreadHandler::on_before_cycle()
+{
+    return ERROR_SUCCESS;
+}
+
+int ISrsEndlessThreadHandler::on_end_cycle()
+{
+    return ERROR_SUCCESS;
+}
+
+void ISrsEndlessThreadHandler::on_thread_stop()
+{
+}
+
 SrsEndlessThread::SrsEndlessThread(const char* n, ISrsEndlessThreadHandler* h)
 {
     handler = h;
@@ -261,12 +279,46 @@ int SrsEndlessThread::cycle()
     return handler->cycle();
 }
 
+void SrsEndlessThread::on_thread_start()
+{
+    handler->on_thread_start();
+}
+
+int SrsEndlessThread::on_before_cycle()
+{
+    return handler->on_before_cycle();
+}
+
+int SrsEndlessThread::on_end_cycle()
+{
+    return handler->on_end_cycle();
+}
+
+void SrsEndlessThread::on_thread_stop()
+{
+    handler->on_thread_stop();
+}
+
 ISrsOneCycleThreadHandler::ISrsOneCycleThreadHandler()
 {
 }
 
 ISrsOneCycleThreadHandler::~ISrsOneCycleThreadHandler()
 {
+}
+
+void ISrsOneCycleThreadHandler::on_thread_start()
+{
+}
+
+int ISrsOneCycleThreadHandler::on_before_cycle()
+{
+    return ERROR_SUCCESS;
+}
+
+int ISrsOneCycleThreadHandler::on_end_cycle()
+{
+    return ERROR_SUCCESS;
 }
 
 void ISrsOneCycleThreadHandler::on_thread_stop()
@@ -297,6 +349,21 @@ int SrsOneCycleThread::cycle()
     return ret;
 }
 
+void SrsOneCycleThread::on_thread_start()
+{
+    handler->on_thread_start();
+}
+
+int SrsOneCycleThread::on_before_cycle()
+{
+    return handler->on_before_cycle();
+}
+
+int SrsOneCycleThread::on_end_cycle()
+{
+    return handler->on_end_cycle();
+}
+
 void SrsOneCycleThread::on_thread_stop()
 {
     handler->on_thread_stop();
@@ -308,6 +375,20 @@ ISrsReusableThreadHandler::ISrsReusableThreadHandler()
 
 ISrsReusableThreadHandler::~ISrsReusableThreadHandler()
 {
+}
+
+void ISrsReusableThreadHandler::on_thread_start()
+{
+}
+
+int ISrsReusableThreadHandler::on_before_cycle()
+{
+    return ERROR_SUCCESS;
+}
+
+int ISrsReusableThreadHandler::on_end_cycle()
+{
+    return ERROR_SUCCESS;
 }
 
 void ISrsReusableThreadHandler::on_thread_stop()
@@ -341,22 +422,116 @@ int SrsReusableThread::cid()
     return pthread->cid();
 }
 
-void SrsReusableThread::interrupt()
-{
-    pthread->stop_loop();
-}
-
-bool SrsReusableThread::interrupted()
-{
-    return !pthread->can_loop();
-}
-
 int SrsReusableThread::cycle()
 {
     return handler->cycle();
+}
+
+void SrsReusableThread::on_thread_start()
+{
+    handler->on_thread_start();
+}
+
+int SrsReusableThread::on_before_cycle()
+{
+    return handler->on_before_cycle();
+}
+
+int SrsReusableThread::on_end_cycle()
+{
+    return handler->on_end_cycle();
 }
 
 void SrsReusableThread::on_thread_stop()
 {
     handler->on_thread_stop();
 }
+
+ISrsReusableThread2Handler::ISrsReusableThread2Handler()
+{
+}
+
+ISrsReusableThread2Handler::~ISrsReusableThread2Handler()
+{
+}
+
+void ISrsReusableThread2Handler::on_thread_start()
+{
+}
+
+int ISrsReusableThread2Handler::on_before_cycle()
+{
+    return ERROR_SUCCESS;
+}
+
+int ISrsReusableThread2Handler::on_end_cycle()
+{
+    return ERROR_SUCCESS;
+}
+
+void ISrsReusableThread2Handler::on_thread_stop()
+{
+}
+
+SrsReusableThread2::SrsReusableThread2(const char* n, ISrsReusableThread2Handler* h, int64_t interval_us)
+{
+    handler = h;
+    pthread = new internal::SrsThread(n, this, interval_us, true);
+}
+
+SrsReusableThread2::~SrsReusableThread2()
+{
+    pthread->stop();
+    srs_freep(pthread);
+}
+
+int SrsReusableThread2::start()
+{
+    return pthread->start();
+}
+
+void SrsReusableThread2::stop()
+{
+    pthread->stop();
+}
+
+int SrsReusableThread2::cid()
+{
+    return pthread->cid();
+}
+
+void SrsReusableThread2::interrupt()
+{
+    pthread->stop_loop();
+}
+
+bool SrsReusableThread2::interrupted()
+{
+    return !pthread->can_loop();
+}
+
+int SrsReusableThread2::cycle()
+{
+    return handler->cycle();
+}
+
+void SrsReusableThread2::on_thread_start()
+{
+    handler->on_thread_start();
+}
+
+int SrsReusableThread2::on_before_cycle()
+{
+    return handler->on_before_cycle();
+}
+
+int SrsReusableThread2::on_end_cycle()
+{
+    return handler->on_end_cycle();
+}
+
+void SrsReusableThread2::on_thread_stop()
+{
+    handler->on_thread_stop();
+}
+
