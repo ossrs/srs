@@ -34,7 +34,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <srs_rtmp_sdk.hpp>
 #include <srs_rtmp_handshake.hpp>
-#include <srs_rtmp_buffer.hpp>
+#include <srs_protocol_buffer.hpp>
 
 #ifdef SRS_AUTO_SSL
 using namespace _srs_internal;

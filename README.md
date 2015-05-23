@@ -562,6 +562,7 @@ Supported operating systems and hardware:
 
 ### SRS 2.0 history
 
+* v2.0, 2015-05-23, refine the thread, protocol, kbps code. 2.0.166
 * v2.0, 2015-05-23, fix [#391](https://github.com/simple-rtmp-server/srs/issues/391) copy request for async call.
 * v2.0, 2015-05-22, fix [#397](https://github.com/simple-rtmp-server/srs/issues/397) the USER_HZ maybe not 100. 2.0.165
 * v2.0, 2015-05-22, for [#400](https://github.com/simple-rtmp-server/srs/issues/400), parse when got entire http header, by feilong. 2.0.164.
