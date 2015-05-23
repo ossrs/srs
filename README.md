@@ -116,14 +116,15 @@ cd simple-rtmp-server/trunk
 
 <strong>See also:</strong>
 * Usage: How to delivery RTMP?([CN][v1_CN_SampleRTMP], [EN][v1_EN_SampleRTMP])
+* Usage: How to delivery HTTP FLV Live Streaming?([CN][v2_CN_SampleHttpFlv], [EN][v2_EN_SampleHttpFlv])
 * Usage: How to delivery HLS?([CN][v1_CN_SampleHLS], [EN][v1_EN_SampleHLS])
 * Usage: How to delivery HLS for other codec?([CN][v1_CN_SampleTranscode2HLS], [EN][v1_EN_SampleTranscode2HLS])
 * Usage: How to transode RTMP stream by SRS?([CN][v1_CN_SampleFFMPEG], [EN][v1_EN_SampleFFMPEG])
 * Usage: How to forward stream to other server?([CN][v1_CN_SampleForward], [EN][v1_EN_SampleForward])
-* Usage: How to deploy low lantency application?([CN][v1_CN_SampleRealtime], [EN][v1_EN_SampleRealtime])
+* Usage: How to deploy low lantency application?([CN][v2_CN_SampleRealtime], [EN][v2_EN_SampleRealtime])
 * Usage: How to deploy SRS on ARM?([CN][v1_CN_SampleARM], [EN][v1_EN_SampleARM])
 * Usage: How to ingest file/stream/device to SRS?([CN][v1_CN_SampleIngest], [EN][v1_EN_SampleIngest])
-* Usage: How to use SRS-HTTP-server to delivery HTTP/HLS stream?([CN][v1_CN_SampleHTTP], [EN][v1_EN_SampleHTTP])
+* Usage: How to use SRS-HTTP-server to delivery HTTP/HLS stream?([CN][v2_CN_SampleHTTP], [EN][v2_EN_SampleHTTP])
 * Usage: How to show the demo of [CN][v1_CN_SampleDemo], [EN][v1_EN_SampleDemo])
 * Usage: How to publish h.264 raw stream to [CN][v2_CN_SrsLibrtmp2], [EN][v2_EN_SrsLibrtmp2])
 * Usage: Solution using SRS?([CN][v1_CN_Sample], [EN][v1_EN_Sample])
@@ -845,8 +846,8 @@ Winlin
 [v1_EN_SampleFFMPEG]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleFFMPEG
 [v1_CN_SampleForward]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleForward
 [v1_EN_SampleForward]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleForward
-[v1_CN_SampleRealtime]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleRealtime
-[v1_EN_SampleRealtime]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleRealtime
+[v2_CN_SampleRealtime]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SampleRealtime
+[v2_EN_SampleRealtime]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SampleRealtime
 [v1_CN_SampleARM]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleARM
 [v1_EN_SampleARM]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleARM
 [v1_CN_SampleIngest]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleIngest
@@ -929,6 +930,8 @@ Winlin
 [v1_EN_DeliveryHDS]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_DeliveryHDS
 [v2_CN_Streamer2]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Streamer#push-http-flv-to-srs
 [v2_EN_Streamer2]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_Streamer#push-http-flv-to-srs
+[v2_CN_SampleHttpFlv]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SampleHttpFlv
+[v2_EN_SampleHttpFlv]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SampleHttpFlv
 
 [bug #213]: https://github.com/simple-rtmp-server/srs/issues/213
 [bug #194]: https://github.com/simple-rtmp-server/srs/issues/194
