@@ -122,7 +122,7 @@ cd simple-rtmp-server/trunk
 * Usage: How to forward stream to other server?([CN][v1_CN_SampleForward], [EN][v1_EN_SampleForward])
 * Usage: How to deploy low lantency application?([CN][v1_CN_SampleRealtime], [EN][v1_EN_SampleRealtime])
 * Usage: How to deploy SRS on ARM?([CN][v1_CN_SampleARM], [EN][v1_EN_SampleARM])
-* Usage: How to ingest file/stream/device to SRS?([CN][v1_CN_Sample], [EN][v1_EN_SampleIngest])
+* Usage: How to ingest file/stream/device to SRS?([CN][v1_CN_SampleIngest], [EN][v1_EN_SampleIngest])
 * Usage: How to use SRS-HTTP-server to delivery HTTP/HLS stream?([CN][v1_CN_SampleHTTP], [EN][v1_EN_SampleHTTP])
 * Usage: How to show the demo of [CN][v1_CN_SampleDemo], [EN][v1_EN_SampleDemo])
 * Usage: How to publish h.264 raw stream to [CN][v2_CN_SrsLibrtmp2], [EN][v2_EN_SrsLibrtmp2])
@@ -770,18 +770,20 @@ Winlin
 [v1_EN_SampleRealtime]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleRealtime
 [v1_CN_SampleARM]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleARM
 [v1_EN_SampleARM]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleARM
-[v1_CN_SampleHTTP]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleHTTP
-[v1_CN_SampleDemo]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleDemo
+[v1_CN_SampleHTTP]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleHTTP
+[v1_EN_SampleHTTP]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleHTTP
+[v1_CN_SampleDemo]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_SampleDemo
+[v1_EN_SampleDemo]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_SampleDemo
 [v2_CN_SrsLibrtmp2]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_SrsLibrtmp#publish-h264-raw-data
 [v2_EN_SrsLibrtmp2]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_SrsLibrtmp#publish-h264-raw-data
 [v1_CN_Sample]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Sample
 [v1_EN_Sample]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Sample
 [v1_CN_Product]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Product
 [v1_EN_Product]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Product
-[v1_EN_Home]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Home
 [v1_CN_Home]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Home
-[v2_EN_Home]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_Home
+[v1_EN_Home]: https://github.com/simple-rtmp-server/srs/wiki/v1_EN_Home
 [v2_CN_Home]: https://github.com/simple-rtmp-server/srs/wiki/v2_CN_Home
+[v2_EN_Home]: https://github.com/simple-rtmp-server/srs/wiki/v2_EN_Home
 [donation0]: http://winlinvip.github.io/srs.release/donation/index.html
 [donation1]: http://www.ossrs.net/srs.release/donation/index.html
 [donations]: https://github.com/simple-rtmp-server/srs/blob/develop/DONATIONS.txt
