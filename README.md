@@ -1,18 +1,13 @@
 #Simple-RTMP-Server
 
-SRS/2.0，开发代号：[ZhouGuowen](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Product#release20)
+SRS/2.0，开发代号：[ZhouGuowen][release2]
 
-SRS定位是运营级的互联网直播服务器集群，追求更好的概念完整性和最简单实现的代码。
+SRS定位是运营级的互联网直播服务器集群，追求更好的概念完整性和最简单实现的代码。<br/>
+SRS is industrial-strength live streaming cluster, for the best conceptual integrity and the simplest implementation. 
 
-Download from github.io: 
-[Centos6-x86_64](http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.32.zip) 
-[more...](http://winlinvip.github.io/srs.release/releases/)
-
-Download from ossrs.net: 
-[Centos6-x86_64](http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.32.zip) 
-[more...](http://www.ossrs.net/srs.release/releases/)
-
-Contact by QQ or Skype, read [Contact](https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Contact)
+Download from github.io: [Centos6-x86_64][centos0][more...][more0]<br/>
+Download from ossrs.net: [Centos6-x86_64][centos1][more...][more1]<br/>
+Contact by QQ or Skype, read [Contact][contact]
 
 ## Why SRS?
 
@@ -1035,6 +1030,13 @@ over some protocol and remux to rtmp to SRS. Read <a href="https://github.com/si
 Beijing, 2013.10<br/>
 Winlin
 
+
+[release2]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Product#release20
+[centos0]: http://winlinvip.github.io/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.32.zip
+[centos1]: http://www.ossrs.net/srs.release/releases/files/SRS-CentOS6-x86_64-1.0.32.zip
+[contact]: https://github.com/simple-rtmp-server/srs/wiki/v1_CN_Contact
+[more0]: http://winlinvip.github.io/srs.release/releases/
+[more1]: http://www.ossrs.net/srs.release/releases/
 
 [p1]: https://github.com/simple-rtmp-server/srs/commit/787ab674e38734ea8e0678101614fdcd84645dc8
 [p2]: https://github.com/simple-rtmp-server/srs/commit/f35ec2155b1408d528a9f37da7904c9625186bcf
