@@ -228,48 +228,77 @@ Supported operating systems and hardware:
 
 Compare SRS with other media server.
 
+### Stream Delivery
+
 |   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   RTMP        |   Stable  |   Stable  |   Stable  |   Stable  |   Stable  |
 |   HLS         |   Stable  |   Stable  |   X       |   Stable  |   Stable  |
 |   HDS         |   Stable  |   X       |   X       |   Stable  |   Stable  |
 |   HTTP FLV    |   Stable  |   X       |   X       |   X       |   X       |
-|   HTTP API    |   Stable  |   Stable  |   X       |   X       |   Stable  |
+|   HLS(aonly)  |   Stable  |   X       |   X       |   Stable  |   Stable  |
 |   HTTP Server |   Stable  |   Stable  |   X       |   X       |   Stable  |
+
+### Cluster
+
 |   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   RTMP Edge   |   Stable  |   X       |   X       |   Stable  |   X       |
-|   HLS(aonly)  |   Stable  |   X       |   X       |   Stable  |   Stable  |
-|   DVR         |   Stable  |   Stable  |   X       |   X       |   Stable  |
+|   RTMP Backup |   Stable  |   X       |   X       |   X       |   X       |
 |   VHOST       |   Stable  |   X       |   X       |   Stable  |   Stable  |
 |   Reload      |   Stable  |   Stable  |   X       |   X       |   X       |
+|   Forward     |   Stable  |   X       |   X       |   X       |   X       |
+|   ATC         |   Stable  |   X       |   X       |   X       |   X       |
+
+### Stream Service
+
+|   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
+|   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
+|   DVR         |   Stable  |   Stable  |   X       |   X       |   Stable  |
+|   Transcode   |   Stable  |   X       |   X       |   X       |   Stable  |
+|   HTTP API    |   Stable  |   Stable  |   X       |   X       |   Stable  |
+|   HTTP hooks  |   Stable  |   X       |   X       |   X       |   X       |
 |   GopCache    |   Stable  |   X       |   X       |   Stable  |   X       |
 |   Security    |   Stable  |   Stable  |   X       |   X       |   Stable  |
 | Token Traverse|   Stable  |   X       |   X       |   Stable  |   X       |
+
+### Performance
+
 |   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   Concurrency |   7.5k    |   3k      |   2k      |   2k      |   3k      |
 |   RTMP Latency|   0.1s    |   3s      |   3s      |   3s      |   3s      |
 |   HLS Latency |   10s     |   30s     |   X       |   30s     |   30s     |
+
+### Stream Caster
+
 |   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
-|   Forward     |   Stable  |   X       |   X       |   X       |   X       |
-|   Transcode   |   Stable  |   X       |   X       |   X       |   Stable  |
-|   HTTP hooks  |   Stable  |   X       |   X       |   X       |   X       |
+|   Ingest      |   Stable  |   X       |   X       |   X       |   X       |
+|   Push MPEGTS | Experiment|   X       |   X       |   X       |   Stable  |
+|   Push RTSP   | Experiment|   X       |   Stable  |   X       |   Stable  |
+| Push HTTP FLV | Experiment|   X       |   X       |   X       |   X       |
+
+### Debug System
+
+|   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
+|   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   BW check    |   Stable  |   X       |   X       |   X       |   X       |
+| Tracable Log  |   Stable  |   X       |   X       |   X       |   X       |
+
+### Docs
+
 |   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
 |   Demos       |   Stable  |   X       |   X       |   X       |   X       |
 |   WIKI(EN+CN) |   Stable  |  EN only  |   X       |   X       |   Stable  |
-|   ARM/MIPS    |   Stable  |   Stable  |   X       |   X       |   X       |
-|   ATC         |   Stable  |   X       |   X       |   X       |   X       |
-| Tracable Log  |   Stable  |   X       |   X       |   X       |   X       |
-| Client Library|   Stable  |   X       |   X       |   X       |   X       |
+
+### Others 
+
 |   Feature     |   SRS     |   NGINX   | CRTMPD    | FMS       |   WOWZA   |
 |   ----------- |   ------- |   -----   | --------- | --------  |   ------  |
-|   Push MPEGTS | Experiment|   X       |   X       |   X       |   Stable  |
-|   Push RTSP   | Experiment|   X       |   Stable  |   X       |   Stable  |
-| Push HTTP FLV | Experiment|   X       |   X       |   X       |   X       |
+|   ARM/MIPS    |   Stable  |   Stable  |   X       |   X       |   X       |
+| Client Library|   Stable  |   X       |   X       |   X       |   X       |
 
 Remark:
 
